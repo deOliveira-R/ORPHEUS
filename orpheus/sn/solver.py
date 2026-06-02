@@ -52,6 +52,7 @@ from .operator import (
 from orpheus.numerics.quadrature import Quadrature
 from .scattering import ScatteringOperator
 from .sweep import transport_sweep
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
 
 
 def _apply_default_bcs(
@@ -200,7 +201,7 @@ class SNSolver:
         # Issue #197 PR-TYPED-2: typed :class:`BoundaryFlux` replaces
         # the stringly-typed ``psi_bc: dict``.  Per-face buffers
         # become named attributes; typos surface as AttributeError.
-        self._boundary_flux = sn_mesh.zeros_boundary_flux()
+        self._boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
 
         # Volume array for keff computation
         self.volume = sn_mesh.volumes
@@ -544,7 +545,7 @@ class SNSolver:
                 q_ext_per_ord.values, self.sn_mesh,
             ),
             # D-H.2-C2: ``self._boundary_flux`` is now L2 directly via
-            # ``zeros_boundary_flux``; the ``from_legacy_sn`` adapter
+            # ``BoundaryFlux.zeros_on``; the ``from_legacy_sn`` adapter
             # retires from this call site.
             boundary=self._boundary_flux,
             _history=(),
@@ -665,7 +666,7 @@ class SNSolver:
             bulk=AngularFlux.from_mesh(
                 q_ext_per_ord.values, self.sn_mesh,
             ),
-            boundary=BoundaryFlux.zeros_for_sn_mesh(self.sn_mesh),
+            boundary=BoundaryFlux.zeros_on(self.sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -1227,7 +1228,7 @@ def _solve_fixed_source_si(
         if angular is not None:
             initial_guess = TimedFullField(
                 bulk=AngularFlux.from_mesh(angular, sn_mesh),
-                boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+                boundary=BoundaryFlux.zeros_on(sn_mesh),
                 _history=(),
                 history_depth=2,
             )
@@ -1396,7 +1397,7 @@ def _solve_fixed_source_krylov(
     q_ext_per_ord = AngularSourceSink.from_mesh(external_source, sn_mesh)
     q_ext_composite = TimedFullField(
         bulk=AngularFlux.from_mesh(q_ext_per_ord.values, sn_mesh),
-        boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+        boundary=BoundaryFlux.zeros_on(sn_mesh),
         _history=(),
         history_depth=2,
     )

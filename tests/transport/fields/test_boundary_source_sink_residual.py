@@ -11,7 +11,7 @@ leaves — storage / validation / algebra / per-face access / factories
 are inherited from ``BoundaryField`` — so most of their machinery is
 already pinned by ``test_boundary_flux.py``. This module adds:
 
-* construction of the two NEW leaves (``zeros_for_sn_mesh`` /
+* construction of the two NEW leaves (``zeros_on`` /
   ``from_face_arrays``), and
 * the **load-bearing cross-class invariant** unique to the boundary
   family: all three leaves share the SAME ``TraceSpace`` (``mesh.trace``),
@@ -101,22 +101,22 @@ def _cartesian_2d_mesh(nx: int = 3, ny: int = 2, ng: int = 2) -> SNMesh:
 class TestConstructionInherited:
     def test_inherits_field_and_boundary_field(self, Leaf) -> None:
         m = _slab_mesh()
-        bf = Leaf.zeros_for_sn_mesh(m)
+        bf = Leaf.zeros_on(m)
         assert isinstance(bf, Field)
         assert isinstance(bf, BoundaryField)
         assert isinstance(bf, Leaf)
         assert bf.mesh is m
 
-    def test_zeros_for_sn_mesh_uses_mesh_trace(self, Leaf) -> None:
+    def test_zeros_on_uses_mesh_trace(self, Leaf) -> None:
         m = _slab_mesh()
-        bf = Leaf.zeros_for_sn_mesh(m)
+        bf = Leaf.zeros_on(m)
         assert bf.space is m.trace
         np.testing.assert_array_equal(bf.values, 0.0)
         assert set(bf.layout.faces) == {"xmin", "xmax"}
 
     def test_sphere_layout_only_xmax(self, Leaf) -> None:
         m = _sphere_mesh()
-        bf = Leaf.zeros_for_sn_mesh(m)
+        bf = Leaf.zeros_on(m)
         assert set(bf.layout.faces) == {"xmax"}
 
     def test_from_face_arrays_slab(self, Leaf) -> None:
@@ -152,8 +152,8 @@ class TestConstructionInherited:
 class TestAlgebraClosedWithinClass:
     def test_add_sub_closed(self, Leaf) -> None:
         m = _slab_mesh()
-        a = Leaf.zeros_for_sn_mesh(m)
-        b = Leaf.zeros_for_sn_mesh(m)
+        a = Leaf.zeros_on(m)
+        b = Leaf.zeros_on(m)
         a.values[:] = 1.0
         b.values[:] = 2.0
         s = a + b
@@ -164,7 +164,7 @@ class TestAlgebraClosedWithinClass:
 
     def test_scalar_mul_div_neg(self, Leaf) -> None:
         m = _sphere_mesh()
-        a = Leaf.zeros_for_sn_mesh(m)
+        a = Leaf.zeros_on(m)
         a.values[:] = 4.0
         np.testing.assert_allclose((2.5 * a).values, 10.0)
         np.testing.assert_allclose((a / 4.0).values, 1.0)
@@ -172,14 +172,14 @@ class TestAlgebraClosedWithinClass:
         assert isinstance(-a, Leaf)
 
     def test_cross_mesh_add_rejected(self, Leaf) -> None:
-        a = Leaf.zeros_for_sn_mesh(_slab_mesh())
-        b = Leaf.zeros_for_sn_mesh(_slab_mesh())  # distinct instance
+        a = Leaf.zeros_on(_slab_mesh())
+        b = Leaf.zeros_on(_slab_mesh())  # distinct instance
         with pytest.raises(ValueError, match="mesh-bound"):
             _ = a + b
 
     def test_frozen(self, Leaf) -> None:
         m = _slab_mesh()
-        bf = Leaf.zeros_for_sn_mesh(m)
+        bf = Leaf.zeros_on(m)
         with pytest.raises(FrozenInstanceError):
             bf.mesh = m  # type: ignore[misc]
 
@@ -202,9 +202,9 @@ class TestCrossClassRejectionSharedSpace:
         the IDENTICAL ``mesh.trace`` object — so ``space == space`` and
         the space gate alone would NOT reject cross-class arithmetic."""
         m = _slab_mesh()
-        flux = BoundaryFlux.zeros_for_sn_mesh(m)
-        src = BoundarySourceSink.zeros_for_sn_mesh(m)
-        res = BoundaryResidual.zeros_for_sn_mesh(m)
+        flux = BoundaryFlux.zeros_on(m)
+        src = BoundarySourceSink.zeros_on(m)
+        res = BoundaryResidual.zeros_on(m)
         assert flux.space is src.space is res.space is m.trace
         # The space gate would pass (equal spaces) — proving it is the
         # CLASS gate that must do the rejection below.
@@ -220,8 +220,8 @@ class TestCrossClassRejectionSharedSpace:
     )
     def test_cross_class_add_sub_raises(self, A, B) -> None:
         m = _slab_mesh()
-        a = A.zeros_for_sn_mesh(m)
-        b = B.zeros_for_sn_mesh(m)
+        a = A.zeros_on(m)
+        b = B.zeros_on(m)
         # Same shape, same space, distinct class → class gate rejects.
         assert a.values.shape == b.values.shape
         assert a.space == b.space
@@ -232,7 +232,7 @@ class TestCrossClassRejectionSharedSpace:
 
     def test_cross_class_inner_product_raises(self) -> None:
         m = _slab_mesh()
-        src = BoundarySourceSink.zeros_for_sn_mesh(m)
-        res = BoundaryResidual.zeros_for_sn_mesh(m)
+        src = BoundarySourceSink.zeros_on(m)
+        res = BoundaryResidual.zeros_on(m)
         with pytest.raises(TypeError, match="same-class"):
             src.inner_product(res)  # type: ignore[arg-type]

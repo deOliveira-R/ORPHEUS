@@ -188,6 +188,17 @@ class AngularField(BulkField):
         r"""The ``(N, ng, nx, ny)`` phase-space shape for ``mesh``."""
         return (mesh.quad.N, mesh.ng, mesh.nx, mesh.ny)
 
+    @classmethod
+    def _space_for_mesh(cls, mesh: "SNMesh") -> FunctionSpace:
+        r"""The leaf's :class:`FunctionSpace` for ``mesh`` (name + shape).
+
+        Single source of truth for the leaf's space identity, shared by
+        :meth:`from_mesh` and :meth:`zeros_on`.
+        """
+        return FunctionSpace(
+            name=cls._SPACE_NAME, shape=cls._shape_for_mesh(mesh),
+        )
+
     def _phase_space_shape(self) -> tuple[int, ...]:
         return type(self)._shape_for_mesh(self.mesh)
 
@@ -199,10 +210,19 @@ class AngularField(BulkField):
         shape=(N, ng, nx, ny))`` — single source of truth for both the
         leaf's space identity and the construction shape.
         """
-        space = FunctionSpace(
-            name=cls._SPACE_NAME, shape=cls._shape_for_mesh(mesh),
-        )
-        return cls(values=values, space=space, mesh=mesh)
+        return cls(values=values, space=cls._space_for_mesh(mesh), mesh=mesh)
+
+    @classmethod
+    def zeros_on(cls, mesh: "SNMesh"):
+        r"""Construct a zero field of this leaf sized to ``mesh`` (B.5.A).
+
+        The bulk-locus zero factory: derives the space from ``mesh`` and
+        delegates to :meth:`~orpheus.numerics.field.Field.zeros`. The
+        uniform leaf-side allocator that
+        :meth:`~orpheus.transport.timed_full_field.TimedFullField.zeros`
+        calls; replaces the retired ``SNMesh.zeros_*`` mesh-side factories.
+        """
+        return cls.zeros(cls._space_for_mesh(mesh), mesh=mesh)
 
     @classmethod
     def from_ndarray(cls, arr: NDArray, mesh: "SNMesh"):
@@ -234,16 +254,36 @@ class ScalarField(BulkField):
         r"""The ``(ng, nx, ny)`` phase-space shape for ``mesh``."""
         return (mesh.ng, mesh.nx, mesh.ny)
 
+    @classmethod
+    def _space_for_mesh(cls, mesh: "SNMesh") -> FunctionSpace:
+        r"""The leaf's :class:`FunctionSpace` for ``mesh`` (name + shape).
+
+        Single source of truth for the leaf's space identity, shared by
+        :meth:`from_mesh` and :meth:`zeros_on`.
+        """
+        return FunctionSpace(
+            name=cls._SPACE_NAME, shape=cls._shape_for_mesh(mesh),
+        )
+
     def _phase_space_shape(self) -> tuple[int, ...]:
         return type(self)._shape_for_mesh(self.mesh)
 
     @classmethod
     def from_mesh(cls, values: NDArray, mesh: "SNMesh"):
         r"""Construct from raw values + mesh, deriving the space."""
-        space = FunctionSpace(
-            name=cls._SPACE_NAME, shape=cls._shape_for_mesh(mesh),
-        )
-        return cls(values=values, space=space, mesh=mesh)
+        return cls(values=values, space=cls._space_for_mesh(mesh), mesh=mesh)
+
+    @classmethod
+    def zeros_on(cls, mesh: "SNMesh"):
+        r"""Construct a zero field of this leaf sized to ``mesh`` (B.5.A).
+
+        The bulk-locus zero factory: derives the space from ``mesh`` and
+        delegates to :meth:`~orpheus.numerics.field.Field.zeros`. The
+        uniform leaf-side allocator that
+        :meth:`~orpheus.transport.timed_full_field.TimedFullField.zeros`
+        calls; replaces the retired ``SNMesh.zeros_*`` mesh-side factories.
+        """
+        return cls.zeros(cls._space_for_mesh(mesh), mesh=mesh)
 
     @classmethod
     def from_ndarray(cls, arr: NDArray, mesh: "SNMesh"):
@@ -282,7 +322,7 @@ class BoundaryField(Field):
     TraceSpace contract (the space IS the trace and carries the
     :class:`~orpheus.numerics.face_layout.FaceLayout`), the read-through
     :attr:`layout` property, per-face :meth:`face_view` access, and the
-    :meth:`zeros_for_sn_mesh` / :meth:`from_face_arrays` factories (all
+    :meth:`zeros_on` / :meth:`from_face_arrays` factories (all
     via ``cls`` so they construct the concrete subclass).
 
     Storage is a SINGLE flat backing buffer (shape
@@ -304,7 +344,7 @@ class BoundaryField(Field):
             raise TypeError(
                 f"{type(self).__name__} requires a TraceSpace carrying a "
                 f"FaceLayout (A.5 re-home); got space={self.space!r}. Build "
-                f"via {type(self).__name__}.zeros_for_sn_mesh / "
+                f"via {type(self).__name__}.zeros_on / "
                 f"from_face_arrays, or pass mesh.trace as the space."
             )
         expected = (self.space.layout.total_size,)
@@ -383,20 +423,24 @@ class BoundaryField(Field):
     # ── Construction factories (via ``cls`` — build the subclass) ────
 
     @classmethod
-    def zeros_for_sn_mesh(cls, mesh: "SNMesh"):
-        r"""Construct a zero boundary field sized to ``mesh``.
+    def zeros_on(cls, mesh: "SNMesh"):
+        r"""Construct a zero boundary field sized to ``mesh`` (B.5.A).
 
-        Sources ``space = mesh.trace`` (the cached unified TraceSpace).
+        Sources ``space = mesh.trace`` (the cached unified TraceSpace) and
+        delegates to :meth:`~orpheus.numerics.field.Field.zeros`. The
+        uniform leaf-side allocator that
+        :meth:`~orpheus.transport.timed_full_field.TimedFullField.zeros`
+        calls; replaces the retired ``SNMesh.zeros_boundary_flux`` factory.
         """
         space = mesh.trace
         if space is None:
             raise ValueError(
-                f"{cls.__name__}.zeros_for_sn_mesh: mesh has no TraceSpace "
+                f"{cls.__name__}.zeros_on: mesh has no TraceSpace "
                 f"(mesh.trace is None — only trace-less 2-D cylindrical "
                 f"meshes, which have no SN sweep, hit this). A boundary "
                 f"field cannot be built without a boundary trace."
             )
-        return cls(values=np.zeros(space.shape[0]), space=space, mesh=mesh)
+        return cls.zeros(space, mesh=mesh)
 
     @classmethod
     def from_face_arrays(

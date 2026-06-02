@@ -66,7 +66,7 @@ class TestHarmonicMomentFieldConstruction:
     def test_construct_from_factory(self) -> None:
         m = _slab_mesh()
         L = 2
-        phi = m.zeros_harmonic_moments(L)
+        phi = HarmonicMomentField.zeros_for_mesh_and_L(m, L)
         # (L+1, 2L+1, ng, nx, ny) = (3, 5, 2, 4, 1)
         assert phi.values.shape == (L + 1, 2 * L + 1, m.ng, m.nx, m.ny)
         assert np.all(phi.values == 0.0)
@@ -104,7 +104,7 @@ class TestHarmonicMomentFieldConstruction:
 
     def test_metadata_read_throughs(self) -> None:
         m = _slab_mesh()
-        phi = m.zeros_harmonic_moments(L=0)
+        phi = HarmonicMomentField.zeros_for_mesh_and_L(m, L=0)
         assert phi.ng == m.ng
         assert phi.nx == m.nx
         assert phi.ny == m.ny
@@ -130,7 +130,7 @@ class TestHarmonicMomentFieldConstruction:
         )
         m = _slab_mesh()
         L = 2
-        phi = m.zeros_harmonic_moments(L=L)
+        phi = HarmonicMomentField.zeros_for_mesh_and_L(m, L=L)
         # Space typing invariants.
         assert isinstance(phi.space, TensorProductSpace)
         assert len(phi.space.factors) == 2
@@ -156,7 +156,7 @@ class TestHarmonicMomentFieldSlicing:
     def test_l_block_returns_view_with_right_shape(self) -> None:
         m = _slab_mesh()
         L = 2
-        phi = m.zeros_harmonic_moments(L)
+        phi = HarmonicMomentField.zeros_for_mesh_and_L(m, L)
         for l in range(L + 1):
             block = phi.l_block(l)
             assert block.shape == (2 * l + 1, m.ng, m.nx, m.ny)
@@ -176,7 +176,7 @@ class TestHarmonicMomentFieldSlicing:
 
     def test_l_block_out_of_range_raises(self) -> None:
         m = _slab_mesh()
-        phi = m.zeros_harmonic_moments(L=1)
+        phi = HarmonicMomentField.zeros_for_mesh_and_L(m, L=1)
         with pytest.raises(ValueError):
             phi.l_block(2)
         with pytest.raises(ValueError):
@@ -313,13 +313,13 @@ class TestHarmonicMomentFieldTruncate:
 
     def test_truncate_rejects_L_new_greater_than_L(self) -> None:
         m = _slab_mesh()
-        phi = m.zeros_harmonic_moments(L=1)
+        phi = HarmonicMomentField.zeros_for_mesh_and_L(m, L=1)
         with pytest.raises(ValueError, match="truncate"):
             phi.truncate(2)
 
     def test_truncate_rejects_negative(self) -> None:
         m = _slab_mesh()
-        phi = m.zeros_harmonic_moments(L=1)
+        phi = HarmonicMomentField.zeros_for_mesh_and_L(m, L=1)
         with pytest.raises(ValueError, match="truncate"):
             phi.truncate(-1)
 
@@ -400,8 +400,8 @@ class TestHarmonicMomentFieldAlgebra:
 
     def test_partner_must_share_L(self) -> None:
         m = _slab_mesh()
-        a = m.zeros_harmonic_moments(L=1)
-        b = m.zeros_harmonic_moments(L=2)
+        a = HarmonicMomentField.zeros_for_mesh_and_L(m, L=1)
+        b = HarmonicMomentField.zeros_for_mesh_and_L(m, L=2)
         # Post-D-E: L mismatch surfaces as a space-equality error,
         # because different L values produce different
         # SphericalHarmonicSpace shapes, which propagates to different
@@ -529,21 +529,21 @@ class TestRLambdaMRoundTrip:
 
 
 # ════════════════════════════════════════════════════════════════════
-# Factory + zeros_harmonic_moments
+# Factory: HarmonicMomentField.zeros_for_mesh_and_L
 # ════════════════════════════════════════════════════════════════════
 
 
-class TestSNMeshFactory:
+class TestZerosForMeshAndL:
     def test_factory_for_L_zero(self) -> None:
         m = _slab_mesh()
-        phi = m.zeros_harmonic_moments(L=0)
+        phi = HarmonicMomentField.zeros_for_mesh_and_L(m, L=0)
         assert phi.L == 0
         assert phi.values.shape == (1, 1, m.ng, m.nx, m.ny)
 
     def test_factory_returns_owned_ndarray(self) -> None:
         m = _slab_mesh()
-        phi1 = m.zeros_harmonic_moments(L=1)
-        phi2 = m.zeros_harmonic_moments(L=1)
+        phi1 = HarmonicMomentField.zeros_for_mesh_and_L(m, L=1)
+        phi2 = HarmonicMomentField.zeros_for_mesh_and_L(m, L=1)
         # Independent allocations.
         assert phi1.values is not phi2.values
         phi1.values.flags.writeable
@@ -552,7 +552,7 @@ class TestSNMeshFactory:
 
     def test_copy_creates_independent(self) -> None:
         m = _slab_mesh()
-        phi = m.zeros_harmonic_moments(L=1)
+        phi = HarmonicMomentField.zeros_for_mesh_and_L(m, L=1)
         phi_copy = phi.copy()
         assert phi.values is not phi_copy.values
         np.testing.assert_array_equal(phi.values, phi_copy.values)

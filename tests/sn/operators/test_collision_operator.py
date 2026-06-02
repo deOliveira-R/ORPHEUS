@@ -41,6 +41,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
 
 pytestmark = pytest.mark.foundation
 
@@ -99,7 +100,7 @@ def _random_state(
     rng = np.random.default_rng(seed)
     N = sn_mesh.quad.N
     nx, ny = sn_mesh.nx, sn_mesh.ny
-    state = sn_mesh.zeros_timed_full_field()
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
     return replace(
         state,
         bulk=replace(state.bulk, values=rng.standard_normal((N, ng, nx, ny))),
@@ -179,7 +180,7 @@ class TestApply:
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
         C = CollisionOperator(sn_mesh, sigma)
-        zero = sn_mesh.zeros_timed_full_field()
+        zero = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         out = C.apply(zero)
         np.testing.assert_array_equal(out.bulk.values, 0.0)
 
@@ -445,6 +446,6 @@ class TestCompositeInvariants:
         sigma = _sigma_total(sn_mesh)
         C = CollisionOperator(sn_mesh, sigma)
         for depth in (0, 1, 2, 4):
-            state = sn_mesh.zeros_timed_full_field(history_depth=depth)
+            state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=depth)
             assert C.apply(state).history_depth == depth
             assert C.solve(state).history_depth == depth

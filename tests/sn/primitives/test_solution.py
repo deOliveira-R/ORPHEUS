@@ -28,6 +28,8 @@ from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.sn.solution import IterationHistory, Solution, SolutionDiff
 
 from tests.sn._test_helpers import placeholder_materials
+from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
 
 pytestmark = pytest.mark.foundation
 
@@ -58,7 +60,7 @@ def _make_fluxes(sn_mesh: SNMesh, fill: float = 1.0):
     flux + boundary trace + history), the third slot is the
     composite's boundary trace.
     """
-    state = sn_mesh.zeros_timed_full_field()
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
     state.bulk.values[:] = fill
     state.boundary.values[:] = fill
     phi = ScalarFlux.from_mesh(np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), fill), sn_mesh)
@@ -157,7 +159,7 @@ class TestSolutionConstruction:
         """A foreign-mesh TimedFullField must be rejected at construction."""
         m1 = _slab_mesh()
         m2 = _slab_mesh()  # distinct instance, same shape
-        state_foreign = m2.zeros_timed_full_field()
+        state_foreign = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m2)
         _, phi, bf = _make_fluxes(m1)
         with pytest.raises(ValueError, match="angular_flux.bulk.mesh"):
             Solution(

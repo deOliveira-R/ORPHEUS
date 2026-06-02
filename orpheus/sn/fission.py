@@ -310,7 +310,7 @@ class FissionOperator(LinearOperatorMixin):
         )
         return TimedFullField(
             bulk=AngularFlux.from_mesh(per_ord.values, psi.bulk.mesh),
-            boundary=BoundaryFlux.zeros_for_sn_mesh(psi.bulk.mesh),
+            boundary=BoundaryFlux.zeros_on(psi.bulk.mesh),
             _history=(),
             history_depth=psi.history_depth,
         )

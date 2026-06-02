@@ -149,7 +149,7 @@ def _build_composite(
         compute the cell-block residual only).
     """
     if boundary_values is None:
-        boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
+        boundary = BoundaryFlux.zeros_on(sn_mesh)
     else:
         # A.5: the BoundaryFlux space IS the mesh's unified TraceSpace
         # (it carries the FaceLayout); no ad-hoc sn_boundary_flat build.
@@ -480,7 +480,7 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     # property. apply(0) MUST be 0 even with vacuum BC. If the BC
     # consumed cell-centres rather than face values, a nonzero ψ
     # could pollute the inflow even when the cell-centres are zero.
-    state_zero = sn_mesh.zeros_timed_full_field()
+    state_zero = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
     result = op.apply(state_zero)
     assert np.array_equal(
         result.bulk.values, np.zeros_like(result.bulk.values),
@@ -514,7 +514,7 @@ def test_bc_trace_contract_respected_by_matvec_reflective_sphere():
     L = StreamingOperator(sn_mesh, sig_t)
     C = CollisionOperator(sn_mesh, sig_t)
     op = L + C
-    state_zero = sn_mesh.zeros_timed_full_field()
+    state_zero = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
     result = op.apply(state_zero)
     np.testing.assert_array_equal(result.bulk.values, 0.0)
     np.testing.assert_array_equal(result.boundary.values, 0.0)

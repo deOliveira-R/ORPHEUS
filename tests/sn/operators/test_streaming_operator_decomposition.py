@@ -158,7 +158,7 @@ class TestResolutionADecomposition:
             bulk=AngularFlux.from_mesh(
                 rng.standard_normal((N, ng, nx, ny)), sn_mesh,
             ),
-            boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+            boundary=BoundaryFlux.zeros_on(sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -235,7 +235,7 @@ class TestSubtractiveDefinition:
             bulk=AngularFlux.from_mesh(
                 rng.standard_normal((N, ng, nx, ny)), sn_mesh,
             ),
-            boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+            boundary=BoundaryFlux.zeros_on(sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -304,7 +304,7 @@ class TestResolutionADifferentFromPriorWrong:
             bulk=AngularFlux.from_mesh(
                 rng.standard_normal((N, ng, nx, ny)), sn_mesh,
             ),
-            boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+            boundary=BoundaryFlux.zeros_on(sn_mesh),
             _history=(),
             history_depth=2,
         )

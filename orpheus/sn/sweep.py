@@ -171,7 +171,7 @@ def transport_sweep(
         strategy.
     boundary_flux : BoundaryFlux
         Persistent :class:`BoundaryFlux` (mutated in place).  Build a
-        zero-initialised instance via ``sn_mesh.zeros_boundary_flux()``.
+        zero-initialised instance via ``BoundaryFlux.zeros_on(sn_mesh)``.
     initial_guess : AngularFlux, TimedFullField, or None, optional
         Previous-iteration angular flux estimate, used for the
         curvilinear Carlson coupled-pole seed and the per-ordinate

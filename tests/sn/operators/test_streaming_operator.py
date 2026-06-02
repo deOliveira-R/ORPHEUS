@@ -44,6 +44,9 @@ from orpheus.sn.operator import (
 from tests.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
+from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.timed_full_field import TimedFullField
 
 pytestmark = pytest.mark.foundation
 
@@ -139,7 +142,7 @@ def _random_composite(sn_mesh, seed=171):
     from dataclasses import replace
 
     rng = np.random.default_rng(seed)
-    state = sn_mesh.zeros_timed_full_field()
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
     bulk_values = rng.standard_normal(state.bulk.values.shape)
     boundary_values = 0.1 + rng.random(state.boundary.values.shape)
     state = replace(state, bulk=replace(state.bulk, values=bulk_values))
@@ -244,7 +247,7 @@ class TestLinearity:
     D-I.3c (2026-05-29) — migrated from the retiring bare-ndarray
     calling convention to :class:`TimedFullField`.  The linearity
     claim survives unchanged; the construction routes through
-    :meth:`SNMesh.zeros_timed_full_field` and the typed dunders
+    :meth:`~orpheus.transport.timed_full_field.TimedFullField.zeros` and the typed dunders
     :meth:`TimedFullField.__add__` / :meth:`TimedFullField.__mul__`
     propagate the linear combination to both bulk and boundary
     members.
@@ -255,7 +258,7 @@ class TestLinearity:
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh, ng=2)
         L = StreamingOperator(sn_mesh, sig_t)
-        state = sn_mesh.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         out = L.apply(state)
         np.testing.assert_allclose(out.bulk.values, 0.0, atol=1e-14)
         np.testing.assert_allclose(out.boundary.values, 0.0, atol=1e-14)
@@ -399,7 +402,7 @@ class TestCompositeInvariants:
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh, sig_t)
-        state = sn_mesh.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         out = L.apply(state)
         np.testing.assert_array_equal(out.bulk.values, 0.0)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
@@ -411,7 +414,7 @@ class TestCompositeInvariants:
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh, sig_t)
         for depth in (0, 1, 2, 4):
-            state = sn_mesh.zeros_timed_full_field(history_depth=depth)
+            state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=depth)
             out = L.apply(state)
             assert out.history_depth == depth
 
@@ -440,7 +443,7 @@ class TestCompositeInvariants:
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh, sig_t)
 
-        state = sn_mesh.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         out = L.apply(state)
 
         assert isinstance(out, TimedFullField)
@@ -454,7 +457,7 @@ class TestCompositeInvariants:
         sn_mesh_b = _slab_mesh()
         sig_t = _sig_t_uniform(sn_mesh_a)
         L = StreamingOperator(sn_mesh_a, sig_t)
-        state_b = sn_mesh_b.zeros_timed_full_field()
+        state_b = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh_b)
         with pytest.raises(ValueError, match="mesh-identity"):
             L.apply(state_b)
 
@@ -713,7 +716,7 @@ class TestT4bAlgebraDecompositionInvariantSlab:
         L = StreamingOperator(sn_mesh, sig_t)
 
         rng = np.random.default_rng(20260531 + 41)
-        state = sn_mesh.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         from dataclasses import replace
         state = replace(
             state,
@@ -768,7 +771,7 @@ class TestT4bPreT4RegressionSnapshot:
         from dataclasses import replace
         sig_t = _sigma_t_from_mat_map(sn_mesh)
         L = StreamingOperator(sn_mesh, sig_t)
-        state = sn_mesh.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         rng = np.random.default_rng(seed)
         state = replace(
             state,
@@ -847,7 +850,7 @@ class TestT4cAlgebraDecompositionInvariantCurvilinear:
         sn_mesh = builder(ng=2)
         sig_t = _sigma_t_from_mat_map(sn_mesh)
         L = StreamingOperator(sn_mesh, sig_t)
-        state = sn_mesh.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         rng = np.random.default_rng(seed)
         state = replace(
             state,
@@ -951,7 +954,7 @@ class TestT4cAlgebraDecompositionInvariantCurvilinear:
         alpha, beta = 0.37, -0.91
 
         def _make(values):
-            state = sn_mesh.zeros_timed_full_field()
+            state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
             return replace(state, bulk=replace(state.bulk, values=values))
 
         out_a = L.M_angular_redist.apply(_make(psi_a)).bulk.values
@@ -990,7 +993,7 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         from dataclasses import replace
         sig_t = _sigma_t_from_mat_map(sn_mesh)
         L = StreamingOperator(sn_mesh, sig_t)
-        state = sn_mesh.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         rng = np.random.default_rng(seed)
         state = replace(
             state,
@@ -1150,8 +1153,12 @@ class TestT4dApply2DCartesianSourceHashPin:
     #         boolean-mask vs sorted-integer fancy-index select the same
     #         rows in the same order; verified by the cartesian_2d sweep
     #         tier + 2-D matvec-consistency tests).
+    #   B.5.A (zeros-alloc consolidation) 8048c214…8e411dd7 — the lone
+    #         ``BoundaryFlux.zeros_for_sn_mesh(sn_mesh)`` call renamed to
+    #         ``BoundaryFlux.zeros_on(sn_mesh)`` (method rename only; the
+    #         allocation is byte-identical — same zero trace buffer).
     EXPECTED_SHA256: str = (
-        "e7ceab0b9e922a49c5e6d88e2949b3ce595c4d462d2bb50da4c419187d64d12a"
+        "8048c21428a56715554031694a2fd5f494a1b4083343c027e56ffd5f8e411dd7"
     )
 
     def test_apply_2d_cartesian_source_hash_unchanged(self):
@@ -1206,7 +1213,7 @@ class TestT4bMSpatialStandaloneApply:
         )
         sig_t = _sigma_t_from_mat_map(sn_mesh)
         L = StreamingOperator(sn_mesh, sig_t)
-        state = sn_mesh.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         rng = np.random.default_rng(20260531 + 73)
         state = replace(
             state,

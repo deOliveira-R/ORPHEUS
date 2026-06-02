@@ -217,6 +217,25 @@ class HarmonicMomentField(MomentField):
         return cls(values=values, space=space, mesh=mesh, L=L)
 
     @classmethod
+    def zeros_for_mesh_and_L(
+        cls, mesh: "SNMesh", L: int,
+    ) -> "HarmonicMomentField":
+        r"""Construct a zero moment field at order ``L`` sized to ``mesh`` (B.5.A).
+
+        The moment-space parallel of the bulk leaves' :meth:`zeros_on`,
+        mirroring :meth:`from_mesh_and_L` with a zero buffer. The extra ``L``
+        makes the signature non-uniform, so this is deliberately NOT named
+        ``zeros_on`` — :class:`HarmonicMomentField` is never a
+        :class:`~orpheus.transport.timed_full_field.TimedFullField` composite
+        slot, so it does not need the uniform allocator interface. Replaces the
+        retired ``SNMesh.zeros_harmonic_moments``.
+        """
+        values = np.zeros(
+            (L + 1, 2 * L + 1, mesh.ng, mesh.nx, mesh.ny),
+        )
+        return cls.from_mesh_and_L(values, mesh, L)
+
+    @classmethod
     def from_ndarray(
         cls, arr: NDArray, mesh: "SNMesh", L: int,
     ) -> "HarmonicMomentField":

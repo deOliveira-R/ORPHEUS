@@ -46,6 +46,7 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.sn.scattering import ScatteringOperator
 from tests.sn._test_helpers import placeholder_materials
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
 
 
 pytestmark = [pytest.mark.foundation]
@@ -90,7 +91,7 @@ def _random_state(sn: SNMesh, seed: int) -> TimedFullField:
     """
     rng_bulk = np.random.default_rng(seed)
     rng_bnd = np.random.default_rng(seed + 1000)
-    state = sn.zeros_timed_full_field()
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
     bulk_values = rng_bulk.standard_normal(state.bulk.values.shape)
     boundary_values = rng_bnd.standard_normal(state.boundary.values.shape)
     state = replace(state, bulk=replace(state.bulk, values=bulk_values))

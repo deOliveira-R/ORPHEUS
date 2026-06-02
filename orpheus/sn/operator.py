@@ -327,7 +327,7 @@ class _SpatialSweepDirection(LinearOperatorMixin):
         # outflow residual; backward sweep writes the inner-face
         # residual (for slab).  The per-direction split exposes which
         # face each direction's contribution lives on.
-        masked_boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
+        masked_boundary = BoundaryFlux.zeros_on(sn_mesh)
         full_boundary_layout = full_boundary.layout
         for face_name in full_boundary_layout.faces:
             full_face = full_boundary.face_view(face_name)
@@ -567,7 +567,7 @@ class _MSpatialOperatorSum(OperatorSum):
         # outflow set is read from the unified TraceSpace selector
         # (single source of truth for sign(Ω·n)) — A.4 retired the
         # inline ``mu_x > ±eps`` masks this matvec used to recompute.
-        m_boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
+        m_boundary = BoundaryFlux.zeros_on(sn_mesh)
         outer_outflow = trace.outflow_indices_for_face("xmax")
         if outer_outflow.size:
             m_boundary.face_view("xmax")[outer_outflow, :] = (
@@ -849,7 +849,7 @@ class _MSpatialOperatorSum(OperatorSum):
         # writes them; per MA-Q4 M_angular_redist is a BulkOperator).
         # Outflow set read from the unified TraceSpace selector (single
         # source of truth for sign(Ω·n) — see A.4 in _compute_LpC).
-        m_spat_boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
+        m_spat_boundary = BoundaryFlux.zeros_on(sn_mesh)
         outer_outflow = trace.outflow_indices_for_face("xmax")
         if outer_outflow.size:
             m_spat_boundary.face_view("xmax")[outer_outflow, :] = (
@@ -872,7 +872,7 @@ class _MSpatialOperatorSum(OperatorSum):
         )
         m_ang_tff = TimedFullField(
             bulk=AngularFlux.from_mesh(m_ang_cell, sn_mesh),
-            boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+            boundary=BoundaryFlux.zeros_on(sn_mesh),
             _history=(),
             history_depth=psi.history_depth,
         )
@@ -1221,7 +1221,7 @@ class StreamingOperator(LinearOperatorMixin):
                 "StreamingOperator.apply: expected TimedFullField, got "
                 f"{type(psi).__name__}.  D-I.3d (2026-05-29) retired the "
                 "bare-ndarray packed-vector contract; construct a typed "
-                "composite via ``sn_mesh.zeros_timed_full_field()`` or "
+                "composite via ``TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)`` or "
                 "explicit ``TimedFullField(bulk=..., boundary=...)``."
             )
 
@@ -1442,7 +1442,7 @@ class StreamingOperator(LinearOperatorMixin):
 
         # Boundary output: zero — face_view is passive in this 2-D
         # cell-centre-proxy formulation (see method docstring).
-        out_boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
+        out_boundary = BoundaryFlux.zeros_on(sn_mesh)
 
         return TimedFullField(
             bulk=AngularFlux.from_mesh(out_bulk, sn_mesh),
@@ -1559,7 +1559,7 @@ class CollisionOperator(LinearOperatorMixin):
             bulk=AngularFlux.from_mesh(
                 self.sigma[None, :, :, :] * psi.bulk.values, mesh,
             ),
-            boundary=BoundaryFlux.zeros_for_sn_mesh(mesh),
+            boundary=BoundaryFlux.zeros_on(mesh),
             _history=(),
             history_depth=psi.history_depth,
         )
@@ -1590,7 +1590,7 @@ class CollisionOperator(LinearOperatorMixin):
             bulk=AngularFlux.from_mesh(
                 q.bulk.values / self.sigma[None, :, :, :], mesh,
             ),
-            boundary=BoundaryFlux.zeros_for_sn_mesh(mesh),
+            boundary=BoundaryFlux.zeros_on(mesh),
             _history=(),
             history_depth=q.history_depth,
         )
@@ -1934,7 +1934,7 @@ class InvertibleOperator(OperatorSum):
         # face_view — ``initial_guess.boundary`` takes priority,
         # ``rhs.boundary`` is the fallback.  D-H.2-C2 retires the
         # legacy round-trip: ``boundary_buf`` IS L2 throughout.
-        boundary_buf = sn_mesh.zeros_boundary_flux()  # L2 after C2
+        boundary_buf = BoundaryFlux.zeros_on(sn_mesh)  # L2 after C2
         seed_boundary = (
             initial_guess.boundary if initial_guess is not None else rhs.boundary
         )

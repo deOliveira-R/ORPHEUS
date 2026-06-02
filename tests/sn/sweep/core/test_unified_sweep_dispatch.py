@@ -47,6 +47,8 @@ from orpheus.sn.sweep import (
     transport_sweep,
 )
 from tests.sn._test_helpers import placeholder_materials
+from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -145,9 +147,9 @@ class TestDispatchByReducedProperty:
 
         # PR-INDEX-5 principled (ng, nx, ny); PR-TYPED-4 typed source.
         ng = sn_mesh.ng
-        Q = sn_mesh.zeros_angular_source()
+        Q = AngularSourceSink.zeros_on(sn_mesh)
         sig_t = np.ones((ng, sn_mesh.nx, 1))
-        transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
+        transport_sweep(Q, sig_t, sn_mesh, BoundaryFlux.zeros_on(sn_mesh))
 
         assert called["unified"] == 1
         assert called["wavefront"] == 0
@@ -173,9 +175,9 @@ class TestDispatchByReducedProperty:
         monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
 
         ng = sn_mesh.ng
-        Q = sn_mesh.zeros_angular_source()
+        Q = AngularSourceSink.zeros_on(sn_mesh)
         sig_t = np.ones((ng, sn_mesh.nx, 1))
-        transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
+        transport_sweep(Q, sig_t, sn_mesh, BoundaryFlux.zeros_on(sn_mesh))
 
         assert called["unified"] == 1
         assert called["wavefront"] == 0
@@ -201,9 +203,9 @@ class TestDispatchByReducedProperty:
         monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
 
         ng = sn_mesh.ng
-        Q = sn_mesh.zeros_angular_source()
+        Q = AngularSourceSink.zeros_on(sn_mesh)
         sig_t = np.ones((ng, sn_mesh.nx, 1))
-        transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
+        transport_sweep(Q, sig_t, sn_mesh, BoundaryFlux.zeros_on(sn_mesh))
 
         assert called["unified"] == 1
         assert called["wavefront"] == 0
@@ -229,9 +231,9 @@ class TestDispatchByReducedProperty:
         monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
 
         ng = sn_mesh.ng
-        Q = sn_mesh.zeros_angular_source()
+        Q = AngularSourceSink.zeros_on(sn_mesh)
         sig_t = np.ones((ng, sn_mesh.nx, sn_mesh.ny))
-        transport_sweep(Q, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
+        transport_sweep(Q, sig_t, sn_mesh, BoundaryFlux.zeros_on(sn_mesh))
 
         assert called["unified"] == 0
         assert called["wavefront"] == 1
@@ -276,9 +278,9 @@ class TestUnifiedDispatch1Dvs2D:
 
         # R-1 Step 4 A1 — single per-ordinate source.
         ng = sn_mesh.ng
-        source = sn_mesh.zeros_angular_source()
+        source = AngularSourceSink.zeros_on(sn_mesh)
         sig_t = np.ones((ng, sn_mesh.nx, 1))
-        transport_sweep(source, sig_t, sn_mesh, sn_mesh.zeros_boundary_flux())
+        transport_sweep(source, sig_t, sn_mesh, BoundaryFlux.zeros_on(sn_mesh))
 
         assert called["unified"] == 1
         assert called["wavefront"] == 0

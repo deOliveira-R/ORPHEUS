@@ -96,7 +96,7 @@ class BoundaryResidual(BoundaryField):
     Notes
     -----
     A thin role leaf: all storage, validation, algebra, per-face access,
-    and the ``zeros_for_sn_mesh`` / ``from_face_arrays`` factories are
+    and the ``zeros_on`` / ``from_face_arrays`` factories are
     inherited from :class:`BoundaryField`. The leaf carries no
     residual-specific behaviour beyond its class identity. All three
     boundary leaves share the SAME ``TraceSpace`` (``mesh.trace``), so it

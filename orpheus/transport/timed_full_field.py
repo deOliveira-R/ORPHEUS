@@ -178,6 +178,48 @@ class TimedFullField:
     _history: tuple["TimedFullField", ...] = ()
     history_depth: int = 2
 
+    # ── Construction ─────────────────────────────────────────────────
+
+    @classmethod
+    def zeros(
+        cls,
+        *,
+        bulk: type[Field],
+        boundary: type[Field],
+        mesh: "object",
+        history_depth: int = 2,
+    ) -> "TimedFullField":
+        r"""Allocate a zero composite from the bulk + boundary leaf TYPES (B.5.A).
+
+        Generic over the method's leaf types: the caller passes the bulk and
+        boundary :class:`~orpheus.numerics.field.Field` *subclasses* (SN passes
+        :class:`~orpheus.transport.fields.angular_flux.AngularFlux` /
+        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`; CP / MoC
+        will pass their own), and each is zero-allocated on ``mesh`` via its own
+        :meth:`zeros_on`. This keeps the cross-method-generic container free of
+        any hard-wired leaf type — the SN-specific ``(AngularFlux, BoundaryFlux)``
+        composition lives at the SN call site, not here. Replaces the retired
+        ``SNMesh.zeros_timed_full_field`` (the mesh no longer carries transport
+        factories; it provides shape data only).
+
+        Parameters
+        ----------
+        bulk, boundary : type[Field]
+            The bulk and boundary leaf CLASSES to instantiate (each must
+            expose ``zeros_on(mesh)``).
+        mesh : object
+            The phase-space carrier passed through to each leaf's
+            ``zeros_on`` (duck-typed — no transport→mesh hard dependency).
+        history_depth : int, optional
+            History buffer depth (default 2; see the class docstring).
+        """
+        return cls(
+            bulk=bulk.zeros_on(mesh),  # type: ignore[attr-defined]
+            boundary=boundary.zeros_on(mesh),  # type: ignore[attr-defined]
+            _history=(),
+            history_depth=history_depth,
+        )
+
     # ── Construction validation ──────────────────────────────────────
 
     def __post_init__(self) -> None:

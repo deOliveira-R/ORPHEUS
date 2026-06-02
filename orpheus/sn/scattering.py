@@ -1123,7 +1123,7 @@ class ScatteringOperator(LinearOperatorMixin):
         # :class:`ScalarFlux` type the legacy branch consumes).
         phi = bulk.integrate_angular()
         # iso = P0 in-scatter + (n,2n) doubling on the typed accumulator.
-        iso: ScalarSourceSink = mesh.zeros_scalar_source()
+        iso: ScalarSourceSink = ScalarSourceSink.zeros_on(mesh)
         iso = self.add_iso_source(iso, phi)
         iso = self.add_n2n_source(iso, phi)
         # Pℓ (ℓ≥1) — per-ordinate after R-1 Step 4 A1 producer-side /W.
@@ -1131,7 +1131,7 @@ class ScatteringOperator(LinearOperatorMixin):
         # the composite's bulk (the type-check widening above).
         aniso_or_none = self.build_aniso_source(bulk)
         if aniso_or_none is None:
-            aniso = mesh.zeros_angular_source()
+            aniso = AngularSourceSink.zeros_on(mesh)
         else:
             aniso = aniso_or_none
         # Producer-side projection at the apply boundary (Pattern 7).
@@ -1139,7 +1139,7 @@ class ScatteringOperator(LinearOperatorMixin):
         combined: AngularSourceSink = (iso / sum_w) + aniso
         return TimedFullField(
             bulk=AngularFlux.from_mesh(combined.values, mesh),
-            boundary=BoundaryFlux.zeros_for_sn_mesh(mesh),
+            boundary=BoundaryFlux.zeros_on(mesh),
             _history=(),
             history_depth=psi.history_depth,
         )
@@ -1157,7 +1157,7 @@ class ScatteringOperator(LinearOperatorMixin):
         project to per-ordinate).
         """
         mesh = phi.mesh
-        iso: ScalarSourceSink = mesh.zeros_scalar_source()
+        iso: ScalarSourceSink = ScalarSourceSink.zeros_on(mesh)
         iso = self.add_iso_source(iso, phi)
         iso = self.add_n2n_source(iso, phi)
         return iso
@@ -1184,12 +1184,12 @@ class ScatteringOperator(LinearOperatorMixin):
         """
         mesh = psi.mesh
         phi = psi.integrate_angular()
-        iso: ScalarSourceSink = mesh.zeros_scalar_source()
+        iso: ScalarSourceSink = ScalarSourceSink.zeros_on(mesh)
         iso = self.add_iso_source(iso, phi)
         iso = self.add_n2n_source(iso, phi)
         aniso_or_none = self.build_aniso_source(psi)
         if aniso_or_none is None:
-            aniso = mesh.zeros_angular_source()
+            aniso = AngularSourceSink.zeros_on(mesh)
         else:
             aniso = aniso_or_none
         sum_w = float(mesh.quad.weights.sum())

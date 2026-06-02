@@ -106,7 +106,7 @@ GEOMETRIES = [
 
 def _zero_flux(sn_mesh: SNMesh) -> TimedFullField:
     """Construct a zero :class:`TimedFullField` on ``sn_mesh``."""
-    return sn_mesh.zeros_timed_full_field()
+    return TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
 
 
 def _uniform_flux(sn_mesh: SNMesh, value: float = 1.0) -> TimedFullField:
@@ -116,7 +116,7 @@ def _uniform_flux(sn_mesh: SNMesh, value: float = 1.0) -> TimedFullField:
     carries, preserving the pre-D-H.2-C4c semantic where bulk-uniform
     implies boundary-at-the-value (the flat-flux invariant input).
     """
-    state = sn_mesh.zeros_timed_full_field()
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
     state.bulk.values[:] = value
     for face in ("xmin", "xmax"):
         if face in state.boundary.layout.faces:
@@ -252,7 +252,7 @@ class TestLinearity:
         rng = np.random.default_rng(seed=42)
 
         def _random_state() -> TimedFullField:
-            state = sn_mesh.zeros_timed_full_field()
+            state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
             state.bulk.values[:] = rng.standard_normal((N, ng, nx, ny))
             state.boundary.face_view("xmax")[:] = rng.standard_normal((N, ng))
             if "xmin" in state.boundary.layout.faces:
@@ -267,7 +267,7 @@ class TestLinearity:
         alpha, beta = 1.7, -0.3
 
         # M(αψ + βφ)
-        sum_psi = sn_mesh.zeros_timed_full_field()
+        sum_psi = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         sum_psi.bulk.values[:] = alpha * psi.bulk.values + beta * phi.bulk.values
         sum_psi.boundary.face_view("xmax")[:] = (
             alpha * psi.boundary.face_view("xmax")
@@ -357,7 +357,7 @@ class TestFaceResidualMask:
         # Random ψ — face residual at inflow ords must stay zero
         # regardless of input data (no equation there).
         rng = np.random.default_rng(seed=11)
-        psi = sn_mesh.zeros_timed_full_field()
+        psi = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         psi.bulk.values[:] = rng.standard_normal(
             (sn_mesh.quad.N, ng, sn_mesh.nx, sn_mesh.ny),
         )
@@ -393,7 +393,7 @@ class TestFaceResidualMask:
         sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), 1.0)
 
         rng = np.random.default_rng(seed=22)
-        psi = sn_mesh.zeros_timed_full_field()
+        psi = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         psi.bulk.values[:] = rng.standard_normal(
             (sn_mesh.quad.N, ng, sn_mesh.nx, sn_mesh.ny),
         )
@@ -458,7 +458,7 @@ class TestTwoDCartesianRaises:
         quad = Quadrature.gauss_legendre(n_ordinates=4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0)
-        psi = sn_mesh.zeros_timed_full_field()
+        psi = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         result = _LC_matvec(psi, sigma_t)
         assert isinstance(result, TimedFullField)
         # On zero input the matvec is zero (linearity sentinel).

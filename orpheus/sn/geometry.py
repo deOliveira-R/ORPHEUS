@@ -60,13 +60,15 @@ from .sweep_graph import OctantLabel, SweepDependencyGraph
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.numerics.face_layout import FaceLayout
-    from orpheus.transport.fields.boundary_flux import BoundaryFlux
-    from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
-    from orpheus.transport.timed_full_field import TimedFullField
     from .material_xs_field import MaterialXSField
     from orpheus.numerics.spaces.trace_space import TraceSpace
-    from orpheus.transport.fields.scalar_flux import ScalarFlux
-    from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
+    # NOTE (B.5.A): the transport-field TYPE_CHECKING imports retired with the
+    # SNMesh.zeros_* factory family. Zero-allocation now lives on the field
+    # types (``Field.zeros`` / ``<Leaf>.zeros_on`` /
+    # ``TimedFullField.zeros(bulk=..., boundary=..., mesh=...)``); the mesh
+    # provides shape data only and no longer imports transport types.
+    # Remaining ``BoundaryFlux`` / ``AngularFlux`` mentions below are docstring
+    # cross-references (Sphinx resolves them by full path, no import needed).
 
 
 class InconsistentMaterialsError(ValueError):
@@ -766,100 +768,6 @@ class SNMesh:
         from .material_xs_field import MaterialXSField
         return MaterialXSField.from_mesh(self)
 
-    # ── Typed-field factories (Issue #197 PR-TYPED-2) ─────────────────
-    #
-    # Depth B D-H.1b.7 (2026-05-28) — the legacy ``zeros_angular_flux()``
-    # retired: it constructed an ``orpheus.sn.angular_flux.AngularFlux``
-    # (legacy, with embedded boundary + history slots), which the D-H.1+
-    # migration replaces with one of two factories:
-    #
-    # * :meth:`zeros_timed_full_field` — composite bulk + boundary
-    #   container (the post-D-H carrier; current and future consumers).
-    # * :meth:`orpheus.transport.fields.angular_flux.AngularFlux.zeros_for_sn_mesh`
-    #   — pure-Field bulk only (L2 type; for tests / consumers that
-    #   want just the bulk shape).
-
-    def zeros_scalar_flux(self) -> "ScalarFlux":
-        r"""Build a zero :class:`ScalarFlux` sized to this mesh.
-
-        Returns a :class:`~orpheus.sn.scalar_flux.ScalarFlux` of shape
-        ``(ng, nx, ny)`` filled with zeros.  Use as the ``phi``
-        initial guess in inner-loop iterations or as the zero
-        isotropic source on the first sweep.
-        """
-        from orpheus.transport.fields.scalar_flux import ScalarFlux
-        return ScalarFlux.from_mesh(
-            np.zeros((self.ng, self.nx, self.ny)), self,
-        )
-
-    def zeros_boundary_flux(self) -> "BoundaryFlux":
-        r"""Build a zero L2 :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
-        sized to this mesh.
-
-        D-H.2-C2 (2026-05-28) — flipped from the legacy
-        :class:`orpheus.sn.boundary_flux.BoundaryFlux` to the L2
-        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
-        (pure-Field flat-backing + :class:`FaceLayout` descriptor).
-        The legacy class retires in D-H.2-C5; this factory was the last
-        production allocation site.
-
-        Layout is per-geometry via :attr:`boundary_face_layout`:
-
-        * 1-D slab — two faces ``xmin`` / ``xmax``, each shape ``(N, ng)``.
-        * 1-D curvilinear — one face ``xmax`` shape ``(N, ng)``.
-        * 2-D Cartesian — four faces ``xmin`` / ``xmax`` (shape
-          ``(N, ng, ny)``) and ``ymin`` / ``ymax`` (shape ``(N, ng, nx)``).
-
-        Returns
-        -------
-        BoundaryFlux
-            All-zero L2 boundary flux on the mesh's flat layout.
-        """
-        from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux,
-        )
-        return BoundaryFlux.zeros_for_sn_mesh(self)
-
-    def zeros_timed_full_field(
-        self, history_depth: int = 2,
-    ) -> "TimedFullField":
-        r"""Build a zero :class:`~orpheus.transport.timed_full_field.TimedFullField`
-        sized to this mesh.
-
-        Composite zero-state for SN: pure-Field
-        :class:`~orpheus.transport.fields.angular_flux.AngularFlux` on
-        ``(N, ng, nx, ny)`` paired with pure-Field
-        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
-        on the mesh's :attr:`boundary_face_layout`, with empty history.
-
-        This is the SN-specific factory for the cross-method generic
-        :class:`TimedFullField` container (Depth B D-H.1, 2026-05-28).
-        CP / MoC / diffusion will provide their own analogous factories
-        when those method migrations land.
-
-        Parameters
-        ----------
-        history_depth : int, optional
-            Maximum number of historical states the container retains.
-            Default 2 (current + one lag — enough for first-order time
-            derivative). Bump for higher-order BDF stencils.
-
-        Returns
-        -------
-        TimedFullField
-            Composite zero-state with empty history.
-        """
-        from orpheus.transport.fields.angular_flux import AngularFlux
-        from orpheus.transport.fields.boundary_flux import BoundaryFlux
-        from orpheus.transport.timed_full_field import TimedFullField
-
-        return TimedFullField(
-            bulk=AngularFlux.zeros_for_sn_mesh(self),
-            boundary=BoundaryFlux.zeros_for_sn_mesh(self),
-            _history=(),
-            history_depth=history_depth,
-        )
-
     @property
     def trace(self) -> "Optional[TraceSpace]":
         r"""The unified boundary :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`.
@@ -942,52 +850,6 @@ class SNMesh:
             ("ymin", (N, ng, nx)),
             ("ymax", (N, ng, nx)),
         ])
-
-    def zeros_scalar_source(self) -> "ScalarSourceSink":
-        r"""Build a zero :class:`ScalarSourceSink` sized to this mesh.
-
-        Returns an :class:`~orpheus.sn.sources.ScalarSourceSink` of
-        shape ``(ng, nx, ny)`` filled with zeros.  The principled
-        starting point for source-iteration accumulation: P0 in-scatter,
-        (n,2n), and fission contributions all add into this buffer.
-        """
-        from orpheus.transport.source_sinks import ScalarSourceSink
-        return ScalarSourceSink.from_mesh(
-            np.zeros((self.ng, self.nx, self.ny)), self,
-        )
-
-    def zeros_angular_source(self) -> "AngularSourceSink":
-        r"""Build a zero :class:`AngularSourceSink` sized to this mesh.
-
-        Returns an :class:`~orpheus.sn.sources.AngularSourceSink` of
-        shape ``(N, ng, nx, ny)`` filled with zeros.  The principled
-        starting point for the :math:`P_\ell \ge 1` Galerkin
-        reconstruction + MMS external-source accumulation buffer.
-        """
-        from orpheus.transport.source_sinks import AngularSourceSink
-        return AngularSourceSink.from_mesh(
-            np.zeros((self.quad.N, self.ng, self.nx, self.ny)), self,
-        )
-
-    def zeros_harmonic_moments(self, L: int) -> "HarmonicMomentField":
-        r"""Build a zero :class:`HarmonicMomentField` at order ``L``.
-
-        Issue #197 PR-TYPED-4 — companion to
-        :meth:`zeros_scalar_source` / :meth:`zeros_angular_source`
-        for the moment-space carrier consumed by the
-        :math:`R \cdot \Lambda \cdot M` Galerkin pipeline.
-
-        Parameters
-        ----------
-        L : int
-            Maximum harmonic order; result has shape
-            ``(L+1, 2L+1, ng, nx, ny)``.
-        """
-        from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
-        values = np.zeros(
-            (L + 1, 2 * L + 1, self.ng, self.nx, self.ny),
-        )
-        return HarmonicMomentField.from_mesh_and_L(values, self, L)
 
     # ── Sweep DAG traversal ───────────────────────────────────────────
 

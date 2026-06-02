@@ -20,6 +20,9 @@ from orpheus.sn.fission import FissionOperator
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver
+from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.timed_full_field import TimedFullField
 
 pytestmark = pytest.mark.foundation
 
@@ -272,7 +275,7 @@ class TestCompositeInvariants:
         from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = solver_2g.sn_mesh
-        state = sn_mesh.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         # Seed bulk with a deterministic non-zero per-ordinate ψ.
         np.random.seed(31)
         bulk_values = np.random.rand(*state.bulk.values.shape) + 0.1
@@ -291,7 +294,7 @@ class TestCompositeInvariants:
         from dataclasses import replace
 
         sn_mesh = solver_2g.sn_mesh
-        state = sn_mesh.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         np.random.seed(32)
         bulk_values = np.random.rand(*state.bulk.values.shape) + 0.1
         state = replace(state, bulk=replace(state.bulk, values=bulk_values))
@@ -305,7 +308,7 @@ class TestCompositeInvariants:
 
     def test_zero_bulk_zero_output(self, solver_2g):
         """ψ = 0 ⇒ F·ψ = 0 (linearity guard at composite layer)."""
-        state = solver_2g.sn_mesh.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=solver_2g.sn_mesh)
         out = solver_2g.fission_op.apply(state)
         np.testing.assert_array_equal(out.bulk.values, 0.0)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
@@ -319,7 +322,7 @@ class TestCompositeInvariants:
         """
         sn_mesh = solver_2g.sn_mesh
         for depth in (0, 1, 2, 4):
-            state = sn_mesh.zeros_timed_full_field(history_depth=depth)
+            state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=depth)
             out = solver_2g.fission_op.apply(state)
             assert out.history_depth == depth
 

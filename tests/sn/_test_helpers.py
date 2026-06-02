@@ -12,7 +12,7 @@ Issue #197 PR-TYPED-2 introduced :class:`BoundaryFlux` as the typed
 replacement for the stringly-typed ``psi_bc: dict``.  Test fixtures
 that previously passed ``{}`` to :func:`transport_sweep` should now
 build a zero-initialised :class:`BoundaryFlux` via
-``sn_mesh.zeros_boundary_flux()`` (or :func:`make_boundary_flux_zero`
+``BoundaryFlux.zeros_on(sn_mesh)`` (or :func:`make_boundary_flux_zero`
 below for non-SNMesh callers).
 
 Tests that DO need realistic cross sections continue to use
@@ -26,6 +26,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.sparse import csr_matrix
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 if TYPE_CHECKING:
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
@@ -255,7 +257,7 @@ def legacy_proxy_matvec(
     # `bc_outer=None, pole_angular_closure=None`) — kept in the
     # function signature for legacy back-compat but ignored.
     del bc_outer, pole_angular_closure  # explicitly mark unused
-    boundary = BoundaryFlux.zeros_for_sn_mesh(sn_mesh)
+    boundary = BoundaryFlux.zeros_on(sn_mesh)
     boundary.face_view("xmax")[:] = psi_view[:, :, -1, 0]
     if "xmin" in boundary.layout.faces:
         boundary.face_view("xmin")[:] = psi_view[:, :, 0, 0]
@@ -303,12 +305,12 @@ def make_boundary_flux_zero(sn_mesh: "SNMesh") -> "BoundaryFlux":
     two 1-D faces; curvilinear gets one outer face; 2-D Cartesian gets
     the persistent ``(N, ng, nx+1, ny)`` / ``(N, ng, nx, ny+1)``
     buffers).  Per-geometry dispatch lives inside
-    :meth:`SNMesh.zeros_boundary_flux`; this helper is a clean alias
+    :meth:`~orpheus.transport.fields.boundary_flux.BoundaryFlux.zeros_on`; this helper is a clean alias
     so test fixtures don't have to chain through ``sn_mesh``.
     """
-    return sn_mesh.zeros_boundary_flux()
+    return BoundaryFlux.zeros_on(sn_mesh)
 
 
 def make_scalar_flux_zero(sn_mesh: "SNMesh") -> "ScalarFlux":
     """Build a zero-initialised :class:`ScalarFlux` for ``sn_mesh``."""
-    return sn_mesh.zeros_scalar_flux()
+    return ScalarFlux.zeros_on(sn_mesh)

@@ -130,7 +130,7 @@ class BoundarySourceSink(BoundaryField):
     -----
     A thin role leaf: all storage, validation, algebra, per-face access
     (:meth:`face_view`), and the
-    :meth:`~orpheus.transport.fields._bases.BoundaryField.zeros_for_sn_mesh`
+    :meth:`~orpheus.transport.fields._bases.BoundaryField.zeros_on`
     / :meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`
     factories are inherited from :class:`BoundaryField`. The leaf carries
     no source-specific behaviour beyond its class identity — which is

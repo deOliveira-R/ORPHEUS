@@ -104,16 +104,6 @@ class AngularFlux(AngularField):
     #: identity is) — see :mod:`orpheus.numerics.units`.
     UNITS: ClassVar[Unit] = ANGULAR_FLUX_UNITS
 
-    # ── Construction factories ───────────────────────────────────────
-
-    @classmethod
-    def zeros_for_sn_mesh(cls, mesh: "SNMesh") -> "AngularFlux":
-        r"""Construct an all-zero :class:`AngularFlux` sized to ``mesh``."""
-        N = mesh.quad.N
-        return cls.from_mesh(
-            np.zeros((N, mesh.ng, mesh.nx, mesh.ny)), mesh,
-        )
-
     # ── Reductions ───────────────────────────────────────────────────
 
     def integrate_angular(self) -> "object":

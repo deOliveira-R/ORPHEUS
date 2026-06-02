@@ -206,6 +206,22 @@ class Field(ABC):
             f"space={self.space.name!r}, units={_unit_label(self)})"
         )
 
+    # ── Construction ─────────────────────────────────────────────────────
+
+    @classmethod
+    def zeros(cls: type[T], space: FunctionSpace, **fields: object) -> T:
+        r"""Allocate a zero-filled field of this class on ``space``.
+
+        The single shared zero-allocation primitive (B.5.A): ``values`` is
+        ``np.zeros(space.shape)``; any subclass-specific dataclass fields
+        (``mesh``, ``L``, ...) pass through ``**fields``. The locus bases
+        build ``space`` from a mesh in their ``zeros_on`` /
+        ``zeros_for_mesh_and_L`` factories and delegate here, so the
+        zero-construction lives in exactly one place (``coding-elegance``
+        Pattern 2) — no leaf reimplements ``np.zeros(...) + construct``.
+        """
+        return cls(values=np.zeros(space.shape), space=space, **fields)  # type: ignore[call-arg]
+
     # ── Algebra ─────────────────────────────────────────────────────────
 
     def _check_partner(self, other: object) -> None:

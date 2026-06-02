@@ -48,6 +48,9 @@ from orpheus.geometry import (
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
+from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.timed_full_field import TimedFullField
 
 
 # ── Mesh builders ────────────────────────────────────────────────────────
@@ -180,7 +183,7 @@ def test_apply_vs_sweep_2d_residual_cancellation() -> None:
     mesh = _vacuum_xy_2d_with_scatter()
     rng = np.random.default_rng(seed=20260528)
 
-    state = mesh.zeros_timed_full_field()
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=mesh)
     state.bulk.values[...] = rng.standard_normal(state.bulk.values.shape)
     state.boundary.values[...] = rng.standard_normal(state.boundary.values.shape)
 
@@ -283,8 +286,8 @@ def test_2d_matvec_linearity_random_state() -> None:
     A = L + C
 
     rng = np.random.default_rng(seed=20260528)
-    u = mesh.zeros_timed_full_field()
-    v = mesh.zeros_timed_full_field()
+    u = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=mesh)
+    v = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=mesh)
     u.bulk.values[...] = rng.standard_normal(u.bulk.values.shape)
     v.bulk.values[...] = rng.standard_normal(v.bulk.values.shape)
     u.boundary.values[...] = rng.standard_normal(u.boundary.values.shape)

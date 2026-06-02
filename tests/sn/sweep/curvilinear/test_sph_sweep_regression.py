@@ -21,6 +21,7 @@ from tests.sn._test_helpers import (
     curvilinear_homogeneous_mesh as _homogeneous_mesh,
     placeholder_materials,
 )
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
 
 # Equation-coverage list preserved verbatim from the legacy
 # test_spherical module so no verifies(...) edge is lost in the split.
@@ -109,7 +110,7 @@ class TestSphericalSweepRegression:
         Q_iso = np.ones((1, 10, 1))             # (ng, nx, ny)
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
 
-        boundary_flux = sn_mesh.zeros_boundary_flux()
+        boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
         phi = None
         for _ in range(200):
             _, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
@@ -136,7 +137,7 @@ class TestSphericalSweepRegression:
         Q_iso = np.ones((1, 10, 1))             # (ng, nx, ny)
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
 
-        boundary_flux = sn_mesh.zeros_boundary_flux()
+        boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
         ang, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
         assert np.all(np.isfinite(ang)), "Non-finite angular flux in first sweep"

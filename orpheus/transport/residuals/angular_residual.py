@@ -109,7 +109,7 @@ class AngularResidual(AngularField):
     :class:`~orpheus.transport.fields.angular_flux.AngularFlux` (same
     shape, different units). Same-class arithmetic is closed.
 
-    Unlike :class:`AngularFlux` (``zeros_for_sn_mesh``) and
+    Unlike :class:`AngularFlux` (``zeros_on``) and
     :class:`AngularSourceSink` (``from_isotropic``), :class:`AngularResidual`
     intentionally exposes NO bespoke factory: a residual is *produced*
     by an operator balance (B.5 ``IterationResidual.from_balance``), not

@@ -37,6 +37,7 @@ from orpheus.sn.spatial.cell_update import UpstreamState
 from orpheus.sn.spatial.diamond import DiamondDifference
 from orpheus.sn.spatial.scan import ordinate_scan
 from orpheus.sn.spatial.sweep_cache import CollisionCache, GeometryCoefficients
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -534,7 +535,7 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
     Q = AngularSourceSink.from_isotropic(np.ones((4, 160, 1)), sn_mesh)
     sig_t = np.ones((4, 160, 1))  # (ng, nx, ny) — PR-INDEX-3
     # Issue #197 PR-TYPED-2: typed boundary state replaces dict.
-    boundary_flux = sn_mesh.zeros_boundary_flux()
+    boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
 
     # Warm-up — first call also caches inside SNMesh.
     for _ in range(3):

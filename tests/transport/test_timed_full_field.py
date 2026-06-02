@@ -12,7 +12,7 @@ Pins the post-D-H.1 contract for
 
 These are foundation tests — they pin the data-shape and algebra
 contract of the cross-method generic container. Method-specific
-factories (SN's :meth:`SNMesh.zeros_timed_full_field`) get their own
+factories (SN's :meth:`~orpheus.transport.timed_full_field.TimedFullField.zeros`) get their own
 tests.
 
 References
@@ -78,7 +78,7 @@ def _cartesian_2d_mesh(nx: int = 3, ny: int = 2, ng: int = 2) -> SNMesh:
 class TestConstruction:
     def test_factory_slab(self) -> None:
         m = _slab_mesh()
-        state = m.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m)
         assert isinstance(state, TimedFullField)
         assert isinstance(state.bulk, AngularFlux)
         assert isinstance(state.boundary, BoundaryFlux)
@@ -91,41 +91,41 @@ class TestConstruction:
 
     def test_factory_2d(self) -> None:
         m = _cartesian_2d_mesh()
-        state = m.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m)
         assert isinstance(state, TimedFullField)
         assert state.bulk.values.shape == (m.quad.N, m.ng, m.nx, m.ny)
         assert state.boundary.layout.total_size == state.boundary.values.size
 
     def test_factory_custom_history_depth(self) -> None:
         m = _slab_mesh()
-        state = m.zeros_timed_full_field(history_depth=5)
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m, history_depth=5)
         assert state.history_depth == 5
         assert state._history == ()
 
     def test_rejects_non_field_bulk(self) -> None:
         m = _slab_mesh()
-        bf = BoundaryFlux.zeros_for_sn_mesh(m)
+        bf = BoundaryFlux.zeros_on(m)
         with pytest.raises(TypeError, match="bulk must be a Field"):
             TimedFullField(bulk="not a field", boundary=bf)  # type: ignore[arg-type]
 
     def test_rejects_non_field_boundary(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_for_sn_mesh(m)
+        psi = AngularFlux.zeros_on(m)
         with pytest.raises(TypeError, match="boundary must be a Field"):
             TimedFullField(bulk=psi, boundary="not a field")  # type: ignore[arg-type]
 
     def test_rejects_mismatched_mesh(self) -> None:
         m1 = _slab_mesh()
         m2 = _slab_mesh()  # different instance, same structure
-        psi = AngularFlux.zeros_for_sn_mesh(m1)
-        bf = BoundaryFlux.zeros_for_sn_mesh(m2)
+        psi = AngularFlux.zeros_on(m1)
+        bf = BoundaryFlux.zeros_on(m2)
         with pytest.raises(ValueError, match="mesh identity"):
             TimedFullField(bulk=psi, boundary=bf)
 
     def test_rejects_negative_history_depth(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_for_sn_mesh(m)
-        bf = BoundaryFlux.zeros_for_sn_mesh(m)
+        psi = AngularFlux.zeros_on(m)
+        bf = BoundaryFlux.zeros_on(m)
         with pytest.raises(ValueError, match="history_depth"):
             TimedFullField(bulk=psi, boundary=bf, history_depth=-1)
 
@@ -136,7 +136,7 @@ class TestConstruction:
 
 
 def _filled_state(m: SNMesh, bulk_val: float, bound_val: float) -> TimedFullField:
-    state = m.zeros_timed_full_field()
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m)
     state.bulk.values[:] = bulk_val
     state.boundary.values[:] = bound_val
     return state
@@ -208,8 +208,8 @@ class TestCrossClassRejection:
     def test_cross_mesh_rejected(self) -> None:
         m1 = _slab_mesh()
         m2 = _slab_mesh()
-        a = m1.zeros_timed_full_field()
-        b = m2.zeros_timed_full_field()
+        a = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m1)
+        b = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m2)
         # Same TimedFullField class, same bulk/boundary types, but
         # different mesh instances. AngularFlux._check_partner catches it.
         with pytest.raises(ValueError, match="mesh-bound"):
@@ -217,7 +217,7 @@ class TestCrossClassRejection:
 
     def test_wrong_type_rejected(self) -> None:
         m = _slab_mesh()
-        state = m.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m)
         with pytest.raises(TypeError, match="same-class partner"):
             state + 42  # type: ignore[operator]
 
@@ -274,36 +274,36 @@ class TestHistoryShiftRegister:
 
     def test_advance_trims_to_history_depth(self) -> None:
         m = _slab_mesh()
-        state = m.zeros_timed_full_field(history_depth=2)
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m, history_depth=2)
         for i in range(5):
-            nb = AngularFlux.zeros_for_sn_mesh(m)
-            nf = BoundaryFlux.zeros_for_sn_mesh(m)
+            nb = AngularFlux.zeros_on(m)
+            nf = BoundaryFlux.zeros_on(m)
             state = state.advance(nb, nf)
         assert state.history_length == 2
 
     def test_advance_type_mismatch_raises(self) -> None:
         m = _slab_mesh()
-        state = m.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m)
         # Pass a ScalarFlux as bulk — type mismatch.
-        sf = m.zeros_scalar_flux()
-        bf = BoundaryFlux.zeros_for_sn_mesh(m)
+        sf = ScalarFlux.zeros_on(m)
+        bf = BoundaryFlux.zeros_on(m)
         with pytest.raises(TypeError, match="new_bulk type"):
             state.advance(sf, bf)  # type: ignore[arg-type]
 
     def test_at_lag_zero_returns_self(self) -> None:
         m = _slab_mesh()
-        state = m.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m)
         assert state.at_lag(0) is state
 
     def test_at_lag_out_of_range_raises(self) -> None:
         m = _slab_mesh()
-        state = m.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m)
         with pytest.raises(IndexError):
             state.at_lag(5)
 
     def test_at_lag_negative_raises(self) -> None:
         m = _slab_mesh()
-        state = m.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m)
         with pytest.raises(ValueError, match="non-negative"):
             state.at_lag(-1)
 
@@ -351,13 +351,13 @@ class TestTimeDerivativeStencil:
 class TestFrozenInstance:
     def test_assign_bulk_raises(self) -> None:
         m = _slab_mesh()
-        state = m.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m)
         with pytest.raises(FrozenInstanceError):
             state.bulk = state.bulk  # type: ignore[misc]
 
     def test_assign_boundary_raises(self) -> None:
         m = _slab_mesh()
-        state = m.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m)
         with pytest.raises(FrozenInstanceError):
             state.boundary = state.boundary  # type: ignore[misc]
 
@@ -380,9 +380,9 @@ class TestCopy:
 
     def test_copy_drops_history(self) -> None:
         m = _slab_mesh()
-        state = m.zeros_timed_full_field()
-        nb = AngularFlux.zeros_for_sn_mesh(m)
-        nf = BoundaryFlux.zeros_for_sn_mesh(m)
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m)
+        nb = AngularFlux.zeros_on(m)
+        nf = BoundaryFlux.zeros_on(m)
         advanced = state.advance(nb, nf)
         assert advanced.history_length == 1
         copy = advanced.copy()
@@ -431,7 +431,7 @@ class TestFlatVectorProtocol:
     def test_from_flat_round_trip_2d(self) -> None:
         m = _cartesian_2d_mesh()
         rng = np.random.default_rng(7)
-        state = m.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m)
         state.bulk.values[:] = rng.standard_normal(state.bulk.values.shape)
         state.boundary.values[:] = rng.standard_normal(state.boundary.values.shape)
         flat = state.to_flat()
@@ -445,9 +445,9 @@ class TestFlatVectorProtocol:
 
     def test_from_flat_drops_history(self) -> None:
         m = _slab_mesh()
-        state = m.zeros_timed_full_field()
-        nb = AngularFlux.zeros_for_sn_mesh(m)
-        nf = BoundaryFlux.zeros_for_sn_mesh(m)
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m)
+        nb = AngularFlux.zeros_on(m)
+        nf = BoundaryFlux.zeros_on(m)
         advanced = state.advance(nb, nf)
         assert advanced.history_length == 1
         reconstructed = TimedFullField.from_flat(advanced.to_flat(), advanced)
@@ -455,13 +455,13 @@ class TestFlatVectorProtocol:
 
     def test_from_flat_preserves_history_depth(self) -> None:
         m = _slab_mesh()
-        state = m.zeros_timed_full_field(history_depth=5)
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m, history_depth=5)
         reconstructed = TimedFullField.from_flat(state.to_flat(), state)
         assert reconstructed.history_depth == 5
 
     def test_from_flat_wrong_size_raises(self) -> None:
         m = _slab_mesh()
-        state = m.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m)
         with pytest.raises(ValueError, match="flat.size"):
             TimedFullField.from_flat(np.zeros(3), state)
 

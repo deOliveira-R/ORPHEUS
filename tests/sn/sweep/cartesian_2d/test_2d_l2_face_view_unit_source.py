@@ -50,6 +50,9 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
+from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.timed_full_field import TimedFullField
 
 # 2-D Cartesian L2 face_view convention crosswalk: structural pins on
 # the BoundaryFlux.face_view writability + unit-source convention (no
@@ -93,7 +96,7 @@ def _zero_state_with_unit_face(
     structural positive test: this unit should propagate downstream
     via the streaming operator's BC apply.
     """
-    state = mesh.zeros_timed_full_field()
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=mesh)
     state.boundary.face_view(face)[...] = 1.0
     return state
 

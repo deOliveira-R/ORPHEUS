@@ -60,7 +60,7 @@ def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNMesh:
 class TestScalarSource:
     def test_construct_from_factory(self) -> None:
         m = _slab_mesh()
-        Q = m.zeros_scalar_source()
+        Q = ScalarSourceSink.zeros_on(m)
         assert Q.values.shape == (m.ng, m.nx, m.ny)
         assert np.all(Q.values == 0.0)
         assert isinstance(Q, ScalarSourceSink)
@@ -125,7 +125,7 @@ class TestScalarSource:
 class TestAngularSource:
     def test_construct_from_factory(self) -> None:
         m = _slab_mesh()
-        Qa = m.zeros_angular_source()
+        Qa = AngularSourceSink.zeros_on(m)
         assert Qa.values.shape == (m.quad.N, m.ng, m.nx, m.ny)
         assert np.all(Qa.values == 0.0)
         assert isinstance(Qa, AngularSourceSink)
@@ -320,7 +320,7 @@ class TestAsPerOrdinate:
         assert aniso.values.flags.writeable
 
     def test_as_per_ordinate_equivalent_to_dunder_with_zero(self) -> None:
-        """``iso.as_per_ordinate() == iso + zeros_angular_source()``.
+        """``iso.as_per_ordinate() == iso + AngularSourceSink.zeros_on()``.
 
         The explicit conversion and the dunder-against-zero produce
         equivalent results (modulo the type of the zero partner).
@@ -331,7 +331,7 @@ class TestAsPerOrdinate:
             rng.standard_normal((m.ng, m.nx, m.ny)), m,
         )
         via_conv = iso.as_per_ordinate()
-        via_dunder = iso + m.zeros_angular_source()
+        via_dunder = iso + AngularSourceSink.zeros_on(m)
         np.testing.assert_array_equal(via_conv.values, via_dunder.values)
 
 
@@ -343,8 +343,8 @@ class TestAsPerOrdinate:
 class Test2DTypedSources:
     def test_factory_shapes_2d(self) -> None:
         m = _2d_mesh()
-        iso = m.zeros_scalar_source()
-        aniso = m.zeros_angular_source()
+        iso = ScalarSourceSink.zeros_on(m)
+        aniso = AngularSourceSink.zeros_on(m)
         assert iso.values.shape == (m.ng, m.nx, m.ny)
         assert aniso.values.shape == (m.quad.N, m.ng, m.nx, m.ny)
 

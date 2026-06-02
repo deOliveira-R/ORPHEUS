@@ -54,6 +54,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
 
 
 def _random_state(
@@ -68,7 +69,7 @@ def _random_state(
     """
     rng = np.random.default_rng(seed)
     N, ng, nx, ny = sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny
-    state = sn_mesh.zeros_timed_full_field(history_depth=history_depth)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=history_depth)
     return replace(
         state,
         bulk=replace(
@@ -82,7 +83,7 @@ def _const_state(
 ) -> TimedFullField:
     """Build a :class:`TimedFullField` whose bulk is uniformly ``value``."""
     N, ng, nx, ny = sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny
-    state = sn_mesh.zeros_timed_full_field(history_depth=history_depth)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=history_depth)
     return replace(
         state,
         bulk=replace(state.bulk, values=np.full((N, ng, nx, ny), value)),
@@ -303,7 +304,7 @@ class TestSolve:
             sn, sigma_t,
         )
 
-        rhs = sn.zeros_timed_full_field(history_depth=5)
+        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn, history_depth=5)
         psi = invertible.solve(rhs)
         assert psi.history_depth == 5
 
@@ -343,7 +344,7 @@ class TestSolve:
         invertible = StreamingOperator(sn1, sigma_t1) + CollisionOperator(
             sn1, sigma_t1,
         )
-        rhs = sn2.zeros_timed_full_field()
+        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn2)
         with pytest.raises(ValueError, match="mesh-identity"):
             invertible.solve(rhs)
 
@@ -381,8 +382,8 @@ class TestSolve:
             (N, ng, nx, ny),
         ).copy()
         q = replace(
-            sn.zeros_timed_full_field(),
-            bulk=replace(sn.zeros_timed_full_field().bulk, values=rhs_values),
+            TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn),
+            bulk=replace(TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn).bulk, values=rhs_values),
         )
         psi = invertible.solve(q)
 
@@ -445,7 +446,7 @@ class TestSolve:
         sum_w = float(sn.quad.weights.sum())
         q_const = 2.7
         per_ord_density = q_const / sum_w
-        zero = sn.zeros_timed_full_field()
+        zero = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
         rhs = replace(
             zero,
             bulk=replace(
@@ -508,7 +509,7 @@ class TestSolve:
         )
 
         psi_prev = _const_state(sn, value=0.7)
-        rhs = sn.zeros_timed_full_field()
+        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
 
         # Spy on transport_sweep — capture initial_guess on every call.
         captured = []
@@ -571,8 +572,8 @@ class TestSolveTimedFullField:
         # Build initial_guess with a non-zero boundary trace —
         # verify it makes it into the sweep's boundary_buf.  Slab has
         # both xmin and xmax faces.
-        rhs = sn.zeros_timed_full_field()
-        ig = sn.zeros_timed_full_field()
+        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
+        ig = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
         # Seed both face buffers via L2 face_view.
         layout = ig.boundary.layout
         ig_boundary = ig.boundary
@@ -617,7 +618,7 @@ class TestSolveTimedFullField:
         )
 
         for depth in (1, 2, 4):
-            rhs = sn.zeros_timed_full_field(history_depth=depth)
+            rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn, history_depth=depth)
             psi = invertible.solve(rhs)
             assert psi.history_depth == depth
 
@@ -628,7 +629,7 @@ class TestSolveTimedFullField:
         invertible = StreamingOperator(sn1, sigma_t1) + CollisionOperator(
             sn1, sigma_t1,
         )
-        rhs = sn2.zeros_timed_full_field()
+        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn2)
         with pytest.raises(ValueError, match="mesh-identity"):
             invertible.solve(rhs)
 
@@ -639,8 +640,8 @@ class TestSolveTimedFullField:
         invertible = StreamingOperator(sn1, sigma_t1) + CollisionOperator(
             sn1, sigma_t1,
         )
-        rhs = sn1.zeros_timed_full_field()
-        ig = sn2.zeros_timed_full_field()
+        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn1)
+        ig = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn2)
         with pytest.raises(ValueError, match="mesh-identity"):
             invertible.solve(rhs, initial_guess=ig)
 
@@ -831,7 +832,7 @@ class TestInvertibleSolveBridgeRegression:
         # Build composite ψ=1.  No need for legacy AngularFlux at all
         # on this path.
         from dataclasses import replace
-        psi_known = sn_mesh.zeros_timed_full_field()
+        psi_known = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         psi_known = replace(
             psi_known,
             bulk=replace(psi_known.bulk, values=np.ones((N, ng, nx, ny))),
@@ -907,7 +908,7 @@ class TestInvertibleSolveBridgeRegression:
         q_per_ord = np.full((N, ng, nx, ny), q_iso / sum_w)
         rhs = TimedFullField(
             bulk=AngularFlux.from_mesh(q_per_ord, sn_mesh),
-            boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),
+            boundary=BoundaryFlux.zeros_on(sn_mesh),
             _history=(),
             history_depth=2,
         )

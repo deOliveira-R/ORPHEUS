@@ -36,6 +36,8 @@ from orpheus.sn.operator import (
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
+from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
 
 # Per-test V&V level markers (see individual @pytest.mark.lN decorators).
 
@@ -127,7 +129,7 @@ def test_b1pp_lplusc_is_full_rank(name, builder):
     L = StreamingOperator(sn_mesh, sigma_t)
     C = CollisionOperator(sn_mesh, sigma_t)
 
-    template = sn_mesh.zeros_timed_full_field()
+    template = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
     n_flat = template.to_flat().size
 
     def matvec_flat(flat: np.ndarray) -> np.ndarray:
@@ -211,7 +213,7 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     # face_view = 1 at every face slot (the "ψ = const at every B1''
     # slot" condition the docstring describes).  The face-flat buffer
     # is filled by assigning to every face_view in turn.
-    state = sn_mesh.zeros_timed_full_field()
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
     bulk_values = np.ones_like(state.bulk.values)
     new_bulk = replace(state.bulk, values=bulk_values)
     new_boundary = state.boundary
@@ -278,7 +280,7 @@ def test_b1pp_lplusc_gmres_converges_fp_noise(name, builder):
     L = StreamingOperator(sn_mesh, sigma_t)
     C = CollisionOperator(sn_mesh, sigma_t)
 
-    template = sn_mesh.zeros_timed_full_field()
+    template = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
     n_flat = template.to_flat().size
 
     def matvec(flat: np.ndarray) -> np.ndarray:

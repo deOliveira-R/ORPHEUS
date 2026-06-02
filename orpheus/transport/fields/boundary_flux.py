@@ -48,7 +48,7 @@ Post-D-G this class:
 **B.1 (field vocabulary):** every member that was generic to a boundary
 trace field — the ``mesh`` field, the cross-mesh guard, the TraceSpace
 contract, the :attr:`layout` property, :meth:`face_view`, and the
-:meth:`zeros_for_sn_mesh` / :meth:`from_face_arrays` factories — moved up
+:meth:`zeros_on` / :meth:`from_face_arrays` factories — moved up
 to the :class:`~orpheus.transport.fields._bases.BoundaryField` storage
 base. ``BoundaryFlux`` is the *flux* role leaf; ``BoundarySourceSink``
 (``orpheus.transport.source_sinks``) and ``BoundaryResidual``
@@ -106,7 +106,7 @@ class BoundaryFlux(BoundaryField):
     leaf carries no flux-specific behaviour beyond its class identity —
     which is exactly what Field's Layer-1 gate uses to keep boundary
     flux, source, and residual arithmetic from silently mixing. Build
-    via :meth:`~orpheus.transport.fields._bases.BoundaryField.zeros_for_sn_mesh`
+    via :meth:`~orpheus.transport.fields._bases.BoundaryField.zeros_on`
     / :meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`.
     """
 

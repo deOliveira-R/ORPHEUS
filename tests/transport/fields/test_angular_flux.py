@@ -7,7 +7,7 @@ Pins the post-D-H.1 contract for
   dunders.
 * Pure Field — NO ``boundary`` attribute, NO ``_history`` attribute.
 * Mesh-binding rejection (cross-mesh arithmetic raises).
-* ``from_mesh`` / ``from_ndarray`` / ``zeros_for_sn_mesh`` factories.
+* ``from_mesh`` / ``from_ndarray`` / ``zeros_on`` factories.
 * Frozen contract.
 * ``integrate_angular`` reduction to ScalarFlux.
 
@@ -76,24 +76,24 @@ def _cartesian_2d_mesh(nx: int = 3, ny: int = 2, ng: int = 2) -> SNMesh:
 class TestFieldInheritance:
     def test_inherits_field(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_for_sn_mesh(m)
+        psi = AngularFlux.zeros_on(m)
         assert isinstance(psi, Field)
 
     def test_pure_field_no_boundary_attribute(self) -> None:
         """Critical: post-D-H.1 AngularFlux has NO .boundary field."""
         m = _slab_mesh()
-        psi = AngularFlux.zeros_for_sn_mesh(m)
+        psi = AngularFlux.zeros_on(m)
         assert not hasattr(psi, "boundary")
 
     def test_pure_field_no_history_attribute(self) -> None:
         """Critical: post-D-H.1 AngularFlux has NO ._history field."""
         m = _slab_mesh()
-        psi = AngularFlux.zeros_for_sn_mesh(m)
+        psi = AngularFlux.zeros_on(m)
         assert not hasattr(psi, "_history")
 
     def test_pure_field_no_history_depth_attribute(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_for_sn_mesh(m)
+        psi = AngularFlux.zeros_on(m)
         assert not hasattr(psi, "history_depth")
 
 
@@ -146,14 +146,14 @@ class TestMeshBinding:
     def test_cross_mesh_add_rejected(self) -> None:
         m1 = _slab_mesh()
         m2 = _slab_mesh()  # different instance, same structure
-        a = AngularFlux.zeros_for_sn_mesh(m1)
-        b = AngularFlux.zeros_for_sn_mesh(m2)
+        a = AngularFlux.zeros_on(m1)
+        b = AngularFlux.zeros_on(m2)
         with pytest.raises(ValueError, match="mesh-bound"):
             a + b
 
     def test_cross_class_rejected(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_for_sn_mesh(m)
+        psi = AngularFlux.zeros_on(m)
         phi = ScalarFlux.from_mesh(np.zeros((m.ng, m.nx, m.ny)), m)
         with pytest.raises(TypeError, match="same-class"):
             psi + phi  # type: ignore[operator]
@@ -178,9 +178,9 @@ class TestConstruction:
         psi = AngularFlux.from_ndarray(arr, m)
         assert isinstance(psi, AngularFlux)
 
-    def test_zeros_for_sn_mesh(self) -> None:
+    def test_zeros_on(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_for_sn_mesh(m)
+        psi = AngularFlux.zeros_on(m)
         np.testing.assert_array_equal(psi.values, 0.0)
 
     def test_shape_validation_rejects_wrong_shape(self) -> None:
@@ -205,13 +205,13 @@ class TestConstruction:
 class TestFrozen:
     def test_assign_values_raises(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_for_sn_mesh(m)
+        psi = AngularFlux.zeros_on(m)
         with pytest.raises(FrozenInstanceError):
             psi.values = np.zeros(psi.values.shape)  # type: ignore[misc]
 
     def test_assign_mesh_raises(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_for_sn_mesh(m)
+        psi = AngularFlux.zeros_on(m)
         with pytest.raises(FrozenInstanceError):
             psi.mesh = m  # type: ignore[misc]
 
@@ -224,7 +224,7 @@ class TestFrozen:
 class TestIntegrateAngular:
     def test_returns_scalar_flux(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_for_sn_mesh(m)
+        psi = AngularFlux.zeros_on(m)
         phi = psi.integrate_angular()
         assert isinstance(phi, ScalarFlux)
         assert phi.values.shape == (m.ng, m.nx, m.ny)
@@ -258,20 +258,20 @@ class TestIntegrateAngular:
 class TestMetadata:
     def test_N_property(self) -> None:
         m = _slab_mesh()
-        psi = AngularFlux.zeros_for_sn_mesh(m)
+        psi = AngularFlux.zeros_on(m)
         assert psi.N == m.quad.N
 
     def test_ng_property(self) -> None:
         m = _slab_mesh(ng=3)
-        psi = AngularFlux.zeros_for_sn_mesh(m)
+        psi = AngularFlux.zeros_on(m)
         assert psi.ng == 3
 
     def test_nx_property(self) -> None:
         m = _slab_mesh(nx=7)
-        psi = AngularFlux.zeros_for_sn_mesh(m)
+        psi = AngularFlux.zeros_on(m)
         assert psi.nx == 7
 
     def test_ny_property(self) -> None:
         m = _cartesian_2d_mesh(nx=3, ny=5)
-        psi = AngularFlux.zeros_for_sn_mesh(m)
+        psi = AngularFlux.zeros_on(m)
         assert psi.ny == 5

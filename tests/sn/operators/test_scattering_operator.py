@@ -31,6 +31,8 @@ from orpheus.sn.scattering import ScatteringOperator
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.timed_full_field import TimedFullField
 
 pytestmark = pytest.mark.foundation  # software-invariant tier
 
@@ -473,7 +475,7 @@ class TestCompositeInvariants:
         from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = solver_2g_p0.sn_mesh
-        state = sn_mesh.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         np.random.seed(41)
         bulk_values = np.random.rand(*state.bulk.values.shape) + 0.1
         state = replace(state, bulk=replace(state.bulk, values=bulk_values))
@@ -491,7 +493,7 @@ class TestCompositeInvariants:
         from dataclasses import replace
 
         sn_mesh = solver_2g_p0.sn_mesh
-        state = sn_mesh.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         np.random.seed(42)
         bulk_values = np.random.rand(*state.bulk.values.shape) + 0.1
         state = replace(state, bulk=replace(state.bulk, values=bulk_values))
@@ -503,7 +505,7 @@ class TestCompositeInvariants:
 
     def test_zero_bulk_zero_output(self, solver_2g_p0):
         """ψ = 0 ⇒ S·ψ = 0 (linearity guard at composite layer)."""
-        state = solver_2g_p0.sn_mesh.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=solver_2g_p0.sn_mesh)
         out = solver_2g_p0.scattering_op.apply(state)
         np.testing.assert_array_equal(out.bulk.values, 0.0)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
@@ -512,7 +514,7 @@ class TestCompositeInvariants:
         """Composite return preserves input ``history_depth`` capacity."""
         sn_mesh = solver_2g_p0.sn_mesh
         for depth in (0, 1, 2, 4):
-            state = sn_mesh.zeros_timed_full_field(history_depth=depth)
+            state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=depth)
             out = solver_2g_p0.scattering_op.apply(state)
             assert out.history_depth == depth
 
@@ -1342,7 +1344,7 @@ class TestPerLegendreOrderKernel:
         from dataclasses import replace
 
         psi = self._reproduce_psi(solver_2g_p1_n2n, seed=20260530)
-        state = solver_2g_p1_n2n.sn_mesh.zeros_timed_full_field()
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=solver_2g_p1_n2n.sn_mesh)
         state = replace(state, bulk=replace(state.bulk, values=psi.values))
 
         out_post_t3 = op_p1.apply(state)

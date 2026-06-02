@@ -44,6 +44,7 @@ from orpheus.numerics.operator import (
     MissingCapability,
     ZeroOperator,
 )
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -580,7 +581,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     # Round 2 normalises this; for the L1 gate test we wrap each
     # operator into a thin scalar-in/scalar-out facade.
     # Issue #197 PR-TYPED-2 — typed BoundaryFlux replaces psi_bc: dict.
-    boundary_flux = sn_mesh.zeros_boundary_flux()
+    boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
 
     class L_inv_adapter(LinearOperatorMixin):
         """Adapter: rhs (ng, nx, ny) → phi via the unified sweep.

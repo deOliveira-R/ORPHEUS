@@ -92,6 +92,8 @@ from test_kinf_homogeneous import (  # noqa: E402  (post-sys.path import)
     _homogeneous_mesh,
     _quadrature_for,
 )
+from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
 
 
 pytestmark = [
@@ -175,7 +177,7 @@ def _krylov_power_iteration_kinf(
         # D-H.2-C1: build the per-ordinate external source as a
         # :class:`TimedFullField` composite — bulk = L2 AngularFlux
         # carrying ``q_ext_per_ord.values``; boundary = implicit zero.
-        zero = sn_mesh.zeros_timed_full_field()
+        zero = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         q_ext_typed = replace(
             zero,
             bulk=replace(zero.bulk, values=q_ext_per_ord.values),
