@@ -20,7 +20,7 @@ This package supplies the **residual** column of the bulk role grid::
 
     {Angular, Scalar, Boundary} × {Flux, Source, Residual}
        flux     →  orpheus.transport.fields    (Angular/Scalar/BoundaryFlux)
-       source   →  orpheus.transport.sources   (Angular/Scalar/BoundarySource)
+       source   →  orpheus.transport.source_sinks   (Angular/Scalar/BoundarySourceSink)
        residual →  orpheus.transport.residuals (Angular/Scalar/BoundaryResidual)
 
 The boundary residual :class:`BoundaryResidual` IS the already-computed

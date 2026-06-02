@@ -1,5 +1,5 @@
 r"""Foundation tests for the B.3 boundary role leaves
-:class:`~orpheus.transport.sources.boundary_source.BoundarySource` and
+:class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink` and
 :class:`~orpheus.transport.residuals.boundary_residual.BoundaryResidual`.
 
 These complete the ``{Boundary}×{Source,Residual}`` cells of the field
@@ -16,7 +16,7 @@ already pinned by ``test_boundary_flux.py``. This module adds:
 * the **load-bearing cross-class invariant** unique to the boundary
   family: all three leaves share the SAME ``TraceSpace`` (``mesh.trace``),
   so the space gate would PASS — it is the **class-identity** gate that
-  rejects ``BoundarySource ± BoundaryFlux`` etc. This is the boundary
+  rejects ``BoundarySourceSink ± BoundaryFlux`` etc. This is the boundary
   analogue of the bulk "same units / same space ≠ same meaning"
   discipline.
 
@@ -44,14 +44,14 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.transport.fields._bases import BoundaryField
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.residuals import BoundaryResidual
-from orpheus.transport.sources import BoundarySource
+from orpheus.transport.source_sinks import BoundarySourceSink
 
 from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = [pytest.mark.foundation]
 
 # The two NEW boundary leaves (parametrized over for shared contract).
-NEW_BOUNDARY_LEAVES = [BoundarySource, BoundaryResidual]
+NEW_BOUNDARY_LEAVES = [BoundarySourceSink, BoundaryResidual]
 
 
 # ── Fixtures ─────────────────────────────────────────────────────────
@@ -191,7 +191,7 @@ class TestAlgebraClosedWithinClass:
 # This is structurally DIFFERENT from the bulk families, where
 # cross-class operands also have different spaces/shapes (so either gate
 # would catch them). Here the space gate would PASS — only the
-# class-identity gate discriminates BoundaryFlux / BoundarySource /
+# class-identity gate discriminates BoundaryFlux / BoundarySourceSink /
 # BoundaryResidual.
 # ════════════════════════════════════════════════════════════════════
 
@@ -203,7 +203,7 @@ class TestCrossClassRejectionSharedSpace:
         the space gate alone would NOT reject cross-class arithmetic."""
         m = _slab_mesh()
         flux = BoundaryFlux.zeros_for_sn_mesh(m)
-        src = BoundarySource.zeros_for_sn_mesh(m)
+        src = BoundarySourceSink.zeros_for_sn_mesh(m)
         res = BoundaryResidual.zeros_for_sn_mesh(m)
         assert flux.space is src.space is res.space is m.trace
         # The space gate would pass (equal spaces) — proving it is the
@@ -213,9 +213,9 @@ class TestCrossClassRejectionSharedSpace:
     @pytest.mark.parametrize(
         ("A", "B"),
         [
-            (BoundarySource, BoundaryFlux),
+            (BoundarySourceSink, BoundaryFlux),
             (BoundaryResidual, BoundaryFlux),
-            (BoundarySource, BoundaryResidual),
+            (BoundarySourceSink, BoundaryResidual),
         ],
     )
     def test_cross_class_add_sub_raises(self, A, B) -> None:
@@ -232,7 +232,7 @@ class TestCrossClassRejectionSharedSpace:
 
     def test_cross_class_inner_product_raises(self) -> None:
         m = _slab_mesh()
-        src = BoundarySource.zeros_for_sn_mesh(m)
+        src = BoundarySourceSink.zeros_for_sn_mesh(m)
         res = BoundaryResidual.zeros_for_sn_mesh(m)
         with pytest.raises(TypeError, match="same-class"):
             src.inner_product(res)  # type: ignore[arg-type]

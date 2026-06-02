@@ -2,10 +2,10 @@ r"""Storage-base ABCs for the typed transport field vocabulary (B.1).
 
 This module is the single source of truth for the machinery that every
 typed transport field used to redeclare leaf-by-leaf (Cardinal Rule 2).
-Before B.1, ``AngularFlux`` and ``AngularSource`` each independently
+Before B.1, ``AngularFlux`` and ``AngularSourceSink`` each independently
 carried an identical ``mesh`` field, ``(N, ng, nx, ny)`` shape-check,
 mesh-binding ``_check_partner``, ``from_mesh``/``from_ndarray``, and
-``N/ng/nx/ny`` read-throughs — and ``ScalarFlux`` / ``ScalarSource``
+``N/ng/nx/ny`` read-throughs — and ``ScalarFlux`` / ``ScalarSourceSink``
 mirrored the same pattern on ``(ng, nx, ny)``. The repetition IS the
 architectural smell; these bases are the consolidation.
 
@@ -16,21 +16,21 @@ The field vocabulary (issues #205 / #201) is a grid of **locus**
 (bulk vs boundary) × **storage family** (angular / scalar / moment /
 trace) × **role** (flux / source / residual). This module provides the
 *locus + storage-family* axis as ABCs; the *role* leaves (``AngularFlux``,
-``AngularSource``, ...) sit beneath them::
+``AngularSourceSink``, ...) sit beneath them::
 
     Field (numerics, L1 — values + space + dunder algebra)
      ├─ BulkField (ABC)           mesh + mesh-binding + ng/nx/ny + abstract _phase_space_shape
      │   ├─ AngularField (ABC)    + N + (N,ng,nx,ny) from_mesh/_ndarray, parametrized by _SPACE_NAME
      │   │   ├─ AngularFlux           role leaf  (flux)
-     │   │   └─ AngularSource     role leaf  (source; renamed from PerOrdinateSource in B.2)
+     │   │   └─ AngularSourceSink     role leaf  (source; renamed from PerOrdinateSource in B.2)
      │   ├─ ScalarField (ABC)     + (ng,nx,ny) from_mesh/_ndarray, parametrized by _SPACE_NAME
      │   │   ├─ ScalarFlux            role leaf  (flux)
-     │   │   └─ ScalarSource       role leaf  (source; renamed from IsotropicSource in B.2)
+     │   │   └─ ScalarSourceSink       role leaf  (source; renamed from IsotropicSource in B.2)
      │   └─ MomentField (ABC)     family marker; the moment shape is leaf-specific
      │       └─ HarmonicMomentField   role leaf  (flux-only for now)
      └─ BoundaryField (ABC)       mesh + mesh-binding + TraceSpace contract + layout/face_view + factories
          ├─ BoundaryFlux              role leaf  (flux)
-         ├─ BoundarySource            role leaf  (source; B.3 — orpheus.transport.sources)
+         ├─ BoundarySourceSink            role leaf  (source; B.3 — orpheus.transport.source_sinks)
          └─ BoundaryResidual          role leaf  (residual; B.3 — orpheus.transport.residuals)
 
 Parametrization (no twin paths)
@@ -41,7 +41,7 @@ The per-family phase-space shape is the one abstract hook
 ``__post_init__`` validator. The Angular/Scalar families additionally
 expose a ``from_mesh`` classmethod parametrized by the leaf's
 ``_SPACE_NAME`` :class:`~typing.ClassVar` (so ``AngularFlux``'s space is
-named ``"angular_flux"`` and ``AngularSource``'s ``"angular_source"``,
+named ``"angular_flux"`` and ``AngularSourceSink``'s ``"angular_source_sink"``,
 preserving the pre-B.1 space identities bit-for-bit). ``MomentField`` and
 ``BoundaryField`` build their spaces differently (a TensorProductSpace
 keyed on ``L``; the mesh's cached ``TraceSpace``) and so do not use
@@ -171,7 +171,7 @@ class AngularField(BulkField):
     r"""Per-ordinate bulk family on ``(N, ng, nx, ny)``.
 
     The storage base for the angular role leaves (``AngularFlux`` and
-    ``AngularSource`` today; ``AngularResidual`` joins after B.3).
+    ``AngularSourceSink`` today; ``AngularResidual`` joins after B.3).
     Subclasses declare a ``_SPACE_NAME``
     :class:`~typing.ClassVar` that names the :class:`FunctionSpace`
     built by :meth:`from_mesh` (preserving each leaf's pre-B.1 space
@@ -220,7 +220,7 @@ class ScalarField(BulkField):
     r"""Scalar bulk family on ``(ng, nx, ny)``.
 
     The storage base for the scalar role leaves (``ScalarFlux`` and
-    ``ScalarSource`` today; ``ScalarResidual`` joins after B.3).
+    ``ScalarSourceSink`` today; ``ScalarResidual`` joins after B.3).
     Parametrized by the leaf's ``_SPACE_NAME``. Abstract — instantiate
     a concrete leaf.
     """
@@ -277,7 +277,7 @@ class BoundaryField(Field):
     unified :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`.
 
     Carries the machinery shared by every boundary trace field
-    (``BoundaryFlux``, ``BoundarySource``, ``BoundaryResidual`` — the
+    (``BoundaryFlux``, ``BoundarySourceSink``, ``BoundaryResidual`` — the
     latter two minted in B.3): the :class:`SNMesh` binding + cross-mesh guard, the
     TraceSpace contract (the space IS the trace and carries the
     :class:`~orpheus.numerics.face_layout.FaceLayout`), the read-through

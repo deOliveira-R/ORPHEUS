@@ -12,7 +12,7 @@ residual** — the scalar reduction of
 the per-cell-per-group defect of the balance after the angular
 quadrature contraction. Same storage shape as
 :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` and
-:class:`~orpheus.transport.sources.scalar_source.ScalarSource`
+:class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
 (``(ng, nx, ny)``), but a structurally distinct physical quantity: the
 residual of an equation, not a flux and not an external source.
 
@@ -20,7 +20,7 @@ Why a distinct class
 ====================
 
 :class:`ScalarResidual` and
-:class:`~orpheus.transport.sources.scalar_source.ScalarSource` share a
+:class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink` share a
 dimensional signature (both rate densities,
 :math:`1/(\mathrm{cm^3 \cdot s \cdot eV})`) — yet they are DIFFERENT
 classes. Field's Layer-1 class-identity gate
@@ -88,7 +88,7 @@ class ScalarResidual(ScalarField):
     :class:`~orpheus.transport.fields._bases.BulkField`. The leaf
     carries no residual-specific behaviour beyond its class identity,
     which keeps residual arithmetic from silently mixing with
-    :class:`~orpheus.transport.sources.scalar_source.ScalarSource`
+    :class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
     (same shape AND same units) or
     :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` (same
     shape, different units). Same-class arithmetic is closed.
@@ -99,13 +99,13 @@ class ScalarResidual(ScalarField):
     """
 
     #: The :class:`FunctionSpace` name for this leaf — distinct from
-    #: ``"scalar_flux"`` / ``"scalar_source"`` so the space identity
+    #: ``"scalar_flux"`` / ``"scalar_source_sink"`` so the space identity
     #: tracks the role. All mesh/shape/algebra/factory machinery is
     #: inherited from :class:`ScalarField` / :class:`BulkField`.
     _SPACE_NAME: ClassVar[str] = "scalar_residual"
 
     #: Dimensional identity (View-G, B.4): scalar rate density
     #: ``1/(cm³·s)`` — :data:`~orpheus.numerics.units.SCALAR_RATE_UNITS`,
-    #: shared with ``ScalarSource`` (same units, different role → the gate
+    #: shared with ``ScalarSourceSink`` (same units, different role → the gate
     #: is class identity, NOT units). Metadata, not the gate.
     UNITS: ClassVar[Unit] = SCALAR_RATE_UNITS

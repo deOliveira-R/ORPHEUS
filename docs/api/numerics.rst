@@ -294,7 +294,7 @@ gated at three layers, each with a different cost / coverage trade-off:
 * **Layer 1 — class identity.**
   :meth:`~orpheus.numerics.field.Field._check_partner` rejects
   ``type(self) is not type(other)`` before any value comparison. This
-  is the *primary* gate: even when units match (an ``AngularSource``
+  is the *primary* gate: even when units match (an ``AngularSourceSink``
   and an ``AngularResidual`` may both carry
   :math:`1/(\mathrm{cm^2 \cdot s \cdot sr \cdot eV})`),
   cross-class arithmetic raises by construction. Same units gives

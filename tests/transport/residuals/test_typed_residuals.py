@@ -37,7 +37,7 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.residuals import AngularResidual, ScalarResidual
-from orpheus.transport.sources import AngularSource, ScalarSource
+from orpheus.transport.source_sinks import AngularSourceSink, ScalarSourceSink
 
 from tests.sn._test_helpers import placeholder_materials
 
@@ -208,7 +208,7 @@ class TestCrossClassRejection:
     def test_angular_residual_minus_angular_source_raises_same_units(
         self,
     ) -> None:
-        r"""``AngularResidual - AngularSource`` RAISES even though both
+        r"""``AngularResidual - AngularSourceSink`` RAISES even though both
         carry :math:`1/(\mathrm{cm^3 \cdot s \cdot sr \cdot eV})`.
 
         Same shape, same units, DIFFERENT class — the dimensional-sin
@@ -217,7 +217,7 @@ class TestCrossClassRejection:
         """
         m = _slab_mesh()
         res = AngularResidual.from_mesh(np.ones(_ang_shape(m)), m)
-        src = AngularSource.from_mesh(np.ones(_ang_shape(m)), m)
+        src = AngularSourceSink.from_mesh(np.ones(_ang_shape(m)), m)
         # Identical shape and (conceptually) units — but distinct class.
         assert res.values.shape == src.values.shape
         with pytest.raises(TypeError, match="same-class"):
@@ -237,11 +237,11 @@ class TestCrossClassRejection:
     def test_scalar_residual_minus_scalar_source_raises_same_units(
         self,
     ) -> None:
-        """``ScalarResidual - ScalarSource`` RAISES (same shape + units,
+        """``ScalarResidual - ScalarSourceSink`` RAISES (same shape + units,
         distinct class)."""
         m = _slab_mesh()
         res = ScalarResidual.from_mesh(np.ones(_sca_shape(m)), m)
-        src = ScalarSource.from_mesh(np.ones(_sca_shape(m)), m)
+        src = ScalarSourceSink.from_mesh(np.ones(_sca_shape(m)), m)
         assert res.values.shape == src.values.shape
         with pytest.raises(TypeError, match="same-class"):
             _ = res - src  # type: ignore[operator]
@@ -266,7 +266,7 @@ class TestCrossClassRejection:
         """The cross-class gate also guards :meth:`Field.inner_product`."""
         m = _slab_mesh()
         res = AngularResidual.from_mesh(np.ones(_ang_shape(m)), m)
-        src = AngularSource.from_mesh(np.ones(_ang_shape(m)), m)
+        src = AngularSourceSink.from_mesh(np.ones(_ang_shape(m)), m)
         with pytest.raises(TypeError, match="same-class"):
             res.inner_product(src)  # type: ignore[arg-type]
 

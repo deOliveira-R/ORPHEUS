@@ -99,7 +99,7 @@ class TestSphericalSweepRegression:
         the spherical sweep source term.
         """
         from orpheus.sn.sweep import transport_sweep
-        from orpheus.transport.sources import AngularSource
+        from orpheus.transport.source_sinks import AngularSourceSink
 
         mesh = _homogeneous_mesh(10, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
@@ -107,7 +107,7 @@ class TestSphericalSweepRegression:
 
         sig_t = np.ones((1, 10, 1))             # (ng, nx, ny)
         Q_iso = np.ones((1, 10, 1))             # (ng, nx, ny)
-        source = AngularSource.from_isotropic(Q_iso, sn_mesh)
+        source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
 
         boundary_flux = sn_mesh.zeros_boundary_flux()
         phi = None
@@ -126,7 +126,7 @@ class TestSphericalSweepRegression:
         instead of |α| at the innermost cell where A=0.
         """
         from orpheus.sn.sweep import transport_sweep
-        from orpheus.transport.sources import AngularSource
+        from orpheus.transport.source_sinks import AngularSourceSink
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)
         quad = Quadrature.gauss_legendre(8)
@@ -134,7 +134,7 @@ class TestSphericalSweepRegression:
 
         sig_t = np.full((1, 10, 1), 0.5)        # (ng, nx, ny)
         Q_iso = np.ones((1, 10, 1))             # (ng, nx, ny)
-        source = AngularSource.from_isotropic(Q_iso, sn_mesh)
+        source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
 
         boundary_flux = sn_mesh.zeros_boundary_flux()
         ang, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)

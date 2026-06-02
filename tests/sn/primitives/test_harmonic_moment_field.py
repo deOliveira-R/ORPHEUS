@@ -424,12 +424,12 @@ class TestRLambdaMRoundTrip:
         Pℓ≥1 reconstruction :math:`R \cdot \Lambda \cdot M \cdot \psi`
         is identically zero (the anisotropic moments vanish by
         construction).  This test pins the typed-pipeline output as
-        a :class:`AngularSource` matching that algebraic claim.
+        a :class:`AngularSourceSink` matching that algebraic claim.
         """
         from orpheus.derivations.common.xs_library import get_mixture
         from orpheus.sn.scattering import ScatteringOperator
         from orpheus.sn.solver import SNSolver
-        from orpheus.transport.sources import AngularSource
+        from orpheus.transport.source_sinks import AngularSourceSink
         mix = get_mixture("A", "2g")
         if len(mix.SigS) < 2:
             pytest.skip("No P1 data in test mixture")
@@ -452,8 +452,8 @@ class TestRLambdaMRoundTrip:
 
         # Typed pipeline output.
         out = op.build_aniso_source(psi)
-        # Must be AngularSource (not bare ndarray) under typed-in.
-        assert isinstance(out, AngularSource)
+        # Must be AngularSourceSink (not bare ndarray) under typed-in.
+        assert isinstance(out, AngularSourceSink)
         assert out.values.shape == (N, mix.ng, nx, ny)
         np.testing.assert_allclose(out.values, 0.0, atol=1e-12)
 

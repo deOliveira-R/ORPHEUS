@@ -10,7 +10,7 @@ operator is applied to a flux and the right-hand source is subtracted:
 
 Same storage shape as
 :class:`~orpheus.transport.fields.angular_flux.AngularFlux` and
-:class:`~orpheus.transport.sources.angular_source.AngularSource`
+:class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
 (``(N, ng, nx, ny)``), but a structurally distinct physical quantity:
 it is the *defect* of the balance, not a flux and not an external
 source.
@@ -30,7 +30,7 @@ erases the distinctions physics makes and is the bug surface this role
 grid removes.
 
 :class:`AngularResidual` and
-:class:`~orpheus.transport.sources.angular_source.AngularSource` share
+:class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink` share
 a dimensional signature (both rate densities,
 :math:`1/(\mathrm{cm^3 \cdot s \cdot sr \cdot eV})`) — yet they are
 DIFFERENT classes. Field's Layer-1 class-identity gate
@@ -104,13 +104,13 @@ class AngularResidual(AngularField):
     carries no residual-specific behaviour beyond its class identity —
     which is exactly what Field's Layer-1 gate uses to keep residual
     arithmetic from silently mixing with
-    :class:`~orpheus.transport.sources.angular_source.AngularSource`
+    :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
     (same shape AND same units) or
     :class:`~orpheus.transport.fields.angular_flux.AngularFlux` (same
     shape, different units). Same-class arithmetic is closed.
 
     Unlike :class:`AngularFlux` (``zeros_for_sn_mesh``) and
-    :class:`AngularSource` (``from_isotropic``), :class:`AngularResidual`
+    :class:`AngularSourceSink` (``from_isotropic``), :class:`AngularResidual`
     intentionally exposes NO bespoke factory: a residual is *produced*
     by an operator balance (B.5 ``IterationResidual.from_balance``), not
     constructed from thin air. Tests and producers build it via the
@@ -118,7 +118,7 @@ class AngularResidual(AngularField):
     """
 
     #: The :class:`FunctionSpace` name for this leaf — distinct from
-    #: ``"angular_flux"`` / ``"angular_source"`` so the space identity
+    #: ``"angular_flux"`` / ``"angular_source_sink"`` so the space identity
     #: tracks the role. (Class identity is the primary gate; the space
     #: name keeps the identity legible in diagnostics.) All
     #: mesh/shape/algebra/factory machinery is inherited from
@@ -127,6 +127,6 @@ class AngularResidual(AngularField):
 
     #: Dimensional identity (View-G, B.4): per-ordinate rate density
     #: ``1/(cm³·s·sr)`` — :data:`~orpheus.numerics.units.ANGULAR_RATE_UNITS`,
-    #: shared with ``AngularSource`` (same units, different role → the gate
+    #: shared with ``AngularSourceSink`` (same units, different role → the gate
     #: is class identity, NOT units). Metadata, not the gate.
     UNITS: ClassVar[Unit] = ANGULAR_RATE_UNITS

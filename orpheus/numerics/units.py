@@ -17,14 +17,14 @@ The arithmetic gate is **class identity**, not units — see
 :meth:`~orpheus.numerics.field.Field._check_partner`. This is structural,
 not incidental: the ten role leaves fall into only **four distinct unit
 signatures** (below), so units are far coarser than classes
-(e.g. ``AngularFlux``, ``BoundaryFlux``, ``BoundarySource`` and
+(e.g. ``AngularFlux``, ``BoundaryFlux``, ``BoundarySourceSink`` and
 ``BoundaryResidual`` are all :data:`ANGULAR_FLUX_UNITS`). "Same units" grants
 permission to add in linear algebra; it does NOT grant meaning. ``UNITS`` is
 therefore **machine-readable metadata**, not a gate. Its consumers are:
 
 * **diagnostics (now):** :meth:`Field._check_partner` and
   :meth:`Field.__repr__` surface ``UNITS`` so a cross-class error reads
-  ``"AngularResidual [1/cm³/s/sr] vs AngularSource [1/cm³/s/sr]: same units,
+  ``"AngularResidual [1/cm³/s/sr] vs AngularSourceSink [1/cm³/s/sr]: same units,
   different role — use IterationResidual.from_balance"``;
 * **named composition (B.5):** ``IterationResidual.from_balance`` sanity-
   checks that a residual and a source share a unit signature before
@@ -39,10 +39,10 @@ The four unit signatures (a 2×2: areal/volumetric × angular/scalar)
 Constant                      Unit               Leaves
 ============================  =================  =====================================
 :data:`ANGULAR_FLUX_UNITS`    ``1/(cm²·s·sr)``   AngularFlux, BoundaryFlux,
-                                                 BoundarySource, BoundaryResidual
+                                                 BoundarySourceSink, BoundaryResidual
 :data:`SCALAR_FLUX_UNITS`     ``1/(cm²·s)``      ScalarFlux, HarmonicMomentField
-:data:`ANGULAR_RATE_UNITS`    ``1/(cm³·s·sr)``   AngularSource, AngularResidual
-:data:`SCALAR_RATE_UNITS`     ``1/(cm³·s)``      ScalarSource, ScalarResidual
+:data:`ANGULAR_RATE_UNITS`    ``1/(cm³·s·sr)``   AngularSourceSink, AngularResidual
+:data:`SCALAR_RATE_UNITS`     ``1/(cm³·s)``      ScalarSourceSink, ScalarResidual
 ============================  =================  =====================================
 
 The *areal vs volumetric* axis (``cm⁻²`` vs ``cm⁻³``) is *flux* vs

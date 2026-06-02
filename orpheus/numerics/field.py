@@ -13,7 +13,7 @@ Why this lives at L1
 
 The Grand Report v3 (§5.5, §32.5) prescribes that every typed
 transport field — ``AngularFlux``, ``ScalarFlux``, ``HarmonicMomentField``,
-``BoundaryFlux``, ``ScalarSource``, ``AngularSource``,
+``BoundaryFlux``, ``ScalarSourceSink``, ``AngularSourceSink``,
 ``ScalarResidual``, ``AngularResidual`` — share a single algebraic
 base. The pre-Depth-B codebase had six concrete classes each carrying
 an identical hand-coded dunder skeleton plus a ``_validate_partner``
@@ -38,7 +38,7 @@ and is role-/dimension-agnostic. Units are a property of the *quantity*
 * **Layer 1 — class identity.** ``Field._check_partner`` rejects
   ``type(self) is not type(other)`` before any value comparison.
   This is the runtime gate: even when units match (e.g. an
-  ``AngularSource`` and an ``AngularResidual`` may both carry
+  ``AngularSourceSink`` and an ``AngularResidual`` may both carry
   ``1/(cm³·s·sr·eV)``), the cross-class arithmetic raises by
   construction. Same units give PERMISSION to add in linear
   algebra; they do not give MEANING. The "complex-frequency"
@@ -64,7 +64,7 @@ Class identity for cross-class same-units operations
 ====================================================
 
 When two distinct Field subclasses share a dimensional signature
-(e.g. ``AngularResidual`` and ``AngularSource`` both have units
+(e.g. ``AngularResidual`` and ``AngularSourceSink`` both have units
 ``1/(cm³·s·sr·eV)``), arithmetic between them is REQUIRED to go
 through an explicit *named composition* — a factory method that
 constructs the result with a definite physical interpretation. The

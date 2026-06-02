@@ -87,7 +87,7 @@ from .sweep_graph import OctantLabel
 if TYPE_CHECKING:
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from .geometry import SNMesh
-    from orpheus.transport.sources import ScalarSource, AngularSource
+    from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
 
@@ -97,7 +97,7 @@ if TYPE_CHECKING:
 
 
 def transport_sweep(
-    source: "AngularSource",
+    source: "AngularSourceSink",
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
     boundary_flux: "BoundaryFlux",
@@ -114,7 +114,7 @@ def transport_sweep(
     Single-source contract (R-1 Step 4 A1)
     --------------------------------------
 
-    The sweep consumes ONE :class:`AngularSource` carrying the
+    The sweep consumes ONE :class:`AngularSourceSink` carrying the
     combined per-ordinate source magnitude
     :math:`Q_n(\\vec r, g)` — whatever combination of iso (P0 + n2n +
     fission) and aniso (P_ℓ ≥ 1) the caller produced.  The producer
@@ -126,15 +126,15 @@ def transport_sweep(
     External iso scalar sources :math:`Q(\\vec r, g)` (e.g. user-
     supplied fixed-source problems) project to per-ordinate at
     construction time via
-    :meth:`~orpheus.sn.sources.AngularSource.from_isotropic`.
+    :meth:`~orpheus.sn.sources.AngularSourceSink.from_isotropic`.
     Scattering-generated sources project at the producer boundary
     via the singledispatched
     :meth:`~orpheus.sn.scattering.ScatteringOperator.apply`.  Fission-
     generated sources project at the producer boundary via
     :meth:`~orpheus.sn.fission.FissionOperator.apply`.
 
-    The legacy two-parameter convention (``iso_source: ScalarSource``
-    + ``aniso_source: AngularSource | None`` with sweep-internal
+    The legacy two-parameter convention (``iso_source: ScalarSourceSink``
+    + ``aniso_source: AngularSourceSink | None`` with sweep-internal
     ``/W``) is GONE.  See `#205
     <https://github.com/deOliveira-R/ORPHEUS/issues/205>`_ for the
     cross-method field architecture that will further refine the
@@ -147,20 +147,20 @@ def transport_sweep(
       ``(ng, nx, ny)`` / ``(N, ng, nx, ny)``.
     * Issue #197 PR-TYPED-2: ``psi_bc: dict`` retired in favour of
       typed :class:`BoundaryFlux`.
-    * Issue #197 PR-TYPED-3: typed :class:`ScalarSource` /
-      :class:`AngularSource` inputs.
+    * Issue #197 PR-TYPED-3: typed :class:`ScalarSourceSink` /
+      :class:`AngularSourceSink` inputs.
     * Issue #197 PR-TYPED-4: bare-``np.ndarray`` overload retired.
     * R-1 Step 0 (2026-05-19): curvilinear Carlson seed derives from
       ``initial_guess`` (= previous iterate; ``None`` fallback uses
       the in-iteration source angular average).
     * R-1 Step 4 A1 (2026-05-21): ``iso_source`` parameter retired;
-      sweep takes one :class:`AngularSource` carrying the combined
+      sweep takes one :class:`AngularSourceSink` carrying the combined
       per-ordinate source magnitude.  Producer-side ``/W`` projection
       everywhere.
 
     Parameters
     ----------
-    source : AngularSource
+    source : AngularSourceSink
         Per-ordinate volumetric source, shape ``(N, ng, nx, ny)``.
         Convention: **per-ordinate magnitude** (the producer has
         already applied any required ``/W`` projection).
@@ -213,19 +213,19 @@ def transport_sweep(
     )
 
 
-def _unwrap_source(source: "AngularSource") -> np.ndarray:
-    """Unwrap typed :class:`AngularSource` to bare ndarray.
+def _unwrap_source(source: "AngularSourceSink") -> np.ndarray:
+    """Unwrap typed :class:`AngularSourceSink` to bare ndarray.
 
     Issue #197 PR-TYPED-4 — strict typed input.  R-1 Step 4 A1 collapsed
     the iso / aniso parameter pair into a single per-ordinate source.
     The internal hot path consumes bare ndarray; this helper performs
     the unwrap once at the public boundary.
     """
-    from orpheus.transport.sources import AngularSource
-    if not isinstance(source, AngularSource):
+    from orpheus.transport.source_sinks import AngularSourceSink
+    if not isinstance(source, AngularSourceSink):
         raise TypeError(
             f"transport_sweep: source must be "
-            f"AngularSource (R-1 Step 4 A1); got "
+            f"AngularSourceSink (R-1 Step 4 A1); got "
             f"{type(source).__name__}"
         )
     return source.values

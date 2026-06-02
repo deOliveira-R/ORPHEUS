@@ -56,7 +56,7 @@ from orpheus.geometry.mesh import Mesh2D
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.transport.sources import AngularSource
+from orpheus.transport.source_sinks import AngularSourceSink
 from tests.sn._test_helpers import placeholder_materials
 
 
@@ -115,7 +115,7 @@ class TestTwoDCartesianRaises:
         )
         quad = Quadrature.gauss_legendre(n_ordinates=4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
-        src = AngularSource.from_isotropic(
+        src = AngularSourceSink.from_isotropic(
             np.ones((1, 2, 2)), sn_mesh,
         )
         with pytest.raises(NotImplementedError) as exc_info:
@@ -254,7 +254,7 @@ class TestHomogeneousReflectiveFixedPoint:
         # Iso scalar source -> projected per-ord density.
         q_iso = 0.5
         Q_iso = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), q_iso)
-        src = AngularSource.from_isotropic(Q_iso, sn_mesh)
+        src = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
 
         result = solve_sn_fixed_source(
             materials=materials, mesh=mesh, quadrature=quad,
@@ -295,7 +295,7 @@ class TestReturnTypeContract:
     def test_solution_angular_flux_carries_boundary(self) -> None:
         mesh, quad = _sphere_reflective(nx=6)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
-        src = AngularSource.from_isotropic(
+        src = AngularSourceSink.from_isotropic(
             np.full((1, 6, 1), 1.0), sn_mesh,
         )
         result = solve_sn_fixed_source(

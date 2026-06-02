@@ -422,7 +422,7 @@ class TestSolve:
         R-1 Step 4 A1 invariant pin (N5 per verification plan).  The
         producer-side normalisation contract says the bulk values are
         already per-ordinate density (the producer of ``rhs`` — typically
-        ``ScatteringOperator.apply`` or ``AngularSource.from_isotropic``
+        ``ScatteringOperator.apply`` or ``AngularSourceSink.from_isotropic``
         — applied ``/sum_w`` at the producer boundary).  The
         ``InvertibleOperator.solve`` adapter MUST forward the bulk
         values to :func:`transport_sweep` *bit-equal* — no internal
@@ -667,7 +667,7 @@ class TestInvertibleSolveBridgeRegression:
     Phase 1.1 A1 (commit ``de8822d``) made the bug class **structurally
     unreachable**: ``/sum_w`` lives at the producer boundary
     (:meth:`ScatteringOperator.apply`, :meth:`FissionOperator.apply`,
-    :meth:`AngularSource.from_isotropic`); consumers see per-ord
+    :meth:`AngularSourceSink.from_isotropic`); consumers see per-ord
     density throughout.  The legacy ``rhs.values * sum_w`` bridge in
     ``InvertibleOperator.solve`` is GONE.  The sweep applies NO
     ``/W`` anywhere internally.

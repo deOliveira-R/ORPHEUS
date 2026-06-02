@@ -521,7 +521,7 @@ class TestMultiGroupMultiRegionSpherical:
         the origin.  With the fix, the range should be bounded.
         """
         from orpheus.sn.sweep import transport_sweep
-        from orpheus.transport.sources import AngularSource
+        from orpheus.transport.source_sinks import AngularSourceSink
         from tests.sn._test_helpers import placeholder_materials
 
         mesh = _homogeneous_mesh(40, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
@@ -530,7 +530,7 @@ class TestMultiGroupMultiRegionSpherical:
 
         sig_t = np.ones((1, 40, 1))             # (ng, nx, ny)
         Q_iso = np.ones((1, 40, 1))             # (ng, nx, ny)
-        source = AngularSource.from_isotropic(Q_iso, sn_mesh)
+        source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
         boundary_flux = sn_mesh.zeros_boundary_flux()
         phi = None
         for _ in range(50):

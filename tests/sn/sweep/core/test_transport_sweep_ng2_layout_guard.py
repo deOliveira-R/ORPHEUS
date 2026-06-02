@@ -10,7 +10,7 @@ distinguishes the two axes (``CollisionCache.from_geometry``).
 
 **This guard exists so the convention can never drift silently again.**
 It runs a 1-D *multigroup* (ng=2) sweep through the SAME production
-producer the solver uses (``AngularSource.from_isotropic`` +
+producer the solver uses (``AngularSourceSink.from_isotropic`` +
 ``transport_sweep``). With ng=2 the layout aliasing is broken: a
 ``(nx, ng, ny)`` mismatch makes axis 1 size 2 ≠ nx, so any future
 producer/consumer ``(ng, nx, ny)`` drift fails LOUDLY here (axis-size
@@ -34,7 +34,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D, Region, RegionMesh, Struct
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.sweep import transport_sweep
-from orpheus.transport.sources import AngularSource
+from orpheus.transport.source_sinks import AngularSourceSink
 
 pytestmark = pytest.mark.foundation
 
@@ -52,7 +52,7 @@ def test_transport_sweep_ng2_layout_shapes():
     """1-D ng=2 sweep: output shapes MUST be the PR-INDEX-5 contract.
 
     Routes a 2-group source + ``sig_t`` through the production producer
-    (``AngularSource.from_isotropic`` + ``transport_sweep``) on a
+    (``AngularSourceSink.from_isotropic`` + ``transport_sweep``) on a
     10-cell slab and asserts ``(N, ng, nx, ny)`` / ``(ng, nx, ny)``. The
     nx=10 ≠ ng=2 asymmetry is the load-bearing choice: it makes a
     ``(nx, ng, ny)`` axis-swap a SIZE mismatch (loud) rather than the
@@ -71,7 +71,7 @@ def test_transport_sweep_ng2_layout_shapes():
     # at CollisionCache.from_geometry and crash loudly here.
     sig_t = np.broadcast_to(mix.SigT[:, None, None], (ng, nx, 1)).copy()
     Q_iso = np.ones((ng, nx, 1))
-    source = AngularSource.from_isotropic(Q_iso, sn_mesh)
+    source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
     boundary_flux = sn_mesh.zeros_boundary_flux()
 
     ang, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
@@ -106,7 +106,7 @@ def test_transport_sweep_ng2_per_group_distinct():
 
     sig_t = np.broadcast_to(mix.SigT[:, None, None], (ng, nx, 1)).copy()
     Q_iso = np.ones((ng, nx, 1))
-    source = AngularSource.from_isotropic(Q_iso, sn_mesh)
+    source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
     boundary_flux = sn_mesh.zeros_boundary_flux()
 
     phi = None

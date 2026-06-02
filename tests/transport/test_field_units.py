@@ -10,7 +10,7 @@ Pins the View-G units-on-field commitment (step B.4):
   exactly, not by dimensionality: so a missing-``sr`` / missing-angular-
   integration bug stays visible);
 * ``UNITS`` is metadata, NOT the arithmetic gate — same-role pairs
-  (e.g. ``AngularSource`` / ``AngularResidual``, and the all-flux boundary
+  (e.g. ``AngularSourceSink`` / ``AngularResidual``, and the all-flux boundary
   trio) share a unit signature yet are distinct classes, so it is **class
   identity** that separates them;
 * ``UNITS`` is a ``ClassVar`` (absent from the dataclass fields), so it is
@@ -54,7 +54,7 @@ from orpheus.transport.residuals import (
     BoundaryResidual,
     ScalarResidual,
 )
-from orpheus.transport.sources import AngularSource, BoundarySource, ScalarSource
+from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink, ScalarSourceSink
 
 from tests.sn._test_helpers import placeholder_materials
 
@@ -66,13 +66,13 @@ pytestmark = pytest.mark.foundation
 LEAF_UNITS = [
     (AngularFlux, ANGULAR_FLUX_UNITS),
     (BoundaryFlux, ANGULAR_FLUX_UNITS),
-    (BoundarySource, ANGULAR_FLUX_UNITS),
+    (BoundarySourceSink, ANGULAR_FLUX_UNITS),
     (BoundaryResidual, ANGULAR_FLUX_UNITS),
     (ScalarFlux, SCALAR_FLUX_UNITS),
     (HarmonicMomentField, SCALAR_FLUX_UNITS),
-    (AngularSource, ANGULAR_RATE_UNITS),
+    (AngularSourceSink, ANGULAR_RATE_UNITS),
     (AngularResidual, ANGULAR_RATE_UNITS),
-    (ScalarSource, SCALAR_RATE_UNITS),
+    (ScalarSourceSink, SCALAR_RATE_UNITS),
     (ScalarResidual, SCALAR_RATE_UNITS),
 ]
 
@@ -162,11 +162,11 @@ class TestSameUnitsDifferentRole:
     @pytest.mark.parametrize(
         "a, b",
         [
-            (AngularSource, AngularResidual),   # rate density, Ω
-            (ScalarSource, ScalarResidual),     # rate density, scalar
+            (AngularSourceSink, AngularResidual),   # rate density, Ω
+            (ScalarSourceSink, ScalarResidual),     # rate density, scalar
             (AngularFlux, BoundaryFlux),        # flux density, Ω
-            (BoundaryFlux, BoundarySource),     # boundary all-flux
-            (BoundarySource, BoundaryResidual),
+            (BoundaryFlux, BoundarySourceSink),     # boundary all-flux
+            (BoundarySourceSink, BoundaryResidual),
             (ScalarFlux, HarmonicMomentField),  # areal scalar (ℓ=0 IS φ)
         ],
     )
@@ -203,9 +203,9 @@ class TestUnitsIsClassVarNotField:
         """The constant lives on the class and is shared by every instance
         (one object, constructed once at import)."""
         m = _slab_mesh()
-        a = AngularSource.from_mesh(np.zeros((m.quad.N, m.ng, m.nx, m.ny)), m)
-        b = AngularSource.from_mesh(np.ones((m.quad.N, m.ng, m.nx, m.ny)), m)
-        assert a.UNITS is b.UNITS is AngularSource.UNITS
+        a = AngularSourceSink.from_mesh(np.zeros((m.quad.N, m.ng, m.nx, m.ny)), m)
+        b = AngularSourceSink.from_mesh(np.ones((m.quad.N, m.ng, m.nx, m.ny)), m)
+        assert a.UNITS is b.UNITS is AngularSourceSink.UNITS
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -216,9 +216,9 @@ class TestUnitsIsClassVarNotField:
 class TestUnitsDiagnostics:
     def test_repr_is_concise_and_shows_units(self) -> None:
         m = _slab_mesh()
-        src = AngularSource.from_mesh(np.zeros((m.quad.N, m.ng, m.nx, m.ny)), m)
+        src = AngularSourceSink.from_mesh(np.zeros((m.quad.N, m.ng, m.nx, m.ny)), m)
         r = repr(src)
-        assert r.startswith("AngularSource(")
+        assert r.startswith("AngularSourceSink(")
         assert "shape=(4, 2, 4, 1)" in r
         assert "units=1/cm³/s/sr" in r
         # No raw ndarray dump (the dataclass auto-repr wart is gone).
@@ -227,7 +227,7 @@ class TestUnitsDiagnostics:
     def test_cross_class_error_shows_both_units_and_guidance(self) -> None:
         m = _slab_mesh()
         shp = (m.quad.N, m.ng, m.nx, m.ny)
-        src = AngularSource.from_mesh(np.ones(shp), m)
+        src = AngularSourceSink.from_mesh(np.ones(shp), m)
         res = AngularResidual.from_mesh(np.ones(shp), m)
         with pytest.raises(TypeError) as ei:
             _ = res - src
@@ -243,6 +243,6 @@ class TestUnitsDiagnostics:
     def test_error_label_for_non_field_partner(self) -> None:
         """A non-Field operand has no UNITS — the label degrades gracefully."""
         m = _slab_mesh()
-        src = AngularSource.from_mesh(np.ones((m.quad.N, m.ng, m.nx, m.ny)), m)
+        src = AngularSourceSink.from_mesh(np.ones((m.quad.N, m.ng, m.nx, m.ny)), m)
         with pytest.raises(TypeError, match="<no units>"):
             _ = src + 42  # type: ignore[operator]

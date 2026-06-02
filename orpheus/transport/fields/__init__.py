@@ -11,7 +11,7 @@ Migration sequence (Depth B plan §6):
 
 * D-D — :class:`ScalarFlux` (simplest case; SHIPPED)
 * D-E — :class:`HarmonicMomentField` (cleanest gap; pending)
-* D-F — :class:`ScalarSource`, :class:`AngularSource` (pending)
+* D-F — :class:`ScalarSourceSink`, :class:`AngularSourceSink` (pending)
 * D-G — :class:`BoundaryFlux` + :class:`BoundaryFaceFlux` (pending)
 * D-H — :class:`AngularFlux` (most complex; pending)
 

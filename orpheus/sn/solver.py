@@ -513,19 +513,19 @@ class SNSolver:
         from orpheus.transport.fields.boundary_flux import (
             BoundaryFlux,
         )
-        from orpheus.transport.sources import AngularSource
+        from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
         from orpheus.numerics.iteration import SourceIteration
         from orpheus.numerics.operator import ZeroOperator
 
         # ── Build the composite RHS ─────────────────────────────────
         # R-1 Step 4 A1 — q_ext as per-ordinate density via the canonical
-        # ``AngularSource.from_isotropic`` factory.  The /W projection
+        # ``AngularSourceSink.from_isotropic`` factory.  The /W projection
         # lives at the factory boundary (Pattern 7 producer-side
         # normalisation); the legacy
         # ``q_per_ord = (fission_source / sum_w)[None, :, :, :]``
         # broadcast pattern is GONE.
-        q_ext_per_ord = AngularSource.from_isotropic(
+        q_ext_per_ord = AngularSourceSink.from_isotropic(
             fission_source, self.sn_mesh,
         )
         # D-H.1c stage 2 — q_ext composite carries:
@@ -645,20 +645,20 @@ class SNSolver:
         from orpheus.transport.fields.boundary_flux import (
             BoundaryFlux,
         )
-        from orpheus.transport.sources import AngularSource
+        from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
         from orpheus.numerics.iteration import KrylovAcceleration
         from orpheus.numerics.operator import ZeroOperator
 
         # ── Build the composite RHS ─────────────────────────────────
         # R-1 Step 4 A1 — q_ext as per-ordinate density via the canonical
-        # ``AngularSource.from_isotropic`` factory.  /W lives at the
+        # ``AngularSourceSink.from_isotropic`` factory.  /W lives at the
         # factory boundary (Pattern 7 producer-side normalisation).
         # D-H.1c stage 2 — TimedFullField bulk + zero boundary (the
         # Krylov path does NOT pre-seed q_ext.boundary; reflective-BC
         # state threads through ``initial_guess`` per the audit §5
         # contract).
-        q_ext_per_ord = AngularSource.from_isotropic(
+        q_ext_per_ord = AngularSourceSink.from_isotropic(
             fission_source, self.sn_mesh,
         )
         q_ext_composite = TimedFullField(
@@ -769,7 +769,7 @@ class SNSolver:
         :class:`AngularFlux`.  This delegator wraps the inbound
         ``angular_flux`` ndarray as :class:`AngularFlux` at the helper
         boundary, then unwraps the resulting
-        :class:`AngularSource` via ``.values`` so the bare-ndarray
+        :class:`AngularSourceSink` via ``.values`` so the bare-ndarray
         external contract is preserved for legacy consumers in
         :func:`_solve_fixed_source_si` and the verification probes in
         :mod:`tests.sn.test_scattering_operator`.
@@ -960,15 +960,15 @@ def solve_sn(
     # array is principled — scalar_flux ``(ng, nx, ny)``, angular_flux
     # ``(N, ng, nx, ny)``.
     # R-1 Step 4 A1: typed source via the canonical
-    # :meth:`AngularSource.from_isotropic` factory (Pattern 7
+    # :meth:`AngularSourceSink.from_isotropic` factory (Pattern 7
     # producer-side normalisation — /W projection at the factory
     # boundary).
-    from orpheus.transport.sources import AngularSource
+    from orpheus.transport.source_sinks import AngularSourceSink
     Q_final = solver.compute_fission_source(scalar_flux, keff)
     solver._add_scattering_source(Q_final, scalar_flux)
     solver._add_n2n_source(Q_final, scalar_flux)
     angular_flux, _ = transport_sweep(
-        AngularSource.from_isotropic(Q_final, sn_mesh),
+        AngularSourceSink.from_isotropic(Q_final, sn_mesh),
         solver.mat_xs.total_cross_section, sn_mesh,
         solver._boundary_flux,
     )
@@ -1046,7 +1046,7 @@ def solve_sn_fixed_source(
         **per-ordinate density magnitude** (R-1 Step 4 A1 convention).
         Callers with an iso scalar source :math:`Q(\vec r, g)` should
         project to per-ordinate via
-        :meth:`~orpheus.sn.sources.AngularSource.from_isotropic`
+        :meth:`~orpheus.sn.sources.AngularSourceSink.from_isotropic`
         before passing (the :math:`1/W` projection lives at the
         producer boundary per Pattern 7).  The sweep does NOT apply
         ``/W`` internally.  Issue #196 PR-INDEX-5: principled layout
@@ -1177,7 +1177,7 @@ def _solve_fixed_source_si(
     :func:`solve_sn_fixed_source`.  Extracted as a helper to make the
     geometry-default dispatch in :func:`solve_sn_fixed_source` clean.
     """
-    from orpheus.transport.sources import AngularSource
+    from orpheus.transport.source_sinks import AngularSourceSink
     from orpheus.transport.fields.angular_flux import (
         AngularFlux,
     )
@@ -1201,24 +1201,24 @@ def _solve_fixed_source_si(
         # Isotropic in-scatter + (n,2n). No fission — this is fixed-source.
         # R-1 Step 4 A1 — single per-ordinate source feeds the sweep.
         # Producer-side normalisation: ``Q_iso`` (iso scalar magnitude)
-        # projects to per-ord via :meth:`AngularSource.from_isotropic`;
+        # projects to per-ord via :meth:`AngularSourceSink.from_isotropic`;
         # ``Q_aniso_p1`` is per-ord density already
         # (:meth:`ScatteringOperator.build_aniso_source` applies the
         # ``/W`` at the producer post-A1); ``external_source`` is
         # per-ord density by API contract (the caller of
         # :func:`solve_sn_fixed_source` projects iso sources via
-        # :meth:`AngularSource.from_isotropic` before passing).
+        # :meth:`AngularSourceSink.from_isotropic` before passing).
         Q_iso = np.zeros_like(phi)
         solver._add_scattering_source(Q_iso, phi)
         solver._add_n2n_source(Q_iso, phi)
-        iso_per_ord = AngularSource.from_isotropic(Q_iso, sn_mesh)
+        iso_per_ord = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
 
         # Merge per-ord pieces — Pℓ scattering moments + external source.
         Q_aniso_p1 = solver._build_aniso_scattering(angular)
         total_values = iso_per_ord.values + external_source
         if Q_aniso_p1 is not None:
             total_values = total_values + Q_aniso_p1
-        source = AngularSource.from_mesh(total_values, sn_mesh)
+        source = AngularSourceSink.from_mesh(total_values, sn_mesh)
 
         # R-1 Step 0: thread previous-iter angular flux as initial_guess
         # for the trace-space Carlson seed.  D-H.2-C5 phase 2: composite
@@ -1377,7 +1377,7 @@ def _solve_fixed_source_krylov(
     )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from .operator import CollisionOperator, StreamingOperator
-    from orpheus.transport.sources import AngularSource
+    from orpheus.transport.source_sinks import AngularSourceSink
     from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.numerics.iteration import KrylovAcceleration
     from orpheus.numerics.operator import ZeroOperator
@@ -1388,12 +1388,12 @@ def _solve_fixed_source_krylov(
     # ── Build the composite RHS ──────────────────────────────────────
     # R-1 Step 4 A1 — ``external_source`` is per-ordinate density (the
     # producer-side ``/sum_w`` projection lives at
-    # :meth:`AngularSource.from_isotropic` for iso scalar sources;
+    # :meth:`AngularSourceSink.from_isotropic` for iso scalar sources;
     # by the time we get here the caller has projected).
     # D-H.1c stage 2 — TimedFullField composite for the path-forward
     # Krylov (zero boundary; reflective-BC state flows through
     # ``initial_guess`` not ``rhs.boundary``).
-    q_ext_per_ord = AngularSource.from_mesh(external_source, sn_mesh)
+    q_ext_per_ord = AngularSourceSink.from_mesh(external_source, sn_mesh)
     q_ext_composite = TimedFullField(
         bulk=AngularFlux.from_mesh(q_ext_per_ord.values, sn_mesh),
         boundary=BoundaryFlux.zeros_for_sn_mesh(sn_mesh),

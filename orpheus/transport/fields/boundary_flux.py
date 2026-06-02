@@ -50,8 +50,8 @@ trace field — the ``mesh`` field, the cross-mesh guard, the TraceSpace
 contract, the :attr:`layout` property, :meth:`face_view`, and the
 :meth:`zeros_for_sn_mesh` / :meth:`from_face_arrays` factories — moved up
 to the :class:`~orpheus.transport.fields._bases.BoundaryField` storage
-base. ``BoundaryFlux`` is the *flux* role leaf; ``BoundarySource``
-(``orpheus.transport.sources``) and ``BoundaryResidual``
+base. ``BoundaryFlux`` is the *flux* role leaf; ``BoundarySourceSink``
+(``orpheus.transport.source_sinks``) and ``BoundaryResidual``
 (``orpheus.transport.residuals``) joined it under ``BoundaryField`` in B.3.
 
 References

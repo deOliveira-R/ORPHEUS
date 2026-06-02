@@ -66,7 +66,7 @@ if TYPE_CHECKING:
     from .material_xs_field import MaterialXSField
     from orpheus.numerics.spaces.trace_space import TraceSpace
     from orpheus.transport.fields.scalar_flux import ScalarFlux
-    from orpheus.transport.sources import ScalarSource, AngularSource
+    from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
 
 
 class InconsistentMaterialsError(ValueError):
@@ -943,29 +943,29 @@ class SNMesh:
             ("ymax", (N, ng, nx)),
         ])
 
-    def zeros_scalar_source(self) -> "ScalarSource":
-        r"""Build a zero :class:`ScalarSource` sized to this mesh.
+    def zeros_scalar_source(self) -> "ScalarSourceSink":
+        r"""Build a zero :class:`ScalarSourceSink` sized to this mesh.
 
-        Returns an :class:`~orpheus.sn.sources.ScalarSource` of
+        Returns an :class:`~orpheus.sn.sources.ScalarSourceSink` of
         shape ``(ng, nx, ny)`` filled with zeros.  The principled
         starting point for source-iteration accumulation: P0 in-scatter,
         (n,2n), and fission contributions all add into this buffer.
         """
-        from orpheus.transport.sources import ScalarSource
-        return ScalarSource.from_mesh(
+        from orpheus.transport.source_sinks import ScalarSourceSink
+        return ScalarSourceSink.from_mesh(
             np.zeros((self.ng, self.nx, self.ny)), self,
         )
 
-    def zeros_angular_source(self) -> "AngularSource":
-        r"""Build a zero :class:`AngularSource` sized to this mesh.
+    def zeros_angular_source(self) -> "AngularSourceSink":
+        r"""Build a zero :class:`AngularSourceSink` sized to this mesh.
 
-        Returns an :class:`~orpheus.sn.sources.AngularSource` of
+        Returns an :class:`~orpheus.sn.sources.AngularSourceSink` of
         shape ``(N, ng, nx, ny)`` filled with zeros.  The principled
         starting point for the :math:`P_\ell \ge 1` Galerkin
         reconstruction + MMS external-source accumulation buffer.
         """
-        from orpheus.transport.sources import AngularSource
-        return AngularSource.from_mesh(
+        from orpheus.transport.source_sinks import AngularSourceSink
+        return AngularSourceSink.from_mesh(
             np.zeros((self.quad.N, self.ng, self.nx, self.ny)), self,
         )
 

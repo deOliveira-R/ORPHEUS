@@ -30,7 +30,7 @@ from orpheus.sn.material_xs_field import MaterialXSField
 from orpheus.sn.scattering import ScatteringOperator
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.sources import AngularSource
+from orpheus.transport.source_sinks import AngularSourceSink
 
 pytestmark = pytest.mark.foundation  # software-invariant tier
 
@@ -287,9 +287,9 @@ class TestAnisotropicScatteringExtraction:
         D-I.2 — the delegator preserves a bare-ndarray external
         contract for backward compat (solver.py:1203 caller); the
         operator now consumes typed :class:`AngularFlux` and returns
-        :class:`AngularSource`.  Compare ``out_via_delegator``
+        :class:`AngularSourceSink`.  Compare ``out_via_delegator``
         (bare ndarray) to ``out_via_operator.values`` (typed
-        :class:`AngularSource` unwrapped).
+        :class:`AngularSourceSink` unwrapped).
         """
         op = solver_2g_p1.scattering_op
         N = op.n_ordinates
@@ -326,7 +326,7 @@ class TestApplySemantics:
         ordinate sees in the per-ordinate transport equation
         ``(Ω·∇ + Σ_t) ψ_n = Q_iso/W + …``.
 
-        D-I.2: typed AngularFlux carrier → AngularSource output.
+        D-I.2: typed AngularFlux carrier → AngularSourceSink output.
         """
         op = solver_2g_p0.scattering_op
         N = op.n_ordinates
@@ -378,7 +378,7 @@ class TestApplySemantics:
         lhs = op.apply(alpha * psi1 + beta * psi2)
         rhs_p1 = op.apply(psi1)
         rhs_p2 = op.apply(psi2)
-        # AngularSource carries the same Field dunders.
+        # AngularSourceSink carries the same Field dunders.
         rhs = alpha * rhs_p1 + beta * rhs_p2
         np.testing.assert_allclose(lhs.values, rhs.values, rtol=1e-12, atol=1e-13)
 
@@ -834,7 +834,7 @@ class TestAlgebraicIdentity:
 
     def _check_identity(self, op, psi):
         """``psi`` is a typed :class:`AngularFlux`; ``apply`` returns
-        :class:`AngularSource`.  Compare via ``.values``."""
+        :class:`AngularSourceSink`.  Compare via ``.values``."""
         full = op.apply(psi)
         split_sum = op.foldable_part().apply(psi) + op.residual_part().apply(psi)
         np.testing.assert_allclose(full.values, split_sum.values, rtol=1e-14, atol=1e-15)

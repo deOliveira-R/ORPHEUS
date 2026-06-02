@@ -130,7 +130,7 @@ def _krylov_power_iteration_kinf(
     from orpheus.sn.geometry import SNMesh
     from orpheus.sn.operator import CollisionOperator, StreamingOperator
     from orpheus.sn.solver import SNSolver
-    from orpheus.transport.sources import AngularSource
+    from orpheus.transport.source_sinks import AngularSourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
     case = _get_continuous_case(ng_key)
@@ -171,7 +171,7 @@ def _krylov_power_iteration_kinf(
     psi_typed_warm: TimedFullField | None = None
     for n_outer in range(max_outer):
         fis = solver.compute_fission_source(phi, keff)
-        q_ext_per_ord = AngularSource.from_isotropic(fis, sn_mesh)
+        q_ext_per_ord = AngularSourceSink.from_isotropic(fis, sn_mesh)
         # D-H.2-C1: build the per-ordinate external source as a
         # :class:`TimedFullField` composite — bulk = L2 AngularFlux
         # carrying ``q_ext_per_ord.values``; boundary = implicit zero.

@@ -1,7 +1,7 @@
 """Foundation tests for Issue #197 PR-TYPED-3 typed source types.
 
-Pins the structural contract of :class:`ScalarSource` and
-:class:`AngularSource` — shape validation, dunder algebra
+Pins the structural contract of :class:`ScalarSourceSink` and
+:class:`AngularSourceSink` — shape validation, dunder algebra
 (within-type AND the load-bearing cross-type), and the bit-identity
 of the new dunder path with the procedural
 ``np.broadcast_to(...).copy() + Q_aniso`` pattern it replaces.
@@ -18,7 +18,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.transport.sources import ScalarSource, AngularSource
+from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
 
 from tests.sn._test_helpers import placeholder_materials
 
@@ -53,7 +53,7 @@ def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNMesh:
 
 
 # ════════════════════════════════════════════════════════════════════
-# ScalarSource — construction + within-type algebra
+# ScalarSourceSink — construction + within-type algebra
 # ════════════════════════════════════════════════════════════════════
 
 
@@ -63,20 +63,20 @@ class TestScalarSource:
         Q = m.zeros_scalar_source()
         assert Q.values.shape == (m.ng, m.nx, m.ny)
         assert np.all(Q.values == 0.0)
-        assert isinstance(Q, ScalarSource)
+        assert isinstance(Q, ScalarSourceSink)
         assert Q.mesh is m
 
     def test_shape_validation_rejects_wrong_shape(self) -> None:
         m = _slab_mesh()
-        with pytest.raises(ValueError, match="ScalarSource.*does not match"):
-            ScalarSource.from_mesh(np.zeros((m.ng + 1, m.nx, m.ny)), m)
+        with pytest.raises(ValueError, match="ScalarSourceSink.*does not match"):
+            ScalarSourceSink.from_mesh(np.zeros((m.ng + 1, m.nx, m.ny)), m)
 
     def test_within_type_add(self) -> None:
         m = _slab_mesh()
-        a = ScalarSource.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
-        b = ScalarSource.from_mesh(2.0 * np.ones((m.ng, m.nx, m.ny)), m)
+        a = ScalarSourceSink.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
+        b = ScalarSourceSink.from_mesh(2.0 * np.ones((m.ng, m.nx, m.ny)), m)
         c = a + b
-        assert isinstance(c, ScalarSource)
+        assert isinstance(c, ScalarSourceSink)
         assert np.all(c.values == 3.0)
         # Originals untouched (frozen)
         assert np.all(a.values == 1.0)
@@ -84,32 +84,32 @@ class TestScalarSource:
 
     def test_within_type_sub(self) -> None:
         m = _slab_mesh()
-        a = ScalarSource.from_mesh(3.0 * np.ones((m.ng, m.nx, m.ny)), m)
-        b = ScalarSource.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
+        a = ScalarSourceSink.from_mesh(3.0 * np.ones((m.ng, m.nx, m.ny)), m)
+        b = ScalarSourceSink.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
         c = a - b
-        assert isinstance(c, ScalarSource)
+        assert isinstance(c, ScalarSourceSink)
         assert np.all(c.values == 2.0)
 
     def test_scalar_mul_left_and_right(self) -> None:
         m = _slab_mesh()
-        a = ScalarSource.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
+        a = ScalarSourceSink.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
         left = 3.0 * a
         right = a * 3.0
-        assert isinstance(left, ScalarSource)
-        assert isinstance(right, ScalarSource)
+        assert isinstance(left, ScalarSourceSink)
+        assert isinstance(right, ScalarSourceSink)
         np.testing.assert_array_equal(left.values, right.values)
         assert np.all(left.values == 3.0)
 
     def test_mesh_binding_check(self) -> None:
-        a = ScalarSource.from_mesh(np.ones((2, 4, 1)), _slab_mesh())
-        b = ScalarSource.from_mesh(np.ones((2, 4, 1)), _slab_mesh())  # different mesh instance
+        a = ScalarSourceSink.from_mesh(np.ones((2, 4, 1)), _slab_mesh())
+        b = ScalarSourceSink.from_mesh(np.ones((2, 4, 1)), _slab_mesh())  # different mesh instance
         with pytest.raises(ValueError, match="distinct SNMesh"):
             _ = a + b
 
     def test_linf_and_copy(self) -> None:
         m = _slab_mesh()
         rng = np.random.default_rng(42)
-        a = ScalarSource.from_mesh(rng.standard_normal((m.ng, m.nx, m.ny)), m)
+        a = ScalarSourceSink.from_mesh(rng.standard_normal((m.ng, m.nx, m.ny)), m)
         assert a.linf == pytest.approx(float(np.abs(a.values).max()))
         b = a.copy()
         assert b is not a
@@ -118,7 +118,7 @@ class TestScalarSource:
 
 
 # ════════════════════════════════════════════════════════════════════
-# AngularSource — construction + within-type algebra
+# AngularSourceSink — construction + within-type algebra
 # ════════════════════════════════════════════════════════════════════
 
 
@@ -128,30 +128,30 @@ class TestAngularSource:
         Qa = m.zeros_angular_source()
         assert Qa.values.shape == (m.quad.N, m.ng, m.nx, m.ny)
         assert np.all(Qa.values == 0.0)
-        assert isinstance(Qa, AngularSource)
+        assert isinstance(Qa, AngularSourceSink)
 
     def test_shape_validation_rejects_wrong_shape(self) -> None:
         m = _slab_mesh()
-        with pytest.raises(ValueError, match="AngularSource.*does not match"):
-            AngularSource.from_mesh(
+        with pytest.raises(ValueError, match="AngularSourceSink.*does not match"):
+            AngularSourceSink.from_mesh(
                 np.zeros((m.quad.N + 1, m.ng, m.nx, m.ny)), m,
             )
 
     def test_within_type_add(self) -> None:
         m = _slab_mesh()
         shape = (m.quad.N, m.ng, m.nx, m.ny)
-        a = AngularSource.from_mesh(np.ones(shape), m)
-        b = AngularSource.from_mesh(2.0 * np.ones(shape), m)
+        a = AngularSourceSink.from_mesh(np.ones(shape), m)
+        b = AngularSourceSink.from_mesh(2.0 * np.ones(shape), m)
         c = a + b
-        assert isinstance(c, AngularSource)
+        assert isinstance(c, AngularSourceSink)
         assert np.all(c.values == 3.0)
 
     def test_scalar_mul(self) -> None:
         m = _slab_mesh()
         shape = (m.quad.N, m.ng, m.nx, m.ny)
-        a = AngularSource.from_mesh(np.ones(shape), m)
+        a = AngularSourceSink.from_mesh(np.ones(shape), m)
         c = 2.5 * a
-        assert isinstance(c, AngularSource)
+        assert isinstance(c, AngularSourceSink)
         assert np.all(c.values == 2.5)
 
     def test_at_ordinate_selector(self) -> None:
@@ -159,13 +159,13 @@ class TestAngularSource:
         shape = (m.quad.N, m.ng, m.nx, m.ny)
         rng = np.random.default_rng(7)
         values = rng.standard_normal(shape)
-        a = AngularSource.from_mesh(values, m)
+        a = AngularSourceSink.from_mesh(values, m)
         np.testing.assert_array_equal(a.at_ordinate(2), values[2])
 
 
 # ════════════════════════════════════════════════════════════════════
 # Cross-class arithmetic via canonical subspace containment (refined
-# Issue #207 principle): ScalarSource ⊂ AngularSource via the
+# Issue #207 principle): ScalarSourceSink ⊂ AngularSourceSink via the
 # broadcast injection iso → 1 ⊗ iso. The dunder applies the injection
 # inside the operation; result type is the LARGER (containing) space.
 # ════════════════════════════════════════════════════════════════════
@@ -173,7 +173,7 @@ class TestAngularSource:
 
 class TestCrossClassDunder:
     def test_iso_plus_aniso_returns_per_ordinate(self) -> None:
-        """``ScalarSource + AngularSource → AngularSource``.
+        """``ScalarSourceSink + AngularSourceSink → AngularSourceSink``.
 
         The canonical subspace-containment dunder: iso is broadcast
         across the Ω axis, then added to the per-ordinate operand.
@@ -183,37 +183,37 @@ class TestCrossClassDunder:
         rng = np.random.default_rng(11)
         iso_values = rng.standard_normal((m.ng, m.nx, m.ny))
         aniso_values = rng.standard_normal((m.quad.N, m.ng, m.nx, m.ny))
-        iso = ScalarSource.from_mesh(iso_values, m)
-        aniso = AngularSource.from_mesh(aniso_values, m)
+        iso = ScalarSourceSink.from_mesh(iso_values, m)
+        aniso = AngularSourceSink.from_mesh(aniso_values, m)
 
         combined = iso + aniso
-        assert isinstance(combined, AngularSource)
+        assert isinstance(combined, AngularSourceSink)
         # Broadcast: per-ordinate the combined value is iso + aniso[n].
         expected = iso_values[None, :, :, :] + aniso_values
         np.testing.assert_array_equal(combined.values, expected)
         assert combined.mesh is m
 
     def test_aniso_plus_iso_commutative(self) -> None:
-        """``AngularSource + ScalarSource → AngularSource``
-        (commutative — delegates to ScalarSource for Pattern 2)."""
+        """``AngularSourceSink + ScalarSourceSink → AngularSourceSink``
+        (commutative — delegates to ScalarSourceSink for Pattern 2)."""
         m = _slab_mesh()
         rng = np.random.default_rng(13)
         iso_values = rng.standard_normal((m.ng, m.nx, m.ny))
         aniso_values = rng.standard_normal((m.quad.N, m.ng, m.nx, m.ny))
-        iso = ScalarSource.from_mesh(iso_values, m)
-        aniso = AngularSource.from_mesh(aniso_values, m)
+        iso = ScalarSourceSink.from_mesh(iso_values, m)
+        aniso = AngularSourceSink.from_mesh(aniso_values, m)
 
         forward = iso + aniso
         reverse = aniso + iso
-        assert isinstance(reverse, AngularSource)
+        assert isinstance(reverse, AngularSourceSink)
         np.testing.assert_array_equal(forward.values, reverse.values)
 
     def test_iso_plus_aniso_rejects_distinct_meshes(self) -> None:
         """The cross-class dunder still enforces mesh-identity."""
         m1 = _slab_mesh()
         m2 = _slab_mesh()  # distinct instance, same shape
-        iso = ScalarSource.from_mesh(np.ones((m1.ng, m1.nx, m1.ny)), m1)
-        aniso = AngularSource.from_mesh(
+        iso = ScalarSourceSink.from_mesh(np.ones((m1.ng, m1.nx, m1.ny)), m1)
+        aniso = AngularSourceSink.from_mesh(
             np.ones((m2.quad.N, m2.ng, m2.nx, m2.ny)), m2,
         )
         with pytest.raises(ValueError, match="mesh-bound"):
@@ -233,8 +233,8 @@ class TestCrossClassDunder:
         rng = np.random.default_rng(17)
         iso_values = rng.standard_normal((m.ng, m.nx, m.ny))
         aniso_values = rng.standard_normal((m.quad.N, m.ng, m.nx, m.ny))
-        iso = ScalarSource.from_mesh(iso_values, m)
-        aniso = AngularSource.from_mesh(aniso_values, m)
+        iso = ScalarSourceSink.from_mesh(iso_values, m)
+        aniso = AngularSourceSink.from_mesh(aniso_values, m)
         sum_w = float(m.quad.weights.sum())
 
         # Pattern 7 entry point — caller-applied /sum_w.
@@ -249,7 +249,7 @@ class TestCrossClassDunder:
         np.testing.assert_array_equal(combined.values, Q_reference)
 
     def test_per_ordinate_from_isotropic_alternative_factory(self) -> None:
-        r"""Named factory :meth:`AngularSource.from_isotropic` is
+        r"""Named factory :meth:`AngularSourceSink.from_isotropic` is
         the alternative to caller-applied /sum_w + cross-class dunder.
 
         It bakes the ``/sum_w`` normalisation into the factory,
@@ -260,38 +260,38 @@ class TestCrossClassDunder:
         m = _slab_mesh()
         rng = np.random.default_rng(23)
         iso_values = rng.standard_normal((m.ng, m.nx, m.ny))
-        iso = ScalarSource.from_mesh(iso_values, m)
+        iso = ScalarSourceSink.from_mesh(iso_values, m)
 
-        via_factory = AngularSource.from_isotropic(iso.values, m)
+        via_factory = AngularSourceSink.from_isotropic(iso.values, m)
         via_dunder = (iso / float(m.quad.weights.sum())).as_per_ordinate()
         np.testing.assert_array_equal(via_factory.values, via_dunder.values)
 
     def test_iso_plus_iso_stays_isotropic(self) -> None:
-        """``ScalarSource + ScalarSource → ScalarSource``.
+        """``ScalarSourceSink + ScalarSourceSink → ScalarSourceSink``.
 
         Within-type addition must STAY within type — the cross-type
-        path only fires when the partner is :class:`AngularSource`.
+        path only fires when the partner is :class:`AngularSourceSink`.
         """
         m = _slab_mesh()
-        a = ScalarSource.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
-        b = ScalarSource.from_mesh(2.0 * np.ones((m.ng, m.nx, m.ny)), m)
+        a = ScalarSourceSink.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
+        b = ScalarSourceSink.from_mesh(2.0 * np.ones((m.ng, m.nx, m.ny)), m)
         c = a + b
-        assert isinstance(c, ScalarSource)
-        assert not isinstance(c, AngularSource)
+        assert isinstance(c, ScalarSourceSink)
+        assert not isinstance(c, AngularSourceSink)
 
     def test_aniso_plus_aniso_within_type(self) -> None:
-        """``AngularSource + AngularSource → AngularSource``."""
+        """``AngularSourceSink + AngularSourceSink → AngularSourceSink``."""
         m = _slab_mesh()
         shape = (m.quad.N, m.ng, m.nx, m.ny)
-        a = AngularSource.from_mesh(np.ones(shape), m)
-        b = AngularSource.from_mesh(2.0 * np.ones(shape), m)
+        a = AngularSourceSink.from_mesh(np.ones(shape), m)
+        b = AngularSourceSink.from_mesh(2.0 * np.ones(shape), m)
         c = a + b
-        assert isinstance(c, AngularSource)
+        assert isinstance(c, AngularSourceSink)
         assert np.all(c.values == 3.0)
 
 
 # ════════════════════════════════════════════════════════════════════
-# ScalarSource.as_per_ordinate() — explicit broadcast conversion
+# ScalarSourceSink.as_per_ordinate() — explicit broadcast conversion
 # ════════════════════════════════════════════════════════════════════
 
 
@@ -300,10 +300,10 @@ class TestAsPerOrdinate:
         m = _slab_mesh()
         rng = np.random.default_rng(19)
         iso_values = rng.standard_normal((m.ng, m.nx, m.ny))
-        iso = ScalarSource.from_mesh(iso_values, m)
+        iso = ScalarSourceSink.from_mesh(iso_values, m)
 
         aniso = iso.as_per_ordinate()
-        assert isinstance(aniso, AngularSource)
+        assert isinstance(aniso, AngularSourceSink)
         assert aniso.values.shape == (m.quad.N, m.ng, m.nx, m.ny)
         # Every ordinate slice IS the isotropic source.
         for n in range(m.quad.N):
@@ -311,11 +311,11 @@ class TestAsPerOrdinate:
 
     def test_as_per_ordinate_owns_data(self) -> None:
         """The returned array must own its data (writable) — the
-        ``.copy()`` in :meth:`ScalarSource.as_per_ordinate` is the
+        ``.copy()`` in :meth:`ScalarSourceSink.as_per_ordinate` is the
         load-bearing piece that prevents readonly-broadcast-view
         surprises at the caller."""
         m = _slab_mesh()
-        iso = ScalarSource.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
+        iso = ScalarSourceSink.from_mesh(np.ones((m.ng, m.nx, m.ny)), m)
         aniso = iso.as_per_ordinate()
         assert aniso.values.flags.writeable
 
@@ -327,7 +327,7 @@ class TestAsPerOrdinate:
         """
         m = _slab_mesh()
         rng = np.random.default_rng(23)
-        iso = ScalarSource.from_mesh(
+        iso = ScalarSourceSink.from_mesh(
             rng.standard_normal((m.ng, m.nx, m.ny)), m,
         )
         via_conv = iso.as_per_ordinate()
@@ -351,10 +351,10 @@ class Test2DTypedSources:
     def test_cross_type_add_2d(self) -> None:
         m = _2d_mesh()
         rng = np.random.default_rng(29)
-        iso = ScalarSource.from_mesh(
+        iso = ScalarSourceSink.from_mesh(
             rng.standard_normal((m.ng, m.nx, m.ny)), m,
         )
-        aniso = AngularSource.from_mesh(
+        aniso = AngularSourceSink.from_mesh(
             rng.standard_normal((m.quad.N, m.ng, m.nx, m.ny)), m,
         )
         combined = iso + aniso

@@ -810,7 +810,7 @@ while the P\ :sub:`ℓ≥1` accumulation emits the second.
      - 1/(cm³·s·sr)
      - matches ``q``
      - None — not used in Phase G
-   * - ``BoundarySource``
+   * - ``BoundarySourceSink``
      - Prescribed inflow at :math:`\Gamma_-` (Grand Report v3
        §16A.2)
      - 1/(cm²·s·sr)

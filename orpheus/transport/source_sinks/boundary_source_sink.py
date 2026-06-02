@@ -31,15 +31,21 @@ There are TWO distinct objects for the inflow :math:`q`, related as
   derive their output from construction-time data only). It is the
   *recipe* the affine boundary law / sweep consumes inline per face
   (:meth:`IncomingSourceOperator.apply`).
-* :class:`BoundarySource` (THIS class, the L2 transport **field**):
+* :class:`BoundarySourceSink` (THIS class, the L2 transport **field**):
   the *eager, whole-boundary, mesh-bound, role-typed snapshot* — the
   materialised :math:`q` as a stored
   :class:`~orpheus.numerics.field.Field` on ``mesh.trace``.
 
-The rename of the geometry Protocol to ``InflowSourceSpec`` freed the
-name ``BoundarySource`` for this field leaf, completing the
-``{Angular,Scalar,Boundary}×{Flux,Source,Residual}`` role grid with
-the conventional name (issues #205 / #201).
+Two renames produced the current name. First (B.3) the geometry
+Protocol ``BoundarySource`` was renamed to ``InflowSourceSpec``,
+freeing ``BoundarySource`` for this field leaf and completing the
+``{Angular,Scalar,Boundary}×{Flux,Source,Residual}`` role grid
+(issues #205 / #201). Then (B.5) the whole **source** column was
+renamed ``Source`` → ``SourceSink`` so the name carries the signed
+rate-density semantics — a *source* (production) and a *sink* (an
+operator-loss output such as :math:`L\psi`) are the same quantity with
+opposite sign, and the role-leaf type holds both. Hence
+``BoundarySourceSink``.
 
 Consumer status (role-grid completion, not yet consumer-driven)
 ===============================================================
@@ -57,7 +63,7 @@ leaf is therefore a deliberate **role-grid completion** (the
 vocabulary is coherent and the type is ready the moment a
 beam / incident-flux problem arrives.
 
-The **recipe → snapshot bridge** ``BoundarySource.from_spec(spec,
+The **recipe → snapshot bridge** ``BoundarySourceSink.from_spec(spec,
 mesh)`` (materialise an :class:`InflowSourceSpec` onto the trace by
 looping ``spec.evaluate(face_shape)`` per face and packing the flat
 layout) is intentionally NOT added yet — per
@@ -100,11 +106,11 @@ from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import BoundaryField
 
 
-__all__ = ["BoundarySource"]
+__all__ = ["BoundarySourceSink"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class BoundarySource(BoundaryField):
+class BoundarySourceSink(BoundaryField):
     r"""L2 boundary-trace inflow source — the *source* role leaf of
     :class:`~orpheus.transport.fields._bases.BoundaryField`.
 
@@ -132,8 +138,8 @@ class BoundarySource(BoundaryField):
     and residual arithmetic from silently mixing. Note that all three
     boundary leaves share the SAME ``TraceSpace`` (``mesh.trace``); the
     space comparison would pass, so it is the **class** gate (not the
-    space gate) that rejects ``BoundarySource ± BoundaryFlux`` /
-    ``BoundarySource ± BoundaryResidual``. Same-class arithmetic is
+    space gate) that rejects ``BoundarySourceSink ± BoundaryFlux`` /
+    ``BoundarySourceSink ± BoundaryResidual``. Same-class arithmetic is
     closed.
 
     See the module docstring for the recipe→snapshot relationship to the

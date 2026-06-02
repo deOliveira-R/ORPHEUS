@@ -12,7 +12,7 @@ stored as a field on the unified
 ``(layout.total_size,)`` buffer). It is the *residual* role leaf of
 :class:`~orpheus.transport.fields._bases.BoundaryField`, sibling to
 :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux` (flux)
-and :class:`~orpheus.transport.sources.boundary_source.BoundarySource`
+and :class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`
 (source).
 
 Consumer: the matvec ALREADY computes this (it is mistyped today)
@@ -50,7 +50,7 @@ Units (B.4 — declared as the ``UNITS`` class constant)
 The boundary balance is a flux-matching equation, so its defect is
 flux-typed: :math:`[1/(\mathrm{cm^2 \cdot s \cdot sr})]`
 (:data:`~orpheus.numerics.units.ANGULAR_FLUX_UNITS`) — the SAME as
-``BoundaryFlux`` / ``BoundarySource``, and NOT the volumetric
+``BoundaryFlux`` / ``BoundarySourceSink``, and NOT the volumetric
 ``cm⁻³`` of the *bulk* residual (the trace is all-flux). eV-free per
 the binned-energy convention. Same units, different role — the gate is
 class identity. See :mod:`orpheus.numerics.units`.
@@ -102,7 +102,7 @@ class BoundaryResidual(BoundaryField):
     boundary leaves share the SAME ``TraceSpace`` (``mesh.trace``), so it
     is the **class** gate (not the space gate) that rejects
     ``BoundaryResidual ± BoundaryFlux`` / ``BoundaryResidual ±
-    BoundarySource``. Same-class arithmetic is closed.
+    BoundarySourceSink``. Same-class arithmetic is closed.
 
     See the module docstring for the already-computed matvec consumer and
     why the wiring (retype of the operator-output boundary) is the
@@ -111,6 +111,6 @@ class BoundaryResidual(BoundaryField):
 
     #: Dimensional identity (View-G, B.4): the trace is all-flux, so
     #: ``1/(cm²·s·sr)`` — :data:`~orpheus.numerics.units.ANGULAR_FLUX_UNITS`,
-    #: shared with ``BoundaryFlux`` / ``BoundarySource`` (same units,
+    #: shared with ``BoundaryFlux`` / ``BoundarySourceSink`` (same units,
     #: different role → class gate). Metadata, not the gate.
     UNITS: ClassVar[Unit] = ANGULAR_FLUX_UNITS
