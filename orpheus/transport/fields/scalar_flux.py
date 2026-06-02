@@ -59,15 +59,20 @@ consumer arrives. Until then ``mesh: SNMesh`` is the most honest
 annotation: ScalarFlux is SN-bound by usage, even though its
 algebra is method-agnostic.
 
-Units (informational, not yet enforced)
-=======================================
+Units (B.4 — declared as the ``UNITS`` class constant)
+======================================================
 
-:math:`[1/(\mathrm{cm^2 \cdot s \cdot eV})]` per energy group bin.
-The per-bin energy density is absorbed into the cross-section
-convention. Under View-G (issues #205 / #207) this label is NOT a
-space property — it becomes the role-leaf's ``UNITS`` class constant
-(Phase B of the field-vocabulary plan), and the operator-side unit-
-gain check gates composition at operator-construction time (#208).
+:math:`[1/(\mathrm{cm^2 \cdot s})]` — areal angle-integrated flux,
+:data:`~orpheus.numerics.units.SCALAR_FLUX_UNITS`. **eV-free**: a stored
+flux is always integrated over an energy *bin* (a multigroup group, or a
+Monte-Carlo tally bin), so :math:`\phi_g = \int_{E_g}\phi(E)\,dE` is
+group-integrated by construction — the ``eV`` cancels. Continuous energy
+lives in the cross-section data / collision kernel, not in this field
+(so a CE-MC tally and an MG-deterministic solve share this signature).
+Under View-G (issues #205 / #207) units are NOT a space property; they
+are the role-leaf's ``UNITS`` constant, and the operator-side unit-gain
+check gates composition at operator-construction time (#208). See
+:mod:`orpheus.numerics.units` for the full convention.
 
 References
 ----------
@@ -86,6 +91,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from numpy.typing import NDArray
 
+from orpheus.numerics.units import SCALAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import ScalarField
 
 if TYPE_CHECKING:
@@ -95,7 +101,7 @@ if TYPE_CHECKING:
 __all__ = ["ScalarFlux"]
 
 
-@dataclass(frozen=True, eq=False, kw_only=True)
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class ScalarFlux(ScalarField):
     r"""Scalar flux field :math:`\phi(\vec r, g)`.
 
@@ -135,6 +141,11 @@ class ScalarFlux(ScalarField):
     #: pre-B.1 space identity). All mesh/shape/algebra/factory machinery
     #: is inherited from :class:`ScalarField` / :class:`BulkField`.
     _SPACE_NAME: ClassVar[str] = "scalar_flux"
+
+    #: Dimensional identity (View-G, B.4): areal angle-integrated flux
+    #: ``1/(cm²·s)`` (eV-free — see module docstring). Metadata, not the
+    #: arithmetic gate. See :mod:`orpheus.numerics.units`.
+    UNITS: ClassVar[Unit] = SCALAR_FLUX_UNITS
 
     # ── Selectors ────────────────────────────────────────────────────
 

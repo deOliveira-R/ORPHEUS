@@ -100,12 +100,15 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass, replace
-from typing import TypeVar
+from typing import TYPE_CHECKING, ClassVar, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.numerics.space import FunctionSpace
+
+if TYPE_CHECKING:
+    from orpheus.numerics.units import Unit
 
 __all__ = ["Field"]
 
@@ -113,7 +116,22 @@ __all__ = ["Field"]
 T = TypeVar("T", bound="Field")
 
 
-@dataclass(frozen=True, eq=False, kw_only=True)
+def _unit_label(obj: object) -> str:
+    r"""Format an object's ``UNITS`` for a diagnostic message.
+
+    Reads the class constant ``UNITS`` (a :class:`pint.Unit`, set on every
+    role leaf — see :mod:`orpheus.numerics.units`) and renders it short +
+    pretty (``"1/cm³/s/sr"``). Returns ``"<no units>"`` for anything without
+    a ``UNITS`` constant (the abstract bases, or a non-:class:`Field`
+    operand). Diagnostics-only — never called on the arithmetic hot path.
+    """
+    units = getattr(type(obj), "UNITS", None)
+    if units is None:
+        return "<no units>"
+    return f"{units:~P}"
+
+
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class Field(ABC):
     r"""Algebraic base of every typed transport field.
 
@@ -128,8 +146,8 @@ class Field(ABC):
         Field values; ``values.shape`` MUST equal ``space.shape``.
     space : FunctionSpace
         The function space this field lives on. Carries the inner-
-        product metric, the dimensional label (``units``), and the
-        shape contract.
+        product metric and the shape contract. Under View-G it does
+        NOT carry units — those are the field's :attr:`UNITS` constant.
 
     Notes
     -----
@@ -149,6 +167,19 @@ class Field(ABC):
     values: NDArray
     space: FunctionSpace
 
+    #: Dimensional identity of the quantity (View-G). Every CONCRETE role
+    #: leaf MUST set this to one of the signatures in
+    #: :mod:`orpheus.numerics.units` (e.g. ``ANGULAR_FLUX_UNITS``); the
+    #: abstract bases leave it unset. This is the units-side companion of
+    #: the per-leaf ``_SPACE_NAME`` contract — declaring it here makes the
+    #: obligation typed and visible: a leaf that forgets ``UNITS`` raises on
+    #: ``.UNITS`` access (so #208's operator unit-gain check fails loudly
+    #: rather than silently inheriting ``None``). Class identity *is* units
+    #: identity (one ``UNITS`` per leaf class), so the class-identity
+    #: arithmetic gate doubles as a units gate WITHOUT ever reading
+    #: ``UNITS`` on the hot path.
+    UNITS: ClassVar[Unit]
+
     def __post_init__(self) -> None:
         if type(self) is Field:
             raise TypeError(
@@ -160,6 +191,20 @@ class Field(ABC):
                 f"{type(self).__name__}: values.shape {self.values.shape!r} "
                 f"does not match space.shape {self.space.shape!r}"
             )
+
+    def __repr__(self) -> str:
+        r"""Concise, units-aware repr — class, shape, space name, units.
+
+        Replaces the dataclass auto-repr (which dumps the full ``values``
+        ndarray and the ``space`` / ``mesh`` objects). Every concrete leaf
+        sets ``repr=False`` on its ``@dataclass`` so it inherits this. The
+        ``units=`` field makes the role-leaf's dimensional identity visible
+        at a glance (and in tracebacks).
+        """
+        return (
+            f"{type(self).__name__}(shape={self.values.shape}, "
+            f"space={self.space.name!r}, units={_unit_label(self)})"
+        )
 
     # ── Algebra ─────────────────────────────────────────────────────────
 
@@ -177,11 +222,12 @@ class Field(ABC):
         """
         if type(self) is not type(other):
             raise TypeError(
-                f"{type(self).__name__} arithmetic requires a same-class "
-                f"partner; got {type(other).__name__}. Cross-class "
-                f"arithmetic (even with matching units) requires an "
-                f"explicit named composition (e.g. "
-                f"IterationResidual.from_balance(lhs, rhs))."
+                f"{type(self).__name__} [{_unit_label(self)}] arithmetic "
+                f"requires a same-class partner; got {type(other).__name__} "
+                f"[{_unit_label(other)}]. Cross-class arithmetic is forbidden "
+                f"even when the units match — same units grant permission to "
+                f"add in linear algebra, not meaning. Use an explicit named "
+                f"composition (e.g. IterationResidual.from_balance(lhs, rhs))."
             )
         if self.space != other.space:
             raise ValueError(

@@ -68,13 +68,17 @@ the current inline ``evaluate(shape)`` call). Until then the field is
 built directly from known per-face arrays via the inherited
 :meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`.
 
-Units (informational, not enforced until B.4)
-==============================================
+Units (B.4 — declared as the ``UNITS`` class constant)
+======================================================
 
-Areal inflow source density on the boundary trace:
-:math:`[1/(\mathrm{cm^2 \cdot s \cdot sr \cdot eV})]` — boundary
-quantities are areal (the trace is a surface). Under View-G the units
-become the role-leaf's ``UNITS`` class constant in step B.4.
+The boundary trace is **all-flux**: the prescribed inflow ``q`` is a
+flux added to :math:`\gamma_-\psi`, so it carries the angular-flux units
+:math:`[1/(\mathrm{cm^2 \cdot s \cdot sr})]`
+(:data:`~orpheus.numerics.units.ANGULAR_FLUX_UNITS`) — the SAME as
+``BoundaryFlux`` and ``BoundaryResidual``. So on the trace, unlike the
+bulk, a *source* does NOT pick up the volumetric ``cm⁻³``. eV-free per
+the binned-energy convention. Same units, different role — the gate is
+class identity. See :mod:`orpheus.numerics.units`.
 
 References
 ==========
@@ -90,14 +94,16 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar
 
+from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import BoundaryField
 
 
 __all__ = ["BoundarySource"]
 
 
-@dataclass(frozen=True, eq=False, kw_only=True)
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class BoundarySource(BoundaryField):
     r"""L2 boundary-trace inflow source — the *source* role leaf of
     :class:`~orpheus.transport.fields._bases.BoundaryField`.
@@ -134,3 +140,9 @@ class BoundarySource(BoundaryField):
     geometry-layer :class:`InflowSourceSpec` generator (formerly named
     ``BoundarySource``) and the deferred ``from_spec`` bridge.
     """
+
+    #: Dimensional identity (View-G, B.4): the boundary is all-flux, so
+    #: ``1/(cm²·s·sr)`` — :data:`~orpheus.numerics.units.ANGULAR_FLUX_UNITS`,
+    #: shared with ``BoundaryFlux`` / ``BoundaryResidual`` (same units,
+    #: different role → class gate). Metadata, not the gate.
+    UNITS: ClassVar[Unit] = ANGULAR_FLUX_UNITS

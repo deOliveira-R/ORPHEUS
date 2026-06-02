@@ -44,12 +44,16 @@ together). This leaf is minted here (B.3) so it is **ready** for the
 B.5 wiring; the wiring itself — with its ``from_balance`` named
 composition and a test-architect verification plan — lands in B.5.
 
-Units (informational, not enforced until B.4)
-==============================================
+Units (B.4 — declared as the ``UNITS`` class constant)
+======================================================
 
-Areal balance-defect density on the boundary trace:
-:math:`[1/(\mathrm{cm^2 \cdot s \cdot sr \cdot eV})]`. Under View-G the
-units become the role-leaf's ``UNITS`` class constant in step B.4.
+The boundary balance is a flux-matching equation, so its defect is
+flux-typed: :math:`[1/(\mathrm{cm^2 \cdot s \cdot sr})]`
+(:data:`~orpheus.numerics.units.ANGULAR_FLUX_UNITS`) — the SAME as
+``BoundaryFlux`` / ``BoundarySource``, and NOT the volumetric
+``cm⁻³`` of the *bulk* residual (the trace is all-flux). eV-free per
+the binned-energy convention. Same units, different role — the gate is
+class identity. See :mod:`orpheus.numerics.units`.
 
 References
 ==========
@@ -63,14 +67,16 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar
 
+from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import BoundaryField
 
 
 __all__ = ["BoundaryResidual"]
 
 
-@dataclass(frozen=True, eq=False, kw_only=True)
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class BoundaryResidual(BoundaryField):
     r"""L2 boundary-balance residual — the *residual* role leaf of
     :class:`~orpheus.transport.fields._bases.BoundaryField`.
@@ -102,3 +108,9 @@ class BoundaryResidual(BoundaryField):
     why the wiring (retype of the operator-output boundary) is the
     boundary half of the B.5 carve.
     """
+
+    #: Dimensional identity (View-G, B.4): the trace is all-flux, so
+    #: ``1/(cm²·s·sr)`` — :data:`~orpheus.numerics.units.ANGULAR_FLUX_UNITS`,
+    #: shared with ``BoundaryFlux`` / ``BoundarySource`` (same units,
+    #: different role → class gate). Metadata, not the gate.
+    UNITS: ClassVar[Unit] = ANGULAR_FLUX_UNITS

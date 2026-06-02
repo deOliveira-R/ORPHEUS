@@ -33,14 +33,16 @@ bare cross-class ``-``. See the module docstring of
 :mod:`orpheus.transport.residuals.angular_residual` for the full
 "dimensional sin" rationale.
 
-Units (informational, not enforced until B.4)
-==============================================
+Units (B.4 — declared as the ``UNITS`` class constant)
+======================================================
 
 Scalar reaction-rate-density defect:
-:math:`[1/(\mathrm{cm^3 \cdot s \cdot eV})]` — the ``ScalarFlux`` units
-times an inverse length. Under View-G the units become the role-leaf's
-``UNITS`` class constant in step B.4 (class identity *is* units
-identity).
+:math:`[1/(\mathrm{cm^3 \cdot s})]`
+(:data:`~orpheus.numerics.units.SCALAR_RATE_UNITS`) — the ``ScalarFlux``
+units times an inverse length; eV-free per the binned-energy convention.
+Under View-G the units are NOT a space property; they ARE the
+role-leaf's ``UNITS`` class constant (class identity *is* units
+identity). See :mod:`orpheus.numerics.units`.
 
 References
 ==========
@@ -56,13 +58,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import ClassVar
 
+from orpheus.numerics.units import SCALAR_RATE_UNITS, Unit
 from orpheus.transport.fields._bases import ScalarField
 
 
 __all__ = ["ScalarResidual"]
 
 
-@dataclass(frozen=True, eq=False, kw_only=True)
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class ScalarResidual(ScalarField):
     r"""L2 angle-integrated transport-balance residual on ``(ng, nx, ny)``.
 
@@ -100,3 +103,9 @@ class ScalarResidual(ScalarField):
     #: tracks the role. All mesh/shape/algebra/factory machinery is
     #: inherited from :class:`ScalarField` / :class:`BulkField`.
     _SPACE_NAME: ClassVar[str] = "scalar_residual"
+
+    #: Dimensional identity (View-G, B.4): scalar rate density
+    #: ``1/(cm³·s)`` — :data:`~orpheus.numerics.units.SCALAR_RATE_UNITS`,
+    #: shared with ``ScalarSource`` (same units, different role → the gate
+    #: is class identity, NOT units). Metadata, not the gate.
+    UNITS: ClassVar[Unit] = SCALAR_RATE_UNITS

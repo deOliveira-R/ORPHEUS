@@ -45,13 +45,15 @@ recognize the containment direction:
     Q_total = iso + aniso          # → AngularSource
     Q_total = aniso + iso          # commutative; same result
 
-Units (informational, not enforced at dunder level)
-====================================================
+Units (B.4 — declared as the ``UNITS`` class constant)
+======================================================
 
 Reaction-rate density per cell per group:
-:math:`[1/(\mathrm{cm^3 \cdot s \cdot eV})]` for the isotropic form,
-vs :math:`[1/(\mathrm{cm^3 \cdot s \cdot sr \cdot eV})]` for the
-per-ordinate form. The dimensionality differs by ``1/sr``; physically
+:math:`[1/(\mathrm{cm^3 \cdot s})]`
+(:data:`~orpheus.numerics.units.SCALAR_RATE_UNITS`; eV-free, binned-
+energy convention) for the isotropic form, vs
+:math:`[1/(\mathrm{cm^3 \cdot s \cdot sr})]` (``ANGULAR_RATE_UNITS``) for
+the per-ordinate form. The dimensionality differs by ``1/sr``; physically
 the iso → per-ordinate broadcast also requires a ``/(4π sr)``
 normalisation. The dunder does NOT apply that conversion (the
 broadcast is the pure structural injection); callers that need
@@ -70,6 +72,7 @@ from typing import TYPE_CHECKING, ClassVar
 import numpy as np
 from numpy.typing import NDArray
 
+from orpheus.numerics.units import SCALAR_RATE_UNITS, Unit
 from orpheus.transport.fields._bases import ScalarField
 
 if TYPE_CHECKING:
@@ -80,7 +83,7 @@ if TYPE_CHECKING:
 __all__ = ["ScalarSource"]
 
 
-@dataclass(frozen=True, eq=False, kw_only=True)
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class ScalarSource(ScalarField):
     r"""Isotropic source field :math:`Q(\vec r, g)`.
 
@@ -115,6 +118,12 @@ class ScalarSource(ScalarField):
     #: pre-B.1 space identity). All mesh/shape/algebra/factory machinery
     #: is inherited from :class:`ScalarField` / :class:`BulkField`.
     _SPACE_NAME: ClassVar[str] = "scalar_source"
+
+    #: Dimensional identity (View-G, B.4): scalar rate density
+    #: ``1/(cm³·s)`` — :data:`~orpheus.numerics.units.SCALAR_RATE_UNITS`,
+    #: shared with ``ScalarResidual`` (same units, different role → the
+    #: gate is class identity). Metadata, not the gate.
+    UNITS: ClassVar[Unit] = SCALAR_RATE_UNITS
 
     # ── Algebra extensions (over Field) ──────────────────────────────
 

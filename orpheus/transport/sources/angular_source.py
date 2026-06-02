@@ -39,12 +39,14 @@ producer-side normalisation (``/sum_w`` baked in vs not):
 * :meth:`ScalarSource.as_per_ordinate` — broadcast WITHOUT
   ``/sum_w`` (when caller has already done it).
 
-Units (informational, not enforced at dunder level)
-====================================================
+Units (B.4 — declared as the ``UNITS`` class constant)
+======================================================
 
 Per-ordinate reaction-rate density:
-:math:`[1/(\mathrm{cm^3 \cdot s \cdot sr \cdot eV})]`, differing
-from :class:`ScalarSource`'s units by a ``1/sr`` factor. The
+:math:`[1/(\mathrm{cm^3 \cdot s \cdot sr})]`
+(:data:`~orpheus.numerics.units.ANGULAR_RATE_UNITS`; eV-free, binned-
+energy convention), differing from :class:`ScalarSource`'s units by a
+``1/sr`` factor. The
 cross-class dunder applies the structural injection (broadcast)
 without ``/(4π sr)`` normalisation; the Pattern 7 ``/sum_w``
 discipline is the caller's concern (apply before the dunder) or
@@ -59,6 +61,7 @@ from typing import TYPE_CHECKING, ClassVar
 import numpy as np
 from numpy.typing import NDArray
 
+from orpheus.numerics.units import ANGULAR_RATE_UNITS, Unit
 from orpheus.transport.fields._bases import AngularField
 
 if TYPE_CHECKING:
@@ -68,7 +71,7 @@ if TYPE_CHECKING:
 __all__ = ["AngularSource"]
 
 
-@dataclass(frozen=True, eq=False, kw_only=True)
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class AngularSource(AngularField):
     r"""Per-ordinate source field :math:`Q^{\rm aniso}(\vec r, \hat\Omega_n, g)`.
 
@@ -97,6 +100,12 @@ class AngularSource(AngularField):
     #: pre-B.1 space identity). All mesh/shape/algebra/factory machinery
     #: is inherited from :class:`AngularField` / :class:`BulkField`.
     _SPACE_NAME: ClassVar[str] = "angular_source"
+
+    #: Dimensional identity (View-G, B.4): per-ordinate rate density
+    #: ``1/(cm³·s·sr)`` — :data:`~orpheus.numerics.units.ANGULAR_RATE_UNITS`,
+    #: shared with ``AngularResidual`` (same units, different role → the
+    #: gate is class identity). Metadata, not the gate.
+    UNITS: ClassVar[Unit] = ANGULAR_RATE_UNITS
 
     # ── Algebra extensions (over Field) ──────────────────────────────
 

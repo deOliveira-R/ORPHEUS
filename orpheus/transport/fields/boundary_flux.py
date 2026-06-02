@@ -70,14 +70,16 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import ClassVar
 
+from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import BoundaryField
 
 
 __all__ = ["BoundaryFlux"]
 
 
-@dataclass(frozen=True, eq=False, kw_only=True)
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class BoundaryFlux(BoundaryField):
     r"""L2 boundary trace flux — the *flux* role leaf of
     :class:`~orpheus.transport.fields._bases.BoundaryField`.
@@ -107,3 +109,10 @@ class BoundaryFlux(BoundaryField):
     via :meth:`~orpheus.transport.fields._bases.BoundaryField.zeros_for_sn_mesh`
     / :meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`.
     """
+
+    #: Dimensional identity (View-G, B.4): the boundary trace stores flux
+    #: values, so ``1/(cm²·s·sr)`` —
+    #: :data:`~orpheus.numerics.units.ANGULAR_FLUX_UNITS`, shared with
+    #: ``AngularFlux`` and the sibling boundary leaves (the boundary is
+    #: all-flux). Metadata, not the arithmetic gate.
+    UNITS: ClassVar[Unit] = ANGULAR_FLUX_UNITS

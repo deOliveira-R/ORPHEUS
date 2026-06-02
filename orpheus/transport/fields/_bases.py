@@ -89,7 +89,7 @@ __all__ = [
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@dataclass(frozen=True, eq=False, kw_only=True)
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class BulkField(Field):
     r"""Bulk-locus storage base — a mesh-bound :class:`Field` on the grid.
 
@@ -166,7 +166,7 @@ class BulkField(Field):
         return self.mesh.ny
 
 
-@dataclass(frozen=True, eq=False, kw_only=True)
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class AngularField(BulkField):
     r"""Per-ordinate bulk family on ``(N, ng, nx, ny)``.
 
@@ -215,7 +215,7 @@ class AngularField(BulkField):
         return self.mesh.quad.N
 
 
-@dataclass(frozen=True, eq=False, kw_only=True)
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class ScalarField(BulkField):
     r"""Scalar bulk family on ``(ng, nx, ny)``.
 
@@ -251,7 +251,7 @@ class ScalarField(BulkField):
         return cls.from_mesh(arr, mesh)
 
 
-@dataclass(frozen=True, eq=False, kw_only=True)
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class MomentField(BulkField):
     r"""Moment-space bulk family (ABC — see ``HarmonicMomentField``).
 
@@ -271,7 +271,7 @@ class MomentField(BulkField):
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@dataclass(frozen=True, eq=False, kw_only=True)
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class BoundaryField(Field):
     r"""Boundary-locus storage base — a mesh-bound :class:`Field` on the
     unified :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`.

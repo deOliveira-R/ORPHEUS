@@ -51,12 +51,23 @@ by construction. The legitimate route is
 (reconstruction) via the
 :mod:`~orpheus.numerics.projection` Galerkin pair.
 
-Units (informational, not yet enforced)
-=======================================
+Units (B.4 — declared as the ``UNITS`` class constant)
+======================================================
 
-When produced by :meth:`MomentProjection.apply` from an
-:class:`AngularFlux`, the moment field inherits flux units
-:math:`[1/(\mathrm{cm^2 \cdot s \cdot sr \cdot eV})]`.
+:math:`[1/(\mathrm{cm^2 \cdot s})]` — the SAME as
+:class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
+(:data:`~orpheus.numerics.units.SCALAR_FLUX_UNITS`), NOT the angular-flux
+units. A moment :math:`\phi_\ell^m = \sum_n w_n Y_\ell^m \psi_n` is
+**angle-integrated**: the quadrature weights carry ``sr`` (they sum to
+:math:`4\pi`), cancelling the ``sr`` of the angular flux, while the
+:math:`Y_\ell^m` and addition-theorem :math:`(2\ell+1)` factors are
+dimensionless (the :math:`(2\ell+1)` lives on the reconstruction
+operator, the :math:`4\pi/(2\ell+1)` metric on the space — neither on the
+stored value). The :math:`\ell=0` moment IS the scalar flux exactly
+(:meth:`scalar_flux` returns ``values[0, 0]``). The earlier
+``1/(cm²·s·sr·eV)`` label was **wrong** — it forgot the angular
+integration. eV-free per the binned-energy convention; see
+:mod:`orpheus.numerics.units`.
 
 References
 ----------
@@ -75,7 +86,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
@@ -84,6 +95,7 @@ from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces.spherical_harmonic_space import (
     SphericalHarmonicSpace,
 )
+from orpheus.numerics.units import SCALAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import MomentField
 
 if TYPE_CHECKING:
@@ -94,7 +106,7 @@ if TYPE_CHECKING:
 __all__ = ["HarmonicMomentField"]
 
 
-@dataclass(frozen=True, eq=False, kw_only=True)
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class HarmonicMomentField(MomentField):
     r"""Real-spherical-harmonic moment field :math:`\phi_\ell^m(\vec r, g)`.
 
@@ -138,6 +150,13 @@ class HarmonicMomentField(MomentField):
     """
 
     L: int
+
+    #: Dimensional identity (View-G, B.4): a moment is angle-integrated, so
+    #: ``1/(cm²·s)`` — :data:`~orpheus.numerics.units.SCALAR_FLUX_UNITS`,
+    #: shared with ``ScalarFlux`` (the ``ℓ=0`` moment IS the scalar flux).
+    #: Same units, different class — the gate is class identity. See the
+    #: "Units" section above and :mod:`orpheus.numerics.units`.
+    UNITS: ClassVar[Unit] = SCALAR_FLUX_UNITS
 
     # ── Construction validation ──────────────────────────────────────
 

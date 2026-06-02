@@ -47,6 +47,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 
+from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import AngularField
 
 if TYPE_CHECKING:
@@ -56,7 +57,7 @@ if TYPE_CHECKING:
 __all__ = ["AngularFlux"]
 
 
-@dataclass(frozen=True, eq=False, kw_only=True)
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class AngularFlux(AngularField):
     r"""L2 typed angular flux: pure :class:`Field` on (N, ng, nx, ny).
 
@@ -97,6 +98,11 @@ class AngularFlux(AngularField):
     #: pre-B.1 space identity). All mesh/shape/algebra/factory machinery
     #: is inherited from :class:`AngularField` / :class:`BulkField`.
     _SPACE_NAME: ClassVar[str] = "angular_flux"
+
+    #: Dimensional identity (View-G, B.4): areal per-solid-angle flux
+    #: density ``1/(cm²·s·sr)``. Metadata, NOT the arithmetic gate (class
+    #: identity is) — see :mod:`orpheus.numerics.units`.
+    UNITS: ClassVar[Unit] = ANGULAR_FLUX_UNITS
 
     # ── Construction factories ───────────────────────────────────────
 

@@ -10,13 +10,15 @@ discipline — superseded), #208 (operator typing — **deferred**).
 
 ---
 
-## SESSION STATE — PHASE A + B.1 + B.2 + B.3 (all leaves + rename) DONE, RESUME AT B.4 (2026-06-01)
+## SESSION STATE — PHASE A + B.1 + B.2 + B.3 + B.4 DONE, RESUME AT B.5 (2026-06-01)
 
-> B.3 minted all six role leaves (bulk Angular/Scalar Residual + boundary
-> Source/Residual) and renamed the geometry `BoundarySource` Protocol →
-> `InflowSourceSpec`. The boundary-residual matvec WIRING is intentionally
-> held for **B.5** (inseparable from the bulk operator-output retype). **B.4
-> (UNITS) is NEXT and the user wants to steer it.**
+> B.3 minted all six role leaves + renamed the geometry `BoundarySource`
+> Protocol → `InflowSourceSpec`. B.4 added the `UNITS` (pint) class
+> constant to every leaf (View-G, eV-free, `sr`-explicit/exact-compared)
+> + units-aware diagnostics. **B.5 is NEXT** — the `from_balance` +
+> dimensional-sin operator-output carve, which ALSO does the held-from-B.3
+> boundary-residual matvec retype. B.5 trips the test-architect proactive
+> trigger (dispatch the verification plan before implementing).
 
 **B.1 DONE (`6e70ec1`):** 5 storage-base ABCs in `transport/fields/
 _bases.py`; 6 leaves re-parented (−602 lines of duplicated machinery).
@@ -87,13 +89,46 @@ ready* here; its WIRING lands in **B.5** (with `from_balance` + a
 test-architect verification plan, per the operator-algebra-carve
 proactive trigger).
 
-**B.4 IS NEXT** — **UNITS class constant (user wants to steer)**: the
-design commitment that class-identity *is* units-identity. Add `UNITS`
-(pint) to every role leaf; Layer-1 identity becomes the units gate;
-the old Layer-3 `space.units` assert retires. Debug test: same-role
-share `UNITS`, cross-role differ; `python -O` shows zero per-op cost.
-Then **B.5 (`from_balance` dimensional-sin rewire at `iteration.py:455`
-/ `operator.py:1938`)** and **B.6 (`TimedFullField` slots →
+**B.4 DONE** — `UNITS` (pint) on every role leaf, View-G units-on-field.
+New `orpheus/numerics/units.py`: one shared `UREG` + FOUR named
+signatures (`ANGULAR_FLUX_UNITS` `1/(cm²·s·sr)`, `SCALAR_FLUX_UNITS`
+`1/(cm²·s)`, `ANGULAR_RATE_UNITS` `1/(cm³·s·sr)`, `SCALAR_RATE_UNITS`
+`1/(cm³·s)`); 10 leaves map onto the 4. Locked conventions (user-steered,
+all documented in `units.py`):
+- **eV-free** — a stored flux is always energy-bin-integrated (MG group OR
+  CE-MC tally bin), so eV cancels; continuous-energy lives in the XS
+  data/kernel, not the field. Spans MC + deterministic (same signature ⇒
+  CE-MC ↔ MG-deterministic V&V cross-check).
+- **`sr` kept explicit, compared by EXACT unit equality** (pint treats
+  `sr` as dimensionless ⇒ `.dimensionality` would hide a missing-angular-
+  integration / missing-`/4π` bug, the ERR-039 class). 4 exact signatures
+  collapse to 2 SI dim classes — documented. (`sr`-as-base-dimension was
+  evaluated + REJECTED: fragile in pint 0.25.3.)
+- **`UNITS` is metadata, NOT the gate** — the gate stays class identity.
+  Declared as a bare `UNITS: ClassVar[Unit]` contract on `Field` (mirrors
+  `_SPACE_NAME`; elegance-enforcer should-fix) so a forgetful leaf raises
+  on `.UNITS` rather than silently feeding `None` to #208's unit-gain.
+Diagnostics wired: `Field._check_partner` TypeError surfaces both operands'
+units + the "same units ≠ meaning, use `from_balance`" guidance;
+`Field.__repr__` is now concise + units-aware (`repr=False` on Field + 5
+bases + 10 leaves ⇒ one inherited repr, no array dump). Doc fixes:
+`scalar_flux` (eV→eV-free), `harmonic_moment_field` (WRONG `1/(cm²·s·sr·eV)`
+→ `1/(cm²·s)`; the moment is angle-integrated, `ℓ=0` IS scalar flux —
+verified against the no-prefactor `SphericalHarmonicSpace` convention),
+all source/residual/boundary leaf "Units" blocks. New test
+`tests/transport/test_field_units.py` (43). Verified 1411 fast +
+sentinel 36/36; elegance-enforcer PASS (1 should-fix taken).
+**DEFERRED to C.1 (Sphinx debt):** add `numerics.units` + the transport
+leaves to the autodoc tree and resolve the new `:data:`/`:mod:` refs.
+
+**B.5 IS NEXT** — `IterationResidual.from_balance` + the dimensional-sin
+rewire at `iteration.py:455` (`Fψ+Sψ+q_ext`) / `:511` (`Lψ−Sψ−Fψ`) /
+`operator.py:1938`, INCLUDING the boundary-residual matvec retype
+(`BoundaryFlux`→`BoundaryResidual` at `operator.py:330/570/852/1263`,
+held from B.3). This is the operator-output carve — trips the
+test-architect proactive trigger (dispatch the verification plan FIRST).
+`from_balance` can use the B.4 `UNITS` for a dimensional sanity check
+(exact-`sr` comparison). Then **B.6 (`TimedFullField` slots →
 `bulk: BulkField, boundary: BoundaryField`)**.
 
 **As-built shape a fresh session needs (post-compaction):**
@@ -286,8 +321,8 @@ from SESSION STATE, and verify A.4 bit-identity against the relevant
 | **B.1 ✅** | created all 5 storage-base ABCs in `transport/fields/_bases.py` (plan-literal): `BulkField`(mesh+mesh-binding+ng/nx/ny+abstract `_phase_space_shape`) → `AngularField`/`ScalarField`(parametrized `from_mesh` via `_SPACE_NAME`)/`MomentField`(marker); `BoundaryField`(TraceSpace contract+layout+face_view+factories via `cls`). Re-parented all 6 leaves (−602 lines). `6e70ec1` | **BI** (values + space names + public API preserved; `isinstance` holds) | **DONE: smoke (MRO/abstractness/`_SPACE_NAME`) + transport+primitives+operators 760 passed + sentinel gate 36/36 (full DAG).** |
 | **B.2 ✅** | **HARD rename (no shim, user decision)**: `PerOrdinateSource→AngularSource`, `IsotropicSource→ScalarSource` (+ `git mv` modules, `_SPACE_NAME`s, `SNMesh.zeros_*` factories). 37 files / ~342 occurrences, 0 residual. Cross-class injection dunder preserved. `698a587` | **BI** (rename touches no values) | **DONE: 760 (primitives+transport+operators) + sentinel 36/36; imports clean; 0 residual tokens.** |
 | **B.3 ✅ (all leaves + rename)** | bulk `Angular/ScalarResidual` (`transport/residuals/`) + boundary `BoundarySource` (`transport/sources/`) / `BoundaryResidual` (`transport/residuals/`); renamed geometry Protocol `BoundarySource`→`InflowSourceSpec`. `BoundaryField` now has its 2nd/3rd instances. **Boundary-residual matvec WIRING → B.5** (inseparable from bulk operator-output retype). | new (additive/BI) | 22 bulk + 25 boundary cross-class-raise tests; 1082 fast (−2 pre-existing TP-lift) + sentinel 36/36 |
-| **B.4 ← NEXT** | `UNITS` class constant; Layer-1 = units gate (**user steers**) | new | dimensionality + `-O` zero-cost tests |
-| **B.5** | `from_balance`; rewire `iteration.py:455`/`operator.py:1938`; #207 cross-storage injection STAYS implicit (resolved) | NI type / BI arithmetic | 347 wall; named-composition test |
+| **B.4 ✅** | `UNITS` (pint) on all 10 leaves via `numerics/units.py` (4 named signatures; eV-free; `sr`-explicit/exact-compared; bare `ClassVar` contract on `Field`). Diagnostics: units in `_check_partner` error + concise `Field.__repr__`. Doc fixes (incl. `harmonic_moment_field` wrong-`sr`). NOT the gate (class identity is). | new (additive) | 43 `test_field_units.py`; 1411 fast + sentinel 36/36; elegance PASS |
+| **B.5 ← NEXT** | `from_balance` + dimensional-sin rewire `iteration.py:455`/`:511`/`operator.py:1938` + **boundary-residual matvec retype** (`BoundaryFlux`→`BoundaryResidual`, held from B.3); #207 cross-storage injection STAYS implicit. **test-architect FIRST** (operator-output carve trigger). | NI type / BI arithmetic | named-composition + matvec-residual-type tests |
 | **B.6** | tighten `TimedFullField` slots | NI | composite reject tests (update `match=`) |
 | **C.1** | archivist: Sphinx theory page (View-G, storage×role×locus, dimensional table, named-composition, TraceSpace) + refresh `operator_algebra.rst` | — | `-W` clean; Nexus reload |
 | **C.2** | issues: close #201; move #205; close #197; amend `wave_o_operator_typing.md`; file the 5-red curvilinear issue; `error_catalog.md` | — | audit clean |

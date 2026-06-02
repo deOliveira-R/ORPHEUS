@@ -43,17 +43,18 @@ goes through an explicit **named composition** (planned
 a bare cross-class ``-``. See :class:`~orpheus.numerics.field.Field`
 "Class identity for cross-class same-units operations".
 
-Units (informational, not enforced until B.4)
-==============================================
+Units (B.4 — declared as the ``UNITS`` class constant)
+======================================================
 
 Per-ordinate reaction-rate-density defect:
-:math:`[1/(\mathrm{cm^3 \cdot s \cdot sr \cdot eV})]` — the
+:math:`[1/(\mathrm{cm^3 \cdot s \cdot sr})]`
+(:data:`~orpheus.numerics.units.ANGULAR_RATE_UNITS`) — the
 ``AngularFlux`` units times an inverse length (the streaming
 :math:`\hat\Omega\cdot\nabla` and collision :math:`\sigma_t` both
-carry :math:`1/\mathrm{cm}`). Under View-G the units are NOT a space
-property; they become the role-leaf's ``UNITS`` class constant in
-step B.4 (the design commitment that *class identity is units
-identity*).
+carry :math:`1/\mathrm{cm}`); eV-free per the binned-energy convention.
+Under View-G the units are NOT a space property; they ARE the
+role-leaf's ``UNITS`` class constant (the design commitment that
+*class identity is units identity*). See :mod:`orpheus.numerics.units`.
 
 References
 ==========
@@ -71,13 +72,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import ClassVar
 
+from orpheus.numerics.units import ANGULAR_RATE_UNITS, Unit
 from orpheus.transport.fields._bases import AngularField
 
 
 __all__ = ["AngularResidual"]
 
 
-@dataclass(frozen=True, eq=False, kw_only=True)
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class AngularResidual(AngularField):
     r"""L2 per-ordinate transport-balance residual on ``(N, ng, nx, ny)``.
 
@@ -122,3 +124,9 @@ class AngularResidual(AngularField):
     #: mesh/shape/algebra/factory machinery is inherited from
     #: :class:`AngularField` / :class:`BulkField`.
     _SPACE_NAME: ClassVar[str] = "angular_residual"
+
+    #: Dimensional identity (View-G, B.4): per-ordinate rate density
+    #: ``1/(cm³·s·sr)`` — :data:`~orpheus.numerics.units.ANGULAR_RATE_UNITS`,
+    #: shared with ``AngularSource`` (same units, different role → the gate
+    #: is class identity, NOT units). Metadata, not the gate.
+    UNITS: ClassVar[Unit] = ANGULAR_RATE_UNITS
