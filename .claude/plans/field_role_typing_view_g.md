@@ -10,7 +10,7 @@ discipline — superseded), #208 (operator typing — **deferred**).
 
 ---
 
-## SESSION STATE — PHASE A + B.1–B.4 + B.5.0/A/1/2 DONE (fully verified, incl Krylov); RESUME AT B.6; 1 pre-existing blocker remains (hetero-keff) (2026-06-02)
+## SESSION STATE — PHASE A + B.1–B.4 + B.5.0/A/1/2 + B.6 DONE (fully verified, incl Krylov); RESUME AT #208 (then C.1/C.2); 1 pre-existing blocker remains (hetero-keff) (2026-06-02)
 
 > B.5 acquired two new sub-steps the user steered in mid-flight; both are
 > DONE + committed + bit-identical.
@@ -65,14 +65,22 @@ discipline — superseded), #208 (operator typing — **deferred**).
 > typed F-slot + flux bootstrap (mirrors `_solve_krylov`), and narrowed the
 > gmres `except` to re-raise non-signature TypeErrors. solve+numerics now 592.
 >
-> **⚠ RESUME AT B.6.** B.5.2 is fully verified. ONE pre-existing blocker
-> remains (BLOCKER-1, hetero-keff non-convergence — proven on committed HEAD;
-> see block below). **A `numerics-investigator` was dispatched (background,
-> isolated worktree, 2026-06-02) to find BLOCKER-1's root cause + bisect the
-> introducing commit — CHECK ITS FINDINGS (completion report / agent-memory)
-> before attempting a fix; do NOT re-dispatch if it already reported.** The
-> user directed: B.6 is the next implementation step; BLOCKER-1 fix follows the
-> investigator's diagnosis. **Decision: #208 is inserted AFTER B.6.**
+> **B.6 DONE (`5449a52`)** — `TimedFullField` slots tightened `Field →
+> BulkField`/`BoundaryField`; wrong-locus slotting now rejected at
+> `__post_init__` (illegal-states-unrepresentable). Bit-identical for all valid
+> flows. Gate green: tests/transport 200, tests/numerics 561, tests/sn/primitives
+> 271, tests/sn/operators 392 (-O); sentinel 36 (no -O). +2 locus-rejection tests
+> (test_timed_full_field 38, was 36).
+>
+> **⚠ RESUME AT #208** (operator codomain typing + BC extraction + the held
+> boundary-residual wiring), then **C.1/C.2** (Sphinx theory page + issue
+> bookkeeping). ONE pre-existing blocker remains (BLOCKER-1, hetero-keff
+> non-convergence — proven on committed HEAD; see block below). **A
+> `numerics-investigator` was dispatched (background, isolated worktree,
+> 2026-06-02) to find BLOCKER-1's root cause + bisect the introducing commit —
+> CHECK ITS FINDINGS (completion report / agent-memory) before attempting a fix;
+> do NOT re-dispatch if it already reported.** BLOCKER-1 fix follows the
+> investigator's diagnosis.
 
 ### ⚠ BLOCKERS surfaced during B.5.2 verify (1 pre-existing, 1 RESOLVED)
 
@@ -308,11 +316,15 @@ Then **B.6** (`TimedFullField` slots → `bulk: BulkField, boundary:
 BoundaryField`), then **#208** (operator codomain typing + BC extraction + the
 held boundary-residual wiring), then **C.1/C.2** (Sphinx + issue bookkeeping).
 
-### B.6 EXECUTION (the NEXT implementation step — concrete)
+### B.6 EXECUTION ✅ DONE (`5449a52`, 2026-06-02) — as-built below
 
 Tighten the composite carrier so wrong-locus slotting is unrepresentable
-(Pattern 4). All EDITS in `orpheus/transport/timed_full_field.py` (verified
-state 2026-06-02):
+(Pattern 4). All EDITS in `orpheus/transport/timed_full_field.py`. **As-built
+note:** the import was SWAPPED (`numerics.field.Field` → `fields._bases.{BulkField,
+BoundaryField}`), not augmented — `Field` was no longer referenced as a runtime
+name after the tightening (annotations are lazy strings under `from __future__
+import annotations`; only `__post_init__` isinstance needs the runtime symbols).
+The method tightened was `advance` (not `replace_components`). All else as planned:
 - Import `BulkField`, `BoundaryField` from `orpheus.transport.fields._bases`
   (annotations-only is fine under `from __future__ import annotations`, but the
   `__post_init__` `isinstance` needs them at RUNTIME → real import; cycle-safe).
@@ -589,7 +601,7 @@ from SESSION STATE, and verify A.4 bit-identity against the relevant
 | **B.5.A ✅** | zero-allocation consolidation: `Field.zeros` + `<Leaf>.zeros_on` + generic `TimedFullField.zeros` + `HMF.zeros_for_mesh_and_L`; retired 6 `SNMesh.zeros_*` + dead imports; ~145 sites/49 files migrated. `82e82c9` | **BI** (same zeros) | fast 1411 + sentinel 36 + sweep 524 + solve/eig 40 |
 | **B.5.1 ✅** | `from_balance` minted (additive, no prod consumer). Host CHANGED: classmethod ON each residual leaf (bespoke factory, Pattern 4) → one engine `Field._from_balance` (Pattern 2); the `ResidualField` base was rejected (needs a role mixin, forbidden). Guards: same-class operands, exact-`sr` UNITS, same space+mesh; result on `cls`'s OWN space. + `BoundaryField.from_mesh`; retired `IterationResidual` vestige. `a55d864` | additive/BI | **DONE: residuals+field_units+field 98 + numerics+transport 759 + sentinel 36; Sphinx clean. 11 new foundation tests.** |
 | **B.5.2 ✅** | dropped both `q_ext` re-wraps + retyped 7 `operator.py` + scattering/fission `.apply` BULK outputs `→AngularSourceSink` + flux-`initial_guess` bootstrap (SI+Krylov) + `ZeroOperator(codomain_zero=…)` zero-fission slot + Krylov `solution_template`. `.solve`→AngularFlux; boundary→**#208**. `f400743` + Krylov-regression fix `81289b6` | NI type / BI values | **DONE + FULLY VERIFIED (incl Krylov): operators 392 + homogeneous-2G keff 3 + solve+numerics 592 + sentinel 36 + sweep L1 MMS 524. qa migrated apply pins + A2D-1 hash; `81289b6` migrated the Krylov precond test + un-masked gmres. ONE pre-existing blocker remains: hetero-keff non-convergence (BLOCKER-1, proven on HEAD).** |
-| **B.6** | tighten `TimedFullField` slots → `bulk: BulkField, boundary: BoundaryField` | NI | composite reject tests (update `match=`) |
+| **B.6 ✅** | tightened `TimedFullField` slots → `bulk: BulkField, boundary: BoundaryField`; `__post_init__` isinstance + messages name the locus; `zeros`/`advance` hints narrowed; import swapped `Field`→`_bases.{BulkField,BoundaryField}` (cycle-safe); `_check_partner` UNCHANGED. `5449a52` | NI / BI values | **DONE + VERIFIED: transport 200 + numerics 561 + sn/primitives 271 + sn/operators 392 (-O) + sentinel 36 (no -O). +2 wrong-locus reject tests; 2 `match=` migrated.** |
 | **#208** (after B.6) | operator codomain typing (Bulk/Full/Boundary Protocols + unit-gain) + BC extraction `(L_full+C−S−F−B)ψ=q` + the held boundary-residual matvec retype | — | (its own verification plan) |
 | **C.1** | archivist: Sphinx theory page (View-G, storage×role×locus, dimensional table, named-composition, TraceSpace) + refresh `operator_algebra.rst` | — | `-W` clean; Nexus reload |
 | **C.2** | issues: close #201; move #205; close #197; amend `wave_o_operator_typing.md`; file the 5-red curvilinear issue; `error_catalog.md` | — | audit clean |
