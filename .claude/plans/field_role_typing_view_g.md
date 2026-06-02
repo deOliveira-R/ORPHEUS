@@ -10,15 +10,30 @@ discipline — superseded), #208 (operator typing — **deferred**).
 
 ---
 
-## SESSION STATE — PHASE A + B.1 + B.2 + B.3 + B.4 DONE, RESUME AT B.5 (2026-06-01)
+## SESSION STATE — PHASE A + B.1–B.4 + B.5.0 + B.5.A DONE, RESUME AT B.5.1 (2026-06-02)
 
-> B.3 minted all six role leaves + renamed the geometry `BoundarySource`
-> Protocol → `InflowSourceSpec`. B.4 added the `UNITS` (pint) class
-> constant to every leaf (View-G, eV-free, `sr`-explicit/exact-compared)
-> + units-aware diagnostics. **B.5 is NEXT** — the `from_balance` +
-> dimensional-sin operator-output carve, which ALSO does the held-from-B.3
-> boundary-residual matvec retype. B.5 trips the test-architect proactive
-> trigger (dispatch the verification plan before implementing).
+> B.5 acquired two new sub-steps the user steered in mid-flight; both are
+> DONE + committed + bit-identical.
+> **B.5.0** (`603b07c`) — HARD rename of the whole *source* role
+> `Source → SourceSink` (Angular/Scalar/Boundary classes, files, the role dir
+> `sources/→source_sinks/`, `_SPACE_NAME`s, exports, docstrings, tests), so the
+> NAME carries the signed rate-density semantics: a *source* (production:
+> `q_ext`, `Sψ`, `Fψ`) and a *sink* (operator loss: `Lψ`, `Cψ`) are the same
+> quantity with opposite sign, and the one role-leaf type holds both. (User:
+> "names are strong signatures … today is the cheapest moment.")
+> **B.5.A** (`82e82c9`) — zero-allocation consolidation: retired the 6
+> `SNMesh.zeros_*` factories (the mesh is pure shape data again, no transport
+> imports); allocation now lives on the field types —
+> `Field.zeros(space, **fields)` (shared primitive) → `<Leaf>.zeros_on(mesh)`
+> (uniform leaf factory) → `TimedFullField.zeros(bulk=, boundary=, mesh=)`
+> (generic over the leaf TYPES, so the cross-method container is free of SN's
+> `(AngularFlux, BoundaryFlux)` choice).
+> The test-architect verification spec for the carve is ALREADY produced
+> (agent-memory `test-architect/b5_dimensional_sin_verification_plan.md`) — do
+> NOT re-dispatch; read it.
+> **B.5.1 is NEXT** — mint `from_balance`; then **B.5.2** — the operator-output
+> retype (→ `AngularSourceSink`) + the dimensional-sin rewire. **Decision:
+> #208 is inserted AFTER B.6** (not deferred to a separate plan).
 
 **B.1 DONE (`6e70ec1`):** 5 storage-base ABCs in `transport/fields/
 _bases.py`; 6 leaves re-parented (−602 lines of duplicated machinery).
@@ -121,40 +136,109 @@ sentinel 36/36; elegance-enforcer PASS (1 should-fix taken).
 **DEFERRED to C.1 (Sphinx debt):** add `numerics.units` + the transport
 leaves to the autodoc tree and resolve the new `:data:`/`:mod:` refs.
 
-**B.5 IS NEXT** — `IterationResidual.from_balance` + the dimensional-sin
-rewire at `iteration.py:455` (`Fψ+Sψ+q_ext`) / `:511` (`Lψ−Sψ−Fψ`) /
-`operator.py:1938`, INCLUDING the boundary-residual matvec retype
-(`BoundaryFlux`→`BoundaryResidual` at `operator.py:330/570/852/1263`,
-held from B.3). This is the operator-output carve — trips the
-test-architect proactive trigger (dispatch the verification plan FIRST).
-`from_balance` can use the B.4 `UNITS` for a dimensional sanity check
-(exact-`sr` comparison). Then **B.6 (`TimedFullField` slots →
-`bulk: BulkField, boundary: BoundaryField`)**.
+**B.5.0 DONE (`603b07c`)** — `Source → SourceSink` rename (see SESSION STATE).
+Pure relabel, bit-identical: fast tier 1411 + sentinel 36/36. Guards preserved
+(`InflowSourceSpec`, ERR-047 `BoundarySourceNotOnIncomingTraceError`).
+
+**B.5.A DONE (`82e82c9`)** — zero-allocation consolidation (see SESSION STATE).
+`Field.zeros` + `<Leaf>.zeros_on` + generic `TimedFullField.zeros` + retired the
+6 `SNMesh.zeros_*` factories + dead TYPE_CHECKING imports; ~145 call sites / 49
+files migrated. Pure refactor, bit-identical: fast 1411 + sentinel 36 + sweep
+524 (2-D matvec MMS + curvilinear regressions) + migrated solve/eigenvalue 40.
+
+**B.5.1 IS NEXT — `from_balance`** (additive, bit-identical). Mint the named
+composition forming an iteration residual from a balance. Proposed design
+(awaiting final user OK on the host class): a small shared **`ResidualField`
+base** for the residual leaves providing `from_balance(lhs, rhs)` = same-class
+operands + EXACT-`sr` `UNITS` check (`lhs.UNITS == rhs.UNITS == cls.UNITS`) →
+`cls.from_mesh(lhs.values − rhs.values, lhs.mesh)`; sign = `lhs − rhs` (the
+defect of asserting `lhs == rhs`). NO production consumer yet (scipy owns the
+GMRES residual on raveled arrays; SI convergence uses `‖ψ−ψ_prev‖`) — its
+consumer arrives with #208's operator-algebra residual; minting + testing now is
+Pattern-5 "build the primitive" per the plan + `field.py`'s docstring promise.
+
+**B.5.2 — operator-output retype + dimensional-sin rewire** (THE motivating
+problem). Analysis done this session WITH the user:
+- The sin is REAL + confirmed: `solver.py:528-544` builds
+  `q_ext_per_ord = AngularSourceSink.from_isotropic(...)` (a correct source!)
+  then DELIBERATELY re-wraps `.values` into `AngularFlux` so the typed `+` at
+  `iteration.py:455` typechecks. That re-wrap IS the sin.
+- Fix is FIELD-ROLE typing, NOT #208: with `Source = SourceSink` (signed rate
+  density), every operator `.apply` output is `AngularSourceSink` — `S/F.apply`
+  = production sources, `L/C.apply` = sinks (loss). So `.apply: AngularFlux →
+  AngularSourceSink` (×Σ gain) and `.solve: AngularSourceSink → AngularFlux`
+  (×Σ⁻¹ sweep) — dimensional inverses that read like the math. The Krylov
+  matvec `L.apply − S.apply − F.apply` is then CLOSED `AngularSourceSink`;
+  `from_balance(q_ext, (L−S−F)ψ)` → `AngularResidual`.
+- Sites: drop the `solver.py:542` re-wrap (keep `q_ext` as `AngularSourceSink`);
+  the 7 operator `.apply` BULK outputs `AngularFlux→AngularSourceSink` (the
+  `.solve` outputs at `operator.py:1590`/`:1970` STAY `AngularFlux`). No
+  `isinstance(AngularFlux)` guards exist (audited) → relabel is safe.
+- **Iterate-template subtlety (+ its now-clean fix):** the iteration primitives
+  template the iterate (a flux) on `q_ext` (`_zeros_like(q_ext)` /
+  `_unravel_like(q_ext, …)`). Today that works only because `q_ext` is mislabeled
+  `AngularFlux`; once `q_ext` is honestly `AngularSourceSink`, the cold-start
+  iterate becomes a SourceSink → SI's `ψ − ψ_prev` hits the cross-class gate.
+  **Fix (available thanks to B.5.A):** the SN solver bootstraps the SI iterate
+  via `TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux,
+  mesh=sn_mesh)` (a FLUX composite, decoupled from `q_ext`'s type) passed as
+  `initial_guess`. Bit-identical (zeros = zeros; same reflective-BC seed, which
+  already comes from the zero-boundary iterate). `solve` already reads
+  `rhs.bulk.values` class-agnostically (`operator.py:1952` re-extracts as
+  `AngularSourceSink`) so it is unaffected by the input bulk class.
+- **BOUNDARY half stays #208.** The operator-output `.boundary` is DUAL-role —
+  a BC inflow-trace when it feeds `solve` in SI (`rhs.boundary` = the reflective
+  seed `self._boundary_flux`) vs a face-residual driven to zero in the Krylov
+  matvec. One type can't be both; disentangling = BC extraction
+  `(L_full + C − S − F − B)ψ = q` = #208's core. So B.5.2 leaves the
+  operator-output boundary as `BoundaryFlux`; `BoundaryResidual` stays
+  minted-and-ready (B.3). This is WHY #208 follows B.6.
+- **Verification:** the test-architect spec (agent-memory
+  `b5_dimensional_sin_verification_plan.md`) is the authority. Unlike the
+  bit-identical relabels (A–B.4, B.5.0, B.5.A), B.5.2 changes the matvec/GMRES
+  TYPE flow → the SLOW sweep/solve/eigenvalue convergence gates DO matter
+  (iteration must converge AND converged values stay bit-identical). E7
+  (`Q/Σ_t` equilibrium) + E8 (≥2-group heterogeneous keff) are mandatory.
+
+Then **B.6** (`TimedFullField` slots → `bulk: BulkField, boundary:
+BoundaryField`), then **#208** (operator codomain typing + BC extraction + the
+held boundary-residual wiring), then **C.1/C.2** (Sphinx + issue bookkeeping).
 
 **As-built shape a fresh session needs (post-compaction):**
 - Bases live in `orpheus/transport/fields/_bases.py`: `BulkField`
   (mesh + mesh-binding `_check_partner` + `ng/nx/ny` + abstract
   `_phase_space_shape`) → `AngularField`(N,ng,nx,ny)/`ScalarField`(ng,nx,ny)/
   `MomentField`(marker); `BoundaryField` (mesh + TraceSpace contract +
-  `layout` property + `face_view` + `zeros_for_sn_mesh`/`from_face_arrays`
-  via `cls`). Angular/Scalar `from_mesh` is parametrized by the leaf's
-  `_SPACE_NAME` ClassVar.
+  `layout` property + `face_view` + `zeros_on`/`from_face_arrays` via `cls`).
+  Angular/Scalar share `_space_for_mesh` (used by both `from_mesh` and
+  `zeros_on`), parametrized by the leaf's `_SPACE_NAME` ClassVar.
 - **The 10 role leaves (all THIN — `_SPACE_NAME` + B.4 `UNITS` + any
-  role-specific method), split by role across `fields/`/`sources/`/`residuals/`:**
+  role-specific method), split by role across
+  `fields/`/`source_sinks/`/`residuals/` (the *source* dir was renamed
+  `sources/→source_sinks/` in B.5.0):**
   - bulk angular `(N,ng,nx,ny)` on AngularField: `AngularFlux`
-    ("angular_flux", `ANGULAR_FLUX_UNITS`) · `AngularSource`
-    ("angular_source", `ANGULAR_RATE_UNITS`) · `AngularResidual`
+    ("angular_flux", `ANGULAR_FLUX_UNITS`) · `AngularSourceSink`
+    ("angular_source_sink", `ANGULAR_RATE_UNITS`) · `AngularResidual`
     ("angular_residual", `ANGULAR_RATE_UNITS`).
   - bulk scalar `(ng,nx,ny)` on ScalarField: `ScalarFlux`
-    ("scalar_flux", `SCALAR_FLUX_UNITS`) · `ScalarSource`
-    ("scalar_source", `SCALAR_RATE_UNITS`) · `ScalarResidual`
+    ("scalar_flux", `SCALAR_FLUX_UNITS`) · `ScalarSourceSink`
+    ("scalar_source_sink", `SCALAR_RATE_UNITS`) · `ScalarResidual`
     ("scalar_residual", `SCALAR_RATE_UNITS`).
   - moment on MomentField: `HarmonicMomentField` (`SCALAR_FLUX_UNITS`;
     angle-integrated, `ℓ=0` IS scalar flux).
   - boundary on BoundaryField (all on `mesh.trace`, ALL
     `ANGULAR_FLUX_UNITS` — the boundary is all-flux): `BoundaryFlux`
-    (`fields/`) · `BoundarySource` (`sources/`) · `BoundaryResidual`
+    (`fields/`) · `BoundarySourceSink` (`source_sinks/`) · `BoundaryResidual`
     (`residuals/`). All BUILT (B.3 boundary was done, NOT deferred).
+- **Zero-allocation API (B.5.A) — allocation lives on the TYPES, NOT the mesh:**
+  `Field.zeros(space, **fields)` (shared primitive: `np.zeros(space.shape)` +
+  construct) · `<Leaf>.zeros_on(mesh)` (uniform leaf factory on the locus bases;
+  bulk derives space via `_space_for_mesh`, boundary uses `mesh.trace`) ·
+  `TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)`
+  (generic over leaf TYPES) · `HarmonicMomentField.zeros_for_mesh_and_L(mesh, L)`
+  (extra `L`, not a composite slot). The 6 `SNMesh.zeros_*` factories are
+  RETIRED; the mesh provides shape data only (`ng/nx/ny`, `quad.N`, `.trace`) —
+  no transport imports.
 - **Units layer (B.4):** `orpheus/numerics/units.py` = `UREG` (one shared
   pint registry) + 4 signatures `{ANGULAR,SCALAR}_{FLUX,RATE}_UNITS` +
   re-exported `Unit`. `Field` declares the bare `UNITS: ClassVar[Unit]`
@@ -167,7 +251,7 @@ test-architect proactive trigger (dispatch the verification plan FIRST).
 - **Geometry rename (B.3):** the inflow-`q` *generator* Protocol is
   `orpheus.geometry.boundary.InflowSourceSpec` (was `BoundarySource`;
   impls `NoSource`/`ConstantInflowSource`) — distinct from the L2
-  `BoundarySource` *field* (recipe→snapshot; `from_spec` bridge deferred).
+  `BoundarySourceSink` *field* (recipe→snapshot; `from_spec` bridge deferred).
 - **Verification workflow (load-bearing):** per-tier single-process
   (NEVER whole `tests/sn` — OOMs). `pytest -m sentinel` WITHOUT `-O`
   (vv Mode 8) = seconds-fast full-DAG net (36 nodes). Fast bit-identity =
@@ -182,19 +266,17 @@ test-architect proactive trigger (dispatch the verification plan FIRST).
   sweep/solve/eigenvalue gates DO matter (the iteration must still
   converge, values bit-identical). Run the relevant convergence tier(s)
   single-process, not just the fast net.
-- **B.5 ENTRY POINT (do this first):** dispatch **test-architect** for the
-  verification plan (operator-output carve trigger — the production path
-  moves flux→residual/source through the matvec). The carve retypes
-  operator OUTPUTS and wires `Angular/ScalarResidual` (bulk) +
-  `BoundaryResidual` (boundary). Key coupling (see "B.3 BOUNDARY WIRING →
-  B.5" above): every leaf output in one `TimedFullField` must share
-  bulk+boundary classes; `iteration.py:455` (`Fψ+Sψ+q_ext`, source-space)
-  and `:511` (`Lψ−Sψ−Fψ`) do TYPED arithmetic, so residual-meets-source
-  goes through `IterationResidual.from_balance` (which can use B.4 `UNITS`
-  for an exact-`sr` dimensional sanity check). Detailed `file:line` maps
-  live in the B.3 explorer agent-memories (the BoundaryResidual solve-path
-  map names `operator.py:330/570/852/1263`). Do NOT pre-bake the per-output
-  type assignment — that is B.5's design, done WITH test-architect.
+- **B.5.1/B.5.2 ENTRY POINT:** the full plan + the dimensional-sin analysis
+  are in the "B.5.1 IS NEXT" / "B.5.2" blocks above. The test-architect
+  verification spec is ALREADY produced — read agent-memory
+  `test-architect/b5_dimensional_sin_verification_plan.md` (do NOT re-dispatch).
+  Detailed `file:line` maps for the boundary-residual solve path live in the B.3
+  explorer agent-memories (`operator.py:330/570/852/1263`) — but note that the
+  boundary-residual WIRING is now explicitly **#208** (dual-role; needs BC
+  extraction), so B.5.2 retypes only the BULK operator outputs
+  (`AngularFlux→AngularSourceSink`) + the `solver.py:542` `q_ext` re-wrap +
+  the iterate-template bootstrap via `TimedFullField.zeros`. B.5.1 (`from_balance`)
+  is additive/bit-identical; B.5.2 changes the matvec TYPE flow (slow gates matter).
 
 ---
 
@@ -311,12 +393,15 @@ units on the quantity), with one unified `TraceSpace`. Foundation for #208.
 - **Storage-base + role-leaf (single inheritance, no role mixins):**
   ```
   Field
-   ├─ BulkField (marker) ─ AngularField → {AngularFlux, AngularSource, AngularResidual}
-   │                       ScalarField  → {ScalarFlux,  ScalarSource,  ScalarResidual}
+   ├─ BulkField (marker) ─ AngularField → {AngularFlux, AngularSourceSink, AngularResidual}
+   │                       ScalarField  → {ScalarFlux,  ScalarSourceSink,  ScalarResidual}
    │                       MomentField  → HarmonicMomentField
-   └─ BoundaryField (locus = trace storage, FaceLayout) → {BoundaryFlux, BoundarySource, BoundaryResidual}
+   └─ BoundaryField (locus = trace storage, FaceLayout) → {BoundaryFlux, BoundarySourceSink, BoundaryResidual}
   ```
-- **Renames:** `PerOrdinateSource→AngularSource`, `IsotropicSource→ScalarSource`.
+  (the *source* role is `SourceSink` post-B.5.0 — signed rate density; a source
+  and an operator-loss *sink* are the same quantity, opposite sign.)
+- **Renames:** `PerOrdinateSource→AngularSource` (B.2) `→AngularSourceSink` (B.5.0);
+  `IsotropicSource→ScalarSource` (B.2) `→ScalarSourceSink` (B.5.0).
 - **Strict named-composition:** cross-**role** arithmetic raises;
   `IterationResidual.from_balance(lhs, rhs)`. (Layer-1 class identity is the gate.)
   **RESOLVED (2026-05-31):** the #207 cross-**storage** same-role injection
@@ -355,11 +440,15 @@ from SESSION STATE, and verify A.4 bit-identity against the relevant
 | **A.4 ✅** | consolidated all 8 inline `sign(Ω·n)` face masks in `operator.py` to read `TraceSpace.{inflow,outflow}_indices_for_face` (4 outflow in `_compute_LpC`/`_compute_decomposition` + 4 2-D inflow in `_apply_2d_cartesian`); new public `SNMesh.trace`. `f86846e` | **BI** (boolean-mask ≡ sorted fancy-index) | **DONE: sweep 524 / operators 392 / 2-D MMS 3 passed; A2D-1 hash pin updated.** Also: restored a dead L1 gate (`e46c63c`) + marked slow studies (`e581409`, fast loop 21 s); deferred deep test-speed → issue #211 |
 | **A.5 ✅** | re-homed `BoundaryFlux` onto `TraceSpace`: dropped field-side `layout` (→ read-through property `space.layout`), factories source `space=mesh.trace`, `__post_init__` enforces TraceSpace, retired both `sn_boundary_flat` builds; `mesh` kept as cross-mesh guard. `57c5151` | **BI** (only `space.name` flips, not values) | **DONE: test_boundary_flux 36 / operators-batch 439 / sweep+transport+solve 652 passed.** Migrated 2 direct-ctor test sites + added negative guard test |
 | **B.1 ✅** | created all 5 storage-base ABCs in `transport/fields/_bases.py` (plan-literal): `BulkField`(mesh+mesh-binding+ng/nx/ny+abstract `_phase_space_shape`) → `AngularField`/`ScalarField`(parametrized `from_mesh` via `_SPACE_NAME`)/`MomentField`(marker); `BoundaryField`(TraceSpace contract+layout+face_view+factories via `cls`). Re-parented all 6 leaves (−602 lines). `6e70ec1` | **BI** (values + space names + public API preserved; `isinstance` holds) | **DONE: smoke (MRO/abstractness/`_SPACE_NAME`) + transport+primitives+operators 760 passed + sentinel gate 36/36 (full DAG).** |
-| **B.2 ✅** | **HARD rename (no shim, user decision)**: `PerOrdinateSource→AngularSource`, `IsotropicSource→ScalarSource` (+ `git mv` modules, `_SPACE_NAME`s, `SNMesh.zeros_*` factories). 37 files / ~342 occurrences, 0 residual. Cross-class injection dunder preserved. `698a587` | **BI** (rename touches no values) | **DONE: 760 (primitives+transport+operators) + sentinel 36/36; imports clean; 0 residual tokens.** |
+| **B.2 ✅** | **HARD rename (no shim, user decision)**: `PerOrdinateSource→AngularSource`, `IsotropicSource→ScalarSource` (+ `git mv` modules, `_SPACE_NAME`s, `SNMesh.zeros_*` factories — the latter RETIRED in B.5.A; these names then became `*SourceSink` in B.5.0). 37 files / ~342 occurrences, 0 residual. Cross-class injection dunder preserved. `698a587` | **BI** (rename touches no values) | **DONE: 760 (primitives+transport+operators) + sentinel 36/36; imports clean; 0 residual tokens.** |
 | **B.3 ✅ (all leaves + rename)** | bulk `Angular/ScalarResidual` (`transport/residuals/`) + boundary `BoundarySource` (`transport/sources/`) / `BoundaryResidual` (`transport/residuals/`); renamed geometry Protocol `BoundarySource`→`InflowSourceSpec`. `BoundaryField` now has its 2nd/3rd instances. **Boundary-residual matvec WIRING → B.5** (inseparable from bulk operator-output retype). | new (additive/BI) | 22 bulk + 25 boundary cross-class-raise tests; 1082 fast (−2 pre-existing TP-lift) + sentinel 36/36 |
 | **B.4 ✅** | `UNITS` (pint) on all 10 leaves via `numerics/units.py` (4 named signatures; eV-free; `sr`-explicit/exact-compared; bare `ClassVar` contract on `Field`). Diagnostics: units in `_check_partner` error + concise `Field.__repr__`. Doc fixes (incl. `harmonic_moment_field` wrong-`sr`). NOT the gate (class identity is). | new (additive) | 43 `test_field_units.py`; 1411 fast + sentinel 36/36; elegance PASS |
-| **B.5 ← NEXT** | `from_balance` + dimensional-sin rewire `iteration.py:455`/`:511`/`operator.py:1938` + **boundary-residual matvec retype** (`BoundaryFlux`→`BoundaryResidual`, held from B.3); #207 cross-storage injection STAYS implicit. **test-architect FIRST** (operator-output carve trigger). | NI type / BI arithmetic | named-composition + matvec-residual-type tests |
-| **B.6** | tighten `TimedFullField` slots | NI | composite reject tests (update `match=`) |
+| **B.5.0 ✅** | `Source → SourceSink` HARD rename (Angular/Scalar/Boundary; classes/files/`sources/→source_sinks/`/`_SPACE_NAME`s/exports/docstrings/tests); the name carries signed source/sink semantics. `603b07c` | **BI** (relabel) | fast 1411 + sentinel 36 |
+| **B.5.A ✅** | zero-allocation consolidation: `Field.zeros` + `<Leaf>.zeros_on` + generic `TimedFullField.zeros` + `HMF.zeros_for_mesh_and_L`; retired 6 `SNMesh.zeros_*` + dead imports; ~145 sites/49 files migrated. `82e82c9` | **BI** (same zeros) | fast 1411 + sentinel 36 + sweep 524 + solve/eig 40 |
+| **B.5.1 ← NEXT** | mint `from_balance` (named composition on a `ResidualField` base; `lhs−rhs`, exact-`sr` UNITS check). No prod consumer yet (→ #208). | additive/BI | from_balance type+sign+unit-mismatch tests |
+| **B.5.2** | drop `solver.py:542` `q_ext` re-wrap + retype 7 operator `.apply` BULK outputs `AngularFlux→AngularSourceSink` + iterate-template bootstrap via `TimedFullField.zeros`. Boundary-residual retype → **#208** (dual-role). | NI type / BI values | spec: agent-memory `b5_dimensional_sin_verification_plan.md`; slow E7/E8 gates |
+| **B.6** | tighten `TimedFullField` slots → `bulk: BulkField, boundary: BoundaryField` | NI | composite reject tests (update `match=`) |
+| **#208** (after B.6) | operator codomain typing (Bulk/Full/Boundary Protocols + unit-gain) + BC extraction `(L_full+C−S−F−B)ψ=q` + the held boundary-residual matvec retype | — | (its own verification plan) |
 | **C.1** | archivist: Sphinx theory page (View-G, storage×role×locus, dimensional table, named-composition, TraceSpace) + refresh `operator_algebra.rst` | — | `-W` clean; Nexus reload |
 | **C.2** | issues: close #201; move #205; close #197; amend `wave_o_operator_typing.md`; file the 5-red curvilinear issue; `error_catalog.md` | — | audit clean |
 
