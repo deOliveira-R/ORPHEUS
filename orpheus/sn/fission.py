@@ -73,6 +73,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from orpheus.numerics.operator import (
+    BlockRole,
     CAP_APPLY,
     IdentityOperator,
     LinearOperatorMixin,
@@ -128,6 +129,11 @@ class FissionOperator(LinearOperatorMixin):
     capabilities: frozenset[str] = field(
         default_factory=lambda: frozenset({CAP_APPLY})
     )
+    # Fission is a BULK operator — `χ · νΣ_f · ⟨1, ψ⟩` reads and writes
+    # the bulk flux only (A_bb), no boundary action. Issue #208 / Wave O.
+    # Class-level constant (unannotated so the dataclass does not treat
+    # it as a field).
+    block_role = BlockRole.BULK
 
     # ── Read-through properties for backwards compatibility ────────────
 

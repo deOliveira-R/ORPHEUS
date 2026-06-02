@@ -95,6 +95,7 @@ import numpy as np
 from functools import cached_property
 
 from orpheus.numerics.operator import (
+    BlockRole,
     CAP_APPLY,
     CAP_APPLY_TRANSPOSE,
     CAP_SOLVE,
@@ -1164,6 +1165,11 @@ class StreamingOperator(LinearOperatorMixin):
     capabilities: frozenset[str] = field(
         default_factory=lambda: frozenset({CAP_APPLY})
     )
+    # Streaming is the sole FULL operator — it couples bulk ↔ boundary
+    # (reads the inflow trace to seed the sweep, writes the outflow
+    # trace). Issue #208 / Wave O. Class-level constant (unannotated so
+    # the dataclass does not treat it as a field).
+    block_role = BlockRole.FULL
 
     # D-J (2026-05-30): ``_eq_map`` / ``_ensure_eq_map`` / ``n_unknowns``
     # retired alongside the :class:`EquationMap` codec family — the
@@ -1535,6 +1541,10 @@ class CollisionOperator(LinearOperatorMixin):
             {CAP_APPLY, CAP_SOLVE, CAP_APPLY_TRANSPOSE}
         )
     )
+    # Collision is a BULK operator — diagonal in (cell, group, ordinate),
+    # no boundary action (A_bb only). Issue #208 / Wave O. Class-level
+    # constant (unannotated so the dataclass does not treat it as a field).
+    block_role = BlockRole.BULK
 
     # D-I.1 (2026-05-29): lazy ``_eq_map`` cache + ``_ensure_eq_map`` +
     # ``_sigma_at_unknowns`` retired together with the bare-ndarray
@@ -1756,6 +1766,9 @@ class InvertibleOperator(OperatorSum):
         # OperatorSum.__init__ set capabilities = {CAP_APPLY, ...};
         # we add CAP_SOLVE because this composite IS sweep-invertible.
         self.capabilities = self.capabilities | frozenset({CAP_SOLVE})
+        # (L + C): FULL inherits from the streaming operand (the bulk
+        # collision C carries no boundary action). Issue #208 / Wave O.
+        self.block_role = BlockRole.FULL
 
     # ── Convenience accessors ─────────────────────────────────────────
 

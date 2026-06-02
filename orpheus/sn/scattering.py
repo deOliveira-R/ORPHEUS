@@ -119,6 +119,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from orpheus.numerics.operator import (
+    BlockRole,
     CAP_APPLY,
     LinearOperatorMixin,
 )
@@ -458,6 +459,11 @@ class ScatteringOperator(LinearOperatorMixin):
     capabilities: frozenset[str] = field(
         default_factory=lambda: frozenset({CAP_APPLY})
     )
+    # Scattering is a BULK operator — the moment-folding `Σ_s · ⟨P_ℓ, ψ⟩`
+    # reads and writes the bulk flux only (A_bb), no boundary action.
+    # Issue #208 / Wave O. Class-level constant (unannotated so the
+    # dataclass does not treat it as a field).
+    block_role = BlockRole.BULK
 
     # Lazy cache for the precomputed spherical harmonics — only
     # populated when ``scattering_order > 0`` (avoids paying the

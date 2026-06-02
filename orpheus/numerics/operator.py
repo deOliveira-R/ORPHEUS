@@ -52,7 +52,15 @@ operators built from this module without rewriting their inner loops.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Optional, Protocol, runtime_checkable
+from enum import Enum
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    ClassVar,
+    Optional,
+    Protocol,
+    runtime_checkable,
+)
 
 import numpy as np
 import scipy.sparse.linalg as spla
@@ -63,6 +71,9 @@ if TYPE_CHECKING:
 __all__ = [
     "LinearOperator",
     "LinearOperatorMixin",
+    "BlockRole",
+    "BulkOperator",
+    "FullOperator",
     "MissingCapability",
     "IncompatibleOperatorComposition",
     "OperatorSum",
@@ -89,6 +100,90 @@ __all__ = [
 CAP_APPLY: str = "apply"
 CAP_SOLVE: str = "solve"
 CAP_APPLY_TRANSPOSE: str = "apply_transpose"
+
+
+# ───────────────────────────────────────────────────────────────────────
+# Block-role classification (Issue #208 / Wave O)
+# ───────────────────────────────────────────────────────────────────────
+#
+# On the direct-sum transport state space ``V = V_bulk ⊕ V_boundary`` a
+# linear operator is, by the biproduct theorem, a 2×2 block matrix::
+#
+#     A = [ A_bb  A_bs ]      A_bb : bulk → bulk        A_bs : boundary → bulk
+#         [ A_sb  A_ss ]      A_sb : bulk → boundary    A_ss : boundary → boundary
+#
+# :class:`BlockRole` classifies a leaf by WHICH blocks its action touches —
+# the single fact :meth:`OperatorSum.apply` dispatches on (Wave O step O.2)
+# and the adjoint composition routes by. The classification is a partition
+# (each leaf is exactly one role), and it lives on the INSTANCE (via the
+# :attr:`LinearOperatorMixin.block_role` attribute), NOT the class, because
+# the same generic operator class can play different roles in different
+# contexts — e.g. :class:`IdentityOperator` is the bulk identity in one
+# composition and a realized vacuum boundary law in another.
+
+
+class BlockRole(Enum):
+    r"""Which bulk/boundary blocks an operator's action touches.
+
+    * :attr:`BULK` — only ``A_bb`` (bulk → bulk). The collision ``C``,
+      scattering ``S`` and fission ``F`` operators: they read the bulk
+      flux and write a bulk source/sink, with no boundary action.
+    * :attr:`FULL` — has off-diagonal coupling (``A_bs`` and/or ``A_sb``).
+      The streaming operator ``L``: it reads the inflow trace to seed the
+      sweep and writes the outflow trace, coupling bulk ↔ boundary. The
+      only irreducibly-full primitive.
+    * :attr:`BOUNDARY` — only ``A_ss`` (boundary → boundary). A realized
+      boundary law ``B`` (reflective / albedo / white / periodic): it maps
+      the outflow trace to the inflow trace, with no bulk action. ``B``
+      becomes a first-class algebra leaf only when the boundary conditions
+      are extracted from ``L`` (Wave O step O.4); until then ``B`` is
+      absorbed inside the streaming sweep and NO instance carries this
+      role. (The :class:`BulkOperator` / :class:`FullOperator` ``isinstance``
+      markers ship in O.1; the ``BoundaryOperator`` marker lands with O.4,
+      where the deprecated ``geometry.boundary.BoundaryOperator`` alias —
+      a misnamed :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` — is
+      disambiguated so the name can denote the block-role marker.)
+    """
+
+    BULK = "bulk"
+    FULL = "full"
+    BOUNDARY = "boundary"
+
+
+class _BlockRoleMeta(type):
+    r"""Metaclass making ``isinstance(op, BulkOperator)`` read ``op.block_role``.
+
+    The role markers (:class:`BulkOperator`, :class:`FullOperator`, and —
+    from O.4 — ``BoundaryOperator``) are never instantiated and carry no
+    state. They exist so the block-role classification reads like the
+    domain (``isinstance(L, FullOperator)``) while the single source of
+    truth stays the :attr:`~LinearOperatorMixin.block_role` enum on the
+    operator instance. Exclusivity is automatic: an operator carries one
+    ``block_role`` and therefore satisfies at most one marker.
+
+    A value-based check is required (not a plain ``@runtime_checkable``
+    :class:`Protocol`) because Protocols can only test attribute
+    *presence*, never the *value* the partition discriminates on — every
+    operator has a ``block_role`` attribute, so a structural Protocol would
+    match them all.
+    """
+
+    _role: "BlockRole"
+
+    def __instancecheck__(cls, obj: object) -> bool:
+        return getattr(obj, "block_role", None) is cls._role
+
+
+class BulkOperator(metaclass=_BlockRoleMeta):
+    r"""``isinstance`` marker for a :attr:`BlockRole.BULK` operator (``A_bb`` only)."""
+
+    _role = BlockRole.BULK
+
+
+class FullOperator(metaclass=_BlockRoleMeta):
+    r"""``isinstance`` marker for a :attr:`BlockRole.FULL` operator (off-diagonal coupling)."""
+
+    _role = BlockRole.FULL
 
 
 class MissingCapability(TypeError):
@@ -278,6 +373,26 @@ class LinearOperatorMixin:
     """
 
     capabilities: frozenset[str]
+
+    #: Block-role classification (Issue #208 / Wave O) — see
+    #: :class:`BlockRole`. A single enum value, NOT a capability tag: the
+    #: role is a *partition* (an operator is exactly one of
+    #: bulk/full/boundary), whereas :attr:`capabilities` is a *lattice*
+    #: (apply AND solve AND …, non-exclusive). Modelling the partition as
+    #: one enum makes the illegal "BULK and FULL at once" state
+    #: unrepresentable; a frozenset would not.
+    #:
+    #: ``None`` = unclassified — the default for the generic algebra
+    #: (composition operators derive their role from operands at O.2).
+    #: ``None`` satisfies none of the :class:`BulkOperator` /
+    #: :class:`FullOperator` markers. Concrete leaves override with a
+    #: **plain (unannotated) class attribute** ``block_role = BlockRole.X``
+    #: — NOT a ``ClassVar[...]`` annotation, which under ``from __future__
+    #: import annotations`` is mis-detected by the ``@dataclass`` machinery
+    #: as a field (it became a string and the ClassVar heuristic missed
+    #: it). The annotation HERE is documentary only — this mixin is not a
+    #: dataclass, so its annotation is never field-processed.
+    block_role: ClassVar[Optional[BlockRole]] = None
 
     # ------------------------------------------------------------------
     # Function-space tagging (defaults — concrete operators may override)
