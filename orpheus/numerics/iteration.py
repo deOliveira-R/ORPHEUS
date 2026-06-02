@@ -660,12 +660,25 @@ class KrylovAcceleration:
         b = _ravel(q_ext)
         n = b.size
 
+        # B.5.2: the iterate ψ and the returned solution live in the SOLUTION
+        # (flux) space, NOT q_ext's source space.  Template their typed
+        # reconstruction on a flux ``initial_guess`` when supplied (the SN
+        # solver always passes a flux composite); fall back to ``q_ext`` only
+        # for callers that pass none (bare-ndarray L0 tests, where domain ==
+        # codomain so the type label is irrelevant).  ``b`` / the
+        # preconditioner input stay templated on ``q_ext`` (source space).
+        solution_template = (
+            initial_guess
+            if initial_guess is not None and _is_ravellable(initial_guess)
+            else q_ext
+        )
+
         def A_matvec(psi_flat: np.ndarray) -> np.ndarray:
             # Lift back to the typed (or shaped) carrier, compose
             # (L − S − F)·ψ, ravel.  Operator arithmetic propagates
             # via dunders to ``.boundary`` (AngularFlux) or just the
             # ndarray (bare).
-            psi = _unravel_like(q_ext, psi_flat)
+            psi = _unravel_like(solution_template, psi_flat)
             out = self.L.apply(psi) - self.S.apply(psi) - self.F.apply(psi)
             return _ravel(out)
 
@@ -749,7 +762,7 @@ class KrylovAcceleration:
                 stacklevel=2,
             )
 
-        return _unravel_like(q_ext, solution), residual_history
+        return _unravel_like(solution_template, solution), residual_history
 
 
 # ───────────────────────────────────────────────────────────────────────

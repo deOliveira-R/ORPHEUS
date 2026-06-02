@@ -309,7 +309,9 @@ class FissionOperator(LinearOperatorMixin):
             fission_iso.values, psi.bulk.mesh,
         )
         return TimedFullField(
-            bulk=AngularFlux.from_mesh(per_ord.values, psi.bulk.mesh),
+            # B.5.2: the operator output IS a source (Fψ rate density) — emit
+            # the AngularSourceSink directly, not a re-wrap into AngularFlux.
+            bulk=per_ord,
             boundary=BoundaryFlux.zeros_on(psi.bulk.mesh),
             _history=(),
             history_depth=psi.history_depth,

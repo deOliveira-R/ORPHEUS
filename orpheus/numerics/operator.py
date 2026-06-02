@@ -52,7 +52,7 @@ operators built from this module without rewriting their inner loops.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Callable, Optional, Protocol, runtime_checkable
 
 import numpy as np
 import scipy.sparse.linalg as spla
@@ -774,40 +774,59 @@ class IdentityOperator(LinearOperatorMixin):
 class ZeroOperator(LinearOperatorMixin):
     r"""The zero operator :math:`0\,x = 0`.
 
-    Has ``apply`` (returns a zero of the same shape and type as ``x``)
-    and ``apply_transpose`` (also zero), but **not** ``solve``: the
-    zero operator is not invertible.  Forcing it to advertise
-    ``solve`` would be the harmful-stub anti-pattern this whole
-    module is designed against — composers downstream that ask for
-    ``solve`` on :math:`L = A + 0` would silently get a meaningless
-    answer.
+    Has ``apply`` (returns the zero of its CODOMAIN) and
+    ``apply_transpose`` (also zero), but **not** ``solve``: the zero
+    operator is not invertible.  Forcing it to advertise ``solve`` would
+    be the harmful-stub anti-pattern this whole module is designed
+    against — composers downstream that ask for ``solve`` on
+    :math:`L = A + 0` would silently get a meaningless answer.
 
-    Type preservation
-    -----------------
+    A zero operator's output lives in its CODOMAIN
+    ---------------------------------------------
 
-    The implementation routes through ``0.0 * x``, which preserves
-    the input type via the right multiplication dunder
-    (:meth:`__rmul__` / :meth:`__mul__`):
+    An operator :math:`A : \mathcal D \to \mathcal C` maps the domain
+    :math:`\mathcal D` to the codomain :math:`\mathcal C`; its action —
+    including the zero action — produces an element of
+    :math:`\mathcal C`.  The zero map therefore yields the *zero of the
+    codomain*, which is the input's type ONLY when :math:`\mathcal D =
+    \mathcal C` (an endomorphism, or a bare-``np.ndarray`` operator).
 
-    * Bare ``np.ndarray`` — numpy scalar multiply returns
-      ``np.zeros_like(x)`` bit-exactly.
-    * Typed flux containers
-      (:class:`~orpheus.sn.angular_flux.AngularFlux`,
-      :class:`~orpheus.sn.scalar_flux.ScalarFlux`,
-      :class:`~orpheus.sn.harmonic_moment_field.HarmonicMomentField`) —
-      dunder arithmetic produces a fresh typed instance whose values
-      (and ``.boundary`` for AngularFlux) are all zero.
+    * **Default (``codomain_zero=None``) — endomorphism / bare ndarray.**
+      Routes through ``0.0 * x``, echoing the INPUT type via the
+      right-multiplication dunder.  Correct when domain == codomain:
+      bare ``np.ndarray`` → ``np.zeros_like(x)`` bit-exact; a typed
+      endomorphism → a fresh same-class zero.
+    * **``codomain_zero`` supplied — genuine map between spaces.** When
+      the operator changes space — e.g. a fission operator
+      :math:`F : \psi \mapsto q_{\rm fis}` maps FLUX to SOURCE, so its
+      zero output is a *zero SOURCE*, never a zero flux — pass
+      ``codomain_zero``: a callable ``x ↦ 0_\mathcal C`` building the
+      codomain's zero from ``x`` (typically reading ``x``'s mesh/shape).
+      ``apply`` returns ``codomain_zero(x)``.
 
-    This is the load-bearing detail for the R-1 Step 4 typed-end-to-
-    end algebra: composing ``(L + C - S - F)`` where ``F =
-    ZeroOperator`` (within-group inner solve) MUST produce a typed
-    AngularFlux at every step; a bare ``np.zeros_like(AngularFlux)``
-    would raise.
+    The typed SN within-group inner solve wires the zero fission slot as
+    ``ZeroOperator(codomain_zero=…)`` returning an
+    :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`-bulk
+    zero composite, so the typed RHS ``S.apply(ψ) + F.apply(ψ) + q_ext``
+    and the Krylov matvec ``L.apply − S.apply − F.apply`` stay CLOSED
+    ``AngularSourceSink`` sums (the field-role-typing B.5.2 fix — a
+    flux-echoing zero would hit the cross-class gate).  Formal operator
+    codomain typing is issue #208; ``codomain_zero`` is the pre-#208 hook
+    that keeps the zero operator honest about what space it maps into.
+    ``apply_transpose`` stays an input-echo: its codomain is the domain,
+    and the transpose of the zero slot is not exercised pre-#208.
     """
 
     capabilities: frozenset[str] = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
+    def __init__(
+        self, codomain_zero: "Callable[[object], object] | None" = None,
+    ) -> None:
+        self._codomain_zero = codomain_zero
+
     def apply(self, x):
+        if self._codomain_zero is not None:
+            return self._codomain_zero(x)
         return 0.0 * x
 
     def apply_transpose(self, x):

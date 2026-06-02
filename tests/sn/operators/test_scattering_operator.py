@@ -472,6 +472,7 @@ class TestCompositeInvariants:
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
         )
+        from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = solver_2g_p0.sn_mesh
@@ -483,7 +484,7 @@ class TestCompositeInvariants:
         out = solver_2g_p0.scattering_op.apply(state)
 
         assert isinstance(out, TimedFullField)
-        assert isinstance(out.bulk, AngularFlux)
+        assert isinstance(out.bulk, AngularSourceSink)
         assert out.bulk.mesh is sn_mesh
         assert out.history_depth == state.history_depth
         assert out._history == ()

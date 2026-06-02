@@ -42,6 +42,7 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import CollisionOperator, StreamingOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.source_sinks import AngularSourceSink
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.sn.scattering import ScatteringOperator
@@ -114,7 +115,7 @@ def test_F_apply_timed_full_field_returns_composite(name, builder) -> None:
 
     Fpsi = F.apply(state)
     assert isinstance(Fpsi, TimedFullField)
-    assert isinstance(Fpsi.bulk, AngularFlux)
+    assert isinstance(Fpsi.bulk, AngularSourceSink)
     assert Fpsi.bulk.values.shape == state.bulk.values.shape
     assert Fpsi.bulk.mesh is sn
     # F is volumetric; result's boundary is implicit-zero.
@@ -159,7 +160,7 @@ def test_S_apply_timed_full_field_zero_boundary(name, builder) -> None:
 
     Spsi = S.apply(state)
     assert isinstance(Spsi, TimedFullField)
-    assert isinstance(Spsi.bulk, AngularFlux)
+    assert isinstance(Spsi.bulk, AngularSourceSink)
     assert Spsi.bulk.values.shape == state.bulk.values.shape
     # S is volumetric; result's boundary is implicit-zero.
     np.testing.assert_array_equal(Spsi.boundary.values, 0.0)
@@ -180,7 +181,7 @@ def test_C_apply_timed_full_field_zero_boundary(name, builder) -> None:
 
     Cpsi = C.apply(state)
     assert isinstance(Cpsi, TimedFullField)
-    assert isinstance(Cpsi.bulk, AngularFlux)
+    assert isinstance(Cpsi.bulk, AngularSourceSink)
     assert Cpsi.bulk.values.shape == state.bulk.values.shape
     np.testing.assert_array_equal(Cpsi.boundary.values, 0.0)
 
@@ -215,7 +216,7 @@ def test_L_apply_timed_full_field_returns_composite(name, builder) -> None:
 
     Lpsi = L.apply(state)
     assert isinstance(Lpsi, TimedFullField)
-    assert isinstance(Lpsi.bulk, AngularFlux)
+    assert isinstance(Lpsi.bulk, AngularSourceSink)
     assert Lpsi.bulk.values.shape == state.bulk.values.shape
     # L emits the face residual into .boundary; for these random
     # inputs at least one face slot is non-zero.

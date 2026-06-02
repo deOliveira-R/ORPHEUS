@@ -349,9 +349,7 @@ class TestCompositeInvariants:
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
     def test_returns_timed_full_field(self, name, builder):
-        from orpheus.transport.fields.angular_flux import (
-            AngularFlux,
-        )
+        from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = builder()
@@ -362,7 +360,7 @@ class TestCompositeInvariants:
         out = L.apply(state)
 
         assert isinstance(out, TimedFullField)
-        assert isinstance(out.bulk, AngularFlux)
+        assert isinstance(out.bulk, AngularSourceSink)
         assert out.bulk.mesh is sn_mesh
         assert out.history_depth == state.history_depth
         assert out._history == ()
@@ -431,6 +429,7 @@ class TestCompositeInvariants:
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
         )
+        from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
         mesh = Mesh2D(
@@ -447,7 +446,7 @@ class TestCompositeInvariants:
         out = L.apply(state)
 
         assert isinstance(out, TimedFullField)
-        assert isinstance(out.bulk, AngularFlux)
+        assert isinstance(out.bulk, AngularSourceSink)
         assert out.bulk.mesh is sn_mesh
         assert out.history_depth == state.history_depth
 
@@ -1157,8 +1156,19 @@ class TestT4dApply2DCartesianSourceHashPin:
     #         ``BoundaryFlux.zeros_for_sn_mesh(sn_mesh)`` call renamed to
     #         ``BoundaryFlux.zeros_on(sn_mesh)`` (method rename only; the
     #         allocation is byte-identical — same zero trace buffer).
+    #   B.5.2 (apply-output role retype) 5a334346…4fb1c50e —
+    #         ``AngularFlux.from_mesh(out_bulk, sn_mesh)`` →
+    #         ``AngularSourceSink.from_mesh(out_bulk, sn_mesh)`` (the
+    #         apply output is a rate-density source/sink, not a flux) +
+    #         a ``from orpheus.transport.source_sinks import
+    #         AngularSourceSink`` local import added to the method's
+    #         import block.  Behavior-neutral: ``AngularSourceSink``
+    #         and ``AngularFlux`` ``from_mesh`` produce identical
+    #         ``.values``; only the wrapping role-type differs.  The FD
+    #         stencil, BC fill, and ``L = M - C`` subtraction are
+    #         unchanged.
     EXPECTED_SHA256: str = (
-        "8048c21428a56715554031694a2fd5f494a1b4083343c027e56ffd5f8e411dd7"
+        "5a33434605fa402dcc64be293bde52b0a9aea5a1f1801b5b08a6441e4fb1c50e"
     )
 
     def test_apply_2d_cartesian_source_hash_unchanged(self):

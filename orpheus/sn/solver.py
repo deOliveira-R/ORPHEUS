@@ -84,6 +84,28 @@ def _apply_default_bcs(
 from .solution import IterationHistory, Solution
 
 
+def _zero_within_group_fission(psi: "object") -> "object":
+    r"""Codomain zero for the within-group zero-fission slot (``F = 0``).
+
+    A fission operator maps FLUX → SOURCE, so its zero action emits a *zero
+    source* — an ``AngularSourceSink``-bulk composite — NOT a flux echo of the
+    iterate ``ψ`` (the B.5.2 ``ZeroOperator`` codomain fix: a zero operator
+    returns the zero of its CODOMAIN, not of its domain).  Wired into
+    ``ZeroOperator(codomain_zero=...)`` so the typed RHS
+    ``S.apply(ψ) + F.apply(ψ) + q_ext`` and the Krylov matvec
+    ``L.apply − S.apply − F.apply`` stay CLOSED ``AngularSourceSink`` sums.
+    The within-group fission source proper enters as ``q_ext`` (the
+    eigenvalue outer's contribution); ``F`` itself is structurally zero here.
+    """
+    from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.source_sinks import AngularSourceSink
+    from orpheus.transport.timed_full_field import TimedFullField
+
+    return TimedFullField.zeros(
+        bulk=AngularSourceSink, boundary=BoundaryFlux, mesh=psi.bulk.mesh,
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Solver class (EigenvalueSolver protocol)
 # ═══════════════════════════════════════════════════════════════════════
@@ -541,9 +563,9 @@ class SNSolver:
         # composite branch reads ``rhs.boundary`` as the fallback BC
         # inflow trace when ``initial_guess is None`` (audit §5).
         q_ext_composite = TimedFullField(
-            bulk=AngularFlux.from_mesh(
-                q_ext_per_ord.values, self.sn_mesh,
-            ),
+            # B.5.2: q_ext IS a source — carry the AngularSourceSink directly
+            # (the re-wrap into AngularFlux WAS the dimensional sin).
+            bulk=q_ext_per_ord,
             # D-H.2-C2: ``self._boundary_flux`` is now L2 directly via
             # ``BoundaryFlux.zeros_on``; the ``from_legacy_sn`` adapter
             # retires from this call site.
@@ -570,7 +592,7 @@ class SNSolver:
         si = SourceIteration(
             LC,
             self.scattering_op,
-            ZeroOperator(),
+            ZeroOperator(codomain_zero=_zero_within_group_fission),
             max_iter=self.max_inner,
             tol=self.inner_tol,
         )
@@ -586,6 +608,14 @@ class SNSolver:
         # the type propagates through the iteration primitive via the
         # ravellable protocol.
         initial_guess = getattr(self, "_psi_typed", None)
+        if initial_guess is None:
+            # B.5.2: cold-start iterate is a FLUX composite, decoupled from
+            # q_ext's now-AngularSourceSink type.  Bit-identical to the prior
+            # cold start (_zeros_like(q_ext): all-zeros, BoundaryFlux boundary)
+            # — only the bulk CLASS flips source→flux (the iterate's true role).
+            initial_guess = TimedFullField.zeros(
+                bulk=AngularFlux, boundary=BoundaryFlux, mesh=self.sn_mesh,
+            )
 
         psi_typed, _residuals = si.solve(
             q_ext_composite, initial_guess=initial_guess,
@@ -663,9 +693,9 @@ class SNSolver:
             fission_source, self.sn_mesh,
         )
         q_ext_composite = TimedFullField(
-            bulk=AngularFlux.from_mesh(
-                q_ext_per_ord.values, self.sn_mesh,
-            ),
+            # B.5.2: q_ext IS a source — carry the AngularSourceSink directly
+            # (the re-wrap into AngularFlux WAS the dimensional sin).
+            bulk=q_ext_per_ord,
             boundary=BoundaryFlux.zeros_on(self.sn_mesh),
             _history=(),
             history_depth=2,
@@ -703,7 +733,7 @@ class SNSolver:
         krylov = KrylovAcceleration(
             LC,
             self.scattering_op,
-            ZeroOperator(),
+            ZeroOperator(codomain_zero=_zero_within_group_fission),
             preconditioner=lambda q: q,  # explicit identity — issue #200 tracks re-enable
             tol=self.inner_tol,
             max_iter=self.max_inner,
@@ -721,6 +751,13 @@ class SNSolver:
         # ``to_flat`` / ``from_flat`` (D-H.1b.1) and threads it through
         # the matvec / unravel cycle natively.
         initial_guess = getattr(self, "_psi_typed", None)
+        if initial_guess is None:
+            # B.5.2: cold-start iterate is a FLUX composite, decoupled from
+            # q_ext's now-AngularSourceSink type.  x0 stays all-zeros
+            # (bit-identical); the flux template fixes the Krylov return type.
+            initial_guess = TimedFullField.zeros(
+                bulk=AngularFlux, boundary=BoundaryFlux, mesh=self.sn_mesh,
+            )
 
         psi_typed, _residuals = krylov.solve(
             q_ext_composite, initial_guess=initial_guess,
@@ -1396,7 +1433,9 @@ def _solve_fixed_source_krylov(
     # ``initial_guess`` not ``rhs.boundary``).
     q_ext_per_ord = AngularSourceSink.from_mesh(external_source, sn_mesh)
     q_ext_composite = TimedFullField(
-        bulk=AngularFlux.from_mesh(q_ext_per_ord.values, sn_mesh),
+        # B.5.2: q_ext IS a source — carry the AngularSourceSink directly
+        # (the re-wrap into AngularFlux WAS the dimensional sin).
+        bulk=q_ext_per_ord,
         boundary=BoundaryFlux.zeros_on(sn_mesh),
         _history=(),
         history_depth=2,
@@ -1422,7 +1461,7 @@ def _solve_fixed_source_krylov(
     krylov = KrylovAcceleration(
         LC,
         solver.scattering_op,
-        ZeroOperator(),
+        ZeroOperator(codomain_zero=_zero_within_group_fission),
         preconditioner=lambda q: q,
         tol=inner_tol,
         max_iter=max_inner,
@@ -1433,7 +1472,15 @@ def _solve_fixed_source_krylov(
         restart=N * ng * nx * ny,
     )
 
-    psi_typed, residuals = krylov.solve(q_ext_composite)
+    # B.5.2: pass a FLUX initial_guess so the Krylov solution_template (the
+    # return type) is a flux; x0 stays all-zeros (bit-identical to the prior
+    # initial_guess=None cold start).
+    psi_typed, residuals = krylov.solve(
+        q_ext_composite,
+        initial_guess=TimedFullField.zeros(
+            bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
+        ),
+    )
     # D-H.1c stage 2 — psi_typed is a TimedFullField (the Krylov
     # ravellable protocol unravels back to the template type, which is
     # ``q_ext_composite``).  Read bulk for scalar reduction.

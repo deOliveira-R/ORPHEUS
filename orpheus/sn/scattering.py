@@ -1138,7 +1138,9 @@ class ScatteringOperator(LinearOperatorMixin):
         sum_w = float(mesh.quad.weights.sum())
         combined: AngularSourceSink = (iso / sum_w) + aniso
         return TimedFullField(
-            bulk=AngularFlux.from_mesh(combined.values, mesh),
+            # B.5.2: the operator output IS a source (Sψ rate density) — emit
+            # the AngularSourceSink directly, not a re-wrap into AngularFlux.
+            bulk=combined,
             boundary=BoundaryFlux.zeros_on(mesh),
             _history=(),
             history_depth=psi.history_depth,
