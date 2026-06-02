@@ -91,11 +91,38 @@ not block-touch); Wave O keeps the cap-tags and hand-wires
 ### Reframed substep ledger (status vs current branch)
 | Step | Scope | Status (explorer) |
 |---|---|---|
-| **O.1** | `BulkOperator`/`FullOperator`/`BoundaryOperator` Protocols @ L1; classify every leaf | UNTOUCHED (leaves de-facto classified; low-risk naming carve, bit-identical) |
+| **O.1 ✅** | `BlockRole` enum + `BulkOperator`/`FullOperator` markers (value-based `isinstance` metaclass) @ L1; tag C/S/F=BULK, L/InvertibleOperator=FULL. `797b505` | DONE — bit-identical (numerics 572 / operators 397 / primitives 271 / transport 200 / sweep-core 326, Gate 1.3 still xfail; sentinel 36); +16 foundation tests; elegance-reviewed APPROVE-WITH-NITS. BoundaryOperator marker deferred to O.4. |
 | **O.2** | adjoint: `StreamingOperator.apply_transpose` + `OperatorSum` Protocol routing → **Gate 1.3 green** | ~50% (L1 closure wired; `CollisionOperator` adjoint ships; MISSING the streaming adjoint + routing) |
 | **O.3** | typed full Source/Residual + boundary-residual retype (`BoundaryFlux→BoundaryResidual`) + `from_spec` + non-vacuum MMS | ~60% (leaves + `from_balance` + bulk retypes shipped; MISSING boundary-slot retype @3 sites + C/S/F zeros, `from_spec`, non-vacuum MMS) |
 | **O.4** | **BC-extraction** → sibling `B` BoundaryOperator; bare bulk-streaming `L_full` | UNTOUCHED (highest risk; geometry-non-uniform) |
 | **O.5** | retire implicit-zero-boundary shortcuts | UNTOUCHED (gated on O.1+O.3) |
+
+### O.1 close-out — carry-forward acceptance criteria (from the elegance review)
+The O.1 elegance review (APPROVE-WITH-NITS) surfaced two forward-composition
+gaps that are correct lean boundaries at O.1 (no live `block_role` consumer yet)
+but MUST be pinned so they don't calcify:
+
+- **O.2 — adjoint propagates the role.** Block-role is adjoint-invariant
+  (`A_bb† : bulk→bulk`, `A_ss† : boundary→boundary`; a full 2×2 transposes to a
+  full 2×2). `_AdjointOperator` (operator.py:459) currently reports
+  `block_role=None`, so `isinstance(L.H, FullOperator)` is FALSE today. O.2 MUST
+  give `_AdjointOperator` a `block_role` property returning the inner operator's
+  role. **Acceptance test:** `(L).H` is a `FullOperator`. (Else the adjoint
+  composite falls into the unclassified branch and O.2's role-dispatch routes it
+  wrong — a path bug that passes shape checks.)
+- **O.2 — derive the sum role + RETIRE the hardcoded line (twin-path).** O.1 sets
+  `InvertibleOperator.__init__`'s role with a hardcoded `self.block_role =
+  BlockRole.FULL`; generic `OperatorSum` stays `None`. When O.2 adds general
+  sum-role derivation from operands (FULL if any operand FULL, else BULK if any
+  BULK, …), it MUST **retire** the hardcoded `InvertibleOperator` line in the
+  SAME change — otherwise the special-case and the general derivation are a twin
+  path (anti-pattern #1 / ERR-026 shape: a later operand change updates one and
+  the stale copy diverges).
+- **O.4 — retire the deprecated boundary alias when the marker lands.**
+  Introducing the `BoundaryOperator` block-role marker MUST retire the
+  deprecated `geometry.boundary.BoundaryOperator` alias (a misnamed
+  `BoundaryTraceLaw`) in the same wave — no dangling two-name overlap
+  (`[[feedback_aggressive_retirement]]`).
 
 ### O.4 design sketch (the load-bearing carve — refine when it starts)
 - `B` = `BoundaryOperator`: reads `ψ.boundary.outflow`, writes
