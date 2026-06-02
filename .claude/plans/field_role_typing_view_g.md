@@ -65,10 +65,14 @@ discipline — superseded), #208 (operator typing — **deferred**).
 > typed F-slot + flux bootstrap (mirrors `_solve_krylov`), and narrowed the
 > gmres `except` to re-raise non-signature TypeErrors. solve+numerics now 592.
 >
-> **⚠ RESUME AT B.6.** ONE pre-existing blocker remains (BLOCKER-1, hetero-keff
-> non-convergence — proven on committed HEAD; see block below); the user
-> directed it as the next bug to tackle. B.5.2 is fully verified.
-> **Decision: #208 is inserted AFTER B.6** (not deferred to a separate plan).
+> **⚠ RESUME AT B.6.** B.5.2 is fully verified. ONE pre-existing blocker
+> remains (BLOCKER-1, hetero-keff non-convergence — proven on committed HEAD;
+> see block below). **A `numerics-investigator` was dispatched (background,
+> isolated worktree, 2026-06-02) to find BLOCKER-1's root cause + bisect the
+> introducing commit — CHECK ITS FINDINGS (completion report / agent-memory)
+> before attempting a fix; do NOT re-dispatch if it already reported.** The
+> user directed: B.6 is the next implementation step; BLOCKER-1 fix follows the
+> investigator's diagnosis. **Decision: #208 is inserted AFTER B.6.**
 
 ### ⚠ BLOCKERS surfaced during B.5.2 verify (1 pre-existing, 1 RESOLVED)
 
@@ -86,7 +90,11 @@ times out. The homogeneous-2G keff PASSES → heterogeneous-specific (test-arch
 spec failure-modes #6 convention/group-ratio, #1 sign, or #3 matvec-diverges).
 Spec calls `test_sn_2region_reflective` "the cardinal-rule gate". Likely
 introduced by an earlier branch commit (SN reorg / a wave) — BISECT to find it.
-→ numerics-investigator.
+→ **numerics-investigator DISPATCHED** (background, isolated worktree,
+2026-06-02): tasked to find the root cause + bisect the introducing commit +
+recommend (not commit) a fix. ⚠ a fresh session MUST read its completion
+report / agent-memory BEFORE re-investigating or fixing. ⚠ the tests HANG —
+any repro MUST use `timeout` + tiny `max_outer/max_inner` + leave ZERO strays.
 
 **BLOCKER-2 — Krylov matvec cross-class (B.5.2 REGRESSION — RESOLVED `81289b6`).**
 NOT pre-existing (initial "scipy gmres" attribution was WRONG; corrected by
@@ -299,6 +307,44 @@ problem). Analysis done this session WITH the user:
 Then **B.6** (`TimedFullField` slots → `bulk: BulkField, boundary:
 BoundaryField`), then **#208** (operator codomain typing + BC extraction + the
 held boundary-residual wiring), then **C.1/C.2** (Sphinx + issue bookkeeping).
+
+### B.6 EXECUTION (the NEXT implementation step — concrete)
+
+Tighten the composite carrier so wrong-locus slotting is unrepresentable
+(Pattern 4). All EDITS in `orpheus/transport/timed_full_field.py` (verified
+state 2026-06-02):
+- Import `BulkField`, `BoundaryField` from `orpheus.transport.fields._bases`
+  (annotations-only is fine under `from __future__ import annotations`, but the
+  `__post_init__` `isinstance` needs them at RUNTIME → real import; cycle-safe).
+- Field decls (≈176-177): `bulk: Field` → `bulk: BulkField`; `boundary: Field`
+  → `boundary: BoundaryField`.
+- `__post_init__` (≈225-232): `isinstance(self.bulk, Field)` →
+  `isinstance(self.bulk, BulkField)`; `isinstance(self.boundary, Field)` →
+  `isinstance(self.boundary, BoundaryField)`; update the two error messages
+  ("must be a Field" → "must be a BulkField" / "BoundaryField" — name the
+  locus).
+- `zeros` classmethod (≈186-190): `bulk: type[Field]` → `type[BulkField]`;
+  `boundary: type[Field]` → `type[BoundaryField]`. `replace_components`
+  (≈334-335) hints likewise (`new_bulk: BulkField`, `new_boundary: BoundaryField`).
+- The bulk/boundary CLASS-identity arithmetic gate in `_check_partner` (≈258)
+  is UNCHANGED (it already gates by exact class).
+
+WHY bit-identical: every existing composite already uses a BulkField bulk
+(AngularFlux/SourceSink/Residual, ScalarFlux/…, HarmonicMomentField — all lift
+`BulkField` via Angular/Scalar/MomentField) and a BoundaryField boundary
+(BoundaryFlux/SourceSink/Residual). The tightening only REJECTS new illegal
+combos; no valid value changes.
+
+NEW tests (`tests/transport/.../test_timed_full_field*.py`, foundation):
+wrong-locus rejection — `TimedFullField(bulk=<a BoundaryFlux instance>, …)`
+raises (boundary field in the bulk slot); `TimedFullField(boundary=<an
+AngularFlux instance>, …)` raises (bulk field in the boundary slot). Update any
+existing `pytest.raises(..., match=…)` pinning the old "must be a Field" msg.
+
+GATE: bit-identical — fast tiers `tests/transport tests/numerics` + `tests/sn/
+primitives tests/sn/operators` + sentinel (NO -O). No slow gates needed
+(pure type-tightening; no matvec/convergence change). Then commit `feat(transport):
+B.6 — locus-typed TimedFullField slots`, update this plan + the step table.
 
 **As-built shape a fresh session needs (post-compaction):**
 - Bases live in `orpheus/transport/fields/_bases.py`: `BulkField`
