@@ -10,7 +10,7 @@ discipline — superseded), #208 (operator typing — **deferred**).
 
 ---
 
-## SESSION STATE — PHASE A + B.1–B.4 + B.5.0 + B.5.A DONE, RESUME AT B.5.1 (2026-06-02)
+## SESSION STATE — PHASE A + B.1–B.4 + B.5.0 + B.5.A + B.5.1 DONE, RESUME AT B.5.2 (2026-06-02)
 
 > B.5 acquired two new sub-steps the user steered in mid-flight; both are
 > DONE + committed + bit-identical.
@@ -31,9 +31,21 @@ discipline — superseded), #208 (operator typing — **deferred**).
 > The test-architect verification spec for the carve is ALREADY produced
 > (agent-memory `test-architect/b5_dimensional_sin_verification_plan.md`) — do
 > NOT re-dispatch; read it.
-> **B.5.1 is NEXT** — mint `from_balance`; then **B.5.2** — the operator-output
-> retype (→ `AngularSourceSink`) + the dimensional-sin rewire. **Decision:
-> #208 is inserted AFTER B.6** (not deferred to a separate plan).
+> **B.5.1** (`a55d864`) — `from_balance` named composition MINTED (additive,
+> no prod consumer yet). HOST DECISION (changed from the originally-floated
+> `ResidualField` base, which is INCOMPATIBLE with the locked single-
+> inheritance design — it would need a role mixin): `from_balance` is a
+> classmethod ON each residual leaf (its bespoke factory, parallel to
+> `AngularFlux.zeros_on`), delegating to one engine `Field._from_balance`
+> (Pattern 2). Guards: same-class operands; `sr`-exact units
+> (`lhs.UNITS == rhs.UNITS == cls.UNITS`); same space+mesh. Result rebuilt on
+> `cls`'s OWN space via `cls.from_mesh` (so from_balance ≡ from_mesh residuals
+> stay additive). Added `BoundaryField.from_mesh(values, mesh)` for the
+> boundary locus's uniform reconstruction. Retired the vestigial
+> `IterationResidual.from_balance` name everywhere. 11 new foundation tests.
+> **B.5.2 is NEXT** — the operator-output retype (→ `AngularSourceSink`) + the
+> dimensional-sin rewire. **Decision: #208 is inserted AFTER B.6** (not
+> deferred to a separate plan).
 
 **B.1 DONE (`6e70ec1`):** 5 storage-base ABCs in `transport/fields/
 _bases.py`; 6 leaves re-parented (−602 lines of duplicated machinery).
@@ -146,16 +158,39 @@ Pure relabel, bit-identical: fast tier 1411 + sentinel 36/36. Guards preserved
 files migrated. Pure refactor, bit-identical: fast 1411 + sentinel 36 + sweep
 524 (2-D matvec MMS + curvilinear regressions) + migrated solve/eigenvalue 40.
 
-**B.5.1 IS NEXT — `from_balance`** (additive, bit-identical). Mint the named
-composition forming an iteration residual from a balance. Proposed design
-(awaiting final user OK on the host class): a small shared **`ResidualField`
-base** for the residual leaves providing `from_balance(lhs, rhs)` = same-class
-operands + EXACT-`sr` `UNITS` check (`lhs.UNITS == rhs.UNITS == cls.UNITS`) →
-`cls.from_mesh(lhs.values − rhs.values, lhs.mesh)`; sign = `lhs − rhs` (the
-defect of asserting `lhs == rhs`). NO production consumer yet (scipy owns the
-GMRES residual on raveled arrays; SI convergence uses `‖ψ−ψ_prev‖`) — its
-consumer arrives with #208's operator-algebra residual; minting + testing now is
-Pattern-5 "build the primitive" per the plan + `field.py`'s docstring promise.
+**B.5.1 DONE (`a55d864`)** — `from_balance` named composition (additive; no
+prod consumer yet). The host class CHANGED from the originally-floated
+`ResidualField` base: that base is INCOMPATIBLE with the locked single-
+inheritance design (residual leaves already single-inherit their storage base —
+`AngularResidual(AngularField)` etc. — so a shared `ResidualField` would need
+multiple inheritance / a role mixin, forbidden). As-built design:
+- `from_balance(cls, lhs, rhs)` is a classmethod ON each residual leaf
+  (`Angular`/`Scalar`/`BoundaryResidual`) — its **bespoke factory**, parallel
+  to `AngularFlux.zeros_on` / `AngularSourceSink.from_isotropic` (Pattern 4:
+  only residuals advertise it; the B.3 docstrings already framed it so). The
+  leaves delegate to ONE engine `Field._from_balance` (Pattern 2).
+- Engine guards (in order): same-class operands (`type(lhs) is type(rhs)`);
+  `sr`-exact `UNITS` (`lhs.UNITS == rhs.UNITS == cls.UNITS`, not
+  `.dimensionality` — the ERR-039 guard); same space + mesh (delegated to the
+  operands' `_check_partner`). Result rebuilt on `cls`'s OWN space via
+  `cls.from_mesh(lhs.values − rhs.values, lhs.mesh)`; sign = `lhs − rhs`. The
+  own-space rebuild is load-bearing: a `from_balance` residual and a `from_mesh`
+  residual share one space identity and stay mutually additive (pinned by a
+  test). NO prod consumer yet (scipy owns GMRES residual on raveled arrays; SI
+  uses `‖ψ−ψ_prev‖`) — consumer arrives with B.5.2/#208; minting now is
+  Pattern-5 "build the primitive".
+- Side-build: `BoundaryField.from_mesh(values, mesh)` — the boundary locus
+  lacked a "construct from a flat buffer + mesh" factory (only `zeros_on` /
+  `from_face_arrays`); added for the engine's uniform reconstruction path
+  (lands on `mesh.trace`). Also retired the vestigial `IterationResidual.
+  from_balance` name (no such class — predates the role grid) across ~9
+  docstring/message sites + fixed the muddled `field.py`/`numerics.rst`
+  example (it showed `residual − source`; from_balance takes SAME-class
+  operands and PRODUCES the residual role).
+- Verified: residuals+field_units+field 98, numerics+transport 759, sentinel
+  full-DAG 36 — all green; Sphinx clean for touched modules. 11 new foundation
+  tests (type/sign/own-space/guards for Angular+Scalar; from_mesh + from_balance
+  smoke for Boundary).
 
 **B.5.2 — operator-output retype + dimensional-sin rewire** (THE motivating
 problem). Analysis done this session WITH the user:
@@ -445,7 +480,7 @@ from SESSION STATE, and verify A.4 bit-identity against the relevant
 | **B.4 ✅** | `UNITS` (pint) on all 10 leaves via `numerics/units.py` (4 named signatures; eV-free; `sr`-explicit/exact-compared; bare `ClassVar` contract on `Field`). Diagnostics: units in `_check_partner` error + concise `Field.__repr__`. Doc fixes (incl. `harmonic_moment_field` wrong-`sr`). NOT the gate (class identity is). | new (additive) | 43 `test_field_units.py`; 1411 fast + sentinel 36/36; elegance PASS |
 | **B.5.0 ✅** | `Source → SourceSink` HARD rename (Angular/Scalar/Boundary; classes/files/`sources/→source_sinks/`/`_SPACE_NAME`s/exports/docstrings/tests); the name carries signed source/sink semantics. `603b07c` | **BI** (relabel) | fast 1411 + sentinel 36 |
 | **B.5.A ✅** | zero-allocation consolidation: `Field.zeros` + `<Leaf>.zeros_on` + generic `TimedFullField.zeros` + `HMF.zeros_for_mesh_and_L`; retired 6 `SNMesh.zeros_*` + dead imports; ~145 sites/49 files migrated. `82e82c9` | **BI** (same zeros) | fast 1411 + sentinel 36 + sweep 524 + solve/eig 40 |
-| **B.5.1 ← NEXT** | mint `from_balance` (named composition on a `ResidualField` base; `lhs−rhs`, exact-`sr` UNITS check). No prod consumer yet (→ #208). | additive/BI | from_balance type+sign+unit-mismatch tests |
+| **B.5.1 ✅** | `from_balance` minted (additive, no prod consumer). Host CHANGED: classmethod ON each residual leaf (bespoke factory, Pattern 4) → one engine `Field._from_balance` (Pattern 2); the `ResidualField` base was rejected (needs a role mixin, forbidden). Guards: same-class operands, exact-`sr` UNITS, same space+mesh; result on `cls`'s OWN space. + `BoundaryField.from_mesh`; retired `IterationResidual` vestige. `a55d864` | additive/BI | **DONE: residuals+field_units+field 98 + numerics+transport 759 + sentinel 36; Sphinx clean. 11 new foundation tests.** |
 | **B.5.2** | drop `solver.py:542` `q_ext` re-wrap + retype 7 operator `.apply` BULK outputs `AngularFlux→AngularSourceSink` + iterate-template bootstrap via `TimedFullField.zeros`. Boundary-residual retype → **#208** (dual-role). | NI type / BI values | spec: agent-memory `b5_dimensional_sin_verification_plan.md`; slow E7/E8 gates |
 | **B.6** | tighten `TimedFullField` slots → `bulk: BulkField, boundary: BoundaryField` | NI | composite reject tests (update `match=`) |
 | **#208** (after B.6) | operator codomain typing (Bulk/Full/Boundary Protocols + unit-gain) + BC extraction `(L_full+C−S−F−B)ψ=q` + the held boundary-residual matvec retype | — | (its own verification plan) |
