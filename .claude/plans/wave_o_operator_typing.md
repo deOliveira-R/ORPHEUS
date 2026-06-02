@@ -93,7 +93,8 @@ not block-touch); Wave O keeps the cap-tags and hand-wires
 |---|---|---|
 | **O.1 ✅** | `BlockRole` enum + `BulkOperator`/`FullOperator` markers (value-based `isinstance` metaclass) @ L1; tag C/S/F=BULK, L/InvertibleOperator=FULL. `797b505` | DONE — bit-identical (numerics 572 / operators 397 / primitives 271 / transport 200 / sweep-core 326, Gate 1.3 still xfail; sentinel 36); +16 foundation tests; elegance-reviewed APPROVE-WITH-NITS. BoundaryOperator marker deferred to O.4. |
 | **O.2** | adjoint: `StreamingOperator.apply_transpose` + `OperatorSum` Protocol routing → **Gate 1.3 green** | ~50% (L1 closure wired; `CollisionOperator` adjoint ships; MISSING the streaming adjoint + routing) |
-| **O.3** | typed full Source/Residual + boundary-residual retype (`BoundaryFlux→BoundaryResidual`) + `from_spec` + non-vacuum MMS | ~60% (leaves + `from_balance` + bulk retypes shipped; MISSING boundary-slot retype @3 sites + C/S/F zeros, `from_spec`, non-vacuum MMS) |
+| **O.3a** | boundary-residual typing (apply-output boundary `BoundaryFlux→BoundaryResidual` + C/S/F zeros) | **MERGED into O.4a** — entangled with extraction (the pre-extraction boundary slot is overloaded; see the O.3a-entanglement finding above). The typing lands as a consequence of O.4a, not before it. |
+| **O.3b** | typed full source (`BoundarySource`) + `BoundarySourceSink.from_spec` + non-vacuum-BC MMS | UNTOUCHED — sequenced AFTER O.2 (needs `B` / `q_inflow` from O.4). Leaves minted (B.3); genuinely-new compute. |
 | **O.4** | **BC-extraction** → sibling `B` BoundaryOperator; bare bulk-streaming `L_full` | UNTOUCHED (highest risk; geometry-non-uniform) |
 | **O.5** | retire implicit-zero-boundary shortcuts | UNTOUCHED (gated on O.1+O.3) |
 
@@ -167,19 +168,43 @@ but MUST be pinned so they don't calcify:
    Euclidean bulk-only reciprocity cannot detect a metric-blind boundary
    adjoint; without (c) the bug is invisible).
 
-### Sequencing (LOCKED 2026-06-02 — O.4-before-O.2; confirmed by test-architect)
-**O.1 → O.3a (boundary-residual retype) → O.4a (1-D extraction) → O.4b (2-D
+### Sequencing (LOCKED 2026-06-02; AMENDED — O.3a MERGED into O.4)
+**O.1 ✅ → O.4a (1-D extraction — ALSO lands the boundary typing) → O.4b (2-D
 extraction) → O.2 (adjoint on the bare shape + Gate 1.3 green) → O.3b (typed
-source/from_spec/non-vacuum MMS) → O.5.**
+source / `from_spec` / non-vacuum MMS) → O.5.**
+
+**⚠ O.3a-entanglement finding (2026-06-02 — why O.3a is no longer a standalone
+precursor).** Attempting O.3a (retype the apply-output boundary `BoundaryFlux →
+BoundaryResidual`) FAILED with a `TimedFullField boundary type mismatch:
+BoundaryResidual vs BoundaryFlux` in the source-iteration source sum. Root
+cause: the pre-extraction boundary slot is **overloaded**. The Krylov matvec
+wants `L.apply(ψ).boundary` = the BC-absorbed defect `γ₊ψ − bc_estimate`
+(`BoundaryResidual`), and the `OperatorSum` closure forces C/S/F's boundary
+zeros to match (all-or-nothing — retyping only `L` breaks the sum). But the
+source-iteration RHS `S.apply(ψ) + F.apply(ψ) + q_ext` is *typed* arithmetic,
+and `q_ext.boundary = self._boundary_flux` (solver.py:572) is a `BoundaryFlux`
+**carrying the reflective BC inflow trace** — the sweep reads `rhs.boundary` as
+its BC seed (a flux). The SAME `S.apply` boundary output is summed in both
+contexts, so it cannot be `BoundaryResidual` (matvec) AND the flux-seed type
+(SI) at once; forcing uniform `BoundaryResidual` would mislabel the inflow-flux
+seed as a residual (a Cardinal-Rule-1 type lie). **There is no honest uniform
+type for the pre-extraction boundary slot** — this IS the source/residual
+boundary asymmetry #208 exists to fix, and it is load-bearing exactly as the
+dagger-framing predicted. O.4's extraction resolves it by construction (inflow →
+`B`'s domain = a flux; outflow consistency defect → the residual), so the clean
+boundary typing is a *consequence* of extraction, not a precursor. The O.3a
+production edits were applied then **reverted** (HEAD = `797b505` O.1; the
+revert is green). The boundary-typing retype now lands AS PART of O.4a.
+
 Both the main agent and the test-architect independently recommend
-O.4-before-O.2: the O.2 adjoint built around the BC-absorbed sweep would be a
+**O.4-before-O.2**: the O.2 adjoint built around the BC-absorbed sweep would be a
 THROWAWAY (O.4 deletes that forward shape). O.4 is verified by forward-only
 references (MMS / `Q/Σ_t` / homogeneous `k_∞`) so there is NO dependency
 inversion; the restructuring anchors (Gate 1.1, MMS slopes, Resolution-A
 bit-exact, sentinel) are already green and need no adjoint. Build the adjoint
 ONCE on the final bare-bulk-streaming shape. (Rejected alternative
-`O.1→O.2→O.3→O.4→O.5` would flip Gate 1.3 green earlier but discard the
-BC-absorbed adjoint.)
+`O.1→O.2→…→O.4→O.5` would flip Gate 1.3 green earlier but discard the BC-absorbed
+adjoint.)
 
 ### Verification strategy (test-architect plan: `.claude/agent-memory/test-architect/issue_208_wave_o_verification_plan.md`)
 Per-substep equivalence class + gate:
