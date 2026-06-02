@@ -10,7 +10,7 @@ discipline — superseded), #208 (operator typing — **deferred**).
 
 ---
 
-## SESSION STATE — PHASE A + B.1–B.4 + B.5.0 + B.5.A + B.5.1 DONE, RESUME AT B.5.2 (2026-06-02)
+## SESSION STATE — PHASE A + B.1–B.4 + B.5.0/A/1/2 DONE; RESUME AT 2 PRE-EXISTING BLOCKERS, then B.6 (2026-06-02)
 
 > B.5 acquired two new sub-steps the user steered in mid-flight; both are
 > DONE + committed + bit-identical.
@@ -43,9 +43,54 @@ discipline — superseded), #208 (operator typing — **deferred**).
 > stay additive). Added `BoundaryField.from_mesh(values, mesh)` for the
 > boundary locus's uniform reconstruction. Retired the vestigial
 > `IterationResidual.from_balance` name everywhere. 11 new foundation tests.
-> **B.5.2 is NEXT** — the operator-output retype (→ `AngularSourceSink`) + the
-> dimensional-sin rewire. **Decision: #208 is inserted AFTER B.6** (not
-> deferred to a separate plan).
+> **B.5.2** (`f400743`) — operator-output retype DONE (the dimensional-sin
+> rewire). All 7 `sn/operator.py` `.apply` bulk outputs + `scattering`/`fission`
+> apply outputs → `AngularSourceSink`; `.solve` stays `AngularFlux`; operator
+> boundaries stay `BoundaryFlux` (boundary-defect retype → #208). `solver.py`
+> dropped both `q_ext` re-wraps; zero-fission F-slot →
+> `ZeroOperator(codomain_zero=_zero_within_group_fission)` (user steer: a zero
+> op yields its CODOMAIN's zero — a zero SOURCE — not a flux echo);
+> `numerics/operator.py` `ZeroOperator` gained `codomain_zero`;
+> `numerics/iteration.py` Krylov templates iterate+return on a flux
+> `solution_template`, not `q_ext`. Bit-identical values (solve re-extracts
+> `.values` class-agnostically). VERIFIED on the passing subset: operators 392,
+> homogeneous-2G keff 3, solve+numerics 588, sentinel 36, sweep L1 MMS 524
+> (~1483 green). qa migrated the apply-output type pins + A2D-1 hash.
+>
+> **⚠ RESUME AT 2 PRE-EXISTING BLOCKERS** (both proven NOT B.5.2 — they fail on
+> committed HEAD; see "PRE-EXISTING BLOCKERS" block below). The user directed:
+> verify+commit B.5.2 on the passing subset (done), then tackle these next.
+> **Decision: #208 is inserted AFTER B.6** (not deferred to a separate plan).
+
+### ⚠ PRE-EXISTING BLOCKERS (surfaced during B.5.2 verify — NOT B.5.2)
+
+Both fail on committed HEAD (proven), independent of the field-role-typing
+work. They block the heterogeneous-keff gate and the Krylov path respectively.
+The user directed: tackle these next (after B.5.2 commit `f400743`).
+
+**BLOCKER-1 — heterogeneous 2G keff non-convergence.**
+`test_keff_slab.py::test_heterogeneous_absolute_keff` and
+`test_heterogeneous_transport.py::test_sn_2region_reflective_case_eigenvalue`
+HANG — genuine non-convergence (>600s clean, single-process, full-core CPU =
+NOT starvation). Proven pre-existing: `git stash` B.5.2 → run on HEAD → also
+times out. The homogeneous-2G keff PASSES → heterogeneous-specific (test-arch
+spec failure-modes #6 convention/group-ratio, #1 sign, or #3 matvec-diverges).
+Spec calls `test_sn_2region_reflective` "the cardinal-rule gate". Likely
+introduced by an earlier branch commit (SN reorg / a wave) — BISECT to find it.
+→ numerics-investigator.
+
+**BLOCKER-2 — Krylov path broken on scipy 1.17.1.** `iteration.py`'s gmres
+`try(rtol, callback_type='pr_norm') / except TypeError → gmres(tol=)` BOTH fail
+on scipy 1.17.1: the `except`'s `tol=` kwarg was REMOVED in scipy ≥1.14, AND the
+`try` raises TypeError for some 1.17.1 reason (unknown — needs a 1-line probe of
+`spla.gmres` signature). `test_krylov_curvilinear_precond_safety` (4 tests) is
+the only test forcing `inner_solver="krylov"`, so it alone exposes it — but the
+Krylov PRODUCTION path (`SNSolver._solve_krylov`, `_solve_fixed_source_krylov`)
+is broken on this env. Consequence: **B.5.2's Krylov-specific changes
+(`solution_template`, fixed-source flux `initial_guess`) are UNVERIFIED here**
+(SI path + operator retypes + matvec ARE verified). The gmres block is UNCHANGED
+by B.5.2 (diff-verified). Likely a quick scipy-signature fix that also unblocks
+B.5.2's Krylov verification.
 
 **B.1 DONE (`6e70ec1`):** 5 storage-base ABCs in `transport/fields/
 _bases.py`; 6 leaves re-parented (−602 lines of duplicated machinery).
@@ -481,7 +526,7 @@ from SESSION STATE, and verify A.4 bit-identity against the relevant
 | **B.5.0 ✅** | `Source → SourceSink` HARD rename (Angular/Scalar/Boundary; classes/files/`sources/→source_sinks/`/`_SPACE_NAME`s/exports/docstrings/tests); the name carries signed source/sink semantics. `603b07c` | **BI** (relabel) | fast 1411 + sentinel 36 |
 | **B.5.A ✅** | zero-allocation consolidation: `Field.zeros` + `<Leaf>.zeros_on` + generic `TimedFullField.zeros` + `HMF.zeros_for_mesh_and_L`; retired 6 `SNMesh.zeros_*` + dead imports; ~145 sites/49 files migrated. `82e82c9` | **BI** (same zeros) | fast 1411 + sentinel 36 + sweep 524 + solve/eig 40 |
 | **B.5.1 ✅** | `from_balance` minted (additive, no prod consumer). Host CHANGED: classmethod ON each residual leaf (bespoke factory, Pattern 4) → one engine `Field._from_balance` (Pattern 2); the `ResidualField` base was rejected (needs a role mixin, forbidden). Guards: same-class operands, exact-`sr` UNITS, same space+mesh; result on `cls`'s OWN space. + `BoundaryField.from_mesh`; retired `IterationResidual` vestige. `a55d864` | additive/BI | **DONE: residuals+field_units+field 98 + numerics+transport 759 + sentinel 36; Sphinx clean. 11 new foundation tests.** |
-| **B.5.2** | drop `solver.py:542` `q_ext` re-wrap + retype 7 operator `.apply` BULK outputs `AngularFlux→AngularSourceSink` + iterate-template bootstrap via `TimedFullField.zeros`. Boundary-residual retype → **#208** (dual-role). | NI type / BI values | spec: agent-memory `b5_dimensional_sin_verification_plan.md`; slow E7/E8 gates |
+| **B.5.2 ✅** | dropped both `q_ext` re-wraps + retyped 7 `operator.py` + scattering/fission `.apply` BULK outputs `→AngularSourceSink` + flux-`initial_guess` bootstrap (SI+Krylov) + `ZeroOperator(codomain_zero=…)` zero-fission slot + Krylov `solution_template`. `.solve`→AngularFlux; boundary→**#208**. `f400743` | NI type / BI values | **DONE (passing subset): operators 392 + homogeneous-2G keff 3 + solve+numerics 588 + sentinel 36 + sweep L1 MMS 524 (~1483). qa migrated apply pins + A2D-1 hash. 2 PRE-EXISTING blockers (hetero-keff hang; scipy-1.17.1 Krylov) gate the rest — see BLOCKERS block.** |
 | **B.6** | tighten `TimedFullField` slots → `bulk: BulkField, boundary: BoundaryField` | NI | composite reject tests (update `match=`) |
 | **#208** (after B.6) | operator codomain typing (Bulk/Full/Boundary Protocols + unit-gain) + BC extraction `(L_full+C−S−F−B)ψ=q` + the held boundary-residual matvec retype | — | (its own verification plan) |
 | **C.1** | archivist: Sphinx theory page (View-G, storage×role×locus, dimensional table, named-composition, TraceSpace) + refresh `operator_algebra.rst` | — | `-W` clean; Nexus reload |
