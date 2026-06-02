@@ -23,9 +23,17 @@ extensions = [
     'sphinx.ext.viewcode',      # [source] links to highlighted code
     'sphinx.ext.intersphinx',   # Cross-reference external docs (numpy, scipy)
     'sphinx.ext.napoleon',      # Google/NumPy-style docstrings
+    'sphinx.ext.todo',          # .. todo:: method-implementer stubs (algebra-of-record)
     'matplotlib.sphinxext.plot_directive',  # .. plot:: for auto-generated figures
     'sphinxcontrib.nexus',                  # Knowledge graph extraction
 ]
+
+# Render `.. todo::` blocks in the output. These are the
+# method-implementer's "Archivist expansion needed" stubs per the
+# `algebra-of-record` skill's Sphinx-stub vs rich-narrative
+# discipline — they MUST be visible so a future session sees which
+# theory sections still await rich-narrative expansion.
+todo_include_todos = True
 
 templates_path = ['_templates']
 exclude_patterns = ['_build', '_generated', 'Thumbs.db', '.DS_Store']

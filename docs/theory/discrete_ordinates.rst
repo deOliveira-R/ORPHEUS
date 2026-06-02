@@ -2470,7 +2470,7 @@ resumed:
    the unification.
 
 The pre-Phase-C arithmetic spatial closure
-'''''''''''''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Pre-Phase-C, the matvec interior face values were computed as the
 arithmetic average of cell-centre values
@@ -2509,7 +2509,7 @@ WDD recurrence
 in DAG order. Phase C ships this alignment.
 
 The sweep-frame matvec algebra
-'''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The rewritten matvec is **one sweep iteration semantically**.
 For each bulk direction :math:`d \in \{+1, -1\}`, the per-cell
@@ -2558,7 +2558,7 @@ the strategy-specific :math:`\alpha_{n+1/2}\psi_{n+1/2} -
 :eq:`pole-mm-recurrence` for the M–M angular DD form.
 
 Ordinate vectorisation
-''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^
 
 Per the user's hard architectural directive (and the precedent at
 ``orpheus/sn/angular_operator.py:183``), the rewritten matvec
@@ -2603,7 +2603,7 @@ redistribution + collision contributions still must be scattered to
 the equation map.
 
 The new APIs
-''''''''''''
+^^^^^^^^^^^^
 
 Two new APIs surface what the existing infrastructure already knew:
 
@@ -2637,7 +2637,7 @@ Two new APIs surface what the existing infrastructure already knew:
   helper just precomputes the inverse for the sweep-frame matvec.
 
 What retires
-''''''''''''
+^^^^^^^^^^^^
 
 Phase A's
 :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
@@ -2684,7 +2684,7 @@ Three additional simplifications ship with the rewrite:
   drops the ``boundary_face_flux_closure`` plumbing.
 
 What stays
-''''''''''
+^^^^^^^^^^
 
 * The Phase B
   :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
@@ -2708,7 +2708,7 @@ What stays
   edge.
 
 The pole-face Carlson starting direction
-'''''''''''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The single largest architectural deviation between the Phase C plan
 and the shipped code is the **pole-face initial condition** for the
@@ -6089,7 +6089,8 @@ decomposition gate
 :file:`tests/sn/test_streaming_operator_decomposition.py` catches
 :math:`(L+C).{\rm apply} \neq M(\psi;\sigma_t)` drift.  The full
 analytical-adjoint Gate 1.3 round-off pin lands with **Wave O**
-(:issue:`208`, the BulkOperator / FullOperator / BoundaryOperator
+(`Issue #208 <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_,
+the BulkOperator / FullOperator / BoundaryOperator
 adjoint algebra); see ``test_phase_c_gates.py`` for the current
 xfail-strict placeholder.
 

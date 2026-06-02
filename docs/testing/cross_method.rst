@@ -57,7 +57,8 @@ relevant cases in via their ``tolerances`` map.
 V&V level mapping
 -----------------
 
-Per :doc:`/skills/vv-principles` §"V&V level taxonomy", the
+Per the ``vv-principles`` skill (``.claude/skills/vv-principles/``),
+§"V&V level taxonomy", the
 conceptual level of "two solvers agreeing" is **L4** —
 "informational, parallel to the ladder; produces zero correctness
 info on its own". The L0-L3 ladder is reserved for evidence that
@@ -94,7 +95,7 @@ Reference contamination — the agreement-tolerance discipline
 A cross-method gate that pairs two L1-verified methods MUST set its
 agreement tolerance to **the larger of the two truth tolerances**.
 Tighter is the canonical reference-contamination anti-pattern (per
-:doc:`/skills/vv-principles` §6 AI failure mode #6). Both methods
+the ``vv-principles`` skill §6 AI failure mode #6). Both methods
 reach the truth value to within their respective floors; their
 pairwise agreement therefore CANNOT be tighter than the looser of
 the two without one method being calibrated against the other (the
@@ -118,7 +119,7 @@ Pillar tags — what each truth supports
 
 Every :class:`~tests.cross_method.protocol.CrossMethodCase` carries
 a ``pillar`` field per
-:doc:`/skills/vv-principles` §"The three pillars of verification":
+the ``vv-principles`` skill §"The three pillars of verification":
 
 * ``"closed-form"`` — KLL/Sood transcendental dispersion roots,
   Grandjean-Siewert Table XI critical thicknesses, NM 1980
@@ -290,7 +291,7 @@ Multi-group cross-method coverage gap (acknowledged)
 
 Bare-critical slab/sphere is **inherently 1G** — neither fn_method
 nor trajectory_resolvent natively ships the multi-group critical-
-dimension solve. Per :doc:`/skills/vv-principles` §"1-group
+dimension solve. Per the ``vv-principles`` skill §"1-group
 degeneracy" 1G eigenvalue tests are degenerate (k = νΣ_f/Σ_a
 shape-independent). The cross-method protocol acknowledges this gap
 honestly:
@@ -332,9 +333,11 @@ References
   Variant α specular leg.
 * Siewert, Thomas (1986), *Nucl. Sci. Eng.* **94**, 264 — sphere
   F_N method.
-* :doc:`/skills/vv-principles` — claim taxonomy + pillar
+* ``vv-principles`` skill (``.claude/skills/vv-principles/``) —
+  claim taxonomy + pillar
   discipline + reference-contamination anti-pattern.
-* :doc:`/skills/algebra-of-record` — structural-independence
+* ``algebra-of-record`` skill (``.claude/skills/algebra-of-record/``)
+  — structural-independence
   ladder.
 * ``.claude/scratch/cross_method_test_protocol_assessment.md`` —
   the Phase-1 architectural assessment that produced this

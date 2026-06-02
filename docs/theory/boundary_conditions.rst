@@ -29,7 +29,7 @@ Key Facts
   +-------+-----------------------+---------------------------------------------+
   | Layer | What                  | Where                                       |
   +=======+=======================+=============================================+
-  | 1     | Trace structure       | :mod:`orpheus.numerics.spaces.trace_space`         |
+  | 1     | Trace structure       | :mod:`orpheus.numerics.spaces.trace_space`  |
   |       | (Γ\_-, Γ\_+ + mask)   | (all Mesh1D coord systems + 2-D Cartesian;  |
   |       |                       | 2-D cylindrical Mesh2D deferred)            |
   +-------+-----------------------+---------------------------------------------+

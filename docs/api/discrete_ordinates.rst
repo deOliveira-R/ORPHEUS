@@ -38,11 +38,41 @@ Geometry
 Angular Quadrature
 ------------------
 
-.. automodule:: orpheus.sn.quadrature
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :noindex:
+The angular quadrature now lives in the method-agnostic
+:mod:`orpheus.numerics.quadrature` package (re-exported as
+:class:`orpheus.sn.Quadrature` for the SN solver's convenience). The
+five legacy SN-only subclasses (``AngularQuadrature``,
+``GaussLegendre1D``, ``LebedevSphere``, ``LevelSymmetricSN``,
+``ProductQuadrature``) collapsed into the single
+:class:`~orpheus.numerics.quadrature.Quadrature` value type with
+``classmethod`` factories:
+
+* :meth:`~orpheus.numerics.quadrature.Quadrature.gauss_legendre`
+  — 1-D Gauss-Legendre on :math:`\mu \in [-1, 1]` (slab / curvilinear
+  radial).
+* :meth:`~orpheus.numerics.quadrature.Quadrature.level_symmetric`
+  — :math:`O_h`-invariant level-symmetric :math:`S_N` (Carlson &
+  Lathrop 1968).
+* :meth:`~orpheus.numerics.quadrature.Quadrature.lebedev`
+  — :math:`O_h`-invariant Lebedev sphere quadrature.
+* :meth:`~orpheus.numerics.quadrature.Quadrature.product`
+  — Gauss-Legendre :math:`(\mu)` :math:`\times` equispaced
+  :math:`(\phi)` product rule.
+
+The per-ordinate angular data is exposed through the cached
+:attr:`~orpheus.numerics.quadrature.Quadrature.octants` partition and
+the :meth:`~orpheus.numerics.quadrature.Quadrature.spherical_harmonics`
+/ :meth:`~orpheus.numerics.quadrature.Quadrature.reflection_index`
+methods. The selection driver is
+:func:`~orpheus.numerics.quadrature.select_quadrature`, backed by the
+:data:`~orpheus.numerics.quadrature.quadrature_registry`. The full
+mathematical narrative — the level-symmetric construction, the
+selection criterion, and the product-rule cosine layout — lives at
+:ref:`discrete-measures` and in the per-module docstrings, accessible
+via the standard ``orpheus.numerics.quadrature`` import path. (The
+package carries rich ``.. math:: :label:`` docstrings, so it is
+cross-referenced here rather than ``automodule``-rendered, to avoid
+duplicate-label collisions with the theory pages.)
 
 Transport Sweep
 ---------------
