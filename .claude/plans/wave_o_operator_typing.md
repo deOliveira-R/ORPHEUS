@@ -51,6 +51,43 @@ cleanest end state (bare bulk-streaming Full leaf + algebraic boundary adjoints)
 and it retires the BC-absorbed sweep rather than building an adjoint around it.
 Accepted cost: **O.4 restructures the geometry-non-uniform, L1-verified sweep DAG.**
 
+### Operator-algebra framing (LOCKED 2026-06-02 — dagger biproduct category + block metric)
+The native structure (cross-domain-attacker, twice-confirmed; memory
+`.claude/agent-memory/cross-domain-attacker/issue_208_operator_algebra_frames_full_access.md`):
+operators form a **dagger inverse biproduct category with a non-trivial block
+metric**. What this MANDATES for Wave O:
+
+- **Biproduct** — `V = V_bulk ⊕ V_boundary` ⟹ operators ARE block matrices
+  (a theorem, not a convention); N-way `⊕` (kinetics `flux⊕precursors`) is free.
+  *Sanity check during O.1/O.2:* `OperatorSum.apply` must be
+  biproduct-by-construction (a 3rd `⊕` slot needs NO new `if`), else the N-way
+  story is aspirational.
+- **Metric `G` is LOAD-BEARING (correctness, not optional).** The dagger `†` is
+  the **G-adjoint** `A† = G⁻¹AᵀG`, NOT the plain transpose; boundary block
+  `G_s = |Ω·n|·w_n`. "Adjoint via order-reversal" yields only the transpose → the
+  WRONG adjoint of the off-diagonal coupling until `G` is populated. → Design
+  decision #2.
+- **Dagger functor** — the already-wired `.H` closure laws `(A+B).H` / `(A∘B).H`
+  / `(αA).H` ARE its axioms; algebra-level adjoint composition is free once each
+  leaf's `.H` is the correct G-adjoint.
+- **`B` is a gluing cocycle** (reflective = deck transformation `Ω→R(Ω)`;
+  periodic = base quotient), not a generic `A_ss` — `B†` is a free
+  inverse-permutation, and O.4 extraction = lifting the cocycle into
+  global-section assembly (shares the MoC fiber-bundle frame). Independent
+  validation that Option B (extraction) is right.
+- **Transport-resolvent backbone** — the four method `solve`s are quadratures of
+  one resolvent `(Ω·∇+Σ_t)⁻¹`; diffusion is its asymptotic LIMIT → predicts the
+  self-adjoint-elliptic exception. Confirms the cross-method mixin layering
+  (universal `apply+solve+adjoint` base + `TriangularSolve`(SN/MoC) /
+  `DenseFactorization`(CP) / `SelfAdjointElliptic`(diffusion); causal-ordering
+  stays SN-local per `[[feedback_unify_after_two_instances]]`).
+
+**DEFERRED to stay lean (filed #213):** capabilities as a morphism class
+`Iso ⊂ PartialIso ⊂ General` (restriction/inverse category — the principled
+replacement for the string-tag capability set). Orthogonal axis (invertibility,
+not block-touch); Wave O keeps the cap-tags and hand-wires
+`StreamingOperator.solve_transpose` (the reverse sweep).
+
 ### Reframed substep ledger (status vs current branch)
 | Step | Scope | Status (explorer) |
 |---|---|---|
@@ -91,13 +128,17 @@ Accepted cost: **O.4 restructures the geometry-non-uniform, L1-verified sweep DA
    L1 op stays; O.1 adds a `BoundaryOperator(LinearOperator)` Protocol that
    *classifies the realized op* (the split is already type-enforced; don't
    collapse).
-2. **`|Ω·n|` boundary metric in O.2.** The physically-correct trace inner
-   product is `|Ω·n|·w_n`-weighted (partial current `J± = ∫|Ω·n|ψ`). The hook
-   EXISTS: `TraceSpace` carries `omega_dot_n` + `FaceLayout` leaf-data, and
+2. **`|Ω·n|` boundary metric in O.2 — LOAD-BEARING (the dagger `G`).** The
+   adjoint is the G-adjoint `A† = G⁻¹AᵀG`; the boundary block carries
+   `G_s = |Ω·n|·w_n` (partial current `J± = ∫|Ω·n|ψ`). The hook EXISTS:
+   `TraceSpace` carries `omega_dot_n` + `FaceLayout` leaf-data, and
    `_AdjointOperator.apply` (operator.py:497) already reads
-   `inner_product_weights`. Populate `TraceSpace.inner_product_weights =
-   |omega_dot_n| ⊙ w_n` so the Full/Boundary boundary-block adjoint is correct
-   (not just bulk reciprocity, which is all Gate 1.3 tests today).
+   `inner_product_weights`. O.2 MUST: (a) populate
+   `TraceSpace.inner_product_weights = |omega_dot_n| ⊙ w_n`; (b) make each
+   leaf's `.H` the G-adjoint; (c) add a **discriminating Gate-1.3 test —
+   reciprocity in the G-metric on a NON-trivial off-diagonal block** (today's
+   Euclidean bulk-only reciprocity cannot detect a metric-blind boundary
+   adjoint; without (c) the bug is invisible).
 
 ### Sequencing (LOCKED 2026-06-02 — O.4-before-O.2; confirmed by test-architect)
 **O.1 → O.3a (boundary-residual retype) → O.4a (1-D extraction) → O.4b (2-D
