@@ -139,26 +139,62 @@ test-architect proactive trigger (dispatch the verification plan FIRST).
   `layout` property + `face_view` + `zeros_for_sn_mesh`/`from_face_arrays`
   via `cls`). Angular/Scalar `from_mesh` is parametrized by the leaf's
   `_SPACE_NAME` ClassVar.
-- Leaves (all THIN — `_SPACE_NAME` + role-specific methods only):
-  `AngularFlux`("angular_flux")/`AngularSource`("angular_source",
-  `angular_source.py`) on AngularField; `ScalarFlux`("scalar_flux")/
-  `ScalarSource`("scalar_source", `scalar_source.py`) on ScalarField;
-  `HarmonicMomentField` on MomentField; `BoundaryFlux` on BoundaryField.
-- **B.3 leaf pattern (as built):** copied the B.1/B.2 thin-leaf shape.
-  `AngularResidual(AngularField)` + `ScalarResidual(ScalarField)` =
-  `_SPACE_NAME` only (+ `UNITS` in B.4), in new `transport/residuals/`.
-  `BoundarySource`/`BoundaryResidual` `(BoundaryField)` = DEFERRED to
-  #208 (name collision with the geometry-layer `BoundarySource` Protocol;
-  no current consumer — see SESSION STATE).
+- **The 10 role leaves (all THIN — `_SPACE_NAME` + B.4 `UNITS` + any
+  role-specific method), split by role across `fields/`/`sources/`/`residuals/`:**
+  - bulk angular `(N,ng,nx,ny)` on AngularField: `AngularFlux`
+    ("angular_flux", `ANGULAR_FLUX_UNITS`) · `AngularSource`
+    ("angular_source", `ANGULAR_RATE_UNITS`) · `AngularResidual`
+    ("angular_residual", `ANGULAR_RATE_UNITS`).
+  - bulk scalar `(ng,nx,ny)` on ScalarField: `ScalarFlux`
+    ("scalar_flux", `SCALAR_FLUX_UNITS`) · `ScalarSource`
+    ("scalar_source", `SCALAR_RATE_UNITS`) · `ScalarResidual`
+    ("scalar_residual", `SCALAR_RATE_UNITS`).
+  - moment on MomentField: `HarmonicMomentField` (`SCALAR_FLUX_UNITS`;
+    angle-integrated, `ℓ=0` IS scalar flux).
+  - boundary on BoundaryField (all on `mesh.trace`, ALL
+    `ANGULAR_FLUX_UNITS` — the boundary is all-flux): `BoundaryFlux`
+    (`fields/`) · `BoundarySource` (`sources/`) · `BoundaryResidual`
+    (`residuals/`). All BUILT (B.3 boundary was done, NOT deferred).
+- **Units layer (B.4):** `orpheus/numerics/units.py` = `UREG` (one shared
+  pint registry) + 4 signatures `{ANGULAR,SCALAR}_{FLUX,RATE}_UNITS` +
+  re-exported `Unit`. `Field` declares the bare `UNITS: ClassVar[Unit]`
+  contract; each leaf sets the value. **`UNITS` is metadata, NOT the
+  arithmetic gate** (class identity is); eV-free; `sr` kept explicit +
+  compared by EXACT unit equality. Diagnostics in `field.py`:
+  `_check_partner` TypeError surfaces both operands' units; concise
+  `Field.__repr__` (`repr=False` on Field + 5 bases + 10 leaves → one
+  inherited repr).
+- **Geometry rename (B.3):** the inflow-`q` *generator* Protocol is
+  `orpheus.geometry.boundary.InflowSourceSpec` (was `BoundarySource`;
+  impls `NoSource`/`ConstantInflowSource`) — distinct from the L2
+  `BoundarySource` *field* (recipe→snapshot; `from_spec` bridge deferred).
 - **Verification workflow (load-bearing):** per-tier single-process
   (NEVER whole `tests/sn` — OOMs). `pytest -m sentinel` WITHOUT `-O`
   (vv Mode 8) = seconds-fast full-DAG net (36 nodes). Fast bit-identity =
-  `tests/{transport,sn/primitives,sn/operators}` (~760, ~4 s). The full
+  `tests/{transport,sn/primitives,sn/operators}` (~1.1k, ~5 s — grew with
+  B.3/B.4; add `tests/numerics` when touching `field.py`). The full
   sweep/solve/eigenvalue convergence tiers are TOO SLOW to run whole
   (issue **#211** — unmarked-slow studies; even `-m "not slow"` drags on
   sweep/solve). Use `-n 6` (NOT `-n auto` — oversubscribes the 10-core box).
   Test env: `PYTHONPATH=<worktree> .venv/bin/python` (worktree shadows the
-  editable install); host env.
+  editable install); host env. **NOTE for B.5:** unlike A–B.4 (additive /
+  bit-identical), B.5 changes the matvec/GMRES type flow → the slow
+  sweep/solve/eigenvalue gates DO matter (the iteration must still
+  converge, values bit-identical). Run the relevant convergence tier(s)
+  single-process, not just the fast net.
+- **B.5 ENTRY POINT (do this first):** dispatch **test-architect** for the
+  verification plan (operator-output carve trigger — the production path
+  moves flux→residual/source through the matvec). The carve retypes
+  operator OUTPUTS and wires `Angular/ScalarResidual` (bulk) +
+  `BoundaryResidual` (boundary). Key coupling (see "B.3 BOUNDARY WIRING →
+  B.5" above): every leaf output in one `TimedFullField` must share
+  bulk+boundary classes; `iteration.py:455` (`Fψ+Sψ+q_ext`, source-space)
+  and `:511` (`Lψ−Sψ−Fψ`) do TYPED arithmetic, so residual-meets-source
+  goes through `IterationResidual.from_balance` (which can use B.4 `UNITS`
+  for an exact-`sr` dimensional sanity check). Detailed `file:line` maps
+  live in the B.3 explorer agent-memories (the BoundaryResidual solve-path
+  map names `operator.py:330/570/852/1263`). Do NOT pre-bake the per-output
+  type assignment — that is B.5's design, done WITH test-architect.
 
 ---
 
