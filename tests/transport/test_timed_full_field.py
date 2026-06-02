@@ -3,7 +3,10 @@ r"""L0/L2 — :class:`TimedFullField` cross-method generic container.
 Pins the post-D-H.1 contract for
 :class:`orpheus.transport.timed_full_field.TimedFullField`:
 
-* Bulk + boundary pair construction with mesh-identity validation.
+* Bulk + boundary pair construction with locus-type validation (bulk
+  must be a :class:`~orpheus.transport.fields._bases.BulkField`,
+  boundary a :class:`~orpheus.transport.fields._bases.BoundaryField`)
+  and mesh-identity validation.
 * Algebra propagates to bulk + boundary; history dropped on algebra
   results.
 * Cross-method composition rejected (bulk-type-identity gate).
@@ -105,14 +108,41 @@ class TestConstruction:
     def test_rejects_non_field_bulk(self) -> None:
         m = _slab_mesh()
         bf = BoundaryFlux.zeros_on(m)
-        with pytest.raises(TypeError, match="bulk must be a Field"):
+        with pytest.raises(TypeError, match="bulk must be a BulkField"):
             TimedFullField(bulk="not a field", boundary=bf)  # type: ignore[arg-type]
 
     def test_rejects_non_field_boundary(self) -> None:
         m = _slab_mesh()
         psi = AngularFlux.zeros_on(m)
-        with pytest.raises(TypeError, match="boundary must be a Field"):
+        with pytest.raises(TypeError, match="boundary must be a BoundaryField"):
             TimedFullField(bulk=psi, boundary="not a field")  # type: ignore[arg-type]
+
+    def test_rejects_boundary_field_as_bulk(self) -> None:
+        """B.6 locus gate: a boundary-locus field cannot be slotted as bulk.
+
+        ``BoundaryFlux`` is a :class:`BoundaryField`, NOT a
+        :class:`BulkField`. Even though it is a perfectly valid
+        ``Field``, slotting it into the bulk position is a
+        locus-confusion bug the type now makes unrepresentable
+        (illegal-states-unrepresentable, ``coding-elegance`` Pattern 4).
+        """
+        m = _slab_mesh()
+        bf = BoundaryFlux.zeros_on(m)
+        with pytest.raises(TypeError, match="bulk must be a BulkField"):
+            TimedFullField(bulk=bf, boundary=bf)  # type: ignore[arg-type]
+
+    def test_rejects_bulk_field_as_boundary(self) -> None:
+        """B.6 locus gate: a bulk-locus field cannot be slotted as boundary.
+
+        ``AngularFlux`` is a :class:`BulkField`, NOT a
+        :class:`BoundaryField`. The bulk slot accepts it; the boundary
+        slot must reject it (the dual of
+        :meth:`test_rejects_boundary_field_as_bulk`).
+        """
+        m = _slab_mesh()
+        psi = AngularFlux.zeros_on(m)
+        with pytest.raises(TypeError, match="boundary must be a BoundaryField"):
+            TimedFullField(bulk=psi, boundary=psi)  # type: ignore[arg-type]
 
     def test_rejects_mismatched_mesh(self) -> None:
         m1 = _slab_mesh()

@@ -110,7 +110,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field as dc_field, replace
 from typing import TYPE_CHECKING
 
-from orpheus.numerics.field import Field
+from orpheus.transport.fields._bases import BoundaryField, BulkField
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -125,13 +125,13 @@ class TimedFullField:
 
     Parameters
     ----------
-    bulk : Field
+    bulk : BulkField
         The volumetric / bulk field. Any
-        :class:`~orpheus.numerics.field.Field` subclass — typically
-        :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
+        :class:`~orpheus.transport.fields._bases.BulkField` subclass —
+        typically :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
         for SN, :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
         for CP / diffusion, ``RayField`` for MoC.
-    boundary : Field
+    boundary : BoundaryField
         The boundary partner field on the trace of ``bulk``'s domain.
         Typically :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
         for SN; method-specific for other methods.
@@ -173,8 +173,8 @@ class TimedFullField:
       ``dpsi_dt ≈ (state.at_lag(0).bulk - state.at_lag(1).bulk) / dt``.
     """
 
-    bulk: Field
-    boundary: Field
+    bulk: BulkField
+    boundary: BoundaryField
     _history: tuple["TimedFullField", ...] = ()
     history_depth: int = 2
 
@@ -184,8 +184,8 @@ class TimedFullField:
     def zeros(
         cls,
         *,
-        bulk: type[Field],
-        boundary: type[Field],
+        bulk: type[BulkField],
+        boundary: type[BoundaryField],
         mesh: "object",
         history_depth: int = 2,
     ) -> "TimedFullField":
@@ -204,9 +204,11 @@ class TimedFullField:
 
         Parameters
         ----------
-        bulk, boundary : type[Field]
-            The bulk and boundary leaf CLASSES to instantiate (each must
-            expose ``zeros_on(mesh)``).
+        bulk : type[BulkField]
+            The bulk leaf CLASS to instantiate (must expose ``zeros_on(mesh)``).
+        boundary : type[BoundaryField]
+            The boundary leaf CLASS to instantiate (must expose
+            ``zeros_on(mesh)``).
         mesh : object
             The phase-space carrier passed through to each leaf's
             ``zeros_on`` (duck-typed — no transport→mesh hard dependency).
@@ -223,14 +225,14 @@ class TimedFullField:
     # ── Construction validation ──────────────────────────────────────
 
     def __post_init__(self) -> None:
-        if not isinstance(self.bulk, Field):
+        if not isinstance(self.bulk, BulkField):
             raise TypeError(
-                f"TimedFullField: bulk must be a Field; got "
+                f"TimedFullField: bulk must be a BulkField; got "
                 f"{type(self.bulk).__name__}"
             )
-        if not isinstance(self.boundary, Field):
+        if not isinstance(self.boundary, BoundaryField):
             raise TypeError(
-                f"TimedFullField: boundary must be a Field; got "
+                f"TimedFullField: boundary must be a BoundaryField; got "
                 f"{type(self.boundary).__name__}"
             )
         # Mesh-identity check (where both members carry a ``mesh``
@@ -331,8 +333,8 @@ class TimedFullField:
 
     def advance(
         self,
-        new_bulk: Field,
-        new_boundary: Field,
+        new_bulk: BulkField,
+        new_boundary: BoundaryField,
     ) -> "TimedFullField":
         r"""Push current ``(bulk, boundary)`` into history; install new as current.
 
@@ -349,9 +351,9 @@ class TimedFullField:
 
         Parameters
         ----------
-        new_bulk : Field
+        new_bulk : BulkField
             The new current bulk field. Must match ``type(self.bulk)``.
-        new_boundary : Field
+        new_boundary : BoundaryField
             The new current boundary field. Must match
             ``type(self.boundary)``.
 
