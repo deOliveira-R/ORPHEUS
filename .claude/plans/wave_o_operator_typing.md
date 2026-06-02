@@ -7,11 +7,170 @@
 
 **Date filed:** 2026-05-28 (during D-H.1b). Plan stub: 2026-05-30 (this file).
 
-**Status:** STUB — architectural commitment is settled (see §1 and the project memory `[[project_wave_o_operator_algebra]]`); detailed substep designs land when each substep starts (depth-on-demand per `[[feedback_no_method_implementer_for_surgical_carves]]` — main-agent direct authorship with turn-by-turn user steering).
+**Status:** ACTIVE on `refactor/field-role-typing` — see ⭐ CURRENT EXECUTION below (the §0–§6 stub is historical/stale).
 
 ---
 
-## 0. Pickup checklist (read first)
+## ⭐ CURRENT EXECUTION (2026-06-02) — branch `refactor/field-role-typing`, scope B (BC-extraction INCLUDED)
+
+**This section supersedes §0–§6 below.** The 2026-05-30 stub assumed branch
+`refactor/moment-space-and-layering` with Wave T *pending*; both are now stale
+(Wave T is DONE here; B.3/B.5.2/B.6 of the field-role-typing refactor already
+shipped most of #208's field-side substrate). Authoritative ground-truth map
+(every `file:line` anchor): `.claude/agent-memory/explorer/issue_208_operator_algebra_surface.md`.
+
+### Already shipped on this branch (feeds #208 — do NOT re-do)
+- **L1 operator algebra** (`numerics/operator.py`): `LinearOperator` is a
+  `@runtime_checkable Protocol`; `LinearOperatorMixin` installs dunders +
+  `.H`/`adjoint()`. **The adjoint closure laws `(A+B).H`, `(A∘B).H`, `(αA).H`
+  are FULLY WIRED** (`OperatorSum`:619 / `OperatorProduct`:691 /
+  `ScaledOperator`:748), cap-gated by `CAP_APPLY_TRANSPOSE`. Capability tags +
+  `MissingCapability` raised at composition time.
+- **B.5.2**: bulk operator `.apply` outputs retyped `AngularFlux →
+  AngularSourceSink`; `ZeroOperator(codomain_zero=…)` (operator.py:822;
+  docstring already cites #208).
+- **B.3/B.5.1**: bulk residual leaves `AngularResidual`/`ScalarResidual` (+
+  `from_balance`); `BoundaryResidual` (residuals/boundary_residual.py:82) has
+  `from_balance` AND its docstring documents the held mistyped wiring.
+- **B.6**: locus-typed `TimedFullField` (`bulk: BulkField`, `boundary:
+  BoundaryField`) — this IS the "TimedFullAngularSource/Residual composite" the
+  stub imagined; **no new wrapper type needed**.
+- `InflowSourceSpec` rename (`c7060f0`) freed the `BoundarySource` name; the L2
+  boundary leaf is `BoundarySourceSink` (source_sinks/boundary_source_sink.py:113)
+  — minted, EMPTY, no consumer.
+- **Boundary architecture is 3-layer** (Issue #186): `BoundaryTraceLaw` ABC
+  (geometry/boundary/_base.py:74, pure affine `γ₋ψ=R·G·γ₊ψ+q`, NO `apply`) →
+  `SNBoundaryRealizer.realize(law)→LinearOperator` (boundary_realizer.py:123,
+  the sole bridge) → realized L1 op.
+
+### Scope decision (2026-06-02): INCLUDE BC-extraction (Option B)
+The full architecturally-complete Wave O: `(L_full + C − S − F − B)ψ = q`
+canonical, `B` a top-level `BoundaryOperator`. Rationale (user):
+architecture-forward (`[[feedback_architecture_forward_not_legacy_fit]]`) — the
+cleanest end state (bare bulk-streaming Full leaf + algebraic boundary adjoints)
+and it retires the BC-absorbed sweep rather than building an adjoint around it.
+Accepted cost: **O.4 restructures the geometry-non-uniform, L1-verified sweep DAG.**
+
+### Reframed substep ledger (status vs current branch)
+| Step | Scope | Status (explorer) |
+|---|---|---|
+| **O.1** | `BulkOperator`/`FullOperator`/`BoundaryOperator` Protocols @ L1; classify every leaf | UNTOUCHED (leaves de-facto classified; low-risk naming carve, bit-identical) |
+| **O.2** | adjoint: `StreamingOperator.apply_transpose` + `OperatorSum` Protocol routing → **Gate 1.3 green** | ~50% (L1 closure wired; `CollisionOperator` adjoint ships; MISSING the streaming adjoint + routing) |
+| **O.3** | typed full Source/Residual + boundary-residual retype (`BoundaryFlux→BoundaryResidual`) + `from_spec` + non-vacuum MMS | ~60% (leaves + `from_balance` + bulk retypes shipped; MISSING boundary-slot retype @3 sites + C/S/F zeros, `from_spec`, non-vacuum MMS) |
+| **O.4** | **BC-extraction** → sibling `B` BoundaryOperator; bare bulk-streaming `L_full` | UNTOUCHED (highest risk; geometry-non-uniform) |
+| **O.5** | retire implicit-zero-boundary shortcuts | UNTOUCHED (gated on O.1+O.3) |
+
+### O.4 design sketch (the load-bearing carve — refine when it starts)
+- `B` = `BoundaryOperator`: reads `ψ.boundary.outflow`, writes
+  `ψ.boundary.inflow` via the realized `R·G` law; the affine inflow `q_inflow`
+  moves to the RHS `q.boundary`.
+- `L_full` = bare bulk-streaming `FullOperator`: given bulk ψ +
+  `ψ.boundary.inflow`, produce bulk balance + `ψ.boundary.outflow`. No BC logic
+  inside.
+- Boundary block of the residual `(…−B)ψ−q`: `ψ.inflow − (R·G·ψ.outflow +
+  q_inflow)` — GMRES/SI drives it to zero. **This IS the held boundary residual
+  (O.3), generalized** — O.3 and O.4 are the same wiring at two levels.
+- Today's reflective fixed-point lives INSIDE the sweep (reflective wrap
+  operator.py ~520); extraction moves it OUT to the outer solve (which already
+  drives the full residual to zero).
+- **Geometry-non-uniform → two sub-carves**: **O.4a 1-D** (slab/sphere/cyl;
+  extract from `_compute_LpC`, where `bc_outer/bc_inner.apply` + reflective wrap
+  live) then **O.4b 2-D Cartesian** (extract from `_apply_2d_cartesian`; this
+  path forces the boundary residual to ZERO today (line 1450) → 2-D must ADD the
+  boundary-residual compute, a genuinely new term).
+- **Equivalence class for O.4 is CONVERGENCE-equivalence, NOT bit-identity**
+  (`vv-principles` §bit-identity): moving the reflective coupling from
+  inside-the-sweep to the outer solve changes the iterate trajectory → iterates
+  differ, but the converged ψ solves the same linear system, so it matches to
+  solver tol. Verify against MMS/analytical converged ψ + preserved L1 MMS
+  slopes. **Vacuum-BC cases stay bit-identical** (B=0; given-zero-inflow sweep =
+  today's sweep).
+
+### Design decisions (baked in)
+1. **Q1 — keep the 3-layer boundary split.** `BoundaryTraceLaw`@L1 → `realize` →
+   L1 op stays; O.1 adds a `BoundaryOperator(LinearOperator)` Protocol that
+   *classifies the realized op* (the split is already type-enforced; don't
+   collapse).
+2. **`|Ω·n|` boundary metric in O.2.** The physically-correct trace inner
+   product is `|Ω·n|·w_n`-weighted (partial current `J± = ∫|Ω·n|ψ`). The hook
+   EXISTS: `TraceSpace` carries `omega_dot_n` + `FaceLayout` leaf-data, and
+   `_AdjointOperator.apply` (operator.py:497) already reads
+   `inner_product_weights`. Populate `TraceSpace.inner_product_weights =
+   |omega_dot_n| ⊙ w_n` so the Full/Boundary boundary-block adjoint is correct
+   (not just bulk reciprocity, which is all Gate 1.3 tests today).
+
+### Sequencing (LOCKED 2026-06-02 — O.4-before-O.2; confirmed by test-architect)
+**O.1 → O.3a (boundary-residual retype) → O.4a (1-D extraction) → O.4b (2-D
+extraction) → O.2 (adjoint on the bare shape + Gate 1.3 green) → O.3b (typed
+source/from_spec/non-vacuum MMS) → O.5.**
+Both the main agent and the test-architect independently recommend
+O.4-before-O.2: the O.2 adjoint built around the BC-absorbed sweep would be a
+THROWAWAY (O.4 deletes that forward shape). O.4 is verified by forward-only
+references (MMS / `Q/Σ_t` / homogeneous `k_∞`) so there is NO dependency
+inversion; the restructuring anchors (Gate 1.1, MMS slopes, Resolution-A
+bit-exact, sentinel) are already green and need no adjoint. Build the adjoint
+ONCE on the final bare-bulk-streaming shape. (Rejected alternative
+`O.1→O.2→O.3→O.4→O.5` would flip Gate 1.3 green earlier but discard the
+BC-absorbed adjoint.)
+
+### Verification strategy (test-architect plan: `.claude/agent-memory/test-architect/issue_208_wave_o_verification_plan.md`)
+Per-substep equivalence class + gate:
+- **O.1** Protocols — BIT-IDENTITY (pure tagging).
+- **O.2** L adjoint + routing — BIT-IDENTITY forward; the reverse sweep is NEW,
+  verified by Gate 1.3 reciprocity vs a dense-probe transpose.
+- **O.3a** boundary-residual retype — VALUE-IDENTITY (matvec already computes the
+  face defect; only the python type changes).
+- **O.3b** from_spec + non-vacuum MMS — GENUINELY-NEW compute (all 3 bit-identity
+  criteria pass: named inflow-trace intermediate / MMS-imposed inflow reference /
+  exact single step).
+- **O.4** BC-extraction — CONVERGENCE-EQUIVALENCE (non-vacuum: iterates differ,
+  converged ψ matches an EXTERNAL reference under the `iter×cond×ULP` drift
+  bound) / BIT-IDENTITY (vacuum, B=0).
+- **O.5** retire shims — BIT-IDENTITY.
+
+New tests: Protocol-conformance with **exclusivity rows as the negative half**
+(L11); `OperatorSum` dispatch (bulk leaves → zero boundary, full leaf's residual
+survives); **Gate 1.3 reciprocity** — EXTEND to +slab (cheap vacuum anchor) and
++2-D-as-xfail (the 2-D adjoint is a separate harder deliverable, lands with
+O.4b); the **`|Ω·n|·w_n` boundary-block adjoint** reciprocity (NEW — Gate 1.3
+tests only `.bulk.values` Euclidean today, so the partial-current metric is
+unpinned; pair with a negative control proving the weighting is load-bearing);
+O.4 convergence-equivalence (reflective/albedo/white/periodic across geometries;
+vacuum bit-identity); non-vacuum MMS with the **anti-bias ansatz `(A(x)+μB(x))/W`**
+(overrides the inherited isotropic-vanishing `sin(πx/L)` bias).
+
+Must-stay-green every commit: operator-algebra-core gate; L0 streaming-equilibrium
+(Gate 1.1); L1 curvilinear + 2-D MMS; Resolution-A bit-exact; sentinel. **No
+`continuous_get` eigenvalue gate** (blocked by the registry bug, issue #212 —
+use direct MMS / homogeneous-`k_∞`).
+
+**Gate 1.3** flips green at O.2 for sphere+cyl (+slab); 2-D Cartesian reciprocity
+is the separate harder adjoint, lands with O.4b.
+
+### Open architectural questions for O.4 (resolve before O.4 test code; test-architect §7)
+1. Who populates `TraceSpace.inner_product_weights = |Ω·n|·w_n` (and when — O.2
+   needs it for the boundary-block adjoint).
+2. 2-D adjoint timing — deferred to O.4b (the 2-D reverse sweep + the
+   newly-added 2-D boundary residual).
+3. Is `B*` free via the already-wired `(A+B).H` closure once `B` is a
+   Protocol-classified `BoundaryOperator` with its own analytic `.H`?
+4. Non-vacuum MMS ansatz amplitude (scattering ratio `c<1`, `A(x)>0` for
+   physicality).
+
+### QA watch (test-architect flag)
+Candidate **Mode-8 "passive-boundary blind spot"**: a zero-by-construction
+boundary slot satisfies any bulk-only test vacuously (generalizes H3 to the
+trace equation). NOT yet a `vv-principles` row / ERR-NNN — earns one only if
+O.4b surfaces a concrete bug. QA to watch during O.4b.
+
+### Cross-refs
+Ground-truth map: `.claude/agent-memory/explorer/issue_208_operator_algebra_surface.md`.
+Parent field-role plan: `field_role_typing_view_g.md` (#208 sequenced after
+B.6). Memory: `[[project_wave_o_operator_algebra]]`.
+
+---
+
+## 0. Pickup checklist (read first)  *(historical stub — superseded by ⭐ CURRENT EXECUTION above)*
 
 If you are picking this plan up in a fresh session:
 
