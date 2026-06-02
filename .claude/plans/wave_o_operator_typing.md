@@ -263,6 +263,141 @@ B.6). Memory: `[[project_wave_o_operator_algebra]]`.
 
 ---
 
+## ⭐⭐ O.4 EXECUTION PLAN (detailed — THE NEXT OPERATION; absorbs O.3a)
+
+**Compaction-resume pointer.** Branch `refactor/field-role-typing`; HEAD = `44914ef`
+(O.1 DONE `797b505`; O.3a applied-then-reverted; resequence committed). Before
+executing, READ: this section + the extraction-surface map
+`.claude/agent-memory/explorer/issue_208_o4_extraction_surface.md` (every
+`file:line`) + the verification plan
+`.claude/agent-memory/test-architect/issue_208_wave_o_verification_plan.md`
+(§O.4, §3, §6, §7). Anchors verified at `633215f`/`797b505` (operator.py = 1993
+lines post-O.1; line numbers predating Wave-T dual-emission inlining are stale).
+
+### The keystone (single load-bearing change)
+The matvec line `inflow_full = bc_outer.apply(outflow_at_boundary.T)`
+(`operator.py:521` in `_compute_LpC`, `:795` in `_compute_decomposition`) is the
+intra-call reflective re-apply that makes `L` couple bulk↔boundary. **Deleting
+it decouples `L`**; the `R·G` it performed moves to the sibling `−B`. Everything
+else follows from this.
+
+### The algebra (block structure on `V = V_bulk ⊕ V_inflow ⊕ V_outflow`)
+```
+            ψ_bulk         ψ_inflow      ψ_outflow
+r_bulk    [ L_bb+C−S−F     L_{b,in}        0       ]        = q_bulk
+r_inflow  [ 0              I              −B        ] · ψ   = q_inflow   (consistency)
+r_outflow [ −L_{out,b}     0               I       ]        = 0          (definition)
+```
+- **`L_full` (FULL):** `L_bb` (bulk balance), `L_{b,in}` (inflow seeds the sweep),
+  `−L_{out,b}` (bulk produces the outflow trace). Reads `ψ.inflow` as a GIVEN;
+  writes `ψ.bulk` + `ψ.outflow`. NO BC logic.
+- **`C, S, F` (BULK):** `A_bb` only.
+- **`B` (BOUNDARY):** `ψ.outflow → ψ.inflow` via the realized `R·G`. The affine
+  inflow `q_inflow` → `q.boundary` (`BoundarySource`).
+- The identities `I·ψ_in`, `I·ψ_out` make the trace values unknowns; the outer
+  Krylov/SI drives `r_inflow = ψ.inflow − B·ψ.outflow − q_inflow → 0` and
+  `r_outflow = ψ.outflow − streamed(ψ.bulk) → 0`. **Placing the boundary
+  identities is the core wiring task of O.4a.2** (map Area 1).
+
+### SI ⇄ Krylov unification (the elegance)
+Today the reflective coupling is implicit and DIFFERENT in the two paths (matvec
+re-applies intra-call @521; solve-sweep persists outflow across outer iterations
+via `self._boundary_flux`). Post-extraction BOTH use `B` explicitly: Krylov
+solves `(L_full+C−S−F−B)ψ=q` via `.apply`; SI is the splitting
+`(L_full+C).solve((S+F+B)ψ + q)` — the `Bψ` term supplies the inflow each
+iterate. One operator `B`, two consumers (apply vs the SI source).
+
+### Boundary typing (the absorbed O.3a — now honest, no overload)
+- `ψ.boundary.inflow` / `ψ.boundary.outflow`: `BoundaryFlux` (fluxes; `B`'s
+  domain/codomain).
+- the consistency defect `r_inflow`: `BoundaryResidual` (the named held residual).
+- `q.boundary` (prescribed inflow): `BoundarySource` (zero for vacuum/reflective;
+  non-zero only for `PrescribedInflow`).
+The pre-extraction overload is GONE: inflow (flux) and defect (residual) are now
+different slots, not one slot wearing two hats.
+
+### Sub-steps (turn-by-turn, each its own commit + gate)
+- **O.4a.1 — `B` as a `BoundaryOperator` leaf.** Adapt the `SNBoundaryRealizer.realize`
+  outputs (map Area 4) into clean boundary-block leaves: add
+  `block_role = BlockRole.BOUNDARY`, declare `domain = codomain = mesh.trace`,
+  lift the per-face `(N,ng)` apply to a whole-trace apply. Land the O.1-deferred
+  `BoundaryOperator` marker (`numerics/operator.py:135-145`) + `__all__`. Realized-op
+  readiness: reflective `PermutationOperator&I` (involution, `apply_transpose` ✓),
+  vacuum `IncomingOrdinateMaskTensor&I` ✓, periodic self-adjoint ✓, albedo ✓,
+  **white `AngularAverageOperator&I`** (`apply_transpose` NOT advertised —
+  self-adjoint only under `|Ω·n|·w`; its adjoint waits on O.2's metric).
+  `PrescribedInflow → IncomingSourceOperator` is the `q.boundary` home, NOT linear
+  `B`. **Gate:** Protocol-conformance (`realize(law)` is a `BoundaryOperator`,
+  exclusivity); `B.apply(outflow)` per-law bit-identical to the legacy in-sweep
+  `bc.apply`. **Plus the prod alias rewire** (Area 7: only 2 prod sites —
+  `sn/operator.py:1378/1396/1399/1402/1405` + `sn/boundary_realizer.py` imports/
+  isinstance arms); the ~139-ref test migration + alias-delete is a mechanical
+  O.4a.1-tail commit (`__init__.py:420,481-485` deletes LAST).
+- **O.4a.2 — bare `L_full` (matvec).** In `_compute_LpC` (386-593) +
+  `_compute_decomposition` (595-884): **delete 521/795**; read the backward-sweep
+  seed from `ψ.boundary.inflow` (not `bc_outer.apply`); read the inner inflow from
+  `ψ.boundary.inflow` (slab, was 456/716); boundary output = RAW outflow (drop the
+  `− bc_estimate` at 576-578/859-861); KEEP the curvilinear pole Carlson seed
+  (454/714 — regularity, not BC). Wire the boundary identities + `−B` at the
+  OperatorSum level. **Gate:** vacuum matvec bit-identical; reflective matvec
+  convergence-equiv; Gate 1.1, Resolution-A bit-exact (vacuum), L1 MMS slopes.
+- **O.4a.3 — bare `L_full` (solve/sweep).** In `sweep.py:transport_sweep` (99):
+  retire the entry `bc_*.apply` (473-474/488); persist-back RAW outflow (585/587,
+  no BC); inflow from the seeded `boundary_buf` inflow slots. **Gate:** the sweep
+  given a fixed `ψ.boundary.inflow` is a single pass = same bulk+outflow as before
+  for a consistent inflow.
+- **O.4a.4 — outer-solve rewire + boundary typing (`solver.py` + `iteration.py`).**
+  `q.boundary → BoundarySource`; retire the SI `rhs.boundary = self._boundary_flux`
+  seeding (572) — inflow becomes a solved unknown in `ψ.boundary.inflow`; SI adds
+  the `Bψ` term to the source; the outer loop drives `r_inflow → 0`. Apply the
+  honest boundary types. **Gate:** reflective/albedo/white/periodic converged ψ
+  matches MMS / `Q/Σ_t` / homogeneous `k_∞` to solver tol (convergence-equiv);
+  vacuum bit-identical; the `old_vs_new` drift tripwire (< 2×solver_tol).
+- **O.4b — 2-D Cartesian (SEPARATE design).** `_apply_2d_cartesian` (1333-1463)
+  fills the cell-centre proxy from BCs + forces the boundary output to zero (1456).
+  Extraction requires making `face_view` an ACTIVE trace (read `ψ.boundary.inflow`,
+  emit the defect) — NOT a mechanical port (prior active-trace attempt missed `k_∞`
+  by ~10%; map Area 3). Highest-risk; pin with 2-D `Q/Σ_t` (L0) + 2-D MMS slope +
+  the bulk-ψ drift tripwire + assert the new boundary residual → 0 at convergence.
+  **The 2-D adjoint (Gate 1.3 2-D id) lands HERE, not at O.2.**
+
+### Then O.2 (adjoint, on the bare shape)
+`StreamingOperator.apply_transpose` (reverse sweep) + populate
+`TraceSpace.inner_product_weights = |Ω·n|·w_n` (trace_space.py:276 — `omega_dot_n`
+@309 + `quadrature.weights` both in scope; `_AdjointOperator` already reads it
+@630-632) → the white-BC adjoint becomes free + the boundary-block reciprocity
+becomes correct. Gate 1.3 flips green (sphere+cyl+slab); 2-D id stays xfail until
+O.4b.
+
+### Open-Q resolutions (test-architect §7, from map Area 6)
+1. metric @ `TraceSpace.from_mesh_and_quadrature` (276); both factors available;
+   tangentials → 0 (positive-SEMI-definite — exclude tangentials from the pos-def
+   test).
+2. `B*` free via `(A+B).H` for reflective/vacuum/periodic/albedo; **white** needs
+   the `|Ω·n|·w` metric first (couples to O.2) — the one non-free case.
+3. 2-D adjoint at O.4b (forward residual must exist first).
+4. non-vacuum MMS: new dataclass in `derivations/continuous/mms/sn.py`
+   (`(A(x)+μB(x))/W`, `c<1`, `A>0`, derived `external_source`, prescribed inflow
+   `γ₋ψ`, `ProblemSpec` BC `prescribed`). This is an **O.3b** item; O.4 verifies
+   via `Q/Σ_t` + `k_∞` + existing vacuum MMS, adding the non-vacuum MMS at O.3b.
+
+### Equivalence + gates (test-architect §1)
+O.4a.1 = value-identical (`B.apply` ≡ legacy `bc.apply`); O.4a.2/.3/.4 =
+convergence-equivalence for non-vacuum (iterates differ; converged ψ matches an
+EXTERNAL reference under iter×cond×ULP), bit-identical for vacuum (B=0).
+Must-stay-green every commit: operator-algebra-core, Gate 1.1, L1 curvilinear+2-D
+MMS slopes, Resolution-A bit-exact, sentinel (no -O). **NO `continuous_get`**
+(fixture bug #212 — use direct MMS / `Q/Σ_t` / `k_∞`).
+
+### Risk ranking (do 1-D fully, verify, THEN 2-D)
+O.4b 2-D ADD (highest — new compute, the ~10% `k_∞` cautionary tale) >
+O.4a.2 reflective-curvilinear matvec extraction (ERR-006/026-prone seed) >
+O.4a.4 solver rewire > O.4a.1 `B` leaf + alias (mechanical). A fresh
+`test-architect` pass for the O.4a test CODE is optional — the verification
+PLAN above + the referenced memo are sufficient to start O.4a.1.
+
+---
+
 ## 0. Pickup checklist (read first)  *(historical stub — superseded by ⭐ CURRENT EXECUTION above)*
 
 If you are picking this plan up in a fresh session:
