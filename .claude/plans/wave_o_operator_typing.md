@@ -278,9 +278,54 @@ and the verification plan
 
 ---
 
-## ⭐⭐⭐⭐ O.4b PHASE D — ✅ COMPLETE + PHASE E NEXT (READ FIRST, HEAD `2288ea4`, 2026-06-03)
+## ⭐⭐⭐⭐ O.4b PHASE E — E0/E1/E2 ✅ COMPLETE + E3 NEXT (READ FIRST, HEAD `dfeb604`, 2026-06-03)
 
-**The 2-D matvec/sweep TWIN PATH is RETIRED.** O.4b's detour (the unification,
+**The 2-D BC EXTRACTION is STRUCTURALLY COMPLETE.** `(L_full + C − S − F − B)ψ = q`
+is now canonical for 2-D: both the matvec AND the sweep are BARE (read
+`ψ.boundary.inflow`), and `−B` (`SNBoundaryOperator`) is the SOLE reflective
+coupling. matvec and sweep share ONE boundary handling (Cardinal Rule 2 / L21).
+
+**Phase E commit chain (on Phase D `2288ea4`):** `7638d1f` (E1a) → `dfeb604` (E1b/E2).
+- **E0** (de-risk, diagnostic `diag_o4b_e0_bare_matvec_proto.py`, excluded) — 3/3:
+  vacuum bulk BIT-IDENTICAL; `(L−B)·ψ_uniform = 0` on bulk AND boundary (the
+  ~10% catcher, using the real `SNBoundaryOperator`); boundary responds to an
+  inflow perturbation (Mode-8 precursor).
+- **E1a** (`7638d1f`) — `_apply_2d_cartesian` BARE: seed boundary edge slots from
+  `ψ.boundary.face_view` (no bc.apply); emit the active boundary-block residual
+  (OUTFLOW slots `streamed − ψ.outflow`; INFLOW slots identity `ψ.inflow`).
+  A2D-1 hash refreshed `d68fd731`→`124b47a8`. face_view xfails PROMOTED (active
+  trace); the 2 directional-decay tests stay xfail (solve-property, not a
+  bare-matvec property — redesign at E3).
+- **E1b/E2** (`dfeb604`) — `_sweep_2d_wavefront` BARE (drop per-octant bc.apply,
+  seed given inflow, persist raw outflow); BOTH `reduced is not None` reflect
+  guards lifted (reconstruction `solve_sn` + `_solve_fixed_source_si`) so
+  `_reflect_outflow_into_inflow` runs for 2-D. The 3 remaining `reduced` guards
+  are orthogonal (cache; 2-D SI eigenvalue NIE; 2-D fixed-source Krylov NIE).
+  **Convergence note:** bare sweep + external reflect is INTER-sweep (Jacobi-like)
+  vs the legacy INTRA-sweep (Gauss-Seidel) — same fixed point, slower SI rate;
+  the production 2-D eigenvalue is KRYLOV (coupled bulk⊕trace) and unaffected.
+  Test-migrations (retirement=test-migration): octant harness (schema→4 face
+  views, vacuum BIT-IDENTICAL, reflective re-baselined, L7-trap RETIRED — case 7
+  is the closed-form anchor); case 7 max_inner 500→2000; `test_solver_components`
+  homogeneous-φ test re-driven through the external reflect.
+- **Gates green:** Gate K k_inf=1.875 (2-D Krylov); 833 passed across
+  sweep/cartesian_2d + sweep/core + operators + eigenvalue/test_keff_2d +
+  verification/mms/test_mms_2d (`-O`, not slow); sentinel 36 passed (no `-O`).
+
+**E3 (NEXT — the verification + typing capstone):** honest boundary typing
+(`BoundaryResidual` for the 2-D residual the matvec now emits) + Gate R-2D
+(boundary residual → 0 at convergence) + the L11 negative control (R-2D-NEG:
+perturb `ψ.boundary.inflow`, assert the residual responds — Mode-8 catcher) +
+Gate Q-2D (per-ordinate streaming-equilibrium flat-flux residual) + Gate V-2D
+(vacuum bit-identity foundation pin). Optional: redesign the 2 directional-decay
+face_view tests against the SOLVE. See the test-architect plan
+`issue_208_o4b_2d_verification_plan.md` §2/§6 for the full gate specs.
+
+---
+
+### Phase D recap (twin-path unification — HEAD `2288ea4`, the prerequisite)
+
+**The 2-D matvec/sweep TWIN PATH was RETIRED.** O.4b's detour (the unification,
 per the user: "do the unification properly via the selectable discretization
 protocol before the extraction") is done. The full O.4b detour design lives in
 `.claude/plans/glimmering-launching-lantern.md`; ground-truth maps in
@@ -321,6 +366,8 @@ orthogonal, surfaced by the broad regression):**
    exists in `derivations/diagnostics/sn_keff_hang_PROPOSED_fix.patch`.
 
 ### ▶ PHASE E — the 2-D BC extraction (O.4b proper). Tasks E0–E3.
+**[E0/E1/E2 ✅ DONE — see the ⭐ header above (HEAD `dfeb604`). Only E3 remains.
+The E0–E2 detail below is the original plan, kept for context.]**
 Now clean because matvec≡sweep on the DD closure. Mirrors O.4a.2 Commit 2 (the
 coupled boundary-unknown flip; that flip needed design corrections found by
 de-risking — DO E0 first).
