@@ -278,6 +278,84 @@ and the verification plan
 
 ---
 
+## ⭐⭐⭐⭐ O.4b PHASE D — ✅ COMPLETE + PHASE E NEXT (READ FIRST, HEAD `2288ea4`, 2026-06-03)
+
+**The 2-D matvec/sweep TWIN PATH is RETIRED.** O.4b's detour (the unification,
+per the user: "do the unification properly via the selectable discretization
+protocol before the extraction") is done. The full O.4b detour design lives in
+`.claude/plans/glimmering-launching-lantern.md`; ground-truth maps in
+`.claude/agent-memory/explorer/issue_208_o4b_2d_extraction_surface.md` +
+`.claude/agent-memory/test-architect/issue_208_o4b_2d_verification_plan.md`.
+
+**Phase D commit chain (on `93a2253`):** `c4e93df` (D1) → `0eb8f26` (D2) →
+`2288ea4` (D3).
+- **D1** — `residual_batch` (batched apply) on the `CellUpdate`/`CellUpdateBase`
+  selectable-discretization protocol + `DiamondDifference`; `psi_avg_probe` on
+  `SweepCellSlice`. Completes the symmetry `update↔residual` (per-cell) /
+  `update_batch↔residual_batch` (per-level).
+- **D2** — `SweepDependencyGraph.residual` (apply-direction walk) + shared
+  `_make_slice`. Graph-level round-trip pinned.
+- **D3** — `_apply_2d_cartesian` REWRITTEN to route through `graph.residual` (the
+  DD closure) over the same wavefront DAG the sweep uses (L21). **FD
+  `_compute_gradients` RETIRED.** Discretization change FD(O(h))→DD(O(h²));
+  k_inf stays 1.875; matvec now ≡ DD sweep. bc-in-matvec PRESERVED
+  (cell-centre-proxy seed); boundary trace PASSIVE (extraction = Phase E).
+- **Gates green:** k_inf=1.875, 2-D MMS O(h²), matvec≡sweep round-trip
+  (machine-eps, all octants), A2D-1 hash refreshed (`68e9c6a8`→`d68fd731`).
+  Must-stay-green confirmed (operator-algebra-core, Gate 1.1, Resolution-A, 2-D
+  MMS). Elegance-enforcer APPROVE-WITH-NITS ("strongest carve in the O.4
+  series — collapses a twin path at the math level"); 2 NITs folded into D2.
+
+**⚠ TWO PRE-EXISTING REDS (bisected to pre-session `7072f9b`; NOT from this carve —
+orthogonal, surfaced by the broad regression):**
+1. `tests/sn/sweep/curvilinear/test_unified_matvec_cylinder.py` — 27 cases,
+   ~18% error vs hand reference. CYLINDER-SPECIFIC (sphere/slab unified matvecs
+   pass). The 1-D cylinder matvec is untouched by D1/D2/D3. Was promoted GREEN
+   2026-05-17 → regressed on-branch since. Tracked area: #206 (unify matvec/sweep
+   WDD), #196 (ERR-026 #7 SI-vs-Krylov asymmetry), #209 (pole-cell NaN), #168
+   (curvilinear O(h)) + numerics-investigator memos (cylinder twin-path
+   divergence / legacy cyl matvec routing bug). NEEDS triage (numerics-investigator).
+2. **#212** `continuous_get` reference-registry build hangs >100s standalone
+   (CPU-bound mpmath) — now also blocks `test_mms_heterogeneous` +
+   `test_mms_2d`'s registry path (test_mms_2d still passed in 42s). Fix patch
+   exists in `derivations/diagnostics/sn_keff_hang_PROPOSED_fix.patch`.
+
+### ▶ PHASE E — the 2-D BC extraction (O.4b proper). Tasks E0–E3.
+Now clean because matvec≡sweep on the DD closure. Mirrors O.4a.2 Commit 2 (the
+coupled boundary-unknown flip; that flip needed design corrections found by
+de-risking — DO E0 first).
+- **The −B is ALREADY wired** — the 2-D Krylov composed matvec
+  (`iteration.py:682` `L.apply − S.apply − F.apply`) uses `S =
+  _scattering_with_boundary_op = scattering_op + SNBoundaryOperator`
+  (dimension-agnostic from O.4a.2). `SNBoundaryOperator` is 2-D-ready (4 faces,
+  verified). The boundary trace is part of the flattened Krylov unknown
+  (`to_flat_with_traces`). Current state DOUBLE-COUNTS (in-matvec bc + passive
+  zero boundary + sibling −B); it converges only on the flat mode.
+- **E0** (de-risk, diagnostic): prototype the bare 2-D matvec boundary residual
+  (read `ψ.boundary.inflow`, emit inflow-identity + outflow-defect) + verify
+  vacuum bit-identity (B=0) + reflective k_inf at the operator level.
+- **E1** (coupled flip): `_apply_2d_cartesian` BARE (read `ψ.boundary.inflow`,
+  drop cell-centre-proxy seed + bc.apply, emit the boundary residual);
+  `_sweep_2d_wavefront` BARE (retire entry `bc_*.apply` @898-910, persist raw
+  outflow). Collapses the double-count → sibling −B is the sole reflective
+  coupling.
+- **E2**: lift the 2-D final-sweep reflect guard (`solver.py:1127-1128`) now the
+  sweep is bare; confirm the Krylov −B closure. `_reflect_outflow_into_inflow`
+  (`solver.py:959`) is already geometry-agnostic.
+- **E3**: honest boundary typing (BoundaryResidual) + Gate R-2D (boundary
+  residual → 0) + the L11 negative control (perturb `ψ.boundary.inflow`, assert
+  residual responds — the Mode-8 catcher). Vacuum bit-identical; reflective
+  convergence-equiv + drift tripwire; A2D-1 refresh.
+- **SCOPE (recommended):** Phase E targets the **Krylov** path (2-D production
+  eigenvalue). 2-D **SI** (`solver.py:569`) + 2-D fixed-source (`:1536`) are a
+  SEPARATE carve ("2-D SI Phase A") — NOT needed for the 2-D eigenvalue; defer
+  unless folded in.
+- **Equivalence class for E = CONVERGENCE-equivalence** (non-vacuum) /
+  BIT-IDENTITY (vacuum, B=0). Verify vs k_inf / Q/Σt / 2-D MMS (NOT
+  `continuous_get` — #212).
+
+---
+
 ## ⭐⭐⭐ O.4a.2 — ✅ COMPLETE + NEXT STEPS (READ FIRST, HEAD `93a2253`, 2026-06-03)
 
 **`(L_full + C − S − F − B)ψ = q` is now canonical on BOTH the matvec/Krylov path
