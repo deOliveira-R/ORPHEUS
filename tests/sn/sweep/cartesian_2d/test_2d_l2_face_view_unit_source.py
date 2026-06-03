@@ -32,14 +32,28 @@ streaming operator, and asserts:
   aliasing — if all four placements produced the same result, the
   layout is degenerate).
 
-Why xfail-strict until D-H.2-C4b
-===============================
+face_view is ACTIVE as of Wave O #208 O.4b Phase E1
+===================================================
 
-Today (post-C3) the composite ``StreamingOperator._apply_timed_full_field``
-raises ``NotImplementedError`` for 2-D Cartesian (operator.py:2225).
-C4b unblocks the path via a flat-shim through the legacy 2-D kernel;
-C4c-d replace the kernel with L2-native.  This file lands xfail at
-C4a and auto-flips to PASS at C4b.
+These tests were authored xfail at D-H.2-C4a, anticipating the
+face_view-as-trace extraction.  Through D-H.2-C4d the 2-D matvec kept
+``face_view`` PASSIVE (cell-centre-proxy semantics), so the tests
+stayed xfail.  O.4b Phase E1 makes ``_apply_2d_cartesian`` BARE — it
+reads ``psi.boundary.inflow`` as the GIVEN incoming edge and emits the
+boundary-block residual — so the boundary trace now reaches the bulk.
+
+* ``test_unit_at_face_produces_nonzero_matvec`` and
+  ``test_four_faces_produce_distinct_outputs`` are PROMOTED (the active
+  trace makes them correct positive structural pins).
+* The two directional-streaming tests stay xfail: they assert a
+  monotonic spatial DECAY, which is a property of the streaming SOLVE
+  ``(L+C)^{-1}``, NOT of the bare MATVEC ``L·ψ`` applied to a
+  boundary-only field (zero bulk).  With ψ̄ = 0 the diamond closure
+  ``ψ_out = 2·ψ̄ − ψ_in = −ψ_in`` makes the matvec output OSCILLATE in
+  sign cell-to-cell (verified: profile_x = [−A, +A, −A, +A]).  The
+  directional property is real but must be tested against the solve
+  (or the per-cell residual sign) — redesign deferred to O.4b Phase E3
+  / when 2-D SI lands.
 """
 from __future__ import annotations
 
@@ -104,17 +118,6 @@ def _zero_state_with_unit_face(
 # ── The four positive face-mapping tests ────────────────────────────────
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason=(
-        "D-H.2-C4d ships cell-centre-proxy semantics for 2-D matvec "
-        "(face_view is passive — does NOT enter the bulk computation; "
-        "matches legacy transport_operator_matvec).  face_view-as-trace "
-        "semantics is deferred to a future Wave T / TensorProduct BC "
-        "realizer refactor.  This test stays xfail; promote when the "
-        "ambitious semantics ships."
-    ),
-)
 @pytest.mark.parametrize("face", ["xmin", "xmax", "ymin", "ymax"])
 def test_unit_at_face_produces_nonzero_matvec(face: str) -> None:
     r"""Unit at each face MUST produce a nonzero matvec output.
@@ -140,10 +143,6 @@ def test_unit_at_face_produces_nonzero_matvec(face: str) -> None:
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="2-D L2 matvec lands in D-H.2-C4b (same as the test above).",
-)
 def test_four_faces_produce_distinct_outputs() -> None:
     r"""xmin / xmax / ymin / ymax MUST produce distinct matvec outputs.
 
@@ -175,7 +174,13 @@ def test_four_faces_produce_distinct_outputs() -> None:
 
 @pytest.mark.xfail(
     strict=True,
-    reason="2-D L2 matvec lands in D-H.2-C4b.",
+    reason=(
+        "Monotonic spatial decay is a property of the streaming SOLVE "
+        "(L+C)^{-1}, NOT the bare MATVEC L·ψ of a boundary-only field. "
+        "With ψ̄=0 the diamond closure ψ_out = −ψ_in oscillates the matvec "
+        "output in sign (profile_x = [−A,+A,−A,+A]).  Redesign against the "
+        "solve / per-cell residual sign at O.4b Phase E3."
+    ),
 )
 def test_xmin_unit_streams_in_positive_x_direction() -> None:
     r"""Unit at xmin should populate cells in the positive-x direction.
@@ -218,7 +223,12 @@ def test_xmin_unit_streams_in_positive_x_direction() -> None:
 
 @pytest.mark.xfail(
     strict=True,
-    reason="2-D L2 matvec lands in D-H.2-C4b.",
+    reason=(
+        "Monotonic spatial decay is a SOLVE property, not a bare-MATVEC "
+        "property (see test_xmin_unit_streams_in_positive_x_direction).  "
+        "ψ̄=0 ⇒ ψ_out = −ψ_in ⇒ sign-oscillating matvec output.  Redesign "
+        "against the solve at O.4b Phase E3."
+    ),
 )
 def test_ymin_unit_streams_in_positive_y_direction() -> None:
     r"""Unit at ymin should populate cells in the positive-y direction.

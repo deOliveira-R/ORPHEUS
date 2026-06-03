@@ -1190,8 +1190,23 @@ class TestT4dApply2DCartesianSourceHashPin:
     #         is exact under both), matvec now ≡ the DD sweep.  bc-in-matvec
     #         preserved (cell-centre-proxy seed); the boundary trace stays
     #         passive (extraction is Phase E).
+    #   O.4b E1 (BC extraction — bare matvec) 124b47a8…4ac65007 — the
+    #         cell-centre-proxy seed + per-octant ``bc.apply`` were REMOVED;
+    #         the boundary edge slots are now seeded from the GIVEN inflow
+    #         trace ``psi.boundary.face_view`` (bare), and the output boundary
+    #         is the active boundary-block residual (OUTFLOW slots:
+    #         ``streamed − psi.outflow``; INFLOW slots: identity
+    #         ``psi.inflow``) instead of the passive
+    #         ``BoundaryFlux.zeros_on``.  The reflective coupling is now the
+    #         sibling ``-B`` (``SNBoundaryOperator``) ALONE — the in-matvec
+    #         re-apply is gone, collapsing the prior double-count (Wave O #208
+    #         O.4b Phase E; mirrors the 1-D O.4a.2 ``L_full.apply`` flip).
+    #         NOT behavior-neutral on the boundary trace (passive→active) and
+    #         the iterate trajectory (reflective is now convergence-equivalent,
+    #         not bit-identical); VACUUM bulk stays bit-identical (zero inflow
+    #         in both paths — proven by the E0 de-risk).  k_∞ stays 1.875.
     EXPECTED_SHA256: str = (
-        "d68fd731f95e7aeca0df6d5e1a46209e684f2a88f24148f05792c042e3833936"
+        "124b47a8e0cadb83b627c4525ce50b8da072586799523a41b1ef527d4ac65007"
     )
 
     def test_apply_2d_cartesian_source_hash_unchanged(self):

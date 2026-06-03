@@ -1351,19 +1351,24 @@ class StreamingOperator(LinearOperatorMixin):
         annihilates the flat reflective fundamental mode exactly
         (``L·ψ_uniform = 0``).
 
-        Boundary semantics (bc-in-matvec PRESERVED — extraction is O.4b
-        Phase E). The boundary edge slots are seeded with the boundary
-        cell-averages (``psi.bulk.values`` at the boundary cells) as the
-        outgoing-trace proxy — the same proxy the retired FD stencil used —
-        then the per-octant ``bc.apply`` (mirroring the sweep entry)
-        reflects them into the incoming edge. ``psi.boundary.face_view``
-        stays PASSIVE (the output boundary is the zero
-        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`); the
-        boundary trace becomes an active unknown (with a boundary residual)
-        only at the BC-extraction, Phase E. For homogeneous reflective the
-        proxy is uniform, so the reflected inflow is uniform and
-        ``L·ψ_uniform = 0`` (recovers ``k_inf``) — exactly as before, now
-        via the DD closure.
+        Boundary semantics (BARE — O.4b Phase E BC-extraction). The boundary
+        edge slots are seeded from the GIVEN inflow trace
+        ``psi.boundary.face_view`` — there is NO ``bc.apply``. The octant's
+        ordinates on its incoming face ARE its inflow ordinates, so the seed
+        delivers exactly ``psi.boundary.inflow`` to the wavefront. The
+        reflective coupling ``psi.inflow = B·psi.outflow`` is delivered by the
+        sibling ``-B`` (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`),
+        already folded into the 2-D Krylov composed matvec via
+        ``_scattering_with_boundary_op``. The output boundary is the
+        boundary-block residual (active trace), mirroring the 1-D
+        ``L_full.apply`` template: OUTFLOW ordinate slots carry the
+        self-consistency defect ``streamed − psi.outflow``; INFLOW ordinate
+        slots carry the identity ``psi.inflow`` (so the composed
+        ``(L+C−S−F−B)`` inflow residual is ``psi.inflow − B·psi.outflow``,
+        driven to ``q.inflow`` by the outer loop). For homogeneous reflective
+        the consistent uniform trace gives ``L·ψ_uniform = 0`` (recovers
+        ``k_inf``) and a zero outflow defect — proven at the operator level by
+        the E0 de-risk before this flip.
 
         Returns ``L·ψ`` (NOT ``(L+C)·ψ``): ``residual_batch`` at zero source
         yields ``(L+C)·ψ̄``; subtracting ``Σ_t·ψ̄`` (the collision term)
@@ -1391,16 +1396,19 @@ class StreamingOperator(LinearOperatorMixin):
         # at zero source); L·ψ̄ = this − Σ_t·ψ̄ at the end.
         LpC = np.zeros((N, ng, nx, ny))
 
-        # Edge-flux buffers. Cell-centre-proxy BC (preserved): seed the
-        # boundary edge slots with the boundary cell-averages — the same
-        # outgoing-trace proxy the retired FD stencil used — then the
-        # per-octant bc.apply (below) reflects them, exactly as the sweep.
+        # Edge-flux buffers. BARE boundary handling (O.4b Phase E): seed the
+        # boundary edge slots from the GIVEN inflow trace ``psi.boundary`` —
+        # NO bc.apply. The octant's ordinates on its incoming face ARE its
+        # inflow ordinates, so slicing the seeded face by oct_idx selects
+        # exactly the given inflow. The reflective coupling is the sibling -B.
+        trace = sn_mesh.trace
+        boundary = psi.boundary
         psi_x = np.zeros((N, ng, nx + 1, ny))
         psi_y = np.zeros((N, ng, nx, ny + 1))
-        psi_x[:, :, 0, :] = probe[:, :, 0, :]
-        psi_x[:, :, nx, :] = probe[:, :, -1, :]
-        psi_y[:, :, :, 0] = probe[:, :, :, 0]
-        psi_y[:, :, :, ny] = probe[:, :, :, -1]
+        psi_x[:, :, 0, :] = boundary.face_view("xmin")
+        psi_x[:, :, nx, :] = boundary.face_view("xmax")
+        psi_y[:, :, :, 0] = boundary.face_view("ymin")
+        psi_y[:, :, :, ny] = boundary.face_view("ymax")
 
         for octant in quad.octants:
             label_tuple = octant.label
@@ -1417,21 +1425,8 @@ class StreamingOperator(LinearOperatorMixin):
             sy_eff = +1 if sy == 0 else sy
             graph = sn_mesh.sweep_graphs[OctantLabel(sx_eff, sy_eff)]
 
-            # BC apply once per octant on the octant-incoming face(s) —
-            # identical to the sweep entry (_sweep_2d_wavefront).
-            if sx_eff >= 0:
-                full_face_x = sn_mesh.bc_xmin.apply(psi_x[:, :, 0, :])
-                psi_x[oct_idx, :, 0, :] = full_face_x[oct_idx]
-            else:
-                full_face_x = sn_mesh.bc_xmax.apply(psi_x[:, :, nx, :])
-                psi_x[oct_idx, :, nx, :] = full_face_x[oct_idx]
-            if sy_eff >= 0:
-                full_face_y = sn_mesh.bc_ymin.apply(psi_y[:, :, :, 0])
-                psi_y[oct_idx, :, :, 0] = full_face_y[oct_idx]
-            else:
-                full_face_y = sn_mesh.bc_ymax.apply(psi_y[:, :, :, ny])
-                psi_y[oct_idx, :, :, ny] = full_face_y[oct_idx]
-
+            # NO bc.apply — the octant-incoming edge IS the given inflow trace
+            # (seeded above). The reflective coupling is the sibling -B.
             psi_x_oct = psi_x[oct_idx].copy()
             psi_y_oct = psi_y[oct_idx].copy()
             LpC_oct = np.zeros((oct_idx.size, ng, nx, ny))
@@ -1447,15 +1442,36 @@ class StreamingOperator(LinearOperatorMixin):
             psi_y[oct_idx] = psi_y_oct
             LpC[oct_idx] = LpC_oct
 
-        # L = (L+C) − C: subtract the collision term Σ_t·ψ̄ (using the
-        # ORIGINAL probe, not the BC-reflected edges) → bare streaming L·ψ̄.
+        # L = (L+C) − C: subtract the collision term Σ_t·ψ̄ → bare streaming L·ψ̄.
         out_bulk = LpC - sig_t[None, :, :, :] * probe
+
+        # Boundary-block residual (O.4b Phase E — the active trace, mirroring
+        # the 1-D L_full.apply template). After the wavefront walk the
+        # octant-OUTGOING boundary edge slots hold the streamed outflow; the
+        # INFLOW slots retain the given seed. OUTFLOW ordinate slots →
+        # self-consistency defect ``streamed − psi.outflow`` (kept as
+        # computed−stored so the vacuum path stays bit-identical); INFLOW
+        # ordinate slots → identity ``psi.inflow`` (the sibling -B adds
+        # -B·psi.outflow → composed inflow residual ``psi.inflow − B·psi.outflow``).
+        streamed = {
+            "xmin": psi_x[:, :, 0, :], "xmax": psi_x[:, :, nx, :],
+            "ymin": psi_y[:, :, :, 0], "ymax": psi_y[:, :, :, ny],
+        }
+        out_boundary = BoundaryFlux.zeros_on(sn_mesh)
+        for face in trace.face_names:
+            given = boundary.face_view(face)
+            out_idx = trace.outflow_indices_for_face(face)
+            in_idx = trace.inflow_indices_for_face(face)
+            if out_idx.size:
+                out_boundary.face_view(face)[out_idx] = (
+                    streamed[face][out_idx] - given[out_idx]
+                )
+            if in_idx.size:
+                out_boundary.face_view(face)[in_idx] = given[in_idx]
 
         return TimedFullField(
             bulk=AngularSourceSink.from_mesh(out_bulk, sn_mesh),
-            # Passive boundary trace — the active trace + boundary residual
-            # is O.4b Phase E (the BC extraction).
-            boundary=BoundaryFlux.zeros_on(sn_mesh),
+            boundary=out_boundary,
             _history=(),
             history_depth=psi.history_depth,
         )
