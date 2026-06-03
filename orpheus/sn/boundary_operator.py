@@ -142,16 +142,54 @@ class SNBoundaryOperator(LinearOperatorMixin):
         self, psi: "TimedFullField", method: str,
     ) -> "TimedFullField":
         r"""Apply each face's law (``method`` ∈ {apply, apply_transpose}) to its
-        slot; emit a zero-bulk, boundary-only :class:`TimedFullField`."""
+        slot, projected onto the codomain row; emit a zero-bulk, boundary-only
+        :class:`TimedFullField`.
+
+        ``B`` is the ``A_ss`` block ``V_outflow → V_inflow``: it maps the
+        **outflow** trace to the **inflow** trace, so ``B.apply(ψ)`` must be
+        non-zero **only on the inflow ordinate slots** of each face. The
+        realized per-face law (a :class:`~orpheus.numerics.operator.PermutationOperator`
+        for reflective, :class:`AngularAverageOperator` for white, …) is a
+        *full-face* operator: e.g. the specular permutation also maps the input
+        inflow slots onto the output **outflow** slots (``R·ψ.inflow``). The
+        legacy sweep only ever read the inflow slots of ``bc.apply(face)`` so
+        that spurious outflow output was harmless — but ``−B`` as a sibling of
+        ``L`` in ``(L_full + C − S − F − B)`` reads the WHOLE boundary block, and
+        a non-zero outflow emission would corrupt the outflow-definition residual
+        ``ψ.outflow − streamed`` (it is supposed to carry no ``B`` term — see the
+        block matrix in :mod:`orpheus.sn.boundary_operator`). So the forward
+        action is projected onto ``inflow_indices_for_face`` (the consistency
+        row); the Euclidean transpose ``Bᵀ: V_inflow → V_outflow`` is projected
+        onto ``outflow_indices_for_face`` accordingly. (The metric-correct Hilbert
+        adjoint ``B.H`` under ``|Ω·n|·w`` is Wave O step O.2; this Euclidean
+        ``apply_transpose`` is the un-weighted shadow, not yet a live consumer.)
+        """
         from orpheus.transport.fields.boundary_flux import BoundaryFlux
         from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
-        mesh = psi.bulk.mesh
+        # Single mesh source (mesh-identity invariant — see class docstring):
+        # the output buffers, the trace selectors, and ``_face_laws`` ALL read
+        # ``self.sn_mesh``, so a mismatched input field cannot desync the trace
+        # projection from the buffer geometry.
+        mesh = self.sn_mesh
+        if psi.bulk.mesh is not mesh:
+            raise ValueError(
+                "SNBoundaryOperator.apply: input field and operator must "
+                "share the same SNMesh instance (mesh-identity invariant); "
+                f"got field mesh {psi.bulk.mesh!r} vs operator mesh {mesh!r}."
+            )
+        trace = mesh.trace
         out_boundary = BoundaryFlux.zeros_on(mesh)
         for face, law in self._face_laws.items():
             face_in = psi.boundary.face_view(face)
-            out_boundary.face_view(face)[:] = getattr(law, method)(face_in)
+            full = getattr(law, method)(face_in)
+            target = (
+                trace.inflow_indices_for_face(face)
+                if method == "apply"
+                else trace.outflow_indices_for_face(face)
+            )
+            out_boundary.face_view(face)[target] = full[target]
         return TimedFullField(
             bulk=AngularSourceSink.from_mesh(
                 np.zeros_like(psi.bulk.values), mesh,

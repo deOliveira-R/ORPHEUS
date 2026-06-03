@@ -426,8 +426,6 @@ class _MSpatialOperatorSum(OperatorSum):
                 "`StreamingOperator._apply_2d_cartesian` (Q1 hybrid)."
             )
 
-        bc_outer = sn_mesh.bc_right
-        bc_inner = sn_mesh.bc_left if curvature == "cartesian" else None
         pole_angular_closure = sn_mesh.pole_angular_closure
         if pole_angular_closure is None and curvature != "cartesian":
             pole_angular_closure = MorelMontryAngularSweep()
@@ -448,17 +446,25 @@ class _MSpatialOperatorSum(OperatorSum):
         face_outer = boundary.face_view("xmax")
         face_inner = boundary.face_view("xmin") if has_inner_face else None
 
-        if bc_inner is None:
+        if curvature != "cartesian":
+            # Curvilinear: the pole seed is the r=0 REGULARITY condition
+            # (NOT a boundary condition) — read the innermost cell flux.
             pole_face_seed = psi_view[:, :, 0, 0].copy()
         elif face_inner is not None:
-            pole_face_seed = bc_inner.apply(face_inner)
+            # Slab: read the GIVEN inner inflow trace (the forward sweep's
+            # μ>0 seed at xmin) directly. Wave O O.4a.2 — the BC reflection
+            # is NOT re-derived here; it moves to the sibling −B.
+            pole_face_seed = face_inner
         else:
             raise ValueError(
                 "Slab geometry requires psi.boundary.xmin_face to be "
                 "populated."
             )
 
-        outer_inflow_estimate = bc_outer.apply(face_outer)
+        # Wave O O.4a.2: the pole-closure inflow estimate is the GIVEN outer
+        # inflow trace (``precompute_psi_state`` reads its μ<0 / inward
+        # ordinates), not the reflected forward outflow.
+        outer_inflow_estimate = face_outer
         psi_state = pole_angular_closure.precompute_psi_state(
             psi_view, sigma_t=sigma_t_gx,
             bc_outer_inflow_estimate=outer_inflow_estimate,
@@ -516,8 +522,14 @@ class _MSpatialOperatorSum(OperatorSum):
             return outflow_at_end
 
         outflow_at_boundary = _sweep_direction(+1, pole_face_seed)
-        inflow_full = bc_outer.apply(outflow_at_boundary.T)
-        outflow_at_inner = _sweep_direction(-1, inflow_full)
+        # Wave O O.4a.2 — KEYSTONE DELETED. The backward sweep seeds from the
+        # GIVEN outer inflow trace (``face_outer``'s μ<0 / inward ordinates),
+        # NOT from the forward sweep's own reflected outflow
+        # (``inflow_full = bc_outer.apply(outflow_at_boundary.T)``). This
+        # decouples bulk ↔ boundary inside one matvec call: the reflective
+        # coupling moves to the sibling −B, and the outer Krylov/SI loop drives
+        # the inflow consistency ``ψ.inflow − B·ψ.outflow → 0``.
+        outflow_at_inner = _sweep_direction(-1, face_outer)
 
         # Degenerate-ordinate branch (cylinder).
         degenerate_mask = np.abs(mu_x) < eps
@@ -563,11 +575,23 @@ class _MSpatialOperatorSum(OperatorSum):
 
         m_cell = out_g_first.transpose(1, 0, 2, 3)
 
-        # Outflow-face residuals: the ordinates pointing OUT of the
-        # domain at each boundary face carry ψ_out − bc_estimate. The
-        # outflow set is read from the unified TraceSpace selector
-        # (single source of truth for sign(Ω·n)) — A.4 retired the
-        # inline ``mu_x > ±eps`` masks this matvec used to recompute.
+        # Wave O O.4a.2 — the boundary block of (L+C) carries the two trace
+        # DIAGONALS of the block matrix; the off-diagonal −B is a sibling
+        # operator (so this matvec contains NO BC reflection):
+        #   * OUTFLOW slots — the self-consistency defect
+        #     ``ψ.outflow − streamed`` (the r_outflow row's I·ψ.outflow
+        #     diagonal minus L_out,b·ψ.bulk). UNCHANGED from pre-extraction;
+        #     kept as ``computed − stored`` so the vacuum path is bit-identical
+        #     (the per-row sign is free — q.outflow ≡ 0, the outflow trace is a
+        #     pure definition with no source).
+        #   * INFLOW slots — the identity ``ψ.inflow`` (the r_inflow row's
+        #     I·ψ.inflow diagonal). NEW at O.4a.2. The sibling −B adds
+        #     −B·ψ.outflow, so the full (L+C−S−F−B) inflow residual is
+        #     ``ψ.inflow − B·ψ.outflow`` (the consistency the outer loop drives
+        #     to q.inflow, the prescribed inflow / zero for vacuum+reflective).
+        # The outflow / inflow ordinate sets are the disjoint sign(Ω·n)
+        # partitions read from the unified TraceSpace selector (single source
+        # of truth) — A.4 retired the inline ``mu_x > ±eps`` masks.
         m_boundary = BoundaryFlux.zeros_on(sn_mesh)
         outer_outflow = trace.outflow_indices_for_face("xmax")
         if outer_outflow.size:
@@ -575,12 +599,22 @@ class _MSpatialOperatorSum(OperatorSum):
                 outflow_at_boundary[:, outer_outflow].T
                 - face_outer[outer_outflow, :]
             )
+        outer_inflow = trace.inflow_indices_for_face("xmax")
+        if outer_inflow.size:
+            m_boundary.face_view("xmax")[outer_inflow, :] = (
+                face_outer[outer_inflow, :]
+            )
         if face_inner is not None:
             inner_outflow = trace.outflow_indices_for_face("xmin")
             if inner_outflow.size:
                 m_boundary.face_view("xmin")[inner_outflow, :] = (
                     outflow_at_inner[:, inner_outflow].T
                     - face_inner[inner_outflow, :]
+                )
+            inner_inflow = trace.inflow_indices_for_face("xmin")
+            if inner_inflow.size:
+                m_boundary.face_view("xmin")[inner_inflow, :] = (
+                    face_inner[inner_inflow, :]
                 )
 
         return TimedFullField(
@@ -683,8 +717,6 @@ class _MSpatialOperatorSum(OperatorSum):
                 "`StreamingOperator._apply_2d_cartesian` (Q1 hybrid)."
             )
 
-        bc_outer = sn_mesh.bc_right
-        bc_inner = sn_mesh.bc_left if curvature == "cartesian" else None
         pole_angular_closure = sn_mesh.pole_angular_closure
         if pole_angular_closure is None and curvature != "cartesian":
             pole_angular_closure = MorelMontryAngularSweep()
@@ -708,10 +740,13 @@ class _MSpatialOperatorSum(OperatorSum):
             boundary.face_view("xmin") if has_inner_face else None
         )
 
-        if bc_inner is None:
+        if curvature != "cartesian":
+            # Curvilinear: pole seed = r=0 REGULARITY condition (not a BC).
             pole_face_seed = psi_view[:, :, 0, 0].copy()                 # (N, ng)
         elif face_inner is not None:
-            pole_face_seed = bc_inner.apply(face_inner)                  # (N, ng)
+            # Slab: read the GIVEN inner inflow trace (μ>0 seed at xmin)
+            # directly. Mirrors _compute_LpC; the BC reflection moves to −B.
+            pole_face_seed = face_inner                                  # (N, ng)
         else:
             raise ValueError(
                 "Slab geometry requires psi.boundary.xmin_face to be "
@@ -721,7 +756,10 @@ class _MSpatialOperatorSum(OperatorSum):
                 "as face state at their call site)."
             )
 
-        outer_inflow_estimate = bc_outer.apply(face_outer)               # (N, ng)
+        # Wave O O.4a.2: the pole-closure inflow estimate is the GIVEN outer
+        # inflow trace (precompute reads its inward ordinates), mirroring
+        # _compute_LpC.
+        outer_inflow_estimate = face_outer                               # (N, ng)
         psi_state = pole_angular_closure.precompute_psi_state(
             psi_view, sigma_t=sigma_t_gx,
             bc_outer_inflow_estimate=outer_inflow_estimate,
@@ -790,10 +828,12 @@ class _MSpatialOperatorSum(OperatorSum):
             direction_sign=+1, psi_face_in_init=pole_face_seed,
         )
 
-        inflow_full = bc_outer.apply(outflow_at_boundary.T)              # (N, ng)
-
+        # Wave O O.4a.2 — KEYSTONE DELETED (twin of _compute_LpC): the backward
+        # sweep seeds from the GIVEN outer inflow trace (face_outer's inward
+        # ordinates), NOT from the forward sweep's own reflected outflow. The
+        # reflective coupling moves to the sibling −B.
         outflow_at_inner = _sweep_direction(
-            direction_sign=-1, psi_face_in_init=inflow_full,
+            direction_sign=-1, psi_face_in_init=face_outer,
         )
 
         # Degenerate-ordinate branch (cylinder with degenerate ordinates).
@@ -851,6 +891,11 @@ class _MSpatialOperatorSum(OperatorSum):
         # writes them; per MA-Q4 M_angular_redist is a BulkOperator).
         # Outflow set read from the unified TraceSpace selector (single
         # source of truth for sign(Ω·n) — see A.4 in _compute_LpC).
+        # Wave O O.4a.2 (mirror of _compute_LpC): the (L+C) boundary block
+        # carries the two trace diagonals — outflow slots = self-consistency
+        # defect ψ.outflow − streamed (kept; vacuum bit-identical), inflow
+        # slots = identity ψ.inflow (the r_inflow diagonal; the sibling −B adds
+        # −B·ψ.outflow). M_angular_redist stays zero-boundary (a BulkOperator).
         m_spat_boundary = BoundaryFlux.zeros_on(sn_mesh)
         outer_outflow = trace.outflow_indices_for_face("xmax")
         if outer_outflow.size:
@@ -858,12 +903,22 @@ class _MSpatialOperatorSum(OperatorSum):
                 outflow_at_boundary[:, outer_outflow].T
                 - face_outer[outer_outflow, :]
             )
+        outer_inflow = trace.inflow_indices_for_face("xmax")
+        if outer_inflow.size:
+            m_spat_boundary.face_view("xmax")[outer_inflow, :] = (
+                face_outer[outer_inflow, :]
+            )
         if face_inner is not None:
             inner_outflow = trace.outflow_indices_for_face("xmin")
             if inner_outflow.size:
                 m_spat_boundary.face_view("xmin")[inner_outflow, :] = (
                     outflow_at_inner[:, inner_outflow].T
                     - face_inner[inner_outflow, :]
+                )
+            inner_inflow = trace.inflow_indices_for_face("xmin")
+            if inner_inflow.size:
+                m_spat_boundary.face_view("xmin")[inner_inflow, :] = (
+                    face_inner[inner_inflow, :]
                 )
 
         m_spat_tff = TimedFullField(

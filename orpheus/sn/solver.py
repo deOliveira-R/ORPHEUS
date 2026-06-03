@@ -329,6 +329,40 @@ class SNSolver:
             )
             self.sn_mesh._coll_cache = self.coll_cache  # type: ignore[attr-defined]
 
+    @property
+    def _scattering_with_boundary_op(self):
+        r"""The scattering operator folded with the realized boundary law ``B``.
+
+        Wave O (#208) BC-extraction: the canonical SN loss is
+        ``(L + C − S − F − B)`` where ``B`` (the realized reflective / albedo /
+        white law) is a first-class sibling of ``L``. ``B`` CANNOT join the
+        preconditioner ``L + C`` — :class:`~orpheus.numerics.operator.OperatorSum`
+        does not propagate ``CAP_SOLVE``, so ``L + C − B`` would strip the
+        ``.solve`` (sweep) the Krylov preconditioner / SI splitting needs. ``B``
+        therefore folds into the **subtracted** ``S`` argument of the iteration
+        drivers, whose matvec is ``L.apply − S.apply − F.apply``: passing
+        ``S + B`` makes that ``(L + C).apply − (S + B).apply − F.apply
+        = (L + C − S − F − B)``. The reflective inflow trace is then driven by
+        the boundary consistency residual ``ψ.inflow − B·ψ.outflow`` instead of
+        the intra-sweep ``bc.apply`` re-application (the deleted keystone).
+
+        The :class:`OperatorSum` domain-compatibility check skips because
+        ``ScatteringOperator.domain`` is ``None`` (it predates function-space
+        tagging) — the check fires only when BOTH operands declare non-``None``
+        domains that differ, so it is symmetric in the operands and the sum
+        order is irrelevant here (``B + S`` would skip identically).
+        **O.2 forcing function / tripwire:** the moment ``ScatteringOperator``
+        gains a ``domain`` (the typing wave will give it one), this fold throws
+        ``IncompatibleOperatorComposition`` at construction — ``S`` (bulk space)
+        and ``B`` (trace space) live on different function spaces. That failure
+        IS the signal to land the honest composition (drivers consuming the
+        whole loss operator ``L+C−S−F−B`` on the direct-sum carrier) — Wave O
+        step O.2. Single source of truth for the ``S + B`` fold (Cardinal
+        Rule 2): every Krylov site reads this property.
+        """
+        from orpheus.sn.boundary_operator import SNBoundaryOperator
+        return self.scattering_op + SNBoundaryOperator(self.sn_mesh)
+
     def initial_flux_distribution(self) -> np.ndarray:
         """Initial scalar flux guess: ones(ng, nx, ny).
 
@@ -732,7 +766,10 @@ class SNSolver:
         nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
         krylov = KrylovAcceleration(
             LC,
-            self.scattering_op,
+            # Wave O #208 — ``S + B`` fold: the matvec ``(L+C).apply −
+            # (S+B).apply − F.apply`` IS ``(L+C−S−F−B)``, with the realized
+            # boundary law ``B`` as a sibling of ``L`` (BC extraction).
+            self._scattering_with_boundary_op,
             ZeroOperator(codomain_zero=_zero_within_group_fission),
             preconditioner=lambda q: q,  # explicit identity — issue #200 tracks re-enable
             tol=self.inner_tol,
@@ -1460,7 +1497,9 @@ def _solve_fixed_source_krylov(
     # preconditioner.
     krylov = KrylovAcceleration(
         LC,
-        solver.scattering_op,
+        # Wave O #208 — ``S + B`` fold (see SNSolver._scattering_with_boundary_op):
+        # the matvec ``(L+C).apply − (S+B).apply − F.apply`` IS ``(L+C−S−F−B)``.
+        solver._scattering_with_boundary_op,
         ZeroOperator(codomain_zero=_zero_within_group_fission),
         preconditioner=lambda q: q,
         tol=inner_tol,

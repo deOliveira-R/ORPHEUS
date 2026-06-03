@@ -26,6 +26,27 @@ from orpheus.derivations.reference_values import get as get_reference
 from tests._harness import registry
 from tests._harness.registry import TestMetadata
 
+
+def pytest_addoption(parser) -> None:
+    """``--capture-baseline`` — write (not assert) pre-carve snapshots.
+
+    Used by the Wave O (#208) O.4a.2 BC-extraction matvec gate
+    (``tests/sn/operators/test_bc_extraction_matvec.py``): when present the
+    snapshot tests WRITE the pre-extraction matvec output and skip the
+    assert; absent (the default, incl. the post-carve gate) they READ the
+    committed snapshots and assert byte-identity. ``pytest_addoption`` only
+    fires from a ROOT ``conftest.py``, which is why it lives here rather
+    than in the test module.
+    """
+    parser.addoption(
+        "--capture-baseline",
+        action="store_true",
+        default=False,
+        help="Wave O O.4a.2: write the pre-carve matvec snapshots instead "
+             "of asserting against them (run BEFORE the BC-extraction carve).",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

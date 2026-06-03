@@ -341,23 +341,33 @@ class TestOutputShape:
 
 
 class TestFaceResidualMask:
-    r"""The matvec writes the face residual ONLY at outflow ordinates;
-    inflow ordinates at the same face get a zero residual (no equation
-    — their value comes from the BC, not from the iterate).
+    r"""The matvec writes the outflow-definition defect ``streamed −
+    ψ.outflow`` at the outflow ordinates, and the IDENTITY ``ψ.inflow`` at
+    the inflow ordinates.
+
+    Wave O #208 O.4a.2 (BC extraction): pre-carve the inflow ordinates got
+    a zero residual ("no equation — value comes from the BC"); the keystone
+    re-applied the BC inside the matvec.  Post-carve ``L_full`` reads
+    ``ψ.boundary.inflow`` as a GIVEN and EMITS the ``I·ψ.inflow`` identity
+    on the inflow slots — the trace inflow became an explicit unknown,
+    driven by the boundary consistency residual ``ψ.inflow − B·ψ.outflow``
+    (the ``−B`` sibling supplies the ``−B·ψ.outflow`` term in
+    ``(L+C−S−F−B)``).  So the inflow-ordinate output now EQUALS the input
+    ``ψ.inflow`` (identity), not zero.
 
     Outflow at the outer face: ``quad.mu_x > 0``.  Inflow: ``mu_x < 0``.
     """
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_outer_face_residual_zero_at_inflow_ordinates(
+    def test_outer_face_inflow_slots_carry_the_identity(
         self, name, builder,
     ) -> None:
         sn_mesh = builder()
         ng = sn_mesh.ng
         sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), 1.0)
 
-        # Random ψ — face residual at inflow ords must stay zero
-        # regardless of input data (no equation there).
+        # Random ψ — the inflow-ordinate output is the I·ψ.inflow identity
+        # row (the consistency-residual diagonal), so it tracks the input.
         rng = np.random.default_rng(seed=11)
         psi = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         psi.bulk.values[:] = rng.standard_normal(
@@ -378,18 +388,20 @@ class TestFaceResidualMask:
         inflow_outer = mu_x <= -eps  # μ_x < 0 = inflow at outer face
         np.testing.assert_array_equal(
             result.boundary.face_view("xmax")[inflow_outer, :],
-            np.zeros((np.sum(inflow_outer), ng)),
+            psi.boundary.face_view("xmax")[inflow_outer, :],
             err_msg=(
-                f"{name}: outer-face residual is non-zero at inflow "
-                f"ordinates (μ_x < 0).  These have no equation; the "
-                f"residual at these positions MUST stay zero."
+                f"{name}: outer-face inflow-ordinate output (μ_x < 0) is "
+                f"NOT the input ψ.inflow identity.  Post-extraction L_full "
+                f"emits the I·ψ.inflow consistency-row diagonal there; the "
+                f"reflective coupling is the sibling −B, not an intra-matvec "
+                f"re-apply."
             ),
         )
 
-    def test_slab_inner_face_residual_zero_at_inflow_ordinates(
+    def test_slab_inner_face_inflow_slots_carry_the_identity(
         self,
     ) -> None:
-        """Slab xmin face: outflow at μ < 0; inflow at μ > 0."""
+        """Slab xmin face: outflow at μ < 0; inflow at μ > 0 (identity row)."""
         sn_mesh = _make_reflective_slab()
         ng = sn_mesh.ng
         sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), 1.0)
@@ -414,11 +426,11 @@ class TestFaceResidualMask:
         inflow_inner = mu_x >= +eps
         np.testing.assert_array_equal(
             result.boundary.face_view("xmin")[inflow_inner, :],
-            np.zeros((np.sum(inflow_inner), ng)),
+            psi.boundary.face_view("xmin")[inflow_inner, :],
             err_msg=(
-                "slab inner-face residual is non-zero at inflow "
-                "ordinates (μ_x > 0).  Inflow at xmin has no equation; "
-                "residual MUST stay zero."
+                "slab inner-face inflow-ordinate output (μ_x > 0) is NOT "
+                "the input ψ.inflow identity.  Post-extraction the inflow "
+                "slot carries the I·ψ.inflow consistency-row diagonal."
             ),
         )
 

@@ -604,32 +604,30 @@ def _outflow_at_boundary_for_sphere_from_bulk(
     ],
 )
 def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
-    r"""Gate 1.5 strengthened: capture-and-compare the BC apply input.
+    r"""Gate 1.5 (Wave O #208 migration): the matvec EXTRACTS the BC, and
+    EMITS the WDD-propagated outflow on the outflow slots.
 
-    Instruments the matvec to capture the input vector passed to
-    ``bc_outer.apply(...)``, then asserts the captured input is
-    bit-identical to the independently-reconstructed WDD-propagated
-    outflow face value.  This pins the §16A.3 contract: the BC trace
-    law MUST consume the WDD-propagated outflow face values from the
-    matvec's outward sweep — NOT cell-centres, NOT a pre-staged
-    boundary array.
+    Pre-extraction the unified matvec applied the BC trace law INSIDE the
+    sweep (the §16A.3 contract: ``bc_outer.apply`` consumed the
+    WDD-propagated outflow — twice: the Carlson outer-inflow estimate +
+    the keystone re-apply).  Wave O O.4a.2 deletes the keystone and reads
+    ``ψ.boundary.inflow`` as a given, so the matvec calls ``bc_outer.apply``
+    ZERO times — the reflective coupling moved to the sibling ``−B``
+    (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`).
 
-    Phase D upgrade from the pre-existing ``apply(0) = 0`` probe.
+    The §16A.3 substance is preserved, decomposed across the new algebra:
 
-    D-K.5 migration — the unified matvec calls ``bc_outer.apply`` twice:
+    * the matvec now EMITS the WDD-propagated outflow on the outflow slots
+      (this test — with a zero input boundary the defect ``streamed −
+      ψ.outflow`` reduces to the raw WDD outflow, pinned bit-exact against
+      the independently-reconstructed WDD chain);
+    * ``B`` reflects that outflow into the inflow trace (pinned in
+      ``test_sn_boundary_operator.py``); the end-to-end consistency
+      ``ψ.inflow − B·ψ.outflow → 0`` is pinned by the curvilinear
+      streaming-equilibrium gate.
 
-    * call[0]: outer-inflow estimate for the Carlson seed; consumes
-      ``boundary.face_view("xmax")``.  When the composite input carries
-      a zero boundary (the canonical Krylov-residual call shape), this
-      input is zero — distinct from the pre-D-H.2-C2 legacy path's
-      cell-centre-proxy synthesis.
-    * call[1]: BC trace law on the WDD-propagated outward outflow at
-      the outer face.  Same semantic content as the legacy call;
-      pinned against the independently-reconstructed WDD chain.
-
-    Asserting both inputs (not just "find ANY match") prevents a
-    silent future regression that reorders the calls or replaces
-    one of them.
+    Asserting the 0-call extraction AND the emitted-outflow value together
+    prevents a silent regression that re-absorbs the BC into the matvec.
     """
     from unittest.mock import patch
     sn_mesh, sig_t = _make_spherical_sn_mesh(
@@ -641,7 +639,7 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
     op = L + C
     rng = np.random.default_rng(seed=137)
     psi_bulk = _random_bulk(sn_mesh, rng)
-    psi_state = _build_composite(sn_mesh, psi_bulk)
+    psi_state = _build_composite(sn_mesh, psi_bulk)  # zero boundary
 
     # Independent reference: rebuild outflow face via isolated WDD on
     # the bulk values (no packed-vector round-trip).
@@ -649,7 +647,7 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
         sn_mesh, psi_bulk,
     )
 
-    # Capture the BC apply input.
+    # Capture any BC apply calls during the matvec.
     captured_inputs: list[np.ndarray] = []
     original_apply = sn_mesh.bc_right.apply
 
@@ -658,48 +656,36 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
         return original_apply(inp)
 
     with patch.object(sn_mesh.bc_right, "apply", side_effect=capture_apply):
-        op.apply(psi_state)
+        out = op.apply(psi_state)
 
-    # The unified matvec calls bc_outer.apply exactly TWICE per matvec:
-    #   call[0]: Carlson context's outer-inflow estimate (Phase D) —
-    #            passes the OUTER FACE flux (``boundary.face_view
-    #            ("xmax")``), shape (N, ng).  With zero composite
-    #            boundary, this input is zero — the L2-native path's
-    #            replacement for the legacy cell-centre-proxy
-    #            synthesis.
-    #   call[1]: Phase C BC trace law on the WDD-propagated outflow
-    #            face vector, shape (N, ng).  Same semantic content
-    #            as the legacy call.
-    assert len(captured_inputs) == 2, (
-        f"Expected exactly 2 bc_outer.apply calls per matvec (Phase D"
-        f" Carlson outer-inflow estimate + Phase C BC trace law), got "
-        f"{len(captured_inputs)}.  If the matvec call-order changed,"
-        f" update this test."
+    # EXTRACTION: the post-O.4a.2 matvec does NOT apply the BC — it reads
+    # ψ.boundary.inflow as a given and emits the raw outflow defect.  The
+    # reflective coupling is the sibling −B, not an intra-matvec re-apply.
+    assert len(captured_inputs) == 0, (
+        f"Expected ZERO bc_outer.apply calls per matvec post-extraction "
+        f"(Wave O O.4a.2 deleted the keystone re-apply + the Carlson "
+        f"outer-inflow estimate now reads the raw given trace), got "
+        f"{len(captured_inputs)}.  If a bc.apply re-appeared in the "
+        f"matvec, the BC was re-absorbed — the extraction regressed."
     )
-    # D-K.5 — Phase D call now consumes the L2 boundary face_view
-    # (zero in our composite-with-zero-boundary input), not the
-    # cell-centre-proxy at i = nx-1.
-    expected_phase_d_input = np.zeros((sn_mesh.quad.N, sn_mesh.ng))
+
+    # EMITTED OUTFLOW: with a zero input boundary, the outflow-slot defect
+    # ``streamed − ψ.outflow`` = ``streamed − 0`` = the raw WDD-propagated
+    # outflow.  Pin it bit-exact against the independent WDD chain on the
+    # outflow ordinates of the outer face (the §16A.3 substance, relocated
+    # to the matvec's emission).
+    trace = sn_mesh.trace
+    outflow_idx = trace.outflow_indices_for_face("xmax")
+    got_outflow = out.boundary.face_view("xmax")[outflow_idx, :]   # (M, ng)
+    expected_outflow_face = expected_outflow.T[outflow_idx, :]      # (M, ng)
     assert np.allclose(
-        captured_inputs[0], expected_phase_d_input,
-        rtol=1e-14, atol=1e-14,
+        got_outflow, expected_outflow_face, rtol=1e-14, atol=1e-14,
     ), (
-        f"Phase D call (captured_inputs[0]) does not match the "
-        f"zero outer-face L2 boundary reference.  Max diff: "
-        f"{np.max(np.abs(captured_inputs[0] - expected_phase_d_input))}.  "
-        f"If the Carlson context's outer-inflow estimate derivation "
-        f"changed, update this test or the implementation."
-    )
-    # Phase C call: independently-reconstructed WDD-propagated outflow.
-    expected_phase_c_input = expected_outflow.T  # (N, ng)
-    assert np.allclose(
-        captured_inputs[1], expected_phase_c_input,
-        rtol=1e-14, atol=1e-14,
-    ), (
-        f"Phase C call (captured_inputs[1]) does not match the "
-        f"independently-reconstructed WDD-propagated outflow.  Max "
-        f"diff: {np.max(np.abs(captured_inputs[1] - expected_phase_c_input))}."
-        f"  This is the §16A.3 BC trace contract failure."
+        f"The matvec's emitted outflow trace does not match the "
+        f"independently-reconstructed WDD-propagated outflow.  Max diff: "
+        f"{np.max(np.abs(got_outflow - expected_outflow_face))}.  This is "
+        f"the §16A.3 outflow-emission contract (now on the matvec, not the "
+        f"BC re-apply)."
     )
 
 

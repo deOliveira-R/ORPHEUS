@@ -9,8 +9,10 @@ action. These foundation tests pin the assembly BEFORE anything consumes ``B``
 
 * the role / domain / capabilities contract;
 * zero bulk action;
-* **per-face wiring** — ``B`` applies the RIGHT face's law to the RIGHT slot
-  (the discriminating case uses asymmetric BCs so a face↔face swap is caught);
+* **per-face wiring** — ``B`` applies the RIGHT face's law to the RIGHT slot,
+  emitting on the **inflow row only** (``B`` is the ``A_ss`` block
+  ``V_outflow → V_inflow``; the discriminating case uses asymmetric BCs so a
+  face↔face swap is caught);
 * **block-diagonal over faces** — a single-face perturbation stays on that face;
 * the ``apply_transpose`` capability intersection (advertised iff every face law
   honours it — white would drop it; see the stub negative).
@@ -110,20 +112,40 @@ class TestApply:
         assert not out.bulk.values.any()
 
     @pytest.mark.parametrize("case_id", list(_CASES))
-    def test_apply_per_face_equals_legacy_bc_apply(self, case_id: str) -> None:
-        """Per-face wiring: ``B`` applies the face's OWN law to the face's slot.
+    def test_apply_per_face_equals_legacy_bc_apply_on_inflow_row(
+        self, case_id: str,
+    ) -> None:
+        """Per-face wiring: ``B`` applies the face's OWN law to the face's slot,
+        emitting on the **inflow row only**.
+
+        ``B`` is the ``A_ss`` block ``V_outflow → V_inflow`` — its codomain is
+        the inflow trace, so ``B.apply`` must agree with the realized per-face
+        ``bc.apply`` on the inflow ordinate slots and be ZERO on the outflow
+        slots (the realized law is a full-face operator whose specular
+        permutation also maps the input inflow onto the output outflow slots;
+        that ``R·ψ.inflow`` term is spurious for the block and would corrupt the
+        outflow-definition residual of ``−B`` — see
+        :meth:`SNBoundaryOperator._apply_faces`).
 
         Asymmetric-BC slab makes a face↔face swap observable (vacuum xmin vs
-        reflective xmax produce different outputs) — vv L11 catches Failure
-        mode #5 (index/face swap)."""
+        reflective xmax produce different inflow outputs) — vv L11 catches
+        Failure mode #5 (index/face swap)."""
         sn = _sn(*_CASES[case_id])
         psi = _random_state(sn)
         out = SNBoundaryOperator(sn).apply(psi)
         for face in sn.trace.layout.faces:
             bc = getattr(sn, f"bc_{face}")
-            np.testing.assert_array_equal(
-                out.boundary.face_view(face),
-                bc.apply(psi.boundary.face_view(face)),
+            inflow = sn.trace.inflow_indices_for_face(face)
+            outflow = sn.trace.outflow_indices_for_face(face)
+            got = out.boundary.face_view(face)
+            expected_full = bc.apply(psi.boundary.face_view(face))
+            # Inflow row: agrees with the realized law (the consistency action).
+            np.testing.assert_array_equal(got[inflow], expected_full[inflow])
+            # Outflow row: zero — ``B`` contributes nothing to the outflow
+            # definition residual (the row carries only ``I·ψ.outflow − streamed``).
+            assert not got[outflow].any(), (
+                f"{case_id} face {face!r}: B emitted non-zero on the outflow "
+                f"row — it is not a clean A_ss (V_outflow → V_inflow) block."
             )
 
     def test_block_diagonal_no_face_mixing(self) -> None:
@@ -162,14 +184,22 @@ class TestApplyTransposeCapability:
         sn = _sn(*_CASES[case_id])
         B = SNBoundaryOperator(sn)
         assert CAP_APPLY_TRANSPOSE in B.capabilities
-        # And it agrees with the per-face transpose.
+        # The Euclidean transpose ``Bᵀ: V_inflow → V_outflow`` emits on the
+        # OUTFLOW row only (the transpose of the inflow-row projection), and
+        # agrees there with the per-face ``bc.apply_transpose``.
         psi = _random_state(sn)
         out = B.apply_transpose(psi)
         for face in sn.trace.layout.faces:
             bc = getattr(sn, f"bc_{face}")
-            np.testing.assert_array_equal(
-                out.boundary.face_view(face),
-                bc.apply_transpose(psi.boundary.face_view(face)),
+            inflow = sn.trace.inflow_indices_for_face(face)
+            outflow = sn.trace.outflow_indices_for_face(face)
+            got = out.boundary.face_view(face)
+            expected_full = bc.apply_transpose(psi.boundary.face_view(face))
+            np.testing.assert_array_equal(got[outflow], expected_full[outflow])
+            assert not got[inflow].any(), (
+                f"{case_id} face {face!r}: Bᵀ emitted non-zero on the inflow "
+                f"row — the transpose of an A_ss (V_outflow → V_inflow) block "
+                f"must land on the outflow row."
             )
 
     def test_capabilities_drop_apply_transpose_when_a_face_lacks_it(self) -> None:
