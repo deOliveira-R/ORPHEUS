@@ -1167,8 +1167,17 @@ class TestT4dApply2DCartesianSourceHashPin:
     #         ``.values``; only the wrapping role-type differs.  The FD
     #         stencil, BC fill, and ``L = M - C`` subtraction are
     #         unchanged.
+    #   O.4a.1-α (BC dispatch rewire) 68e9c6a8…e5477d86 — the 2-D
+    #         default-BC dispatch rewired to the canonical BC names
+    #         (``9a7f216``); the import line merged ``ScalarSourceSink,
+    #         AngularSourceSink`` onto one line.  Behavior-neutral (the
+    #         α commit is bit-identical; the cartesian_2d sweep tier +
+    #         2-D matvec-consistency tests stay green).  The pin update
+    #         lagged that commit by a few O.4a.1 sub-commits — this is the
+    #         catch-up refresh (the function source itself is the committed
+    #         HEAD state, byte-identical to ``9a7f216``).
     EXPECTED_SHA256: str = (
-        "5a33434605fa402dcc64be293bde52b0a9aea5a1f1801b5b08a6441e4fb1c50e"
+        "68e9c6a821dd2844364db36b7a5b4530517baa0e5bd32b8f1b217aade5477d86"
     )
 
     def test_apply_2d_cartesian_source_hash_unchanged(self):
