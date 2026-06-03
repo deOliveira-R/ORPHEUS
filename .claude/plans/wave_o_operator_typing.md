@@ -278,12 +278,19 @@ and the verification plan
 
 ---
 
-## ⭐⭐⭐ O.4a.2 — ✅ COMPLETE (HEAD `2bdc66d`, 2026-06-03)
+## ⭐⭐⭐ O.4a.2 — ✅ COMPLETE + NEXT STEPS (READ FIRST, HEAD `93a2253`, 2026-06-03)
 
 **`(L_full + C − S − F − B)ψ = q` is now canonical on BOTH the matvec/Krylov path
 (Commit 2 `4c0ff96`) AND the SI/bare-sweep path (Commit 3 `2bdc66d`).** The
 bc-in-sweep mechanism is RETIRED for 1-D (2-D wavefront stays bc-in-sweep until
-O.4b). Sphinx theory update dispatched to the archivist.
+O.4b). Sphinx BC-extraction theory page LANDED (`93a2253`, `:ref:bc-extraction`
+in `docs/theory/operator_algebra.rst`; builds clean).
+
+**Branch `refactor/field-role-typing`. Session commit chain `90cd0c0..93a2253`:**
+`0442dce` (A2D-1 pin) → `4c0ff96` (Commit 2) → `9f85ff6` (plan) → `2bdc66d`
+(Commit 3) → `6f518b3` (plan) → `93a2253` (Sphinx). Working tree clean (only the
+standing-excluded agent-memory / diagnostics / `.mcp.json` / hooks remain). **O.4a.1
++ O.4a.2 DONE.** Memory: `project_wave_o_operator_algebra.md` (O.4a.2-COMPLETE para).
 
 **Commit 3 (`2bdc66d`) — bare sweep + SI −B:** `transport_sweep` 1-D entry reads
 the seeded inflow directly (no `bc.apply`); `_solve_timed_full_field` seeds from
@@ -304,6 +311,62 @@ collapse; a trace-only `B.reflect_into_inflow(boundary)` entry point (retires th
 helper). Gates: vacuum bit-identical, reflective convergence-equiv
 (streaming-equilibrium both solvers, k∞, si_carve→k∞, keff, invertible Q/Σ,
 sentinel no-`O`), 506 + 73 + keff_2d 4.
+
+### ▶ NEXT STEPS (pick one — user steers; self-contained for a fresh session)
+
+The 1-D BC extraction is done. Three candidate fronts, each independent:
+
+**Option A — O.2 (the dagger-category completion + retire the O.4a.2 transitionals).**
+This is the natural next (it discharges the elegance debt O.4a.2 deferred AND
+delivers the adjoint the framing locked). Scope:
+- **G-adjoint + boundary metric (the original O.2):** wire `.H = G⁻¹AᵀG` with the
+  boundary block carrying `G_s = |Ω·n|·w_n` (partial current). Gate 1.3 (reciprocity,
+  currently xfail-strict, Euclidean/bulk-only) flips green here via a NEW G-metric
+  off-diagonal reciprocity test. The **white-BC adjoint** becomes available (white is
+  self-adjoint only under `|Ω·n|·w` — `SNBoundaryOperator` does NOT advertise
+  `apply_transpose` for white today; `B.H` under the metric is the channel).
+- **Honest `L+C−S−F−B` driver composition:** restructure `KrylovAcceleration` /
+  `SourceIteration` to consume the whole loss operator (not the `(L, S, F)` triple).
+  This RETIRES the `S+B` fold (`SNSolver._scattering_with_boundary_op`) — which today
+  type-checks ONLY because `ScatteringOperator.domain is None` (the forcing tripwire:
+  give `S` a domain and the fold throws `IncompatibleOperatorComposition`). The two
+  `−B` delivery routes (driver fold vs `_reflect_outflow_into_inflow` helper) COLLAPSE.
+- **Unify the 3 parallel `(L+C)` matvec impls:** `_compute_LpC` / `_compute_decomposition`
+  / the `(L+C).solve` WDD sweep — identical O.4a.2 edits had to land in two of them
+  (Cardinal-Rule-2 twin-path; the third is exempt only because the keystone didn't
+  touch the solve-sweep). Phase-F (ERR-026 #7) shape. Natural collapse point: when the
+  driver takes the composed loss operator.
+- **Trace-only `B.reflect_into_inflow(boundary)` entry point** on `SNBoundaryOperator`
+  (replaces the zero-bulk-probe shim inside `_reflect_outflow_into_inflow`; retires
+  that helper + its 6 test/prod call sites once the driver composition lands).
+
+**Option B — O.4b (2-D Cartesian bare sweep).** SEPARATE design — 2-D reflection is
+per-axis (not the 1-D specular-permutation). Scope: make `_apply_2d_cartesian`
+(`operator.py`) + the 2-D wavefront sweep (`sweep.py` ~889-900 `bc_*.apply`) bare;
+wire `SNBoundaryOperator` for the 2-D trace (4 faces xmin/xmax/ymin/ymax, per-axis
+laws); drop the `sn_mesh.reduced is not None` 1-D guards in `_solve_fixed_source_si`
++ `solve_sn`'s final sweep + (implicitly) re-enable the helper for 2-D; migrate the
+2-D reflective gates (the `2d_octant_equivalence_*_reflective` regression snapshots
+are currently bit-identical via bc-in-sweep → become convergence-equivalent). The
+A2D-1 source-hash pin (`test_streaming_operator.py`) MUST be refreshed when
+`_apply_2d_cartesian` changes.
+
+**Option C — fix #212 (pre-existing, ORTHOGONAL, blocks the full eigenvalue suite).**
+The `continuous_get` Peierls reference-registry EAGER build (`continuous_cases()` →
+13 adaptive-mpmath cases) hangs >600s at fixture setup; the SN solver itself converges
+in ~0.3s. Affects `test_keff_slab::test_heterogeneous_absolute_keff` +
+`test_heterogeneous_transport::test_sn_2region_reflective_{case_eigenvalue,flux_shape}`
+(deselected this session). Fix = lazy/per-case registry build (diag +
+`sn_keff_hang_PROPOSED_fix.patch` in `derivations/diagnostics/`, by
+numerics-investigator 2026-06-02). Not a Wave-O dependency, but it's a standing red.
+
+**Recommendation:** O.2 — it completes the locked dagger-inverse-biproduct framing
+(adjoint + metric) AND retires every O.4a.2 transitional (the `S+B` fold, the helper,
+the matvec twin) in one principled sweep, rather than letting them calcify. O.4b and
+#212 are independent and can interleave. Detail for all: the `⭐⭐ O.4 EXECUTION PLAN`
++ substep ledger below; agent-memory `issue_208_o4a2_flip_wiring_surface.md` /
+`issue_208_o4_extraction_surface.md` (explorer), `issue_208_operator_algebra_frames_full_access.md`
+(cross-domain-attacker — the dagger-category frame + G-metric).
 
 ---
 
