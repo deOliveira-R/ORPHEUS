@@ -29,10 +29,11 @@ the only way to get a callable from a :class:`BoundaryTraceLaw` is to
 realize it.
 
 Wave 7 of the original 12-wave refactor merged the legacy
-``BoundaryOperator`` ABC into :class:`BoundaryTraceLaw`. The
-package's ``__init__.py`` keeps ``BoundaryOperator = BoundaryTraceLaw``
-as a deprecated alias so the 8 production import sites continue to
-work unchanged.
+``BoundaryOperator`` ABC into :class:`BoundaryTraceLaw`. During the
+transition the package's ``__init__.py`` carried a deprecated
+``BoundaryOperator = BoundaryTraceLaw`` alias so the production
+import sites kept working unchanged; that alias was retired in Wave O
+step O.4a.1 once every consumer had migrated to the canonical name.
 
 References
 ----------

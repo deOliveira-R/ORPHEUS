@@ -1,9 +1,9 @@
 r"""Specular (reflective) boundary condition.
 
-See :class:`ReflectiveBoundary` for the algebraic definition. The
-legacy ``SpecularBoundaryOperator`` name is re-exported as a
-deprecated alias from the package ``__init__.py`` (Wave 7 rename per
-Grand Report v3 vocabulary).
+See :class:`ReflectiveBoundary` for the algebraic definition. This
+class was previously named ``SpecularBoundaryOperator``; the legacy
+alias was retired in Wave O step O.4a.1. ``ReflectiveBoundary`` (the
+Grand Report v3 vocabulary) is the sole live name.
 """
 
 from __future__ import annotations
@@ -62,11 +62,11 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
     This makes :math:`G_{\text{refl}}^T = G_{\text{refl}}` and so the
     transpose action is identical to the forward action.
 
-    Wave-7 rename note
-    ------------------
-    Previously named ``SpecularBoundaryOperator``. The legacy name is
-    preserved as a deprecated alias in
-    ``orpheus.geometry.boundary``.
+    Rename history
+    --------------
+    Previously named ``SpecularBoundaryOperator``. The legacy alias
+    was retired in Wave O step O.4a.1 — ``ReflectiveBoundary`` is the
+    sole importable name.
 
     Parameters
     ----------

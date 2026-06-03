@@ -1,9 +1,9 @@
 r"""White (Lambertian) boundary condition.
 
-See :class:`WhiteBoundary` for the algebraic definition. The legacy
-``WhiteBoundaryOperator`` name is re-exported as a deprecated alias
-from the package ``__init__.py`` (Wave 7 rename per Grand Report v3
-vocabulary).
+See :class:`WhiteBoundary` for the algebraic definition. This class
+was previously named ``WhiteBoundaryOperator``; the legacy alias was
+retired in Wave O step O.4a.1. ``WhiteBoundary`` (the Grand Report v3
+vocabulary) is the sole live name.
 """
 
 from __future__ import annotations
@@ -56,10 +56,11 @@ class WhiteBoundary(BoundaryTraceLaw, key="white"):
         op = SNBoundaryRealizer().realize(law, SNMethodSpace.minimal(quad))
         psi_in = op.apply(psi_out)
 
-    Wave-7 rename note
-    ------------------
-    Previously named ``WhiteBoundaryOperator``. The legacy name is
-    preserved as a deprecated alias.
+    Rename history
+    --------------
+    Previously named ``WhiteBoundaryOperator``. The legacy alias was
+    retired in Wave O step O.4a.1 — ``WhiteBoundary`` is the sole
+    importable name.
 
     Parameters
     ----------

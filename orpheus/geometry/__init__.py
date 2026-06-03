@@ -24,14 +24,6 @@ standard PWR-shaped 1-D geometries; for 2-D Cartesian pin meshes use
 :func:`pwr_pin_2d`.
 """
 
-from .boundary import (
-    AlbedoBoundaryOperator,
-    BoundaryOperator,
-    PeriodicBoundaryOperator,
-    SpecularBoundaryOperator,
-    VacuumBoundaryOperator,
-    WhiteBoundaryOperator,
-)
 from .coord import CoordSystem, compute_areas_1d, compute_volumes_1d, compute_volumes_2d
 from .factories import pwr_pin_2d
 from .mesh import BC, Mesh1D, Mesh2D, RegionMesh
@@ -46,22 +38,16 @@ from .reduced_operator import (
 from .structured_geometry import Region, StructuredGeometry
 
 __all__ = [
-    "AlbedoBoundaryOperator",
     "AngularMeasure",
     "BC",
-    "BoundaryOperator",
     "CoordSystem",
     "Mesh1D",
     "Mesh2D",
-    "PeriodicBoundaryOperator",
     "ReducedStreamingOperator",
     "Region",
     "RegionMesh",
-    "SpecularBoundaryOperator",
     "StreamingTerms",
     "StructuredGeometry",
-    "VacuumBoundaryOperator",
-    "WhiteBoundaryOperator",
     "compute_areas_1d",
     "compute_volumes_1d",
     "compute_volumes_2d",

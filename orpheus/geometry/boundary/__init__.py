@@ -408,16 +408,13 @@ from __future__ import annotations
 
 # ---------------------------------------------------------------------------
 # Abstract base — Wave 7 merged the legacy ``BoundaryOperator`` ABC into
-# :class:`BoundaryTraceLaw`. The legacy symbol is kept as a deprecated
-# alias for backward compatibility with the 8 production import sites
-# (``orpheus.sn.geometry``, ``orpheus.sn.operator``, ...) and the tests
-# that import it. Remove in a future cleanup wave.
+# :class:`BoundaryTraceLaw`. Wave O step O.4a.1 retired the deprecated
+# ``BoundaryOperator`` alias (all consumers moved to ``BoundaryTraceLaw``;
+# the name is now free for the ``BlockRole.BOUNDARY`` marker in
+# :mod:`orpheus.numerics.operator`).
 # ---------------------------------------------------------------------------
 
 from ._base import BoundaryTraceLaw
-
-# Deprecated alias for backward compat; remove in a future cleanup wave.
-BoundaryOperator = BoundaryTraceLaw
 
 # ---------------------------------------------------------------------------
 # Issue #186 (B3 + β2) -- descriptor-tree composition. LawSum / LawScaled
@@ -463,11 +460,9 @@ from ._realizer import (
 
 # ---------------------------------------------------------------------------
 # Concrete BCs -- split into per-BC submodules in Wave 4, renamed to
-# Grand Report v3 vocabulary in Wave 7. The legacy
-# ``*BoundaryOperator`` names are kept as deprecated aliases below for
-# backward compatibility with the production import sites and tests
-# that ``from orpheus.geometry.boundary import VacuumBoundaryOperator``.
-# Remove the aliases in a future cleanup wave.
+# Grand Report v3 vocabulary in Wave 7. Wave O step O.4a.1 retired the
+# deprecated ``*BoundaryOperator`` aliases (all consumers moved to the
+# canonical names below).
 # ---------------------------------------------------------------------------
 
 from .albedo import AlbedoBoundary
@@ -477,17 +472,9 @@ from .reflective import ReflectiveBoundary
 from .vacuum import VacuumInflow
 from .white import WhiteBoundary
 
-# Deprecated aliases for backward compat (Wave 7 → cleanup wave).
-AlbedoBoundaryOperator = AlbedoBoundary
-PeriodicBoundaryOperator = PeriodicBoundary
-SpecularBoundaryOperator = ReflectiveBoundary
-VacuumBoundaryOperator = VacuumInflow
-WhiteBoundaryOperator = WhiteBoundary
-
 
 __all__ = [
-    # Abstract bases
-    "BoundaryOperator",  # deprecated alias for BoundaryTraceLaw
+    # Abstract base
     "BoundaryTraceLaw",
     # Descriptor-tree composition (Issue #186)
     "LawNode",
@@ -518,10 +505,4 @@ __all__ = [
     "ReflectiveBoundary",
     "VacuumInflow",
     "WhiteBoundary",
-    # Deprecated aliases (Wave 7 → cleanup wave)
-    "AlbedoBoundaryOperator",
-    "PeriodicBoundaryOperator",
-    "SpecularBoundaryOperator",
-    "VacuumBoundaryOperator",
-    "WhiteBoundaryOperator",
 ]

@@ -139,10 +139,11 @@ class BlockRole(Enum):
       are extracted from ``L`` (Wave O step O.4); until then ``B`` is
       absorbed inside the streaming sweep and NO instance carries this
       role. (The :class:`BulkOperator` / :class:`FullOperator` ``isinstance``
-      markers ship in O.1; the ``BoundaryOperator`` marker lands with O.4,
-      where the deprecated ``geometry.boundary.BoundaryOperator`` alias —
-      a misnamed :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` — is
-      disambiguated so the name can denote the block-role marker.)
+      markers ship in O.1; the ``BoundaryOperator`` marker lands with O.4.
+      The ``geometry.boundary.BoundaryOperator`` alias — a misnamed
+      re-export of :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` —
+      was retired in Wave O step O.4a.1, freeing the name so it can denote
+      the block-role marker without collision.)
     """
 
     BULK = "bulk"
@@ -485,9 +486,13 @@ class LinearOperatorMixin:
     def __call__(self, *args, **kwargs):
         """Alias for :meth:`apply`. Lets user code write ``A(x)``.
 
-        Accepts ``*args, **kwargs`` so multi-argument applies (e.g.
-        :meth:`BoundaryOperator.apply` taking ``(psi_out, quadrature)``)
-        compose ergonomically: ``bc(psi_out, quad)`` reads as math.
+        Accepts ``*args, **kwargs`` so any multi-argument ``apply``
+        composes ergonomically (``op(x, y)`` reads as math). The
+        forwarding originally served the pre-refactor 2-arg BC apply
+        ``apply(psi_out, quadrature)``; that signature was retired
+        with the BC descriptor cleanup (every realized BC is now a
+        1-arg :class:`LinearOperator`), but the generic forwarding is
+        retained for future multi-argument operators.
         """
         return self.apply(*args, **kwargs)  # type: ignore[attr-defined]
 
@@ -1147,8 +1152,8 @@ class PeriodicWrapOperator(LinearOperatorMixin):
 
     Represents the angular trace map that connects opposite faces of
     a periodic mesh. Currently the body is angular identity — this
-    matches the legacy
-    :class:`~orpheus.geometry.boundary.PeriodicBoundaryOperator`
+    matches the
+    :class:`~orpheus.geometry.boundary.PeriodicBoundary`
     semantics, where the SN sweep handles the spatial wrap via its
     own face-pair indexing and the BC operator only needs to pass
     the angular trace through unchanged.

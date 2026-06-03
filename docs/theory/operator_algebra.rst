@@ -622,9 +622,9 @@ target set:
      - :class:`~orpheus.geometry.boundary.VacuumInflow` (§16A.10
        trace-correct vacuum)
    * - :class:`~orpheus.numerics.operator.PeriodicWrapOperator`
-     - Today: angular identity (matches legacy
-       ``PeriodicBoundaryOperator.apply``). Reserved for future
-       spatial-pushforward extension.
+     - Today: angular identity (the SN realization of
+       :class:`~orpheus.geometry.boundary.PeriodicBoundary`).
+       Reserved for future spatial-pushforward extension.
      - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
    * - :class:`~orpheus.sn.angular_operator.AngularAverageOperator`
      - Cosine-weighted Lambertian average over an outgoing

@@ -2888,7 +2888,7 @@ cell centres. The boundary-edge sequence is:
    outflow_at_boundary[:, outgoing_mask] = psi_face_out
 
    # ── BC trace law at boundary edge ────────────────────────────
-   # bc_outer is the realised BoundaryOperator from SNMethodSpace
+   # bc_outer is the realised BC (BoundaryTraceLaw) from SNMethodSpace
    # via SNBoundaryRealizer.realize() — a 1-arg LinearOperator
    # whose apply maps Γ_+ → Γ_-, per the affine-bc-form contract.
    inflow_full = bc_outer.apply(outflow_at_boundary.T)
@@ -5303,11 +5303,17 @@ are:
 
 The pre-Wave-7 names ``VacuumBoundaryOperator`` /
 ``SpecularBoundaryOperator`` / ``WhiteBoundaryOperator`` /
-``PeriodicBoundaryOperator`` / ``AlbedoBoundaryOperator`` are kept as
-**deprecated aliases** in :mod:`orpheus.geometry.boundary` for
-backward compatibility. ``MixedBoundaryOperator`` was **retired in
-Wave 11**; rank-N (Marshak, partial-current) boundaries are now
-expressed via the **descriptor-tree algebra**
+``PeriodicBoundaryOperator`` / ``AlbedoBoundaryOperator`` were
+**retired in Wave O step O.4a.1**; their canonical successors
+(:class:`~orpheus.geometry.boundary.VacuumInflow` /
+:class:`~orpheus.geometry.boundary.ReflectiveBoundary` /
+:class:`~orpheus.geometry.boundary.WhiteBoundary` /
+:class:`~orpheus.geometry.boundary.PeriodicBoundary` /
+:class:`~orpheus.geometry.boundary.AlbedoBoundary`) are the sole
+live names in :mod:`orpheus.geometry.boundary`.
+``MixedBoundaryOperator`` was **retired in Wave 11**; rank-N
+(Marshak, partial-current) boundaries are now expressed via the
+**descriptor-tree algebra**
 (:class:`~orpheus.geometry.boundary.LawSum` /
 :class:`~orpheus.geometry.boundary.LawScaled`) on the unrealised
 laws:

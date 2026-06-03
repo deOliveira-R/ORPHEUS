@@ -16,9 +16,10 @@ boundary, time-of-flight pulse source).
 Wave-7 architectural slot
 -------------------------
 
-The legacy ``BoundaryOperator`` hierarchy treated source-bearing
-boundaries by special-casing them in the solver layer; the new
-affine-form refactor (Wave 3+) lifts the source into a first-class
+The legacy ``BoundaryOperator`` hierarchy (the pre-refactor BC ABC,
+retired in Wave O step O.4a.1) treated source-bearing boundaries by
+special-casing them in the solver layer; the affine-form refactor
+(Wave 3+) lifted the source into a first-class
 :meth:`BoundaryTraceLaw.source` slot defaulting to
 :class:`~orpheus.geometry.boundary._source.NoSource`. The
 prescribed-inflow law is the smallest concrete BC that exercises

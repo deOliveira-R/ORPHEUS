@@ -501,18 +501,21 @@ Naming audit: pre-refactor vs Grand Report v3 vocabulary
 --------------------------------------------------------
 
 Wave 7 of the refactor renamed every concrete BC to match the
-Grand Report v3 vocabulary verbatim. The pre-refactor names are
-preserved as deprecated re-exports in
-:mod:`orpheus.geometry.boundary.__init__` and the package's
-public ``__all__`` so existing import sites keep working unchanged
-during the deprecation window:
+Grand Report v3 vocabulary verbatim. During the deprecation window
+the pre-refactor names were re-exported as deprecated aliases from
+:mod:`orpheus.geometry.boundary.__init__` so existing import sites
+kept working unchanged. Those aliases were **retired in Wave O step
+O.4a.1** once every code and test consumer had migrated; the
+canonical names in the middle column are now the sole importable
+symbols. The table is retained as the historical naming index for
+readers tracing pre-Wave-O commits:
 
-.. list-table:: Wave 7 BC renames
+.. list-table:: Wave 7 BC renames (pre-refactor name → canonical name)
    :header-rows: 1
    :widths: 35 35 30
 
-   * - Pre-refactor name
-     - Wave 7 canonical name
+   * - Pre-refactor name (retired Wave O O.4a.1)
+     - Canonical name
      - Why renamed
    * - ``VacuumBoundaryOperator``
      - :class:`~orpheus.geometry.boundary.VacuumInflow`
@@ -658,8 +661,9 @@ The Wave 5 SN dispatch table is the documented standard:
 
 The α = 1.0 fast paths return the **bare** primitive (no
 ``ScaledOperator`` wrap). This is load-bearing for bit-identity:
-without it, the legacy "perfect reflection" case
-``SpecularBoundaryOperator(axis="x", albedo=1.0)`` would shift by
+without it, the "perfect reflection" case
+:class:`~orpheus.geometry.boundary.ReflectiveBoundary` (pre-refactor
+``SpecularBoundaryOperator(axis="x", albedo=1.0)``) would shift by
 one ULP under the realizer relative to its pre-refactor
 ``np.take(psi_out, reflection_index, axis=0)`` body — see the
 Wave 6 snapshot harness for the bit-equivalence pin.

@@ -444,7 +444,7 @@ class CellUpdate(Protocol):
     two class-level traits below and the :meth:`update` method.  The
     contract follows the project's pattern (see
     :class:`~orpheus.numerics.operator.LinearOperator`,
-    :class:`~orpheus.geometry.boundary.BoundaryOperator`,
+    :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`,
     :class:`~orpheus.geometry.reduced_operator.AngularMeasure`):
     ``@runtime_checkable Protocol``, satisfied by structural
     typing — concrete strategies do **not** need to inherit.

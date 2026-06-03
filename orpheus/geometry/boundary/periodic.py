@@ -1,9 +1,9 @@
 r"""Periodic boundary condition.
 
-See :class:`PeriodicBoundary` for the algebraic definition. The legacy
-``PeriodicBoundaryOperator`` name is re-exported as a deprecated alias
-from the package ``__init__.py`` (Wave 7 rename per Grand Report v3
-vocabulary).
+See :class:`PeriodicBoundary` for the algebraic definition. This class
+was previously named ``PeriodicBoundaryOperator``; the legacy alias
+was retired in Wave O step O.4a.1. ``PeriodicBoundary`` (the Grand
+Report v3 vocabulary) is the sole live name.
 """
 
 from __future__ import annotations
@@ -44,10 +44,11 @@ class PeriodicBoundary(BoundaryTraceLaw, key="periodic"):
     instantiates :class:`PeriodicBoundary` and orchestrates the sweep.
     Realise via :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`.
 
-    Wave-7 rename note
-    ------------------
-    Previously named ``PeriodicBoundaryOperator``. The legacy name is
-    preserved as a deprecated alias.
+    Rename history
+    --------------
+    Previously named ``PeriodicBoundaryOperator``. The legacy alias
+    was retired in Wave O step O.4a.1 — ``PeriodicBoundary`` is the
+    sole importable name.
     """
 
     #: Wave-7 sweep-cycle signal (§15A.2). A periodic face couples

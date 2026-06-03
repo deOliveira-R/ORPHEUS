@@ -3,8 +3,7 @@ r"""BoundaryRealizer Protocol + BoundaryRealizerRegistry.
 Per Grand Report v3 §16A.3 lines 2841–2860, the third layer of the
 boundary architecture (after trace structure + physical law) is the
 **method realisation**: a per-transport-method strategy that turns a
-:class:`BoundaryTraceLaw` (or, today, a legacy
-:class:`~orpheus.geometry.boundary.BoundaryOperator`) into a
+BC descriptor (:class:`BoundaryTraceLaw`) into a
 :class:`~orpheus.numerics.operator.LinearOperator` consumable by that
 method's sweep / solver.
 
@@ -90,8 +89,7 @@ class BoundaryRealizer(Protocol):
     :meth:`BoundaryRealizerRegistry.register` at import time.
 
     The :meth:`realize` method takes a method-agnostic boundary law
-    (legacy :class:`~orpheus.geometry.boundary.BoundaryOperator` or,
-    post-Wave-7, :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`)
+    (the BC descriptor :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`)
     and a method-specific *method space* — a lightweight container
     holding whatever discretisation metadata the realizer needs
     (quadrature, mesh, trace masks, …) — and returns a

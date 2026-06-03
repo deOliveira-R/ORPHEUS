@@ -46,7 +46,7 @@ After import, ``BoundaryOperator.registry`` contains
 ``{"vacuum": VacuumBoundaryOperator, "reflective":
 SpecularBoundaryOperator, ...}`` and
 ``BoundaryOperator.create("vacuum")`` returns a fresh
-:class:`VacuumBoundaryOperator`.
+``VacuumBoundaryOperator``.
 
 Abstract intermediate classes (those that should not be reachable
 via :meth:`create`) omit the ``key=`` kwarg — :meth:`__init_subclass__`

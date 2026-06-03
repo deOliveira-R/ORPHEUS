@@ -94,9 +94,9 @@ class AngularAverageOperator(LinearOperatorMixin):
 
     See Also
     --------
-    :class:`~orpheus.geometry.boundary.WhiteBoundaryOperator`
-        Legacy 2-arg BC; Wave 7 will rename to ``WhiteBoundary`` and
-        delegate to ``AngularAverageOperator`` via the SN realizer.
+    :class:`~orpheus.geometry.boundary.WhiteBoundary`
+        The white-reflection BC; delegates to
+        ``AngularAverageOperator`` via the SN realizer.
     """
 
     capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})

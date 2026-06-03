@@ -35,7 +35,7 @@ specialisations layered on top of :class:`FunctionSpace`:
   reference to the :class:`~orpheus.geometry.mesh.Mesh1D` /
   :class:`~orpheus.geometry.mesh.Mesh2D` instance.
 * **TraceSpace** — functions on the boundary; the domain/range for
-  :class:`~orpheus.geometry.boundary.BoundaryOperator`. ONE
+  :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`. ONE
   whole-boundary space (see
   :mod:`orpheus.numerics.spaces.trace_space`); inflow / outflow are
   selectors over its signed :math:`\Omega\cdot\hat n`, not directional
