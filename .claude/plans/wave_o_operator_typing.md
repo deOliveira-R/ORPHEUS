@@ -265,14 +265,119 @@ B.6). Memory: `[[project_wave_o_operator_algebra]]`.
 
 ## ⭐⭐ O.4 EXECUTION PLAN (detailed — THE NEXT OPERATION; absorbs O.3a)
 
-**Compaction-resume pointer.** Branch `refactor/field-role-typing`; HEAD = `44914ef`
-(O.1 DONE `797b505`; O.3a applied-then-reverted; resequence committed). Before
-executing, READ: this section + the extraction-surface map
-`.claude/agent-memory/explorer/issue_208_o4_extraction_surface.md` (every
-`file:line`) + the verification plan
-`.claude/agent-memory/test-architect/issue_208_wave_o_verification_plan.md`
-(§O.4, §3, §6, §7). Anchors verified at `633215f`/`797b505` (operator.py = 1993
-lines post-O.1; line numbers predating Wave-T dual-emission inlining are stale).
+**Compaction-resume pointer.** Branch `refactor/field-role-typing`; HEAD = `d7e1316`
+(O.4a.2 Commit 1). Before executing, READ: the `⭐⭐⭐ O.4a.2 IN-FLIGHT STATE`
+block immediately below (the live working-tree state), then this section +
+extraction-surface map
+`.claude/agent-memory/explorer/issue_208_o4_extraction_surface.md`, the
+**flip-wiring map** `.claude/agent-memory/explorer/issue_208_o4a2_flip_wiring_surface.md`
+(the `file:line` for the solver/sweep/−B surgery), the test-architect matvec spec
+`.claude/agent-memory/test-architect/issue_208_o4a2_matvec_extraction_spec.md`,
+and the verification plan
+`.claude/agent-memory/test-architect/issue_208_wave_o_verification_plan.md`.
+
+---
+
+## ⭐⭐⭐ O.4a.2 IN-FLIGHT STATE — COMPACTION HANDOFF (READ FIRST, 2026-06-03)
+
+**HEAD `d7e1316`. The matvec side of the co-land flip is DONE but UNCOMMITTED in
+the working tree** (it persists across compaction — it is on disk, not in
+context). The flip commits ATOMICALLY once green; do NOT revert these, do NOT
+`git checkout`/`stash` them.
+
+**Uncommitted working-tree manifest (verify with `git status` post-compaction):**
+- `orpheus/sn/operator.py` — **DONE: the design-(a) matvec flip** in BOTH
+  `_MSpatialOperatorSum._compute_LpC` AND its `_compute_decomposition` twin:
+  (1) keystone `inflow_full = bc_outer.apply(outflow_at_boundary.T)` DELETED;
+  backward sweep seeds from the GIVEN `face_outer`; (2) slab inner seed +
+  `outer_inflow_estimate` read the GIVEN trace (not `bc_*.apply`); (3) boundary
+  emission KEEPS the outflow defect `ψ.outflow − streamed` (the `I·ψ.outflow`
+  diagonal — UNCHANGED, vacuum bit-identical) and ADDS the inflow identity
+  `ψ.inflow` on the inflow slots (the `I·ψ.inflow` diagonal). Curvilinear pole
+  Carlson seed KEPT.
+- `tests/conftest.py` — **DONE:** added the `--capture-baseline` pytest option.
+- `tests/sn/_data/` (untracked) — **DONE:** 18 captured pre-carve vacuum baselines
+  (slab/sphere/cyl × seed 0/1/2, bulk + boundary).
+- `tests/sn/operators/test_bc_extraction_matvec.py` (untracked) — the
+  test-architect's matvec gate file. NEEDS RECONCILIATION (see below).
+
+**VALIDATED (apply level):** vacuum bit-identity 18/18 byte-identical (bulk +
+boundary, slab/sphere/cyl); `Q/Σt` no pole spike; `(L+C).apply == M_spatial.apply
++ M_angular_redist.apply` consistent (slab + sphere); 3b (`TestLFullReadsInflow`)
+flips XPASS for all 3 geometries (L_full now reads `ψ.boundary.inflow`).
+
+**KEY DESIGN CORRECTION (supersedes the "raw outflow" prose in the mechanics
+bullets below — those are WRONG, fix them):** the canonical `(L_full + C − S − F
+− B)ψ = q` requires `L_full` to KEEP the outflow self-consistency defect (the
+`I·ψ.outflow` diagonal — `ψ.outflow` is a stored unknown `−B` reads as its
+input). "Emit raw outflow / drop the subtraction" would make `ψ.outflow`'s row
+singular and break `−B`-as-sibling. The ONLY matvec changes are: delete keystone,
+read given inflow, ADD the inflow identity. The outflow emission is UNCHANGED
+(today's `computed − stored`, sign-free since `q.outflow ≡ 0`).
+
+**TWO LOAD-BEARING CONSTRAINTS (from the flip-wiring map):**
+1. `OperatorSum` does NOT propagate `CAP_SOLVE` (`numerics/operator.py:689-692`)
+   → `−B` CANNOT join `LC = L+C` (strips `solve`). It FOLDS into the subtracted
+   S-argument: `self.scattering_op + SNBoundaryOperator(self.sn_mesh)` (S FIRST so
+   the domain-check skips — S.domain is None; `SNBoundaryOperator.domain =
+   sn_mesh.trace`). One change serves BOTH paths: Krylov matvec →
+   `(L+C).apply − (S+B).apply − F.apply = (L+C−S−F−B)`; SI source →
+   `LC.solve((S+B+F)ψ + q)` = the `Bψ` term.
+2. SI double-counting → the sweep MUST go BARE NOW (read seeded inflow directly,
+   NO in-entry `bc.apply`); else `bc.apply(B·ψ.outflow)` double-applies B. (Krylov
+   tolerates the BC-absorbed sweep as a mere preconditioner; SI's sweep IS the
+   solution map.)
+
+**REMAINING WIRING (the next session's work — `file:line` from the flip-wiring map):**
+1. **`−B` S-arg fold** (`solver.py`): `_solve_krylov` (~733-746), `_solve_source_iteration`
+   (~592-598), `_solve_fixed_source_krylov` (~1461-1473): replace the
+   `self.scattering_op` S-argument with `self.scattering_op +
+   SNBoundaryOperator(self.sn_mesh)`.
+2. **Bare sweep** (`sweep.py`): drop entry `bc_*.apply` (slab `bc_left/right_obj.apply`
+   ~473-474; curvilinear `bc_outer_obj.apply` ~488) — read the seeded inflow trace
+   directly; persist the RAW outflow (~585/587 slab, ~730 curv). (2-D wavefront
+   ~889-900 is O.4b — leave.)
+3. **Retire the SI partner-flux seeding** `solver.py:572` (`q_ext_composite.boundary
+   = self._boundary_flux`) — the inflow becomes a live solved unknown carried in
+   `ψ.boundary` (threaded via `to_flat`). `_boundary_flux` as the FINAL-solution
+   carrier (`1011/1042/1276/1316`) STAYS.
+4. **`_solve_fixed_source_si` direct loop** (`solver.py:1236-1278`, slab/2-D default)
+   — no S-arg triple; add the `Bψ` term to its source explicitly.
+5. **`_solve_timed_full_field`** (`operator.py` ~1988-2025) — the inverse action;
+   leave as-is (consistency enforced by the outer −B).
+
+**GATE MIGRATION + TEST RECONCILIATION (retirement = test migration):**
+- `tests/sn/operators/test_bc_extraction_matvec.py`: **unmark 3b**
+  (`TestLFullReadsInflow` — flipped XPASS); **rewrite 3c** (`TestLFullEmitsRawOutflow`
+  → assert the inflow-IDENTITY emission) + **GATE4** (`TestVacuumBoundaryDefectVsRaw`
+  → assert the outflow-DEFECT is KEPT, i.e. output DOES depend on input outflow);
+  **delete 3a** (`TestWholeTraceBOperator` + `_realized_B_for_face` — the whole-trace
+  `B` is canonically tested in `test_sn_boundary_operator.py`). Fix the naming
+  mismatch: the test imports `assemble_boundary_operator` from `orpheus.sn.operator`
+  — migrate it to `from orpheus.sn.boundary_operator import SNBoundaryOperator`.
+- `tests/sn/sweep/core/test_phase_c_gates.py`: Gate 1.1 per-ordinate flat-flux
+  (~279-322) — migrate to `(L+C−B)` / a consistent reflective inflow trace; the
+  **`==2 bc_right.apply` call-count assert** in
+  `test_bc_trace_contract_capture_and_compare_sphere` (~673) → the flipped matvec
+  calls `bc_outer.apply` **0 times** (reads given `face_outer`) → migrate to 0 (or
+  redirect to `B.apply`).
+- `tests/sn/operators/test_streaming_operator_decomposition.py` Resolution-A
+  (~147-204, reflective, zero-input boundary): the reference `_LC_matvec` helper
+  must match the flipped emission (incl. the inflow-identity rows);
+  `TestResolutionADifferentFromPriorWrong` reaches into `_compute_decomposition`
+  (~327).
+- `tests/sn/sweep/curvilinear/test_streaming_equilibrium_curvilinear.py` (~137-140,
+  full-solver reflective) — the through-solver acceptance gate for the `−B` wiring.
+
+**FULL GATE (commit only when green):** vacuum bit-identical END-TO-END (through
+solver) + reflective CONVERGENCE-EQUIVALENCE — converged ψ matches MMS / `Q/Σt` /
+homogeneous `k∞` to solver tol (iterates differ, converged ψ matches an EXTERNAL
+reference); the old-vs-new drift tripwire `< 2×solver_tol`. **NO `continuous_get`**
+(fixture bug #212). Then: fix the "raw outflow" prose in the mechanics bullets,
+run the operator-algebra-core + sentinel (no -O) gates, elegance-enforcer on the
+full flip, commit, update plan + memory.
+
+---
 
 ### The keystone (single load-bearing change)
 The matvec line `inflow_full = bc_outer.apply(outflow_at_boundary.T)`
@@ -343,11 +448,36 @@ different slots, not one slot wearing two hats.
   periodic self-adjoint ✓, albedo ✓, **white `AngularAverageOperator&I`**
   (`apply_transpose` NOT advertised — self-adjoint only under `|Ω·n|·w`; waits
   on O.2's metric).
-- **O.4a.2 — bare `L_full` (matvec) + whole-trace `B` assembly.** ABSORBS the
-  O.4a.1-deferred work: assemble the whole-trace `B` (block-diagonal over faces,
-  composing the per-face `_BoundBoundaryOperator`s) + declare
-  `domain = codomain = mesh.trace`, wired together with the `−B` placement.
-  In `_compute_LpC` (386-593) +
+**⭐ CO-LAND DECISION (2026-06-03, user-approved).** Grounding revealed the
+plan's O.4a.2/O.4a.3/O.4a.4 split is IDEALIZED — the boundary semantics are
+**coupled**: the matvec EMITS the boundary slot (defect today), the solver
+CONSUMES it, and the boundary *unknown structure* flips (inflow goes from
+"recomputed each matvec by the keystone @519" to an independent unknown driven
+by the `ψ.inflow − B·ψ.outflow` consistency residual — a solver-level change).
+**Also:** the must-stay-green set is NOT vacuum-only as first assumed — Gate 1.1
+(`sphere_GL4_reflective`/`cyl_LS4_reflective`, matvec-level per-ordinate
+flat-flux), Resolution-A decomposition (`bc=reflective`), and the curvilinear
+streaming-equilibrium are all REFLECTIVE + matvec-level; they test the current
+*coupled* `(L+C)` and MUST MIGRATE to the extracted `(L+C−B)` (retirement = test
+migration), not "stay green unchanged". So O.4a.2/3/4 are **co-landed as one
+flip** with the whole-trace `B` as a safe additive precursor:
+- **Commit 1 (additive, no behavior change):** `SNBoundaryOperator` (new module
+  `orpheus/sn/boundary_operator.py`) — the whole-trace `B` as a BOUNDARY-block
+  leaf on `TimedFullField` (zero bulk; `boundary.face_view(face) =
+  sn_mesh.bc_<face>.apply(ψ.boundary.face_view(face))` per trace face),
+  `block_role = BlockRole.BOUNDARY`, `domain = codomain = sn_mesh.trace`,
+  `capabilities = APPLY ∪ (APPLY_TRANSPOSE iff all per-face laws advertise it)`.
+  Gate: per-face-restricted `B.apply ≡ legacy bc.apply` (pins the face→law
+  wiring), zero bulk, role/domain/capabilities. Nothing consumes `B` yet.
+- **Commit 2 (the coupled flip):** bare `L_full` matvec (delete keystone @519/
+  twin) + single-pass sweep + solver inflow-unknown + `−B` consistency residual,
+  co-landed, + MIGRATE the reflective matvec gates to `(L+C−B)`. Gate: vacuum
+  bit-identical (apply + end-to-end) + reflective convergence-equivalence
+  (MMS / `Q/Σ_t` / `k_∞`). Subsumes the O.4a.2(matvec)/O.4a.3(sweep)/O.4a.4(solver)
+  mechanics below (kept as the mechanics reference).
+
+The mechanics referenced by Commit 2 (formerly the separate O.4a.2/3/4 bullets):
+- **[matvec mechanics]** In `_compute_LpC` (386-593) +
   `_compute_decomposition` (595-884): **delete 521/795**; read the backward-sweep
   seed from `ψ.boundary.inflow` (not `bc_outer.apply`); read the inner inflow from
   `ψ.boundary.inflow` (slab, was 456/716); boundary output = RAW outflow (drop the
