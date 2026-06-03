@@ -317,23 +317,37 @@ The pre-extraction overload is GONE: inflow (flux) and defect (residual) are now
 different slots, not one slot wearing two hats.
 
 ### Sub-steps (turn-by-turn, each its own commit + gate)
-- **O.4a.1 — `B` as a `BoundaryOperator` leaf.** Adapt the `SNBoundaryRealizer.realize`
-  outputs (map Area 4) into clean boundary-block leaves: add
-  `block_role = BlockRole.BOUNDARY`, declare `domain = codomain = mesh.trace`,
-  lift the per-face `(N,ng)` apply to a whole-trace apply. Land the O.1-deferred
-  `BoundaryOperator` marker (`numerics/operator.py:135-145`) + `__all__`. Realized-op
-  readiness: reflective `PermutationOperator&I` (involution, `apply_transpose` ✓),
-  vacuum `IncomingOrdinateMaskTensor&I` ✓, periodic self-adjoint ✓, albedo ✓,
-  **white `AngularAverageOperator&I`** (`apply_transpose` NOT advertised —
-  self-adjoint only under `|Ω·n|·w`; its adjoint waits on O.2's metric).
-  `PrescribedInflow → IncomingSourceOperator` is the `q.boundary` home, NOT linear
-  `B`. **Gate:** Protocol-conformance (`realize(law)` is a `BoundaryOperator`,
-  exclusivity); `B.apply(outflow)` per-law bit-identical to the legacy in-sweep
-  `bc.apply`. **Plus the prod alias rewire** (Area 7: only 2 prod sites —
-  `sn/operator.py:1378/1396/1399/1402/1405` + `sn/boundary_realizer.py` imports/
-  isinstance arms); the ~139-ref test migration + alias-delete is a mechanical
-  O.4a.1-tail commit (`__init__.py:420,481-485` deletes LAST).
-- **O.4a.2 — bare `L_full` (matvec).** In `_compute_LpC` (386-593) +
+- **O.4a.1 — `B` as a `BoundaryOperator` leaf. [✅ DONE 2026-06-03 —
+  α `9a7f216` / β1 `a44fac5` / β2 `1069755` / γ `91d3249`].** Tagged the
+  `SNBoundaryRealizer.realize` outputs with `block_role = BlockRole.BOUNDARY`
+  (producer-site `_as_boundary` helper, 6 linear branches; `PrescribedInflow`
+  NOT tagged — it is `q.boundary`), landed the `BoundaryOperator` marker
+  (`numerics/operator.py`), `_BoundBoundaryOperator` forwards the role.
+  Sub-commits: **α** prod alias→canonical rewire (boundary_realizer + 2-D
+  defaults; bit-identical); **β1** ~139 test-ref migration (incl. deleting the
+  alias-identity test); **β2** alias-def deletion + full doc-correctness sweep
+  (archivist: 6 `:class:` xref fixes + prose + 4 rst pages; the
+  BulkOperator/FullOperator/**BoundaryOperator** MARKER refs LEFT — distinct
+  from the retired geometry alias); **γ** marker + tagging + tests (foundation:
+  all 9 linear realizations advertise `BoundaryOperator` + exclusivity,
+  PrescribedInflow negative, mesh `bc_*` forwarding). Verified bit/value-
+  identical, Sphinx clean, elegance-enforcer PASS.
+  **REFINEMENT vs this plan:** `domain = codomain = mesh.trace` + the whole-trace
+  apply lift were **deferred to O.4a.2** — they are coupled to the `−B`
+  OperatorSum consumer (the whole-trace `B` is a block-diagonal-over-faces
+  assembly whose shape is *defined by* that wiring; build-primitive-not-product,
+  `coding-elegance` Pattern 6). O.4a.1's gate (`B.apply(outflow)` ≡ legacy
+  `bc.apply`) is per-face and satisfied by construction (apply untouched).
+  Realized-op adjoint readiness (for O.2): reflective `PermutationOperator&I`
+  (involution, `apply_transpose` ✓), vacuum `IncomingOrdinateMaskTensor&I` ✓,
+  periodic self-adjoint ✓, albedo ✓, **white `AngularAverageOperator&I`**
+  (`apply_transpose` NOT advertised — self-adjoint only under `|Ω·n|·w`; waits
+  on O.2's metric).
+- **O.4a.2 — bare `L_full` (matvec) + whole-trace `B` assembly.** ABSORBS the
+  O.4a.1-deferred work: assemble the whole-trace `B` (block-diagonal over faces,
+  composing the per-face `_BoundBoundaryOperator`s) + declare
+  `domain = codomain = mesh.trace`, wired together with the `−B` placement.
+  In `_compute_LpC` (386-593) +
   `_compute_decomposition` (595-884): **delete 521/795**; read the backward-sweep
   seed from `ψ.boundary.inflow` (not `bc_outer.apply`); read the inner inflow from
   `ψ.boundary.inflow` (slab, was 456/716); boundary output = RAW outflow (drop the
@@ -368,6 +382,21 @@ different slots, not one slot wearing two hats.
 @630-632) → the white-BC adjoint becomes free + the boundary-block reciprocity
 becomes correct. Gate 1.3 flips green (sphere+cyl+slab); 2-D id stays xfail until
 O.4b.
+
+**O.2 carry-forward — composers must DERIVE block_role from operands (NOT stamp):**
+1. `OperatorSum`/`ScaledOperator` derive `block_role` from operands (e.g. BULK if
+   all-BULK; BOUNDARY if all-BOUNDARY) — and **RETIRE the hardcoded
+   `InvertibleOperator.__init__` FULL stamp** (twin-path avoidance, from the O.1
+   review).
+2. `_AdjointOperator` must propagate `block_role` (pin `(L).H is FullOperator`,
+   `B.H is BoundaryOperator`).
+3. **`realize_recursively` composed BCs (`boundary_realize.py:206-215`) carry NO
+   role today** (bare `OperatorSum` → `None`) — the γ elegance-enforcer NIT. When
+   O.2 lands sum-role derivation, a mixed-BC `B` (`0.3·Reflective + 0.7·White`)
+   auto-derives BOUNDARY from its all-BOUNDARY leaves. **Do NOT stamp the composer
+   in `realize_recursively`** — derive it, else a twin path with O.2's derivation.
+   No live consumer reads composed-BC role until O.2's `OperatorSum.apply`
+   role-dispatch, so this is correctly deferred (not a γ bug).
 
 ### Open-Q resolutions (test-architect §7, from map Area 6)
 1. metric @ `TraceSpace.from_mesh_and_quadrature` (276); both factors available;
