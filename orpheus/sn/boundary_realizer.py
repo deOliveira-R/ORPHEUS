@@ -1,42 +1,45 @@
 r"""SN-specific BoundaryRealizer.
 
 Dispatches by ``isinstance(law, ...)`` to the Wave-0 / Wave-1 primitives
-that realise each legacy :class:`~orpheus.geometry.boundary.BoundaryOperator`
-subclass as a single-arg :class:`~orpheus.numerics.operator.LinearOperator`
+that realise each :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`
+concrete as a single-arg :class:`~orpheus.numerics.operator.LinearOperator`
 consumable by the SN sweep + Krylov path.
 
-This realizer accepts the LEGACY :class:`BoundaryOperator` subclasses
-(Wave 5 ship-state). Wave 7 will rebase concretes onto
-:class:`~orpheus.geometry.boundary.BoundaryTraceLaw` and update the
-isinstance checks accordingly.
+The isinstance dispatch keys on the Grand Report v3 canonical
+:class:`~orpheus.geometry.boundary.BoundaryTraceLaw` concretes
+(:class:`VacuumInflow`, :class:`ReflectiveBoundary`,
+:class:`WhiteBoundary`, :class:`AlbedoBoundary`,
+:class:`PeriodicBoundary`, :class:`PrescribedInflow`). The deprecated
+``*BoundaryOperator`` aliases (Wave 5 ship-state) were retired in
+Wave O step O.4a.1.
 
-The realisation map (legacy class → Wave-0 / Wave-1 primitive)
+The realisation map (law concrete → Wave-0 / Wave-1 primitive)
 ================================================================
 
-* :class:`~orpheus.geometry.boundary.vacuum.VacuumBoundaryOperator` →
+* :class:`~orpheus.geometry.boundary.vacuum.VacuumInflow` →
   :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
   with the per-face inflow indices from the method space's
   :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`. **Semantic
   correction** (Wave 5 risk register entry, plan §16A.5): the legacy
-  body zeroes ALL ordinates, but the §16A.10 trace-correct
+  body zeroed ALL ordinates, but the §16A.10 trace-correct
   implementation zeroes ONLY the inflow ordinates so the outflow
   trace survives. The new behaviour is the right one; downstream
   consumers (sensitivity adjoints) need the outflow trace
   preserved.
-* :class:`~orpheus.geometry.boundary.reflective.SpecularBoundaryOperator(axis, albedo)` →
+* :class:`~orpheus.geometry.boundary.reflective.ReflectiveBoundary(axis, albedo)` →
   ``albedo * PermutationOperator(quadrature.reflection_index(axis))``
   (with the ``albedo=1.0`` fast path returning the bare
   :class:`PermutationOperator` to preserve bit-identity vs legacy).
-* :class:`~orpheus.geometry.boundary.white.WhiteBoundaryOperator(axis, outward_sign, albedo)` →
+* :class:`~orpheus.geometry.boundary.white.WhiteBoundary(axis, outward_sign, albedo)` →
   ``albedo * AngularAverageOperator.from_quadrature(quadrature, axis, outward_sign)``
   (with the ``albedo=1.0`` fast path).
-* :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundaryOperator(0.0)` →
+* :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundary(0.0)` →
   :class:`~orpheus.numerics.operator.ZeroOperator`.
-* :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundaryOperator(1.0)` →
+* :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundary(1.0)` →
   :class:`~orpheus.numerics.operator.IdentityOperator`.
-* :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundaryOperator(α)` for α∉{0,1} →
+* :class:`~orpheus.geometry.boundary.albedo.AlbedoBoundary(α)` for α∉{0,1} →
   ``α * IdentityOperator()``.
-* :class:`~orpheus.geometry.boundary.periodic.PeriodicBoundaryOperator` →
+* :class:`~orpheus.geometry.boundary.periodic.PeriodicBoundary` →
   :class:`~orpheus.numerics.operator.PeriodicWrapOperator`.
 * :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow(source)` →
   :class:`~orpheus.sn.angular_operator.IncomingSourceOperator(source)`
@@ -65,14 +68,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from orpheus.geometry.boundary import (
-    AlbedoBoundaryOperator,
+    AlbedoBoundary,
     BoundaryError,
     BoundaryRealizerRegistry,
-    PeriodicBoundaryOperator,
+    PeriodicBoundary,
     PrescribedInflow,
-    SpecularBoundaryOperator,
-    VacuumBoundaryOperator,
-    WhiteBoundaryOperator,
+    ReflectiveBoundary,
+    VacuumInflow,
+    WhiteBoundary,
 )
 from orpheus.numerics.operator import (
     IdentityOperator,
@@ -97,7 +100,7 @@ from orpheus.sn.angular_operator import (
 from orpheus.sn.method_space import SNMethodSpace
 
 if TYPE_CHECKING:
-    from orpheus.geometry.boundary import BoundaryOperator
+    from orpheus.geometry.boundary import BoundaryTraceLaw
 
 
 __all__ = ["SNBoundaryRealizer", "SNMethodSpace"]
@@ -107,8 +110,8 @@ __all__ = ["SNBoundaryRealizer", "SNMethodSpace"]
 class SNBoundaryRealizer:
     r"""Functional realizer for SN BCs.
 
-    Dispatches by ``isinstance(law, ...)`` to map each legacy
-    :class:`~orpheus.geometry.boundary.BoundaryOperator` subclass
+    Dispatches by ``isinstance(law, ...)`` to map each
+    :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` concrete
     onto a Wave-0 / Wave-1 primitive composed with scalar
     amplitudes (per :ref:`bc-tensor-decomposition` and the
     realisation map in this module's docstring).
@@ -122,17 +125,17 @@ class SNBoundaryRealizer:
 
     def realize(
         self,
-        law: "BoundaryOperator",
+        law: "BoundaryTraceLaw",
         method_space: SNMethodSpace,
     ) -> LinearOperator:
         """Realize ``law`` for SN as a 1-arg :class:`LinearOperator`."""
         quad = method_space.quadrature
 
-        if isinstance(law, VacuumBoundaryOperator):
+        if isinstance(law, VacuumInflow):
             if method_space.inflow_indices is None:
                 raise BoundaryError(
                     "SNBoundaryRealizer cannot realize "
-                    "VacuumBoundaryOperator without inflow_indices in "
+                    "VacuumInflow without inflow_indices in "
                     "method_space. Wave 8's SNMesh wiring populates "
                     "this from "
                     "TraceSpace.inflow_indices_for_face. For "
@@ -158,7 +161,7 @@ class SNBoundaryRealizer:
                 & IdentityOperator()
             )
 
-        if isinstance(law, SpecularBoundaryOperator):
+        if isinstance(law, ReflectiveBoundary):
             perm = quad.reflection_index(law.axis)
             # Depth B step D-B+1 — first production tensor-network instance.
             # The grand-report §16A.10 BC decomposition is
@@ -183,7 +186,7 @@ class SNBoundaryRealizer:
                 return base
             return ScaledOperator(float(law.albedo), base)
 
-        if isinstance(law, WhiteBoundaryOperator):
+        if isinstance(law, WhiteBoundary):
             # Wave T step T.1 — white BC lift to 2-factor
             # TensorProductOperator, mirroring D-B+1.
             # ``AngularAverageOperator`` acts on the ordinate axis (axis 0);
@@ -200,7 +203,7 @@ class SNBoundaryRealizer:
                 return base
             return ScaledOperator(float(law.albedo), base)
 
-        if isinstance(law, AlbedoBoundaryOperator):
+        if isinstance(law, AlbedoBoundary):
             if law.albedo == 0.0:
                 return ZeroOperator()
             if law.albedo == 1.0:
@@ -217,7 +220,7 @@ class SNBoundaryRealizer:
                 IdentityOperator() & IdentityOperator(),
             )
 
-        if isinstance(law, PeriodicBoundaryOperator):
+        if isinstance(law, PeriodicBoundary):
             # Wave T step T.1 — periodic BC lift to 2-factor
             # TensorProductOperator.  The current PeriodicWrapOperator
             # body is identity-with-copy (the SN sweep handles the
@@ -239,9 +242,9 @@ class SNBoundaryRealizer:
         raise BoundaryError(
             f"SNBoundaryRealizer cannot realize "
             f"{type(law).__name__} — no isinstance dispatch case. "
-            f"Available cases: VacuumBoundaryOperator, "
-            f"SpecularBoundaryOperator, WhiteBoundaryOperator, "
-            f"AlbedoBoundaryOperator, PeriodicBoundaryOperator, "
+            f"Available cases: VacuumInflow, "
+            f"ReflectiveBoundary, WhiteBoundary, "
+            f"AlbedoBoundary, PeriodicBoundary, "
             f"PrescribedInflow. For rank-N compositions built via "
             f"Wave-0 OperatorSum/ScaledOperator algebra over "
             f"BoundaryTraceLaw leaves, use "

@@ -75,11 +75,11 @@ History
 .. note:: Boundary-condition handling
 
    The matvec routes the incoming-at-boundary slots through the
-   :class:`~orpheus.geometry.boundary.BoundaryOperator` instances on
+   :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` instances on
    the :class:`~orpheus.sn.geometry.SNMesh` (``bc_xmin``, ``bc_xmax``,
    ``bc_ymin``, ``bc_ymax``) via ``bc.apply(outgoing)``.  Bit-identity
    to the pre-Wave-E-Round-3 reflective-only fill is preserved for
-   :class:`SpecularBoundaryOperator` (the default ``BC.reflective``
+   :class:`ReflectiveBoundary` (the default ``BC.reflective``
    factory).  This closes ERR-026 for the curvilinear
    ``solve_sn_fixed_source`` MMS path: the FD operator is BC-faithful
    for vacuum / reflective / white / albedo / mixed BCs uniformly.
@@ -107,8 +107,6 @@ from orpheus.numerics.operator import (
 from orpheus.numerics.quadrature import Quadrature
 
 if TYPE_CHECKING:
-    from orpheus.geometry.boundary import BoundaryOperator
-
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from .geometry import SNMesh
     from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
@@ -1375,7 +1373,7 @@ class StreamingOperator(LinearOperatorMixin):
         that ``_apply_typed`` / ``_apply_timed_full_field`` return
         L-only).
         """
-        from orpheus.geometry.boundary import SpecularBoundaryOperator
+        from orpheus.geometry.boundary import ReflectiveBoundary
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
         )
@@ -1393,16 +1391,16 @@ class StreamingOperator(LinearOperatorMixin):
         mu_x, mu_y = quad.mu_x, quad.mu_y
         trace = sn_mesh.trace
 
-        bc_xmin = getattr(sn_mesh, "bc_xmin", None) or SpecularBoundaryOperator(
+        bc_xmin = getattr(sn_mesh, "bc_xmin", None) or ReflectiveBoundary(
             axis="x", albedo=1.0,
         )
-        bc_xmax = getattr(sn_mesh, "bc_xmax", None) or SpecularBoundaryOperator(
+        bc_xmax = getattr(sn_mesh, "bc_xmax", None) or ReflectiveBoundary(
             axis="x", albedo=1.0,
         )
-        bc_ymin = getattr(sn_mesh, "bc_ymin", None) or SpecularBoundaryOperator(
+        bc_ymin = getattr(sn_mesh, "bc_ymin", None) or ReflectiveBoundary(
             axis="y", albedo=1.0,
         )
-        bc_ymax = getattr(sn_mesh, "bc_ymax", None) or SpecularBoundaryOperator(
+        bc_ymax = getattr(sn_mesh, "bc_ymax", None) or ReflectiveBoundary(
             axis="y", albedo=1.0,
         )
 
