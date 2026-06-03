@@ -30,6 +30,7 @@ math.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import ClassVar
 
 import numpy as np
@@ -376,3 +377,130 @@ class TestDefaultRaisesNotImplemented:
         strat = _NoBatchStrategy()
         with pytest.raises(NotImplementedError, match="update_batch"):
             strat.update_batch(slice_args)
+
+    def test_residual_batch_default_raises(self):
+        """Strategies that don't override residual_batch fail loudly too."""
+        slice_args, _, _ = _build_slice_kwargs(
+            nx=2, ny=2, N_oct=1, ng=1,
+            diag_cells=[(0, 0)],
+            sx_sign=+1, sy_sign=+1, seed=55,
+        )
+        strat = _NoBatchStrategy()
+        with pytest.raises(NotImplementedError, match="residual_batch"):
+            strat.residual_batch(slice_args)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Wave O #208 O.4b — residual_batch (the batched apply direction)
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _probe_field_from_level(
+    slice_args: SweepCellSlice, psi_avg_level: np.ndarray,
+) -> np.ndarray:
+    """Scatter a per-level ``(N_oct, ng, n_diag)`` value into a full
+    ``(N_oct, ng, nx, ny)`` probe field (zeros elsewhere)."""
+    N_oct, ng = slice_args.psi_x.shape[0], slice_args.psi_x.shape[1]
+    nx, ny = slice_args.sig_t.shape[1], slice_args.sig_t.shape[2]
+    probe = np.zeros((N_oct, ng, nx, ny))
+    probe[:, :, slice_args.ii, slice_args.jj] = psi_avg_level
+    return probe
+
+
+@pytest.mark.l0
+class TestResidualBatchClosedForm:
+    """Single-cell closed-form: residual = denom·ψ̄ − (Q + sx·ψ_in_x + sy·ψ_in_y)."""
+
+    def test_residual_at_solution_is_zero(self):
+        """At the swept ψ̄ (= 6.8 from the update_batch closed-form test),
+        the residual vanishes — the per-cell round-trip contract."""
+        psi_x = np.zeros((1, 1, 2, 1))
+        psi_y = np.zeros((1, 1, 1, 2))
+        psi_x[0, 0, 0, 0] = 4.0
+        psi_y[0, 0, 0, 0] = 8.0
+        Q = np.array([[[[16.0]]]])
+        sig_t = np.array([[[2.0]]])
+        str_x = np.array([[3.0]])
+        str_y = np.array([[5.0]])
+        probe = np.array([[[[6.8]]]])           # the solved ψ̄ (denom=10)
+        slice_args = SweepCellSlice(
+            ii=np.array([0]), jj=np.array([0]),
+            face_in_x_idx=np.array([0]), face_out_x_idx=np.array([1]),
+            face_in_y_idx=np.array([0]), face_out_y_idx=np.array([1]),
+            psi_x=psi_x, psi_y=psi_y,
+            Q=Q, sig_t=sig_t, str_x=str_x, str_y=str_y,
+            psi_avg_probe=probe,
+        )
+        residual = DiamondDifference().residual_batch(slice_args)
+        # 10*6.8 - (16 + 3*4 + 5*8) = 68 - 68 = 0.
+        np.testing.assert_allclose(residual, 0.0, atol=1e-13)
+        # Diamond closure still scatters the outgoing faces with the probe.
+        np.testing.assert_array_equal(psi_x[0, 0, 1, 0], 2 * 6.8 - 4.0)  # 9.6
+        np.testing.assert_array_equal(psi_y[0, 0, 0, 1], 2 * 6.8 - 8.0)  # 5.6
+
+    def test_residual_off_solution_is_affine(self):
+        """A probe shifted by δ from the solution shifts the residual by
+        denom·δ — the residual is linear in ψ̄."""
+        psi_x = np.zeros((1, 1, 2, 1)); psi_x[0, 0, 0, 0] = 4.0
+        psi_y = np.zeros((1, 1, 1, 2)); psi_y[0, 0, 0, 0] = 8.0
+        Q = np.array([[[[16.0]]]]); sig_t = np.array([[[2.0]]])
+        str_x = np.array([[3.0]]); str_y = np.array([[5.0]])
+        probe = np.array([[[[7.0]]]])           # 0.2 above the solution 6.8
+        slice_args = SweepCellSlice(
+            ii=np.array([0]), jj=np.array([0]),
+            face_in_x_idx=np.array([0]), face_out_x_idx=np.array([1]),
+            face_in_y_idx=np.array([0]), face_out_y_idx=np.array([1]),
+            psi_x=psi_x, psi_y=psi_y,
+            Q=Q, sig_t=sig_t, str_x=str_x, str_y=str_y,
+            psi_avg_probe=probe,
+        )
+        residual = DiamondDifference().residual_batch(slice_args)
+        # 10*7.0 - 68 = 2.0  (== denom · δ = 10 · 0.2).
+        np.testing.assert_allclose(residual, 2.0, atol=1e-13)
+
+
+@pytest.mark.l0
+class TestResidualBatchRoundTrip:
+    r"""The batched apply↔solve contract: residual_batch at the value
+    update_batch returns is zero (the analogue of the per-cell
+    DiamondDifference.residual ↔ .update round-trip)."""
+
+    @pytest.mark.parametrize("sx_sign,sy_sign", [
+        (+1, +1), (+1, -1), (-1, +1), (-1, -1),
+    ])
+    def test_residual_vanishes_at_update_batch_solution(self, sx_sign, sy_sign):
+        slice_args, psi_x, psi_y = _build_slice_kwargs(
+            nx=3, ny=3, N_oct=4, ng=2,
+            diag_cells=[(0, 0), (1, 1), (2, 2)],
+            sx_sign=sx_sign, sy_sign=sy_sign, seed=77,
+        )
+        psi_x_pre = psi_x.copy()
+        psi_y_pre = psi_y.copy()
+        # SOLVE: update_batch returns ψ̄ and scatters outgoing faces.
+        psi_avg = DiamondDifference().update_batch(slice_args)
+        probe = _probe_field_from_level(slice_args, psi_avg)
+        # Reset the buffers so residual_batch sees the SAME incoming faces.
+        psi_x[...] = psi_x_pre
+        psi_y[...] = psi_y_pre
+        slice_apply = replace(slice_args, psi_avg_probe=probe)
+        # APPLY at the swept ψ̄ — residual must vanish.
+        residual = DiamondDifference().residual_batch(slice_apply)
+        np.testing.assert_allclose(residual, 0.0, atol=1e-13)
+
+    def test_isotropic_Q_round_trip(self):
+        """Round-trip holds with an isotropic-shaped (leading-1) Q too."""
+        slice_args, psi_x, psi_y = _build_slice_kwargs(
+            nx=3, ny=3, N_oct=4, ng=2,
+            diag_cells=[(0, 0), (1, 1), (2, 2)],
+            sx_sign=+1, sy_sign=+1, seed=88,
+            Q_shape_leading=1,
+        )
+        psi_x_pre = psi_x.copy()
+        psi_y_pre = psi_y.copy()
+        psi_avg = DiamondDifference().update_batch(slice_args)
+        probe = _probe_field_from_level(slice_args, psi_avg)
+        psi_x[...] = psi_x_pre
+        psi_y[...] = psi_y_pre
+        slice_apply = replace(slice_args, psi_avg_probe=probe)
+        residual = DiamondDifference().residual_batch(slice_apply)
+        np.testing.assert_allclose(residual, 0.0, atol=1e-13)

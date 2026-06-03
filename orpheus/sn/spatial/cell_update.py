@@ -249,6 +249,20 @@ class SweepCellSlice:
     |                        |                             | coefficient ``2|μ_y|/Δy``      |
     +------------------------+-----------------------------+--------------------------------+
 
+    Apply direction (Wave O #208 O.4b)
+    ----------------------------------
+
+    ``psi_avg_probe`` (shape ``(N_oct, ng, nx, ny)``, default ``None``) is
+    the probe cell-average field consumed by
+    :meth:`CellUpdateBase.residual_batch` — the batched apply-direction
+    analogue of :meth:`update_batch`. It is ``None`` for the solve
+    direction (``update_batch`` does not read it); the matvec's
+    residual-mode graph walk sets it so ``residual_batch`` evaluates the
+    per-cell operator :math:`(L+C)\,\overline\psi - q` at the probe
+    instead of solving for :math:`\overline\psi`. This mirrors the
+    per-cell :meth:`CellUpdate.update` / :meth:`CellUpdate.residual` pair
+    at the batched level.
+
     Mutation semantics
     ------------------
 
@@ -284,6 +298,10 @@ class SweepCellSlice:
     sig_t: np.ndarray
     str_x: np.ndarray
     str_y: np.ndarray
+    # Apply direction only (Wave O #208 O.4b): the probe cell-average
+    # field ``residual_batch`` evaluates the per-cell operator at.
+    # ``None`` for the solve direction (``update_batch`` ignores it).
+    psi_avg_probe: np.ndarray | None = None
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -715,6 +733,64 @@ class CellUpdateBase(RegistryMixin, ABC):
             f"{type(self).__name__} does not implement update_batch. "
             "Override this method to enable the batched 2-D Cartesian "
             "wavefront sweep (Wave 2 / C2.3)."
+        )
+
+    def residual_batch(self, slice_args: SweepCellSlice) -> np.ndarray:
+        r"""Vectorised per-level operator residual — the apply direction.
+
+        The batched **apply-direction analogue of** :meth:`update_batch`,
+        exactly as the per-cell :meth:`residual` is the apply-direction
+        analogue of :meth:`update`. Where ``update_batch`` SOLVES for the
+        cell-average flux on one anti-diagonal level (given source +
+        incoming faces), ``residual_batch`` evaluates the discrete
+        operator residual :math:`(L+C)\,\overline\psi - q` at a PROBE
+        cell-average field (``slice_args.psi_avg_probe``) — needed by the
+        2-D Cartesian matvec ``StreamingOperator.apply`` (Wave O #208
+        O.4b), which routes through the SAME ``SweepDependencyGraph``
+        wavefront walk as the sweep so matvec and sweep are one
+        discretization (L21).
+
+        Default implementation raises :exc:`NotImplementedError`;
+        strategies that override :meth:`update_batch` should override this
+        in lockstep (the two describe the same per-level linear system in
+        solve direction and apply direction).
+
+        Round-trip contract
+        -------------------
+
+        For any level slice whose ``psi_avg_probe`` carries the value
+        ``update_batch`` would return::
+
+            psi_avg  = strategy.update_batch(slice)        # solve
+            slice2   = replace(slice, psi_avg_probe=<psi_avg scattered to cells>)
+            residual = strategy.residual_batch(slice2)     # apply at the solution
+            assert np.allclose(residual, 0.0, atol=1e-13)
+
+        i.e. the residual vanishes at the swept solution — the batched
+        analogue of the per-cell :meth:`residual`/:meth:`update` contract.
+
+        Parameters
+        ----------
+        slice_args :
+            One topological-level packet with ``psi_avg_probe`` set — see
+            :class:`SweepCellSlice` ("Apply direction").
+
+        Returns
+        -------
+        residual :
+            Per-cell residual on this level, shape ``(N_oct, ng,
+            n_diag)``. The caller writes it into the bulk-residual output
+            buffer; outgoing face fluxes are scattered back into
+            ``slice_args.psi_x`` / ``slice_args.psi_y`` in place by
+            ``residual_batch`` itself (the spatial closure
+            :math:`\psi^{\rm out} = 2\overline\psi - \psi^{\rm in}` is
+            applied with the PROBE, propagating edge fluxes downstream
+            exactly as the solve does).
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement residual_batch. "
+            "Override this method to enable the batched 2-D Cartesian "
+            "matvec apply (Wave O #208 O.4b)."
         )
 
 

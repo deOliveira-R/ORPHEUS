@@ -356,5 +356,69 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
 
         return psi_avg
 
+    # ── 2-D Cartesian batched residual — the apply direction (Wave O O.4b) ──
+
+    def residual_batch(self, slice_args: SweepCellSlice) -> np.ndarray:
+        r"""Vectorised DD operator residual for one anti-diagonal level.
+
+        The apply-direction analogue of :meth:`update_batch`: where
+        ``update_batch`` SOLVES the cell balance for :math:`\overline\psi`,
+        ``residual_batch`` evaluates the residual
+
+        .. math::
+
+           r_{i,j} \;=\; (\Sigma_{t,i,j} + s_{x,i} + s_{y,j})\,
+                          \overline\psi^{\rm probe}_{i,j}
+                       \;-\; \bigl(Q_{i,j}
+                              + s_{x,i}\,\psi^{\rm in}_{x,i,j}
+                              + s_{y,j}\,\psi^{\rm in}_{y,i,j}\bigr)
+
+        at the PROBE cell-average ``slice_args.psi_avg_probe`` (NOT the
+        solved value). ``r = (L+C)\,\overline\psi - q``; it vanishes at the
+        swept solution (the round-trip contract on
+        :meth:`CellUpdateBase.residual_batch`). The spatial closure
+        :math:`\psi^{\rm out} = 2\overline\psi^{\rm probe} - \psi^{\rm in}`
+        is scattered into the persistent buffers with the PROBE, so the
+        2-D matvec reconstructs edge fluxes along the wavefront exactly as
+        the sweep does — matvec and sweep are ONE DD discretization (L21).
+
+        Operation-order discipline
+        --------------------------
+
+        ``denom`` and the incoming-face gathers reuse :meth:`update_batch`'s
+        order (``sig_t + sx + sy``; advanced-index gather at the trailing
+        position) so the shared streaming algebra stays a single source of
+        truth. Per ``vv-principles`` Bit-identity vs principled-equivalence,
+        do NOT rearrange for "clarity".
+        """
+        s = slice_args
+        ii, jj = s.ii, s.jj
+
+        # Incoming face fluxes — gathered exactly as update_batch:327-328.
+        psi_in_x = s.psi_x[:, :, s.face_in_x_idx, jj]    # (N_oct, ng, n_diag)
+        psi_in_y = s.psi_y[:, :, ii, s.face_in_y_idx]    # (N_oct, ng, n_diag)
+
+        # Per-octant per-cell streaming coefficients (update_batch:332-333).
+        sx = s.str_x[:, ii][:, None, :]                  # (N_oct, 1, n_diag)
+        sy = s.str_y[:, jj][:, None, :]                  # (N_oct, 1, n_diag)
+
+        sigt_cells = s.sig_t[:, ii, jj]                  # (ng, n_diag)
+        denom = sigt_cells + sx + sy                     # (N_oct, ng, n_diag)
+
+        Q_cells = s.Q[:, :, ii, jj]                       # (N_oct or 1, ng, n_diag)
+        # Probe cell-average on this level (the apply target).
+        psi_bar = s.psi_avg_probe[:, :, ii, jj]          # (N_oct, ng, n_diag)
+
+        residual = denom * psi_bar - (
+            Q_cells + sx * psi_in_x + sy * psi_in_y
+        )                                                 # (N_oct, ng, n_diag)
+
+        # Spatial closure with the PROBE — propagate edges downstream so
+        # the next level's incoming faces are reconstructed from psi_bar.
+        s.psi_x[:, :, s.face_out_x_idx, jj] = 2.0 * psi_bar - psi_in_x
+        s.psi_y[:, :, ii, s.face_out_y_idx] = 2.0 * psi_bar - psi_in_y
+
+        return residual
+
 
 __all__ = ["DiamondDifference"]
