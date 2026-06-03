@@ -392,13 +392,19 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         do NOT rearrange for "clarity".
         """
         s = slice_args
+        if s.psi_avg_probe is None:
+            raise ValueError(
+                "residual_batch is the apply direction and requires "
+                "SweepCellSlice.psi_avg_probe; got None (that is the "
+                "solve-direction default — call update_batch instead)."
+            )
         ii, jj = s.ii, s.jj
 
-        # Incoming face fluxes — gathered exactly as update_batch:327-328.
+        # Incoming face fluxes — gathered exactly as the solve direction.
         psi_in_x = s.psi_x[:, :, s.face_in_x_idx, jj]    # (N_oct, ng, n_diag)
         psi_in_y = s.psi_y[:, :, ii, s.face_in_y_idx]    # (N_oct, ng, n_diag)
 
-        # Per-octant per-cell streaming coefficients (update_batch:332-333).
+        # Per-octant per-cell streaming coefficients (same as the solve).
         sx = s.str_x[:, ii][:, None, :]                  # (N_oct, 1, n_diag)
         sy = s.str_y[:, jj][:, None, :]                  # (N_oct, 1, n_diag)
 

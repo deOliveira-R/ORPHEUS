@@ -358,3 +358,100 @@ class TestApplyMatchesLegacyInlined:
         np.testing.assert_array_almost_equal_nulp(
             scalar_flux, ref_scal, nulp=64,
         )
+
+
+@pytest.mark.l0
+class TestResidualWalkRoundTrip:
+    r"""``graph.residual`` at the value ``graph.apply`` solves is zero — the
+    graph-level apply↔solve contract (matvec == sweep on the SAME DAG).
+
+    This is the D2 gate for Wave O #208 O.4b: the residual-mode walk
+    (the 2-D matvec's engine) and the solve-mode walk (the sweep's engine)
+    share the wavefront DAG + the DiamondDifference closure, so the
+    operator residual of the swept solution vanishes by construction.
+    The same edge-flux reconstruction must run in both directions.
+    """
+
+    @pytest.mark.parametrize("sx,sy", [
+        (+1, +1), (+1, -1), (-1, +1), (-1, -1),
+    ])
+    @pytest.mark.parametrize("nx,ny,ng,N_oct", [
+        (2, 2, 2, 3), (3, 4, 2, 4), (4, 3, 3, 6),
+    ])
+    def test_residual_vanishes_at_apply_solution(
+        self, sx, sy, nx, ny, ng, N_oct,
+    ):
+        rng = np.random.default_rng(
+            seed=7 * (10 * sx + sy + 100) + nx * ny + ng + N_oct,
+        )
+        psi_x = rng.standard_normal((N_oct, ng, nx + 1, ny))
+        psi_y = rng.standard_normal((N_oct, ng, nx, ny + 1))
+        Q = rng.standard_normal((N_oct, ng, nx, ny))
+        sig_t = rng.uniform(0.1, 0.5, size=(ng, nx, ny))
+        str_x = rng.uniform(0.1, 1.0, size=(N_oct, nx))
+        str_y = rng.uniform(0.1, 1.0, size=(N_oct, ny))
+        weights = rng.uniform(0.5, 1.5, size=N_oct)
+
+        graph = SweepDependencyGraph.from_cartesian_2d(
+            nx=nx, ny=ny, label=OctantLabel(sx, sy),
+        )
+
+        # SOLVE: graph.apply forward-substitutes update_batch.
+        ang = np.zeros((N_oct, ng, nx, ny))
+        scal = np.zeros((ng, nx, ny))
+        graph.apply(
+            cell_update=DiamondDifference(),
+            psi_x_octant=psi_x.copy(), psi_y_octant=psi_y.copy(),
+            Q_octant=Q, sig_t=sig_t,
+            str_x_octant=str_x, str_y_octant=str_y,
+            weights_octant=weights,
+            angular_flux_octant=ang, scalar_flux_buf=scal,
+        )
+
+        # APPLY at the swept solution, from a FRESH copy with the SAME
+        # boundary-incoming seeds (apply only scatters outgoing faces).
+        residual = np.zeros((N_oct, ng, nx, ny))
+        graph.residual(
+            cell_update=DiamondDifference(),
+            psi_x_octant=psi_x.copy(), psi_y_octant=psi_y.copy(),
+            psi_avg_probe_octant=ang,
+            Q_octant=Q, sig_t=sig_t,
+            str_x_octant=str_x, str_y_octant=str_y,
+            residual_octant=residual,
+        )
+
+        np.testing.assert_allclose(residual, 0.0, atol=1e-11)
+
+    def test_residual_isotropic_Q_round_trip(self):
+        rng = np.random.default_rng(seed=4242)
+        nx, ny, ng, N_oct = 3, 3, 2, 4
+        psi_x = rng.standard_normal((N_oct, ng, nx + 1, ny))
+        psi_y = rng.standard_normal((N_oct, ng, nx, ny + 1))
+        Q = rng.standard_normal((1, ng, nx, ny))   # isotropic-only
+        sig_t = rng.uniform(0.1, 0.5, size=(ng, nx, ny))
+        str_x = rng.uniform(0.1, 1.0, size=(N_oct, nx))
+        str_y = rng.uniform(0.1, 1.0, size=(N_oct, ny))
+        weights = rng.uniform(0.5, 1.5, size=N_oct)
+        graph = SweepDependencyGraph.from_cartesian_2d(
+            nx=nx, ny=ny, label=OctantLabel(+1, +1),
+        )
+        ang = np.zeros((N_oct, ng, nx, ny))
+        scal = np.zeros((ng, nx, ny))
+        graph.apply(
+            cell_update=DiamondDifference(),
+            psi_x_octant=psi_x.copy(), psi_y_octant=psi_y.copy(),
+            Q_octant=Q, sig_t=sig_t,
+            str_x_octant=str_x, str_y_octant=str_y,
+            weights_octant=weights,
+            angular_flux_octant=ang, scalar_flux_buf=scal,
+        )
+        residual = np.zeros((N_oct, ng, nx, ny))
+        graph.residual(
+            cell_update=DiamondDifference(),
+            psi_x_octant=psi_x.copy(), psi_y_octant=psi_y.copy(),
+            psi_avg_probe_octant=ang,
+            Q_octant=Q, sig_t=sig_t,
+            str_x_octant=str_x, str_y_octant=str_y,
+            residual_octant=residual,
+        )
+        np.testing.assert_allclose(residual, 0.0, atol=1e-11)

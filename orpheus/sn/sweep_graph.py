@@ -259,6 +259,42 @@ class SweepDependencyGraph:
             face_out_y=face_out_y,
         )
 
+    # ── Internal: shared per-level slice builder ────────────────────
+
+    def _make_slice(
+        self,
+        ii: np.ndarray,
+        jj: np.ndarray,
+        *,
+        psi_x: np.ndarray,
+        psi_y: np.ndarray,
+        Q: np.ndarray,
+        sig_t: np.ndarray,
+        str_x: np.ndarray,
+        str_y: np.ndarray,
+        psi_avg_probe: np.ndarray | None = None,
+    ) -> SweepCellSlice:
+        """Build the per-level :class:`SweepCellSlice` for this graph's
+        face-offset convention.
+
+        Shared by :meth:`apply` (solve → ``update_batch``) and
+        :meth:`residual` (apply → ``residual_batch``) so the level +
+        face-index wiring (``face_in_x`` / ``face_out_x`` / …) is a
+        single source of truth — the two walks differ only in their
+        accumulation, not in the slice they build. ``psi_avg_probe`` is
+        ``None`` for the solve direction (``update_batch`` ignores it).
+        """
+        return SweepCellSlice(
+            ii=ii, jj=jj,
+            face_in_x_idx=ii + self.face_in_x,
+            face_out_x_idx=ii + self.face_out_x,
+            face_in_y_idx=jj + self.face_in_y,
+            face_out_y_idx=jj + self.face_out_y,
+            psi_x=psi_x, psi_y=psi_y,
+            Q=Q, sig_t=sig_t, str_x=str_x, str_y=str_y,
+            psi_avg_probe=psi_avg_probe,
+        )
+
     # ── Public API ─────────────────────────────────────────────────
 
     def apply(
@@ -324,12 +360,8 @@ class SweepDependencyGraph:
             Global scalar-flux accumulator.
         """
         for ii, jj in self.levels:
-            slice_args = SweepCellSlice(
-                ii=ii, jj=jj,
-                face_in_x_idx=ii + self.face_in_x,
-                face_out_x_idx=ii + self.face_out_x,
-                face_in_y_idx=jj + self.face_in_y,
-                face_out_y_idx=jj + self.face_out_y,
+            slice_args = self._make_slice(
+                ii, jj,
                 psi_x=psi_x_octant, psi_y=psi_y_octant,
                 Q=Q_octant, sig_t=sig_t,
                 str_x=str_x_octant, str_y=str_y_octant,
@@ -350,6 +382,64 @@ class SweepDependencyGraph:
             # Indices ``ii`` and ``jj`` broadcast naturally with the
             # leading ``:`` (octant) and the second ``:`` (group).
             angular_flux_octant[:, :, ii, jj] = psi_avg
+
+    def residual(
+        self,
+        *,
+        cell_update: CellUpdateBase,
+        psi_x_octant: np.ndarray,            # (N_oct, ng, nx+1, ny) — mutated in place
+        psi_y_octant: np.ndarray,            # (N_oct, ng, nx, ny+1) — mutated in place
+        psi_avg_probe_octant: np.ndarray,    # (N_oct, ng, nx, ny) — the probe (read)
+        Q_octant: np.ndarray,                # (N_oct or 1, ng, nx, ny)
+        sig_t: np.ndarray,                   # (ng, nx, ny)
+        str_x_octant: np.ndarray,            # (N_oct, nx)
+        str_y_octant: np.ndarray,            # (N_oct, ny)
+        residual_octant: np.ndarray,         # (N_oct, ng, nx, ny) — written
+    ) -> None:
+        r"""Walk the topological levels accumulating the operator residual.
+
+        The **apply-direction** companion of :meth:`apply`: where ``apply``
+        forward-substitutes the *solve* (``update_batch``) and reduces to
+        scalar + angular flux, ``residual`` forward-substitutes the *apply*
+        (:meth:`CellUpdateBase.residual_batch`) and writes the per-cell
+        operator residual :math:`(L+C)\,\overline\psi - q` into
+        ``residual_octant``. The 2-D Cartesian matvec
+        ``StreamingOperator.apply`` (Wave O #208 O.4b) drives this so it
+        shares the SAME wavefront DAG + closure as the sweep — matvec and
+        sweep are one discretization (L21), no FD twin path.
+
+        The edge-flux reconstruction is load-bearing: each cell's incoming
+        face flux is the upstream cell's outgoing flux via the diamond
+        closure :math:`\psi^{\rm out} = 2\overline\psi^{\rm probe} -
+        \psi^{\rm in}` (scattered into ``psi_x_octant`` / ``psi_y_octant``
+        by ``residual_batch`` in place, propagated from the seeded boundary
+        inflow along the wavefront). This is exactly why the matvec needs
+        the topological walk rather than a per-cell formula.
+
+        Mutation contract
+        -----------------
+
+        * ``psi_x_octant`` / ``psi_y_octant`` — outgoing face fluxes
+          scattered in place (from the probe). Caller seeds the
+          incoming-face entries (BC apply happens one level up, in the
+          matvec) exactly as for :meth:`apply`.
+        * ``residual_octant`` — written at every level's cells; caller
+          scatters it back into the global bulk-residual buffer keyed by
+          octant indices.
+
+        Parameters mirror :meth:`apply`, with ``psi_avg_probe_octant``
+        (the apply target) replacing the flux-reduction outputs
+        (``weights_octant`` / ``scalar_flux_buf`` / ``angular_flux_octant``).
+        """
+        for ii, jj in self.levels:
+            slice_args = self._make_slice(
+                ii, jj,
+                psi_x=psi_x_octant, psi_y=psi_y_octant,
+                Q=Q_octant, sig_t=sig_t,
+                str_x=str_x_octant, str_y=str_y_octant,
+                psi_avg_probe=psi_avg_probe_octant,
+            )
+            residual_octant[:, :, ii, jj] = cell_update.residual_batch(slice_args)
 
 
 __all__ = [

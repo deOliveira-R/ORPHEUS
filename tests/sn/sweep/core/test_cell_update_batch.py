@@ -438,6 +438,21 @@ class TestResidualBatchClosedForm:
         np.testing.assert_array_equal(psi_x[0, 0, 1, 0], 2 * 6.8 - 4.0)  # 9.6
         np.testing.assert_array_equal(psi_y[0, 0, 0, 1], 2 * 6.8 - 8.0)  # 5.6
 
+    def test_residual_batch_without_probe_raises(self):
+        """Apply direction requires psi_avg_probe — fail loud, not cryptic."""
+        psi_x = np.zeros((1, 1, 2, 1)); psi_y = np.zeros((1, 1, 1, 2))
+        Q = np.array([[[[16.0]]]]); sig_t = np.array([[[2.0]]])
+        str_x = np.array([[3.0]]); str_y = np.array([[5.0]])
+        slice_args = SweepCellSlice(  # psi_avg_probe defaults to None
+            ii=np.array([0]), jj=np.array([0]),
+            face_in_x_idx=np.array([0]), face_out_x_idx=np.array([1]),
+            face_in_y_idx=np.array([0]), face_out_y_idx=np.array([1]),
+            psi_x=psi_x, psi_y=psi_y,
+            Q=Q, sig_t=sig_t, str_x=str_x, str_y=str_y,
+        )
+        with pytest.raises(ValueError, match="psi_avg_probe"):
+            DiamondDifference().residual_batch(slice_args)
+
     def test_residual_off_solution_is_affine(self):
         """A probe shifted by δ from the solution shifts the residual by
         denom·δ — the residual is linear in ψ̄."""

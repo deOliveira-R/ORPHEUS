@@ -722,7 +722,10 @@ class CellUpdateBase(RegistryMixin, ABC):
         -------
         psi_avg :
             Cell-average flux on this level, shape
-            ``(N_oct, n_diag, ng)``. The caller writes ``psi_avg``
+            ``(N_oct, ng, n_diag)`` (Issue #196 PR-INDEX-5 principled
+            layout — ``ng`` before the anti-diagonal axis; matches the
+            implementation comment at ``diamond.py`` and the
+            :meth:`residual_batch` return). The caller writes ``psi_avg``
             into the angular-flux buffer and accumulates into the
             scalar-flux buffer; outgoing face fluxes are scattered
             back into ``slice_args.psi_x`` / ``slice_args.psi_y``
