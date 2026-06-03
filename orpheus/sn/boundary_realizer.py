@@ -78,6 +78,7 @@ from orpheus.geometry.boundary import (
     WhiteBoundary,
 )
 from orpheus.numerics.operator import (
+    BlockRole,
     IdentityOperator,
     IncomingOrdinateMaskTensor,
     LinearOperator,
@@ -104,6 +105,25 @@ if TYPE_CHECKING:
 
 
 __all__ = ["SNBoundaryRealizer", "SNMethodSpace"]
+
+
+def _as_boundary(op: LinearOperator) -> LinearOperator:
+    r"""Stamp a realized boundary law with the :attr:`BlockRole.BOUNDARY` role.
+
+    The realized law is a boundary-block leaf (``A_ss`` only) on the
+    direct-sum transport state ``V = V_bulk ⊕ V_boundary`` — it maps the
+    outflow trace to the inflow trace with no bulk action (Issue #208 /
+    Wave O). The role lives on the INSTANCE (the realized op is a generic
+    numerics primitive — :class:`TensorProductOperator`,
+    :class:`ScaledOperator`, … — that plays the BOUNDARY role only in
+    this realization context), so it is stamped here at the single
+    producer site (``coding-elegance`` Pattern 7). The rank-0 affine
+    ``PrescribedInflow`` source is deliberately NOT stamped: it is the
+    boundary *source* ``q.boundary``, not a linear boundary operator
+    ``B``.
+    """
+    op.block_role = BlockRole.BOUNDARY
+    return op
 
 
 @BoundaryRealizerRegistry.register("SN")
@@ -152,7 +172,7 @@ class SNBoundaryRealizer:
             # to the bare mask's ``apply`` (IdentityOperator.apply
             # returns ``x`` unchanged), so bit-identity with the pre-T.1
             # single-axis form is preserved.
-            return (
+            return _as_boundary(
                 IncomingOrdinateMaskTensor(
                     inflow_indices=method_space.inflow_indices,
                     n_ordinates=quad.N,
@@ -183,8 +203,8 @@ class SNBoundaryRealizer:
                 # with legacy when albedo is exactly 1.0. The fold
                 # ``IdentityOperator.apply(np.take(x, perm, axis=0))``
                 # reduces to ``np.take(x, perm, axis=0)`` — same bytes.
-                return base
-            return ScaledOperator(float(law.albedo), base)
+                return _as_boundary(base)
+            return _as_boundary(ScaledOperator(float(law.albedo), base))
 
         if isinstance(law, WhiteBoundary):
             # Wave T step T.1 — white BC lift to 2-factor
@@ -200,14 +220,14 @@ class SNBoundaryRealizer:
                 & IdentityOperator()
             )
             if law.albedo == 1.0:
-                return base
-            return ScaledOperator(float(law.albedo), base)
+                return _as_boundary(base)
+            return _as_boundary(ScaledOperator(float(law.albedo), base))
 
         if isinstance(law, AlbedoBoundary):
             if law.albedo == 0.0:
-                return ZeroOperator()
+                return _as_boundary(ZeroOperator())
             if law.albedo == 1.0:
-                return IdentityOperator()
+                return _as_boundary(IdentityOperator())
             # Wave T step T.1 — albedo BC lift.  For α ∉ {0,1} the
             # action is uniform attenuation across all axes; lifting
             # the inner identity to a 2-factor TP (I & I) makes the
@@ -215,10 +235,10 @@ class SNBoundaryRealizer:
             # the apply level (both IdentityOperator factors return
             # ``x`` unchanged; the ``ScaledOperator`` wrapper supplies
             # the α multiplication).
-            return ScaledOperator(
+            return _as_boundary(ScaledOperator(
                 float(law.albedo),
                 IdentityOperator() & IdentityOperator(),
-            )
+            ))
 
         if isinstance(law, PeriodicBoundary):
             # Wave T step T.1 — periodic BC lift to 2-factor
@@ -229,7 +249,7 @@ class SNBoundaryRealizer:
             # the matvec output.  When PeriodicWrapOperator gains a
             # non-trivial spatial-pushforward (follow-up issue), the
             # second factor will carry that structure.
-            return PeriodicWrapOperator() & IdentityOperator()
+            return _as_boundary(PeriodicWrapOperator() & IdentityOperator())
 
         if isinstance(law, PrescribedInflow):
             # Wave-7 addition: rank-0 affine source. The operator's

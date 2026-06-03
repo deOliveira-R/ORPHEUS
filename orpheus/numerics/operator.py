@@ -74,6 +74,7 @@ __all__ = [
     "BlockRole",
     "BulkOperator",
     "FullOperator",
+    "BoundaryOperator",
     "MissingCapability",
     "IncompatibleOperatorComposition",
     "OperatorSum",
@@ -133,17 +134,20 @@ class BlockRole(Enum):
       sweep and writes the outflow trace, coupling bulk ↔ boundary. The
       only irreducibly-full primitive.
     * :attr:`BOUNDARY` — only ``A_ss`` (boundary → boundary). A realized
-      boundary law ``B`` (reflective / albedo / white / periodic): it maps
-      the outflow trace to the inflow trace, with no bulk action. ``B``
-      becomes a first-class algebra leaf only when the boundary conditions
-      are extracted from ``L`` (Wave O step O.4); until then ``B`` is
-      absorbed inside the streaming sweep and NO instance carries this
-      role. (The :class:`BulkOperator` / :class:`FullOperator` ``isinstance``
-      markers ship in O.1; the ``BoundaryOperator`` marker lands with O.4.
-      The ``geometry.boundary.BoundaryOperator`` alias — a misnamed
-      re-export of :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` —
-      was retired in Wave O step O.4a.1, freeing the name so it can denote
-      the block-role marker without collision.)
+      boundary law ``B`` (vacuum / reflective / albedo / white / periodic):
+      it maps the outflow trace to the inflow trace, with no bulk action.
+      The :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` stamps
+      this role on its realized outputs (Wave O step O.4a.1-γ). ``B``
+      becomes a first-class algebra leaf — a sibling of ``L`` in
+      ``(L_full + C − S − F − B)`` — when the boundary conditions are
+      extracted from the streaming sweep (Wave O step O.4a.2); until that
+      wiring lands ``B`` carries the role but is still consumed inside the
+      sweep. (The :class:`BulkOperator` / :class:`FullOperator` markers
+      shipped in O.1; the :class:`BoundaryOperator` marker ships in
+      O.4a.1-γ. The ``geometry.boundary.BoundaryOperator`` alias — a
+      misnamed re-export of
+      :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` — was retired
+      in O.4a.1-β, freeing the name for this marker.)
     """
 
     BULK = "bulk"
@@ -154,8 +158,8 @@ class BlockRole(Enum):
 class _BlockRoleMeta(type):
     r"""Metaclass making ``isinstance(op, BulkOperator)`` read ``op.block_role``.
 
-    The role markers (:class:`BulkOperator`, :class:`FullOperator`, and —
-    from O.4 — ``BoundaryOperator``) are never instantiated and carry no
+    The role markers (:class:`BulkOperator`, :class:`FullOperator`,
+    :class:`BoundaryOperator`) are never instantiated and carry no
     state. They exist so the block-role classification reads like the
     domain (``isinstance(L, FullOperator)``) while the single source of
     truth stays the :attr:`~LinearOperatorMixin.block_role` enum on the
@@ -185,6 +189,20 @@ class FullOperator(metaclass=_BlockRoleMeta):
     r"""``isinstance`` marker for a :attr:`BlockRole.FULL` operator (off-diagonal coupling)."""
 
     _role = BlockRole.FULL
+
+
+class BoundaryOperator(metaclass=_BlockRoleMeta):
+    r"""``isinstance`` marker for a :attr:`BlockRole.BOUNDARY` operator (``A_ss`` only).
+
+    The realized boundary laws produced by
+    :meth:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`
+    (vacuum / reflective / white / albedo / periodic) carry
+    :attr:`BlockRole.BOUNDARY`; the rank-0 affine ``PrescribedInflow``
+    source does NOT — it is the boundary *source* ``q.boundary``, not a
+    linear boundary operator ``B``.
+    """
+
+    _role = BlockRole.BOUNDARY
 
 
 class MissingCapability(TypeError):

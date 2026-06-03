@@ -1,24 +1,24 @@
 r"""O.1 (Issue #208 / Wave O) — block-role classification mechanism.
 
 Foundation tests for the bulk/full/boundary operator classification
-introduced in Wave O step O.1: the :class:`~orpheus.numerics.operator.BlockRole`
+introduced in Wave O: the :class:`~orpheus.numerics.operator.BlockRole`
 enum, the value-based ``isinstance``-marker metaclass
 (:class:`~orpheus.numerics.operator.BulkOperator` /
-:class:`~orpheus.numerics.operator.FullOperator`), and the partition +
+:class:`~orpheus.numerics.operator.FullOperator` /
+:class:`~orpheus.numerics.operator.BoundaryOperator`), and the partition +
 ``None``-default semantics.
 
 These pin the MECHANISM on toy / generic operators (no SN fixtures). The
-SN leaf tagging (C/S/F → BULK, L / InvertibleOperator → FULL) lives in
+SN leaf tagging (C/S/F → BULK, L / InvertibleOperator → FULL, the
+realized boundary laws → BOUNDARY) lives in
 ``tests/sn/operators/test_operator_block_role.py``.
 
-The BOUNDARY ``isinstance`` marker is intentionally ABSENT: at O.1 the
-boundary law is absorbed inside the streaming sweep, so no operator
-carries :attr:`BlockRole.BOUNDARY` yet. The marker ships with O.4 (when
-the boundary law ``B`` becomes a first-class algebra leaf and the
-deprecated ``geometry.boundary.BoundaryOperator`` alias — a misnamed
-``BoundaryTraceLaw`` — is disambiguated so the name can denote the
-block-role marker). The enum VALUE exists today (the classification is
-complete); only the marker class waits.
+All three markers ship as of Wave O step O.4a.1-γ: the BULK / FULL
+markers landed in O.1; the BOUNDARY marker landed in O.4a.1-γ once the
+boundary laws ``B`` (``SNBoundaryRealizer.realize`` outputs) became
+first-class operators carrying :attr:`BlockRole.BOUNDARY` and the
+deprecated ``geometry.boundary.BoundaryOperator`` alias was retired
+(O.4a.1-β), freeing the name for the marker.
 """
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ import pytest
 
 from orpheus.numerics.operator import (
     BlockRole,
+    BoundaryOperator,
     BulkOperator,
     FullOperator,
     IdentityOperator,
@@ -61,36 +62,46 @@ class TestIsinstanceMarkers:
         op = _Tagged(BlockRole.BULK)
         assert isinstance(op, BulkOperator)
         assert not isinstance(op, FullOperator)
+        assert not isinstance(op, BoundaryOperator)
 
     def test_full_role_matches_full_marker_only(self) -> None:
         op = _Tagged(BlockRole.FULL)
         assert isinstance(op, FullOperator)
         assert not isinstance(op, BulkOperator)
+        assert not isinstance(op, BoundaryOperator)
+
+    def test_boundary_role_matches_boundary_marker_only(self) -> None:
+        op = _Tagged(BlockRole.BOUNDARY)
+        assert isinstance(op, BoundaryOperator)
+        assert not isinstance(op, BulkOperator)
+        assert not isinstance(op, FullOperator)
 
     def test_none_role_matches_no_marker(self) -> None:
         op = _Tagged(None)
         assert not isinstance(op, BulkOperator)
         assert not isinstance(op, FullOperator)
+        assert not isinstance(op, BoundaryOperator)
 
     def test_object_without_block_role_matches_no_marker(self) -> None:
         # getattr-default: a bare object is never a role marker.
         assert not isinstance(object(), BulkOperator)
         assert not isinstance(object(), FullOperator)
+        assert not isinstance(object(), BoundaryOperator)
 
     def test_isinstance_is_value_based_not_inheritance(self) -> None:
         # _Tagged inherits nothing from the markers; membership is decided
         # solely by the block_role VALUE (the _BlockRoleMeta __instancecheck__).
-        op = _Tagged(BlockRole.FULL)
-        assert FullOperator not in type(op).__mro__
-        assert isinstance(op, FullOperator)
+        op = _Tagged(BlockRole.BOUNDARY)
+        assert BoundaryOperator not in type(op).__mro__
+        assert isinstance(op, BoundaryOperator)
 
     def test_classification_is_a_partition(self) -> None:
         """No single role satisfies more than one marker (exclusivity, vv L11)."""
-        markers = (BulkOperator, FullOperator)
+        markers = (BulkOperator, FullOperator, BoundaryOperator)
         for role in (BlockRole.BULK, BlockRole.FULL, BlockRole.BOUNDARY):
             op = _Tagged(role)
             matched = [m for m in markers if isinstance(op, m)]
-            assert len(matched) <= 1, f"{role} matched {[m.__name__ for m in matched]}"
+            assert len(matched) == 1, f"{role} matched {[m.__name__ for m in matched]}"
 
 
 class TestGenericOperatorsAreUnclassified:
@@ -102,6 +113,7 @@ class TestGenericOperatorsAreUnclassified:
         assert IdentityOperator().block_role is None
         assert not isinstance(IdentityOperator(), BulkOperator)
         assert not isinstance(IdentityOperator(), FullOperator)
+        assert not isinstance(IdentityOperator(), BoundaryOperator)
 
     def test_zero_operator_is_unclassified(self) -> None:
         assert ZeroOperator().block_role is None
@@ -112,3 +124,4 @@ class TestGenericOperatorsAreUnclassified:
         assert s.block_role is None
         assert not isinstance(s, BulkOperator)
         assert not isinstance(s, FullOperator)
+        assert not isinstance(s, BoundaryOperator)

@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **4778**
+Total tests collected: **4790**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1135, 23.8%
-   L1, 922, 19.3%
+   L0, 1135, 23.7%
+   L1, 922, 19.2%
    L2, 36, 0.8%
    L3, 0, 0.0%
-   foundation, 2679, 56.1%
+   foundation, 2691, 56.2%
    unmarked, 6, 0.1%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4693
+   explicit, 4705
    verify, 0
    class-name, 46
    func-name, 0
@@ -241,7 +241,7 @@ Module × level grid
    numerics/test_measure, 0, 16, 0, 0, 32, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_operator, 0, 0, 0, 0, 60, 0
-   numerics/test_operator_protocols, 0, 0, 0, 0, 11, 0
+   numerics/test_operator_protocols, 0, 0, 0, 0, 12, 0
    numerics/test_periodic_wrap_operator, 5, 0, 0, 0, 0, 0
    numerics/test_permutation_operator, 9, 2, 0, 0, 0, 0
    numerics/test_projection_operators, 15, 9, 0, 0, 0, 0
@@ -265,7 +265,7 @@ Module × level grid
    operators/test_invertible_operator, 1, 10, 0, 0, 23, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
-   operators/test_operator_block_role, 0, 0, 0, 0, 5, 0
+   operators/test_operator_block_role, 0, 0, 0, 0, 16, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 16, 0
    operators/test_scattering_operator, 1, 0, 0, 0, 75, 0
    operators/test_sn_boundary_realizer, 0, 20, 0, 0, 0, 0

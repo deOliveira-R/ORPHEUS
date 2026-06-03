@@ -109,6 +109,16 @@ class _BoundBoundaryOperator(LinearOperatorMixin):
     def capabilities(self) -> frozenset[str]:  # type: ignore[override]
         return self.inner.capabilities
 
+    @property
+    def block_role(self):  # type: ignore[override]
+        # Forward the realized law's block-role classification (Issue #208
+        # / Wave O) so ``isinstance(sn_mesh.bc_left, BoundaryOperator)``
+        # reads the inner op's role. The realized boundary laws carry
+        # ``BlockRole.BOUNDARY``; the rank-0 affine PrescribedInflow source
+        # carries ``None`` (it is ``q.boundary``, not a linear ``B``).
+        # ``getattr``-safe: an inner op without the attribute reports None.
+        return getattr(self.inner, "block_role", None)
+
     def apply(self, psi: np.ndarray) -> np.ndarray:
         return self.inner.apply(psi)
 
