@@ -1122,10 +1122,13 @@ def solve_sn(
         converged.boundary if converged is not None
         else _BoundaryFlux.zeros_on(sn_mesh)
     )
-    # 1-D bare sweep only — the 2-D wavefront still applies ``bc`` internally
-    # (O.4b) and ``SNBoundaryOperator`` is not yet wired for the 2-D trace.
-    if sn_mesh.reduced is not None:
-        _reflect_outflow_into_inflow(final_boundary, sn_mesh)
+    # Wave O #208 O.4b Phase E2 — the 2-D wavefront is now BARE (reads the
+    # given inflow, no in-sweep bc.apply), so the reflective coupling is the
+    # external -B for 2-D too.  The guard is lifted: _reflect_outflow_into_inflow
+    # is geometry-agnostic (iterates boundary_flux.layout.faces via the canonical
+    # SNBoundaryOperator — verified 2-D-ready) and idempotent here (the converged
+    # inflow already equals B·ψ.outflow); vacuum stays a no-op (B = 0).
+    _reflect_outflow_into_inflow(final_boundary, sn_mesh)
     angular_flux, _ = transport_sweep(
         AngularSourceSink.from_isotropic(Q_final, sn_mesh),
         solver.mat_xs.total_cross_section, sn_mesh,
@@ -1393,21 +1396,17 @@ def _solve_fixed_source_si(
             )
         else:
             initial_guess = None
-        # Wave O #208 O.4a.2 — BARE sweep (1-D only): reflect the persisted
-        # outflow (``solver._boundary_flux`` outflow slots, from the previous
-        # iteration's sweep) into the inflow slots via −B BEFORE the sweep.
-        # The bare 1-D sweep reads the inflow slots directly; it no longer
+        # Wave O #208 O.4a.2 / O.4b E2 — BARE sweep (1-D AND 2-D): reflect the
+        # persisted outflow (``solver._boundary_flux`` outflow slots, from the
+        # previous iteration's sweep) into the inflow slots via −B BEFORE the
+        # sweep.  The bare sweep reads the inflow slots directly; it no longer
         # re-applies ``bc`` at entry.  (First iteration: outflow = 0 ⟹
         # inflow = B·0 = 0, matching the pre-extraction cold start.)
-        # The 2-D Cartesian wavefront sweep is NOT yet bare (it still applies
-        # ``bc`` internally — O.4b); for it the reflection is redundant AND
-        # ``SNBoundaryOperator`` is not yet wired for the 2-D trace, so skip it.
-        # ``reduced is not None`` is the SAME predicate ``transport_sweep``
-        # dispatches the 1-D-vs-2-D sweep body on (sweep.py: ``is_slab`` /
-        # curvilinear branches vs ``_sweep_2d_wavefront``), so this guard and
-        # the sweep's bare-vs-bc-in-sweep selection cannot drift.
-        if sn_mesh.reduced is not None:
-            _reflect_outflow_into_inflow(solver._boundary_flux, sn_mesh)
+        # O.4b E1 made the 2-D Cartesian wavefront sweep bare too, so the guard
+        # is lifted — ``_reflect_outflow_into_inflow`` is geometry-agnostic
+        # (canonical ``SNBoundaryOperator``, verified 2-D-ready) and vacuum
+        # stays a no-op (B = 0).
+        _reflect_outflow_into_inflow(solver._boundary_flux, sn_mesh)
         angular, phi = transport_sweep(
             source, solver.mat_xs.total_cross_section, sn_mesh,
             solver._boundary_flux,

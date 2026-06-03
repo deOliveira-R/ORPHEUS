@@ -20,7 +20,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import Mesh1D, Mesh2D
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.solver import SNSolver, solve_sn
+from orpheus.sn.solver import SNSolver, solve_sn, _reflect_outflow_into_inflow
 from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
 from orpheus.sn.sweep import transport_sweep
 from tests.sn._test_helpers import SN_TESTS_ROOT
@@ -343,7 +343,14 @@ class TestQuadratureWeightConservation:
 
         boundary_flux = BoundaryFlux.zeros_on(local_sn_mesh)
         src = AngularSourceSink.from_isotropic(Q, local_sn_mesh)
+        # Wave O #208 O.4b E1: the 2-D sweep is now BARE — the reflective
+        # coupling is the EXTERNAL _reflect_outflow_into_inflow applied once
+        # per iteration (mirroring production: _solve_fixed_source_si /
+        # solve_sn), NOT an in-sweep bc.apply.  Without it the bare sweep
+        # reads a zero inflow (vacuum-like) and never reaches the
+        # infinite-medium φ = Q/Σ_t.  Converges to machine precision here.
         for _ in range(200):
+            _reflect_outflow_into_inflow(boundary_flux, local_sn_mesh)
             _, phi = transport_sweep(src, solver.mat_xs.total_cross_section, local_sn_mesh, boundary_flux)
 
         expected = Q / solver.mat_xs.total_cross_section

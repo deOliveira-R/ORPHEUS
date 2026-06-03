@@ -1,4 +1,4 @@
-"""Generate the 2-D octant-sweep equivalence snapshots from LEGACY code.
+"""Generate the 2-D octant-sweep equivalence snapshots.
 
 Run::
 
@@ -7,22 +7,52 @@ Run::
     python -m tests.sn.regression._generate_2d_octant_snapshots --list
 
 Each snapshot writes ``snapshots/2d_octant_equivalence_<case_id>.npz``
-containing (Issue #196 PR-INDEX-5 — principled ``g`` after ``N``):
+containing (Wave O #208 O.4b Phase E — bare-sweep schema):
 
 * ``angular_flux`` — ``(N, ng, nx, ny)`` float64
 * ``scalar_flux`` — ``(ng, nx, ny)`` float64
-* ``psi_x_post`` — ``(N, ng, nx+1, ny)`` float64
-* ``psi_y_post`` — ``(N, ng, nx, ny+1)`` float64
+* ``face_xmin`` — ``(N, ng, ny)`` float64 (post-sweep boundary face view)
+* ``face_xmax`` — ``(N, ng, ny)`` float64
+* ``face_ymin`` — ``(N, ng, nx)`` float64
+* ``face_ymax`` — ``(N, ng, nx)`` float64
 * ``case_id`` — np.array(case.case_id)
 * ``case_description`` — np.array(case.description)
 * ``failure_mode`` — np.array(case.failure_mode)
 * ``generator_commit`` — short SHA
 
-**This script MUST be run on the LEGACY (pre-Wave-2) commit**, before
-the ``_sweep_2d_wavefront`` refactor lands.  The companion test at
-:file:`tests/sn/test_2d_octant_sweep_equivalence.py` then re-runs each
-case against whatever implementation is current and asserts
-bit-for-bit (within ``nulp=64``) agreement.
+Snapshot grounding (Wave O #208 O.4b Phase E migration)
+=======================================================
+
+This script generates from the CURRENT (bare) ``_sweep_2d_wavefront``
+with the external ``_reflect_outflow_into_inflow`` injected before each
+sweep — exactly the production iteration shape, and exactly what the
+companion test at
+:file:`tests/sn/sweep/cartesian_2d/test_2d_octant_sweep_equivalence.py`
+runs.  Both the generator and the test drive the sweep through the SAME
+two helpers — :func:`combine_source` and :func:`run_sweeps`, imported
+below from the test module — so generator and test CANNOT drift
+(coding-elegance Pattern 2, single source of truth).
+
+* Vacuum cases (01/04/06) regenerate bit-identical (within nulp=64) to
+  the previously-committed snapshots: the reflect inject is a provable
+  no-op for ``B = 0``, and the bare sweep ≡ the legacy sweep for zero
+  inflow.  A divergence on regeneration would mean the bare sweep
+  changed the vacuum path — a bug to investigate, NOT to commit.
+* Reflective cases (02/03/05) regenerate to NEW values: the legacy
+  intra-sweep (Gauss-Seidel) reflection was replaced by the inter-sweep
+  (Jacobi-like) external reflect, so the per-sweep values change (same
+  converged fixed point, slower rate).  These NEW values are the
+  migrated baselines, grounded by case 7 (the structurally-independent
+  closed-form reflective anchor in the test module).
+
+Schema migration: the legacy schema stored the full interior-edge
+``psi_x_post`` ``(N, ng, nx+1, ny)`` / ``psi_y_post`` ``(N, ng, nx,
+ny+1)`` arrays (the legacy BoundaryFlux ``xmin_xmax_buf`` /
+``ymin_ymax_buf`` fields).  Those fields no longer exist: the L2
+BoundaryFlux persists ONLY the four boundary face slices; the interior
+edges are EPHEMERAL inside ``_sweep_2d_wavefront``.  The test only ever
+compared the boundary slices, so this script now stores exactly the
+four persisted face views.
 
 Parity with :mod:`tests.sn.regression._generate_snapshots`:
 
@@ -45,13 +75,13 @@ from pathlib import Path
 
 import numpy as np
 
-from tests.sn.test_2d_octant_sweep_equivalence import (
+from tests.sn.sweep.cartesian_2d.test_2d_octant_sweep_equivalence import (
     CASES,
     SNAPSHOT_DIR,
     OctantEquivalenceCase,
     _snapshot_path,
+    run_sweeps,
 )
-from orpheus.sn.sweep import _sweep_2d_wavefront
 
 
 def _git_short_sha() -> str:
@@ -67,32 +97,30 @@ def _git_short_sha() -> str:
 def generate_one(
     case: OctantEquivalenceCase, *, sha: str | None = None,
 ) -> Path:
-    """Run the case under the LEGACY sweep and write the .npz snapshot."""
+    """Run the case under the CURRENT bare sweep + external reflect and write .npz.
+
+    Drives the sweep through :func:`run_sweeps` — the SAME helper the
+    companion test uses — so the generator and the test are guaranteed
+    to produce identical outputs (coding-elegance Pattern 2).  After
+    ``case.n_sweeps`` reflect-then-sweep iterations, the post-sweep
+    boundary face state lives in ``inputs.boundary_flux``; we snapshot
+    the four persisted face views (the cross-iteration stateful link)
+    alongside the final angular / scalar flux.
+    """
     inputs = case.builder()
+    angular_flux, scalar_flux = run_sweeps(inputs, case.n_sweeps)
 
-    # The legacy ``_sweep_2d_wavefront`` mutates the persistent
-    # buffers in-place; we capture the post-sweep buffers so the test
-    # can assert agreement on the stateful output as well as on the
-    # angular/scalar flux.  Issue #197 PR-TYPED-2: the typed
-    # :class:`BoundaryFlux` exposes the two persistent buffers as
-    # ``xmin_xmax_buf`` and ``ymin_ymax_buf``.
-    angular_flux = scalar_flux = None
-    for _ in range(case.n_sweeps):
-        angular_flux, scalar_flux = _sweep_2d_wavefront(
-            inputs.Q, inputs.sig_t, inputs.sn_mesh, inputs.boundary_flux,
-            Q_aniso=inputs.aniso_source,
-        )
-    psi_x_post = inputs.boundary_flux.xmin_xmax_buf
-    psi_y_post = inputs.boundary_flux.ymin_ymax_buf
-
+    bf = inputs.boundary_flux
     SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
     out = _snapshot_path(case.case_id)
 
     payload = dict(
         angular_flux=np.asarray(angular_flux, dtype=np.float64),
         scalar_flux=np.asarray(scalar_flux, dtype=np.float64),
-        psi_x_post=np.asarray(psi_x_post, dtype=np.float64),
-        psi_y_post=np.asarray(psi_y_post, dtype=np.float64),
+        face_xmin=np.asarray(bf.face_view("xmin"), dtype=np.float64),
+        face_xmax=np.asarray(bf.face_view("xmax"), dtype=np.float64),
+        face_ymin=np.asarray(bf.face_view("ymin"), dtype=np.float64),
+        face_ymax=np.asarray(bf.face_view("ymax"), dtype=np.float64),
         case_id=np.array(case.case_id),
         case_description=np.array(case.description),
         failure_mode=np.array(case.failure_mode),
@@ -117,8 +145,8 @@ def generate_all(case_ids: list[str] | None = None) -> list[Path]:
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Generate 2-D octant-sweep equivalence snapshots. "
-            "Run on the LEGACY commit BEFORE the Wave-2 refactor."
+            "Generate 2-D octant-sweep equivalence snapshots from the "
+            "CURRENT bare sweep + external reflect."
         ),
     )
     parser.add_argument(

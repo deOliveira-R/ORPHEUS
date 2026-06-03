@@ -775,9 +775,14 @@ def _sweep_2d_wavefront(
     :attr:`AngularQuadrature.octants`). For each in-plane octant
     :math:`\sigma = (\mathrm{sign}\,\mu_x, \mathrm{sign}\,\mu_y)`:
 
-    1. **BC apply once** on the octant-incoming face(s) — replaces
-       the per-ordinate ``bc.apply(...)[n]`` calls of the legacy
-       implementation (saves ``N`` invocations per sweep).
+    1. **BARE inflow seed** (Wave O #208 O.4b Phase E1) — the
+       octant-incoming face slot is seeded from the GIVEN inflow trace
+       ``boundary_flux.face_view(...)``; there is NO ``bc.apply``. The
+       reflective coupling ``ψ.inflow = B·ψ.outflow`` is delivered
+       externally by ``_reflect_outflow_into_inflow`` / the sibling
+       ``-B`` between sweeps (mirroring the 1-D O.4a.2 bare sweep), so
+       the sweep is the pure bulk solve ``ψ = (L+C)^{-1} q`` reading the
+       inflow as a fixed boundary datum.
     2. **Dispatch to ``SNMesh.sweep_graphs[OctantLabel(σ)]``** —
        the per-octant ``SweepDependencyGraph`` precomputed once at
        mesh construction (Wave 2 / C2.4).
@@ -839,14 +844,16 @@ def _sweep_2d_wavefront(
     # ``ymin_ymax_buf`` 4-D arrays conflated boundary + interior; that
     # conflation now dissolves.
     #
-    # Reflective-BC partner-flux state still persists between sweep
-    # calls — the boundary slots (positions 0 / nx along sweep) carry
-    # it.  At entry: seed local interior arrays from boundary slots.
-    # At exit: write boundary slots back to the L2 face views.
+    # BARE boundary handling (Wave O #208 O.4b Phase E1): the boundary
+    # slots carry the GIVEN inflow trace (reflected from the previous
+    # iteration's outflow by the external ``_reflect_outflow_into_inflow``
+    # / sibling ``-B``, NOT by an in-sweep ``bc.apply``).  At entry: seed
+    # local interior arrays from the given boundary slots.  At exit: write
+    # the raw outflow back to the L2 face views (no reflection).
     psi_x = np.zeros((N, ng, nx + 1, ny))  # ephemeral interior cache
     psi_y = np.zeros((N, ng, nx, ny + 1))
-    # Seed boundary slots from the persistent L2 buffer (partner-flux
-    # state from the previous iteration).
+    # Seed boundary slots from the persistent L2 buffer (the given inflow
+    # trace; outflow slots are overwritten by the wavefront walk).
     psi_x[:, :, 0, :] = boundary_flux.face_view("xmin")    # (N, ng, ny)
     psi_x[:, :, nx, :] = boundary_flux.face_view("xmax")   # (N, ng, ny)
     psi_y[:, :, :, 0] = boundary_flux.face_view("ymin")    # (N, ng, nx)
@@ -889,26 +896,13 @@ def _sweep_2d_wavefront(
         sy_eff = +1 if sy == 0 else sy
         sweep_graph = sn_mesh.sweep_graphs[OctantLabel(sx_eff, sy_eff)]
 
-        # ── BC apply once per octant ───────────────────────────────
+        # ── NO bc.apply (bare sweep, O.4b Phase E1) ────────────────
         #
-        # Under principled layout the BC operator consumes a
-        # ``(N, ng_axis_2)`` face block.  Slice the face slot, then
-        # transpose to ``(N, ng_axis_2)`` for the BC's ordinate-leading
-        # contract.  ``bc.apply`` returns the same shape; transpose back.
-        if sx_eff >= 0:
-            full_face_x = sn_mesh.bc_xmin.apply(psi_x[:, :, 0, :])
-            psi_x[oct_idx, :, 0, :] = full_face_x[oct_idx]
-        else:
-            full_face_x = sn_mesh.bc_xmax.apply(psi_x[:, :, nx, :])
-            psi_x[oct_idx, :, nx, :] = full_face_x[oct_idx]
-
-        if sy_eff >= 0:
-            full_face_y = sn_mesh.bc_ymin.apply(psi_y[:, :, :, 0])
-            psi_y[oct_idx, :, :, 0] = full_face_y[oct_idx]
-        else:
-            full_face_y = sn_mesh.bc_ymax.apply(psi_y[:, :, :, ny])
-            psi_y[oct_idx, :, :, ny] = full_face_y[oct_idx]
-
+        # The octant-incoming face slots (seeded above from the GIVEN
+        # inflow trace) ARE the inflow — the octant's ordinates on its
+        # incoming face are exactly its inflow ordinates.  The reflective
+        # coupling is the external ``_reflect_outflow_into_inflow`` / -B,
+        # not an in-sweep reflection.
         # ── Per-octant buffers for the graph apply ────────────────
         psi_x_oct = psi_x[oct_idx].copy()    # (N_oct, ng, nx+1, ny)
         psi_y_oct = psi_y[oct_idx].copy()    # (N_oct, ng, nx, ny+1)
@@ -939,8 +933,10 @@ def _sweep_2d_wavefront(
     # The ephemeral local ``psi_x`` / ``psi_y`` carry the full sweep
     # state including boundary AND interior partition faces; only the
     # BOUNDARY slots persist across sweep calls (interior is rebuilt
-    # next time).  Push the boundary slots back to the L2 writable
-    # face views so the next call's BC-apply sees this call's outflow.
+    # next time).  Push the boundary slots back to the L2 writable face
+    # views: the inflow ordinate slots keep the given seed; the outflow
+    # ordinate slots carry this call's RAW outflow (no reflection — the
+    # external -B / _reflect_outflow_into_inflow closes the loop).
     boundary_flux.face_view("xmin")[:] = psi_x[:, :, 0, :]
     boundary_flux.face_view("xmax")[:] = psi_x[:, :, nx, :]
     boundary_flux.face_view("ymin")[:] = psi_y[:, :, :, 0]

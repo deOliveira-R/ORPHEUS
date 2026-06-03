@@ -1,116 +1,153 @@
-r"""TESTS-FIRST equivalence harness for the 2-D octant sweep refactor.
+r"""Per-sweep semantic-contract harness for the 2-D bare octant sweep.
 
-This file is the C2.5 gate of Wave 2 of the SN-performance plan
-(``transient-giggling-cake.md``).  It pins the **per-sweep semantic
-contract** of :func:`orpheus.sn.sweep._sweep_2d_wavefront` against
-frozen-reference snapshots captured **from the legacy (still
-loop-based) implementation** before the refactor lands.
+This file pins the **per-sweep semantic contract** of
+:func:`orpheus.sn.sweep._sweep_2d_wavefront` against frozen-reference
+snapshots.  It began life as the C2.5 gate of Wave 2 (the
+loop-to-graph octant refactor) capturing snapshots from the legacy
+loop-based sweep; it was MIGRATED at Wave O #208 O.4b Phase E when the
+2-D sweep was made **bare** (the snapshots now descend from the
+current bare code, with case 7 as the structurally-independent
+anchor — see "Snapshot grounding" below).
 
-Architectural context
-=====================
+Architectural context — the BARE sweep + external reflect
+=========================================================
 
-Wave 2 replaces the inner ``for n in range(N)`` loop in
-:func:`_sweep_2d_wavefront` with a per-octant ``SweepDependencyGraph``
-that vectorises the ordinate axis internally::
+Wave 2 had already replaced the inner ``for n in range(N)`` loop with
+a per-octant ``SweepDependencyGraph`` that vectorises the ordinate
+axis internally.  Wave O #208 O.4b Phase E then made the sweep
+**bare**: it no longer applies ``bc.apply`` at octant entry.  The
+sweep now:
 
-    legacy:                              new:
-    for n in range(N):                   for octant in quad.octants:
-        BC apply for n                       BC apply ONCE per octant
-        for diag in diags:                   sweep_graph.apply(...)
-            DD update                        # vectorised over (N_oct, n_diag, ng)
-            scalar_flux += w[n] * psi_avg
+* **seeds** each boundary edge slot from the GIVEN inflow trace
+  (``boundary_flux.face_view("xmin"/...)``), and
+* **persists** the RAW outflow back to those face views at exit (no
+  in-sweep reflection).
 
-The harness MUST detect every wrong-but-plausible regression the new
-architecture creates.  The seven failure modes designed for here map
-onto :doc:`/.claude/skills/vv-principles/SKILL.md` AI failure modes
-1-6 + the L7 BC-apply-once-per-octant trap that the architecture
-itself creates:
+The reflective coupling ``ψ.inflow = B·ψ.outflow`` is delivered
+EXTERNALLY by :func:`orpheus.sn.solver._reflect_outflow_into_inflow`
+— a module-level, geometry-agnostic helper that uses the canonical
+``SNBoundaryOperator`` — called ONCE per source iteration BEFORE each
+sweep.  This harness mirrors production: it injects
+``_reflect_outflow_into_inflow`` before every ``_sweep_2d_wavefront``
+(see :func:`run_sweeps`).  For vacuum ``B = 0`` so the inject is a
+no-op (the vacuum cases stay bit-identical to the legacy snapshots).
 
-1. **L7-trap (BC-apply-once-per-octant).**  Legacy code re-applies BC
-   per ordinate.  New code applies BC once per octant.  If the new
-   code accidentally re-applies BCs at every topological level (or at
-   every ordinate within an octant), the **reflective-BC** boundary
-   buffers get over-written and the sweep output drifts.  Surfaced by
-   case 3 (mixed reflective + vacuum BCs with non-zero initial
-   reflective-buffer content — the L7 mode is invisible if both
-   buffers start at zero).
-2. **Per-octant anti-diagonal coverage.**  Every cell visited exactly
-   once per octant.  Surfaced by every case (the bit-identity
-   contract requires it).
-3. **Pure-z ordinate handling.**  Ordinates with
+**The L7-trap (BC-apply-once-per-octant / intra-sweep ordering,
+ERR-003) is RETIRED.**  The legacy in-sweep reflection was
+*intra-sweep* (Gauss-Seidel-like: within one sweep, a later octant's
+``bc.apply`` read an earlier octant's fresh outflow), and the L7
+failure mode lived in mis-ordering those in-sweep reads.  The bare
+sweep has NO in-sweep BC, so that ordering mode no longer exists.
+The external reflect is *inter-sweep* (Jacobi-like: reflect the
+previous iteration's persisted outflow before the whole sweep) — same
+converged fixed point as the legacy intra-sweep coupling, slower
+rate, and DIFFERENT per-sweep values for reflective configs (which is
+why cases 2/3/5 carry NEW migrated baselines, not legacy-inherited
+ones).
+
+Active failure modes (post-migration)
+======================================
+
+The harness still gates the wrong-but-plausible regressions that
+survive the bare refactor.  Mapping onto
+:doc:`/.claude/skills/vv-principles/SKILL.md` AI failure modes:
+
+1. **Per-octant anti-diagonal coverage.**  Every cell visited exactly
+   once per octant.  Surfaced by every case.
+2. **Pure-z ordinate handling.**  Ordinates with
    ``|μ_x| < 1e-15 AND |μ_y| < 1e-15`` (Lebedev order 5 has two:
    ``(0,0,±1)``).  Surfaced by case 6.
-4. **Multi-group + heterogeneous (vv-principles anti-pattern #4).**
+3. **Multi-group + heterogeneous (vv-principles anti-pattern #4).**
    Flat flux nulls every redistribution and weight-cancellation term;
    asymmetric multi-group + heterogeneous is the canonical stressor.
-   Surfaced by cases 3, 4, 5.
-5. **Q_aniso branch.**  Per-ordinate anisotropic source.  Surfaced by
-   case 5.
-6. **Reduction-tree drift.**  ``np.einsum("nh,n->h", ...)`` reduction
-   order vs the legacy ``for n: scalar_flux += w[n] * psi[n]``.  Drift
-   bounded by ``N × ULP``; for the worst case here (Lebedev order 5,
-   N=14) ≤ ~1e-15.  Tolerance pinned to ``nulp=64`` (worst-case
-   ~1.4e-14) for the bit-identity-class assertions.
+   Surfaced by cases 3, 4, 5.  (Verified active post-migration: the
+   group fluxes are asymmetric — group0/group1 mean ratios ≈ 1.6
+   (case 3) / ≈ 2.6 (case 5) — so the multi-group redistribution is
+   genuinely exercised, NOT nulled by the reflect inject.)
+4. **Q_aniso branch.**  Per-ordinate anisotropic source.  Surfaced by
+   case 5.  (Verified active post-migration: zeroing the aniso source
+   changes the case-5 output by ~0.13 in scalar flux, so the
+   anisotropic branch is genuinely exercised.)
+5. **Reduction-tree drift.**  ``np.einsum`` reduction order vs the
+   legacy ``for n: scalar_flux += w[n] * psi[n]``.  Drift bounded by
+   ``N × ULP``; worst case here (Lebedev order 5, N=14) ≤ ~1e-15.
+   Tolerance pinned to ``nulp=64`` (~1.4e-14) for the bit-identity-
+   class assertions.
+6. **Bare-sweep + external-reflect inter-sweep contract.**  Cases 2/3/5
+   run two sweeps with the external reflect injected before each.  If
+   a refactor drops the bare-seed-from-inflow / persist-raw-outflow
+   contract, or mis-couples the external reflect, the reflective-BC
+   per-sweep values diverge from the migrated baselines.  This is the
+   structural successor of the retired L7 row: it pins the bare
+   contract instead of the (now non-existent) intra-sweep ordering.
 7. **Quadrature-dependent normalisation (Signature 4 / ERR-004 /
    ERR-025).**  ``Σ w`` differs across quadrature families.  Surfaced
    by case 7 (closed-form anchor: φ = Q/Σ_t under all-reflective +
    uniform Q + uniform Σ_t for ANY quadrature whose ``Σ w`` matches
-   the convention used in the sweep's ``weight_norm`` factor).
+   the convention used in the sweep's normalisation).
 
-Snapshot generation
-===================
+Snapshot generation + grounding
+================================
 
 Snapshots live at ``tests/sn/regression/snapshots/
 2d_octant_equivalence_<case_id>.npz``.  They are generated by
 :mod:`tests.sn.regression._generate_2d_octant_snapshots` against the
-LEGACY implementation, then frozen in the repo.  This test file
-re-runs each case against whatever implementation is currently in
-``orpheus.sn.sweep`` and asserts bit-for-bit (within ``nulp=64``)
-agreement.
+CURRENT (bare) ``_sweep_2d_wavefront`` (with the external reflect
+injected, identically to this test), then frozen in the repo.  This
+test file re-runs each case and asserts bit-for-bit (within
+``nulp=64``) agreement.
+
+Both the generator and this test drive the sweep through the SAME two
+helpers — :func:`combine_source` (the ``/sum_w`` per-ordinate
+projection) and :func:`run_sweeps` (the reflect-inject + sweep loop)
+— so generator and test CANNOT drift (coding-elegance Pattern 2,
+single source of truth).
 
 Generation protocol::
 
-    # On the LEGACY commit (BEFORE the refactor lands):
     python -m tests.sn.regression._generate_2d_octant_snapshots
-    # Commit the snapshots.
-    # On the refactor branch: this test re-runs each case and gates
-    # the refactor against bit-equality with the snapshots.
+    # Commit the snapshots.  Re-run this test to gate.
+
+**Snapshot grounding (vv-principles — snapshot inheritance from new
+code needs an independent anchor).**  The reflective snapshots
+(cases 2/3/5) are now inherited from the CURRENT (bare) code, NOT
+from verified legacy code.  This is acceptable because:
+
+  (i) the vacuum cases (1/4/6) retain legacy-bit-identity inheritance
+      — the reflect inject is a provable no-op for ``B = 0``, so a
+      bare-sweep-changed-vacuum bug would surface as a snapshot
+      mismatch on regeneration;
+ (ii) case 7 is the structurally-independent closed-form anchor for
+      the reflective configuration (φ = (diag Σ_t − Σ_s^T)^{-1} Q via
+      ``numpy.linalg.solve``, NOT a snapshot) — it proves the bare
+      sweep + external reflect converges to the analytically correct
+      reflective fixed point;
+(iii) the reflective cases still catch coverage / multi-group-het /
+      Q_aniso / reduction-drift regressions (the active modes above),
+      which is the per-sweep contract they exist to pin.
 
 Tolerance choices
 =================
 
 * Snapshot-bit-identity cases (1-6): ``nulp=64``.  Worst case is
-  Lebedev order 5 (N=14); reduction-tree drift is ``N × ULP ≈ 14 ×
-  2.22e-16 ≈ 3.1e-15``.  ``nulp=64`` (~1.4e-14) absorbs this with a
-  ~4× margin while still catching any algorithmic drift > N × ULP.
-* Closed-form anchor (case 7): ``rtol=1e-14, atol=0``.  Reflective +
-  uniform Q + uniform Σ_t makes φ = Q/Σ_t exact under DD; the
-  iterative-solver convergence floor governs (the sweep alone does
-  NOT converge to the equilibrium — only ``solve_sn_fixed_source``
-  does, so case 7 is asserted on the converged value).
-
-The L1 closed-form anchor (case 7) is what makes this harness more
-than a self-consistency gate: it provides structurally-independent
-grounding (an analytical reference, not an inheritance from the
-legacy code).  Cases 1-6 are L1 + regression (regressions are
-inheritance from the legacy implementation; case 7 is the
-analytical anchor that proves the legacy implementation was itself
-correct on at least one verified configuration).
+  Lebedev order 5 (N=14); reduction-tree drift ``N × ULP ≈ 3.1e-15``.
+  ``nulp=64`` (~1.4e-14) absorbs this with a ~4× margin while still
+  catching algorithmic drift > N × ULP.
+* Closed-form anchor (case 7): ``rtol=1e-7, atol=1e-8``.  The bare
+  sweep + external reflect converges to φ = (diag Σ_t − Σ_s^T)^{-1} Q;
+  the SI iteration-floor governs (see the case-7 docstring).
 
 V&V tags
 ========
 
 Per :doc:`/.claude/skills/vv-principles/SKILL.md`:
 
-* ``@pytest.mark.l1`` — equation-level claim (sum-of-tensor-products
-  streaming form, §15A.2).  Closed-form anchor case 7 grounds this
-  with an analytical reference; bit-identity cases 1-6 inherit
-  from the verified legacy code.
+* ``@pytest.mark.l1`` — equation-level claim on the 2-D bare wavefront
+  sweep.  Closed-form anchor case 7 grounds this with an analytical
+  reference; vacuum cases 1/4/6 inherit bit-identity from the verified
+  legacy code; reflective cases 2/3/5 pin the migrated bare contract.
 * ``@pytest.mark.regression`` — opt-in gate that runs only when SN
   module files are touched (matches existing snapshot tests).
-* ``@pytest.mark.catches("ERR-003")`` — case 3's mixed-BC mode
-  reproduces the ERR-003 failure family (reflective-BC ordering
-  drift under ordinate batching).
 """
 
 from __future__ import annotations
@@ -127,7 +164,10 @@ from orpheus.geometry import BC, Mesh2D
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.solver import solve_sn_fixed_source
+from orpheus.sn.solver import (
+    _reflect_outflow_into_inflow,
+    solve_sn_fixed_source,
+)
 from orpheus.sn.sweep import _sweep_2d_wavefront
 from tests.sn._test_helpers import placeholder_materials
 
@@ -144,15 +184,28 @@ SNAPSHOT_DIR = SN_TESTS_ROOT / "regression" / "snapshots"
 
     snapshots/2d_octant_equivalence_<case_id>.npz
 
-with payload keys (Issue #196 PR-INDEX-5 — principled layout):
+with payload keys (Wave O #208 O.4b Phase E — bare-sweep schema):
 
 * ``angular_flux`` — ``(N, ng, nx, ny)`` float64
 * ``scalar_flux`` — ``(ng, nx, ny)`` float64
-* ``psi_x_post`` — ``(N, ng, nx+1, ny)`` float64 (post-sweep BC buffer)
-* ``psi_y_post`` — ``(N, ng, nx, ny+1)`` float64 (post-sweep BC buffer)
+* ``face_xmin`` — ``(N, ng, ny)`` float64 (post-sweep boundary face view)
+* ``face_xmax`` — ``(N, ng, ny)`` float64
+* ``face_ymin`` — ``(N, ng, nx)`` float64
+* ``face_ymax`` — ``(N, ng, nx)`` float64
 * ``case_id`` — string
 * ``case_description`` — string
 * ``generator_commit`` — short SHA
+
+Schema change (Phase E migration): the legacy schema stored the full
+interior-edge ``psi_x_post`` ``(N, ng, nx+1, ny)`` /
+``psi_y_post`` ``(N, ng, nx, ny+1)`` buffers (the legacy BoundaryFlux
+``xmin_xmax_buf`` / ``ymin_ymax_buf`` fields).  Post-D-G the L2
+:class:`BoundaryFlux` persists ONLY the four boundary face slices; the
+interior edges are EPHEMERAL inside ``_sweep_2d_wavefront`` and are no
+longer recoverable.  The test never read the interior edges (it always
+sliced the legacy snapshot at the boundary edges and compared to the
+L2 face views), so the new schema stores exactly what is persisted and
+compared — the four face views — and nothing more.
 """
 
 # ═══════════════════════════════════════════════════════════════════
@@ -268,6 +321,78 @@ def _empty_boundary_flux(sn_mesh: SNMesh) -> "BoundaryFlux":
 
 
 # ═══════════════════════════════════════════════════════════════════
+# Shared sweep drivers — single source of truth for test + generator
+# ═══════════════════════════════════════════════════════════════════
+#
+# coding-elegance Pattern 2: the source-combination (the ``/sum_w``
+# per-ordinate projection) and the reflect-inject + sweep loop are the
+# math that BOTH this test driver and the snapshot generator must run
+# IDENTICALLY.  Factoring them into two helpers imported by the
+# generator guarantees the two paths cannot drift (a divergence here
+# would be a generator-vs-test bug, not a sweep bug — exactly the
+# habitat coding-elegance Pattern 2 closes).
+
+
+def combine_source(inputs: "OctantEquivalenceInputs") -> np.ndarray:
+    r"""Project the case's iso + optional aniso source to per-ordinate density.
+
+    Wave O #208 O.4a/O.4b: ``_sweep_2d_wavefront`` takes a single
+    per-ordinate source ``Q`` of shape ``(N, ng, nx, ny)`` and does NOT
+    apply ``/W`` internally — the producer normalises at the apply
+    boundary (coding-elegance Pattern 7).  This helper IS that producer
+    for the harness: it broadcasts the isotropic scalar ``inputs.Q``
+    ``(ng, nx, ny)`` across the ``N`` ordinates, adds the per-ordinate
+    anisotropic source (if any), and divides by ``Σ w`` once.
+
+    The combination is the canonical ``(iso_broadcast + aniso) / sum_w``
+    (or ``iso_broadcast / sum_w`` when ``aniso`` is ``None``), returned
+    C-contiguous so the sweep's per-octant slicing is view-clean.
+    """
+    sum_w = float(inputs.sn_mesh.quad.weights.sum())
+    N = inputs.sn_mesh.quad.N
+    ng, nx, ny = inputs.Q.shape
+    iso_broadcast = np.broadcast_to(inputs.Q[None, :, :, :], (N, ng, nx, ny))
+    if inputs.aniso_source is not None:
+        Q_combined = (iso_broadcast + inputs.aniso_source) / sum_w
+    else:
+        Q_combined = iso_broadcast / sum_w
+    return np.ascontiguousarray(Q_combined)
+
+
+def run_sweeps(
+    inputs: "OctantEquivalenceInputs", n_sweeps: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Drive the BARE 2-D sweep ``n_sweeps`` times, mirroring production.
+
+    Wave O #208 O.4b Phase E: the 2-D ``_sweep_2d_wavefront`` is BARE —
+    it seeds boundary edges from the given inflow trace and persists the
+    raw outflow; it applies NO in-sweep ``bc``.  The reflective coupling
+    ``ψ.inflow = B·ψ.outflow`` is the EXTERNAL
+    :func:`orpheus.sn.solver._reflect_outflow_into_inflow`, applied ONCE
+    per source iteration BEFORE each sweep (inter-sweep, Jacobi-like).
+    Production (``_solve_fixed_source_si`` and the ``solve_sn``
+    reconstruction sweep) calls it identically.
+
+    This helper replicates that loop EXACTLY: reflect-inject, then sweep,
+    ``n_sweeps`` times, sharing the persistent ``inputs.boundary_flux``.
+    The inject is injected UNCONDITIONALLY (cleanest; for vacuum
+    ``B = 0`` it is a provable no-op, so vacuum cases stay bit-identical
+    to the legacy snapshots).  Returns the FINAL sweep's
+    ``(angular_flux, scalar_flux)``; the final post-sweep boundary face
+    state lives in ``inputs.boundary_flux`` (the caller reads the four
+    face views from there).
+    """
+    Q_combined = combine_source(inputs)
+    angular_flux = scalar_flux = None
+    for _ in range(n_sweeps):
+        _reflect_outflow_into_inflow(inputs.boundary_flux, inputs.sn_mesh)
+        angular_flux, scalar_flux = _sweep_2d_wavefront(
+            Q_combined, inputs.sig_t, inputs.sn_mesh, inputs.boundary_flux,
+        )
+    return angular_flux, scalar_flux
+
+
+# ═══════════════════════════════════════════════════════════════════
 # Case registry — every parametrised case the harness exercises
 # ═══════════════════════════════════════════════════════════════════
 
@@ -286,28 +411,29 @@ class OctantEquivalenceCase:
     """The vv-principles AI failure mode # (1-7) this row gates against."""
 
     builder: Callable[[], "OctantEquivalenceInputs"]
-    """Builder closure producing the SNMesh + Q + Q_aniso + psi_bc."""
+    """Builder closure producing the SNMesh + Q + Q_aniso + boundary_flux."""
 
     nulp: int = 64
     """Tolerance budget — see file docstring."""
 
     n_sweeps: int = 1
-    """Number of consecutive sweeps to run (sharing psi_bc).
+    """Number of consecutive sweeps to run (sharing boundary_flux).
 
-    L7-trap detection (case 3, case 5) uses ``n_sweeps=2``: the first
-    sweep equilibrates the reflective-BC buffer, the second sweep then
-    READS the equilibrated buffer at BC application time.  If a
-    refactor accidentally re-applies BCs per topological level, the
-    second sweep's BC-buffer reads will diverge from the legacy
-    once-per-ordinate read pattern, surfacing as drift in the
-    second-sweep outputs.
+    Reflective cases (2, 3, 5) use ``n_sweeps=2`` to exercise the
+    INTER-SWEEP external-reflect iteration (Wave O #208 O.4b Phase E).
+    The first sweep persists a raw outflow trace; the second sweep's
+    pre-sweep ``_reflect_outflow_into_inflow`` reads that persisted
+    outflow and seeds the reflected inflow, so the second sweep is the
+    one that actually consumes the reflective coupling.  A single sweep
+    on a fresh zero boundary would null the reflective path (the
+    reflect inject has nothing to reflect on the first iteration); only
+    the second sweep reads what the first wrote back.
 
-    Single-sweep cases would NOT detect L7-bugs in this codebase
-    because the legacy sweep's per-ordinate ``BC.apply`` happens at
-    the very start of each ordinate's iteration, before the buffer
-    has been written by anything in the current sweep — so seeding
-    pre-sweep is overwritten by the same-sweep flow.  Only the
-    second sweep can read what the first sweep wrote.
+    (Historical note: the legacy intra-sweep ``bc.apply`` made this a
+    Gauss-Seidel coupling and the second sweep amplified the now-retired
+    L7 intra-sweep-ordering mode.  The bare sweep's external reflect is
+    Jacobi-like; ``n_sweeps=2`` still exercises the reflective coupling
+    — it is the first iteration on which the inject is non-trivial.)
     """
 
 
@@ -366,15 +492,22 @@ def _case_1_smoke() -> OctantEquivalenceInputs:
 def _case_2_reflective() -> OctantEquivalenceInputs:
     """All-reflective BCs, 1G homogeneous, uniform Q (TWO sweeps).
 
-    Failure mode coverage: BC-apply-once-per-octant on a
-    reflective-only boundary.  Unlike case 3 (mixed BC, fixed-points
-    in 1 sweep), the all-reflective configuration does NOT reach a
-    fixed point in 1 sweep — the second sweep's ``scalar_flux`` is
-    measurably different (~0.4 in absolute magnitude in this
-    configuration) from the first sweep's because every face is
-    reflective and the iteration accumulates flux globally.  This
-    makes BOTH ``scalar_flux`` AND ``psi_x_post`` / ``psi_y_post``
-    sensitive to L7-trap regressions on this case.
+    Failure mode coverage: the bare-sweep + external-reflect
+    inter-sweep contract on a reflective-only boundary (failure mode
+    #6).  The all-reflective configuration does NOT reach a fixed point
+    in two sweeps — the second sweep's ``scalar_flux`` is measurably
+    different from the first because every face is reflective and the
+    inter-sweep ``_reflect_outflow_into_inflow`` accumulates flux
+    globally.  This makes BOTH ``scalar_flux`` AND the four persisted
+    boundary face views sensitive to a dropped/mis-coupled external
+    reflect or a broken bare seed-from-inflow / persist-raw-outflow
+    contract.
+
+    (The migrated baseline is the bare-sweep + external-reflect
+    two-sweep output, NOT the legacy intra-sweep value — the per-sweep
+    values differ because the coupling moved from Gauss-Seidel
+    in-sweep to Jacobi inter-sweep; the converged fixed point is the
+    same, anchored by case 7.)
     """
     sn_mesh = _build_sn_mesh(
         nx=3, ny=3,
@@ -391,35 +524,33 @@ def _case_2_reflective() -> OctantEquivalenceInputs:
     )
 
 
-# ─── case-3 — L7-TRAP — mixed BC, 2G asymmetric, heterogeneous ──────
+# ─── case-3 — mixed BC, 2G asymmetric, heterogeneous ────────────────
 
 
-def _case_3_l7_trap() -> OctantEquivalenceInputs:
+def _case_3_mixed_bc_het() -> OctantEquivalenceInputs:
     """Mixed BC (refl L+B, vac R+T), 2G asymmetric, heterogeneous.
 
-    Failure mode coverage: L7-TRAP detection via the ``psi_x_post`` /
-    ``psi_y_post`` bit-identity assertions on a mixed-BC,
-    multi-material, multi-group configuration.  Specifically:
+    Failure mode coverage: the bare-sweep + external-reflect
+    inter-sweep contract (failure mode #6) on a mixed-BC,
+    multi-material, multi-group configuration, plus the multi-group
+    heterogeneous redistribution (mode #3) and SigS-convention (mode
+    convention-drift) modes that the asymmetric 2G A|B split surfaces.
 
-    The wavefront sweep on this configuration reaches a fixed point
-    in 1 sweep — the ``scalar_flux`` is deterministic on the FIRST
-    sweep call regardless of psi_bc state, because intra-sweep
-    ordinate ordering already gives forward-x access to backward-x's
-    converged outgoing flux.  However the **post-sweep** psi_bc state
-    IS sensitive to BC-application ordering: a refactor that applies
-    BC for an octant BEFORE the octant containing the reflected
-    ordinate has been processed would read uninitialized (zero) face
-    flux instead of the legacy "post-reflected-ordinate" flux,
-    yielding a different ``psi_x_post`` / ``psi_y_post``.  The
-    snapshot assertions on those two buffers are therefore the
-    primary L7-trap detector for case 3.
+    Bare-sweep semantics (Wave O #208 O.4b Phase E): the sweep seeds
+    its reflective edges (xmin/ymin) from the GIVEN inflow trace and
+    persists the raw outflow; the reflective coupling is the EXTERNAL
+    ``_reflect_outflow_into_inflow`` applied before each sweep.  The
+    persisted boundary face views are therefore the cross-iteration
+    state — a refactor that breaks the seed-from-inflow /
+    persist-raw-outflow contract, or that drops the external reflect,
+    diverges the migrated baselines for both the angular/scalar flux
+    AND the four face views.
 
-    Two-sweep design (``n_sweeps=2``): the second sweep AMPLIFIES any
-    BC-ordering drift across iterations — the post-2nd-sweep buffer
-    state will diverge by an order of magnitude more than the
-    post-1st-sweep state if the bug is present.  This makes the
-    nulp-tolerant snapshot comparison robust: the bit-identity gate
-    (within ``nulp=64``) cannot be defeated by an O(rounding) drift.
+    Two-sweep design (``n_sweeps=2``): the first sweep persists a raw
+    reflective-edge outflow; the second sweep's pre-sweep reflect
+    inject reads that outflow and feeds the reflected inflow, so the
+    second sweep is the one that consumes the reflective coupling on
+    the reflective faces.
 
     Also catches:
       * AI failure mode #6 (convention drift on SigS) — 2G
@@ -427,11 +558,13 @@ def _case_3_l7_trap() -> OctantEquivalenceInputs:
         ``SigS^T`` swap as different ``angular_flux``.
       * AI failure mode #4 (multi-group + heterogeneous) — ``A`` /
         ``B`` mixture split makes Σ_t spatially varying, asymmetric
-        scattering coupling.
-      * ERR-003 (reflective-BC ordering coupled with ordinate
-        batching).  ERR-003 was the original case where octant
-        batching changed reflective-BC update ordering and broke 2G
-        convergence; the L7-trap is the structural successor.
+        scattering coupling.  Verified active post-migration: the
+        group fluxes are asymmetric (group0/group1 mean ratio ≈ 1.6).
+
+    (Historical note: this row was the L7-trap row.  The L7 mode —
+    intra-sweep BC-apply ordering, ERR-003 — is RETIRED with the bare
+    sweep: there is no in-sweep BC any more.  The row now pins the
+    bare contract; the active modes above are what it gates.)
     """
     sn_mesh = _build_sn_mesh(
         nx=3, ny=3,
@@ -500,17 +633,22 @@ def _case_4_heterogeneous() -> OctantEquivalenceInputs:
 def _case_5_q_aniso() -> OctantEquivalenceInputs:
     """Mixed BC, 2G asymmetric heterogeneous, gradient Q, Q_aniso != None.
 
-    Failure mode coverage: AI failure mode #5 (Q_aniso branch).  The
-    legacy sweep takes ``Q_aniso`` (per-ordinate anisotropic source)
-    optionally; the new code must reproduce both the
-    ``Q_aniso=None`` and ``Q_aniso != None`` paths.  This case
-    constructs a non-trivial Q_aniso (rng-fixed Wave-1
-    R∘Λ∘M-emulating per-ordinate field — but built directly without
-    requiring the Wave-1 plumbing, so the case is self-contained).
-    Run with ``n_sweeps=2`` so the second sweep stresses the
-    L7-trap on the Q_aniso code path (reflective BC apply at each
-    octant must read post-first-sweep buffer, not stale intra-sweep
-    buffer).
+    Failure mode coverage: AI failure mode #4 (Q_aniso branch).  The
+    harness combines the isotropic ``Q`` and the per-ordinate
+    anisotropic source via :func:`combine_source` (the producer-side
+    ``/sum_w`` projection); the sweep must consume the resulting
+    per-ordinate source on its anisotropic path.  This case constructs
+    a non-trivial aniso source (rng-fixed per-ordinate field, built
+    directly — self-contained, no Wave-1 plumbing required).  Verified
+    active post-migration: zeroing the aniso source changes the output
+    by ~0.13 in scalar flux, so the anisotropic branch is genuinely
+    exercised.
+
+    Run with ``n_sweeps=2`` so the second sweep exercises the
+    bare-sweep + external-reflect inter-sweep contract (failure mode
+    #6) on the anisotropic-source code path: the reflective edges are
+    seeded from the previous sweep's persisted outflow via the external
+    ``_reflect_outflow_into_inflow``, not a stale in-sweep buffer.
     """
     sn_mesh = _build_sn_mesh(
         nx=3, ny=3,
@@ -600,11 +738,12 @@ class _ClosedFormAnchorInputs:
 def _case_7_closed_form_anchor() -> _ClosedFormAnchorInputs:
     r"""All-reflective + uniform Q + uniform Σ_t → φ = Q/Σ_t exactly.
 
-    Closed-form L1 anchor, **structurally independent** of the legacy
-    code.  Under all-reflective BCs the system is an infinite medium
-    in disguise; for spatially uniform Σ_t and uniform isotropic
-    external Q the steady-state transport equation reduces to the
-    streaming-equilibrium identity
+    Closed-form L1 anchor, **structurally independent** of the bare
+    sweep + external reflect (and of any snapshot inheritance).  Under
+    all-reflective BCs the system is an infinite medium in disguise;
+    for spatially uniform Σ_t and uniform isotropic external Q the
+    steady-state transport equation reduces to the streaming-
+    equilibrium identity
 
     .. math::
 
@@ -618,26 +757,29 @@ def _case_7_closed_form_anchor() -> _ClosedFormAnchorInputs:
     produces a constant-factor drift from ``Q/Σ_t``).
 
     The single sweep does NOT converge to this in one shot
-    (reflective-BC buffers must equilibrate); we therefore drive
-    convergence via :func:`solve_sn_fixed_source` (the iteration that
-    consumes ``_sweep_2d_wavefront`` repeatedly) and assert the
-    converged scalar flux matches ``Q/Σ_t`` to ``rtol=1e-12,
-    atol=1e-13``.  This makes case 7 an L1 verification (analytical
-    reference, structurally independent of legacy) rather than a
-    regression-snapshot inheritance like cases 1-6.
+    (reflective-BC inflow must equilibrate via the inter-sweep external
+    reflect); we therefore drive convergence via
+    :func:`solve_sn_fixed_source` (the iteration that calls the bare
+    ``_sweep_2d_wavefront`` + ``_reflect_outflow_into_inflow``
+    repeatedly) and assert the converged scalar flux matches the 2×2
+    balance solution.  This makes case 7 an L1 verification (analytical
+    reference, structurally independent) rather than a regression-
+    snapshot inheritance like cases 1-6.
 
-    Tolerance: ``rtol=1e-7, atol=1e-8``.  The reflective-BC
-    convergence floor for ``solve_sn_fixed_source`` on this 3×3 mesh
-    with ``inner_tol=1e-13`` and ``max_inner=500`` saturates at ~3e-9
-    relative — the source iteration has slow tail decay on
-    reflective-BC problems even with very tight inner tolerances
-    because each iteration shaves a fixed fraction of the imbalance.
-    ``rtol=1e-7`` (a ~30× margin over the observed ~3e-9 floor) gates
-    against any algebraic drift while accepting the iteration-floor
-    residual.  This is loose compared to the ``nulp=64`` bit-identity
-    contract on cases 1-6, but it is the L1 anchor's role: prove the
-    legacy code is correct on a structurally-independent reference,
-    not gate against single-ULP drift.
+    Tolerance: ``rtol=1e-7, atol=1e-8``.  Under the bare sweep + external
+    reflect (Wave O #208 O.4b Phase E) the reflective coupling is
+    inter-sweep (Jacobi-like) rather than the legacy intra-sweep
+    (Gauss-Seidel) — same converged fixed point, slower rate.  This 3×3
+    all-reflective case converges at ``n_inner ≈ 847`` to
+    ``max|diff| ≈ 5.7e-11`` (was ~3e-9 at ≤500 under the legacy
+    intra-sweep coupling), so the SI driver runs with ``max_inner=2000,
+    inner_tol=1e-13`` to reach the ``rtol=1e-7`` floor.  ``rtol=1e-7``
+    gates against any algebraic drift while accepting the iteration-
+    floor residual; the converged VALUE is invariant (it is the
+    analytical reflective fixed point).  This is loose compared to the
+    ``nulp=64`` bit-identity contract on cases 1-6, but it is the L1
+    anchor's role: prove the bare sweep + external reflect converges to
+    a structurally-independent reference, not gate single-ULP drift.
 
     NOTE: 1G homogeneous would be degenerate (vv-principles
     Cardinal Rule 6).  We use 2G to avoid the degeneracy AND to
@@ -707,20 +849,26 @@ CASES: tuple[OctantEquivalenceCase, ...] = (
         case_id="02_reflective_1g_homog_uniformQ_LS4",
         description=(
             "All-reflective, 1G, homogeneous A mixture, uniform Q, LS_4, "
-            "two consecutive sweeps. Reflective-BC equivalence."
+            "two consecutive sweeps. Bare-sweep + external-reflect "
+            "inter-sweep contract."
         ),
-        failure_mode="#1 BC ordering on reflective",
+        failure_mode="#6 bare-sweep + external-reflect (reflective)",
         builder=_case_2_reflective,
         n_sweeps=2,
     ),
     OctantEquivalenceCase(
+        # case_id retained for snapshot-filename continuity; the L7-trap
+        # failure mode it once gated is RETIRED (bare sweep has no
+        # in-sweep BC).  The row now pins the bare-sweep + external-
+        # reflect contract on a 2G heterogeneous mixed-BC config.
         case_id="03_l7_trap_mixedBC_2g_het_LS4",
         description=(
-            "L7-TRAP — mixed BC (refl L+B, vac R+T), 2G A|B het, "
-            "uniform Q, LS_4, two consecutive sweeps."
+            "Mixed BC (refl L+B, vac R+T), 2G A|B het, uniform Q, LS_4, "
+            "two consecutive sweeps. Bare-sweep + external-reflect "
+            "inter-sweep contract + multi-group het."
         ),
-        failure_mode="#1 L7-trap + #4 multi-group het + ERR-003",
-        builder=_case_3_l7_trap,
+        failure_mode="#6 bare-sweep + external-reflect + #3 multi-group het",
+        builder=_case_3_mixed_bc_het,
         n_sweeps=2,
     ),
     OctantEquivalenceCase(
@@ -738,7 +886,9 @@ CASES: tuple[OctantEquivalenceCase, ...] = (
             "Q_aniso branch — mixed BC, 2G A|B het, gradient Q, "
             "non-trivial Q_aniso, LS_4, two consecutive sweeps."
         ),
-        failure_mode="#5 Q_aniso branch + L7-trap on aniso path",
+        failure_mode=(
+            "#4 Q_aniso branch + #6 bare-sweep + external-reflect on aniso path"
+        ),
         builder=_case_5_q_aniso,
         n_sweeps=2,
     ),
@@ -764,32 +914,37 @@ def _snapshot_path(case_id: str) -> Path:
 
 
 @pytest.mark.regression
-@pytest.mark.catches("ERR-003")
 @pytest.mark.parametrize("case", CASES, ids=lambda c: c.case_id)
 def test_2d_octant_sweep_equivalence(case: OctantEquivalenceCase) -> None:
     """Re-run the case and assert bit-identity (within nulp) vs snapshot.
 
     Snapshots are generated by
-    ``python -m tests.sn.regression._generate_2d_octant_snapshots`` on
-    the LEGACY commit (BEFORE the Wave-2 refactor).  After the refactor
-    lands, the new sweep must reproduce the same outputs to within
-    ``nulp=64`` (worst-case ``N × ULP`` reduction-tree drift; see
-    file docstring for the budget derivation).
+    ``python -m tests.sn.regression._generate_2d_octant_snapshots``
+    against the CURRENT (bare) ``_sweep_2d_wavefront`` (with the external
+    reflect injected, identically to this test, via :func:`run_sweeps`).
+    This test re-runs each case and asserts the same outputs to within
+    ``nulp=64`` (worst-case ``N × ULP`` reduction-tree drift; see file
+    docstring for the budget derivation).
 
     What this test gates against:
 
-    * A wrong reduction order in the new code that would exceed the
-      ``N × ULP`` drift budget.
-    * Any algorithmic divergence between legacy and refactored code:
-      missing-cell coverage, wrong topological order, BC apply
-      misordering, Q_aniso path drift, pure-z dispatch divergence.
+    * A wrong reduction order that would exceed the ``N × ULP`` drift
+      budget.
+    * Any algorithmic divergence in the bare sweep + external reflect:
+      missing-cell coverage, wrong topological order, broken
+      seed-from-inflow / persist-raw-outflow contract, dropped or
+      mis-coupled external reflect, Q_aniso path drift, pure-z dispatch
+      divergence.
 
-    What this test does NOT gate against:
+    Grounding (see file docstring "Snapshot grounding"):
 
-    * The legacy code's correctness in the absolute — that's case 7.
-      This test inherits from the legacy snapshots; if the legacy was
-      wrong, this gates against drift from a wrong baseline.  Case 7
-      provides the structurally-independent grounding.
+    * Vacuum cases (1/4/6) inherit bit-identity from the verified legacy
+      code (the reflect inject is a provable no-op for ``B = 0``).
+    * Reflective cases (2/3/5) carry MIGRATED baselines descended from
+      the current bare code; they are grounded by case 7 (the
+      structurally-independent closed-form reflective anchor) and pin
+      the per-sweep coverage / multi-group-het / Q_aniso /
+      reduction-drift modes.
     """
     snapshot_file = _snapshot_path(case.case_id)
     if not snapshot_file.exists():
@@ -800,69 +955,34 @@ def test_2d_octant_sweep_equivalence(case: OctantEquivalenceCase) -> None:
 
     inputs = case.builder()
 
-    # Run the (current) sweep ``n_sweeps`` times, sharing psi_bc.
-    # The snapshot captures the FINAL sweep's outputs and the
-    # FINAL post-sweep psi_bc state.  The L7-trap surfaces in the
-    # second-sweep outputs because only on the second sweep does the
-    # reflective-BC apply READ buffer content written by an earlier
-    # sweep — single-sweep cases would hide the trap (the buffer is
-    # all-zero or seeded but immediately overwritten before any read).
-    #
-    # R-1 Step 4 A1 — ``_sweep_2d_wavefront`` takes a single per-ordinate
-    # source.  Snapshot inputs are in legacy iso/aniso magnitude (the
-    # snapshots were generated pre-A1).  To preserve bit-identity to
-    # those snapshots, combine ``inputs.Q`` (iso scalar) and
-    # ``inputs.aniso_source`` (legacy iso magnitude) into the new
-    # per-ordinate density via the same ``/sum_w`` projection the
-    # pre-A1 sweep applied internally.  Bit-identity to the existing
-    # snapshots therefore holds by construction (the new sweep does
-    # NOT apply ``/W``; we apply it here at the test boundary).
-    sum_w_2d = float(inputs.sn_mesh.quad.weights.sum())
-    N_2d = inputs.sn_mesh.quad.N
-    ng_2d, nx_2d, ny_2d = inputs.Q.shape
-    iso_broadcast = np.broadcast_to(
-        inputs.Q[None, :, :, :], (N_2d, ng_2d, nx_2d, ny_2d),
-    )
-    if inputs.aniso_source is not None:
-        Q_combined = (iso_broadcast + inputs.aniso_source) / sum_w_2d
-    else:
-        Q_combined = iso_broadcast / sum_w_2d
-    Q_combined = np.ascontiguousarray(Q_combined)
-
-    angular_flux = scalar_flux = None
-    for _ in range(case.n_sweeps):
-        angular_flux, scalar_flux = _sweep_2d_wavefront(
-            Q_combined, inputs.sig_t, inputs.sn_mesh, inputs.boundary_flux,
-        )
+    # Drive the BARE sweep ``n_sweeps`` times, sharing boundary_flux,
+    # with the external ``_reflect_outflow_into_inflow`` injected before
+    # each sweep — identically to production and to the snapshot
+    # generator (both go through :func:`run_sweeps`, the single source of
+    # truth; coding-elegance Pattern 2).  The final post-sweep boundary
+    # face state lives in ``inputs.boundary_flux``.
+    angular_flux, scalar_flux = run_sweeps(inputs, case.n_sweeps)
 
     snap = np.load(snapshot_file)
-    # Issue #196 PR-INDEX-5: snapshots are stored in principled layout
-    # (``angular_flux: (N, ng, nx, ny)`` etc.) — same as the sweep's
-    # native output.  No transpose required.
+    # Bare-sweep schema (Wave O #208 O.4b Phase E): the snapshot stores
+    # the four persisted boundary face views directly, in the sweep's
+    # native principled layout (no transpose / no interior-edge slicing).
     expected_angular = np.asarray(snap["angular_flux"], dtype=np.float64)
     expected_scalar = np.asarray(snap["scalar_flux"], dtype=np.float64)
-    expected_psi_x = np.asarray(snap["psi_x_post"], dtype=np.float64)
-    expected_psi_y = np.asarray(snap["psi_y_post"], dtype=np.float64)
+    expected_faces = {
+        face: np.asarray(snap[f"face_{face}"], dtype=np.float64)
+        for face in ("xmin", "xmax", "ymin", "ymax")
+    }
 
-    # Bit-identity contract — angular flux, scalar flux, AND post-sweep
-    # boundary-edge BC state.  All four are MUST-MATCH because (i) angular
-    # flux is the primary output, (ii) scalar flux carries the
-    # einsum-reduction order that drifts most in the refactor,
-    # (iii) post-sweep boundary edges (xmin/xmax/ymin/ymax face views) are
-    # the stateful link between consecutive source iterations — reflective
-    # BC reads them on the next sweep, so drift here silently contaminates
-    # downstream iterations.
-    #
-    # Post-D-G note: legacy persisted the FULL (N, ng, nx+1, ny) interior
-    # x-face buffer and the (N, ng, nx, ny+1) interior y-face buffer as
-    # ``xmin_xmax_buf`` / ``ymin_ymax_buf`` fields on BoundaryFlux.  L2
-    # BoundaryFlux (post-D-G) stores only the boundary edges; interior
-    # face state lives in an ephemeral local buffer inside
-    # ``_sweep_2d_wavefront``.  The cross-iteration BC linkage IS the
-    # boundary-edge state, not the interior; the four assertions below
-    # gate exactly that linkage by slicing the legacy snapshot at the
-    # boundary edges and comparing to L2 face views.
-    nx_, ny_ = inputs.sn_mesh.nx, inputs.sn_mesh.ny
+    # Bit-identity contract — angular flux, scalar flux, AND the four
+    # persisted boundary face views.  All are MUST-MATCH because (i)
+    # angular flux is the primary output, (ii) scalar flux carries the
+    # einsum-reduction order that drifts most, (iii) the boundary face
+    # views are the stateful link between consecutive source iterations
+    # — the external reflect reads them on the next sweep, so drift here
+    # silently contaminates downstream iterations.  The interior edges
+    # are ephemeral inside the bare sweep and are neither persisted nor
+    # compared.
     np.testing.assert_array_almost_equal_nulp(
         np.asarray(angular_flux, dtype=np.float64),
         expected_angular, nulp=case.nulp,
@@ -871,22 +991,11 @@ def test_2d_octant_sweep_equivalence(case: OctantEquivalenceCase) -> None:
         np.asarray(scalar_flux, dtype=np.float64),
         expected_scalar, nulp=case.nulp,
     )
-    np.testing.assert_array_almost_equal_nulp(
-        np.asarray(inputs.boundary_flux.face_view("xmin"), dtype=np.float64),
-        expected_psi_x[:, :, 0, :], nulp=case.nulp,
-    )
-    np.testing.assert_array_almost_equal_nulp(
-        np.asarray(inputs.boundary_flux.face_view("xmax"), dtype=np.float64),
-        expected_psi_x[:, :, nx_, :], nulp=case.nulp,
-    )
-    np.testing.assert_array_almost_equal_nulp(
-        np.asarray(inputs.boundary_flux.face_view("ymin"), dtype=np.float64),
-        expected_psi_y[:, :, :, 0], nulp=case.nulp,
-    )
-    np.testing.assert_array_almost_equal_nulp(
-        np.asarray(inputs.boundary_flux.face_view("ymax"), dtype=np.float64),
-        expected_psi_y[:, :, :, ny_], nulp=case.nulp,
-    )
+    for face in ("xmin", "xmax", "ymin", "ymax"):
+        np.testing.assert_array_almost_equal_nulp(
+            np.asarray(inputs.boundary_flux.face_view(face), dtype=np.float64),
+            expected_faces[face], nulp=case.nulp,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -900,21 +1009,27 @@ def test_2d_octant_sweep_closed_form_anchor() -> None:
     r"""L1 anchor: all-reflective + uniform Q + uniform Σ_t → φ_g = (A^{-1} Q)_g.
 
     Structurally-independent reference (analytical).  The reference is
-    NOT a snapshot from the legacy code — it is the exact streaming-
-    equilibrium identity solved in closed form via numpy.linalg.solve
-    on the 2×2 multi-group balance matrix.  This is what makes case 7
-    L1 (analytical reference) rather than L1+regression (cases 1-6).
+    NOT a snapshot — it is the exact streaming-equilibrium identity
+    solved in closed form via ``numpy.linalg.solve`` on the 2×2
+    multi-group balance matrix.  This is what makes case 7 L1
+    (analytical reference) rather than L1+regression (cases 1-6).
 
     Tolerance: ``rtol=1e-7, atol=1e-8`` — see the
     :func:`_case_7_closed_form_anchor` docstring for the budget
-    derivation (reflective-BC iteration-floor saturation).
+    derivation (reflective-BC iteration-floor saturation under the bare
+    sweep + inter-sweep external reflect).
 
     Why this case is needed even though cases 1-6 are bit-identity:
-    cases 1-6 prove the new code agrees with the legacy code; they
-    cannot prove either was correct in the first place.  Case 7
-    proves the legacy code is correct on at least one verified
-    configuration, which (combined with the bit-identity gate)
-    transitively grounds the new code.
+
+    * Vacuum cases (1/4/6) inherit bit-identity from the verified legacy
+      code, but the reflective cases (2/3/5) carry MIGRATED baselines
+      descended from the current bare code — snapshot inheritance from
+      new code, which vv-principles requires to terminate in a
+      structurally-independent anchor.
+    * Case 7 IS that anchor: it proves the bare sweep + external reflect
+      converges to the analytically-correct reflective fixed point on a
+      verified configuration.  Combined with the bit-identity gate, it
+      transitively grounds the migrated reflective baselines.
     """
     inputs = _case_7_closed_form_anchor()
 
@@ -931,7 +1046,18 @@ def test_2d_octant_sweep_closed_form_anchor() -> None:
         ).copy(),
         scattering_order=0,
         boundary_condition="reflective",
-        max_inner=500, inner_tol=1e-13,
+        # Wave O #208 O.4b E1/E2: the 2-D sweep is now BARE — the reflective
+        # coupling is the EXTERNAL _reflect_outflow_into_inflow applied once per
+        # source iteration (inter-sweep, Jacobi-like on the boundary), replacing
+        # the legacy bc-in-sweep intra-sweep (Gauss-Seidel) reflection.  Same
+        # converged fixed point, slower rate: this 3×3 all-reflective case
+        # converges at n_inner≈847 to max|diff|≈5.7e-11 (was ~3e-9 at ≤500 under
+        # the legacy intra-sweep coupling).  max_inner bumped 500→2000 so the
+        # SI loop reaches the rtol=1e-7 floor; the converged VALUE is invariant
+        # (structurally-independent closed-form anchor).  The production 2-D
+        # eigenvalue path is Krylov (solves the coupled bulk⊕trace system
+        # directly) and is unaffected by this SI rate change.
+        max_inner=2000, inner_tol=1e-13,
     )
 
     np.testing.assert_allclose(
