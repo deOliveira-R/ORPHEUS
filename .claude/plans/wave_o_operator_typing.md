@@ -280,6 +280,51 @@ and the verification plan
 
 ## ⭐⭐⭐ O.4a.2 IN-FLIGHT STATE — COMPACTION HANDOFF (READ FIRST, 2026-06-03)
 
+### ✅ COMMIT 2 LANDED (HEAD `4c0ff96`) — the co-land was SPLIT into 2 commits
+
+**The "co-land everything" framing below was SPLIT** (2026-06-03) after grounding
+revealed the bare-sweep is a delicate GLOBAL `transport_sweep` change touching 3
+callers + the seed-source logic. Splitting keeps every gate green at each commit
+(honours the co-land INTENT — no broken intermediate state) while de-risking:
+
+- **Commit 2 (DONE, `4c0ff96`):** the **−B BC-extraction on the matvec/Krylov
+  path**. Matvec flip (`_compute_LpC`+twin: keystone deleted, given-inflow read,
+  **KEPT** the outflow defect `streamed−ψ.outflow`, ADDED the inflow identity;
+  dead `bc_outer`/`bc_inner` retired → explicit `curvature!="cartesian"`
+  case-split), `B` **inflow-row projection** (`SNBoundaryOperator._apply_faces`),
+  `SNSolver._scattering_with_boundary_op` = `S+B` folded into BOTH Krylov S-args.
+  **Krylov path on `−B`; SI path UNCHANGED** (still bc-in-sweep + partner-flux
+  seeding — it routes through `(L+C).solve`, a separate WDD sweep, not the flipped
+  matvec). Also `0442dce` refreshed a pre-existing stale A2D-1 hash pin
+  (orthogonal, from O.4a.1-α). Gates green: vacuum bit-identical (matvec 18
+  baselines + regression snapshots), reflective convergence-equiv (curvilinear
+  streaming-equilibrium krylov no-`O`, k∞, keff), operator suite 455,
+  elegance-enforcer CONCERNS resolved.
+- **Commit 3 (NEXT):** the **SI bare-sweep extraction** — see "REMAINING WIRING"
+  below (items now Commit-3 scope). Retires the bc-in-sweep mechanism entirely.
+
+**TWO design findings the original handoff MISSED (corrections):**
+1. The whole-trace `B` needed **inflow-row PROJECTION**. The full-face realized
+   law (specular permutation) leaks `R·ψ.inflow` onto the OUTFLOW slots, which
+   `−B` would subtract into the outflow-definition residual. Fixed: `apply` emits
+   on inflow slots only, `apply_transpose` on outflow slots only. (Empirically
+   confirmed before the fix.)
+2. `_solve_timed_full_field` seeds the sweep from `initial_guess.boundary`,
+   IGNORING `rhs.boundary` (where the `Bψ` source lands). So the Commit-3 bare
+   sweep MUST seed inflow from `rhs.boundary`, NOT the iterate — **the original
+   "leave `_solve_timed_full_field` as-is" guidance is WRONG.**
+
+**DEFERRED to O.2** (Cardinal-Rule-2 flags surfaced by the elegance review): the
+3 parallel `(L+C)` matvec impls (`_compute_LpC` / `_compute_decomposition` / the
+solve-sweep) want unification; the honest `L+C−S−F−B` driver composition (so the
+`S+B` fold retires — it type-checks ONLY because `S.domain is None`, the O.2
+forcing-function tripwire); realized-law self-projection (so `B`'s mask is
+intrinsic).
+
+---
+
+### Original "co-land" handoff (below) — superseded by the split above; mechanics still accurate
+
 **HEAD `d7e1316`. The matvec side of the co-land flip is DONE but UNCOMMITTED in
 the working tree** (it persists across compaction — it is on disk, not in
 context). The flip commits ATOMICALLY once green; do NOT revert these, do NOT
