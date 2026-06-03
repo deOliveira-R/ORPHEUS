@@ -98,3 +98,20 @@ by reflection.
    :undoc-members:
    :show-inheritance:
    :noindex:
+
+
+Realized Boundary Law Operator (``B``)
+--------------------------------------
+
+The :mod:`~orpheus.sn.boundary_operator` module assembles the realized
+per-face boundary laws into the whole-trace operator
+:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` — the
+:math:`A_{ss}` boundary block of the canonical SN loss
+:math:`(L_{\rm full} + C - S - F - B)`. It is the first-class sibling
+:math:`-B` introduced by Wave O step O.4a.2 (Issue #208). See
+:ref:`bc-extraction` for the block-matrix derivation and design
+rationale.
+
+.. automodule:: orpheus.sn.boundary_operator
+   :members:
+   :show-inheritance:

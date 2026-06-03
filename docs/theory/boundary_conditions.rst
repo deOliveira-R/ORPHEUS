@@ -93,6 +93,20 @@ Key Facts
   every supported mesh (1-D Cartesian / spherical / cylindrical +
   2-D Cartesian) since Issue #188 lifted the curvilinear
   :class:`InflowTraceSpace` deferral.
+- **The realized boundary law is a first-class sibling operator**
+  :math:`B` **in the SN algebra (Wave O step O.4a.2, Issue #208,
+  2026-06-03).** For the **1-D** SN solver, the realized per-face law
+  is assembled into the whole-trace
+  :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` — the
+  :math:`A_{ss}` boundary block of the canonical loss operator
+  :math:`(L_{\rm full} + C - S - F - B)`. The reflection
+  :math:`\psi.\text{inflow} = B\,\psi.\text{outflow}` is **no longer
+  re-applied inside the streaming sweep**; it is delivered as the
+  off-diagonal :math:`-B` source term and the outer Krylov / SI loop
+  drives the boundary consistency residual to zero. The 2-D Cartesian
+  wavefront sweep still applies the realized law inside the sweep
+  (deferred to O.4b). The full block-matrix derivation and design
+  rationale live at :ref:`bc-extraction` in :doc:`operator_algebra`.
 
 .. admonition:: V&V status
 

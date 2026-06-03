@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **4790**
+Total tests collected: **4841**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1135, 23.7%
-   L1, 922, 19.2%
-   L2, 36, 0.8%
+   L0, 1138, 23.5%
+   L1, 922, 19.0%
+   L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2691, 56.2%
+   foundation, 2739, 56.6%
    unmarked, 6, 0.1%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4705
+   explicit, 4756
    verify, 0
    class-name, 46
    func-name, 0
@@ -259,6 +259,7 @@ Module × level grid
    numerics/test_tensor_product_operator, 27, 0, 0, 0, 0, 0
    numerics/test_trace_space, 11, 5, 0, 0, 2, 0
    operators/test_angular_average_operator, 12, 4, 0, 0, 0, 0
+   operators/test_bc_extraction_matvec, 3, 0, 0, 0, 30, 0
    operators/test_boundary_conditions, 0, 0, 0, 0, 11, 0
    operators/test_collision_operator, 0, 0, 0, 0, 57, 0
    operators/test_fission_operator, 0, 0, 0, 0, 18, 0
@@ -268,6 +269,7 @@ Module × level grid
    operators/test_operator_block_role, 0, 0, 0, 0, 16, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 16, 0
    operators/test_scattering_operator, 1, 0, 0, 0, 75, 0
+   operators/test_sn_boundary_operator, 0, 0, 0, 0, 17, 0
    operators/test_sn_boundary_realizer, 0, 20, 0, 0, 0, 0
    operators/test_snmesh_realizer_wiring, 0, 9, 0, 0, 0, 0
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
@@ -295,7 +297,7 @@ Module × level grid
    solve/test_krylov_curvilinear_precond_safety, 0, 4, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 259, 0
+   test_layer_imports, 0, 0, 0, 0, 260, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
    transport/test_field_units, 0, 0, 0, 0, 43, 0
@@ -490,6 +492,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-vacuum-bc-cylinder``, 3
    ``peierls-vacuum-bc-sphere``, 3
    ``sigma-zero``, 3
+   ``streaming-equilibrium``, 3
    ``atalay-eq54-sphere-vacuum-isotropic``, 2
    ``atalay-table6-eigenvalue-moderate-d-consistency``, 2
    ``cp-second-difference-operator``, 2
@@ -616,9 +619,13 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **195** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **199** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``bailey-dome-recursion``
+- ``bc-extraction-block-matrix``
+- ``bc-extraction-direct-sum-state``
+- ``bc-extraction-loss-operator``
+- ``bc-extraction-two-residuals``
 - ``bc-rank-n-as-sum-of-products``
 - ``bessel-wronskian``
 - ``bickley-integral``

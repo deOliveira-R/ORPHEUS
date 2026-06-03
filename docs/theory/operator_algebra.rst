@@ -24,6 +24,18 @@ full unifying narrative lands progressively under the Wave H refactor
 Key Facts
 =========
 
+- **The realized boundary law** :math:`B` **is a first-class sibling
+  operator** (Wave O step O.4a.2, Issue #208, 2026-06-03): the
+  canonical SN transport algebra is now
+  :math:`(L_{\rm full} + C - S - F - B)\,\psi = q` on the direct-sum
+  transport state :math:`V = V_{\rm bulk} \oplus V_{\rm inflow} \oplus
+  V_{\rm outflow}`. The boundary reflection is **no longer re-applied
+  inside the streaming sweep** (the deleted "keystone"); it is
+  delivered as the off-diagonal :math:`-B` source term and the outer
+  Krylov / SI loop drives the boundary consistency residual
+  :math:`\psi.\text{inflow} - B\,\psi.\text{outflow} - q.\text{inflow}
+  \to 0`. See :ref:`bc-extraction`.
+
 - The transport eigenvalue and fixed-source problems share a single
   operator algebra (Trefethen & Bau 1997, §3.2):
 
@@ -1074,11 +1086,23 @@ the recurrence is the load-bearing structure that prevents a clean
 per-direction summands are independent *in their per-direction
 contribution*, but they share local state: the forward sweep's
 outer-face WDD outflow IS the input to the backward sweep's outer-face
-BC application (:func:`bc_outer.apply(outgoing)`). In the legacy
-:func:`_transport_operator_matvec_unified <orpheus.sn.operator._transport_operator_matvec_unified>` body, this shared state was
-a local variable; under the per-direction operator-algebra split, it
-becomes the **named shared state** of the
+BC application. In the legacy unified-matvec body, this shared state
+was a local variable; under the per-direction operator-algebra split,
+it becomes the **named shared state** of the
 :class:`_MSpatialOperatorSum` orchestrator.
+
+.. note::
+
+   The forward-outflow-seeds-backward-inflow coupling described in
+   this paragraph was the *pre*-O.4a.2 mechanism, where the backward
+   sweep's inflow was ``bc_outer.apply(forward_outflow)`` inside one
+   matvec. Wave O step O.4a.2 (Issue #208) **deleted that intra-call
+   reflective re-apply** — the boundary law :math:`B` is now a sibling
+   :math:`-B` operator and the backward sweep reads the *given* outer
+   inflow trace directly. The orchestrator's named shared state today
+   is the forward outflow as it feeds the **outflow self-consistency
+   defect** on the outflow trace row, not a reflected inflow seed.
+   See :ref:`bc-extraction`.
 
 
 .. _wave-t-orchestrated-apply:
@@ -1099,14 +1123,13 @@ by Wave O / adjoint / DSA). The subclass **overrides**
 
 would cost 1.5× the unified matvec walltime: each standalone
 :meth:`_SpatialSweepDirection.apply` invokes
-:func:`_transport_operator_matvec_unified <orpheus.sn.operator._transport_operator_matvec_unified>` (which already runs the
-**bidirectional** sweep internally to compute the backward-sweep seed
-from the forward outflow) and masks the opposite-direction ordinates
-to zero. Calling the unified matvec twice — once per direction
-summand — duplicates the forward sweep cost.
+:meth:`_MSpatialOperatorSum._compute_LpC <orpheus.sn.operator._MSpatialOperatorSum._compute_LpC>` (which already runs the
+**bidirectional** sweep internally) and masks the opposite-direction
+ordinates to zero. Calling the unified matvec twice — once per
+direction summand — duplicates the forward sweep cost.
 
 The orchestrator runs the bidirectional sweep **once** via
-:func:`_transport_operator_matvec_unified <orpheus.sn.operator._transport_operator_matvec_unified>` and returns the full
+:meth:`_MSpatialOperatorSum._compute_LpC <orpheus.sn.operator._MSpatialOperatorSum._compute_LpC>` and returns the full
 :math:`(L+C)\,\psi` for slab (since slab has no curvilinear
 redistribution; see :ref:`wave-t-curvilinear-deep-dive` below for the
 curvilinear subtraction). The standalone
@@ -1115,9 +1138,10 @@ for testing, Wave-O adjoint inspection, and per-direction debugging
 slicing.
 
 **Why this matters architecturally**. The forward-sweep outer-face
-WDD outflow that was a hidden local variable in the legacy
-:func:`_transport_operator_matvec_unified <orpheus.sn.operator._transport_operator_matvec_unified>` body is now the **named
-shared state** of the orchestrator. Pattern 6 (single source of
+WDD outflow that was a hidden local variable in the legacy unified
+matvec body is now the **named shared state** of the orchestrator
+(:meth:`_MSpatialOperatorSum._compute_LpC <orpheus.sn.operator._MSpatialOperatorSum._compute_LpC>`).
+Pattern 6 (single source of
 truth) of the project's ``coding-elegance`` skill requires that hidden
 coupling points become named. Wave T does not refactor the sweep
 body; it lifts the hidden coupling into a named property at the
@@ -1243,7 +1267,7 @@ This subtraction introduces a minor architectural smell: the curvilinear
 its definition. The alternative — re-implementing the spatial-only
 sweep without M-M coupling at the leaf level — would duplicate the
 per-level :func:`dag_walk` + Carlson coupled-pole structure that
-already lives in :func:`_transport_operator_matvec_unified <orpheus.sn.operator._transport_operator_matvec_unified>`. The
+already lives in :meth:`_MSpatialOperatorSum._compute_decomposition <orpheus.sn.operator._MSpatialOperatorSum._compute_decomposition>`. The
 subtraction is the cleanest path that preserves Pattern 6 (single
 source of truth).
 
@@ -1454,15 +1478,435 @@ Cross-references
     :class:`orpheus.sn.operator._MSpatialOperatorSum`, and
     :class:`orpheus.sn.operator.AngularRedistributionOperator`
     leaves.
-  - :func:`orpheus.sn.operator._transport_operator_matvec_unified`
-    — the unified 1-D matvec the orchestrator wraps (module-private
-    after Wave T's T.5 close-out; the public surface is the
+  - :meth:`orpheus.sn.operator._MSpatialOperatorSum._compute_LpC`
+    (single-emission hot path) and
+    :meth:`orpheus.sn.operator._MSpatialOperatorSum._compute_decomposition`
+    (dual-emission ``(M_spatial, M_angular_redist)`` split) — the
+    unified 1-D matvec body. The module-level
+    ``_transport_operator_matvec_unified`` helper was **deleted** at
+    Wave T step T.5.2 (commit ``ad813fd``); its body was inlined into
+    these two private orchestrator methods. The public surface is the
     :meth:`StreamingOperator.apply` /
-    :attr:`StreamingOperator.M_spatial` boundary).
+    :attr:`StreamingOperator.M_spatial` boundary.
   - :class:`orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
     — the M-M closure data and per-cell algebra primitive.
   - :func:`orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`
     — the three-term cell-balance primitive.
+
+
+.. _bc-extraction:
+
+Boundary-condition extraction — :math:`B` as a sibling operator (Wave O)
+========================================================================
+
+Wave O step O.4a.2 (`Issue #208
+<https://github.com/deOliveira-R/ORPHEUS/issues/208>`_, three commits
+``d7e1316`` / ``4c0ff96`` / ``2bdc66d``, 2026-06-03) made the realized
+boundary law :math:`B` a **first-class sibling** of the streaming +
+collision operator :math:`L + C`. The canonical SN transport algebra
+became
+
+.. (vv-status rationale) Structural framing of the post-extraction SN
+   loss operator. The verifiable claim — that the matvec/SI driver
+   path with the realized ``B`` folded in agrees with the analytical
+   infinite-medium balance and the homogeneous closed-form :math:`k_\infty`
+   — is verified by the reflective convergence-equivalence gates
+   catalogued below, not by this label directly.
+.. vv-status: bc-extraction-loss-operator documented
+
+.. math::
+   :label: bc-extraction-loss-operator
+
+   (L_{\rm full} + C - S - F - B)\,\psi \;=\; q,
+
+acting on the **direct-sum transport state**
+
+.. math::
+   :label: bc-extraction-direct-sum-state
+
+   V \;=\; V_{\rm bulk} \;\oplus\; V_{\rm inflow} \;\oplus\;
+           V_{\rm outflow},
+
+where :math:`V_{\rm bulk}` is the cell-centre angular flux
+(:class:`~orpheus.transport.fields.angular_flux.AngularFlux`) and
+:math:`V_{\rm inflow} \oplus V_{\rm outflow}` is the boundary trace
+(:class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`),
+partitioned per face by the sign of :math:`\Omega\cdot\hat n` into the
+inflow (:math:`\Omega\cdot\hat n < 0`) and outflow
+(:math:`\Omega\cdot\hat n > 0`) ordinate slots (the
+:class:`~orpheus.numerics.spaces.trace_space.TraceSpace` selectors
+:meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.inflow_indices_for_face`
+/ :meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.outflow_indices_for_face`,
+single source of truth — see :ref:`trace-spaces-doc`).
+
+.. vv-status: bc-extraction-direct-sum-state documented
+
+This is the realisation, for the boundary block, of the Wave T
+prediction (:ref:`wave-t-tensor-network`): "Wave O typing must accept
+non-SOTP summands." :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`
+is the :math:`A_{ss}` leaf — a bespoke
+:class:`~orpheus.numerics.operator.LinearOperator` carrying
+:attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY`, NOT a
+:class:`~orpheus.numerics.operator.TensorProductOperator`.
+
+
+The block matrix
+----------------
+
+On :math:`V = V_{\rm bulk} \oplus V_{\rm boundary}` the four operator
+families occupy disjoint blocks of the :math:`2\times 2` block matrix
+(:math:`b` = bulk row/column, :math:`s` = surface/trace row/column):
+
+.. math::
+   :label: bc-extraction-block-matrix
+
+   \underbrace{
+   \begin{bmatrix} A_{bb} & 0 \\ 0 & 0 \end{bmatrix}
+   }_{C,\,S,\,F\;(\text{BULK})}
+   \;+\;
+   \underbrace{
+   \begin{bmatrix} A_{bb} & A_{bs} \\ A_{sb} & 0 \end{bmatrix}
+   }_{L_{\rm full}\;(\text{FULL})}
+   \;-\;
+   \underbrace{
+   \begin{bmatrix} 0 & 0 \\ 0 & A_{ss} \end{bmatrix}
+   }_{B\;(\text{BOUNDARY})}
+
+.. vv-status: bc-extraction-block-matrix documented
+
+The three operator roles (Wave O block-role typing, Issue #208) read
+off the block structure directly:
+
+.. list-table:: Block occupancy by operator role
+   :header-rows: 1
+   :widths: 16 16 30 38
+
+   * - Operator(s)
+     - Role
+     - Reads / writes
+     - Block content
+   * - :math:`L_{\rm full}`
+       (:class:`~orpheus.sn.operator.StreamingOperator`,
+       via :class:`~orpheus.sn.operator.InvertibleOperator` ``L+C``)
+     - ``FULL``
+     - Reads :math:`\psi.\text{bulk}` **and** the *given*
+       :math:`\psi.\text{inflow}` trace; writes :math:`\psi.\text{bulk}`
+       and the :math:`\psi.\text{outflow}` trace.
+     - :math:`A_{bb}` (streaming) + :math:`A_{bs}` (inflow seeds the
+       sweep) + :math:`A_{sb}` (sweep produces outflow). The
+       **outflow row keeps the self-consistency defect**
+       :math:`\psi.\text{outflow} - \text{streamed}`; the **inflow
+       row carries the identity** :math:`I\cdot\psi.\text{inflow}`.
+       **No BC logic.**
+   * - :math:`C, S, F`
+       (:class:`~orpheus.sn.operator.CollisionOperator`,
+       :class:`~orpheus.sn.scattering.ScatteringOperator`,
+       :class:`~orpheus.sn.fission.FissionOperator`)
+     - ``BULK``
+     - Bulk → bulk only.
+     - :math:`A_{bb}` only; the boundary block is zero.
+   * - :math:`B`
+       (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`)
+     - ``BOUNDARY``
+     - Maps :math:`V_{\rm outflow} \to V_{\rm inflow}` via the
+       realized per-face law :math:`\psi.\text{inflow} =
+       B\,\psi.\text{outflow}`.
+     - :math:`A_{ss}` only; emits on the **inflow row ONLY**
+       (see design correction 2 below).
+
+The outer Krylov / SI loop drives **two residuals to zero**
+simultaneously:
+
+.. math::
+   :label: bc-extraction-two-residuals
+
+   \begin{aligned}
+   r_{\rm inflow} &\;=\; \psi.\text{inflow}
+                          \;-\; B\,\psi.\text{outflow}
+                          \;-\; q.\text{inflow}
+                    \;\longrightarrow\; 0
+                    \quad (\text{boundary consistency}), \\
+   r_{\rm outflow} &\;=\; \psi.\text{outflow}
+                           \;-\; \text{streamed}(\psi.\text{bulk},
+                           \psi.\text{inflow})
+                    \;\longrightarrow\; 0
+                    \quad (\text{outflow definition}).
+   \end{aligned}
+
+.. vv-status: bc-extraction-two-residuals documented
+
+For vacuum :math:`B = 0` (no inflow); for reflective/white/albedo
+:math:`B` is the realized :math:`R\,G` reflection that the
+pre-extraction sweep applied at the boundary edge.
+
+
+The deleted keystone
+--------------------
+
+Before O.4a.2, the streaming sweep re-applied the boundary law
+**inside one matvec call**: the backward (inward) sweep seeded its
+boundary-face inflow from the forward sweep's own reflected outflow,
+
+.. code-block:: python
+
+   # PRE-O.4a.2 — the "keystone" (operator.py _compute_LpC, now DELETED):
+   outflow_at_boundary = _sweep_direction(+1, pole_face_seed)  # forward
+   inflow_full = bc_outer.apply(outflow_at_boundary.T)         # ← KEYSTONE
+   outflow_at_inner = _sweep_direction(-1, inflow_full[...])   # backward
+
+This single line **coupled bulk ↔ boundary within the matvec**: the
+operator :math:`L` secretly contained the boundary reflection, so
+:math:`L` was not a pure streaming operator and :math:`B` had no
+independent existence. O.4a.2 **deletes the keystone**: the backward
+sweep now reads the *given* outer inflow trace
+(:math:`\text{face\_outer}`'s :math:`\mu < 0` ordinates) directly, so
+one matvec call computes a pure-streaming residual with no BC
+reflection. The reflective coupling moves entirely to the sibling
+:math:`-B`:
+
+.. code-block:: python
+
+   # POST-O.4a.2 — bare, keystone-free (operator.py _compute_LpC):
+   outflow_at_boundary = _sweep_direction(+1, pole_face_seed)  # forward
+   outflow_at_inner   = _sweep_direction(-1, face_outer)       # GIVEN inflow
+
+The curvilinear pole seed (``psi_view[:, :, 0, 0]``) survives the
+deletion because it is the **r = 0 regularity condition**, NOT a
+boundary condition — it reads the innermost cell flux, a geometric
+case-split on ``curvature != "cartesian"``, never a ``bc.apply``.
+
+
+.. _bc-extraction-design-corrections:
+
+Three design corrections (what was tried and corrected)
+-------------------------------------------------------
+
+The extraction surfaced three subtle traps. All three are preserved
+here per Cardinal Rule 3 so a future session re-deriving the block
+matrix does not re-make them.
+
+**1. Keep the outflow defect — NOT the raw outflow.**
+The in-flight plan prose said :math:`L_{\rm full}` should emit the
+*raw* streamed outflow on the outflow row. This is **wrong**.
+:math:`\psi.\text{outflow}` is a *stored unknown* that the sibling
+:math:`-B` reads as its input (:math:`B\,\psi.\text{outflow}`).
+Emitting the raw outflow would make the outflow row
+:math:`-\,\text{streamed}` (an off-diagonal-only row with no diagonal
+on :math:`\psi.\text{outflow}`), which **singularises** that row: the
+:math:`A_{ss}` outflow-column diagonal disappears and :math:`-B` is no
+longer a well-posed sibling. The fix is to keep the row as the
+self-consistency defect :math:`\psi.\text{outflow} - \text{streamed}`
+— the identity :math:`I\cdot\psi.\text{outflow}` diagonal stays on the
+outflow row, and the outflow-definition residual
+:math:`r_{\rm outflow}` of :eq:`bc-extraction-two-residuals` is the
+quantity the outer loop drives to zero. Keeping the row as
+``computed − stored`` also makes the vacuum path **bit-identical** to
+the pre-extraction matvec (the per-row sign is free because
+:math:`q.\text{outflow} \equiv 0` — the outflow trace is a pure
+definition with no source).
+
+**2.** :math:`B` **must project to the inflow row.**
+The realized per-face law is a **full-face operator**: a specular
+:class:`~orpheus.numerics.operator.PermutationOperator` for reflective,
+an :class:`~orpheus.sn.angular_operator.AngularAverageOperator` for
+white. Its permutation maps the input's *inflow* slots onto the
+*output's outflow* slots (a spurious :math:`R\cdot\psi.\text{inflow}`),
+because the permutation is defined on the whole face, not just the
+:math:`A_{ss}` :math:`V_{\rm outflow} \to V_{\rm inflow}` map. In the
+legacy sweep this was harmless — the sweep only ever read the
+inflow slots of ``bc.apply(face)``, discarding the outflow output.
+But as a sibling :math:`-B` on the direct-sum state, a non-zero
+outflow emission would corrupt the outflow-definition residual
+:math:`r_{\rm outflow}` (which must carry **no** :math:`B` term). The
+fix:
+:meth:`SNBoundaryOperator._apply_faces <orpheus.sn.boundary_operator.SNBoundaryOperator>`
+**projects** the emission onto the codomain row — ``apply`` writes the
+``inflow_indices_for_face`` slots; ``apply_transpose`` writes the
+``outflow_indices_for_face`` slots. *Empirically confirmed before the
+fix*: the outflow slots carried nonzero :math:`R\cdot\psi.\text{inflow}`.
+
+**3. The bare sweep seeds inflow from** :math:`\text{rhs.boundary}`,
+**not** :math:`\text{initial\_guess.boundary}`.
+Under the extraction the WDD sweep ``(L+C).solve`` is **bare** (see
+:ref:`bare-sweep-extraction` in :doc:`discrete_ordinates`): it reads
+the seeded inflow trace directly instead of re-applying ``bc``.
+:meth:`InvertibleOperator._solve_timed_full_field <orpheus.sn.operator.InvertibleOperator._solve_timed_full_field>`
+must therefore seed the sweep's boundary buffer from
+:math:`\text{rhs.boundary}` — the *boundary source*
+:math:`q.\text{boundary} + B\,\psi.\text{outflow}` — **not** from the
+iterate ``initial_guess.boundary`` (the retired partner-flux carrier).
+The ``initial_guess`` still threads the bulk Carlson warm start;
+only the boundary seed moved.
+
+
+.. _bc-extraction-two-routes:
+
+The two :math:`-B` delivery routes (and their O.2 collapse)
+-----------------------------------------------------------
+
+The same :math:`-B` coupling reaches the iteration two ways, both
+calling the **identical**
+:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` (single
+source of truth, Cardinal Rule 2):
+
+.. list-table:: The two delivery routes for :math:`-B`
+   :header-rows: 1
+   :widths: 22 40 38
+
+   * - Route
+     - Mechanism
+     - Used by
+   * - **Driver fold**
+       (:meth:`SNSolver._scattering_with_boundary_op <orpheus.sn.solver.SNSolver._scattering_with_boundary_op>`)
+     - Folds :math:`S + B` into the **subtracted** :math:`S` argument
+       of the iteration drivers: the matvec
+       :math:`(L+C).\text{apply} - (S+B).\text{apply} - F.\text{apply}
+       = (L+C-S-F-B)`. :math:`B` cannot join the :math:`L+C`
+       preconditioner because
+       :class:`~orpheus.numerics.operator.OperatorSum` does **not**
+       propagate ``CAP_SOLVE`` — :math:`L + C - B` would strip the
+       ``.solve`` (sweep) the Krylov preconditioner / SI splitting
+       needs.
+     - The eigenvalue SI inner driver
+       (:meth:`SNSolver._solve_source_iteration <orpheus.sn.solver.SNSolver._solve_source_iteration>`),
+       the eigenvalue Krylov inner
+       (:meth:`SNSolver._solve_krylov <orpheus.sn.solver.SNSolver._solve_krylov>`),
+       and the fixed-source Krylov
+       (:func:`_solve_fixed_source_krylov <orpheus.sn.solver._solve_fixed_source_krylov>`).
+       :math:`B\,\psi.\text{outflow}`
+       rides in :math:`\text{rhs.boundary}`, which the bare
+       ``(L+C).solve`` sweep reads as the inflow seed.
+   * - **Direct helper**
+       (:func:`_reflect_outflow_into_inflow <orpheus.sn.solver._reflect_outflow_into_inflow>`)
+     - Fills each face's inflow slots with
+       :math:`B\,\psi.\text{outflow}` in place on the boundary buffer,
+       via the same :class:`SNBoundaryOperator`, before the bare
+       sweep.
+     - The DIRECT loops that have no driver to fold into: the direct
+       fixed-source SI
+       (:func:`_solve_fixed_source_si <orpheus.sn.solver._solve_fixed_source_si>`)
+       and the final eigenvalue reconstruction sweep in
+       :func:`solve_sn <orpheus.sn.solver.solve_sn>`. Guarded to
+       1-D via ``sn_mesh.reduced is not None`` (see scope below).
+
+The two routes **collapse at Wave O step O.2**: when the iteration
+drivers take the whole loss operator :math:`L+C-S-F-B` directly (on
+the direct-sum carrier), the direct loops route through the driver and
+:func:`_reflect_outflow_into_inflow` retires (its documented removal
+trigger).
+
+**The O.2 forcing function.** The :math:`S + B` fold type-checks
+**only because** :attr:`ScatteringOperator.domain` is ``None`` (it
+predates function-space tagging). The
+:class:`~orpheus.numerics.operator.OperatorSum` domain-compatibility
+check fires only when both operands declare non-``None`` domains that
+differ; with :math:`S` untagged it skips. The moment the typing wave
+gives :math:`S` a (bulk-space) domain, the fold throws
+``IncompatibleOperatorComposition`` at construction — :math:`S` (bulk
+space) and :math:`B` (trace space) live on different function spaces.
+That throw **is** the O.2 signal to land the honest composition: the
+drivers consuming the whole :math:`L+C-S-F-B` loss operator on the
+direct-sum carrier, retiring the fold and the helper together. The
+fold is documented in code as an O.2 *tripwire*, not a permanent
+design.
+
+
+.. _bc-extraction-scope:
+
+Scope — what is bare, what is not (O.4b)
+----------------------------------------
+
+O.4a.2 made the **1-D** sweep bare (slab / sphere / cylinder). The
+**2-D Cartesian wavefront sweep is NOT yet bare** — it still applies
+``bc`` internally (the :ref:`sweep-octant-dependency-graph` L7-trap
+fix applies the BC once per octant per axis, but it is still applied
+*inside* the sweep). That extraction is deferred to **O.4b**;
+:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` is not yet
+wired for the 2-D trace.
+
+The dispatch is guarded by a **single predicate** so the two paths
+cannot drift: ``sn_mesh.reduced is not None`` is the **same** predicate
+:func:`~orpheus.sn.sweep.transport_sweep` uses to select its
+bare-vs-bc-in-sweep body, and the **same** predicate the direct-helper
+guards
+(:func:`_solve_fixed_source_si <orpheus.sn.solver._solve_fixed_source_si>`,
+:func:`solve_sn <orpheus.sn.solver.solve_sn>`) check before calling
+:func:`_reflect_outflow_into_inflow <orpheus.sn.solver._reflect_outflow_into_inflow>`.
+1-D goes through the bare sweep + :math:`-B`; 2-D stays on the
+unchanged bc-in-sweep wavefront until O.4b.
+
+
+.. _bc-extraction-numerical-evidence:
+
+Numerical evidence
+------------------
+
+The extraction is verified by three independent grounds (per the
+``vv-principles`` skill's three pillars and the bit-identity
+vs principled-equivalence gate).
+
+**1. Vacuum bit-identity.** With :math:`B = 0` the fold
+:math:`S + B \equiv S` exactly, so the vacuum path is **bit-identical**
+to the pre-extraction matvec. Verified by:
+
+- the matvec 18-baseline snapshot
+  (:func:`np.array_equal` against the pre-O.4a.2 captures across
+  slab / sphere / cylinder × 1G / 2G / asymmetric :math:`\Sigma_s` ×
+  vacuum / white / specular), and
+- the end-to-end regression snapshots.
+
+This is the bit-identity-by-inheritance gate: vacuum keeps the
+verified pre-extraction value for free (``vv-principles``
+§"Bit-identity vs principled-equivalence", criterion: implementation
+unchanged on the vacuum path because the bare sweep reads a zero
+inflow seed).
+
+**2. Reflective convergence-equivalence (closed-form pillar).** The
+reflective path relocates the reflection from inside the sweep to the
+sibling :math:`-B`, so it is **not** bit-identical but
+*convergence-equivalent* to a structurally-independent analytical
+reference:
+
+.. list-table:: Reflective convergence-equivalence gates
+   :header-rows: 1
+   :widths: 40 30 30
+
+   * - Test
+     - Reference (pillar)
+     - Both solvers?
+   * - Curvilinear streaming-equilibrium
+       (``tests/sn/spatial/test_streaming_equilibrium_curvilinear.py``)
+     - Analytical infinite-medium balance
+       :math:`\phi = q/\Sigma_t` (closed-form)
+     - ``source_iteration`` AND ``krylov``
+   * - Reflective :math:`k_\infty` homogeneous
+       (``tests/sn/l1_analytical/test_kinf_homogeneous.py``)
+     - :math:`k_\infty = \nu\Sigma_f / \Sigma_a` (closed-form
+       eigenvalue — MMS does NOT prove eigenvalues)
+     - both
+   * - ``test_si_carve_recovers_analytical_kinf``
+       (``tests/sn/operators/test_invertible_operator.py``)
+     - Analytical :math:`k_\infty` via the SI path with :math:`B`
+       folded (closed-form)
+     - SI path
+   * - Invertible-operator :math:`Q/\Sigma_t` recovery
+       (``tests/sn/operators/test_invertible_operator.py``)
+     - Flat-flux fixed-source balance (closed-form)
+     - direct ``−B`` drive
+
+**3. Reflective eigenvalue regression (principled-equivalence ULP).**
+The reflective cylinder eigenvalue regression snapshot **drifts within
+tolerance**: :math:`4\times 10^{-13}` on :math:`k_{\rm eff}` and
+:math:`7\times 10^{-12}` relative on the scalar flux. This is **not** a
+bug — it is FP-non-associativity from relocating the reflection
+(``vv-principles`` § criterion 3: the reduction-tree changes because
+the reflection now happens in :math:`-B` rather than fused into the
+sweep, so additions occur in a different IEEE-754 order). The drift is
+bounded by ``iteration_count × condition_number × ULP``, well under the
+existing ``rtol`` regression tolerance. The new value is
+convergence-equivalent to the analytical references above (criterion
+2), so the regression contract is satisfied without relaxation beyond
+the snapshot tolerance.
 
 
 .. _trace-spaces-doc:

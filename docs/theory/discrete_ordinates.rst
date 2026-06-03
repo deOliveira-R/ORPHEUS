@@ -31,6 +31,15 @@ Key Facts
   ``cell_update.update_batch``; mesh-time precompute of the per-
   octant DAG; BC apply once per octant per axis (the L7-trap fix).
   See :ref:`sweep-octant-dependency-graph`.
+- **The 1-D sweep is BARE** (Wave O step O.4a.2, Issue #208,
+  2026-06-03): :func:`~orpheus.sn.sweep.transport_sweep` no longer
+  re-applies ``bc`` to the outflow — it reads the *seeded* inflow
+  trace directly. The reflective coupling :math:`\psi.\text{inflow} =
+  B\,\psi.\text{outflow}` is delivered as a sibling :math:`-B` source
+  term, NOT re-derived inside the sweep. The 2-D wavefront sweep is
+  NOT yet bare (still applies ``bc`` internally — deferred to O.4b).
+  See :ref:`bare-sweep-extraction` and the canonical algebra
+  :ref:`bc-extraction` in :doc:`operator_algebra`.
 - **Storage layout**: angular flux ``(N, ng, nx, ny)``; scalar flux
   and per-cell cross sections ``(ng, nx, ny)``; 1-D problems keep
   ``ny = 1`` (singleton, NOT squeezed).  The canonical statement
@@ -2844,6 +2853,26 @@ must agree on what :math:`L` **is**. Foundation tests in
 BC trace contract respected by matvec
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. note::
+
+   **Superseded by Wave O step O.4a.2 (Issue #208, 2026-06-03).** This
+   subsection documents the **Phase C** matvec, where the boundary law
+   was applied *inside* the sweep at the boundary edge
+   (``inflow_full = bc_outer.apply(outflow_at_boundary.T)``, the
+   "keystone"). That intra-sweep BC re-apply has been **deleted** for
+   the **1-D** path: the boundary law :math:`B` is now a first-class
+   sibling :math:`-B` operator and the 1-D sweep is **bare** (reads the
+   seeded inflow trace directly). The Phase C trace-contract *insight*
+   — the BC must consume the WDD-propagated outflow face vector, not
+   cell centres — is **preserved and strengthened** by the extraction:
+   the outflow trace is now an explicit solved unknown
+   :math:`\psi.\text{outflow}` rather than a local variable, and
+   :math:`B` reads it as :math:`B\,\psi.\text{outflow}`. See
+   :ref:`bare-sweep-extraction` below and the canonical algebra at
+   :ref:`bc-extraction` in :doc:`operator_algebra`. The 2-D Cartesian
+   wavefront sweep still uses the Phase C bc-in-sweep mechanism this
+   subsection describes (deferred to O.4b).
+
 The :doc:`boundary_conditions` :ref:`affine-bc-form` (§16A.3) reads
 
 .. math::
@@ -2931,6 +2960,64 @@ physically removes the inflow), and that asymmetry is itself a
 load-bearing acceptance criterion: a vacuum BC that left flat-flux
 residual at zero would be the pre-Phase-C cell-centre contamination
 returning silently.
+
+
+.. _bare-sweep-extraction:
+
+The bare sweep (Wave O step O.4a.2)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Wave O step O.4a.2 (Issue #208, commits ``d7e1316`` / ``4c0ff96`` /
+``2bdc66d``, 2026-06-03) **removed the boundary law from the 1-D
+sweep entirely**. The boundary-edge ``inflow_full =
+bc_outer.apply(outflow_at_boundary.T)`` line shown above (the
+"keystone") is **deleted**; the 1-D :func:`~orpheus.sn.sweep.transport_sweep`
+entry now reads the *seeded* inflow trace directly:
+
+.. code-block:: python
+
+   # PRE-O.4a.2 (bc-in-sweep, still used by the 2-D wavefront):
+   inflow_full = bc_outer.apply(outflow_at_boundary.T)  # re-apply bc
+   psi_face_in = inflow_full[incoming_mask, :].T        # backward seed
+
+   # POST-O.4a.2 (1-D bare sweep):
+   inflow_full = bc_outer    # incoming-ordinate slots = SEEDED inflow
+   psi_face_in = inflow_full[incoming_mask, :].T        # backward seed
+
+The seeded inflow trace is delivered by the caller as the sibling
+:math:`-B` source term, in one of two ways depending on the iteration
+path:
+
+* **Driver paths** (SI / Krylov): the seed rides in
+  :math:`\text{rhs.boundary}` (the boundary source
+  :math:`q.\text{boundary} + B\,\psi.\text{outflow}`), folded via the
+  :math:`S + B` driver mechanism. The bare sweep's
+  :meth:`InvertibleOperator._solve_timed_full_field <orpheus.sn.operator.InvertibleOperator._solve_timed_full_field>`
+  seeds its boundary buffer from :math:`\text{rhs.boundary}`, **not**
+  from the iterate ``initial_guess.boundary`` (the retired
+  partner-flux carrier).
+* **Direct loops** (direct fixed-source SI, final eigenvalue
+  reconstruction sweep): the helper
+  :func:`~orpheus.sn.solver._reflect_outflow_into_inflow` fills the
+  inflow slots with :math:`B\,\psi.\text{outflow}` in place before the
+  sweep, via the canonical
+  :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`.
+
+Both routes call the **identical**
+:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` — :math:`B`
+is single-sourced. For vacuum :math:`B = 0`, so the bare sweep reads a
+zero inflow seed and the result is **bit-identical** to the
+pre-extraction ``bc.apply`` of a vacuum law.
+
+The full block-matrix derivation, the three design corrections (keep
+the outflow defect; project :math:`B` to the inflow row; seed from
+:math:`\text{rhs.boundary}`), the two delivery routes, and the O.2
+forcing function all live at :ref:`bc-extraction` in
+:doc:`operator_algebra` — the canonical home for the SN transport
+operator algebra. The bare-vs-bc-in-sweep dispatch is guarded by the
+single predicate ``sn_mesh.reduced is not None`` (1-D ⇒ bare, 2-D ⇒
+bc-in-sweep until O.4b), so the sweep body and the helper-guard sites
+cannot drift.
 
 .. _sn-mms-spherical-aniso-spatial-convergence:
 

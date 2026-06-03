@@ -72,17 +72,37 @@ History
    driven self-consistent fixed point that the Krylov-on-:meth:`apply`
    path bypasses.
 
-.. note:: Boundary-condition handling
+.. note:: Boundary-condition handling (Wave O step O.4a.2, Issue #208)
 
-   The matvec routes the incoming-at-boundary slots through the
+   The realized boundary law ``B`` is a **first-class sibling
+   operator** of ``L``, NOT re-applied inside this matvec.  The
+   canonical SN loss is ``(L_full + C - S - F - B)`` on the direct-sum
+   state ``V = V_bulk ⊕ V_inflow ⊕ V_outflow``.  For the **1-D** path
+   (slab / sphere / cylinder), :meth:`_MSpatialOperatorSum._compute_LpC`
+   reads ``psi.boundary.inflow`` as a GIVEN, keeps the outflow
+   self-consistency defect ``psi.outflow - streamed`` on the outflow
+   trace row, and adds the inflow identity ``I·psi.inflow`` on the
+   inflow row — with NO ``bc.apply``.  The reflective coupling
+   ``psi.inflow = B·psi.outflow`` is delivered by the sibling ``-B``
+   (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`), and the
+   outer Krylov / SI loop drives the boundary consistency residual
+   ``psi.inflow - B·psi.outflow - q.inflow → 0``.  See
+   :ref:`bc-extraction` for the full block-matrix derivation, the three
+   design corrections, the two ``-B`` delivery routes, and the O.2
+   forcing function.
+
+   The **2-D Cartesian** path
+   (:meth:`StreamingOperator._apply_2d_cartesian`) is NOT yet bare — it
+   still routes the incoming-at-boundary slots through the
    :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` instances on
-   the :class:`~orpheus.sn.geometry.SNMesh` (``bc_xmin``, ``bc_xmax``,
-   ``bc_ymin``, ``bc_ymax``) via ``bc.apply(outgoing)``.  Bit-identity
-   to the pre-Wave-E-Round-3 reflective-only fill is preserved for
-   :class:`ReflectiveBoundary` (the default ``BC.reflective``
-   factory).  This closes ERR-026 for the curvilinear
-   ``solve_sn_fixed_source`` MMS path: the FD operator is BC-faithful
-   for vacuum / reflective / white / albedo / mixed BCs uniformly.
+   the :class:`~orpheus.sn.geometry.SNMesh` (``bc_xmin`` / ``bc_xmax``
+   / ``bc_ymin`` / ``bc_ymax``) via ``bc.apply(outgoing)`` inside the
+   sweep (deferred to O.4b).  The pre-extraction Phase C insight that
+   the BC must consume the WDD-propagated outflow face vector (not
+   cell centres) is preserved and strengthened: post-O.4a.2 the
+   outflow trace is the explicit solved unknown ``psi.outflow`` that
+   ``-B`` reads, closing ERR-026 by construction for the 1-D
+   curvilinear path.
 """
 
 from __future__ import annotations
