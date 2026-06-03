@@ -122,7 +122,7 @@ def test_2d_cartesian_vacuum_xmin_masks_only_inflow(quad_2d):
 def test_2d_cartesian_reflective_ymax_returns_permutation(quad_2d):
     """Reflective on ymax: the realized shim's apply returns
     ``psi[ref]`` where ref = quad.reflection_index("y"). Equivalent
-    to the legacy SpecularBoundaryOperator(axis="y") output.
+    to the legacy ReflectiveBoundary(axis="y") output.
     """
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),

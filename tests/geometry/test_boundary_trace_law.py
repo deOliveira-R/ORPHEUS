@@ -21,14 +21,12 @@ This file pins the Issue-#186 (B3 + β2) descriptor-model contract:
   Composition assertions are pinned in
   :mod:`tests.geometry.test_law_composition`.
 
-Wave 7 update: the legacy ``BoundaryOperator`` ABC has been merged
-into :class:`BoundaryTraceLaw`. The pre-Wave-7 registry-disjointness
-tests were replaced with a UNIFIED-registry assertion — all rank-1
-BCs (``vacuum`` / ``reflective`` / ``white`` / ``periodic`` /
-``albedo`` / ``prescribed_inflow``) now live in
-:pyattr:`BoundaryTraceLaw.registry`. The legacy ``BoundaryOperator``
-symbol is an alias of :class:`BoundaryTraceLaw` (so
-``BoundaryOperator.registry is BoundaryTraceLaw.registry`` is True).
+Wave 7 merged the legacy ``BoundaryOperator`` ABC into
+:class:`BoundaryTraceLaw`; Wave O step O.4a.1-β retired the deprecated
+alias entirely. The pre-Wave-7 registry-disjointness tests were
+replaced with a UNIFIED-registry assertion — all rank-1 BCs
+(``vacuum`` / ``reflective`` / ``white`` / ``periodic`` / ``albedo`` /
+``prescribed_inflow``) now live in :pyattr:`BoundaryTraceLaw.registry`.
 
 Tagged ``@pytest.mark.foundation`` per :mod:`tests._harness`.
 """
@@ -41,7 +39,6 @@ import numpy as np
 import pytest
 
 from orpheus.geometry.boundary import (
-    BoundaryOperator,
     InflowSourceSpec,
     BoundaryTraceLaw,
     ConstantInflowSource,
@@ -203,18 +200,15 @@ def test_unified_registry_holds_all_concretes() -> None:
 
     Before Wave 7 the legacy ``BoundaryOperator`` ABC and
     :class:`BoundaryTraceLaw` held two disjoint registry dicts. Wave
-    7 merged the ABCs (``BoundaryOperator`` is now an alias of
-    :class:`BoundaryTraceLaw`), and the registry split with them —
-    one dict containing the rank-1 concretes plus the test stub plus
-    any Wave-7 additions (``prescribed_inflow``). Wave 11 removed
-    ``MixedBoundaryOperator`` and its ``"mixed"`` registry key —
-    rank-N compositions are now Wave-0 ``OperatorSum``-algebra over
-    realised leaves, not a registered concrete BC.
+    7 merged the ABCs into :class:`BoundaryTraceLaw` (Wave O O.4a.1-β
+    retired the deprecated ``BoundaryOperator`` alias), and the
+    registry merged with them — one dict containing the rank-1
+    concretes plus the test stub plus any Wave-7 additions
+    (``prescribed_inflow``). Wave 11 removed ``MixedBoundaryOperator``
+    and its ``"mixed"`` registry key — rank-N compositions are now
+    Wave-0 ``OperatorSum``-algebra over realised leaves, not a
+    registered concrete BC.
     """
-    # The two symbols are now the same class — registry IS the same dict.
-    assert BoundaryOperator is BoundaryTraceLaw
-    assert BoundaryOperator.registry is BoundaryTraceLaw.registry
-
     # Every Wave-4 rank-1 concrete BC lives in the unified registry.
     keys = set(BoundaryTraceLaw.registry.keys())
     expected_concretes = {

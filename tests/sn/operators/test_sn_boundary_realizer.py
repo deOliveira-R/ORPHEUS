@@ -2,7 +2,7 @@ r"""Tests for SNBoundaryRealizer (Wave 5 / C5.3).
 
 The realizer dispatches by ``isinstance(law, ...)`` to the Wave-0 /
 Wave-1 primitives that realize each legacy
-:class:`~orpheus.geometry.boundary.BoundaryOperator` subclass as a
+:class:`~orpheus.geometry.boundary.BoundaryTraceLaw` subclass as a
 single-arg :class:`~orpheus.numerics.operator.LinearOperator`.
 
 The L1 verification claim: for every legacy BC × quadrature pair, the
@@ -28,14 +28,14 @@ import numpy as np
 import pytest
 
 from orpheus.geometry.boundary import (
-    AlbedoBoundaryOperator,
+    AlbedoBoundary,
     BoundaryError,
     BoundaryRealizerRegistry,
     BoundaryRealizerRegistryError,
-    PeriodicBoundaryOperator,
-    SpecularBoundaryOperator,
-    VacuumBoundaryOperator,
-    WhiteBoundaryOperator,
+    PeriodicBoundary,
+    ReflectiveBoundary,
+    VacuumInflow,
+    WhiteBoundary,
 )
 from orpheus.numerics.operator import (
     IdentityOperator,
@@ -61,7 +61,7 @@ class TestRealizeVacuum:
     """Vacuum realizes to :class:`IncomingOrdinateMaskTensor`.
 
     SEMANTIC NOTE (plan §16A.5 risk register, §16A.10 trace
-    representation): the legacy ``VacuumBoundaryOperator.apply`` returns
+    representation): the legacy ``VacuumInflow.apply`` returns
     ``np.zeros_like(psi_out)`` (zeroes EVERY ordinate). The new realizer
     zeroes ONLY the inflow ordinates and preserves the outflow trace.
     This is the intentional Wave 8 semantic correction. Tests compare
@@ -81,7 +81,7 @@ class TestRealizeVacuum:
         rng = np.random.default_rng(42)
         psi = rng.uniform(0.5, 2.0, size=(quad.N, 4, 2))
         realizer = SNBoundaryRealizer()
-        op = realizer.realize(VacuumBoundaryOperator(), space)
+        op = realizer.realize(VacuumInflow(), space)
         out = op.apply(psi)
         # Inflow rows: zero. Non-inflow rows: equal to input.
         np.testing.assert_array_equal(out[inflow_indices], 0.0)
@@ -97,7 +97,7 @@ class TestRealizeVacuum:
         )
         psi = np.arange(quad.N * 3, dtype=float).reshape(quad.N, 3)
         realizer = SNBoundaryRealizer()
-        op = realizer.realize(VacuumBoundaryOperator(), space)
+        op = realizer.realize(VacuumInflow(), space)
         out = op.apply(psi)
         np.testing.assert_array_equal(out[inflow_indices], 0.0)
         non_inflow = np.setdiff1d(np.arange(quad.N), inflow_indices)
@@ -109,7 +109,7 @@ class TestRealizeVacuum:
         space = SNMethodSpace.minimal(quad)  # no inflow_indices
         realizer = SNBoundaryRealizer()
         with pytest.raises(BoundaryError) as excinfo:
-            realizer.realize(VacuumBoundaryOperator(), space)
+            realizer.realize(VacuumInflow(), space)
         assert excinfo.value.law == "vacuum"
 
     def test_vacuum_returns_tensor_product(self):
@@ -128,7 +128,7 @@ class TestRealizeVacuum:
         space = SNMethodSpace(
             quadrature=quad, face="left", inflow_indices=inflow_indices,
         )
-        op = SNBoundaryRealizer().realize(VacuumBoundaryOperator(), space)
+        op = SNBoundaryRealizer().realize(VacuumInflow(), space)
         assert isinstance(op, TensorProductOperator)
         assert len(op.ops) == 2
         assert isinstance(op.ops[0], IncomingOrdinateMaskTensor)
@@ -156,7 +156,7 @@ class TestRealizeReflective:
         implementation.
         """
         quad = Quadrature.lebedev(17)
-        bc = SpecularBoundaryOperator(axis="x", albedo=1.0)
+        bc = ReflectiveBoundary(axis="x", albedo=1.0)
         space = SNMethodSpace.minimal(quad)
         op = SNBoundaryRealizer().realize(bc, space)
         rng = np.random.default_rng(7)
@@ -179,7 +179,7 @@ class TestRealizeReflective:
         permutation's ``np.take``).
         """
         quad = Quadrature.level_symmetric(4)
-        bc = SpecularBoundaryOperator(axis="x", albedo=1.0)
+        bc = ReflectiveBoundary(axis="x", albedo=1.0)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         assert isinstance(op, TensorProductOperator)
         assert len(op.ops) == 2
@@ -196,7 +196,7 @@ class TestRealizeReflective:
         then multiplies by 0.7 — identical to ``0.7 * psi[perm]``.
         """
         quad = Quadrature.lebedev(17)
-        bc = SpecularBoundaryOperator(axis="x", albedo=0.7)
+        bc = ReflectiveBoundary(axis="x", albedo=0.7)
         space = SNMethodSpace.minimal(quad)
         op = SNBoundaryRealizer().realize(bc, space)
         rng = np.random.default_rng(9)
@@ -208,7 +208,7 @@ class TestRealizeReflective:
         """At α≠1 the dispatch returns ``ScaledOperator(α, TP)`` where
         TP is the 2-factor :class:`TensorProductOperator` from D-B+1."""
         quad = Quadrature.level_symmetric(4)
-        bc = SpecularBoundaryOperator(axis="x", albedo=0.5)
+        bc = ReflectiveBoundary(axis="x", albedo=0.5)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         assert isinstance(op, ScaledOperator)
         assert op.scalar == 0.5
@@ -228,7 +228,7 @@ class TestRealizeWhite:
     """White realizes to ``albedo * AngularAverageOperator``.
 
     The body of :class:`AngularAverageOperator.from_quadrature` is
-    lifted verbatim from :class:`WhiteBoundaryOperator.apply`, and
+    lifted verbatim from :class:`WhiteBoundary.apply`, and
     Wave 1's ``TestLegacyBitEquivalence`` already pins
     ``np.testing.assert_array_equal`` at α=1.0 on Lebedev 17. We
     re-check that property here through the realizer's dispatch chain.
@@ -247,7 +247,7 @@ class TestRealizeWhite:
         structurally-independent references.
         """
         quad = Quadrature.lebedev(17)
-        bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
+        bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         ref = AngularAverageOperator.from_quadrature(
             quad, axis="x", outward_sign=+1,
@@ -268,7 +268,7 @@ class TestRealizeWhite:
         bit-identity at the apply level is preserved.
         """
         quad = Quadrature.lebedev(17)
-        bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
+        bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         assert isinstance(op, TensorProductOperator)
         assert len(op.ops) == 2
@@ -279,7 +279,7 @@ class TestRealizeWhite:
         """At α≠1 the dispatch returns ``ScaledOperator(α, TP)`` where
         TP is the 2-factor :class:`TensorProductOperator`."""
         quad = Quadrature.lebedev(17)
-        bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=0.3)
+        bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=0.3)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         assert isinstance(op, ScaledOperator)
         assert op.scalar == 0.3
@@ -304,7 +304,7 @@ class TestRealizeWhite:
         per the ``algebra-of-record`` bit-identity discipline.
         """
         quad = Quadrature.lebedev(17)
-        bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=0.3)
+        bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=0.3)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         ref = AngularAverageOperator.from_quadrature(
             quad, axis="x", outward_sign=+1,
@@ -326,7 +326,7 @@ class TestRealizeWhite:
         degenerate-face diagnostic; the test asserts that message.
         """
         quad = Quadrature.gauss_legendre(8)
-        bc = WhiteBoundaryOperator(axis="z", outward_sign=+1, albedo=1.0)
+        bc = WhiteBoundary(axis="z", outward_sign=+1, albedo=1.0)
         with pytest.raises(ValueError, match="degenerate for this face"):
             SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
 
@@ -343,7 +343,7 @@ class TestRealizeAlbedo:
     def test_albedo_zero_realizes_to_zero_operator(self):
         quad = Quadrature.gauss_legendre(8)
         op = SNBoundaryRealizer().realize(
-            AlbedoBoundaryOperator(0.0), SNMethodSpace.minimal(quad),
+            AlbedoBoundary(0.0), SNMethodSpace.minimal(quad),
         )
         assert isinstance(op, ZeroOperator)
         psi = np.arange(quad.N * 4, dtype=float).reshape(quad.N, 4)
@@ -352,7 +352,7 @@ class TestRealizeAlbedo:
     def test_albedo_one_realizes_to_identity_operator(self):
         quad = Quadrature.gauss_legendre(8)
         op = SNBoundaryRealizer().realize(
-            AlbedoBoundaryOperator(1.0), SNMethodSpace.minimal(quad),
+            AlbedoBoundary(1.0), SNMethodSpace.minimal(quad),
         )
         assert isinstance(op, IdentityOperator)
         psi = np.arange(quad.N * 4, dtype=float).reshape(quad.N, 4)
@@ -370,7 +370,7 @@ class TestRealizeAlbedo:
         """
         quad = Quadrature.gauss_legendre(8)
         op = SNBoundaryRealizer().realize(
-            AlbedoBoundaryOperator(0.5), SNMethodSpace.minimal(quad),
+            AlbedoBoundary(0.5), SNMethodSpace.minimal(quad),
         )
         assert isinstance(op, ScaledOperator)
         assert op.scalar == 0.5
@@ -405,7 +405,7 @@ class TestRealizePeriodic:
         """
         quad = Quadrature.lebedev(17)
         op = SNBoundaryRealizer().realize(
-            PeriodicBoundaryOperator(), SNMethodSpace.minimal(quad),
+            PeriodicBoundary(), SNMethodSpace.minimal(quad),
         )
         assert isinstance(op, TensorProductOperator)
         assert len(op.ops) == 2
@@ -456,7 +456,7 @@ class TestRegistryLookup:
 
 @pytest.mark.l1
 class TestRealizeUnknownLawRaises:
-    """An object that isn't a recognised BoundaryOperator subclass
+    """An object that isn't a recognised BoundaryTraceLaw subclass
     raises BoundaryError naming the offending type."""
 
     def test_random_object_raises_boundary_error(self):

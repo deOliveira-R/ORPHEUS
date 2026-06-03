@@ -8,7 +8,7 @@ Verifies the operator's invariants:
 * Capability set: ``{CAP_APPLY, CAP_APPLY_TRANSPOSE}``.
 * Composition with :class:`IdentityOperator` is identity.
 * The input is returned by reference (not copied) — matching the
-  legacy :class:`~orpheus.geometry.boundary.PeriodicBoundaryOperator`
+  legacy :class:`~orpheus.geometry.boundary.PeriodicBoundary`
   semantics.
 """
 from __future__ import annotations

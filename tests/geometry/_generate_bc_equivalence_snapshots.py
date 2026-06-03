@@ -20,7 +20,7 @@ V&V context
 ===========
 
 The snapshots are **L1 / regression**: they pin the legacy
-``BoundaryOperator.apply`` output exactly so that the Wave 7–11
+``BoundaryTraceLaw.apply`` output exactly so that the Wave 7–11
 production-call-site migration cannot silently drift the numerical
 output (per :ref:`vv-principles` §1, structural-independence). The
 legacy code is the structurally-independent reference (it predates
@@ -69,12 +69,12 @@ from typing import Callable
 import numpy as np
 
 from orpheus.geometry.boundary import (
-    AlbedoBoundaryOperator,
-    BoundaryOperator,
-    PeriodicBoundaryOperator,
-    SpecularBoundaryOperator,
-    VacuumBoundaryOperator,
-    WhiteBoundaryOperator,
+    AlbedoBoundary,
+    BoundaryTraceLaw,
+    PeriodicBoundary,
+    ReflectiveBoundary,
+    VacuumInflow,
+    WhiteBoundary,
 )
 from orpheus.sn.boundary_realizer import SNBoundaryRealizer, SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
@@ -142,7 +142,7 @@ class BCEquivalenceCase:
 
     case_id: str
     description: str
-    build_bc: Callable[[], BoundaryOperator] | None
+    build_bc: Callable[[], BoundaryTraceLaw] | None
     build_quadrature: Callable[[], AngularQuadrature]
 
     @property
@@ -154,47 +154,47 @@ CASES: tuple[BCEquivalenceCase, ...] = (
     BCEquivalenceCase(
         case_id="vacuum_lebedev17",
         description=(
-            "VacuumBoundaryOperator + LebedevSphere(17). Legacy "
+            "VacuumInflow + LebedevSphere(17). Legacy "
             "returns np.zeros_like; Wave 8 will switch to inflow-only "
             "masking per §16A.5 — see test harness for the dual "
             "assertion."
         ),
-        build_bc=lambda: VacuumBoundaryOperator(),
+        build_bc=lambda: VacuumInflow(),
         build_quadrature=lambda: Quadrature.lebedev(17),
     ),
     BCEquivalenceCase(
         case_id="albedo_05_lebedev17",
-        description="AlbedoBoundaryOperator(0.5) + LebedevSphere(17).",
-        build_bc=lambda: AlbedoBoundaryOperator(albedo=0.5),
+        description="AlbedoBoundary(0.5) + LebedevSphere(17).",
+        build_bc=lambda: AlbedoBoundary(albedo=0.5),
         build_quadrature=lambda: Quadrature.lebedev(17),
     ),
     BCEquivalenceCase(
         case_id="specular_x_lebedev17",
         description=(
-            "SpecularBoundaryOperator(axis='x', albedo=1.0) + "
+            "ReflectiveBoundary(axis='x', albedo=1.0) + "
             "LebedevSphere(17). Pure permutation; bit-exact."
         ),
-        build_bc=lambda: SpecularBoundaryOperator(axis="x", albedo=1.0),
+        build_bc=lambda: ReflectiveBoundary(axis="x", albedo=1.0),
         build_quadrature=lambda: Quadrature.lebedev(17),
     ),
     BCEquivalenceCase(
         case_id="specular_y_partial_07_LS6",
         description=(
-            "SpecularBoundaryOperator(axis='y', albedo=0.7) + "
+            "ReflectiveBoundary(axis='y', albedo=0.7) + "
             "LevelSymmetricSN(6). Multiplication-then-permutation; "
             "bit-exact."
         ),
-        build_bc=lambda: SpecularBoundaryOperator(axis="y", albedo=0.7),
+        build_bc=lambda: ReflectiveBoundary(axis="y", albedo=0.7),
         build_quadrature=lambda: Quadrature.level_symmetric(sn_order=6),
     ),
     BCEquivalenceCase(
         case_id="white_xmax_LS4",
         description=(
-            "WhiteBoundaryOperator(axis='x', outward_sign=+1, "
+            "WhiteBoundary(axis='x', outward_sign=+1, "
             "albedo=1.0) + LevelSymmetricSN(4). Cosine-weighted "
             "average; Wave 1 bit-equivalence with nulp=4 safety margin."
         ),
-        build_bc=lambda: WhiteBoundaryOperator(
+        build_bc=lambda: WhiteBoundary(
             axis="x", outward_sign=+1, albedo=1.0,
         ),
         build_quadrature=lambda: Quadrature.level_symmetric(sn_order=4),
@@ -202,11 +202,11 @@ CASES: tuple[BCEquivalenceCase, ...] = (
     BCEquivalenceCase(
         case_id="white_xmin_partial_03_GL",
         description=(
-            "WhiteBoundaryOperator(axis='x', outward_sign=-1, "
+            "WhiteBoundary(axis='x', outward_sign=-1, "
             "albedo=0.3) + GaussLegendre1D(8). Scalar-shifted "
             "cosine-weighted average; nulp=4."
         ),
-        build_bc=lambda: WhiteBoundaryOperator(
+        build_bc=lambda: WhiteBoundary(
             axis="x", outward_sign=-1, albedo=0.3,
         ),
         build_quadrature=lambda: Quadrature.gauss_legendre(n_ordinates=8),
@@ -214,10 +214,10 @@ CASES: tuple[BCEquivalenceCase, ...] = (
     BCEquivalenceCase(
         case_id="periodic_lebedev17",
         description=(
-            "PeriodicBoundaryOperator + LebedevSphere(17). Identity "
+            "PeriodicBoundary + LebedevSphere(17). Identity "
             "body (psi.copy()); bit-exact."
         ),
-        build_bc=lambda: PeriodicBoundaryOperator(),
+        build_bc=lambda: PeriodicBoundary(),
         build_quadrature=lambda: Quadrature.lebedev(17),
     ),
     # Wave 11: the ``mixed_30spec_70white_LS4`` case is the special
@@ -233,8 +233,8 @@ CASES: tuple[BCEquivalenceCase, ...] = (
     BCEquivalenceCase(
         case_id="mixed_30spec_70white_LS4",
         description=(
-            "0.3 * SpecularBoundaryOperator(axis='x', albedo=1.0) + "
-            "0.7 * WhiteBoundaryOperator(axis='x', outward_sign=+1, "
+            "0.3 * ReflectiveBoundary(axis='x', albedo=1.0) + "
+            "0.7 * WhiteBoundary(axis='x', outward_sign=+1, "
             "albedo=1.0) + LevelSymmetricSN(4). Wave-11 Wave-0 "
             "OperatorSum-of-realised-primitives composition; the "
             "snapshot pins the realised ``apply(psi)`` output (no "
@@ -289,11 +289,11 @@ def _build_mixed_realized_apply(
     the two reduction trees agree bit-exactly.
     """
     spec_realized = SNBoundaryRealizer().realize(
-        SpecularBoundaryOperator(axis="x", albedo=1.0),
+        ReflectiveBoundary(axis="x", albedo=1.0),
         SNMethodSpace.minimal(quad),
     )
     white_realized = SNBoundaryRealizer().realize(
-        WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0),
+        WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0),
         SNMethodSpace.minimal(quad),
     )
     composed = 0.3 * spec_realized + 0.7 * white_realized

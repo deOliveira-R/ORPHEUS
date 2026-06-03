@@ -26,12 +26,12 @@ import numpy as np
 import pytest
 
 from orpheus.geometry.boundary import (
-    AlbedoBoundaryOperator,
-    PeriodicBoundaryOperator,
-    BoundaryOperator,
-    SpecularBoundaryOperator,
-    VacuumBoundaryOperator,
-    WhiteBoundaryOperator,
+    AlbedoBoundary,
+    PeriodicBoundary,
+    BoundaryTraceLaw,
+    ReflectiveBoundary,
+    VacuumInflow,
+    WhiteBoundary,
 )
 from orpheus.sn.boundary_realizer import SNBoundaryRealizer, SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
@@ -67,7 +67,7 @@ def _realize_for_sn(bc, quad):
 def _realize_vacuum_for_face_right(bc, quad):
     """Realize a vacuum BC for the right face (outward normal +x).
 
-    Issue #176 / C176.2: the bare :class:`VacuumBoundaryOperator.apply`
+    Issue #176 / C176.2: the bare :class:`VacuumInflow.apply`
     returns ``np.zeros_like(psi)`` (legacy zeros-all, per Wave 7
     Option a). The §16A.5-correct path returns
     :class:`IncomingOrdinateMaskTensor` that zeros ONLY the inflow
@@ -103,13 +103,13 @@ def test_vacuum_bc_realizer_zeros_only_inflow_per_section_16A5() -> None:
     production contract used by every SN sweep after Issue #188
     (curvilinear) was wired through the realizer.
 
-    The bare :class:`VacuumBoundaryOperator.apply(psi, quad)`
+    The bare :class:`VacuumInflow.apply(psi, quad)`
     direct call still returns the legacy zeros-all output as a
     backward-compat fallback (documented in the BC docstring).
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     psi_out = np.random.default_rng(0).standard_normal((quad.N, 3))
-    bc = VacuumBoundaryOperator()
+    bc = VacuumInflow()
 
     psi_in = _realize_vacuum_for_face_right(bc, quad).apply(psi_out)
 
@@ -124,16 +124,16 @@ def test_vacuum_bc_realizer_zeros_only_inflow_per_section_16A5() -> None:
 
 @pytest.mark.foundation
 def test_vacuum_bc_is_resolved_bc() -> None:
-    """The Protocol is runtime-checkable: VacuumBoundaryOperator qualifies."""
-    assert isinstance(VacuumBoundaryOperator(), BoundaryOperator)
+    """The Protocol is runtime-checkable: VacuumInflow qualifies."""
+    assert isinstance(VacuumInflow(), BoundaryTraceLaw)
 
 
 @pytest.mark.foundation
 def test_specular_bc_indexes_through_reflection_partner() -> None:
-    """``SpecularBoundaryOperator.apply(psi)[n] == psi[reflection_index[n]]``."""
+    """``ReflectiveBoundary.apply(psi)[n] == psi[reflection_index[n]]``."""
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     psi_out = np.arange(quad.N * 2, dtype=float).reshape(quad.N, 2)
-    bc = SpecularBoundaryOperator(axis="x", albedo=1.0)
+    bc = ReflectiveBoundary(axis="x", albedo=1.0)
     ref = quad.reflection_index("x")
 
     psi_in = _realize_for_sn(bc, quad).apply(psi_out)
@@ -144,10 +144,10 @@ def test_specular_bc_indexes_through_reflection_partner() -> None:
 
 @pytest.mark.foundation
 def test_specular_bc_with_partial_albedo() -> None:
-    """SpecularBoundaryOperator scales by ``albedo``."""
+    """ReflectiveBoundary scales by ``albedo``."""
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     psi_out = np.array([[1.0], [2.0], [3.0], [4.0]])
-    bc = SpecularBoundaryOperator(axis="x", albedo=0.5)
+    bc = ReflectiveBoundary(axis="x", albedo=0.5)
 
     psi_in = _realize_for_sn(bc, quad).apply(psi_out)
 
@@ -161,7 +161,7 @@ def test_specular_bc_axis_y_on_lebedev() -> None:
     """Lebedev y-reflection partner: ``apply(axis='y')`` matches index."""
     quad = Quadrature.lebedev(order=9)
     psi_out = np.random.default_rng(1).standard_normal((quad.N, 2))
-    bc = SpecularBoundaryOperator(axis="y", albedo=1.0)
+    bc = ReflectiveBoundary(axis="y", albedo=1.0)
 
     psi_in = _realize_for_sn(bc, quad).apply(psi_out)
 
@@ -174,7 +174,7 @@ def test_white_bc_returns_cosine_weighted_average() -> None:
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     rng = np.random.default_rng(2)
     psi_out = rng.standard_normal((quad.N, 1))
-    bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
+    bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
 
     psi_in = _realize_for_sn(bc, quad).apply(psi_out)
 
@@ -195,7 +195,7 @@ def test_white_bc_is_angle_independent() -> None:
     """White BC produces the same value at every ordinate index."""
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     psi_out = np.random.default_rng(3).standard_normal((quad.N, 2))
-    bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=0.7)
+    bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=0.7)
 
     psi_in = _realize_for_sn(bc, quad).apply(psi_out)
 
@@ -209,8 +209,8 @@ def test_white_bc_albedo_scales_linearly() -> None:
     """Two white BCs at α=1 and α=0.4 differ by exactly the ratio."""
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     psi_out = np.random.default_rng(4).standard_normal((quad.N, 2))
-    bc1 = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
-    bc2 = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=0.4)
+    bc1 = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
+    bc2 = WhiteBoundary(axis="x", outward_sign=+1, albedo=0.4)
 
     psi1 = _realize_for_sn(bc1, quad).apply(psi_out)
     psi2 = _realize_for_sn(bc2, quad).apply(psi_out)
@@ -229,7 +229,7 @@ def test_white_bc_4_point_quadrature_hand_computed() -> None:
     # 7.0 on incoming (irrelevant for the average).
     psi_out = np.where(quad.mu_x[:, None] > 0, 1.0, 7.0)
 
-    bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
+    bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
     psi_in = _realize_for_sn(bc, quad).apply(psi_out)
 
     # Average should be (Σ_outgoing w·μ·1) / (Σ_outgoing w·μ) = 1.
@@ -241,7 +241,7 @@ def test_white_bc_axis_z_on_product_quadrature() -> None:
     """White BC on z-axis routes through ``mu_z``."""
     quad = Quadrature.product(n_mu=8, n_phi=4)
     psi_out = np.where(quad.mu_z[:, None] > 0, 2.0, 9.0)
-    bc = WhiteBoundaryOperator(axis="z", outward_sign=+1, albedo=1.0)
+    bc = WhiteBoundary(axis="z", outward_sign=+1, albedo=1.0)
 
     psi_in = _realize_for_sn(bc, quad).apply(psi_out)
 
@@ -266,7 +266,7 @@ def test_white_bc_z_axis_unsupported_on_1d_quadrature() -> None:
     """
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     psi_out = np.zeros((quad.N, 1))
-    bc = WhiteBoundaryOperator(axis="z", outward_sign=+1, albedo=1.0)
+    bc = WhiteBoundary(axis="z", outward_sign=+1, albedo=1.0)
 
     with pytest.raises(ValueError, match="no outgoing ordinates"):
         _realize_for_sn(bc, quad).apply(psi_out)
@@ -274,7 +274,7 @@ def test_white_bc_z_axis_unsupported_on_1d_quadrature() -> None:
 
 @pytest.mark.foundation
 def test_periodic_bc_returns_input_unchanged() -> None:
-    """PeriodicBoundaryOperator is identity on the angular axis (smoke test).
+    """PeriodicBoundary is identity on the angular axis (smoke test).
 
     The spatial pushforward is the caller's responsibility; this
     primitive only certifies that the angular structure is identity,
@@ -283,7 +283,7 @@ def test_periodic_bc_returns_input_unchanged() -> None:
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     psi_out = np.random.default_rng(5).standard_normal((quad.N, 3))
-    bc = PeriodicBoundaryOperator()
+    bc = PeriodicBoundary()
 
     psi_in = _realize_for_sn(bc, quad).apply(psi_out)
 
@@ -295,10 +295,10 @@ def test_periodic_bc_returns_input_unchanged() -> None:
 
 @pytest.mark.foundation
 def test_albedo_bc_scales_outgoing() -> None:
-    """``AlbedoBoundaryOperator(α).apply(ψ_out) == α·ψ_out``."""
+    """``AlbedoBoundary(α).apply(ψ_out) == α·ψ_out``."""
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     psi_out = np.random.default_rng(6).standard_normal((quad.N, 2))
-    bc = AlbedoBoundaryOperator(albedo=0.5)
+    bc = AlbedoBoundary(albedo=0.5)
 
     psi_in = _realize_for_sn(bc, quad).apply(psi_out)
 
@@ -307,7 +307,7 @@ def test_albedo_bc_scales_outgoing() -> None:
 
 @pytest.mark.foundation
 def test_albedo_zero_and_vacuum_agree_on_inflow_rows() -> None:
-    """``AlbedoBoundaryOperator(0)`` and vacuum agree on inflow rows.
+    """``AlbedoBoundary(0)`` and vacuum agree on inflow rows.
 
     Issue #176 / C176.2: migrated from the legacy zeros-all
     equivalence (both BCs returned ``np.zeros_like(psi)`` via the
@@ -323,10 +323,10 @@ def test_albedo_zero_and_vacuum_agree_on_inflow_rows() -> None:
     psi_out = np.random.default_rng(7).standard_normal((quad.N, 2))
 
     albedo_zero = _realize_for_sn(
-        AlbedoBoundaryOperator(albedo=0.0), quad,
+        AlbedoBoundary(albedo=0.0), quad,
     ).apply(psi_out)
     vacuum_realized = _realize_vacuum_for_face_right(
-        VacuumBoundaryOperator(), quad,
+        VacuumInflow(), quad,
     ).apply(psi_out)
 
     inflow = np.flatnonzero(quad.mu_x < -1e-12)
@@ -349,8 +349,8 @@ def test_wave0_sum_of_realized_bcs_acts_as_weighted_sum() -> None:
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     psi_out = np.random.default_rng(8).standard_normal((quad.N, 2))
-    spec = SpecularBoundaryOperator(axis="x", albedo=1.0)
-    white = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
+    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
 
     spec_realized = _realize_for_sn(spec, quad)
     white_realized = _realize_for_sn(white, quad)
@@ -368,15 +368,15 @@ def test_wave0_sum_of_realized_bcs_acts_as_weighted_sum() -> None:
 @pytest.mark.foundation
 def test_all_primitives_are_resolved_bc() -> None:
     """The runtime-checkable Protocol accepts every primitive."""
-    instances: list[BoundaryOperator] = [
-        VacuumBoundaryOperator(),
-        SpecularBoundaryOperator(axis="x", albedo=1.0),
-        WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0),
-        PeriodicBoundaryOperator(),
-        AlbedoBoundaryOperator(albedo=0.5),
+    instances: list[BoundaryTraceLaw] = [
+        VacuumInflow(),
+        ReflectiveBoundary(axis="x", albedo=1.0),
+        WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0),
+        PeriodicBoundary(),
+        AlbedoBoundary(albedo=0.5),
     ]
     for bc in instances:
-        assert isinstance(bc, BoundaryOperator), f"{type(bc).__name__} not BoundaryOperator"
+        assert isinstance(bc, BoundaryTraceLaw), f"{type(bc).__name__} not BoundaryTraceLaw"
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -389,7 +389,8 @@ def test_registry_contains_all_primitives() -> None:
     """All five rank-1 concrete BC subtypes self-register under their key.
 
     Wave 7 merged the legacy ``BoundaryOperator`` ABC into
-    :class:`BoundaryTraceLaw`, so the registry now also holds test
+    :class:`BoundaryTraceLaw` (Wave O O.4a.1-β retired the deprecated
+    alias), so the registry now also holds test
     stubs from :mod:`tests.geometry.test_boundary_trace_law` and the
     Wave-7 additions (``prescribed_inflow``). Wave 11 removed the
     ``"mixed"`` key alongside the ``MixedBoundaryOperator`` class —
@@ -398,7 +399,7 @@ def test_registry_contains_all_primitives() -> None:
     expected_keys = {
         "vacuum", "reflective", "white", "periodic", "albedo",
     }
-    registry_keys = set(BoundaryOperator.registry.keys())
+    registry_keys = set(BoundaryTraceLaw.registry.keys())
     assert expected_keys <= registry_keys
     assert "mixed" not in registry_keys, (
         "Wave 11 removed MixedBoundaryOperator; the 'mixed' key "
@@ -408,10 +409,10 @@ def test_registry_contains_all_primitives() -> None:
 
 @pytest.mark.foundation
 def test_registry_create_returns_concrete_instance() -> None:
-    bc = BoundaryOperator.create("vacuum")
-    assert isinstance(bc, VacuumBoundaryOperator)
-    bc = BoundaryOperator.create("reflective", axis="x", albedo=1.0)
-    assert isinstance(bc, SpecularBoundaryOperator)
+    bc = BoundaryTraceLaw.create("vacuum")
+    assert isinstance(bc, VacuumInflow)
+    bc = BoundaryTraceLaw.create("reflective", axis="x", albedo=1.0)
+    assert isinstance(bc, ReflectiveBoundary)
     assert bc.axis == "x"
     assert bc.albedo == 1.0
 
@@ -419,7 +420,7 @@ def test_registry_create_returns_concrete_instance() -> None:
 @pytest.mark.foundation
 def test_registry_create_unknown_key_raises() -> None:
     with pytest.raises(KeyError):
-        BoundaryOperator.create("nonsense")
+        BoundaryTraceLaw.create("nonsense")
 
 
 @pytest.mark.foundation
@@ -432,7 +433,7 @@ def test_specular_realized_op_advertises_apply_transpose() -> None:
     set that consumers (sensitivity adjoints) inspect.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
-    spec = SpecularBoundaryOperator(axis="x", albedo=1.0)
+    spec = ReflectiveBoundary(axis="x", albedo=1.0)
     realized = _realize_for_sn(spec, quad)
     assert "apply_transpose" in realized.capabilities
 
@@ -451,7 +452,7 @@ def test_specular_apply_transpose_reciprocity_unweighted() -> None:
     psi_out = rng.standard_normal((quad.N, 2))
     phi_in = rng.standard_normal((quad.N, 2))
 
-    spec = SpecularBoundaryOperator(axis="x", albedo=0.7)
+    spec = ReflectiveBoundary(axis="x", albedo=0.7)
     realized = _realize_for_sn(spec, quad)
     Bpsi = realized.apply(psi_out)
     BTphi = realized.apply_transpose(phi_in)
@@ -468,7 +469,7 @@ def test_specular_self_inverse_identity() -> None:
     rng = np.random.default_rng(7)
     x = rng.standard_normal((quad.N, 2))
 
-    spec = SpecularBoundaryOperator(axis="x", albedo=0.7)
+    spec = ReflectiveBoundary(axis="x", albedo=0.7)
     realized = _realize_for_sn(spec, quad)
     once = realized.apply(x)
     twice = realized.apply(once)
@@ -496,8 +497,8 @@ def test_operator_sum_of_bcs_acts_as_weighted_sum() -> None:
     rng = np.random.default_rng(99)
     psi_out = rng.standard_normal((quad.N, 2))
 
-    spec = SpecularBoundaryOperator(axis="x", albedo=1.0)
-    white = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
+    spec = ReflectiveBoundary(axis="x", albedo=1.0)
+    white = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
 
     spec_realized = _realize_for_sn(spec, quad)
     white_realized = _realize_for_sn(white, quad)
@@ -516,8 +517,8 @@ def test_boundary_operator_keys_match_class_attribute() -> None:
     Wave 11 removed ``MixedBoundaryOperator``; only the rank-1
     concretes are pinned here.
     """
-    assert VacuumBoundaryOperator.key == "vacuum"
-    assert SpecularBoundaryOperator.key == "reflective"
-    assert WhiteBoundaryOperator.key == "white"
-    assert PeriodicBoundaryOperator.key == "periodic"
-    assert AlbedoBoundaryOperator.key == "albedo"
+    assert VacuumInflow.key == "vacuum"
+    assert ReflectiveBoundary.key == "reflective"
+    assert WhiteBoundary.key == "white"
+    assert PeriodicBoundary.key == "periodic"
+    assert AlbedoBoundary.key == "albedo"

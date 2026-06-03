@@ -60,11 +60,11 @@ import numpy as np
 import pytest
 
 from orpheus.geometry.boundary import (
-    AlbedoBoundaryOperator,
-    PeriodicBoundaryOperator,
-    SpecularBoundaryOperator,
-    VacuumBoundaryOperator,
-    WhiteBoundaryOperator,
+    AlbedoBoundary,
+    PeriodicBoundary,
+    ReflectiveBoundary,
+    VacuumInflow,
+    WhiteBoundary,
 )
 from orpheus.sn.boundary_realizer import SNBoundaryRealizer, SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
@@ -132,7 +132,7 @@ class TestVacuumLebedev17Snapshot:
         space = SNMethodSpace(
             quadrature=quad, face="xmin", inflow_indices=inflow_indices,
         )
-        op = SNBoundaryRealizer().realize(VacuumBoundaryOperator(), space)
+        op = SNBoundaryRealizer().realize(VacuumInflow(), space)
         psi_out = snapshot["psi_out"]
         actual = op.apply(psi_out)
         # Inflow rows are zero (§16A.5 mask action).
@@ -183,7 +183,7 @@ class TestAlbedo05Lebedev17Snapshot:
         ``assert_array_equal`` is the right gate.
         """
         quad = Quadrature.lebedev(17)
-        bc = AlbedoBoundaryOperator(albedo=0.5)
+        bc = AlbedoBoundary(albedo=0.5)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         actual = op.apply(snapshot["psi_out"])
         np.testing.assert_array_equal(actual, snapshot["psi_in"])
@@ -212,7 +212,7 @@ class TestSpecularXLebedev17Snapshot:
         :class:`PermutationOperator` (no :class:`ScaledOperator` wrap).
         """
         quad = Quadrature.lebedev(17)
-        bc = SpecularBoundaryOperator(axis="x", albedo=1.0)
+        bc = ReflectiveBoundary(axis="x", albedo=1.0)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         actual = op.apply(snapshot["psi_out"])
         np.testing.assert_array_equal(actual, snapshot["psi_in"])
@@ -243,7 +243,7 @@ class TestSpecularYPartial07LS6Snapshot:
     ) -> None:
         """Realized ``ScaledOperator(0.7, PermutationOperator)`` is bit-exact."""
         quad = Quadrature.level_symmetric(sn_order=6)
-        bc = SpecularBoundaryOperator(axis="y", albedo=0.7)
+        bc = ReflectiveBoundary(axis="y", albedo=0.7)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         actual = op.apply(snapshot["psi_out"])
         np.testing.assert_array_equal(actual, snapshot["psi_in"])
@@ -278,7 +278,7 @@ class TestWhiteXmaxLS4Snapshot:
         generated from this exact path.
         """
         quad = Quadrature.level_symmetric(sn_order=4)
-        bc = WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0)
+        bc = WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         actual = op.apply(snapshot["psi_out"])
         np.testing.assert_array_equal(actual, snapshot["psi_in"])
@@ -312,7 +312,7 @@ class TestWhiteXminPartial03GLSnapshot:
     ) -> None:
         """Realized ``ScaledOperator(0.3, AngularAverageOperator)`` is bit-exact."""
         quad = Quadrature.gauss_legendre(n_ordinates=8)
-        bc = WhiteBoundaryOperator(axis="x", outward_sign=-1, albedo=0.3)
+        bc = WhiteBoundary(axis="x", outward_sign=-1, albedo=0.3)
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         actual = op.apply(snapshot["psi_out"])
         np.testing.assert_array_equal(actual, snapshot["psi_in"])
@@ -341,7 +341,7 @@ class TestPeriodicLebedev17Snapshot:
         ``assert_array_equal`` is the right gate.
         """
         quad = Quadrature.lebedev(17)
-        bc = PeriodicBoundaryOperator()
+        bc = PeriodicBoundary()
         op = SNBoundaryRealizer().realize(bc, SNMethodSpace.minimal(quad))
         actual = op.apply(snapshot["psi_out"])
         np.testing.assert_array_equal(actual, snapshot["psi_in"])
@@ -387,11 +387,11 @@ class TestMixed30Spec70WhiteLS4Snapshot:
         snapshot at ``nulp=64``."""
         quad = Quadrature.level_symmetric(sn_order=4)
         spec_realized = SNBoundaryRealizer().realize(
-            SpecularBoundaryOperator(axis="x", albedo=1.0),
+            ReflectiveBoundary(axis="x", albedo=1.0),
             SNMethodSpace.minimal(quad),
         )
         white_realized = SNBoundaryRealizer().realize(
-            WhiteBoundaryOperator(axis="x", outward_sign=+1, albedo=1.0),
+            WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0),
             SNMethodSpace.minimal(quad),
         )
         composed = 0.3 * spec_realized + 0.7 * white_realized
