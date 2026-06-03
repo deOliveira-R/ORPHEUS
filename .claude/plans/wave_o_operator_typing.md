@@ -278,7 +278,34 @@ and the verification plan
 
 ---
 
-## ⭐⭐⭐ O.4a.2 IN-FLIGHT STATE — COMPACTION HANDOFF (READ FIRST, 2026-06-03)
+## ⭐⭐⭐ O.4a.2 — ✅ COMPLETE (HEAD `2bdc66d`, 2026-06-03)
+
+**`(L_full + C − S − F − B)ψ = q` is now canonical on BOTH the matvec/Krylov path
+(Commit 2 `4c0ff96`) AND the SI/bare-sweep path (Commit 3 `2bdc66d`).** The
+bc-in-sweep mechanism is RETIRED for 1-D (2-D wavefront stays bc-in-sweep until
+O.4b). Sphinx theory update dispatched to the archivist.
+
+**Commit 3 (`2bdc66d`) — bare sweep + SI −B:** `transport_sweep` 1-D entry reads
+the seeded inflow directly (no `bc.apply`); `_solve_timed_full_field` seeds from
+`rhs.boundary` (NOT `initial_guess.boundary` — the "leave as-is" guidance below
+was WRONG); `_solve_source_iteration` folds `S+B` + retires
+`q_ext.boundary=_boundary_flux`; new `_reflect_outflow_into_inflow` helper drives
+−B for the DIRECT loops (`_solve_fixed_source_si` + final eigenvalue sweep),
+1-D-guarded (`reduced is not None`). **TEST-MIGRATION FINDING (handoff
+under-scoped):** the bare sweep broke 5 tests calling `transport_sweep` directly
+in reflective loops (relying on bc-in-sweep) — all migrated to drive −B via the
+helper + 2 invertible-operator tests to the `rhs.boundary` seed contract.
+**#212 (PRE-EXISTING):** the full eigenvalue suite hangs on the `continuous_get`
+Peierls registry eager-build (3 tests deselected; solver converges ~0.3s).
+**DEFERRED to O.2** (elegance-enforcer): unify the 3 parallel `(L+C)` matvec
+impls; honest `L+C−S−F−B` driver composition (retires the `S+B` fold — type-checks
+only because `S.domain is None`, the forcing tripwire) + the two −B routes
+collapse; a trace-only `B.reflect_into_inflow(boundary)` entry point (retires the
+helper). Gates: vacuum bit-identical, reflective convergence-equiv
+(streaming-equilibrium both solvers, k∞, si_carve→k∞, keff, invertible Q/Σ,
+sentinel no-`O`), 506 + 73 + keff_2d 4.
+
+---
 
 ### ✅ COMMIT 2 LANDED (HEAD `4c0ff96`) — the co-land was SPLIT into 2 commits
 
@@ -300,8 +327,11 @@ callers + the seed-source logic. Splitting keeps every gate green at each commit
   baselines + regression snapshots), reflective convergence-equiv (curvilinear
   streaming-equilibrium krylov no-`O`, k∞, keff), operator suite 455,
   elegance-enforcer CONCERNS resolved.
-- **Commit 3 (NEXT):** the **SI bare-sweep extraction** — see "REMAINING WIRING"
-  below (items now Commit-3 scope). Retires the bc-in-sweep mechanism entirely.
+- **Commit 3 (DONE, `2bdc66d`):** the **SI bare-sweep extraction** (see the
+  COMPLETE banner above). Retired the bc-in-sweep mechanism for 1-D. The
+  "REMAINING WIRING" / mechanics below are the historical handoff — accurate
+  except the corrected items called out in the banner (seed-from-`rhs.boundary`;
+  the 5-test migration; the helper for the direct loops).
 
 **TWO design findings the original handoff MISSED (corrections):**
 1. The whole-trace `B` needed **inflow-row PROJECTION**. The full-face realized
