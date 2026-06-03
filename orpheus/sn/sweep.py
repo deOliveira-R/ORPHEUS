@@ -459,9 +459,20 @@ def _run_1d_sweep(
     scalar_flux = np.zeros((ng, nx))
 
     # ── BC inflow + per-level Carlson seed (curvilinear only) ─────────
+    #
+    # Wave O (#208) O.4a.2 — BARE SWEEP: the entry ``bc_*.apply`` is GONE.
+    # The reflective coupling ``ψ.inflow = B·ψ.outflow`` is no longer
+    # re-applied inside the sweep; it is supplied by the CALLER as the
+    # ``−B`` source term (the SI driver folds ``S + B`` into the source;
+    # the direct fixed-source loops + the final reconstruction reflect the
+    # persisted outflow into the inflow slots via ``SNBoundaryOperator``
+    # before each sweep — see ``solver.py``). The sweep now reads the
+    # SEEDED inflow trace DIRECTLY: the incoming-ordinate slots of the
+    # face view ARE the inflow seed, and the outgoing-ordinate slots are
+    # persisted in place after the sweep. Reading the inflow ords (before)
+    # and writing the outflow ords (after) touch DISJOINT ordinate sets,
+    # so aliasing the face view is safe.
     if is_slab:
-        bc_left_obj = sn_mesh.bc_left
-        bc_right_obj = sn_mesh.bc_right
         # D-H.2-C2: L2 :class:`BoundaryFlux` provides writable per-face
         # views via :meth:`face_view`.  Slab layout has both ``xmin``
         # and ``xmax`` slots (shape ``(N, ng)`` each); writes through
@@ -470,8 +481,8 @@ def _run_1d_sweep(
         # mutates these views in place.
         bc_left_face = boundary_flux.face_view("xmin")   # (N, ng)
         bc_right_face = boundary_flux.face_view("xmax")  # (N, ng)
-        inflow_left = bc_left_obj.apply(bc_left_face)    # (N, ng)
-        inflow_right = bc_right_obj.apply(bc_right_face)  # (N, ng)
+        inflow_left = bc_left_face    # incoming-ord slots = seeded inflow
+        inflow_right = bc_right_face  # incoming-ord slots = seeded inflow
         levels = [None]
         level_ordinates_list = [list(range(N))]
         bc_outer = None
@@ -479,13 +490,12 @@ def _run_1d_sweep(
         dr = None
         inflow_full = None
     else:
-        bc_outer_obj = sn_mesh.bc_right
         # D-H.2-C2: 1-D curvilinear layout has only the outer radial
         # ``xmax`` face (the geometric pole at r=0 is a regularity
         # condition, not a BC face).  Writable view into the L2 flat
         # backing buffer.
         bc_outer = boundary_flux.face_view("xmax")  # (N, ng)
-        inflow_full = bc_outer_obj.apply(bc_outer)  # (N, ng)
+        inflow_full = bc_outer  # incoming-ord slots = seeded inflow (bare sweep)
 
         # Per-level Carlson coupled-pole seed delegates to the M-M
         # closure's ``psi_half_seed`` strategy — the SAME strategy the

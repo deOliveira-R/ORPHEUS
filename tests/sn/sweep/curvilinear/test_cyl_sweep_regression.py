@@ -190,6 +190,7 @@ class TestAzimuthalRedistribution:
     def test_single_cell_uniform_source_equilibrium(self):
         """Two-cell 1G pure absorber with uniform source → φ = Q/Σ_t."""
         from orpheus.sn.sweep import transport_sweep
+        from orpheus.sn.solver import _reflect_outflow_into_inflow
         from orpheus.transport.source_sinks import AngularSourceSink
 
         mesh = _homogeneous_mesh(2, 1.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
@@ -202,6 +203,10 @@ class TestAzimuthalRedistribution:
         boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
         phi = None
         for _ in range(100):
+            # Wave O (#208) O.4a.2 — bare sweep: drive the −B reflective
+            # coupling explicitly before each sweep (mirrors the production
+            # _solve_fixed_source_si direct loop).
+            _reflect_outflow_into_inflow(boundary_flux, sn_mesh)
             _, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
         phi_avg = np.average(phi[0, :, 0], weights=mesh.volumes)

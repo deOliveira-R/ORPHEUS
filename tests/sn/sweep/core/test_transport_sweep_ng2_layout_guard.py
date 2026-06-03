@@ -110,8 +110,13 @@ def test_transport_sweep_ng2_per_group_distinct():
     source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
     boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
 
+    from orpheus.sn.solver import _reflect_outflow_into_inflow
     phi = None
     for _ in range(200):
+        # Wave O (#208) O.4a.2 — bare sweep: drive the −B reflective coupling
+        # explicitly before each sweep (the sweep no longer re-applies the BC
+        # at entry; the no-leakage equilibrium φ_g = Q_g/Σ_t,g needs it).
+        _reflect_outflow_into_inflow(boundary_flux, sn_mesh)
         _, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
     # Equilibrium per group: φ_g = Q_g / Σ_t,g (pure-streaming sweep with

@@ -2002,14 +2002,20 @@ class InvertibleOperator(OperatorSum):
         # The sweep mutates ``boundary_buf`` (the L2 mutable
         # write-through; ``frozen=True`` freezes field rebinding but
         # the underlying flat ndarray remains writable through
-        # :meth:`face_view`).  Seed it from the composite's boundary
-        # face_view — ``initial_guess.boundary`` takes priority,
-        # ``rhs.boundary`` is the fallback.  D-H.2-C2 retires the
-        # legacy round-trip: ``boundary_buf`` IS L2 throughout.
+        # :meth:`face_view`).
+        #
+        # Wave O (#208) O.4a.2 — BARE SWEEP: the inflow seed is the
+        # boundary SOURCE ``rhs.boundary`` (the inflow slots carry
+        # ``q.boundary + B·ψ.outflow`` — the SI driver folds ``S + B`` so
+        # the ``Bψ`` reflective inflow rides in ``rhs.boundary``).  This
+        # REPLACES the pre-extraction seed-from-``initial_guess.boundary``:
+        # the bare sweep no longer re-applies ``bc`` to the iterate's
+        # outflow, so the iterate's boundary is NOT the inflow seed.  The
+        # iterate (``initial_guess``) still threads the BULK Carlson /
+        # angular warm-start through ``transport_sweep`` below — that path
+        # reads ``initial_guess.bulk``, not its boundary.
         boundary_buf = BoundaryFlux.zeros_on(sn_mesh)  # L2 after C2
-        seed_boundary = (
-            initial_guess.boundary if initial_guess is not None else rhs.boundary
-        )
+        seed_boundary = rhs.boundary
         # Per-face copy via L2 face_view — works for slab (xmin, xmax),
         # curvilinear (xmax only), and 2-D Cartesian (all 4).
         for face_name in boundary_buf.layout.faces:

@@ -600,7 +600,15 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
             # ``rhs`` is bare ndarray (ng, nx, ny) — wrap via the
             # canonical iso → per-ord factory at the adapter boundary.
             from orpheus.transport.source_sinks import AngularSourceSink
+            from orpheus.sn.solver import _reflect_outflow_into_inflow
             source = AngularSourceSink.from_isotropic(rhs, sn_mesh)
+            # Wave O (#208) O.4a.2 — the bare ``transport_sweep`` no longer
+            # re-applies the reflective BC at entry; drive the −B coupling
+            # explicitly (reflect the persisted outflow — ``boundary_flux``
+            # is the closure-scoped partner-flux carrier — into the inflow
+            # slots) before each sweep, exactly as ``_solve_fixed_source_si``
+            # does in production.
+            _reflect_outflow_into_inflow(boundary_flux, sn_mesh)
             _angular, scalar = transport_sweep(
                 source, solver.mat_xs.total_cross_section, sn_mesh,
                 boundary_flux,

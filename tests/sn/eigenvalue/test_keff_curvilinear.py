@@ -522,6 +522,7 @@ class TestMultiGroupMultiRegionSpherical:
         the origin.  With the fix, the range should be bounded.
         """
         from orpheus.sn.sweep import transport_sweep
+        from orpheus.sn.solver import _reflect_outflow_into_inflow
         from orpheus.transport.source_sinks import AngularSourceSink
         from tests.sn._test_helpers import placeholder_materials
 
@@ -535,6 +536,11 @@ class TestMultiGroupMultiRegionSpherical:
         boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
         phi = None
         for _ in range(50):
+            # Wave O (#208) O.4a.2 — the bare ``transport_sweep`` no longer
+            # re-applies the reflective BC at entry; drive the −B coupling
+            # explicitly (reflect the persisted outflow into the inflow slots)
+            # before each sweep, exactly as ``_solve_fixed_source_si`` does.
+            _reflect_outflow_into_inflow(boundary_flux, sn_mesh)
             _, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
         phi_avg = np.average(phi[0, :, 0], weights=mesh.volumes)

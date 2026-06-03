@@ -555,13 +555,17 @@ class TestSolveTimedFullField:
       ``boundary_buf`` (partner-flux seeding, audit §5).
     """
 
-    def test_initial_guess_partner_flux_threaded(self) -> None:
-        """Composite ``initial_guess.boundary`` seeds the partner-flux trace.
+    def test_rhs_boundary_seeds_the_sweep_inflow(self) -> None:
+        """Composite ``rhs.boundary`` seeds the bare sweep's inflow trace.
 
-        Reflective-BC partner-flux state is load-bearing per audit §5.
-        The bridge must extract the L2 boundary's face arrays and seed
-        the sweep's mutable ``boundary_buf`` before transport_sweep
-        runs.
+        Wave O (#208) O.4a.2 — BC extraction: the boundary INFLOW seed is
+        now the boundary SOURCE ``rhs.boundary`` (carrying ``q.boundary +
+        B·ψ.outflow``), NOT ``initial_guess.boundary``.  The bare sweep no
+        longer re-applies ``bc`` at entry; ``InvertibleOperator.solve``
+        seeds the sweep's mutable ``boundary_buf`` from ``rhs.boundary``
+        before transport_sweep runs.  (Pre-extraction this seed came from
+        ``initial_guess.boundary`` — the partner-flux carrier — which the
+        ``−B`` extraction retires.)
         """
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
@@ -569,23 +573,23 @@ class TestSolveTimedFullField:
             sn, sigma_t,
         )
 
-        # Build initial_guess with a non-zero boundary trace —
-        # verify it makes it into the sweep's boundary_buf.  Slab has
-        # both xmin and xmax faces.
+        # Build rhs with a non-zero boundary trace (the inflow source) —
+        # verify it makes it into the sweep's boundary_buf.  Slab has both
+        # xmin and xmax faces.  ``initial_guess`` carries the bulk warm
+        # start only (its boundary is no longer the inflow seed).
         rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
-        ig = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
-        # Seed both face buffers via L2 face_view.
-        layout = ig.boundary.layout
-        ig_boundary = ig.boundary
+        rhs_boundary = rhs.boundary
+        layout = rhs_boundary.layout
         if "xmax" in layout.faces:
-            ig_boundary.face_view("xmax")[:] = 0.7
+            rhs_boundary.face_view("xmax")[:] = 0.7
         if "xmin" in layout.faces:
-            ig_boundary.face_view("xmin")[:] = 0.3
+            rhs_boundary.face_view("xmin")[:] = 0.3
+        ig = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
 
         # Outcome-level spy: capture the boundary_buf as transport_sweep
-        # sees it.  The seed must already be in place when the kernel
-        # runs (otherwise the sweep sees vacuum and the SI fixed point
-        # shifts).
+        # sees it.  The seed must already be in place when the kernel runs
+        # (otherwise the bare sweep sees a zero inflow trace and the
+        # fixed point shifts away from the −B-driven answer).
         captured: list[tuple[np.ndarray, np.ndarray]] = []
         from orpheus.sn import sweep as sweep_mod
         original = sweep_mod.transport_sweep
@@ -883,6 +887,7 @@ class TestInvertibleSolveBridgeRegression:
         property end-to-end on the composite path.
         """
         from dataclasses import replace
+        from orpheus.sn.boundary_operator import SNBoundaryOperator
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
         )
@@ -913,15 +918,23 @@ class TestInvertibleSolveBridgeRegression:
             history_depth=2,
         )
 
-        # Iterate to converge the curvilinear partner-flux state under
-        # reflective BC.  Each call seeds the M-M Carlson closure via
-        # the explicit ``initial_guess`` kwarg.
+        # Iterate to converge the reflective fixed point.  Wave O (#208)
+        # O.4a.2 — BC extraction: ``LC.solve`` is now the BARE inverse
+        # (it reads ``rhs.boundary`` as the inflow seed and no longer
+        # re-applies ``bc`` internally), so this loop must drive the
+        # reflective coupling EXPLICITLY via the sibling ``−B``: each
+        # iterate sets ``rhs.boundary = q.boundary + B·ψ.outflow``
+        # (``q.boundary = 0`` here) — exactly the ``S + B`` source the
+        # production SI driver folds.  ``initial_guess`` still threads the
+        # M-M Carlson bulk warm start.
+        B = SNBoundaryOperator(sn_mesh)
         psi_typed: TimedFullField | None = None
         for _ in range(400):
             if psi_typed is None:
                 psi_new = LC.solve(rhs)
             else:
-                psi_new = LC.solve(rhs, initial_guess=psi_typed)
+                rhs_n = replace(rhs, boundary=B.apply(psi_typed).boundary)
+                psi_new = LC.solve(rhs_n, initial_guess=psi_typed)
             if psi_typed is not None and np.abs(
                 psi_new.bulk.values - psi_typed.bulk.values,
             ).max() < 1e-14:

@@ -100,6 +100,7 @@ class TestSphericalSweepRegression:
         the spherical sweep source term.
         """
         from orpheus.sn.sweep import transport_sweep
+        from orpheus.sn.solver import _reflect_outflow_into_inflow
         from orpheus.transport.source_sinks import AngularSourceSink
 
         mesh = _homogeneous_mesh(10, 1.0, mat_id=0, coord=CoordSystem.SPHERICAL)
@@ -113,6 +114,10 @@ class TestSphericalSweepRegression:
         boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
         phi = None
         for _ in range(200):
+            # Wave O (#208) O.4a.2 — bare sweep: drive the −B reflective
+            # coupling explicitly before each sweep (the sweep no longer
+            # re-applies the BC at entry).  Mirrors _solve_fixed_source_si.
+            _reflect_outflow_into_inflow(boundary_flux, sn_mesh)
             _, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
         V = sn_mesh.volumes[:, 0]

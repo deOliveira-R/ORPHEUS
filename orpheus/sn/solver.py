@@ -358,7 +358,17 @@ class SNSolver:
         IS the signal to land the honest composition (drivers consuming the
         whole loss operator ``L+C−S−F−B`` on the direct-sum carrier) — Wave O
         step O.2. Single source of truth for the ``S + B`` fold (Cardinal
-        Rule 2): every Krylov site reads this property.
+        Rule 2): every Krylov site + the eigenvalue SI driver reads this.
+
+        TWIN ROUTE (same ``−B`` coupling, different plumbing): the SI/Krylov
+        DRIVER path delivers ``B·ψ.outflow`` through ``rhs.boundary`` via this
+        fold; the DIRECT fixed-source loops + the final eigenvalue
+        reconstruction sweep — which have no driver to fold into — deliver it
+        via :func:`_reflect_outflow_into_inflow` instead. Both call the
+        identical :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`
+        (``B`` is single-sourced); only the seed-delivery plumbing differs. The
+        two routes COLLAPSE at O.2 (drivers take ``L+C−S−F−B`` directly, the
+        direct loops route through the driver, the helper retires).
         """
         from orpheus.sn.boundary_operator import SNBoundaryOperator
         return self.scattering_op + SNBoundaryOperator(self.sn_mesh)
@@ -587,23 +597,23 @@ class SNSolver:
         )
         # D-H.1c stage 2 — q_ext composite carries:
         #   * bulk = per-ordinate source values on the L2 AngularFlux.
-        #   * boundary = the persistent partner-flux state seeded from
-        #     the legacy ``self._boundary_flux`` via the L2 adapter.
-        # This is the load-bearing plumbing for reflective BCs: the
-        # FIRST inner SI iteration has no ``initial_guess`` (cold
-        # start), so without this seeding the sweep would see a zero
-        # BC trace (= vacuum), and the SI fixed point shifts away from
-        # the true reflective answer.  InvertibleOperator.solve's
-        # composite branch reads ``rhs.boundary`` as the fallback BC
-        # inflow trace when ``initial_guess is None`` (audit §5).
+        #   * boundary = ZERO (the EXTERNAL boundary source — zero for
+        #     vacuum/reflective; non-zero only for prescribed inflow).
+        # Wave O (#208) O.4a.2 — the partner-flux seeding
+        # (``boundary = self._boundary_flux``) is RETIRED: the reflective
+        # inflow is no longer pre-staged into the source.  It is driven by
+        # the sibling ``−B`` folded into the subtracted ``S`` argument
+        # (``self._scattering_with_boundary_op``): each SI iterate adds
+        # ``B·ψ.outflow`` to ``rhs.boundary``, which ``(L+C).solve``'s bare
+        # sweep reads as the inflow seed (operator.py
+        # ``_solve_timed_full_field`` seeds from ``rhs.boundary``).  The
+        # boundary inflow is thus a live solved unknown carried in
+        # ``ψ.boundary``, not an externally-recomputed partner trace.
         q_ext_composite = TimedFullField(
             # B.5.2: q_ext IS a source — carry the AngularSourceSink directly
             # (the re-wrap into AngularFlux WAS the dimensional sin).
             bulk=q_ext_per_ord,
-            # D-H.2-C2: ``self._boundary_flux`` is now L2 directly via
-            # ``BoundaryFlux.zeros_on``; the ``from_legacy_sn`` adapter
-            # retires from this call site.
-            boundary=self._boundary_flux,
+            boundary=BoundaryFlux.zeros_on(self.sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -625,7 +635,12 @@ class SNSolver:
 
         si = SourceIteration(
             LC,
-            self.scattering_op,
+            # Wave O #208 — ``S + B`` fold: the SI source becomes
+            # ``(S+B)ψ + Fψ + q`` so the reflective inflow ``B·ψ.outflow``
+            # rides in ``rhs.boundary`` and the bare ``(L+C).solve`` sweep
+            # reads it as the inflow seed. (B cannot join the LC
+            # preconditioner — OperatorSum drops CAP_SOLVE.)
+            self._scattering_with_boundary_op,
             ZeroOperator(codomain_zero=_zero_within_group_fission),
             max_iter=self.max_inner,
             tol=self.inner_tol,
@@ -941,6 +956,56 @@ def _is_curvilinear(mesh: Mesh1D | Mesh2D) -> bool:
     return name in ("SPHERICAL", "CYLINDRICAL")
 
 
+def _reflect_outflow_into_inflow(boundary_flux, sn_mesh: SNMesh) -> None:
+    r"""In-place: fill each face's inflow ordinate slots with the realized
+    boundary law applied to that face's outflow trace — the ``−B`` reflective
+    coupling, externalised for the bare ``transport_sweep`` (Wave O #208 O.4a.2).
+
+    The bare sweep reads the inflow ordinate slots of its boundary buffer as
+    the inflow seed; it no longer re-applies ``bc`` to the outflow internally.
+    The SI driver path supplies ``B·ψ.outflow`` through ``rhs.boundary`` (the
+    ``S + B`` fold), but the DIRECT fixed-source SI loop
+    (:func:`_solve_fixed_source_si`) and the final eigenvalue reconstruction
+    sweep (:func:`solve_sn`) do not route through that driver — they call this
+    helper to set ``ψ.inflow = B·ψ.outflow`` on the buffer before each sweep,
+    via the canonical whole-trace :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`
+    (single source of truth — the same ``B`` the matvec / SI driver consume).
+
+    For vacuum ``B = 0`` so the inflow slots stay zero (bit-identical to the
+    pre-extraction ``bc.apply`` of a vacuum law); for reflective/white/albedo
+    it is the same ``R·G`` reflection the pre-extraction sweep applied at entry,
+    merely relocated to the caller.
+
+    This is the TWIN of the driver route :meth:`SNSolver._scattering_with_boundary_op`
+    (the ``S + B`` fold): both deliver the SAME ``−B`` coupling via the SAME
+    ``SNBoundaryOperator``, differing only in plumbing (this helper writes the
+    buffer's inflow slots directly; the fold rides ``B·ψ.outflow`` in
+    ``rhs.boundary``). The two COLLAPSE at Wave O step O.2 — when the iteration
+    drivers take the whole loss operator ``L+C−S−F−B`` directly, the direct
+    loops route through the driver and THIS HELPER RETIRES (the removal trigger).
+    """
+    from orpheus.sn.boundary_operator import SNBoundaryOperator
+    from orpheus.transport.fields.angular_flux import AngularFlux
+    from orpheus.transport.timed_full_field import TimedFullField
+
+    probe = TimedFullField(
+        bulk=AngularFlux.from_mesh(
+            np.zeros(
+                (sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny),
+            ),
+            sn_mesh,
+        ),
+        boundary=boundary_flux,
+        _history=(),
+        history_depth=2,
+    )
+    reflected = SNBoundaryOperator(sn_mesh).apply(probe).boundary
+    trace = sn_mesh.trace
+    for face in boundary_flux.layout.faces:
+        inflow = trace.inflow_indices_for_face(face)
+        boundary_flux.face_view(face)[inflow] = reflected.face_view(face)[inflow]
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Public API
 # ═══════════════════════════════════════════════════════════════════════
@@ -1039,13 +1104,32 @@ def solve_sn(
     # producer-side normalisation — /W projection at the factory
     # boundary).
     from orpheus.transport.source_sinks import AngularSourceSink
+    from orpheus.transport.fields.boundary_flux import (
+        BoundaryFlux as _BoundaryFlux,
+    )
     Q_final = solver.compute_fission_source(scalar_flux, keff)
     solver._add_scattering_source(Q_final, scalar_flux)
     solver._add_n2n_source(Q_final, scalar_flux)
+    # Wave O #208 O.4a.2 — BARE final reconstruction sweep: seed its inflow
+    # from the CONVERGED boundary trace.  The inner solves drive the inflow as
+    # a live unknown in ``ψ.boundary`` (carried on ``solver._psi_typed`` from
+    # the last inner solve), so ``solver._boundary_flux`` is no longer the
+    # partner-flux carrier (it stays all-zeros).  Reflect the converged outflow
+    # into the inflow slots via −B (no-op for vacuum; idempotent here since the
+    # converged inflow already equals ``B·ψ.outflow``), then sweep.
+    converged = getattr(solver, "_psi_typed", None)
+    final_boundary = (
+        converged.boundary if converged is not None
+        else _BoundaryFlux.zeros_on(sn_mesh)
+    )
+    # 1-D bare sweep only — the 2-D wavefront still applies ``bc`` internally
+    # (O.4b) and ``SNBoundaryOperator`` is not yet wired for the 2-D trace.
+    if sn_mesh.reduced is not None:
+        _reflect_outflow_into_inflow(final_boundary, sn_mesh)
     angular_flux, _ = transport_sweep(
         AngularSourceSink.from_isotropic(Q_final, sn_mesh),
         solver.mat_xs.total_cross_section, sn_mesh,
-        solver._boundary_flux,
+        final_boundary,
     )
 
     elapsed = time.perf_counter() - t_start
@@ -1075,8 +1159,9 @@ def solve_sn(
     return Solution(
         angular_flux=TimedFullField(
             bulk=AngularFlux.from_mesh(angular_flux, sn_mesh),
-            # D-H.2-C2: ``solver._boundary_flux`` is L2 directly.
-            boundary=solver._boundary_flux,
+            # Wave O #208 O.4a.2: the converged boundary trace from the final
+            # bare sweep (inflow = B·ψ.outflow, outflow = streamed).
+            boundary=final_boundary,
             _history=(),
             history_depth=2,
         ),
@@ -1308,6 +1393,21 @@ def _solve_fixed_source_si(
             )
         else:
             initial_guess = None
+        # Wave O #208 O.4a.2 — BARE sweep (1-D only): reflect the persisted
+        # outflow (``solver._boundary_flux`` outflow slots, from the previous
+        # iteration's sweep) into the inflow slots via −B BEFORE the sweep.
+        # The bare 1-D sweep reads the inflow slots directly; it no longer
+        # re-applies ``bc`` at entry.  (First iteration: outflow = 0 ⟹
+        # inflow = B·0 = 0, matching the pre-extraction cold start.)
+        # The 2-D Cartesian wavefront sweep is NOT yet bare (it still applies
+        # ``bc`` internally — O.4b); for it the reflection is redundant AND
+        # ``SNBoundaryOperator`` is not yet wired for the 2-D trace, so skip it.
+        # ``reduced is not None`` is the SAME predicate ``transport_sweep``
+        # dispatches the 1-D-vs-2-D sweep body on (sweep.py: ``is_slab`` /
+        # curvilinear branches vs ``_sweep_2d_wavefront``), so this guard and
+        # the sweep's bare-vs-bc-in-sweep selection cannot drift.
+        if sn_mesh.reduced is not None:
+            _reflect_outflow_into_inflow(solver._boundary_flux, sn_mesh)
         angular, phi = transport_sweep(
             source, solver.mat_xs.total_cross_section, sn_mesh,
             solver._boundary_flux,
