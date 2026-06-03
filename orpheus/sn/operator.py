@@ -150,78 +150,6 @@ __all__ = [
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Finite-difference gradients (diamond scheme with reflective BCs)
-# ═══════════════════════════════════════════════════════════════════════
-
-def _compute_gradients(
-    fi: np.ndarray,
-    n: int, ix: int, iy: int,
-    quad: AngularQuadrature,
-    nx: int, ny: int,
-    dx: np.ndarray, dy: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Upwind cell-center gradients with reflective BCs.
-
-    Issue #196 PR-INDEX-7: consumes ``fi`` in principled
-    ``(N, ng, nx, ny)`` layout. Per-(n, ix, iy) slice
-    ``fi[n, :, ix, iy]`` is shape ``(ng,)``.
-
-    Returns (dfi/dx, dfi/dy), each shape (ng,).
-
-    The gradient between adjacent cell centers is divided by the
-    **cell-center distance** ``(dx[i] + dx[j]) / 2`` rather than
-    the local cell width ``dx[i]``. On a uniform mesh these are
-    identical; on a non-uniform mesh the cell-center distance is
-    the correct denominator for a first-order consistent FD stencil.
-    The original MATLAB code (Mikityuk, PSI 2015) used a scalar
-    ``g.delta`` (uniform mesh only), so this distinction did not arise.
-    """
-    ref_x = quad.reflection_index("x")
-    ref_y = quad.reflection_index("y")
-    mu_x, mu_y = quad.mu_x, quad.mu_y
-
-    # X gradient
-    if mu_x[n] > 1e-15:
-        if ix == 0:
-            dfix = fi[ref_x[n], :, ix, iy] - fi[ref_x[n], :, ix + 1, iy]
-            hx = 0.5 * (dx[ix] + dx[ix + 1])
-        else:
-            dfix = fi[n, :, ix, iy] - fi[n, :, ix - 1, iy]
-            hx = 0.5 * (dx[ix] + dx[ix - 1])
-    elif mu_x[n] < -1e-15:
-        if ix == nx - 1:
-            dfix = fi[ref_x[n], :, ix - 1, iy] - fi[ref_x[n], :, ix, iy]
-            hx = 0.5 * (dx[ix - 1] + dx[ix])
-        else:
-            dfix = fi[n, :, ix + 1, iy] - fi[n, :, ix, iy]
-            hx = 0.5 * (dx[ix + 1] + dx[ix])
-    else:
-        # PR-INDEX-7: ng is fi.shape[1] (axis 1 = groups under principled layout).
-        dfix = np.zeros(fi.shape[1])
-        hx = 1.0
-
-    # Y gradient
-    if mu_y[n] > 1e-15:
-        if iy == 0:
-            dfiy = fi[ref_y[n], :, ix, iy] - fi[ref_y[n], :, ix, iy + 1]
-            hy = 0.5 * (dy[iy] + dy[iy + 1])
-        else:
-            dfiy = fi[n, :, ix, iy] - fi[n, :, ix, iy - 1]
-            hy = 0.5 * (dy[iy] + dy[iy - 1])
-    elif mu_y[n] < -1e-15:
-        if iy == ny - 1:
-            dfiy = fi[ref_y[n], :, ix, iy - 1] - fi[ref_y[n], :, ix, iy]
-            hy = 0.5 * (dy[iy - 1] + dy[iy])
-        else:
-            dfiy = fi[n, :, ix, iy + 1] - fi[n, :, ix, iy]
-            hy = 0.5 * (dy[iy + 1] + dy[iy])
-    else:
-        dfiy = np.zeros(fi.shape[1])
-        hy = 1.0
-
-    return dfix / hx, dfiy / hy
-
-# ═══════════════════════════════════════════════════════════════════════
 # Wave T T.4 — `M_spatial` decomposition primitives
 # ═══════════════════════════════════════════════════════════════════════
 #
@@ -1406,131 +1334,128 @@ class StreamingOperator(LinearOperatorMixin):
     def _apply_2d_cartesian(
         self, psi: "TimedFullField",
     ) -> "TimedFullField":
-        r"""2-D Cartesian L2-native FD matvec (D-H.2-C4d).
+        r"""2-D Cartesian ``L·ψ`` via the diamond-difference closure (#208 O.4b).
 
-        Computes :math:`L\,\psi = (\mu_x\partial_x + \mu_y\partial_y)\psi`
-        with cell-centred upwind FD (the legacy stencil from
-        :func:`transport_operator_matvec`'s body), wrapped in the L2
-        ``TimedFullField`` carrier.
+        Routes through :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.residual`
+        — the apply-direction walk of the SAME per-octant wavefront DAG and
+        the SAME selectable ``CellUpdate`` (diamond-difference) closure the
+        2-D sweep :func:`~orpheus.sn.sweep._sweep_2d_wavefront` uses. Matvec
+        and sweep are therefore ONE discretization (L21: "matvec and sweep
+        are different applications of the same operator"), not the FD/DD
+        twin path the bespoke cell-centred upwind stencil
+        (``_compute_gradients``, RETIRED in this change) created.
 
-        Boundary semantics
-        ------------------
+        The twin's failure mode — a face-trace formulation on the FD stencil
+        converging to a non-uniform mode ~10% off ``k_inf`` — dissolves by
+        construction: the DD closure handles the boundary cleanly and
+        annihilates the flat reflective fundamental mode exactly
+        (``L·ψ_uniform = 0``).
 
-        Legacy cell-centre-proxy semantics: the matvec body reads
-        ``psi.bulk.values[:, :, 0, iy]`` as the outgoing trace at
-        xmin (and similarly at other faces).  The BC's
-        ``apply(outgoing)`` returns the incoming-direction values;
-        the incoming-direction values fill the boundary cells of
-        ``fi`` (overwriting the bulk value at incoming positions).
-        For homogeneous reflective, the cell-centre proxy makes the
-        kernel reduce to a uniform ``fi``, giving ``L·ψ_uniform = 0``
-        and converging the eigenvalue to ``k_inf``.
+        Boundary semantics (bc-in-matvec PRESERVED — extraction is O.4b
+        Phase E). The boundary edge slots are seeded with the boundary
+        cell-averages (``psi.bulk.values`` at the boundary cells) as the
+        outgoing-trace proxy — the same proxy the retired FD stencil used —
+        then the per-octant ``bc.apply`` (mirroring the sweep entry)
+        reflects them into the incoming edge. ``psi.boundary.face_view``
+        stays PASSIVE (the output boundary is the zero
+        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`); the
+        boundary trace becomes an active unknown (with a boundary residual)
+        only at the BC-extraction, Phase E. For homogeneous reflective the
+        proxy is uniform, so the reflected inflow is uniform and
+        ``L·ψ_uniform = 0`` (recovers ``k_inf``) — exactly as before, now
+        via the DD closure.
 
-        ``psi.boundary.face_view`` is currently passive: its values
-        do NOT enter the bulk computation.  The output boundary is
-        the zero L2 :class:`BoundaryFlux`.  Krylov drives the cell
-        residual to zero on the bulk dimension only; the face_view
-        is left at whatever value the iteration produces, but does
-        not affect convergence.  This matches the legacy 2-D
-        ``transport_operator_matvec`` semantics — the Krylov problem
-        size is N × ng × nx × ny cells (no face unknowns).
-
-        A more ambitious face_view-as-trace formulation (face_view
-        enters the bulk computation as the boundary trace, with a
-        boundary residual driving face_view ↔ bulk consistency)
-        causes the eigenvalue iteration to converge to a non-uniform
-        mode (~10% off from k_inf).  Deferred to a future Wave T /
-        TensorProduct refactor when the BC realizers gain a proper
-        composable algebra.
-
-        Returns ``L·ψ`` (NOT ``(L+C)·ψ`` — the σ_t·ψ term subtracts
-        out at the cell level, matching the 1-D path's convention
-        that ``_apply_typed`` / ``_apply_timed_full_field`` return
-        L-only).
+        Returns ``L·ψ`` (NOT ``(L+C)·ψ``): ``residual_batch`` at zero source
+        yields ``(L+C)·ψ̄``; subtracting ``Σ_t·ψ̄`` (the collision term)
+        gives the bare-streaming action, matching the 1-D path's L-only
+        convention.
         """
-        from orpheus.geometry.boundary import ReflectiveBoundary
-        from orpheus.transport.fields.angular_flux import (
-            AngularFlux,
-        )
+        from orpheus.sn.sweep_graph import OctantLabel
         from orpheus.transport.source_sinks import AngularSourceSink
-        from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux,
-        )
+        from orpheus.transport.fields.boundary_flux import BoundaryFlux
         from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = self.sn_mesh
         quad = sn_mesh.quad
         N = quad.N
         nx, ny = sn_mesh.nx, sn_mesh.ny
-        dx, dy = sn_mesh.dx, sn_mesh.dy
-        mu_x, mu_y = quad.mu_x, quad.mu_y
-        trace = sn_mesh.trace
+        ng = self.sigma_t.shape[0]
+        sig_t = self.sigma_t                       # (ng, nx, ny)
+        probe = psi.bulk.values                    # (N, ng, nx, ny) — the apply target ψ̄
+        str_x = sn_mesh.streaming_x                # (N, nx)
+        str_y = sn_mesh.streaming_y                # (N, ny)
+        cell_update = sn_mesh.cell_update
+        Q_zero = np.zeros((1, ng, nx, ny))         # matvec: no volumetric source
 
-        bc_xmin = getattr(sn_mesh, "bc_xmin", None) or ReflectiveBoundary(
-            axis="x", albedo=1.0,
-        )
-        bc_xmax = getattr(sn_mesh, "bc_xmax", None) or ReflectiveBoundary(
-            axis="x", albedo=1.0,
-        )
-        bc_ymin = getattr(sn_mesh, "bc_ymin", None) or ReflectiveBoundary(
-            axis="y", albedo=1.0,
-        )
-        bc_ymax = getattr(sn_mesh, "bc_ymax", None) or ReflectiveBoundary(
-            axis="y", albedo=1.0,
-        )
+        # (L+C)·ψ̄ accumulator (the loss-operator action == residual_batch
+        # at zero source); L·ψ̄ = this − Σ_t·ψ̄ at the end.
+        LpC = np.zeros((N, ng, nx, ny))
 
-        # ── Build fi: cell-centre proxy + BC-filled incoming at boundary ─
-        fi = psi.bulk.values.copy()
+        # Edge-flux buffers. Cell-centre-proxy BC (preserved): seed the
+        # boundary edge slots with the boundary cell-averages — the same
+        # outgoing-trace proxy the retired FD stencil used — then the
+        # per-octant bc.apply (below) reflects them, exactly as the sweep.
+        psi_x = np.zeros((N, ng, nx + 1, ny))
+        psi_y = np.zeros((N, ng, nx, ny + 1))
+        psi_x[:, :, 0, :] = probe[:, :, 0, :]
+        psi_x[:, :, nx, :] = probe[:, :, -1, :]
+        psi_y[:, :, :, 0] = probe[:, :, :, 0]
+        psi_y[:, :, :, ny] = probe[:, :, :, -1]
 
-        # Incoming-ordinate set per face, read from the unified TraceSpace
-        # selector (single source of truth for sign(Ω·n) — A.4 retired
-        # the inline ``mu_{x,y} ≷ ±eps`` masks this 2-D matvec used to
-        # recompute; ``inflow`` is Ω·n < −ε, i.e. the direction points
-        # INTO the domain through that face).
-        xmin_inflow = trace.inflow_indices_for_face("xmin")
-        xmax_inflow = trace.inflow_indices_for_face("xmax")
-        ymin_inflow = trace.inflow_indices_for_face("ymin")
-        ymax_inflow = trace.inflow_indices_for_face("ymax")
+        for octant in quad.octants:
+            label_tuple = octant.label
+            oct_idx = octant.indices
+            sx = label_tuple[0] if len(label_tuple) >= 1 else +1
+            sy = label_tuple[1] if len(label_tuple) >= 2 else 0
+            # Pure-z degenerate octant: no in-plane streaming, so the
+            # in-plane loss action is pure collision: (L+C)·ψ̄ = Σ_t·ψ̄
+            # (hence L·ψ̄ = 0 for these ordinates after the subtraction).
+            if sx == 0 and sy == 0:
+                LpC[oct_idx] = sig_t * probe[oct_idx]
+                continue
+            sx_eff = +1 if sx == 0 else sx
+            sy_eff = +1 if sy == 0 else sy
+            graph = sn_mesh.sweep_graphs[OctantLabel(sx_eff, sy_eff)]
 
-        # xmin / xmax: outgoing trace = fi at boundary cell; BC.apply
-        # returns full (N, ng) incoming; write only the incoming cells.
-        for iy in range(ny):
-            incoming_xmin = bc_xmin.apply(fi[:, :, 0, iy])      # (N, ng)
-            fi[xmin_inflow, :, 0, iy] = incoming_xmin[xmin_inflow]
-            incoming_xmax = bc_xmax.apply(fi[:, :, -1, iy])
-            fi[xmax_inflow, :, -1, iy] = incoming_xmax[xmax_inflow]
+            # BC apply once per octant on the octant-incoming face(s) —
+            # identical to the sweep entry (_sweep_2d_wavefront).
+            if sx_eff >= 0:
+                full_face_x = sn_mesh.bc_xmin.apply(psi_x[:, :, 0, :])
+                psi_x[oct_idx, :, 0, :] = full_face_x[oct_idx]
+            else:
+                full_face_x = sn_mesh.bc_xmax.apply(psi_x[:, :, nx, :])
+                psi_x[oct_idx, :, nx, :] = full_face_x[oct_idx]
+            if sy_eff >= 0:
+                full_face_y = sn_mesh.bc_ymin.apply(psi_y[:, :, :, 0])
+                psi_y[oct_idx, :, :, 0] = full_face_y[oct_idx]
+            else:
+                full_face_y = sn_mesh.bc_ymax.apply(psi_y[:, :, :, ny])
+                psi_y[oct_idx, :, :, ny] = full_face_y[oct_idx]
 
-        for ix in range(nx):
-            incoming_ymin = bc_ymin.apply(fi[:, :, ix, 0])
-            fi[ymin_inflow, :, ix, 0] = incoming_ymin[ymin_inflow]
-            incoming_ymax = bc_ymax.apply(fi[:, :, ix, -1])
-            fi[ymax_inflow, :, ix, -1] = incoming_ymax[ymax_inflow]
+            psi_x_oct = psi_x[oct_idx].copy()
+            psi_y_oct = psi_y[oct_idx].copy()
+            LpC_oct = np.zeros((oct_idx.size, ng, nx, ny))
+            graph.residual(
+                cell_update=cell_update,
+                psi_x_octant=psi_x_oct, psi_y_octant=psi_y_oct,
+                psi_avg_probe_octant=probe[oct_idx],
+                Q_octant=Q_zero, sig_t=sig_t,
+                str_x_octant=str_x[oct_idx], str_y_octant=str_y[oct_idx],
+                residual_octant=LpC_oct,
+            )
+            psi_x[oct_idx] = psi_x_oct
+            psi_y[oct_idx] = psi_y_oct
+            LpC[oct_idx] = LpC_oct
 
-        # ── Compute M·ψ = (L+C)·ψ via cell-centred FD stencil ─────────
-        out_M = np.zeros_like(psi.bulk.values)
-        for n in range(N):
-            for ix in range(nx):
-                for iy in range(ny):
-                    dfix, dfiy = _compute_gradients(
-                        fi, n, ix, iy, quad, nx, ny, dx, dy,
-                    )
-                    out_M[n, :, ix, iy] = (
-                        mu_x[n] * dfix
-                        + mu_y[n] * dfiy
-                        + self.sigma_t[:, ix, iy] * fi[n, :, ix, iy]
-                    )
-
-        # L = M - C: subtract σ_t · ψ at the cell-centres (using
-        # ORIGINAL psi.bulk.values, not the BC-filled fi).
-        out_bulk = out_M - self.sigma_t[None, :, :, :] * psi.bulk.values
-
-        # Boundary output: zero — face_view is passive in this 2-D
-        # cell-centre-proxy formulation (see method docstring).
-        out_boundary = BoundaryFlux.zeros_on(sn_mesh)
+        # L = (L+C) − C: subtract the collision term Σ_t·ψ̄ (using the
+        # ORIGINAL probe, not the BC-reflected edges) → bare streaming L·ψ̄.
+        out_bulk = LpC - sig_t[None, :, :, :] * probe
 
         return TimedFullField(
             bulk=AngularSourceSink.from_mesh(out_bulk, sn_mesh),
-            boundary=out_boundary,
+            # Passive boundary trace — the active trace + boundary residual
+            # is O.4b Phase E (the BC extraction).
+            boundary=BoundaryFlux.zeros_on(sn_mesh),
             _history=(),
             history_depth=psi.history_depth,
         )

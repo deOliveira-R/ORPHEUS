@@ -1117,13 +1117,16 @@ class TestT5MaterializeInverseCache:
 class TestT4dApply2DCartesianSourceHashPin:
     """A2D-1 — defensive source-hash pin on ``_apply_2d_cartesian``.
 
-    Per the T.4 verification spec §1 Q1 = (c) HYBRID: T.4 lifts the 1-D
-    matvec into the ``M_spatial + M_angular_redist`` decomposition, but
-    LEAVES the 2-D Cartesian path procedural (cell-centre proxy + upwind
-    FD via ``_compute_gradients``).  The decision to keep 2-D procedural
-    rests on the architectural payload of the cell-centre-proxy ↔
-    face-view-as-trace rewire (10% k_∞ drift comment at
-    ``sn/operator.py:862-868``) and ``[[feedback_unify_after_two_instances]]``.
+    As of Wave O #208 O.4b (D3), the 2-D Cartesian matvec NO LONGER uses
+    a bespoke cell-centred upwind FD stencil — it routes through
+    ``SweepDependencyGraph.residual`` (the apply-direction walk of the
+    DiamondDifference closure ``residual_batch``), the SAME selectable
+    discretization the 2-D sweep uses.  The FD ``_compute_gradients`` is
+    RETIRED; matvec and sweep are one operator (L21), so the FD/DD twin
+    path — and the ~10% k_∞ drift of the prior face-trace-on-FD attempt —
+    is gone by construction.  (Historically T.4 left this path procedural
+    per ``[[feedback_unify_after_two_instances]]``; O.4b is that "unify
+    after two instances" step.)
 
     Without a defensive pin, future author drift on the 2-D Cartesian
     path could silently change the behavior — the M_spatial /
@@ -1176,8 +1179,19 @@ class TestT4dApply2DCartesianSourceHashPin:
     #         lagged that commit by a few O.4a.1 sub-commits — this is the
     #         catch-up refresh (the function source itself is the committed
     #         HEAD state, byte-identical to ``9a7f216``).
+    #   O.4b D3 (FD→DD unification) d68fd731…e3833936 — the bespoke
+    #         cell-centred upwind FD body (``_compute_gradients`` + the
+    #         triple ``for n/ix/iy`` loop + the cell-fill BC) was REPLACED
+    #         by a per-octant walk through ``SweepDependencyGraph.residual``
+    #         (the DiamondDifference ``residual_batch`` apply direction),
+    #         retiring the FD/DD 2-D twin path (Wave O #208 O.4b; L21).
+    #         NOT behavior-neutral: the 2-D matvec discretization changes
+    #         FD (O(h)) → DD (O(h²)); k_∞ stays 1.875 (flat reflective mode
+    #         is exact under both), matvec now ≡ the DD sweep.  bc-in-matvec
+    #         preserved (cell-centre-proxy seed); the boundary trace stays
+    #         passive (extraction is Phase E).
     EXPECTED_SHA256: str = (
-        "68e9c6a821dd2844364db36b7a5b4530517baa0e5bd32b8f1b217aade5477d86"
+        "d68fd731f95e7aeca0df6d5e1a46209e684f2a88f24148f05792c042e3833936"
     )
 
     def test_apply_2d_cartesian_source_hash_unchanged(self):
