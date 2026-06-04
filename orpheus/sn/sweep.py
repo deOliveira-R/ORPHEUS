@@ -76,6 +76,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from orpheus.geometry import CoordSystem
+from orpheus.transport.fields.wavefront_flux import WavefrontFlux
 
 from .spatial.cell_update import UpstreamState
 from .spatial.diamond import DiamondDifference
@@ -832,32 +833,32 @@ def _sweep_2d_wavefront(
     angular_flux = np.zeros((N, ng, nx, ny))
     scalar_flux = np.zeros((ng, nx, ny))
 
-    # ── Persistent boundary-flux buffers ──────────────────────────────
+    # ── Interior face cochain C¹_int (Wave O #205 — WavefrontFlux) ─────
     #
-    # D-H.2-C2 / Plan §11.1 #5 — L2 :class:`BoundaryFlux` carries ONLY
-    # boundary face state (``xmin``/``xmax`` shape ``(N, ng, ny)``;
-    # ``ymin``/``ymax`` shape ``(N, ng, nx)``).  The interior
-    # wavefront cache (positions 1..nx-1 along the sweep direction)
-    # dissolves into EPHEMERAL local arrays here — no separate scratch
-    # type, no persistence (the next sweep call rebuilds from boundary
-    # slots).  Pre-D-H.2 the legacy ``xmin_xmax_buf`` /
-    # ``ymin_ymax_buf`` 4-D arrays conflated boundary + interior; that
-    # conflation now dissolves.
+    # The interior cell-face angular fluxes are the typed
+    # :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux` — the
+    # interior 1-cochain ``C¹_int`` that pairs with the boundary trace
+    # ``C¹_∂`` (:class:`BoundaryFlux`) as the biproduct
+    # ``C¹ = C¹_int ⊕ C¹_∂``. EPHEMERAL: rebuilt each sweep call (only the
+    # BOUNDARY slots persist, carried by ``boundary_flux`` across calls);
+    # the interior partition faces (positions 1..n-1) are recomputed.
     #
-    # BARE boundary handling (Wave O #208 O.4b Phase E1): the boundary
-    # slots carry the GIVEN inflow trace (reflected from the previous
-    # iteration's outflow by the external ``_reflect_outflow_into_inflow``
-    # / sibling ``-B``, NOT by an in-sweep ``bc.apply``).  At entry: seed
-    # local interior arrays from the given boundary slots.  At exit: write
-    # the raw outflow back to the L2 face views (no reflection).
-    psi_x = np.zeros((N, ng, nx + 1, ny))  # ephemeral interior cache
-    psi_y = np.zeros((N, ng, nx, ny + 1))
-    # Seed boundary slots from the persistent L2 buffer (the given inflow
-    # trace; outflow slots are overwritten by the wavefront walk).
-    psi_x[:, :, 0, :] = boundary_flux.face_view("xmin")    # (N, ng, ny)
-    psi_x[:, :, nx, :] = boundary_flux.face_view("xmax")   # (N, ng, ny)
-    psi_y[:, :, :, 0] = boundary_flux.face_view("ymin")    # (N, ng, nx)
-    psi_y[:, :, :, ny] = boundary_flux.face_view("ymax")   # (N, ng, nx)
+    # The per-axis face fields ``psi_x`` (N,ng,nx+1,ny) / ``psi_y``
+    # (N,ng,nx,ny+1) are bound ONCE as zero-copy views, so the hot
+    # wavefront walk below indexes them with byte-identical fancy-indexing
+    # (the typing is bit-identical — Phase 0 de-risk + the octant snapshots).
+    #
+    # BARE boundary handling (Wave O #208 O.4b Phase E1): the edge slots
+    # carry the GIVEN inflow trace; the reflective coupling is the external
+    # ``_reflect_outflow_into_inflow`` / sibling ``-B``, NOT an in-sweep
+    # ``bc.apply``.
+    wavefront = WavefrontFlux.zeros_on(sn_mesh)
+    psi_x = wavefront.face(0)   # (N, ng, nx+1, ny) zero-copy view
+    psi_y = wavefront.face(1)   # (N, ng, nx, ny+1) zero-copy view
+    # ι_* — seed the domain-edge slots from the given inflow trace (the
+    # outflow slots are overwritten by the wavefront walk). Replaces the four
+    # raw edge-slice copies; the orderings agree (no transpose, pinned).
+    wavefront.seed(boundary_flux)
 
     # R-1 Step 4 A1: ``Q`` is per-ordinate magnitude (N, ng, nx, ny).
     # No ``/W`` applied here — the producer normalised at the apply
@@ -928,19 +929,14 @@ def _sweep_2d_wavefront(
         psi_y[oct_idx] = psi_y_oct
         angular_flux[oct_idx] = angular_flux_oct
 
-    # ── Persist boundary face state to L2 buffer (D-H.2-C2) ───────────
+    # ── ι* — persist the boundary trace from the interior cochain ─────
     #
-    # The ephemeral local ``psi_x`` / ``psi_y`` carry the full sweep
-    # state including boundary AND interior partition faces; only the
-    # BOUNDARY slots persist across sweep calls (interior is rebuilt
-    # next time).  Push the boundary slots back to the L2 writable face
-    # views: the inflow ordinate slots keep the given seed; the outflow
-    # ordinate slots carry this call's RAW outflow (no reflection — the
-    # external -B / _reflect_outflow_into_inflow closes the loop).
-    boundary_flux.face_view("xmin")[:] = psi_x[:, :, 0, :]
-    boundary_flux.face_view("xmax")[:] = psi_x[:, :, nx, :]
-    boundary_flux.face_view("ymin")[:] = psi_y[:, :, :, 0]
-    boundary_flux.face_view("ymax")[:] = psi_y[:, :, :, ny]
+    # Only the BOUNDARY slots of the ephemeral interior cochain persist
+    # across sweep calls (the interior is rebuilt next time). The outflow
+    # ordinate slots carry this call's RAW outflow; the inflow slots keep the
+    # given seed (no reflection — the external -B / _reflect_outflow_into_inflow
+    # closes the loop). Replaces the four raw edge-slice writebacks.
+    wavefront.absorb(boundary_flux)
 
     return angular_flux, scalar_flux
 
