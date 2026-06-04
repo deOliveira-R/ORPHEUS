@@ -23,6 +23,35 @@ maps `wavefront_flux_carve_substrate.md`, `sn_si_reflective_gauss_seidel_recover
 
 ---
 
+## Environment & recovery (READ FIRST — esp. after compaction)
+
+**We work in a git WORKTREE, NOT the main checkout** (lesson L22 — the main checkout
+is a DIFFERENT, OLDER branch `refactor/sn-operator-algebra` whose `solver.py` /
+`operator.py` / `sweep.py` DIFFER; reading it silently reads the wrong source).
+
+- **Worktree (cwd for everything):** `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/field-role-typing`
+- **Branch:** `refactor/field-role-typing` (pushed to `origin`).
+- **venv** (lives at the MAIN repo root, shared): `/Users/rodrigo/git/nuclear/ORPHEUS/.venv/bin/python`
+- **Test invocation (Host env, `$CLAUDE_ENVIRONMENT` empty):**
+  `PYTHONPATH=/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/field-role-typing /Users/rodrigo/git/nuclear/ORPHEUS/.venv/bin/python -O -m pytest ...`
+  (default mode `-O`; assertions still fire in test modules via pytest rewriting).
+- **Bash discipline:** redirect to a file then `echo exit=$?` (never `| tail`); use
+  `gtimeout` for slow runs. **NO `continuous_get`** (the #212 hang).
+- **When a sub-agent's `file:line` conflicts with your read:** confirm you both read
+  the worktree via `inspect.getsource(fn)` / `print(module.__file__)` under the
+  worktree `PYTHONPATH` BEFORE concluding fabrication (L22 — a wrong-tree read mimics it).
+
+**Recovery path after compaction / fresh session:**
+1. `MEMORY.md` → the `[[project-wave-o-operator-algebra]]` ⭐⭐ LATEST block (the
+   reshaped dependency chain + 2-D SI Phase A landing).
+2. THIS file (`sn_development_sequence.md`) — the 6-phase sequence (§3).
+3. The session **task tracker** (`TaskList`): tasks #17–#22 = the 6 phases, chained.
+   **If the tracker did not survive the session boundary, recreate it from §3 + §5**
+   (one task per phase; chain blockedBy 17→18→{19,20}, 19→21, 21→22).
+4. Phase 1 (#17) is the only unblocked phase — start there (test-architect FIRST).
+
+---
+
 ## 0. Where we are (lineage + what already landed)
 
 The SN solver was rebuilt over Phase G → R-1 → Depth-B → Wave T → Wave O into a
