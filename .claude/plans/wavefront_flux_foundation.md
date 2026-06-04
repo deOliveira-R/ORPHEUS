@@ -118,19 +118,50 @@ its BC residual.
 
 ## 3. The design
 
-### 3a. Storage decision (a real fork — decide at Phase 0)
-`WavefrontFlux`'s name is the *frontier*, but two backings express it:
-- **(A) Full interior face-field [RECOMMENDED first cut].** Per-axis dense
-  arrays (the current `psi_x`/`psi_y`), the wavefront at level `k` is a slice.
-  Preserves the proven `(N_oct,ng,n_diag)` vectorized walk EXACTLY (the hot path
-  reads `WavefrontFlux.psi_x`/`.psi_y` views, byte-identical indexing) → minimal
-  risk, type-only change, bit-identical. Memory `O(N·ng·nx·ny)` (unchanged).
-- **(B) Moving-frontier window [FUTURE optimization].** Store only the active
-  diagonal(s) (`O(N·ng·(nx+ny))`). A genuine memory win + literally "the flux at
-  a wavefront", but changes the walk (rolling buffer). The `WavefrontFlux` NAME +
-  API accommodate it; defer until the type is proven under (A).
-**Recommendation: ship (A) first** (the carve is the *typing*, not a storage
-rewrite); leave (B) as a documented future step the name already fits.
+### 3a. Storage path — A FIRST, THEN B (user directive 2026-06-04)
+`WavefrontFlux`'s name is the *frontier*; two backings express it, and we do
+**A, secure the win, then go STRAIGHT to B** (not a deferred maybe):
+- **(A) Full interior face-field — FIRST.** Per-axis dense arrays (the current
+  `psi_x`/`psi_y`), the wavefront at level `k` is a slice. Preserves the proven
+  `(N_oct,ng,n_diag)` vectorized walk EXACTLY (the hot path reads
+  `WavefrontFlux` views, byte-identical indexing) → minimal risk, type-only,
+  bit-identical. Memory `O(N·ng·nx·ny)` (unchanged). This isolates the *typing*
+  carve from the *storage* carve so each lands clean.
+- **(B) Moving-frontier window — STRAIGHT AFTER A's win.** Store only the active
+  diagonal(s) (`O(N·ng·(nx+ny))` — a genuine memory win and literally "the flux
+  at a wavefront"). Changes the walk to a rolling 2-diagonal buffer. Lands on
+  the A-proven `WavefrontFlux` type (the API already fits), so B is a storage
+  swap behind a stable type, gated by the same bit-identity (the *converged*
+  solution is unchanged; only the live working-set shrinks). Its own phase, its
+  own elegance review.
+**Why split:** A makes the type bit-identical (free verification by inheritance);
+B then changes only the backing behind that type. Doing both at once would
+conflate a type change with a storage change — two bug habitats in one commit.
+
+### 3a′. 3D-READINESS imperative (build the types axis-parametric NOW)
+We have **1D + 2D = two working instances**, so `feedback_unify_after_two_instances`
+*licenses* a dimension-generic foundation now (3D = the validating third
+instance, the future "general foundation" session — see
+`.claude/plans/nd_foundation.md`). The cochain frame has no `d` baked in, so the
+NEW `WavefrontFlux` / interior `FaceLayout` / `ι*` **types + interfaces MUST be
+built axis-parametric** (`feedback_architecture_forward_not_legacy_fit`: extend
+to N-D, not N+1):
+- A face field over **`axes`** (1→2→3 face orientations), NOT hardcoded
+  `psi_x`/`psi_y` attributes — e.g. `WavefrontFlux.face(axis)` over a
+  `tuple[axis] of dense arrays` or a single layout-indexed buffer.
+- The interior `FaceLayout` keyed by `(axis, position)`, the boundary = the
+  `2d` codim-1 edge faces (2 per axis) — the same generalization the trace
+  `FaceLayout` needs.
+- `ι*`/`ι_*` over the edge subset of EACH axis (not a 4-face literal).
+**But** keep the *implementation* targeting 1D+2D (no `Mesh3D`, no 8-octant
+code, no `i+j+k` walk yet — those land in the `nd_foundation` session). The
+contract: nothing in the new types may *hardcode* "2 axes / 4 faces / 4
+octants"; the 2D-specific call sites (`from_cartesian_2d`, `DiamondDifference`'s
+explicit x/y, `_sweep_2d_wavefront`) stay 2D for now but are flagged in
+`nd_foundation.md` as the generalization targets. **Test the axis-parametricity:
+a unit test that the `WavefrontFlux`/`FaceLayout` API accepts `axes=(0,)` (1D)
+and `axes=(0,1)` (2D) through the SAME code path** — proving 3D (`axes=(0,1,2)`)
+is a parameter, not a fork.
 
 ### 3b. The type
 - `WavefrontFlux` carries the interior face cochain: the x-normal field
@@ -185,15 +216,26 @@ wall-clock must not regress, since this touches the hot path).
 - **Phase 4 — wire the 1-D sweep + matvec** (`_run_1d_sweep`; `_compute_LpC` /
   `_compute_decomposition` — the twin, flip identically). **Gate:** 1-D
   bit-identity (`test_native_matvec`, decomposition Resolution-A, slab MMS).
-- **Phase 5 — docs + retirement.** archivist: the cochain frame +
+  (Phases 0–4 deliver **storage path (A)** — the full-field typing, bit-identical.)
+- **Phase 5 — docs + retirement (A close-out).** archivist: the cochain frame +
   `WavefrontFlux ⊕ BoundaryFlux = C¹` biproduct in `operator_algebra.rst` /
   `discrete_ordinates.rst`; extend the storage×role grid (#205) with the FACE
   locus; retire the bare-array references (the `# ephemeral interior cache`
   comment becomes the typed story). The `BoundaryFaceFlux`-pending note in
   `transport/fields/__init__.py` resolved (no per-face type; views suffice).
-- **(Phase 6 / future, separate plans):** (B) the moving-frontier memory
-  optimization; the **G-S schedule** lands on the typed substrate via the
-  `(octant×face)` reflective graph (`si_gauss_seidel_recovery.md`).
+- **Phase 6 — storage path (B): the moving-frontier window (STRAIGHT after A).**
+  Swap the `WavefrontFlux` backing from the full per-axis face-field to a
+  rolling 2-diagonal window (`O(N·ng·(nx+ny))`), behind the A-proven type/API.
+  De-risk first (the converged solution is bit-identical; only the live
+  working-set shrinks — pin peak memory drops + values unchanged). The walk
+  becomes "advance the frontier" (consume incoming diagonal, produce outgoing).
+  Its own elegance review + the L16 wall-clock gate (the rolling buffer must not
+  add per-cell Python). 1-D may be a no-op (the frontier is a point); the win is
+  2-D (and the future 3-D, where the volume↔surface ratio makes it largest).
+- **(Later, separate plans):** the **G-S schedule** on the typed substrate via
+  the `(octant×face)` reflective graph (`si_gauss_seidel_recovery.md`); then the
+  **N-D / 3-D general foundation** (`nd_foundation.md`) — the future "tighten +
+  generalize" session this plan's §3a′ makes 3D-ready by construction.
 
 ---
 
