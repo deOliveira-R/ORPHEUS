@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **4841**
+Total tests collected: **4871**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1138, 23.5%
-   L1, 922, 19.0%
+   L0, 1162, 23.9%
+   L1, 925, 19.0%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2739, 56.6%
+   foundation, 2742, 56.3%
    unmarked, 6, 0.1%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4756
+   explicit, 4786
    verify, 0
    class-name, 46
    func-name, 0
@@ -57,7 +57,7 @@ Module × level grid
    cartesian_2d/test_discrete_ordinates_2d, 0, 0, 2, 0, 0, 0
    cartesian_2d/test_l2_boundary_face_view, 0, 0, 0, 0, 11, 0
    core/test_cell_balance_for_streaming, 0, 0, 0, 0, 9, 0
-   core/test_cell_update_batch, 10, 0, 0, 0, 0, 0
+   core/test_cell_update_batch, 19, 0, 0, 0, 0, 0
    core/test_cell_update_protocol, 0, 0, 0, 0, 16, 0
    core/test_dag_walk, 0, 0, 0, 0, 7, 0
    core/test_diamond, 0, 0, 0, 0, 53, 0
@@ -65,7 +65,7 @@ Module × level grid
    core/test_ordinate_scan_joint_batch, 5, 0, 0, 0, 0, 0
    core/test_phase_c_gates, 8, 0, 0, 0, 9, 0
    core/test_sweep_cache, 28, 0, 0, 0, 0, 0
-   core/test_sweep_graph, 63, 0, 0, 0, 0, 0
+   core/test_sweep_graph, 76, 0, 0, 0, 0, 0
    core/test_sweep_regression, 8, 0, 0, 0, 0, 0
    core/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 57, 0
    core/test_transport_sweep_ng2_layout_guard, 0, 0, 0, 0, 2, 0
@@ -259,6 +259,7 @@ Module × level grid
    numerics/test_tensor_product_operator, 27, 0, 0, 0, 0, 0
    numerics/test_trace_space, 11, 5, 0, 0, 2, 0
    operators/test_angular_average_operator, 12, 4, 0, 0, 0, 0
+   operators/test_bc_extraction_2d, 2, 3, 0, 0, 3, 0
    operators/test_bc_extraction_matvec, 3, 0, 0, 0, 30, 0
    operators/test_boundary_conditions, 0, 0, 0, 0, 11, 0
    operators/test_collision_operator, 0, 0, 0, 0, 57, 0
@@ -453,6 +454,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-greens-cylinder-mr-homogeneous-reduction``, 5
    ``real-sh-discrete-orthogonality``, 5
    ``singular-eigenfunction-eq40``, 5
+   ``streaming-equilibrium``, 5
    ``transport-cartesian-2d``, 5
    ``xs-interp``, 5
    ``absorption-xs``, 4
@@ -492,7 +494,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-vacuum-bc-cylinder``, 3
    ``peierls-vacuum-bc-sphere``, 3
    ``sigma-zero``, 3
-   ``streaming-equilibrium``, 3
    ``atalay-eq54-sphere-vacuum-isotropic``, 2
    ``atalay-table6-eigenvalue-moderate-d-consistency``, 2
    ``cp-second-difference-operator``, 2
@@ -619,12 +620,13 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **199** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **200** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``bailey-dome-recursion``
 - ``bc-extraction-block-matrix``
 - ``bc-extraction-direct-sum-state``
 - ``bc-extraction-loss-operator``
+- ``bc-extraction-two-hat-closed-sums``
 - ``bc-extraction-two-residuals``
 - ``bc-rank-n-as-sum-of-products``
 - ``bessel-wronskian``
@@ -832,7 +834,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
 
    ``ERR-001``, 1
    ``ERR-002``, 1
-   ``ERR-003``, 8
+   ``ERR-003``, 2
    ``ERR-004``, 1
    ``ERR-005``, 1
    ``ERR-006``, 2

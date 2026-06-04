@@ -36,6 +36,22 @@ Key Facts
   :math:`\psi.\text{inflow} - B\,\psi.\text{outflow} - q.\text{inflow}
   \to 0`. See :ref:`bc-extraction`.
 
+- **Every operator's** ``.apply`` **output boundary is a**
+  :class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`
+  (Wave O step B.5.2, Issue #208, ``6ef5063``, 2026-06-03), completing
+  the boundary half of the operator-output "dimensional-sin" carve (the
+  bulk half — ``.apply.bulk`` →
+  :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+  — landed in ``f400743``). The governing principle: an operator output
+  is :math:`A\psi` — a **source/sink**, NOT a residual; the residual
+  arises ONLY from an explicit :meth:`~orpheus.transport.residuals.boundary_residual.BoundaryResidual.from_balance`
+  of the output against a source. The completed boundary role grid
+  mirrors the bulk:
+  :math:`\texttt{.apply} \to \texttt{BoundarySourceSink}`,
+  :math:`\texttt{.solve} \to \texttt{BoundaryFlux}`,
+  :math:`\texttt{from\_balance} \to \texttt{BoundaryResidual}`. See
+  :ref:`bc-extraction-operator-output-typing`.
+
 - The transport eigenvalue and fixed-source problems share a single
   operator algebra (Trefethen & Bau 1997, §3.2):
 
@@ -1907,6 +1923,291 @@ existing ``rtol`` regression tolerance. The new value is
 convergence-equivalent to the analytical references above (criterion
 2), so the regression contract is satisfied without relaxation beyond
 the snapshot tolerance.
+
+
+.. _bc-extraction-operator-output-typing:
+
+Operator-output role typing — :math:`A\psi` is a source/sink (Wave O step B.5.2)
+--------------------------------------------------------------------------------
+
+Wave O step B.5.2 (`Issue #208
+<https://github.com/deOliveira-R/ORPHEUS/issues/208>`_, commit
+``6ef5063``, 2026-06-03) retyped every SN operator's ``.apply`` output
+``.boundary`` from
+:class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux` to
+:class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`
+— the *source/sink* role leaf. This completes the **boundary** half of
+the B.5 operator-output "dimensional-sin" carve; the **bulk** half
+(``.apply.bulk`` →
+:class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`)
+landed earlier in commit ``f400743``. The two halves make the boundary
+role grid a clean parallel of the bulk.
+
+.. list-table:: The completed role grid (bulk ‖ boundary)
+   :header-rows: 1
+   :widths: 18 28 28 26
+
+   * - Block
+     - ``.apply`` (operator output :math:`A\psi`)
+     - ``.solve`` (swept solution trace)
+     - ``from_balance`` (the defect)
+   * - **bulk** (:math:`V_{\rm bulk}`)
+     - :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+       (``f400743``)
+     - :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
+     - :class:`~orpheus.transport.residuals.angular_residual.AngularResidual`
+       (minted, no consumer until O.2)
+   * - **boundary** (:math:`V_{\rm inflow} \oplus V_{\rm outflow}`)
+     - :class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`
+       (``6ef5063``, B.5.2)
+     - :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+     - :class:`~orpheus.transport.residuals.boundary_residual.BoundaryResidual`
+       (minted, no consumer until O.2)
+
+The governing principle (the load-bearing rationale)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   *A residual only arises after we compare an operator output against
+   something else and get a defect (a balance). The output of an
+   operator is NOT a residual straightaway.*
+
+Each operator's ``.apply`` emits :math:`A\psi` — a **source/sink**
+(a signed reaction-rate / flux density: a *source* when produced, a
+*sink* when it is an operator-loss output such as :math:`L\psi`; the
+single role leaf holds both, hence ``SourceSink``). The residual is
+**only** the named composition
+:meth:`BoundaryResidual.from_balance(lhs, rhs) <orpheus.transport.residuals.boundary_residual.BoundaryResidual.from_balance>`
+of the affine boundary balance
+:math:`r_\Gamma = \gamma_-\psi - (R\,G\,\gamma_+\psi + q)`. The GMRES
+*flat* residual :math:`b - A\psi` is formed internally on the **raveled
+vector** (via :meth:`TimedFullField.to_flat <orpheus.transport.timed_full_field.TimedFullField.to_flat>`)
+and is **never typed as a field** — so :class:`BoundaryResidual` has no
+operator-output consumer; its first consumer is the honest
+:math:`L+C-S-F-B` driver of Wave O step **O.2** (see
+:ref:`bc-extraction-operator-output-o2`). Until then
+:class:`BoundaryResidual` and its bulk sibling
+:class:`~orpheus.transport.residuals.angular_residual.AngularResidual`
+remain **minted, units-tagged, and consumerless** role-grid
+completions.
+
+
+The two-hat tension and why ``BoundarySourceSink`` dissolves it
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The earlier in-flight plan
+(``.claude/plans/b52_boundary_residual_retype.md``) proposed typing the
+matvec output boundary as :class:`BoundaryResidual`. That choice was
+**rejected** for two reasons:
+
+1. **It breaks consistency with the already-landed bulk.** The bulk
+   ``.apply.bulk`` uses the source/sink leaf
+   (:class:`AngularSourceSink`), **not** a residual, for operator
+   outputs. Typing the boundary output as a residual would make the two
+   halves of the same carve disagree on what an ``.apply`` output *is*.
+
+2. **It creates a "two-hat" tension that the class gate cannot
+   satisfy.** The realized boundary law
+   :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` (:math:`B`)
+   emits :math:`B\,\psi.\text{outflow}`, and that **same** emission is
+   consumed two ways:
+
+   .. list-table:: :math:`B`'s two consumers — the "two hats"
+      :header-rows: 1
+      :widths: 24 38 38
+
+      * - Consumer
+        - Composition
+        - The hat :math:`B\,\psi.\text{outflow}` would wear
+      * - Krylov matvec
+        - :math:`(L+C).\text{apply} - (S+B).\text{apply} - F.\text{apply}`
+        - a **residual** term (subtracted from the diagonal)
+      * - SI rhs
+        - :math:`F.\text{apply} + (S+B).\text{apply} + q_{\rm ext}`
+        - a **source** term (the inflow seed the bare sweep reads)
+
+   One operator cannot emit :class:`BoundaryResidual` for the matvec
+   **and** :class:`BoundarySourceSink` for the SI rhs — the
+   :class:`TimedFullField <orpheus.transport.timed_full_field.TimedFullField>`
+   class gate (strict class identity:
+   ``type(self.boundary) is not type(other.boundary)`` ⟹ ``TypeError``)
+   throws on ``BoundaryResidual + BoundarySourceSink`` the moment the SI
+   rhs tries to add :math:`F.\text{apply}` (a source) to
+   :math:`(S+B).\text{apply}` (a residual, under OPT-BR).
+
+Choosing :class:`BoundarySourceSink` for **all** operator outputs
+dissolves the two-hat: :math:`B` wears **one** hat (it always emits a
+source/sink), and **both** sums close as homogeneous
+:class:`BoundarySourceSink` sums —
+
+.. math::
+   :label: bc-extraction-two-hat-closed-sums
+
+   \underbrace{(L+C).\text{apply} - (S+B).\text{apply}
+               - F.\text{apply}}_{\text{Krylov matvec}}
+   \quad\text{and}\quad
+   \underbrace{F.\text{apply} + (S+B).\text{apply}
+               + q_{\rm ext}}_{\text{SI rhs}}
+
+both stay within the single :class:`BoundarySourceSink` class. This
+needs **no SI-driver restructure** and **no partial-O.2**:
+:class:`BoundaryResidual` stays reserved for the named
+``from_balance`` composition exactly as
+:class:`AngularResidual` waits on the bulk.
+
+.. vv-status: bc-extraction-two-hat-closed-sums documented
+
+A throwaway **decision instrument**
+(``derivations/diagnostics/diag_b52_boundary_typing_decision.py``, the
+B0 de-risk) proved on a 1-D reflective slab **and** a 2-D reflective
+box that the OPT-BSS choice (``BoundarySourceSink`` for the matvec
+output) closes both sums, while the OPT-BR choice
+(:class:`BoundaryResidual` for the matvec output) throws the two-hat
+``TypeError`` on the SI rhs.
+
+
+Why the Krylov path is safe with a ``BoundarySourceSink`` matvec output
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The matvec output never escapes scipy as a :class:`BoundarySourceSink`,
+so the *solution* side stays :class:`BoundaryFlux`. The mechanism is the
+flat round-trip:
+
+* :meth:`TimedFullField.to_flat <orpheus.transport.timed_full_field.TimedFullField.to_flat>`
+  ravels the composite to ``[bulk.values.ravel(), boundary.values]`` —
+  a **type-agnostic** 1-D vector (the class of ``.boundary`` is erased).
+* scipy's GMRES iterate is reconstructed via
+  :meth:`TimedFullField.from_flat <orpheus.transport.timed_full_field.TimedFullField.from_flat>`,
+  which rebuilds the boundary with
+  ``replace(template.boundary, values=...)`` off the flux
+  ``solution_template``. Because the template's boundary is a
+  :class:`BoundaryFlux`, the reconstructed iterate's boundary is a
+  :class:`BoundaryFlux`.
+
+So the matvec's *internal* :class:`BoundarySourceSink` boundary class
+lives only inside one ``op.apply`` call; the moment the result is
+raveled and handed to scipy, the class is gone, and the iterate scipy
+hands back is reconstructed as the flux type. The solve/iterate/trace
+sites are therefore correctly **kept** :class:`BoundaryFlux`:
+:meth:`CollisionOperator.solve <orpheus.sn.operator.CollisionOperator>`,
+the boundary buffer of
+:meth:`InvertibleOperator._solve_timed_full_field <orpheus.sn.operator.InvertibleOperator._solve_timed_full_field>`,
+the cold-start ``initial_guess`` iterates
+(``TimedFullField.zeros(..., boundary=BoundaryFlux, ...)``), the
+converged traces, and the sweep's persistent boundary buffer.
+
+
+The 13 retyped sites
+~~~~~~~~~~~~~~~~~~~~
+
+Thirteen sites (operator outputs + ``q_ext`` sources) flipped from
+:class:`BoundaryFlux` to :class:`BoundarySourceSink`:
+
+.. list-table:: B.5.2 retyped sites
+   :header-rows: 1
+   :widths: 34 38 28
+
+   * - Module / symbol
+     - Site
+     - Emission
+   * - :mod:`orpheus.sn.operator`
+     - :meth:`_SpatialSweepDirection.apply <orpheus.sn.operator.StreamingOperator>`
+     - bare-sweep boundary block
+   * - :mod:`orpheus.sn.operator`
+     - ``_compute_LpC`` (``m_boundary``)
+     - :math:`L+C` boundary block
+   * - :mod:`orpheus.sn.operator`
+     - ``_compute_decomposition`` (``m_spat_boundary``, the
+       **dual-emission twin** — flipped identically)
+     - :math:`L+C` boundary block (decomposed)
+   * - :mod:`orpheus.sn.operator`
+     - ``_compute_decomposition`` (``M_angular`` zero)
+     - auto-allocated zero
+   * - :mod:`orpheus.sn.operator`
+     - :meth:`StreamingOperator._apply_2d_cartesian <orpheus.sn.operator.StreamingOperator>`
+     - 2-D boundary block
+   * - :mod:`orpheus.sn.operator`
+     - :meth:`CollisionOperator.apply <orpheus.sn.operator.CollisionOperator>`
+     - bulk → bulk; boundary zero
+   * - :mod:`orpheus.sn.scattering`
+     - :meth:`ScatteringOperator.apply <orpheus.sn.scattering.ScatteringOperator>`
+     - boundary zero
+   * - :mod:`orpheus.sn.fission`
+     - :meth:`FissionOperator.apply <orpheus.sn.fission.FissionOperator>`
+     - boundary zero
+   * - :mod:`orpheus.sn.boundary_operator`
+     - :meth:`SNBoundaryOperator._apply_faces <orpheus.sn.boundary_operator.SNBoundaryOperator>`
+       (``apply`` **and** ``apply_transpose``)
+     - :math:`B\,\psi.\text{outflow}` on the inflow slots
+   * - :mod:`orpheus.sn.solver`
+     - ``_zero_within_group_fission`` (the ``F = ZeroOperator``
+       codomain zero)
+     - codomain zero
+   * - :mod:`orpheus.sn.solver`
+     - ``q_ext.boundary`` at the **3 source builds** (eigenvalue SI,
+       eigenvalue Krylov, fixed-source SI / reconstruction)
+     - prescribed inflow (zero for vacuum / reflective)
+
+The change is **type-only**: :meth:`BoundarySourceSink.zeros_on <orpheus.transport.fields._bases.BoundaryField.zeros_on>`
+and the per-face-view writes produce **bit-identical** ``.values`` —
+only the wrapping role-type differs. The dead :class:`BoundaryFlux`
+runtime imports were retired from the retyped sites.
+
+
+.. _bc-extraction-operator-output-o2:
+
+What remains for Wave O step O.2
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+B.5.2 mints the role grid; it does **not** yet wire the residual
+column. The honest :math:`L+C-S-F-B` **loss-operator driver** of Wave O
+step O.2 will be the **first consumer** of
+:meth:`BoundaryResidual.from_balance <orpheus.transport.residuals.boundary_residual.BoundaryResidual.from_balance>`
+(it writes
+``BoundaryResidual.from_balance(lhs=ψ.inflow, rhs=B·ψ.outflow + q)`` at
+the solver level). O.2 also lands:
+
+* the :math:`|\Omega\cdot\hat n|\,w` :math:`G`-metric adjoint ``.H``
+  (the boundary-weighted inner product for the transpose),
+* **Gate-1.3** (the O.2 verification gate),
+* the retirement of the :math:`S + B` driver fold
+  (:meth:`SNSolver._scattering_with_boundary_op <orpheus.sn.solver.SNSolver>`)
+  and the direct-helper
+  ``_reflect_outflow_into_inflow`` — both collapse when the drivers
+  take the whole loss operator directly (see
+  :ref:`bc-extraction-two-routes`). The O.2 **forcing function** is the
+  type-system tripwire of :ref:`bc-extraction-two-routes`: the moment
+  :math:`S` gains a (bulk-space) domain, the :math:`S + B` fold throws
+  ``IncompatibleOperatorComposition`` — that throw *is* the signal to
+  land the honest composition.
+
+Until O.2 lands, :class:`BoundaryResidual` and
+:class:`~orpheus.transport.residuals.angular_residual.AngularResidual`
+are minted-but-consumerless role-grid completions — the correct status
+the V&V audit reports for them.
+
+
+.. vv-status note: the operator-output role typing of B.5.2 is a
+   type-only refactor (bit-identical ``.values``); its correctness is
+   verified by the same gates that verify the extraction
+   (:ref:`bc-extraction-numerical-evidence`) plus the type-residual
+   gates catalogued below. B.5.2's verification ground:
+
+* the **B0 decision instrument** (``diag_b52_boundary_typing_decision.py``)
+  proving OPT-BSS closes both sums while OPT-BR throws the two-hat;
+* the core operator / boundary / 2-D suite (324 passed);
+* SI eigenvalue slab / sphere / cylinder × 1 / 2 / 4-group — the
+  **two-hat exerciser** (the SI rhs sum that OPT-BR would throw on);
+* Krylov :math:`k_\infty` (14 cases);
+* the type-residual gates (``test_native_matvec`` boundary-output type
+  assert migrated; positive type asserts added for the 2-D matvec
+  ``test_bc_extraction_2d`` and for :math:`B` in
+  ``test_sn_boundary_operator``);
+* the dimensional-check sentinel suite (36 / 36, run without ``-O``);
+* MMS L1 1-D + 2-D + curvilinear (8 passed, 6 xfail — flux-shape /
+  convergence-order pillar; MMS does **not** prove the eigenvalue).
+
+The change was reviewed by the ``elegance-enforcer`` (PASS, no
+conditions).
 
 
 .. _trace-spaces-doc:
