@@ -28,16 +28,6 @@ from orpheus.transport.fields.boundary_flux import BoundaryFlux
 
 pytestmark = pytest.mark.l0  # SN solver method-in-isolation component checks
 
-# R-1 Step E: the 2-D Cartesian source-iteration inner solver is
-# deferred (NotImplementedError). The performance-profile component
-# test drives the full SI inner loop; mark it xfail until the carve lands.
-_DEFERRED_2D_SI = pytest.mark.xfail(
-    reason="R-1 Step E: 2-D Cartesian source-iteration carve deferred "
-    "(NotImplementedError). Coverage preserved; xpass when carve lands.",
-    raises=NotImplementedError,
-    strict=False,
-)
-
 
 def _uniform_2d(nx, ny, delta, mat_map):
     """Build a uniform Mesh2D (replaces CartesianMesh.uniform_2d)."""
@@ -566,7 +556,6 @@ def solver_421g():
 class TestPerformanceBaseline:
     """Measure baseline timings for each component (prints, not assertions)."""
 
-    @_DEFERRED_2D_SI
     def test_profile_components(self, solver_2g):
         solver, _, sn_mesh, quad = solver_2g
         np.random.seed(42)
