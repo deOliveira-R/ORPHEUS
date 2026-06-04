@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **4871**
+Total tests collected: **4898**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1162, 23.9%
-   L1, 925, 19.0%
+   L0, 1162, 23.7%
+   L1, 925, 18.9%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2742, 56.3%
+   foundation, 2769, 56.5%
    unmarked, 6, 0.1%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4786
+   explicit, 4813
    verify, 0
    class-name, 46
    func-name, 0
@@ -201,6 +201,7 @@ Module × level grid
    fields/test_angular_flux, 0, 0, 0, 0, 25, 0
    fields/test_boundary_flux, 0, 0, 0, 0, 36, 0
    fields/test_boundary_source_sink_residual, 0, 0, 0, 0, 25, 0
+   fields/test_wavefront_flux, 0, 0, 0, 0, 25, 0
    geometry/test_bc_equivalence_snapshot, 0, 8, 0, 0, 0, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 30, 0, 0, 11, 0
@@ -298,7 +299,7 @@ Module × level grid
    solve/test_krylov_curvilinear_precond_safety, 0, 4, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 260, 0
+   test_layer_imports, 0, 0, 0, 0, 262, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
    transport/test_field_units, 0, 0, 0, 0, 43, 0
@@ -620,7 +621,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **200** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **203** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``bailey-dome-recursion``
 - ``bc-extraction-block-matrix``
@@ -814,6 +815,9 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``wave-t-cell-balance-three-terms``
 - ``wave-t-ma-q1-master-condition``
 - ``wave-t-mspat-curvilinear-subtraction``
+- ``wavefront-cochain-biproduct``
+- ``wavefront-cochain-biproduct-laws``
+- ``wavefront-cochain-primal``
 - ``wdd-forward-recurrence``
 - ``wm72-coupled-linear-system``
 - ``wm72-eq30-bare``

@@ -794,9 +794,12 @@ def _sweep_2d_wavefront(
 
     The smoking gun ``for n in range(N)`` is gone: the outer loop is
     now ``for octant in quad.octants`` (4-8 iterations, structural),
-    and within each octant the work is one BC apply + one
-    ``SweepDependencyGraph.apply`` call. The ordinate axis is
-    INTERNAL to every numpy operation.
+    and within each octant the work is one ``SweepDependencyGraph.apply``
+    call over the typed interior cochain
+    :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`
+    (Wave O #205); the boundary trace is exchanged once per sweep via the
+    typed :math:`\iota_*` (``seed``) / :math:`\iota^*` (``absorb``). The
+    ordinate axis is INTERNAL to every numpy operation.
 
     R-1 Step 4 A1: single per-ordinate source ``Q`` shape
     ``(N, ng, nx, ny)`` carries the producer-side-projected magnitude.

@@ -31,15 +31,26 @@ Key Facts
   ``cell_update.update_batch``; mesh-time precompute of the per-
   octant DAG; BC apply once per octant per axis (the L7-trap fix).
   See :ref:`sweep-octant-dependency-graph`.
-- **The 1-D sweep is BARE** (Wave O step O.4a.2, Issue #208,
-  2026-06-03): :func:`~orpheus.sn.sweep.transport_sweep` no longer
-  re-applies ``bc`` to the outflow — it reads the *seeded* inflow
+- **Both the 1-D and 2-D sweeps are BARE** (Wave O steps O.4a.2 +
+  O.4b, Issue #208): :func:`~orpheus.sn.sweep.transport_sweep` (1-D)
+  and :func:`~orpheus.sn.sweep._sweep_2d_wavefront` (2-D) no longer
+  re-apply ``bc`` to the outflow — they read the *seeded* inflow
   trace directly. The reflective coupling :math:`\psi.\text{inflow} =
   B\,\psi.\text{outflow}` is delivered as a sibling :math:`-B` source
-  term, NOT re-derived inside the sweep. The 2-D wavefront sweep is
-  NOT yet bare (still applies ``bc`` internally — deferred to O.4b).
-  See :ref:`bare-sweep-extraction` and the canonical algebra
+  term, NOT re-derived inside the sweep, for every geometry. See
+  :ref:`bare-sweep-extraction` and the canonical algebra
   :ref:`bc-extraction` in :doc:`operator_algebra`.
+- **The 2-D interior cell-face fluxes are a typed cochain** (Wave O
+  step #205 Phase 5, Issue #208, 2026-06-04): the 2-D wavefront sweep
+  + matvec no longer carry raw ephemeral ``psi_x`` / ``psi_y`` numpy
+  arrays — they are the named field
+  :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux` (the
+  interior 1-cochain :math:`C^1_{\rm int}`), and the boundary
+  seed/absorb are the typed trace operators :math:`\iota_*`
+  (:meth:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux.seed`)
+  / :math:`\iota^*`
+  (:meth:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux.absorb`).
+  See :ref:`wavefront-flux-cochain` in :doc:`operator_algebra`.
 - **Storage layout**: angular flux ``(N, ng, nx, ny)``; scalar flux
   and per-cell cross sections ``(ng, nx, ny)``; 1-D problems keep
   ``ny = 1`` (singleton, NOT squeezed).  The canonical statement
@@ -1513,10 +1524,17 @@ isolation.
      - Frozen + slotted dataclass — the **per-level packet** that
        :meth:`update_batch` consumes.  Carries the cell indices
        ``(ii, jj)``, the per-axis face-index arrays, and views into
-       the persistent ``psi_x`` / ``psi_y`` buffers, the source
+       the ``psi_x`` / ``psi_y`` interior face buffers, the source
        ``Q``, the cross section ``sig_t``, and the per-octant
        streaming coefficients ``str_x`` / ``str_y``.  See its
-       docstring for the full shape contract.
+       docstring for the full shape contract.  Since #205 Phase 5 the
+       ``psi_x`` / ``psi_y`` buffers are zero-copy
+       :meth:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux.face`
+       views of the typed interior cochain
+       :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`
+       (ephemeral, rebuilt each sweep; the boundary trace is the
+       persistent companion); the per-level indexing is byte-identical
+       (see :ref:`wavefront-flux-cochain`).
    * - :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.update_batch`
      - :mod:`orpheus.sn.spatial.cell_update`
      - New method on the
@@ -2855,23 +2873,23 @@ BC trace contract respected by matvec
 
 .. note::
 
-   **Superseded by Wave O step O.4a.2 (Issue #208, 2026-06-03).** This
+   **Superseded by Wave O steps O.4a.2 + O.4b (Issue #208).** This
    subsection documents the **Phase C** matvec, where the boundary law
    was applied *inside* the sweep at the boundary edge
    (``inflow_full = bc_outer.apply(outflow_at_boundary.T)``, the
    "keystone"). That intra-sweep BC re-apply has been **deleted** for
-   the **1-D** path: the boundary law :math:`B` is now a first-class
-   sibling :math:`-B` operator and the 1-D sweep is **bare** (reads the
-   seeded inflow trace directly). The Phase C trace-contract *insight*
-   — the BC must consume the WDD-propagated outflow face vector, not
-   cell centres — is **preserved and strengthened** by the extraction:
-   the outflow trace is now an explicit solved unknown
-   :math:`\psi.\text{outflow}` rather than a local variable, and
-   :math:`B` reads it as :math:`B\,\psi.\text{outflow}`. See
-   :ref:`bare-sweep-extraction` below and the canonical algebra at
-   :ref:`bc-extraction` in :doc:`operator_algebra`. The 2-D Cartesian
-   wavefront sweep still uses the Phase C bc-in-sweep mechanism this
-   subsection describes (deferred to O.4b).
+   **every geometry**: O.4a.2 made the **1-D** path bare, and O.4b
+   made the **2-D Cartesian wavefront** path bare. The boundary law
+   :math:`B` is now a first-class sibling :math:`-B` operator and the
+   sweeps read the seeded inflow trace directly. The Phase C
+   trace-contract *insight* — the BC must consume the WDD-propagated
+   outflow face vector, not cell centres — is **preserved and
+   strengthened** by the extraction: the outflow trace is now an
+   explicit solved unknown :math:`\psi.\text{outflow}` rather than a
+   local variable, and :math:`B` reads it as
+   :math:`B\,\psi.\text{outflow}`. See :ref:`bare-sweep-extraction`
+   below and the canonical algebra at :ref:`bc-extraction` in
+   :doc:`operator_algebra`.
 
 The :doc:`boundary_conditions` :ref:`affine-bc-form` (§16A.3) reads
 
@@ -2976,7 +2994,7 @@ entry now reads the *seeded* inflow trace directly:
 
 .. code-block:: python
 
-   # PRE-O.4a.2 (bc-in-sweep, still used by the 2-D wavefront):
+   # PRE-O.4a.2 (bc-in-sweep, the deleted keystone):
    inflow_full = bc_outer.apply(outflow_at_boundary.T)  # re-apply bc
    psi_face_in = inflow_full[incoming_mask, :].T        # backward seed
 
@@ -3014,10 +3032,23 @@ the outflow defect; project :math:`B` to the inflow row; seed from
 :math:`\text{rhs.boundary}`), the two delivery routes, and the O.2
 forcing function all live at :ref:`bc-extraction` in
 :doc:`operator_algebra` — the canonical home for the SN transport
-operator algebra. The bare-vs-bc-in-sweep dispatch is guarded by the
-single predicate ``sn_mesh.reduced is not None`` (1-D ⇒ bare, 2-D ⇒
-bc-in-sweep until O.4b), so the sweep body and the helper-guard sites
-cannot drift.
+operator algebra.
+
+Step **O.4b** extended the bare sweep to the **2-D Cartesian
+wavefront** path (both :func:`~orpheus.sn.sweep._sweep_2d_wavefront`
+and the 2-D matvec
+:meth:`StreamingOperator._apply_2d_cartesian <orpheus.sn.operator.StreamingOperator>`):
+the intra-octant ``bc.apply`` is gone there too, and the
+octant-incoming edge is seeded from the given inflow trace. The
+``sn_mesh.reduced is not None`` predicate that guards the dispatch now
+selects the **fold shape** (1-D parallel-prefix scan vs 2-D wavefront
+DAG), **not** a bare-vs-bc-in-sweep distinction — both folds are bare,
+so the sweep body and the helper-guard sites cannot drift. The 2-D
+interior face fluxes both folds propagate are now the typed cochain
+:class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`, with
+the boundary seed/absorb the typed trace operators :math:`\iota_*` /
+:math:`\iota^*` (#205 Phase 5 — see :ref:`wavefront-flux-cochain` in
+:doc:`operator_algebra`).
 
 .. _sn-mms-spherical-aniso-spatial-convergence:
 

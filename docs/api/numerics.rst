@@ -380,3 +380,35 @@ convention are documented at :ref:`spherical-harmonics`. The
 mathematical narrative; per-symbol API docstrings live in the
 modules themselves and are accessible via the standard
 ``orpheus.numerics`` import path.
+
+Function spaces — trace and interior face cochains
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The :class:`~orpheus.numerics.space.FunctionSpace` ABC carries the
+``(name, shape, inner_product_weights)`` identity for every typed
+field. Two **face** spaces specialise it for the SN sweep's
+codim-1 (face) quantities, both re-homing their
+:class:`~orpheus.numerics.face_layout.FaceLayout` onto the space as
+``compare=False`` leaf-data (the A.5 "layout-on-space" pattern):
+
+* :class:`~orpheus.numerics.spaces.trace_space.TraceSpace` — the
+  **boundary** trace cochain :math:`C^1_\partial`, carrying
+  ``omega_dot_n`` for the inflow / outflow directional partition. The
+  space of :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`.
+* :class:`~orpheus.numerics.spaces.interior_face_space.InteriorFaceSpace`
+  — the **interior** face cochain :math:`C^1_{\rm int}`, the trace
+  space *minus* ``omega_dot_n`` (the interior cochain is flux-only, no
+  directional partition). Axis-parametric (one face-normal field per
+  active axis;
+  :meth:`~orpheus.numerics.spaces.interior_face_space.InteriorFaceSpace.interior_layout`
+  takes the axis count as a parameter). The space of
+  :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`.
+
+Together their cochains biproduct-decompose the full face cochain
+:math:`C^1 = C^1_{\rm int} \oplus C^1_\partial` (Issue #205 Phase 5).
+The full cochain frame, the :math:`\iota_*` / :math:`\iota^*` trace
+operators, the flux-only-single-role rationale, and the storage ×
+role × locus grid are documented at :ref:`wavefront-flux-cochain`
+(theory page); per-symbol docstrings live in
+:mod:`orpheus.numerics.spaces.interior_face_space` and
+:mod:`orpheus.transport.fields.wavefront_flux`.
