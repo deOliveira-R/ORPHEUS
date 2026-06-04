@@ -274,6 +274,22 @@ class WavefrontFlux(Field):
             fa, sl = self._edge_slot(name)
             boundary.face_view(name)[:] = fa[sl]
 
+    def edge_view(self, face_name: str) -> NDArray:
+        r"""Return the interior domain-edge slot matching a boundary face, as
+        a zero-copy view.
+
+        The read accessor counterpart of :meth:`seed` / :meth:`absorb`: after
+        the wavefront walk this view holds the streamed outflow at that edge
+        (the inflow ordinate slots retain the seed). Consumers that need the
+        edge trace WITHOUT copying it into a ``BoundaryFlux`` — e.g. the
+        matvec's active-trace boundary-residual emission, which differences
+        ``edge_view(face) − given`` — read it here, routing through the same
+        ``_edge_slot`` single source of truth for the face→edge mapping (no
+        hardcoded ``psi_x[:, :, 0, :]`` literals at the call site).
+        """
+        fa, sl = self._edge_slot(face_name)
+        return fa[sl]
+
     # ── Construction factories ───────────────────────────────────────
 
     @classmethod

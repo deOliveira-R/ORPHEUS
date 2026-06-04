@@ -1373,6 +1373,7 @@ class StreamingOperator(LinearOperatorMixin):
         convention.
         """
         from orpheus.sn.sweep_graph import OctantLabel
+        from orpheus.transport.fields.wavefront_flux import WavefrontFlux
         from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
@@ -1392,19 +1393,21 @@ class StreamingOperator(LinearOperatorMixin):
         # at zero source); L·ψ̄ = this − Σ_t·ψ̄ at the end.
         LpC = np.zeros((N, ng, nx, ny))
 
-        # Edge-flux buffers. BARE boundary handling (O.4b Phase E): seed the
-        # boundary edge slots from the GIVEN inflow trace ``psi.boundary`` —
-        # NO bc.apply. The octant's ordinates on its incoming face ARE its
-        # inflow ordinates, so slicing the seeded face by oct_idx selects
-        # exactly the given inflow. The reflective coupling is the sibling -B.
+        # Interior face cochain C¹_int (Wave O #205 — WavefrontFlux), the SAME
+        # typed field the 2-D sweep uses (matvec ≡ sweep: ONE discretization).
+        # psi_x/psi_y are bound ONCE as zero-copy views so the graph.residual
+        # walk below indexes them with byte-identical fancy-indexing.
+        # BARE boundary handling (O.4b Phase E): ι_* seeds the domain-edge slots
+        # from the GIVEN inflow trace ``psi.boundary`` — NO bc.apply. The
+        # octant's ordinates on its incoming face ARE its inflow ordinates, so
+        # slicing the seeded face by oct_idx selects exactly the given inflow.
+        # The reflective coupling is the sibling -B.
         trace = sn_mesh.trace
         boundary = psi.boundary
-        psi_x = np.zeros((N, ng, nx + 1, ny))
-        psi_y = np.zeros((N, ng, nx, ny + 1))
-        psi_x[:, :, 0, :] = boundary.face_view("xmin")
-        psi_x[:, :, nx, :] = boundary.face_view("xmax")
-        psi_y[:, :, :, 0] = boundary.face_view("ymin")
-        psi_y[:, :, :, ny] = boundary.face_view("ymax")
+        wavefront = WavefrontFlux.zeros_on(sn_mesh)
+        psi_x = wavefront.face(0)   # (N, ng, nx+1, ny) zero-copy view
+        psi_y = wavefront.face(1)   # (N, ng, nx, ny+1) zero-copy view
+        wavefront.seed(boundary)    # ι_*
 
         for octant in quad.octants:
             label_tuple = octant.label
@@ -1449,10 +1452,10 @@ class StreamingOperator(LinearOperatorMixin):
         # computed−stored so the vacuum path stays bit-identical); INFLOW
         # ordinate slots → identity ``psi.inflow`` (the sibling -B adds
         # -B·psi.outflow → composed inflow residual ``psi.inflow − B·psi.outflow``).
-        streamed = {
-            "xmin": psi_x[:, :, 0, :], "xmax": psi_x[:, :, nx, :],
-            "ymin": psi_y[:, :, :, 0], "ymax": psi_y[:, :, :, ny],
-        }
+        # The post-walk domain-edge slots hold the streamed outflow; read them
+        # through the typed accessor (single source of truth for the face→edge
+        # mapping — no hardcoded psi_x[:, :, 0, :] literals).
+        streamed = {face: wavefront.edge_view(face) for face in trace.face_names}
         out_boundary = BoundarySourceSink.zeros_on(sn_mesh)
         for face in trace.face_names:
             given = boundary.face_view(face)

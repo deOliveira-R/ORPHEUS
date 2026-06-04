@@ -1216,8 +1216,21 @@ class TestT4dApply2DCartesianSourceHashPin:
     #         and completes the boundary role grid (.apply→BoundarySourceSink,
     #         .solve→BoundaryFlux, from_balance→BoundaryResidual).  k_∞ stays
     #         1.875; the bare-matvec emission values are unchanged.
+    #   WavefrontFlux Phase 3 (interior cochain typing) f683f229…09af63b →
+    #         12697ab3…bcc1a36d — the raw ephemeral psi_x/psi_y interior face
+    #         arrays + their four raw edge-slice seed copies + the hardcoded
+    #         ``streamed`` face→slot dict were REPLACED by the typed
+    #         ``WavefrontFlux`` (the interior 1-cochain C¹_int): ``psi_x =
+    #         wavefront.face(0)`` / ``psi_y = wavefront.face(1)`` (zero-copy
+    #         views), ``wavefront.seed(boundary)`` (ι_*), and ``streamed =
+    #         {face: wavefront.edge_view(face) for face in trace.face_names}``.
+    #         Behavior-neutral (TYPE-ONLY): the views ARE the same buffers, the
+    #         graph.residual walk is byte-identical, the boundary-residual
+    #         emission reads the same edge slots — output bit-identical (Gate-K
+    #         k_∞=1.875, matvec≡sweep, octant snapshots, bc_extraction_2d all
+    #         green; Phase 0 de-risk; Wave O #205/#208).
     EXPECTED_SHA256: str = (
-        "f683f229b04f4f0c393fdfc572651008d35783e113605061cea85159e09af63b"
+        "12697ab3fe577a43eb7f5f433bc83fa36f201910f9397fc915977204bcc1a36d"
     )
 
     def test_apply_2d_cartesian_source_hash_unchanged(self):

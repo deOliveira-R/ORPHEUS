@@ -237,6 +237,20 @@ def test_seed_matches_raw_no_transpose_2d():
     assert np.array_equal(wf.face(1)[:, :, :, ny], bf.face_view("ymax"))
 
 
+def test_edge_view_reads_seeded_trace_2d():
+    r"""edge_view(face) is the zero-copy domain-edge slot — equals the seeded
+    boundary face (the read counterpart of seed/absorb), via the SAME
+    _edge_slot mapping (no duplicated face→slot literals at the call site)."""
+    sn = _cart2d_mesh(nx=6, ny=5)
+    bf = BoundaryFlux.zeros_on(sn)
+    bf.values[:] = _rng().standard_normal(bf.values.shape)
+    wf = WavefrontFlux.zeros_on(sn)
+    wf.seed(bf)
+    for face in ("xmin", "xmax", "ymin", "ymax"):
+        assert np.array_equal(wf.edge_view(face), bf.face_view(face))
+        assert np.shares_memory(wf.edge_view(face), wf.values)
+
+
 def test_roundtrip_matches_raw_seed_absorb_2d():
     r"""The typed seed/absorb reproduces the raw numpy seed/absorb the legacy
     sweep does, bit-for-bit (both edges of the carve agree)."""
