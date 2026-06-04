@@ -397,14 +397,20 @@ home; our `i+j=k` levels ARE the KBA diagonals. With typed `WavefrontFlux` +
 implicit buffer-timing dance. **Fold the `(octant×face)` construction into
 `si_gauss_seidel_recovery.md` regardless of build order** (it sharpens that plan).
 
-## 8. Pickup checklist — POST-COMPACTION (Phases 0–5 done; pick up Phase 6 → G-S)
+## 8. Pickup checklist — [⚠ SEQUENCING SUPERSEDED — see the ⭐⭐ banner at top]
 
-**State at compaction:** storage-A COMPLETE (Phases 0–4; see the STATUS block at
-top), Phase 5 docs dispatched to the archivist (verify it landed: `git log` for a
-`docs(...)` commit + `sphinx-build` clean). **Read-the-worktree discipline applies
-(lesson L22).** Branch `refactor/field-role-typing`.
+**⚠ This §8 said "Phase 6 storage-B FIRST." That is SUPERSEDED (2026-06-04, late).**
+The reshaped chain is: **(1) SI Gauss-Seidel recovery → (2) angular-windowing →
+(3) interior-FACE storage-B (this §8's mechanics) → (4) O.2 → nd_foundation.** 2-D
+SI "Phase A" landed as the gateway. The storage-B mechanics below remain valid as
+the STEP-3 recipe (now faces-only; the angular-windowing of step 2 is the separate
+`O(n²)→O(n)` win that rides the live 2-D SI loop). Read the ⭐⭐ banner at the top of
+this file for the full rationale before using this checklist.
 
-**⭐ Phase 6 — storage path (B): the moving-frontier window (DO THIS FIRST).**
+**State (HEAD `4f5ba59`):** storage-A COMPLETE (Phases 0–5, docs `94103df`); 2-D SI
+Phase A LANDED (`139c278`→`e65eba0`). **Read-the-worktree discipline (lesson L22).**
+
+**Phase 6 — storage path (B): the moving-frontier window [now STEP 3 of the chain].**
 1. Confirm storage-A is in: `WavefrontFlux`/`InteriorFaceSpace` exist; the 2-D
    sweep (`_sweep_2d_wavefront`) + matvec (`_apply_2d_cartesian`) use them
    (`grep wavefront orpheus/sn/sweep.py orpheus/sn/operator.py`); `pytest
