@@ -92,17 +92,22 @@ History
    forcing function.
 
    The **2-D Cartesian** path
-   (:meth:`StreamingOperator._apply_2d_cartesian`) is NOT yet bare — it
-   still routes the incoming-at-boundary slots through the
-   :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` instances on
-   the :class:`~orpheus.sn.geometry.SNMesh` (``bc_xmin`` / ``bc_xmax``
-   / ``bc_ymin`` / ``bc_ymax``) via ``bc.apply(outgoing)`` inside the
-   sweep (deferred to O.4b).  The pre-extraction Phase C insight that
-   the BC must consume the WDD-propagated outflow face vector (not
-   cell centres) is preserved and strengthened: post-O.4a.2 the
-   outflow trace is the explicit solved unknown ``psi.outflow`` that
-   ``-B`` reads, closing ERR-026 by construction for the 1-D
-   curvilinear path.
+   (:meth:`StreamingOperator._apply_2d_cartesian`) is ALSO bare (O.4b
+   Phase E landed): it seeds the octant-incoming face slots from the
+   GIVEN ``psi.boundary.inflow`` via the typed ``wavefront.seed`` (ι_*)
+   with NO ``bc.apply``, walks the same per-octant
+   :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` (``graph.residual``
+   → the diamond-difference ``CellUpdate`` closure) the 2-D *sweep*
+   ``_sweep_2d_wavefront`` uses — so matvec ≡ sweep in 2-D by
+   construction (L21, one discretization) — and emits the boundary
+   consistency residual (outflow defect ``streamed − given`` + inflow
+   identity) as a :class:`BoundarySourceSink`.  The reflective coupling
+   is the sibling ``-B`` exactly as in 1-D.  The pre-extraction Phase C
+   insight that the BC must consume the WDD-propagated outflow face
+   vector (not cell centres) is preserved and strengthened: post-O.4a.2
+   the outflow trace is the explicit solved unknown ``psi.outflow`` that
+   ``-B`` reads, closing ERR-026 by construction for the 1-D curvilinear
+   path.
 """
 
 from __future__ import annotations
