@@ -1,0 +1,257 @@
+# WavefrontFlux — typed interior face-flux cochain (Wave O / #205 / #208)
+
+**Branch:** `refactor/field-role-typing` (worktree). **Base HEAD:** `266fcf5`
+(B.5.2 landed). **Mode:** main-agent DIRECT authorship, turn-by-turn user
+steering (`feedback_no_method_implementer_for_surgical_carves`) — touches the
+SN sweep + matvec hot path; commit per phase; bit-identity gates throughout.
+**Standing exclusions from commits:** `.claude/agent-memory/`, `.mcp.json`,
+hooks, `derivations/diagnostics/`.
+
+**Design basis (READ FIRST — the native-frame validation):**
+- cross-domain-attacker: `.claude/agent-memory/cross-domain-attacker/field_role_typing_faceflux_frames.md`
+  (the cochain frame; field+views NOT per-face objects; the `(octant×face)`
+  G-S graph; the KBA/Pautz anchor; the honest "representation-only, no rate" disclaimer).
+- explorer (sweep/cell-update structure): `.claude/agent-memory/explorer/sn_si_reflective_gauss_seidel_recovery_surface.md`.
+- B.5.2 role-grid precedent: `.claude/plans/b52_boundary_residual_retype.md` (the
+  type-only / bit-identical carve discipline). Wave O umbrella: `wave_o_operator_typing.md`.
+
+---
+
+## 0. What this is (and the native frame)
+
+Type the SN interior cell-face angular fluxes — currently raw ephemeral numpy
+arrays `psi_x (N_oct,ng,nx+1,ny)` / `psi_y (N_oct,ng,nx,ny+1)` — as a named
+field **`WavefrontFlux`**. This kills the Pattern-3 "unnamed quantity"
+anti-pattern (flux-bearing tensors with no type identity) and **names the trace
+operator the sweep already applies by hand** (`psi_x[:,:,0,:] =
+boundary.face_view("xmin")` is `ι_*`; the writeback is `ι*`).
+
+**Native frame = discrete exterior calculus / cochains** (attacker-validated):
+- The per-ordinate angular flux on faces is a primal **1-cochain** `ψ⁽¹⁾_Ω ∈ C¹`
+  (a value per oriented face).
+- The cell-average ψ̄ is a **0-cochain**; the diamond closure
+  `ψ_out = 2ψ̄ − ψ_in` is the averaging map `C¹ → C⁰`.
+- The boundary trace is the **pullback `ι*`** under `∂Ω ↪ Ω`; "absorption =
+  identity" is `ι_* ∘ ι* = id` on the boundary chain.
+- The full face cochain splits as the **biproduct** `C¹ = C¹_int ⊕ C¹_∂`, which
+  IS the #208 `V_bulk ⊕ V_boundary` shape: `WavefrontFlux = C¹_int` (interior),
+  `BoundaryFlux = C¹_∂` (boundary), coupled by `ι*`/`ι_*` at the domain edges.
+
+**Honest scope (load-bearing — do NOT oversell):** this is a
+**representation / elegance win only**. It does NOT change asymptotic cost,
+does NOT recover the SI rate, and does NOT enable parallelism on its own (the
+attacker stated this as an absence, not a hedge). The seed/absorb stays an
+**inherent cheap copy** (`O(boundary faces)`, negligible vs the `O(volume)`
+sweep) at the **persistent-boundary / ephemeral-interior lifetime boundary** —
+true zero-copy is precluded (and unnecessary) because `BoundaryFlux` persists
+across SI iterations while `WavefrontFlux` is rebuilt each sweep. The payoff is
+the **type** (named field, typed `ι*`/`ι_*`, reads-like-the-cochain-math,
+illegal-states-unrepresentable), and it is the clean substrate the G-S schedule
+(`si_gauss_seidel_recovery.md`) then lands on without rework.
+
+---
+
+## 1. The name + the concept hierarchy
+
+- **`WavefrontFlux` (NEW)** — the interior face-flux field the wavefront sweep
+  propagates: the flux across all (interior) faces traversed as the wavefront
+  advances from the inflow trace to the outflow trace. The interior 1-cochain
+  `C¹_int`. **Ephemeral, single-role (flux), vectorized field + views.** The
+  name carries the operational signature (the propagating sweep state), NOT a
+  static single face — that is why it supersedes the earlier "FaceFlux" working
+  name. (The wavefront at topological level `k` (`i+j=k`) is a *slice* of it;
+  see §3 storage decision.)
+- **`BoundaryFlux` (EXISTS)** — the boundary face-flux trace `C¹_∂`:
+  persistent, role-typed (Flux / Source / Residual — the role grid lives here
+  because the BC consistency residual `ψ.inflow − B·ψ.outflow − q.inflow` lives
+  here), inflow/outflow-partitioned (`TraceSpace`), `FaceLayout`-backed.
+- **`ι_*` (seed)** : `BoundaryFlux.inflow → WavefrontFlux` domain-edge slots.
+  **`ι*` (absorb)** : `WavefrontFlux` domain-edge slots → `BoundaryFlux.outflow`.
+  Typed trace operators replacing the raw edge-slice copies. Clean copies (the
+  orderings already agree — proven by the working `psi_x[:,:,0,:] =
+  face_view(...)`), not zero-copy (lifetime split, §0).
+- **NO standalone per-face `BoundaryFaceFlux` / `FaceFlux` object** — the
+  attacker REJECTED per-face objects on three grounds (vectorization/L16; the
+  cochain frame is storage-granularity-indifferent; biproduct consistency).
+  Per-face access stays a **view** (`face_view`), as `BoundaryFlux` already does.
+
+Role grid placement (the WHY): interior faces are the transient off-diagonal of
+a triangular factor → no residual role → `WavefrontFlux` is flux-only. The role
+grid is a 0-cochain (cell) concept that the boundary 1-chain inherits only via
+its BC residual.
+
+---
+
+## 2. Current state (what exists vs. what is raw) — all `file:line` at HEAD `266fcf5`
+
+- **Raw interior face fluxes (= untyped WavefrontFlux):** `sweep.py:853-854`
+  (`psi_x = np.zeros((N,ng,nx+1,ny))  # ephemeral interior cache`; `psi_y`) and
+  the matvec mirror `operator.py:1402-1403`.
+- **Seed `ι_*`:** `sweep.py:857-860` (`psi_x[:,:,0,:] = boundary_flux.face_view("xmin")`,
+  `…[:,:,nx,:]`=xmax, `psi_y[:,:,:,0]`=ymin, `…[:,:,:,ny]`=ymax). Matvec mirror in
+  `_apply_2d_cartesian`.
+- **Absorb `ι*`:** `sweep.py:940+` (`boundary_flux.face_view("xmin")[:] = psi_x[:,:,0,:]`, …).
+- **The carrier:** `SweepCellSlice` (`cell_update.py:181`) holds `psi_x`/`psi_y`
+  (`:295-296`) + `psi_avg_probe` (`:304`), mutated in place.
+- **The walk:** `SweepDependencyGraph` (`sweep_graph.py:127`); `from_cartesian_2d`
+  (`:191`, levels `i+j=k`, reversed per octant sign); shared `_make_slice`
+  (`:264`); `apply` (`:300`, solve→`update_batch`) + `residual` (`:386`,
+  matvec→`residual_batch`). DD closure: `diamond.py` `update_batch` (`:273`,
+  scatter `ψ_out=2ψ̄−ψ_in` at `:354-355`), `residual_batch` (`:361`, `:424-425`).
+- **The 2-D sweep:** `_sweep_2d_wavefront` (`sweep.py:756-940`): seed 4 faces
+  up front (`:857-860`), `for octant in quad.octants` (`:852`), per-octant
+  `graph.apply` (`:903-925`), absorb after loop (`:931-943`).
+- **The 2-D matvec:** `_apply_2d_cartesian` (`operator.py:~1334-1477`): same
+  shape, `graph.residual`, emits the boundary block (B.5.2: `BoundarySourceSink`).
+- **The 1-D sweep:** `_run_1d_sweep` (`sweep.py:382-739`): edge fluxes + two
+  direction groups (`:523`). **The 1-D matvec boundary:** `_compute_LpC`
+  (`operator.py:~534`) + `_compute_decomposition` (`:~575`) (the twin).
+- **`BoundaryFlux` (the model to mirror):** `transport/fields/boundary_flux.py`;
+  base machinery in `transport/fields/_bases.py` (`from_mesh` `:426`, `zeros_on`
+  `:457`, `face_view` `:398`, `layout` `:416`); `FaceLayout` in
+  `numerics/face_layout.py:108` (`faces`, `total_size`, per-face slots).
+- **`BoundaryFaceFlux`:** a RETIRED module (`spatial/boundary_face_flux.py`,
+  subsumed by the Phase-C sweep-frame matvec; refs in
+  `pole_angular_closure.py:78,151`). Do NOT resurrect it as an object.
+
+---
+
+## 3. The design
+
+### 3a. Storage decision (a real fork — decide at Phase 0)
+`WavefrontFlux`'s name is the *frontier*, but two backings express it:
+- **(A) Full interior face-field [RECOMMENDED first cut].** Per-axis dense
+  arrays (the current `psi_x`/`psi_y`), the wavefront at level `k` is a slice.
+  Preserves the proven `(N_oct,ng,n_diag)` vectorized walk EXACTLY (the hot path
+  reads `WavefrontFlux.psi_x`/`.psi_y` views, byte-identical indexing) → minimal
+  risk, type-only change, bit-identical. Memory `O(N·ng·nx·ny)` (unchanged).
+- **(B) Moving-frontier window [FUTURE optimization].** Store only the active
+  diagonal(s) (`O(N·ng·(nx+ny))`). A genuine memory win + literally "the flux at
+  a wavefront", but changes the walk (rolling buffer). The `WavefrontFlux` NAME +
+  API accommodate it; defer until the type is proven under (A).
+**Recommendation: ship (A) first** (the carve is the *typing*, not a storage
+rewrite); leave (B) as a documented future step the name already fits.
+
+### 3b. The type
+- `WavefrontFlux` carries the interior face cochain: the x-normal field
+  (`nx+1` × `ny` faces) and the y-normal field (`nx` × `ny+1` faces) per
+  `(N_oct, ng)` — i.e. wraps `psi_x` + `psi_y` (2-D); just the x-faces (1-D).
+  Backing = a flat buffer + an **interior `FaceLayout`** (mirror `BoundaryField`)
+  OR the two dense arrays with an explicit layout descriptor (decide for
+  zero-copy vectorized views). `UNITS = ANGULAR_FLUX_UNITS` (cm⁻²·s⁻¹·sr⁻¹ —
+  same as `BoundaryFlux`; the trace is all-flux). Field + zero-copy views; NO
+  per-face objects.
+- Boundary = the domain-edge slots: `WavefrontFlux` x-edges (i=0, i=nx) ≙
+  `BoundaryFlux` xmin/xmax; y-edges (j=0, j=ny) ≙ ymin/ymax. The orderings agree
+  (current code proves it) → `ι*`/`ι_*` are clean per-face copies.
+- Typed `ι_*(BoundaryFlux) → WavefrontFlux` (seed) + `ι*(WavefrontFlux) →
+  BoundaryFlux` (absorb), single source of truth for the trace map (replaces the
+  4 raw edge-slice assignments at each of the sweep + matvec sites).
+
+### 3c. The biproduct (consistency with #208)
+`WavefrontFlux ⊕ BoundaryFlux = C¹` mirrors the cell+trace `TimedFullField`
+(`bulk: BulkField ⊕ boundary: BoundaryField`) one locus down (face locus). Keep
+the `ι*`/`ι_*` as the projection/injection with `π_∂ ι_* = id` — the same
+biproduct laws the operator algebra already uses.
+
+---
+
+## 4. Phasing (de-risk first; turn-by-turn; bit-identity every commit)
+
+**PROACTIVE per the handoff protocol:** this is an operator-algebra carve
+crossing the typed↔packed boundary → **dispatch test-architect FIRST** for the
+bit-identity verification plan (which existing snapshots pin the raw behaviour;
+the typed-`ι*` round-trip pin; the **L16 perf gate** — full `pytest tests/sn -q`
+wall-clock must not regress, since this touches the hot path).
+
+- **Phase 0 — DE-RISK (diagnostic, excluded).** Prototype the interior
+  `FaceLayout` + `WavefrontFlux` wrapper on a small 2-D mesh. Prove: (a) the
+  typed `ι_*`/`ι*` round-trip is BIT-IDENTICAL to the current raw seed/absorb
+  (orderings agree); (b) the vectorized walk on `WavefrontFlux` views is
+  bit-identical to the raw `psi_x`/`psi_y` walk (same `(N_oct,ng,n_diag)`
+  indexing, no copy in the hot path); (c) a micro-bench shows no per-cell/
+  per-face Python crept in (L16). STOP if values move or the hot path slows.
+- **Phase 1 — mint `WavefrontFlux`** (type + interior `FaceLayout` + `ι*`/`ι_*`
+  operators) with unit tests (units; field+views; the trace round-trip;
+  zeros/from-buffer factories). No production wiring yet.
+- **Phase 2 — wire the 2-D sweep** (`_sweep_2d_wavefront`): replace raw
+  `psi_x`/`psi_y` with `WavefrontFlux`; the seed/absorb become the typed
+  `ι_*`/`ι*`. **Gate:** sweep output bit-identical (octant snapshots,
+  k_inf=1.875), full-suite wall-clock not regressed (L16), sentinel.
+  elegance-enforcer review.
+- **Phase 3 — wire the 2-D matvec** (`_apply_2d_cartesian`): same. **Gate:**
+  matvec bit-identical (A2D-1 source-hash refresh — intended tripwire;
+  `test_bc_extraction_2d`/Gate-K), SI≡Krylov.
+- **Phase 4 — wire the 1-D sweep + matvec** (`_run_1d_sweep`; `_compute_LpC` /
+  `_compute_decomposition` — the twin, flip identically). **Gate:** 1-D
+  bit-identity (`test_native_matvec`, decomposition Resolution-A, slab MMS).
+- **Phase 5 — docs + retirement.** archivist: the cochain frame +
+  `WavefrontFlux ⊕ BoundaryFlux = C¹` biproduct in `operator_algebra.rst` /
+  `discrete_ordinates.rst`; extend the storage×role grid (#205) with the FACE
+  locus; retire the bare-array references (the `# ephemeral interior cache`
+  comment becomes the typed story). The `BoundaryFaceFlux`-pending note in
+  `transport/fields/__init__.py` resolved (no per-face type; views suffice).
+- **(Phase 6 / future, separate plans):** (B) the moving-frontier memory
+  optimization; the **G-S schedule** lands on the typed substrate via the
+  `(octant×face)` reflective graph (`si_gauss_seidel_recovery.md`).
+
+---
+
+## 5. Verification (must-stay-green; the change is TYPE-ONLY → bit-identical)
+Like B.5.2: `WavefrontFlux` wraps the SAME buffers; `.values` unchanged; only
+the type + the named `ι*`/`ι_*` differ. So:
+- **Bit-identity:** 2-D octant snapshots (`test_2d_octant_sweep_equivalence`),
+  Gate-K k_inf=1.875 (`test_2d_l2_matvec_correctness`), A2D-1 hash (refresh),
+  1-D `test_native_matvec` + `test_streaming_operator_decomposition`
+  (Resolution-A twin), `test_bc_extraction_2d`/`_matvec`.
+- **Correctness:** k_inf 1.875; SI≡Krylov; flat-balance; MMS L1 (1-D+2-D+
+  curvilinear). **Perf (L16):** full `pytest tests/sn -q` wall-clock not
+  regressed — THE risk for a hot-path retype.
+- **Sentinel 36/36 (no `-O`).** Default `python -O`; env `PYTHONPATH=$PWD
+  /Users/rodrigo/git/nuclear/ORPHEUS/.venv/bin/python`. **NO `continuous_get`**
+  (#212). Bash: `> file 2>&1; echo exit=$?`.
+- **PRE-EXISTING REDS (orthogonal):** cylinder matvec #206/#196; #212 hang;
+  `test_krylov_curvilinear_precond_safety`/`test_b1pp`/`test_krylov_restart`
+  (#200-adjacent Krylov budget).
+
+## 6. Risk ranking
+1. **Hot-path perf regression (HIGH, L16).** A typed wrapper that breaks the
+   zero-copy vectorized view → per-cell Python → 10–20× slab regression. The
+   walk MUST operate on `WavefrontFlux`'s backing arrays as zero-copy views with
+   byte-identical indexing. Phase 0 micro-bench + the full-suite wall-clock gate
+   are the guards.
+2. **`ι*`/`ι_*` ordering (MEDIUM).** The typed trace must match the raw
+   edge-slice ordering. Already proven to agree (the working `=`), but pin it.
+3. **1-D / 2-D layout twin (MEDIUM).** `WavefrontFlux` must cover the 1-D
+   direction-group edges AND the 2-D per-axis faces without a twin path
+   (Cardinal Rule 2). Design the interior `FaceLayout` geometry-agnostically.
+4. **Biproduct drift vs #208 (LOW).** `WavefrontFlux ⊕ BoundaryFlux` must
+   compose like the cell+trace `TimedFullField`; reuse the projection/injection.
+5. **Scope creep into storage-(B) (LOW).** Resist the moving-frontier rewrite in
+   this carve — it is a separate, post-typing optimization.
+
+## 7. The G-S forward pointer (why this is the right foundation)
+The motivating SI Gauss–Seidel recovery lands on THIS substrate: the
+`(octant×face)` reflective graph (attacker) — edges `(producer octant, face) →
+(consumer octant, face)`; order-respecting edges fold into the inverted
+triangular factor (G-S), cycle edges lag (Jacobi); KBA/Pautz is the literature
+home; our `i+j=k` levels ARE the KBA diagonals. With typed `WavefrontFlux` +
+`BoundaryFlux` + `ι*`, the G-S schedule is an explicit typed composition
+(`sweep octant → ι* absorb → −B reflect → ι_* seed next octant`) rather than an
+implicit buffer-timing dance. **Fold the `(octant×face)` construction into
+`si_gauss_seidel_recovery.md` regardless of build order** (it sharpens that plan).
+
+## 8. Pickup checklist (fresh post-compaction session)
+1. Confirm branch `refactor/field-role-typing`, `git log --oneline -3` near
+   `266fcf5`+, tree clean of tracked non-excluded paths.
+2. Read the attacker memo (the cochain frame + field+views + the `(octant×face)`
+   G-S graph) and this plan §0–§3 (the honest "representation-only" scope; the
+   storage (A)-vs-(B) fork).
+3. **Dispatch test-architect FIRST** (bit-identity + the L16 perf gate plan).
+4. **Phase 0 de-risk** (typed `ι*` round-trip bit-identical + walk bit-identical
+   + no hot-path slowdown) — STOP if it fails.
+5. Phases 1→4 turn-by-turn, bit-identity + wall-clock gate each commit;
+   elegance-enforcer per phase; A2D-1 hash refresh at Phase 3.
+6. Phase 5 docs (archivist: cochain frame + `C¹ = C¹_int ⊕ C¹_∂` biproduct +
+   storage×role FACE locus). Update `wave_o_operator_typing.md` + auto-memory.
+7. Then the G-S schedule (`si_gauss_seidel_recovery.md`) on the typed substrate.
