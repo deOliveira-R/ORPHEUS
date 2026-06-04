@@ -1580,11 +1580,11 @@ def _solve_fixed_source_krylov(
     # dependency audit).
     if sn_mesh.reduced is None:
         raise NotImplementedError(
-            "2-D Cartesian fixed-source Krylov is not yet wired/"
-            "verified.  Use `inner_solver=\"source_iteration\"` for 2-D "
-            "Cartesian fixed-source — `_solve_fixed_source_si` is "
+            "R-1 Step 4 G1 — 2-D Cartesian fixed-source Krylov is not "
+            "yet wired/verified.  Use `inner_solver=\"source_iteration\"` "
+            "for 2-D Cartesian fixed-source (`_solve_fixed_source_si` is "
             "geometry-agnostic and handles 2-D via `transport_sweep`'s "
-            "wavefront dispatch."
+            "wavefront dispatch)."
         )
 
     from orpheus.transport.fields.angular_flux import (
