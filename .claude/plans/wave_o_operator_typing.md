@@ -278,14 +278,31 @@ and the verification plan
 
 ---
 
-## ⭐⭐⭐⭐ O.4b PHASE E — E0/E1/E2 ✅ COMPLETE + E3 NEXT (READ FIRST, HEAD `dfeb604`, 2026-06-03)
+## ⭐⭐⭐⭐ O.4b PHASE E — E0/E1/E2 + E3-VERIFICATION ✅ COMPLETE; NEXT = B.5.2 typing (READ FIRST, HEAD `cd29d69`, 2026-06-03)
 
-**The 2-D BC EXTRACTION is STRUCTURALLY COMPLETE.** `(L_full + C − S − F − B)ψ = q`
-is now canonical for 2-D: both the matvec AND the sweep are BARE (read
+**The 2-D BC EXTRACTION is COMPLETE + VERIFIED.** `(L_full + C − S − F − B)ψ = q`
+is canonical for 2-D: both the matvec AND the sweep are BARE (read
 `ψ.boundary.inflow`), and `−B` (`SNBoundaryOperator`) is the SOLE reflective
 coupling. matvec and sweep share ONE boundary handling (Cardinal Rule 2 / L21).
+E3 verification gates landed (`cd29d69`): V-2D (vacuum bit-identity), Q-2D
+(per-ordinate streaming-equilibrium, the forward-only ~10% catcher), R-2D
+(boundary residual→0 at convergence) + R-2D-NEG (the MANDATORY L11 negative
+control + paired positive control), and the directional face_view tests
+redesigned against the live 2-D fixed-source SI solve. 15 tests green.
 
-**Phase E commit chain (on Phase D `2288ea4`):** `7638d1f` (E1a) → `dfeb604` (E1b/E2).
+**⭐ NEXT = B.5.2 boundary-output `BoundaryResidual` retype — DEDICATED PLAN
+`.claude/plans/b52_boundary_residual_retype.md`** (the remaining "honest
+boundary typing" half of E3). It is NOT a 2-D add — it is the holistic
+operator-output retype (12 sites, 1-D+2-D), entangled with the source/residual
+duality (B's output is a SOURCE for the SI rhs but a RESIDUAL for the Krylov
+matvec). The carve = `matvec output → BoundaryResidual` + `SI/Krylov source →
+BoundarySourceSink` + `B's SI contribution source-typed`; it STARTS (not
+finishes) O.2's driver split. Ground-truth surface map:
+`.claude/agent-memory/explorer/issue_208_b52_boundary_residual_retype_surface.md`.
+The G-metric adjoint / `.H` / Gate-1.3 / `S+B`-fold retirement remain O.2 proper.
+
+**Phase E commit chain (on Phase D `2288ea4`):** `7638d1f` (E1a) → `dfeb604`
+(E1b/E2) → `02f8f0a` (plan) → `cd29d69` (E3 verification gates).
 - **E0** (de-risk, diagnostic `diag_o4b_e0_bare_matvec_proto.py`, excluded) — 3/3:
   vacuum bulk BIT-IDENTICAL; `(L−B)·ψ_uniform = 0` on bulk AND boundary (the
   ~10% catcher, using the real `SNBoundaryOperator`); boundary responds to an
