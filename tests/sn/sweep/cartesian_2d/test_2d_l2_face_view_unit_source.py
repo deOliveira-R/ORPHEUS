@@ -45,15 +45,20 @@ boundary-block residual — so the boundary trace now reaches the bulk.
 * ``test_unit_at_face_produces_nonzero_matvec`` and
   ``test_four_faces_produce_distinct_outputs`` are PROMOTED (the active
   trace makes them correct positive structural pins).
-* The two directional-streaming tests stay xfail: they assert a
-  monotonic spatial DECAY, which is a property of the streaming SOLVE
-  ``(L+C)^{-1}``, NOT of the bare MATVEC ``L·ψ`` applied to a
-  boundary-only field (zero bulk).  With ψ̄ = 0 the diamond closure
-  ``ψ_out = 2·ψ̄ − ψ_in = −ψ_in`` makes the matvec output OSCILLATE in
-  sign cell-to-cell (verified: profile_x = [−A, +A, −A, +A]).  The
-  directional property is real but must be tested against the solve
-  (or the per-cell residual sign) — redesign deferred to O.4b Phase E3
-  / when 2-D SI lands.
+* The two directional-streaming tests were REDESIGNED at O.4b Phase E3.
+  They originally asserted a monotonic spatial DECAY of the bare MATVEC
+  ``L·ψ`` on a boundary-only field — but that is a property of the
+  streaming SOLVE ``(L+C)^{-1}``, NOT of the matvec.  With ψ̄ = 0 the
+  diamond closure ``ψ_out = 2·ψ̄ − ψ_in = −ψ_in`` makes the matvec output
+  OSCILLATE in sign cell-to-cell (verified: profile_x = [−A, +A, −A, +A])
+  with NO spatial decay (equal magnitude every cell), so the original
+  assertion was un-satisfiable on the matvec.  E3 redesigns them against
+  the CONVERGED 2-D fixed-source SI solve (``solve_sn_fixed_source(...,
+  inner_solver="source_iteration")`` — the 2-D SI fixed-source path is
+  live; only 2-D fixed-source Krylov + 2-D eigenvalue SI are deferred):
+  a localised edge source streams INTO the mesh and the scalar flux
+  decays monotonically in the streaming direction.  A μ_x/μ_y sign flip
+  or variable swap (Mode 2) makes the peak land on the WRONG edge.
 """
 from __future__ import annotations
 
@@ -172,87 +177,100 @@ def test_four_faces_produce_distinct_outputs() -> None:
             )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Monotonic spatial decay is a property of the streaming SOLVE "
-        "(L+C)^{-1}, NOT the bare MATVEC L·ψ of a boundary-only field. "
-        "With ψ̄=0 the diamond closure ψ_out = −ψ_in oscillates the matvec "
-        "output in sign (profile_x = [−A,+A,−A,+A]).  Redesign against the "
-        "solve / per-cell residual sign at O.4b Phase E3."
-    ),
-)
-def test_xmin_unit_streams_in_positive_x_direction() -> None:
-    r"""Unit at xmin should populate cells in the positive-x direction.
+# ── Directional streaming tests (O.4b Phase E3 redesign) ────────────────
+#
+# REDESIGNED against the converged 2-D fixed-source SI solve (the original
+# bare-matvec assertion was un-satisfiable — see module docstring).  A
+# localised volumetric source on one edge column/row streams INTO the mesh;
+# the converged scalar flux peaks at the source edge and decays monotonically
+# in the +x / +y streaming direction.  A μ_x / μ_y sign-flip or variable swap
+# (Mode 2) makes the flux peak on the WRONG edge.
 
-    Geometric content: xmin is the LEFT boundary; a unit there
-    (on the ordinates with ``μ_x > 0``) flows INTO the mesh in the
-    +x direction.  The matvec output for those ordinates should be
-    LARGER at small ix than at large ix (the unit decays as it
-    streams across the absorbing medium).
 
-    Catches a sign-flip on the streaming-direction convention: if
-    the kernel reads ``μ_x`` flipped, the unit at xmin streams in
-    the WRONG direction and the output peaks at large ix instead.
+def _decay_mesh_geom(nx: int = 6, ny: int = 6) -> Mesh2D:
+    r"""6×6 vacuum 2-D Mesh2D for the directional decay solve.
+
+    Slightly larger than the 4×4 face fixtures so the streaming decay has
+    enough cells to be monotone and unambiguous.
     """
-    from orpheus.sn.operator import StreamingOperator
-
-    mesh = _pure_streamer_2d_mesh()
-    sigma_t = np.ones((1, mesh.nx, mesh.ny))
-    L = StreamingOperator(mesh, sigma_t)
-    state = _zero_state_with_unit_face(mesh, "xmin")
-
-    out = L.apply(state).bulk.values  # (N, 1, nx, ny)
-
-    # Restrict to outward-x ordinates (μ_x > 0) — they're the ones
-    # that receive flux from xmin.
-    mu_x = mesh.quad.mu_x
-    outward_x = mu_x > 0
-    out_outward = out[outward_x]  # (N_out, 1, nx, ny)
-
-    # Sum over ordinates and y; the resulting 1-D profile in x
-    # should be monotonically decreasing for an absorbing pure
-    # streamer fed only at xmin.
-    profile_x = out_outward.sum(axis=(0, 1, 3))  # (nx,)
-
-    assert profile_x[0] > profile_x[-1], (
-        f"xmin unit did NOT stream in +x direction: profile_x = "
-        f"{profile_x}.  Sign-flip on μ_x convention or BC slot map."
+    return Mesh2D(
+        edges_x=np.linspace(0.0, 3.0, nx + 1),
+        edges_y=np.linspace(0.0, 3.0, ny + 1),
+        mat_map=np.zeros((nx, ny), dtype=int),
+        bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
+        bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Monotonic spatial decay is a SOLVE property, not a bare-MATVEC "
-        "property (see test_xmin_unit_streams_in_positive_x_direction).  "
-        "ψ̄=0 ⇒ ψ_out = −ψ_in ⇒ sign-oscillating matvec output.  Redesign "
-        "against the solve at O.4b Phase E3."
-    ),
-)
-def test_ymin_unit_streams_in_positive_y_direction() -> None:
-    r"""Unit at ymin should populate cells in the positive-y direction.
+def test_xmin_source_streams_in_positive_x_direction() -> None:
+    r"""A source on the xmin column streams in +x: flux peaks at ix=0, decays.
 
-    Mirror of the xmin/xmax pair on the y axis — catches the same
-    sign-flip class but on the OTHER spatial axis.  Variable-swap
-    bugs (μ_x ↔ μ_y) fail HERE.
+    Solve content: a localised volumetric source on the LEFT column
+    (``ix = 0``, all ordinates, all y) feeds the mesh.  The converged scalar
+    flux ``φ(x, y)`` summed over y must PEAK at ``ix = 0`` and decay
+    monotonically in +x (vacuum BC, attenuating medium).
+
+    Catches a sign-flip on the μ_x streaming-direction convention: if the
+    kernel reads ``μ_x`` flipped the streaming carries flux the WRONG way and
+    the profile no longer peaks at the source edge.  This is the SOLVE-based
+    replacement for the un-satisfiable bare-matvec direction assertion (2-D
+    fixed-source SI is live; only 2-D fixed-source Krylov + 2-D eigenvalue SI
+    are deferred).
     """
-    from orpheus.sn.operator import StreamingOperator
+    from orpheus.sn.solver import solve_sn_fixed_source
 
-    mesh = _pure_streamer_2d_mesh()
-    sigma_t = np.ones((1, mesh.nx, mesh.ny))
-    L = StreamingOperator(mesh, sigma_t)
-    state = _zero_state_with_unit_face(mesh, "ymin")
+    geom = _decay_mesh_geom()
+    quad = Quadrature.level_symmetric(sn_order=4)
+    nx, ny, N = 6, 6, quad.N
+    ext = np.zeros((N, 1, nx, ny))
+    ext[:, 0, 0, :] = 1.0  # source on the xmin column (all y)
 
-    out = L.apply(state).bulk.values  # (N, 1, nx, ny)
+    res = solve_sn_fixed_source(
+        materials={0: get_mixture("A", "1g")},
+        mesh=geom, quadrature=quad, external_source=ext,
+        inner_solver="source_iteration", max_inner=500, inner_tol=1e-10,
+    )
+    profile_x = res.scalar_flux.values[0].sum(axis=1)  # (nx,) sum over y
 
-    mu_y = mesh.quad.mu_y
-    outward_y = mu_y > 0
-    out_outward = out[outward_y]
+    assert profile_x.argmax() == 0, (
+        f"xmin source did NOT peak at ix=0: profile_x = {profile_x}.  "
+        f"Sign-flip on μ_x convention — the source streams the wrong way."
+    )
+    assert np.all(np.diff(profile_x) < 0), (
+        f"xmin source flux is NOT monotonically decreasing in +x: "
+        f"profile_x = {profile_x}.  Streaming-direction or attenuation bug."
+    )
 
-    profile_y = out_outward.sum(axis=(0, 1, 2))  # (ny,)
 
-    assert profile_y[0] > profile_y[-1], (
-        f"ymin unit did NOT stream in +y direction: profile_y = "
-        f"{profile_y}.  Sign-flip on μ_y convention or BC slot map."
+def test_ymin_source_streams_in_positive_y_direction() -> None:
+    r"""A source on the ymin row streams in +y: flux peaks at iy=0, decays.
+
+    Mirror of the xmin test on the y axis — catches the same sign-flip class
+    on the OTHER spatial axis.  A μ_x ↔ μ_y variable swap (Mode 2) makes the
+    y-profile fail to peak at iy=0.  By symmetry of the 6×6 mesh the y-profile
+    here MUST equal the x-profile of the companion test (x↔y exchange) — a
+    free cross-check that the two axes are handled symmetrically.
+    """
+    from orpheus.sn.solver import solve_sn_fixed_source
+
+    geom = _decay_mesh_geom()
+    quad = Quadrature.level_symmetric(sn_order=4)
+    nx, ny, N = 6, 6, quad.N
+    ext = np.zeros((N, 1, nx, ny))
+    ext[:, 0, :, 0] = 1.0  # source on the ymin row (all x)
+
+    res = solve_sn_fixed_source(
+        materials={0: get_mixture("A", "1g")},
+        mesh=geom, quadrature=quad, external_source=ext,
+        inner_solver="source_iteration", max_inner=500, inner_tol=1e-10,
+    )
+    profile_y = res.scalar_flux.values[0].sum(axis=0)  # (ny,) sum over x
+
+    assert profile_y.argmax() == 0, (
+        f"ymin source did NOT peak at iy=0: profile_y = {profile_y}.  "
+        f"Sign-flip on μ_y convention or a μ_x↔μ_y variable swap."
+    )
+    assert np.all(np.diff(profile_y) < 0), (
+        f"ymin source flux is NOT monotonically decreasing in +y: "
+        f"profile_y = {profile_y}.  Streaming-direction or attenuation bug."
     )
