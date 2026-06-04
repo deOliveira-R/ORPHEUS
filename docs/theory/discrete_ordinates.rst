@@ -40,6 +40,25 @@ Key Facts
   term, NOT re-derived inside the sweep, for every geometry. See
   :ref:`bare-sweep-extraction` and the canonical algebra
   :ref:`bc-extraction` in :doc:`operator_algebra`.
+- **2-D Cartesian eigenvalue problems solve via BOTH inner solvers**
+  (Wave O "2-D SI Phase A", Issue #208, 2026-06-04):
+  :func:`~orpheus.sn.solver.solve_sn` runs the source-iteration inner
+  (:meth:`~orpheus.sn.solver.SNSolver._solve_source_iteration`, the
+  default for *every* geometry) AND the Krylov inner
+  (:meth:`~orpheus.sn.solver.SNSolver._solve_krylov`). The SI inner is
+  the geometry-agnostic structural twin of Krylov — same composite RHS,
+  same :math:`L + C` / :math:`S + B` / zero-fission triple, same angular
+  reduction — differing only in the iteration driver
+  (:class:`~orpheus.numerics.iteration.SourceIteration` vs
+  :class:`~orpheus.numerics.iteration.KrylovAcceleration`). The
+  reflective coupling rides the bare 2-D sweep via the sibling
+  :math:`-B` on the natively four-face
+  :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`. The legacy
+  "B1'' face block" (never a code symbol) is retired. Verified
+  SI ≡ Krylov ≡ closed-form :math:`k_\infty` (1g → 1.5, 2g → 1.875,
+  4g → 1.4878); heterogeneous non-flat 2-D flux shape agrees SI-vs-Krylov
+  to :math:`\sim 10^{-9}`. See
+  :ref:`bc-extraction-2d-si-krylov-twin` in :doc:`operator_algebra`.
 - **The 2-D interior cell-face fluxes are a typed cochain** (Wave O
   step #205 Phase 5, Issue #208, 2026-06-04): the 2-D wavefront sweep
   + matvec no longer carry raw ephemeral ``psi_x`` / ``psi_y`` numpy

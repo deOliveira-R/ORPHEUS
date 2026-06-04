@@ -70,6 +70,25 @@ Key Facts
   :math:`\iota^* \circ \iota_* = \mathrm{id}`. See
   :ref:`wavefront-flux-cochain`.
 
+- **2-D Cartesian eigenvalue problems solve via BOTH inner solvers**
+  (Wave O "2-D SI Phase A", Issue #208, 2026-06-04): the
+  source-iteration inner
+  (:meth:`SNSolver._solve_source_iteration <orpheus.sn.solver.SNSolver._solve_source_iteration>`,
+  the :func:`~orpheus.sn.solver.solve_sn` default for *every* geometry)
+  AND the Krylov inner
+  (:meth:`SNSolver._solve_krylov <orpheus.sn.solver.SNSolver._solve_krylov>`).
+  The SI inner is the **geometry-agnostic structural twin** of Krylov:
+  identical composite RHS, identical operator triple (:math:`L + C`; the
+  :math:`S + B` fold carrying reflective coupling; zero within-group
+  fission), identical angular reduction — differing **only** in the
+  iteration driver. The reflective coupling rides the **bare** 2-D
+  sweep via the sibling :math:`-B` on the natively four-face
+  (``xmin`` / ``xmax`` / ``ymin`` / ``ymax``)
+  :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` — the same
+  operator the 2-D Krylov path uses. The legacy "B1'' face block"
+  (never a code symbol; a 1-D boundary-closure *name*) is retired. See
+  :ref:`bc-extraction-2d-si-krylov-twin`.
+
 - The transport eigenvalue and fixed-source problems share a single
   operator algebra (Trefethen & Bau 1997, §3.2):
 
@@ -1879,6 +1898,109 @@ predicate the direct-helper guards
 Both branches are now bare-sweep + sibling :math:`-B`; the predicate
 selects the *fold shape* (1-D parallel-prefix scan vs 2-D wavefront
 DAG), **not** a bare-vs-bc-in-sweep distinction.
+
+
+.. _bc-extraction-2d-si-krylov-twin:
+
+The 2-D Cartesian eigenvalue SI inner is the geometry-agnostic twin of Krylov
+-----------------------------------------------------------------------------
+
+Because the :math:`S + B` fold rides the **bare** sweep for every
+geometry (above), the two within-group eigenvalue inner solvers are
+**structural twins** — they share every operator and every reduction,
+differing only in the iteration driver. This holds for 2-D Cartesian
+exactly as it does for slab / sphere / cylinder, so a 2-D Cartesian
+eigenvalue problem solves through **both** inner solvers:
+
+- :meth:`SNSolver._solve_source_iteration <orpheus.sn.solver.SNSolver._solve_source_iteration>`
+  — the source-iteration inner, the :func:`~orpheus.sn.solver.solve_sn`
+  **default** ``inner_solver="source_iteration"`` for *every* geometry,
+  driven by :class:`~orpheus.numerics.iteration.SourceIteration`;
+- :meth:`SNSolver._solve_krylov <orpheus.sn.solver.SNSolver._solve_krylov>`
+  — the Krylov inner, opt-in ``inner_solver="krylov"``, driven by
+  :class:`~orpheus.numerics.iteration.KrylovAcceleration`.
+
+The two inners are identical except for that driver. Both build the
+same composite right-hand side
+(:meth:`AngularSourceSink.from_isotropic <orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic>`
+bulk + :meth:`BoundarySourceSink.zeros_on <orpheus.transport.fields._bases.BoundaryField.zeros_on>`
+boundary inside a
+:class:`~orpheus.transport.timed_full_field.TimedFullField`), the same
+operator triple (:math:`L + C` from
+:class:`~orpheus.sn.operator.StreamingOperator` +
+:class:`~orpheus.sn.operator.CollisionOperator`; the :math:`S + B` fold
+:attr:`_scattering_with_boundary_op <orpheus.sn.solver.SNSolver._scattering_with_boundary_op>`
+carrying the reflective coupling; zero within-group fission), and the
+same :meth:`integrate_angular <orpheus.transport.fields.angular_flux.AngularFlux.integrate_angular>`
+angular reduction. Neither driver carries any geometry dependence.
+
+The reflective coupling reaches both drivers on the **bare** 2-D
+wavefront sweep through the sibling :math:`-B` (the **driver-fold**
+route of :ref:`bc-extraction-two-routes`), never through an in-sweep
+``bc.apply``. The :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`
+is natively **four-face** (``xmin`` / ``xmax`` / ``ymin`` / ``ymax``)
+and is the *same* operator the 2-D Krylov path uses — there is no
+separate per-geometry boundary closure.
+
+.. admonition:: The "B1'' face block" is retired legacy
+   :class: note
+
+   The 2-D Cartesian eigenvalue path was historically described as
+   needing a distinct "B1'' face block" that was "1-D-only", which is
+   why the source-iteration inner was once guarded against 2-D meshes.
+   That guard is **removed**. "B1''" was never a code symbol — it was a
+   1-D boundary-closure *name* in docstrings and comments, fully
+   superseded by the L2
+   :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux` +
+   :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`
+   bare-boundary architecture (O.4a.2 / O.4b above), which realises the
+   boundary handling for *all* geometries. The 2-D path never required
+   a separate 1-D-only block. Because
+   :func:`~orpheus.sn.solver.solve_sn` defaults to the source-iteration
+   inner for every geometry, the now-removed guard had meant the
+   **default** 2-D Cartesian eigenvalue entry point raised; the carve
+   restores it.
+
+**Numerical evidence (SI ≡ Krylov ≡ closed-form** :math:`k_\infty`
+**).** The twin is pinned at the production
+:func:`~orpheus.sn.solver.solve_sn` entry (not a hand-rolled power
+loop) by ``tests/sn/eigenvalue/test_keff_2d.py::TestSIKrylov2DEquivalence``:
+
+.. list-table:: 2-D Cartesian SI/Krylov verification (Wave O step #208)
+   :header-rows: 1
+   :widths: 38 34 28
+
+   * - Leg
+     - Reference (pillar)
+     - Result
+   * - Default-entry homogeneous (1G / 2G / 4G)
+       (:func:`test_default_entry_hits_kinf <tests.sn.eigenvalue.test_keff_2d.TestSIKrylov2DEquivalence.test_default_entry_hits_kinf>`)
+     - Closed-form :math:`k_\infty = \lambda_{\max}(A^{-1}F)`
+       (1g → 1.5, 2g → 1.875, 4g → 1.4878)
+     - SI hits :math:`k_\infty` to :math:`< 10^{-8}`
+   * - Heterogeneous 2G fuel\|moderator, **non-flat** flux
+       (:func:`test_si_krylov_heterogeneous_2g_nonflat_flux <tests.sn.eigenvalue.test_keff_2d.TestSIKrylov2DEquivalence.test_si_krylov_heterogeneous_2g_nonflat_flux>`)
+     - SI vs Krylov flux **shape** + eigenvalue
+     - flux shape agrees to :math:`\sim 10^{-9}`
+   * - 2-D SI :math:`k_{\rm eff}` Cauchy under refinement
+       (:func:`test_si_2d_keff_converges_under_refinement <tests.sn.eigenvalue.test_keff_2d.TestSIKrylov2DEquivalence.test_si_2d_keff_converges_under_refinement>`)
+     - Self-convergence (consistency regression catcher)
+     - monotone, single fixed point
+
+The structural-independence discipline (``vv-principles`` L11 /
+anti-pattern #1) applies: SI ≡ Krylov *alone* is twin-path agreement —
+necessary but **not** sufficient, since both could share a defect. It
+becomes correctness evidence only because the homogeneous leg
+independently anchors the same production path to the **closed-form**
+:math:`k_\infty` eigenvalue (the closed-form pillar; per ``vv-principles``,
+twin-implementation agreement is L4-class on its own and MMS does not
+prove eigenvalues). The heterogeneous leg carries a genuinely non-flat
+(≥2G, fuel\|moderator) flux so the angular / wavefront redistribution
+terms are active rather than nulled (``vv-principles`` anti-patterns
+#3 / #4), and the un-xfailed L2 mesh-convergence pin
+(``tests/sn/sweep/cartesian_2d/test_discrete_ordinates_2d.py::test_do_mesh_convergence``,
+the ERR-003 catcher) plus the ``2d_2g_LS4_dd_8x4_het_si`` regression
+snapshot round out the catch surface.
 
 
 .. _bc-extraction-numerical-evidence:

@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **4898**
+Total tests collected: **4903**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1162, 23.7%
+   L0, 1166, 23.8%
    L1, 925, 18.9%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2769, 56.5%
+   foundation, 2770, 56.5%
    unmarked, 6, 0.1%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4813
+   explicit, 4818
    verify, 0
    class-name, 46
    func-name, 0
@@ -195,7 +195,7 @@ Module × level grid
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
    eigenvalue/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
-   eigenvalue/test_keff_2d, 14, 0, 0, 0, 0, 0
+   eigenvalue/test_keff_2d, 18, 0, 0, 0, 0, 0
    eigenvalue/test_keff_curvilinear, 0, 15, 12, 0, 0, 0
    eigenvalue/test_keff_slab, 0, 6, 0, 0, 0, 0
    fields/test_angular_flux, 0, 0, 0, 0, 25, 0
@@ -290,7 +290,7 @@ Module × level grid
    primitives/test_snmesh_sweep_graphs, 13, 0, 0, 0, 0, 0
    primitives/test_solution, 0, 0, 0, 0, 31, 0
    primitives/test_typed_source_sinks, 0, 0, 0, 0, 24, 0
-   regression/test_dd_regression, 0, 0, 0, 0, 11, 0
+   regression/test_dd_regression, 0, 0, 0, 0, 12, 0
    residuals/test_typed_residuals, 0, 0, 0, 0, 33, 0
    slab/test_dd_recurrence, 1, 0, 0, 0, 0, 0
    slab/test_unified_matvec_slab, 2, 2, 0, 0, 0, 0
@@ -314,7 +314,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    :header: Equation label, Tests
    :widths: 50, 10
 
-   ``matrix-eigenvalue``, 203
+   ``matrix-eigenvalue``, 207
    ``mg-balance``, 168
    ``peierls-unified``, 158
    ``one-group-kinf``, 132
@@ -326,7 +326,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``collision-rate``, 94
    ``alpha-cylindrical``, 74
    ``mm-weights``, 74
-   ``multigroup``, 67
+   ``multigroup``, 69
    ``ki3-def``, 64
    ``e3-def``, 61
    ``self-slab``, 55
@@ -424,6 +424,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-curvilinear-trajectory-resolvent-crosscheck``, 9
    ``tau-m``, 9
    ``tau-p``, 9
+   ``transport-cartesian-2d``, 9
    ``bare-slab-buckling``, 8
    ``bare-slab-critical-equation``, 8
    ``bare-slab-eigenfunction``, 8
@@ -456,7 +457,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``real-sh-discrete-orthogonality``, 5
    ``singular-eigenfunction-eq40``, 5
    ``streaming-equilibrium``, 5
-   ``transport-cartesian-2d``, 5
    ``xs-interp``, 5
    ``absorption-xs``, 4
    ``atalay-eq46-slab-eq54-sphere-parity``, 4
