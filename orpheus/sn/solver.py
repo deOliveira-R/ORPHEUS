@@ -567,17 +567,40 @@ class SNSolver:
         Scope
         =====
 
-        1-D only (slab + sphere + cylinder).  2-D Cartesian raises
-        :class:`NotImplementedError` (Phase A absorbs the 2-D B1''
-        face layout).
-        """
-        if self.sn_mesh.reduced is None:
-            raise NotImplementedError(
-                "R-1 Step E — 2-D Cartesian SI carve deferred to "
-                "Phase A.  The B1'' face block is 1-D-only; 2-D needs "
-                "a separate 4-face layout (xmin, xmax, ymin, ymax)."
-            )
+        ALL geometries — slab, sphere, cylinder, AND 2-D Cartesian
+        (Wave O "2-D SI Phase A", 2026-06-04).  The 2-D Cartesian
+        eigenvalue SI inner is geometry-agnostic: it is the structural
+        twin of :meth:`_solve_krylov` (the live 2-D eigenvalue path) —
+        identical composite RHS, identical operator triple
+        (``LC = StreamingOperator + CollisionOperator``,
+        ``self._scattering_with_boundary_op`` for the ``S + B`` fold,
+        zero within-group fission), identical
+        ``psi_typed.bulk.integrate_angular()`` reduction — differing
+        ONLY in the driver (:class:`SourceIteration` vs
+        :class:`KrylovAcceleration`), and neither driver carries any
+        geometry dependence.  The reflective coupling rides the BARE
+        sweep via the ``S + B`` fold on the 4-face
+        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+        (:class:`SNBoundaryOperator` is natively 4-face —
+        xmin/xmax/ymin/ymax — and is the SAME operator the working 2-D
+        Krylov path uses).
 
+        The legacy "B1'' face block" that the 2-D path was once said to
+        lack is RETIRED — it never existed as code on this branch; it
+        was a 1-D boundary-closure name fully superseded by the L2
+        ``BoundaryFlux`` + ``SNBoundaryOperator`` bare-boundary
+        architecture (Wave O O.4a.2 / O.4b).  The historical
+        ``NotImplementedError`` guard predated that architecture by two
+        weeks (the body's ``S + B`` fold landed 2026-06-03) and was
+        never lifted; ``solve_sn`` defaults ``inner_solver="source_-
+        iteration"`` for every geometry, so the stale guard broke the
+        DEFAULT 2-D Cartesian eigenvalue entry point.
+
+        Verified: 2-D SI ≡ Krylov ≡ closed-form ``k_inf`` (1g→1.5,
+        2g→1.875, 4g→1.4878) to machine precision; heterogeneous
+        non-flat 2-D flux SHAPE agrees SI-vs-Krylov to ~1e-9
+        (``tests/sn/eigenvalue/test_keff_2d.py::TestSIKrylov2DEquivalence``).
+        """
         from .operator import CollisionOperator, StreamingOperator
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
@@ -1533,29 +1556,35 @@ def _solve_fixed_source_krylov(
     Scope
     =====
 
-    1-D meshes only (slab + sphere + cylinder).  2-D Cartesian raises
-    :class:`NotImplementedError` — the typed-flux B1'' face block was
-    designed 1-D-only.  SURPRISE-5 of the dependency audit identifies
-    :func:`_solve_fixed_source_si` as the principled landing zone for
-    2-D Cartesian fixed-source: it's geometry-agnostic via
-    :func:`transport_sweep` and handles 2-D natively.  Phase A absorbs
-    a typed 2-D Krylov.
+    1-D meshes only (slab + sphere + cylinder).  2-D Cartesian fixed-
+    source Krylov is not yet wired/verified, so it raises
+    :class:`NotImplementedError` — but the geometry-agnostic
+    :func:`_solve_fixed_source_si` is the working 2-D fixed-source path
+    (it routes through :func:`transport_sweep`'s wavefront dispatch and
+    handles 2-D natively, exactly as the now-live 2-D eigenvalue SI
+    inner does).  Use ``inner_solver="source_iteration"`` for 2-D
+    Cartesian fixed-source.  (Un-gating 2-D fixed-source Krylov is a
+    small follow-on: the eigenvalue Krylov inner :meth:`SNSolver.
+    _solve_krylov` already solves the 2-D operator, so the same
+    machinery applies — it needs its own de-risk + SI≡Krylov equivalence
+    pin before the guard is lifted.)
     """
-    # 2-D Cartesian deferral — mirrors :meth:`SNSolver._solve_krylov`
-    # (the eigenvalue inner): 2-D Cartesian fixed-source Krylov has no
-    # typed-flux B1'' face block in 1-D-only shape.  SURPRISE-5 of the
-    # dependency audit identifies SI as the principled landing zone
-    # (geometry-agnostic via :func:`transport_sweep`).  Phase A absorbs
-    # typed 2-D Krylov.
+    # 2-D Cartesian deferral — fixed-source Krylov for 2-D is not yet
+    # verified.  This is NOT the dead "B1'' face block" excuse (that
+    # legacy 1-D boundary closure was retired by the bare-boundary
+    # architecture — see :meth:`SNSolver._solve_source_iteration`): the
+    # 4-face machinery exists and the 2-D eigenvalue Krylov path uses it.
+    # The deferral is simply that this fixed-source Krylov variant lacks
+    # its own verification; the geometry-agnostic SI path is the
+    # principled 2-D fixed-source landing zone (SURPRISE-5 of the
+    # dependency audit).
     if sn_mesh.reduced is None:
         raise NotImplementedError(
-            "R-1 Step 4 G1 — 2-D Cartesian fixed-source Krylov carve "
-            "deferred to Phase A.  The typed B1'' face block is "
-            "1-D-only.  Use `inner_solver=\"source_iteration\"` for 2-D "
-            "Cartesian (the SI carve in `_solve_fixed_source_si` is "
-            "geometry-agnostic and handles 2-D via "
-            "`transport_sweep`'s wavefront dispatch — see SURPRISE-5 "
-            "of `.claude/plans/r1_step4_g_dependency_audit.md`)."
+            "2-D Cartesian fixed-source Krylov is not yet wired/"
+            "verified.  Use `inner_solver=\"source_iteration\"` for 2-D "
+            "Cartesian fixed-source — `_solve_fixed_source_si` is "
+            "geometry-agnostic and handles 2-D via `transport_sweep`'s "
+            "wavefront dispatch."
         )
 
     from orpheus.transport.fields.angular_flux import (
