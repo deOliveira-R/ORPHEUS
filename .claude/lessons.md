@@ -589,3 +589,40 @@ spirit: single canonical site for the convention, not duplicated at
 consumers); commit `c93355c` evidence (net **−35 LOC** while
 strengthening invariants); CLAUDE.md Cardinal Rule 2 (architecture is
 critical — single source of truth).
+
+## L22: In a worktree, read the WORKTREE — never the main checkout
+
+When the session runs in a git worktree (`.claude/worktrees/<name>`), the
+ORIGINAL repo checkout (`/Users/rodrigo/git/nuclear/ORPHEUS`) is on a
+**different branch** and its files **differ**. Reading the main-repo
+absolute path — or running `grep` after `cd`-ing to the main root — silently
+reads the WRONG branch's source.
+
+2026-06-04 instance (WavefrontFlux carve): the main checkout was on
+`refactor/sn-operator-algebra` (2-D matvec = a cell-centred FD stencil with
+in-sweep `bc.apply`); the worktree branch `refactor/field-role-typing` had
+O.4b fully landed (matvec routes through `graph.residual`, `_compute_gradients`
+RETIRED, bare boundary). I `Read`/`grep`'d the **main** path and concluded
+"matvec is FD, sweep-only, O.4b pending", recommended a now-pointless "merged
+arc", and **falsely accused the explorer of fabricating** `operator.py` — the
+explorer had read the worktree (correct) via `spatial/` paths; I had read main.
+The user caught it ("I thought we already did that"). Phase 0 de-risk caught
+the mechanical symptom (a verbatim sweep copy diverged 0.137 for reflective).
+
+**The discipline:**
+
+1. **Every `Read`/`Grep`/`Bash` targets the worktree.** Use worktree-relative
+   paths (the shell cwd resets to the worktree) or the full worktree-prefixed
+   absolute path. NEVER `cd /Users/rodrigo/git/nuclear/ORPHEUS` (the env even
+   says "Do NOT cd to the original repository root") — a `cd … && grep` chain
+   runs the grep in main.
+2. **`inspect.getsource(fn)` under `PYTHONPATH=<worktree>` is the source of
+   truth** when a sub-agent's file:line conflicts with your own read. The
+   conflict is often "we read different trees", NOT a fabrication. Print
+   `module.__file__` to confirm which tree is imported.
+3. **Before accusing a sub-agent of L12 plausibility-substitution, confirm you
+   and it read the same tree.** A real fabrication and a wrong-tree read look
+   identical from the main agent's seat; only the tree check distinguishes them.
+
+Cross-reference: `[[lessons-L12]]` (sub-agent fabrication — the failure mode I
+wrongly attributed here); the dispatched explorer was correct.

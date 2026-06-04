@@ -17,6 +17,55 @@ hooks, `derivations/diagnostics/`.
 
 ---
 
+## STATUS (2026-06-04) — Phase 0 PASSED; verified worktree state
+
+**⚠ READ-THE-WORKTREE DISCIPLINE.** All `file:line` and `grep` MUST target the
+worktree (`/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/field-role-typing`),
+NEVER the main checkout (`/Users/rodrigo/git/nuclear/ORPHEUS`, branch
+`refactor/sn-operator-algebra` — a DIFFERENT, older branch whose `sweep.py`/`operator.py`
+DIFFER from this branch). When in doubt, confirm the live source with
+`inspect.getsource(fn)` under `PYTHONPATH=<worktree>`. (A wrong-tree read this
+session falsely concluded the matvec was an FD stencil; Phase 0 caught it.)
+
+**Verified worktree state (this branch, via `inspect.getsource`):**
+- **O.4b is ALREADY COMPLETE here.** `_apply_2d_cartesian` routes through
+  `graph.residual` → `residual_batch` (DD closure); `_compute_gradients` (the FD
+  stencil) is **RETIRED**; `matvec ≡ sweep` is a valid gate. The matvec carries
+  raw `psi_x`/`psi_y` interior buffers (`operator.py:1402-1407` seed, `:1429`
+  `graph.residual`) → it IS a WavefrontFlux typing target (Phase 3 is REAL).
+- **Both sweep and matvec are BARE-boundary** (O.4b Phase E done): seed the given
+  inflow trace, no in-sweep `bc.apply`, reflection via the external sibling `−B`;
+  the matvec emits an active-trace boundary RESIDUAL as `BoundarySourceSink`
+  (outflow slot `streamed−given`, inflow slot `given`). The seed/absorb the
+  WavefrontFlux `ι_*`/`ι*` types is unchanged by bareness.
+
+**Phase 0 de-risk: PASSED** (`derivations/diagnostics/diag_phase0_wavefront_derisk.py`,
+`python -O`, against the bare worktree sweep):
+- (a) typed `ι_*`/`ι*` round-trip **bit-identical** to raw seed/absorb; `ι_*∘ι*=id`
+  (biproduct law); zero-copy (`shares_memory`); negative control (transposed seed)
+  breaks → gate non-vacuous.
+- (b) full bare sweep with a flat-buffer `WavefrontFlux` backing (interior
+  `FaceLayout` + reshape views) **bit-identical** (`max|Δ|=0.0`) on
+  angular/scalar/boundary, ALL reflective + vacuum cases — AND the two-array
+  backing equally bit-identical (localizer: no layout drift).
+- (c) **no perf regression** (typed/raw median ratio 0.96–1.01, < +5% gate).
+- §3a′ axis-parametric smoke: the interior `FaceLayout` builds for `axes=(0,)`,
+  `(0,1)`, `(0,1,2)` through ONE path (`FaceLayout.from_named_shapes` is already
+  axis-parametric — no new primitive needed).
+→ **The flat-buffer `WavefrontFlux` substrate is SOUND. Proceed to Phase 1 mint.**
+
+**Verification corrections (supersede §5 where they conflict):**
+- **L16 gate = FOCUSED SUBSET, not full `tests/sn`** (which does NOT finish in
+  20 min). Use the carve-path fast tier + the hot-path microbench
+  (`diag_l16_wavefront_microbench.py`), with a re-captured **worktree-branch**
+  baseline (the test-architect's baseline was measured on the MAIN checkout).
+- **Pre-existing reds (worktree, 2026-06-04):** `test_solver_components.py` is RED
+  (`NotImplementedError: R-1 Step E 2-D Cartesian SI deferred`) — exclude from the
+  tier; cylinder #206/#196; #212 hang. `test_krylov_curvilinear_precond_safety`/
+  `b1pp`/`restart` are GREEN here (memory was stale).
+
+---
+
 ## 0. What this is (and the native frame)
 
 Type the SN interior cell-face angular fluxes — currently raw ephemeral numpy
