@@ -8,12 +8,17 @@ multigroup-eigenvector recovery, the quadrature-normalisation
 eigenvalue invariants (BiCGSTAB GL-vs-Lebedev, ERR-004), the Pn
 eigenvalue effects, and the SI-vs-Krylov agreement.
 
-R-1 Step E note: every test that drives the 2-D Cartesian
-*source-iteration* inner solver currently raises NotImplementedError
-(the 2-D SI carve is deferred; the B1'' face block is 1-D-only). Those
-tests are marked ``xfail(raises=NotImplementedError, strict=False)`` —
-they preserve the coverage and will xpass when the carve lands. Tests
-that drive only the *Krylov* 2-D path (carved separately) pass today.
+Wave O "2-D SI Phase A" (2026-06-04): the 2-D Cartesian
+source-iteration inner solver is now LIVE. The historical
+``NotImplementedError`` guard (``SNSolver._solve_source_iteration``)
+was stale — its "B1'' face block is 1-D-only" reason never existed as
+code; B1'' was a legacy 1-D boundary closure superseded by the L2
+``BoundaryFlux`` + ``SNBoundaryOperator`` bare-boundary architecture.
+The SI inner is the structural twin of the Krylov inner (same operator
+triple + RHS, only the driver differs). The previously-deferred 2-D SI
+tests (formerly ``xfail(NotImplementedError)``) now run; the dedicated
+:class:`TestSIKrylov2DEquivalence` gate pins SI ≡ Krylov ≡ closed-form
+``k_inf`` on the repaired DEFAULT ``solve_sn`` entry.
 """
 
 from pathlib import Path
@@ -29,19 +34,6 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.sn.solver import SNSolver, solve_sn
 
 pytestmark = pytest.mark.l0  # SN 2-D eigenvalue component checks
-
-# R-1 Step E: the 2-D Cartesian source-iteration inner solver is
-# deferred (sn_mesh.reduced is None ⇒ NotImplementedError). Shared
-# xfail mark for the tests that exercise that path. strict=False so the
-# tests xpass — alerting us — once the 2-D SI carve lands.
-_DEFERRED_2D_SI = pytest.mark.xfail(
-    reason="R-1 Step E: 2-D Cartesian source-iteration carve deferred "
-    "(NotImplementedError). The B1'' face block is 1-D-only; 2-D needs "
-    "the 4-face (xmin,xmax,ymin,ymax) layout. Coverage preserved; xpass "
-    "when the carve lands.",
-    raises=NotImplementedError,
-    strict=False,
-)
 
 
 def _uniform_2d(nx, ny, delta, mat_map):
@@ -60,7 +52,6 @@ class TestHomogeneousExact:
     of A⁻¹F where A = Σ_t - Σ_s^T, F = χ⊗(νΣ_f).
     """
 
-    @_DEFERRED_2D_SI
     @pytest.mark.parametrize("ng_key,label", [("1g", "1G"), ("2g", "2G"), ("4g", "4G")])
     def test_homogeneous_exact(self, ng_key, label):
         case = get(f"sn_slab_{ng_key[0]}eg_1rg")
@@ -91,7 +82,6 @@ class TestMultiGroupEigenvector:
     Multi-group problems have a specific eigenvector (group ratio).
     """
 
-    @_DEFERRED_2D_SI
     def test_2g_eigenvector(self):
         case = get("sn_slab_2eg_1rg")
         mix = next(iter(case.materials.values()))
@@ -215,7 +205,6 @@ class TestAnisotropicScatteringKeff:
     Eq. :label:`pn-scatter`.
     """
 
-    @_DEFERRED_2D_SI
     def test_p0_gives_identical_keff(self):
         """scattering_order=0 must give the exact same keff as the default."""
         case = get("sn_slab_2eg_1rg")
@@ -247,7 +236,6 @@ class TestAnisotropicScatteringKeff:
             f"P0 default {keff_p0:.10f} != explicit P0 {keff_explicit:.10f}"
         )
 
-    @_DEFERRED_2D_SI
     def test_p1_changes_heterogeneous_keff(self):
         """P1 scattering must produce a different keff than P0 on a
         heterogeneous problem where anisotropy matters at interfaces."""
@@ -285,7 +273,6 @@ class TestBicgstabPnScattering:
     is assembled identically on the BiCGSTAB and source-iteration paths.
     """
 
-    @_DEFERRED_2D_SI
     def test_bicgstab_p0_matches_si_p0(self):
         """BiCGSTAB and source iteration must agree at P0."""
         case = get("sn_slab_2eg_1rg")
@@ -332,7 +319,6 @@ class TestBicgstabPnScattering:
             f"should be equal on homogeneous"
         )
 
-    @_DEFERRED_2D_SI
     def test_bicgstab_p1_matches_si_p1_homogeneous(self):
         """BiCGSTAB and source iteration must agree at P1 on homogeneous."""
         mix = get_mixture("A", "2g")
@@ -359,7 +345,6 @@ class TestBicgstabPnScattering:
 class TestSolveFixedSource:
     """Integration test: one outer iteration must reduce residual."""
 
-    @_DEFERRED_2D_SI
     def test_source_iteration_converges(self):
         fuel = get_mixture("A", "2g")
         mod = get_mixture("B", "2g")
@@ -380,7 +365,6 @@ class TestSolveFixedSource:
         assert not np.allclose(phi, phi_new), "No update from solve_fixed_source"
         assert np.all(np.isfinite(phi_new)), "NaN/Inf in solve output"
 
-    @_DEFERRED_2D_SI
     def test_bicgstab_matches_source_iteration(self):
         """BiCGSTAB and source iteration must converge to the same keff."""
         case = get("sn_slab_2eg_1rg")
@@ -410,4 +394,132 @@ class TestSolveFixedSource:
 
         assert abs(keff_si - keff_bc) < 1e-5, (
             f"BiCGSTAB keff={keff_bc:.8f} vs SI keff={keff_si:.8f}"
+        )
+
+
+class TestSIKrylov2DEquivalence:
+    """2-D Cartesian eigenvalue source-iteration ≡ Krylov ≡ closed-form k_inf.
+
+    The gate for the Wave O "2-D SI Phase A" carve (the stale
+    ``NotImplementedError`` guard at ``SNSolver._solve_source_iteration``
+    deleted).  ``solve_sn`` defaults ``inner_solver="source_iteration"`` for
+    every geometry, so the stale guard broke the DEFAULT 2-D Cartesian
+    eigenvalue entry point — these tests drive the production ``solve_sn``
+    entry directly (not a hand-rolled power-iteration loop), so they pin the
+    thing users actually call.
+
+    Structural-independence discipline (vv-principles L11 / L14): SI ≡ Krylov
+    alone is twin-path agreement — NECESSARY, NOT SUFFICIENT (both could
+    share a defect).  It becomes correctness evidence ONLY because the same
+    production path is independently pinned to the closed-form
+    ``k_inf = λ_max(A⁻¹F)`` on the homogeneous leg
+    (:meth:`test_default_entry_hits_kinf`).  The heterogeneous leg has no 2-D
+    closed-form eigenvalue reference, so its bar is SI≡Krylov flux-SHAPE
+    agreement + convergence-to-the-same-limit, anchored by the k_inf leg.
+    The heterogeneous flux is genuinely NON-FLAT (≥2G fuel|moderator), so the
+    angular / wavefront redistribution terms are active — not a
+    homogeneous/1G degenerate (vv-principles anti-patterns #3 / #4).
+    """
+
+    @pytest.mark.parametrize("ng_key", ["1g", "2g"])
+    @pytest.mark.verifies("transport-cartesian-2d", "matrix-eigenvalue")
+    def test_default_entry_hits_kinf(self, ng_key):
+        """The repaired DEFAULT entry: ``solve_sn`` (source-iteration inner by
+        default) on a 2-D mesh must not raise and must hit closed-form k_inf.
+
+        Pre-carve this raised ``NotImplementedError`` (the stale 2-D SI guard).
+        """
+        case = get(f"sn_slab_{ng_key[0]}eg_1rg")
+        mix = next(iter(case.materials.values()))
+        mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        sol = solve_sn(
+            {0: mix}, mesh, Quadrature.lebedev(order=17),
+            keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10,
+        )
+        assert np.isfinite(sol.keff)
+        assert abs(sol.keff - case.k_inf) < 1e-8, (
+            f"{ng_key}: default-entry SI keff={sol.keff:.10f} "
+            f"vs closed-form k_inf={case.k_inf:.10f}"
+        )
+
+    @pytest.mark.verifies(
+        "transport-cartesian-2d", "matrix-eigenvalue", "multigroup",
+    )
+    def test_si_krylov_heterogeneous_2g_nonflat_flux(self):
+        """SI ≡ Krylov on a HETEROGENEOUS, non-flat, 2G 2-D problem.
+
+        Flux SHAPE (not just the shape-independent eigenvalue) must agree
+        between the two inner solvers.  The k_inf anchor (above) supplies the
+        structural-independence leg; here the bar is the twin agreement on a
+        problem where the redistribution terms are genuinely exercised.
+        """
+        materials = {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
+        nx, ny = 8, 4
+        mat = np.zeros((nx, ny), dtype=int)
+        mat[:4, :] = 2  # fuel | moderator split across x → non-flat flux
+        mesh = _uniform_2d(nx, ny, 0.25, mat)
+        quad = Quadrature.lebedev(order=17)
+
+        sol_si = solve_sn(
+            materials, mesh, quad, inner_solver="source_iteration",
+            keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10,
+        )
+        sol_kry = solve_sn(
+            materials, mesh, quad, inner_solver="krylov",
+            keff_tol=1e-12, flux_tol=1e-10, max_inner=4000, inner_tol=1e-8,
+        )
+
+        phi_si = np.asarray(sol_si.scalar_flux.values, dtype=np.float64)
+        phi_kry = np.asarray(sol_kry.scalar_flux.values, dtype=np.float64)
+
+        # Degenerate-gate guard: the flux MUST be genuinely non-flat, else the
+        # redistribution terms are not exercised and SI≡Krylov is vacuous.
+        prof = phi_si[0].mean(axis=1)  # group-0 profile across x
+        assert prof.max() / prof.min() > 1.2, (
+            f"flux too flat (max/min={prof.max() / prof.min():.3f}); "
+            "redistribution not exercised — gate degenerate"
+        )
+
+        # Eigenvalue twin agreement (shape-independent — necessary not enough).
+        assert abs(sol_si.keff - sol_kry.keff) < 1e-7, (
+            f"SI keff={sol_si.keff:.10f} vs Krylov keff={sol_kry.keff:.10f}"
+        )
+        # Flux SHAPE twin agreement (eigenvectors are scale-free → mean-norm).
+        phi_si_n = phi_si / phi_si.mean()
+        phi_kry_n = phi_kry / phi_kry.mean()
+        np.testing.assert_allclose(
+            phi_si_n, phi_kry_n, rtol=1e-6, atol=1e-8,
+            err_msg="SI vs Krylov heterogeneous 2-D flux SHAPE diverged",
+        )
+
+    @pytest.mark.slow
+    @pytest.mark.verifies(
+        "transport-cartesian-2d", "matrix-eigenvalue", "multigroup",
+    )
+    def test_si_2d_keff_converges_under_refinement(self):
+        """Leg (d): the 2-D SI keff is Cauchy under mesh refinement.
+
+        Convergence is NECESSARY, NOT SUFFICIENT (vv-principles anti-pattern
+        #5) — a monotone approach to the WRONG limit would still be Cauchy.
+        The value is anchored by the k_inf + SI≡Krylov legs above; this leg
+        catches a consistency regression (the discrete operator drifting off a
+        single fixed point under refinement).
+        """
+        materials = {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
+        quad = Quadrature.lebedev(order=17)
+        keffs = []
+        for n in (4, 8, 16):
+            mat = np.zeros((n, n), dtype=int)
+            mat[: n // 2, :] = 2  # fuel in x<0.5 of the fixed [0,1]² domain
+            mesh = _uniform_2d(n, n, 1.0 / n, mat)
+            sol = solve_sn(
+                materials, mesh, quad, inner_solver="source_iteration",
+                keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10,
+            )
+            keffs.append(sol.keff)
+        d1 = abs(keffs[1] - keffs[0])
+        d2 = abs(keffs[2] - keffs[1])
+        assert d2 < d1, (
+            f"2-D SI keff not converging under refinement: "
+            f"|Δ|(4→8)={d1:.3e}, |Δ|(8→16)={d2:.3e}; keffs={keffs}"
         )

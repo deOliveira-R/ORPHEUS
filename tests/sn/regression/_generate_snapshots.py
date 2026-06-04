@@ -281,12 +281,49 @@ def _cartesian_2d(ng: str, n_per_side: int) -> dict:
         materials={0: fuel}, mesh=mesh,
         quadrature=Quadrature.level_symmetric(sn_order=4),
         scattering_order=0,
-        # The 2-D Cartesian source-iteration inner solve is deferred to
-        # Phase A (R-1 Step E — the B1'' face block is 1-D-only; 2-D needs
-        # a separate 4-face layout).  The Krylov-on-apply path solves the
-        # 2-D operator directly; on this homogeneous reflective case it
-        # reaches the analytical k_inf = νΣ_f/Σ_a = 1.5 exactly.
+        # This snapshot stays on the Krylov-on-apply path (kept
+        # bit-identical across the "2-D SI Phase A" carve).  The 2-D
+        # source-iteration inner is now LIVE (the stale guard was
+        # deleted); its regression coverage is the heterogeneous
+        # ``2d_2g_..._het_si`` snapshot below — a 1G homogeneous
+        # reflective case is doubly degenerate (flat flux, shape-
+        # independent k) and cannot pin the SI flux shape.  On this
+        # homogeneous reflective case Krylov reaches the analytical
+        # k_inf = νΣ_f/Σ_a = 1.5 exactly.
         inner_solver="krylov",
+    )
+
+
+def _cartesian_2d_het_si(ng: str) -> dict:
+    """2-D Cartesian HETEROGENEOUS fuel|moderator, SOURCE-ITERATION inner.
+
+    Regression coverage for the now-live 2-D Cartesian eigenvalue
+    source-iteration inner (Wave O "2-D SI Phase A" — the stale guard at
+    ``SNSolver._solve_source_iteration`` deleted).  Heterogeneous + 2G +
+    reflective so the flux is genuinely NON-FLAT across x (fuel|moderator
+    split) — this is the SI flux-shape regression the 1G-homogeneous
+    ``2d_1g_LS4_dd_15x15`` Krylov snapshot cannot pin (1G + homogeneous is
+    doubly degenerate).  The SI value is verified SI ≡ Krylov ≡ closed-form
+    on this configuration by ``tests/sn/eigenvalue/test_keff_2d.py::
+    TestSIKrylov2DEquivalence``.
+    """
+    fuel = get_mixture("A", ng)
+    mod = get_mixture("B", ng)
+    nx, ny = 8, 4
+    mat = np.zeros((nx, ny), dtype=int)
+    mat[:4, :] = 2  # fuel (mat id 2) | moderator (mat id 0) split across x
+    mesh = Mesh2D(
+        edges_x=np.linspace(0.0, 2.0, nx + 1),
+        edges_y=np.linspace(0.0, 1.0, ny + 1),
+        mat_map=mat,
+        bc_xmin=BC.reflective, bc_xmax=BC.reflective,
+        bc_ymin=BC.reflective, bc_ymax=BC.reflective,
+    )
+    return dict(
+        materials={2: fuel, 0: mod}, mesh=mesh,
+        quadrature=Quadrature.level_symmetric(sn_order=4),
+        scattering_order=0,
+        inner_solver="source_iteration",
     )
 
 
@@ -391,6 +428,11 @@ CASES: tuple[SnapshotCase, ...] = (
         "2d_1g_LS4_dd_15x15",
         "DD 2D Cartesian 1G homogeneous, LS_4 (12 ord), 15x15, krylov inner",
         lambda: _cartesian_2d("1g", 15),
+    ),
+    SnapshotCase(
+        "2d_2g_LS4_dd_8x4_het_si",
+        "DD 2D Cartesian 2G fuel|moderator, LS_4 (12 ord), 8x4, source-iteration inner",
+        lambda: _cartesian_2d_het_si("2g"),
     ),
     SnapshotCase(
         "slab_fixed_source_dd_n20",
