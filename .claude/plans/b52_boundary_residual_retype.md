@@ -28,6 +28,56 @@ hooks, `derivations/diagnostics/`.
 
 ---
 
+## ✅ LANDED 2026-06-03 (commit `6ef5063`) — as **OPT-BSS**, NOT Shape-B
+
+**The plan body below (§1 onward) describes the REJECTED Shape-B** (matvec
+output → `BoundaryResidual` + an SI-source restructure / partial-O.2). It is
+kept verbatim for investigation history (lessons L10). **What actually landed
+is OPT-BSS**, decided turn-by-turn with the user:
+
+> **The user's principle (the pivot):** *"A residual only arises after we
+> compare an operator output against something else and get a defect (a
+> balance). The output of an operator is NOT a residual straightaway."*
+
+So the operator-output `.boundary` is the **source/sink** role leaf
+**`BoundarySourceSink`** (`Aψ`), NOT `BoundaryResidual`. This:
+- **Mirrors the bulk** (`.apply.bulk = AngularSourceSink`, `f400743`) — the
+  role grid is now a clean parallel: `.apply`→SourceSink, `.solve`→Flux,
+  `from_balance`→Residual on both bulk and boundary.
+- **Dissolves the two-hat** (§1's CRUX): `B` wears ONE hat. Both the Krylov
+  matvec (`L.apply − (S+B).apply − F.apply`) and the SI rhs
+  (`F.apply + (S+B).apply + q_ext`) close as `BoundarySourceSink` sums.
+  **NO SI-driver restructure, NO partial-O.2, NO `reflect_into_inflow_source`
+  entry point.** (Shape-B's entire step 6 is unnecessary.)
+- `BoundaryResidual` stays the `from_balance` consumer (O.2), exactly as
+  `AngularResidual` waits on the bulk.
+
+**Why the plan got it wrong:** §0's "honest types" grid put `BoundaryResidual`
+at the matvec output. The bulk-half precedent (operator outputs are
+`AngularSourceSink`, the residual leaves are `from_balance`-only) was the
+disconfirming evidence — surfaced during pre-flight reading and proven by the
+B0 decision instrument (`diag_b52_boundary_typing_decision.py`): OPT-BSS closes
+both sums; OPT-BR throws the two-hat on the SI rhs.
+
+**13 sites retyped** (operator outputs + q_ext sources) — see the commit body.
+The 13th (not in §2's list): `solver._zero_within_group_fission`, the
+`F=ZeroOperator` codomain zero (caught by the L1 reflective Krylov solve; B0 had
+modeled F as already-fixed). **Verified:** B0; core ops/2-D (324); SI eigenvalue
+slab/sphere/cyl × 1/2/4-grp (the two-hat path); Krylov k_inf (14); type-residual
+gates; sentinel 36/36 (no `-O`); MMS L1 (8 pass, 6 xfail). Elegance-enforcer PASS.
+
+**Pre-existing reds (NOT this carve, baseline-identical):** beyond the documented
+cylinder-matvec #206/#196 + #212, also `test_krylov_curvilinear_precond_safety`
+(keff≈1.67 vs 1.875), `test_b1pp_verification`, `test_krylov_restart_signature`
+— a Krylov-convergence-budget consequence of the unpreconditioned stopgap (#200);
+the same physics converges to 1.875 under `test_kinf_homogeneous`'s tight budget.
+
+**Still O.2 (unchanged from §0):** the `|Ω·n|·w` G-metric adjoint `.H`, Gate-1.3,
+the `L+C−S−F−B` driver (FIRST `BoundaryResidual.from_balance` consumer) + the
+`S+B`-fold / `_reflect_outflow_into_inflow`-helper retirement, white-BC adjoint.
+
+---
+
 ## 0. What this carve is (and is NOT)
 
 **The "dimensional sin", boundary half.** Every operator's `.apply` output

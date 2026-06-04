@@ -19,6 +19,17 @@
 shipped most of #208's field-side substrate). Authoritative ground-truth map
 (every `file:line` anchor): `.claude/agent-memory/explorer/issue_208_operator_algebra_surface.md`.
 
+> **✅ 2026-06-03 — B.5.2-boundary LANDED (commit `6ef5063`).** Operator-output
+> `.boundary` retyped `BoundaryFlux → BoundarySourceSink` (the source/sink role
+> leaf, `Aψ`) — the BOUNDARY half of the dimensional-sin carve, completing the
+> bulk half (`AngularSourceSink`, `f400743`). Role grid now parallel on both
+> blocks: `.apply`→SourceSink, `.solve`→Flux, `from_balance`→Residual. Decided
+> turn-by-turn as **OPT-BSS** (NOT the earlier `BoundaryResidual` plan — that
+> broke bulk-consistency + created a two-hat cross-class throw). Detail +
+> rationale: `.claude/plans/b52_boundary_residual_retype.md` § "✅ LANDED". The
+> lines below marked B.5.2 / `BoundarySourceSink` predate this and are updated
+> in place.
+
 ### Already shipped on this branch (feeds #208 — do NOT re-do)
 - **L1 operator algebra** (`numerics/operator.py`): `LinearOperator` is a
   `@runtime_checkable Protocol`; `LinearOperatorMixin` installs dunders +
@@ -26,18 +37,24 @@ shipped most of #208's field-side substrate). Authoritative ground-truth map
   are FULLY WIRED** (`OperatorSum`:619 / `OperatorProduct`:691 /
   `ScaledOperator`:748), cap-gated by `CAP_APPLY_TRANSPOSE`. Capability tags +
   `MissingCapability` raised at composition time.
-- **B.5.2**: bulk operator `.apply` outputs retyped `AngularFlux →
-  AngularSourceSink`; `ZeroOperator(codomain_zero=…)` (operator.py:822;
-  docstring already cites #208).
+- **B.5.2 (bulk + boundary, COMPLETE)**: operator `.apply` outputs retyped to
+  the source/sink role on BOTH blocks — bulk `AngularFlux → AngularSourceSink`
+  (`f400743`), boundary `BoundaryFlux → BoundarySourceSink` (`6ef5063`). The
+  `ZeroOperator(codomain_zero=_zero_within_group_fission)` codomain zero is a
+  source/sink composite on both blocks.
 - **B.3/B.5.1**: bulk residual leaves `AngularResidual`/`ScalarResidual` (+
   `from_balance`); `BoundaryResidual` (residuals/boundary_residual.py:82) has
-  `from_balance` AND its docstring documents the held mistyped wiring.
+  `from_balance`. Its docstring is now corrected: operator outputs are
+  `BoundarySourceSink` (`Aψ`), NOT residuals — `BoundaryResidual` is the
+  `from_balance` consumer (FIRST live consumer = the O.2 honest driver).
 - **B.6**: locus-typed `TimedFullField` (`bulk: BulkField`, `boundary:
   BoundaryField`) — this IS the "TimedFullAngularSource/Residual composite" the
   stub imagined; **no new wrapper type needed**.
 - `InflowSourceSpec` rename (`c7060f0`) freed the `BoundarySource` name; the L2
   boundary leaf is `BoundarySourceSink` (source_sinks/boundary_source_sink.py:113)
-  — minted, EMPTY, no consumer.
+  — now CONSUMER-DRIVEN (B.5.2, `6ef5063`): every operator `.apply` boundary +
+  `q_ext.boundary` is a `BoundarySourceSink`. The `from_spec` prescribed-inflow
+  bridge is still deferred (no beam/incident-flux consumer yet).
 - **Boundary architecture is 3-layer** (Issue #186): `BoundaryTraceLaw` ABC
   (geometry/boundary/_base.py:74, pure affine `γ₋ψ=R·G·γ₊ψ+q`, NO `apply`) →
   `SNBoundaryRealizer.realize(law)→LinearOperator` (boundary_realizer.py:123,
