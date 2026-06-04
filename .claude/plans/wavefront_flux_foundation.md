@@ -17,7 +17,25 @@ hooks, `derivations/diagnostics/`.
 
 ---
 
-## STATUS (2026-06-04) — Phase 0 PASSED; verified worktree state
+## STATUS (2026-06-04) — Storage-A COMPLETE (Phases 0–4); Phase 5 docs running
+
+**PROGRESS (commits on `refactor/field-role-typing`; HEAD `888775c`+):**
+- Phase 0 de-risk ✅ (diagnostic; substrate proven bit-identical + perf-neutral)
+- Phase 1 mint ✅ `478723d` — `WavefrontFlux` + `InteriorFaceSpace` + 25 foundation tests
+- Phase 2 wire 2-D sweep ✅ `992b0c0` — bit-identical (36 passed), L16 stash A/B ~1.00
+- Phase 3 wire 2-D matvec ✅ `0e3e16c` — bit-identical (126 passed), A2D-1 hash refreshed
+- Phase 4 (1-D) ⚠ EVALUATED → DEFERRED to `nd_foundation` ✅ `888775c` — the 1-D
+  sweep/matvec is a parallel-prefix SCAN, not a wavefront (WRONG-FIT); the shared
+  seam (boundary-trace exchange + DD-closure averaging) is captured as the
+  load-bearing collapse seam in `nd_foundation.md` §2.3.
+- **Phase 5 docs/retirement — IN PROGRESS (archivist, this session): the cochain
+  frame + `C¹=C¹_int⊕C¹_∂` biproduct in `operator_algebra.rst`/`discrete_ordinates.rst`,
+  storage×role FACE locus, `BoundaryFaceFlux`-note resolution, `wave_o_operator_typing.md`
+  lineage, Sphinx-build-clean.**
+- **⭐ NEXT (post-compaction pickup, user-directed): Phase 6 storage-B
+  (moving-frontier window) FIRST, then the SI Gauss-Seidel recovery
+  (`si_gauss_seidel_recovery.md`) on the typed substrate. Then O.2 → nd_foundation.**
+  Pickup checklist: §8 (Phase-6 variant) below.
 
 **⚠ READ-THE-WORKTREE DISCIPLINE.** All `file:line` and `grep` MUST target the
 worktree (`/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/field-role-typing`),
@@ -345,17 +363,36 @@ home; our `i+j=k` levels ARE the KBA diagonals. With typed `WavefrontFlux` +
 implicit buffer-timing dance. **Fold the `(octant×face)` construction into
 `si_gauss_seidel_recovery.md` regardless of build order** (it sharpens that plan).
 
-## 8. Pickup checklist (fresh post-compaction session)
-1. Confirm branch `refactor/field-role-typing`, `git log --oneline -3` near
-   `266fcf5`+, tree clean of tracked non-excluded paths.
-2. Read the attacker memo (the cochain frame + field+views + the `(octant×face)`
-   G-S graph) and this plan §0–§3 (the honest "representation-only" scope; the
-   storage (A)-vs-(B) fork).
-3. **Dispatch test-architect FIRST** (bit-identity + the L16 perf gate plan).
-4. **Phase 0 de-risk** (typed `ι*` round-trip bit-identical + walk bit-identical
-   + no hot-path slowdown) — STOP if it fails.
-5. Phases 1→4 turn-by-turn, bit-identity + wall-clock gate each commit;
-   elegance-enforcer per phase; A2D-1 hash refresh at Phase 3.
-6. Phase 5 docs (archivist: cochain frame + `C¹ = C¹_int ⊕ C¹_∂` biproduct +
-   storage×role FACE locus). Update `wave_o_operator_typing.md` + auto-memory.
-7. Then the G-S schedule (`si_gauss_seidel_recovery.md`) on the typed substrate.
+## 8. Pickup checklist — POST-COMPACTION (Phases 0–5 done; pick up Phase 6 → G-S)
+
+**State at compaction:** storage-A COMPLETE (Phases 0–4; see the STATUS block at
+top), Phase 5 docs dispatched to the archivist (verify it landed: `git log` for a
+`docs(...)` commit + `sphinx-build` clean). **Read-the-worktree discipline applies
+(lesson L22).** Branch `refactor/field-role-typing`.
+
+**⭐ Phase 6 — storage path (B): the moving-frontier window (DO THIS FIRST).**
+1. Confirm storage-A is in: `WavefrontFlux`/`InteriorFaceSpace` exist; the 2-D
+   sweep (`_sweep_2d_wavefront`) + matvec (`_apply_2d_cartesian`) use them
+   (`grep wavefront orpheus/sn/sweep.py orpheus/sn/operator.py`); `pytest
+   tests/transport/fields/test_wavefront_flux.py tests/sn/sweep/cartesian_2d/ -q`
+   green; tree clean of tracked non-excluded paths.
+2. Read §4 Phase 6 (above) + the attacker memo (`(octant×face)` graph, the
+   `i+j=k` levels ARE the KBA diagonals).
+3. **Dispatch test-architect** for the storage-B verification plan: the
+   *converged solution* must stay bit-identical (only the live working-set
+   shrinks); pin peak-memory drop (`O(N·ng·nx·ny)` → `O(N·ng·(nx+ny))`) +
+   values-unchanged + the L16 wall-clock gate (the rolling buffer must NOT add
+   per-cell Python — the diagonal advance stays vectorized over `n_diag`).
+4. **De-risk** (diagnostic, excluded): prove the rolling 2-diagonal window
+   reproduces the full-field walk bit-identically on a small 2-D mesh. STOP if not.
+5. Swap the `WavefrontFlux` backing (the API/type is stable from storage-A; this
+   changes only the buffer + the walk's diagonal advance). Behind the same
+   `face`/`seed`/`absorb`/`edge_view` surface where possible. Gate: the full
+   cartesian_2d tier bit-identical + L16 + elegance-enforcer. 1-D is a no-op
+   (deferred to nd_foundation anyway).
+
+**⭐ Then — the SI Gauss-Seidel recovery** (`si_gauss_seidel_recovery.md`) on the
+typed substrate: the `(octant×face)` reflective graph; SI-rate-only (Krylov
+splitting-invariant); test-architect rate spec + explorer insertion map are its
+inputs. Then **O.2** (G-metric adjoint `.H`, the L+C−S−F−B driver) → **nd_foundation**
+(the `d`-generic walk that finally unifies the 1-D scan + 2-D wavefront — §2.3 seam).

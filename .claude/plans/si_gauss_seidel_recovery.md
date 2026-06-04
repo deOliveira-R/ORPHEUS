@@ -7,6 +7,15 @@ green SI drivers + the bare 2-D sweep; commit per phase.
 **Standing exclusions from commits:** `.claude/agent-memory/`, `.mcp.json`,
 hooks, `derivations/diagnostics/`.
 
+**⭐ SUBSTRATE STATUS (2026-06-04):** the typed `WavefrontFlux` substrate this
+plan was waiting on is **LANDED** (storage-A Phases 0–3, HEAD `888775c`+): the
+2-D sweep + matvec interior cochain is `WavefrontFlux` with typed `seed`=ι_* /
+`absorb`=ι* / `edge_view`. **Sequencing: this G-S work is picked up AFTER Phase 6
+(storage-B, the moving-frontier window) per the user directive** — so re-confirm
+the substrate (incl. whatever Phase 6 changed the `WavefrontFlux` backing to)
+before starting. The `(octant×face)` reflective graph composes as a typed
+`sweep octant → ι* absorb → −B reflect → ι_* seed next octant` on this substrate.
+
 **Design inputs (read these):**
 - test-architect: `.claude/agent-memory/test-architect/si_gauss_seidel_rate_recovery_verification_spec.md`
 - explorer: `.claude/agent-memory/explorer/sn_si_reflective_gauss_seidel_recovery_surface.md`
