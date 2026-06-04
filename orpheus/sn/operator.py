@@ -244,8 +244,7 @@ class _SpatialSweepDirection(LinearOperatorMixin):
         composition that exercises per-direction algebra in isolation.
         """
         from orpheus.transport.fields.angular_flux import AngularFlux
-        from orpheus.transport.source_sinks import AngularSourceSink
-        from orpheus.transport.fields.boundary_flux import BoundaryFlux
+        from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = self.sn_mesh
@@ -275,7 +274,7 @@ class _SpatialSweepDirection(LinearOperatorMixin):
         # outflow residual; backward sweep writes the inner-face
         # residual (for slab).  The per-direction split exposes which
         # face each direction's contribution lives on.
-        masked_boundary = BoundaryFlux.zeros_on(sn_mesh)
+        masked_boundary = BoundarySourceSink.zeros_on(sn_mesh)
         full_boundary_layout = full_boundary.layout
         for face_name in full_boundary_layout.faces:
             full_face = full_boundary.face_view(face_name)
@@ -347,8 +346,7 @@ class _MSpatialOperatorSum(OperatorSum):
         :meth:`_compute_decomposition` instead (slower; dual emission).
         """
         from orpheus.transport.fields.angular_flux import AngularFlux
-        from orpheus.transport.source_sinks import AngularSourceSink
-        from orpheus.transport.fields.boundary_flux import BoundaryFlux
+        from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
         from orpheus.transport.timed_full_field import TimedFullField
         from .spatial.cell_balance import cell_balance_for_streaming
         from .spatial.pole_angular_closure import MorelMontryAngularSweep
@@ -540,7 +538,7 @@ class _MSpatialOperatorSum(OperatorSum):
         # The outflow / inflow ordinate sets are the disjoint sign(Ω·n)
         # partitions read from the unified TraceSpace selector (single source
         # of truth) — A.4 retired the inline ``mu_x > ±eps`` masks.
-        m_boundary = BoundaryFlux.zeros_on(sn_mesh)
+        m_boundary = BoundarySourceSink.zeros_on(sn_mesh)
         outer_outflow = trace.outflow_indices_for_face("xmax")
         if outer_outflow.size:
             m_boundary.face_view("xmax")[outer_outflow, :] = (
@@ -638,8 +636,7 @@ class _MSpatialOperatorSum(OperatorSum):
             drift on the slab path).
         """
         from orpheus.transport.fields.angular_flux import AngularFlux
-        from orpheus.transport.source_sinks import AngularSourceSink
-        from orpheus.transport.fields.boundary_flux import BoundaryFlux
+        from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
         from orpheus.transport.timed_full_field import TimedFullField
         from .spatial.cell_balance import cell_balance_for_streaming
         from .spatial.pole_angular_closure import MorelMontryAngularSweep
@@ -844,7 +841,7 @@ class _MSpatialOperatorSum(OperatorSum):
         # defect ψ.outflow − streamed (kept; vacuum bit-identical), inflow
         # slots = identity ψ.inflow (the r_inflow diagonal; the sibling −B adds
         # −B·ψ.outflow). M_angular_redist stays zero-boundary (a BulkOperator).
-        m_spat_boundary = BoundaryFlux.zeros_on(sn_mesh)
+        m_spat_boundary = BoundarySourceSink.zeros_on(sn_mesh)
         outer_outflow = trace.outflow_indices_for_face("xmax")
         if outer_outflow.size:
             m_spat_boundary.face_view("xmax")[outer_outflow, :] = (
@@ -877,7 +874,7 @@ class _MSpatialOperatorSum(OperatorSum):
         )
         m_ang_tff = TimedFullField(
             bulk=AngularSourceSink.from_mesh(m_ang_cell, sn_mesh),
-            boundary=BoundaryFlux.zeros_on(sn_mesh),
+            boundary=BoundarySourceSink.zeros_on(sn_mesh),
             _history=(),
             history_depth=psi.history_depth,
         )
@@ -1376,8 +1373,7 @@ class StreamingOperator(LinearOperatorMixin):
         convention.
         """
         from orpheus.sn.sweep_graph import OctantLabel
-        from orpheus.transport.source_sinks import AngularSourceSink
-        from orpheus.transport.fields.boundary_flux import BoundaryFlux
+        from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = self.sn_mesh
@@ -1457,7 +1453,7 @@ class StreamingOperator(LinearOperatorMixin):
             "xmin": psi_x[:, :, 0, :], "xmax": psi_x[:, :, nx, :],
             "ymin": psi_y[:, :, :, 0], "ymax": psi_y[:, :, :, ny],
         }
-        out_boundary = BoundaryFlux.zeros_on(sn_mesh)
+        out_boundary = BoundarySourceSink.zeros_on(sn_mesh)
         for face in trace.face_names:
             given = boundary.face_view(face)
             out_idx = trace.outflow_indices_for_face(face)
@@ -1582,14 +1578,13 @@ class CollisionOperator(LinearOperatorMixin):
         """
         from orpheus.transport.timed_full_field import TimedFullField
         from orpheus.transport.fields.angular_flux import AngularFlux
-        from orpheus.transport.source_sinks import AngularSourceSink
-        from orpheus.transport.fields.boundary_flux import BoundaryFlux
+        from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
         mesh = psi.bulk.mesh
         return TimedFullField(
             bulk=AngularSourceSink.from_mesh(
                 self.sigma[None, :, :, :] * psi.bulk.values, mesh,
             ),
-            boundary=BoundaryFlux.zeros_on(mesh),
+            boundary=BoundarySourceSink.zeros_on(mesh),
             _history=(),
             history_depth=psi.history_depth,
         )

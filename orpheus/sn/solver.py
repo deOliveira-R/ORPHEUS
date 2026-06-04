@@ -88,21 +88,26 @@ def _zero_within_group_fission(psi: "object") -> "object":
     r"""Codomain zero for the within-group zero-fission slot (``F = 0``).
 
     A fission operator maps FLUX → SOURCE, so its zero action emits a *zero
-    source* — an ``AngularSourceSink``-bulk composite — NOT a flux echo of the
-    iterate ``ψ`` (the B.5.2 ``ZeroOperator`` codomain fix: a zero operator
-    returns the zero of its CODOMAIN, not of its domain).  Wired into
-    ``ZeroOperator(codomain_zero=...)`` so the typed RHS
-    ``S.apply(ψ) + F.apply(ψ) + q_ext`` and the Krylov matvec
-    ``L.apply − S.apply − F.apply`` stay CLOSED ``AngularSourceSink`` sums.
-    The within-group fission source proper enters as ``q_ext`` (the
-    eigenvalue outer's contribution); ``F`` itself is structurally zero here.
+    source* on BOTH blocks — an ``AngularSourceSink`` bulk AND a
+    ``BoundarySourceSink`` boundary — NOT a flux echo of the iterate ``ψ`` (the
+    B.5.2 ``ZeroOperator`` codomain fix: a zero operator returns the zero of its
+    CODOMAIN, not of its domain).  Wired into ``ZeroOperator(codomain_zero=...)``
+    so the typed RHS ``S.apply(ψ) + F.apply(ψ) + q_ext`` and the Krylov matvec
+    ``L.apply − S.apply − F.apply`` stay CLOSED source/sink sums on BOTH blocks
+    (every operator output is a source/sink — its boundary is
+    ``BoundarySourceSink``, mirroring the bulk; the residual only arises from
+    ``from_balance``).  The within-group fission source proper enters as
+    ``q_ext`` (the eigenvalue outer's contribution); ``F`` itself is
+    structurally zero here.
     """
-    from orpheus.transport.fields.boundary_flux import BoundaryFlux
-    from orpheus.transport.source_sinks import AngularSourceSink
+    from orpheus.transport.source_sinks import (
+        AngularSourceSink,
+        BoundarySourceSink,
+    )
     from orpheus.transport.timed_full_field import TimedFullField
 
     return TimedFullField.zeros(
-        bulk=AngularSourceSink, boundary=BoundaryFlux, mesh=psi.bulk.mesh,
+        bulk=AngularSourceSink, boundary=BoundarySourceSink, mesh=psi.bulk.mesh,
     )
 
 
@@ -580,7 +585,10 @@ class SNSolver:
         from orpheus.transport.fields.boundary_flux import (
             BoundaryFlux,
         )
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.source_sinks import (
+            AngularSourceSink,
+            BoundarySourceSink,
+        )
         from orpheus.transport.timed_full_field import TimedFullField
         from orpheus.numerics.iteration import SourceIteration
         from orpheus.numerics.operator import ZeroOperator
@@ -610,10 +618,12 @@ class SNSolver:
         # boundary inflow is thus a live solved unknown carried in
         # ``ψ.boundary``, not an externally-recomputed partner trace.
         q_ext_composite = TimedFullField(
-            # B.5.2: q_ext IS a source — carry the AngularSourceSink directly
-            # (the re-wrap into AngularFlux WAS the dimensional sin).
+            # B.5.2: q_ext IS a source — carry the AngularSourceSink bulk AND
+            # the BoundarySourceSink inflow trace (zero for vacuum/reflective;
+            # prescribed inflow otherwise). The SI rhs F.apply + (S+B).apply +
+            # q_ext closes on BoundarySourceSink (operator outputs are sources).
             bulk=q_ext_per_ord,
-            boundary=BoundaryFlux.zeros_on(self.sn_mesh),
+            boundary=BoundarySourceSink.zeros_on(self.sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -725,7 +735,10 @@ class SNSolver:
         from orpheus.transport.fields.boundary_flux import (
             BoundaryFlux,
         )
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.source_sinks import (
+            AngularSourceSink,
+            BoundarySourceSink,
+        )
         from orpheus.transport.timed_full_field import TimedFullField
         from orpheus.numerics.iteration import KrylovAcceleration
         from orpheus.numerics.operator import ZeroOperator
@@ -742,10 +755,12 @@ class SNSolver:
             fission_source, self.sn_mesh,
         )
         q_ext_composite = TimedFullField(
-            # B.5.2: q_ext IS a source — carry the AngularSourceSink directly
-            # (the re-wrap into AngularFlux WAS the dimensional sin).
+            # B.5.2: q_ext IS a source — carry the AngularSourceSink bulk AND
+            # the BoundarySourceSink inflow trace (zero for vacuum/reflective;
+            # prescribed inflow otherwise). The SI rhs F.apply + (S+B).apply +
+            # q_ext closes on BoundarySourceSink (operator outputs are sources).
             bulk=q_ext_per_ord,
-            boundary=BoundaryFlux.zeros_on(self.sn_mesh),
+            boundary=BoundarySourceSink.zeros_on(self.sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -1551,7 +1566,10 @@ def _solve_fixed_source_krylov(
     )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from .operator import CollisionOperator, StreamingOperator
-    from orpheus.transport.source_sinks import AngularSourceSink
+    from orpheus.transport.source_sinks import (
+        AngularSourceSink,
+        BoundarySourceSink,
+    )
     from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.numerics.iteration import KrylovAcceleration
     from orpheus.numerics.operator import ZeroOperator
@@ -1569,10 +1587,12 @@ def _solve_fixed_source_krylov(
     # ``initial_guess`` not ``rhs.boundary``).
     q_ext_per_ord = AngularSourceSink.from_mesh(external_source, sn_mesh)
     q_ext_composite = TimedFullField(
-        # B.5.2: q_ext IS a source — carry the AngularSourceSink directly
-        # (the re-wrap into AngularFlux WAS the dimensional sin).
+        # B.5.2: q_ext IS a source — carry the AngularSourceSink bulk AND the
+        # BoundarySourceSink inflow trace (zero for vacuum/reflective). The
+        # Krylov matvec composes operator-output sources; q_ext is raveled
+        # type-agnostically as the GMRES rhs `b`.
         bulk=q_ext_per_ord,
-        boundary=BoundaryFlux.zeros_on(sn_mesh),
+        boundary=BoundarySourceSink.zeros_on(sn_mesh),
         _history=(),
         history_depth=2,
     )

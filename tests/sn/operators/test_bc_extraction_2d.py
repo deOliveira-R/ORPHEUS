@@ -60,6 +60,7 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import CollisionOperator, StreamingOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.source_sinks import BoundarySourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import SN_TESTS_ROOT
 
@@ -166,6 +167,11 @@ class TestVacuum2DBitIdentity:
         # vacuum: no incoming inflow trace (boundary stays zero).
 
         out = L.apply(state)
+
+        # B.5.2: the 2-D matvec output boundary is the source/sink role leaf
+        # (Aψ, NOT a residual — a residual only arises from from_balance(Aψ, b)).
+        # Mirrors the bulk's AngularSourceSink; completes the boundary role grid.
+        assert isinstance(out.boundary, BoundarySourceSink)
 
         key = f"vacuum_bulk_2d_seed{seed}"
         path = _BASELINE_DIR / f"{key}.npy"

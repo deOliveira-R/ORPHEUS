@@ -15,36 +15,39 @@ stored as a field on the unified
 and :class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`
 (source).
 
-Consumer: the matvec ALREADY computes this (it is mistyped today)
-=================================================================
+Consumer: the named balance, NOT an operator output (B.5.2)
+===========================================================
 
-Unlike its source sibling, the boundary residual has a **real,
-already-computed consumer**. The SN matvec emits the affine-BC face
-defect (``γ₊ψ − bc_estimate``, the residual of ``γ₋ψ = R·G·γ₊ψ + q``)
-on its output ``.boundary`` — :class:`StreamingOperator` is the only
-operator that emits a non-zero face residual; :class:`CollisionOperator`
-/ :class:`ScatteringOperator` / :class:`FissionOperator` emit the
-auto-allocated zero. GMRES already drives this boundary defect to zero
-as part of the full flat residual vector (via
-:meth:`TimedFullField.to_flat`). The relevant emission sites are
-``orpheus/sn/operator.py`` (the streaming face-residual build + the
-zero-boundary returns of the collision/scatter/fission peers, and the
-``StreamingOperator.apply`` output at ``:1263``).
+The boundary residual is the *defect* of the affine boundary law,
+formed **only by an explicit balance** — never straight off an operator
+output. B.5.2 (#208) settled this with the governing principle: *a
+residual arises only when an operator output* ``Aψ`` *is compared
+against something else (the source* ``b`` *) and the difference is
+taken*; the operator output ITSELF is ``Aψ`` — a **source/sink**, not a
+residual. Accordingly, every SN operator's ``.apply`` boundary
+(``StreamingOperator`` non-zero; ``Collision`` / ``Scattering`` /
+``Fission`` / :class:`SNBoundaryOperator` zero-or-coupling) is the
+*source/sink* role leaf
+:class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`
+(mirroring the bulk's ``AngularSourceSink``). The GMRES flat residual
+``b − Aψ`` is formed internally on the raveled vector (via
+:meth:`TimedFullField.to_flat`) and is never typed as a field.
 
-**Today those sites mistype the boundary defect as
-:class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`** — the
-boundary half of the "dimensional sin" (operator OUTPUTS, which are
-rate-density residuals, wrapped in the FLUX type). Retyping them to
-:class:`BoundaryResidual` is the boundary half of the **B.5** operator-
-output carve; it is INSEPARABLE from the bulk half (the
-:class:`TimedFullField` composition gate requires every leaf's output
-boundary to share a class, and the typed arithmetic at
-``iteration.py:455`` / ``:511`` decides all operator-output types
-together). This leaf is minted here (B.3) so it is **ready** for the
-B.5 wiring. The :meth:`BoundaryResidual.from_balance` named-composition
-factory is minted in **B.5.1** (alongside the bulk residuals); the
-operator-output *wiring* itself — retyping the matvec emission sites,
-with a test-architect verification plan — lands in **B.5.2 / #208**.
+This leaf's consumer is therefore the **named composition**
+:meth:`BoundaryResidual.from_balance` (minted B.5.1) — the boundary
+counterpart of the (likewise not-yet-consumer-driven) bulk
+:class:`~orpheus.transport.residuals.angular_residual.AngularResidual`.
+The honest driver that will write ``BoundaryResidual.from_balance(
+lhs=ψ.inflow, rhs=B·ψ.outflow + q)`` at the solver level is Wave O step
+**O.2** (the ``L+C−S−F−B`` loss-operator driver). Until then the leaf is
+minted, units-tagged, and ready, with no end-to-end consumer — exactly
+the role-grid-completion status its bulk sibling holds.
+
+The completed boundary role grid (B.5.2) mirrors the bulk exactly::
+
+    .apply        →  BoundarySourceSink   (Aψ — a source/sink)
+    .solve        →  BoundaryFlux         (the swept solution trace)
+    from_balance  →  BoundaryResidual     (the defect — O.2 honest driver)
 
 Units (B.4 — declared as the ``UNITS`` class constant)
 ======================================================

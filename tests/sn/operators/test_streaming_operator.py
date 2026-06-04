@@ -1205,8 +1205,19 @@ class TestT4dApply2DCartesianSourceHashPin:
     #         the iterate trajectory (reflective is now convergence-equivalent,
     #         not bit-identical); VACUUM bulk stays bit-identical (zero inflow
     #         in both paths — proven by the E0 de-risk).  k_∞ stays 1.875.
+    #   B.5.2 (boundary-output role retype) 124b47a8…4ac65007 →
+    #         f683f229…09af63b — the output boundary leaf
+    #         ``BoundaryFlux.zeros_on(sn_mesh)`` → ``BoundarySourceSink.zeros_on``
+    #         (+ the method's source_sinks import line gained ``BoundarySourceSink``).
+    #         Behavior-neutral: ``BoundarySourceSink`` and ``BoundaryFlux``
+    #         ``zeros_on`` produce the identical zero trace buffer — only the
+    #         wrapping role-type differs.  The operator output is Aψ (a source/
+    #         sink), NOT a residual; this mirrors the bulk's AngularSourceSink
+    #         and completes the boundary role grid (.apply→BoundarySourceSink,
+    #         .solve→BoundaryFlux, from_balance→BoundaryResidual).  k_∞ stays
+    #         1.875; the bare-matvec emission values are unchanged.
     EXPECTED_SHA256: str = (
-        "124b47a8e0cadb83b627c4525ce50b8da072586799523a41b1ef527d4ac65007"
+        "f683f229b04f4f0c393fdfc572651008d35783e113605061cea85159e09af63b"
     )
 
     def test_apply_2d_cartesian_source_hash_unchanged(self):

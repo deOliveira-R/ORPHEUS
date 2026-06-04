@@ -38,6 +38,7 @@ from orpheus.sn.boundary_operator import SNBoundaryOperator
 from orpheus.sn.geometry import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.source_sinks import BoundarySourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 
@@ -110,6 +111,11 @@ class TestApply:
         sn = _sn(*_CASES[case_id])
         out = SNBoundaryOperator(sn).apply(_random_state(sn))
         assert not out.bulk.values.any()
+        # B.5.2: B.apply emits B·ψ.outflow — the operator output is Aψ (a
+        # source/sink), NOT a residual.  Its boundary is the source/sink role
+        # leaf (mirrors the bulk's AngularSourceSink); the residual only arises
+        # from from_balance, never straight off the operator output.
+        assert isinstance(out.boundary, BoundarySourceSink)
 
     @pytest.mark.parametrize("case_id", list(_CASES))
     def test_apply_per_face_equals_legacy_bc_apply_on_inflow_row(

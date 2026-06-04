@@ -84,13 +84,11 @@ from orpheus.numerics.operator import (
 # Runtime imports for :func:`singledispatchmethod.register` — see
 # ``scattering.py`` for the same pattern.  These types form a leaf in
 # the SN dependency graph (they do not import fission.py).  The L2
-# pure-Field :class:`AngularFlux` and :class:`BoundaryFlux` are
-# re-aliased to ``AngularFlux`` / ``BoundaryFlux`` to disambiguate
-# from the legacy ``orpheus.sn.angular_flux.AngularFlux`` which still
-# rides on the operator-algebra path until D-H.1c.
+# pure-Field :class:`AngularFlux` is re-aliased to ``AngularFlux`` to
+# disambiguate from the legacy ``orpheus.sn.angular_flux.AngularFlux``
+# which still rides on the operator-algebra path until D-H.1c.
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.source_sinks import ScalarSourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 
@@ -310,7 +308,10 @@ class FissionOperator(LinearOperatorMixin):
         # Reuse the ScalarFlux branch — single source of truth for the
         # per-cell production-rate × emission-spectrum contraction.
         fission_iso: ScalarSourceSink = self.apply(phi_scalar)
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.source_sinks import (
+            AngularSourceSink,
+            BoundarySourceSink,
+        )
         per_ord = AngularSourceSink.from_isotropic(
             fission_iso.values, psi.bulk.mesh,
         )
@@ -318,7 +319,7 @@ class FissionOperator(LinearOperatorMixin):
             # B.5.2: the operator output IS a source (Fψ rate density) — emit
             # the AngularSourceSink directly, not a re-wrap into AngularFlux.
             bulk=per_ord,
-            boundary=BoundaryFlux.zeros_on(psi.bulk.mesh),
+            boundary=BoundarySourceSink.zeros_on(psi.bulk.mesh),
             _history=(),
             history_depth=psi.history_depth,
         )

@@ -47,32 +47,43 @@ operator-loss output such as :math:`L\psi`) are the same quantity with
 opposite sign, and the role-leaf type holds both. Hence
 ``BoundarySourceSink``.
 
-Consumer status (role-grid completion, not yet consumer-driven)
-===============================================================
+Consumer: every operator's ``.apply`` boundary + the SI/Krylov source (B.5.2)
+=============================================================================
 
-As of this commit there is **no end-to-end consumer** of a stored
-boundary-source field: every MMS case in the suite vanishes on the
-incoming trace :math:`\Gamma_-` by construction (vacuum :math:`q\equiv
-0`), and :func:`solve_sn_fixed_source` has no per-face inflow argument.
-The prescribed-inflow stack (``PrescribedInflow`` →
-``IncomingSourceOperator`` → :class:`InflowSourceSpec`) is fully built
-but exercised only by isolated BC-realizer unit tests. Minting this
-leaf is therefore a deliberate **role-grid completion** (the
-``{Boundary}×{Source}`` cell reserved at
-:class:`~orpheus.transport.fields._bases.BoundaryField`), so the
-vocabulary is coherent and the type is ready the moment a
-beam / incident-flux problem arrives.
+B.5.2 (#208) made this leaf **consumer-driven**. Every SN operator's
+``.apply`` output boundary IS a :class:`BoundarySourceSink`, because the
+operator output is ``Aψ`` — a source/sink, NOT a residual (a residual
+arises only from an explicit ``from_balance`` of the output against a
+source; the boundary mirrors the bulk's ``AngularSourceSink``).
+:class:`StreamingOperator` emits the non-zero boundary block (the bare
+post-extraction emission: outflow self-consistency defect + inflow
+identity); :class:`SNBoundaryOperator` (``B``) emits ``B·ψ.outflow`` on
+the inflow slots; ``Collision`` / ``Scattering`` / ``Fission`` (and the
+``F = 0`` ``ZeroOperator`` codomain zero) emit the auto-allocated zero.
+The Krylov matvec ``(L+C).apply − (S+B).apply − F.apply`` and the SI rhs
+``F.apply + (S+B).apply + q_ext`` both compose as CLOSED
+``BoundarySourceSink`` sums (the :class:`TimedFullField` class gate
+requires every operator-output boundary to share this class), and
+``q_ext.boundary`` is likewise :class:`BoundarySourceSink` — the
+prescribed inflow source (zero for vacuum / reflective). The completed
+boundary role grid mirrors the bulk exactly::
+
+    .apply        →  BoundarySourceSink   (Aψ — a source/sink)
+    .solve        →  BoundaryFlux         (the swept solution trace)
+    from_balance  →  BoundaryResidual     (the defect — O.2 honest driver)
 
 The **recipe → snapshot bridge** ``BoundarySourceSink.from_spec(spec,
 mesh)`` (materialise an :class:`InflowSourceSpec` onto the trace by
 looping ``spec.evaluate(face_shape)`` per face and packing the flat
 layout) is intentionally NOT added yet — per
 ``feedback_unify_after_two_instances`` it waits for the first real
-consumer that both declares a non-trivial ``InflowSourceSpec`` AND
-drives a sweep that consumes a typed boundary-source field (rather than
-the current inline ``evaluate(shape)`` call). Until then the field is
-built directly from known per-face arrays via the inherited
-:meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`.
+*prescribed-inflow* consumer that both declares a non-trivial
+``InflowSourceSpec`` AND drives a sweep that consumes a typed
+boundary-source field (rather than the current inline ``evaluate(shape)``
+call). Until then the prescribed ``q`` is built directly from known
+per-face arrays via the inherited
+:meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`
+(the operator-output zeros use :meth:`zeros_on`).
 
 Units (B.4 — declared as the ``UNITS`` class constant)
 ======================================================

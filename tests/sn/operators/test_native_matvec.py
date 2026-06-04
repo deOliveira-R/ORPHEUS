@@ -46,7 +46,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.geometry import SNMesh
 from tests.sn._test_helpers import _LC_matvec
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.numerics.quadrature import Quadrature
@@ -313,11 +313,14 @@ class TestOutputShape:
         result = _LC_matvec(
             _zero_flux(sn_mesh), sigma_t,
         )
-        # Composite carrier; the (L+C).apply output bulk is an
-        # AngularSourceSink (rate-density source/sink, not a flux — B.5.2).
+        # Composite carrier; the (L+C).apply output bulk AND boundary are
+        # the source/sink role leaves (AngularSourceSink / BoundarySourceSink)
+        # — the operator output is Aψ (a rate-density / flux source), NOT a
+        # residual.  B.5.2: a residual only arises from from_balance(Aψ, b),
+        # never straight off an operator output (the boundary mirrors the bulk).
         assert isinstance(result, TimedFullField)
         assert isinstance(result.bulk, AngularSourceSink)
-        assert isinstance(result.boundary, BoundaryFlux)
+        assert isinstance(result.boundary, BoundarySourceSink)
         # Cell values: (N, ng, nx, ny).
         assert result.bulk.values.shape == (
             sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny,

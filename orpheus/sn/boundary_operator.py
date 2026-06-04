@@ -164,8 +164,7 @@ class SNBoundaryOperator(LinearOperatorMixin):
         adjoint ``B.H`` under ``|Ω·n|·w`` is Wave O step O.2; this Euclidean
         ``apply_transpose`` is the un-weighted shadow, not yet a live consumer.)
         """
-        from orpheus.transport.fields.boundary_flux import BoundaryFlux
-        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
         # Single mesh source (mesh-identity invariant — see class docstring):
@@ -180,7 +179,7 @@ class SNBoundaryOperator(LinearOperatorMixin):
                 f"got field mesh {psi.bulk.mesh!r} vs operator mesh {mesh!r}."
             )
         trace = mesh.trace
-        out_boundary = BoundaryFlux.zeros_on(mesh)
+        out_boundary = BoundarySourceSink.zeros_on(mesh)
         for face, law in self._face_laws.items():
             face_in = psi.boundary.face_view(face)
             full = getattr(law, method)(face_in)
