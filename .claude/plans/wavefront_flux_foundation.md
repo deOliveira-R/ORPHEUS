@@ -254,18 +254,31 @@ wall-clock must not regress, since this touches the hot path).
 - **Phase 1 — mint `WavefrontFlux`** (type + interior `FaceLayout` + `ι*`/`ι_*`
   operators) with unit tests (units; field+views; the trace round-trip;
   zeros/from-buffer factories). No production wiring yet.
-- **Phase 2 — wire the 2-D sweep** (`_sweep_2d_wavefront`): replace raw
-  `psi_x`/`psi_y` with `WavefrontFlux`; the seed/absorb become the typed
-  `ι_*`/`ι*`. **Gate:** sweep output bit-identical (octant snapshots,
-  k_inf=1.875), full-suite wall-clock not regressed (L16), sentinel.
-  elegance-enforcer review.
-- **Phase 3 — wire the 2-D matvec** (`_apply_2d_cartesian`): same. **Gate:**
-  matvec bit-identical (A2D-1 source-hash refresh — intended tripwire;
-  `test_bc_extraction_2d`/Gate-K), SI≡Krylov.
-- **Phase 4 — wire the 1-D sweep + matvec** (`_run_1d_sweep`; `_compute_LpC` /
-  `_compute_decomposition` — the twin, flip identically). **Gate:** 1-D
-  bit-identity (`test_native_matvec`, decomposition Resolution-A, slab MMS).
-  (Phases 0–4 deliver **storage path (A)** — the full-field typing, bit-identical.)
+- **Phase 2 — wire the 2-D sweep ✅ DONE (`992b0c0`).** `_sweep_2d_wavefront`'s
+  raw `psi_x`/`psi_y` → typed `WavefrontFlux` (face(0)/face(1) zero-copy views);
+  seed/absorb → typed `wavefront.seed`/`wavefront.absorb` (`ι_*`/`ι*`). Gate:
+  bit-identical (octant snapshots + Gate-K k_inf=1.875, 36 passed); L16
+  perf-neutral (stash A/B median ratios ~1.00); elegance self-review.
+- **Phase 3 — wire the 2-D matvec ✅ DONE (`0e3e16c`).** `_apply_2d_cartesian`'s
+  raw `psi_x`/`psi_y` → typed `WavefrontFlux`; `streamed` dict → `wavefront.edge_view`
+  (new accessor, removes the face→slot duplication). Gate: bit-identical (126
+  passed: Gate-K, matvec≡sweep, BC extraction); **A2D-1 source-hash REFRESHED**
+  (`f683f229…`→`12697ab3…`, deliberate-edit tripwire, behavior-neutral).
+- **Phase 4 — ⚠ EVALUATED → DEFERRED to `nd_foundation` (2026-06-04).** The 1-D
+  sweep/matvec is a parallel-prefix SCAN, NOT a wavefront: its interior fluxes
+  are transient `(nx,K,ng)` chain-ordered scan output (`_compute_LpC` has no
+  buffer at all), the structural antithesis of the cochain `(N,ng,nx+1)`, and
+  the boundary is already typed. Forcing `WavefrontFlux` in = WRONG-FIT (risks
+  the L16 cumprod, multiplies concepts). The ONE shared seam (the boundary-trace
+  exchange + DD-closure averaging) unifies cleanly only when `nd_foundation`
+  re-expresses both folds as one `d`-generic walk — recorded as the
+  load-bearing collapse seam in `nd_foundation.md` §2.3 (incl. the HARD
+  constraint that the collapse must not regress the d=1 scan's parallel-prefix
+  efficiency). Evaluation: explorer memo `wavefront_flux_1d_tightening_verdict.md`.
+  The §3a′ 3D-readiness (the type is axis-parametric) is the realized 1-D
+  benefit; a future 3-D *Cartesian* sweep is a wavefront and uses WavefrontFlux.
+  (Storage path (A) is delivered by Phases 0–3 for the 2-D wavefront — the
+  locus where the interior cochain is persistent. 1-D needs no storage-A.)
 - **Phase 5 — docs + retirement (A close-out).** archivist: the cochain frame +
   `WavefrontFlux ⊕ BoundaryFlux = C¹` biproduct in `operator_algebra.rst` /
   `discrete_ordinates.rst`; extend the storage×role grid (#205) with the FACE

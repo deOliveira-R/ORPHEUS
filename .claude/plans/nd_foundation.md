@@ -70,12 +70,43 @@ faces / 4 octants / explicit x,y":
    `denom = Σt + Σ_axis sx_axis`, `ψ̄ = (Q + Σ_axis sx_axis·ψ_in_axis)/denom`,
    the `d` face-pairs per cell. The closure `ψ_out = 2ψ̄ − ψ_in` is already
    per-axis — vectorize over `axes`.
-3. **`_sweep_2d_wavefront`** (`sweep.py:756-940`) + **`_run_1d_sweep`**
-   (`sweep.py:382-739`) → **ONE `_sweep_wavefront`** over `d` (the tightening:
-   the 1-D and 2-D sweep bodies COLLAPSE into the generic walk — this is the
-   unify-after-two payoff; retire the two specialized bodies). The matvec twin
-   `_apply_2d_cartesian` + the 1-D `_compute_LpC`/`_compute_decomposition`
-   likewise collapse onto the `d`-generic `graph.residual`.
+3. **`_sweep_2d_wavefront`** + **`_run_1d_sweep`** → **ONE `_sweep_wavefront`**
+   over `d` (the tightening: the 1-D and 2-D sweep bodies COLLAPSE into the
+   generic walk — the unify-after-two payoff; retire the two specialized
+   bodies). The matvec twin `_apply_2d_cartesian` + the 1-D
+   `_compute_LpC`/`_compute_decomposition` likewise collapse onto the
+   `d`-generic `graph.residual`.
+
+   **⚠ The 1-D-fold seam (evaluated 2026-06-04 — explorer memo
+   `wavefront_flux_1d_tightening_verdict.md`).** This collapse is the ONLY
+   place the WavefrontFlux infrastructure reaches 1-D — and it is NOT a free
+   retrofit, because **1-D today is a parallel-prefix SCAN, not a wavefront**:
+   - 1-D interior face fluxes = `ordinate_scan`'s transient `(nx, K, ng)`
+     **chain-ordered, K-batched** output (`sweep.py` slab path) — the
+     structural antithesis of the cochain's `(N, ng, nx+1)` (cells trailing,
+     un-chained, ordinate-leading). The 1-D matvec (`_compute_LpC`) has no
+     interior buffer at all (a per-cell stack local threaded through the DAG
+     walk). So `WavefrontFlux` does NOT fit the 1-D scan as-is (confirmed
+     WRONG-FIT — typing it would fight the L16 cumprod for zero gain).
+   - **What unification harvests** (only AFTER both folds become one
+     `dag_walk`-driven traversal): (a) `WavefrontFlux` + `seed`/`absorb`
+     (ι_*/ι*) become 1-D's natural interior representation too — a
+     re-expression, not a literal swap; (b) the **boundary-trace exchange**
+     (the one genuinely-shared concept — both folds seed inflow / persist
+     outflow on the same `BoundaryFlux`, but 1-D does it per-direction-chain
+     via a scan-tail `[...][-1][ords]` while 2-D does `wavefront.seed/absorb`)
+     unifies into ONE typed `TraceExchange`; (c) the DD closure
+     (`0.5·(ψ_in+ψ_out)` scan vs `2ψ̄−ψ_in` per-level) collapses to one
+     `C¹→C⁰` averaging primitive.
+   - **HARD CONSTRAINT on the collapse:** the d=1 parallel-prefix scan is the
+     *better* algorithm for the linear recurrence (Blelloch closed form,
+     "2 scan calls per sweep"), NOT legacy. A naive `d`-generic
+     forward-substitution walk is O(nx) **sequential** for d=1 — a regression.
+     So the unified `_sweep_wavefront` MUST either keep the scan realization
+     for d=1 (the walk specializes its fold per `d`) OR express the
+     `d`-generic walk itself as a segmented/parallel scan that recovers the
+     d=1 cumprod. Pin: 1-D wall-clock must not regress (L16) through the
+     collapse. This is the load-bearing design question of the collapse.
 4. **`Mesh2D`** (`geometry/mesh.py:491`) + `Mesh1D` → a `d`-generic Cartesian
    mesh (or `Mesh3D` as the third instance, then unify). `SNMesh` streaming
    coefficients over `d` axes (`str_x`, `str_y` → `str[axis]`).
