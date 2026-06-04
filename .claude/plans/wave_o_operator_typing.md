@@ -430,7 +430,15 @@ de-risking — DO E0 first).
 - **SCOPE (recommended):** Phase E targets the **Krylov** path (2-D production
   eigenvalue). 2-D **SI** (`solver.py:569`) + 2-D fixed-source (`:1536`) are a
   SEPARATE carve ("2-D SI Phase A") — NOT needed for the 2-D eigenvalue; defer
-  unless folded in.
+  unless folded in. **✅ UPDATE (2026-06-04): "2-D SI Phase A" LANDED**
+  (`139c278`→`e65eba0`). It was a **stale-guard removal**, not a 4-face-block
+  build — "B1'' face block" never existed as code; the eigenvalue SI inner is
+  the structural twin of `_solve_krylov` (same RHS/`L+C`/`S+B` fold/reduction,
+  only the driver differs); `SNBoundaryOperator` is natively 4-face. It
+  REPAIRED the default `solve_sn` 2-D eigenvalue entry and is the GATEWAY for
+  the SI Gauss-Seidel recovery + the WavefrontFlux angular-windowing. 2-D
+  fixed-source **Krylov** stays NIE (its `G1` guard intact; geometry-agnostic
+  `_solve_fixed_source_si` is the working 2-D fixed-source path).
 - **Equivalence class for E = CONVERGENCE-equivalence** (non-vacuum) /
   BIT-IDENTITY (vacuum, B=0). Verify vs k_inf / Q/Σt / 2-D MMS (NOT
   `continuous_get` — #212).

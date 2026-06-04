@@ -17,7 +17,41 @@ hooks, `derivations/diagnostics/`.
 
 ---
 
-## STATUS (2026-06-04) — Storage-A COMPLETE (Phases 0–4); Phase 5 docs running
+## ⭐⭐ STATUS UPDATE (2026-06-04, late) — Phase 5 LANDED; "Phase 6 FIRST" SUPERSEDED; 2-D SI gateway LANDED
+
+Phase 5 docs landed (`94103df`). **The "Phase 6 storage-B FIRST" pickup (§8 below) is
+SUPERSEDED.** Reading the actual 2-D walk + two explorer audits established:
+- Storage-B is a **3-layer carve** (SweepCellSlice index protocol + `DiamondDifference`
+  gather/scatter + `WavefrontFlux.face()` API), NOT a backing swap (the walk indexes
+  `psi_x`/`psi_y` with GLOBAL per-level face indices; a window can't return a full
+  `(N,ng,nx+1,ny)` view).
+- Its 2-D memory win is ~3–4× (capped by the untouched `angular_flux` floor), NOT the
+  headline `O(n²)→O(n)`. The true asymptotic win needs **angular_flux ALSO windowed**
+  (angular→scalar per anti-diagonal), which only pays off for a **scalar-only consumer**.
+- That consumer is the 2-D **eigenvalue SI inner** — which was `NotImplementedError`. The
+  2-D Krylov path is full-angular by construction (GMRES iterates the full bulk vector).
+- Storage-B is NOT a prerequisite for the G-S recovery (G-S = the `(octant×face)`
+  reflective back-edge split on the boundary trace, orthogonal to interior storage).
+
+**User decision: chase the true `O(n²)→O(n)` win → wire 2-D SI as the GATEWAY first.**
+**2-D SI "Phase A" ✅ LANDED** (commits `139c278`→`92cdb6a`→`41ffb2b`→`47ffe49`→`632b428`→`e65eba0`):
+it was a **stale-guard removal** ("B1'' face block" never existed as code; the SI inner is
+the structural twin of `_solve_krylov` — same RHS/`L+C`/`S+B` fold/reduction, only the
+driver differs; `SNBoundaryOperator` natively 4-face). Repaired the DEFAULT `solve_sn` 2-D
+eigenvalue entry. Verified SI≡Krylov≡k_inf (1g/2g/4g) + het non-flat flux ~1e-9; gate
+`test_keff_2d.py::TestSIKrylov2DEquivalence`; full regression 12, L0 anchors 32 green.
+
+**⭐ RESHAPED NEXT CHAIN:** (1) **SI Gauss-Seidel recovery** (substrate now exists;
+`si_gauss_seidel_recovery.md`) → (2) **angular-windowing** (consumer = the scalar-reducing
+2-D SI iterate; win in the SI ITERATION, the one-shot final `Solution.angular_flux` stays
+full, Krylov stays full-angular) → (3) **interior-FACE windowing** (the original storage-B
+faces-only — the available bit-identical ~3–4× win, lands anytime independent of 1/2) →
+(4) O.2 → nd_foundation. The §8 "Phase-6-FIRST" checklist below is HISTORY (kept for the
+storage-B mechanics, now reordered to step 3 of the chain).
+
+---
+
+## STATUS (2026-06-04) — Storage-A COMPLETE (Phases 0–4); Phase 5 docs running [SUPERSEDED — see the ⭐⭐ banner above]
 
 **PROGRESS (commits on `refactor/field-role-typing`; HEAD `888775c`+):**
 - Phase 0 de-risk ✅ (diagnostic; substrate proven bit-identical + perf-neutral)

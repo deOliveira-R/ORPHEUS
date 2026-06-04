@@ -10,15 +10,28 @@ hooks, `derivations/diagnostics/`.
 **⭐ SUBSTRATE STATUS (2026-06-04):** the typed `WavefrontFlux` substrate this
 plan was waiting on is **LANDED** (storage-A Phases 0–3, HEAD `888775c`+): the
 2-D sweep + matvec interior cochain is `WavefrontFlux` with typed `seed`=ι_* /
-`absorb`=ι* / `edge_view`. **Sequencing: this G-S work is picked up AFTER Phase 6
-(storage-B, the moving-frontier window) per the user directive** — so re-confirm
-the substrate (incl. whatever Phase 6 changed the `WavefrontFlux` backing to)
-before starting. The `(octant×face)` reflective graph composes as a typed
+`absorb`=ι* / `edge_view`. The `(octant×face)` reflective graph composes as a typed
 `sweep octant → ι* absorb → −B reflect → ι_* seed next octant` on this substrate.
+
+**⭐⭐ SEQUENCING UPDATE (2026-06-04, late) — THIS IS NOW THE NEXT CARVE.** The prior
+"after Phase 6 storage-B" sequencing is SUPERSEDED. Storage-B was found to be a deep
+3-layer carve whose true `O(n²)→O(n)` win needs angular-windowing, which needs a
+**scalar-reducing 2-D SI loop** — which did not exist (2-D eigenvalue SI was NIE; 2-D
+Krylov is full-angular). So **"2-D SI Phase A" was landed first as the gateway**
+(`139c278`→`e65eba0`; a stale-guard removal — see `wavefront_flux_foundation.md` ⭐⭐
+banner + the auto-memory). **The G-S substrate (a live 2-D eigenvalue SI loop)
+therefore NOW EXISTS** — this G-S recovery is the immediate next carve (then
+angular-windowing, then interior-face storage-B).
+
+⚠ **The explorer input below carries a STALE "DRIFT FLAG"** (Q1 claims the SI inner
+passes a bare `self.scattering_op` at `solver.py:571`). That is WRONG/stale — re-read
++ grep this session confirm all 3 inner drivers pass `self._scattering_with_boundary_op`
+(the `S+B` fold; `_solve_source_iteration` at ~`solver.py:653`). Treat the `S+B` fold
+as the live reflective-coupling site.
 
 **Design inputs (read these):**
 - test-architect: `.claude/agent-memory/test-architect/si_gauss_seidel_rate_recovery_verification_spec.md`
-- explorer: `.claude/agent-memory/explorer/sn_si_reflective_gauss_seidel_recovery_surface.md`
+- explorer: `.claude/agent-memory/explorer/sn_si_reflective_gauss_seidel_recovery_surface.md` (see the stale-DRIFT-FLAG caveat above)
 
 ---
 
