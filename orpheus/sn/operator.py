@@ -1360,8 +1360,9 @@ class StreamingOperator(LinearOperatorMixin):
         delivers exactly ``psi.boundary.inflow`` to the wavefront. The
         reflective coupling ``psi.inflow = B·psi.outflow`` is delivered by the
         sibling ``-B`` (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`),
-        already folded into the 2-D Krylov composed matvec via
-        ``_scattering_with_boundary_op``. The output boundary is the
+        a first-class coupling gain in the 2-D Krylov composed matvec (Wave O
+        O.2a — ``_within_group_triple`` returns ``(L+C, S, B)``). The output
+        boundary is the
         boundary-block residual (active trace), mirroring the 1-D
         ``L_full.apply`` template: OUTFLOW ordinate slots carry the
         self-consistency defect ``streamed − psi.outflow``; INFLOW ordinate

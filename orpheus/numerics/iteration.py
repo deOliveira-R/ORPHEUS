@@ -126,7 +126,6 @@ from .operator import (
     CAP_SOLVE,
     LinearOperator,
     MissingCapability,
-    ZeroOperator,
 )
 
 
@@ -282,16 +281,25 @@ def _default_keff_estimator(
 
 
 class SourceIteration:
-    r"""Fixed-point iteration for :math:`(L - S - F)\,\psi = q_{\rm ext}`.
+    r"""Fixed-point iteration for :math:`\bigl(L - \sum_i g_i\bigr)\,\psi =
+    q_{\rm ext}`.
 
-    Solves the within-group fixed-source equation in its operator-
-    algebra form.  Each iteration applies :math:`L^{-1}` to a
-    right-hand-side built from the current iterate plus the external
-    source:
+    Solves the loss equation in its operator-algebra form: the invertible
+    loss operator :math:`L` (the resolvent) minus a sum of lagged coupling
+    operators :math:`g_i`.  Each iteration applies :math:`L^{-1}` to a
+    right-hand-side built from the current iterate's couplings plus the
+    external source:
 
     .. math::
 
-        \psi_{n+1} \;=\; L^{-1}\,(S\,\psi_n + F\,\psi_n + q_{\rm ext}).
+        \psi_{n+1} \;=\; L^{-1}\Bigl(\sum_i g_i\,\psi_n + q_{\rm ext}\Bigr).
+
+    The driver is problem-type-AGNOSTIC — it sees only the resolvent and
+    a homogeneous bag of couplings.  WHICH operators are couplings is a
+    posing-layer decision (see :ref:`eigenvalue-posing`): SN within-group
+    passes the scattering ``S`` and the boundary reflection ``B`` (the
+    within-group fission is zero, entering via ``q_ext``); a scattering-
+    only synthetic problem passes a single gain.
 
     The :math:`L^{-1}` action is read off ``L.solve`` directly.  The
     caller controls the inverse step by constructing ``L`` with the
@@ -313,21 +321,20 @@ class SourceIteration:
     Parameters
     ----------
     L : LinearOperator
-        Streaming-collision operator.  Must advertise BOTH
-        :pydata:`CAP_APPLY` and :pydata:`CAP_SOLVE` — the iteration
-        step is :math:`\psi_{n+1} = L^{-1}(S\psi_n + F\psi_n +
-        q_{\rm ext})`, so ``L.solve`` is non-negotiable.
-    S : LinearOperator
-        Scattering source operator.  Must advertise
-        :pydata:`CAP_APPLY`.  Pass
-        :class:`~orpheus.numerics.operator.ZeroOperator` for the
-        scattering-free case (the operator advertises ``apply`` so
-        the capability check passes; its action is identically zero).
-    F : LinearOperator
-        Fission source operator.  Must advertise
-        :pydata:`CAP_APPLY`.  Pass
-        :class:`~orpheus.numerics.operator.ZeroOperator` for the
-        fission-free case.
+        Invertible loss operator (the resolvent).  Must advertise BOTH
+        :pydata:`CAP_APPLY` and :pydata:`CAP_SOLVE` — the iteration step
+        is :math:`\psi_{n+1} = L^{-1}\bigl(\sum_i g_i\,\psi_n +
+        q_{\rm ext}\bigr)`, so ``L.solve`` is non-negotiable.  For SN,
+        ``L = L_{\rm streaming} + C_{\rm collision}`` whose ``.solve``
+        IS the WDD sweep.
+    *gains : LinearOperator
+        The lagged coupling operators :math:`g_i` — each must advertise
+        :pydata:`CAP_APPLY`.  They are applied to the current iterate,
+        summed with ``q_ext``, and inverted through ``L`` every step,
+        realising :math:`\bigl(L - \sum_i g_i\bigr)\psi = q_{\rm ext}`.
+        For SN within-group these are the scattering ``S`` and the
+        boundary reflection ``B``.  Zero gains solves ``L\,\psi =
+        q_{\rm ext}`` outright.
     max_iter : int, optional
         Maximum fixed-point iterations.  Default ``1000``.
     tol : float, optional
@@ -337,8 +344,8 @@ class SourceIteration:
     Raises
     ------
     MissingCapability
-        At construction time if ``L`` or ``S`` or ``F`` lacks
-        :pydata:`CAP_APPLY`, or if ``L`` lacks :pydata:`CAP_SOLVE`.
+        At construction time if ``L`` lacks :pydata:`CAP_APPLY` or
+        :pydata:`CAP_SOLVE`, or if any gain lacks :pydata:`CAP_APPLY`.
 
     Notes
     -----
@@ -360,9 +367,7 @@ class SourceIteration:
     def __init__(
         self,
         L: LinearOperator,
-        S: LinearOperator,
-        F: LinearOperator,
-        *,
+        *gains: LinearOperator,
         max_iter: int = 1000,
         tol: float = 1e-8,
     ) -> None:
@@ -374,18 +379,13 @@ class SourceIteration:
                 f"{type(L).__name__} advertises "
                 f"{getattr(L, 'capabilities', frozenset())}."
             )
-        if not _has(S, CAP_APPLY):
-            raise MissingCapability(
-                f"SourceIteration requires {CAP_APPLY!r} on S; "
-                f"{type(S).__name__} advertises "
-                f"{getattr(S, 'capabilities', frozenset())}."
-            )
-        if not _has(F, CAP_APPLY):
-            raise MissingCapability(
-                f"SourceIteration requires {CAP_APPLY!r} on F; "
-                f"{type(F).__name__} advertises "
-                f"{getattr(F, 'capabilities', frozenset())}."
-            )
+        for i, g in enumerate(gains):
+            if not _has(g, CAP_APPLY):
+                raise MissingCapability(
+                    f"SourceIteration requires {CAP_APPLY!r} on every coupling "
+                    f"operator; gain {i} ({type(g).__name__}) advertises "
+                    f"{getattr(g, 'capabilities', frozenset())}."
+                )
         if not _has(L, CAP_SOLVE):
             raise MissingCapability(
                 f"SourceIteration requires {CAP_SOLVE!r} on L — the "
@@ -397,8 +397,7 @@ class SourceIteration:
             )
 
         self.L = L
-        self.S = S
-        self.F = F
+        self.gains = gains
         self.max_iter = int(max_iter)
         self.tol = float(tol)
         # Detect once whether ``L.solve`` accepts ``initial_guess`` —
@@ -461,10 +460,13 @@ class SourceIteration:
         for _ in range(self.max_iter):
             psi_prev = psi
 
-            # Build the RHS of the fixed-point step.  All three
-            # operators are LinearOperators; their .apply contracts
-            # are the only thing this loop touches.
-            rhs = self.F.apply(psi) + self.S.apply(psi) + q_ext
+            # Build the RHS of the fixed-point step: the external source
+            # plus every lagged coupling ``g·ψ_n``.  The gains are
+            # LinearOperators; their .apply contracts are the only thing
+            # this loop touches (for SN within-group: ``S·ψ + B·ψ``).
+            rhs = q_ext
+            for g in self.gains:
+                rhs = rhs + g.apply(psi)
 
             # Apply L^{-1} directly.  Phase-1.2 — the curvilinear
             # Carlson coupled-pole seed and the reflective-BC partner-
@@ -498,34 +500,37 @@ class SourceIteration:
 
 
 class KrylovAcceleration:
-    r"""GMRES on :math:`(L - S - F)\,\psi = q_{\rm ext}` — sibling of
-    :class:`SourceIteration` for the same algebra.
+    r"""GMRES on :math:`\bigl(L - \sum_i g_i\bigr)\,\psi = q_{\rm ext}` —
+    sibling of :class:`SourceIteration` for the same algebra.
 
-    Both primitives solve the same fixed-source equation; they differ
-    in algorithm.  :class:`SourceIteration` lags :math:`(S + F)\,\psi`
-    as the right-hand side and inverts :math:`L` at every step
-    (geometric convergence at rate :math:`\rho(L^{-1}(S+F)) \le
+    Both primitives solve the same loss equation; they differ in
+    algorithm.  :class:`SourceIteration` lags :math:`\sum_i g_i\,\psi` as
+    the right-hand side and inverts :math:`L` at every step (geometric
+    convergence at rate :math:`\rho(L^{-1}\sum_i g_i) \le
     \max\Sigma_s/\Sigma_t`).  :class:`KrylovAcceleration` builds the
-    composed matvec :math:`(L - S - F)\cdot` as a single linear operator
-    and solves it with GMRES, optionally preconditioned by :math:`L^{-1}`
-    (the sweep).  When the scattering ratio :math:`c = \Sigma_s/\Sigma_t`
-    approaches 1, GMRES converges in :math:`\mathcal{O}(\sqrt{\kappa})`
-    matvecs vs source iteration's :math:`\mathcal{O}(1/(1-c))` — the
-    standard transport-Krylov win documented in Adams & Larsen 2002
-    (the SAILOR / preconditioned-Krylov framework).
+    composed matvec :math:`\bigl(L - \sum_i g_i\bigr)\cdot` as a single
+    linear operator and solves it with GMRES, optionally preconditioned
+    by :math:`L^{-1}` (the sweep).  When the scattering ratio :math:`c =
+    \Sigma_s/\Sigma_t` approaches 1, GMRES converges in
+    :math:`\mathcal{O}(\sqrt{\kappa})` matvecs vs source iteration's
+    :math:`\mathcal{O}(1/(1-c))` — the standard transport-Krylov win
+    documented in Adams & Larsen 2002 (the SAILOR / preconditioned-
+    Krylov framework).
 
     Algebra-of-record:
 
     .. math::
 
-        (L - S - F)\,\psi \;=\; q_{\rm ext}.
+        \Bigl(L - \sum_i g_i\Bigr)\,\psi \;=\; q_{\rm ext}.
 
-    The composed matvec is realised as ``L.apply(psi) - S.apply(psi) -
-    F.apply(psi)`` per call — no intermediate :class:`OperatorSum`
-    allocation.  The right-hand side is whatever shape the operator
-    triple consumes; scipy GMRES requires a flat 1-D view internally,
-    so the primitive ravels at the boundary and reshapes the solution
-    back to ``q_ext.shape`` on return.
+    The composed matvec is realised as ``L.apply(psi) - Σ gᵢ.apply(psi)``
+    per call — no intermediate :class:`OperatorSum` allocation.  For SN
+    within-group the gains are the scattering ``S`` and the boundary
+    reflection ``B``, so the matvec IS the honest ``(L+C − S − B)·ψ``.
+    The right-hand side is whatever shape the operators consume; scipy
+    GMRES requires a flat 1-D view internally, so the primitive ravels at
+    the boundary and reshapes the solution back to ``q_ext.shape`` on
+    return.
 
     The ``preconditioner`` parameter (R-1 Step B rename)
     =====================================================
@@ -555,12 +560,18 @@ class KrylovAcceleration:
 
     Parameters
     ----------
-    L, S, F : LinearOperator
-        Operator triple.  Must each advertise :pydata:`CAP_APPLY`.
-        Pass :class:`ZeroOperator` for absent terms (e.g. ``F = Zero``
-        for within-group fixed-source: :class:`KEigenvalue` builds the
-        fission source as an EXTERNAL :math:`q_{\rm ext}` and zeroes
-        the within-group ``F``).
+    L : LinearOperator
+        Invertible loss operator (the resolvent).  Must advertise
+        :pydata:`CAP_APPLY`; if it also advertises :pydata:`CAP_SOLVE`
+        and no ``preconditioner`` is supplied, ``L.solve`` (the sweep)
+        becomes the default GMRES preconditioner.
+    *gains : LinearOperator
+        The coupling operators :math:`g_i` subtracted from ``L`` in the
+        matvec (each must advertise :pydata:`CAP_APPLY`).  For SN within-
+        group these are the scattering ``S`` and the boundary reflection
+        ``B`` (within-group fission is zero — it enters as the EXTERNAL
+        :math:`q_{\rm ext}` per the eigenvalue outer / within-group
+        decomposition).  Zero gains solves ``L\,\psi = q_{\rm ext}``.
     preconditioner : callable or None, optional
         GMRES left preconditioner.  See above.  When ``None`` and
         ``L`` has no :pydata:`CAP_SOLVE`, runs GMRES without
@@ -578,13 +589,13 @@ class KrylovAcceleration:
     Raises
     ------
     MissingCapability
-        At construction time if any of ``L``, ``S``, ``F`` lacks
+        At construction time if ``L`` or any gain lacks
         :pydata:`CAP_APPLY`.
 
     Notes
     -----
-    The primitive is shape-agnostic at the operator-triple level — it
-    only requires that the operators all consume and return arrays of
+    The primitive is shape-agnostic at the operator level — it only
+    requires that ``L`` and the gains all consume and return arrays of
     the same shape as ``q_ext``.  Internally it ravels to 1-D for
     scipy's GMRES requirement and reshapes the solution to
     ``q_ext.shape`` on return.
@@ -593,9 +604,7 @@ class KrylovAcceleration:
     def __init__(
         self,
         L: LinearOperator,
-        S: LinearOperator,
-        F: LinearOperator,
-        *,
+        *gains: LinearOperator,
         preconditioner: Preconditioner | None = None,
         max_iter: int = 1000,
         tol: float = 1e-8,
@@ -607,22 +616,16 @@ class KrylovAcceleration:
                 f"{type(L).__name__} advertises "
                 f"{getattr(L, 'capabilities', frozenset())}."
             )
-        if not _has(S, CAP_APPLY):
-            raise MissingCapability(
-                f"KrylovAcceleration requires {CAP_APPLY!r} on S; "
-                f"{type(S).__name__} advertises "
-                f"{getattr(S, 'capabilities', frozenset())}."
-            )
-        if not _has(F, CAP_APPLY):
-            raise MissingCapability(
-                f"KrylovAcceleration requires {CAP_APPLY!r} on F; "
-                f"{type(F).__name__} advertises "
-                f"{getattr(F, 'capabilities', frozenset())}."
-            )
+        for i, g in enumerate(gains):
+            if not _has(g, CAP_APPLY):
+                raise MissingCapability(
+                    f"KrylovAcceleration requires {CAP_APPLY!r} on every "
+                    f"coupling operator; gain {i} ({type(g).__name__}) "
+                    f"advertises {getattr(g, 'capabilities', frozenset())}."
+                )
 
         self.L = L
-        self.S = S
-        self.F = F
+        self.gains = gains
         self.max_iter = int(max_iter)
         self.tol = float(tol)
         self.restart = int(restart)
@@ -687,11 +690,14 @@ class KrylovAcceleration:
 
         def A_matvec(psi_flat: np.ndarray) -> np.ndarray:
             # Lift back to the typed (or shaped) carrier, compose
-            # (L − S − F)·ψ, ravel.  Operator arithmetic propagates
-            # via dunders to ``.boundary`` (AngularFlux) or just the
-            # ndarray (bare).
+            # (L − Σ gᵢ)·ψ, ravel.  Operator arithmetic propagates via
+            # dunders to ``.boundary`` (AngularFlux) or just the ndarray
+            # (bare).  For SN within-group the gains are S and B, so this
+            # IS the honest (L+C − S − B)·ψ matvec.
             psi = _unravel_like(solution_template, psi_flat)
-            out = self.L.apply(psi) - self.S.apply(psi) - self.F.apply(psi)
+            out = self.L.apply(psi)
+            for g in self.gains:
+                out = out - g.apply(psi)
             return _ravel(out)
 
         A_scipy = spla.LinearOperator((n, n), matvec=A_matvec, dtype=float)
@@ -917,14 +923,14 @@ class KEigenvalue:
             else _default_production_estimator
         )
 
-        # Build the inner fixed-source resolvent ONCE.  Its operator triple is
-        # (L, S, ZeroOperator) — the within-group fission is zero at the inner
-        # level because F·ψ/k is the EXTERNAL source the outer power iteration
-        # feeds in, NOT a within-group fixed-point term.  Constructing it here
-        # validates L's apply+solve and S's apply at construction time, NEVER
-        # mid-iteration.
+        # Build the inner fixed-source resolvent ONCE.  Its single coupling
+        # gain is the scattering ``S`` — the within-group fission is zero at the
+        # inner level because F·ψ/k is the EXTERNAL source the outer power
+        # iteration feeds in, NOT a within-group fixed-point term.  Constructing
+        # it here validates L's apply+solve and S's apply at construction time,
+        # NEVER mid-iteration.
         self._inner = SourceIteration(
-            self.L, self.S, ZeroOperator(),
+            self.L, self.S,
             max_iter=self.max_inner, tol=self.inner_tol,
         )
         # F (the outer eigen-operator F·ψ) needs apply.
@@ -942,12 +948,15 @@ class KEigenvalue:
     #
     # KEigenvalue realizes the method-agnostic
     # :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` boundary from its
-    # (L, S, F) operator triple — the k-eigenvalue posing A_loss = L+C−S−B
-    # (the ``L`` slot), S + B (the ``S`` slot), eigen-operator M = F, k = μ —
-    # then delegates the outer loop to the canonical ``power_iteration``
-    # algorithm.  There is ONE power-iteration loop in the codebase
-    # (Cardinal Rule 2): KEigenvalue and SNSolver are both implementers of
-    # this boundary, not parallel engines.
+    # (L, S, F) operator triple — the k-eigenvalue posing A_loss = L − S (the
+    # resolvent ``L`` minus the scattering coupling ``S``), eigen-operator
+    # M = F, k = μ — then delegates the outer loop to the canonical
+    # ``power_iteration`` algorithm.  (The SN production path poses the same
+    # standard form via :func:`~orpheus.sn.solver._within_group_triple`, which
+    # adds the boundary reflection ``B`` as a second coupling gain so
+    # A_loss = L+C − S − B.)  There is ONE power-iteration loop in the codebase
+    # (Cardinal Rule 2): KEigenvalue and SNSolver are both implementers of this
+    # boundary, not parallel engines.
 
     def initial_flux_distribution(self) -> np.ndarray:
         """Return the caller-supplied initial flux guess (set by :meth:`solve`)."""
@@ -966,9 +975,9 @@ class KEigenvalue:
 
         Warm-started from the previous outer iterate (``flux_distribution``) to
         amortise the inner cost across outer iterations — the same pattern
-        :meth:`SNSolver._solve_source_iteration` uses.  The inner triple
-        ``(L, S, ZeroOperator)`` has zero within-group fission because the
-        eigen-source ``F·ψ/k`` is the EXTERNAL ``q``, not a within-group term.
+        :meth:`SNSolver._solve_source_iteration` uses.  The inner solve has a
+        single coupling gain ``S`` (zero within-group fission — the eigen-source
+        ``F·ψ/k`` is the EXTERNAL ``q``, not a within-group term).
         """
         psi, _inner_residuals = self._inner.solve(
             fission_source, initial_guess=flux_distribution,

@@ -112,57 +112,68 @@ def _zero_within_group_fission(psi: "object") -> "object":
 
 
 def _within_group_triple(solver: "SNSolver") -> tuple:
-    r"""The within-group loss-operator triple ``(L + C, S + B, F = 0)``.
+    r"""The within-group loss decomposition ``(L + C, S, B)`` — the invertible
+    resolvent plus its two lagged coupling gains.
 
     Single source of truth (Cardinal Rule 2 / coding-elegance Pattern 2 + 5)
-    for the operator triple EVERY within-group solve consumes — eigenvalue SI
+    for the operators EVERY within-group solve consumes — eigenvalue SI
     (:meth:`SNSolver._solve_source_iteration`), eigenvalue Krylov
     (:meth:`SNSolver._solve_krylov`), fixed-source SI
     (:func:`_solve_fixed_source_si`), and fixed-source Krylov
     (:func:`_solve_fixed_source_krylov`).  The four solves differ ONLY in the
     driver (:class:`SourceIteration` vs :class:`KrylovAcceleration`), the
     ``q_ext`` (fission source vs external source), and the returned contract —
-    NOT in the operator triple.
+    NOT in this decomposition.
+
+    The driver consumes them via the variadic ``Driver(resolvent, *gains)``
+    shape (Wave O #208 O.2a): the matvec is the honest
+    ``(L + C).apply − S.apply − B.apply`` ≡ ``(L + C − S − B)·ψ`` and the SI
+    rhs is ``q_ext + S.apply(ψ) + B.apply(ψ)``.
 
     * ``L + C`` is the :class:`~orpheus.sn.operator.InvertibleOperator`
-      (``.apply`` = matvec, ``.solve`` = the WDD sweep).
-    * ``S + B`` is the scattering-with-boundary fold (Wave O #208,
-      :attr:`SNSolver._scattering_with_boundary_op`): the matvec
-      ``(L + C).apply − (S + B).apply − F.apply`` IS ``(L + C − S − F − B)``,
-      and the SI rhs ``(S + B).apply(ψ) + F.apply(ψ) + q_ext`` carries the
-      reflective inflow ``B·ψ.outflow`` in ``rhs.boundary`` (which the bare
-      ``(L + C).solve`` sweep reads as the inflow seed).  ``B`` cannot join the
-      ``L + C`` preconditioner — :class:`OperatorSum` drops ``CAP_SOLVE``.
-    * ``F = 0`` — within-group fission is zero; the fission source enters as
-      ``q_ext`` per the eigenvalue outer / within-group decomposition.
+      (``.apply`` = matvec, ``.solve`` = the WDD sweep) — the resolvent.
+    * ``S`` (:class:`~orpheus.sn.scattering.ScatteringOperator`) is the BULK
+      scattering coupling.  Producer-side ``/W`` normalisation (R-1 Step 4 A1)
+      lives inside :meth:`ScatteringOperator.apply`; no consumer-side rescale.
+    * ``B`` (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`) is the
+      BOUNDARY reflective coupling, delivered as a SEPARATE first-class gain
+      (Wave O #208 O.2a — the transitional ``S + B`` fold is RETIRED).  Its
+      ``B·ψ.outflow`` lands on ``rhs.boundary``, which the bare
+      ``(L + C).solve`` sweep reads as the inflow seed.  ``B`` stays separate
+      from ``S`` because it lives on the trace — it cannot join the ``L + C``
+      preconditioner (:class:`OperatorSum` drops ``CAP_SOLVE``) and the
+      cosine-weighted ``|Ω·n|·w`` adjoint metric (Wave O O.2) lives on ``B``'s
+      trace domain, not the bulk.
 
-    Producer-side ``/W`` normalisation (R-1 Step 4 A1) lives inside
-    :meth:`ScatteringOperator.apply`; no consumer-side rescale.
+    Within-group fission is zero (it enters as ``q_ext`` per the eigenvalue
+    outer / within-group decomposition), so there is no fission gain here.
     """
     from .operator import CollisionOperator, StreamingOperator
-    from orpheus.numerics.operator import ZeroOperator
+    from .boundary_operator import SNBoundaryOperator
 
     sn_mesh = solver.sn_mesh
     L = StreamingOperator(sn_mesh, solver.mat_xs.total_cross_section)
     C = CollisionOperator(sn_mesh, solver.mat_xs.total_cross_section)
     return (
         L + C,
-        solver._scattering_with_boundary_op,
-        ZeroOperator(codomain_zero=_zero_within_group_fission),
+        solver.scattering_op,
+        SNBoundaryOperator(sn_mesh),
     )
 
 
 def _within_group_krylov(
-    LC: "object", S_plus_B: "object", F: "object",
-    *, n_dof: int, max_iter: int, tol: float,
+    LC: "object", *gains: "object",
+    n_dof: int, max_iter: int, tol: float,
 ):
-    r"""GMRES driver on the within-group loss operator ``(L + C − S − F − B)``.
+    r"""GMRES driver on the within-group loss operator ``(L + C − S − B)``.
 
     Single source of truth (Cardinal Rule 2 / Phase 1 R2) for the
     :class:`~orpheus.numerics.iteration.KrylovAcceleration` construction shared
     by the eigenvalue (:meth:`SNSolver._solve_krylov`) and fixed-source
     (:func:`_solve_fixed_source_krylov`) Krylov paths — they previously built
-    byte-identical instances.
+    byte-identical instances.  ``*gains`` are the lagged couplings (the
+    scattering ``S`` and boundary reflection ``B`` from
+    :func:`_within_group_triple`); the matvec is ``LC.apply − Σ gᵢ.apply``.
 
     GMRES is UNPRECONDITIONED (explicit identity) per `issue #200
     <https://github.com/deOliveira-R/ORPHEUS/issues/200>`_ (the block-inverse
@@ -173,7 +184,7 @@ def _within_group_krylov(
     from orpheus.numerics.iteration import KrylovAcceleration
 
     return KrylovAcceleration(
-        LC, S_plus_B, F,
+        LC, *gains,
         preconditioner=lambda q: q,  # explicit identity — issue #200 tracks re-enable
         tol=tol, max_iter=max_iter,
         restart=n_dof,
@@ -403,50 +414,6 @@ class SNSolver:
             )
             self.sn_mesh._coll_cache = self.coll_cache  # type: ignore[attr-defined]
 
-    @property
-    def _scattering_with_boundary_op(self):
-        r"""The scattering operator folded with the realized boundary law ``B``.
-
-        Wave O (#208) BC-extraction: the canonical SN loss is
-        ``(L + C − S − F − B)`` where ``B`` (the realized reflective / albedo /
-        white law) is a first-class sibling of ``L``. ``B`` CANNOT join the
-        preconditioner ``L + C`` — :class:`~orpheus.numerics.operator.OperatorSum`
-        does not propagate ``CAP_SOLVE``, so ``L + C − B`` would strip the
-        ``.solve`` (sweep) the Krylov preconditioner / SI splitting needs. ``B``
-        therefore folds into the **subtracted** ``S`` argument of the iteration
-        drivers, whose matvec is ``L.apply − S.apply − F.apply``: passing
-        ``S + B`` makes that ``(L + C).apply − (S + B).apply − F.apply
-        = (L + C − S − F − B)``. The reflective inflow trace is then driven by
-        the boundary consistency residual ``ψ.inflow − B·ψ.outflow`` instead of
-        the intra-sweep ``bc.apply`` re-application (the deleted keystone).
-
-        The :class:`OperatorSum` domain-compatibility check skips because
-        ``ScatteringOperator.domain`` is ``None`` (it predates function-space
-        tagging) — the check fires only when BOTH operands declare non-``None``
-        domains that differ, so it is symmetric in the operands and the sum
-        order is irrelevant here (``B + S`` would skip identically).
-        **O.2 forcing function / tripwire:** the moment ``ScatteringOperator``
-        gains a ``domain`` (the typing wave will give it one), this fold throws
-        ``IncompatibleOperatorComposition`` at construction — ``S`` (bulk space)
-        and ``B`` (trace space) live on different function spaces. That failure
-        IS the signal to land the honest composition (drivers consuming the
-        whole loss operator ``L+C−S−F−B`` on the direct-sum carrier) — Wave O
-        step O.2. Single source of truth for the ``S + B`` fold (Cardinal
-        Rule 2): every Krylov site + the eigenvalue SI driver reads this.
-
-        TWIN ROUTE (same ``−B`` coupling, different plumbing): the SI/Krylov
-        DRIVER path delivers ``B·ψ.outflow`` through ``rhs.boundary`` via this
-        fold; the DIRECT fixed-source loops + the final eigenvalue
-        reconstruction sweep — which have no driver to fold into — deliver it
-        via :func:`_reflect_outflow_into_inflow` instead. Both call the
-        identical :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`
-        (``B`` is single-sourced); only the seed-delivery plumbing differs. The
-        two routes COLLAPSE at O.2 (drivers take ``L+C−S−F−B`` directly, the
-        direct loops route through the driver, the helper retires).
-        """
-        from orpheus.sn.boundary_operator import SNBoundaryOperator
-        return self.scattering_op + SNBoundaryOperator(self.sn_mesh)
-
     def initial_flux_distribution(self) -> np.ndarray:
         """Initial scalar flux guess: ones(ng, nx, ny).
 
@@ -640,15 +607,15 @@ class SNSolver:
         (Wave O "2-D SI Phase A", 2026-06-04).  The 2-D Cartesian
         eigenvalue SI inner is geometry-agnostic: it is the structural
         twin of :meth:`_solve_krylov` (the live 2-D eigenvalue path) —
-        identical composite RHS, identical operator triple
-        (``LC = StreamingOperator + CollisionOperator``,
-        ``self._scattering_with_boundary_op`` for the ``S + B`` fold,
-        zero within-group fission), identical
+        identical composite RHS, identical loss decomposition
+        (``LC = StreamingOperator + CollisionOperator`` plus the
+        scattering ``S`` and boundary ``B`` coupling gains —
+        :func:`_within_group_triple`, zero within-group fission), identical
         ``psi_typed.bulk.integrate_angular()`` reduction — differing
         ONLY in the driver (:class:`SourceIteration` vs
         :class:`KrylovAcceleration`), and neither driver carries any
         geometry dependence.  The reflective coupling rides the BARE
-        sweep via the ``S + B`` fold on the 4-face
+        sweep via the ``B`` coupling gain on the 4-face
         :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
         (:class:`SNBoundaryOperator` is natively 4-face —
         xmin/xmax/ymin/ymax — and is the SAME operator the working 2-D
@@ -700,10 +667,10 @@ class SNSolver:
         # Wave O (#208) O.4a.2 — the partner-flux seeding
         # (``boundary = self._boundary_flux``) is RETIRED: the reflective
         # inflow is no longer pre-staged into the source.  It is driven by
-        # the sibling ``−B`` folded into the subtracted ``S`` argument
-        # (``self._scattering_with_boundary_op``): each SI iterate adds
-        # ``B·ψ.outflow`` to ``rhs.boundary``, which ``(L+C).solve``'s bare
-        # sweep reads as the inflow seed (operator.py
+        # the sibling ``−B`` delivered as a SEPARATE coupling gain (O.2a —
+        # ``_within_group_triple`` returns ``(L+C, S, B)``): each SI iterate
+        # adds ``B·ψ.outflow`` to ``rhs.boundary``, which ``(L+C).solve``'s
+        # bare sweep reads as the inflow seed (operator.py
         # ``_solve_timed_full_field`` seeds from ``rhs.boundary``).  The
         # boundary inflow is thus a live solved unknown carried in
         # ``ψ.boundary``, not an externally-recomputed partner trace.
@@ -721,9 +688,9 @@ class SNSolver:
         # ── Build the within-group operator triple (single source of
         # truth — ``_within_group_triple``; shared with the Krylov and
         # fixed-source paths). ───────────────────────────────────────
-        LC, S_plus_B, F = _within_group_triple(self)
+        LC, S, B = _within_group_triple(self)
         si = SourceIteration(
-            LC, S_plus_B, F,
+            LC, S, B,
             max_iter=self.max_inner, tol=self.inner_tol,
         )
 
@@ -837,9 +804,9 @@ class SNSolver:
         # (single source of truth — ``_within_group_triple`` /
         # ``_within_group_krylov``; shared with the SI and fixed-source
         # paths). ─────────────────────────────────────────────────────
-        LC, S_plus_B, F = _within_group_triple(self)
+        LC, S, B = _within_group_triple(self)
         krylov = _within_group_krylov(
-            LC, S_plus_B, F,
+            LC, S, B,
             n_dof=self.quad.N * self.ng * self.sn_mesh.nx * self.sn_mesh.ny,
             max_iter=self.max_inner, tol=self.inner_tol,
         )
@@ -1023,13 +990,16 @@ def _reflect_outflow_into_inflow(boundary_flux, sn_mesh: SNMesh) -> None:
     it is the same ``R·G`` reflection the pre-extraction sweep applied at entry,
     merely relocated to the caller.
 
-    This is the TWIN of the driver route :meth:`SNSolver._scattering_with_boundary_op`
-    (the ``S + B`` fold): both deliver the SAME ``−B`` coupling via the SAME
-    ``SNBoundaryOperator``, differing only in plumbing (this helper writes the
-    buffer's inflow slots directly; the fold rides ``B·ψ.outflow`` in
-    ``rhs.boundary``). The two COLLAPSE at Wave O step O.2 — when the iteration
-    drivers take the whole loss operator ``L+C−S−F−B`` directly, the direct
-    loops route through the driver and THIS HELPER RETIRES (the removal trigger).
+    This is the TWIN of the driver route: the within-group SI/Krylov drivers
+    deliver the SAME ``−B`` coupling via the SAME
+    :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`, as a first-class
+    coupling gain (Wave O O.2a — :func:`_within_group_triple` returns
+    ``(L+C, S, B)``).  The two differ only in plumbing: this helper writes the
+    buffer's inflow slots directly; the driver's ``B`` gain rides
+    ``B·ψ.outflow`` in ``rhs.boundary``.  The DRIVER route no longer needs this
+    helper (O.2a collapsed it); it survives ONLY for the final eigenvalue
+    reconstruction sweep (which has no driver to route through) + Phase 3's
+    octant-restricted Gauss-Seidel variant.
     """
     from orpheus.sn.boundary_operator import SNBoundaryOperator
 
@@ -1393,13 +1363,14 @@ def _solve_fixed_source_si(
     scattering source each iterate via ``_add_scattering_source`` +
     ``_add_n2n_source`` + ``_build_aniso_scattering`` and drove ``−B`` through
     :func:`_reflect_outflow_into_inflow` — both are now subsumed by the
-    primitive's ``(S + B).apply(ψ_n)``:
+    primitive's coupling gains ``S.apply(ψ_n) + B.apply(ψ_n)``:
     :meth:`ScatteringOperator.apply` (the ``TimedFullField`` branch)
     recomputes the IDENTICAL ``(P0 in-scatter + (n,2n))/W + Pℓ`` bulk source,
-    and the ``S + B`` fold (:attr:`SNSolver._scattering_with_boundary_op`)
-    delivers the reflective ``B·ψ.outflow`` through ``rhs.boundary`` which
-    the bare ``(L + C).solve`` sweep reads as the inflow seed (single source
-    of truth — Cardinal Rule 2).  The whole-trace
+    and the boundary gain ``B``
+    (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`, a first-class
+    coupling in :func:`_within_group_triple`) delivers the reflective
+    ``B·ψ.outflow`` through ``rhs.boundary`` which the bare ``(L + C).solve``
+    sweep reads as the inflow seed (single source of truth — Cardinal Rule 2).  The whole-trace
     :func:`_reflect_outflow_into_inflow` route is no longer needed on this
     path; it survives for the eigenvalue reconstruction sweep + Phase 3's
     octant-restricted Gauss-Seidel variant.
@@ -1448,9 +1419,9 @@ def _solve_fixed_source_si(
 
     # ── Build the within-group operator triple (single source of truth —
     # ``_within_group_triple``; identical to the eigenvalue inner). ────
-    LC, S_plus_B, F = _within_group_triple(solver)
+    LC, S, B = _within_group_triple(solver)
     si = SourceIteration(
-        LC, S_plus_B, F,
+        LC, S, B,
         max_iter=max_inner, tol=inner_tol,
     )
 
@@ -1604,9 +1575,9 @@ def _solve_fixed_source_krylov(
     # ── Build the within-group operator triple + Krylov driver (single
     # source of truth — ``_within_group_triple`` / ``_within_group_krylov``;
     # shared with the eigenvalue Krylov + SI paths). ──────────────────
-    LC, S_plus_B, F = _within_group_triple(solver)
+    LC, S, B = _within_group_triple(solver)
     krylov = _within_group_krylov(
-        LC, S_plus_B, F,
+        LC, S, B,
         n_dof=N * ng * nx * ny,
         max_iter=max_inner, tol=inner_tol,
     )

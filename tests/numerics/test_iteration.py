@@ -357,22 +357,35 @@ def test_krylov_acceleration_requires_apply_on_L():
 
 
 @pytest.mark.foundation
-def test_krylov_acceleration_requires_apply_on_S():
+def test_krylov_acceleration_requires_apply_on_first_coupling():
+    """A coupling gain without apply → MissingCapability at construction.
+
+    Wave O #208 O.2a: the drivers take the variadic ``(L, *gains)`` shape; the
+    per-gain apply check names the offending gain by index (the legacy
+    ``S``/``F`` named slots are retired).
+    """
     class BrokenS:
         capabilities = frozenset()
 
     L = MatrixOperator(np.eye(3), can_solve=True)
-    with pytest.raises(MissingCapability, match=r"requires 'apply' on S"):
+    with pytest.raises(
+        MissingCapability,
+        match=r"requires 'apply' on every coupling operator; gain 0",
+    ):
         KrylovAcceleration(L, BrokenS(), ZeroOperator())
 
 
 @pytest.mark.foundation
-def test_krylov_acceleration_requires_apply_on_F():
+def test_krylov_acceleration_requires_apply_on_later_coupling():
+    """A broken gain at a non-zero index is caught and named by its index."""
     class BrokenF:
         capabilities = frozenset()
 
     L = MatrixOperator(np.eye(3), can_solve=True)
-    with pytest.raises(MissingCapability, match=r"requires 'apply' on F"):
+    with pytest.raises(
+        MissingCapability,
+        match=r"requires 'apply' on every coupling operator; gain 1",
+    ):
         KrylovAcceleration(L, ZeroOperator(), BrokenF())
 
 
