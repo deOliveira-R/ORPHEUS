@@ -6395,9 +6395,10 @@ infinite medium with isotropic scattering, this radius equals the
 scattering ratio :math:`c = \Sigma_s/\Sigma_t` — convergence is
 geometric at rate :math:`c` (Lewis & Miller §4.4).
 
-The convergence test mirrors the legacy
-:meth:`SNSolver._solve_source_iteration` exactly so Round 2's bit-
-identical wiring is straightforward:
+The convergence test is the relative L2 residual on the iterate — the
+same metric :meth:`SNSolver._solve_source_iteration` uses, since that
+within-group inner now consumes this primitive directly (Phase 1 R1,
+via the ``_within_group_triple`` single-source-of-truth helper):
 
 .. math::
 
@@ -6409,10 +6410,14 @@ with the iteration breaking when :math:`{\rm res}_n < {\rm tol}`.
 KEigenvalue: outer power iteration
 -----------------------------------
 
-:class:`~orpheus.numerics.iteration.KEigenvalue` solves the
-eigenvalue problem by classical power iteration on the outer
+:class:`~orpheus.numerics.iteration.KEigenvalue` poses the
+k-eigenvalue problem from its operator triple and **delegates** the
+outer loop to the canonical
+:func:`~orpheus.numerics.eigenvalue.power_iteration` (one loop engine;
+see :ref:`eigenvalue-posing`).  Each outer step (run by
+``power_iteration``) is classical power iteration on the
 :math:`k`-update, with :class:`SourceIteration` driving the inner
-fixed-source solve at each step:
+fixed-source solve:
 
 .. math::
 
@@ -6440,9 +6445,11 @@ The default ``keff_estimator`` is the generic Rayleigh quotient
 which holds for any operator triple where the action carries the
 volume measure.  SN consumers that need explicit volume weighting
 (matching :meth:`SNSolver.compute_keff`) supply a custom
-``keff_estimator`` callable; this is the load-bearing way Round 2
-preserves bit-identity with the legacy
-:func:`~orpheus.numerics.eigenvalue.power_iteration` path.
+``keff_estimator`` callable.  This is the K-specific volume-weighting
+hook: relocating it into the algorithm as a Rayleigh update on the
+resolvent :math:`A_{\rm loss}^{-1}M` (so the loop is *literally*
+K/α-agnostic) is the α-eigenvalue wave's first step — see the
+:ref:`eigenvalue-posing` honest-scope note.
 
 The ``inverter`` parameter — closing ERR-026
 ---------------------------------------------
@@ -6525,38 +6532,73 @@ Cross-references
   :math:`1/k` division (the eigenvalue scaling stays at the outer
   level, see the FissionOperator module docstring for the
   rationale).
-* "SNSolver as an operator-algebra coordinator" — Round 2 will
-  add this section once the SN solver is wired to consume the
-  primitives directly.
+* :ref:`sn-solver-operator-algebra-coordinator` — how the SN solver
+  consumes :class:`SourceIteration` / :class:`KrylovAcceleration`
+  directly through the within-group SSoT helpers.
+* :ref:`eigenvalue-posing` — the method-agnostic four-layer
+  architecture: where :func:`power_iteration` (the canonical Layer-4
+  engine), the K-row posing, and the resolvent inner solve sit, and
+  the :math:`\alpha`/adjoint/transient/full-spectrum future seams.
 
-.. _cross-solver-migration-sequence:
+.. _cross-solver-eigenvalue-consumers:
 
-Cross-solver migration sequence
--------------------------------
+Cross-solver consumers of ``power_iteration``
+---------------------------------------------
 
-The legacy :func:`orpheus.numerics.eigenvalue.power_iteration`
-function and the :class:`EigenvalueSolver` Protocol are deprecated
-for new SN code (the deprecation warning fires once at module
-import).  They stay functional through the cross-solver migration
-sequence:
+:func:`orpheus.numerics.eigenvalue.power_iteration` is the
+**canonical** Layer-4 power-method algorithm — NOT a legacy
+primitive.  It iterates over the method-agnostic
+:class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` Protocol
+boundary (the *late-bound* resolvent layer), which is **strictly more
+general** than the operator-triple form: it admits both the
+:math:`(L, S, F)`-triple resolvent (SN, MoC) *and* the
+**monolithic-matrix resolvent** (CP, diffusion, homogeneous) that has
+no separable :math:`(L-S)^{-1}` factor.  All five solver families are
+therefore **co-consumers of the same canonical boundary**, each
+supplying its own ``EigenvalueSolver``-Protocol realization of the
+Layer-3 resolvent.  There is no migration to a single ``KEigenvalue``
+engine — and no retirement of ``power_iteration`` — because no narrower
+layer can express the no-triple families without manufacturing
+fictitious :math:`L`, :math:`S` operators for methods that have no
+sweep.  See :ref:`eigenvalue-posing` for the full four-layer
+architecture and why the Protocol layer is canonical.
 
-* **CP** (collision-probability) — Issue TBD.  CP currently uses
-  :func:`power_iteration` with its own
-  ``EigenvalueSolver``-Protocol implementation.  Migration lifts
-  CP onto an :math:`L`-equivalent collision-probability matrix
-  operator + :class:`KEigenvalue`.
-* **Diffusion** — Issue TBD.  The diffusion solver's BiCGSTAB
-  inner loop is already a Krylov method; migration wraps it as an
-  :math:`L^{-1}` ``inverter`` callable.
-* **MoC** (method of characteristics) — Issue TBD.  MoC's track-
-  based inner sweep maps onto :math:`L^{-1}` via the same
-  facade pattern :class:`InvertibleOperator.solve` uses.
-* **Homogeneous** — Issue TBD.  Already a direct linear solve;
-  migration is mostly cosmetic.
+* **SN** (discrete ordinates) — drives ``power_iteration`` directly
+  via :func:`~orpheus.sn.solver.solve_sn`; its Layer-3 resolvent is
+  the within-group :class:`SourceIteration` /
+  :class:`KrylovAcceleration` inner solve built from the
+  :func:`_within_group_triple` SSoT (see
+  :ref:`sn-solver-operator-algebra-coordinator`).
+* **CP** (collision-probability) — drives ``power_iteration`` through
+  its own ``EigenvalueSolver``-Protocol implementation; its resolvent
+  is **one BiCGSTAB on a monolithic collision-probability matrix**,
+  which has no :math:`(L, S, F)` split.  This is exactly the family
+  the late-bound Protocol layer exists to admit.
+* **Diffusion** — drives ``power_iteration`` with a finite-difference
+  resolvent; the BiCGSTAB inner loop *is* the
+  :math:`A_{\rm loss}^{-1}` action.
+* **MoC** (method of characteristics) — drives ``power_iteration``
+  with a track-based inner sweep as its resolvent, via the same
+  late-bound boundary :class:`InvertibleOperator.solve` exposes.
+* **Homogeneous** — drives ``power_iteration`` over a direct linear
+  solve; the analytical
+  :func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`
+  is the closed-form algebra-of-record this family also realizes.
 
-Each consumer's wave will land separately to keep regressions
-isolated.  When the last consumer migrates, :func:`power_iteration`
-and :class:`EigenvalueSolver` retire.
+The :class:`~orpheus.numerics.iteration.KEigenvalue` adapter is **one
+Layer-2b implementer** of this boundary, for callers who *have* a
+natural :math:`(L, S, F)` triple and want to skip writing a full
+solver class; its :meth:`~orpheus.numerics.iteration.KEigenvalue.solve`
+delegates its loop to ``power_iteration`` (one engine — see the
+same-morphism analysis in :ref:`eigenvalue-posing`).  Making the
+Layer-4 loop *literally* K/α-agnostic — relocating the eigenvalue
+scaling out of the K-specific
+:meth:`~orpheus.numerics.eigenvalue.EigenvalueSolver.compute_keff` and
+renaming the K-flavoured Protocol methods to ``eigen_operator`` /
+``mu_to_eigenvalue`` — touches all five families' Protocol surface and
+is the **first step of the α-wave**, deferred under *unify-after-two*
+because only the k-row exists today (the α-generic agnostic relocation
+future seam, :ref:`eigenvalue-posing`).
 
 References for iteration primitives
 ------------------------------------
@@ -6573,7 +6615,7 @@ References for iteration primitives
   for discrete-ordinates particle transport calculations.*
   Progress in Nuclear Energy 40 (1), 3–159.  Reviews
   Krylov-on-apply with sweep preconditioning (the ``inverter``
-  hook's Round 2 use case).
+  hook's use case — the ERR-026-closing curvilinear Krylov path).
 
 
 .. _sn-solver-operator-algebra-coordinator:
@@ -6581,8 +6623,7 @@ References for iteration primitives
 SNSolver as an operator-algebra coordinator
 ============================================
 
-Wave E Round 2 (Issue #164) closes the campaign loop by rewriting
-:class:`~orpheus.sn.solver.SNSolver` to consume the operator triple
+:class:`~orpheus.sn.solver.SNSolver` consumes the operator triple
 :math:`(L, S, F)` directly.  At construction time, the solver builds:
 
 * :attr:`SNSolver.L` — :class:`InvertibleOperator` carrying the
@@ -6599,36 +6640,52 @@ under :class:`~orpheus.numerics.operator.OperatorSum` and
 :class:`~orpheus.numerics.operator.OperatorProduct`, and protocol-
 conforming so the iteration primitives in
 :mod:`orpheus.numerics.iteration` consume them without SN-specific
-plumbing.
+plumbing.  The within-group inner solve is built once from a single
+source of truth — the :func:`_within_group_triple` helper assembles
+the within-group :math:`(L+C,\ S+B,\ F=0)` triple, and
+:func:`_within_group_krylov` wraps the matching
+:class:`~orpheus.numerics.iteration.KrylovAcceleration` — and is shared
+verbatim across the eigenvalue source-iteration inner
+(:meth:`SNSolver._solve_source_iteration`), the eigenvalue Krylov inner
+(:meth:`SNSolver._solve_krylov`), and both fixed-source paths.
 
-Adapter, not coordinator
-------------------------
+The within-group inner solve consumes the primitives directly
+-------------------------------------------------------------
 
-:class:`SNSolver` does NOT directly wrap
+:class:`SNSolver`'s within-group inner solve **is** the
 :class:`~orpheus.numerics.iteration.SourceIteration` /
-:class:`~orpheus.numerics.iteration.KEigenvalue` for the fixed-source
-inner solve.  The reason is the Pℓ anisotropic scattering source:
-``ScatteringOperator.build_aniso_source`` requires the **angular
-flux of the previous iteration**, not the scalar flux that
-:class:`SourceIteration` carries.  Threading that angular state
-through the primitive's contract is a future cleanup; Round 2
-preserves bit-identity by replicating :class:`SourceIteration`'s
-loop structure verbatim inside :meth:`SNSolver._solve_source_iteration`
-(the "Approach A" in the
-``.claude/skills/algebra-of-record`` discipline — bit-identity now,
-architectural cleanup follows).
+:class:`~orpheus.numerics.iteration.KrylovAcceleration` primitive — not
+a verbatim replica of its loop.
+:meth:`SNSolver._solve_source_iteration` constructs a
+:class:`SourceIteration` from the :func:`_within_group_triple` SSoT and
+runs it; :meth:`SNSolver._solve_krylov` constructs a
+:class:`KrylovAcceleration` from :func:`_within_group_krylov` and runs
+that.  The Layer-3 resolvent of the SN row in the
+:ref:`eigenvalue-posing` architecture is exactly these primitive
+instances.
 
-The :meth:`SNSolver._solve_krylov` path likewise replicates the
-Krylov-on-:meth:`apply` pattern inline rather than going through
-:class:`SourceIteration` with a custom ``inverter`` hook, for the
-same reason (Pℓ angular state) plus the fact that the GMRES outer
-iteration has its own warm-start machinery (``self._psi_solution``).
+The primitive is **type-agnostic and angular-capable**: it operates on
+the typed :class:`~orpheus.transport.timed_full_field.TimedFullField`
+composite, which carries the full angular flux on its bulk.  Pℓ
+anisotropic scattering therefore rides the angular bulk with no special
+plumbing — :meth:`ScatteringOperator.apply` on a ``TimedFullField``
+reads the angular moments off the composite and builds the anisotropic
+source via :meth:`ScatteringOperator.build_aniso_source`, all inside
+the primitive's normal RHS path.  There is **no scalar-flux
+limitation** and **no pending "Approach A" cleanup**: the earlier
+framing — that :class:`SourceIteration` carried only scalar flux and SN
+had to replicate the loop verbatim until the angular state could be
+threaded through — was a property of an interim scalar-only carrier
+that the typed composite retired.  The
+``.claude/skills/algebra-of-record`` "Branch 2 implements the same
+operator algebra" discipline is satisfied: SN is the discretized
+Branch-2 consumer of the shared primitive, not a parallel loop.
 
 The (L − S − F)·ψ = (1/k)·F·ψ framing at the solver level
 -----------------------------------------------------------
 
-Even without direct :class:`SourceIteration` consumption, the
-:math:`(L, S, F)` framing organises the solver's API surface:
+Beyond driving the within-group inner solve, the :math:`(L, S, F)`
+framing organises the solver's outer API surface:
 
 * :meth:`SNSolver.compute_fission_source` returns
   :math:`F\,\phi/k` — a thin delegator to :meth:`F.apply` with the
@@ -6646,14 +6703,21 @@ Even without direct :class:`SourceIteration` consumption, the
 
 * :meth:`SNSolver.compute_keff` returns
   :math:`\sum F\,\phi\,V / \sum \Sigma_a\,\phi\,V` (the volume-
-  weighted production / absorption ratio); the existing math is
-  preserved verbatim because
-  :meth:`KEigenvalue.solve`'s default Rayleigh-quotient estimator
+  weighted production / absorption ratio); the SN-specific volume
+  weighting lives here rather than in the generic
+  :meth:`KEigenvalue.solve` default Rayleigh-quotient estimator, which
   is volume-blind.
 
-The solver-level :math:`1/k` scaling and volume-weighting hooks
-are exactly the points where SN's specifics live; the rest of the
-solver is operator-algebra coordination.
+The solver-level :math:`1/k` scaling (in
+:meth:`~SNSolver.compute_fission_source`) and the volume-weighted
+eigenvalue estimate (in :meth:`~SNSolver.compute_keff`) are exactly the
+points where SN's specifics live; the rest of the solver is
+operator-algebra coordination over the canonical
+:func:`~orpheus.numerics.eigenvalue.power_iteration` boundary.  These
+two K-specific hooks are also precisely *why* the Layer-4 loop is not
+yet literally K/α-agnostic — relocating the eigenvalue scaling into the
+algorithm is the first step of the α-wave (see the honest-scope caveat
+in :ref:`eigenvalue-posing`).
 
 The eigenvalue :math:`\keff` is determined by **power iteration**: an
 outer loop updates :math:`k` from the production/absorption ratio, with

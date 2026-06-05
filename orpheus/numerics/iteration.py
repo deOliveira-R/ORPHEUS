@@ -17,9 +17,9 @@ the scattering source operator, and :math:`F` is the fission source
 operator (Lewis & Miller §6.4 frame this decomposition; Trefethen &
 Bau 1997 §3.2 give the matrix-free Krylov view).
 
-This module installs **two stand-alone iteration primitives** that
-consume the Wave A :class:`~orpheus.numerics.operator.LinearOperator`
-Protocol and operate on the operator triple :math:`(L, S, F)`:
+This module installs the iteration primitives that consume the Wave A
+:class:`~orpheus.numerics.operator.LinearOperator` Protocol and operate on
+the operator triple :math:`(L, S, F)`:
 
 * :class:`SourceIteration` solves the within-group fixed-source
   problem :math:`(L - S - F)\,\psi = q_{\rm ext}` by a fixed-point
@@ -33,12 +33,18 @@ Protocol and operate on the operator triple :math:`(L, S, F)`:
   :math:`\rho(L^{-1}(S+F)) \le \max_{\rm cell}\,\Sigma_s/\Sigma_t`
   for an SN sweep.  Trefethen & Bau §3.2.
 
-* :class:`KEigenvalue` solves the eigenvalue problem
-  :math:`(L - S)\,\psi = F\,\psi/k` by classical power iteration on
-  the outer :math:`k`-update, with :class:`SourceIteration` driving
-  the inner :math:`(L - S)\,\psi = F\psi_{\rm old}/k_{\rm old}`
-  fixed-source solve at each outer step.  Convergence is governed
-  by the dominance ratio :math:`|k_1/k_0|`.
+* :class:`KEigenvalue` poses the k-eigenvalue problem
+  :math:`(L - S)\,\psi = F\,\psi/k` from its operator triple and
+  **delegates the outer loop** to the canonical
+  :func:`~orpheus.numerics.eigenvalue.power_iteration` algorithm.  It
+  realizes the method-agnostic
+  :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` boundary
+  (``compute_fission_source`` :math:`= F\psi/k`; ``solve_fixed_source``
+  = the inner :class:`SourceIteration` resolvent
+  :math:`(L - S)^{-1}`, warm-started; the keff / production
+  estimators), so there is ONE power-iteration loop in the codebase
+  (Cardinal Rule 2).  Convergence is governed by the dominance ratio
+  :math:`|k_1/k_0|`.
 
 The primitives are deliberately kept **shape-agnostic**.  They make
 no assumption about the rank or layout of :math:`\psi` — only that
@@ -89,15 +95,21 @@ tests have no seed dependency).
 Forward references
 ==================
 
-* :func:`orpheus.numerics.eigenvalue.power_iteration` — the legacy
-  primitive that this module supersedes for new SN code.  Stays
-  alive (with a :class:`DeprecationWarning` on import) through the
-  cross-solver migration sequence (CP, diffusion, MoC,
-  homogeneous).  See :ref:`cross-solver-migration-sequence`.
-* :class:`~orpheus.sn.solver.SNSolver` — Wave E Round 2 wires this
-  class to consume :class:`SourceIteration` / :class:`KEigenvalue`,
-  retiring the per-method delegators (Issue #163's downstream
-  consumer).
+* :func:`orpheus.numerics.eigenvalue.power_iteration` — the
+  **canonical** power-method algorithm over the method-agnostic
+  :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` boundary.
+  :class:`KEigenvalue` is the operator-triple realization of that
+  boundary and delegates its loop there (one engine); the 5 solver
+  families (SN, CP, diffusion, MoC, homogeneous) satisfy the same
+  boundary directly.  The full layered architecture (leaves → posing
+  → resolvent → algorithm; the generalized eigenproblem
+  :math:`A_{\rm loss}\psi = \lambda M\psi`) is documented at
+  :ref:`eigenvalue-posing`.
+* :class:`~orpheus.sn.solver.SNSolver` — consumes
+  :class:`SourceIteration` / :class:`KrylovAcceleration` for its
+  within-group resolvent and satisfies the ``EigenvalueSolver``
+  boundary directly (its eigenvalue outer IS
+  :func:`~orpheus.numerics.eigenvalue.power_iteration`).
 """
 
 from __future__ import annotations
@@ -779,12 +791,27 @@ class KrylovAcceleration:
 
 
 class KEigenvalue:
-    r"""Power iteration for the eigenvalue :math:`(L - S)\,\psi = F\psi/k`.
+    r"""The k-eigenvalue problem :math:`(L - S)\,\psi = F\psi/k`, posed from an
+    operator triple and solved by the canonical ``power_iteration`` loop.
 
-    Outer loop: classical power iteration on :math:`k`.  Each outer
-    step builds the fission source :math:`q_n = F\,\psi_n/k_n`, then
-    drives an inner :class:`SourceIteration` with operator triple
-    :math:`(L, S, 0)` and external source :math:`q_n`:
+    ``KEigenvalue`` is the **operator-triple realization** of the
+    method-agnostic
+    :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` boundary (the
+    Layer-2 k-posing :math:`A_{\rm loss} = L`, :math:`M = F`, :math:`k = \mu`):
+    it exposes the boundary methods (``compute_fission_source``
+    :math:`= F\psi/k`; ``solve_fixed_source`` = the inner
+    :class:`SourceIteration` resolvent :math:`(L - S)^{-1}`, warm-started; the
+    keff / production estimators; ``converged``) and **delegates the outer
+    loop** to :func:`~orpheus.numerics.eigenvalue.power_iteration` — the SINGLE
+    power-iteration loop in the codebase (Cardinal Rule 2).  It is ONE
+    implementer of the boundary alongside the five solver families
+    (SN / CP / diffusion / MoC / homogeneous); it owns no parallel loop.  See
+    :ref:`eigenvalue-posing` for the full layered architecture.
+
+    Each outer step (run by ``power_iteration``) builds the fission source
+    :math:`q_n = F\,\psi_n/k_n`, then drives the inner
+    :class:`SourceIteration` with operator triple :math:`(L, S, 0)` and
+    external source :math:`q_n`:
 
     .. math::
 

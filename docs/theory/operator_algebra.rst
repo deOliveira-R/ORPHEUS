@@ -122,6 +122,26 @@ Key Facts
   composition (``+``, ``-``, ``*``, ``@``) acting on
   :class:`~orpheus.numerics.operator.LinearOperator` instances.
 
+- **The eigenvalue problem is layered into four tiers — leaves,
+  posing, resolvent, algorithm** (2026-06-05, ``650032e`` /
+  ``7603c8e``). The canonical **standard form** is the generalized
+  eigenproblem :math:`A_{\rm loss}\,\psi = \lambda\,M\,\psi`, whose
+  power-method realization is the dominant eigenpair of the
+  **resolvent** :math:`A_{\rm loss}^{-1} M`. The **k-eigenvalue** row
+  is :math:`A_{\rm loss} = L+C-S-B`, :math:`M = F`, :math:`k = \mu`;
+  the :math:`\alpha`-eigenvalue, adjoint, and transient rows are
+  **documented future seams**.
+  :func:`~orpheus.numerics.eigenvalue.power_iteration` is the
+  **canonical Layer-4 algorithm** (NOT deprecated — it is the *more
+  general* layer, binding the resolvent late through the opaque
+  :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` Protocol so it
+  admits monolithic-matrix resolvents that have no :math:`(L,S,F)`
+  triple);
+  :class:`~orpheus.numerics.iteration.KEigenvalue` is the
+  operator-triple realization that *delegates* its loop to it (one
+  loop in the codebase, Cardinal Rule 2). See
+  :ref:`eigenvalue-posing`.
+
 - The :class:`~orpheus.numerics.operator.LinearOperator` Protocol
   carries one mandatory method (``apply``) and a
   ``capabilities: frozenset[str]`` property advertising which optional
@@ -2875,4 +2895,502 @@ The two trace spaces and the
 together close the §16A.1 affine boundary form
 :math:`\gamma_- \psi = R\,G\,\gamma_+ \psi + q` documented in
 detail at :ref:`affine-bc-form`.
+
+
+.. _eigenvalue-posing:
+
+Eigenvalue posing and the power-iteration algorithm
+===================================================
+
+The operator leaves :math:`L, C, S, F, B` documented above are the raw
+material; this section is the **assembly instruction** that turns them
+into a criticality eigenproblem and runs it. The architecture is
+**layered into four tiers**, and the layering is the load-bearing
+design decision: it is what makes the :math:`\alpha`-eigenvalue,
+adjoint, and transient problems land later as *pure additions* (new
+posing data) rather than new solver engines. The corrected layering
+was confirmed by an independent structural analysis (the
+``cross-domain-attacker`` ``eigenvalue_posing_layering_frames`` and
+``power_iteration_vs_keigenvalue_morphism`` memos, 2026-06-04) and
+realized in commits ``650032e`` / ``7603c8e`` (2026-06-05).
+
+.. admonition:: Key Facts (eigenvalue posing)
+   :class: tip
+
+   - **Standard form:** the generalized eigenproblem
+     :math:`A_{\rm loss}\,\psi = \lambda\,M\,\psi`. Its power-method
+     realization is the dominant eigenpair of the **resolvent**
+     :math:`A_{\rm loss}^{-1} M`.
+   - **Krein–Rutman / Perron–Frobenius:** for a compact, positive
+     :math:`A_{\rm loss}^{-1} M` the fundamental mode is the *unique*
+     non-negative eigenvector and the dominant eigenvalue is real and
+     positive — the only physically meaningful steady state. All
+     higher harmonics change sign in space.
+   - **k-eigenvalue (LIVE):** :math:`A_{\rm loss} = L+C-S-B`,
+     :math:`M = F`, :math:`k = \mu`. The dominant eigenvalue of
+     :math:`A_{\rm loss}^{-1} F` is :math:`k_{\rm eff}`.
+   - **Four layers:** operator leaves (method-specific) → problem
+     posing (bifurcated 2a/2b) → resolvent :math:`A_{\rm loss}^{-1}`
+     (method-specific) → solution algorithm (general over the standard
+     form).
+   - **The invariant:** the Layer-4 algorithm sees ONLY a
+     normalized-source fixed-point procedure — *apply* :math:`M`,
+     *solve* :math:`A_{\rm loss}^{-1}`, *normalize*, *estimate* the
+     dominant :math:`\mu`. It never touches the method's operators or
+     sweeps.
+   - :func:`~orpheus.numerics.eigenvalue.power_iteration` is the
+     **canonical** Layer-4 algorithm (the *more general* layer);
+     :class:`~orpheus.numerics.iteration.KEigenvalue` is one Layer-2b
+     implementer that delegates its loop to it. **One loop.**
+
+
+The standard form and its resolvent
+------------------------------------
+
+Discretizing the steady-state transport (or diffusion) equation
+produces a balance between **loss** (streaming + collision − in-group
+scattering − boundary in-scatter) and **production** (fission). Group
+every loss term into a single operator :math:`A_{\rm loss}` and every
+production term into a single **eigen-operator** :math:`M`. The
+criticality condition — that a self-sustaining flux distribution
+exists when production is scaled by :math:`1/\lambda` — is the
+**generalized eigenproblem**
+
+.. (vv-status rationale) The generalized-eigenproblem standard form.
+   The verifiable claim — that the dominant eigenvalue of
+   A_loss⁻¹ M equals k_eff for the k-posing — is anchored against the
+   homogeneous closed-form algebra-of-record
+   (orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous,
+   k = λ_max(A⁻¹F)); the production iteration is the L1/L2 chain of the
+   five family solvers.
+.. vv-status: eigen-standard-form documented
+
+.. math::
+   :label: eigen-standard-form
+
+   A_{\rm loss}\,\psi \;=\; \lambda\,M\,\psi .
+
+Inverting the loss operator turns the generalized eigenproblem into a
+standard one for the **resolvent operator**
+:math:`K_{\rm pm} \equiv A_{\rm loss}^{-1} M`:
+
+.. math::
+   :label: eigen-resolvent
+
+   K_{\rm pm}\,\psi \;=\; \tfrac{1}{\lambda}\,\psi ,
+   \qquad
+   K_{\rm pm} \;\equiv\; A_{\rm loss}^{-1} M .
+
+This is the form every power-method realization actually iterates: one
+outer step is *apply* :math:`M`, then *invert* :math:`A_{\rm loss}`
+(the fixed-source solve), then *renormalize*, then *estimate*
+:math:`\lambda`. The reason the dominant eigenpair is the one the
+iteration converges to — and the reason it is the *physical* one — is
+the **Krein–Rutman theorem** (the infinite-dimensional Perron–Frobenius
+statement): for a compact, positive :math:`K_{\rm pm}`,
+
+* the dominant eigenvalue :math:`\rho(K_{\rm pm})` is real, positive,
+  and simple;
+* its eigenvector is the *unique* eigenvector with no sign changes —
+  i.e. a physically realizable non-negative flux distribution;
+* every higher harmonic changes sign in space and is therefore not a
+  steady reactor state.
+
+Power iteration converges to exactly this fundamental mode, at a rate
+governed by the **dominance ratio** :math:`|\lambda_1/\lambda_0| =
+|k_1/k_0|` (Trefethen & Bau 1997, §27). The dominant K and
+:math:`\alpha` eigenvalues are *extreme* eigenvalues of
+:math:`A_{\rm loss}^{-1} M`, reachable by plain power iteration;
+**shift-invert** :math:`(A_{\rm loss} - \sigma M)^{-1}` is the strict
+generalization needed only for *interior* eigenvalues (higher
+harmonics, FEAST/Arnoldi–Schur), and is a documented future seam, not
+a present need.
+
+.. note::
+
+   The standard form :eq:`eigen-standard-form` is the discrete twin of
+   the algebra-of-record in
+   :func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`,
+   which solves :math:`k = \lambda_{\max}(\mathbf{A}^{-1}\mathbf{F})`
+   with :math:`\mathbf{A} = \mathrm{diag}(\Sigma_t) - (\Sigma_s +
+   2\Sigma_2)^{T}` and :math:`\mathbf{F} = \chi \otimes \nu\Sigma_f`
+   for the homogeneous infinite medium. That closed-form reference is
+   the **structurally-independent** ground (a closed-form analytical
+   pillar, exact in the homogeneous limit; reducing to the 1-group
+   :math:`k = \nu\Sigma_f/\Sigma_a`) against which the production
+   power iteration's converged eigenvalue is verified. The agreement
+   of two ORPHEUS solvers is cross-implementation agreement, not
+   correctness evidence; the closed-form ratio is the anchor.
+
+
+The four layers
+---------------
+
+.. list-table:: The four-tier eigenvalue architecture
+   :header-rows: 1
+   :widths: 6 22 16 56
+
+   * - Layer
+     - Name
+     - Specificity
+     - What lives here
+   * - 1
+     - Operator leaves
+     - method-specific
+     - :math:`L, C, S, F, B` (+ future :math:`T = 1/v`). The
+       :math:`|\Omega\cdot\hat n|\,w` :math:`G`-metric (codomain inner
+       product of :math:`L`'s boundary-trace block) lives HERE and is
+       reused by every posing.
+   * - 2
+     - Problem posing
+     - **bifurcated**
+     - **2a** (method-agnostic): role assignment + the :math:`\mu \to`
+       physical-eigenvalue map — which leaves play :math:`A_{\rm loss}`
+       vs :math:`M`, and how :math:`\mu` maps to :math:`k` / :math:`\alpha`.
+       **2b** (method-specific): how the method assembles and inverts
+       the concrete :math:`A_{\rm loss}` object.
+   * - 3
+     - Resolvent :math:`A_{\rm loss}^{-1}`
+     - method-specific
+     - the fixed-source inner solve. SN:
+       :class:`~orpheus.numerics.iteration.SourceIteration` /
+       :class:`~orpheus.numerics.iteration.KrylovAcceleration`. CP:
+       BiCGSTAB. Diffusion: FD solve. Inverts *whatever*
+       :math:`A_{\rm loss}` the posing produced; independent of problem
+       type.
+   * - 4
+     - Solution algorithm
+     - general over the standard form
+     - eigenvalue-finders (power iteration | full-spectrum Arnoldi /
+       Krylov–Schur | shift-invert / FEAST) over
+       :math:`(A_{\rm loss}^{-1}, M)`; time-integrators (transient)
+       over :math:`(A_{\rm loss}, T, q(t))`.
+
+**Why posing bifurcates (2a vs 2b).** The first-draft architecture
+treated posing as wholly method-agnostic — "just arrange the leaves."
+That is false: the *role assignment* is agnostic, but the *loss-operator
+realization* is method-specific. SN folds the boundary in-scatter
+:math:`B` into the scattering slot (:math:`S + B`) and the streaming +
+collision into the :math:`L + C` slot, consumed as an operator triple
+by the inner solver. CP has **no** :math:`(L, S, F)` split at all — its
+:meth:`solve_fixed_source <orpheus.numerics.eigenvalue.EigenvalueSolver.solve_fixed_source>`
+is one BiCGSTAB on a *monolithic* collision-probability matrix; the
+factor :math:`(L-S)^{-1}` does not exist as a separable object.
+Splitting the posing into
+
+* **2a — role assignment + μ-map** (pure data: a posing-table row), and
+* **2b — loss-operator realization** (the method's concrete assembly),
+
+lets :math:`2a \circ 2b \circ 3 \circ 4` compose cleanly across every
+family. The key consequence:
+:class:`~orpheus.numerics.iteration.KEigenvalue(L, S, F)` is the
+operator-triple **2b realization** — NOT a problem-type layer. Treating
+the operator triple as a "problem type" was the conflation the
+bifurcation removes.
+
+**The invariant (Layer-4 sees only a fixed point).** Layer 4 consumes
+the method-agnostic
+:class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` boundary — a
+normalized-source fixed-point procedure with exactly these moves:
+build the eigen-source from the current flux, solve the resolvent,
+renormalize to unit production rate, estimate the dominant eigenvalue,
+test convergence. It never sees SN sweeps, CP matrices,
+:class:`~orpheus.transport.timed_full_field.TimedFullField` carriers,
+or angular state — those live at Layers 1–3, *below* the boundary. This
+is the abstraction that makes a new problem type a posing-row addition
+rather than an engine rewrite.
+
+
+The posing table
+-----------------
+
+Each row assigns the leaves to roles, gives the eigen-operator, and
+gives the :math:`\mu \to` physical-eigenvalue map. **The k-row is LIVE;
+the rest are documented future seams** — recorded here so a future
+session lands them as pure additions.
+
+.. list-table:: Eigenvalue posing rows (2a — method-agnostic)
+   :header-rows: 1
+   :widths: 16 30 14 26 14
+
+   * - Problem type
+     - :math:`A_{\rm loss}`
+     - eigen-operator :math:`M`
+     - :math:`\mu \to` physical map
+     - Status
+   * - **k-eigenvalue**
+     - :math:`L + C - S - B`
+     - :math:`F`
+     - :math:`k = \mu`
+     - **LIVE**
+   * - :math:`\alpha`-eigenvalue
+     - :math:`L + C - S - F - B`
+     - :math:`T = 1/v`
+     - :math:`\alpha = -1/\mu`
+     - future seam
+   * - adjoint
+     - :math:`A_{\rm loss}^{\dagger}` (daggered row)
+     - :math:`M^{\dagger}`
+     - same :math:`\lambda` as the forward row
+     - future seam
+   * - transient
+     - :math:`A_{\rm loss} + T/\Delta t` (per implicit step)
+     - — (source-driven, not eigen)
+     - — (time integration)
+     - future seam
+
+**The k-row, in full.** For k-eigenvalue criticality the fission
+production is the eigen-operator and *everything else* is loss. The
+resolvent's dominant eigenvalue is :math:`k_{\rm eff}` directly
+(:math:`k = \mu`):
+
+.. math::
+   :label: eigen-k-posing
+
+   (L + C - S - B)\,\psi \;=\; \tfrac{1}{k}\,F\,\psi
+   \qquad\Longleftrightarrow\qquad
+   \bigl[(L+C-S-B)^{-1} F\bigr]\,\psi \;=\; k\,\psi .
+
+This is exactly :eq:`operator-eigenvalue` with the boundary in-scatter
+:math:`B` made explicit (Wave O step O.4a.2 promoted :math:`B` to a
+first-class sibling leaf; see :ref:`bc-extraction`). In production the
+:math:`B` term rides the :math:`S+B` driver fold today; Wave O step O.2
+will retire the fold for the honest :math:`L+C-S-F-B` loss-operator
+driver (see :ref:`bc-extraction-operator-output-o2`).
+
+**The α-row (future seam).** The :math:`\alpha`-eigenvalue (the
+time-eigenvalue, governing the asymptotic exponential time behaviour)
+follows from the ansatz :math:`\psi(\mathbf r, \Omega, t) \propto
+e^{\alpha t}\,\psi(\mathbf r, \Omega)`. Substituting into the
+time-dependent transport equation, the time derivative
+:math:`\frac1v \partial_t \psi` becomes :math:`\frac{\alpha}{v}\psi`,
+so the steady balance reads
+
+.. math::
+   :label: eigen-alpha-derivation
+
+   \tfrac{\alpha}{v}\,\psi + (L + C - S - F)\,\psi \;=\; 0
+   \qquad\Longleftrightarrow\qquad
+   (L + C - S - F - B)\,\psi \;=\; -\alpha\,T\,\psi ,
+   \quad T \equiv \tfrac1v .
+
+Matching to the standard form :eq:`eigen-standard-form` gives
+:math:`A_{\rm loss} = L+C-S-F-B` (fission now joins the *loss* side,
+because it is no longer the eigen-operator), :math:`M = T = 1/v`, and
+:math:`\mu = -1/\alpha`, i.e. :math:`\alpha = -1/\mu`. The only new
+machinery the :math:`\alpha`-row needs is a sixth leaf — a
+:class:`~orpheus.numerics.operator.DiagonalOperator` realizing
+:math:`T = 1/v` — joining :math:`L, C, S, F, B`. The posing, resolvent,
+and algorithm layers are unchanged; this is the cleanest possible fit
+and is why the layering was designed this way. **Not built** (only K
+exists; *unify-after-two*).
+
+**The adjoint row (future seam).** The adjoint eigenproblem
+:math:`A_{\rm loss}^{\dagger}\,\psi^{\dagger} = \lambda\,M^{\dagger}\,
+\psi^{\dagger}` is **just another posing row** whose role-operators are
+the daggers of the forward leaves. The dagger is *free* from the
+dagger-biproduct category already documented on this page (the ``.H``
+adjoint propagates through ``+`` / ``&`` / ``@`` — see
+:eq:`tensor-product-adjoint-distributivity` and the
+:math:`|\Omega\cdot\hat n|\,w` :math:`G`-metric ``.H`` of
+:ref:`bc-extraction-operator-output-o2`). Because forward and adjoint
+share the spectrum, :math:`\lambda` — and therefore the
+:math:`\mu \to` physical map — is **unchanged**; only the operators are
+daggered. The adjoint slots in at 2a with **zero new engine
+machinery**: it is a row, not a layer. (The first-draft architecture's
+instinct to make adjoint a separate "mode" is the same conflation the
+2a/2b split removes.)
+
+**The transient row (future seam).** Backward-Euler time stepping
+:math:`(T/\Delta t + A_{\rm loss})\,\psi^{n+1} = (T/\Delta t)\,\psi^{n}
++ q^{n+1}` is a fixed-source solve with a **shifted** loss operator
+:math:`A_{\rm loss} + T/\Delta t`. It **shares the Layer-3 resolvent**:
+:meth:`solve_fixed_source <orpheus.numerics.eigenvalue.EigenvalueSolver.solve_fixed_source>`
+inverts whatever loss operator the posing hands it, and the shifted
+operator is still a streaming-plus-collision-like invertible object the
+same sweep / BiCGSTAB handles. Transient therefore needs only (a) a
+transient posing row and (b) a *time-integrator* Layer-4 sibling of
+:func:`~orpheus.numerics.eigenvalue.power_iteration` that loops the
+fixed-source solve in time and advances delayed-neutron precursors.
+**No new resolvent, no new leaves** beyond the :math:`T` leaf the
+:math:`\alpha`-row already introduces.
+
+
+Why ``power_iteration`` is canonical, not deprecated
+----------------------------------------------------
+
+An earlier framing carried a :class:`DeprecationWarning` on
+:func:`~orpheus.numerics.eigenvalue.power_iteration`, intending to
+migrate all five solver families onto
+:class:`~orpheus.numerics.iteration.KEigenvalue`. **The deprecation
+arrow pointed the wrong way** and was removed in ``650032e`` /
+``7603c8e``. The two are the **same fixed-point combinator** — one
+power-method loop (the five-step *build source → solve resolvent →
+renormalize → estimate → converge?* body) — instantiated at two
+different layers:
+
+* :func:`~orpheus.numerics.eigenvalue.power_iteration` exposes the
+  inner resolvent **late**, behind the opaque
+  :meth:`EigenvalueSolver.solve_fixed_source <orpheus.numerics.eigenvalue.EigenvalueSolver.solve_fixed_source>`
+  Protocol method — a morphism the solver owns.
+* :class:`~orpheus.numerics.iteration.KEigenvalue` binds the resolvent
+  **early**, building it as :math:`(L-S)^{-1}` from the operator triple
+  via an inner :class:`~orpheus.numerics.iteration.SourceIteration`.
+
+The late-bound layer is **strictly more general**: it admits *both* the
+operator-triple resolvent (SN, MoC) *and* the **monolithic-matrix
+resolvent** (CP, diffusion, homogeneous) that has no :math:`(L, S, F)`
+factorization. The early-bound layer can only express methods whose
+resolvent factors as :math:`(L-S)^{-1}` from a triple — strictly
+narrower. The general layer cannot be expressed in terms of the narrow
+one without *manufacturing fictitious* :math:`L`, :math:`S` operators
+for CP/diffusion (which have no sweep). Therefore the **Protocol layer
+is canonical** and the **triple layer is a specialization that adapts
+into it**.
+
+.. list-table:: ``power_iteration`` vs ``KEigenvalue`` — same morphism, two layers
+   :header-rows: 1
+   :widths: 22 39 39
+
+   * -
+     - :func:`~orpheus.numerics.eigenvalue.power_iteration`
+     - :class:`~orpheus.numerics.iteration.KEigenvalue`
+   * - Layer
+     - 4 (algorithm) over the 2-boundary
+     - 2b (operator-triple posing realization)
+   * - Resolvent binding
+     - **late** — opaque ``solve_fixed_source``
+     - **early** — :math:`(L-S)^{-1}` from the triple
+   * - Admits
+     - SN, MoC, CP, diffusion, homogeneous (any Protocol implementer)
+     - SN / MoC only (needs an :math:`(L,S,F)` triple)
+   * - The loop
+     - **owns** the single power-iteration loop body
+     - **delegates** to ``power_iteration``
+   * - Role
+     - the canonical engine
+     - one implementer of the boundary
+
+After the fix, the loop body lives in **one place**
+(:func:`~orpheus.numerics.eigenvalue.power_iteration`).
+:class:`~orpheus.numerics.iteration.KEigenvalue` realizes the
+:class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` boundary from its
+triple — :meth:`compute_fission_source <orpheus.numerics.iteration.KEigenvalue.compute_fission_source>`
+:math:`= F\psi/k`,
+:meth:`solve_fixed_source <orpheus.numerics.iteration.KEigenvalue.solve_fixed_source>`
+:math:`= (L-S)^{-1} q` via the warm-started inner
+:class:`~orpheus.numerics.iteration.SourceIteration`, the injected
+:math:`k`- and production-estimators, and the :math:`\ge 3`-iteration
+:math:`dk`/:math:`d\phi` convergence test — then
+:meth:`solve <orpheus.numerics.iteration.KEigenvalue.solve>` simply
+calls ``power_iteration(self, max_iter=self.max_outer)``. SN production
+(:func:`~orpheus.sn.solver.solve_sn`), CP, diffusion, MoC, and
+homogeneous all drive the same loop directly via the Protocol; the
+``KEigenvalue`` adapter is for callers who *have* a natural
+:math:`(L,S,F)` triple and want to skip writing a full solver class.
+
+.. note::
+
+   The "``KEigenvalue`` regresses :math:`P_\ell` (anisotropic
+   scattering)" objection from the migration era dissolves under this
+   framing: :class:`~orpheus.numerics.iteration.SourceIteration` is
+   type-agnostic and **angular-capable** — it routes the RHS through
+   the ravellable protocol, so a typed
+   :class:`~orpheus.sn.scattering.ScatteringOperator` acting on a
+   :class:`~orpheus.transport.timed_full_field.TimedFullField` carries
+   :math:`P_\ell` correctly. The observed regression was a property of
+   an L1 *test adapter* that collapsed angular flux to scalar between
+   outer iterations (dropping the angular moments), not of
+   ``KEigenvalue``. The decisive — and sufficient — reason
+   ``KEigenvalue`` cannot be the universal engine is the
+   CP/diffusion/homogeneous **no-triple** fact alone.
+
+
+The metric lives at the leaf, not the posing
+---------------------------------------------
+
+The boundary :math:`|\Omega\cdot\hat n|\,w` :math:`G`-metric is the
+*codomain inner product* of :math:`L`'s boundary-trace block (the Wave
+O dagger-biproduct, :ref:`bc-extraction-operator-output-o2`). It is
+**intrinsic to the streaming leaf** — the leaf carries its ``domain`` /
+``codomain`` :class:`~orpheus.numerics.space.FunctionSpace`\ s with
+their ``inner_product_weights``, and the ``.H`` adjoint reads them. It
+is **NOT a posing-layer concern**: posing *arranges* leaves; the leaves
+already *know* their metric. Consequently the adjoint posing row gets
+the correct :math:`G`-weighted transpose for free — the dagger functor
+applied to leaves that already carry the metric — which is precisely
+why the adjoint row adds no new machinery.
+
+
+Honest scope — what is agnostic today, and what is not
+------------------------------------------------------
+
+The architecture is realized **minimally**: only the k-row and
+:func:`~orpheus.numerics.eigenvalue.power_iteration` exist. Two honest
+caveats record where the present code stops short of the ideal so a
+future session does not mistake intent for fact.
+
+* **The Layer-4 loop is not yet *literally* K/α-agnostic.** Today the
+  eigenvalue scaling lives in the K-specific
+  :meth:`compute_keff <orpheus.numerics.eigenvalue.EigenvalueSolver.compute_keff>`
+  (production/absorption ratio) and the :math:`/k` placement in
+  :meth:`compute_fission_source <orpheus.numerics.eigenvalue.EigenvalueSolver.compute_fission_source>`.
+  :func:`~orpheus.numerics.eigenvalue.power_iteration` is agnostic only
+  by *delegating* the estimate to the problem's ``compute_keff``.
+  Making the loop literally agnostic (relocating the scaling into the
+  algorithm as a Rayleigh-quotient update on
+  :math:`A_{\rm loss}^{-1} M`, adding an ``apply_loss`` method, and
+  renaming the K-flavoured Protocol methods to ``eigen_operator`` /
+  ``mu_to_eigenvalue``) touches all five families' Protocol surface and
+  is **the first step of the α-wave**, snapshot-bit-identity-gated. It
+  is deferred because only K exists (premature to unify;
+  *unify-after-two*).
+
+* **The full-spectrum / shift-invert seam is reserved, not built.**
+  :attr:`KEigenvalue.eigenvalue_method <orpheus.numerics.iteration.KEigenvalue.eigenvalue_method>`
+  selects the Layer-4 algorithm. Only ``"power"`` is implemented; any
+  other value raises :class:`NotImplementedError` at construction time.
+  Full-spectrum Arnoldi / Krylov–Schur and shift-invert / FEAST (for
+  interior eigenvalues — higher spatial harmonics) slot in at this
+  exact dispatch point, consuming the same
+  :math:`(A_{\rm loss}^{-1}, M)` boundary.
+
+.. warning::
+
+   The :math:`\alpha`-eigenvalue, adjoint, transient, and full-spectrum
+   rows are **documented future seams, not implemented features**.
+   There is zero :math:`\alpha` / transient / Arnoldi / shift-invert
+   scaffolding in production transport today (the
+   :mod:`orpheus.kinetics` solver is 0-D point kinetics, not a
+   deterministic-transport :math:`\alpha`/transient solver). The
+   layering exists so each lands as a pure addition — a new posing row
+   (α / adjoint), a new leaf (:math:`T = 1/v`), and at most a new
+   Layer-4 sibling (the transient time-integrator) — never a rewrite of
+   the engine, the resolvent, or the existing leaves.
+
+
+Verification status
+--------------------
+
+The discriminating gate for the canonical-loop refactor is
+``tests/numerics/test_iteration.py::test_keigenvalue_matches_solve_sn_2g_slab``:
+it stays green after
+:class:`~orpheus.numerics.iteration.KEigenvalue` delegates to
+:func:`~orpheus.numerics.eigenvalue.power_iteration`. This is the
+**same-morphism evidence** — if the two had been different algorithms,
+routing ``KEigenvalue``'s loop through ``power_iteration`` would change
+the converged answer; bit-stable agreement on a **2-group** slab (≥2
+groups is mandatory — a 1-group eigenvalue is the flux-shape-independent
+ratio :math:`k = \nu\Sigma_f/\Sigma_a` and detects no operator error)
+confirms they are one combinator at two layers. Because the
+:class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` Protocol and the
+five family solvers are untouched by the refactor, **every** family's
+eigenvalue snapshot is trivially bit-identical across the change.
+
+The converged *eigenvalue* (a solver-level claim) is verified against
+the closed-form algebra-of-record
+:func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`
+(:math:`k = \lambda_{\max}(\mathbf{A}^{-1}\mathbf{F})`) for the
+homogeneous reflective limit — a structurally-independent closed-form
+pillar, not a code-to-code comparison.
 
