@@ -232,3 +232,76 @@ class TestApplyTransposeCapability:
         B = _BWithStubFace(sn)
         assert CAP_APPLY in B.capabilities
         assert CAP_APPLY_TRANSPOSE not in B.capabilities
+
+
+class TestFaceRestrictedReflect:
+    """Phase 3 sub-step 2: ``reflect_into_inflow(faces=...)`` restricts the
+    trace reflection to a face subset — the octant-group Gauss-Seidel schedule
+    reflects ONLY the just-swept group's reflective outgoing faces between
+    octant-group sweeps (the ``(L+C−B_lower)⁻¹`` forward substitution).
+
+    ``B`` is block-diagonal over faces, so the subset MUST be the EXACT
+    restriction: the per-face inflow output is identical whether reflected
+    alone or as part of the whole trace, and the per-face reflects PARTITION
+    the whole-trace reflect (no coupling dropped, no term double-counted).
+    """
+
+    def test_subset_reflects_only_selected_faces(self) -> None:
+        """``faces=['xmax']`` emits reflected inflow on xmax and leaves the
+        unselected xmin face untouched (zero)."""
+        sn = _sn("SLB", (BC.reflective, BC.reflective))
+        B = SNBoundaryOperator(sn)
+        boundary = _random_state(sn).boundary
+        only_xmax = B.reflect_into_inflow(boundary, faces=["xmax"])
+        full = B.reflect_into_inflow(boundary)  # faces=None -> whole trace
+        xmax_inflow = sn.trace.inflow_indices_for_face("xmax")
+        # Selected face: bit-identical to the whole-trace reflect (the exact
+        # restriction — face-block-diagonal, so xmax's output is independent
+        # of whether xmin was also reflected).
+        np.testing.assert_array_equal(
+            only_xmax.face_view("xmax"), full.face_view("xmax"),
+        )
+        # Unselected face: untouched -> stays zero.
+        assert not only_xmax.face_view("xmin").any(), (
+            "reflect_into_inflow(faces=['xmax']) emitted on the unselected "
+            "xmin face — the restriction is not clean."
+        )
+        # Sanity: the selected face actually carries non-zero reflected inflow
+        # (else the restriction claim would be vacuous).
+        assert only_xmax.face_view("xmax")[xmax_inflow].any()
+
+    def test_subset_partitions_the_whole_trace_reflect(self) -> None:
+        """Single-face reflects sum EXACTLY to the whole-trace reflect — ``B``
+        never couples faces, so the per-face restrictions are a clean partition
+        (vv L11: catches a face↔face coupling leak that the
+        reflect-only-selected test alone would miss)."""
+        sn = _sn("SLB", (BC.reflective, BC.reflective))
+        B = SNBoundaryOperator(sn)
+        boundary = _random_state(sn).boundary
+        full = B.reflect_into_inflow(boundary)
+        xmin_only = B.reflect_into_inflow(boundary, faces=["xmin"])
+        xmax_only = B.reflect_into_inflow(boundary, faces=["xmax"])
+        np.testing.assert_array_equal(
+            full.values, xmin_only.values + xmax_only.values,
+        )
+
+    def test_faces_none_equals_explicit_all_faces(self) -> None:
+        """The default (``faces=None``) is the whole-trace reflect — identical
+        to passing every boundary face explicitly."""
+        sn = _sn("SLB", (BC.reflective, BC.reflective))
+        B = SNBoundaryOperator(sn)
+        boundary = _random_state(sn).boundary
+        all_faces = list(sn.trace.layout.faces)
+        np.testing.assert_array_equal(
+            B.reflect_into_inflow(boundary).values,
+            B.reflect_into_inflow(boundary, faces=all_faces).values,
+        )
+
+    def test_unknown_face_raises(self) -> None:
+        """A face not on the mesh boundary is a caller error — raise, do not
+        silently skip (illegal states unrepresentable)."""
+        sn = _sn("SLB", (BC.reflective, BC.reflective))
+        B = SNBoundaryOperator(sn)
+        boundary = _random_state(sn).boundary
+        with pytest.raises(ValueError, match="boundary faces"):
+            B.reflect_into_inflow(boundary, faces=["bogus_face"])

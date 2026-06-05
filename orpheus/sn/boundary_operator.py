@@ -57,6 +57,8 @@ from orpheus.numerics.operator import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.geometry import SNMesh
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
@@ -142,6 +144,7 @@ class SNBoundaryOperator(LinearOperatorMixin):
 
     def _reflect_trace(
         self, boundary: "BoundaryFlux", method: str,
+        faces: "Iterable[str] | None" = None,
     ) -> "BoundarySourceSink":
         r"""Core ``A_ss`` action on the trace ALONE — apply each face's law
         (``method`` ∈ {apply, apply_transpose}) to that face's slot, project onto
@@ -181,7 +184,24 @@ class SNBoundaryOperator(LinearOperatorMixin):
         mesh = self.sn_mesh
         trace = mesh.trace
         out_boundary = BoundarySourceSink.zeros_on(mesh)
-        for face, law in self._face_laws.items():
+        # ``faces=None`` reflects every boundary face (the whole-trace ``B``);
+        # a face subset restricts the reflection to those faces — the Phase 3
+        # Gauss-Seidel octant-group schedule reflects only the just-swept
+        # group's reflective OUTGOING faces, leaving the rest of the inflow
+        # trace untouched (zero in this returned sink).  ``B`` is block-diagonal
+        # over faces, so the subset action is the EXACT restriction (no
+        # cross-face coupling is dropped).
+        face_laws = self._face_laws
+        if faces is not None:
+            unknown = set(faces) - set(face_laws)
+            if unknown:
+                raise ValueError(
+                    f"_reflect_trace: face(s) {sorted(unknown)} are not "
+                    f"boundary faces of this mesh; available faces: "
+                    f"{sorted(face_laws)}."
+                )
+            face_laws = {f: face_laws[f] for f in faces}
+        for face, law in face_laws.items():
             face_in = boundary.face_view(face)
             full = getattr(law, method)(face_in)
             target = (
@@ -224,6 +244,7 @@ class SNBoundaryOperator(LinearOperatorMixin):
 
     def reflect_into_inflow(
         self, boundary: "BoundaryFlux",
+        faces: "Iterable[str] | None" = None,
     ) -> "BoundarySourceSink":
         r"""Trace-only forward reflection ``B·ψ.outflow`` projected onto the
         inflow row — the ``A_ss`` action expressed on the boundary trace ALONE.
@@ -237,8 +258,17 @@ class SNBoundaryOperator(LinearOperatorMixin):
         reconstruction sweep use to seed ``ψ.inflow = B·ψ.outflow`` on a bare
         boundary buffer, without fabricating a throwaway zero-bulk field just to
         reach the ``A_ss`` block.
+
+        ``faces`` (Phase 3 Gauss-Seidel): ``None`` (default) reflects every
+        boundary face — the whole-trace Jacobi reflect used by the fixed-source
+        SI loop and the final reconstruction sweep.  A face subset restricts the
+        reflection to those faces: the octant-group G-S schedule reflects only
+        the just-swept group's reflective OUTGOING faces between octant-group
+        sweeps, so a later group reads the fresh reflected inflow (the
+        ``(L+C−B_lower)⁻¹`` forward substitution).  ``B`` is block-diagonal over
+        faces → the subset is the exact restriction.
         """
-        return self._reflect_trace(boundary, "apply")
+        return self._reflect_trace(boundary, "apply", faces=faces)
 
     def apply_transpose(self, psi: "TimedFullField") -> "TimedFullField":
         r"""Euclidean transpose ``Bᵀ·ψ`` — per-face ``apply_transpose``, zero bulk.
