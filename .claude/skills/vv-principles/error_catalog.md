@@ -4278,3 +4278,37 @@ Coordination: the fix lives in `orpheus/sn/spatial/scan.py:80-138`; it is orthog
 
 **Test reference:** `tests/sn/test_spherical.py::TestSphericalSweepRegression::{test_uniform_source_converges_to_Q_over_sigt, test_single_sweep_all_finite}`, `::TestMultiGroupMultiRegionSpherical::test_fixed_source_flux_bounded`, `tests/sn/test_cylindrical.py::TestCylindricalSweepRegression::test_single_sweep_all_finite`, `::TestMultiGroupMultiRegion::{test_redistribution_telescoping_conservation, test_single_cell_uniform_source_equilibrium}` (all six migrated this commit). No `@pytest.mark.catches` needed — the bug was in the test fixtures, not a production code path; the migrated tests gate the production convention by routing through the producer.
 
+---
+
+## ERR-056 — Octant-group Gauss-Seidel schedule reflected a boundary face after only the FIRST octant group outflowing it, absorbing the not-yet-swept octants' SEED value instead of their outflow → wrong fixed point on diagonal/spherical cubatures
+
+**Date:** 2026-06-05
+**Module:** `sn` (`orpheus/sn/sweep_schedule.py::SweepSchedule.gauss_seidel`; surfaces via `orpheus/sn/solver.py::_GaussSeidelResolvent` on the 2-D fixed-source SI path)
+**Failure mode:** a scheduling / data-dependency bug (premature read of stale ephemeral data) — adjacent to mode #4 (wrong recursion / index drift), but at the octant-SCHEDULE level rather than the cell recurrence.
+
+**Symptom.** With the Phase 3 boundary Gauss-Seidel default (`inner_schedule="gauss_seidel"`), two 2-D fixed-source tests using a `Quadrature.lebedev(order=17)` cubature converged to the WRONG flux: `test_2d_octant_sweep_closed_form_anchor` (all-reflective uniform → should be flat `5.882`) gave a non-flat `~3.4` (max |diff| 13.6); `test_2d_heterogeneous_si_krylov_equivalence` (fuel|moderator, vacuum-x) gave a FLAT `2.748` where Krylov gave the correct spatially-varying `2.43/2.40/...` (max rel-diff 1.23). The G-S iteration CONVERGED (the iterate stabilised) — to a wrong fixed point.
+
+**Root cause.** `SweepSchedule.gauss_seidel` originally assigned each in-plane octant group its OWN outgoing reflective faces (`reflect_faces = _outgoing_faces(label) ∩ reflective`), reflecting each face right after its octant group swept. On an AXIS-ALIGNED quadrature (`product` — single-face octants) each reflective face is outflowed by exactly one octant group, so this is correct. But on a DIAGONAL / spherical cubature (`lebedev`, `level_symmetric` — each octant outflows TWO faces) a face is SHARED by ≥2 octant groups (e.g. `xmax` ← every +x octant: `(+1,0)`, `(+1,+1)`, `(+1,−1)`). Reflecting `xmax` after only the FIRST +x group absorbed the wavefront's `xmax` edge while the OTHER +x octants were still unswept — and because the `WavefrontFlux` is rebuilt + ι_*-seeded each `.solve`, those unswept octants' `xmax`-outflow slots still held the INFLOW SEED, not real outflow. The reflect (`R · seed`) produced garbage inflow, and the iteration converged to a fixed point of the WRONG operator. The seed contamination does NOT self-correct at convergence (unlike a stale-but-real lag) because the ephemeral wavefront never contains the unswept octants' outflow until they are swept.
+
+**How it hid.**
+
+1. **Axis-aligned quadratures are immune.** The first-built diagnostics + the production verify all used `product(n_mu=2, n_phi=4)` (4 single-face in-plane octants — each face has exactly ONE outflowing group), where "reflect after the octant" == "reflect after the LAST octant outflowing the face". G-S gave the correct fixed point (rel-Linf 4.86e-8 vs Jacobi). The bug is INVISIBLE on axis-aligned quads — it requires a cubature where a face is shared by multiple octant groups.
+
+2. **The discriminating signal was a closed-form anchor on a DIAGONAL cubature.** The all-reflective flat-flux anchor (`5.882`) is not invariant under the corrupted reflect, so it caught it (`3.4 ≠ 5.882`); a non-flat het case showed the opposite symptom (collapsed TO flat).
+
+3. **The default flip exposed it.** The bug only reaches production when `inner_schedule="gauss_seidel"` is the 2-D default; the two lebedev tests had been green under the (pre-3c) Jacobi path. Wiring the selector + flipping the default surfaced both immediately — a worked instance of "a convention/default flip is the moment latent path-divergence declares itself".
+
+**The fix.** Assign each reflective face to the LAST in-plane octant group (in sweep order) that outflows it (`last_group_for_face`), so the inter-group reflect fires only when the face's outflow is COMPLETE (every octant streaming out through it has been swept this pass). Octants reading the face that are swept BEFORE its reflect keep the lagged seed (the cyclic back-edge → partial one-pass G-S — always valid). Axis-aligned quads are unchanged (last == only). Restores the correct fixed point on lebedev (flat `5.882`; het ≡ Krylov).
+
+**Which test catches it.** `tests/sn/sweep/core/test_sweep_schedule.py::test_gs_diagonal_quadrature_shared_face_assigned_to_last_group_only` (NEW, `@pytest.mark.catches("ERR-056")`) — a lebedev cubature schedule must assign each reflective face to EXACTLY ONE group, the LAST that outflows it (a direct structural pin). End-to-end: `test_2d_octant_sweep_closed_form_anchor` (lebedev all-reflective ≡ flat closed form) + `test_2d_heterogeneous_si_krylov_equivalence` (lebedev het SI ≡ Krylov) both gate the converged fixed point.
+
+**Lesson.**
+
+1. **A face shared by multiple work-units must be reduced only after the LAST contributing unit completes.** The boundary reflect is a REDUCTION over all octants outflowing a face; firing it after a partial contribution reads incomplete data. Whenever a schedule fans work over units that share an output slot, the slot's downstream consumer must be gated on the LAST writer, not the first. Generalises to any wavefront / fan-in scheduling (KBA, multigroup Gauss-Seidel over shared down-scatter targets, CP surface-current pairing).
+
+2. **Ephemeral buffers make "stale" mean "garbage", not "last iterate".** A lagged (Jacobi) coupling reads the PREVIOUS iterate's real value, which is self-consistent at convergence. But a coupling that reads a REBUILT-each-solve buffer before the producer has run reads the SEED (an unrelated quantity) — and that error does NOT vanish at convergence. Distinguish "lagged but real" from "premature on ephemeral storage"; only the former is a valid splitting.
+
+3. **A splitting/scheduling change MUST be gated on a structure that breaks the schedule's symmetry — here a DIAGONAL cubature.** Axis-aligned quadratures cannot see shared-face bugs (every face has one outflowing octant). The verification regime for any octant-schedule feature must include a cubature where octants outflow multiple faces (`lebedev` / `level_symmetric`), exactly as multi-group + heterogeneous is mandatory for scattering bugs. See `[[vv-principles]]` Mode 9 (synthetic-acceleration / splitting changes verified to the SAME fixed point on a stressing config).
+
+**Test reference:** `tests/sn/sweep/core/test_sweep_schedule.py::test_gs_diagonal_quadrature_shared_face_assigned_to_last_group_only` (`@pytest.mark.catches("ERR-056")`); end-to-end gates `tests/sn/sweep/cartesian_2d/test_2d_octant_sweep_equivalence.py::test_2d_octant_sweep_closed_form_anchor` + `tests/sn/solve/test_fixed_source_2d_equivalence.py::test_2d_heterogeneous_si_krylov_equivalence`. Fixed in `orpheus/sn/sweep_schedule.py` (commit `a39905a`).
+

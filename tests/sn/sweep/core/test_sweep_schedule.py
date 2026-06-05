@@ -192,8 +192,9 @@ def test_gs_box_half_reflective_no_reflect_on_vacuum_axis():
 
 # ─── diagonal cubature: the shared-face correctness pin (regression) ──
 
+@pytest.mark.catches("ERR-056")
 def test_gs_diagonal_quadrature_shared_face_assigned_to_last_group_only():
-    r"""⚠ Correctness pin (the Lebedev shared-face bug, 3c.2).
+    r"""⚠ Correctness pin (the Lebedev shared-face bug, 3c.2 / ERR-056).
 
     On a DIAGONAL / spherical cubature (``lebedev``) each octant outflows TWO
     faces and each reflective face is shared by ≥2 in-plane octant groups
