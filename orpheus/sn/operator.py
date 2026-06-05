@@ -1134,8 +1134,12 @@ class StreamingOperator(LinearOperatorMixin):
     collision term to make the within-group cell balance non-singular).
     The ``solve`` capability appears at the
     :class:`~orpheus.numerics.operator.OperatorSum` level: ``(L + C
-    - S_foldable).solve(q)`` routes to the within-group sweep via the
-    fusion hook substep 3+4.b.ii adds. No ``apply_transpose`` yet —
+    - S_foldable).solve(q)`` would route to the within-group sweep via a
+    σ_r fusion hook — but ⚠ that σ_r-sweep is exact ONLY for isotropic flux
+    (it removes the diagonal-in-angle ``Σ_s0·I``, not the isotropic-projection
+    ``Σ_s0·P_iso``); wiring it as a within-group accelerator ships 46–56 %
+    errors on anisotropic problems (issue #215; the stable+correct fold is
+    consistent DSA #2 / Krylov). No ``apply_transpose`` yet —
     the analytic reverse-direction sweep is Step 6 work.
 
     Parameters
@@ -1530,6 +1534,15 @@ class CollisionOperator(LinearOperatorMixin):
     :class:`~orpheus.numerics.operator.OperatorSum`. (Pattern 4 —
     illegal states unrepresentable via the type, not a runtime flag
     the operator never inspects.)
+
+    ⚠ A :math:`\sigma_r`-sweep is NOT a correct within-group self-scatter
+    accelerator for anisotropic flux — it inverts the *diagonal-in-angle*
+    removal :math:`\sigma_r\cdot I`, whereas the foldable self-scatter is the
+    *isotropic-projection* operator :math:`\Sigma_{s,0}\,P_{\rm iso}`; the two
+    agree only for isotropic ψ. Wiring ``A_wg.solve(S_residual)`` with this
+    sweep ships 46–56 % errors on vacuum / heterogeneous problems (issue
+    #215). The stable+correct fold is consistent DSA (#2) or Krylov. See the
+    foldable/residual split note in :mod:`orpheus.sn.scattering`.
 
     Capability set
     --------------

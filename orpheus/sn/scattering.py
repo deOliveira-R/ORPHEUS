@@ -898,12 +898,28 @@ class ScatteringOperator(LinearOperatorMixin):
     # S.foldable_part().apply(\psi) + S.residual_part().apply(\psi)``
     # at FP-non-associativity precision (typically ``rtol=1e-14``).
     #
-    # The split is consumed by the within-group operator algebra
-    # ``A_wg = L + C - S.foldable_part()`` (Phase G substep 3+4.b)
-    # and the within-group accelerator's iteration operator
-    # ``scatter_cycle = A_wg.inverse() @ S.residual_part()``
-    # (substep 3+4.c). This substep lands the data API only; no
-    # solver/sweep/iteration code consumes the new methods yet.
+    # The split is the correct DATA decomposition of the within-group
+    # self-scatter — and it is exactly the input a Diffusion Synthetic
+    # Acceleration (DSA, issue #2) preconditioner consumes (Σ_s0 → the
+    # diffusion removal coefficient). This substep lands the data API only;
+    # no solver/sweep/iteration code consumes the new methods yet.
+    #
+    # ⚠ LATENT CORRECTNESS TRAP (issue #215 — measured 2026-06-05): do NOT
+    # wire the foreseen ``ψ_{n+1} = A_wg.solve(S_residual·ψ + q)`` with a
+    # σ_r-SWEEP as ``A_wg.inverse()``.  The σ_r-sweep inverts
+    # ``(Ω·∇ + σ_r·I)`` — a DIAGONAL-in-angle removal — whereas
+    # ``S_foldable = Σ_s0·P_iso`` is the ISOTROPIC-PROJECTION self-scatter
+    # operator (rank-1 in angle, ``φ/Σw``).  The two coincide ONLY when ψ is
+    # isotropic.  Wiring ``A_wg.solve(S_residual)`` with the σ_r-sweep is
+    # therefore exact on a fully-reflective uniform box (isotropic flux) but
+    # ships **46–56 % flux errors on any anisotropic problem** (vacuum /
+    # heterogeneous) — it passes the isotropic unit tests and silently
+    # corrupts real cases.  The exact variant (keep the ``−Σ_s0⊙ψ`` remnant
+    # on the RHS) has the right fixed point but DIVERGES (``Σ_s0/σ_r ≈ 39``).
+    # The stable + correct within-group self-scatter fold is CONSISTENT DSA
+    # (#2) or KRYLOV (already production, splitting-invariant, rate-optimal
+    # on every BC).  Any future within-group accelerator MUST be gated on an
+    # ANISOTROPIC config — the isotropic box cannot see this error.
 
     def foldable_part(self) -> "ScatteringOperator":
         r"""Return the P0 within-group self-scatter sibling of :math:`S`.
