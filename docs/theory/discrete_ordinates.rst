@@ -47,8 +47,10 @@ Key Facts
   default for *every* geometry) AND the Krylov inner
   (:meth:`~orpheus.sn.solver.SNSolver._solve_krylov`). The SI inner is
   the geometry-agnostic structural twin of Krylov — same composite RHS,
-  same :math:`L + C` / :math:`S + B` / zero-fission triple, same angular
-  reduction — differing only in the iteration driver
+  same loss decomposition (the resolvent :math:`L + C` plus the
+  scattering gain :math:`S` and the boundary reflection gain :math:`B`,
+  handed to the variadic driver; zero within-group fission), same
+  angular reduction — differing only in the iteration driver
   (:class:`~orpheus.numerics.iteration.SourceIteration` vs
   :class:`~orpheus.numerics.iteration.KrylovAcceleration`). The
   reflective coupling rides the bare 2-D sweep via the sibling
@@ -3027,8 +3029,9 @@ path:
 
 * **Driver paths** (SI / Krylov): the seed rides in
   :math:`\text{rhs.boundary}` (the boundary source
-  :math:`q.\text{boundary} + B\,\psi.\text{outflow}`), folded via the
-  :math:`S + B` driver mechanism. The bare sweep's
+  :math:`q.\text{boundary} + B\,\psi.\text{outflow}`), delivered by
+  :math:`B` as a separate coupling gain to the variadic driver (Wave O
+  step O.2a; see :ref:`bc-extraction-variadic-driver`). The bare sweep's
   :meth:`InvertibleOperator._solve_timed_full_field <orpheus.sn.operator.InvertibleOperator._solve_timed_full_field>`
   seeds its boundary buffer from :math:`\text{rhs.boundary}`, **not**
   from the iterate ``initial_guess.boundary`` (the retired
@@ -6642,12 +6645,18 @@ conforming so the iteration primitives in
 :mod:`orpheus.numerics.iteration` consume them without SN-specific
 plumbing.  The within-group inner solve is built once from a single
 source of truth — the :func:`_within_group_triple` helper assembles
-the within-group :math:`(L+C,\ S+B,\ F=0)` triple, and
+the honest within-group decomposition :math:`(L+C,\ S,\ B)`: the
+invertible resolvent plus its two lagged coupling gains (the bulk
+scattering :math:`S` and the trace boundary reflection :math:`B`; zero
+within-group fission), handed to the **variadic** driver
+:math:`\text{Driver}(L_{\rm resolvent},\,*\text{gains})` (Wave O step
+O.2a — the transitional :math:`S + B` fold is retired; see
+:ref:`bc-extraction-variadic-driver` in :doc:`operator_algebra`).
 :func:`_within_group_krylov` wraps the matching
-:class:`~orpheus.numerics.iteration.KrylovAcceleration` — and is shared
-verbatim across the eigenvalue source-iteration inner
-(:meth:`SNSolver._solve_source_iteration`), the eigenvalue Krylov inner
-(:meth:`SNSolver._solve_krylov`), and both fixed-source paths.
+:class:`~orpheus.numerics.iteration.KrylovAcceleration` — and the
+decomposition is shared verbatim across the eigenvalue source-iteration
+inner (:meth:`SNSolver._solve_source_iteration`), the eigenvalue Krylov
+inner (:meth:`SNSolver._solve_krylov`), and both fixed-source paths.
 
 The within-group inner solve consumes the primitives directly
 -------------------------------------------------------------

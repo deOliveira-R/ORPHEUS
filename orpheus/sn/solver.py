@@ -677,8 +677,8 @@ class SNSolver:
         q_ext_composite = TimedFullField(
             # B.5.2: q_ext IS a source — carry the AngularSourceSink bulk AND
             # the BoundarySourceSink inflow trace (zero for vacuum/reflective;
-            # prescribed inflow otherwise). The SI rhs F.apply + (S+B).apply +
-            # q_ext closes on BoundarySourceSink (operator outputs are sources).
+            # prescribed inflow otherwise). The SI rhs q_ext + S.apply + B.apply
+            # closes on BoundarySourceSink (operator outputs are sources).
             bulk=q_ext_per_ord,
             boundary=BoundarySourceSink.zeros_on(self.sn_mesh),
             _history=(),
@@ -792,8 +792,8 @@ class SNSolver:
         q_ext_composite = TimedFullField(
             # B.5.2: q_ext IS a source — carry the AngularSourceSink bulk AND
             # the BoundarySourceSink inflow trace (zero for vacuum/reflective;
-            # prescribed inflow otherwise). The SI rhs F.apply + (S+B).apply +
-            # q_ext closes on BoundarySourceSink (operator outputs are sources).
+            # prescribed inflow otherwise). The SI rhs q_ext + S.apply + B.apply
+            # closes on BoundarySourceSink (operator outputs are sources).
             bulk=q_ext_per_ord,
             boundary=BoundarySourceSink.zeros_on(self.sn_mesh),
             _history=(),
@@ -977,8 +977,8 @@ def _reflect_outflow_into_inflow(boundary_flux, sn_mesh: SNMesh) -> None:
 
     The bare sweep reads the inflow ordinate slots of its boundary buffer as
     the inflow seed; it no longer re-applies ``bc`` to the outflow internally.
-    The SI driver path supplies ``B·ψ.outflow`` through ``rhs.boundary`` (the
-    ``S + B`` fold), but the DIRECT fixed-source SI loop
+    The SI driver path supplies ``B·ψ.outflow`` through ``rhs.boundary`` (as the
+    ``B`` coupling gain), but the DIRECT fixed-source SI loop
     (:func:`_solve_fixed_source_si`) and the final eigenvalue reconstruction
     sweep (:func:`solve_sn`) do not route through that driver — they call this
     helper to set ``ψ.inflow = B·ψ.outflow`` on the buffer before each sweep,
@@ -1380,8 +1380,8 @@ def _solve_fixed_source_si(
     eigenvalue SI inner (Wave O "2-D SI Phase A").
 
     Equivalence note (vv-principles §bit-identity): the converged fixed point
-    is identical to the retired loop's (same operator, same ``S + B`` fold,
-    same WDD sweep), but the iteration TRAJECTORY differs — the primitive
+    is identical to the retired loop's (same operators, same ``S`` and ``B``
+    coupling gains, same WDD sweep), but the iteration TRAJECTORY differs — the primitive
     stops on the composite ``‖ψ_{n+1} − ψ_n‖ / ‖ψ_{n+1}‖`` residual (the full
     angular + boundary iterate, the same metric the verified eigenvalue inner
     uses) rather than the scalar-flux ``‖φ − φ_prev‖ / ‖φ‖``.  Converged ``φ``
@@ -1409,7 +1409,7 @@ def _solve_fixed_source_si(
     # (P0 + Pℓ + (n,2n)) is NOT pre-staged here — the primitive's ``S``
     # operator recomputes it each iterate; ``q_ext`` is the external source
     # ONLY.  Boundary = ZERO (the external boundary source; the reflective
-    # inflow rides ``rhs.boundary`` via the ``S + B`` fold, not ``q_ext``).
+    # inflow rides ``rhs.boundary`` via the ``B`` coupling gain, not ``q_ext``).
     q_ext_composite = TimedFullField(
         bulk=AngularSourceSink.from_mesh(external_source, sn_mesh),
         boundary=BoundarySourceSink.zeros_on(sn_mesh),

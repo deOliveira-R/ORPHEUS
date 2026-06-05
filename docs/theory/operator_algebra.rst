@@ -78,10 +78,12 @@ Key Facts
   AND the Krylov inner
   (:meth:`SNSolver._solve_krylov <orpheus.sn.solver.SNSolver._solve_krylov>`).
   The SI inner is the **geometry-agnostic structural twin** of Krylov:
-  identical composite RHS, identical operator triple (:math:`L + C`; the
-  :math:`S + B` fold carrying reflective coupling; zero within-group
-  fission), identical angular reduction — differing **only** in the
-  iteration driver. The reflective coupling rides the **bare** 2-D
+  identical composite RHS, identical loss decomposition (the invertible
+  resolvent :math:`L + C` plus the two lagged coupling gains — the bulk
+  scattering :math:`S` and the trace boundary reflection :math:`B` —
+  delivered to the **variadic** driver per :ref:`bc-extraction-variadic-driver`;
+  zero within-group fission), identical angular reduction — differing
+  **only** in the iteration driver. The reflective coupling rides the **bare** 2-D
   sweep via the sibling :math:`-B` on the natively four-face
   (``xmin`` / ``xmax`` / ``ymin`` / ``ymax``)
   :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` — the same
@@ -1812,13 +1814,141 @@ The ``initial_guess`` still threads the bulk Carlson warm start;
 only the boundary seed moved.
 
 
+.. _bc-extraction-variadic-driver:
+
+The honest :math:`L+C-S-B` driver via variadic couplings (Wave O step O.2a)
+---------------------------------------------------------------------------
+
+The within-group inner solve no longer hands the drivers a fixed
+:math:`(L, S, F)` operator *triple*. Wave O step O.2a generalised both
+:class:`~orpheus.numerics.iteration.SourceIteration` and
+:class:`~orpheus.numerics.iteration.KrylovAcceleration` to the
+**variadic** shape :math:`\text{Driver}(L_{\rm resolvent},\,*\text{gains})`:
+one invertible resolvent :math:`L` plus a homogeneous bag of lagged
+coupling operators :math:`g_i`. The two consume the gains identically —
+
+.. math::
+   :label: bc-extraction-variadic-matvec
+
+   \text{matvec} \;=\; L.\text{apply} \;-\; \sum_i g_i.\text{apply}
+   \,,\qquad
+   \text{rhs} \;=\; q_{\rm ext} \;+\; \sum_i g_i.\text{apply}\,.
+
+.. vv-status: bc-extraction-variadic-matvec documented
+
+The driver is now **problem-type-agnostic**: it sees only the
+invertible resolvent it must invert and a bag of operators it must lag.
+*Which* leaves are gains is a **posing-layer** decision, not an
+iteration-layer one (see :ref:`eigenvalue-posing`) — the gains are
+exactly the posing's coupling terms.
+
+For the SN **k-eigenvalue** within-group inner the posing's couplings
+are the bulk scattering :math:`S` and the boundary reflection
+:math:`B`; the fission :math:`F` is zero within-group (it enters as the
+external source :math:`q_{\rm ext}` per the eigenvalue
+outer / within-group split, Lewis & Miller §6.4). So the within-group
+loss decomposition is the honest
+
+.. math::
+   :label: bc-extraction-within-group-decomposition
+
+   (L+C,\; S,\; B)
+   \quad\Longrightarrow\quad
+   \underbrace{(L+C).\text{apply} - S.\text{apply}
+               - B.\text{apply}}_{\equiv\,(L+C-S-B)\,\psi}
+   \,,\qquad
+   \text{rhs} = q_{\rm ext} + S.\text{apply}(\psi) + B.\text{apply}(\psi)
+
+.. vv-status: bc-extraction-within-group-decomposition documented
+
+assembled once by the single-source-of-truth helper
+:func:`_within_group_triple <orpheus.sn.solver._within_group_triple>`,
+which returns ``(L+C, S, B)`` — the invertible resolvent
+(:class:`~orpheus.sn.operator.InvertibleOperator`, ``.solve`` = the WDD
+sweep), the bulk scattering gain
+(:class:`~orpheus.sn.scattering.ScatteringOperator`,
+:attr:`block_role <orpheus.numerics.operator.BlockRole>` ``BULK``), and
+the boundary reflection gain
+(:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`,
+``block_role`` ``BOUNDARY``). The :math:`B\,\psi.\text{outflow}` term
+lands on :math:`\text{rhs.boundary}`, which the bare ``(L+C).solve``
+sweep reads as the inflow seed (:ref:`bare-sweep-extraction` in
+:doc:`discrete_ordinates`).
+
+**This retires the transitional** :math:`S + B` **fold.** The
+predecessor packed the boundary reflection into the *middle slot* of
+the fixed triple by returning a summed operator
+:math:`S + B` — the now-deleted ``SNSolver._scattering_with_boundary_op``
+property. The honest composition keeps :math:`S` and :math:`B` as two
+**separate first-class gains**.
+
+**Why variadic — the fixed triple encoded a false posing distinction.**
+:math:`S`, :math:`F` and :math:`B` are *homogeneous* in the driver:
+each is subtracted in the matvec and summed in the rhs, exactly as
+:eq:`bc-extraction-variadic-matvec` shows. The fixed :math:`(L, S, F)`
+triple gave :math:`S` and :math:`F` named slots the *resolvent layer*
+never uses — it was encoding a posing-layer role assignment (which
+operator is loss, which is the eigen-operator) at the iteration layer,
+where it does not belong. Collapsing the triple to a homogeneous
+:math:`*\text{gains}` bag moves the role distinction back to the
+posing layer (its proper home) and lets a fourth gain (a future
+:math:`B`-trace term, an :math:`\alpha`-time term) slot in as a data
+addition rather than a new named slot. Existing positional
+:math:`(L, S, F)` callers stay source-compatible — ``gains = (S, F)``.
+
+**Why** :math:`B` **is a SEPARATE gain, not folded into** :math:`S`.
+Two structural reasons forbid the old fold:
+
+#. **The adjoint metric lives on the trace.** :math:`B` lives on the
+   boundary trace (:attr:`domain <orpheus.sn.boundary_operator.SNBoundaryOperator.domain>`
+   ``= sn_mesh.trace``), and the cosine-weighted
+   :math:`|\Omega\cdot\hat n|\,w` adjoint metric (Wave O step O.2 — the
+   codomain inner product of :math:`L`'s boundary-trace block) lives on
+   that **trace** domain, not the bulk. Folding :math:`B` into the
+   bulk :math:`S` would erase the trace typing the future adjoint
+   ``.H`` needs.
+#. :math:`B` **cannot join the** :math:`L+C` **preconditioner.**
+   :class:`~orpheus.numerics.operator.OperatorSum` does **not** carry
+   ``CAP_SOLVE`` (it defines only ``apply`` / ``apply_transpose``), so
+   an :math:`L + C - B` sum would strip the ``.solve`` (sweep) that the
+   SI step and the Krylov preconditioner depend on. :math:`B` must stay
+   a *gain* (lagged, applied) — never a summand of the resolvent.
+
+The old fold type-checked **only because**
+:attr:`ScatteringOperator.domain` is ``None`` (it inherits the
+:class:`~orpheus.numerics.operator.LinearOperatorMixin` default; bulk
+operators type via ``block_role``, not a bulk function space). The
+:class:`~orpheus.numerics.operator.OperatorSum` domain-compatibility
+check fires only when both operands declare non-``None`` domains that
+differ; with :math:`S` untagged the check skipped, so the
+trace-typed :math:`B` summed silently with the bulk :math:`S`. Giving
+:math:`S` a non-``None`` bulk :class:`~orpheus.numerics.operator.FunctionSpace`
+domain — a defensive Pattern-4 typing-completion seam — would make
+``OperatorSum`` *reject* a re-introduced :math:`S + B` fold at
+construction. That tripwire is **not load-bearing now** (the fold is
+gone; nothing sums :math:`S` with :math:`B` again), so the seam is
+deferred (see :ref:`bc-extraction-scope-future`).
+
+.. note::
+
+   The drivers' :class:`~orpheus.numerics.iteration.KrylovAcceleration`
+   matvec :eq:`bc-extraction-variadic-matvec` and the
+   :class:`~orpheus.numerics.iteration.SourceIteration` rhs are now the
+   *honest* :math:`(L+C-S-B)\,\psi` and :math:`q_{\rm ext}+S\psi+B\psi`
+   — the reassociation :math:`L-(S+B)\to(L-S)-B` is documented as a
+   **principled-equivalence** change in
+   :ref:`bc-extraction-numerical-evidence` (criterion 3 of the
+   ``vv-principles`` bit-identity-vs-principled-equivalence gate), not
+   a bug.
+
+
 .. _bc-extraction-two-routes:
 
-The two :math:`-B` delivery routes (and their O.2 collapse)
------------------------------------------------------------
+The two :math:`-B` delivery routes
+----------------------------------
 
-The same :math:`-B` coupling reaches the iteration two ways, both
-calling the **identical**
+The same :math:`-B` coupling reaches the sweep two ways, both calling
+the **identical**
 :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` (single
 source of truth, Cardinal Rule 2):
 
@@ -1829,59 +1959,88 @@ source of truth, Cardinal Rule 2):
    * - Route
      - Mechanism
      - Used by
-   * - **Driver fold**
-       (:meth:`SNSolver._scattering_with_boundary_op <orpheus.sn.solver.SNSolver._scattering_with_boundary_op>`)
-     - Folds :math:`S + B` into the **subtracted** :math:`S` argument
-       of the iteration drivers: the matvec
-       :math:`(L+C).\text{apply} - (S+B).\text{apply} - F.\text{apply}
-       = (L+C-S-F-B)`. :math:`B` cannot join the :math:`L+C`
-       preconditioner because
-       :class:`~orpheus.numerics.operator.OperatorSum` does **not**
-       propagate ``CAP_SOLVE`` — :math:`L + C - B` would strip the
-       ``.solve`` (sweep) the Krylov preconditioner / SI splitting
-       needs.
+   * - **Variadic gain**
+       (:func:`_within_group_triple <orpheus.sn.solver._within_group_triple>`
+       returns :math:`B` as a gain)
+     - :math:`B` is one of the ``*gains`` the variadic driver lags:
+       the matvec subtracts :math:`B.\text{apply}`, the SI rhs adds it
+       (:eq:`bc-extraction-variadic-matvec`).
+       :math:`B\,\psi.\text{outflow}` lands on
+       :math:`\text{rhs.boundary}`, which the bare ``(L+C).solve``
+       sweep reads as the inflow seed.
      - The eigenvalue SI inner driver
        (:meth:`SNSolver._solve_source_iteration <orpheus.sn.solver.SNSolver._solve_source_iteration>`),
        the eigenvalue Krylov inner
        (:meth:`SNSolver._solve_krylov <orpheus.sn.solver.SNSolver._solve_krylov>`),
-       and the fixed-source Krylov
-       (:func:`_solve_fixed_source_krylov <orpheus.sn.solver._solve_fixed_source_krylov>`).
-       :math:`B\,\psi.\text{outflow}`
-       rides in :math:`\text{rhs.boundary}`, which the bare
-       ``(L+C).solve`` sweep reads as the inflow seed.
+       and both fixed-source paths
+       (:func:`_solve_fixed_source_si <orpheus.sn.solver._solve_fixed_source_si>` /
+       :func:`_solve_fixed_source_krylov <orpheus.sn.solver._solve_fixed_source_krylov>`)
+       — every solve that routes through a driver.
    * - **Direct helper**
        (:func:`_reflect_outflow_into_inflow <orpheus.sn.solver._reflect_outflow_into_inflow>`)
      - Fills each face's inflow slots with
        :math:`B\,\psi.\text{outflow}` in place on the boundary buffer,
        via the same :class:`SNBoundaryOperator`, before the bare
        sweep.
-     - The DIRECT loops that have no driver to fold into: the direct
-       fixed-source SI
-       (:func:`_solve_fixed_source_si <orpheus.sn.solver._solve_fixed_source_si>`)
-       and the final eigenvalue reconstruction sweep in
-       :func:`solve_sn <orpheus.sn.solver.solve_sn>`. Guarded to
-       1-D via ``sn_mesh.reduced is not None`` (see scope below).
+     - The loops that have **no driver to route through**: the final
+       eigenvalue reconstruction sweep in
+       :func:`solve_sn <orpheus.sn.solver.solve_sn>`, and the
+       octant-restricted Gauss-Seidel variant (Phase 3). The direct
+       fixed-source SI loop now routes through the variadic driver, so
+       it no longer needs this helper.
 
-The two routes **collapse at Wave O step O.2**: when the iteration
-drivers take the whole loss operator :math:`L+C-S-F-B` directly (on
-the direct-sum carrier), the direct loops route through the driver and
-:func:`_reflect_outflow_into_inflow` retires (its documented removal
-trigger).
+The direct helper is **not** a fold of :math:`B` into :math:`S`: it is
+the trace-only :math:`A_{ss}` action of the *same* :math:`B`, expressed
+on the boundary trace alone. Both routes therefore deliver the
+identical :math:`-B` coupling, and cannot drift, because both descend
+from :meth:`SNBoundaryOperator._reflect_trace <orpheus.sn.boundary_operator.SNBoundaryOperator>`
+(:ref:`bc-extraction-reflect-trace`).
 
-**The O.2 forcing function.** The :math:`S + B` fold type-checks
-**only because** :attr:`ScatteringOperator.domain` is ``None`` (it
-predates function-space tagging). The
-:class:`~orpheus.numerics.operator.OperatorSum` domain-compatibility
-check fires only when both operands declare non-``None`` domains that
-differ; with :math:`S` untagged it skips. The moment the typing wave
-gives :math:`S` a (bulk-space) domain, the fold throws
-``IncompatibleOperatorComposition`` at construction — :math:`S` (bulk
-space) and :math:`B` (trace space) live on different function spaces.
-That throw **is** the O.2 signal to land the honest composition: the
-drivers consuming the whole :math:`L+C-S-F-B` loss operator on the
-direct-sum carrier, retiring the fold and the helper together. The
-fold is documented in code as an O.2 *tripwire*, not a permanent
-design.
+
+.. _bc-extraction-reflect-trace:
+
+The trace-only :math:`A_{ss}` leaf — :meth:`reflect_into_inflow`
+----------------------------------------------------------------
+
+:math:`B` is the :math:`A_{ss}` block :math:`V_{\rm outflow} \to
+V_{\rm inflow}`: it maps the *outflow* trace to the *inflow* trace.
+Both delivery routes ultimately need the same per-face action — apply
+each face's realized law (the specular
+:class:`~orpheus.numerics.operator.PermutationOperator` for reflective,
+:class:`~orpheus.sn.angular_operator.AngularAverageOperator` for
+white, zero for vacuum) and project onto the inflow row. To guarantee
+they cannot drift, that action is the single
+:meth:`SNBoundaryOperator._reflect_trace <orpheus.sn.boundary_operator.SNBoundaryOperator>`
+core, and both the full-field forward action
+:meth:`B.apply <orpheus.sn.boundary_operator.SNBoundaryOperator.apply>`
+and the new trace-only leaf
+:meth:`B.reflect_into_inflow <orpheus.sn.boundary_operator.SNBoundaryOperator.reflect_into_inflow>`
+route through it (Wave O step O.2a, commit ``8563f4b``).
+
+The leaf exists because the direct helper does not need a full field.
+:meth:`B.apply` operates on a :class:`~orpheus.transport.timed_full_field.TimedFullField`
+(zero bulk, trace populated) — the bulk is only a carrier to reach the
+:math:`A_{ss}` boundary block. The pre-extraction direct helper
+fabricated a throwaway zero-bulk field purely to call ``B.apply`` and
+then discarded the (zero) bulk output.
+:meth:`reflect_into_inflow <orpheus.sn.boundary_operator.SNBoundaryOperator.reflect_into_inflow>`
+takes a bare :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+trace and returns the boundary-only
+:class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`
+directly — no zero-bulk probe.
+
+The projection onto the inflow row is load-bearing: the realized law is
+a *full-face* operator (the specular permutation also maps the input
+inflow slots onto the *outflow* slots, :math:`R\,\psi.\text{inflow}`).
+The legacy in-sweep ``bc.apply`` only ever read the inflow slots of its
+output, so that spurious outflow emission was harmless. But as the
+sibling :math:`-B` reading the *whole* boundary block, a non-zero
+outflow emission would corrupt the outflow-definition residual
+:math:`r_{\rm outflow}` (which must carry **no** :math:`B` term —
+:ref:`bc-extraction-design-corrections`). So
+:meth:`_reflect_trace <orpheus.sn.boundary_operator.SNBoundaryOperator>`
+projects the forward action onto ``inflow_indices_for_face`` and the
+Euclidean transpose onto ``outflow_indices_for_face``.
 
 
 .. _bc-extraction-scope:
@@ -1901,8 +2060,9 @@ is delivered by the sibling :math:`-B`
 2-D trace exactly as for the 1-D trace. The 2-D matvec emits the
 boundary block as an active-trace residual (outflow slots carry the
 self-consistency defect ``streamed − ψ.outflow``; inflow slots carry
-the identity ``ψ.inflow``), wired into the composed Krylov matvec via
-:meth:`SNSolver._scattering_with_boundary_op <orpheus.sn.solver.SNSolver>`.
+the identity ``ψ.inflow``), wired into the composed Krylov matvec as
+the boundary gain :math:`B` of
+:func:`_within_group_triple <orpheus.sn.solver._within_group_triple>`.
 The interior face fluxes the bare 2-D sweep + matvec propagate are now
 the typed cochain :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`
 (see :ref:`wavefront-flux-cochain`).
@@ -1920,17 +2080,43 @@ selects the *fold shape* (1-D parallel-prefix scan vs 2-D wavefront
 DAG), **not** a bare-vs-bc-in-sweep distinction.
 
 
+.. _bc-extraction-scope-future:
+
+Deferred typing-completion seam — :attr:`ScatteringOperator.domain`
+-------------------------------------------------------------------
+
+One Wave-O typing-completion remains a documented seam, not a feature:
+minting a non-``None`` bulk
+:class:`~orpheus.numerics.operator.FunctionSpace` domain for
+:class:`~orpheus.sn.scattering.ScatteringOperator` (and the other bulk
+leaves). Today bulk operators type via ``block_role``, not a domain
+space, so :attr:`ScatteringOperator.domain` is ``None``. Giving it a
+bulk :math:`V_{\rm bulk}` domain would let
+:class:`~orpheus.numerics.operator.OperatorSum` **reject** any attempt
+to re-introduce the :math:`S + B` fold — the domain-compatibility check
+would throw ``IncompatibleOperatorComposition`` because :math:`S`
+(bulk space) and :math:`B` (trace space) live on different function
+spaces (a defensive Pattern-4 illegal-states-unrepresentable typing).
+
+This is **not load-bearing now**: with the variadic driver
+(:ref:`bc-extraction-variadic-driver`) the fold is gone and nothing
+sums :math:`S` with :math:`B` again, so there is nothing for the
+tripwire to catch. The seam is recorded so a future typing wave lands
+it as a pure addition rather than discovering the need under a
+regression.
+
+
 .. _bc-extraction-2d-si-krylov-twin:
 
 The 2-D Cartesian eigenvalue SI inner is the geometry-agnostic twin of Krylov
 -----------------------------------------------------------------------------
 
-Because the :math:`S + B` fold rides the **bare** sweep for every
-geometry (above), the two within-group eigenvalue inner solvers are
-**structural twins** — they share every operator and every reduction,
-differing only in the iteration driver. This holds for 2-D Cartesian
-exactly as it does for slab / sphere / cylinder, so a 2-D Cartesian
-eigenvalue problem solves through **both** inner solvers:
+Because the variadic :math:`-S - B` gains ride the **bare** sweep for
+every geometry (above), the two within-group eigenvalue inner solvers
+are **structural twins** — they share every operator and every
+reduction, differing only in the iteration driver. This holds for 2-D
+Cartesian exactly as it does for slab / sphere / cylinder, so a 2-D
+Cartesian eigenvalue problem solves through **both** inner solvers:
 
 - :meth:`SNSolver._solve_source_iteration <orpheus.sn.solver.SNSolver._solve_source_iteration>`
   — the source-iteration inner, the :func:`~orpheus.sn.solver.solve_sn`
@@ -1946,16 +2132,17 @@ same composite right-hand side
 bulk + :meth:`BoundarySourceSink.zeros_on <orpheus.transport.fields._bases.BoundaryField.zeros_on>`
 boundary inside a
 :class:`~orpheus.transport.timed_full_field.TimedFullField`), the same
-operator triple (:math:`L + C` from
+loss decomposition (the resolvent :math:`L + C` from
 :class:`~orpheus.sn.operator.StreamingOperator` +
-:class:`~orpheus.sn.operator.CollisionOperator`; the :math:`S + B` fold
-:attr:`_scattering_with_boundary_op <orpheus.sn.solver.SNSolver._scattering_with_boundary_op>`
-carrying the reflective coupling; zero within-group fission), and the
+:class:`~orpheus.sn.operator.CollisionOperator`, plus the scattering
+gain :math:`S` and the boundary reflection gain :math:`B` from
+:func:`_within_group_triple <orpheus.sn.solver._within_group_triple>`;
+zero within-group fission), and the
 same :meth:`integrate_angular <orpheus.transport.fields.angular_flux.AngularFlux.integrate_angular>`
 angular reduction. Neither driver carries any geometry dependence.
 
 The reflective coupling reaches both drivers on the **bare** 2-D
-wavefront sweep through the sibling :math:`-B` (the **driver-fold**
+wavefront sweep through the sibling :math:`-B` (the **variadic-gain**
 route of :ref:`bc-extraction-two-routes`), never through an in-sweep
 ``bc.apply``. The :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`
 is natively **four-face** (``xmin`` / ``xmax`` / ``ymin`` / ``ymax``)
@@ -2032,9 +2219,12 @@ The extraction is verified by three independent grounds (per the
 ``vv-principles`` skill's three pillars and the bit-identity
 vs principled-equivalence gate).
 
-**1. Vacuum bit-identity.** With :math:`B = 0` the fold
-:math:`S + B \equiv S` exactly, so the vacuum path is **bit-identical**
-to the pre-extraction matvec. Verified by:
+**1. Vacuum bit-identity.** With :math:`B = 0` the boundary gain
+contributes nothing (:math:`B.\text{apply} \equiv 0`), so the variadic
+matvec :math:`(L+C).\text{apply} - S.\text{apply} - B.\text{apply}`
+reduces exactly to :math:`(L+C).\text{apply} - S.\text{apply}` and the
+vacuum path is **bit-identical** to the pre-extraction matvec. Verified
+by:
 
 - the matvec 18-baseline snapshot
   (:func:`np.array_equal` against the pre-O.4a.2 captures across
@@ -2094,6 +2284,24 @@ existing ``rtol`` regression tolerance. The new value is
 convergence-equivalent to the analytical references above (criterion
 2), so the regression contract is satisfied without relaxation beyond
 the snapshot tolerance.
+
+**The O.2a variadic reassociation is a second principled-equivalence
+instance.** Splitting the matvec from :math:`(L+C) - (S+B)` (the
+retired fold) to :math:`(L+C) - S - B` (the two separate gains of
+:ref:`bc-extraction-variadic-driver`), and the rhs symmetrically,
+re-associates the same additions into a different IEEE-754 order. The
+regression snapshots drift at FP-noise level — reflective cylinder
+:math:`4.2\times 10^{-13}` on :math:`k_{\rm eff}` and :math:`6.8\times
+10^{-12}` relative on the scalar flux, anisotropic 3–5 ULP — all within
+the existing tolerances (:math:`10^{-11}` / :math:`10^{-9}` /
+:math:`10^{-12}`). Per ``vv-principles`` criterion 2 the new value is
+verified against **structurally-independent** references, not merely
+shown close to the old value: the NEW-1 closed-form :math:`Q/\Sigma_t`
+flat-flux balance, the SI ≡ Krylov twin (:ref:`bc-extraction-2d-si-krylov-twin`),
+and the ``keff_2d`` closed-form :math:`k_\infty`. The reassociation
+satisfies all three criteria (named intermediates — each gain's output
+is a principled source/sink; structurally-independent reference;
+dimensionally-explainable drift), so no contract relaxation is needed.
 
 
 .. _bc-extraction-operator-output-typing:
@@ -2190,10 +2398,10 @@ matvec output boundary as :class:`BoundaryResidual`. That choice was
         - Composition
         - The hat :math:`B\,\psi.\text{outflow}` would wear
       * - Krylov matvec
-        - :math:`(L+C).\text{apply} - (S+B).\text{apply} - F.\text{apply}`
+        - :math:`(L+C).\text{apply} - S.\text{apply} - B.\text{apply}`
         - a **residual** term (subtracted from the diagonal)
       * - SI rhs
-        - :math:`F.\text{apply} + (S+B).\text{apply} + q_{\rm ext}`
+        - :math:`q_{\rm ext} + S.\text{apply} + B.\text{apply}`
         - a **source** term (the inflow seed the bare sweep reads)
 
    One operator cannot emit :class:`BoundaryResidual` for the matvec
@@ -2202,8 +2410,12 @@ matvec output boundary as :class:`BoundaryResidual`. That choice was
    class gate (strict class identity:
    ``type(self.boundary) is not type(other.boundary)`` ⟹ ``TypeError``)
    throws on ``BoundaryResidual + BoundarySourceSink`` the moment the SI
-   rhs tries to add :math:`F.\text{apply}` (a source) to
-   :math:`(S+B).\text{apply}` (a residual, under OPT-BR).
+   rhs tries to add :math:`B.\text{apply}` (a residual, under OPT-BR)
+   to :math:`S.\text{apply}` and :math:`q_{\rm ext}` (sources). The
+   variadic driver (:ref:`bc-extraction-variadic-driver`) makes this
+   sharper than the retired fold: each gain's output is summed
+   *individually*, so :math:`B`'s lone hat must be a source/sink for the
+   rhs sum :eq:`bc-extraction-variadic-matvec` to close.
 
 Choosing :class:`BoundarySourceSink` for **all** operator outputs
 dissolves the two-hat: :math:`B` wears **one** hat (it always emits a
@@ -2213,11 +2425,11 @@ source/sink), and **both** sums close as homogeneous
 .. math::
    :label: bc-extraction-two-hat-closed-sums
 
-   \underbrace{(L+C).\text{apply} - (S+B).\text{apply}
-               - F.\text{apply}}_{\text{Krylov matvec}}
+   \underbrace{(L+C).\text{apply} - S.\text{apply}
+               - B.\text{apply}}_{\text{Krylov matvec}}
    \quad\text{and}\quad
-   \underbrace{F.\text{apply} + (S+B).\text{apply}
-               + q_{\rm ext}}_{\text{SI rhs}}
+   \underbrace{q_{\rm ext} + S.\text{apply}
+               + B.\text{apply}}_{\text{SI rhs}}
 
 both stay within the single :class:`BoundarySourceSink` class. This
 needs **no SI-driver restructure** and **no partial-O.2**:
@@ -2329,29 +2541,36 @@ runtime imports were retired from the retyped sites.
 What remains for Wave O step O.2
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-B.5.2 mints the role grid; it does **not** yet wire the residual
-column. The honest :math:`L+C-S-F-B` **loss-operator driver** of Wave O
-step O.2 will be the **first consumer** of
-:meth:`BoundaryResidual.from_balance <orpheus.transport.residuals.boundary_residual.BoundaryResidual.from_balance>`
-(it writes
-``BoundaryResidual.from_balance(lhs=ψ.inflow, rhs=B·ψ.outflow + q)`` at
-the solver level). O.2 also lands:
+Wave O step **O.2a has landed the honest** :math:`L+C-S-B` **driver**
+via the variadic couplings of :ref:`bc-extraction-variadic-driver`:
+the transitional :math:`S + B` fold is **retired** and :math:`B` is now
+a first-class coupling gain. What B.5.2 *still* leaves for the rest of
+O.2 is the **residual column** of the role grid — and the adjoint
+metric:
 
+* :meth:`BoundaryResidual.from_balance <orpheus.transport.residuals.boundary_residual.BoundaryResidual.from_balance>`
+  has **no operator-output consumer** yet. The honest variadic driver
+  emits each gain's output as a :class:`BoundarySourceSink` (it never
+  forms a typed field residual — the GMRES defect is the *flat*
+  :math:`b - A\psi` on the raveled vector). The first consumer of
+  ``BoundaryResidual.from_balance(lhs=ψ.inflow, rhs=B·ψ.outflow + q)``
+  is the O.2 named-composition driver that types the affine boundary
+  balance explicitly at the solver level.
 * the :math:`|\Omega\cdot\hat n|\,w` :math:`G`-metric adjoint ``.H``
-  (the boundary-weighted inner product for the transpose),
-* **Gate-1.3** (the O.2 verification gate),
-* the retirement of the :math:`S + B` driver fold
-  (:meth:`SNSolver._scattering_with_boundary_op <orpheus.sn.solver.SNSolver>`)
-  and the direct-helper
-  ``_reflect_outflow_into_inflow`` — both collapse when the drivers
-  take the whole loss operator directly (see
-  :ref:`bc-extraction-two-routes`). The O.2 **forcing function** is the
-  type-system tripwire of :ref:`bc-extraction-two-routes`: the moment
-  :math:`S` gains a (bulk-space) domain, the :math:`S + B` fold throws
-  ``IncompatibleOperatorComposition`` — that throw *is* the signal to
-  land the honest composition.
+  (the boundary-weighted inner product for the transpose) — which is
+  exactly why :math:`B` stays trace-typed as a separate gain
+  (:ref:`bc-extraction-variadic-driver`), and
+* **Gate-1.3** (the O.2 verification gate).
 
-Until O.2 lands, :class:`BoundaryResidual` and
+The direct-helper
+:func:`_reflect_outflow_into_inflow <orpheus.sn.solver._reflect_outflow_into_inflow>`
+also survives O.2a (the driver no longer routes through it, but the
+final eigenvalue reconstruction sweep and the Gauss-Seidel variant
+still do — :ref:`bc-extraction-two-routes`); the optional
+:attr:`ScatteringOperator.domain` typing-completion tripwire remains a
+documented seam (:ref:`bc-extraction-scope-future`).
+
+Until the residual column is wired, :class:`BoundaryResidual` and
 :class:`~orpheus.transport.residuals.angular_residual.AngularResidual`
 are minted-but-consumerless role-grid completions — the correct status
 the V&V audit reports for them.
@@ -3069,10 +3288,12 @@ The four layers
 **Why posing bifurcates (2a vs 2b).** The first-draft architecture
 treated posing as wholly method-agnostic — "just arrange the leaves."
 That is false: the *role assignment* is agnostic, but the *loss-operator
-realization* is method-specific. SN folds the boundary in-scatter
-:math:`B` into the scattering slot (:math:`S + B`) and the streaming +
-collision into the :math:`L + C` slot, consumed as an operator triple
-by the inner solver. CP has **no** :math:`(L, S, F)` split at all — its
+realization* is method-specific. SN realises its loss operator as the
+invertible resolvent :math:`L + C` (the WDD sweep) plus the lagged
+coupling gains :math:`S` (bulk scattering) and :math:`B` (boundary
+reflection), handed to the **variadic** within-group driver as
+:math:`(L+C,\,S,\,B)` (:ref:`bc-extraction-variadic-driver`). CP has
+**no** :math:`(L, S, F)` split at all — its
 :meth:`solve_fixed_source <orpheus.numerics.eigenvalue.EigenvalueSolver.solve_fixed_source>`
 is one BiCGSTAB on a *monolithic* collision-probability matrix; the
 factor :math:`(L-S)^{-1}` does not exist as a separable object.
@@ -3087,6 +3308,21 @@ family. The key consequence:
 operator-triple **2b realization** — NOT a problem-type layer. Treating
 the operator triple as a "problem type" was the conflation the
 bifurcation removes.
+
+**The variadic driver IS the posing/resolvent boundary made explicit.**
+The Layer-3 SN resolvent
+(:class:`~orpheus.numerics.iteration.SourceIteration` /
+:class:`~orpheus.numerics.iteration.KrylovAcceleration`) is now
+**problem-type-agnostic**: it consumes
+:math:`\text{Driver}(L_{\rm resolvent},\,*\text{gains})` and never asks
+which gain plays which posing role. *Which* leaves are gains is the
+2a decision — for the SN k-row the gains are exactly the
+:math:`A_{\rm loss}` couplings :math:`S` and :math:`B` (fission
+:math:`F` is the eigen-operator :math:`M`, not a within-group gain; it
+enters as :math:`q_{\rm ext}`). The retired fixed :math:`(L, S, F)`
+triple had baked a 2a role distinction into the Layer-3 resolvent,
+where it does not belong — the variadic generalisation pushes the
+distinction back up to the posing layer (:ref:`bc-extraction-variadic-driver`).
 
 **The invariant (Layer-4 sees only a fixed point).** Layer 4 consumes
 the method-agnostic
@@ -3154,9 +3390,11 @@ resolvent's dominant eigenvalue is :math:`k_{\rm eff}` directly
 This is exactly :eq:`operator-eigenvalue` with the boundary in-scatter
 :math:`B` made explicit (Wave O step O.4a.2 promoted :math:`B` to a
 first-class sibling leaf; see :ref:`bc-extraction`). In production the
-:math:`B` term rides the :math:`S+B` driver fold today; Wave O step O.2
-will retire the fold for the honest :math:`L+C-S-F-B` loss-operator
-driver (see :ref:`bc-extraction-operator-output-o2`).
+within-group loss :math:`L+C-S-B` is realised honestly: :math:`S` and
+:math:`B` are two separate coupling gains handed to the variadic driver
+(Wave O step O.2a — :ref:`bc-extraction-variadic-driver`), so the
+matvec is :math:`(L+C).\text{apply} - S.\text{apply} - B.\text{apply}`.
+The transitional :math:`S + B` driver fold is retired.
 
 **The α-row (future seam).** The :math:`\alpha`-eigenvalue (the
 time-eigenvalue, governing the asymptotic exponential time behaviour)
