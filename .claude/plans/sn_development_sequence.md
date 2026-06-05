@@ -90,6 +90,21 @@ is a DIFFERENT, OLDER branch `refactor/sn-operator-algebra` whose `solver.py` /
    (#20) / #200.** Each crosses subsystem boundaries → test-architect FIRST (L17). The carve
    substrate map (`.claude/agent-memory/explorer/si_gs_substep3_carve_substrate.md`) + Phase-2
    refs remain for reference.
+   ⭐ **CONSISTENT-DSA ARCHITECTURE (decided 2026-06-05, full design on issue #2 comment):** build
+   the diffusion operator IN the project `LinearOperator` algebra (`A_diff = L_diff+C_diff−S_diff`,
+   `.apply`/`.solve` — NOT the current standalone scipy `DiffusionSolver`); then it does **double
+   duty** — standalone diffusion `= A_diff.solve(Q)` AND the DSA preconditioner `= A_diff.solve(Σ_s0·Δφ)`
+   (Pattern 5: build the primitive, not the product). **Consistency** (ρ≤0.22 stability — what the
+   naive FD spike LACKED → it diverged on reflective) requires the diffusion's discrete leakage/removal
+   to derive from the **SAME WDD spatial face-closure** the sweep uses (the moment reduction of the
+   diamond relation, riding the two-stratum `GeometryCoefficients`/`CollisionCache`); so **uplift the
+   `CellUpdate` spatial face-closure to a shared `transport`/`numerics` layer** (consistent-diffusion is
+   the unify-after-two SECOND consumer). DSA = the cross-method composition (SN resolvent preconditioned
+   by `A_diff.solve`; moment-projection + isotropic-injection glue), the Phase-1 layered architecture
+   (`:ref:eigenvalue-posing`). Build path: literature-researcher (Larsen 1982 modified-four-step /
+   Warsa-Wareing-Morel multidim consistent) → test-architect (same-FP on anisotropic + c-independent
+   rate on vacuum AND reflective + thick-cell stability — vv Mode 9) → method-implementer. Also
+   modernizes `module:diffusion` into the algebra-of-record + ties to #200 (DSA-as-Krylov-precond).
 
 ---
 
