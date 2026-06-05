@@ -364,16 +364,25 @@ the one primitive; the octant orchestration belongs at the resolvent layer).
   **Verification refinement:** the rate gate measures BOTH schedules LIVE (`n_GS <
   0.75·n_Jacobi`, both in-process) — retires the hardcoded 655/523 baseline constants + makes
   Jacobi a permanent control (not dead legacy). **Carve decomposition (each a checkpoint):**
-  3a = the `Schedule` strategy (mesh-time; `quad.octants` order + per-octant reflective
-  outgoing faces; `Schedule.jacobi`/`.gauss_seidel` factories; unit-testable STANDALONE —
-  assert groups+faces for slab 2-cycle / 2-D box / half-reflective DAG) → 3b =
+  **3a ✅ DONE `514ae21`** — `orpheus/sn/sweep_schedule.py` (`SweepSchedule.jacobi`/
+  `.gauss_seidel`, `OctantSweep`/`OctantSweepGroup`) + 8 foundation tests
+  (`tests/sn/sweep/core/test_sweep_schedule.py`). ⚠ **Finding for 3b/3c tests:** the 2-D test
+  quad `Quadrature.product(n_mu=2, n_phi=4)` is AXIS-ALIGNED — its 4 in-plane octants are
+  single-face `(±1,0)/(0,±1)` (each outflows ONE face), NOT `(±,±)` diagonals; a diagonal
+  octant needs a level-symmetric cubature. → **3b (NEXT, the biggest lift)** =
   `sweep_octant_group` carved from `_sweep_2d_wavefront` body (sweep.py:873 loop / 911-933
-  body) + interior-`WavefrontFlux`-cache persistence across group calls (the biggest lift) →
-  3c = the scheduled resolvent solve (seed+loop) + wire `inner_schedule` through
-  `_solve_source_iteration`/`_solve_fixed_source_si` + flip the rate gates (2-D fixed-source
-  FIRST, eigenvalue defers). Then ERR-056 + vv-principles Mode 9 (user-APPROVED) +
-  `:label:si-spectral-rate` (archivist). Vacuum/Krylov are no-ops (vacuum: B=0, empty G-S
-  schedule → degenerates to today's bare sweep → G-4 control holds). Refs: surface map
+  body) + interior-`WavefrontFlux`-cache persistence across group calls (extend the single
+  `wavefront` object's lifetime; relocate the face-restricted absorb to AFTER each group) →
+  **3c** = the scheduled SN resolvent solve (seed `B·ψₙ` + for-group loop: sweep → absorb
+  outgoing faces → `reflect_into_inflow(faces=…)` → re-seed) + wire `inner_schedule` (default
+  G-S, `"jacobi"` control) through `_solve_source_iteration`/`_solve_fixed_source_si` (SI
+  gains → `(S,)`; Krylov UNTOUCHED) + flip the rate gates (2-D fixed-source FIRST, eigenvalue
+  defers). Then ERR-056 + vv-principles Mode 9 (user-APPROVED) + `:label:si-spectral-rate`
+  (archivist). Vacuum/Krylov are no-ops (vacuum: B=0, empty G-S reflect → degenerates to
+  today's bare sweep → G-4 control holds). Refs: **carve substrate (3b/3c anchors)**
+  `.claude/agent-memory/explorer/si_gs_substep3_carve_substrate.md` (`_sweep_2d_wavefront`
+  seed 858-864 / loop 873 / body 911-933 / absorb 942; `WavefrontFlux.seed`/`absorb`/`face`/
+  `edge_view`; resolvent `_solve_timed_full_field` operator.py:1903-2017) + surface map
   `sn_si_reflective_gauss_seidel_recovery_surface.md` + spec
   `si_gauss_seidel_rate_recovery_verification_spec.md` (REFRESHED at HEAD 7d85222).
 
