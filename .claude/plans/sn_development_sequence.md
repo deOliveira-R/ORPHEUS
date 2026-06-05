@@ -53,21 +53,23 @@ is a DIFFERENT, OLDER branch `refactor/sn-operator-algebra` whose `solver.py` /
 3. The session **task tracker** (`TaskList`): tasks #17–#22 = the 6 phases.
    **If the tracker did not survive the session boundary, recreate it from §3 + §5**
    (one task per phase; chain blockedBy 18→{19,20}, 19→21, 21→22; **#17 = DONE**).
-4. **Phase 1 (#17) DONE; Phase 2 (#18) — CORE COMPLETE, awaiting close-out confirm**
-   (2026-06-05). Landed: sub-step 4 (`8563f4b`, `B.reflect_into_inflow` trace-only leaf) +
-   sub-steps 1+2 (`83a4ae6`, the honest `L+C−S−B` driver — **VARIADIC couplings**, the
-   `S+B` fold RETIRED) + plan/crosswalk (`fea6675`) + the `precond_safety` fold→gains
-   test-migration (`deb1ce3`, 4 reds → green). Sub-step 1 (`ScatteringOperator.domain`)
-   DEFERRED (premise superseded — no bulk space; tripwire moot). **The two remaining
-   sub-steps are BOTH DEFERRED (principled):** sub-step 5 (#200) is a block-inverse FACE
-   preconditioner **FEATURE** (not a re-enable; no correctness red; → issue #200) and
-   sub-step 3 (R4) is the FORKED WRONG-FIT (curvilinear matvec + 1-D scan → nd_foundation;
-   user chose to defer 2026-06-05). So **Phase 2's architectural spine — the honest driver
-   — is DONE; #18 is ready to close with #200 + R4 explicitly deferred.** Pre-existing
-   ORTHOGONAL reds remain (NOT Phase 2): `test_b1pp_constant_flux` ×3 (stale O.4b boundary
-   expectation), `test_krylov_kinf…refinement` ×3 (gate-tightness ~1.5e-9 vs 1e-9). See §3
-   Phase 2 STATUS + the standing-reds note. Crosswalk `.claude/plans/phase2_o2a_crosswalk.md`,
-   audit `.claude/agent-memory/explorer/phase2_o2a_dependency_audit.md`.
+4. **Phase 1 (#17) DONE; Phase 2 (#18) DONE** (2026-06-05). The honest `L+C−S−B`
+   variadic driver landed + the fold retired + Sphinx current + the orthogonal reds fixed.
+   Commits: `8563f4b` (sub-step 4, B trace-only leaf) → `83a4ae6` (sub-steps 1+2, honest
+   variadic driver) → `fea6675`/`6d30807` (plan) → `deb1ce3` (precond_safety fold→gains
+   migration, 4 reds green) → `40de6e5` (Sphinx theory + solver docstring fixes) → `33dd5ff`
+   (b1pp O.4b boundary-semantics + restart gate-tightness, 6 reds green). **Sub-step 1
+   (`ScatteringOperator.domain`) DEFERRED** (premise superseded — no bulk space; tripwire
+   moot; → Wave-O typing seam). **The two remaining sub-steps DEFERRED with TRIGGERS (not
+   indefinite, per user):** sub-step 5 = #200 block-inverse FACE preconditioner **FEATURE**
+   (unblocked NOW; commented on issue #200 with the 3 deliverables incl. re-tighten the
+   restart gate 1e-7→1e-9) ; sub-step 3 = R4 curvilinear-matvec + 1-D-scan collapse →
+   **nd_foundation Phase 6 d-generic walk** (commented on issue #206; trigger = after the
+   `_sweep_wavefront` walk lands). **The NEXT phase is the USER's choice: Phase 3 (SI
+   Gauss-Seidel recovery, #19) / Phase 4 (O.2b adjoint, #20) / or build #200 now.** Each
+   crosses subsystem boundaries → test-architect FIRST (L17). Crosswalk
+   `.claude/plans/phase2_o2a_crosswalk.md`, audit
+   `.claude/agent-memory/explorer/phase2_o2a_dependency_audit.md`.
 
 ---
 
@@ -108,14 +110,13 @@ typed operator algebra. **Already landed on this branch:**
 
 **Standing reds (ORTHOGONAL — do NOT block this sequence; tracked as issues):**
 cylinder matvec #206 (curvilinear WDD matvec hard-red ~18% — NOT fixed by Phase 2; the
-curvilinear matvec collapse is the deferred R4 WRONG-FIT; the #196 SI≡Krylov *eigenvalue*
-twin is already closed, a stale `xfail(strict)` XPASS); **`test_b1pp_constant_flux_collapses_to_collision`
-×3 — STALE O.4b expectation** (asserts boundary=0 at flat ψ, but the O.4b matvec emits the
-INFLOW identity `ψ.inflow`=1 on inflow slots + the outflow defect; pre-existing B.5.2-era
-red; → a separate O.4b boundary-block test-migration); **`test_krylov_kinf_independent_of_mesh_refinement`
-×3 — gate-tightness** (production Krylov correct to ~1.5e-9, the strict 1e-9 ERR-053 gate is
-marginally tight at meshes 5/16/30; optional relax to ~5e-9, which still catches the 4.7e-1
-truncation signature); #212 `continuous_get` hang (reference-registry build; has a proposed
+curvilinear matvec collapse is the deferred R4 → nd_foundation Phase 6, commented on #206;
+the #196 SI≡Krylov *eigenvalue* twin is already closed, a stale `xfail(strict)` XPASS on
+`test_cylinder_l1_sweep_vs_krylov_twin_path` — un-marking it is a small separate cleanup);
+**[FIXED 2026-06-05 `33dd5ff`]** ~~`test_b1pp_constant_flux` ×3~~ (migrated to the O.4b
+inflow-identity/outflow-defect boundary semantics) + ~~`test_krylov_kinf…refinement` ×3~~
+(gate relaxed 1e-9→1e-7 for the unpreconditioned-Krylov ~1.6e-9 floor; re-tighten when #200
+lands); #212 `continuous_get` hang (reference-registry build; has a proposed
 patch `derivations/diagnostics/sn_keff_hang_PROPOSED_fix.patch`; deselect the 3
 affected eigenvalue tests meanwhile); #209 `ordinate_scan` NaN on a zero a-chain
 (cylindrical pole); #195 curvilinear MMS magnitude at nx=160; **#214 WavefrontFlux
