@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **4906**
+Total tests collected: **4935**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1166, 23.8%
-   L1, 926, 18.9%
+   L0, 1166, 23.6%
+   L1, 933, 18.9%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2772, 56.5%
+   foundation, 2794, 56.6%
    unmarked, 6, 0.1%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4821
+   explicit, 4850
    verify, 0
    class-name, 46
    func-name, 0
@@ -51,6 +51,7 @@ Module × level grid
    analytical/test_kinf_homogeneous_tolerance, 0, 8, 0, 0, 0, 0
    analytical/test_l1_standoff_slab_cylinder, 0, 10, 0, 0, 0, 0
    analytical/test_phase_c_crosscheck, 0, 8, 0, 0, 0, 0
+   analytical/test_si_convergence_rate, 0, 7, 0, 0, 2, 0
    cartesian_2d/test_2d_l2_face_view_unit_source, 0, 0, 0, 0, 7, 0
    cartesian_2d/test_2d_l2_matvec_correctness, 0, 2, 0, 0, 2, 0
    cartesian_2d/test_2d_octant_sweep_equivalence, 0, 7, 0, 0, 0, 0
@@ -67,6 +68,7 @@ Module × level grid
    core/test_sweep_cache, 28, 0, 0, 0, 0, 0
    core/test_sweep_graph, 76, 0, 0, 0, 0, 0
    core/test_sweep_regression, 8, 0, 0, 0, 0, 0
+   core/test_sweep_schedule, 0, 0, 0, 0, 9, 0
    core/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 57, 0
    core/test_transport_sweep_ng2_layout_guard, 0, 0, 0, 0, 2, 0
    core/test_unified_sweep_dispatch, 0, 0, 0, 0, 7, 0
@@ -201,7 +203,7 @@ Module × level grid
    fields/test_angular_flux, 0, 0, 0, 0, 25, 0
    fields/test_boundary_flux, 0, 0, 0, 0, 36, 0
    fields/test_boundary_source_sink_residual, 0, 0, 0, 0, 25, 0
-   fields/test_wavefront_flux, 0, 0, 0, 0, 25, 0
+   fields/test_wavefront_flux, 0, 0, 0, 0, 31, 0
    geometry/test_bc_equivalence_snapshot, 0, 8, 0, 0, 0, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 30, 0, 0, 11, 0
@@ -271,7 +273,7 @@ Module × level grid
    operators/test_operator_block_role, 0, 0, 0, 0, 16, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 16, 0
    operators/test_scattering_operator, 1, 0, 0, 0, 75, 0
-   operators/test_sn_boundary_operator, 0, 0, 0, 0, 17, 0
+   operators/test_sn_boundary_operator, 0, 0, 0, 0, 21, 0
    operators/test_sn_boundary_realizer, 0, 20, 0, 0, 0, 0
    operators/test_snmesh_realizer_wiring, 0, 9, 0, 0, 0, 0
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
@@ -301,7 +303,7 @@ Module × level grid
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 262, 0
+   test_layer_imports, 0, 0, 0, 0, 263, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
    transport/test_field_units, 0, 0, 0, 0, 43, 0
@@ -316,7 +318,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    :header: Equation label, Tests
    :widths: 50, 10
 
-   ``matrix-eigenvalue``, 207
+   ``matrix-eigenvalue``, 208
    ``mg-balance``, 168
    ``peierls-unified``, 158
    ``one-group-kinf``, 132
@@ -339,8 +341,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``self-sph``, 52
    ``balance-general``, 51
    ``chord-length``, 51
-   ``fission-matrix``, 50
-   ``removal-matrix``, 50
+   ``fission-matrix``, 51
+   ``removal-matrix``, 51
    ``flux-moments``, 49
    ``wigner-seitz``, 49
    ``attenuation``, 48
@@ -555,6 +557,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``real-spherical-harmonics``, 1
    ``sh-addition-theorem-reconstruction``, 1
    ``sh-space-metric``, 1
+   ``si-spectral-rate``, 1
    ``sigT-computed``, 1
    ``singular-eigenfunction-eq5``, 1
    ``sn-mms-2d-2g-qext``, 1
@@ -575,7 +578,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **45** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **48** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``bc-rank-n-tensor-decomposition``
@@ -609,6 +612,9 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``phase-f-q-1d-decomposition``
 - ``phase-f-source-eq-sigt-phi0``
 - ``pole-mm-recurrence``
+- ``si-jacobi-fixed-point``
+- ``si-sigma-r-fold-mismatch``
+- ``si-within-group-operator-eq``
 - ``sn-cell-flatten-roundtrip``
 - ``sn-streaming-reciprocity``
 - ``sn-within-group-system``
@@ -899,6 +905,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-053``, 7
    ``ERR-054``, **0 (MISSING)**
    ``ERR-055``, **0 (MISSING)**
+   ``ERR-056``, 1
 
 Unmarked tests
 --------------
