@@ -341,17 +341,41 @@ the one primitive; the octant orchestration belongs at the resolvent layer).
   G-S shows; these anchor the future eigenvalue rate gate `n_GS < 0.75×371`), fixed-source
   SI total==n_inner==655. keff unchanged (1.875). Flipped the eigenvalue forward-ref →
   passing foundation seam gate `test_eigenvalue_path_surfaces_total_inner_iterations`.
-- **NEXT: sub-step 2 (ADDITIVE — no live-path change)** — the mesh-time octant SCHEDULE
-  (topological order over the `(octant×face)` reflective dependency graph via
-  `quad.reflection_index`; the opposite-face 2-cycle back-edges = the irreducible Jacobi
-  `B_upper`) + the face-restricted reflect `SNBoundaryOperator.reflect_into_inflow(boundary,
-  faces=...)` (`_reflect_trace` is block-diagonal over faces → a clean `faces=` param add per
-  the explorer). Then sub-step 3 (per-octant-group sweep entry + interior-`WavefrontFlux`-cache
-  persistence — the big lift; CHANGES the fixed point if wrong) → sub-step 4 (wire into the
-  resolvent + flip the rate gates; 2-D fixed-source FIRST, eigenvalue defers) → ERR-056 +
-  vv-principles Mode 9 (user-APPROVED) + `:label:si-spectral-rate` (archivist). Refs: surface
-  map `sn_si_reflective_gauss_seidel_recovery_surface.md` + spec
-  `si_gauss_seidel_rate_recovery_verification_spec.md` (both REFRESHED at HEAD 7d85222).
+- **Sub-step 2 (face-restricted reflect)** ✅ `7d88ab0` — optional `faces=` on
+  `SNBoundaryOperator.reflect_into_inflow`/`_reflect_trace` (block-diagonal over faces →
+  EXACT restriction; unknown-face raises; backward-compatible, no live-path change). 21
+  boundary-op foundation tests green (incl. 4 new: subset-only, partition-of-whole-trace,
+  none≡all, unknown-raises).
+- **NEXT: sub-step 3 — the fixed-point-altering lift (user-reviewed ⭐ POLYMORPHIC design).**
+  **Design decision (user-steered):** Jacobi and G-S are the SAME algorithm parameterized by
+  a mesh-time **`Schedule` strategy** — Jacobi = ONE group (all octants); G-S = the
+  topological octant groups. The SI resolvent runs ONE uniform loop with NO Jacobi/G-S branch
+  in it: `seed inflow = B·ψₙ` (previous-iterate reflection, from `initial_guess`);
+  `for group in schedule.groups: sweep_octant_group(group); reflect_into_inflow(faces=
+  group.outgoing_reflective_faces)`. "Seed-then-overwrite": early groups read the lagged seed
+  (cyclic `B_upper` back-edges); the reflect-after-each-group OVERWRITES later groups' inflow
+  with the fresh current-iterate reflection (order-respecting `B_lower` edges). Fixed point
+  provably UNCHANGED (any consistent splitting of `(L+C−S−B)ψ=q` shares ψ\*; at convergence
+  seed=overwrites=`B·ψ\*`). Dispatch ONCE at schedule construction (`inner_schedule`
+  selector); default G-S, `"jacobi"` selectable as the splitting-invariant control. **B moves
+  INTO the SI resolvent** (SI gains become `(S,)`); `_within_group_triple` stays the
+  `(L+C,S,B)` SSoT — the SI path COMPOSES the scheduled resolvent from LC+B+schedule; Krylov
+  keeps `(LC,S,B)` (splitting-invariant, UNTOUCHED → G-2 SI≡Krylov fixed-point holds).
+  **Verification refinement:** the rate gate measures BOTH schedules LIVE (`n_GS <
+  0.75·n_Jacobi`, both in-process) — retires the hardcoded 655/523 baseline constants + makes
+  Jacobi a permanent control (not dead legacy). **Carve decomposition (each a checkpoint):**
+  3a = the `Schedule` strategy (mesh-time; `quad.octants` order + per-octant reflective
+  outgoing faces; `Schedule.jacobi`/`.gauss_seidel` factories; unit-testable STANDALONE —
+  assert groups+faces for slab 2-cycle / 2-D box / half-reflective DAG) → 3b =
+  `sweep_octant_group` carved from `_sweep_2d_wavefront` body (sweep.py:873 loop / 911-933
+  body) + interior-`WavefrontFlux`-cache persistence across group calls (the biggest lift) →
+  3c = the scheduled resolvent solve (seed+loop) + wire `inner_schedule` through
+  `_solve_source_iteration`/`_solve_fixed_source_si` + flip the rate gates (2-D fixed-source
+  FIRST, eigenvalue defers). Then ERR-056 + vv-principles Mode 9 (user-APPROVED) +
+  `:label:si-spectral-rate` (archivist). Vacuum/Krylov are no-ops (vacuum: B=0, empty G-S
+  schedule → degenerates to today's bare sweep → G-4 control holds). Refs: surface map
+  `sn_si_reflective_gauss_seidel_recovery_surface.md` + spec
+  `si_gauss_seidel_rate_recovery_verification_spec.md` (REFRESHED at HEAD 7d85222).
 
 **Goal.** Recover the intra-sweep Gauss-Seidel reflective coupling lost to BC
 extraction. Bare sweep + external `−B` is inter-sweep **Jacobi** (B fully lagged in N);
