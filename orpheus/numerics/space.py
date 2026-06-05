@@ -142,7 +142,17 @@ class FunctionSpace:
 
     name: str
     shape: tuple[int, ...]
-    inner_product_weights: Optional[NDArray] = field(default=None, repr=False)
+    # Metadata, NOT identity (see class docstring): two spaces with the same
+    # (name, shape) are equal regardless of the installed metric, and hashing
+    # is on (name, shape). ``compare=False`` keeps the weights out of the
+    # dataclass-generated ``__eq__``/``__hash__`` of subclasses (e.g.
+    # ``TraceSpace``, ``SphericalHarmonicSpace``) that regenerate them — an
+    # array-valued metric would otherwise make ``==`` raise on the ambiguous
+    # element-wise truth value. The base class's manual ``__eq__`` already
+    # ignores it; this makes every subclass agree by construction.
+    inner_product_weights: Optional[NDArray] = field(
+        default=None, repr=False, compare=False,
+    )
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, FunctionSpace):

@@ -29,8 +29,8 @@ property of the space's identity. So :class:`TraceSpace` stores the
 *signed* projection :math:`\Omega \cdot \hat n_f` once, per face, and
 exposes :meth:`inflow_indices_for_face` / :meth:`outflow_indices_for_face`
 as selectors over it. (#208 will promote these to projection
-*operators* with a :math:`|\Omega\cdot\hat n|`-weighted boundary inner
-product — see the deferral note on that issue.)
+*operators*; the :math:`|\Omega\cdot\hat n|`-weighted boundary inner
+product they live in is now installed — see below.)
 
 Whole-boundary storage + per-face access
 =========================================
@@ -43,11 +43,18 @@ slot (``layout.faces[face].slice_view``) plus the per-face row of the
 signed-projection table; the old per-face ``(N, ng)`` "space" is now a
 *derived view*, not a class.
 
-Inner product is **Euclidean** (``inner_product_weights=None``),
-matching the legacy ``sn_boundary_flat`` storage space so the boundary
-field algebra stays bit-identical. The physically-correct
-:math:`|\Omega\cdot\hat n|`-weighted boundary metric (partial currents,
-``BoundaryOperator`` Hilbert adjoints) is deferred to Wave O / #208.
+Inner product is the **partial-current metric**
+:math:`G_s = |\Omega\cdot\hat n_f|\odot w_n` (the cosine-weighted angular
+quadrature), installed at construction by :func:`_build_trace_metric_weights`.
+This is the physically-correct boundary inner product under which the
+``BoundaryOperator`` Hilbert adjoints (``B.H``) — reflective and white —
+are correct (Wave O / O.2b, #208). The metric is group-independent (a
+weight in angle, not energy). It is read ONLY by the adjoint path
+(:class:`~orpheus.numerics.operator._AdjointOperator` and
+:meth:`FunctionSpace.inner_product`); the forward sweep/matvec never reads
+it, so installing it leaves every forward result bit-identical. (Before
+O.2b this slot was Euclidean ``None``, matching the legacy
+``sn_boundary_flat`` storage space.)
 
 Geometric convention
 ====================
@@ -114,9 +121,9 @@ References
 * ``.claude/plans/field_role_typing_view_g.md`` — A.2/A.3 TraceSpace
   unification design (View-G, signed-:math:`\Omega\cdot\hat n`,
   principled eps, face-naming reconciliation).
-* Issue #208 comment (2026-05-31) — the deferred
-  :math:`|\Omega\cdot\hat n|`-weighted boundary inner product for the
-  Wave-O adjoint work.
+* Issue #208 comment (2026-05-31) — the
+  :math:`|\Omega\cdot\hat n|`-weighted partial-current boundary inner
+  product for the Wave-O adjoint work (landed Phase 4 / O.2b).
 """
 
 from __future__ import annotations
@@ -225,6 +232,45 @@ def _build_omega_dot_n(
     return omega_dot_n
 
 
+def _build_trace_metric_weights(
+    omega_dot_n: NDArray,
+    quad_weights: NDArray,
+    layout: "FaceLayout",
+) -> NDArray:
+    r"""Build the partial-current boundary metric :math:`G_s = |\Omega\cdot\hat n_f|\odot w_n`.
+
+    The trace Hilbert metric is the **partial current** weight: pairing two
+    boundary fields contracts angle against :math:`|\Omega\cdot\hat n_f|\,w_n`,
+    i.e. the cosine-weighted angular quadrature (Lewis & Miller §3.7; the
+    boundary inner product under which reflective/white BCs are self-adjoint).
+    Wave O / O.2b (#208) — replaces the legacy Euclidean (``None``) metric.
+
+    Returns the flat ``(layout.total_size,)`` diagonal-weight array that
+    :meth:`FunctionSpace.inner_product` broadcasts against the trace state.
+    The metric is **purely angular** — :math:`|\Omega\cdot\hat n_f|\,w_n`
+    depends only on the ordinate (axis 0 of every face slot), not on energy
+    group or on spatial position along the face. So for a face slot of shape
+    ``(N, ng)`` (1-D) or ``(N, ng, n_face_cells)`` (2-D edge) the ``(N,)``
+    cosine weight is broadcast across ALL trailing (group / spatial) axes.
+
+    The row order of ``omega_dot_n`` matches ``tuple(layout.faces)`` (both
+    derive from the same ordered layout), so ``enumerate(layout.faces)``
+    aligns face slots with projection rows.
+    """
+    weights_flat = np.zeros((int(layout.total_size),), dtype=float)
+    w_n = np.asarray(quad_weights, dtype=float)  # (N,)
+    for f_idx, face_name in enumerate(layout.faces):
+        slot = layout.faces[face_name]
+        face_w = np.abs(omega_dot_n[f_idx]) * w_n  # (N,) = |Ω·n_f| · w_n
+        # Ordinate is axis 0 of the slot; reshape to (N, 1, 1, …) so the
+        # per-ordinate cosine weight broadcasts across every trailing axis
+        # (group, and — in 2-D — the cells along the boundary edge).
+        face_w_axis0 = face_w.reshape((face_w.shape[0],) + (1,) * (len(slot.shape) - 1))
+        flat_face = np.broadcast_to(face_w_axis0, slot.shape).reshape(-1)
+        weights_flat[slot.offset : slot.offset + slot.flat_size] = flat_face
+    return weights_flat
+
+
 # ─────────────────────────────────────────────────────────────────────
 # The trace space
 # ─────────────────────────────────────────────────────────────────────
@@ -244,8 +290,10 @@ class TraceSpace(FunctionSpace):
     name, shape, inner_product_weights
         Inherited from :class:`FunctionSpace`. ``name`` is ``"sn_trace"``
         and ``shape`` is the whole-boundary flat shape
-        ``(layout.total_size,)``. Inner product is Euclidean
-        (``inner_product_weights=None``).
+        ``(layout.total_size,)``. ``inner_product_weights`` is the
+        partial-current metric :math:`G_s = |\Omega\cdot\hat n_f|\odot w_n`
+        (built by :func:`_build_trace_metric_weights`; see the module
+        docstring) — NOT Euclidean.
     layout : FaceLayout
         The flat-buffer descriptor (which faces exist, per-face shapes,
         offsets). Carried as ``compare=False`` leaf-data so it does not
@@ -307,9 +355,17 @@ class TraceSpace(FunctionSpace):
         """
         faces = tuple(layout.faces)
         omega_dot_n = _build_omega_dot_n(mesh, quadrature, faces)
+        # Wave O / O.2b (#208): the partial-current boundary metric
+        # G_s = |Ω·n_f| ⊙ w_n — the cosine-weighted angular quadrature under
+        # which the BoundaryOperator Hilbert adjoints (B.H) are physically
+        # correct.  Group-independent; built once at the producer (Pattern 7).
+        inner_product_weights = _build_trace_metric_weights(
+            omega_dot_n, quadrature.weights, layout,
+        )
         return cls(
             name="sn_trace",
             shape=(int(layout.total_size),),
+            inner_product_weights=inner_product_weights,
             layout=layout,
             omega_dot_n=omega_dot_n,
         )

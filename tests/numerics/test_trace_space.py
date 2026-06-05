@@ -359,3 +359,86 @@ def test_eps_sits_in_the_round_off_to_genuine_gap():
         f"smallest genuine |cosine| = {min_genuine:.3e} is suspiciously "
         f"small — investigate before trusting the gap"
     )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Foundation — the partial-current boundary metric G_s = |Ω·n_f| ⊙ w_n
+# (Wave O / O.2b, #208).  Phase 4 populates inner_product_weights here;
+# it is the metric under which the BoundaryOperator Hilbert adjoints are
+# correct.  These pin the data shape/values; the discriminating proof
+# that it makes the adjoint correct is the §2 reciprocity gate (4.3).
+# ─────────────────────────────────────────────────────────────────────
+
+
+def _reference_trace_metric(space: TraceSpace, quad) -> np.ndarray:
+    """Independent flat ``|Ω·n_f|·w_n`` build (per-face, broadcast over all
+    trailing axes) — the cross-check ground for the production metric."""
+    layout = space.layout
+    ref = np.zeros((layout.total_size,), dtype=float)
+    for f_idx, face in enumerate(layout.faces):
+        slot = layout.faces[face]
+        face_w = np.abs(space.omega_dot_n[f_idx]) * np.asarray(quad.weights)
+        broadcast = np.broadcast_to(
+            face_w.reshape((face_w.shape[0],) + (1,) * (len(slot.shape) - 1)),
+            slot.shape,
+        )
+        ref[slot.offset : slot.offset + slot.flat_size] = broadcast.reshape(-1)
+    return ref
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(
+    "coord",
+    [CoordSystem.CARTESIAN, CoordSystem.SPHERICAL, CoordSystem.CYLINDRICAL],
+)
+def test_trace_metric_is_cosine_weighted_1d(coord):
+    """O.2b: the 1-D trace metric is the partial-current weight
+    ``|Ω·n_f|·w_n`` (NOT Euclidean ``None``) — bit-exact against an
+    independent per-face build, on slab (2 faces) + curvilinear (1 face)."""
+    quad = Quadrature.gauss_legendre(8)
+    space = _trace_1d(coord, quad, ng=2)
+    assert space.inner_product_weights is not None
+    np.testing.assert_array_equal(
+        space.inner_product_weights, _reference_trace_metric(space, quad),
+    )
+
+
+@pytest.mark.foundation
+def test_trace_metric_is_cosine_weighted_2d():
+    """O.2b: the angular weight broadcasts across the group AND the
+    along-edge spatial axis of a 2-D face slot ``(N, ng, n_face_cells)``."""
+    quad = Quadrature.lebedev(11)
+    space = _trace_2d(quad, nx=3, ny=3, ng=2)
+    assert space.inner_product_weights is not None
+    np.testing.assert_array_equal(
+        space.inner_product_weights, _reference_trace_metric(space, quad),
+    )
+
+
+@pytest.mark.foundation
+def test_trace_inner_product_is_weighted_not_euclidean():
+    """O.2b: ``inner_product`` computes ``Σ |Ω·n|·w_n · a·b`` — equals the
+    explicit weighted sum AND differs from the bare Euclidean ``Σ a·b``
+    (the metric is load-bearing, not a no-op)."""
+    quad = Quadrature.gauss_legendre(8)
+    space = _trace_1d(CoordSystem.CARTESIAN, quad, ng=2)
+    rng = np.random.default_rng(2026)
+    a = rng.standard_normal(space.shape)
+    b = rng.standard_normal(space.shape)
+    w = space.inner_product_weights
+    assert space.inner_product(a, b) == pytest.approx(float(np.sum(w * a * b)))
+    assert space.inner_product(a, b) != pytest.approx(float(np.sum(a * b)))
+
+
+@pytest.mark.foundation
+def test_trace_metric_group_independent():
+    """O.2b: the metric is purely angular — every group column of a face
+    slot equals ``|Ω·n_f|·w_n`` (no energy dependence)."""
+    quad = Quadrature.gauss_legendre(8)
+    space = _trace_1d(CoordSystem.CARTESIAN, quad, ng=3)
+    slot = space.layout.faces["xmax"]
+    w_face = slot.slice_view(space.inner_product_weights)  # (N, ng)
+    f_idx = space.face_names.index("xmax")
+    expected_col = np.abs(space.omega_dot_n[f_idx]) * np.asarray(quad.weights)
+    for g in range(w_face.shape[1]):
+        np.testing.assert_array_equal(w_face[:, g], expected_col)
