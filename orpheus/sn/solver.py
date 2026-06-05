@@ -1032,21 +1032,12 @@ def _reflect_outflow_into_inflow(boundary_flux, sn_mesh: SNMesh) -> None:
     loops route through the driver and THIS HELPER RETIRES (the removal trigger).
     """
     from orpheus.sn.boundary_operator import SNBoundaryOperator
-    from orpheus.transport.fields.angular_flux import AngularFlux
-    from orpheus.transport.timed_full_field import TimedFullField
 
-    probe = TimedFullField(
-        bulk=AngularFlux.from_mesh(
-            np.zeros(
-                (sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny),
-            ),
-            sn_mesh,
-        ),
-        boundary=boundary_flux,
-        _history=(),
-        history_depth=2,
-    )
-    reflected = SNBoundaryOperator(sn_mesh).apply(probe).boundary
+    # Trace-only ``A_ss`` action — no zero-bulk probe (the bulk was only ever a
+    # carrier to reach ``B``'s boundary block). ``reflect_into_inflow`` is the
+    # canonical trace-level entry; it shares ``_reflect_trace`` with ``B.apply``
+    # so the helper and the matvec / SI driver cannot drift.
+    reflected = SNBoundaryOperator(sn_mesh).reflect_into_inflow(boundary_flux)
     trace = sn_mesh.trace
     for face in boundary_flux.layout.faces:
         inflow = trace.inflow_indices_for_face(face)

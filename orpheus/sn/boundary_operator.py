@@ -59,6 +59,8 @@ from orpheus.numerics.operator import (
 if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.geometry import SNMesh
+    from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.source_sinks import BoundarySourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
 
@@ -138,17 +140,18 @@ class SNBoundaryOperator(LinearOperatorMixin):
     def codomain(self) -> Optional["FunctionSpace"]:
         return self.sn_mesh.trace
 
-    def _apply_faces(
-        self, psi: "TimedFullField", method: str,
-    ) -> "TimedFullField":
-        r"""Apply each face's law (``method`` ∈ {apply, apply_transpose}) to its
-        slot, projected onto the codomain row; emit a zero-bulk, boundary-only
-        :class:`TimedFullField`.
+    def _reflect_trace(
+        self, boundary: "BoundaryFlux", method: str,
+    ) -> "BoundarySourceSink":
+        r"""Core ``A_ss`` action on the trace ALONE — apply each face's law
+        (``method`` ∈ {apply, apply_transpose}) to that face's slot, project onto
+        the codomain row, and return a boundary-only
+        :class:`~orpheus.transport.source_sinks.BoundarySourceSink`.
 
         ``B`` is the ``A_ss`` block ``V_outflow → V_inflow``: it maps the
-        **outflow** trace to the **inflow** trace, so ``B.apply(ψ)`` must be
-        non-zero **only on the inflow ordinate slots** of each face. The
-        realized per-face law (a :class:`~orpheus.numerics.operator.PermutationOperator`
+        **outflow** trace to the **inflow** trace, so the forward action must be
+        non-zero **only on the inflow ordinate slots** of each face. The realized
+        per-face law (a :class:`~orpheus.numerics.operator.PermutationOperator`
         for reflective, :class:`AngularAverageOperator` for white, …) is a
         *full-face* operator: e.g. the specular permutation also maps the input
         inflow slots onto the output **outflow** slots (``R·ψ.inflow``). The
@@ -163,25 +166,23 @@ class SNBoundaryOperator(LinearOperatorMixin):
         onto ``outflow_indices_for_face`` accordingly. (The metric-correct Hilbert
         adjoint ``B.H`` under ``|Ω·n|·w`` is Wave O step O.2; this Euclidean
         ``apply_transpose`` is the un-weighted shadow, not yet a live consumer.)
+
+        This is the **single source of truth** for the boundary reflection: both
+        the full-field :meth:`apply` (lifted onto a zero-bulk carrier) and the
+        trace-only :meth:`reflect_into_inflow` (the direct-loop inflow seed) route
+        through it, so the two cannot drift (Cardinal Rule 2).
         """
-        from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
-        from orpheus.transport.timed_full_field import TimedFullField
+        from orpheus.transport.source_sinks import BoundarySourceSink
 
         # Single mesh source (mesh-identity invariant — see class docstring):
         # the output buffers, the trace selectors, and ``_face_laws`` ALL read
-        # ``self.sn_mesh``, so a mismatched input field cannot desync the trace
+        # ``self.sn_mesh``, so a mismatched input trace cannot desync the
         # projection from the buffer geometry.
         mesh = self.sn_mesh
-        if psi.bulk.mesh is not mesh:
-            raise ValueError(
-                "SNBoundaryOperator.apply: input field and operator must "
-                "share the same SNMesh instance (mesh-identity invariant); "
-                f"got field mesh {psi.bulk.mesh!r} vs operator mesh {mesh!r}."
-            )
         trace = mesh.trace
         out_boundary = BoundarySourceSink.zeros_on(mesh)
         for face, law in self._face_laws.items():
-            face_in = psi.boundary.face_view(face)
+            face_in = boundary.face_view(face)
             full = getattr(law, method)(face_in)
             target = (
                 trace.inflow_indices_for_face(face)
@@ -189,11 +190,30 @@ class SNBoundaryOperator(LinearOperatorMixin):
                 else trace.outflow_indices_for_face(face)
             )
             out_boundary.face_view(face)[target] = full[target]
+        return out_boundary
+
+    def _apply_faces(
+        self, psi: "TimedFullField", method: str,
+    ) -> "TimedFullField":
+        r"""Lift the trace-only :meth:`_reflect_trace` onto the full
+        :class:`TimedFullField` carrier with **zero bulk** — the ``A_ss`` block
+        as an operator on ``V = V_bulk ⊕ V_boundary``.
+        """
+        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        mesh = self.sn_mesh
+        if psi.bulk.mesh is not mesh:
+            raise ValueError(
+                "SNBoundaryOperator.apply: input field and operator must "
+                "share the same SNMesh instance (mesh-identity invariant); "
+                f"got field mesh {psi.bulk.mesh!r} vs operator mesh {mesh!r}."
+            )
         return TimedFullField(
             bulk=AngularSourceSink.from_mesh(
                 np.zeros_like(psi.bulk.values), mesh,
             ),
-            boundary=out_boundary,
+            boundary=self._reflect_trace(psi.boundary, method),
             _history=(),
             history_depth=psi.history_depth,
         )
@@ -201,6 +221,24 @@ class SNBoundaryOperator(LinearOperatorMixin):
     def apply(self, psi: "TimedFullField") -> "TimedFullField":
         r"""Forward action ``B·ψ`` — per-face boundary law on the trace, zero bulk."""
         return self._apply_faces(psi, "apply")
+
+    def reflect_into_inflow(
+        self, boundary: "BoundaryFlux",
+    ) -> "BoundarySourceSink":
+        r"""Trace-only forward reflection ``B·ψ.outflow`` projected onto the
+        inflow row — the ``A_ss`` action expressed on the boundary trace ALONE.
+
+        Returns a boundary-only
+        :class:`~orpheus.transport.source_sinks.BoundarySourceSink` whose
+        **inflow** ordinate slots carry the per-face reflected outflow (``R·G``
+        for reflective, the angular average for white, zero for vacuum) and whose
+        outflow slots are zero. It is :meth:`apply` without the zero-bulk carrier
+        — the entry the direct fixed-source SI loop and the final eigenvalue
+        reconstruction sweep use to seed ``ψ.inflow = B·ψ.outflow`` on a bare
+        boundary buffer, without fabricating a throwaway zero-bulk field just to
+        reach the ``A_ss`` block.
+        """
+        return self._reflect_trace(boundary, "apply")
 
     def apply_transpose(self, psi: "TimedFullField") -> "TimedFullField":
         r"""Euclidean transpose ``Bᵀ·ψ`` — per-face ``apply_transpose``, zero bulk.
