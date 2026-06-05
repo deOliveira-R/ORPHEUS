@@ -67,15 +67,29 @@ is a DIFFERENT, OLDER branch `refactor/sn-operator-algebra` whose `solver.py` /
    restart gate 1e-7→1e-9) ; sub-step 3 = R4 curvilinear-matvec + 1-D-scan collapse →
    **nd_foundation Phase 6 d-generic walk** (commented on issue #206; trigger = after the
    `_sweep_wavefront` walk lands).
-5. **Phase 3 (#19, SI Gauss-Seidel recovery) IN PROGRESS** (2026-06-05): Gate 1 + sub-steps
-   1 / 2 / 3a ✅ DONE (HEAD `40aefc2`, local-only); the **3b + 3c fixed-point-changing CORE is
-   NEXT** — see the Phase 3 **STATUS + design + NEXT block** in §3 for the FULL self-contained
-   pickup (the polymorphic `SweepSchedule` + seed-then-overwrite design, the exact 3b/3c carve
-   anchors, verification gates, gotchas). Carve substrate map:
-   `.claude/agent-memory/explorer/si_gs_substep3_carve_substrate.md`. Phase 4 (#20) / #200 are
-   the subsequent choices. Each phase crosses subsystem boundaries → test-architect FIRST
-   (L17). Phase-2 refs: crosswalk `.claude/plans/phase2_o2a_crosswalk.md`, audit
-   `.claude/agent-memory/explorer/phase2_o2a_dependency_audit.md`.
+5. **Phase 3 (#19, SI Gauss-Seidel recovery) ✅ DONE** (2026-06-05, HEAD `1cbb383`, local-only).
+   Landed as an HONEST, MODEST **boundary** Gauss-Seidel accelerator — NOT the c²-halving the
+   original plan/spec assumed. ⚠ **The c²-halving premise was REFUTED by a spike**: boundary-G-S
+   folds only the reflective coupling `B` (S stays a lagged gain), so it accelerates the
+   boundary-layer transient, not the dominant flat *scattering* `c`-mode → a measured constant
+   **~0.86–0.92×** (regime-independent), not 0.5×. The real within-group rate win is **Krylov
+   (already production, splitting-invariant, rate-optimal on every BC)** or **consistent DSA**
+   (commented on issue **#2** with the full spike evidence — c-independent 8–21× on vacuum, but
+   naive FD-DSA DIVERGES on reflective → consistent DSA needed). The σ_r-fold (folding the
+   scattering self-scatter into a σ_r-sweep) is a LATENT CORRECTNESS TRAP (issue **#215** + the
+   docstrings now warn it: isotropic-limit-only, 46–56% wrong on anisotropic, or divergent).
+   Commit chain: `465bb5d`(3b.1 face-restricted seed/absorb) → `261abad`(3b.2 sweep_octant_group
+   carve, Jacobi bit-identical) → `0421e72`(σ_r trap docstrings) → `3697eef`(3c.1 polymorphic
+   `_sweep_2d_scheduled`) → `a39905a`(3c.2 `_GaussSeidelResolvent` + `inner_schedule` selector +
+   the **ERR-056 shared-face fix** — reflect a face only after its LAST outflowing octant group;
+   diagonal/lebedev cubatures were wrong before) → `c1ac2f7`(3c.3 rate gates re-scoped to LIVE
+   measurement: strict-improvement + Krylov bracket + same-FP, no hardcoded baseline) →
+   `da05e93`(ERR-056 + vv-principles **Mode 9**) → `1cbb383`(Sphinx theory doc + `:label:
+   si-spectral-rate`). Eigenvalue (`solve_sn`) deferred — stays Jacobi (only `solve_sn_fixed_source`
+   defaults to G-S). **Subsequent choices: consistent DSA (#2 — the real rate feature) / Phase 4
+   (#20) / #200.** Each crosses subsystem boundaries → test-architect FIRST (L17). The carve
+   substrate map (`.claude/agent-memory/explorer/si_gs_substep3_carve_substrate.md`) + Phase-2
+   refs remain for reference.
 
 ---
 
@@ -322,12 +336,19 @@ onto them.
 
 ### Phase 3 — SI Gauss-Seidel recovery  *(the motivating feature)*
 
-**STATUS (2026-06-05): Gate 1 + sub-steps 1 / 2 / 3a ✅ DONE; the 3b+3c CORE is NEXT.**
-HEAD `40aefc2` (local-only, not pushed). Commit chain: `926c4ca` (Gate 1) → `956f069` (3-1
-seam) → `7d88ab0` (3-2 reflect) → `514ae21` (3-3a schedule) + plan checkpoints
-(`15a1597`/`d7991f3`/`40aefc2`). The ADDITIVE foundation (measurement + restricted reflect +
-polymorphic schedule) is complete + green with NO live-path change; what remains (3b/3c) is
-the fixed-point-changing hot-path core, decomposed + anchored below.
+**STATUS (2026-06-05): ✅ DONE — HEAD `1cbb383` (local-only, not pushed).** See the top-of-file
+recovery **bullet 5** for the full outcome + commit chain. ⚠ **OUTCOME DIFFERS FROM THE PREMISE
+BELOW** (this §3 design narrative is preserved as the as-designed record; read bullet 5 + the
+Sphinx theory page `docs/theory/discrete_ordinates.rst` `:ref:si-within-group-splitting` for the
+as-BUILT truth). The c²-halving target was **refuted by a spike**: the landed octant-group G-S
+folds only the **boundary** `B` (not the scattering `c`-mode), giving a measured constant
+**~0.86–0.92×** — a modest reflective-SI accelerator, honestly gated (LIVE strict-improvement +
+Krylov bracket + same-FP), NOT the c² recovery. The real within-group rate win is **Krylov
+(have)** / **consistent DSA (#2)**; the σ_r-sweep fold of the scattering self-scatter is a latent
+correctness trap (**#215**). Findings logged: **ERR-056** (diagonal-cubature shared-face reflect)
++ **vv-principles Mode 9** (verify splittings on anisotropic/diagonal stressing configs). Below:
+the as-designed Gate 1 + 1/2/3a foundation (`926c4ca`→`514ae21`) + the 3b/3c design — all built,
+with the premise correction noted inline.
 
 #### The problem (what we recover) — durable
 Wave O BC extraction made the transport sweep BARE and applies the reflective coupling `B`
