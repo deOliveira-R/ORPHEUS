@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **4903**
+Total tests collected: **4906**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1166, 23.8%
-   L1, 925, 18.9%
+   L1, 926, 18.9%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2770, 56.5%
+   foundation, 2772, 56.5%
    unmarked, 6, 0.1%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4818
+   explicit, 4821
    verify, 0
    class-name, 46
    func-name, 0
@@ -295,9 +295,11 @@ Module × level grid
    slab/test_dd_recurrence, 1, 0, 0, 0, 0, 0
    slab/test_unified_matvec_slab, 2, 2, 0, 0, 0, 0
    solve/test_b1pp_verification, 6, 3, 0, 0, 0, 0
-   solve/test_fixed_source_g1, 0, 6, 0, 0, 0, 0
+   solve/test_fixed_source_2d_equivalence, 0, 2, 0, 0, 0, 0
+   solve/test_fixed_source_g1, 0, 5, 0, 0, 0, 0
    solve/test_krylov_curvilinear_precond_safety, 0, 4, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
+   solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_layer_imports, 0, 0, 0, 0, 262, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
@@ -344,7 +346,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``attenuation``, 48
    ``optical-thickness``, 48
    ``scalar-flux-integral``, 48
-   ``transport-cartesian``, 38
+   ``transport-cartesian``, 39
    ``cp-kernel-differential-identities``, 36
    ``flat-source``, 35
    ``cp-keff-update``, 34
@@ -573,7 +575,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **42** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **45** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``bc-rank-n-tensor-decomposition``
@@ -584,6 +586,9 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``billiard-resolvent-neumann``
 - ``billiard-transfer-operator``
 - ``billiard-variant-alpha-rank1``
+- ``eigen-alpha-derivation``
+- ``eigen-k-posing``
+- ``eigen-resolvent``
 - ``fn-method-moment-space-AB-defs``
 - ``fn-method-moment-space-bc-vacuum``
 - ``fn-method-moment-space-fn-ansatz``
@@ -621,7 +626,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **203** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **204** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``bailey-dome-recursion``
 - ``bc-extraction-block-matrix``
@@ -651,6 +656,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``discrete-measure-pushforward``
 - ``doppler-feedback``
 - ``e1-small-tau-expansion``
+- ``eigen-standard-form``
 - ``fb-bc4-displacement``
 - ``fb-clad-strain``
 - ``fb-fuel-heat``
@@ -884,7 +890,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-046``, 8
    ``ERR-047``, **0 (MISSING)**
    ``ERR-048``, 51
-   ``ERR-049``, 16
+   ``ERR-049``, 15
    ``ERR-050``, 4
    ``ERR-051``, **0 (MISSING)**
    ``ERR-052``, 1
