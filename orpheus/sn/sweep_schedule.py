@@ -129,14 +129,43 @@ class SweepSchedule:
                 by_label[sweep.label] = []
                 ordered.append(sweep.label)
             by_label[sweep.label].append(sweep)
+
+        # Assign each reflective face to the LAST in-plane octant group (in
+        # sweep order) that OUTFLOWS through it — reflecting only after that
+        # group guarantees the face's outflow is COMPLETE (every octant that
+        # streams out through it has been swept this pass), so the reflected
+        # inflow is consistent.
+        #
+        # ⚠ Correctness (NOT just rate): a face is shared by EVERY octant whose
+        # sign on that axis matches (e.g. ``xmax`` ← all +x octants).  For an
+        # axis-aligned quadrature (``product`` — single-face octants) each face
+        # has exactly ONE outflowing group, so "last" = that group.  But for a
+        # diagonal / spherical cubature (``lebedev`` / ``level_symmetric`` —
+        # each octant outflows TWO faces) a face is shared by ≥2 groups;
+        # reflecting after the FIRST would absorb the not-yet-swept octants'
+        # SEED value (the wavefront is rebuilt + seeded each solve, so their
+        # outflow slots still hold the inflow seed, NOT real outflow) and
+        # reflect garbage — converging to a WRONG fixed point.  Deferring to
+        # the LAST outflowing group fixes this; octants reading the face that
+        # are swept BEFORE its reflect keep the lagged seed (the cyclic
+        # back-edge → partial one-pass G-S), which is always valid.
+        last_group_for_face: dict[str, int] = {}
+        for gi, label in enumerate(ordered):
+            for f in _outgoing_faces(label):
+                if f in reflective:
+                    last_group_for_face[f] = gi   # later gi wins → the last
+        reflect_by_group: dict[int, list[str]] = {
+            gi: [] for gi in range(len(ordered))
+        }
+        for face, gi in last_group_for_face.items():
+            reflect_by_group[gi].append(face)
+
         groups = tuple(
             OctantSweepGroup(
                 sweeps=tuple(by_label[label]),
-                reflect_faces=tuple(
-                    f for f in _outgoing_faces(label) if f in reflective
-                ),
+                reflect_faces=tuple(sorted(reflect_by_group[gi])),
             )
-            for label in ordered
+            for gi, label in enumerate(ordered)
         )
         return cls(groups=groups, kind="gauss_seidel")
 

@@ -192,6 +192,135 @@ def _within_group_krylov(
     )
 
 
+class _GaussSeidelResolvent:
+    r"""SI-only resolvent folding the BOUNDARY reflection ``B`` into the 2-D
+    wavefront sweep via an octant-group Gauss-Seidel ``SweepSchedule`` (Phase 3
+    sub-step 3c).
+
+    The plain SI resolvent is ``(L+C)`` with ``B`` lagged as an external gain
+    (inter-sweep Jacobi — ``B·ψₙ`` rides ``rhs.boundary``).  This resolvent
+    INSTEAD seeds ``B·ψₙ`` itself and re-reflects each octant group's outgoing
+    reflective faces BETWEEN group sweeps, so a later group reads the fresh
+    current-iterate inflow — the ``(L+C−B_lower)⁻¹`` forward substitution that
+    recovers the intra-sweep reflective coupling Wave O externalised.
+
+    Honest SCOPE (Phase 3 spike — issues #2 / #215): this folds the BOUNDARY
+    coupling only — a MODEST reflective-SI rate gain (~0.86–0.92× on the B-2g
+    configs; measured).  The dominant within-group SCATTERING ``c``-mode is NOT
+    folded (it cannot be folded into a directional sweep — that is consistent
+    DSA / Krylov territory, #2).  The converged fixed point is IDENTICAL to the
+    Jacobi SI (only the spectral rate changes — ``vv-principles`` Mode 9);
+    Krylov is splitting-invariant and unaffected.
+
+    2-D Cartesian ONLY (``_sweep_2d_scheduled``).  1-D meshes route to the
+    Jacobi resolvent (:func:`_select_si_resolvent` never constructs this for
+    1-D — boundary G-S is a no-op there AND the scan is not a wavefront).
+
+    Satisfies the :class:`~orpheus.numerics.iteration.SourceIteration` ``L``
+    contract: ``capabilities`` advertises ``{CAP_APPLY, CAP_SOLVE}`` and
+    ``solve(rhs, *, initial_guess=…)`` runs the seed-then-overwrite loop.
+    ``apply`` delegates to ``(L+C)`` — it is NEVER called by SourceIteration
+    (which only invokes ``.solve``); the boundary G-S is purely a solve-time
+    concern.
+    """
+
+    def __init__(self, invertible, boundary_op, schedule) -> None:
+        self._invertible = invertible    # (L+C) InvertibleOperator at σ_t
+        self._boundary_op = boundary_op  # SNBoundaryOperator (the same B)
+        self._schedule = schedule        # SweepSchedule.gauss_seidel(sn_mesh)
+        self.sn_mesh = invertible.sn_mesh
+
+    @property
+    def capabilities(self) -> frozenset[str]:
+        from orpheus.numerics.operator import CAP_APPLY, CAP_SOLVE
+
+        return frozenset({CAP_APPLY, CAP_SOLVE})
+
+    def apply(self, psi):
+        # Unused by SourceIteration (it calls only .solve); delegate to (L+C)
+        # so the CAP_APPLY contract holds. The boundary G-S is solve-time only.
+        return self._invertible.apply(psi)
+
+    def solve(self, rhs, *, initial_guess=None):
+        r"""``(L+C−B_lower)⁻¹ rhs`` via the seed-then-overwrite G-S sweep.
+
+        Seeds ``boundary_buf = rhs.boundary + B·ψₙ`` (the lagged whole-trace
+        reflection of the previous iterate — the SAME seed the Jacobi path gets
+        via the external ``B`` gain, only here ``B`` lives in the resolvent),
+        then runs :func:`_sweep_2d_scheduled` with the G-S schedule and the
+        face-restricted ``−B`` reflect between octant-group sweeps.
+        """
+        from orpheus.transport.fields.angular_flux import AngularFlux
+        from orpheus.transport.fields.boundary_flux import BoundaryFlux
+        from orpheus.transport.timed_full_field import TimedFullField
+        from .sweep import _sweep_2d_scheduled
+
+        sn_mesh = self.sn_mesh
+        trace = sn_mesh.trace
+
+        # boundary_buf = rhs.boundary (external inflow) + B·ψₙ (lagged reflect
+        # of the previous iterate's outflow).
+        boundary_buf = BoundaryFlux.zeros_on(sn_mesh)
+        for face in boundary_buf.layout.faces:
+            if face in rhs.boundary.layout.faces:
+                boundary_buf.face_view(face)[:] = rhs.boundary.face_view(face)
+        if initial_guess is not None:
+            seed = self._boundary_op.reflect_into_inflow(initial_guess.boundary)
+            for face in boundary_buf.layout.faces:
+                inflow = trace.inflow_indices_for_face(face)
+                boundary_buf.face_view(face)[inflow] += seed.face_view(face)[inflow]
+
+        # The per-group −B reflect (face-restricted, in place) — the SAME
+        # whole-trace helper the reconstruction sweep uses, single-sourced.
+        def _reflect(bf, faces):
+            _reflect_outflow_into_inflow(bf, sn_mesh, faces=faces)
+
+        angular, _scalar = _sweep_2d_scheduled(
+            rhs.bulk.values,
+            self._invertible.sigma,
+            sn_mesh,
+            boundary_buf,
+            schedule=self._schedule,
+            reflect=_reflect,
+        )
+        return TimedFullField(
+            bulk=AngularFlux.from_mesh(angular, sn_mesh),
+            boundary=boundary_buf,
+            _history=(),
+            history_depth=rhs.history_depth,
+        )
+
+
+def _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule: str):
+    r"""Pick the ``(resolvent, gains)`` for the within-group SI driver per
+    ``inner_schedule`` — the single source of truth for the Jacobi/G-S choice.
+
+    * ``"jacobi"`` (or any 1-D mesh) → ``(L+C, (S, B))``: ``B`` lagged as an
+      external gain (inter-sweep Jacobi — today's path, every geometry).
+    * ``"gauss_seidel"`` on a 2-D Cartesian mesh → ``(GaussSeidelResolvent, (S,))``:
+      ``B`` folded INTO the resolvent (the octant-group G-S forward
+      substitution).  ``S`` stays a lagged gain in BOTH (only the boundary
+      coupling gets G-S; the sweep never re-scatters mid-sweep).
+
+    1-D falls back to Jacobi: boundary G-S is a no-op on the scattering-
+    dominated 1-D regime AND the 1-D scan is not a wavefront
+    (:func:`_GaussSeidelResolvent` is 2-D-only).  The converged fixed point is
+    identical either way — this only selects the SI spectral rate.
+    """
+    if inner_schedule not in ("jacobi", "gauss_seidel"):
+        raise ValueError(
+            f"Unknown inner_schedule: {inner_schedule!r}. "
+            f"Valid choices are 'gauss_seidel' (boundary G-S, 2-D Cartesian) "
+            f"or 'jacobi' (the splitting-invariant control)."
+        )
+    if inner_schedule == "gauss_seidel" and sn_mesh.reduced is None:
+        from .sweep_schedule import SweepSchedule
+
+        schedule = SweepSchedule.gauss_seidel(sn_mesh)
+        return _GaussSeidelResolvent(LC, B, schedule), (S,)
+    return LC, (S, B)
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Solver class (EigenvalueSolver protocol)
 # ═══════════════════════════════════════════════════════════════════════
@@ -1226,6 +1355,7 @@ def solve_sn_fixed_source(
     max_inner: int = 1000,
     inner_tol: float = 1e-12,
     inner_solver: str | None = None,
+    inner_schedule: str = "gauss_seidel",
 ) -> Solution:
     r"""Solve the multi-group SN fixed-source transport problem.
 
@@ -1290,6 +1420,20 @@ def solve_sn_fixed_source(
         :file:`tests/sn/test_sweep_operator_inconsistency.py` regression
         suite — krylov gives the analytical flat flux to round-off
         while the sweep produces the documented ERR-026 deviation.
+    inner_schedule : {"gauss_seidel", "jacobi"}
+        Source-iteration BOUNDARY splitting (Phase 3, ``inner_solver=
+        "source_iteration"`` only).  ``"gauss_seidel"`` (default) folds the
+        reflective coupling ``B`` into an octant-group Gauss-Seidel resolvent
+        (2-D Cartesian) — re-reflecting each octant group's outgoing reflective
+        faces between group sweeps so a later group reads the fresh
+        current-iterate inflow (a modest reflective-SI rate gain, ~0.86–0.92×
+        on B-mixture configs).  ``"jacobi"`` lags ``B`` fully (the
+        splitting-invariant control).  The converged fixed point is IDENTICAL
+        for both — this selects only the SI spectral rate.  1-D meshes always
+        fall back to Jacobi (boundary G-S is a no-op on the scattering-
+        dominated 1-D regime, and the scan is not a wavefront).  The dominant
+        within-group SCATTERING rate is unchanged either way — that is Krylov /
+        consistent-DSA territory (issue #2).
 
     Notes
     -----
@@ -1351,7 +1495,7 @@ def solve_sn_fixed_source(
     if inner_solver == "source_iteration":
         return _solve_fixed_source_si(
             solver, sn_mesh, external_source, mesh, quadrature, materials,
-            t_start, max_inner, inner_tol,
+            t_start, max_inner, inner_tol, inner_schedule=inner_schedule,
         )
 
     # Krylov path.  We solve T·ψ = b directly via GMRES, where b carries
@@ -1374,6 +1518,7 @@ def _solve_fixed_source_si(
     t_start: float,
     max_inner: int,
     inner_tol: float,
+    inner_schedule: str = "gauss_seidel",
 ) -> Solution:
     r"""Fixed-source path via the :class:`SourceIteration` primitive.
 
@@ -1453,8 +1598,14 @@ def _solve_fixed_source_si(
     # ── Build the within-group operator triple (single source of truth —
     # ``_within_group_triple``; identical to the eigenvalue inner). ────
     LC, S, B = _within_group_triple(solver)
+    # Phase 3 sub-step 3c: ``inner_schedule`` selects the (resolvent, gains)
+    # splitting.  "gauss_seidel" (default, 2-D Cartesian) folds B into a
+    # scheduled resolvent → gains (S,); "jacobi" (or any 1-D mesh) keeps
+    # resolvent (L+C) + gains (S, B) — today's inter-sweep Jacobi.  Same
+    # converged fixed point; only the SI spectral rate differs.
+    resolvent, gains = _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule)
     si = SourceIteration(
-        LC, S, B,
+        resolvent, *gains,
         max_iter=max_inner, tol=inner_tol,
     )
 

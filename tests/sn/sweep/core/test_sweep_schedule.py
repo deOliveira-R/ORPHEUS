@@ -48,7 +48,7 @@ def _slab(bcs: tuple, nx: int = 4, ng: int = 1) -> SNMesh:
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _box(*, nx: int = 4, ny: int = 4, ng: int = 1, **bc_kwargs) -> SNMesh:
+def _box(*, nx: int = 4, ny: int = 4, ng: int = 1, quad=None, **bc_kwargs) -> SNMesh:
     edges = np.linspace(0.0, 2.0, nx + 1)
     mesh = Mesh2D(
         edges_x=edges,
@@ -56,7 +56,8 @@ def _box(*, nx: int = 4, ny: int = 4, ng: int = 1, **bc_kwargs) -> SNMesh:
         mat_map=np.zeros((nx, ny), dtype=int),
         **bc_kwargs,
     )
-    quad = Quadrature.product(n_mu=2, n_phi=4)
+    if quad is None:
+        quad = Quadrature.product(n_mu=2, n_phi=4)
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
@@ -187,6 +188,50 @@ def test_gs_box_half_reflective_no_reflect_on_vacuum_axis():
             assert g.reflect_faces == ("xmax",)
         elif label.sign_x < 0:
             assert g.reflect_faces == ("xmin",)
+
+
+# ─── diagonal cubature: the shared-face correctness pin (regression) ──
+
+def test_gs_diagonal_quadrature_shared_face_assigned_to_last_group_only():
+    r"""⚠ Correctness pin (the Lebedev shared-face bug, 3c.2).
+
+    On a DIAGONAL / spherical cubature (``lebedev``) each octant outflows TWO
+    faces and each reflective face is shared by ≥2 in-plane octant groups
+    (e.g. ``xmax`` ← every +x octant: ``(+1,0)``, ``(+1,+1)``, ``(+1,−1)``).
+    A reflective face MUST be assigned to EXACTLY ONE group — the LAST (in
+    sweep order) that outflows it — so the inter-group reflect fires only when
+    the face's outflow is COMPLETE.  Assigning to a non-last (premature) group
+    would absorb the not-yet-swept octants' SEED value (the wavefront is rebuilt
+    + seeded each solve) and reflect garbage → a WRONG fixed point (this drove
+    the lebedev all-reflective flux to 3.4 instead of the flat 5.88)."""
+    quad = Quadrature.lebedev(order=17)
+    sn = _box(
+        quad=quad,
+        bc_xmin=BC.reflective, bc_xmax=BC.reflective,
+        bc_ymin=BC.reflective, bc_ymax=BC.reflective,
+    )
+    sched = SweepSchedule.gauss_seidel(sn)
+    order = {g.sweeps[0].label: i for i, g in enumerate(sched.groups)}
+    # every reflective face appears in EXACTLY ONE group (no double-assignment).
+    counts: dict[str, int] = {}
+    for g in sched.groups:
+        for f in g.reflect_faces:
+            counts[f] = counts.get(f, 0) + 1
+    assert set(counts) == {"xmin", "xmax", "ymin", "ymax"}
+    assert all(c == 1 for c in counts.values()), f"shared face double-assigned: {counts}"
+    # the assigned group must OUTFLOW the face AND be the LAST one to do so.
+    for f in counts:
+        outflowing = [
+            g.sweeps[0].label for g in sched.groups
+            if f in _expected_outgoing(g.sweeps[0].label)
+        ]
+        assigned = next(
+            g.sweeps[0].label for g in sched.groups if f in g.reflect_faces
+        )
+        assert f in _expected_outgoing(assigned)
+        assert order[assigned] == max(order[label] for label in outflowing), (
+            f"{f} not assigned to the LAST group outflowing it"
+        )
 
 
 # ─── the fixed-point invariant: same ordinates, different splitting ──
