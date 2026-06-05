@@ -30,7 +30,10 @@ is a DIFFERENT, OLDER branch `refactor/sn-operator-algebra` whose `solver.py` /
 `operator.py` / `sweep.py` DIFFER; reading it silently reads the wrong source).
 
 - **Worktree (cwd for everything):** `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/field-role-typing`
-- **Branch:** `refactor/field-role-typing` (pushed to `origin`).
+- **Branch:** `refactor/field-role-typing` (on `origin`, but the 8 Phase-1 commits
+  `a902c59`…`d643ee8` are LOCAL-ONLY as of 2026-06-05 — `origin` is at `61546e8`.
+  Recovery works from the LOCAL commits + this plan + the memory; `git push` to
+  sync cross-device).
 - **venv** (lives at the MAIN repo root, shared): `/Users/rodrigo/git/nuclear/ORPHEUS/.venv/bin/python`
 - **Test invocation (Host env, `$CLAUDE_ENVIRONMENT` empty):**
   `PYTHONPATH=/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/field-role-typing /Users/rodrigo/git/nuclear/ORPHEUS/.venv/bin/python -O -m pytest ...`
@@ -42,13 +45,20 @@ is a DIFFERENT, OLDER branch `refactor/sn-operator-algebra` whose `solver.py` /
   worktree `PYTHONPATH` BEFORE concluding fabrication (L22 — a wrong-tree read mimics it).
 
 **Recovery path after compaction / fresh session:**
-1. `MEMORY.md` → the `[[project-wave-o-operator-algebra]]` ⭐⭐ LATEST block (the
-   reshaped dependency chain + 2-D SI Phase A landing).
-2. THIS file (`sn_development_sequence.md`) — the 6-phase sequence (§3).
-3. The session **task tracker** (`TaskList`): tasks #17–#22 = the 6 phases, chained.
+1. `MEMORY.md` → the `[[project-wave-o-operator-algebra]]` ⭐⭐ LATEST block (Phase 1
+   COMPLETE + the R5 reversal + the eigenvalue-posing architecture of record).
+2. THIS file (`sn_development_sequence.md`) — the 6-phase sequence (§3); Phase 1's
+   **STATUS block** (in §3) records the landed R1/R2/gap/R5 with commit hashes.
+3. The session **task tracker** (`TaskList`): tasks #17–#22 = the 6 phases.
    **If the tracker did not survive the session boundary, recreate it from §3 + §5**
-   (one task per phase; chain blockedBy 17→18→{19,20}, 19→21, 21→22).
-4. Phase 1 (#17) is the only unblocked phase — start there (test-architect FIRST).
+   (one task per phase; chain blockedBy 18→{19,20}, 19→21, 21→22; **#17 = DONE**).
+4. **Phase 1 (#17) is DONE** (2026-06-05). The next move is the USER's choice:
+   - **Phase 2 (#18, RECOMMENDED — architecture-first spine completion):** O.2a the
+     honest `L+C−S−F−B` driver (R3 + R4 + #206 + #196 + #200). See §3 Phase 2.
+   - OR the reshaped **WavefrontFlux / Gauss-Seidel** chain (Phase 3 + Phase 5).
+   Whichever is chosen, it crosses subsystem boundaries → **test-architect FIRST**
+   (L17 crosswalk) + **explorer** for any retirement dependency audit (L20). Read the
+   target module's `docs/theory/` Key Facts (or dispatch the explorer) before coding.
 
 ---
 
@@ -73,13 +83,28 @@ typed operator algebra. **Already landed on this branch:**
   axis-parametric types (3-D-ready).
 - **2-D SI "Phase A":** the stale 2-D eigenvalue source-iteration guard removed; the
   default `solve_sn` 2-D eigenvalue entry works; SI≡Krylov≡k_inf verified.
+- **Phase 1 — SN solve unification (2026-06-05, ✅ DONE; full record in §3 Phase 1
+  STATUS):** ONE within-group SI path, ONE Krylov path, ONE within-group operator
+  triple (`_within_group_triple` / `_within_group_krylov` in `solver.py`), ONE
+  power-iteration LOOP. `power_iteration` (`numerics/eigenvalue.py`) is the canonical
+  method-agnostic Layer-4 algorithm; `KEigenvalue` (`numerics/iteration.py`) delegates
+  to it (**R5 was REVERSED — `power_iteration` is NOT retired**; the 5 solver families
+  keep it; 1e moot). 2-D Cartesian fixed-source Krylov un-gated. **Architecture of
+  record:** `docs/theory/operator_algebra.rst` `:ref:eigenvalue-posing` — the
+  generalized eigenproblem `A_loss ψ = λ M ψ` (resolvent `A_loss⁻¹M`); four layers
+  leaves → posing (2a role+μ-map / 2b realization) → resolvent → algorithm; K row
+  live, α/transient/adjoint/full-spectrum = documented future seams. Commits
+  `a902c59`(R1) / `023ae18`(R2) / `cf82556`(gap) / `650032e`+`7603c8e`(R5) /
+  `e70ca39`(plan+L23) / `3ee1598`(docs) / `d643ee8`(V&V matrix).
 
 **Standing reds (ORTHOGONAL — do NOT block this sequence; tracked as issues):**
 cylinder matvec #206/#196 (curvilinear WDD O(h) SI-vs-Krylov asymmetry — *fixed by
 Phase 2*); #212 `continuous_get` hang (reference-registry build; has a proposed
 patch `derivations/diagnostics/sn_keff_hang_PROPOSED_fix.patch`; deselect the 3
 affected eigenvalue tests meanwhile); #209 `ordinate_scan` NaN on a zero a-chain
-(cylindrical pole); #195 curvilinear MMS magnitude at nx=160. None gate the spine.
+(cylindrical pole); #195 curvilinear MMS magnitude at nx=160; **#214 WavefrontFlux
+2-D crash on a degenerate `ny=1` mesh** (filed 2026-06-05; Phase 5 / `nd_foundation`
+territory — the d-generic walk must treat an extent-1 axis as inactive). None gate the spine.
 
 ---
 
