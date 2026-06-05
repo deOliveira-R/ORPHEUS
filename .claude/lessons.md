@@ -626,3 +626,54 @@ the mechanical symptom (a verbatim sweep copy diverged 0.137 for reflective).
 
 Cross-reference: `[[lessons-L12]]` (sub-agent fabrication — the failure mode I
 wrongly attributed here); the dispatched explorer was correct.
+
+## L23: "Redundant" is a layer claim — check binding-generality before retiring; posing is its own layer
+
+Phase 1 R5 planned to "retire the deprecated `power_iteration`, migrate all 5
+solver families onto `KEigenvalue`." Tracing it before coding refuted the
+premise on two counts, both worth generalising:
+
+**(a) Two implementations of the same algorithm are not interchangeable unless
+they bind at the same layer — and the MORE GENERAL layer is the one to keep.**
+`power_iteration(solver: Protocol)` and `KEigenvalue(L,S,F).solve` are the SAME
+power-method fixed-point combinator (byte-identical loop bodies). But
+`power_iteration` binds the inner resolvent LATE (the opaque
+`solve_fixed_source` Protocol method) while `KEigenvalue` binds it EARLY (from an
+`(L,S,F)` triple). Late binding is **strictly more general**: it admits the
+monolithic-matrix resolvents (CP BiCGSTAB, diffusion FD, homogeneous direct)
+that have NO `(L,S,F)` factorisation. The symbol marked "deprecated" was
+actually the canonical engine; retiring it would have *lost* generality and
+forced fictitious operators onto the matrix methods. The genuine redundancy was
+the **duplicated loop**, not the symbol — so the narrow one delegates to the
+general one (one loop), and the deprecation arrow was reversed. **Before
+retiring "the redundant one": name the morphism both share, then ask which
+binds more generally. Keep the general; make the specific delegate.**
+
+**(b) Problem POSING is a distinct architectural layer — do not fold it into the
+solver/adapter.** The user caught a layering error: K-eigenvalue, α-eigenvalue,
+and transient differ in *how the operators are arranged*, so a generic "adapter"
+layer misses the arrangement step. The correct decomposition (cross-domain-
+attacker `eigenvalue_posing_layering_frames.md`): **leaves** (method-specific
+operators) → **posing** (bifurcated: 2a method-agnostic role-assignment into the
+standard form `A_loss ψ = λ M ψ` + the μ→physical-eigenvalue map; 2b
+method-specific `A_loss` realisation) → **resolvent** `A_loss⁻¹` (method-specific)
+→ **algorithm** (general over the standard form). K vs α differ ONLY in 2a
+(K: `A_loss=L+C−S−B, M=F, k=μ`; α: `A_loss=L+C−S−F−B, M=1/v, α=−1/μ`). The
+algorithm never knows K-vs-α. The metric lives at the leaf; the adjoint is a
+daggered posing row, not a layer.
+
+**How to apply:** when a plan says "X is redundant, retire it," dispatch the
+cross-domain-attacker (or trace it yourself) to (1) confirm X and its
+replacement are the same morphism, (2) identify which is the more-general
+binding layer, (3) collapse the genuine duplication (often a loop/combinator)
+rather than deleting the general symbol. When designing a solve that has
+problem-type variants (K/α/transient, forward/adjoint), separate POSING (operator
+arrangement → standard form) from ALGORITHM (general over the form) from
+RESOLVENT (method-specific inverse). Generalise only after ≥2 instances exist
+(`[[feedback-unify-after-two-instances]]`) — document the other posing rows as
+seams, don't build them.
+
+Cross-reference: `[[lessons-L21]]` (sweep/matvec = one operator, two
+applications — same "reduce strategies, don't add alternatives" spirit);
+Cardinal Rule 2 (single source of truth = collapse the loop, keep the general
+layer); commits `650032e`+`7603c8e` (net structural reduction).

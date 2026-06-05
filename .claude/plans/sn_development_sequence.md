@@ -119,7 +119,7 @@ the result — features touch these exact sites, so collapsing first means build
 |----|-------------|----------------------------|--------------|
 | R1 | TWO source-iteration impls | `_solve_source_iteration` (uses `SourceIteration` primitive) vs `_solve_fixed_source_si` (hand-rolled `for n_inner` loop over `transport_sweep`) | Phase 1 |
 | R2 | TWO Krylov builders | `_solve_krylov` (eigenvalue, all-geom) vs `_solve_fixed_source_krylov` (fixed-source, 2-D NIE) | Phase 1 |
-| R5 | deprecated `power_iteration` (5 solvers) vs unused `KEigenvalue` + ~8 inline test copies | `numerics/eigenvalue.py` vs `numerics/iteration.py` | Phase 1 |
+| R5 | duplicated power-iteration LOOP (`KEigenvalue.solve` re-implemented `power_iteration`'s loop byte-for-byte) — NOT a redundant symbol (the premise was refuted) | `numerics/iteration.py` `KEigenvalue.solve` ≡ `numerics/eigenvalue.py` `power_iteration` | Phase 1 ✅ (RESHAPED — see Phase 1 STATUS) |
 | gap | fixed-source-Krylov 2-D `NotImplementedError` | `solver.py` ~1582 | Phase 1 |
 | R3 | TWO `−B` delivery routes | `_scattering_with_boundary_op` (S+B fold) vs `_reflect_outflow_into_inflow` helper | Phase 2 (route-collapse) / Phase 3 keeps the helper additively |
 | R4 | 3 parallel `(L+C)` impls | `_compute_LpC` / `_compute_decomposition` / `(L+C).solve` sweep | Phase 2 |
@@ -136,42 +136,52 @@ Architecture-first: **spine (1–2) → motivating feature (3) → adjoint compl
 → performance features (5) → N-D foundation (6).** Phase 4 floats (orthogonal to 3;
 move earlier only if Gate-1.3-green becomes a priority).
 
-### Phase 1 — Unify the solve architecture  *(R1 + R2 + R5 + gap)*
+### Phase 1 — Unify the solve architecture  *(R1 + R2 + R5 + gap)* — ✅ DONE
 
-**Goal.** ONE within-group solve primitive, selectable SI/Krylov, consumed by ONE
-`KEigenvalue` outer AND the standalone fixed-source entry. After this: exactly one
-source-iteration path, one Krylov path, one power iteration.
+**STATUS (2026-06-05).** Complete. ONE within-group SI path, ONE Krylov path, ONE
+within-group operator triple, ONE power-iteration LOOP.
+- **1a (R1)** `a902c59` — `_solve_fixed_source_si` folded onto the `SourceIteration`
+  primitive (+ NEW-3 structural spy `test_si_single_primitive_contract.py`).
+  Principled-equivalent (the composite-residual stop metric; slab snapshot 2 ULP).
+- **1b (R2)** `023ae18` — `_within_group_triple` + `_within_group_krylov` module
+  helpers = the SSoT; all 4 within-group sites consume them. −30 LOC, bit-identical.
+- **1c (gap)** `cf82556` — 2-D Cartesian fixed-source Krylov un-gated (+ NEW-1
+  `test_fixed_source_2d_equivalence.py`: closed-form Q/Σt + SI≡Krylov twin); the
+  G1-raise pin retired (inverted into NEW-1).
+- **R5 (RESHAPED → done)** `650032e` (drop the inverted deprecation, reframe docstrings)
+  + `7603c8e` (`KEigenvalue` delegates to `power_iteration`). The plan's R5 premise
+  ("retire `power_iteration`, migrate 5 families to `KEigenvalue`") was **REFUTED**
+  (cross-domain-attacker `power_iteration_vs_keigenvalue_morphism.md` +
+  `eigenvalue_posing_layering_frames.md`): the redundancy is the duplicated power-
+  iteration LOOP, NOT the symbol. `power_iteration` is the canonical Layer-4 algorithm
+  over the method-agnostic `EigenvalueSolver` boundary (it admits the CP/diffusion/
+  homogeneous monolithic-matrix resolvents that have NO `(L,S,F)` triple);
+  `KEigenvalue` now DELEGATES its loop to it (one loop engine). **1e (sibling
+  migration + `power_iteration` retirement) is MOOT** — the 5 families keep
+  `power_iteration` (the right home). The α-generic *agnostic relocation* (Protocol
+  rename `compute_fission_source`/`compute_keff` → `eigen_operator`/`mu_to_eigenvalue`,
+  scaling relocation, `apply_loss`) is the **α-eigenvalue wave's first step**
+  (documented seam, snapshot-bit-identity-gated across 5 families).
 
-**Sub-steps.**
-1. **Migrate `_solve_fixed_source_si` onto `SourceIteration`** (R1) — retire its bespoke
-   `for n_inner` loop; build the same `SourceIteration(LC, S+B, F=0)` triple the
-   eigenvalue inner uses, differing only in `q_ext` (external Q vs fission source) and
-   the returned scalar contract. (Keep `_reflect_outflow_into_inflow` available — Phase 3
-   needs the additive octant-restricted variant; the whole-trace helper stays for the
-   final reconstruction sweep.)
-2. **One Krylov builder** (R2) — factor the byte-identical `KrylovAcceleration(LC, S+B,
-   F=0, precond=identity, restart=N·ng·nx·ny)` construction shared by `_solve_krylov`
-   and `_solve_fixed_source_krylov` into one site parametrised by `q_ext`.
-3. **Un-gate fixed-source-Krylov-2D** (gap) — same recipe as 2-D SI Phase A: de-risk
-   (it's the twin of the working eigenvalue Krylov), add an SI≡Krylov 2-D fixed-source
-   equivalence pin, delete the `solver.py:~1582` guard.
-4. **One power iteration** (R5) — migrate `solve_sn` (and the 4 sibling solvers: cp /
-   diffusion / homogeneous / moc) off the deprecated `numerics.eigenvalue.power_iteration`
-   onto `numerics.iteration.KEigenvalue`; retire `power_iteration` + `EigenvalueSolver`;
-   rewire the ~8 inline `for _ in range(N): compute_fission_source → solve_fixed_source
-   → compute_keff` loops in `test_keff_2d.py` to the primitive (retirement = test migration).
+**Architecture of record (durable).** Standard form = the generalized eigenproblem
+`A_loss ψ = λ M ψ` (power-method realization = dominant eigenpair of the resolvent
+`A_loss⁻¹M`). Four layers: **leaves** (L,C,S,F,B,[T]; the |Ω·n|·w metric lives here)
+→ **posing** (2a method-agnostic role-assignment + μ→physical map / 2b method-specific
+`A_loss` realization) → **resolvent** `A_loss⁻¹` (method-specific: SN SI/Krylov, CP
+BiCGSTAB) → **algorithm** (general: power iteration | future Arnoldi/FEAST; transient
+time-integrator). `KEigenvalue` = the operator-triple 2b realization; the K posing row
+is `A_loss=L+C−S−B, M=F, k=μ`. Full plan `glimmering-launching-lantern.md`; theory
+`docs/theory/operator_algebra.rst` `:ref:eigenvalue-posing` (α / transient / adjoint /
+full-spectrum rows = documented future seams). Adjoint = a daggered posing row (same λ).
 
-**Verification.** Bit-identical / principled-equivalent k_eff + flux on the existing
-regression snapshots (all geometries); SI≡Krylov on the 2-D fixed-source case; the
-`KEigenvalue` migration must reproduce `power_iteration`'s eigenvalue trajectory
-(pin the keff history). Sentinel (no `-O`). Each sibling-solver migration its own commit.
+**Verification (landed).** R1 NEW-3 + slab snapshot (2 ULP) + L0 Gate 1.1 + SI≡Krylov
+2-D + curvilinear SI; R2 71-test batch bit-identical-to-baseline; gap NEW-1 both legs;
+R5 discriminating gate `test_keigenvalue_matches_solve_sn_2g_slab` stays green after
+delegation (same-morphism proof) + KEigenvalue L0 units. Sentinel throughout.
 
-**Gotchas.** The 5 cross-solver `power_iteration` callers make R5 the widest blast
-radius — do the dependency audit (L20) before deleting. The fixed-source-Krylov un-gate
-shares #200's `preconditioner=identity` stopgap — keep identity here, fix in Phase 2.
-
-**Proactive:** test-architect FIRST (carve crosses eigenvalue↔fixed-source and the
-deprecated↔new outer boundary; L17 crosswalk).
+**Carried gotchas.** `_reflect_outflow_into_inflow` KEPT (Phase 3 G-S). The
+fixed-source-Krylov shares #200's `preconditioner=identity` (Phase 2 fixes). **Filed:**
+#214 (pre-existing orthogonal WavefrontFlux `ny=1` 2-D crash, stash-confirmed not mine).
 
 ### Phase 2 — O.2a: the honest `L+C−S−F−B` driver  *(R3 + R4 + #206 + #196 + #200)*
 
