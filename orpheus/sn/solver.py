@@ -111,6 +111,75 @@ def _zero_within_group_fission(psi: "object") -> "object":
     )
 
 
+def _within_group_triple(solver: "SNSolver") -> tuple:
+    r"""The within-group loss-operator triple ``(L + C, S + B, F = 0)``.
+
+    Single source of truth (Cardinal Rule 2 / coding-elegance Pattern 2 + 5)
+    for the operator triple EVERY within-group solve consumes — eigenvalue SI
+    (:meth:`SNSolver._solve_source_iteration`), eigenvalue Krylov
+    (:meth:`SNSolver._solve_krylov`), fixed-source SI
+    (:func:`_solve_fixed_source_si`), and fixed-source Krylov
+    (:func:`_solve_fixed_source_krylov`).  The four solves differ ONLY in the
+    driver (:class:`SourceIteration` vs :class:`KrylovAcceleration`), the
+    ``q_ext`` (fission source vs external source), and the returned contract —
+    NOT in the operator triple.
+
+    * ``L + C`` is the :class:`~orpheus.sn.operator.InvertibleOperator`
+      (``.apply`` = matvec, ``.solve`` = the WDD sweep).
+    * ``S + B`` is the scattering-with-boundary fold (Wave O #208,
+      :attr:`SNSolver._scattering_with_boundary_op`): the matvec
+      ``(L + C).apply − (S + B).apply − F.apply`` IS ``(L + C − S − F − B)``,
+      and the SI rhs ``(S + B).apply(ψ) + F.apply(ψ) + q_ext`` carries the
+      reflective inflow ``B·ψ.outflow`` in ``rhs.boundary`` (which the bare
+      ``(L + C).solve`` sweep reads as the inflow seed).  ``B`` cannot join the
+      ``L + C`` preconditioner — :class:`OperatorSum` drops ``CAP_SOLVE``.
+    * ``F = 0`` — within-group fission is zero; the fission source enters as
+      ``q_ext`` per the eigenvalue outer / within-group decomposition.
+
+    Producer-side ``/W`` normalisation (R-1 Step 4 A1) lives inside
+    :meth:`ScatteringOperator.apply`; no consumer-side rescale.
+    """
+    from .operator import CollisionOperator, StreamingOperator
+    from orpheus.numerics.operator import ZeroOperator
+
+    sn_mesh = solver.sn_mesh
+    L = StreamingOperator(sn_mesh, solver.mat_xs.total_cross_section)
+    C = CollisionOperator(sn_mesh, solver.mat_xs.total_cross_section)
+    return (
+        L + C,
+        solver._scattering_with_boundary_op,
+        ZeroOperator(codomain_zero=_zero_within_group_fission),
+    )
+
+
+def _within_group_krylov(
+    LC: "object", S_plus_B: "object", F: "object",
+    *, n_dof: int, max_iter: int, tol: float,
+):
+    r"""GMRES driver on the within-group loss operator ``(L + C − S − F − B)``.
+
+    Single source of truth (Cardinal Rule 2 / Phase 1 R2) for the
+    :class:`~orpheus.numerics.iteration.KrylovAcceleration` construction shared
+    by the eigenvalue (:meth:`SNSolver._solve_krylov`) and fixed-source
+    (:func:`_solve_fixed_source_krylov`) Krylov paths — they previously built
+    byte-identical instances.
+
+    GMRES is UNPRECONDITIONED (explicit identity) per `issue #200
+    <https://github.com/deOliveira-R/ORPHEUS/issues/200>`_ (the block-inverse
+    face preconditioner re-enablement).  ``restart`` is sized to the FULL
+    problem ``n_dof = N·ng·nx·ny`` — the legacy ``min(50, …)`` clamp left GMRES
+    structurally truncated on any mesh with ``n_dof > 50`` (ERR-053).
+    """
+    from orpheus.numerics.iteration import KrylovAcceleration
+
+    return KrylovAcceleration(
+        LC, S_plus_B, F,
+        preconditioner=lambda q: q,  # explicit identity — issue #200 tracks re-enable
+        tol=tol, max_iter=max_iter,
+        restart=n_dof,
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Solver class (EigenvalueSolver protocol)
 # ═══════════════════════════════════════════════════════════════════════
@@ -601,7 +670,6 @@ class SNSolver:
         non-flat 2-D flux SHAPE agrees SI-vs-Krylov to ~1e-9
         (``tests/sn/eigenvalue/test_keff_2d.py::TestSIKrylov2DEquivalence``).
         """
-        from .operator import CollisionOperator, StreamingOperator
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
         )
@@ -614,7 +682,6 @@ class SNSolver:
         )
         from orpheus.transport.timed_full_field import TimedFullField
         from orpheus.numerics.iteration import SourceIteration
-        from orpheus.numerics.operator import ZeroOperator
 
         # ── Build the composite RHS ─────────────────────────────────
         # R-1 Step 4 A1 — q_ext as per-ordinate density via the canonical
@@ -651,32 +718,13 @@ class SNSolver:
             history_depth=2,
         )
 
-        # ── Build the typed operator triple ─────────────────────────
-        L_leaf = StreamingOperator(
-            self.sn_mesh, self.mat_xs.total_cross_section,
-        )
-        C_t = CollisionOperator(
-            self.sn_mesh, self.mat_xs.total_cross_section,
-        )
-        LC = L_leaf + C_t  # InvertibleOperator — apply + solve
-
-        # R-1 Step 4 A1 — ``ScatteringOperator.apply`` now returns
-        # per-ordinate density at the producer boundary (the
-        # ``/sum_w`` projection lives inside the singledispatched
-        # ``apply``).  The legacy consumer-side rescale
-        # ``S_normalised = self.scattering_op / sum_w`` is GONE.
-
+        # ── Build the within-group operator triple (single source of
+        # truth — ``_within_group_triple``; shared with the Krylov and
+        # fixed-source paths). ───────────────────────────────────────
+        LC, S_plus_B, F = _within_group_triple(self)
         si = SourceIteration(
-            LC,
-            # Wave O #208 — ``S + B`` fold: the SI source becomes
-            # ``(S+B)ψ + Fψ + q`` so the reflective inflow ``B·ψ.outflow``
-            # rides in ``rhs.boundary`` and the bare ``(L+C).solve`` sweep
-            # reads it as the inflow seed. (B cannot join the LC
-            # preconditioner — OperatorSum drops CAP_SOLVE.)
-            self._scattering_with_boundary_op,
-            ZeroOperator(codomain_zero=_zero_within_group_fission),
-            max_iter=self.max_inner,
-            tol=self.inner_tol,
+            LC, S_plus_B, F,
+            max_iter=self.max_inner, tol=self.inner_tol,
         )
 
         # ── Warm start (composite) ──────────────────────────────────
@@ -751,7 +799,6 @@ class SNSolver:
         Returns the updated scalar flux ``(ng, nx, ny)``.
         """
 
-        from .operator import CollisionOperator, StreamingOperator
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
         )
@@ -763,8 +810,6 @@ class SNSolver:
             BoundarySourceSink,
         )
         from orpheus.transport.timed_full_field import TimedFullField
-        from orpheus.numerics.iteration import KrylovAcceleration
-        from orpheus.numerics.operator import ZeroOperator
 
         # ── Build the composite RHS ─────────────────────────────────
         # R-1 Step 4 A1 — q_ext as per-ordinate density via the canonical
@@ -788,51 +833,15 @@ class SNSolver:
             history_depth=2,
         )
 
-        # ── Build the typed operator triple ─────────────────────────
-        # InvertibleOperator via __add__ dispatch (R-1 Step C).
-        L_leaf = StreamingOperator(
-            self.sn_mesh, self.mat_xs.total_cross_section,
-        )
-        C_t = CollisionOperator(
-            self.sn_mesh, self.mat_xs.total_cross_section,
-        )
-        LC = L_leaf + C_t  # InvertibleOperator: apply + solve
-
-        # R-1 Step 4 A1 — ``ScatteringOperator.apply`` returns
-        # per-ordinate density at the producer boundary.  The legacy
-        # consumer-side rescale ``S_normalised = self.scattering_op /
-        # sum_w`` is GONE.
-
-        # NOTE on the preconditioner — R-1 ships GMRES UNPRECONDITIONED
-        # (explicit identity) per user direction.  Issue #200 tracks the
-        # block-inverse face preconditioner re-enablement.  Post-Phase-1.2
-        # the silent-fallback bug that motivated the explicit identity is
-        # GONE: ``InvertibleOperator.solve`` takes an explicit
-        # ``initial_guess`` kwarg (the M-M Carlson seed reads it), and
-        # :class:`KrylovAcceleration`'s ``preconditioner=None`` default
-        # invokes ``L.solve(q)`` with no ``initial_guess`` → cold-start
-        # M-M seed (deterministic, no garbage).  Sweep-as-preconditioner
-        # is functionally safe to re-enable.  The explicit identity is
-        # kept here to preserve the L1 anchor's bit-identity until #200
-        # ships the production preconditioner choice.
-        N = self.quad.N
-        nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
-        krylov = KrylovAcceleration(
-            LC,
-            # Wave O #208 — ``S + B`` fold: the matvec ``(L+C).apply −
-            # (S+B).apply − F.apply`` IS ``(L+C−S−F−B)``, with the realized
-            # boundary law ``B`` as a sibling of ``L`` (BC extraction).
-            self._scattering_with_boundary_op,
-            ZeroOperator(codomain_zero=_zero_within_group_fission),
-            preconditioner=lambda q: q,  # explicit identity — issue #200 tracks re-enable
-            tol=self.inner_tol,
-            max_iter=self.max_inner,
-            # D-H.1e (2026-05-28): restart sized to the full problem
-            # (do NOT clamp at 50).  Pre-D-H.1e clamp truncated the
-            # Krylov subspace below the natural domain size, leaving
-            # GMRES structurally unconverged on curvilinear meshes with
-            # ``N*ng*nx*ny > 50``.  See ERR-053.
-            restart=N * ng * nx * ny,
+        # ── Build the within-group operator triple + Krylov driver
+        # (single source of truth — ``_within_group_triple`` /
+        # ``_within_group_krylov``; shared with the SI and fixed-source
+        # paths). ─────────────────────────────────────────────────────
+        LC, S_plus_B, F = _within_group_triple(self)
+        krylov = _within_group_krylov(
+            LC, S_plus_B, F,
+            n_dof=self.quad.N * self.ng * self.sn_mesh.nx * self.sn_mesh.ny,
+            max_iter=self.max_inner, tol=self.inner_tol,
         )
 
         # ── Warm start (composite) ──────────────────────────────────
@@ -1429,9 +1438,7 @@ def _solve_fixed_source_si(
     )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.timed_full_field import TimedFullField
-    from .operator import CollisionOperator, StreamingOperator
     from orpheus.numerics.iteration import SourceIteration
-    from orpheus.numerics.operator import ZeroOperator
 
     # ── Build the composite RHS ──────────────────────────────────────
     # ``external_source`` is per-ordinate density by API contract (the caller
@@ -1448,23 +1455,12 @@ def _solve_fixed_source_si(
         history_depth=2,
     )
 
-    # ── Build the typed operator triple (identical to the eigenvalue inner) ──
-    L_leaf = StreamingOperator(sn_mesh, solver.mat_xs.total_cross_section)
-    C_t = CollisionOperator(sn_mesh, solver.mat_xs.total_cross_section)
-    LC = L_leaf + C_t  # InvertibleOperator — apply (matvec) + solve (WDD sweep)
-
+    # ── Build the within-group operator triple (single source of truth —
+    # ``_within_group_triple``; identical to the eigenvalue inner). ────
+    LC, S_plus_B, F = _within_group_triple(solver)
     si = SourceIteration(
-        LC,
-        # Wave O #208 ``S + B`` fold (single source of truth — the eigenvalue
-        # SI + both Krylov sites read the same property): the SI source becomes
-        # ``(S + B)ψ + Fψ + q`` so the reflective inflow ``B·ψ.outflow`` rides
-        # ``rhs.boundary`` and the bare ``(L + C).solve`` sweep reads it as the
-        # inflow seed.  (B cannot join the LC preconditioner — OperatorSum drops
-        # CAP_SOLVE.)
-        solver._scattering_with_boundary_op,
-        ZeroOperator(codomain_zero=_zero_within_group_fission),
-        max_iter=max_inner,
-        tol=inner_tol,
+        LC, S_plus_B, F,
+        max_iter=max_inner, tol=inner_tol,
     )
 
     # Cold-start FLUX iterate (x0 = zeros; the flux template fixes the return
@@ -1599,14 +1595,11 @@ def _solve_fixed_source_krylov(
         BoundaryFlux,
     )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
-    from .operator import CollisionOperator, StreamingOperator
     from orpheus.transport.source_sinks import (
         AngularSourceSink,
         BoundarySourceSink,
     )
     from orpheus.transport.timed_full_field import TimedFullField
-    from orpheus.numerics.iteration import KrylovAcceleration
-    from orpheus.numerics.operator import ZeroOperator
 
     nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
     N = sn_mesh.quad.N
@@ -1631,37 +1624,14 @@ def _solve_fixed_source_krylov(
         history_depth=2,
     )
 
-    # ── Build the typed operator triple ─────────────────────────────
-    # InvertibleOperator via __add__ dispatch (R-1 Step C).  L + C
-    # admits .apply (matvec) and .solve (sweep) capabilities.  Scattering
-    # is the full multi-group operator; F = 0 for fixed-source.
-    L_leaf = StreamingOperator(sn_mesh, solver.mat_xs.total_cross_section)
-    C_t = CollisionOperator(sn_mesh, solver.mat_xs.total_cross_section)
-    LC = L_leaf + C_t
-
-    # GMRES UNPRECONDITIONED (explicit identity) — issue #200 tracks
-    # the block-inverse face preconditioner re-enablement.  Post-Phase-1.2
-    # the silent-fallback bug class is structurally unreachable:
-    # ``InvertibleOperator.solve`` is a pure function of
-    # ``(rhs, initial_guess, boundary)``; ``KrylovAcceleration``'s
-    # ``preconditioner=None`` default would invoke ``L.solve(q)`` with
-    # ``initial_guess=None`` → cold-start M-M seed (deterministic).
-    # Explicit identity is kept until #200 lands a curvilinear-quality
-    # preconditioner.
-    krylov = KrylovAcceleration(
-        LC,
-        # Wave O #208 — ``S + B`` fold (see SNSolver._scattering_with_boundary_op):
-        # the matvec ``(L+C).apply − (S+B).apply − F.apply`` IS ``(L+C−S−F−B)``.
-        solver._scattering_with_boundary_op,
-        ZeroOperator(codomain_zero=_zero_within_group_fission),
-        preconditioner=lambda q: q,
-        tol=inner_tol,
-        max_iter=max_inner,
-        # D-H.1e (2026-05-28): see :meth:`SNSolver._solve_krylov`'s
-        # matching note.  Restart at full problem size; the legacy
-        # ``min(50, ...)`` clamp left GMRES structurally truncated on
-        # any mesh with ``N*ng*nx*ny > 50``.  ERR-053.
-        restart=N * ng * nx * ny,
+    # ── Build the within-group operator triple + Krylov driver (single
+    # source of truth — ``_within_group_triple`` / ``_within_group_krylov``;
+    # shared with the eigenvalue Krylov + SI paths). ──────────────────
+    LC, S_plus_B, F = _within_group_triple(solver)
+    krylov = _within_group_krylov(
+        LC, S_plus_B, F,
+        n_dof=N * ng * nx * ny,
+        max_iter=max_inner, tol=inner_tol,
     )
 
     # B.5.2: pass a FLUX initial_guess so the Krylov solution_template (the
