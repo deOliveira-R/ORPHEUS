@@ -316,6 +316,43 @@ onto them.
 
 ### Phase 3 — SI Gauss-Seidel recovery  *(the motivating feature)*
 
+**STATUS (2026-06-05) — Gate 1 + sub-step 1 DONE.** Architecture decision (user-chosen
+via AskUserQuestion): **resolvent-layer G-S** — the octant-granularity Gauss-Seidel lives
+in the SN RESOLVENT as `M = L+C − B_lower` (octant-ordered forward-substitution: sweep an
+octant group bare → face-restricted `B` reflect → sweep dependent groups); `B_lower` folds
+into the resolvent, `B_upper` (cyclic back-edges) stays a lagged gain; the generic variadic
+`SourceIteration` primitive stays AGNOSTIC (it just sees a resolvent + gains). This is the
+post-Phase-1+2 reading of the surface map's "option (a)": "the SI driver" now means the
+SN-specific RESOLVENT, NOT the generic primitive (Phase 1 R1 collapsed BOTH SI paths onto
+the one primitive; the octant orchestration belongs at the resolvent layer).
+- **Gate 1 (RED verification spec)** ✅ `926c4ca` — `tests/sn/verification/analytical/
+  test_si_convergence_rate.py`: 3 `xfail(strict=True)` before/after rate gates (slab 2g/4g
+  baselines 655/523, box 2g 697) + analytic ρ_J=c anchor + Krylov lower-bound bracket +
+  correctness guards (G-1 k_inf=1.875, G-2 SI≡Krylov fixed point, G-3 flat-flux foundation,
+  G-4 vacuum negative control). 7 passed + 3 xfailed. (Test-architect refreshed the
+  266fcf5 spec → HEAD 7d85222; the `L−(S+B)`→`(L−S)−B` FP reassociation shifted slab counts
+  +1; two latent skeleton bugs fixed — vacuum-mesh kwarg-override + same-mesh-only `compare`.)
+- **Sub-step 1 (measurement seam)** ✅ `956f069` — `IterationHistory.total_inner_iterations`
+  surfaced on the eigenvalue path (SNSolver accumulates per outer step in
+  `_solve_source_iteration`/`_solve_krylov`; `solve_sn` reads it). SN-LOCAL, measurement-only:
+  no Protocol / `power_iteration`-signature change → ZERO 5-family blast. Fixed-source sets
+  it = `n_inner`. Measured Jacobi baselines: eigenvalue **SI total_inner=371 / Krylov=310**
+  (n_outer=3 for both — the outer count is splitting-INVARIANT; the inner SI count is where
+  G-S shows; these anchor the future eigenvalue rate gate `n_GS < 0.75×371`), fixed-source
+  SI total==n_inner==655. keff unchanged (1.875). Flipped the eigenvalue forward-ref →
+  passing foundation seam gate `test_eigenvalue_path_surfaces_total_inner_iterations`.
+- **NEXT: sub-step 2 (ADDITIVE — no live-path change)** — the mesh-time octant SCHEDULE
+  (topological order over the `(octant×face)` reflective dependency graph via
+  `quad.reflection_index`; the opposite-face 2-cycle back-edges = the irreducible Jacobi
+  `B_upper`) + the face-restricted reflect `SNBoundaryOperator.reflect_into_inflow(boundary,
+  faces=...)` (`_reflect_trace` is block-diagonal over faces → a clean `faces=` param add per
+  the explorer). Then sub-step 3 (per-octant-group sweep entry + interior-`WavefrontFlux`-cache
+  persistence — the big lift; CHANGES the fixed point if wrong) → sub-step 4 (wire into the
+  resolvent + flip the rate gates; 2-D fixed-source FIRST, eigenvalue defers) → ERR-056 +
+  vv-principles Mode 9 (user-APPROVED) + `:label:si-spectral-rate` (archivist). Refs: surface
+  map `sn_si_reflective_gauss_seidel_recovery_surface.md` + spec
+  `si_gauss_seidel_rate_recovery_verification_spec.md` (both REFRESHED at HEAD 7d85222).
+
 **Goal.** Recover the intra-sweep Gauss-Seidel reflective coupling lost to BC
 extraction. Bare sweep + external `−B` is inter-sweep **Jacobi** (B fully lagged in N);
 legacy intra-sweep `bc.apply` was **G-S** (later octants saw earlier octants' fresh
