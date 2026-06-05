@@ -677,3 +677,54 @@ Cross-reference: `[[lessons-L21]]` (sweep/matvec = one operator, two
 applications — same "reduce strategies, don't add alternatives" spirit);
 Cardinal Rule 2 (single source of truth = collapse the loop, keep the general
 layer); commits `650032e`+`7603c8e` (net structural reduction).
+
+## L24: Don't execute a plan literally when the ground has moved — re-characterise sub-steps at pickup
+
+Phase 2 (O.2a, the honest `L+C−S−B` driver) surfaced three related traps, all about
+**not running a plan's verb mechanically once the situation has shifted under it**:
+
+**(a) A "forcing-function / tripwire" sub-step can be SUPERSEDED by the design choice
+it was meant to force.** Plan sub-step 1 was "give `ScatteringOperator` a domain so the
+`S+B` fold THROWS — forcing the honest composition." But the chosen design (variadic
+`(L_resolvent, *gains)` drivers, user-approved) retired the fold DIRECTLY — so the
+tripwire was moot (B is never summed with S again) AND the domain it wanted didn't
+exist (no bulk `FunctionSpace`; bulk operators type via `block_role`, not domain
+spaces). Executing it mechanically would have minted a speculative `V_bulk` for no
+live benefit. **When a design fork lands, re-evaluate every downstream sub-step against
+the NEW state — a sub-step whose only job was to force an outcome already achieved is
+moot; demote it to a documented seam.**
+
+**(b) Before deferring a "pre-existing red," RE-RUN and CHARACTERISE it — a memory's
+red-note can be stale or mis-attributed, and the fix is often cheap.** The memory listed
+"precond_safety k≈1.67 / b1pp ×3 / restart ×3" as orthogonal reds to leave. Running +
+reading each showed THREE different classes, two cheaply fixable: (i) `precond_safety`
+hand-built its Krylov OMITTING the B operand (`(LC, S, ZeroOperator)`) → wrong eigenmode
+— a **test-construction bug**, fixed by adding the now-first-class B gain (→ k_inf=1.875);
+(ii) `b1pp_constant_flux` asserted the PRE-O.4b boundary semantics (`out.boundary==0`)
+— a **stale-expectation** the architecture changed under (O.4b emits inflow-identity +
+outflow-defect), fixed by migrating the assertion; (iii) `restart` was production-correct
+to ~1.6e-9 but pinned at a strict 1e-9 — **gate-tightness**, fixed by relaxing to a
+tolerance that still catches the real 4.7e-1 defect signature. None were "the solver is
+wrong." **A red is not self-classifying: re-run it, read the assertion, decide test-bug
+vs stale-expectation vs gate-tightness vs real-defect before deferring.**
+
+**(c) A sub-step framed as a "quick re-enable" can be a substantial FEATURE — read the
+guarding tests before sizing it (or deferring it).** Plan sub-step 5 (#200) read "re-enable
+the sweep-as-preconditioner (`preconditioner=None`)." But `test_krylov_curvilinear_precond_safety`
+is a carefully-designed test that PINS the identity-precond contract and explicitly
+documents the naive sweep precond as POOR on curvilinear — switching would lock in the
+wrong production state. #200's real fix is the block-inverse FACE preconditioner, a
+multi-session feature that doesn't exist. **A test that "documents why NOT to do the
+obvious thing" is the cheapest scoping signal there is — grep the guarding tests first.**
+
+**How to apply:** at each sub-step pickup — (1) re-read it against the CURRENT
+code/architecture, not the plan's authoring-time assumptions; (2) for any "pre-existing
+red" about to be deferred, run + characterise it (the classes above); (3) for any "quick
+fix / re-enable," grep the guarding tests. The 15-min audit beats both executing a moot
+tripwire and deferring a one-line fix.
+
+Cross-reference: `[[lessons-L23]]` (the R5 "redundant"-is-a-layer-claim — same spirit:
+trace the premise before acting on a plan's verb); `[[feedback-finish-known-work-with-context]]`
+("no consumer" / "pre-existing red" often means "not yet characterised — look closer");
+commits `deb1ce3` (precond_safety test-bug fix) + `33dd5ff` (b1pp stale-expectation +
+restart gate-tightness).
