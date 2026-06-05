@@ -1,48 +1,73 @@
-"""Generic eigenvalue solvers for neutron transport and diffusion.
+r"""Generalized eigenvalue solvers for neutron transport and diffusion.
 
-.. deprecated:: Wave E (Issue #163)
+This module hosts the **canonical power-iteration algorithm** for the
+deterministic criticality problem, posed as the **generalized eigenproblem**
 
-    For new SN code, use
-    :class:`orpheus.numerics.iteration.KEigenvalue` and
-    :class:`orpheus.numerics.iteration.SourceIteration` — the
-    operator-algebra primitives that consume the Wave A
-    :class:`~orpheus.numerics.operator.LinearOperator` Protocol
-    triple :math:`(L, S, F)`.
+.. math::
 
-    :func:`power_iteration` and :class:`EigenvalueSolver` stay
-    functional through the cross-solver migration sequence (CP,
-    diffusion, MoC, homogeneous), each of which has its own wave
-    on the SN reshape backlog.  Importing either symbol triggers a
-    :class:`DeprecationWarning` advertising the migration path.
+    A_{\rm loss}\,\psi \;=\; \lambda\,M\,\psi ,
 
-The criticality eigenvalue problem A·φ = (1/k)·F·φ has a spectrum of
-eigenvalues k_0 > k_1 > k_2 > ...  The ``power_iteration`` function
-converges to the **dominant eigenvalue** k_0 (= k_eff) and its
-eigenvector φ_0 — the **fundamental mode**.  This is the only
-physically meaningful steady-state solution: by the Perron-Frobenius
-theorem the fundamental mode is the unique non-negative eigenvector,
-while all higher harmonics change sign in space.
+whose power-method realization is the dominant eigenpair of the **resolvent**
+:math:`A_{\rm loss}^{-1} M`.  By Krein--Rutman / Perron--Frobenius the
+fundamental mode is the unique non-negative eigenvector and the dominant
+eigenvalue is real and positive (the only physically meaningful steady state);
+all higher harmonics change sign in space.
 
-The eigenvector is a **flux distribution** — its shape is determined
-but its absolute scale is arbitrary.  Normalizing to absolute flux
-(e.g. via total power or integral flux) is a separate post-processing
-step.
+Layering
+========
 
-Any deterministic solver that can express its physics in terms of the
-``EigenvalueSolver`` protocol can be plugged into the generic
-``power_iteration`` loop defined here.
+The eigenvalue machinery is layered so the algorithm is **method-agnostic**
+(see the operator-algebra theory page for the full posing table):
+
+* **Operator leaves** (method-specific): :math:`L, C, S, F, B`.
+* **Problem posing** arranges the leaves into :math:`(A_{\rm loss}, M)` and a
+  :math:`\mu \to` physical-eigenvalue map.  The **k-eigenvalue** row is
+  :math:`A_{\rm loss} = L+C-S-B`, :math:`M = F`, :math:`k = \mu`.  (The
+  :math:`\alpha`-eigenvalue row — :math:`A_{\rm loss} = L+C-S-F-B`,
+  :math:`M = 1/v`, :math:`\alpha = -1/\mu` — and the adjoint row
+  :math:`A_{\rm loss}^\dagger \psi^\dagger = \lambda M^\dagger \psi^\dagger`
+  are documented future seams.)
+* **Resolvent** :math:`A_{\rm loss}^{-1}` (method-specific): the fixed-source
+  inner solve — SN sweep / Krylov, CP BiCGSTAB, diffusion FD, ...
+* **Algorithm** (this module): :func:`power_iteration` over the
+  method-agnostic :class:`EigenvalueSolver` boundary.  It sees ONLY a
+  normalized-source fixed-point procedure — never the method's operators or
+  sweeps.
+
+:func:`power_iteration` is the **canonical engine**: any deterministic solver
+that expresses its physics in the :class:`EigenvalueSolver` Protocol plugs in —
+INCLUDING methods (CP, diffusion, homogeneous) whose loss operator is a
+monolithic matrix with no :math:`(L, S, F)` factorization.  The operator-triple
+entry point :class:`~orpheus.numerics.iteration.KEigenvalue` is one such
+implementer: it realizes the boundary from an :math:`(L, S, F)` triple and
+delegates the loop here (single source of truth — one loop).
+
+The eigenvector is a **flux distribution** — its shape is determined but its
+absolute scale is arbitrary.  Per-step renormalization to unit production rate
+(:meth:`EigenvalueSolver.compute_production_rate`) keeps the iterate at
+:math:`O(1)` (ERR-052); rescaling to an absolute flux at a target reactor power
+is a single multiplication (a future ``target_power`` hook).
+
+Future solution algorithms (full-spectrum Arnoldi / Krylov--Schur,
+shift-invert / FEAST for interior eigenvalues) slot in at this same boundary,
+dispatched via :attr:`~orpheus.numerics.iteration.KEigenvalue.eigenvalue_method`.
 """
 
 from __future__ import annotations
 
-import warnings
 from typing import Protocol
 
 import numpy as np
 
 
 class EigenvalueSolver(Protocol):
-    """Contract for a deterministic neutron transport eigenvalue solver.
+    """The method-agnostic boundary that :func:`power_iteration` consumes.
+
+    Any deterministic eigenvalue solver — SN sweep, CP collision matrix,
+    diffusion FD, MoC ray-trace, homogeneous direct — satisfies this Protocol
+    and plugs into the canonical :func:`power_iteration` algorithm.  The
+    algorithm sees ONLY these methods (a normalized-source fixed-point
+    procedure), never the method's operators or its fixed-source solve.
 
     Power iteration structure (each outer iteration):
 
@@ -189,22 +214,3 @@ def power_iteration(
             break
 
     return keff, keff_history, flux_distribution
-
-
-# ── Deprecation notice ────────────────────────────────────────────────
-#
-# Fired ONCE at import (after the function definition so the warning
-# does NOT pollute every iteration).  Wave E Round 1 (Issue #163)
-# installs ``orpheus.numerics.iteration`` as the canonical primitives;
-# this module stays functional through the cross-solver migration
-# sequence (CP, diffusion, MoC, homogeneous) and retires when every
-# consumer has migrated.
-warnings.warn(
-    "orpheus.numerics.eigenvalue.power_iteration and EigenvalueSolver "
-    "are deprecated; use orpheus.numerics.iteration.KEigenvalue / "
-    "SourceIteration for new code.  power_iteration stays functional "
-    "through the cross-solver migration sequence (CP, diffusion, MoC, "
-    "homogeneous).",
-    DeprecationWarning,
-    stacklevel=2,
-)
