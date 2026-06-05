@@ -53,16 +53,21 @@ is a DIFFERENT, OLDER branch `refactor/sn-operator-algebra` whose `solver.py` /
 3. The session **task tracker** (`TaskList`): tasks #17–#22 = the 6 phases.
    **If the tracker did not survive the session boundary, recreate it from §3 + §5**
    (one task per phase; chain blockedBy 18→{19,20}, 19→21, 21→22; **#17 = DONE**).
-4. **Phase 1 (#17) DONE; Phase 2 (#18) IN PROGRESS** (2026-06-05). Landed: sub-step 4
-   (`8563f4b`, `B.reflect_into_inflow` trace-only leaf) + sub-steps 1+2 (`83a4ae6`, the
-   honest `L+C−S−B` driver — **VARIADIC couplings**, the `S+B` fold RETIRED). Sub-step 1
-   (`ScatteringOperator.domain`) DEFERRED (premise superseded — no bulk space; tripwire
-   moot). **REMAINING: sub-step 5 (#200 sweep-as-preconditioner — gate: the #200-adjacent
-   reds flip green) + sub-step 3 (R4, ⚠ FORKED — collapse the 1-D matvec twins, DEFER
-   curvilinear matvec + the 1-D scan to nd_foundation; needs a scope confirm).** See §3
-   Phase 2 STATUS for the full record + the R4 fork. test-architect crosswalk + explorer
-   audit in hand: `.claude/plans/phase2_o2a_crosswalk.md`,
-   `.claude/agent-memory/explorer/phase2_o2a_dependency_audit.md`.
+4. **Phase 1 (#17) DONE; Phase 2 (#18) — CORE COMPLETE, awaiting close-out confirm**
+   (2026-06-05). Landed: sub-step 4 (`8563f4b`, `B.reflect_into_inflow` trace-only leaf) +
+   sub-steps 1+2 (`83a4ae6`, the honest `L+C−S−B` driver — **VARIADIC couplings**, the
+   `S+B` fold RETIRED) + plan/crosswalk (`fea6675`) + the `precond_safety` fold→gains
+   test-migration (`deb1ce3`, 4 reds → green). Sub-step 1 (`ScatteringOperator.domain`)
+   DEFERRED (premise superseded — no bulk space; tripwire moot). **The two remaining
+   sub-steps are BOTH DEFERRED (principled):** sub-step 5 (#200) is a block-inverse FACE
+   preconditioner **FEATURE** (not a re-enable; no correctness red; → issue #200) and
+   sub-step 3 (R4) is the FORKED WRONG-FIT (curvilinear matvec + 1-D scan → nd_foundation;
+   user chose to defer 2026-06-05). So **Phase 2's architectural spine — the honest driver
+   — is DONE; #18 is ready to close with #200 + R4 explicitly deferred.** Pre-existing
+   ORTHOGONAL reds remain (NOT Phase 2): `test_b1pp_constant_flux` ×3 (stale O.4b boundary
+   expectation), `test_krylov_kinf…refinement` ×3 (gate-tightness ~1.5e-9 vs 1e-9). See §3
+   Phase 2 STATUS + the standing-reds note. Crosswalk `.claude/plans/phase2_o2a_crosswalk.md`,
+   audit `.claude/agent-memory/explorer/phase2_o2a_dependency_audit.md`.
 
 ---
 
@@ -102,8 +107,15 @@ typed operator algebra. **Already landed on this branch:**
   `e70ca39`(plan+L23) / `3ee1598`(docs) / `d643ee8`(V&V matrix).
 
 **Standing reds (ORTHOGONAL — do NOT block this sequence; tracked as issues):**
-cylinder matvec #206/#196 (curvilinear WDD O(h) SI-vs-Krylov asymmetry — *fixed by
-Phase 2*); #212 `continuous_get` hang (reference-registry build; has a proposed
+cylinder matvec #206 (curvilinear WDD matvec hard-red ~18% — NOT fixed by Phase 2; the
+curvilinear matvec collapse is the deferred R4 WRONG-FIT; the #196 SI≡Krylov *eigenvalue*
+twin is already closed, a stale `xfail(strict)` XPASS); **`test_b1pp_constant_flux_collapses_to_collision`
+×3 — STALE O.4b expectation** (asserts boundary=0 at flat ψ, but the O.4b matvec emits the
+INFLOW identity `ψ.inflow`=1 on inflow slots + the outflow defect; pre-existing B.5.2-era
+red; → a separate O.4b boundary-block test-migration); **`test_krylov_kinf_independent_of_mesh_refinement`
+×3 — gate-tightness** (production Krylov correct to ~1.5e-9, the strict 1e-9 ERR-053 gate is
+marginally tight at meshes 5/16/30; optional relax to ~5e-9, which still catches the 4.7e-1
+truncation signature); #212 `continuous_get` hang (reference-registry build; has a proposed
 patch `derivations/diagnostics/sn_keff_hang_PROPOSED_fix.patch`; deselect the 3
 affected eigenvalue tests meanwhile); #209 `ordinate_scan` NaN on a zero a-chain
 (cylindrical pole); #195 curvilinear MMS magnitude at nx=160; **#214 WavefrontFlux
@@ -251,14 +263,21 @@ block operator, retiring the transitional folds and collapsing the matvec/sweep 
    routes collapsed on the driver path — `_reflect_outflow_into_inflow` survives only for
    the reconstruction sweep + Phase 3's octant-restricted variant).
 4. ~~Trace-only `B.reflect_into_inflow(boundary)`~~ — ✅ **DONE** `8563f4b`.
-5. **`#200` real preconditioner** — REMAINING. Replace `preconditioner=lambda q: q` (now a
-   single site, `_within_group_krylov` `solver.py`) with the sweep-as-preconditioner
-   (`preconditioner=None` → `KrylovAcceleration` falls back to `LC.solve`; the L19/L21
-   silent-fallback hazard is gone — `L.solve` is stateless post-Phase-1.2). **Gate: the
-   #200-adjacent reds become GREEN** (`test_krylov_curvilinear_precond_safety` keff→1.875,
-   `test_b1pp_verification`, `test_krylov_restart_signature`) — they are budget failures
-   of the UNPRECONDITIONED stopgap; the preconditioner only changes convergence RATE, not
-   the fixed point, so correctness is preserved + convergence is restored.
+5. **`#200` real preconditioner** — **DEFERRED (scope corrected 2026-06-05: it is a
+   FEATURE, not a re-enable).** Investigation refuted the "re-enable the sweep precond"
+   framing: `test_krylov_curvilinear_precond_safety` is a CAREFULLY-DESIGNED test that
+   PINS the current IDENTITY-precond production contract and explicitly documents that the
+   naive sweep precond (`preconditioner=None` → `LC.solve`) is a POOR preconditioner on
+   curvilinear (M-M cold-start) — switching to it would LOCK IN the wrong production state.
+   #200's real fix is the **block-inverse FACE preconditioner**, a substantial NEW FEATURE
+   that does not exist yet. There is **no correctness red** forcing it: the production
+   Krylov path recovers k_inf correctly (`test_krylov_restart_signature` → 1.875 to ~1.5e-9;
+   the strict-1e-9 gate is marginally tight at meshes 5/16/30 — gate-tightness, not a break).
+   → Deferred to issue #200 (its own feature effort). **A directly-related win DID land:
+   `deb1ce3` migrated `test_krylov_curvilinear_precond_safety` to the honest `(LC, S, B)`
+   gains** — it had hand-built `(LC, S, ZeroOperator)` OMITTING B (pre-existing red, k≈1.67),
+   so adding the B gain (mirroring the new production triple) recovers k_inf=1.875 on all
+   coords (4 reds → green; retirement=test-migration for the fold).
 3. **Unify the 3 `(L+C)` impls** (R4) — REMAINING, ⚠ **FORKED (needs scope decision).**
    The three: `_compute_LpC` (1-D matvec, `operator.py:336`) / `_compute_decomposition`
    (1-D dual-emission introspection, `:578`) / the 1-D solve-sweep `_sweep_1d_unified`
