@@ -310,6 +310,15 @@ class SNSolver:
         # become named attributes; typos surface as AttributeError.
         self._boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
 
+        # Phase 3 measurement seam: total inner (within-group) SI/Krylov
+        # iterations consumed across the eigenvalue outer loop — the
+        # measurand for the SI spectral-rate / Gauss-Seidel-recovery
+        # diagnostics.  Accumulated per outer step in
+        # ``_solve_source_iteration`` / ``_solve_krylov`` and read by
+        # ``solve_sn`` into ``IterationHistory.total_inner_iterations``.
+        # Fresh per solve (a new SNSolver is built per ``solve_sn`` call).
+        self._total_inner_iterations = 0
+
         # Volume array for keff computation
         self.volume = sn_mesh.volumes
 
@@ -717,6 +726,10 @@ class SNSolver:
         psi_typed, _residuals = si.solve(
             q_ext_composite, initial_guess=initial_guess,
         )
+        # Phase 3 measurement seam: accumulate this outer step's inner SI
+        # iterate count (the eigenvalue path's only window onto the inner
+        # spectral rate — see IterationHistory.total_inner_iterations).
+        self._total_inner_iterations += len(_residuals)
         self._psi_typed = psi_typed
 
         # Reduce angular → scalar flux for the eigenvalue outer's contract.
@@ -828,6 +841,9 @@ class SNSolver:
         psi_typed, _residuals = krylov.solve(
             q_ext_composite, initial_guess=initial_guess,
         )
+        # Phase 3 measurement seam: accumulate this outer step's inner
+        # Krylov iterate count (see IterationHistory.total_inner_iterations).
+        self._total_inner_iterations += len(_residuals)
         self._psi_typed = psi_typed
 
         # Reduce angular → scalar flux for the eigenvalue outer's contract.
@@ -1165,6 +1181,7 @@ def solve_sn(
     history = IterationHistory(
         keff_history=tuple(keff_history),
         n_outer=len(keff_history),
+        total_inner_iterations=solver._total_inner_iterations,
         converged=True,
     )
     return Solution(
@@ -1446,6 +1463,7 @@ def _solve_fixed_source_si(
     history = IterationHistory(
         flux_residuals=tuple(flux_residuals),
         n_inner=len(residuals),
+        total_inner_iterations=len(residuals),
         converged=converged_flag,
     )
     # ``psi_typed`` IS the converged TimedFullField composite (bulk angular +
@@ -1607,6 +1625,7 @@ def _solve_fixed_source_krylov(
     history = IterationHistory(
         flux_residuals=tuple(flux_residuals),
         n_inner=n_outer + 1,
+        total_inner_iterations=n_outer + 1,
         converged=converged_flag,
     )
     # D-H.1c stage 2 (2026-05-28): psi_typed IS already a TimedFullField;

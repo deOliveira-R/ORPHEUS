@@ -384,23 +384,29 @@ def test_recovery_vacuum_count_unchanged():
     )
 
 
-# ─── EIGENVALUE-path rate (BLOCKED on instrumentation) ───────────────
+# ─── EIGENVALUE-path measurement seam (Phase 3 sub-step 1) ───────────
 
-@pytest.mark.l1
-@pytest.mark.verifies("si-spectral-rate")
-@pytest.mark.xfail(
-    strict=False,
-    reason="solve_sn (eigenvalue) does NOT surface inner SI counts "
-           "(IterationHistory.n_inner is None; routes through "
-           "power_iteration via KEigenvalue, which discards the inner "
-           "residual trajectory — iteration.py psi, _inner_residuals = "
-           "self._inner.solve).  The eigenvalue-path rate claim is "
-           "BLOCKED until the recovery PR adds a total_inner_iterations "
-           "seam to IterationHistory.  See spec memo section 1.1.",
-)
-def test_si_gs_rate_recovery_eigenvalue_2g():
-    """L1 [iteration-cost] eigenvalue-path inner SI recovery (forward
-    reference — needs the total_inner_iterations instrumentation seam)."""
+@pytest.mark.foundation
+def test_eigenvalue_path_surfaces_total_inner_iterations():
+    """Phase 3 sub-step 1 (measurement seam): the EIGENVALUE solve surfaces
+    the total inner-SI iteration count via
+    ``IterationHistory.total_inner_iterations``.
+
+    Before the seam this was invisible: ``solve_sn`` routes through
+    ``power_iteration``, whose ``IterationHistory`` carried ``n_inner=None``
+    and only the (splitting-INVARIANT) OUTER count.  The seam accumulates
+    each outer step's inner iterate count on the ``SNSolver`` and reads it
+    into ``total_inner_iterations``, un-blocking the eigenvalue-path rate
+    measurement.
+
+    Measured Jacobi baselines (A-2g reflective, n=10, GL N=8, inner_tol=1e-8,
+    post-seam): **SI total_inner=371, Krylov total_inner=310** (n_outer=3 for
+    both — the outer count IS splitting-invariant; the inner SI count is
+    where the G-S recovery shows).  These anchor the FUTURE eigenvalue rate
+    gate (n_GS < 0.75 x 371), which lands with the eigenvalue-path G-S
+    sub-step (deferred after the fixed-source G-S per the plan).  The seam is
+    measurement-only — keff is unperturbed (guarded by
+    :func:`test_recovery_preserves_kinf_2g`)."""
     case = derive_2g_continuous()
     mat_id = next(iter(case.problem.materials.keys()))
     geom = StructuredGeometry(
@@ -414,5 +420,13 @@ def test_si_gs_rate_recovery_eigenvalue_2g():
         case.problem.materials, mesh, quad, inner_solver="source_iteration",
         max_outer=1000, max_inner=5000, inner_tol=1e-8,
     )
-    total_inner = sol.history.total_inner_iterations  # AttributeError today
-    assert total_inner is not None
+    total_inner = sol.history.total_inner_iterations
+    assert total_inner is not None, (
+        "eigenvalue IterationHistory.total_inner_iterations is None — the "
+        "Phase 3 measurement seam did not populate it."
+    )
+    # At least one inner iterate per outer step (and the outer count, which
+    # the eigenvalue path already surfaced, is positive).
+    assert total_inner >= sol.history.n_outer > 0, (
+        f"total_inner={total_inner} not >= n_outer={sol.history.n_outer} > 0"
+    )

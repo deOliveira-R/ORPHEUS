@@ -80,6 +80,16 @@ class IterationHistory:
         Number of inner (within-group) iterations consumed.  ``None``
         for paths that do not surface this count (e.g. pure eigenvalue
         outer iteration).
+    total_inner_iterations : int or None
+        Total inner (within-group) iterations summed across ALL outer
+        iterations.  Unlike :attr:`n_inner` (which is ``None`` on the
+        eigenvalue outer path — there is no single inner solve to point
+        at), this is populated by BOTH paths: the eigenvalue path
+        accumulates it across the power-iteration outer loop, the
+        fixed-source path sets it equal to :attr:`n_inner` (one inner
+        solve).  It is the measurand for the SI spectral-rate /
+        Gauss-Seidel-recovery diagnostics (Phase 3).  ``None`` only when
+        no path surfaced a count.
     n_outer : int or None
         Number of outer (power) iterations consumed.  ``None`` for
         fixed-source problems.
@@ -98,6 +108,7 @@ class IterationHistory:
     keff_history: tuple[float, ...] = ()
     flux_residuals: tuple[float, ...] = ()
     n_inner: int | None = None
+    total_inner_iterations: int | None = None
     n_outer: int | None = None
     converged: bool = True
 
