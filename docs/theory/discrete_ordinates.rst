@@ -6396,7 +6396,11 @@ The convergence rate is bounded by the spectral radius
 :math:`\rho(L^{-1}(S+F))`.  For an SN sweep applied to a homogeneous
 infinite medium with isotropic scattering, this radius equals the
 scattering ratio :math:`c = \Sigma_s/\Sigma_t` — convergence is
-geometric at rate :math:`c` (Lewis & Miller §4.4).
+geometric at rate :math:`c` (Lewis & Miller §4.4).  The formal
+derivation, the iterations-to-tolerance estimate, and the Phase 3
+boundary Gauss-Seidel rate recovery are in
+:ref:`si-within-group-splitting`; the labelled spectral-rate
+identity is :eq:`si-spectral-rate`.
 
 The convergence test is the relative L2 residual on the iterate — the
 same metric :meth:`SNSolver._solve_source_iteration` uses, since that
@@ -6409,6 +6413,430 @@ via the ``_within_group_triple`` single-source-of-truth helper):
                             {\max(\|\psi_n\|_2,\,10^{-30})}
 
 with the iteration breaking when :math:`{\rm res}_n < {\rm tol}`.
+
+.. _si-within-group-splitting:
+
+The within-group SI splitting and its spectral rate
+----------------------------------------------------
+
+This subsection derives the source-iteration spectral radius
+:math:`\rho_J = c` from the within-group operator splitting, gives
+the iterations-to-tolerance estimate the rate implies, and then
+documents the Phase 3 *boundary Gauss-Seidel* rate recovery — what
+it accelerates, what it does **not** (the load-bearing honest
+scope), the failed σ\ :sub:`r`-fold that motivated it (GitHub
+issue #215), and the diagonal-cubature shared-face correctness rule
+(ERR-056).  The polymorphic schedule lives in
+:mod:`orpheus.sn.sweep_schedule`; the SI resolvent that consumes it
+is :class:`~orpheus.sn.solver._GaussSeidelResolvent`; the public
+entry is :func:`~orpheus.sn.solver.solve_sn_fixed_source` via the
+``inner_schedule`` keyword.
+
+.. admonition:: Key Facts (SI rate)
+   :class: tip
+
+   * The within-group SI iteration matrix is
+     :math:`(L+C)^{-1}(S+B)`; its spectral radius is the scattering
+     ratio :math:`\rho_J = c = \max_g \Sigma_{s,g}/\Sigma_{t,g}`
+     (:eq:`si-spectral-rate`).  Iterations to relative tolerance
+     :math:`\varepsilon`: :math:`n_{\rm Jacobi} \approx
+     \log\varepsilon / \log c`.
+   * **Boundary Gauss-Seidel** (Phase 3, ``inner_schedule=
+     "gauss_seidel"``, default) folds **only** the boundary
+     reflection :math:`B` into the resolvent
+     (:math:`(L+C-B_{\rm lower})^{-1}` forward substitution).  It
+     accelerates the *boundary-layer transient* by a measured,
+     regime-independent **~0.86–0.92×**, NOT the dominant flat
+     scattering :math:`c`-mode.  **This is NOT the textbook
+     scattering-G-S** :math:`c^2`-halving.
+   * The dominant within-group scattering rate is recovered ONLY by
+     **Krylov** (already production — rate-optimal,
+     splitting-invariant) or by **consistent DSA** (future, GitHub
+     issue #2).  The scattering :math:`c`-mode **cannot** be folded
+     into the directional sweep (the σ\ :sub:`r`-fold trap, issue
+     #215).
+   * The converged fixed point is **invariant** under the schedule
+     (any consistent splitting of :math:`(L+C-S-B)\psi=q` shares
+     :math:`\psi^\ast`); only the SI spectral rate changes.  Krylov
+     ignores the schedule entirely.
+   * 1-D meshes always fall back to Jacobi (the 1-D scan is not a
+     wavefront; the regime is scattering-dominated — boundary G-S is
+     a no-op).
+
+The four-operator within-group equation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Within a single energy group, the steady transport equation factors
+into four operators acting on the angular flux :math:`\psi`:
+
+.. math::
+   :label: si-within-group-operator-eq
+
+   (L + C - S - B)\,\psi \;=\; q,
+
+where
+
+* :math:`L = \hat\Omega\cdot\nabla` is **streaming** (the sweep's
+  spatial derivative — see :ref:`sn-streaming-operator`);
+* :math:`C = \Sigma_t\,\mathbb{I}` is the **collision** (total
+  removal) operator, diagonal in angle;
+* :math:`S = \Sigma_{s,0}\,P_{\rm iso}` is the **within-group
+  scattering** gain — it couples back through the scalar flux
+  :math:`\phi = \int\psi\,d\Omega`, so :math:`P_{\rm iso}\psi =
+  \phi/\!\sum_n\mathcal{W}_n` is the isotropic-projection (rank-1
+  in angle) operator (the convention used by
+  :class:`~orpheus.sn.scattering.ScatteringOperator`; higher
+  Legendre orders add the :math:`P_\ell` blocks);
+* :math:`B` is the **boundary reflection** gain — trace-only,
+  realised by :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`,
+  delivering :math:`\psi.\text{inflow} = B\,\psi.\text{outflow}` on
+  specular faces (see :ref:`bc-extraction` in
+  :doc:`operator_algebra`);
+* :math:`q` is the external/fission within-group source
+  (:eq:`phase-f-q-1d-decomposition`).
+
+Source iteration is a **splitting** of :eq:`si-within-group-operator-eq`:
+the **streaming-collision** part :math:`(L+C)` is kept on the LHS
+(inverted exactly by **one WDD sweep** — a triangular
+forward-substitution, since the sweep visits cells in causal order),
+while the **scattering** :math:`S` and the **boundary reflection**
+:math:`B` are *lagged* on the RHS, evaluated from the previous
+iterate :math:`\psi_n`:
+
+.. math::
+   :label: si-jacobi-fixed-point
+
+   \psi_{n+1} \;=\; (L+C)^{-1}\bigl(S\,\psi_n
+                    \;+\; B\,\psi_n \;+\; q\bigr).
+
+The iteration matrix is therefore :math:`M = (L+C)^{-1}(S+B)`, and
+the asymptotic convergence rate is :math:`\rho(M)`.
+
+Spectral radius :math:`\rho_J = c`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For an infinite homogeneous medium with isotropic scattering, the
+boundary term vanishes (:math:`B=0`) and the streaming derivative
+:math:`L` drops in the flat-flux Fourier mode :math:`k\to0`.  The
+spatial operator :math:`(L+C)^{-1}` then reduces to multiplication by
+:math:`1/\Sigma_t`, and the isotropic-scattering gain :math:`S`
+contributes :math:`\Sigma_{s,0}` per collision.  The dominant
+eigenvalue of :math:`(L+C)^{-1}S` is thus the **scattering ratio**:
+
+.. math::
+   :label: si-spectral-rate
+
+   \rho_J \;=\; \rho\!\bigl((L+C)^{-1}(S+B)\bigr) \;=\;
+   c \;\equiv\; \max_g \frac{\Sigma_{s,g}}{\Sigma_{t,g}},
+   \qquad
+   n_{\rm Jacobi} \;\approx\; \frac{\log\varepsilon}{\log c}
+
+(the Fourier / mode analysis of Lewis & Miller §4.4, Adams & Larsen
+2002 §II).  The right-hand identity gives the iterations
+:math:`n_{\rm Jacobi}` needed to drive the relative residual to a
+tolerance :math:`\varepsilon`: each iteration multiplies the error
+by :math:`c`, so :math:`c^{\,n} = \varepsilon` solves to
+:math:`n = \log\varepsilon/\log c`.  Because :math:`c\to1` for a
+nearly-pure scatterer, source iteration becomes arbitrarily slow as
+:math:`c\to1` — the canonical motivation for acceleration (DSA,
+Krylov).
+
+.. note::
+
+   The :math:`c` in :eq:`si-spectral-rate` is the **within-group
+   scattering ratio** :math:`\Sigma_{s,0}^{g\to g}/\Sigma_{t,g}` that
+   governs the *within-group* fixed point.  The
+   :meth:`Mixture.scattering_ratio <orpheus.data.macro_xs.mixture.Mixture.scattering_ratio>`
+   property exposes the slightly larger **Case–Zweifel** secondaries-
+   per-collision parameter :math:`c_g = (\Sigma_{s,g} +
+   \nu\Sigma_{f,g})/\Sigma_{t,g}` (it folds in fission emission for a
+   multiplying medium).  The L1 rate anchor
+   :func:`tests.sn.verification.analytical.test_si_convergence_rate.test_si_jacobi_rate_matches_scattering_ratio`
+   pins :math:`n_{\rm Jacobi}` against ``log(tol)/log(c_max)`` using
+   the Case–Zweifel form and accepts a 0.6–1.2 band: the measured
+   B-2g slab count was **655** against a predicted
+   :math:`\log(10^{-8})/\log(0.975) = 728` (ratio **0.90** — the
+   gap is the finite-slab leakage that lowers the effective rate
+   below the infinite-medium :math:`c`, plus the multigroup
+   coupling).  This is the structurally-independent target the
+   recovery improves upon, NOT another ORPHEUS solver
+   (``vv-principles`` structural-independence; MMS is **not** paired
+   here because MMS does not prove rates against an eigenvalue —
+   the rate is a closed-form property of the cross sections).
+
+Jacobi vs Gauss-Seidel — the Phase 3 boundary recovery
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Wave O BC extraction (steps O.4a.2 + O.4b, Issue #208) made the
+2-D sweep **bare**: it reads ``psi.boundary.inflow`` as *given* for
+the whole sweep, and the reflective coupling is applied externally
+via the sibling :math:`-B` term (see :ref:`bare-sweep-extraction`).
+A side effect of that architectural win was a *rate regression*: the
+retired ``bc.apply``-inside-the-sweep read the **live** boundary
+buffer mid-sweep (intra-sweep Gauss-Seidel), whereas the bare sweep
+with a fully-lagged external :math:`B` is **inter-sweep Jacobi** —
+same converged fixed point, slower SI rate.  Phase 3 recovers the
+intra-sweep reflective coupling through a polymorphic, mesh-time
+:class:`~orpheus.sn.sweep_schedule.SweepSchedule` without
+re-entangling the bare sweep with the BC.  Jacobi and Gauss-Seidel
+are the **same** uniform sweep-and-reflect loop — there is *no*
+``if jacobi/gs`` branch in the iteration; the splitting is selected
+*once* by choosing the schedule:
+
+.. list-table:: The two within-group SI schedules
+   :header-rows: 1
+   :widths: 16 42 42
+
+   * - Schedule
+     - Octant grouping
+     - Inter-group reflect
+   * - **Jacobi**
+       (``"jacobi"``)
+     - ONE group containing every octant; :math:`B\,\psi_n` seeded
+       once and **frozen** for the whole sweep.  Identical to the
+       pre-recovery bare all-octants sweep.
+     - None.  All octants read the same lagged inflow seed.
+   * - **Gauss-Seidel**
+       (``"gauss_seidel"``, default)
+     - One group per in-plane octant
+       (:class:`~orpheus.sn.sweep_graph.OctantLabel`), in quadrature
+       sweep order.
+     - After each group, its reflective **outgoing** faces are
+       re-reflected (the face-restricted :math:`-B`,
+       :meth:`SNBoundaryOperator.reflect_into_inflow`), so a *later*
+       group reads the **fresh** current-iterate inflow — the
+       :math:`(L+C-B_{\rm lower})^{-1}` forward substitution.
+
+In the Gauss-Seidel schedule, octants swept **before** their
+specular partner keep the lagged seed (the cyclic :math:`B_{\rm
+upper}` back-edges — a both-faces-reflective axis is a 2-cycle, so
+one pass is only *partial* G-S); octants swept **after** read the
+fresh value (the order-respecting :math:`B_{\rm lower}` edges).  The
+schedule is a **mesh-time derived object** — it depends only on the
+quadrature's octant partition and the mesh's reflective-face set,
+not on fluxes, sources, or iteration state — so it is built once and
+reused across every SI iterate (the same lifetime contract as
+:class:`~orpheus.sn.sweep_graph.SweepDependencyGraph`).
+
+The selection lives in :func:`~orpheus.sn.solver._select_si_resolvent`:
+``"gauss_seidel"`` on a 2-D Cartesian mesh returns
+``(_GaussSeidelResolvent(L+C, B, schedule), (S,))`` — :math:`B` moves
+*into* the resolvent while :math:`S` stays a lagged gain;
+``"jacobi"`` (and any 1-D mesh) returns ``(L+C, (S, B))`` — both
+:math:`S` and :math:`B` lagged.  In **both** cases :math:`S` is a
+lagged gain: the sweep never re-scatters mid-sweep.  Only the
+boundary coupling gets the Gauss-Seidel treatment.
+
+.. warning::
+
+   **Honest scope — boundary G-S is NOT a scattering accelerator.**
+   The recovery folds **only** the boundary reflection :math:`B`.
+   It therefore accelerates the *boundary-layer transient*, NOT the
+   dominant flat *scattering* :math:`c`-mode of
+   :eq:`si-spectral-rate`.  The measured gain is a constant,
+   regime-independent **~0.86–0.92×** (e.g. :math:`n_{\rm GS}\approx
+   641` vs :math:`n_{\rm Jacobi}\approx 697` on a B-2g reflective
+   box), **not** the :math:`c^2`-halving (≈0.5×) one might naively
+   expect from "Gauss-Seidel".  The :math:`c^2`-halving is the
+   *scattering* Gauss-Seidel result, which does **not** apply to
+   boundary-only G-S (the scattering :math:`S` is still fully
+   lagged).  The dominant within-group scattering rate is recovered
+   ONLY by **Krylov** (already production; rate-optimal,
+   splitting-invariant — :math:`n\approx302` vs SI's :math:`n\approx
+   860` on the same slab at :math:`\varepsilon=10^{-10}`) or by
+   **consistent DSA** (a future feature, GitHub issue #2, with
+   :math:`\rho\approx0.22` independent of :math:`c`).  A future
+   reader must not mistake boundary-G-S for a scattering accelerator.
+
+Why the scattering :math:`c`-mode cannot be folded into the sweep
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is tempting to try to fold the within-group self-scatter
+:math:`\Sigma_{s,0}^{g\to g}` *into* the sweep — to accelerate the
+:math:`c`-mode by absorbing the self-scatter into the cell-balance
+denominator as a **removal cross-section** :math:`\sigma_r =
+\Sigma_t - \Sigma_{s,0}^{g\to g}`, then iterating only on the
+residual scattering :math:`\psi_{n+1} = A_{\rm wg}^{-1}(S_{\rm
+residual}\psi_n + q)` with a :math:`\sigma_r`-sweep as :math:`A_{\rm
+wg}^{-1}`.  **This is a latent correctness trap** (GitHub issue
+#215, measured 2026-06-05), and documenting *why* it fails prevents
+a future session from re-attempting it.
+
+The σ\ :sub:`r`-sweep inverts :math:`(\hat\Omega\cdot\nabla +
+\sigma_r\,\mathbb{I})` — a removal that is **diagonal in angle**.
+But the within-group self-scatter is :math:`S_{\rm foldable} =
+\Sigma_{s,0}\,P_{\rm iso}` — the **isotropic-projection** operator
+(rank-1 in angle, :math:`\phi/\!\sum_n\mathcal{W}_n`).  The two
+operators **coincide only for isotropic flux**:
+
+.. math::
+   :label: si-sigma-r-fold-mismatch
+
+   \underbrace{\sigma_r\,\mathbb{I}}_{\text{diagonal in angle}}
+   \;\ne\;
+   \underbrace{\Sigma_{s,0}\,P_{\rm iso}}_{\text{isotropic projection}}
+   \qquad\text{unless }\psi\text{ is isotropic, i.e. }
+   \psi_n = \tfrac{\phi}{\sum_n\mathcal{W}_n}\ \forall n.
+
+The consequence is a verification-mode-2 (variable-swap / operator
+mismatch) bug that the *standard* test regime cannot see:
+
+.. list-table:: σ\ :sub:`r`-fold failure across the BC regime (issue #215)
+   :header-rows: 1
+   :widths: 30 22 48
+
+   * - Variant
+     - Result
+     - Why
+   * - σ\ :sub:`r`-sweep approximation, **fully-reflective uniform**
+       box
+     - **exact** (round-off)
+     - Flux is isotropic ⟹
+       :math:`\sigma_r\mathbb{I}\equiv\Sigma_{s,0}P_{\rm iso}`.  The
+       isotropic unit tests pass.
+   * - σ\ :sub:`r`-sweep approximation, **anisotropic**
+       (vacuum / heterogeneous)
+     - **46–56 % flux error**
+     - Flux is anisotropic ⟹ the diagonal removal is the wrong
+       operator; the error is silent (no crash) and corrupts real
+       cases.
+   * - "exact" variant (keep the :math:`-\Sigma_{s,0}\!\odot\!\psi`
+       remnant on the RHS)
+     - **DIVERGES**
+     - The remnant gain has spectral radius
+       :math:`\Sigma_{s,0}/\sigma_r \approx 39` — the splitting is
+       unstable.
+
+This is the textbook reason **DSA needs a *consistent* diffusion
+operator**: the correct synthetic acceleration of the
+isotropic-projection self-scatter is a diffusion solve whose removal
+matches the transport operator's low-order limit, not a directional
+sweep with a doctored denominator.  The
+:meth:`ScatteringOperator.foldable_part <orpheus.sn.scattering.ScatteringOperator.foldable_part>`
+/ :meth:`residual_part <orpheus.sn.scattering.ScatteringOperator.residual_part>`
+split (the data API landed under Issue #197 PR-TYPED-1) produces
+:math:`\Sigma_{s,0}^{g\to g}` precisely as the input a DSA
+preconditioner consumes (the diffusion removal coefficient) — it is
+the right input **for DSA**, NOT for a sweep fold.  Any future
+within-group accelerator MUST be gated on an **anisotropic** config;
+the isotropic box cannot see this error (``vv-principles``
+anti-pattern #4: homogeneous/isotropic verification is blind to the
+angular structure).
+
+The diagonal-cubature shared-face rule (ERR-056)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Gauss-Seidel schedule must assign each reflective face to the
+**LAST** octant group (in sweep order) that outflows through it —
+NOT the first.  This is a **correctness** requirement, not merely a
+rate optimisation, and the distinction is invisible on axis-aligned
+quadratures:
+
+* On an **axis-aligned** quadrature
+  (:meth:`Quadrature.product <orpheus.numerics.quadrature.Quadrature.product>`
+  — each octant outflows a single face), every reflective face is
+  outflowed by exactly **one** octant group, so "last" trivially
+  equals "the only one".
+* On a **diagonal / spherical** cubature
+  (:meth:`Quadrature.lebedev <orpheus.numerics.quadrature.Quadrature.lebedev>`,
+  :meth:`level_symmetric <orpheus.numerics.quadrature.Quadrature.level_symmetric>`
+  — each octant outflows **two** in-plane faces), a face is shared
+  by :math:`\ge 2` octant groups (e.g. ``xmax`` is outflowed by
+  every ``+x`` octant: :math:`(+1,0)`, :math:`(+1,+1)`,
+  :math:`(+1,-1)`).
+
+Reflecting a shared face after only the **first** outflowing group
+absorbs the *not-yet-swept* octants' slots — and because the
+:class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux` is
+rebuilt and :math:`\iota_*`-seeded each ``.solve``, those slots
+still hold the **inflow seed**, not real outflow.  The reflect then
+propagates garbage and the iteration converges to the fixed point of
+the **wrong** operator (ERR-056).  Crucially, this seed-contamination
+does **not** self-correct at convergence — unlike a lagged-but-real
+Jacobi coupling, which reads the previous iterate's genuine value.
+Deferring the reflect to the **last** outflowing group guarantees
+the face's outflow is complete before it is reduced; octants reading
+the face that are swept *before* its reflect simply keep the lagged
+seed (the valid cyclic back-edge → partial one-pass G-S).  This is
+the general principle that *a face shared by multiple work-units
+must be reduced only after the last contributing unit completes* —
+the same fan-in discipline KBA wavefront scheduling
+([Pautz2002]_; Adams & Larsen 2002 §VI on parallel sweeps) and
+multigroup Gauss-Seidel over shared down-scatter targets require.
+The full post-mortem (symptom, root cause, the
+``test_gs_diagonal_quadrature_shared_face_assigned_to_last_group_only``
+structural pin) is catalogued as **ERR-056**.
+
+White and vacuum faces are **excluded** from the reflective set:
+vacuum has no coupling (:math:`B=0`), and white reflection couples
+*all* ordinates on a face, so the octant-order G-S degenerates to
+Jacobi anyway — only **specular** reflection admits the
+order-respecting forward-substitution acceleration.
+
+Numerical evidence
+~~~~~~~~~~~~~~~~~~~~
+
+All measured 2026-06-05 on this branch
+(:func:`tests.sn.verification.analytical.test_si_convergence_rate`,
+GL/``product`` :math:`N=8`, ``inner_tol`` as noted).  The Jacobi and
+Gauss-Seidel counts are compared **in-process** (no hardcoded
+baseline — Jacobi is a permanent live control, so the gates cannot
+go stale).
+
+.. list-table:: SI iteration counts — boundary G-S recovery vs the splitting-invariant controls
+   :header-rows: 1
+   :widths: 34 13 13 13 27
+
+   * - Configuration
+     - :math:`n_{\rm Jacobi}`
+     - :math:`n_{\rm GS}`
+     - ratio
+     - Notes
+   * - B-2g reflective **box** (2-D, ``inner_tol`` 1e-8)
+     - 697
+     - 641
+     - 0.92×
+     - Same fixed point: scalar-flux rel-L\ :sub:`∞`
+       :math:`4.86\times10^{-8}` (rate-only, ``vv-principles``
+       Mode 9).
+   * - B-2g reflective **slab** (1-D, ``inner_tol`` 1e-8)
+     - 655
+     - 655
+     - 1.00×
+     - **No-op** by design — the 1-D scan is not a wavefront;
+       ``_select_si_resolvent`` falls back to Jacobi.
+   * - B-2g **vacuum** slab (G-4 negative control)
+     - 128
+     - 128
+     - 1.00×
+     - :math:`B=0` ⟹ the schedule is inert; proves the recovery
+       touches *only* reflective coupling.
+   * - B-2g reflective slab, **Jacobi vs Krylov**
+       (``inner_tol`` 1e-10)
+     - ≈860
+     - — (302)
+     - 2.85×
+     - The splitting-invariant **Krylov** floor: an SI splitting can
+       never beat it (the rate-optimal anchor, not the target).
+
+The analytic Jacobi anchor (:eq:`si-spectral-rate`) predicts
+:math:`\log(10^{-8})/\log(0.975) = 728` for the B-2g slab; the
+measured 655 gives ratio **0.90** — the finite-slab leakage +
+multigroup correction discussed in the note above.  The
+**eigenvalue** path surfaces the analogous measurand via
+:attr:`IterationHistory.total_inner_iterations
+<orpheus.numerics.eigenvalue.IterationHistory.total_inner_iterations>`
+(the Phase 3 measurement seam): A-2g reflective :math:`n=10` gives
+SI ``total_inner`` 371, Krylov 310 (with :math:`n_{\rm outer}=3` for
+both — the **outer** count is splitting-invariant; the inner SI count
+is where the recovery shows).
+
+For comparison, a clean 1-D textbook DSA spike (the future issue-#2
+target) gives **8–21×** :math:`c`-independent speed-up on a vacuum
+slab (:math:`\rho\approx0.22`), but a *naive* finite-difference DSA
+**diverges** on a reflective boundary — the concrete confirmation
+that DSA needs the consistent diffusion operator the σ\ :sub:`r`-fold
+trap above already implied.
 
 KEigenvalue: outer power iteration
 -----------------------------------
@@ -8726,7 +9154,19 @@ References
    "Fast iterative methods for discrete-ordinates particle transport
    calculations," *Progress in Nuclear Energy*, 40(1):3--159, 2002.
    Reviews the SAILOR / Larsen-Adams preconditioned-Krylov framework
-   that the Wave E Round 2 inner solver implements.
+   that the Wave E Round 2 inner solver implements.  §II gives the
+   source-iteration spectral radius :math:`\rho = c`; §VI reviews the
+   KBA / wavefront parallel-sweep ordering whose fan-in discipline the
+   octant-group Gauss-Seidel schedule inherits.
+
+.. [Pautz2002] S.D. Pautz,
+   "An algorithm for parallel S\ :sub:`n` sweeps on unstructured
+   meshes," *Nuclear Science and Engineering*, 140(2):111--136, 2002.
+   The KBA-style wavefront octant-scheduling reference.  Cited at
+   :ref:`si-within-group-splitting` for the shared-face fan-in rule
+   (ERR-056): a boundary face outflowed by several octants must be
+   reduced (reflected) only after the LAST contributing octant group
+   has swept it.
 
 .. [Pomraning1989] G.C. Pomraning,
    "The transport equation in general geometry,"
