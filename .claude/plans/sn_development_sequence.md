@@ -46,8 +46,9 @@ is a DIFFERENT, OLDER branch `refactor/sn-operator-algebra` whose `solver.py` /
   worktree `PYTHONPATH` BEFORE concluding fabrication (L22 — a wrong-tree read mimics it).
 
 **Recovery path after compaction / fresh session:**
-1. `MEMORY.md` → the `[[project-wave-o-operator-algebra]]` ⭐⭐ LATEST block (Phase 1
-   COMPLETE + the R5 reversal + the eigenvalue-posing architecture of record).
+1. `MEMORY.md` → the `[[project-wave-o-operator-algebra]]` ⭐⭐ LATEST block (Phases 1+2
+   COMPLETE + Phase 3 IN PROGRESS (3a done, 3b/3c next) + the R5 reversal + the
+   eigenvalue-posing architecture of record).
 2. THIS file (`sn_development_sequence.md`) — the 6-phase sequence (§3); Phase 1's
    **STATUS block** (in §3) records the landed R1/R2/gap/R5 with commit hashes.
 3. The session **task tracker** (`TaskList`): tasks #17–#22 = the 6 phases.
@@ -65,10 +66,15 @@ is a DIFFERENT, OLDER branch `refactor/sn-operator-algebra` whose `solver.py` /
    (unblocked NOW; commented on issue #200 with the 3 deliverables incl. re-tighten the
    restart gate 1e-7→1e-9) ; sub-step 3 = R4 curvilinear-matvec + 1-D-scan collapse →
    **nd_foundation Phase 6 d-generic walk** (commented on issue #206; trigger = after the
-   `_sweep_wavefront` walk lands). **The NEXT phase is the USER's choice: Phase 3 (SI
-   Gauss-Seidel recovery, #19) / Phase 4 (O.2b adjoint, #20) / or build #200 now.** Each
-   crosses subsystem boundaries → test-architect FIRST (L17). Crosswalk
-   `.claude/plans/phase2_o2a_crosswalk.md`, audit
+   `_sweep_wavefront` walk lands).
+5. **Phase 3 (#19, SI Gauss-Seidel recovery) IN PROGRESS** (2026-06-05): Gate 1 + sub-steps
+   1 / 2 / 3a ✅ DONE (HEAD `40aefc2`, local-only); the **3b + 3c fixed-point-changing CORE is
+   NEXT** — see the Phase 3 **STATUS + design + NEXT block** in §3 for the FULL self-contained
+   pickup (the polymorphic `SweepSchedule` + seed-then-overwrite design, the exact 3b/3c carve
+   anchors, verification gates, gotchas). Carve substrate map:
+   `.claude/agent-memory/explorer/si_gs_substep3_carve_substrate.md`. Phase 4 (#20) / #200 are
+   the subsequent choices. Each phase crosses subsystem boundaries → test-architect FIRST
+   (L17). Phase-2 refs: crosswalk `.claude/plans/phase2_o2a_crosswalk.md`, audit
    `.claude/agent-memory/explorer/phase2_o2a_dependency_audit.md`.
 
 ---
@@ -316,120 +322,178 @@ onto them.
 
 ### Phase 3 — SI Gauss-Seidel recovery  *(the motivating feature)*
 
-**STATUS (2026-06-05) — Gate 1 + sub-step 1 DONE.** Architecture decision (user-chosen
-via AskUserQuestion): **resolvent-layer G-S** — the octant-granularity Gauss-Seidel lives
-in the SN RESOLVENT as `M = L+C − B_lower` (octant-ordered forward-substitution: sweep an
-octant group bare → face-restricted `B` reflect → sweep dependent groups); `B_lower` folds
-into the resolvent, `B_upper` (cyclic back-edges) stays a lagged gain; the generic variadic
-`SourceIteration` primitive stays AGNOSTIC (it just sees a resolvent + gains). This is the
-post-Phase-1+2 reading of the surface map's "option (a)": "the SI driver" now means the
-SN-specific RESOLVENT, NOT the generic primitive (Phase 1 R1 collapsed BOTH SI paths onto
-the one primitive; the octant orchestration belongs at the resolvent layer).
+**STATUS (2026-06-05): Gate 1 + sub-steps 1 / 2 / 3a ✅ DONE; the 3b+3c CORE is NEXT.**
+HEAD `40aefc2` (local-only, not pushed). Commit chain: `926c4ca` (Gate 1) → `956f069` (3-1
+seam) → `7d88ab0` (3-2 reflect) → `514ae21` (3-3a schedule) + plan checkpoints
+(`15a1597`/`d7991f3`/`40aefc2`). The ADDITIVE foundation (measurement + restricted reflect +
+polymorphic schedule) is complete + green with NO live-path change; what remains (3b/3c) is
+the fixed-point-changing hot-path core, decomposed + anchored below.
+
+#### The problem (what we recover) — durable
+Wave O BC extraction made the transport sweep BARE and applies the reflective coupling `B`
+EXTERNALLY (the sibling `−B`). That converted the reflective coupling from **intra-sweep
+Gauss-Seidel** (the retired in-sweep `bc.apply` let later octants see earlier octants' fresh
+reflected outflow) to **inter-sweep Jacobi** (`B` fully lagged on the previous iterate). SAME
+converged fixed point, SLOWER SI spectral rate (reflective traps neutrons → effective ρ→1;
+the ~654-vs-128 reflective-vs-vacuum sweep-count gap). Recovery = interleave the external
+`−B` at octant-group granularity INSIDE the SI resolvent. **Krylov is splitting-invariant —
+UNAFFECTED + UNTOUCHED.**
+
+**Mechanism / literature.** The `(octant × face)` reflective graph (mesh-time): an edge
+`producer-octant → consumer-octant` on a reflective face `f` when the producer's outflow on
+`f` specularly reflects (`quad.reflection_index(axis_f)`) into the consumer's inflow on `f`.
+Order-respecting edges → G-S-eligible (fold into the resolvent); cycle-forming edges → lagged
+(Jacobi). **KBA / Adams-Larsen / Pautz** — the `i+j=k` wavefront levels ARE the KBA diagonals;
+`ρ_J = c` (scattering ratio) Jacobi vs `ρ_GS ≈ c²` for the symmetric reflective model problem.
+
+**Caveats (load-bearing).** BOTH faces of an axis reflective ⟹ a 2-cycle (`(−,·)↔(+,·)`) ⟹ one
+forward pass cannot drop both back-edges (opposite-face edge stays Jacobi) ⟹ PARTIAL one-pass
+G-S. FULL one-pass G-S only when ≤1 reflective face per axis. White/albedo couples ALL
+ordinates on the face → degenerates to Jacobi. Target = **specular reflective** faces. **1-D
+slab is a CONTROL** (scattering-dominated `ρ_J=c`, little to recover) AND a WRONG-FIT for the
+3b carve (`_run_1d_sweep` is a parallel-prefix SCAN, no `psi_x` interior cache) — DEFERRED.
+
+#### The design (user-reviewed — ⭐ POLYMORPHIC schedule + seed-then-overwrite)
+**Jacobi and G-S are the SAME uniform algorithm parameterized by a mesh-time `SweepSchedule`
+strategy** — there is NO `if jacobi/gs` branch in the iteration; the splitting is selected
+ONCE by choosing the schedule (an `inner_schedule` selector; default `"gauss_seidel"`,
+`"jacobi"` selectable as the splitting-invariant control).
+
+The SI resolvent's `.solve(rhs, ψₙ)` runs ONE loop — the **seed-then-overwrite** realization
+of `(L+C − B_lower)⁻¹`:
+1. **Seed** the boundary inflow `= B·ψₙ` (whole-trace reflection of the PREVIOUS iterate, from
+   `initial_guess` — the same value today's Jacobi seeds onto `rhs.boundary`).
+2. `for group in schedule.groups:` **sweep the group** (reads its inflow — the frozen seed for
+   early groups, OR freshly overwritten by earlier groups); then if `group.reflect_faces`:
+   **absorb** the group's outgoing faces (wavefront edge → boundary outflow slots) → **reflect**
+   `reflect_into_inflow(faces=group.reflect_faces)` (boundary outflow → boundary inflow) →
+   **re-seed** the wavefront edge for those faces. Later groups read the fresh current-iterate
+   reflection (the order-respecting `B_lower` edges → G-S); groups swept before their specular
+   partner keep the lagged seed (the cyclic `B_upper` back-edges → Jacobi).
+   - **Jacobi schedule** = ONE group (all octants), empty `reflect_faces` ⟹ every octant reads
+     the frozen seed, the after-group reflect is a no-op ⟹ IDENTICAL to today's bare sweep.
+   - **G-S schedule** = one group per in-plane `OctantLabel` (sign_z merged), in quadrature
+     sweep order; each group's `reflect_faces` = the reflective faces it outflows through.
+
+**Fixed point provably UNCHANGED (THE load-bearing correctness claim):** any consistent
+splitting of `(L+C−S−B)ψ=q` shares the dominant solution ψ\* — at convergence the seed AND all
+re-reflects equal `B·ψ\*`, so the converged field is schedule-independent. The schedule changes
+ONLY the SI spectral rate. `S` (within-group scatter) stays a lagged gain throughout — only the
+BOUNDARY coupling gets G-S (the sweep never re-scatters mid-sweep).
+
+**The home (post-Phase-1+2-correct).** G-S is SI-specific. `_within_group_triple` stays the
+`(L+C, S, B)` SSoT. The **SI** path COMPOSES a scheduled resolvent from `(L+C, B, schedule)`
+and passes it to `SourceIteration` with gains `(S,)` — **B moves INTO the SI resolvent** (it
+seeds `B·ψₙ` from `initial_guess` + does the inter-group reflects). The **Krylov** path is
+UNTOUCHED (`KrylovAcceleration(L+C, S, B)`, splitting-invariant → the G-2 SI≡Krylov gate
+holds). The generic `SourceIteration`/`KrylovAcceleration` primitives stay problem-agnostic
+(they see a resolvent + gains; the octant orchestration lives in the SN resolvent, never the
+primitive).
+
+#### DONE — additive foundation (no live-path change, all green)
 - **Gate 1 (RED verification spec)** ✅ `926c4ca` — `tests/sn/verification/analytical/
-  test_si_convergence_rate.py`: 3 `xfail(strict=True)` before/after rate gates (slab 2g/4g
-  baselines 655/523, box 2g 697) + analytic ρ_J=c anchor + Krylov lower-bound bracket +
-  correctness guards (G-1 k_inf=1.875, G-2 SI≡Krylov fixed point, G-3 flat-flux foundation,
-  G-4 vacuum negative control). 7 passed + 3 xfailed. (Test-architect refreshed the
-  266fcf5 spec → HEAD 7d85222; the `L−(S+B)`→`(L−S)−B` FP reassociation shifted slab counts
-  +1; two latent skeleton bugs fixed — vacuum-mesh kwarg-override + same-mesh-only `compare`.)
-- **Sub-step 1 (measurement seam)** ✅ `956f069` — `IterationHistory.total_inner_iterations`
-  surfaced on the eigenvalue path (SNSolver accumulates per outer step in
-  `_solve_source_iteration`/`_solve_krylov`; `solve_sn` reads it). SN-LOCAL, measurement-only:
-  no Protocol / `power_iteration`-signature change → ZERO 5-family blast. Fixed-source sets
-  it = `n_inner`. Measured Jacobi baselines: eigenvalue **SI total_inner=371 / Krylov=310**
-  (n_outer=3 for both — the outer count is splitting-INVARIANT; the inner SI count is where
-  G-S shows; these anchor the future eigenvalue rate gate `n_GS < 0.75×371`), fixed-source
-  SI total==n_inner==655. keff unchanged (1.875). Flipped the eigenvalue forward-ref →
-  passing foundation seam gate `test_eigenvalue_path_surfaces_total_inner_iterations`.
-- **Sub-step 2 (face-restricted reflect)** ✅ `7d88ab0` — optional `faces=` on
-  `SNBoundaryOperator.reflect_into_inflow`/`_reflect_trace` (block-diagonal over faces →
-  EXACT restriction; unknown-face raises; backward-compatible, no live-path change). 21
-  boundary-op foundation tests green (incl. 4 new: subset-only, partition-of-whole-trace,
-  none≡all, unknown-raises).
-- **NEXT: sub-step 3 — the fixed-point-altering lift (user-reviewed ⭐ POLYMORPHIC design).**
-  **Design decision (user-steered):** Jacobi and G-S are the SAME algorithm parameterized by
-  a mesh-time **`Schedule` strategy** — Jacobi = ONE group (all octants); G-S = the
-  topological octant groups. The SI resolvent runs ONE uniform loop with NO Jacobi/G-S branch
-  in it: `seed inflow = B·ψₙ` (previous-iterate reflection, from `initial_guess`);
-  `for group in schedule.groups: sweep_octant_group(group); reflect_into_inflow(faces=
-  group.outgoing_reflective_faces)`. "Seed-then-overwrite": early groups read the lagged seed
-  (cyclic `B_upper` back-edges); the reflect-after-each-group OVERWRITES later groups' inflow
-  with the fresh current-iterate reflection (order-respecting `B_lower` edges). Fixed point
-  provably UNCHANGED (any consistent splitting of `(L+C−S−B)ψ=q` shares ψ\*; at convergence
-  seed=overwrites=`B·ψ\*`). Dispatch ONCE at schedule construction (`inner_schedule`
-  selector); default G-S, `"jacobi"` selectable as the splitting-invariant control. **B moves
-  INTO the SI resolvent** (SI gains become `(S,)`); `_within_group_triple` stays the
-  `(L+C,S,B)` SSoT — the SI path COMPOSES the scheduled resolvent from LC+B+schedule; Krylov
-  keeps `(LC,S,B)` (splitting-invariant, UNTOUCHED → G-2 SI≡Krylov fixed-point holds).
-  **Verification refinement:** the rate gate measures BOTH schedules LIVE (`n_GS <
-  0.75·n_Jacobi`, both in-process) — retires the hardcoded 655/523 baseline constants + makes
-  Jacobi a permanent control (not dead legacy). **Carve decomposition (each a checkpoint):**
-  **3a ✅ DONE `514ae21`** — `orpheus/sn/sweep_schedule.py` (`SweepSchedule.jacobi`/
-  `.gauss_seidel`, `OctantSweep`/`OctantSweepGroup`) + 8 foundation tests
-  (`tests/sn/sweep/core/test_sweep_schedule.py`). ⚠ **Finding for 3b/3c tests:** the 2-D test
-  quad `Quadrature.product(n_mu=2, n_phi=4)` is AXIS-ALIGNED — its 4 in-plane octants are
-  single-face `(±1,0)/(0,±1)` (each outflows ONE face), NOT `(±,±)` diagonals; a diagonal
-  octant needs a level-symmetric cubature. → **3b (NEXT, the biggest lift)** =
-  `sweep_octant_group` carved from `_sweep_2d_wavefront` body (sweep.py:873 loop / 911-933
-  body) + interior-`WavefrontFlux`-cache persistence across group calls (extend the single
-  `wavefront` object's lifetime; relocate the face-restricted absorb to AFTER each group) →
-  **3c** = the scheduled SN resolvent solve (seed `B·ψₙ` + for-group loop: sweep → absorb
-  outgoing faces → `reflect_into_inflow(faces=…)` → re-seed) + wire `inner_schedule` (default
-  G-S, `"jacobi"` control) through `_solve_source_iteration`/`_solve_fixed_source_si` (SI
-  gains → `(S,)`; Krylov UNTOUCHED) + flip the rate gates (2-D fixed-source FIRST, eigenvalue
-  defers). Then ERR-056 + vv-principles Mode 9 (user-APPROVED) + `:label:si-spectral-rate`
-  (archivist). Vacuum/Krylov are no-ops (vacuum: B=0, empty G-S reflect → degenerates to
-  today's bare sweep → G-4 control holds). Refs: **carve substrate (3b/3c anchors)**
-  `.claude/agent-memory/explorer/si_gs_substep3_carve_substrate.md` (`_sweep_2d_wavefront`
-  seed 858-864 / loop 873 / body 911-933 / absorb 942; `WavefrontFlux.seed`/`absorb`/`face`/
-  `edge_view`; resolvent `_solve_timed_full_field` operator.py:1903-2017) + surface map
-  `sn_si_reflective_gauss_seidel_recovery_surface.md` + spec
-  `si_gauss_seidel_rate_recovery_verification_spec.md` (REFRESHED at HEAD 7d85222).
+  test_si_convergence_rate.py`: 3 `xfail(strict=True)` before/after rate gates + analytic
+  `ρ_J=c` anchor + Krylov lower-bound bracket + correctness guards (G-1 k_inf=1.875 closed-form,
+  G-2 SI≡Krylov fixed point, G-3 flat-flux foundation, G-4 vacuum negative control). 7 passed +
+  3 xfailed. Baselines re-confirmed at HEAD 7d85222 (the `L−(S+B)`→`(L−S)−B` FP reassociation
+  shifted slab counts +1): **slab-2g 655 / slab-4g 523 / box-2g 697 / vacuum 128**. (Fixed two
+  latent skeleton bugs: the vacuum control reused a reflective mesh with an IGNORED
+  `boundary_condition=` kwarg; `Solution.compare` is same-mesh-only → compare `scalar_flux.values`.)
+- **3-1 measurement seam** ✅ `956f069` — `IterationHistory.total_inner_iterations` surfaced on
+  the EIGENVALUE path (`SNSolver` accumulates `len(residuals)` per outer step in
+  `_solve_source_iteration`/`_solve_krylov`; `solve_sn` reads `solver._total_inner_iterations`).
+  SN-LOCAL, measurement-only: NO Protocol / `power_iteration`-signature change → ZERO 5-family
+  blast. Fixed-source sets it `= n_inner`. Measured eigenvalue Jacobi baselines: **SI
+  total_inner=371 / Krylov=310** (n_outer=3 both — outer count is splitting-INVARIANT; the inner
+  SI count is where G-S shows → anchors the FUTURE eigenvalue rate gate `n_GS < 0.75×371`). keff
+  unchanged. Flipped the eigenvalue forward-ref → passing foundation seam gate
+  `test_eigenvalue_path_surfaces_total_inner_iterations`.
+- **3-2 face-restricted reflect** ✅ `7d88ab0` — optional `faces=` on
+  `SNBoundaryOperator.reflect_into_inflow`/`_reflect_trace` (block-diagonal over faces ⟹ EXACT
+  restriction; unknown-face raises; backward-compatible). 21 boundary-op foundation tests.
+- **3-3a polymorphic schedule** ✅ `514ae21` — `orpheus/sn/sweep_schedule.py`:
+  `SweepSchedule.jacobi`/`.gauss_seidel`, `OctantSweep` (label + ordinate-index tuple),
+  `OctantSweepGroup` (`sweeps` + `reflect_faces`). Mesh-time, flux-independent. 8 foundation
+  tests (`tests/sn/sweep/core/test_sweep_schedule.py`). ⚠ **Finding for the 3b/3c tests:** the
+  2-D test quad `Quadrature.product(n_mu=2, n_phi=4)` is AXIS-ALIGNED — its 4 in-plane octants
+  are single-face `(±1,0)/(0,±1)` (each outflows ONE face), NOT `(±,±)` diagonals (diagonals
+  need a level-symmetric cubature). Per-axis reflective 2-cycle `(−1,0)`↔`(+1,0)` on xmin/xmax;
+  lexicographic order (`−1` before `+1`) ⟹ partial one-pass G-S.
 
-**Goal.** Recover the intra-sweep Gauss-Seidel reflective coupling lost to BC
-extraction. Bare sweep + external `−B` is inter-sweep **Jacobi** (B fully lagged in N);
-legacy intra-sweep `bc.apply` was **G-S** (later octants saw earlier octants' fresh
-reflected outflow). Same fixed point, slower SI rate. **Krylov is splitting-invariant
-(UNAFFECTED).**
+#### NEXT — 3b + 3c (the fixed-point-changing CORE; hot-path; user said "proceed solo")
+**READ FIRST:** carve substrate `.claude/agent-memory/explorer/si_gs_substep3_carve_substrate.md`
+(exact anchors at HEAD 7d85222 — re-confirm each with `awk`/`grep`/`inspect.getsource` per L22).
 
-**Mechanism.** The **`(octant × face)` reflective graph** (mesh-time): edges
-`(producer octant, face) → (consumer octant, face)` via the specular permutation
-`quad.reflection_index`. Order-respecting edges → G-S-eligible (fold into the inverted
-triangular factor `L⁻¹_oct`); cycle-forming edges → lagged (Jacobi). **Literature home:
-KBA / Adams-Larsen / Pautz** — the `i+j=k` wavefront levels ARE the KBA diagonals.
+**3b — `sweep_octant_group` + interior-`WavefrontFlux`-cache persistence (the biggest lift).**
+`_sweep_2d_wavefront` (`sweep.py:767-944`) today: `wavefront = WavefrontFlux.zeros_on(sn_mesh)`
++ `psi_x=wavefront.face(0)`/`psi_y=wavefront.face(1)` + `wavefront.seed(boundary_flux)` (ι_*,
+858-864); `for octant in quad.octants:` (873); per-octant body on `oct_idx` slices (911-933) —
+`sweep_graph.apply(...)` mutates `psi_x_oct`/`psi_y_oct`/`angular_flux_oct` + accumulates the
+SHARED `scalar_flux`, scatter-out (931-933); `wavefront.absorb(boundary_flux)` writeback (ι*, 942).
+  1. Carve the per-octant body (911-933) into `sweep_octant_group(octant, *, wavefront, Q, sig_t,
+     str_x, str_y, weights, angular_flux, scalar_flux, sn_mesh)` taking a PERSISTENT `wavefront`.
+  2. Rewrite `_sweep_2d_wavefront` to: `wavefront=zeros_on; seed; for octant in quad.octants:
+     sweep_octant_group(...); absorb` — i.e. the Jacobi schedule. **REFACTOR GATE: this must be
+     BIT-IDENTICAL to today** (same octant order, one final absorb) — the rate baselines
+     655/523/697/128 must NOT move — before any schedule wires in.
+  3. Add a face-restricted `WavefrontFlux.absorb(boundary, faces=…)` (mirror sub-step 2's
+     `reflect_into_inflow(faces=…)`) OR use `wavefront.edge_view(face)` per outgoing face — so a
+     per-group absorb writes ONLY the group's outgoing faces' outflow into the boundary buffer
+     before the reflect.
+  4. Persistence: the single `wavefront` object (its `psi_x`/`psi_y` interior buffers) lives
+     across the per-group `sweep_octant_group` calls within ONE resolvent `.solve`. It is ONE
+     typed object's lifetime to extend. A bug here changes the FIXED POINT (caught by G-1/G-2/G-3).
+  ⚠ L16: keep the per-cell work vectorised (the diagonal advance over `n_diag`); the per-group
+  loop must NOT add per-cell Python. Profile before claiming.
 
-**Caveats (load-bearing).** 2-D with BOTH xmin+xmax reflective ⟹ `(−,+)↔(+,+)` is a
-2-cycle ⟹ one forward pass can't drop both back-edges (opposite-face edge stays Jacobi).
-Full one-pass G-S only when ≤1 reflective face per axis. White/albedo couples all
-ordinates → degenerates to Jacobi. Target = **specular reflective** faces. **1-D slab is
-a CONTROL** (scattering-dominated ρ_J = c; little to recover).
+**3c — the scheduled SN resolvent + wiring + flip gates.**
+  1. A NEW SN scheduled resolvent (resolvent-layer G-S) built from `(L+C, B, SweepSchedule)`; its
+     `.solve(rhs, initial_guess)` runs the §design seed-then-overwrite loop (seed `B·initial_guess`
+     → per group: sweep its `sweeps` → absorb+reflect+re-seed its `reflect_faces` → final
+     whole-trace absorb → return `TimedFullField(bulk, boundary)`). Resolvent path anchor:
+     `InvertibleOperator.solve` → `_solve_timed_full_field` (`operator.py:1903-2017` — seeds from
+     `rhs.boundary`, calls `transport_sweep`, returns the post-sweep boundary).
+  2. Wire an `inner_schedule` selector (default `"gauss_seidel"`; `"jacobi"` control) through
+     `solve_sn`/`solve_sn_fixed_source` → `_solve_fixed_source_si` (**2-D fixed-source FIRST**,
+     the unambiguous target) then `_solve_source_iteration` (eigenvalue defers within the phase).
+     SI gains drop to `(S,)`; `_within_group_krylov` UNTOUCHED.
+  3. Flip the 3 RED rate gates: rewrite to measure BOTH schedules LIVE (`n(gauss_seidel) < 0.75 ·
+     n(jacobi)`, both in-process) — retire the hardcoded 655/523/697 constants; Jacobi becomes a
+     permanent control. Remove the `xfail(strict=True)`.
+  4. Close-out: log **ERR-056** (`@catches` on the rate gate) + append **vv-principles Mode 9**
+     to the skill (BOTH user-APPROVED) + archivist adds `:label:si-spectral-rate` to
+     `docs/theory/discrete_ordinates.rst` so the `verifies("si-spectral-rate")` decorators resolve.
 
-**Sub-steps.**
-1. **Measurement seam:** add `IterationHistory.total_inner_iterations` (the eigenvalue-path
-   SI rate is currently unobservable — `n_inner is None`; fixed-source already surfaces it).
-2. **Octant/face-restricted reflect:** ADD a new restricted-reflect via the canonical
-   `SNBoundaryOperator` (face-restrictable) — **additive**, NOT a migration; the whole-trace
-   `_reflect_outflow_into_inflow` stays for Jacobi + final reconstruction (~8 test files
-   import it — don't touch).
-3. **Keep the interior edge cache alive across octant-groups** within one sweep (the
-   biggest structural lift): the ephemeral `WavefrontFlux` `psi_x`/`psi_y` must persist
-   across octant-group calls and the boundary writeback relocate to after each group, so
-   the interleaved `−B` sees fresh outflow. A bug here changes the FIXED POINT (caught by
-   correctness guards).
-4. **Target order:** 2-D fixed-source SI (the unambiguous target) FIRST; eigenvalue SI
-   defers within the phase.
+#### Verification (must hold)
+- **Refactor gate (3b):** Jacobi schedule BIT-IDENTICAL to today's `_sweep_2d_wavefront` (the
+  carve is mechanical; the baselines 655/523/697/128 must not move).
+- **Rate gate (3c, the payoff):** G-S `n_inner < 0.75 × Jacobi n_inner` on the reflective configs,
+  BOTH measured live (0.75 tolerates partial G-S on the cyclic box; ≥15% margin).
+- **Correctness guards (PASS on BOTH schedules — fixed point is invariant):** G-1 k_inf=1.875
+  (closed-form); G-2 SI≡Krylov converged flux rtol 1e-8 (Krylov = structurally-independent
+  splitting); G-3 flat-flux balance (foundation); G-4 vacuum count UNCHANGED (negative control).
+- **Converged flux bit-identical** Jacobi-vs-G-S (SI-rate-only — THE whole point).
+- **L16 wall-clock gate** on the hot-path carve (no per-cell Python regression).
 
-**Verification.** Phase-1 RED gate first: `xfail(strict=True)` rate gate (Mixture B
-fully-reflective 2-D box, ε=1e-8, ratio pins ≥15% margin). Phase-2 flips green:
-`n_inner ≤ 0.75 × Jacobi_baseline` (the 0.75 tolerates partial G-S on the cyclic box);
-1-D + vacuum unchanged; **converged flux bit-identical** (SI-rate-only — this is the
-whole point). vv-principles **Mode 9** (value-preserving solver-quality regression on an
-UNMEASURED cost axis — this bug's own class) → log **ERR-056** when it lands (user
-APPROVED). Optional literature-researcher for the `ρ_GS = c²` model-problem factor.
+#### Gotchas / do-not-touch
+- **KEEP `_reflect_outflow_into_inflow`** (`solver.py:973-1014`, whole-trace) — its ONE production
+  caller (the eigenvalue reconstruction sweep `solve_sn:1139`) + ~7 test files stay on it; the
+  G-S reflect is ADDITIVE (the face-restricted `reflect_into_inflow`), not a helper migration.
+- **KEEP `_within_group_triple` as the `(L+C, S, B)` SSoT** — SI COMPOSES the scheduled resolvent
+  from it; do NOT fork it. **Krylov stays byte-identical** (the G-2 gate; it has no schedule).
+- **2-cycle ⟹ partial G-S; white/albedo → Jacobi; target = specular.** **1-D slab DEFERRED**
+  (scan ≠ wavefront; out of scope here).
 
-**Source:** `si_gauss_seidel_recovery.md` (archived) + `sn_si_reflective_gauss_seidel_recovery_surface.md`
-(refreshed anchors; NOTE its Q1 "bare scattering_op at solver.py:571" drift-flag is
-STALE — all 3 inner drivers use the `S+B` fold).
+#### Pickup pointers
+Substrate `.claude/agent-memory/explorer/si_gs_substep3_carve_substrate.md` (3b/3c anchors:
+`_sweep_2d_wavefront` seed 858-864 / loop 873 / body 911-933 / absorb 942; `WavefrontFlux`
+`seed`/`absorb`/`face`/`edge_view`; resolvent `_solve_timed_full_field` operator.py:1903-2017) ·
+surface map `sn_si_reflective_gauss_seidel_recovery_surface.md` · spec
+`si_gauss_seidel_rate_recovery_verification_spec.md` (all REFRESHED at HEAD 7d85222). Key files:
+`orpheus/sn/sweep.py` (3b), `orpheus/sn/sweep_schedule.py` (3a ✅), `orpheus/transport/fields/
+wavefront_flux.py` (seed/absorb/face/edge_view), `orpheus/sn/operator.py` (resolvent solve),
+`orpheus/sn/solver.py` (3c wiring + `_within_group_triple` SSoT + the do-not-touch helper),
+`orpheus/sn/boundary_operator.py` (`reflect_into_inflow(faces=)` ✅).
 
 ### Phase 4 — O.2b: adjoint + reciprocity + role-typing  *(floats; orthogonal to Phase 3)*
 
