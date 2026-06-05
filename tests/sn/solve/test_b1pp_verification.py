@@ -186,19 +186,27 @@ def test_b1pp_lplusc_is_full_rank(name, builder):
 @pytest.mark.l0
 @pytest.mark.parametrize("name,builder", _GEOMETRIES)
 def test_b1pp_constant_flux_collapses_to_collision(name, builder):
-    r"""For ψ = const at every B1'' slot, ``(L + C).apply(ψ) = σ_t·const``
-    at cell slots and zero at face slots.
+    r"""For ψ = const at every slot, ``(L + C).apply(ψ)`` reduces to
+    ``σ_t·const`` at cell slots; on the boundary block it emits the bare-matvec
+    rows — the OUTFLOW self-consistency defect ``streamed − ψ.outflow`` (= 0 for
+    flat ψ) on the outflow ordinate slots, and the INFLOW identity ``ψ.inflow``
+    (= const) on the inflow ordinate slots.
 
-    Streaming cancels (WDD with flat ψ produces flat face flux);
-    collision is the only surviving term in the cell-balance.  At face
-    slots the WDD face residual is ``2·const − const_face_in − const_face = 0``.
+    Streaming cancels (WDD with flat ψ produces flat face flux); collision is the
+    only surviving term in the cell-balance.  **Wave O O.4b bare-matvec
+    semantics:** the boundary block is NOT a single "WDD residual = 0" — the
+    BC-extraction made ``(L + C)`` bare (it reads the given inflow, no in-sweep
+    ``bc.apply``), so its boundary block carries the OUTFLOW defect (zero for
+    flat ψ, since the WDD-propagated outflow equals ψ.outflow) AND the INFLOW
+    identity ``ψ.inflow`` (so the composed ``(L + C − B)`` inflow residual is
+    ``ψ.inflow − B·ψ.outflow``).
 
-    D-I.3c (2026-05-29) — migrated from the bare-ndarray packed-vector
-    contract to :class:`TimedFullField`.  The packed
-    ``out[:n_cell_scalars]`` / ``out[n_cell_scalars:]`` slot split
-    becomes a typed ``out.bulk`` / ``out.boundary`` split (Pattern 4:
-    illegal-states-unrepresentable — the slot distinction is now a
-    type distinction, not an array-slicing convention).
+    D-I.3c (2026-05-29) — migrated from the bare-ndarray packed-vector contract
+    to :class:`TimedFullField` (typed ``out.bulk`` / ``out.boundary`` split,
+    Pattern 4: illegal-states-unrepresentable).  2026-06-05 — the boundary-block
+    assertion migrated from the pre-extraction "WDD residual = 0 at every face"
+    to the O.4b inflow-identity / outflow-defect split (the pre-extraction
+    expectation predated O.4a.2/O.4b).
     """
     from dataclasses import replace
 
@@ -232,15 +240,31 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
             f"{np.max(np.abs(out.bulk.values - sigma_t_val)):.3e}"
         ),
     )
-    # Face slots: WDD residual = 0 at flat ψ.
-    np.testing.assert_allclose(
-        out.boundary.values, 0.0, rtol=1e-12, atol=1e-13,
-        err_msg=(
-            f"{name}: face residuals should be zero at flat ψ; "
-            f"got max |face residual| = "
-            f"{np.max(np.abs(out.boundary.values)):.3e}"
-        ),
-    )
+    # Boundary block (Wave O O.4b bare-matvec semantics): NOT a single
+    # "WDD residual = 0".  On each face the OUTFLOW ordinate slots carry the
+    # self-consistency defect ``streamed − ψ.outflow`` (= 0 for flat ψ) and the
+    # INFLOW ordinate slots carry the identity ``ψ.inflow`` (= 1 here).
+    trace = sn_mesh.trace
+    for face in out.boundary.layout.faces:
+        fv = out.boundary.face_view(face)
+        outflow = trace.outflow_indices_for_face(face)
+        inflow = trace.inflow_indices_for_face(face)
+        np.testing.assert_allclose(
+            fv[outflow], 0.0, rtol=1e-12, atol=1e-13,
+            err_msg=(
+                f"{name}: OUTFLOW defect (streamed − ψ.outflow) should be zero "
+                f"at flat ψ on face {face!r}; got max "
+                f"{np.max(np.abs(fv[outflow])):.3e}"
+            ),
+        )
+        np.testing.assert_allclose(
+            fv[inflow], 1.0, rtol=1e-12, atol=1e-13,
+            err_msg=(
+                f"{name}: INFLOW slots should carry the identity ψ.inflow=1 "
+                f"(the bare-matvec inflow row) at flat ψ on face {face!r}; "
+                f"got {fv[inflow]}"
+            ),
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════

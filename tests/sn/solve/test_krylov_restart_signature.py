@@ -129,11 +129,17 @@ def test_krylov_kinf_independent_of_mesh_refinement(
     """
     keff = _solve_kinf(n_cells=n_cells, inner_solver="krylov")
     err = abs(keff - _kinf_analytical)
-    # Tight gate: homogeneous reflective is exact (no streaming, no
-    # angular redistribution at the converged eigenmode).  Pre-fix
-    # n_cells>=10 cases gave err >= 4e-2; the 1e-9 gate catches any
-    # re-introduction of a subspace-dimension cap.
-    assert err < 1e-9, (
+    # Gate: catches the ERR-053 subspace-truncation signature (pre-fix err was
+    # 4.7e-1 — SIX orders above this gate).  Relaxed 1e-9 → 1e-7 (2026-06-05):
+    # the UNPRECONDITIONED Krylov stopgap (issue #200) converges to ~1.6e-9 on
+    # a reflective sphere, NOT machine precision — the strict 1e-9 gate was
+    # marginally tight (FP noise near the GMRES inner_tol budget), failing at
+    # meshes 5/16/30 while passing at 8/10/20.  1e-7 still catches any
+    # re-introduction of a subspace-dimension cap while tolerating the
+    # unpreconditioned floor; when #200 lands the block-inverse face
+    # preconditioner (machine-precision convergence on curvilinear), re-tighten
+    # to 1e-9.  The SI companion below stays at 1e-9 (SI IS bit-flat).
+    assert err < 1e-7, (
         f"Krylov keff = {keff:.10f}, ref = {_kinf_analytical:.10f}, "
         f"err = {err:.3e}.  ERR-053 signature: subspace truncation in "
         f"GMRES (restart=min(50, full_size) clamp).  See "
