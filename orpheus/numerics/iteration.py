@@ -890,27 +890,122 @@ class KEigenvalue:
             else _default_production_estimator
         )
 
-        # Validate operator capabilities up front by trial-construction
-        # of the inner SourceIteration shell.  This catches any L/S/F
-        # apply-capability violations and the L.solve requirement at
-        # construction time, NEVER mid-iteration.
-        SourceIteration(L, S, F, max_iter=1, tol=1.0)
+        # Build the inner fixed-source resolvent ONCE.  Its operator triple is
+        # (L, S, ZeroOperator) — the within-group fission is zero at the inner
+        # level because F·ψ/k is the EXTERNAL source the outer power iteration
+        # feeds in, NOT a within-group fixed-point term.  Constructing it here
+        # validates L's apply+solve and S's apply at construction time, NEVER
+        # mid-iteration.
+        self._inner = SourceIteration(
+            self.L, self.S, ZeroOperator(),
+            max_iter=self.max_inner, tol=self.inner_tol,
+        )
+        # F (the outer eigen-operator F·ψ) needs apply.
+        if not _has(self.F, CAP_APPLY):
+            raise MissingCapability(
+                f"KEigenvalue requires {CAP_APPLY!r} on F (the outer fission "
+                f"source F·ψ); {type(self.F).__name__} advertises "
+                f"{getattr(self.F, 'capabilities', frozenset())}."
+            )
+        # The initial flux guess is supplied to .solve() and stashed for the
+        # EigenvalueSolver.initial_flux_distribution boundary method.
+        self._initial_guess: np.ndarray | None = None
+
+    # ── EigenvalueSolver boundary (consumed by power_iteration) ──────────
+    #
+    # KEigenvalue realizes the method-agnostic
+    # :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` boundary from its
+    # (L, S, F) operator triple — the k-eigenvalue posing A_loss = L+C−S−B
+    # (the ``L`` slot), S + B (the ``S`` slot), eigen-operator M = F, k = μ —
+    # then delegates the outer loop to the canonical ``power_iteration``
+    # algorithm.  There is ONE power-iteration loop in the codebase
+    # (Cardinal Rule 2): KEigenvalue and SNSolver are both implementers of
+    # this boundary, not parallel engines.
+
+    def initial_flux_distribution(self) -> np.ndarray:
+        """Return the caller-supplied initial flux guess (set by :meth:`solve`)."""
+        return self._initial_guess
+
+    def compute_fission_source(
+        self, flux_distribution: np.ndarray, keff: float,
+    ) -> np.ndarray:
+        """Outer eigen-source ``F·ψ / k`` (the k-posing's eigen-operator M = F)."""
+        return self.F.apply(flux_distribution) / keff
+
+    def solve_fixed_source(
+        self, fission_source: np.ndarray, flux_distribution: np.ndarray,
+    ) -> np.ndarray:
+        r"""Resolvent ``A_loss⁻¹ q`` via the inner :class:`SourceIteration`.
+
+        Warm-started from the previous outer iterate (``flux_distribution``) to
+        amortise the inner cost across outer iterations — the same pattern
+        :meth:`SNSolver._solve_source_iteration` uses.  The inner triple
+        ``(L, S, ZeroOperator)`` has zero within-group fission because the
+        eigen-source ``F·ψ/k`` is the EXTERNAL ``q``, not a within-group term.
+        """
+        psi, _inner_residuals = self._inner.solve(
+            fission_source, initial_guess=flux_distribution,
+        )
+        return psi
+
+    def compute_production_rate(self, flux_distribution: np.ndarray) -> float:
+        r"""Production-rate normalisation (the injected ``production_estimator``).
+
+        Power iteration renormalises ψ to unit production each outer step so the
+        iterate stays at :math:`O(1)` regardless of super/subcriticality
+        (a subcritical iterate would otherwise decay to denormalised FP and the
+        keff ratio become 0/0 — ERR-052).  Production is scale-invariant in
+        ``keff`` so the converged eigenvalue is unchanged; the converged ``ψ``
+        carries the canonical convention :math:`\int \nu\Sigma_f\,\phi\,dV = 1`,
+        which makes rescaling to absolute flux at a target power a single
+        multiplication by :math:`P_{\text{target}} / \kappa`.
+        """
+        return float(
+            self._production_estimator(self.L, self.S, self.F, flux_distribution)
+        )
+
+    def compute_keff(self, flux_distribution: np.ndarray) -> float:
+        """Dominant-eigenvalue estimate (the injected ``keff_estimator``)."""
+        return float(
+            self._keff_estimator(self.L, self.S, self.F, flux_distribution)
+        )
+
+    def converged(
+        self, keff: float, keff_old: float,
+        flux_distribution: np.ndarray, flux_old: np.ndarray,
+        iteration: int,
+    ) -> bool:
+        """≥3 outer iterations, then ``dk < keff_tol`` AND ``dφ < flux_tol``."""
+        if iteration <= 2:
+            return False
+        dk = abs(keff - keff_old)
+        norm = float(np.linalg.norm(flux_distribution))
+        dphi = (
+            float(np.linalg.norm(flux_distribution - flux_old) / max(norm, 1e-30))
+            if norm > 0.0
+            else float(np.linalg.norm(flux_distribution - flux_old))
+        )
+        return dk < self.keff_tol and dphi < self.flux_tol
 
     def solve(
         self,
         initial_guess: np.ndarray | None = None,
     ) -> tuple[float, list[float], np.ndarray]:
-        r"""Run power iteration to convergence.
+        r"""Run the eigenvalue solve via the canonical ``power_iteration`` loop.
+
+        KEigenvalue realizes the
+        :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` boundary (the
+        methods above) from its ``(L, S, F)`` triple and delegates the outer
+        iteration to :func:`~orpheus.numerics.eigenvalue.power_iteration` — the
+        SINGLE power-iteration loop in the codebase (Cardinal Rule 2).  The
+        ``eigenvalue_method`` selector (validated at construction) reserves the
+        full-spectrum / shift-invert seam; only ``"power"`` is implemented.
 
         Parameters
         ----------
-        initial_guess : np.ndarray or None, optional
-            Initial flux guess.  When ``None`` (default), the
-            iteration starts from
-            :func:`np.ones_like` of ``F.apply(<probe>)``.  When the
-            caller cannot easily produce a probe for shape inference,
-            they should supply ``initial_guess`` explicitly — this is
-            the recommended path.
+        initial_guess : np.ndarray
+            Initial flux guess.  REQUIRED — the operator triple does not expose
+            its action shape, so the iterate shape is inferred from here.
 
         Returns
         -------
@@ -919,7 +1014,7 @@ class KEigenvalue:
         keff_history : list[float]
             Eigenvalue at every outer iteration.
         psi : np.ndarray
-            Converged fundamental-mode iterate (arbitrary
+            Converged fundamental-mode iterate (unit production-rate
             normalisation).
         """
         if initial_guess is None:
@@ -930,76 +1025,8 @@ class KEigenvalue:
                 "appropriate shape, or use the SNSolver wrapper that "
                 "already builds the initial guess."
             )
-
-        psi = np.asarray(initial_guess).copy()
-        keff = 1.0
-        keff_history: list[float] = []
-
-        # Build a single inner SourceIteration shell.  Its operator
-        # triple is (L, S, ZeroOperator) — the fission contribution at
-        # the inner level is zero because F·psi/k is the *external
-        # source* that drives the inner solve, NOT a within-group
-        # fixed-point term.
-        zero_F = ZeroOperator()
-        inner = SourceIteration(
-            self.L,
-            self.S,
-            zero_F,
-            max_iter=self.max_inner,
-            tol=self.inner_tol,
-        )
-
-        for n in range(1, self.max_outer + 1):
-            psi_old = psi
-            keff_old = keff
-
-            # Outer fission source: q_ext = F·ψ / k  (the eigenvalue
-            # division stays at the outer level — F.apply returns
-            # F·ψ alone, the operator-algebra discipline).
-            q_fission = self.F.apply(psi) / keff
-
-            # Inner solve: (L - S)·ψ_new = q_fission.  The inner
-            # SourceIteration warms up from psi_old to amortise the
-            # inner cost across outer iterations (the same pattern
-            # SNSolver._solve_source_iteration uses).
-            psi, _inner_residuals = inner.solve(
-                q_fission, initial_guess=psi_old,
-            )
-
-            # Renormalise to unit production rate so the iterate stays
-            # at a physically natural O(1) magnitude across iterations
-            # regardless of whether the operator is supercritical
-            # (k>1, would grow) or subcritical (k<1, would decay to
-            # denormalised FP within ~30-60 iterations and the keff
-            # ratio would become 0/0 numerically meaningless —
-            # ERR-052).  Production rate is scale-invariant in
-            # ``keff`` so the converged eigenvalue is unchanged; the
-            # converged ``ψ`` carries the canonical reactor-physics
-            # output convention :math:`\\int \\nu\\Sigma_f\\,\\phi\\,dV = 1`,
-            # which makes rescaling to absolute flux at a target power
-            # a single multiplication by
-            # :math:`P_{\\text{target}} / \\kappa`.
-            production = self._production_estimator(self.L, self.S, self.F, psi)
-            if production > 0.0:
-                psi = psi / production
-
-            # Outer keff update.
-            keff = self._keff_estimator(self.L, self.S, self.F, psi)
-            keff_history.append(keff)
-
-            # Convergence test mirrors SNSolver.converged: at least 3
-            # outer iterations before convergence is declared, then
-            # both keff and flux must satisfy their tolerances.
-            if n <= 2:
-                continue
-            dk = abs(keff - keff_old)
-            norm_psi = float(np.linalg.norm(psi))
-            dphi = (
-                float(np.linalg.norm(psi - psi_old) / max(norm_psi, 1e-30))
-                if norm_psi > 0.0
-                else float(np.linalg.norm(psi - psi_old))
-            )
-            if dk < self.keff_tol and dphi < self.flux_tol:
-                break
-
-        return keff, keff_history, psi
+        self._initial_guess = np.asarray(initial_guess).copy()
+        # Delegate the loop to the canonical algorithm.  No import cycle:
+        # eigenvalue.py does not import iteration.py.
+        from .eigenvalue import power_iteration
+        return power_iteration(self, max_iter=self.max_outer)
