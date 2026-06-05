@@ -1372,13 +1372,55 @@ def _solve_fixed_source_si(
     max_inner: int,
     inner_tol: float,
 ) -> Solution:
-    """Cartesian-default fixed-source path: source iteration via the sweep.
+    r"""Fixed-source path via the :class:`SourceIteration` primitive.
 
-    Bit-identical math to the Wave A-D inline loop in
-    :func:`solve_sn_fixed_source`.  Extracted as a helper to make the
-    geometry-default dispatch in :func:`solve_sn_fixed_source` clean.
+    Phase 1 (R1, 2026-06-04) — carved onto the SAME
+    :class:`~orpheus.numerics.iteration.SourceIteration` primitive the
+    eigenvalue inner :meth:`SNSolver._solve_source_iteration` uses, on the
+    identical operator triple
+
+    .. math::
+
+        A \;=\; L + C\,, \quad
+        S \;=\; \text{full multi-group scatter} + B\,, \quad
+        F \;=\; 0_{\rm wg}
+
+    differing ONLY in ``q_ext`` (the EXTERNAL source here vs the fission
+    source in the eigenvalue inner) and the returned contract (a full typed
+    :class:`Solution` here vs an angular-integrated scalar flux there).
+
+    The previous hand-rolled ``for n_inner`` loop is RETIRED.  It rebuilt the
+    scattering source each iterate via ``_add_scattering_source`` +
+    ``_add_n2n_source`` + ``_build_aniso_scattering`` and drove ``−B`` through
+    :func:`_reflect_outflow_into_inflow` — both are now subsumed by the
+    primitive's ``(S + B).apply(ψ_n)``:
+    :meth:`ScatteringOperator.apply` (the ``TimedFullField`` branch)
+    recomputes the IDENTICAL ``(P0 in-scatter + (n,2n))/W + Pℓ`` bulk source,
+    and the ``S + B`` fold (:attr:`SNSolver._scattering_with_boundary_op`)
+    delivers the reflective ``B·ψ.outflow`` through ``rhs.boundary`` which
+    the bare ``(L + C).solve`` sweep reads as the inflow seed (single source
+    of truth — Cardinal Rule 2).  The whole-trace
+    :func:`_reflect_outflow_into_inflow` route is no longer needed on this
+    path; it survives for the eigenvalue reconstruction sweep + Phase 3's
+    octant-restricted Gauss-Seidel variant.
+
+    Geometry-agnostic (slab / sphere / cylinder / 2-D Cartesian): the
+    within-group solve carries no geometry dependence, exactly as the
+    eigenvalue SI inner (Wave O "2-D SI Phase A").
+
+    Equivalence note (vv-principles §bit-identity): the converged fixed point
+    is identical to the retired loop's (same operator, same ``S + B`` fold,
+    same WDD sweep), but the iteration TRAJECTORY differs — the primitive
+    stops on the composite ``‖ψ_{n+1} − ψ_n‖ / ‖ψ_{n+1}‖`` residual (the full
+    angular + boundary iterate, the same metric the verified eigenvalue inner
+    uses) rather than the scalar-flux ``‖φ − φ_prev‖ / ‖φ‖``.  Converged ``φ``
+    therefore agrees to ``~inner_tol`` (principled-equivalence), and
+    ``history.n_inner`` / ``flux_residuals`` reflect the composite metric.
     """
-    from orpheus.transport.source_sinks import AngularSourceSink
+    from orpheus.transport.source_sinks import (
+        AngularSourceSink,
+        BoundarySourceSink,
+    )
     from orpheus.transport.fields.angular_flux import (
         AngularFlux,
     )
@@ -1387,79 +1429,56 @@ def _solve_fixed_source_si(
     )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.timed_full_field import TimedFullField
-    nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
+    from .operator import CollisionOperator, StreamingOperator
+    from orpheus.numerics.iteration import SourceIteration
+    from orpheus.numerics.operator import ZeroOperator
 
-    # Issue #196 PR-INDEX-5: phi principled (ng, nx, ny).
-    phi = np.zeros((ng, nx, ny))
-    angular = None
-    residual = np.inf
-    converged_flag = False
-    flux_residuals: list[float] = []
+    # ── Build the composite RHS ──────────────────────────────────────
+    # ``external_source`` is per-ordinate density by API contract (the caller
+    # of :func:`solve_sn_fixed_source` projects iso sources via
+    # :meth:`AngularSourceSink.from_isotropic` before passing).  Scattering
+    # (P0 + Pℓ + (n,2n)) is NOT pre-staged here — the primitive's ``S``
+    # operator recomputes it each iterate; ``q_ext`` is the external source
+    # ONLY.  Boundary = ZERO (the external boundary source; the reflective
+    # inflow rides ``rhs.boundary`` via the ``S + B`` fold, not ``q_ext``).
+    q_ext_composite = TimedFullField(
+        bulk=AngularSourceSink.from_mesh(external_source, sn_mesh),
+        boundary=BoundarySourceSink.zeros_on(sn_mesh),
+        _history=(),
+        history_depth=2,
+    )
 
-    for n_inner in range(max_inner):
-        phi_prev = phi
+    # ── Build the typed operator triple (identical to the eigenvalue inner) ──
+    L_leaf = StreamingOperator(sn_mesh, solver.mat_xs.total_cross_section)
+    C_t = CollisionOperator(sn_mesh, solver.mat_xs.total_cross_section)
+    LC = L_leaf + C_t  # InvertibleOperator — apply (matvec) + solve (WDD sweep)
 
-        # Isotropic in-scatter + (n,2n). No fission — this is fixed-source.
-        # R-1 Step 4 A1 — single per-ordinate source feeds the sweep.
-        # Producer-side normalisation: ``Q_iso`` (iso scalar magnitude)
-        # projects to per-ord via :meth:`AngularSourceSink.from_isotropic`;
-        # ``Q_aniso_p1`` is per-ord density already
-        # (:meth:`ScatteringOperator.build_aniso_source` applies the
-        # ``/W`` at the producer post-A1); ``external_source`` is
-        # per-ord density by API contract (the caller of
-        # :func:`solve_sn_fixed_source` projects iso sources via
-        # :meth:`AngularSourceSink.from_isotropic` before passing).
-        Q_iso = np.zeros_like(phi)
-        solver._add_scattering_source(Q_iso, phi)
-        solver._add_n2n_source(Q_iso, phi)
-        iso_per_ord = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
+    si = SourceIteration(
+        LC,
+        # Wave O #208 ``S + B`` fold (single source of truth — the eigenvalue
+        # SI + both Krylov sites read the same property): the SI source becomes
+        # ``(S + B)ψ + Fψ + q`` so the reflective inflow ``B·ψ.outflow`` rides
+        # ``rhs.boundary`` and the bare ``(L + C).solve`` sweep reads it as the
+        # inflow seed.  (B cannot join the LC preconditioner — OperatorSum drops
+        # CAP_SOLVE.)
+        solver._scattering_with_boundary_op,
+        ZeroOperator(codomain_zero=_zero_within_group_fission),
+        max_iter=max_inner,
+        tol=inner_tol,
+    )
 
-        # Merge per-ord pieces — Pℓ scattering moments + external source.
-        Q_aniso_p1 = solver._build_aniso_scattering(angular)
-        total_values = iso_per_ord.values + external_source
-        if Q_aniso_p1 is not None:
-            total_values = total_values + Q_aniso_p1
-        source = AngularSourceSink.from_mesh(total_values, sn_mesh)
-
-        # R-1 Step 0: thread previous-iter angular flux as initial_guess
-        # for the trace-space Carlson seed.  D-H.2-C5 phase 2: composite
-        # TimedFullField directly (legacy AngularFlux retired); the
-        # sweep's ``_initial_guess_values`` duck-types on ``.bulk``.
-        if angular is not None:
-            initial_guess = TimedFullField(
-                bulk=AngularFlux.from_mesh(angular, sn_mesh),
-                boundary=BoundaryFlux.zeros_on(sn_mesh),
-                _history=(),
-                history_depth=2,
-            )
-        else:
-            initial_guess = None
-        # Wave O #208 O.4a.2 / O.4b E2 — BARE sweep (1-D AND 2-D): reflect the
-        # persisted outflow (``solver._boundary_flux`` outflow slots, from the
-        # previous iteration's sweep) into the inflow slots via −B BEFORE the
-        # sweep.  The bare sweep reads the inflow slots directly; it no longer
-        # re-applies ``bc`` at entry.  (First iteration: outflow = 0 ⟹
-        # inflow = B·0 = 0, matching the pre-extraction cold start.)
-        # O.4b E1 made the 2-D Cartesian wavefront sweep bare too, so the guard
-        # is lifted — ``_reflect_outflow_into_inflow`` is geometry-agnostic
-        # (canonical ``SNBoundaryOperator``, verified 2-D-ready) and vacuum
-        # stays a no-op (B = 0).
-        _reflect_outflow_into_inflow(solver._boundary_flux, sn_mesh)
-        angular, phi = transport_sweep(
-            source, solver.mat_xs.total_cross_section, sn_mesh,
-            solver._boundary_flux,
-            initial_guess=initial_guess,
-        )
-
-        norm = np.linalg.norm(phi)
-        if norm > 0:
-            residual = np.linalg.norm(phi - phi_prev) / norm
-            flux_residuals.append(float(residual))
-            if residual < inner_tol:
-                converged_flag = True
-                break
-    else:
-        n_inner = max_inner - 1  # loop exhausted without break
+    # Cold-start FLUX iterate (x0 = zeros; the flux template fixes the return
+    # type).  Fixed-source is a single solve — no eigenvalue outer to
+    # warm-start from (cf. the eigenvalue inner's ``self._psi_typed``).
+    psi_typed, residuals = si.solve(
+        q_ext_composite,
+        initial_guess=TimedFullField.zeros(
+            bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
+        ),
+    )
+    phi = psi_typed.bulk.integrate_angular().values
+    converged_flag = bool(residuals) and residuals[-1] < inner_tol
+    flux_residuals = [float(r) for r in residuals]
 
     # Issue #197 PR-TYPED-5: build typed Solution at the boundary.
     # mesh / quadrature / materials remain unconsumed by Solution — the
@@ -1468,29 +1487,15 @@ def _solve_fixed_source_si(
     del mesh, quadrature, materials  # retained as kwargs for API stability
     history = IterationHistory(
         flux_residuals=tuple(flux_residuals),
-        n_inner=n_inner + 1,
+        n_inner=len(residuals),
         converged=converged_flag,
     )
-    # D-H.1c stage 2 (2026-05-28): Solution.angular_flux constructed
-    # DIRECTLY as a TimedFullField composite.  ``angular`` is the bare
-    # ndarray returned by transport_sweep; ``solver._boundary_flux`` is
-    # the legacy BoundaryFlux carrying the converged partner-flux
-    # trace.  No legacy AngularFlux intermediate.
-    from orpheus.transport.fields.angular_flux import (
-        AngularFlux,
-    )
-    from orpheus.transport.fields.boundary_flux import (
-        BoundaryFlux,
-    )
-    from orpheus.transport.timed_full_field import TimedFullField
+    # ``psi_typed`` IS the converged TimedFullField composite (bulk angular +
+    # boundary trace) — return it directly, exactly as the fixed-source Krylov
+    # path does.  No legacy ``solver._boundary_flux`` writeback (the boundary
+    # trace lives on ``psi_typed.boundary``).
     return Solution(
-        angular_flux=TimedFullField(
-            bulk=AngularFlux.from_mesh(angular, sn_mesh),
-            # D-H.2-C2: ``solver._boundary_flux`` is L2 directly.
-            boundary=solver._boundary_flux,
-            _history=(),
-            history_depth=2,
-        ),
+        angular_flux=psi_typed,
         scalar_flux=ScalarFlux.from_mesh(phi, sn_mesh),
         mesh=sn_mesh,
         keff=None,
