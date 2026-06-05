@@ -87,6 +87,8 @@ from .sweep_graph import OctantLabel
 from .sweep_schedule import SweepSchedule
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from .geometry import SNMesh
     from .sweep_schedule import OctantSweepGroup
@@ -899,6 +901,93 @@ def sweep_octant_group(
         angular_flux[oct_idx] = angular_flux_oct
 
 
+def _sweep_2d_scheduled(
+    Q: np.ndarray,
+    sig_t: np.ndarray,
+    sn_mesh: "SNMesh",
+    boundary_flux: "BoundaryFlux",
+    *,
+    schedule: "SweepSchedule",
+    reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Polymorphic schedule-driven 2-D wavefront sweep (Phase 3 sub-step 3c).
+
+    ONE uniform sweep-and-reflect loop parameterized by ``schedule`` — the
+    realization of the polymorphic Jacobi / Gauss-Seidel design (there is NO
+    ``if jacobi/gs`` branch; the splitting IS the schedule):
+
+    1. Build the interior cochain ``wavefront``; :math:`\iota_*`-seed it from
+       the GIVEN inflow ``boundary_flux`` (which carries ``B·ψₙ`` — the lagged
+       reflection of the previous iterate, prepared by the caller).
+    2. ``for group in schedule.groups``: :func:`sweep_octant_group` the group's
+       octants through the PERSISTENT wavefront; then if ``reflect`` is given
+       AND the group has reflective outgoing faces, :math:`\iota^*`-absorb those
+       faces' fresh outflow into ``boundary_flux``, apply ``reflect`` (the
+       ``−B`` outflow→inflow reflection, in place, face-restricted), and
+       :math:`\iota_*`-re-seed those faces' wavefront edges — so a LATER group
+       reads the fresh current-iterate inflow (the ``(L+C−B_lower)⁻¹`` forward
+       substitution).
+    3. :math:`\iota^*`-absorb the final outflow trace into ``boundary_flux``.
+
+    * **Jacobi** (``reflect=None``, one all-octants group) — every octant reads
+      the frozen seed; the inter-group reflect never fires. This is exactly the
+      bare sweep :func:`_sweep_2d_wavefront` passes.
+    * **Gauss-Seidel** (``reflect`` = the face-restricted ``−B``, one group per
+      in-plane octant) — later groups see earlier groups' fresh reflected
+      outflow. The SI scheduled resolvent supplies both: its ``.solve`` seeds
+      ``B·ψₙ`` onto ``boundary_flux`` then calls this with the G-S schedule +
+      the reflect closure.
+
+    The converged fixed point is INVARIANT under ``schedule`` (any consistent
+    splitting of ``(L+C−S−B)ψ=q`` shares ψ\*); only the SI spectral rate
+    changes. NOTE (Phase 3 spike, issue #2/#215): this folds the BOUNDARY
+    coupling ``B`` only — a modest reflective-SI rate gain. The dominant
+    within-group SCATTERING ``c``-mode is NOT folded here (it cannot be folded
+    into a directional sweep); that is consistent DSA / Krylov territory.
+    """
+    ng, nx, ny = sig_t.shape
+    N = sn_mesh.quad.N
+    angular_flux = np.zeros((N, ng, nx, ny))
+    scalar_flux = np.zeros((ng, nx, ny))
+
+    # Interior cochain C¹_int (WavefrontFlux #205); ι_* seed from the GIVEN
+    # inflow trace (carrying ``B·ψₙ``). Only the BOUNDARY slots persist across
+    # sweep calls; the interior is rebuilt here.
+    wavefront = WavefrontFlux.zeros_on(sn_mesh)
+    wavefront.seed(boundary_flux)
+
+    str_x = sn_mesh.streaming_x   # (N, nx)
+    str_y = sn_mesh.streaming_y   # (N, ny)
+    weights = sn_mesh.quad.weights
+
+    for group in schedule.groups:
+        sweep_octant_group(
+            group,
+            wavefront=wavefront,
+            Q=Q,
+            sig_t=sig_t,
+            str_x=str_x,
+            str_y=str_y,
+            weights=weights,
+            angular_flux=angular_flux,
+            scalar_flux=scalar_flux,
+            sn_mesh=sn_mesh,
+        )
+        if reflect is not None and group.reflect_faces:
+            # G-S inter-group reflect (a no-op for the Jacobi schedule, whose
+            # sole group carries no reflect_faces): fresh outflow → boundary
+            # (ι* restricted) → −B (outflow→inflow, in place) → re-seed those
+            # faces' wavefront edges (ι_* restricted), so the NEXT group reads
+            # the fresh current-iterate reflected inflow.
+            wavefront.absorb(boundary_flux, faces=group.reflect_faces)
+            reflect(boundary_flux, group.reflect_faces)
+            wavefront.seed(boundary_flux, faces=group.reflect_faces)
+
+    # ι* — persist the final outflow trace from the interior cochain.
+    wavefront.absorb(boundary_flux)
+    return angular_flux, scalar_flux
+
+
 def _sweep_2d_wavefront(
     Q: np.ndarray,
     sig_t: np.ndarray,
@@ -972,80 +1061,21 @@ def _sweep_2d_wavefront(
     under the principled layout (the snapshot generator stores the
     final values in principled order).
     """
-    ng, nx, ny = sig_t.shape
-    N = sn_mesh.quad.N
-
-    angular_flux = np.zeros((N, ng, nx, ny))
-    scalar_flux = np.zeros((ng, nx, ny))
-
-    # ── Interior face cochain C¹_int (Wave O #205 — WavefrontFlux) ─────
-    #
-    # The interior cell-face angular fluxes are the typed
-    # :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux` — the
-    # interior 1-cochain ``C¹_int`` that pairs with the boundary trace
-    # ``C¹_∂`` (:class:`BoundaryFlux`) as the biproduct
-    # ``C¹ = C¹_int ⊕ C¹_∂``. EPHEMERAL: rebuilt each sweep call (only the
-    # BOUNDARY slots persist, carried by ``boundary_flux`` across calls);
-    # the interior partition faces (positions 1..n-1) are recomputed.
-    #
-    # BARE boundary handling (Wave O #208 O.4b Phase E1): the edge slots
-    # carry the GIVEN inflow trace; the reflective coupling is the external
-    # ``_reflect_outflow_into_inflow`` / sibling ``-B``, NOT an in-sweep
-    # ``bc.apply``.
-    wavefront = WavefrontFlux.zeros_on(sn_mesh)
-    # ι_* — seed the domain-edge slots from the given inflow trace (the
-    # outflow slots are overwritten by the wavefront walk). Replaces the four
-    # raw edge-slice copies; the orderings agree (no transpose, pinned).
-    wavefront.seed(boundary_flux)
-
-    # R-1 Step 4 A1: ``Q`` is per-ordinate magnitude (N, ng, nx, ny).
-    # No ``/W`` applied here — the producer normalised at the apply
-    # boundary (Pattern 7).
-    str_x = sn_mesh.streaming_x   # (N, nx)
-    str_y = sn_mesh.streaming_y   # (N, ny)
-
-    # ── Jacobi octant schedule (Phase 3 sub-step 3b) ───────────────────
-    #
-    # The bare 2-D sweep IS the JACOBI schedule of the polymorphic
-    # :class:`~orpheus.sn.sweep_schedule.SweepSchedule`: ONE group containing
-    # every octant, with NO inter-group reflect.  All octants read the same
-    # frozen inflow seed (``boundary_flux``, carrying ``B·ψₙ`` for the SI
-    # driver via ``rhs.boundary``); the after-group reflect is a no-op
-    # (``reflect_faces == ()``).  This is bit-identical to the pre-3b
-    # ``for octant in quad.octants`` loop — the Jacobi group iterates the
-    # octants in the SAME ``quad.octants`` lexicographic order, and
-    # :func:`sweep_octant_group` runs the IDENTICAL per-octant body.
-    #
-    # The Gauss-Seidel schedule (sub-step 3c) re-uses ``sweep_octant_group``
-    # at finer (per-in-plane-octant) group granularity, interleaving the
-    # ``−B`` reflect between groups inside the SI resolvent — recovering the
-    # intra-sweep reflective coupling Wave O externalised.  The sweep itself
-    # stays bare; only the SCHEDULE (and the resolvent's reflect) differ.
-    schedule = SweepSchedule.jacobi(sn_mesh)
-    for group in schedule.groups:
-        sweep_octant_group(
-            group,
-            wavefront=wavefront,
-            Q=Q,
-            sig_t=sig_t,
-            str_x=str_x,
-            str_y=str_y,
-            weights=sn_mesh.quad.weights,
-            angular_flux=angular_flux,
-            scalar_flux=scalar_flux,
-            sn_mesh=sn_mesh,
-        )
-
-    # ── ι* — persist the boundary trace from the interior cochain ─────
-    #
-    # Only the BOUNDARY slots of the ephemeral interior cochain persist
-    # across sweep calls (the interior is rebuilt next time). The outflow
-    # ordinate slots carry this call's RAW outflow; the inflow slots keep the
-    # given seed (no reflection — the external -B / _reflect_outflow_into_inflow
-    # closes the loop). Replaces the four raw edge-slice writebacks.
-    wavefront.absorb(boundary_flux)
-
-    return angular_flux, scalar_flux
+    # The bare 2-D sweep IS the JACOBI octant schedule (Phase 3 sub-step 3c):
+    # ONE group (all octants), NO inter-group reflect. Delegates to the
+    # polymorphic :func:`_sweep_2d_scheduled` with ``reflect=None`` — all
+    # octants read the same frozen inflow seed (``boundary_flux``, carrying
+    # ``B·ψₙ`` for the SI driver via ``rhs.boundary``); the inter-group reflect
+    # never fires (the Jacobi group carries no ``reflect_faces``). The
+    # Gauss-Seidel SI resolvent calls the SAME orchestrator with the
+    # per-in-plane-octant schedule + a ``−B`` reflect closure, recovering the
+    # boundary reflective coupling Wave O externalised. Bit-identical to the
+    # pre-3c ``for octant in quad.octants`` loop.
+    return _sweep_2d_scheduled(
+        Q, sig_t, sn_mesh, boundary_flux,
+        schedule=SweepSchedule.jacobi(sn_mesh),
+        reflect=None,
+    )
 
 
 __all__ = [

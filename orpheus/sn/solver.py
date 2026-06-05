@@ -33,6 +33,7 @@ configurable via :class:`~orpheus.geometry.mesh.BC` on the mesh.
 from __future__ import annotations
 
 import time
+from collections.abc import Iterable
 from dataclasses import replace
 
 import numpy as np
@@ -986,7 +987,9 @@ def _is_curvilinear(mesh: Mesh1D | Mesh2D) -> bool:
     return name in ("SPHERICAL", "CYLINDRICAL")
 
 
-def _reflect_outflow_into_inflow(boundary_flux, sn_mesh: SNMesh) -> None:
+def _reflect_outflow_into_inflow(
+    boundary_flux, sn_mesh: SNMesh, faces: "Iterable[str] | None" = None,
+) -> None:
     r"""In-place: fill each face's inflow ordinate slots with the realized
     boundary law applied to that face's outflow trace — the ``−B`` reflective
     coupling, externalised for the bare ``transport_sweep`` (Wave O #208 O.4a.2).
@@ -1013,9 +1016,19 @@ def _reflect_outflow_into_inflow(boundary_flux, sn_mesh: SNMesh) -> None:
     ``(L+C, S, B)``).  The two differ only in plumbing: this helper writes the
     buffer's inflow slots directly; the driver's ``B`` gain rides
     ``B·ψ.outflow`` in ``rhs.boundary``.  The DRIVER route no longer needs this
-    helper (O.2a collapsed it); it survives ONLY for the final eigenvalue
-    reconstruction sweep (which has no driver to route through) + Phase 3's
-    octant-restricted Gauss-Seidel variant.
+    helper (O.2a collapsed it); it survives for the final eigenvalue
+    reconstruction sweep (which has no driver to route through) AND Phase 3's
+    octant-group Gauss-Seidel resolvent (which calls it face-restricted between
+    octant-group sweeps — see ``faces``).
+
+    ``faces`` (Phase 3 G-S): ``None`` (default) reflects EVERY boundary face —
+    the whole-trace ``−B`` used by the reconstruction sweep + the SI seed. A
+    face subset restricts the reflect to those faces' inflow slots, leaving the
+    rest untouched: the G-S resolvent absorbs a just-swept group's outgoing
+    reflective faces into ``boundary_flux``, then calls this to reflect ONLY
+    those faces' outflow into inflow, so the next group reads the fresh
+    current-iterate inflow. ``B`` is block-diagonal over faces ⟹ exact
+    restriction.
     """
     from orpheus.sn.boundary_operator import SNBoundaryOperator
 
@@ -1023,9 +1036,12 @@ def _reflect_outflow_into_inflow(boundary_flux, sn_mesh: SNMesh) -> None:
     # carrier to reach ``B``'s boundary block). ``reflect_into_inflow`` is the
     # canonical trace-level entry; it shares ``_reflect_trace`` with ``B.apply``
     # so the helper and the matvec / SI driver cannot drift.
-    reflected = SNBoundaryOperator(sn_mesh).reflect_into_inflow(boundary_flux)
+    reflected = SNBoundaryOperator(sn_mesh).reflect_into_inflow(
+        boundary_flux, faces=faces,
+    )
     trace = sn_mesh.trace
-    for face in boundary_flux.layout.faces:
+    selected = boundary_flux.layout.faces if faces is None else faces
+    for face in selected:
         inflow = trace.inflow_indices_for_face(face)
         boundary_flux.face_view(face)[inflow] = reflected.face_view(face)[inflow]
 
