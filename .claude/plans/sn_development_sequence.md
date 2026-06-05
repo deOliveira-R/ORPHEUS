@@ -30,10 +30,11 @@ is a DIFFERENT, OLDER branch `refactor/sn-operator-algebra` whose `solver.py` /
 `operator.py` / `sweep.py` DIFFER; reading it silently reads the wrong source).
 
 - **Worktree (cwd for everything):** `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/field-role-typing`
-- **Branch:** `refactor/field-role-typing` (on `origin`, but the 8 Phase-1 commits
-  `a902c59`…`d643ee8` are LOCAL-ONLY as of 2026-06-05 — `origin` is at `61546e8`.
-  Recovery works from the LOCAL commits + this plan + the memory; `git push` to
-  sync cross-device).
+- **Branch:** `refactor/field-role-typing` (on `origin`, but the Phase-1 commits
+  `a902c59`…`d643ee8` + the recovery refresh `216f4f6` + the Phase-2 commits `8563f4b`
+  (sub-step 4) and `83a4ae6` (sub-steps 1+2) are LOCAL-ONLY as of 2026-06-05 — `origin`
+  is at `61546e8`. Recovery works from the LOCAL commits + this plan + the memory;
+  `git push` to sync cross-device).
 - **venv** (lives at the MAIN repo root, shared): `/Users/rodrigo/git/nuclear/ORPHEUS/.venv/bin/python`
 - **Test invocation (Host env, `$CLAUDE_ENVIRONMENT` empty):**
   `PYTHONPATH=/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/field-role-typing /Users/rodrigo/git/nuclear/ORPHEUS/.venv/bin/python -O -m pytest ...`
@@ -52,13 +53,16 @@ is a DIFFERENT, OLDER branch `refactor/sn-operator-algebra` whose `solver.py` /
 3. The session **task tracker** (`TaskList`): tasks #17–#22 = the 6 phases.
    **If the tracker did not survive the session boundary, recreate it from §3 + §5**
    (one task per phase; chain blockedBy 18→{19,20}, 19→21, 21→22; **#17 = DONE**).
-4. **Phase 1 (#17) is DONE** (2026-06-05). The next move is the USER's choice:
-   - **Phase 2 (#18, RECOMMENDED — architecture-first spine completion):** O.2a the
-     honest `L+C−S−F−B` driver (R3 + R4 + #206 + #196 + #200). See §3 Phase 2.
-   - OR the reshaped **WavefrontFlux / Gauss-Seidel** chain (Phase 3 + Phase 5).
-   Whichever is chosen, it crosses subsystem boundaries → **test-architect FIRST**
-   (L17 crosswalk) + **explorer** for any retirement dependency audit (L20). Read the
-   target module's `docs/theory/` Key Facts (or dispatch the explorer) before coding.
+4. **Phase 1 (#17) DONE; Phase 2 (#18) IN PROGRESS** (2026-06-05). Landed: sub-step 4
+   (`8563f4b`, `B.reflect_into_inflow` trace-only leaf) + sub-steps 1+2 (`83a4ae6`, the
+   honest `L+C−S−B` driver — **VARIADIC couplings**, the `S+B` fold RETIRED). Sub-step 1
+   (`ScatteringOperator.domain`) DEFERRED (premise superseded — no bulk space; tripwire
+   moot). **REMAINING: sub-step 5 (#200 sweep-as-preconditioner — gate: the #200-adjacent
+   reds flip green) + sub-step 3 (R4, ⚠ FORKED — collapse the 1-D matvec twins, DEFER
+   curvilinear matvec + the 1-D scan to nd_foundation; needs a scope confirm).** See §3
+   Phase 2 STATUS for the full record + the R4 fork. test-architect crosswalk + explorer
+   audit in hand: `.claude/plans/phase2_o2a_crosswalk.md`,
+   `.claude/agent-memory/explorer/phase2_o2a_dependency_audit.md`.
 
 ---
 
@@ -213,34 +217,82 @@ fixed-source-Krylov shares #200's `preconditioner=identity` (Phase 2 fixes). **F
 **Goal.** The iteration drivers consume the WHOLE loss operator as one composed
 block operator, retiring the transitional folds and collapsing the matvec/sweep twins.
 
-**Sub-steps.**
-1. **Give `ScatteringOperator` a domain** — the `S+B` fold (`_scattering_with_boundary_op`)
-   currently type-checks ONLY because `S.domain is None` (the forcing tripwire). Setting
-   the domain makes the fold throw, forcing the honest composition.
-2. **Compose `L+C−S−F−B`** on the direct-sum carrier; the driver inverts/applies it
-   directly. Retires the `S+B` fold AND collapses the two `−B` routes (R3): the driver
-   path no longer needs `_reflect_outflow_into_inflow` (Phase 3 will have added the
-   octant-restricted variant; the whole-trace helper survives only for the final
-   reconstruction sweep).
-3. **Unify the 3 `(L+C)` impls** (R4 = #206): `_compute_LpC` (production) /
-   `_compute_decomposition` (dual-emission introspection) / the solve-sweep into one
-   geometry-agnostic action (the 2-D `_apply_2d_cartesian` already shares the DD closure
-   via `graph.residual` — extend that shape to 1-D). **This fixes #196** (the curvilinear
-   SI-vs-Krylov O(h) asymmetry is the symptom of the twin) by construction.
-4. **Trace-only `B.reflect_into_inflow(boundary)`** entry on `SNBoundaryOperator` —
-   retires the zero-bulk-probe shim + its ~6 call sites.
-5. **`#200` real preconditioner** — replace `preconditioner=lambda q: q` (both R2 sites,
-   now one) with the block-inverse / sweep-as-preconditioner (the silent-fallback bug is
-   gone post-Phase-1.2; safe to re-enable).
+**STATUS (2026-06-05) — sub-steps 4 + 1+2 DONE; design decisions taken.**
+- **Sub-step 4 (B trace-only leaf)** ✅ `8563f4b` — `SNBoundaryOperator.reflect_into_inflow`
+  + shared `_reflect_trace` core; retires the zero-bulk-probe shim. Bit-identical
+  (stash-test proven neutral).
+- **Sub-steps 1+2 (honest composition)** ✅ `83a4ae6` — **the `S+B` fold is RETIRED.**
+  ⭐ **Design decision (user-chosen via AskUserQuestion): VARIADIC couplings.** The
+  drivers `SourceIteration`/`KrylovAcceleration` went `(L, S, F)` → `(L_resolvent,
+  *gains)`: matvec `L − Σ gᵢ`, rhs `q_ext + Σ gᵢ`. `_within_group_triple` now returns
+  the honest `(L+C, S, B)` — resolvent + bulk scattering gain + trace boundary gain;
+  the vestigial within-group `F=ZeroOperator` slot is GONE. The driver is now
+  problem-type-AGNOSTIC (which ops are gains = a posing decision). `B` stays a SEPARATE
+  trace-typed gain (NOT folded into bulk S): it can't join the L+C preconditioner
+  (OperatorSum drops CAP_SOLVE) and the |Ω·n|·w adjoint metric (O.2) lives on its trace
+  domain. Existing `(L,S,F)` callers stay positional-compatible. Principled-equivalent
+  (FP reassociation `L−(S+B)`→`(L−S)−B`): cyl keff 4.2e-13 / flux 6.8e-12, aniso 3–5 ULP
+  — all within regression tol; verified correct vs NEW-1 closed-form Q/Σt + SI≡Krylov +
+  keff_2d k_inf. Tests migrated (NEW-3 pins `(L+C, S-gain, B-gain)`; 2 Krylov capability
+  tests → per-gain message). Gate: 18 driver + 52 fast + 114 regression/eigenvalue green.
+- **Sub-step 1 (set `ScatteringOperator.domain`) — DEFERRED (premise superseded).** The
+  domain was the "tripwire" meant to FORCE the honest composition by making the `S+B`
+  fold throw. With the variadic split the fold is retired by construction, so the
+  tripwire is moot; AND no bulk `FunctionSpace` exists (bulk operators type via
+  `block_role`, not domain spaces — only `B` sets `domain=trace`, for the O.2 metric).
+  Minting a `V_bulk` space is a documented **Wave-O typing-completion seam** (defensive
+  Pattern-4 typing), NOT load-bearing for the honest composition. Pick up when the
+  bulk-space typing wave lands (it would let `OperatorSum` reject a re-introduced `S+B`).
 
-**Verification.** Curvilinear MMS SI-vs-Krylov flux-shape now O(h²) both paths (the
-#196 canary `test_phase_e_trajectory_resolvent_flux_shape_crosscheck` flips); vacuum
-bit-identical; reflective convergence-equivalence; the 3-impl unification is bit-identical
-or principled-equivalent (FP-reduction-order, documented). Operator-algebra-core gate.
+**Remaining sub-steps (status annotated):**
+1. ~~Give `ScatteringOperator` a domain~~ — **DEFERRED** (see STATUS: tripwire superseded
+   by the variadic split; no bulk `FunctionSpace` exists; → Wave-O typing-completion seam).
+2. ~~Compose `L+C−S−B`~~ — ✅ **DONE** `83a4ae6` (variadic; fold retired; the two `−B`
+   routes collapsed on the driver path — `_reflect_outflow_into_inflow` survives only for
+   the reconstruction sweep + Phase 3's octant-restricted variant).
+4. ~~Trace-only `B.reflect_into_inflow(boundary)`~~ — ✅ **DONE** `8563f4b`.
+5. **`#200` real preconditioner** — REMAINING. Replace `preconditioner=lambda q: q` (now a
+   single site, `_within_group_krylov` `solver.py`) with the sweep-as-preconditioner
+   (`preconditioner=None` → `KrylovAcceleration` falls back to `LC.solve`; the L19/L21
+   silent-fallback hazard is gone — `L.solve` is stateless post-Phase-1.2). **Gate: the
+   #200-adjacent reds become GREEN** (`test_krylov_curvilinear_precond_safety` keff→1.875,
+   `test_b1pp_verification`, `test_krylov_restart_signature`) — they are budget failures
+   of the UNPRECONDITIONED stopgap; the preconditioner only changes convergence RATE, not
+   the fixed point, so correctness is preserved + convergence is restored.
+3. **Unify the 3 `(L+C)` impls** (R4) — REMAINING, ⚠ **FORKED (needs scope decision).**
+   The three: `_compute_LpC` (1-D matvec, `operator.py:336`) / `_compute_decomposition`
+   (1-D dual-emission introspection, `:578`) / the 1-D solve-sweep `_sweep_1d_unified`
+   (scan). **Explorer + test-architect findings (re-confirmed 2026-06-05):**
+   - The **1-D `_compute_LpC` ≡ `_compute_decomposition` twins** (same bidirectional
+     `dag_walk`, one emits L+C, the other the (M_spat, M_ang) split) ARE a genuine
+     Cardinal-Rule-2 duplication — collapse-able into one walk, geometry-agnostic within
+     1-D. This is the SAFE, real R4 win.
+   - **Extending to the 2-D `graph.residual` shape is WRONG-FIT for curvilinear + the
+     1-D scan** (explorer): `_sweep_1d_unified` is a parallel-prefix SCAN (`ordinate_scan`,
+     `(nx,K,ng)` chain-leading) — the antithesis of the anti-diagonal dense buffers — and
+     curvilinear carries a pole-angular-redistribution closure the Cartesian
+     `CellUpdate.residual_batch` has NO slot for. **Recommendation: collapse the 1-D matvec
+     twins (+ slab onto graph if clean); DEFER curvilinear matvec + the 1-D scan solve-sweep
+     to nd_foundation (the documented Phase-4-1D WRONG-FIT).**
+   - **#196/#206 reality check (test-architect):** R4 dissolves the **SI≡Krylov eigenvalue
+     twin** (#196) — but that gate (`test_cylinder_l1_sweep_vs_krylov_twin_path`) is a
+     STALE `xfail(strict)` that XPASSes TODAY (already closed by B1''/D-K). R4 does NOT
+     deliver curvilinear MMS O(h²) (that's #195, pole-closure, OUT of scope) and does NOT
+     fix the **#206 cylinder-matvec hard-red** (~18%, the deferred curvilinear matvec). The
+     plan's named canary `test_phase_e_trajectory_resolvent_flux_shape_crosscheck` is the
+     WRONG gate (12% tol, conflates #196 with #195) — use `test_cylinder_l1_sweep_vs_krylov_twin_path`
+     (un-mark the XPASS) + a new heterogeneous flux-shape twin instead.
+   - Full crosswalk: `.claude/plans/phase2_o2a_crosswalk.md`; dependency audit:
+     `.claude/agent-memory/explorer/phase2_o2a_dependency_audit.md`.
 
-**Gotchas.** Operation-order discipline (vv-principles bit-identity) on the unified
-`(L+C)` action. The composed-operator restructure touches `SourceIteration`/
-`KrylovAcceleration` signatures — keep Phase 1's single-primitive shape.
+**Verification (for the remaining sub-steps).** #200: the #200-adjacent reds flip green,
+no regression, GMRES converges faster (L16 wall-clock sane). R4: the L14 four-legged
+standoff on the collapsed 1-D matvec twins (SI ≡ ref, Krylov ≡ ref, SI ≡ Krylov, all under
+refinement); vacuum bit-identical; principled-equivalent (FP-reduction-order, documented).
+
+**Gotchas.** R4: keep the variadic single-primitive shape (don't re-fork the drivers).
+The curvilinear/scan deferral is the documented WRONG-FIT — do NOT force `graph.residual`
+onto them.
 
 ### Phase 3 — SI Gauss-Seidel recovery  *(the motivating feature)*
 
