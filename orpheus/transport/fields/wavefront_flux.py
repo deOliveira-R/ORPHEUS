@@ -99,6 +99,8 @@ from orpheus.numerics.spaces.interior_face_space import InteriorFaceSpace
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from orpheus.numerics.face_layout import FaceLayout
     from orpheus.sn.geometry import SNMesh
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
@@ -244,33 +246,82 @@ class WavefrontFlux(Field):
         sl[2 + a] = idx
         return fa, tuple(sl)
 
-    def seed(self, boundary: "BoundaryFlux") -> None:
+    def _selected_faces(
+        self, boundary: "BoundaryFlux", faces: "Iterable[str] | None",
+    ) -> tuple[str, ...]:
+        r"""Resolve which boundary faces :meth:`seed` / :meth:`absorb` trace.
+
+        Single source of truth for the face selection shared by
+        :math:`\iota_*` (:meth:`seed`) and :math:`\iota^*` (:meth:`absorb`):
+        a drift here would let the per-group injection touch a different face
+        set than the projection (Phase 3 Gauss-Seidel correctness).
+
+        ``faces=None`` (default) returns every face ``boundary`` carries — the
+        whole-trace inject/project (slab: xmin/xmax; 1-D curvilinear: xmax;
+        2-D: all four). A face subset restricts the trace to those faces: the
+        octant-group G-S schedule absorbs / re-seeds ONLY the just-swept
+        group's reflective OUTGOING faces between octant-group sweeps, leaving
+        the rest of the interior edge untouched (mirroring the face-restricted
+        :meth:`~orpheus.sn.boundary_operator.SNBoundaryOperator.reflect_into_inflow`).
+        The biproduct is block-diagonal over faces, so the subset is the EXACT
+        restriction (no cross-face slot is touched).
+        """
+        available = boundary.layout.faces
+        if faces is None:
+            return tuple(available)
+        unknown = set(faces) - set(available)
+        if unknown:
+            raise ValueError(
+                f"{type(self).__name__}: face(s) {sorted(unknown)} are not "
+                f"boundary faces of this trace; available: {sorted(available)}."
+            )
+        return tuple(faces)
+
+    def seed(
+        self, boundary: "BoundaryFlux", faces: "Iterable[str] | None" = None,
+    ) -> None:
         r"""Apply :math:`\iota_*`: inject the boundary trace into the interior
         domain-edge slots, in place.
 
-        For each face of ``boundary``'s layout, copies the boundary face
-        values into this cochain's matching domain-edge slot. Iterates the
+        For each selected face of ``boundary``'s layout, copies the boundary
+        face values into this cochain's matching domain-edge slot. Iterates the
         BOUNDARY's faces, so only faces that exist are touched (slab:
         xmin/xmax; 1-D curvilinear: xmax; 2-D: all four). The injection of
         the biproduct :math:`C^1 = C^1_{\rm int} \oplus C^1_\partial`.
+
+        ``faces`` (Phase 3 Gauss-Seidel): ``None`` (default) seeds every face
+        the boundary carries — the whole-trace inflow seed. A face subset
+        re-seeds ONLY those faces' interior edges: the G-S schedule re-injects
+        a freshly-reflected face inflow between octant-group sweeps so a later
+        group reads it (the ``(L+C−B_lower)⁻¹`` forward substitution). See
+        :meth:`_selected_faces`.
         """
-        for name in boundary.layout.faces:
+        for name in self._selected_faces(boundary, faces):
             fa, sl = self._edge_slot(name)
             fa[sl] = boundary.face_view(name)
 
-    def absorb(self, boundary: "BoundaryFlux") -> None:
+    def absorb(
+        self, boundary: "BoundaryFlux", faces: "Iterable[str] | None" = None,
+    ) -> None:
         r"""Apply :math:`\iota^*`: pull the interior domain-edge slots back
         into the boundary trace, in place.
 
-        The dual of :meth:`seed` — copies each interior domain-edge slot into
-        the matching boundary face. After the wavefront walk the edge slots
-        hold the streamed outflow (the inflow ordinate slots retain the
+        The dual of :meth:`seed` — copies each selected interior domain-edge
+        slot into the matching boundary face. After the wavefront walk the edge
+        slots hold the streamed outflow (the inflow ordinate slots retain the
         seed), so this delivers the raw outflow trace to ``boundary``. The
         projection of the biproduct; ``absorb`` after ``seed`` (with no walk
         between) is the identity on the boundary chain
         (:math:`\iota^* \circ \iota_* = \mathrm{id}`).
+
+        ``faces`` (Phase 3 Gauss-Seidel): ``None`` (default) absorbs every face
+        the boundary carries — the whole-trace outflow writeback. A face subset
+        writes back ONLY those faces' just-streamed outflow: the G-S schedule
+        absorbs a group's reflective OUTGOING faces into the boundary buffer so
+        the per-face reflect can act on the fresh current-iterate outflow. See
+        :meth:`_selected_faces`.
         """
-        for name in boundary.layout.faces:
+        for name in self._selected_faces(boundary, faces):
             fa, sl = self._edge_slot(name)
             boundary.face_view(name)[:] = fa[sl]
 

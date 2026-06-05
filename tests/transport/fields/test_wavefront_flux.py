@@ -293,6 +293,86 @@ def test_negative_control_transposed_seed_breaks_identity():
 
 
 # ───────────────────────────────────────────────────────────────────────
+# Face-restricted seed / absorb (Phase 3 sub-step 3b — G-S per-group trace)
+# ───────────────────────────────────────────────────────────────────────
+
+
+def test_seed_faces_subset_touches_only_those_edges():
+    r"""seed(bf, faces=("xmin",)) injects ONLY the xmin domain-edge slot; the
+    other domain edges stay at their prior (zero) value — the exact-restriction
+    the G-S re-seed relies on."""
+    sn = _cart2d_mesh(nx=6, ny=5)
+    bf = BoundaryFlux.zeros_on(sn)
+    bf.values[:] = _rng().standard_normal(bf.values.shape) + 1.0  # nonzero
+    wf = WavefrontFlux.zeros_on(sn)
+    wf.seed(bf, faces=("xmin",))
+    nx, ny = sn.nx, sn.ny
+    assert np.array_equal(wf.face(0)[:, :, 0, :], bf.face_view("xmin"))
+    # every other domain edge untouched (still zero)
+    assert not wf.face(0)[:, :, nx, :].any()    # xmax
+    assert not wf.face(1)[:, :, :, 0].any()     # ymin
+    assert not wf.face(1)[:, :, :, ny].any()    # ymax
+
+
+def test_absorb_faces_subset_writes_only_those_faces():
+    r"""absorb(out, faces=("xmax",)) writes ONLY the xmax outflow back; the
+    other faces of ``out`` stay zero — the per-group outflow writeback the G-S
+    schedule does before reflecting that face."""
+    sn = _cart2d_mesh(nx=6, ny=5)
+    bf = BoundaryFlux.zeros_on(sn)
+    bf.values[:] = _rng().standard_normal(bf.values.shape)
+    wf = WavefrontFlux.zeros_on(sn)
+    wf.seed(bf)                                  # whole-trace seed
+    out = BoundaryFlux.zeros_on(sn)
+    wf.absorb(out, faces=("xmax",))
+    assert np.array_equal(out.face_view("xmax"), bf.face_view("xmax"))
+    for other in ("xmin", "ymin", "ymax"):
+        assert not out.face_view(other).any()
+
+
+def test_seed_faces_none_equals_explicit_all():
+    r"""faces=None ≡ explicitly listing every boundary face (the default IS the
+    whole trace)."""
+    sn = _cart2d_mesh(nx=6, ny=5)
+    bf = BoundaryFlux.zeros_on(sn)
+    bf.values[:] = _rng().standard_normal(bf.values.shape)
+    wf_none = WavefrontFlux.zeros_on(sn); wf_none.seed(bf)
+    wf_all = WavefrontFlux.zeros_on(sn)
+    wf_all.seed(bf, faces=tuple(bf.layout.faces))
+    assert np.array_equal(wf_none.values, wf_all.values)
+
+
+def test_single_face_seeds_partition_whole_trace():
+    r"""Seeding each face individually reconstructs the whole-trace seed — the
+    faces partition the interior edge with no overlap (block-diagonal exact
+    restriction; mirrors the SNBoundaryOperator single-face partition pin)."""
+    sn = _cart2d_mesh(nx=6, ny=5)
+    bf = BoundaryFlux.zeros_on(sn)
+    bf.values[:] = _rng().standard_normal(bf.values.shape)
+    wf_whole = WavefrontFlux.zeros_on(sn); wf_whole.seed(bf)
+    wf_piece = WavefrontFlux.zeros_on(sn)
+    for face in bf.layout.faces:
+        wf_piece.seed(bf, faces=(face,))
+    assert np.array_equal(wf_piece.values, wf_whole.values)
+
+
+def test_seed_unknown_face_raises():
+    sn = _cart2d_mesh()
+    bf = BoundaryFlux.zeros_on(sn)
+    wf = WavefrontFlux.zeros_on(sn)
+    with pytest.raises(ValueError, match="bogus"):
+        wf.seed(bf, faces=("bogus",))
+
+
+def test_absorb_unknown_face_raises():
+    sn = _cart2d_mesh()
+    bf = BoundaryFlux.zeros_on(sn)
+    wf = WavefrontFlux.zeros_on(sn)
+    with pytest.raises(ValueError, match="bogus"):
+        wf.absorb(bf, faces=("bogus",))
+
+
+# ───────────────────────────────────────────────────────────────────────
 # Axis-parametric API (§3a′ 3D-readiness): one path for 1-D / 2-D / 3-D
 # ───────────────────────────────────────────────────────────────────────
 
