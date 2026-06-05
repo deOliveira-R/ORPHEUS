@@ -8,9 +8,11 @@ Per V&V plan §G1.3 (``.claude/plans/r1_step4_g_verification_plan.md``).
 What this file pins
 ===================
 
-1. **2-D Cartesian raises NotImplementedError** (the G1 deferral
-   sentinel — silent 2-D Krylov regression must be impossible per
-   SURPRISE-4 / SURPRISE-5).
+1. *(RETIRED — Phase 1 "gap" un-gate, 2026-06-04.)* The former 2-D
+   Cartesian ``NotImplementedError`` pin is INVERTED into a positive
+   correctness pin in
+   ``tests/sn/solve/test_fixed_source_2d_equivalence.py`` (NEW-1: the
+   closed-form Q/Σ_t leg + the SI≡Krylov twin).
 2. **External source consumed bit-equal as per-ordinate density**
    (ERR-049 re-sentinel — convention drift between operator algebra
    and fixed-source carve must not re-introduce).
@@ -52,7 +54,6 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.geometry.mesh import Mesh2D
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
@@ -92,50 +93,17 @@ def _cylinder_reflective(nx: int = 10, radius: float = 2.0) -> tuple:
     return mesh, quad
 
 
-# ── Pin 1: 2-D Cartesian NotImplementedError ────────────────────────
-
-
-class TestTwoDCartesianRaises:
-    r"""2-D Cartesian fixed-source Krylov MUST raise
-    ``NotImplementedError`` post-G1.  Silent routing to SI or
-    fallback to a packed-vector legacy path would be a regression
-    (the path-forward typed Krylov is 1-D-only; Phase A absorbs
-    2-D).  Per SURPRISE-4: this is a deliberate deferral, NOT a bug.
-    """
-
-    @pytest.mark.verifies("transport-cartesian")
-    def test_two_d_cartesian_krylov_raises_with_g1_message(self) -> None:
-        mesh = Mesh2D(
-            edges_x=np.array([0.0, 1.0, 2.0]),
-            edges_y=np.array([0.0, 1.0, 2.0]),
-            mat_map=np.zeros((2, 2), dtype=int),
-            coord=CoordSystem.CARTESIAN,
-            bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
-            bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
-        )
-        quad = Quadrature.gauss_legendre(n_ordinates=4)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
-        src = AngularSourceSink.from_isotropic(
-            np.ones((1, 2, 2)), sn_mesh,
-        )
-        with pytest.raises(NotImplementedError) as exc_info:
-            solve_sn_fixed_source(
-                materials=placeholder_materials(),
-                mesh=mesh, quadrature=quad,
-                external_source=src.values,
-                inner_solver="krylov",
-            )
-        # The error message must identify the deferral as G1's, AND
-        # recommend the SI landing zone (SURPRISE-5).
-        msg = str(exc_info.value)
-        assert "G1" in msg, (
-            f"Expected G1 deferral marker in NotImplementedError; "
-            f"got: {msg!r}"
-        )
-        assert "source_iteration" in msg, (
-            f"Expected SI landing-zone recommendation in error "
-            f"message; got: {msg!r}"
-        )
+# ── Pin 1 RETIRED (Phase 1 "gap" un-gate, 2026-06-04) ───────────────
+#
+# The former ``TestTwoDCartesianRaises`` pinned that 2-D Cartesian
+# fixed-source Krylov RAISES ``NotImplementedError``.  Phase 1 deleted
+# that guard — the path is now the geometry-agnostic structural twin of
+# the live 2-D eigenvalue Krylov inner (:meth:`SNSolver._solve_krylov`)
+# and the 2-D fixed-source SI path (same ``_within_group_triple`` +
+# ``_within_group_krylov``, differing only in ``q_ext``).  The pin is
+# INVERTED into a positive correctness pin —
+# ``tests/sn/solve/test_fixed_source_2d_equivalence.py`` (NEW-1: the
+# closed-form Q/Σ_t leg + the SI≡Krylov twin).
 
 
 # ── Pin 2: external_source consumed bit-equal as per-ord density ────
