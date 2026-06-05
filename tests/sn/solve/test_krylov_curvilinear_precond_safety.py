@@ -128,10 +128,10 @@ def _krylov_power_iteration_kinf(
     from dataclasses import replace
 
     from orpheus.numerics.iteration import KrylovAcceleration
-    from orpheus.numerics.operator import ZeroOperator
+    from orpheus.sn.boundary_operator import SNBoundaryOperator
     from orpheus.sn.geometry import SNMesh
     from orpheus.sn.operator import CollisionOperator, StreamingOperator
-    from orpheus.sn.solver import SNSolver, _zero_within_group_fission
+    from orpheus.sn.solver import SNSolver
     from orpheus.transport.source_sinks import AngularSourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
@@ -162,13 +162,18 @@ def _krylov_power_iteration_kinf(
     N = sn_mesh.quad.N
     nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
     krylov = KrylovAcceleration(
-        # B.5.2: the within-group zero-fission slot must emit a zero SOURCE
-        # (AngularSourceSink), not a flux echo — mirror SNSolver._solve_krylov.
-        LC, solver.scattering_op,
-        ZeroOperator(codomain_zero=_zero_within_group_fission),
+        # Wave O O.2a: mirror the honest production gains from
+        # ``SNSolver._within_group_triple`` — the resolvent ``L+C`` plus the
+        # scattering gain ``S`` AND the boundary reflection gain ``B``.  The
+        # transitional ``S+B`` fold + the vestigial ``F=Zero`` slot are RETIRED
+        # (variadic ``(L, *gains)`` drivers).  OMITTING ``B`` (as this test did
+        # pre-O.2a, when it hand-built ``(LC, scattering_op, ZeroOperator)``)
+        # drops the reflective coupling → the GMRES converges to the WRONG
+        # eigenmode (k ≈ 1.67, not k_inf = 1.875) on a reflective box.
+        LC, solver.scattering_op, SNBoundaryOperator(sn_mesh),
         preconditioner=precond,
         tol=1e-12, max_iter=300,
-        restart=min(50, N * ng * nx * ny),
+        restart=N * ng * nx * ny,
     )
 
     phi = solver.initial_flux_distribution()
