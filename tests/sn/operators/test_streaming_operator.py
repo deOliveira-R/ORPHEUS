@@ -158,19 +158,23 @@ def _random_composite(sn_mesh, seed=171):
 
 
 class TestCapabilities:
-    """StreamingOperator advertises {apply} only — no solve, no apply_T.
+    """StreamingOperator advertises {apply, apply_transpose} — no solve.
 
     Resolution A: L alone is not invertible (rank-deficient without
-    collision). solve appears at the OperatorSum level via the
-    fusion hook (substep 3+4.b.ii).
+    collision), so it carries NO ``solve``; that appears at the
+    OperatorSum level via the fusion hook (substep 3+4.b.ii).
+    ``apply_transpose`` IS advertised — the analytic reverse-direction
+    G-adjoint matvec ``Lᵀ`` landed in Wave O / O.2b (the foundation of
+    ``L.H``); the tests below were migrated from the pre-O.2b
+    apply-only contract (retirement = test migration).
     """
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_capabilities_apply_only(self, name, builder):
+    def test_capabilities_apply_and_apply_transpose(self, name, builder):
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh, sig_t)
-        assert L.capabilities == frozenset({CAP_APPLY})
+        assert L.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_no_solve_capability(self, name, builder):
@@ -180,11 +184,13 @@ class TestCapabilities:
         assert CAP_SOLVE not in L.capabilities
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_no_apply_transpose_capability(self, name, builder):
+    def test_has_apply_transpose_capability(self, name, builder):
+        # Wave O / O.2b: L carries the analytic reverse-direction adjoint
+        # matvec Lᵀ (the foundation of the G-adjoint ``L.H``).
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh, sig_t)
-        assert CAP_APPLY_TRANSPOSE not in L.capabilities
+        assert CAP_APPLY_TRANSPOSE in L.capabilities
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_satisfies_linear_operator_protocol(self, name, builder):
@@ -1229,8 +1235,14 @@ class TestT4dApply2DCartesianSourceHashPin:
     #         emission reads the same edge slots — output bit-identical (Gate-K
     #         k_∞=1.875, matvec≡sweep, octant snapshots, bc_extraction_2d all
     #         green; Phase 0 de-risk; Wave O #205/#208).
+    # Refreshed 2026-06-05: ad813fd ("delete _transport_operator_matvec_unified
+    # — dual-emission inlined into _MSpatialOperatorSum", Wave T T.5 close-out)
+    # edited the `_apply_2d_cartesian` docstring/source; the pin was left stale
+    # by that commit. The 2-D Cartesian forward path stays functionally green
+    # (matvec≡sweep, octant snapshots, k_inf) — this is a docstring-level source
+    # change, not a behavioural one.
     EXPECTED_SHA256: str = (
-        "12697ab3fe577a43eb7f5f433bc83fa36f201910f9397fc915977204bcc1a36d"
+        "b77fbee3cb504d58317216b88e80d8b479031b3e97baab4c6733285afef8c882"
     )
 
     def test_apply_2d_cartesian_source_hash_unchanged(self):
