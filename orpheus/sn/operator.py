@@ -1355,6 +1355,40 @@ class StreamingOperator(LinearOperatorMixin):
     # typed :class:`~orpheus.transport.timed_full_field.TimedFullField`
     # contract has no need for the legacy packed-vector slot map.
 
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        r"""The composite carrier :math:`V_{\rm bulk}\oplus V_{\rm trace}` (Wave O / O.2b).
+
+        :math:`L` is the sole FULL operator — it couples bulk :math:`\leftrightarrow`
+        boundary (seeds the sweep from the inflow trace, emits the outflow
+        trace). Advertising :attr:`~orpheus.sn.geometry.SNMesh.full_field_space`
+        is what lets :class:`~orpheus.numerics.operator._AdjointOperator`
+        read the **block-diagonal G-adjoint metric** (bulk :math:`V\,w_n`
+        :math:`\oplus` trace :math:`|\Omega\cdot\hat n|\,w_n`) for ``L.H`` —
+        without it the adjoint silently reduces to the metric-blind Euclidean
+        transpose (Issue #208 risk R5).
+
+        ``C`` / ``S`` / ``F`` report ``None`` (skipped by the composition
+        guard), so ``L``'s composite domain propagates through ``OperatorSum``
+        to the **transpose-closed** sub-sums whose ``.H`` is actually reachable
+        — ``(L + C)`` and ``(L + C - B)`` — and every bulk leaf in those is
+        G-conjugated for free by the op-level :math:`G^{-1}(\sum \text{leaf}^{\mathsf T})G`.
+        The full prompt loss ``(L + C - S - F - B).H`` is **intentionally
+        unreachable**: ``S`` / ``F`` advertise no ``apply_transpose``, so
+        ``OperatorSum`` does not propagate ``CAP_APPLY_TRANSPOSE`` and
+        :class:`~orpheus.numerics.operator._AdjointOperator` raises
+        :class:`MissingCapability` (fails loud, never silently Euclidean —
+        the capability lattice makes the metric-blind state unrepresentable).
+        The foldable scattering / fission contributions are handled at the
+        eigenvalue / DSA outer layer, not via this within-group adjoint.
+        """
+        return self.sn_mesh.full_field_space
+
+    @property
+    def codomain(self) -> Optional["FunctionSpace"]:
+        # Endomorphism on the composite (see :meth:`domain`).
+        return self.sn_mesh.full_field_space
+
     def apply(self, psi: "TimedFullField") -> "TimedFullField":
         r"""Subtractive forward action :math:`L\,\psi = M(\psi;\sigma_t)
         - \sigma_t \odot \psi.bulk`.

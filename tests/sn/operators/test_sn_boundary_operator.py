@@ -93,11 +93,19 @@ class TestContract:
         assert not isinstance(B, BulkOperator)
         assert not isinstance(B, FullOperator)
 
-    def test_domain_and_codomain_are_the_trace_space(self) -> None:
+    def test_domain_and_codomain_are_the_full_field_space(self) -> None:
+        # Wave O / O.2b R5: ``B`` is an endomorphism on the composite
+        # carrier (bulk ⊕ trace) — ``B.apply`` consumes / emits a full
+        # ``TimedFullField`` (zero bulk + reflected trace), so it advertises
+        # ``sn.full_field_space``, the SAME space L/C/S/F report (so the
+        # OperatorSum guard accepts ``L + C - S - F - B``). The trace metric
+        # ``B.H`` reads lives on the composite's trace block.
         sn = _sn("SLB", (BC.vacuum, BC.reflective))
         B = SNBoundaryOperator(sn)
-        assert B.domain is sn.trace
-        assert B.codomain is sn.trace
+        assert B.domain is sn.full_field_space
+        assert B.codomain is sn.full_field_space
+        # the composite trace block IS the mesh trace space (block identity)
+        assert B.domain.trace_space is sn.trace
 
     def test_apply_advertised(self) -> None:
         B = SNBoundaryOperator(_sn("SLB", (BC.vacuum, BC.reflective)))

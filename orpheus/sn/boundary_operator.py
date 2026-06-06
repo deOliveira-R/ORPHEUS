@@ -80,11 +80,18 @@ class SNBoundaryOperator(LinearOperatorMixin):
     :class:`TimedFullField` carrier as ``L``/``C``/``S``/``F``).
 
     The role is :attr:`BlockRole.BOUNDARY`; the domain and codomain are the
-    mesh's unified :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`
-    (``sn_mesh.trace``) — the cosine-weighted ``|Ω·n|·w`` boundary metric on that
-    space (Wave O step O.2) makes the Hilbert adjoint ``B.H`` the physically
-    correct partial-current adjoint, which is the one channel by which the
-    white-BC adjoint becomes available.
+    mesh's composite carrier
+    :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+    (``sn_mesh.full_field_space``) — the SAME space ``L``/``C``/``S``/``F``
+    report, so the :class:`~orpheus.numerics.operator.OperatorSum` composition
+    guard accepts ``(L + C - S - F - B)`` (Wave O / O.2b R5). ``B`` acts on the
+    composite as the ``A_ss`` block (zero bulk; non-zero only on the trace
+    block, where the cosine-weighted ``|Ω·n|·w`` partial-current metric lives).
+    That block metric is what makes the Hilbert adjoint ``B.H`` the physically
+    correct partial-current adjoint — the one channel by which the white-BC
+    adjoint becomes available. (Before O.2b R5 ``B`` advertised the bare
+    ``sn_mesh.trace`` here, inconsistent with :meth:`apply` already consuming /
+    emitting a full :class:`TimedFullField`.)
 
     Capabilities
     ------------
@@ -136,11 +143,17 @@ class SNBoundaryOperator(LinearOperatorMixin):
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
-        return self.sn_mesh.trace
+        # The composite carrier (NOT the bare trace): ``B.apply`` consumes /
+        # emits a full TimedFullField (zero bulk + reflected trace), so the
+        # advertised space must be the bulk ⊕ trace composite — matching the
+        # ``L``/``C``/``S``/``F`` siblings for the OperatorSum composition
+        # guard, and carrying the block-diagonal G-adjoint metric ``B.H``
+        # reads. Wave O / O.2b R5.
+        return self.sn_mesh.full_field_space
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
-        return self.sn_mesh.trace
+        return self.sn_mesh.full_field_space
 
     def _reflect_trace(
         self, boundary: "BoundaryFlux", method: str,

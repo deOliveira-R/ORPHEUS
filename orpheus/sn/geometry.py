@@ -13,6 +13,7 @@ redistribution coefficients (:math:`\alpha`), the geometry factor
 from __future__ import annotations
 
 import warnings
+from functools import cached_property
 from typing import ClassVar, Iterator, Optional, TYPE_CHECKING
 
 import numpy as np
@@ -62,6 +63,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.face_layout import FaceLayout
     from .material_xs_field import MaterialXSField
     from orpheus.numerics.spaces.trace_space import TraceSpace
+    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     # NOTE (B.5.A): the transport-field TYPE_CHECKING imports retired with the
     # SNMesh.zeros_* factory family. Zero-allocation now lives on the field
     # types (``Field.zeros`` / ``<Leaf>.zeros_on`` /
@@ -787,6 +789,47 @@ class SNMesh:
         2-D Cartesian) carries a non-``None`` trace.
         """
         return self._trace
+
+    @cached_property
+    def full_field_space(self) -> "FullFieldSpace":
+        r"""The composite carrier :math:`V_{\rm bulk} \oplus V_{\rm trace}` (Wave O / O.2b).
+
+        The function space of the FULL streaming operator
+        (:class:`~orpheus.sn.operator.StreamingOperator`) and every bulk
+        :math:`\oplus` boundary composite — the domain/codomain under which
+        ``L.H`` and ``(L + C - B).H`` are the **metric-correct G-adjoint**
+        :math:`A^\dagger = G^{-1} A^{\mathsf T} G` (Issue #208). The
+        block-diagonal Hilbert metric :math:`G` is
+
+        * **bulk** :math:`G_{\rm bulk} = V_{\rm cell}\,w_n` — the full
+          phase-space measure :math:`\mathrm{d}V\,\mathrm{d}\Omega`, stored
+          ``(N, 1, nx, ny)`` so the per-ordinate angular weight ``w_n``
+          (axis 0) and the per-cell volume ``V`` (axes 2,3) broadcast
+          across the energy-group axis against the ``(N, ng, nx, ny)`` bulk
+          tensor;
+        * **trace** :math:`G_{\rm trace} = |\Omega\cdot\hat n_f|\,w_n` — the
+          partial-current surface metric already carried by :attr:`trace`.
+
+        Both factors carry :math:`w_n`; they differ only in the spatial
+        measure (cell volume vs. oriented face). Cached: the composite is
+        immutable for a given mesh + quadrature.
+        """
+        from orpheus.numerics.space import FunctionSpace
+        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+
+        N = self.quad.N
+        w_n = np.asarray(self.quad.weights, dtype=float)  # (N,)
+        V = np.asarray(self.volumes, dtype=float)         # (nx, ny)
+        # G_bulk = V_cell · w_n on (N, 1, nx, ny) — group-independent
+        # (broadcast over the ng axis): w_n along the ordinate axis, V along
+        # the spatial axes (the full phase-space measure dV·dΩ).
+        g_bulk = w_n[:, None, None, None] * V[None, None, :, :]
+        bulk_space = FunctionSpace(
+            name="sn_bulk",
+            shape=(N, self.ng, self.nx, self.ny),
+            inner_product_weights=g_bulk,
+        )
+        return FullFieldSpace.from_blocks(bulk_space, self.trace)
 
     @property
     def boundary_face_layout(self) -> "FaceLayout":
