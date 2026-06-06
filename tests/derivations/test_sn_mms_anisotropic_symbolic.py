@@ -229,7 +229,7 @@ def test_spherical_aniso_numerical_qext_matches_sympy():
     )
     n_cells = 12
     mesh = case.build_mesh(n_cells=n_cells)
-    Q_numerical = case.external_source(mesh)         # (N, nx, 1, 1)
+    Q_numerical = case.external_source(mesh)         # (N, ng=1, nx, ny=1)
 
     # Branch 1: lambdify the SymPy closed form and evaluate at the
     # same (mu_n, r_i) grid as Branch 2.
@@ -256,7 +256,7 @@ def test_spherical_aniso_numerical_qext_matches_sympy():
     # check is therefore against the SymPy form scaled by ``1/sum_w``.
     sum_w = float(case.quadrature.weights.sum())
     np.testing.assert_allclose(
-        Q_numerical[:, :, 0, 0], Q_sympy_grid / sum_w,
+        Q_numerical[:, 0, :, 0], Q_sympy_grid / sum_w,
         atol=1e-13, rtol=1e-13,
     )
 
@@ -310,7 +310,7 @@ def test_cylindrical_aniso_numerical_qext_matches_sympy():
     # R-1 Step 4 A1 — Branch 2 emits per-ord density (raw / sum_w).
     sum_w = float(case.quadrature.weights.sum())
     np.testing.assert_allclose(
-        Q_numerical[:, :, 0, 0], Q_sympy_grid / sum_w,
+        Q_numerical[:, 0, :, 0], Q_sympy_grid / sum_w,
         atol=1e-13, rtol=1e-13,
     )
 
