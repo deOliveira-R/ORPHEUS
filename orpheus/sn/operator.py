@@ -2058,9 +2058,9 @@ class InvertibleOperator(OperatorSum):
         # OperatorSum.__init__ set capabilities = {CAP_APPLY, ...};
         # we add CAP_SOLVE because this composite IS sweep-invertible.
         self.capabilities = self.capabilities | frozenset({CAP_SOLVE})
-        # (L + C): FULL inherits from the streaming operand (the bulk
-        # collision C carries no boundary action). Issue #208 / Wave O.
-        self.block_role = BlockRole.FULL
+        # block_role is now DERIVED by OperatorSum.__init__ (Wave O / O.2b 4.5):
+        # join(L=FULL, C=BULK) = FULL. The former hand-stamp here was the
+        # twin-path retired in 4.5 — the role is carried by construction.
 
     # ── Convenience accessors ─────────────────────────────────────────
 

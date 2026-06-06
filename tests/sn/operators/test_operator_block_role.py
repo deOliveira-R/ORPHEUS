@@ -58,6 +58,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.boundary_realizer import SNBoundaryRealizer, SNMethodSpace
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.fission import FissionOperator
+from orpheus.sn.boundary_operator import SNBoundaryOperator
 from orpheus.sn.operator import (
     CollisionOperator,
     InvertibleOperator,
@@ -187,3 +188,70 @@ class TestBoundaryLeaves:
             assert bc.block_role is BlockRole.BOUNDARY, face
             assert isinstance(bc, BoundaryOperator), face
             assert not isinstance(bc, FullOperator), face
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Composer + adjoint role DERIVATION (Wave O step O.2b 4.5)
+# ─────────────────────────────────────────────────────────────────────
+
+
+class TestComposerRoleDerivation:
+    """``OperatorSum`` / ``ScaledOperator`` / ``_AdjointOperator`` DERIVE the
+    block role from their operands — no hand-stamp (4.5 twin-path retirement).
+
+    The role of a SUM is the union of the blocks its summands touch
+    (``BULK ⊔ BOUNDARY = FULL``); scaling and the G-adjoint preserve which
+    blocks are touched.
+    """
+
+    @staticmethod
+    def _ops(sn):
+        sig = np.ones((sn.ng, sn.nx, sn.ny))
+        return (
+            StreamingOperator(sn, sig),
+            CollisionOperator(sn, sig),
+            SNBoundaryOperator(sn),
+        )
+
+    def test_scaled_preserves_role(self) -> None:
+        sn = _slab_mesh()
+        L, C, B = self._ops(sn)
+        assert (-C).block_role is BlockRole.BULK
+        assert isinstance(-B, BoundaryOperator)
+        assert (2.0 * L).block_role is BlockRole.FULL
+
+    def test_sum_join_is_union_of_blocks(self) -> None:
+        sn = _slab_mesh()
+        L, C, B = self._ops(sn)
+        # BULK ⊔ BULK = BULK (C + C)
+        assert (C + C).block_role is BlockRole.BULK
+        # FULL ⊔ BULK = FULL (L + C — the InvertibleOperator, derived not stamped)
+        assert (L + C).block_role is BlockRole.FULL
+        # BULK ⊔ BOUNDARY = FULL (the discriminating mixed join)
+        assert (C - B).block_role is BlockRole.FULL
+        # the full within-group loss with the boundary sibling
+        assert (L + C - B).block_role is BlockRole.FULL
+        assert isinstance(L + C - B, FullOperator)
+
+    def test_adjoint_preserves_role(self) -> None:
+        sn = _slab_mesh()
+        L, C, B = self._ops(sn)
+        # The G-adjoint transposes the 2×2 block matrix → role is preserved.
+        assert isinstance(L.H, FullOperator)
+        assert L.H.block_role is BlockRole.FULL
+        assert isinstance(B.H, BoundaryOperator)
+        assert B.H.block_role is BlockRole.BOUNDARY
+        assert C.H.block_role is BlockRole.BULK
+        # the composite loss adjoint stays FULL
+        assert isinstance((L + C - B).H, FullOperator)
+
+    def test_unclassified_operand_propagates_none(self) -> None:
+        """A sum with an unclassified (``None``-role) operand is unclassified —
+        the derivation does not guess a role it cannot justify."""
+        from orpheus.numerics.operator import IdentityOperator
+
+        sn = _slab_mesh()
+        L, _, _ = self._ops(sn)
+        # IdentityOperator carries no block role (generic primitive).
+        assert IdentityOperator().block_role is None
+        assert (L + IdentityOperator()).block_role is None

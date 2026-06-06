@@ -155,6 +155,32 @@ class BlockRole(Enum):
     BOUNDARY = "boundary"
 
 
+def _join_block_roles(
+    a: Optional["BlockRole"], b: Optional["BlockRole"],
+) -> Optional["BlockRole"]:
+    r"""The block role of a SUM ``A + B`` — the union of the blocks touched.
+
+    Reading a role as the *set* of blocks its action touches
+    (:attr:`BlockRole.BULK` = ``{bulk}``, :attr:`BlockRole.BOUNDARY` =
+    ``{boundary}``, :attr:`BlockRole.FULL` = ``{bulk, boundary}``), the sum
+    touches the union: ``BULK ⊔ BULK = BULK``, ``BOUNDARY ⊔ BOUNDARY =
+    BOUNDARY``, and any mix (or anything with ``FULL``) is ``FULL``. So the
+    join is simply *"same role stays, anything different becomes FULL"*. If
+    either operand is unclassified (``None`` — a generic operator outside the
+    SN bulk/boundary partition) the sum is unclassified too: ``None``
+    propagates (a conservative "don't know" rather than a guessed role).
+
+    This is the derivation that lets ``(L + C - S - F - B)`` carry its role by
+    construction (Wave O / O.2b 4.5) — retiring the hand-stamped
+    ``InvertibleOperator`` FULL tag. ``L`` is ``FULL``, ``C``/``S``/``F`` are
+    ``BULK``, ``B`` is ``BOUNDARY`` → every within-group loss sum joins to
+    ``FULL``, exactly the irreducibly bulk↔boundary-coupling streaming role.
+    """
+    if a is None or b is None:
+        return None
+    return a if a is b else BlockRole.FULL
+
+
 class _BlockRoleMeta(type):
     r"""Metaclass making ``isinstance(op, BulkOperator)`` read ``op.block_role``.
 
@@ -579,6 +605,11 @@ class _AdjointOperator(LinearOperatorMixin):
         # Solve generally does NOT propagate (the adjoint of A^{-1}
         # would need A.H.solve = (A.solve).H, additional algebra).
         self.capabilities = frozenset(caps)
+        # The G-adjoint transposes the 2×2 block matrix (A_bs ↔ A_sb^T),
+        # which preserves WHICH blocks are touched — so the role is the
+        # inner operator's role (Wave O / O.2b 4.5): ``L.H`` is FULL,
+        # ``B.H`` is BOUNDARY, ``C.H`` is BULK.
+        self.block_role = getattr(inner, "block_role", None)
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
@@ -687,6 +718,13 @@ class OperatorSum(LinearOperatorMixin):
             caps.add(CAP_APPLY_TRANSPOSE)
         # solve does NOT propagate — see docstring.
         self.capabilities = frozenset(caps)
+        # Block role DERIVED from the operands (Wave O / O.2b 4.5): the sum
+        # touches the union of the blocks its summands touch. Replaces the
+        # former hand-stamped ``InvertibleOperator`` FULL tag — ``(L+C)`` and
+        # the whole ``(L+C-S-F-B)`` loss now carry FULL by construction.
+        self.block_role = _join_block_roles(
+            getattr(a, "block_role", None), getattr(b, "block_role", None),
+        )
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
@@ -814,6 +852,8 @@ class ScaledOperator(LinearOperatorMixin):
         if _has(op, CAP_APPLY_TRANSPOSE):
             survivors.add(CAP_APPLY_TRANSPOSE)
         self.capabilities = frozenset(survivors)
+        # Scaling preserves which blocks the action touches (Wave O / O.2b 4.5).
+        self.block_role = getattr(op, "block_role", None)
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
