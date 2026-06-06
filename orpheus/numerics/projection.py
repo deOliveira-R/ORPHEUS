@@ -407,10 +407,10 @@ class MomentProjection(GalerkinProjection):
 
         Shape ``(N,)`` with the quadrature weights ``w_n`` as
         :attr:`FunctionSpace.inner_product_weights`. The 1-D shape is
-        layout-agnostic; the
-        :func:`~orpheus.numerics.operator._broadcast_for_leading_axes`
-        helper pads the weights with trailing 1s to match higher-rank
-        data tensors at adjoint-application time.
+        layout-agnostic;
+        :meth:`~orpheus.numerics.space.FunctionSpace.apply_metric` pads the
+        weights with trailing 1s (via ``_broadcast_metric``) to match
+        higher-rank data tensors at adjoint-application time.
 
         This is the angular metric :math:`W = \mathrm{diag}(w_n)` that
         the generic ``A.H`` machinery reads to compute the W-weighted

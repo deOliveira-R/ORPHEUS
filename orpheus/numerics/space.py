@@ -200,6 +200,55 @@ class FunctionSpace:
         return float(np.sqrt(self.inner_product(x, x)))
 
     # ------------------------------------------------------------------
+    # Metric application (Hilbert adjoint building blocks, Wave O / O.2b)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _broadcast_metric(w: NDArray, target_ndim: int) -> NDArray:
+        """Pad ``w`` with trailing 1s so it broadcasts against the LEADING
+        axes of a ``target_ndim`` tensor (the metric-broadcast convention
+        shared by the ``(L+1, 2L+1)`` spherical-harmonic metric and the
+        leading-axis volume / partial-current metrics); no-op when ``w``
+        already spans every axis."""
+        w = np.asarray(w)
+        if w.ndim >= target_ndim:
+            return w
+        return w.reshape(w.shape + (1,) * (target_ndim - w.ndim))
+
+    def apply_metric(self, x: NDArray) -> NDArray:
+        r"""Apply the Hilbert metric :math:`G\odot x` (identity if Euclidean).
+
+        The diagonal weight broadcasts against the leading axes of ``x``.
+        This is the building block :class:`~orpheus.numerics.operator._AdjointOperator`
+        applies to the codomain before the transpose. Composite spaces
+        (bulk :math:`\oplus` trace) OVERRIDE this to apply a per-block metric
+        to a structured field (the Wave-O direct-sum adjoint).
+        """
+        w = self.inner_product_weights
+        if w is None:
+            return x
+        return self._broadcast_metric(w, np.ndim(x)) * x
+
+    def apply_inverse_metric(self, x: NDArray) -> NDArray:
+        r"""Apply the Moore–Penrose pseudo-inverse metric :math:`G^{+}\odot x`.
+
+        ``(1/G)⊙x`` where ``G ≠ 0``, and ``0`` on the metric's null space
+        (``G = 0`` — e.g. the tangential partial-current trace slots where
+        ``|Ω·n| = 0``). The pseudo-inverse is exact for the Hilbert adjoint:
+        the null-space components carry zero ``⟨·,·⟩_G`` weight and are zero
+        in any matvec output by construction. Identity if Euclidean. Applied
+        to the domain after the transpose. For a strictly-positive metric
+        (e.g. the angular quadrature weights ``w_n``) this is plain ``x/G``,
+        so the spherical-harmonic adjoint path stays bit-identical.
+        """
+        w = self.inner_product_weights
+        if w is None:
+            return x
+        wb = self._broadcast_metric(w, np.ndim(x))
+        nonzero = wb != 0.0
+        return np.where(nonzero, x / np.where(nonzero, wb, 1.0), 0.0)
+
+    # ------------------------------------------------------------------
     # Space algebra (Depth B step D-B)
     # ------------------------------------------------------------------
 
