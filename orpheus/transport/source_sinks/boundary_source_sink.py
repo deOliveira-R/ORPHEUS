@@ -72,18 +72,27 @@ boundary role grid mirrors the bulk exactly::
     .solve        →  BoundaryFlux         (the swept solution trace)
     from_balance  →  BoundaryResidual     (the defect — O.2 honest driver)
 
+A prescribed ``q`` is built directly from known per-face arrays via the
+ergonomic :meth:`prescribed_inflow` generator (``{face: (N, ng)}`` →
+only the inflow ordinate slots written, the rest zero) — the single
+source of truth the non-vacuum MMS and the splitting-invariance probe
+consume (it supersedes the ``zeros_on`` + per-face
+``face_view(...)[inflow] = …`` slot-fill loop). The lower-level inherited
+:meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`
+(every face, full slot incl. outflow) remains for non-inflow uses; the
+operator-output zeros use :meth:`zeros_on`.
+
 The **recipe → snapshot bridge** ``BoundarySourceSink.from_spec(spec,
 mesh)`` (materialise an :class:`InflowSourceSpec` onto the trace by
 looping ``spec.evaluate(face_shape)`` per face and packing the flat
-layout) is intentionally NOT added yet — per
-``feedback_unify_after_two_instances`` it waits for the first real
-*prescribed-inflow* consumer that both declares a non-trivial
-``InflowSourceSpec`` AND drives a sweep that consumes a typed
-boundary-source field (rather than the current inline ``evaluate(shape)``
-call). Until then the prescribed ``q`` is built directly from known
-per-face arrays via the inherited
-:meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`
-(the operator-output zeros use :meth:`zeros_on`).
+layout) is a DISTINCT, still-deferred path — it is the *recipe*-driven
+route (a lazy :class:`InflowSourceSpec` evaluated per face), NOT the
+known-array route :meth:`prescribed_inflow` serves. Per
+``feedback_unify_after_two_instances`` ``from_spec`` waits for the first
+real consumer that both declares a non-trivial ``InflowSourceSpec`` AND
+drives a sweep that consumes a typed boundary-source field (rather than
+the current inline ``evaluate(shape)`` call); the MMS does NOT — it has
+explicit per-face arrays, so it uses :meth:`prescribed_inflow`.
 
 Units (B.4 — declared as the ``UNITS`` class constant)
 ======================================================
@@ -111,10 +120,19 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
+
+import numpy as np
 
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import BoundaryField
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from numpy.typing import NDArray
+
+    from orpheus.sn.geometry import SNMesh
 
 
 __all__ = ["BoundarySourceSink"]
@@ -163,3 +181,95 @@ class BoundarySourceSink(BoundaryField):
     #: shared with ``BoundaryFlux`` / ``BoundaryResidual`` (same units,
     #: different role → class gate). Metadata, not the gate.
     UNITS: ClassVar[Unit] = ANGULAR_FLUX_UNITS
+
+    # ── Ergonomic generator: the prescribed-inflow source ────────────
+
+    @classmethod
+    def prescribed_inflow(
+        cls,
+        mesh: "SNMesh",
+        face_values: "Mapping[str, NDArray]",
+    ) -> "BoundarySourceSink":
+        r"""Build a prescribed-inflow source :math:`q` from per-face values.
+
+        The ergonomic generator for the affine-BC inhomogeneous term
+        :math:`q` in :math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q`: for
+        each face named in ``face_values``, the **inflow** ordinate slots
+        are written from the given ``(N, ng)`` array and **every other
+        slot is left zero**. The outflow slots of a prescribed-inflow
+        source are physically meaningless — the sweep determines outflow,
+        not the source — so they are *unrepresentable* here by
+        construction (``coding-elegance`` Pattern 4). Faces absent from
+        ``face_values`` are vacuum (all-zero).
+
+        This is the prescribed-inflow specialisation of the general
+        :meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`
+        (which requires EVERY face and writes the FULL per-face slot,
+        outflow included): here only the faces that carry incoming flux
+        need be named, and only their inflow ordinates are honoured. It
+        supersedes the ``zeros_on`` + per-face
+        ``face_view(...)[inflow] = …`` slot-fill loop that every
+        prescribed-inflow consumer (the non-vacuum MMS, the splitting-
+        invariance probe) previously hand-rolled — the single source of
+        truth for materialising a prescribed inflow onto the trace
+        (Cardinal Rule 2).
+
+        Note the recipe→snapshot distinction (see the module docstring):
+        this builds the snapshot directly from **known per-face arrays**,
+        NOT from a lazy
+        :class:`~orpheus.geometry.boundary._source.InflowSourceSpec`
+        recipe — the deferred ``from_spec`` bridge is the latter path and
+        remains deferred (no recipe-driven consumer yet).
+
+        Parameters
+        ----------
+        mesh : SNMesh
+            The SN phase-space carrier; ``mesh.trace`` supplies the
+            :class:`~orpheus.numerics.face_layout.FaceLayout` and the
+            per-face inflow ordinate index sets
+            (:meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.inflow_indices_for_face`).
+        face_values : Mapping[str, NDArray]
+            ``{face_name: values}`` where ``values`` is the full per-face
+            slot, shape ``(N, ng)`` over all ordinates. Only the inflow
+            ordinate rows are read; the remainder is ignored.
+
+        Returns
+        -------
+        BoundarySourceSink
+            The materialised :math:`q` on ``mesh.trace`` — inflow slots
+            of the named faces set, everything else zero.
+
+        Raises
+        ------
+        ValueError
+            If ``mesh.trace is None`` (a trace-less 2-D cylindrical mesh,
+            which has no SN sweep); if a key is not a face of the layout;
+            or if a per-face array shape does not match the ``(N, ng)``
+            layout slot.
+        """
+        trace = mesh.trace
+        if trace is None:
+            raise ValueError(
+                f"{cls.__name__}.prescribed_inflow: mesh has no TraceSpace "
+                f"(mesh.trace is None — trace-less 2-D cylindrical). A "
+                f"boundary source cannot be built without a trace."
+            )
+        bss = cls.zeros_on(mesh)
+        known = set(trace.layout.faces.keys())
+        for face, values in face_values.items():
+            if face not in known:
+                raise ValueError(
+                    f"{cls.__name__}.prescribed_inflow: {face!r} is not a "
+                    f"face of the layout; available: {sorted(known)!r}"
+                )
+            view = bss.face_view(face)  # (N, ng), memory-shared with bss.values
+            arr = np.asarray(values, dtype=float)
+            if arr.shape != view.shape:
+                raise ValueError(
+                    f"{cls.__name__}.prescribed_inflow: face {face!r} values "
+                    f"shape {arr.shape!r} does not match the layout slot "
+                    f"shape {view.shape!r} (expected the full (N, ng) slot)."
+                )
+            inflow = trace.inflow_indices_for_face(face)
+            view[inflow, :] = arr[inflow, :]
+        return bss

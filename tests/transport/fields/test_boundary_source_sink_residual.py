@@ -236,3 +236,68 @@ class TestCrossClassRejectionSharedSpace:
         res = BoundaryResidual.zeros_on(m)
         with pytest.raises(TypeError, match="same-class"):
             src.inner_product(res)  # type: ignore[arg-type]
+
+
+# ════════════════════════════════════════════════════════════════════
+# The prescribed-inflow generator (the ergonomic q-source constructor).
+#
+# Source-role-only: writes ONLY the inflow ordinate slots of the named
+# faces (outflow slots of a prescribed inflow are physically meaningless
+# — the sweep determines outflow), leaving everything else zero. This is
+# the ergonomic specialisation of the general ``from_face_arrays`` that
+# every prescribed-inflow consumer (non-vacuum MMS, splitting probe)
+# previously hand-rolled as ``zeros_on`` + ``face_view[inflow] = …``.
+# ════════════════════════════════════════════════════════════════════
+
+
+class TestPrescribedInflowGenerator:
+    def test_inflow_written_outflow_masked_absent_face_vacuum(self) -> None:
+        m = _slab_mesh(nx=5, ng=2)
+        N = m.quad.N
+        mu = m.quad.mu_x
+        # Full (N, ng) slot with EVERY ordinate non-zero on purpose: the
+        # generator MUST mask the outflow ordinates back to zero.
+        vals = np.outer(mu + 2.0, np.array([1.0, 0.5]))  # (N, 2), all non-zero
+        bss = BoundarySourceSink.prescribed_inflow(m, {"xmin": vals})
+        assert isinstance(bss, BoundarySourceSink)
+
+        inflow = m.trace.inflow_indices_for_face("xmin")
+        outflow = np.setdiff1d(np.arange(N), inflow)
+        view = bss.face_view("xmin")
+        # inflow ordinates carry the prescribed values ...
+        np.testing.assert_array_equal(view[inflow, :], vals[inflow, :])
+        # ... outflow ordinates are masked to zero (illegal-state prevention) ...
+        np.testing.assert_array_equal(view[outflow, :], 0.0)
+        # ... and a face not named is vacuum.
+        np.testing.assert_array_equal(bss.face_view("xmax"), 0.0)
+
+    def test_sphere_single_face(self) -> None:
+        m = _sphere_mesh()
+        N = m.quad.N
+        vals = np.full((N, 2), 3.0)
+        bss = BoundarySourceSink.prescribed_inflow(m, {"xmax": vals})
+        inflow = m.trace.inflow_indices_for_face("xmax")
+        outflow = np.setdiff1d(np.arange(N), inflow)
+        view = bss.face_view("xmax")
+        np.testing.assert_array_equal(view[inflow, :], 3.0)
+        np.testing.assert_array_equal(view[outflow, :], 0.0)
+
+    def test_unknown_face_raises(self) -> None:
+        m = _slab_mesh()
+        N = m.quad.N
+        with pytest.raises(ValueError, match="not a"):
+            BoundarySourceSink.prescribed_inflow(m, {"nope": np.zeros((N, 2))})
+
+    def test_shape_mismatch_raises(self) -> None:
+        m = _slab_mesh(ng=2)
+        N = m.quad.N
+        with pytest.raises(ValueError, match="shape"):
+            BoundarySourceSink.prescribed_inflow(m, {"xmin": np.zeros((N, 1))})
+
+    def test_generator_is_source_role_only(self) -> None:
+        """The prescribed-inflow generator is the SOURCE-role leaf's verb;
+        the flux / residual leaves do not carry it (a flux trace is swept,
+        a residual is differenced — neither is a prescribed source)."""
+        assert hasattr(BoundarySourceSink, "prescribed_inflow")
+        assert not hasattr(BoundaryFlux, "prescribed_inflow")
+        assert not hasattr(BoundaryResidual, "prescribed_inflow")

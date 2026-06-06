@@ -54,6 +54,7 @@ from orpheus.numerics.quadrature import Quadrature
 from .scattering import ScatteringOperator
 from .sweep import transport_sweep
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.timed_full_field import TimedFullField
 
 
 def _apply_default_bcs(
@@ -1345,11 +1346,78 @@ def solve_sn(
     )
 
 
+def _build_fixed_source_rhs(
+    external_source: "np.ndarray | TimedFullField",
+    sn_mesh: SNMesh,
+) -> TimedFullField:
+    r"""Normalize the external source into the composite RHS ``q = q_bulk ⊕ q_∂``.
+
+    A fixed-source problem's RHS is the composite source
+    :class:`~orpheus.transport.timed_full_field.TimedFullField` — a bulk
+    :class:`~orpheus.transport.source_sinks.AngularSourceSink` paired with a
+    boundary :class:`~orpheus.transport.source_sinks.BoundarySourceSink`
+    (the prescribed inflow :math:`q` of the affine BC
+    :math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q`). This is the ONE object
+    that represents a source everywhere in the solve; this helper is its
+    single construction point (Cardinal Rule 2 — the SI and Krylov inner
+    paths both consume what it returns, rather than each re-deriving it).
+
+    ``external_source`` is accepted in two forms:
+
+    * ``np.ndarray`` of shape ``(N, ng, nx, ny)`` — the per-ordinate-density
+      BULK source only; the boundary is vacuum (all-zero). The original
+      form; every pre-existing caller keeps working unchanged.
+    * :class:`TimedFullField` — the full COMPOSITE source (bulk + a possibly
+      non-vacuum prescribed-inflow boundary, e.g. from
+      :meth:`BoundarySourceSink.prescribed_inflow`). Its leaf values are
+      re-homed onto ``sn_mesh``: the trace/grid layout is deterministic from
+      ``(mesh, quadrature, materials)``, so this is an exact values-copy onto
+      the solve's own mesh instance — required because the within-group
+      operators are built on ``sn_mesh`` and :class:`TimedFullField` algebra
+      enforces mesh identity.
+    """
+    from orpheus.transport.source_sinks import (
+        AngularSourceSink,
+        BoundarySourceSink,
+    )
+
+    N = sn_mesh.quad.N
+    nx, ny, ng = sn_mesh.nx, sn_mesh.ny, sn_mesh.ng
+    expected = (N, ng, nx, ny)
+
+    if isinstance(external_source, TimedFullField):
+        bulk_values = np.asarray(external_source.bulk.values)
+        trace_size = int(sn_mesh.trace.layout.total_size)
+        boundary_values = external_source.boundary.values
+        if boundary_values.size != trace_size:
+            raise ValueError(
+                f"_build_fixed_source_rhs: composite boundary source has "
+                f"{boundary_values.size} values, but sn_mesh.trace expects "
+                f"{trace_size} (layout mismatch — the composite must be built "
+                f"on the same mesh / quadrature / materials)."
+            )
+        boundary = BoundarySourceSink.from_mesh(boundary_values.copy(), sn_mesh)
+    else:
+        bulk_values = np.asarray(external_source)
+        boundary = BoundarySourceSink.zeros_on(sn_mesh)
+
+    # Issue #196 PR-INDEX-5: bulk source principled (N, ng, nx, ny).
+    if bulk_values.shape != expected:
+        raise ValueError(
+            f"fixed-source bulk shape {bulk_values.shape} does not match "
+            f"(N, ng, nx, ny) = {expected}"
+        )
+    return TimedFullField(
+        bulk=AngularSourceSink.from_mesh(bulk_values, sn_mesh),
+        boundary=boundary,
+    )
+
+
 def solve_sn_fixed_source(
     materials: dict[int, Mixture],
     mesh: Mesh1D | Mesh2D,
     quadrature: AngularQuadrature,
-    external_source: np.ndarray,
+    external_source: "np.ndarray | TimedFullField",
     boundary_condition: str = "vacuum",
     scattering_order: int = 0,
     max_inner: int = 1000,
@@ -1375,16 +1443,31 @@ def solve_sn_fixed_source(
     ----------
     materials, mesh, quadrature, scattering_order :
         Same as :func:`solve_sn`.
-    external_source : (N, ng, nx, ny)
-        Per-ordinate volumetric source :math:`Q^{\text{ext}}_n(x)` in
-        **per-ordinate density magnitude** (R-1 Step 4 A1 convention).
-        Callers with an iso scalar source :math:`Q(\vec r, g)` should
-        project to per-ordinate via
-        :meth:`~orpheus.sn.sources.AngularSourceSink.from_isotropic`
-        before passing (the :math:`1/W` projection lives at the
-        producer boundary per Pattern 7).  The sweep does NOT apply
-        ``/W`` internally.  Issue #196 PR-INDEX-5: principled layout
-        (``g`` axis after ``N``).
+    external_source : (N, ng, nx, ny) ndarray OR TimedFullField
+        The fixed-source RHS, in either of two forms (normalised by
+        :func:`_build_fixed_source_rhs`):
+
+        * ``np.ndarray`` of shape ``(N, ng, nx, ny)`` — the per-ordinate
+          volumetric BULK source :math:`Q^{\text{ext}}_n(x)` in
+          **per-ordinate density magnitude** (R-1 Step 4 A1 convention),
+          with a **vacuum** boundary. Callers with an iso scalar source
+          :math:`Q(\vec r, g)` should project to per-ordinate via
+          :meth:`~orpheus.transport.source_sinks.AngularSourceSink.from_isotropic`
+          before passing (the :math:`1/W` projection lives at the producer
+          boundary per Pattern 7). The sweep does NOT apply ``/W``
+          internally. Issue #196 PR-INDEX-5: principled layout (``g`` axis
+          after ``N``).
+        * :class:`~orpheus.transport.timed_full_field.TimedFullField` — the
+          full **composite** source ``q = q_bulk ⊕ q_∂`` (a bulk
+          :class:`~orpheus.transport.source_sinks.AngularSourceSink` paired
+          with a boundary
+          :class:`~orpheus.transport.source_sinks.BoundarySourceSink`). This
+          is how a **non-vacuum prescribed inflow** is supplied — build the
+          boundary via
+          :meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
+          (the affine-BC inhomogeneous term :math:`q`, consumed by the sweep
+          as the inflow seed). The legacy array form is exactly the
+          bulk-only / vacuum special case of this composite.
     boundary_condition : {"vacuum", "reflective"}
         Applied to all faces when the mesh has no explicit BC
         declarations (``bc_left`` etc. are ``None``).  When the mesh
@@ -1483,18 +1566,15 @@ def solve_sn_fixed_source(
         max_inner=max_inner, inner_tol=inner_tol,
     )
 
-    N = sn_mesh.quad.N
-    nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
-    # Issue #196 PR-INDEX-5: external_source principled (N, ng, nx, ny).
-    if external_source.shape != (N, ng, nx, ny):
-        raise ValueError(
-            f"external_source shape {external_source.shape} does not "
-            f"match (N, ng, nx, ny) = {(N, ng, nx, ny)}"
-        )
+    # Normalise the external source (raw bulk array OR composite
+    # TimedFullField) into the single composite RHS ``q = q_bulk ⊕ q_∂`` the
+    # inner paths consume (Cardinal Rule 2 — one construction point; shape
+    # validation lives inside the helper).
+    q_ext_composite = _build_fixed_source_rhs(external_source, sn_mesh)
 
     if inner_solver == "source_iteration":
         return _solve_fixed_source_si(
-            solver, sn_mesh, external_source, mesh, quadrature, materials,
+            solver, sn_mesh, q_ext_composite, mesh, quadrature, materials,
             t_start, max_inner, inner_tol, inner_schedule=inner_schedule,
         )
 
@@ -1503,7 +1583,7 @@ def solve_sn_fixed_source(
     # built from the converged scalar flux.  Wrapping that in an outer
     # source iteration converges scattering self-consistently.
     return _solve_fixed_source_krylov(
-        solver, sn_mesh, external_source, mesh, quadrature, materials,
+        solver, sn_mesh, q_ext_composite, mesh, quadrature, materials,
         t_start, max_inner, inner_tol,
     )
 
@@ -1511,7 +1591,7 @@ def solve_sn_fixed_source(
 def _solve_fixed_source_si(
     solver: SNSolver,
     sn_mesh: SNMesh,
-    external_source: np.ndarray,
+    q_ext_composite: TimedFullField,
     mesh: Mesh1D | Mesh2D,
     quadrature: AngularQuadrature,
     materials: dict[int, Mixture],
@@ -1566,10 +1646,6 @@ def _solve_fixed_source_si(
     therefore agrees to ``~inner_tol`` (principled-equivalence), and
     ``history.n_inner`` / ``flux_residuals`` reflect the composite metric.
     """
-    from orpheus.transport.source_sinks import (
-        AngularSourceSink,
-        BoundarySourceSink,
-    )
     from orpheus.transport.fields.angular_flux import (
         AngularFlux,
     )
@@ -1577,23 +1653,17 @@ def _solve_fixed_source_si(
         BoundaryFlux,
     )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
-    from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.numerics.iteration import SourceIteration
 
-    # ── Build the composite RHS ──────────────────────────────────────
-    # ``external_source`` is per-ordinate density by API contract (the caller
-    # of :func:`solve_sn_fixed_source` projects iso sources via
-    # :meth:`AngularSourceSink.from_isotropic` before passing).  Scattering
-    # (P0 + Pℓ + (n,2n)) is NOT pre-staged here — the primitive's ``S``
-    # operator recomputes it each iterate; ``q_ext`` is the external source
-    # ONLY.  Boundary = ZERO (the external boundary source; the reflective
-    # inflow rides ``rhs.boundary`` via the ``B`` coupling gain, not ``q_ext``).
-    q_ext_composite = TimedFullField(
-        bulk=AngularSourceSink.from_mesh(external_source, sn_mesh),
-        boundary=BoundarySourceSink.zeros_on(sn_mesh),
-        _history=(),
-        history_depth=2,
-    )
+    # ``q_ext_composite`` is the normalised composite RHS ``q = q_bulk ⊕ q_∂``
+    # built once by :func:`_build_fixed_source_rhs` (Cardinal Rule 2 — the SI
+    # and Krylov paths share it).  The bulk is the per-ordinate-density
+    # external source; the boundary is the prescribed inflow (zero for
+    # vacuum / reflective — the reflective inflow rides ``rhs.boundary`` via
+    # the ``B`` coupling gain, NOT ``q_ext``; a NON-vacuum prescribed inflow
+    # is carried in ``q_ext_composite.boundary``).  Scattering (P0 + Pℓ +
+    # (n,2n)) is NOT pre-staged — the primitive's ``S`` operator recomputes
+    # it each iterate.
 
     # ── Build the within-group operator triple (single source of truth —
     # ``_within_group_triple``; identical to the eigenvalue inner). ────
@@ -1649,7 +1719,7 @@ def _solve_fixed_source_si(
 def _solve_fixed_source_krylov(
     solver: SNSolver,
     sn_mesh: SNMesh,
-    external_source: np.ndarray,
+    q_ext_composite: TimedFullField,
     mesh: Mesh1D | Mesh2D,
     quadrature: AngularQuadrature,
     materials: dict[int, Mixture],
@@ -1728,34 +1798,19 @@ def _solve_fixed_source_krylov(
         BoundaryFlux,
     )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
-    from orpheus.transport.source_sinks import (
-        AngularSourceSink,
-        BoundarySourceSink,
-    )
-    from orpheus.transport.timed_full_field import TimedFullField
 
     nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
     N = sn_mesh.quad.N
 
-    # ── Build the composite RHS ──────────────────────────────────────
-    # R-1 Step 4 A1 — ``external_source`` is per-ordinate density (the
-    # producer-side ``/sum_w`` projection lives at
-    # :meth:`AngularSourceSink.from_isotropic` for iso scalar sources;
-    # by the time we get here the caller has projected).
-    # D-H.1c stage 2 — TimedFullField composite for the path-forward
-    # Krylov (zero boundary; reflective-BC state flows through
-    # ``initial_guess`` not ``rhs.boundary``).
-    q_ext_per_ord = AngularSourceSink.from_mesh(external_source, sn_mesh)
-    q_ext_composite = TimedFullField(
-        # B.5.2: q_ext IS a source — carry the AngularSourceSink bulk AND the
-        # BoundarySourceSink inflow trace (zero for vacuum/reflective). The
-        # Krylov matvec composes operator-output sources; q_ext is raveled
-        # type-agnostically as the GMRES rhs `b`.
-        bulk=q_ext_per_ord,
-        boundary=BoundarySourceSink.zeros_on(sn_mesh),
-        _history=(),
-        history_depth=2,
-    )
+    # ``q_ext_composite`` is the normalised composite RHS ``q = q_bulk ⊕ q_∂``
+    # built once by :func:`_build_fixed_source_rhs` (Cardinal Rule 2). B.5.2:
+    # q_ext IS a source — bulk per-ordinate-density ``AngularSourceSink`` +
+    # boundary ``BoundarySourceSink`` prescribed inflow (zero for vacuum /
+    # reflective — the reflective inflow rides ``initial_guess`` /
+    # ``rhs.boundary``, not ``q_ext``; a NON-vacuum prescribed inflow IS
+    # carried in ``q_ext_composite.boundary``). The Krylov matvec composes
+    # operator-output sources; q_ext is raveled type-agnostically as the
+    # GMRES rhs ``b``.
 
     # ── Build the within-group operator triple + Krylov driver (single
     # source of truth — ``_within_group_triple`` / ``_within_group_krylov``;
