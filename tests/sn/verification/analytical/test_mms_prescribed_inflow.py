@@ -48,6 +48,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.mms.sn import (
+    build_nonvacuum_fixed_source,
     build_slab_2g_nonvacuum_mms_case,
     build_slab_nonvacuum_mms_case,
     build_sphere_nonvacuum_mms_case,
@@ -91,7 +92,7 @@ def _solve(case, n_cells: int, *, g: int = 0):
     )
     sn = SNMesh(mesh, case.quadrature, materials)
     result = solve_sn_fixed_source(
-        materials, mesh, case.quadrature, case.fixed_source(sn),
+        materials, mesh, case.quadrature, build_nonvacuum_fixed_source(case, sn),
         max_inner=1000, inner_tol=1e-13,
     )
     psi = result.angular_flux

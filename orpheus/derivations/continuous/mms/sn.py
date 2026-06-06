@@ -2641,27 +2641,6 @@ class SNSlabNonVacuumMMSCase:
             face_values[face] = vals
         return BoundarySourceSink.prescribed_inflow(sn_mesh, face_values)
 
-    def fixed_source(self, sn_mesh) -> "TimedFullField":
-        r"""The composite fixed-source RHS ``q = q_bulk ⊕ q_∂`` for this case.
-
-        Bundles the manufactured bulk source (:meth:`external_source`) and
-        the prescribed-inflow boundary (:meth:`prescribed_inflow`) into the
-        single :class:`~orpheus.transport.timed_full_field.TimedFullField`
-        that :func:`~orpheus.sn.solver.solve_sn_fixed_source` consumes — the
-        ergonomic one-call non-vacuum source (no manual operator-triple
-        bypass). ``sn_mesh.mesh`` supplies the underlying mesh for the bulk.
-        """
-        from orpheus.transport.source_sinks import AngularSourceSink
-        from orpheus.transport.timed_full_field import TimedFullField
-
-        return TimedFullField(
-            bulk=AngularSourceSink.from_mesh(
-                self.external_source(sn_mesh.mesh), sn_mesh,
-            ),
-            boundary=self.prescribed_inflow(sn_mesh),
-        )
-
-
 def build_slab_nonvacuum_mms_case(
     sigma_t: float = 1.0,
     sigma_s: float = 0.5,
@@ -2931,25 +2910,6 @@ class SNSphericalNonVacuumMMSCase:
         vals = ((A_R + mu * B_R) / W)[:, None]        # (N, ng=1)
         return BoundarySourceSink.prescribed_inflow(sn_mesh, {"xmax": vals})
 
-    def fixed_source(self, sn_mesh) -> "TimedFullField":
-        r"""The composite fixed-source RHS ``q = q_bulk ⊕ q_∂`` for this case.
-
-        Bundles the manufactured bulk source (:meth:`external_source`) and
-        the prescribed-inflow boundary (:meth:`prescribed_inflow`) into the
-        single :class:`~orpheus.transport.timed_full_field.TimedFullField`
-        that :func:`~orpheus.sn.solver.solve_sn_fixed_source` consumes.
-        """
-        from orpheus.transport.source_sinks import AngularSourceSink
-        from orpheus.transport.timed_full_field import TimedFullField
-
-        return TimedFullField(
-            bulk=AngularSourceSink.from_mesh(
-                self.external_source(sn_mesh.mesh), sn_mesh,
-            ),
-            boundary=self.prescribed_inflow(sn_mesh),
-        )
-
-
 def build_sphere_nonvacuum_mms_case(
     sigma_t: float = 1.0,
     sigma_s: float = 0.5,
@@ -2983,6 +2943,31 @@ def build_sphere_nonvacuum_mms_case(
         materials=materials,
         mat_id=mat_id,
         quadrature=quadrature,
+    )
+
+
+def build_nonvacuum_fixed_source(case, sn_mesh) -> "TimedFullField":
+    r"""The composite fixed-source RHS :math:`q = q_{\rm bulk} \oplus q_\partial`
+    for a non-vacuum MMS ``case``.
+
+    Bundles the manufactured bulk source (``case.external_source(mesh)``) and
+    the prescribed-inflow boundary (``case.prescribed_inflow(sn_mesh)``) into
+    the single :class:`~orpheus.transport.timed_full_field.TimedFullField`
+    that :func:`~orpheus.sn.solver.solve_sn_fixed_source` consumes — the
+    ergonomic one-call non-vacuum source (no manual operator-triple bypass).
+
+    Generic over the ``(external_source(mesh), prescribed_inflow(sn_mesh))``
+    protocol: ONE definition shared by every non-vacuum case
+    (:class:`SNSlabNonVacuumMMSCase`, :class:`SNSphericalNonVacuumMMSCase`),
+    rather than a per-case method twin (Cardinal Rule 2). ``sn_mesh.mesh``
+    supplies the underlying mesh for the bulk source.
+    """
+    from orpheus.transport.source_sinks import AngularSourceSink
+    from orpheus.transport.timed_full_field import TimedFullField
+
+    return TimedFullField(
+        bulk=AngularSourceSink.from_mesh(case.external_source(sn_mesh.mesh), sn_mesh),
+        boundary=case.prescribed_inflow(sn_mesh),
     )
 
 

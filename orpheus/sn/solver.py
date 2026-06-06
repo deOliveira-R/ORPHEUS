@@ -1399,6 +1399,16 @@ def _build_fixed_source_rhs(
         boundary = BoundarySourceSink.from_mesh(boundary_values.copy(), sn_mesh)
     else:
         bulk_values = np.asarray(external_source)
+        if bulk_values.dtype == object:
+            # A stray non-array, non-TimedFullField object (e.g. a bare
+            # AngularSourceSink) — np.asarray wraps it as a 0-d object array.
+            # Reject explicitly rather than failing the shape check obscurely.
+            raise TypeError(
+                f"_build_fixed_source_rhs: external_source must be an "
+                f"(N, ng, nx, ny) array (bulk-only / vacuum) or a "
+                f"TimedFullField composite source; got "
+                f"{type(external_source).__name__}"
+            )
         boundary = BoundarySourceSink.zeros_on(sn_mesh)
 
     # Issue #196 PR-INDEX-5: bulk source principled (N, ng, nx, ny).
