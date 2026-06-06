@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **4960**
+Total tests collected: **4979**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1166, 23.5%
-   L1, 933, 18.8%
+   L0, 1166, 23.4%
+   L1, 936, 18.8%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2819, 56.8%
+   foundation, 2835, 56.9%
    unmarked, 6, 0.1%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4875
+   explicit, 4894
    verify, 0
    class-name, 46
    func-name, 0
@@ -50,7 +50,9 @@ Module × level grid
    analytical/test_kinf_homogeneous, 0, 31, 0, 0, 0, 0
    analytical/test_kinf_homogeneous_tolerance, 0, 8, 0, 0, 0, 0
    analytical/test_l1_standoff_slab_cylinder, 0, 10, 0, 0, 0, 0
+   analytical/test_mms_prescribed_inflow, 0, 3, 0, 0, 1, 0
    analytical/test_phase_c_crosscheck, 0, 8, 0, 0, 0, 0
+   analytical/test_prescribed_inflow_consistency, 0, 0, 0, 0, 2, 0
    analytical/test_si_convergence_rate, 0, 7, 0, 0, 2, 0
    cartesian_2d/test_2d_l2_face_view_unit_source, 0, 0, 0, 0, 7, 0
    cartesian_2d/test_2d_l2_matvec_correctness, 0, 2, 0, 0, 2, 0
@@ -185,6 +187,7 @@ Module × level grid
    derivations/test_singular_eigenfunction_cylinder_xverif, 0, 1, 0, 0, 0, 0
    derivations/test_singular_eigenfunction_spectrum, 0, 0, 0, 0, 16, 0
    derivations/test_sn_mms_anisotropic_symbolic, 0, 0, 0, 0, 12, 0
+   derivations/test_sn_mms_nonvacuum_symbolic, 0, 0, 0, 0, 9, 0
    derivations/test_sood_registry_cache, 0, 0, 0, 0, 15, 0
    derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 107, 0
    derivations/test_sood_registry_wide_bare_critical, 0, 17, 0, 0, 2, 0
@@ -272,7 +275,7 @@ Module × level grid
    operators/test_invertible_operator, 1, 10, 0, 0, 23, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
-   operators/test_operator_block_role, 0, 0, 0, 0, 16, 0
+   operators/test_operator_block_role, 0, 0, 0, 0, 20, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 16, 0
    operators/test_scattering_operator, 1, 0, 0, 0, 75, 0
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 21, 0
@@ -350,7 +353,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``attenuation``, 48
    ``optical-thickness``, 48
    ``scalar-flux-integral``, 48
-   ``transport-cartesian``, 39
+   ``transport-cartesian``, 42
    ``cp-kernel-differential-identities``, 36
    ``flat-source``, 35
    ``cp-keff-update``, 34
@@ -369,9 +372,9 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``keff-mean``, 33
    ``peierls-equation``, 33
    ``sigma-keff``, 33
+   ``dd-slab``, 32
    ``free-flight``, 31
-   ``dd-slab``, 30
-   ``transport-spherical``, 29
+   ``transport-spherical``, 31
    ``chi-sampling``, 28
    ``decompose``, 28
    ``scattering-cdf``, 28
@@ -392,8 +395,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``en-kernel-derivative``, 20
    ``kin-kernel-derivative``, 20
    ``peierls-rank-n-stability``, 20
+   ``dd-cartesian-1d``, 19
    ``dd-curvilinear-scalar``, 18
-   ``dd-cartesian-1d``, 17
    ``direction-sampling``, 16
    ``discrete-measure-integrate``, 16
    ``fission-weight``, 16
@@ -501,6 +504,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-vacuum-bc-cylinder``, 3
    ``peierls-vacuum-bc-sphere``, 3
    ``sigma-zero``, 3
+   ``sn-mms-nonvacuum-psi``, 3
+   ``sn-mms-nonvacuum-qext``, 3
    ``atalay-eq54-sphere-vacuum-isotropic``, 2
    ``atalay-table6-eigenvalue-moderate-d-consistency``, 2
    ``cp-second-difference-operator``, 2
@@ -523,6 +528,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-mms-2d-2g-psi``, 2
    ``sn-mms-cylindrical-aniso-psi``, 2
    ``sn-mms-cylindrical-aniso-qext``, 2
+   ``sn-mms-nonvacuum-sph-psi``, 2
+   ``sn-mms-nonvacuum-sph-qext``, 2
    ``sn-mms-p1-qext``, 2
    ``sn-mms-spherical-aniso-psi``, 2
    ``sn-mms-spherical-aniso-qext``, 2
@@ -639,7 +646,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **207** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **209** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``bailey-dome-recursion``
 - ``bc-extraction-block-matrix``
@@ -816,6 +823,8 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sh-space-metric``
 - ``sigs-convention``
 - ``singular-eigenfunction-eq5``
+- ``sn-mms-nonvacuum-psi``
+- ``sn-mms-nonvacuum-sph-psi``
 - ``sood-eq18-1g-balance``
 - ``sood-eq19-kinf-1g``
 - ``sood-eq20-kinf-1g-c-form``
@@ -883,7 +892,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-023``, 1
    ``ERR-024``, 1
    ``ERR-025``, 5
-   ``ERR-026``, 86
+   ``ERR-026``, 87
    ``ERR-027``, 5
    ``ERR-028``, 1
    ``ERR-029``, 6

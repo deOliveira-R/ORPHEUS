@@ -8187,6 +8187,769 @@ Branch-2 numpy production, structurally-independent L1 cross-check):
   (planned).
 
 
+.. _sn-mms-nonvacuum:
+
+Non-vacuum prescribed-inflow MMS (Phase 4 / O.2b 4.6)
+------------------------------------------------------
+
+.. admonition:: Key Facts
+   :class: important
+
+   - **What this section adds.** The entire pre-existing MMS catalog
+     (:ref:`sn-mms-curvilinear-isotropic-verification`,
+     :ref:`sn-mms-curvilinear-aniso-verification`) is
+     *vacuum-automatic*: every manufactured ansatz vanishes at both
+     boundaries, so the inflow trace :math:`\gamma_-\psi \equiv 0` on
+     every ordinate and the prescribed-inflow source slot
+     ``q.boundary`` is **identically zero** in all of them. Phase 4 /
+     O.2b sub-step 4.6 fills that gap with a manufactured solution that
+     is **non-zero at the outer face**, lighting the
+     :math:`q.\text{boundary} \neq 0` path for the first time.
+   - **The ansatz is the proven P1 element.** :math:`\psi_n = (A + \mu_n
+     B)/W` is the same truncated-Legendre :math:`P_0 \oplus P_1` form
+     used by the Phase 3.6 anisotropic cases
+     (:eq:`sn-mms-spherical-aniso-psi`). 4.6 changes **only the
+     boundary trace** — :math:`A,B` are chosen non-vanishing at the
+     outer face — and reuses the verified angular structure. Linear in
+     :math:`\mu` *fully* (not partially) activates the curvilinear
+     redistribution; the question "do we need :math:`\mu^2`?" is
+     answered **no** below.
+   - **Two manufactured sources, derived from the continuous
+     operator.** The slab source :eq:`sn-mms-nonvacuum-qext` has **no**
+     redistribution term (the Cartesian operator lacks the
+     :math:`\partial_\mu` coupling); the sphere source
+     :eq:`sn-mms-nonvacuum-sph-qext` is the **same closed form** as the
+     Phase 3.6 vacuum case — only :math:`A,B` differ. The spherical
+     residual therefore lives in **one place**
+     (:func:`~orpheus.derivations.continuous.mms.sn._spherical_anisotropic_symbolic`,
+     Cardinal Rule 2).
+   - **HAZARD H1 (sphere pole regularity).** :math:`B(0)=0` is a HARD
+     constraint — without it the redistribution :math:`(1-\mu^2)B/r \to
+     \infty` at :math:`r=0`. The :math:`(r/R)` prefactor on the sphere
+     :math:`B` enforces it; the slab has no pole, so a slab-style
+     :math:`B(0)\neq 0` is fine there but **wrong** on the sphere.
+   - **The affine-BC-to-RHS framing.** Prescribed inflow IS the
+     inhomogeneous term :math:`q` of the affine boundary law
+     :eq:`affine-bc-form` :math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q`,
+     carried in the ``q.boundary`` slot
+     (:class:`~orpheus.transport.source_sinks.BoundarySourceSink`) and
+     consumed directly by :math:`(L+C)\text{.solve}` as the sweep
+     inflow seed. **No** :class:`~orpheus.geometry.boundary.PrescribedInflow`
+     mesh-BC bridge is touched.
+   - **The load-bearing assertion is the converged VALUE, not the
+     rate.** Per the ``vv-principles`` skill anti-pattern #5 (rate is
+     necessary, not sufficient), a silently-dropped ``q.boundary``
+     converges cleanly at :math:`\mathcal{O}(h^2)` to the **wrong**,
+     boundary-zero limit. Only the flux-value-vs-:math:`A(x)` check —
+     with :math:`A` non-zero at the boundary (:math:`a_0>0`) — sees it.
+   - **T3 (sphere) ships ``xfail(strict)`` on Issue #195.** The slab
+     rows are clean :math:`\mathcal{O}(h^2)` with value match; the
+     sphere L2 *stagnates* (~2.4e-2), **not** because the non-vacuum
+     machinery fails (the boundary value *is* honoured) but because the
+     curvilinear-DD interior convergence is the open ERR-026 / #195
+     pre-asymptotic signature. The green companion T3g provides live
+     structural coverage of the inflow + redistribution paths now.
+
+This section narrates the Branch-1 SymPy algebra-of-record
+(:mod:`orpheus.derivations.continuous.mms.sn`), the Branch-2 numpy
+factories, and the L1 / foundation gates that verify the prescribed-
+inflow discretisation. The verification chain follows the
+``algebra-of-record`` discipline (Branch-1 SymPy reference, Branch-2
+numpy production, structurally-independent L1 cross-check).
+
+.. list-table:: 4.6 verification gates (measured, ``-O`` mode)
+   :header-rows: 1
+   :widths: 6 30 10 12 32
+
+   * - Gate
+     - Description
+     - Level
+     - Pillar
+     - Status / evidence
+   * - V_nonvac-slab
+     - Slab substitution identity ``simplify(W·LHS − Σ_s φ − Q) == 0``
+     - foundation
+     - MMS (1C)
+     - PASS — :func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_v_nonvac_slab_substitution_identity`
+   * - V_nonvac-sph
+     - Sphere substitution identity (reuses the 3.6 spherical residual)
+     - foundation
+     - MMS (1C)
+     - PASS — :func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_v_nonvac_sph_substitution_identity`
+   * - Decision-A pin
+     - Parameterised :math:`A=B=` ``None`` reproduces 3.6 vacuum shapes byte-for-byte
+     - foundation
+     - regression
+     - PASS — :func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_existing_spherical_aniso_still_passes_after_parameterization`
+   * - L1 xcheck (slab)
+     - Branch-2 numpy :math:`Q^{\text{ext}}` == lambdified SymPy (≤1e-13)
+     - foundation
+     - MMS (1C)
+     - PASS — :func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_slab_nonvacuum_numerical_qext_matches_sympy`
+   * - L1 xcheck (sphere)
+     - Branch-2 numpy :math:`Q^{\text{ext}}` == lambdified SymPy (≤1e-13)
+     - foundation
+     - MMS (1C)
+     - PASS — :func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_sphere_nonvacuum_numerical_qext_matches_sympy`
+   * - T1 (slab 1g)
+     - DD :math:`\mathcal{O}(h^2)` + converged value + inflow honoured
+     - L1
+     - MMS (1C)
+     - PASS — orders ``[2.04, 2.01]``, finest L2 ~1.2e-3, max\|φ−A\| ~8e-5
+   * - T2 (slab 2g asym)
+     - As T1, asymmetric downscatter :math:`\Sigma_s` (ERR-002 hazard)
+     - L1
+     - MMS (1C)
+     - PASS — g0 ``[2.04, 2.01]``, g1 ``[2.05, 2.01]``
+   * - T3 (sphere)
+     - Curvilinear redistribution under non-vacuum inflow
+     - L1
+     - MMS (1C)
+     - **xfail(strict)** on #195 — L2 stagnates 2.4e-2 (boundary value honoured)
+   * - T3g (sphere)
+     - Inflow honoured at :math:`r=R` + redistribution source live (green now)
+     - foundation
+     - structural
+     - PASS — :func:`tests.sn.verification.analytical.test_mms_prescribed_inflow.test_sphere_nonvacuum_inflow_honoured_and_redistribution_live`
+   * - T4 (Mode 9)
+     - SI-Jacobi ≡ SI-Gauss-Seidel ≡ Krylov honour ``q.boundary``
+     - foundation
+     - splitting-invariance
+     - PASS — pairwise reldiffs 1.3e-13 … 5.6e-13
+
+Why the existing MMS catalog is vacuum-automatic
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Every manufactured solution already in the SN verification ladder —
+the isotropic :math:`\psi_n = A(r)/W` cases
+(:ref:`sn-mms-curvilinear-isotropic-verification`) and the
+anisotropic :math:`\psi_n = (A + \mu_n B)/W` cases
+(:ref:`sn-mms-curvilinear-aniso-verification`) — was built with
+:math:`A` and :math:`B` chosen to **vanish at both boundaries**. For
+the canonical 3.6 sphere, :math:`A(r) = \sin(\pi r/R)` gives
+:math:`A(0) = A(R) = 0`, and :math:`B(r) = (r/R)(1-r/R)\cos(\pi r/R)`
+gives :math:`B(0) = B(R) = 0`. The slab isotropic case likewise uses
+:math:`A(x) = \sin(\pi x/L)`.
+
+The consequence is structural and total. The inflow trace of the
+manufactured solution on any face is
+
+.. math::
+
+   \gamma_- \psi_n \big|_{\text{face}}
+       = \frac{1}{W}\bigl(A(x_{\text{face}})
+                         + \mu_n B(x_{\text{face}})\bigr)
+       = \frac{1}{W}\bigl(0 + \mu_n \cdot 0\bigr) = 0
+       \qquad \text{for every ordinate } n.
+
+So the affine boundary law :eq:`affine-bc-form`
+:math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q` collapses to its
+homogeneous (vacuum) form for these cases — and the inhomogeneous
+inflow term :math:`q` is identically zero. The existing cases verify
+the **interior** spatial / angular operator and the **homogeneous**
+vacuum BC, but they say *nothing* about the prescribed-inflow path,
+where a non-zero :math:`q` is pushed into the right-hand side. That
+path is the one O.2b's field-role-typing work makes a first-class
+boundary trace: an inhomogeneous inflow injected as the boundary
+*source* slot. Until 4.6, no MMS row exercised it.
+
+The fix is the smallest possible structural delta: keep the proven P1
+angular form, keep the proven interior operator, and change **only**
+:math:`A,B` so that they are non-zero at the outer face. Then
+:math:`\gamma_-\psi \neq 0`, and the converged scalar flux
+:math:`\phi(x) = A(x)` is non-zero at the boundary — exactly the
+property the verification needs (see "The converged-value assertion"
+below).
+
+The ansatz — the P1 element and why linear-in-:math:`\mu` is enough
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The slab ansatz and its manufactured source:
+
+.. math::
+   :label: sn-mms-nonvacuum-psi
+
+   \psi_n(x) = \frac{1}{W}\bigl(A(x) + \mu_n B(x)\bigr),
+   \qquad A(x) = a_0 + a_1\sin(kx),\quad B(x) = b_0\cos(kx),
+   \quad a_0 > 0.
+
+.. (vv-status rationale) definition: Definitional ansatz — the
+.. manufactured angular flux is *imposed*, not solved for. Its
+.. correctness as a reference is established by the source identity
+.. :eq:`sn-mms-nonvacuum-qext` (SymPy ``simplify == 0``), not by a
+.. property of this expression alone.
+.. vv-status: sn-mms-nonvacuum-psi documented
+
+The form :math:`\psi_n = (A + \mu_n B)/W` is the truncated Legendre
+:math:`P_0 \oplus P_1` element: :math:`P_0(\mu) = 1` carries the
+isotropic amplitude :math:`A`, and :math:`P_1(\mu) = \mu` carries the
+first-moment amplitude :math:`B`. This is the **native angular basis**
+of the SN closure — the Carlson half-angle pole closure folds the
+moment source through :math:`P_\ell(-1) = (-1)^\ell`, so a linear-in-
+:math:`\mu` input is exactly the lowest non-trivial moment with a
+non-zero :math:`\partial_\mu`.
+
+**Why linear-in-:math:`\mu` fully activates the redistribution.** The
+curvilinear angular-redistribution operator is
+:math:`\tfrac{1-\mu^2}{r}\,\partial_\mu\psi`. With :math:`\psi` linear
+in :math:`\mu`, the angular derivative is a non-zero **constant** in
+:math:`\mu`,
+
+.. math::
+
+   \frac{\partial \psi_n}{\partial \mu} = \frac{B(r)}{W} \neq 0,
+
+and multiplying by the redistribution dome :math:`(1-\mu^2)` produces
+a genuinely :math:`\mu^2`-structured term :math:`(1-\mu^2)B/r`. The
+discrete closure that realises this operator — the Morel–Montry
+half-angle recurrence with the Carlson :math:`\mu=-1` seed (see
+:ref:`sn-pole-angular-closure-protocol`) — is **linear** in
+:math:`\psi`. A linear operator is fully probed by any input that is
+non-constant in its argument; the linear-in-:math:`\mu` ansatz is
+non-constant in :math:`\mu`, so it exercises the entire linear
+redistribution map (including the half-angle recurrence and the
+second-moment coupling).
+
+A quadratic-in-:math:`\mu` (P2) ansatz term would add **no** new
+structural coverage of the redistribution. Because the closure is
+linear, a quadratic input only changes *which point* in the operator's
+already-fully-probed range you land on — it does not reach any term
+the linear input misses. (A P2 term *would* additionally exercise the
+:math:`\sum_n w_n \mu_n^2` quadrature-exactness, but that is a
+property of the quadrature, not of the redistribution operator, and is
+already covered elsewhere.) This settles the "do we need
+:math:`\mu^2`?" question definitively: **no.** The verdict is recorded
+in the cross-domain-attacker frame analysis (memo
+``phase4_o2b_4_6_mms_ansatz_frame.md``, Q1/Q2) and is empirically
+consistent with Phase 3.6, which uses exactly this linear-in-:math:`\mu`
+ansatz and whose gate tests carry ``catches("ERR-026")`` — the
+redistribution-bug catcher.
+
+**The scalar flux is :math:`A`.** Because Gauss–Legendre (and every
+symmetric quadrature on :math:`\mu \in [-1,1]`) satisfies
+:math:`\sum_n w_n \mu_n = 0`, the first-moment term integrates out of
+the scalar moment:
+
+.. math::
+
+   \phi(x) = \frac{1}{W}\sum_n w_n\bigl(A(x) + \mu_n B(x)\bigr)
+           = \frac{1}{W}\Bigl(A(x)\sum_n w_n
+                            + B(x)\underbrace{\sum_n w_n \mu_n}_{=\,0}\Bigr)
+           = A(x).
+
+This discrete identity is verified directly in
+:func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_slab_nonvacuum_phi_equals_A_under_quadrature`
+(≤1e-14 on a sample mesh). The reference scalar flux for the
+convergence rows is therefore :math:`\phi_{\text{chosen}}(x) = A(x)`,
+which — because :math:`a_0>0` — is **non-zero at the boundary**.
+
+The manufactured slab source, derived from the continuous operator
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The slab SN transport operator (per ordinate, 1-group) is the
+first-order streaming-plus-collision form
+:math:`\mu\,\partial_x\psi + \Sigma_t\psi
+= \tfrac{1}{W}(\Sigma_s\phi + Q^{\text{ext}})`. The Cartesian operator
+has **no** angular-derivative term — the slab geometry produces no
+angular redistribution (:eq:`transport-cartesian`). Substituting the
+ansatz :eq:`sn-mms-nonvacuum-psi` and solving for the residual source:
+
+.. math::
+
+   \mu\,\frac{\partial}{\partial x}
+       \frac{A + \mu B}{W}
+   + \Sigma_t\,\frac{A + \mu B}{W}
+   &= \frac{1}{W}\bigl(\Sigma_s\,A + Q^{\text{ext}}_n\bigr) \\[1mm]
+   \frac{1}{W}\bigl(\mu A' + \mu^2 B'\bigr)
+   + \frac{\Sigma_t}{W}\bigl(A + \mu B\bigr)
+   &= \frac{1}{W}\bigl(\Sigma_s A + Q^{\text{ext}}_n\bigr),
+
+where :math:`\phi = A` was used on the right. Multiplying through by
+:math:`W` and isolating :math:`Q^{\text{ext}}_n` gives the closed form
+
+.. math::
+   :label: sn-mms-nonvacuum-qext
+
+   Q^{\text{ext}}_n(x) = \mu_n A'(x) + \mu_n^2 B'(x)
+                       + (\Sigma_t - \Sigma_s) A(x)
+                       + \Sigma_t\,\mu_n B(x).
+
+.. (vv-status rationale) derivation: A closed form obtained by
+.. symbolic substitution into the continuous slab operator; verified
+.. by SymPy ``simplify(W·LHS − Σ_s φ − Q) == 0`` and cross-checked
+.. against the Branch-2 numpy evaluation to ≤1e-13.
+.. vv-status: sn-mms-nonvacuum-qext verified
+
+Note that there is **no** :math:`(1-\mu^2)B/r` term — the slab operator
+simply does not generate it. The :math:`\mu^2 B'` term *is* present
+(streaming the first-moment piece :math:`\mu B` gives
+:math:`\mu \cdot \mu B' = \mu^2 B'`), so the slab still exercises the
+second-moment streaming closure, just not the angular redistribution.
+The :math:`(\Sigma_t - \Sigma_s)A` term is the within-group removal
+net of isotropic self-scatter (:math:`c = \Sigma_s/\Sigma_t < 1`), and
+:math:`\Sigma_t\,\mu_n B` is the collision of the first-moment piece.
+
+The Branch-1 algebra-of-record is
+:func:`~orpheus.derivations.continuous.mms.sn.derive_nonvacuum_slab_mms`
+(building on
+:func:`~orpheus.derivations.continuous.mms.sn._nonvacuum_slab_symbolic`),
+which performs the substitution symbolically and proves
+``simplify(W·LHS − Σ_s·φ − Q_closed) == 0``. Because the slab operator
+lacks redistribution, it is a *genuinely different* operator from the
+sphere and gets its own fresh symbolic pair — it cannot reuse the
+spherical residual (which carries the :math:`\partial_\mu` term the
+slab does not have).
+
+**Multi-group generalisation (T2).** The slab case is multi-group-
+capable. Each group carries a per-group amplitude :math:`c_g` scaling
+the shared shape, :math:`A_g(x) = c_g(a_0 + a_1\sin kx)` and
+:math:`B_g(x) = c_g\,b_0\cos kx`, and the source picks up the
+in-scatter term
+
+.. math::
+
+   Q^{\text{ext}}_{n,g}(x) = \mu_n A_g'(x) + \mu_n^2 B_g'(x)
+       + \Sigma_{t,g}\,A_g(x) + \Sigma_{t,g}\,\mu_n B_g(x)
+       - \sum_{g'} \Sigma_s[g', g]\,A_{g'}(x).
+
+The in-scatter sum uses the ORPHEUS scattering convention
+``SigS[g_from, g_to]``, so the in-scatter source is
+:math:`(\Sigma_s^\top\phi)_g = \sum_{g'}\Sigma_s[g', g]\,A_{g'}` — the
+**transpose-active** term where the ERR-002 group-swap hazard lives.
+T2 uses a 2-group **asymmetric downscatter-only** :math:`\Sigma_s`
+(:math:`\Sigma_s[0,1]\neq 0`, :math:`\Sigma_s[1,0]=0`) so a transposed
+scattering matrix would produce a detectably wrong group ratio
+(Cardinal Rule 6 — multi-group with asymmetric :math:`\Sigma_s` is
+mandatory, ``vv-principles`` anti-pattern #3 and failure-mode #6). The
+1-group T1 path is the degenerate :math:`c_{\text{groups}} = (1.0,)`
+reduction of the same dataclass.
+
+The manufactured spherical source — the Cardinal-Rule-2 reuse
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The spherical ansatz (pole-regular, non-vacuum at :math:`r=R`):
+
+.. math::
+   :label: sn-mms-nonvacuum-sph-psi
+
+   \psi_n(r) = \frac{1}{W}\bigl(A(r) + \mu_n B(r)\bigr),
+   \quad A(r) = a_0 + a_1\sin(kr),\quad
+   B(r) = \frac{r}{R}\bigl[b_0 + b_1\cos(kr)\bigr],\quad B(0)=0.
+
+.. (vv-status rationale) definition: Definitional ansatz — imposed,
+.. not solved. Correctness as a reference rests on the source
+.. identity :eq:`sn-mms-nonvacuum-sph-qext` (SymPy ``simplify == 0``)
+.. and HAZARD H1 (:math:`B(0)=0`), verified in the foundation gate.
+.. vv-status: sn-mms-nonvacuum-sph-psi documented
+
+The spherical SN operator carries the angular-redistribution term
+(:eq:`transport-spherical`):
+:math:`\mu\,\partial_r\psi + \tfrac{1-\mu^2}{r}\,\partial_\mu\psi
++ \Sigma_t\psi = \tfrac{1}{W}(\Sigma_s\phi + Q^{\text{ext}})`.
+Substituting :eq:`sn-mms-nonvacuum-sph-psi` (with
+:math:`\partial_\mu\psi = B/W`, so the redistribution term is
+:math:`\tfrac{1-\mu^2}{r}\cdot\tfrac{B}{W}`) and isolating the source
+gives the **same closed form** as the Phase 3.6 vacuum case
+(:eq:`sn-mms-spherical-aniso-qext`):
+
+.. math::
+   :label: sn-mms-nonvacuum-sph-qext
+
+   Q^{\text{ext}}_n(r) = \mu_n A'(r) + \mu_n^2 B'(r)
+                       + (1-\mu_n^2)\,\frac{B(r)}{r}
+                       + (\Sigma_t-\Sigma_s) A(r)
+                       + \Sigma_t\,\mu_n B(r).
+
+.. (vv-status rationale) derivation: A closed form obtained by
+.. symbolic substitution into the continuous spherical operator;
+.. verified by SymPy ``simplify == 0`` (reusing the 3.6 spherical
+.. residual machinery) and cross-checked against the Branch-2 numpy
+.. evaluation to ≤1e-13.
+.. vv-status: sn-mms-nonvacuum-sph-qext verified
+
+The structural point is that :eq:`sn-mms-nonvacuum-sph-qext` and the
+Phase 3.6 :eq:`sn-mms-spherical-aniso-qext` are *byte-identical* closed
+forms — only the radial profiles :math:`A,B` plugged into them differ.
+The spherical-operator residual is therefore derived in **exactly one
+place**:
+:func:`~orpheus.derivations.continuous.mms.sn._spherical_anisotropic_symbolic`,
+which now takes optional ``A=None, B=None`` arguments. With no
+arguments it reproduces the Phase 3.6 vacuum shapes byte-for-byte (the
+decision-A regression pin verifies this in
+:func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_existing_spherical_aniso_still_passes_after_parameterization`);
+with the 4.6 non-vacuum shapes it re-proves the residual for free
+(:func:`~orpheus.derivations.continuous.mms.sn.derive_nonvacuum_spherical_mms`).
+This is Cardinal Rule 2 in action — one source of truth for the
+spherical transport-operator residual, shared between the vacuum and
+non-vacuum cases.
+
+HAZARD H1 — sphere pole regularity demands :math:`B(0)=0`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The redistribution term :math:`(1-\mu^2)B(r)/r` has an explicit
+:math:`1/r` factor. As :math:`r\to 0`, this diverges as
+:math:`(1-\mu^2)\,B(0)/r \to \infty` **unless** :math:`B(0)=0`. So on
+the sphere, :math:`B(0)=0` is a **hard regularity constraint** — not a
+stylistic preference. A naive slab-style choice :math:`B(x) = b_0\cos
+kx` gives :math:`B(0) = b_0 \neq 0`, which is **fine on the slab** (no
+pole, no :math:`1/r`) but **wrong on the sphere** (it manufactures a
+non-integrable :math:`1/r` singularity at the centre that the
+continuous solution does not actually have).
+
+The 4.6 sphere therefore uses :math:`B(r) = (r/R)[b_0 + b_1\cos kr]`.
+The :math:`(r/R)` prefactor forces :math:`B(0) = 0` (pole-regular: the
+redistribution :math:`(1-\mu^2)B/r = (1-\mu^2)[b_0+b_1\cos kr]/R` is
+*finite* at :math:`r=0`), while leaving :math:`B(R) = b_0 + b_1\cos kR
+\neq 0` (the non-vacuum first-moment structure at the outer inflow
+face). The amplitude :math:`A(r) = a_0 + a_1\sin kr` needs **no** such
+prefactor: :math:`A` has no :math:`1/r` companion in the operator, so
+:math:`A(0) = a_0` finite is perfectly regular at the pole, and
+:math:`a_0>0` makes :math:`A(R)\neq 0` (non-vacuum). HAZARD H1 is
+verified in
+:func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_v_nonvac_sph_pole_regularity_and_nonvacuum`
+(:math:`B(0)=0`, :math:`A(0)=\tfrac12`, :math:`B(R)\neq 0`; concretely
+at :math:`kR=\pi/2`: :math:`A(R)=\tfrac34`, :math:`B(R)=\tfrac{3}{10}`).
+
+The non-vacuum lever — :math:`a_0>0` is the entire novelty
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Every other choice in 4.6 (the P1 angular form, the interior operator,
+the redistribution term, the quadrature, the BC machinery) is shared
+with Phase 3.6. The *single* new ingredient is :math:`a_0 > 0`, which
+makes :math:`A` — and hence the inflow trace
+:math:`\gamma_-\psi_n = (A + \mu_n B)/W` — **non-zero at the outer
+face**. That non-zero trace is what lights up the prescribed-inflow
+``q.boundary`` path. Strip :math:`a_0` back to zero and 4.6 degenerates
+to Phase 3.6 (vacuum-automatic). The non-vacuum-ness is pinned by the
+foundation test
+:func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_v_nonvac_slab_ansatz_nonvanishing_at_faces`
+(:math:`A(0)=a_0>0`) so the verification cannot silently drift back to
+the vacuum regime.
+
+The affine-BC-to-RHS framing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Prescribed inflow is **not** a special solver mode — it is the
+inhomogeneous term of the universal affine boundary law
+(:ref:`affine-bc-form`). The general boundary trace law is
+
+.. math::
+
+   \gamma_-\psi = R\,G\,\gamma_+\psi + q,
+
+where :math:`q \in \Gamma_-` is the **prescribed inflow source**. For a
+vacuum boundary :math:`R=0` and :math:`q\equiv 0`. For a manufactured
+non-vacuum inflow, :math:`q = \gamma_-\psi_{\text{chosen}}` — the
+imposed inflow trace — pushed to the right-hand side of the
+discretised within-group system.
+
+In ORPHEUS this :math:`q` is carried by the ``q.boundary`` slot, a
+:class:`~orpheus.transport.source_sinks.BoundarySourceSink` field whose
+inflow-ordinate entries hold :math:`\gamma_-\psi = (A + \mu_n B)/W` per
+face per group. The within-group fixed point is the **affine** system
+
+.. math::
+
+   (L + C - S - B)\,\psi = q,
+   \qquad q = q_{\text{ext}}
+            + (\text{prescribed inflow in } q.\text{boundary}),
+
+and the inflow term is consumed directly by :math:`(L+C)\text{.solve}`
+as the sweep inflow seed. This is the cleanest possible realisation:
+the inhomogeneous BC term is *just another source* on the RHS.
+
+**No ``from_spec`` / ``PrescribedInflow``-BC bridge is touched.** A
+:class:`~orpheus.geometry.boundary.PrescribedInflow` mesh-BC descriptor
+*does* exist (the rank-0 affine BC), but it is a *different surface* —
+it declares a prescribed inflow at mesh-construction time as a
+first-class boundary condition. The 4.6 MMS deliberately does **not**
+use it: the manufactured inflow is injected as the ``q.boundary``
+source slot, which is exactly the affine-:math:`q`-to-RHS path, and is
+the surface O.2b's field-role-typing work targets. The mesh BCs for the
+4.6 cases are plain **vacuum** — the inflow lives entirely in
+``q.boundary``.
+
+The bypass solve path and the B.5.2 flux/source type bridge
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The public fixed-source entry point
+:func:`~orpheus.sn.solver.solve_sn_fixed_source` **hardcodes** a vacuum
+``q.boundary`` (``zeros_on``) — it has no parameter to carry a
+prescribed inflow. So the 4.6 MMS cannot drive the solver through that
+entry point without silently dropping the non-vacuum inflow. Instead
+the convergence rows take the **bypass path** (decision E of the 4.6
+plan): they assemble the within-group operator triple directly via
+:func:`~orpheus.sn.solver._within_group_triple` (giving the
+streaming-plus-collision resolvent :math:`L+C`, the scattering gain
+:math:`S`, and the boundary gain :math:`B`) and drive it with
+:func:`~orpheus.numerics.iteration.SourceIteration` (or the Krylov
+inner) using a :math:`q_{\text{ext}}` whose ``boundary`` slot is the
+manufactured ``case.prescribed_inflow(sn)``.
+
+**The flux/source space bridge (B.5.2).** The manufactured external
+source :math:`q_{\text{ext}}` lives in **source** space (an
+:class:`~orpheus.transport.source_sinks.AngularSourceSink` bulk plus a
+:class:`~orpheus.transport.source_sinks.BoundarySourceSink` boundary),
+while the iterate :math:`\psi` and the returned solution live in
+**flux** space (an :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
+bulk plus a :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+boundary). The source-iteration / Krylov primitives therefore require a
+flux-typed ``initial_guess`` to template the solution space — without
+it, ``S.apply`` would hit an ``AngularSourceSink`` that has no
+``integrate_angular`` method. The bypass rows pass
+``TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux,
+mesh=sn)`` as the seed, which is the field-role-typing distinction
+made explicit: the iterate is a *flux*, the RHS is a *source*.
+
+The converged-value assertion — rate is necessary, not sufficient
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is the load-bearing verification design choice, and it is a
+direct application of ``vv-principles`` anti-pattern #5 ("NEVER read
+'convergence rate is correct' as 'result is correct' — verify the
+converged-to value; :math:`\mathcal{O}(h^2)` to the wrong limit is
+still :math:`\mathcal{O}(h^2)`") and the necessity hierarchy H4.
+
+Consider the failure mode the test must catch: a bug (or a refactor
+regression) that silently **drops the prescribed inflow** — a solve
+that runs with ``q.boundary = 0`` despite the manufactured non-vacuum
+inflow. That degenerate solve is **still a perfectly consistent
+fixed-source problem** — it just solves the *vacuum-BC* version of the
+same interior source. It converges cleanly at :math:`\mathcal{O}(h^2)`
+to a *different*, boundary-zero scalar flux. A rate-only test passes
+it. The only assertion that sees the dropped inflow is the one that
+checks the **converged value against** :math:`A(x)`, because
+:math:`A(x)` is non-zero at the boundary (:math:`a_0>0`) while the
+dropped-inflow limit is zero there — a discrepancy of order
+:math:`a_0 \approx 0.5` at the faces, dwarfing the pointwise
+convergence error (~8e-5).
+
+The slab T1/T2 rows therefore make **three** assertions per group:
+(1) the rate ``orders > 1.9`` (DD design order on a smooth ansatz);
+(2) the finest-mesh :math:`\phi_{\text{num}}` matches :math:`A(x)` to
+``rtol=atol=5e-3`` — with a guard asserting the reference is genuinely
+non-vacuum (:math:`|A(0)|, |A(L)| > 0.1`) so the value check is
+discriminating; and (3) an inflow-honoured spot-check that the solved
+trace slot equals the imposed :math:`\gamma_-\psi = (A + \mu_n B)/W` to
+``rtol=1e-9``. Only the combination is a meaningful test of the
+prescribed-inflow path.
+
+The Mode-7 activates/nulls map
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``vv-principles`` failure-mode #7 ("MMS simplification bias") requires
+every multi-dimensional MMS test to **declare** which operator terms
+its ansatz activates and which it nulls — and to ship an
+angularly-non-trivial companion whenever the nulled set includes a term
+covered by an active ERR-NNN. The 4.6 declaration:
+
+.. list-table:: Mode-7 term map — slab vs sphere under the (A+μB)/W ansatz
+   :header-rows: 1
+   :widths: 40 30 30
+
+   * - Operator term
+     - Slab (Cartesian)
+     - Sphere (spherical)
+   * - streaming :math:`\mu A'` (isotropic)
+     - **activates**
+     - **activates**
+   * - streaming :math:`\mu^2 B'` (second moment)
+     - **activates**
+     - **activates**
+   * - angular redistribution :math:`(1-\mu^2)B/r`
+     - **nulls** (no :math:`\partial_\mu` term)
+     - **activates** (the ERR-026 path)
+   * - within-group scatter :math:`\Sigma_s\phi` (:math:`c<1`)
+     - **activates**
+     - **activates**
+   * - collision :math:`\Sigma_t\,\mu B` (first moment)
+     - **activates**
+     - **activates**
+   * - 2G group transfer :math:`\Sigma_s^\top` (asymmetric)
+     - **activates** (T2)
+     - n/a (1g)
+   * - prescribed non-vacuum inflow :math:`\gamma_-\psi \neq 0`
+     - **activates** (both faces, :math:`a_0>0`)
+     - **activates** (:math:`r=R` face)
+   * - fission
+     - **nulls** (non-fissile; MMS proves no eigenvalue)
+     - **nulls**
+
+The slab **nulls the angular redistribution** — the Cartesian operator
+has no :math:`\partial_\mu` coupling. Redistribution is exactly where
+ERR-026 (the curvilinear sweep WDD wrong-fixed-point bug) lives, so a
+slab-only 4.6 would be a textbook Mode-7 trap: it would verify the
+prescribed-inflow path while being structurally blind to the hardest
+math the curvilinear sweep performs. The **sphere companion is
+therefore mandatory** (NEVER ship slab-only — ERR-026 territory). The
+sphere activates the redistribution term under non-vacuum inflow,
+closing the Mode-7 declaration.
+
+T3 (sphere) — why ``xfail(strict)`` on Issue #195
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The sphere row
+(:func:`tests.sn.verification.analytical.test_mms_prescribed_inflow.test_mms_prescribed_inflow_sphere_activates_redistribution`)
+ships ``@pytest.mark.xfail(strict=True)`` with ``catches("ERR-026")``.
+The reason is **not** that the non-vacuum machinery fails. It is that
+the curvilinear-DD interior spatial convergence the sphere row *rides
+on* is the open Issue #195 / ERR-026 pre-asymptotic gate — the same
+signature as the existing
+:file:`tests/sn/verification/mms/test_mms_curvilinear.py` rows.
+
+The measured evidence makes the distinction precise. The slab is
+pole-free and converges perfectly: orders ``[2.04, 2.01]``, finest L2
+~1.2e-3, pointwise ``max|φ−A|`` ~8e-5, boundary value matched. The
+sphere L2 (volume-weighted), in contrast, **stagnates**:
+
+.. list-table:: T3 sphere volume-weighted L2 error (stagnation, not convergence)
+   :header-rows: 1
+   :widths: 25 25 25 25
+
+   * - :math:`n_c`
+     - 20
+     - 40
+     - 80
+   * - :math:`\|\phi_h - A\|_{L^2(V)}`
+     - 2.37e-2
+     - 2.42e-2
+     - 2.43e-2
+
+The observed "orders" are ≈ :math:`-0.02` to :math:`-0.006` — the
+error is *not* decreasing under refinement, and the finest value
+2.4e-2 sits far above the #195 in-band window :math:`[10^{-8},
+10^{-3}]`. Both the rate gate and the absolute-magnitude band fire, so
+the ``xfail(strict)`` is robust (it cannot accidentally xpass).
+
+Crucially, the **boundary value is honoured**: the finest-mesh
+:math:`\phi[-1] \approx 0.7499 \approx A(R) = 0.75`, and the
+inflow-trace spot check passes. The non-vacuum prescribed-inflow
+machinery *works*; it is only the curvilinear-DD interior spatial
+convergence that is pre-asymptotic at these meshes (the documented
+ERR-026 PARTIAL closure — the default
+``LegacyTauSymmetricInterpolation`` profile sits at
+:math:`\mathcal{O}(h^{1.3})` until the pole-face spatial closure aligns
+with Hébert §3.9.4). The ``xfail(strict)`` marker comes off when Issue
+#195 closes; an unexpected pass is the signal that #195 has been fixed
+and the marker must be removed.
+
+**T3g — the green structural companion.** Because T3 is gated on the
+open #195, it provides *no live* coverage of the 4.6 machinery today.
+The green companion
+:func:`tests.sn.verification.analytical.test_mms_prescribed_inflow.test_sphere_nonvacuum_inflow_honoured_and_redistribution_live`
+fills that gap with two non-convergence-dependent claims that pass
+*now*: (1) the prescribed inflow at :math:`r=R` is honoured per inflow
+ordinate (:math:`\gamma_-\psi = (A(R) + \mu_n B(R))/W` with :math:`A(R)
+> 0` non-vacuum); and (2) the redistribution source
+:math:`(1-\mu^2)B(r)/r` is non-zero on the mesh interior (the ERR-026
+term is live under the 4.6 ansatz — :math:`B(r)\neq 0` on the open
+interval, with :math:`B(0)=0` pole-regular). T3g is the live structural
+guarantee that the Mode-7 sphere companion exercises the redistribution
+path even while the convergence row is parked on #195.
+
+T4 (vv Mode 9) — splitting invariance of the prescribed inflow
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The consistency floor the convergence rows trust is that a non-zero
+prescribed inflow is honoured **identically** by the three operator
+splittings of the affine within-group system: SI-Jacobi (the resolvent
+:math:`L+C` with lagged gains :math:`S, B`), SI-Gauss–Seidel (the
+:math:`B`-folding ``_GaussSeidelResolvent``), and Krylov (the matvec
+:math:`L+C-S-B`). All three are different reduction trees of the *same*
+affine fixed point :math:`(L+C-S-B)\psi = q`, so they MUST reach the
+same :math:`\psi` (``vv-principles`` Mode 9 — verify splittings reach
+the same fixed point under anisotropic / :math:`B\neq 0` stressing).
+This is a **foundation** test, not an L1 claim: no theory-page
+:math:`:label:` is being verified — it pins that three reduction trees
+of one affine operator agree on one RHS, which is a software invariant
+(``foundation`` NEVER carries ``verifies()``).
+
+T4
+(:func:`tests.sn.verification.analytical.test_prescribed_inflow_consistency.test_prescribed_inflow_consistency_si_jacobi_gs_krylov`)
+runs two configs. The ``slab_1d`` config (SI is always Jacobi in 1-D)
+makes **SI ≡ Krylov** the discriminating pair. The
+``cart2d_reflective_y`` config adds reflective-:math:`y` faces so
+:math:`B \neq 0` — which is what makes **SI-Jacobi vs SI-Gauss–Seidel**
+distinct (G-S folds :math:`B` into the resolvent; Jacobi lags it). The
+:math:`B\neq 0`-plus-prescribed-inflow combination is the only config
+where the :math:`B`-folding path runs *with* a non-zero boundary source
+(the ERR-056 neighbourhood). Measured pairwise reldiffs: 1.3e-13 …
+5.6e-13 — comfortably under the 1e-11 ceiling, which itself leaves
+headroom for the FP-non-associativity of three reduction trees
+(bounded by :math:`\text{iter} \times \text{ULP}` per the
+``vv-principles`` bit-identity criteria).
+
+The test carries explicit anti-latent-dud preconditions (the
+splitting-invariance check is vacuous if all three trivially agree on
+:math:`\psi \equiv 0`): the inflow slot must actually be written
+(:math:`>0`), the inflow must non-trivially drive the interior
+(:math:`\max|\psi| > 10^{-3}`), and the 2-D row must actually select the
+:math:`B`-folding ``_GaussSeidelResolvent`` (not silently fall back to
+Jacobi) with an explicit reflective-:math:`y` ``Mesh2D`` BC.
+
+Verification chain — Branch 1 / Branch 2 / L1 cross-check
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Following the ``algebra-of-record`` discipline:
+
+- **Branch 1 (SymPy, State 1C — MMS).** The manufactured sources
+  :eq:`sn-mms-nonvacuum-qext` (slab) and
+  :eq:`sn-mms-nonvacuum-sph-qext` (sphere) are derived by substituting
+  the imposed ansatz into the continuous operator and solving for the
+  residual, symbolically. The slab pair is
+  :func:`~orpheus.derivations.continuous.mms.sn._nonvacuum_slab_symbolic`
+  /
+  :func:`~orpheus.derivations.continuous.mms.sn.derive_nonvacuum_slab_mms`;
+  the sphere reuses
+  :func:`~orpheus.derivations.continuous.mms.sn._spherical_anisotropic_symbolic`
+  with the 4.6 shapes
+  (:func:`~orpheus.derivations.continuous.mms.sn._nonvacuum_spherical_AB`)
+  via
+  :func:`~orpheus.derivations.continuous.mms.sn.derive_nonvacuum_spherical_mms`.
+  Each ``derive_*`` proves ``simplify(W·LHS − Σ_s·φ − Q_closed) == 0``.
+  Foundation gate:
+  :file:`tests/derivations/test_sn_mms_nonvacuum_symbolic.py`.
+- **Branch 2 (vectorised numpy).** The factories
+  :class:`~orpheus.derivations.continuous.mms.sn.SNSlabNonVacuumMMSCase`
+  and
+  :class:`~orpheus.derivations.continuous.mms.sn.SNSphericalNonVacuumMMSCase`
+  (built by
+  :func:`~orpheus.derivations.continuous.mms.sn.build_slab_nonvacuum_mms_case`,
+  :func:`~orpheus.derivations.continuous.mms.sn.build_slab_2g_nonvacuum_mms_case`,
+  and
+  :func:`~orpheus.derivations.continuous.mms.sn.build_sphere_nonvacuum_mms_case`)
+  evaluate the closed-form source per ordinate using vectorised numpy.
+  Each carries a ``prescribed_inflow(sn)`` method returning the
+  ``q.boundary`` :class:`~orpheus.transport.source_sinks.BoundarySourceSink`.
+- **L1 cross-check (the gate).** The Branch-2 numpy
+  :math:`Q^{\text{ext}}_n` is bit-equal (≤1e-13 max absolute) to the
+  Branch-1 SymPy closed form evaluated via :func:`sympy.lambdify` on a
+  sample mesh, for both geometries. The two branches are *structurally
+  independent above the trusted-library line* — Branch 1 is
+  ``lambdify``-d SymPy, Branch 2 is hand-written numpy — so agreement
+  catches a copy error between the symbolic derivation and the
+  numerical implementation. Tested in
+  :func:`tests.derivations.test_sn_mms_nonvacuum_symbolic.test_slab_nonvacuum_numerical_qext_matches_sympy`
+  and the spherical sibling.
+
+**Structural independence (L11).** The chosen scalar flux
+:math:`\phi = A` is *imposed* analytically; the source :math:`Q^{\text{ext}}`
+is SymPy-derived (not generated by the solver's own primitives); the
+numpy ``external_source`` is then cross-checked bit-equal to the
+lambdified SymPy. The reference is structurally independent of the code
+under test — the manufactured source does not pass through any of the
+solver's discretisation primitives, so the L1 convergence rows are a
+genuine test, not a tautology.
+
+**What this section does NOT verify.** Per the three pillars
+(``vv-principles``), MMS is a *source-driven* problem: it verifies the
+convergence order (a math claim) and the flux shape (a model claim,
+because the source is structurally independent), but it **cannot**
+verify an eigenvalue. The 4.6 mixtures are non-fissile by construction
+and there is no eigenvalue claim anywhere in this section. The
+prescribed-inflow verification is a forward-only, fixed-source result.
+
+
 .. _sn-case-heterogeneous-verification:
 
 Heterogeneous eigenvalue — Case singular-eigenfunction method
