@@ -1821,14 +1821,33 @@ redistribution operator and both vanish for any isotropic ansatz.
 """
 
 
-def _spherical_anisotropic_symbolic() -> "tuple[sp.Expr, ...]":
-    """Build the symbolic objects for spherical anisotropic MMS.
+def _spherical_anisotropic_symbolic(
+    A: "sp.Expr | None" = None,
+    B: "sp.Expr | None" = None,
+) -> "tuple[sp.Expr, ...]":
+    r"""Build the symbolic objects for spherical anisotropic MMS.
 
     Returns ``(r, mu, R, Sigma_t, Sigma_s, W, A, B, psi, phi, Q)``:
     the symbolic ansatz and the closed-form Q^ext expression.
     Shared by the foundation test gate AND by the Branch-2 numerical
     factory (via lambdify) so both branches descend from the same
     SymPy ancestor.
+
+    Parameters
+    ----------
+    A, B : sympy.Expr or None, optional
+        The radial profiles of the ansatz
+        :math:`\psi_n(r) = (A(r) + B(r)\mu_n)/W`.  When ``None`` (the
+        default) the Phase 3.6 **vacuum** shapes are used —
+        :math:`A=\sin(\pi r/R)`, :math:`B=(r/R)(1-r/R)\cos(\pi r/R)` —
+        so the existing no-arg caller
+        :func:`derive_spherical_anisotropic_mms` and all Phase 3.6
+        tests are byte-unchanged.  Pass non-vanishing-at-:math:`R`
+        shapes (with :math:`B(0)=0` for pole regularity, HAZARD H1) to
+        build the Phase 4 / O.2b 4.6 **non-vacuum** case — both cases
+        share the EXACT SAME closed form ``Q_closed`` derived below;
+        only :math:`A,\,B` differ (Cardinal Rule 2 — single source of
+        truth for the spherical transport-operator residual).
     """
     import sympy as sp  # local import: keep the symbolic dependency lazy
 
@@ -1836,15 +1855,19 @@ def _spherical_anisotropic_symbolic() -> "tuple[sp.Expr, ...]":
     Sigma_t, Sigma_s, W = sp.symbols(
         "Sigma_t Sigma_s W", positive=True, real=True,
     )
-    A = sp.sin(sp.pi * r / R)
-    B = (r / R) * (1 - r / R) * sp.cos(sp.pi * r / R)
+    if A is None:
+        A = sp.sin(sp.pi * r / R)
+    if B is None:
+        B = (r / R) * (1 - r / R) * sp.cos(sp.pi * r / R)
     psi = (A + B * mu) / W
     # Scalar flux: int_{-1}^{1} (A + B mu) dmu / 2 = A. For any
     # symmetric quadrature, sum_n w_n mu_n = 0, so phi = A.
     phi = A
 
     # Closed-form Q^ext_n derived analytically; SymPy verifies in
-    # the foundation test (derive_spherical_anisotropic_mms).
+    # the foundation test (derive_spherical_anisotropic_mms /
+    # derive_nonvacuum_spherical_mms — the SAME closed form for both
+    # A,B choices).
     Q_closed = (
         mu * sp.diff(A, r)
         + mu**2 * sp.diff(B, r)
@@ -1942,6 +1965,237 @@ def derive_spherical_anisotropic_mms() -> dict:
 
     return {
         "name": "V_sph-aniso: spherical anisotropic MMS source identity",
+        "psi": psi,
+        "phi": phi_,
+        "Q_substituted": Q_subst,
+        "Q_closed": Q_closed,
+        "diff": diff,
+        "pass": diff == 0,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Phase 4 / O.2b 4.6 — NON-VACUUM prescribed-inflow MMS (slab + sphere)
+# ═══════════════════════════════════════════════════════════════════════
+r"""
+Non-vacuum prescribed-inflow MMS reference (Phase 4 / O.2b 4.6).
+
+**The single structural delta over Phase 3.5/3.6.** Every existing MMS
+ansatz VANISHES at both boundaries (:math:`A(0)=A(R)=0`), making them
+vacuum-automatic — :math:`\gamma_-\psi \equiv 0` on every ordinate, so
+the prescribed-inflow source slot ``q.boundary`` is identically zero.
+4.6 chooses :math:`A,\,B` **non-vanishing at the outer face** so
+:math:`\gamma_-\psi = \psi_{\rm chosen}(x_{\rm face}, \mu_n) \neq 0`.
+That is the entire novelty: the :math:`q.\text{boundary} \neq 0`
+prescribed-inflow path that the existing catalog never exercises.
+
+The form is the proven P1 element :math:`\psi_n = (A + \mu_n B)/W` —
+linear-in-:math:`\mu` FULLY activates the curvilinear redistribution
+:math:`(1-\mu^2)B/r` (the discrete closure is linear; see the
+cross-domain-attacker frame memo). 4.6 changes ONLY the boundary-trace:
+
+- **Slab** (no pole): :math:`A(x)=a_0+a_1\sin(k x)` with :math:`a_0>0`
+  (non-zero at faces) and :math:`B(x)=b_0\cos(k x)` (non-zero at faces).
+  The slab transport operator has NO angular-redistribution term, so it
+  is a genuinely DIFFERENT operator from the sphere — it gets its own
+  symbolic pair (:func:`_nonvacuum_slab_symbolic` /
+  :func:`derive_nonvacuum_slab_mms`).
+- **Sphere** (pole at :math:`r=0`): :math:`A(r)=a_0+a_1\sin(k r)` and
+  :math:`B(r)=(r/R)[b_0+b_1\cos(k r)]`. The :math:`(r/R)` prefactor
+  keeps :math:`B(0)=0` (HAZARD H1 — the redistribution
+  :math:`(1-\mu^2)B/r \to \infty` at the pole otherwise) while leaving
+  :math:`B(R)\neq 0` (non-vacuum outer inflow). It REUSES
+  :func:`_spherical_anisotropic_symbolic` with these :math:`A,\,B`
+  (Cardinal Rule 2 — the spherical-operator residual lives in ONE
+  place).
+
+The manufactured bulk source :math:`Q^{\rm ext}` is SymPy-derived
+(Branch 1, State 1C); the reference scalar flux is
+:math:`\phi_{\rm chosen}(x) = A(x)` (since :math:`\sum_n w_n \mu_n = 0`),
+which is NON-ZERO at the boundary — the load-bearing property that lets
+the converged-VALUE assertion catch a dropped ``q.boundary``.
+
+.. seealso::
+
+   - ``.claude/skills/vv-principles/SKILL.md`` failure mode #7 + Mode 9.
+   - :class:`SNSlabNonVacuumMMSCase`, :class:`SNSphericalNonVacuumMMSCase`
+     (Branch-2 numerical factories).
+   - ``docs/theory/discrete_ordinates.rst`` labels
+     ``sn-mms-nonvacuum-psi``/``-qext`` (slab),
+     ``sn-mms-nonvacuum-sph-psi``/``-qext`` (sphere).
+"""
+
+
+def _nonvacuum_slab_symbolic() -> "tuple[sp.Expr, ...]":
+    r"""Build the symbolic objects for the NON-VACUUM slab MMS.
+
+    Returns ``(x, mu, k, a0, a1, b0, Sigma_t, Sigma_s, W, A, B, psi,
+    phi, Q)``.  The slab transport operator has NO angular
+    redistribution, so this is a fresh symbolic pair (the sphere's
+    :func:`_spherical_anisotropic_symbolic` cannot be reused — it
+    carries the :math:`(1-\mu^2)/r\,\partial_\mu` term that the slab
+    lacks).
+
+    Ansatz: :math:`\psi_n(x) = (A(x) + \mu_n B(x))/W`, with
+    :math:`A(x) = a_0 + a_1\sin(kx)` (**a0>0** → non-zero at faces, the
+    4.6 novelty) and :math:`B(x) = b_0\cos(kx)` (non-zero at faces).
+    The scalar flux is :math:`\phi(x) = A(x)` (since
+    :math:`\sum_n w_n \mu_n = 0`).
+
+    Closed-form source (slab — no redistribution):
+
+    .. math::
+
+       Q^{\rm ext}_n(x) = \mu_n A'(x) + \mu_n^2 B'(x)
+                        + (\Sigma_t - \Sigma_s) A(x)
+                        + \Sigma_t\,\mu_n B(x).
+    """
+    import sympy as sp
+
+    x, mu, k = sp.symbols("x mu k", positive=True, real=True)
+    a0, a1, b0 = sp.symbols("a0 a1 b0", real=True)
+    Sigma_t, Sigma_s, W = sp.symbols(
+        "Sigma_t Sigma_s W", positive=True, real=True,
+    )
+    A = a0 + a1 * sp.sin(k * x)
+    B = b0 * sp.cos(k * x)
+    psi = (A + B * mu) / W
+    phi = A
+
+    Q_closed = (
+        mu * sp.diff(A, x)
+        + mu**2 * sp.diff(B, x)
+        + (Sigma_t - Sigma_s) * A
+        + Sigma_t * mu * B
+    )
+    return (x, mu, k, a0, a1, b0, Sigma_t, Sigma_s, W, A, B, psi, phi, Q_closed)
+
+
+def derive_nonvacuum_slab_mms() -> dict:
+    r"""V_nonvac-slab — non-vacuum slab MMS source identity.
+
+    Proves: substituting the ansatz
+    :math:`\psi_n(x) = (A(x) + \mu_n B(x))/W` (with
+    :math:`A = a_0 + a_1\sin(kx)`, :math:`B = b_0\cos(kx)`) into the
+    continuous slab SN operator
+
+    .. math::
+
+       \mu\,\frac{\partial\psi}{\partial x} + \Sigma_t\,\psi
+       = \frac{1}{W}\bigl(\Sigma_s\,\phi + Q^{\rm ext}\bigr)
+
+    yields the closed form
+
+    .. math::
+
+       Q^{\rm ext}_n(x) = \mu_n A'(x) + \mu_n^2 B'(x)
+                        + (\Sigma_t - \Sigma_s) A(x)
+                        + \Sigma_t\,\mu_n B(x),
+
+    with :math:`\phi(x) = A(x)`.  Unlike the existing
+    :class:`SNP1AnisoMMSCase` (which uses :math:`A=B=\sin(\pi x/L)`,
+    vanishing at the faces, and a P1 *scattering* concern), here
+    :math:`a_0>0` makes :math:`A` — and hence :math:`\gamma_-\psi` —
+    NON-zero at the boundary.  THAT is the 4.6 novelty (prescribed
+    inflow), NOT the angular form (which is the proven P1 element).
+    """
+    import sympy as sp
+
+    (x, mu, k, a0, a1, b0, Sigma_t, Sigma_s, W, A, B, psi, phi_, Q_closed) = (
+        _nonvacuum_slab_symbolic()
+    )
+
+    LHS = mu * sp.diff(psi, x) + Sigma_t * psi
+    Q_subst = sp.simplify(W * LHS - Sigma_s * phi_)
+    diff = sp.simplify(Q_subst - Q_closed)
+
+    return {
+        "name": "V_nonvac-slab: non-vacuum slab MMS source identity",
+        "psi": psi,
+        "phi": phi_,
+        "Q_substituted": Q_subst,
+        "Q_closed": Q_closed,
+        "diff": diff,
+        "pass": diff == 0,
+    }
+
+
+def _nonvacuum_spherical_AB() -> "tuple[sp.Expr, sp.Expr]":
+    r"""The Phase 4 / O.2b 4.6 spherical :math:`A(r),\,B(r)` shapes.
+
+    :math:`A(r) = a_0 + a_1\sin(k r)` (a0>0 → :math:`A(R)\neq 0`, finite
+    at the pole — A has no :math:`1/r` companion so :math:`A(0)=a_0` is
+    fine).  :math:`B(r) = (r/R)[b_0 + b_1\cos(k r)]` (HAZARD H1: the
+    :math:`(r/R)` prefactor forces :math:`B(0)=0` so the redistribution
+    :math:`(1-\mu^2)B/r` is regular at the pole, while
+    :math:`B(R)=b_0+b_1\cos(kR)` may be :math:`\neq 0` for the non-vacuum
+    outer inflow).
+
+    The numeric coefficients are baked into the SYMBOLIC shapes (not
+    free symbols) so the substitution residual SIMPLIFIES to zero
+    cleanly and the Branch-2 factory can lambdify against the same
+    closed form.  The defaults match
+    :func:`build_spherical_nonvacuum_mms_case`.
+    """
+    import sympy as sp
+
+    r, R, k = sp.symbols("r R k", positive=True, real=True)
+    a0, a1 = sp.Rational(1, 2), sp.Rational(1, 4)
+    b0, b1 = sp.Rational(3, 10), sp.Rational(1, 5)
+    A = a0 + a1 * sp.sin(k * r)
+    B = (r / R) * (b0 + b1 * sp.cos(k * r))
+    return A, B
+
+
+def derive_nonvacuum_spherical_mms() -> dict:
+    r"""V_nonvac-sph — non-vacuum spherical MMS source identity.
+
+    Proves: substituting the ansatz
+    :math:`\psi_n(r) = (A(r) + B(r)\mu_n)/W` (with
+    :math:`A = a_0 + a_1\sin(kr)`, :math:`a_0>0`, and
+    :math:`B = (r/R)[b_0 + b_1\cos(kr)]`, :math:`B(0)=0`) into the
+    continuous spherical SN operator
+
+    .. math::
+
+       \mu\,\frac{\partial\psi}{\partial r}
+       + \frac{1-\mu^2}{r}\,\frac{\partial\psi}{\partial \mu}
+       + \Sigma_t\,\psi = \frac{1}{W}\bigl(\Sigma_s\,\phi + Q^{\rm ext}\bigr)
+
+    yields the SAME closed form as the Phase 3.6 vacuum case
+    (:func:`derive_spherical_anisotropic_mms`) — only :math:`A,\,B`
+    differ:
+
+    .. math::
+
+       Q^{\rm ext}_n(r) = \mu_n A'(r) + \mu_n^2 B'(r)
+                        + (1-\mu_n^2)\,\frac{B(r)}{r}
+                        + (\Sigma_t-\Sigma_s) A(r)
+                        + \Sigma_t\,\mu_n B(r).
+
+    REUSES :func:`_spherical_anisotropic_symbolic` with the 4.6 shapes
+    (Cardinal Rule 2): the spherical-operator residual is derived in ONE
+    place; this function only swaps the boundary-trace-non-vanishing
+    :math:`A,\,B`.  HAZARD H1: :math:`B(0)=0` keeps the redistribution
+    regular at the pole.
+    """
+    import sympy as sp
+
+    A_nv, B_nv = _nonvacuum_spherical_AB()
+    r, mu, R, Sigma_t, Sigma_s, W, A, B, psi, phi_, Q_closed = (
+        _spherical_anisotropic_symbolic(A=A_nv, B=B_nv)
+    )
+
+    LHS = (
+        mu * sp.diff(psi, r)
+        + (1 - mu**2) / r * sp.diff(psi, mu)
+        + Sigma_t * psi
+    )
+    Q_subst = sp.simplify(W * LHS - Sigma_s * phi_)
+    diff = sp.simplify(Q_subst - Q_closed)
+
+    return {
+        "name": "V_nonvac-sph: non-vacuum spherical MMS source identity",
         "psi": psi,
         "phi": phi_,
         "Q_substituted": Q_subst,
@@ -2179,6 +2433,519 @@ def build_spherical_anisotropic_mms_case(
         sigma_t=sigma_t,
         sigma_s=sigma_s,
         radius=radius,
+        materials=materials,
+        mat_id=mat_id,
+        quadrature=quadrature,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Phase 4 / O.2b 4.6 — NON-VACUUM prescribed-inflow MMS factories
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True)
+class SNSlabNonVacuumMMSCase:
+    r"""NON-VACUUM prescribed-inflow MMS for 1D slab SN (Phase 4 / O.2b 4.6).
+
+    Per-group ansatz :math:`\psi_{n,g}(x) = (A_g(x) + \mu_n B_g(x))/W`
+    with the shared shape scaled by a per-group amplitude :math:`c_g`:
+
+    .. math::
+
+       A_g(x) = c_g\,(a_0 + a_1\sin(kx)),\qquad B_g(x) = c_g\,b_0\cos(kx),
+       \qquad a_0 > 0.
+
+    The :math:`a_0>0` makes :math:`A_g` — and hence
+    :math:`\gamma_-\psi = \psi_{n,g}(x_{\rm face}, \mu_n)/W` —
+    NON-zero at the faces, the 4.6 novelty.  Unlike the vacuum-automatic
+    :class:`SNSlabMMSCase` / :class:`SNP1AnisoMMSCase` (both vanish at
+    the faces), the prescribed-inflow source slot ``q.boundary`` is
+    exercised.
+
+    The scalar flux is :math:`\phi_g(x) = A_g(x)` (since
+    :math:`\sum_n w_n \mu_n = 0`), NON-zero at the boundary — the
+    load-bearing property that lets the converged-VALUE assertion catch
+    a dropped ``q.boundary`` (a vacuum solve converges cleanly to a
+    boundary-zero limit).
+
+    Multi-group: ``c_groups`` is the per-group amplitude vector
+    (``(1.0,)`` for 1g; e.g. ``(1.0, 0.4)`` for the 2g row).
+    ``sigma_t_g`` is the per-group total XS; ``sigma_s_matrix`` is the
+    :math:`\Sigma_s[g_{\rm from}, g_{\rm to}]` scattering matrix
+    (ORPHEUS convention: rows = source group, cols = sink group; the
+    in-scatter source is :math:`(\Sigma_s^\top \phi)_g`).  An ASYMMETRIC
+    downscatter-only matrix keeps the ERR-002 transpose hazard live.
+
+    The mesh BCs are VACUUM — the prescribed inflow is injected via
+    :meth:`prescribed_inflow` (the ``q.boundary`` slot), NOT a mesh BC.
+    The Branch-2 numerical :meth:`external_source` is bit-equal to the
+    lambdified Branch-1 SymPy (:func:`derive_nonvacuum_slab_mms`) on the
+    1g shape.
+    """
+
+    name: str
+    slab_length: float
+    a0: float
+    a1: float
+    b0: float
+    k: float
+    c_groups: np.ndarray
+    sigma_t_g: np.ndarray
+    sigma_s_matrix: np.ndarray
+    materials: dict[int, "Mixture"]
+    mat_id: int
+    quadrature: Quadrature
+    tolerance: str = "O(h^2)"
+    equation_labels: tuple[str, ...] = (
+        "transport-cartesian",
+        "dd-cartesian-1d",
+        "dd-slab",
+        "sn-mms-nonvacuum-psi",
+        "sn-mms-nonvacuum-qext",
+    )
+
+    @property
+    def n_groups(self) -> int:
+        return int(len(self.c_groups))
+
+    # ── Reference solution shapes (Branch 2 numpy) ───────────────────
+
+    def _shape(self, x: np.ndarray) -> np.ndarray:
+        r"""Group-independent shape :math:`a_0 + a_1\sin(kx)`."""
+        return self.a0 + self.a1 * np.sin(self.k * np.asarray(x))
+
+    def _shape_p(self, x: np.ndarray) -> np.ndarray:
+        r""":math:`a_1 k\cos(kx)`."""
+        return self.a1 * self.k * np.cos(self.k * np.asarray(x))
+
+    def _bshape(self, x: np.ndarray) -> np.ndarray:
+        r""":math:`b_0\cos(kx)`."""
+        return self.b0 * np.cos(self.k * np.asarray(x))
+
+    def _bshape_p(self, x: np.ndarray) -> np.ndarray:
+        r""":math:`-b_0 k\sin(kx)`."""
+        return -self.b0 * self.k * np.sin(self.k * np.asarray(x))
+
+    def A(self, x: np.ndarray, g: int = 0) -> np.ndarray:
+        r""":math:`A_g(x) = c_g(a_0 + a_1\sin(kx))`."""
+        return self.c_groups[g] * self._shape(x)
+
+    def Ap(self, x: np.ndarray, g: int = 0) -> np.ndarray:
+        r""":math:`A_g'(x) = c_g a_1 k\cos(kx)`."""
+        return self.c_groups[g] * self._shape_p(x)
+
+    def B(self, x: np.ndarray, g: int = 0) -> np.ndarray:
+        r""":math:`B_g(x) = c_g b_0\cos(kx)`."""
+        return self.c_groups[g] * self._bshape(x)
+
+    def Bp(self, x: np.ndarray, g: int = 0) -> np.ndarray:
+        r""":math:`B_g'(x) = -c_g b_0 k\sin(kx)`."""
+        return self.c_groups[g] * self._bshape_p(x)
+
+    def phi_exact(self, x: np.ndarray, g: int = 0) -> np.ndarray:
+        r"""Reference scalar flux :math:`\phi_g(x) = A_g(x)`."""
+        return self.A(x, g)
+
+    def psi_exact(self, x: np.ndarray, mu_n: float, g: int = 0) -> np.ndarray:
+        r"""Reference angular flux :math:`\psi_{n,g}(x) = A_g(x) + \mu_n
+        B_g(x)` (WITHOUT the :math:`1/W` factor)."""
+        return self.A(x, g) + self.B(x, g) * mu_n
+
+    # ── Mesh + source construction ───────────────────────────────────
+
+    def build_mesh(self, n_cells: int) -> Mesh1D:
+        """VACUUM-BC slab mesh; prescribed inflow is the ``q.boundary`` slot."""
+        edges = np.linspace(0.0, self.slab_length, n_cells + 1)
+        mat_ids = np.full(n_cells, self.mat_id, dtype=int)
+        return Mesh1D(
+            edges=edges, mat_ids=mat_ids,
+            coord=CoordSystem.CARTESIAN,
+            bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+        )
+
+    def external_source(self, mesh: Mesh1D) -> np.ndarray:
+        r"""Per-ordinate-density bulk source on ``mesh``. Shape
+        ``(N, ng, nx, 1)``.
+
+        .. math::
+
+           Q^{\rm ext}_{n,g}(x) = \mu_n A_g'(x) + \mu_n^2 B_g'(x)
+                            + \Sigma_{t,g}\,A_g(x)
+                            + \Sigma_{t,g}\,\mu_n B_g(x)
+                            - \sum_{g'}\Sigma_s[g', g]\,A_{g'}(x).
+
+        The in-scatter source uses :math:`\Sigma_s[g', g]` (ORPHEUS
+        ``SigS[g_from, g_to]`` convention — the transpose-active term
+        the ERR-002 hazard lives in).  For 1g this reduces to
+        :math:`(\Sigma_t - \Sigma_s) A`, bit-equal to the SymPy closed
+        form (:func:`derive_nonvacuum_slab_mms`).  Divided by
+        :math:`\sum_n w_n` at the producer boundary (Pattern 7).
+        """
+        x = mesh.centers                              # (nx,)
+        mu = self.quadrature.mu_x                     # (N,)
+        sum_w = float(self.quadrature.weights.sum())
+        N = len(mu)
+        nx = len(x)
+        ng = self.n_groups
+
+        Q = np.zeros((N, ng, nx, 1))
+        for g in range(ng):
+            A_g = self.A(x, g)
+            Ap_g = self.Ap(x, g)
+            B_g = self.B(x, g)
+            Bp_g = self.Bp(x, g)
+            sig_t_g = float(self.sigma_t_g[g])
+
+            streaming_iso = mu[:, None] * Ap_g[None, :]            # μ A_g'
+            streaming_aniso = (mu[:, None] ** 2) * Bp_g[None, :]   # μ² B_g'
+            removal_iso = sig_t_g * A_g[None, :]                   # Σt_g A_g
+            removal_aniso = sig_t_g * mu[:, None] * B_g[None, :]   # Σt_g μ B_g
+            # in-scatter: Σ_{g'} Σs[g', g] A_{g'}  (SigSᵀ — transpose-active)
+            in_scatter = np.zeros(nx)
+            for g_from in range(ng):
+                in_scatter += self.sigma_s_matrix[g_from, g] * self.A(x, g_from)
+
+            Q[:, g, :, 0] = (
+                streaming_iso + streaming_aniso
+                + (removal_iso + removal_aniso)
+                - in_scatter[None, :]
+            )
+        Q /= sum_w
+        return Q
+
+    def prescribed_inflow(self, sn_mesh):
+        r"""The ``q.boundary`` prescribed-inflow term — a
+        :class:`~orpheus.transport.source_sinks.BoundarySourceSink`.
+
+        For each inflow ordinate :math:`\mu_n` of each boundary face,
+        and each group :math:`g`, writes
+        :math:`\gamma_-\psi = \psi_{n,g}(x_{\rm face}, \mu_n)/W =
+        (A_g(x_{\rm face}) + \mu_n B_g(x_{\rm face}))/W` into the inflow
+        slot (the affine-BC inhomogeneous term :math:`q`).  Both slab
+        faces carry inflow because :math:`a_0>0`.
+        """
+        from orpheus.transport.source_sinks import BoundarySourceSink
+
+        W = float(self.quadrature.weights.sum())
+        mu = self.quadrature.mu_x
+        ng = self.n_groups
+        bss = BoundarySourceSink.zeros_on(sn_mesh)
+        x_of_face = {"xmin": 0.0, "xmax": self.slab_length}
+        for face, x_face in x_of_face.items():
+            inflow = sn_mesh.trace.inflow_indices_for_face(face)
+            view = bss.face_view(face)                # (N, ng) on a 1-D trace
+            for g in range(ng):
+                psi_face = (
+                    self.A(x_face, g) + mu[inflow] * self.B(x_face, g)
+                ) / W                                  # (len(inflow),)
+                view[inflow, g] = psi_face
+        return bss
+
+
+def build_slab_nonvacuum_mms_case(
+    sigma_t: float = 1.0,
+    sigma_s: float = 0.5,
+    slab_length: float = 5.0,
+    a0: float = 0.5,
+    a1: float = 0.25,
+    b0: float = 0.3,
+    n_wavelengths: float = 1.5,
+    n_ordinates: int = 16,
+    mat_id: int = 1,
+    name: str = "sn_mms_slab_nonvacuum",
+) -> SNSlabNonVacuumMMSCase:
+    r"""Build the canonical 1-group non-vacuum slab MMS case (T1).
+
+    :math:`k = 2\pi\,n_{\rm wavelengths}/L` so the slab spans several
+    wavelengths (mixed-scale stress; ``vv-principles`` MMS operational
+    rules).  Defaults give :math:`a_0=0.5>0` (non-vacuum), weak
+    :math:`a_1, b_0` so the source is not stiff.
+    """
+    materials = {mat_id: _make_1g_mixture(sigma_t, sigma_s)}
+    quadrature = Quadrature.gauss_legendre(n_ordinates=n_ordinates)
+    k = 2.0 * np.pi * n_wavelengths / slab_length
+    return SNSlabNonVacuumMMSCase(
+        name=name,
+        slab_length=slab_length,
+        a0=a0, a1=a1, b0=b0, k=k,
+        c_groups=np.array([1.0]),
+        sigma_t_g=np.array([sigma_t]),
+        sigma_s_matrix=np.array([[sigma_s]]),
+        materials=materials,
+        mat_id=mat_id,
+        quadrature=quadrature,
+    )
+
+
+def _make_2g_asymmetric_mixture(
+    sigma_t_g: np.ndarray, sigma_s_matrix: np.ndarray,
+) -> "Mixture":
+    r"""Build a homogeneous 2g non-fissile mixture with a DOWNSCATTER-only
+    asymmetric :math:`\Sigma_s` (Cardinal Rule 6 — 2g is mandatory; the
+    asymmetry keeps the ERR-002 ``SigSᵀ`` transpose hazard live).
+
+    ``sigma_s_matrix[g_from, g_to]`` (ORPHEUS convention).  Absorption
+    :math:`\Sigma_{a,g} = \Sigma_{t,g} - \sum_{g'}\Sigma_s[g, g']`
+    (row-sum out-scatter) must be positive.
+    """
+    ng = sigma_t_g.shape[0]
+    out_scatter = sigma_s_matrix.sum(axis=1)          # row sum per from-group
+    sig_a = sigma_t_g - out_scatter
+    if np.any(sig_a <= 0):
+        raise ValueError(
+            f"Need Σ_a > 0 per group: Σ_t={sigma_t_g}, "
+            f"out-scatter={out_scatter}, Σ_a={sig_a}."
+        )
+    return Mixture(
+        SigC=sig_a,
+        SigL=np.zeros(ng),
+        SigF=np.zeros(ng),
+        SigP=np.zeros(ng),
+        SigT=sigma_t_g,
+        SigS=[csr_matrix(sigma_s_matrix)],   # P0 only
+        Sig2=csr_matrix(np.zeros((ng, ng))),
+        chi=np.zeros(ng),
+    )
+
+
+def build_slab_2g_nonvacuum_mms_case(
+    slab_length: float = 5.0,
+    a0: float = 0.5,
+    a1: float = 0.25,
+    b0: float = 0.3,
+    c_groups: tuple[float, float] = (1.0, 0.4),
+    n_wavelengths: float = 1.5,
+    n_ordinates: int = 16,
+    mat_id: int = 1,
+    name: str = "sn_mms_slab_2g_nonvacuum",
+) -> SNSlabNonVacuumMMSCase:
+    r"""Build the 2-group asymmetric-Σs non-vacuum slab MMS case (T2).
+
+    DOWNSCATTER-only asymmetric :math:`\Sigma_s` (g0→g1 ≠ g1→g0=0) so
+    the cross-group transfer is non-trivial and the ERR-002 transpose
+    hazard is live (Cardinal Rule 6 — the MANDATORY ≥2g row).
+    Per-group amplitudes :math:`\mathbf c = (1.0, 0.4)` make the
+    group-coupling discriminating: the manufactured source for group 1
+    carries a :math:`\Sigma_s[0,1] A_0` in-scatter term feeding from
+    group 0's amplitude.
+    """
+    sigma_t_g = np.array([1.0, 1.5])
+    # SigS[g_from, g_to]: g0→g0 self, g0→g1 downscatter, g1→g1 self;
+    # g1→g0 upscatter = 0 (asymmetric, downscatter-only).
+    sigma_s_matrix = np.array([
+        [0.3, 0.2],   # g0 → {g0, g1}
+        [0.0, 0.6],   # g1 → {g0, g1}
+    ])
+    materials = {mat_id: _make_2g_asymmetric_mixture(sigma_t_g, sigma_s_matrix)}
+    quadrature = Quadrature.gauss_legendre(n_ordinates=n_ordinates)
+    k = 2.0 * np.pi * n_wavelengths / slab_length
+    return SNSlabNonVacuumMMSCase(
+        name=name,
+        slab_length=slab_length,
+        a0=a0, a1=a1, b0=b0, k=k,
+        c_groups=np.asarray(c_groups, dtype=float),
+        sigma_t_g=sigma_t_g,
+        sigma_s_matrix=sigma_s_matrix,
+        materials=materials,
+        mat_id=mat_id,
+        quadrature=quadrature,
+    )
+
+
+@dataclass(frozen=True)
+class SNSphericalNonVacuumMMSCase:
+    r"""NON-VACUUM prescribed-inflow MMS for 1D spherical SN (Phase 4 / O.2b 4.6).
+
+    Ansatz :math:`\psi_n(r) = (A(r) + \mu_n B(r))/W` with
+
+    .. math::
+
+       A(r) = a_0 + a_1\sin(kr),\qquad B(r) = \frac{r}{R}\bigl[b_0 + b_1\cos(kr)\bigr].
+
+    HAZARD H1: the :math:`(r/R)` prefactor forces :math:`B(0)=0` so the
+    angular redistribution :math:`(1-\mu^2)B/r` is REGULAR at the pole,
+    while :math:`B(R)\neq 0` gives the non-vacuum angular structure at
+    the outer inflow face.  :math:`a_0>0` makes :math:`A(R)\neq 0`
+    (non-vacuum) and :math:`A(0)=a_0` finite (A has no :math:`1/r`
+    companion).
+
+    Unlike the vacuum :class:`SNSphericalAnisotropicMMSCase`
+    (:math:`B=(r/R)(1-r/R)\cos` → B(R)=0), THIS case is non-vacuum at
+    r=R — lighting the prescribed-inflow ``q.boundary`` path on the
+    curvilinear geometry (the Mode-7 mandatory companion to the slab).
+
+    The scalar flux is :math:`\phi(r) = A(r)` (since
+    :math:`\sum_n w_n \mu_n = 0`).  The closed-form source REUSES the
+    spherical-operator residual of :class:`SNSphericalAnisotropicMMSCase`
+    (Cardinal Rule 2) — only :math:`A,\,B` differ; SymPy re-proves it via
+    :func:`derive_nonvacuum_spherical_mms`.
+
+    Pole r=0 is the symmetry BC (not a face); the only boundary face is
+    r=R (``xmax``).
+    """
+
+    name: str
+    sigma_t: float
+    sigma_s: float
+    radius: float
+    a0: float
+    a1: float
+    b0: float
+    b1: float
+    k: float
+    materials: dict[int, "Mixture"]
+    mat_id: int
+    quadrature: Quadrature
+    tolerance: str = "O(h^2)"
+    equation_labels: tuple[str, ...] = (
+        "transport-spherical",
+        "sn-mms-nonvacuum-sph-psi",
+        "sn-mms-nonvacuum-sph-qext",
+    )
+
+    # ── Reference solution shapes (Branch 2 numpy) ───────────────────
+
+    def A(self, r: np.ndarray) -> np.ndarray:
+        r""":math:`A(r) = a_0 + a_1\sin(kr)`."""
+        return self.a0 + self.a1 * np.sin(self.k * np.asarray(r))
+
+    def Ap(self, r: np.ndarray) -> np.ndarray:
+        r""":math:`A'(r) = a_1 k\cos(kr)`."""
+        return self.a1 * self.k * np.cos(self.k * np.asarray(r))
+
+    def B(self, r: np.ndarray) -> np.ndarray:
+        r""":math:`B(r) = (r/R)[b_0 + b_1\cos(kr)]`. B(0)=0 (pole-regular)."""
+        rr = np.asarray(r)
+        return (rr / self.radius) * (self.b0 + self.b1 * np.cos(self.k * rr))
+
+    def Bp(self, r: np.ndarray) -> np.ndarray:
+        r""":math:`B'(r)` by the product rule:
+
+        .. math::
+
+           B'(r) = \frac{1}{R}[b_0 + b_1\cos(kr)]
+                 - \frac{r}{R}\,b_1 k\sin(kr).
+        """
+        rr = np.asarray(r)
+        R = self.radius
+        return (
+            (self.b0 + self.b1 * np.cos(self.k * rr)) / R
+            - (rr / R) * self.b1 * self.k * np.sin(self.k * rr)
+        )
+
+    def phi_exact(self, r: np.ndarray) -> np.ndarray:
+        r"""Reference scalar flux :math:`\phi(r) = A(r)`."""
+        return self.A(r)
+
+    def psi_exact(self, r: np.ndarray, mu_n: float) -> np.ndarray:
+        r"""Reference angular flux :math:`\psi_n(r) = A(r) + \mu_n B(r)`
+        (WITHOUT the :math:`1/W` factor)."""
+        return self.A(r) + self.B(r) * mu_n
+
+    # ── Mesh + source construction ───────────────────────────────────
+
+    def build_mesh(self, n_cells: int) -> Mesh1D:
+        r"""Spherical mesh; r=0 symmetry (reflective), r=R VACUUM — the
+        prescribed inflow at r=R is the ``q.boundary`` slot (NOT a mesh
+        BC)."""
+        edges = np.linspace(0.0, self.radius, n_cells + 1)
+        mat_ids = np.full(n_cells, self.mat_id, dtype=int)
+        return Mesh1D(
+            edges=edges, mat_ids=mat_ids,
+            coord=CoordSystem.SPHERICAL,
+            bc_left=BC("reflective"),   # r=0 symmetry
+            bc_right=BC("vacuum"),      # r=R: prescribed inflow via q.boundary
+        )
+
+    def external_source(self, mesh: Mesh1D) -> np.ndarray:
+        r"""Per-ordinate-density bulk source on ``mesh``. Shape
+        ``(N, ng=1, nx, 1)``.
+
+        .. math::
+
+           Q^{\rm ext}_n(r) = \mu_n A'(r) + \mu_n^2 B'(r)
+                            + (1-\mu_n^2)\,\frac{B(r)}{r}
+                            + (\Sigma_t-\Sigma_s) A(r)
+                            + \Sigma_t\,\mu_n B(r).
+
+        Bit-equal to the SymPy closed form
+        (:func:`derive_nonvacuum_spherical_mms`), divided by
+        :math:`\sum_n w_n` at the producer boundary (Pattern 7).
+        """
+        r = mesh.centers                              # (nx,)
+        A_ = self.A(r)
+        Ap_ = self.Ap(r)
+        B_ = self.B(r)
+        Bp_ = self.Bp(r)
+        mu = self.quadrature.mu_x                     # (N,)
+        sum_w = float(self.quadrature.weights.sum())
+
+        streaming_iso = mu[:, None] * Ap_[None, :]               # μ A'
+        streaming_aniso = (mu[:, None] ** 2) * Bp_[None, :]      # μ² B'
+        redistribution = (1.0 - mu[:, None] ** 2) * (B_ / r)[None, :]  # (1-μ²)B/r
+        removal_iso = (self.sigma_t - self.sigma_s) * A_[None, :]  # (Σt-Σs) A
+        removal_aniso = self.sigma_t * mu[:, None] * B_[None, :]   # Σt μ B
+
+        Q = (streaming_iso + streaming_aniso + redistribution
+             + removal_iso + removal_aniso) / sum_w    # (N, nx)
+        return Q[:, None, :, None]                     # (N, 1, nx, 1)
+
+    def prescribed_inflow(self, sn_mesh):
+        r"""The ``q.boundary`` prescribed-inflow at r=R — a
+        :class:`~orpheus.transport.source_sinks.BoundarySourceSink`.
+
+        For each inflow ordinate :math:`\mu_n` (μ<0) of the r=R face,
+        writes :math:`\gamma_-\psi = (A(R) + \mu_n B(R))/W` into the
+        inflow slot.  r=0 is the symmetry BC, not a face — no inflow
+        slot there.
+        """
+        from orpheus.transport.source_sinks import BoundarySourceSink
+
+        W = float(self.quadrature.weights.sum())
+        mu = self.quadrature.mu_x
+        R = self.radius
+        bss = BoundarySourceSink.zeros_on(sn_mesh)
+        face = "xmax"
+        inflow = sn_mesh.trace.inflow_indices_for_face(face)
+        A_R = float(self.A(np.array([R]))[0])
+        B_R = float(self.B(np.array([R]))[0])
+        psi_face = (A_R + mu[inflow] * B_R) / W       # (len(inflow),)
+        view = bss.face_view(face)                    # (N, ng=1)
+        view[inflow, 0] = psi_face
+        return bss
+
+
+def build_sphere_nonvacuum_mms_case(
+    sigma_t: float = 1.0,
+    sigma_s: float = 0.5,
+    radius: float = 5.0,
+    a0: float = 0.5,
+    a1: float = 0.25,
+    b0: float = 0.3,
+    b1: float = 0.2,
+    n_ordinates: int = 16,
+    mat_id: int = 1,
+    name: str = "sn_mms_sphere_nonvacuum",
+) -> SNSphericalNonVacuumMMSCase:
+    r"""Build the canonical non-vacuum spherical MMS case (T3 / T3g).
+
+    :math:`k = \pi/(2R)` so :math:`A(R) = a_0 + a_1 = 0.75`,
+    :math:`B(R) = b_0 = 0.3` (matching the symbolic
+    :func:`_nonvacuum_spherical_AB` coefficients — the same a0,a1,b0,b1
+    and ``kR = π/2`` baked into the SymPy shapes, so the L1
+    cross-check holds).  HAZARD H1: :math:`B(0)=0` from the :math:`(r/R)`
+    prefactor (pole-regular).
+    """
+    materials = {mat_id: _make_1g_mixture(sigma_t, sigma_s)}
+    quadrature = Quadrature.gauss_legendre(n_ordinates=n_ordinates)
+    k = np.pi / (2.0 * radius)
+    return SNSphericalNonVacuumMMSCase(
+        name=name,
+        sigma_t=sigma_t,
+        sigma_s=sigma_s,
+        radius=radius,
+        a0=a0, a1=a1, b0=b0, b1=b1, k=k,
         materials=materials,
         mat_id=mat_id,
         quadrature=quadrature,
