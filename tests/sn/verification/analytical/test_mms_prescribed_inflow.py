@@ -7,13 +7,18 @@ existing MMS catalog is vacuum-automatic (every ansatz vanishes at the
 faces, so :math:`\gamma_-\psi \equiv 0`); 4.6 fills the
 :math:`q.\text{boundary} \neq 0` gap.
 
-The single most important structural difference from the existing
-``tests/sn/verification/mms/`` rows: 4.6 drives the operator PRIMITIVES
-directly (the BYPASS path) — ``solve_sn_fixed_source`` HARDCODES
-``q.boundary = zeros_on`` (vacuum), so it cannot carry the non-vacuum
-prescribed inflow.  The inflow is injected as the ``q.boundary`` source
-slot (``case.prescribed_inflow(sn)``) consumed by ``(L+C).solve`` as the
-sweep inflow seed.
+These rows drive the PUBLIC composite-source API:
+``solve_sn_fixed_source`` accepts the composite ``q = q_bulk ⊕ q_∂`` (a
+:class:`~orpheus.transport.timed_full_field.TimedFullField`), so the
+non-vacuum prescribed inflow is supplied as
+``case.fixed_source(sn).boundary`` — a
+:class:`~orpheus.transport.source_sinks.BoundarySourceSink` built by the
+ergonomic ``BoundarySourceSink.prescribed_inflow`` generator. The
+affine-BC inhomogeneous term ``q`` is consumed by ``(L+C).solve`` as the
+sweep inflow seed.  (These rows originally drove the ``(L+C),S,B``
+operator-triple bypass because ``solve_sn_fixed_source`` hardcoded vacuum
+``q.boundary``; once the public API gained composite-source support they
+were migrated onto it — retirement = test migration.)
 
 **The load-bearing assertion is the converged VALUE, not the rate.**
 A dropped ``q.boundary`` (a silent vacuum solve) converges cleanly at
@@ -47,20 +52,11 @@ from orpheus.derivations.continuous.mms.sn import (
     build_slab_nonvacuum_mms_case,
     build_sphere_nonvacuum_mms_case,
 )
-from orpheus.numerics.iteration import SourceIteration
+from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.solver import (
-    SNSolver,
-    _select_si_resolvent,
-    _within_group_triple,
-)
-from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
-from orpheus.transport.source_sinks import AngularSourceSink
-from orpheus.transport.timed_full_field import TimedFullField
 
 
-# ── shared bypass-solve helpers (decision E) ─────────────────────────
+# ── shared solve helper (the PUBLIC composite-source API) ────────────
 
 
 def _l2_error(phi_num: np.ndarray, phi_ref: np.ndarray, measure: np.ndarray) -> float:
@@ -74,11 +70,18 @@ def _l2_error(phi_num: np.ndarray, phi_ref: np.ndarray, measure: np.ndarray) -> 
     return float(np.sqrt(np.sum(measure * diff * diff)))
 
 
-def _solve_bypass(case, n_cells: int, *, g: int = 0):
-    r"""Drive the (L+C),S,B primitives with the non-vacuum prescribed
-    inflow as ``q.boundary`` (SI-Jacobi). Returns
-    ``(mesh, sn, psi, phi_g)`` where ``phi_g = Σ_n w_n ψ_{n,g}`` on the
-    radial slice (ny=0).
+def _solve(case, n_cells: int, *, g: int = 0):
+    r"""Solve the non-vacuum fixed-source problem via the PUBLIC composite
+    API: :func:`~orpheus.sn.solve_sn_fixed_source` consuming
+    ``case.fixed_source(sn)`` — the bulk ⊕ prescribed-inflow
+    :class:`~orpheus.transport.timed_full_field.TimedFullField`.
+
+    This is the migration off the operator-triple bypass (the public API
+    now carries non-vacuum sources via the composite RHS; retirement =
+    test migration). The slab uses SI (1-D Jacobi); the sphere uses the
+    curvilinear Krylov default — both converge to the same fixed point.
+    Returns ``(mesh, sn, psi, phi_g)`` where ``phi_g`` is the scalar flux
+    on the radial slice (ny=0).
     """
     mesh = case.build_mesh(n_cells)
     materials = (
@@ -87,23 +90,12 @@ def _solve_bypass(case, n_cells: int, *, g: int = 0):
         else case.materials
     )
     sn = SNMesh(mesh, case.quadrature, materials)
-    solver = SNSolver(sn, max_inner=1000, inner_tol=1e-13)
-    LC, S, B = _within_group_triple(solver)
-
-    Q = case.external_source(mesh)
-    q_ext = TimedFullField(
-        bulk=AngularSourceSink.from_mesh(Q, sn),
-        boundary=case.prescribed_inflow(sn),
-        _history=(),
-        history_depth=2,
+    result = solve_sn_fixed_source(
+        materials, mesh, case.quadrature, case.fixed_source(sn),
+        max_inner=1000, inner_tol=1e-13,
     )
-    guess = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
-    res, gains = _select_si_resolvent(LC, S, B, sn, "jacobi")
-    psi, _ = SourceIteration(res, *gains, max_iter=1000, tol=1e-13).solve(
-        q_ext, initial_guess=guess,
-    )
-    w = np.asarray(sn.quad.weights)
-    phi = (w[:, None] * psi.bulk.values[:, g, :, 0]).sum(0)   # (nx,)
+    psi = result.angular_flux
+    phi = result.scalar_flux.values[g, :, 0]   # (ng, nx, ny) → (nx,)
     return mesh, sn, psi, phi
 
 
@@ -164,7 +156,7 @@ def test_mms_prescribed_inflow_slab_converges_second_order(case_kind: str):
         errors = []
         finest = None
         for nc in n_cells:
-            mesh, sn, psi, phi = _solve_bypass(case, nc, g=g)
+            mesh, sn, psi, phi = _solve(case, nc, g=g)
             ref = case.phi_exact(mesh.centers, g)
             errors.append(_l2_error(phi, ref, mesh.widths))
             finest = (mesh, sn, psi, phi, ref)
@@ -257,7 +249,7 @@ def test_mms_prescribed_inflow_sphere_activates_redistribution():
     errors = []
     finest = None
     for nc in n_cells:
-        mesh, sn, psi, phi = _solve_bypass(case, nc, g=0)
+        mesh, sn, psi, phi = _solve(case, nc, g=0)
         ref = case.phi_exact(mesh.centers)
         # volume-weighted L2 (curvilinear — H-vol note).
         errors.append(_l2_error(phi, ref, mesh.volumes))
@@ -306,7 +298,7 @@ def test_sphere_nonvacuum_inflow_honoured_and_redistribution_live():
        ansatz — B(r)≠0 on the open interval, with B(0)=0 pole-regular).
     """
     case = build_sphere_nonvacuum_mms_case()
-    mesh, sn, psi, phi = _solve_bypass(case, 40, g=0)
+    mesh, sn, psi, phi = _solve(case, 40, g=0)
     W = float(case.quadrature.weights.sum())
     mu = case.quadrature.mu_x
 

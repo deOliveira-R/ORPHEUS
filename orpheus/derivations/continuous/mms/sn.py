@@ -2618,29 +2618,48 @@ class SNSlabNonVacuumMMSCase:
         r"""The ``q.boundary`` prescribed-inflow term — a
         :class:`~orpheus.transport.source_sinks.BoundarySourceSink`.
 
-        For each inflow ordinate :math:`\mu_n` of each boundary face,
-        and each group :math:`g`, writes
-        :math:`\gamma_-\psi = \psi_{n,g}(x_{\rm face}, \mu_n)/W =
-        (A_g(x_{\rm face}) + \mu_n B_g(x_{\rm face}))/W` into the inflow
-        slot (the affine-BC inhomogeneous term :math:`q`).  Both slab
-        faces carry inflow because :math:`a_0>0`.
+        For each boundary face and group :math:`g`, the inflow ordinate
+        slots carry :math:`\gamma_-\psi = \psi_{n,g}(x_{\rm face}, \mu_n)/W
+        = (A_g(x_{\rm face}) + \mu_n B_g(x_{\rm face}))/W` (the affine-BC
+        inhomogeneous term :math:`q`); both slab faces carry inflow because
+        :math:`a_0>0`. Materialised via the ergonomic
+        :meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
+        generator (full ``(N, ng)`` per face; the generator keeps only the
+        inflow ordinates).
         """
         from orpheus.transport.source_sinks import BoundarySourceSink
 
         W = float(self.quadrature.weights.sum())
         mu = self.quadrature.mu_x
         ng = self.n_groups
-        bss = BoundarySourceSink.zeros_on(sn_mesh)
-        x_of_face = {"xmin": 0.0, "xmax": self.slab_length}
-        for face, x_face in x_of_face.items():
-            inflow = sn_mesh.trace.inflow_indices_for_face(face)
-            view = bss.face_view(face)                # (N, ng) on a 1-D trace
+        N = len(mu)
+        face_values: dict[str, np.ndarray] = {}
+        for face, x_face in {"xmin": 0.0, "xmax": self.slab_length}.items():
+            vals = np.empty((N, ng))
             for g in range(ng):
-                psi_face = (
-                    self.A(x_face, g) + mu[inflow] * self.B(x_face, g)
-                ) / W                                  # (len(inflow),)
-                view[inflow, g] = psi_face
-        return bss
+                vals[:, g] = (self.A(x_face, g) + mu * self.B(x_face, g)) / W
+            face_values[face] = vals
+        return BoundarySourceSink.prescribed_inflow(sn_mesh, face_values)
+
+    def fixed_source(self, sn_mesh) -> "TimedFullField":
+        r"""The composite fixed-source RHS ``q = q_bulk ⊕ q_∂`` for this case.
+
+        Bundles the manufactured bulk source (:meth:`external_source`) and
+        the prescribed-inflow boundary (:meth:`prescribed_inflow`) into the
+        single :class:`~orpheus.transport.timed_full_field.TimedFullField`
+        that :func:`~orpheus.sn.solver.solve_sn_fixed_source` consumes — the
+        ergonomic one-call non-vacuum source (no manual operator-triple
+        bypass). ``sn_mesh.mesh`` supplies the underlying mesh for the bulk.
+        """
+        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        return TimedFullField(
+            bulk=AngularSourceSink.from_mesh(
+                self.external_source(sn_mesh.mesh), sn_mesh,
+            ),
+            boundary=self.prescribed_inflow(sn_mesh),
+        )
 
 
 def build_slab_nonvacuum_mms_case(
@@ -2895,25 +2914,40 @@ class SNSphericalNonVacuumMMSCase:
         r"""The ``q.boundary`` prescribed-inflow at r=R — a
         :class:`~orpheus.transport.source_sinks.BoundarySourceSink`.
 
-        For each inflow ordinate :math:`\mu_n` (μ<0) of the r=R face,
-        writes :math:`\gamma_-\psi = (A(R) + \mu_n B(R))/W` into the
-        inflow slot.  r=0 is the symmetry BC, not a face — no inflow
-        slot there.
+        The r=R face's inflow ordinate slots (μ<0) carry
+        :math:`\gamma_-\psi = (A(R) + \mu_n B(R))/W`; r=0 is the symmetry
+        BC, not a face. Materialised via the ergonomic
+        :meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
+        generator (full ``(N, 1)``; the generator keeps only the inflow
+        ordinates).
         """
         from orpheus.transport.source_sinks import BoundarySourceSink
 
         W = float(self.quadrature.weights.sum())
         mu = self.quadrature.mu_x
         R = self.radius
-        bss = BoundarySourceSink.zeros_on(sn_mesh)
-        face = "xmax"
-        inflow = sn_mesh.trace.inflow_indices_for_face(face)
         A_R = float(self.A(np.array([R]))[0])
         B_R = float(self.B(np.array([R]))[0])
-        psi_face = (A_R + mu[inflow] * B_R) / W       # (len(inflow),)
-        view = bss.face_view(face)                    # (N, ng=1)
-        view[inflow, 0] = psi_face
-        return bss
+        vals = ((A_R + mu * B_R) / W)[:, None]        # (N, ng=1)
+        return BoundarySourceSink.prescribed_inflow(sn_mesh, {"xmax": vals})
+
+    def fixed_source(self, sn_mesh) -> "TimedFullField":
+        r"""The composite fixed-source RHS ``q = q_bulk ⊕ q_∂`` for this case.
+
+        Bundles the manufactured bulk source (:meth:`external_source`) and
+        the prescribed-inflow boundary (:meth:`prescribed_inflow`) into the
+        single :class:`~orpheus.transport.timed_full_field.TimedFullField`
+        that :func:`~orpheus.sn.solver.solve_sn_fixed_source` consumes.
+        """
+        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        return TimedFullField(
+            bulk=AngularSourceSink.from_mesh(
+                self.external_source(sn_mesh.mesh), sn_mesh,
+            ),
+            boundary=self.prescribed_inflow(sn_mesh),
+        )
 
 
 def build_sphere_nonvacuum_mms_case(
