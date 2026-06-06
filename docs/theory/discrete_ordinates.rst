@@ -7272,10 +7272,15 @@ leading truncation term cleanly.
 :func:`orpheus.derivations.continuous.mms.sn.build_1d_slab_mms_case` and
 consumed by :func:`orpheus.sn.solve_sn_fixed_source`.  The latter
 accepts a per-ordinate external source of shape
-:math:`(N, n_x, n_y, n_g)` and threads it through the sweep's
+:math:`(N, n_g, n_x, n_y)` (Issue #196 PR-INDEX-5 principled layout,
+the ``g`` axis directly after ``N``) and threads it through the sweep's
 :math:`Q_{\rm aniso}` slot --- merging additively with any P1+
-scattering contribution the solver itself builds.  Vacuum boundary
-conditions are applied via the mesh-level BC infrastructure
+scattering contribution the solver itself builds.  This bare-array form
+is the **bulk-only / vacuum** special case of the composite source
+``q = q_bulk ⊕ q_∂`` the solver also accepts (see
+:ref:`sn-composite-fixed-source`); this isotropic slab MMS is
+vacuum-automatic, so the boundary leaf is identically zero.  Vacuum
+boundary conditions are applied via the mesh-level BC infrastructure
 described in :ref:`boundary-conditions`:
 :func:`solve_sn_fixed_source` defaults its ``boundary_condition``
 parameter to ``"vacuum"`` and the internal helper
@@ -8187,6 +8192,294 @@ Branch-2 numpy production, structurally-independent L1 cross-check):
   (planned).
 
 
+.. _sn-composite-fixed-source:
+
+The composite fixed-source API — :math:`q = q_{\text{bulk}} \oplus q_\partial`
+------------------------------------------------------------------------------
+
+.. admonition:: Key Facts
+   :class: important
+
+   - **A fixed source is a source EVERYWHERE.** The right-hand side of
+     a fixed-source transport problem is not just a volumetric bulk
+     source — it is a source on the whole phase space: a bulk
+     :math:`q_{\text{bulk}}` *and* a boundary (prescribed-inflow)
+     :math:`q_\partial`. ORPHEUS represents this as the composite
+     ``q = q_bulk ⊕ q_∂``, the direct sum of the two role-typed leaves.
+   - **The carrier is the object we already have.**
+     :func:`~orpheus.sn.solver.solve_sn_fixed_source` accepts the
+     composite as a
+     :class:`~orpheus.transport.timed_full_field.TimedFullField` — the
+     **same** typed direct-sum carrier the SI / Krylov inner already
+     flows through internally. This is *not* a new type; it is
+     ergonomics to **generate** the right object (Cardinal Rule 2 — we
+     already have the right concepts).
+   - **A source, role-distinguished from a flux by its leaf types.**
+     The composite's bulk leaf is an
+     :class:`~orpheus.transport.source_sinks.AngularSourceSink` and its
+     boundary leaf a
+     :class:`~orpheus.transport.source_sinks.BoundarySourceSink` — the
+     *source* column of the role grid (see :ref:`bc-extraction-operator-output-typing`).
+     The iterate / solution it produces is a *flux* (``AngularFlux`` ⊕
+     ``BoundaryFlux``). Same carrier shape, different role; the class
+     gate keeps source and flux arithmetic from silently mixing.
+   - **The legacy array is the bulk-only / vacuum special case.** Passing
+     the historical ``(N, ng, nx, ny)`` ndarray is *exactly* the
+     composite with an all-zero (vacuum) boundary. All 37 pre-existing
+     callers keep working bit-unchanged.
+   - **One construction point.** The private helper
+     :func:`~orpheus.sn.solver._build_fixed_source_rhs` is the single
+     place the RHS composite is built (Cardinal Rule 2 — it collapsed a
+     ``q_ext_composite`` build that previously lived in *both* the SI
+     and Krylov inner paths).
+   - **The ergonomic boundary generator.**
+     :meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
+     writes ONLY the inflow ordinate slots of the named faces (outflow
+     slots of a prescribed inflow are physically meaningless →
+     unrepresentable by construction, ``coding-elegance`` Pattern 4),
+     leaving everything else zero. It is the known-per-face-array route;
+     the lazy ``InflowSourceSpec``-recipe route (``from_spec``) is a
+     distinct, still-deferred bridge.
+
+The fixed-source right-hand side is a source on the whole phase space
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A fixed-source SN problem solves the affine within-group system
+:eq:`si-within-group-operator-eq`
+
+.. math::
+
+   (L + C - S - B)\,\psi = q,
+
+and the right-hand side :math:`q` is **not** a bulk volumetric source
+alone. It has two pieces, one per phase-space locus:
+
+* the **bulk** source :math:`q_{\text{bulk}}(\vec r, \hat\Omega, g)` —
+  the per-ordinate volumetric external source :math:`Q^{\text{ext}}_n`
+  on every cell;
+* the **boundary** source :math:`q_\partial` — the prescribed inflow,
+  the inhomogeneous term :math:`q` of the affine boundary law
+  :eq:`affine-bc-form` :math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q`,
+  living on the inflow ordinate slots of the boundary trace.
+
+A vacuum boundary is simply :math:`q_\partial \equiv 0`; a non-vacuum
+prescribed inflow is a non-zero :math:`q_\partial`. The natural object
+is therefore the **direct sum** of the two:
+
+.. math::
+
+   q \;=\; q_{\text{bulk}} \,\oplus\, q_\partial,
+
+an object that "represents the source everywhere". ORPHEUS already has
+exactly this carrier: the
+:class:`~orpheus.transport.timed_full_field.TimedFullField`, the typed
+bulk⊕boundary(⊕history) direct sum that the within-group SI and Krylov
+inner paths *already* pass around (the matvec
+:math:`(L+C)\psi - (S+B)\psi - F\psi` and the SI rhs
+:math:`F\psi + (S+B)\psi + q_{\text{ext}}` are CLOSED ``TimedFullField``
+sums). The field-role-typing work did **not** introduce a new source
+type — it surfaced the carrier we already had and added the ergonomics
+to *generate* it (Cardinal Rule 2: we have the right object, we just
+need a better way to build it).
+
+Source vs flux — same carrier, different role
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The composite source and the angular-flux solution share the
+``TimedFullField`` carrier *shape* but differ in their leaf **types**,
+which encode the role:
+
+.. list-table:: The composite carrier's two roles
+   :header-rows: 1
+   :widths: 22 39 39
+
+   * - Locus
+     - Source role (the RHS ``q``)
+     - Flux role (the iterate / solution ``ψ``)
+   * - bulk
+     - :class:`~orpheus.transport.source_sinks.AngularSourceSink`
+     - :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
+   * - boundary
+     - :class:`~orpheus.transport.source_sinks.BoundarySourceSink`
+     - :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+
+The role-leaf types are the gate. A *source* and a *flux* are never the
+same field even when they ride the same carrier — the
+:class:`~orpheus.transport.timed_full_field.TimedFullField` class gate
+(via :class:`~orpheus.numerics.field.Field`) rejects
+``AngularSourceSink ± AngularFlux`` and the boundary analogue, so the
+"RHS is a source, the iterate is a flux" distinction is illegal to mix
+by construction. The completed boundary role grid mirrors the bulk
+exactly (:ref:`bc-extraction-operator-output-typing`): an operator's
+``.apply`` output is a *source/sink* (:math:`A\psi`), its ``.solve``
+output is a *flux* (the swept solution trace), and a ``from_balance``
+defect is a *residual*. ``q_\partial`` is a ``BoundarySourceSink``
+because a prescribed inflow IS a source added to :math:`\gamma_-\psi`,
+not the swept solution.
+
+The two accepted forms of ``external_source``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:func:`~orpheus.sn.solver.solve_sn_fixed_source` accepts the
+``external_source`` argument in either of two forms, normalised by the
+single helper :func:`~orpheus.sn.solver._build_fixed_source_rhs`:
+
+#. **A bare ``np.ndarray`` of shape** :math:`(N, n_g, n_x, n_y)` — the
+   per-ordinate-density **bulk** source only, with a **vacuum**
+   boundary. This is the original form, and it is *exactly* the
+   composite with an all-zero boundary leaf
+   (``BoundarySourceSink.zeros_on(sn_mesh)``). Every one of the 37
+   pre-existing callers passes this form and keeps working bit-for-bit
+   unchanged (the vacuum path is verified bit-identical).
+#. **A full** :class:`~orpheus.transport.timed_full_field.TimedFullField`
+   **composite** ``q = q_bulk ⊕ q_∂`` — the route for a **non-vacuum
+   prescribed inflow**. Its leaf values are re-homed onto the solve's
+   own ``sn_mesh``: the trace / grid layout is deterministic from
+   ``(mesh, quadrature, materials)``, so this is an exact values-copy
+   onto the solve's mesh instance, required because the within-group
+   operators are built on ``sn_mesh`` and ``TimedFullField`` algebra
+   enforces mesh identity.
+
+.. code-block:: python
+
+   from orpheus.sn import solve_sn_fixed_source
+   from orpheus.sn.geometry import SNMesh
+   from orpheus.transport.source_sinks import (
+       AngularSourceSink, BoundarySourceSink,
+   )
+   from orpheus.transport.timed_full_field import TimedFullField
+
+   sn = SNMesh(mesh, quadrature, materials)
+
+   # Bulk volumetric source, per-ordinate density (N, ng, nx, ny).
+   q_bulk = AngularSourceSink.from_mesh(Q_ext, sn)
+   # Prescribed inflow: only the named faces' inflow ordinate slots.
+   q_bndry = BoundarySourceSink.prescribed_inflow(
+       sn, {"xmin": gamma_minus_xmin, "xmax": gamma_minus_xmax},
+   )
+   q = TimedFullField(bulk=q_bulk, boundary=q_bndry)
+
+   result = solve_sn_fixed_source(materials, mesh, quadrature, q)
+
+The legacy ``solve_sn_fixed_source(materials, mesh, quadrature, Q_ext)``
+with a bare ``Q_ext`` array is identical to the above with a vacuum
+``q_bndry`` (``BoundarySourceSink.zeros_on(sn)``).
+
+The single construction point — Cardinal Rule 2
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before the field-role-typing work, the SI inner and the Krylov inner
+each built their own ``q_ext_composite`` from the bulk array (the same
+``AngularSourceSink.from_isotropic`` / ``from_mesh`` projection paired
+with a zero boundary). That was a shared concept living in two places —
+precisely the smell Cardinal Rule 2 flags.
+:func:`~orpheus.sn.solver._build_fixed_source_rhs` collapses both into
+one construction point: ``solve_sn_fixed_source`` calls it once, and
+**both** inner paths consume what it returns. The helper:
+
+* validates the bulk shape against :math:`(N, n_g, n_x, n_y)` (Issue
+  #196 PR-INDEX-5 principled layout — the ``g`` axis directly after
+  ``N``);
+* for a bare array, pairs the bulk
+  :class:`~orpheus.transport.source_sinks.AngularSourceSink` with a
+  vacuum ``BoundarySourceSink``;
+* for a composite, re-homes the leaf values onto the solve's
+  ``sn_mesh`` (with a layout-size guard on the boundary trace), and
+  raises a descriptive ``ValueError`` if the composite was built on an
+  incompatible mesh / quadrature / materials.
+
+The validation, the projection, and the vacuum-default boundary now
+live in exactly one function. The SI and Krylov paths differ only in
+the inner solve they run, not in how the RHS is assembled.
+
+The ergonomic boundary generator — ``prescribed_inflow``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Generating the boundary leaf :math:`q_\partial` is the part the
+ergonomics target. The classmethod
+:meth:`BoundarySourceSink.prescribed_inflow(mesh, {face: (N, ng) values}) <orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow>`
+builds the prescribed inflow from known per-face arrays:
+
+* for each face named in the mapping, it writes ONLY the **inflow**
+  ordinate slots from the given :math:`(N, n_g)` array;
+* **every other slot is left zero** — the outflow ordinate slots of a
+  named face, and every slot of an unnamed (vacuum) face.
+
+**Why outflow is unrepresentable (Pattern 4).** The outflow ordinate
+slots of a *prescribed-inflow source* are physically meaningless: the
+sweep determines the outflow trace, the source does not. Writing them
+would be an illegal state. Rather than accept-then-ignore them,
+:meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
+makes the illegal state **unrepresentable by construction** — it reads
+the inflow ordinate index set
+(:meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.inflow_indices_for_face`)
+and copies *only* those rows, so an accidentally-populated outflow row
+in the caller's array simply cannot reach the field. This is
+``coding-elegance`` Pattern 4 (illegal states unrepresentable). It
+supersedes the ``zeros_on`` + nested
+``face_view(face)[inflow] = …`` slot-fill loop that every
+prescribed-inflow consumer (the non-vacuum MMS, the splitting-invariance
+probe) previously hand-rolled — the single source of truth for
+materialising a prescribed inflow onto the trace (Cardinal Rule 2).
+
+**The recipe → snapshot distinction (vs ``from_spec``).** There are two
+distinct routes to a boundary source, related as *recipe → snapshot*,
+not as duplicates:
+
+.. list-table:: Two routes to ``q_∂`` — known arrays vs lazy recipe
+   :header-rows: 1
+   :widths: 28 36 36
+
+   * -
+     - :meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
+     - ``BoundarySourceSink.from_spec`` (deferred)
+   * - Input
+     - known per-face ``(N, ng)`` arrays
+     - a lazy
+       :class:`~orpheus.geometry.boundary._source.InflowSourceSpec`
+       recipe (``evaluate(shape) -> ndarray``)
+   * - When
+     - the inflow values are already computed (the MMS case)
+     - the inflow is described by a per-face recipe evaluated on demand
+   * - Status
+     - **shipped** — the route the 4.6 MMS and the T4 probe use
+     - **deferred** (``unify-after-two`` — no recipe-driven consumer
+       that drives a typed boundary-source sweep yet)
+
+The 4.6 MMS uses
+:meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
+because it has explicit per-face arrays
+(:math:`\gamma_-\psi = (A + \mu_n B)/W`); it does not need the lazy
+recipe bridge, which waits for its first genuine consumer per the
+``unify-after-two`` discipline.
+
+Why this is ergonomics, not new types
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The entire change is the **generation** of objects that already
+existed in the codebase, not the introduction of new ones:
+
+* The carrier :class:`~orpheus.transport.timed_full_field.TimedFullField`
+  pre-dates this work — it is what the inner solve already flows.
+* The leaf types
+  :class:`~orpheus.transport.source_sinks.AngularSourceSink` and
+  :class:`~orpheus.transport.source_sinks.BoundarySourceSink` pre-date
+  this work — they are the *source* column of the role grid.
+* The affine boundary law :eq:`affine-bc-form` and the ``q.boundary``
+  slot pre-date this work.
+
+What was missing was the *ergonomic generator* for a non-vacuum
+boundary leaf and a *public entry point* that accepts the composite.
+:meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
+and the second accepted form of
+:func:`~orpheus.sn.solver.solve_sn_fixed_source` supply exactly those —
+no more. This is the operational meaning of "we already have the right
+objects/concepts — we just need better ergonomics to generate them":
+the abstraction is unchanged; only the surface that builds it is
+better. The first consumer is the non-vacuum prescribed-inflow MMS of
+:ref:`sn-mms-nonvacuum`.
+
+
 .. _sn-mms-nonvacuum:
 
 Non-vacuum prescribed-inflow MMS (Phase 4 / O.2b 4.6)
@@ -8235,7 +8528,19 @@ Non-vacuum prescribed-inflow MMS (Phase 4 / O.2b 4.6)
      (:class:`~orpheus.transport.source_sinks.BoundarySourceSink`) and
      consumed directly by :math:`(L+C)\text{.solve}` as the sweep
      inflow seed. **No** :class:`~orpheus.geometry.boundary.PrescribedInflow`
-     mesh-BC bridge is touched.
+     mesh-BC bridge is touched, and **no** ``from_spec`` recipe bridge
+     is needed — the inflow is supplied as the boundary leaf of the
+     **composite source** ``q = q_bulk ⊕ q_∂`` that
+     :func:`~orpheus.sn.solver.solve_sn_fixed_source` now accepts
+     directly (see :ref:`sn-composite-fixed-source`).
+   - **The convergence rows drive the public composite-source API.**
+     The 4.6 MMS no longer assembles the within-group operator triple
+     by hand: :func:`~orpheus.sn.solver.solve_sn_fixed_source` accepts
+     a :class:`~orpheus.transport.timed_full_field.TimedFullField`
+     composite source, so each case bundles its manufactured bulk and
+     prescribed-inflow boundary into one ``case.fixed_source(sn)``
+     call. The migration off the operator-triple bypass *is* the
+     retirement (retirement = test migration).
    - **The load-bearing assertion is the converged VALUE, not the
      rate.** Per the ``vv-principles`` skill anti-pattern #5 (rate is
      necessary, not sufficient), a silently-dropped ``q.boundary``
@@ -8247,8 +8552,13 @@ Non-vacuum prescribed-inflow MMS (Phase 4 / O.2b 4.6)
      sphere L2 *stagnates* (~2.4e-2), **not** because the non-vacuum
      machinery fails (the boundary value *is* honoured) but because the
      curvilinear-DD interior convergence is the open ERR-026 / #195
-     pre-asymptotic signature. The green companion T3g provides live
-     structural coverage of the inflow + redistribution paths now.
+     pre-asymptotic signature. The sphere row now rides on the
+     curvilinear **Krylov** default of
+     :func:`~orpheus.sn.solver.solve_sn_fixed_source` (consistent with
+     the existing curvilinear MMS suite), and the slab on SI; the
+     composite-source API delivers the prescribed inflow identically to
+     both (T4). The green companion T3g provides live structural
+     coverage of the inflow + redistribution paths now.
 
 This section narrates the Branch-1 SymPy algebra-of-record
 (:mod:`orpheus.derivations.continuous.mms.sn`), the Branch-2 numpy
@@ -8669,37 +8979,55 @@ the surface O.2b's field-role-typing work targets. The mesh BCs for the
 4.6 cases are plain **vacuum** — the inflow lives entirely in
 ``q.boundary``.
 
-The bypass solve path and the B.5.2 flux/source type bridge
+The public composite-source API drives the convergence rows
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The public fixed-source entry point
-:func:`~orpheus.sn.solver.solve_sn_fixed_source` **hardcodes** a vacuum
-``q.boundary`` (``zeros_on``) — it has no parameter to carry a
-prescribed inflow. So the 4.6 MMS cannot drive the solver through that
-entry point without silently dropping the non-vacuum inflow. Instead
-the convergence rows take the **bypass path** (decision E of the 4.6
-plan): they assemble the within-group operator triple directly via
-:func:`~orpheus.sn.solver._within_group_triple` (giving the
-streaming-plus-collision resolvent :math:`L+C`, the scattering gain
-:math:`S`, and the boundary gain :math:`B`) and drive it with
-:func:`~orpheus.numerics.iteration.SourceIteration` (or the Krylov
-inner) using a :math:`q_{\text{ext}}` whose ``boundary`` slot is the
-manufactured ``case.prescribed_inflow(sn)``.
+The 4.6 convergence rows drive the **public** fixed-source entry point
+:func:`~orpheus.sn.solver.solve_sn_fixed_source` directly. Earlier in
+this work that entry point hardcoded a vacuum ``q.boundary``
+(``zeros_on``) — it had no way to carry a prescribed inflow — and the
+rows therefore took an operator-triple *bypass*: assembling
+:math:`(L+C)`, :math:`S`, :math:`B` by hand via
+:func:`~orpheus.sn.solver._within_group_triple` and driving them with
+:func:`~orpheus.numerics.iteration.SourceIteration`. That bypass is
+**retired**. The field-role-typing work gave
+:func:`~orpheus.sn.solver.solve_sn_fixed_source` a second accepted
+source form — the full **composite source** ``q = q_bulk ⊕ q_∂``
+represented by a
+:class:`~orpheus.transport.timed_full_field.TimedFullField` (see
+:ref:`sn-composite-fixed-source` for the API in full). Each case now
+bundles its manufactured bulk (:meth:`external_source`) and its
+prescribed-inflow boundary (:meth:`prescribed_inflow`) into one
+``case.fixed_source(sn)`` and passes it straight to the public solver::
 
-**The flux/source space bridge (B.5.2).** The manufactured external
-source :math:`q_{\text{ext}}` lives in **source** space (an
+    result = solve_sn_fixed_source(
+        materials, mesh, case.quadrature, case.fixed_source(sn),
+        max_inner=1000, inner_tol=1e-13,
+    )
+
+Migrating the rows off the bypass onto the public API *is* the
+retirement (retirement = test migration — the new code is what gets
+tested). The slab rows take the SI (1-D Jacobi) inner; the sphere row
+takes the curvilinear Krylov default; both honour the prescribed inflow
+identically (verified by T4 below).
+
+**The flux/source space bridge — now INTERNAL to the solve (B.5.2).**
+The composite RHS lives in **source** space (an
 :class:`~orpheus.transport.source_sinks.AngularSourceSink` bulk plus a
 :class:`~orpheus.transport.source_sinks.BoundarySourceSink` boundary),
 while the iterate :math:`\psi` and the returned solution live in
 **flux** space (an :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
 bulk plus a :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
-boundary). The source-iteration / Krylov primitives therefore require a
+boundary). The source-iteration / Krylov inner therefore needs a
 flux-typed ``initial_guess`` to template the solution space — without
 it, ``S.apply`` would hit an ``AngularSourceSink`` that has no
-``integrate_angular`` method. The bypass rows pass
-``TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux,
-mesh=sn)`` as the seed, which is the field-role-typing distinction
-made explicit: the iterate is a *flux*, the RHS is a *source*.
+``integrate_angular`` method. That seed
+(``TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux,
+mesh=sn)``) is now built **inside**
+:func:`~orpheus.sn.solver.solve_sn_fixed_source`, not hand-passed by
+the test. The field-role-typing distinction — the iterate is a *flux*,
+the RHS is a *source* — survives intact; it has simply moved behind the
+public API where it belongs.
 
 The converged-value assertion — rate is necessary, not sufficient
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -8920,7 +9248,11 @@ Following the ``algebra-of-record`` discipline:
   :func:`~orpheus.derivations.continuous.mms.sn.build_sphere_nonvacuum_mms_case`)
   evaluate the closed-form source per ordinate using vectorised numpy.
   Each carries a ``prescribed_inflow(sn)`` method returning the
-  ``q.boundary`` :class:`~orpheus.transport.source_sinks.BoundarySourceSink`.
+  ``q.boundary`` :class:`~orpheus.transport.source_sinks.BoundarySourceSink`,
+  and a ``fixed_source(sn)`` bundler returning the composite
+  ``q = q_bulk ⊕ q_∂``
+  :class:`~orpheus.transport.timed_full_field.TimedFullField` the public
+  solver consumes (see :ref:`sn-composite-fixed-source`).
 - **L1 cross-check (the gate).** The Branch-2 numpy
   :math:`Q^{\text{ext}}_n` is bit-equal (≤1e-13 max absolute) to the
   Branch-1 SymPy closed form evaluated via :func:`sympy.lambdify` on a
