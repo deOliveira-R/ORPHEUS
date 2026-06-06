@@ -908,6 +908,96 @@ class MorelMontryAngularSweep(
         upstream_numer_term = dAw[None, :] * c_in[None, :] * psi_ang  # (ng, n_mask)
         return denom_term, upstream_numer_term
 
+    def angular_adjoint(
+        self,
+        numer_bar: "tuple[np.ndarray, ...]",
+        *,
+        sigma_t: np.ndarray,                        # (ng, nx)
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""Adjoint of the matvec angular coupling (Wave O O.2b, #208).
+
+        The Hilbert transpose ``Lᵀ`` of :meth:`StreamingOperator.apply`
+        needs the reverse of the matvec's angular path, which the forward
+        builds via :meth:`precompute_psi_state` + the per-cell
+        :meth:`cell_contribution` ``angular_numer_upstream`` injection:
+
+        .. math::
+
+            \phi_0 = \textstyle\sum_n w_n\,\psi \;\to\;
+            \bar Q = \Sigma_t\,\phi_0/\!\sum w \;\to\;
+            \text{Carlson inward seed} \;\to\;
+            \text{M-M recurrence } \psi_{m-1/2} \;\to\;
+            \text{angular\_numer} = (\Delta A/w)\,c_{\rm in}\,\psi_{m-1/2}.
+
+        Given the cotangent of every ``angular_numer_upstream`` contribution
+        (collected by the spatial reverse sweep, one ``(ng, M_p, nx)`` array
+        per μ-level), return the bulk and outer-trace cotangents.  This is the
+        exact reverse-mode adjoint of the three triangular factors above — the
+        ``c_in``/``c_out`` roles do NOT change (the diagonal ``c_out`` lives in
+        ``denom``, handled by the spatial diagonal); the recurrence and the
+        Carlson sweep run in reverse.  Verified bit-for-bit against a
+        dense-probe transpose oracle (slab/sphere/cyl, ``derivations/
+        diagnostics/diag_p42_adjoint_oracle.py``).
+
+        Parameters
+        ----------
+        numer_bar :
+            One array per μ-level (matching :attr:`level_indices`), each shape
+            ``(ng, M_p, nx)`` — the cotangent of that level's
+            ``angular_numer_upstream``.
+        sigma_t :
+            ``(ng, nx)`` total cross section (the Carlson ``Q̄`` coefficient).
+
+        Returns
+        -------
+        psi_view_bar : np.ndarray
+            ``(ng, N, nx)`` g-first bulk cotangent.
+        bc_outer_bar : np.ndarray
+            ``(N, ng)`` outer-trace cotangent (the Carlson seed reads the outer
+            inflow at each level's most-inward ordinate).
+        """
+        self._require_mesh_bound()
+        ng, nx = int(sigma_t.shape[0]), int(sigma_t.shape[1])
+        N = int(self._mu_x.shape[0])
+        psi_bar = np.zeros((ng, N, nx))
+        bc_bar = np.zeros((N, ng))
+        dr = self._dr
+        denomC = dr[None, :] * sigma_t + 2.0            # (ng, nx) Carlson denominator
+        for p, level_idx in enumerate(self.level_indices):
+            level_idx = np.asarray(level_idx)
+            M = level_idx.size
+            mu_level = self._mu_x[level_idx]
+            # ── reverse the dAw·c_in level-scatter: upstream_bar = (ΔA/w)·c_in·numer_bar
+            dAw_p = self._dAw_per_level[p]               # (nx, M)
+            c_in_p = np.asarray(self._c_in_per_level[p])  # (M,)
+            coeff = (dAw_p * c_in_p[None, :]).T           # (M, nx)
+            upstream_bar = coeff[None, :, :] * numer_bar[p]   # (ng, M, nx)
+            # ── reverse the M-M recurrence ψ_half[m+1] = (ψ[m] − (1−τ)ψ_half[m])/τ
+            tau_p = np.asarray(self._tau_per_level[p])
+            psi_half_bar = np.zeros((ng, M + 1, nx))
+            psi_half_bar[:, :M, :] += upstream_bar        # upstream[:,m,:] = ψ_half[:,m,:]
+            for m in range(M - 1, -1, -1):
+                tau_m = tau_p[m]
+                phb = psi_half_bar[:, m + 1, :]
+                psi_bar[:, level_idx[m], :] += phb / tau_m
+                psi_half_bar[:, m, :] += -((1.0 - tau_m) / tau_m) * phb
+            seed_bar = psi_half_bar[:, 0, :]              # (ng, nx) Carlson seed cotangent
+            # ── reverse the Carlson inward DD sweep (ascending k = reverse descent)
+            w_lev = self._weights[level_idx]
+            global_inward = int(level_idx[int(np.argmin(mu_level))])
+            Qbar_bar = np.zeros((ng, nx))
+            gk_bar = np.zeros((ng,))
+            for k in range(nx):
+                phi_cell_bar = seed_bar[:, k] + 2.0 * gk_bar
+                Qbar_bar[:, k] += (dr[k] / denomC[:, k]) * phi_cell_bar
+                gk_bar = -gk_bar + (2.0 / denomC[:, k]) * phi_cell_bar
+            bc_bar[global_inward, :] += gk_bar            # bar(bc_outer_value)
+            # ── reverse Q̄ = σ_t·φ_0/Σw and φ_0 = Σ_m w_lev[m]·ψ[level_idx[m]]
+            phi0_bar = (sigma_t / w_lev.sum()) * Qbar_bar  # (ng, nx)
+            for m in range(M):
+                psi_bar[:, level_idx[m], :] += w_lev[m] * phi0_bar
+        return psi_bar, bc_bar
+
     def __call__(
         self,
         psi_cells: np.ndarray,
@@ -1173,6 +1263,17 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
         del psi_state, cell_idx, level_idx
         n = within_positions.size
         return np.zeros(n), np.zeros((self._ng, n))
+
+    def angular_adjoint(
+        self,
+        numer_bar: "tuple[np.ndarray, ...]",
+        *,
+        sigma_t: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Zero angular adjoint — Cartesian has no curvature coupling (O.2b)."""
+        del numer_bar
+        nx = int(sigma_t.shape[1])
+        return np.zeros((self._ng, self._N, nx)), np.zeros((self._N, self._ng))
 
     # ── Legacy bundle surface (Protocol-shape compatibility) ─────────
 

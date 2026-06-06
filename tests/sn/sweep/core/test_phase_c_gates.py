@@ -51,7 +51,6 @@ from orpheus.geometry.boundary import (
     ReflectiveBoundary,
     VacuumInflow,
 )
-from orpheus.numerics.operator import MissingCapability
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import (
     CollisionOperator,
@@ -335,32 +334,30 @@ def test_apply_curvilinear_per_ordinate_flat_flux_residual(
         pytest.param("cylinder", id="cyl_LS4_reflective"),
     ],
 )
-@pytest.mark.xfail(
-    strict=True,
-    raises=(MissingCapability, AttributeError),
-    reason=(
-        "D-K.5 migration (2026-05-29): :class:`StreamingOperator` "
-        "advertises only ``{CAP_APPLY}`` (no analytic adjoint); the "
-        "composite ``(L + C)`` therefore lacks ``apply_transpose`` per "
-        ":class:`OperatorSum`'s closure law (transpose propagates iff "
-        "BOTH operands carry it).  :class:`OperatorSum.apply_transpose` "
-        "calls ``self.a.apply_transpose`` unconditionally — since "
-        ":class:`StreamingOperator` does not define the method, the "
-        "call raises :class:`AttributeError` rather than the cleaner "
-        ":class:`MissingCapability` (Issue #208 / Phase H will tighten "
-        "the capability dispatch alongside the analytic-adjoint "
-        "landing).  Wave O Issue #208 lands the proper analytic-"
-        "adjoint algebra (Phase H in the grand report); until then "
-        "the gate is structurally unsatisfiable."
-    ),
-)
 def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
-    r"""$\langle L \psi, \phi \rangle = \langle \psi, L^* \phi \rangle$ to round-off.
+    r"""$\langle (L{+}C)\psi, \phi \rangle = \langle \psi, (L{+}C)^{\mathsf T}\phi \rangle$
+    over the FULL bulk⊕trace composite (Euclidean), to round-off.
 
-    Free if Gate 1.4 (linearity) passes — the apply_transpose is
-    constructed by dense-probing apply, and every linear operator
-    has a transpose. A reciprocity failure here would indicate
-    either nonlinearity in apply or a bug in the dense-probe code.
+    Wave O / O.2b (#208): :class:`StreamingOperator` now carries the analytic
+    reverse-direction adjoint matvec :meth:`~orpheus.sn.operator.StreamingOperator.apply_transpose`,
+    so the composite ``(L + C)`` advertises ``CAP_APPLY_TRANSPOSE`` and this
+    reciprocity is the standing pin that ``apply_transpose`` IS the true
+    Euclidean transpose of ``apply`` — over BOTH blocks (the bulk residual AND
+    the boundary trace), with a NON-ZERO boundary so the FULL-operator trace
+    coupling (``L_bs`` inflow→bulk, ``L_sb`` bulk→outflow) is exercised, not
+    merely the cell block.  The reverse sweep is verified bit-for-bit against a
+    dense-probe transpose oracle in
+    ``derivations/diagnostics/diag_p42_adjoint_oracle.py``.
+
+    This gate is metric-AGNOSTIC by design: the ``|Ω·n|·w`` partial-current
+    metric is non-discriminating for ``(L+C)`` with a SPECULAR reflective BC
+    (which is self-adjoint even under the Euclidean trace inner product); the
+    metric's load-bearing role is pinned by the white-BC self-adjointness gate
+    (O.2b sub-step 4.4), where dropping ``|Ω·n|`` breaks self-adjointness.
+
+    (Was ``xfail(strict)`` pre-O.2b — ``StreamingOperator`` advertised only
+    ``{CAP_APPLY}`` so ``(L+C).apply_transpose`` raised; the analytic adjoint
+    lands the capability and flips this green.)
     """
     rng = np.random.default_rng(seed=137)
     if geom == "sphere":
@@ -370,14 +367,23 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
     L = StreamingOperator(sn_mesh, sig_t)
     C = CollisionOperator(sn_mesh, sig_t)
     op = L + C
-    psi_state = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
-    phi_state = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
-    Lpsi = op.apply(psi_state).bulk.values
-    # MUST raise MissingCapability before reaching the inner-product
-    # comparison — the xfail-strict marker pins this.
-    Lt_phi = op.apply_transpose(phi_state).bulk.values
-    lhs = float(np.sum(Lpsi * phi_state.bulk.values))
-    rhs = float(np.sum(psi_state.bulk.values * Lt_phi))
+    n_trace = int(sn_mesh.trace.layout.total_size)
+    psi_state = _build_composite(
+        sn_mesh, _random_bulk(sn_mesh, rng), rng.standard_normal(n_trace),
+    )
+    phi_state = _build_composite(
+        sn_mesh, _random_bulk(sn_mesh, rng), rng.standard_normal(n_trace),
+    )
+
+    def full_dot(a, b):
+        """Euclidean inner product over the whole bulk⊕trace composite."""
+        return float(
+            np.sum(a.bulk.values * b.bulk.values)
+            + np.sum(a.boundary.values * b.boundary.values)
+        )
+
+    lhs = full_dot(op.apply(psi_state), phi_state)
+    rhs = full_dot(psi_state, op.apply_transpose(phi_state))
     rel = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
     assert rel < 1e-12, f"reciprocity broken: {lhs} vs {rhs} (rel={rel:.2e})"
 
