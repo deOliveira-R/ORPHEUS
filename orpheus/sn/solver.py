@@ -465,6 +465,55 @@ def _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule: str):
     return LC, (S, B)
 
 
+def _within_group_si(LC, S, B, sn_mesh, *, inner_schedule, max_iter, tol):
+    r"""SourceIteration driver on the within-group loss ``(L + C − S − B)``.
+
+    Single source of truth (Cardinal Rule 2 / Phase 1 R1) for the
+    :class:`~orpheus.numerics.iteration.SourceIteration` construction shared by
+    the eigenvalue (:meth:`SNSolver._solve_source_iteration`) and fixed-source
+    (:func:`_solve_fixed_source_si`) paths — the SI sibling of
+    :func:`_within_group_krylov`, bringing R1's SI collapse to the SAME builder
+    depth R2 reached for Krylov (both inner methods now have ONE construction
+    helper consumed by their eigenvalue + fixed-source sites).
+
+    Composes the two SI-construction concerns:
+
+    * the schedule splitting (:func:`_select_si_resolvent`) — Jacobi
+      ``(L+C, (S, B))`` (``B`` lagged as an external gain) or boundary
+      Gauss-Seidel ``(GaussSeidelResolvent, (S,))`` (``B`` folded into the
+      resolvent; 2-D Cartesian only);
+    * the Phase-5a angular-windowing wrap (:func:`_maybe_window`) — the 2-D
+      Cartesian iterate held as harmonic moments.
+
+    Returns ``(si, base_resolvent, gains, windowed)``:
+
+    * ``si`` — the :class:`SourceIteration` primitive (its resolvent
+      moment-windowed when 2-D Cartesian);
+    * ``base_resolvent`` — the UN-wrapped resolvent (the fixed-source path
+      needs it for the one-shot full-angular reconstruction of
+      ``Solution.angular_flux``);
+    * ``gains`` — the lagged couplings (``(S, B)`` Jacobi / ``(S,)`` G-S), also
+      needed to rebuild the converged source for that reconstruction;
+    * ``windowed`` — whether the iterate is the moment representation (2-D
+      Cartesian) vs full-angular (curvilinear / 1-D).
+
+    The eigenvalue path passes ``inner_schedule="jacobi"`` (the deliberate
+    Phase-3 "eigenvalue stays Jacobi" choice — enabling boundary-G-S on the
+    eigenvalue inner is the `#218
+    <https://github.com/deOliveira-R/ORPHEUS/issues/218>`_ follow-up); the
+    fixed-source path forwards its own ``inner_schedule`` (default G-S on 2-D
+    Cartesian).
+    """
+    from orpheus.numerics.iteration import SourceIteration
+
+    base_resolvent, gains = _select_si_resolvent(
+        LC, S, B, sn_mesh, inner_schedule,
+    )
+    resolvent, windowed = _maybe_window(base_resolvent, S, sn_mesh)
+    si = SourceIteration(resolvent, *gains, max_iter=max_iter, tol=tol)
+    return si, base_resolvent, gains, windowed
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Solver class (EigenvalueSolver protocol)
 # ═══════════════════════════════════════════════════════════════════════
@@ -931,7 +980,6 @@ class SNSolver:
             BoundarySourceSink,
         )
         from orpheus.transport.timed_full_field import TimedFullField
-        from orpheus.numerics.iteration import SourceIteration
 
         # ── Build the composite RHS ─────────────────────────────────
         # R-1 Step 4 A1 — q_ext as per-ordinate density via the canonical
@@ -972,13 +1020,14 @@ class SNSolver:
         # truth — ``_within_group_triple``; shared with the Krylov and
         # fixed-source paths). ───────────────────────────────────────
         LC, S, B = _within_group_triple(self)
-        # Phase 5a — 2-D Cartesian angular-windowing: hold the SI iterate as
-        # harmonic MOMENTS (the held + warm-started iterate's angular dimension
-        # drops N → (L+1)²).  The gate + wrap is single-sourced in
-        # :func:`_maybe_window` (shared with the fixed-source SI driver).
-        resolvent, windowed = _maybe_window(LC, S, self.sn_mesh)
-        si = SourceIteration(
-            resolvent, S, B,
+        # ONE SI builder shared with the fixed-source path (R1 brought to the
+        # same depth as Krylov's R2 / :func:`_within_group_krylov`).  Eigenvalue
+        # stays Jacobi (the deliberate Phase-3 choice; boundary-G-S on the
+        # eigenvalue inner is the #218 follow-up).  Phase-5a angular-windowing
+        # folds in via :func:`_maybe_window` inside the builder.
+        si, _base, _gains, windowed = _within_group_si(
+            LC, S, B, self.sn_mesh,
+            inner_schedule="jacobi",
             max_iter=self.max_inner, tol=self.inner_tol,
         )
 
@@ -1821,7 +1870,6 @@ def _solve_fixed_source_si(
         BoundaryFlux,
     )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
-    from orpheus.numerics.iteration import SourceIteration
 
     # ``q_ext_composite`` is the normalised composite RHS ``q = q_bulk ⊕ q_∂``
     # built once by :func:`_build_fixed_source_rhs` (Cardinal Rule 2 — the SI
@@ -1833,22 +1881,16 @@ def _solve_fixed_source_si(
     # (n,2n)) is NOT pre-staged — the primitive's ``S`` operator recomputes
     # it each iterate.
 
-    # ── Build the within-group operator triple (single source of truth —
-    # ``_within_group_triple``; identical to the eigenvalue inner). ────
+    # ── Build the within-group SI via the SHARED builder (single source of
+    # truth — :func:`_within_group_si`, the SI sibling of
+    # ``_within_group_krylov``; identical construction to the eigenvalue
+    # inner).  ``inner_schedule`` selects Jacobi vs boundary-G-S; the builder
+    # folds in the Phase-5a angular-windowing.  ``base_resolvent`` (un-wrapped)
+    # + ``gains`` are kept for the final full-angular reconstruction below. ───
     LC, S, B = _within_group_triple(solver)
-    # Phase 3 sub-step 3c: ``inner_schedule`` selects the (resolvent, gains)
-    # splitting.  "gauss_seidel" (default, 2-D Cartesian) folds B into a
-    # scheduled resolvent → gains (S,); "jacobi" (or any 1-D mesh) keeps
-    # resolvent (L+C) + gains (S, B) — today's inter-sweep Jacobi.  Same
-    # converged fixed point; only the SI spectral rate differs.
-    base_resolvent, gains = _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule)
-    # Phase 5a — 2-D Cartesian angular-windowing (single-sourced gate +
-    # wrap, shared with the eigenvalue inner).  ``base_resolvent`` (the
-    # un-wrapped one) is kept for the final full-angular reconstruction below.
-    resolvent, windowed = _maybe_window(base_resolvent, S, sn_mesh)
-    si = SourceIteration(
-        resolvent, *gains,
-        max_iter=max_inner, tol=inner_tol,
+    si, base_resolvent, gains, windowed = _within_group_si(
+        LC, S, B, sn_mesh,
+        inner_schedule=inner_schedule, max_iter=max_inner, tol=inner_tol,
     )
 
     # Cold-start iterate (x0 = zeros).  Fixed-source is a single solve — no
