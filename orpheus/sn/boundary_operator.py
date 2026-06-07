@@ -243,9 +243,12 @@ class SNBoundaryOperator(LinearOperatorMixin):
                 f"got field mesh {psi.bulk.mesh!r} vs operator mesh {mesh!r}."
             )
         return TimedFullField(
-            bulk=AngularSourceSink.from_mesh(
-                np.zeros_like(psi.bulk.values), mesh,
-            ),
+            # Zero bulk source, sized from the MESH — not ``zeros_like(psi.bulk)``
+            # — so the carrier is correct whatever representation the input bulk
+            # carries (full-angular :class:`AngularFlux` OR the Phase-5a windowed
+            # :class:`HarmonicMomentField`).  ``B`` is the boundary block ``A_ss``:
+            # it reads the trace and emits zero bulk regardless.
+            bulk=AngularSourceSink.zeros_on(mesh),
             boundary=self._reflect_trace(psi.boundary, method),
             _history=(),
             history_depth=psi.history_depth,

@@ -292,6 +292,99 @@ class _GaussSeidelResolvent:
         )
 
 
+class _MomentWindowedResolvent:
+    r"""Phase 5a angular-windowing — wrap a within-group resolvent so the
+    SI iterate it produces is stored as harmonic MOMENTS, not the full
+    per-ordinate angular field.
+
+    The within-group source-iteration iterate is held across SI iterations
+    AND warm-started across every eigenvalue outer step; pre-windowing it
+    is a full :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
+    ``(N, ng, nx, ny)``.  Scattering depends ONLY on the flux moments
+    ``φ_ℓ^m = M ψ`` (``S`` re-projects the iterate every sweep), so the
+    iterate carries strictly more than the iteration needs.  This wrapper
+    reduces the base resolvent's swept output ``ψ`` to the moment tensor
+    ``(L+1, 2L+1, ng, nx, ny)`` — the angular dimension of the *persistent*
+    iterate drops ``N → (L+1)²``.  The scattering gain then consumes the
+    moments directly (``S.apply(HarmonicMomentField)``), so the per-sweep
+    re-projection is elided too.
+
+    **Geometry restriction (load-bearing).**  Valid ONLY where the sweep is
+    a DIRECT solve with no per-ordinate-iterate seed — i.e. 2-D Cartesian
+    diamond-difference.  Curvilinear (1-D sphere/cylinder) MUST stay
+    full-angular: the Morel–Montry Carlson coupled-pole closure seeds from
+    the previous iterate's per-ordinate ``ψ`` at ``μ = −1`` (lesson L21),
+    which the moment tensor does not carry.  The solver gates this wrapper
+    on ``sn_mesh.reduced is None`` (2-D Cartesian).
+
+    **Bit-identity.**  ``M`` is built from the SAME quadrature harmonics the
+    scattering operator uses, so the stored moments equal ``S``'s internal
+    projection of the same ``ψ`` term-for-term (de-risk proven).  The
+    boundary trace passes through un-reduced — the reflective ``B`` coupling
+    needs the full per-ordinate face trace (windowing is interior-bulk-only;
+    the biproduct ``C¹ = C¹_int ⊕ C¹_∂`` keeps the trace a distinct summand).
+    The convergence test moves from the full-angular L2 to the moment L2
+    (the physically-meaningful SI criterion — scattering iterates the
+    moments); the converged value agrees with the full-angular path within
+    ``SAFETY × conv_tol`` (principled-equivalence, ``vv-principles``
+    §"Bit-identity vs principled-equivalence").
+
+    Satisfies the :class:`~orpheus.numerics.iteration.SourceIteration` ``L``
+    contract: mirrors the base ``capabilities`` (incl. ``CAP_SOLVE``) and
+    accepts the ``initial_guess`` kwarg (a moment iterate; 2-D Cartesian
+    ``transport_sweep`` ignores the bulk seed, so it threads through
+    harmlessly).
+    """
+
+    def __init__(self, base, quadrature, moment_order: int, sn_mesh) -> None:
+        from orpheus.numerics.projection import MomentProjection
+
+        self._base = base            # the un-windowed resolvent ((L+C) or G-S)
+        self._moment_order = moment_order
+        self.sn_mesh = sn_mesh
+        # M built ONCE from the scattering op's quadrature (NOT per solve);
+        # the harmonics/weights match S.apply's internal projection ⇒ the
+        # stored moments are bit-identical to what S would project.
+        self._projection = MomentProjection(
+            weights=quadrature.weights,
+            Y=quadrature.spherical_harmonics(moment_order),
+            L=moment_order,
+        )
+
+    @property
+    def capabilities(self) -> frozenset[str]:
+        return self._base.capabilities
+
+    def apply(self, psi):
+        # Unused by SourceIteration (it calls only .solve); delegate so the
+        # CAP_APPLY contract holds.
+        return self._base.apply(psi)
+
+    def solve(self, rhs, *, initial_guess=None):
+        r"""``base.solve`` then reduce the swept ``ψ`` bulk to moments.
+
+        Returns ``TimedFullField(bulk=HarmonicMomentField, boundary=trace)``
+        — the boundary trace from the base solve is preserved verbatim.
+        """
+        from orpheus.transport.fields.harmonic_moment_field import (
+            HarmonicMomentField,
+        )
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        full = self._base.solve(rhs, initial_guess=initial_guess)
+        moments = HarmonicMomentField.from_mesh_and_L(
+            self._projection.apply(full.bulk.values),
+            self.sn_mesh,
+            self._moment_order,
+        )
+        return TimedFullField(
+            bulk=moments,
+            boundary=full.boundary,
+            _history=(),
+            history_depth=full.history_depth,
+        )
+
+
 def _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule: str):
     r"""Pick the ``(resolvent, gains)`` for the within-group SI driver per
     ``inner_schedule`` — the single source of truth for the Jacobi/G-S choice.
@@ -783,6 +876,9 @@ class SNSolver:
         from orpheus.transport.fields.boundary_flux import (
             BoundaryFlux,
         )
+        from orpheus.transport.fields.harmonic_moment_field import (
+            HarmonicMomentField,
+        )
         from orpheus.transport.source_sinks import (
             AngularSourceSink,
             BoundarySourceSink,
@@ -829,8 +925,25 @@ class SNSolver:
         # truth — ``_within_group_triple``; shared with the Krylov and
         # fixed-source paths). ───────────────────────────────────────
         LC, S, B = _within_group_triple(self)
+        # Phase 5a — 2-D Cartesian angular-windowing: hold the SI iterate
+        # as harmonic MOMENTS (the asymptotic 2-D win — the held +
+        # warm-started iterate's angular dimension drops N → (L+1)²; the
+        # per-sweep re-projection S used to do is elided).  Curvilinear
+        # (1-D, ``reduced is not None``) stays full-angular — the M-M
+        # Carlson seed reads the previous per-ordinate iterate at μ=−1
+        # (lesson L21), which the moment tensor does not carry.  The
+        # wrapper sources M from S's own quadrature ⇒ the stored moments
+        # are bit-identical to S's internal projection.
+        windowed = self.sn_mesh.reduced is None
+        resolvent = (
+            _MomentWindowedResolvent(
+                LC, S.quadrature, S.scattering_order, self.sn_mesh,
+            )
+            if windowed
+            else LC
+        )
         si = SourceIteration(
-            LC, S, B,
+            resolvent, S, B,
             max_iter=self.max_inner, tol=self.inner_tol,
         )
 
@@ -846,13 +959,24 @@ class SNSolver:
         # ravellable protocol.
         initial_guess = getattr(self, "_psi_typed", None)
         if initial_guess is None:
-            # B.5.2: cold-start iterate is a FLUX composite, decoupled from
-            # q_ext's now-AngularSourceSink type.  Bit-identical to the prior
-            # cold start (_zeros_like(q_ext): all-zeros, BoundaryFlux boundary)
-            # — only the bulk CLASS flips source→flux (the iterate's true role).
-            initial_guess = TimedFullField.zeros(
-                bulk=AngularFlux, boundary=BoundaryFlux, mesh=self.sn_mesh,
-            )
+            # B.5.2: cold-start iterate is an all-zeros FLUX composite,
+            # decoupled from q_ext's AngularSourceSink type.  Phase 5a:
+            # when windowed the bulk is a zero HarmonicMomentField (the
+            # moment representation the windowed resolvent emits and the
+            # moment-consuming S.apply expects); else a zero AngularFlux.
+            if windowed:
+                initial_guess = TimedFullField(
+                    bulk=HarmonicMomentField.zeros_for_mesh_and_L(
+                        self.sn_mesh, S.scattering_order,
+                    ),
+                    boundary=BoundaryFlux.zeros_on(self.sn_mesh),
+                    _history=(),
+                    history_depth=2,
+                )
+            else:
+                initial_guess = TimedFullField.zeros(
+                    bulk=AngularFlux, boundary=BoundaryFlux, mesh=self.sn_mesh,
+                )
 
         psi_typed, _residuals = si.solve(
             q_ext_composite, initial_guess=initial_guess,
@@ -863,7 +987,13 @@ class SNSolver:
         self._total_inner_iterations += len(_residuals)
         self._psi_typed = psi_typed
 
-        # Reduce angular → scalar flux for the eigenvalue outer's contract.
+        # Scalar flux for the eigenvalue outer's contract.  Windowed: the
+        # ℓ=0 moment IS the scalar flux (Y_0^0 = 1 ⇒ bit-identical to
+        # integrate_angular); un-windowed: reduce the full angular bulk.
+        # ``.copy()`` matches integrate_angular's fresh-array semantics (the
+        # outer power-iteration normalises the returned flux in place).
+        if windowed:
+            return psi_typed.bulk.l_block(0)[0].copy()
         return psi_typed.bulk.integrate_angular().values
 
     # ── Inner solver: Krylov on (L+C-S)·ψ = q_ext (R-1 Step D carve) ──
