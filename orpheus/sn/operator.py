@@ -1644,7 +1644,6 @@ class StreamingOperator(LinearOperatorMixin):
         convention.
         """
         from orpheus.sn.sweep_graph import OctantLabel
-        from orpheus.transport.fields.wavefront_flux import WavefrontFlux
         from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
@@ -1664,21 +1663,22 @@ class StreamingOperator(LinearOperatorMixin):
         # at zero source); L·ψ̄ = this − Σ_t·ψ̄ at the end.
         LpC = np.zeros((N, ng, nx, ny))
 
-        # Interior face cochain C¹_int (Wave O #205 — WavefrontFlux), the SAME
-        # typed field the 2-D sweep uses (matvec ≡ sweep: ONE discretization).
-        # psi_x/psi_y are bound ONCE as zero-copy views so the graph.residual
-        # walk below indexes them with byte-identical fancy-indexing.
-        # BARE boundary handling (O.4b Phase E): ι_* seeds the domain-edge slots
-        # from the GIVEN inflow trace ``psi.boundary`` — NO bc.apply. The
-        # octant's ordinates on its incoming face ARE its inflow ordinates, so
-        # slicing the seeded face by oct_idx selects exactly the given inflow.
-        # The reflective coupling is the sibling -B.
+        # Interior face cochain C¹_int, carried on the rolling _MovingFrontier
+        # (Phase 5b storage-B) — the SAME windowed walk the 2-D sweep uses
+        # (matvec ≡ sweep: ONE discretization, L21). BARE boundary handling
+        # (O.4b Phase E): each octant reads its inflow from the GIVEN trace
+        # ``psi.boundary.face_view(<incoming face>)[oct_idx]`` — NO bc.apply
+        # (the octant's ordinates on its incoming face ARE its inflow
+        # ordinates); the reflective coupling is the sibling -B. The post-walk
+        # domain-edge outflow is shed per octant into ``streamed`` (only the
+        # OUTFLOW ordinate slots are filled — the boundary residual reads only
+        # those; grazing/inflow slots stay zero and are never read).
         trace = sn_mesh.trace
         boundary = psi.boundary
-        wavefront = WavefrontFlux.zeros_on(sn_mesh)
-        psi_x = wavefront.face(0)   # (N, ng, nx+1, ny) zero-copy view
-        psi_y = wavefront.face(1)   # (N, ng, nx, ny+1) zero-copy view
-        wavefront.seed(boundary)    # ι_*
+        streamed = {
+            face: np.zeros_like(boundary.face_view(face))
+            for face in trace.face_names
+        }
 
         for octant in quad.octants:
             label_tuple = octant.label
@@ -1695,38 +1695,40 @@ class StreamingOperator(LinearOperatorMixin):
             sy_eff = +1 if sy == 0 else sy
             graph = sn_mesh.sweep_graphs[OctantLabel(sx_eff, sy_eff)]
 
-            # NO bc.apply — the octant-incoming edge IS the given inflow trace
-            # (seeded above). The reflective coupling is the sibling -B.
-            psi_x_oct = psi_x[oct_idx].copy()
-            psi_y_oct = psi_y[oct_idx].copy()
+            # Octant domain-edge faces (incoming = low face of the sweep
+            # direction). NO bc.apply — the seeded inflow IS the given trace.
+            x_in_face = "xmin" if sx_eff >= 0 else "xmax"
+            x_out_face = "xmax" if sx_eff >= 0 else "xmin"
+            y_in_face = "ymin" if sy_eff >= 0 else "ymax"
+            y_out_face = "ymax" if sy_eff >= 0 else "ymin"
+
             LpC_oct = np.zeros((oct_idx.size, ng, nx, ny))
-            graph.residual(
+            cap_x = np.empty((oct_idx.size, ng, ny))
+            cap_y = np.empty((oct_idx.size, ng, nx))
+            graph.residual_windowed(
                 cell_update=cell_update,
-                psi_x_octant=psi_x_oct, psi_y_octant=psi_y_oct,
+                inflow_x=boundary.face_view(x_in_face)[oct_idx],
+                inflow_y=boundary.face_view(y_in_face)[oct_idx],
                 psi_avg_probe_octant=probe[oct_idx],
                 Q_octant=Q_zero, sig_t=sig_t,
                 str_x_octant=str_x[oct_idx], str_y_octant=str_y[oct_idx],
-                residual_octant=LpC_oct,
+                residual_octant=LpC_oct, capture_x=cap_x, capture_y=cap_y,
             )
-            psi_x[oct_idx] = psi_x_oct
-            psi_y[oct_idx] = psi_y_oct
             LpC[oct_idx] = LpC_oct
+            streamed[x_out_face][oct_idx] = cap_x
+            streamed[y_out_face][oct_idx] = cap_y
 
         # L = (L+C) − C: subtract the collision term Σ_t·ψ̄ → bare streaming L·ψ̄.
         out_bulk = LpC - sig_t[None, :, :, :] * probe
 
         # Boundary-block residual (O.4b Phase E — the active trace, mirroring
-        # the 1-D L_full.apply template). After the wavefront walk the
-        # octant-OUTGOING boundary edge slots hold the streamed outflow; the
-        # INFLOW slots retain the given seed. OUTFLOW ordinate slots →
-        # self-consistency defect ``streamed − psi.outflow`` (kept as
-        # computed−stored so the vacuum path stays bit-identical); INFLOW
-        # ordinate slots → identity ``psi.inflow`` (the sibling -B adds
-        # -B·psi.outflow → composed inflow residual ``psi.inflow − B·psi.outflow``).
-        # The post-walk domain-edge slots hold the streamed outflow; read them
-        # through the typed accessor (single source of truth for the face→edge
-        # mapping — no hardcoded psi_x[:, :, 0, :] literals).
-        streamed = {face: wavefront.edge_view(face) for face in trace.face_names}
+        # the 1-D L_full.apply template). ``streamed[face]`` holds the
+        # per-octant shed outflow at each face's OUTFLOW ordinate slots.
+        # OUTFLOW ordinate slots → self-consistency defect ``streamed −
+        # psi.outflow`` (kept as computed−stored so the vacuum path stays
+        # bit-identical); INFLOW ordinate slots → identity ``psi.inflow`` (the
+        # sibling -B adds -B·psi.outflow → composed inflow residual
+        # ``psi.inflow − B·psi.outflow``).
         out_boundary = BoundarySourceSink.zeros_on(sn_mesh)
         for face in trace.face_names:
             given = boundary.face_view(face)

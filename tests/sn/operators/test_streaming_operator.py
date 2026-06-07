@@ -1241,8 +1241,21 @@ class TestT4dApply2DCartesianSourceHashPin:
     # by that commit. The 2-D Cartesian forward path stays functionally green
     # (matvec≡sweep, octant snapshots, k_inf) — this is a docstring-level source
     # change, not a behavioural one.
+    #   Phase 5b storage-B (rolling _MovingFrontier) b77fbee3…afef8c882 →
+    #         b7f5932a…a052d088 — the full WavefrontFlux interior backing + the
+    #         per-octant ``psi_x[oct_idx].copy()`` + ``graph.residual`` were
+    #         REPLACED by per-octant ``graph.residual_windowed`` on the rolling
+    #         2-diagonal ``_MovingFrontier`` (O(N·ng·nx) not O(N·ng·nx·ny)):
+    #         each octant reads its inflow from ``boundary.face_view(<in>)[oct]``
+    #         and sheds its outflow into a ``streamed`` dict (OUTFLOW ordinate
+    #         slots only — the boundary residual reads only those). BEHAVIOR-
+    #         NEUTRAL: residual_windowed ≡ the full-field residual bit-for-bit
+    #         (the window≡full oracle test), so L·ψ + the boundary residual are
+    #         unchanged — Gate-K k_∞=1.875, matvec≡sweep, bc_extraction_2d/matvec
+    #         all green (42 passed). The window walk is also ~0.77× the time
+    #         (a speedup). Wave O #205/#208 Phase 5b.
     EXPECTED_SHA256: str = (
-        "b77fbee3cb504d58317216b88e80d8b479031b3e97baab4c6733285afef8c882"
+        "b7f5932a6208a5159634120d566989b42932dbaf7eca060952236677a052d088"
     )
 
     def test_apply_2d_cartesian_source_hash_unchanged(self):
