@@ -5814,6 +5814,20 @@ with no double-counting.
 
 The 421-group cross-section library provides both P0 and P1 matrices.
 
+.. note::
+
+   Because the scattering source :eq:`pn-scatter` depends on the
+   angular flux **only** through its moments :math:`f_{\ell,g}^m`
+   :eq:`flux-moments`, the within-group source iteration's *fixed point
+   lives in moment space*: the persistent iterate need not carry all
+   :math:`N` ordinates. The 2-D Cartesian SI iterate is therefore held
+   as the moment tensor (:math:`N \to (L{+}1)(2L{+}1)`, "angular
+   windowing"), with the :math:`\ell\ge 1` reconstruction
+   :math:`R\,\Lambda` shared between the windowed and full-angular
+   paths. See :ref:`sn-angular-windowing` in :doc:`operator_algebra`
+   for the derivation, the geometry restriction, and the
+   bit-identity / principled-equivalence story.
+
 .. _n2n-reactions:
 
 (n,2n) Reactions

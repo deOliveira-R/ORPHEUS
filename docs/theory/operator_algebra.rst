@@ -70,6 +70,25 @@ Key Facts
   :math:`\iota^* \circ \iota_* = \mathrm{id}`. See
   :ref:`wavefront-flux-cochain`.
 
+- **The 2-D Cartesian SI iterate lives in moment space** (Wave O step
+  #205 **Phase 5a**, ``93807aa`` / ``b97d4f9`` / ``13ca001``,
+  2026-06-07): the within-group source-iteration fixed point
+  :math:`\psi_{k+1} = (L{+}C)^{-1}(S\psi_k + B\psi_k + q)` consumes
+  :math:`\psi` only through its flux moments :math:`\phi_\ell^m =
+  (M\psi)_\ell^m`, so the *persistent* iterate is held as the moment
+  tensor :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+  (:math:`N \to (L{+}1)(2L{+}1)`, measured **18.3×** shrink at
+  :math:`N=110`, :math:`L=1`) rather than the full per-ordinate
+  :class:`~orpheus.transport.fields.angular_flux.AngularFlux`. The
+  source is **bit-identical** (the moment arm of
+  :meth:`ScatteringOperator.apply <orpheus.sn.scattering.ScatteringOperator.apply>`
+  shares the :math:`R\,\Lambda` reconstruction with the full-angular
+  arm); only the SI convergence test moves to the moment :math:`L^2`
+  (principled-equivalence). 2-D Cartesian only (curvilinear's
+  Morel–Montry Carlson seed reads the per-ordinate iterate; Krylov
+  iterates the full bulk). Interior-bulk only — the trace
+  :math:`C^1_\partial` stays un-reduced. See :ref:`sn-angular-windowing`.
+
 - **2-D Cartesian eigenvalue problems solve via BOTH inner solvers**
   (Wave O "2-D SI Phase A", Issue #208, 2026-06-04): the
   source-iteration inner
@@ -3509,6 +3528,16 @@ Honest scope — a representation win, NOT a speed/rate/parallelism win
    :class:`BoundaryFlux` persists across SI iterations while
    :class:`WavefrontFlux` is rebuilt each sweep.
 
+   The asymptotic-cost / peak-memory wins are sought elsewhere: the
+   **persistent** SI iterate is shrunk by the orthogonal
+   :ref:`angular windowing <sn-angular-windowing>` of Phase 5a (the
+   iterate lives in moment space, :math:`N \to (L{+}1)(2L{+}1)`), and the
+   **per-sweep transient** :class:`WavefrontFlux` interior cochain
+   itself — the dominant peak-memory cost noted here — is the target of
+   Phase 5b's storage-B rolling moving-frontier window, which never
+   materializes the whole interior cochain at once and is the 3-D
+   enabler.
+
 The payoff is the **type**: a named field, typed :math:`\iota_*` /
 :math:`\iota^*`, code that reads like the cochain math, and
 illegal-states-unrepresentable (the flux-only constraint of the
@@ -3607,6 +3636,463 @@ The 1-D sweep is a scan, not a wavefront — deferred to ``nd_foundation``
    collapse must not regress the :math:`d=1` scan's parallel-prefix
    efficiency. A future 3-D *Cartesian* sweep IS a wavefront and uses
    :class:`WavefrontFlux` directly (``axes=(0,1,2)``).
+
+
+.. _sn-angular-windowing:
+
+Angular windowing — the SI iterate lives in moment space (Phase 5a)
+===================================================================
+
+Wave O step #205 **Phase 5a** (commits ``93807aa`` factoring / ``b97d4f9``
+eigenvalue inner / ``13ca001`` fixed-source inner, 2026-06-07) is a
+**moment-reduction** of the SN within-group source-iteration *iterate*.
+It is **orthogonal** to the :ref:`WavefrontFlux cochain <wavefront-flux-cochain>`
+above: where that typed the *per-ordinate* interior face flux a single
+sweep propagates (and explicitly framed the interior cochain as
+per-ordinate, :math:`\psi^{(1)}_\Omega \in C^1`), Phase 5a observes that
+the **persistent** iterate the source iteration carries *between* sweeps
+does not need all :math:`N` ordinates — it needs only the
+spherical-harmonic moments the scattering operator consumes. The
+held iterate's angular dimension drops :math:`N \to (L+1)(2L+1)`, and
+the iterate becomes :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+instead of :class:`~orpheus.transport.fields.angular_flux.AngularFlux`.
+
+.. admonition:: Key Facts (angular windowing)
+   :class: tip
+
+   - **The SI fixed point lives in moment space.** Within-group source
+     iteration is :math:`\psi_{k+1} = (L{+}C)^{-1}(S\,\psi_k + B\,\psi_k
+     + q)`. The scattering source :math:`S\,\psi` is a pure function of
+     the flux moments :math:`\phi_\ell^m = (M\psi)_\ell^m` — the
+     per-ordinate iterate :math:`\psi` carries strictly more than the
+     iteration consumes.
+   - **Hold the moments, not the ordinates.** The persistent iterate is
+     the moment tensor :math:`\phi \in (L{+}1, 2L{+}1, n_g, n_x, n_y)`,
+     not :math:`\psi \in (N, n_g, n_x, n_y)`. Measured **18.3×**
+     persistent-iterate shrink at :math:`N = 110`, :math:`L = 1`
+     (:math:`N / (L{+}1)(2L{+}1) = 110/6`).
+   - **The per-step source is bit-identical.** :math:`S` consuming the
+     moments equals :math:`S` consuming the full angular flux **bit for
+     bit** (0 ULP) under the ORPHEUS unnormalized-harmonic convention.
+     The only non-bit-identical change is the SI *convergence test*,
+     which moves to the moment :math:`L^2` — *more* principled, not a
+     regression.
+   - **2-D Cartesian only (load-bearing).** Windowing is valid where the
+     sweep is a **direct** solve with no per-ordinate-iterate seed.
+     Curvilinear (1-D sphere / cylinder) **must** stay full-angular: the
+     Morel–Montry Carlson coupled-pole closure seeds from the previous
+     iterate's per-ordinate :math:`\psi` at :math:`\mu = -1`, which the
+     moment tensor cannot reconstruct. The Krylov path stays
+     full-angular too. Gated on ``sn_mesh.reduced is None``.
+   - **Interior-bulk only.** The reflective :math:`B` coupling reads the
+     full per-ordinate boundary *trace*; windowing reduces only the
+     interior bulk. The biproduct :eq:`wavefront-cochain-biproduct`
+     keeps the trace :math:`C^1_\partial` a distinct, **un-reduced**
+     summand.
+   - **A representation + typed-state win, NOT yet a peak-memory win.**
+     5a shrinks the *persistent* iterate (18.3×) and makes its type
+     honest. The *peak* memory drops only modestly (~1.2× measured)
+     because the per-sweep **transient** full-angular machinery still
+     dominates — that transient is Phase 5b's target.
+
+
+.. _sn-angular-windowing-fixed-point:
+
+The within-group fixed point lives in moment space
+--------------------------------------------------
+
+The within-group source iteration solves, for each outer step, the
+fixed-point problem
+
+.. (vv-status rationale) The within-group source-iteration fixed point.
+   This is the governing iteration the windowing reorganizes; the
+   verifiable content is the SI ≡ Krylov cross-check (Krylov stays
+   full-angular) and the closed-form k_inf eigenvalue, not the rendered
+   recurrence. Documented, not orphan-gated.
+.. vv-status: si-within-group-fixed-point documented
+
+.. math::
+   :label: si-within-group-fixed-point
+
+   \psi_{k+1}
+   \;=\; (L + C)^{-1}\!\left( S\,\psi_k + B\,\psi_k + q \right),
+
+where :math:`L + C` is the within-group **invertible resolvent** (the
+streaming + collision the sweep inverts directly), :math:`S` is the
+within-group scattering gain (:ref:`pn-scattering` in
+:doc:`discrete_ordinates`), :math:`B` is the reflective boundary
+coupling (:ref:`bc-extraction`), and :math:`q` the fixed external /
+fission source. Both :math:`S` and :math:`B` are **lagged gains** — the
+sweep never re-scatters mid-sweep (cf. the variadic driver,
+:ref:`bc-extraction-variadic-driver`).
+
+The load-bearing observation is the **arity of the scattering gain**.
+:math:`S\,\psi` depends on :math:`\psi` *only* through its
+spherical-harmonic flux moments. Writing the moment-projection operator
+:math:`M` (the :eq:`flux-moments` quadrature contraction, the single-axis
+primitive :class:`~orpheus.numerics.projection.MomentProjection`)
+
+.. math::
+   :label: angular-windowing-moment-projection
+
+   \phi_\ell^m(\vec r)
+   \;=\; (M\psi)_\ell^m(\vec r)
+   \;=\; \sum_{n=1}^{N} w_n \, Y_\ell^m(\hat\Omega_n)\,
+         \psi_n(\vec r),
+   \qquad 0 \le \ell \le L,\; |m| \le \ell,
+
+the scattering source factors **through the moment boundary**:
+
+* the **isotropic** :math:`\ell = 0` (P0) and the **(n,2n)** doubling
+  terms (:ref:`pn-scattering`) need only the scalar flux
+  :math:`\phi_0 \equiv \phi_0^0`;
+* the **anisotropic** :math:`P_{\ell\ge 1}` term needs the higher
+  moments :math:`\phi_\ell^m` up to the scattering order :math:`L`.
+
+So the per-ordinate iterate :math:`\psi \in \mathbb{R}^N` is mapped, at
+the very first thing the sweep's source assembly does, onto the
+:math:`(L{+}1)(2L{+}1)`-dimensional moment space — and **nothing
+downstream of that projection ever reads the discarded
+:math:`N - (L{+}1)(2L{+}1)` angular degrees of freedom**. The iterate
+carries strictly more than the iteration consumes. Angular windowing
+holds the iterate at the consumed dimension: the persistent state is
+the moment tensor
+
+.. math::
+   :label: angular-windowing-moment-iterate
+
+   \phi \;\in\; \mathbb{R}^{(L+1)\times(2L+1)\times n_g \times n_x \times n_y}
+   \quad(\texttt{HarmonicMomentField}),
+   \qquad\text{not}\qquad
+   \psi \;\in\; \mathbb{R}^{N \times n_g \times n_x \times n_y}
+   \quad(\texttt{AngularFlux}).
+
+.. vv-status: angular-windowing-moment-iterate documented
+
+For :math:`N = 110` (Lebedev order 17) and :math:`L = 1`
+(:math:`(L{+}1)(2L{+}1) = 6`) the angular dimension drops **18.3×**.
+
+
+.. _sn-angular-windowing-factoring:
+
+The scattering factoring — :math:`S_{\rm aniso} = \tfrac{1}{W}\,R\,\Lambda\,M`
+------------------------------------------------------------------------------
+
+Phase 5a's commit 1 (``93807aa``) makes the factoring *structural* so
+that the windowed and full-angular paths share one source of truth. The
+anisotropic in-scatter is the §9 operator composition (the §15.2
+sum-of-tensor-products form,
+:meth:`~orpheus.sn.scattering.ScatteringOperator.build_aniso_source`)
+
+.. (vv-status rationale) The R·Λ·M anisotropic-scattering factoring.
+   A structural identity (associativity of the three-operator
+   composition); the verifiable content is the bit-identity of the two
+   evaluation arms, pinned by the de-risk probe Q2/Q3 (0 ULP) and the
+   independent Bell & Glasstone hand reconstruction Q2b (1.5 ULP).
+   Documented.
+.. vv-status: angular-windowing-aniso-factoring documented
+
+.. math::
+   :label: angular-windowing-aniso-factoring
+
+   Q^{\rm aniso}_n(\vec r)
+   \;=\; \frac{1}{W}\,\bigl(R\,\Lambda\,M\,\psi\bigr)_n(\vec r),
+   \qquad W = \sum_n w_n,
+
+where (reading right to left):
+
+* :math:`M` is the moment **projection** :eq:`angular-windowing-moment-projection`
+  (:class:`~orpheus.numerics.projection.MomentProjection`);
+* :math:`\Lambda` is the per-:math:`\ell` block-diagonal scattering on
+  moment space :math:`\Lambda = \sum_\ell P_\ell \otimes \Sigma_{s,\ell}`
+  (:class:`~orpheus.sn.scattering.LegendreMomentScattering`);
+* :math:`R` is the addition-theorem **reconstruction** with the
+  :math:`(2\ell+1)` factor
+  (:class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`);
+* :math:`1/W` is the producer-side normalization applied at the
+  :meth:`~orpheus.sn.scattering.ScatteringOperator.apply` boundary.
+
+The associativity :math:`(R\,\Lambda)\,M` is the whole trick. The
+**full-angular** path evaluates the composition as written —
+:math:`R\cdot\Lambda\cdot M(\psi)`: project, scatter, reconstruct. The
+**windowed** path's iterate bulk **is** the moments :math:`\phi = M\psi`,
+so :math:`M` is *already done* and only the shared **moment → source**
+map :math:`R\,\Lambda` remains:
+:math:`R\cdot\Lambda(\phi)`. Both arms call the single
+:meth:`~orpheus.sn.scattering.ScatteringOperator._aniso_source_from_moment_values`
+primitive (``coding-elegance`` Pattern 2 — one reconstruction, one
+source of truth). The dispatch is on the iterate type: the
+:class:`~orpheus.transport.fields.angular_flux.AngularFlux` arm of
+:meth:`ScatteringOperator.apply <orpheus.sn.scattering.ScatteringOperator.apply>`
+does the :math:`M` projection first; the
+:class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+arm skips it.
+
+This factoring **retired** the per-:math:`\ell`
+``_PerLegendreOrderScattering`` kernel, which recomputed :math:`M\psi`
+independently for every Legendre order — an :math:`L`-fold redundant
+projection (aggressive-retirement discipline).
+
+.. admonition:: The :math:`Y_0^0 = 1` convention — the scalar flux is read off
+   :class: note
+
+   ORPHEUS uses **unnormalized real harmonics** (the
+   "no-:math:`4\pi/(2\ell+1)`-prefactor" convention,
+   :ref:`spherical-harmonics`), under which :math:`Y_0^0 = 1` *exactly*.
+   Therefore the :math:`\ell = 0` moment **is** the scalar flux,
+
+   .. math::
+
+      \phi_0 \;=\; \sum_n w_n \, Y_0^0(\hat\Omega_n)\,\psi_n
+                 \;=\; \sum_n w_n \, \psi_n
+                 \;=\; (\texttt{integrate\_angular}\;\psi),
+
+   read directly off the moment tensor's :math:`\ell{=}0` block with no
+   rescale (``phi_moments.l_block(0)[0]``). This is what lets the
+   windowed P0 + (n,2n) fast path consume the moments with **zero**
+   conversion arithmetic, and what makes the eigenvalue outer's scalar
+   flux bit-identical to the full-angular ``integrate_angular`` (the
+   de-risk Q1 below proves :math:`\Phi[0,0] = \texttt{integrate\_angular}`
+   bit-for-bit).
+
+
+.. _sn-angular-windowing-geometry-restriction:
+
+Why 2-D Cartesian only — the curvilinear seed obstruction
+---------------------------------------------------------
+
+Windowing is valid **only** where the within-group sweep is a *direct*
+solve that does not seed from the previous iterate's per-ordinate
+:math:`\psi`. There are three regimes, and only one admits it:
+
+.. list-table:: Where angular windowing applies
+   :header-rows: 1
+   :widths: 26 16 58
+
+   * - Path
+     - Windowed?
+     - Why
+   * - **2-D Cartesian DD** (SI inner)
+     - **yes**
+     - The diamond-difference wavefront sweep is a direct forward
+       substitution down the upwind DAG; it inverts :math:`L+C` from
+       :math:`q + S\phi + B\psi_\partial` with **no** interior-iterate
+       seed. The bulk seed (``initial_guess``) threads through harmlessly
+       (the 2-D sweep ignores it). The moment iterate is sufficient.
+   * - **Curvilinear 1-D** (sphere / cylinder)
+     - **no**
+     - The Morel–Montry **Carlson coupled-pole** closure seeds the
+       :math:`\mu = -1` starting-direction angular flux from the
+       *previous iterate's per-ordinate* :math:`\psi` (the curvilinear
+       angular-redistribution recursion is initialized from the inward
+       radial sweep's last iterate). A moment tensor cannot reconstruct
+       that per-ordinate seed — windowing would lose the closure's
+       starting data. Curvilinear stays full-angular.
+   * - **Krylov** (any geometry)
+     - **no**
+     - GMRES iterates the full bulk vector :math:`\psi`; the Krylov
+       subspace is built from full-angular matvecs. There is no moment
+       sub-iterate to hold.
+
+The gate is the single predicate ``sn_mesh.reduced is None`` (2-D
+Cartesian; the curvilinear meshes carry a non-``None`` ``reduced``
+moment-reduction descriptor) — the
+:class:`~orpheus.sn.solver._MomentWindowedResolvent` is therefore
+**never even constructed** on a curvilinear mesh, so there is no illegal
+state to mistype.
+
+The restriction is **interior-bulk-only** in a second sense:
+:class:`WavefrontFlux`'s biproduct :eq:`wavefront-cochain-biproduct`
+:math:`C^1 = C^1_{\rm int} \oplus C^1_\partial` keeps the **boundary
+trace** :math:`C^1_\partial` (the :class:`BoundaryFlux` summand) a
+distinct, *un-reduced* per-ordinate object. The reflective :math:`B`
+coupling reads the full per-ordinate face trace via the typed
+:math:`\iota_*` / :math:`\iota^*` exchange — windowing reduces only the
+interior bulk and never touches the trace. The
+``test_2d_windowed_si_reflective_trace_is_nonzero`` guard pins this (a
+windowing that zeroed the trace would be a dropped reflective coupling,
+invisible to the interior-only scalar-flux snapshot).
+
+
+.. _sn-angular-windowing-bit-identity:
+
+Bit-identity of the source, principled-equivalence of the convergence test
+---------------------------------------------------------------------------
+
+The carve has a clean correctness story split in two
+(``vv-principles`` § "Bit-identity vs principled-equivalence").
+
+**The per-step source is bit-identical.** A de-risk probe
+(``derivations/diagnostics/diag_p5a_moment_consuming_scatter.py``) proved
+the **moment arm** :math:`S(M\psi)` equals the **full-angular arm**
+:math:`S(\psi)` **bit for bit** (``np.array_equal``, 0 ULP) before any
+production code was written. Because the moment-projection operator
+:math:`M` inside the windowed resolvent is built from the **same**
+quadrature harmonics :math:`Y` and weights :math:`w` the scattering
+operator uses internally, the stored moments equal :math:`S`'s own
+internal projection of the same :math:`\psi` term-for-term — so the
+per-sweep re-projection is not just *elided*, its result is *reproduced
+exactly*. The probe was cross-checked against a **structurally
+independent** Bell & Glasstone §1.6 hand reconstruction of the P1 source
+(every factor — :math:`w_n`, :math:`Y`, the :math:`(2\ell+1)=3`, the
+:math:`1/W` — written out by hand from the material data, *not* via the
+project's projection primitives), which agreed at ~1.5 ULP (the expected
+floating-point distance for an independent reduction order). This is the
+L11 structural-independence guard the bit-exact comparison alone lacks.
+
+.. list-table:: De-risk probe — moment arm vs full-angular arm
+   :header-rows: 1
+   :widths: 30 14 28 28
+
+   * - Probe (config: 2-D P1 het, LS-S4)
+     - Groups
+     - Result
+     - Verdict
+   * - **Q1** :math:`\Phi[0,0] = \texttt{integrate\_angular}`
+       (the :math:`Y_0^0 = 1` scalar-flux read)
+     - 2G
+     - max :math:`|\Delta| = 0`, ``np.array_equal`` True
+     - bit-exact (0 ULP)
+   * - **Q2** :math:`R\Lambda(\phi)` vs
+       :math:`R\Lambda M(\psi)` (the aniso :math:`\ell\ge 1` arm)
+     - 2G
+     - max ULP :math:`= 0`
+     - bit-exact (0 ULP)
+   * - **Q3** full :math:`S(M\psi)` vs :math:`S(\psi)`
+       (end-to-end source)
+     - 2G **and** 4G
+     - max ULP :math:`= 0` (both)
+     - bit-exact (0 ULP)
+   * - **Q2b** vs INDEPENDENT Bell & Glasstone hand
+       reconstruction (L11 structural-independence ground)
+     - 2G
+     - max rel :math:`= 3.4\times10^{-16}`
+     - principled (~1.5 ULP)
+   * - **Q4** non-degeneracy: aniso :math:`> 0`,
+       P1 :math:`\ne` P0, asymmetric :math:`\Sigma_s` (ERR-002 ground)
+     - 2G
+     - aniso max :math:`= 0.49`, :math:`|\Sigma_{s,0}-\Sigma_{s,0}^\top| = 0.1`–:math:`0.18`
+     - non-degenerate (gate can see Mode 6)
+
+**The convergence test moves to moment space (principled-equivalence).**
+The *only* non-bit-identical change is the SI stopping criterion. The
+full-angular path tested :math:`\lVert\psi_{k+1} - \psi_k\rVert_2`; the
+windowed path necessarily tests :math:`\lVert\phi_{k+1} -
+\phi_k\rVert_2`. This is the **physically-meaningful** SI criterion —
+scattering iterates the *moments*, so the moment :math:`L^2` is the
+natural convergence norm — i.e. the change is *more* principled, not a
+regression. Because the stopping point shifts by a fraction of a
+tolerance, the converged value agrees with the full-angular path within
+``SAFETY × conv_tol``: the measured drift is **2-D eigenvalue
+:math:`k_{\rm eff}` :math:`2.4\times10^{-14}` relative** and **scalar
+flux :math:`6.3\times10^{-12}` relative**, both well inside the
+regression framework's ``kind="iterative"`` gate (drift bounded by
+:math:`(\text{iteration count})\times(\text{condition number})\times
+\text{ULP}`, criterion 3 of the principled-equivalence test). The
+eigenvalue **outer** converges on the scalar flux, which is bit-identical
+via :math:`\phi_0` (the :math:`Y_0^0 = 1` read) — so *only* the inner SI
+stopping point shifts; the outer power iteration is untouched.
+
+The one *correctness* anchor (not merely *equivalence*) is the
+closed-form homogeneous eigenvalue: the windowed 2-D eigenvalue solve
+reproduces :math:`k_\infty = \nu\Sigma_f / \Sigma_a` (the closed-form
+pillar — MMS does **not** prove eigenvalues), and the
+``test_2d_p1_aniso_moment_path_carries_signal_and_si_krylov_agree`` gate
+cross-checks the windowed SI flux against the **full-angular Krylov**
+flux (a genuinely independent reference, since Krylov is never
+windowed), confirming the windowing does not silently drop the
+:math:`\ell\ge 1` moments — the central trap.
+
+
+.. _sn-angular-windowing-honest-scope:
+
+Honest scope — a persistent-iterate + typed-state win, NOT yet a peak win
+-------------------------------------------------------------------------
+
+.. warning::
+
+   Phase 5a reduces the **persistent** iterate storage and makes the SI
+   state honest. It does **NOT** by itself deliver the full peak-memory
+   reduction. State this carefully — the 18.3× number describes the
+   *held* iterate, not the *peak*.
+
+   * **What 5a wins.** The held + warm-started ``_psi_typed`` carried
+     across the entire eigenvalue solve (and the convergence-test copy)
+     shrinks by :math:`N / (L{+}1)(2L{+}1)` — measured **18.3×** at
+     :math:`N = 110`, :math:`L = 1`. The iterate **type** also becomes
+     honest: the SI state *is* the moments
+     (:class:`HarmonicMomentField`), so the representation no longer
+     over-claims an angular resolution the iteration never uses.
+   * **Why the peak win is modest.** The **per-sweep transient**
+     full-angular machinery still dominates the peak: the resolvent's
+     swept output, the :class:`WavefrontFlux` ``psi_x`` / ``psi_y``
+     interior cochain (the cochain section above), and the per-octant
+     ``.copy()`` buffers — several full-angular-sized arrays that
+     storage-A still materializes within a single sweep. Measured
+     **peak** reduction is only **~1.2×** for a :math:`12\times8` config
+     (the held :math:`2\times` iterate restored to full-angular size
+     against the windowed ``tracemalloc`` peak;
+     ``derivations/diagnostics/diag_p5a_peak_memory.py``).
+
+   The per-sweep transient is the target of **Phase 5b** (interior-face
+   storage-B — the rolling moving-frontier window over the wavefront
+   anti-diagonals, which never materializes the whole interior cochain
+   at once). 5b is *required* to realize the full peak win, and is the
+   **3-D enabler** (a 3-D wavefront's full interior cochain is
+   prohibitively large to materialize; the moving frontier is the only
+   tractable representation).
+
+So Phase 5a is precisely: the **persistent-iterate** shrink + the
+**typed-state** correctness win + the **foundation** for 5b. Phase 5b is
+the **per-sweep transient** elimination + the **3-D** enabler. The two
+together deliver the asymptotic peak reduction the moment iterate makes
+possible; 5a alone delivers the type and the persistent-storage win.
+
+
+.. _sn-angular-windowing-implementation:
+
+Implementation map
+-------------------
+
+* :class:`~orpheus.sn.solver._MomentWindowedResolvent`
+  (:mod:`orpheus.sn.solver`) wraps the within-group resolvent (the
+  Jacobi :math:`L+C`, or the
+  :class:`~orpheus.sn.solver._GaussSeidelResolvent`) and reduces its
+  swept bulk output via :math:`M` — sourced from the scattering
+  operator's **own** quadrature, which is what makes the stored moments
+  bit-identical to :math:`S`'s internal projection. It mirrors the base
+  resolvent's ``capabilities`` (including ``CAP_SOLVE``) and accepts the
+  ``initial_guess`` kwarg, so it satisfies the
+  :class:`~orpheus.numerics.iteration.SourceIteration` ``L`` contract.
+  Gated on ``sn_mesh.reduced is None``.
+* The **eigenvalue** inner
+  (:meth:`SNSolver._solve_source_iteration <orpheus.sn.solver.SNSolver._solve_source_iteration>`)
+  is reconstruction-free: it returns the scalar flux read off the
+  :math:`\ell{=}0` moment block (``psi_typed.bulk.l_block(0)[0]``, the
+  :math:`Y_0^0 = 1` identity), since the outer power iteration rebuilds
+  from the scalar flux.
+* The **fixed-source** inner
+  (:func:`~orpheus.sn.solver.solve_sn_fixed_source`'s SI path) adds a
+  **one-shot** full-angular reconstruction for ``Solution.angular_flux``
+  — it re-evaluates the converged source ``q + Σ gains·ψ`` once through
+  the *un-wrapped* base resolvent (``base_resolvent.solve(...)``).
+  Fixed-source must return the full per-ordinate field, and because
+  :math:`S`/:math:`B` consume the moments *equal* the full angular's
+  moments (de-risk proven), the reconstructed source is the same and one
+  sweep reproduces the converged iterate by the fixed point — so the
+  reconstruction is bit-identical to the un-windowed converged
+  :math:`\psi`.
+
+Cross-references: the moment math :eq:`flux-moments` / :eq:`pn-scatter`
+and the :math:`Y_\ell^m` convention live in :ref:`pn-scattering`
+(:doc:`discrete_ordinates`); the single-axis projection primitive
+:class:`~orpheus.numerics.projection.MomentProjection` (equation
+:math:`\phi_\ell^m = \sum_n w_n Y_\ell^m \psi_n`) and the
+:class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`
+operator live in :mod:`orpheus.numerics.projection`; the interior-face
+cochain Phase 5a is orthogonal to is :ref:`wavefront-flux-cochain`; the
+SI fixed point it reorganizes is the within-group inner of
+:ref:`eigenvalue-posing`.
 
 
 .. _trace-spaces-doc:

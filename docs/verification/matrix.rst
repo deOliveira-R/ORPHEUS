@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **4984**
+Total tests collected: **4979**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1166, 23.4%
-   L1, 936, 18.8%
+   L1, 939, 18.9%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2840, 57.0%
+   foundation, 2832, 56.9%
    unmarked, 6, 0.1%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4899
+   explicit, 4894
    verify, 0
    class-name, 46
    func-name, 0
@@ -277,7 +277,7 @@ Module × level grid
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
    operators/test_operator_block_role, 0, 0, 0, 0, 20, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 16, 0
-   operators/test_scattering_operator, 1, 0, 0, 0, 75, 0
+   operators/test_scattering_operator, 1, 0, 0, 0, 66, 0
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 21, 0
    operators/test_sn_boundary_realizer, 0, 20, 0, 0, 0, 0
    operators/test_snmesh_realizer_wiring, 0, 9, 0, 0, 0, 0
@@ -297,10 +297,11 @@ Module × level grid
    primitives/test_snmesh_sweep_graphs, 13, 0, 0, 0, 0, 0
    primitives/test_solution, 0, 0, 0, 0, 31, 0
    primitives/test_typed_source_sinks, 0, 0, 0, 0, 24, 0
-   regression/test_dd_regression, 0, 0, 0, 0, 12, 0
+   regression/test_dd_regression, 0, 0, 0, 0, 13, 0
    residuals/test_typed_residuals, 0, 0, 0, 0, 33, 0
    slab/test_dd_recurrence, 1, 0, 0, 0, 0, 0
    slab/test_unified_matvec_slab, 2, 2, 0, 0, 0, 0
+   solve/test_2d_anisotropic_windowing, 0, 3, 0, 0, 0, 0
    solve/test_b1pp_verification, 6, 3, 0, 0, 0, 0
    solve/test_fixed_source_2d_equivalence, 0, 2, 0, 0, 0, 0
    solve/test_fixed_source_g1, 0, 5, 0, 0, 0, 0
@@ -335,7 +336,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``collision-rate``, 94
    ``alpha-cylindrical``, 74
    ``mm-weights``, 74
-   ``multigroup``, 69
+   ``multigroup``, 70
    ``ki3-def``, 64
    ``e3-def``, 61
    ``self-slab``, 55
@@ -353,7 +354,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``attenuation``, 48
    ``optical-thickness``, 48
    ``scalar-flux-integral``, 48
-   ``transport-cartesian``, 42
+   ``transport-cartesian``, 45
    ``cp-kernel-differential-identities``, 36
    ``flat-source``, 35
    ``cp-keff-update``, 34
@@ -401,12 +402,12 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``discrete-measure-integrate``, 16
    ``fission-weight``, 16
    ``keff-cycle``, 16
+   ``pn-scatter``, 16
    ``roulette-conservation``, 16
    ``roulette-prob``, 16
    ``peierls-greens-hollow-sph-architecture``, 15
    ``second-diff-general``, 15
    ``peierls-greens-annulus-architecture``, 14
-   ``pn-scatter``, 14
    ``peierls-greens-slab-asym-architecture``, 13
    ``complementarity``, 12
    ``kinf-1g``, 12
@@ -587,9 +588,10 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **53** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **54** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
+- ``angular-windowing-moment-projection``
 - ``bc-rank-n-tensor-decomposition``
 - ``bc-tensor-decomposition``
 - ``billiard-rank2-S``
@@ -646,8 +648,10 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **209** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **212** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
+- ``angular-windowing-aniso-factoring``
+- ``angular-windowing-moment-iterate``
 - ``bailey-dome-recursion``
 - ``bc-extraction-block-matrix``
 - ``bc-extraction-direct-sum-state``
@@ -821,6 +825,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``scattering-as-tensor-product-sum``
 - ``sh-addition-theorem-reconstruction``
 - ``sh-space-metric``
+- ``si-within-group-fixed-point``
 - ``sigs-convention``
 - ``singular-eigenfunction-eq5``
 - ``sn-mms-nonvacuum-psi``
