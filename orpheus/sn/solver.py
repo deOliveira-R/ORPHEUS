@@ -497,12 +497,12 @@ def _within_group_si(LC, S, B, sn_mesh, *, inner_schedule, max_iter, tol):
     * ``windowed`` — whether the iterate is the moment representation (2-D
       Cartesian) vs full-angular (curvilinear / 1-D).
 
-    The eigenvalue path passes ``inner_schedule="jacobi"`` (the deliberate
-    Phase-3 "eigenvalue stays Jacobi" choice — enabling boundary-G-S on the
-    eigenvalue inner is the `#218
-    <https://github.com/deOliveira-R/ORPHEUS/issues/218>`_ follow-up); the
-    fixed-source path forwards its own ``inner_schedule`` (default G-S on 2-D
-    Cartesian).
+    Both paths forward their caller's ``inner_schedule`` (default boundary
+    Gauss-Seidel on 2-D Cartesian — `#218
+    <https://github.com/deOliveira-R/ORPHEUS/issues/218>`_ closed the
+    eigenvalue-inner gap; the eigenvalue path reads ``SNSolver.inner_schedule``,
+    the fixed-source path its ``inner_schedule`` argument).
+    ``_select_si_resolvent`` auto-falls-back to Jacobi on 1-D / curvilinear.
     """
     from orpheus.numerics.iteration import SourceIteration
 
@@ -561,6 +561,7 @@ class SNSolver:
         flux_tol: float = 1e-6,
         max_inner: int = 200,
         inner_tol: float = 1e-8,
+        inner_schedule: str = "jacobi",
     ):
         if inner_solver not in ("source_iteration", "krylov"):
             raise ValueError(
@@ -571,9 +572,26 @@ class SNSolver:
                 f"InvertibleOperator (L + C) with the sweep as "
                 f"preconditioner.)"
             )
+        if inner_schedule not in ("jacobi", "gauss_seidel"):
+            raise ValueError(
+                f"Unknown inner_schedule: {inner_schedule!r}. "
+                f"Valid choices are 'gauss_seidel' (boundary G-S, 2-D "
+                f"Cartesian — auto-falls-back to Jacobi on 1-D) or 'jacobi'."
+            )
         self.sn_mesh = sn_mesh
         self.quad = sn_mesh.quad
         self.inner_solver = inner_solver
+        # SI BOUNDARY splitting for the eigenvalue inner (#218 — the eigenvalue
+        # SI now CAN reach the boundary-Gauss-Seidel accelerator the
+        # fixed-source path got in Phase 3, via the shared ``_within_group_si``
+        # builder; validated SI(G-S)≡Krylov≡k_inf).  DEFAULT stays ``"jacobi"``:
+        # the eigenvalue inner is warm-started (the G-S rate benefit is modest
+        # there), and a schedule change shifts the converged k_eff by ~inner_tol
+        # (1e-10-scale — same fixed point, vv Mode 9; only the inner SI stopping
+        # differs), which the keff_tol-tight regression snapshots cannot absorb.
+        # ``"gauss_seidel"`` is opt-in (2-D Cartesian; ``_select_si_resolvent``
+        # auto-falls-back to Jacobi on 1-D / curvilinear).
+        self.inner_schedule = inner_schedule
         self.scattering_order = scattering_order
         self.keff_tol = keff_tol
         self.flux_tol = flux_tol
@@ -1021,13 +1039,15 @@ class SNSolver:
         # fixed-source paths). ───────────────────────────────────────
         LC, S, B = _within_group_triple(self)
         # ONE SI builder shared with the fixed-source path (R1 brought to the
-        # same depth as Krylov's R2 / :func:`_within_group_krylov`).  Eigenvalue
-        # stays Jacobi (the deliberate Phase-3 choice; boundary-G-S on the
-        # eigenvalue inner is the #218 follow-up).  Phase-5a angular-windowing
-        # folds in via :func:`_maybe_window` inside the builder.
+        # same depth as Krylov's R2 / :func:`_within_group_krylov`).  ``#218``:
+        # the eigenvalue inner now honours ``self.inner_schedule`` (default
+        # boundary-G-S on 2-D Cartesian — same accelerator the fixed-source
+        # path got in Phase 3; ``_select_si_resolvent`` auto-falls-back to
+        # Jacobi on 1-D / curvilinear).  Phase-5a angular-windowing folds in via
+        # :func:`_maybe_window` inside the builder.
         si, _base, _gains, windowed = _within_group_si(
             LC, S, B, self.sn_mesh,
-            inner_schedule="jacobi",
+            inner_schedule=self.inner_schedule,
             max_iter=self.max_inner, tol=self.inner_tol,
         )
 
@@ -1398,6 +1418,7 @@ def solve_sn(
     flux_tol: float = 1e-6,
     max_inner: int = 200,
     inner_tol: float = 1e-8,
+    inner_schedule: str = "jacobi",
 ) -> Solution:
     """Solve the multi-group SN eigenvalue problem.
 
@@ -1442,6 +1463,22 @@ def solve_sn(
     max_outer : maximum outer (power) iterations.
     keff_tol, flux_tol : outer convergence.
     max_inner, inner_tol : inner solver parameters.
+    inner_schedule : {"jacobi", "gauss_seidel"}
+        Boundary splitting for the ``source_iteration`` inner (#218 — the
+        eigenvalue inner CAN now reach the same boundary-G-S accelerator the
+        fixed-source path got in Phase 3, via the shared ``_within_group_si``
+        builder; validated SI(G-S)≡Krylov≡closed-form k_inf).  ``"jacobi"``
+        (default) lags the reflective boundary ``B`` as an external gain;
+        ``"gauss_seidel"`` (opt-in) folds ``B`` into an octant-group forward
+        substitution on 2-D Cartesian (1-D / curvilinear auto-fall-back to
+        Jacobi — G-S is 2-D-Cartesian-only and a no-op on the
+        scattering-dominated 1-D regime).  The converged eigenvalue is
+        identical either way to within ``inner_tol`` (vv-principles Mode 9 —
+        same fixed point; only the inner SI stopping differs).  Default stays
+        Jacobi: the eigenvalue inner is warm-started (modest G-S benefit) and a
+        schedule change shifts k_eff by ~inner_tol, which the keff_tol-tight
+        regression snapshots cannot absorb.  Ignored when
+        ``inner_solver="krylov"`` (Krylov is splitting-invariant).
 
     Returns
     -------
@@ -1469,6 +1506,7 @@ def solve_sn(
         scattering_order=scattering_order,
         keff_tol=keff_tol, flux_tol=flux_tol,
         max_inner=max_inner, inner_tol=inner_tol,
+        inner_schedule=inner_schedule,
     )
 
     keff, keff_history, scalar_flux = power_iteration(solver, max_iter=max_outer)

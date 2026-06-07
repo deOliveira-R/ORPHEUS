@@ -492,6 +492,65 @@ class TestSIKrylov2DEquivalence:
             err_msg="SI vs Krylov heterogeneous 2-D flux SHAPE diverged",
         )
 
+    @pytest.mark.verifies(
+        "transport-cartesian-2d", "matrix-eigenvalue", "multigroup",
+    )
+    def test_eigenvalue_jacobi_gauss_seidel_equivalence(self):
+        """#218: the eigenvalue SI inner gives the SAME eigenvalue + eigenmode
+        under the Jacobi (default) and boundary-Gauss-Seidel schedules.
+
+        vv-principles Mode 9: the two boundary splittings reach the SAME
+        within-group fixed point each outer step (only the inner SI spectral
+        rate differs), so the outer power iteration converges to the same
+        eigenvalue.  The eigenvalue inner being unable to reach the G-S
+        accelerator (which the fixed-source path got in Phase 3) was the #218
+        gap; the shared ``_within_group_si`` builder + ``inner_schedule``
+        plumbing close it.  G-S stays OPT-IN (default Jacobi) — a schedule
+        change shifts the converged k_eff by ~inner_tol (the inner SI stops at
+        a slightly different point, NOT keff_tol-tight), which is why the
+        keff_tol-tight regression snapshots stay on Jacobi.
+
+        Reflective het 2-D config: ``B`` is non-trivial (G-S genuinely folds
+        it) and the flux is non-flat (the equivalence is not vacuous).
+        """
+        materials = {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
+        nx, ny = 8, 4
+        mat = np.zeros((nx, ny), dtype=int)
+        mat[:4, :] = 2  # fuel | moderator split across x → non-flat flux
+        mesh = _uniform_2d(nx, ny, 0.25, mat)
+        quad = Quadrature.lebedev(order=17)
+        kw = dict(keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10)
+
+        sol_jac = solve_sn(materials, mesh, quad, inner_schedule="jacobi", **kw)
+        sol_gs = solve_sn(
+            materials, mesh, quad, inner_schedule="gauss_seidel", **kw,
+        )
+
+        # Non-degeneracy: the flux MUST be genuinely non-flat, else B +
+        # redistribution are not exercised and the Jacobi≡G-S claim is vacuous.
+        phi_jac = np.asarray(sol_jac.scalar_flux.values, dtype=np.float64)
+        prof = phi_jac[0].mean(axis=1)
+        assert prof.max() / prof.min() > 1.2, (
+            f"flux too flat (max/min={prof.max() / prof.min():.3f}); "
+            "B coupling not exercised — gate degenerate"
+        )
+
+        # Mode 9: same eigenvalue to within ~inner_tol (the schedule change
+        # shifts the inner SI stopping point, NOT the fixed point — so the
+        # k_eff agreement scales with inner_tol=1e-10, not keff_tol=1e-12).
+        assert abs(sol_jac.keff - sol_gs.keff) < 1e-8, (
+            f"#218: eigenvalue Jacobi keff={sol_jac.keff:.12f} vs "
+            f"boundary-G-S keff={sol_gs.keff:.12f} (Δ exceeds the inner_tol-"
+            "scale schedule shift — investigate as a real FP discrepancy)"
+        )
+        # Same eigenmode shape (eigenvectors are scale-free → mean-norm).
+        phi_gs = np.asarray(sol_gs.scalar_flux.values, dtype=np.float64)
+        np.testing.assert_allclose(
+            phi_jac / phi_jac.mean(), phi_gs / phi_gs.mean(),
+            rtol=1e-6, atol=1e-8,
+            err_msg="#218: eigenvalue Jacobi vs boundary-G-S flux SHAPE diverged",
+        )
+
     @pytest.mark.slow
     @pytest.mark.verifies(
         "transport-cartesian-2d", "matrix-eigenvalue", "multigroup",
