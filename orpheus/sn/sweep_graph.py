@@ -465,6 +465,166 @@ class SweepDependencyGraph:
             )
             residual_octant[:, :, ii, jj] = cell_update.residual_batch(slice_args)
 
+    # ── Phase 5b storage-B: rolling moving-frontier window walks ────────
+    #
+    # The PRODUCTION walks. They carry the interior face cochain as a
+    # rolling 2-diagonal window (win_x / win_y, shape (N_oct, ng, 2, nx) —
+    # parity × local-slot) instead of the full per-axis face field, so the
+    # interior backing is O(N·ng·nx) not O(N·ng·nx·ny). The cell math is the
+    # SAME shared kernel (DiamondDifference.cell_kernel_batch /
+    # residual_kernel_batch) the full-field walks (apply / residual) use —
+    # so window and full-field cannot drift mathematically; the per-level
+    # gather/scatter just addresses window slots instead of global faces.
+    # Domain-edge inflow is read per-level from the passed inflow arrays;
+    # domain-edge outflow is SHED into the capture arrays at the level that
+    # produces it, BEFORE its window slot is recycled (the slot at parity
+    # k%2 was last written by level k-2 and consumed at level k-1).
+
+    def _window_gather(
+        self, *, win_x, win_y, inflow_x, inflow_y, ii, jj, slot, local_j, prev,
+    ):
+        r"""Gather the incoming x/y face flux for one level (window-addressed).
+
+        x-incoming: the upstream cell's x-outflow at slot ``slot-1`` of the
+        previous parity, OR — for an x-inflow domain-edge cell (``slot==0``)
+        — the boundary inflow ``inflow_x[:, :, jj]``. y-incoming: slot
+        ``slot`` of the previous parity, OR the boundary inflow
+        ``inflow_y[:, :, ii]`` for a y-inflow edge cell (``local_j==0``).
+        Vectorised over the ``n_diag`` slot array — no per-cell Python (L16).
+        """
+        is_x_in = (slot == 0)
+        is_y_in = (local_j == 0)
+        slot_prev_x = np.where(is_x_in, 0, slot - 1)   # clamp (masked out)
+        in_x = np.where(
+            is_x_in[None, None, :],
+            inflow_x[:, :, jj],
+            win_x[:, :, prev, slot_prev_x],
+        )
+        in_y = np.where(
+            is_y_in[None, None, :],
+            inflow_y[:, :, ii],
+            win_y[:, :, prev, slot],
+        )
+        return in_x, in_y
+
+    def _window_shed(
+        self, *, out_x, out_y, ii, jj, slot, local_j, capture_x, capture_y,
+    ):
+        r"""Capture domain-edge OUTFLOW into the capture arrays before recycle.
+
+        An x-outflow domain-edge cell is ``slot == nx-1`` (its x-outgoing is
+        the domain x-outflow at global y-cell ``jj``); a y-outflow edge cell
+        is ``local_j == ny-1`` (y-outgoing at global x-cell ``ii``). Capturing
+        here — at the level that produces the outflow — is load-bearing: the
+        window slot is overwritten two levels later, so a missed capture would
+        silently corrupt the boundary trace (de-risk Gate-d).
+        """
+        x_out = (slot == self.nx - 1)
+        if x_out.any():
+            capture_x[:, :, jj[x_out]] = out_x[:, :, x_out]
+        y_out = (local_j == self.ny - 1)
+        if y_out.any():
+            capture_y[:, :, ii[y_out]] = out_y[:, :, y_out]
+
+    def apply_windowed(
+        self,
+        *,
+        cell_update: CellUpdateBase,
+        inflow_x: np.ndarray,            # (N_oct, ng, ny) — domain x-inflow by global y-cell
+        inflow_y: np.ndarray,            # (N_oct, ng, nx) — domain y-inflow by global x-cell
+        Q_octant: np.ndarray,            # (N_oct or 1, ng, nx, ny)
+        sig_t: np.ndarray,               # (ng, nx, ny)
+        str_x_octant: np.ndarray,        # (N_oct, nx)
+        str_y_octant: np.ndarray,        # (N_oct, ny)
+        weights_octant: np.ndarray,      # (N_oct,)
+        angular_flux_octant: np.ndarray, # (N_oct, ng, nx, ny) — written
+        scalar_flux_buf: np.ndarray,     # (ng, nx, ny) — accumulated
+        capture_x: np.ndarray,           # (N_oct, ng, ny) — domain x-outflow, written
+        capture_y: np.ndarray,           # (N_oct, ng, nx) — domain y-outflow, written
+    ) -> None:
+        r"""Storage-B solve walk: forward-substitute on a rolling 2-diagonal
+        window, sheding domain-edge outflow as the frontier advances.
+
+        The window-backed twin of :meth:`apply`. Bit-identical to it (same
+        shared cell kernel, same anti-diagonal order); proven by the
+        ``window ≡ full-field`` oracle test. The boundary inflow is read from
+        ``inflow_x`` / ``inflow_y`` (the octant's incoming domain-edge trace);
+        the outflow is shed into ``capture_x`` / ``capture_y``.
+        """
+        N_oct, ng = inflow_x.shape[0], inflow_x.shape[1]
+        win_x = np.zeros((N_oct, ng, 2, self.nx))
+        win_y = np.zeros((N_oct, ng, 2, self.nx))
+        for k, ((ii, jj), slot) in enumerate(zip(self.levels, self.window_slots)):
+            local_j = k - slot
+            cur, prev = k % 2, (k - 1) % 2
+            in_x, in_y = self._window_gather(
+                win_x=win_x, win_y=win_y, inflow_x=inflow_x, inflow_y=inflow_y,
+                ii=ii, jj=jj, slot=slot, local_j=local_j, prev=prev,
+            )
+            sx = str_x_octant[:, ii][:, None, :]
+            sy = str_y_octant[:, jj][:, None, :]
+            psi_avg, out_x, out_y = cell_update.cell_kernel_batch(
+                psi_in_x=in_x, psi_in_y=in_y, sx=sx, sy=sy,
+                sigt_cells=sig_t[:, ii, jj], Q_cells=Q_octant[:, :, ii, jj],
+            )
+            win_x[:, :, cur, slot] = out_x
+            win_y[:, :, cur, slot] = out_y
+            self._window_shed(
+                out_x=out_x, out_y=out_y, ii=ii, jj=jj, slot=slot,
+                local_j=local_j, capture_x=capture_x, capture_y=capture_y,
+            )
+            scalar_flux_buf[:, ii, jj] += np.einsum(
+                "ngd,n->gd", psi_avg, weights_octant,
+            )
+            angular_flux_octant[:, :, ii, jj] = psi_avg
+
+    def residual_windowed(
+        self,
+        *,
+        cell_update: CellUpdateBase,
+        inflow_x: np.ndarray,             # (N_oct, ng, ny)
+        inflow_y: np.ndarray,             # (N_oct, ng, nx)
+        psi_avg_probe_octant: np.ndarray, # (N_oct, ng, nx, ny) — the probe
+        Q_octant: np.ndarray,             # (N_oct or 1, ng, nx, ny)
+        sig_t: np.ndarray,                # (ng, nx, ny)
+        str_x_octant: np.ndarray,         # (N_oct, nx)
+        str_y_octant: np.ndarray,         # (N_oct, ny)
+        residual_octant: np.ndarray,      # (N_oct, ng, nx, ny) — written
+        capture_x: np.ndarray,            # (N_oct, ng, ny) — written
+        capture_y: np.ndarray,            # (N_oct, ng, nx) — written
+    ) -> None:
+        r"""Storage-B apply (matvec) walk: the window-backed twin of
+        :meth:`residual`. Reconstructs edge fluxes from the PROBE along the
+        rolling frontier (``psi_out = 2·psi_bar − psi_in``) and writes the
+        per-cell operator residual; sheds the domain-edge outflow. The matvec
+        residual output stays full ``(N_oct, ng, nx, ny)`` (Krylov consumes
+        the full bulk residual) — only the interior FACE buffer is windowed.
+        """
+        N_oct, ng = inflow_x.shape[0], inflow_x.shape[1]
+        win_x = np.zeros((N_oct, ng, 2, self.nx))
+        win_y = np.zeros((N_oct, ng, 2, self.nx))
+        for k, ((ii, jj), slot) in enumerate(zip(self.levels, self.window_slots)):
+            local_j = k - slot
+            cur, prev = k % 2, (k - 1) % 2
+            in_x, in_y = self._window_gather(
+                win_x=win_x, win_y=win_y, inflow_x=inflow_x, inflow_y=inflow_y,
+                ii=ii, jj=jj, slot=slot, local_j=local_j, prev=prev,
+            )
+            sx = str_x_octant[:, ii][:, None, :]
+            sy = str_y_octant[:, jj][:, None, :]
+            res, out_x, out_y = cell_update.residual_kernel_batch(
+                psi_bar=psi_avg_probe_octant[:, :, ii, jj],
+                psi_in_x=in_x, psi_in_y=in_y, sx=sx, sy=sy,
+                sigt_cells=sig_t[:, ii, jj], Q_cells=Q_octant[:, :, ii, jj],
+            )
+            win_x[:, :, cur, slot] = out_x
+            win_y[:, :, cur, slot] = out_y
+            self._window_shed(
+                out_x=out_x, out_y=out_y, ii=ii, jj=jj, slot=slot,
+                local_j=local_j, capture_x=capture_x, capture_y=capture_y,
+            )
+            residual_octant[:, :, ii, jj] = res
+
 
 __all__ = [
     "OctantLabel",
