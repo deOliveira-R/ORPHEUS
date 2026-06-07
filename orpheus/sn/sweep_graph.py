@@ -184,6 +184,21 @@ class SweepDependencyGraph:
     face_out_x: int
     face_in_y: int
     face_out_y: int
+    # ── Phase 5b storage-B: mesh-time moving-frontier window metadata ──
+    # The rolling 2-diagonal window walk keys the interior face cochain by
+    # the cell's LOCAL sweep-order slot (``local_i ∈ [0, nx)``) instead of
+    # its global face position — so the backing is O(N·ng·nx) not
+    # O(N·ng·nx·ny). ``window_slots[k]`` is the per-level ``local_i`` array
+    # (= the slot to write ``win_*[k%2, slot]`` and read ``win_y[(k-1)%2,
+    # slot]`` / ``win_x[(k-1)%2, slot-1]``). The companion ``local_j`` is
+    # ``k - window_slots[k]`` (construction invariant), so the domain-edge
+    # masks derive in the walk: x-inflow ``slot==0``, x-outflow
+    # ``slot==nx-1``, y-inflow ``local_j==0``, y-outflow ``local_j==ny-1``.
+    # ``nx`` / ``ny`` size the window + the outflow masks. These are derived
+    # mesh-time (no flux dependence) — L16: zero per-sweep recompute.
+    nx: int
+    ny: int
+    window_slots: tuple[np.ndarray, ...]
 
     # ── Construction ────────────────────────────────────────────────
 
@@ -243,12 +258,18 @@ class SweepDependencyGraph:
         # then translate to the global cell indices in the per-octant
         # traversal order.
         levels: list[tuple[np.ndarray, np.ndarray]] = []
+        window_slots: list[np.ndarray] = []
         for k in range(nx + ny - 1):
             i_start = max(0, k - ny + 1)
             i_end = min(nx - 1, k)
             local_i = np.arange(i_start, i_end + 1)
             local_j = k - local_i
             levels.append((ix_arr[local_i], iy_arr[local_j]))
+            # Phase 5b: the window slot IS the local sweep-order index
+            # ``local_i`` (independent of octant sign — the global position
+            # ``ix_arr[local_i]`` is only used for the source/XS/edge gather,
+            # not for the rolling-window slot addressing).
+            window_slots.append(local_i)
 
         return cls(
             label=label,
@@ -257,6 +278,9 @@ class SweepDependencyGraph:
             face_out_x=face_out_x,
             face_in_y=face_in_y,
             face_out_y=face_out_y,
+            nx=nx,
+            ny=ny,
+            window_slots=tuple(window_slots),
         )
 
     # ── Internal: shared per-level slice builder ────────────────────
