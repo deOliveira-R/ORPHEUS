@@ -1134,14 +1134,27 @@ class TestIsFoldableIntoSigmaR:
 # ──────────────────────────────────────────────────────────────────────
 
 
-class TestPerLegendreOrderKernel:
-    """Wave T step T.3b — `scattering_op.kernel` is an `OperatorSum`
-    of per-ℓ summands.
+class TestAnisoMomentSourcePath:
+    """Anisotropic in-scatter via the moment→source map ``R·Λ_{ℓ≥1}``.
 
-    Mirrors the verification gate pattern from T.2's
-    `TestRankOneTensorProductKernel` but adapted to T.3's
-    OperatorSum-of-custom-summands shape per the Q6 honest-fallback
-    resolution.
+    Phase 5a (angular-windowing) retired the per-ℓ
+    ``_PerLegendreOrderScattering`` kernel — which recomputed ``M`` for
+    every Legendre order — in favour of ONE shared reconstruction,
+    :meth:`ScatteringOperator._aniso_source_from_moment_values`.  Two
+    callers share it (``coding-elegance`` Pattern 2 — single source of
+    truth):
+
+    * :meth:`ScatteringOperator.build_aniso_source` — projects
+      ``φ = Mψ`` once, then applies the map (the full-angular path);
+    * the windowed moment-iterate ``apply`` arm — whose iterate bulk IS
+      ``φ`` (the 2-D Cartesian angular-windowing SI iterate), so ``M``
+      is already done and only the map remains.
+
+    ``build_aniso_source``'s numerical correctness is pinned by the
+    pre-T.3 bit-identical snapshot below (a structurally-independent
+    reference captured BEFORE the kernel ever existed).  This class adds
+    the load-bearing Phase-5a guard: the moment ``apply`` arm reproduces
+    the full-angular arm bit-for-bit.
     """
 
     @pytest.fixture
@@ -1154,114 +1167,51 @@ class TestPerLegendreOrderKernel:
         """ScatteringOperator with scattering_order=0 (P0 only)."""
         return solver_2g_p0.scattering_op
 
-    def test_kernel_summands_count_matches_scattering_order(self, op_p1):
-        """`len(kernel_summands) == scattering_order` (one summand per
-        Legendre order ℓ ∈ [1, L]; P0 stays in the fast path per
-        spec §6 Q3 Option (β))."""
-        assert len(op_p1.kernel_summands) == op_p1.scattering_order
+    def test_moment_apply_arm_bit_identical_to_angular_arm(
+        self, op_p1, solver_2g_p1_n2n,
+    ):
+        """Phase 5a load-bearing guard: ``S.apply(HarmonicMomentField)``
+        reproduces ``S.apply(AngularFlux)`` BIT-FOR-BIT when the moments
+        are ``φ = Mψ``.
 
-    def test_kernel_summands_cover_ell_1_through_L(self, op_p1):
-        """Each summand handles a distinct ℓ in [1, L]; collectively
-        they cover the full anisotropic range."""
-        ells = sorted(s.ell for s in op_p1.kernel_summands)
-        expected = list(range(1, op_p1.scattering_order + 1))
-        assert ells == expected
-
-    def test_each_summand_is_per_legendre_order_scattering(self, op_p1):
-        """Each summand is a `_PerLegendreOrderScattering` instance —
-        the math-honest per-ℓ primitive (NOT a TensorProductOperator,
-        per Q6 honest-fallback)."""
-        from orpheus.sn.scattering import _PerLegendreOrderScattering
-
-        for summand in op_p1.kernel_summands:
-            assert isinstance(summand, _PerLegendreOrderScattering)
-
-    def test_each_summand_capabilities_apply_only(self, op_p1):
-        """Per-ℓ summands advertise CAP_APPLY only (no inverse, no
-        transpose surface in this wave)."""
-        from orpheus.numerics.operator import CAP_APPLY
-
-        for summand in op_p1.kernel_summands:
-            assert summand.capabilities == frozenset({CAP_APPLY})
-
-    @pytest.fixture
-    def op_p2(self):
-        """ScatteringOperator with P2 aniso — yields ≥2 kernel summands
-        so the OperatorSum tree actually wraps (`reduce` over a
-        singleton returns the singleton directly)."""
-        from scipy.sparse import csr_matrix
-
-        p0 = np.array([[0.38, 0.10], [0.05, 0.90]])
-        p1 = np.array([[0.02, 0.01], [0.00, 0.04]])
-        p2 = np.array([[0.005, 0.002], [0.000, 0.010]])
-        mix = make_mixture(
-            sig_t=np.array([0.5, 1.0]),
-            sig_c=np.array([0.01, 0.02]),
-            sig_f=np.array([0.01, 0.08]),
-            nu=np.array([2.5, 2.5]),
-            chi=np.array([1.0, 0.0]),
-            sig_s=p0,
+        This is the angular-windowing carve's correctness core —
+        windowing the within-group SI iterate from a full per-ordinate
+        :class:`AngularFlux` down to :class:`HarmonicMomentField` moments
+        loses NO scattering-source information (``S`` is a pure function
+        of the moments).  The P1 asymmetric-``SigS`` + (n,2n) fixture
+        activates the ℓ=0 (iso + cross-group + n2n) AND ℓ≥1 (aniso)
+        paths, so a windowing that dropped a moment, swapped an index, or
+        drifted a convention would fail here (vv-principles: ≥2 groups,
+        anisotropic, asymmetric scatter — Modes 2/6 + the dropped-moment
+        trap).
+        """
+        from orpheus.transport.fields.harmonic_moment_field import (
+            HarmonicMomentField,
         )
-        mix.SigS = [csr_matrix(p0), csr_matrix(p1), csr_matrix(p2)]
-        mix.Sig2 = csr_matrix(np.zeros((2, 2)))
+        from orpheus.numerics.projection import MomentProjection
 
-        nx, ny = 3, 2
-        mesh = _uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int))
-        quad = Quadrature.lebedev(order=17)
-        return SNSolver(SNMesh(mesh, quad, {0: mix}), scattering_order=2).scattering_op
-
-    def test_kernel_is_operator_sum_for_multiple_summands(self, op_p2):
-        """`kernel` is an OperatorSum tree (NOT a SOTP) — Q6 honest
-        fallback. The tree structure for L summands is the
-        `functools.reduce(add, summands)` left-fold. For L=1 the
-        degenerate case is the single summand directly (no sum needed);
-        for L≥2 the OperatorSum wrap kicks in. This test pins L=2."""
-        from orpheus.numerics.operator import OperatorSum
-
-        assert len(op_p2.kernel_summands) == 2
-        kernel = op_p2.kernel
-        assert isinstance(kernel, OperatorSum)
-
-    def test_kernel_is_single_summand_for_p1(self, op_p1):
-        """Degenerate case: when scattering_order == 1, kernel is the
-        single per-ℓ summand directly (no OperatorSum wrap needed —
-        `reduce(add, [x])` returns `x`). Math-honest: `Σ_ℓ X_ℓ` with
-        one ℓ is just X_1."""
-        from orpheus.sn.scattering import _PerLegendreOrderScattering
-
-        assert len(op_p1.kernel_summands) == 1
-        kernel = op_p1.kernel
-        assert isinstance(kernel, _PerLegendreOrderScattering)
-
-    def test_kernel_capabilities_apply_only(self, op_p1):
-        """Kernel inherits `{CAP_APPLY}` only (no propagation of
-        solve through OperatorSum, no apply_transpose since summands
-        don't advertise it)."""
-        from orpheus.numerics.operator import CAP_APPLY
-
-        assert op_p1.kernel.capabilities == frozenset({CAP_APPLY})
-
-    def test_p0_only_kernel_is_zero_operator(self, op_p0):
-        """When `scattering_order == 0`, kernel is a ZeroOperator
-        (no anisotropic in-scatter; all of S goes through the
-        P0 + n2n fast path)."""
-        from orpheus.numerics.operator import ZeroOperator
-
-        assert op_p0.kernel_summands == ()
-        assert isinstance(op_p0.kernel, ZeroOperator)
-
-    def test_kernel_apply_sums_per_ell_contributions(self, op_p1):
-        """Linearity guard: kernel.apply(psi) ≈ sum(s.apply(psi) for s
-        in summands).  Confirms the OperatorSum binary tree reduces
-        correctly to the algebraic sum of summands."""
         op = op_p1
-        N = op.n_ordinates
-        rng = np.random.default_rng(101)
-        psi_values = rng.uniform(0.05, 1.0, size=(N, op.ng, op.nx, op.ny))
+        psi = self._reproduce_psi(solver_2g_p1_n2n, seed=7)
 
-        kernel_out = op.kernel.apply(psi_values)
-        summand_out = sum(s.apply(psi_values) for s in op.kernel_summands)
-        np.testing.assert_array_equal(kernel_out, summand_out)
+        # The full-angular arm S consumes today.
+        src_angular = op.apply(psi)
+
+        # The windowed path: project φ = Mψ, then the moment arm.
+        moments = MomentProjection(
+            weights=op.weights, Y=op.Y, L=op.scattering_order,
+        ).apply(psi.values)
+        phi_field = HarmonicMomentField.from_mesh_and_L(
+            moments, psi.mesh, op.scattering_order,
+        )
+        src_moments = op.apply(phi_field)
+
+        # Bit-for-bit (de-risk proven: same M, Y_0^0 = 1 ⇒ ℓ=0 IS the
+        # scalar flux, shared R·Λ map for ℓ≥1).
+        np.testing.assert_array_equal(src_moments.values, src_angular.values)
+        # Non-degeneracy: ℓ≥1 genuinely carries signal (else the moment
+        # arm collapses to the P0-only arm and the guard is vacuous).
+        assert op.scattering_order >= 1
+        assert np.any(moments[1:] != 0.0)
 
     def _load_snapshot(self):
         from tests.sn._test_helpers import SN_TESTS_ROOT
@@ -1370,14 +1320,15 @@ class TestPerLegendreOrderKernel:
         """L1-4 per spec §3 — `build_aniso_source` output matches the
         pre-T.3 captured snapshot within `nulp ≤ 4·scattering_order`.
 
-        Pre-T.3 the body inlined `R(Λ(M(psi))) / sum_w`.  Post-T.3c
-        the body delegates to `self.kernel.apply(...) / sum_w` where
-        the kernel is an `OperatorSum` of per-ℓ summands.  Each
-        summand rebuilds M and R internally per ℓ; the inline path
-        built them once and folded the per-ℓ einsum inside Λ.  The
-        reduction tree differs at the `Σ_ℓ` outer sum; drift bounded
-        by `(L+1) × ULP` per `vv-principles` §"Bit-identity vs
-        principled-equivalence" three-criteria gate.
+        Pre-T.3 the body inlined `R(Λ(M(psi))) / sum_w`.  Post-Phase-5a
+        the body projects `φ = M(psi)` once, then applies the shared
+        moment→source map `_aniso_source_from_moment_values` (= `R·Λ`)
+        and the `/ sum_w` boundary normalisation — the SAME composition,
+        with the per-ℓ `_PerLegendreOrderScattering` kernel (which rebuilt
+        `M`/`R` per ℓ) retired.  The reduction tree may differ from the
+        capture at the `Σ_ℓ` outer sum; drift bounded by `(L+1) × ULP`
+        per `vv-principles` §"Bit-identity vs principled-equivalence"
+        three-criteria gate.
 
         Snapshot lives at
         `tests/sn/_fixtures/wave_t_t3/pre_t3_snapshots.npz`, captured
@@ -1488,40 +1439,3 @@ class TestPerLegendreOrderKernel:
         )
         expected = self._load_snapshot()["p3_apply_legendre_scattering_moments"]
         np.testing.assert_array_equal(out, expected)
-
-    def test_kernel_apply_matches_build_aniso_source_pre_w(self, op_p1, solver_2g_p1_n2n):
-        """L1-4 (T.3b variant): `kernel.apply(psi.values)` matches
-        `build_aniso_source(psi).values * sum_w` (pre-/W).  This is
-        the substep-T.3b internal-consistency check that the kernel
-        will produce the same numbers as the existing inline
-        `R · Λ · M` pipeline at the apply boundary in T.3c.
-
-        Per the `vv-principles` §"Bit-identity vs principled-equivalence"
-        three-criteria gate, the new path REORDERS reductions
-        (summands rebuild R/M per ℓ vs the inline single-shot
-        construction).  Comparison uses `nulp ≤ 4·order` per spec
-        Q1 Route B principled-equivalence bound — drift bounded by
-        the Σ_ℓ reduction depth.
-        """
-        from orpheus.transport.fields.angular_flux import AngularFlux
-
-        op = op_p1
-        sn_mesh = solver_2g_p1_n2n.sn_mesh
-        N = op.n_ordinates
-        rng = np.random.default_rng(202)
-        psi_values = rng.uniform(0.05, 1.0, size=(N, op.ng, op.nx, op.ny))
-        psi = AngularFlux.from_mesh(psi_values, sn_mesh)
-
-        # Pre-/W via the existing inline path
-        aniso = op.build_aniso_source(psi)
-        sum_w = float(op.weights.sum())
-        expected_pre_w = aniso.values * sum_w  # un-apply the /W
-
-        # Kernel apply (also pre-/W by design — /W lives at apply boundary)
-        kernel_out = op.kernel.apply(psi_values)
-
-        # nulp tolerance: scattering_order summands; drift bounded by L
-        nulp_bound = max(4, 4 * op.scattering_order)
-        np.testing.assert_array_almost_equal_nulp(
-            kernel_out, expected_pre_w, nulp=nulp_bound,
-        )

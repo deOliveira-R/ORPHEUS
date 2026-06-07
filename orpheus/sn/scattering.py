@@ -141,9 +141,14 @@ from orpheus.transport.source_sinks import (
     BoundarySourceSink,
 )
 from orpheus.transport.timed_full_field import TimedFullField
+# Runtime (not TYPE_CHECKING-only) — the windowed moment-iterate ``apply``
+# arm registers on this type via ``@apply.register``, which needs the
+# concrete class at class-definition time.  Circular-import-safe (the
+# transport field types do not import scattering.py; same as ScalarFlux /
+# AngularFlux above).
+from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
 
 if TYPE_CHECKING:
-    from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
     from .material_xs_field import MaterialXSField
     from orpheus.numerics.quadrature import Quadrature
 
@@ -272,151 +277,6 @@ class LegendreMomentScattering(LinearOperatorMixin):
         return self.mat_xs.apply_legendre_scattering_moments(
             moments, L=self.L, skip_l0=self.skip_l0,
         )
-
-
-@dataclass(frozen=True)
-class _PerLegendreOrderScattering(LinearOperatorMixin):
-    r"""Wave T step T.3 — per-:math:`\ell` summand of the anisotropic
-    in-scatter source operator.
-
-    Implements one term of the §15.2 sum-of-products form:
-
-    .. math::
-
-        S_\ell\,\psi \;=\; R_\ell\,\Lambda_\ell\,M_\ell\,\psi
-
-    where
-
-    * :math:`M_\ell` projects the angular flux onto the :math:`\ell`-th
-      harmonic block (a single ``(2\ell+1, n_g, n_x, n_y)`` slice of
-      the full moment tensor);
-    * :math:`\Lambda_\ell` applies the per-material per-:math:`\ell`
-      scattering matrix :math:`\Sigma_{s,\ell}^{m(\vec r)}[g'\to g]`
-      to that block;
-    * :math:`R_\ell` reconstructs the per-ordinate output from the
-      :math:`\ell`-th moment block back to ordinate space.
-
-    The full anisotropic in-scatter source is the sum across
-    :math:`\ell \in [1, L]`:
-
-    .. math::
-
-        S_{\text{aniso}}\,\psi
-        \;=\; \frac{1}{W}\,\sum_{\ell=1}^{L}\,R_\ell\,\Lambda_\ell\,M_\ell\,\psi
-
-    where the producer-side :math:`1/W` normalisation (Pattern 7) is
-    applied OUTSIDE the kernel at the
-    :meth:`~orpheus.sn.scattering.ScatteringOperator.apply` boundary.
-
-    Wave T design context
-    ---------------------
-
-    Plan §6 T.3 originally targeted a
-    :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
-    per Grand Report v3 §15.2.  However, the per-material per-:math:`\ell`
-    einsum at :meth:`MaterialXSField.apply_legendre_scattering_moments`
-    couples the group axis (matrix multiply on
-    :math:`\Sigma_{s,\ell}[g'\to g]`) with the spatial axis (via
-    :attr:`cells_by_material` indexing).  That coupling violates the
-    :class:`~orpheus.numerics.operator.TensorProductOperator`
-    disjoint-axes contract — no factor design satisfies "each factor
-    acts on one tensor axis and broadcasts on the rest" without one
-    factor doing all the work and the other(s) being degenerate
-    identity.
-
-    Per the test-architect spec §6 Q6 (math-honest fallback) the
-    kernel is an :class:`~orpheus.numerics.operator.OperatorSum` of
-    per-:math:`\ell` summands of this class — NOT a
-    :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`.
-    The §15.2 form is preserved at the summation level (one summand
-    per Legendre order); the per-summand decomposition into
-    :math:`R_\ell \circ \Lambda_\ell \circ M_\ell` is a procedural
-    composition, not a tensor product.
-
-    Capability set: :pydata:`{CAP_APPLY}` only.  Per-:math:`\ell`
-    scattering is non-invertible (rank-deficient on most ordinate
-    inputs) and the adjoint surface is deferred to a future wave.
-
-    Parameters
-    ----------
-    mat_xs : MaterialXSField
-        The macroscopic XS field.  Read-through for
-        :attr:`emission_spectrum`, :attr:`fission_production`,
-        :meth:`sig_s_legendre`, :attr:`cells_by_material`.
-    ell : int
-        The single Legendre order this summand handles.  Must satisfy
-        ``1 <= ell <= L`` (the :math:`\ell = 0` block is in the P0 +
-        ``(n,2n)`` fast path, NOT the SOTP-style kernel).
-    L : int
-        The total scattering order — needed to size the moment tensor
-        ``(L+1, 2L+1, ng, nx, ny)`` that :math:`M` projects onto.
-    weights : np.ndarray
-        ``(N,)`` ordinate weights — needed for :math:`M`.
-    Y : np.ndarray
-        ``(N, L+1, 2L+1)`` real spherical harmonics — needed for both
-        :math:`M` and :math:`R`.
-
-    Notes
-    -----
-    The apply operates on the bare ``(N, ng, nx, ny)`` per-ordinate
-    angular flux ndarray and returns a same-shape per-ordinate
-    contribution.  The :math:`1/W` projection is OUTSIDE the kernel
-    (Pattern 7 producer-side normalisation at the apply boundary).
-    """
-
-    mat_xs: "MaterialXSField"
-    ell: int
-    L: int
-    weights: np.ndarray
-    Y: np.ndarray
-    capabilities: frozenset = field(
-        default_factory=lambda: frozenset({CAP_APPLY})
-    )
-
-    def apply(self, psi_values: np.ndarray) -> np.ndarray:
-        r"""Apply :math:`R_\ell \Lambda_\ell M_\ell` to per-ordinate flux.
-
-        Parameters
-        ----------
-        psi_values : np.ndarray
-            ``(N, ng, nx, ny)`` per-ordinate angular flux.
-
-        Returns
-        -------
-        np.ndarray
-            ``(N, ng, nx, ny)`` per-ordinate in-scatter contribution
-            from the single Legendre order ``self.ell``.  The
-            :math:`1/W` projection is NOT applied here — that's the
-            kernel-consumer's responsibility at the apply boundary.
-        """
-        # M: project ψ onto moment tensor (L+1, 2L+1, ng, nx, ny).  The
-        # full moment tensor is built; only the ell-th block is used by
-        # this summand.
-        M_op = MomentProjection(weights=self.weights, Y=self.Y, L=self.L)
-        moments_full = M_op.apply(psi_values)
-
-        # Λ_ℓ: per-material per-ℓ scattering on ONLY the ell-th block.
-        # Build a moment tensor with all blocks zero except ℓ=self.ell.
-        out_moments = np.zeros_like(moments_full)
-        n_m = 2 * self.ell + 1
-        for mid, (ix, iy) in self.mat_xs.cells_by_material.items():
-            sig_s_mid = self.mat_xs.sig_s_legendre(mid)
-            moments_view = moments_full[self.ell, :n_m][..., ix, iy]
-            # Trailing-contiguous einsum (same pattern as the full
-            # MaterialXSField.apply_legendre_scattering_moments
-            # body).  Idempotent additivity isn't needed here — the
-            # output starts at zero and only the ell-th block is touched.
-            out_moments[self.ell, :n_m][..., ix, iy] = np.einsum(
-                "mfc,fg->mgc",
-                moments_view,
-                sig_s_mid[self.ell],
-            )
-
-        # R: reconstruct ordinate space from the moment tensor.  Only
-        # the ell-th block is non-zero, so the output captures ONLY the
-        # per-ell in-scatter contribution.
-        R_op = HarmonicMomentReconstruction.from_Y(self.Y)
-        return R_op.apply(out_moments)
 
 
 @dataclass
@@ -557,85 +417,69 @@ class ScatteringOperator(LinearOperatorMixin):
         """TRANSIENT — per-material cell-index dict.  See :attr:`sig_s`."""
         return self.mat_xs.cells_by_material
 
-    # ── Wave T step T.3 — per-ℓ kernel (anisotropic in-scatter) ────────
+    # ── Anisotropic in-scatter: the moment→source map R·Λ_{ℓ≥1} ────────
 
-    @property
-    def kernel_summands(
-        self,
-    ) -> tuple["_PerLegendreOrderScattering", ...]:
-        r"""Wave T step T.3 — per-:math:`\ell` summands of the
-        anisotropic in-scatter kernel.
+    def _aniso_source_from_moment_values(
+        self, moment_values: np.ndarray,
+    ) -> np.ndarray:
+        r"""Reconstruct the per-ordinate :math:`\ell\ge 1` in-scatter source
+        from a flux-moment tensor — the **moment → source** half of the
+        anisotropic scattering composition :math:`S_{\rm aniso}
+        = \tfrac{1}{W}\,R\,\Lambda\,M`.
 
-        Returns one :class:`_PerLegendreOrderScattering` instance per
-        Legendre order :math:`\ell \in [1, L]`.  The summation
-        ``sum(s.apply(psi.values) for s in kernel_summands)`` reproduces
-        :meth:`build_aniso_source` (pre :math:`/W`) at FP-non-associativity
-        precision.
+        .. math::
 
-        Empty when ``self.scattering_order == 0`` (no anisotropic
-        in-scatter; the P0 + (n,2n) fast path handles all of S).  The
-        :math:`\ell = 0` block is NOT included in this list per the
-        test-architect spec §6 Q3 Option (β): P0 stays in the
-        :meth:`add_iso_source` + :meth:`add_n2n_source` fast path,
-        architecturally distinct from the moment-tensor path.
+            (R\,\Lambda_{\ell\ge 1}\,\phi)_n(\vec r)
+
+        where :math:`\Lambda_{\ell\ge 1}` is
+        :class:`LegendreMomentScattering` (``skip_l0=True`` — the
+        :math:`\ell=0` block is the P0 :meth:`add_iso_source` fast path)
+        and :math:`R` is
+        :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`.
+        The trailing :math:`1/W` is NOT applied here — that is the
+        producer-side Pattern-7 normalisation at the :meth:`apply`
+        boundary (lesson L18).
+
+        This is the **single source of truth** for the moment→source
+        reconstruction (``coding-elegance`` Pattern 2).  Two callers share
+        it, so the :math:`\ell\ge 1` reconstruction lives in exactly one
+        place:
+
+        * :meth:`build_aniso_source` — the full-angular path, which first
+          projects :math:`\phi = M\,\psi` (one :class:`MomentProjection`
+          for the whole tensor) and then calls this map.
+        * the windowed moment-iterate :meth:`apply` arm (Phase 5a
+          angular-windowing) — whose iterate bulk IS the moment tensor
+          :math:`\phi`, so :math:`M` is already done and only this
+          :math:`R\,\Lambda` map remains.
+
+        It supersedes the per-:math:`\ell`
+        ``_PerLegendreOrderScattering`` kernel (retired), which
+        recomputed :math:`M\,\psi` independently for every Legendre
+        order.  :math:`R` is linear, so reconstructing the full
+        :math:`\Lambda`-scattered moment tensor at once equals summing the
+        per-:math:`\ell` reconstructions (bit-identical in practice; pinned
+        by the scattering regression tests).
+
+        Parameters
+        ----------
+        moment_values : np.ndarray
+            Flux-moment tensor ``(L+1, 2L+1, ng, nx, ny)`` — typically
+            ``M.apply(psi)`` or the windowed iterate's
+            :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+            ``.values``.
+
+        Returns
+        -------
+        np.ndarray
+            ``(N, ng, nx, ny)`` per-ordinate :math:`\ell\ge 1` in-scatter
+            source, **pre** :math:`1/W`.
         """
-        if self.scattering_order == 0:
-            return ()
-        return tuple(
-            _PerLegendreOrderScattering(
-                mat_xs=self.mat_xs,
-                ell=ell,
-                L=self.scattering_order,
-                weights=self.weights,
-                Y=self.Y,  # type: ignore[arg-type]
-            )
-            for ell in range(1, self.scattering_order + 1)
+        scatter = LegendreMomentScattering(
+            mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=True,
         )
-
-    @property
-    def kernel(self) -> "LinearOperatorMixin":
-        r"""Wave T step T.3 — the anisotropic-in-scatter kernel.
-
-        Returns the :class:`~orpheus.numerics.operator.OperatorSum`
-        tree of the per-:math:`\ell` summands at
-        :attr:`kernel_summands`, OR a
-        :class:`~orpheus.numerics.operator.ZeroOperator` when
-        ``scattering_order == 0``.
-
-        Math-honest fallback (test-architect spec §6 Q6).  The §15.2
-        target form was a
-        :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
-        but the per-material per-:math:`\ell` einsum couples group +
-        spatial axes — the disjoint-axes contract fails.  Per the
-        spec's Q6 escalation path, the kernel is an
-        :class:`OperatorSum` of custom per-:math:`\ell` summands
-        (NOT a SOTP), preserving the §15.2 form at the summation
-        level (one summand per Legendre order) while staying
-        algebraically honest about the per-summand composition
-        (:math:`R_\ell \circ \Lambda_\ell \circ M_\ell`, not a tensor
-        product).
-
-        The :math:`1/W` Pattern 7 producer-side normalisation lives
-        OUTSIDE this kernel at the
-        :meth:`~ScatteringOperator.apply` boundary — not inside any
-        summand.
-
-        Substep T.3b ships this property without rewiring any
-        :meth:`apply` arm; the call-site migration lands in T.3c
-        (`build_aniso_source` rewire) and T.3d (per-arm migration).
-
-        Built fresh on each access to honor the read-through semantics
-        for :attr:`mat_xs` (depletion / thermal feedback may update
-        cross-sections in-place).
-        """
-        from functools import reduce
-        from operator import add as op_add
-        from orpheus.numerics.operator import ZeroOperator
-
-        summands = self.kernel_summands
-        if not summands:
-            return ZeroOperator()
-        return reduce(op_add, summands)
+        reconstruct = HarmonicMomentReconstruction.from_Y(self.Y)
+        return reconstruct.apply(scatter.apply(moment_values))
 
     @classmethod
     def from_solver_data(
@@ -856,16 +700,17 @@ class ScatteringOperator(LinearOperatorMixin):
         # leaf carries the mesh, which is required to construct the
         # output :class:`AngularSourceSink`.
         mesh = angular_flux.mesh
-        # Wave T step T.3c — delegate the §9 "S = R Λ M" inner numerics
-        # to the typed :attr:`kernel` (an :class:`OperatorSum` of per-ℓ
-        # :class:`_PerLegendreOrderScattering` summands per the §15.2
-        # form, Q6 honest-fallback resolution).  The kernel's apply
-        # produces the pre-:math:`/W` per-ordinate output; the
-        # :math:`/sum_w` Pattern 7 producer-side normalisation lives
-        # HERE at the apply boundary, OUTSIDE the kernel (per spec
-        # §6 Q5).
+        # S_aniso = (1/W) R Λ M ψ.  Project ψ → moments ONCE (M), then the
+        # shared moment→source map :meth:`_aniso_source_from_moment_values`
+        # (R Λ_{ℓ≥1}).  The :math:`/sum_w` Pattern 7 producer-side
+        # normalisation lives HERE at the apply boundary, OUTSIDE the map
+        # (R-1 Step 4 A1, lesson L18).  The SAME map serves the windowed
+        # moment-iterate apply arm — one reconstruction (Pattern 2).
+        moment_values = MomentProjection(
+            weights=self.weights, Y=self.Y, L=self.scattering_order,
+        ).apply(angular_flux.values)
         sum_w = float(self.weights.sum())
-        out_values = self.kernel.apply(angular_flux.values) / sum_w
+        out_values = self._aniso_source_from_moment_values(moment_values) / sum_w
         return AngularSourceSink.from_mesh(out_values, mesh)
 
     # ── Foldable / residual split ─────────────────────────────────────
@@ -1141,32 +986,21 @@ class ScatteringOperator(LinearOperatorMixin):
         :meth:`TimedFullField.__sub__` once all four operators expose
         the composite branch (D-H.1c).
         """
-        bulk = psi.bulk
-        mesh = bulk.mesh
-        # Reduce bulk → scalar via the L2 typed reduction (the L2
-        # ``AngularFlux.integrate_angular`` returns the same
-        # :class:`ScalarFlux` type the legacy branch consumes).
-        phi = bulk.integrate_angular()
-        # iso = P0 in-scatter + (n,2n) doubling on the typed accumulator.
-        iso: ScalarSourceSink = ScalarSourceSink.zeros_on(mesh)
-        iso = self.add_iso_source(iso, phi)
-        iso = self.add_n2n_source(iso, phi)
-        # Pℓ (ℓ≥1) — per-ordinate after R-1 Step 4 A1 producer-side /W.
-        # ``build_aniso_source`` now accepts the L2 ``AngularFlux`` on
-        # the composite's bulk (the type-check widening above).
-        aniso_or_none = self.build_aniso_source(bulk)
-        if aniso_or_none is None:
-            aniso = AngularSourceSink.zeros_on(mesh)
-        else:
-            aniso = aniso_or_none
-        # Producer-side projection at the apply boundary (Pattern 7).
-        sum_w = float(mesh.quad.weights.sum())
-        combined: AngularSourceSink = (iso / sum_w) + aniso
+        # Delegate the bulk source to the bulk-type dispatch arm and wrap
+        # with the implicit-zero boundary.  ``psi.bulk`` is either the
+        # full-angular :class:`AngularFlux` (1-D / curvilinear / un-windowed
+        # 2-D) OR — Phase 5a angular-windowing — the reduced-moment
+        # :class:`HarmonicMomentField` (the 2-D Cartesian windowed SI
+        # iterate); both bulk arms return the same per-ordinate
+        # :class:`AngularSourceSink`, so this composite arm is one
+        # delegation (Pattern 2 — no duplicated iso/n2n/aniso assembly).
+        # B.5.2: the operator output IS a source (Sψ rate density).  The
+        # boundary is the implicit-zero :class:`BoundarySourceSink` —
+        # scattering is volumetric (Option β3 / Wave O #208).
+        combined = self.apply(psi.bulk)
         return TimedFullField(
-            # B.5.2: the operator output IS a source (Sψ rate density) — emit
-            # the AngularSourceSink directly, not a re-wrap into AngularFlux.
             bulk=combined,
-            boundary=BoundarySourceSink.zeros_on(mesh),
+            boundary=BoundarySourceSink.zeros_on(psi.bulk.mesh),
             _history=(),
             history_depth=psi.history_depth,
         )
@@ -1219,6 +1053,52 @@ class ScatteringOperator(LinearOperatorMixin):
             aniso = AngularSourceSink.zeros_on(mesh)
         else:
             aniso = aniso_or_none
+        sum_w = float(mesh.quad.weights.sum())
+        combined: AngularSourceSink = (iso / sum_w) + aniso
+        return combined
+
+    @apply.register
+    def _(self, phi_moments: HarmonicMomentField) -> "AngularSourceSink":
+        r"""Windowed moment-iterate variant — :math:`S` consumes flux MOMENTS.
+
+        The Phase 5a angular-windowing path.  When the within-group SI
+        iterate is stored as harmonic moments :math:`\phi_\ell^m` (the 2-D
+        Cartesian windowed iterate) instead of the full per-ordinate
+        :class:`AngularFlux`, :math:`S` consumes the moments WITHOUT the
+        :math:`M` projection — the moments ARE :math:`M\psi`, so projecting
+        again would be redundant work.
+
+        Structurally parallel to the :class:`AngularFlux` arm, and
+        **bit-identical** to it for :math:`\phi = M\psi` (de-risk proven):
+
+        * the :math:`\ell=0` block IS the scalar flux — ORPHEUS uses
+          unnormalized real harmonics (:math:`Y_0^0 = 1`), so
+          ``phi_moments.l_block(0)[0]`` equals
+          :meth:`AngularFlux.integrate_angular` term-for-term; it feeds the
+          identical P0 + (n,2n) :meth:`add_iso_source` /
+          :meth:`add_n2n_source` fast path;
+        * the :math:`\ell\ge 1` aniso reuses the SAME
+          :meth:`_aniso_source_from_moment_values` (:math:`R\,\Lambda`) map
+          the full-angular path calls after its own :math:`M`.
+
+        Output convention matches the :class:`AngularFlux` arm exactly:
+        per-ordinate :class:`AngularSourceSink`, the producer-side
+        :math:`1/W` (Pattern 7) applied at this boundary.
+        """
+        mesh = phi_moments.mesh
+        # ℓ=0 moment IS the scalar flux (Y_0^0 = 1).  ``add_iso_source`` /
+        # ``add_n2n_source`` accept the raw ``(ng, nx, ny)`` ndarray.
+        phi_values = phi_moments.l_block(0)[0]
+        iso: ScalarSourceSink = ScalarSourceSink.zeros_on(mesh)
+        iso = self.add_iso_source(iso, phi_values)
+        iso = self.add_n2n_source(iso, phi_values)
+        if self.scattering_order == 0:
+            aniso = AngularSourceSink.zeros_on(mesh)
+        else:
+            out_values = self._aniso_source_from_moment_values(
+                phi_moments.values,
+            ) / float(self.weights.sum())
+            aniso = AngularSourceSink.from_mesh(out_values, mesh)
         sum_w = float(mesh.quad.weights.sum())
         combined: AngularSourceSink = (iso / sum_w) + aniso
         return combined
