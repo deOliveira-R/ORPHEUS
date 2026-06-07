@@ -76,7 +76,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from orpheus.geometry import CoordSystem
-from orpheus.transport.fields.wavefront_flux import WavefrontFlux
 
 from .spatial.cell_update import UpstreamState
 from .spatial.diamond import DiamondDifference
@@ -771,7 +770,7 @@ def _run_1d_sweep(
 def sweep_octant_group(
     group: "OctantSweepGroup",
     *,
-    wavefront: WavefrontFlux,
+    boundary_flux: "BoundaryFlux",
     Q: np.ndarray,
     sig_t: np.ndarray,
     str_x: np.ndarray,
@@ -781,28 +780,31 @@ def sweep_octant_group(
     scalar_flux: np.ndarray,
     sn_mesh: "SNMesh",
 ) -> None:
-    r"""Sweep one octant GROUP's ordinates through the PERSISTENT interior
-    wavefront, in place (Phase 3 sub-step 3b — the octant-group primitive).
+    r"""Sweep one octant GROUP's ordinates on the rolling moving-frontier
+    window, in place (Phase 3 sub-step 3b primitive; Phase 5b storage-B).
 
-    The per-octant body carved out of :func:`_sweep_2d_wavefront`'s loop: for
-    each :class:`~orpheus.sn.sweep_schedule.OctantSweep` in ``group``, dispatch
-    to the precomputed ``SNMesh.sweep_graphs[OctantLabel(σ)]`` and walk its
-    anti-diagonal levels, mutating the shared interior cochain ``wavefront``
-    (its ``psi_x`` / ``psi_y`` face fields), the ``angular_flux`` buffer, and
-    accumulating into the shared ``scalar_flux``.
+    For each :class:`~orpheus.sn.sweep_schedule.OctantSweep` in ``group``,
+    dispatch to the precomputed ``SNMesh.sweep_graphs[OctantLabel(σ)]`` and
+    drive :meth:`SweepDependencyGraph.apply_windowed` — the rolling 2-diagonal
+    window walk that carries the interior face cochain in an O(N·ng·nx) buffer
+    instead of the full O(N·ng·nx·ny) per-axis field (Phase 5b storage-B). The
+    octant's domain-edge INFLOW is read from ``boundary_flux`` (its incoming
+    faces); the OUTFLOW is shed back into ``boundary_flux`` (its outgoing
+    faces) as the frontier advances.
 
-    The defining property — and the reason this is a SEPARATE function — is
-    that ``wavefront`` PERSISTS across calls.  The Jacobi schedule
-    (:func:`_sweep_2d_wavefront`) calls this ONCE with a single all-octants
-    group; the Gauss-Seidel schedule (Phase 3 sub-step 3c) calls it ONCE PER
-    in-plane octant group, re-reflecting the just-swept group's outgoing
-    reflective faces between calls so a later group reads the fresh
-    current-iterate inflow off the SAME ``wavefront`` (the
-    ``(L+C−B_lower)⁻¹`` forward substitution).  Because the octants WITHIN a
-    group are swept independently (no intra-group reflect), the grouping does
-    not affect the per-octant result — only WHERE the inter-group reflect
-    lands — so the Jacobi single-group call is bit-identical to the legacy
-    ``for octant in quad.octants`` loop.
+    Boundary coupling via ``boundary_flux`` (replacing the storage-A
+    whole-trace seed/absorb on a persistent ``WavefrontFlux``): each octant
+    reads ``boundary_flux.face_view(<incoming face>)[oct_idx]`` as its inflow
+    and writes ``boundary_flux.face_view(<outgoing face>)[oct_idx]`` with its
+    shed outflow. Because distinct octants own DISJOINT ordinate slices of a
+    face, an octant's outflow write never clobbers another octant's inflow —
+    so the Jacobi single-group call is bit-identical to the legacy per-octant
+    loop, and the inflowing ordinates retain their seed value exactly as the
+    storage-A ``absorb`` left them. The Gauss-Seidel schedule calls this once
+    per in-plane octant group, with the resolvent reflecting the just-shed
+    outflow between groups so a later group reads the fresh current-iterate
+    inflow off the SAME ``boundary_flux`` (the ``(L+C−B_lower)⁻¹`` forward
+    substitution).
 
     Parameters
     ----------
@@ -811,10 +813,10 @@ def sweep_octant_group(
         :class:`~orpheus.sn.sweep_graph.OctantLabel` + ordinate indices).
         ``group.reflect_faces`` is consumed by the resolvent, NOT here — this
         function is the bare sweep, blind to the boundary coupling.
-    wavefront : WavefrontFlux
-        The PERSISTENT interior face cochain. Its ``face(0)`` / ``face(1)``
-        zero-copy views are the inflow seed (read at each octant's incoming
-        edge) and the streamed-outflow store (written at the outgoing edge).
+    boundary_flux : BoundaryFlux
+        The per-ordinate boundary trace. Carries each octant's inflow on its
+        incoming faces (seeded by the caller / freshly reflected by an earlier
+        G-S group) and receives the shed outflow on its outgoing faces.
     Q, sig_t, str_x, str_y, weights : np.ndarray
         Per-ordinate source ``(N, ng, nx, ny)``, total XS ``(ng, nx, ny)``,
         the streaming stencils ``(N, nx)`` / ``(N, ny)``, quadrature weights
@@ -828,8 +830,6 @@ def sweep_octant_group(
         strategy.
     """
     ng, nx, ny = sig_t.shape
-    psi_x = wavefront.face(0)   # (N, ng, nx+1, ny) zero-copy view
-    psi_y = wavefront.face(1)   # (N, ng, nx, ny+1) zero-copy view
     cell_update = sn_mesh.cell_update
 
     for sweep in group.sweeps:
@@ -844,7 +844,7 @@ def sweep_octant_group(
 
         # Pure-z degenerate octant: no in-plane streaming. The angular flux is
         # the volumetric balance ψ = Q_n / Σ_t and the scalar flux gets a
-        # weighted contribution.
+        # weighted contribution. No faces, no boundary interaction.
         if sx == 0 and sy == 0:
             Q_pure_z = Q[oct_idx]                         # (N_oct, ng, nx, ny)
             # sig_t (ng, nx, ny) broadcasts against (N_oct, ng, nx, ny).
@@ -858,47 +858,51 @@ def sweep_octant_group(
 
         # Effective in-plane sign for sweep-graph lookup. Match legacy's
         # ``key = (1 if mx >= 0 else -1, ...)`` mapping: ordinates with
-        # ``mx == 0`` are treated as ``+1`` (the BC apply uses xmin, the
-        # streaming coefficient is zero, and the WDD result is identical
-        # regardless of sign choice).
+        # ``mx == 0`` are treated as ``+1`` (the streaming coefficient is
+        # zero, and the WDD result is identical regardless of sign choice).
         sx_eff = +1 if sx == 0 else sx
         sy_eff = +1 if sy == 0 else sy
         sweep_graph = sn_mesh.sweep_graphs[OctantLabel(sx_eff, sy_eff)]
         N_oct = oct_idx.size
 
-        # ── NO bc.apply (bare sweep, O.4b Phase E1) ────────────────
-        #
-        # The octant-incoming face slots (seeded from the GIVEN inflow trace,
-        # or freshly re-seeded by an earlier G-S group) ARE the inflow — the
-        # octant's ordinates on its incoming face are exactly its inflow
-        # ordinates.  The reflective coupling is the external
-        # ``_reflect_outflow_into_inflow`` / -B (Jacobi) or the resolvent's
-        # inter-group reflect (G-S), never an in-sweep reflection.
-        # ── Per-octant buffers for the graph apply ────────────────
-        psi_x_oct = psi_x[oct_idx].copy()    # (N_oct, ng, nx+1, ny)
-        psi_y_oct = psi_y[oct_idx].copy()    # (N_oct, ng, nx, ny+1)
-        # R-1 Step 4 A1 — slice the per-ordinate source for this octant.
-        Q_octant = Q[oct_idx]                # (N_oct, ng, nx, ny)
-        angular_flux_oct = np.zeros((N_oct, ng, nx, ny))
+        # ── Domain-edge inflow/outflow faces for this octant ──────────
+        # The incoming face is the LOW face of the sweep direction (xmin for
+        # +x, xmax for −x); the outgoing face is the opposite. The octant
+        # streams from inflow → outflow; ``boundary_flux`` carries both.
+        x_in_face = "xmin" if sx_eff >= 0 else "xmax"
+        x_out_face = "xmax" if sx_eff >= 0 else "xmin"
+        y_in_face = "ymin" if sy_eff >= 0 else "ymax"
+        y_out_face = "ymax" if sy_eff >= 0 else "ymin"
 
-        sweep_graph.apply(
+        # Read this octant's inflow (fancy-index → a (N_oct, ng, ·) copy).
+        inflow_x = boundary_flux.face_view(x_in_face)[oct_idx]   # (N_oct, ng, ny)
+        inflow_y = boundary_flux.face_view(y_in_face)[oct_idx]   # (N_oct, ng, nx)
+
+        angular_flux_oct = np.zeros((N_oct, ng, nx, ny))
+        capture_x = np.empty((N_oct, ng, ny))   # shed domain x-outflow
+        capture_y = np.empty((N_oct, ng, nx))   # shed domain y-outflow
+
+        sweep_graph.apply_windowed(
             cell_update=cell_update,
-            psi_x_octant=psi_x_oct,
-            psi_y_octant=psi_y_oct,
-            Q_octant=Q_octant,
+            inflow_x=inflow_x,
+            inflow_y=inflow_y,
+            Q_octant=Q[oct_idx],
             sig_t=sig_t,
             str_x_octant=str_x[oct_idx],
             str_y_octant=str_y[oct_idx],
             weights_octant=weights[oct_idx],
             angular_flux_octant=angular_flux_oct,
             scalar_flux_buf=scalar_flux,
+            capture_x=capture_x,
+            capture_y=capture_y,
         )
 
-        # Scatter back the local-cache BC buffers + angular flux into the
-        # PERSISTENT wavefront / output buffers.
-        psi_x[oct_idx] = psi_x_oct
-        psi_y[oct_idx] = psi_y_oct
+        # Scatter the angular flux + shed the outflow into the boundary trace.
+        # The outflow write touches only this octant's ordinates (disjoint
+        # from other octants' inflow ordinates), so it is ι*-faithful.
         angular_flux[oct_idx] = angular_flux_oct
+        boundary_flux.face_view(x_out_face)[oct_idx] = capture_x
+        boundary_flux.face_view(y_out_face)[oct_idx] = capture_y
 
 
 def _sweep_2d_scheduled(
@@ -916,18 +920,17 @@ def _sweep_2d_scheduled(
     realization of the polymorphic Jacobi / Gauss-Seidel design (there is NO
     ``if jacobi/gs`` branch; the splitting IS the schedule):
 
-    1. Build the interior cochain ``wavefront``; :math:`\iota_*`-seed it from
-       the GIVEN inflow ``boundary_flux`` (which carries ``B·ψₙ`` — the lagged
-       reflection of the previous iterate, prepared by the caller).
+    1. The GIVEN inflow ``boundary_flux`` (carrying ``B·ψₙ`` — the lagged
+       reflection of the previous iterate, prepared by the caller) is read
+       per-octant by the window walk; there is no separate whole-trace seed.
     2. ``for group in schedule.groups``: :func:`sweep_octant_group` the group's
-       octants through the PERSISTENT wavefront; then if ``reflect`` is given
-       AND the group has reflective outgoing faces, :math:`\iota^*`-absorb those
-       faces' fresh outflow into ``boundary_flux``, apply ``reflect`` (the
-       ``−B`` outflow→inflow reflection, in place, face-restricted), and
-       :math:`\iota_*`-re-seed those faces' wavefront edges — so a LATER group
-       reads the fresh current-iterate inflow (the ``(L+C−B_lower)⁻¹`` forward
-       substitution).
-    3. :math:`\iota^*`-absorb the final outflow trace into ``boundary_flux``.
+       octants on the rolling window, sheding each octant's outflow into
+       ``boundary_flux`` (the ι* absorb, now per-octant during the walk). Then
+       if ``reflect`` is given AND the group has reflective outgoing faces,
+       apply ``reflect`` (the ``−B`` outflow→inflow reflection, in place,
+       face-restricted) so a LATER group reads the fresh current-iterate inflow
+       directly off ``boundary_flux`` (the ``(L+C−B_lower)⁻¹`` forward
+       substitution) — no re-seed needed, the next walk reads the trace fresh.
 
     * **Jacobi** (``reflect=None``, one all-octants group) — every octant reads
       the frozen seed; the inter-group reflect never fires. This is exactly the
@@ -936,7 +939,9 @@ def _sweep_2d_scheduled(
       in-plane octant) — later groups see earlier groups' fresh reflected
       outflow. The SI scheduled resolvent supplies both: its ``.solve`` seeds
       ``B·ψₙ`` onto ``boundary_flux`` then calls this with the G-S schedule +
-      the reflect closure.
+      the reflect closure. The walk's per-octant shed populates the fresh
+      outflow that ``reflect`` then maps to inflow (replacing the storage-A
+      ``absorb``-before-``reflect`` step).
 
     The converged fixed point is INVARIANT under ``schedule`` (any consistent
     splitting of ``(L+C−S−B)ψ=q`` shares ψ\*); only the SI spectral rate
@@ -944,17 +949,19 @@ def _sweep_2d_scheduled(
     coupling ``B`` only — a modest reflective-SI rate gain. The dominant
     within-group SCATTERING ``c``-mode is NOT folded here (it cannot be folded
     into a directional sweep); that is consistent DSA / Krylov territory.
+
+    Phase 5b storage-B: the interior face cochain is a rolling 2-diagonal
+    moving-frontier window (O(N·ng·nx)), carried inside
+    :meth:`SweepDependencyGraph.apply_windowed` per octant — NOT the full
+    O(N·ng·nx·ny) per-axis field. The full-field walk
+    (:meth:`SweepDependencyGraph.apply` on a ``WavefrontFlux``) is retained as
+    the bit-identity verification oracle (see the ``window ≡ full-field``
+    test); the converged solution is unchanged.
     """
     ng, nx, ny = sig_t.shape
     N = sn_mesh.quad.N
     angular_flux = np.zeros((N, ng, nx, ny))
     scalar_flux = np.zeros((ng, nx, ny))
-
-    # Interior cochain C¹_int (WavefrontFlux #205); ι_* seed from the GIVEN
-    # inflow trace (carrying ``B·ψₙ``). Only the BOUNDARY slots persist across
-    # sweep calls; the interior is rebuilt here.
-    wavefront = WavefrontFlux.zeros_on(sn_mesh)
-    wavefront.seed(boundary_flux)
 
     str_x = sn_mesh.streaming_x   # (N, nx)
     str_y = sn_mesh.streaming_y   # (N, ny)
@@ -963,7 +970,7 @@ def _sweep_2d_scheduled(
     for group in schedule.groups:
         sweep_octant_group(
             group,
-            wavefront=wavefront,
+            boundary_flux=boundary_flux,
             Q=Q,
             sig_t=sig_t,
             str_x=str_x,
@@ -975,16 +982,12 @@ def _sweep_2d_scheduled(
         )
         if reflect is not None and group.reflect_faces:
             # G-S inter-group reflect (a no-op for the Jacobi schedule, whose
-            # sole group carries no reflect_faces): fresh outflow → boundary
-            # (ι* restricted) → −B (outflow→inflow, in place) → re-seed those
-            # faces' wavefront edges (ι_* restricted), so the NEXT group reads
-            # the fresh current-iterate reflected inflow.
-            wavefront.absorb(boundary_flux, faces=group.reflect_faces)
+            # sole group carries no reflect_faces): the walk already shed this
+            # group's fresh outflow into ``boundary_flux``; reflect ``−B``
+            # (outflow→inflow, in place, face-restricted) so the NEXT group
+            # reads the fresh current-iterate reflected inflow off the trace.
             reflect(boundary_flux, group.reflect_faces)
-            wavefront.seed(boundary_flux, faces=group.reflect_faces)
 
-    # ι* — persist the final outflow trace from the interior cochain.
-    wavefront.absorb(boundary_flux)
     return angular_flux, scalar_flux
 
 
