@@ -327,6 +327,64 @@ def _cartesian_2d_het_si(ng: str) -> dict:
     )
 
 
+def _cartesian_2d_p1_aniso_het_si(ng: str) -> dict:
+    r"""2-D Cartesian HETEROGENEOUS fuel|moderator, P1 ANISOTROPIC, SI inner.
+
+    **The 2-D anisotropic-scattering moment-projection pin (Phase 5a).**
+
+    Every other 2-D snapshot is ``scattering_order=0`` (isotropic), so the
+    angular→moment reduction inside ``ScatteringOperator`` only ever exercises
+    the :math:`\ell=0` block (the scalar flux).  The ``2d_octant_equivalence_05``
+    snapshot is anisotropic *source* (per-ordinate Q) which BYPASSES the
+    :class:`~orpheus.numerics.projection.MomentProjection` M-path entirely.
+    This case is the FIRST 2-D snapshot that drives the full
+    :math:`\phi_\ell^m = \sum_n w_n Y_\ell^m \psi_n` projection (``\ell\ge 1``)
+    through the 2-D wavefront SI iterate.
+
+    It is the trap-closer for the angular-windowing carve: a windowing that
+    reduces angular→scalar but keeps ONLY :math:`\phi_0` (dropping the
+    :math:`\ell\ge 1` moments S consumes) would pass EVERY other 2-D snapshot
+    and fail HERE.  See ``.claude/agent-memory/test-architect/``
+    ``phase5a_angular_windowing_verification_plan.md`` §3a.
+
+    **Fixed-source, NOT eigenvalue.** Mixture B is a non-multiplying moderator
+    (``Σ_f = νΣ_f = 0``); an eigenvalue formulation is malformed (``k = 0/abs``
+    → NaN).  The P1 Galerkin assembly path — the thing this case exists to pin —
+    is exercised identically by a fixed-source solve.  The structurally-
+    independent corroboration is the flat infinite-medium limit on the
+    reflective sub-block (closed-form ``φ = (diag Σ_t − Σ_{s0}^T)^{-1} Q``),
+    but the fuel|moderator x-split makes the realised flux genuinely NON-FLAT
+    so the redistribution + moment-projection terms are active (vv-principles
+    H2/H1: heterogeneous + ≥2G, not a degenerate homogeneous/1G case).
+    """
+    fuel = get_mixture("A", ng)       # fissile, but eigen unused (fixed-source)
+    mod = get_mixture("B", ng)        # μ̄=0.6 strongly anisotropic, P1 data
+    n_groups = _n_groups(ng)
+    nx, ny = 8, 4
+    mat = np.zeros((nx, ny), dtype=int)
+    mat[:4, :] = 2                    # fuel (id 2) | moderator (id 0) split in x
+    mesh = Mesh2D(
+        edges_x=np.linspace(0.0, 2.0, nx + 1),
+        edges_y=np.linspace(0.0, 1.0, ny + 1),
+        mat_map=mat,
+        # vacuum-x / reflective-y: the x-split + vacuum-x drives a non-flat
+        # profile; reflective-y keeps the y-trace exercise (subtlety (c)).
+        bc_xmin=BC.vacuum, bc_xmax=BC.vacuum,
+        bc_ymin=BC.reflective, bc_ymax=BC.reflective,
+    )
+    quadrature = Quadrature.level_symmetric(sn_order=4)
+    n_ord = quadrature.N             # derive N from the quadrature (Pattern 14)
+    # Per-ordinate density (producer-side /W projection, R-1 Step 4 A1).
+    sum_w = float(quadrature.weights.sum())
+    external_source = np.full((n_ord, n_groups, nx, ny), 1.0 / sum_w)
+    return dict(
+        materials={2: fuel, 0: mod}, mesh=mesh, quadrature=quadrature,
+        scattering_order=1, kind="fixed_source",
+        external_source=external_source,
+        inner_solver="source_iteration", max_inner=3000, inner_tol=1e-12,
+    )
+
+
 def _slab_fixed_source(ng: str, n_cells: int) -> dict:
     """Slab vacuum-BC fixed-source with uniform isotropic external Q.
 
@@ -438,6 +496,12 @@ CASES: tuple[SnapshotCase, ...] = (
         "slab_fixed_source_dd_n20",
         "DD slab fixed-source 1G, vacuum BCs, uniform isotropic Q, GL-8, n=20",
         lambda: _slab_fixed_source("1g", 20),
+    ),
+    SnapshotCase(
+        "2d_2g_p1_aniso_dd_8x4_het_si",
+        "DD 2D Cartesian 2G fuel|moderator P1 ANISOTROPIC FIXED-SOURCE, "
+        "LS_4 (12 ord), 8x4, source-iteration inner (Phase 5a moment-path pin)",
+        lambda: _cartesian_2d_p1_aniso_het_si("2g"),
     ),
 )
 

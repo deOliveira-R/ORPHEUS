@@ -1792,6 +1792,9 @@ def _solve_fixed_source_si(
     from orpheus.transport.fields.boundary_flux import (
         BoundaryFlux,
     )
+    from orpheus.transport.fields.harmonic_moment_field import (
+        HarmonicMomentField,
+    )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.numerics.iteration import SourceIteration
 
@@ -1814,21 +1817,43 @@ def _solve_fixed_source_si(
     # resolvent (L+C) + gains (S, B) — today's inter-sweep Jacobi.  Same
     # converged fixed point; only the SI spectral rate differs.
     resolvent, gains = _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule)
+    # Phase 5a — 2-D Cartesian angular-windowing: hold the SI iterate as
+    # harmonic MOMENTS (see ``_MomentWindowedResolvent`` + the eigenvalue
+    # inner ``_solve_source_iteration``).  Curvilinear (1-D) stays full-angular
+    # — the M-M Carlson seed reads the previous per-ordinate iterate (L21).
+    # ``base_resolvent`` (the un-wrapped one) is kept for the final
+    # full-angular reconstruction below.
+    base_resolvent = resolvent
+    windowed = sn_mesh.reduced is None
+    if windowed:
+        resolvent = _MomentWindowedResolvent(
+            base_resolvent, S.quadrature, S.scattering_order, sn_mesh,
+        )
     si = SourceIteration(
         resolvent, *gains,
         max_iter=max_inner, tol=inner_tol,
     )
 
-    # Cold-start FLUX iterate (x0 = zeros; the flux template fixes the return
-    # type).  Fixed-source is a single solve — no eigenvalue outer to
-    # warm-start from (cf. the eigenvalue inner's ``self._psi_typed``).
-    psi_typed, residuals = si.solve(
-        q_ext_composite,
-        initial_guess=TimedFullField.zeros(
+    # Cold-start iterate (x0 = zeros).  Fixed-source is a single solve — no
+    # eigenvalue outer to warm-start from (cf. the eigenvalue inner's
+    # ``self._psi_typed``).  Windowed → zero moments; else a zero AngularFlux
+    # (the template fixes the iterate representation).
+    if windowed:
+        initial_guess = TimedFullField(
+            bulk=HarmonicMomentField.zeros_for_mesh_and_L(
+                sn_mesh, S.scattering_order,
+            ),
+            boundary=BoundaryFlux.zeros_on(sn_mesh),
+            _history=(),
+            history_depth=q_ext_composite.history_depth,
+        )
+    else:
+        initial_guess = TimedFullField.zeros(
             bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
-        ),
+        )
+    psi_typed, residuals = si.solve(
+        q_ext_composite, initial_guess=initial_guess,
     )
-    phi = psi_typed.bulk.integrate_angular().values
     converged_flag = bool(residuals) and residuals[-1] < inner_tol
     flux_residuals = [float(r) for r in residuals]
 
@@ -1843,12 +1868,31 @@ def _solve_fixed_source_si(
         total_inner_iterations=len(residuals),
         converged=converged_flag,
     )
-    # ``psi_typed`` IS the converged TimedFullField composite (bulk angular +
-    # boundary trace) — return it directly, exactly as the fixed-source Krylov
-    # path does.  No legacy ``solver._boundary_flux`` writeback (the boundary
-    # trace lives on ``psi_typed.boundary``).
+    # ``Solution.angular_flux`` must carry the FULL per-ordinate angular flux.
+    # Un-windowed: ``psi_typed`` already IS it (return directly, exactly as the
+    # fixed-source Krylov path does; the boundary trace lives on
+    # ``psi_typed.boundary`` — no legacy ``solver._boundary_flux`` writeback).
+    # Windowed: ``psi_typed.bulk`` is the moment iterate, so reconstruct the
+    # full angular with ONE final full-angular solve of the converged source
+    # ``q + Σ gains·ψ`` through the UN-wrapped base resolvent (mirrors the
+    # eigenvalue reconstruction sweep).  Bit-identical to the un-windowed
+    # converged ψ: S/B consume the moments == the full angular's moments
+    # (de-risk proven), so the source is the same, and one sweep of the
+    # converged source reproduces the converged iterate by the fixed point.
+    if windowed:
+        rhs_final = q_ext_composite
+        for gain in gains:
+            rhs_final = rhs_final + gain.apply(psi_typed)
+        angular_out = base_resolvent.solve(rhs_final, initial_guess=psi_typed)
+    else:
+        angular_out = psi_typed
+    # Scalar flux from the RETURNED full angular flux → the Solution is exactly
+    # self-consistent (``scalar == ∫ angular dΩ``), matching the un-windowed
+    # contract.  (For the un-windowed path ``angular_out`` IS ``psi_typed``, so
+    # this is bit-identical to the prior ``psi_typed.bulk.integrate_angular``.)
+    phi = angular_out.bulk.integrate_angular().values
     return Solution(
-        angular_flux=psi_typed,
+        angular_flux=angular_out,
         scalar_flux=ScalarFlux.from_mesh(phi, sn_mesh),
         mesh=sn_mesh,
         keff=None,
