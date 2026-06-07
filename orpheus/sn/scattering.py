@@ -481,6 +481,48 @@ class ScatteringOperator(LinearOperatorMixin):
         reconstruct = HarmonicMomentReconstruction.from_Y(self.Y)
         return reconstruct.apply(scatter.apply(moment_values))
 
+    def _assemble_per_ordinate_source(
+        self,
+        phi: "np.ndarray | ScalarFlux",
+        aniso_or_none: "AngularSourceSink | None",
+        mesh: "SNMesh",
+    ) -> "AngularSourceSink":
+        r"""Combine the P0 + (n,2n) iso source (from the scalar flux
+        :math:`\phi_0`) with the pre-:math:`/W` :math:`\ell\ge 1` aniso source
+        into the per-ordinate scattering source :math:`(\text{iso}/W) +
+        \text{aniso}`.
+
+        The single source of truth (``coding-elegance`` Pattern 2) for the
+        producer-side :math:`1/W` combine (Pattern 7 / lesson L18) shared by
+        every ``apply`` arm that emits a per-ordinate
+        :class:`~orpheus.transport.source_sinks.AngularSourceSink` — the
+        full-angular :class:`AngularFlux` arm and the windowed
+        :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+        arm.  Both reduce to "compute :math:`\phi` and the pre-:math:`/W`
+        aniso, then assemble"; the :math:`/W` convention lives HERE, once.
+
+        Parameters
+        ----------
+        phi : np.ndarray or ScalarFlux
+            Scalar flux :math:`\phi_0` (iso magnitude) driving P0 + (n,2n).
+        aniso_or_none : AngularSourceSink or None
+            Per-ordinate :math:`\ell\ge 1` source ALREADY in per-ordinate
+            magnitude (post-:math:`/W`), or ``None`` for
+            ``scattering_order == 0``.
+        mesh : SNMesh
+            Phase-space carrier (sizes the zero accumulators + ``sum_w``).
+        """
+        iso: ScalarSourceSink = ScalarSourceSink.zeros_on(mesh)
+        iso = self.add_iso_source(iso, phi)
+        iso = self.add_n2n_source(iso, phi)
+        aniso = (
+            aniso_or_none
+            if aniso_or_none is not None
+            else AngularSourceSink.zeros_on(mesh)
+        )
+        sum_w = float(mesh.quad.weights.sum())
+        return (iso / sum_w) + aniso
+
     @classmethod
     def from_solver_data(
         cls,
@@ -1043,19 +1085,11 @@ class ScatteringOperator(LinearOperatorMixin):
         first-class dispatch arm instead of routing through a transient
         :class:`TimedFullField` wrap.
         """
-        mesh = psi.mesh
-        phi = psi.integrate_angular()
-        iso: ScalarSourceSink = ScalarSourceSink.zeros_on(mesh)
-        iso = self.add_iso_source(iso, phi)
-        iso = self.add_n2n_source(iso, phi)
-        aniso_or_none = self.build_aniso_source(psi)
-        if aniso_or_none is None:
-            aniso = AngularSourceSink.zeros_on(mesh)
-        else:
-            aniso = aniso_or_none
-        sum_w = float(mesh.quad.weights.sum())
-        combined: AngularSourceSink = (iso / sum_w) + aniso
-        return combined
+        # φ = ∫ψ dΩ (scalar), aniso = (1/W) R Λ M ψ (per-ordinate), then the
+        # shared producer-side assembly.
+        return self._assemble_per_ordinate_source(
+            psi.integrate_angular(), self.build_aniso_source(psi), psi.mesh,
+        )
 
     @apply.register
     def _(self, phi_moments: HarmonicMomentField) -> "AngularSourceSink":
@@ -1073,32 +1107,28 @@ class ScatteringOperator(LinearOperatorMixin):
 
         * the :math:`\ell=0` block IS the scalar flux — ORPHEUS uses
           unnormalized real harmonics (:math:`Y_0^0 = 1`), so
-          ``phi_moments.l_block(0)[0]`` equals
-          :meth:`AngularFlux.integrate_angular` term-for-term; it feeds the
-          identical P0 + (n,2n) :meth:`add_iso_source` /
-          :meth:`add_n2n_source` fast path;
+          :meth:`HarmonicMomentField.scalar_flux` equals
+          :meth:`AngularFlux.integrate_angular` term-for-term (the typed
+          accessor single-sources that convention); it feeds the identical
+          P0 + (n,2n) fast path;
         * the :math:`\ell\ge 1` aniso reuses the SAME
           :meth:`_aniso_source_from_moment_values` (:math:`R\,\Lambda`) map
           the full-angular path calls after its own :math:`M`.
 
-        Output convention matches the :class:`AngularFlux` arm exactly:
-        per-ordinate :class:`AngularSourceSink`, the producer-side
-        :math:`1/W` (Pattern 7) applied at this boundary.
+        Output convention matches the :class:`AngularFlux` arm exactly: both
+        end at the shared :meth:`_assemble_per_ordinate_source` (per-ordinate
+        :class:`AngularSourceSink`, producer-side :math:`1/W`, Pattern 7).
         """
         mesh = phi_moments.mesh
-        # ℓ=0 moment IS the scalar flux (Y_0^0 = 1).  ``add_iso_source`` /
-        # ``add_n2n_source`` accept the raw ``(ng, nx, ny)`` ndarray.
-        phi_values = phi_moments.l_block(0)[0]
-        iso: ScalarSourceSink = ScalarSourceSink.zeros_on(mesh)
-        iso = self.add_iso_source(iso, phi_values)
-        iso = self.add_n2n_source(iso, phi_values)
         if self.scattering_order == 0:
-            aniso = AngularSourceSink.zeros_on(mesh)
+            aniso = None
         else:
             out_values = self._aniso_source_from_moment_values(
                 phi_moments.values,
             ) / float(self.weights.sum())
             aniso = AngularSourceSink.from_mesh(out_values, mesh)
-        sum_w = float(mesh.quad.weights.sum())
-        combined: AngularSourceSink = (iso / sum_w) + aniso
-        return combined
+        # ℓ=0 moment IS the scalar flux (Y_0^0 = 1) — the typed accessor
+        # carries that convention (== integrate_angular bit-exactly).
+        return self._assemble_per_ordinate_source(
+            phi_moments.scalar_flux(), aniso, mesh,
+        )

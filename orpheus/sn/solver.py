@@ -385,6 +385,56 @@ class _MomentWindowedResolvent:
         )
 
 
+def _maybe_window(base_resolvent, scattering_op, sn_mesh):
+    r"""Phase 5a — wrap ``base_resolvent`` for 2-D Cartesian angular-windowing,
+    else passthrough.  Returns ``(resolvent, windowed)``.
+
+    The SINGLE site of the windowing-eligibility gate (``coding-elegance``
+    Pattern 7 — the convention lives in one place, shared by the eigenvalue
+    and fixed-source SI drivers): 2-D Cartesian (``sn_mesh.reduced is None``)
+    holds the SI iterate as harmonic moments via
+    :class:`_MomentWindowedResolvent`; curvilinear (1-D) stays full-angular —
+    the Morel–Montry Carlson seed reads the previous per-ordinate iterate at
+    ``μ=−1`` (lesson L21), which the moment tensor does not carry.  ``M`` is
+    sourced from the scattering operator's own quadrature ⇒ the stored moments
+    are bit-identical to ``S``'s internal projection.
+    """
+    if sn_mesh.reduced is None:
+        return (
+            _MomentWindowedResolvent(
+                base_resolvent,
+                scattering_op.quadrature,
+                scattering_op.scattering_order,
+                sn_mesh,
+            ),
+            True,
+        )
+    return base_resolvent, False
+
+
+def _windowed_cold_start(scattering_op, sn_mesh, *, history_depth):
+    r"""Zero windowed (moment-bulk) SI cold-start iterate.
+
+    The moment representation the windowed resolvent emits and the
+    moment-consuming ``S.apply`` / ``B.apply`` expect — shared by both SI
+    drivers (``coding-elegance`` Pattern 2).
+    """
+    from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.fields.harmonic_moment_field import (
+        HarmonicMomentField,
+    )
+    from orpheus.transport.timed_full_field import TimedFullField
+
+    return TimedFullField(
+        bulk=HarmonicMomentField.zeros_for_mesh_and_L(
+            sn_mesh, scattering_op.scattering_order,
+        ),
+        boundary=BoundaryFlux.zeros_on(sn_mesh),
+        _history=(),
+        history_depth=history_depth,
+    )
+
+
 def _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule: str):
     r"""Pick the ``(resolvent, gains)`` for the within-group SI driver per
     ``inner_schedule`` — the single source of truth for the Jacobi/G-S choice.
@@ -876,9 +926,6 @@ class SNSolver:
         from orpheus.transport.fields.boundary_flux import (
             BoundaryFlux,
         )
-        from orpheus.transport.fields.harmonic_moment_field import (
-            HarmonicMomentField,
-        )
         from orpheus.transport.source_sinks import (
             AngularSourceSink,
             BoundarySourceSink,
@@ -925,23 +972,11 @@ class SNSolver:
         # truth — ``_within_group_triple``; shared with the Krylov and
         # fixed-source paths). ───────────────────────────────────────
         LC, S, B = _within_group_triple(self)
-        # Phase 5a — 2-D Cartesian angular-windowing: hold the SI iterate
-        # as harmonic MOMENTS (the asymptotic 2-D win — the held +
-        # warm-started iterate's angular dimension drops N → (L+1)²; the
-        # per-sweep re-projection S used to do is elided).  Curvilinear
-        # (1-D, ``reduced is not None``) stays full-angular — the M-M
-        # Carlson seed reads the previous per-ordinate iterate at μ=−1
-        # (lesson L21), which the moment tensor does not carry.  The
-        # wrapper sources M from S's own quadrature ⇒ the stored moments
-        # are bit-identical to S's internal projection.
-        windowed = self.sn_mesh.reduced is None
-        resolvent = (
-            _MomentWindowedResolvent(
-                LC, S.quadrature, S.scattering_order, self.sn_mesh,
-            )
-            if windowed
-            else LC
-        )
+        # Phase 5a — 2-D Cartesian angular-windowing: hold the SI iterate as
+        # harmonic MOMENTS (the held + warm-started iterate's angular dimension
+        # drops N → (L+1)²).  The gate + wrap is single-sourced in
+        # :func:`_maybe_window` (shared with the fixed-source SI driver).
+        resolvent, windowed = _maybe_window(LC, S, self.sn_mesh)
         si = SourceIteration(
             resolvent, S, B,
             max_iter=self.max_inner, tol=self.inner_tol,
@@ -960,18 +995,12 @@ class SNSolver:
         initial_guess = getattr(self, "_psi_typed", None)
         if initial_guess is None:
             # B.5.2: cold-start iterate is an all-zeros FLUX composite,
-            # decoupled from q_ext's AngularSourceSink type.  Phase 5a:
-            # when windowed the bulk is a zero HarmonicMomentField (the
-            # moment representation the windowed resolvent emits and the
-            # moment-consuming S.apply expects); else a zero AngularFlux.
+            # decoupled from q_ext's AngularSourceSink type.  Phase 5a: when
+            # windowed the bulk is a zero HarmonicMomentField (single-sourced
+            # in :func:`_windowed_cold_start`); else a zero AngularFlux.
             if windowed:
-                initial_guess = TimedFullField(
-                    bulk=HarmonicMomentField.zeros_for_mesh_and_L(
-                        self.sn_mesh, S.scattering_order,
-                    ),
-                    boundary=BoundaryFlux.zeros_on(self.sn_mesh),
-                    _history=(),
-                    history_depth=2,
+                initial_guess = _windowed_cold_start(
+                    S, self.sn_mesh, history_depth=2,
                 )
             else:
                 initial_guess = TimedFullField.zeros(
@@ -989,11 +1018,10 @@ class SNSolver:
 
         # Scalar flux for the eigenvalue outer's contract.  Windowed: the
         # ℓ=0 moment IS the scalar flux (Y_0^0 = 1 ⇒ bit-identical to
-        # integrate_angular); un-windowed: reduce the full angular bulk.
-        # ``.copy()`` matches integrate_angular's fresh-array semantics (the
-        # outer power-iteration normalises the returned flux in place).
+        # integrate_angular) via the typed ``scalar_flux`` accessor that
+        # carries the convention; un-windowed: reduce the full angular bulk.
         if windowed:
-            return psi_typed.bulk.l_block(0)[0].copy()
+            return psi_typed.bulk.scalar_flux().values
         return psi_typed.bulk.integrate_angular().values
 
     # ── Inner solver: Krylov on (L+C-S)·ψ = q_ext (R-1 Step D carve) ──
@@ -1792,9 +1820,6 @@ def _solve_fixed_source_si(
     from orpheus.transport.fields.boundary_flux import (
         BoundaryFlux,
     )
-    from orpheus.transport.fields.harmonic_moment_field import (
-        HarmonicMomentField,
-    )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.numerics.iteration import SourceIteration
 
@@ -1816,19 +1841,11 @@ def _solve_fixed_source_si(
     # scheduled resolvent → gains (S,); "jacobi" (or any 1-D mesh) keeps
     # resolvent (L+C) + gains (S, B) — today's inter-sweep Jacobi.  Same
     # converged fixed point; only the SI spectral rate differs.
-    resolvent, gains = _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule)
-    # Phase 5a — 2-D Cartesian angular-windowing: hold the SI iterate as
-    # harmonic MOMENTS (see ``_MomentWindowedResolvent`` + the eigenvalue
-    # inner ``_solve_source_iteration``).  Curvilinear (1-D) stays full-angular
-    # — the M-M Carlson seed reads the previous per-ordinate iterate (L21).
-    # ``base_resolvent`` (the un-wrapped one) is kept for the final
-    # full-angular reconstruction below.
-    base_resolvent = resolvent
-    windowed = sn_mesh.reduced is None
-    if windowed:
-        resolvent = _MomentWindowedResolvent(
-            base_resolvent, S.quadrature, S.scattering_order, sn_mesh,
-        )
+    base_resolvent, gains = _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule)
+    # Phase 5a — 2-D Cartesian angular-windowing (single-sourced gate +
+    # wrap, shared with the eigenvalue inner).  ``base_resolvent`` (the
+    # un-wrapped one) is kept for the final full-angular reconstruction below.
+    resolvent, windowed = _maybe_window(base_resolvent, S, sn_mesh)
     si = SourceIteration(
         resolvent, *gains,
         max_iter=max_inner, tol=inner_tol,
@@ -1836,16 +1853,11 @@ def _solve_fixed_source_si(
 
     # Cold-start iterate (x0 = zeros).  Fixed-source is a single solve — no
     # eigenvalue outer to warm-start from (cf. the eigenvalue inner's
-    # ``self._psi_typed``).  Windowed → zero moments; else a zero AngularFlux
-    # (the template fixes the iterate representation).
+    # ``self._psi_typed``).  Windowed → zero moments (single-sourced in
+    # :func:`_windowed_cold_start`); else a zero AngularFlux.
     if windowed:
-        initial_guess = TimedFullField(
-            bulk=HarmonicMomentField.zeros_for_mesh_and_L(
-                sn_mesh, S.scattering_order,
-            ),
-            boundary=BoundaryFlux.zeros_on(sn_mesh),
-            _history=(),
-            history_depth=q_ext_composite.history_depth,
+        initial_guess = _windowed_cold_start(
+            S, sn_mesh, history_depth=q_ext_composite.history_depth,
         )
     else:
         initial_guess = TimedFullField.zeros(
