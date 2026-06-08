@@ -244,7 +244,6 @@ class MomentProjection(GalerkinProjection):
     The single-axis primitive
 
     .. math::
-       :label: harmonic-moment-projection
 
        \phi_\ell^m
        \;=\; \sum_n w_n \, Y_\ell^m(\hat\Omega_n) \, \psi_n,

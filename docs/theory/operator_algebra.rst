@@ -3693,7 +3693,10 @@ instead of :class:`~orpheus.transport.fields.angular_flux.AngularFlux`.
      5a shrinks the *persistent* iterate (18.3×) and makes its type
      honest. The *peak* memory drops only modestly (~1.2× measured)
      because the per-sweep **transient** full-angular machinery still
-     dominates — that transient is Phase 5b's target.
+     dominates — that transient is the target of Phase 5b (interior-face
+     cochain) and Phase 5c
+     (:ref:`full-angular output <sn-angular-windowing-in-sweep-accumulation>`,
+     the 3.06× linear peak win).
 
 
 .. _sn-angular-windowing-fixed-point:
@@ -4034,19 +4037,26 @@ Honest scope — a persistent-iterate + typed-state win, NOT yet a peak win
      against the windowed ``tracemalloc`` peak;
      ``derivations/diagnostics/diag_p5a_peak_memory.py``).
 
-   The per-sweep transient is the target of **Phase 5b** (interior-face
-   storage-B — the rolling moving-frontier window over the wavefront
-   anti-diagonals, which never materializes the whole interior cochain
-   at once). 5b is *required* to realize the full peak win, and is the
-   **3-D enabler** (a 3-D wavefront's full interior cochain is
-   prohibitively large to materialize; the moving frontier is the only
-   tractable representation).
+   The per-sweep transient has two components, eliminated by two later
+   phases. **Phase 5b** (interior-face storage-B — the rolling
+   moving-frontier window over the wavefront anti-diagonals, which never
+   materializes the whole interior cochain at once) cuts the *interior
+   face* cochain transient and is the **3-D enabler** (a 3-D wavefront's
+   full interior cochain is prohibitively large to materialize; the moving
+   frontier is the only tractable representation). **Phase 5c**
+   (:ref:`sn-angular-windowing-in-sweep-accumulation`) cuts the
+   *full-angular output* transient by accumulating the harmonic moments
+   per anti-diagonal inside the sweep — the **linear peak win** (measured
+   3.06×), and the realization of the full peak reduction this honest-scope
+   warning deferred.
 
 So Phase 5a is precisely: the **persistent-iterate** shrink + the
-**typed-state** correctness win + the **foundation** for 5b. Phase 5b is
-the **per-sweep transient** elimination + the **3-D** enabler. The two
-together deliver the asymptotic peak reduction the moment iterate makes
-possible; 5a alone delivers the type and the persistent-storage win.
+**typed-state** correctness win + the **foundation** for 5b/5c. Phase 5b
+eliminates the **interior-face transient** and is the **3-D** enabler;
+Phase 5c eliminates the **full-angular output transient** (the linear peak
+win). The three together deliver the asymptotic peak reduction the moment
+iterate makes possible; 5a alone delivers the type and the
+persistent-storage win.
 
 
 .. _sn-angular-windowing-implementation:
@@ -4093,6 +4103,446 @@ operator live in :mod:`orpheus.numerics.projection`; the interior-face
 cochain Phase 5a is orthogonal to is :ref:`wavefront-flux-cochain`; the
 SI fixed point it reorganizes is the within-group inner of
 :ref:`eigenvalue-posing`.
+
+
+.. _sn-angular-windowing-in-sweep-accumulation:
+
+Per-anti-diagonal moment accumulation — dropping the full-angular transient (Phase 5c)
+--------------------------------------------------------------------------------------
+
+Wave O step #205 **Phase 5c** (commit ``c7be111``, 2026-06-07) closes the
+gap Phase 5a's :ref:`honest-scope warning
+<sn-angular-windowing-honest-scope>` left open: the **per-sweep
+full-angular transient**. Phase 5a held the *persistent* iterate as
+moments (the 18.3× shrink) but still **materialized the full
+per-ordinate angular field** :math:`\psi \in (N, n_g, n_x, n_y)` inside
+*every* sweep, then projected it to moments **post-hoc** — a flat reduce
+:eq:`angular-windowing-moment-projection` applied once at the end of the
+sweep by :meth:`~orpheus.numerics.projection.MomentProjection.apply`
+(:meth:`_MomentWindowedResolvent.solve <orpheus.sn.solver._MomentWindowedResolvent.solve>`
+called ``base.solve`` then ``self._projection.apply(full.bulk.values)``).
+That transient full-angular array is the dominant peak-memory cost the
+5a warning named.
+
+Phase 5c moves the projection **into** the windowed anti-diagonal walk:
+each topological level accumulates the harmonic moment tensor *directly*,
+octant-by-octant into one shared global buffer, so the full angular
+field is **never materialized** in the windowed iterate. The
+``base.solve`` → flat-``apply`` post-projection **leaves production**;
+:meth:`_MomentWindowedResolvent.solve <orpheus.sn.solver._MomentWindowedResolvent.solve>`
+collapses to forwarding
+:meth:`~orpheus.sn.operator.InvertibleOperator.solve_moments`.
+
+.. admonition:: Key Facts (in-sweep moment accumulation)
+   :class: tip
+
+   - **The projection moves into the sweep.** Where 5a swept the full
+     :math:`\psi` then flat-reduced :math:`\phi_\ell^m = \sum_n w_n
+     Y_\ell^m \psi_n` once post-hoc, 5c accumulates the moments per
+     anti-diagonal *during* the walk:
+     :math:`\phi_\ell^m[\text{cells}_k] \mathrel{+}= \sum_{n\in
+     \text{octant}} w_n Y_\ell^m(\hat\Omega_n)\,\psi_n[\text{cells}_k]`.
+     The full :math:`(N, n_g, n_x, n_y)` field is never allocated for
+     the windowed iterate.
+   - **Measured peak-memory win: 3.06×.** On S8 / 4g / :math:`24\times24`
+     the windowed ``solve`` peak drops 2.26 MB → 0.74 MB — the 1.47 MB
+     full-angular transient is eliminated (moment tensor 0.111 MB). The
+     win **grows with angular order**: the eliminated transient is
+     :math:`N\,n_g\,n_x\,n_y`; the moment tensor is fixed at
+     :math:`(L{+}1)(2L{+}1)\,n_g\,n_x\,n_y`.
+   - **Principled-equivalence, NOT bit-identity.** The cross-octant
+     ``+=`` reorders the ordinate sum vs the flat single-reduce; IEEE-754
+     addition is non-associative, so the moments drift at ULP level.
+     The per-cell :math:`w\,Y\,\psi` fold is **term-for-term identical**
+     to :meth:`MomentProjection.apply
+     <orpheus.numerics.projection.MomentProjection.apply>` — only the
+     accumulation *order* differs. Measured max-relative drift
+     :math:`2.74\times10^{-16}` (:math:`\le 4N\varepsilon`, 4 ULP).
+   - **The scalar is subsumed.** The scalar flux **is**
+     :math:`\phi_0^0 = \texttt{moments}[0,0]` (:math:`Y_0^0 = 1`), read
+     off the moment tensor — there is no separate scalar reduction
+     (``coding-elegance`` Pattern 2: one source of truth).
+   - **The fuller view is retained as a verification oracle.** The pre-5c
+     "full-angular solve + flat ``MomentProjection.apply``" path is kept
+     reachable and pins the optimized path
+     (``feedback_aggressive_retirement`` — the "verification oracle"
+     exception to retirement).
+   - **2-D Cartesian only; the rest is untouched.** Gated on
+     ``sn_mesh.reduced is None`` (5a's gate); ``transport_sweep`` *raises*
+     on a 1-D mesh given a moment projection (illegal-states-
+     unrepresentable). Curvilinear / Krylov stay full-angular; both
+     one-shot ``Solution.angular_flux`` reconstructions stay separate
+     full sweeps.
+
+
+.. _sn-angular-windowing-in-sweep-transformation:
+
+The transformation — post-hoc reduce → in-sweep accumulate
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Phase 5a's resolvent produced its moment iterate in **two arithmetic
+stages**: (1) the wavefront walk materialized the full per-ordinate field
+:math:`\psi \in (N, n_g, n_x, n_y)`, writing each anti-diagonal's
+cell-average into the global angular buffer
+(``angular_flux_octant[:, :, ii, jj] = psi_avg``); then (2) a flat
+post-sweep reduce collapsed *all* :math:`N` ordinates at once,
+
+.. math::
+
+   \phi_\ell^m(\vec r)
+   \;=\;\sum_{n=1}^{N} w_n\, Y_\ell^m(\hat\Omega_n)\,\psi_n(\vec r)
+   \qquad\bigl(\texttt{MomentProjection.apply}, \;
+   \texttt{einsum}\;\texttt{"n,nlm,n...->lm..."}\bigr),
+
+which is :eq:`angular-windowing-moment-projection` again, evaluated once.
+Stage (1)'s full-angular array is the transient that dominates the peak.
+
+Phase 5c fuses the two stages. The :class:`_MovingFrontier
+<orpheus.sn.sweep_graph._MovingFrontier>` walk
+(:meth:`SweepDependencyGraph.apply_windowed
+<orpheus.sn.sweep_graph.SweepDependencyGraph.apply_windowed>`) already
+visited every cell exactly once, anti-diagonal by anti-diagonal, with the
+per-level cell-average :math:`\psi_n[\text{cells}_k]` in hand. Phase 5a
+threw that local quantity into a global angular buffer and re-read it
+later; 5c **projects it on the spot** and discards it. For each level
+:math:`k` (anti-diagonal ``cells_k = (ii, jj)``) of each in-plane octant,
+
+.. (vv-status rationale) The in-sweep per-anti-diagonal moment
+   accumulation. The verifiable claim is the fuller-view-oracle
+   equivalence: the in-sweep accumulation equals the flat post-sweep
+   MomentProjection.apply of the same swept psi within the
+   reduction-order drift bound (criterion 3 of bit-identity-vs-
+   principled-equivalence). Pinned by
+   test_2d_windowed_moments_in_sweep_equal_post_projection, anchored to
+   the structurally-independent SI≡Krylov-full scalar cross-check.
+.. vv-status: harmonic-moment-projection implemented
+
+.. math::
+   :label: harmonic-moment-projection
+
+   \phi_\ell^m[\text{cells}_k]
+   \;\mathrel{+}=\;
+   \sum_{n\in\text{octant}} w_n\, Y_\ell^m(\hat\Omega_n)\,
+       \psi_n[\text{cells}_k],
+   \qquad
+   \texttt{moment\_buf[:, :, :, ii, jj]}
+   \mathrel{+}=
+   \texttt{einsum("nlm,ngd,n->lmgd",}\,
+       Y_{\rm oct},\,\psi_{\rm avg},\,w_{\rm oct}\texttt{)},
+
+accumulated into **one shared global** ``moment_buf`` of shape
+:math:`(L{+}1, 2L{+}1, n_g, n_x, n_y)`. The four in-plane octants are
+swept sequentially (``sweep_octant_group`` loops octants, each completing
+its full frontier walk), so the global buffer receives a **cross-octant
+``+=``**: octant 1's complete contribution, then octant 2's, and so on.
+The output branch in :meth:`apply_windowed
+<orpheus.sn.sweep_graph.SweepDependencyGraph.apply_windowed>` is a single
+two-way switch at the per-level output site — *angular mode* writes
+``angular_flux_octant[:, :, ii, jj] = psi_avg`` and accumulates the scalar
+(``scalar_flux_buf``); *moment mode* does the :eq:`harmonic-moment-projection`
+``+=`` instead. The frontier walk and the cell kernel are **untouched**,
+which is exactly why the ``window ≡ full-field`` angular-mode oracle
+(:ref:`Phase 5b <wavefront-flux-cochain>`) stays bit-identical: 5c adds a
+branch only at the *consumer* of ``psi_avg``, never in its *production*.
+
+The reduction-order contrast is the whole story:
+
+.. list-table:: Post-hoc reduce (5a) vs in-sweep accumulate (5c)
+   :header-rows: 1
+   :widths: 22 39 39
+
+   * -
+     - **Phase 5a — post-hoc flat reduce**
+     - **Phase 5c — in-sweep accumulation**
+   * - Full :math:`\psi` materialized?
+     - **Yes** — written to the global angular buffer, then re-read
+     - **No** — projected per level and discarded
+   * - Reduction shape
+     - one flat ``einsum`` over all :math:`N` at once
+       (``"n,nlm,n...->lm..."``)
+     - per-level ``+=`` per octant
+       (``"nlm,ngd,n->lmgd"``), cross-octant accumulate
+   * - Per-cell arithmetic
+     - :math:`\sum_n w_n Y_\ell^m \psi_n`
+     - :math:`\sum_n w_n Y_\ell^m \psi_n` (**term-for-term identical**)
+   * - FP reduction tree
+     - one fixed order
+     - reordered by the octant grouping ⟹ ULP drift
+   * - Peak working set
+     - moment iterate **+** full-angular transient
+     - moment iterate **only**
+
+
+.. _sn-angular-windowing-in-sweep-equivalence:
+
+Why it is principled-equivalence, not bit-identity
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Phase 5a's per-step source was **bit-identical** to the full-angular arm
+(0 ULP — :ref:`sn-angular-windowing-bit-identity`): the moments *stored*
+equalled :math:`S`'s *own* internal projection of the same :math:`\psi`,
+because the flat reduce and :math:`S`'s internal reduce shared the same
+single reduction order. Phase 5c **necessarily** breaks that bit-identity
+— and does so for a clean, documented reason rooted in the
+``vv-principles`` § "Bit-identity vs principled-equivalence" three-criteria
+test. The change is **accepted** because all three criteria hold:
+
+#. **Principled at every step — the intermediate is named.** Each
+   per-anti-diagonal partial moment :math:`\sum_{n\in\text{octant}} w_n
+   Y_\ell^m(\hat\Omega_n)\,\psi_n[\text{cells}_k]` is **the octant's
+   contribution to the harmonic moment** :math:`\phi_\ell^m` — a
+   reactor-physics quantity (the per-direction-class flux moment), not a
+   "whatever the reduction order produced" array. The cross-octant ``+=``
+   composes named partial moments. This is exactly the
+   unnamed-intermediate → named-intermediate move the criterion blesses
+   (cf. the issue-#169 ``compute_keff`` worked example: per-group
+   production rate is principled; the flat cell-product array is not).
+#. **Verified against a structurally-independent reference — not
+   old-vs-new ULP alone.** Old-vs-new distance is *necessary but not
+   sufficient* (both arms could share a systematic offset). The
+   structurally-independent ground is the **full-angular Krylov** scalar:
+   ``test_2d_p1_aniso_moment_path_carries_signal_and_si_krylov_agree``
+   cross-checks the windowed-SI moment :math:`\ell{=}0`
+   (``scalar_flux()`` = :math:`\phi_0^0`) against the full-angular Krylov
+   flux (Krylov is **never** windowed — it iterates the full bulk vector),
+   and the closed-form homogeneous eigenvalue :math:`k_\infty =
+   \nu\Sigma_f/\Sigma_a` (the closed-form pillar; MMS does **not** prove
+   eigenvalues) anchors the eigenvalue reuse.
+#. **The drift is FP-non-associativity, dimensionally explainable.** For
+   a single-step computation the bound is :math:`(\text{reduction
+   depth})\times\varepsilon`. The reduction depth is the ordinate count
+   :math:`N`; the cross-octant ``+=`` reorders the **same** :math:`N`
+   summands. The de-risk probe (``derivations/diagnostics/diag_p5c_moment_accum.py``,
+   git-excluded, promoted into the permanent gate then deleted per the
+   diagnostic-promotion policy) measured max-relative drift
+   :math:`2.74\times10^{-16}` — about :math:`78\times` under the
+   :math:`4N\varepsilon \approx 2.1\times10^{-14}` bound (:math:`N = 24`
+   ordinates, 4× headroom for the partial-sum nesting within octants). A
+   drift *above* :math:`4N\varepsilon` would signal an algorithmic change
+   masquerading as FP noise — a wrong octant-:math:`Y` slice (Mode 2), a
+   missing weight (Mode 3), or an :math:`\ell/m` index drift (Mode 5) —
+   and the gate would catch it.
+
+The scalar flux is **subsumed**, not separately reduced. Because
+:math:`Y_0^0 = 1` (ORPHEUS unnormalized-harmonic convention,
+:ref:`spherical-harmonics`), the :math:`\ell{=}0` slot **is** the scalar
+flux, :math:`\phi_0^0 = \sum_n w_n \psi_n` (the :math:`Y_0^0 = 1` read of
+:ref:`sn-angular-windowing-factoring`). The moment-mode sweep therefore
+returns ``(moment_buf, None)`` — no separate ``scalar_flux_buf``
+accumulation — and the eigenvalue inner reads
+``moment_buf[0, 0]`` for the outer power iteration's scalar flux. The
+windowed scalar is identical to the angular-mode scalar up to the same
+reduction-order drift; the existing ``scalar_flux_buf`` einsum
+``"ngd,n->gd"`` is literally the :math:`\ell{=}0` case of the moment
+einsum ``"nlm,ngd,n->lmgd"`` with :math:`Y_0^0 = 1`.
+
+
+.. _sn-angular-windowing-in-sweep-oracle:
+
+The fuller-view verification oracle
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Phase 5c **relinquishes a fuller view** — the materialized full-angular
+field that the post-hoc reduce consumed. By the
+``feedback_aggressive_retirement`` "verification oracle" exception, an
+optimization that gives up a fuller view of a concept **keeps that fuller
+view reachable** as a verification oracle that pins the optimized path.
+The pre-5c "full-angular ``base.solve`` then flat
+:meth:`MomentProjection.apply
+<orpheus.numerics.projection.MomentProjection.apply>`" path is exactly
+that fuller view: it is *not* deleted, and the permanent gate
+``test_2d_windowed_moments_in_sweep_equal_post_projection``
+asserts the in-sweep :meth:`solve_moments
+<orpheus.sn.operator.InvertibleOperator.solve_moments>` result equals
+``base.solve`` + ``MomentProjection.apply`` of the same swept
+:math:`\psi`, within the de-risk bound, over the **full moment tensor —
+including the** :math:`\ell\ge 1` **block**.
+
+The :math:`\ell\ge 1` coverage is the load-bearing reason this oracle
+exists. The :math:`\ell{=}0` scalar cross-check (the SI ≡ Krylov-full
+test, criterion 2 above) is **blind to** :math:`\ell\ge 1`: a windowing
+that silently swapped or dropped a higher moment would converge the right
+scalar flux while corrupting the anisotropic source. The oracle pins the
+:math:`\ell\ge 1` block that the scalar cross-check cannot see — it is the
+**Mode-5** (:math:`\ell/m` index drift) and **Mode-2** (wrong octant-:math:`Y`
+slice) catcher.
+
+.. warning::
+
+   The oracle and the system-under-test share the **same** cell kernel
+   (:meth:`~orpheus.sn.cell_update.DiamondDifference.cell_kernel_batch`)
+   and the **same** :math:`Y` / ``weights``, differing only in reduction
+   *order*. They are therefore **procedurally** independent, **not
+   structurally** independent (``vv-principles`` § "Structural
+   independence"). The oracle gate alone is a same-math-rearranged
+   comparison and is **not sufficient** on its own — it MUST be paired
+   with the structurally-independent SI ≡ Krylov-full scalar anchor
+   (criterion 2) and the closed-form :math:`k_\infty` eigenvalue. The
+   oracle's *value-add* is precisely the :math:`\ell\ge 1` block the
+   structurally-independent scalar anchor is blind to; its
+   anti-degeneracy leg asserts :math:`\max|\phi_{\ell\ge1}| > 10^{-3}\,
+   \max|\phi_0|` so the pinned higher-moment block is genuinely non-zero
+   on the canonical config.
+
+The metric the gate uses is the **scale-relative** drift
+:math:`\max|\phi^{\rm SUT} - \phi^{\rm oracle}| / \max|\phi^{\rm oracle}|
+\le 4N\varepsilon`, **not** an element-wise
+``assert_array_almost_equal_nulp``. The moment tensor spans ~3 orders of
+magnitude (the :math:`\ell{=}0` scalar dominates; the :math:`\ell\ge 1`
+blocks are :math:`\sim 10^{-3}\times`), so an element-wise ULP comparison
+would inflate a machine-:math:`\varepsilon` *absolute* difference on a
+small :math:`\ell\ge 1` element into hundreds of ULP even when the reorder
+is pure FP noise. The scale-relative drift is the principled-equivalence
+quantity (criterion 3).
+
+
+.. _sn-angular-windowing-in-sweep-numerical-evidence:
+
+Numerical evidence
+~~~~~~~~~~~~~~~~~~~
+
+.. list-table:: Phase 5c gates (commit ``c7be111``)
+   :header-rows: 1
+   :widths: 34 18 48
+
+   * - Gate
+     - Result
+     - What it pins
+   * - **De-risk drift** (canonical config
+       ``2d_2g_p1_aniso_dd_8x4_het_si``: 8×4 het, vacuum-x /
+       reflective-y, mixture B :math:`\bar\mu = 0.6` P1, S4 :math:`N = 24`)
+     - **2.74e-16** rel
+     - in-sweep accumulation ≡ flat post-projection, :math:`\le 4N\varepsilon`
+       (4 ULP) — criterion 3 (FP-reorder, not a bug)
+   * - **Peak memory** (S8 / 4g / :math:`24\times24`,
+       ``diag_p5c_peak_memory`` tracemalloc)
+     - **3.06×** (2.26 MB → 0.74 MB)
+     - the 1.47 MB full-angular transient eliminated; moment tensor 0.111 MB
+   * - **Windowing L1**
+       (``test_2d_anisotropic_windowing.py``, incl. the new equivalence gate)
+     - **4 ✓**
+     - P1 ≠ P0 + SI ≡ Krylov-full; full-recon self-consistency
+       (:math:`\Sigma w\psi = \phi`); reflective trace ≠ 0; in-sweep ≡ oracle
+   * - **Eigenvalue 2-D** (``test_keff_2d.py``)
+     - **19 ✓**
+     - closed-form :math:`k_\infty`, P1-changes-:math:`k_{\rm eff}`,
+       SI ≡ Krylov, Jacobi ≡ G-S (Mode 9), refinement convergence
+   * - **Regression snapshot**
+       (``test_dd_regression.py``, ``2d_2g_p1_aniso_dd_8x4_het_si``)
+     - within ``SAFETY × conv_tol``
+     - scalar flux drift 6920 ULP / :math:`9.81\times10^{-13}` rel
+       (~10× headroom under the :math:`1.0\times10^{-11}` gate)
+   * - **5b oracles + matvec consumer**
+       (``test_2d_full_field_oracle.py``, window≡full graph,
+       ``TestAnisoMomentSourcePath``, A2D-1 hash pin)
+     - bit-identical / intact
+     - the angular-mode oracle and the moment *consumer* (``S.apply``)
+       are untouched — 5c changes only moment *production*
+
+The **peak-memory win grows with angular order** because the eliminated
+transient scales as :math:`N\,n_g\,n_x\,n_y` while the moment tensor is
+fixed at :math:`(L{+}1)(2L{+}1)\,n_g\,n_x\,n_y`: at S4 :math:`N = 24`,
+:math:`L = 1` the moment tensor is :math:`6/24 = 1/4` the angular size;
+at S8 :math:`N = 80` it is :math:`6/80 \approx 1/13`; a Lebedev-order-17
+:math:`N = 110` it is :math:`6/110 \approx 1/18`. The transient is the
+**linear** peak win Phase 5a's honest-scope warning deferred to "Phase
+5b/5c": 5a delivered the persistent-iterate shrink, 5b (the
+:ref:`moving-frontier interior cochain <wavefront-flux-cochain>`) cut the
+interior face transient, and 5c cuts the full-angular *output* transient.
+
+
+.. _sn-angular-windowing-in-sweep-honest-scope:
+
+Honest scope — what 5c does and does NOT do
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. warning::
+
+   Phase 5c eliminates the **per-sweep full-angular transient** of the
+   *windowed SI* path. State the boundaries carefully:
+
+   * **The persistent iterate was already moments (5a).** 5c does not
+     shrink the held iterate — that was 5a's 18.3×. 5c shrinks the
+     *transient* the held-moment iterate's sweep still materialized.
+   * **Both** ``Solution.angular_flux`` **reconstructions stay full
+     sweeps.** The eigenvalue final reconstruction and the fixed-source
+     windowed one-shot reconstruction each re-run a *separate*
+     full-angular ``transport_sweep`` to return the user-facing
+     :math:`(N, n_g, n_x, n_y)` field. They are **untouched** — the
+     user-facing angular flux is bit-identical (the
+     :math:`\Sigma w\psi = \phi` self-consistency gate and the step-3
+     ``np.array_equal`` reconstruction pin both hold).
+   * **Krylov, 1-D, and curvilinear stay full-angular.** Krylov iterates
+     the full bulk vector (no moment sub-iterate); the curvilinear
+     Morel–Montry Carlson coupled-pole seed reads the per-ordinate
+     iterate at :math:`\mu = -1` (lesson L21), which the moment tensor
+     cannot carry. Both are gated out by ``sn_mesh.reduced is None``;
+     ``transport_sweep`` *raises* if a moment projection reaches a 1-D
+     mesh, so the unwindowable regime is unrepresentable, not merely
+     unreached.
+
+So the three-phase arc is complete: **5a** holds the persistent iterate
+as moments (typed-state + persistent-storage win); **5b** carries the
+interior face cochain on a rolling moving frontier (interior-transient
+elimination + 3-D enabler); **5c** projects the swept flux to moments
+in-sweep (full-angular *output*-transient elimination — the linear peak
+win). Together they realize the asymptotic peak reduction the moment
+iterate makes possible.
+
+
+.. _sn-angular-windowing-in-sweep-implementation:
+
+Implementation map (Phase 5c)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The moment OUTPUT mode threads as an **optional projection**, mirroring
+the ``reflect=None`` dependency-injection idiom of :func:`_sweep_2d_scheduled
+<orpheus.sn.sweep._sweep_2d_scheduled>` — **not** a boolean flag (at the
+resolvent surface the two modes are **named methods**, ``solve`` vs
+``solve_moments``).
+
+* :meth:`SweepDependencyGraph.apply_windowed
+  <orpheus.sn.sweep_graph.SweepDependencyGraph.apply_windowed>` — the
+  single two-way branch at the per-level output site (angular write vs
+  the :eq:`harmonic-moment-projection` ``moment_buf`` ``+=``). The
+  frontier walk and cell kernel are untouched.
+  :meth:`residual_windowed
+  <orpheus.sn.sweep_graph.SweepDependencyGraph.residual_windowed>` (the
+  Krylov matvec) is untouched — Krylov stays full-angular.
+* :func:`sweep_octant_group <orpheus.sn.sweep.sweep_octant_group>` /
+  :func:`_sweep_2d_scheduled <orpheus.sn.sweep._sweep_2d_scheduled>` /
+  :func:`_sweep_2d_wavefront <orpheus.sn.sweep._sweep_2d_wavefront>` /
+  :func:`transport_sweep <orpheus.sn.sweep.transport_sweep>` — thread the
+  optional ``moment_projection`` (2-D Cartesian only; ``transport_sweep``
+  raises on a 1-D mesh). Moment mode skips the per-octant angular
+  allocation and ``_sweep_2d_scheduled`` returns ``(moment_buf, None)``.
+* :meth:`InvertibleOperator.solve_moments
+  <orpheus.sn.operator.InvertibleOperator.solve_moments>` and
+  :meth:`_GaussSeidelResolvent.solve_moments
+  <orpheus.sn.solver._GaussSeidelResolvent.solve_moments>` — the named
+  moment-emitting siblings of ``solve``, sharing a parameterized body
+  (the type guards single-sourced into :meth:`_solve_timed_full_field
+  <orpheus.sn.operator.InvertibleOperator._solve_timed_full_field>` /
+  ``_solve_scheduled``). ONE ``transport_sweep`` call per body for both
+  output modes; only the bulk **wrap** differs
+  (:class:`~orpheus.transport.fields.angular_flux.AngularFlux` vs
+  :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`).
+* :meth:`_MomentWindowedResolvent.solve
+  <orpheus.sn.solver._MomentWindowedResolvent.solve>` — collapses to
+  forwarding ``base.solve_moments(...)``; the post-sweep flat projection
+  leaves production. The dead ``_moment_order`` / ``sn_mesh`` fields are
+  pruned (the base resolvent carries the mesh; the
+  :class:`~orpheus.numerics.projection.MomentProjection`'s ``L`` carries
+  the truncation order).
+
+Cross-references: the post-hoc reduce 5c replaces is
+:eq:`angular-windowing-moment-projection`; the :math:`Y_0^0 = 1`
+scalar-flux read is :ref:`sn-angular-windowing-factoring`; the
+moving-frontier interior cochain 5c rides is :ref:`wavefront-flux-cochain`
+(Phase 5b); the persistent-iterate shrink 5c completes is
+:ref:`sn-angular-windowing-honest-scope` (Phase 5a). The
+principled-equivalence framework is ``vv-principles`` § "Bit-identity vs
+principled-equivalence".
 
 
 .. _trace-spaces-doc:

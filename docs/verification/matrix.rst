@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **4979**
+Total tests collected: **5022**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1166, 23.4%
-   L1, 939, 18.9%
+   L0, 1167, 23.2%
+   L1, 940, 18.7%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2832, 56.9%
+   foundation, 2873, 57.2%
    unmarked, 6, 0.1%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4894
+   explicit, 4937
    verify, 0
    class-name, 46
    func-name, 0
@@ -54,6 +54,7 @@ Module × level grid
    analytical/test_phase_c_crosscheck, 0, 8, 0, 0, 0, 0
    analytical/test_prescribed_inflow_consistency, 0, 0, 0, 0, 2, 0
    analytical/test_si_convergence_rate, 0, 7, 0, 0, 2, 0
+   cartesian_2d/test_2d_full_field_oracle, 0, 0, 0, 0, 8, 0
    cartesian_2d/test_2d_l2_face_view_unit_source, 0, 0, 0, 0, 7, 0
    cartesian_2d/test_2d_l2_matvec_correctness, 0, 2, 0, 0, 2, 0
    cartesian_2d/test_2d_octant_sweep_equivalence, 0, 7, 0, 0, 0, 0
@@ -69,6 +70,7 @@ Module × level grid
    core/test_phase_c_gates, 8, 0, 0, 0, 9, 0
    core/test_sweep_cache, 28, 0, 0, 0, 0, 0
    core/test_sweep_graph, 76, 0, 0, 0, 0, 0
+   core/test_sweep_graph_window_equivalence, 0, 0, 0, 0, 33, 0
    core/test_sweep_regression, 8, 0, 0, 0, 0, 0
    core/test_sweep_schedule, 0, 0, 0, 0, 9, 0
    core/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 57, 0
@@ -200,7 +202,7 @@ Module × level grid
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
    eigenvalue/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
-   eigenvalue/test_keff_2d, 18, 0, 0, 0, 0, 0
+   eigenvalue/test_keff_2d, 19, 0, 0, 0, 0, 0
    eigenvalue/test_keff_curvilinear, 0, 15, 12, 0, 0, 0
    eigenvalue/test_keff_slab, 0, 6, 0, 0, 0, 0
    fields/test_angular_flux, 0, 0, 0, 0, 25, 0
@@ -301,7 +303,7 @@ Module × level grid
    residuals/test_typed_residuals, 0, 0, 0, 0, 33, 0
    slab/test_dd_recurrence, 1, 0, 0, 0, 0, 0
    slab/test_unified_matvec_slab, 2, 2, 0, 0, 0, 0
-   solve/test_2d_anisotropic_windowing, 0, 3, 0, 0, 0, 0
+   solve/test_2d_anisotropic_windowing, 0, 4, 0, 0, 0, 0
    solve/test_b1pp_verification, 6, 3, 0, 0, 0, 0
    solve/test_fixed_source_2d_equivalence, 0, 2, 0, 0, 0, 0
    solve/test_fixed_source_g1, 0, 5, 0, 0, 0, 0
@@ -324,7 +326,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    :header: Equation label, Tests
    :widths: 50, 10
 
-   ``matrix-eigenvalue``, 208
+   ``matrix-eigenvalue``, 209
    ``mg-balance``, 168
    ``peierls-unified``, 158
    ``one-group-kinf``, 132
@@ -336,7 +338,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``collision-rate``, 94
    ``alpha-cylindrical``, 74
    ``mm-weights``, 74
-   ``multigroup``, 70
+   ``multigroup``, 71
    ``ki3-def``, 64
    ``e3-def``, 61
    ``self-slab``, 55
@@ -354,7 +356,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``attenuation``, 48
    ``optical-thickness``, 48
    ``scalar-flux-integral``, 48
-   ``transport-cartesian``, 45
+   ``transport-cartesian``, 46
    ``cp-kernel-differential-identities``, 36
    ``flat-source``, 35
    ``cp-keff-update``, 34
@@ -398,11 +400,11 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-rank-n-stability``, 20
    ``dd-cartesian-1d``, 19
    ``dd-curvilinear-scalar``, 18
+   ``pn-scatter``, 17
    ``direction-sampling``, 16
    ``discrete-measure-integrate``, 16
    ``fission-weight``, 16
    ``keff-cycle``, 16
-   ``pn-scatter``, 16
    ``roulette-conservation``, 16
    ``roulette-prob``, 16
    ``peierls-greens-hollow-sph-architecture``, 15
@@ -429,12 +431,12 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-vacuum-bc-row-sum-gate``, 10
    ``peierls-white-bc``, 10
    ``singular-eigenfunction-eq42``, 10
+   ``transport-cartesian-2d``, 10
    ``dd-recurrence``, 9
    ``singular-eigenfunction-eq46``, 9
    ``sn-curvilinear-trajectory-resolvent-crosscheck``, 9
    ``tau-m``, 9
    ``tau-p``, 9
-   ``transport-cartesian-2d``, 9
    ``bare-slab-buckling``, 8
    ``bare-slab-critical-equation``, 8
    ``bare-slab-eigenfunction``, 8
@@ -538,6 +540,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``branching``, 1
    ``collision-estimator``, 1
    ``e1-decomposition``, 1
+   ``harmonic-moment-projection``, 1
    ``majorant``, 1
    ``moment-projection-transpose-T``, 1
    ``nm-1980-reflected-slab-fn``, 1

@@ -5824,9 +5824,14 @@ The 421-group cross-section library provides both P0 and P1 matrices.
    as the moment tensor (:math:`N \to (L{+}1)(2L{+}1)`, "angular
    windowing"), with the :math:`\ell\ge 1` reconstruction
    :math:`R\,\Lambda` shared between the windowed and full-angular
-   paths. See :ref:`sn-angular-windowing` in :doc:`operator_algebra`
-   for the derivation, the geometry restriction, and the
-   bit-identity / principled-equivalence story.
+   paths. The moments are accumulated **in-sweep** per anti-diagonal
+   (:math:`\phi_\ell^m \mathrel{+}= \sum_n w_n Y_\ell^m \psi_n`), so the
+   full per-ordinate field is never materialized in the windowed iterate
+   (a 3.06× peak-memory win). See :ref:`sn-angular-windowing` in
+   :doc:`operator_algebra` for the derivation, the geometry restriction,
+   and the bit-identity / principled-equivalence story, and
+   :ref:`sn-angular-windowing-in-sweep-accumulation` for the in-sweep
+   accumulation.
 
 .. _n2n-reactions:
 
