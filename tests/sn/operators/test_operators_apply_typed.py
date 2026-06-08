@@ -269,12 +269,14 @@ def test_full_algebra_returns_timed_full_field(name, builder) -> None:
 
 @pytest.mark.parametrize("name,builder", GEOMETRIES)
 def test_full_algebra_linearity(name, builder) -> None:
-    """``A.apply(α·state₁ + β·state₂) == α·A·state₁ + β·A·state₂``.
+    """``A.apply(α·d₁ + β·d₂) == α·A·d₁ + β·A·d₂`` on flux displacements.
 
     Linearity of the composed operator on the composite carrier — the
-    ``+`` / scalar-``*`` dunders on TimedFullField propagate through
-    bulk + boundary, and the operator algebra commutes with them
-    (linear-operator-on-vector-space invariant).
+    ``+`` / scalar-``*`` dunders propagate through bulk + boundary, and the
+    operator algebra commutes with them (linear-operator-on-vector-space
+    invariant). #208: the linear combination is formed on flux DISPLACEMENTS
+    (the difference vector space V), since ``α·ψ + β·ψ'`` with ``α+β ≠ 1`` is
+    illegal on affine flux STATES (no origin) but legal on displacements.
     """
     sn = builder()
     state1 = _random_state(sn, seed=27)
@@ -289,11 +291,22 @@ def test_full_algebra_linearity(name, builder) -> None:
     )
     F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
     A = L + C - S - F
-    alpha, beta = 2.5, -1.7
+    # #208: a general α·ψ₁ + β·ψ₂ (α+β≠1) is illegal on affine flux STATES;
+    # verify linearity via the affine-supported ops — homogeneity
+    # A(c·ψ)=c·A(ψ) AND affine additivity in torsor form A(ψ₁ + λ(ψ₂⊖ψ₁)) =
+    # (1−λ)A(ψ₁) + λA(ψ₂). Together they imply full linearity; A.apply stays on
+    # flux states (S, a summand of A, guards its flux-state domain).
+    c, lam = 2.5, 0.7
 
-    lhs = A.apply((alpha * state1) + (beta * state2))
-    rhs = (alpha * A.apply(state1)) + (beta * A.apply(state2))
+    hom_lhs = A.apply(c * state1)
+    hom_rhs = c * A.apply(state1)
+    np.testing.assert_allclose(
+        hom_lhs.bulk.values, hom_rhs.bulk.values, rtol=1e-12, atol=1e-13)
+    np.testing.assert_allclose(
+        hom_lhs.boundary.values, hom_rhs.boundary.values, rtol=1e-12, atol=1e-13)
 
+    lhs = A.apply(state1 + lam * (state2 - state1))   # (1−λ)ψ₁ + λψ₂, a flux
+    rhs = (1.0 - lam) * A.apply(state1) + lam * A.apply(state2)
     # Bulk linearity check.
     np.testing.assert_allclose(
         lhs.bulk.values, rhs.bulk.values, rtol=1e-12, atol=1e-13,

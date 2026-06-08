@@ -594,7 +594,10 @@ class TestSolveTimedFullField:
         from orpheus.sn import sweep as sweep_mod
         original = sweep_mod.transport_sweep
 
-        def spy(source, sigma, sn_mesh, boundary_flux, *, initial_guess=None):
+        def spy(
+            source, sigma, sn_mesh, boundary_flux, *,
+            initial_guess=None, moment_projection=None,
+        ):
             # D-H.2-C2: L2 BoundaryFlux exposes per-face writable views
             # via face_view; copy them out at entry to snapshot the seed.
             captured.append((

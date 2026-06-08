@@ -48,7 +48,9 @@ from typing import TYPE_CHECKING, ClassVar
 import numpy as np
 
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
+from orpheus.transport.displacements.angular_displacement import AngularDisplacement
 from orpheus.transport.fields._bases import AngularField
+from orpheus.transport.fields._flux_role import FluxRole
 
 if TYPE_CHECKING:
     from orpheus.sn.geometry import SNMesh
@@ -58,7 +60,7 @@ __all__ = ["AngularFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class AngularFlux(AngularField):
+class AngularFlux(FluxRole, AngularField):
     r"""L2 typed angular flux: pure :class:`Field` on (N, ng, nx, ny).
 
     Parameters
@@ -98,6 +100,11 @@ class AngularFlux(AngularField):
     #: pre-B.1 space identity). All mesh/shape/algebra/factory machinery
     #: is inherited from :class:`AngularField` / :class:`BulkField`.
     _SPACE_NAME: ClassVar[str] = "angular_flux"
+
+    #: The affine difference-space sibling minted by ``ψ ⊖ ψ`` (#208) — the
+    #: tangent vector :class:`AngularDisplacement` (same space + metric, distinct
+    #: role). See :class:`~orpheus.transport.fields._flux_role.FluxRole`.
+    _DISPLACEMENT_CLS: ClassVar[type] = AngularDisplacement
 
     #: Dimensional identity (View-G, B.4): areal per-solid-angle flux
     #: density ``1/(cm²·s·sr)``. Metadata, NOT the arithmetic gate (class

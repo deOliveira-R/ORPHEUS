@@ -364,24 +364,31 @@ class TestApplySemantics:
         np.testing.assert_array_equal(out.values, np.zeros_like(psi_values))
 
     def test_apply_linearity(self, solver_2g_p0):
-        """S·(αψ_1 + βψ_2) = αS·ψ_1 + βS·ψ_2."""
+        """S is linear, verified via the affine-supported operations (#208).
+
+        A general ``α·ψ₁ + β·ψ₂`` with ``α+β ≠ 1`` is illegal on affine flux
+        STATES (no origin), so linearity is verified by scalar homogeneity
+        ``S(c·ψ) = c·S(ψ)`` AND affine additivity in torsor form
+        ``S(ψ₁ + λ(ψ₂⊖ψ₁)) = (1−λ)S(ψ₁) + λS(ψ₂)``. The two together imply full
+        linearity; ``op.apply`` stays on flux states (its domain — S guards it,
+        rejecting a non-flux input), and the source image carries the Field
+        vector-space dunders for the right-hand combination."""
         op = solver_2g_p0.scattering_op
         N = op.n_ordinates
         nx, ny, ng = op.nx, op.ny, op.ng
+        m = solver_2g_p0.sn_mesh
 
         np.random.seed(13)
-        psi1_values = np.random.rand(N, ng, nx, ny) + 0.1
-        psi2_values = np.random.rand(N, ng, nx, ny) + 0.1
-        psi1 = AngularFlux.from_mesh(psi1_values, solver_2g_p0.sn_mesh)
-        psi2 = AngularFlux.from_mesh(psi2_values, solver_2g_p0.sn_mesh)
-        alpha, beta = 2.5, -1.7
+        psi1 = AngularFlux.from_mesh(np.random.rand(N, ng, nx, ny) + 0.1, m)
+        psi2 = AngularFlux.from_mesh(np.random.rand(N, ng, nx, ny) + 0.1, m)
+        c, lam = 2.5, 0.7
 
-        # AngularFlux + scalar * AngularFlux algebra (Field dunders).
-        lhs = op.apply(alpha * psi1 + beta * psi2)
-        rhs_p1 = op.apply(psi1)
-        rhs_p2 = op.apply(psi2)
-        # AngularSourceSink carries the same Field dunders.
-        rhs = alpha * rhs_p1 + beta * rhs_p2
+        np.testing.assert_allclose(
+            op.apply(c * psi1).values, (c * op.apply(psi1)).values,
+            rtol=1e-12, atol=1e-13,
+        )
+        lhs = op.apply(psi1 + lam * (psi2 - psi1))   # (1−λ)ψ₁ + λψ₂, a flux
+        rhs = (1.0 - lam) * op.apply(psi1) + lam * op.apply(psi2)
         np.testing.assert_allclose(lhs.values, rhs.values, rtol=1e-12, atol=1e-13)
 
 

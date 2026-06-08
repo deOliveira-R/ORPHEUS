@@ -276,10 +276,20 @@ class TestLinearity:
         L = StreamingOperator(sn_mesh, sig_t)
         state1 = _random_composite(sn_mesh, seed=51)
         state2 = _random_composite(sn_mesh, seed=52)
-        alpha = 2.3
-        beta = -0.7
-        out_combined = L.apply(alpha * state1 + beta * state2)
-        out_separate = alpha * L.apply(state1) + beta * L.apply(state2)
+        # #208: a general α·ψ₁ + β·ψ₂ (α+β≠1) is illegal on affine flux STATES;
+        # verify linearity via the affine-supported ops — homogeneity
+        # op(c·ψ)=c·op(ψ) AND affine additivity in torsor form ψ₁ + λ(ψ₂⊖ψ₁)
+        # = (1−λ)ψ₁ + λψ₂ (a flux). Together they imply full linearity; op.apply
+        # stays on flux states.
+        c, lam = 2.3, 0.7
+        hom_combined = L.apply(c * state1)
+        hom_separate = c * L.apply(state1)
+        np.testing.assert_allclose(
+            hom_combined.bulk.values, hom_separate.bulk.values, rtol=1e-12, atol=1e-13)
+        np.testing.assert_allclose(
+            hom_combined.boundary.values, hom_separate.boundary.values, rtol=1e-12, atol=1e-13)
+        out_combined = L.apply(state1 + lam * (state2 - state1))
+        out_separate = (1.0 - lam) * L.apply(state1) + lam * L.apply(state2)
         np.testing.assert_allclose(
             out_combined.bulk.values, out_separate.bulk.values,
             rtol=1e-12, atol=1e-13,

@@ -206,10 +206,18 @@ class TestApply:
         C = CollisionOperator(sn_mesh, sigma)
         psi1 = _random_state(sn_mesh, seed=51)
         psi2 = _random_state(sn_mesh, seed=52)
-        alpha = 2.3
-        beta = -0.7
-        out_combined = C.apply(alpha * psi1 + beta * psi2)
-        out_separate = alpha * C.apply(psi1) + beta * C.apply(psi2)
+        # #208: a general α·ψ₁ + β·ψ₂ (α+β≠1) is illegal on affine flux STATES
+        # (no origin); verify linearity with the affine-supported operations —
+        # scalar homogeneity op(c·ψ)=c·op(ψ) AND affine additivity in torsor
+        # form ψ₁ + λ(ψ₂⊖ψ₁) = (1−λ)ψ₁ + λψ₂ (a flux). The two together imply
+        # full linearity, and op.apply stays on flux states (its domain).
+        c, lam = 2.3, 0.7
+        np.testing.assert_allclose(
+            C.apply(c * psi1).bulk.values, (c * C.apply(psi1)).bulk.values,
+            rtol=1e-14, atol=1e-15,
+        )
+        out_combined = C.apply(psi1 + lam * (psi2 - psi1))
+        out_separate = (1.0 - lam) * C.apply(psi1) + lam * C.apply(psi2)
         np.testing.assert_allclose(
             out_combined.bulk.values, out_separate.bulk.values,
             rtol=1e-14, atol=1e-15,

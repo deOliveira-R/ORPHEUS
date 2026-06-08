@@ -95,17 +95,23 @@ class TestFieldAlgebraInherited:
         bf = BoundaryFlux.zeros_on(m)
         assert isinstance(bf, Field)
 
-    def test_add_returns_new_instance_slab(self) -> None:
-        """Add: returns fresh instance, originals unchanged."""
+    def test_flux_add_flux_forbidden_sub_returns_fresh_displacement(self) -> None:
+        """#208 affine gate: bf + bf raises (no origin); bf ⊖ bf returns a
+        fresh BoundaryDisplacement, originals unchanged."""
+        from orpheus.transport.displacements.boundary_displacement import (
+            BoundaryDisplacement,
+        )
         m = _slab_mesh()
         bf1 = BoundaryFlux.zeros_on(m)
         bf2 = BoundaryFlux.zeros_on(m)
-        bf1.values[:] = 1.0
+        bf1.values[:] = 3.0
         bf2.values[:] = 2.0
-        out = bf1 + bf2
+        with pytest.raises(TypeError, match="affine_combination"):
+            _ = bf1 + bf2
+        out = bf1 - bf2
         assert out is not bf1 and out is not bf2
-        assert isinstance(out, BoundaryFlux)
-        np.testing.assert_array_equal(out.values, 3.0)
+        assert isinstance(out, BoundaryDisplacement)
+        np.testing.assert_array_equal(out.values, 1.0)
 
     def test_sub_sphere(self) -> None:
         m = _sphere_mesh()
@@ -137,16 +143,21 @@ class TestFieldAlgebraInherited:
         out = -bf
         np.testing.assert_array_equal(out.values, -1.5)
 
-    def test_distributive_property_2d(self) -> None:
-        """L1: (bf1 + bf2) * c == bf1*c + bf2*c — flat-buffer arithmetic."""
+    def test_displacement_distributive_property_2d(self) -> None:
+        """L1: distributivity (d1 + d2) * c == d1*c + d2*c holds in the
+        difference space V (flux + flux is forbidden by the #208 affine gate,
+        so distributivity is a property of the DISPLACEMENT vector space)."""
         m = _cartesian_2d_mesh()
+        base = BoundaryFlux.zeros_on(m)
         bf1 = BoundaryFlux.zeros_on(m)
         bf2 = BoundaryFlux.zeros_on(m)
         rng = np.random.default_rng(0)
         bf1.values[:] = rng.standard_normal(bf1.values.shape)
         bf2.values[:] = rng.standard_normal(bf2.values.shape)
-        left = (bf1 + bf2) * 1.7
-        right = bf1 * 1.7 + bf2 * 1.7
+        d1 = bf1 - base  # BoundaryDisplacement (V is a vector space)
+        d2 = bf2 - base
+        left = (d1 + d2) * 1.7
+        right = d1 * 1.7 + d2 * 1.7
         # Distributivity holds in real arithmetic but accumulates ULP drift
         # in IEEE-754 (FP non-associativity). Per vv-principles, bound is
         # (reduction depth) × ULP — for this 2x2-elem combine, ~1e-14.
@@ -156,11 +167,11 @@ class TestFieldAlgebraInherited:
         m = _sphere_mesh()
         bf = BoundaryFlux.zeros_on(m)
         bf.values[:] = 1.5
-        ip = bf.inner_product(bf)
-        # FunctionSpace default norm is Euclidean (no inner_product_weights);
-        # ||x||² = N * x² where N = len(flat buffer).
-        expected = bf.values.size * 1.5 ** 2
-        np.testing.assert_allclose(ip, expected)
+        # inner_product(x, x) == l2(x)² under the space metric. The TraceSpace
+        # now carries the |Ω·n|·w partial-current weights (Phase 4.1 G-adjoint),
+        # so this is the weighted norm, NOT the Euclidean N·x² — assert the
+        # genuine (metric-robust) identity against the space-induced l2.
+        np.testing.assert_allclose(bf.inner_product(bf), bf.l2 ** 2)
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -270,16 +281,17 @@ class TestFaceLayoutSliceViews:
 
 
 class TestMeshBindingRejection:
-    def test_cross_mesh_add_rejected(self) -> None:
+    def test_cross_mesh_rejected(self) -> None:
         """Two BoundaryFluxes on distinct SNMesh instances with
-        structurally-identical layouts CANNOT be added (Rank 4 per
-        the verification memo)."""
+        structurally-identical layouts CANNOT be combined (Rank 4 per
+        the verification memo). The affine gate forbids ``flux + flux``
+        outright (#208); the cross-mesh guard now lives on ``__sub__``."""
         m1 = _slab_mesh()
         m2 = _slab_mesh()   # different instance, same structure
         bf1 = BoundaryFlux.zeros_on(m1)
         bf2 = BoundaryFlux.zeros_on(m2)
         with pytest.raises(ValueError, match="mesh-bound"):
-            bf1 + bf2
+            bf1 - bf2
 
     def test_wrong_type_add_rejected(self) -> None:
         m = _slab_mesh()
@@ -315,20 +327,21 @@ class TestFlatBufferRoundTrip:
         assert bf.face_view("xmin")[0, 0, 0] == 8.0
 
     def test_round_trip_arithmetic_preserves_face_values(self) -> None:
-        """After ``out = bf1 + bf2``, every face of ``out`` equals the
-        sum of the corresponding faces from bf1 and bf2 (bit-identical
-        at the face-value level)."""
+        """After ``out = bf1 ⊖ bf2`` (the legal flux arithmetic; ``flux + flux``
+        is forbidden by the #208 affine gate), every face of the resulting
+        displacement equals the per-face difference (bit-identical at the
+        face-value level — the displacement is face-structured)."""
         m = _cartesian_2d_mesh()
         rng = np.random.default_rng(42)
         bf1 = BoundaryFlux.zeros_on(m)
         bf2 = BoundaryFlux.zeros_on(m)
         bf1.values[:] = rng.standard_normal(bf1.values.shape)
         bf2.values[:] = rng.standard_normal(bf2.values.shape)
-        out = bf1 + bf2
+        out = bf1 - bf2  # BoundaryDisplacement — shares the trace layout
         for name in bf1.layout.faces:
             np.testing.assert_array_equal(
                 out.face_view(name),
-                bf1.face_view(name) + bf2.face_view(name),
+                bf1.face_view(name) - bf2.face_view(name),
             )
 
 

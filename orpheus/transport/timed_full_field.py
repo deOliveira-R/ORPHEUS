@@ -258,30 +258,25 @@ class TimedFullField:
     # ── Algebra (propagates to bulk + boundary; history dropped) ─────
 
     def _check_partner(self, other: object) -> None:
-        r"""Reject ill-formed binary operations.
+        r"""Reject a non-:class:`TimedFullField` partner.
 
-        Layer 1 — class identity at the container level AND at the
-        bulk / boundary member level. This catches cross-method
-        composition (SN ``TimedFullField`` + CP ``TimedFullField``)
-        where both operands wrap as ``TimedFullField`` but their bulk
-        member types differ.
+        Layer 1 at the CONTAINER level only. The bulk / boundary member-level
+        algebra (including the affine gate ``flux + flux → TypeError``, the
+        torsor ``flux + displacement → flux``, the displacement mint ``flux −
+        flux → displacement``, and cross-class rejection ``flux ± source``) is
+        the SINGLE SOURCE OF TRUTH on the leaves — ``__add__`` / ``__sub__``
+        delegate to ``self.bulk ± other.bulk`` and ``self.boundary ±
+        other.boundary``, where the leaf dunders enforce role-correctness (a
+        bulk-type mismatch like ``AngularFlux`` vs ``AngularSourceSink`` is
+        caught there by :meth:`Field._check_partner`; a flux+displacement
+        torsor is honoured there; #208). Pre-checking member types here would
+        BLOCK the legitimate composite torsor (``flux`` bulk + ``displacement``
+        bulk) — so the redundant member pre-checks are intentionally absent.
         """
         if type(other) is not TimedFullField:
             raise TypeError(
                 f"TimedFullField arithmetic requires a same-class "
                 f"partner; got {type(other).__name__}."
-            )
-        if type(self.bulk) is not type(other.bulk):  # type: ignore[attr-defined]
-            raise TypeError(
-                f"TimedFullField bulk type mismatch: "
-                f"{type(self.bulk).__name__} vs "
-                f"{type(other.bulk).__name__}."  # type: ignore[attr-defined]
-            )
-        if type(self.boundary) is not type(other.boundary):  # type: ignore[attr-defined]
-            raise TypeError(
-                f"TimedFullField boundary type mismatch: "
-                f"{type(self.boundary).__name__} vs "
-                f"{type(other.boundary).__name__}."  # type: ignore[attr-defined]
             )
 
     def __add__(self, other: "TimedFullField") -> "TimedFullField":

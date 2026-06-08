@@ -103,13 +103,17 @@ class TestFieldInheritance:
 
 
 class TestAlgebra:
-    def test_add_returns_typed(self) -> None:
+    def test_flux_add_flux_forbidden_torsor_allowed(self) -> None:
+        """#208 affine gate: ψ + ψ raises (flux states have no origin); the
+        torsor action ψ + (ψ' ⊖ ψ) → ψ' is the legal update step."""
         m = _slab_mesh()
         a = AngularFlux.from_mesh(np.ones((m.quad.N, m.ng, m.nx, m.ny)), m)
         b = AngularFlux.from_mesh(2.0 * np.ones((m.quad.N, m.ng, m.nx, m.ny)), m)
-        c = a + b
-        assert isinstance(c, AngularFlux)
-        np.testing.assert_array_equal(c.values, 3.0)
+        with pytest.raises(TypeError, match="affine_combination"):
+            _ = a + b
+        out = a + (b - a)  # torsor: flux ⊕ displacement → flux
+        assert isinstance(out, AngularFlux)
+        np.testing.assert_array_almost_equal_nulp(out.values, b.values, nulp=4)
 
     def test_sub(self) -> None:
         m = _slab_mesh()
@@ -143,13 +147,16 @@ class TestAlgebra:
 
 
 class TestMeshBinding:
-    def test_cross_mesh_add_rejected(self) -> None:
+    def test_cross_mesh_rejected(self) -> None:
         m1 = _slab_mesh()
         m2 = _slab_mesh()  # different instance, same structure
         a = AngularFlux.zeros_on(m1)
         b = AngularFlux.zeros_on(m2)
+        # The affine gate forbids ``flux + flux`` outright (#208); the
+        # cross-mesh guard now lives on ``__sub__`` (flux ⊖ flux → displacement),
+        # which reaches BulkField._check_partner's mesh-bound check.
         with pytest.raises(ValueError, match="mesh-bound"):
-            a + b
+            a - b
 
     def test_cross_class_rejected(self) -> None:
         m = _slab_mesh()

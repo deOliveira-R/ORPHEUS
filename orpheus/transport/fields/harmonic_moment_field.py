@@ -96,7 +96,9 @@ from orpheus.numerics.spaces.spherical_harmonic_space import (
     SphericalHarmonicSpace,
 )
 from orpheus.numerics.units import SCALAR_FLUX_UNITS, Unit
+from orpheus.transport.displacements.moment_displacement import MomentDisplacement
 from orpheus.transport.fields._bases import MomentField
+from orpheus.transport.fields._flux_role import FluxRole
 
 if TYPE_CHECKING:
     from orpheus.sn.geometry import SNMesh
@@ -107,7 +109,7 @@ __all__ = ["HarmonicMomentField"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class HarmonicMomentField(MomentField):
+class HarmonicMomentField(FluxRole, MomentField):
     r"""Real-spherical-harmonic moment field :math:`\phi_\ell^m(\vec r, g)`.
 
     Parameters
@@ -150,6 +152,12 @@ class HarmonicMomentField(MomentField):
     """
 
     L: int
+
+    #: The affine difference-space sibling minted by ``φ_ℓᵐ ⊖ φ_ℓᵐ`` (#208) — the
+    #: tangent vector :class:`MomentDisplacement` (the windowed-SI iterate
+    #: increment; carries the same ``L`` + tensor-product space). See
+    #: :class:`~orpheus.transport.fields._flux_role.FluxRole`.
+    _DISPLACEMENT_CLS: ClassVar[type] = MomentDisplacement
 
     #: Dimensional identity (View-G, B.4): a moment is angle-integrated, so
     #: ``1/(cm²·s)`` — :data:`~orpheus.numerics.units.SCALAR_FLUX_UNITS`,

@@ -182,7 +182,7 @@ def _random_bulk(sn_mesh: SNMesh, rng: np.random.Generator) -> np.ndarray:
     ],
 )
 def test_apply_linearity_under_sweep_frame(geom):
-    r"""apply(α·ψ + β·φ) = α·apply(ψ) + β·apply(φ) to rtol=1e-13.
+    r"""(L+C) is linear, verified via the affine-supported operations.
 
     Precondition for Gate 1.2 (sweep-frame face-flux equivalence) and
     Gate 1.3 (apply ↔ apply_transpose reciprocity).  Linearity is a
@@ -191,9 +191,12 @@ def test_apply_linearity_under_sweep_frame(geom):
     consuming cell-centres in a way that depends on input sign) is a
     catastrophic operator-correctness failure.
 
-    D-K.5 migration — uses :class:`TimedFullField` arithmetic
-    (``__add__``, scalar ``__mul__``) to express the linear combination
-    α·ψ + β·φ; output is compared on ``bulk.values`` AND ``boundary.values``.
+    #208 affine reframe — a general ``α·ψ + β·φ`` with ``α+β ≠ 1`` is illegal
+    on affine flux STATES (no origin), so linearity is verified by scalar
+    homogeneity ``op(c·ψ) = c·op(ψ)`` AND affine additivity in torsor form
+    ``op(ψ₁ + λ(ψ₂⊖ψ₁)) = (1−λ)op(ψ₁) + λop(ψ₂)``. The two together imply full
+    matvec linearity; ``apply`` stays on flux states (its domain). The
+    right-hand side uses the source-image vector-space dunders.
     """
     rng = np.random.default_rng(seed=42)
     if geom == "sphere":
@@ -203,12 +206,17 @@ def test_apply_linearity_under_sweep_frame(geom):
     L = StreamingOperator(sn_mesh, sig_t)
     C = CollisionOperator(sn_mesh, sig_t)
     op = L + C
-    psi_state = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
-    phi_state = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
-    alpha = 1.7
-    beta = -0.3
-    lhs = op.apply(alpha * psi_state + beta * phi_state)
-    rhs = alpha * op.apply(psi_state) + beta * op.apply(phi_state)
+    psi1 = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
+    psi2 = _build_composite(sn_mesh, _random_bulk(sn_mesh, rng))
+    c, lam = 1.7, 0.7
+    hom_lhs = op.apply(c * psi1)
+    hom_rhs = c * op.apply(psi1)
+    np.testing.assert_allclose(
+        hom_lhs.bulk.values, hom_rhs.bulk.values, rtol=1e-13, atol=1e-14)
+    np.testing.assert_allclose(
+        hom_lhs.boundary.values, hom_rhs.boundary.values, rtol=1e-13, atol=1e-14)
+    lhs = op.apply(psi1 + lam * (psi2 - psi1))   # (1−λ)ψ₁ + λψ₂, a flux
+    rhs = (1.0 - lam) * op.apply(psi1) + lam * op.apply(psi2)
     np.testing.assert_allclose(
         lhs.bulk.values, rhs.bulk.values, rtol=1e-13, atol=1e-14,
     )

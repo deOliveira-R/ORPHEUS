@@ -173,14 +173,22 @@ def _filled_state(m: SNMesh, bulk_val: float, bound_val: float) -> TimedFullFiel
 
 
 class TestAlgebraPropagation:
-    def test_add_propagates_slab(self) -> None:
+    def test_add_flux_flux_forbidden_torsor_propagates_slab(self) -> None:
+        """#208 affine gate, propagated through the composite: ψ + ψ raises
+        (the leaf gate fires through delegation); the torsor ψ + (ψ' ⊖ ψ)
+        propagates to bulk + boundary and recovers ψ'."""
         m = _slab_mesh()
         a = _filled_state(m, bulk_val=1.0, bound_val=2.0)
         b = _filled_state(m, bulk_val=3.0, bound_val=4.0)
-        out = a + b
+        with pytest.raises(TypeError, match="affine_combination"):
+            _ = a + b
+        d = b - a            # composite displacement (bulk + boundary)
+        out = a + d          # torsor → composite flux
         assert isinstance(out, TimedFullField)
-        np.testing.assert_array_equal(out.bulk.values, 4.0)
-        np.testing.assert_array_equal(out.boundary.values, 6.0)
+        np.testing.assert_array_almost_equal_nulp(out.bulk.values, b.bulk.values, nulp=4)
+        np.testing.assert_array_almost_equal_nulp(
+            out.boundary.values, b.boundary.values, nulp=4,
+        )
         assert out._history == ()  # algebra drops history
 
     def test_sub_propagates_2d(self) -> None:
@@ -219,12 +227,18 @@ class TestAlgebraPropagation:
         np.testing.assert_array_equal(out.bulk.values, 2.0)
         np.testing.assert_array_equal(out.boundary.values, 3.0)
 
-    def test_distributive_property(self) -> None:
+    def test_displacement_distributive_property(self) -> None:
+        """Distributivity (d1 + d2)·c == d1·c + d2·c holds in the composite
+        difference space V (``flux + flux`` is forbidden by the #208 affine
+        gate; the composite displacements ARE a vector space)."""
         m = _slab_mesh()
+        base = _filled_state(m, bulk_val=0.0, bound_val=0.0)
         a = _filled_state(m, bulk_val=1.0, bound_val=2.0)
         b = _filled_state(m, bulk_val=3.0, bound_val=4.0)
-        left = (a + b) * 2.0
-        right = a * 2.0 + b * 2.0
+        d1 = a - base  # composite displacement (bulk + boundary)
+        d2 = b - base
+        left = (d1 + d2) * 2.0
+        right = d1 * 2.0 + d2 * 2.0
         np.testing.assert_allclose(left.bulk.values, right.bulk.values, rtol=1e-15)
         np.testing.assert_allclose(left.boundary.values, right.boundary.values, rtol=1e-15)
 
@@ -240,10 +254,12 @@ class TestCrossClassRejection:
         m2 = _slab_mesh()
         a = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m1)
         b = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m2)
-        # Same TimedFullField class, same bulk/boundary types, but
-        # different mesh instances. AngularFlux._check_partner catches it.
+        # Same TimedFullField class, same bulk/boundary types, but different
+        # mesh instances. The affine gate forbids ``flux + flux`` outright
+        # (#208); the cross-mesh guard lives on ``__sub__`` →
+        # AngularFlux._check_partner (delegated through the composite).
         with pytest.raises(ValueError, match="mesh-bound"):
-            a + b
+            a - b
 
     def test_wrong_type_rejected(self) -> None:
         m = _slab_mesh()
