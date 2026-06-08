@@ -52,8 +52,14 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC
 from orpheus.geometry.mesh import Mesh2D
+from orpheus.numerics.projection import MomentProjection
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
+from orpheus.sn.geometry import SNMesh
+from orpheus.sn.solver import SNSolver, _within_group_triple
+from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.timed_full_field import TimedFullField
 
 # L1 — equation-level (anisotropic scattering source + 2-D streaming closure).
 pytestmark = pytest.mark.l1
@@ -238,3 +244,111 @@ def test_2d_windowed_si_reflective_trace_is_nonzero():
         f"converged boundary trace ‖trace‖₁={total_trace:.2e} is ~0 — the "
         "reflective coupling was dropped (windowing must be interior-only)."
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# (d) Phase 5c — the in-sweep moment accumulation ≡ the fuller-view oracle.
+# ─────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.verifies(
+    "pn-scatter", "harmonic-moment-projection", "transport-cartesian",
+)
+def test_2d_windowed_moments_in_sweep_equal_post_projection():
+    r"""Phase 5c: ``base.solve_moments`` (per-anti-diagonal in-sweep moment
+    accumulation) ≡ the flat post-sweep ``MomentProjection.apply`` of the SAME
+    full-angular sweep — the FULLER-VIEW VERIFICATION ORACLE.
+
+    5c moved the angular→moment projection INTO the windowed walk (cross-octant
+    ``+=`` per anti-diagonal) so the full ``(N, ng, nx, ny)`` field is never
+    materialized.  The pre-5c path — ``base.solve`` (full angular) then a flat
+    :meth:`~orpheus.numerics.projection.MomentProjection.apply` — is retained as
+    the verification oracle (``feedback_aggressive_retirement`` "verification
+    oracle" exception).  Both share the SAME cell kernel and the SAME
+    ``Y``/``weights``, so only the ordinate-sum reduction ORDER differs ⇒
+    ULP-level drift (principled-equivalence, ``vv-principles``).
+
+    This is a REPRESENTATION-equivalence pin, NOT a correctness claim — it is
+    procedurally (NOT structurally) independent from the oracle (shared kernel).
+    Its structural-independence anchor is
+    :func:`test_2d_p1_aniso_moment_path_carries_signal_and_si_krylov_agree`
+    (the windowed-SI moment ℓ=0 ≡ the FULL-ANGULAR Krylov scalar) + the
+    closed-form ``k_inf`` eigenvalue gate.  Its value-add: it pins the ℓ≥1
+    (anisotropic) moment block that the ℓ=0 scalar cross-check is BLIND to —
+    the load-bearing catcher for an ℓ/m index drift (vv-principles Mode 5) or a
+    wrong octant-``Y`` slice (Mode 2) in the per-level
+    ``"nlm,ngd,n->lmgd"`` accumulation, which blow past 32 ULP.
+
+    leg-2 (ℓ≥1 non-vacuity) guards against a degenerate gate: the ℓ≥1 block
+    being pinned MUST carry signal (else the comparison is vacuous there).
+
+    Metric (vv-principles §"Bit-identity vs principled-equivalence", criterion
+    3 "drift dimensionally explainable"): the max drift RELATIVE TO THE
+    MOMENT-TENSOR SCALE, bounded by ``4·N·eps`` (``N`` = reduction depth = the
+    ordinate count; 4× headroom for the cross-octant ``+=`` nesting).  NOT
+    element-wise ``assert_array_almost_equal_nulp``: the moment tensor spans ~3
+    orders of magnitude (the ℓ=0 scalar dominates; ℓ≥1 are ~10⁻³×), so
+    element-wise ULP inflates a machine-eps ABSOLUTE diff on a small-magnitude
+    ℓ≥1 element into hundreds of ULP even when the reorder is pure FP noise —
+    the scale-relative drift (de-risk measured ``2.7e-16``, ~78× under the
+    ``4·N·eps ≈ 2.1e-14`` bound) is the principled-equivalence quantity.
+    """
+    materials, mesh, quad, _q_ext, kwargs = _build_config()
+    L = kwargs["scattering_order"]  # P1 — ℓ≥1 is load-bearing
+    solver = SNSolver(SNMesh(mesh, quad, materials), scattering_order=L)
+
+    # The within-group (L+C) resolvent + the scattering operator — the SAME
+    # operators the windowed SI driver consumes (single source of truth).
+    LC, S, _B = _within_group_triple(solver)
+    sn_mesh = solver.sn_mesh
+    # The moment basis sourced from the scattering operator's own quadrature +
+    # order — IDENTICAL to what `_MomentWindowedResolvent.__init__` builds (so
+    # the SUT below exercises the production projection, not a test-local one).
+    moment_projection = MomentProjection(
+        weights=S.quadrature.weights,
+        Y=S.quadrature.spherical_harmonics(S.scattering_order),
+        L=S.scattering_order,
+    )
+
+    # A representative per-ordinate source (seeded random ⇒ strong, deterministic
+    # ℓ≥1 content in the swept ψ; the projection-order equivalence is
+    # input-independent — it is a property of the reduction tree, not of ψ).
+    rng = np.random.default_rng(50301)
+    rhs = TimedFullField.zeros(
+        bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
+    )
+    rhs.bulk.values[...] = rng.uniform(0.0, 1.0, size=rhs.bulk.values.shape)
+
+    # SUT: the 5c per-anti-diagonal in-sweep accumulation.
+    sut = np.asarray(
+        LC.solve_moments(rhs, moment_projection).bulk.values, dtype=np.float64,
+    )
+    # ORACLE (the fuller view): flat post-projection of the full-angular sweep.
+    oracle = np.asarray(
+        moment_projection.apply(LC.solve(rhs).bulk.values), dtype=np.float64,
+    )
+
+    # leg-2: ℓ≥1 carries signal (anti-degeneracy) — raise fires under -O.
+    l0 = float(np.abs(oracle[0]).max())
+    l_ge1 = float(np.abs(oracle[1:]).max())
+    if not (l_ge1 > 1e-3 * l0):
+        raise AssertionError(
+            f"ℓ≥1 moment block is vacuous (max|ℓ≥1|={l_ge1:.2e} ≤ "
+            f"1e-3·max|ℓ0|={1e-3 * l0:.2e}); the nulp pin on the higher "
+            "moments would be degenerate — reconfigure the source/config."
+        )
+
+    # leg-1: representation equivalence — max drift RELATIVE to the moment-tensor
+    # scale ≤ 4·N·eps (the principled-equivalence metric; element-wise nulp would
+    # inflate on the small-magnitude ℓ≥1 block — see the docstring).
+    scale = float(np.abs(oracle).max())
+    rel_drift = float(np.abs(sut - oracle).max() / scale)
+    bound = 4 * quad.N * float(np.finfo(np.float64).eps)
+    if not (rel_drift <= bound):
+        raise AssertionError(
+            f"in-sweep moment accumulation drifts {rel_drift:.2e} (relative to "
+            f"scale {scale:.3e}) > 4·N·eps = {bound:.2e} — NOT a pure FP reorder; "
+            "a wrong octant-Y slice / missing weight / ℓ-m index drift "
+            "(vv-principles Mode 2/3/5) in the per-level "
+            '"nlm,ngd,n->lmgd" accumulation.'
+        )

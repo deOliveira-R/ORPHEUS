@@ -594,20 +594,45 @@ class SweepDependencyGraph:
         str_x_octant: np.ndarray,        # (N_oct, nx)
         str_y_octant: np.ndarray,        # (N_oct, ny)
         weights_octant: np.ndarray,      # (N_oct,)
-        angular_flux_octant: np.ndarray, # (N_oct, ng, nx, ny) — written
-        scalar_flux_buf: np.ndarray,     # (ng, nx, ny) — accumulated
         capture_x: np.ndarray,           # (N_oct, ng, ny) — domain x-outflow, written
         capture_y: np.ndarray,           # (N_oct, ng, nx) — domain y-outflow, written
+        angular_flux_octant: np.ndarray | None = None,  # (N_oct, ng, nx, ny) — written (angular mode)
+        scalar_flux_buf: np.ndarray | None = None,       # (ng, nx, ny) — accumulated (angular mode)
+        moment_buf: np.ndarray | None = None,            # (L+1, 2L+1, ng, nx, ny) — accumulated (moment mode)
+        Y_octant: np.ndarray | None = None,              # (N_oct, L+1, 2L+1) — octant harmonics (moment mode)
     ) -> None:
         r"""Storage-B solve walk: advance a :class:`_MovingFrontier` along the
         anti-diagonals, sheding domain-edge outflow as it goes.
 
-        The window-backed twin of :meth:`apply`. Bit-identical to it (same
-        shared cell kernel, same anti-diagonal order); proven by the
-        ``window ≡ full-field`` oracle test. The boundary inflow is ι_*-seeded
-        onto the frontier from ``inflow_x`` / ``inflow_y`` (the octant's incoming
-        domain-edge trace); the outflow is ι*-shed into ``capture_x`` /
-        ``capture_y``.
+        The window-backed twin of :meth:`apply`. The interior face cochain + the
+        cell math are bit-identical to it (same shared cell kernel, same
+        anti-diagonal order); proven by the ``window ≡ full-field`` oracle test.
+        The boundary inflow is ι_*-seeded onto the frontier from ``inflow_x`` /
+        ``inflow_y`` (the octant's incoming domain-edge trace); the outflow is
+        ι*-shed into ``capture_x`` / ``capture_y``.
+
+        Output representation (Phase 5c) — exactly ONE of two modes, selected by
+        which output buffer is given (dependency injection, mirroring the
+        ``reflect=None`` idiom in :func:`_sweep_2d_scheduled`):
+
+        * **angular** (``moment_buf is None``) — write the full per-ordinate
+          ``angular_flux_octant[:, :, ii, jj] = psi_avg`` per level and
+          accumulate the scalar ``scalar_flux_buf``. The full-angular OUTPUT a
+          reconstruction / Krylov / full-angular SI consumer needs.
+        * **moment** (``moment_buf`` given) — project per anti-diagonal directly
+          into the harmonic moment tensor
+          :math:`\phi_\ell^m \mathrel{+}= \sum_n w_n Y_\ell^m(\hat\Omega_n)
+          \psi_n` (``Y_octant`` the octant's harmonics), NEVER materializing the
+          full angular field (the Phase 5c ~3× linear peak-memory win — the
+          persistent windowed SI iterate is already moments, 5a). The scalar is
+          subsumed (``moment_buf[0, 0]`` IS :math:`\phi_0^0`, since
+          :math:`Y_0^0=1`), so no separate ``scalar_flux_buf`` accumulation. The
+          cross-octant ``+=`` reorders the ordinate sum vs the post-sweep flat
+          :class:`~orpheus.numerics.projection.MomentProjection` reduce ⇒
+          principled-equivalence, NOT bit-identity (``vv-principles``
+          §"Bit-identity vs principled-equivalence"; de-risk ≤ 4 ULP). The
+          per-cell ``w·Y·psi`` fold matches ``MomentProjection.apply``
+          term-for-term — only the accumulation order differs.
         """
         N_oct, ng = inflow_x.shape[0], inflow_x.shape[1]
         frontier = _MovingFrontier(N_oct, ng, self.nx)
@@ -633,10 +658,15 @@ class SweepDependencyGraph:
                 capture_x[:, :, jj[-1]] = out_x[:, :, -1]   # ι* x-outflow @ pos -1
             if has_y_out:
                 capture_y[:, :, ii[0]] = out_y[:, :, 0]     # ι* y-outflow @ pos 0
-            scalar_flux_buf[:, ii, jj] += np.einsum(
-                "ngd,n->gd", psi_avg, weights_octant,
-            )
-            angular_flux_octant[:, :, ii, jj] = psi_avg
+            if moment_buf is None:
+                scalar_flux_buf[:, ii, jj] += np.einsum(
+                    "ngd,n->gd", psi_avg, weights_octant,
+                )
+                angular_flux_octant[:, :, ii, jj] = psi_avg
+            else:
+                moment_buf[:, :, :, ii, jj] += np.einsum(
+                    "nlm,ngd,n->lmgd", Y_octant, psi_avg, weights_octant,
+                )
 
     def residual_windowed(
         self,

@@ -89,6 +89,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.numerics.projection import MomentProjection
     from .geometry import SNMesh
     from .sweep_schedule import OctantSweepGroup
     from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
@@ -107,6 +108,7 @@ def transport_sweep(
     boundary_flux: "BoundaryFlux",
     *,
     initial_guess: "AngularFlux | TimedFullField | None" = None,
+    moment_projection: "MomentProjection | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Perform one full transport sweep.
 
@@ -189,13 +191,23 @@ def transport_sweep(
         (reads ``.bulk.values``) via D-H.1c stage 4's
         :func:`_initial_guess_values` extractor — the kernel reads
         only the per-ordinate bulk ndarray, container-agnostic.
+    moment_projection : MomentProjection or None, optional
+        Phase 5c moment OUTPUT mode (2-D Cartesian ONLY — raises on a 1-D
+        mesh).  ``None`` (default) returns the full per-ordinate angular flux
+        (every full-angular consumer).  When given (the windowed-SI path), the
+        2-D sweep accumulates the harmonic moment tensor per anti-diagonal and
+        returns it INSTEAD of the angular field — the full ``(N, ng, nx, ny)``
+        field is never materialized (the ~3× peak-memory win).  See
+        :func:`_sweep_2d_scheduled`.
 
     Returns
     -------
-    angular_flux
-        Shape ``(N, ng, nx, ny)``.
+    bulk
+        ``moment_projection is None`` → ``angular_flux`` ``(N, ng, nx, ny)``.
+        Given → the harmonic moment tensor ``(L+1, 2L+1, ng, nx, ny)``.
     scalar_flux
-        Shape ``(ng, nx, ny)`` — :math:`\\sum_n w_n \\psi_n`.
+        ``(ng, nx, ny)`` :math:`\\sum_n w_n \\psi_n` in angular mode; ``None`` in
+        moment mode (the scalar IS :math:`\\phi_0^0` = ``moments[0, 0]``).
 
     Dispatch:
 
@@ -208,12 +220,20 @@ def transport_sweep(
     Q = _unwrap_source(source)
     reduced = sn_mesh.reduced
     if reduced is not None:
+        if moment_projection is not None:
+            raise ValueError(
+                "transport_sweep: moment output (moment_projection given) is "
+                "2-D Cartesian only — 1-D/curvilinear meshes stay full-angular "
+                "(the Morel–Montry Carlson seed reads the per-ordinate iterate; "
+                "lesson L21).  Got a reduced (1-D) mesh."
+            )
         return _sweep_1d_unified(
             Q, sig_t, sn_mesh, boundary_flux,
             initial_guess=initial_guess,
         )
     return _sweep_2d_wavefront(
         Q, sig_t, sn_mesh, boundary_flux,
+        moment_projection=moment_projection,
     )
 
 
@@ -776,9 +796,11 @@ def sweep_octant_group(
     str_x: np.ndarray,
     str_y: np.ndarray,
     weights: np.ndarray,
-    angular_flux: np.ndarray,
-    scalar_flux: np.ndarray,
     sn_mesh: "SNMesh",
+    angular_flux: np.ndarray | None = None,
+    scalar_flux: np.ndarray | None = None,
+    moment_buf: np.ndarray | None = None,
+    Y: np.ndarray | None = None,
 ) -> None:
     r"""Sweep one octant GROUP's ordinates on the rolling moving-frontier
     window, in place (Phase 3 sub-step 3b primitive; Phase 5b storage-B).
@@ -821,13 +843,24 @@ def sweep_octant_group(
         Per-ordinate source ``(N, ng, nx, ny)``, total XS ``(ng, nx, ny)``,
         the streaming stencils ``(N, nx)`` / ``(N, ny)``, quadrature weights
         ``(N,)`` — sliced per octant by the ordinate indices.
-    angular_flux, scalar_flux : np.ndarray
-        Output buffers ``(N, ng, nx, ny)`` / ``(ng, nx, ny)`` — mutated in
-        place (the angular flux scattered per octant, the scalar flux
-        accumulated ``Σ_n w_n ψ_n``).
     sn_mesh : SNMesh
         Carries the per-octant ``sweep_graphs`` and the ``cell_update``
         strategy.
+    angular_flux, scalar_flux : np.ndarray, optional
+        ANGULAR-mode output buffers ``(N, ng, nx, ny)`` / ``(ng, nx, ny)`` —
+        mutated in place (the angular flux scattered per octant, the scalar flux
+        accumulated ``Σ_n w_n ψ_n``). Given iff ``moment_buf`` is ``None``.
+    moment_buf, Y : np.ndarray, optional
+        MOMENT-mode output (Phase 5c): the harmonic moment accumulator
+        ``(L+1, 2L+1, ng, nx, ny)`` and the full harmonic table
+        ``(N, L+1, 2L+1)`` (octant-sliced ``Y[oct_idx]`` per octant). Given iff
+        ``angular_flux`` is ``None``. The windowed SI iterate is moments (5a), so
+        the full per-ordinate angular field is never materialized — the walk
+        projects each anti-diagonal directly into ``moment_buf``
+        (:math:`\phi_\ell^m \mathrel{+}= \sum_n w_n Y_\ell^m \psi_n`). The
+        cross-octant ``+=`` (octants share the moment buffer) reorders the
+        ordinate sum vs the post-sweep flat projection ⇒ principled-equivalence,
+        NOT bit-identity. The scalar is subsumed (``moment_buf[0, 0]``).
     """
     ng, nx, ny = sig_t.shape
     cell_update = sn_mesh.cell_update
@@ -849,11 +882,17 @@ def sweep_octant_group(
             Q_pure_z = Q[oct_idx]                         # (N_oct, ng, nx, ny)
             # sig_t (ng, nx, ny) broadcasts against (N_oct, ng, nx, ny).
             psi_avg_pure_z = Q_pure_z / sig_t              # (N_oct, ng, nx, ny)
-            angular_flux[oct_idx] = psi_avg_pure_z
-            scalar_flux += np.einsum(
-                "ngij,n->gij",
-                psi_avg_pure_z, weights[oct_idx],
-            )
+            if moment_buf is None:
+                angular_flux[oct_idx] = psi_avg_pure_z
+                scalar_flux += np.einsum(
+                    "ngij,n->gij",
+                    psi_avg_pure_z, weights[oct_idx],
+                )
+            else:
+                moment_buf += np.einsum(
+                    "nlm,ngij,n->lmgij",
+                    Y[oct_idx], psi_avg_pure_z, weights[oct_idx],
+                )
             continue
 
         # Effective in-plane sign for sweep-graph lookup. Match legacy's
@@ -878,10 +917,16 @@ def sweep_octant_group(
         inflow_x = boundary_flux.face_view(x_in_face)[oct_idx]   # (N_oct, ng, ny)
         inflow_y = boundary_flux.face_view(y_in_face)[oct_idx]   # (N_oct, ng, nx)
 
-        angular_flux_oct = np.zeros((N_oct, ng, nx, ny))
         capture_x = np.empty((N_oct, ng, ny))   # shed domain x-outflow
         capture_y = np.empty((N_oct, ng, nx))   # shed domain y-outflow
 
+        # Angular mode allocates a per-octant angular buffer (scattered into the
+        # global field below); moment mode accumulates directly into the shared
+        # moment buffer per anti-diagonal, so NO per-octant angular field is
+        # materialized (the Phase 5c peak-memory win).
+        angular_flux_oct = (
+            np.zeros((N_oct, ng, nx, ny)) if moment_buf is None else None
+        )
         sweep_graph.apply_windowed(
             cell_update=cell_update,
             inflow_x=inflow_x,
@@ -891,16 +936,20 @@ def sweep_octant_group(
             str_x_octant=str_x[oct_idx],
             str_y_octant=str_y[oct_idx],
             weights_octant=weights[oct_idx],
-            angular_flux_octant=angular_flux_oct,
-            scalar_flux_buf=scalar_flux,
             capture_x=capture_x,
             capture_y=capture_y,
+            angular_flux_octant=angular_flux_oct,
+            scalar_flux_buf=scalar_flux,
+            moment_buf=moment_buf,
+            Y_octant=None if Y is None else Y[oct_idx],
         )
 
-        # Scatter the angular flux + shed the outflow into the boundary trace.
-        # The outflow write touches only this octant's ordinates (disjoint
-        # from other octants' inflow ordinates), so it is ι*-faithful.
-        angular_flux[oct_idx] = angular_flux_oct
+        # Shed the outflow into the boundary trace. The outflow write touches
+        # only this octant's ordinates (disjoint from other octants' inflow
+        # ordinates), so it is ι*-faithful. Angular mode also scatters the
+        # per-octant angular field into the global buffer.
+        if moment_buf is None:
+            angular_flux[oct_idx] = angular_flux_oct
         boundary_flux.face_view(x_out_face)[oct_idx] = capture_x
         boundary_flux.face_view(y_out_face)[oct_idx] = capture_y
 
@@ -913,6 +962,7 @@ def _sweep_2d_scheduled(
     *,
     schedule: "SweepSchedule",
     reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
+    moment_projection: "MomentProjection | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""Polymorphic schedule-driven 2-D wavefront sweep (Phase 3 sub-step 3c).
 
@@ -957,11 +1007,35 @@ def _sweep_2d_scheduled(
     (:meth:`SweepDependencyGraph.apply` on a ``WavefrontFlux``) is retained as
     the bit-identity verification oracle (see the ``window ≡ full-field``
     test); the converged solution is unchanged.
+
+    Phase 5c moment output: when ``moment_projection`` is given (the 2-D
+    Cartesian windowed-SI path), the walk accumulates the harmonic moment tensor
+    ``(L+1, 2L+1, ng, nx, ny)`` per anti-diagonal directly — the full
+    per-ordinate angular OUTPUT ``(N, ng, nx, ny)`` is never materialized (the
+    ~3× linear peak-memory win; the persistent SI iterate is already moments,
+    5a).  Returns ``(moment_buf, None)`` — the scalar flux is :math:`\phi_0^0`
+    = ``moment_buf[0, 0]`` (``Y_0^0 = 1``), read off the tensor, NOT returned
+    separately (the angular-mode scalar is an independent array; ``None`` keeps
+    the modes' second slot from being mistaken).  Principled-equivalence, NOT
+    bit-identity: the cross-octant ``+=`` reorders the ordinate sum vs the
+    post-sweep flat :class:`~orpheus.numerics.projection.MomentProjection`
+    reduce (≤ 4 ULP de-risk).  ``moment_projection is None`` (every full-angular
+    consumer — reconstruction, Krylov, 1-D) returns ``(angular_flux,
+    scalar_flux)`` exactly as before.
     """
     ng, nx, ny = sig_t.shape
     N = sn_mesh.quad.N
-    angular_flux = np.zeros((N, ng, nx, ny))
-    scalar_flux = np.zeros((ng, nx, ny))
+    if moment_projection is None:
+        angular_flux = np.zeros((N, ng, nx, ny))
+        scalar_flux = np.zeros((ng, nx, ny))
+        moment_buf = None
+        Y = None
+    else:
+        L = moment_projection.L
+        moment_buf = np.zeros((L + 1, 2 * L + 1, ng, nx, ny))
+        Y = moment_projection.Y
+        angular_flux = None
+        scalar_flux = None
 
     str_x = sn_mesh.streaming_x   # (N, nx)
     str_y = sn_mesh.streaming_y   # (N, ny)
@@ -976,9 +1050,11 @@ def _sweep_2d_scheduled(
             str_x=str_x,
             str_y=str_y,
             weights=weights,
+            sn_mesh=sn_mesh,
             angular_flux=angular_flux,
             scalar_flux=scalar_flux,
-            sn_mesh=sn_mesh,
+            moment_buf=moment_buf,
+            Y=Y,
         )
         if reflect is not None and group.reflect_faces:
             # G-S inter-group reflect (a no-op for the Jacobi schedule, whose
@@ -988,7 +1064,14 @@ def _sweep_2d_scheduled(
             # reads the fresh current-iterate reflected inflow off the trace.
             reflect(boundary_flux, group.reflect_faces)
 
-    return angular_flux, scalar_flux
+    if moment_projection is None:
+        return angular_flux, scalar_flux
+    # Moment mode: (moments, None).  The scalar IS φ_0^0 = ``moments[0, 0]``
+    # (Y_0^0 = 1), read off the tensor by the caller — NOT returned separately
+    # (returning the live ``moment_buf[0, 0]`` view invites aliasing; the
+    # angular-mode scalar is an independent array, so a None here keeps the two
+    # modes' second slot from being mistaken for the same kind of value).
+    return moment_buf, None
 
 
 def _sweep_2d_wavefront(
@@ -996,6 +1079,8 @@ def _sweep_2d_wavefront(
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
     boundary_flux: "BoundaryFlux",
+    *,
+    moment_projection: "MomentProjection | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""2-D wavefront sweep — per-octant batched (Wave 2 / C2.6).
 
@@ -1078,6 +1163,7 @@ def _sweep_2d_wavefront(
         Q, sig_t, sn_mesh, boundary_flux,
         schedule=SweepSchedule.jacobi(sn_mesh),
         reflect=None,
+        moment_projection=moment_projection,
     )
 
 

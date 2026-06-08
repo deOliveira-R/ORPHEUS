@@ -134,6 +134,7 @@ from orpheus.numerics.quadrature import Quadrature
 if TYPE_CHECKING:
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from .geometry import SNMesh
+    from orpheus.numerics.projection import MomentProjection
     from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
     from .spatial.pole_angular_closure import PoleAngularClosure
 
@@ -2244,28 +2245,40 @@ class InvertibleOperator(OperatorSum):
             ``rhs.history_depth``.  Return type matches ``rhs`` input
             type.
         """
-        from orpheus.transport.timed_full_field import TimedFullField
-
-        # D-H.2-C3: only the :class:`TimedFullField` composite branch
-        # remains; legacy :class:`AngularFlux` retired.  ``rhs`` and
-        # ``initial_guess`` MUST be :class:`TimedFullField` (or ``None``
-        # for ``initial_guess``).
-        if not isinstance(rhs, TimedFullField):
-            raise TypeError(
-                f"InvertibleOperator.solve: 'rhs' must be TimedFullField; "
-                f"got {type(rhs).__name__}.  Legacy AngularFlux retired "
-                f"in D-H.2-C3."
-            )
-        if initial_guess is not None and not isinstance(
-            initial_guess, TimedFullField,
-        ):
-            raise TypeError(
-                f"InvertibleOperator.solve: 'initial_guess' must be "
-                f"TimedFullField or None; got "
-                f"{type(initial_guess).__name__}."
-            )
         return self._solve_timed_full_field(
             rhs, initial_guess=initial_guess,
+        )
+
+    def solve_moments(
+        self,
+        rhs: "TimedFullField",
+        projection: "MomentProjection",
+        *,
+        initial_guess: "TimedFullField | None" = None,
+    ) -> "TimedFullField":
+        r"""Invert :math:`(L + C)\,\psi = \text{rhs}` and return the harmonic
+        MOMENTS of :math:`\psi`, projected IN-SWEEP per anti-diagonal — the full
+        per-ordinate angular field is never materialized.
+
+        The Phase 5c moment-emitting sibling of :meth:`solve`: the SAME WDD
+        sweep + boundary handling, but the bulk of the returned
+        :class:`TimedFullField` is a
+        :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+        ``(L+1, 2L+1, ng, nx, ny)`` rather than an
+        :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
+        ``(N, ng, nx, ny)``.  ``projection`` is the scattering operator's
+        :class:`~orpheus.numerics.projection.MomentProjection` (its harmonics +
+        weights), so the in-sweep moments equal ``S``'s internal projection
+        term-for-term; the cross-octant accumulation reorders the ordinate sum
+        vs the flat post-sweep projection ⇒ principled-equivalence, NOT
+        bit-identity.  2-D Cartesian ONLY (the windowed-SI path; the windowing
+        gate ``sn_mesh.reduced is None`` guarantees it).  ``solve`` followed by
+        the flat :meth:`MomentProjection.apply` is the fuller-view verification
+        oracle (``vv-principles``; the aggressive-retirement "verification
+        oracle" exception).
+        """
+        return self._solve_timed_full_field(
+            rhs, initial_guess=initial_guess, moment_projection=projection,
         )
 
     def _solve_timed_full_field(
@@ -2273,6 +2286,7 @@ class InvertibleOperator(OperatorSum):
         rhs: "TimedFullField",
         *,
         initial_guess: "TimedFullField | None" = None,
+        moment_projection: "MomentProjection | None" = None,
     ) -> "TimedFullField":
         r"""Composite :class:`TimedFullField` body of :meth:`solve` (D-H.1c stage 1).
 
@@ -2312,9 +2326,31 @@ class InvertibleOperator(OperatorSum):
         from orpheus.transport.fields.boundary_flux import (
             BoundaryFlux,
         )
+        from orpheus.transport.fields.harmonic_moment_field import (
+            HarmonicMomentField,
+        )
         from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
         from .sweep import transport_sweep
+
+        # D-H.2-C3: only the :class:`TimedFullField` composite branch remains;
+        # legacy :class:`AngularFlux` retired.  ``rhs`` and ``initial_guess``
+        # MUST be :class:`TimedFullField` (or ``None`` for ``initial_guess``).
+        # Single guard site for both :meth:`solve` and :meth:`solve_moments`.
+        if not isinstance(rhs, TimedFullField):
+            raise TypeError(
+                f"InvertibleOperator: 'rhs' must be TimedFullField; "
+                f"got {type(rhs).__name__}.  Legacy AngularFlux retired "
+                f"in D-H.2-C3."
+            )
+        if initial_guess is not None and not isinstance(
+            initial_guess, TimedFullField,
+        ):
+            raise TypeError(
+                f"InvertibleOperator: 'initial_guess' must be "
+                f"TimedFullField or None; got "
+                f"{type(initial_guess).__name__}."
+            )
 
         sn_mesh = self.sn_mesh
         if rhs.bulk.mesh is not sn_mesh:
@@ -2368,17 +2404,32 @@ class InvertibleOperator(OperatorSum):
         # container-agnostic :func:`_initial_guess_values` extractor in
         # sweep.py).  The kernel reads ``.bulk.values`` for the composite
         # path with no AngularFlux round-trip.
-        angular, _scalar = transport_sweep(
+        #
+        # Phase 5c: ONE sweep through :func:`transport_sweep` for BOTH output
+        # modes — the moment projection rides as an optional kwarg
+        # (``transport_sweep`` forwards it to the 2-D wavefront sweep and raises
+        # on a 1-D mesh, since moment output is 2-D Cartesian only; ``moment_*``
+        # and ``initial_guess`` are mutually 2-D-vs-1-D, so the 2-D branch
+        # harmlessly drops the unused seed).  Only the OUTPUT WRAP differs: the
+        # full angular field vs the harmonic moment tensor.
+        bulk_values, _scalar = transport_sweep(
             source,
             self.sigma,
             sn_mesh,
             boundary_buf,
             initial_guess=initial_guess,
+            moment_projection=moment_projection,
         )
+        if moment_projection is None:
+            bulk = AngularFlux.from_mesh(bulk_values, sn_mesh)
+        else:
+            bulk = HarmonicMomentField.from_mesh_and_L(
+                bulk_values, sn_mesh, moment_projection.L,
+            )
 
         # ── L2 direct return — no adapter needed (D-H.2-C2). ───────────
         return TimedFullField(
-            bulk=AngularFlux.from_mesh(angular, sn_mesh),
+            bulk=bulk,
             boundary=boundary_buf,
             _history=(),
             history_depth=rhs.history_depth,

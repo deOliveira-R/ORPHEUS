@@ -245,14 +245,37 @@ class _GaussSeidelResolvent:
     def solve(self, rhs, *, initial_guess=None):
         r"""``(L+C−B_lower)⁻¹ rhs`` via the seed-then-overwrite G-S sweep.
 
-        Seeds ``boundary_buf = rhs.boundary + B·ψₙ`` (the lagged whole-trace
-        reflection of the previous iterate — the SAME seed the Jacobi path gets
-        via the external ``B`` gain, only here ``B`` lives in the resolvent),
-        then runs :func:`_sweep_2d_scheduled` with the G-S schedule and the
-        face-restricted ``−B`` reflect between octant-group sweeps.
+        Returns the full per-ordinate angular flux.  See :meth:`_solve_scheduled`.
+        """
+        return self._solve_scheduled(rhs, initial_guess=initial_guess)
+
+    def solve_moments(self, rhs, projection, *, initial_guess=None):
+        r"""``(L+C−B_lower)⁻¹ rhs`` via the G-S sweep, returning the harmonic
+        MOMENTS of ``ψ`` projected in-sweep (Phase 5c — the moment-emitting
+        sibling of :meth:`solve`, satisfying the same windowed-resolvent contract
+        as :meth:`InvertibleOperator.solve_moments`).
+        """
+        return self._solve_scheduled(
+            rhs, initial_guess=initial_guess, moment_projection=projection,
+        )
+
+    def _solve_scheduled(self, rhs, *, initial_guess=None, moment_projection=None):
+        r"""Shared body: seed ``boundary_buf = rhs.boundary + B·ψₙ`` (the lagged
+        whole-trace reflection of the previous iterate — the SAME seed the Jacobi
+        path gets via the external ``B`` gain, only here ``B`` lives in the
+        resolvent), then run :func:`_sweep_2d_scheduled` with the G-S schedule
+        and the face-restricted ``−B`` reflect between octant-group sweeps.
+
+        The output representation is selected by ``moment_projection`` (Phase
+        5c): ``None`` → full angular (:meth:`solve`); given → harmonic moments
+        accumulated in-sweep (:meth:`solve_moments`).  The boundary seed +
+        schedule + reflect are IDENTICAL — only the bulk OUTPUT differs.
         """
         from orpheus.transport.fields.angular_flux import AngularFlux
         from orpheus.transport.fields.boundary_flux import BoundaryFlux
+        from orpheus.transport.fields.harmonic_moment_field import (
+            HarmonicMomentField,
+        )
         from orpheus.transport.timed_full_field import TimedFullField
         from .sweep import _sweep_2d_scheduled
 
@@ -276,16 +299,23 @@ class _GaussSeidelResolvent:
         def _reflect(bf, faces):
             _reflect_outflow_into_inflow(bf, sn_mesh, faces=faces)
 
-        angular, _scalar = _sweep_2d_scheduled(
+        bulk_values, _scalar = _sweep_2d_scheduled(
             rhs.bulk.values,
             self._invertible.sigma,
             sn_mesh,
             boundary_buf,
             schedule=self._schedule,
             reflect=_reflect,
+            moment_projection=moment_projection,
         )
+        if moment_projection is None:
+            bulk = AngularFlux.from_mesh(bulk_values, sn_mesh)
+        else:
+            bulk = HarmonicMomentField.from_mesh_and_L(
+                bulk_values, sn_mesh, moment_projection.L,
+            )
         return TimedFullField(
-            bulk=AngularFlux.from_mesh(angular, sn_mesh),
+            bulk=bulk,
             boundary=boundary_buf,
             _history=(),
             history_depth=rhs.history_depth,
@@ -293,21 +323,32 @@ class _GaussSeidelResolvent:
 
 
 class _MomentWindowedResolvent:
-    r"""Phase 5a angular-windowing — wrap a within-group resolvent so the
-    SI iterate it produces is stored as harmonic MOMENTS, not the full
-    per-ordinate angular field.
+    r"""Phase 5a/5c angular-windowing — wrap a within-group resolvent so the
+    SI iterate it produces is harmonic MOMENTS, not the full per-ordinate
+    angular field.
 
     The within-group source-iteration iterate is held across SI iterations
-    AND warm-started across every eigenvalue outer step; pre-windowing it
+    AND warm-started across every eigenvalue outer step; un-windowed it
     is a full :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
     ``(N, ng, nx, ny)``.  Scattering depends ONLY on the flux moments
     ``φ_ℓ^m = M ψ`` (``S`` re-projects the iterate every sweep), so the
     iterate carries strictly more than the iteration needs.  This wrapper
-    reduces the base resolvent's swept output ``ψ`` to the moment tensor
-    ``(L+1, 2L+1, ng, nx, ny)`` — the angular dimension of the *persistent*
-    iterate drops ``N → (L+1)²``.  The scattering gain then consumes the
-    moments directly (``S.apply(HarmonicMomentField)``), so the per-sweep
-    re-projection is elided too.
+    asks the base resolvent for the moment tensor ``(L+1, 2L+1, ng, nx, ny)``
+    directly (:meth:`~orpheus.sn.operator.InvertibleOperator.solve_moments`) —
+    the angular dimension of the *persistent* iterate drops ``N → (L+1)²``.
+    The scattering gain then consumes the moments directly
+    (``S.apply(HarmonicMomentField)``), so the per-sweep re-projection is
+    elided too.
+
+    **Phase 5a → 5c.**  5a reduced the iterate by POST-projecting the base's
+    full-angular sweep output (``base.solve`` then a flat
+    :meth:`~orpheus.numerics.projection.MomentProjection.apply`) — the full
+    ``(N, ng, nx, ny)`` field was still materialized transiently every sweep.
+    5c moved the projection INTO the sweep (``base.solve_moments``): the walk
+    accumulates moments per anti-diagonal, so the full angular field is NEVER
+    materialized (the ~3× linear peak-memory win).  This class is now a thin
+    adapter — it builds ``M`` and injects it; the projection arithmetic lives
+    in the sweep.
 
     **Geometry restriction (load-bearing).**  Valid ONLY where the sweep is
     a DIRECT solve with no per-ordinate-iterate seed — i.e. 2-D Cartesian
@@ -317,17 +358,23 @@ class _MomentWindowedResolvent:
     which the moment tensor does not carry.  The solver gates this wrapper
     on ``sn_mesh.reduced is None`` (2-D Cartesian).
 
-    **Bit-identity.**  ``M`` is built from the SAME quadrature harmonics the
-    scattering operator uses, so the stored moments equal ``S``'s internal
-    projection of the same ``ψ`` term-for-term (de-risk proven).  The
+    **Principled-equivalence (5c), not bit-identity.**  ``M`` is built from the
+    SAME quadrature harmonics the scattering operator uses, so the per-cell
+    ``w·Y·ψ`` fold matches ``S``'s internal projection term-for-term.  But the
+    in-sweep accumulation sums the ordinate contributions octant-by-octant
+    (cross-octant ``+=``), reordering the sum vs the flat post-sweep reduce ⇒
+    ULP-level drift (≤ 4 ULP de-risk, bounded by reduction-depth·eps).  The
     boundary trace passes through un-reduced — the reflective ``B`` coupling
     needs the full per-ordinate face trace (windowing is interior-bulk-only;
     the biproduct ``C¹ = C¹_int ⊕ C¹_∂`` keeps the trace a distinct summand).
-    The convergence test moves from the full-angular L2 to the moment L2
-    (the physically-meaningful SI criterion — scattering iterates the
-    moments); the converged value agrees with the full-angular path within
-    ``SAFETY × conv_tol`` (principled-equivalence, ``vv-principles``
-    §"Bit-identity vs principled-equivalence").
+    The convergence test is the moment L2 (the physically-meaningful SI
+    criterion — scattering iterates the moments); the converged value agrees
+    with the full-angular path within ``SAFETY × conv_tol`` (``vv-principles``
+    §"Bit-identity vs principled-equivalence").  The pre-5c post-projection
+    (``base.solve`` + flat ``MomentProjection.apply``) is retained as the
+    fuller-view verification ORACLE (``feedback_aggressive_retirement`` — the
+    "verification oracle" exception; pinned by the windowed-moments
+    equivalence test within the de-risk ULP bound).
 
     Satisfies the :class:`~orpheus.numerics.iteration.SourceIteration` ``L``
     contract: mirrors the base ``capabilities`` (incl. ``CAP_SOLVE``) and
@@ -336,15 +383,16 @@ class _MomentWindowedResolvent:
     harmlessly).
     """
 
-    def __init__(self, base, quadrature, moment_order: int, sn_mesh) -> None:
+    def __init__(self, base, quadrature, moment_order: int) -> None:
         from orpheus.numerics.projection import MomentProjection
 
         self._base = base            # the un-windowed resolvent ((L+C) or G-S)
-        self._moment_order = moment_order
-        self.sn_mesh = sn_mesh
-        # M built ONCE from the scattering op's quadrature (NOT per solve);
-        # the harmonics/weights match S.apply's internal projection ⇒ the
-        # stored moments are bit-identical to what S would project.
+        # M built ONCE from the scattering op's quadrature (NOT per solve); the
+        # harmonics/weights match S.apply's internal projection ⇒ the in-sweep
+        # moments equal what S would project (term-for-term).  ``base`` carries
+        # the mesh + the truncation order (``projection.L``); the windowed
+        # resolvent holds no mesh/order state of its own (Phase 5c — the post-
+        # sweep projection that needed them retired into the base sweep).
         self._projection = MomentProjection(
             weights=quadrature.weights,
             Y=quadrature.spherical_harmonics(moment_order),
@@ -361,27 +409,30 @@ class _MomentWindowedResolvent:
         return self._base.apply(psi)
 
     def solve(self, rhs, *, initial_guess=None):
-        r"""``base.solve`` then reduce the swept ``ψ`` bulk to moments.
+        r"""Solve the within-group system, returning :math:`\psi`'s harmonic
+        MOMENTS ``TimedFullField(bulk=HarmonicMomentField, boundary=trace)``.
 
-        Returns ``TimedFullField(bulk=HarmonicMomentField, boundary=trace)``
-        — the boundary trace from the base solve is preserved verbatim.
+        Phase 5c: delegates to the base resolvent's moment-emitting
+        :meth:`~orpheus.sn.operator.InvertibleOperator.solve_moments`, which
+        projects each anti-diagonal IN-SWEEP — the full per-ordinate angular
+        field ``(N, ng, nx, ny)`` is NEVER materialized (the ~3× linear
+        peak-memory win).  The :class:`~orpheus.numerics.projection.MomentProjection`
+        (built once from the scattering quadrature) carries the harmonics +
+        weights, so the in-sweep moments equal ``S``'s internal projection
+        term-for-term; the cross-octant accumulation reorders the ordinate sum
+        ⇒ principled-equivalence, NOT bit-identity (``vv-principles``
+        §"Bit-identity vs principled-equivalence"; de-risk ≤ 4 ULP).  The
+        boundary trace passes through verbatim (windowing is interior-only).
+
+        Pre-5c this wrapped ``base.solve`` (full angular) then applied a flat
+        post-sweep :meth:`MomentProjection.apply`.  That fuller-view path remains
+        the verification oracle: the windowed-moments equivalence test pins THIS
+        in-sweep result against ``base.solve`` + ``MomentProjection.apply``
+        within the de-risk ULP bound (``feedback_aggressive_retirement`` —
+        the "verification oracle" exception to retirement).
         """
-        from orpheus.transport.fields.harmonic_moment_field import (
-            HarmonicMomentField,
-        )
-        from orpheus.transport.timed_full_field import TimedFullField
-
-        full = self._base.solve(rhs, initial_guess=initial_guess)
-        moments = HarmonicMomentField.from_mesh_and_L(
-            self._projection.apply(full.bulk.values),
-            self.sn_mesh,
-            self._moment_order,
-        )
-        return TimedFullField(
-            bulk=moments,
-            boundary=full.boundary,
-            _history=(),
-            history_depth=full.history_depth,
+        return self._base.solve_moments(
+            rhs, self._projection, initial_guess=initial_guess,
         )
 
 
@@ -405,7 +456,6 @@ def _maybe_window(base_resolvent, scattering_op, sn_mesh):
                 base_resolvent,
                 scattering_op.quadrature,
                 scattering_op.scattering_order,
-                sn_mesh,
             ),
             True,
         )
