@@ -65,10 +65,10 @@ print(f"fi flat? max-min: {fi[0].max() - fi[0].min():.2e}")  # Should be 0 (flat
 print()
 
 # Step 1: outer_inflow_estimate
-from orpheus.geometry.boundary import SpecularBoundaryOperator
+from orpheus.geometry.boundary import ReflectiveBoundary
 from orpheus.sn.boundary_realizer import SNBoundaryRealizer, SNMethodSpace
 
-spec_law = SpecularBoundaryOperator(axis="x", albedo=1.0)
+spec_law = ReflectiveBoundary(axis="x", albedo=1.0)
 bc_outer = SNBoundaryRealizer().realize(spec_law, SNMethodSpace.minimal(quad))
 
 outer_face_psi = fi[:, :, -1, 0].T   # (N, ng)
