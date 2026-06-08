@@ -1748,6 +1748,98 @@ class StreamingOperator(LinearOperatorMixin):
             history_depth=psi.history_depth,
         )
 
+    def _apply_2d_cartesian_full_field(
+        self, psi: "TimedFullField",
+    ) -> "TimedFullField":
+        r"""VERIFICATION ORACLE — the full-field storage-A 2-D matvec (NOT production).
+
+        The matvec counterpart of :func:`~orpheus.sn.sweep._sweep_2d_full_field`:
+        the storage-A path Phase 5b superseded in :meth:`_apply_2d_cartesian`
+        (now the windowed `residual_windowed`). RETAINED + exercised by
+        ``tests/sn/operators/test_2d_matvec_full_field_oracle.py`` as the
+        fuller-view reference the moving-frontier matvec is cross-checked
+        against END-TO-END. It carries the FULL interior cochain as a typed
+        :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`
+        (`seed`/`face`/`edge_view`), walks via
+        :meth:`SweepDependencyGraph.residual` (the full-field walk sharing the
+        SAME cell kernel as `residual_windowed`), and emits the identical
+        boundary-block residual. Sole purpose: verification (production is the
+        window); the shared kernel means the MATH cannot drift, only storage.
+        """
+        from orpheus.sn.sweep_graph import OctantLabel
+        from orpheus.transport.fields.wavefront_flux import WavefrontFlux
+        from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        sn_mesh = self.sn_mesh
+        quad = sn_mesh.quad
+        N = quad.N
+        nx, ny = sn_mesh.nx, sn_mesh.ny
+        ng = self.sigma_t.shape[0]
+        sig_t = self.sigma_t
+        probe = psi.bulk.values
+        str_x = sn_mesh.streaming_x
+        str_y = sn_mesh.streaming_y
+        cell_update = sn_mesh.cell_update
+        Q_zero = np.zeros((1, ng, nx, ny))
+
+        LpC = np.zeros((N, ng, nx, ny))
+        trace = sn_mesh.trace
+        boundary = psi.boundary
+        # The FULL interior cochain (typed) — ι_*-seeded whole-trace.
+        wavefront = WavefrontFlux.zeros_on(sn_mesh)
+        psi_x = wavefront.face(0)
+        psi_y = wavefront.face(1)
+        wavefront.seed(boundary)
+
+        for octant in quad.octants:
+            label_tuple = octant.label
+            oct_idx = octant.indices
+            sx = label_tuple[0] if len(label_tuple) >= 1 else +1
+            sy = label_tuple[1] if len(label_tuple) >= 2 else 0
+            if sx == 0 and sy == 0:
+                LpC[oct_idx] = sig_t * probe[oct_idx]
+                continue
+            sx_eff = +1 if sx == 0 else sx
+            sy_eff = +1 if sy == 0 else sy
+            graph = sn_mesh.sweep_graphs[OctantLabel(sx_eff, sy_eff)]
+            psi_x_oct = psi_x[oct_idx].copy()
+            psi_y_oct = psi_y[oct_idx].copy()
+            LpC_oct = np.zeros((oct_idx.size, ng, nx, ny))
+            graph.residual(
+                cell_update=cell_update,
+                psi_x_octant=psi_x_oct, psi_y_octant=psi_y_oct,
+                psi_avg_probe_octant=probe[oct_idx],
+                Q_octant=Q_zero, sig_t=sig_t,
+                str_x_octant=str_x[oct_idx], str_y_octant=str_y[oct_idx],
+                residual_octant=LpC_oct,
+            )
+            psi_x[oct_idx] = psi_x_oct
+            psi_y[oct_idx] = psi_y_oct
+            LpC[oct_idx] = LpC_oct
+
+        out_bulk = LpC - sig_t[None, :, :, :] * probe
+        # The post-walk domain-edge outflow (full interior cochain edge slots).
+        streamed = {face: wavefront.edge_view(face) for face in trace.face_names}
+        out_boundary = BoundarySourceSink.zeros_on(sn_mesh)
+        for face in trace.face_names:
+            given = boundary.face_view(face)
+            out_idx = trace.outflow_indices_for_face(face)
+            in_idx = trace.inflow_indices_for_face(face)
+            if out_idx.size:
+                out_boundary.face_view(face)[out_idx] = (
+                    streamed[face][out_idx] - given[out_idx]
+                )
+            if in_idx.size:
+                out_boundary.face_view(face)[in_idx] = given[in_idx]
+
+        return TimedFullField(
+            bulk=AngularSourceSink.from_mesh(out_bulk, sn_mesh),
+            boundary=out_boundary,
+            _history=(),
+            history_depth=psi.history_depth,
+        )
+
     # ── Algebra dispatch — sweep-invertible composite (R-1 Step C) ────
 
     def __add__(self, other):

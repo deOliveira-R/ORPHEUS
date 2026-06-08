@@ -1081,6 +1081,99 @@ def _sweep_2d_wavefront(
     )
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# VERIFICATION ORACLE — the full-field storage-A 2-D sweep (NOT production)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _sweep_2d_full_field(
+    Q: np.ndarray,
+    sig_t: np.ndarray,
+    sn_mesh: "SNMesh",
+    boundary_flux: "BoundaryFlux",
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""Full-field storage-A 2-D Jacobi sweep — the VERIFICATION ORACLE for the
+    windowed production sweep (:func:`_sweep_2d_wavefront`).
+
+    This is the storage-A path that Phase 5b's storage-B carve superseded in
+    production. It is RETAINED — and exercised by
+    ``tests/sn/sweep/cartesian_2d/test_2d_full_field_oracle_equivalence.py`` —
+    as the fuller-view reference the moving-frontier window is cross-checked
+    against END-TO-END (orchestrator + walk + whole-trace boundary handling),
+    NOT just at the per-octant walk level. Its sole purpose is verification;
+    production is the window. Three reasons it is a legitimate kept reference
+    (not a twin-path smell):
+
+    1. It carries the FULL interior face cochain as the typed
+       :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux` (the
+       fuller view — all cells' face flux, not just the 2-diagonal frontier),
+       with the :math:`\iota_*` (``seed``) / :math:`\iota^*` (``absorb``)
+       whole-trace boundary algebra. So it KEEPS ``WavefrontFlux`` and its
+       trace API genuinely alive (the storage-B carve had orphaned them).
+    2. It walks via :meth:`SweepDependencyGraph.apply` — the full-field walk
+       that shares the SAME cell kernel
+       (:meth:`DiamondDifference.cell_kernel_batch`) as the windowed
+       :meth:`~SweepDependencyGraph.apply_windowed`. So the cell MATH cannot
+       drift between oracle and production; only the storage walk differs —
+       which is exactly what the equivalence test pins (``np.array_equal``).
+    3. Jacobi only (one all-octants group, no inter-group reflect): the default
+       :func:`_sweep_2d_wavefront` path. The window≡full bit-identity is
+       per-octant (schedule-independent), so the Jacobi oracle suffices; the
+       Gauss-Seidel windowed path is exercised by the eigenvalue tier.
+    """
+    from orpheus.transport.fields.wavefront_flux import WavefrontFlux
+
+    ng, nx, ny = sig_t.shape
+    N = sn_mesh.quad.N
+    angular_flux = np.zeros((N, ng, nx, ny))
+    scalar_flux = np.zeros((ng, nx, ny))
+
+    # The FULL interior cochain (typed) — ι_*-seeded whole-trace from the given
+    # inflow, ι*-absorbed whole-trace at the end. This is the fuller view the
+    # window replaces with a rolling 2-diagonal frontier in production.
+    wavefront = WavefrontFlux.zeros_on(sn_mesh)
+    wavefront.seed(boundary_flux)
+    psi_x = wavefront.face(0)   # (N, ng, nx+1, ny) zero-copy view
+    psi_y = wavefront.face(1)   # (N, ng, nx, ny+1)
+
+    str_x = sn_mesh.streaming_x
+    str_y = sn_mesh.streaming_y
+    weights = sn_mesh.quad.weights
+    cell_update = sn_mesh.cell_update
+
+    for group in SweepSchedule.jacobi(sn_mesh).groups:
+        for sweep in group.sweeps:
+            oct_idx = np.asarray(sweep.indices)
+            sx, sy = sweep.label.sign_x, sweep.label.sign_y
+            if sx == 0 and sy == 0:                      # pure-z degenerate
+                psi_avg_pure_z = Q[oct_idx] / sig_t
+                angular_flux[oct_idx] = psi_avg_pure_z
+                scalar_flux += np.einsum(
+                    "ngij,n->gij", psi_avg_pure_z, weights[oct_idx],
+                )
+                continue
+            sx_eff = +1 if sx == 0 else sx
+            sy_eff = +1 if sy == 0 else sy
+            graph = sn_mesh.sweep_graphs[OctantLabel(sx_eff, sy_eff)]
+            psi_x_oct = psi_x[oct_idx].copy()            # FULL per-octant face field
+            psi_y_oct = psi_y[oct_idx].copy()
+            angular_flux_oct = np.zeros((oct_idx.size, ng, nx, ny))
+            graph.apply(                                 # the full-field walk
+                cell_update=cell_update,
+                psi_x_octant=psi_x_oct, psi_y_octant=psi_y_oct,
+                Q_octant=Q[oct_idx], sig_t=sig_t,
+                str_x_octant=str_x[oct_idx], str_y_octant=str_y[oct_idx],
+                weights_octant=weights[oct_idx],
+                angular_flux_octant=angular_flux_oct, scalar_flux_buf=scalar_flux,
+            )
+            psi_x[oct_idx] = psi_x_oct
+            psi_y[oct_idx] = psi_y_oct
+            angular_flux[oct_idx] = angular_flux_oct
+
+    wavefront.absorb(boundary_flux)                      # ι* whole-trace
+    return angular_flux, scalar_flux
+
+
 __all__ = [
     "transport_sweep",
     "sweep_octant_group",
