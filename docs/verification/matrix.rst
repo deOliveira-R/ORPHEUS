@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5022**
+Total tests collected: **5074**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1167, 23.2%
-   L1, 940, 18.7%
+   L0, 1168, 23.0%
+   L1, 944, 18.6%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2873, 57.2%
+   foundation, 2920, 57.5%
    unmarked, 6, 0.1%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4937
+   explicit, 4989
    verify, 0
    class-name, 46
    func-name, 0
@@ -241,6 +241,7 @@ Module × level grid
    moc/test_quadrature, 24, 0, 0, 0, 0, 0
    moc/test_ray_tracing, 22, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
+   numerics/test_affine_flux_algebra, 0, 0, 0, 0, 34, 0
    numerics/test_diagonal_operator, 17, 0, 0, 0, 0, 0
    numerics/test_face_layout, 0, 0, 0, 0, 15, 0
    numerics/test_field, 0, 0, 0, 0, 22, 0
@@ -286,6 +287,7 @@ Module × level grid
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
    operators/test_streaming_operator, 0, 0, 0, 0, 65, 0
    operators/test_streaming_operator_decomposition, 19, 0, 0, 0, 0, 0
+   operators/test_typed_residual_evaluation, 1, 0, 0, 0, 3, 0
    primitives/test_axis_primitive, 0, 0, 0, 0, 23, 0
    primitives/test_boundary_face_layout, 0, 0, 0, 0, 5, 0
    primitives/test_cell_flattening_invariant, 0, 0, 0, 0, 3, 0
@@ -304,14 +306,16 @@ Module × level grid
    slab/test_dd_recurrence, 1, 0, 0, 0, 0, 0
    slab/test_unified_matvec_slab, 2, 2, 0, 0, 0, 0
    solve/test_2d_anisotropic_windowing, 0, 4, 0, 0, 0, 0
+   solve/test_affine_carve_bit_identity, 0, 0, 0, 0, 3, 0
    solve/test_b1pp_verification, 6, 3, 0, 0, 0, 0
    solve/test_fixed_source_2d_equivalence, 0, 2, 0, 0, 0, 0
    solve/test_fixed_source_g1, 0, 5, 0, 0, 0, 0
+   solve/test_flux_displacement_diagnostics, 0, 4, 0, 0, 0, 0
    solve/test_krylov_curvilinear_precond_safety, 0, 4, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 264, 0
+   test_layer_imports, 0, 0, 0, 0, 271, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
    transport/test_field_units, 0, 0, 0, 0, 43, 0
@@ -651,8 +655,12 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **212** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **216** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
+- ``affine-contraction-ratio``
+- ``affine-torsor-algebra``
+- ``affine-true-error``
+- ``affine-typed-residual-eq``
 - ``angular-windowing-aniso-factoring``
 - ``angular-windowing-moment-iterate``
 - ``bailey-dome-recursion``
