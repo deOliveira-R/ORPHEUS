@@ -286,10 +286,12 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         one anti-diagonal level, returns ``(psi_avg, psi_out_x, psi_out_y)``.
         This is the **single source of the 2-D DD cell math** (Cardinal
         Rule 2 / Pattern 2): consumed by BOTH the full-field gather/scatter
-        walk (:meth:`update_batch`, the storage-A / verification-oracle path)
-        AND the rolling moving-frontier window walk
-        (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.apply`, the
-        storage-B production path). The two differ ONLY in how the incoming
+        walk (:meth:`update_batch`, driven by
+        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.apply` — the
+        storage-A full-field VERIFICATION ORACLE) AND the rolling
+        moving-frontier window walk
+        (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.apply_windowed` —
+        the storage-B PRODUCTION path). The two differ ONLY in how the incoming
         faces are gathered and the outgoing faces scattered (full per-axis
         field vs 2-diagonal window) — the cell algebra is identical, so the
         window walk and the oracle cannot drift mathematically.
@@ -298,11 +300,12 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         --------------------------
 
         ``denom = sigt + sx + sy``; ``psi_avg = (Q + sx·in_x + sy·in_y) /
-        denom``; ``psi_out = 2·psi_avg − psi_in``. This order matches the
-        legacy inlined sweep (sweep.py:847-871) bit-for-bit. Per
-        ``vv-principles`` Bit-identity vs principled-equivalence,
-        algebraically-equivalent rearrangements break the 1-ULP regression
-        contract — do NOT refactor for "clarity".
+        denom``; ``psi_out = 2·psi_avg − psi_in``. This kernel is now the
+        SINGLE canonical source of that operation order (the legacy inline WDD
+        form it was extracted from is retired). Per ``vv-principles``
+        Bit-identity vs principled-equivalence, algebraically-equivalent
+        rearrangements break the 1-ULP regression contract — do NOT refactor
+        for "clarity".
         """
         denom = sigt_cells + sx + sy                      # (N_oct, ng, n_diag)
         psi_avg = (
@@ -332,8 +335,10 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         PROBE cell-average, and reconstructs the outgoing faces from the probe
         (``psi_out = 2·psi_bar − psi_in``). Returns ``(residual, psi_out_x,
         psi_out_y)``. Single source of the matvec cell math, shared by the
-        full-field oracle (:meth:`residual_batch`) and the window production
-        walk (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.residual`).
+        full-field walk (:meth:`residual_batch`, driven by
+        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.residual` — the
+        verification ORACLE) and the window PRODUCTION walk
+        (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.residual_windowed`).
         Same operation-order discipline as :meth:`cell_kernel_batch`.
         """
         denom = sigt_cells + sx + sy                      # (N_oct, ng, n_diag)
