@@ -324,6 +324,8 @@ Each line below is a redirect: **NEVER** do X — **instead** do Y. Flag these w
 
 17. **NEVER** loosen a test tolerance to paper over a known approximation gap — **instead** document the gap in the docstring AND the test, pin the gap with a structurally-independent reference proving the residual is genuine approximation (not bug), and file a follow-up issue for closure. ERR-036 and ERR-038 both shipped `tol=5e-2` because "singularity-aware integrator is out of scope"; without the explicit pin, future regressions get swallowed into the same loose tolerance. The tolerance is a CONTRACT; loose contracts must be defended.
 
+18. **NEVER** type an iterative method's increment `Δx = xⁿ − xⁿ⁻¹` as the STATE type `x` — **instead** mint a distinct displacement (difference-space) type. The increment is an element of the difference / tangent vector space `V`, not a state in the affine solution space `A`; typing it as a state both admits the meaningless `state + state` (an affine-axiom violation — the solution set has no natural origin) AND strands the convergence data (contraction ratio `ρ`, the a-posteriori true error `‖Δx‖/(1−ρ)`, Aitken Δ²) with no home, because a state cannot carry "previous"/"step". Tell: the affine / torsor frame was not applied (`cross-domain-frames` A.1 "Affine geometry / torsors"). ORPHEUS precedent: #208 `FluxDisplacement` — the SN source-iteration increment is the difference vector, distinct from `AngularFlux`; `flux+flux` becomes unrepresentable by construction and the c→1 false-convergence fix `‖Δψ‖/(1−ρ)` lives on the displacement. (A construction-level discipline like items 1-12; landed empirically via #208, no ERR-NNN yet.)
+
 ---
 
 ## The bug-prevention argument — why elegance prevents bugs
