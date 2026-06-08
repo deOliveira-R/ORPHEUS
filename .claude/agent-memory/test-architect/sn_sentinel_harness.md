@@ -23,9 +23,9 @@ function call and DOES fire under `-O`; bare `assert` does NOT. The set
 mixes both, so `-O` is unsafe for the sentinel gate specifically.
 **Why:** a canary that can't die is worse than no canary (false green).
 **How to apply:** any always-on assert-based gate → drop `-O`; OR
-require `np.testing.assert_*` only. This is a NEW test-design failure
-mode (test cannot observe the bug because the assert is compiled out) —
-flagged for the vv-principles failure-mode table.
+require `np.testing.assert_*` only. This is now **vv-principles Mode 8**
+(compiled-out assertion / runtime-mode strip) — the breadcrumb landed in
+the skill's failure-mode table; the skill is the canonical home.
 
 ## Mutation tool (S0 verdict)
 cosmic-ray 8.4.6 over mutmut on Py3.14.3. `local` distributor (NO xdist

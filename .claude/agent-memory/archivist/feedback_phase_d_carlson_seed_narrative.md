@@ -89,7 +89,7 @@ canonical structural pattern:
   `strict=True` until Issue #195 lands.
 
 This is the **partial-OPEN close-out** variant of the 9-step arc
-([[feedback_closeout_docs]] §"The PARTIAL / OPEN variant"). The
+(AGENT.md §"Close-Out Narrative Arc", the partial-OPEN variant). The
 ERR-026 entry stays PARTIAL through Phase D Step 3; only Step 5
 closes the markers, and Issue #195 closes the residual magnitude
 question.

@@ -255,6 +255,69 @@ library is permanent. Do not pad the trigger table with
 speculation — only matches that produced concrete payoff make
 it in.
 
+## Promoted Library Kernel (durable — survives memory hygiene)
+
+Detection heuristics that have cleared the evidence bar across
+MANY independent attacks. These are permanent — fire them on
+every relevant invocation, do NOT re-derive them, do NOT let a
+memory-hygiene pass drop them. (Project-memory frame-notes are
+ephemeral snapshots of individual attacks; THIS section is the
+distilled library.)
+
+### Smell #16 — "structurally distinct paths/representations to ONE operator or quantity"
+
+The single most-recurring native-frame-not-found tell in ORPHEUS
+SN/transport work. SEVEN independent sightings (#168 sweep-vs-apply,
+#196 chain-scan, #196 step-2.5c cache, #208 operator-algebra
+twin-BC paths, #208 Δψ increment-typed-as-state, face-flux
+boundary-vs-interior storage, streaming-transpose third-path).
+It manifests in FOUR shapes — recognise all four:
+
+1. **Two code paths claiming to be the same discrete operator**
+   over different storage conventions (cell-centres vs faces;
+   typed field vs raw numpy; 1-D seed/reflect vs 2-D cell-fill).
+   Risk: the L/L⁻¹ or apply/solve correctness claim is unverified
+   and often silently asymmetric (one path drops a term). FIX:
+   make both consume the same primary representation — typically
+   the faces (cells are DD-derivatives of faces).
+2. **One physical quantity stored in two incompatible
+   representations** bridged by hand-written index copies (the
+   seed/absorb marshalling). FIX: name the missing
+   trace/restriction operator; the bridge IS that operator
+   un-named.
+3. **An iterative increment Δx = xⁿ − xⁿ⁻¹ typed as the STATE
+   type x**, not a distinct displacement type. TELL: admits
+   illegal `state+state` AND strands the contraction data
+   (ρ, Aitken, a-posteriori bound) with no home. FIX: a
+   difference-space / torsor displacement type.
+4. **A third hand-rolled path about to be written** (e.g. a
+   backward adjoint sweep) for the per-cell operator already
+   shared by two callers — the smell fires BEFORE the code
+   exists. FIX: re-apply the shared primitive, do not twin it.
+
+WHY this is the kernel: every shape resolves to the same
+elegance move — collapse the distinct paths/representations onto
+ONE primary object (faces / trace operator / displacement type /
+shared primitive), which makes the correctness claim a theorem
+rather than a coincidence and usually deletes a marshalling
+shim. Promote to skill Part C as a numbered smell at the next
+skill revision; until then it lives HERE so it is never lost.
+
+### Cross-method backbone: the transport resolvent `(Ω·∇+Σ_t)⁻¹`
+
+SN/MoC/CP `solve` are three QUADRATURES of ONE object — the
+Peierls resolvent. Diffusion is the EXCEPTION (P1/asymptotic
+LIMIT, not a quadrature), which is exactly why its solve is
+elliptic-self-adjoint while the others are characteristic-
+triangular. ONE principle predicts both the cross-method
+layering split AND the diffusion exception. Adjoint solve =
+backward semigroup (`Ω→−Ω` = path reversal). The power-method
+fixed-point combinator `fix(step)` recurs at every layer
+(discrete `power_iteration`, continuous `power_iterate_variant_alpha`)
+because they iterate the same resolvent. Reach for this whenever
+a transport method's solve/adjoint/eigenvalue structure is in
+question.
+
 ## Self-Correction
 
 If you produce output that violates the MUST list, the NEVER

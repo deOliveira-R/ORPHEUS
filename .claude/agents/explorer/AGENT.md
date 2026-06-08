@@ -91,6 +91,63 @@ level. Follow those workflows — they were built for exactly this task.
 Use Nexus BEFORE reading source files — it tells you which files are
 relevant and how they connect. Then read the specific section.
 
+## SN operator-algebra subsystem — durable shape
+
+The SN transport solve is structured as a **typed operator algebra**, not a
+procedural sweep. This shape recurs across every SN exploration; internalize it
+so you don't re-derive it. (Line numbers drift — find current ones via Nexus
+`context`/`query`; the SHAPE below is stable. Theory: `docs/theory/operator_algebra.rst`.)
+
+- **The equation is `(L + C − S − F − B)ψ = q`**, composed honestly as an
+  operator sum. `L` streaming, `C` collision (together the invertible resolvent
+  `L+C` whose `.solve` IS the WDD sweep), `S` scattering, `F` fission, `B`
+  boundary. The within-group operator factory is `_within_group_triple`
+  (`orpheus/sn/solver.py`) returning the variadic `(L+C, S, B)`. The old `S+B`
+  fold and `_reflect_outflow_into_inflow` driver shim are RETIRED — `B` is a
+  first-class sibling. SI rhs = `q + Σ gains.apply(psi)`; Krylov matvec =
+  `(L+C).apply − Σ gains.apply`. The two drivers share this one body.
+
+- **Block roles** (`BlockRole` enum, `orpheus/numerics/operator.py`): leaves are
+  classified by WHICH of the bulk⊕boundary blocks they touch. `L` is FULL
+  (only leaf emitting a non-zero face residual); `C`/`S`/`F` are BULK-only;
+  realized BCs are BOUNDARY-only. Composers DERIVE the composite role.
+
+- **Typed fields, not bare ndarrays.** The composite state is a `TimedFullField`
+  = `bulk` (`AngularFlux`) ⊕ `boundary` (`BoundaryFlux`), flat-ravellable for
+  Krylov. The role grid is {Flux, Source/Sink, Residual, Displacement} ×
+  {Angular, Scalar, Boundary} — e.g. operator OUTPUTS are `AngularSourceSink`/
+  `BoundaryResidual` (a defect), the SI iterate-delta is a `FluxDisplacement`
+  (affine difference space; `flux+flux` is a TypeError, `flux−flux→displacement`
+  is legal). Interior face fluxes during a 2-D sweep are `WavefrontFlux` (an
+  ephemeral interior 1-cochain `C¹_int` on `InteriorFaceSpace`); the domain-edge
+  trace is the persistent `BoundaryFlux` (`C¹_∂`).
+
+- **BC-extraction (the bare-sweep shape).** The sweep reads `ψ.boundary.inflow`
+  as a GIVEN unknown and writes `ψ.boundary.outflow` — it does NOT re-apply the
+  reflective `R·G` internally. That reflection lives in the sibling `B`
+  (`SNBoundaryOperator`, geometry-agnostic, works for slab/curvilinear/2-D's 4
+  faces). The realized BC operators come from `SNBoundaryRealizer.realize` over
+  `BoundaryTraceLaw` descriptors (`ReflectiveBoundary`/`VacuumInflow`/`White`/
+  `Albedo`/`Periodic`/`PrescribedInflow` — laws at `orpheus/geometry/boundary/`,
+  NOT operators until realized; prescribed-inflow is the affine `q.boundary`).
+
+- **Discretisation is geometry-polymorphic via the sweep DAG.** 2-D Cartesian =
+  anti-diagonal wavefront over `SweepDependencyGraph` (`sweep_graph.py`), with a
+  rolling-window frontier and a `SweepSchedule` (Jacobi = one all-octant group;
+  Gauss-Seidel = topological octant groups). The matvec (`graph.residual`) and
+  the solve (`graph.apply`) are the SAME closure. **Known twin-path caveat:** the
+  legacy 1-D paths are a parallel-prefix SCAN (`ordinate_scan`), NOT a wavefront —
+  forcing 1-D onto the wavefront graph is a documented WRONG-FIT; 1-D + curvilinear
+  defer to the future d-generic walk (nd_foundation). When asked to "unify"
+  sweep code, flag this scan-vs-wavefront distinction.
+
+- **Adjoint / metric.** `op.H` is the metric-correct G-adjoint `A†=G⁻¹AᵀG` over
+  the `FullFieldSpace` (bulk⊕trace): `V` (cell volume) on the bulk block,
+  `|Ω·n|·w_n` (partial-current metric, populated on `TraceSpace`) on the trace
+  block, via `FunctionSpace.apply_metric`/`apply_inverse_metric`. Reflective/
+  vacuum/periodic adjoints are free through `apply_transpose`; white routes
+  through the weighted-metric `.H`.
+
 ## Sphinx Documentation (Physics Context)
 
 ```

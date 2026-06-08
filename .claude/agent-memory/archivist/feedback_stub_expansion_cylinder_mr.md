@@ -94,7 +94,7 @@ gotchas, and numerical evidence. Method-implementer ships stubs (per
   `:doc:`/skills/X`` invocations** in `cross_method.rst` (those are the
   unresolved warnings; the skill is not in the Sphinx toctree).
 - **Pre-existing 9-warning baseline floor** must be diffed pre/post-edit
-  (per `feedback_closeout_docs.md` "warning-count diff as the
+  (per AGENT.md §"Close-Out Narrative Arc", "warning-count diff as the
   acceptance gate"). For this session: pre-edit 9 warnings (all in
   unrelated files), post-edit 9 warnings (same set). Gate satisfied
   even though `-W` exits non-zero. NEVER attempt to suppress pre-

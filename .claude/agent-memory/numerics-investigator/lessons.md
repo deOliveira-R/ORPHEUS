@@ -104,3 +104,22 @@ every downstream quantity at the same magnitude. Sensitivity analysis
 upstream fix solves the downstream gap. Plain magnitude propagation is
 NOT the default — many integrals are insensitive to upstream-spline
 small shifts when the cancellation structure absorbs them.
+
+## L6: A curvilinear matvec is verified only against a NON-FLAT per-ordinate hand reference
+
+Flat ψ makes every redistribution/routing bug in a curvilinear SN matvec
+vanish: index permutations become the identity (all level-internal values
+equal), and cell-average-vs-cell-centre mismatches → 0 in the continuous
+limit. Krylov-on-apply then converges to a self-consistent fixed point of
+the buggy operator — physically acceptable, still linear+conservative — so
+nothing looks wrong. Two distinct cylinder matvec bugs (ERR-049 bool-mask
+scatter ordering; the decoder "analytical extension" O(h) twin-path
+divergence) BOTH hid for months behind flat-ψ-only coverage; see
+[[cyl-matvec-twin-path-signatures]] (#197/#206). The gate: every curvilinear
+matvec needs a per-ordinate hand-reference test on NON-FLAT ψ (the sphere
+had `test_apply_face_fluxes_match_sweep_recurrence_spherical`; cylinder
+lacked the analog until ERR-049). This is L2 sharpened into a test-design
+rule, and is vv-principles H2/H3 (homogeneous + conservation are both
+degenerate to redistribution/routing bugs) applied to the matvec twin of
+the sweep. The architectural cure is Pattern 2: ONE `SNCellOperator`
+consumed by both sweep and matvec so they cannot drift (#206).

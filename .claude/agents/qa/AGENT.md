@@ -94,6 +94,18 @@ preloaded — follow their workflows as your primary instruments.
 7. **Check convergence rates** — wrong order = bug; correct order ≠ correctness.
 8. **Require realizability** — flux > 0, keff > 0, CP row sums = 1.
 9. **Check verification_coverage** — every equation should have status "verified".
+10. **Behavior-neutral retype = role-type AND bit-identity, asserted
+    separately.** When a PR claims a field/operator-output *role* change
+    (e.g. `.apply` bulk `AngularFlux`→`AngularSourceSink`) is
+    "behavior-neutral," demand BOTH: (a) the output's role *type* is the
+    new role, and (b) the output `.values` are bit-identical to pre-retype
+    (the `from_mesh` constructors produce identical arrays — the retype is
+    a label, not a number). Asserting only the type lets a real numerical
+    change ride in under a "just a relabel" claim; asserting only the
+    values lets a `.solve`-vs-`.apply` role-confusion slip through. The
+    SN role contract + the A2D-1 source-hash-pin update procedure live in
+    `field_role_typing_apply_sourcesink_contract` (memory) — re-check it
+    on any apply/solve/SourceSink/operator-output edit.
 
 ## Error Catalog
 

@@ -1,1 +1,3 @@
-- [Phase 1 moment-space review](phase1_moment_space_review.md) — Phase 1 (P1.1–P1.7) ERR-039 endpoint review on refactor/moment-space-and-layering: 2 BLOCKER (A3 cached_property, B1 wrong-marker), recommends P1.8 amendment.
+- [QA lessons](lessons.md) — L-001 test-count≠coverage · L-002 orphan triage D→B→A→C · L-003 audit harness vs stale matrix.rst · L-004 no [brackets] in vv-status rationale.
+- [Field-role-typing apply/SourceSink contract](field_role_typing_apply_sourcesink_contract.md) — re-checkable role contract: .apply=AngularSourceSink, .solve=AngularFlux, boundary/residual typed; behavior-neutral-retype gate + A2D-1 hash-pin procedure.
+- [Phase 1 moment-space review](phase1_moment_space_review.md) — Phase 1 (P1.1–P1.7) ERR-039 QA review; cited as verification-of-record by 3 plan/agent artifacts — load-bearing, do not retire.

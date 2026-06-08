@@ -191,6 +191,21 @@ structurally-independent reference at the converged value (see
 structural independence). MMS convergence verifies the operator
 against an imposed solution; it does NOT verify eigenvalues.
 
+**Convergence-RATE claims (iterations-to-converge / acceleration
+gains) are a DISTINCT test-design problem from value claims.** The
+measurand is the iteration COUNT (`history.n_inner`), and the
+structurally-independent target is the analytic iteration-map
+spectral radius (for SN source iteration: ρ = c, the scattering
+ratio; count ~ log(tol)/log(c)). A rate claim ρ=c is
+flux-shape-INDEPENDENT by design, so a 1-group homogeneous test is
+LEGITIMATE here (the Cardinal Rule below bars only 1G EIGENVALUE
+claims — declare the claim layer). Gate the rate conservatively
+(`n_inner < 0.75 × baseline`) and PAIR it with independent value
+guards. A rate regression nothing measures is a silent un-gated
+claim — confirm the count is actually surfaced (the SN eigenvalue
+path leaves `n_inner=None`: a still-open gap). See
+`si_convergence_rate_verification.md`.
+
 ### 6. Triage diagnostics into tests
 
 When the user points at a batch of `derivations/diagnostics/diag_*.py`
@@ -200,6 +215,25 @@ scripts left by a recent investigation, follow the canonical
 source of truth — do not reinvent the rubric. Foundation tests are the
 right home for pure software invariants with no equation `:label:`
 (e.g. "multi-region branch reduces to single-region when σ_t uniform").
+
+### 7. Migrating a snapshot harness when production goes BARE
+
+When a refactor makes a production path BARE — drops an intermediate,
+moves a coupling step external, or changes per-STEP output while
+preserving the converged FIXED POINT — a per-step regression-snapshot
+harness built on the old output breaks. The reusable recipe (see
+`snapshot_migration_when_production_goes_bare.md`): (1) mirror
+production in BOTH driver and generator via ONE shared helper
+(coding-elegance Pattern 2 — drift becomes unspellable); (2) snapshot
+schema = exactly what is persisted AND compared, no richer
+intermediate; (3) the migration's correctness gate is VACUUM
+bit-identity (bare ≡ legacy for zero inflow — if vacuum differs, STOP,
+it's a bug); (4) snapshot inheritance from the NEW bare code REQUIRES a
+structurally-independent anchor (closed-form `φ=(diagΣ_t−Σ_sᵀ)⁻¹Q` for
+all-reflective uniform); (5) a `@catches("ERR-NNN")` that no longer
+holds is a FALSE coverage claim — remove it; (6) re-verify term
+ACTIVATION after adding any inject (an inject that nulls a term is
+silent coverage loss).
 
 ## Cross-Section Library
 

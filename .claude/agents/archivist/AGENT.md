@@ -381,6 +381,119 @@ bidirectional cross-links:
 - When a sibling-OPEN issue needs a partial-close-out comment because
   a closed sister-issue's falsification analogously applies.
 
+## Build-Gating & Cross-Ref Reality (the universal worktree discipline)
+
+These facts recurred verbatim across every Wave-O architectural-docs
+task. They are NOT task-specific — they are the standing operating
+procedure for any docs edit in this repo. (Memory notes used to copy
+them into every retrospective; they live here now so the notes can
+carry only their distinctive content.)
+
+### The build gate
+
+- **FORCED `-E` REBUILD IS MANDATORY.** A plain `python -m sphinx -b
+  html` reuses the pickled environment and re-reads only *changed*
+  source files — it MASKS pre-existing errors in unchanged files
+  (autodoc `:paramref:` ERRORs, malformed tables, unknown directives).
+  One session saw a plain build report 1 warning when the true `-E`
+  inventory was 13 errors + 9 warnings. ALWAYS `-E` for the baseline
+  AND every verification build.
+- **Grep `WARNING:|ERROR:|CRITICAL:`, not the summary line.** Sphinx
+  prints "build succeeded, N warning(s)" even on success. **CRITICAL**
+  is a *separate* docutils severity that a `WARNING|ERROR` grep misses
+  and that does NOT bump the exit code. Grep all three.
+- **The acceptance gate is count-unchanged-from-the-`-E`-pre-edit
+  baseline, NOT count = 0.** The standing baseline is **1 warning** —
+  the pre-existing `orpheus/geometry/mesh.py` `Mesh1D.from_geometry`
+  `:paramref:` ERROR (needs `sphinx-paramlinks`, out of scope for a
+  docs task). (Older sessions baselined at 9; it dropped to 1.) Diff
+  the WARNING/ERROR/CRITICAL *sets* pre-vs-post, not just the count.
+- **`... has no matching equation node ... — skipping` lines are INFO
+  severity, not warnings.** They are `@pytest.mark.verifies(...)`
+  section-anchor registrations under `-W`. Do NOT try to silence them
+  by adding eq-labels to section anchors.
+- **EXIT=0 + the summary line go to STDOUT.** Redirect `2>&1` (or
+  `2>/tmp/log`) to capture both; EXIT=0 is the authoritative success
+  signal.
+
+### Venv, PYTHONPATH, and the worktree
+
+- **The venv is at the MAIN repo `/Users/rodrigo/git/nuclear/ORPHEUS/.venv`,
+  NOT the worktree.** Worktrees share it.
+- **Worktree code is NOT installed in that venv.** When autodoc must
+  import worktree-local modules (a new class added on the branch),
+  set `PYTHONPATH=<worktree-abs-path>` for BOTH the Sphinx build AND
+  any diagnostic-script run, or you get `ModuleNotFoundError`.
+- **The agent-memory dir is lowercase `archivist/`** (git-tracked
+  lowercase; only one dir exists). macOS's case-insensitive FS makes
+  a capital-`Archivist/` path *appear* to resolve, but the
+  worktree-isolation guard rejects writes to the non-canonical casing.
+  Write retrospectives to the lowercase `archivist/` in the active
+  worktree. (Several old notes claimed "capital-A" — that was the FS
+  illusion; ignore it.)
+
+### Cross-ref reality (this project is NOT `-n` nitpicky)
+
+- **Unresolvable `:func:`/`:class:`/`:meth:` refs render as PLAIN TEXT
+  with NO warning.** `-W` will NOT catch a dead code-xref or a stale
+  alias-xref. They are Cardinal-Rule-1 staleness bugs regardless — fix
+  them on correctness grounds via an explicit `grep` gate, never by
+  relying on the warning count (which only proves you added nothing
+  new). After a carve that DELETES a helper, `grep -rn "<symbol>" docs/`
+  and repoint every hit.
+- **Undefined CITATIONS `[Key]_` DO warn** even without nitpicky mode
+  (distinct from code-xrefs). ALWAYS `grep '^\.\. \[Key\]'` before
+  citing a reference, and before *adding* a `.. [Key]` (duplicate
+  bib-entry across pages is its own warning class).
+- **Intra-doc dangling `:ref:` IS caught by `-W`; cross-doc dangling
+  renders plain-text.** When you introduce a `:ref:` to a not-yet-
+  existing section, create the labelled section in the SAME edit.
+- **`transport.*`, `numerics.spaces.*`, and module-level private
+  `_helpers` are NOT automodule'd anywhere** → their `:class:`/`:func:`
+  refs render plain-text by existing-page convention. Do NOT add an
+  `automodule` for the 1–2 leaves you touched while the rest of the
+  package stays plain — that is inconsistent half-surfacing. Surfacing
+  a whole package is its own architectural docs task; DEFER + note the
+  gap. EXCEPTION: a new leaf whose docstring has NO `.. math:: :label:`
+  blocks is SAFE to `automodule` (no duplicate-label collision); a
+  module WITH `:label:` docstrings must be cross-referenced in prose
+  instead (automodule re-registers the label → duplicate-label /
+  "equation not found" warnings).
+
+### Title markers, labels, and vv-status
+
+- **The section-underline marker ladder is FILE-LOCAL.** `operator_algebra.rst`
+  uses `=`/`-`/`~`/`^`; `api/numerics.rst` has NO `~` (use `^` for H3);
+  `discrete_ordinates.rst` has `~~~~` and `^^^^`. Scan the file's
+  first-appearance markers before picking a level, or you get
+  "Inconsistent title style: skip from level N to N+2".
+- **Underline length is measured in CODE POINTS, not bytes.** An
+  em-dash `—` is 1 code point but 3 bytes; size the underline with
+  `len(title)` in python, not `wc -c`.
+- **Eq-label vs section-label are different namespaces.** `.. math::
+  :label: X` → `id="equation-X"`, resolved by `:eq:`. A `.. _X:`
+  section anchor → `id="X"`, resolved by `:ref:`. A `:label:` inside a
+  CODE docstring is RENDERED by autodoc but is NOT a global `:eq:`
+  target — cite the owning `:class:` + inline the math instead.
+- **vv-status discipline for structural/representational eq-labels.**
+  Equations that are named-field-typing identities, governing
+  iterations, or literature-transcribed definitions are NOT solver
+  claims — tag `.. vv-status: <label> documented` with a rationale
+  comment naming the bit-identity gate + foundation tests as the
+  verifiable content. They land correctly in the matrix's
+  "Documented-only" category. A label a NEW test `@pytest.mark.verifies(...)`
+  points at is `implemented` (code + test, no eigenvalue/flux claim).
+  When a test verifies a label that does NOT exist yet, CREATE that
+  eq-label in the new section — don't leave it an orphan verifies-target.
+
+### Nexus availability
+
+- **Nexus MCP is frequently unavailable in a fresh worktree** (no
+  `graph.db` until the first `-E` build; the tools error "No such
+  tool" / "No such file"). Grep against live code is the ground truth
+  anyway for "does this symbol exist / call this NOW" — more reliable
+  than a possibly-stale graph. Don't block on Nexus; fall back to Grep.
+
 ## Self-Improvement Directives
 
 You are designed to get better at archiving with every invocation.
