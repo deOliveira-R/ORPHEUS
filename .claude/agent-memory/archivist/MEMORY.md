@@ -39,10 +39,7 @@ notes carry only task-specific doc-craft. Read `lessons.md` at start.
 - [BC trace-law Wave 12 synthesis](feedback_bc_trace_law_wave_12.md) — master page absorbs per-wave closeout memos; anti-pattern catalog + Option-a-vs-b-c retrospective; §16A.5 vacuum-semantic correction; baseline-9-warning gate
 - [BC descriptor-cleanup docs](feedback_descriptor_cleanup_docs.md) — retire a same-page interim (Option A → pure-descriptor): replace canonical-section anchor wholesale; cross-ref-rewrite-on-retire; type-system-enforcement framing; :pydata:/:pyattr: not valid roles
 
-(NOTE: a sibling durable note `feedback_post_wave_cleanup_docs.md` — the
-post-wave-cleanup close-out pattern, KEPT — lives in the MAIN-checkout
-`archivist/` dir, not this worktree; indexed there. Cross-ref'd from
-[Wave-O operator-algebra docs](feedback_wave_o_operator_algebra_docs.md).)
+- [Post-wave architectural-cleanup docs sweep](feedback_post_wave_cleanup_docs.md) — 5-element pattern for a small follow-up that closes a deferral left by a larger refactor wave: CLOSE-OUT arc + motivation preserved + where-they-agree-vs-diverge algebra + Option-X/Y rationale + new eq labels for diverging-semantics decomposition. Sibling of [Wave-O operator-algebra docs](feedback_wave_o_operator_algebra_docs.md).
 
 ## Auto-generated tables & landing pages
 - [Auto-generated Sphinx tables](feedback_autogen_tables.md) — registry as single source of truth: metadata-only function + generator + builder-inited hook; label-must-precede-title trap
