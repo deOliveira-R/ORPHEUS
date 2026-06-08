@@ -223,6 +223,30 @@ def _l2_norm(x) -> float:
     return float(np.linalg.norm(np.asarray(x)))
 
 
+def _flux_displacement_leaf(displacement):
+    r"""Return the bulk flux-displacement leaf carrying the convergence
+    diagnostics, or ``None`` for an untyped (bare-ndarray) iterate.
+
+    The SI iterate increment :math:`\Delta\psi = \psi^{(i)} \ominus
+    \psi^{(i-1)}` is, for a typed SN iterate, a
+    :class:`~orpheus.transport.timed_full_field.TimedFullField` whose ``bulk``
+    is a flux-:class:`~orpheus.transport.displacements._displacement.Displacement`
+    leaf (#208) — the only object that knows "previous"/"step", so it carries
+    ``contraction_ratio`` / ``true_error_estimate`` / ``where_largest`` (a flux
+    state cannot). For the synthetic L0 case the increment is a bare ndarray
+    with no diagnostics.
+
+    Duck-typed on ``contraction_ratio`` (numerics MUST NOT import transport —
+    the L1↛L2 layering), mirroring the ``_is_ravellable`` protocol check above.
+    """
+    bulk = getattr(displacement, "bulk", None)
+    if bulk is not None and hasattr(bulk, "contraction_ratio"):
+        return bulk
+    if hasattr(displacement, "contraction_ratio"):
+        return displacement
+    return None
+
+
 def _default_production_estimator(
     L: LinearOperator,
     S: LinearOperator,
@@ -400,6 +424,10 @@ class SourceIteration:
         self.gains = gains
         self.max_iter = int(max_iter)
         self.tol = float(tol)
+        # Convergence diagnostics — populated by :meth:`solve` (#208). Declared
+        # here so a pre-solve read returns empty rather than ``AttributeError``.
+        self.contraction_ratios: list[float] = []
+        self.last_displacement = None
         # Detect once whether ``L.solve`` accepts ``initial_guess`` —
         # InvertibleOperator does (Phase 1.2, post Carlson-seed
         # unification); MatrixOperator and other generic LinearOperators
@@ -456,6 +484,14 @@ class SourceIteration:
         else:
             psi = np.asarray(initial_guess).copy()
         residual_history: list[float] = []
+        # Convergence diagnostics (#208) derived from the typed iterate
+        # increment Δψ = ψ⁽ⁱ⁾ ⊖ ψ⁽ⁱ⁻¹⁾ (a FluxDisplacement for typed SN
+        # iterates; the synthetic L0 case stays a bare ndarray → no diagnostics).
+        # Additive — NOT in the convergence path; the stopping norm is unchanged.
+        # O(1) field memory: one retained previous displacement leaf.
+        self.contraction_ratios: list[float] = []
+        self.last_displacement = None
+        _prev_disp_leaf = None
 
         for _ in range(self.max_iter):
             psi_prev = psi
@@ -477,16 +513,32 @@ class SourceIteration:
             # seed dependency.
             psi = self._solve_with_seed(rhs, psi_prev)
 
-            # SNSolver-compatible convergence test (bit-identical loop
-            # structure for Round 2 wiring): relative L2 residual via
-            # the ravellable protocol — typed flux uses the flat
-            # representation including boundary face state.
+            # The iterate increment Δψ — a typed FluxDisplacement (ψ ⊖ ψ_prev)
+            # for SN, a bare ndarray for the synthetic case. The stopping test
+            # is the SAME flat relative L2 residual as before (bit-identical:
+            # ``_l2_norm(displacement)`` == ``_l2_norm(psi - psi_prev)``; the
+            # metric ``.l2`` is a DIAGNOSTIC only — switching the stopping norm
+            # would re-interpret ``tol``).
+            displacement = psi - psi_prev
             norm = _l2_norm(psi)
             if norm > 0.0:
-                res = _l2_norm(psi - psi_prev) / max(norm, 1e-30)
+                res = _l2_norm(displacement) / max(norm, 1e-30)
             else:
-                res = _l2_norm(psi - psi_prev)
+                res = _l2_norm(displacement)
             residual_history.append(res)
+
+            # Record the typed convergence diagnostics (the displacement is the
+            # ONLY object that knows "previous"/"step"). ρ ≈ ‖Δψ⁽ⁱ⁾‖/‖Δψ⁽ⁱ⁻¹⁾‖
+            # is the Banach contraction factor (via the typed leaf method);
+            # ``last_displacement`` feeds ``where_largest`` / ``true_error_estimate``.
+            disp_leaf = _flux_displacement_leaf(displacement)
+            if disp_leaf is not None:
+                if _prev_disp_leaf is not None and _prev_disp_leaf.l2 > 0.0:
+                    self.contraction_ratios.append(
+                        disp_leaf.contraction_ratio(_prev_disp_leaf)
+                    )
+                _prev_disp_leaf = disp_leaf
+                self.last_displacement = disp_leaf
 
             if res < self.tol:
                 break
