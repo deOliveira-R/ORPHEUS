@@ -70,10 +70,16 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
+
+import numpy as np
+from numpy.typing import NDArray
 
 from orpheus.numerics.units import ANGULAR_RATE_UNITS, Unit
 from orpheus.transport.fields._bases import AngularField
+
+if TYPE_CHECKING:
+    from orpheus.numerics.field import Field
 
 
 __all__ = ["AngularResidual"]
@@ -158,3 +164,43 @@ class AngularResidual(AngularField):
         and why the result lands on the ``"angular_residual"`` space.
         """
         return cls._from_balance(lhs, rhs)
+
+    # ── Diagnostics (#208 — the typed per-ordinate balance probe) ────────
+
+    def balance_map(self) -> NDArray:
+        r"""Per-cell/per-group transport-balance violation :math:`(ng, nx, ny)`.
+
+        The maximum over ordinates of the absolute per-ordinate defect
+        :math:`\max_n |r_n(\vec r, g)|` — the **typed form of the per-ordinate
+        flat-flux residual probe** (``vv-principles`` Signature 1 / §H3). It
+        exposes WHERE the discrete balance :math:`(L+C-S-B)\psi - q` is violated
+        per cell and group — the localised defect that global conservation
+        (telescoping particle balance) HIDES (e.g. the curvilinear pole-cell
+        spike, ERR-026; a material-interface streaming bug). Reduce over the
+        ordinate axis because a balance violation at any ordinate is a defect of
+        that cell's balance.
+        """
+        return np.max(np.abs(self.values), axis=0)
+
+    def relative_to(self, source: "Field") -> float:
+        r"""The tolerance-portable relative residual :math:`\lVert r\rVert /
+        \lVert q\rVert`.
+
+        The bare residual has rate-density units, so its magnitude scales with
+        :math:`\Sigma_t \cdot V`; dividing by the drive ``source`` (the external
+        :math:`q`) makes it a dimensionless, problem-portable convergence
+        criterion. Uses the space-induced metric norm :attr:`Field.l2` on each
+        operand (no cross-class arithmetic — two independent norms).
+
+        Raises
+        ------
+        ZeroDivisionError
+            If the source has zero norm (no drive — the ratio is undefined).
+        """
+        q_norm = source.l2  # type: ignore[attr-defined]
+        if q_norm == 0.0:
+            raise ZeroDivisionError(
+                "relative_to: the source has zero norm (no drive) — the "
+                "relative residual is undefined."
+            )
+        return self.l2 / q_norm
