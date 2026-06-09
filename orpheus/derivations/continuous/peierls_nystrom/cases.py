@@ -69,6 +69,7 @@ diagnostic test
 from __future__ import annotations
 
 import os as _os
+from collections.abc import Callable
 
 from ...common.continuous_reference import ContinuousReferenceSolution
 
@@ -397,6 +398,58 @@ def continuous_cases() -> list[ContinuousReferenceSolution]:
 
 # Alias for readers who want the topology-explicit name.
 cases = continuous_cases
+
+
+def continuous_case_builders() -> dict[str, Callable[[], ContinuousReferenceSolution]]:
+    r"""Lazy ``{name: thunk}`` map for the Class-A Peierls references (Issue #212).
+
+    The registry walker
+    (:func:`orpheus.derivations.reference_values._build_continuous_registry`)
+    **prefers this contract over** :func:`continuous_cases` when present: it
+    records the reference *names* cheaply and defers each O(minutes)
+    adaptive-``mpmath`` eigenvalue solve until
+    :func:`orpheus.derivations.reference_values.continuous_get` actually
+    requests that name. Fetching an unrelated reference (e.g. an SN MMS case)
+    therefore no longer pays the Peierls build cost — the root cause of the
+    apparent "hang" diagnosed in Issue #212.
+
+    The thunks delegate to :func:`build_two_surface_case`, so each *built*
+    reference's :attr:`~ContinuousReferenceSolution.name` is authoritative.
+    The keys here are derived by the **same** formula the inner builders stamp
+    onto that attribute (``peierls_slab_{ng}eg_{nr}rg`` and
+    ``peierls_{cyl1D,sph1D}_hollow_{ng}eg_1rg_r0_{r0_tag}`` with
+    ``r0_tag = round(r0/R_out · 100)``); the equivalence
+    ``set(continuous_case_builders()) == {c.name for c in continuous_cases()}``
+    is pinned by ``tests/derivations/test_continuous_registry_lazy.py`` so the
+    cheap keys can never silently drift from the built names.
+
+    Mirrors the :func:`_class_a_cases` loop exactly — any new shipped Class-A
+    reference must be added in both places (the drift-guard test enforces it).
+    """
+    from functools import partial
+
+    from ..flat_source_cp.cylinder import _RADII as _CYL_RADII
+    from ..flat_source_cp.sphere import _RADII as _SPH_RADII
+
+    builders: dict[str, Callable[[], ContinuousReferenceSolution]] = {}
+
+    # Slab — 2G 2-region (the single shipped slab default).
+    builders["peierls_slab_2eg_2rg"] = partial(build_two_surface_case, "slab", "2g", 2)
+
+    # Hollow cylinder / sphere F.4 at r_0/R ∈ {0.1, 0.2, 0.3}, 1G + 2G.
+    cyl_R_out = float(_CYL_RADII[1][-1])
+    sph_R_out = float(_SPH_RADII[1][-1])
+    for r0 in (0.1, 0.2, 0.3):
+        cyl_tag = f"{int(round((r0 / cyl_R_out) * 100)):02d}"
+        sph_tag = f"{int(round((r0 / sph_R_out) * 100)):02d}"
+        for ng_key, ng in (("1g", 1), ("2g", 2)):
+            builders[f"peierls_cyl1D_hollow_{ng}eg_1rg_r0_{cyl_tag}"] = partial(
+                build_two_surface_case, "cylinder-1d", ng_key, 1, inner_radius=r0,
+            )
+            builders[f"peierls_sph1D_hollow_{ng}eg_1rg_r0_{sph_tag}"] = partial(
+                build_two_surface_case, "sphere-1d", ng_key, 1, inner_radius=r0,
+            )
+    return builders
 
 
 # ---------------------------------------------------------------------

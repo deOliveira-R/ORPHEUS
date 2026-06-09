@@ -30,14 +30,23 @@ produce a backward-compatible bridge), so the migration is incremental.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from .common.continuous_reference import ContinuousReferenceSolution
 from .common.verification_case import VerificationCase
 
 # Legacy registry populated lazily on first access
 _CASES: dict[str, VerificationCase] | None = None
 
-# Phase-0 continuous-reference registry
+# Phase-0 continuous-reference registry. ``_CONTINUOUS`` holds eagerly-built
+# references (cheap producers) plus any lazily-materialised ones (memoised on
+# first access). ``_CONTINUOUS_BUILDERS`` holds ``name -> thunk`` for producers
+# that opt into the lazy ``continuous_case_builders()`` contract, so an
+# O(minutes) reference (e.g. the Peierls adaptive-mpmath solves) is built only
+# when that exact name is requested — Issue #212 (fetching ANY reference used to
+# pay the full Peierls build cost, which looked like a solver hang).
 _CONTINUOUS: dict[str, ContinuousReferenceSolution] | None = None
+_CONTINUOUS_BUILDERS: dict[str, Callable[[], ContinuousReferenceSolution]] | None = None
 
 
 _SOLVER_CASES_LOADED = False
@@ -154,7 +163,10 @@ def by_method(method: str) -> list[VerificationCase]:
 # Phase-0 continuous-reference registry
 # ═══════════════════════════════════════════════════════════════════════
 
-def _build_continuous_registry() -> dict[str, ContinuousReferenceSolution]:
+def _build_continuous_registry() -> tuple[
+    dict[str, ContinuousReferenceSolution],
+    dict[str, Callable[[], ContinuousReferenceSolution]],
+]:
     """Import retrofitted derivation modules and collect their continuous references.
 
     As each module in :mod:`orpheus.derivations` is upgraded to the
@@ -177,6 +189,7 @@ def _build_continuous_registry() -> dict[str, ContinuousReferenceSolution]:
     from . import __path__ as pkg_path
 
     refs: dict[str, ContinuousReferenceSolution] = {}
+    builders: dict[str, Callable[[], ContinuousReferenceSolution]] = {}
 
     # Walk every ``orpheus.derivations.*`` module recursively (including
     # the ``common``, ``discrete`` and ``continuous`` sub-packages added
@@ -193,20 +206,43 @@ def _build_continuous_registry() -> dict[str, ContinuousReferenceSolution]:
             module = importlib.import_module(module_info.name)
         except ImportError:
             continue
+        # Prefer the lazy ``continuous_case_builders()`` contract (Issue #212):
+        # record ``name -> thunk`` WITHOUT building, so an expensive producer's
+        # eigenvalue solves run only when that exact reference is requested. A
+        # module exposing builders is NOT also eagerly built. Modules that only
+        # expose ``continuous_cases()`` (cheap producers) are built immediately.
+        builders_fn = getattr(module, "continuous_case_builders", None)
+        if callable(builders_fn):
+            builders.update(builders_fn())
+            continue
         cases_fn = getattr(module, "continuous_cases", None)
         if not callable(cases_fn):
             continue
         for ref in cases_fn():
             refs[ref.name] = ref
 
-    return refs
+    return refs, builders
 
 
 def _ensure_continuous_loaded() -> dict[str, ContinuousReferenceSolution]:
-    global _CONTINUOUS
+    global _CONTINUOUS, _CONTINUOUS_BUILDERS
     if _CONTINUOUS is None:
-        _CONTINUOUS = _build_continuous_registry()
+        _CONTINUOUS, _CONTINUOUS_BUILDERS = _build_continuous_registry()
     return _CONTINUOUS
+
+
+def _materialise_all_continuous() -> dict[str, ContinuousReferenceSolution]:
+    """Force every lazy builder into ``_CONTINUOUS`` (Issue #212).
+
+    Audit-only path: pays the full build cost (e.g. the Peierls mpmath
+    solves). Used by :func:`continuous_all` / :func:`continuous_by_operator_form`
+    which need the materialised objects, not just the names.
+    """
+    refs = _ensure_continuous_loaded()
+    for name, build in list((_CONTINUOUS_BUILDERS or {}).items()):
+        if name not in refs:
+            refs[name] = build()
+    return refs
 
 
 def continuous_register(ref: ContinuousReferenceSolution) -> None:
@@ -231,17 +267,35 @@ def continuous_get(name: str) -> ContinuousReferenceSolution:
     :func:`get` until Phase 2 of the migration.
     """
     refs = _ensure_continuous_loaded()
-    return refs[name]
+    if name in refs:
+        return refs[name]
+    # Materialise a lazily-registered reference on first request, then memoise
+    # so subsequent fetches are O(1) (Issue #212).
+    if _CONTINUOUS_BUILDERS and name in _CONTINUOUS_BUILDERS:
+        refs[name] = _CONTINUOUS_BUILDERS[name]()
+        return refs[name]
+    return refs[name]  # not registered → standard KeyError with the name
 
 
 def continuous_all_names() -> list[str]:
-    """List every registered continuous reference solution name."""
-    return sorted(_ensure_continuous_loaded().keys())
+    """List every registered continuous reference solution name.
+
+    Cheap by construction: enumerates eager references and lazy-builder
+    names WITHOUT triggering any O(minutes) build (Issue #212).
+    """
+    _ensure_continuous_loaded()
+    names = set(_CONTINUOUS or {}) | set(_CONTINUOUS_BUILDERS or {})
+    return sorted(names)
 
 
 def continuous_all() -> list[ContinuousReferenceSolution]:
-    """Return every registered continuous reference solution."""
-    return list(_ensure_continuous_loaded().values())
+    """Return every registered continuous reference solution.
+
+    Forces all lazy builders (Issue #212) — the audit path, which pays the
+    full build cost. Prefer :func:`continuous_all_names` when only the names
+    are needed.
+    """
+    return list(_materialise_all_continuous().values())
 
 
 def continuous_by_operator_form(form: str) -> list[ContinuousReferenceSolution]:
@@ -252,6 +306,6 @@ def continuous_by_operator_form(form: str) -> list[ContinuousReferenceSolution]:
     every reference valid for their solver's operator.
     """
     return [
-        r for r in _ensure_continuous_loaded().values()
+        r for r in _materialise_all_continuous().values()
         if r.operator_form == form
     ]
