@@ -191,19 +191,33 @@ class TestSNMesh:
         np.testing.assert_allclose(sn_mesh.reduced.alpha_half[0], 0.0)
         np.testing.assert_allclose(sn_mesh.reduced.alpha_half[-1], 0.0, atol=1e-14)
 
-    @pytest.mark.skip(
-        reason="hangs on degenerate ny=1 — issue #214. The 2-D wavefront "
-        "sweep does not terminate on a degenerate ny=1 Mesh2D (it neither "
-        "raises NotImplementedError nor converges), so an xfail cannot "
-        "catch it — the process must be killed by a timeout. Deferred to "
-        "Phase 6 (nd_foundation). Re-enable when the ny=1 wavefront is "
-        "either supported or guarded with a clean raise.",
-    )
     def test_sweep_1d_2d_consistency(self):
-        """1D and 2D sweeps on equivalent meshes must produce similar keff.
+        r"""1D and 2D sweeps on equivalent meshes must produce the same keff.
 
-        A Mesh1D slab and a Mesh2D with ny=1 must give comparable results
-        when using the same quadrature (Lebedev can handle ny=1).
+        A ``Mesh1D`` slab (Gauss-Legendre) and a degenerate ``ny=1``
+        ``Mesh2D`` must both recover the closed-form ``k_inf`` — a
+        regression for issue #214 (the 2-D wavefront on a ``ny=1`` mesh
+        no longer crashes once the ``(N, ng, *spatial)`` rank-d carve
+        made the extent-1 axis handling clean).
+
+        **Quadrature choice (by symmetry-group affinity, #154 G-tags).**
+        The 2-D leg uses a **product** quadrature
+        (``Quadrature.product(n_mu, n_phi)`` = Gauss-Legendre on
+        :math:`\mu` × equispaced on :math:`\phi`), NOT Lebedev. A
+        degenerate ``ny=1`` mesh is physically a slab in :math:`x`, whose
+        symmetry is **SO(2)** (axial) — exactly the ``invariance_group``
+        of the 1-D ``gauss_legendre`` reference. The product rule is
+        SO(2)-invariant and *is* the GL polar rule lifted to 2-D, so the
+        1-D-vs-2-D comparison is apples-to-apples in the polar angle.
+        Lebedev is an :math:`O_h`-invariant ``S^2`` cubature built for
+        SO(3)/spherical-harmonic-moment integration (PN, anisotropic
+        scattering); on this flux-flat ``k_inf`` sweep it imposes a
+        spurious cubic symmetry and ``degree_of_exactness=17`` over-kill
+        at ``N=110`` ordinates — ~500× slower than ``product(8,4)``'s
+        ``N=32`` for identical (exact) ``k_inf``. ``n_phi=4`` (not 2) is
+        deliberate: it keeps genuine :math:`\Omega_y\neq 0` ordinates so
+        the 2-D y-wavefront on the ``ny=1`` mesh is actually exercised —
+        the exact code path #214 was about.
         """
         from orpheus.derivations.common.xs_library import get_mixture
         from orpheus.sn.solver import SNSolver
@@ -221,14 +235,16 @@ class TestSNMesh:
             phi = solver_1d.solve_fixed_source(fs, phi)
             keff_1d = solver_1d.compute_keff(phi)
 
-        # 2D with Lebedev (ny=1)
+        # 2D degenerate ny=1 — SO(2)-affine product quadrature (see docstring):
+        # GL(8) polar (matches the 1-D reference) × 4 azimuthal angles, so
+        # Ω_y≠0 ordinates genuinely exercise the y-wavefront on ny=1.
         mesh_2d = Mesh2D(
             edges_x=np.linspace(0, 1, 11),
             edges_y=np.array([0.0, 1.0]),
             mat_map=np.zeros((10, 1), dtype=int),
         )
-        quad_leb = Quadrature.lebedev(order=17)
-        solver_2d = SNSolver(SNMesh(mesh_2d, quad_leb, {0: mix}), max_inner=500, inner_tol=1e-10)
+        quad_2d = Quadrature.product(n_mu=8, n_phi=4)
+        solver_2d = SNSolver(SNMesh(mesh_2d, quad_2d, {0: mix}), max_inner=500, inner_tol=1e-10)
         phi = solver_2d.initial_flux_distribution()
         keff_2d = 1.0
         for _ in range(50):
