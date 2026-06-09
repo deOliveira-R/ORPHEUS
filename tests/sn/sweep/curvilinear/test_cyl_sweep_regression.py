@@ -55,8 +55,8 @@ class TestCylindricalSweepRegression:
         quad = Quadrature.product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        sig_t = np.full((1, 10, 1), 0.5)        # (ng, nx, ny)
-        Q_iso = np.ones((1, 10, 1))             # (ng, nx, ny)
+        sig_t = np.full((1, *sn_mesh.spatial_shape), 0.5)  # (ng, *spatial)
+        Q_iso = np.ones((1, *sn_mesh.spatial_shape))       # (ng, *spatial)
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
 
         boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
@@ -168,8 +168,8 @@ class TestAzimuthalRedistribution:
         quad = Quadrature.product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        sig_t = np.full((1, 10, 1), mix.SigT[0])    # (ng, nx, ny)
-        Q_iso = np.ones((1, 10, 1))                 # (ng, nx, ny)
+        sig_t = np.full((1, *sn_mesh.spatial_shape), mix.SigT[0])  # (ng, *spatial)
+        Q_iso = np.ones((1, *sn_mesh.spatial_shape))               # (ng, *spatial)
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
         boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
         ang, _ = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
@@ -180,7 +180,7 @@ class TestAzimuthalRedistribution:
             psi_angle = np.zeros(10)
             for m_local in range(M):
                 n = level_idx[m_local]
-                psi_cell = ang[n, 0, :, 0]
+                psi_cell = ang[n, 0, :]
                 psi_angle_new = 2.0 * psi_cell - psi_angle
                 psi_angle = psi_angle_new
             residual = alpha[M] * psi_angle
@@ -197,8 +197,8 @@ class TestAzimuthalRedistribution:
         quad = Quadrature.product(n_mu=4, n_phi=8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        sig_t = np.ones((1, 2, 1))              # (ng, nx, ny)
-        Q_iso = np.ones((1, 2, 1))              # (ng, nx, ny)
+        sig_t = np.ones((1, *sn_mesh.spatial_shape))  # (ng, *spatial)
+        Q_iso = np.ones((1, *sn_mesh.spatial_shape))  # (ng, *spatial)
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
         boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
         phi = None
@@ -209,6 +209,6 @@ class TestAzimuthalRedistribution:
             _reflect_outflow_into_inflow(boundary_flux, sn_mesh)
             _, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
-        phi_avg = np.average(phi[0, :, 0], weights=mesh.volumes)
+        phi_avg = np.average(phi[0, :], weights=mesh.volumes)
         np.testing.assert_allclose(phi_avg, 1.0, rtol=0.01,
                                    err_msg="Volume-avg φ ≠ Q/Σ_t for uniform source")

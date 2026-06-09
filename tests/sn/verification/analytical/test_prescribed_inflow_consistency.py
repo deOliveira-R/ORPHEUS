@@ -90,8 +90,8 @@ def _prescribed_inflow_source(
     slot is zero (the affine-BC inhomogeneous term ``q`` pushed to the
     RHS).  Bulk source is zero — the inflow alone drives the interior.
     """
-    N, ng, nx, ny = sn.quad.N, sn.ng, sn.nx, sn.ny
-    bulk_vals = np.zeros((N, ng, nx, ny))
+    N, ng = sn.quad.N, sn.ng
+    bulk_vals = np.zeros((N, ng, *sn.spatial_shape))
     bss = BoundarySourceSink.zeros_on(sn)
     inflow = sn.trace.inflow_indices_for_face(face)
     bss.face_view(face)[inflow] = psi_in

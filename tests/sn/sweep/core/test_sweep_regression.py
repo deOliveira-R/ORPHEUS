@@ -136,15 +136,16 @@ class TestSNMesh:
                     np.testing.assert_allclose(new, old, rtol=1e-14)
 
     def test_mesh1d_shapes(self):
-        """SNMesh from Mesh1D must have (N,1) shaped mat_map and volumes."""
+        """SNMesh from Mesh1D must have rank-1 (N,) shaped mat_map and volumes."""
         mesh = Mesh1D(edges=np.linspace(0, 1, 6), mat_ids=np.array([0,1,2,1,0]))
         quad = Quadrature.gauss_legendre(4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)))
 
         assert sn_mesh.nx == 5
         assert sn_mesh.ny == 1
-        assert sn_mesh.mat_map.shape == (5, 1)
-        assert sn_mesh.volumes.shape == (5, 1)
+        assert sn_mesh.spatial_shape == (5,)
+        assert sn_mesh.mat_map.shape == sn_mesh.spatial_shape
+        assert sn_mesh.volumes.shape == sn_mesh.spatial_shape
         assert sn_mesh.is_1d is True
 
     def test_mesh2d_shapes(self):

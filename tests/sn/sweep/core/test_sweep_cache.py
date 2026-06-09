@@ -532,8 +532,8 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
     sn_mesh = SNMesh(mesh, quad, _trivial_materials(ng=4))
     # Issue #196 PR-INDEX-5: Q principled.
     # R-1 Step 4 A1: single per-ordinate source carrier.
-    Q = AngularSourceSink.from_isotropic(np.ones((4, 160, 1)), sn_mesh)
-    sig_t = np.ones((4, 160, 1))  # (ng, nx, ny) — PR-INDEX-3
+    Q = AngularSourceSink.from_isotropic(np.ones((4, *sn_mesh.spatial_shape)), sn_mesh)
+    sig_t = np.ones((4, *sn_mesh.spatial_shape))  # (ng, *spatial)
     # Issue #197 PR-TYPED-2: typed boundary state replaces dict.
     boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
 
@@ -605,10 +605,11 @@ def test_l0_streaming_equilibrium_preserved_after_2_5c() -> None:
         bc_right=BC("reflective"),
     )
     quad = Quadrature.gauss_legendre(4)
+    sn_mesh = SNMesh(mesh, quad, materials)
     # R-1 Step 4 A1 — ``external_source`` is per-ordinate density
     # (already ``/sum_w``).  Iso scalar magnitude 1 ⇒ per-ord ``1/sum_w``.
     sum_w = float(quad.weights.sum())
-    Q_external = np.full((quad.N, 1, 10, 1), 1.0 / sum_w)
+    Q_external = np.full((quad.N, 1, *sn_mesh.spatial_shape), 1.0 / sum_w)
 
     result = solve_sn_fixed_source(
         materials=materials,
@@ -624,7 +625,7 @@ def test_l0_streaming_equilibrium_preserved_after_2_5c() -> None:
     # ordinate; the source-iteration form is q = ∑_n w_n · Q_n / W
     # → φ → 1.0 / σ_t.
     expected = 1.0 / sigma_t
-    # PR-INDEX-5: scalar_flux principled (ng=1, nx=10, ny=1) — radial slice at g=0, y=0.
+    # rank-d: scalar_flux principled (ng=1, nx=10) — radial slice at g=0.
     np.testing.assert_allclose(result.scalar_flux.values[0, :], expected, rtol=1e-10)
 
 

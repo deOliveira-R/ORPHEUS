@@ -96,7 +96,7 @@ def _solve(case, n_cells: int, *, g: int = 0):
         max_inner=1000, inner_tol=1e-13,
     )
     psi = result.angular_flux
-    phi = result.scalar_flux.values[g, :, 0]   # (ng, nx, ny) → (nx,)
+    phi = result.scalar_flux.values[g, :]   # (ng, nx) → (nx,)
     return mesh, sn, psi, phi
 
 

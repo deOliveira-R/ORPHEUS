@@ -112,7 +112,7 @@ def _extract_at_unknown_slots(
         for n in range(quad.N):
             if ix == nx - 1 and inflow_outer[n]:
                 continue
-            cols.append(field_4d[n, :, ix, 0])
+            cols.append(field_4d[n, :, ix])
     return np.stack(cols, axis=1)  # (ng, n_eq)
 
 

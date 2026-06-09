@@ -66,11 +66,11 @@ def test_transport_sweep_ng2_layout_shapes():
     quad = Quadrature.gauss_legendre(8)
     sn_mesh = SNMesh(mesh, quad, {0: mix})
 
-    # Principled PR-INDEX-5 inputs: sig_t (ng, nx, ny), isotropic
-    # scalar source (ng, nx, ny). A producer/consumer drift to the
-    # obsolete (nx, ng, ny) layout would mismatch axis 1 (ng=2 vs nx=10)
-    # at CollisionCache.from_geometry and crash loudly here.
-    sig_t = np.broadcast_to(mix.SigT[:, None, None], (ng, nx)).copy()
+    # Principled rank-d inputs: sig_t (ng, nx), isotropic scalar source
+    # (ng, nx). A producer/consumer drift to the obsolete (nx, ng) layout
+    # would mismatch axis 1 (ng=2 vs nx=10) at
+    # CollisionCache.from_geometry and crash loudly here.
+    sig_t = np.broadcast_to(mix.SigT[:, None], (ng, nx)).copy()
     Q_iso = np.ones((ng, nx))
     source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
     boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
@@ -79,11 +79,11 @@ def test_transport_sweep_ng2_layout_shapes():
 
     assert ang.shape == (quad.N, ng, nx), (
         f"angular flux layout drift: got {ang.shape}, "
-        f"expected (N={quad.N}, ng={ng}, nx={nx}, ny=1)"
+        f"expected (N={quad.N}, ng={ng}, nx={nx})"
     )
     assert phi.shape == (ng, nx), (
         f"scalar flux layout drift: got {phi.shape}, "
-        f"expected (ng={ng}, nx={nx}, ny=1)"
+        f"expected (ng={ng}, nx={nx})"
     )
     assert np.all(np.isfinite(ang)), "Non-finite angular flux"
     assert np.all(np.isfinite(phi)), "Non-finite scalar flux"
@@ -105,7 +105,7 @@ def test_transport_sweep_ng2_per_group_distinct():
     quad = Quadrature.gauss_legendre(8)
     sn_mesh = SNMesh(mesh, quad, {0: mix})
 
-    sig_t = np.broadcast_to(mix.SigT[:, None, None], (ng, nx)).copy()
+    sig_t = np.broadcast_to(mix.SigT[:, None], (ng, nx)).copy()
     Q_iso = np.ones((ng, nx))
     source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
     boundary_flux = BoundaryFlux.zeros_on(sn_mesh)

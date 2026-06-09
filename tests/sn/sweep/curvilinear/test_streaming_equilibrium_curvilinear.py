@@ -139,8 +139,8 @@ def test_homogeneous_streaming_equilibrium_sphere(
         boundary_condition="reflective", inner_solver=inner_solver,
     )
     # D-H.1d: Solution.angular_flux is TimedFullField.
-    psi = result.angular_flux.bulk.values[:, :, 0, :]   # (N, nx, ng)
-    sf = result.scalar_flux.values[:, 0, :]              # (nx, ng)
+    psi = result.angular_flux.bulk.values   # (N, ng, nx)
+    sf = result.scalar_flux.values          # (ng, nx)
 
     psi_expected = _expected_psi(quad)
     phi_expected = _expected_phi()
@@ -240,8 +240,8 @@ def test_homogeneous_streaming_equilibrium_cylinder(
         boundary_condition="reflective", inner_solver=inner_solver,
     )
     # D-H.1d: Solution.angular_flux is TimedFullField.
-    psi = result.angular_flux.bulk.values[:, :, 0, :]
-    sf = result.scalar_flux.values[:, 0, :]
+    psi = result.angular_flux.bulk.values   # (N, ng, nx)
+    sf = result.scalar_flux.values          # (ng, nx)
 
     psi_expected = _expected_psi(quad)
     phi_expected = _expected_phi()

@@ -81,7 +81,7 @@ def _make_spherical_sn_mesh(
 ) -> tuple[SNMesh, np.ndarray]:
     """Build a homogeneous-material spherical SNMesh + sig_t array.
 
-    Returns (sn_mesh, sig_t).  sig_t shape (ng=1, nx, ny=1) under PR-INDEX-3.
+    Returns (sn_mesh, sig_t).  sig_t shape (ng=1, nx) under the rank-d layout.
     """
     if quad_name == "gl4":
         quad = Quadrature.gauss_legendre(4)
@@ -97,7 +97,7 @@ def _make_spherical_sn_mesh(
         bc_right=bc_outer or BC("reflective"),
     )
     sn_mesh = SNMesh(mesh, quad, placeholder_materials(), pole_angular_closure=pole_closure)
-    sig_t = np.full((1, nx), 0.5)  # (ng, nx, ny) — PR-INDEX-3
+    sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
     return sn_mesh, sig_t
 
 
@@ -123,7 +123,7 @@ def _make_cylindrical_sn_mesh(
         bc_right=bc_outer or BC("reflective"),
     )
     sn_mesh = SNMesh(mesh, quad, placeholder_materials(), pole_angular_closure=pole_closure)
-    sig_t = np.full((1, nx), 0.5)  # (ng, nx, ny) — PR-INDEX-3
+    sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
     return sn_mesh, sig_t
 
 
@@ -137,10 +137,10 @@ def _build_composite(
     Parameters
     ----------
     sn_mesh : SNMesh
-        The mesh defining the typed shape ``(N, ng, nx, ny)`` on bulk
+        The mesh defining the typed shape ``(N, ng, *spatial)`` on bulk
         and the boundary flat layout.
     bulk_values : np.ndarray
-        Shape ``(N, ng, nx, ny)`` — the angular flux values.
+        Shape ``(N, ng, *spatial)`` — the angular flux values.
     boundary_values : np.ndarray, optional
         Shape matching ``sn_mesh.boundary_face_layout.total_size``.  If
         ``None``, an all-zero boundary is used (the typical migration
@@ -164,8 +164,8 @@ def _build_composite(
 
 
 def _random_bulk(sn_mesh: SNMesh, rng: np.random.Generator) -> np.ndarray:
-    """Random ``(N, ng, nx, ny)`` bulk values for the mesh."""
-    return rng.standard_normal((sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny))
+    """Random ``(N, ng, *spatial)`` bulk values for the mesh."""
+    return rng.standard_normal((sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -242,7 +242,7 @@ def _flat_psi_composite(
     Resolution A: ``(L + C).apply(flat_ψ) = M(flat_ψ; σ_t) = σ_t·ψ``
     bit-exact at the cell-centre block.
     """
-    bulk = np.ones((sn_mesh.quad.N, ng, sn_mesh.nx, sn_mesh.ny))
+    bulk = np.ones((sn_mesh.quad.N, ng, *sn_mesh.spatial_shape))
     return _build_composite(sn_mesh, bulk)
 
 
@@ -485,7 +485,7 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     )
     quad = Quadrature.gauss_legendre(4)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
-    sig_t = np.full((1, nx), 0.5)  # (ng, nx, ny) — PR-INDEX-3
+    sig_t = np.full((1, nx), 0.5)  # (ng, nx) — rank-d
     L = StreamingOperator(sn_mesh, sig_t)
     C = CollisionOperator(sn_mesh, sig_t)
     op = L + C
@@ -580,7 +580,7 @@ def _outflow_at_boundary_for_sphere_from_bulk(
     with only the outgoing ordinates populated.
 
     Consumes the cell-centred angular flux directly (``psi_bulk`` shape
-    ``(N, ng, nx, ny)``) — no packed-vector round-trip.  Mirrors the
+    ``(N, ng, nx)``) — no packed-vector round-trip.  Mirrors the
     pre-migration helper's algebra but on the typed composite input.
 
     This is the "reference" the BC apply input must bit-match in the
@@ -591,7 +591,7 @@ def _outflow_at_boundary_for_sphere_from_bulk(
     ng = psi_bulk.shape[1]
     eps = 1e-15
     # Mirror the matvec body's ``(ng, N, nx)`` ordering.
-    psi_g_first = psi_bulk.transpose(1, 0, 2, 3)
+    psi_g_first = psi_bulk.transpose(1, 0, 2)
     outgoing_mask = quad.mu_x > +eps
     outflow_at_boundary = np.zeros((ng, quad.N))
     if not np.any(outgoing_mask):
@@ -600,9 +600,9 @@ def _outflow_at_boundary_for_sphere_from_bulk(
     # ``pole_face_seed`` derivation for sphere — cell-centre proxy at
     # the innermost cell because there's no inner-face BC on a solid
     # sphere).
-    psi_face_in = psi_g_first[:, outgoing_mask, 0, 0].copy()
+    psi_face_in = psi_g_first[:, outgoing_mask, 0].copy()
     for i in range(nx):
-        psi_cell = psi_g_first[:, outgoing_mask, i, 0]
+        psi_cell = psi_g_first[:, outgoing_mask, i]
         psi_face_out = 2.0 * psi_cell - psi_face_in
         psi_face_in = psi_face_out
     outflow_at_boundary[:, outgoing_mask] = psi_face_out
@@ -808,7 +808,7 @@ def test_sweep_curvilinear_per_ordinate_flat_flux_residual(
     # weights and per-level mu_quad — but for this STRUCTURAL test
     # we want to pin that the sweep-path's helper produces the same
     # seed as the apply-path helper, given identical inputs.
-    sigma_t_gx = sig_t_arr[:, :, 0]  # (ng, nx) — PR-INDEX-3
+    sigma_t_gx = sig_t_arr  # (ng, nx) — rank-d
     dr = sn_mesh.dx
 
     # GL-2 surrogate weights summing to 2 — for this structural-

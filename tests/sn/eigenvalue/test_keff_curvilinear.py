@@ -263,7 +263,7 @@ class TestCylinderMultiGroupMultiRegion:
             phi = solver.solve_fixed_source(fs, phi)
             keff = solver.compute_keff(phi)
 
-        vol = solver.volume[None, :, :]
+        vol = solver.volume[None, :]
         production = np.sum(solver.mat_xs.fission_production * phi * vol)
         absorption = np.sum(solver.mat_xs.absorption_cross_section * phi * vol)
         k_balance = production / absorption
@@ -505,7 +505,7 @@ class TestMultiGroupMultiRegionSpherical:
             phi = solver.solve_fixed_source(fs, phi)
             keff = solver.compute_keff(phi)
 
-        vol = solver.volume[None, :, :]  # PR-INDEX-5
+        vol = solver.volume[None, :]
         production = np.sum(solver.mat_xs.fission_production * phi * vol)
         absorption = np.sum(solver.mat_xs.absorption_cross_section * phi * vol)
         k_balance = production / absorption
@@ -530,8 +530,8 @@ class TestMultiGroupMultiRegionSpherical:
         quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        sig_t = np.ones((1, 40, 1))             # (ng, nx, ny)
-        Q_iso = np.ones((1, 40, 1))             # (ng, nx, ny)
+        sig_t = np.ones((1, *sn_mesh.spatial_shape))    # (ng, *spatial)
+        Q_iso = np.ones((1, *sn_mesh.spatial_shape))    # (ng, *spatial)
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
         boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
         phi = None

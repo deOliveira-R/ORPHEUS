@@ -75,10 +75,10 @@ def _bc_fill_outer(psi_view: np.ndarray, sn_mesh: SNMesh) -> np.ndarray:
     incoming_mask = quad.mu_x < -1e-15
     if not incoming_mask.any():
         return psi_view
-    outer_face = psi_view[:, :, -1, 0]
+    outer_face = psi_view[:, :, -1]
     inflow_full = sn_mesh.bc_right.apply(outer_face)
     psi_view = psi_view.copy()
-    psi_view[incoming_mask, :, -1, 0] = inflow_full[incoming_mask, :]
+    psi_view[incoming_mask, :, -1] = inflow_full[incoming_mask, :]
     return psi_view
 
 
@@ -101,7 +101,7 @@ def _extract_at_unknown_slots(
         for n in range(quad.N):
             if ix == nx - 1 and inflow_outer[n]:
                 continue
-            cols.append(field_4d[n, :, ix, 0])
+            cols.append(field_4d[n, :, ix])
     return np.stack(cols, axis=1)  # (ng, n_eq)
 
 
@@ -125,7 +125,7 @@ def _hand_reference_cyl_matvec(
 
     reduced = sn_mesh.reduced
     A = reduced.face_areas
-    V = sn_mesh.volumes[:, 0]
+    V = sn_mesh.volumes
     mu_x = quad.mu_x
 
     bc_outer = sn_mesh.bc_right
@@ -135,10 +135,10 @@ def _hand_reference_cyl_matvec(
 
     out = np.zeros((N, ng, nx))
 
-    sigma_t_gx = sigma_t[:, :, 0]
+    sigma_t_gx = sigma_t
     dr = sn_mesh.dx
-    psi_g_first = psi_view.transpose(1, 0, 2, 3)
-    outer_inflow_estimate = bc_outer.apply(psi_view[:, :, -1, 0])
+    psi_g_first = psi_view.transpose(1, 0, 2)
+    outer_inflow_estimate = bc_outer.apply(psi_view[:, :, -1])
     level_indices = quad.level_indices
 
     carlson_ctx_per_level = []
@@ -159,7 +159,7 @@ def _hand_reference_cyl_matvec(
         )
 
     redist_full = pac(
-        psi_g_first[..., 0],
+        psi_g_first,
         reduced.alpha_per_level,
         reduced.redist_dAw_per_level,
         reduced.tau_mm_per_level,
@@ -180,16 +180,16 @@ def _hand_reference_cyl_matvec(
         global_out = level_idx_arr[out_within]
         for n_g in global_out:
             mu_n = mu_x[n_g]
-            psi_face_in = psi_g_first[:, n_g, 0, 0].copy()
+            psi_face_in = psi_g_first[:, n_g, 0].copy()
             for i in range(nx):
-                psi_cell = psi_g_first[:, n_g, i, 0]
+                psi_cell = psi_g_first[:, n_g, i]
                 psi_face_out = 2.0 * psi_cell - psi_face_in
                 streaming = mu_n * (
                     A[i + 1] * psi_face_out - A[i] * psi_face_in
                 ) / V[i]
                 redistribution = redist_full[:, n_g, i]
                 collision = sigma_t_gx[:, i] * psi_cell
-                out[n_g, :, i, 0] = streaming + redistribution + collision
+                out[n_g, :, i] = streaming + redistribution + collision
                 psi_face_in = psi_face_out
             outflow_at_boundary[:, n_g] = psi_face_out
 
@@ -208,14 +208,14 @@ def _hand_reference_cyl_matvec(
             mu_n = mu_x[n_g]
             psi_face_in = inflow_full[n_g, :]
             for i in range(nx - 1, -1, -1):
-                psi_cell = psi_g_first[:, n_g, i, 0]
+                psi_cell = psi_g_first[:, n_g, i]
                 psi_face_out = 2.0 * psi_cell - psi_face_in
                 streaming = mu_n * (
                     A[i + 1] * psi_face_in - A[i] * psi_face_out
                 ) / V[i]
                 redistribution = redist_full[:, n_g, i]
                 collision = sigma_t_gx[:, i] * psi_cell
-                out[n_g, :, i, 0] = streaming + redistribution + collision
+                out[n_g, :, i] = streaming + redistribution + collision
                 psi_face_in = psi_face_out
 
     # Degenerate (|μ_x| < eps) — no radial flow.
@@ -224,10 +224,10 @@ def _hand_reference_cyl_matvec(
         global_deg = np.where(degenerate_mask)[0]
         for n_g in global_deg:
             for i in range(nx):
-                psi_cell = psi_g_first[:, n_g, i, 0]
+                psi_cell = psi_g_first[:, n_g, i]
                 redistribution = redist_full[:, n_g, i]
                 collision = sigma_t_gx[:, i] * psi_cell
-                out[n_g, :, i, 0] = redistribution + collision
+                out[n_g, :, i] = redistribution + collision
 
     return out
 

@@ -89,7 +89,7 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     nx = n_cells
     ng = 1
-    sig_t = np.full((ng, nx), 2.0)  # (ng, nx, ny) — PR-INDEX-3
+    sig_t = np.full((ng, nx), 2.0)  # (ng, nx) — rank-d
     psi_flat = 10.0 / quad.weights.sum()
 
     # PR-TYPED-6c Step 7: route through ``_transport_operator_matvec_unified``
@@ -109,7 +109,7 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
             ix_list.append(ix)
     ord_arr = np.array(ord_list)
     ix_arr = np.array(ix_list)
-    lhs = m_cell[ord_arr, :, ix_arr, 0].T.ravel(order="F")
+    lhs = m_cell[ord_arr, :, ix_arr].T.ravel(order="F")
 
     expected = 2.0 * psi_flat  # = Σ_t · ψ_flat
     residual = float(np.max(np.abs(lhs - expected)))
@@ -175,8 +175,8 @@ def test_cylinder_three_way_standoff(
     )
 
     # D-H.1d: Solution.angular_flux is TimedFullField.
-    psi_si = res_si.angular_flux.bulk.values[:, :, 0, :]
-    psi_k = res_k.angular_flux.bulk.values[:, :, 0, :]
+    psi_si = res_si.angular_flux.bulk.values[:, :, 0]
+    psi_k = res_k.angular_flux.bulk.values[:, :, 0]
 
     err_si_vs_ref = float(np.max(np.abs(psi_si - psi_ref)))
     err_k_vs_ref = float(np.max(np.abs(psi_k - psi_ref)))

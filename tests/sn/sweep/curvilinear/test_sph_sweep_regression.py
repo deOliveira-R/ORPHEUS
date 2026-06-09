@@ -107,8 +107,8 @@ class TestSphericalSweepRegression:
         quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        sig_t = np.ones((1, 10, 1))             # (ng, nx, ny)
-        Q_iso = np.ones((1, 10, 1))             # (ng, nx, ny)
+        sig_t = np.ones((1, *sn_mesh.spatial_shape))  # (ng, *spatial)
+        Q_iso = np.ones((1, *sn_mesh.spatial_shape))  # (ng, *spatial)
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
 
         boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
@@ -120,8 +120,8 @@ class TestSphericalSweepRegression:
             _reflect_outflow_into_inflow(boundary_flux, sn_mesh)
             _, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
-        V = sn_mesh.volumes[:, 0]
-        phi_avg = np.sum(phi[0, :, 0] * V) / V.sum()
+        V = sn_mesh.volumes
+        phi_avg = np.sum(phi[0, :] * V) / V.sum()
         np.testing.assert_allclose(phi_avg, 1.0, rtol=0.10,
                                    err_msg="Volume-avg φ ≠ Q/Σ_t for uniform source")
 
@@ -138,8 +138,8 @@ class TestSphericalSweepRegression:
         quad = Quadrature.gauss_legendre(8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
-        sig_t = np.full((1, 10, 1), 0.5)        # (ng, nx, ny)
-        Q_iso = np.ones((1, 10, 1))             # (ng, nx, ny)
+        sig_t = np.full((1, *sn_mesh.spatial_shape), 0.5)  # (ng, *spatial)
+        Q_iso = np.ones((1, *sn_mesh.spatial_shape))       # (ng, *spatial)
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
 
         boundary_flux = BoundaryFlux.zeros_on(sn_mesh)

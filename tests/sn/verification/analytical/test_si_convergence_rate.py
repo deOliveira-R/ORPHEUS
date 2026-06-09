@@ -133,10 +133,12 @@ def _vacuum_slab(mat: str, ng_key: str, nx: int = 20, length: float = 2.0):
     return m, mats, mesh, quad
 
 
-def _iso_source(m, mesh, quad, mats, nx, ny=1):
-    """Uniform iso scalar source -> per-ordinate (N, ng, nx, ny) array."""
+def _iso_source(m, mesh, quad, mats):
+    """Uniform iso scalar source -> per-ordinate (N, ng, *spatial) array."""
     sn = SNMesh(mesh, quad, mats)
-    return AngularSourceSink.from_isotropic(np.ones((m.ng, nx, ny)), sn).values
+    return AngularSourceSink.from_isotropic(
+        np.ones((m.ng, *sn.spatial_shape)), sn
+    ).values
 
 
 def _si_count(mats, mesh, quad, source, bc="reflective", tol=_TOL, schedule="gauss_seidel"):
@@ -198,7 +200,7 @@ def test_boundary_gs_recovers_reflective_2d_si():
         )
 
     quad = Quadrature.product(n_mu=2, n_phi=4)
-    source = _iso_source(m, _mesh(), quad, mats, nx=nx, ny=ny)
+    source = _iso_source(m, _mesh(), quad, mats)
 
     def _solve(schedule, solver_kind="source_iteration"):
         return solve_sn_fixed_source(
@@ -247,7 +249,7 @@ def test_boundary_gs_is_noop_on_1d_slab():
     is consistent DSA (#2) or Krylov — NOT boundary G-S.  Tripwire: if a future
     1-D G-S lands and changes this count, this gate flags it for re-scoping."""
     m, mats, mesh, quad = _reflective_slab("B", "2g")
-    source = _iso_source(m, mesh, quad, mats, nx=20)
+    source = _iso_source(m, mesh, quad, mats)
     n_jac = _si_count(mats, mesh, quad, source, schedule="jacobi")
     n_gs = _si_count(mats, mesh, quad, source, schedule="gauss_seidel")
     assert n_gs == n_jac, (
@@ -271,7 +273,7 @@ def test_si_jacobi_rate_matches_scattering_ratio():
     (finite-slab + multigroup correction).  NOT xfail — it is the anchor.
     """
     m, mats, mesh, quad = _reflective_slab("B", "2g")
-    source = _iso_source(m, mesh, quad, mats, nx=20)
+    source = _iso_source(m, mesh, quad, mats)
     n_inner = _si_count(mats, mesh, quad, source, schedule="jacobi")
     c_max = float(np.max(np.asarray(m.scattering_ratio)))
     n_predicted = math.log(_TOL) / math.log(c_max)
@@ -293,7 +295,7 @@ def test_jacobi_si_far_above_krylov_lower_bound():
     SI recovery sits above).  PASSES today (SI ~860 vs Krylov ~302 at
     1e-10, ratio ~2.85)."""
     m, mats, mesh, quad = _reflective_slab("B", "2g")
-    source = _iso_source(m, mesh, quad, mats, nx=20)
+    source = _iso_source(m, mesh, quad, mats)
     n_si = _si_count(mats, mesh, quad, source, tol=1e-10, schedule="jacobi")
     sol_k = solve_sn_fixed_source(
         mats, mesh, quad, source, boundary_condition="reflective",
@@ -357,7 +359,7 @@ def test_recovery_si_matches_krylov_fixed_point_2g():
     arrays directly.  Confirmed equivalent at this HEAD: rel-Linf ~4.4e-9.
     """
     m, mats, mesh, quad = _reflective_slab("B", "2g")
-    source = _iso_source(m, mesh, quad, mats, nx=20)
+    source = _iso_source(m, mesh, quad, mats)
     sol_si = solve_sn_fixed_source(
         mats, mesh, quad, source, boundary_condition="reflective",
         inner_solver="source_iteration", max_inner=20000, inner_tol=1e-10,
@@ -385,14 +387,15 @@ def test_recovery_flat_flux_balance_limit():
     finite limit); a pure scatterer would be singular under full
     reflection."""
     m, mats, mesh, quad = _reflective_slab("B", "2g")
-    source = _iso_source(m, mesh, quad, mats, nx=20)
+    source = _iso_source(m, mesh, quad, mats)
     sol = solve_sn_fixed_source(
         mats, mesh, quad, source, boundary_condition="reflective",
         inner_solver="source_iteration", max_inner=20000, inner_tol=1e-12,
     )
-    phi = sol.scalar_flux.values  # (ng, nx, ny)
+    phi = sol.scalar_flux.values  # (ng, *spatial)
     # Flat across space (reflective + uniform -> spatially flat to round-off).
-    per_group_spread = phi.std(axis=(1, 2)) / np.abs(phi.mean(axis=(1, 2)))
+    spatial_axes = tuple(range(1, phi.ndim))
+    per_group_spread = phi.std(axis=spatial_axes) / np.abs(phi.mean(axis=spatial_axes))
     np.testing.assert_array_less(
         per_group_spread, 1e-8,
         err_msg=f"flux not spatially flat: per-group rel-spread={per_group_spread}",
@@ -413,7 +416,7 @@ def test_recovery_vacuum_count_unchanged():
     NOT a reflective mesh + ``boundary_condition="vacuum"`` (which is
     silently ignored and would re-solve reflective at 655)."""
     m, mats, mesh, quad = _vacuum_slab("B", "2g")
-    source = _iso_source(m, mesh, quad, mats, nx=20)
+    source = _iso_source(m, mesh, quad, mats)
     n_inner = _si_count(mats, mesh, quad, source, bc="vacuum")
     assert abs(n_inner - _N_JACOBI_VACUUM_2G) <= 2, (
         f"vacuum SI count {n_inner} drifted from baseline "

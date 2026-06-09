@@ -243,10 +243,12 @@ def test_kinf_homogeneous_spectrum(ng_key: str, coord: str, inner_solver: str) -
     )
 
     # Spatial average per group → spectrum vector (homogeneous → spatially flat).
-    # ``scalar_flux.values`` carries the canonical ``(ng, nx, ny)`` layout
-    # (Issue #197 PR-TYPED-5); averaging over the spatial axes ``(nx, ny)``
-    # leaves the group axis ``ng``.
-    phi_per_group = result.scalar_flux.values.mean(axis=(1, 2))
+    # ``scalar_flux.values`` carries the canonical ``(ng, *spatial)`` layout
+    # (Issue #197 PR-TYPED-5); averaging over every spatial axis (all axes
+    # except the leading group axis 0) leaves the group axis ``ng``.
+    flux_vals = result.scalar_flux.values
+    spatial_axes = tuple(range(1, flux_vals.ndim))
+    phi_per_group = flux_vals.mean(axis=spatial_axes)
     phi_solver = phi_per_group / np.linalg.norm(phi_per_group)
 
     phi_ref = np.array([case.phi(0.0, g) for g in range(ng)], dtype=float)
