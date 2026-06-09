@@ -493,7 +493,17 @@ def derive_x_function_geometry_independence() -> dict:
        (it depends only on :math:`c` via :math:`\Lambda^{+}(\tau)` and
        on :math:`z`, which is the X-function argument).
     """
-    z, c, mu = sp.symbols("z c mu", real=True, nonzero=True)
+    # ``z`` is the X-function point, physically OUTSIDE the [-1, 1]
+    # angular cut (``z > 1`` — see the regular-branch comments below).
+    # Declaring it ``positive`` lets SymPy resolve the pole-location
+    # comparison ``-1 < z`` raised while integrating ``1/(z-mu)`` over
+    # ``mu in [-1, 1]`` (line below). Without it, SymPy 1.14's
+    # Intersection set-ordering hits
+    # ``TypeError: cannot determine truth value of Relational: -1.0 < z``
+    # (issue #221 — a known SymPy >=1.11 ``ordered``/``sorted`` regression,
+    # unfixed in the latest release, so the fix must live here).
+    z = sp.Symbol("z", real=True, positive=True)
+    c, mu = sp.symbols("c mu", real=True, nonzero=True)
     # Case dispersion-function integral (the load-bearing object).
     # For |z| > 1 we have a regular integrand:
     #   Lambda(z) = 1 - (cz/2) * ∫_{-1}^1 dμ/(μ-z).
