@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "nexus": {
-      "command": "nexus",
+      "command": ".venv/bin/nexus",
       "args": [
         "serve",
         "--db",
