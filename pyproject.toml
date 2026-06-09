@@ -86,3 +86,10 @@ markers = [
 
 [tool.setuptools.packages.find]
 include = ["orpheus*"]
+
+[tool.pyright]
+# Resolve third-party imports (numpy/scipy/h5py/...) from the project venv
+# so the LSP/type-checker diagnostics are accurate. Repo-root-relative, so it
+# works locally and in the cloud once the setup creates ``.venv``.
+venvPath = "."
+venv = ".venv"
