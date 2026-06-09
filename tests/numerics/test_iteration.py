@@ -660,9 +660,9 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     def sn_keff_estimator(L_, S_, F_, phi):
         return solver.compute_keff(phi)
 
-    nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
+    ng = solver.ng
     # Issue #196 PR-INDEX-5: principled initial guess.
-    initial = np.ones((ng, nx, ny))
+    initial = np.ones((ng, *sn_mesh.spatial_shape))
 
     ke = KEigenvalue(
         L_adapt, S_adapt, F_adapt,

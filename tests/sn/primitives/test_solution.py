@@ -63,7 +63,7 @@ def _make_fluxes(sn_mesh: SNMesh, fill: float = 1.0):
     state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
     state.bulk.values[:] = fill
     state.boundary.values[:] = fill
-    phi = ScalarFlux.from_mesh(np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), fill), sn_mesh)
+    phi = ScalarFlux.from_mesh(np.full((sn_mesh.ng, *sn_mesh.spatial_shape), fill), sn_mesh)
     return state, phi, state.boundary
 
 
@@ -169,7 +169,7 @@ class TestSolutionConstruction:
     def test_mesh_identity_scalar_flux(self) -> None:
         m1 = _slab_mesh()
         m2 = _slab_mesh()
-        phi_foreign = ScalarFlux.from_mesh(np.zeros((m2.ng, m2.nx, m2.ny)), m2)
+        phi_foreign = ScalarFlux.from_mesh(np.zeros((m2.ng, *m2.spatial_shape)), m2)
         psi, _, bf = _make_fluxes(m1)
         with pytest.raises(ValueError, match="scalar_flux.mesh"):
             Solution(
@@ -310,39 +310,39 @@ class TestReactionRate:
         psi, _, bf = _make_fluxes(m)
         # Non-trivial flux + non-trivial XS to exercise the einsum
         phi_values = np.arange(
-            m.ng * m.nx * m.ny, dtype=float,
-        ).reshape(m.ng, m.nx, m.ny) + 1.0
+            m.ng * m.nx, dtype=float,
+        ).reshape(m.ng, *m.spatial_shape) + 1.0
         phi = ScalarFlux.from_mesh(phi_values, m)
         sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m)
 
-        xs = np.full((m.ng, m.nx, m.ny), 0.5)
+        xs = np.full((m.ng, *m.spatial_shape), 0.5)
         rate = sol.reaction_rate_density(xs)
-        assert rate.shape == (m.ng, m.nx, m.ny)
+        assert rate.shape == (m.ng, *m.spatial_shape)
 
     def test_reaction_rate_density_math(self) -> None:
         r"""σ · φ at each cell — the named math reads as the formula."""
         m = _slab_mesh(nx=3, ng=2)
         psi, _, bf = _make_fluxes(m)
         phi_values = np.array([
-            [[1.0], [2.0], [3.0]],
-            [[4.0], [5.0], [6.0]],
-        ])  # (ng=2, nx=3, ny=1)
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0],
+        ])  # (ng=2, nx=3)
         phi = ScalarFlux.from_mesh(phi_values, m)
         sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m)
 
-        # σ constant per group → rate[g,x,y] = σ[g] · φ[g,x,y]
-        xs = np.full((m.ng, m.nx, m.ny), 0.0)
-        xs[0, :, :] = 0.5
-        xs[1, :, :] = 0.25
+        # σ constant per group → rate[g,x] = σ[g] · φ[g,x]
+        xs = np.full((m.ng, *m.spatial_shape), 0.0)
+        xs[0, :] = 0.5
+        xs[1, :] = 0.25
         rate = sol.reaction_rate_density(xs)
 
         np.testing.assert_allclose(
-            rate[0, :, 0], [0.5, 1.0, 1.5], rtol=1e-15,
+            rate[0, :], [0.5, 1.0, 1.5], rtol=1e-15,
         )
         np.testing.assert_allclose(
-            rate[1, :, 0], [1.0, 1.25, 1.5], rtol=1e-15,
+            rate[1, :], [1.0, 1.25, 1.5], rtol=1e-15,
         )
 
     def test_reaction_rate_density_zero_flux(self) -> None:
@@ -351,7 +351,7 @@ class TestReactionRate:
         psi, phi, bf = _make_fluxes(m, fill=0.0)
         sol = Solution(angular_flux=psi, scalar_flux=phi,
                        mesh=m)
-        xs = np.full((m.ng, m.nx, m.ny), 0.5)
+        xs = np.full((m.ng, *m.spatial_shape), 0.5)
         rate = sol.reaction_rate_density(xs)
         np.testing.assert_array_equal(rate, np.zeros_like(rate))
 

@@ -278,7 +278,7 @@ class TestHistoryShiftRegister:
         m = _slab_mesh()
         state = _filled_state(m, bulk_val=1.0, bound_val=2.0)
         new_bulk = AngularFlux.from_mesh(
-            np.full((m.quad.N, m.ng, m.nx, m.ny), 10.0), m,
+            np.full((m.quad.N, m.ng, *m.spatial_shape), 10.0), m,
         )
         new_boundary = BoundaryFlux.from_face_arrays(
             m, {
@@ -303,7 +303,7 @@ class TestHistoryShiftRegister:
         state = _filled_state(m, bulk_val=1.0, bound_val=10.0)
         for i in range(2, 5):
             new_bulk = AngularFlux.from_mesh(
-                np.full((m.quad.N, m.ng, m.nx, m.ny), float(i)), m,
+                np.full((m.quad.N, m.ng, *m.spatial_shape), float(i)), m,
             )
             new_boundary = BoundaryFlux.from_face_arrays(
                 m, {
@@ -370,7 +370,7 @@ class TestTimeDerivativeStencil:
         m = _slab_mesh()
         state_old = _filled_state(m, bulk_val=1.0, bound_val=2.0)
         new_bulk = AngularFlux.from_mesh(
-            np.full((m.quad.N, m.ng, m.nx, m.ny), 1.5), m,
+            np.full((m.quad.N, m.ng, *m.spatial_shape), 1.5), m,
         )
         new_boundary = BoundaryFlux.from_face_arrays(
             m, {

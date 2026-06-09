@@ -109,15 +109,14 @@ def _cylindrical_mesh(nx: int = 4, radius: float = 1.0, ng: int = 2) -> SNMesh:
 
 def _sig_t_uniform(sn_mesh: SNMesh, ng: int = 2,
                    value: float = 0.5) -> np.ndarray:
-    """σ_t uniform across cells / groups (PR-INDEX-3: ``(ng, nx, ny)``)."""
-    return value * np.ones((ng, sn_mesh.nx, sn_mesh.ny))
+    """σ_t uniform across cells / groups (``(ng, *spatial)``)."""
+    return value * np.ones((ng, *sn_mesh.spatial_shape))
 
 
 def _sig_t_heterogeneous(sn_mesh: SNMesh, ng: int = 2) -> np.ndarray:
     """σ_t heterogeneous — different value per (cell, group)."""
-    nx, ny = sn_mesh.nx, sn_mesh.ny
     rng = np.random.default_rng(seed=20260514)
-    return 0.3 + 0.5 * rng.random((ng, nx, ny))
+    return 0.3 + 0.5 * rng.random((ng, *sn_mesh.spatial_shape))
 
 
 GEOMETRIES = [
@@ -588,17 +587,15 @@ def _slab_for_snapshot_arm(*, ng: int, bc_left: BC, bc_right: BC) -> SNMesh:
 
 
 def _sigma_t_from_mat_map(sn_mesh: SNMesh) -> np.ndarray:
-    """Build per-(g, i, j) σ_t from sn_mesh.mat_map (matches the T.4a script)."""
+    """Build per-(g, *cell) σ_t from sn_mesh.mat_map (matches the T.4a script)."""
     ng = sn_mesh.ng
-    nx, ny = sn_mesh.nx, sn_mesh.ny
-    sig_t = np.empty((ng, nx, ny), dtype=float)
+    sig_t = np.empty((ng, *sn_mesh.spatial_shape), dtype=float)
     mat_map = sn_mesh.mat_map
-    for ix in range(nx):
-        for iy in range(ny):
-            mid = int(mat_map[ix, iy])
-            mat = sn_mesh.materials[mid]
-            for g in range(ng):
-                sig_t[g, ix, iy] = float(mat.SigT[g])
+    for cell in np.ndindex(*sn_mesh.spatial_shape):
+        mid = int(mat_map[cell])
+        mat = sn_mesh.materials[mid]
+        for g in range(ng):
+            sig_t[(g, *cell)] = float(mat.SigT[g])
     return sig_t
 
 
@@ -748,7 +745,7 @@ class TestT4bAlgebraDecompositionInvariantSlab:
 
         expected_bulk = (
             M_spat_out.bulk.values
-            - sig_t[None, :, :, :] * state.bulk.values
+            - sig_t[None] * state.bulk.values
         )
         np.testing.assert_array_equal(L_out.bulk.values, expected_bulk)
         # Boundary residual is carried by M_spatial alone (M_angular_redist
@@ -806,8 +803,11 @@ class TestT4bPreT4RegressionSnapshot:
             ),
             seed=20260531 + 1,
         )
+        # The pre-T.4 snapshot bundle was captured under the legacy
+        # phantom (N, ng, nx, 1) layout; drop the trailing ny=1 axis to
+        # compare against the rank-d (N, ng, nx) production output.
         np.testing.assert_array_equal(
-            bulk, snapshots["slab_1g_vacuum_apply_bulk"],
+            bulk, snapshots["slab_1g_vacuum_apply_bulk"][..., 0],
         )
         np.testing.assert_array_equal(
             boundary, snapshots["slab_1g_vacuum_apply_boundary"],
@@ -822,7 +822,7 @@ class TestT4bPreT4RegressionSnapshot:
             seed=20260531 + 2,
         )
         np.testing.assert_array_equal(
-            bulk, snapshots["slab_2g_vacuum_apply_bulk"],
+            bulk, snapshots["slab_2g_vacuum_apply_bulk"][..., 0],
         )
         np.testing.assert_array_equal(
             boundary, snapshots["slab_2g_vacuum_apply_boundary"],
@@ -841,7 +841,7 @@ class TestT4bPreT4RegressionSnapshot:
             seed=20260531 + 3,
         )
         np.testing.assert_array_equal(
-            bulk, snapshots["slab_2g_reflective_apply_bulk"],
+            bulk, snapshots["slab_2g_reflective_apply_bulk"][..., 0],
         )
         np.testing.assert_array_equal(
             boundary, snapshots["slab_2g_reflective_apply_boundary"],
@@ -963,7 +963,7 @@ class TestT4cAlgebraDecompositionInvariantCurvilinear:
         rng = np.random.default_rng(20260531 + 91)
 
         # Two random ψ states.
-        psi_shape = (sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny)
+        psi_shape = (sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape)
         psi_a = rng.uniform(0.05, 1.0, size=psi_shape)
         psi_b = rng.uniform(0.05, 1.0, size=psi_shape)
         alpha, beta = 0.37, -0.91
@@ -1026,8 +1026,9 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
             _sphere_mesh,
         )
         bulk, boundary = self._capture_arm(_sphere_mesh(ng=1), seed=20260531 + 11)
+        # Snapshot bundle is legacy (N, ng, nx, 1); drop the phantom ny=1.
         np.testing.assert_allclose(
-            bulk, snapshots["sphere_1g_apply_bulk"],
+            bulk, snapshots["sphere_1g_apply_bulk"][..., 0],
             rtol=1e-13, atol=1e-14,
         )
         np.testing.assert_array_equal(
@@ -1041,7 +1042,7 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         )
         bulk, boundary = self._capture_arm(_sphere_mesh(ng=2), seed=20260531 + 12)
         np.testing.assert_allclose(
-            bulk, snapshots["sphere_2g_apply_bulk"],
+            bulk, snapshots["sphere_2g_apply_bulk"][..., 0],
             rtol=1e-13, atol=1e-14,
         )
         np.testing.assert_array_equal(
@@ -1055,7 +1056,7 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         )
         bulk, boundary = self._capture_arm(_cylinder_mesh(ng=1), seed=20260531 + 21)
         np.testing.assert_allclose(
-            bulk, snapshots["cyl_1g_apply_bulk"],
+            bulk, snapshots["cyl_1g_apply_bulk"][..., 0],
             rtol=1e-13, atol=1e-14,
         )
         np.testing.assert_array_equal(
@@ -1069,7 +1070,7 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         )
         bulk, boundary = self._capture_arm(_cylinder_mesh(ng=2), seed=20260531 + 22)
         np.testing.assert_allclose(
-            bulk, snapshots["cyl_2g_apply_bulk"],
+            bulk, snapshots["cyl_2g_apply_bulk"][..., 0],
             rtol=1e-13, atol=1e-14,
         )
         np.testing.assert_array_equal(
@@ -1114,7 +1115,7 @@ class TestT5MaterializeInverseCache:
 
         # Compare to the canonical from_geometry path.
         geom = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
-        cache_canonical = CollisionCache.from_geometry(geom, sig_t[:, :, 0])
+        cache_canonical = CollisionCache.from_geometry(geom, sig_t)
 
         # All three cache fields bit-identical (both paths call the
         # SAME `from_geometry` factory; this verifies the delegation

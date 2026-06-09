@@ -17,7 +17,7 @@ the seven foundation pins are:
    the ERR-026 / ERR-006 / ERR-007 canonical diagnostic; Signature
    1 of ``numerical-bug-signatures``).
 3. Linearity in ψ — ``M(αψ + βφ) = αM(ψ) + βM(φ)`` at FP-ULP.
-4. Output shape ``(N, ng, nx, ny)`` for cells + ``(N, ng)`` for
+4. Output shape ``(N, ng, *spatial)`` for cells + ``(N, ng)`` for
    ``boundary.xmax_face`` (and slab-inner) — the path-forward
    typed contract.
 5. Face residual zero at non-outflow ordinates (no equation there;
@@ -134,7 +134,7 @@ class TestZeroInputZeroOutput:
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_zero_input_zero_output(self, name, builder) -> None:
         sn_mesh = builder()
-        sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 2.0)
+        sigma_t = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 2.0)
         result = _LC_matvec(
             _zero_flux(sn_mesh), sigma_t,
         )
@@ -178,7 +178,7 @@ class TestUniformFluxSigmaT:
         sn_mesh = builder()
         ng = sn_mesh.ng
         sigma_t_val = 2.0
-        sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), sigma_t_val)
+        sigma_t = np.full((ng, *sn_mesh.spatial_shape), sigma_t_val)
         result = _LC_matvec(
             _uniform_flux(sn_mesh, value=1.0), sigma_t,
         )
@@ -247,14 +247,14 @@ class TestLinearity:
     def test_linearity(self, name, builder) -> None:
         sn_mesh = builder()
         ng = sn_mesh.ng
-        N, nx, ny = sn_mesh.quad.N, sn_mesh.nx, sn_mesh.ny
-        sigma_t = np.full((ng, nx, ny), 0.5)
+        N = sn_mesh.quad.N
+        sigma_t = np.full((ng, *sn_mesh.spatial_shape), 0.5)
 
         rng = np.random.default_rng(seed=42)
 
         def _random_state() -> TimedFullField:
             state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
-            state.bulk.values[:] = rng.standard_normal((N, ng, nx, ny))
+            state.bulk.values[:] = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
             state.boundary.face_view("xmax")[:] = rng.standard_normal((N, ng))
             if "xmin" in state.boundary.layout.faces:
                 state.boundary.face_view("xmin")[:] = rng.standard_normal((N, ng))
@@ -309,7 +309,7 @@ class TestOutputShape:
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_output_shape_matches_input(self, name, builder) -> None:
         sn_mesh = builder()
-        sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0)
+        sigma_t = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0)
         result = _LC_matvec(
             _zero_flux(sn_mesh), sigma_t,
         )
@@ -321,9 +321,9 @@ class TestOutputShape:
         assert isinstance(result, TimedFullField)
         assert isinstance(result.bulk, AngularSourceSink)
         assert isinstance(result.boundary, BoundarySourceSink)
-        # Cell values: (N, ng, nx, ny).
+        # Cell values: (N, ng, *spatial).
         assert result.bulk.values.shape == (
-            sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny,
+            sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape,
         )
         # Outer face: (N, ng) for every geometry.
         assert result.boundary.face_view("xmax").shape == (
@@ -367,14 +367,14 @@ class TestFaceResidualMask:
     ) -> None:
         sn_mesh = builder()
         ng = sn_mesh.ng
-        sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), 1.0)
+        sigma_t = np.full((ng, *sn_mesh.spatial_shape), 1.0)
 
         # Random ψ — the inflow-ordinate output is the I·ψ.inflow identity
         # row (the consistency-residual diagonal), so it tracks the input.
         rng = np.random.default_rng(seed=11)
         psi = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         psi.bulk.values[:] = rng.standard_normal(
-            (sn_mesh.quad.N, ng, sn_mesh.nx, sn_mesh.ny),
+            (sn_mesh.quad.N, ng, *sn_mesh.spatial_shape),
         )
         psi.boundary.face_view("xmax")[:] = rng.standard_normal(
             (sn_mesh.quad.N, ng),
@@ -407,12 +407,12 @@ class TestFaceResidualMask:
         """Slab xmin face: outflow at μ < 0; inflow at μ > 0 (identity row)."""
         sn_mesh = _make_reflective_slab()
         ng = sn_mesh.ng
-        sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), 1.0)
+        sigma_t = np.full((ng, *sn_mesh.spatial_shape), 1.0)
 
         rng = np.random.default_rng(seed=22)
         psi = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         psi.bulk.values[:] = rng.standard_normal(
-            (sn_mesh.quad.N, ng, sn_mesh.nx, sn_mesh.ny),
+            (sn_mesh.quad.N, ng, *sn_mesh.spatial_shape),
         )
         psi.boundary.face_view("xmax")[:] = rng.standard_normal(
             (sn_mesh.quad.N, ng),
@@ -474,7 +474,7 @@ class TestTwoDCartesianRaises:
         )
         quad = Quadrature.gauss_legendre(n_ordinates=4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
-        sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0)
+        sigma_t = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0)
         psi = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         result = _LC_matvec(psi, sigma_t)
         assert isinstance(result, TimedFullField)
@@ -503,8 +503,8 @@ class TestTypeContract:
             StreamingOperator,
         )
         sn_mesh = _slab_mesh()
-        sigma_t = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0)
-        psi_bare = np.zeros((sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny))
+        sigma_t = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0)
+        psi_bare = np.zeros((sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape))
         L_op = StreamingOperator(sn_mesh, sigma_t)
         C_op = CollisionOperator(sn_mesh, sigma_t)
         with pytest.raises(TypeError, match="TimedFullField"):

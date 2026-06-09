@@ -70,12 +70,14 @@ def _make_flux(leaf: str, m: SNMesh, rng: np.random.Generator):
     """A flux leaf with DISTINCT random values (NOT flat — Mode-9)."""
     if leaf == "angular":
         return AngularFlux.from_mesh(
-            rng.standard_normal((m.quad.N, m.ng, m.nx, m.ny)), m,
+            rng.standard_normal((m.quad.N, m.ng, *m.spatial_shape)), m,
         )
     if leaf == "scalar":
-        return ScalarFlux.from_mesh(rng.standard_normal((m.ng, m.nx, m.ny)), m)
+        return ScalarFlux.from_mesh(rng.standard_normal((m.ng, *m.spatial_shape)), m)
     if leaf == "moment":
-        shape = (_MOMENT_L + 1, 2 * _MOMENT_L + 1, m.ng, m.nx, m.ny)
+        # HarmonicMomentField is rank-d like the other leaves: its space is
+        # (L+1, 2L+1, ng, *spatial) — rank-1 (nx,) on a 1-D mesh, no phantom ny.
+        shape = (_MOMENT_L + 1, 2 * _MOMENT_L + 1, m.ng, *m.spatial_shape)
         return HarmonicMomentField.from_mesh_and_L(
             rng.standard_normal(shape), m, _MOMENT_L,
         )

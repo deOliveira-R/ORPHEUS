@@ -76,12 +76,12 @@ def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNMesh:
     return SNMesh(mesh, quad, placeholder_materials(ng=ng))
 
 
-def _ang_shape(m: SNMesh) -> tuple[int, int, int, int]:
-    return (m.quad.N, m.ng, m.nx, m.ny)
+def _ang_shape(m: SNMesh) -> tuple[int, ...]:
+    return (m.quad.N, m.ng, *m.spatial_shape)
 
 
-def _sca_shape(m: SNMesh) -> tuple[int, int, int]:
-    return (m.ng, m.nx, m.ny)
+def _sca_shape(m: SNMesh) -> tuple[int, ...]:
+    return (m.ng, *m.spatial_shape)
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -101,7 +101,7 @@ class TestAngularResidual:
         m = _slab_mesh()
         r = AngularResidual.from_mesh(np.ones(_ang_shape(m)), m)
         assert r.values.shape == _ang_shape(m)
-        assert (r.N, r.ng, r.nx, r.ny) == _ang_shape(m)
+        assert (r.N, r.ng, r.nx, r.ny) == (m.quad.N, m.ng, m.nx, m.ny)
 
     def test_from_ndarray_alias(self) -> None:
         m = _slab_mesh()
@@ -112,7 +112,7 @@ class TestAngularResidual:
         m = _slab_mesh()
         with pytest.raises(ValueError, match="AngularResidual.*does not match"):
             AngularResidual.from_mesh(
-                np.zeros((m.quad.N + 1, m.ng, m.nx, m.ny)), m,
+                np.zeros((m.quad.N + 1, m.ng, *m.spatial_shape)), m,
             )
 
     def test_within_class_add_sub_closed(self) -> None:
@@ -138,8 +138,9 @@ class TestAngularResidual:
         assert isinstance(-a, AngularResidual)
 
     def test_mesh_binding_check(self) -> None:
-        a = AngularResidual.from_mesh(np.ones((4, 2, 4, 1)), _slab_mesh())
-        b = AngularResidual.from_mesh(np.ones((4, 2, 4, 1)), _slab_mesh())
+        ma, mb = _slab_mesh(), _slab_mesh()
+        a = AngularResidual.from_mesh(np.ones(_ang_shape(ma)), ma)
+        b = AngularResidual.from_mesh(np.ones(_ang_shape(mb)), mb)
         with pytest.raises(ValueError, match="distinct SNMesh"):
             _ = a + b
 
@@ -167,12 +168,12 @@ class TestScalarResidual:
         m = _slab_mesh()
         r = ScalarResidual.from_mesh(np.ones(_sca_shape(m)), m)
         assert r.values.shape == _sca_shape(m)
-        assert (r.ng, r.nx, r.ny) == _sca_shape(m)
+        assert (r.ng, r.nx, r.ny) == (m.ng, m.nx, m.ny)
 
     def test_shape_validation_rejects_wrong_shape(self) -> None:
         m = _slab_mesh()
         with pytest.raises(ValueError, match="ScalarResidual.*does not match"):
-            ScalarResidual.from_mesh(np.zeros((m.ng + 1, m.nx, m.ny)), m)
+            ScalarResidual.from_mesh(np.zeros((m.ng + 1, *m.spatial_shape)), m)
 
     def test_within_class_add_sub_closed(self) -> None:
         m = _slab_mesh()
@@ -192,8 +193,9 @@ class TestScalarResidual:
         assert isinstance(-a, ScalarResidual)
 
     def test_mesh_binding_check(self) -> None:
-        a = ScalarResidual.from_mesh(np.ones((2, 4, 1)), _slab_mesh())
-        b = ScalarResidual.from_mesh(np.ones((2, 4, 1)), _slab_mesh())
+        ma, mb = _slab_mesh(), _slab_mesh()
+        a = ScalarResidual.from_mesh(np.ones(_sca_shape(ma)), ma)
+        b = ScalarResidual.from_mesh(np.ones(_sca_shape(mb)), mb)
         with pytest.raises(ValueError, match="distinct SNMesh"):
             _ = a + b
 
@@ -375,8 +377,9 @@ class TestFromBalance:
             AngularResidual.from_balance(lhs=a, rhs=b)  # type: ignore[arg-type]
 
     def test_mesh_mismatch_raises(self) -> None:
-        a = AngularSourceSink.from_mesh(np.ones((4, 2, 4, 1)), _slab_mesh())
-        b = AngularSourceSink.from_mesh(np.ones((4, 2, 4, 1)), _slab_mesh())
+        ma, mb = _slab_mesh(), _slab_mesh()
+        a = AngularSourceSink.from_mesh(np.ones(_ang_shape(ma)), ma)
+        b = AngularSourceSink.from_mesh(np.ones(_ang_shape(mb)), mb)
         with pytest.raises(ValueError, match="distinct SNMesh"):
             AngularResidual.from_balance(lhs=a, rhs=b)
 
