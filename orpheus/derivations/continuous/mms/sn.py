@@ -141,7 +141,8 @@ class SNSlabMMSCase:
 
         Evaluated at cell centres to match the diamond-difference
         cell-average convention. Returned shape is
-        ``(N, nx, 1, 1)`` — per ordinate, per cell, one energy group.
+        ``(N, ng=1, nx)`` — per ordinate, one energy group, per cell
+        (the principled (N, ng, *spatial) layout; no phantom ny axis).
 
         R-1 Step 4 A1 — returns **per-ordinate density** (already
         projected via ``/sum_w``).  The continuous derivation gives
@@ -161,7 +162,7 @@ class SNSlabMMSCase:
         streaming = mu[:, None] * Ap[None, :]     # (N, nx)
         removal = (self.sigma_t - self.sigma_s) * A[None, :]  # (1, nx)
         Q = (streaming + removal) / sum_w         # (N, nx) per-ord density
-        return Q[:, None, :, None]                # (N, nx, 1, 1)
+        return Q[:, None, :]                       # (N, ng=1, nx)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -456,8 +457,8 @@ class SNSlab2GHeterogeneousMMSCase:
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
         r"""Per-ordinate, per-cell, per-group external source.
 
-        Shape ``(N_ord, n_groups, n_cells, 1)`` (Issue #196 PR-INDEX-5
-        — principled).  The formula is
+        Shape ``(N_ord, n_groups, n_cells)`` — the principled
+        (N, ng, *spatial) layout (no phantom ny axis).  The formula is
 
         .. math::
 
@@ -484,7 +485,7 @@ class SNSlab2GHeterogeneousMMSCase:
         nx = len(x)
         ng = self.n_groups
 
-        Q = np.zeros((N, ng, nx, 1))
+        Q = np.zeros((N, ng, nx))
         for g in range(ng):
             c_g = self.c_spectrum[g]
             sig_t_g = np.asarray(self.sigma_t_fn(x, g), dtype=float)  # (nx,)
@@ -496,7 +497,7 @@ class SNSlab2GHeterogeneousMMSCase:
                     self.sigma_s_fn(x, g_from, g), dtype=float,
                 )  # (nx,)
                 in_scatter += sig_s * self.c_spectrum[g_from] * A
-            Q[:, g, :, 0] = streaming + (removal - in_scatter)[None, :]
+            Q[:, g, :] = streaming + (removal - in_scatter)[None, :]
         # R-1 Step 4 A1 — emit per-ordinate density (Pattern 7).
         Q /= sum_w
         return Q
@@ -1117,7 +1118,7 @@ class SNP1AnisoMMSCase:
                     + \alpha\mu_n^2 B'
 
         where :math:`A = B = \sin(\pi x/L)`, :math:`A' = B' = (\pi/L)\cos(\pi x/L)`.
-        Shape ``(N, nx, 1, 1)``.
+        Shape ``(N, ng=1, nx)``.
         """
         x = mesh.centers
         L = self.slab_length
@@ -1135,7 +1136,7 @@ class SNP1AnisoMMSCase:
         t4 = a * (mu[:, None] ** 2) * Ap[None, :]                   # α μ² B'
         # R-1 Step 4 A1 — emit per-ordinate density (Pattern 7).
         Q = (t1 + t2 + t3 + t4) / sum_w
-        return Q[:, None, :, None]
+        return Q[:, None, :]
 
 
 def _make_1g_p1_mixture(
@@ -1252,7 +1253,7 @@ class SNSphericalMMSCase:
         removal = (self.sigma_t - self.sigma_s) * A[None, :]
         # R-1 Step 4 A1 — emit per-ordinate density (Pattern 7).
         Q = (streaming + removal) / sum_w
-        return Q[:, None, :, None]
+        return Q[:, None, :]
 
 
 def build_spherical_mms_case(
@@ -1338,7 +1339,7 @@ class SNCylindricalMMSCase:
         removal = (self.sigma_t - self.sigma_s) * A[None, :]
         # R-1 Step 4 A1 — emit per-ordinate density (Pattern 7).
         Q = (streaming + removal) / sum_w
-        return Q[:, None, :, None]
+        return Q[:, None, :]
 
 
 def build_cylindrical_mms_case(
@@ -2375,7 +2376,7 @@ class SNSphericalAnisotropicMMSCase:
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
         r"""Per-ordinate external source :math:`Q^{\rm ext}_n(r)` on
-        ``mesh``. Shape ``(N, nx, 1, 1)``.
+        ``mesh``. Shape ``(N, ng=1, nx)``.
 
         Closed-form evaluation (Branch 2 — vectorised numpy):
 
@@ -2407,7 +2408,7 @@ class SNSphericalAnisotropicMMSCase:
         # R-1 Step 4 A1 — emit per-ordinate density (Pattern 7).
         Q = (streaming_iso + streaming_aniso + redistribution
              + removal_iso + removal_aniso) / sum_w    # (N, nx)
-        return Q[:, None, :, None]                     # (N, nx, 1, 1)
+        return Q[:, None, :]                     # (N, ng=1, nx)
 
 
 def build_spherical_anisotropic_mms_case(
@@ -2589,7 +2590,7 @@ class SNSlabNonVacuumMMSCase:
         nx = len(x)
         ng = self.n_groups
 
-        Q = np.zeros((N, ng, nx, 1))
+        Q = np.zeros((N, ng, nx))
         for g in range(ng):
             A_g = self.A(x, g)
             Ap_g = self.Ap(x, g)
@@ -2606,7 +2607,7 @@ class SNSlabNonVacuumMMSCase:
             for g_from in range(ng):
                 in_scatter += self.sigma_s_matrix[g_from, g] * self.A(x, g_from)
 
-            Q[:, g, :, 0] = (
+            Q[:, g, :] = (
                 streaming_iso + streaming_aniso
                 + (removal_iso + removal_aniso)
                 - in_scatter[None, :]
@@ -2887,7 +2888,7 @@ class SNSphericalNonVacuumMMSCase:
 
         Q = (streaming_iso + streaming_aniso + redistribution
              + removal_iso + removal_aniso) / sum_w    # (N, nx)
-        return Q[:, None, :, None]                     # (N, 1, nx, 1)
+        return Q[:, None, :]                     # (N, 1, nx, 1)
 
     def prescribed_inflow(self, sn_mesh):
         r"""The ``q.boundary`` prescribed-inflow at r=R — a
@@ -3055,7 +3056,7 @@ class SNCylindricalAnisotropicMMSCase:
 
     def external_source(self, mesh: Mesh1D) -> np.ndarray:
         r"""Per-ordinate external source on ``mesh``. Shape
-        ``(N, nx, 1, 1)``.
+        ``(N, ng=1, nx)``.
 
         .. math::
 
@@ -3087,7 +3088,7 @@ class SNCylindricalAnisotropicMMSCase:
         # R-1 Step 4 A1 — emit per-ordinate density (Pattern 7).
         Q = (streaming_iso + streaming_aniso + redistribution
              + removal_iso + removal_aniso) / sum_w
-        return Q[:, None, :, None]
+        return Q[:, None, :]
 
 
 def build_cylindrical_anisotropic_mms_case(

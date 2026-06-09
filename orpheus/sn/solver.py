@@ -1741,8 +1741,8 @@ def _build_fixed_source_rhs(
     )
 
     N = sn_mesh.quad.N
-    nx, ny, ng = sn_mesh.nx, sn_mesh.ny, sn_mesh.ng
-    expected = (N, ng, nx, ny)
+    ng = sn_mesh.ng
+    expected = (N, ng, *sn_mesh.spatial_shape)
 
     if isinstance(external_source, TimedFullField):
         bulk_values = np.asarray(external_source.bulk.values)
@@ -1764,17 +1764,17 @@ def _build_fixed_source_rhs(
             # Reject explicitly rather than failing the shape check obscurely.
             raise TypeError(
                 f"_build_fixed_source_rhs: external_source must be an "
-                f"(N, ng, nx, ny) array (bulk-only / vacuum) or a "
+                f"(N, ng, *spatial) array (bulk-only / vacuum) or a "
                 f"TimedFullField composite source; got "
                 f"{type(external_source).__name__}"
             )
         boundary = BoundarySourceSink.zeros_on(sn_mesh)
 
-    # Issue #196 PR-INDEX-5: bulk source principled (N, ng, nx, ny).
+    # Issue #196 PR-INDEX-5: bulk source principled (N, ng, *spatial).
     if bulk_values.shape != expected:
         raise ValueError(
             f"fixed-source bulk shape {bulk_values.shape} does not match "
-            f"(N, ng, nx, ny) = {expected}"
+            f"(N, ng, *spatial) = {expected}"
         )
     return TimedFullField(
         bulk=AngularSourceSink.from_mesh(bulk_values, sn_mesh),
