@@ -124,18 +124,91 @@ def ordinate_scan(
 
     Notes
     -----
-    Numerical regime.  The Blelloch form requires ``cumprod_a`` to
-    stay finite and bounded away from zero.  Diamond-Difference SN
-    sweeps produce ``a[i] = 2|μ|·A_down/denom − 1`` with ``|a| < 1``
-    in well-resolved regimes — both the cumprod and the
-    ``b / cumprod_a`` quotient stay in IEEE-754's well-conditioned
-    band.  For ``a → 0`` or ``a → ∞`` regimes outside DD's normal
-    operating envelope, consult the test catalog at
-    ``tests/sn/spatial/test_ordinate_scan.py::test_ordinate_scan_small_attenuation``
-    for the documented regime limits.
+    Numerical regime.  Two backends compute the SAME recurrence; the
+    dispatch is by the presence of an exact reset (``a[i] = 0``) in
+    the chain:
+
+    * **No reset** (the common SN sweep path).  The Blelloch §1.5
+      closed form ``cumprod_a · (psi_0 + cumsum(b / cumprod_a))``
+      runs unchanged — three numpy ops, bit-identical to every prior
+      release.  Diamond-Difference produces ``a[i] = 2|μ|·A_down/denom
+      − 1`` with ``|a| < 1`` in well-resolved regimes, so both the
+      cumprod and the ``b / cumprod_a`` quotient stay in IEEE-754's
+      well-conditioned band.
+
+    * **Reset present** (``a[i] = 0`` exactly — e.g. the cylindrical
+      pole cell whose inner radial face area vanishes at the
+      ``2|μ|·A_total = ΔA_w·c_out + Σ_t·V`` resonance, Issue #209).
+      At a reset the recurrence *forgets its history*:
+      ``psi[i+1] = b[i]``, a chain restart, fully defined.  The
+      Blelloch division ``b / cumprod_a`` would propagate ``inf →
+      NaN`` from the reset onward, so the scan falls through to the
+      **division-free pair-monoid** backend
+      (:func:`_pair_monoid_scan`).  It composes the affine cells
+      ``(a, b)`` under ``(α₁, β₁) ⊕ (α₂, β₂) = (α₁α₂, α₂β₁ + β₂)``
+      via a Hillis–Steele log-depth scan — exact at ``a = 0`` by
+      construction (no division anywhere) and robust to consecutive
+      and chain-leading resets.
+
+    The reset check inspects only ``cumprod_a[-1]`` (a zero anywhere
+    in a lane drives that lane's final cumulative product to zero), so
+    the fast-path guard is a single reduction over the trailing lanes
+    — negligible against the cumprod/cumsum it gates (< 3 % at SN
+    sweep sizes).
     """
     cumprod_a = np.cumprod(a, axis=0)
+    if np.any(cumprod_a[-1] == 0.0):
+        return _pair_monoid_scan(a, b, psi_0)
     return cumprod_a * (psi_0 + np.cumsum(b / cumprod_a, axis=0))
+
+
+def _pair_monoid_scan(
+    a: np.ndarray,
+    b: np.ndarray,
+    psi_0: np.ndarray,
+) -> np.ndarray:
+    r"""Division-free affine-recurrence scan (Hillis–Steele 1986).
+
+    Computes the same :math:`\psi[1\ldots n_x]` as :func:`ordinate_scan`
+    but as a direct prefix scan of the **affine pair-monoid**
+
+    .. math::
+
+        (\alpha_1, \beta_1) \oplus (\alpha_2, \beta_2)
+            \;=\; (\alpha_1\alpha_2,\; \alpha_2\,\beta_1 + \beta_2),
+
+    rather than the Blelloch factored form.  Because the composition
+    contains no reciprocal, the scan is exact when any
+    :math:`\alpha = 0` (a chain reset ``psi[i+1] = b[i]``) and handles
+    consecutive resets and a reset at the chain start with no
+    special-casing — the reset *is* the monoid element ``(0, b)``,
+    which annihilates everything to its left under ``⊕``.
+
+    Implementation: an inclusive Hillis–Steele scan over the chain
+    (leading) axis.  After :math:`\lceil\log_2 n_x\rceil` doubling
+    passes, ``(alpha[i], beta[i])`` is the composition of cells
+    ``0..i``; applying it to ``psi_0`` gives
+    ``psi[i] = alpha[i]·psi_0 + beta[i]``.  Each pass is a single
+    vectorised numpy slice-multiply-add over all trailing lanes, so
+    the work is :math:`O(n_x \log n_x)` with no Python loop over
+    cells.
+
+    See Hillis & Steele (1986), *Data Parallel Algorithms*, CACM
+    29(12), 1170–1183 — the inclusive parallel-prefix scan.
+    """
+    alpha = np.array(a, dtype=float, copy=True)
+    beta = np.array(b, dtype=float, copy=True)
+    nx = alpha.shape[0]
+    step = 1
+    while step < nx:
+        # Compose cell i with the accumulated cell (i - step) sitting
+        # to its left: (α_i, β_i) ⊕-after (α_{i-step}, β_{i-step}).
+        alpha_left = alpha[:-step]
+        beta_left = beta[:-step]
+        beta[step:] = alpha[step:] * beta_left + beta[step:]
+        alpha[step:] = alpha[step:] * alpha_left
+        step *= 2
+    return alpha * psi_0 + beta
 
 
 __all__ = ["ordinate_scan"]

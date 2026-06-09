@@ -81,16 +81,6 @@ def homog_cyl_2g_thick2_n20():
     return fuel, mesh, quad
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "ERR-054 / Issue #209 — ordinate_scan Blelloch-form NaN at "
-        "pole-cell algebraic resonance.  Fix lives in "
-        "orpheus/sn/spatial/scan.py:138 (pair-monoid prefix scan).  "
-        "Remove the xfail decorator when the fix lands; strict=True "
-        "auto-flips xfail→pass."
-    ),
-)
 def test_si_returns_finite_keff(homog_cyl_2g_thick2_n20):
     """SI must return a finite k_eff at the resonance configuration.
 
@@ -115,13 +105,6 @@ def test_si_returns_finite_keff(homog_cyl_2g_thick2_n20):
 
 
 @pytest.mark.slow
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "ERR-054 / Issue #209 — same bug class as "
-        "test_si_returns_finite_keff above; slow correctness check."
-    ),
-)
 def test_si_agrees_with_kinf_at_resonance(homog_cyl_2g_thick2_n20):
     """SI must converge to k_inf = νΣ_f/Σ_a = 1.875 for homogeneous
     reflective configurations (irrespective of mesh discretisation).
@@ -168,13 +151,6 @@ def test_krylov_unaffected(homog_cyl_2g_thick2_n20):
     assert abs(res.keff - 1.875) < 1e-6
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "ERR-054 / Issue #209 — structural scan-form contract pin; "
-        "passes when ordinate_scan stops dividing by cumprod_a."
-    ),
-)
 def test_ordinate_scan_at_a_zero_returns_finite_via_loop():
     """Pure numerical scan-form contract test.
 
