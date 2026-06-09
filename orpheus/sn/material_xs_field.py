@@ -366,13 +366,14 @@ class MaterialXSField:
         """
         xs = assemble_cell_xs(self.materials, self.mesh.mat_map)
         ng = self.mesh.ng
-        nx, ny = self.mesh.nx, self.mesh.ny
+        spatial = self.mesh.spatial_shape
         # .T.reshape: producer emits (N_cells, ng); flip to (ng, N_cells)
-        # then split N_cells back into (nx, ny) — the principled layout.
-        self._sig_t_cell = xs.sig_t.T.reshape(ng, nx, ny)
-        self._sig_a_cell = xs.sig_a.T.reshape(ng, nx, ny)
-        self._sig_p_cell = xs.sig_p.T.reshape(ng, nx, ny)
-        self._chi_cell = xs.chi.T.reshape(ng, nx, ny)
+        # then split N_cells back into (*spatial) — the principled
+        # (ng, *spatial) layout (rank == ndim; no phantom ny=1 on 1-D).
+        self._sig_t_cell = xs.sig_t.T.reshape(ng, *spatial)
+        self._sig_a_cell = xs.sig_a.T.reshape(ng, *spatial)
+        self._sig_p_cell = xs.sig_p.T.reshape(ng, *spatial)
+        self._chi_cell = xs.chi.T.reshape(ng, *spatial)
 
     # ── Per-material accessors (source of truth) ─────────────────────
 
@@ -484,10 +485,11 @@ class MaterialXSField:
         phi : np.ndarray
             Scalar flux, shape ``(ng, nx, ny)``.
         """
-        for mid, (ix, iy) in self.cells_by_material.items():
+        for mid, idx in self.cells_by_material.items():
             sig_s0 = self.sig_s_legendre(mid)[0]  # (ng, ng)
-            Q[:, ix, iy] += np.einsum(
-                "fg,fc->gc", sig_s0, phi[:, ix, iy],
+            cells = (slice(None), *idx)
+            Q[cells] += np.einsum(
+                "fg,fc->gc", sig_s0, phi[cells],
             )
 
     def apply_n2n(self, Q: np.ndarray, phi: np.ndarray) -> None:
@@ -506,10 +508,11 @@ class MaterialXSField:
         phi : np.ndarray
             Scalar flux, shape ``(ng, nx, ny)``.
         """
-        for mid, (ix, iy) in self.cells_by_material.items():
+        for mid, idx in self.cells_by_material.items():
             sig2 = self.n2n_matrix(mid)
-            Q[:, ix, iy] += 2.0 * np.einsum(
-                "fg,fc->gc", sig2, phi[:, ix, iy],
+            cells = (slice(None), *idx)
+            Q[cells] += 2.0 * np.einsum(
+                "fg,fc->gc", sig2, phi[cells],
             )
 
     def apply_legendre_scattering_moments(
@@ -555,19 +558,20 @@ class MaterialXSField:
         """
         out = np.zeros_like(moments)
         l_start = 1 if skip_l0 else 0
-        for mid, (ix, iy) in self.cells_by_material.items():
+        for mid, idx in self.cells_by_material.items():
             sig_s_mid = self.sig_s_legendre(mid)
+            cells = (Ellipsis, *idx)
             for l in range(l_start, L + 1):
                 n_m = 2 * l + 1
                 # Trailing-contiguous indexing pattern (see notes in
                 # the original LegendreMomentScattering.apply): keeps
                 # numpy from rearranging axes when fancy-indexing.
-                moments_view = moments[l, :n_m][..., ix, iy]
+                moments_view = moments[l, :n_m][cells]
                 out_block = np.einsum(
                     "mfc,fg->mgc", moments_view, sig_s_mid[l],
                 )
-                out[l, :n_m][..., ix, iy] = (
-                    out_block + out[l, :n_m][..., ix, iy]
+                out[l, :n_m][cells] = (
+                    out_block + out[l, :n_m][cells]
                 )
         return out
 
@@ -594,11 +598,12 @@ class MaterialXSField:
         volume : np.ndarray
             Per-cell volume ``(nx, ny)``.
         """
-        for mid, (ix, iy) in self.cells_by_material.items():
+        for mid, idx in self.cells_by_material.items():
             sig2 = self.n2n_matrix(mid)
-            phi_cells_g = flux_distribution[:, ix, iy].T  # (n_cells, ng)
+            cells = (slice(None), *idx)
+            phi_cells_g = flux_distribution[cells].T  # (n_cells, ng)
             n2n_cell_g = 2.0 * (phi_cells_g @ sig2)
-            rate += np.einsum("c,cg->g", volume[ix, iy], n2n_cell_g)
+            rate += np.einsum("c,cg->g", volume[idx], n2n_cell_g)
 
     # ── Foldable / residual split (Phase G four-operator algebra) ────
     #

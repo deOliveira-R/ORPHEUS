@@ -175,17 +175,17 @@ class AngularSourceSink(AngularField):
             the ``/sum_w`` normalisation (use when caller has already
             divided by sum_w).
         """
-        expected = (mesh.ng, mesh.nx, mesh.ny)
+        expected = (mesh.ng, *mesh.spatial_shape)
         if iso_values.shape != expected:
             raise ValueError(
                 f"AngularSourceSink.from_isotropic expects iso shape "
-                f"(ng, nx, ny) = {expected}; got {iso_values.shape}"
+                f"(ng, *spatial) = {expected}; got {iso_values.shape}"
             )
         sum_w = float(mesh.quad.weights.sum())
         N = mesh.quad.N
         per_ord_values = np.broadcast_to(
-            (iso_values / sum_w)[None, :, :, :],
-            (N, mesh.ng, mesh.nx, mesh.ny),
+            (iso_values / sum_w)[None],
+            (N, *expected),
         ).copy()
         return cls.from_mesh(per_ord_values, mesh)
 

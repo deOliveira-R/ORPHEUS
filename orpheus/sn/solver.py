@@ -818,9 +818,9 @@ class SNSolver:
         if sn_mesh.reduced is not None:
             self.geom_cache = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
             # No bridge needed: ``mat_xs.total_cross_section`` is the
-            # principled ``(ng, nx, ny=1)`` layout the cache expects.
-            # Drop the trailing degenerate ``ny`` axis with a slice view.
-            sig_t_1d = self.mat_xs.total_cross_section[:, :, 0]  # (ng, nx)
+            # principled ``(ng, nx)`` 1-D layout the cache expects
+            # (rank-d (N, ng, *spatial); no phantom ny axis to drop).
+            sig_t_1d = self.mat_xs.total_cross_section  # (ng, nx)
             self.coll_cache = CollisionCache.from_geometry(
                 self.geom_cache, sig_t_1d,
             )
@@ -883,7 +883,7 @@ class SNSolver:
 
         Issue #196 PR-INDEX-5: principled layout.
         """
-        return np.ones((self.ng, self.sn_mesh.nx, self.sn_mesh.ny))
+        return np.ones((self.ng, *self.sn_mesh.spatial_shape))
 
     def compute_fission_source(
         self, flux_distribution: np.ndarray, keff: float,
@@ -940,7 +940,7 @@ class SNSolver:
         analysis (per-group production rates are reactor-physics-meaningful
         quantities).  ``compute_keff`` consumes it via ``.sum()``.
         """
-        nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
+        ng = self.ng
         mu = self.sn_mesh.mesh.volume_measure
 
         # Fission production: ∫ νΣ_f · φ dV, vectorised over groups.
@@ -953,9 +953,9 @@ class SNSolver:
         # ``transpose(1, 2, 0)`` then flatten the spatial axes.
         # Issue #197 PR-TYPED-2: consumes mat_xs directly (no shim).
         per_cell_per_group = np.einsum(
-            "gxy,gxy->gxy", self.mat_xs.fission_production, flux_distribution,
+            "g...,g...->g...", self.mat_xs.fission_production, flux_distribution,
         )
-        rate = mu(per_cell_per_group.transpose(1, 2, 0).reshape(nx * ny, ng))
+        rate = mu(np.moveaxis(per_cell_per_group, 0, -1).reshape(-1, ng))
 
         # (n,2n) contribution — Issue #197 PR-TYPED-1: the per-material
         # dispatch loop lives ONLY inside
@@ -979,13 +979,13 @@ class SNSolver:
         Issue #196 PR-INDEX-5: ``flux_distribution`` is principled
         ``(ng, nx, ny)``.
         """
-        nx, ny, ng = self.sn_mesh.nx, self.sn_mesh.ny, self.ng
+        ng = self.ng
         mu = self.sn_mesh.mesh.volume_measure
         # Issue #197 PR-TYPED-2: consumes mat_xs directly (no shim).
         per_cell_per_group = np.einsum(
-            "gxy,gxy->gxy", self.mat_xs.absorption_cross_section, flux_distribution,
+            "g...,g...->g...", self.mat_xs.absorption_cross_section, flux_distribution,
         )
-        return mu(per_cell_per_group.transpose(1, 2, 0).reshape(nx * ny, ng))
+        return mu(np.moveaxis(per_cell_per_group, 0, -1).reshape(-1, ng))
 
     def compute_production_rate(self, flux_distribution: np.ndarray) -> float:
         r"""Total volume-integrated neutron production rate (scalar).
@@ -1292,7 +1292,7 @@ class SNSolver:
         LC, S, B = _within_group_triple(self)
         krylov = _within_group_krylov(
             LC, S, B,
-            n_dof=self.quad.N * self.ng * self.sn_mesh.nx * self.sn_mesh.ny,
+            n_dof=self.quad.N * self.ng * int(np.prod(self.sn_mesh.spatial_shape)),
             max_iter=self.max_inner, tol=self.inner_tol,
         )
 

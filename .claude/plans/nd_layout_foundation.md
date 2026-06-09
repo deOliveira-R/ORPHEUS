@@ -6,6 +6,53 @@
 throughout. Standing commit exclusions: `.claude/agent-memory/`, `.mcp.json`,
 hooks, `derivations/diagnostics/`.
 
+## STATUS (live — 2026-06-09)
+
+**C1 ✅ COMMITTED** (2 commits: `646960d` plan, `05545ba` rank-adaptive local-op
+prep). 922 passed, A2D-1 re-blessed, sentinels green without `-O`. Bit-identical.
+
+**C2 ⏳ IN PROGRESS (the lever + rank change) — branch is MID-CARVE (NOT green;
+expected for an atomic rank change). UNCOMMITTED WIP in the worktree.**
+
+DONE (the builder layer — all bit-identical on 2-D where reachable; verified the
+1-D fail-loud advances past each):
+- `_bases.py` `_shape_for_mesh` (Angular + Scalar) → `(N,ng,*spatial)` / `(ng,*spatial)` — THE LEVER, flipped.
+- `source_sinks/angular_source_sink.py` `from_isotropic` (expected + broadcast → spatial_shape).
+- `source_sinks/scalar_source_sink.py` `__add__` (160) + `as_per_ordinate` (198) `[None,:,:,:]`→`[None]`.
+- `solver.py` `initial_flux_distribution` (886), `compute_group_production_rate` (943/955/958), `compute_group_absorption_rate` (982/985/988) `"g...,g...->g..."` + `moveaxis(0,-1).reshape(-1,ng)`, `n_dof` (1295), `_setup` rebind sig_t_1d (823).
+- `material_xs_field.py` `_ensure_cell_views` (reshape→spatial), the 4 per-material verbs `for mid,idx` + `(slice(None),*idx)` (487/509/558/597) — bit-identical on 2-D (np.where already ndim).
+- `geometry.py` `__init__` mat_map/volumes rank-d (283-284), `full_field_space` g_bulk rank-generic (824-836).
+
+REMAINING (the structured-1-D surgery — careful per-FUNCTION reads; 2-D path
+`_apply_2d_cartesian` is UNTOUCHED & stays bit-identical). Pattern: drop
+`[:, :, 0]`/`[:, :, :, 0]` (sig_t/Q now rank-1); `transpose(1,0,2,3)`→`transpose(1,0,2)`
+(and the `[...,0]` variant → `transpose(1,0,2)`); `out_g_first` zeros
+`(ng,N,nx,ny)`→`(ng,N,nx)` + writes `[..., i, 0]`→`[..., i]`; pole seed
+`psi_view[:, :, 0, 0]`→`[:, :, 0]`; drop `[..., None]` / `[:, :, None]` re-pad.
+⭐ KEY SIMPLIFICATION: `transpose(1, 0, 2, 3)` (the N↔ng swap) → **`swapaxes(0, 1)`**
+— rank-GENERIC (works rank-1 AND rank-2, no per-rank branch; reads as "swap the
+ordinate and group axes"). Do the `transpose(1, 0, 2, 3)[..., 0]` → `swapaxes(0, 1)`
+replace FIRST (the `[...,0]` phantom-drop vanishes at rank-1), then the bare
+`transpose(1, 0, 2, 3)` → `swapaxes(0, 1)`. Same spirit: the rate `transpose(1,2,0)`
+→ `moveaxis(0, -1)` (already applied in solver). These transpose sites are ALL
+1-D-only (2-D uses `_apply_2d_cartesian`), so swapaxes is correct + 2-D-irrelevant.
+SITES (re-confirm line #s):
+- `operator.py` `_compute_LpC` (385-528: 389,390,392,393,404, the `[..., i, 0]` writes, 528),
+  `_compute_decomposition` (625-740: 628,629,633, writes, 740 re-pad),
+  `_compute_LpC_transpose` / 3rd variant (845-1007: 847,852,864,1006,1007), 1102.
+- `sweep.py` `_run_1d_sweep`/`_sweep_1d_unified` (400,464,465 drops; 644 transpose; 773 `[:, :, None]` re-pad).
+- `spatial/pole_angular_closure.py` 852 `transpose(1,0,2,3)[...,0]`→`transpose(1,0,2)` (1193 is a DOCSTRING — leave).
+- `solver.py` 875 (rebind sig_t_1d, same as 823) + the `__debug__` cell-flattening check
+  720/745/748 (`reshape(nx,ny,ng)`→`reshape(*spatial,ng)`, `transpose(1,2,0)`→`moveaxis(0,-1)`) — fires only WITHOUT `-O`.
+- TEST MIGRATION: slab/sphere/cyl tests hardcoding `(N,ng,nx,1)` → `(N,ng,nx)` (e.g.
+  `tests/sn/sweep/slab/test_unified_matvec_slab.py` `np.zeros((N,ng,nx,1))` / `np.full((ng,nx,1),…)`).
+
+GATE LADDER for C2: (1) slab smoke `solve_sn(get_mixture("A","2g"), Mesh1D slab)` → k_inf
+≈1.2659 (2g A); (2) sphere+cyl smoke; (3) full `tests/sn/` + 2-D bit-identity moat
+(`test_2d_octant_sweep_equivalence.py` array_equal) + sentinels w/o `-O`; (4) 1-D
+re-validation via k_inf + MMS (NOT old bytes). Then C3 (sweep DAG d-generic), C4
+(#220 boundary), C5 (3-D admission pins + docs).
+
 ## Goal (user, 2026-06-09)
 Make EVERY array genuinely `(N, ng, *spatial)`, spatial rank == ndim: `(nx,)`
 1-D, `(nx,ny)` 2-D, `(nx,ny,nz)` future 3-D. **NOT adding 3-D compute** — a

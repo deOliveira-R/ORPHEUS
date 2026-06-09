@@ -157,7 +157,7 @@ class ScalarSourceSink(ScalarField):
                 )
             # Canonical injection: broadcast iso → per-ordinate, add.
             return replace(
-                other, values=self.values[None, :, :, :] + other.values,
+                other, values=self.values[None] + other.values,
             )
         # Within-class (and any other-type → NotImplemented) via Field.
         return super().__add__(other)
@@ -195,6 +195,6 @@ class ScalarSourceSink(ScalarField):
         N = self.mesh.quad.N
         target_shape = (N, *self.values.shape)
         per_ord_values = np.broadcast_to(
-            self.values[None, :, :, :], target_shape,
+            self.values[None], target_shape,
         ).copy()
         return AngularSourceSink.from_mesh(per_ord_values, self.mesh)

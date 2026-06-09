@@ -274,14 +274,18 @@ class SNMesh:
         # below.
         self._user_supplied_closure = pole_angular_closure
 
-        # Normalise to (nx, ny) shaped arrays for both 1-D and 2-D
+        # Per-cell arrays follow the (N, ng, *spatial) convention: the
+        # spatial tail has rank == ndim (1-D → (nx,), no phantom ny=1).
+        # ``mat_map`` / ``_volumes`` are spatial_shape-shaped; the scalar
+        # nx/ny + dx/dy survive as legacy metadata read-throughs only
+        # (the dy=1 / ny=1 shims feed no array construction).
         if isinstance(mesh, Mesh1D):
             self.nx: int = mesh.N
             self.ny: int = 1
             self.dx: np.ndarray = mesh.widths
             self.dy: np.ndarray = np.array([1.0])
-            self.mat_map: np.ndarray = mesh.mat_ids.reshape(mesh.N, 1)
-            self._volumes: np.ndarray = mesh.volumes.reshape(mesh.N, 1)
+            self.mat_map: np.ndarray = mesh.mat_ids
+            self._volumes: np.ndarray = mesh.volumes
             self._areas: np.ndarray | None = mesh.areas
         else:
             self.nx = mesh.nx
@@ -819,14 +823,18 @@ class SNMesh:
 
         N = self.quad.N
         w_n = np.asarray(self.quad.weights, dtype=float)  # (N,)
-        V = np.asarray(self.volumes, dtype=float)         # (nx, ny)
-        # G_bulk = V_cell · w_n on (N, 1, nx, ny) — group-independent
+        V = np.asarray(self.volumes, dtype=float)         # (*spatial)
+        # G_bulk = V_cell · w_n on (N, 1, *spatial) — group-independent
         # (broadcast over the ng axis): w_n along the ordinate axis, V along
-        # the spatial axes (the full phase-space measure dV·dΩ).
-        g_bulk = w_n[:, None, None, None] * V[None, None, :, :]
+        # the spatial axes (the full phase-space measure dV·dΩ). Rank-generic
+        # over ndim so 1-D → (N, 1, nx), 2-D → (N, 1, nx, ny).
+        g_bulk = (
+            w_n.reshape((N, 1) + (1,) * V.ndim)
+            * V.reshape((1, 1) + V.shape)
+        )
         bulk_space = FunctionSpace(
             name="sn_bulk",
-            shape=(N, self.ng, self.nx, self.ny),
+            shape=(N, self.ng, *self.spatial_shape),
             inner_product_weights=g_bulk,
         )
         return FullFieldSpace.from_blocks(bulk_space, self.trace)

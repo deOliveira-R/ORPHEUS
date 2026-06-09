@@ -184,9 +184,15 @@ class AngularField(BulkField):
     _SPACE_NAME: ClassVar[str]
 
     @classmethod
-    def _shape_for_mesh(cls, mesh: "SNMesh") -> tuple[int, int, int, int]:
-        r"""The ``(N, ng, nx, ny)`` phase-space shape for ``mesh``."""
-        return (mesh.quad.N, mesh.ng, mesh.nx, mesh.ny)
+    def _shape_for_mesh(cls, mesh: "SNMesh") -> tuple[int, ...]:
+        r"""The ``(N, ng, *spatial)`` phase-space shape for ``mesh``.
+
+        Spatial rank equals ``mesh.ndim`` — ``(N, ng, nx)`` for a 1-D
+        mesh, ``(N, ng, nx, ny)`` for 2-D, ``(N, ng, nx, ny, nz)`` for
+        3-D. The spatial tail is ``mesh.spatial_shape`` (no phantom
+        ``ny=1`` axis on the 1-D path).
+        """
+        return (mesh.quad.N, mesh.ng, *mesh.spatial_shape)
 
     @classmethod
     def _space_for_mesh(cls, mesh: "SNMesh") -> FunctionSpace:
@@ -250,9 +256,13 @@ class ScalarField(BulkField):
     _SPACE_NAME: ClassVar[str]
 
     @classmethod
-    def _shape_for_mesh(cls, mesh: "SNMesh") -> tuple[int, int, int]:
-        r"""The ``(ng, nx, ny)`` phase-space shape for ``mesh``."""
-        return (mesh.ng, mesh.nx, mesh.ny)
+    def _shape_for_mesh(cls, mesh: "SNMesh") -> tuple[int, ...]:
+        r"""The ``(ng, *spatial)`` phase-space shape for ``mesh``.
+
+        Spatial rank equals ``mesh.ndim`` — ``(ng, nx)`` for a 1-D mesh,
+        ``(ng, nx, ny)`` for 2-D (no phantom ``ny=1`` on the 1-D path).
+        """
+        return (mesh.ng, *mesh.spatial_shape)
 
     @classmethod
     def _space_for_mesh(cls, mesh: "SNMesh") -> FunctionSpace:
