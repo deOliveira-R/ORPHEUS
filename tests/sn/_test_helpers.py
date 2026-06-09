@@ -258,9 +258,9 @@ def legacy_proxy_matvec(
     # function signature for legacy back-compat but ignored.
     del bc_outer, pole_angular_closure  # explicitly mark unused
     boundary = BoundaryFlux.zeros_on(sn_mesh)
-    boundary.face_view("xmax")[:] = psi_view[:, :, -1, 0]
+    boundary.face_view("xmax")[:] = psi_view[:, :, -1]
     if "xmin" in boundary.layout.faces:
-        boundary.face_view("xmin")[:] = psi_view[:, :, 0, 0]
+        boundary.face_view("xmin")[:] = psi_view[:, :, 0]
     composite = TimedFullField(
         bulk=AngularFlux.from_mesh(psi_view, sn_mesh),
         boundary=boundary,
