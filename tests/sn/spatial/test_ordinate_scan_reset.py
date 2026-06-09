@@ -27,12 +27,13 @@ Two structurally-independent grounds (``vv-principles`` §1/§6):
   ground for the closed-form scan: a different algorithm (sequential
   fold, no division) for the same recurrence.  This catches the bug
   WITHOUT any solver in the loop.
-* **Solver-level eigenvalue pin** (``TestSICylinderResonance``).  The
-  reference is the analytical infinite-medium eigenvalue
-  ``k_inf = νΣ_f / Σ_a = 1.875`` for mixture A 2G — a closed-form
-  reference (pillar: closed-form).  NaN is the one failure mode the
-  ``k = νΣ_f/Σ_a`` flux-shape invariance cannot smuggle past the
-  eigenvalue identity, so it propagates to ``keff = NaN`` pre-fix.
+* **Solver-level pin** (``TestSICylinderResonance``).  SI must agree
+  with the structurally-independent Krylov solver at the resonance (the
+  matvec ``apply`` path never consumes ``ordinate_scan``); NaN is the
+  one failure mode that propagates to ``keff = NaN`` pre-fix.  The
+  closed-form ``k_inf = νΣ_f/Σ_a = 1.875`` eigenvalue pin lives in the
+  ``@slow`` solver gate
+  ``tests/sn/sweep/curvilinear/test_si_cyl_20cell_nan_regression.py``.
 
 The fast-path bit-identity gate (``test_fast_path_bit_identical``)
 guards the other half of the fix contract: when the chain has NO
@@ -105,38 +106,17 @@ class TestOrdinateScanReset:
     """
 
     @pytest.mark.catches("ERR-054")
-    def test_ordinate_scan_at_a_zero_returns_finite_via_loop(self) -> None:
-        r"""A single exact reset ``a[i] = 0`` gives the loop's value, finite.
-
-        At the reset the chain restarts: ``ψ[i+1] = b[i]``, independent
-        of all prior history.  Entries AFTER the reset must NOT inherit
-        NaN.  Bit-exact against the explicit loop.
-        """
-        a = np.array([0.5, 0.0, 0.5, 2.0])
-        b = np.array([1.0, 3.0, 0.5, 0.1])
-        psi_0 = 0.7
-
-        result = ordinate_scan(a, b, psi_0)
-        reference = _explicit_scan_loop(a, b, psi_0)
-
-        assert np.all(np.isfinite(result)), (
-            f"ordinate_scan returned non-finite at a=0: {result}"
-        )
-        # The reset cell forgets history: ψ[1] = b[1] = 3.0 exactly.
-        assert result[1] == b[1], (
-            f"reset cell ψ[1] = {result[1]!r}, expected b[1] = {b[1]!r}"
-        )
-        np.testing.assert_array_equal(result, reference)
-
-    @pytest.mark.catches("ERR-054")
     def test_ordinate_scan_multiple_and_consecutive_resets(self) -> None:
         r"""Multiple, consecutive, chain-leading, per-lane resets all finite.
 
-        Stresses the reset handling beyond a single zero: lane 0 has two
-        *consecutive* resets (``(0, b)`` annihilating ``(0, b')`` to its
-        left under ``⊕``); lane 1 has one interior reset; lane 2 has a
-        reset at the chain *start* and one at the *end*.  Each lane must
-        match the serial loop to machine precision.
+        Subsumes the single-reset case (the solver-level gate
+        ``test_si_cyl_20cell_nan_regression`` also pins a single trailing
+        zero against the explicit loop). Stresses the reset handling
+        beyond a single zero: lane 0 has two *consecutive* resets
+        (``(0, b)`` annihilating ``(0, b')`` to its left under ``⊕``);
+        lane 1 has one interior reset; lane 2 has a reset at the chain
+        *start* and one at the *end*.  Each lane must match the serial
+        loop to machine precision.
         """
         rng = np.random.default_rng(seed=209)
         a = rng.uniform(0.3, 1.4, size=(8, 3))
@@ -199,8 +179,6 @@ class TestSICylinderResonance:
     never touches ``ordinate_scan``) returns the analytical ``k_inf``.
     """
 
-    _K_INF = 1.875  # νΣ_f / Σ_a for mixture A, 2 groups (closed form).
-
     @staticmethod
     def _build():
         mix = get_mixture("A", "2g")
@@ -216,28 +194,6 @@ class TestSICylinderResonance:
         assert np.any(np.isclose(quad.mu_x, -1.0 / np.sqrt(20))), (
             "LevelSymmetric S8 must carry the resonant ordinate "
             "μ_x = -1/√20; without it the reproducer is inert"
-        )
-
-    @pytest.mark.catches("ERR-054")
-    def test_si_agrees_with_kinf_at_resonance(self) -> None:
-        r"""SI returns the analytical ``k_inf``, finite — not NaN.
-
-        THE L1 correctness pin.  Pre-fix this FAILS: SI returns
-        ``keff = NaN`` because ``ordinate_scan`` NaNs at the pole-cell
-        reset and the NaN propagates through every source iteration.
-        """
-        materials, mesh, quad = self._build()
-        result = solve_sn(
-            materials, mesh, quad,
-            inner_solver="source_iteration",
-            max_inner=500, inner_tol=1e-10,
-        )
-        assert np.isfinite(result.keff), (
-            f"SI keff = {result.keff!r} (NaN ⇒ ERR-054 regressed: "
-            "ordinate_scan divides by a zero cumprod at the pole cell)"
-        )
-        assert abs(result.keff - self._K_INF) < 1e-6, (
-            f"SI keff = {result.keff:.10f} vs k_inf = {self._K_INF}"
         )
 
     @pytest.mark.catches("ERR-054")
