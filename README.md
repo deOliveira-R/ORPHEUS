@@ -11,18 +11,48 @@ kinetics.
 ### Prerequisites
 
 - Python 3.11+ (3.14 recommended)
+- [`uv`](https://docs.astral.sh/uv/) (recommended) — fast, disk-efficient venvs:
+  `brew install uv` (or `pipx install uv`, or `curl -LsSf https://astral.sh/uv/install.sh | sh`).
+  Plain `python3 -m venv` works too.
 - git-lfs (for nuclear data files)
 - [GitHub CLI](https://cli.github.com/) (`gh`) — for issue tracking
 
 ### Installation
 
+One command sets up a checkout (uses `uv` if present, else stdlib `venv`):
+
 ```bash
 git clone git@github.com:deOliveira-R/ORPHEUS.git
 cd ORPHEUS
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
+./scripts/setup.sh            # .venv + editable .[dev] install + Sphinx/Nexus graph
+                              #   add --no-docs to skip the (slow) docs build
+source .venv/bin/activate     # optional — for bare python / pytest / nexus
 ```
+
+…or by hand:
+
+```bash
+uv venv && uv pip install -e ".[dev]"                        # with uv (recommended)
+python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"   # stdlib fallback
+```
+
+**Working in a git worktree?** Run `./scripts/setup.sh` *inside* the worktree —
+a venv per checkout. `orpheus` is an editable install, so the venv must be created
+from the checkout for `import orpheus` to resolve to *that* checkout's code; a
+shared or symlinked `.venv` would import the main clone instead. `uv` makes the
+per-worktree venv cheap (deps are hardlinked, not recopied).
+
+### Editor / type checking (optional)
+
+The repo ships a Pyright config (`[tool.pyright]` in `pyproject.toml`, pointed at
+the project `.venv`). For in-editor diagnostics or the Pyright LSP:
+
+```bash
+npm install -g pyright       # provides pyright + pyright-langserver
+```
+
+Run the install/setup above first — Pyright resolves third-party imports
+(numpy/scipy/…) from `.venv`.
 
 ### Convert nuclear data
 
