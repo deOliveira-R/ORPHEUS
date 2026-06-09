@@ -8,6 +8,28 @@ hooks, `derivations/diagnostics/`.
 
 ## STATUS (live — 2026-06-09)
 
+### ⭐ UPDATE 2026-06-09 (late) — PRODUCTION CARVE DONE+VALIDATED; test tail remains
+**PRODUCTION `(N,ng,*spatial)` COMPLETE + VALIDATED + COMMITTED** (commit chain
+`05545ba` C1 → `ee04870`+`d6e401b` lever+builders+structured-1-D → `6ae3da8`
+MMS sources+fixed-source validation → `79f49e6` test shape-tuples/extractions +
+snapshot regen → `6ca0154` legacy_proxy_matvec helper). VALIDATION: slab/sphere/
+cyl `solve_sn` → k_inf=1.875; 2-D bit-identity moat green; DD regression 13
+passed (10 1-D snapshots regenerated + VERIFIED value-preserving: 6 squeeze-only,
+4 FP-drift 1e-16..6.8e-12 within tol). NO production bugs — every full-suite
+failure is TEST-side.
+
+**REMAINING = test migration tail (C2c, mechanical, NOT blanket-safe).** ~44 test
+files build `(N,ng,nx,ny)` / `(ng,nx,ny)` with a local **`ny=1` VARIABLE** (a
+literal-`1` regex can't see it; ~22 files are MIXED 1-D+2-D so `(N,ng,nx,ny)`→
+`(N,ng,nx)` BREAKS the 2-D cases — confirmed: a blanket attempt regressed
+`test_streaming_operator_decomposition`'s 5×5 CART cases, REVERTED). **Correct
+universal fix = per-file `(N,ng,nx,ny)`→`(N,ng,*<meshvar>.spatial_shape)`**
+(rank-correct for both 1-D and 2-D). Also remaining: `[..., 0]`/`[:, :, X, 0]`
+extractions on now-rank-1 flux/source that the literal-`1` regex missed; some
+`np.full((nx,1),…)` per-group stacks. Pattern catalog + the safe-vs-mixed file
+split are in this session's history. The DONE-and-committed shape-tuple/extraction
+migration (79f49e6) + helper (6ca0154) handled the literal-`1` subset.
+
 **Task tracker** (recreate from this §STATUS + §Staging if it didn't survive a
 session boundary): #1 C1 ✅ · #2 C2a builder layer ✅ · #3 C2b structured-1-D
 surgery (IN PROGRESS) · #4 C2c 1-D test migration · #5 C2d C2 gate · #6 C3 sweep
