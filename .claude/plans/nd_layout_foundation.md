@@ -8,6 +8,31 @@ hooks, `derivations/diagnostics/`.
 
 ## STATUS (live — 2026-06-09)
 
+### ⭐⭐ UPDATE 2026-06-09 (latest) — TEST MIGRATION IS A DEEP PER-FILE REWRITE (recalibrated)
+The remaining test migration is NOT a scriptable "mechanical tail" — it is a
+**deep per-file rewrite** of ~47 files (esp. the operator-algebra suites:
+`test_streaming_operator` 35 fails, `test_bc_extraction_matvec` 30,
+`test_streaming_operator_decomposition` 19, `test_native_matvec` 16,
+`test_invertible_operator`/`test_g_adjoint_reciprocity`/`test_collision_operator`
+/`test_operators_apply_typed` ~12 each). Each thoroughly assumes rank-2 spatial
+in CONSTRUCTIONS + EXTRACTIONS (`[..., 0]`, `[:, :, :, 0]`) + slices + assertions.
+**Three scripting approaches were tried and REVERTED** (all clean now):
+1. blanket `(N,ng,nx,ny)`→`(N,ng,nx)` — REGRESSED hidden-2-D cases (e.g.
+   `test_streaming_operator_decomposition` 5×5 CART). Mixed files unsafe.
+2. `(N,ng,nx,ny)`→`(N,ng,*<meshvar>.spatial_shape)` — 87 NameErrors: the mesh var
+   VARIES per construction (helper functions take it as a param with other names;
+   `sn_mesh`/`sn`/`op`/`local_sn_mesh`). Not a single-var-per-file problem.
+3. rank-conditional `(N,ng,nx) if ny==1 else (N,ng,nx,ny)` — robust (no meshvar,
+   no NameError) but only +7 passes for heavy `if ny==1` clutter; doesn't touch
+   the extraction class. Low gain / high clutter.
+**Correct path = methodical PER-FILE (per-function) manual migration**: in each
+test/helper, use the in-scope mesh's `spatial_shape` (or build the field via
+`AngularFlux.zeros_on(mesh)` / `.from_mesh`) for constructions, and drop the
+phantom index on extractions. Use the suite as the guide. NOT scriptable safely.
+**Production carve is DONE + VALIDATED + COMMITTED — unaffected by this** (the
+test suite is verification scaffolding; the branch is not merged). Commit chain
+ends at `074372a`; clean working tree.
+
 ### ⭐ UPDATE 2026-06-09 (late) — PRODUCTION CARVE DONE+VALIDATED; test tail remains
 **PRODUCTION `(N,ng,*spatial)` COMPLETE + VALIDATED + COMMITTED** (commit chain
 `05545ba` C1 → `ee04870`+`d6e401b` lever+builders+structured-1-D → `6ae3da8`
