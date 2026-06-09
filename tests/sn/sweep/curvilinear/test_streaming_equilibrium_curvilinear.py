@@ -132,7 +132,7 @@ def test_homogeneous_streaming_equilibrium_sphere(
     # (already projected via ``/sum_w``).  Iso scalar magnitude 1 ⇒
     # per-ord density ``1/sum_w``.
     sum_w = float(np.sum(quad.weights))
-    Q = np.full((N, ng, nx, 1), 1.0 / sum_w)
+    Q = np.full((N, ng, nx), 1.0 / sum_w)
 
     result = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
@@ -233,7 +233,7 @@ def test_homogeneous_streaming_equilibrium_cylinder(
     ng = 1
     # R-1 Step 4 A1 — per-ordinate density (1 / sum_w).
     sum_w = float(np.sum(quad.weights))
-    Q = np.full((N, ng, nx, 1), 1.0 / sum_w)
+    Q = np.full((N, ng, nx), 1.0 / sum_w)
 
     result = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
@@ -298,14 +298,14 @@ def test_pomraning_pole_isotropy_sphere(inner_solver: str) -> None:
     ng = 1
     # R-1 Step 4 A1 — per-ordinate density (1 / sum_w).
     sum_w = float(np.sum(quad.weights))
-    Q = np.full((N, ng, nx, 1), 1.0 / sum_w)
+    Q = np.full((N, ng, nx), 1.0 / sum_w)
 
     result = solve_sn_fixed_source(
         materials={0: fuel}, mesh=mesh, quadrature=quad, external_source=Q,
         boundary_condition="reflective", inner_solver=inner_solver,
     )
     # D-H.1d: Solution.angular_flux is TimedFullField.
-    psi_at_pole = result.angular_flux.bulk.values[:, 0, 0, 0]   # (N,)
+    psi_at_pole = result.angular_flux.bulk.values[:, 0, 0]   # (N,)
     cv = float(np.std(psi_at_pole) / np.mean(psi_at_pole))
     assert cv < 0.01, (
         f"Pomraning pole isotropy violated for {inner_solver}: "

@@ -150,7 +150,7 @@ def test_sn_2region_reflective_flux_shape():
     centers = mesh.centers
     phi_ref = np.asarray(ref.phi(centers, 0), dtype=float)
     # PR-INDEX-5: scalar_flux principled (ng=1, nx, ny=1) — g=0 radial slice.
-    phi_sol = np.asarray(result.scalar_flux.values[0, :, 0], dtype=float)
+    phi_sol = np.asarray(result.scalar_flux.values[0, :], dtype=float)
 
     # Normalise both to peak 1 so the comparison is shape-only.
     phi_ref_n = phi_ref / float(np.max(np.abs(phi_ref)))

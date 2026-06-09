@@ -149,7 +149,7 @@ class TestAzimuthalRedistribution:
         result = solve_sn({0: mix}, mesh, quad, max_inner=500, inner_tol=1e-10)
 
         # D-H.1d: Solution.angular_flux is TimedFullField; .bulk.values.
-        psi_center = result.angular_flux.bulk.values[:, 0, 0, 0]
+        psi_center = result.angular_flux.bulk.values[:, 0, 0]
         assert np.all(psi_center > 0), (
             f"Zero/negative angular flux at centre: min={psi_center.min():.4e}"
         )

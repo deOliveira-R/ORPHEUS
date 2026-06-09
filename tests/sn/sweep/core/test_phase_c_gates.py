@@ -97,7 +97,7 @@ def _make_spherical_sn_mesh(
         bc_right=bc_outer or BC("reflective"),
     )
     sn_mesh = SNMesh(mesh, quad, placeholder_materials(), pole_angular_closure=pole_closure)
-    sig_t = np.full((1, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
+    sig_t = np.full((1, nx), 0.5)  # (ng, nx, ny) — PR-INDEX-3
     return sn_mesh, sig_t
 
 
@@ -123,7 +123,7 @@ def _make_cylindrical_sn_mesh(
         bc_right=bc_outer or BC("reflective"),
     )
     sn_mesh = SNMesh(mesh, quad, placeholder_materials(), pole_angular_closure=pole_closure)
-    sig_t = np.full((1, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
+    sig_t = np.full((1, nx), 0.5)  # (ng, nx, ny) — PR-INDEX-3
     return sn_mesh, sig_t
 
 
@@ -485,7 +485,7 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     )
     quad = Quadrature.gauss_legendre(4)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
-    sig_t = np.full((1, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
+    sig_t = np.full((1, nx), 0.5)  # (ng, nx, ny) — PR-INDEX-3
     L = StreamingOperator(sn_mesh, sig_t)
     C = CollisionOperator(sn_mesh, sig_t)
     op = L + C
@@ -590,7 +590,7 @@ def _outflow_at_boundary_for_sphere_from_bulk(
     nx = sn_mesh.nx
     ng = psi_bulk.shape[1]
     eps = 1e-15
-    # Mirror the matvec body's ``(ng, N, nx, 1)`` ordering.
+    # Mirror the matvec body's ``(ng, N, nx)`` ordering.
     psi_g_first = psi_bulk.transpose(1, 0, 2, 3)
     outgoing_mask = quad.mu_x > +eps
     outflow_at_boundary = np.zeros((ng, quad.N))

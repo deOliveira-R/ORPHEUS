@@ -70,18 +70,18 @@ def test_transport_sweep_ng2_layout_shapes():
     # scalar source (ng, nx, ny). A producer/consumer drift to the
     # obsolete (nx, ng, ny) layout would mismatch axis 1 (ng=2 vs nx=10)
     # at CollisionCache.from_geometry and crash loudly here.
-    sig_t = np.broadcast_to(mix.SigT[:, None, None], (ng, nx, 1)).copy()
-    Q_iso = np.ones((ng, nx, 1))
+    sig_t = np.broadcast_to(mix.SigT[:, None, None], (ng, nx)).copy()
+    Q_iso = np.ones((ng, nx))
     source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
     boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
 
     ang, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
-    assert ang.shape == (quad.N, ng, nx, 1), (
+    assert ang.shape == (quad.N, ng, nx), (
         f"angular flux layout drift: got {ang.shape}, "
         f"expected (N={quad.N}, ng={ng}, nx={nx}, ny=1)"
     )
-    assert phi.shape == (ng, nx, 1), (
+    assert phi.shape == (ng, nx), (
         f"scalar flux layout drift: got {phi.shape}, "
         f"expected (ng={ng}, nx={nx}, ny=1)"
     )
@@ -105,8 +105,8 @@ def test_transport_sweep_ng2_per_group_distinct():
     quad = Quadrature.gauss_legendre(8)
     sn_mesh = SNMesh(mesh, quad, {0: mix})
 
-    sig_t = np.broadcast_to(mix.SigT[:, None, None], (ng, nx, 1)).copy()
-    Q_iso = np.ones((ng, nx, 1))
+    sig_t = np.broadcast_to(mix.SigT[:, None, None], (ng, nx)).copy()
+    Q_iso = np.ones((ng, nx))
     source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
     boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
 
@@ -121,7 +121,7 @@ def test_transport_sweep_ng2_per_group_distinct():
 
     # Equilibrium per group: φ_g = Q_g / Σ_t,g (pure-streaming sweep with
     # no scatter coupling — transport_sweep is the within-group sweep).
-    expected = Q_iso / sig_t  # (ng, nx, 1)
+    expected = Q_iso / sig_t  # (ng, nx)
     np.testing.assert_allclose(
         phi, expected, rtol=1e-6,
         err_msg="per-group equilibrium φ ≠ Q_g/Σ_t,g — group axis drift?",

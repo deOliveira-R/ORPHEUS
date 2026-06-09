@@ -115,7 +115,7 @@ def _hand_reference_cyl_matvec(
     per cell with NO bool-mask scatter. Routing is impossible to get
     wrong because each ordinate is processed in its own scalar pass.
 
-    Returns shape ``(N, ng, nx, 1)``.
+    Returns shape ``(N, ng, nx)``.
     """
     quad = sn_mesh.quad
     N = quad.N
@@ -133,7 +133,7 @@ def _hand_reference_cyl_matvec(
     if pac is None:
         pac = MorelMontryAngularSweep()
 
-    out = np.zeros((N, ng, nx, 1))
+    out = np.zeros((N, ng, nx))
 
     sigma_t_gx = sigma_t[:, :, 0]
     dr = sn_mesh.dx
@@ -266,9 +266,9 @@ def test_unified_cylinder_matches_hand_reference(
     N = quad.N
 
     rng = np.random.default_rng(seed)
-    psi_view = rng.standard_normal((N, ng, n_cells, 1)).astype(np.float64)
+    psi_view = rng.standard_normal((N, ng, n_cells)).astype(np.float64)
     psi_view = _bc_fill_outer(psi_view, sn_mesh)
-    sigma_t = np.full((ng, n_cells, 1), 2.0)
+    sigma_t = np.full((ng, n_cells), 2.0)
 
     m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
     m_hand = _hand_reference_cyl_matvec(psi_view, sn_mesh, sigma_t)
@@ -291,8 +291,8 @@ def test_unified_cylinder_zero_psi_gives_zero() -> None:
     quad = Quadrature.level_symmetric(sn_order=4)
     sn_mesh = _build_cyl(n_cells=5, quad=quad)
     ng = 1
-    sigma_t = np.full((ng, sn_mesh.nx, 1), 2.0)
-    psi_view = np.zeros((quad.N, ng, sn_mesh.nx, 1))
+    sigma_t = np.full((ng, sn_mesh.nx), 2.0)
+    psi_view = np.zeros((quad.N, ng, sn_mesh.nx))
 
     m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
     np.testing.assert_array_equal(m_unified, np.zeros_like(m_unified))
@@ -307,8 +307,8 @@ def test_unified_cylinder_constant_psi_gives_sigma_t() -> None:
     sn_mesh = _build_cyl(n_cells=5, quad=quad)
     ng = 1
     sigma_t_val = 2.0
-    sigma_t = np.full((ng, sn_mesh.nx, 1), sigma_t_val)
-    psi_view = np.ones((quad.N, ng, sn_mesh.nx, 1))
+    sigma_t = np.full((ng, sn_mesh.nx), sigma_t_val)
+    psi_view = np.ones((quad.N, ng, sn_mesh.nx))
 
     m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
     m_at_unknowns = _extract_at_unknown_slots(m_unified, sn_mesh)

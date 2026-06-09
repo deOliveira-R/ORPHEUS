@@ -8,6 +8,13 @@ hooks, `derivations/diagnostics/`.
 
 ## STATUS (live — 2026-06-09)
 
+**Task tracker** (recreate from this §STATUS + §Staging if it didn't survive a
+session boundary): #1 C1 ✅ · #2 C2a builder layer ✅ · #3 C2b structured-1-D
+surgery (IN PROGRESS) · #4 C2c 1-D test migration · #5 C2d C2 gate · #6 C3 sweep
+DAG d-generic · #7 C4 boundary #220 · #8 C5 3-D admission pins + docs. Chain
+blockedBy 3→4→5→6→7→8.
+
+
 **C1 ✅ COMMITTED** (2 commits: `646960d` plan, `05545ba` rank-adaptive local-op
 prep). 922 passed, A2D-1 re-blessed, sentinels green without `-O`. Bit-identical.
 

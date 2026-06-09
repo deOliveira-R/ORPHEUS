@@ -115,7 +115,7 @@ def _build_slab():
     )
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     sum_w = float(quad.weights.sum())
-    q_ext = np.full((quad.N, 2, nx, 1), 1.0 / sum_w)
+    q_ext = np.full((quad.N, 2, nx), 1.0 / sum_w)
     return {2: fuel, 0: mod}, mesh, quad, q_ext
 
 

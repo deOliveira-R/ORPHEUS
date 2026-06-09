@@ -88,7 +88,7 @@ def test_sn_heterogeneous_mms_converges_second_order():
             max_inner=500, inner_tol=1e-12,
         )
 
-        phi_solver = result.scalar_flux.values[:, :, 0].T  # PR-INDEX-5: (nx, ng) view of (ng, nx)  # (n_cells, n_groups)
+        phi_solver = result.scalar_flux.values.T  # PR-INDEX-5: (nx, ng) view of (ng, nx)  # (n_cells, n_groups)
         phi_ref_g0 = np.asarray(ref.phi(mesh.centers, 0), dtype=float)
         phi_ref_g1 = np.asarray(ref.phi(mesh.centers, 1), dtype=float)
 
@@ -177,7 +177,7 @@ def test_sn_heterogeneous_mms_manufactured_source_couples_groups():
     # ``[:, :, 0, 1]`` indexed axis order n_cells/n_y wrong and raised
     # IndexError on ``n_y == 1`` — this regression guard never actually
     # executed until A.4's verification sweep surfaced it.)
-    diff_g1 = (Q_coupled - Q_uncoupled)[:, 1, :, 0]   # (N_ord, n_cells)
+    diff_g1 = (Q_coupled - Q_uncoupled)[:, 1, :]   # (N_ord, n_cells)
 
     # Expected: Q_coupled_g1 - Q_uncoupled_g1
     #   = -Σ_{s,0→1}(x) * (c0_coup - c0_uncoup) * A(x) / Σ_n w_n.

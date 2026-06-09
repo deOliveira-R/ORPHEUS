@@ -148,7 +148,7 @@ class TestDispatchByReducedProperty:
         # PR-INDEX-5 principled (ng, nx, ny); PR-TYPED-4 typed source.
         ng = sn_mesh.ng
         Q = AngularSourceSink.zeros_on(sn_mesh)
-        sig_t = np.ones((ng, sn_mesh.nx, 1))
+        sig_t = np.ones((ng, sn_mesh.nx))
         transport_sweep(Q, sig_t, sn_mesh, BoundaryFlux.zeros_on(sn_mesh))
 
         assert called["unified"] == 1
@@ -176,7 +176,7 @@ class TestDispatchByReducedProperty:
 
         ng = sn_mesh.ng
         Q = AngularSourceSink.zeros_on(sn_mesh)
-        sig_t = np.ones((ng, sn_mesh.nx, 1))
+        sig_t = np.ones((ng, sn_mesh.nx))
         transport_sweep(Q, sig_t, sn_mesh, BoundaryFlux.zeros_on(sn_mesh))
 
         assert called["unified"] == 1
@@ -204,7 +204,7 @@ class TestDispatchByReducedProperty:
 
         ng = sn_mesh.ng
         Q = AngularSourceSink.zeros_on(sn_mesh)
-        sig_t = np.ones((ng, sn_mesh.nx, 1))
+        sig_t = np.ones((ng, sn_mesh.nx))
         transport_sweep(Q, sig_t, sn_mesh, BoundaryFlux.zeros_on(sn_mesh))
 
         assert called["unified"] == 1
@@ -279,7 +279,7 @@ class TestUnifiedDispatch1Dvs2D:
         # R-1 Step 4 A1 — single per-ordinate source.
         ng = sn_mesh.ng
         source = AngularSourceSink.zeros_on(sn_mesh)
-        sig_t = np.ones((ng, sn_mesh.nx, 1))
+        sig_t = np.ones((ng, sn_mesh.nx))
         transport_sweep(source, sig_t, sn_mesh, BoundaryFlux.zeros_on(sn_mesh))
 
         assert called["unified"] == 1

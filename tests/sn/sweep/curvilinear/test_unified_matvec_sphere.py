@@ -139,8 +139,8 @@ class TestUnifiedMatvecSphere:
         sn_mesh = _build_sphere(n_cells=5, n_ord=4)
         ng = 1
         sigma_t_val = 2.0
-        sigma_t = np.full((ng, sn_mesh.nx, 1), sigma_t_val)
-        psi_view = np.ones((sn_mesh.quad.N, ng, sn_mesh.nx, 1))
+        sigma_t = np.full((ng, sn_mesh.nx), sigma_t_val)
+        psi_view = np.ones((sn_mesh.quad.N, ng, sn_mesh.nx))
 
         m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
         # At constant ψ = 1: (L+C)·1 ≈ σ_t · 1 = 2.0 everywhere.
@@ -153,8 +153,8 @@ class TestUnifiedMatvecSphere:
         """Linear operator: zero input → zero output."""
         sn_mesh = _build_sphere(n_cells=5, n_ord=4)
         ng = 1
-        sigma_t = np.full((ng, sn_mesh.nx, 1), 2.0)
-        psi_view = np.zeros((sn_mesh.quad.N, ng, sn_mesh.nx, 1))
+        sigma_t = np.full((ng, sn_mesh.nx), 2.0)
+        psi_view = np.zeros((sn_mesh.quad.N, ng, sn_mesh.nx))
 
         m_unified = legacy_proxy_matvec(psi_view, sn_mesh, sigma_t)
         np.testing.assert_array_equal(

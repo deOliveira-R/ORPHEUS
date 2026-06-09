@@ -47,8 +47,8 @@ def _slab_setup(N: int = 4, nx: int = 8, ng: int = 2):
     sn_mesh = SNMesh(mesh, Quadrature.gauss_legendre(n_ordinates=N), placeholder_materials(ng=ng))
     # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
     # Issue #197 PR-TYPED-4: strict typed source.
-    Q = AngularSourceSink.from_isotropic(np.full((ng, nx, 1), 1.0), sn_mesh)
-    sig_t = np.full((ng, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
+    Q = AngularSourceSink.from_isotropic(np.full((ng, nx), 1.0), sn_mesh)
+    sig_t = np.full((ng, nx), 0.5)  # (ng, nx, ny) — PR-INDEX-3
     return Q, sig_t, sn_mesh
 
 
@@ -63,8 +63,8 @@ def _sphere_setup(N: int = 4, nx: int = 8, ng: int = 2):
     sn_mesh = SNMesh(mesh, Quadrature.gauss_legendre(n_ordinates=N), placeholder_materials(ng=ng))
     # Issue #196 PR-INDEX-5: Q principled (ng, nx, ny).
     # Issue #197 PR-TYPED-4: strict typed source.
-    Q = AngularSourceSink.from_isotropic(np.full((ng, nx, 1), 1.0), sn_mesh)
-    sig_t = np.full((ng, nx, 1), 0.5)  # (ng, nx, ny) — PR-INDEX-3
+    Q = AngularSourceSink.from_isotropic(np.full((ng, nx), 1.0), sn_mesh)
+    sig_t = np.full((ng, nx), 0.5)  # (ng, nx, ny) — PR-INDEX-3
     return Q, sig_t, sn_mesh
 
 

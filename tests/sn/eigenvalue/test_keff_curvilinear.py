@@ -107,7 +107,7 @@ def test_particle_balance(quad_factory):
                       max_inner=500, inner_tol=1e-10)
 
     V = mesh.volumes
-    flux = result.scalar_flux.values[:, :, 0].T  # PR-INDEX-5
+    flux = result.scalar_flux.values.T  # PR-INDEX-5
     sig_p = mix.SigP
     sig_a = mix.SigC + mix.SigF
 
@@ -226,7 +226,7 @@ class TestCylinderMultiGroupMultiRegion:
         result = solve_sn(materials, mesh, quad,
                           max_inner=500, inner_tol=1e-10)
 
-        flux = result.scalar_flux.values[:, :, 0].T  # PR-INDEX-5  # (nx, ng)
+        flux = result.scalar_flux.values.T  # PR-INDEX-5  # (nx, ng)
         V = mesh.volumes
         mat_ids = mesh.mat_ids
 
@@ -347,7 +347,7 @@ class TestSphereEigenvalue:
                           max_inner=500, inner_tol=1e-10)
 
         V = mesh.volumes
-        flux = result.scalar_flux.values[:, :, 0].T  # PR-INDEX-5  # (nx, ng)
+        flux = result.scalar_flux.values.T  # PR-INDEX-5  # (nx, ng)
         sig_p = mix.SigP
         sig_a = mix.SigC + mix.SigF
 
@@ -469,7 +469,7 @@ class TestMultiGroupMultiRegionSpherical:
         result = solve_sn(materials, mesh, quad,
                           max_inner=500, inner_tol=1e-10)
 
-        flux = result.scalar_flux.values[:, :, 0].T  # PR-INDEX-5
+        flux = result.scalar_flux.values.T  # PR-INDEX-5
         V = mesh.volumes
         mat_ids = mesh.mat_ids
 
@@ -543,11 +543,11 @@ class TestMultiGroupMultiRegionSpherical:
             _reflect_outflow_into_inflow(boundary_flux, sn_mesh)
             _, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
-        phi_avg = np.average(phi[0, :, 0], weights=mesh.volumes)
+        phi_avg = np.average(phi[0, :], weights=mesh.volumes)
         np.testing.assert_allclose(phi_avg, 1.0, rtol=0.01,
                                    err_msg="Volume-avg φ ≠ Q/Σ_t")
-        assert phi[0, :, 0].max() < 2.0, (
-            f"Flux spike at origin: max={phi[0, :, 0].max():.4f}"
+        assert phi[0, :].max() < 2.0, (
+            f"Flux spike at origin: max={phi[0, :].max():.4f}"
         )
 
     def test_heterogeneous_1g_spatial_convergence(self):

@@ -108,7 +108,7 @@ def _make_cyl(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5):
         bc_right=BC("reflective"),
     )
     sn = SNMesh(mesh, quad, placeholder_materials(ng=ng))
-    sig_t = np.full((ng, nx, 1), sigma)
+    sig_t = np.full((ng, nx), sigma)
     return sn, sig_t
 
 

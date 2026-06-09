@@ -98,7 +98,7 @@ def test_flux_symmetry():
     result_homo = solve_sn({0: mix}, mesh_homo, quad, max_outer=200,
                            max_inner=500, inner_tol=1e-10)
     # PR-INDEX-5: scalar_flux principled (ng, nx, ny) — group-0 radial slice.
-    flux = result_homo.scalar_flux.values[0, :, 0]  # (nx,) for group 0
+    flux = result_homo.scalar_flux.values[0, :]  # (nx,) for group 0
     np.testing.assert_allclose(
         flux, flux[0], rtol=1e-6,
         err_msg="Homogeneous slab flux is not flat",
@@ -118,7 +118,7 @@ def test_particle_balance():
     # Volume-weighted production and absorption rates.
     # PR-INDEX-5: scalar_flux principled (ng, nx, ny=1) → (ng, nx).
     dx = mesh.widths
-    flux = result.scalar_flux.values[:, :, 0]  # (ng, nx)
+    flux = result.scalar_flux.values  # (ng, nx)
     sig_p = mix.SigP
     sig_a = mix.SigC + mix.SigF
 

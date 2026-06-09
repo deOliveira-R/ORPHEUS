@@ -89,12 +89,12 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
     nx = n_cells
     ng = 1
-    sig_t = np.full((ng, nx, 1), 2.0)  # (ng, nx, ny) — PR-INDEX-3
+    sig_t = np.full((ng, nx), 2.0)  # (ng, nx, ny) — PR-INDEX-3
     psi_flat = 10.0 / quad.weights.sum()
 
     # PR-TYPED-6c Step 7: route through ``_transport_operator_matvec_unified``
     # — the legacy ``transport_operator_matvec_cylindrical`` retired.
-    psi_view = np.full((quad.N, ng, nx, 1), psi_flat)
+    psi_view = np.full((quad.N, ng, nx), psi_flat)
     m_cell = legacy_proxy_matvec(psi_view, sn_mesh, sig_t)
     # D-J (2026-05-30): equation slots derived from quad direction signs
     # (replaces ``EquationMap`` slot map — curvilinear set is all
@@ -161,7 +161,7 @@ def test_cylinder_three_way_standoff(
     # R-1 Step 4 A1 — ``external_source`` is per-ordinate density.
     # Iso scalar magnitude 1 ⇒ per-ord density ``1/sum_w``.
     sum_w = float(quad.weights.sum())
-    Q = np.full((N, ng, nx, 1), 1.0 / sum_w)
+    Q = np.full((N, ng, nx), 1.0 / sum_w)
 
     psi_ref = 1.0 / (0.1 * sum_w)
 

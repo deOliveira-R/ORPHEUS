@@ -221,7 +221,7 @@ def _slab_p1_aniso(ng: str, n_cells: int) -> dict:
     # Iso scalar source magnitude 1.0 ⇒ per-ordinate density 1.0/sum_w
     # (R-1 Step 4 A1 producer-side /W projection convention).
     sum_w = float(quadrature.weights.sum())
-    external_source = np.full((n_ord, n_groups, n_cells, 1), 1.0 / sum_w)
+    external_source = np.full((n_ord, n_groups, n_cells), 1.0 / sum_w)
     return dict(
         materials={0: mod}, mesh=mesh, quadrature=quadrature,
         scattering_order=1, kind="fixed_source",
@@ -253,7 +253,7 @@ def _sphere_p1_aniso(ng: str, n_cells: int) -> dict:
     mesh = Mesh1D.from_geometry(geom, region_meshes=(RegionMesh(n_cells=n_cells),))
     quadrature = Quadrature.gauss_legendre(n_ordinates=n_ord)
     sum_w = float(quadrature.weights.sum())
-    external_source = np.full((n_ord, n_groups, n_cells, 1), 1.0 / sum_w)
+    external_source = np.full((n_ord, n_groups, n_cells), 1.0 / sum_w)
     return dict(
         materials={0: mod}, mesh=mesh, quadrature=quadrature,
         scattering_order=1, kind="fixed_source",
@@ -411,7 +411,7 @@ def _slab_fixed_source(ng: str, n_cells: int) -> dict:
     # Issue #196 PR-INDEX-5: principled shape ``(N, ng, nx, ny)``.
     sum_w = float(quadrature.weights.sum())
     external_source = np.full(
-        (n_ord, n_groups, n_cells, 1), 1.0 / sum_w,
+        (n_ord, n_groups, n_cells), 1.0 / sum_w,
     )
     return dict(
         materials={0: fuel}, mesh=mesh, quadrature=quadrature,
