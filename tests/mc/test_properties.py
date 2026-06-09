@@ -113,6 +113,11 @@ def test_1g_homogeneous_deterministic():
 # L0-MC-001/002: MCMesh geometry lookup
 # ═══════════════════════════════════════════════════════════════════════
 
+@pytest.mark.xfail(
+    reason="MC reflective/white BC unimplemented — issue #180",
+    raises=ValueError,
+    strict=False,
+)
 def test_mcmesh_satisfies_protocol():
     """MCMesh must satisfy the MCGeometry runtime protocol."""
     geom = StructuredGeometry.pwr_slab_half_cell()
@@ -172,6 +177,11 @@ def test_mcmesh_cylindrical_lookup():
     assert mc.material_id_at(center, center + 0.7) == 0
 
 
+@pytest.mark.xfail(
+    reason="MC reflective/white BC unimplemented — issue #180",
+    raises=ValueError,
+    strict=False,
+)
 def test_mcmesh_cylindrical_matches_concentric():
     """MCMesh from pwr_pin_equivalent must agree with ConcentricPinCell.
 

@@ -383,6 +383,7 @@ def test_mr_single_region_kinf_1g_fuelA(fuelA_2g_uniform_K3):
 # ════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.slow
 @pytest.mark.foundation
 @pytest.mark.verifies("peierls-greens-cylinder-mr-interface-continuity")
 def test_mr_interface_continuity_3region(interface_continuity_xs):

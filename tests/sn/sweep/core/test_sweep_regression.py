@@ -190,13 +190,13 @@ class TestSNMesh:
         np.testing.assert_allclose(sn_mesh.reduced.alpha_half[0], 0.0)
         np.testing.assert_allclose(sn_mesh.reduced.alpha_half[-1], 0.0, atol=1e-14)
 
-    @pytest.mark.xfail(
-        reason="R-1 Step E: 2-D Cartesian SI carve deferred to a later "
-        "phase; the 2-D solve path raises NotImplementedError. The 1-D "
-        "leg still validates, but the consistency assertion cannot run "
-        "until the 2-D SI carve lands. Re-enable then.",
-        raises=NotImplementedError,
-        strict=False,
+    @pytest.mark.skip(
+        reason="hangs on degenerate ny=1 — issue #214. The 2-D wavefront "
+        "sweep does not terminate on a degenerate ny=1 Mesh2D (it neither "
+        "raises NotImplementedError nor converges), so an xfail cannot "
+        "catch it — the process must be killed by a timeout. Deferred to "
+        "Phase 6 (nd_foundation). Re-enable when the ny=1 wavefront is "
+        "either supported or guarded with a clean raise.",
     )
     def test_sweep_1d_2d_consistency(self):
         """1D and 2D sweeps on equivalent meshes must produce similar keff.

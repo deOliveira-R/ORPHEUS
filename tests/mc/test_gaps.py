@@ -325,6 +325,7 @@ def test_keff_cycle_estimator():
 # L1-MC-005: 2G group flux ratio (non-degenerate spectral test)
 # =====================================================================
 
+@pytest.mark.slow
 @pytest.mark.l1
 @pytest.mark.verifies("collision-estimator")
 @pytest.mark.catches("ERR-024")
@@ -712,6 +713,7 @@ def test_mcmesh_vs_concentric_keff():
 # L1-MC-013: (n,2n) keff matches analytical k_inf (issue #23)
 # =====================================================================
 
+@pytest.mark.slow
 @pytest.mark.l1
 @pytest.mark.catches("ERR-023")
 def test_mc_n2n_keff_matches_analytical():

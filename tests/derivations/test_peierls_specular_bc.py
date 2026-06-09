@@ -246,6 +246,7 @@ def test_specular_cylinder_homogeneous_converges_to_kinf(
 # ──────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.slow
 @pytest.mark.foundation
 def test_specular_slab_rank1_equals_mark_kinf(homogeneous_fuel_A_1G):
     r"""At rank-1, slab specular per-face block-diag with single-face
@@ -281,6 +282,7 @@ def test_specular_slab_rank1_equals_mark_kinf(homogeneous_fuel_A_1G):
     )
 
 
+@pytest.mark.slow
 @pytest.mark.foundation
 def test_specular_slab_homogeneous_converges_to_kinf(
     homogeneous_fuel_A_1G,
@@ -601,13 +603,13 @@ def _solve_mg(geometry, fixture, *, n_bc_modes, boundary):
         # sphere converges fastest under the rank-N specular closure
         pytest.param(SPHERE_1D, 4, 5e-3, id="sphere"),
         # cylinder needs N=6 to land within 0.6 % at this fuel-A 2G config
-        pytest.param(CYLINDER_1D, 6, 6e-3, id="cylinder"),
+        pytest.param(CYLINDER_1D, 6, 6e-3, id="cylinder", marks=pytest.mark.slow),
         # slab plateaus at ~1 % in 2G/1R: per-face decomposition
         # interacts with multi-group spectrum sensitivity such that
         # the per-group Mark calibration error compounds. The test
         # gate accepts up to 1.5 % until the multi-bounce correction
         # is shipped (`specular_bc_thin_cell_plateau.md` follow-up).
-        pytest.param(SLAB_POLAR_1D, 6, 1.5e-2, id="slab"),
+        pytest.param(SLAB_POLAR_1D, 6, 1.5e-2, id="slab", marks=pytest.mark.slow),
     ],
 )
 def test_specular_2G_homogeneous_converges_to_kinf_2G(
@@ -710,8 +712,8 @@ def _check_monotonic_and_settled(k_values, geom_label, label):
     "geometry",
     [
         pytest.param(SPHERE_1D, id="sphere"),
-        pytest.param(CYLINDER_1D, id="cylinder"),
-        pytest.param(SLAB_POLAR_1D, id="slab"),
+        pytest.param(CYLINDER_1D, id="cylinder", marks=pytest.mark.slow),
+        pytest.param(SLAB_POLAR_1D, id="slab", marks=pytest.mark.slow),
     ],
 )
 def test_specular_heterogeneous_1G2R_converges(
@@ -746,8 +748,8 @@ def test_specular_heterogeneous_1G2R_converges(
     "geometry",
     [
         pytest.param(SPHERE_1D, id="sphere"),
-        pytest.param(CYLINDER_1D, id="cylinder"),
-        pytest.param(SLAB_POLAR_1D, id="slab"),
+        pytest.param(CYLINDER_1D, id="cylinder", marks=pytest.mark.slow),
+        pytest.param(SLAB_POLAR_1D, id="slab", marks=pytest.mark.slow),
     ],
 )
 def test_specular_heterogeneous_2G2R_converges(
@@ -1182,6 +1184,7 @@ def test_specular_multibounce_slab_rank1_equals_2E3_identity():
         assert T[1, 1] == 0.0
 
 
+@pytest.mark.slow
 @pytest.mark.foundation
 def test_specular_multibounce_slab_rank1_lifts_plateau(thin_slab_fuelA_like_1G):
     r"""Slab MB at rank-1 lifts the bare-specular thin-cell plateau
@@ -1222,6 +1225,7 @@ def test_specular_multibounce_slab_rank1_lifts_plateau(thin_slab_fuelA_like_1G):
     )
 
 
+@pytest.mark.slow
 @pytest.mark.foundation
 def test_specular_multibounce_slab_monotonic_high_N(thin_slab_fuelA_like_1G):
     r"""Geometric-immunity regression: slab MB **converges
@@ -1404,6 +1408,7 @@ class TestSpecularMultibounceOvershootCharacterization:
             f"ill-conditioning): k_8={sol_8.k_eff:.6f} vs k_inf={k_inf:.6f}"
         )
 
+    @pytest.mark.slow
     @pytest.mark.foundation
     def test_slab_monotonic_no_overshoot_to_N20(self, thin_slab_fuelA_like_1G):
         r"""Slab MB at thin :math:`\tau_L = 2.5` converges monotonically

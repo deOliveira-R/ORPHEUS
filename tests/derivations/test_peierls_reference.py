@@ -277,7 +277,7 @@ class TestSlabKMatrixElementwiseVsReference:
             )
 
     @pytest.mark.catches("ERR-027")
-    @pytest.mark.parametrize("n_panels", [2, 4, 8, 16])
+    @pytest.mark.parametrize("n_panels", [2, 4, 8, pytest.param(16, marks=pytest.mark.slow)])
     def test_cross_panel_scaling_gates_at_1e10(self, n_panels):
         """Regression gate for :issue:`113` — the worst adjacent-panel
         K[i,j] must match the adaptive reference at 1e-10 under any
@@ -476,6 +476,7 @@ class TestSlabPolarReferenceEquivalence:
     any bug in either construction breaks agreement.
     """
 
+    @pytest.mark.slow
     def test_adaptive_polar_matches_E1_reference(self):
         """Unified polar primitive equals :math:`\\Sigma_t` times the
         classical :math:`E_1` real-space reference to machine precision."""
@@ -624,6 +625,7 @@ class TestCylinderKernelRowSum:
     nodes) keeps the N² adaptive K cost bounded.
     """
 
+    @pytest.mark.slow
     @pytest.mark.parametrize("R, sig_t", [
         (1.0, 1.0),   # 1 MFP cylinder
         (2.0, 0.5),   # same optical thickness, larger R

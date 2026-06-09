@@ -113,6 +113,7 @@ def test_sphere_GL_K_matches_adaptive_verification() -> None:
     )
 
 
+@pytest.mark.slow
 @pytest.mark.l1
 @pytest.mark.verifies("peierls-unified")
 def test_cylinder_K_matches_adaptive_verification() -> None:
@@ -128,6 +129,7 @@ def test_cylinder_K_matches_adaptive_verification() -> None:
     )
 
 
+@pytest.mark.slow
 @pytest.mark.l1
 @pytest.mark.verifies("peierls-equation")
 def test_slab_heterogeneous_matches_adaptive_verification() -> None:

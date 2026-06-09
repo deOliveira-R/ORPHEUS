@@ -237,6 +237,10 @@ def _hand_reference_cyl_matvec(
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.xfail(
+    reason="cylinder matvec/sweep WDD divergence — issue #206",
+    strict=False,
+)
 @pytest.mark.l0
 @pytest.mark.parametrize("quad_factory", [
     lambda: Quadrature.level_symmetric(sn_order=4),

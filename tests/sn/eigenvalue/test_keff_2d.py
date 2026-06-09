@@ -442,6 +442,7 @@ class TestSIKrylov2DEquivalence:
             f"vs closed-form k_inf={case.k_inf:.10f}"
         )
 
+    @pytest.mark.slow
     @pytest.mark.verifies(
         "transport-cartesian-2d", "matrix-eigenvalue", "multigroup",
     )

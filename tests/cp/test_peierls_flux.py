@@ -33,6 +33,7 @@ from orpheus.geometry import CoordSystem, Mesh1D
 class TestPeierlsFluxConvergence:
     """CP flux profiles converge to the Peierls reference under mesh refinement."""
 
+    @pytest.mark.slow
     def test_flux_convergence_2g_2r(self):
         """2G 2-region CP flux converges to the Peierls reference.
 

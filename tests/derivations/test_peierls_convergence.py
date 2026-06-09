@@ -51,7 +51,7 @@ class TestPeierlsSelfConvergence:
 
     @pytest.mark.parametrize("case_name", [
         "cp_slab_1eg_1rg",
-        "cp_slab_1eg_2rg",
+        pytest.param("cp_slab_1eg_2rg", marks=pytest.mark.slow),
         "cp_slab_2eg_1rg",
     ])
     def test_nystrom_matches_cp_eigenvalue(self, case_name: str):
