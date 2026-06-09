@@ -38,13 +38,14 @@ class MomentDisplacement(Displacement, MomentField):
     UNITS: ClassVar[Unit] = SCALAR_FLUX_UNITS
 
     def _phase_space_shape(self) -> tuple[int, ...]:
-        r"""The ``(L+1, 2L+1, ng, nx, ny)`` moment phase-space shape.
+        r"""The ``(L+1, 2L+1, ng, *spatial)`` moment phase-space shape.
 
         Mirrors :meth:`HarmonicMomentField._phase_space_shape` so the shared
         :meth:`BulkField.__post_init__` validator accepts the displacement on
-        the flux's tensor-product space.
+        the flux's tensor-product space.  Spatial tail rank-``d`` via
+        ``mesh.spatial_shape`` (no phantom ``ny``).
         """
         return (
             self.L + 1, 2 * self.L + 1,
-            self.mesh.ng, self.mesh.nx, self.mesh.ny,
+            self.mesh.ng, *self.mesh.spatial_shape,
         )

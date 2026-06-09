@@ -717,7 +717,6 @@ class SNSolver:
         # validated single source of truth (raises
         # ``InconsistentMaterialsError`` if materials disagree).
         materials = sn_mesh.materials
-        nx, ny = sn_mesh.nx, sn_mesh.ny
         self.ng = sn_mesh.ng
 
         # Issue #197 PR-TYPED-1: the canonical XS state collapses to ONE
@@ -742,10 +741,10 @@ class SNSolver:
         # mat_xs.total_cross_section accessor, populated lazily).
         if __debug__:
             xs_check = assemble_cell_xs(materials, sn_mesh.mat_map)
-            _sig_t_old = xs_check.sig_t.reshape(nx, ny, self.ng)
+            _sig_t_old = xs_check.sig_t.reshape(*sn_mesh.spatial_shape, self.ng)
             assert np.array_equal(
                 _sig_t_old,
-                self.mat_xs.total_cross_section.transpose(1, 2, 0),
+                np.moveaxis(self.mat_xs.total_cross_section, 0, -1),
             ), "PR-INDEX-3 cell-flattening invariant broke"
 
         # Scattering order — clamp to the minimum Legendre count
@@ -1387,38 +1386,6 @@ class SNSolver:
 # ═══════════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════
-
-def _scalar_flux_from_angular(
-    fi: np.ndarray, quad: AngularQuadrature, nx: int, ny: int, ng: int,
-) -> np.ndarray:
-    r"""Integrate angular flux to scalar flux: :math:`\phi = \sum_n w_n \psi_n`.
-
-    Local helper so the solver is self-contained — the legacy
-    :func:`orpheus.sn.operator.angular_flux_to_scalar` was retired in
-    Wave E Round 2 along with the rest of the FD-operator API surface.
-
-    Issue #196 PR-INDEX-5: output is principled ``(ng, nx, ny)``.
-    Issue #196 PR-INDEX-7: input is principled ``(N, ng, nx, ny)``
-    (the FD-matvec internal ``(ng, N, nx, ny)`` layout flipped at the
-    typed L2 ``AngularFlux`` boundary; closes the PR-INDEX-4 §9.1
-    deferral).  The legacy ``solution_to_angular_flux*`` decoder
-    family retired at D-J (2026-05-30).
-
-    Parameters
-    ----------
-    fi
-        Angular flux of shape ``(N, ng, nx, ny)``.
-
-    Returns
-    -------
-    np.ndarray
-        Scalar flux shape ``(ng, nx, ny)``.
-    """
-    # Named contraction: sum over the ordinate axis with quadrature
-    # weights.  ``fi`` is ``(N, ng, nx, ny)``; ``quad.weights`` is
-    # ``(N,)``; result is ``(ng, nx, ny)``.
-    return np.einsum("ngxy,n->gxy", fi, quad.weights)
-
 
 # ─────────────────────────────────────────────────────────────────────
 # Retired in P1.7 (moment-space + layering plan):
@@ -2189,7 +2156,7 @@ def _solve_fixed_source_krylov(
     )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
 
-    nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
+    ng = solver.ng
     N = sn_mesh.quad.N
 
     # ``q_ext_composite`` is the normalised composite RHS ``q = q_bulk ⊕ q_∂``
@@ -2208,7 +2175,7 @@ def _solve_fixed_source_krylov(
     LC, S, B = _within_group_triple(solver)
     krylov = _within_group_krylov(
         LC, S, B,
-        n_dof=N * ng * nx * ny,
+        n_dof=N * ng * int(np.prod(sn_mesh.spatial_shape)),
         max_iter=max_inner, tol=inner_tol,
     )
 

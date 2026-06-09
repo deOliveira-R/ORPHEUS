@@ -169,15 +169,17 @@ class HarmonicMomentField(FluxRole, MomentField):
     # ── Construction validation ──────────────────────────────────────
 
     def _phase_space_shape(self) -> tuple[int, ...]:
-        r"""The ``(L+1, 2L+1, ng, nx, ny)`` moment phase-space shape.
+        r"""The ``(L+1, 2L+1, ng, *spatial)`` moment phase-space shape.
 
         Implements :meth:`BulkField._phase_space_shape`; the shared
         :meth:`BulkField.__post_init__` validator consumes it. The
-        leading two axes encode the harmonic truncation order ``L``.
+        leading two axes encode the harmonic truncation order ``L``;
+        the spatial tail is rank-``d`` (``(nx,)`` 1-D, ``(nx,ny)`` 2-D)
+        via ``mesh.spatial_shape`` — no phantom ``ny``.
         """
         return (
             self.L + 1, 2 * self.L + 1,
-            self.mesh.ng, self.mesh.nx, self.mesh.ny,
+            self.mesh.ng, *self.mesh.spatial_shape,
         )
 
     # ── Algebra extensions (over BulkField) ──────────────────────────
@@ -210,7 +212,7 @@ class HarmonicMomentField(FluxRole, MomentField):
         Builds the space as
         ``SphericalHarmonicSpace.from_L(L) * CellGroupSpace`` where
         ``CellGroupSpace`` is a plain :class:`FunctionSpace` with the
-        mesh's ``(ng, nx, ny)`` shape. This is the FIRST production
+        mesh's ``(ng, *spatial)`` shape. This is the FIRST production
         consumer of the D-B :class:`TensorProductSpace` primitive in a
         typed transport Field — the moment-axis structure is now
         type-visible through the composition tree (queryable via
@@ -219,7 +221,7 @@ class HarmonicMomentField(FluxRole, MomentField):
         sh_space = SphericalHarmonicSpace.from_L(L)
         cell_group_space = FunctionSpace(
             name="cell_group",
-            shape=(mesh.ng, mesh.nx, mesh.ny),
+            shape=(mesh.ng, *mesh.spatial_shape),
         )
         space = sh_space * cell_group_space
         return cls(values=values, space=space, mesh=mesh, L=L)
@@ -239,7 +241,7 @@ class HarmonicMomentField(FluxRole, MomentField):
         retired ``SNMesh.zeros_harmonic_moments``.
         """
         values = np.zeros(
-            (L + 1, 2 * L + 1, mesh.ng, mesh.nx, mesh.ny),
+            (L + 1, 2 * L + 1, mesh.ng, *mesh.spatial_shape),
         )
         return cls.from_mesh_and_L(values, mesh, L)
 
@@ -351,7 +353,7 @@ class HarmonicMomentField(FluxRole, MomentField):
             )
         new_shape = (
             L_new + 1, 2 * L_new + 1,
-            self.mesh.ng, self.mesh.nx, self.mesh.ny,
+            self.mesh.ng, *self.mesh.spatial_shape,
         )
         new_values = np.zeros(new_shape, dtype=self.values.dtype)
         new_values[: L_new + 1, : 2 * L_new + 1] = (

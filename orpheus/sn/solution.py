@@ -293,22 +293,22 @@ class Solution:
         Parameters
         ----------
         xs : np.ndarray
-            Cross-section array, shape ``(ng, nx, ny)`` (a
+            Cross-section array, shape ``(ng, *spatial)`` (a
             :class:`~orpheus.sn.material_xs_field.MaterialXSField`-shaped
             ndarray).  Per Issue #197 Wave 1 design, ``ReactionRate`` is
             a ``NewType`` over ``np.ndarray`` and is NOT promoted to a
-            dataclass — staying close to the natural ``ng × nx × ny``
+            dataclass — staying close to the natural ``ng × *spatial``
             layout the consumers (depletion, k-eff diagnostics, response
             functionals) want directly.
 
         Returns
         -------
         np.ndarray
-            Per-cell rate density, shape ``(ng, nx, ny)``.  Units:
+            Per-cell rate density, shape ``(ng, *spatial)``.  Units:
             :math:`\rm 1/(cm^3 \cdot s)` — the reaction-rate density
             per group.
         """
-        return np.einsum("gxy,gxy->gxy", xs, self.scalar_flux.values)
+        return xs * self.scalar_flux.values
 
     # ── Comparison ──────────────────────────────────────────────────
 
