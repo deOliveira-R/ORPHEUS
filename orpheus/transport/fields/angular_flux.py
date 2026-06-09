@@ -128,5 +128,5 @@ class AngularFlux(FluxRole, AngularField):
         weights = self.mesh.quad.weights
         # values shape (N, ng, nx, ny); contract over leading N axis
         # with weights (N,) → (ng, nx, ny).
-        scalar_values = np.einsum("n,ngij->gij", weights, self.values)
+        scalar_values = np.einsum("n,ng...->g...", weights, self.values)
         return ScalarFlux.from_mesh(scalar_values, self.mesh)

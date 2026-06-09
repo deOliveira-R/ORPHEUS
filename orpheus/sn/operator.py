@@ -274,7 +274,7 @@ class _SpatialSweepDirection(LinearOperatorMixin):
             ordinate_mask = mu_x < -eps
 
         masked_bulk = full_bulk.copy()
-        masked_bulk[~ordinate_mask, :, :, :] = 0.0
+        masked_bulk[~ordinate_mask] = 0.0
 
         # Boundary residual: forward sweep writes the outer-face WDD
         # outflow residual; backward sweep writes the inner-face
@@ -1480,7 +1480,7 @@ class StreamingOperator(LinearOperatorMixin):
         LpC_result = self.M_spatial._compute_LpC(psi)
         cell_values = (
             LpC_result.bulk.values
-            - self.sigma_t[None, :, :, :] * psi.bulk.values
+            - self.sigma_t[None] * psi.bulk.values
         )
         return TimedFullField(
             bulk=AngularSourceSink.from_mesh(cell_values, sn_mesh),
@@ -1535,7 +1535,7 @@ class StreamingOperator(LinearOperatorMixin):
         LpCt = self.M_spatial._compute_LpC_transpose(phi)
         cell_values = (
             LpCt.bulk.values
-            - self.sigma_t[None, :, :, :] * phi.bulk.values
+            - self.sigma_t[None] * phi.bulk.values
         )
         return TimedFullField(
             bulk=AngularSourceSink.from_mesh(cell_values, sn_mesh),
@@ -1720,7 +1720,7 @@ class StreamingOperator(LinearOperatorMixin):
             streamed[y_out_face][oct_idx] = cap_y
 
         # L = (L+C) − C: subtract the collision term Σ_t·ψ̄ → bare streaming L·ψ̄.
-        out_bulk = LpC - sig_t[None, :, :, :] * probe
+        out_bulk = LpC - sig_t[None] * probe
 
         # Boundary-block residual (O.4b Phase E — the active trace, mirroring
         # the 1-D L_full.apply template). ``streamed[face]`` holds the
@@ -1819,7 +1819,7 @@ class StreamingOperator(LinearOperatorMixin):
             psi_y[oct_idx] = psi_y_oct
             LpC[oct_idx] = LpC_oct
 
-        out_bulk = LpC - sig_t[None, :, :, :] * probe
+        out_bulk = LpC - sig_t[None] * probe
         # The post-walk domain-edge outflow (full interior cochain edge slots).
         streamed = {face: wavefront.edge_view(face) for face in trace.face_names}
         out_boundary = BoundarySourceSink.zeros_on(sn_mesh)
@@ -1960,7 +1960,7 @@ class CollisionOperator(LinearOperatorMixin):
         mesh = psi.bulk.mesh
         return TimedFullField(
             bulk=AngularSourceSink.from_mesh(
-                self.sigma[None, :, :, :] * psi.bulk.values, mesh,
+                self.sigma[None] * psi.bulk.values, mesh,
             ),
             boundary=BoundarySourceSink.zeros_on(mesh),
             _history=(),
@@ -1991,7 +1991,7 @@ class CollisionOperator(LinearOperatorMixin):
         mesh = q.bulk.mesh
         return TimedFullField(
             bulk=AngularFlux.from_mesh(
-                q.bulk.values / self.sigma[None, :, :, :], mesh,
+                q.bulk.values / self.sigma[None], mesh,
             ),
             boundary=BoundaryFlux.zeros_on(mesh),
             _history=(),

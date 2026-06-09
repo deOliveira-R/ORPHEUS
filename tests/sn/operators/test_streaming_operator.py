@@ -1264,8 +1264,18 @@ class TestT4dApply2DCartesianSourceHashPin:
     #         unchanged — Gate-K k_∞=1.875, matvec≡sweep, bc_extraction_2d/matvec
     #         all green (42 passed). The window walk is also ~0.77× the time
     #         (a speedup). Wave O #205/#208 Phase 5b.
+    #   N-D layout C1 (rank-adaptive collision subtraction) b7f5932a…a052d088 →
+    #         2d0c9f53…8d11cb63 — the Resolution-A collision subtraction
+    #         ``LpC - sig_t[None, :, :, :] * probe`` → ``LpC - sig_t[None] * probe``.
+    #         BIT-IDENTICAL: ``sig_t`` is ``(ng, nx, ny)`` (rank-3), so
+    #         ``sig_t[None]`` and ``sig_t[None, :, :, :]`` are the SAME
+    #         ``(1, ng, nx, ny)`` broadcast — identical bytes. The single-axis
+    #         prepend is the rank-AGNOSTIC form (it also broadcasts correctly
+    #         when ``sig_t`` becomes rank-2 ``(ng, nx)`` after the phantom-``ny=1``
+    #         removal). Behaviour-neutral prep for the `(N, ng, *spatial)` carve;
+    #         2-D octant snapshots + DD regression stay green.
     EXPECTED_SHA256: str = (
-        "b7f5932a6208a5159634120d566989b42932dbaf7eca060952236677a052d088"
+        "2d0c9f53ff65f86ec4e80181ddb41da6fe10a8c2c3aeef8540cee1ec8d11cb63"
     )
 
     def test_apply_2d_cartesian_source_hash_unchanged(self):
