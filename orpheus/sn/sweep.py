@@ -394,10 +394,9 @@ def _ensure_coll_cache(
     """
     cache = getattr(sn_mesh, "_coll_cache", None)
     if cache is None:
-        # 1-D meshes: sig_t shape is (ng, nx, 1).  Slice the trailing
-        # degenerate axis — the principled (ng, nx) layout the cache
-        # expects natively.
-        sig_t_1d = sig_t[:, :, 0]  # (ng, nx)
+        # 1-D meshes: sig_t is the principled (ng, nx) layout the cache
+        # expects natively (rank-d (N, ng, *spatial); no phantom ny axis).
+        sig_t_1d = sig_t  # (ng, nx)
         cache = CollisionCache.from_geometry(geom, sig_t_1d)
         sn_mesh._coll_cache = cache  # type: ignore[attr-defined]
     return cache
@@ -458,12 +457,11 @@ def _run_1d_sweep(
     weights = quad.weights
     mu = quad.mu_x
 
-    # ── Entry layout — PR-INDEX-5: public contract is principled ──────
-    # Drop the degenerate trailing ``ny=1`` axis to obtain the
-    # (N, ng, nx) working layout.  No transpose required.
-    Q_per_ord = Q[:, :, :, 0]                                # (N, ng, nx)
-    sig_t_p = sig_t[:, :, 0]                                 # (ng, nx)
-    V = sn_mesh.volumes[:, 0]                                # (nx,) — no group axis
+    # ── Entry layout — the public contract is the principled
+    # (N, ng, *spatial) = (N, ng, nx) for 1-D (no phantom ny axis).
+    Q_per_ord = Q                                            # (N, ng, nx)
+    sig_t_p = sig_t                                          # (ng, nx)
+    V = sn_mesh.volumes                                      # (nx,) — no group axis
     cell_update = sn_mesh.cell_update
 
     coord = sn_mesh.reduced.coord  # type: ignore[union-attr]
@@ -479,7 +477,7 @@ def _run_1d_sweep(
 
     # Internal principled layout — angular flux (N, ng, nx, 1),
     # scalar flux (ng, nx) working buffer (ny added at return).
-    angular_flux = np.zeros((N, ng, nx, 1))
+    angular_flux = np.zeros((N, ng, nx))
     scalar_flux = np.zeros((ng, nx))
 
     # ── BC inflow + per-level Carlson seed (curvilinear only) ─────────
@@ -605,7 +603,7 @@ def _run_1d_sweep(
             # Scatter back to cell-index order + write angular_flux,
             # accumulate scalar_flux.
             psi_avg_cell_order = psi_avg_per_ord[:, :, inv]   # (K, ng, nx)
-            angular_flux[ords, :, :, 0] = psi_avg_cell_order
+            angular_flux[ords, :, :] = psi_avg_cell_order
 
             # scalar_flux += Σ_n w_n · ψ_n  (broadcast over K).
             w_ords = weights[ords]                            # (K,)
@@ -640,8 +638,8 @@ def _run_1d_sweep(
         # ``.bulk.values`` identically).
         ig_values = _initial_guess_values(initial_guess)
         if ig_values is not None:
-            # (N, ng, nx, 1) → (ng, N, nx)
-            psi_g_first = ig_values.transpose(1, 0, 2, 3)[..., 0]
+            # (N, ng, nx) → (ng, N, nx)
+            psi_g_first = ig_values.swapaxes(0, 1)
         else:
             psi_g_first = None
 
@@ -688,7 +686,7 @@ def _run_1d_sweep(
                     # ndarray regardless of container type (legacy
                     # AngularFlux or composite TimedFullField).
                     if ig_values is not None:
-                        psi_in = ig_values[global_n, :, 0, 0]
+                        psi_in = ig_values[global_n, :, 0]
                     else:
                         psi_in = np.zeros(ng)
 
@@ -715,7 +713,7 @@ def _run_1d_sweep(
                         )
                         psi = result.cell_average_flux           # (ng,)
                         psi_angle[:, i] = result.outgoing_angular_state
-                        angular_flux[global_n, :, i, 0] = psi
+                        angular_flux[global_n, :, i] = psi
                         scalar_flux[:, i] += w_n * psi
                     continue
 
@@ -756,7 +754,7 @@ def _run_1d_sweep(
                 # Scatter back to cell-index order + writes.
                 inv = geom.chain_idx_inv[global_n]
                 psi_avg_p = psi_avg_chain_p[:, inv]              # (ng, nx)
-                angular_flux[global_n, :, :, 0] = psi_avg_p
+                angular_flux[global_n, :, :] = psi_avg_p
                 scalar_flux += w_n * psi_avg_p
 
                 # Persist outflow at the outer face for outward ordinates.
@@ -768,9 +766,9 @@ def _run_1d_sweep(
     # returned ``angular_flux`` as ``initial_guess`` to the NEXT sweep —
     # that's all the "history" needed.  The matvec already operates this
     # way; the sweep now mirrors it.
-    # angular_flux is already (N, ng, nx, 1); scalar_flux needs the ny=1
-    # axis added back to satisfy the (ng, nx, ny) public contract.
-    return angular_flux, scalar_flux[:, :, None]
+    # angular_flux is (N, ng, nx); scalar_flux is (ng, nx) — the principled
+    # (N, ng, *spatial) / (ng, *spatial) public contract (no phantom ny).
+    return angular_flux, scalar_flux
 
 
 # ═══════════════════════════════════════════════════════════════════════

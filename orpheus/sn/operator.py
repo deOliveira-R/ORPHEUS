@@ -386,11 +386,11 @@ class _MSpatialOperatorSum(OperatorSum):
         level_indices: tuple[np.ndarray, ...] = pole_angular_closure.level_indices
         A = sn_mesh.areas
 
-        psi_g_first = psi_view.transpose(1, 0, 2, 3)
-        out_g_first = np.zeros((ng, N, nx, ny))
+        psi_g_first = psi_view.swapaxes(0, 1)
+        out_g_first = np.zeros((ng, N, nx))
 
-        V = sn_mesh.volumes[:, 0]
-        sigma_t_gx = self.sigma_t[:, :, 0]
+        V = sn_mesh.volumes
+        sigma_t_gx = self.sigma_t
 
         boundary = psi.boundary
         trace = sn_mesh.trace
@@ -401,7 +401,7 @@ class _MSpatialOperatorSum(OperatorSum):
         if curvature != "cartesian":
             # Curvilinear: the pole seed is the r=0 REGULARITY condition
             # (NOT a boundary condition) — read the innermost cell flux.
-            pole_face_seed = psi_view[:, :, 0, 0].copy()
+            pole_face_seed = psi_view[:, :, 0].copy()
         elif face_inner is not None:
             # Slab: read the GIVEN inner inflow trace (the forward sweep's
             # μ>0 seed at xmin) directly. Wave O O.4a.2 — the BC reflection
@@ -450,7 +450,7 @@ class _MSpatialOperatorSum(OperatorSum):
                 psi_face_in = psi_face_in_init[global_dir, :].T
 
                 for i in cell_indices:
-                    psi_cell = psi_g_first[:, global_dir, i, 0]
+                    psi_cell = psi_g_first[:, global_dir, i]
                     angular_denom_term, angular_numer_upstream = (
                         pole_angular_closure.cell_contribution(
                             psi_state, i, p, within_positions,
@@ -468,7 +468,7 @@ class _MSpatialOperatorSum(OperatorSum):
                         angular_numer_upstream=angular_numer_upstream,
                     )
                     m_full = (denom * psi_cell - numer_upstream) / V[i]
-                    out_g_first[:, global_dir, i, 0] = m_full
+                    out_g_first[:, global_dir, i] = m_full
                     psi_face_in = 2.0 * psi_cell - psi_face_in
                 outflow_at_end[:, global_dir] = psi_face_in
             return outflow_at_end
@@ -511,7 +511,7 @@ class _MSpatialOperatorSum(OperatorSum):
                     angular_denom_term[col_idx] = denom_one[0]
                     angular_numer_upstream[:, col_idx] = numer_one[:, 0]
 
-                psi_cell = psi_g_first[:, global_deg, i, 0]
+                psi_cell = psi_g_first[:, global_deg, i]
                 denom, numer_upstream = cell_balance_for_streaming(
                     abs_mu=abs_mu_deg,
                     A_downstream=0.0,
@@ -523,9 +523,9 @@ class _MSpatialOperatorSum(OperatorSum):
                     angular_numer_upstream=angular_numer_upstream,
                 )
                 m_full = (denom * psi_cell - numer_upstream) / V[i]
-                out_g_first[:, global_deg, i, 0] = m_full
+                out_g_first[:, global_deg, i] = m_full
 
-        m_cell = out_g_first.transpose(1, 0, 2, 3)
+        m_cell = out_g_first.swapaxes(0, 1)
 
         # Wave O O.4a.2 — the boundary block of (L+C) carries the two trace
         # DIAGONALS of the block matrix; the off-diagonal −B is a sibling
@@ -625,12 +625,12 @@ class _MSpatialOperatorSum(OperatorSum):
         closure = sn_mesh.pole_angular_closure
         mu_x = quad.mu_x
         A = sn_mesh.areas
-        V = sn_mesh.volumes[:, 0]
-        sgx = self.sigma_t[:, :, 0]                       # (ng, nx)
+        V = sn_mesh.volumes
+        sgx = self.sigma_t                       # (ng, nx)
         trace = sn_mesh.trace
         has_inner_face = "xmin" in phi.boundary.layout.faces
 
-        out_bar = phi.bulk.values.transpose(1, 0, 2, 3)[..., 0]   # (ng, N, nx)
+        out_bar = phi.bulk.values.swapaxes(0, 1)   # (ng, N, nx)
         fo = phi.boundary.face_view("xmax")                       # (N, ng)
         fi = phi.boundary.face_view("xmin") if has_inner_face else None
 
@@ -664,7 +664,7 @@ class _MSpatialOperatorSum(OperatorSum):
 
         # ── ψ-independent angular_denom_term source (dummy state) ──
         psi_state_coef = closure.precompute_psi_state(
-            np.zeros((N, ng, nx, 1)),
+            np.zeros((N, ng, nx)),
             sigma_t=sgx,
             bc_outer_inflow_estimate=np.zeros((N, ng)),
         )
@@ -737,7 +737,7 @@ class _MSpatialOperatorSum(OperatorSum):
             m_boundary.face_view("xmin")[...] = fi_bar
         return TimedFullField(
             bulk=AngularSourceSink.from_mesh(
-                psi_bar.transpose(1, 0, 2)[:, :, :, None], sn_mesh,
+                psi_bar.swapaxes(0, 1), sn_mesh,
             ),
             boundary=m_boundary,
             _history=(),
@@ -844,12 +844,12 @@ class _MSpatialOperatorSum(OperatorSum):
         level_indices: tuple[np.ndarray, ...] = pole_angular_closure.level_indices
         A = sn_mesh.areas                                                # (nx+1,)
 
-        psi_g_first = psi_view.transpose(1, 0, 2, 3)                     # (ng, N, nx, ny)
-        out_spat_g_first = np.zeros((ng, N, nx, ny))
-        out_ang_g_first = np.zeros((ng, N, nx, ny))
+        psi_g_first = psi_view.swapaxes(0, 1)                     # (ng, N, nx, ny)
+        out_spat_g_first = np.zeros((ng, N, nx))
+        out_ang_g_first = np.zeros((ng, N, nx))
 
-        V = sn_mesh.volumes[:, 0]                                        # (nx,)
-        sigma_t_gx = self.sigma_t[:, :, 0]                               # (ng, nx)
+        V = sn_mesh.volumes                                        # (nx,)
+        sigma_t_gx = self.sigma_t                               # (ng, nx)
 
         boundary = psi.boundary
         trace = sn_mesh.trace
@@ -861,7 +861,7 @@ class _MSpatialOperatorSum(OperatorSum):
 
         if curvature != "cartesian":
             # Curvilinear: pole seed = r=0 REGULARITY condition (not a BC).
-            pole_face_seed = psi_view[:, :, 0, 0].copy()                 # (N, ng)
+            pole_face_seed = psi_view[:, :, 0].copy()                 # (N, ng)
         elif face_inner is not None:
             # Slab: read the GIVEN inner inflow trace (μ>0 seed at xmin)
             # directly. Mirrors _compute_LpC; the BC reflection moves to −B.
@@ -912,7 +912,7 @@ class _MSpatialOperatorSum(OperatorSum):
                 psi_face_in = psi_face_in_init[global_dir, :].T          # (ng, n_dir_p)
 
                 for i in cell_indices:
-                    psi_cell = psi_g_first[:, global_dir, i, 0]
+                    psi_cell = psi_g_first[:, global_dir, i]
                     angular_denom_term, angular_numer_upstream = (
                         pole_angular_closure.cell_contribution(
                             psi_state, i, p, within_positions,
@@ -936,8 +936,8 @@ class _MSpatialOperatorSum(OperatorSum):
                         - angular_numer_upstream
                     ) / V[i]
                     m_spat = m_full - m_ang
-                    out_spat_g_first[:, global_dir, i, 0] = m_spat
-                    out_ang_g_first[:, global_dir, i, 0] = m_ang
+                    out_spat_g_first[:, global_dir, i] = m_spat
+                    out_ang_g_first[:, global_dir, i] = m_ang
 
                     psi_face_in = 2.0 * psi_cell - psi_face_in
                 outflow_at_end[:, global_dir] = psi_face_in
@@ -983,7 +983,7 @@ class _MSpatialOperatorSum(OperatorSum):
                     angular_denom_term[col_idx] = denom_one[0]
                     angular_numer_upstream[:, col_idx] = numer_one[:, 0]
 
-                psi_cell = psi_g_first[:, global_deg, i, 0]              # (ng, n_deg)
+                psi_cell = psi_g_first[:, global_deg, i]              # (ng, n_deg)
                 denom, numer_upstream = cell_balance_for_streaming(
                     abs_mu=abs_mu_deg,
                     A_downstream=0.0,
@@ -1000,11 +1000,11 @@ class _MSpatialOperatorSum(OperatorSum):
                     - angular_numer_upstream
                 ) / V[i]
                 m_spat = m_full - m_ang
-                out_spat_g_first[:, global_deg, i, 0] = m_spat
-                out_ang_g_first[:, global_deg, i, 0] = m_ang
+                out_spat_g_first[:, global_deg, i] = m_spat
+                out_ang_g_first[:, global_deg, i] = m_ang
 
-        m_spat_cell = out_spat_g_first.transpose(1, 0, 2, 3)             # (N, ng, nx, ny)
-        m_ang_cell = out_ang_g_first.transpose(1, 0, 2, 3)               # (N, ng, nx, ny)
+        m_spat_cell = out_spat_g_first.swapaxes(0, 1)             # (N, ng, nx, ny)
+        m_ang_cell = out_ang_g_first.swapaxes(0, 1)               # (N, ng, nx, ny)
 
         # M_spatial carries the face residuals (only the spatial sweep
         # writes them; per MA-Q4 M_angular_redist is a BulkOperator).
@@ -1099,7 +1099,7 @@ class _MSpatialOperatorSum(OperatorSum):
         # 1-D drop of y axis for the sweep cache contract (it stores
         # per-(N, ng, nx); 2-D Cartesian routes through
         # `_apply_2d_cartesian` and does not use this cache).
-        sig_t_1d = self.sigma_t[:, :, 0]
+        sig_t_1d = self.sigma_t
         return CollisionCache.from_geometry(geom, sig_t_1d)
 
     def apply(self, psi: "TimedFullField") -> "TimedFullField":

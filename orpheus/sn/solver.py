@@ -872,7 +872,7 @@ class SNSolver:
             + CollisionOperator(self.sn_mesh, self.mat_xs.total_cross_section)
         )
         if self.geom_cache is not None:
-            sig_t_1d = self.mat_xs.total_cross_section[:, :, 0]
+            sig_t_1d = self.mat_xs.total_cross_section
             self.coll_cache = CollisionCache.from_geometry(
                 self.geom_cache, sig_t_1d,
             )

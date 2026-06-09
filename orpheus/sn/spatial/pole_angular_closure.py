@@ -661,7 +661,7 @@ class MorelMontryAngularSweep(
         self._mu_x = quad.mu_x
         self._weights = quad.weights
         self._dr = sn_mesh.dx
-        self._V = sn_mesh.volumes[:, 0]
+        self._V = sn_mesh.volumes
         self._N = N
 
     # ── Pure-algebra kernel staticmethods (test + legacy surface) ────
@@ -848,8 +848,8 @@ class MorelMontryAngularSweep(
             consumes the row matching the level's most-inward ordinate.
         """
         self._require_mesh_bound()
-        # (N, ng, nx, 1) → (ng, N, nx) — drop y; reorder for level access.
-        psi_g_first = psi_view.transpose(1, 0, 2, 3)[..., 0]
+        # (N, ng, nx) → (ng, N, nx) — reorder for level access.
+        psi_g_first = psi_view.swapaxes(0, 1)
         per_level: list[_MMHalfGrid] = []
         for p, level_idx in enumerate(self.level_indices):
             mu_level = self._mu_x[level_idx]
