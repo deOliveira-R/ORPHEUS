@@ -6,6 +6,85 @@
 throughout. Standing commit exclusions: `.claude/agent-memory/`, `.mcp.json`,
 hooks, `derivations/diagnostics/`.
 
+---
+
+## ⭐⭐⭐ POST-COMPACTION RECOVERY — READ THIS FIRST (2026-06-09)
+
+**One line:** the production `(N, ng, *spatial)` rank-d carve (eliminate the
+phantom `ny=1`) is **DONE + VALIDATED + COMMITTED**; what remains is a **deep,
+manual, per-file test migration (~47 files)** + then phases C3/C4/C5.
+
+### Environment (Host env, `$CLAUDE_ENVIRONMENT` empty)
+- **Worktree (cwd for everything):** `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/sn-nd-layout`
+- **Branch:** `worktree-sn-nd-layout` (off `main` @ `f0ffb30`; `main` is the
+  up-to-date trunk — Wave O + Phases 1–5 + #208 all merged; the old
+  `field-role-typing` worktree refs in other memories are STALE). NOT pushed.
+- **venv:** `/Users/rodrigo/git/nuclear/ORPHEUS/.venv/bin/python`
+- **Test invocation:** `PYTHONPATH=/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/sn-nd-layout /Users/rodrigo/git/nuclear/ORPHEUS/.venv/bin/python -O -m pytest -p no:cacheprovider ...`
+  Default mode `-O`. **Sentinels run WITHOUT `-O`** (`pytest -m sentinel`, Mode 8).
+  **Deselect the #212 hang:** `--deselect "tests/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff"`.
+  Wrap slow runs in `gtimeout 600` and redirect to a file (full `tests/sn/` times
+  out ~25 min; gate in slices). NO `continuous_get` (#212).
+
+### Commit chain (all on the branch; clean tree at HEAD)
+`646960d` plan → `05545ba` C1 (rank-adaptive local-op broadcasts, bit-identical)
+→ `ee04870` C2 lever+builders (WIP) → `d6e401b` C2b structured-1-D matvec
+(swapaxes(0,1), `(ng,N,nx)`, pole closure) → `6ae3da8` rank-d MMS sources +
+`_build_fixed_source_rhs` validation → `79f49e6` test literal-`1` migration +
+DD-snapshot regen → `6ca0154` `legacy_proxy_matvec` helper → `074372a`+`9fff2ee`
+plan/recalibration.
+
+### VALIDATED (production correctness — re-run any to confirm post-compaction)
+- slab/sphere/cyl `solve_sn(get_mixture("A","2g"), Mesh1D, …)` → **k_inf=1.875**
+  (closed-form anchor; smoke script pattern is in this plan's history).
+- **2-D bit-identical**: `tests/sn/sweep/cartesian_2d/test_2d_octant_sweep_equivalence.py`
+  green; `_apply_2d_cartesian` UNTOUCHED.
+- **DD regression 13/13**: `tests/sn/regression/test_dd_regression.py` (10 1-D
+  snapshots regenerated + VERIFIED value-preserving: 6 squeeze-only, 4 FP-drift
+  1e-16..6.8e-12 within tol; 2-D untouched).
+- MMS 1-D path runs (sources are rank-d). **No production bugs** — every
+  remaining suite failure is TEST-side phantom.
+
+### THE REMAINING WORK — do these IN ORDER
+**(1) C2c test migration (NEXT) — deep, manual, PER-FILE. NOT scriptable.**
+~47 files reference rank-2 phantom. Worst offenders (operators dir gate:
+160 fail / 319 pass): `test_streaming_operator` 35, `test_bc_extraction_matvec` 30,
+`test_streaming_operator_decomposition` 19, `test_native_matvec` 16,
+`test_operators_apply_typed` 12, `test_invertible_operator` 12,
+`test_g_adjoint_reciprocity` 12, `test_collision_operator` 12,
+`test_typed_residual_evaluation` 4, `test_solver_components` 1. Plus the
+sweep/solve/eigenvalue/primitives/verification files (not yet gated). Find them:
+`grep -rlE "\((N, ng|ng|quad\.N, ng|N_ord, ng), (nx|n_cells|nr), ny\)|\.values\[[^]]*, 0\]|:, :, :, 0\]" tests/sn/`.
+  - **METHOD (per file/function):** for CONSTRUCTIONS, build via the in-scope
+    mesh — `AngularFlux.zeros_on(mesh)` / `.from_mesh(arr, mesh)` or
+    `np.zeros((N, ng, *<the in-scope mesh>.spatial_shape))`. For EXTRACTIONS on
+    the now-rank-1 `(ng,nx)` flux / `(N,ng,nx)` field: `.values[0, :, 0]`→`[0, :]`,
+    `.values[:, :, 0].T`→`.values.T`, `.values[:, 0, 0]`→`[:, 0]`,
+    `[:, :, :, 0]`→drop, `.bulk.values[:, 0, 0, 0]`→`[:, 0, 0]`. `from_isotropic`
+    now expects `(ng, *spatial)`. Gate per file: it's fast (operators ~5s).
+  - **DO NOT REPEAT (all tried + reverted):** (a) blanket `→(N,ng,nx)` regresses
+    hidden-2-D cases; (b) scripted `→*<meshvar>.spatial_shape` gives 87 NameErrors
+    (mesh var varies per construction, esp. in helper fns); (c) rank-conditional
+    `if ny==1 else` is low-gain/high-clutter + misses extractions. **Go per-file.**
+  - `legacy_proxy_matvec` helper ALREADY fixed (`6ca0154`); the DD-snapshot
+    generator `_generate_snapshots.py` already rank-d (`79f49e6`). The genuine
+    2-D sweep tests (`test_sweep_graph*`, `test_cell_update_batch`) use real `ny>1`
+    — they are NOT phantom; leave them.
+**(2) C2d full-suite gate** once C2c green: `tests/sn/ tests/transport/ tests/numerics/`
+   slices (deselect #212; sentinels w/o -O; `-W error::DriftWarning` on regression).
+**(3) C3 sweep DAG d-generic** (`OctantLabel(signs:tuple)`, `from_cartesian_2d`→
+   `from_cartesian(dims)`, `diamond.cell_kernel_batch` `denom=σt+Σ_a s[a]`,
+   `geometry` octant build `itertools.product((-1,+1), repeat=ndim)`; 2-D
+   bit-identical sum-in-x,y-order; synthetic-3-D shape admission). See `nd_foundation.md` §2.
+**(4) C4 boundary inventory #220** (`_resolve_bcs`→`dict[FaceLabel,op]`).
+**(5) C5 3-D shape-admission pins + docs** (extend `docs/theory/index_convention.rst`).
+
+### Task tracker (recreate if lost): #1 C1 ✅ · #2 C2a ✅ · #3 C2b ✅ ·
+#4 C2c (IN PROGRESS — the deep per-file test migration above) · #5 C2d ·
+#6 C3 · #7 C4 · #8 C5. Chain blockedBy 4→5→6→7→8.
+
+---
+
 ## STATUS (live — 2026-06-09)
 
 ### ⭐⭐ UPDATE 2026-06-09 (latest) — TEST MIGRATION IS A DEEP PER-FILE REWRITE (recalibrated)
