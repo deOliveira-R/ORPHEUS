@@ -55,3 +55,44 @@ entry — do NOT weaken or delete the pin.
 `tests/sn/operators` is a fast tier (~6s under `-O -n 6`); its pre-existing
 conflicting-marker warnings (`foundation`+`l1` / `foundation`+`l0`) are
 noise, not failures.
+
+**Affine-gate test-migration playbook (`FluxRole` leaves — `AngularFlux`,
+`ScalarFlux`, `HarmonicMomentField`, `BoundaryFlux`; mixin
+`transport/fields/_flux_role.py`).** When a `FluxRole` leaf migration breaks
+stale `+`/`-` tests, the new contract is fixed and re-checkable:
+
+- `flux + flux` → `TypeError` matching `"affine_combination"` (the message
+  names the legal alternative). Canonical mirror:
+  `tests/transport/fields/test_angular_flux.py::TestAlgebra::test_flux_add_flux_forbidden_torsor_allowed`.
+- `flux − flux` → mints the sibling displacement (`_DISPLACEMENT_CLS`:
+  `AngularDisplacement` / `ScalarDisplacement` / `MomentDisplacement` /
+  `BoundaryDisplacement` in `transport/displacements/`), NOT another flux;
+  values = `self.values − other.values`. Assert the displacement type AND
+  `not isinstance(c, <FluxLeaf>)`.
+- Torsor update `flux + (flux − flux) → flux` is the legal "recombine".
+- Partner-compat checks (cross-mesh "mesh-bound", cross-L "equal space",
+  cross-class "same-class") moved OFF `+` ONTO `__sub__` — the flux+flux
+  gate fires FIRST on same-class `+`, so retarget those assertions to `−`.
+- Operator **linearity** on an affine domain CANNOT be spelled
+  `A.apply(α·u + β·v)` (the combined input is flux+flux). Reformulate at
+  the `.values` array level: set `combined.bulk.values[...] = α·u.values +
+  β·v.values`, apply, compare to `α·A.apply(u).values + β·A.apply(v).values`
+  (`TimedFullField.__add__` delegates to `bulk + bulk`, so it inherits the
+  gate). Keep a `pytest.raises(TypeError)` on the illegal spelling so the
+  gate stays pinned. This preserves the /W-projection + bulk-boundary
+  convention-drift catch.
+- Decomposition completeness (`iso + aniso == self`) is array-level:
+  `iso.values + aniso.values == self.values` (disjoint slices), with a
+  `pytest.raises(TypeError)` pinning that the flux+flux spelling is illegal.
+
+**Realized-BC tensor-product drill (`tests/geometry/test_bound_compat.py`).**
+Post-Wave-T.1/D-B+1 a realized boundary op's `.inner` is a
+`TensorProductOperator` (`orpheus.numerics.operator`, factors at `.ops`),
+NOT the bare angular primitive. The §16A.10 `B = G_patch ⊗ K_omega ⊗ K_g`
+form puts the angular operator at `.inner.ops[0]` (vacuum →
+`IncomingOrdinateMaskTensor`, reflective →`PermutationOperator`; albedo==1.0
+takes the bare-permutation TP fast path) and `IdentityOperator` at `ops[1]`.
+Strongest assertion: `isinstance(.inner, TensorProductOperator)` AND
+`isinstance(.inner.ops[0], <AngularPrimitive>)` AND the `== "vacuum"/
+"reflective"` kind tag. Bit-identical to the legacy single-axis form
+(IdentityOperator fold is a no-op) — structure changed, semantics did not.

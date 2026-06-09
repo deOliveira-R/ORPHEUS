@@ -58,6 +58,41 @@ created 5 self-inflicted orphans.
 
 ---
 
+## L-005 -- Locating slow/timeout tests in tests/derivations
+
+The whole `tests/derivations` suite CANNOT be run in one bounded
+process to find the `Timeout (>60.0s)` tests: with `--timeout=60
+--timeout-method=signal` the per-test 60s stalls accumulate past any
+sane `gtimeout` wall (even `-n 6` xdist hit the 600s cap mid-run and
+junit-xml is NOT written when the process is SIGTERM-killed, so the
+`-rfE` reason summary is lost). Working method:
+
+1. Split into batches that each COMPLETE: the slow tests cluster
+   entirely in `test_peierls_*` files. `test_fn*`/`*la13511*` (13
+   unique files) and all 32 non-peierls/non-fn files are fast (0
+   timeouts) — clear them as 2 group runs first.
+2. For the peierls group, the 4 heavy files (`test_peierls_reference`,
+   `_nystrom_verification`, `_convergence`, `_specular_bc`) plus
+   `test_peierls_greens_function_cylinder_mr` hold ALL the timeouts;
+   run each suspect file ALONE with `-n 8 -q -rfE --tb=no` so the
+   per-test `FAILED ... - Failed: Timeout (>60.0s)` reason line is
+   captured (only a COMPLETED run writes the short-summary reasons).
+3. The other ~46 peierls files run clean as one group.
+
+The 2026-06 sweep found exactly 20 timeout tests, all genuine
+`Timeout (>60.0s)` (zero real assertion/exception failures): 5 in
+`test_peierls_reference`, 11 in `_specular_bc`, 2 in
+`_nystrom_verification`, 1 in `_convergence` (`cp_slab_1eg_2rg`
+param), 1 in `_greens_function_cylinder_mr`.
+
+**Param-level precision**: when only SOME params of a parametrized
+test time out (sphere passes, cylinder+slab stall), mark just the
+slow params with `pytest.param(..., marks=pytest.mark.slow)` rather
+than the whole function/method — keeps the fast params in the
+default lane. Verify with `--collect-only -m "not slow"`.
+
+---
+
 ## L-004 -- vv-status rationale comments must NOT use [brackets]
 
 The `:vv-status: documented` directive lives in the same RST file as
