@@ -81,6 +81,11 @@ WHITELIST: frozenset[tuple[str, str]] = frozenset(
         # RETIRE_IN_P3_FOLLOWUP — sood_registry lazy-imports CPParams
         # inside a function body to avoid CP transitive deps at import time.
         ("derivations/continuous/sood_registry/builders.py", "cp"),
+        # RETIRE_IN_P3_FOLLOWUP — the non-vacuum MMS reference lazily builds
+        # its prescribed-inflow source from transport vocabulary
+        # (BoundarySourceSink / AngularSourceSink / TimedFullField) inside
+        # function bodies; move to the test side or import only L2 primitives.
+        ("derivations/continuous/mms/sn.py", "transport"),
     }
 )
 

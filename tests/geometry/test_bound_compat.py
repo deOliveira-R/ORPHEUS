@@ -206,7 +206,10 @@ class Test188WiringContracts:
         the structural contract.
         """
         from orpheus.geometry import BC, CoordSystem, Mesh1D
-        from orpheus.numerics.operator import IncomingOrdinateMaskTensor
+        from orpheus.numerics.operator import (
+            IncomingOrdinateMaskTensor,
+            TensorProductOperator,
+        )
         from orpheus.sn.geometry import SNMesh
         from orpheus.numerics.quadrature import Quadrature
 
@@ -227,9 +230,18 @@ class Test188WiringContracts:
         assert sn.bc_left is None
         assert sn.bc_xmin is None
         # Outer face: realizer-path shim wrapping the realized vacuum
-        # primitive (IncomingOrdinateMaskTensor).
+        # primitive.  Post-Wave-T.1 the realizer lifts the vacuum mask
+        # into the streaming tensor-product form
+        # ``IncomingOrdinateMaskTensor(axis=0) ⊗ IdentityOperator`` (the
+        # §16A.10 ``B = G_patch ⊗ K_omega ⊗ K_g`` decomposition, where
+        # the only non-trivial factor is the ordinate-axis mask).  Drill
+        # into the tensor product to pin that the realized angular factor
+        # is STILL the vacuum mask — the structure changed, the semantics
+        # did not.
         assert isinstance(sn.bc_right, _BoundBoundaryOperator)
-        assert isinstance(sn.bc_right.inner, IncomingOrdinateMaskTensor)
+        assert isinstance(sn.bc_right.inner, TensorProductOperator)
+        ordinate_factor = sn.bc_right.inner.ops[0]
+        assert isinstance(ordinate_factor, IncomingOrdinateMaskTensor)
         # Kind tag survives for the legacy string-comparison surface.
         assert sn.bc_right == "vacuum"
 
@@ -250,6 +262,7 @@ class Test188WiringContracts:
         :class:`PermutationOperator`.
         """
         from orpheus.geometry import BC, CoordSystem, Mesh1D
+        from orpheus.numerics.operator import TensorProductOperator
         from orpheus.sn.geometry import SNMesh
         from orpheus.numerics.quadrature import Quadrature
 
@@ -263,11 +276,20 @@ class Test188WiringContracts:
         quad = Quadrature.gauss_legendre(4)
         sn = SNMesh(mesh, quad, placeholder_materials())
 
-        # y-face placeholders shim-wrap a REALIZED PermutationOperator.
+        # y-face placeholders shim-wrap a REALIZED reflective primitive.
+        # Post-D-B+1 the realizer lifts the specular permutation into the
+        # streaming tensor-product form ``PermutationOperator(axis=0) ⊗
+        # IdentityOperator`` (the §16A.10 ``B = G_patch ⊗ K_omega ⊗ K_g``
+        # decomposition; albedo == 1.0 so the bare-permutation TP fast
+        # path is taken).  Drill into the tensor product to pin that the
+        # realized angular factor is STILL the no-op reflection
+        # permutation — the structure changed, the semantics did not.
         assert isinstance(sn.bc_ymin, _BoundBoundaryOperator)
         assert isinstance(sn.bc_ymax, _BoundBoundaryOperator)
-        assert isinstance(sn.bc_ymin.inner, PermutationOperator)
-        assert isinstance(sn.bc_ymax.inner, PermutationOperator)
+        assert isinstance(sn.bc_ymin.inner, TensorProductOperator)
+        assert isinstance(sn.bc_ymax.inner, TensorProductOperator)
+        assert isinstance(sn.bc_ymin.inner.ops[0], PermutationOperator)
+        assert isinstance(sn.bc_ymax.inner.ops[0], PermutationOperator)
         # Kind preserved for the legacy string-compare surface.
         assert sn.bc_ymin == "reflective"
         assert sn.bc_ymax == "reflective"

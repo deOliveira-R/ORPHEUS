@@ -216,6 +216,19 @@ class TestHarmonicMomentFieldSlicing:
         np.testing.assert_array_equal(aniso.values[1:], vals[1:])
 
     def test_iso_plus_aniso_recovers_self(self) -> None:
+        r"""The ℓ=0 / ℓ≥1 decomposition is complete:
+        ``isotropic_part().values + anisotropic_part().values == self.values``
+        bit-exactly (the contract stated in ``anisotropic_part``'s
+        docstring).
+
+        Both parts are flux-role :class:`HarmonicMomentField` states, so
+        the recombination ``iso + aniso`` is FORBIDDEN by the #208 affine
+        gate — flux + flux has no origin (the two parts are disjoint
+        slices of one field, not a partition-of-unity blend). The
+        complete-decomposition intent is verified at the ``.values``
+        array level instead, where the disjoint-slice addition IS the
+        natural reconstruction.
+        """
         m = _slab_mesh()
         L = 2
         rng = np.random.default_rng(seed=3)
@@ -227,8 +240,16 @@ class TestHarmonicMomentFieldSlicing:
         # moment-space content).
         vals[0, 1:] = 0.0
         phi = HarmonicMomentField.from_mesh_and_L(vals, m, L)
-        recombined = phi.isotropic_part() + phi.anisotropic_part()
-        np.testing.assert_array_equal(recombined.values, vals)
+        # Affine gate: flux + flux is unspellable.
+        with pytest.raises(TypeError, match="affine_combination"):
+            _ = phi.isotropic_part() + phi.anisotropic_part()
+        # Complete decomposition, verified at the array level (the iso /
+        # aniso parts are disjoint slices, so their array sum is exactly
+        # the original moment content).
+        recombined_values = (
+            phi.isotropic_part().values + phi.anisotropic_part().values
+        )
+        np.testing.assert_array_equal(recombined_values, vals)
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -330,27 +351,50 @@ class TestHarmonicMomentFieldTruncate:
 
 
 class TestHarmonicMomentFieldAlgebra:
-    def test_add_within_type(self) -> None:
+    def test_add_within_type_forbidden_torsor_allowed(self) -> None:
+        r"""#208 affine gate: ``moment + moment`` raises (flux states form
+        an affine space with no origin); the torsor action
+        ``ψ ⊕ (ψ' ⊖ ψ) → ψ'`` is the legal update step.
+
+        ``HarmonicMomentField`` inherits ``FluxRole`` (migrated to L2 in
+        ``6123422``), so it obeys the same affine algebra as
+        :class:`~orpheus.transport.fields.angular_flux.AngularFlux` —
+        mirrors ``test_angular_flux.py::TestAlgebra::
+        test_flux_add_flux_forbidden_torsor_allowed``.
+        """
         m = _slab_mesh()
         L = 1
         shape = (L + 1, 2 * L + 1, m.ng, m.nx, m.ny)
         a = HarmonicMomentField.from_mesh_and_L(np.ones(shape), m, L)
         b = HarmonicMomentField.from_mesh_and_L(2.0 * np.ones(shape), m, L)
-        c = a + b
-        assert isinstance(c, HarmonicMomentField)
-        np.testing.assert_array_equal(c.values, 3.0 * np.ones(shape))
+        # flux + flux → TypeError; the message names the legal alternative.
+        with pytest.raises(TypeError, match="affine_combination"):
+            _ = a + b
+        # Torsor action: flux ⊕ displacement → flux (the update step).
+        out = a + (b - a)
+        assert isinstance(out, HarmonicMomentField)
+        np.testing.assert_array_equal(out.values, b.values)
         # Frozen — originals unchanged.
         np.testing.assert_array_equal(a.values, np.ones(shape))
 
     def test_sub_within_type(self) -> None:
+        r"""``moment ⊖ moment`` mints a :class:`MomentDisplacement` (the
+        iterate increment), NOT another flux — flux states form an affine
+        space whose difference lives in the tangent / displacement space.
+        Values carry the signed difference ``self - other``.
+        """
+        from orpheus.transport.displacements.moment_displacement import (
+            MomentDisplacement,
+        )
         m = _slab_mesh()
         L = 1
         shape = (L + 1, 2 * L + 1, m.ng, m.nx, m.ny)
         a = HarmonicMomentField.from_mesh_and_L(3.0 * np.ones(shape), m, L)
         b = HarmonicMomentField.from_mesh_and_L(np.ones(shape), m, L)
         c = a - b
-        assert isinstance(c, HarmonicMomentField)
-        np.testing.assert_array_equal(c.values, 2.0 * np.ones(shape))
+        assert isinstance(c, MomentDisplacement)
+        assert not isinstance(c, HarmonicMomentField)
+        np.testing.assert_array_equal(c.values, a.values - b.values)
 
     def test_scalar_mul_left_and_right(self) -> None:
         m = _slab_mesh()
@@ -389,6 +433,10 @@ class TestHarmonicMomentFieldAlgebra:
             a + 5  # not a HarmonicMomentField
 
     def test_partner_must_share_mesh(self) -> None:
+        # The #208 affine gate forbids ``flux + flux`` outright, so the
+        # cross-mesh partner check now lives on ``__sub__`` (flux ⊖ flux →
+        # displacement), which reaches BulkField._check_partner's
+        # mesh-bound check. Retargeted from ``+`` to ``-`` accordingly.
         m1 = _slab_mesh()
         m2 = _slab_mesh()  # distinct instance — same shape
         L = 1
@@ -396,7 +444,7 @@ class TestHarmonicMomentFieldAlgebra:
         a = HarmonicMomentField.from_mesh_and_L(np.ones(shape), m1, L)
         b = HarmonicMomentField.from_mesh_and_L(np.ones(shape), m2, L)
         with pytest.raises(ValueError, match="mesh-bound"):
-            a + b
+            a - b
 
     def test_partner_must_share_L(self) -> None:
         m = _slab_mesh()
@@ -409,8 +457,12 @@ class TestHarmonicMomentFieldAlgebra:
         # check fires before the explicit L check in
         # HarmonicMomentField._check_partner. Both gate the same
         # invariant; the space-level message is more general.
+        #
+        # The #208 affine gate forbids ``flux + flux`` outright, so this
+        # partner check is exercised through ``__sub__`` (the legal
+        # flux ⊖ flux → displacement path that crosses to _check_partner).
         with pytest.raises(ValueError, match="equal space"):
-            a + b
+            a - b
 
 
 # ════════════════════════════════════════════════════════════════════
