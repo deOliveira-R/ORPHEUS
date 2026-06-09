@@ -151,18 +151,17 @@ class TestResolutionADecomposition:
         sn_mesh = _build_sn_mesh(geometry, n_cells=5, n_ord=4)
         ng = 1
         N = sn_mesh.quad.N
-        nx, ny = sn_mesh.nx, sn_mesh.ny
 
         rng = np.random.default_rng(seed)
         state = TimedFullField(
             bulk=AngularFlux.from_mesh(
-                rng.standard_normal((N, ng, nx, ny)), sn_mesh,
+                rng.standard_normal((N, ng, *sn_mesh.spatial_shape)), sn_mesh,
             ),
             boundary=BoundaryFlux.zeros_on(sn_mesh),
             _history=(),
             history_depth=2,
         )
-        sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), 2.0)  # PR-INDEX-3
+        sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)
 
         # Reference: the unified matvec at full σ_t.
         m_full_state = _LC_matvec(state, sigma_t)
@@ -228,18 +227,17 @@ class TestSubtractiveDefinition:
         sn_mesh = _build_sn_mesh(geometry, n_cells=5, n_ord=4)
         ng = 1
         N = sn_mesh.quad.N
-        nx, ny = sn_mesh.nx, sn_mesh.ny
 
         rng = np.random.default_rng(seed)
         state = TimedFullField(
             bulk=AngularFlux.from_mesh(
-                rng.standard_normal((N, ng, nx, ny)), sn_mesh,
+                rng.standard_normal((N, ng, *sn_mesh.spatial_shape)), sn_mesh,
             ),
             boundary=BoundaryFlux.zeros_on(sn_mesh),
             _history=(),
             history_depth=2,
         )
-        sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), 2.0)  # PR-INDEX-3
+        sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)
 
         L = StreamingOperator(sn_mesh, sigma_t)
         l_state = L.apply(state)
@@ -249,7 +247,7 @@ class TestSubtractiveDefinition:
         # Cell-centre subtraction: bulk expected = M.bulk - σ_t·ψ.bulk
         # (σ_t broadcast over the ordinate axis 0 via [None, :, :, :]).
         expected_bulk = (
-            m_full_state.bulk.values - sigma_t[None, :, :, :] * state.bulk.values
+            m_full_state.bulk.values - sigma_t[None] * state.bulk.values
         )
         # Face slots: L.boundary == M.boundary (no volumetric collision
         # on the trace; the cell-balance σ·ψ term is a CELL quantity).
@@ -297,19 +295,18 @@ class TestResolutionADifferentFromPriorWrong:
         sn_mesh = _build_sn_mesh(geometry, n_cells=5, n_ord=4)
         ng = 1
         N = sn_mesh.quad.N
-        nx, ny = sn_mesh.nx, sn_mesh.ny
 
         rng = np.random.default_rng(0)
         state = TimedFullField(
             bulk=AngularFlux.from_mesh(
-                rng.standard_normal((N, ng, nx, ny)), sn_mesh,
+                rng.standard_normal((N, ng, *sn_mesh.spatial_shape)), sn_mesh,
             ),
             boundary=BoundaryFlux.zeros_on(sn_mesh),
             _history=(),
             history_depth=2,
         )
-        sigma_full = np.full((ng, sn_mesh.nx, sn_mesh.ny), 2.0)  # PR-INDEX-3
-        sigma_zero = np.zeros((ng, sn_mesh.nx, sn_mesh.ny))
+        sigma_full = np.full((ng, *sn_mesh.spatial_shape), 2.0)
+        sigma_zero = np.zeros((ng, *sn_mesh.spatial_shape))
 
         # Resolution A's L.apply (subtractive).
         L = StreamingOperator(sn_mesh, sigma_full)

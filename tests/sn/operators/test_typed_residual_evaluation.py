@@ -64,7 +64,7 @@ def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
         raise AssertionError("1-D slab must not window")
     q_ext = TimedFullField(
         bulk=AngularSourceSink.from_isotropic(
-            np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0), sn_mesh,
+            np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0), sn_mesh,
         ),
         boundary=BoundarySourceSink.zeros_on(sn_mesh),
         _history=(), history_depth=2,
@@ -89,7 +89,7 @@ def test_from_balance_mints_residual_with_correct_type_units_space():
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     sn_mesh = SNMesh(mesh, quad, {0: fuel})
     rng = np.random.default_rng(208)
-    shape = (quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny)
+    shape = (quad.N, sn_mesh.ng, *sn_mesh.spatial_shape)
     a_psi = AngularSourceSink.from_mesh(rng.standard_normal(shape), sn_mesh)
     q = AngularSourceSink.from_mesh(rng.standard_normal(shape), sn_mesh)
     r = AngularResidual.from_balance(lhs=a_psi, rhs=q)  # POSITIVE
@@ -117,7 +117,7 @@ def test_balance_map_zero_at_convergence_nonzero_on_perturbation():
     defect, not a latent dud)."""
     _solver, loss_op, q_ext, psi = _converged_slab_2g()
     r = evaluate_residual(loss_op, psi, q_ext)            # POSITIVE
-    bmap = r.bulk.balance_map()                            # (ng, nx, ny)
+    bmap = r.bulk.balance_map()                            # (ng, *spatial)
     q_scale = float(np.abs(q_ext.bulk.values).max())
     rel = float(np.abs(bmap).max()) / max(q_scale, 1e-30)
     if not (rel < 1e-7):
@@ -126,7 +126,7 @@ def test_balance_map_zero_at_convergence_nonzero_on_perturbation():
     # NEGATIVE — perturb one interior cell (group 0, all ordinates) by 10 %.
     bad_vals = psi.bulk.values.copy()
     ix = psi.bulk.values.shape[2] // 2
-    bad_vals[:, 0, ix, 0] *= 1.1
+    bad_vals[:, 0, ix] *= 1.1
     psi_bad = TimedFullField(
         bulk=AngularFlux.from_mesh(bad_vals, psi.bulk.mesh),
         boundary=psi.boundary, _history=(), history_depth=psi.history_depth,
@@ -141,7 +141,7 @@ def test_balance_map_zero_at_convergence_nonzero_on_perturbation():
     # The defect ALSO spreads to streaming neighbours (the L stencil couples
     # cells), so the GLOBAL peak may sit at ix±1 — assert the perturbed cell
     # itself, not that it is the global argmax.
-    if not (np.abs(bmap_bad[:, ix, :]).max()
+    if not (np.abs(bmap_bad[:, ix]).max()
             > 100.0 * max(np.abs(bmap).max(), 1e-30)):
         raise AssertionError(
             "balance_map shows no defect AT the perturbed cell — not localised"
