@@ -14,6 +14,45 @@ hooks, `derivations/diagnostics/`.
 phantom `ny=1`) is **DONE + VALIDATED + COMMITTED**; what remains is a **deep,
 manual, per-file test migration (~47 files)** + then phases C3/C4/C5.
 
+### ⭐ SESSION UPDATE 2026-06-09 (cont., post-compaction) — production gaps found+fixed; test migration ~⅔ done
+**The test migration surfaced 3 PRODUCTION rank-2 remnants the k_inf/DD
+validation never exercised (so the earlier "NO production bugs" was
+incomplete).** ALL FIXED + re-validated (commit `94fcae5`):
+1. `solution.py` `reaction_rate_density` `einsum("gxy,gxy->gxy")` → elementwise
+   `xs * scalar_flux.values` (σ⊙φ, rank-generic). Never on the k_inf path.
+2. `solver.py` `__debug__` cell-flatten invariant `total_cross_section.transpose(1,2,0)`
+   → `np.moveaxis(...,0,-1)` + `reshape(*spatial_shape, ng)`. Fired only WITHOUT `-O`
+   (default mode is `-O` → the gate was silently inert post-carve).
+3. **HarmonicMomentField was a rank-2 ISLAND** (its `_phase_space_shape` never
+   flipped). Flipped HMF + the `MomentDisplacement` mirror to `(L+1,2L+1,ng,*spatial)`
+   — 5 shape-tuple sites, NO einsum cascade (moment einsums already ellipsis-generic;
+   2-D wavefront writes stay legit 2-D). HMF now rank-d; the 2-D-only GATING of the
+   windowed-moment path (Morel–Montry seed needs per-ordinate ψ) is untouched.
+   Plus HARMLESS `n_dof=N*ng*nx*ny`→`N*ng*prod(spatial_shape)` + retired dead
+   `_scalar_flux_from_angular`. **An explorer swept ALL of `orpheus/`: NO remaining
+   LIVE rank-2 bugs**; residual `ny>1` dispatch gates (`operator.py` `_apply_2d_cartesian`
+   selector) + `geometry.py:629 is_1d` are HARMLESS today → genericize in **C3**;
+   stale `(ng,nx,ny)` docstrings → later sweep.
+RE-VALIDATED: k_inf=1.875 slab/sphere/cyl (scalar_flux now genuinely rank-1
+`(ng,nx)`); 2-D octant moat 7/7; DD regression 13/13; 9 bc_extraction `.npy`
+baselines re-captured + INDEPENDENTLY verified value-preserving (`new==old[...,0]`).
+
+**TEST MIGRATION STATUS: operators+primitives+solve+numerics+transport REGION
+= 1650 passed, 0 failed (DONE).** Migrated via 3 waves of parallel general-purpose
+sub-agents (brief = the validated method; reference diff `git show 1774586`). Files
+done (~22): the 2 reference + wave-1 (typed_residuals, angular_flux, field_units,
+timed_full_field, solution, typed_source_sinks, harmonic_moment_field, streaming_operator,
+native_matvec, iteration, affine_flux_algebra) + wave-2/3 (collision, bc_extraction_matvec,
+solver_components, invertible, operators_apply_typed, g_adjoint_reciprocity, fixed_source_g1,
+flux_displacement_diagnostics, si_single_primitive_contract). **REMAINING = the
+sweep/verification/eigenvalue region** (curvilinear + slab + 1-D verification +
+sweep/core-1-D; the `cartesian_2d/*`, `test_keff_2d`, `test_mms_2d` are GENUINE 2-D →
+already green, LEAVE). Method is PROVEN; gate the region (`gtimeout 1200 ... tests/sn/sweep/
+tests/sn/verification/ tests/sn/eigenvalue/ --deselect ...test_heterogeneous_absolute_keff`,
+buffered so use a file), fan out per failing file, verify-then-regen any `.npy`/snapshot.
+**Commit chain (this session):** `1774586`(ref batch) → `94fcae5`(PRODUCTION fixes) →
+`9870495`(wave-1 tests) → `<wave-2/3 tests>`. Then C2d full-suite gate, then C3/C4/C5.
+
 ### Environment (Host env, `$CLAUDE_ENVIRONMENT` empty)
 - **Worktree (cwd for everything):** `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/sn-nd-layout`
 - **Branch:** `worktree-sn-nd-layout` (off `main` @ `f0ffb30`; `main` is the
