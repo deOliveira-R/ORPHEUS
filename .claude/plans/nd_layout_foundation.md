@@ -37,21 +37,24 @@ RE-VALIDATED: k_inf=1.875 slab/sphere/cyl (scalar_flux now genuinely rank-1
 `(ng,nx)`); 2-D octant moat 7/7; DD regression 13/13; 9 bc_extraction `.npy`
 baselines re-captured + INDEPENDENTLY verified value-preserving (`new==old[...,0]`).
 
-**TEST MIGRATION STATUS: operators+primitives+solve+numerics+transport REGION
-= 1650 passed, 0 failed (DONE).** Migrated via 3 waves of parallel general-purpose
-sub-agents (brief = the validated method; reference diff `git show 1774586`). Files
-done (~22): the 2 reference + wave-1 (typed_residuals, angular_flux, field_units,
-timed_full_field, solution, typed_source_sinks, harmonic_moment_field, streaming_operator,
-native_matvec, iteration, affine_flux_algebra) + wave-2/3 (collision, bc_extraction_matvec,
-solver_components, invertible, operators_apply_typed, g_adjoint_reciprocity, fixed_source_g1,
-flux_displacement_diagnostics, si_single_primitive_contract). **REMAINING = the
-sweep/verification/eigenvalue region** (curvilinear + slab + 1-D verification +
-sweep/core-1-D; the `cartesian_2d/*`, `test_keff_2d`, `test_mms_2d` are GENUINE 2-D →
-already green, LEAVE). Method is PROVEN; gate the region (`gtimeout 1200 ... tests/sn/sweep/
-tests/sn/verification/ tests/sn/eigenvalue/ --deselect ...test_heterogeneous_absolute_keff`,
-buffered so use a file), fan out per failing file, verify-then-regen any `.npy`/snapshot.
-**Commit chain (this session):** `1774586`(ref batch) → `94fcae5`(PRODUCTION fixes) →
-`9870495`(wave-1 tests) → `<wave-2/3 tests>`. Then C2d full-suite gate, then C3/C4/C5.
+**TEST MIGRATION STATUS: C2c COMPLETE — ALL regions migrated + per-region green**
+(modulo pre-existing reds #206/#195/#212/#214). ~38 files across 4 waves of
+parallel general-purpose sub-agents (brief = the validated method; reference diff
+`git show 1774586`). Per-region gates: operators+primitives+solve+numerics+transport
+**1650 passed/0 failed**; sweep core+slab **397**; cartesian_2d **38** (genuine-2-D,
+LEFT UNTOUCHED); curvilinear/verification/eigenvalue green. Genuine-2-D files
+(`cartesian_2d/*`, `test_keff_2d`, `test_mms_2d`, `test_sweep_graph`, `test_cell_update_batch`)
+gate-confirmed green + untouched (rank-d-correct already). #206 cylinder hand-ref now
+CORRECTLY xfails (migration made it COMPUTE — was dying at IndexError). #195 stays an
+expected xfail(strict). 9 bc_extraction `.npy` + phase_c_crosscheck `.npz` snapshots
+load value-preserving (verified `new==old[...,0]`).
+**Commit chain (this session):** `1774586`(ref batch) → `94fcae5`(PRODUCTION carve-completion:
+3 gaps + HMF island) → `9870495`(wave-1) → `598a256`(plan) → `af38cfb`(wave-2/3) →
+`ce6442f`(wave-4). **NEXT: C2d full-suite integrated gate (running as a per-file loop;
+deselect #212; sentinels WITHOUT `-O` — `pytest -m sentinel`), then C3 (sweep DAG
+d-generic; FOLD IN the deferred `ny>1` dispatch-gate genericization in `operator.py`
+`_apply_2d_cartesian` selector + `geometry.py:629 is_1d` → dimensionality test, per the
+explorer audit) → C4 (#220) → C5 (3-D admission pins + the `(ng,nx,ny)` docstring sweep).**
 
 ### Environment (Host env, `$CLAUDE_ENVIRONMENT` empty)
 - **Worktree (cwd for everything):** `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/sn-nd-layout`
