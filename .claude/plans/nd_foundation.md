@@ -120,6 +120,15 @@ faces / 4 octants / explicit x,y":
    `SNBoundaryOperator` over `2d` faces (already loops `layout.faces`, so mostly
    free once the layout is `d`-generic).
 
+   **⚠ Mesh-side caveat (issue #220).** "Mostly free" covers only the
+   `FaceLayout` storage + the `SNBoundaryOperator` loop. The MESH-side BC
+   *resolution* surface is NOT yet `d`-generic: `SNMesh._resolve_bcs`
+   (`orpheus/sn/geometry.py`) is a `Mesh1D | Mesh2D` `isinstance` split that sets
+   named `bc_xmin`/`bc_xmax`/`bc_ymin`/`bc_ymax` (+ `bc_left`/`bc_right`)
+   attributes — which 3-D would force to `bc_zmin`/`bc_zmax`. Replace with a
+   `FaceLabel`-keyed `SNMesh.bc` dict + a single `face_labels` loop (R-1 C4's
+   unfinished half) BEFORE or AS part of the 3-D boundary step. See issue #220.
+
 ---
 
 ## 3. Scope + non-scope

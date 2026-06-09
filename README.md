@@ -37,9 +37,9 @@ cd orpheus/data/micro_xs
 ### Run tests
 
 ```bash
-.venv/bin/python -m pytest                  # non-slow tests (~500 tests)
+.venv/bin/python -m pytest                  # non-slow tests
 .venv/bin/python -m pytest -m slow          # slow tests (Richardson, MC high-stats)
-.venv/bin/python -m pytest -v               # all ~500 tests
+.venv/bin/python -m pytest -v               # all ~5000 tests
 ```
 
 ### Build documentation
@@ -66,11 +66,12 @@ orpheus/
     # ── Solvers ──────────────────────────────────────────────
     homogeneous/             Infinite medium eigenvalue problem (421 groups)
     sn/                      Discrete ordinates (SN) transport
-        solver.py            Unified SN: 2D native (Lebedev), 1D degenerate (GL)
-        sweep.py             Diamond-difference spatial discretization
-        geometry.py          Augmented mesh for SN
-        quadrature.py        Angular quadratures (GL, Lebedev, level-symmetric)
-        operator.py          Transport operator for BiCGSTAB
+        solver.py            Unified SN solver: 1D slab/curvilinear + 2D Cartesian; source iteration + Krylov
+        sweep.py             Diamond-difference transport sweep
+        sweep_graph.py       Upwind sweep dependency graph (octant wavefronts)
+        operator.py          Typed transport operator algebra (L + C − S − F)
+        geometry.py          Augmented SN mesh (SNMesh)
+        axis.py              Dimension-agnostic axis primitives (Axis1D, FaceLabel)
     moc/                     Method of characteristics (2D)
     mc/                      Monte Carlo with Woodcock delta tracking
     cp/                      Collision probability (slab + cylindrical)
@@ -82,6 +83,10 @@ orpheus/
     # ── Infrastructure ───────────────────────────────────────
     numerics/
         eigenvalue.py        EigenvalueSolver protocol + power_iteration()
+        quadrature/          Angular quadratures (GL, Lebedev, level-symmetric, product)
+        field.py             Typed Field algebra (flux / source / residual roles)
+        iteration.py         Source iteration + Krylov acceleration
+        face_layout.py       Boundary face-layout descriptor
     data/
         micro_xs/            421-group microscopic XS (GENDF/HDF5), Isotope dataclass
         macro_xs/            Mixture, CellXS, recipes, self-shielding
@@ -139,7 +144,7 @@ pytest tests/ -v    # run all verification tests
 | Method | Geometry | Groups × Regions | Reference type |
 |--------|----------|-------------------|---------------|
 | Homogeneous | — | 1/2/4 × 1 | Analytical (matrix eigenvalue) |
-| SN 1D | Slab | 1/2/4 × 1,2,4 | Analytical + Richardson O(h²) |
+| SN 1D | Slab | 1/2/4 × 1,2,4 | Analytical + MMS O(h²) |
 | CP Slab | Slab | 1/2/4 × 1,2,4 | Semi-analytical (E₃ eigenvalue) |
 | CP Cylinder | Cyl1D | 1/2/4 × 1,2,4 | Semi-analytical (Ki₄ eigenvalue) |
 | MOC | Cyl1D | 1/2/4 × 1,2,4 | Analytical + Richardson |
