@@ -50,11 +50,22 @@ expected xfail(strict). 9 bc_extraction `.npy` + phase_c_crosscheck `.npz` snaps
 load value-preserving (verified `new==old[...,0]`).
 **Commit chain (this session):** `1774586`(ref batch) → `94fcae5`(PRODUCTION carve-completion:
 3 gaps + HMF island) → `9870495`(wave-1) → `598a256`(plan) → `af38cfb`(wave-2/3) →
-`ce6442f`(wave-4). **NEXT: C2d full-suite integrated gate (running as a per-file loop;
-deselect #212; sentinels WITHOUT `-O` — `pytest -m sentinel`), then C3 (sweep DAG
-d-generic; FOLD IN the deferred `ny>1` dispatch-gate genericization in `operator.py`
+`ce6442f`(wave-4). **C2d DONE — full-suite integrated gate GREEN: 130 files, 2345 passed, 0 genuine
+failures, 13 xfailed (#206/#195), 7 skipped (all legit).** ⭐ **#214 CLOSED** (the
+degenerate-`ny=1` 2-D-wavefront crash — the ONLY test broken *specifically* by
+dimensionality handling; a full skip/xfail audit confirms no others). The rank-d
+carve incidentally fixed it (`ny=1` Mesh2D eigenvalue → k_inf, no more
+"no 'y' interior face-field"); `test_sweep_1d_2d_consistency` un-skipped + green in
+1.4s, with `Lebedev(17)`→`product(n_mu=8,n_phi=4)` chosen by the quadrature objects'
+`invariance_group`/`degree_of_exactness` tags (#154): SO(2) matches the slab-in-x
+degenerate-`ny=1` symmetry + the 1-D GL reference; Lebedev was an O_h S² SO(3) cubature,
+500× slower. Commit `Closes #214` + issue comment. **NEXT: C3 (sweep DAG d-generic;
+FOLD IN the deferred `ny>1` dispatch-gate genericization in `operator.py`
 `_apply_2d_cartesian` selector + `geometry.py:629 is_1d` → dimensionality test, per the
-explorer audit) → C4 (#220) → C5 (3-D admission pins + the `(ng,nx,ny)` docstring sweep).**
+explorer audit) → C4 (#220 — boundary dict, still OPEN/forward) → C5 (3-D admission
+pins + the `(ng,nx,ny)` docstring sweep). Other dim-adjacent OPEN issues are FORWARD
+work, NOT closeable: #220 (C4), #219 (MethodSpace arch); #210 (2-D MMS pin) is deferred
+for PERFORMANCE not dimensionality.**
 
 ### Environment (Host env, `$CLAUDE_ENVIRONMENT` empty)
 - **Worktree (cwd for everything):** `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/sn-nd-layout`
