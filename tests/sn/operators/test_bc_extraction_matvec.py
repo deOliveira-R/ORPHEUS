@@ -213,7 +213,6 @@ def _random_state(sn_mesh: SNMesh, seed: int, *, zero_boundary: bool = True) -> 
     """
     ng = 1
     N = sn_mesh.quad.N
-    nx, ny = sn_mesh.nx, sn_mesh.ny
     rng = np.random.default_rng(seed)
     boundary = BoundaryFlux.zeros_on(sn_mesh)
     if not zero_boundary:
@@ -223,7 +222,7 @@ def _random_state(sn_mesh: SNMesh, seed: int, *, zero_boundary: bool = True) -> 
             view[:] = rng.standard_normal(view.shape)
     return TimedFullField(
         bulk=AngularFlux.from_mesh(
-            rng.standard_normal((N, ng, nx, ny)), sn_mesh,
+            rng.standard_normal((N, ng, *sn_mesh.spatial_shape)), sn_mesh,
         ),
         boundary=boundary,
         _history=(),
@@ -272,7 +271,7 @@ class TestVacuumMatvecBitIdentity:
         """
         sn_mesh = _build_sn_mesh(geometry, bc="vacuum")
         state = _random_state(sn_mesh, seed, zero_boundary=True)
-        sigma_t = np.full((1, sn_mesh.nx, sn_mesh.ny), 2.0)
+        sigma_t = np.full((1, *sn_mesh.spatial_shape), 2.0)
         out = _LpC_apply(sn_mesh, state, sigma_t)
 
         key = f"vacuum_bulk_{geometry}_seed{seed}"
@@ -313,7 +312,7 @@ class TestVacuumMatvecBitIdentity:
         """
         sn_mesh = _build_sn_mesh(geometry, bc="vacuum")
         state = _random_state(sn_mesh, seed, zero_boundary=True)
-        sigma_t = np.full((1, sn_mesh.nx, sn_mesh.ny), 2.0)
+        sigma_t = np.full((1, *sn_mesh.spatial_shape), 2.0)
         out = _LpC_apply(sn_mesh, state, sigma_t)
 
         key = f"vacuum_boundary_{geometry}_seed{seed}"
@@ -377,7 +376,7 @@ class TestVacuumMatvecBitIdentity:
             pytest.skip(f"2-D mesh construction not available here: {exc}")
 
         state = _random_state(sn_mesh, seed, zero_boundary=True)
-        sigma_t = np.full((ng, sn_mesh.nx, sn_mesh.ny), 2.0)
+        sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)
         out = _LpC_apply(sn_mesh, state, sigma_t)
 
         key = f"vacuum_2d_bulk_seed{seed}"
@@ -451,22 +450,22 @@ class TestStreamingEquilibriumValue:
         """
         sn_mesh = _build_sn_mesh(geometry, bc="vacuum", n_cells=8)
         ng, N = 1, sn_mesh.quad.N
-        nx, ny = sn_mesh.nx, sn_mesh.ny
-        flat = np.ones((N, ng, nx, ny))
+        nx = sn_mesh.nx
+        flat = np.ones((N, ng, *sn_mesh.spatial_shape))
         state = TimedFullField(
             bulk=AngularFlux.from_mesh(flat, sn_mesh),
             boundary=BoundaryFlux.zeros_on(sn_mesh),
             _history=(),
             history_depth=2,
         )
-        sigma_t = np.full((ng, nx, ny), 1.0)
+        sigma_t = np.full((ng, *sn_mesh.spatial_shape), 1.0)
         out = _LpC_apply(sn_mesh, state, sigma_t)
         # L action = (L+C) − C; C·ψ = σ_t·ψ = 1·1 = 1 everywhere.
         l_action = out.bulk.values - sigma_t[None] * flat
-        # Per-cell L2 magnitude across ordinates+groups.
+        # Per-cell L2 magnitude across ordinates+groups (1-D geometries).
         per_cell = np.linalg.norm(
-            l_action.reshape(N * ng, nx, ny), axis=0,
-        )[:, 0]
+            l_action.reshape(N * ng, nx), axis=0,
+        )
         # The pole cell (index 0) must NOT be the dominant cell — a
         # missing ΔA/w makes it spike.  Use a generous factor (2×) so the
         # test is a SPIKE detector, not a precise-balance assertion.
@@ -543,10 +542,9 @@ class TestLFullReadsInflow:
         """
         sn_mesh = _build_sn_mesh(geometry, bc="reflective")
         ng, N = 1, sn_mesh.quad.N
-        nx, ny = sn_mesh.nx, sn_mesh.ny
-        sigma_t = np.full((ng, nx, ny), 2.0)
+        sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)
         rng = np.random.default_rng(3)
-        bulk = rng.standard_normal((N, ng, nx, ny))
+        bulk = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
 
         def _state(inflow_scale: float) -> TimedFullField:
             b = BoundaryFlux.zeros_on(sn_mesh)
@@ -602,8 +600,7 @@ class TestLFullOutflowDefectKept:
         """
         sn_mesh = _build_sn_mesh(geometry, bc="reflective")
         ng, N = 1, sn_mesh.quad.N
-        nx, ny = sn_mesh.nx, sn_mesh.ny
-        sigma_t = np.full((ng, nx, ny), 2.0)
+        sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)
         state = _random_state(sn_mesh, seed=5, zero_boundary=False)
         out = _LpC_apply(sn_mesh, state, sigma_t)
 
@@ -671,10 +668,9 @@ class TestVacuumBoundaryDefectKept:
         """
         sn_mesh = _build_sn_mesh(geometry, bc="vacuum")
         ng, N = 1, sn_mesh.quad.N
-        nx, ny = sn_mesh.nx, sn_mesh.ny
-        sigma_t = np.full((ng, nx, ny), 2.0)
+        sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)
         rng = np.random.default_rng(9)
-        bulk = rng.standard_normal((N, ng, nx, ny))
+        bulk = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
         trace = sn_mesh.trace
 
         def _run(outflow_fill: float) -> np.ndarray:

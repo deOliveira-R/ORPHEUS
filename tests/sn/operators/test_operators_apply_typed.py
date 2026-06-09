@@ -135,7 +135,7 @@ def test_F_typed_lift_equivalent_to_scalar(name, builder) -> None:
     phi = state.bulk.integrate_angular()
     F_phi = F.apply(phi)
     expected_values = np.broadcast_to(
-        F_phi.values[None, :, :, :], Fpsi_typed.bulk.values.shape,
+        F_phi.values[None], Fpsi_typed.bulk.values.shape,
     )
     np.testing.assert_allclose(
         Fpsi_typed.bulk.values, expected_values, rtol=1e-14,
@@ -176,7 +176,7 @@ def test_C_apply_timed_full_field_zero_boundary(name, builder) -> None:
     """C.apply(TimedFullField) returns TimedFullField; boundary stays zero."""
     sn = builder()
     state = _random_state(sn, seed=5)
-    sigma = np.ones((sn.ng, sn.nx, sn.ny)) * 0.7
+    sigma = np.ones((sn.ng, *sn.spatial_shape)) * 0.7
     C = CollisionOperator(sn, sigma)
 
     Cpsi = C.apply(state)
@@ -192,11 +192,11 @@ def test_C_diagonal_action(name, builder) -> None:
     sn = builder()
     state = _random_state(sn, seed=6)
     rng = np.random.default_rng(7)
-    sigma = 0.3 + 0.5 * rng.random((sn.ng, sn.nx, sn.ny))
+    sigma = 0.3 + 0.5 * rng.random((sn.ng, *sn.spatial_shape))
     C = CollisionOperator(sn, sigma)
 
     Cpsi = C.apply(state)
-    expected = sigma[None, :, :, :] * state.bulk.values
+    expected = sigma[None] * state.bulk.values
     np.testing.assert_array_equal(Cpsi.bulk.values, expected)
 
 
@@ -211,7 +211,7 @@ def test_L_apply_timed_full_field_returns_composite(name, builder) -> None:
     sn = builder()
     state = _random_state(sn, seed=10)
     rng = np.random.default_rng(11)
-    sigma_t = 0.4 + 0.4 * rng.random((sn.ng, sn.nx, sn.ny))
+    sigma_t = 0.4 + 0.4 * rng.random((sn.ng, *sn.spatial_shape))
     L = StreamingOperator(sn, sigma_t)
 
     Lpsi = L.apply(state)
@@ -248,7 +248,7 @@ def test_full_algebra_returns_timed_full_field(name, builder) -> None:
     """
     sn = builder()
     state = _random_state(sn, seed=24)
-    sigma_t = np.full((sn.ng, sn.nx, sn.ny), 0.7)
+    sigma_t = np.full((sn.ng, *sn.spatial_shape), 0.7)
     L = StreamingOperator(sn, sigma_t)
     C = CollisionOperator(sn, sigma_t * 0.5)
     S = ScatteringOperator.from_solver_data(
@@ -281,7 +281,7 @@ def test_full_algebra_linearity(name, builder) -> None:
     sn = builder()
     state1 = _random_state(sn, seed=27)
     state2 = _random_state(sn, seed=28)
-    sigma_t = np.full((sn.ng, sn.nx, sn.ny), 0.7)
+    sigma_t = np.full((sn.ng, *sn.spatial_shape), 0.7)
     L = StreamingOperator(sn, sigma_t)
     C = CollisionOperator(sn, sigma_t * 0.5)
     S = ScatteringOperator.from_solver_data(

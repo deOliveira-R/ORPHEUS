@@ -91,7 +91,7 @@ def _cylindrical_mesh(nx: int = 4, radius: float = 1.0) -> SNMesh:
 def _random_state(
     sn_mesh: SNMesh, ng: int = 2, seed: int = 42,
 ) -> TimedFullField:
-    """Random :class:`TimedFullField` whose bulk has shape ``(N, ng, nx, ny)``.
+    """Random :class:`TimedFullField` whose bulk has shape ``(N, ng, *spatial)``.
 
     D-H.2-C1: the composite carrier replaces the legacy
     :class:`orpheus.sn.angular_flux.AngularFlux` input.  Bulk values
@@ -100,29 +100,28 @@ def _random_state(
     """
     rng = np.random.default_rng(seed)
     N = sn_mesh.quad.N
-    nx, ny = sn_mesh.nx, sn_mesh.ny
     state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
     return replace(
         state,
-        bulk=replace(state.bulk, values=rng.standard_normal((N, ng, nx, ny))),
+        bulk=replace(
+            state.bulk, values=rng.standard_normal((N, ng, *sn_mesh.spatial_shape)),
+        ),
     )
 
 
 def _sigma_total(sn_mesh: SNMesh, ng: int = 2) -> np.ndarray:
     """Random per-cell per-group cross-section, bounded away from 0.
 
-    PR-INDEX-3: ``(ng, nx, ny)`` principled layout.
+    PR-INDEX-3: ``(ng, *spatial)`` principled layout.
     """
-    nx, ny = sn_mesh.nx, sn_mesh.ny
     rng = np.random.default_rng(seed=20260514)
-    return 0.3 + 0.5 * rng.random((ng, nx, ny))
+    return 0.3 + 0.5 * rng.random((ng, *sn_mesh.spatial_shape))
 
 
 def _sigma_removal(sn_mesh: SNMesh, ng: int = 2) -> np.ndarray:
     """Synthetic σ_r — same shape, smaller magnitude. Handled identically."""
-    nx, ny = sn_mesh.nx, sn_mesh.ny
     rng = np.random.default_rng(seed=20260515)
-    return 0.1 + 0.3 * rng.random((ng, nx, ny))
+    return 0.1 + 0.3 * rng.random((ng, *sn_mesh.spatial_shape))
 
 
 GEOMETRIES = [
@@ -189,9 +188,8 @@ class TestApply:
     def test_apply_constant_sigma_uniform(self, name, builder):
         """With σ constant scalar c, apply(ψ) == c · ψ slot-by-slot."""
         sn_mesh = builder()
-        nx, ny = sn_mesh.nx, sn_mesh.ny
         c = 0.4
-        sigma = c * np.ones((2, nx, ny))  # PR-INDEX-3: (ng, nx, ny)
+        sigma = c * np.ones((2, *sn_mesh.spatial_shape))  # PR-INDEX-3: (ng, *spatial)
         C = CollisionOperator(sn_mesh, sigma)
         psi = _random_state(sn_mesh, seed=99)
         out = C.apply(psi)
@@ -236,9 +234,8 @@ class TestSolve:
     def test_solve_constant_sigma_uniform(self, name, builder):
         """With σ constant scalar c, solve(q) == q / c."""
         sn_mesh = builder()
-        nx, ny = sn_mesh.nx, sn_mesh.ny
         c = 0.4
-        sigma = c * np.ones((2, nx, ny))  # PR-INDEX-3: (ng, nx, ny)
+        sigma = c * np.ones((2, *sn_mesh.spatial_shape))  # PR-INDEX-3: (ng, *spatial)
         C = CollisionOperator(sn_mesh, sigma)
         q = _random_state(sn_mesh, seed=88)
         out = C.solve(q)
@@ -265,9 +262,9 @@ class TestSolve:
         C = CollisionOperator(sn_mesh, sigma)
         q = _random_state(sn_mesh, seed=200)
         out = C.solve(q)
-        # σ has shape (ng, nx, ny); broadcasts over the ordinate axis.
+        # σ has shape (ng, *spatial); broadcasts over the ordinate axis.
         np.testing.assert_allclose(
-            out.bulk.values, q.bulk.values / sigma[None, :, :, :], rtol=1e-14,
+            out.bulk.values, q.bulk.values / sigma[None], rtol=1e-14,
         )
 
 
@@ -385,17 +382,16 @@ class TestSigmaLayout:
     def test_localised_sigma_localised_output(self, name, builder):
         sn_mesh = builder()
         ng = 2
-        nx, ny = sn_mesh.nx, sn_mesh.ny
+        nx = sn_mesh.nx
         ix_target = nx // 2
-        iy_target = 0
-        sigma = np.zeros((ng, nx, ny))  # PR-INDEX-3: (ng, nx, ny)
-        sigma[:, ix_target, iy_target] = 1.0
+        sigma = np.zeros((ng, *sn_mesh.spatial_shape))  # PR-INDEX-3: (ng, *spatial)
+        sigma[:, ix_target] = 1.0
         C = CollisionOperator(sn_mesh, sigma)
         psi = _random_state(sn_mesh, ng=ng, seed=33)
         out = C.apply(psi)
-        # Build a mask shaped (nx, ny) selecting only the target cell.
-        cell_mask = np.zeros((nx, ny), dtype=bool)
-        cell_mask[ix_target, iy_target] = True
+        # Build a mask shaped (*spatial,) selecting only the target cell.
+        cell_mask = np.zeros(sn_mesh.spatial_shape, dtype=bool)
+        cell_mask[ix_target] = True
         # Output at NON-target cells is zero.
         np.testing.assert_array_equal(
             out.bulk.values[:, :, ~cell_mask], 0.0,

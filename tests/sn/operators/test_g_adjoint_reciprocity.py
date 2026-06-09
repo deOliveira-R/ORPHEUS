@@ -77,9 +77,9 @@ def _make_slab(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5):
     )
     sn = SNMesh(mesh, quad, placeholder_materials(ng=ng))
     # Per-group-varying σ_t so the 2g row is non-degenerate in the group axis
-    # (exercises the G_bulk broadcast over ng); (ng, nx, ny) per PR-INDEX-3.
+    # (exercises the G_bulk broadcast over ng); rank-d (ng, *spatial).
     sig_t = np.stack(
-        [np.full((nx, 1), sigma * (1.0 + 0.5 * g)) for g in range(ng)], axis=0
+        [np.full(sn.spatial_shape, sigma * (1.0 + 0.5 * g)) for g in range(ng)], axis=0
     )
     return sn, sig_t
 
@@ -94,7 +94,7 @@ def _make_sphere(nx: int = 4, R: float = 1.0, ng: int = 1, sigma: float = 0.5):
     )
     sn = SNMesh(mesh, quad, placeholder_materials(ng=ng))
     sig_t = np.stack(
-        [np.full((nx, 1), sigma * (1.0 + 0.5 * g)) for g in range(ng)], axis=0
+        [np.full(sn.spatial_shape, sigma * (1.0 + 0.5 * g)) for g in range(ng)], axis=0
     )
     return sn, sig_t
 
@@ -128,10 +128,12 @@ _BUILDERS = {
 
 
 def _bulk_measure(sn: SNMesh) -> np.ndarray:
-    r"""G_bulk = V_cell · w_n on (N, 1, nx, ny) — built from raw mesh data."""
+    r"""G_bulk = V_cell · w_n on (N, 1, *spatial) — built from raw mesh data."""
     w_n = np.asarray(sn.quad.weights, dtype=float)
-    V = np.asarray(sn.volumes, dtype=float)  # (nx, ny)
-    return w_n[:, None, None, None] * V[None, None, :, :]
+    V = np.asarray(sn.volumes, dtype=float)  # (*spatial,)
+    # (N, 1) ordinate+group axes ⊗ (*spatial,) volume axes — rank-generic.
+    w_b = w_n.reshape((w_n.shape[0], 1) + (1,) * V.ndim)
+    return w_b * V[None, None]
 
 
 def _trace_cosine_weight(sn: SNMesh, face_idx: int, *, with_cosine: bool) -> np.ndarray:
@@ -163,8 +165,8 @@ def _g_inner(a: TimedFullField, b: TimedFullField, sn: SNMesh, *,
 
 def _random_composite(sn: SNMesh, rng: np.random.Generator) -> TimedFullField:
     r"""Random NON-FLAT composite (bulk + boundary both random per ordinate)."""
-    N, ng, nx, ny = sn.quad.N, sn.ng, sn.nx, sn.ny
-    bulk = AngularFlux.from_mesh(rng.standard_normal((N, ng, nx, ny)), sn)
+    N, ng = sn.quad.N, sn.ng
+    bulk = AngularFlux.from_mesh(rng.standard_normal((N, ng, *sn.spatial_shape)), sn)
     boundary = BoundaryFlux(
         values=rng.standard_normal(int(sn.trace.layout.total_size)),
         space=sn.trace,

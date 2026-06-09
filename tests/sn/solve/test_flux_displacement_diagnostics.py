@@ -77,7 +77,7 @@ def _run_si(c: float, **kw):
         raise AssertionError("homogeneous slab should not window the SI iterate")
     q_ext = TimedFullField(
         bulk=AngularSourceSink.from_isotropic(
-            np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), 1.0), sn_mesh,
+            np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0), sn_mesh,
         ),
         boundary=BoundarySourceSink.zeros_on(sn_mesh),
         _history=(), history_depth=2,

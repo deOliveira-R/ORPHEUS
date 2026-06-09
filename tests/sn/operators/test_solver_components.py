@@ -220,7 +220,8 @@ class TestComputeGroupRates:
             scattering_order=0,
         )
 
-        phi_g = result.scalar_flux.values.mean(axis=(1, 2))
+        phi_vals = result.scalar_flux.values
+        phi_g = phi_vals.mean(axis=tuple(range(1, phi_vals.ndim)))
         sig_p = np.asarray(fuel.SigP)
         sig_a = np.asarray(fuel.absorption_xs)
         if sig_p.ndim == 2:

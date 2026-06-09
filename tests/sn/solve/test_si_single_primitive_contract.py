@@ -106,7 +106,6 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
     """
     mesh, quad, materials = _BUILDERS[case]()
     sn_mesh = SNMesh(mesh, quad, materials)
-    nx, ny = sn_mesh.nx, sn_mesh.ny
 
     # Spy: wrap SourceIteration.__init__ to record the (resolvent, *gains)
     # operands, then delegate to the real __init__ so the solve still runs.
@@ -122,8 +121,8 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
     # (a) Eigenvalue inner — the canonical SourceIteration consumer.
     solver = SNSolver(sn_mesh, max_inner=4)
     ng = solver.ng
-    fission_source = np.ones((ng, nx, ny))
-    flux = np.ones((ng, nx, ny))
+    fission_source = np.ones((ng, *sn_mesh.spatial_shape))
+    flux = np.ones((ng, *sn_mesh.spatial_shape))
     solver._solve_source_iteration(fission_source, flux)
     assert len(captured) == 1, (
         "the eigenvalue inner must build exactly one SourceIteration; "
@@ -133,7 +132,7 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
 
     # (b) Migrated fixed-source SI — MUST route through the SAME primitive.
     external = AngularSourceSink.from_isotropic(
-        np.ones((ng, nx, ny)), sn_mesh,
+        np.ones((ng, *sn_mesh.spatial_shape)), sn_mesh,
     ).values
     solve_sn_fixed_source(
         materials=materials, mesh=mesh, quadrature=quad,

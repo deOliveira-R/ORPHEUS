@@ -135,7 +135,7 @@ class TestExternalSourcePerOrdContract:
         # Random per-ord source.
         rng = np.random.default_rng(seed=42)
         external_source = rng.standard_normal(
-            (quad.N, 1, 6, 1),
+            (quad.N, sn_mesh.ng, *sn_mesh.spatial_shape),
         )
 
         captured: list[np.ndarray] = []
@@ -221,7 +221,7 @@ class TestHomogeneousReflectiveFixedPoint:
         sum_w = float(quad.weights.sum())
         # Iso scalar source -> projected per-ord density.
         q_iso = 0.5
-        Q_iso = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), q_iso)
+        Q_iso = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), q_iso)
         src = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
 
         result = solve_sn_fixed_source(
@@ -264,7 +264,7 @@ class TestReturnTypeContract:
         mesh, quad = _sphere_reflective(nx=6)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         src = AngularSourceSink.from_isotropic(
-            np.full((1, 6, 1), 1.0), sn_mesh,
+            np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0), sn_mesh,
         )
         result = solve_sn_fixed_source(
             materials=placeholder_materials(),
