@@ -14,8 +14,103 @@ hooks, `derivations/diagnostics/`.
 per-file test migration (C2c) **AND** the C2d integrated gate are **DONE** — full
 suite **2345 passed / 0 genuine failures**, branch pushed to `origin`. This session
 also CLOSED #214 (degenerate-`ny=1`, via an SO(2) product quadrature) and ran a
-Lebedev-quadrature audit (~5 min suite speedup). **NEXT = C3 (sweep DAG d-generic).**
-Details in the SESSION UPDATE block + THE REMAINING WORK below.
+Lebedev-quadrature audit (~5 min suite speedup). **C3 IN PROGRESS — see the C3
+SESSION UPDATE immediately below (architecture PIVOT: dimension-agnostic wavefront).**
+
+### ⭐ SESSION UPDATE 2026-06-09 (C3 START — ARCHITECTURE PIVOT: dimension-agnostic wavefront)
+**USER DIRECTIVE (re-shapes C3):** *"The wavefront should work for 1, 2 and 3D,
+dimension agnostic. The cumprod should be an optimized option, and we can check that
+wavefront matches cumprod for 1D (and even measure the improvement)."* This OVERRIDES
+the `nd_foundation.md §2.3` deferral ("1-D is a parallel-prefix SCAN not a wavefront →
+WRONG-FIT, defer the fold"). The hard constraint it flagged (a naive d-generic
+forward-sub walk is O(nx) SEQUENTIAL for d=1 → perf regression) is RESOLVED: cumprod
+stays the SELECTABLE d=1 optimization (1-D production keeps Blelloch speed); the
+wavefront becomes the general mechanism + the 1-D verification oracle.
+
+**ARCHITECTURE (spine + pluggable optimizations — collapses 3 sweep + 2 matvec bodies
+into ONE spine + oracle-pinned optimizations):**
+- WAVEFRONT DAG full-field walk (`SweepDependencyGraph.from_cartesian(shape)` +
+  d-generic `DiamondDifference.cell_kernel_batch` summing `denom=σ_t+Σ_axis s_axis`) =
+  the dimension-agnostic SPINE + verification ORACLE (d=1,2,3, ONE code path).
+- cumprod parallel-prefix scan (`ordinate_scan`/`_sweep_1d_unified`) = the d=1
+  OPTIMIZATION (default-selected; ZERO perf regression). Pinned wavefront(1D)≡cumprod
+  = principled-equiv @ nulp (DIFFERENT FP association orders, anchored on analytical
+  k_inf=1.875 NOT old-vs-new).
+- `_MovingFrontier` window = the d≥2 OPTIMIZATION (pinned ≡ full-field by
+  `tests/sn/sweep/cartesian_2d/test_2d_full_field_oracle.py`).
+
+**C3 SUB-STAGING:** C3.0 scaffold (test-first) · C3.1 d-generic DAG spine · C3.2
+d-generic diamond kernel + d-generic full-field walk · C3.3 geometry d-generic
+(`itertools.product` + build the 1-D graph + fold the 5 `ny>1` gates + `is_1d`) ·
+C3.4 wavefront-1-D wiring + cumprod oracle + perf measurement · C3.5 orchestration
+d-generic (`xmin/...`→per-axis `FaceLabel`) + retire the sweep/matvec twins · C3.6
+synthetic-3-D admission + docs (folds C5).
+
+**DONE THIS SESSION:**
+- ✅ **C3.0** (`5b941eb`): test-first scaffold — `test_wavefront_cumprod_equivalence.py`
+  (wavefront≡cumprod oracle + cumprod→analytical-k_inf anchor [live] + perf measurement)
+  + `test_sweep_graph_nd_admission.py` (B1–B6 synthetic d=1/d=3 structural pins + the
+  d=2 `from_cartesian`==`from_cartesian_2d` legacy-equivalence). xfail-gated green.
+- ✅ **C3.1** (`9b75374`): `OctantLabel(signs:tuple)` d-generic (compat props
+  `sign_x`/`sign_y`/`streams_in_2d`/`ndim`/`streams`) + `SweepDependencyGraph.from_cartesian(shape,*,label)`
+  d-generic (levels = the `Σ idx=k` anti-hyperplane, `Σ(n−1)+1` levels; C-MAJOR within
+  a level ⟹ d=2 BIT-IDENTICAL to legacy `from_cartesian_2d`, now a thin deprecated
+  alias). Fields → `face_in`/`face_out`/`spatial_shape` tuples (+ compat props
+  `face_in_x`/`nx`/…). `_MovingFrontier` window = d=2-ONLY optimization
+  (`window_slots`/`window_edges` None otherwise; `apply_windowed`/`residual_windowed`
+  fail-loud guard). 6 production + 4 test-file `OctantLabel(a,b)`→`OctantLabel((a,b))`;
+  2 validation `match=` strings updated. ⭐ GATES ALL GREEN: smoke (d=2 bit-id vs legacy
+  incl. `ny=1` degenerate + d=1 chain + d=3 admission); scaffold d-gen pins flipped
+  xfail→pass (49 passed/3 xfailed); 2-D moat bit-identical; sweep/core+cartesian_2d+
+  primitives+slab+dd_regression **754 passed -O** (DD drift **6920 ULP == pre-C3.1
+  baseline → ZERO new drift**); `test_sweep_graph` 76 passed no-`-O`; k_inf=1.875.
+
+- ✅ **C3.2a** (`9063487`): `DiamondDifference.cell_kernel_batch`/`residual_kernel_batch`
+  dimension-generic via a per-axis TUPLE API (`psi_in: tuple`, `s: tuple` → `(psi_avg,
+  psi_out: tuple)`). The axis reduction is an EXPLICIT LEFT FOLD (NOT `sum()`) so the
+  `((sigt+s_0)+s_1)` / `((Q+s_0·in_0)+s_1·in_1)` order reproduces legacy `sigt+sx+sy` /
+  `Q+sx·in_x+sy·in_y` BIT-FOR-BIT at d=2 (IEEE-754 non-associativity is load-bearing).
+  4 callers (`update_batch`/`residual_batch` + `apply_windowed`/`residual_windowed`) pass
+  the (x,y) pair as d-tuples + unpack. B5(d=3)+B6c(d=1) admission pins WIRED to the REAL
+  kernel (was hand-oracle). Retired 2 dead imports. GATES: scaffold+window-equiv+2-D
+  octant+full-field oracle+cell_update_batch+dd_regression **112 passed -O**; DD drift
+  **6920 ULP == baseline → ZERO new drift**.
+
+**⏭ NEXT = C3.2b (d-generic full-field WALK — so d=1/d=3 can WALK):**
+`SweepCellSlice` (`cell_update.py:180`; the 2-axis `ii`/`jj`/`psi_x`/`psi_y`/`face_*_x/y_idx`/
+`str_x`/`str_y` fields) → per-axis TUPLES (`cell_idx`/`psi_faces`/`face_in_idx`/`face_out_idx`/
+`str_axes`); `DiamondDifference.update_batch`/`residual_batch` gather/scatter → d-generic
+per-axis advanced index (`idx=list(cell_idx); idx[a]=face_idx[a]; faces[a][(:, :, *idx)]`);
+`SweepDependencyGraph.apply`/`residual` walk `for ii,jj in levels` → `for cell_idx in levels`
++ d-generic `_make_slice` + `buf[(:, :, *cell_idx)]` scatter. 2-D BIT-IDENTICAL (the per-axis
+index reduces to `[:,:,face,jj]` / `[:,:,ii,face]` at d=2). MIGRATE `test_cell_update_batch.py`
+(constructs `SweepCellSlice` directly — the only external reader). THEN C3.3 (geometry:
+`itertools.product((-1,+1),repeat=ndim)` + build the 1-D sweep graph [None today] + fold the
+5 `ny>1` gates + `is_1d` → dimensionality test) + C3.4 (wire d=1 wavefront via the d-generic
+walk in `_wavefront_1d_sweep` + flip the cumprod oracle xfail→pass + MEASURE the speedup).
+Commit chain: `5b941eb`(C3.0)→`9b75374`(C3.1)→`9063487`(C3.2a)→`10e2587`(C3.2a
+elegance: kernel `s`→`s_axes` to de-shadow `s = slice_args` + axis-position docstring
+contract; bit-identical pure rename). Branch local (NOT pushed).
+
+⭐ **ELEGANCE-REVIEW ACCEPTANCE ITEMS (self + elegance-enforcer, post-C3.2a) — DO NOT
+DROP in C3.2b/C3.4:**
+- **C3.2b (HIGHEST-LEVERAGE structural move):** the d-generic `SweepCellSlice` per-axis
+  faces must be TYPED — route the gather/scatter through `WavefrontFlux.face(axis)` (the
+  existing axis-parametric interior face cochain,
+  `orpheus/transport/fields/wavefront_flux.py`) rather than a raw `psi_faces:
+  tuple[ndarray,...]`. Turns the positional axis tuple into the typed `WavefrontFlux.axes`
+  map ⟹ axis↔index unrepresentable-when-wrong across d=1,2,3 at once. The KERNEL stays
+  raw-tuple (it touches a transient anti-hyperplane SLICE, not the whole cochain — typing
+  it there is a category error; ACCEPTED).
+- **C3.4:** revisit `window_slots`/`window_edges` (`tuple|None`) as a
+  `SweepOptimization|None` sum type ONLY once the d=1 cumprod accelerator makes it the 2nd
+  optimization instance (`feedback_unify_after_two_instances`) — NOT before.
+- **ACCEPTED as-is:** batch kernel ≠ Pattern-2 twin of scalar `cell_balance_for_streaming`
+  (Cartesian multi-axis streaming vs curvilinear single-axis + Morel–Montry angular);
+  explicit-left-fold-over-`sum()` exemplary (bit-identity why-at-the-what); the partial
+  `OctantLabel.sign_x/y` / `streams_in_2d` shims retire in C3.5.
+
+Details below are the PRE-pivot C3 plan (superseded by the staging above).
 
 ### ⭐ SESSION UPDATE 2026-06-09 (cont., post-compaction) — production gaps found+fixed; test migration ~⅔ done
 **The test migration surfaced 3 PRODUCTION rank-2 remnants the k_inf/DD
