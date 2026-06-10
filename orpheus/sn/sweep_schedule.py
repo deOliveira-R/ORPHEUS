@@ -181,7 +181,7 @@ def _octant_sweep(entry) -> OctantSweep:
     sign_x = int(label[0])
     sign_y = int(label[1]) if len(label) >= 2 else 0
     return OctantSweep(
-        label=OctantLabel(sign_x, sign_y),
+        label=OctantLabel((sign_x, sign_y)),
         indices=tuple(int(i) for i in entry.indices),
     )
 

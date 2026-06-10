@@ -56,8 +56,8 @@ class TestSweepGraphsByCoordSystem:
         assert sn_mesh.sweep_graphs is not None
         assert len(sn_mesh.sweep_graphs) == 4
         expected_keys = {
-            OctantLabel(+1, +1), OctantLabel(+1, -1),
-            OctantLabel(-1, +1), OctantLabel(-1, -1),
+            OctantLabel((+1, +1)), OctantLabel((+1, -1)),
+            OctantLabel((-1, +1)), OctantLabel((-1, -1)),
         }
         assert set(sn_mesh.sweep_graphs.keys()) == expected_keys
 
@@ -90,7 +90,7 @@ class TestSweepGraphsByCoordSystem:
         assert sn_mesh.sweep_graphs is not None
         assert len(sn_mesh.sweep_graphs) == 4
         # Degenerate ny=1: each graph has nx + ny - 1 = nx levels.
-        graph = sn_mesh.sweep_graphs[OctantLabel(+1, +1)]
+        graph = sn_mesh.sweep_graphs[OctantLabel((+1, +1))]
         assert len(graph.levels) == sn_mesh.nx + sn_mesh.ny - 1
 
 
@@ -159,7 +159,7 @@ class TestSweepGraphsAgreeWithLegacyDiagCache:
         sn_mesh = SNMesh(_build_2d_mesh(nx, ny), Quadrature.level_symmetric(4), placeholder_materials())
         legacy = _hand_diag_cache(nx, ny)
         for (sx, sy), legacy_entry in legacy.items():
-            graph = sn_mesh.sweep_graphs[OctantLabel(sx, sy)]
+            graph = sn_mesh.sweep_graphs[OctantLabel((sx, sy))]
             assert graph.face_in_x == legacy_entry["ix_in"]
             assert graph.face_out_x == legacy_entry["ix_out"]
             assert graph.face_in_y == legacy_entry["iy_in"]

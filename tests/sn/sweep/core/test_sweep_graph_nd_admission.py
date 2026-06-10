@@ -102,10 +102,10 @@ def _octant_labels(ndim: int):
 def _build_nd(shape: tuple[int, ...], signs: tuple[int, ...]):
     """Build the per-octant DAG for an ``ndim``-tuple ``shape``.
 
-    ASSUMED C3 API: ``from_cartesian(shape, *, label=<ndim-sign-tuple>)``.
-    Adjust this one helper if the carve lands a different signature.
+    C3 API: ``from_cartesian(shape, *, label=OctantLabel(signs))`` where
+    ``OctantLabel`` carries the d-tuple ``signs`` signature.
     """
-    return SweepDependencyGraph.from_cartesian(shape, label=signs)
+    return SweepDependencyGraph.from_cartesian(shape, label=OctantLabel(signs))
 
 
 def _levels_of(graph) -> tuple:
@@ -410,7 +410,7 @@ def test_d2_from_cartesian_matches_legacy(nx, ny, sx, sy):
     small — levels + 4 face ints — and serialises cleanly to an ``.npz``).
     """
     legacy = SweepDependencyGraph.from_cartesian_2d(
-        nx=nx, ny=ny, label=OctantLabel(sx, sy),
+        nx=nx, ny=ny, label=OctantLabel((sx, sy)),
     )
     generic = _build_nd((nx, ny), (sx, sy))
 

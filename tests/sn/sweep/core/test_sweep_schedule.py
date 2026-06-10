@@ -123,10 +123,10 @@ def test_gs_slab_reflective_specular_faces():
     assert sched.kind == "gauss_seidel"
     # one octant per group; lexicographic order puts (-1,0) before (+1,0).
     labels = [g.sweeps[0].label for g in sched.groups]
-    assert labels == [OctantLabel(-1, 0), OctantLabel(+1, 0)]
+    assert labels == [OctantLabel((-1, 0)), OctantLabel((+1, 0))]
     reflect = {g.sweeps[0].label: g.reflect_faces for g in sched.groups}
-    assert reflect[OctantLabel(-1, 0)] == ("xmin",)
-    assert reflect[OctantLabel(+1, 0)] == ("xmax",)
+    assert reflect[OctantLabel((-1, 0))] == ("xmin",)
+    assert reflect[OctantLabel((+1, 0))] == ("xmax",)
 
 
 def test_gs_slab_vacuum_reflective_only_reflective_face_reflects():

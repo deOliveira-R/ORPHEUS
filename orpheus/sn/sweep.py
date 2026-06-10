@@ -899,7 +899,7 @@ def sweep_octant_group(
         # zero, and the WDD result is identical regardless of sign choice).
         sx_eff = +1 if sx == 0 else sx
         sy_eff = +1 if sy == 0 else sy
-        sweep_graph = sn_mesh.sweep_graphs[OctantLabel(sx_eff, sy_eff)]
+        sweep_graph = sn_mesh.sweep_graphs[OctantLabel((sx_eff, sy_eff))]
         N_oct = oct_idx.size
 
         # ── Domain-edge inflow/outflow faces for this octant ──────────
@@ -1238,7 +1238,7 @@ def _sweep_2d_full_field(
                 continue
             sx_eff = +1 if sx == 0 else sx
             sy_eff = +1 if sy == 0 else sy
-            graph = sn_mesh.sweep_graphs[OctantLabel(sx_eff, sy_eff)]
+            graph = sn_mesh.sweep_graphs[OctantLabel((sx_eff, sy_eff))]
             psi_x_oct = psi_x[oct_idx].copy()            # FULL per-octant face field
             psi_y_oct = psi_y[oct_idx].copy()
             angular_flux_oct = np.zeros((oct_idx.size, ng, nx, ny))

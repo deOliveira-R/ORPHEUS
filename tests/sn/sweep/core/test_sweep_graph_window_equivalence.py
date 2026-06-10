@@ -133,7 +133,7 @@ def _windowed_residual(graph, nx, ny, N_oct, ng, inp):
 def test_solve_window_equals_full_field(nx, ny, N_oct, ng, sx, sy):
     """apply_windowed ≡ apply, bit-for-bit (angular, scalar, shed outflow)."""
     graph = SweepDependencyGraph.from_cartesian_2d(
-        nx=nx, ny=ny, label=OctantLabel(sx, sy),
+        nx=nx, ny=ny, label=OctantLabel((sx, sy)),
     )
     inp = _inputs(nx, ny, N_oct, ng, seed=hash((nx, ny, sx, sy)) % (2**32))
     ang_f, scal_f, ox_f, oy_f = _full_field_apply(graph, nx, ny, N_oct, ng, inp)
@@ -149,7 +149,7 @@ def test_solve_window_equals_full_field(nx, ny, N_oct, ng, sx, sy):
 def test_residual_window_equals_full_field(nx, ny, N_oct, ng, sx, sy):
     """residual_windowed ≡ residual, bit-for-bit (matvec twin)."""
     graph = SweepDependencyGraph.from_cartesian_2d(
-        nx=nx, ny=ny, label=OctantLabel(sx, sy),
+        nx=nx, ny=ny, label=OctantLabel((sx, sy)),
     )
     inp = _inputs(nx, ny, N_oct, ng, seed=(hash((nx, ny, sx, sy)) % (2**32)) ^ 7)
     res_f, ox_f, oy_f = _full_field_residual(graph, nx, ny, N_oct, ng, inp)
@@ -169,7 +169,7 @@ def test_window_backing_is_linear_in_side():
     N_oct, ng = 8, 2
     for nx, ny in [(16, 16), (16, 64), (32, 32)]:
         graph = SweepDependencyGraph.from_cartesian_2d(
-            nx=nx, ny=ny, label=OctantLabel(1, 1),
+            nx=nx, ny=ny, label=OctantLabel((1, 1)),
         )
         # window slot dimension is nx, parity is 2 — no ny dependence
         win_elems = 2 * (N_oct * ng * 2 * graph.nx)        # x + y windows

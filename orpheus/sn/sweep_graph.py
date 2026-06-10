@@ -84,38 +84,67 @@ from orpheus.sn.spatial.cell_update import CellUpdateBase, SweepCellSlice
 
 @dataclass(frozen=True, slots=True)
 class OctantLabel:
-    r"""Octant signature for the 2-D Cartesian sweep.
+    r"""Octant signature for the dimension-generic wavefront sweep.
 
-    Carries the in-plane direction signs ``(sign_x, sign_y) ∈
-    {-1, 0, +1}²``. The ``sign_z`` component of an ``S²`` ordinate
-    label is dropped — the 2-D Cartesian sweep is invariant under
-    the out-of-plane axis. Multiple ordinates with the same
-    ``(sign_x, sign_y)`` but different ``sign_z`` share a single
-    :class:`SweepDependencyGraph` instance.
+    Carries one direction sign per spatial axis,
+    ``signs[axis] ∈ {-1, 0, +1}``, so a single type labels a 1-D
+    (``(±1,)``), 2-D (``(±1, ±1)``), or 3-D (``(±1, ±1, ±1)``) octant.
+    The out-of-plane ``sign_z`` of an ``S²`` ordinate label may be
+    dropped by the 2-D Cartesian orchestration (the in-plane sweep is
+    invariant under it); multiple ordinates that project to the same
+    in-plane ``signs`` share a single :class:`SweepDependencyGraph`.
 
-    The pair :math:`(0, 0)` denotes the "pure-:math:`z`" degenerate
-    set of ordinates (no streaming in the 2-D plane); the wavefront
-    sweep handles those via a ``Q / Σ_t`` short-circuit and skips
-    the dependency graph entirely. No graph is built for the
-    :math:`(0, 0)` label.
+    A label whose signs are *all* zero denotes the degenerate
+    no-streaming set of ordinates (e.g. the pure-:math:`z` ordinates in
+    2-D); the wavefront sweep handles those via a ``Q / Σ_t``
+    short-circuit and builds no graph for it (:attr:`streams` is
+    ``False``).
 
     Frozen + slotted: hashable for use as a ``dict`` key (the SNMesh
     holds ``Mapping[OctantLabel, SweepDependencyGraph]``).
     """
 
-    sign_x: int
-    sign_y: int
+    signs: tuple[int, ...]
 
     def __post_init__(self) -> None:
-        if self.sign_x not in (-1, 0, +1):
-            raise ValueError(f"sign_x must be in {{-1, 0, +1}}; got {self.sign_x}")
-        if self.sign_y not in (-1, 0, +1):
-            raise ValueError(f"sign_y must be in {{-1, 0, +1}}; got {self.sign_y}")
+        # Coerce any sequence to a tuple of ints (hashability + the
+        # ``signs[axis]`` contract) BEFORE validating.
+        object.__setattr__(self, "signs", tuple(int(s) for s in self.signs))
+        for axis, s in enumerate(self.signs):
+            if s not in (-1, 0, +1):
+                raise ValueError(
+                    f"signs[{axis}] must be in {{-1, 0, +1}}; got {s}"
+                )
+
+    @property
+    def ndim(self) -> int:
+        """Number of spatial axes this octant labels."""
+        return len(self.signs)
+
+    @property
+    def streams(self) -> bool:
+        """``False`` for the all-zero degenerate label; ``True`` otherwise."""
+        return any(s != 0 for s in self.signs)
+
+    # ── 2-D in-plane convenience: the orchestration that is still
+    #    explicitly 2-D (the moving-frontier window walk, the matvec
+    #    twin, the schedule) reads ``sign_x`` / ``sign_y`` and the
+    #    ``streams_in_2d`` alias. These retire as those call sites go
+    #    d-generic in a later C3 stage.
+    @property
+    def sign_x(self) -> int:
+        """In-plane x-sign (``signs[0]``); valid for ``ndim ≥ 1``."""
+        return self.signs[0]
+
+    @property
+    def sign_y(self) -> int:
+        """In-plane y-sign (``signs[1]``); valid for ``ndim ≥ 2``."""
+        return self.signs[1]
 
     @property
     def streams_in_2d(self) -> bool:
-        """``False`` for the pure-z degenerate label; ``True`` otherwise."""
-        return not (self.sign_x == 0 and self.sign_y == 0)
+        """Deprecated alias for :attr:`streams` (2-D call-site compat)."""
+        return self.streams
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -254,40 +283,192 @@ class SweepDependencyGraph:
     """
 
     label: OctantLabel
-    levels: tuple[tuple[np.ndarray, np.ndarray], ...]
-    face_in_x: int
-    face_out_x: int
-    face_in_y: int
-    face_out_y: int
+    levels: tuple[tuple[np.ndarray, ...], ...]
+    face_in: tuple[int, ...]
+    face_out: tuple[int, ...]
+    spatial_shape: tuple[int, ...]
     # ── Phase 5b storage-B: mesh-time moving-frontier window metadata ──
-    # The rolling 2-diagonal window walk keys the interior face cochain by
-    # the cell's LOCAL sweep-order slot (``local_i ∈ [0, nx)``) instead of
-    # its global face position — so the backing is O(N·ng·nx) not
-    # O(N·ng·nx·ny). ``window_slots[k]`` is the per-level ``local_i`` array
-    # (= the slot to write ``win_*[k%2, slot]`` and read ``win_y[(k-1)%2,
-    # slot]`` / ``win_x[(k-1)%2, slot-1]``). The companion ``local_j`` is
-    # ``k - window_slots[k]`` (construction invariant), so the domain-edge
-    # masks derive in the walk: x-inflow ``slot==0``, x-outflow
-    # ``slot==nx-1``, y-inflow ``local_j==0``, y-outflow ``local_j==ny-1``.
-    # ``nx`` / ``ny`` size the window. These are derived mesh-time (no flux
+    # The d=2 OPTIMIZATION ONLY (``None`` for ``d != 2``): the d=1 cumprod
+    # scan and the d≥3 full-field walk do not use the moving-frontier
+    # window. The rolling 2-diagonal window walk keys the interior face
+    # cochain by the cell's LOCAL sweep-order slot (``local_i ∈ [0, nx)``)
+    # instead of its global face position — so the backing is O(N·ng·nx)
+    # not O(N·ng·nx·ny). ``window_slots[k]`` is the per-level ``local_i``
+    # array (= the slot to write ``win_*[k%2, slot]`` and read
+    # ``win_y[(k-1)%2, slot]`` / ``win_x[(k-1)%2, slot-1]``); the companion
+    # ``local_j`` is ``k - window_slots[k]`` (construction invariant), so
+    # the domain-edge masks derive in the walk. ``window_edges[k]`` is the
+    # mesh-time 4-tuple ``(has_x_in, has_x_out, has_y_in, has_y_out)`` of
+    # Python bools (the touched cell is at a FIXED position — x-inflow at 0,
+    # x-outflow at -1, y-inflow at -1, y-outflow at 0 — so the walk guards
+    # each edge op with a precomputed bool). Derived mesh-time (no flux
     # dependence) — L16: zero per-sweep recompute.
-    #
-    # ``window_slots[k]`` is the contiguous ``arange(i0, i1+1)`` of local-i
-    # slots on level ``k``; the rolling-window walk reads its bounds
-    # ``i0 = slot[0]``, ``i1 = slot[-1]`` to address the frontier by BASIC
-    # SLICE (zero-copy view), the structural advantage that makes the window
-    # FASTER than the full-field grid-diagonal fancy-index. ``window_edges[k]``
-    # is the mesh-time 4-tuple ``(has_x_in, has_x_out, has_y_in, has_y_out)`` of
-    # Python bools: whether this level touches each domain edge. The touched
-    # cell is at a FIXED position — x-inflow at 0, x-outflow at -1, y-inflow at
-    # -1, y-outflow at 0 — so the walk guards each edge op with a precomputed
-    # bool, no per-level ``slot==0`` mask + ``.any()``.
-    nx: int
-    ny: int
-    window_slots: tuple[np.ndarray, ...]
-    window_edges: tuple[tuple[bool, bool, bool, bool], ...]
+    window_slots: tuple[np.ndarray, ...] | None
+    window_edges: tuple[tuple[bool, ...], ...] | None
+
+    # ── 2-D in-plane convenience accessors (compat; retire with the
+    #    d-generic orchestration). The window walk, the matvec twin, and
+    #    the legacy-equivalence test read these. ──
+    @property
+    def ndim(self) -> int:
+        """Number of spatial axes (``len(spatial_shape)``)."""
+        return len(self.spatial_shape)
+
+    @property
+    def nx(self) -> int:
+        return self.spatial_shape[0]
+
+    @property
+    def ny(self) -> int:
+        return self.spatial_shape[1]
+
+    @property
+    def face_in_x(self) -> int:
+        return self.face_in[0]
+
+    @property
+    def face_out_x(self) -> int:
+        return self.face_out[0]
+
+    @property
+    def face_in_y(self) -> int:
+        return self.face_in[1]
+
+    @property
+    def face_out_y(self) -> int:
+        return self.face_out[1]
 
     # ── Construction ────────────────────────────────────────────────
+
+    @classmethod
+    def from_cartesian(
+        cls,
+        shape: tuple[int, ...],
+        *,
+        label: OctantLabel,
+    ) -> "SweepDependencyGraph":
+        r"""Build the per-octant upwind DAG for a ``d``-dim Cartesian grid.
+
+        Dimension-generic (``d = len(shape) ∈ {1, 2, 3}``). The cells on
+        topological level ``k`` are those whose per-octant local indices
+        satisfy :math:`\sum_a \mathrm{local}_a = k` — the anti-hyperplane
+        of the index lattice. There are :math:`\sum_a (n_a - 1) + 1`
+        levels. Per axis ``a``, ``local_a`` walks ``0 → n_a-1`` forward
+        when ``signs[a] ≥ 0`` and reversed when ``signs[a] < 0``; the
+        local index translates to the global cell index via
+        ``axis_map[a][local_a]``.
+
+        Within a level the cells are ordered **C-major** over the index
+        lattice (axis 0 slowest). At ``d = 2`` this reproduces the legacy
+        ascending-``local_i`` anti-diagonal order **bit-for-bit**, so a
+        2-D graph built here is identical to the retired
+        ``from_cartesian_2d`` (pinned by
+        ``test_d2_from_cartesian_matches_legacy``). At ``d = 1`` the DAG
+        is a pure chain (level ``ℓ`` holds only cell ``ℓ``); at ``d = 3``
+        each level is a 2-D lattice slice of the ``i+j+k = ℓ`` hyperplane.
+
+        Parameters
+        ----------
+        shape :
+            Per-axis cell counts ``(n_0, …, n_{d-1})``.
+        label :
+            Octant signature with ``len(signs) == d`` and at least one
+            non-zero sign (the DAG is undefined for the all-zero
+            degenerate label — building one raises ``ValueError``).
+
+        Raises
+        ------
+        ValueError
+            If ``label.streams`` is ``False`` (all signs zero), or if
+            ``len(label.signs) != len(shape)``.
+        """
+        if not label.streams:
+            raise ValueError(
+                f"Cannot build a SweepDependencyGraph for the all-zero "
+                f"degenerate octant {label!r}; it has no streaming and the "
+                "wavefront sweep handles it via a Q/Σ_t short-circuit."
+            )
+        shape = tuple(int(n) for n in shape)
+        signs = label.signs
+        if len(signs) != len(shape):
+            raise ValueError(
+                f"label ndim {len(signs)} != shape ndim {len(shape)} "
+                f"(signs={signs}, shape={shape})"
+            )
+        d = len(shape)
+
+        # Per-axis face-index offsets (a cell's incoming / outgoing face
+        # along each axis). Forward orientation puts the incoming face at
+        # the lower index (0); a negative sign flips it.
+        face_in = tuple(0 if s >= 0 else 1 for s in signs)
+        face_out = tuple(1 if s >= 0 else 0 for s in signs)
+
+        # Per-axis local→global index map: forward arange for s ≥ 0,
+        # reversed for s < 0 (the per-octant sweep direction).
+        axis_map = [
+            np.arange(n) if s >= 0 else np.arange(n)[::-1]
+            for n, s in zip(shape, signs)
+        ]
+
+        # Anti-hyperplane levels: enumerate the local index lattice in
+        # C-major order, group by index-sum. Boolean masking preserves the
+        # C-major within-level order ⟹ d=2 bit-identical to legacy. Each
+        # level is the ndim-tuple of equal-length global-index arrays.
+        local = np.indices(shape).reshape(d, -1)        # (d, prod), C-major
+        level_of = local.sum(axis=0)                    # (prod,)
+        n_levels = sum(n - 1 for n in shape) + 1
+        levels: tuple[tuple[np.ndarray, ...], ...] = tuple(
+            tuple(axis_map[a][local[a, level_of == k]] for a in range(d))
+            for k in range(n_levels)
+        )
+
+        window_slots, window_edges = cls._window_metadata(shape, n_levels)
+
+        return cls(
+            label=label,
+            levels=levels,
+            face_in=face_in,
+            face_out=face_out,
+            spatial_shape=shape,
+            window_slots=window_slots,
+            window_edges=window_edges,
+        )
+
+    @staticmethod
+    def _window_metadata(
+        shape: tuple[int, ...], n_levels: int,
+    ) -> tuple[
+        tuple[np.ndarray, ...] | None, tuple[tuple[bool, ...], ...] | None
+    ]:
+        """Storage-B moving-frontier window metadata — the d=2 optimization.
+
+        Returns ``(None, None)`` for ``d != 2`` (the d=1 cumprod scan and
+        the d≥3 full-field walk do not use the moving-frontier window).
+        For ``d == 2`` this is the legacy per-level ``local_i`` slot array
+        + the ``(has_x_in, has_x_out, has_y_in, has_y_out)`` edge bools,
+        built exactly as the retired ``from_cartesian_2d`` did (so the
+        window walk stays bit-identical). The slot ``local_i`` is
+        contiguous ⟹ basic-slice addressable; the edge bools mark the
+        FIXED domain-edge positions (x-inflow at 0, x-outflow at -1,
+        y-inflow at -1, y-outflow at 0) so the walk guards each edge op
+        without a per-level mask.
+        """
+        if len(shape) != 2:
+            return None, None
+        nx, ny = shape
+        window_slots: list[np.ndarray] = []
+        window_edges: list[tuple[bool, ...]] = []
+        for k in range(n_levels):
+            i_start = max(0, k - ny + 1)
+            i_end = min(nx - 1, k)
+            window_slots.append(np.arange(i_start, i_end + 1))
+            window_edges.append((
+                i_start == 0,            # has_x_in  (cell at position 0)
+                i_end == nx - 1,         # has_x_out (cell at position -1)
+                i_end == k,              # has_y_in  (cell at position -1)
+                k >= ny - 1,             # has_y_out (cell at position 0)
+            ))
+        return tuple(window_slots), tuple(window_edges)
 
     @classmethod
     def from_cartesian_2d(
@@ -297,91 +478,13 @@ class SweepDependencyGraph:
         ny: int,
         label: OctantLabel,
     ) -> "SweepDependencyGraph":
-        r"""Build the per-octant anti-diagonal schedule for an ``nx × ny`` grid.
+        """Deprecated 2-D alias for :meth:`from_cartesian`.
 
-        The cells on topological level ``k`` are those satisfying
-        ``local_i + local_j == k`` under the per-octant orientation.
-        For ``sign_x = +1``: ``local_i`` walks 0 → nx-1 (forward).
-        For ``sign_x = -1``: ``local_i`` walks nx-1 → 0 (reversed).
-        Same for ``sign_y``.
-
-        Parameters
-        ----------
-        nx, ny :
-            Cell counts on the Cartesian grid.
-        label :
-            Octant signature with ``sign_x ≠ 0 OR sign_y ≠ 0`` (the
-            DAG is undefined for the pure-z degenerate label;
-            building one raises ``ValueError``).
-
-        Raises
-        ------
-        ValueError
-            If ``label.streams_in_2d`` is ``False`` (i.e.
-            ``sign_x == 0 == sign_y``).
+        Retained one cycle for the 2-D call sites + the legacy-equivalence
+        pin; retires when the geometry octant build switches to
+        ``from_cartesian`` + ``itertools.product`` (C3.3).
         """
-        if not label.streams_in_2d:
-            raise ValueError(
-                f"Cannot build a SweepDependencyGraph for the pure-z "
-                f"degenerate octant {label!r}; this octant has no "
-                "in-plane streaming and the wavefront sweep handles "
-                "it via a Q/Σ_t short-circuit."
-            )
-        sx, sy = label.sign_x, label.sign_y
-        # Face index offsets — match the legacy ``_diag_cache`` build at
-        # ``orpheus.sn.sweep._sweep_2d_wavefront`` (lines 766-785).
-        face_in_x = 0 if sx >= 0 else 1
-        face_out_x = 1 if sx >= 0 else 0
-        face_in_y = 0 if sy >= 0 else 1
-        face_out_y = 1 if sy >= 0 else 0
-
-        # Per-octant cell-index arrays. Forward arange for sx >= 0,
-        # reversed for sx < 0 — same pattern as legacy.
-        ix_arr = np.arange(nx) if sx >= 0 else np.arange(nx)[::-1]
-        iy_arr = np.arange(ny) if sy >= 0 else np.arange(ny)[::-1]
-
-        # Anti-diagonal extraction: cells where ``local_i + local_j ==
-        # k`` form level k. ``ix_arr[local_i]`` and ``iy_arr[local_j]``
-        # then translate to the global cell indices in the per-octant
-        # traversal order.
-        levels: list[tuple[np.ndarray, np.ndarray]] = []
-        window_slots: list[np.ndarray] = []
-        window_edges: list[tuple[bool, bool, bool, bool]] = []
-        for k in range(nx + ny - 1):
-            i_start = max(0, k - ny + 1)
-            i_end = min(nx - 1, k)
-            local_i = np.arange(i_start, i_end + 1)
-            local_j = k - local_i
-            levels.append((ix_arr[local_i], iy_arr[local_j]))
-            # Phase 5b: the window slot IS the local sweep-order index
-            # ``local_i`` (contiguous ⟹ basic-slice addressable). The global
-            # position ``ix_arr[local_i]`` is only used for the source/XS/edge
-            # gather, not for the rolling-window slot addressing.
-            window_slots.append(local_i)
-            # Mesh-time domain-edge structure (fixed positions; see the field
-            # docstring): x-inflow iff local_i==0 present (i_start==0);
-            # x-outflow iff local_i==nx-1 present (i_end==nx-1); y-inflow iff
-            # local_j==0 present (i_end==k, i.e. k<=nx-1); y-outflow iff
-            # local_j==ny-1 present (i_start==k-ny+1, i.e. k>=ny-1).
-            window_edges.append((
-                i_start == 0,            # has_x_in  (cell at position 0)
-                i_end == nx - 1,         # has_x_out (cell at position -1)
-                i_end == k,              # has_y_in  (cell at position -1)
-                k >= ny - 1,             # has_y_out (cell at position 0)
-            ))
-
-        return cls(
-            label=label,
-            levels=tuple(levels),
-            face_in_x=face_in_x,
-            face_out_x=face_out_x,
-            face_in_y=face_in_y,
-            face_out_y=face_out_y,
-            nx=nx,
-            ny=ny,
-            window_slots=tuple(window_slots),
-            window_edges=tuple(window_edges),
-        )
+        return cls.from_cartesian((nx, ny), label=label)
 
     # ── Internal: shared per-level slice builder ────────────────────
 
@@ -634,6 +737,12 @@ class SweepDependencyGraph:
           per-cell ``w·Y·psi`` fold matches ``MomentProjection.apply``
           term-for-term — only the accumulation order differs.
         """
+        if self.window_slots is None or self.window_edges is None:
+            raise RuntimeError(
+                "apply_windowed is the d=2 storage-B optimization; this graph "
+                f"has ndim={self.ndim} (no window metadata) — use the "
+                "full-field apply() for d != 2."
+            )
         N_oct, ng = inflow_x.shape[0], inflow_x.shape[1]
         frontier = _MovingFrontier(N_oct, ng, self.nx)
         for k, ((ii, jj), slot, edges) in enumerate(zip(
@@ -690,6 +799,12 @@ class SweepDependencyGraph:
         residual output stays full ``(N_oct, ng, nx, ny)`` (Krylov consumes
         the full bulk residual) — only the interior FACE cochain is windowed.
         """
+        if self.window_slots is None or self.window_edges is None:
+            raise RuntimeError(
+                "residual_windowed is the d=2 storage-B optimization; this "
+                f"graph has ndim={self.ndim} (no window metadata) — use the "
+                "full-field residual() for d != 2."
+            )
         N_oct, ng = inflow_x.shape[0], inflow_x.shape[1]
         frontier = _MovingFrontier(N_oct, ng, self.nx)
         for k, ((ii, jj), slot, edges) in enumerate(zip(

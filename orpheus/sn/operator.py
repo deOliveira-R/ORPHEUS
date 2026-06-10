@@ -1694,7 +1694,7 @@ class StreamingOperator(LinearOperatorMixin):
                 continue
             sx_eff = +1 if sx == 0 else sx
             sy_eff = +1 if sy == 0 else sy
-            graph = sn_mesh.sweep_graphs[OctantLabel(sx_eff, sy_eff)]
+            graph = sn_mesh.sweep_graphs[OctantLabel((sx_eff, sy_eff))]
 
             # Octant domain-edge faces (incoming = low face of the sweep
             # direction). NO bc.apply — the seeded inflow IS the given trace.
@@ -1803,7 +1803,7 @@ class StreamingOperator(LinearOperatorMixin):
                 continue
             sx_eff = +1 if sx == 0 else sx
             sy_eff = +1 if sy == 0 else sy
-            graph = sn_mesh.sweep_graphs[OctantLabel(sx_eff, sy_eff)]
+            graph = sn_mesh.sweep_graphs[OctantLabel((sx_eff, sy_eff))]
             psi_x_oct = psi_x[oct_idx].copy()
             psi_y_oct = psi_y[oct_idx].copy()
             LpC_oct = np.zeros((oct_idx.size, ng, nx, ny))

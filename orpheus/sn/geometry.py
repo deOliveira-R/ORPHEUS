@@ -1309,8 +1309,8 @@ class SNMesh:
         # iteration state — so they are precomputed once at mesh
         # construction and reused across every sweep call.
         self.sweep_graphs: dict[OctantLabel, SweepDependencyGraph] = {
-            OctantLabel(sx, sy): SweepDependencyGraph.from_cartesian_2d(
-                nx=self.nx, ny=self.ny, label=OctantLabel(sx, sy),
+            OctantLabel((sx, sy)): SweepDependencyGraph.from_cartesian_2d(
+                nx=self.nx, ny=self.ny, label=OctantLabel((sx, sy)),
             )
             for sx in (-1, +1)
             for sy in (-1, +1)

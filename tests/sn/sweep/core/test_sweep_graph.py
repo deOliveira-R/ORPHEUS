@@ -37,26 +37,26 @@ class TestOctantLabel:
     def test_valid_signs(self):
         for sx in (-1, 0, +1):
             for sy in (-1, 0, +1):
-                lab = OctantLabel(sign_x=sx, sign_y=sy)
+                lab = OctantLabel((sx, sy))
                 assert lab.sign_x == sx
                 assert lab.sign_y == sy
 
     def test_invalid_sign_raises(self):
-        with pytest.raises(ValueError, match="sign_x"):
-            OctantLabel(sign_x=2, sign_y=+1)
-        with pytest.raises(ValueError, match="sign_y"):
-            OctantLabel(sign_x=+1, sign_y=-2)
+        with pytest.raises(ValueError, match=r"signs\[0\]"):
+            OctantLabel((2, +1))
+        with pytest.raises(ValueError, match=r"signs\[1\]"):
+            OctantLabel((+1, -2))
 
     def test_streams_in_2d(self):
-        assert OctantLabel(+1, +1).streams_in_2d
-        assert OctantLabel(-1, +1).streams_in_2d
-        assert OctantLabel(+1, 0).streams_in_2d   # y-axis-aligned still streams in x
-        assert OctantLabel(0, -1).streams_in_2d
-        assert not OctantLabel(0, 0).streams_in_2d  # pure-z degenerate
+        assert OctantLabel((+1, +1)).streams_in_2d
+        assert OctantLabel((-1, +1)).streams_in_2d
+        assert OctantLabel((+1, 0)).streams_in_2d   # y-axis-aligned still streams in x
+        assert OctantLabel((0, -1)).streams_in_2d
+        assert not OctantLabel((0, 0)).streams_in_2d  # pure-z degenerate
 
     def test_hashable_for_dict_keys(self):
-        d = {OctantLabel(+1, -1): "x"}
-        assert d[OctantLabel(+1, -1)] == "x"
+        d = {OctantLabel((+1, -1)): "x"}
+        assert d[OctantLabel((+1, -1))] == "x"
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -77,7 +77,7 @@ class TestFromCartesian2D:
     ):
         """assert_upwind_orientation: face_in/out indices match sign conv."""
         g = SweepDependencyGraph.from_cartesian_2d(
-            nx=4, ny=4, label=OctantLabel(sx, sy),
+            nx=4, ny=4, label=OctantLabel((sx, sy)),
         )
         assert g.face_in_x == fix
         assert g.face_out_x == fox
@@ -85,14 +85,14 @@ class TestFromCartesian2D:
         assert g.face_out_y == foy
 
     def test_pure_z_label_raises(self):
-        with pytest.raises(ValueError, match="pure-z"):
+        with pytest.raises(ValueError, match="degenerate"):
             SweepDependencyGraph.from_cartesian_2d(
-                nx=3, ny=3, label=OctantLabel(0, 0),
+                nx=3, ny=3, label=OctantLabel((0, 0)),
             )
 
     def test_levels_is_tuple_of_ndarrays(self):
         g = SweepDependencyGraph.from_cartesian_2d(
-            nx=3, ny=4, label=OctantLabel(+1, +1),
+            nx=3, ny=4, label=OctantLabel((+1, +1)),
         )
         assert isinstance(g.levels, tuple)
         for ii, jj in g.levels:
@@ -116,7 +116,7 @@ class TestAssertCellCoverage:
     ])
     def test_every_cell_visited_once(self, nx, ny, sx, sy):
         g = SweepDependencyGraph.from_cartesian_2d(
-            nx=nx, ny=ny, label=OctantLabel(sx, sy),
+            nx=nx, ny=ny, label=OctantLabel((sx, sy)),
         )
         all_cells = set()
         for ii, jj in g.levels:
@@ -139,7 +139,7 @@ class TestAssertTopologicallySorted:
         """Cell (i, j) at level k has upstream (i - sx, j) and (i, j - sy)
         at level < k (or off-grid → BC)."""
         g = SweepDependencyGraph.from_cartesian_2d(
-            nx=nx, ny=ny, label=OctantLabel(sx, sy),
+            nx=nx, ny=ny, label=OctantLabel((sx, sy)),
         )
         cell_to_level = {}
         for k, (ii, jj) in enumerate(g.levels):
@@ -174,7 +174,7 @@ class TestAssertFacePairingConsistent:
     def test_face_indices_are_neighbors(self, sx, sy):
         """For sign_x = +1: out_x of (i, j) is i+1 == in_x of (i+1, j)."""
         g = SweepDependencyGraph.from_cartesian_2d(
-            nx=3, ny=3, label=OctantLabel(sx, sy),
+            nx=3, ny=3, label=OctantLabel((sx, sy)),
         )
         # face_out_x[i] - face_in_x[i+sx*1] = ?
         # For sx=+1: face_out=1, so cell (i, j) outgoing face is i+1;
@@ -283,7 +283,7 @@ class TestApplyMatchesLegacyInlined:
 
         # New code (vectorised graph apply).
         graph = SweepDependencyGraph.from_cartesian_2d(
-            nx=nx, ny=ny, label=OctantLabel(sx, sy),
+            nx=nx, ny=ny, label=OctantLabel((sx, sy)),
         )
         angular_flux = np.zeros((N_oct, ng, nx, ny))
         scalar_flux = np.zeros((ng, nx, ny))
@@ -337,7 +337,7 @@ class TestApplyMatchesLegacyInlined:
             sx_sign=+1, sy_sign=+1,
         )
         graph = SweepDependencyGraph.from_cartesian_2d(
-            nx=nx, ny=ny, label=OctantLabel(+1, +1),
+            nx=nx, ny=ny, label=OctantLabel((+1, +1)),
         )
         angular_flux = np.zeros((N_oct, ng, nx, ny))
         scalar_flux = np.zeros((ng, nx, ny))
@@ -393,7 +393,7 @@ class TestResidualWalkRoundTrip:
         weights = rng.uniform(0.5, 1.5, size=N_oct)
 
         graph = SweepDependencyGraph.from_cartesian_2d(
-            nx=nx, ny=ny, label=OctantLabel(sx, sy),
+            nx=nx, ny=ny, label=OctantLabel((sx, sy)),
         )
 
         # SOLVE: graph.apply forward-substitutes update_batch.
@@ -433,7 +433,7 @@ class TestResidualWalkRoundTrip:
         str_y = rng.uniform(0.1, 1.0, size=(N_oct, ny))
         weights = rng.uniform(0.5, 1.5, size=N_oct)
         graph = SweepDependencyGraph.from_cartesian_2d(
-            nx=nx, ny=ny, label=OctantLabel(+1, +1),
+            nx=nx, ny=ny, label=OctantLabel((+1, +1)),
         )
         ang = np.zeros((N_oct, ng, nx, ny))
         scal = np.zeros((ng, nx, ny))
