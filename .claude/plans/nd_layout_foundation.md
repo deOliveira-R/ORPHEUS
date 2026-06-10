@@ -157,17 +157,26 @@ claim verified against live code: Pattern-2 SSOT correct, eager d=1 build justif
 hand-derived golden genuinely structurally-independent [index-sum partition vs
 per-level range recurrence]). ONE carried CONCERN → C3.6 acceptance item below.
 
-**⏭ NEXT = the SWEEP-STRATEGY CARVE (C3.4 + C3.5), phase S4.**
+**⏭ NEXT = the SWEEP-STRATEGY CARVE (C3.4 + C3.5), phase S5.**
 ⭐ **AUTHORITATIVE DESIGN + PER-PHASE STATUS = `.claude/plans/sn_sweep_strategy.md` (self-contained; READ FIRST).**
-⭐ **PROGRESS (2026-06-10): S0–S3 DONE + committed (worktree HEAD `f7d2ea9`).** S1 `f6b4ad5` (selectable
+⭐ **PROGRESS (2026-06-10): S0–S4 DONE + committed (worktree HEAD `dcb735f`).** S1 `f6b4ad5` (selectable
 sweep dispatch, bit-id) · S2 `e08573e` (matvec twin via `strategy.residual`, the 5 gates collapse, bit-id) ·
 S3 `37ce528`+`f7d2ea9` (`FullFieldWavefront` = the genuine d-generic spine via `_sweep_full_field`/
-`_apply_full_field` + `SNMesh.streaming(axis)`; d=1 cumprod≡spine equivalence @nulp; adapters retired). All
-gates GREEN `-O`, elegance PASS (S1 nits applied / S2 clean / S3 zero nits), Sphinx clean. **NEXT = S4**
-(widen `MovingFrontierWindow` to `frontier_dim = d−1`; synthetic d=3 `window≡full` admission; ⚠ the ONE
-measured-cost exception — the d=2 zero-copy contiguity speedup may be 2-diagonal-line-specific, settle by
-PROFILING the d=3 frontier; retire the d=2 window's `str_x`/`str_y` onto `streaming(axis)`) THEN S5 (frontend
-`Compatibility` + `OctantLabel.sign_x/y`/`streams_in_2d` shim retirement + Sphinx theory page via archivist).
+`_apply_full_field` + `SNMesh.streaming(axis)`; d=1 cumprod≡spine equivalence @nulp; adapters retired) ·
+**S4 `dcb735f` (the WINDOW generalized to `frontier_dim = d−1`): the rolling moving-frontier is now a
+mesh-time `_FrontierPlan` (per-level slab read/write selectors + edge seed/shed maps; L16) driving a
+d-agnostic `_MovingFrontier` (d-tuple of slabs); `apply_windowed`/`residual_windowed` take per-axis tuples;
+`window≡full` REWRITTEN d-generic — d=1 (frontier_dim==0 point) / d=2 (`np.array_equal` bit-id) / synthetic
+d=3 (B7 admission). d=2 BIT-IDENTICAL (read selector → contiguous slice, box ⟺ `d≤2`) + contiguity speedup
+RETAINED (profiled 0.909× full-field). d≥3 = fancy-index simplex (memory win holds; d=3 SPEED deferred — no
+3-D quadrature). ⭐ Decision A resolved CONSERVATIVELY: `MovingFrontierWindow.supports` STAYS `d==2` (its
+orchestrator entry is the 2-D `_sweep_2d_wavefront`/`_apply_2d_cartesian` until C3.6) — the WALK is general,
+the STRATEGY selects narrow; NO `sweep_strategy.py` change. A2D-1 hash regen'd; retired
+`window_slots`/`_window_metadata`/`seed_x`/`seed_y`/`_bounds`.** All gates GREEN `-O`, elegance PASS (S1 nits
+applied / S2 clean / S3 zero nits / **S4 PASS-with-nits, both forward-only/non-blocking**), Sphinx clean.
+**NEXT = S5** (frontend `Compatibility` finalize; retire the d=2 orchestrators' hand-listed `str_x`/`str_y`
+onto a `streaming(axis)` axes-map + the `OctantLabel.sign_x/y`/`streams_in_2d` 2-D shims — DEFERRED in S4
+because the orchestrators stay 2-D until C3.6; Sphinx theory page via archivist).
 The original C3.4 ("wire a `_wavefront_1d_sweep` adapter") + C3.5 ("orchestration d-generic")
 were re-scoped in a 2026-06-10 design conversation around a first-class **`SweepStrategy`**
 abstraction (Strategy pattern, polymorphic dispatch — NOT an enum threaded into `transport_sweep`,
