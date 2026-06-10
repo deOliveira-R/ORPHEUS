@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5074**
+Total tests collected: **5130**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1168, 23.0%
-   L1, 944, 18.6%
+   L0, 1170, 22.8%
+   L1, 946, 18.4%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2920, 57.5%
+   foundation, 2972, 57.9%
    unmarked, 6, 0.1%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 4989
+   explicit, 5045
    verify, 0
    class-name, 46
    func-name, 0
@@ -70,12 +70,14 @@ Module × level grid
    core/test_phase_c_gates, 8, 0, 0, 0, 9, 0
    core/test_sweep_cache, 28, 0, 0, 0, 0, 0
    core/test_sweep_graph, 76, 0, 0, 0, 0, 0
+   core/test_sweep_graph_nd_admission, 0, 0, 0, 0, 42, 0
    core/test_sweep_graph_window_equivalence, 0, 0, 0, 0, 33, 0
    core/test_sweep_regression, 8, 0, 0, 0, 0, 0
    core/test_sweep_schedule, 0, 0, 0, 0, 9, 0
    core/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 57, 0
    core/test_transport_sweep_ng2_layout_guard, 0, 0, 0, 0, 2, 0
    core/test_unified_sweep_dispatch, 0, 0, 0, 0, 7, 0
+   core/test_wavefront_cumprod_equivalence, 0, 0, 0, 0, 5, 0
    cp/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    cp/test_cylinder, 0, 9, 0, 0, 0, 0
    cp/test_cylinder_pss, 0, 0, 0, 0, 16, 0
@@ -116,6 +118,7 @@ Module × level grid
    derivations/test_case_method_symbolic, 0, 0, 0, 0, 9, 0
    derivations/test_case_method_x_function, 2, 3, 0, 0, 0, 0
    derivations/test_case_method_z0, 0, 11, 0, 0, 0, 0
+   derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 5, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
    derivations/test_fn_la13511_kinf, 0, 0, 0, 0, 17, 0
    derivations/test_fn_la13511_slab, 0, 0, 0, 0, 21, 0
@@ -314,6 +317,7 @@ Module × level grid
    solve/test_krylov_curvilinear_precond_safety, 0, 4, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
+   spatial/test_ordinate_scan_reset, 2, 2, 0, 0, 0, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_layer_imports, 0, 0, 0, 0, 271, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
@@ -345,11 +349,11 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``multigroup``, 71
    ``ki3-def``, 64
    ``e3-def``, 61
+   ``blelloch-1990-eq-1-5``, 56
    ``self-slab``, 55
    ``hebert-3-432``, 54
    ``self-cyl``, 54
    ``p-inf``, 53
-   ``blelloch-1990-eq-1-5``, 52
    ``self-sph``, 52
    ``balance-general``, 51
    ``chord-length``, 51
@@ -936,7 +940,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-051``, **0 (MISSING)**
    ``ERR-052``, 1
    ``ERR-053``, 7
-   ``ERR-054``, **0 (MISSING)**
+   ``ERR-054``, 2
    ``ERR-055``, **0 (MISSING)**
    ``ERR-056``, 1
 
