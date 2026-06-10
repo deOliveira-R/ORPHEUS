@@ -489,35 +489,37 @@ class SweepDependencyGraph:
 
     def _make_slice(
         self,
-        ii: np.ndarray,
-        jj: np.ndarray,
+        cell_idx: tuple[np.ndarray, ...],
         *,
-        psi_x: np.ndarray,
-        psi_y: np.ndarray,
+        psi_faces: tuple[np.ndarray, ...],
         Q: np.ndarray,
         sig_t: np.ndarray,
-        str_x: np.ndarray,
-        str_y: np.ndarray,
+        str_axes: tuple[np.ndarray, ...],
         psi_avg_probe: np.ndarray | None = None,
     ) -> SweepCellSlice:
         """Build the per-level :class:`SweepCellSlice` for this graph's
-        face-offset convention.
+        face-offset convention (dimension-generic).
 
         Shared by :meth:`apply` (solve → ``update_batch``) and
         :meth:`residual` (apply → ``residual_batch``) so the level +
-        face-index wiring (``face_in_x`` / ``face_out_x`` / …) is a
-        single source of truth — the two walks differ only in their
-        accumulation, not in the slice they build. ``psi_avg_probe`` is
-        ``None`` for the solve direction (``update_batch`` ignores it).
+        per-axis face-index wiring (``cell_idx[a] + face_in[a]`` /
+        ``cell_idx[a] + face_out[a]``) is a single source of truth — the
+        two walks differ only in their accumulation, not in the slice they
+        build. The per-axis tuples (``cell_idx``, ``psi_faces``,
+        ``str_axes``) are positional-by-axis, matching the graph's
+        :attr:`face_in` / :attr:`face_out` offset order. ``psi_avg_probe``
+        is ``None`` for the solve direction (``update_batch`` ignores it).
         """
         return SweepCellSlice(
-            ii=ii, jj=jj,
-            face_in_x_idx=ii + self.face_in_x,
-            face_out_x_idx=ii + self.face_out_x,
-            face_in_y_idx=jj + self.face_in_y,
-            face_out_y_idx=jj + self.face_out_y,
-            psi_x=psi_x, psi_y=psi_y,
-            Q=Q, sig_t=sig_t, str_x=str_x, str_y=str_y,
+            cell_idx=cell_idx,
+            face_in_idx=tuple(
+                cell_idx[a] + self.face_in[a] for a in range(self.ndim)
+            ),
+            face_out_idx=tuple(
+                cell_idx[a] + self.face_out[a] for a in range(self.ndim)
+            ),
+            psi_faces=psi_faces,
+            Q=Q, sig_t=sig_t, str_axes=str_axes,
             psi_avg_probe=psi_avg_probe,
         )
 
@@ -527,48 +529,51 @@ class SweepDependencyGraph:
         self,
         *,
         cell_update: CellUpdateBase,
-        psi_x_octant: np.ndarray,        # (N_oct, ng, nx+1, ny) — mutated in place
-        psi_y_octant: np.ndarray,        # (N_oct, ng, nx, ny+1) — mutated in place
-        Q_octant: np.ndarray,            # (N_oct or 1, ng, nx, ny)
-        sig_t: np.ndarray,               # (ng, nx, ny)
-        str_x_octant: np.ndarray,        # (N_oct, nx)
-        str_y_octant: np.ndarray,        # (N_oct, ny)
+        psi_faces_octant: tuple[np.ndarray, ...],  # d face buffers — mutated in place
+        Q_octant: np.ndarray,            # (N_oct or 1, ng, *spatial)
+        sig_t: np.ndarray,               # (ng, *spatial)
+        str_axes_octant: tuple[np.ndarray, ...],   # d streaming arrays, each (N_oct, n_a)
         weights_octant: np.ndarray,      # (N_oct,)
-        angular_flux_octant: np.ndarray, # (N_oct, ng, nx, ny) — written
-        scalar_flux_buf: np.ndarray,     # (ng, nx, ny) — accumulated into
+        angular_flux_octant: np.ndarray, # (N_oct, ng, *spatial) — written
+        scalar_flux_buf: np.ndarray,     # (ng, *spatial) — accumulated into
     ) -> None:
         r"""Walk the topological levels and accumulate scalar + angular flux.
 
         Forward-substitute along the DAG, vectorised over
         ``(N_oct, n_diag, ng)`` per level. The ordinate axis
         (``N_oct``) is INTERNAL to every ``apply`` call: there is no
-        ``for n in range(N_oct)`` anywhere in this method.
+        ``for n in range(N_oct)`` anywhere in this method. Dimension-generic
+        (``d = ndim``): each level is the per-axis cell-index tuple
+        ``cell_idx`` (length ``d``), and the scalar-/angular-flux scatters use
+        ``(…, *cell_idx)`` advanced indexing — at ``d = 2`` exactly the legacy
+        ``[:, ii, jj]`` / ``[:, :, ii, jj]`` slices.
 
         Mutation contract
         -----------------
 
-        * ``psi_x_octant`` / ``psi_y_octant`` — outgoing face fluxes
-          are scattered into these buffers in place by
-          :meth:`CellUpdateBase.update_batch`. Caller is responsible
-          for seeding the incoming-face entries (BC apply happens
-          one level up, in the wavefront sweep) and for scattering
-          the post-sweep buffers back into the persistent BC state.
-        * ``angular_flux_octant`` — written at every level's cells.
-          Caller is responsible for scattering back into the global
-          ``angular_flux`` buffer keyed by octant indices.
+        * ``psi_faces_octant`` — the per-axis face buffers; outgoing face
+          fluxes are scattered into them in place by
+          :meth:`CellUpdateBase.update_batch`. Caller is responsible for
+          seeding the incoming-face entries (BC apply happens one level up,
+          in the wavefront sweep) and for scattering the post-sweep buffers
+          back into the persistent BC state. The tuple is positional-by-axis
+          (born from ``WavefrontFlux.face(a)`` over ``WavefrontFlux.axes`` at
+          the orchestrator).
+        * ``angular_flux_octant`` — written at every level's cells. Caller is
+          responsible for scattering back into the global ``angular_flux``
+          buffer keyed by octant indices.
         * ``scalar_flux_buf`` — accumulated into via
-          ``scalar_flux_buf[ii, jj, :] += weighted_sum_psi_avg``.
-          Caller seeds the buffer (typically zero on the first
-          octant of an outer iteration) and reads the result at the
-          end of all octants.
+          ``scalar_flux_buf[(:, *cell_idx)] += weighted_sum_psi_avg``. Caller
+          seeds the buffer (typically zero on the first octant of an outer
+          iteration) and reads the result at the end of all octants.
 
         Parameters
         ----------
         cell_update :
             The closure strategy. Must override
             :meth:`update_batch` (DD does; Step / LD do not yet).
-        psi_x_octant, psi_y_octant :
-            Per-octant face buffers; mutated in place.
+        psi_faces_octant :
+            Per-octant per-axis face buffers; mutated in place.
         Q_octant :
             Per-octant per-cell volumetric source, already
             weight-normalised. Leading axis is ``1`` for
@@ -576,8 +581,8 @@ class SweepDependencyGraph:
             component is folded in.
         sig_t :
             Per-cell per-group total cross section.
-        str_x_octant, str_y_octant :
-            Per-octant streaming coefficients ``2|μ_axis|/Δaxis``.
+        str_axes_octant :
+            Per-octant per-axis streaming coefficients ``2|μ_a|/Δa``.
         weights_octant :
             Per-octant ordinate weights for scalar-flux reduction.
         angular_flux_octant :
@@ -585,42 +590,39 @@ class SweepDependencyGraph:
         scalar_flux_buf :
             Global scalar-flux accumulator.
         """
-        for ii, jj in self.levels:
+        for cell_idx in self.levels:
             slice_args = self._make_slice(
-                ii, jj,
-                psi_x=psi_x_octant, psi_y=psi_y_octant,
-                Q=Q_octant, sig_t=sig_t,
-                str_x=str_x_octant, str_y=str_y_octant,
+                cell_idx,
+                psi_faces=psi_faces_octant,
+                Q=Q_octant, sig_t=sig_t, str_axes=str_axes_octant,
             )
             # Issue #196 PR-INDEX-5: psi_avg returned principled
-            # ``(N_oct, ng, n_diag)`` (ordinate, group, anti-diagonal).
+            # ``(N_oct, ng, n_diag)`` (ordinate, group, anti-hyperplane).
             psi_avg = cell_update.update_batch(slice_args)  # (N_oct, ng, n_diag)
             # Scalar-flux accumulation — sum over ordinates with
             # quadrature weights. ``weights_octant`` is already
             # weight-normalised by the caller (the wavefront sweep
             # divides by Σw before invoking apply), so this is a
-            # plain weighted sum.
-            scalar_flux_buf[:, ii, jj] += np.einsum(
+            # plain weighted sum. ``(:, *cell_idx)`` selects (ng, n_diag).
+            scalar_flux_buf[(slice(None), *cell_idx)] += np.einsum(
                 "ngd,n->gd", psi_avg, weights_octant,
             )
             # Angular-flux scatter — write all ``(N_oct, ng, n_diag)``
             # values into the per-octant principled angular-flux buffer.
-            # Indices ``ii`` and ``jj`` broadcast naturally with the
-            # leading ``:`` (octant) and the second ``:`` (group).
-            angular_flux_octant[:, :, ii, jj] = psi_avg
+            # The cell-index tuple broadcasts naturally with the leading
+            # ``:`` (octant) and the second ``:`` (group).
+            angular_flux_octant[(slice(None), slice(None), *cell_idx)] = psi_avg
 
     def residual(
         self,
         *,
         cell_update: CellUpdateBase,
-        psi_x_octant: np.ndarray,            # (N_oct, ng, nx+1, ny) — mutated in place
-        psi_y_octant: np.ndarray,            # (N_oct, ng, nx, ny+1) — mutated in place
-        psi_avg_probe_octant: np.ndarray,    # (N_oct, ng, nx, ny) — the probe (read)
-        Q_octant: np.ndarray,                # (N_oct or 1, ng, nx, ny)
-        sig_t: np.ndarray,                   # (ng, nx, ny)
-        str_x_octant: np.ndarray,            # (N_oct, nx)
-        str_y_octant: np.ndarray,            # (N_oct, ny)
-        residual_octant: np.ndarray,         # (N_oct, ng, nx, ny) — written
+        psi_faces_octant: tuple[np.ndarray, ...],  # d face buffers — mutated in place
+        psi_avg_probe_octant: np.ndarray,    # (N_oct, ng, *spatial) — the probe (read)
+        Q_octant: np.ndarray,                # (N_oct or 1, ng, *spatial)
+        sig_t: np.ndarray,                   # (ng, *spatial)
+        str_axes_octant: tuple[np.ndarray, ...],   # d streaming arrays, each (N_oct, n_a)
+        residual_octant: np.ndarray,         # (N_oct, ng, *spatial) — written
     ) -> None:
         r"""Walk the topological levels accumulating the operator residual.
 
@@ -629,26 +631,27 @@ class SweepDependencyGraph:
         scalar + angular flux, ``residual`` forward-substitutes the *apply*
         (:meth:`CellUpdateBase.residual_batch`) and writes the per-cell
         operator residual :math:`(L+C)\,\overline\psi - q` into
-        ``residual_octant``. The 2-D Cartesian matvec
-        ``StreamingOperator.apply`` (Wave O #208 O.4b) drives this so it
-        shares the SAME wavefront DAG + closure as the sweep — matvec and
-        sweep are one discretization (L21), no FD twin path.
+        ``residual_octant``. The Cartesian matvec ``StreamingOperator.apply``
+        (Wave O #208 O.4b) drives this so it shares the SAME wavefront DAG +
+        closure as the sweep — matvec and sweep are one discretization (L21),
+        no FD twin path. Dimension-generic exactly as :meth:`apply` (each
+        level is the per-axis ``cell_idx`` tuple; the residual scatter uses
+        ``(:, :, *cell_idx)``).
 
         The edge-flux reconstruction is load-bearing: each cell's incoming
         face flux is the upstream cell's outgoing flux via the diamond
-        closure :math:`\psi^{\rm out} = 2\overline\psi^{\rm probe} -
-        \psi^{\rm in}` (scattered into ``psi_x_octant`` / ``psi_y_octant``
-        by ``residual_batch`` in place, propagated from the seeded boundary
-        inflow along the wavefront). This is exactly why the matvec needs
-        the topological walk rather than a per-cell formula.
+        closure :math:`\psi^{\rm out}_a = 2\overline\psi^{\rm probe} -
+        \psi^{\rm in}_a` (scattered into the per-axis ``psi_faces_octant``
+        buffers by ``residual_batch`` in place, propagated from the seeded
+        boundary inflow along the wavefront). This is exactly why the matvec
+        needs the topological walk rather than a per-cell formula.
 
         Mutation contract
         -----------------
 
-        * ``psi_x_octant`` / ``psi_y_octant`` — outgoing face fluxes
-          scattered in place (from the probe). Caller seeds the
-          incoming-face entries (BC apply happens one level up, in the
-          matvec) exactly as for :meth:`apply`.
+        * ``psi_faces_octant`` — outgoing face fluxes scattered in place
+          (from the probe). Caller seeds the incoming-face entries (BC apply
+          happens one level up, in the matvec) exactly as for :meth:`apply`.
         * ``residual_octant`` — written at every level's cells; caller
           scatters it back into the global bulk-residual buffer keyed by
           octant indices.
@@ -657,15 +660,16 @@ class SweepDependencyGraph:
         (the apply target) replacing the flux-reduction outputs
         (``weights_octant`` / ``scalar_flux_buf`` / ``angular_flux_octant``).
         """
-        for ii, jj in self.levels:
+        for cell_idx in self.levels:
             slice_args = self._make_slice(
-                ii, jj,
-                psi_x=psi_x_octant, psi_y=psi_y_octant,
-                Q=Q_octant, sig_t=sig_t,
-                str_x=str_x_octant, str_y=str_y_octant,
+                cell_idx,
+                psi_faces=psi_faces_octant,
+                Q=Q_octant, sig_t=sig_t, str_axes=str_axes_octant,
                 psi_avg_probe=psi_avg_probe_octant,
             )
-            residual_octant[:, :, ii, jj] = cell_update.residual_batch(slice_args)
+            residual_octant[(slice(None), slice(None), *cell_idx)] = (
+                cell_update.residual_batch(slice_args)
+            )
 
     # ── Phase 5b storage-B: rolling moving-frontier window walks ────────
     #

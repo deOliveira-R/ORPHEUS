@@ -179,80 +179,78 @@ from orpheus.numerics.registry import RegistryMixin
 
 @dataclass(frozen=True, slots=True)
 class SweepCellSlice:
-    r"""Per-topological-level batched-update packet for the 2-D sweep.
+    r"""Per-topological-level batched-update packet for the d-D wavefront sweep.
 
-    The 2-D wavefront sweep visits cells in topological levels (the
-    anti-diagonals of the Cartesian grid under a given octant sign
-    convention). Within one level, all cells are mutually independent
-    (no upstream/downstream relation between them), so the per-cell
-    DD math vectorises across both the **ordinate axis** (size
+    The wavefront sweep visits cells in topological levels (the
+    anti-hyperplanes :math:`\sum_a \mathrm{local}_a = k` of the Cartesian
+    grid under a given octant sign convention). Within one level all cells
+    are mutually independent (no upstream/downstream relation), so the
+    per-cell DD math vectorises across both the **ordinate axis** (size
     ``N_oct`` — every ordinate in the current octant) and the
-    **anti-diagonal axis** (size ``n_diag`` — number of cells on
-    this level) simultaneously. ``SweepCellSlice`` is the input
-    packet :meth:`CellUpdateBase.update_batch` consumes.
+    **anti-hyperplane axis** (size ``n_diag`` — number of cells on this
+    level) simultaneously. ``SweepCellSlice`` is the input packet
+    :meth:`CellUpdateBase.update_batch` consumes.
+
+    Dimension-generic (``d = ndim ∈ {1, 2, 3}``)
+    --------------------------------------------
+
+    Every spatial quantity is a **per-axis tuple, positional-by-axis**:
+    element ``a`` is spatial axis ``a`` — the SAME axis order as
+    :attr:`~orpheus.sn.sweep_graph.OctantLabel.signs` and
+    :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.from_cartesian`'s
+    ``shape``. At ``d = 2`` the tuples are ``(x, y)`` and the gather/scatter
+    advanced indices reduce to the legacy ``[:, :, face, jj]`` /
+    ``[:, :, ii, face]`` slices **bit-for-bit**.
 
     Shape contract
     --------------
 
     Let ``N_oct`` be the number of ordinates in the active octant,
-    ``n_diag`` the number of cells on this level, and ``ng`` the
-    number of energy groups.
+    ``n_diag`` the number of cells on this level, ``ng`` the energy groups,
+    and ``shape = (n_0, …, n_{d-1})`` the spatial cell counts.
 
-    +------------------------+-----------------------------+--------------------------------+
-    | Field                  | Shape                       | Role                           |
-    +========================+=============================+================================+
-    | ``ii``                 | ``(n_diag,)`` int           | Cell-i indices on this level   |
-    +------------------------+-----------------------------+--------------------------------+
-    | ``jj``                 | ``(n_diag,)`` int           | Cell-j indices on this level   |
-    +------------------------+-----------------------------+--------------------------------+
-    | ``face_in_x_idx``      | ``(n_diag,)`` int           | x-face index of incoming flux  |
-    |                        |                             | (= ``ii + 0`` if μ_x ≥ 0       |
-    |                        |                             | else ``ii + 1``)               |
-    +------------------------+-----------------------------+--------------------------------+
-    | ``face_out_x_idx``     | ``(n_diag,)`` int           | x-face index of outgoing flux  |
-    |                        |                             | (= ``ii + 1`` if μ_x ≥ 0       |
-    |                        |                             | else ``ii + 0``)               |
-    +------------------------+-----------------------------+--------------------------------+
-    | ``face_in_y_idx``      | ``(n_diag,)`` int           | y-face index of incoming flux  |
-    +------------------------+-----------------------------+--------------------------------+
-    | ``face_out_y_idx``     | ``(n_diag,)`` int           | y-face index of outgoing flux  |
-    +------------------------+-----------------------------+--------------------------------+
-    | ``psi_x``              | ``(N_oct, ng, nx+1, ny)``   | Octant-restricted face-x       |
-    |                        |                             | buffer; mutated in place       |
-    |                        |                             | (outgoing fluxes scattered     |
-    |                        |                             | back at ``face_out_x_idx``).   |
-    |                        |                             | Issue #196 PR-INDEX-5 —        |
-    |                        |                             | principled ``g`` after         |
-    |                        |                             | ``N_oct``.                     |
-    +------------------------+-----------------------------+--------------------------------+
-    | ``psi_y``              | ``(N_oct, ng, nx, ny+1)``   | Octant-restricted face-y       |
-    |                        |                             | buffer; mutated in place.      |
-    +------------------------+-----------------------------+--------------------------------+
-    | ``Q``                  | ``(N_oct, ng, nx, ny)`` or  | Per-octant per-cell volumetric |
-    |                        | ``(1, ng, nx, ny)``         | source, **already weight-      |
-    |                        |                             | normalised**. The leading      |
-    |                        |                             | axis is ``1`` for isotropic-   |
-    |                        |                             | only sweeps and ``N_oct`` when |
-    |                        |                             | a per-ordinate aniso source is |
-    |                        |                             | folded in.  Issue #196         |
-    |                        |                             | PR-INDEX-4 — principled        |
-    |                        |                             | ``g`` after ``N_oct``.         |
-    +------------------------+-----------------------------+--------------------------------+
-    | ``sig_t``              | ``(ng, nx, ny)``            | Per-cell per-group total XS    |
-    |                        |                             | (Issue #196 PR-INDEX-4 —       |
-    |                        |                             | principled ``g`` leading).     |
-    +------------------------+-----------------------------+--------------------------------+
-    | ``str_x``              | ``(N_oct, nx)``             | Octant-restricted streaming    |
-    |                        |                             | coefficient ``2|μ_x|/Δx``      |
-    +------------------------+-----------------------------+--------------------------------+
-    | ``str_y``              | ``(N_oct, ny)``             | Octant-restricted streaming    |
-    |                        |                             | coefficient ``2|μ_y|/Δy``      |
-    +------------------------+-----------------------------+--------------------------------+
+    +-----------------+------------------------------------+--------------------------------+
+    | Field           | Shape                              | Role                           |
+    +=================+====================================+================================+
+    | ``cell_idx``    | ``d`` × ``(n_diag,)`` int          | Per-axis cell indices on this  |
+    |                 |                                    | level (``cell_idx[a]`` = the   |
+    |                 |                                    | axis-``a`` index)              |
+    +-----------------+------------------------------------+--------------------------------+
+    | ``face_in_idx`` | ``d`` × ``(n_diag,)`` int          | Per-axis incoming-face index   |
+    |                 |                                    | (``cell_idx[a] + 0`` if axis   |
+    |                 |                                    | ``a`` streams +, else ``+1``)  |
+    +-----------------+------------------------------------+--------------------------------+
+    | ``face_out_idx``| ``d`` × ``(n_diag,)`` int          | Per-axis outgoing-face index   |
+    +-----------------+------------------------------------+--------------------------------+
+    | ``psi_faces``   | ``d`` × ``(N_oct, ng, …, n_a+1, …)``| Per-axis octant-restricted     |
+    |                 |                                    | face-flux buffers; mutated in  |
+    |                 |                                    | place (outgoing scattered at   |
+    |                 |                                    | ``face_out_idx[a]``). Axis     |
+    |                 |                                    | ``a``'s buffer is ``n_a + 1``  |
+    |                 |                                    | along axis ``a`` and ``n_b``   |
+    |                 |                                    | on every other axis. Issue     |
+    |                 |                                    | #196 PR-INDEX-5 — principled   |
+    |                 |                                    | ``g`` after ``N_oct``.         |
+    +-----------------+------------------------------------+--------------------------------+
+    | ``Q``           | ``(N_oct or 1, ng, *shape)``       | Per-octant per-cell volumetric |
+    |                 |                                    | source, **already weight-      |
+    |                 |                                    | normalised**. The leading axis |
+    |                 |                                    | is ``1`` for isotropic-only    |
+    |                 |                                    | sweeps and ``N_oct`` when a    |
+    |                 |                                    | per-ordinate aniso source is   |
+    |                 |                                    | folded in.                     |
+    +-----------------+------------------------------------+--------------------------------+
+    | ``sig_t``       | ``(ng, *shape)``                   | Per-cell per-group total XS    |
+    +-----------------+------------------------------------+--------------------------------+
+    | ``str_axes``    | ``d`` × ``(N_oct, n_a)``           | Per-axis octant-restricted     |
+    |                 |                                    | streaming coefficient          |
+    |                 |                                    | ``2|μ_a|/Δa``                  |
+    +-----------------+------------------------------------+--------------------------------+
 
     Apply direction (Wave O #208 O.4b)
     ----------------------------------
 
-    ``psi_avg_probe`` (shape ``(N_oct, ng, nx, ny)``, default ``None``) is
+    ``psi_avg_probe`` (shape ``(N_oct, ng, *shape)``, default ``None``) is
     the probe cell-average field consumed by
     :meth:`CellUpdateBase.residual_batch` — the batched apply-direction
     analogue of :meth:`update_batch`. It is ``None`` for the solve
@@ -266,38 +264,50 @@ class SweepCellSlice:
     Mutation semantics
     ------------------
 
-    ``psi_x`` and ``psi_y`` are mutated **in place** by
-    :meth:`update_batch` at indices ``face_out_x_idx`` /
-    ``face_out_y_idx`` (the outgoing-face indices for this level).
-    The caller (the
-    :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` orchestrator
-    in Wave 2) keeps these buffers as persistent state across levels
-    and across iterations; mutating them in place is the canonical way
-    to propagate face fluxes from one level to the next.
+    ``psi_faces`` is mutated **in place** by :meth:`update_batch` at the
+    per-axis outgoing-face indices ``face_out_idx[a]`` for this level. The
+    caller (the
+    :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` orchestrator)
+    keeps these buffers as persistent state across levels and across
+    iterations; mutating them in place is the canonical way to propagate
+    face fluxes from one level to the next.
 
-    Frozen + slotted: the dataclass itself is immutable (no rebinding
-    of attributes) but the numpy arrays it points at are mutable —
-    that is the desired separation of concerns.
+    Frozen + slotted: the dataclass itself is immutable (no rebinding of
+    attributes) but the numpy arrays it points at are mutable — that is the
+    desired separation of concerns.
+
+    Why a raw per-axis tuple, not a ``WavefrontFlux``
+    -------------------------------------------------
+
+    The face buffers are OCTANT-RESTRICTED working copies — a fancy-index
+    copy over the ordinate sub-block, ``(N_oct, …)`` not the full mesh
+    ``(N, …)``. They are therefore NOT a mesh-bound cochain: wrapping an
+    ``N_oct``-sized buffer as a
+    :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux` would
+    violate its mesh-binding invariant
+    (:meth:`WavefrontFlux._check_partner`) — an illegal state in the *other*
+    direction. The axis↔buffer binding a type would enforce is instead
+    established ONCE at the orchestrator, where the tuple is born from
+    ``WavefrontFlux.face(a)`` iterated over ``WavefrontFlux.axes`` (the typed
+    axis map, replacing the hardcoded ``psi_x = face(0); psi_y = face(1)``);
+    the octant projection and this slice preserve that axis order. The
+    kernel (:meth:`DiamondDifference.cell_kernel_batch`) likewise stays
+    raw-tuple — it touches a transient anti-hyperplane slice, not the whole
+    cochain.
 
     See also
     --------
     * :meth:`CellUpdateBase.update_batch` — the consumer.
-    * :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` — the
-      producer (Wave 2 / C2.3).
+    * :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` — the producer.
     """
 
-    ii: np.ndarray
-    jj: np.ndarray
-    face_in_x_idx: np.ndarray
-    face_out_x_idx: np.ndarray
-    face_in_y_idx: np.ndarray
-    face_out_y_idx: np.ndarray
-    psi_x: np.ndarray
-    psi_y: np.ndarray
+    cell_idx: tuple[np.ndarray, ...]
+    face_in_idx: tuple[np.ndarray, ...]
+    face_out_idx: tuple[np.ndarray, ...]
+    psi_faces: tuple[np.ndarray, ...]
     Q: np.ndarray
     sig_t: np.ndarray
-    str_x: np.ndarray
-    str_y: np.ndarray
+    str_axes: tuple[np.ndarray, ...]
     # Apply direction only (Wave O #208 O.4b): the probe cell-average
     # field ``residual_batch`` evaluates the per-cell operator at.
     # ``None`` for the solve direction (``update_batch`` ignores it).
@@ -728,7 +738,7 @@ class CellUpdateBase(RegistryMixin, ABC):
             :meth:`residual_batch` return). The caller writes ``psi_avg``
             into the angular-flux buffer and accumulates into the
             scalar-flux buffer; outgoing face fluxes are scattered
-            back into ``slice_args.psi_x`` / ``slice_args.psi_y``
+            back into the per-axis ``slice_args.psi_faces`` buffers
             in place by ``update_batch`` itself (since the spatial
             closure is part of the strategy's algebra).
         """
@@ -784,7 +794,7 @@ class CellUpdateBase(RegistryMixin, ABC):
             Per-cell residual on this level, shape ``(N_oct, ng,
             n_diag)``. The caller writes it into the bulk-residual output
             buffer; outgoing face fluxes are scattered back into
-            ``slice_args.psi_x`` / ``slice_args.psi_y`` in place by
+            the per-axis ``slice_args.psi_faces`` buffers in place by
             ``residual_batch`` itself (the spatial closure
             :math:`\psi^{\rm out} = 2\overline\psi - \psi^{\rm in}` is
             applied with the PROBE, propagating edge fluxes downstream

@@ -291,9 +291,9 @@ class TestApplyMatchesLegacyInlined:
         psi_y_oct = psi_y.copy()
         graph.apply(
             cell_update=DiamondDifference(),
-            psi_x_octant=psi_x_oct, psi_y_octant=psi_y_oct,
+            psi_faces_octant=(psi_x_oct, psi_y_oct),
             Q_octant=Q, sig_t=sig_t,
-            str_x_octant=str_x, str_y_octant=str_y,
+            str_axes_octant=(str_x, str_y),
             weights_octant=weights,
             angular_flux_octant=angular_flux,
             scalar_flux_buf=scalar_flux,
@@ -345,9 +345,9 @@ class TestApplyMatchesLegacyInlined:
         psi_y_oct = psi_y.copy()
         graph.apply(
             cell_update=DiamondDifference(),
-            psi_x_octant=psi_x_oct, psi_y_octant=psi_y_oct,
+            psi_faces_octant=(psi_x_oct, psi_y_oct),
             Q_octant=Q, sig_t=sig_t,
-            str_x_octant=str_x, str_y_octant=str_y,
+            str_axes_octant=(str_x, str_y),
             weights_octant=weights,
             angular_flux_octant=angular_flux,
             scalar_flux_buf=scalar_flux,
@@ -401,9 +401,9 @@ class TestResidualWalkRoundTrip:
         scal = np.zeros((ng, nx, ny))
         graph.apply(
             cell_update=DiamondDifference(),
-            psi_x_octant=psi_x.copy(), psi_y_octant=psi_y.copy(),
+            psi_faces_octant=(psi_x.copy(), psi_y.copy()),
             Q_octant=Q, sig_t=sig_t,
-            str_x_octant=str_x, str_y_octant=str_y,
+            str_axes_octant=(str_x, str_y),
             weights_octant=weights,
             angular_flux_octant=ang, scalar_flux_buf=scal,
         )
@@ -413,10 +413,10 @@ class TestResidualWalkRoundTrip:
         residual = np.zeros((N_oct, ng, nx, ny))
         graph.residual(
             cell_update=DiamondDifference(),
-            psi_x_octant=psi_x.copy(), psi_y_octant=psi_y.copy(),
+            psi_faces_octant=(psi_x.copy(), psi_y.copy()),
             psi_avg_probe_octant=ang,
             Q_octant=Q, sig_t=sig_t,
-            str_x_octant=str_x, str_y_octant=str_y,
+            str_axes_octant=(str_x, str_y),
             residual_octant=residual,
         )
 
@@ -439,19 +439,19 @@ class TestResidualWalkRoundTrip:
         scal = np.zeros((ng, nx, ny))
         graph.apply(
             cell_update=DiamondDifference(),
-            psi_x_octant=psi_x.copy(), psi_y_octant=psi_y.copy(),
+            psi_faces_octant=(psi_x.copy(), psi_y.copy()),
             Q_octant=Q, sig_t=sig_t,
-            str_x_octant=str_x, str_y_octant=str_y,
+            str_axes_octant=(str_x, str_y),
             weights_octant=weights,
             angular_flux_octant=ang, scalar_flux_buf=scal,
         )
         residual = np.zeros((N_oct, ng, nx, ny))
         graph.residual(
             cell_update=DiamondDifference(),
-            psi_x_octant=psi_x.copy(), psi_y_octant=psi_y.copy(),
+            psi_faces_octant=(psi_x.copy(), psi_y.copy()),
             psi_avg_probe_octant=ang,
             Q_octant=Q, sig_t=sig_t,
-            str_x_octant=str_x, str_y_octant=str_y,
+            str_axes_octant=(str_x, str_y),
             residual_octant=residual,
         )
         np.testing.assert_allclose(residual, 0.0, atol=1e-11)

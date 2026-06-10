@@ -65,9 +65,9 @@ def _full_field_apply(graph, nx, ny, N_oct, ng, inp):
     scal = np.zeros((ng, nx, ny))
     graph.apply(
         cell_update=DiamondDifference(),
-        psi_x_octant=psi_x, psi_y_octant=psi_y,
+        psi_faces_octant=(psi_x, psi_y),
         Q_octant=inp["Q"], sig_t=inp["sig_t"],
-        str_x_octant=inp["str_x"], str_y_octant=inp["str_y"],
+        str_axes_octant=(inp["str_x"], inp["str_y"]),
         weights_octant=inp["weights"],
         angular_flux_octant=ang, scalar_flux_buf=scal,
     )
@@ -102,10 +102,10 @@ def _full_field_residual(graph, nx, ny, N_oct, ng, inp):
     res = np.zeros((N_oct, ng, nx, ny))
     graph.residual(
         cell_update=DiamondDifference(),
-        psi_x_octant=psi_x, psi_y_octant=psi_y,
+        psi_faces_octant=(psi_x, psi_y),
         psi_avg_probe_octant=inp["probe"],
         Q_octant=inp["Q"], sig_t=inp["sig_t"],
-        str_x_octant=inp["str_x"], str_y_octant=inp["str_y"],
+        str_axes_octant=(inp["str_x"], inp["str_y"]),
         residual_octant=res,
     )
     out_x = psi_x[:, :, nx if sx >= 0 else 0, :]

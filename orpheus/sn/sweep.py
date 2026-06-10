@@ -1217,11 +1217,20 @@ def _sweep_2d_full_field(
     # window replaces with a rolling 2-diagonal frontier in production.
     wavefront = WavefrontFlux.zeros_on(sn_mesh)
     wavefront.seed(boundary_flux)
-    psi_x = wavefront.face(0)   # (N, ng, nx+1, ny) zero-copy view
-    psi_y = wavefront.face(1)   # (N, ng, nx, ny+1)
+    # Typed axis→buffer map: the per-axis face fields are taken via
+    # ``WavefrontFlux.face(a)`` over ``WavefrontFlux.axes``, so the positional
+    # tuple the d-generic walk consumes is born from the cochain's OWN axis map
+    # (no hardcoded ``psi_x = face(0); psi_y = face(1)``). The octant-restricted
+    # working copies below preserve that axis order.
+    psi_faces = tuple(wavefront.face(a) for a in wavefront.axes)
 
-    str_x = sn_mesh.streaming_x
-    str_y = sn_mesh.streaming_y
+    # Positional-by-axis: ``str_axes[a]`` MUST pair with ``psi_faces[a]`` (axis
+    # a's streaming coeff with axis a's face in ``_gather_cell_inputs``). 2-D
+    # orchestrator → hand-listed; when the d≥3 orchestrator lands (C3.4/C3.5)
+    # derive this from an ``axes``-keyed ``sn_mesh.streaming(a)`` map (the same
+    # ``wavefront.axes`` source that drives ``psi_faces``), retiring the manual
+    # tuple — so the two per-axis tuples cannot drift order (elegance-enforcer).
+    str_axes = (sn_mesh.streaming_x, sn_mesh.streaming_y)
     weights = sn_mesh.quad.weights
     cell_update = sn_mesh.cell_update
 
@@ -1239,19 +1248,19 @@ def _sweep_2d_full_field(
             sx_eff = +1 if sx == 0 else sx
             sy_eff = +1 if sy == 0 else sy
             graph = sn_mesh.sweep_graphs[OctantLabel((sx_eff, sy_eff))]
-            psi_x_oct = psi_x[oct_idx].copy()            # FULL per-octant face field
-            psi_y_oct = psi_y[oct_idx].copy()
+            # FULL per-octant face fields — octant-restricted working copies.
+            psi_faces_oct = tuple(pf[oct_idx].copy() for pf in psi_faces)
             angular_flux_oct = np.zeros((oct_idx.size, ng, nx, ny))
             graph.apply(                                 # the full-field walk
                 cell_update=cell_update,
-                psi_x_octant=psi_x_oct, psi_y_octant=psi_y_oct,
+                psi_faces_octant=psi_faces_oct,
                 Q_octant=Q[oct_idx], sig_t=sig_t,
-                str_x_octant=str_x[oct_idx], str_y_octant=str_y[oct_idx],
+                str_axes_octant=tuple(s[oct_idx] for s in str_axes),
                 weights_octant=weights[oct_idx],
                 angular_flux_octant=angular_flux_oct, scalar_flux_buf=scalar_flux,
             )
-            psi_x[oct_idx] = psi_x_oct
-            psi_y[oct_idx] = psi_y_oct
+            for a in wavefront.axes:
+                psi_faces[a][oct_idx] = psi_faces_oct[a]
             angular_flux[oct_idx] = angular_flux_oct
 
     wavefront.absorb(boundary_flux)                      # ι* whole-trace

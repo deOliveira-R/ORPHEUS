@@ -391,6 +391,105 @@ def test_d1_diamond_kernel_single_axis_streaming_sum():
     )
 
 
+# ─── B7 — the d-generic WALK (apply / residual) runs at d=1 and d=3 ──
+#
+# B5/B6 pin the d-generic cell KERNEL; B7 pins the d-generic graph WALK
+# end-to-end (``SweepDependencyGraph.apply`` / ``.residual``). The check is
+# the geometry-agnostic matvec==sweep round-trip: the operator residual of
+# the swept solution vanishes (``test_sweep_graph.py``'s d=2 contract lifted
+# to d=1 and d=3). This is what makes "d=1/d=3 CAN walk" (the C3.2b
+# deliverable) a TESTED fact, not just a kernel admission — it exercises the
+# per-axis advanced-index gather/scatter (``_cell_face_selector``) and the
+# ``(…, *cell_idx)`` flux scatter at d ≠ 2.
+
+
+def _walk_roundtrip_residual(shape, signs, *, ng, N_oct, seed):
+    """Solve via ``graph.apply``, then re-apply the operator at the swept
+    solution via ``graph.residual`` from the SAME boundary seeds; return the
+    per-cell residual (must vanish — the apply↔solve round-trip).
+
+    Geometry-agnostic: ``shape`` is any ``d``-tuple, the face buffers are
+    sized ``n_a + 1`` along axis ``a``, and the streaming coefficients /
+    source / ordinate count are arbitrary (NO real quadrature — this is the
+    synthetic-shape admission of the WALK, the d≠2 sibling of B5/B6).
+    """
+    rng = np.random.default_rng(seed)
+    d = len(shape)
+
+    def _face_shape(a):
+        s = list(shape)
+        s[a] += 1
+        return (N_oct, ng, *s)
+
+    psi_faces = tuple(rng.standard_normal(_face_shape(a)) for a in range(d))
+    Q = rng.standard_normal((N_oct, ng, *shape))
+    sig_t = rng.uniform(0.1, 0.5, size=(ng, *shape))
+    str_axes = tuple(
+        rng.uniform(0.1, 1.0, size=(N_oct, shape[a])) for a in range(d)
+    )
+    weights = rng.uniform(0.5, 1.5, size=N_oct)
+    graph = _build_nd(shape, signs)
+
+    # SOLVE — forward-substitute update_batch along the DAG.
+    ang = np.zeros((N_oct, ng, *shape))
+    scal = np.zeros((ng, *shape))
+    graph.apply(
+        cell_update=DiamondDifference(),
+        psi_faces_octant=tuple(pf.copy() for pf in psi_faces),
+        Q_octant=Q, sig_t=sig_t,
+        str_axes_octant=str_axes,
+        weights_octant=weights,
+        angular_flux_octant=ang, scalar_flux_buf=scal,
+    )
+    # APPLY at the swept solution — FRESH copies with the SAME inflow seeds
+    # (apply only scatters OUTGOING faces; the seeds carry the inflow).
+    residual = np.zeros((N_oct, ng, *shape))
+    graph.residual(
+        cell_update=DiamondDifference(),
+        psi_faces_octant=tuple(pf.copy() for pf in psi_faces),
+        psi_avg_probe_octant=ang,
+        Q_octant=Q, sig_t=sig_t,
+        str_axes_octant=str_axes,
+        residual_octant=residual,
+    )
+    return residual
+
+
+@_needs_spine
+@pytest.mark.parametrize("signs", _octant_labels(1))
+def test_d1_walk_residual_vanishes_at_apply_solution(signs):
+    """B7(d=1): the d=1 ``graph.apply`` / ``graph.residual`` walks run (the
+    1-D chain) and the operator residual of the swept solution vanishes — the
+    matvec==sweep contract on the single-axis spine. Proves the d=1 WALK (not
+    just the kernel) is wired; the cumprod oracle (separate file) then pins
+    the d=1 spine ≡ the cumprod optimization (C3.4)."""
+    residual = _walk_roundtrip_residual(
+        (6,), signs, ng=2, N_oct=4, seed=101 + signs[0],
+    )
+    np.testing.assert_allclose(
+        residual, 0.0, atol=1e-11,
+        err_msg=f"d=1 signs={signs}: round-trip residual did not vanish",
+    )
+
+
+@_needs_spine
+@pytest.mark.parametrize("signs", _octant_labels(3))
+def test_d3_walk_residual_vanishes_at_apply_solution(signs):
+    """B7(d=3): the d=3 walks run on a synthetic shape (NO 3-D quadrature —
+    arbitrary N_oct / streaming / source) and the round-trip residual
+    vanishes. Proves the anti-hyperplane forward substitution + the 3-axis
+    diamond closure compose into a self-consistent WALK at d=3 (C3 invariant
+    #3: synthetic-3-D shape admission, here lifted from the kernel to the
+    walk)."""
+    residual = _walk_roundtrip_residual(
+        (3, 2, 3), signs, ng=2, N_oct=3, seed=303 + sum(signs),
+    )
+    np.testing.assert_allclose(
+        residual, 0.0, atol=1e-11,
+        err_msg=f"d=3 signs={signs}: round-trip residual did not vanish",
+    )
+
+
 # ─── C — d=2 equivalence: from_cartesian(2) == from_cartesian_2d ─────
 
 

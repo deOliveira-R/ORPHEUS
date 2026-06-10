@@ -1787,10 +1787,16 @@ class StreamingOperator(LinearOperatorMixin):
         LpC = np.zeros((N, ng, nx, ny))
         trace = sn_mesh.trace
         boundary = psi.boundary
-        # The FULL interior cochain (typed) — ι_*-seeded whole-trace.
+        # The FULL interior cochain (typed) — ι_*-seeded whole-trace. The
+        # per-axis face tuple is born from the cochain's OWN axis map
+        # (``WavefrontFlux.face(a)`` over ``WavefrontFlux.axes``), not a
+        # hardcoded ``psi_x = face(0); psi_y = face(1)``.
         wavefront = WavefrontFlux.zeros_on(sn_mesh)
-        psi_x = wavefront.face(0)
-        psi_y = wavefront.face(1)
+        psi_faces = tuple(wavefront.face(a) for a in wavefront.axes)
+        # Positional-by-axis, MUST match ``wavefront.axes`` order (see
+        # ``_sweep_2d_full_field``); the d≥3 orchestrator (C3.4/C3.5) derives this
+        # from an ``axes``-keyed streaming map so the two tuples cannot drift.
+        str_axes = (str_x, str_y)
         wavefront.seed(boundary)
 
         for octant in quad.octants:
@@ -1804,19 +1810,18 @@ class StreamingOperator(LinearOperatorMixin):
             sx_eff = +1 if sx == 0 else sx
             sy_eff = +1 if sy == 0 else sy
             graph = sn_mesh.sweep_graphs[OctantLabel((sx_eff, sy_eff))]
-            psi_x_oct = psi_x[oct_idx].copy()
-            psi_y_oct = psi_y[oct_idx].copy()
+            psi_faces_oct = tuple(pf[oct_idx].copy() for pf in psi_faces)
             LpC_oct = np.zeros((oct_idx.size, ng, nx, ny))
             graph.residual(
                 cell_update=cell_update,
-                psi_x_octant=psi_x_oct, psi_y_octant=psi_y_oct,
+                psi_faces_octant=psi_faces_oct,
                 psi_avg_probe_octant=probe[oct_idx],
                 Q_octant=Q_zero, sig_t=sig_t,
-                str_x_octant=str_x[oct_idx], str_y_octant=str_y[oct_idx],
+                str_axes_octant=tuple(s[oct_idx] for s in str_axes),
                 residual_octant=LpC_oct,
             )
-            psi_x[oct_idx] = psi_x_oct
-            psi_y[oct_idx] = psi_y_oct
+            for a in wavefront.axes:
+                psi_faces[a][oct_idx] = psi_faces_oct[a]
             LpC[oct_idx] = LpC_oct
 
         out_bulk = LpC - sig_t[None] * probe

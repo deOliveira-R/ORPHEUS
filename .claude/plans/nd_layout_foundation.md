@@ -76,39 +76,74 @@ synthetic-3-D admission + docs (folds C5).
   octant+full-field oracle+cell_update_batch+dd_regression **112 passed -O**; DD drift
   **6920 ULP == baseline → ZERO new drift**.
 
-**⏭ NEXT = C3.2b (d-generic full-field WALK — so d=1/d=3 can WALK):**
-`SweepCellSlice` (`cell_update.py:180`; the 2-axis `ii`/`jj`/`psi_x`/`psi_y`/`face_*_x/y_idx`/
-`str_x`/`str_y` fields) → per-axis TUPLES (`cell_idx`/`psi_faces`/`face_in_idx`/`face_out_idx`/
-`str_axes`); `DiamondDifference.update_batch`/`residual_batch` gather/scatter → d-generic
-per-axis advanced index (`idx=list(cell_idx); idx[a]=face_idx[a]; faces[a][(:, :, *idx)]`);
-`SweepDependencyGraph.apply`/`residual` walk `for ii,jj in levels` → `for cell_idx in levels`
-+ d-generic `_make_slice` + `buf[(:, :, *cell_idx)]` scatter. 2-D BIT-IDENTICAL (the per-axis
-index reduces to `[:,:,face,jj]` / `[:,:,ii,face]` at d=2). MIGRATE `test_cell_update_batch.py`
-(constructs `SweepCellSlice` directly — the only external reader). THEN C3.3 (geometry:
-`itertools.product((-1,+1),repeat=ndim)` + build the 1-D sweep graph [None today] + fold the
-5 `ny>1` gates + `is_1d` → dimensionality test) + C3.4 (wire d=1 wavefront via the d-generic
-walk in `_wavefront_1d_sweep` + flip the cumprod oracle xfail→pass + MEASURE the speedup).
-Commit chain: `5b941eb`(C3.0)→`9b75374`(C3.1)→`9063487`(C3.2a)→`10e2587`(C3.2a
-elegance: kernel `s`→`s_axes` to de-shadow `s = slice_args` + axis-position docstring
-contract; bit-identical pure rename). Branch local (NOT pushed).
+- ✅ **C3.2b** (d-generic full-field WALK — so d=1/d=3 CAN walk): `SweepCellSlice`
+  (`cell_update.py`) 2-axis fields → per-axis TUPLES (`cell_idx`/`face_in_idx`/
+  `face_out_idx`/`psi_faces`/`str_axes`); `DiamondDifference.update_batch`/`residual_batch`
+  gather/scatter → d-generic via shared helpers `_cell_face_selector` (the
+  `(:, :, *cell_idx)` advanced index with axis-a's cell idx replaced by its face idx) +
+  `_gather_cell_inputs` + `_scatter_outgoing_faces` — a Pattern-2 extraction collapsing the
+  REAL twin the two batch methods carried (gather/scatter identical, only the cell math
+  differs); `SweepDependencyGraph.apply`/`residual` walk `for ii,jj in levels` →
+  `for cell_idx in levels` + d-generic `_make_slice` + `buf[(slice(None),…,*cell_idx)]`
+  scatter; signatures `psi_x/y_octant`→`psi_faces_octant: tuple`, `str_x/y_octant`→
+  `str_axes_octant: tuple`. The KERNEL (`cell_kernel_batch`) was already d-generic (C3.2a),
+  UNTOUCHED → bit-identity left-fold intact. ⭐ **WavefrontFlux-typing acceptance item
+  RESOLVED (elegance-enforcer PASS):** the buffers handed to the walk are OCTANT-RESTRICTED
+  working copies (`face(a)[oct_idx].copy()`, `(N_oct,…)` not the full mesh `(N,…)`) — they
+  CANNOT be a mesh-bound `WavefrontFlux` without violating its `_check_partner` binding (a
+  type-lie in the OTHER direction; Pattern 4 reversed). So the typed axis↔buffer map lands
+  at the ORCHESTRATOR (`tuple(wavefront.face(a) for a in wavefront.axes)` — the typed
+  `WavefrontFlux.axes` map, replacing hardcoded `psi_x=face(0); psi_y=face(1)`); the slice +
+  kernel carry the raw octant-projected tuple in that axis order (Pattern 7 — normalise at
+  the definition site). NO fictitious octant-submesh (single-consumer; defer per Pattern 6).
+  ⭐ NEW **B7 walk-admission test** (`test_sweep_graph_nd_admission.py`): the d-generic WALK
+  (not just the kernel) verified at d=1 AND d=3 via the geometry-agnostic matvec==sweep
+  round-trip (`residual(apply(x))≈0`, 10 passed) — makes "d=1/d=3 CAN walk" a TESTED fact.
+  Migrated `test_cell_update_batch.py`+`test_sweep_graph.py`+`test_sweep_graph_window_equivalence.py`
+  (the SweepCellSlice/apply/residual external readers; windowed `str_x/y_octant` kwargs KEPT —
+  the window path stays d=2). ⭐ **A2D-1 source-hash pin REFRESHED** (`2d0c9f…`→`b17d69…`): it
+  had been STALE since C3.1 (`9b75374`'s `OctantLabel((sx,sy))` migration changed
+  `_apply_2d_cartesian`'s text), uncaught for 3 commits because C3.1/C3.2a gates skipped the
+  operators suite — caught + fixed now (the change is value-preserving; matvec full-field
+  oracle equivalence confirms production correct). GATES ALL GREEN: sweep core+cartesian_2d
+  **475 passed** (incl. window≡full bit-id oracle + end-to-end full-field oracle + B7);
+  operators+solve **524 passed** (incl. sha256 bit-identity anchor `test_affine_carve_bit_identity`
+  = sub-ULP proof of ZERO byte change in the 2-D path + A2D-1); eigenvalue **53 passed** (2-D
+  k_eff); primitives 271 / spatial 4 / regression 13. ⚠ The 8 verification "failures" are
+  pytest-TIMEOUTS (>60s) on PRE-EXISTING-slow paths C3.2b NEVER touches (1-D slab cumprod +
+  cylinder curvilinear — diff + import audit prove independence; slab confirmed passes at
+  generous timeout; cylinder `cyl_2g_3reg…n40` is heavy/non-converging #206-adjacent). DD
+  drift stays **6920 ULP == baseline → ZERO new drift**. elegance-enforcer **PASS-WITH-NITS**
+  (no violations; committable). Commit chain: `5b941eb`(C3.0)→`9b75374`(C3.1)→`9063487`(C3.2a)
+  →`10e2587`(C3.2a elegance)→`f88ef7d`(plan)→**C3.2b** (this commit).
 
-⭐ **ELEGANCE-REVIEW ACCEPTANCE ITEMS (self + elegance-enforcer, post-C3.2a) — DO NOT
-DROP in C3.2b/C3.4:**
-- **C3.2b (HIGHEST-LEVERAGE structural move):** the d-generic `SweepCellSlice` per-axis
-  faces must be TYPED — route the gather/scatter through `WavefrontFlux.face(axis)` (the
-  existing axis-parametric interior face cochain,
-  `orpheus/transport/fields/wavefront_flux.py`) rather than a raw `psi_faces:
-  tuple[ndarray,...]`. Turns the positional axis tuple into the typed `WavefrontFlux.axes`
-  map ⟹ axis↔index unrepresentable-when-wrong across d=1,2,3 at once. The KERNEL stays
-  raw-tuple (it touches a transient anti-hyperplane SLICE, not the whole cochain — typing
-  it there is a category error; ACCEPTED).
+**⏭ NEXT = C3.3 (geometry d-generic):** `itertools.product((-1,+1), repeat=ndim)` octant
+build + build the 1-D sweep graph into `SNMesh.sweep_graphs` (None today) + fold the 5 `ny>1`
+gates + `is_1d` → a dimensionality test. THEN C3.4 (wire d=1 wavefront via the d-generic walk
+in `_wavefront_1d_sweep` + flip the cumprod oracle xfail→pass + MEASURE the speedup) + C3.5
+(orchestration d-generic + retire twins + the `OctantLabel.sign_x/y`/`streams_in_2d` shims) +
+C3.6 (3-D admission + docs).
+
+⭐ **ELEGANCE-REVIEW ACCEPTANCE ITEMS (carry forward):**
+- ✅ **C3.2b WavefrontFlux-typing — RESOLVED** at the orchestrator boundary (see C3.2b above;
+  elegance-enforcer confirmed the orchestrator-not-slice landing is the CORRECT call, not a
+  shortcut — the octant transient cannot validly be a mesh-bound cochain).
+- **C3.4/C3.5 (elegance-enforcer CONCERN, from C3.2b):** `str_axes = (streaming_x, streaming_y)`
+  at both orchestrators is a SECOND hand-listed axis-order tuple NOT derived from
+  `wavefront.axes` (latent-only at d=2 — both tuples length-2, order-trivial; the habitat opens
+  at the d≥3 orchestrator). When d≥3 orchestration lands, expose an `axes`-keyed
+  `sn_mesh.streaming(a)` / `streaming_axes` map so `str_axes = tuple(sn_mesh.streaming(a) for a
+  in wavefront.axes)` — ONE axis-order source for BOTH per-axis tuples; acceptance criterion
+  "no orchestrator hand-lists a positional per-axis tuple". A call-site contract comment pins
+  it for now (`sweep.py`/`operator.py` orchestrators).
 - **C3.4:** revisit `window_slots`/`window_edges` (`tuple|None`) as a
   `SweepOptimization|None` sum type ONLY once the d=1 cumprod accelerator makes it the 2nd
   optimization instance (`feedback_unify_after_two_instances`) — NOT before.
 - **ACCEPTED as-is:** batch kernel ≠ Pattern-2 twin of scalar `cell_balance_for_streaming`
   (Cartesian multi-axis streaming vs curvilinear single-axis + Morel–Montry angular);
   explicit-left-fold-over-`sum()` exemplary (bit-identity why-at-the-what); the partial
-  `OctantLabel.sign_x/y` / `streams_in_2d` shims retire in C3.5.
+  `OctantLabel.sign_x/y` / `streams_in_2d` shims retire in C3.5; the `(slice(None), *cell_idx)`
+  idiom stays inline (2 distinct leading-axis shapes — a helper would need a flag).
 
 Details below are the PRE-pivot C3 plan (superseded by the staging above).
 

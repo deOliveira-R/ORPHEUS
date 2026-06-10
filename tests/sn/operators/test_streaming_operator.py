@@ -1275,8 +1275,22 @@ class TestT4dApply2DCartesianSourceHashPin:
     #         when ``sig_t`` becomes rank-2 ``(ng, nx)`` after the phantom-``ny=1``
     #         removal). Behaviour-neutral prep for the `(N, ng, *spatial)` carve;
     #         2-D octant snapshots + DD regression stay green.
+    #   N-D layout C3.1 (OctantLabel d-tuple migration) 2d0c9f53…8d11cb63 →
+    #         b17d69d6…e86bc6da — the SOLE change to this method:
+    #         ``sn_mesh.sweep_graphs[OctantLabel(sx_eff, sy_eff)]`` →
+    #         ``[OctantLabel((sx_eff, sy_eff))]``. C3.1 made ``OctantLabel`` carry
+    #         a d-tuple ``signs`` field (the dimension-generic successor of the
+    #         2-element label), so the two positional sign args become one
+    #         ``(sx_eff, sy_eff)`` tuple. BIT-IDENTICAL: same octant key, same
+    #         dict lookup, same graph. The pin update LAGGED the C3.1 commit
+    #         (``9b75374``) by 3 commits (C3.1/C3.2a gates did not run the
+    #         operators suite); this is the catch-up refresh, landed in C3.2b
+    #         alongside the d-generic sweep-graph WALK. Production 2-D matvec
+    #         stays green: the full-field oracle equivalence
+    #         (``test_2d_matvec_full_field_oracle``) + 523-pass operators+solve
+    #         gate confirm ``_apply_2d_cartesian`` ≡ the (now d-generic) oracle.
     EXPECTED_SHA256: str = (
-        "2d0c9f53ff65f86ec4e80181ddb41da6fe10a8c2c3aeef8540cee1ec8d11cb63"
+        "b17d69d67e17a4b96b2899506f7a5d1ba4399ab5adebc42ae01b99d9e86bc6da"
     )
 
     def test_apply_2d_cartesian_source_hash_unchanged(self):

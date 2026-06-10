@@ -88,13 +88,11 @@ def _build_slice_kwargs(
 
     return (
         SweepCellSlice(
-            ii=ii, jj=jj,
-            face_in_x_idx=ii + ix_in,
-            face_out_x_idx=ii + ix_out,
-            face_in_y_idx=jj + iy_in,
-            face_out_y_idx=jj + iy_out,
-            psi_x=psi_x, psi_y=psi_y,
-            Q=Q, sig_t=sig_t, str_x=str_x, str_y=str_y,
+            cell_idx=(ii, jj),
+            face_in_idx=(ii + ix_in, jj + iy_in),
+            face_out_idx=(ii + ix_out, jj + iy_out),
+            psi_faces=(psi_x, psi_y),
+            Q=Q, sig_t=sig_t, str_axes=(str_x, str_y),
         ),
         psi_x, psi_y,
     )
@@ -110,21 +108,22 @@ def _legacy_inlined_psi_avg(
     output principled ``(N_oct, ng, n_diag)``.
     """
     s = slice_args
-    N_oct = s.psi_x.shape[0]
-    ng = s.psi_x.shape[1]
-    n_diag = len(s.ii)
+    N_oct = s.psi_faces[0].shape[0]
+    ng = s.psi_faces[0].shape[1]
+    ii, jj = s.cell_idx
+    n_diag = len(ii)
     psi_avg_ref = np.empty((N_oct, ng, n_diag))
     for n in range(N_oct):
-        psi_in_x = psi_x_pre[n, :, s.face_in_x_idx, s.jj]   # (n_diag, ng) — advanced at end
-        psi_in_y = psi_y_pre[n, :, s.ii, s.face_in_y_idx]   # (n_diag, ng)
+        psi_in_x = psi_x_pre[n, :, s.face_in_idx[0], jj]    # (n_diag, ng) — advanced at end
+        psi_in_y = psi_y_pre[n, :, ii, s.face_in_idx[1]]    # (n_diag, ng)
         # Note: numpy gives (n_diag, ng) when advanced indices trail two
         # basic slices; transpose to (ng, n_diag) for principled output.
         psi_in_x = psi_in_x.T                                # (ng, n_diag)
         psi_in_y = psi_in_y.T                                # (ng, n_diag)
-        sx_ii = s.str_x[n, s.ii][None, :]                   # (1, n_diag)
-        sy_jj = s.str_y[n, s.jj][None, :]                   # (1, n_diag)
-        denom = s.sig_t[:, s.ii, s.jj] + sx_ii + sy_jj      # (ng, n_diag)
-        Q_n = s.Q[n if s.Q.shape[0] > 1 else 0, :, s.ii, s.jj].T  # (ng, n_diag)
+        sx_ii = s.str_axes[0][n, ii][None, :]               # (1, n_diag)
+        sy_jj = s.str_axes[1][n, jj][None, :]               # (1, n_diag)
+        denom = s.sig_t[:, ii, jj] + sx_ii + sy_jj          # (ng, n_diag)
+        Q_n = s.Q[n if s.Q.shape[0] > 1 else 0, :, ii, jj].T  # (ng, n_diag)
         psi_avg_ref[n] = (
             Q_n + sx_ii * psi_in_x + sy_jj * psi_in_y
         ) / denom
@@ -157,11 +156,11 @@ class TestSingleCellClosedForm:
         str_x = np.array([[3.0]])               # (N_oct, nx)
         str_y = np.array([[5.0]])               # (N_oct, ny)
         slice_args = SweepCellSlice(
-            ii=np.array([0]), jj=np.array([0]),
-            face_in_x_idx=np.array([0]),  face_out_x_idx=np.array([1]),
-            face_in_y_idx=np.array([0]),  face_out_y_idx=np.array([1]),
-            psi_x=psi_x, psi_y=psi_y,
-            Q=Q, sig_t=sig_t, str_x=str_x, str_y=str_y,
+            cell_idx=(np.array([0]), np.array([0])),
+            face_in_idx=(np.array([0]), np.array([0])),
+            face_out_idx=(np.array([1]), np.array([1])),
+            psi_faces=(psi_x, psi_y),
+            Q=Q, sig_t=sig_t, str_axes=(str_x, str_y),
         )
         psi_avg = DiamondDifference().update_batch(slice_args)
         # (16 + 3*4 + 5*8) / (2 + 3 + 5) = (16 + 12 + 40) / 10 = 6.8
@@ -184,11 +183,11 @@ class TestSingleCellClosedForm:
         str_x = np.array([[3.0]])
         str_y = np.array([[5.0]])
         slice_args = SweepCellSlice(
-            ii=np.array([0]), jj=np.array([0]),
-            face_in_x_idx=np.array([1]),  face_out_x_idx=np.array([0]),
-            face_in_y_idx=np.array([1]),  face_out_y_idx=np.array([0]),
-            psi_x=psi_x, psi_y=psi_y,
-            Q=Q, sig_t=sig_t, str_x=str_x, str_y=str_y,
+            cell_idx=(np.array([0]), np.array([0])),
+            face_in_idx=(np.array([1]), np.array([1])),
+            face_out_idx=(np.array([0]), np.array([0])),
+            psi_faces=(psi_x, psi_y),
+            Q=Q, sig_t=sig_t, str_axes=(str_x, str_y),
         )
         psi_avg = DiamondDifference().update_batch(slice_args)
         np.testing.assert_array_equal(psi_avg, 6.8)
@@ -283,16 +282,17 @@ class TestFaceFluxScatter:
         DiamondDifference().update_batch(slice_args)
 
         # Face-out indices: ii + 1, jj + 1 (sx,sy > 0).
-        face_out_x_idx = slice_args.ii + 1   # [1, 2, 3]
-        face_out_y_idx = slice_args.jj + 1   # [1, 2, 3]
+        ii, jj = slice_args.cell_idx
+        face_out_x_idx = ii + 1   # [1, 2, 3]
+        face_out_y_idx = jj + 1   # [1, 2, 3]
 
         # Build a mask of expected-changed locations.
         # psi_x: (N_oct, ng, nx+1, ny); change at (:, :, face_out_x[k], jj[k]).
         x_changed_mask = np.zeros_like(psi_x, dtype=bool)
-        for k, (i, j) in enumerate(zip(slice_args.ii, slice_args.jj)):
+        for k, (i, j) in enumerate(zip(ii, jj)):
             x_changed_mask[:, :, face_out_x_idx[k], j] = True
         y_changed_mask = np.zeros_like(psi_y, dtype=bool)
-        for k, (i, j) in enumerate(zip(slice_args.ii, slice_args.jj)):
+        for k, (i, j) in enumerate(zip(ii, jj)):
             y_changed_mask[:, :, i, face_out_y_idx[k]] = True
 
         # Outside the masked region nothing changed.
@@ -318,15 +318,16 @@ class TestFaceFluxScatter:
         psi_avg = DiamondDifference().update_batch(slice_args)
         # Reconstruct expected outgoing face values from psi_avg + pre-buffer.
         # psi_x principled: index as [:, :, face_idx, jj].
-        psi_in_x = psi_x_pre[:, :, slice_args.face_in_x_idx, slice_args.jj]
-        psi_in_y = psi_y_pre[:, :, slice_args.ii, slice_args.face_in_y_idx]
+        ii, jj = slice_args.cell_idx
+        psi_in_x = psi_x_pre[:, :, slice_args.face_in_idx[0], jj]
+        psi_in_y = psi_y_pre[:, :, ii, slice_args.face_in_idx[1]]
         expected_psi_out_x = 2.0 * psi_avg - psi_in_x
         expected_psi_out_y = 2.0 * psi_avg - psi_in_y
         actual_psi_out_x = psi_x[
-            :, :, slice_args.face_out_x_idx, slice_args.jj,
+            :, :, slice_args.face_out_idx[0], jj,
         ]
         actual_psi_out_y = psi_y[
-            :, :, slice_args.ii, slice_args.face_out_y_idx,
+            :, :, ii, slice_args.face_out_idx[1],
         ]
         np.testing.assert_array_equal(actual_psi_out_x, expected_psi_out_x)
         np.testing.assert_array_equal(actual_psi_out_y, expected_psi_out_y)
@@ -400,10 +401,11 @@ def _probe_field_from_level(
 ) -> np.ndarray:
     """Scatter a per-level ``(N_oct, ng, n_diag)`` value into a full
     ``(N_oct, ng, nx, ny)`` probe field (zeros elsewhere)."""
-    N_oct, ng = slice_args.psi_x.shape[0], slice_args.psi_x.shape[1]
+    N_oct, ng = slice_args.psi_faces[0].shape[0], slice_args.psi_faces[0].shape[1]
     nx, ny = slice_args.sig_t.shape[1], slice_args.sig_t.shape[2]
     probe = np.zeros((N_oct, ng, nx, ny))
-    probe[:, :, slice_args.ii, slice_args.jj] = psi_avg_level
+    ii, jj = slice_args.cell_idx
+    probe[:, :, ii, jj] = psi_avg_level
     return probe
 
 
@@ -424,11 +426,11 @@ class TestResidualBatchClosedForm:
         str_y = np.array([[5.0]])
         probe = np.array([[[[6.8]]]])           # the solved ψ̄ (denom=10)
         slice_args = SweepCellSlice(
-            ii=np.array([0]), jj=np.array([0]),
-            face_in_x_idx=np.array([0]), face_out_x_idx=np.array([1]),
-            face_in_y_idx=np.array([0]), face_out_y_idx=np.array([1]),
-            psi_x=psi_x, psi_y=psi_y,
-            Q=Q, sig_t=sig_t, str_x=str_x, str_y=str_y,
+            cell_idx=(np.array([0]), np.array([0])),
+            face_in_idx=(np.array([0]), np.array([0])),
+            face_out_idx=(np.array([1]), np.array([1])),
+            psi_faces=(psi_x, psi_y),
+            Q=Q, sig_t=sig_t, str_axes=(str_x, str_y),
             psi_avg_probe=probe,
         )
         residual = DiamondDifference().residual_batch(slice_args)
@@ -444,11 +446,11 @@ class TestResidualBatchClosedForm:
         Q = np.array([[[[16.0]]]]); sig_t = np.array([[[2.0]]])
         str_x = np.array([[3.0]]); str_y = np.array([[5.0]])
         slice_args = SweepCellSlice(  # psi_avg_probe defaults to None
-            ii=np.array([0]), jj=np.array([0]),
-            face_in_x_idx=np.array([0]), face_out_x_idx=np.array([1]),
-            face_in_y_idx=np.array([0]), face_out_y_idx=np.array([1]),
-            psi_x=psi_x, psi_y=psi_y,
-            Q=Q, sig_t=sig_t, str_x=str_x, str_y=str_y,
+            cell_idx=(np.array([0]), np.array([0])),
+            face_in_idx=(np.array([0]), np.array([0])),
+            face_out_idx=(np.array([1]), np.array([1])),
+            psi_faces=(psi_x, psi_y),
+            Q=Q, sig_t=sig_t, str_axes=(str_x, str_y),
         )
         with pytest.raises(ValueError, match="psi_avg_probe"):
             DiamondDifference().residual_batch(slice_args)
@@ -462,11 +464,11 @@ class TestResidualBatchClosedForm:
         str_x = np.array([[3.0]]); str_y = np.array([[5.0]])
         probe = np.array([[[[7.0]]]])           # 0.2 above the solution 6.8
         slice_args = SweepCellSlice(
-            ii=np.array([0]), jj=np.array([0]),
-            face_in_x_idx=np.array([0]), face_out_x_idx=np.array([1]),
-            face_in_y_idx=np.array([0]), face_out_y_idx=np.array([1]),
-            psi_x=psi_x, psi_y=psi_y,
-            Q=Q, sig_t=sig_t, str_x=str_x, str_y=str_y,
+            cell_idx=(np.array([0]), np.array([0])),
+            face_in_idx=(np.array([0]), np.array([0])),
+            face_out_idx=(np.array([1]), np.array([1])),
+            psi_faces=(psi_x, psi_y),
+            Q=Q, sig_t=sig_t, str_axes=(str_x, str_y),
             psi_avg_probe=probe,
         )
         residual = DiamondDifference().residual_batch(slice_args)
