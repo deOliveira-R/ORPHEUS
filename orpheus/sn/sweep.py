@@ -1174,91 +1174,96 @@ def _sweep_2d_wavefront(
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# VERIFICATION ORACLE — the full-field storage-A 2-D sweep (NOT production)
+# VERIFICATION ORACLE — the full-field DAG-walk sweep (d-generic; NOT production)
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _sweep_2d_full_field(
+def _sweep_full_field(
     Q: np.ndarray,
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
     boundary_flux: "BoundaryFlux",
 ) -> tuple[np.ndarray, np.ndarray]:
-    r"""Full-field storage-A 2-D Jacobi sweep — the VERIFICATION ORACLE for the
-    windowed production sweep (:func:`_sweep_2d_wavefront`).
+    r"""Full-field DAG-walk Jacobi sweep — the dimension-generic VERIFICATION
+    ORACLE (:class:`~orpheus.sn.sweep_strategy.FullFieldWavefront`).
 
-    This is the storage-A path that Phase 5b's storage-B carve superseded in
-    production. It is RETAINED — and exercised by
-    ``tests/sn/sweep/cartesian_2d/test_2d_full_field_oracle_equivalence.py`` —
-    as the fuller-view reference the moving-frontier window is cross-checked
-    against END-TO-END (orchestrator + walk + whole-trace boundary handling),
-    NOT just at the per-octant walk level. Its sole purpose is verification;
-    production is the window. Three reasons it is a legitimate kept reference
-    (not a twin-path smell):
+    The dimension-agnostic SPINE: ONE body for d = 1 (slab) and d = 2
+    (Cartesian), and the verification reference the d-specific production
+    optimizations are cross-checked against — the 1-D
+    :class:`~orpheus.sn.sweep_strategy.CumprodScan` (principled-equivalence at
+    nulp) and the 2-D :class:`~orpheus.sn.sweep_strategy.MovingFrontierWindow`
+    (``window ≡ full`` bit-identity). It carries the FULL interior face cochain
+    (the storage-A path Phase 5b superseded in production); its sole purpose is
+    verification. Three reasons it is a legitimate kept reference (not a
+    twin-path smell):
 
     1. It carries the FULL interior face cochain as the typed
        :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux` (the
-       fuller view — all cells' face flux, not just the 2-diagonal frontier),
+       fuller view — all cells' face flux, not just the rolling frontier),
        with the :math:`\iota_*` (``seed``) / :math:`\iota^*` (``absorb``)
-       whole-trace boundary algebra. So it KEEPS ``WavefrontFlux`` and its
-       trace API genuinely alive (the storage-B carve had orphaned them).
+       whole-trace boundary algebra.
     2. It walks via :meth:`SweepDependencyGraph.apply` — the full-field walk
        that shares the SAME cell kernel
        (:meth:`DiamondDifference.cell_kernel_batch`) as the windowed
        :meth:`~SweepDependencyGraph.apply_windowed`. So the cell MATH cannot
        drift between oracle and production; only the storage walk differs —
-       which is exactly what the equivalence test pins (``np.array_equal``).
+       which is exactly what the ``window ≡ full`` equivalence test pins
+       (``np.array_equal`` at d = 2).
     3. Jacobi only (one all-octants group, no inter-group reflect): the default
        :func:`_sweep_2d_wavefront` path. The window≡full bit-identity is
        per-octant (schedule-independent), so the Jacobi oracle suffices; the
        Gauss-Seidel windowed path is exercised by the eigenvalue tier.
+
+    Dimension-generic via the wavefront DAG (B7-verified d = 1 / d = 3): the
+    per-axis tuples (faces, streaming, octant signs) are built over
+    ``range(ndim)`` — at d = 2 byte-for-byte the legacy ``(sign_x, sign_y)`` /
+    ``(streaming_x, streaming_y)`` path (the window anchor pins this); at d = 1
+    a single-axis chain walk. The schedule's octant labels live in the full
+    angular space (``signs`` may carry a phantom out-of-plane component, e.g.
+    ``(-1, 0)`` on a 1-D mesh), so they are projected to ``signs[:ndim]`` —
+    which at d = 2 is the in-plane ``(sign_x, sign_y)`` the 2-D graphs are keyed
+    by, and at d = 1 the single in-plane sign the chain graphs are keyed by.
     """
     from orpheus.transport.fields.wavefront_flux import WavefrontFlux
 
-    ng, nx, ny = sig_t.shape
+    ng = sig_t.shape[0]
+    spatial = sig_t.shape[1:]                            # (nx,) at d=1; (nx, ny) at d=2
+    ndim = sn_mesh.ndim
     N = sn_mesh.quad.N
-    angular_flux = np.zeros((N, ng, nx, ny))
-    scalar_flux = np.zeros((ng, nx, ny))
+    angular_flux = np.zeros((N, ng, *spatial))
+    scalar_flux = np.zeros((ng, *spatial))
 
     # The FULL interior cochain (typed) — ι_*-seeded whole-trace from the given
     # inflow, ι*-absorbed whole-trace at the end. This is the fuller view the
-    # window replaces with a rolling 2-diagonal frontier in production.
+    # window replaces with a rolling (d-1)-frontier in production.
     wavefront = WavefrontFlux.zeros_on(sn_mesh)
     wavefront.seed(boundary_flux)
     # Typed axis→buffer map: the per-axis face fields are taken via
-    # ``WavefrontFlux.face(a)`` over ``WavefrontFlux.axes``, so the positional
-    # tuple the d-generic walk consumes is born from the cochain's OWN axis map
-    # (no hardcoded ``psi_x = face(0); psi_y = face(1)``). The octant-restricted
-    # working copies below preserve that axis order.
+    # ``WavefrontFlux.face(a)`` over ``WavefrontFlux.axes``; the streaming
+    # tuple is the axis-keyed ``sn_mesh.streaming(a)`` map over the SAME
+    # ``range(ndim)`` — so ``str_axes[a]`` cannot drift from ``psi_faces[a]``
+    # (axis a's streaming coeff pairs with axis a's face in the cell kernel).
     psi_faces = tuple(wavefront.face(a) for a in wavefront.axes)
-
-    # Positional-by-axis: ``str_axes[a]`` MUST pair with ``psi_faces[a]`` (axis
-    # a's streaming coeff with axis a's face in ``_gather_cell_inputs``). 2-D
-    # orchestrator → hand-listed; when the d≥3 orchestrator lands (C3.4/C3.5)
-    # derive this from an ``axes``-keyed ``sn_mesh.streaming(a)`` map (the same
-    # ``wavefront.axes`` source that drives ``psi_faces``), retiring the manual
-    # tuple — so the two per-axis tuples cannot drift order (elegance-enforcer).
-    str_axes = (sn_mesh.streaming_x, sn_mesh.streaming_y)
+    str_axes = tuple(sn_mesh.streaming(a) for a in range(ndim))
     weights = sn_mesh.quad.weights
     cell_update = sn_mesh.cell_update
 
     for group in SweepSchedule.jacobi(sn_mesh).groups:
         for sweep in group.sweeps:
             oct_idx = np.asarray(sweep.indices)
-            sx, sy = sweep.label.sign_x, sweep.label.sign_y
-            if sx == 0 and sy == 0:                      # pure-z degenerate
+            signs = sweep.label.signs[:ndim]             # in-plane projection
+            if not any(signs):                           # pure-z degenerate (d≥2 only)
                 psi_avg_pure_z = Q[oct_idx] / sig_t
                 angular_flux[oct_idx] = psi_avg_pure_z
                 scalar_flux += np.einsum(
-                    "ngij,n->gij", psi_avg_pure_z, weights[oct_idx],
+                    "ng...,n->g...", psi_avg_pure_z, weights[oct_idx],
                 )
                 continue
-            sx_eff = +1 if sx == 0 else sx
-            sy_eff = +1 if sy == 0 else sy
-            graph = sn_mesh.sweep_graphs[OctantLabel((sx_eff, sy_eff))]
+            signs_eff = tuple(+1 if s == 0 else s for s in signs)
+            graph = sn_mesh.sweep_graphs[OctantLabel(signs_eff)]
             # FULL per-octant face fields — octant-restricted working copies.
             psi_faces_oct = tuple(pf[oct_idx].copy() for pf in psi_faces)
-            angular_flux_oct = np.zeros((oct_idx.size, ng, nx, ny))
+            angular_flux_oct = np.zeros((oct_idx.size, ng, *spatial))
             graph.apply(                                 # the full-field walk
                 cell_update=cell_update,
                 psi_faces_octant=psi_faces_oct,

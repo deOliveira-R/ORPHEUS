@@ -657,6 +657,35 @@ class SNMesh:
         """
         return self.curvature is None
 
+    def streaming(self, axis: int) -> np.ndarray:
+        r"""Per-axis WDD streaming coefficient ``2|μ_axis|/Δ_axis``, ``(N, n_axis)``.
+
+        The dimension-generic accessor the anti-hyperplane DAG walk reads as
+        ``str_axes[axis]`` — the per-axis term in the cell-balance denominator
+        :math:`\Sigma_t + \sum_a 2|\mu_a|/\Delta_a`.  Wraps the per-axis
+        Cartesian streaming arrays (``streaming_x`` / ``streaming_y``) under one
+        ``axis``-keyed call, so the d-generic orchestrators iterate
+        ``range(ndim)`` instead of hand-listing a positional
+        ``(streaming_x, streaming_y)`` tuple (the two cannot then drift order).
+
+        Cartesian-only (the anti-hyperplane lattice is a Cartesian object);
+        curvilinear meshes carry their streaming in
+        ``reduced.streaming_terms`` (the chain-scan substrate) and are swept by
+        :class:`~orpheus.sn.sweep_strategy.CumprodScan`, not the DAG walk.
+        ``axis`` must satisfy ``0 <= axis < ndim``.
+        """
+        if not self.is_cartesian:
+            raise AttributeError(
+                "SNMesh.streaming(axis) is Cartesian-only; curvilinear meshes "
+                "carry streaming in reduced.streaming_terms (the chain-scan "
+                "substrate), not the anti-hyperplane DAG."
+            )
+        if not 0 <= axis < self.ndim:
+            raise IndexError(
+                f"streaming axis {axis} out of range for ndim={self.ndim}"
+            )
+        return (self.streaming_x, self.streaming_y)[axis]
+
     # ── Dim-agnostic geometry primitives (R-1 Phase A C1) ─────────────
 
     @property

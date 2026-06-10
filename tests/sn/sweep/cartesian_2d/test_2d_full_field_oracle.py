@@ -3,8 +3,8 @@ r"""End-to-end ``windowed ≡ full-field`` 2-D equivalence — the storage-B ora
 Phase 5b replaced the full per-axis interior face cochain with a rolling
 ``_MovingFrontier`` window for BOTH the 2-D sweep (`_sweep_2d_wavefront`) and
 its matvec twin (`StreamingOperator._apply_2d_cartesian`). The retained
-full-field paths — `orpheus.sn.sweep._sweep_2d_full_field` and
-`StreamingOperator._apply_2d_cartesian_full_field` — are the VERIFICATION
+full-field paths — `orpheus.sn.sweep._sweep_full_field` and
+`StreamingOperator._apply_full_field` (the d-generic spine) — are the VERIFICATION
 ORACLES: the fuller view (the full interior face field, carried as a typed
 ``WavefrontFlux`` with whole-trace ι_*/ι* seed/absorb) that the moving frontier
 is cross-checked against END-TO-END.
@@ -32,7 +32,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import StreamingOperator
-from orpheus.sn.sweep import _sweep_2d_full_field, _sweep_2d_wavefront
+from orpheus.sn.sweep import _sweep_2d_wavefront, _sweep_full_field
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -74,7 +74,7 @@ def _seed_random_inflow(rng, boundary):
 
 @pytest.mark.parametrize("nx,ny,lvl,ng,bc", CASES)
 def test_sweep_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
-    """transport_sweep (windowed) ≡ _sweep_2d_full_field (oracle), bit-for-bit:
+    """transport_sweep (windowed) ≡ _sweep_full_field (oracle), bit-for-bit:
     angular flux, scalar flux, AND the post-sweep boundary trace."""
     rng = np.random.default_rng(abs(hash((nx, ny, lvl, ng, bc))) % (2**32))
     sn_mesh = _build_mesh(nx, ny, lvl, ng, bc)
@@ -87,7 +87,7 @@ def test_sweep_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
     bf_full = BoundaryFlux.from_mesh(bf_win.values.copy(), sn_mesh)
 
     ang_w, scal_w = _sweep_2d_wavefront(Q, sig_t, sn_mesh, bf_win)
-    ang_f, scal_f = _sweep_2d_full_field(Q, sig_t, sn_mesh, bf_full)
+    ang_f, scal_f = _sweep_full_field(Q, sig_t, sn_mesh, bf_full)
 
     np.testing.assert_array_equal(ang_w, ang_f, err_msg="angular flux")
     np.testing.assert_array_equal(scal_w, scal_f, err_msg="scalar flux")
@@ -98,7 +98,7 @@ def test_sweep_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
 
 @pytest.mark.parametrize("nx,ny,lvl,ng,bc", CASES)
 def test_matvec_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
-    """L._apply_2d_cartesian (windowed) ≡ L._apply_2d_cartesian_full_field
+    """L._apply_2d_cartesian (windowed) ≡ L._apply_full_field
     (oracle), bit-for-bit: bulk residual AND boundary-block residual."""
     rng = np.random.default_rng((abs(hash((nx, ny, lvl, ng, bc))) % (2**32)) ^ 9)
     sn_mesh = _build_mesh(nx, ny, lvl, ng, bc)
@@ -111,7 +111,7 @@ def test_matvec_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
     _seed_random_inflow(rng, state.boundary)
 
     out_win = L._apply_2d_cartesian(state)
-    out_full = L._apply_2d_cartesian_full_field(state)
+    out_full = L._apply_full_field(state)
 
     np.testing.assert_array_equal(
         out_win.bulk.values, out_full.bulk.values, err_msg="bulk residual",

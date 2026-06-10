@@ -97,10 +97,10 @@ Phase status (the SweepStrategy carve, plan ``sn_sweep_strategy.md``)
 * **S2: MATVEC side.**  Each strategy gains ``residual`` (the
   :math:`(L+C)\psi` twin); the five operator gates collapse to
   ``strategy.residual(...)``.
-* **S3: generalize the oracle.**  ``FullFieldWavefront`` becomes the genuine
-  d-generic spine (wraps :meth:`SweepDependencyGraph.apply` directly,
-  retires ``_sweep_2d_full_field``, widens ``supports`` to any-d Cartesian,
-  wires the d=1 cumprod-vs-spine equivalence).
+* **S3: generalize the oracle.**  ``FullFieldWavefront`` is the genuine
+  d-generic spine (wraps :meth:`SweepDependencyGraph.apply` via the
+  d-generic ``_sweep_full_field`` / ``_apply_full_field``, ``supports`` is
+  any-d Cartesian, wires the d=1 cumprod-vs-spine equivalence).
 * **S4: generalize the window** to ``frontier_dim = d-1``.
 
 See also
@@ -117,7 +117,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 # This module wraps the sweep bodies, so it imports ``sweep`` at load time.
 # The back-edge — ``transport_sweep`` reaching here for ``default_for`` — is a
 # function-local (lazy) import on the ``sweep`` side, which breaks the cycle.
-from .sweep import _sweep_1d_unified, _sweep_2d_full_field, _sweep_2d_wavefront
+from .sweep import _sweep_1d_unified, _sweep_2d_wavefront, _sweep_full_field
 
 if TYPE_CHECKING:
     import numpy as np
@@ -415,19 +415,30 @@ class MovingFrontierWindow(_DAGWavefront):
 
 
 class FullFieldWavefront(_DAGWavefront):
-    r"""Verification-oracle wavefront sweep — full interior face cochain.
+    r"""Verification-oracle wavefront sweep — the dimension-generic SPINE.
 
     Walks the same per-octant DAG as :class:`MovingFrontierWindow` but
     retains the FULL interior face cochain (the fuller view).  Slower and
-    more memory-hungry — its purpose is verification: the window is
-    cross-checked ``window ≡ full`` against it.  Never the production
-    default (the window wins at d=2); selected explicitly by oracle tests.
+    more memory-hungry — its purpose is verification: ONE body for d=1 (slab)
+    and d=2 (Cartesian), and the reference the d-specific production
+    optimizations are cross-checked against — the 1-D :class:`CumprodScan`
+    (principled-equivalence at nulp) and the 2-D :class:`MovingFrontierWindow`
+    (``window ≡ full`` bit-identity).  Never the production default (the
+    window wins at d=2, the scan at d=1); selected explicitly by oracle tests.
 
-    S1 wraps the existing 2-D oracle :func:`._sweep_2d_full_field`.  S3
-    promotes this to the genuine d-generic spine (wrapping
-    :meth:`SweepDependencyGraph.apply` directly) and widens ``supports`` to
-    any-d Cartesian.
+    Wraps the d-generic :func:`._sweep_full_field` / the operator's
+    :meth:`~orpheus.sn.operator.StreamingOperator._apply_full_field` (both walk
+    :meth:`SweepDependencyGraph.apply` / ``.residual`` directly).  ``supports``
+    is any-d Cartesian (S3) — the spine is genuinely dimension-generic, unlike
+    the d=2-only window.
     """
+
+    @classmethod
+    def supports(cls, mesh: "SNMesh") -> Compatibility:
+        # Override the _DAGWavefront family's d=2-only predicate: the spine is
+        # the genuine d-generic oracle (it walks the per-octant DAG for any
+        # Cartesian d via the d-generic ``graph.apply``/``.residual``).
+        return Compatibility(mesh.is_cartesian, "requires Cartesian geometry")
 
     def sweep(
         self,
@@ -444,21 +455,20 @@ class FullFieldWavefront(_DAGWavefront):
                 "implement moment output — use MovingFrontierWindow for the "
                 "windowed-SI moment path."
             )
-        return _sweep_2d_full_field(Q, sig_t, self.mesh, boundary_flux)
+        return _sweep_full_field(Q, sig_t, self.mesh, boundary_flux)
 
     def residual(
         self, operator: "StreamingOperator", psi: "TimedFullField",
     ) -> "TimedFullField":
-        """2-D forward matvec ORACLE — the full-field ``L·ψ``.
+        """Forward matvec ORACLE — the full-field ``L·ψ`` (d-generic).
 
         Wraps
-        :meth:`~orpheus.sn.operator.StreamingOperator._apply_2d_cartesian_full_field`
+        :meth:`~orpheus.sn.operator.StreamingOperator._apply_full_field`
         (the full interior-cochain walk, matvec twin of
-        :func:`._sweep_2d_full_field`).  The fuller-view reference the
-        windowed matvec is cross-checked against; never the production
-        default.
+        :func:`._sweep_full_field`).  The fuller-view reference the windowed
+        matvec is cross-checked against; never the production default.
         """
-        return operator._apply_2d_cartesian_full_field(psi)
+        return operator._apply_full_field(psi)
 
 
 # ═══════════════════════════════════════════════════════════════════════

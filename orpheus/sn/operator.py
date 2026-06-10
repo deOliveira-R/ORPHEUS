@@ -1788,12 +1788,12 @@ class StreamingOperator(LinearOperatorMixin):
             history_depth=psi.history_depth,
         )
 
-    def _apply_2d_cartesian_full_field(
+    def _apply_full_field(
         self, psi: "TimedFullField",
     ) -> "TimedFullField":
-        r"""VERIFICATION ORACLE — the full-field storage-A 2-D matvec (NOT production).
+        r"""VERIFICATION ORACLE — the full-field DAG-walk matvec (d-generic; NOT production).
 
-        The matvec counterpart of :func:`~orpheus.sn.sweep._sweep_2d_full_field`:
+        The matvec counterpart of :func:`~orpheus.sn.sweep._sweep_full_field`:
         the storage-A path Phase 5b superseded in :meth:`_apply_2d_cartesian`
         (now the windowed `residual_windowed`). RETAINED + exercised by
         ``tests/sn/operators/test_2d_matvec_full_field_oracle.py`` as the
@@ -1804,7 +1804,15 @@ class StreamingOperator(LinearOperatorMixin):
         :meth:`SweepDependencyGraph.residual` (the full-field walk sharing the
         SAME cell kernel as `residual_windowed`), and emits the identical
         boundary-block residual. Sole purpose: verification (production is the
-        window); the shared kernel means the MATH cannot drift, only storage.
+        window / the 1-D scan); the shared kernel means the MATH cannot drift,
+        only storage.
+
+        Dimension-generic (the matvec twin of :func:`_sweep_full_field`): the
+        per-axis tuples are built over ``range(ndim)`` (``streaming(a)`` /
+        ``WavefrontFlux.face(a)``), and the quadrature octant label — which
+        lives in the full angular space — is projected to the in-plane
+        ``label[:ndim]`` (at d=2 the legacy ``(label[0], label[1])``; at d=1 the
+        single in-plane sign the chain graphs are keyed by).
         """
         from orpheus.sn.sweep_graph import OctantLabel
         from orpheus.transport.fields.wavefront_flux import WavefrontFlux
@@ -1814,43 +1822,37 @@ class StreamingOperator(LinearOperatorMixin):
         sn_mesh = self.sn_mesh
         quad = sn_mesh.quad
         N = quad.N
-        nx, ny = sn_mesh.nx, sn_mesh.ny
-        ng = self.sigma_t.shape[0]
+        ndim = sn_mesh.ndim
         sig_t = self.sigma_t
+        ng = sig_t.shape[0]
+        spatial = sig_t.shape[1:]                        # (nx,) at d=1; (nx, ny) at d=2
         probe = psi.bulk.values
-        str_x = sn_mesh.streaming_x
-        str_y = sn_mesh.streaming_y
         cell_update = sn_mesh.cell_update
-        Q_zero = np.zeros((1, ng, nx, ny))
+        Q_zero = np.zeros((1, ng, *spatial))
 
-        LpC = np.zeros((N, ng, nx, ny))
+        LpC = np.zeros((N, ng, *spatial))
         trace = sn_mesh.trace
         boundary = psi.boundary
         # The FULL interior cochain (typed) — ι_*-seeded whole-trace. The
         # per-axis face tuple is born from the cochain's OWN axis map
-        # (``WavefrontFlux.face(a)`` over ``WavefrontFlux.axes``), not a
-        # hardcoded ``psi_x = face(0); psi_y = face(1)``.
+        # (``WavefrontFlux.face(a)`` over ``WavefrontFlux.axes``); the streaming
+        # tuple is the axis-keyed ``sn_mesh.streaming(a)`` over the SAME
+        # ``range(ndim)`` — so ``str_axes[a]`` cannot drift from ``psi_faces[a]``.
         wavefront = WavefrontFlux.zeros_on(sn_mesh)
         psi_faces = tuple(wavefront.face(a) for a in wavefront.axes)
-        # Positional-by-axis, MUST match ``wavefront.axes`` order (see
-        # ``_sweep_2d_full_field``); the d≥3 orchestrator (C3.4/C3.5) derives this
-        # from an ``axes``-keyed streaming map so the two tuples cannot drift.
-        str_axes = (str_x, str_y)
+        str_axes = tuple(sn_mesh.streaming(a) for a in range(ndim))
         wavefront.seed(boundary)
 
         for octant in quad.octants:
-            label_tuple = octant.label
             oct_idx = octant.indices
-            sx = label_tuple[0] if len(label_tuple) >= 1 else +1
-            sy = label_tuple[1] if len(label_tuple) >= 2 else 0
-            if sx == 0 and sy == 0:
+            signs = octant.label[:ndim]                  # in-plane projection
+            if not any(signs):                           # pure-z degenerate (d≥2 only)
                 LpC[oct_idx] = sig_t * probe[oct_idx]
                 continue
-            sx_eff = +1 if sx == 0 else sx
-            sy_eff = +1 if sy == 0 else sy
-            graph = sn_mesh.sweep_graphs[OctantLabel((sx_eff, sy_eff))]
+            signs_eff = tuple(+1 if s == 0 else s for s in signs)
+            graph = sn_mesh.sweep_graphs[OctantLabel(signs_eff)]
             psi_faces_oct = tuple(pf[oct_idx].copy() for pf in psi_faces)
-            LpC_oct = np.zeros((oct_idx.size, ng, nx, ny))
+            LpC_oct = np.zeros((oct_idx.size, ng, *spatial))
             graph.residual(
                 cell_update=cell_update,
                 psi_faces_octant=psi_faces_oct,
