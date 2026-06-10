@@ -10,9 +10,12 @@ hooks, `derivations/diagnostics/`.
 
 ## ⭐⭐⭐ POST-COMPACTION RECOVERY — READ THIS FIRST (2026-06-09)
 
-**One line:** the production `(N, ng, *spatial)` rank-d carve (eliminate the
-phantom `ny=1`) is **DONE + VALIDATED + COMMITTED**; what remains is a **deep,
-manual, per-file test migration (~47 files)** + then phases C3/C4/C5.
+**One line:** the production `(N, ng, *spatial)` rank-d carve **AND** the full
+per-file test migration (C2c) **AND** the C2d integrated gate are **DONE** — full
+suite **2345 passed / 0 genuine failures**, branch pushed to `origin`. This session
+also CLOSED #214 (degenerate-`ny=1`, via an SO(2) product quadrature) and ran a
+Lebedev-quadrature audit (~5 min suite speedup). **NEXT = C3 (sweep DAG d-generic).**
+Details in the SESSION UPDATE block + THE REMAINING WORK below.
 
 ### ⭐ SESSION UPDATE 2026-06-09 (cont., post-compaction) — production gaps found+fixed; test migration ~⅔ done
 **The test migration surfaced 3 PRODUCTION rank-2 remnants the k_inf/DD
@@ -67,6 +70,26 @@ pins + the `(ng,nx,ny)` docstring sweep). Other dim-adjacent OPEN issues are FOR
 work, NOT closeable: #220 (C4), #219 (MethodSpace arch); #210 (2-D MMS pin) is deferred
 for PERFORMANCE not dimensionality.**
 
+⭐ **LEBEDEV QUADRATURE AUDIT (this session, post-#214) — committed `e9b123a`+`0b8cbba`.**
+Prompted by #214's fix: since ORPHEUS has NO 3-D geometry, Lebedev (an `O_h` `S²`
+cubature for SO(3) spherical-harmonic MOMENT integration, N=110 @ order 17) is the
+WRONG tool for a plain 2-D transport sweep. Audited ALL ~140 Lebedev usages (26 files).
+**Choice framework via the objects' OWN tags** (`q.measure.invariance_group`,
+`.degree_of_exactness`, `q.N`): genuine 2-D Cartesian (`O_h`) → `level_symmetric(4)`
+(same `O_h`, N=24); degenerate/axial (SO2) → `product` (the #214 case); Lebedev ONLY
+for high-L moment integration or testing quadrature-independence. P1 anisotropy needs
+just the degree-2 moment → `level_symmetric(4)` (doe=3) integrates it exactly, so Lebedev
+is overkill even for P1. **Sped up the 4 slow ones** (the only ones worth it; the rest are
+<2s — left): `test_keff_2d` 322→90s (was timing out the 200s cap), `test_discrete_ordinates_2d`
+115→35s, `test_fixed_source_2d_equivalence` 6.4→1.5s, `test_solver_components` one solve.
+≈5 min suite speedup. Every swap justified by a discriminator (flux-shape-independent
+k_inf / convergence-trend / two-sided equivalence — swap BOTH legs); NO assertion/tolerance
+weakened; green under -O AND without. **KEPT Lebedev (load-bearing):** `test_gl_and_lebedev_agree`
+(Lebedev IS the subject), `test_z_ordinates_contribute` (`level_symmetric` has ZERO pure-z
+ordinates → a swap would make it VACUOUS — the sharp catch), the spherical-harmonic
+orthogonality/addition-theorem + scattering moment tests. Legit Lebedev (cubature-property
++ moment-integration tests) untouched.
+
 ### Environment (Host env, `$CLAUDE_ENVIRONMENT` empty)
 - **Worktree (cwd for everything):** `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/sn-nd-layout`
 - **Branch:** `worktree-sn-nd-layout` (off `main` @ `f0ffb30`; `main` is the
@@ -99,42 +122,32 @@ plan/recalibration.
   remaining suite failure is TEST-side phantom.
 
 ### THE REMAINING WORK — do these IN ORDER
-**(1) C2c test migration (NEXT) — deep, manual, PER-FILE. NOT scriptable.**
-~47 files reference rank-2 phantom. Worst offenders (operators dir gate:
-160 fail / 319 pass): `test_streaming_operator` 35, `test_bc_extraction_matvec` 30,
-`test_streaming_operator_decomposition` 19, `test_native_matvec` 16,
-`test_operators_apply_typed` 12, `test_invertible_operator` 12,
-`test_g_adjoint_reciprocity` 12, `test_collision_operator` 12,
-`test_typed_residual_evaluation` 4, `test_solver_components` 1. Plus the
-sweep/solve/eigenvalue/primitives/verification files (not yet gated). Find them:
-`grep -rlE "\((N, ng|ng|quad\.N, ng|N_ord, ng), (nx|n_cells|nr), ny\)|\.values\[[^]]*, 0\]|:, :, :, 0\]" tests/sn/`.
-  - **METHOD (per file/function):** for CONSTRUCTIONS, build via the in-scope
-    mesh — `AngularFlux.zeros_on(mesh)` / `.from_mesh(arr, mesh)` or
-    `np.zeros((N, ng, *<the in-scope mesh>.spatial_shape))`. For EXTRACTIONS on
-    the now-rank-1 `(ng,nx)` flux / `(N,ng,nx)` field: `.values[0, :, 0]`→`[0, :]`,
-    `.values[:, :, 0].T`→`.values.T`, `.values[:, 0, 0]`→`[:, 0]`,
-    `[:, :, :, 0]`→drop, `.bulk.values[:, 0, 0, 0]`→`[:, 0, 0]`. `from_isotropic`
-    now expects `(ng, *spatial)`. Gate per file: it's fast (operators ~5s).
-  - **DO NOT REPEAT (all tried + reverted):** (a) blanket `→(N,ng,nx)` regresses
-    hidden-2-D cases; (b) scripted `→*<meshvar>.spatial_shape` gives 87 NameErrors
-    (mesh var varies per construction, esp. in helper fns); (c) rank-conditional
-    `if ny==1 else` is low-gain/high-clutter + misses extractions. **Go per-file.**
-  - `legacy_proxy_matvec` helper ALREADY fixed (`6ca0154`); the DD-snapshot
-    generator `_generate_snapshots.py` already rank-d (`79f49e6`). The genuine
-    2-D sweep tests (`test_sweep_graph*`, `test_cell_update_batch`) use real `ny>1`
-    — they are NOT phantom; leave them.
-**(2) C2d full-suite gate** once C2c green: `tests/sn/ tests/transport/ tests/numerics/`
-   slices (deselect #212; sentinels w/o -O; `-W error::DriftWarning` on regression).
-**(3) C3 sweep DAG d-generic** (`OctantLabel(signs:tuple)`, `from_cartesian_2d`→
+**(1) C2c test migration — ✅ DONE.** ~38 files migrated across 4 sub-agent waves;
+production carve-completed (3 late-found rank-2 gaps + HMF island, `94fcae5`). See the
+SESSION UPDATE block above for the full record + method (still valid if more phantom
+surfaces: build via the in-scope mesh's `*mesh.spatial_shape`; drop phantom extraction
+indices; gate per file; NEVER blanket-script — the 3 reverted approaches are recorded).
+**(2) C2d full-suite gate — ✅ DONE.** 130 files, **2345 passed, 0 genuine failures**,
+13 xfailed (#206/#195), 7 skipped (legit). Per-file loop (each file isolated, 200s cap;
+deselect #212) is the robust gating recipe — a monolithic `pytest tests/sn/` buffers
+output + times out. ⭐ ALSO this session: #214 CLOSED + a Lebedev-quadrature audit
+(see SESSION UPDATE above).
+**(3) C3 sweep DAG d-generic (NEXT) ⭐** (`OctantLabel(signs:tuple)`, `from_cartesian_2d`→
    `from_cartesian(dims)`, `diamond.cell_kernel_batch` `denom=σt+Σ_a s[a]`,
    `geometry` octant build `itertools.product((-1,+1), repeat=ndim)`; 2-D
    bit-identical sum-in-x,y-order; synthetic-3-D shape admission). See `nd_foundation.md` §2.
-**(4) C4 boundary inventory #220** (`_resolve_bcs`→`dict[FaceLabel,op]`).
-**(5) C5 3-D shape-admission pins + docs** (extend `docs/theory/index_convention.rst`).
+   **FOLD IN** the explorer-audited HARMLESS `ny>1` dispatch-gate genericization:
+   `operator.py` `_apply_2d_cartesian` selectors (`sn_mesh.ny > 1` ×5) +
+   `geometry.py:629 is_1d` (`self.ny == 1`) → a dimensionality test (`reduced is None` /
+   `len(spatial_shape)`). These are correct-today via ny=1 but carry the phantom.
+**(4) C4 boundary inventory #220** (`_resolve_bcs`→`dict[FaceLabel,op]`; still OPEN/forward,
+   nd_foundation §2.6 needs it for 3-D).
+**(5) C5 3-D shape-admission pins + docs** (extend `docs/theory/index_convention.rst`
+   `(N,ng,nx,ny)`→`(N,ng,*spatial)`; sweep the stale `(ng,nx,ny)` docstrings the
+   explorer flagged across `solver.py`/`operator.py`/`material_xs_field.py`/etc.).
 
-### Task tracker (recreate if lost): #1 C1 ✅ · #2 C2a ✅ · #3 C2b ✅ ·
-#4 C2c (IN PROGRESS — the deep per-file test migration above) · #5 C2d ·
-#6 C3 · #7 C4 · #8 C5. Chain blockedBy 4→5→6→7→8.
+### Task tracker: #1 C1 ✅ · #2 C2a ✅ · #3 C2b ✅ · #4 C2c ✅ · #5 C2d ✅ ·
+**#6 C3 (NEXT)** · #7 C4 (#220) · #8 C5. Chain blockedBy 6→7→8.
 
 ---
 
