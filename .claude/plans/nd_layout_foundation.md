@@ -151,8 +151,11 @@ full-field+window oracles, affine-carve bit-identity anchor) / slab+cylindrical
 MMS 2 (+2 sphere xfail #195; curvilinear UNAFFECTED — `curvature` short-circuit).
 d=2 bit-identical; DD regression unchanged. Sphinx **build succeeded** (11
 pre-existing warnings — paramref/missing-data/missing-_generated, none C3.3).
-elegance-enforcer review DISPATCHED (`a6862bbd38a49e835`; verdict pending — update
-on return; any nits → follow-up commit before C3.4).
+elegance-enforcer **PASS** (approved as-is, no blocking conditions; every commit
+claim verified against live code: Pattern-2 SSOT correct, eager d=1 build justified
+[net dead-weight DOWN 4-phantom→2-genuine], retirement textbook [0 live sites], the
+hand-derived golden genuinely structurally-independent [index-sum partition vs
+per-level range recurrence]). ONE carried CONCERN → C3.6 acceptance item below.
 
 **⏭ NEXT = C3.4** (wire d=1 wavefront via the d-generic walk in `_wavefront_1d_sweep`
 — see `test_wavefront_cumprod_equivalence.py` `_wavefront_1d_sweep` docstring sketch
@@ -164,6 +167,17 @@ THEN C3.5 (orchestration d-generic — incl. the `str_axes` → `axes`-keyed
 `OctantLabel.sign_x/y`/`streams_in_2d` shims) + C3.6 (3-D admission + docs).
 
 ⭐ **ELEGANCE-REVIEW ACCEPTANCE ITEMS (carry forward):**
+- **C3.6/d≥3 (elegance-enforcer CONCERN, from C3.3):** the 5 dispatch gates use the BINARY
+  `not sn_mesh.is_1d`, but the true dispatch space is TERNARY — 1-D chain-scan / 2-D
+  window-walk / d≥3 full-field-walk. The live DISPATCH (`operator.py` `apply` ~1458 →
+  `_apply_2d_cartesian`, 2-D-specific) would MISROUTE a 3-D field at d=3 (`not is_1d` True).
+  LATENT only — d=3 is unconstructible today (no `Mesh3D`; `geometry.py:745`), so `not is_1d
+  ≡ ndim==2` exactly for every constructible mesh; the RAISE sites correctly say "multi-D …
+  not yet wired" (do NOT claim 2-D), so only the one live 2-D kernel carries the assumption.
+  ACCEPTANCE: when the d≥3 walk lands (C3.6), replace the binary `apply`/`apply_transpose`
+  gate with an HONEST 3-way `ndim`-keyed dispatch (chain / window / full-field) rather than
+  threading a `Mesh3D` special-case. NO GitHub issue (in-campaign; tracked by the d=3
+  `test_sweep_graph_nd_admission` pins + this item).
 - ✅ **C3.2b WavefrontFlux-typing — RESOLVED** at the orchestrator boundary (see C3.2b above;
   elegance-enforcer confirmed the orchestrator-not-slice landing is the CORRECT call, not a
   shortcut — the octant transient cannot validly be a mesh-bound cochain).
