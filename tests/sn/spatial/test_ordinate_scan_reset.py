@@ -1,6 +1,9 @@
-r"""ERR-054 regression catcher — ``ordinate_scan`` chain-reset (``a = 0``).
+r"""``ordinate_scan`` conditioning-fallback regression catcher (ERR-054 + ERR-057).
 
-GitHub issue: `#209 <https://github.com/deOliveira-R/ORPHEUS/issues/209>`_.
+GitHub issues: `#209 <https://github.com/deOliveira-R/ORPHEUS/issues/209>`_
+(ERR-054 — the exact-reset ``a = 0`` cause) and
+`#222 <https://github.com/deOliveira-R/ORPHEUS/issues/222>`_
+(ERR-057 — the denormal-cumprod underflow cause).
 
 Promoted from the numerics-investigator diagnostic cascade
 (``derivations/diagnostics/diag_si_cyl_20cell_nan_step1_characterize.py``
@@ -19,6 +22,18 @@ flux.  The pole cell of a 1-D cylindrical mesh hits this exactly: the
 inner radial face has zero area, so ``A_down = 0`` and the cache's
 ``a = 2|μ|·A_total / (dA_w·c_out + Σ_t·V) − 1`` lands bit-exactly on 0
 at the ``(thick=2, n=20, μ_x=-1/√20, Σ_t=1)`` resonance.
+
+ERR-057 (`#222 <https://github.com/deOliveira-R/ORPHEUS/issues/222>`_) is
+the SIBLING conditioning gap of the same closed-form scan, with a
+DIFFERENT cause: a long optically-thick chain decays ``cumprod_a`` into
+the IEEE-754 denormals (``~1e-312``) WITHOUT reaching an exact zero, so
+``b / cumprod_a`` overflows to ``inf`` and ``cumprod_a · inf = NaN``.
+The original ``cumprod_a[-1] == 0`` guard tested a PROXY for the
+exact-reset cause and silently MISSED this denormal band — a
+guard-predicate-incompleteness bug.  The fix dispatches on the TRUE
+failure condition (a non-finite closed form, which catches BOTH causes);
+``TestOrdinateScanDenormalUnderflow`` pins it against the explicit serial
+loop.
 
 Two structurally-independent grounds (``vv-principles`` §1/§6):
 
@@ -161,6 +176,58 @@ class TestOrdinateScanReset:
                 new, legacy,
                 err_msg=f"fast path not bit-identical at shape {shape}",
             )
+
+
+@pytest.mark.l0
+class TestOrdinateScanDenormalUnderflow:
+    r"""``ordinate_scan`` must stay finite in the denormal-cumprod band.
+
+    ERR-057 / Issue #222.  This is the SIBLING of the ``a = 0`` reset
+    (ERR-054): the chain has NO exact reset (``|a| < 1`` throughout), but
+    a long optically-thick run decays ``cumprod_a`` into the IEEE-754
+    denormals (``~1e-312``) so the Blelloch division ``b / cumprod_a``
+    overflows to ``inf`` and ``cumprod_a · inf = NaN``.  The old
+    ``cumprod_a[-1] == 0`` proxy guard caught the exact-reset cause but
+    MISSED this denormal band — a guard-predicate-incompleteness bug.
+    The finite-closed-form dispatch routes it to the division-free
+    pair-monoid; the reference is the explicit serial loop (no division),
+    which stays finite throughout.
+
+    Pre-fix this FAILS (the closed form leaks a NaN); the assertions use
+    ``pytest.fail`` (not bare ``assert``) so they fire under ``python -O``
+    (``vv-principles`` Mode 8).
+    """
+
+    @pytest.mark.catches("ERR-057")
+    def test_denormal_cumprod_underflow_stays_finite(self) -> None:
+        r"""A denormal-band cumprod (no exact zero) stays finite + exact."""
+        nx = 312
+        a = np.full(nx, 0.1)
+        b = np.full(nx, 1.0)
+        psi_0 = 1.0
+
+        # Precondition: the chain must land IN the denormal band — a
+        # nonzero cumprod below `tiny` — or the old exact-zero guard would
+        # already have caught it and this regime would be inert.  Kept as
+        # a function call so it fires under -O (Mode 8).
+        cumprod_tail = float(np.cumprod(a)[-1])
+        if not 0.0 < cumprod_tail < np.finfo(float).tiny:
+            pytest.fail(
+                f"chain mis-tuned: cumprod[-1]={cumprod_tail:.3e} is not in "
+                "the denormal band (0, tiny); the ERR-057 regime is inert"
+            )
+
+        result = ordinate_scan(a, b, psi_0)
+        reference = _explicit_scan_loop(a, b, psi_0)
+
+        if not np.all(np.isfinite(result)):
+            n_bad = int(np.sum(~np.isfinite(result)))
+            pytest.fail(
+                "ordinate_scan leaked a non-finite value in the denormal-"
+                f"cumprod band (ERR-057, {n_bad} non-finite): the closed-form "
+                "guard missed the underflow"
+            )
+        np.testing.assert_allclose(result, reference, rtol=1e-12, atol=1e-14)
 
 
 # ═══════════════════════════════════════════════════════════════════════

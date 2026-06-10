@@ -55,7 +55,7 @@ The closed-form decomposition is justified by associativity:
   numpy implementation is one valid backend.
 
 The algebraic-theorem test suite at
-``tests/sn/spatial/test_ordinate_scan.py`` pins these invariants —
+``tests/sn/sweep/core/test_ordinate_scan.py`` pins these invariants —
 the theorems justify the implementation, not the other way around.
 
 References
@@ -125,41 +125,64 @@ def ordinate_scan(
     Notes
     -----
     Numerical regime.  Two backends compute the SAME recurrence; the
-    dispatch is by the presence of an exact reset (``a[i] = 0``) in
-    the chain:
+    dispatch is by **whether the Blelloch closed form is finite**:
 
-    * **No reset** (the common SN sweep path).  The Blelloch §1.5
-      closed form ``cumprod_a · (psi_0 + cumsum(b / cumprod_a))``
-      runs unchanged — three numpy ops, bit-identical to every prior
-      release.  Diamond-Difference produces ``a[i] = 2|μ|·A_down/denom
-      − 1`` with ``|a| < 1`` in well-resolved regimes, so both the
-      cumprod and the ``b / cumprod_a`` quotient stay in IEEE-754's
+    * **Closed form finite** (the common SN sweep path).  The Blelloch
+      §1.5 form ``cumprod_a · (psi_0 + cumsum(b / cumprod_a))`` is
+      returned unchanged — three numpy ops, bit-identical to every
+      prior release.  Diamond-Difference produces ``a[i] = 2|μ|·A_down
+      /denom − 1`` with ``|a| < 1`` in well-resolved regimes, so both
+      the cumprod and the ``b / cumprod_a`` quotient stay in IEEE-754's
       well-conditioned band.
 
-    * **Reset present** (``a[i] = 0`` exactly — e.g. the cylindrical
-      pole cell whose inner radial face area vanishes at the
-      ``2|μ|·A_total = ΔA_w·c_out + Σ_t·V`` resonance, Issue #209).
-      At a reset the recurrence *forgets its history*:
-      ``psi[i+1] = b[i]``, a chain restart, fully defined.  The
-      Blelloch division ``b / cumprod_a`` would propagate ``inf →
-      NaN`` from the reset onward, so the scan falls through to the
-      **division-free pair-monoid** backend
-      (:func:`_pair_monoid_scan`).  It composes the affine cells
-      ``(a, b)`` under ``(α₁, β₁) ⊕ (α₂, β₂) = (α₁α₂, α₂β₁ + β₂)``
-      via a Hillis–Steele log-depth scan — exact at ``a = 0`` by
-      construction (no division anywhere) and robust to consecutive
-      and chain-leading resets.
+    * **Closed form non-finite** — the division-free **pair-monoid**
+      backend (:func:`_pair_monoid_scan`) takes over.  This arises in
+      two distinct regimes, BOTH of which the previous proxy guard
+      ``cumprod_a[-1] == 0`` mishandled:
 
-    The reset check inspects only ``cumprod_a[-1]`` (a zero anywhere
-    in a lane drives that lane's final cumulative product to zero), so
-    the fast-path guard is a single reduction over the trailing lanes
-    — negligible against the cumprod/cumsum it gates (< 3 % at SN
-    sweep sizes).
+      - **Exact reset** (``a[i] = 0`` exactly — e.g. the cylindrical
+        pole cell whose inner radial face area vanishes at the
+        ``2|μ|·A_total = ΔA_w·c_out + Σ_t·V`` resonance, Issue #209).
+        At a reset the recurrence *forgets its history*
+        (``psi[i+1] = b[i]``, a chain restart); the Blelloch division
+        ``b / cumprod_a`` is ``b/0 = inf`` from the reset onward.
+
+      - **Gradual underflow into the denormal band** (Issue #222,
+        ERR-057).  For a long, optically-thick chain (``|a| < 1`` to
+        ``nx ≳ 300`` of near-constant attenuation) the cumulative
+        product decays into the IEEE-754 denormals
+        (``cumprod_a ~ 1e-312``) WITHOUT hitting an exact zero, so
+        ``b / cumprod_a`` overflows to ``inf`` and ``cumprod_a · inf =
+        NaN``.  The old ``cumprod_a[-1] == 0`` guard tested a PROXY for
+        the reset and silently MISSED this denormal band, leaking a
+        NaN — a guard-predicate-incompleteness bug.
+
+      The pair-monoid composes the affine cells ``(a, b)`` under
+      ``(α₁, β₁) ⊕ (α₂, β₂) = (α₁α₂, α₂β₁ + β₂)`` via a Hillis–Steele
+      log-depth scan — exact at ``a = 0`` by construction (no division
+      anywhere), finite through the denormal band, and robust to
+      consecutive and chain-leading resets.
+
+    The dispatch tests the TRUE failure condition —
+    ``np.all(np.isfinite(closed_form))`` over the already-computed
+    closed form — NOT a proxy for one of its causes.  The check is a
+    single O(N) reduction over an array the closed form already
+    materialised: one extra pass, negligible against the
+    cumprod/cumsum/multiply that produced it.
     """
     cumprod_a = np.cumprod(a, axis=0)
-    if np.any(cumprod_a[-1] == 0.0):
+    with np.errstate(divide="ignore", over="ignore", invalid="ignore"):
+        closed_form = cumprod_a * (psi_0 + np.cumsum(b / cumprod_a, axis=0))
+    if not np.all(np.isfinite(closed_form)):
+        # Dispatch on the TRUE failure condition — a non-finite closed
+        # form — NOT the cumprod_a[-1] == 0 proxy, which tested only one
+        # of its causes (an exact reset a[i] = 0) and silently MISSED the
+        # gradual denormal underflow (cumprod_a ~ 1e-312 ⇒ b / cumprod_a
+        # overflows to inf ⇒ cumprod_a · inf = NaN), leaking a NaN
+        # (ERR-057 / issue #222).  The division-free pair-monoid is exact
+        # and finite in every one of these regimes.
         return _pair_monoid_scan(a, b, psi_0)
-    return cumprod_a * (psi_0 + np.cumsum(b / cumprod_a, axis=0))
+    return closed_form
 
 
 def _pair_monoid_scan(
