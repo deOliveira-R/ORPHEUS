@@ -71,7 +71,14 @@ def test_2d_homogeneous_reflective_krylov_hits_q_over_sigma_t() -> None:
         bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
-    quad = Quadrature.lebedev(order=17)
+    # Genuine 2-D Cartesian reflective box ⟹ O_h symmetry. The SN-canonical
+    # level-symmetric set is the right tool; Lebedev is the SO(3) moment
+    # cubature (over-quadrature: O_h N=110 doe=17). level_symmetric(4) is the
+    # SAME O_h group at N=24 doe=3. The asserted value q_iso/(W·Σ_t) is the
+    # closed-form streaming equilibrium — structurally quadrature-independent
+    # (W = Σ_n w_n = 4π for every rule; each ordinate equilibrates to q_n/Σ_t),
+    # so the swap is exact. Verified: relerr 1.05e-12 ≤ rtol 1e-10.
+    quad = Quadrature.level_symmetric(sn_order=4)
     materials = placeholder_materials(ng=2)  # Σ_t = 1, Σ_s = 0, ≥2G
     sn_mesh = SNMesh(mesh, quad, materials)
     sum_w = float(quad.weights.sum())
@@ -124,7 +131,14 @@ def test_2d_heterogeneous_si_krylov_equivalence() -> None:
         bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
-    quad = Quadrature.lebedev(order=17)
+    # SI-vs-Krylov EQUIVALENCE on a genuine 2-D Cartesian (8×4, fuel|mod,
+    # vacuum-x/reflective-y) heterogeneous case ⟹ O_h symmetry. Both inners
+    # solve the identical (L+C−S−B)ψ=q operator on the SAME quadrature, so the
+    # equivalence holds for ANY quadrature; swap both sides together.
+    # level_symmetric(4) (O_h, N=24 doe=3) replaces Lebedev (O_h, N=110 doe=17).
+    # Verified: non-flat guard max/min=1.729 (>1.2 fires), SI≡Krylov to 1.2e-9
+    # (within rtol 1e-6 / atol 1e-8). 6.4s → ~1.4s.
+    quad = Quadrature.level_symmetric(sn_order=4)
     materials = {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
     sn_mesh = SNMesh(mesh, quad, materials)
 

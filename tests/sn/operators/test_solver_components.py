@@ -326,7 +326,13 @@ class TestQuadratureWeightConservation:
         mix = get_mixture("A", "2g")
         materials = {0: mix}
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = Quadrature.lebedev(order=17)
+        # Homogeneous infinite-medium SOLVE asserting the closed form φ = Q/Σ_t,
+        # which is flux-shape- and quadrature-INDEPENDENT (every consistent SN
+        # set converges to the same infinite-medium balance). Use the cheap
+        # SN-canonical level-symmetric set (O_h, N=24 doe=3) in place of the
+        # SO(3) moment cubature Lebedev (O_h, N=110 doe=17). Verified: relerr
+        # 4.4e-16 ≤ rtol 1e-6; 0.36s → 0.12s.
+        quad = Quadrature.level_symmetric(sn_order=4)
         local_sn_mesh = SNMesh(mesh, quad, materials)
         solver = SNSolver(local_sn_mesh)
 

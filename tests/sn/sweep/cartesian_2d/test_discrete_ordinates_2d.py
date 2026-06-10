@@ -1,4 +1,4 @@
-"""Verify the 2D SN solver (Lebedev quadrature, mesh convergence)."""
+"""Verify the 2D SN solver (level-symmetric SN quadrature, mesh convergence)."""
 
 import numpy as np
 import pytest
@@ -43,7 +43,16 @@ def test_do_mesh_convergence(ng_key, label):
     mod = get_mixture("B", ng_key)
     materials = {2: fuel, 0: mod}
 
-    quad = Quadrature.lebedev(order=17)
+    # Genuine 2-D Cartesian (nx>1, ny>1, real x-heterogeneity fuel|mod) ⟹ O_h
+    # symmetry, so the SN-canonical level-symmetric set is the right tool, not
+    # Lebedev (the SO(3) spherical-harmonic-MOMENT cubature — over-quadrature
+    # here: lebedev(17) is O_h N=110 doe=17). level_symmetric(4) is the SAME
+    # O_h invariance group at N=24 doe=3. The assertion is a CONVERGENCE TREND
+    # (diffs[-1] < diffs[0] under mesh refinement), which is quadrature-agnostic:
+    # any consistent SN set converges, so the trend holds for any quadrature.
+    # Verified: 1G diffs 1.10e-4→3.08e-5, 2G diffs 6.81e-5→2.88e-5 (both halve);
+    # whole-file 114.8s → ~36s.
+    quad = Quadrature.level_symmetric(sn_order=4)
 
     keffs = []
     deltas = [0.1, 0.05, 0.02]
