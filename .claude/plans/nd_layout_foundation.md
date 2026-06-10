@@ -157,14 +157,25 @@ claim verified against live code: Pattern-2 SSOT correct, eager d=1 build justif
 hand-derived golden genuinely structurally-independent [index-sum partition vs
 per-level range recurrence]). ONE carried CONCERN → C3.6 acceptance item below.
 
-**⏭ NEXT = C3.4** (wire d=1 wavefront via the d-generic walk in `_wavefront_1d_sweep`
-— see `test_wavefront_cumprod_equivalence.py` `_wavefront_1d_sweep` docstring sketch
-+ the `_SpineNotLanded` raise to delete — + flip the cumprod oracle xfail→pass +
-MEASURE the speedup; `window_slots`/`window_edges` → `SweepOptimization` sum type now
-it's the 2nd optimization). The d=1 sweep-graph dict is BUILT (C3.3) and waiting.
-THEN C3.5 (orchestration d-generic — incl. the `str_axes` → `axes`-keyed
-`sn_mesh.streaming(a)` map fix from the elegance CONCERN — + retire twins + the
-`OctantLabel.sign_x/y`/`streams_in_2d` shims) + C3.6 (3-D admission + docs).
+**⏭ NEXT = C3.4 + C3.5 — RE-SCOPED as the SWEEP-STRATEGY CARVE.**
+⭐ **AUTHORITATIVE DESIGN = `.claude/plans/sn_sweep_strategy.md` (self-contained; READ FIRST).**
+The original C3.4 ("wire a `_wavefront_1d_sweep` adapter") + C3.5 ("orchestration d-generic")
+were re-scoped in a 2026-06-10 design conversation around a first-class **`SweepStrategy`**
+abstraction (Strategy pattern, polymorphic dispatch — NOT an enum threaded into `transport_sweep`,
+which is a trifurcation). The design replaces the scattered 1-D-vs-multi-D dispatch
+(`transport_sweep` branch + the 5 C3.3 operator gates + the hand-built test adapters) with:
+`SweepStrategy` protocol (`sweep` + `residual` + `supports`) → `_DAGWavefront` base shared by
+`FullFieldWavefront` (oracle) + `MovingFrontierWindow` (prod opt), `CumprodScan` the sibling →
+selection via declared `Compatibility(ok, reason)` keyed on `is_cartesian`+`ndim` (frontend-
+checkable: a cylinder offers only Blelloch) → matvec routed through `strategy.residual` (the 5
+gates collapse) → solve-vs-solve equivalence tests (adapters retired) → `MovingFrontierWindow`
+built on `frontier_dim = d−1` (any d). **Governing principle: construct each strategy as general
+as its algorithm naturally allows; select narrow; specialize only on measured internal cost.**
+Phases S0–S5 (S0 = mandatory `test-architect` dispatch — operator-algebra carve). 6 decisions
+LOCKED (see that plan's §"Decisions locked"). The d=1 sweep-graph dict is BUILT (C3.3) and is
+`FullFieldWavefront`'s d=1 substrate. **C3.6 (end-to-end 3-D — needs a 3-D mesh/quadrature) remains
+downstream.** The C3.5 `str_axes` axes-map fix + the `OctantLabel.sign_x/y`/`streams_in_2d` shim
+retirement are folded into the carve's S5.
 
 ⭐ **ELEGANCE-REVIEW ACCEPTANCE ITEMS (carry forward):**
 - **C3.6/d≥3 (elegance-enforcer CONCERN, from C3.3):** the 5 dispatch gates use the BINARY
