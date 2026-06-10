@@ -117,12 +117,31 @@ synthetic-3-D admission + docs (folds C5).
   (no violations; committable). Commit chain: `5b941eb`(C3.0)→`9b75374`(C3.1)→`9063487`(C3.2a)
   →`10e2587`(C3.2a elegance)→`f88ef7d`(plan)→**C3.2b** (this commit).
 
-**⏭ NEXT = C3.3 (geometry d-generic):** `itertools.product((-1,+1), repeat=ndim)` octant
-build + build the 1-D sweep graph into `SNMesh.sweep_graphs` (None today) + fold the 5 `ny>1`
-gates + `is_1d` → a dimensionality test. THEN C3.4 (wire d=1 wavefront via the d-generic walk
-in `_wavefront_1d_sweep` + flip the cumprod oracle xfail→pass + MEASURE the speedup) + C3.5
-(orchestration d-generic + retire twins + the `OctantLabel.sign_x/y`/`streams_in_2d` shims) +
-C3.6 (3-D admission + docs).
+**⏭ NEXT = C3.3 (geometry d-generic) — file:line targets:**
+1. **Octant build → `itertools.product`.** `geometry.py:1311-1313`: the dict comp
+   `{OctantLabel((sx,sy)): SweepDependencyGraph.from_cartesian_2d(nx=…, ny=…, label=…)}`
+   (the `(sx,sy)` come from a hardcoded 2-D octant list above 1311) → `for signs in
+   itertools.product((-1,+1), repeat=ndim): OctantLabel(signs): from_cartesian(spatial_shape,
+   label=…)`. Retires `from_cartesian_2d` (the C3.1 alias) + its legacy-equivalence pin
+   `test_d2_from_cartesian_matches_legacy` becomes a frozen golden (see its NOTE).
+2. **Build the 1-D sweep graph (None today).** `geometry.py:342,349`: `self.sweep_graphs =
+   None` for the non-2-D mesh → build the d=1 graph dict (`product((-1,+1), repeat=1)` = 2
+   octants on `from_cartesian((nx,))`). This is what C3.4's `_wavefront_1d_sweep` consumes.
+3. **Fold the 5 `ny>1` dispatch gates → a dimensionality test.** `operator.py:373,618,831`
+   (`if curvature == "cartesian" and ny > 1:`) + `operator.py:1460,1530` (`if curv is None
+   and sn_mesh.ny > 1:`) select the 2-D-Cartesian wavefront path vs 1-D/curvilinear. Replace
+   the `ny > 1` phantom-axis test with `ndim == 2` / `not is_1d` (genuine dimensionality).
+4. **Genericize `is_1d`.** `geometry.py:628-630`: `return self.ny == 1` → `return self.ndim
+   == 1` (or `len(spatial_shape) == 1`). Add a dimensionality property if missing.
+   Production octant read sites STAY (`operator.py:1697,1812`, `sweep.py:902,1250` —
+   `sweep_graphs[OctantLabel((sx_eff,sy_eff))]` lookup by label).
+THEN C3.4 (wire d=1 wavefront via the d-generic walk in `_wavefront_1d_sweep` — see
+`test_wavefront_cumprod_equivalence.py` `_wavefront_1d_sweep` docstring sketch + the
+`_SpineNotLanded` raise to delete — + flip the cumprod oracle xfail→pass + MEASURE the
+speedup; window_slots/window_edges → `SweepOptimization` sum type now it's the 2nd
+optimization) + C3.5 (orchestration d-generic — incl. the `str_axes` → `axes`-keyed
+`sn_mesh.streaming(a)` map fix from the elegance CONCERN — + retire twins + the
+`OctantLabel.sign_x/y`/`streams_in_2d` shims) + C3.6 (3-D admission + docs).
 
 ⭐ **ELEGANCE-REVIEW ACCEPTANCE ITEMS (carry forward):**
 - ✅ **C3.2b WavefrontFlux-typing — RESOLVED** at the orchestrator boundary (see C3.2b above;
