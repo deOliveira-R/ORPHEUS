@@ -117,29 +117,49 @@ synthetic-3-D admission + docs (folds C5).
   (no violations; committable). Commit chain: `5b941eb`(C3.0)→`9b75374`(C3.1)→`9063487`(C3.2a)
   →`10e2587`(C3.2a elegance)→`f88ef7d`(plan)→**C3.2b** (this commit).
 
-**⏭ NEXT = C3.3 (geometry d-generic) — file:line targets:**
-1. **Octant build → `itertools.product`.** `geometry.py:1311-1313`: the dict comp
-   `{OctantLabel((sx,sy)): SweepDependencyGraph.from_cartesian_2d(nx=…, ny=…, label=…)}`
-   (the `(sx,sy)` come from a hardcoded 2-D octant list above 1311) → `for signs in
-   itertools.product((-1,+1), repeat=ndim): OctantLabel(signs): from_cartesian(spatial_shape,
-   label=…)`. Retires `from_cartesian_2d` (the C3.1 alias) + its legacy-equivalence pin
-   `test_d2_from_cartesian_matches_legacy` becomes a frozen golden (see its NOTE).
-2. **Build the 1-D sweep graph (None today).** `geometry.py:342,349`: `self.sweep_graphs =
-   None` for the non-2-D mesh → build the d=1 graph dict (`product((-1,+1), repeat=1)` = 2
-   octants on `from_cartesian((nx,))`). This is what C3.4's `_wavefront_1d_sweep` consumes.
-3. **Fold the 5 `ny>1` dispatch gates → a dimensionality test.** `operator.py:373,618,831`
-   (`if curvature == "cartesian" and ny > 1:`) + `operator.py:1460,1530` (`if curv is None
-   and sn_mesh.ny > 1:`) select the 2-D-Cartesian wavefront path vs 1-D/curvilinear. Replace
-   the `ny > 1` phantom-axis test with `ndim == 2` / `not is_1d` (genuine dimensionality).
-4. **Genericize `is_1d`.** `geometry.py:628-630`: `return self.ny == 1` → `return self.ndim
-   == 1` (or `len(spatial_shape) == 1`). Add a dimensionality property if missing.
-   Production octant read sites STAY (`operator.py:1697,1812`, `sweep.py:902,1250` —
-   `sweep_graphs[OctantLabel((sx_eff,sy_eff))]` lookup by label).
-THEN C3.4 (wire d=1 wavefront via the d-generic walk in `_wavefront_1d_sweep` — see
-`test_wavefront_cumprod_equivalence.py` `_wavefront_1d_sweep` docstring sketch + the
-`_SpineNotLanded` raise to delete — + flip the cumprod oracle xfail→pass + MEASURE the
-speedup; window_slots/window_edges → `SweepOptimization` sum type now it's the 2nd
-optimization) + C3.5 (orchestration d-generic — incl. the `str_axes` → `axes`-keyed
+**✅ C3.3 DONE `bf6b55c` (geometry d-generic).** The SNMesh octant build + the
+1-D-vs-multi-D operator dispatch are now dimension-generic; the phantom `ny=1`
+axis is gone from geometry. Done:
+1. **Octant build → `itertools.product`.** `_setup_cartesian` dict comp →
+   `{OctantLabel(signs): from_cartesian(self.spatial_shape, label=…) for signs in
+   itertools.product((-1,+1), repeat=self.ndim)}`. A 1-D slab now builds 2 GENUINE
+   chain octants (1-tuple labels), a 2-D mesh keeps its 4 in-plane octants; at d=2
+   the product order == the retired nested `sx,sy` loop ⟹ dict BIT-IDENTICAL. The
+   d=1 graphs are what C3.4's `_wavefront_1d_sweep` consumes (built eagerly now).
+2. **`is_1d`: `ny==1` → `ndim==1`** (genuine dimensionality; the old `ny==1` test
+   misclassified a `ny=1 Mesh2D` as 1-D = the #214 root).
+3. **5 dispatch gates `ny>1` → `not sn_mesh.is_1d`** (`_compute_LpC`,
+   `_compute_decomposition`, `_compute_LpC_transpose`, `apply`, `apply_transpose`).
+   `is_1d` gets its FIRST production consumers — ONE source of truth (Pattern 2);
+   a `ny=1 Mesh2D` now routes to the 2-D path (the 1-D body uses `sn_mesh.areas` =
+   None for any Mesh2D, so it could only crash there before). Dead `ny=sn_mesh.ny`
+   locals removed.
+4. **`from_cartesian_2d` RETIRED** (the C3.1 one-cycle alias): production build
+   migrated; **13 test call sites** → `from_cartesian((nx,ny), …)`;
+   `test_d2_from_cartesian_matches_legacy` → STRUCTURALLY-INDEPENDENT hand-derived
+   golden (`_legacy_2d_anti_diagonal`: explicit anti-diagonal recurrence vs
+   `from_cartesian`'s `np.indices` index-sum masking); the now-permanent-builder
+   `_needs_spine` xfail scaffold + "not yet landed" framing retired;
+   `test_cartesian_1d_has_sweep_graphs` migrated (4 phantom → 2 genuine d=1,
+   function-call assertions for `-O` — surrounding bare asserts are a PRE-EXISTING
+   vv-Mode-8 gap, flagged not fixed). `docs/theory/discrete_ordinates.rst` broken
+   `:meth:` xref + stale code example fixed (Sphinx build clean).
+**Gates ALL GREEN (`python -O`):** sweep/core+snmesh 450 / operators 479 (A2D-1
+source-hash pin UNCHANGED — `apply` caller changed, not `_apply_2d_cartesian`) /
+eigenvalue+cartesian_2d+solve 136 (2-D keff through the changed `apply` gate,
+full-field+window oracles, affine-carve bit-identity anchor) / slab+cylindrical
+MMS 2 (+2 sphere xfail #195; curvilinear UNAFFECTED — `curvature` short-circuit).
+d=2 bit-identical; DD regression unchanged. Sphinx **build succeeded** (11
+pre-existing warnings — paramref/missing-data/missing-_generated, none C3.3).
+elegance-enforcer review DISPATCHED (`a6862bbd38a49e835`; verdict pending — update
+on return; any nits → follow-up commit before C3.4).
+
+**⏭ NEXT = C3.4** (wire d=1 wavefront via the d-generic walk in `_wavefront_1d_sweep`
+— see `test_wavefront_cumprod_equivalence.py` `_wavefront_1d_sweep` docstring sketch
++ the `_SpineNotLanded` raise to delete — + flip the cumprod oracle xfail→pass +
+MEASURE the speedup; `window_slots`/`window_edges` → `SweepOptimization` sum type now
+it's the 2nd optimization). The d=1 sweep-graph dict is BUILT (C3.3) and waiting.
+THEN C3.5 (orchestration d-generic — incl. the `str_axes` → `axes`-keyed
 `sn_mesh.streaming(a)` map fix from the elegance CONCERN — + retire twins + the
 `OctantLabel.sign_x/y`/`streams_in_2d` shims) + C3.6 (3-D admission + docs).
 
