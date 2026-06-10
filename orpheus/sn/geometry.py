@@ -640,6 +640,23 @@ class SNMesh:
         """
         return self.ndim == 1
 
+    @property
+    def is_cartesian(self) -> bool:
+        """True if the mesh carries no curvature (Cartesian slab / 2-D / 3-D).
+
+        The genuine coordinate-system criterion — ``curvature is None`` for a
+        Cartesian slab or a multi-D Cartesian mesh; a string
+        (``'spherical'`` / ``'cylindrical'``) for a curvilinear 1-D mesh.
+        This is ORTHOGONAL to :attr:`is_1d`: a slab is Cartesian AND 1-D; a
+        2-D Cartesian mesh is Cartesian AND not 1-D; a cylinder is 1-D AND
+        not Cartesian.  Sweep-strategy selection
+        (``orpheus.sn.sweep_strategy.default_for``) keys on BOTH axes —
+        the anti-hyperplane DAG family requires ``is_cartesian``, the chain
+        scan requires ``is_1d`` — so neither alone is a sufficient
+        discriminator.
+        """
+        return self.curvature is None
+
     # ── Dim-agnostic geometry primitives (R-1 Phase A C1) ─────────────
 
     @property

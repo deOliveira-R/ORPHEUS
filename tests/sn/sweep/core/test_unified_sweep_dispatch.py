@@ -1,18 +1,29 @@
-"""Foundation tests for the unified sweep dispatch logic.
+"""Foundation tests for the sweep-strategy dispatch.
 
-Round 2 of Wave D of the SN reshape campaign (Issue #161).  Issue
-#196 Phase G Step 2.5c collapses ``_sweep_1d_cartesian`` and
-``_sweep_1d_curvilinear`` into ONE ``_sweep_1d_unified`` body driven
-by the precomputed two-stratum cache (geometry is data on
-:class:`GeometryCoefficients`, not control-flow at the dispatch
-layer).  These tests now pin the simplified dispatch contract of
-:func:`orpheus.sn.sweep.transport_sweep`:
+Round 2 of Wave D of the SN reshape campaign (Issue #161); migrated by
+the **SweepStrategy carve** (C3.4/C3.5, plan ``sn_sweep_strategy.md``).
 
-* 1-D meshes (``sn_mesh.reduced is not None``) — slab, sphere,
-  cylinder — ALL route to :func:`_sweep_1d_unified`.
-* 2-D Cartesian (``sn_mesh.reduced is None``) routes to
-  :func:`_sweep_2d_wavefront` (anti-diagonal scheduling; Step 2.6 Q2
-  defers the 2D wavefront unification — see the plan).
+Historically ``transport_sweep`` chose the 1-D vs 2-D sweep body with a
+scattered ``sn_mesh.reduced is not None`` branch, and these tests spied
+on the chosen ``_sweep_*`` function being *called* (monkeypatching the
+module-level name).  The carve replaced that branch with a first-class,
+selectable :class:`~orpheus.sn.sweep_strategy.SweepStrategy`:
+:func:`~orpheus.sn.sweep_strategy.default_for` picks the strategy, and
+``transport_sweep`` delegates to ``strategy.sweep``.  The spy mechanism no
+longer applies (the strategy holds its own reference to the sweep body),
+so the dispatch contract is now pinned at its single source of truth:
+
+* the SELECTION — ``default_for(mesh)`` returns the right strategy class:
+  ALL 1-D meshes (slab, sphere, cylinder; ``is_1d``) →
+  :class:`~orpheus.sn.sweep_strategy.CumprodScan`; 2-D Cartesian
+  (``is_cartesian and ndim == 2``) →
+  :class:`~orpheus.sn.sweep_strategy.MovingFrontierWindow`;
+* the ROUTING — ``transport_sweep`` delegates to
+  ``default_for(mesh).sweep(...)`` exactly once.
+
+``-O``-safe (vv Mode 8): every gate is a ``np.testing`` / ``pytest.fail``
+function call, NOT a bare ``assert`` (which the canonical ``python -O``
+invocation would strip in any non-rewritten helper).
 
 These are **software-contract** tests — the L1 transport math is
 verified by the regression snapshots at
@@ -22,8 +33,8 @@ and the Wave C ``DiamondDifference`` hand-calc tests at
 
 Tagged ``@pytest.mark.foundation`` because:
 
-* The dispatch math is purely structural — no transport equation
-  identity is being verified here.
+* The dispatch is purely structural — no transport equation identity is
+  being verified here.
 * L1 transport accuracy is verified transitively via the existing
   MMS suite at ``tests/sn/l1_analytical/``.
 """
@@ -41,10 +52,11 @@ from orpheus.geometry import (
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial.diamond import DiamondDifference
-from orpheus.sn.sweep import (
-    _sweep_1d_unified,
-    _sweep_2d_wavefront,
-    transport_sweep,
+from orpheus.sn.sweep import transport_sweep
+from orpheus.sn.sweep_strategy import (
+    CumprodScan,
+    MovingFrontierWindow,
+    default_for,
 )
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.transport.source_sinks import AngularSourceSink
@@ -110,180 +122,121 @@ def _2d_sn_mesh(nx: int = 4, ny: int = 4) -> SNMesh:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# TestDispatchByReducedProperty
+# TestDispatchSelectsStrategy — the SELECTION half of the contract
 # ═══════════════════════════════════════════════════════════════════════
 
-class TestDispatchByReducedProperty:
-    """``transport_sweep`` dispatches by ``sn_mesh.reduced is not None``.
+class TestDispatchSelectsStrategy:
+    """``default_for(mesh)`` selects the geometry-correct sweep strategy.
 
-    Issue #196 Phase G Step 2.5c collapses the historical
-    ``_sweep_1d_cartesian`` and ``_sweep_1d_curvilinear`` into ONE
-    ``_sweep_1d_unified`` body (the two-stratum cache abstracts the
-    geometry difference).  Dispatch is therefore: ALL 1-D meshes (slab,
-    sphere, cylinder; ``sn_mesh.reduced is not None``) route to
-    ``_sweep_1d_unified``; 2-D Cartesian (``sn_mesh.reduced is None``)
-    routes to ``_sweep_2d_wavefront``.
+    The single source of truth that replaced the scattered
+    ``reduced is not None`` branch: ALL 1-D meshes (slab, sphere, cylinder)
+    → :class:`CumprodScan`; 2-D Cartesian → :class:`MovingFrontierWindow`
+    (the production optimization; the full-field oracle is explicit-select
+    only).  ``pytest.fail`` on mismatch fires under ``python -O``.
     """
 
     @pytest.mark.foundation
-    def test_slab_routes_to_sweep_1d_unified(self, monkeypatch):
-        """Slab routes through ``_sweep_1d_unified``."""
+    def test_slab_selects_cumprod_scan(self):
+        """Slab (1-D Cartesian) → CumprodScan."""
         sn_mesh = _slab_sn_mesh()
-        assert sn_mesh.reduced is not None
-
-        called = {"unified": 0, "wavefront": 0}
-        from orpheus.sn import sweep as sweep_module
-
-        def fake_unified(*args, **kwargs):
-            called["unified"] += 1
-            return np.zeros((1,)), np.zeros((1,))
-
-        def fake_wavefront(*args, **kwargs):
-            called["wavefront"] += 1
-            return np.zeros((1,)), np.zeros((1,))
-
-        monkeypatch.setattr(sweep_module, "_sweep_1d_unified", fake_unified)
-        monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
-
-        # PR-INDEX-5 principled (ng, nx, ny); PR-TYPED-4 typed source.
-        ng = sn_mesh.ng
-        Q = AngularSourceSink.zeros_on(sn_mesh)
-        sig_t = np.ones((ng, sn_mesh.nx))
-        transport_sweep(Q, sig_t, sn_mesh, BoundaryFlux.zeros_on(sn_mesh))
-
-        assert called["unified"] == 1
-        assert called["wavefront"] == 0
+        if sn_mesh.reduced is None:
+            pytest.fail("slab fixture unexpectedly has reduced is None")
+        strategy = default_for(sn_mesh)
+        if not isinstance(strategy, CumprodScan):
+            pytest.fail(
+                f"slab → {type(strategy).__name__}, expected CumprodScan"
+            )
 
     @pytest.mark.foundation
-    def test_spherical_routes_to_sweep_1d_unified(self, monkeypatch):
-        """Spherical routes through ``_sweep_1d_unified`` (same as slab)."""
+    def test_spherical_selects_cumprod_scan(self):
+        """Spherical (1-D curvilinear) → CumprodScan (same as slab)."""
         sn_mesh = _spherical_sn_mesh()
-        assert sn_mesh.reduced is not None
-
-        called = {"unified": 0, "wavefront": 0}
-        from orpheus.sn import sweep as sweep_module
-
-        def fake_unified(*args, **kwargs):
-            called["unified"] += 1
-            return np.zeros((1,)), np.zeros((1,))
-
-        def fake_wavefront(*args, **kwargs):
-            called["wavefront"] += 1
-            return np.zeros((1,)), np.zeros((1,))
-
-        monkeypatch.setattr(sweep_module, "_sweep_1d_unified", fake_unified)
-        monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
-
-        ng = sn_mesh.ng
-        Q = AngularSourceSink.zeros_on(sn_mesh)
-        sig_t = np.ones((ng, sn_mesh.nx))
-        transport_sweep(Q, sig_t, sn_mesh, BoundaryFlux.zeros_on(sn_mesh))
-
-        assert called["unified"] == 1
-        assert called["wavefront"] == 0
+        if sn_mesh.reduced is None:
+            pytest.fail("spherical fixture unexpectedly has reduced is None")
+        strategy = default_for(sn_mesh)
+        if not isinstance(strategy, CumprodScan):
+            pytest.fail(
+                f"sphere → {type(strategy).__name__}, expected CumprodScan"
+            )
 
     @pytest.mark.foundation
-    def test_cylindrical_routes_to_sweep_1d_unified(self, monkeypatch):
-        """Cylindrical routes through ``_sweep_1d_unified`` (same as slab/sphere)."""
+    def test_cylindrical_selects_cumprod_scan(self):
+        """Cylindrical (1-D curvilinear) → CumprodScan (same as slab/sphere)."""
         sn_mesh = _cylindrical_sn_mesh()
-        assert sn_mesh.reduced is not None
-
-        called = {"unified": 0, "wavefront": 0}
-        from orpheus.sn import sweep as sweep_module
-
-        def fake_unified(*args, **kwargs):
-            called["unified"] += 1
-            return np.zeros((1,)), np.zeros((1,))
-
-        def fake_wavefront(*args, **kwargs):
-            called["wavefront"] += 1
-            return np.zeros((1,)), np.zeros((1,))
-
-        monkeypatch.setattr(sweep_module, "_sweep_1d_unified", fake_unified)
-        monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
-
-        ng = sn_mesh.ng
-        Q = AngularSourceSink.zeros_on(sn_mesh)
-        sig_t = np.ones((ng, sn_mesh.nx))
-        transport_sweep(Q, sig_t, sn_mesh, BoundaryFlux.zeros_on(sn_mesh))
-
-        assert called["unified"] == 1
-        assert called["wavefront"] == 0
+        if sn_mesh.reduced is None:
+            pytest.fail("cylindrical fixture unexpectedly has reduced is None")
+        strategy = default_for(sn_mesh)
+        if not isinstance(strategy, CumprodScan):
+            pytest.fail(
+                f"cylinder → {type(strategy).__name__}, expected CumprodScan"
+            )
 
     @pytest.mark.foundation
-    def test_2d_cartesian_routes_to_sweep_2d_wavefront(self, monkeypatch):
-        """2-D Cartesian (``sn_mesh.reduced is None``) routes to ``_sweep_2d_wavefront``."""
+    def test_2d_cartesian_selects_moving_frontier_window(self):
+        """2-D Cartesian → MovingFrontierWindow (the production optimization)."""
         sn_mesh = _2d_sn_mesh()
-        assert sn_mesh.reduced is None
-
-        called = {"unified": 0, "wavefront": 0}
-        from orpheus.sn import sweep as sweep_module
-
-        def fake_unified(*args, **kwargs):
-            called["unified"] += 1
-            return np.zeros((1,)), np.zeros((1,))
-
-        def fake_wavefront(*args, **kwargs):
-            called["wavefront"] += 1
-            return np.zeros((1,)), np.zeros((1,))
-
-        monkeypatch.setattr(sweep_module, "_sweep_1d_unified", fake_unified)
-        monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
-
-        ng = sn_mesh.ng
-        Q = AngularSourceSink.zeros_on(sn_mesh)
-        sig_t = np.ones((ng, sn_mesh.nx, sn_mesh.ny))
-        transport_sweep(Q, sig_t, sn_mesh, BoundaryFlux.zeros_on(sn_mesh))
-
-        assert called["unified"] == 0
-        assert called["wavefront"] == 1
+        if sn_mesh.reduced is not None:
+            pytest.fail("2-D fixture unexpectedly has reduced is not None")
+        strategy = default_for(sn_mesh)
+        if not isinstance(strategy, MovingFrontierWindow):
+            pytest.fail(
+                f"2-D Cartesian → {type(strategy).__name__}, "
+                f"expected MovingFrontierWindow"
+            )
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# TestUnifiedDispatch1Dvs2D — Issue #196 Step 2.5c
+# TestTransportSweepDelegatesToStrategy — the ROUTING half of the contract
 # ═══════════════════════════════════════════════════════════════════════
 
-class TestUnifiedDispatch1Dvs2D:
-    """1-D / 2-D dispatch contract under the Step 2.5c unification.
+class TestTransportSweepDelegatesToStrategy:
+    """``transport_sweep`` routes through ``default_for(mesh).sweep`` once.
 
-    Step 2.5c collapses both Cartesian and curvilinear 1-D paths into
-    one body.  The dispatch contract is: ALL 1-D meshes go to
-    ``_sweep_1d_unified``; 2-D meshes go to ``_sweep_2d_wavefront``.
-    Cell-update strategy, quadrature shape, and source anisotropy are
-    all handled INSIDE the chosen sweep — they no longer affect
-    dispatch.
+    The ROUTING half of the dispatch contract (the SELECTION half is
+    :class:`TestDispatchSelectsStrategy`).  ``transport_sweep`` does a lazy
+    ``from .sweep_strategy import default_for``, so patching
+    ``sweep_strategy.default_for`` is seen at call time — the spy confirms the
+    dispatcher *delegates to the selected strategy* rather than re-deciding
+    the branch itself.  Geometry-agnostic: the same delegation holds for the
+    1-D scan and the 2-D window.
     """
 
     @pytest.mark.foundation
-    def test_1d_unified_handles_anscalar_source(self, monkeypatch):
-        """1-D + anisotropic source still routes to ``_sweep_1d_unified``."""
-        sn_mesh = _slab_sn_mesh()
-        assert sn_mesh.ny == 1
+    @pytest.mark.parametrize(
+        "mesh_factory", [_slab_sn_mesh, _2d_sn_mesh], ids=["slab", "cart2d"],
+    )
+    def test_delegates_to_selected_strategy(self, monkeypatch, mesh_factory):
+        """transport_sweep calls the selected strategy's ``sweep`` exactly once."""
+        sn_mesh = mesh_factory()
+        import orpheus.sn.sweep_strategy as sweep_strategy
 
-        called = {"unified": 0, "wavefront": 0}
-        from orpheus.sn import sweep as sweep_module
+        selected = type(default_for(sn_mesh)).__name__
+        calls = {"sweep": 0}
+        N, ng, nx, ny = sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny
 
-        def fake_unified(*args, **kwargs):
-            called["unified"] += 1
-            quad_N = sn_mesh.quad.N
-            return (np.zeros((quad_N, sn_mesh.nx, 1, 1)),
-                    np.zeros((sn_mesh.nx, 1, 1)))
+        class _SpyStrategy:
+            def sweep(self, *args, **kwargs):
+                calls["sweep"] += 1
+                return (np.zeros((N, ng, nx, ny)), np.zeros((ng, nx, ny)))
 
-        def fake_wavefront(*args, **kwargs):
-            called["wavefront"] += 1
-            return (np.zeros((1,)), np.zeros((1,)))
+        monkeypatch.setattr(
+            sweep_strategy, "default_for", lambda mesh: _SpyStrategy(),
+        )
 
-        monkeypatch.setattr(sweep_module, "_sweep_1d_unified", fake_unified)
-        monkeypatch.setattr(sweep_module, "_sweep_2d_wavefront", fake_wavefront)
-
-        # R-1 Step 4 A1 — single per-ordinate source.
-        ng = sn_mesh.ng
+        # 1-D meshes carry (ng, nx) Σ_t; 2-D Cartesian carries (ng, nx, ny).
+        sig_t = (
+            np.ones((ng, nx)) if sn_mesh.reduced is not None
+            else np.ones((ng, nx, ny))
+        )
         source = AngularSourceSink.zeros_on(sn_mesh)
-        sig_t = np.ones((ng, sn_mesh.nx))
         transport_sweep(source, sig_t, sn_mesh, BoundaryFlux.zeros_on(sn_mesh))
 
-        assert called["unified"] == 1
-        assert called["wavefront"] == 0
+        if calls["sweep"] != 1:
+            pytest.fail(
+                f"transport_sweep delegated to strategy.sweep "
+                f"{calls['sweep']} times (selected {selected}), expected "
+                f"exactly 1"
+            )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -303,7 +256,11 @@ class TestDefaultCellUpdate:
     def test_default_is_diamond_difference(self):
         """No ``cell_update`` argument → defaults to DD."""
         sn_mesh = _slab_sn_mesh()
-        assert isinstance(sn_mesh.cell_update, DiamondDifference)
+        if not isinstance(sn_mesh.cell_update, DiamondDifference):
+            pytest.fail(
+                f"default cell_update is {type(sn_mesh.cell_update).__name__}, "
+                f"expected DiamondDifference"
+            )
 
     @pytest.mark.foundation
     def test_explicit_cell_update_honored(self):
@@ -318,4 +275,5 @@ class TestDefaultCellUpdate:
         )
         quad = Quadrature.gauss_legendre(n_ordinates=8)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials(), cell_update=custom)
-        assert sn_mesh.cell_update is custom
+        if sn_mesh.cell_update is not custom:
+            pytest.fail("explicit cell_update was not stored on the mesh")

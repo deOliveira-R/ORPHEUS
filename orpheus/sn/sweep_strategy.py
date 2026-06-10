@@ -1,0 +1,413 @@
+r"""Selectable S\ :sub:`N` sweep strategies — polymorphic sweep/matvec dispatch.
+
+The within-group transport solve :math:`\psi = (L+C)^{-1} q` (the *sweep*)
+and its operator twin :math:`(L+C)\,\psi` (the *matvec*) admit several
+distinct *algorithms*, each natural for a different mesh:
+
+* a **1-D parallel-prefix scan** (Blelloch 1990 §1.5) — the geometry-blind
+  chain recurrence (slab + sphere + cylinder), :func:`._sweep_1d_unified`;
+* a **multi-D wavefront walk** over the per-octant anti-hyperplane DAG
+  (:meth:`SweepDependencyGraph.apply`), in two buffer policies — a
+  full-field buffer (the slow, readable verification oracle) and a rolling
+  :math:`(d{-}1)`-frontier window (the fast production path).
+
+Historically the choice between them was a *scattered, procedural* branch
+spelled three different ways: ``transport_sweep`` branched on
+``sn_mesh.reduced is not None``; the matvec branched in five operator gates
+on ``not sn_mesh.is_1d``; and the full-field oracle was reachable only
+through hand-built test adapters.  Adding a method, a dimensionality, or a
+frontend meant touching all three — an enum-style branch repeated at every
+call site (cyclomatic complexity, not abstraction).
+
+This module replaces that with a first-class :class:`SweepStrategy`: each
+algorithm is an object that carries **both** the forward ``sweep`` and (from
+Phase S2) the ``residual`` matvec twin, plus a **declared, queryable**
+:meth:`~SweepStrategy.supports` predicate.  The operator and the
+``transport_sweep`` dispatcher select one via :func:`default_for` and then
+call it branchlessly.
+
+The hierarchy
+=============
+
+.. code-block:: text
+
+    SweepStrategy (Protocol: sweep, residual [S2], supports)
+    ├── _DAGWavefront            ── Cartesian anti-hyperplane DAG family
+    │   ├── FullFieldWavefront     buffer = full field     · the ORACLE
+    │   └── MovingFrontierWindow   buffer = rolling frontier · production opt
+    └── CumprodScan             ── 1-D chain prefix scan, any geometry
+
+``FullFieldWavefront`` and ``MovingFrontierWindow`` consume the **same**
+per-octant ``sweep_graphs`` DAG — they are two *buffer policies* over one
+anti-hyperplane walk, already pinned bit-identical by the C3.2b
+``window ≡ full`` oracle.  ``CumprodScan`` builds no DAG: a 1-D chain is a
+total order, the Blelloch closed form needs no graph.
+
+The governing principle
+========================
+
+    *Construct each strategy as general as its algorithm naturally allows.
+    Select narrow.  Specialize the implementation only on a measured
+    internal performance cost.*
+
+Three separable layers, never conflated:
+
+* **Construct general (capability).**  ``CumprodScan`` is intrinsically 1-D
+  (a prefix scan needs a total order → a chain → 1-D; there is no "2-D chain
+  scan") — legitimately d-specific *by the algorithm's nature*.
+  ``FullFieldWavefront`` and ``MovingFrontierWindow`` are naturally
+  d-general (the moving frontier is the :math:`(d{-}1)`-dim rolling slab: a
+  point at d=1, a line at d=2, a surface at d=3).
+* **Select narrow (policy).**  Whether we *offer / recommend / default* a
+  strategy at a given ``(geometry, ndim)`` lives in
+  :meth:`~SweepStrategy.supports` / :func:`default_for`, independent of the
+  code's capability.  "Don't pick the window at d=1, pick the scan" is a
+  recommendation, *not* a reason to leave the window unable to express d=1.
+* **Specialize on measured cost only.**  The sole justification to restrict
+  an implementation's d-range is a *measured* hot-path regression.
+
+Selection is a single source of truth
+======================================
+
+:meth:`~SweepStrategy.supports` returns :class:`Compatibility` — an
+``(ok, reason)`` pair.  The same predicate serves three consumers:
+
+#. a (future) teaching frontend — ``[S for S in SWEEP_STRATEGIES if
+   S.supports(mesh).ok]`` grays-out an inapplicable method *and explains
+   why* (pedagogically load-bearing — ORPHEUS teaches reactor physics);
+#. the factory :func:`default_for` — picks the best *available* production
+   optimization, falling back to the full-field spine when no optimization
+   exists, so it is never stuck;
+#. the construction guard — :meth:`_SweepStrategy.__post_init__` raises
+   :class:`IncompatibleStrategy` on an illegal pairing, so even a bypassed
+   UI cannot build one.
+
+The compatibility signal is the genuine criterion — the coordinate system
+(:attr:`SNMesh.is_cartesian`) and the dimensionality (:attr:`SNMesh.ndim`)
+— NOT the ``sweep_graphs is None`` substrate proxy.
+
+Phase status (the SweepStrategy carve, plan ``sn_sweep_strategy.md``)
+====================================================================
+
+* **S1 (this commit): SWEEP side.**  The protocol, the hierarchy, the three
+  strategies as *thin wrappers* over the existing sweep functions, the
+  selection layer, and the ``transport_sweep`` rewire.  Bit-identical: each
+  strategy wraps exactly the path the old branch chose, so ``default_for``
+  reproduces the legacy dispatch byte-for-byte.
+* **S2: MATVEC side.**  Each strategy gains ``residual`` (the
+  :math:`(L+C)\psi` twin); the five operator gates collapse to
+  ``strategy.residual(...)``.
+* **S3: generalize the oracle.**  ``FullFieldWavefront`` becomes the genuine
+  d-generic spine (wraps :meth:`SweepDependencyGraph.apply` directly,
+  retires ``_sweep_2d_full_field``, widens ``supports`` to any-d Cartesian,
+  wires the d=1 cumprod-vs-spine equivalence).
+* **S4: generalize the window** to ``frontier_dim = d-1``.
+
+See also
+========
+
+* ``.claude/plans/sn_sweep_strategy.md`` — the authoritative design (the
+  locked decisions, the verification strategy, phases S0–S5).
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
+
+# This module wraps the sweep bodies, so it imports ``sweep`` at load time.
+# The back-edge — ``transport_sweep`` reaching here for ``default_for`` — is a
+# function-local (lazy) import on the ``sweep`` side, which breaks the cycle.
+from .sweep import _sweep_1d_unified, _sweep_2d_full_field, _sweep_2d_wavefront
+
+if TYPE_CHECKING:
+    import numpy as np
+
+    from orpheus.numerics.projection import MomentProjection
+    from orpheus.transport.fields.angular_flux import AngularFlux
+    from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.timed_full_field import TimedFullField
+
+    from .geometry import SNMesh
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Selection vocabulary
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True)
+class Compatibility:
+    """Whether a strategy applies to a mesh, with a human-readable reason.
+
+    ``ok`` is the machine-checkable verdict; ``reason`` is the explanation a
+    frontend shows when graying-out an inapplicable method ("Moving-frontier
+    window — requires Cartesian geometry, d = 2") and the message the
+    construction guard raises.  ``reason`` is the empty string when
+    ``ok is True`` (no explanation needed).
+    """
+
+    ok: bool
+    reason: str
+
+
+class IncompatibleStrategy(ValueError):
+    """A :class:`SweepStrategy` was constructed for a mesh it cannot sweep.
+
+    Raised by the construction guard (:meth:`_SweepStrategy.__post_init__`)
+    so that an illegal ``(strategy, mesh)`` pairing is unrepresentable —
+    even if a caller bypasses :func:`default_for`.
+    """
+
+
+@runtime_checkable
+class SweepStrategy(Protocol):
+    r"""One algorithm for the within-group transport solve and its twin.
+
+    A strategy is constructed *for a mesh* (``Strategy(mesh)``); the
+    construction guard rejects an incompatible pairing.  It then exposes:
+
+    * :meth:`sweep` — one forward substitution :math:`\psi = (L+C)^{-1} q`;
+    * :meth:`residual` — the matvec twin :math:`(L+C)\,\psi` *(added in
+      Phase S2)*;
+    * :meth:`supports` — the (classmethod) selection predicate.
+    """
+
+    def sweep(
+        self,
+        Q: "np.ndarray",
+        sig_t: "np.ndarray",
+        boundary_flux: "BoundaryFlux",
+        *,
+        initial_guess: "AngularFlux | TimedFullField | None" = None,
+        moment_projection: "MomentProjection | None" = None,
+    ) -> "tuple[np.ndarray, np.ndarray]":
+        """Perform one within-group transport sweep on this strategy's mesh."""
+        ...
+
+    @classmethod
+    def supports(cls, mesh: "SNMesh") -> Compatibility:
+        """Whether this strategy can sweep ``mesh`` (the selection layer)."""
+        ...
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Common base — the construction guard (illegal pairings unrepresentable)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True)
+class _SweepStrategy:
+    """Base for every concrete strategy: holds the mesh + the guard.
+
+    A frozen dataclass carrying the one piece of state every strategy needs
+    (the :class:`SNMesh` it was selected for) and the construction guard
+    that makes an incompatible pairing unrepresentable.
+    """
+
+    mesh: "SNMesh"
+
+    @classmethod
+    def supports(cls, mesh: "SNMesh") -> Compatibility:
+        """The selection predicate — every concrete strategy implements it."""
+        raise NotImplementedError(
+            f"{cls.__name__} must implement supports()"
+        )
+
+    def sweep(
+        self,
+        Q: "np.ndarray",
+        sig_t: "np.ndarray",
+        boundary_flux: "BoundaryFlux",
+        *,
+        initial_guess: "AngularFlux | TimedFullField | None" = None,
+        moment_projection: "MomentProjection | None" = None,
+    ) -> "tuple[np.ndarray, np.ndarray]":
+        """One within-group sweep — every concrete strategy implements it."""
+        raise NotImplementedError(
+            f"{type(self).__name__} must implement sweep()"
+        )
+
+    def __post_init__(self) -> None:
+        compat = type(self).supports(self.mesh)
+        if not compat.ok:
+            raise IncompatibleStrategy(
+                f"{type(self).__name__} cannot sweep this mesh "
+                f"(ndim={self.mesh.ndim}, curvature={self.mesh.curvature!r}): "
+                f"{compat.reason}."
+            )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# CumprodScan — the 1-D chain prefix scan (any geometry)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class CumprodScan(_SweepStrategy):
+    r"""1-D parallel-prefix scan — slab, sphere, cylinder via one body.
+
+    Intrinsically 1-D: a prefix scan needs a total order (a chain).  The
+    geometry difference is absorbed by the two-stratum cache, so slab +
+    sphere + cylinder share THE SAME scan expression
+    (:func:`._sweep_1d_unified` → :func:`~orpheus.sn.spatial.scan.ordinate_scan`).
+    The default production path for every 1-D mesh.
+    """
+
+    @classmethod
+    def supports(cls, mesh: "SNMesh") -> Compatibility:
+        return Compatibility(mesh.is_1d, "requires a 1-D mesh")
+
+    def sweep(
+        self,
+        Q: "np.ndarray",
+        sig_t: "np.ndarray",
+        boundary_flux: "BoundaryFlux",
+        *,
+        initial_guess: "AngularFlux | TimedFullField | None" = None,
+        moment_projection: "MomentProjection | None" = None,
+    ) -> "tuple[np.ndarray, np.ndarray]":
+        if moment_projection is not None:
+            # Moment output is the 2-D windowed-SI peak-memory optimization;
+            # 1-D / curvilinear meshes stay full-angular (the Morel–Montry
+            # Carlson seed reads the per-ordinate iterate; lesson L21).
+            raise ValueError(
+                "CumprodScan.sweep: moment output (moment_projection given) "
+                "is 2-D Cartesian only — 1-D/curvilinear meshes stay "
+                "full-angular (the Morel–Montry Carlson seed reads the "
+                "per-ordinate iterate; lesson L21)."
+            )
+        return _sweep_1d_unified(
+            Q, sig_t, self.mesh, boundary_flux, initial_guess=initial_guess,
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# _DAGWavefront — the Cartesian anti-hyperplane DAG family
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class _DAGWavefront(_SweepStrategy):
+    r"""Base for the two buffer policies over the per-octant DAG walk.
+
+    ``FullFieldWavefront`` (full-field buffer; the oracle) and
+    ``MovingFrontierWindow`` (rolling :math:`(d{-}1)`-frontier; the
+    production optimization) both walk the **same** ``mesh.sweep_graphs``
+    anti-hyperplane DAG with the same diamond-difference cell kernel.  They
+    differ only in *how much* of the interior face cochain they retain — a
+    storage policy, pinned bit-identical by the ``window ≡ full`` oracle.
+
+    The DAG walk is naturally d-general; in S1 both wrappers cover exactly
+    the existing 2-D Cartesian sweep (``supports`` below).  S3 widens the
+    oracle to any-d Cartesian; S4 widens the window to ``d ≥ 2``.
+    """
+
+    @classmethod
+    def supports(cls, mesh: "SNMesh") -> Compatibility:
+        return Compatibility(
+            mesh.is_cartesian and mesh.ndim == 2,
+            "requires Cartesian geometry, d = 2",
+        )
+
+
+class MovingFrontierWindow(_DAGWavefront):
+    r"""Production wavefront sweep — rolling :math:`(d{-}1)`-frontier buffer.
+
+    The default production path for 2-D Cartesian meshes
+    (:func:`._sweep_2d_wavefront`).  Carries only the rolling frontier of
+    interior face fluxes (a 2-diagonal at d=2), the ~3× peak-memory win over
+    the full-field oracle.  Generalized to ``frontier_dim = d-1`` in S4.
+    """
+
+    def sweep(
+        self,
+        Q: "np.ndarray",
+        sig_t: "np.ndarray",
+        boundary_flux: "BoundaryFlux",
+        *,
+        initial_guess: "AngularFlux | TimedFullField | None" = None,
+        moment_projection: "MomentProjection | None" = None,
+    ) -> "tuple[np.ndarray, np.ndarray]":
+        return _sweep_2d_wavefront(
+            Q, sig_t, self.mesh, boundary_flux,
+            moment_projection=moment_projection,
+        )
+
+
+class FullFieldWavefront(_DAGWavefront):
+    r"""Verification-oracle wavefront sweep — full interior face cochain.
+
+    Walks the same per-octant DAG as :class:`MovingFrontierWindow` but
+    retains the FULL interior face cochain (the fuller view).  Slower and
+    more memory-hungry — its purpose is verification: the window is
+    cross-checked ``window ≡ full`` against it.  Never the production
+    default (the window wins at d=2); selected explicitly by oracle tests.
+
+    S1 wraps the existing 2-D oracle :func:`._sweep_2d_full_field`.  S3
+    promotes this to the genuine d-generic spine (wrapping
+    :meth:`SweepDependencyGraph.apply` directly) and widens ``supports`` to
+    any-d Cartesian.
+    """
+
+    def sweep(
+        self,
+        Q: "np.ndarray",
+        sig_t: "np.ndarray",
+        boundary_flux: "BoundaryFlux",
+        *,
+        initial_guess: "AngularFlux | TimedFullField | None" = None,
+        moment_projection: "MomentProjection | None" = None,
+    ) -> "tuple[np.ndarray, np.ndarray]":
+        if moment_projection is not None:
+            raise ValueError(
+                "FullFieldWavefront.sweep: the full-field oracle does not "
+                "implement moment output — use MovingFrontierWindow for the "
+                "windowed-SI moment path."
+            )
+        return _sweep_2d_full_field(Q, sig_t, self.mesh, boundary_flux)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Registry + factory — the single selection source of truth
+# ═══════════════════════════════════════════════════════════════════════
+
+#: The CONCRETE strategy leaves (never the abstract ``_SweepStrategy`` /
+#: ``_DAGWavefront`` bases) — :func:`default_for` constructs whichever it
+#: picks, so only buildable strategies belong here.
+#:
+#: Selection priority order: the 1-D scan, then the 2-D production window,
+#: then the full-field oracle.  :func:`default_for` returns the FIRST that
+#: applies, so the production optimization is preferred over the oracle and
+#: the oracle is reached only as a never-stuck fallback (today: never, since
+#: the window covers every 2-D mesh; S3's d-generic oracle becomes the d≥3
+#: fallback).
+SWEEP_STRATEGIES: tuple[type[_SweepStrategy], ...] = (
+    CumprodScan,
+    MovingFrontierWindow,
+    FullFieldWavefront,
+)
+
+
+def default_for(mesh: "SNMesh") -> SweepStrategy:
+    """Select the default sweep strategy for ``mesh``.
+
+    Returns the first strategy in :data:`SWEEP_STRATEGIES` whose
+    :meth:`~SweepStrategy.supports` admits ``mesh`` — the best *available*
+    production optimization, falling back to the spine.  This reproduces the
+    legacy dispatch exactly: 1-D → :class:`CumprodScan`; 2-D Cartesian →
+    :class:`MovingFrontierWindow`.
+
+    Raises
+    ------
+    IncompatibleStrategy
+        If no strategy applies.  Unreachable for any constructible mesh in
+        S1 (every 1-D mesh → ``CumprodScan``; every 2-D Cartesian →
+        ``MovingFrontierWindow``).  A hypothetical 3-D Cartesian mesh has no
+        S1 strategy; S3's d-generic oracle becomes its fallback.
+    """
+    for cls in SWEEP_STRATEGIES:
+        if cls.supports(mesh).ok:
+            return cls(mesh)
+    raise IncompatibleStrategy(
+        f"no sweep strategy supports this mesh "
+        f"(ndim={mesh.ndim}, curvature={mesh.curvature!r}, "
+        f"is_cartesian={mesh.is_cartesian})."
+    )

@@ -8,7 +8,23 @@ original C3.4 ("wire a `_wavefront_1d_sweep` adapter") + C3.5 ("orchestration d-
 first-class `SweepStrategy` abstraction.
 
 - **Designed 2026-06-10** in a multi-turn design conversation; every decision below is LOCKED
-  (see §"Decisions locked"). **NOT yet implemented.**
+  (see §"Decisions locked").
+- **S0 ✅ DONE (2026-06-10):** `test-architect` verification plan delivered (memo
+  `.claude/agent-memory/test-architect/sweep_strategy_carve_verification.md`). Key findings:
+  `reduced is not None` ⟺ `is_1d` for ALL 4 constructible meshes (carve is behavior-preserving);
+  `is_cartesian` is ORTHOGONAL → `supports` keys on BOTH; the anchor set (L2 `test_affine_carve_bit_identity`
+  PRIMARY, L3 A2D-1 source-hash WRAP-not-RELOCATE, L5/L6 window≡full, L7/L8 value grounds); the Mode-8
+  dispatch-pin hazard; the 2-D-adjoint deferral gate; the synthetic-d3 idiom.
+- **S1 ✅ DONE (2026-06-10), bit-identical:** new `orpheus/sn/sweep_strategy.py` (Protocol + `_SweepStrategy`
+  guard base + `_DAGWavefront` family + `CumprodScan`/`MovingFrontierWindow`/`FullFieldWavefront` thin
+  wrappers + `Compatibility`/`IncompatibleStrategy` + `SWEEP_STRATEGIES` + `default_for`); `SNMesh.is_cartesian`
+  (`curvature is None`); `transport_sweep` rewired to `default_for(sn_mesh).sweep(...)` (scattered branch retired;
+  moment-on-1-D guard moved into `CumprodScan`); `test_unified_sweep_dispatch.py` MIGRATED (spy→selection+routing,
+  `-O`-safe). Gates GREEN under `python -O`: **1622 passed / 0 failed** (86 anchor + 1164 broad sweep/operators/
+  solve/regression/spatial + 372 eigenvalue/primitives/verification); the cumprod-spine equivalence stays
+  `xfail` (S3 wires it). Regression drift = documented baseline (6920 ULP on 2d-aniso, within tol). elegance-enforcer
+  PASS-with-nits (2 inline nits applied). Docs: inbound xrefs to `sweep_strategy` kept as plain literals
+  (S5 adds the automodule + theory page; S1 stays code-only per the phase boundary). **NEXT = S2.**
 - **Depends on C3.0–C3.3 (all DONE):** the wavefront spine is already dimension-generic — the
   per-octant DAG `SweepDependencyGraph.from_cartesian(shape)` (C3.1), the diamond cell kernel
   `cell_kernel_batch` (C3.2a), the full-field walk `graph.apply`/`graph.residual` (C3.2b), and the

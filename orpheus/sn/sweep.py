@@ -211,28 +211,36 @@ def transport_sweep(
 
     Dispatch:
 
-    * 1-D meshes (``sn_mesh.reduced is not None``) →
-      :func:`_sweep_1d_unified` (slab, sphere, cylinder — one body via
-      the two-stratum cache).
-    * 2-D Cartesian → :func:`_sweep_2d_wavefront` (anti-diagonal
-      scheduling; Step 2.6 Q2 deferred).
+    The sweep algorithm is a first-class, selectable sweep strategy
+    (``orpheus.sn.sweep_strategy.SweepStrategy``; ``default_for`` picks the
+    default for the mesh).  This replaces the historical scattered branch —
+    the ``reduced is not None`` test here and the five ``not is_1d`` gates in
+    the operator algebra — with one polymorphic selection.  ``default_for``
+    reproduces the legacy choice exactly:
+
+    * 1-D meshes → ``CumprodScan`` (:func:`_sweep_1d_unified`; slab, sphere,
+      cylinder — one body via the two-stratum cache).
+    * 2-D Cartesian → ``MovingFrontierWindow`` (:func:`_sweep_2d_wavefront`;
+      anti-diagonal scheduling).
+
+    The ``moment_projection`` guard (moment output is 2-D Cartesian only)
+    now lives in ``CumprodScan.sweep`` — the strategy that cannot produce it
+    carries its own refusal.
+
+    (The strategy architecture's rendered API + theory page land in
+    Sweep-Strategy carve phase S5; this docstring names the symbols as
+    literals until then.)
     """
     Q = _unwrap_source(source)
-    reduced = sn_mesh.reduced
-    if reduced is not None:
-        if moment_projection is not None:
-            raise ValueError(
-                "transport_sweep: moment output (moment_projection given) is "
-                "2-D Cartesian only — 1-D/curvilinear meshes stay full-angular "
-                "(the Morel–Montry Carlson seed reads the per-ordinate iterate; "
-                "lesson L21).  Got a reduced (1-D) mesh."
-            )
-        return _sweep_1d_unified(
-            Q, sig_t, sn_mesh, boundary_flux,
-            initial_guess=initial_guess,
-        )
-    return _sweep_2d_wavefront(
-        Q, sig_t, sn_mesh, boundary_flux,
+    # Lazy import breaks the sweep ↔ sweep_strategy cycle: the strategy
+    # module wraps the ``_sweep_*`` functions defined here, so it imports
+    # ``sweep`` at module load; ``transport_sweep`` reaches back for the
+    # selector only at call time.
+    from .sweep_strategy import default_for
+
+    return default_for(sn_mesh).sweep(
+        Q, sig_t, boundary_flux,
+        initial_guess=initial_guess,
         moment_projection=moment_projection,
     )
 
