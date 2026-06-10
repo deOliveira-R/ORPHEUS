@@ -98,10 +98,33 @@ first-class `SweepStrategy` abstraction.
   artificial 45s cap) + operators/solve 524 passed/0 fail**. elegance-enforcer **PASS-with-nits** (both
   forward-looking/non-blocking: the d=1 `is_point` base is the more-honest data structure — phantom-axis route
   REJECTED; `det` is the SSOT of the free/determined partition — one-line forward-note added). diamond.py
-  kernel docstring de-staled ("d=2 PRODUCTION path" → "(d−1)-frontier"). **NEXT = S5** (frontend
+  kernel docstring de-staled ("d=2 PRODUCTION path" → "(d−1)-frontier").
+- **S4 POLISH DONE + committed (`dc5d5c9`, bit-identical):** review flagged the `for a in range(d)` frontier
+  loops as a latent-iterable smell. Profiling (cProfile, 64²/S8/4g) localized the regression delta to the
+  per-level abstraction layer (NOT the shared kernel — which is the floor and CANNOT be vectorized: its
+  left-fold `((σ_t+s₀)+s₁)` is load-bearing for d=2 bit-identity AND a `np.stack(...).sum(0)` is MEASURED 36%
+  SLOWER, the bit-identity is FREE). Made the latent iterables explicit: `_MovingFrontier.emit` zips the three
+  parallel per-axis collections (slabs ⨯ write-selectors ⨯ out_faces); `incoming` iterates the slabs directly;
+  `seed`/`shed` store ONE axis-tagged record PER PRESENT EDGE (no `None`-padding — the walk iterates the edges,
+  not the axes); the walk hoists the `(slice(None),*cell_idx)` selectors + builds `s_axes` via `zip`. BIT-
+  IDENTICAL (only the iteration shape changed); measured d=2 window/full-field ratio **0.909×→0.862×**, ~192k
+  fewer calls/walk; 529-test sweep/cartesian_2d/solve/keff_2d gate green. ⭐ **DEEP-DIVE → ISSUE #222 (the S5
+  HEADLINE):** conceptually `apply_windowed` is forward-substitution on a lower-triangular operator; the
+  anti-diagonal wavefront is ONE valid schedule, **row-march + x-scan is another** (VERIFIED ≡ wavefront @
+  2.2e-15, **1.75× faster** single-octant) — and the within-row recurrence IS the first-order linear scan the
+  1-D `CumprodScan` already uses (`ordinate_scan`), so it **UNIFIES 1-D `CumprodScan` + the 2-D window into one
+  scan-march primitive**, adopts the flux-independent `a_attenuation` two-stratum cache the wavefront lacks
+  (subsumes #206), and INHERITS the closed-form/pair-monoid conditioning robustness for free. The schedule is
+  TWO orthogonal axes — **schedule** (anti-diagonal / row-march) × **backend** (forward-sub / closed-form-scan /
+  division-free pair-monoid, the latter two dispatched by cumprod-underflow conditioning) — with
+  `FullFieldWavefront` as the unconditionally-stable ORACLE the fast scan is pinned against (the S1–S4 pattern).
+  ⚠ underflow-freedom is ALGORITHMIC not geometric: the "no internal boundary" geom change was BC-LAYER (the
+  r=0 zero-area face + the `a=0` pole reset SURVIVE; ERR-054/#209 still live) and gradual cumprod underflow is
+  intrinsic to the contractive recurrence — the pair-monoid backend already handles both. **NEXT = S5** (frontend
   `Compatibility` finalize; retire the d=2 orchestrators' hand-listed `str_x`/`str_y` onto a `streaming(axis)`
   axes-map + the `OctantLabel.sign_x/sign_y/streams_in_2d` 2-D shims — DEFERRED here because the orchestrators
-  stay 2-D until C3.6; Sphinx theory page via archivist).
+  stay 2-D until C3.6; Sphinx theory page via archivist) — and **fold #222 in as the S5 design headline**
+  (schedule × backend, wavefront-oracle-pinned), starting with a `test-architect` principled-equivalence plan.
 - **Depends on C3.0–C3.3 (all DONE):** the wavefront spine is already dimension-generic — the
   per-octant DAG `SweepDependencyGraph.from_cartesian(shape)` (C3.1), the diamond cell kernel
   `cell_kernel_batch` (C3.2a), the full-field walk `graph.apply`/`graph.residual` (C3.2b), and the
@@ -347,12 +370,29 @@ principle's "measured cost" exception may bite — settled by profiling the d=3 
 If it loses the speedup, the fix is a measured d=2 contiguous *fast-path kept alongside* the general
 frontier (pinned equivalent), never a d=1 exclusion.
 
-**S5 — Frontend compatibility + cleanup + docs.** `Compatibility(ok, reason)` finalized for the
-frontend. Retire the C3.2b elegance CONCERN — the `str_axes` hand-listed axis tuple at the
-orchestrators → the strategy holds an `axes`-keyed `sn_mesh.streaming(a)` map (ONE axis-order
+**S5 — Frontend compatibility + cleanup + docs + the SCAN-MARCH headline (#222).** `Compatibility(ok,
+reason)` finalized for the frontend. Retire the C3.2b elegance CONCERN — the `str_axes` hand-listed axis tuple
+at the orchestrators → the strategy holds an `axes`-keyed `sn_mesh.streaming(a)` map (ONE axis-order
 source). Retire the `OctantLabel.sign_x/y` / `streams_in_2d` 2-D shims. **Sphinx docs** for the
 strategy architecture (dispatch the `archivist`): the protocol, the hierarchy, the compatibility
 grid, the governing principle, the spine-as-always-available-capability story.
+
+⭐ **HEADLINE = ISSUE #222 (scan-march unification — READ THE ISSUE).** The S4 deep-dive proved the d-D DD
+sweep is forward-substitution on a lower-triangular operator; the anti-diagonal wavefront is ONE valid
+schedule, **row-march + x-scan** another (VERIFIED ≡ wavefront @ 2.2e-15, **1.75× faster** single-octant,
+reuses the 1-D `ordinate_scan` per line). This reframes S5 from "window vs scan as rival strategies" into
+**two orthogonal axes**: (1) **schedule** = anti-diagonal-wavefront / row-march; (2) **backend** =
+forward-sub / closed-form-scan / division-free pair-monoid (the latter two already dispatched by
+cumprod-underflow conditioning in `ordinate_scan`). `FullFieldWavefront` stays the unconditionally-stable
+ORACLE the fast scan-march is pinned against (the S1–S4 oracle-plus-fast-path pattern). The scan-march
+UNIFIES `CumprodScan` + the 2-D window into one primitive, adopts the flux-independent `a_attenuation`
+two-stratum cache the wavefront lacks (subsumes #206), and inherits conditioning robustness for free.
+⚠ underflow-freedom is ALGORITHMIC not geometric (the "no internal boundary" change was BC-layer; the r=0
+zero-area face + `a=0` pole reset SURVIVE — ERR-054/#209 live; gradual cumprod underflow is intrinsic; the
+pair-monoid handles both). START with a `test-architect` principled-equivalence plan (the wavefront oracle
+pins it at nulp; snapshots regenerate; a thick/long-chain conditioning test). SCOPE (a phase, not a polish):
+boundary-outflow shedding + moment-output mode + the matvec twin (`residual`) + d-generalization
+(`scan(x)∘march(y)`; the (y,z)-plane at 3-D) + per-line coefficients to keep the (d−1)-slab memory win.
 
 *Mapping to the original plan:* S1+S2 = the "C3.4/C3.5 strategy + matvec together" the user chose;
 S3–S5 subsume the original C3.4 (cumprod oracle + speedup) and C3.5 (orchestration d-generic,

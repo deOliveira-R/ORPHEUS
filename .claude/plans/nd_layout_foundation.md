@@ -159,7 +159,7 @@ per-level range recurrence]). ONE carried CONCERN → C3.6 acceptance item below
 
 **⏭ NEXT = the SWEEP-STRATEGY CARVE (C3.4 + C3.5), phase S5.**
 ⭐ **AUTHORITATIVE DESIGN + PER-PHASE STATUS = `.claude/plans/sn_sweep_strategy.md` (self-contained; READ FIRST).**
-⭐ **PROGRESS (2026-06-10): S0–S4 DONE + committed (worktree HEAD `dcb735f`).** S1 `f6b4ad5` (selectable
+⭐ **PROGRESS (2026-06-10): S0–S4 DONE + S4 POLISH + committed (worktree HEAD `dc5d5c9`).** S1 `f6b4ad5` (selectable
 sweep dispatch, bit-id) · S2 `e08573e` (matvec twin via `strategy.residual`, the 5 gates collapse, bit-id) ·
 S3 `37ce528`+`f7d2ea9` (`FullFieldWavefront` = the genuine d-generic spine via `_sweep_full_field`/
 `_apply_full_field` + `SNMesh.streaming(axis)`; d=1 cumprod≡spine equivalence @nulp; adapters retired) ·
@@ -172,11 +172,22 @@ RETAINED (profiled 0.909× full-field). d≥3 = fancy-index simplex (memory win 
 3-D quadrature). ⭐ Decision A resolved CONSERVATIVELY: `MovingFrontierWindow.supports` STAYS `d==2` (its
 orchestrator entry is the 2-D `_sweep_2d_wavefront`/`_apply_2d_cartesian` until C3.6) — the WALK is general,
 the STRATEGY selects narrow; NO `sweep_strategy.py` change. A2D-1 hash regen'd; retired
-`window_slots`/`_window_metadata`/`seed_x`/`seed_y`/`_bounds`.** All gates GREEN `-O`, elegance PASS (S1 nits
+`window_slots`/`_window_metadata`/`seed_x`/`seed_y`/`_bounds`.** · **S4 POLISH `dc5d5c9` (bit-id, review-driven):
+the `for a in range(d)` frontier loops were a latent-iterable smell → `emit` zips slabs⨯write⨯out_faces,
+`incoming` iterates slabs, `seed`/`shed` store one axis-tagged record per PRESENT edge (no None-padding); walk
+hoists the index tuples + `s_axes` via zip. Profiled d=2 ratio 0.909×→0.862×, ~192k fewer calls/walk; 529-test
+gate green. ⭐ DEEP-DIVE → ISSUE #222 (the S5 HEADLINE): the d-D sweep is forward-sub on a triangular operator;
+the anti-diagonal wavefront is ONE schedule, **row-march + x-scan another** (VERIFIED ≡ wavefront @2.2e-15,
+1.75× faster, reuses 1-D `ordinate_scan`) → UNIFIES `CumprodScan` + 2-D window into one scan-march primitive;
+schedule × backend (forward-sub / closed-form-scan / pair-monoid, conditioning-dispatched), wavefront =
+stable ORACLE; adopts the `a_attenuation` cache (subsumes #206). Kernel-fold bit-identity is FREE (np.stack
+36% slower); underflow-freedom is ALGORITHMIC not geometric (pole + `a=0` reset survive the BC-layer change;
+pair-monoid handles it).** All gates GREEN `-O`, elegance PASS (S1 nits
 applied / S2 clean / S3 zero nits / **S4 PASS-with-nits, both forward-only/non-blocking**), Sphinx clean.
 **NEXT = S5** (frontend `Compatibility` finalize; retire the d=2 orchestrators' hand-listed `str_x`/`str_y`
 onto a `streaming(axis)` axes-map + the `OctantLabel.sign_x/y`/`streams_in_2d` 2-D shims — DEFERRED in S4
-because the orchestrators stay 2-D until C3.6; Sphinx theory page via archivist).
+because the orchestrators stay 2-D until C3.6; Sphinx theory page via archivist — **AND fold ISSUE #222
+scan-march in as the S5 design HEADLINE: start with a `test-architect` principled-equivalence plan**).
 The original C3.4 ("wire a `_wavefront_1d_sweep` adapter") + C3.5 ("orchestration d-generic")
 were re-scoped in a 2026-06-10 design conversation around a first-class **`SweepStrategy`**
 abstraction (Strategy pattern, polymorphic dispatch — NOT an enum threaded into `transport_sweep`,
