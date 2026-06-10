@@ -179,13 +179,17 @@ class _LevelFrontier:
         for downstream cell ``f + e_a``); for the DETERMINED axis it equals
         ``read`` (the progression is the parity roll).
     seed :
-        Per-axis domain-edge inflow op: ``None`` (no edge cells this level) or
-        ``(slab_target, inflow_source)`` — scatter ``inflow[a][*inflow_source]``
-        into ``win[a][prev][*slab_target]`` before the gather.
+        Domain-edge inflow ops, ONE axis-tagged record
+        ``(axis, slab_target, inflow_source)`` per axis whose inflow edge is
+        present on this level (NOT a d-tuple padded with ``None`` — most
+        interior levels carry an empty tuple): scatter
+        ``inflow[axis][*inflow_source]`` into ``win[axis][prev][*slab_target]``
+        before the gather.
     shed :
-        Per-axis domain-edge outflow op: ``None`` or ``(out_mask, capture_target)``
-        — gather the kernel's outgoing ``out_faces[a][..., out_mask]`` into
-        ``capture[a][*capture_target]`` after the kernel.
+        Domain-edge outflow ops, same axis-tagged-record form
+        ``(axis, out_mask, capture_target)`` per present outflow edge: gather
+        the kernel's outgoing ``out_faces[axis][..., out_mask]`` into
+        ``capture[axis][*capture_target]`` after the kernel.
     """
 
     read: tuple
@@ -260,66 +264,66 @@ class _MovingFrontier:
         free = plan.free_bbox
         det = plan.det
         win = []
-        for a in range(len(plan.spatial_shape)):
+        for a, n_a in enumerate(plan.spatial_shape):
             shp = list(free)
             if a < det:                          # FREE axis: +1 ghost on coord a
-                shp[a] = plan.spatial_shape[a] + 1
+                shp[a] = n_a + 1
             win.append(np.zeros((N_oct, ng, 2, *shp)))
         self._win = tuple(win)
         self._plan = plan
 
     def seed(self, prev: int, lvl: int, inflow: tuple[np.ndarray, ...]) -> None:
-        r""":math:`\iota_*` — inject each axis's domain inflow into the slab at
-        this level's edge cells (so the subsequent :meth:`incoming` gather reads
-        them).  A no-op for an axis with no edge cell on this level."""
-        for a, op in enumerate(self._plan.levels[lvl].seed):
-            if op is None:
-                continue
-            slab_target, inflow_source = op
-            self._win[a][(slice(None), slice(None), prev) + slab_target] = (
-                inflow[a][(slice(None), slice(None)) + inflow_source]
+        r""":math:`\iota_*` — inject the domain inflow into the slab at this
+        level's edge cells (so the subsequent :meth:`incoming` gather reads
+        them).  Iterates only the axes that HAVE an inflow edge on this level."""
+        for axis, slab_target, inflow_source in self._plan.levels[lvl].seed:
+            self._win[axis][(slice(None), slice(None), prev) + slab_target] = (
+                inflow[axis][(slice(None), slice(None)) + inflow_source]
             )
 
     def incoming(self, prev: int, lvl: int) -> tuple[np.ndarray, ...]:
         """Gather the level's incoming face flux per axis (a zero-copy VIEW at
         d≤2 via the contiguous slice; a fancy-index copy at d≥3)."""
-        read = self._plan.levels[lvl].read
-        faces = []
-        for a in range(len(self._win)):
-            g = self._win[a][(slice(None), slice(None), prev) + read]
-            if self._plan.is_point:              # d=1: restore the n_diag axis
-                g = g[:, :, None]
-            faces.append(g)
-        return tuple(faces)
+        gate = (slice(None), slice(None), prev) + self._plan.levels[lvl].read
+        if self._plan.is_point:                  # d=1: restore the n_diag axis
+            return tuple(win_a[gate][:, :, None] for win_a in self._win)
+        return tuple(win_a[gate] for win_a in self._win)
 
     def emit(
         self, cur: int, lvl: int, out_faces: tuple[np.ndarray, ...],
     ) -> None:
         """Advance the frontier: scatter each axis's outgoing face flux into the
-        downstream slot (free axis ``f + e_a``; determined axis ``f``)."""
-        write = self._plan.levels[lvl].write
-        for a in range(len(self._win)):
-            out = out_faces[a][:, :, 0] if self._plan.is_point else out_faces[a]
-            self._win[a][(slice(None), slice(None), cur) + write[a]] = out
+        downstream slot (free axis ``f + e_a``; determined axis ``f``).
+
+        The three per-axis collections — the slabs, the per-axis write
+        selectors, and the kernel's outgoing faces — are advanced together
+        (``zip``), the determined-vs-free distinction already baked into each
+        selector by the plan.
+        """
+        point = self._plan.is_point
+        for win_a, write_a, out_a in zip(
+            self._win, self._plan.levels[lvl].write, out_faces,
+        ):
+            win_a[(slice(None), slice(None), cur) + write_a] = (
+                out_a[:, :, 0] if point else out_a
+            )
 
     def shed(
         self, lvl: int, out_faces: tuple[np.ndarray, ...],
         capture: tuple[np.ndarray, ...],
     ) -> None:
-        r""":math:`\iota^*` — capture each axis's domain outflow (the high-edge
-        cells' outgoing faces) into the per-axis ``capture`` arrays.  A no-op for
-        an axis with no outflow-edge cell on this level."""
-        for a, op in enumerate(self._plan.levels[lvl].shed):
-            if op is None:
-                continue
-            out_mask, capture_target = op
-            # d=1 degenerate point: the single edge cell, n_diag axis squeezed
-            # (the domain outflow has no perpendicular coordinate).
+        r""":math:`\iota^*` — capture the domain outflow (the high-edge cells'
+        outgoing faces) into the per-axis ``capture`` arrays.  Iterates only the
+        axes that HAVE an outflow edge on this level.  At the d=1 degenerate
+        point the single edge cell's n_diag axis is squeezed (the domain
+        outflow has no perpendicular coordinate)."""
+        point = self._plan.is_point
+        for axis, out_mask, capture_target in self._plan.levels[lvl].shed:
             shed_faces = (
-                out_faces[a][:, :, 0] if self._plan.is_point
-                else out_faces[a][:, :, out_mask]
+                out_faces[axis][:, :, 0] if point
+                else out_faces[axis][:, :, out_mask]
             )
-            capture[a][(slice(None), slice(None)) + capture_target] = shed_faces
+            capture[axis][(slice(None), slice(None)) + capture_target] = shed_faces
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -598,29 +602,31 @@ class SweepDependencyGraph:
                         write.append(tuple(w))
                 else:
                     write.append(read)
-            # SEED — per axis: the inflow-edge cells (LOCAL coord_a == 0).
-            seed: list[tuple | None] = []
+            # SEED — only the axes whose inflow edge (LOCAL coord_a == 0) is
+            # PRESENT on this level (an axis-tagged record per real edge, NOT a
+            # d-tuple padded with ``None``): the walk iterates the edges, never
+            # the axes — most interior levels touch no edge at all.
+            seed: list[tuple] = []
             for a in range(d):
                 mask = lcell[a] == 0
                 if not mask.any():
-                    seed.append(None)
                     continue
                 slab_target = tuple(c[mask] for c in lfree)
                 inflow_source = tuple(
                     gcell[b][mask] for b in range(d) if b != a
                 )
-                seed.append((slab_target, inflow_source))
-            # SHED — per axis: the outflow-edge cells (LOCAL coord_a == n_a−1).
-            shed: list[tuple | None] = []
+                seed.append((a, slab_target, inflow_source))
+            # SHED — only the axes whose outflow edge (LOCAL coord_a == n_a−1) is
+            # present on this level (same axis-tagged-record form as SEED).
+            shed: list[tuple] = []
             for a in range(d):
                 mask = lcell[a] == shape[a] - 1
                 if not mask.any():
-                    shed.append(None)
                     continue
                 capture_target = tuple(
                     gcell[b][mask] for b in range(d) if b != a
                 )
-                shed.append((mask, capture_target))
+                shed.append((a, mask, capture_target))
             plan_levels.append(_LevelFrontier(
                 read=read, write=tuple(write),
                 seed=tuple(seed), shed=tuple(shed),
@@ -889,34 +895,36 @@ class SweepDependencyGraph:
           term-for-term — only the accumulation order differs.
         """
         N_oct, ng = inflow[0].shape[0], inflow[0].shape[1]
-        d = self.ndim
         frontier = _MovingFrontier(N_oct, ng, self.window_plan)
         for k, cell_idx in enumerate(self.levels):
             cur, prev = k % 2, (k - 1) % 2
+            cell = (slice(None), *cell_idx)              # (·, *cell) selector
+            cell_g = (slice(None), *cell)                # (·, ·, *cell) selector
             frontier.seed(prev, k, inflow)
             in_faces = frontier.incoming(prev, k)
             psi_avg, out_faces = cell_update.cell_kernel_batch(
                 psi_in=in_faces,
+                # s_axes — the level's streaming coefficient per axis: the
+                # per-axis streaming array and the level's per-axis cell index
+                # advanced TOGETHER (the latent zip, not range(d) + indexing).
                 s_axes=tuple(
-                    str_axes_octant[a][:, cell_idx[a]][:, None, :]
-                    for a in range(d)
+                    s[:, c][:, None, :]
+                    for s, c in zip(str_axes_octant, cell_idx)
                 ),
-                sigt_cells=sig_t[(slice(None), *cell_idx)],
-                Q_cells=Q_octant[(slice(None), slice(None), *cell_idx)],
+                sigt_cells=sig_t[cell],
+                Q_cells=Q_octant[cell_g],
             )
             frontier.emit(cur, k, out_faces)
             frontier.shed(k, out_faces, capture)
             if moment_buf is None:
-                scalar_flux_buf[(slice(None), *cell_idx)] += np.einsum(
+                scalar_flux_buf[cell] += np.einsum(
                     "ngd,n->gd", psi_avg, weights_octant,
                 )
-                angular_flux_octant[
-                    (slice(None), slice(None), *cell_idx)
-                ] = psi_avg
+                angular_flux_octant[cell_g] = psi_avg
             else:
-                moment_buf[
-                    (slice(None), slice(None), slice(None), *cell_idx)
-                ] += np.einsum("nlm,ngd,n->lmgd", Y_octant, psi_avg, weights_octant)
+                moment_buf[(slice(None), *cell_g)] += np.einsum(
+                    "nlm,ngd,n->lmgd", Y_octant, psi_avg, weights_octant,
+                )
 
     def residual_windowed(
         self,
@@ -938,25 +946,27 @@ class SweepDependencyGraph:
         the full bulk residual) — only the interior FACE cochain is windowed.
         """
         N_oct, ng = inflow[0].shape[0], inflow[0].shape[1]
-        d = self.ndim
         frontier = _MovingFrontier(N_oct, ng, self.window_plan)
         for k, cell_idx in enumerate(self.levels):
             cur, prev = k % 2, (k - 1) % 2
+            cell_g = (slice(None), slice(None), *cell_idx)   # (·, ·, *cell)
             frontier.seed(prev, k, inflow)
             in_faces = frontier.incoming(prev, k)
             res, out_faces = cell_update.residual_kernel_batch(
-                psi_bar=psi_avg_probe_octant[(slice(None), slice(None), *cell_idx)],
+                psi_bar=psi_avg_probe_octant[cell_g],
                 psi_in=in_faces,
+                # s_axes — streaming array ⨯ level cell index, advanced together
+                # (the latent zip, not range(d) + indexing).
                 s_axes=tuple(
-                    str_axes_octant[a][:, cell_idx[a]][:, None, :]
-                    for a in range(d)
+                    s[:, c][:, None, :]
+                    for s, c in zip(str_axes_octant, cell_idx)
                 ),
                 sigt_cells=sig_t[(slice(None), *cell_idx)],
-                Q_cells=Q_octant[(slice(None), slice(None), *cell_idx)],
+                Q_cells=Q_octant[cell_g],
             )
             frontier.emit(cur, k, out_faces)
             frontier.shed(k, out_faces, capture)
-            residual_octant[(slice(None), slice(None), *cell_idx)] = res
+            residual_octant[cell_g] = res
 
 
 __all__ = [
