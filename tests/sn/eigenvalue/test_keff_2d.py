@@ -59,7 +59,13 @@ class TestHomogeneousExact:
         materials = {0: mix}
 
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = Quadrature.lebedev(order=17)
+        # Homogeneous infinite-medium k_inf = νΣ_f/Σ_a is flux-SHAPE-INDEPENDENT
+        # → every quadrature gives the SAME eigenvalue. Genuine 2-D Cartesian box
+        # ⟹ O_h symmetry, so the SN-canonical level-symmetric set is the right
+        # tool; Lebedev (O_h N=110 doe=17) is the SO(3) moment cubature, overkill
+        # here. level_symmetric(4) (SAME O_h group, N=24 doe=3). Verified:
+        # err ≤ 2.76e-12 (1G exact, 2G/4G to round-off) at the EXISTING 1e-8 tol.
+        quad = Quadrature.level_symmetric(sn_order=4)
         solver = SNSolver(SNMesh(mesh, quad, materials), max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
@@ -97,7 +103,13 @@ class TestMultiGroupEigenvector:
 
         materials = {0: mix}
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = Quadrature.lebedev(order=17)
+        # The group-spectrum eigenvector of a HOMOGENEOUS medium is the
+        # quadrature-INDEPENDENT (Σ_t−Σ_s^T)⁻¹·χ⊗(νΣ_f) eigenvector — the spatial
+        # flux is flat, so the angular cubature does not enter the group ratio.
+        # Genuine 2-D Cartesian box ⟹ O_h; level_symmetric(4) (O_h N=24 doe=3)
+        # replaces Lebedev (O_h N=110 doe=17 moment cubature). Verified: group
+        # ratio matches the analytical eigenvector to 1.33e-11 (rtol 1e-6).
+        quad = Quadrature.level_symmetric(sn_order=4)
         solver = SNSolver(SNMesh(mesh, quad, materials), max_inner=500, inner_tol=1e-10)
 
         phi = solver.initial_flux_distribution()
@@ -210,7 +222,12 @@ class TestAnisotropicScatteringKeff:
         case = get("sn_slab_2eg_1rg")
         mix = next(iter(case.materials.values()))
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = Quadrature.lebedev(order=17)
+        # Default-P0 vs explicit-scattering_order=0 EQUIVALENCE on the SAME quad
+        # (the two solvers share this one `quad`) → the agreement holds for ANY
+        # quadrature. Genuine 2-D Cartesian box ⟹ O_h; level_symmetric(4) (O_h
+        # N=24 doe=3) replaces Lebedev (O_h N=110 doe=17). Verified: |Δ|=0.0
+        # (bit-identical) at the EXISTING 1e-14 tol.
+        quad = Quadrature.level_symmetric(sn_order=4)
 
         solver_default = SNSolver(SNMesh(mesh, quad, {0: mix}), max_inner=500, inner_tol=1e-10)
         phi = solver_default.initial_flux_distribution()
@@ -246,7 +263,18 @@ class TestAnisotropicScatteringKeff:
         mat = np.zeros((6, 2), dtype=int)
         mat[:3, :] = 2
         mesh = _uniform_2d(6, 2, 0.2, mat)
-        quad = Quadrature.lebedev(order=17)
+        # Genuine 2-D Cartesian (nx>1, ny>1, x-heterogeneous fuel|mod) ⟹ O_h
+        # symmetry, so the SN-canonical level-symmetric set is the right tool;
+        # Lebedev is the SO(3) spherical-harmonic-MOMENT cubature (over-quad
+        # here: O_h N=110 doe=17). level_symmetric(4) is the SAME O_h group at
+        # N=24 doe=3, and doe=3 EXACTLY integrates the degree-2 Y₁·Y₁ moment
+        # products the P1 scattering source needs, so the anisotropy effect is
+        # genuine — not vacuous. The assertion is EFFECT-PRESENCE (P1 keff
+        # measurably ≠ P0 keff, |Δ|>1e-4), not a value vs a quadrature-dependent
+        # reference, and both P0/P1 legs use the SAME swapped quad. Verified:
+        # |Δ|=4.10e-3 (33× the 1e-4 bar; Lebedev gives 3.34e-3 — same effect).
+        # 45.2s → 8.7s.
+        quad = Quadrature.level_symmetric(sn_order=4)
 
         keffs = {}
         for L in [0, 1]:
@@ -278,7 +306,11 @@ class TestBicgstabPnScattering:
         case = get("sn_slab_2eg_1rg")
         mix = next(iter(case.materials.values()))
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = Quadrature.lebedev(order=17)
+        # SI-vs-Krylov EQUIVALENCE at P0 on the SAME quad (both inners solve the
+        # identical operator) → holds for ANY quadrature; swap both legs. Genuine
+        # 2-D Cartesian box ⟹ O_h; level_symmetric(4) (O_h N=24 doe=3) replaces
+        # Lebedev (O_h N=110 doe=17). Verified: |SI−BC|=1.36e-11 (<1e-4).
+        quad = Quadrature.level_symmetric(sn_order=4)
 
         keffs = {}
         for label, solver_type in [("SI", "source_iteration"), ("BC", "krylov")]:
@@ -300,7 +332,12 @@ class TestBicgstabPnScattering:
         """BiCGSTAB with P1 on homogeneous must match P0 (isotropic flux)."""
         mix = get_mixture("A", "2g")
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = Quadrature.lebedev(order=17)
+        # P0-vs-P1 EQUIVALENCE on a HOMOGENEOUS medium: the flux is isotropic, so
+        # the P1 (ℓ=1) moments vanish and P1 ≡ P0 for ANY quadrature; swap both
+        # legs (same `quad`). Genuine 2-D Cartesian box ⟹ O_h; level_symmetric(4)
+        # (O_h N=24 doe=3) replaces Lebedev (O_h N=110 doe=17). Verified:
+        # |k0−k1|=3.88e-13 (<1e-4).
+        quad = Quadrature.level_symmetric(sn_order=4)
 
         keffs = {}
         for L in [0, 1]:
@@ -323,7 +360,12 @@ class TestBicgstabPnScattering:
         """BiCGSTAB and source iteration must agree at P1 on homogeneous."""
         mix = get_mixture("A", "2g")
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = Quadrature.lebedev(order=17)
+        # SI-vs-Krylov EQUIVALENCE at P1 on a HOMOGENEOUS medium, SAME quad (both
+        # inners solve the identical P1 operator) → holds for ANY quadrature; swap
+        # both legs. Genuine 2-D Cartesian box ⟹ O_h; level_symmetric(4) (O_h
+        # N=24 doe=3) replaces Lebedev (O_h N=110 doe=17). Verified:
+        # |SI−BC|=1.40e-11 (<1e-3).
+        quad = Quadrature.level_symmetric(sn_order=4)
 
         keffs = {}
         for label, solver_type in [("SI", "source_iteration"), ("BC", "krylov")]:
@@ -353,7 +395,11 @@ class TestSolveFixedSource:
         mat = np.zeros((nx, ny), dtype=int)
         mat[:3, :] = 2
         mesh = _uniform_2d(nx, ny, 0.2, mat)
-        quad = Quadrature.lebedev(order=17)
+        # The assertion is quadrature-AGNOSTIC: solve_fixed_source must produce a
+        # finite, non-identical update (one SI step moves the flux) — true for any
+        # consistent SN set. Genuine 2-D Cartesian (nx>1, ny>1) ⟹ O_h;
+        # level_symmetric(4) (O_h N=24 doe=3) replaces Lebedev (O_h N=110 doe=17).
+        quad = Quadrature.level_symmetric(sn_order=4)
         solver = SNSolver(SNMesh(mesh, quad, materials))
 
         phi = solver.initial_flux_distribution()
@@ -370,7 +416,11 @@ class TestSolveFixedSource:
         case = get("sn_slab_2eg_1rg")
         mix = next(iter(case.materials.values()))
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
-        quad = Quadrature.lebedev(order=17)
+        # SI-vs-Krylov EQUIVALENCE on the SAME quad (both inners solve the
+        # identical operator) → holds for ANY quadrature; swap both legs. Genuine
+        # 2-D Cartesian box ⟹ O_h; level_symmetric(4) (O_h N=24 doe=3) replaces
+        # Lebedev (O_h N=110 doe=17). Verified: |SI−BC|=1.36e-11 (<1e-5).
+        quad = Quadrature.level_symmetric(sn_order=4)
 
         solver_si = SNSolver(SNMesh(mesh, quad, {0: mix}), inner_solver="source_iteration", max_inner=500, inner_tol=1e-10)
         phi = solver_si.initial_flux_distribution()
@@ -432,8 +482,12 @@ class TestSIKrylov2DEquivalence:
         case = get(f"sn_slab_{ng_key[0]}eg_1rg")
         mix = next(iter(case.materials.values()))
         mesh = _uniform_2d(2, 2, 0.5, np.zeros((2, 2), dtype=int))
+        # Homogeneous infinite-medium k_inf is flux-SHAPE-INDEPENDENT → the
+        # default-entry SI eigenvalue is the SAME for any quadrature. Genuine 2-D
+        # Cartesian box ⟹ O_h; level_symmetric(4) (O_h N=24 doe=3) replaces
+        # Lebedev (O_h N=110 doe=17). Verified: err ≤ 1.68e-11 at the 1e-8 tol.
         sol = solve_sn(
-            {0: mix}, mesh, Quadrature.lebedev(order=17),
+            {0: mix}, mesh, Quadrature.level_symmetric(sn_order=4),
             keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10,
         )
         assert np.isfinite(sol.keff)
@@ -459,7 +513,15 @@ class TestSIKrylov2DEquivalence:
         mat = np.zeros((nx, ny), dtype=int)
         mat[:4, :] = 2  # fuel | moderator split across x → non-flat flux
         mesh = _uniform_2d(nx, ny, 0.25, mat)
-        quad = Quadrature.lebedev(order=17)
+        # SI-vs-Krylov EQUIVALENCE on a genuine 2-D Cartesian (8×4, fuel|mod)
+        # heterogeneous case ⟹ O_h symmetry. Both inners solve the identical
+        # (L+C−S−B)ψ=q operator on the SAME quadrature, so the equivalence holds
+        # for ANY quadrature — swap both sides together. level_symmetric(4) (O_h,
+        # N=24 doe=3) replaces Lebedev (O_h, N=110 doe=17 — the SO(3) moment
+        # cubature, over-quadrature for a plain 2-D sweep). Verified: non-flat
+        # guard max/min=1.455 (>1.2 fires), SI≡Krylov keff Δ=3.76e-10 (<1e-7) and
+        # flux SHAPE max-diff 2.64e-9 (within rtol 1e-6/atol 1e-8). 138s → 14.6s.
+        quad = Quadrature.level_symmetric(sn_order=4)
 
         sol_si = solve_sn(
             materials, mesh, quad, inner_solver="source_iteration",
@@ -519,7 +581,15 @@ class TestSIKrylov2DEquivalence:
         mat = np.zeros((nx, ny), dtype=int)
         mat[:4, :] = 2  # fuel | moderator split across x → non-flat flux
         mesh = _uniform_2d(nx, ny, 0.25, mat)
-        quad = Quadrature.lebedev(order=17)
+        # Jacobi-vs-boundary-G-S schedule EQUIVALENCE on a genuine 2-D Cartesian
+        # (8×4, fuel|mod) heterogeneous case ⟹ O_h symmetry. Both schedules reach
+        # the SAME within-group fixed point on the SAME quadrature (only the inner
+        # SI spectral rate differs), so the equivalence holds for ANY quadrature —
+        # swap both legs together. level_symmetric(4) (O_h, N=24 doe=3) replaces
+        # Lebedev (O_h, N=110 doe=17). Verified: non-flat guard max/min=1.455
+        # (>1.2 fires, B coupling exercised), Jacobi≡G-S keff Δ=2.59e-11 (<1e-8)
+        # and flux SHAPE max-diff 3.92e-10 (within rtol 1e-6/atol 1e-8). 37s → 7.7s.
+        quad = Quadrature.level_symmetric(sn_order=4)
         kw = dict(keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10)
 
         sol_jac = solve_sn(materials, mesh, quad, inner_schedule="jacobi", **kw)
@@ -566,7 +636,15 @@ class TestSIKrylov2DEquivalence:
         single fixed point under refinement).
         """
         materials = {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
-        quad = Quadrature.lebedev(order=17)
+        # Genuine 2-D Cartesian (n×n, x-heterogeneous fuel|mod) ⟹ O_h symmetry,
+        # so the SN-canonical level-symmetric set is the right tool; Lebedev is
+        # the SO(3) moment cubature (over-quad: O_h N=110 doe=17). The assertion
+        # is a CONVERGENCE TREND (the keff Cauchy diffs shrink, d2<d1, under mesh
+        # refinement), which is quadrature-AGNOSTIC: any consistent SN set
+        # converges, so the trend holds for any quadrature. level_symmetric(4)
+        # (O_h, N=24 doe=3). Verified: d1(4→8)=4.34e-4, d2(8→16)=1.07e-4 (d2<d1).
+        # 77s → 48s.
+        quad = Quadrature.level_symmetric(sn_order=4)
         keffs = []
         for n in (4, 8, 16):
             mat = np.zeros((n, n), dtype=int)
