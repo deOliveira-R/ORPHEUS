@@ -757,8 +757,8 @@ class SweepDependencyGraph:
             in_x, in_y = frontier.incoming(prev, i0, i1)
             psi_avg, (out_x, out_y) = cell_update.cell_kernel_batch(
                 psi_in=(in_x, in_y),
-                s=(str_x_octant[:, ii][:, None, :],
-                   str_y_octant[:, jj][:, None, :]),
+                s_axes=(str_x_octant[:, ii][:, None, :],
+                        str_y_octant[:, jj][:, None, :]),
                 sigt_cells=sig_t[:, ii, jj], Q_cells=Q_octant[:, :, ii, jj],
             )
             frontier.emit(cur, i0, i1, out_x, out_y)
@@ -820,8 +820,8 @@ class SweepDependencyGraph:
             res, (out_x, out_y) = cell_update.residual_kernel_batch(
                 psi_bar=psi_avg_probe_octant[:, :, ii, jj],
                 psi_in=(in_x, in_y),
-                s=(str_x_octant[:, ii][:, None, :],
-                   str_y_octant[:, jj][:, None, :]),
+                s_axes=(str_x_octant[:, ii][:, None, :],
+                        str_y_octant[:, jj][:, None, :]),
                 sigt_cells=sig_t[:, ii, jj], Q_cells=Q_octant[:, :, ii, jj],
             )
             frontier.emit(cur, i0, i1, out_x, out_y)

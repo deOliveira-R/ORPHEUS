@@ -273,15 +273,15 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
     def cell_kernel_batch(
         self,
         *,
-        psi_in: tuple[np.ndarray, ...],  # d arrays, each (N_oct, ng, n_diag) — incoming face flux per axis
-        s: tuple[np.ndarray, ...],       # d arrays, each (N_oct, 1, n_diag) — 2|μ_a|/Δa per axis
-        sigt_cells: np.ndarray,          # (ng, n_diag) — Σ_t on the level
-        Q_cells: np.ndarray,             # (N_oct or 1, ng, n_diag) — weight-normalised
+        psi_in: tuple[np.ndarray, ...],   # d arrays, each (N_oct, ng, n_diag) — incoming face flux per axis
+        s_axes: tuple[np.ndarray, ...],   # d arrays, each (N_oct, 1, n_diag) — streaming coeff 2|μ_a|/Δa per axis
+        sigt_cells: np.ndarray,           # (ng, n_diag) — Σ_t on the level
+        Q_cells: np.ndarray,              # (N_oct or 1, ng, n_diag) — weight-normalised
     ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
         r"""Pure batched WDD cell update — dimension-generic, NO storage access.
 
         Given the per-axis incoming face fluxes ``psi_in`` + streaming
-        coefficients ``s`` (one entry per spatial axis, ``d = 1, 2, 3``) +
+        coefficients ``s_axes`` (one entry per spatial axis, ``d = 1, 2, 3``) +
         source on one anti-hyperplane level, returns ``(psi_avg, psi_out)``
         where ``psi_out`` is the d-tuple of outgoing face fluxes (one per
         axis). This is the **single source of the DD cell math** (Cardinal
@@ -293,6 +293,16 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         — the storage-B d=2 PRODUCTION path). The two differ ONLY in how the
         incoming faces are gathered and the outgoing faces scattered — the cell
         algebra is identical, so the window walk and the oracle cannot drift.
+
+        Axis convention
+        ---------------
+
+        Element ``a`` of every per-axis tuple (``psi_in``, ``s_axes``, and the
+        returned ``psi_out``) is spatial axis ``a`` — the SAME axis order as
+        :attr:`~orpheus.sn.sweep_graph.OctantLabel.signs` and
+        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.from_cartesian`'s
+        ``shape``. The tuples are positional-by-axis; the caller MUST build
+        and unpack them in axis order (``[0]`` = x, ``[1]`` = y, ``[2]`` = z).
 
         Operation-order discipline (and d=2 bit-identity)
         -------------------------------------------------
@@ -310,7 +320,7 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         """
         denom = sigt_cells                                 # (ng, n_diag)
         numer = Q_cells                                    # (N_oct or 1, ng, n_diag)
-        for s_a, in_a in zip(s, psi_in):
+        for s_a, in_a in zip(s_axes, psi_in):
             denom = denom + s_a                            # left fold → (N_oct, ng, n_diag)
             numer = numer + s_a * in_a
         psi_avg = numer / denom                            # (N_oct, ng, n_diag)
@@ -322,18 +332,20 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         *,
         psi_bar: np.ndarray,             # (N_oct, ng, n_diag) — the probe cell-average
         psi_in: tuple[np.ndarray, ...],  # d arrays, each (N_oct, ng, n_diag)
-        s: tuple[np.ndarray, ...],       # d arrays, each (N_oct, 1, n_diag)
+        s_axes: tuple[np.ndarray, ...],  # d arrays, each (N_oct, 1, n_diag) — streaming coeff per axis
         sigt_cells: np.ndarray,          # (ng, n_diag)
         Q_cells: np.ndarray,             # (N_oct or 1, ng, n_diag)
     ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
         r"""Pure batched DD operator residual — dimension-generic, NO storage.
 
-        The apply-direction companion of :meth:`cell_kernel_batch`: evaluates
-        :math:`r = (\Sigma_t + \sum_a s_a)\,\psi_{\rm bar} − (Q + \sum_a
-        s_a\,\psi^{\rm in}_a)` at the PROBE cell-average, and reconstructs the
-        outgoing faces from the probe (:math:`\psi^{\rm out}_a = 2\psi_{\rm bar}
-        − \psi^{\rm in}_a`). Returns ``(residual, psi_out)`` with ``psi_out``
-        the d-tuple of outgoing faces. Single source of the matvec cell math,
+        The apply-direction companion of :meth:`cell_kernel_batch` (same
+        positional-by-axis tuple convention — see its "Axis convention"):
+        evaluates :math:`r = (\Sigma_t + \sum_a s_a)\,\psi_{\rm bar} − (Q +
+        \sum_a s_a\,\psi^{\rm in}_a)` at the PROBE cell-average, and
+        reconstructs the outgoing faces from the probe
+        (:math:`\psi^{\rm out}_a = 2\psi_{\rm bar} − \psi^{\rm in}_a`). Returns
+        ``(residual, psi_out)`` with ``psi_out`` the d-tuple of outgoing faces.
+        Single source of the matvec cell math,
         shared by the full-field walk (:meth:`residual_batch`, driven by
         :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.residual` — the
         verification ORACLE) and the window PRODUCTION walk
@@ -344,7 +356,7 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         """
         denom = sigt_cells                                 # (ng, n_diag)
         numer = Q_cells                                    # (N_oct or 1, ng, n_diag)
-        for s_a, in_a in zip(s, psi_in):
+        for s_a, in_a in zip(s_axes, psi_in):
             denom = denom + s_a                            # left fold
             numer = numer + s_a * in_a
         residual = denom * psi_bar - numer                 # (N_oct, ng, n_diag)
@@ -428,7 +440,7 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         # (x, y) face/streaming pair as the d-tuples.
         psi_avg, (psi_out_x, psi_out_y) = self.cell_kernel_batch(
             psi_in=(psi_in_x, psi_in_y),
-            s=(sx, sy), sigt_cells=sigt_cells, Q_cells=Q_cells,
+            s_axes=(sx, sy), sigt_cells=sigt_cells, Q_cells=Q_cells,
         )
 
         # Spatial closure — scatter outgoing face fluxes back into the
@@ -498,7 +510,7 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         # Pattern 2: shared d-generic residual cell math (full-field oracle).
         residual, (psi_out_x, psi_out_y) = self.residual_kernel_batch(
             psi_bar=psi_bar, psi_in=(psi_in_x, psi_in_y),
-            s=(sx, sy), sigt_cells=sigt_cells, Q_cells=Q_cells,
+            s_axes=(sx, sy), sigt_cells=sigt_cells, Q_cells=Q_cells,
         )
 
         # Spatial closure with the PROBE — propagate edges downstream so
