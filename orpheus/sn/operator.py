@@ -137,6 +137,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.projection import MomentProjection
     from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
     from .spatial.pole_angular_closure import PoleAngularClosure
+    from .sweep_strategy import SweepStrategy
 
 __all__ = [
     "StreamingOperator",
@@ -1392,10 +1393,10 @@ class StreamingOperator(LinearOperatorMixin):
         r"""Subtractive forward action :math:`L\,\psi = M(\psi;\sigma_t)
         - \sigma_t \odot \psi.bulk`.
 
-        Routes through the geometry-agnostic
-        :func:`_transport_operator_matvec_unified` for 1-D slab, sphere,
-        and cylinder; through :meth:`_apply_2d_cartesian` (L2-native
-        FD kernel) for 2-D Cartesian.
+        Geometry dispatch is the polymorphic :attr:`sweep_strategy` (the
+        matvec twin of the forward sweep): 1-D slab/sphere/cylinder →
+        :meth:`_apply_1d` (``CumprodScan``); 2-D Cartesian →
+        :meth:`_apply_2d_cartesian` (``MovingFrontierWindow``).
 
         Resolution A — :math:`(L + C).{\rm apply}(\psi) \equiv
         M(\psi;\sigma_t)` bit-exact: the per-cell σ_t·ψ cancellation
@@ -1434,8 +1435,6 @@ class StreamingOperator(LinearOperatorMixin):
             layout-assigned trace slots (non-zero at outer face for
             curvilinear; non-zero at outer + inner faces for slab).
         """
-        from orpheus.transport.fields.angular_flux import AngularFlux
-        from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
         if not isinstance(psi, TimedFullField):
@@ -1447,41 +1446,47 @@ class StreamingOperator(LinearOperatorMixin):
                 "explicit ``TimedFullField(bulk=..., boundary=...)``."
             )
 
-        sn_mesh = self.sn_mesh
-        if sn_mesh is not psi.bulk.mesh:
+        if self.sn_mesh is not psi.bulk.mesh:
             raise ValueError(
                 "StreamingOperator.apply: operator and composite must "
                 "share the SAME SNMesh instance (mesh-identity invariant)."
             )
 
-        curv = getattr(sn_mesh, "curvature", None)
-        if curv is None and not sn_mesh.is_1d:
-            # 2-D Cartesian — D-H.2-C4d L2-native FD kernel.
-            # T.4 Q1 = hybrid: this path stays procedural; A2D-1
-            # source-hash defensive pin guards against silent edits.
-            return self._apply_2d_cartesian(psi)
+        # Geometry dispatch is the polymorphic :attr:`sweep_strategy` — the
+        # matvec twin of the forward sweep (L21: sweep and matvec are
+        # different applications of the same operator). 1-D → CumprodScan
+        # (the geometry-blind :meth:`_apply_1d`); 2-D Cartesian →
+        # MovingFrontierWindow (:meth:`_apply_2d_cartesian`). The scattered
+        # ``curv is None and not is_1d`` branch is retired into
+        # ``strategy.residual``.
+        return self.sweep_strategy.residual(self, psi)
 
-        # 1-D unified path (slab + sphere + cylinder) — Wave T post-T.5
-        # matvec retirement.  Production hot path uses
-        # :meth:`_MSpatialOperatorSum._compute_LpC` (single-emission
-        # legacy matvec body, inlined as a class method) for
-        # perf-optimal ``(L+C)·ψ`` computation; ``StreamingOperator.apply``
-        # then subtracts ``σ_t·ψ`` to recover L per Resolution A.
-        #
-        # The M_spatial / M_angular_redist algebra decomposition is
-        # exposed for introspection via :meth:`_compute_decomposition`
-        # (slower; dual-emission), used by the per-property apply
-        # paths in ``M_spatial.apply`` and ``M_angular_redist.apply``
-        # — NOT on the production hot path because re-splitting and
-        # re-summing is wasted work when ``StreamingOperator.apply``
-        # just needs (L+C).
+    def _apply_1d(self, psi: "TimedFullField") -> "TimedFullField":
+        r"""1-D ``L·ψ`` (slab + sphere + cylinder) — the CumprodScan matvec twin.
+
+        The single-emission ``(L+C)·ψ`` via
+        :meth:`_MSpatialOperatorSum._compute_LpC` (perf-optimal, no dual
+        emission), then ``− σ_t·ψ`` to recover ``L`` per Resolution A.
+        Extracted verbatim from :meth:`apply`'s 1-D branch by the
+        SweepStrategy carve (S2) so the geometry dispatch is the polymorphic
+        ``strategy.residual`` — bit-identical.
+
+        The ``M_spatial`` / ``M_angular_redist`` algebra decomposition is
+        exposed for introspection via :meth:`_compute_decomposition` (slower,
+        dual-emission); the hot path uses the single-emission ``_compute_LpC``
+        because re-splitting and re-summing is wasted work when ``L·ψ`` is all
+        that is needed.
+        """
+        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.timed_full_field import TimedFullField
+
         LpC_result = self.M_spatial._compute_LpC(psi)
         cell_values = (
             LpC_result.bulk.values
             - self.sigma_t[None] * psi.bulk.values
         )
         return TimedFullField(
-            bulk=AngularSourceSink.from_mesh(cell_values, sn_mesh),
+            bulk=AngularSourceSink.from_mesh(cell_values, self.sn_mesh),
             boundary=LpC_result.boundary,
             _history=(),
             history_depth=psi.history_depth,
@@ -1510,7 +1515,6 @@ class StreamingOperator(LinearOperatorMixin):
         cylinder) — ``derivations/diagnostics/diag_p42_adjoint_oracle.py``;
         the reciprocity gate ``test_phase_c_gates`` Gate 1.3 pins it in CI.
         """
-        from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
         if not isinstance(phi, TimedFullField):
@@ -1518,29 +1522,66 @@ class StreamingOperator(LinearOperatorMixin):
                 "StreamingOperator.apply_transpose: expected TimedFullField, "
                 f"got {type(phi).__name__}."
             )
-        sn_mesh = self.sn_mesh
-        if sn_mesh is not phi.bulk.mesh:
+        if self.sn_mesh is not phi.bulk.mesh:
             raise ValueError(
                 "StreamingOperator.apply_transpose: operator and composite "
                 "must share the SAME SNMesh instance (mesh-identity invariant)."
             )
-        curv = getattr(sn_mesh, "curvature", None)
-        if curv is None and not sn_mesh.is_1d:
-            raise NotImplementedError(
-                "StreamingOperator.apply_transpose: the 2-D Cartesian adjoint "
-                "is deferred (O.2b lands the 1-D reverse sweep first)."
-            )
+        # The adjoint matvec twin routes through the same polymorphic
+        # :attr:`sweep_strategy` as the forward :meth:`apply`. CumprodScan
+        # implements the 1-D reverse sweep (:meth:`_apply_1d_transpose`); the
+        # multi-D Cartesian DAG strategies raise ``NotImplementedError`` (the
+        # reverse sweep is deferred — O.2b lands the 1-D one first; the mesh
+        # is compatible, only the adjoint feature is deferred).
+        return self.sweep_strategy.residual_transpose(self, phi)
+
+    def _apply_1d_transpose(self, phi: "TimedFullField") -> "TimedFullField":
+        r"""1-D ``Lᵀ·φ`` (slab + sphere + cylinder) — the CumprodScan adjoint twin.
+
+        ``(L+C)ᵀ·φ`` via :meth:`_MSpatialOperatorSum._compute_LpC_transpose`
+        (the reverse-mode adjoint of the forward sweep), then ``− σ_t·φ`` to
+        recover ``Lᵀ`` (Resolution A; ``C = σ_t⊙`` is a self-adjoint
+        diagonal).  Extracted verbatim from :meth:`apply_transpose`'s 1-D
+        branch by the SweepStrategy carve (S2) — bit-identical.  Returns the
+        plain Euclidean transpose; the metric conjugation of the physical
+        G-adjoint ``L.H`` is applied around this by ``_AdjointOperator``.
+        """
+        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.timed_full_field import TimedFullField
+
         LpCt = self.M_spatial._compute_LpC_transpose(phi)
         cell_values = (
             LpCt.bulk.values
             - self.sigma_t[None] * phi.bulk.values
         )
         return TimedFullField(
-            bulk=AngularSourceSink.from_mesh(cell_values, sn_mesh),
+            bulk=AngularSourceSink.from_mesh(cell_values, self.sn_mesh),
             boundary=LpCt.boundary,
             _history=(),
             history_depth=phi.history_depth,
         )
+
+    # ── SweepStrategy carve (S2) — the polymorphic matvec dispatch ─────
+
+    @cached_property
+    def sweep_strategy(self) -> "SweepStrategy":
+        r"""The selected matvec/sweep strategy for this operator's mesh.
+
+        The SAME first-class ``SweepStrategy``
+        (``orpheus.sn.sweep_strategy``) that
+        :func:`~orpheus.sn.sweep.transport_sweep` selects for the forward
+        sweep — here it carries the matvec twin: :meth:`apply` routes through
+        ``strategy.residual`` and :meth:`apply_transpose` through
+        ``strategy.residual_transpose``.  Selection is by geometry
+        (``default_for``): 1-D → ``CumprodScan``;
+        2-D Cartesian → ``MovingFrontierWindow``.  ``cached_property`` because
+        the selection is fixed by the mesh, stable across the operator's
+        lifetime (mirrors :attr:`M_spatial` / :attr:`M_angular_redist`); the
+        lazy import breaks the operator ↔ sweep_strategy module cycle.
+        """
+        from .sweep_strategy import default_for
+
+        return default_for(self.sn_mesh)
 
     # ── Wave T T.4 — `M_spatial` / `M_angular_redist` properties ─────
 

@@ -128,6 +128,7 @@ if TYPE_CHECKING:
     from orpheus.transport.timed_full_field import TimedFullField
 
     from .geometry import SNMesh
+    from .operator import StreamingOperator
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -184,6 +185,31 @@ class SweepStrategy(Protocol):
         """Perform one within-group transport sweep on this strategy's mesh."""
         ...
 
+    def residual(
+        self, operator: "StreamingOperator", psi: "TimedFullField",
+    ) -> "TimedFullField":
+        r"""The forward matvec twin :math:`L\,\psi` for this geometry.
+
+        The sweep's operator-twin (L21 — sweep and matvec are different
+        applications of the SAME operator): the sweep solves
+        :math:`(L+C)^{-1} q`, this applies :math:`L`.  ``operator`` is the
+        :class:`~orpheus.sn.operator.StreamingOperator` (it supplies
+        :math:`\sigma_t` and the per-geometry matvec body the strategy
+        selects).
+        """
+        ...
+
+    def residual_transpose(
+        self, operator: "StreamingOperator", phi: "TimedFullField",
+    ) -> "TimedFullField":
+        r"""The adjoint matvec twin :math:`L^{\mathsf T}\,\phi` for this geometry.
+
+        Raises :class:`NotImplementedError` for strategies whose adjoint is
+        deferred (the multi-D Cartesian reverse sweep — O.2b lands the 1-D
+        reverse sweep first).  Never a silent wrong answer.
+        """
+        ...
+
     @classmethod
     def supports(cls, mesh: "SNMesh") -> Compatibility:
         """Whether this strategy can sweep ``mesh`` (the selection layer)."""
@@ -225,6 +251,22 @@ class _SweepStrategy:
         """One within-group sweep — every concrete strategy implements it."""
         raise NotImplementedError(
             f"{type(self).__name__} must implement sweep()"
+        )
+
+    def residual(
+        self, operator: "StreamingOperator", psi: "TimedFullField",
+    ) -> "TimedFullField":
+        """The forward matvec twin — every concrete strategy implements it."""
+        raise NotImplementedError(
+            f"{type(self).__name__} must implement residual()"
+        )
+
+    def residual_transpose(
+        self, operator: "StreamingOperator", phi: "TimedFullField",
+    ) -> "TimedFullField":
+        """The adjoint matvec twin — implemented (1-D) or a deferral raise."""
+        raise NotImplementedError(
+            f"{type(self).__name__} must implement residual_transpose()"
         )
 
     def __post_init__(self) -> None:
@@ -279,6 +321,18 @@ class CumprodScan(_SweepStrategy):
             Q, sig_t, self.mesh, boundary_flux, initial_guess=initial_guess,
         )
 
+    def residual(
+        self, operator: "StreamingOperator", psi: "TimedFullField",
+    ) -> "TimedFullField":
+        """1-D forward matvec — the operator's geometry-blind ``L·ψ``."""
+        return operator._apply_1d(psi)
+
+    def residual_transpose(
+        self, operator: "StreamingOperator", phi: "TimedFullField",
+    ) -> "TimedFullField":
+        """1-D adjoint matvec — the operator's reverse-sweep ``Lᵀ·φ``."""
+        return operator._apply_1d_transpose(phi)
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # _DAGWavefront — the Cartesian anti-hyperplane DAG family
@@ -307,6 +361,22 @@ class _DAGWavefront(_SweepStrategy):
             "requires Cartesian geometry, d = 2",
         )
 
+    def residual_transpose(
+        self, operator: "StreamingOperator", phi: "TimedFullField",
+    ) -> "TimedFullField":
+        r"""The multi-D Cartesian adjoint is DEFERRED (shared by both policies).
+
+        The forward matvec works for both buffer policies, but the
+        reverse-direction adjoint sweep is not yet wired (O.2b landed the 1-D
+        reverse sweep first).  Raises :class:`NotImplementedError` — the mesh
+        is compatible, only the adjoint *feature* is deferred (so this is NOT
+        an :class:`IncompatibleStrategy`).  Never a silent wrong answer.
+        """
+        raise NotImplementedError(
+            "StreamingOperator.apply_transpose: the multi-D Cartesian adjoint "
+            "is deferred (O.2b lands the 1-D reverse sweep first)."
+        )
+
 
 class MovingFrontierWindow(_DAGWavefront):
     r"""Production wavefront sweep — rolling :math:`(d{-}1)`-frontier buffer.
@@ -330,6 +400,18 @@ class MovingFrontierWindow(_DAGWavefront):
             Q, sig_t, self.mesh, boundary_flux,
             moment_projection=moment_projection,
         )
+
+    def residual(
+        self, operator: "StreamingOperator", psi: "TimedFullField",
+    ) -> "TimedFullField":
+        """2-D forward matvec — the operator's windowed ``L·ψ`` (storage-B).
+
+        Wraps :meth:`~orpheus.sn.operator.StreamingOperator._apply_2d_cartesian`
+        (the rolling-frontier ``residual_windowed`` walk — the matvec twin of
+        :func:`._sweep_2d_wavefront`; ONE discretization, L21).  WRAP not
+        relocate, so the A2D-1 source-hash pin stays a free tripwire.
+        """
+        return operator._apply_2d_cartesian(psi)
 
 
 class FullFieldWavefront(_DAGWavefront):
@@ -363,6 +445,20 @@ class FullFieldWavefront(_DAGWavefront):
                 "windowed-SI moment path."
             )
         return _sweep_2d_full_field(Q, sig_t, self.mesh, boundary_flux)
+
+    def residual(
+        self, operator: "StreamingOperator", psi: "TimedFullField",
+    ) -> "TimedFullField":
+        """2-D forward matvec ORACLE — the full-field ``L·ψ``.
+
+        Wraps
+        :meth:`~orpheus.sn.operator.StreamingOperator._apply_2d_cartesian_full_field`
+        (the full interior-cochain walk, matvec twin of
+        :func:`._sweep_2d_full_field`).  The fuller-view reference the
+        windowed matvec is cross-checked against; never the production
+        default.
+        """
+        return operator._apply_2d_cartesian_full_field(psi)
 
 
 # ═══════════════════════════════════════════════════════════════════════

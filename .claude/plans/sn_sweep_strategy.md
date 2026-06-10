@@ -24,7 +24,28 @@ first-class `SweepStrategy` abstraction.
   solve/regression/spatial + 372 eigenvalue/primitives/verification); the cumprod-spine equivalence stays
   `xfail` (S3 wires it). Regression drift = documented baseline (6920 ULP on 2d-aniso, within tol). elegance-enforcer
   PASS-with-nits (2 inline nits applied). Docs: inbound xrefs to `sweep_strategy` kept as plain literals
-  (S5 adds the automodule + theory page; S1 stays code-only per the phase boundary). **NEXT = S2.**
+  (S5 adds the automodule + theory page; S1 stays code-only per the phase boundary). Committed `f6b4ad5`.
+- **S2 DONE (2026-06-10), bit-identical:** the MATVEC twin now routes through the same polymorphic
+  `sweep_strategy`. `SweepStrategy.residual(operator, psi)` + `residual_transpose(operator, phi)` added to the
+  Protocol + base + 3 strategies (CumprodScan -> `operator._apply_1d`/`_apply_1d_transpose`; MovingFrontierWindow ->
+  `_apply_2d_cartesian`; FullFieldWavefront -> `_apply_2d_cartesian_full_field`; the shared 2-D adjoint deferral
+  lives on `_DAGWavefront.residual_transpose`). `StreamingOperator` gained a `sweep_strategy` cached_property
+  (`default_for(self.sn_mesh)`); `apply`->`strategy.residual(self,psi)`, `apply_transpose`->`strategy.residual_transpose`;
+  the 1-D bodies EXTRACTED verbatim into `_apply_1d`/`_apply_1d_transpose`; `_apply_2d_cartesian[_full_field]`
+  UNTOUCHED (A2D-1 WRAP-not-relocate, hash green). TWO EVIDENCE-BASED DEVIATIONS from the plan's letter
+  (both elegance-ruled JUSTIFIED): (1) KEPT the 3 `_MSpatial` defensive raise-guards
+  (`_compute_LpC`/`_compute_LpC_transpose`/`_compute_decomposition`), NOT "remove all 4 raises"; L20 caller audit
+  shows `_compute_decomposition` has non-strategy callers (`M_spatial.apply`/`M_angular_redist.apply`/transient
+  orchestrator) so it is load-bearing; the others guard internal helpers; none are dispatch points. (2) the 2-D
+  adjoint keeps raising `NotImplementedError` (NOT `IncompatibleStrategy`) - the mesh IS compatible (forward works),
+  only the adjoint FEATURE is deferred, so `IncompatibleStrategy` would be the wrong concept. Gates GREEN under
+  `python -O`: **1572 passed / 0 failed** (610 matvec-heavy operators/cartesian_2d/solve/eigenvalue + 962 broad
+  sweep/regression/spatial/primitives/verification); PRIMARY `test_affine_carve_bit_identity` + A2D-1 source-hash +
+  `test_sweep_vs_apply_consistency` + `test_g_adjoint_reciprocity` + `_compute_decomposition` paths all green.
+  elegance-enforcer PASS (clean, no nits; twin-delivery smell did NOT materialize, matvec single-sourced). Sphinx
+  clean. **NEXT = S3** (solve-vs-solve equivalence + retire `_wavefront_1d_sweep`/`_cumprod_1d_sweep`/`_sweep_2d_full_field`
+  adapters + widen FullFieldWavefront to the d-generic spine + wire the d=1 cumprod-vs-spine oracle; the
+  cumprod-spine xfail flips to xpass here).
 - **Depends on C3.0–C3.3 (all DONE):** the wavefront spine is already dimension-generic — the
   per-octant DAG `SweepDependencyGraph.from_cartesian(shape)` (C3.1), the diamond cell kernel
   `cell_kernel_batch` (C3.2a), the full-field walk `graph.apply`/`graph.residual` (C3.2b), and the
