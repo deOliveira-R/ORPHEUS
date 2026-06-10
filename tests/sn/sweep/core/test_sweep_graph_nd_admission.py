@@ -252,32 +252,27 @@ def test_diamond_kernel_admits_three_axis_streaming_sum():
         err_msg="hand-oracle denom drifted (sanity)",
     )
 
-    # ─ C3-carve call (UPDATE to the final d-generic kernel signature) ─
-    # Placeholder shape contract: each input promoted to
-    # (N_oct=1, ng=1, n_diag=1, ndim) or an ndim-length stack. The exact
-    # spelling is the carve's choice; the assertion below pins the MATH.
+    # The REAL d-generic kernel (C3.2): promote each scalar to the
+    # (N_oct=1, ng=1, n_diag=1) batch shape — ``s`` is (N_oct, 1, n_diag).
     dd = DiamondDifference()
-    # EXAMPLE (pseudo — main agent wires to the real generic kernel):
-    #   psi_avg, psi_out = dd.cell_kernel_nd(
-    #       psi_in=np.array(psi_in)[None, None, None, :],
-    #       s=np.array(s)[None, None, None, :],
-    #       sigt_cells=np.array([[sigt]]),
-    #       Q_cells=np.array(Q).reshape(1, 1, 1),
-    #   )
-    #   np.testing.assert_allclose(psi_avg.ravel()[0], psi_avg_ref, ...)
-    #   np.testing.assert_allclose(psi_out.reshape(-1, 3)[0], psi_out_ref, ...)
-    #
-    # Until the generic kernel lands, this row asserts the hand-oracle is
-    # internally consistent (the closure is exact per axis) so the test
-    # FAILS LOUDLY if someone deletes the reference. Replace this block
-    # with the real call at carve time.
-    for ai, oi in zip(psi_in, psi_out_ref):
+    psi_in_b = tuple(np.full((1, 1, 1), a) for a in psi_in)
+    s_b = tuple(np.full((1, 1, 1), si) for si in s)
+    psi_avg, psi_out = dd.cell_kernel_batch(
+        psi_in=psi_in_b, s=s_b,
+        sigt_cells=np.full((1, 1), sigt),      # (ng, n_diag)
+        Q_cells=np.full((1, 1, 1), Q),         # (N_oct, ng, n_diag)
+    )
+    np.testing.assert_allclose(
+        psi_avg.ravel()[0], psi_avg_ref, rtol=0, atol=1e-14,
+        err_msg="d=3 kernel psi_avg != hand-oracle (denom = sigt + Σ_a s_a)",
+    )
+    if len(psi_out) != 3:
+        pytest.fail(f"d=3 kernel returned {len(psi_out)} outgoing faces != 3")
+    for a, (out_a, ref_a) in enumerate(zip(psi_out, psi_out_ref)):
         np.testing.assert_allclose(
-            oi, 2.0 * psi_avg_ref - ai, rtol=0, atol=1e-15,
-            err_msg=f"per-axis closure broke for psi_in={ai}",
+            out_a.ravel()[0], ref_a, rtol=0, atol=1e-14,
+            err_msg=f"d=3 kernel psi_out[{a}] != 2·psi_avg − psi_in[{a}]",
         )
-    if dd is None:  # keeps DiamondDifference import load-bearing
-        pytest.fail("DiamondDifference() returned None")
 
 
 # ─── B6 — d=1 is a REAL spine compute path (NEW-3) ──────────────────
@@ -376,17 +371,24 @@ def test_d1_diamond_kernel_single_axis_streaming_sum():
         denom_ref, 1.2, rtol=0, atol=1e-15,
         err_msg="d=1 hand-oracle denom drifted (sanity)",
     )
-    # Closure is internally exact (fires loudly if the reference is
-    # deleted); replace with the real d-generic kernel CALL at carve time
-    # (see B5's EXAMPLE block).
-    np.testing.assert_allclose(
-        psi_out_ref, 2.0 * psi_avg_ref - psi_in[0],
-        rtol=0, atol=1e-15,
-        err_msg="d=1 single-axis closure broke",
-    )
+    # The REAL d-generic kernel at d=1 (single streaming axis).
     dd = DiamondDifference()
-    if dd is None:  # keeps DiamondDifference import load-bearing
-        pytest.fail("DiamondDifference() returned None")
+    psi_avg, psi_out = dd.cell_kernel_batch(
+        psi_in=(np.full((1, 1, 1), psi_in[0]),),
+        s=(np.full((1, 1, 1), s[0]),),
+        sigt_cells=np.full((1, 1), sigt),
+        Q_cells=np.full((1, 1, 1), Q),
+    )
+    np.testing.assert_allclose(
+        psi_avg.ravel()[0], psi_avg_ref, rtol=0, atol=1e-14,
+        err_msg="d=1 kernel psi_avg != hand-oracle (denom = sigt + s_x)",
+    )
+    if len(psi_out) != 1:
+        pytest.fail(f"d=1 kernel returned {len(psi_out)} faces != 1")
+    np.testing.assert_allclose(
+        psi_out[0].ravel()[0], psi_out_ref, rtol=0, atol=1e-14,
+        err_msg="d=1 kernel psi_out != 2·psi_avg − psi_in",
+    )
 
 
 # ─── C — d=2 equivalence: from_cartesian(2) == from_cartesian_2d ─────

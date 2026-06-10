@@ -69,8 +69,7 @@ See also
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Sequence
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -756,10 +755,10 @@ class SweepDependencyGraph:
             if has_y_in:
                 frontier.seed_y(prev, i1, inflow_y[:, :, ii[-1]])
             in_x, in_y = frontier.incoming(prev, i0, i1)
-            psi_avg, out_x, out_y = cell_update.cell_kernel_batch(
-                psi_in_x=in_x, psi_in_y=in_y,
-                sx=str_x_octant[:, ii][:, None, :],
-                sy=str_y_octant[:, jj][:, None, :],
+            psi_avg, (out_x, out_y) = cell_update.cell_kernel_batch(
+                psi_in=(in_x, in_y),
+                s=(str_x_octant[:, ii][:, None, :],
+                   str_y_octant[:, jj][:, None, :]),
                 sigt_cells=sig_t[:, ii, jj], Q_cells=Q_octant[:, :, ii, jj],
             )
             frontier.emit(cur, i0, i1, out_x, out_y)
@@ -818,11 +817,11 @@ class SweepDependencyGraph:
             if has_y_in:
                 frontier.seed_y(prev, i1, inflow_y[:, :, ii[-1]])
             in_x, in_y = frontier.incoming(prev, i0, i1)
-            res, out_x, out_y = cell_update.residual_kernel_batch(
+            res, (out_x, out_y) = cell_update.residual_kernel_batch(
                 psi_bar=psi_avg_probe_octant[:, :, ii, jj],
-                psi_in_x=in_x, psi_in_y=in_y,
-                sx=str_x_octant[:, ii][:, None, :],
-                sy=str_y_octant[:, jj][:, None, :],
+                psi_in=(in_x, in_y),
+                s=(str_x_octant[:, ii][:, None, :],
+                   str_y_octant[:, jj][:, None, :]),
                 sigt_cells=sig_t[:, ii, jj], Q_cells=Q_octant[:, :, ii, jj],
             )
             frontier.emit(cur, i0, i1, out_x, out_y)

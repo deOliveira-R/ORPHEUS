@@ -273,81 +273,83 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
     def cell_kernel_batch(
         self,
         *,
-        psi_in_x: np.ndarray,   # (N_oct, ng, n_diag) — incoming x-face flux
-        psi_in_y: np.ndarray,   # (N_oct, ng, n_diag) — incoming y-face flux
-        sx: np.ndarray,         # (N_oct, 1, n_diag) — 2|μ_x|/Δx on the level
-        sy: np.ndarray,         # (N_oct, 1, n_diag) — 2|μ_y|/Δy on the level
-        sigt_cells: np.ndarray, # (ng, n_diag) — Σ_t on the level
-        Q_cells: np.ndarray,    # (N_oct or 1, ng, n_diag) — weight-normalised
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        r"""Pure batched WDD cell update — NO storage access.
+        psi_in: tuple[np.ndarray, ...],  # d arrays, each (N_oct, ng, n_diag) — incoming face flux per axis
+        s: tuple[np.ndarray, ...],       # d arrays, each (N_oct, 1, n_diag) — 2|μ_a|/Δa per axis
+        sigt_cells: np.ndarray,          # (ng, n_diag) — Σ_t on the level
+        Q_cells: np.ndarray,             # (N_oct or 1, ng, n_diag) — weight-normalised
+    ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
+        r"""Pure batched WDD cell update — dimension-generic, NO storage access.
 
-        Given the incoming face fluxes + streaming coefficients + source on
-        one anti-diagonal level, returns ``(psi_avg, psi_out_x, psi_out_y)``.
-        This is the **single source of the 2-D DD cell math** (Cardinal
+        Given the per-axis incoming face fluxes ``psi_in`` + streaming
+        coefficients ``s`` (one entry per spatial axis, ``d = 1, 2, 3``) +
+        source on one anti-hyperplane level, returns ``(psi_avg, psi_out)``
+        where ``psi_out`` is the d-tuple of outgoing face fluxes (one per
+        axis). This is the **single source of the DD cell math** (Cardinal
         Rule 2 / Pattern 2): consumed by BOTH the full-field gather/scatter
         walk (:meth:`update_batch`, driven by
         :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.apply` — the
-        storage-A full-field VERIFICATION ORACLE) AND the rolling
-        moving-frontier window walk
-        (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.apply_windowed` —
-        the storage-B PRODUCTION path). The two differ ONLY in how the incoming
-        faces are gathered and the outgoing faces scattered (full per-axis
-        field vs 2-diagonal window) — the cell algebra is identical, so the
-        window walk and the oracle cannot drift mathematically.
+        full-field VERIFICATION ORACLE) AND the rolling moving-frontier window
+        walk (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.apply_windowed`
+        — the storage-B d=2 PRODUCTION path). The two differ ONLY in how the
+        incoming faces are gathered and the outgoing faces scattered — the cell
+        algebra is identical, so the window walk and the oracle cannot drift.
 
-        Operation-order discipline
-        --------------------------
+        Operation-order discipline (and d=2 bit-identity)
+        -------------------------------------------------
 
-        ``denom = sigt + sx + sy``; ``psi_avg = (Q + sx·in_x + sy·in_y) /
-        denom``; ``psi_out = 2·psi_avg − psi_in``. This kernel is now the
-        SINGLE canonical source of that operation order (the legacy inline WDD
-        form it was extracted from is retired). Per ``vv-principles``
-        Bit-identity vs principled-equivalence, algebraically-equivalent
-        rearrangements break the 1-ULP regression contract — do NOT refactor
-        for "clarity".
+        The math is :math:`\psi_{\rm avg} = (Q + \sum_a s_a\,\psi^{\rm in}_a) /
+        (\Sigma_t + \sum_a s_a)`, closure :math:`\psi^{\rm out}_a = 2\psi_{\rm
+        avg} - \psi^{\rm in}_a`. The axis reduction is an **explicit left
+        fold** (NOT ``sum()``) so the accumulation order is
+        ``((sigt + s_0) + s_1) + …`` / ``((Q + s_0·in_0) + s_1·in_1) + …`` —
+        which at ``d = 2`` reproduces the legacy ``sigt + sx + sy`` /
+        ``Q + sx·in_x + sy·in_y`` order **bit-for-bit** (IEEE-754 addition is
+        non-associative; the fold order is load-bearing). Per ``vv-principles``
+        Bit-identity vs principled-equivalence, do NOT switch to ``sum()`` or
+        rearrange for "clarity" — it breaks the 1-ULP regression contract.
         """
-        denom = sigt_cells + sx + sy                      # (N_oct, ng, n_diag)
-        psi_avg = (
-            Q_cells
-            + sx * psi_in_x
-            + sy * psi_in_y
-        ) / denom                                          # (N_oct, ng, n_diag)
-        psi_out_x = 2.0 * psi_avg - psi_in_x
-        psi_out_y = 2.0 * psi_avg - psi_in_y
-        return psi_avg, psi_out_x, psi_out_y
+        denom = sigt_cells                                 # (ng, n_diag)
+        numer = Q_cells                                    # (N_oct or 1, ng, n_diag)
+        for s_a, in_a in zip(s, psi_in):
+            denom = denom + s_a                            # left fold → (N_oct, ng, n_diag)
+            numer = numer + s_a * in_a
+        psi_avg = numer / denom                            # (N_oct, ng, n_diag)
+        psi_out = tuple(2.0 * psi_avg - in_a for in_a in psi_in)
+        return psi_avg, psi_out
 
     def residual_kernel_batch(
         self,
         *,
-        psi_bar: np.ndarray,    # (N_oct, ng, n_diag) — the probe cell-average
-        psi_in_x: np.ndarray,   # (N_oct, ng, n_diag)
-        psi_in_y: np.ndarray,   # (N_oct, ng, n_diag)
-        sx: np.ndarray,         # (N_oct, 1, n_diag)
-        sy: np.ndarray,         # (N_oct, 1, n_diag)
-        sigt_cells: np.ndarray, # (ng, n_diag)
-        Q_cells: np.ndarray,    # (N_oct or 1, ng, n_diag)
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        r"""Pure batched DD operator residual — NO storage access.
+        psi_bar: np.ndarray,             # (N_oct, ng, n_diag) — the probe cell-average
+        psi_in: tuple[np.ndarray, ...],  # d arrays, each (N_oct, ng, n_diag)
+        s: tuple[np.ndarray, ...],       # d arrays, each (N_oct, 1, n_diag)
+        sigt_cells: np.ndarray,          # (ng, n_diag)
+        Q_cells: np.ndarray,             # (N_oct or 1, ng, n_diag)
+    ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
+        r"""Pure batched DD operator residual — dimension-generic, NO storage.
 
         The apply-direction companion of :meth:`cell_kernel_batch`: evaluates
-        ``r = (Σ_t + s_x + s_y)·psi_bar − (Q + s_x·in_x + s_y·in_y)`` at the
-        PROBE cell-average, and reconstructs the outgoing faces from the probe
-        (``psi_out = 2·psi_bar − psi_in``). Returns ``(residual, psi_out_x,
-        psi_out_y)``. Single source of the matvec cell math, shared by the
-        full-field walk (:meth:`residual_batch`, driven by
+        :math:`r = (\Sigma_t + \sum_a s_a)\,\psi_{\rm bar} − (Q + \sum_a
+        s_a\,\psi^{\rm in}_a)` at the PROBE cell-average, and reconstructs the
+        outgoing faces from the probe (:math:`\psi^{\rm out}_a = 2\psi_{\rm bar}
+        − \psi^{\rm in}_a`). Returns ``(residual, psi_out)`` with ``psi_out``
+        the d-tuple of outgoing faces. Single source of the matvec cell math,
+        shared by the full-field walk (:meth:`residual_batch`, driven by
         :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.residual` — the
         verification ORACLE) and the window PRODUCTION walk
         (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.residual_windowed`).
-        Same operation-order discipline as :meth:`cell_kernel_batch`.
+        Same explicit-left-fold operation-order discipline as
+        :meth:`cell_kernel_batch` (d=2 bit-identical to the legacy
+        ``sigt + sx + sy`` / ``Q + sx·in_x + sy·in_y`` order).
         """
-        denom = sigt_cells + sx + sy                      # (N_oct, ng, n_diag)
-        residual = denom * psi_bar - (
-            Q_cells + sx * psi_in_x + sy * psi_in_y
-        )                                                  # (N_oct, ng, n_diag)
-        psi_out_x = 2.0 * psi_bar - psi_in_x
-        psi_out_y = 2.0 * psi_bar - psi_in_y
-        return residual, psi_out_x, psi_out_y
+        denom = sigt_cells                                 # (ng, n_diag)
+        numer = Q_cells                                    # (N_oct or 1, ng, n_diag)
+        for s_a, in_a in zip(s, psi_in):
+            denom = denom + s_a                            # left fold
+            numer = numer + s_a * in_a
+        residual = denom * psi_bar - numer                 # (N_oct, ng, n_diag)
+        psi_out = tuple(2.0 * psi_bar - in_a for in_a in psi_in)
+        return residual, psi_out
 
     # ── 2-D Cartesian batched update (Wave 2 / C2.2) ───────────────
 
@@ -420,12 +422,13 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         # gives ``(N_oct or 1, ng, n_diag)`` directly — no transpose.
         Q_cells = s.Q[:, :, ii, jj]                       # (N_oct or 1, ng, n_diag)
 
-        # Pattern 2: the cell math lives in the storage-free kernel shared
-        # with the rolling-window walk. This site is the FULL-FIELD gather/
-        # scatter (storage-A / verification-oracle path).
-        psi_avg, psi_out_x, psi_out_y = self.cell_kernel_batch(
-            psi_in_x=psi_in_x, psi_in_y=psi_in_y,
-            sx=sx, sy=sy, sigt_cells=sigt_cells, Q_cells=Q_cells,
+        # Pattern 2: the cell math lives in the storage-free d-generic kernel
+        # shared with the rolling-window walk. This site is the FULL-FIELD
+        # gather/scatter (storage-A / verification-oracle path); 2-D passes the
+        # (x, y) face/streaming pair as the d-tuples.
+        psi_avg, (psi_out_x, psi_out_y) = self.cell_kernel_batch(
+            psi_in=(psi_in_x, psi_in_y),
+            s=(sx, sy), sigt_cells=sigt_cells, Q_cells=Q_cells,
         )
 
         # Spatial closure — scatter outgoing face fluxes back into the
@@ -492,10 +495,10 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         # Probe cell-average on this level (the apply target).
         psi_bar = s.psi_avg_probe[:, :, ii, jj]          # (N_oct, ng, n_diag)
 
-        # Pattern 2: shared residual cell math (full-field oracle site).
-        residual, psi_out_x, psi_out_y = self.residual_kernel_batch(
-            psi_bar=psi_bar, psi_in_x=psi_in_x, psi_in_y=psi_in_y,
-            sx=sx, sy=sy, sigt_cells=sigt_cells, Q_cells=Q_cells,
+        # Pattern 2: shared d-generic residual cell math (full-field oracle).
+        residual, (psi_out_x, psi_out_y) = self.residual_kernel_batch(
+            psi_bar=psi_bar, psi_in=(psi_in_x, psi_in_y),
+            s=(sx, sy), sigt_cells=sigt_cells, Q_cells=Q_cells,
         )
 
         # Spatial closure with the PROBE — propagate edges downstream so
