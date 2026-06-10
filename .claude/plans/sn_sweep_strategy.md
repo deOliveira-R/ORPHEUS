@@ -43,9 +43,30 @@ first-class `SweepStrategy` abstraction.
   sweep/regression/spatial/primitives/verification); PRIMARY `test_affine_carve_bit_identity` + A2D-1 source-hash +
   `test_sweep_vs_apply_consistency` + `test_g_adjoint_reciprocity` + `_compute_decomposition` paths all green.
   elegance-enforcer PASS (clean, no nits; twin-delivery smell did NOT materialize, matvec single-sourced). Sphinx
-  clean. **NEXT = S3** (solve-vs-solve equivalence + retire `_wavefront_1d_sweep`/`_cumprod_1d_sweep`/`_sweep_2d_full_field`
-  adapters + widen FullFieldWavefront to the d-generic spine + wire the d=1 cumprod-vs-spine oracle; the
-  cumprod-spine xfail flips to xpass here).
+  clean. Committed `e08573e`.
+- **S3 DONE (2026-06-10):** `FullFieldWavefront` is now the genuine d-generic verification SPINE, and the
+  d=1 cumprod optimization is verified against it. **S3a (committed `37ce528`, d=2 bit-identical):**
+  `SNMesh.streaming(axis)` (the d-uniform `2|μ|/Δ` accessor, pulled forward from S5);
+  `_sweep_2d_full_field`->`_sweep_full_field` (sweep.py) + `_apply_2d_cartesian_full_field`->`_apply_full_field`
+  (operator.py) generalized IN PLACE to any Cartesian d (`signs[:ndim]` in-plane projection of the
+  full-angular octant label, `streaming(a)` over `range(ndim)`, `*spatial` shapes, `not any(signs)` pure-z
+  guard dormant at d=1, ellipsis einsum); `FullFieldWavefront.sweep`/`.residual` call the d-generic bodies +
+  `supports` widened to any-d Cartesian (overriding `_DAGWavefront`'s d=2-only). d=2 bit-identity anchored by
+  the UNCHANGED window (`window ≡ full` oracle stays `np.array_equal` green -> the generalization preserved d=2;
+  no twin). **S3b (uncommitted in tree -> committing now): the equivalence + adapter retirement.**
+  `test_wavefront_cumprod_equivalence.py` REWRITTEN to strategy-vs-strategy (`CumprodScan(mesh).sweep` vs
+  `FullFieldWavefront(mesh).sweep` at d=1, `assert_array_almost_equal_nulp` @ `_NULP_BOUND=128`, Mode-9
+  anisotropic/het config); the hand adapters (`_wavefront_1d_sweep`/`_cumprod_1d_sweep`/`_SpineNotLanded`/
+  `_spine_landed`/`test_diamond_difference_importable`) RETIRED (zero dangling refs); xfail->pass. ⭐ KEY: the
+  d=1 cumprod ≡ spine equivalence HOLDS within nulp (the spine's whole-trace BC seed/absorb matches the cumprod
+  chain seed at FP-association) -> the spine transitively inherits the analytical `k_inf=1.875` anchor.
+  ⚠ The explorer's `(N,ng,nx,1)` phantom-y note was STALE (the C-phases already removed it); both strategies
+  are rank-1 `(N,ng,nx)`, no layout bridge needed. Gates GREEN `-O`: S3a broad 1197 passed/0 failed + d=2
+  window≡full oracle 8 + d=1 equivalence 4. elegance-enforcer **PASS (zero nits)** — streaming(axis)
+  pull-forward JUSTIFIED, supports widening HONEST, two-full-field-bodies = the aggressive-retirement
+  fuller-view-oracle exception (now DOUBLY pinned: d=2 window≡full bit-id + d=1 cumprod≡spine nulp). Sphinx
+  clean. **NEXT = S4** (widen `MovingFrontierWindow` to `frontier_dim = d-1`; the d=2 window's hand-listed
+  `str_x`/`str_y` retire onto `streaming(axis)`; synthetic d=3 `window ≡ full` admission).
 - **Depends on C3.0–C3.3 (all DONE):** the wavefront spine is already dimension-generic — the
   per-octant DAG `SweepDependencyGraph.from_cartesian(shape)` (C3.1), the diamond cell kernel
   `cell_kernel_batch` (C3.2a), the full-field walk `graph.apply`/`graph.residual` (C3.2b), and the

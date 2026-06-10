@@ -671,7 +671,7 @@ class SNMesh:
         Cartesian-only (the anti-hyperplane lattice is a Cartesian object);
         curvilinear meshes carry their streaming in
         ``reduced.streaming_terms`` (the chain-scan substrate) and are swept by
-        :class:`~orpheus.sn.sweep_strategy.CumprodScan`, not the DAG walk.
+        the ``CumprodScan`` strategy, not the DAG walk.
         ``axis`` must satisfy ``0 <= axis < ndim``.
         """
         if not self.is_cartesian:
