@@ -239,7 +239,7 @@ class SweepDependencyGraph:
     mutually independent.
 
     The closed-form precompute on a Cartesian grid lives entirely
-    inside :meth:`from_cartesian_2d` and never appears in the sweep
+    inside :meth:`from_cartesian` and never appears in the sweep
     loop. This is structural, not hand-rolled — the "library
     version" (a generic topological-sort over an explicit DAG) would
     be over-engineering for a regular pattern that collapses to ~5
@@ -360,9 +360,9 @@ class SweepDependencyGraph:
         Within a level the cells are ordered **C-major** over the index
         lattice (axis 0 slowest). At ``d = 2`` this reproduces the legacy
         ascending-``local_i`` anti-diagonal order **bit-for-bit**, so a
-        2-D graph built here is identical to the retired
-        ``from_cartesian_2d`` (pinned by
-        ``test_d2_from_cartesian_matches_legacy``). At ``d = 1`` the DAG
+        2-D graph built here matches the legacy 2-D anti-diagonal
+        construction (pinned by ``test_d2_from_cartesian_matches_legacy``,
+        a hand-derived frozen golden). At ``d = 1`` the DAG
         is a pure chain (level ``ℓ`` holds only cell ``ℓ``); at ``d = 3``
         each level is a 2-D lattice slice of the ``i+j+k = ℓ`` hyperplane.
 
@@ -445,7 +445,7 @@ class SweepDependencyGraph:
         the d≥3 full-field walk do not use the moving-frontier window).
         For ``d == 2`` this is the legacy per-level ``local_i`` slot array
         + the ``(has_x_in, has_x_out, has_y_in, has_y_out)`` edge bools,
-        built exactly as the retired ``from_cartesian_2d`` did (so the
+        built exactly as the legacy 2-D window did (so the
         window walk stays bit-identical). The slot ``local_i`` is
         contiguous ⟹ basic-slice addressable; the edge bools mark the
         FIXED domain-edge positions (x-inflow at 0, x-outflow at -1,
@@ -468,22 +468,6 @@ class SweepDependencyGraph:
                 k >= ny - 1,             # has_y_out (cell at position 0)
             ))
         return tuple(window_slots), tuple(window_edges)
-
-    @classmethod
-    def from_cartesian_2d(
-        cls,
-        *,
-        nx: int,
-        ny: int,
-        label: OctantLabel,
-    ) -> "SweepDependencyGraph":
-        """Deprecated 2-D alias for :meth:`from_cartesian`.
-
-        Retained one cycle for the 2-D call sites + the legacy-equivalence
-        pin; retires when the geometry octant build switches to
-        ``from_cartesian`` + ``itertools.product`` (C3.3).
-        """
-        return cls.from_cartesian((nx, ny), label=label)
 
     # ── Internal: shared per-level slice builder ────────────────────
 

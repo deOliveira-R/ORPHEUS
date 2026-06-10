@@ -1,7 +1,5 @@
 r"""C3 synthetic-N-D shape-admission pins for ``SweepDependencyGraph``.
 
-THIS FILE IS A TEST-ARCHITECT STUB — UNCOMMITTED, FOR MAIN-AGENT REVIEW.
-
 It pins the STRUCTURAL contract that the dimension-generic
 ``SweepDependencyGraph.from_cartesian(shape)`` admits ``d = 1`` (a REAL
 production compute path under the spine+optimization layering — see
@@ -43,19 +41,17 @@ a data-structure contract, not an equation claim. They carry NO
 Do NOT rewrite any of these as bare ``assert`` (it would compile to a
 NO-OP and silently pass).
 
-API ASSUMPTION (the C3 carve target — confirm the final spelling at
-review): ``SweepDependencyGraph.from_cartesian(shape, *, label)`` where
-``shape`` is a ``tuple[int, ...]`` (``len == d``) and ``label`` is a
-``d``-tuple sign signature (the dimension-generic successor of the
-2-element :class:`OctantLabel`). At ``d == 2`` it MUST reproduce
-``from_cartesian_2d(nx=…, ny=…, label=OctantLabel(sx, sy))`` — that
-d=2 equivalence is pinned by ``test_d2_from_cartesian_matches_legacy``
-below.
+API (landed C3.1): ``SweepDependencyGraph.from_cartesian(shape, *, label)``
+where ``shape`` is a ``tuple[int, ...]`` (``len == d``) and ``label`` is a
+:class:`OctantLabel` carrying a ``d``-tuple sign signature. At ``d == 2``
+it reproduces the legacy 2-D anti-diagonal construction bit-for-bit —
+pinned by ``test_d2_from_cartesian_matches_legacy`` below, now against a
+hand-derived golden (the retired ``from_cartesian_2d`` alias is gone).
 
-If the C3 carve names the generic builder or the generic label
-differently, ONLY the three module-level helpers
-(``_build_nd``, ``_levels_of``, ``_octant_labels``) need updating; the
-assertion bodies are spelling-independent.
+If a later carve renames the generic builder or the generic label, ONLY
+the three module-level helpers (``_build_nd``, ``_levels_of``,
+``_octant_labels``) need updating; the assertion bodies are
+spelling-independent.
 """
 from __future__ import annotations
 
@@ -71,24 +67,10 @@ from orpheus.sn.sweep_graph import OctantLabel, SweepDependencyGraph
 pytestmark = pytest.mark.foundation
 
 
-# ``from_cartesian`` (the d-generic spine builder) is the C3 carve
-# target — NOT yet landed (only ``from_cartesian_2d`` exists). Every pin
-# that BUILDS a generic DAG is gated ``xfail(strict=False)`` on its
-# absence so the C3 test set stays GREEN pre-carve and FLIPS to xpass
-# automatically the moment the builder lands (``feedback_vv_tagging``
-# idiom: strict=False + reason pointing at the unlocking API). The pure
-# hand-oracle pins (octant counts, kernel closures) need no builder and
-# run TODAY.
-_HAS_GENERIC_BUILDER = hasattr(SweepDependencyGraph, "from_cartesian")
-_needs_spine = pytest.mark.xfail(
-    not _HAS_GENERIC_BUILDER,
-    reason=(
-        "SweepDependencyGraph.from_cartesian (the C3 d-generic spine "
-        "builder) not yet landed — unlocks when the carve generalises "
-        "from_cartesian_2d. strict=False ⟹ auto-xpass on landing."
-    ),
-    strict=False,
-)
+# ``SweepDependencyGraph.from_cartesian`` (the d-generic spine builder)
+# landed in C3.1 and is the production octant-DAG constructor; the C3.0
+# ``xfail(strict=False)`` gate that guarded its absence is retired — every
+# pin below builds a generic DAG unconditionally.
 
 
 # ─── C3-carve adapters (UPDATE ONLY THESE if the final API differs) ───
@@ -132,7 +114,6 @@ def test_octant_count_is_2_pow_ndim(ndim, expected):
 # ─── B2 — the DAG builds at d=3 (synthetic shape admission) ──────────
 
 
-@_needs_spine
 @pytest.mark.parametrize("shape", [(2, 3, 2), (3, 3, 3), (4, 2, 3)])
 def test_d3_dag_builds_for_every_octant(shape):
     """B2: ``from_cartesian`` builds a DAG for all 8 d=3 octants, no raise."""
@@ -145,7 +126,6 @@ def test_d3_dag_builds_for_every_octant(shape):
 # ─── B3 — number of DAG levels == Σ(n_axis − 1) + 1 ─────────────────
 
 
-@_needs_spine
 @pytest.mark.parametrize("shape,n_levels", [
     ((2, 3, 2), 5),     # (2-1)+(3-1)+(2-1)+1 = 1+2+1+1 = 5
     ((3, 3, 3), 7),     # (2)+(2)+(2)+1 = 7
@@ -173,7 +153,6 @@ def test_d3_level_count(shape, n_levels):
 # ─── B4 — diagonal-hyperplane membership i+j+k == ℓ + total coverage ─
 
 
-@_needs_spine
 def test_d3_level_membership_is_index_sum_hyperplane():
     """B4: under ``(+1,+1,+1)`` each level ``ℓ`` holds exactly the cells
     with ``i+j+k == ℓ``; every cell appears exactly once; counts match
@@ -299,7 +278,6 @@ def test_d1_octant_count_is_two():
     )
 
 
-@_needs_spine
 @pytest.mark.parametrize("nx", [5, 8, 12])
 def test_d1_dag_has_nx_levels_one_cell_each(nx):
     """B6b: ``from_cartesian((nx,))`` builds an ``nx``-level DAG with
@@ -455,7 +433,6 @@ def _walk_roundtrip_residual(shape, signs, *, ng, N_oct, seed):
     return residual
 
 
-@_needs_spine
 @pytest.mark.parametrize("signs", _octant_labels(1))
 def test_d1_walk_residual_vanishes_at_apply_solution(signs):
     """B7(d=1): the d=1 ``graph.apply`` / ``graph.residual`` walks run (the
@@ -472,7 +449,6 @@ def test_d1_walk_residual_vanishes_at_apply_solution(signs):
     )
 
 
-@_needs_spine
 @pytest.mark.parametrize("signs", _octant_labels(3))
 def test_d3_walk_residual_vanishes_at_apply_solution(signs):
     """B7(d=3): the d=3 walks run on a synthetic shape (NO 3-D quadrature —
@@ -490,38 +466,67 @@ def test_d3_walk_residual_vanishes_at_apply_solution(signs):
     )
 
 
-# ─── C — d=2 equivalence: from_cartesian(2) == from_cartesian_2d ─────
+# ─── C — d=2 equivalence: from_cartesian((nx,ny)) == legacy anti-diagonal ─
 
 
-@_needs_spine
+def _legacy_2d_anti_diagonal(nx, ny, sx, sy):
+    """The legacy 2-D anti-diagonal level structure + face offsets,
+    reconstructed by hand — the explicit ``sweep.py`` anti-diagonal
+    recurrence that the retired ``from_cartesian_2d`` encoded.
+
+    A STRUCTURALLY-INDEPENDENT d=2 golden for the generic
+    ``from_cartesian``: this builds the levels by the explicit
+    ``local_i ∈ [max(0,k-ny+1), min(nx-1,k)]`` / ``local_j = k - local_i``
+    anti-diagonal recurrence, whereas ``from_cartesian`` partitions the
+    full ``np.indices`` lattice by index-sum. Two different constructions
+    that MUST agree bit-for-bit — the pin survives its predecessor's
+    deletion by RE-DERIVING the golden, not by calling the retired method
+    (``feedback_retirement_means_test_migration``).
+
+    Returns ``(levels, faces)``: ``levels`` is the per-level list of
+    ``(ii, jj)`` global-index arrays, ``faces`` is the 4-tuple
+    ``(face_in_x, face_out_x, face_in_y, face_out_y)``.
+    """
+    face_in_x = 0 if sx >= 0 else 1
+    face_out_x = 1 if sx >= 0 else 0
+    face_in_y = 0 if sy >= 0 else 1
+    face_out_y = 1 if sy >= 0 else 0
+    ix_arr = np.arange(nx) if sx >= 0 else np.arange(nx)[::-1]
+    iy_arr = np.arange(ny) if sy >= 0 else np.arange(ny)[::-1]
+    levels = []
+    for k in range(nx + ny - 1):
+        i_start = max(0, k - ny + 1)
+        i_end = min(nx - 1, k)
+        local_i = np.arange(i_start, i_end + 1)
+        local_j = k - local_i
+        levels.append((ix_arr[local_i], iy_arr[local_j]))
+    return levels, (face_in_x, face_out_x, face_in_y, face_out_y)
+
+
 @pytest.mark.parametrize("nx,ny", [(3, 4), (4, 3), (5, 7), (2, 3)])
 @pytest.mark.parametrize("sx,sy", [(+1, +1), (+1, -1), (-1, +1), (-1, -1)])
 def test_d2_from_cartesian_matches_legacy(nx, ny, sx, sy):
-    """C: the generic ``from_cartesian((nx,ny))`` reproduces the OLD
-    ``from_cartesian_2d`` level structure + face conventions bit-for-bit.
+    """C: the generic ``from_cartesian((nx,ny))`` reproduces the legacy
+    2-D anti-diagonal level structure + face conventions bit-for-bit.
 
     Retire-the-predecessor-with-a-pin (``feedback_retirement_means_test_migration``):
-    captures the legacy structure BEFORE it is retired and asserts the new
-    builder matches. Non-square ``(5,7)`` / ``(4,3)`` cases catch an x↔y
-    axis swap in the generic level partition (AI failure mode 2) that a
-    square grid cannot see.
-
-    NOTE: if C3 retires ``from_cartesian_2d`` entirely, replace ``legacy``
-    with a frozen golden captured at the PRE-C3 commit (the structure is
-    small — levels + 4 face ints — and serialises cleanly to an ``.npz``).
+    the ``from_cartesian_2d`` alias is GONE (C3.3), so the golden is the
+    hand-derived ``_legacy_2d_anti_diagonal`` recurrence — a structurally
+    independent construction, NOT a second call to the production builder.
+    Non-square ``(5,7)`` / ``(4,3)`` cases catch an x↔y axis swap in the
+    generic level partition (AI failure mode 2) that a square grid cannot
+    see.
     """
-    legacy = SweepDependencyGraph.from_cartesian_2d(
-        nx=nx, ny=ny, label=OctantLabel((sx, sy)),
-    )
+    legacy_levels, legacy_faces = _legacy_2d_anti_diagonal(nx, ny, sx, sy)
     generic = _build_nd((nx, ny), (sx, sy))
 
     # Same number of levels.
     np.testing.assert_array_equal(
-        len(generic.levels), len(legacy.levels),
+        len(generic.levels), len(legacy_levels),
         err_msg=f"({nx},{ny}) signs=({sx},{sy}): level count drift",
     )
     # Same cells per level, in the same per-octant traversal order.
-    for k, (leg_lvl, gen_lvl) in enumerate(zip(legacy.levels, generic.levels)):
+    for k, (leg_lvl, gen_lvl) in enumerate(zip(legacy_levels, generic.levels)):
         leg_ii, leg_jj = leg_lvl
         gen_axes = gen_lvl
         np.testing.assert_array_equal(
@@ -536,7 +541,6 @@ def test_d2_from_cartesian_matches_legacy(nx, ny, sx, sy):
     np.testing.assert_array_equal(
         [generic.face_in_x, generic.face_out_x,
          generic.face_in_y, generic.face_out_y],
-        [legacy.face_in_x, legacy.face_out_x,
-         legacy.face_in_y, legacy.face_out_y],
+        list(legacy_faces),
         err_msg="face-offset convention drift between generic and legacy",
     )

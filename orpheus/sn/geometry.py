@@ -12,6 +12,7 @@ redistribution coefficients (:math:`\alpha`), the geometry factor
 
 from __future__ import annotations
 
+import itertools
 import warnings
 from functools import cached_property
 from typing import ClassVar, Iterator, Optional, TYPE_CHECKING
@@ -626,8 +627,18 @@ class SNMesh:
 
     @property
     def is_1d(self) -> bool:
-        """True if this is a 1-D mesh (ny == 1)."""
-        return self.ny == 1
+        """True if this is a genuine 1-D mesh (``ndim == 1``).
+
+        Reads the genuine spatial dimensionality, NOT the phantom
+        ``ny == 1`` shim: a :class:`Mesh2D` with a single y-cell is 2-D
+        (``ndim == 2``) and is NOT 1-D. The old ``ny == 1`` test
+        misclassified that degenerate case and was the root of #214; the
+        genuine-dimensionality test is the phantom-axis-elimination
+        invariant (R-1 Phase A). This is the single source of truth for
+        the 1-D-vs-multi-D dispatch in the streaming operators
+        (``not sn_mesh.is_1d`` selects the multi-D Cartesian path).
+        """
+        return self.ndim == 1
 
     # ── Dim-agnostic geometry primitives (R-1 Phase A C1) ─────────────
 
@@ -1299,21 +1310,29 @@ class SNMesh:
         # Curvature terms (None for Cartesian — placeholder for curvilinear)
         self.curvature = None
 
-        # Per-octant sweep dependency graphs (Wave 2 / C2.4) — one
-        # ``SweepDependencyGraph`` per in-plane octant ``(sign_x,
-        # sign_y) ∈ {-1, +1}²`` (the four streaming octants).
-        # Pure-z ordinates with ``sign_x == 0 == sign_y`` are handled
-        # by the wavefront sweep's ``Q/Σ_t`` short-circuit and have
-        # no entry here. The graphs depend only on cell topology +
-        # octant sign convention — independent of fluxes / sources /
-        # iteration state — so they are precomputed once at mesh
-        # construction and reused across every sweep call.
+        # Per-octant sweep dependency graphs (Wave 2 / C2.4) —
+        # dimension-generic: one ``SweepDependencyGraph`` per streaming
+        # octant, the ``2^d`` sign signatures
+        # ``itertools.product((-1, +1), repeat=d)`` over the ``d = ndim``
+        # spatial axes. A 1-D slab gets 2 pure-chain graphs (``±x``); a
+        # 2-D mesh gets the 4 in-plane octants. (Pure-z ordinates with an
+        # all-zero in-plane sign are handled by the wavefront sweep's
+        # ``Q/Σ_t`` short-circuit and have no entry here.) The graphs
+        # depend only on cell topology + octant sign convention —
+        # independent of fluxes / sources / iteration state — so they are
+        # precomputed once at mesh construction and reused across every
+        # sweep call. The d=1 graphs are consumed by the 1-D wavefront
+        # sweep (C3.4); the d=2 graphs by the moving-frontier window sweep.
+        #
+        # At ``d = 2`` ``itertools.product((-1, +1), repeat=2)`` yields the
+        # octants in the SAME order as the retired nested ``sx, sy`` loop
+        # — ``(-1,-1), (-1,+1), (+1,-1), (+1,+1)`` — so the dict is built
+        # bit-for-bit as before.
         self.sweep_graphs: dict[OctantLabel, SweepDependencyGraph] = {
-            OctantLabel((sx, sy)): SweepDependencyGraph.from_cartesian_2d(
-                nx=self.nx, ny=self.ny, label=OctantLabel((sx, sy)),
+            OctantLabel(signs): SweepDependencyGraph.from_cartesian(
+                self.spatial_shape, label=OctantLabel(signs),
             )
-            for sx in (-1, +1)
-            for sy in (-1, +1)
+            for signs in itertools.product((-1, +1), repeat=self.ndim)
         }
 
     # ── Backward-compat property accessors ────────────────────────────

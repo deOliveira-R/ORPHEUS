@@ -363,17 +363,16 @@ class _MSpatialOperatorSum(OperatorSum):
         N = quad.N
         ng = psi_view.shape[1]
         nx = sn_mesh.nx
-        ny = sn_mesh.ny
         eps = 1e-15
         curvature_raw = getattr(sn_mesh, "curvature", None)
         curvature = curvature_raw if curvature_raw is not None else "cartesian"
 
         if curvature not in ("spherical", "cylindrical", "cartesian"):
             raise ValueError(f"Unknown curvature: {curvature!r}")
-        if curvature == "cartesian" and ny > 1:
+        if curvature == "cartesian" and not sn_mesh.is_1d:
             raise NotImplementedError(
-                "_MSpatialOperatorSum._compute_LpC: 2-D Cartesian "
-                "is not yet wired through dag_walk; only 1-D slab (ny=1) "
+                "_MSpatialOperatorSum._compute_LpC: multi-D Cartesian "
+                "is not yet wired through dag_walk; only the 1-D slab "
                 "is implemented.  2-D Cartesian routes through "
                 "`StreamingOperator._apply_2d_cartesian` (Q1 hybrid)."
             )
@@ -615,7 +614,7 @@ class _MSpatialOperatorSum(OperatorSum):
         eps = 1e-15
         curvature_raw = getattr(sn_mesh, "curvature", None)
         curvature = curvature_raw if curvature_raw is not None else "cartesian"
-        if curvature == "cartesian" and sn_mesh.ny > 1:
+        if curvature == "cartesian" and not sn_mesh.is_1d:
             raise NotImplementedError(
                 "_compute_LpC_transpose: the 2-D Cartesian adjoint is deferred "
                 "(O.2b lands the 1-D reverse sweep first; the 2-D reverse "
@@ -821,17 +820,16 @@ class _MSpatialOperatorSum(OperatorSum):
         N = quad.N
         ng = psi_view.shape[1]
         nx = sn_mesh.nx
-        ny = sn_mesh.ny
         eps = 1e-15
         curvature_raw = getattr(sn_mesh, "curvature", None)
         curvature = curvature_raw if curvature_raw is not None else "cartesian"
 
         if curvature not in ("spherical", "cylindrical", "cartesian"):
             raise ValueError(f"Unknown curvature: {curvature!r}")
-        if curvature == "cartesian" and ny > 1:
+        if curvature == "cartesian" and not sn_mesh.is_1d:
             raise NotImplementedError(
-                "_MSpatialOperatorSum._compute_decomposition: 2-D Cartesian "
-                "is not yet wired through dag_walk; only 1-D slab (ny=1) "
+                "_MSpatialOperatorSum._compute_decomposition: multi-D Cartesian "
+                "is not yet wired through dag_walk; only the 1-D slab "
                 "is implemented.  2-D Cartesian routes through "
                 "`StreamingOperator._apply_2d_cartesian` (Q1 hybrid)."
             )
@@ -1457,7 +1455,7 @@ class StreamingOperator(LinearOperatorMixin):
             )
 
         curv = getattr(sn_mesh, "curvature", None)
-        if curv is None and sn_mesh.ny > 1:
+        if curv is None and not sn_mesh.is_1d:
             # 2-D Cartesian — D-H.2-C4d L2-native FD kernel.
             # T.4 Q1 = hybrid: this path stays procedural; A2D-1
             # source-hash defensive pin guards against silent edits.
@@ -1527,7 +1525,7 @@ class StreamingOperator(LinearOperatorMixin):
                 "must share the SAME SNMesh instance (mesh-identity invariant)."
             )
         curv = getattr(sn_mesh, "curvature", None)
-        if curv is None and sn_mesh.ny > 1:
+        if curv is None and not sn_mesh.is_1d:
             raise NotImplementedError(
                 "StreamingOperator.apply_transpose: the 2-D Cartesian adjoint "
                 "is deferred (O.2b lands the 1-D reverse sweep first)."

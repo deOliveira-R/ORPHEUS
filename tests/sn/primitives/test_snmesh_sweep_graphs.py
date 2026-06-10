@@ -70,13 +70,16 @@ class TestSweepGraphsByCoordSystem:
 
     def test_cartesian_1d_has_sweep_graphs(self):
         """1-D slab Cartesian SNMesh: ``_setup_cartesian`` runs for any
-        Cartesian mesh, so ``sweep_graphs`` is populated with
-        degenerate ``ny=1`` graphs.
+        Cartesian mesh and now builds the GENUINE d=1 sweep graphs — the
+        ``2^1 = 2`` streaming octants (``±x``) on the chain DAG, NOT the
+        degenerate ``ny=1`` 2-D form (phantom-axis elimination, C3.3).
 
-        The 1-D slab sweep (:func:`_sweep_1d_cumprod`) does not
-        consume them — they exist as a side-effect of the unified
-        Cartesian setup path. Verifying the dict shape so a future
-        consumer would not be surprised.
+        The 1-D slab sweep (cumprod scan) does not consume them today; they
+        are the d=1 wavefront-spine graphs the C3.4 1-D wavefront sweep
+        walks. Asserted with ``np.testing`` / ``pytest.fail`` (function
+        calls) so the checks fire under the canonical ``python -O`` (the
+        surrounding bare ``assert`` checks are a pre-existing vv-Mode-8
+        gap, not introduced here).
         """
         from orpheus.geometry import CoordSystem
         mesh = Mesh1D(
@@ -86,12 +89,32 @@ class TestSweepGraphsByCoordSystem:
             coord=CoordSystem.CARTESIAN,
         )
         sn_mesh = SNMesh(mesh, Quadrature.gauss_legendre(8), placeholder_materials())
-        # 1-D slab still goes through _setup_cartesian, so dict exists.
-        assert sn_mesh.sweep_graphs is not None
-        assert len(sn_mesh.sweep_graphs) == 4
-        # Degenerate ny=1: each graph has nx + ny - 1 = nx levels.
-        graph = sn_mesh.sweep_graphs[OctantLabel((+1, +1))]
-        assert len(graph.levels) == sn_mesh.nx + sn_mesh.ny - 1
+        if sn_mesh.sweep_graphs is None:
+            pytest.fail("1-D slab sweep_graphs is None; expected the d=1 graphs")
+        # Genuine d=1: 2 streaming octants, 1-tuple sign labels (NOT 4).
+        np.testing.assert_array_equal(
+            len(sn_mesh.sweep_graphs), 2,
+            err_msg="1-D slab must have 2^1 = 2 octants, not the ny=1 phantom 4",
+        )
+        expected_keys = {OctantLabel((-1,)), OctantLabel((+1,))}
+        if set(sn_mesh.sweep_graphs.keys()) != expected_keys:
+            pytest.fail(
+                f"d=1 octant labels {set(sn_mesh.sweep_graphs.keys())} "
+                f"!= {expected_keys}"
+            )
+        # d=1 chain DAG: nx levels, a 1-axis tuple with one cell per level.
+        graph = sn_mesh.sweep_graphs[OctantLabel((+1,))]
+        np.testing.assert_array_equal(
+            len(graph.levels), sn_mesh.nx,
+            err_msg="d=1 chain must have nx levels (one cell per level)",
+        )
+        for k, level in enumerate(graph.levels):
+            np.testing.assert_array_equal(
+                len(level), 1, err_msg=f"level {k}: d=1 level must be a 1-axis tuple",
+            )
+            np.testing.assert_array_equal(
+                len(level[0]), 1, err_msg=f"level {k}: chain has one cell per level",
+            )
 
 
 @pytest.mark.l0

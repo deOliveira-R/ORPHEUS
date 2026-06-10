@@ -1583,15 +1583,18 @@ once at :class:`~orpheus.sn.geometry.SNMesh` construction:
        ...
        sweep_graphs: dict[OctantLabel, SweepDependencyGraph] | None
 
-       # populated for 2-D Cartesian; ``None`` for curvilinear
+       # populated for ALL Cartesian meshes (d=1 + d=2); ``None`` for curvilinear
        def _setup_cartesian(self, ...):
            ...
+           # dimension-generic: the 2^d sign signatures over the d = ndim
+           # spatial axes — 2 chain octants at d=1, the 4 in-plane octants
+           # at d=2.  At d=2 ``itertools.product`` yields the SAME order as
+           # the legacy nested ``sx, sy`` loop, so the dict is bit-identical.
            self.sweep_graphs = {
-               OctantLabel(sx, sy): SweepDependencyGraph.from_cartesian_2d(
-                   nx=self.nx, ny=self.ny, label=OctantLabel(sx, sy),
+               OctantLabel(signs): SweepDependencyGraph.from_cartesian(
+                   self.spatial_shape, label=OctantLabel(signs),
                )
-               for sx in (-1, +1)
-               for sy in (-1, +1)
+               for signs in itertools.product((-1, +1), repeat=self.ndim)
            }
 
 This lifts the per-call ``_diag_cache`` build that previously lived
@@ -1605,15 +1608,16 @@ the structurally important effect is that the graph build is now
 sweep-local cache.
 
 The closed-form precompute lives in
-:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.from_cartesian_2d`
+:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.from_cartesian`
 and never appears in the sweep loop.  This is structural, not
 hand-rolled — the "library version" (a generic topological-sort over
 an explicit DAG) would be over-engineering for a regular pattern that
-collapses to ~5 lines of ``arange`` + diagonal extraction.  Curvilinear
+collapses to ~5 lines of ``arange`` + anti-hyperplane extraction.  The
+builder is dimension-generic (``d = len(shape) ∈ {1, 2, 3}``): a d=1
+chain, the d=2 anti-diagonal, a d=3 anti-hyperplane.  Curvilinear
 geometries (sphere / cylinder) set ``self.sweep_graphs = None`` —
 they walk the cell graph differently (per-ordinate march; see
-:meth:`~orpheus.sn.geometry.SNMesh.dag_walk`) and Wave 2 is
-2-D Cartesian only.
+:meth:`~orpheus.sn.geometry.SNMesh.dag_walk`).
 
 The §15A.2 invariant set
 ~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -209,7 +209,7 @@ def _wavefront_1d_sweep(Q_arr, sig_t, sn_mesh, bc_inflow):
     if not hasattr(SweepDependencyGraph, "from_cartesian"):
         raise _SpineNotLanded(
             "SweepDependencyGraph.from_cartesian (the C3 d-generic spine "
-            "builder) is not yet landed — only from_cartesian_2d exists. "
+            "builder) is not yet landed. "
             "Once the carve lands, wire this adapter to the d=1 walk."
         )
     # ── C3-carve wiring goes here (delete the raise above) ──
