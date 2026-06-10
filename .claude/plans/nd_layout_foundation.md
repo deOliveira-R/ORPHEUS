@@ -157,8 +157,17 @@ claim verified against live code: Pattern-2 SSOT correct, eager d=1 build justif
 hand-derived golden genuinely structurally-independent [index-sum partition vs
 per-level range recurrence]). ONE carried CONCERN → C3.6 acceptance item below.
 
-**⏭ NEXT = C3.4 + C3.5 — RE-SCOPED as the SWEEP-STRATEGY CARVE.**
-⭐ **AUTHORITATIVE DESIGN = `.claude/plans/sn_sweep_strategy.md` (self-contained; READ FIRST).**
+**⏭ NEXT = the SWEEP-STRATEGY CARVE (C3.4 + C3.5), phase S4.**
+⭐ **AUTHORITATIVE DESIGN + PER-PHASE STATUS = `.claude/plans/sn_sweep_strategy.md` (self-contained; READ FIRST).**
+⭐ **PROGRESS (2026-06-10): S0–S3 DONE + committed (worktree HEAD `f7d2ea9`).** S1 `f6b4ad5` (selectable
+sweep dispatch, bit-id) · S2 `e08573e` (matvec twin via `strategy.residual`, the 5 gates collapse, bit-id) ·
+S3 `37ce528`+`f7d2ea9` (`FullFieldWavefront` = the genuine d-generic spine via `_sweep_full_field`/
+`_apply_full_field` + `SNMesh.streaming(axis)`; d=1 cumprod≡spine equivalence @nulp; adapters retired). All
+gates GREEN `-O`, elegance PASS (S1 nits applied / S2 clean / S3 zero nits), Sphinx clean. **NEXT = S4**
+(widen `MovingFrontierWindow` to `frontier_dim = d−1`; synthetic d=3 `window≡full` admission; ⚠ the ONE
+measured-cost exception — the d=2 zero-copy contiguity speedup may be 2-diagonal-line-specific, settle by
+PROFILING the d=3 frontier; retire the d=2 window's `str_x`/`str_y` onto `streaming(axis)`) THEN S5 (frontend
+`Compatibility` + `OctantLabel.sign_x/y`/`streams_in_2d` shim retirement + Sphinx theory page via archivist).
 The original C3.4 ("wire a `_wavefront_1d_sweep` adapter") + C3.5 ("orchestration d-generic")
 were re-scoped in a 2026-06-10 design conversation around a first-class **`SweepStrategy`**
 abstraction (Strategy pattern, polymorphic dispatch — NOT an enum threaded into `transport_sweep`,
