@@ -935,15 +935,12 @@ def sweep_octant_group(
         )
         sweep_graph.apply_windowed(
             cell_update=cell_update,
-            inflow_x=inflow_x,
-            inflow_y=inflow_y,
+            inflow=(inflow_x, inflow_y),
             Q_octant=Q[oct_idx],
             sig_t=sig_t,
-            str_x_octant=str_x[oct_idx],
-            str_y_octant=str_y[oct_idx],
+            str_axes_octant=(str_x[oct_idx], str_y[oct_idx]),
             weights_octant=weights[oct_idx],
-            capture_x=capture_x,
-            capture_y=capture_y,
+            capture=(capture_x, capture_y),
             angular_flux_octant=angular_flux_oct,
             scalar_flux_buf=scalar_flux,
             moment_buf=moment_buf,

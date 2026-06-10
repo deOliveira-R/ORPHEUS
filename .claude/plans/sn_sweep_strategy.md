@@ -65,8 +65,43 @@ first-class `SweepStrategy` abstraction.
   window≡full oracle 8 + d=1 equivalence 4. elegance-enforcer **PASS (zero nits)** — streaming(axis)
   pull-forward JUSTIFIED, supports widening HONEST, two-full-field-bodies = the aggressive-retirement
   fuller-view-oracle exception (now DOUBLY pinned: d=2 window≡full bit-id + d=1 cumprod≡spine nulp). Sphinx
-  clean. **NEXT = S4** (widen `MovingFrontierWindow` to `frontier_dim = d-1`; the d=2 window's hand-listed
-  `str_x`/`str_y` retire onto `streaming(axis)`; synthetic d=3 `window ≡ full` admission).
+  clean.
+- **S4 DONE (2026-06-10), d=2 bit-identical + d=1/d=3 admitted:** the rolling moving-frontier window — the
+  storage-B PRODUCTION sweep optimization — generalized from the hardcoded 2-diagonal to the general
+  `frontier_dim = d-1` rolling slab (a *point* at d=1, *line* at d=2, *surface* at d=3). **All d-dependent index
+  arithmetic moved into a mesh-time `_FrontierPlan`** (`sweep_graph.py`: per-level slab `read`/`write`
+  selectors + domain-edge `seed`/`shed` index maps; L16 zero per-sweep recompute), so the
+  `apply_windowed`/`residual_windowed` walks are now DIMENSION-AGNOSTIC and read like the cochain trace algebra
+  (`seed` ι_* / `incoming` gather / `emit` advance / `shed` ι*). `_MovingFrontier` → a `d`-tuple of slabs (free
+  axes ghosted +1 on their own coord, the determined/last axis parity-rolled). The graph field
+  `window_slots`/`window_edges` → single `window_plan`; `_window_metadata`/`_bounds`/`seed_x`/`seed_y` RETIRED
+  (zero live refs). The walk SIGNATURES took per-axis TUPLES (`inflow`/`str_axes_octant`/`capture`) replacing
+  the `inflow_x`/`inflow_y`/... pairs; the two orchestrators (`sweep.sweep_octant_group`,
+  `operator._apply_2d_cartesian`) migrated to them (A2D-1 source-hash REGENERATED with a history line).
+  ⭐ **d=2 BIT-IDENTITY preserved**: the per-level `read` selector degenerates to the SAME contiguous
+  `slice(i0,i1+1)` (box-contiguous ⟺ `det <= 1` ⟺ `d <= 2`), so the generalized walk reproduces the legacy
+  2-diagonal byte-for-byte AND keeps the measured contiguity speedup (PROFILED: window = **0.909× the
+  full-field walk** at S8/64²/4g — still a NET SPEEDUP, win RETAINED, no d=2 fast-path needed). At d≥3 the
+  anti-hyperplane is a SIMPLEX (not a box) → fancy index: the `(d-1)`-slab memory win holds; the d=3
+  contiguity/SPEED is the one measured-cost question DEFERRED to profiling (no 3-D quadrature yet; OUT of the
+  correctness gate). **Decision A resolved CONSERVATIVELY (a refinement of the initial widen-supports
+  proposal): `MovingFrontierWindow.supports` STAYS `d==2` — its strategy entry (`_sweep_2d_wavefront` /
+  `_apply_2d_cartesian`) is still the 2-D orchestrator (d-generic orchestration is C3.6, needs a 3-D
+  mesh/quadrature). Widening would let `default_for` build it on a 1-D/3-D mesh whose `.sweep` then crashes in
+  the 2-D orchestrator — a latent illegal-state. So NO `sweep_strategy.py` change: the WALK is general, the
+  STRATEGY selects narrow honestly (the governing principle).** VERIFICATION:
+  `test_sweep_graph_window_equivalence.py` REWRITTEN d-generically — `window ≡ full` at d=1 (frontier_dim==0
+  point) / d=2 (`np.array_equal` bit-id anchor) / synthetic d=3 (B7 admission idiom, no quadrature); + a
+  `(d-1)`-slab backing-size invariant. Gates GREEN `-O`: window≡full 28 + end-to-end affine-carve golden + A2D-1
+  hash + nd-admission + cumprod-spine equivalence; **broad suite: sweep 617 passed/0 genuine-fail (the lone
+  curvilinear-cylinder timeout is the pre-existing #206-area slow test, untouched by S4 — passes without the
+  artificial 45s cap) + operators/solve 524 passed/0 fail**. elegance-enforcer **PASS-with-nits** (both
+  forward-looking/non-blocking: the d=1 `is_point` base is the more-honest data structure — phantom-axis route
+  REJECTED; `det` is the SSOT of the free/determined partition — one-line forward-note added). diamond.py
+  kernel docstring de-staled ("d=2 PRODUCTION path" → "(d−1)-frontier"). **NEXT = S5** (frontend
+  `Compatibility` finalize; retire the d=2 orchestrators' hand-listed `str_x`/`str_y` onto a `streaming(axis)`
+  axes-map + the `OctantLabel.sign_x/sign_y/streams_in_2d` 2-D shims — DEFERRED here because the orchestrators
+  stay 2-D until C3.6; Sphinx theory page via archivist).
 - **Depends on C3.0–C3.3 (all DONE):** the wavefront spine is already dimension-generic — the
   per-octant DAG `SweepDependencyGraph.from_cartesian(shape)` (C3.1), the diamond cell kernel
   `cell_kernel_batch` (C3.2a), the full-field walk `graph.apply`/`graph.residual` (C3.2b), and the

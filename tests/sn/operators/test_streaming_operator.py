@@ -1289,8 +1289,22 @@ class TestT4dApply2DCartesianSourceHashPin:
     #         stays green: the full-field oracle equivalence
     #         (``test_2d_matvec_full_field_oracle``) + 523-pass operators+solve
     #         gate confirm ``_apply_2d_cartesian`` ≡ the (now d-generic) oracle.
+    #   SweepStrategy carve S4 (frontier_dim = d−1 generalization) b17d69d6…
+    #         e86bc6da → d18135c8…0d34ff6b2d — the SOLE change to this method:
+    #         the ``graph.residual_windowed`` call migrated from the hardcoded
+    #         2-D ``inflow_x=``/``inflow_y=``/``str_x_octant=``/``str_y_octant=``/
+    #         ``capture_x=``/``capture_y=`` keyword pairs to the d-generic per-axis
+    #         TUPLES ``inflow=(…, …)`` / ``str_axes_octant=(…, …)`` /
+    #         ``capture=(…, …)`` (``residual_windowed`` is now the rolling
+    #         (d−1)-frontier walk, the 2-diagonal being its frontier_dim==1
+    #         instance).  BIT-IDENTICAL: the d=2 read selector degenerates to the
+    #         same contiguous slice, so the window walk reproduces the legacy
+    #         2-diagonal byte-for-byte — the ``window ≡ full`` oracle stays
+    #         ``np.array_equal`` green (d=1/d=2/d=3) and the end-to-end affine
+    #         carve golden + matvec≡sweep are unchanged.  WRAP-not-relocate held
+    #         (the method body is otherwise untouched — only the call's kwargs).
     EXPECTED_SHA256: str = (
-        "b17d69d67e17a4b96b2899506f7a5d1ba4399ab5adebc42ae01b99d9e86bc6da"
+        "d18135c8291b142beea02db72b99eb4bb062dd41753105b963f0cb0d34ff6b2d"
     )
 
     def test_apply_2d_cartesian_source_hash_unchanged(self):

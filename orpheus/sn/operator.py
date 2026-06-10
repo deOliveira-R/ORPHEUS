@@ -1747,12 +1747,12 @@ class StreamingOperator(LinearOperatorMixin):
             cap_y = np.empty((oct_idx.size, ng, nx))
             graph.residual_windowed(
                 cell_update=cell_update,
-                inflow_x=boundary.face_view(x_in_face)[oct_idx],
-                inflow_y=boundary.face_view(y_in_face)[oct_idx],
+                inflow=(boundary.face_view(x_in_face)[oct_idx],
+                        boundary.face_view(y_in_face)[oct_idx]),
                 psi_avg_probe_octant=probe[oct_idx],
                 Q_octant=Q_zero, sig_t=sig_t,
-                str_x_octant=str_x[oct_idx], str_y_octant=str_y[oct_idx],
-                residual_octant=LpC_oct, capture_x=cap_x, capture_y=cap_y,
+                str_axes_octant=(str_x[oct_idx], str_y[oct_idx]),
+                residual_octant=LpC_oct, capture=(cap_x, cap_y),
             )
             LpC[oct_idx] = LpC_oct
             streamed[x_out_face][oct_idx] = cap_x

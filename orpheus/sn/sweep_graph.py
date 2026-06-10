@@ -147,78 +147,179 @@ class OctantLabel:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# _MovingFrontier — the rolling 2-diagonal interior face cochain (storage-B)
+# _FrontierPlan / _MovingFrontier — the rolling (d−1)-frontier face cochain
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class _MovingFrontier:
-    r"""The rolling 2-diagonal interior face cochain — storage-B's moving frontier.
+@dataclass(frozen=True)
+class _LevelFrontier:
+    r"""Mesh-time slab addressing for ONE anti-hyperplane level (storage-B).
 
-    The interior per-ordinate face flux (the cochain :math:`C^1_{\rm int}`,
-    :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux` in its
-    full-field realization) need only be held on the ACTIVE anti-diagonal
-    frontier during a sweep: a face produced at level ``k`` is consumed at
-    ``k+1``, so two diagonals (ping-ponged by parity ``k % 2``) suffice. This
-    shrinks the interior backing from ``O(N·ng·nx·ny)`` to ``O(N·ng·nx)``.
+    All :math:`d`-dependent index arithmetic for one level of the rolling
+    :math:`(d{-}1)`-frontier window, precomputed so the walk
+    (:meth:`SweepDependencyGraph.apply_windowed` /
+    :meth:`~SweepDependencyGraph.residual_windowed`) is dimension-agnostic
+    (L16: zero per-sweep recompute).
 
-    The frontier is FAST *and* expressive because a diagonal's slots are
-    CONTIGUOUS (``local_i ∈ [i0, i1]``): the gather is a basic-slice zero-copy
-    VIEW and the advance a slice-assign — never the fancy 2-array index the
-    full-field grid-diagonal walk is forced into (which copies every level).
-    Measured ~0.77× the full-field walk time (a SPEEDUP, not a memory-vs-time
-    trade), with the abstraction itself free (~1.00× vs the inline form).
+    The frontier slab is indexed by the :math:`(d{-}1)` FREE *local*
+    coordinates (the first :math:`d{-}1` axes); the determined axis (the last)
+    is the parity-ping-ponged one.
 
-    Layout (per octant, ``win_x`` carries a GHOST column 0 for the x-inflow):
-
-    * ``win_x`` ``(N_oct, ng, 2, nx+1)`` — cell ``local_i`` READS x-column
-      ``local_i`` (its upstream neighbour's x-outflow, OR the ghost for the
-      ``local_i==0`` inflow edge) and WRITES column ``local_i+1``.
-    * ``win_y`` ``(N_oct, ng, 2, nx)`` — cell ``local_i`` reads + writes column
-      ``local_i`` across parities; the y-inflow edge cell's column is seeded so
-      the gather slice includes it.
-
-    The API is the cochain trace algebra: :meth:`seed_x` / :meth:`seed_y` are
-    the :math:`\iota_*` inflow injection (per edge level), :meth:`incoming` the
-    gather, :meth:`emit` the advance. The :math:`\iota^*` outflow shed reads the
-    just-emitted ``out_x`` / ``out_y`` and is done by the caller (it targets the
-    boundary trace, not the interior frontier).
+    Attributes
+    ----------
+    read :
+        The slab gather selector — the level's cells' free-coordinate
+        positions, a :class:`slice` per coordinate when the free region is
+        box-contiguous (``d ≤ 2`` — a 1-D anti-hyperplane is an interval) and
+        fancy index arrays when it is a simplex (``d ≥ 3``).  Applied as
+        ``win[a][:, :, prev, *read] → (N_oct, ng, n_diag)``.
+    write :
+        Per-axis slab scatter selector.  For a FREE axis it is ``read`` shifted
+        ``+1`` on that axis's own coordinate (cell ``f`` writes its high-face
+        for downstream cell ``f + e_a``); for the DETERMINED axis it equals
+        ``read`` (the progression is the parity roll).
+    seed :
+        Per-axis domain-edge inflow op: ``None`` (no edge cells this level) or
+        ``(slab_target, inflow_source)`` — scatter ``inflow[a][*inflow_source]``
+        into ``win[a][prev][*slab_target]`` before the gather.
+    shed :
+        Per-axis domain-edge outflow op: ``None`` or ``(out_mask, capture_target)``
+        — gather the kernel's outgoing ``out_faces[a][..., out_mask]`` into
+        ``capture[a][*capture_target]`` after the kernel.
     """
 
-    __slots__ = ("win_x", "win_y")
+    read: tuple
+    write: tuple
+    seed: tuple
+    shed: tuple
 
-    def __init__(self, N_oct: int, ng: int, nx: int) -> None:
-        # +1 x-column = the ghost holding the per-level x-inflow.
-        self.win_x = np.zeros((N_oct, ng, 2, nx + 1))
-        self.win_y = np.zeros((N_oct, ng, 2, nx))
 
-    def seed_x(self, prev: int, x_inflow_col: np.ndarray) -> None:
-        r""":math:`\iota_*` — inject the x-inflow into the ghost column (read by
-        the ``local_i==0`` edge cell as its upstream-x slot)."""
-        self.win_x[:, :, prev, 0] = x_inflow_col
+@dataclass(frozen=True)
+class _FrontierPlan:
+    r"""The whole-sweep rolling :math:`(d{-}1)`-frontier window plan (storage-B).
 
-    def seed_y(self, prev: int, i1: int, y_inflow_col: np.ndarray) -> None:
-        r""":math:`\iota_*` — inject the y-inflow into the edge cell's column
-        ``i1`` (the level's last slot; the cell-below it does not exist)."""
-        self.win_y[:, :, prev, i1] = y_inflow_col
+    A face produced at level ``k`` is consumed at ``k+1``, so the interior face
+    cochain (the cochain :math:`C^1_{\rm int}`,
+    :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux` in its
+    full-field realization) need only be held on the two active levels — a
+    rolling slab ping-ponged by parity ``k % 2``.  The slab is the
+    :math:`(d{-}1)`-dim free bounding box, shrinking the interior backing from
+    ``O(N·ng·∏ n_a)`` to ``O(N·ng·∏_{a<d−1} n_a)`` (the ``~3×`` peak-memory win
+    Phase 5b measured at d=2; it grows with the angular order and generalises
+    to any ``d``).
 
-    def incoming(
-        self, prev: int, i0: int, i1: int,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """Gather the level's incoming x/y face flux as basic-slice VIEWS
-        (zero-copy): x-column ``local_i`` = ``[i0, i1]``, y-column ``[i0, i1]``."""
-        return (
-            self.win_x[:, :, prev, i0:i1 + 1],
-            self.win_y[:, :, prev, i0:i1 + 1],
-        )
+    The frontier is the :math:`(d{-}1)`-dim rolling slab: a *point* at d=1
+    (``frontier_dim == 0``, the degenerate base), a *line* at d=2, a *surface*
+    at d=3.  At d=2 the per-level :attr:`~_LevelFrontier.read` selector is a
+    contiguous :class:`slice` ⟹ the gather is a basic-slice zero-copy VIEW and
+    the advance a slice-assign — the ``~0.77×`` contiguity SPEEDUP (a free win,
+    not a memory-vs-time trade).  At d≥3 the anti-hyperplane is a simplex (not a
+    box), so the selector is a fancy index (copies) — the memory win still
+    holds; whether the speed win survives the d=3 *surface* is the one
+    measured-cost question deferred to profiling (no 3-D quadrature yet; the
+    correctness gate is the synthetic ``window ≡ full`` admission).
+
+    The slab per axis ``a``: a FREE axis (``a < det``) carries a ``+1`` ghost
+    along its own coordinate (cell ``f`` reads its low-``a`` face at ``f``, the
+    ghost holding the domain inflow for the ``f_a == 0`` edge, and writes its
+    high-``a`` face at ``f + e_a``); the DETERMINED axis (``a == det``) carries
+    no ghost (read coordinate == write coordinate, the progression is parity).
+    """
+
+    spatial_shape: tuple[int, ...]
+    free_bbox: tuple[int, ...]
+    det: int
+    levels: tuple[_LevelFrontier, ...]
+
+    @property
+    def is_point(self) -> bool:
+        """``True`` for the d=1 degenerate frontier (a point — no free axes)."""
+        return len(self.free_bbox) == 0
+
+
+class _MovingFrontier:
+    r"""The rolling :math:`(d{-}1)`-frontier interior face cochain (storage-B).
+
+    Holds one slab per spatial axis (a FREE axis ghosted ``+1`` on its own
+    coordinate; the DETERMINED axis plain, parity-rolled), driven by a mesh-time
+    :class:`_FrontierPlan`.  The ping-pong is valid at every ``d``: a face
+    produced at level ``k`` (parity ``k % 2``) is read at level ``k+1`` (parity
+    ``(k+1−1) % 2 == k % 2``), and every read hits a slab position the
+    immediately-prior level wrote (cell ``c`` reads its low-``a`` face from the
+    upstream cell ``c − e_a``, which is on level ``k−1``) or a seeded domain
+    inflow.
+
+    The API is the cochain trace algebra: :meth:`seed` is the :math:`\iota_*`
+    inflow injection (per edge level), :meth:`incoming` the gather, :meth:`emit`
+    the advance, :meth:`shed` the :math:`\iota^*` domain-outflow capture.
+    """
+
+    __slots__ = ("_win", "_plan")
+
+    def __init__(self, N_oct: int, ng: int, plan: _FrontierPlan) -> None:
+        free = plan.free_bbox
+        det = plan.det
+        win = []
+        for a in range(len(plan.spatial_shape)):
+            shp = list(free)
+            if a < det:                          # FREE axis: +1 ghost on coord a
+                shp[a] = plan.spatial_shape[a] + 1
+            win.append(np.zeros((N_oct, ng, 2, *shp)))
+        self._win = tuple(win)
+        self._plan = plan
+
+    def seed(self, prev: int, lvl: int, inflow: tuple[np.ndarray, ...]) -> None:
+        r""":math:`\iota_*` — inject each axis's domain inflow into the slab at
+        this level's edge cells (so the subsequent :meth:`incoming` gather reads
+        them).  A no-op for an axis with no edge cell on this level."""
+        for a, op in enumerate(self._plan.levels[lvl].seed):
+            if op is None:
+                continue
+            slab_target, inflow_source = op
+            self._win[a][(slice(None), slice(None), prev) + slab_target] = (
+                inflow[a][(slice(None), slice(None)) + inflow_source]
+            )
+
+    def incoming(self, prev: int, lvl: int) -> tuple[np.ndarray, ...]:
+        """Gather the level's incoming face flux per axis (a zero-copy VIEW at
+        d≤2 via the contiguous slice; a fancy-index copy at d≥3)."""
+        read = self._plan.levels[lvl].read
+        faces = []
+        for a in range(len(self._win)):
+            g = self._win[a][(slice(None), slice(None), prev) + read]
+            if self._plan.is_point:              # d=1: restore the n_diag axis
+                g = g[:, :, None]
+            faces.append(g)
+        return tuple(faces)
 
     def emit(
-        self, cur: int, i0: int, i1: int,
-        out_x: np.ndarray, out_y: np.ndarray,
+        self, cur: int, lvl: int, out_faces: tuple[np.ndarray, ...],
     ) -> None:
-        """Advance the frontier: scatter the level's outgoing faces by
-        slice-assign (x-column ``local_i+1`` = ``[i0+1, i1+1]``; y ``[i0, i1]``)."""
-        self.win_x[:, :, cur, i0 + 1:i1 + 2] = out_x
-        self.win_y[:, :, cur, i0:i1 + 1] = out_y
+        """Advance the frontier: scatter each axis's outgoing face flux into the
+        downstream slot (free axis ``f + e_a``; determined axis ``f``)."""
+        write = self._plan.levels[lvl].write
+        for a in range(len(self._win)):
+            out = out_faces[a][:, :, 0] if self._plan.is_point else out_faces[a]
+            self._win[a][(slice(None), slice(None), cur) + write[a]] = out
+
+    def shed(
+        self, lvl: int, out_faces: tuple[np.ndarray, ...],
+        capture: tuple[np.ndarray, ...],
+    ) -> None:
+        r""":math:`\iota^*` — capture each axis's domain outflow (the high-edge
+        cells' outgoing faces) into the per-axis ``capture`` arrays.  A no-op for
+        an axis with no outflow-edge cell on this level."""
+        for a, op in enumerate(self._plan.levels[lvl].shed):
+            if op is None:
+                continue
+            out_mask, capture_target = op
+            # d=1 degenerate point: the single edge cell, n_diag axis squeezed
+            # (the domain outflow has no perpendicular coordinate).
+            shed_faces = (
+                out_faces[a][:, :, 0] if self._plan.is_point
+                else out_faces[a][:, :, out_mask]
+            )
+            capture[a][(slice(None), slice(None)) + capture_target] = shed_faces
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -286,24 +387,21 @@ class SweepDependencyGraph:
     face_in: tuple[int, ...]
     face_out: tuple[int, ...]
     spatial_shape: tuple[int, ...]
-    # ── Phase 5b storage-B: mesh-time moving-frontier window metadata ──
-    # The d=2 OPTIMIZATION ONLY (``None`` for ``d != 2``): the d=1 cumprod
-    # scan and the d≥3 full-field walk do not use the moving-frontier
-    # window. The rolling 2-diagonal window walk keys the interior face
-    # cochain by the cell's LOCAL sweep-order slot (``local_i ∈ [0, nx)``)
-    # instead of its global face position — so the backing is O(N·ng·nx)
-    # not O(N·ng·nx·ny). ``window_slots[k]`` is the per-level ``local_i``
-    # array (= the slot to write ``win_*[k%2, slot]`` and read
-    # ``win_y[(k-1)%2, slot]`` / ``win_x[(k-1)%2, slot-1]``); the companion
-    # ``local_j`` is ``k - window_slots[k]`` (construction invariant), so
-    # the domain-edge masks derive in the walk. ``window_edges[k]`` is the
-    # mesh-time 4-tuple ``(has_x_in, has_x_out, has_y_in, has_y_out)`` of
-    # Python bools (the touched cell is at a FIXED position — x-inflow at 0,
-    # x-outflow at -1, y-inflow at -1, y-outflow at 0 — so the walk guards
-    # each edge op with a precomputed bool). Derived mesh-time (no flux
-    # dependence) — L16: zero per-sweep recompute.
-    window_slots: tuple[np.ndarray, ...] | None
-    window_edges: tuple[tuple[bool, ...], ...] | None
+    # ── Phase 5b storage-B: mesh-time rolling (d−1)-frontier window plan ──
+    # The production-optimization addressing for the ``apply_windowed`` /
+    # ``residual_windowed`` walks (the ``MovingFrontierWindow`` strategy): the
+    # interior face cochain is held on a rolling (d−1)-frontier slab, keyed by
+    # the cell's LOCAL sweep-order free coordinates rather than its global face
+    # position — so the backing is the (d−1)-slab ``O(N·ng·∏_{a<d−1} n_a)`` not
+    # the full ``O(N·ng·∏ n_a)``.  All d-dependent index arithmetic is
+    # precomputed here (the per-level read/write selectors + the domain-edge
+    # seed/shed index maps) so the walk is dimension-agnostic — L16: zero
+    # per-sweep recompute.  Built for every streaming Cartesian graph (d ≥ 1);
+    # the d=1 instance is the degenerate ``frontier_dim == 0`` point (the window
+    # is not the production default at d=1 — the cumprod scan is — but the plan
+    # is built so the window's d=1 capability is verifiable, the governing
+    # principle "construct general, select narrow").
+    window_plan: _FrontierPlan
 
     # ── 2-D in-plane convenience accessors (compat; retire with the
     #    d-generic orchestration). The window walk, the matvec twin, and
@@ -416,12 +514,19 @@ class SweepDependencyGraph:
         local = np.indices(shape).reshape(d, -1)        # (d, prod), C-major
         level_of = local.sum(axis=0)                    # (prod,)
         n_levels = sum(n - 1 for n in shape) + 1
-        levels: tuple[tuple[np.ndarray, ...], ...] = tuple(
-            tuple(axis_map[a][local[a, level_of == k]] for a in range(d))
+        # Per level: the LOCAL sweep-order coords (for the window slab) AND the
+        # GLOBAL cell coords (axis_map applied; for the source / XS / flux /
+        # boundary indexing).  Both share the C-major within-level order.
+        local_levels = tuple(
+            tuple(local[a, level_of == k] for a in range(d))
             for k in range(n_levels)
         )
+        levels: tuple[tuple[np.ndarray, ...], ...] = tuple(
+            tuple(axis_map[a][loc] for a, loc in enumerate(local_lvl))
+            for local_lvl in local_levels
+        )
 
-        window_slots, window_edges = cls._window_metadata(shape, n_levels)
+        window_plan = cls._build_frontier_plan(shape, levels, local_levels)
 
         return cls(
             label=label,
@@ -429,45 +534,104 @@ class SweepDependencyGraph:
             face_in=face_in,
             face_out=face_out,
             spatial_shape=shape,
-            window_slots=window_slots,
-            window_edges=window_edges,
+            window_plan=window_plan,
         )
 
     @staticmethod
-    def _window_metadata(
-        shape: tuple[int, ...], n_levels: int,
-    ) -> tuple[
-        tuple[np.ndarray, ...] | None, tuple[tuple[bool, ...], ...] | None
-    ]:
-        """Storage-B moving-frontier window metadata — the d=2 optimization.
+    def _build_frontier_plan(
+        shape: tuple[int, ...],
+        levels: tuple[tuple[np.ndarray, ...], ...],
+        local_levels: tuple[tuple[np.ndarray, ...], ...],
+    ) -> _FrontierPlan:
+        r"""Build the rolling :math:`(d{-}1)`-frontier window plan (storage-B).
 
-        Returns ``(None, None)`` for ``d != 2`` (the d=1 cumprod scan and
-        the d≥3 full-field walk do not use the moving-frontier window).
-        For ``d == 2`` this is the legacy per-level ``local_i`` slot array
-        + the ``(has_x_in, has_x_out, has_y_in, has_y_out)`` edge bools,
-        built exactly as the legacy 2-D window did (so the
-        window walk stays bit-identical). The slot ``local_i`` is
-        contiguous ⟹ basic-slice addressable; the edge bools mark the
-        FIXED domain-edge positions (x-inflow at 0, x-outflow at -1,
-        y-inflow at -1, y-outflow at 0) so the walk guards each edge op
-        without a per-level mask.
+        Precomputes, for every anti-hyperplane level, the slab read/write
+        selectors + the domain-edge seed/shed index maps — all the
+        :math:`d`-dependent index arithmetic, so the
+        :meth:`apply_windowed` / :meth:`residual_windowed` walks are
+        dimension-agnostic (L16: zero per-sweep recompute).  ``levels`` carries
+        the GLOBAL cell coords (per-octant sweep direction), ``local_levels``
+        the LOCAL sweep-order coords (the slab is local-indexed) — both in the
+        same C-major within-level order.
+
+        The determined axis is the LAST (``det = d − 1``); the free coordinates
+        are the first :math:`d{-}1`.  At ``d ≤ 2`` the level's free region is an
+        interval, so :attr:`~_LevelFrontier.read` is a contiguous :class:`slice`
+        (the d=2 zero-copy contiguity, reproduced byte-for-byte — the bit-id
+        anchor); at ``d ≥ 3`` it is a fancy index of the simplex.  At ``d == 1``
+        the free box is empty (the ``frontier_dim == 0`` degenerate point).
         """
-        if len(shape) != 2:
-            return None, None
-        nx, ny = shape
-        window_slots: list[np.ndarray] = []
-        window_edges: list[tuple[bool, ...]] = []
-        for k in range(n_levels):
-            i_start = max(0, k - ny + 1)
-            i_end = min(nx - 1, k)
-            window_slots.append(np.arange(i_start, i_end + 1))
-            window_edges.append((
-                i_start == 0,            # has_x_in  (cell at position 0)
-                i_end == nx - 1,         # has_x_out (cell at position -1)
-                i_end == k,              # has_y_in  (cell at position -1)
-                k >= ny - 1,             # has_y_out (cell at position 0)
+        d = len(shape)
+        # ``det`` is the SINGLE SOURCE OF TRUTH for the free/determined axis
+        # partition: the determined (parity-rolled) axis is the LAST, the free
+        # axes the first ``det``.  If a later stage makes the determined axis a
+        # policy (non-last), this prefix slice becomes the ``b != det``
+        # comprehension and every ``a < det`` test follows — change ``det`` only.
+        det = d - 1
+        free_bbox = tuple(shape[:det])                  # () at d=1
+        box_contiguous = det <= 1                        # interval ⟺ d ≤ 2
+
+        plan_levels: list[_LevelFrontier] = []
+        for gcell, lcell in zip(levels, local_levels):
+            lfree = lcell[:det]                          # (d−1)-tuple LOCAL free coords
+            # READ — the level's free-coord positions (slab gather).
+            if box_contiguous:
+                # d ≤ 2: each free coord is a contiguous ascending range ⟹ a
+                # zero-copy slice (the d=2 contiguity speedup, preserved).
+                read = tuple(
+                    slice(int(c[0]), int(c[-1]) + 1) for c in lfree
+                )
+            else:
+                read = tuple(lfree)                      # d ≥ 3: fancy simplex index
+            # WRITE — per axis.  Free axis: read shifted +1 on coord a.
+            # Determined axis: read (the progression is the parity roll).
+            write: list[tuple] = []
+            for a in range(d):
+                if a < det:
+                    if box_contiguous:
+                        w = list(read)
+                        w[a] = slice(read[a].start + 1, read[a].stop + 1)
+                        write.append(tuple(w))
+                    else:
+                        w = list(lfree)
+                        w[a] = lfree[a] + 1
+                        write.append(tuple(w))
+                else:
+                    write.append(read)
+            # SEED — per axis: the inflow-edge cells (LOCAL coord_a == 0).
+            seed: list[tuple | None] = []
+            for a in range(d):
+                mask = lcell[a] == 0
+                if not mask.any():
+                    seed.append(None)
+                    continue
+                slab_target = tuple(c[mask] for c in lfree)
+                inflow_source = tuple(
+                    gcell[b][mask] for b in range(d) if b != a
+                )
+                seed.append((slab_target, inflow_source))
+            # SHED — per axis: the outflow-edge cells (LOCAL coord_a == n_a−1).
+            shed: list[tuple | None] = []
+            for a in range(d):
+                mask = lcell[a] == shape[a] - 1
+                if not mask.any():
+                    shed.append(None)
+                    continue
+                capture_target = tuple(
+                    gcell[b][mask] for b in range(d) if b != a
+                )
+                shed.append((mask, capture_target))
+            plan_levels.append(_LevelFrontier(
+                read=read, write=tuple(write),
+                seed=tuple(seed), shed=tuple(shed),
             ))
-        return tuple(window_slots), tuple(window_edges)
+
+        return _FrontierPlan(
+            spatial_shape=tuple(shape),
+            free_bbox=free_bbox,
+            det=det,
+            levels=tuple(plan_levels),
+        )
 
     # ── Internal: shared per-level slice builder ────────────────────
 
@@ -655,62 +819,62 @@ class SweepDependencyGraph:
                 cell_update.residual_batch(slice_args)
             )
 
-    # ── Phase 5b storage-B: rolling moving-frontier window walks ────────
+    # ── Phase 5b storage-B: rolling (d−1)-frontier window walks ─────────
     #
-    # The PRODUCTION walks. They carry the interior face cochain on a
-    # :class:`_MovingFrontier` (rolling 2-diagonal window, O(N·ng·nx) not
-    # O(N·ng·nx·ny)) and ADVANCE it level by level — basic-slice views/assigns
-    # over the contiguous slots, FASTER than the full-field grid-diagonal walk
-    # (~0.77×). The cell math is the SAME shared kernel
+    # The PRODUCTION walks (the ``MovingFrontierWindow`` strategy). They carry
+    # the interior face cochain on a :class:`_MovingFrontier` (rolling
+    # (d−1)-frontier, ``O(N·ng·∏_{a<d−1} n_a)`` not the full ``O(N·ng·∏ n_a)``)
+    # and ADVANCE it level by level via the mesh-time :class:`_FrontierPlan`.
+    # At d=2 the frontier is a contiguous line ⟹ basic-slice views/assigns,
+    # FASTER than the full-field grid-diagonal walk (~0.77×); at d≥3 it is a
+    # simplex (fancy index — the memory win holds, the speed win is the deferred
+    # profiling question).  The cell math is the SAME shared kernel
     # (DiamondDifference.cell_kernel_batch / residual_kernel_batch) the
     # full-field walks (apply / residual) use — so window and full-field cannot
-    # drift mathematically (proven bit-identical by the window≡full oracle test).
+    # drift mathematically (proven by the d=1/d=2/d=3 ``window ≡ full`` tests).
     # Domain-edge inflow is ι_*-seeded onto the frontier per level (from the
-    # passed inflow arrays); domain-edge outflow is ι*-shed into the capture
-    # arrays at the level that produces it, BEFORE its frontier slot recycles.
-
-    def _bounds(self, slot: np.ndarray) -> tuple[int, int]:
-        """Contiguous local-i bounds ``(i0, i1)`` of a level's slot range."""
-        return int(slot[0]), int(slot[-1])
+    # passed per-axis ``inflow`` tuple); domain-edge outflow is ι*-shed into the
+    # per-axis ``capture`` tuple at the level that produces it, BEFORE its
+    # frontier slot recycles.  The walk is dimension-agnostic: the per-axis
+    # ``inflow`` / ``str_axes_octant`` / ``capture`` tuples and the d-generic
+    # ``cell_idx`` scatter reproduce the legacy 2-D ``ii`` / ``jj`` access at
+    # d=2 byte-for-byte (the bit-identity anchor).
 
     def apply_windowed(
         self,
         *,
         cell_update: CellUpdateBase,
-        inflow_x: np.ndarray,            # (N_oct, ng, ny) — domain x-inflow by global y-cell
-        inflow_y: np.ndarray,            # (N_oct, ng, nx) — domain y-inflow by global x-cell
-        Q_octant: np.ndarray,            # (N_oct or 1, ng, nx, ny)
-        sig_t: np.ndarray,               # (ng, nx, ny)
-        str_x_octant: np.ndarray,        # (N_oct, nx)
-        str_y_octant: np.ndarray,        # (N_oct, ny)
-        weights_octant: np.ndarray,      # (N_oct,)
-        capture_x: np.ndarray,           # (N_oct, ng, ny) — domain x-outflow, written
-        capture_y: np.ndarray,           # (N_oct, ng, nx) — domain y-outflow, written
-        angular_flux_octant: np.ndarray | None = None,  # (N_oct, ng, nx, ny) — written (angular mode)
-        scalar_flux_buf: np.ndarray | None = None,       # (ng, nx, ny) — accumulated (angular mode)
-        moment_buf: np.ndarray | None = None,            # (L+1, 2L+1, ng, nx, ny) — accumulated (moment mode)
+        inflow: tuple[np.ndarray, ...],          # d-tuple — per-axis domain inflow
+        Q_octant: np.ndarray,                    # (N_oct or 1, ng, *spatial)
+        sig_t: np.ndarray,                       # (ng, *spatial)
+        str_axes_octant: tuple[np.ndarray, ...], # d-tuple, each (N_oct, n_a)
+        weights_octant: np.ndarray,              # (N_oct,)
+        capture: tuple[np.ndarray, ...],         # d-tuple — per-axis domain outflow, written
+        angular_flux_octant: np.ndarray | None = None,  # (N_oct, ng, *spatial) — written (angular mode)
+        scalar_flux_buf: np.ndarray | None = None,       # (ng, *spatial) — accumulated (angular mode)
+        moment_buf: np.ndarray | None = None,            # (L+1, 2L+1, ng, *spatial) — accumulated (moment mode)
         Y_octant: np.ndarray | None = None,              # (N_oct, L+1, 2L+1) — octant harmonics (moment mode)
     ) -> None:
         r"""Storage-B solve walk: advance a :class:`_MovingFrontier` along the
-        anti-diagonals, sheding domain-edge outflow as it goes.
+        anti-hyperplanes, sheding domain-edge outflow as it goes.
 
         The window-backed twin of :meth:`apply`. The interior face cochain + the
-        cell math are bit-identical to it (same shared cell kernel, same
-        anti-diagonal order); proven by the ``window ≡ full-field`` oracle test.
-        The boundary inflow is ι_*-seeded onto the frontier from ``inflow_x`` /
-        ``inflow_y`` (the octant's incoming domain-edge trace); the outflow is
-        ι*-shed into ``capture_x`` / ``capture_y``.
+        cell math are equal to it (same shared cell kernel, same anti-hyperplane
+        order); proven by the ``window ≡ full-field`` oracle test (bit-identical
+        at d=2; the d=1/d=3 synthetic admission). The per-axis domain inflow is
+        ι_*-seeded onto the frontier from the ``inflow`` tuple (each octant's
+        incoming domain-edge trace); the outflow is ι*-shed into ``capture``.
 
         Output representation (Phase 5c) — exactly ONE of two modes, selected by
         which output buffer is given (dependency injection, mirroring the
         ``reflect=None`` idiom in :func:`_sweep_2d_scheduled`):
 
         * **angular** (``moment_buf is None``) — write the full per-ordinate
-          ``angular_flux_octant[:, :, ii, jj] = psi_avg`` per level and
+          ``angular_flux_octant[:, :, *cell_idx] = psi_avg`` per level and
           accumulate the scalar ``scalar_flux_buf``. The full-angular OUTPUT a
           reconstruction / Krylov / full-angular SI consumer needs.
-        * **moment** (``moment_buf`` given) — project per anti-diagonal directly
-          into the harmonic moment tensor
+        * **moment** (``moment_buf`` given) — project per anti-hyperplane
+          directly into the harmonic moment tensor
           :math:`\phi_\ell^m \mathrel{+}= \sum_n w_n Y_\ell^m(\hat\Omega_n)
           \psi_n` (``Y_octant`` the octant's harmonics), NEVER materializing the
           full angular field (the Phase 5c ~3× linear peak-memory win — the
@@ -724,100 +888,75 @@ class SweepDependencyGraph:
           per-cell ``w·Y·psi`` fold matches ``MomentProjection.apply``
           term-for-term — only the accumulation order differs.
         """
-        if self.window_slots is None or self.window_edges is None:
-            raise RuntimeError(
-                "apply_windowed is the d=2 storage-B optimization; this graph "
-                f"has ndim={self.ndim} (no window metadata) — use the "
-                "full-field apply() for d != 2."
-            )
-        N_oct, ng = inflow_x.shape[0], inflow_x.shape[1]
-        frontier = _MovingFrontier(N_oct, ng, self.nx)
-        for k, ((ii, jj), slot, edges) in enumerate(zip(
-            self.levels, self.window_slots, self.window_edges,
-        )):
-            has_x_in, has_x_out, has_y_in, has_y_out = edges
-            i0, i1 = self._bounds(slot)
+        N_oct, ng = inflow[0].shape[0], inflow[0].shape[1]
+        d = self.ndim
+        frontier = _MovingFrontier(N_oct, ng, self.window_plan)
+        for k, cell_idx in enumerate(self.levels):
             cur, prev = k % 2, (k - 1) % 2
-            if has_x_in:
-                frontier.seed_x(prev, inflow_x[:, :, jj[0]])
-            if has_y_in:
-                frontier.seed_y(prev, i1, inflow_y[:, :, ii[-1]])
-            in_x, in_y = frontier.incoming(prev, i0, i1)
-            psi_avg, (out_x, out_y) = cell_update.cell_kernel_batch(
-                psi_in=(in_x, in_y),
-                s_axes=(str_x_octant[:, ii][:, None, :],
-                        str_y_octant[:, jj][:, None, :]),
-                sigt_cells=sig_t[:, ii, jj], Q_cells=Q_octant[:, :, ii, jj],
+            frontier.seed(prev, k, inflow)
+            in_faces = frontier.incoming(prev, k)
+            psi_avg, out_faces = cell_update.cell_kernel_batch(
+                psi_in=in_faces,
+                s_axes=tuple(
+                    str_axes_octant[a][:, cell_idx[a]][:, None, :]
+                    for a in range(d)
+                ),
+                sigt_cells=sig_t[(slice(None), *cell_idx)],
+                Q_cells=Q_octant[(slice(None), slice(None), *cell_idx)],
             )
-            frontier.emit(cur, i0, i1, out_x, out_y)
-            if has_x_out:
-                capture_x[:, :, jj[-1]] = out_x[:, :, -1]   # ι* x-outflow @ pos -1
-            if has_y_out:
-                capture_y[:, :, ii[0]] = out_y[:, :, 0]     # ι* y-outflow @ pos 0
+            frontier.emit(cur, k, out_faces)
+            frontier.shed(k, out_faces, capture)
             if moment_buf is None:
-                scalar_flux_buf[:, ii, jj] += np.einsum(
+                scalar_flux_buf[(slice(None), *cell_idx)] += np.einsum(
                     "ngd,n->gd", psi_avg, weights_octant,
                 )
-                angular_flux_octant[:, :, ii, jj] = psi_avg
+                angular_flux_octant[
+                    (slice(None), slice(None), *cell_idx)
+                ] = psi_avg
             else:
-                moment_buf[:, :, :, ii, jj] += np.einsum(
-                    "nlm,ngd,n->lmgd", Y_octant, psi_avg, weights_octant,
-                )
+                moment_buf[
+                    (slice(None), slice(None), slice(None), *cell_idx)
+                ] += np.einsum("nlm,ngd,n->lmgd", Y_octant, psi_avg, weights_octant)
 
     def residual_windowed(
         self,
         *,
         cell_update: CellUpdateBase,
-        inflow_x: np.ndarray,             # (N_oct, ng, ny)
-        inflow_y: np.ndarray,             # (N_oct, ng, nx)
-        psi_avg_probe_octant: np.ndarray, # (N_oct, ng, nx, ny) — the probe
-        Q_octant: np.ndarray,             # (N_oct or 1, ng, nx, ny)
-        sig_t: np.ndarray,                # (ng, nx, ny)
-        str_x_octant: np.ndarray,         # (N_oct, nx)
-        str_y_octant: np.ndarray,         # (N_oct, ny)
-        residual_octant: np.ndarray,      # (N_oct, ng, nx, ny) — written
-        capture_x: np.ndarray,            # (N_oct, ng, ny) — written
-        capture_y: np.ndarray,            # (N_oct, ng, nx) — written
+        inflow: tuple[np.ndarray, ...],          # d-tuple — per-axis domain inflow
+        psi_avg_probe_octant: np.ndarray,        # (N_oct, ng, *spatial) — the probe
+        Q_octant: np.ndarray,                    # (N_oct or 1, ng, *spatial)
+        sig_t: np.ndarray,                       # (ng, *spatial)
+        str_axes_octant: tuple[np.ndarray, ...], # d-tuple, each (N_oct, n_a)
+        residual_octant: np.ndarray,             # (N_oct, ng, *spatial) — written
+        capture: tuple[np.ndarray, ...],         # d-tuple — per-axis domain outflow, written
     ) -> None:
         r"""Storage-B apply (matvec) walk: the :class:`_MovingFrontier`-backed
         twin of :meth:`residual`. Reconstructs edge fluxes from the PROBE along
         the rolling frontier (``psi_out = 2·psi_bar − psi_in``) and writes the
         per-cell operator residual; sheds the domain-edge outflow. The matvec
-        residual output stays full ``(N_oct, ng, nx, ny)`` (Krylov consumes
+        residual output stays full ``(N_oct, ng, *spatial)`` (Krylov consumes
         the full bulk residual) — only the interior FACE cochain is windowed.
         """
-        if self.window_slots is None or self.window_edges is None:
-            raise RuntimeError(
-                "residual_windowed is the d=2 storage-B optimization; this "
-                f"graph has ndim={self.ndim} (no window metadata) — use the "
-                "full-field residual() for d != 2."
-            )
-        N_oct, ng = inflow_x.shape[0], inflow_x.shape[1]
-        frontier = _MovingFrontier(N_oct, ng, self.nx)
-        for k, ((ii, jj), slot, edges) in enumerate(zip(
-            self.levels, self.window_slots, self.window_edges,
-        )):
-            has_x_in, has_x_out, has_y_in, has_y_out = edges
-            i0, i1 = self._bounds(slot)
+        N_oct, ng = inflow[0].shape[0], inflow[0].shape[1]
+        d = self.ndim
+        frontier = _MovingFrontier(N_oct, ng, self.window_plan)
+        for k, cell_idx in enumerate(self.levels):
             cur, prev = k % 2, (k - 1) % 2
-            if has_x_in:
-                frontier.seed_x(prev, inflow_x[:, :, jj[0]])
-            if has_y_in:
-                frontier.seed_y(prev, i1, inflow_y[:, :, ii[-1]])
-            in_x, in_y = frontier.incoming(prev, i0, i1)
-            res, (out_x, out_y) = cell_update.residual_kernel_batch(
-                psi_bar=psi_avg_probe_octant[:, :, ii, jj],
-                psi_in=(in_x, in_y),
-                s_axes=(str_x_octant[:, ii][:, None, :],
-                        str_y_octant[:, jj][:, None, :]),
-                sigt_cells=sig_t[:, ii, jj], Q_cells=Q_octant[:, :, ii, jj],
+            frontier.seed(prev, k, inflow)
+            in_faces = frontier.incoming(prev, k)
+            res, out_faces = cell_update.residual_kernel_batch(
+                psi_bar=psi_avg_probe_octant[(slice(None), slice(None), *cell_idx)],
+                psi_in=in_faces,
+                s_axes=tuple(
+                    str_axes_octant[a][:, cell_idx[a]][:, None, :]
+                    for a in range(d)
+                ),
+                sigt_cells=sig_t[(slice(None), *cell_idx)],
+                Q_cells=Q_octant[(slice(None), slice(None), *cell_idx)],
             )
-            frontier.emit(cur, i0, i1, out_x, out_y)
-            if has_x_out:
-                capture_x[:, :, jj[-1]] = out_x[:, :, -1]
-            if has_y_out:
-                capture_y[:, :, ii[0]] = out_y[:, :, 0]
-            residual_octant[:, :, ii, jj] = res
+            frontier.emit(cur, k, out_faces)
+            frontier.shed(k, out_faces, capture)
+            residual_octant[(slice(None), slice(None), *cell_idx)] = res
 
 
 __all__ = [

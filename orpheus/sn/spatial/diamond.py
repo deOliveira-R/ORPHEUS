@@ -290,9 +290,10 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.apply` — the
         full-field VERIFICATION ORACLE) AND the rolling moving-frontier window
         walk (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.apply_windowed`
-        — the storage-B d=2 PRODUCTION path). The two differ ONLY in how the
-        incoming faces are gathered and the outgoing faces scattered — the cell
-        algebra is identical, so the window walk and the oracle cannot drift.
+        — the storage-B PRODUCTION path, a rolling :math:`(d{-}1)`-frontier).
+        The two differ ONLY in how the incoming faces are gathered and the
+        outgoing faces scattered — the cell algebra is identical, so the window
+        walk and the oracle cannot drift.
 
         Axis convention
         ---------------
