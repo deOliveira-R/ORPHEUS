@@ -436,9 +436,10 @@ class TestCompositeInvariants:
 
         Pre-C4d this test pinned the deferred ``NotImplementedError``
         stub for the 2-D path; C4d ships the L2-native FD kernel
-        (the matvec walk ``MovingFrontierWindow.loss_action``, which
-        since S6.3 lives on the loss representation, off the operator)
-        and the path becomes functional.
+        (the representation ``loss_action`` matvec walk, which since
+        S6.3 lives on the loss representation, off the operator —
+        ``ScanMarch`` default since S6.9) and the path becomes
+        functional.
         Structural invariant test: the return is the composite carrier
         with the correct bulk type.
         """

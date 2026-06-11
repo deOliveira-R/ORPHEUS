@@ -22,9 +22,11 @@ adapter.  The geometry-agnostic kernel is
 :meth:`_MSpatialOperatorSum._compute_decomposition` (1-D slab /
 sphere / cylinder; dual-emission body that produces both
 ``M_spatial`` and ``M_angular_redist`` contributions in one
-bidirectional sweep).  The 2-D Cartesian matvec is the diamond-difference
-DAG walk that S6.3 moved OFF this operator into
-``MovingFrontierWindow.loss_action`` (``orpheus.sn.loss_representation``).
+bidirectional sweep).  The multi-D Cartesian matvec is the
+representation's ``loss_action`` walk that S6.3 moved OFF this operator
+(``orpheus.sn.loss_representation``; production default ``ScanMarch``
+since the S6.9 Fork-B2 flip, with ``MovingFrontierWindow`` a selectable
+peer).
 Wave T T.5 close-out retired the module-level
 ``_transport_operator_matvec_unified`` helper — its body lives as
 the orchestrator's private dual-emission method.
@@ -93,8 +95,9 @@ History
    design corrections, the two ``-B`` delivery routes, and the O.2
    forcing function.
 
-   The **2-D Cartesian** path (``MovingFrontierWindow.loss_action``, which
-   S6.3 moved off this operator) is ALSO bare (O.4b
+   The **multi-D Cartesian** path (the representation's ``loss_action``,
+   which S6.3 moved off this operator — ``ScanMarch`` default since S6.9,
+   ``MovingFrontierWindow`` peer) is ALSO bare (O.4b
    Phase E landed): it seeds the octant-incoming face slots from the
    GIVEN ``psi.boundary.inflow`` via the typed ``wavefront.seed`` (ι_*)
    with NO ``bc.apply``, walks the same per-octant
@@ -376,9 +379,9 @@ class _MSpatialOperatorSum(OperatorSum):
             raise NotImplementedError(
                 "_MSpatialOperatorSum._compute_LpC: multi-D Cartesian "
                 "is not yet wired through dag_walk; only the 1-D slab "
-                "is implemented.  2-D Cartesian routes through "
-                "`MovingFrontierWindow.loss_action` (the DAG walk S6.3 "
-                "moved off this operator)."
+                "is implemented.  Multi-D Cartesian routes through the "
+                "representation's `loss_action` (S6.3 moved it off this "
+                "operator; `ScanMarch` is the production default)."
             )
 
         pole_angular_closure = sn_mesh.pole_angular_closure
@@ -834,9 +837,9 @@ class _MSpatialOperatorSum(OperatorSum):
             raise NotImplementedError(
                 "_MSpatialOperatorSum._compute_decomposition: multi-D Cartesian "
                 "is not yet wired through dag_walk; only the 1-D slab "
-                "is implemented.  2-D Cartesian routes through "
-                "`MovingFrontierWindow.loss_action` (the DAG walk S6.3 "
-                "moved off this operator)."
+                "is implemented.  Multi-D Cartesian routes through the "
+                "representation's `loss_action` (S6.3 moved it off this "
+                "operator; `ScanMarch` is the production default)."
             )
 
         pole_angular_closure = sn_mesh.pole_angular_closure
@@ -1100,8 +1103,8 @@ class _MSpatialOperatorSum(OperatorSum):
 
         geom = GeometryCoefficients.from_mesh_and_quad(self.sn_mesh)
         # 1-D drop of y axis for the sweep cache contract (it stores
-        # per-(N, ng, nx); 2-D Cartesian routes through
-        # `MovingFrontierWindow.loss_action` and does not use this cache).
+        # per-(N, ng, nx); multi-D Cartesian routes through the
+        # representation's `loss_action` and does not use this cache).
         sig_t_1d = self.sigma_t
         return CollisionCache.from_geometry(geom, sig_t_1d)
 
@@ -1399,8 +1402,8 @@ class StreamingOperator(LinearOperatorMixin):
 
         The within-group loss action :math:`(L+C)\psi` is the
         :attr:`loss_representation`'s walk (the matvec twin of the forward
-        sweep; S6.3 moved it OFF this operator): 1-D → ``CumprodScan``; 2-D
-        Cartesian → ``MovingFrontierWindow``.  This leaf then applies the ONLY
+        sweep; S6.3 moved it OFF this operator) — the selection fact lives
+        on that property, single-sourced.  This leaf then applies the ONLY
         algebra glue — the Resolution-A collision subtraction below.
 
         Resolution A — :math:`(L + C).{\rm apply}(\psi) \equiv
@@ -1538,8 +1541,8 @@ class StreamingOperator(LinearOperatorMixin):
         substitution on the SAME object via
         :attr:`InvertibleOperator.loss_representation` — L21 ("matvec ≡
         sweep") as a type fact.  Selection is by geometry
-        (``default_for``): 1-D → ``CumprodScan``;
-        2-D Cartesian → ``MovingFrontierWindow``.  ``cached_property`` because
+        (``default_for``): 1-D → ``CumprodScan``; multi-D Cartesian →
+        ``ScanMarch`` (the S6.9 Fork-B2 default).  ``cached_property`` because
         the selection is fixed by the mesh, stable across the operator's
         lifetime (mirrors :attr:`M_spatial` / :attr:`M_angular_redist`); the
         lazy import breaks the operator ↔ loss_representation module cycle.

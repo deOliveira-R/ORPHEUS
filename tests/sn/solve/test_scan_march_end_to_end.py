@@ -36,18 +36,25 @@ exact:
   forced.  SI≡Krylov alone is twin agreement (necessary, not sufficient);
   the k_inf leg supplies the structural-independence anchor.
 
-FORCING (post-S6.5): ``loss_representation.default_for`` is patched to
-substitute ``ScanMarch`` wherever the selector would pick
-``MovingFrontierWindow``.  Every door reads the module attribute at call time
-— the operator's ``loss_representation`` cached_property (lazy import), the
+FORCING (post-S6.5; INVERTED at the S6.9 Fork-B2 flip):
+``loss_representation.default_for`` is patched to substitute
+``MovingFrontierWindow`` wherever the selector picks ``ScanMarch`` on a
+multi-D mesh.  HISTORY: at S5.2 birth the window was the default and
+ScanMarch was forced; the 2026-06-11 flip made ScanMarch the production
+default, so the polarity inverted — the DEFAULT leg now runs ScanMarch and
+the FORCED leg runs the window, which doubles as the window's end-to-end
+coverage now that it is a selectable (non-default) peer.  The FP-invariance
+claim is symmetric, so the gate's meaning is unchanged: two schedules, one
+converged fixed point.  Every door reads the module attribute at call time —
+the operator's ``loss_representation`` cached_property (lazy import), the
 operator-free ``transport_sweep``, and (via the operator's instance, S6.5)
 the G-S resolvent — so ONE patch forces the whole solve.  The forcing is a
 CONTEXT MANAGER, not a test-scoped fixture, because the REFERENCE leg of each
 FP-invariance pair must run UNFORCED (a fixture would force both legs and
-compare scan-march to itself).  NON-VACUITY is explicit: the context counts
-``ScanMarch._sweep_interior`` / ``ScanMarch.loss_action`` executions and
+compare the window to itself).  NON-VACUITY is explicit: the context counts
+``MovingFrontierWindow._sweep_interior`` / ``loss_action`` executions and
 every test asserts the forced path actually RAN (a silent fall-back to the
-window would otherwise make these gates window≡window tautologies).
+default would otherwise make these gates scanmarch≡scanmarch tautologies).
 
 The fixed points are compared at SOLVER tolerance (NOT nulp): the schedules
 differ in transient FP-association BY CONSTRUCTION; only the converged values
@@ -72,9 +79,10 @@ pytestmark = pytest.mark.l1
 
 
 @contextmanager
-def scanmarch_forced():
-    """Force ScanMarch wherever the selector would pick the window — and
-    COUNT its kernel executions so vacuous fall-back cannot pass.
+def window_forced():
+    """Force MovingFrontierWindow wherever the selector picks the ScanMarch
+    default on a multi-D mesh — and COUNT its kernel executions so vacuous
+    fall-back cannot pass.
 
     Yields the hit-counter dict; callers assert the relevant counter is
     non-zero after the forced solve.
@@ -82,14 +90,14 @@ def scanmarch_forced():
     from orpheus.sn import loss_representation as lr
 
     real_default = lr.default_for
-    real_interior = lr.ScanMarch._sweep_interior
-    real_action = lr.ScanMarch.loss_action
+    real_interior = lr.MovingFrontierWindow._sweep_interior
+    real_action = lr.MovingFrontierWindow.loss_action
     hits = {"sweep_interior": 0, "loss_action": 0}
 
     def forced(mesh):
         rep = real_default(mesh)
-        if isinstance(rep, lr.MovingFrontierWindow):
-            return lr.ScanMarch(mesh)
+        if isinstance(rep, lr.ScanMarch) and not mesh.is_1d:
+            return lr.MovingFrontierWindow(mesh)
         return rep
 
     def spy_interior(self, *args, **kwargs):
@@ -101,18 +109,18 @@ def scanmarch_forced():
         return real_action(self, *args, **kwargs)
 
     with patch.object(lr, "default_for", forced), \
-         patch.object(lr.ScanMarch, "_sweep_interior", spy_interior), \
-         patch.object(lr.ScanMarch, "loss_action", spy_action):
+         patch.object(lr.MovingFrontierWindow, "_sweep_interior", spy_interior), \
+         patch.object(lr.MovingFrontierWindow, "loss_action", spy_action):
         yield hits
 
 
 def _require_ran(hits: dict, counter: str) -> None:
-    """Non-vacuity tripwire: the forced leg must have RUN the ScanMarch
-    kernel, else the FP comparison silently degraded to window≡window."""
+    """Non-vacuity tripwire: the forced leg must have RUN the window
+    kernel, else the FP comparison silently degraded to default≡default."""
     if hits[counter] == 0:
         pytest.fail(
-            f"the forced leg never executed ScanMarch.{counter} — the "
-            "forcing fell back to the window; this gate is vacuous."
+            f"the forced leg never executed MovingFrontierWindow.{counter} — "
+            "the forcing fell back to the default; this gate is vacuous."
         )
 
 
@@ -197,22 +205,23 @@ def _assert_nonflat(phi: np.ndarray) -> None:
 def test_g4a_fixed_source_fp_invariant_aniso_het_vacuum():
     """[G4.a] ScanMarch converged fixed-source ψ* ≡ window fixed point —
     anisotropic + heterogeneous + vacuum (the degeneracy-breaking config)."""
-    sol_window = _solve_fixed_source(_build_2d_aniso_het_vacuum)
-    phi_w = np.asarray(sol_window.scalar_flux.values, dtype=np.float64)
-    _assert_nonflat(phi_w)
+    sol_default = _solve_fixed_source(_build_2d_aniso_het_vacuum)  # ScanMarch
+    phi_sm = np.asarray(sol_default.scalar_flux.values, dtype=np.float64)
+    _assert_nonflat(phi_sm)
 
-    with scanmarch_forced() as hits:
-        sol_sm = _solve_fixed_source(_build_2d_aniso_het_vacuum)
+    with window_forced() as hits:
+        sol_window = _solve_fixed_source(_build_2d_aniso_het_vacuum)
     _require_ran(hits, "sweep_interior")
-    phi_sm = np.asarray(sol_sm.scalar_flux.values, dtype=np.float64)
+    phi_w = np.asarray(sol_window.scalar_flux.values, dtype=np.float64)
 
     # Converged values agree to solver tolerance — NOT nulp (the schedules
     # differ at transient FP-association by construction).
     np.testing.assert_allclose(
         phi_sm, phi_w, rtol=1e-6, atol=1e-10,
         err_msg=(
-            "ScanMarch moved the converged fixed-source flux — the row-march "
-            "schedule is NOT iteration-invariant (Mode-9 FP violation)."
+            "the two schedules (ScanMarch default vs forced window) "
+            "converged to DIFFERENT fixed-source fluxes — the schedule pair "
+            "is NOT iteration-invariant (Mode-9 FP violation)."
         ),
     )
 
@@ -229,22 +238,21 @@ def test_g4b_fixed_source_fp_invariant_reflective_shed_order():
     the module docstring for the honest d=2 LIMITATION statement — the full
     diagonal shared-face ERR-056 stressor needs d=3.
     """
-    sol_window = _solve_fixed_source(_build_2d_het_all_reflective)
-    phi_w = np.asarray(sol_window.scalar_flux.values, dtype=np.float64)
-    _assert_nonflat(phi_w)
+    sol_default = _solve_fixed_source(_build_2d_het_all_reflective)  # ScanMarch
+    phi_sm = np.asarray(sol_default.scalar_flux.values, dtype=np.float64)
+    _assert_nonflat(phi_sm)
 
-    with scanmarch_forced() as hits:
-        sol_sm = _solve_fixed_source(_build_2d_het_all_reflective)
+    with window_forced() as hits:
+        sol_window = _solve_fixed_source(_build_2d_het_all_reflective)
     _require_ran(hits, "sweep_interior")
-    phi_sm = np.asarray(sol_sm.scalar_flux.values, dtype=np.float64)
+    phi_w = np.asarray(sol_window.scalar_flux.values, dtype=np.float64)
 
     np.testing.assert_allclose(
         phi_sm, phi_w, rtol=1e-6, atol=1e-10,
         err_msg=(
-            "ScanMarch moved the converged flux under all-reflective BCs — "
-            "the row-march OUTFLOW SHED ORDER is wrong (the ERR-056 class: "
-            "a shed-order defect that only a fully-reflected configuration "
-            "can observe)."
+            "the two schedules diverged under all-reflective BCs — an "
+            "OUTFLOW SHED ORDER defect in one of them (the ERR-056 class: "
+            "observable only on a fully-reflected configuration)."
         ),
     )
 
@@ -255,10 +263,14 @@ def test_g4b_fixed_source_fp_invariant_reflective_shed_order():
 
 
 @pytest.mark.verifies("transport-cartesian-2d", "matrix-eigenvalue", "multigroup")
-def test_g6_eigenvalue_hits_kinf_scanmarch():
-    """[G6] ``solve_sn`` (default SI inner) with ScanMarch forced hits the
+def test_g6_eigenvalue_hits_kinf_window():
+    """[G6] ``solve_sn`` (default SI inner) with the WINDOW forced hits the
     closed-form k_inf — the structural-independence anchor (≥2G; a 1G
     eigenvalue is flux-shape-independent and proves nothing, cardinal rule).
+
+    Post-flip polarity: the ScanMarch default is pinned to k_inf by the
+    standing ``test_keff_2d`` suite (which now runs it as the default); THIS
+    test keeps the closed-form anchor on the non-default window peer.
     """
     case = get("sn_slab_2eg_1rg")
     mix = next(iter(case.materials.values()))
@@ -267,7 +279,7 @@ def test_g6_eigenvalue_hits_kinf_scanmarch():
         edges_y=np.linspace(0.0, 1.0, 3),
         mat_map=np.zeros((2, 2), dtype=int),
     )
-    with scanmarch_forced() as hits:
+    with window_forced() as hits:
         sol = solve_sn(
             {0: mix}, mesh, Quadrature.level_symmetric(sn_order=4),
             keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10,
@@ -275,18 +287,19 @@ def test_g6_eigenvalue_hits_kinf_scanmarch():
     _require_ran(hits, "sweep_interior")
     assert np.isfinite(sol.keff)
     assert abs(sol.keff - case.k_inf) < 1e-8, (
-        f"ScanMarch-forced SI keff={sol.keff:.10f} vs closed-form "
+        f"window-forced SI keff={sol.keff:.10f} vs closed-form "
         f"k_inf={case.k_inf:.10f}"
     )
 
 
 @pytest.mark.slow
 @pytest.mark.verifies("transport-cartesian-2d", "matrix-eigenvalue", "multigroup")
-def test_g6_si_krylov_heterogeneous_scanmarch():
-    """[G6] SI ≡ Krylov with ScanMarch forced on the heterogeneous non-flat
-    2G config — the row-march drives BOTH inner methods (SI through
+def test_g6_si_krylov_heterogeneous_window():
+    """[G6] SI ≡ Krylov with the WINDOW forced on the heterogeneous non-flat
+    2G config — the wavefront drives BOTH inner methods (SI through
     ``_sweep_interior``, Krylov through the ``loss_action`` matvec) and they
     must converge to the same eigenpair (anchored by the k_inf leg above).
+    The ScanMarch default's SI≡Krylov is the standing test_keff_2d gate.
     """
     materials = {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
     nx, ny = 8, 4
@@ -299,14 +312,14 @@ def test_g6_si_krylov_heterogeneous_scanmarch():
     )
     quad = Quadrature.level_symmetric(sn_order=4)
 
-    with scanmarch_forced() as hits:
+    with window_forced() as hits:
         sol_si = solve_sn(
             materials, mesh, quad, inner_solver="source_iteration",
             keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10,
         )
     _require_ran(hits, "sweep_interior")
 
-    with scanmarch_forced() as hits:
+    with window_forced() as hits:
         sol_kry = solve_sn(
             materials, mesh, quad, inner_solver="krylov",
             keff_tol=1e-12, flux_tol=1e-10, max_inner=4000, inner_tol=1e-8,
@@ -318,12 +331,12 @@ def test_g6_si_krylov_heterogeneous_scanmarch():
     _assert_nonflat(phi_si)
 
     assert abs(sol_si.keff - sol_kry.keff) < 1e-7, (
-        f"ScanMarch SI keff={sol_si.keff:.10f} vs "
+        f"window-forced SI keff={sol_si.keff:.10f} vs "
         f"Krylov keff={sol_kry.keff:.10f}"
     )
     phi_si_n = phi_si / phi_si.mean()
     phi_kry_n = phi_kry / phi_kry.mean()
     np.testing.assert_allclose(
         phi_si_n, phi_kry_n, rtol=1e-6, atol=1e-8,
-        err_msg="ScanMarch-forced SI vs Krylov flux SHAPE diverged",
+        err_msg="window-forced SI vs Krylov flux SHAPE diverged",
     )

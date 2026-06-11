@@ -62,7 +62,8 @@ def _slab_2g(nx: int = 5) -> SNMesh:
 
 
 def _cart2d_2g(nx: int = 4, ny: int = 5) -> SNMesh:
-    """2-D Cartesian, reflective, 2G, NON-SQUARE (MovingFrontierWindow walk)."""
+    """2-D Cartesian, reflective, 2G, NON-SQUARE (the d=2 representation
+    walk — ScanMarch default since S6.9)."""
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 2.0, nx + 1),
         edges_y=np.linspace(0.0, 2.0, ny + 1),

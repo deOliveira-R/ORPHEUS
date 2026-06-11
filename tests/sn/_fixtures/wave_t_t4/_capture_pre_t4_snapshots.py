@@ -169,7 +169,7 @@ def _cylinder_mesh(*, ng: int, nx: int = 20, sn_order: int = 4) -> SNMesh:
 def _cart2d_mesh(
     *, ng: int, bc_kind: str, nx: int = 6, ny: int = 6, sn_order: int = 4,
 ) -> SNMesh:
-    """2-D Cartesian — exercises the ``MovingFrontierWindow.loss_action`` path (the matvec walk that since S6.3 lives on the loss representation, off the operator)."""
+    """2-D Cartesian — exercises the 2-D representation ``loss_action`` path (the matvec walk that since S6.3 lives on the loss representation, off the operator; ScanMarch default since S6.9)."""
     mix = _mix_1g() if ng == 1 else _mix_2g_p1_asymmetric()
     bc = BC("reflective") if bc_kind == "specular" else BC("vacuum")
     mesh = Mesh2D(

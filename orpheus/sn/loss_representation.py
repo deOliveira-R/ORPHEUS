@@ -818,12 +818,21 @@ class _DAGWavefront(_LossRepresentation):
 
 
 class MovingFrontierWindow(_DAGWavefront):
-    r"""Production wavefront sweep — rolling :math:`(d{-}1)`-frontier buffer.
+    r"""Wavefront sweep — rolling :math:`(d{-}1)`-frontier buffer.
 
-    The default production path for 2-D Cartesian meshes
-    (:func:`._sweep_2d_wavefront`).  Carries only the rolling frontier of
-    interior face fluxes (a 2-diagonal at d=2), the ~3× peak-memory win over
-    the full-field oracle.  Generalized to ``frontier_dim = d-1`` in S4.
+    The anti-diagonal (level-scheduled) sweep over the per-octant DAG,
+    carrying only the rolling frontier of interior face fluxes (a 2-diagonal
+    at d=2) — the ~30 % peak-memory win over the full-field oracle.
+    Generalized to ``frontier_dim = d-1`` in S4.
+
+    A SELECTABLE PEER since the S6.9 Fork-B2 flip (2026-06-11, #222): the
+    multi-D Cartesian production default is now :class:`ScanMarch` (measured
+    1.2–1.8× faster at identical peak memory), and this representation is
+    kept as a genuinely different schedule over the same lower-triangular
+    operator (user decision: multiple proper methods ARE the point of
+    selectability).  Its end-to-end coverage rides the forced-window gates in
+    ``tests/sn/solve/test_scan_march_end_to_end.py`` + the explicit
+    window≡full oracles.
     """
 
     def sweep(
@@ -1178,11 +1187,14 @@ class ScanMarch(_LossRepresentation):
 
     Selection — ``is_1d OR is_cartesian``: 1-D any geometry (the chain scan; the
     curvilinear Morel–Montry angular thread folds into the source) AND Cartesian
-    any d (the row-march).  Currently **OPT-IN**: registered after the production
-    window, so :func:`default_for` keeps the legacy choice (1-D → ``CumprodScan``,
-    2-D → ``MovingFrontierWindow``) until a measured speedup justifies the flip
-    (``scan_march_verification.md`` Fork B1 → B2).  The 2-D matvec twin
-    (``loss_action``) + the d≥3 recursive transverse march land in S5.1b/S5.2.
+    any d (the row-march).  **The multi-D Cartesian PRODUCTION DEFAULT since the
+    S6.9 Fork-B2 flip (2026-06-11, #222)** — the measured basis: sweep
+    0.57–0.84× / matvec 0.55–0.78× the window's time at IDENTICAL peak memory
+    (the rolling frontier has no memory edge over the row-march at d=2; both
+    are ~0.7× the full-field oracle's peak), end-to-end fixed-source 0.82×.
+    1-D still selects ``CumprodScan`` (registered first; same scan primitive,
+    no march shell).  Mode-9 FP-invariance vs the window is pinned end-to-end
+    by ``tests/sn/solve/test_scan_march_end_to_end.py``.
     """
 
     @classmethod
@@ -1425,8 +1437,8 @@ class ScanMarch(_LossRepresentation):
 #: the oracle is the never-stuck final fallback.
 LOSS_REPRESENTATIONS: tuple[type[_LossRepresentation], ...] = (
     CumprodScan,
-    MovingFrontierWindow,
     ScanMarch,
+    MovingFrontierWindow,
     FullFieldWavefront,
 )
 
@@ -1436,18 +1448,22 @@ def default_for(mesh: "SNMesh") -> LossRepresentation:
 
     Returns the first strategy in :data:`LOSS_REPRESENTATIONS` whose
     :meth:`~LossRepresentation.supports` admits ``mesh`` — the best *available*
-    production optimization, falling back to the spine.  This reproduces the
-    legacy dispatch exactly: 1-D → :class:`CumprodScan`; 2-D Cartesian →
-    :class:`MovingFrontierWindow`.
+    production optimization, falling back to the spine: 1-D →
+    :class:`CumprodScan`; multi-D Cartesian → :class:`ScanMarch` (the S6.9
+    Fork-B2 flip, 2026-06-11 — measured 0.57–0.84× the window's sweep time at
+    identical peak memory, issue #222).  :class:`MovingFrontierWindow` stays a
+    selectable peer (a genuinely different schedule — anti-diagonal wavefront
+    vs row-march — kept by user decision: multiple proper methods ARE the
+    point of selectability), pinned end-to-end by the forced-window gates in
+    ``test_scan_march_end_to_end.py``.
 
     Raises
     ------
     IncompatibleRepresentation
         If no strategy applies.  Unreachable for any constructible mesh
-        (every 1-D mesh → ``CumprodScan``; every 2-D Cartesian →
-        ``MovingFrontierWindow``).  A hypothetical 3-D Cartesian mesh selects
-        the d-general ``ScanMarch`` (production), with ``FullFieldWavefront``
-        (the oracle) as the never-stuck fallback.
+        (every 1-D mesh → ``CumprodScan``; every Cartesian mesh →
+        ``ScanMarch``), with ``FullFieldWavefront`` (the oracle) as the
+        never-stuck fallback.
     """
     for cls in LOSS_REPRESENTATIONS:
         if cls.supports(mesh).ok:
@@ -1591,13 +1607,14 @@ def transport_sweep(
     (``orpheus.sn.loss_representation.LossRepresentation``; ``default_for`` picks the
     default for the mesh).  This replaces the historical scattered branch —
     the ``reduced is not None`` test here and the five ``not is_1d`` gates in
-    the operator algebra — with one polymorphic selection.  ``default_for``
-    reproduces the legacy choice exactly:
+    the operator algebra — with one polymorphic selection:
 
     * 1-D meshes → ``CumprodScan`` (:func:`_sweep_1d_unified`; slab, sphere,
       cylinder — one body via the two-stratum cache).
-    * 2-D Cartesian → ``MovingFrontierWindow`` (:func:`_sweep_2d_wavefront`;
-      anti-diagonal scheduling).
+    * multi-D Cartesian → ``ScanMarch`` (row-march ``scan(x)∘march(y)``; the
+      S6.9 Fork-B2 default since 2026-06-11 — measured 0.57–0.84× the
+      window's sweep time at identical peak memory).
+      ``MovingFrontierWindow`` (anti-diagonal scheduling) stays selectable.
 
     The ``moment_projection`` guard (moment output is 2-D Cartesian only)
     now lives in ``CumprodScan.sweep`` — the strategy that cannot produce it

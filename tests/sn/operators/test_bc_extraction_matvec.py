@@ -341,9 +341,10 @@ class TestVacuumMatvecBitIdentity:
     def test_vacuum_2d_cartesian_bulk_bit_identical(self, seed, request):
         """[foundation] Vacuum 2-D Cartesian bulk matvec is byte-identical.
 
-        2-D drives the ``MovingFrontierWindow.loss_action`` walk (a
+        2-D drives the representation's ``loss_action`` walk (a
         SEPARATE code path from the 1-D ``_compute_LpC``; since S6.3 the
-        matvec walk lives on the loss representation, off the operator).
+        matvec walk lives on the loss representation, off the operator —
+        ``ScanMarch`` default since S6.9).
         The O.4a.2
         carve touches the 1-D path; this row is the SENTINEL that the 1-D
         carve did not accidentally perturb the 2-D path (e.g. via a shared
@@ -396,8 +397,8 @@ class TestVacuumMatvecBitIdentity:
             err_msg=(
                 f"2-D vacuum seed={seed}: the 1-D O.4a.2 carve PERTURBED "
                 f"the 2-D Cartesian path — the carve must touch ONLY "
-                f"_compute_LpC, leaving the 2-D "
-                f"`MovingFrontierWindow.loss_action` walk untouched."
+                f"_compute_LpC, leaving the 2-D representation "
+                f"`loss_action` walk untouched."
             ),
         )
 

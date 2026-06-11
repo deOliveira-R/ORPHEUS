@@ -130,9 +130,9 @@ def _make_2g_mixture(sigma_t, sig_s_matrix, nu_sigma_f, chi):
 # composition ``StreamingOperator + CollisionOperator``
 # (= :class:`InvertibleOperator`), which routes through
 # :func:`_transport_operator_matvec_unified` natively for 1-D and
-# :meth:`MovingFrontierWindow.loss_action` (which since S6.3 lives on
-# the loss representation, off the operator) for 2-D.  No monkey-
-# patch is required.
+# the representation's ``loss_action`` (which since S6.3 lives on
+# the loss representation, off the operator; ``ScanMarch`` default
+# since S6.9) for 2-D.  No monkey-patch is required.
 
 
 @pytest.mark.l1

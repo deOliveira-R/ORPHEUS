@@ -457,9 +457,10 @@ class TestTwoDCartesianRaises:
         """Wave T post-T.5 matvec retirement: the legacy 2-D guard
         in ``_transport_operator_matvec_unified`` (which raised
         ``NotImplementedError``) is GONE; 2-D Cartesian (L+C).apply now
-        drives :meth:`MovingFrontierWindow.loss_action` (the matvec walk
-        that since S6.3 lives on the loss representation, off the
-        operator), which successfully computes the matvec.  The new
+        drives the representation's ``loss_action`` (the matvec walk that
+        since S6.3 lives on the loss representation, off the operator;
+        ``ScanMarch`` default since S6.9), which successfully computes
+        the matvec.  The new
         contract: 2-D Cartesian (L+C).apply returns a valid
         TimedFullField result (no exception)."""
         from orpheus.geometry.mesh import Mesh2D

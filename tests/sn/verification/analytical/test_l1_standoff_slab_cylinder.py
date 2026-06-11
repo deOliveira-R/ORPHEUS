@@ -55,8 +55,9 @@ from orpheus.numerics.quadrature import Quadrature
 # CollisionOperator``), routing through
 # :func:`transport_operator_matvec_unified` natively for 1-D slab /
 # sphere / cylinder and through
-# :meth:`MovingFrontierWindow.loss_action` (which since S6.3 lives on
-# the loss representation, off the operator) for 2-D Cartesian.
+# the representation's ``loss_action`` (which since S6.3 lives on
+# the loss representation, off the operator; ``ScanMarch`` default
+# since S6.9) for 2-D Cartesian.
 # No monkey-patch is required.
 
 

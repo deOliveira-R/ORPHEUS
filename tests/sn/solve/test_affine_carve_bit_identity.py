@@ -60,15 +60,27 @@ pytestmark = pytest.mark.foundation
 
 # Generated at pre-carve HEAD 63719a2 (commit with Piece 1). sha256 of the
 # C-contiguous float64 bytes of the converged fields.
+#
+# REGENERATION HISTORY:
+# * 2026-06-11 (S6.9 Fork-B2, #222) — the FOUR 2-D hashes regenerated in the
+#   default-flip commit: the multi-D Cartesian production default changed
+#   MovingFrontierWindow → ScanMarch, a SCHEDULE change (row-march vs
+#   anti-diagonal) that shifts the converged bytes at FP-association level
+#   (principled-equivalent, NOT a numerics change — vv §bit-identity-vs-
+#   principled).  Output-identity evidence for the flip: the G4.a/G4.b
+#   Mode-9 FP-invariance gates (test_scan_march_end_to_end.py, scanmarch
+#   default ≡ forced window at solver tol) + the ScanMarch G2.c nulp oracle.
+#   The 1-D slab hashes are UNTOUCHED (CumprodScan stays the 1-D default —
+#   the flip's blast radius pin).
 GOLDEN = {
     "si_2d_p1_aniso_het_psi_sha":
-        "578fbc7c023b3c8ae4f738caa33ad0936bf7276b99e2e6c8d78c91d033713058",
+        "1befe8ddf69a915d46f56cba6ffae55fe8231cee45f48673ee42042b03bb8ac8",
     "si_2d_p1_aniso_het_phi_sha":
-        "ccbbdd34d38d8880e057a4d2191b3b4314be367e8a77c113a561cdc5914d9cf8",
+        "b61b68c8c8b25ab587b745f5b5a78b45afb8ff212acac2ad3e682567f311f729",
     "krylov_2d_p1_aniso_het_psi_sha":
-        "5e5195b628862fb8e300796f2ebf438394cc9c05327fd89fd15df195e229e103",
+        "26e3a303fe7d7ea6d94cd12d6e1a8d3f1d3a5e805f1912aa5f1388af37c14787",
     "krylov_2d_p1_aniso_het_phi_sha":
-        "9f73c0f02b81be75b52d3275390ba03e6143f55b5395b4a76fabec57560ef7a8",
+        "4fda80b8ac55c0afb918f336a8fddb4eca01382d59d7efa2a86019e9c3e83179",
     "si_slab_2g_het_psi_sha":
         "353d7db054781af44dc4682ca3330c0c7490d54185bf5a3a8a83b83b85b4b1f3",
     "si_slab_2g_het_phi_sha":

@@ -59,15 +59,18 @@ def test_apply_and_solve_share_one_representation_instance(monkeypatch):
 
     2-D Cartesian is the discriminating config (gate memo
     ``s6_relayering_verification.md`` §4): at d=2 the two doors route through
-    genuinely different actions (window matvec vs scheduled sweep), so a
-    fresh-construction door is observable as a distinct frozen-dataclass
-    instance.
+    genuinely different actions (the loss_action matvec vs the scheduled
+    sweep), so a fresh-construction door is observable as a distinct
+    frozen-dataclass instance.  The spy class is the PRODUCTION d=2
+    representation — ScanMarch since the S6.9 Fork-B2 default flip
+    (MovingFrontierWindow through S6.9; re-point the spies if the default
+    moves again — the ``seen`` capture failing empty is the tripwire).
     """
-    from orpheus.sn.loss_representation import MovingFrontierWindow
+    from orpheus.sn.loss_representation import ScanMarch
 
     seen: dict[str, object] = {}
-    _spy_capture(monkeypatch, MovingFrontierWindow, "loss_action", seen, "apply")
-    _spy_capture(monkeypatch, MovingFrontierWindow, "sweep", seen, "solve")
+    _spy_capture(monkeypatch, ScanMarch, "loss_action", seen, "apply")
+    _spy_capture(monkeypatch, ScanMarch, "sweep", seen, "solve")
 
     sn = cart2d_2g_nonsquare()
     sig_t, psi = het_operands(sn)
@@ -83,7 +86,7 @@ def test_apply_and_solve_share_one_representation_instance(monkeypatch):
     if rep_apply is None or rep_solve is None:
         pytest.fail(
             f"spy capture incomplete (apply={rep_apply!r}, solve={rep_solve!r}) "
-            "— a door no longer routes through MovingFrontierWindow; the spy "
+            "— a door no longer routes through ScanMarch; the spy "
             "targets need re-pointing at the production representation."
         )
     if rep_apply is not rep_solve:
@@ -118,18 +121,18 @@ def test_gauss_seidel_resolvent_runs_the_operators_instance(monkeypatch):
     during a G-S solve and demands it IS ``A.loss_representation``.
     """
     from orpheus.sn.boundary_operator import SNBoundaryOperator
-    from orpheus.sn.loss_representation import MovingFrontierWindow
+    from orpheus.sn.loss_representation import ScanMarch
     from orpheus.sn.solver import _GaussSeidelResolvent
     from orpheus.sn.sweep_schedule import SweepSchedule
 
     captured: list[object] = []
-    real = MovingFrontierWindow._sweep_interior
+    real = ScanMarch._sweep_interior
 
     def spy(self, *args, **kwargs):
         captured.append(self)
         return real(self, *args, **kwargs)
 
-    monkeypatch.setattr(MovingFrontierWindow, "_sweep_interior", spy)
+    monkeypatch.setattr(ScanMarch, "_sweep_interior", spy)
 
     sn = cart2d_2g_nonsquare()
     sig_t, psi = het_operands(sn)
@@ -145,7 +148,7 @@ def test_gauss_seidel_resolvent_runs_the_operators_instance(monkeypatch):
     if not captured:
         pytest.fail(
             "the G-S resolvent solve never executed "
-            "MovingFrontierWindow._sweep_interior — the spy target needs "
+            "ScanMarch._sweep_interior — the spy target needs "
             "re-pointing at the production interior kernel."
         )
     rep = A.loss_representation

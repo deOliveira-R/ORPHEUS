@@ -15,9 +15,9 @@ so the dispatch contract is now pinned at its single source of truth:
 
 * the SELECTION — ``default_for(mesh)`` returns the right strategy class:
   ALL 1-D meshes (slab, sphere, cylinder; ``is_1d``) →
-  :class:`~orpheus.sn.loss_representation.CumprodScan`; 2-D Cartesian
-  (``is_cartesian and ndim == 2``) →
-  :class:`~orpheus.sn.loss_representation.MovingFrontierWindow`;
+  :class:`~orpheus.sn.loss_representation.CumprodScan`; multi-D Cartesian →
+  :class:`~orpheus.sn.loss_representation.ScanMarch` (the S6.9 Fork-B2
+  production default);
 * the ROUTING — ``transport_sweep`` delegates to
   ``default_for(mesh).sweep(...)`` exactly once.
 
@@ -55,7 +55,7 @@ from orpheus.sn.spatial.diamond import DiamondDifference
 from orpheus.sn.loss_representation import transport_sweep
 from orpheus.sn.loss_representation import (
     CumprodScan,
-    MovingFrontierWindow,
+    ScanMarch,
     default_for,
 )
 from tests.sn._test_helpers import placeholder_materials
@@ -130,9 +130,11 @@ class TestDispatchSelectsStrategy:
 
     The single source of truth that replaced the scattered
     ``reduced is not None`` branch: ALL 1-D meshes (slab, sphere, cylinder)
-    → :class:`CumprodScan`; 2-D Cartesian → :class:`MovingFrontierWindow`
-    (the production optimization; the full-field oracle is explicit-select
-    only).  ``pytest.fail`` on mismatch fires under ``python -O``.
+    → :class:`CumprodScan`; multi-D Cartesian → :class:`ScanMarch` (the
+    S6.9 Fork-B2 production default, 2026-06-11 — measured 0.57–0.84× the
+    window's sweep time at identical peak memory; the window and the
+    full-field oracle stay explicit-select peers).  ``pytest.fail`` on
+    mismatch fires under ``python -O``.
     """
 
     @pytest.mark.foundation
@@ -172,16 +174,23 @@ class TestDispatchSelectsStrategy:
             )
 
     @pytest.mark.foundation
-    def test_2d_cartesian_selects_moving_frontier_window(self):
-        """2-D Cartesian → MovingFrontierWindow (the production optimization)."""
+    def test_2d_cartesian_selects_scan_march(self):
+        """2-D Cartesian → ScanMarch (the S6.9 Fork-B2 production default).
+
+        HISTORY: MovingFrontierWindow was the default through S6.9; the
+        2026-06-11 measurement (sweep 0.57-0.84x, matvec 0.55-0.78x,
+        identical peak memory) flipped the default.  The window remains a
+        selectable peer (explicit construction), pinned by the window-forced
+        end-to-end gates in ``test_scan_march_end_to_end.py``.
+        """
         sn_mesh = _2d_sn_mesh()
         if sn_mesh.reduced is not None:
             pytest.fail("2-D fixture unexpectedly has reduced is not None")
         strategy = default_for(sn_mesh)
-        if not isinstance(strategy, MovingFrontierWindow):
+        if not isinstance(strategy, ScanMarch):
             pytest.fail(
                 f"2-D Cartesian → {type(strategy).__name__}, "
-                f"expected MovingFrontierWindow"
+                f"expected ScanMarch"
             )
 
 
