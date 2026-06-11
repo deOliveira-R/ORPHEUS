@@ -50,6 +50,12 @@ first-class `SweepStrategy` abstraction.
   `sweep_octant_group` + `_sweep_2d_scanmarch` IN [SPY flips] → (c) DAG-ownership → (d) fold
   `FullFieldWavefront` last. THEN S6.5 (unify the two `default_for` doors → the one-instance
   discriminating test flips xfail→xpass).
+  ⭐ **AMENDED 2026-06-11 (user-approved, native-place architecture audit): the walk is d-GENERIC
+  from birth (`_OctantWalk`, NOT `_OctantWalk2D`); `_sweep_2d_scheduled` becomes
+  kernel-parameterized (ScanMarch gains G-S free); the matvec iterates `SweepSchedule.jacobi`;
+  A2D-1 RETIRES at (a); TWO NEW SUB-STEPS (e) collapse the graph's 4 level-walks → 2
+  direction-parameterized walks, (f) `sweep.py` DISSOLVES (module geography; the lazy-import
+  cycle goes away). Full amendment text = the "S6.4 — AMENDMENT" bullet in §S6.2–S6.6 below.**
 - **PRIOR (2026-06-10, S6 EXECUTION STARTED): S6.0-prime + S6.2 DONE.** The
   `test-architect` S6 verification plan landed (memo
   `.claude/agent-memory/test-architect/s6_relayering_verification.md`): the anchor set
@@ -710,6 +716,51 @@ Layer 3  STRUCTURE  (on the mesh)
   Each sub-step independently bit-identity-gated (window≡full sweep + matvec, scan-march G2.c,
   affine-carve golden, keff). **AMENDS S6.1: Layer 2 WALK becomes kernel-parameterized (shared by
   sweep + matvec); Layer 3 STRUCTURE moves from "on the mesh" → "owned by the DAG-using family."**
+- **S6.4 — AMENDMENT (LOCKED 2026-06-11, native-place architecture audit; user-approved).**
+  The audit confirmed the direction fork (solve vs apply) bottoms out in the DISCRETIZATION —
+  `diamond.py::cell_kernel_batch` (solve) / `residual_kernel_batch` (apply), pure + storage-free
+  + d-generic — and is then RE-SPELLED at three altitudes: the octant frame (6× = 3 reps × 2
+  directions; the original S6.4 target), the graph level-walks (4× = `apply`/`residual` +
+  `apply_windowed`/`residual_windowed` — the frontier seed/incoming/emit/shed loop written
+  twice, the full-field level loop twice), and the cell storage adapter (2× =
+  `update_batch`/`residual_batch`, already thin via the factored gather/scatter). The NATIVE
+  architecture spells the fork ONCE — at the representation surface (`sweep` vs `loss_action`)
+  — threaded down as a (cell-kernel, emit-policy) pair; everything between surface and cell
+  algebra is direction-agnostic traversal. (ScanMarch spells the same fork as scan
+  COEFFICIENTS — solve `α = 2s/D−1` vs reflection `α = −1` — the Blelloch closed-form
+  evaluation of the same WDD closure, pinned by G2.c; a second legitimate spelling, in
+  `spatial/`.) The LOAD-TIME IMPORT CYCLE (loss_representation imports sweep's bodies; sweep
+  lazily imports `default_for` back) is the module-geography smell: bodies live apart from
+  their owner. Decisions LOCKED:
+  (1) the walk is **d-GENERIC from birth** — `_OctantWalk` (NOT `_OctantWalk2D`): signs/faces/
+  inflow/captures are per-axis tuples over `mesh.ndim` (folding the d-generic oracle into a
+  2-D-hardcoded walk at (d) would regress C3); byte-identical at d=2.
+  (2) `_sweep_2d_scheduled` becomes **kernel-parameterized** (representation supplies the solve
+  interior) → `_sweep_2d_scanmarch` dissolves into "Jacobi schedule × scanmarch kernel" and
+  **ScanMarch gains Gauss-Seidel for free** (the inter-group reflect is kernel-agnostic);
+  the G-S resolvent keeps the window default.
+  (3) the matvec octant iteration moves from `quad.octants` onto `SweepSchedule.jacobi`
+  (single-sources the in-plane projection `_octant_sweep`; bit-safe — the matvec has no
+  cross-ordinate reductions).
+  (4) **A2D-1 RETIRES** at sub-step (a) in favour of the `window≡full` MATVEC `array_equal`
+  oracle (gate memo §2; a source-hash on a shared frame trips on every legitimate refactor
+  with no behavior signal).
+  (5) TWO NEW SUB-STEPS appended to the staged (a)–(d):
+  **(e) collapse the graph's 4 level-walks → 2 direction-parameterized walks** (full,
+  windowed), reusing the (a) emit-policy objects — same anchors (window≡full both directions,
+  G2.c, affine golden); the `CellUpdate` override point for future Step/LD becomes the pure
+  kernel pair (they supply cell algebra; storage handled once above);
+  **(f) module geography — `sweep.py` DISSOLVES**: `_x_scan_faces`/`_scanmarch_row` →
+  `spatial/scan.py` (the scan family's "graph+walk together"); the octant walk + schedule
+  driver + `_sweep_1d_unified` + `transport_sweep` → `loss_representation.py`;
+  DAG construction cache = `SweepDependencyGraph.for_shape(shape)` (construction with the
+  graph) accessed via the `_DAGWavefront` family accessor (ownership with the family; sub-step
+  (c) unchanged, better-homed); `solver.py` re-points (`_reflect_outflow_into_inflow` already
+  native there — a boundary concern); consumers = 3 production files + ~30 test files
+  (retirement = test migration). The lazy-import cycle DISSOLVES — no workaround left.
+  Each of (e)/(f) is pure relocation, independently bit-identity-gated; (f) additionally gated
+  by clean collection + the full anchor set. Gate-memo addendum for (e)/(f): test-architect
+  (dispatched at (a) start).
 - **S6.5 — Unify the two doors.** `InvertibleOperator.solve` + `StreamingOperator.apply` reach
   ONE `SpatialRepresentation` instance (the `InvertibleOperator` holds/derives the same instance
   as its `streaming` operand). `solve` calls `representation.sweep`; `apply` calls
