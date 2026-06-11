@@ -37,10 +37,19 @@ first-class `SweepStrategy` abstraction.
   doc-refs cleaned across 10 test files (only the A2D-1 historical provenance retains them).
   Commits: `ee91db4` (S6.3a) + `3a79ab3` (S6.3b).  **NEXT = S6.4 — RESCOPED to the unified
   kernel-parameterized octant walk (sweep≡matvec) + DAG ownership (committed `7bbeb5f`; see
-  §S6.4 below — the two "S6.4" bullets).** The `test-architect` S6.4 gate plan is IN FLIGHT
-  (background, agentId `a5a43d342344d04cf`; memo lands in `.claude/agent-memory/test-architect/`)
-  — READ IT FIRST at pickup, then the staged bit-identity-gated carve.  THEN S6.5 (unify the two
-  `default_for` doors → the one-instance discriminating test flips xfail→xpass).
+  §S6.4 below — the two "S6.4" bullets).** The `test-architect` S6.4 gate plan **LANDED** at
+  `.claude/agent-memory/test-architect/s6_4_unified_walk_verification.md` — **READ IT FIRST** at
+  pickup. Key calls: **A2D-1 → RETIRE** (the source-hash is subsumed by the `window≡full` MATVEC
+  output oracle + brittle on a shared walk; fallback = retarget to `_OctantWalk2D._interior_walk`);
+  the **one-walk discriminating test** = a SPY on `_OctantWalk2D._interior_walk` hit by BOTH
+  `L.apply` + `A.solve` (xfail now → xpass at staging-b); the **DAG-ownership test** =
+  `not hasattr(SNMesh, "sweep_graphs")` + DAG-free reps grep-gate + the `geometry.py:343/350`
+  None-slot GONE; ⚠ kernel = a KERNEL OBJECT + EMIT policy, NEVER a boolean `is_solve` flag (the
+  memo §6 ships a structural tripwire); NON-SQUARE shapes (12×7, 5×9) are load-bearing (x↔y moat).
+  **STAGING** (each bit-id-gated): (a) extract `_OctantWalk2D` for the 2 MATVEC variants → (b) bring
+  `sweep_octant_group` + `_sweep_2d_scanmarch` IN [SPY flips] → (c) DAG-ownership → (d) fold
+  `FullFieldWavefront` last. THEN S6.5 (unify the two `default_for` doors → the one-instance
+  discriminating test flips xfail→xpass).
 - **PRIOR (2026-06-10, S6 EXECUTION STARTED): S6.0-prime + S6.2 DONE.** The
   `test-architect` S6 verification plan landed (memo
   `.claude/agent-memory/test-architect/s6_relayering_verification.md`): the anchor set
