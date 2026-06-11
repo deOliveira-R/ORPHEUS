@@ -194,21 +194,6 @@ def test_cylinder_l1_sweep_vs_trajectory_resolvent() -> None:
 
 @pytest.mark.l1
 @pytest.mark.slow
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "PR-TYPED-6.5 Phase 5 — cylinder twin-path divergence "
-        "(rel ≈ 4e-3 at nx=40) is the L14 manifestation-#6 signature "
-        "the B1'' face-state architecture fixes.  GMRES on the "
-        "B1''-aware (L+C) through :class:`InvertibleOperator` "
-        "converges at FP-noise (verified by "
-        "``test_b1pp_cylinder_gmres_converges`` in "
-        "``tests/sn/test_b1pp_verification.py``).  Post-D-K, "
-        "``solve_sn`` routes through the (L+C) operator algebra "
-        "natively; this xfail should be re-validated and likely "
-        "flipped green by a follow-up V&V pass."
-    ),
-)
 def test_cylinder_l1_sweep_vs_krylov_twin_path() -> None:
     r"""**Cylinder Leg 3** — sweep ≡ Krylov-via-unified twin-path agreement.
 
@@ -217,10 +202,15 @@ def test_cylinder_l1_sweep_vs_krylov_twin_path() -> None:
     iteration drift. Disagreement here is the L14 manifestation-#6
     signature: same equation, two algorithmic paths, two answers.
 
-    Currently xfailed strict — the test predates D-K's retargeting of
-    ``solve_sn`` to the B1''-aware (L+C) algebra and has not been
-    re-validated since.  See ``test_b1pp_verification.py`` for the
-    direct (L+C) verification that the B1'' fix works.
+    HISTORY — un-xfailed at S6.4 (2026-06-11): the pre-D-K divergence
+    (rel ≈ 4e-3 at nx=40, the cell-centre-proxy Carlson seed) was
+    HEALED when D-K retargeted ``solve_sn`` onto the B1''-aware (L+C)
+    algebra, exactly as the original xfail reason predicted ("should be
+    re-validated and likely flipped green").  The strict xfail did its
+    job: the first full slow-suite run after the heal reported
+    XPASS(strict), and two independent executions (assertions live
+    under ``-O`` — pytest rewrites test-module asserts) confirmed
+    sweep ≡ Krylov ≡ trajectory reference at every leg.
     """
     k_sweep = _solve_cyl_via_sweep(nx=40)
     k_krylov = _solve_cyl_via_krylov_unified(nx=40)
@@ -234,18 +224,6 @@ def test_cylinder_l1_sweep_vs_krylov_twin_path() -> None:
 @pytest.mark.l1
 @pytest.mark.slow
 @pytest.mark.parametrize("nx", [20, 40, 80])
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "PR-TYPED-6.5 Phase 5 — twin-path divergence on cylinder at "
-        "the Krylov leg's pre-D-K Carlson seed (cell-centre proxy).  "
-        "Post-D-K, ``solve_sn`` migrated to the B1''-aware (L+C) "
-        "algebra via :class:`InvertibleOperator`; xfail should be "
-        "re-validated and likely flipped green.  See "
-        "``test_b1pp_verification.py`` for the direct B1'' L1 "
-        "verification on the Resolution A leaves."
-    ),
-)
 def test_cylinder_l1_refinement_both_paths(nx: int) -> None:
     r"""**Cylinder Leg 4** — both paths converge to ref under refinement.
 
@@ -254,7 +232,11 @@ def test_cylinder_l1_refinement_both_paths(nx: int) -> None:
     the reference's own quadrature error budget. This is the joint test
     of "right rate to right limit" for both algorithms on the same case.
 
-    Currently xfailed strict — see ``test_cylinder_l1_sweep_vs_krylov_twin_path``.
+    HISTORY — un-xfailed at S6.4 (2026-06-11) alongside
+    ``test_cylinder_l1_sweep_vs_krylov_twin_path`` (same heal: the
+    D-K retargeting of ``solve_sn`` onto the B1''-aware (L+C) algebra
+    removed the pre-D-K Carlson cell-centre-proxy divergence; validated
+    by two independent XPASS(strict) executions at all three nx).
     """
     k_ref = _cylinder_k_ref()
     k_sweep = _solve_cyl_via_sweep(nx=nx)
