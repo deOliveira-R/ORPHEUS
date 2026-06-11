@@ -1171,6 +1171,251 @@ def _sweep_2d_wavefront(
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# 2D scan-march path (row-march + x-scan; reuses the 1-D ordinate_scan)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# The same lower-triangular forward substitution as the anti-diagonal
+# wavefront, linearized as **scan along x, march over y** (issue #222). The
+# within-row x-face recurrence is the SAME first-order linear scan the 1-D
+# CumprodScan uses; the transverse-y coupling rides the affine source. ONE
+# valid topological schedule among others — principled-equivalent (NOT bit-
+# identical) to the anti-diagonal wavefront, pinned at nulp by the
+# FullFieldWavefront oracle.
+
+
+def _scanmarch_row(
+    alpha: np.ndarray,
+    beta: np.ndarray,
+    psi_x_in: np.ndarray,
+    psi_y_in: np.ndarray,
+    x_reverse: bool,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    r"""One y-row of the scan-march: x-scan, then recover :math:`\bar\psi`,
+    the downstream y-face, and the domain x-outflow.
+
+    Solves the in-row x-face recurrence
+    :math:`\mathrm{out}_x(i) = \alpha(i)\,\mathrm{in}_x(i) + \beta(i)` by the
+    closed-form :func:`~orpheus.sn.spatial.scan.ordinate_scan`, then closes the
+    diamond-difference cell with :math:`\bar\psi = \tfrac12(\mathrm{in}_x +
+    \mathrm{out}_x)` and :math:`\mathrm{out}_y = 2\bar\psi - \psi_{y,\mathrm{in}}`.
+
+    Parameters
+    ----------
+    alpha, beta : np.ndarray
+        ``(N_oct, ng, nx)`` scan coefficients in **mesh** x-order
+        (``α = 2 s_x/D − 1``, ``β = 2 (Q + s_y ψ_{y,in})/D``).
+    psi_x_in : np.ndarray
+        ``(N_oct, ng)`` domain x-inflow face value (the chain seed).
+    psi_y_in : np.ndarray
+        ``(N_oct, ng, nx)`` transverse-y inflow for this row, mesh order.
+    x_reverse : bool
+        ``True`` for a −x octant (scan high-x → low-x): the chain is reversed
+        for the forward scan and the per-cell result reversed back.
+
+    Returns
+    -------
+    psi_avg : np.ndarray
+        ``(N_oct, ng, nx)`` cell average, mesh order.
+    out_y : np.ndarray
+        ``(N_oct, ng, nx)`` downstream y-face, mesh order (the next row's
+        ``psi_y_in``).
+    x_outflow : np.ndarray
+        ``(N_oct, ng)`` domain x-outflow face value (the last swept cell's
+        downstream x-face).
+    """
+    if x_reverse:
+        alpha = alpha[..., ::-1]
+        beta = beta[..., ::-1]
+    # ordinate_scan scans axis 0 (the chain): move x to the front, scan, move
+    # back. out_x_sweep[i] is the downstream x-face of swept-cell i.
+    out_x_sweep = np.moveaxis(
+        ordinate_scan(
+            np.moveaxis(alpha, -1, 0), np.moveaxis(beta, -1, 0), psi_x_in,
+        ),
+        0, -1,
+    )                                                  # (N_oct, ng, nx) sweep order
+    # in_x[i] = out_x[i−1] (upstream face), in_x[0] = psi_x_in.
+    in_x_sweep = np.concatenate(
+        [psi_x_in[..., None], out_x_sweep[..., :-1]], axis=-1,
+    )
+    psi_avg_sweep = 0.5 * (in_x_sweep + out_x_sweep)
+    x_outflow = out_x_sweep[..., -1]                   # last swept cell = domain x-out
+    psi_avg = psi_avg_sweep[..., ::-1] if x_reverse else psi_avg_sweep  # mesh order
+    out_y = 2.0 * psi_avg - psi_y_in
+    return psi_avg, out_y, x_outflow
+
+
+def _sweep_2d_scanmarch(
+    Q: np.ndarray,
+    sig_t: np.ndarray,
+    sn_mesh: "SNMesh",
+    boundary_flux: "BoundaryFlux",
+    *,
+    moment_projection: "MomentProjection | None" = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    r"""2-D Cartesian within-group sweep via the **scan-march** schedule (#222).
+
+    The same lower-triangular forward substitution as the anti-diagonal
+    wavefront (:func:`_sweep_2d_wavefront`), linearized as *scan along x, march
+    over y*.  Within one y-row the diamond-difference x-face recurrence is the
+    first-order linear scan
+
+    .. math::
+
+        \mathrm{out}_x(i) = \alpha(i)\,\mathrm{in}_x(i) + \beta(i),\qquad
+        \alpha = \frac{2 s_x}{D} - 1,\quad
+        \beta = \frac{2\,(Q + s_y\,\psi_{y,\mathrm{in}})}{D},\quad
+        D = \sigma_t + s_x + s_y,
+
+    solved in closed form by :func:`~orpheus.sn.spatial.scan.ordinate_scan` —
+    the SAME primitive the 1-D :class:`~orpheus.sn.sweep_strategy.CumprodScan`
+    uses (at :math:`s_y = 0`, :math:`\alpha` degenerates to the slab
+    ``a_attenuation`` exactly, so the 1-D scan IS this body with no y-march).
+    The transverse-y coupling enters ONLY through the affine source
+    :math:`\beta`; the cell average is recovered from the x-faces by the SAME
+    WDD closure :math:`\bar\psi = \tfrac12(\mathrm{in}_x + \mathrm{out}_x)`, and
+    the downstream y-face :math:`\mathrm{out}_y = 2\bar\psi - \psi_{y,\mathrm{in}}`
+    is threaded to the next row.
+
+    Principled-equivalent (NOT bit-identical) to ``_sweep_2d_wavefront``: the
+    row-march and the anti-diagonal are two valid topological linearizations of
+    the same triangular solve, so they agree to FP-association — the
+    :class:`~orpheus.sn.sweep_strategy.FullFieldWavefront` oracle pins it at
+    nulp (issue #222 / the ``scan_march_verification.md`` G2 gate).  The flux-
+    independent :math:`\alpha`/``D`` are computed PER LINE here (the
+    :math:`(d{-}1)`-slab working set; mesh-memoising them — the #206 single-
+    source cache — is the measured follow-on).
+
+    Jacobi only (the bare within-group sweep): the four in-plane octants are
+    independent (the reflective coupling is the externalised sibling
+    :math:`-B`).  ``Q`` is the per-ordinate ``(N, ng, nx, ny)`` source
+    (producer-side ``/W``, no in-sweep scaling, no ``·V`` — the Cartesian
+    ``s_a = 2|μ|/Δ`` is already Δ-normalised).
+
+    .. note::
+
+       The octant projection + boundary-trace I/O here (the ``oct_idx`` / sign
+       lookup, the pure-z ``Q/Σ_t`` branch, the in/out face strings, the inflow
+       read + the outflow shed) is a DELIBERATE Pattern-2 duplication of
+       :func:`sweep_octant_group`'s scaffold — **edit both in lockstep**.  Fork
+       B1 (issue #222): the production window must NOT be re-carved while its
+       A2D-1 source-hash + affine-carve bit-identity anchors gate this opt-in
+       path, and ``sweep_octant_group`` is monolithic (no interior-solve seam),
+       so a shared ``_for_each_inplane_octant`` helper cannot be cut yet.
+       Consolidation trigger: S5.3 (the default-flip + window retire/unify),
+       when the scan-march becomes the production schedule and that seam can be
+       cut without disturbing those anchors.
+    """
+    ng, nx, ny = sig_t.shape
+    N = sn_mesh.quad.N
+    if moment_projection is None:
+        angular_flux = np.zeros((N, ng, nx, ny))
+        scalar_flux = np.zeros((ng, nx, ny))
+        moment_buf = None
+        Y = None
+    else:
+        L = moment_projection.L
+        moment_buf = np.zeros((L + 1, 2 * L + 1, ng, nx, ny))
+        Y = moment_projection.Y
+        angular_flux = None
+        scalar_flux = None
+
+    str_x = sn_mesh.streaming_x   # (N, nx)
+    str_y = sn_mesh.streaming_y   # (N, ny)
+    weights = sn_mesh.quad.weights
+
+    # Jacobi: ONE all-octants group (the bare sweep).  The schedule supplies the
+    # same in-plane octant projection (sign_z dropped) the wavefront uses.
+    (group,) = SweepSchedule.jacobi(sn_mesh).groups
+    for sweep in group.sweeps:
+        oct_idx = np.asarray(sweep.indices)        # (N_oct,) int into N
+        sx = sweep.label.sign_x
+        sy = sweep.label.sign_y
+
+        # Pure-z degenerate octant: no in-plane streaming → ψ = Q/Σ_t, no faces.
+        if sx == 0 and sy == 0:
+            psi_avg_pure_z = Q[oct_idx] / sig_t     # (N_oct, ng, nx, ny)
+            if moment_buf is None:
+                angular_flux[oct_idx] = psi_avg_pure_z
+                scalar_flux += np.einsum(
+                    "ngij,n->gij", psi_avg_pure_z, weights[oct_idx],
+                )
+            else:
+                moment_buf += np.einsum(
+                    "nlm,ngij,n->lmgij",
+                    Y[oct_idx], psi_avg_pure_z, weights[oct_idx],
+                )
+            continue
+
+        # μ=0 ordinates ride the +1 sweep direction (streaming coeff 0, WDD
+        # result sign-independent) — matches sweep_octant_group's sx_eff/sy_eff.
+        sx_eff = +1 if sx == 0 else sx
+        sy_eff = +1 if sy == 0 else sy
+
+        x_in_face = "xmin" if sx_eff >= 0 else "xmax"
+        x_out_face = "xmax" if sx_eff >= 0 else "xmin"
+        y_in_face = "ymin" if sy_eff >= 0 else "ymax"
+        y_out_face = "ymax" if sy_eff >= 0 else "ymin"
+
+        inflow_x = boundary_flux.face_view(x_in_face)[oct_idx]   # (N_oct, ng, ny)
+        inflow_y = boundary_flux.face_view(y_in_face)[oct_idx]   # (N_oct, ng, nx)
+
+        s_x = str_x[oct_idx]      # (N_oct, nx)
+        s_y = str_y[oct_idx]      # (N_oct, ny)
+        Q_oct = Q[oct_idx]        # (N_oct, ng, nx, ny)
+        w_oct = weights[oct_idx]  # (N_oct,)
+        Y_oct = None if Y is None else Y[oct_idx]   # (N_oct, L+1, 2L+1)
+        N_oct = oct_idx.size
+
+        x_reverse = sx_eff < 0
+        capture_x = np.empty((N_oct, ng, ny))       # domain x-outflow, per y-row
+        angular_oct = (
+            np.zeros((N_oct, ng, nx, ny)) if moment_buf is None else None
+        )
+
+        # March the y-rows in the octant's y-sweep order, threading ψ_y.
+        psi_y_in = inflow_y                          # (N_oct, ng, nx) — row-0 inflow
+        out_y = psi_y_in                             # last-row out_y (ny ≥ 1 → set below)
+        y_rows = range(ny) if sy_eff >= 0 else range(ny - 1, -1, -1)
+        for j in y_rows:
+            # D = σ_t + s_x + s_y on this row; the cell-kernel left-fold order
+            # ((σ_t + s_x) + s_y) is bit-id-load-bearing WITHIN a schedule only.
+            D_row = (
+                sig_t[None, :, :, j]                 # (1, ng, nx)
+                + s_x[:, None, :]                    # (N_oct, 1, nx)
+                + s_y[:, j][:, None, None]           # (N_oct, 1, 1)
+            )                                         # (N_oct, ng, nx)
+            alpha = 2.0 * s_x[:, None, :] / D_row - 1.0
+            beta = (
+                2.0 * (Q_oct[:, :, :, j] + s_y[:, j][:, None, None] * psi_y_in)
+                / D_row
+            )
+            psi_avg_row, out_y, x_outflow = _scanmarch_row(
+                alpha, beta, inflow_x[:, :, j], psi_y_in, x_reverse,
+            )
+            psi_y_in = out_y
+            capture_x[:, :, j] = x_outflow
+            if moment_buf is None:
+                angular_oct[:, :, :, j] = psi_avg_row
+                scalar_flux[:, :, j] += np.einsum("ngi,n->gi", psi_avg_row, w_oct)
+            else:
+                moment_buf[:, :, :, :, j] += np.einsum(
+                    "nlm,ngi,n->lmgi", Y_oct, psi_avg_row, w_oct,
+                )
+
+        # Shed the domain outflow: x-outflow is each row's last x-scan value
+        # (captured above); y-outflow is the LAST-marched row's out_y.
+        if moment_buf is None:
+            angular_flux[oct_idx] = angular_oct
+        boundary_flux.face_view(x_out_face)[oct_idx] = capture_x
+        boundary_flux.face_view(y_out_face)[oct_idx] = out_y   # (N_oct, ng, nx)
+
+    if moment_projection is None:
+        return angular_flux, scalar_flux
+    return moment_buf, None
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # VERIFICATION ORACLE — the full-field DAG-walk sweep (d-generic; NOT production)
 # ═══════════════════════════════════════════════════════════════════════
 

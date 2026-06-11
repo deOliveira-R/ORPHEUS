@@ -117,7 +117,12 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 # This module wraps the sweep bodies, so it imports ``sweep`` at load time.
 # The back-edge — ``transport_sweep`` reaching here for ``default_for`` — is a
 # function-local (lazy) import on the ``sweep`` side, which breaks the cycle.
-from .sweep import _sweep_1d_unified, _sweep_2d_wavefront, _sweep_full_field
+from .sweep import (
+    _sweep_1d_unified,
+    _sweep_2d_scanmarch,
+    _sweep_2d_wavefront,
+    _sweep_full_field,
+)
 
 if TYPE_CHECKING:
     import numpy as np
@@ -472,6 +477,102 @@ class FullFieldWavefront(_DAGWavefront):
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# ScanMarch — the row-march + x-scan schedule (1-D scan ∘ transverse march)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class ScanMarch(_SweepStrategy):
+    r"""Scan-march sweep — ``scan(x)`` marched over the transverse axes (#222).
+
+    Reframes the d-D diamond-difference sweep as forward substitution along the
+    sweep axis — the first-order linear scan
+    :func:`~orpheus.sn.spatial.scan.ordinate_scan` — marched over the transverse
+    axes: ``scan(x)`` at d=1, ``scan(x) ∘ march(y)`` at d=2.  ONE primitive that
+    **unifies** the 1-D :class:`CumprodScan` (its degenerate ``s_y = 0`` case)
+    and the 2-D row-march: the within-row x-face recurrence is the SAME Blelloch
+    scan, the transverse coupling rides the affine source
+    (:func:`~orpheus.sn.sweep._sweep_2d_scanmarch`).
+
+    A different *schedule* from the :class:`_DAGWavefront` family (row-march vs
+    anti-diagonal) over the SAME lower-triangular solve — principled-equivalent
+    at nulp, pinned against the :class:`FullFieldWavefront` oracle (issue #222).
+    Its production value: it reuses the conditioning-robust ``ordinate_scan``
+    per line (the ERR-054 pole reset + the ERR-057 denormal underflow handled
+    for free) and is the natural home for the flux-independent ``a_attenuation``
+    cache the wavefront lacks (#206).
+
+    Selection — ``is_1d OR is_cartesian``: 1-D any geometry (the chain scan; the
+    curvilinear Morel–Montry angular thread folds into the source) AND Cartesian
+    any d (the row-march).  Currently **OPT-IN**: registered after the production
+    window, so :func:`default_for` keeps the legacy choice (1-D → ``CumprodScan``,
+    2-D → ``MovingFrontierWindow``) until a measured speedup justifies the flip
+    (``scan_march_verification.md`` Fork B1 → B2).  The 2-D matvec twin
+    (``residual``) + the d≥3 recursive transverse march land in S5.1b/S5.2.
+    """
+
+    @classmethod
+    def supports(cls, mesh: "SNMesh") -> Compatibility:
+        return Compatibility(
+            mesh.is_1d or mesh.is_cartesian,
+            "requires a 1-D mesh (any geometry) or Cartesian geometry",
+        )
+
+    def sweep(
+        self,
+        Q: "np.ndarray",
+        sig_t: "np.ndarray",
+        boundary_flux: "BoundaryFlux",
+        *,
+        initial_guess: "AngularFlux | TimedFullField | None" = None,
+        moment_projection: "MomentProjection | None" = None,
+    ) -> "tuple[np.ndarray, np.ndarray]":
+        if self.mesh.is_1d:
+            # d=1 ⇒ ``scan(x)`` with no transverse march: the unified 1-D body
+            # (slab + curvilinear via the two-stratum cache; the Morel–Montry
+            # Carlson angular thread folds into the scan's affine source).  This
+            # is the ``s_y = 0`` degeneration of the 2-D scan-march.
+            if moment_projection is not None:
+                raise ValueError(
+                    "ScanMarch.sweep: moment output (moment_projection given) "
+                    "is 2-D Cartesian only — 1-D/curvilinear meshes stay "
+                    "full-angular (the Morel–Montry Carlson seed reads the "
+                    "per-ordinate iterate; lesson L21)."
+                )
+            return _sweep_1d_unified(
+                Q, sig_t, self.mesh, boundary_flux, initial_guess=initial_guess,
+            )
+        return _sweep_2d_scanmarch(
+            Q, sig_t, self.mesh, boundary_flux,
+            moment_projection=moment_projection,
+        )
+
+    def residual(
+        self, operator: "StreamingOperator", psi: "TimedFullField",
+    ) -> "TimedFullField":
+        """Forward matvec twin — 1-D wired; the 2-D scan-march matvec is S5.1b."""
+        if self.mesh.is_1d:
+            return operator._apply_1d(psi)
+        raise NotImplementedError(
+            "ScanMarch.residual: the 2-D scan-march matvec twin lands in S5.1b "
+            "(a new StreamingOperator._apply_2d_cartesian_scanmarch, keeping the "
+            "A2D-1 source-hash free-green); the forward sweep is verified against "
+            "the FullFieldWavefront oracle first."
+        )
+
+    def residual_transpose(
+        self, operator: "StreamingOperator", phi: "TimedFullField",
+    ) -> "TimedFullField":
+        """Adjoint matvec twin — 1-D wired; the multi-D Cartesian adjoint is deferred."""
+        if self.mesh.is_1d:
+            return operator._apply_1d_transpose(phi)
+        raise NotImplementedError(
+            "ScanMarch.residual_transpose: the multi-D Cartesian adjoint is "
+            "deferred (O.2b lands the 1-D reverse sweep first; the multi-D "
+            "adjoint follows the forward scan-march matvec, S5.1b+)."
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # Registry + factory — the single selection source of truth
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -479,15 +580,16 @@ class FullFieldWavefront(_DAGWavefront):
 #: ``_DAGWavefront`` bases) — :func:`default_for` constructs whichever it
 #: picks, so only buildable strategies belong here.
 #:
-#: Selection priority order: the 1-D scan, then the 2-D production window,
-#: then the full-field oracle.  :func:`default_for` returns the FIRST that
-#: applies, so the production optimization is preferred over the oracle and
-#: the oracle is reached only as a never-stuck fallback (today: never, since
-#: the window covers every 2-D mesh; S3's d-generic oracle becomes the d≥3
-#: fallback).
+#: Selection priority order: the 1-D scan, the 2-D production window, the
+#: d-general scan-march, then the full-field oracle.  :func:`default_for`
+#: returns the FIRST that applies, so the legacy production optimizations win
+#: at d=1/d=2 (the scan-march is OPT-IN — issue #222 Fork B1, default
+#: unchanged), the scan-march is the d≥3 Cartesian production primitive, and
+#: the oracle is the never-stuck final fallback.
 SWEEP_STRATEGIES: tuple[type[_SweepStrategy], ...] = (
     CumprodScan,
     MovingFrontierWindow,
+    ScanMarch,
     FullFieldWavefront,
 )
 
@@ -504,10 +606,11 @@ def default_for(mesh: "SNMesh") -> SweepStrategy:
     Raises
     ------
     IncompatibleStrategy
-        If no strategy applies.  Unreachable for any constructible mesh in
-        S1 (every 1-D mesh → ``CumprodScan``; every 2-D Cartesian →
-        ``MovingFrontierWindow``).  A hypothetical 3-D Cartesian mesh has no
-        S1 strategy; S3's d-generic oracle becomes its fallback.
+        If no strategy applies.  Unreachable for any constructible mesh
+        (every 1-D mesh → ``CumprodScan``; every 2-D Cartesian →
+        ``MovingFrontierWindow``).  A hypothetical 3-D Cartesian mesh selects
+        the d-general ``ScanMarch`` (production), with ``FullFieldWavefront``
+        (the oracle) as the never-stuck fallback.
     """
     for cls in SWEEP_STRATEGIES:
         if cls.supports(mesh).ok:
