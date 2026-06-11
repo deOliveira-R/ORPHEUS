@@ -9,7 +9,47 @@ first-class `SweepStrategy` abstraction.
 
 - **Designed 2026-06-10** in a multi-turn design conversation; every decision below is LOCKED
   (see §"Decisions locked").
-- **⭐⭐⭐ LATEST (2026-06-10, S6.3 DONE — the walk moved OFF the operator): S6.3a + S6.3b.**
+- **⭐⭐⭐ LATEST (2026-06-11, S6.4 (a)–(e) DONE + COMMITTED — only (f) remains): the unified
+  walk is REAL.** Commit chain (NOT pushed): `2958aa1` (the S6.4 AMENDMENT locked: d-generic
+  `_OctantWalk`, kernel-parameterized schedule loop, matvec→schedule, A2D-1 retire, NEW (e)+(f))
+  → `7abad0e` **(a)** `_OctantWalk` + both matvec frames through it; A2D-1 RETIRED (successor =
+  the window≡full MATVEC output oracle); NEW `tests/sn/operators/test_one_octant_walk.py` (SPY
+  xfail-strict + AST anti-boolean tripwire + both-matvec-variants pin)
+  → `1b4b0c0` **(b)** the sweep frames in: `_SolveOperands`+`_SweepEmit` (guarded
+  angular-XOR-moment TYPE) + `_OctantWalk.sweep_group`; `_sweep_2d_scheduled` now
+  kernel-parameterized (required `interior`; **ScanMarch gained G-S composability free**);
+  `sweep_octant_group` + `_sweep_2d_scanmarch` RETIRED; **the one-walk SPY FLIPPED xfail→PASS**
+  (`L.apply` and `A.solve` provably hit ONE `_OctantWalk._interior_walk`)
+  → `b3b7a7d` **(c)** DAG ownership mesh→family: `SweepDependencyGraph.for_shape(shape)`
+  (lru_cache(8), returns a cached `MappingProxyType` — mutation unrepresentable, identity
+  stable); geometry.py SCRUBBED (the curvilinear None-slots + build site + import GONE);
+  `_DAGWavefront.sweep_graphs` property; tests migrated
+  `test_snmesh_sweep_graphs.py`→`tests/sn/primitives/test_dag_ownership.py`
+  → `d1b2f02` **(d)** the full-field oracle folded: `FullFieldWavefront` kernels-only
+  (`_octant_face_cochain` in-edge-only seeding ≡ the whole-trace ι_* seed BYTE-identically —
+  upwind never-read-before-write); `_sweep_full_field` RETIRED; `_sweep_2d_scheduled` buffers
+  d-GENERIC; ⚠ **WavefrontFlux + InteriorFaceSpace now have NO production consumer — fate =
+  USER decision at (f)** (the typed ι boundary algebra dissolved into the shared frame)
+  → `3438131` the HEALED cylinder twin-path xfails un-marked (pre-existing D-K heal, surfaced
+  by the first full slow-suite run since; 3× green incl. a stashed-HEAD reproduction; bare
+  asserts in test modules ARE live under `-O` — pytest rewrites them, probe-verified)
+  → `27ed995` **(e)** the graph's 4 walks → `walk_full`+`walk_windowed` × `_CellSolve`(guarded)
+  /`_CellResidual` level ops; diamond = PURE cell algebra (storage adapters + `SweepCellSlice`
+  RETIRED; the CellUpdate extension point = the storage-free kernel pair); tests
+  `test_cell_update_batch.py`→`test_cell_kernel_batch.py` + the kernel sha256
+  source-of-record pin (the GENUINE hash exception) + two-walks-not-four; §15A.2 theory
+  rewritten (archivist).
+  EVERY sub-step byte-identity-gated (window≡full SWEEP+MATVEC `array_equal`, affine sha256
+  golden, G2.c nulp, SI≡Krylov≡k_inf) + broad-suite green + elegance-enforcer PASS + Sphinx
+  clean. ZERO "edit both in lockstep" markers remain; ONE octant frame; ONE O.4b block.
+  **⏭ NEXT = S6.4(f)** (module geography; see the AMENDMENT bullet §S6.2–S6.6): `sweep.py`
+  dissolves; `_x_scan_faces`/`_scanmarch_row`→`spatial/scan.py`; walk+schedule
+  driver+`_sweep_1d_unified`+`transport_sweep`→`loss_representation.py`; RENAME
+  `_sweep_2d_scheduled`→`_sweep_scheduled`; ~30 test files re-point + ~14 `transport_sweep`
+  Sphinx roles (gate-memo ADDENDUM §(f) has the checklist); ⚠ ASK USER: retire or keep
+  `WavefrontFlux`/`InteriorFaceSpace`. THEN S6.5 (one representation instance; the solver.py
+  `default_for` plumbing + `_sweep_2d_wavefront`'s window default are its collapse targets).
+- **PRIOR (2026-06-10, S6.3 DONE — the walk moved OFF the operator): S6.3a + S6.3b.**
   The architectural heart of S6.  **S6.3a** (Mode-8 prereq, commit `ee91db4`): migrated
   `test_g_adjoint_reciprocity` off 5 bare `assert`s → `pytest.fail` (the curvilinear
   sphere/cyl angular-second-triangular-factor reciprocity was a FALSE GREEN under `-O`;
