@@ -35,10 +35,12 @@ first-class `SweepStrategy` abstraction.
   still said "applies L" — a contract-surface bug-habitat for the future S6.6
   `ExplicitMatrix` leaf; now state `(L+C)ψ`).  Sphinx **build succeeded**; stale `_apply_*`
   doc-refs cleaned across 10 test files (only the A2D-1 historical provenance retains them).
-  Commits: `ee91db4` (S6.3a) + S6.3b (this).  **NEXT = S6.4** (the `_OctantWalk2D` shared
-  base — collapse the Fork-B1 window/scanmarch `loss_action` octant-frame duplication, the
-  documented IOU; A2D-1 retargets again to the shared `_interior_walk`).  THEN S6.5 (unify
-  the two doors → the one-instance discriminating test flips xfail→xpass).
+  Commits: `ee91db4` (S6.3a) + `3a79ab3` (S6.3b).  **NEXT = S6.4 — RESCOPED to the unified
+  kernel-parameterized octant walk (sweep≡matvec) + DAG ownership (committed `7bbeb5f`; see
+  §S6.4 below — the two "S6.4" bullets).** The `test-architect` S6.4 gate plan is IN FLIGHT
+  (background, agentId `a5a43d342344d04cf`; memo lands in `.claude/agent-memory/test-architect/`)
+  — READ IT FIRST at pickup, then the staged bit-identity-gated carve.  THEN S6.5 (unify the two
+  `default_for` doors → the one-instance discriminating test flips xfail→xpass).
 - **PRIOR (2026-06-10, S6 EXECUTION STARTED): S6.0-prime + S6.2 DONE.** The
   `test-architect` S6 verification plan landed (memo
   `.claude/agent-memory/test-architect/s6_relayering_verification.md`): the anchor set
