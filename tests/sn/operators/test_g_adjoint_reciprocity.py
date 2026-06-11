@@ -35,6 +35,12 @@ These are algebraic identities (exact by construction), so the suite is
 ``@pytest.mark.foundation`` — no ``verifies()`` label (no theory equation; the
 claim is a software/algebra invariant).
 
+``-O``-safe (vv Mode 8): every gate is a ``pytest.fail`` function call — a bare
+``assert`` is stripped to a NO-OP under the canonical ``python -O``. Migrated off
+bare ``assert`` in S6.3 (issue #222) so the curvilinear (sphere/cyl) angular
+second-triangular-factor reciprocity — the gate S6.3's walk-move leans on —
+ACTUALLY FIRES under ``-O`` instead of being a false green.
+
 References
 ----------
 
@@ -200,7 +206,10 @@ def test_g_adjoint_reciprocity_full_block(case):
     """
     sn, sig_t = _BUILDERS[case]()
     A = _loss_operator(sn, sig_t)
-    assert "apply_transpose" in A.capabilities  # the adjoint must be reachable
+    if "apply_transpose" not in A.capabilities:  # the adjoint must be reachable
+        pytest.fail(
+            f"[{case}] adjoint unreachable: 'apply_transpose' not in A.capabilities"
+        )
 
     rng = np.random.default_rng(2026)
     psi = _random_composite(sn, rng)
@@ -209,10 +218,11 @@ def test_g_adjoint_reciprocity_full_block(case):
     lhs = _g_inner(A.apply(psi), phi, sn)
     rhs = _g_inner(psi, A.H.apply(phi), sn)
     rel = abs(lhs - rhs) / (abs(lhs) + abs(rhs) + 1e-300)
-    assert rel < 1e-12, (
-        f"[{case}] G-reciprocity broken: ⟨Aψ,φ⟩_G={lhs:.6e} vs "
-        f"⟨ψ,A.Hφ⟩_G={rhs:.6e} (rel={rel:.2e})"
-    )
+    if not rel < 1e-12:
+        pytest.fail(
+            f"[{case}] G-reciprocity broken: ⟨Aψ,φ⟩_G={lhs:.6e} vs "
+            f"⟨ψ,A.Hφ⟩_G={rhs:.6e} (rel={rel:.2e})"
+        )
 
 
 @pytest.mark.foundation
@@ -234,10 +244,11 @@ def test_full_field_space_metric_matches_independent_reference(case):
     ref = _g_inner(a, b, sn)
     prod = space.inner_product(a, b)
     rel = abs(ref - prod) / (abs(ref) + abs(prod) + 1e-300)
-    assert rel < 1e-13, (
-        f"[{case}] FullFieldSpace.inner_product {prod:.6e} != independent "
-        f"reference {ref:.6e} (rel={rel:.2e}) — wrong metric population"
-    )
+    if not rel < 1e-13:
+        pytest.fail(
+            f"[{case}] FullFieldSpace.inner_product {prod:.6e} != independent "
+            f"reference {ref:.6e} (rel={rel:.2e}) — wrong metric population"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -271,10 +282,11 @@ def test_wrong_trace_metric_breaks_reciprocity(case):
         float(np.ptp(np.abs(sn.trace.omega_dot_n[f])))
         for f in range(sn.trace.omega_dot_n.shape[0])
     ]
-    assert max(spreads) > 0.1, (
-        f"[{case}] |Ω·n| spread {max(spreads):.3f} too small — the wrong-metric "
-        f"control would be a dud (quadrature degeneracy)."
-    )
+    if not max(spreads) > 0.1:
+        pytest.fail(
+            f"[{case}] |Ω·n| spread {max(spreads):.3f} too small — the wrong-metric "
+            f"control would be a dud (quadrature degeneracy)."
+        )
 
     A = _loss_operator(sn, sig_t)
     rng = np.random.default_rng(2026)
@@ -287,8 +299,9 @@ def test_wrong_trace_metric_breaks_reciprocity(case):
     rel_wrong = abs(lhs_wrong - rhs_wrong) / (
         abs(lhs_wrong) + abs(rhs_wrong) + 1e-300
     )
-    assert rel_wrong > 1e-3, (
-        f"[{case}] wrong metric (drop |Ω·n|) did NOT break reciprocity "
-        f"(rel={rel_wrong:.2e}); the |Ω·n|·w_n weighting is NOT load-bearing — "
-        f"§2 proves nothing."
-    )
+    if not rel_wrong > 1e-3:
+        pytest.fail(
+            f"[{case}] wrong metric (drop |Ω·n|) did NOT break reciprocity "
+            f"(rel={rel_wrong:.2e}); the |Ω·n|·w_n weighting is NOT load-bearing — "
+            f"§2 proves nothing."
+        )
