@@ -9,7 +9,36 @@ first-class `SweepStrategy` abstraction.
 
 - **Designed 2026-06-10** in a multi-turn design conversation; every decision below is LOCKED
   (see §"Decisions locked").
-- **⭐⭐⭐ LATEST (2026-06-11, S6.9 Fork-B2 RESOLVED @ `599beb8` — default FLIPPED to
+- **⭐⭐⭐ LATEST (2026-06-11 FINAL — #222 CLOSED; THE CARVE IS COMPLETE @ `6767102`,
+  29 commits `954ddf4..6767102`, NOT pushed).** **S5.5 landed (`6767102`):** the capstone
+  theory page `docs/theory/loss_representations.rst` (~560 lines, archivist) — the
+  representation layer ABOVE discrete_ordinates/operator_algebra: native lower-triangular
+  frame, the four schedules, selection SSOT (registry-order-is-policy), the
+  one-walk/one-instance L21 theorems, the Fork-B2 measurement + VERBATIM user decision,
+  bit-id-vs-principled verification architecture, S0–S6.9 history + rejected alternatives
+  + the WavefrontFlux→C¹ succession + the deferred ExplicitMatrix extension point; wired
+  into `transport_methods.rst`; the 5 new `:label:`s TEST-LINKED
+  (`test_loss_action_convention.py` ← loss-rep-LpC/resolution-a;
+  `test_scan_march_equivalence.py` ← the 3 scanmarch labels) so the V&V orphan count
+  stayed at baseline 54; the module "Phase status" + registry docstrings modernized off
+  the stale Fork-B1 future tense. Sphinx -E byte-identical-to-baseline warnings.
+  **S5/S6 CLOSED OUT:** #222 closed with the full-arc comment (S5.0→S5.5; the ~1.75×
+  prototype promise landed as 1.2–1.8× per-sweep production). Deferred riders RECORDED on
+  the close: (a) the flux-independent `a_attenuation` cache (ScanMarch's natural adoption,
+  #206-adjacent — the ScanMarch docstring names it); (b) S6.6 `ExplicitMatrix`
+  (`spsolve_triangular` oracle — designed extension point, no production driver).
+  **⏭ NEXT = C3.6 (3-D end-to-end admission), the N-D campaign tail — pickup:**
+  the carried C3.3 concern = the live dispatch gates are BINARY `not is_1d` where the
+  honest dispatch is `ndim` (1-D scan / multi-D representation); post-S6 this is SMALL —
+  the representations + `_OctantWalk` + DAG + kernels are already d-generic, so C3.6 ≈
+  (i) a `Mesh3D`/3-D-quadrature admission story or synthetic-shape pins, (ii) the
+  `_MSpatialOperatorSum` `NotImplementedError` boundaries kept honest, (iii) the
+  d=3 walk/sweep admission tests (B7-style round-trips exist at the graph layer —
+  `test_sweep_graph_window_equivalence.py` d=3 shapes (3,2,3)/(4,3,2) already pin
+  walk-level d=3). THEN C4 (#220 boundary inventory d-generic) → C5 (3-D shape-admission
+  pins + docs). Orthogonal: #206 re-audit (cylinder; + the a_attenuation rider), #212,
+  #195. PUSH pending user.
+- **PRIOR (2026-06-11, S6.9 Fork-B2 RESOLVED @ `599beb8` — default FLIPPED to
   ScanMarch; the window KEPT as a selectable peer, USER decision: "no need to retire...
   multiple methods (this is the whole point of having them selectable)... flip the default
   to ScanMarch").** The flip = the one-line `LOSS_REPRESENTATIONS` reorder (CumprodScan,

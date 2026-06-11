@@ -8,7 +8,25 @@ hooks, `derivations/diagnostics/`.
 
 ---
 
-## ⭐⭐⭐ POST-COMPACTION RECOVERY — READ THIS FIRST (2026-06-09)
+## ⭐⭐⭐ POST-COMPACTION RECOVERY — READ THIS FIRST (updated 2026-06-11)
+
+**STATUS 2026-06-11: the S-campaign (sweep-strategy carve + S6 re-layering, #222) is
+COMPLETE and #222 is CLOSED — `docs/theory/loss_representations.rst` is the capstone
+record; recovery details = `.claude/plans/sn_sweep_strategy.md` ⭐⭐⭐ LATEST.** The
+final state: four selectable `LossRepresentation` schedules of the lower-triangular
+`(L+C)` (CumprodScan 1-D default · **ScanMarch multi-D Cartesian default since the
+S6.9 Fork-B2 flip** · MovingFrontierWindow selectable peer · FullFieldWavefront
+oracle); ONE `_OctantWalk` frame + ONE instance per operator (L21 type facts);
+`sweep.py` dissolved; `WavefrontFlux` retired with succession. Branch
+`954ddf4..6767102` (29 commits) NOT pushed. **⏭ C-campaign resumes at C3.6** — the
+representations/walk/DAG/kernels are ALREADY d-generic post-S6, so C3.6 shrank to:
+the honest `ndim` dispatch at the remaining binary `not is_1d` gates, the
+`_MSpatialOperatorSum` NotImplementedError boundaries, and the d=3 admission story
+(graph-layer d=3 walk pins already exist in `test_sweep_graph_window_equivalence.py`
+shapes (3,2,3)/(4,3,2)). THEN C4 (#220) → C5. The PRIOR (2026-06-09) recovery below
+is the C2/C3-start record.
+
+## PRIOR — POST-COMPACTION RECOVERY (2026-06-09)
 
 **One line:** the production `(N, ng, *spatial)` rank-d carve **AND** the full
 per-file test migration (C2c) **AND** the C2d integrated gate are **DONE** — full
