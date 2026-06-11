@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5134**
+Total tests collected: **5136**
 
 V&V level distribution
 ----------------------
@@ -20,7 +20,7 @@ V&V level distribution
    L1, 946, 18.4%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2975, 57.9%
+   foundation, 2977, 58.0%
    unmarked, 6, 0.1%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5049
+   explicit, 5051
    verify, 0
    class-name, 46
    func-name, 0
@@ -283,6 +283,7 @@ Module × level grid
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
+   operators/test_one_octant_walk, 0, 0, 0, 0, 3, 0
    operators/test_operator_block_role, 0, 0, 0, 0, 20, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 16, 0
    operators/test_scattering_operator, 1, 0, 0, 0, 66, 0
@@ -290,7 +291,7 @@ Module × level grid
    operators/test_sn_boundary_realizer, 0, 20, 0, 0, 0, 0
    operators/test_snmesh_realizer_wiring, 0, 9, 0, 0, 0, 0
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
-   operators/test_streaming_operator, 0, 0, 0, 0, 65, 0
+   operators/test_streaming_operator, 0, 0, 0, 0, 64, 0
    operators/test_streaming_operator_decomposition, 19, 0, 0, 0, 0, 0
    operators/test_typed_residual_evaluation, 1, 0, 0, 0, 3, 0
    primitives/test_axis_primitive, 0, 0, 0, 0, 23, 0

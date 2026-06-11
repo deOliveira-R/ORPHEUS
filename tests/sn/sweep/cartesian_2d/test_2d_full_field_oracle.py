@@ -104,7 +104,17 @@ def test_matvec_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
 
     S6.3: both representations' ``loss_action`` return ``(L+C)ψ`` (the operator
     does the ``−C`` glue in :meth:`apply`); the window≡full comparison is
-    unchanged — two storage policies over ONE walk."""
+    unchanged — two storage policies over ONE walk.
+
+    S6.4(a): SUPERSEDES the retired A2D-1 source-hash pin
+    (``TestT4dApply2DCartesianSourceHashPin``) — this ``assert_array_equal``
+    output oracle is the tripwire on the 2-D matvec body, now the shared
+    ``_OctantWalk`` apply frame + the window's interior kernel.  A source-hash
+    on a SHARED walk trips on every legitimate refactor with no behavior
+    signal; any actual drift in the relocated body fails THIS test against the
+    structurally-distinct full-field oracle (the NON-SQUARE cases catch an
+    x↔y swap).  Doubles as the gate-memo §5 relocation-identity pin for every
+    S6.4 sub-step that touches the octant frame."""
     rng = np.random.default_rng((abs(hash((nx, ny, lvl, ng, bc))) % (2**32)) ^ 9)
     sn_mesh = _build_mesh(nx, ny, lvl, ng, bc)
     N = sn_mesh.quad.N

@@ -968,11 +968,17 @@ Key Facts (Wave T)
   ``90e7d4e``).
 
 - **Hybrid 2-D Cartesian**: T.4 lifted 1-D only. The 2-D Cartesian
-  path (:meth:`StreamingOperator._apply_2d_cartesian`) stays
-  procedural FD with cell-centre-proxy semantics. A defensive
-  source-hash pin (A2D-1) guards against silent author drift on that
-  path until a future wave delivers the trace-correct face_view
-  refactor.
+  path (then ``StreamingOperator._apply_2d_cartesian``) stayed
+  procedural FD with cell-centre-proxy semantics, guarded by a
+  defensive source-hash pin (A2D-1) against silent author drift.
+  *(Superseded: O.4b replaced the FD path with the trace-correct
+  graph walk; S6.3 moved the walk onto the loss representation; at
+  S6.4(a) the A2D-1 pin was RETIRED — its tripwire job transferred to
+  the ``window ≡ full`` matvec output oracle in
+  ``test_2d_full_field_oracle.py``, which catches actual drift by
+  ``assert_array_equal`` against the structurally-distinct full-field
+  oracle instead of pinning source text on what is now a SHARED
+  octant walk.)*
 
 .. vv-status: wave-t-shape-table documented
 
@@ -1438,11 +1444,13 @@ from T.4's per-direction lift. Bundling the two would violate the
 2-D path exists; unify after ≥2 working instances).
 
 **Defensive A2D-1 source-hash pin**. T.4d added a structural
-regression test that records the source-code signature of
-:meth:`_apply_2d_cartesian` and asserts it remains unchanged. The pin
-catches a future author who accidentally modernises the 2-D path
-while editing nearby code, before the change ships and breaks the
-known-good cell-centre-proxy semantics.
+regression test that recorded the source-code signature of
+``_apply_2d_cartesian`` and asserted it remained unchanged, so an
+accidental modernisation of the 2-D path could not ship silently.
+*(RETIRED at S6.4(a): the body became the SHARED ``_OctantWalk``
+apply frame, where a source-hash trips on every legitimate refactor
+with no behavior signal; the ``window ≡ full`` matvec
+``assert_array_equal`` oracle is the successor tripwire.)*
 
 
 Verification approach
