@@ -9,8 +9,24 @@ first-class `SweepStrategy` abstraction.
 
 - **Designed 2026-06-10** in a multi-turn design conversation; every decision below is LOCKED
   (see §"Decisions locked").
-- **⭐⭐⭐ LATEST (2026-06-11, S6.4 (a)–(e) DONE + COMMITTED — only (f) remains): the unified
-  walk is REAL.** Commit chain (NOT pushed): `2958aa1` (the S6.4 AMENDMENT locked: d-generic
+- **⭐⭐⭐ LATEST (2026-06-11, S6.4 COMPLETE — ALL SIX SUB-STEPS (a)–(f) DONE + COMMITTED):
+  the unified walk is REAL and the geography matches the algebra.** **(f) landed at `6e959b0`:**
+  `sweep.py` DISSOLVED (byte-verbatim relocations, elegance diff-confirmed) — scan primitives →
+  `spatial/scan.py`; orchestration (`transport_sweep` + `_sweep_1d_unified` + the schedule loop
+  RENAMED `_sweep_scheduled` + `_sweep_2d_wavefront`) → `loss_representation.py` ORCHESTRATION
+  section; the lazy-import CYCLE IS GONE; 16 importers + 4 spies re-pointed (3 spy failures
+  caught = the false-green-after-relocation class); Sphinx roles repointed/de-roled +
+  api automodule moved. **WavefrontFlux + InteriorFaceSpace RETIRED (user-approved)** with the
+  succession recorded everywhere (the concept lives as `_MovingFrontier` per-level seed/shed +
+  `FullFieldWavefront._octant_face_cochain`/`_edge_outflow`; the `wavefront-flux-cochain` theory
+  anchor KEPT, derivation preserved as history). Gates: collection 5102 clean; broad not-slow
+  sn+numerics+transport 2366 passed; fresh `-E` Sphinx zero non-baseline warnings;
+  elegance PASS zero conditions. **⏭ NEXT = S6.5** (unify the two doors → ONE representation
+  instance; collapse targets: solver.py's `default_for(sn_mesh)._sweep_interior` plumbing +
+  `_sweep_2d_wavefront`'s `interior=None` window default + `StreamingOperator.loss_representation`
+  vs the solve door — the one-instance discriminating test flips). THEN S6.9/S5.3 (measure +
+  window-fate), S5.5 (Sphinx architecture page), S6.6 (ExplicitMatrix, deferred), C3.6/C4/C5.
+- **PRIOR ((a)–(e) detail):** Commit chain (NOT pushed): `2958aa1` (the S6.4 AMENDMENT locked: d-generic
   `_OctantWalk`, kernel-parameterized schedule loop, matvec→schedule, A2D-1 retire, NEW (e)+(f))
   → `7abad0e` **(a)** `_OctantWalk` + both matvec frames through it; A2D-1 RETIRED (successor =
   the window≡full MATVEC output oracle); NEW `tests/sn/operators/test_one_octant_walk.py` (SPY
