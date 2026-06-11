@@ -754,3 +754,20 @@ AND a method on a collaborator class in the same file's prose.
 Cross-reference: `[[lessons-L17]]` (crosswalk before carve — same "verify the convention at
 each site" spirit); the S6.2→S6.3 corruption (3 docstring spots in `loss_representation.py`,
 fixed in the S6.3 commit).
+
+## L26 — Mode-8 scope: pytest's rewriter keeps test-module bare asserts LIVE under `-O` (2026-06-11)
+
+A strict-xfail cylinder L1 test XPASSed under the canonical `python -O` and the first
+suspicion was vv Mode 8 (assert compiled out → vacuous body → fake XPASS). A 10-second
+deliberate-failure probe settled it: **bare `assert` statements in COLLECTED TEST MODULES
+fire under `-O`** — pytest's assertion rewriter transforms them at import time into
+explicit code the `-O` flag cannot strip (the `PytestConfigWarning` seen in every `-O` run
+says exactly this: "assertions NOT IN TEST MODULES or plugins will be ignored"). So Mode 8's
+inert-assert trap applies to HELPER modules, production code, probe/diagnostic scripts, and
+anything pytest does not collect+rewrite — NOT to the test files themselves. Implications:
+(1) an XPASS of a strict xfail under `-O` is REAL evidence the body passed — investigate the
+heal, don't dismiss it as a vacuous-assert artifact; (2) migrating test-module bare asserts
+to `np.testing`/`pytest.fail` is a consistency/clarity choice, not a correctness fix;
+(3) when auditing for Mode 8, grep the NON-collected surface (helpers, `derivations/`,
+`_test_helpers`, production `assert`s), and when in doubt run the deliberate-failure probe —
+it is cheaper than any amount of reasoning about the toolchain.

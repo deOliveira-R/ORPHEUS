@@ -21,10 +21,25 @@ first-class `SweepStrategy` abstraction.
   `FullFieldWavefront._octant_face_cochain`/`_edge_outflow`; the `wavefront-flux-cochain` theory
   anchor KEPT, derivation preserved as history). Gates: collection 5102 clean; broad not-slow
   sn+numerics+transport 2366 passed; fresh `-E` Sphinx zero non-baseline warnings;
-  elegance PASS zero conditions. **⏭ NEXT = S6.5** (unify the two doors → ONE representation
-  instance; collapse targets: solver.py's `default_for(sn_mesh)._sweep_interior` plumbing +
-  `_sweep_2d_wavefront`'s `interior=None` window default + `StreamingOperator.loss_representation`
-  vs the solve door — the one-instance discriminating test flips). THEN S6.9/S5.3 (measure +
+  elegance PASS zero conditions. **⏭ NEXT = S6.5 — unify the doors → ONE representation
+  instance. The POST-(f) DOOR INVENTORY (pinned 2026-06-11, HEAD `5112bab`):**
+  (1) the APPLY door — `operator.py:1547` `StreamingOperator.loss_representation`
+  cached_property → `default_for(self.sn_mesh)`;
+  (2) the SOLVE door — `loss_representation.py:1613` `transport_sweep` →
+  `default_for(sn_mesh).sweep(...)` (a SECOND fresh instance every sweep call);
+  (3) the G-S resolvent — `solver.py:380` `interior=default_for(sn_mesh)._sweep_interior`
+  (a THIRD instance per `_solve_scheduled` call);
+  (4) the window default — `loss_representation.py:2369` `_sweep_2d_wavefront`
+  `interior is None → MovingFrontierWindow(sn_mesh)._sweep_interior` (a fresh construction,
+  bypassing `default_for` — the documented (b)-era seam).
+  S6.5 = the operator HOLDS the one instance; `solve` (via `InvertibleOperator` →
+  `transport_sweep` or threading the instance directly) and `apply` consume the SAME object;
+  the resolvent + window-default plumbing collapse onto it. The discriminating one-instance
+  test ([[s6-relayering-verification]] §4, designed at S6.0-prime — re-validate its door line
+  refs against THIS inventory, the memo predates (f)) flips xfail→xpass. NOTE: representations
+  are stateless frozen dataclasses (mesh-only field), so "one instance" is a STRUCTURAL
+  type-fact goal (the L21 invariant becomes construction-enforced), not a perf fix — the
+  per-shape DAG cache (c) already de-duplicated the heavy state. THEN S6.9/S5.3 (measure +
   window-fate), S5.5 (Sphinx architecture page), S6.6 (ExplicitMatrix, deferred), C3.6/C4/C5.
 - **PRIOR ((a)–(e) detail):** Commit chain (NOT pushed): `2958aa1` (the S6.4 AMENDMENT locked: d-generic
   `_OctantWalk`, kernel-parameterized schedule loop, matvec→schedule, A2D-1 retire, NEW (e)+(f))
