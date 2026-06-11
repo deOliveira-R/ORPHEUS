@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5102**
+Total tests collected: **5108**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1150, 22.5%
-   L1, 946, 18.5%
+   L1, 950, 18.6%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2962, 58.1%
+   foundation, 2964, 58.0%
    unmarked, 8, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5015
+   explicit, 5021
    verify, 0
    class-name, 46
    func-name, 0
@@ -283,6 +283,7 @@ Module × level grid
    operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
    operators/test_one_octant_walk, 0, 0, 0, 0, 3, 0
+   operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
    operators/test_operator_block_role, 0, 0, 0, 0, 20, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 16, 0
    operators/test_scattering_operator, 1, 0, 0, 0, 66, 0
@@ -318,6 +319,7 @@ Module × level grid
    solve/test_flux_displacement_diagnostics, 0, 4, 0, 0, 0, 0
    solve/test_krylov_curvilinear_precond_safety, 0, 4, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
+   solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
    spatial/test_ordinate_scan_reset, 3, 2, 0, 0, 0, 0
    test_convergence, 0, 0, 1, 0, 0, 0
@@ -336,7 +338,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    :header: Equation label, Tests
    :widths: 50, 10
 
-   ``matrix-eigenvalue``, 209
+   ``matrix-eigenvalue``, 211
    ``mg-balance``, 168
    ``peierls-unified``, 158
    ``one-group-kinf``, 132
@@ -346,9 +348,9 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``wdd-closure``, 100
    ``wdd-face``, 100
    ``collision-rate``, 94
+   ``multigroup``, 75
    ``alpha-cylindrical``, 74
    ``mm-weights``, 74
-   ``multigroup``, 71
    ``ki3-def``, 64
    ``e3-def``, 61
    ``blelloch-1990-eq-1-5``, 57
@@ -420,6 +422,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-greens-hollow-sph-architecture``, 15
    ``second-diff-general``, 15
    ``peierls-greens-annulus-architecture``, 14
+   ``transport-cartesian-2d``, 14
    ``peierls-greens-slab-asym-architecture``, 13
    ``complementarity``, 12
    ``kinf-1g``, 12
@@ -441,7 +444,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-vacuum-bc-row-sum-gate``, 10
    ``peierls-white-bc``, 10
    ``singular-eigenfunction-eq42``, 10
-   ``transport-cartesian-2d``, 10
    ``dd-recurrence``, 9
    ``singular-eigenfunction-eq46``, 9
    ``sn-curvilinear-trajectory-resolvent-crosscheck``, 9
@@ -944,7 +946,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-053``, 7
    ``ERR-054``, 2
    ``ERR-055``, **0 (MISSING)**
-   ``ERR-056``, 1
+   ``ERR-056``, 2
    ``ERR-057``, 1
 
 Unmarked tests
