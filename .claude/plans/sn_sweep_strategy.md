@@ -9,7 +9,41 @@ first-class `SweepStrategy` abstraction.
 
 - **Designed 2026-06-10** in a multi-turn design conversation; every decision below is LOCKED
   (see §"Decisions locked").
-- **⭐⭐⭐ LATEST (2026-06-11, S6.4 COMPLETE — ALL SIX SUB-STEPS (a)–(f) DONE + COMMITTED):
+- **⭐⭐⭐ LATEST (2026-06-11, S6.5 DONE + COMMITTED @ `1d86030` — ONE representation
+  instance; L21 is a TYPE FACT).** The four doors collapsed: (1) the APPLY door
+  (`StreamingOperator.loss_representation` cached_property) IS the one instance;
+  (2) the SOLVE door — `_solve_timed_full_field` now runs
+  `self.loss_representation.sweep(rhs.bulk.values, ...)` DIRECTLY (NEW
+  `InvertibleOperator.loss_representation` plain property → the streaming leaf's cached
+  instance — deliberately UNcached, caching the forward would mint a second handle; the
+  `AngularSourceSink` wrap-unwrap dropped — `from_mesh` stores BY REFERENCE +
+  `_unwrap_source` returns `.values`, so the object flow is identical, bit-identical by
+  construction); (3) the G-S resolvent threads
+  `interior=self._invertible.loss_representation._sweep_interior`; (4) `_sweep_2d_wavefront`'s
+  `interior` is REQUIRED (the fresh-`MovingFrontierWindow` default removed; the 2 direct
+  test callers migrated to first-class `MovingFrontierWindow(mesh).sweep`). **DELIBERATE
+  scope boundary:** the module-level `transport_sweep` REMAINS the operator-FREE functional
+  entry (its one production caller = the `solve_sn` post-convergence reconstruction,
+  no operator in scope, the `from_isotropic` /W projection load-bearing) — exactly TWO
+  production `default_for` sites remain (the operator's cached property + transport_sweep).
+  **NEW `tests/sn/operators/test_one_representation_instance.py`** (gate memo §4 adapted
+  post-(f), spy-based call-time-self capture — both tests FAILED at pre-S6.5 HEAD
+  (distinct ids / AttributeError), flipped PASS in the commit). Test migrations: 3
+  `test_invertible_operator.py` spies re-pointed `transport_sweep`→`patch.object(CumprodScan,
+  "sweep")` (their 3 reds caught the relocation); `cart2d_2g_nonsquare`/`het_operands`
+  promoted to `tests/sn/_test_helpers.py` (2nd consumer). Gates: one-instance 5/5; bit-id
+  set 49; eigenvalue+operators+solve 585 (SI≡Krylov≡k_inf); broad not-slow 2368/4/35
+  (+2 = the new tests, xfail set unchanged); collection 5104; retirement audit clean;
+  Sphinx baseline-only; elegance PASS zero conditions.
+  **⏭ NEXT = S5.2 (task #17): the G4/G6 end-to-end scan-march gates**
+  ([[scan-march-verification]] §4: G4.a FP-invariance on `si_2d_p1_aniso_het`-class
+  aniso+het+vacuum config, G4.b reflective shed-order w/ level-symmetric + the d=2
+  limitation statement, G6 SI≡Krylov≡k_inf with ScanMarch FORCED — post-S6.5 forcing =
+  monkeypatch `loss_representation.default_for`, seen at call time by ALL doors).
+  THEN S6.9/S5.3 (measure window-vs-scanmarch + the window-fate decision = USER decision
+  on measured numbers), S5.5 (Sphinx architecture page, archivist), S6.6 (ExplicitMatrix,
+  deferred), C3.6/C4/C5.
+- **PRIOR (2026-06-11, S6.4 COMPLETE — ALL SIX SUB-STEPS (a)–(f) DONE + COMMITTED):
   the unified walk is REAL and the geography matches the algebra.** **(f) landed at `6e959b0`:**
   `sweep.py` DISSOLVED (byte-verbatim relocations, elegance diff-confirmed) — scan primitives →
   `spatial/scan.py`; orchestration (`transport_sweep` + `_sweep_1d_unified` + the schedule loop
