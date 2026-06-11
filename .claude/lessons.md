@@ -728,3 +728,29 @@ trace the premise before acting on a plan's verb); `[[feedback-finish-known-work
 ("no consumer" / "pre-existing red" often means "not yet characterised — look closer");
 commits `deb1ce3` (precond_safety test-bug fix) + `33dd5ff` (b1pp stale-expectation +
 restart gate-tightness).
+
+## L25: File-internal `replace_all` is safe ONLY if every occurrence is the target concept
+
+A token rename via `Edit(replace_all=true)` scoped to "one file where every X is the thing
+I'm renaming" is NOT safe if the file's DOCSTRINGS cross-reference SIBLING methods that
+share the base name. S6.2 (#222) ran `replace_all residual → loss_action` on
+`loss_representation.py` on the premise "every `residual` here is the strategy's matvec
+method." False: three docstrings referenced the DAG's `graph.residual` and
+`SweepDependencyGraph.residual_windowed` (DIFFERENT concepts) → corrupted to
+`graph.loss_action` / `loss_action_windowed` (refs to nonexistent methods). Cosmetic
+(docstrings only; tests stayed green because the functional `graph.residual_windowed(...)`
+CALLS live in a DIFFERENT file that was never replace_all'd) — but wrong, and caught only
+at S6.3 when re-reading the moved bodies.
+
+**The discipline:** before a file-internal `replace_all <token>`, grep the file for the
+token and SCAN every hit for OTHER meanings — sibling-method cross-refs
+(`collaborator.residual`), library calls, substring collisions (`residual_windowed`,
+`residual_kernel_batch`). If any hit is NOT the rename target, the replace_all is unsafe:
+narrow the `old_string` with disambiguating context, or do targeted edits. The "every
+occurrence in THIS file is the same concept" premise must be VERIFIED by reading the grep,
+not assumed from the file's primary purpose — the same token names a method on THIS class
+AND a method on a collaborator class in the same file's prose.
+
+Cross-reference: `[[lessons-L17]]` (crosswalk before carve — same "verify the convention at
+each site" spirit); the S6.2→S6.3 corruption (3 docstring spots in `loss_representation.py`,
+fixed in the S6.3 commit).

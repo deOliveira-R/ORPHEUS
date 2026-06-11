@@ -130,7 +130,8 @@ def _make_2g_mixture(sigma_t, sig_s_matrix, nu_sigma_f, chi):
 # composition ``StreamingOperator + CollisionOperator``
 # (= :class:`InvertibleOperator`), which routes through
 # :func:`_transport_operator_matvec_unified` natively for 1-D and
-# :meth:`StreamingOperator._apply_2d_cartesian` for 2-D.  No monkey-
+# :meth:`MovingFrontierWindow.loss_action` (which since S6.3 lives on
+# the loss representation, off the operator) for 2-D.  No monkey-
 # patch is required.
 
 

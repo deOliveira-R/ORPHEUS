@@ -38,7 +38,9 @@ face_view is ACTIVE as of Wave O #208 O.4b Phase E1
 These tests were authored xfail at D-H.2-C4a, anticipating the
 face_view-as-trace extraction.  Through D-H.2-C4d the 2-D matvec kept
 ``face_view`` PASSIVE (cell-centre-proxy semantics), so the tests
-stayed xfail.  O.4b Phase E1 makes ``_apply_2d_cartesian`` BARE — it
+stayed xfail.  O.4b Phase E1 makes the 2-D matvec walk
+``MovingFrontierWindow.loss_action`` (which since S6.3 lives on the
+loss representation, off the operator) BARE — it
 reads ``psi.boundary.inflow`` as the GIVEN incoming edge and emits the
 boundary-block residual — so the boundary trace now reaches the bulk.
 

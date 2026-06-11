@@ -1197,7 +1197,8 @@ def _x_scan_faces(
     * the forward **sweep** (:func:`_scanmarch_row`) passes the *solve*
       coefficients ``α = 2 s_x/D − 1``, ``β = 2 (Q + s_y ψ_{y,in})/D``;
     * the **matvec** twin
-      (:meth:`~orpheus.sn.operator.StreamingOperator._apply_2d_cartesian_scanmarch`)
+      (``ScanMarch.loss_action`` in ``orpheus.sn.loss_representation``, the
+      apply-direction row-march S6.3 moved off the operator)
       passes the *apply* coefficients ``α = −1``, ``β = 2 ψ̄_probe`` — since ψ̄
       is KNOWN, the closure ``out_x = 2ψ̄ − in_x`` IS a first-order recurrence in
       the faces (a pure-reflection scan, ``|α| = 1`` so no underflow).

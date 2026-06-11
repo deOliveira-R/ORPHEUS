@@ -98,9 +98,10 @@ Phase status (the sweep-strategy carve, plan ``sn_sweep_strategy.md``)
   :math:`(L+C)\psi` twin); the five operator gates collapse to
   ``strategy.loss_action(...)``.
 * **S3: generalize the oracle.**  ``FullFieldWavefront`` is the genuine
-  d-generic spine (wraps :meth:`SweepDependencyGraph.apply` via the
-  d-generic ``_sweep_full_field`` / ``_apply_full_field``, ``supports`` is
-  any-d Cartesian, wires the d=1 cumprod-vs-spine equivalence).
+  d-generic spine (sweep ``_sweep_full_field`` + matvec
+  ``FullFieldWavefront.loss_action`` — since S6.3 both walk
+  :meth:`SweepDependencyGraph.residual`; ``supports`` is any-d Cartesian,
+  wires the d=1 cumprod-vs-spine equivalence).
 * **S4: generalize the window** to ``frontier_dim = d-1``.
 * **S6.2 (this commit): RENAME.**  ``SweepStrategy → LossRepresentation``,
   ``residual → loss_action`` — the abstraction is the :math:`(L+C)` loss
@@ -121,19 +122,23 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
+import numpy as np
+
 # This module wraps the sweep bodies, so it imports ``sweep`` at load time.
 # The back-edge — ``transport_sweep`` reaching here for ``default_for`` — is a
 # function-local (lazy) import on the ``sweep`` side, which breaks the cycle.
+# S6.3: the matvec ``(L+C)ψ`` walks moved OFF the operator INTO the
+# representations' ``loss_action`` — so ``_x_scan_faces`` (the shared row-march
+# face primitive) is imported here too.
 from .sweep import (
     _sweep_1d_unified,
     _sweep_2d_scanmarch,
     _sweep_2d_wavefront,
     _sweep_full_field,
+    _x_scan_faces,
 )
 
 if TYPE_CHECKING:
-    import numpy as np
-
     from orpheus.numerics.projection import MomentProjection
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
@@ -200,25 +205,32 @@ class LossRepresentation(Protocol):
     def loss_action(
         self, operator: "StreamingOperator", psi: "TimedFullField",
     ) -> "TimedFullField":
-        r"""The forward matvec twin :math:`L\,\psi` for this geometry.
+        r"""The forward within-group loss action :math:`(L+C)\,\psi` for this geometry.
 
         The sweep's operator-twin (L21 — sweep and matvec are different
         applications of the SAME operator): the sweep solves
-        :math:`(L+C)^{-1} q`, this applies :math:`L`.  ``operator`` is the
-        :class:`~orpheus.sn.operator.StreamingOperator` (it supplies
-        :math:`\sigma_t` and the per-geometry matvec body the strategy
-        selects).
+        :math:`(L+C)^{-1} q`, this APPLIES :math:`(L+C)`.  **Return the FULL loss
+        :math:`(L+C)\psi`, NOT :math:`L\psi`** — the operator
+        (:meth:`~orpheus.sn.operator.StreamingOperator.apply`) subtracts the
+        collision diagonal :math:`C = \sigma_t\odot` exactly ONCE (Resolution A
+        :math:`L = (L+C) - C`).  A leaf that returned :math:`L\psi` would make the
+        operator subtract :math:`C` a SECOND time (a double-counted collision
+        diagonal).  ``operator`` supplies :math:`\sigma_t` and the per-geometry
+        walk machinery.
         """
         ...
 
     def loss_action_transpose(
         self, operator: "StreamingOperator", phi: "TimedFullField",
     ) -> "TimedFullField":
-        r"""The adjoint matvec twin :math:`L^{\mathsf T}\,\phi` for this geometry.
+        r"""The adjoint loss action :math:`(L+C)^{\mathsf T}\,\phi` for this geometry.
 
-        Raises :class:`NotImplementedError` for strategies whose adjoint is
-        deferred (the multi-D Cartesian reverse sweep — O.2b lands the 1-D
-        reverse sweep first).  Never a silent wrong answer.
+        Return the FULL adjoint loss :math:`(L+C)^{\mathsf T}\phi` (the operator
+        subtracts the self-adjoint diagonal :math:`C` in
+        :meth:`~orpheus.sn.operator.StreamingOperator.apply_transpose`).  Raises
+        :class:`NotImplementedError` for representations whose adjoint is deferred
+        (the multi-D Cartesian reverse sweep — O.2b lands the 1-D reverse sweep
+        first).  Never a silent wrong answer.
         """
         ...
 
@@ -268,7 +280,11 @@ class _LossRepresentation:
     def loss_action(
         self, operator: "StreamingOperator", psi: "TimedFullField",
     ) -> "TimedFullField":
-        """The forward matvec twin — every concrete strategy implements it."""
+        """The forward loss action ``(L+C)ψ`` — every concrete leaf implements it.
+
+        Returns the FULL within-group loss ``(L+C)ψ`` (NOT ``Lψ``); the operator
+        subtracts ``C = σ_t⊙`` in ``apply`` (Resolution A ``L = (L+C) − C``).
+        """
         raise NotImplementedError(
             f"{type(self).__name__} must implement loss_action()"
         )
@@ -276,7 +292,11 @@ class _LossRepresentation:
     def loss_action_transpose(
         self, operator: "StreamingOperator", phi: "TimedFullField",
     ) -> "TimedFullField":
-        """The adjoint matvec twin — implemented (1-D) or a deferral raise."""
+        """The adjoint loss action ``(L+C)ᵀφ`` — 1-D implemented or a deferral raise.
+
+        Returns the FULL adjoint loss ``(L+C)ᵀφ`` (the operator subtracts ``C`` in
+        ``apply_transpose``).
+        """
         raise NotImplementedError(
             f"{type(self).__name__} must implement loss_action_transpose()"
         )
@@ -336,14 +356,29 @@ class CumprodScan(_LossRepresentation):
     def loss_action(
         self, operator: "StreamingOperator", psi: "TimedFullField",
     ) -> "TimedFullField":
-        """1-D forward matvec — the operator's geometry-blind ``L·ψ``."""
-        return operator._apply_1d(psi)
+        r"""1-D forward loss action ``(L+C)ψ`` — the geometry-blind spatial sum.
+
+        S6.3: returns the FULL within-group loss ``(L+C)ψ``; the operator
+        subtracts the collision diagonal ``C = σ_t⊙`` in :meth:`apply`.  The
+        1-D ``(L+C)`` action IS the operator's spatial operator-sum
+        ``operator.M_spatial`` (per-direction streaming + collision-share); the
+        angular Morel–Montry redistribution rides inside ``_compute_LpC``.
+        """
+        return operator.M_spatial._compute_LpC(psi)
 
     def loss_action_transpose(
         self, operator: "StreamingOperator", phi: "TimedFullField",
     ) -> "TimedFullField":
-        """1-D adjoint matvec — the operator's reverse-sweep ``Lᵀ·φ``."""
-        return operator._apply_1d_transpose(phi)
+        r"""1-D adjoint loss action ``(L+C)ᵀφ`` — the reverse spatial sum.
+
+        S6.3: returns ``(L+C)ᵀφ`` (the operator subtracts ``C`` in
+        :meth:`apply_transpose`).  ``operator.M_spatial._compute_LpC_transpose``
+        carries the curvilinear angular SECOND triangular factor
+        (``closure.angular_adjoint``) — so the spatial reverse NEVER silently
+        drops the angular adjoint (pinned by ``test_g_adjoint_reciprocity``
+        sphere/cyl, -O-firing since S6.3a).
+        """
+        return operator.M_spatial._compute_LpC_transpose(phi)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -416,14 +451,118 @@ class MovingFrontierWindow(_DAGWavefront):
     def loss_action(
         self, operator: "StreamingOperator", psi: "TimedFullField",
     ) -> "TimedFullField":
-        """2-D forward matvec — the operator's windowed ``L·ψ`` (storage-B).
+        r"""2-D Cartesian forward loss action ``(L+C)ψ`` via the rolling-frontier window.
 
-        Wraps :meth:`~orpheus.sn.operator.StreamingOperator._apply_2d_cartesian`
-        (the rolling-frontier ``loss_action_windowed`` walk — the matvec twin of
-        :func:`._sweep_2d_wavefront`; ONE discretization, L21).  WRAP not
-        relocate, so the A2D-1 source-hash pin stays a free tripwire.
+        S6.3: the matvec ``(L+C)ψ`` walk LIVES here (moved off the operator).
+        Routes through
+        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.residual_windowed`
+        — the apply-direction walk of the SAME per-octant wavefront DAG and the
+        SAME diamond-difference closure the 2-D sweep
+        :func:`~orpheus.sn.sweep._sweep_2d_wavefront` uses (matvec ≡ sweep, ONE
+        discretization, L21).  Returns ``(L+C)ψ̄`` (``residual_windowed`` at zero
+        source); :meth:`~orpheus.sn.operator.StreamingOperator.apply` subtracts
+        ``Σ_t·ψ̄`` (the collision diagonal ``C``) to recover the bare-streaming
+        ``Lψ̄``.
+
+        Boundary semantics (BARE — O.4b Phase E): each octant reads its inflow
+        from the GIVEN trace ``psi.boundary.face_view(<incoming face>)[oct_idx]``
+        (NO ``bc.apply`` — the reflective coupling is the sibling ``-B``); the
+        post-walk domain-edge outflow is shed into ``streamed`` (OUTFLOW slots
+        only).  The output boundary is the O.4b active-trace residual: OUTFLOW
+        slots → defect ``streamed − given``; INFLOW slots → identity ``given``.
+
+        .. note::
+
+           The octant projection + boundary-residual block here is a DELIBERATE
+           Pattern-2 duplication of :meth:`ScanMarch.loss_action` (Fork B1, issue
+           #222 — two interior-walk schedules over the SAME octant frame).
+           **Edit both in lockstep.**  Consolidation trigger: S6.4 (the
+           ``_OctantWalk2D`` shared frame), where the shared interior-walk seam
+           is cut.
         """
-        return operator._apply_2d_cartesian(psi)
+        from orpheus.sn.sweep_graph import OctantLabel
+        from orpheus.transport.source_sinks import (
+            AngularSourceSink, BoundarySourceSink,
+        )
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        sn_mesh = operator.sn_mesh
+        quad = sn_mesh.quad
+        N = quad.N
+        nx, ny = sn_mesh.nx, sn_mesh.ny
+        ng = operator.sigma_t.shape[0]
+        sig_t = operator.sigma_t                    # (ng, nx, ny)
+        probe = psi.bulk.values                     # (N, ng, nx, ny) — apply target ψ̄
+        str_x = sn_mesh.streaming_x                 # (N, nx)
+        str_y = sn_mesh.streaming_y                 # (N, ny)
+        cell_update = sn_mesh.cell_update
+        Q_zero = np.zeros((1, ng, nx, ny))          # matvec: no volumetric source
+
+        # (L+C)·ψ̄ accumulator (the loss-operator action == residual_batch at
+        # zero source); ``apply`` subtracts Σ_t·ψ̄ → bare-streaming Lψ̄.
+        LpC = np.zeros((N, ng, nx, ny))
+
+        trace = sn_mesh.trace
+        boundary = psi.boundary
+        streamed = {
+            face: np.zeros_like(boundary.face_view(face))
+            for face in trace.face_names
+        }
+
+        for octant in quad.octants:
+            label_tuple = octant.label
+            oct_idx = octant.indices
+            sx = label_tuple[0] if len(label_tuple) >= 1 else +1
+            sy = label_tuple[1] if len(label_tuple) >= 2 else 0
+            # Pure-z degenerate octant: no in-plane streaming → (L+C)·ψ̄ = Σ_t·ψ̄
+            # (so Lψ̄ = 0 for these ordinates after the subtraction).
+            if sx == 0 and sy == 0:
+                LpC[oct_idx] = sig_t * probe[oct_idx]
+                continue
+            sx_eff = +1 if sx == 0 else sx
+            sy_eff = +1 if sy == 0 else sy
+            graph = sn_mesh.sweep_graphs[OctantLabel((sx_eff, sy_eff))]
+
+            x_in_face = "xmin" if sx_eff >= 0 else "xmax"
+            x_out_face = "xmax" if sx_eff >= 0 else "xmin"
+            y_in_face = "ymin" if sy_eff >= 0 else "ymax"
+            y_out_face = "ymax" if sy_eff >= 0 else "ymin"
+
+            LpC_oct = np.zeros((oct_idx.size, ng, nx, ny))
+            cap_x = np.empty((oct_idx.size, ng, ny))
+            cap_y = np.empty((oct_idx.size, ng, nx))
+            graph.residual_windowed(
+                cell_update=cell_update,
+                inflow=(boundary.face_view(x_in_face)[oct_idx],
+                        boundary.face_view(y_in_face)[oct_idx]),
+                psi_avg_probe_octant=probe[oct_idx],
+                Q_octant=Q_zero, sig_t=sig_t,
+                str_axes_octant=(str_x[oct_idx], str_y[oct_idx]),
+                residual_octant=LpC_oct, capture=(cap_x, cap_y),
+            )
+            LpC[oct_idx] = LpC_oct
+            streamed[x_out_face][oct_idx] = cap_x
+            streamed[y_out_face][oct_idx] = cap_y
+
+        # Boundary-block residual (O.4b Phase E — the active trace).
+        out_boundary = BoundarySourceSink.zeros_on(sn_mesh)
+        for face in trace.face_names:
+            given = boundary.face_view(face)
+            out_idx = trace.outflow_indices_for_face(face)
+            in_idx = trace.inflow_indices_for_face(face)
+            if out_idx.size:
+                out_boundary.face_view(face)[out_idx] = (
+                    streamed[face][out_idx] - given[out_idx]
+                )
+            if in_idx.size:
+                out_boundary.face_view(face)[in_idx] = given[in_idx]
+
+        return TimedFullField(
+            bulk=AngularSourceSink.from_mesh(LpC, sn_mesh),
+            boundary=out_boundary,
+            _history=(),
+            history_depth=psi.history_depth,
+        )
 
 
 class FullFieldWavefront(_DAGWavefront):
@@ -438,18 +577,18 @@ class FullFieldWavefront(_DAGWavefront):
     (``window ≡ full`` bit-identity).  Never the production default (the
     window wins at d=2, the scan at d=1); selected explicitly by oracle tests.
 
-    Wraps the d-generic :func:`._sweep_full_field` / the operator's
-    :meth:`~orpheus.sn.operator.StreamingOperator._apply_full_field` (both walk
-    :meth:`SweepDependencyGraph.apply` / ``.loss_action`` directly).  ``supports``
-    is any-d Cartesian (S3) — the spine is genuinely dimension-generic, unlike
-    the d=2-only window.
+    Walks the d-generic :func:`._sweep_full_field` (sweep); since S6.3 it holds
+    the matvec ``(L+C)ψ`` walk in its own :meth:`loss_action` (both walk
+    :meth:`SweepDependencyGraph.residual` directly).  ``supports`` is any-d
+    Cartesian (S3) — the spine is genuinely dimension-generic, unlike the
+    d=2-only window.
     """
 
     @classmethod
     def supports(cls, mesh: "SNMesh") -> Compatibility:
         # Override the _DAGWavefront family's d=2-only predicate: the spine is
         # the genuine d-generic oracle (it walks the per-octant DAG for any
-        # Cartesian d via the d-generic ``graph.apply``/``.loss_action``).
+        # Cartesian d via the d-generic ``graph.residual``).
         return Compatibility(mesh.is_cartesian, "requires Cartesian geometry")
 
     def sweep(
@@ -472,15 +611,99 @@ class FullFieldWavefront(_DAGWavefront):
     def loss_action(
         self, operator: "StreamingOperator", psi: "TimedFullField",
     ) -> "TimedFullField":
-        """Forward matvec ORACLE — the full-field ``L·ψ`` (d-generic).
+        r"""Forward loss action ORACLE ``(L+C)ψ`` — the full-field DAG walk (d-generic).
 
-        Wraps
-        :meth:`~orpheus.sn.operator.StreamingOperator._apply_full_field`
-        (the full interior-cochain walk, matvec twin of
-        :func:`._sweep_full_field`).  The fuller-view reference the windowed
-        matvec is cross-checked against; never the production default.
+        S6.3: the verification-oracle matvec ``(L+C)ψ`` walk LIVES here (moved off
+        the operator).  The matvec counterpart of
+        :func:`~orpheus.sn.sweep._sweep_full_field`: it carries the FULL interior
+        cochain as a typed
+        :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux` and walks
+        via :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.residual` (the
+        full-field walk sharing the SAME cell kernel as ``residual_windowed``), so
+        the MATH cannot drift from :meth:`MovingFrontierWindow.loss_action` — only
+        storage.  Returns ``(L+C)ψ̄``;
+        :meth:`~orpheus.sn.operator.StreamingOperator.apply` subtracts ``Σ_t·ψ̄``.
+        Sole purpose: verification (production is the window / the 1-D scan).
+
+        Dimension-generic: the per-axis tuples are built over ``range(ndim)``
+        (``streaming(a)`` / ``WavefrontFlux.face(a)``), and the quadrature octant
+        label (which lives in the full angular space) is projected to the in-plane
+        ``label[:ndim]``.
         """
-        return operator._apply_full_field(psi)
+        from orpheus.sn.sweep_graph import OctantLabel
+        from orpheus.transport.fields.wavefront_flux import WavefrontFlux
+        from orpheus.transport.source_sinks import (
+            AngularSourceSink, BoundarySourceSink,
+        )
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        sn_mesh = operator.sn_mesh
+        quad = sn_mesh.quad
+        N = quad.N
+        ndim = sn_mesh.ndim
+        sig_t = operator.sigma_t
+        ng = sig_t.shape[0]
+        spatial = sig_t.shape[1:]                        # (nx,) d=1; (nx, ny) d=2
+        probe = psi.bulk.values
+        cell_update = sn_mesh.cell_update
+        Q_zero = np.zeros((1, ng, *spatial))
+
+        # (L+C)·ψ̄ accumulator; ``apply`` subtracts Σ_t·ψ̄ → Lψ̄.
+        LpC = np.zeros((N, ng, *spatial))
+        trace = sn_mesh.trace
+        boundary = psi.boundary
+        # The FULL interior cochain (typed) — ι_*-seeded whole-trace.  The
+        # per-axis face tuple is born from the cochain's OWN axis map
+        # (``WavefrontFlux.face(a)`` over ``WavefrontFlux.axes``); the streaming
+        # tuple is the axis-keyed ``sn_mesh.streaming(a)`` over the SAME
+        # ``range(ndim)`` — so ``str_axes[a]`` cannot drift from ``psi_faces[a]``.
+        wavefront = WavefrontFlux.zeros_on(sn_mesh)
+        psi_faces = tuple(wavefront.face(a) for a in wavefront.axes)
+        str_axes = tuple(sn_mesh.streaming(a) for a in range(ndim))
+        wavefront.seed(boundary)
+
+        for octant in quad.octants:
+            oct_idx = octant.indices
+            signs = octant.label[:ndim]                  # in-plane projection
+            if not any(signs):                           # pure-z degenerate (d≥2 only)
+                LpC[oct_idx] = sig_t * probe[oct_idx]
+                continue
+            signs_eff = tuple(+1 if s == 0 else s for s in signs)
+            graph = sn_mesh.sweep_graphs[OctantLabel(signs_eff)]
+            psi_faces_oct = tuple(pf[oct_idx].copy() for pf in psi_faces)
+            LpC_oct = np.zeros((oct_idx.size, ng, *spatial))
+            graph.residual(
+                cell_update=cell_update,
+                psi_faces_octant=psi_faces_oct,
+                psi_avg_probe_octant=probe[oct_idx],
+                Q_octant=Q_zero, sig_t=sig_t,
+                str_axes_octant=tuple(s[oct_idx] for s in str_axes),
+                residual_octant=LpC_oct,
+            )
+            for a in wavefront.axes:
+                psi_faces[a][oct_idx] = psi_faces_oct[a]
+            LpC[oct_idx] = LpC_oct
+
+        # The post-walk domain-edge outflow (full interior cochain edge slots).
+        streamed = {face: wavefront.edge_view(face) for face in trace.face_names}
+        out_boundary = BoundarySourceSink.zeros_on(sn_mesh)
+        for face in trace.face_names:
+            given = boundary.face_view(face)
+            out_idx = trace.outflow_indices_for_face(face)
+            in_idx = trace.inflow_indices_for_face(face)
+            if out_idx.size:
+                out_boundary.face_view(face)[out_idx] = (
+                    streamed[face][out_idx] - given[out_idx]
+                )
+            if in_idx.size:
+                out_boundary.face_view(face)[in_idx] = given[in_idx]
+
+        return TimedFullField(
+            bulk=AngularSourceSink.from_mesh(LpC, sn_mesh),
+            boundary=out_boundary,
+            _history=(),
+            history_depth=psi.history_depth,
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -556,25 +779,148 @@ class ScanMarch(_LossRepresentation):
     def loss_action(
         self, operator: "StreamingOperator", psi: "TimedFullField",
     ) -> "TimedFullField":
-        r"""Forward matvec twin — the row-march apply (L21: sweep & matvec are ONE operator).
+        r"""Forward loss action ``(L+C)ψ`` — the row-march apply (L21: sweep & matvec, ONE operator).
 
-        1-D → the geometry-blind :meth:`~orpheus.sn.operator.StreamingOperator._apply_1d`;
-        2-D Cartesian → the row-march
-        :meth:`~orpheus.sn.operator.StreamingOperator._apply_2d_cartesian_scanmarch`
-        (the apply-direction scan-march, reconstructing the faces from the probe
-        with ``α = −1``, so the strategy row-marches in BOTH directions).
-        Principled-equivalent to the :class:`FullFieldWavefront` oracle (G2.c).
+        S6.3: the matvec ``(L+C)ψ`` walk LIVES here.  1-D → the geometry-blind
+        spatial operator-sum ``operator.M_spatial`` (the ``s_y = 0`` degeneration
+        of the 2-D scan-march).  2-D Cartesian → the row-march reconstruction of
+        the interior faces from the KNOWN probe via
+        :func:`~orpheus.sn.sweep._x_scan_faces` with the apply coefficients
+        ``α = −1``, ``β = 2 ψ̄`` (a pure-reflection scan: since ψ̄ is known the WDD
+        closure ``out_x = 2ψ̄ − in_x`` IS a first-order recurrence).  The per-cell
+        residual is ``(Σ_t + s_x + s_y)·ψ̄ − s_x·in_x − s_y·in_y`` (``= (L+C)ψ̄`` at
+        zero source); :meth:`~orpheus.sn.operator.StreamingOperator.apply`
+        subtracts ``Σ_t·ψ̄`` → ``Lψ̄``.
+
+        Principled-equivalent (NOT bit-identical) to
+        :meth:`MovingFrontierWindow.loss_action`: the row-march and the
+        anti-diagonal reconstruct the SAME faces in a different order, so the
+        residual agrees to FP-association.  The :class:`FullFieldWavefront`
+        oracle pins it (G2.c).  The boundary semantics + the O.4b active-trace
+        residual block are IDENTICAL to :meth:`MovingFrontierWindow.loss_action`
+        (only the interior walk differs).
+
+        .. note::
+
+           DELIBERATE Pattern-2 duplication of the octant frame +
+           boundary-residual block in :meth:`MovingFrontierWindow.loss_action`
+           (Fork B1, issue #222).  **Edit both in lockstep.**  Consolidation
+           trigger: S6.4 (the ``_OctantWalk2D`` shared frame).
         """
         if self.mesh.is_1d:
-            return operator._apply_1d(psi)
-        return operator._apply_2d_cartesian_scanmarch(psi)
+            # d=1 ⇒ scan(x) with no transverse march: the spatial operator-sum
+            # (the s_y = 0 degeneration of the 2-D scan-march).
+            return operator.M_spatial._compute_LpC(psi)
+
+        from orpheus.transport.source_sinks import (
+            AngularSourceSink, BoundarySourceSink,
+        )
+        from orpheus.transport.timed_full_field import TimedFullField
+
+        sn_mesh = operator.sn_mesh
+        quad = sn_mesh.quad
+        N = quad.N
+        nx, ny = sn_mesh.nx, sn_mesh.ny
+        ng = operator.sigma_t.shape[0]
+        sig_t = operator.sigma_t                    # (ng, nx, ny)
+        probe = psi.bulk.values                     # (N, ng, nx, ny) — apply target ψ̄
+        str_x = sn_mesh.streaming_x                 # (N, nx)
+        str_y = sn_mesh.streaming_y                 # (N, ny)
+
+        # (L+C)·ψ̄ accumulator; ``apply`` subtracts Σ_t·ψ̄ → Lψ̄.
+        LpC = np.zeros((N, ng, nx, ny))
+        trace = sn_mesh.trace
+        boundary = psi.boundary
+        streamed = {
+            face: np.zeros_like(boundary.face_view(face))
+            for face in trace.face_names
+        }
+
+        for octant in quad.octants:
+            label_tuple = octant.label
+            oct_idx = octant.indices
+            sx = label_tuple[0] if len(label_tuple) >= 1 else +1
+            sy = label_tuple[1] if len(label_tuple) >= 2 else 0
+            if sx == 0 and sy == 0:
+                # Pure-z degenerate octant: (L+C)·ψ̄ = Σ_t·ψ̄ ⇒ Lψ̄ = 0.
+                LpC[oct_idx] = sig_t * probe[oct_idx]
+                continue
+            sx_eff = +1 if sx == 0 else sx
+            sy_eff = +1 if sy == 0 else sy
+
+            x_in_face = "xmin" if sx_eff >= 0 else "xmax"
+            x_out_face = "xmax" if sx_eff >= 0 else "xmin"
+            y_in_face = "ymin" if sy_eff >= 0 else "ymax"
+            y_out_face = "ymax" if sy_eff >= 0 else "ymin"
+
+            inflow_x = boundary.face_view(x_in_face)[oct_idx]   # (N_oct, ng, ny)
+            inflow_y = boundary.face_view(y_in_face)[oct_idx]   # (N_oct, ng, nx)
+
+            s_x = str_x[oct_idx]        # (N_oct, nx)
+            s_y = str_y[oct_idx]        # (N_oct, ny)
+            probe_oct = probe[oct_idx]  # (N_oct, ng, nx, ny)
+            N_oct = oct_idx.size
+
+            x_reverse = sx_eff < 0
+            alpha_reflect = np.full((N_oct, ng, nx), -1.0)   # α = −1, reused per row
+            LpC_oct = np.empty((N_oct, ng, nx, ny))
+            cap_x = np.empty((N_oct, ng, ny))            # domain x-outflow, per y-row
+
+            # March the y-rows in the octant's y-sweep order, reconstructing the
+            # transverse-y face ψ_y from the KNOWN probe (out_y = 2ψ̄ − ψy_in).
+            psi_y_in = inflow_y                          # (N_oct, ng, nx) — row-0 inflow
+            out_y = psi_y_in                             # last-row out_y (ny ≥ 1 → set below)
+            y_rows = range(ny) if sy_eff >= 0 else range(ny - 1, -1, -1)
+            for j in y_rows:
+                psi_bar_row = probe_oct[:, :, :, j]      # (N_oct, ng, nx)
+                # Reconstruct the x-faces from the probe: out_x = 2ψ̄ − in_x.
+                in_x_row, _out_x_row, x_outflow = _x_scan_faces(
+                    alpha_reflect, 2.0 * psi_bar_row, inflow_x[:, :, j], x_reverse,
+                )
+                D_row = (
+                    sig_t[None, :, :, j]                 # (1, ng, nx)
+                    + s_x[:, None, :]                    # (N_oct, 1, nx)
+                    + s_y[:, j][:, None, None]           # (N_oct, 1, 1)
+                )
+                LpC_oct[:, :, :, j] = (
+                    D_row * psi_bar_row
+                    - s_x[:, None, :] * in_x_row
+                    - s_y[:, j][:, None, None] * psi_y_in
+                )
+                out_y = 2.0 * psi_bar_row - psi_y_in
+                psi_y_in = out_y
+                cap_x[:, :, j] = x_outflow
+            LpC[oct_idx] = LpC_oct
+            streamed[x_out_face][oct_idx] = cap_x
+            streamed[y_out_face][oct_idx] = out_y        # last-marched row's out_y
+
+        # Boundary-block residual (O.4b — the active trace), IDENTICAL to
+        # MovingFrontierWindow.loss_action.
+        out_boundary = BoundarySourceSink.zeros_on(sn_mesh)
+        for face in trace.face_names:
+            given = boundary.face_view(face)
+            out_idx = trace.outflow_indices_for_face(face)
+            in_idx = trace.inflow_indices_for_face(face)
+            if out_idx.size:
+                out_boundary.face_view(face)[out_idx] = (
+                    streamed[face][out_idx] - given[out_idx]
+                )
+            if in_idx.size:
+                out_boundary.face_view(face)[in_idx] = given[in_idx]
+
+        return TimedFullField(
+            bulk=AngularSourceSink.from_mesh(LpC, sn_mesh),
+            boundary=out_boundary,
+            _history=(),
+            history_depth=psi.history_depth,
+        )
 
     def loss_action_transpose(
         self, operator: "StreamingOperator", phi: "TimedFullField",
     ) -> "TimedFullField":
-        """Adjoint matvec twin — 1-D wired; the multi-D Cartesian adjoint is deferred."""
+        """Adjoint loss action — 1-D wired ``(L+C)ᵀφ``; multi-D Cartesian deferred."""
         if self.mesh.is_1d:
-            return operator._apply_1d_transpose(phi)
+            return operator.M_spatial._compute_LpC_transpose(phi)
         raise NotImplementedError(
             "ScanMarch.loss_action_transpose: the multi-D Cartesian adjoint is "
             "deferred (O.2b lands the 1-D reverse sweep first; the multi-D "

@@ -169,7 +169,8 @@ def test_scanmarch_residual_equals_oracle(nx, ny, lvl, ng, bc):
     r"""``ScanMarch.residual`` ≡ ``FullFieldWavefront.residual`` (the matvec, G2.c).
 
     L21 — matvec and sweep are different applications of the SAME operator.  The
-    row-march APPLY path (:meth:`StreamingOperator._apply_2d_cartesian_scanmarch`)
+    row-march APPLY path (:meth:`ScanMarch.loss_action`, the matvec walk that
+    since S6.3 lives on the loss representation, off the operator)
     reconstructs the interior faces from the probe ψ̄ via the ``α = −1``
     reflection scan and evaluates the SAME ``(L+C)ψ`` residual the anti-diagonal
     oracle does — pinned on the **bulk** residual AND the **O.4b boundary-block**

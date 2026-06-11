@@ -1,7 +1,8 @@
 r"""Wave O (#208) O.4b Phase E3 — the 2-D BC-extraction verification gates.
 
 The 2-D Cartesian BC extraction (Phase E1a/E1b/E2, HEAD 02f8f0a) is COMPLETE:
-``StreamingOperator._apply_2d_cartesian`` (operator.py) and
+``MovingFrontierWindow.loss_action`` (loss_representation.py; since S6.3 the
+2-D matvec walk lives on the loss representation, off the operator) and
 ``_sweep_2d_wavefront`` (sweep.py) are **bare** — they read
 ``psi.boundary.inflow`` as the GIVEN incoming edge and emit the active
 boundary-block residual (OUTFLOW ordinate slots: ``streamed − psi.outflow``;

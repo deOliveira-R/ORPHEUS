@@ -214,7 +214,8 @@ compared — the four face views — and nothing more.
 #
 # Inheritance: the BC / Mesh2D / quadrature primitives are the same
 # fixtures used by ``test_unified_sweep_dispatch.py`` and the
-# 2-D ``StreamingOperator._apply_2d_cartesian`` gates in
+# 2-D ``MovingFrontierWindow.loss_action`` gates (the matvec walk that
+# since S6.3 lives on the loss representation, off the operator) in
 # ``test_2d_l2_matvec_correctness.py``.  That gives the harness a
 # known-good starting point.
 

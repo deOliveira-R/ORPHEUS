@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5118**
+Total tests collected: **5134**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1170, 22.9%
-   L1, 946, 18.5%
+   L0, 1171, 22.8%
+   L1, 946, 18.4%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2960, 57.8%
+   foundation, 2975, 57.9%
    unmarked, 6, 0.1%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5033
+   explicit, 5049
    verify, 0
    class-name, 46
    func-name, 0
@@ -60,6 +60,7 @@ Module × level grid
    cartesian_2d/test_2d_octant_sweep_equivalence, 0, 7, 0, 0, 0, 0
    cartesian_2d/test_discrete_ordinates_2d, 0, 0, 2, 0, 0, 0
    cartesian_2d/test_l2_boundary_face_view, 0, 0, 0, 0, 11, 0
+   cartesian_2d/test_scan_march_equivalence, 0, 0, 0, 0, 11, 0
    core/test_cell_balance_for_streaming, 0, 0, 0, 0, 9, 0
    core/test_cell_update_batch, 19, 0, 0, 0, 0, 0
    core/test_cell_update_protocol, 0, 0, 0, 0, 16, 0
@@ -280,6 +281,7 @@ Module × level grid
    operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 12, 0
    operators/test_invertible_operator, 1, 10, 0, 0, 23, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
+   operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
    operators/test_operator_block_role, 0, 0, 0, 0, 20, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 16, 0
@@ -317,7 +319,7 @@ Module × level grid
    solve/test_krylov_curvilinear_precond_safety, 0, 4, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
-   spatial/test_ordinate_scan_reset, 2, 2, 0, 0, 0, 0
+   spatial/test_ordinate_scan_reset, 3, 2, 0, 0, 0, 0
    test_convergence, 0, 0, 1, 0, 0, 0
    test_layer_imports, 0, 0, 0, 0, 272, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
@@ -349,7 +351,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``multigroup``, 71
    ``ki3-def``, 64
    ``e3-def``, 61
-   ``blelloch-1990-eq-1-5``, 56
+   ``blelloch-1990-eq-1-5``, 57
    ``self-slab``, 55
    ``hebert-3-432``, 54
    ``self-cyl``, 54
@@ -943,6 +945,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-054``, 2
    ``ERR-055``, **0 (MISSING)**
    ``ERR-056``, 1
+   ``ERR-057``, 1
 
 Unmarked tests
 --------------

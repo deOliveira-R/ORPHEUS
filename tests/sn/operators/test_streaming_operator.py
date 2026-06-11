@@ -37,6 +37,7 @@ from orpheus.numerics.operator import (
     LinearOperator,
 )
 from orpheus.sn.geometry import SNMesh
+from orpheus.sn.loss_representation import MovingFrontierWindow
 from orpheus.sn.operator import (
     CollisionOperator,
     StreamingOperator,
@@ -436,7 +437,9 @@ class TestCompositeInvariants:
 
         Pre-C4d this test pinned the deferred ``NotImplementedError``
         stub for the 2-D path; C4d ships the L2-native FD kernel
-        ``_apply_2d_cartesian`` and the path becomes functional.
+        (the matvec walk ``MovingFrontierWindow.loss_action``, which
+        since S6.3 lives on the loss representation, off the operator)
+        and the path becomes functional.
         Structural invariant test: the return is the composite carrier
         with the correct bulk type.
         """
@@ -1132,7 +1135,7 @@ class TestT5MaterializeInverseCache:
 
 
 class TestT4dApply2DCartesianSourceHashPin:
-    """A2D-1 — defensive source-hash pin on ``_apply_2d_cartesian``.
+    """A2D-1 — defensive source-hash pin on ``MovingFrontierWindow.loss_action``.
 
     As of Wave O #208 O.4b (D3), the 2-D Cartesian matvec NO LONGER uses
     a bespoke cell-centred upwind FD stencil — it routes through
@@ -1152,7 +1155,7 @@ class TestT4dApply2DCartesianSourceHashPin:
     surfaces ANY intentional edit (the developer MUST update the pin)
     while preserving full freedom to refactor (the pin is one line).
 
-    When updating ``_apply_2d_cartesian``:
+    When updating ``MovingFrontierWindow.loss_action`` (the 2-D matvec body):
 
     1. Run this test to see the new hash in the failure message.
     2. Update ``EXPECTED_SHA256`` with the new value.
@@ -1162,7 +1165,7 @@ class TestT4dApply2DCartesianSourceHashPin:
     a soft constraint.
     """
 
-    # The SHA-256 hash of ``inspect.getsource(StreamingOperator._apply_2d_cartesian)``.
+    # The SHA-256 hash of ``inspect.getsource(MovingFrontierWindow.loss_action)``.
     # See class docstring for the update procedure when the 2-D Cartesian
     # path is intentionally refactored.  History:
     #   T.4d (landing commit)     7a5dfee8…353d114e
@@ -1303,23 +1306,35 @@ class TestT4dApply2DCartesianSourceHashPin:
     #         ``np.array_equal`` green (d=1/d=2/d=3) and the end-to-end affine
     #         carve golden + matvec≡sweep are unchanged.  WRAP-not-relocate held
     #         (the method body is otherwise untouched — only the call's kwargs).
+    #   S6.3 (walk moved OFF the operator) d18135c8…0d34ff6b2d → b455b2de…2bb2ef21
+    #         — the ENTIRE _apply_2d_cartesian body RELOCATED into
+    #         ``MovingFrontierWindow.loss_action`` (loss_representation.py): the
+    #         operator no longer holds the 2-D matvec; the representation OWNS the
+    #         walk (S6 native frame — apply IS walking the dependency graph). The
+    #         pin RETARGETED from the now-DELETED
+    #         ``StreamingOperator._apply_2d_cartesian`` to
+    #         ``MovingFrontierWindow.loss_action``, which returns (L+C)ψ (the −σ_t
+    #         collision glue collapsed into the operator's apply — was 5×
+    #         duplicated). OUTPUT byte-identity proven by the window≡full MATVEC
+    #         oracle + the affine-carve golden (same commit). Retargets AGAIN to
+    #         the _OctantWalk2D interior walk at S6.4.
     EXPECTED_SHA256: str = (
-        "d18135c8291b142beea02db72b99eb4bb062dd41753105b963f0cb0d34ff6b2d"
+        "b455b2de8a0f11c66f92e09a98c822b5b9de384437a35abb41d0510e2bb2ef21"
     )
 
     def test_apply_2d_cartesian_source_hash_unchanged(self):
-        """Defensive: any source-level edit to ``_apply_2d_cartesian``
-        MUST be deliberate — update the hash with the new value
-        printed in the failure message.
+        """Defensive: any source-level edit to ``MovingFrontierWindow.loss_action``
+        (the 2-D Cartesian matvec body, since S6.3) MUST be deliberate — update
+        the hash with the new value printed in the failure message.
         """
         import hashlib
         import inspect
 
-        src = inspect.getsource(StreamingOperator._apply_2d_cartesian)
+        src = inspect.getsource(MovingFrontierWindow.loss_action)
         actual = hashlib.sha256(src.encode("utf-8")).hexdigest()
         if actual != self.EXPECTED_SHA256:
             raise AssertionError(
-                "A2D-1: `StreamingOperator._apply_2d_cartesian` source code "
+                "A2D-1: `MovingFrontierWindow.loss_action` source code "
                 "has changed.  This is the T.4 hybrid-Q1 defensive pin — "
                 "any intentional edit to the 2-D Cartesian path MUST "
                 "update `TestT4dApply2DCartesianSourceHashPin.EXPECTED_SHA256` "

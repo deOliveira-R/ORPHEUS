@@ -9,7 +9,37 @@ first-class `SweepStrategy` abstraction.
 
 - **Designed 2026-06-10** in a multi-turn design conversation; every decision below is LOCKED
   (see §"Decisions locked").
-- **⭐⭐⭐ LATEST (2026-06-10, S6 EXECUTION STARTED): S6.0-prime + S6.2 DONE.** The
+- **⭐⭐⭐ LATEST (2026-06-10, S6.3 DONE — the walk moved OFF the operator): S6.3a + S6.3b.**
+  The architectural heart of S6.  **S6.3a** (Mode-8 prereq, commit `ee91db4`): migrated
+  `test_g_adjoint_reciprocity` off 5 bare `assert`s → `pytest.fail` (the curvilinear
+  sphere/cyl angular-second-triangular-factor reciprocity was a FALSE GREEN under `-O`;
+  now fires, 12/12).  **S6.3b** (the walk-move): each `LossRepresentation.loss_action` now
+  OWNS the `(L+C)ψ` walk — the 5 `_apply_*` bodies MOVED off `StreamingOperator` into
+  `loss_representation.py` (1-D → `operator.M_spatial._compute_LpC`; 2-D
+  window/scanmarch/full-field → the moved octant walks) and all 5 `_apply_*` DELETED (456
+  lines).  `operator.apply = loss_action − σ_t·ψ.bulk` (Resolution A `L = (L+C) − C`; the
+  `−C` glue COLLAPSED 5×→1×, a Pattern-2 win); `apply_transpose` mirrors (CumprodScan
+  carries `closure.angular_adjoint`, reciprocity green).  **OUTPUT BYTE-IDENTICAL** (the
+  `−σ_t` relocation is the same arithmetic, verified at a 150-test pre-deletion gate with
+  the dead `_apply_*` still present + 182-test post-deletion + affine-carve golden +
+  window≡full MATVEC oracle migrated to `loss_action` + scan-march G2.c + keff).  **A2D-1
+  RETARGETED** (`inspect.getsource` `_apply_2d_cartesian` → `MovingFrontierWindow.loss_action`,
+  hash `d18135c8…`→`b455b2de…`, provenance line added; output-identity via the oracle, NOT
+  source).  **NEW convention pin** `test_loss_action_convention.py` (4✓): the
+  NON-tautological structural anchor — flat-reflective `L·ψ_flat=0` ⟹ `loss_action=σ_t·ψ`
+  (proves it is the FULL `(L+C)` loss, not bare `L`) + the `−C` glue cross-checked vs an
+  INDEPENDENT `CollisionOperator`.  ⚠ caught + fixed an **S6.2 docstring corruption** (the
+  file-internal `replace_all residual→loss_action` also hit docstring cross-refs to the
+  SIBLING `graph.residual`/`residual_windowed` — 3 cosmetic spots, all fixed; lesson L25).
+  elegance-enforcer **PASS-with-nits** (1 fixed: the Protocol/base `loss_action` docstrings
+  still said "applies L" — a contract-surface bug-habitat for the future S6.6
+  `ExplicitMatrix` leaf; now state `(L+C)ψ`).  Sphinx **build succeeded**; stale `_apply_*`
+  doc-refs cleaned across 10 test files (only the A2D-1 historical provenance retains them).
+  Commits: `ee91db4` (S6.3a) + S6.3b (this).  **NEXT = S6.4** (the `_OctantWalk2D` shared
+  base — collapse the Fork-B1 window/scanmarch `loss_action` octant-frame duplication, the
+  documented IOU; A2D-1 retargets again to the shared `_interior_walk`).  THEN S6.5 (unify
+  the two doors → the one-instance discriminating test flips xfail→xpass).
+- **PRIOR (2026-06-10, S6 EXECUTION STARTED): S6.0-prime + S6.2 DONE.** The
   `test-architect` S6 verification plan landed (memo
   `.claude/agent-memory/test-architect/s6_relayering_verification.md`): the anchor set
   (A2D-1 hash byte-stable THROUGH S6.2 — its regen is an S6.3 event), the "one

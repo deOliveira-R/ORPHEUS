@@ -1244,8 +1244,8 @@ class SNSolver:
         :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
         face layout is the natural 4-face descriptor (xmin / xmax /
         ymin / ymax) that the legacy 1-D B1'' face block lacked; the
-        L2-native ``StreamingOperator._apply_2d_cartesian`` kernel
-        operates on it directly.
+        L2-native ``MovingFrontierWindow.loss_action`` 2-D matvec walk
+        (S6.3 moved it off the operator) operates on it directly.
 
         Returns the updated scalar flux ``(ng, nx, ny)``.
         """

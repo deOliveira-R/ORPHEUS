@@ -22,8 +22,10 @@ adapter.  The geometry-agnostic kernel is
 :meth:`_MSpatialOperatorSum._compute_decomposition` (1-D slab /
 sphere / cylinder; dual-emission body that produces both
 ``M_spatial`` and ``M_angular_redist`` contributions in one
-bidirectional sweep) plus :meth:`StreamingOperator._apply_2d_cartesian`
-(2-D Cartesian FD).  Wave T T.5 close-out retired the module-level
+bidirectional sweep).  The 2-D Cartesian matvec is the diamond-difference
+DAG walk that S6.3 moved OFF this operator into
+``MovingFrontierWindow.loss_action`` (``orpheus.sn.loss_representation``).
+Wave T T.5 close-out retired the module-level
 ``_transport_operator_matvec_unified`` helper — its body lives as
 the orchestrator's private dual-emission method.
 
@@ -91,8 +93,8 @@ History
    design corrections, the two ``-B`` delivery routes, and the O.2
    forcing function.
 
-   The **2-D Cartesian** path
-   (:meth:`StreamingOperator._apply_2d_cartesian`) is ALSO bare (O.4b
+   The **2-D Cartesian** path (``MovingFrontierWindow.loss_action``, which
+   S6.3 moved off this operator) is ALSO bare (O.4b
    Phase E landed): it seeds the octant-incoming face slots from the
    GIVEN ``psi.boundary.inflow`` via the typed ``wavefront.seed`` (ι_*)
    with NO ``bc.apply``, walks the same per-octant
@@ -375,7 +377,8 @@ class _MSpatialOperatorSum(OperatorSum):
                 "_MSpatialOperatorSum._compute_LpC: multi-D Cartesian "
                 "is not yet wired through dag_walk; only the 1-D slab "
                 "is implemented.  2-D Cartesian routes through "
-                "`StreamingOperator._apply_2d_cartesian` (Q1 hybrid)."
+                "`MovingFrontierWindow.loss_action` (the DAG walk S6.3 "
+                "moved off this operator)."
             )
 
         pole_angular_closure = sn_mesh.pole_angular_closure
@@ -832,7 +835,8 @@ class _MSpatialOperatorSum(OperatorSum):
                 "_MSpatialOperatorSum._compute_decomposition: multi-D Cartesian "
                 "is not yet wired through dag_walk; only the 1-D slab "
                 "is implemented.  2-D Cartesian routes through "
-                "`StreamingOperator._apply_2d_cartesian` (Q1 hybrid)."
+                "`MovingFrontierWindow.loss_action` (the DAG walk S6.3 "
+                "moved off this operator)."
             )
 
         pole_angular_closure = sn_mesh.pole_angular_closure
@@ -1097,7 +1101,7 @@ class _MSpatialOperatorSum(OperatorSum):
         geom = GeometryCoefficients.from_mesh_and_quad(self.sn_mesh)
         # 1-D drop of y axis for the sweep cache contract (it stores
         # per-(N, ng, nx); 2-D Cartesian routes through
-        # `_apply_2d_cartesian` and does not use this cache).
+        # `MovingFrontierWindow.loss_action` and does not use this cache).
         sig_t_1d = self.sigma_t
         return CollisionCache.from_geometry(geom, sig_t_1d)
 
@@ -1393,10 +1397,11 @@ class StreamingOperator(LinearOperatorMixin):
         r"""Subtractive forward action :math:`L\,\psi = M(\psi;\sigma_t)
         - \sigma_t \odot \psi.bulk`.
 
-        Geometry dispatch is the polymorphic :attr:`loss_representation` (the
-        matvec twin of the forward sweep): 1-D slab/sphere/cylinder →
-        :meth:`_apply_1d` (``CumprodScan``); 2-D Cartesian →
-        :meth:`_apply_2d_cartesian` (``MovingFrontierWindow``).
+        The within-group loss action :math:`(L+C)\psi` is the
+        :attr:`loss_representation`'s walk (the matvec twin of the forward
+        sweep; S6.3 moved it OFF this operator): 1-D → ``CumprodScan``; 2-D
+        Cartesian → ``MovingFrontierWindow``.  This leaf then applies the ONLY
+        algebra glue — the Resolution-A collision subtraction below.
 
         Resolution A — :math:`(L + C).{\rm apply}(\psi) \equiv
         M(\psi;\sigma_t)` bit-exact: the per-cell σ_t·ψ cancellation
@@ -1435,6 +1440,7 @@ class StreamingOperator(LinearOperatorMixin):
             layout-assigned trace slots (non-zero at outer face for
             curvilinear; non-zero at outer + inner faces for slab).
         """
+        from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
         if not isinstance(psi, TimedFullField):
@@ -1452,42 +1458,18 @@ class StreamingOperator(LinearOperatorMixin):
                 "share the SAME SNMesh instance (mesh-identity invariant)."
             )
 
-        # Geometry dispatch is the polymorphic :attr:`loss_representation` — the
-        # matvec twin of the forward sweep (L21: sweep and matvec are
-        # different applications of the same operator). 1-D → CumprodScan
-        # (the geometry-blind :meth:`_apply_1d`); 2-D Cartesian →
-        # MovingFrontierWindow (:meth:`_apply_2d_cartesian`). The scattered
-        # ``curv is None and not is_1d`` branch is retired into
-        # ``representation.loss_action``.
-        return self.loss_representation.loss_action(self, psi)
-
-    def _apply_1d(self, psi: "TimedFullField") -> "TimedFullField":
-        r"""1-D ``L·ψ`` (slab + sphere + cylinder) — the CumprodScan matvec twin.
-
-        The single-emission ``(L+C)·ψ`` via
-        :meth:`_MSpatialOperatorSum._compute_LpC` (perf-optimal, no dual
-        emission), then ``− σ_t·ψ`` to recover ``L`` per Resolution A.
-        Extracted verbatim from :meth:`apply`'s 1-D branch by the
-        LossRepresentation carve (S2) so the geometry dispatch is the polymorphic
-        ``representation.loss_action`` — bit-identical.
-
-        The ``M_spatial`` / ``M_angular_redist`` algebra decomposition is
-        exposed for introspection via :meth:`_compute_decomposition` (slower,
-        dual-emission); the hot path uses the single-emission ``_compute_LpC``
-        because re-splitting and re-summing is wasted work when ``L·ψ`` is all
-        that is needed.
-        """
-        from orpheus.transport.source_sinks import AngularSourceSink
-        from orpheus.transport.timed_full_field import TimedFullField
-
-        LpC_result = self.M_spatial._compute_LpC(psi)
-        cell_values = (
-            LpC_result.bulk.values
-            - self.sigma_t[None] * psi.bulk.values
-        )
+        # L = (L+C) − C (Resolution A): the representation returns the FULL
+        # within-group loss (L+C)ψ (its walk — L21: matvec and sweep are two
+        # actions of the SAME (L+C) operator; S6.3 moved the walk OFF this
+        # operator INTO the representation). The operator's ONLY remaining glue
+        # is the collision-diagonal subtraction C = σ_t⊙, applied ONCE here (it
+        # was 5× duplicated across the retired _apply_*). C has no boundary
+        # action, so the (L+C)ψ boundary residual passes through unchanged.
+        lpc = self.loss_representation.loss_action(self, psi)
+        out_bulk = lpc.bulk.values - self.sigma_t[None] * psi.bulk.values
         return TimedFullField(
-            bulk=AngularSourceSink.from_mesh(cell_values, self.sn_mesh),
-            boundary=LpC_result.boundary,
+            bulk=AngularSourceSink.from_mesh(out_bulk, self.sn_mesh),
+            boundary=lpc.boundary,
             _history=(),
             history_depth=psi.history_depth,
         )
@@ -1515,6 +1497,7 @@ class StreamingOperator(LinearOperatorMixin):
         cylinder) — ``derivations/diagnostics/diag_p42_adjoint_oracle.py``;
         the reciprocity gate ``test_phase_c_gates`` Gate 1.3 pins it in CI.
         """
+        from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
         if not isinstance(phi, TimedFullField):
@@ -1527,36 +1510,16 @@ class StreamingOperator(LinearOperatorMixin):
                 "StreamingOperator.apply_transpose: operator and composite "
                 "must share the SAME SNMesh instance (mesh-identity invariant)."
             )
-        # The adjoint matvec twin routes through the same polymorphic
-        # :attr:`loss_representation` as the forward :meth:`apply`. CumprodScan
-        # implements the 1-D reverse sweep (:meth:`_apply_1d_transpose`); the
-        # multi-D Cartesian DAG strategies raise ``NotImplementedError`` (the
-        # reverse sweep is deferred — O.2b lands the 1-D one first; the mesh
-        # is compatible, only the adjoint feature is deferred).
-        return self.loss_representation.loss_action_transpose(self, phi)
-
-    def _apply_1d_transpose(self, phi: "TimedFullField") -> "TimedFullField":
-        r"""1-D ``Lᵀ·φ`` (slab + sphere + cylinder) — the CumprodScan adjoint twin.
-
-        ``(L+C)ᵀ·φ`` via :meth:`_MSpatialOperatorSum._compute_LpC_transpose`
-        (the reverse-mode adjoint of the forward sweep), then ``− σ_t·φ`` to
-        recover ``Lᵀ`` (Resolution A; ``C = σ_t⊙`` is a self-adjoint
-        diagonal).  Extracted verbatim from :meth:`apply_transpose`'s 1-D
-        branch by the LossRepresentation carve (S2) — bit-identical.  Returns the
-        plain Euclidean transpose; the metric conjugation of the physical
-        G-adjoint ``L.H`` is applied around this by ``_AdjointOperator``.
-        """
-        from orpheus.transport.source_sinks import AngularSourceSink
-        from orpheus.transport.timed_full_field import TimedFullField
-
-        LpCt = self.M_spatial._compute_LpC_transpose(phi)
-        cell_values = (
-            LpCt.bulk.values
-            - self.sigma_t[None] * phi.bulk.values
-        )
+        # Lᵀ = (L+C)ᵀ − C (Resolution A; C = σ_t⊙ is a self-adjoint diagonal).
+        # The representation returns (L+C)ᵀφ (its reverse walk — CumprodScan
+        # carries the curvilinear angular second triangular factor; the multi-D
+        # Cartesian adjoint stays a deferral raise, never a silent wrong
+        # answer). The operator subtracts C here, ONCE, mirroring :meth:`apply`.
+        lpct = self.loss_representation.loss_action_transpose(self, phi)
+        out_bulk = lpct.bulk.values - self.sigma_t[None] * phi.bulk.values
         return TimedFullField(
-            bulk=AngularSourceSink.from_mesh(cell_values, self.sn_mesh),
-            boundary=LpCt.boundary,
+            bulk=AngularSourceSink.from_mesh(out_bulk, self.sn_mesh),
+            boundary=lpct.boundary,
             _history=(),
             history_depth=phi.history_depth,
         )
@@ -1636,405 +1599,6 @@ class StreamingOperator(LinearOperatorMixin):
             sn_mesh=self.sn_mesh,
             sigma_t=self.sigma_t,
             m_spatial=self.M_spatial,
-        )
-
-    def _apply_2d_cartesian(
-        self, psi: "TimedFullField",
-    ) -> "TimedFullField":
-        r"""2-D Cartesian ``L·ψ`` via the diamond-difference closure (#208 O.4b).
-
-        Routes through :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.residual`
-        — the apply-direction walk of the SAME per-octant wavefront DAG and
-        the SAME selectable ``CellUpdate`` (diamond-difference) closure the
-        2-D sweep :func:`~orpheus.sn.sweep._sweep_2d_wavefront` uses. Matvec
-        and sweep are therefore ONE discretization (L21: "matvec and sweep
-        are different applications of the same operator"), not the FD/DD
-        twin path the bespoke cell-centred upwind stencil
-        (``_compute_gradients``, RETIRED in this change) created.
-
-        The twin's failure mode — a face-trace formulation on the FD stencil
-        converging to a non-uniform mode ~10% off ``k_inf`` — dissolves by
-        construction: the DD closure handles the boundary cleanly and
-        annihilates the flat reflective fundamental mode exactly
-        (``L·ψ_uniform = 0``).
-
-        Boundary semantics (BARE — O.4b Phase E BC-extraction). The boundary
-        edge slots are seeded from the GIVEN inflow trace
-        ``psi.boundary.face_view`` — there is NO ``bc.apply``. The octant's
-        ordinates on its incoming face ARE its inflow ordinates, so the seed
-        delivers exactly ``psi.boundary.inflow`` to the wavefront. The
-        reflective coupling ``psi.inflow = B·psi.outflow`` is delivered by the
-        sibling ``-B`` (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`),
-        a first-class coupling gain in the 2-D Krylov composed matvec (Wave O
-        O.2a — ``_within_group_triple`` returns ``(L+C, S, B)``). The output
-        boundary is the
-        boundary-block residual (active trace), mirroring the 1-D
-        ``L_full.apply`` template: OUTFLOW ordinate slots carry the
-        self-consistency defect ``streamed − psi.outflow``; INFLOW ordinate
-        slots carry the identity ``psi.inflow`` (so the composed
-        ``(L+C−S−F−B)`` inflow residual is ``psi.inflow − B·psi.outflow``,
-        driven to ``q.inflow`` by the outer loop). For homogeneous reflective
-        the consistent uniform trace gives ``L·ψ_uniform = 0`` (recovers
-        ``k_inf``) and a zero outflow defect — proven at the operator level by
-        the E0 de-risk before this flip.
-
-        Returns ``L·ψ`` (NOT ``(L+C)·ψ``): ``residual_batch`` at zero source
-        yields ``(L+C)·ψ̄``; subtracting ``Σ_t·ψ̄`` (the collision term)
-        gives the bare-streaming action, matching the 1-D path's L-only
-        convention.
-        """
-        from orpheus.sn.sweep_graph import OctantLabel
-        from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
-        from orpheus.transport.timed_full_field import TimedFullField
-
-        sn_mesh = self.sn_mesh
-        quad = sn_mesh.quad
-        N = quad.N
-        nx, ny = sn_mesh.nx, sn_mesh.ny
-        ng = self.sigma_t.shape[0]
-        sig_t = self.sigma_t                       # (ng, nx, ny)
-        probe = psi.bulk.values                    # (N, ng, nx, ny) — the apply target ψ̄
-        str_x = sn_mesh.streaming_x                # (N, nx)
-        str_y = sn_mesh.streaming_y                # (N, ny)
-        cell_update = sn_mesh.cell_update
-        Q_zero = np.zeros((1, ng, nx, ny))         # matvec: no volumetric source
-
-        # (L+C)·ψ̄ accumulator (the loss-operator action == residual_batch
-        # at zero source); L·ψ̄ = this − Σ_t·ψ̄ at the end.
-        LpC = np.zeros((N, ng, nx, ny))
-
-        # Interior face cochain C¹_int, carried on the rolling _MovingFrontier
-        # (Phase 5b storage-B) — the SAME windowed walk the 2-D sweep uses
-        # (matvec ≡ sweep: ONE discretization, L21). BARE boundary handling
-        # (O.4b Phase E): each octant reads its inflow from the GIVEN trace
-        # ``psi.boundary.face_view(<incoming face>)[oct_idx]`` — NO bc.apply
-        # (the octant's ordinates on its incoming face ARE its inflow
-        # ordinates); the reflective coupling is the sibling -B. The post-walk
-        # domain-edge outflow is shed per octant into ``streamed`` (only the
-        # OUTFLOW ordinate slots are filled — the boundary residual reads only
-        # those; grazing/inflow slots stay zero and are never read).
-        trace = sn_mesh.trace
-        boundary = psi.boundary
-        streamed = {
-            face: np.zeros_like(boundary.face_view(face))
-            for face in trace.face_names
-        }
-
-        for octant in quad.octants:
-            label_tuple = octant.label
-            oct_idx = octant.indices
-            sx = label_tuple[0] if len(label_tuple) >= 1 else +1
-            sy = label_tuple[1] if len(label_tuple) >= 2 else 0
-            # Pure-z degenerate octant: no in-plane streaming, so the
-            # in-plane loss action is pure collision: (L+C)·ψ̄ = Σ_t·ψ̄
-            # (hence L·ψ̄ = 0 for these ordinates after the subtraction).
-            if sx == 0 and sy == 0:
-                LpC[oct_idx] = sig_t * probe[oct_idx]
-                continue
-            sx_eff = +1 if sx == 0 else sx
-            sy_eff = +1 if sy == 0 else sy
-            graph = sn_mesh.sweep_graphs[OctantLabel((sx_eff, sy_eff))]
-
-            # Octant domain-edge faces (incoming = low face of the sweep
-            # direction). NO bc.apply — the seeded inflow IS the given trace.
-            x_in_face = "xmin" if sx_eff >= 0 else "xmax"
-            x_out_face = "xmax" if sx_eff >= 0 else "xmin"
-            y_in_face = "ymin" if sy_eff >= 0 else "ymax"
-            y_out_face = "ymax" if sy_eff >= 0 else "ymin"
-
-            LpC_oct = np.zeros((oct_idx.size, ng, nx, ny))
-            cap_x = np.empty((oct_idx.size, ng, ny))
-            cap_y = np.empty((oct_idx.size, ng, nx))
-            graph.residual_windowed(
-                cell_update=cell_update,
-                inflow=(boundary.face_view(x_in_face)[oct_idx],
-                        boundary.face_view(y_in_face)[oct_idx]),
-                psi_avg_probe_octant=probe[oct_idx],
-                Q_octant=Q_zero, sig_t=sig_t,
-                str_axes_octant=(str_x[oct_idx], str_y[oct_idx]),
-                residual_octant=LpC_oct, capture=(cap_x, cap_y),
-            )
-            LpC[oct_idx] = LpC_oct
-            streamed[x_out_face][oct_idx] = cap_x
-            streamed[y_out_face][oct_idx] = cap_y
-
-        # L = (L+C) − C: subtract the collision term Σ_t·ψ̄ → bare streaming L·ψ̄.
-        out_bulk = LpC - sig_t[None] * probe
-
-        # Boundary-block residual (O.4b Phase E — the active trace, mirroring
-        # the 1-D L_full.apply template). ``streamed[face]`` holds the
-        # per-octant shed outflow at each face's OUTFLOW ordinate slots.
-        # OUTFLOW ordinate slots → self-consistency defect ``streamed −
-        # psi.outflow`` (kept as computed−stored so the vacuum path stays
-        # bit-identical); INFLOW ordinate slots → identity ``psi.inflow`` (the
-        # sibling -B adds -B·psi.outflow → composed inflow residual
-        # ``psi.inflow − B·psi.outflow``).
-        out_boundary = BoundarySourceSink.zeros_on(sn_mesh)
-        for face in trace.face_names:
-            given = boundary.face_view(face)
-            out_idx = trace.outflow_indices_for_face(face)
-            in_idx = trace.inflow_indices_for_face(face)
-            if out_idx.size:
-                out_boundary.face_view(face)[out_idx] = (
-                    streamed[face][out_idx] - given[out_idx]
-                )
-            if in_idx.size:
-                out_boundary.face_view(face)[in_idx] = given[in_idx]
-
-        return TimedFullField(
-            bulk=AngularSourceSink.from_mesh(out_bulk, sn_mesh),
-            boundary=out_boundary,
-            _history=(),
-            history_depth=psi.history_depth,
-        )
-
-    def _apply_2d_cartesian_scanmarch(
-        self, psi: "TimedFullField",
-    ) -> "TimedFullField":
-        r"""2-D Cartesian ``L·ψ`` via the SCAN-MARCH schedule — the ScanMarch matvec twin.
-
-        The row-march analog of :meth:`_apply_2d_cartesian` (the anti-diagonal
-        window matvec): the SAME ``(L+C)ψ`` residual over the SAME diamond-
-        difference closure, but the interior face cochain is reconstructed by
-        *scan along x, march over y* instead of by the anti-diagonal wavefront.
-        L21 (matvec and sweep are different applications of the same operator):
-        the apply-direction twin of
-        :func:`~orpheus.sn.sweep._sweep_2d_scanmarch`, so the
-        :class:`~orpheus.sn.loss_representation.ScanMarch` strategy row-marches in
-        BOTH directions.
-
-        The matvec reuses the sweep's face-scan primitive
-        (:func:`~orpheus.sn.sweep._x_scan_faces`) with the *apply* coefficients
-        ``α = −1``, ``β = 2 ψ̄_probe``: since ψ̄ is KNOWN, the WDD closure
-        ``out_x = 2ψ̄ − in_x`` IS a first-order recurrence in the faces (a
-        pure-reflection scan; see :meth:`DiamondDifference.residual_kernel_batch`).
-        The per-cell residual is then ``(Σ_t + s_x + s_y)·ψ̄ − s_x·in_x −
-        s_y·in_y`` (``= (L+C)ψ̄`` at zero source); ``L·ψ̄ = this − Σ_t·ψ̄``.
-
-        Schedule-independent in RESULT — principled-equivalent (NOT bit-
-        identical) to :meth:`_apply_2d_cartesian`: the row-march and the anti-
-        diagonal reconstruct the SAME faces in a different order, so the
-        residual agrees to FP-association.  The
-        :class:`~orpheus.sn.loss_representation.FullFieldWavefront` oracle pins it
-        (G2.c).  The boundary semantics + the O.4b active-trace residual block
-        are IDENTICAL to :meth:`_apply_2d_cartesian` (only the interior walk
-        differs).
-
-        .. note::
-
-           The octant projection + boundary-residual block here is a DELIBERATE
-           Pattern-2 duplication of :meth:`_apply_2d_cartesian` (Fork B1, issue
-           #222 — the production window matvec must NOT be re-carved while its
-           A2D-1 source-hash gates this opt-in path).  **Edit both in lockstep.**
-           Consolidation trigger: S5.3 (the default-flip + window retire/unify),
-           when the scan-march becomes the production schedule and a shared
-           interior-walk seam can be cut without disturbing that hash.  This is
-           the matvec sibling of the same-named note on ``_sweep_2d_scanmarch``.
-        """
-        from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
-        from orpheus.transport.timed_full_field import TimedFullField
-
-        from .sweep import _x_scan_faces
-
-        sn_mesh = self.sn_mesh
-        quad = sn_mesh.quad
-        N = quad.N
-        nx, ny = sn_mesh.nx, sn_mesh.ny
-        ng = self.sigma_t.shape[0]
-        sig_t = self.sigma_t                       # (ng, nx, ny)
-        probe = psi.bulk.values                    # (N, ng, nx, ny) — the apply target ψ̄
-        str_x = sn_mesh.streaming_x                # (N, nx)
-        str_y = sn_mesh.streaming_y                # (N, ny)
-
-        # (L+C)·ψ̄ accumulator (residual_batch at zero source); L·ψ̄ = − Σ_t·ψ̄.
-        LpC = np.zeros((N, ng, nx, ny))
-        trace = sn_mesh.trace
-        boundary = psi.boundary
-        streamed = {
-            face: np.zeros_like(boundary.face_view(face))
-            for face in trace.face_names
-        }
-
-        for octant in quad.octants:
-            label_tuple = octant.label
-            oct_idx = octant.indices
-            sx = label_tuple[0] if len(label_tuple) >= 1 else +1
-            sy = label_tuple[1] if len(label_tuple) >= 2 else 0
-            if sx == 0 and sy == 0:
-                # Pure-z degenerate octant: (L+C)·ψ̄ = Σ_t·ψ̄ ⇒ L·ψ̄ = 0.
-                LpC[oct_idx] = sig_t * probe[oct_idx]
-                continue
-            sx_eff = +1 if sx == 0 else sx
-            sy_eff = +1 if sy == 0 else sy
-
-            x_in_face = "xmin" if sx_eff >= 0 else "xmax"
-            x_out_face = "xmax" if sx_eff >= 0 else "xmin"
-            y_in_face = "ymin" if sy_eff >= 0 else "ymax"
-            y_out_face = "ymax" if sy_eff >= 0 else "ymin"
-
-            inflow_x = boundary.face_view(x_in_face)[oct_idx]   # (N_oct, ng, ny)
-            inflow_y = boundary.face_view(y_in_face)[oct_idx]   # (N_oct, ng, nx)
-
-            s_x = str_x[oct_idx]        # (N_oct, nx)
-            s_y = str_y[oct_idx]        # (N_oct, ny)
-            probe_oct = probe[oct_idx]  # (N_oct, ng, nx, ny)
-            N_oct = oct_idx.size
-
-            x_reverse = sx_eff < 0
-            alpha_reflect = np.full((N_oct, ng, nx), -1.0)   # α = −1, reused per row
-            LpC_oct = np.empty((N_oct, ng, nx, ny))
-            cap_x = np.empty((N_oct, ng, ny))            # domain x-outflow, per y-row
-
-            # March the y-rows in the octant's y-sweep order, reconstructing the
-            # transverse-y face ψ_y from the KNOWN probe (out_y = 2ψ̄ − ψy_in).
-            psi_y_in = inflow_y                          # (N_oct, ng, nx) — row-0 inflow
-            out_y = psi_y_in                             # last-row out_y (ny ≥ 1 → set below)
-            y_rows = range(ny) if sy_eff >= 0 else range(ny - 1, -1, -1)
-            for j in y_rows:
-                psi_bar_row = probe_oct[:, :, :, j]      # (N_oct, ng, nx)
-                # Reconstruct the x-faces from the probe: out_x = 2ψ̄ − in_x.
-                in_x_row, _out_x_row, x_outflow = _x_scan_faces(
-                    alpha_reflect, 2.0 * psi_bar_row, inflow_x[:, :, j], x_reverse,
-                )
-                D_row = (
-                    sig_t[None, :, :, j]                 # (1, ng, nx)
-                    + s_x[:, None, :]                    # (N_oct, 1, nx)
-                    + s_y[:, j][:, None, None]           # (N_oct, 1, 1)
-                )
-                LpC_oct[:, :, :, j] = (
-                    D_row * psi_bar_row
-                    - s_x[:, None, :] * in_x_row
-                    - s_y[:, j][:, None, None] * psi_y_in
-                )
-                out_y = 2.0 * psi_bar_row - psi_y_in
-                psi_y_in = out_y
-                cap_x[:, :, j] = x_outflow
-            LpC[oct_idx] = LpC_oct
-            streamed[x_out_face][oct_idx] = cap_x
-            streamed[y_out_face][oct_idx] = out_y        # last-marched row's out_y
-
-        # L = (L+C) − C: subtract the collision term Σ_t·ψ̄ → bare streaming L·ψ̄.
-        out_bulk = LpC - sig_t[None] * probe
-
-        # Boundary-block residual (O.4b — the active trace), IDENTICAL to
-        # _apply_2d_cartesian: OUTFLOW slots → defect ``streamed − given``;
-        # INFLOW slots → identity ``given`` (the sibling −B adds −B·ψ.outflow).
-        out_boundary = BoundarySourceSink.zeros_on(sn_mesh)
-        for face in trace.face_names:
-            given = boundary.face_view(face)
-            out_idx = trace.outflow_indices_for_face(face)
-            in_idx = trace.inflow_indices_for_face(face)
-            if out_idx.size:
-                out_boundary.face_view(face)[out_idx] = (
-                    streamed[face][out_idx] - given[out_idx]
-                )
-            if in_idx.size:
-                out_boundary.face_view(face)[in_idx] = given[in_idx]
-
-        return TimedFullField(
-            bulk=AngularSourceSink.from_mesh(out_bulk, sn_mesh),
-            boundary=out_boundary,
-            _history=(),
-            history_depth=psi.history_depth,
-        )
-
-    def _apply_full_field(
-        self, psi: "TimedFullField",
-    ) -> "TimedFullField":
-        r"""VERIFICATION ORACLE — the full-field DAG-walk matvec (d-generic; NOT production).
-
-        The matvec counterpart of :func:`~orpheus.sn.sweep._sweep_full_field`:
-        the storage-A path Phase 5b superseded in :meth:`_apply_2d_cartesian`
-        (now the windowed `residual_windowed`). RETAINED + exercised by
-        ``tests/sn/operators/test_2d_matvec_full_field_oracle.py`` as the
-        fuller-view reference the moving-frontier matvec is cross-checked
-        against END-TO-END. It carries the FULL interior cochain as a typed
-        :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`
-        (`seed`/`face`/`edge_view`), walks via
-        :meth:`SweepDependencyGraph.residual` (the full-field walk sharing the
-        SAME cell kernel as `residual_windowed`), and emits the identical
-        boundary-block residual. Sole purpose: verification (production is the
-        window / the 1-D scan); the shared kernel means the MATH cannot drift,
-        only storage.
-
-        Dimension-generic (the matvec twin of :func:`_sweep_full_field`): the
-        per-axis tuples are built over ``range(ndim)`` (``streaming(a)`` /
-        ``WavefrontFlux.face(a)``), and the quadrature octant label — which
-        lives in the full angular space — is projected to the in-plane
-        ``label[:ndim]`` (at d=2 the legacy ``(label[0], label[1])``; at d=1 the
-        single in-plane sign the chain graphs are keyed by).
-        """
-        from orpheus.sn.sweep_graph import OctantLabel
-        from orpheus.transport.fields.wavefront_flux import WavefrontFlux
-        from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
-        from orpheus.transport.timed_full_field import TimedFullField
-
-        sn_mesh = self.sn_mesh
-        quad = sn_mesh.quad
-        N = quad.N
-        ndim = sn_mesh.ndim
-        sig_t = self.sigma_t
-        ng = sig_t.shape[0]
-        spatial = sig_t.shape[1:]                        # (nx,) at d=1; (nx, ny) at d=2
-        probe = psi.bulk.values
-        cell_update = sn_mesh.cell_update
-        Q_zero = np.zeros((1, ng, *spatial))
-
-        LpC = np.zeros((N, ng, *spatial))
-        trace = sn_mesh.trace
-        boundary = psi.boundary
-        # The FULL interior cochain (typed) — ι_*-seeded whole-trace. The
-        # per-axis face tuple is born from the cochain's OWN axis map
-        # (``WavefrontFlux.face(a)`` over ``WavefrontFlux.axes``); the streaming
-        # tuple is the axis-keyed ``sn_mesh.streaming(a)`` over the SAME
-        # ``range(ndim)`` — so ``str_axes[a]`` cannot drift from ``psi_faces[a]``.
-        wavefront = WavefrontFlux.zeros_on(sn_mesh)
-        psi_faces = tuple(wavefront.face(a) for a in wavefront.axes)
-        str_axes = tuple(sn_mesh.streaming(a) for a in range(ndim))
-        wavefront.seed(boundary)
-
-        for octant in quad.octants:
-            oct_idx = octant.indices
-            signs = octant.label[:ndim]                  # in-plane projection
-            if not any(signs):                           # pure-z degenerate (d≥2 only)
-                LpC[oct_idx] = sig_t * probe[oct_idx]
-                continue
-            signs_eff = tuple(+1 if s == 0 else s for s in signs)
-            graph = sn_mesh.sweep_graphs[OctantLabel(signs_eff)]
-            psi_faces_oct = tuple(pf[oct_idx].copy() for pf in psi_faces)
-            LpC_oct = np.zeros((oct_idx.size, ng, *spatial))
-            graph.residual(
-                cell_update=cell_update,
-                psi_faces_octant=psi_faces_oct,
-                psi_avg_probe_octant=probe[oct_idx],
-                Q_octant=Q_zero, sig_t=sig_t,
-                str_axes_octant=tuple(s[oct_idx] for s in str_axes),
-                residual_octant=LpC_oct,
-            )
-            for a in wavefront.axes:
-                psi_faces[a][oct_idx] = psi_faces_oct[a]
-            LpC[oct_idx] = LpC_oct
-
-        out_bulk = LpC - sig_t[None] * probe
-        # The post-walk domain-edge outflow (full interior cochain edge slots).
-        streamed = {face: wavefront.edge_view(face) for face in trace.face_names}
-        out_boundary = BoundarySourceSink.zeros_on(sn_mesh)
-        for face in trace.face_names:
-            given = boundary.face_view(face)
-            out_idx = trace.outflow_indices_for_face(face)
-            in_idx = trace.inflow_indices_for_face(face)
-            if out_idx.size:
-                out_boundary.face_view(face)[out_idx] = (
-                    streamed[face][out_idx] - given[out_idx]
-                )
-            if in_idx.size:
-                out_boundary.face_view(face)[in_idx] = given[in_idx]
-
-        return TimedFullField(
-            bulk=AngularSourceSink.from_mesh(out_bulk, sn_mesh),
-            boundary=out_boundary,
-            _history=(),
-            history_depth=psi.history_depth,
         )
 
     # ── Algebra dispatch — sweep-invertible composite (R-1 Step C) ────
