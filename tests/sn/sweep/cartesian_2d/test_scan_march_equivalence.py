@@ -43,7 +43,16 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
-pytestmark = pytest.mark.foundation
+pytestmark = [
+    pytest.mark.foundation,
+    # S5.5: the theory page labels for the scan-march schedule this
+    # file pins against the FullFieldWavefront oracle (the row-march
+    # coefficients + its solve/apply realizations).
+    pytest.mark.verifies(
+        "loss-rep-scanmarch", "loss-rep-scanmarch-solve",
+        "loss-rep-scanmarch-apply",
+    ),
+]
 
 # (nx, ny, level, ng, bc)
 CASES = [

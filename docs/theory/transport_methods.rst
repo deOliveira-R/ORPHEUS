@@ -22,5 +22,6 @@ geometry-specific kernel or sweep algorithm:
 
    collision_probability
    discrete_ordinates
+   loss_representations
    method_of_characteristics
    monte_carlo

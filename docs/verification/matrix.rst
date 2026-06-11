@@ -431,6 +431,9 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``reciprocity``, 12
    ``ws-pitch``, 12
    ``inf-hom-balance``, 11
+   ``loss-rep-scanmarch``, 11
+   ``loss-rep-scanmarch-apply``, 11
+   ``loss-rep-scanmarch-solve``, 11
    ``two-group-A``, 11
    ``two-group-Ainv``, 11
    ``two-group-F``, 11
@@ -490,6 +493,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``fixed-source-solve``, 4
    ``hebert-3-323``, 4
    ``keff-update``, 4
+   ``loss-rep-LpC``, 4
+   ``loss-rep-resolution-a``, 4
    ``macro-sum``, 4
    ``peierls-greens-V-alpha-1``, 4
    ``peierls-greens-V-alpha-2``, 4

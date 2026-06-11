@@ -47,7 +47,13 @@ from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 
-pytestmark = pytest.mark.foundation
+pytestmark = [
+    pytest.mark.foundation,
+    # S5.5: the theory page labels for the math this file pins —
+    # loss_action returns (L+C)psi (loss-rep-LpC) and the operator's
+    # only glue is the Resolution-A subtraction (loss-rep-resolution-a).
+    pytest.mark.verifies("loss-rep-LpC", "loss-rep-resolution-a"),
+]
 
 
 def _slab_2g(nx: int = 5) -> SNMesh:

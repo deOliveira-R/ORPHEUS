@@ -88,35 +88,34 @@ The compatibility signal is the genuine criterion — the coordinate system
 (:attr:`SNMesh.is_cartesian`) and the dimensionality (:attr:`SNMesh.ndim`)
 — NOT the ``sweep_graphs is None`` substrate proxy.
 
-Phase status (the sweep-strategy carve, plan ``sn_sweep_strategy.md``)
-=======================================================================
+Carve history (the sweep-strategy carve, COMPLETE 2026-06-11)
+==============================================================
 
-* **S1 (this commit): SWEEP side.**  The protocol, the hierarchy, the three
-  strategies as *thin wrappers* over the existing sweep functions, the
-  selection layer, and the ``transport_sweep`` rewire.  Bit-identical: each
-  strategy wraps exactly the path the old branch chose, so ``default_for``
-  reproduces the legacy dispatch byte-for-byte.
-* **S2: MATVEC side.**  Each strategy gains ``loss_action`` (the
-  :math:`(L+C)\psi` twin); the five operator gates collapse to
-  ``strategy.loss_action(...)``.
-* **S3: generalize the oracle.**  ``FullFieldWavefront`` is the genuine
-  d-generic spine (``supports`` is any-d Cartesian; wires the d=1
-  cumprod-vs-spine equivalence).  Since S6.4(d) both its directions are
-  full-cochain interior KERNELS on the shared ``_OctantWalk`` frame.
-* **S4: generalize the window** to ``frontier_dim = d-1``.
-* **S6.2 (this commit): RENAME.**  ``SweepStrategy → LossRepresentation``,
-  ``residual → loss_action`` — the abstraction is the :math:`(L+C)` loss
-  operator's *representation* (a matrix-free traversal; the
-  cross-domain-attacker named it "representation" across four expert
-  frames).  Pure rename, bit-identical (the bodies still delegate to the
-  operator's ``_apply_*``).  S6.3 moves the walk *into* ``loss_action``
-  (returns :math:`(L+C)\psi`; the operator's ``−C`` becomes the only glue).
+The S0–S6.9 arc that produced this module — full narrative + rationale on
+the theory page :doc:`/theory/loss_representations` (§History):
+
+* **S1–S4**: the protocol + thin-wrapper strategies (bit-identical rewire),
+  the ``loss_action`` matvec twin (the five operator gates collapsed), the
+  d-generic ``FullFieldWavefront`` oracle, the ``frontier_dim = d-1`` window.
+* **S6.2–S6.5**: ``SweepStrategy → LossRepresentation`` (the abstraction IS
+  the :math:`(L+C)` operator's *representation* — a matrix-free traversal);
+  the walk moved INTO ``loss_action`` (returns :math:`(L+C)\psi`; the
+  operator's ``−C`` is the only glue); ONE ``_OctantWalk`` frame for sweep
+  AND matvec; the family-owned per-shape DAG cache; ONE representation
+  instance per operator (L21 as a type fact).
+* **S6.9 Fork B2 (2026-06-11)**: the multi-D Cartesian default flipped
+  window → ``ScanMarch`` on measured numbers (sweep 0.57–0.84× at identical
+  peak memory); the window KEPT as a selectable peer (user decision —
+  multiple genuinely-different schedules are the point of selectability).
 
 See also
 ========
 
+* :doc:`/theory/loss_representations` — the capstone architecture page
+  (the native lower-triangular frame, the four schedules, the selection
+  SSOT, the one-walk/one-instance theorems, the Fork-B2 evidence).
 * ``.claude/plans/sn_sweep_strategy.md`` — the authoritative design (the
-  locked decisions, the verification strategy, phases S0–S6).
+  locked decisions, the verification strategy, phases S0–S6.9).
 """
 from __future__ import annotations
 
@@ -1429,12 +1428,11 @@ class ScanMarch(_LossRepresentation):
 #: ``_DAGWavefront`` bases) — :func:`default_for` constructs whichever it
 #: picks, so only buildable strategies belong here.
 #:
-#: Selection priority order: the 1-D scan, the 2-D production window, the
-#: d-general scan-march, then the full-field oracle.  :func:`default_for`
-#: returns the FIRST that applies, so the legacy production optimizations win
-#: at d=1/d=2 (the scan-march is OPT-IN — issue #222 Fork B1, default
-#: unchanged), the scan-march is the d≥3 Cartesian production primitive, and
-#: the oracle is the never-stuck final fallback.
+#: Selection priority order: the 1-D scan, the d-general scan-march (the
+#: multi-D Cartesian production default since the S6.9 Fork-B2 flip,
+#: 2026-06-11), the wavefront window (a selectable peer), then the
+#: full-field oracle.  :func:`default_for` returns the FIRST that applies —
+#: the registry ORDER is the default-selection policy, single-sourced here.
 LOSS_REPRESENTATIONS: tuple[type[_LossRepresentation], ...] = (
     CumprodScan,
     ScanMarch,
