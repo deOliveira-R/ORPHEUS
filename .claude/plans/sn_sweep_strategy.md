@@ -9,7 +9,43 @@ first-class `SweepStrategy` abstraction.
 
 - **Designed 2026-06-10** in a multi-turn design conversation; every decision below is LOCKED
   (see §"Decisions locked").
-- **⭐⭐⭐ LATEST (2026-06-11, S6.5 DONE + COMMITTED @ `1d86030` — ONE representation
+- **⭐⭐⭐ LATEST (2026-06-11, S6.5 @ `1d86030` + S5.2 @ `f193b34` DONE; S6.9 MEASUREMENT
+  DONE — window-fate decision PENDING USER).**
+  **S5.2 (the post-S6.5 G4/G6 gates) @ `f193b34`:** NEW
+  `tests/sn/solve/test_scan_march_end_to_end.py` — G4.a fixed-source Mode-9 FP-invariance
+  (aniso+het+vacuum, non-flat guard) + G4.b all-reflective shed-order pin (ERR-056 class;
+  source confined to the fuel half — the uniform source measured max/min=1.067 and TRIPPED
+  the guard, config fixed not the guard; d=2 limitation stated, full diagonal stressor =
+  d=3) + G6 eigenvalue with ScanMarch forced (closed-form k_inf 2G + SI≡Krylov het
+  flux-shape). Forcing = ONE `default_for` patch (post-S6.5 all doors read it at call
+  time), as a CONTEXT MANAGER (a fixture would force the reference leg too — caught at
+  design), with explicit NON-VACUITY counters on `_sweep_interior`/`loss_action`. The
+  config builders MIRROR (not import) the affine golden's private `_build_2d` —
+  elegance-enforcer ruling: the principled Pattern-2 EXCEPTION (independent transcriptions
+  keep config drift observable; a shared builder would let one edit silently move both the
+  sha256 reference and the FP gate). 4/4 green; elegance PASS zero conditions.
+  **S6.9/S5.3 MEASUREMENT (benchmark `derivations/diagnostics/diag_s69_scanmarch_vs_window_bench.py`,
+  uncommitted per the diagnostics exclusion; numbers ALSO on #222): ScanMarch WINS
+  everywhere measured.** Bare sweep sm/win = 0.57–0.84× (best at LS4 large grids 0.57–0.61;
+  narrows with angular order: LS8 0.69–0.71, LS16 0.84); matvec 0.55–0.78×; peak memory
+  IDENTICAL 0.98–0.99× (the rolling frontier has NO memory edge over the row-march at d=2;
+  full-field is 1.3–1.4× both — the ORACLE niche is memory-irrelevant); end-to-end
+  `solve_sn_fixed_source` 48×48 LS8 2G het = 0.82× (10.5 s vs 12.8 s — the kernel win
+  amortized by scattering/moment/reflect overhead). **DECISION PENDING (Fork B2, USER
+  call): flip the 2-D Cartesian default window→ScanMarch and retire `MovingFrontierWindow`?**
+  Retirement surface if YES: `MovingFrontierWindow` + `_MovingFrontier` +
+  `SweepDependencyGraph.walk_windowed` (the windowed storage walk — FullFieldWavefront
+  uses `walk_full`) + the window≡full oracles re-target ScanMarch≡full; Fork-B2 discipline
+  = regenerate the affine sha256 golden IN the flip commit ([[scan-march-verification]]
+  §G5) + the G4 Mode-9 gates (ALREADY GREEN @ `f193b34`). CAVEAT pinned at S0: the d=2
+  zero-copy contiguity argument was the window's edge and it did NOT materialize vs the
+  row-march; the d=3 surface-layout question is moot until a 3-D compute path exists
+  (neither rep has one today; ScanMarch generalizes scan(x)∘march(y,z), the window
+  generalizes frontier_dim=d−1 — S4).
+  **⏭ NEXT = the user's window-fate decision → if B2: the flip+retirement commit; then
+  S5.5 (Sphinx architecture page for the FINAL state — wait for the fate decision so the
+  page documents the survivor set), S6.6 (deferred), C3.6/C4/C5.**
+- **PRIOR (2026-06-11, S6.5 DONE + COMMITTED @ `1d86030` — ONE representation
   instance; L21 is a TYPE FACT).** The four doors collapsed: (1) the APPLY door
   (`StreamingOperator.loss_representation` cached_property) IS the one instance;
   (2) the SOLVE door — `_solve_timed_full_field` now runs
