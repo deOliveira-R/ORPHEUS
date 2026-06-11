@@ -1517,8 +1517,10 @@ Wave T's verification chain combines three independent grounds:
 
    - :math:`(L+C).{\rm solve}(q)` bit-identical pre/post-Wave-T,
      verifying the WDD sweep procedural inverse was NOT touched
-     (the :class:`InvertibleOperator.solve` body is the procedural
-     algorithm at :func:`orpheus.sn.loss_representation.transport_sweep`).
+     (the :class:`InvertibleOperator.solve` body runs the procedural
+     algorithm on the operator's own
+     :attr:`~orpheus.sn.operator.InvertibleOperator.loss_representation`
+     since S6.5 — at Wave T it was the free function ``transport_sweep``).
 
 5. **Performance regression gate**. The 1-D slab Krylov benchmark
    measured median 1.04× pre-T.4 baseline (under the 5% threshold).
@@ -5192,8 +5194,10 @@ resolvent surface the two modes are **named methods**, ``solve`` vs
   moment-emitting siblings of ``solve``, sharing a parameterized body
   (the type guards single-sourced into :meth:`_solve_timed_full_field
   <orpheus.sn.operator.InvertibleOperator._solve_timed_full_field>` /
-  ``_solve_scheduled``). ONE ``transport_sweep`` call per body for both
-  output modes; only the bulk **wrap** differs
+  ``_solve_scheduled``). ONE representation-sweep call per body for both
+  output modes (since S6.5 the operator's own
+  ``loss_representation.sweep`` — the same instance the matvec
+  consumes); only the bulk **wrap** differs
   (:class:`~orpheus.transport.fields.angular_flux.AngularFlux` vs
   :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`).
 * :meth:`_MomentWindowedResolvent.solve

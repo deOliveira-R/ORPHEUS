@@ -168,7 +168,7 @@ from orpheus.sn.solver import (
     _reflect_outflow_into_inflow,
     solve_sn_fixed_source,
 )
-from orpheus.sn.loss_representation import _sweep_2d_wavefront
+from orpheus.sn.loss_representation import MovingFrontierWindow
 from tests.sn._test_helpers import placeholder_materials
 
 
@@ -384,11 +384,12 @@ def run_sweeps(
     face views from there).
     """
     Q_combined = combine_source(inputs)
+    window = MovingFrontierWindow(inputs.sn_mesh)
     angular_flux = scalar_flux = None
     for _ in range(n_sweeps):
         _reflect_outflow_into_inflow(inputs.boundary_flux, inputs.sn_mesh)
-        angular_flux, scalar_flux = _sweep_2d_wavefront(
-            Q_combined, inputs.sig_t, inputs.sn_mesh, inputs.boundary_flux,
+        angular_flux, scalar_flux = window.sweep(
+            Q_combined, inputs.sig_t, inputs.boundary_flux,
         )
     return angular_flux, scalar_flux
 

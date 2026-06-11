@@ -2285,7 +2285,7 @@ def _sweep_2d_wavefront(
     boundary_flux: "BoundaryFlux",
     *,
     moment_projection: "MomentProjection | None" = None,
-    interior: "Callable | None" = None,
+    interior: "Callable",
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""2-D wavefront sweep — per-octant batched (Wave 2 / C2.6).
 
@@ -2362,12 +2362,13 @@ def _sweep_2d_wavefront(
     # boundary reflective coupling Wave O externalised. Bit-identical to the
     # pre-3c ``for octant in quad.octants`` loop.
     #
-    # S6.4(b): ``interior`` defaults to the production window kernel — this
-    # function IS, historically, the window's bare sweep entry (the direct
-    # test consumers rely on that contract); ``MovingFrontierWindow.sweep``
-    # passes its own bound kernel explicitly.
-    if interior is None:
-        interior = MovingFrontierWindow(sn_mesh)._sweep_interior
+    # S6.5 (#222): ``interior`` is REQUIRED — every caller names the
+    # representation instance whose kernel runs (production threads the
+    # operator's ONE instance; the former ``None``-default minted a fresh
+    # ``MovingFrontierWindow`` here, a construction door outside
+    # ``default_for`` that the one-instance unification closed).  Direct
+    # test consumers use the first-class ``MovingFrontierWindow(mesh)
+    # .sweep(...)`` instead of this bare entry.
     return _sweep_scheduled(
         Q, sig_t, sn_mesh, boundary_flux,
         schedule=SweepSchedule.jacobi(sn_mesh),

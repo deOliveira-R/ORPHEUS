@@ -36,7 +36,6 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.loss_representation import FullFieldWavefront, MovingFrontierWindow
 from orpheus.sn.operator import StreamingOperator
-from orpheus.sn.loss_representation import _sweep_2d_wavefront
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -78,8 +77,9 @@ def _seed_random_inflow(rng, boundary):
 
 @pytest.mark.parametrize("nx,ny,lvl,ng,bc", CASES)
 def test_sweep_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
-    """transport_sweep (windowed) ≡ FullFieldWavefront.sweep (oracle),
-    bit-for-bit: angular flux, scalar flux, AND the post-sweep boundary trace.
+    """MovingFrontierWindow.sweep (windowed) ≡ FullFieldWavefront.sweep
+    (oracle), bit-for-bit: angular flux, scalar flux, AND the post-sweep
+    boundary trace.
 
     S6.4(d): the oracle leg drives the representation's ``sweep`` (the former
     free function ``_sweep_full_field`` dissolved into the shared
@@ -95,7 +95,7 @@ def test_sweep_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
     _seed_random_inflow(rng, bf_win)
     bf_full = BoundaryFlux.from_mesh(bf_win.values.copy(), sn_mesh)
 
-    ang_w, scal_w = _sweep_2d_wavefront(Q, sig_t, sn_mesh, bf_win)
+    ang_w, scal_w = MovingFrontierWindow(sn_mesh).sweep(Q, sig_t, bf_win)
     ang_f, scal_f = FullFieldWavefront(sn_mesh).sweep(Q, sig_t, bf_full)
 
     np.testing.assert_array_equal(ang_w, ang_f, err_msg="angular flux")

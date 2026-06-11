@@ -9,7 +9,8 @@ R-1 Step C (2026-05-19) — the SN-specific algebraic identity
 
 is encoded at the type level by :class:`InvertibleOperator`, a
 specialisation of :class:`~orpheus.numerics.operator.OperatorSum` that
-carries ``.solve`` via :func:`~orpheus.sn.loss_representation.transport_sweep`.
+carries ``.solve`` as the forward substitution on the operator's ONE
+``loss_representation`` instance (S6.5, #222).
 
 The dispatch is symmetric: ``L + C`` and ``C + L`` both produce an
 ``InvertibleOperator`` (with the streaming operand stored first via the
@@ -27,7 +28,7 @@ Tests pin:
   OperatorSum action (L.apply + C.apply, bit-exact).
 * Solve consistency — apply ∘ solve = identity (on volumetric rhs).
 * Carlson seed plumbing — InvertibleOperator.solve reads ``rhs(1)`` and
-  forwards it to :func:`transport_sweep` as ``initial_guess`` for the
+  forwards it to the representation sweep as ``initial_guess`` for the
   curvilinear pole closure.
 """
 from __future__ import annotations
@@ -431,11 +432,13 @@ class TestSolve:
 
         Pre-A1 the adapter wrapped ``rhs.values * sum_w`` into the sweep
         to compensate for the old sweep-internal ``/W``; both directions
-        of that bridge dissolved in A1.  This test spies on
-        :func:`transport_sweep` to capture the ``source`` argument and
-        asserts ``source.values`` is bit-identical to ``rhs.bulk.values``.
-        If a future refactor re-introduces a ``* sum_w`` / ``/ sum_w``
-        rescaling on this hot path, the bit-equal assertion fails.
+        of that bridge dissolved in A1.  This test spies on the
+        representation's ``sweep`` (the S6.5 solve seam —
+        ``solve`` runs ``self.loss_representation.sweep`` directly) to
+        capture the ``Q`` argument and asserts it is bit-identical to
+        ``rhs.bulk.values``.  If a future refactor re-introduces a
+        ``* sum_w`` / ``/ sum_w`` rescaling on this hot path, the
+        bit-equal assertion fails.
         """
         sn = _slab_mesh(nx=4, n_ord=4, ng=1)
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
@@ -457,30 +460,30 @@ class TestSolve:
             ),
         )
 
-        # Spy on transport_sweep — capture the source argument's values.
+        # Spy on the representation sweep — capture the Q argument.
         captured: list[np.ndarray] = []
-        from orpheus.sn import loss_representation as sweep_module
-        original = sweep_module.transport_sweep
+        from orpheus.sn.loss_representation import CumprodScan
+        original = CumprodScan.sweep
 
-        def spy(source, *args, **kwargs):
-            # Snapshot ``source.values`` BEFORE the sweep mutates anything
-            # (transport_sweep is a pure reader of its source argument
-            # but the snapshot makes intent explicit).
-            captured.append(np.array(source.values, copy=True))
-            return original(source, *args, **kwargs)
+        def spy(self, Q, *args, **kwargs):
+            # Snapshot ``Q`` BEFORE the sweep runs (the sweep is a pure
+            # reader of its source argument but the snapshot makes
+            # intent explicit).
+            captured.append(np.array(Q, copy=True))
+            return original(self, Q, *args, **kwargs)
 
-        with patch("orpheus.sn.loss_representation.transport_sweep", spy):
+        with patch.object(CumprodScan, "sweep", spy):
             invertible.solve(rhs)
 
         assert len(captured) == 1, (
-            f"transport_sweep called {len(captured)} times; expected 1"
+            f"representation sweep called {len(captured)} times; expected 1"
         )
         forwarded = captured[0]
         np.testing.assert_array_equal(
             forwarded, rhs.bulk.values,
             err_msg=(
                 "InvertibleOperator.solve modified rhs.bulk.values before "
-                "forwarding to transport_sweep — A1 producer-side "
+                "forwarding to the representation sweep — A1 producer-side "
                 "convention drifted (the ``* sum_w`` bridge MUST stay "
                 "dissolved)."
             ),
@@ -488,7 +491,7 @@ class TestSolve:
 
     def test_solve_forwards_explicit_initial_guess_to_sweep(self) -> None:
         r"""``InvertibleOperator.solve`` forwards the explicit ``initial_guess``
-        kwarg to :func:`transport_sweep`.
+        kwarg to the representation sweep (the S6.5 solve seam).
 
         Phase 1.2 — the curvilinear Carlson coupled-pole seed travels
         through an explicit ``initial_guess`` argument; the lag-1 frame
@@ -499,8 +502,9 @@ class TestSolve:
         the M-M closure's ``psi_half_seed`` strategy reads
         ``initial_guess`` directly (or zeros on cold start).
 
-        Spy on :func:`transport_sweep` to capture the ``initial_guess``
-        argument on both the explicit-seed and cold-start paths.
+        Spy on the representation's ``sweep`` to capture the
+        ``initial_guess`` argument on both the explicit-seed and
+        cold-start paths.
         """
         sn = _sphere_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
@@ -511,17 +515,17 @@ class TestSolve:
         psi_prev = _const_state(sn, value=0.7)
         rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
 
-        # Spy on transport_sweep — capture initial_guess on every call.
+        # Spy on the representation sweep — capture initial_guess.
         captured = []
 
-        from orpheus.sn import loss_representation as sweep_module
-        original = sweep_module.transport_sweep
+        from orpheus.sn.loss_representation import CumprodScan
+        original = CumprodScan.sweep
 
-        def spy(*args, **kwargs):
+        def spy(self, *args, **kwargs):
             captured.append(kwargs.get("initial_guess"))
-            return original(*args, **kwargs)
+            return original(self, *args, **kwargs)
 
-        with patch("orpheus.sn.loss_representation.transport_sweep", spy):
+        with patch.object(CumprodScan, "sweep", spy):
             invertible.solve(rhs, initial_guess=psi_prev)
         assert len(captured) == 1
         seed = captured[0]
@@ -533,7 +537,7 @@ class TestSolve:
 
         # Cold start — no explicit seed → initial_guess should be None.
         captured.clear()
-        with patch("orpheus.sn.loss_representation.transport_sweep", spy):
+        with patch.object(CumprodScan, "sweep", spy):
             invertible.solve(rhs)
         assert len(captured) == 1
         assert captured[0] is None
@@ -563,9 +567,9 @@ class TestSolveTimedFullField:
         B·ψ.outflow``), NOT ``initial_guess.boundary``.  The bare sweep no
         longer re-applies ``bc`` at entry; ``InvertibleOperator.solve``
         seeds the sweep's mutable ``boundary_buf`` from ``rhs.boundary``
-        before transport_sweep runs.  (Pre-extraction this seed came from
-        ``initial_guess.boundary`` — the partner-flux carrier — which the
-        ``−B`` extraction retires.)
+        before the representation sweep runs (the S6.5 solve seam).
+        (Pre-extraction this seed came from ``initial_guess.boundary`` —
+        the partner-flux carrier — which the ``−B`` extraction retires.)
         """
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
@@ -586,16 +590,17 @@ class TestSolveTimedFullField:
             rhs_boundary.face_view("xmin")[:] = 0.3
         ig = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
 
-        # Outcome-level spy: capture the boundary_buf as transport_sweep
-        # sees it.  The seed must already be in place when the kernel runs
-        # (otherwise the bare sweep sees a zero inflow trace and the
-        # fixed point shifts away from the −B-driven answer).
+        # Outcome-level spy: capture the boundary_buf as the
+        # representation sweep sees it.  The seed must already be in
+        # place when the kernel runs (otherwise the bare sweep sees a
+        # zero inflow trace and the fixed point shifts away from the
+        # −B-driven answer).
         captured: list[tuple[np.ndarray, np.ndarray]] = []
-        from orpheus.sn import loss_representation as sweep_mod
-        original = sweep_mod.transport_sweep
+        from orpheus.sn.loss_representation import CumprodScan
+        original = CumprodScan.sweep
 
         def spy(
-            source, sigma, sn_mesh, boundary_flux, *,
+            self, Q, sigma, boundary_flux, *,
             initial_guess=None, moment_projection=None,
         ):
             # D-H.2-C2: L2 BoundaryFlux exposes per-face writable views
@@ -605,11 +610,11 @@ class TestSolveTimedFullField:
                 boundary_flux.face_view("xmin").copy(),
             ))
             return original(
-                source, sigma, sn_mesh, boundary_flux,
+                self, Q, sigma, boundary_flux,
                 initial_guess=initial_guess,
             )
 
-        with patch("orpheus.sn.loss_representation.transport_sweep", spy):
+        with patch.object(CumprodScan, "sweep", spy):
             invertible.solve(rhs, initial_guess=ig)
 
         assert len(captured) == 1

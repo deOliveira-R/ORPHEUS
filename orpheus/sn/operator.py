@@ -1528,14 +1528,16 @@ class StreamingOperator(LinearOperatorMixin):
 
     @cached_property
     def loss_representation(self) -> "LossRepresentation":
-        r"""The selected loss-operator representation for this operator's mesh.
+        r"""THE loss-operator representation for this operator's mesh (S6.5).
 
-        The SAME first-class ``LossRepresentation``
-        (``orpheus.sn.loss_representation``) that
-        :func:`~orpheus.sn.loss_representation.transport_sweep` selects for the forward
-        sweep — here it carries the matvec twin: :meth:`apply` routes through
-        ``representation.loss_action`` and :meth:`apply_transpose` through
-        ``representation.loss_action_transpose``.  Selection is by geometry
+        The ONE first-class ``LossRepresentation``
+        (``orpheus.sn.loss_representation``) carrying BOTH actions of
+        :math:`(L+C)`: :meth:`apply` routes through
+        ``representation.loss_action`` / ``loss_action_transpose`` (the
+        matvec), and :meth:`InvertibleOperator.solve` runs the forward
+        substitution on the SAME object via
+        :attr:`InvertibleOperator.loss_representation` — L21 ("matvec ≡
+        sweep") as a type fact.  Selection is by geometry
         (``default_for``): 1-D → ``CumprodScan``;
         2-D Cartesian → ``MovingFrontierWindow``.  ``cached_property`` because
         the selection is fixed by the mesh, stable across the operator's
@@ -1805,7 +1807,10 @@ class InvertibleOperator(OperatorSum):
     §III).  :class:`InvertibleOperator` is the specialisation that
     carries the identity at the type level: it inherits the
     :class:`OperatorSum` ``apply`` (the sum of the operand actions)
-    and adds ``solve`` via :func:`~orpheus.sn.loss_representation.transport_sweep`.
+    and adds ``solve`` as the forward substitution on
+    :attr:`loss_representation` — the SAME
+    :class:`~orpheus.sn.loss_representation.LossRepresentation` instance
+    the matvec consumes (S6.5, #222).
 
     Construction
     ============
@@ -1852,7 +1857,7 @@ class InvertibleOperator(OperatorSum):
       :class:`SNMesh` and is handled inside the sweep.
     * ``rhs(1)`` (the lag-1 frame, when ``rhs.history_depth >= 2``) —
       the previous iterate that GENERATED this source.  Threaded as
-      :pydata:`initial_guess` to :func:`transport_sweep` so the
+      :pydata:`initial_guess` to ``loss_representation.sweep`` so the
       curvilinear sweep can read the Carlson coupled-pole seed from
       it.  ``None`` (cold start) → the sweep falls back to its
       in-iteration-source default.
@@ -1928,6 +1933,19 @@ class InvertibleOperator(OperatorSum):
     def diagonal(self) -> "CollisionOperator":
         """The diagonal-collision operand (alias for ``self.b``)."""
         return self.b  # type: ignore[return-value]
+
+    @property
+    def loss_representation(self) -> "LossRepresentation":
+        r"""The ONE :class:`LossRepresentation` for this operator (S6.5, #222).
+
+        Delegates to the streaming leaf's cached instance — the SAME
+        object :meth:`StreamingOperator.apply` consumes for the matvec
+        :math:`(L+C)\psi`.  :meth:`solve` runs the forward substitution
+        :math:`(L+C)^{-1}q` on it, so "matvec ≡ sweep — two actions of
+        ONE operator" (L21) is a type fact enforced by construction,
+        not a coincidence of two ``default_for`` calls agreeing.
+        """
+        return self.streaming.loss_representation
 
     @property
     def sn_mesh(self) -> "SNMesh":
@@ -2050,10 +2068,11 @@ class InvertibleOperator(OperatorSum):
     ) -> "TimedFullField":
         r"""Composite :class:`TimedFullField` body of :meth:`solve` (D-H.1c stage 1).
 
-        Bridges through the legacy :class:`AngularFlux` solve path —
-        the WDD sweep kernel (:func:`~orpheus.sn.loss_representation.transport_sweep`)
-        stays untouched; this method handles only the L2↔legacy
-        bridge at the public-entry boundary.
+        Runs the WDD forward substitution on
+        :attr:`loss_representation` — the operator's ONE
+        :class:`~orpheus.sn.loss_representation.LossRepresentation`
+        instance (S6.5, #222) — and handles the L2 field plumbing at
+        the public-entry boundary.
 
         The boundary plumbing for the reflective-BC partner-flux state
         is preserved: ``initial_guess.boundary`` (composite) → legacy
@@ -2089,9 +2108,7 @@ class InvertibleOperator(OperatorSum):
         from orpheus.transport.fields.harmonic_moment_field import (
             HarmonicMomentField,
         )
-        from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
-        from .loss_representation import transport_sweep
 
         # D-H.2-C3: only the :class:`TimedFullField` composite branch remains;
         # legacy :class:`AngularFlux` retired.  ``rhs`` and ``initial_guess``
@@ -2141,8 +2158,8 @@ class InvertibleOperator(OperatorSum):
         # the bare sweep no longer re-applies ``bc`` to the iterate's
         # outflow, so the iterate's boundary is NOT the inflow seed.  The
         # iterate (``initial_guess``) still threads the BULK Carlson /
-        # angular warm-start through ``transport_sweep`` below — that path
-        # reads ``initial_guess.bulk``, not its boundary.
+        # angular warm-start through the representation sweep below —
+        # that path reads ``initial_guess.bulk``, not its boundary.
         boundary_buf = BoundaryFlux.zeros_on(sn_mesh)  # L2 after C2
         seed_boundary = rhs.boundary
         # Per-face copy via L2 face_view — works for slab (xmin, xmax),
@@ -2153,29 +2170,29 @@ class InvertibleOperator(OperatorSum):
                     seed_boundary.face_view(face_name)
                 )
 
-        # ── Per-ordinate source from rhs.bulk (single-source convention
-        # per R-1 Step 4 A1 — ``rhs.bulk.values`` IS per-ordinate
-        # density by producer contract).
-        source = AngularSourceSink.from_mesh(rhs.bulk.values, sn_mesh)
-
-        # ── Sweep: pass the composite ``initial_guess`` directly.
-        # D-H.1c stage 4: :func:`transport_sweep` accepts both legacy
-        # AngularFlux and TimedFullField for ``initial_guess`` (via the
-        # container-agnostic :func:`_initial_guess_values` extractor in
-        # sweep.py).  The kernel reads ``.bulk.values`` for the composite
-        # path with no AngularFlux round-trip.
+        # ── Sweep on the operator's ONE representation (S6.5, #222) —
+        # the SAME :class:`LossRepresentation` instance the matvec
+        # (:meth:`StreamingOperator.apply`) consumes, so L21 ("matvec ≡
+        # sweep") is a type fact, not two ``default_for`` calls agreeing.
+        # ``rhs.bulk.values`` IS the per-ordinate source by producer
+        # contract (R-1 Step 4 A1) — typed at the ``rhs`` guard above, so
+        # no wrap-unwrap round trip through :class:`AngularSourceSink`
+        # (the module-level :func:`transport_sweep` keeps that typed
+        # boundary for operator-free callers).
         #
-        # Phase 5c: ONE sweep through :func:`transport_sweep` for BOTH output
-        # modes — the moment projection rides as an optional kwarg
-        # (``transport_sweep`` forwards it to the 2-D wavefront sweep and raises
-        # on a 1-D mesh, since moment output is 2-D Cartesian only; ``moment_*``
-        # and ``initial_guess`` are mutually 2-D-vs-1-D, so the 2-D branch
-        # harmlessly drops the unused seed).  Only the OUTPUT WRAP differs: the
-        # full angular field vs the harmonic moment tensor.
-        bulk_values, _scalar = transport_sweep(
-            source,
+        # The composite ``initial_guess`` passes straight through —
+        # D-H.1c stage 4: the sweep kernels read ``.bulk.values`` via the
+        # container-agnostic :func:`_initial_guess_values` extractor.
+        #
+        # Phase 5c: ONE sweep for BOTH output modes — the moment
+        # projection rides as an optional kwarg (the 1-D representation
+        # raises on it, since moment output is 2-D Cartesian only;
+        # ``moment_*`` and ``initial_guess`` are mutually 2-D-vs-1-D, so
+        # the 2-D branch harmlessly drops the unused seed).  Only the
+        # OUTPUT WRAP differs: full angular field vs harmonic moments.
+        bulk_values, _scalar = self.loss_representation.sweep(
+            rhs.bulk.values,
             self.sigma,
-            sn_mesh,
             boundary_buf,
             initial_guess=initial_guess,
             moment_projection=moment_projection,

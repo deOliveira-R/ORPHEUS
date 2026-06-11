@@ -341,7 +341,6 @@ class _GaussSeidelResolvent:
             HarmonicMomentField,
         )
         from orpheus.transport.timed_full_field import TimedFullField
-        from .loss_representation import default_for
         from .loss_representation import _sweep_scheduled
 
         sn_mesh = self.sn_mesh
@@ -372,12 +371,12 @@ class _GaussSeidelResolvent:
             schedule=self._schedule,
             reflect=_reflect,
             moment_projection=moment_projection,
-            # S6.4(b): the schedule loop is kernel-parameterized; the G-S
-            # resolvent runs the mesh's default representation kernel (the
-            # production window at d=2 — the same selection source of truth
-            # as transport_sweep).  S6.5 threads the operator's OWN
-            # representation instance through instead.
-            interior=default_for(sn_mesh)._sweep_interior,
+            # S6.5 (#222): the schedule loop is kernel-parameterized; the
+            # G-S resolvent runs on the OPERATOR's one representation
+            # instance — the same object ``(L+C).apply`` and ``.solve``
+            # consume — so the G-S inner is a re-scheduling of THE
+            # operator, not a parallel construction.
+            interior=self._invertible.loss_representation._sweep_interior,
         )
         if moment_projection is None:
             bulk = AngularFlux.from_mesh(bulk_values, sn_mesh)

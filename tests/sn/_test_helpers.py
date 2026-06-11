@@ -206,6 +206,52 @@ def curvilinear_two_region_mesh(
     ))
 
 
+def cart2d_2g_nonsquare(nx: int = 5, ny: int = 7) -> "SNMesh":
+    """2-D Cartesian, reflective, 2G, NON-SQUARE (the x↔y-swap moat).
+
+    The discriminating config for structural operator/representation
+    tests: the octant frame, the pure-z branch, and the interior
+    recurrence all degenerate on a 1G flat square box (vv §H1/§H2).
+    Promoted from ``test_one_octant_walk.py`` when the S6.5
+    one-instance tests became its second consumer.
+    """
+    from orpheus.geometry import BC, CoordSystem, Mesh2D
+    from orpheus.numerics.quadrature import Quadrature
+    from orpheus.sn.geometry import SNMesh
+
+    mesh = Mesh2D(
+        edges_x=np.linspace(0.0, 2.0, nx + 1),
+        edges_y=np.linspace(0.0, 3.0, ny + 1),
+        mat_map=np.zeros((nx, ny), dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
+        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+    )
+    return SNMesh(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2))
+
+
+def het_operands(sn: "SNMesh"):
+    """Heterogeneous σ_t + a non-flat random state (≥2G, non-degenerate).
+
+    Returns ``(sig_t, psi)`` where ``sig_t`` is a random per-group
+    per-cell total cross section and ``psi`` is a
+    :class:`~orpheus.transport.timed_full_field.TimedFullField` with
+    random bulk AND boundary values — every term of the loss action is
+    activated (nothing nulled by a flat or zero state).
+    """
+    from orpheus.transport.fields.angular_flux import AngularFlux
+    from orpheus.transport.timed_full_field import TimedFullField
+
+    rng = np.random.default_rng(20260611)
+    sig_t = rng.uniform(0.3, 3.0, size=(sn.ng, *sn.spatial_shape))
+    psi = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
+    psi.bulk.values[...] = rng.standard_normal(psi.bulk.values.shape)
+    for face in psi.boundary.layout.faces:
+        fv = psi.boundary.face_view(face)
+        fv[...] = rng.standard_normal(fv.shape)
+    return sig_t, psi
+
+
 def legacy_proxy_matvec(
     psi_view: "np.ndarray", sn_mesh: "SNMesh", sigma_t: "np.ndarray",
     *, bc_outer=None, pole_angular_closure=None,

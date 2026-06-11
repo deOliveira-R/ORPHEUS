@@ -23,46 +23,12 @@ Staging (the gate memo ``s6_4_unified_walk_verification.md`` §4):
 """
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
-from orpheus.geometry import BC, CoordSystem, Mesh2D
-from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import CollisionOperator, StreamingOperator
-from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
-from orpheus.transport.timed_full_field import TimedFullField
-from tests.sn._test_helpers import placeholder_materials
+from tests.sn._test_helpers import cart2d_2g_nonsquare, het_operands
 
 pytestmark = pytest.mark.foundation
-
-
-def _cart2d_2g_nonsquare(nx: int = 5, ny: int = 7) -> SNMesh:
-    """2-D Cartesian, reflective, 2G, NON-SQUARE (the x↔y-swap moat) —
-    the discriminating config: the octant frame + pure-z branch + interior
-    recurrence all degenerate on a 1G flat square box (vv §H1/§H2)."""
-    mesh = Mesh2D(
-        edges_x=np.linspace(0.0, 2.0, nx + 1),
-        edges_y=np.linspace(0.0, 3.0, ny + 1),
-        mat_map=np.zeros((nx, ny), dtype=int),
-        coord=CoordSystem.CARTESIAN,
-        bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
-        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
-    )
-    return SNMesh(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2))
-
-
-def _het_operands(sn: SNMesh):
-    """Heterogeneous σ_t + a non-flat random state (≥2G, non-degenerate)."""
-    rng = np.random.default_rng(20260611)
-    sig_t = rng.uniform(0.3, 3.0, size=(sn.ng, *sn.spatial_shape))
-    psi = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
-    psi.bulk.values[...] = rng.standard_normal(psi.bulk.values.shape)
-    for face in psi.boundary.layout.faces:
-        fv = psi.boundary.face_view(face)
-        fv[...] = rng.standard_normal(fv.shape)
-    return sig_t, psi
 
 
 def test_sweep_and_loss_action_hit_one_octant_walk(monkeypatch):
@@ -87,8 +53,8 @@ def test_sweep_and_loss_action_hit_one_octant_walk(monkeypatch):
 
     monkeypatch.setattr(_OctantWalk, "_interior_walk", spy)
 
-    sn = _cart2d_2g_nonsquare()
-    sig_t, psi = _het_operands(sn)
+    sn = cart2d_2g_nonsquare()
+    sig_t, psi = het_operands(sn)
     L = StreamingOperator(sn, sig_t)
     C = CollisionOperator(sn, sig_t)
     A = L + C
@@ -174,8 +140,8 @@ def test_both_matvec_variants_share_the_walk(monkeypatch):
 
     monkeypatch.setattr(_OctantWalk, "_interior_walk", spy)
 
-    sn = _cart2d_2g_nonsquare()
-    sig_t, psi = _het_operands(sn)
+    sn = cart2d_2g_nonsquare()
+    sig_t, psi = het_operands(sn)
     L = StreamingOperator(sn, sig_t)
 
     for rep_cls in (MovingFrontierWindow, ScanMarch):

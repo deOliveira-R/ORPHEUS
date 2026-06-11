@@ -193,12 +193,16 @@ class TestTransportSweepDelegatesToStrategy:
     """``transport_sweep`` routes through ``default_for(mesh).sweep`` once.
 
     The ROUTING half of the dispatch contract (the SELECTION half is
-    :class:`TestDispatchSelectsStrategy`).  ``transport_sweep`` does a lazy
-    ``from .loss_representation import default_for``, so patching
-    ``loss_representation.default_for`` is seen at call time — the spy confirms the
+    :class:`TestDispatchSelectsStrategy`).  Since S6.4(f) ``transport_sweep``
+    lives IN ``loss_representation`` and reads the module-global
+    ``default_for`` at call time, so patching
+    ``loss_representation.default_for`` is seen — the spy confirms the
     dispatcher *delegates to the selected strategy* rather than re-deciding
     the branch itself.  Geometry-agnostic: the same delegation holds for the
-    1-D scan and the 2-D window.
+    1-D scan and the 2-D window.  (S6.5 scope note: this is the operator-FREE
+    functional entry, which legitimately selects per call; the OPERATOR's
+    solve consumes its own ``loss_representation`` instance and is pinned by
+    ``test_one_representation_instance.py``.)
     """
 
     @pytest.mark.foundation
