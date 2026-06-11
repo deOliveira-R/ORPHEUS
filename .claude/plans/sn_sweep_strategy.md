@@ -9,7 +9,32 @@ first-class `SweepStrategy` abstraction.
 
 - **Designed 2026-06-10** in a multi-turn design conversation; every decision below is LOCKED
   (see §"Decisions locked").
-- **⭐⭐⭐ LATEST (2026-06-11, S6.5 @ `1d86030` + S5.2 @ `f193b34` DONE; S6.9 MEASUREMENT
+- **⭐⭐⭐ LATEST (2026-06-11, S6.9 Fork-B2 RESOLVED @ `599beb8` — default FLIPPED to
+  ScanMarch; the window KEPT as a selectable peer, USER decision: "no need to retire...
+  multiple methods (this is the whole point of having them selectable)... flip the default
+  to ScanMarch").** The flip = the one-line `LOSS_REPRESENTATIONS` reorder (CumprodScan,
+  ScanMarch, MovingFrontierWindow, FullFieldWavefront); `default_for` unchanged
+  (first-supports-match); 1-D untouched. Fork-B2 discipline IN the commit: 4× 2-D affine
+  sha256 goldens + 3× vacuum-bulk matvec `.npy` baselines REGENERATED (history blocks name
+  the evidence = G4 FP-invariance + G2.c nulp; 1-D hashes byte-unchanged = blast-radius
+  pin); `test_scan_march_end_to_end.py` forcing POLARITY INVERTED (`window_forced()` — the
+  forced leg IS the window peer's end-to-end coverage; G4 meaning unchanged, G6 anchors
+  now pin the non-default peer while test_keff_2d pins the ScanMarch default); the 2-D
+  dispatch pin → ScanMarch (HISTORY note); the one-instance spies → ScanMarch; 15-site
+  stale-default DOC SWEEP (elegance conditions ALL applied — `operator.py` apply docstring
+  now CROSS-REFERENCES `loss_representation` so the selection fact is single-sourced;
+  the 2 NotImplementedError breadcrumbs re-pointed; explicit window-PEER tests deliberately
+  untouched). Gates: flip set 69 / regression+keff+solve 81 (DD drift unchanged ~6921 ULP
+  warning-only) / broad not-slow 2368 / doc-swept 145 / Sphinx baseline-only / elegance
+  PASS (conditions applied). #222 comments 4683241855 (numbers) + 4684549879 (resolution).
+  **⏭ NEXT = S5.5: the Sphinx architecture page for the FINAL selectable-representation
+  state (archivist; now unblocked — survivor set + default decided). THEN close S5/S6 on
+  #222 (S6.6 ExplicitMatrix stays deferred) → C3.6 (3-D end-to-end; the honest 3-way ndim
+  dispatch replacing the binary `not is_1d` apply gates — the carried C3.3 concern) → C4
+  (#220 boundary inventory d-generic) → C5 (3-D shape-admission pins + docs). Orthogonal:
+  #206 re-audit (logged on the issue), #212, #195. NOT PUSHED (28 commits ahead of
+  `954ddf4`) — push when the user asks.**
+- **PRIOR (2026-06-11, S6.5 @ `1d86030` + S5.2 @ `f193b34` DONE; S6.9 MEASUREMENT
   DONE — window-fate decision PENDING USER).**
   **S5.2 (the post-S6.5 G4/G6 gates) @ `f193b34`:** NEW
   `tests/sn/solve/test_scan_march_end_to_end.py` — G4.a fixed-source Mode-9 FP-invariance
