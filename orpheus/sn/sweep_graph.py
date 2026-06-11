@@ -748,8 +748,10 @@ class SweepDependencyGraph:
           seeding the incoming-face entries (BC apply happens one level up,
           in the wavefront sweep) and for scattering the post-sweep buffers
           back into the persistent BC state. The tuple is positional-by-axis
-          (born from ``WavefrontFlux.face(a)`` over ``WavefrontFlux.axes`` at
-          the orchestrator).
+          (since S6.4(d) born from the full-cochain kernel's
+          ``_octant_face_cochain`` per-axis buffers, axis ``a`` carrying
+          ``n_a + 1`` face slots; historically from ``WavefrontFlux.face(a)``
+          over ``WavefrontFlux.axes``).
         * ``angular_flux_octant`` — written at every level's cells. Caller is
           responsible for scattering back into the global ``angular_flux``
           buffer keyed by octant indices.

@@ -99,10 +99,9 @@ Phase status (the sweep-strategy carve, plan ``sn_sweep_strategy.md``)
   :math:`(L+C)\psi` twin); the five operator gates collapse to
   ``strategy.loss_action(...)``.
 * **S3: generalize the oracle.**  ``FullFieldWavefront`` is the genuine
-  d-generic spine (sweep ``_sweep_full_field`` + matvec
-  ``FullFieldWavefront.loss_action`` — since S6.3 both walk
-  :meth:`SweepDependencyGraph.residual`; ``supports`` is any-d Cartesian,
-  wires the d=1 cumprod-vs-spine equivalence).
+  d-generic spine (``supports`` is any-d Cartesian; wires the d=1
+  cumprod-vs-spine equivalence).  Since S6.4(d) both its directions are
+  full-cochain interior KERNELS on the shared ``_OctantWalk`` frame.
 * **S4: generalize the window** to ``frontier_dim = d-1``.
 * **S6.2 (this commit): RENAME.**  ``SweepStrategy → LossRepresentation``,
   ``residual → loss_action`` — the abstraction is the :math:`(L+C)` loss
@@ -136,7 +135,6 @@ from .sweep import (
     _sweep_1d_unified,
     _sweep_2d_scheduled,
     _sweep_2d_wavefront,
-    _sweep_full_field,
     _x_scan_faces,
 )
 from .sweep_graph import OctantLabel, SweepDependencyGraph
@@ -955,11 +953,14 @@ class FullFieldWavefront(_DAGWavefront):
     (``window ≡ full`` bit-identity).  Never the production default (the
     window wins at d=2, the scan at d=1); selected explicitly by oracle tests.
 
-    Walks the d-generic :func:`._sweep_full_field` (sweep); since S6.3 it holds
-    the matvec ``(L+C)ψ`` walk in its own :meth:`loss_action` (both walk
-    :meth:`SweepDependencyGraph.residual` directly).  ``supports`` is any-d
-    Cartesian (S3) — the spine is genuinely dimension-generic, unlike the
-    d=2-only window.
+    Since S6.4(d) BOTH directions route through the shared
+    :class:`_OctantWalk` frame (sweep via the kernel-parameterized schedule
+    loop, matvec via the apply frame) — this class supplies only the
+    full-cochain interior kernels (:meth:`_sweep_interior` /
+    :meth:`_loss_action_interior`, walking the d-generic
+    :meth:`SweepDependencyGraph.apply` / :meth:`~SweepDependencyGraph.residual`).
+    ``supports`` is any-d Cartesian (S3) — the spine is genuinely
+    dimension-generic, unlike the d=2-only window.
     """
 
     @classmethod
@@ -968,6 +969,55 @@ class FullFieldWavefront(_DAGWavefront):
         # the genuine d-generic oracle (it walks the per-octant DAG for any
         # Cartesian d via the d-generic ``graph.residual``).
         return Compatibility(mesh.is_cartesian, "requires Cartesian geometry")
+
+    # ── The full-cochain boundary embedding (shared by both kernels) ──
+
+    @staticmethod
+    def _octant_face_cochain(
+        spatial: tuple[int, ...],
+        signs_eff: tuple[int, ...],
+        inflow: tuple["np.ndarray", ...],
+    ) -> tuple["np.ndarray", ...]:
+        r"""Allocate one octant's FULL per-axis interior face cochain, with the
+        domain in-edges seeded from the octant's inflow.
+
+        Axis ``a``'s buffer carries ``n_a + 1`` face slots along its own axis
+        (the fuller view — every interior face is retained, vs the window's
+        rolling frontier).  Only the IN-edge slot is seeded: by the upwind
+        invariant every other slot (interior + out-edge) is written before any
+        read, so a zero initialization is byte-identical to the historical
+        whole-trace ι_* seed.
+        """
+        N_oct, ng = inflow[0].shape[0], inflow[0].shape[1]
+        ndim = len(spatial)
+        faces = []
+        for a in range(ndim):
+            face_shape = list(spatial)
+            face_shape[a] += 1
+            buf = np.zeros((N_oct, ng, *face_shape))
+            in_edge = [slice(None)] * (2 + ndim)
+            in_edge[2 + a] = 0 if signs_eff[a] >= 0 else spatial[a]
+            buf[tuple(in_edge)] = inflow[a]
+            faces.append(buf)
+        return tuple(faces)
+
+    @staticmethod
+    def _edge_outflow(
+        psi_faces_oct: tuple["np.ndarray", ...],
+        spatial: tuple[int, ...],
+        signs_eff: tuple[int, ...],
+    ) -> tuple["np.ndarray", ...]:
+        """Extract the per-axis domain OUT-edge slots (the octant's shed
+        outflow) from the walked cochain."""
+        ndim = len(spatial)
+        capture = []
+        for a in range(ndim):
+            out_edge = [slice(None)] * (2 + ndim)
+            out_edge[2 + a] = spatial[a] if signs_eff[a] >= 0 else 0
+            capture.append(psi_faces_oct[a][tuple(out_edge)])
+        return tuple(capture)
+
+    # ── The two directions' interior kernels ──────────────────────────
 
     def sweep(
         self,
@@ -984,104 +1034,104 @@ class FullFieldWavefront(_DAGWavefront):
                 "implement moment output — use MovingFrontierWindow for the "
                 "windowed-SI moment path."
             )
-        return _sweep_full_field(Q, sig_t, self.mesh, boundary_flux)
+        # S6.4(d): the oracle sweep = the Jacobi schedule × the full-cochain
+        # kernel on the SAME schedule loop + walk frame as production (the
+        # former private ``_sweep_full_field`` frame dissolved).
+        return _sweep_2d_scheduled(
+            Q, sig_t, self.mesh, boundary_flux,
+            schedule=SweepSchedule.jacobi(self.mesh),
+            reflect=None,
+            moment_projection=None,
+            interior=self._sweep_interior,
+        )
+
+    def _sweep_interior(
+        self,
+        operands: _SolveOperands,
+        emit: _SweepEmit,
+        oct_idx: "np.ndarray",
+        signs_eff: tuple[int, ...],
+        inflow: tuple["np.ndarray", ...],
+    ) -> tuple["np.ndarray", ...]:
+        r"""Full-cochain interior kernel, SOLVE direction, one octant.
+
+        Drives :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.apply`
+        (the full-field walk of the solve cell kernel) over the octant's
+        complete per-axis face cochain — the fuller view the window replaces
+        with a rolling frontier (the ``window ≡ full`` bit-identity anchor).
+        Angular emit only (the oracle has no moment mode — guarded in
+        :meth:`sweep`).
+        """
+        sig_t = operands.sig_t
+        ng = sig_t.shape[0]
+        spatial = sig_t.shape[1:]
+        graph = self.sweep_graphs[OctantLabel(signs_eff)]
+        psi_faces_oct = self._octant_face_cochain(spatial, signs_eff, inflow)
+        angular_oct = np.zeros((oct_idx.size, ng, *spatial))
+        graph.apply(
+            cell_update=self.mesh.cell_update,
+            psi_faces_octant=psi_faces_oct,
+            Q_octant=operands.Q[oct_idx],
+            sig_t=sig_t,
+            str_axes_octant=tuple(s[oct_idx] for s in operands.str_axes),
+            weights_octant=emit.weights[oct_idx],
+            angular_flux_octant=angular_oct,
+            scalar_flux_buf=emit.scalar_flux,
+        )
+        emit.angular_flux[oct_idx] = angular_oct
+        return self._edge_outflow(psi_faces_oct, spatial, signs_eff)
 
     def loss_action(
         self, operator: "StreamingOperator", psi: "TimedFullField",
     ) -> "TimedFullField":
         r"""Forward loss action ORACLE ``(L+C)ψ`` — the full-field DAG walk (d-generic).
 
-        S6.3: the verification-oracle matvec ``(L+C)ψ`` walk LIVES here (moved off
-        the operator).  The matvec counterpart of
-        :func:`~orpheus.sn.sweep._sweep_full_field`: it carries the FULL interior
-        cochain as a typed
-        :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux` and walks
-        via :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.residual` (the
-        full-field walk sharing the SAME cell kernel as ``residual_windowed``), so
-        the MATH cannot drift from :meth:`MovingFrontierWindow.loss_action` — only
-        storage.  Returns ``(L+C)ψ̄``;
-        :meth:`~orpheus.sn.operator.StreamingOperator.apply` subtracts ``Σ_t·ψ̄``.
-        Sole purpose: verification (production is the window / the 1-D scan).
-
-        Dimension-generic: the per-axis tuples are built over ``range(ndim)``
-        (``streaming(a)`` / ``WavefrontFlux.face(a)``), and the quadrature octant
-        label (which lives in the full angular space) is projected to the in-plane
-        ``label[:ndim]``.
+        S6.4(d): routes through the shared :class:`_OctantWalk` apply frame,
+        supplying the full-cochain interior kernel
+        :meth:`_loss_action_interior`
+        (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.residual` — the
+        full-field walk sharing the SAME cell kernel as ``residual_windowed``,
+        so the MATH cannot drift from
+        :meth:`MovingFrontierWindow.loss_action` — only storage).  Returns
+        ``(L+C)ψ̄``; :meth:`~orpheus.sn.operator.StreamingOperator.apply`
+        subtracts ``Σ_t·ψ̄``.  Sole purpose: verification (production is the
+        window / the 1-D scan).
         """
-        from orpheus.sn.sweep_graph import OctantLabel
-        from orpheus.transport.fields.wavefront_flux import WavefrontFlux
-        from orpheus.transport.source_sinks import (
-            AngularSourceSink, BoundarySourceSink,
+        return _OctantWalk(self.mesh).loss_action(
+            operator, psi, self._loss_action_interior,
         )
-        from orpheus.transport.timed_full_field import TimedFullField
 
-        sn_mesh = operator.sn_mesh
-        quad = sn_mesh.quad
-        N = quad.N
-        ndim = sn_mesh.ndim
-        sig_t = operator.sigma_t
+    def _loss_action_interior(
+        self,
+        operands: _ApplyOperands,
+        oct_idx: "np.ndarray",
+        signs_eff: tuple[int, ...],
+        inflow: tuple["np.ndarray", ...],
+    ) -> tuple["np.ndarray", tuple["np.ndarray", ...]]:
+        r"""Full-cochain interior kernel, APPLY direction, one octant.
+
+        Drives :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.residual`
+        (the full-field walk of the apply cell kernel
+        :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`)
+        over the octant's complete face cochain.  Returns
+        ``(LpC_octant, capture)``.
+        """
+        sig_t = operands.sig_t
         ng = sig_t.shape[0]
-        spatial = sig_t.shape[1:]                        # (nx,) d=1; (nx, ny) d=2
-        probe = psi.bulk.values
-        cell_update = sn_mesh.cell_update
-        Q_zero = np.zeros((1, ng, *spatial))
-
-        # (L+C)·ψ̄ accumulator; ``apply`` subtracts Σ_t·ψ̄ → Lψ̄.
-        LpC = np.zeros((N, ng, *spatial))
-        trace = sn_mesh.trace
-        boundary = psi.boundary
-        # The FULL interior cochain (typed) — ι_*-seeded whole-trace.  The
-        # per-axis face tuple is born from the cochain's OWN axis map
-        # (``WavefrontFlux.face(a)`` over ``WavefrontFlux.axes``); the streaming
-        # tuple is the axis-keyed ``sn_mesh.streaming(a)`` over the SAME
-        # ``range(ndim)`` — so ``str_axes[a]`` cannot drift from ``psi_faces[a]``.
-        wavefront = WavefrontFlux.zeros_on(sn_mesh)
-        psi_faces = tuple(wavefront.face(a) for a in wavefront.axes)
-        str_axes = tuple(sn_mesh.streaming(a) for a in range(ndim))
-        wavefront.seed(boundary)
-
-        for octant in quad.octants:
-            oct_idx = octant.indices
-            signs = octant.label[:ndim]                  # in-plane projection
-            if not any(signs):                           # pure-z degenerate (d≥2 only)
-                LpC[oct_idx] = sig_t * probe[oct_idx]
-                continue
-            signs_eff = tuple(+1 if s == 0 else s for s in signs)
-            graph = self.sweep_graphs[OctantLabel(signs_eff)]
-            psi_faces_oct = tuple(pf[oct_idx].copy() for pf in psi_faces)
-            LpC_oct = np.zeros((oct_idx.size, ng, *spatial))
-            graph.residual(
-                cell_update=cell_update,
-                psi_faces_octant=psi_faces_oct,
-                psi_avg_probe_octant=probe[oct_idx],
-                Q_octant=Q_zero, sig_t=sig_t,
-                str_axes_octant=tuple(s[oct_idx] for s in str_axes),
-                residual_octant=LpC_oct,
-            )
-            for a in wavefront.axes:
-                psi_faces[a][oct_idx] = psi_faces_oct[a]
-            LpC[oct_idx] = LpC_oct
-
-        # The post-walk domain-edge outflow (full interior cochain edge slots).
-        streamed = {face: wavefront.edge_view(face) for face in trace.face_names}
-        out_boundary = BoundarySourceSink.zeros_on(sn_mesh)
-        for face in trace.face_names:
-            given = boundary.face_view(face)
-            out_idx = trace.outflow_indices_for_face(face)
-            in_idx = trace.inflow_indices_for_face(face)
-            if out_idx.size:
-                out_boundary.face_view(face)[out_idx] = (
-                    streamed[face][out_idx] - given[out_idx]
-                )
-            if in_idx.size:
-                out_boundary.face_view(face)[in_idx] = given[in_idx]
-
-        return TimedFullField(
-            bulk=AngularSourceSink.from_mesh(LpC, sn_mesh),
-            boundary=out_boundary,
-            _history=(),
-            history_depth=psi.history_depth,
+        spatial = sig_t.shape[1:]
+        graph = self.sweep_graphs[OctantLabel(signs_eff)]
+        psi_faces_oct = self._octant_face_cochain(spatial, signs_eff, inflow)
+        LpC_oct = np.zeros((oct_idx.size, ng, *spatial))
+        graph.residual(
+            cell_update=self.mesh.cell_update,
+            psi_faces_octant=psi_faces_oct,
+            psi_avg_probe_octant=operands.probe[oct_idx],
+            Q_octant=operands.Q_zero,
+            sig_t=sig_t,
+            str_axes_octant=tuple(s[oct_idx] for s in operands.str_axes),
+            residual_octant=LpC_oct,
         )
+        return LpC_oct, self._edge_outflow(psi_faces_oct, spatial, signs_eff)
 
 
 # ═══════════════════════════════════════════════════════════════════════

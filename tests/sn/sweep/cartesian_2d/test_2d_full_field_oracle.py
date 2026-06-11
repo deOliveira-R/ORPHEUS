@@ -3,21 +3,23 @@ r"""End-to-end ``windowed ≡ full-field`` 2-D equivalence — the storage-B ora
 Phase 5b replaced the full per-axis interior face cochain with a rolling
 ``_MovingFrontier`` window for BOTH the 2-D sweep (`_sweep_2d_wavefront`) and
 its matvec twin (`MovingFrontierWindow.loss_action`). The retained
-full-field paths — `orpheus.sn.sweep._sweep_full_field` and
-`FullFieldWavefront.loss_action` (the d-generic spine) — are the VERIFICATION
-ORACLES: the fuller view (the full interior face field, carried as a typed
-``WavefrontFlux`` with whole-trace ι_*/ι* seed/absorb) that the moving frontier
-is cross-checked against END-TO-END.
+full-field paths — `FullFieldWavefront.sweep` + `.loss_action` (the d-generic
+spine; since S6.4(d) full-cochain interior KERNELS on the shared
+``_OctantWalk`` frame) — are the VERIFICATION ORACLES: the fuller view (every
+interior face retained during the walk) that the moving frontier is
+cross-checked against END-TO-END.
 
 This is STRONGER than `test_sweep_graph_window_equivalence.py` (which pins only
 the per-octant WALK at the graph level): it pins the whole ``transport_sweep``
-/ matvec ORCHESTRATOR — the per-octant `boundary_flux.face_view` inflow/outflow
-of the window vs the whole-trace `WavefrontFlux.seed`/`absorb` of the full
-field — bit-for-bit. Both share the cell kernel
-(`DiamondDifference.cell_kernel_batch`/`residual_kernel_batch`), so the MATH
-cannot drift; only the storage walk + the boundary bookkeeping differ, which is
-exactly what this pins. It also keeps the typed ``WavefrontFlux`` cochain (the
-fuller-view type the carve had orphaned) genuinely exercised.
+/ matvec ORCHESTRATOR — boundary plumbing included — bit-for-bit. Both share
+the cell kernel
+(`DiamondDifference.cell_kernel_batch`/`residual_kernel_batch`) AND (since
+S6.4) the octant frame, so the MATH cannot drift; only the interior storage
+policy differs, which is exactly what this pins.  (History: through S6.4(c)
+the oracle frames carried the cochain as a typed ``WavefrontFlux`` with
+whole-trace ι_*/ι* seed/absorb; the (d) fold moved the boundary algebra onto
+the shared frame, leaving ``WavefrontFlux`` without a production consumer —
+its fate is an (f)-scope decision.)
 
 ``foundation`` — a software invariant (window ≡ full-field), no theory label.
 """
@@ -33,7 +35,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.loss_representation import FullFieldWavefront, MovingFrontierWindow
 from orpheus.sn.operator import StreamingOperator
-from orpheus.sn.sweep import _sweep_2d_wavefront, _sweep_full_field
+from orpheus.sn.sweep import _sweep_2d_wavefront
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -75,8 +77,13 @@ def _seed_random_inflow(rng, boundary):
 
 @pytest.mark.parametrize("nx,ny,lvl,ng,bc", CASES)
 def test_sweep_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
-    """transport_sweep (windowed) ≡ _sweep_full_field (oracle), bit-for-bit:
-    angular flux, scalar flux, AND the post-sweep boundary trace."""
+    """transport_sweep (windowed) ≡ FullFieldWavefront.sweep (oracle),
+    bit-for-bit: angular flux, scalar flux, AND the post-sweep boundary trace.
+
+    S6.4(d): the oracle leg drives the representation's ``sweep`` (the former
+    free function ``_sweep_full_field`` dissolved into the shared
+    ``_OctantWalk`` frame × the full-cochain kernel — retirement = test
+    migration)."""
     rng = np.random.default_rng(abs(hash((nx, ny, lvl, ng, bc))) % (2**32))
     sn_mesh = _build_mesh(nx, ny, lvl, ng, bc)
     N = sn_mesh.quad.N
@@ -88,7 +95,7 @@ def test_sweep_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
     bf_full = BoundaryFlux.from_mesh(bf_win.values.copy(), sn_mesh)
 
     ang_w, scal_w = _sweep_2d_wavefront(Q, sig_t, sn_mesh, bf_win)
-    ang_f, scal_f = _sweep_full_field(Q, sig_t, sn_mesh, bf_full)
+    ang_f, scal_f = FullFieldWavefront(sn_mesh).sweep(Q, sig_t, bf_full)
 
     np.testing.assert_array_equal(ang_w, ang_f, err_msg="angular flux")
     np.testing.assert_array_equal(scal_w, scal_f, err_msg="scalar flux")

@@ -758,6 +758,14 @@ Layer 3  STRUCTURE  (on the mesh)
   (c) unchanged, better-homed); `solver.py` re-points (`_reflect_outflow_into_inflow` already
   native there — a boundary concern); consumers = 3 production files + ~30 test files
   (retirement = test migration). The lazy-import cycle DISSOLVES — no workaround left.
+  ⭐ (f)-SCOPE ADDITIONS from the (d) execution (2026-06-11): (i) RENAME
+  `_sweep_2d_scheduled` → `_sweep_scheduled` when it relocates (its buffer setup went
+  d-generic at (d) — the name lies; one rename instead of two); (ii) DECIDE the fate of
+  `WavefrontFlux` + `InteriorFaceSpace` — the (d) fold left the typed cochain with NO
+  production consumer (its ι_*/ι* boundary algebra dissolved into the shared `_OctantWalk`
+  frame; the fuller view survives as the full-cochain kernel's raw per-axis buffers); its own
+  test file remains. Retire (aggressive-retirement: the structural-reference role transferred)
+  or keep as a typed teaching/MoC-adjacent concept — USER call at (f).
   Each of (e)/(f) is pure relocation, independently bit-identity-gated; (f) additionally gated
   by clean collection + the full anchor set. Gate-memo addendum for (e)/(f): test-architect
   (dispatched at (a) start).

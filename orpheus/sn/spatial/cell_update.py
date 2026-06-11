@@ -287,9 +287,10 @@ class SweepCellSlice:
     violate its mesh-binding invariant
     (:meth:`WavefrontFlux._check_partner`) — an illegal state in the *other*
     direction. The axis↔buffer binding a type would enforce is instead
-    established ONCE at the orchestrator, where the tuple is born from
-    ``WavefrontFlux.face(a)`` iterated over ``WavefrontFlux.axes`` (the typed
-    axis map, replacing the hardcoded ``psi_x = face(0); psi_y = face(1)``);
+    established ONCE where the per-axis tuple is born — since S6.4(d) the
+    full-cochain kernel's ``_octant_face_cochain`` ``range(ndim)`` loop
+    (historically ``WavefrontFlux.face(a)`` over ``WavefrontFlux.axes``,
+    which replaced the hardcoded ``psi_x = face(0); psi_y = face(1)``);
     the octant projection and this slice preserve that axis order. The
     kernel (:meth:`DiamondDifference.cell_kernel_batch`) likewise stays
     raw-tuple — it touches a transient anti-hyperplane slice, not the whole
