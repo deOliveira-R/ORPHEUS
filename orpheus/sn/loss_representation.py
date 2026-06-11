@@ -1,4 +1,4 @@
-r"""Selectable S\ :sub:`N` sweep strategies — polymorphic sweep/matvec dispatch.
+r"""Selectable representations of the S\ :sub:`N` loss operator :math:`(L+C)`.
 
 The within-group transport solve :math:`\psi = (L+C)^{-1} q` (the *sweep*)
 and its operator twin :math:`(L+C)\,\psi` (the *matvec*) admit several
@@ -19,10 +19,10 @@ through hand-built test adapters.  Adding a method, a dimensionality, or a
 frontend meant touching all three — an enum-style branch repeated at every
 call site (cyclomatic complexity, not abstraction).
 
-This module replaces that with a first-class :class:`SweepStrategy`: each
+This module replaces that with a first-class :class:`LossRepresentation`: each
 algorithm is an object that carries **both** the forward ``sweep`` and (from
-Phase S2) the ``residual`` matvec twin, plus a **declared, queryable**
-:meth:`~SweepStrategy.supports` predicate.  The operator and the
+Phase S2) the ``loss_action`` matvec twin, plus a **declared, queryable**
+:meth:`~LossRepresentation.supports` predicate.  The operator and the
 ``transport_sweep`` dispatcher select one via :func:`default_for` and then
 call it branchlessly.
 
@@ -31,7 +31,7 @@ The hierarchy
 
 .. code-block:: text
 
-    SweepStrategy (Protocol: sweep, residual [S2], supports)
+    LossRepresentation (Protocol: sweep, loss_action, supports)
     ├── _DAGWavefront            ── Cartesian anti-hyperplane DAG family
     │   ├── FullFieldWavefront     buffer = full field     · the ORACLE
     │   └── MovingFrontierWindow   buffer = rolling frontier · production opt
@@ -60,7 +60,7 @@ Three separable layers, never conflated:
   point at d=1, a line at d=2, a surface at d=3).
 * **Select narrow (policy).**  Whether we *offer / recommend / default* a
   strategy at a given ``(geometry, ndim)`` lives in
-  :meth:`~SweepStrategy.supports` / :func:`default_for`, independent of the
+  :meth:`~LossRepresentation.supports` / :func:`default_for`, independent of the
   code's capability.  "Don't pick the window at d=1, pick the scan" is a
   recommendation, *not* a reason to leave the window unable to express d=1.
 * **Specialize on measured cost only.**  The sole justification to restrict
@@ -69,24 +69,24 @@ Three separable layers, never conflated:
 Selection is a single source of truth
 ======================================
 
-:meth:`~SweepStrategy.supports` returns :class:`Compatibility` — an
+:meth:`~LossRepresentation.supports` returns :class:`Compatibility` — an
 ``(ok, reason)`` pair.  The same predicate serves three consumers:
 
-#. a (future) teaching frontend — ``[S for S in SWEEP_STRATEGIES if
+#. a (future) teaching frontend — ``[S for S in LOSS_REPRESENTATIONS if
    S.supports(mesh).ok]`` grays-out an inapplicable method *and explains
    why* (pedagogically load-bearing — ORPHEUS teaches reactor physics);
 #. the factory :func:`default_for` — picks the best *available* production
    optimization, falling back to the full-field spine when no optimization
    exists, so it is never stuck;
-#. the construction guard — :meth:`_SweepStrategy.__post_init__` raises
-   :class:`IncompatibleStrategy` on an illegal pairing, so even a bypassed
+#. the construction guard — :meth:`_LossRepresentation.__post_init__` raises
+   :class:`IncompatibleRepresentation` on an illegal pairing, so even a bypassed
    UI cannot build one.
 
 The compatibility signal is the genuine criterion — the coordinate system
 (:attr:`SNMesh.is_cartesian`) and the dimensionality (:attr:`SNMesh.ndim`)
 — NOT the ``sweep_graphs is None`` substrate proxy.
 
-Phase status (the SweepStrategy carve, plan ``sn_sweep_strategy.md``)
+Phase status (the sweep-strategy carve, plan ``sn_sweep_strategy.md``)
 ====================================================================
 
 * **S1 (this commit): SWEEP side.**  The protocol, the hierarchy, the three
@@ -94,20 +94,27 @@ Phase status (the SweepStrategy carve, plan ``sn_sweep_strategy.md``)
   selection layer, and the ``transport_sweep`` rewire.  Bit-identical: each
   strategy wraps exactly the path the old branch chose, so ``default_for``
   reproduces the legacy dispatch byte-for-byte.
-* **S2: MATVEC side.**  Each strategy gains ``residual`` (the
+* **S2: MATVEC side.**  Each strategy gains ``loss_action`` (the
   :math:`(L+C)\psi` twin); the five operator gates collapse to
-  ``strategy.residual(...)``.
+  ``strategy.loss_action(...)``.
 * **S3: generalize the oracle.**  ``FullFieldWavefront`` is the genuine
   d-generic spine (wraps :meth:`SweepDependencyGraph.apply` via the
   d-generic ``_sweep_full_field`` / ``_apply_full_field``, ``supports`` is
   any-d Cartesian, wires the d=1 cumprod-vs-spine equivalence).
 * **S4: generalize the window** to ``frontier_dim = d-1``.
+* **S6.2 (this commit): RENAME.**  ``SweepStrategy → LossRepresentation``,
+  ``residual → loss_action`` — the abstraction is the :math:`(L+C)` loss
+  operator's *representation* (a matrix-free traversal; the
+  cross-domain-attacker named it "representation" across four expert
+  frames).  Pure rename, bit-identical (the bodies still delegate to the
+  operator's ``_apply_*``).  S6.3 moves the walk *into* ``loss_action``
+  (returns :math:`(L+C)\psi`; the operator's ``−C`` becomes the only glue).
 
 See also
 ========
 
 * ``.claude/plans/sn_sweep_strategy.md`` — the authoritative design (the
-  locked decisions, the verification strategy, phases S0–S5).
+  locked decisions, the verification strategy, phases S0–S6).
 """
 from __future__ import annotations
 
@@ -156,24 +163,24 @@ class Compatibility:
     reason: str
 
 
-class IncompatibleStrategy(ValueError):
-    """A :class:`SweepStrategy` was constructed for a mesh it cannot sweep.
+class IncompatibleRepresentation(ValueError):
+    """A :class:`LossRepresentation` was constructed for a mesh it cannot sweep.
 
-    Raised by the construction guard (:meth:`_SweepStrategy.__post_init__`)
+    Raised by the construction guard (:meth:`_LossRepresentation.__post_init__`)
     so that an illegal ``(strategy, mesh)`` pairing is unrepresentable —
     even if a caller bypasses :func:`default_for`.
     """
 
 
 @runtime_checkable
-class SweepStrategy(Protocol):
+class LossRepresentation(Protocol):
     r"""One algorithm for the within-group transport solve and its twin.
 
     A strategy is constructed *for a mesh* (``Strategy(mesh)``); the
     construction guard rejects an incompatible pairing.  It then exposes:
 
     * :meth:`sweep` — one forward substitution :math:`\psi = (L+C)^{-1} q`;
-    * :meth:`residual` — the matvec twin :math:`(L+C)\,\psi` *(added in
+    * :meth:`loss_action` — the matvec twin :math:`(L+C)\,\psi` *(added in
       Phase S2)*;
     * :meth:`supports` — the (classmethod) selection predicate.
     """
@@ -190,7 +197,7 @@ class SweepStrategy(Protocol):
         """Perform one within-group transport sweep on this strategy's mesh."""
         ...
 
-    def residual(
+    def loss_action(
         self, operator: "StreamingOperator", psi: "TimedFullField",
     ) -> "TimedFullField":
         r"""The forward matvec twin :math:`L\,\psi` for this geometry.
@@ -204,7 +211,7 @@ class SweepStrategy(Protocol):
         """
         ...
 
-    def residual_transpose(
+    def loss_action_transpose(
         self, operator: "StreamingOperator", phi: "TimedFullField",
     ) -> "TimedFullField":
         r"""The adjoint matvec twin :math:`L^{\mathsf T}\,\phi` for this geometry.
@@ -227,7 +234,7 @@ class SweepStrategy(Protocol):
 
 
 @dataclass(frozen=True)
-class _SweepStrategy:
+class _LossRepresentation:
     """Base for every concrete strategy: holds the mesh + the guard.
 
     A frozen dataclass carrying the one piece of state every strategy needs
@@ -258,26 +265,26 @@ class _SweepStrategy:
             f"{type(self).__name__} must implement sweep()"
         )
 
-    def residual(
+    def loss_action(
         self, operator: "StreamingOperator", psi: "TimedFullField",
     ) -> "TimedFullField":
         """The forward matvec twin — every concrete strategy implements it."""
         raise NotImplementedError(
-            f"{type(self).__name__} must implement residual()"
+            f"{type(self).__name__} must implement loss_action()"
         )
 
-    def residual_transpose(
+    def loss_action_transpose(
         self, operator: "StreamingOperator", phi: "TimedFullField",
     ) -> "TimedFullField":
         """The adjoint matvec twin — implemented (1-D) or a deferral raise."""
         raise NotImplementedError(
-            f"{type(self).__name__} must implement residual_transpose()"
+            f"{type(self).__name__} must implement loss_action_transpose()"
         )
 
     def __post_init__(self) -> None:
         compat = type(self).supports(self.mesh)
         if not compat.ok:
-            raise IncompatibleStrategy(
+            raise IncompatibleRepresentation(
                 f"{type(self).__name__} cannot sweep this mesh "
                 f"(ndim={self.mesh.ndim}, curvature={self.mesh.curvature!r}): "
                 f"{compat.reason}."
@@ -289,7 +296,7 @@ class _SweepStrategy:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class CumprodScan(_SweepStrategy):
+class CumprodScan(_LossRepresentation):
     r"""1-D parallel-prefix scan — slab, sphere, cylinder via one body.
 
     Intrinsically 1-D: a prefix scan needs a total order (a chain).  The
@@ -326,13 +333,13 @@ class CumprodScan(_SweepStrategy):
             Q, sig_t, self.mesh, boundary_flux, initial_guess=initial_guess,
         )
 
-    def residual(
+    def loss_action(
         self, operator: "StreamingOperator", psi: "TimedFullField",
     ) -> "TimedFullField":
         """1-D forward matvec — the operator's geometry-blind ``L·ψ``."""
         return operator._apply_1d(psi)
 
-    def residual_transpose(
+    def loss_action_transpose(
         self, operator: "StreamingOperator", phi: "TimedFullField",
     ) -> "TimedFullField":
         """1-D adjoint matvec — the operator's reverse-sweep ``Lᵀ·φ``."""
@@ -344,7 +351,7 @@ class CumprodScan(_SweepStrategy):
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class _DAGWavefront(_SweepStrategy):
+class _DAGWavefront(_LossRepresentation):
     r"""Base for the two buffer policies over the per-octant DAG walk.
 
     ``FullFieldWavefront`` (full-field buffer; the oracle) and
@@ -366,7 +373,7 @@ class _DAGWavefront(_SweepStrategy):
             "requires Cartesian geometry, d = 2",
         )
 
-    def residual_transpose(
+    def loss_action_transpose(
         self, operator: "StreamingOperator", phi: "TimedFullField",
     ) -> "TimedFullField":
         r"""The multi-D Cartesian adjoint is DEFERRED (shared by both policies).
@@ -375,7 +382,7 @@ class _DAGWavefront(_SweepStrategy):
         reverse-direction adjoint sweep is not yet wired (O.2b landed the 1-D
         reverse sweep first).  Raises :class:`NotImplementedError` — the mesh
         is compatible, only the adjoint *feature* is deferred (so this is NOT
-        an :class:`IncompatibleStrategy`).  Never a silent wrong answer.
+        an :class:`IncompatibleRepresentation`).  Never a silent wrong answer.
         """
         raise NotImplementedError(
             "StreamingOperator.apply_transpose: the multi-D Cartesian adjoint "
@@ -406,13 +413,13 @@ class MovingFrontierWindow(_DAGWavefront):
             moment_projection=moment_projection,
         )
 
-    def residual(
+    def loss_action(
         self, operator: "StreamingOperator", psi: "TimedFullField",
     ) -> "TimedFullField":
         """2-D forward matvec — the operator's windowed ``L·ψ`` (storage-B).
 
         Wraps :meth:`~orpheus.sn.operator.StreamingOperator._apply_2d_cartesian`
-        (the rolling-frontier ``residual_windowed`` walk — the matvec twin of
+        (the rolling-frontier ``loss_action_windowed`` walk — the matvec twin of
         :func:`._sweep_2d_wavefront`; ONE discretization, L21).  WRAP not
         relocate, so the A2D-1 source-hash pin stays a free tripwire.
         """
@@ -433,7 +440,7 @@ class FullFieldWavefront(_DAGWavefront):
 
     Wraps the d-generic :func:`._sweep_full_field` / the operator's
     :meth:`~orpheus.sn.operator.StreamingOperator._apply_full_field` (both walk
-    :meth:`SweepDependencyGraph.apply` / ``.residual`` directly).  ``supports``
+    :meth:`SweepDependencyGraph.apply` / ``.loss_action`` directly).  ``supports``
     is any-d Cartesian (S3) — the spine is genuinely dimension-generic, unlike
     the d=2-only window.
     """
@@ -442,7 +449,7 @@ class FullFieldWavefront(_DAGWavefront):
     def supports(cls, mesh: "SNMesh") -> Compatibility:
         # Override the _DAGWavefront family's d=2-only predicate: the spine is
         # the genuine d-generic oracle (it walks the per-octant DAG for any
-        # Cartesian d via the d-generic ``graph.apply``/``.residual``).
+        # Cartesian d via the d-generic ``graph.apply``/``.loss_action``).
         return Compatibility(mesh.is_cartesian, "requires Cartesian geometry")
 
     def sweep(
@@ -462,7 +469,7 @@ class FullFieldWavefront(_DAGWavefront):
             )
         return _sweep_full_field(Q, sig_t, self.mesh, boundary_flux)
 
-    def residual(
+    def loss_action(
         self, operator: "StreamingOperator", psi: "TimedFullField",
     ) -> "TimedFullField":
         """Forward matvec ORACLE — the full-field ``L·ψ`` (d-generic).
@@ -481,7 +488,7 @@ class FullFieldWavefront(_DAGWavefront):
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class ScanMarch(_SweepStrategy):
+class ScanMarch(_LossRepresentation):
     r"""Scan-march sweep — ``scan(x)`` marched over the transverse axes (#222).
 
     Reframes the d-D diamond-difference sweep as forward substitution along the
@@ -507,7 +514,7 @@ class ScanMarch(_SweepStrategy):
     window, so :func:`default_for` keeps the legacy choice (1-D → ``CumprodScan``,
     2-D → ``MovingFrontierWindow``) until a measured speedup justifies the flip
     (``scan_march_verification.md`` Fork B1 → B2).  The 2-D matvec twin
-    (``residual``) + the d≥3 recursive transverse march land in S5.1b/S5.2.
+    (``loss_action``) + the d≥3 recursive transverse march land in S5.1b/S5.2.
     """
 
     @classmethod
@@ -546,7 +553,7 @@ class ScanMarch(_SweepStrategy):
             moment_projection=moment_projection,
         )
 
-    def residual(
+    def loss_action(
         self, operator: "StreamingOperator", psi: "TimedFullField",
     ) -> "TimedFullField":
         r"""Forward matvec twin — the row-march apply (L21: sweep & matvec are ONE operator).
@@ -562,14 +569,14 @@ class ScanMarch(_SweepStrategy):
             return operator._apply_1d(psi)
         return operator._apply_2d_cartesian_scanmarch(psi)
 
-    def residual_transpose(
+    def loss_action_transpose(
         self, operator: "StreamingOperator", phi: "TimedFullField",
     ) -> "TimedFullField":
         """Adjoint matvec twin — 1-D wired; the multi-D Cartesian adjoint is deferred."""
         if self.mesh.is_1d:
             return operator._apply_1d_transpose(phi)
         raise NotImplementedError(
-            "ScanMarch.residual_transpose: the multi-D Cartesian adjoint is "
+            "ScanMarch.loss_action_transpose: the multi-D Cartesian adjoint is "
             "deferred (O.2b lands the 1-D reverse sweep first; the multi-D "
             "adjoint follows the forward scan-march matvec, S5.1b+)."
         )
@@ -579,7 +586,7 @@ class ScanMarch(_SweepStrategy):
 # Registry + factory — the single selection source of truth
 # ═══════════════════════════════════════════════════════════════════════
 
-#: The CONCRETE strategy leaves (never the abstract ``_SweepStrategy`` /
+#: The CONCRETE strategy leaves (never the abstract ``_LossRepresentation`` /
 #: ``_DAGWavefront`` bases) — :func:`default_for` constructs whichever it
 #: picks, so only buildable strategies belong here.
 #:
@@ -589,7 +596,7 @@ class ScanMarch(_SweepStrategy):
 #: at d=1/d=2 (the scan-march is OPT-IN — issue #222 Fork B1, default
 #: unchanged), the scan-march is the d≥3 Cartesian production primitive, and
 #: the oracle is the never-stuck final fallback.
-SWEEP_STRATEGIES: tuple[type[_SweepStrategy], ...] = (
+LOSS_REPRESENTATIONS: tuple[type[_LossRepresentation], ...] = (
     CumprodScan,
     MovingFrontierWindow,
     ScanMarch,
@@ -597,28 +604,28 @@ SWEEP_STRATEGIES: tuple[type[_SweepStrategy], ...] = (
 )
 
 
-def default_for(mesh: "SNMesh") -> SweepStrategy:
+def default_for(mesh: "SNMesh") -> LossRepresentation:
     """Select the default sweep strategy for ``mesh``.
 
-    Returns the first strategy in :data:`SWEEP_STRATEGIES` whose
-    :meth:`~SweepStrategy.supports` admits ``mesh`` — the best *available*
+    Returns the first strategy in :data:`LOSS_REPRESENTATIONS` whose
+    :meth:`~LossRepresentation.supports` admits ``mesh`` — the best *available*
     production optimization, falling back to the spine.  This reproduces the
     legacy dispatch exactly: 1-D → :class:`CumprodScan`; 2-D Cartesian →
     :class:`MovingFrontierWindow`.
 
     Raises
     ------
-    IncompatibleStrategy
+    IncompatibleRepresentation
         If no strategy applies.  Unreachable for any constructible mesh
         (every 1-D mesh → ``CumprodScan``; every 2-D Cartesian →
         ``MovingFrontierWindow``).  A hypothetical 3-D Cartesian mesh selects
         the d-general ``ScanMarch`` (production), with ``FullFieldWavefront``
         (the oracle) as the never-stuck fallback.
     """
-    for cls in SWEEP_STRATEGIES:
+    for cls in LOSS_REPRESENTATIONS:
         if cls.supports(mesh).ok:
             return cls(mesh)
-    raise IncompatibleStrategy(
+    raise IncompatibleRepresentation(
         f"no sweep strategy supports this mesh "
         f"(ndim={mesh.ndim}, curvature={mesh.curvature!r}, "
         f"is_cartesian={mesh.is_cartesian})."

@@ -1289,7 +1289,7 @@ class TestT4dApply2DCartesianSourceHashPin:
     #         stays green: the full-field oracle equivalence
     #         (``test_2d_matvec_full_field_oracle``) + 523-pass operators+solve
     #         gate confirm ``_apply_2d_cartesian`` ≡ the (now d-generic) oracle.
-    #   SweepStrategy carve S4 (frontier_dim = d−1 generalization) b17d69d6…
+    #   sweep-strategy carve S4 (frontier_dim = d−1 generalization) b17d69d6…
     #         e86bc6da → d18135c8…0d34ff6b2d — the SOLE change to this method:
     #         the ``graph.residual_windowed`` call migrated from the hardcoded
     #         2-D ``inflow_x=``/``inflow_y=``/``str_x_octant=``/``str_y_octant=``/

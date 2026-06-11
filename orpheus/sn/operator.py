@@ -137,7 +137,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.projection import MomentProjection
     from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
     from .spatial.pole_angular_closure import PoleAngularClosure
-    from .sweep_strategy import SweepStrategy
+    from .loss_representation import LossRepresentation
 
 __all__ = [
     "StreamingOperator",
@@ -1393,7 +1393,7 @@ class StreamingOperator(LinearOperatorMixin):
         r"""Subtractive forward action :math:`L\,\psi = M(\psi;\sigma_t)
         - \sigma_t \odot \psi.bulk`.
 
-        Geometry dispatch is the polymorphic :attr:`sweep_strategy` (the
+        Geometry dispatch is the polymorphic :attr:`loss_representation` (the
         matvec twin of the forward sweep): 1-D slab/sphere/cylinder →
         :meth:`_apply_1d` (``CumprodScan``); 2-D Cartesian →
         :meth:`_apply_2d_cartesian` (``MovingFrontierWindow``).
@@ -1452,14 +1452,14 @@ class StreamingOperator(LinearOperatorMixin):
                 "share the SAME SNMesh instance (mesh-identity invariant)."
             )
 
-        # Geometry dispatch is the polymorphic :attr:`sweep_strategy` — the
+        # Geometry dispatch is the polymorphic :attr:`loss_representation` — the
         # matvec twin of the forward sweep (L21: sweep and matvec are
         # different applications of the same operator). 1-D → CumprodScan
         # (the geometry-blind :meth:`_apply_1d`); 2-D Cartesian →
         # MovingFrontierWindow (:meth:`_apply_2d_cartesian`). The scattered
         # ``curv is None and not is_1d`` branch is retired into
-        # ``strategy.residual``.
-        return self.sweep_strategy.residual(self, psi)
+        # ``representation.loss_action``.
+        return self.loss_representation.loss_action(self, psi)
 
     def _apply_1d(self, psi: "TimedFullField") -> "TimedFullField":
         r"""1-D ``L·ψ`` (slab + sphere + cylinder) — the CumprodScan matvec twin.
@@ -1468,8 +1468,8 @@ class StreamingOperator(LinearOperatorMixin):
         :meth:`_MSpatialOperatorSum._compute_LpC` (perf-optimal, no dual
         emission), then ``− σ_t·ψ`` to recover ``L`` per Resolution A.
         Extracted verbatim from :meth:`apply`'s 1-D branch by the
-        SweepStrategy carve (S2) so the geometry dispatch is the polymorphic
-        ``strategy.residual`` — bit-identical.
+        LossRepresentation carve (S2) so the geometry dispatch is the polymorphic
+        ``representation.loss_action`` — bit-identical.
 
         The ``M_spatial`` / ``M_angular_redist`` algebra decomposition is
         exposed for introspection via :meth:`_compute_decomposition` (slower,
@@ -1528,12 +1528,12 @@ class StreamingOperator(LinearOperatorMixin):
                 "must share the SAME SNMesh instance (mesh-identity invariant)."
             )
         # The adjoint matvec twin routes through the same polymorphic
-        # :attr:`sweep_strategy` as the forward :meth:`apply`. CumprodScan
+        # :attr:`loss_representation` as the forward :meth:`apply`. CumprodScan
         # implements the 1-D reverse sweep (:meth:`_apply_1d_transpose`); the
         # multi-D Cartesian DAG strategies raise ``NotImplementedError`` (the
         # reverse sweep is deferred — O.2b lands the 1-D one first; the mesh
         # is compatible, only the adjoint feature is deferred).
-        return self.sweep_strategy.residual_transpose(self, phi)
+        return self.loss_representation.loss_action_transpose(self, phi)
 
     def _apply_1d_transpose(self, phi: "TimedFullField") -> "TimedFullField":
         r"""1-D ``Lᵀ·φ`` (slab + sphere + cylinder) — the CumprodScan adjoint twin.
@@ -1542,7 +1542,7 @@ class StreamingOperator(LinearOperatorMixin):
         (the reverse-mode adjoint of the forward sweep), then ``− σ_t·φ`` to
         recover ``Lᵀ`` (Resolution A; ``C = σ_t⊙`` is a self-adjoint
         diagonal).  Extracted verbatim from :meth:`apply_transpose`'s 1-D
-        branch by the SweepStrategy carve (S2) — bit-identical.  Returns the
+        branch by the LossRepresentation carve (S2) — bit-identical.  Returns the
         plain Euclidean transpose; the metric conjugation of the physical
         G-adjoint ``L.H`` is applied around this by ``_AdjointOperator``.
         """
@@ -1561,25 +1561,25 @@ class StreamingOperator(LinearOperatorMixin):
             history_depth=phi.history_depth,
         )
 
-    # ── SweepStrategy carve (S2) — the polymorphic matvec dispatch ─────
+    # ── LossRepresentation carve (S2) — the polymorphic matvec dispatch ─────
 
     @cached_property
-    def sweep_strategy(self) -> "SweepStrategy":
-        r"""The selected matvec/sweep strategy for this operator's mesh.
+    def loss_representation(self) -> "LossRepresentation":
+        r"""The selected loss-operator representation for this operator's mesh.
 
-        The SAME first-class ``SweepStrategy``
-        (``orpheus.sn.sweep_strategy``) that
+        The SAME first-class ``LossRepresentation``
+        (``orpheus.sn.loss_representation``) that
         :func:`~orpheus.sn.sweep.transport_sweep` selects for the forward
         sweep — here it carries the matvec twin: :meth:`apply` routes through
-        ``strategy.residual`` and :meth:`apply_transpose` through
-        ``strategy.residual_transpose``.  Selection is by geometry
+        ``representation.loss_action`` and :meth:`apply_transpose` through
+        ``representation.loss_action_transpose``.  Selection is by geometry
         (``default_for``): 1-D → ``CumprodScan``;
         2-D Cartesian → ``MovingFrontierWindow``.  ``cached_property`` because
         the selection is fixed by the mesh, stable across the operator's
         lifetime (mirrors :attr:`M_spatial` / :attr:`M_angular_redist`); the
-        lazy import breaks the operator ↔ sweep_strategy module cycle.
+        lazy import breaks the operator ↔ loss_representation module cycle.
         """
-        from .sweep_strategy import default_for
+        from .loss_representation import default_for
 
         return default_for(self.sn_mesh)
 
@@ -1800,7 +1800,7 @@ class StreamingOperator(LinearOperatorMixin):
         L21 (matvec and sweep are different applications of the same operator):
         the apply-direction twin of
         :func:`~orpheus.sn.sweep._sweep_2d_scanmarch`, so the
-        :class:`~orpheus.sn.sweep_strategy.ScanMarch` strategy row-marches in
+        :class:`~orpheus.sn.loss_representation.ScanMarch` strategy row-marches in
         BOTH directions.
 
         The matvec reuses the sweep's face-scan primitive
@@ -1815,7 +1815,7 @@ class StreamingOperator(LinearOperatorMixin):
         identical) to :meth:`_apply_2d_cartesian`: the row-march and the anti-
         diagonal reconstruct the SAME faces in a different order, so the
         residual agrees to FP-association.  The
-        :class:`~orpheus.sn.sweep_strategy.FullFieldWavefront` oracle pins it
+        :class:`~orpheus.sn.loss_representation.FullFieldWavefront` oracle pins it
         (G2.c).  The boundary semantics + the O.4b active-trace residual block
         are IDENTICAL to :meth:`_apply_2d_cartesian` (only the interior walk
         differs).

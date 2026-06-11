@@ -1,23 +1,23 @@
 """Foundation tests for the sweep-strategy dispatch.
 
 Round 2 of Wave D of the SN reshape campaign (Issue #161); migrated by
-the **SweepStrategy carve** (C3.4/C3.5, plan ``sn_sweep_strategy.md``).
+the **sweep-strategy carve** (C3.4/C3.5, plan ``sn_sweep_strategy.md``).
 
 Historically ``transport_sweep`` chose the 1-D vs 2-D sweep body with a
 scattered ``sn_mesh.reduced is not None`` branch, and these tests spied
 on the chosen ``_sweep_*`` function being *called* (monkeypatching the
 module-level name).  The carve replaced that branch with a first-class,
-selectable :class:`~orpheus.sn.sweep_strategy.SweepStrategy`:
-:func:`~orpheus.sn.sweep_strategy.default_for` picks the strategy, and
+selectable :class:`~orpheus.sn.loss_representation.LossRepresentation`:
+:func:`~orpheus.sn.loss_representation.default_for` picks the strategy, and
 ``transport_sweep`` delegates to ``strategy.sweep``.  The spy mechanism no
 longer applies (the strategy holds its own reference to the sweep body),
 so the dispatch contract is now pinned at its single source of truth:
 
 * the SELECTION — ``default_for(mesh)`` returns the right strategy class:
   ALL 1-D meshes (slab, sphere, cylinder; ``is_1d``) →
-  :class:`~orpheus.sn.sweep_strategy.CumprodScan`; 2-D Cartesian
+  :class:`~orpheus.sn.loss_representation.CumprodScan`; 2-D Cartesian
   (``is_cartesian and ndim == 2``) →
-  :class:`~orpheus.sn.sweep_strategy.MovingFrontierWindow`;
+  :class:`~orpheus.sn.loss_representation.MovingFrontierWindow`;
 * the ROUTING — ``transport_sweep`` delegates to
   ``default_for(mesh).sweep(...)`` exactly once.
 
@@ -53,7 +53,7 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial.diamond import DiamondDifference
 from orpheus.sn.sweep import transport_sweep
-from orpheus.sn.sweep_strategy import (
+from orpheus.sn.loss_representation import (
     CumprodScan,
     MovingFrontierWindow,
     default_for,
@@ -194,8 +194,8 @@ class TestTransportSweepDelegatesToStrategy:
 
     The ROUTING half of the dispatch contract (the SELECTION half is
     :class:`TestDispatchSelectsStrategy`).  ``transport_sweep`` does a lazy
-    ``from .sweep_strategy import default_for``, so patching
-    ``sweep_strategy.default_for`` is seen at call time — the spy confirms the
+    ``from .loss_representation import default_for``, so patching
+    ``loss_representation.default_for`` is seen at call time — the spy confirms the
     dispatcher *delegates to the selected strategy* rather than re-deciding
     the branch itself.  Geometry-agnostic: the same delegation holds for the
     1-D scan and the 2-D window.
@@ -208,7 +208,7 @@ class TestTransportSweepDelegatesToStrategy:
     def test_delegates_to_selected_strategy(self, monkeypatch, mesh_factory):
         """transport_sweep calls the selected strategy's ``sweep`` exactly once."""
         sn_mesh = mesh_factory()
-        import orpheus.sn.sweep_strategy as sweep_strategy
+        import orpheus.sn.loss_representation as loss_representation
 
         selected = type(default_for(sn_mesh)).__name__
         calls = {"sweep": 0}
@@ -220,7 +220,7 @@ class TestTransportSweepDelegatesToStrategy:
                 return (np.zeros((N, ng, nx, ny)), np.zeros((ng, nx, ny)))
 
         monkeypatch.setattr(
-            sweep_strategy, "default_for", lambda mesh: _SpyStrategy(),
+            loss_representation, "default_for", lambda mesh: _SpyStrategy(),
         )
 
         # 1-D meshes carry (ng, nx) Σ_t; 2-D Cartesian carries (ng, nx, ny).

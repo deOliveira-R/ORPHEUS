@@ -1,11 +1,11 @@
 r"""ScanMarch ≡ oracle — the scan-march schedule (issue #222) principled-equivalence.
 
 The 2-D scan-march sweep (:func:`orpheus.sn.sweep._sweep_2d_scanmarch`, the
-:class:`~orpheus.sn.sweep_strategy.ScanMarch` strategy) is a DIFFERENT
+:class:`~orpheus.sn.loss_representation.ScanMarch` strategy) is a DIFFERENT
 topological linearization of the SAME lower-triangular ``(L+C)`` solve than the
 anti-diagonal wavefront: *scan along x, march over y*.  So it is
 principled-equivalent (NOT bit-identical) to the
-:class:`~orpheus.sn.sweep_strategy.FullFieldWavefront` ORACLE — they agree to
+:class:`~orpheus.sn.loss_representation.FullFieldWavefront` ORACLE — they agree to
 FP-association.
 
 ``vv-principles`` "Bit-identity vs principled-equivalence": the row-march and
@@ -32,7 +32,7 @@ from orpheus.numerics.projection import MomentProjection
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import StreamingOperator
-from orpheus.sn.sweep_strategy import (
+from orpheus.sn.loss_representation import (
     FullFieldWavefront,
     MovingFrontierWindow,
     ScanMarch,
@@ -190,8 +190,8 @@ def test_scanmarch_residual_equals_oracle(nx, ny, lvl, ng, bc):
         fv = state.boundary.face_view(face)
         fv[...] = rng.uniform(0.0, 1.0, size=fv.shape)
 
-    out_sm = ScanMarch(sn_mesh).residual(L, state)
-    out_or = FullFieldWavefront(sn_mesh).residual(L, state)
+    out_sm = ScanMarch(sn_mesh).loss_action(L, state)
+    out_or = FullFieldWavefront(sn_mesh).loss_action(L, state)
 
     np.testing.assert_allclose(
         out_sm.bulk.values, out_or.bulk.values, rtol=_RTOL, atol=_ATOL,

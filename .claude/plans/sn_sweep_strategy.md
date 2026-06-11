@@ -9,7 +9,32 @@ first-class `SweepStrategy` abstraction.
 
 - **Designed 2026-06-10** in a multi-turn design conversation; every decision below is LOCKED
   (see §"Decisions locked").
-- **⭐⭐⭐ LATEST (2026-06-10): S5.0 + S5.1 DONE + committed; S6 CAPSTONE design LOCKED.** Read
+- **⭐⭐⭐ LATEST (2026-06-10, S6 EXECUTION STARTED): S6.0-prime + S6.2 DONE.** The
+  `test-architect` S6 verification plan landed (memo
+  `.claude/agent-memory/test-architect/s6_relayering_verification.md`): the anchor set
+  (A2D-1 hash byte-stable THROUGH S6.2 — its regen is an S6.3 event), the "one
+  representation instance" discriminating test (fail-now/pass-at-S6.5; the two-doors
+  `default_for` sites VERIFIED DISTINCT — `operator.py:1584` apply-door vs
+  `sweep.py:241` solve-door, each constructs a fresh instance), the
+  `loss_action`-returns-`(L+C)ψ` pin, and a NEW Mode-8 prerequisite it caught:
+  `test_g_adjoint_reciprocity` asserts via bare `assert` (INERT under `python -O`), so
+  S6.3's curvilinear angular-transpose coverage must be migrated to
+  `np.testing`/`pytest.fail` BEFORE S6.3 leans on it. **S6.2 (rename) COMMITTED,
+  bit-identical:** name CONFIRMED BY USER = **`LossRepresentation`** (`residual →
+  loss_action`, `residual_transpose → loss_action_transpose`, handle
+  `op.loss_representation`); module `sweep_strategy.py → loss_representation.py` (git-mv,
+  history kept); `IncompatibleStrategy → IncompatibleRepresentation`, `SWEEP_STRATEGIES →
+  LOSS_REPRESENTATIONS`. Bodies STILL delegate to `operator._apply_*` (NO behavior
+  change; the walk-off-operator + the `(L+C)ψ` convention flip are S6.3). Gates GREEN
+  `-O`: 108 directly-affected (A2D-1 hash + dispatch contract + scan-march G2.c +
+  cumprod≡spine + window≡full) + 1172 broad (sweep/operators/solve/keff_2d) — 0 failed.
+  `grep SweepStrategy` clean (2 historical phase-labels lowercased to "sweep-strategy
+  carve"; the type is fully gone). Cross-domain-attacker memo: agentId
+  `af87c1668054aaae7` (S6 plan) + `a8826036ef5b5e945` (S6 design). **NEXT = S6.3** (move
+  the walk OFF the operator; `apply = loss_action − σ_t·ψ`; delete the 4 `_apply_*`;
+  A2D-1 REGEN output-byte-identical via the window≡full oracle; do the Mode-8 reciprocity
+  fix FIRST; dispatch elegance-enforcer — it earns its keep on the logic move).
+- **PRIOR (2026-06-10): S5.0 + S5.1 DONE + committed; S6 CAPSTONE design LOCKED.** Read
   the **`# ⭐⭐⭐ S6 — THE OPERATOR / REPRESENTATION RE-LAYERING`** section at the BOTTOM of this
   file FIRST — it is the architectural keystone (the user's "why does the operator hold a matvec
   per strategy / apply IS a sweep action / where does the explicit matrix live" questions,

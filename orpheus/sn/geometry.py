@@ -650,7 +650,7 @@ class SNMesh:
         This is ORTHOGONAL to :attr:`is_1d`: a slab is Cartesian AND 1-D; a
         2-D Cartesian mesh is Cartesian AND not 1-D; a cylinder is 1-D AND
         not Cartesian.  Sweep-strategy selection
-        (``orpheus.sn.sweep_strategy.default_for``) keys on BOTH axes —
+        (``orpheus.sn.loss_representation.default_for``) keys on BOTH axes —
         the anti-hyperplane DAG family requires ``is_cartesian``, the chain
         scan requires ``is_1d`` — so neither alone is a sufficient
         discriminator.

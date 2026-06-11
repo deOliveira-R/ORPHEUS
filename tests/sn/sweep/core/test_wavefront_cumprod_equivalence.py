@@ -1,9 +1,9 @@
 r"""CumprodScan(d=1) ≡ FullFieldWavefront(d=1) — the optimization-vs-spine oracle.
 
-The SweepStrategy carve (S3) makes the d-generic wavefront DAG walk
-(:class:`~orpheus.sn.sweep_strategy.FullFieldWavefront`) a *selectable*
+The LossRepresentation carve (S3) makes the d-generic wavefront DAG walk
+(:class:`~orpheus.sn.loss_representation.FullFieldWavefront`) a *selectable*
 strategy — the verification SPINE — and the 1-D Blelloch parallel-prefix scan
-(:class:`~orpheus.sn.sweep_strategy.CumprodScan`) the d=1 production
+(:class:`~orpheus.sn.loss_representation.CumprodScan`) the d=1 production
 OPTIMIZATION. This file proves the optimization computes the SAME 1-D transport
 sweep as the spine, through the real strategy API (no hand-built adapters).
 
@@ -78,7 +78,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.solver import solve_sn
-from orpheus.sn.sweep_strategy import CumprodScan, FullFieldWavefront
+from orpheus.sn.loss_representation import CumprodScan, FullFieldWavefront
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.source_sinks import AngularSourceSink
 

@@ -14,7 +14,7 @@ Both share the storage-free cell kernel
 drift between them — only the storage walk (full field vs window) differs,
 which is exactly what this test pins.
 
-Dimension coverage (the SweepStrategy carve, phase S4)
+Dimension coverage (the sweep-strategy carve, phase S4)
 -----------------------------------------------------
 The window walk is generalised from the hardcoded 2-diagonal to the general
 ``frontier_dim = d − 1`` rolling slab.  This file pins ``window ≡ full`` at

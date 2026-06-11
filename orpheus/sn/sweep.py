@@ -212,7 +212,7 @@ def transport_sweep(
     Dispatch:
 
     The sweep algorithm is a first-class, selectable sweep strategy
-    (``orpheus.sn.sweep_strategy.SweepStrategy``; ``default_for`` picks the
+    (``orpheus.sn.loss_representation.LossRepresentation``; ``default_for`` picks the
     default for the mesh).  This replaces the historical scattered branch —
     the ``reduced is not None`` test here and the five ``not is_1d`` gates in
     the operator algebra — with one polymorphic selection.  ``default_for``
@@ -232,11 +232,11 @@ def transport_sweep(
     literals until then.)
     """
     Q = _unwrap_source(source)
-    # Lazy import breaks the sweep ↔ sweep_strategy cycle: the strategy
+    # Lazy import breaks the sweep ↔ loss_representation cycle: the strategy
     # module wraps the ``_sweep_*`` functions defined here, so it imports
     # ``sweep`` at module load; ``transport_sweep`` reaches back for the
     # selector only at call time.
-    from .sweep_strategy import default_for
+    from .loss_representation import default_for
 
     return default_for(sn_mesh).sweep(
         Q, sig_t, boundary_flux,
@@ -1295,7 +1295,7 @@ def _sweep_2d_scanmarch(
         D = \sigma_t + s_x + s_y,
 
     solved in closed form by :func:`~orpheus.sn.spatial.scan.ordinate_scan` —
-    the SAME primitive the 1-D :class:`~orpheus.sn.sweep_strategy.CumprodScan`
+    the SAME primitive the 1-D :class:`~orpheus.sn.loss_representation.CumprodScan`
     uses (at :math:`s_y = 0`, :math:`\alpha` degenerates to the slab
     ``a_attenuation`` exactly, so the 1-D scan IS this body with no y-march).
     The transverse-y coupling enters ONLY through the affine source
@@ -1307,7 +1307,7 @@ def _sweep_2d_scanmarch(
     Principled-equivalent (NOT bit-identical) to ``_sweep_2d_wavefront``: the
     row-march and the anti-diagonal are two valid topological linearizations of
     the same triangular solve, so they agree to FP-association — the
-    :class:`~orpheus.sn.sweep_strategy.FullFieldWavefront` oracle pins it at
+    :class:`~orpheus.sn.loss_representation.FullFieldWavefront` oracle pins it at
     nulp (issue #222 / the ``scan_march_verification.md`` G2 gate).  The flux-
     independent :math:`\alpha`/``D`` are computed PER LINE here (the
     :math:`(d{-}1)`-slab working set; mesh-memoising them — the #206 single-
@@ -1454,13 +1454,13 @@ def _sweep_full_field(
     boundary_flux: "BoundaryFlux",
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""Full-field DAG-walk Jacobi sweep — the dimension-generic VERIFICATION
-    ORACLE (:class:`~orpheus.sn.sweep_strategy.FullFieldWavefront`).
+    ORACLE (:class:`~orpheus.sn.loss_representation.FullFieldWavefront`).
 
     The dimension-agnostic SPINE: ONE body for d = 1 (slab) and d = 2
     (Cartesian), and the verification reference the d-specific production
     optimizations are cross-checked against — the 1-D
-    :class:`~orpheus.sn.sweep_strategy.CumprodScan` (principled-equivalence at
-    nulp) and the 2-D :class:`~orpheus.sn.sweep_strategy.MovingFrontierWindow`
+    :class:`~orpheus.sn.loss_representation.CumprodScan` (principled-equivalence at
+    nulp) and the 2-D :class:`~orpheus.sn.loss_representation.MovingFrontierWindow`
     (``window ≡ full`` bit-identity). It carries the FULL interior face cochain
     (the storage-A path Phase 5b superseded in production); its sole purpose is
     verification. Three reasons it is a legitimate kept reference (not a
