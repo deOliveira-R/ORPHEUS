@@ -38,7 +38,8 @@ The hierarchy
     └── CumprodScan             ── 1-D chain prefix scan, any geometry
 
 ``FullFieldWavefront`` and ``MovingFrontierWindow`` consume the **same**
-per-octant ``sweep_graphs`` DAG — they are two *buffer policies* over one
+per-octant DAG (the family-owned ``sweep_graphs`` accessor, cached per
+mesh shape since S6.4(c)) — they are two *buffer policies* over one
 anti-hyperplane walk, already pinned bit-identical by the C3.2b
 ``window ≡ full`` oracle.  ``CumprodScan`` builds no DAG: a 1-D chain is a
 total order, the Blelloch closed form needs no graph.
@@ -138,11 +139,11 @@ from .sweep import (
     _sweep_full_field,
     _x_scan_faces,
 )
-from .sweep_graph import OctantLabel
+from .sweep_graph import OctantLabel, SweepDependencyGraph
 from .sweep_schedule import SweepSchedule
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
 
     from orpheus.numerics.projection import MomentProjection
     from orpheus.transport.fields.angular_flux import AngularFlux
@@ -763,10 +764,19 @@ class _DAGWavefront(_LossRepresentation):
 
     ``FullFieldWavefront`` (full-field buffer; the oracle) and
     ``MovingFrontierWindow`` (rolling :math:`(d{-}1)`-frontier; the
-    production optimization) both walk the **same** ``mesh.sweep_graphs``
-    anti-hyperplane DAG with the same diamond-difference cell kernel.  They
-    differ only in *how much* of the interior face cochain they retain — a
-    storage policy, pinned bit-identical by the ``window ≡ full`` oracle.
+    production optimization) both walk the **same** per-octant
+    anti-hyperplane DAG (:attr:`sweep_graphs`) with the same
+    diamond-difference cell kernel.  They differ only in *how much* of the
+    interior face cochain they retain — a storage policy, pinned
+    bit-identical by the ``window ≡ full`` oracle.
+
+    S6.4(c) — the family OWNS the DAG: ``sweep_graphs`` is THIS base's
+    accessor over the per-shape cache
+    :meth:`SweepDependencyGraph.for_shape`, NOT a mesh attribute.  The mesh
+    is pure geometry; DAG-free representations (:class:`CumprodScan`,
+    :class:`ScanMarch`) never mention the substrate — the historical
+    curvilinear ``mesh.sweep_graphs = None`` slot (an illegal state) is
+    unrepresentable.
 
     The DAG walk is naturally d-general; in S1 both wrappers cover exactly
     the existing 2-D Cartesian sweep (``supports`` below).  S3 widens the
@@ -779,6 +789,16 @@ class _DAGWavefront(_LossRepresentation):
             mesh.is_cartesian and mesh.ndim == 2,
             "requires Cartesian geometry, d = 2",
         )
+
+    @property
+    def sweep_graphs(self) -> "Mapping[OctantLabel, SweepDependencyGraph]":
+        r"""The per-octant DAG family for this representation's mesh shape.
+
+        Routes to the per-shape cache (the graphs depend only on cell
+        topology + octant signs, so same-shape meshes share byte-identical
+        graphs); treat the mapping as immutable.
+        """
+        return SweepDependencyGraph.for_shape(self.mesh.spatial_shape)
 
     def loss_action_transpose(
         self, operator: "StreamingOperator", phi: "TimedFullField",
@@ -839,7 +859,7 @@ class MovingFrontierWindow(_DAGWavefront):
         :class:`_SweepEmit` mode buffers.  Returns the per-axis domain-edge
         outflow ``capture``.
         """
-        graph = self.mesh.sweep_graphs[OctantLabel(signs_eff)]
+        graph = self.sweep_graphs[OctantLabel(signs_eff)]
         ng = operands.sig_t.shape[0]
         spatial = operands.sig_t.shape[1:]
         capture = tuple(np.empty_like(face) for face in inflow)
@@ -905,7 +925,7 @@ class MovingFrontierWindow(_DAGWavefront):
         over this octant's DAG.  Returns ``(LpC_octant, capture)`` — the
         octant's ``(L+C)ψ̄`` block and the per-axis domain-edge outflow.
         """
-        graph = self.mesh.sweep_graphs[OctantLabel(signs_eff)]
+        graph = self.sweep_graphs[OctantLabel(signs_eff)]
         ng = operands.sig_t.shape[0]
         spatial = operands.sig_t.shape[1:]
         LpC_oct = np.zeros((oct_idx.size, ng, *spatial))
@@ -1027,7 +1047,7 @@ class FullFieldWavefront(_DAGWavefront):
                 LpC[oct_idx] = sig_t * probe[oct_idx]
                 continue
             signs_eff = tuple(+1 if s == 0 else s for s in signs)
-            graph = sn_mesh.sweep_graphs[OctantLabel(signs_eff)]
+            graph = self.sweep_graphs[OctantLabel(signs_eff)]
             psi_faces_oct = tuple(pf[oct_idx].copy() for pf in psi_faces)
             LpC_oct = np.zeros((oct_idx.size, ng, *spatial))
             graph.residual(

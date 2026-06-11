@@ -57,7 +57,6 @@ from .spatial.pole_angular_closure import (
     PoleAngularClosure,
     default_angular_closure_class,
 )
-from .sweep_graph import OctantLabel, SweepDependencyGraph
 
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
@@ -336,18 +335,12 @@ class SNMesh:
                 # 2-D Cartesian-style streaming arrays not used here.
                 self.streaming_x: np.ndarray | None = None
                 self.streaming_y: np.ndarray | None = None
-                # Wave 2 sweep-DAG precompute is 2-D Cartesian only;
-                # curvilinear sweeps walk the cell graph differently
-                # (see ``dag_walk``). MoC will define its own
-                # primitive (fiber bundles + solution sheaves).
-                self.sweep_graphs: dict[OctantLabel, SweepDependencyGraph] | None = None
             case CoordSystem.SPHERICAL:
                 assert isinstance(mesh, Mesh1D)
                 self.reduced = spherical_streaming(mesh, quadrature)
                 self.curvature = "spherical"
                 self.streaming_x = None
                 self.streaming_y = None
-                self.sweep_graphs = None
 
         # Resolve boundary conditions from mesh declarations
         self._resolve_bcs(mesh)
@@ -1355,31 +1348,6 @@ class SNMesh:
 
         # Curvature terms (None for Cartesian — placeholder for curvilinear)
         self.curvature = None
-
-        # Per-octant sweep dependency graphs (Wave 2 / C2.4) —
-        # dimension-generic: one ``SweepDependencyGraph`` per streaming
-        # octant, the ``2^d`` sign signatures
-        # ``itertools.product((-1, +1), repeat=d)`` over the ``d = ndim``
-        # spatial axes. A 1-D slab gets 2 pure-chain graphs (``±x``); a
-        # 2-D mesh gets the 4 in-plane octants. (Pure-z ordinates with an
-        # all-zero in-plane sign are handled by the wavefront sweep's
-        # ``Q/Σ_t`` short-circuit and have no entry here.) The graphs
-        # depend only on cell topology + octant sign convention —
-        # independent of fluxes / sources / iteration state — so they are
-        # precomputed once at mesh construction and reused across every
-        # sweep call. The d=1 graphs are consumed by the 1-D wavefront
-        # sweep (C3.4); the d=2 graphs by the moving-frontier window sweep.
-        #
-        # At ``d = 2`` ``itertools.product((-1, +1), repeat=2)`` yields the
-        # octants in the SAME order as the retired nested ``sx, sy`` loop
-        # — ``(-1,-1), (-1,+1), (+1,-1), (+1,+1)`` — so the dict is built
-        # bit-for-bit as before.
-        self.sweep_graphs: dict[OctantLabel, SweepDependencyGraph] = {
-            OctantLabel(signs): SweepDependencyGraph.from_cartesian(
-                self.spatial_shape, label=OctantLabel(signs),
-            )
-            for signs in itertools.product((-1, +1), repeat=self.ndim)
-        }
 
     # ── Backward-compat property accessors ────────────────────────────
     #

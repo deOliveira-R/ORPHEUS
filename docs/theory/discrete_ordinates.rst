@@ -1525,8 +1525,10 @@ isolation.
      - :mod:`orpheus.sn.sweep_graph`
      - Frozen + slotted dataclass carrying the in-plane direction
        signs ``(sign_x, sign_y) ∈ {-1, 0, +1}²``.  Hashable; used as
-       the key in
-       :attr:`~orpheus.sn.geometry.SNMesh.sweep_graphs`.  The pair
+       the key in the per-shape graph family
+       :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.for_shape`
+       (owned by the ``_DAGWavefront`` representation family since
+       S6.4(c) — historically a mesh attribute).  The pair
        ``(0, 0)`` denotes the pure-:math:`z` degenerate octant — no
        graph is built for it.  The 3-D ``sign_z`` is dropped: the
        2-D Cartesian sweep is invariant under the out-of-plane axis,
@@ -1536,8 +1538,10 @@ isolation.
      - :mod:`orpheus.sn.sweep_graph`
      - Frozen dataclass holding the per-octant topological levels
        (anti-diagonals) and the per-axis face-index offsets.  Built
-       once per ``(SNMesh, octant)`` pair at mesh construction;
-       reused across every source iteration / Krylov matvec / outer
+       once per ``(shape, octant)`` pair in the
+       :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.for_shape`
+       cache (S6.4(c); historically at mesh construction); reused
+       across every source iteration / Krylov matvec / outer
        iteration.  Its :meth:`apply` walks the levels and dispatches
        each level to ``cell_update.update_batch(slice_args)``.
    * - :class:`~orpheus.sn.spatial.cell_update.SweepCellSlice`
@@ -1568,44 +1572,45 @@ isolation.
        sweep (in practice the dispatch routes to
        :meth:`update_batch` only when the strategy advertises it).
 
-Mesh-time precompute pattern
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Per-shape precompute pattern (family-owned since S6.4(c))
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The dependency graph is a **derived object** — the
-``(mesh × octant)`` joint property.  It depends only on cell topology
-(``Mesh2D``) and the octant sign convention; it does **not** depend on
-fluxes, sources, BCs, or iteration state.  So the graph build is paid
-once at :class:`~orpheus.sn.geometry.SNMesh` construction:
+``(shape × octant)`` joint property.  It depends only on cell topology
+and the octant sign convention; it does **not** depend on fluxes,
+sources, BCs, quadrature, cross sections, or iteration state.  So the
+graph build is paid once **per spatial shape** in the cached accessor
+:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.for_shape`, owned
+by the DAG-consuming ``_DAGWavefront`` representation family:
 
 .. code-block:: python
 
-   class SNMesh:
-       ...
-       sweep_graphs: dict[OctantLabel, SweepDependencyGraph] | None
+   class _DAGWavefront(_LossRepresentation):
+       @property
+       def sweep_graphs(self) -> dict[OctantLabel, SweepDependencyGraph]:
+           # cached per shape; same-shape meshes share byte-identical graphs
+           return SweepDependencyGraph.for_shape(self.mesh.spatial_shape)
 
-       # populated for ALL Cartesian meshes (d=1 + d=2); ``None`` for curvilinear
-       def _setup_cartesian(self, ...):
-           ...
-           # dimension-generic: the 2^d sign signatures over the d = ndim
-           # spatial axes — 2 chain octants at d=1, the 4 in-plane octants
-           # at d=2.  At d=2 ``itertools.product`` yields the SAME order as
-           # the legacy nested ``sx, sy`` loop, so the dict is bit-identical.
-           self.sweep_graphs = {
-               OctantLabel(signs): SweepDependencyGraph.from_cartesian(
-                   self.spatial_shape, label=OctantLabel(signs),
-               )
-               for signs in itertools.product((-1, +1), repeat=self.ndim)
-           }
+**Ownership history** (two relocations, each a pure refactor):
 
-This lifts the per-call ``_diag_cache`` build that previously lived
-inside :func:`_sweep_2d_wavefront` (the legacy code rebuilt the
-anti-diagonal index arrays once per sweep call, on the assumption
-they were sweep-local state) to mesh-time work, amortised across all
-source iterations / Krylov matvecs / outer iterations.  For the
-421-group benchmark this is a measurable but second-order saving;
-the structurally important effect is that the graph build is now
-**named, inspectable state** on the mesh rather than a private
-sweep-local cache.
+#. *Wave 2 / C2.4* lifted the per-call ``_diag_cache`` build that
+   previously lived inside the 2-D wavefront sweep (rebuilt once per
+   sweep call) to **mesh-construction** time — a measurable but
+   second-order saving on the 421-group benchmark; the structurally
+   important effect was making the graphs named, inspectable state.
+#. *S6.4(c)* moved ownership **off the mesh onto the representation
+   family**: the mesh is pure geometry, and only the two DAG-walking
+   representations (the window + the full-field oracle) ever mention
+   the substrate.  This retired the curvilinear
+   ``mesh.sweep_graphs = None`` slot — an illegal state (a mesh
+   carrying a "no DAG here" marker for a structure it never owned) —
+   and replaced mesh-lifetime caching with per-SHAPE caching, so
+   same-shape meshes share one graph family (the graphs carry no
+   mesh-identity information).  DAG-free representations
+   (``CumprodScan``, ``ScanMarch``) and curvilinear meshes simply
+   never touch the accessor; curvilinear sweeps walk the cell graph
+   differently (per-ordinate march; see
+   :meth:`~orpheus.sn.geometry.SNMesh.dag_walk`).
 
 The closed-form precompute lives in
 :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.from_cartesian`
@@ -1614,10 +1619,7 @@ hand-rolled — the "library version" (a generic topological-sort over
 an explicit DAG) would be over-engineering for a regular pattern that
 collapses to ~5 lines of ``arange`` + anti-hyperplane extraction.  The
 builder is dimension-generic (``d = len(shape) ∈ {1, 2, 3}``): a d=1
-chain, the d=2 anti-diagonal, a d=3 anti-hyperplane.  Curvilinear
-geometries (sphere / cylinder) set ``self.sweep_graphs = None`` —
-they walk the cell graph differently (per-ordinate march; see
-:meth:`~orpheus.sn.geometry.SNMesh.dag_walk`).
+chain, the d=2 anti-diagonal, a d=3 anti-hyperplane.
 
 The §15A.2 invariant set
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1934,7 +1936,7 @@ discipline):
   - ``tests/sn/test_sweep_graph.py`` (63 tests) — the §15A.2
     invariant set above; anti-diagonal cell coverage; topo-order
     acyclicity per octant sign; BC face conventions.
-  - ``tests/sn/test_snmesh_sweep_graphs.py`` (13 tests) — graph
+  - ``tests/sn/primitives/test_dag_ownership.py`` (S6.4(c) successor of ``test_snmesh_sweep_graphs.py``) — graph
     contents agree with hand-derived schedule on a 3×3 mesh; dict
     keys equal ``quad.octants`` labels; cache invalidates when mesh
     changes.

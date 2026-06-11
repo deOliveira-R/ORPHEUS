@@ -81,7 +81,7 @@ from .spatial.cell_update import UpstreamState
 from .spatial.psi_half_angle_seed import CarlsonSweepContext
 from .spatial.scan import ordinate_scan
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
-from .sweep_graph import OctantLabel
+from .sweep_graph import OctantLabel, SweepDependencyGraph
 from .sweep_schedule import SweepSchedule
 
 if TYPE_CHECKING:
@@ -947,9 +947,9 @@ def _sweep_2d_wavefront(
        ``-B`` between sweeps (mirroring the 1-D O.4a.2 bare sweep), so
        the sweep is the pure bulk solve ``ψ = (L+C)^{-1} q`` reading the
        inflow as a fixed boundary datum.
-    2. **Dispatch to ``SNMesh.sweep_graphs[OctantLabel(σ)]``** —
-       the per-octant ``SweepDependencyGraph`` precomputed once at
-       mesh construction (Wave 2 / C2.4).
+    2. **Dispatch to the per-octant ``SweepDependencyGraph``** —
+       the family-owned ``sweep_graphs`` accessor over the per-shape
+       cache (S6.4(c); built once per shape, Wave 2 / C2.4).
     3. The graph's ``apply`` walks topological levels (anti-diagonals)
        and dispatches each level to
        ``sn_mesh.cell_update.update_batch(slice_args)`` — vectorised
@@ -1204,6 +1204,9 @@ def _sweep_full_field(
     weights = sn_mesh.quad.weights
     cell_update = sn_mesh.cell_update
 
+    # S6.4(c): the DAG family is owned by the representation layer's
+    # per-shape cache (the mesh is pure geometry).
+    sweep_graphs = SweepDependencyGraph.for_shape(sn_mesh.spatial_shape)
     for group in SweepSchedule.jacobi(sn_mesh).groups:
         for sweep in group.sweeps:
             oct_idx = np.asarray(sweep.indices)
@@ -1216,7 +1219,7 @@ def _sweep_full_field(
                 )
                 continue
             signs_eff = tuple(+1 if s == 0 else s for s in signs)
-            graph = sn_mesh.sweep_graphs[OctantLabel(signs_eff)]
+            graph = sweep_graphs[OctantLabel(signs_eff)]
             # FULL per-octant face fields — octant-restricted working copies.
             psi_faces_oct = tuple(pf[oct_idx].copy() for pf in psi_faces)
             angular_flux_oct = np.zeros((oct_idx.size, ng, *spatial))

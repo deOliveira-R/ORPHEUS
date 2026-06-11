@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5136**
+Total tests collected: **5141**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1171, 22.8%
+   L0, 1158, 22.5%
    L1, 946, 18.4%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2977, 58.0%
+   foundation, 2995, 58.3%
    unmarked, 6, 0.1%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5051
+   explicit, 5056
    verify, 0
    class-name, 46
    func-name, 0
@@ -297,6 +297,7 @@ Module × level grid
    primitives/test_axis_primitive, 0, 0, 0, 0, 23, 0
    primitives/test_boundary_face_layout, 0, 0, 0, 0, 5, 0
    primitives/test_cell_flattening_invariant, 0, 0, 0, 0, 3, 0
+   primitives/test_dag_ownership, 0, 0, 0, 0, 18, 0
    primitives/test_harmonic_moment_field, 0, 0, 0, 0, 31, 0
    primitives/test_method_space, 6, 0, 0, 0, 0, 0
    primitives/test_octants_property, 60, 0, 0, 0, 0, 0
@@ -304,7 +305,6 @@ Module × level grid
    primitives/test_quadrature, 49, 0, 0, 0, 0, 0
    primitives/test_snmesh_consumes_reduced, 0, 0, 0, 0, 15, 0
    primitives/test_snmesh_materials_pr_typed_0, 0, 0, 0, 0, 7, 0
-   primitives/test_snmesh_sweep_graphs, 13, 0, 0, 0, 0, 0
    primitives/test_solution, 0, 0, 0, 0, 31, 0
    primitives/test_typed_source_sinks, 0, 0, 0, 0, 24, 0
    regression/test_dd_regression, 0, 0, 0, 0, 13, 0

@@ -11,7 +11,8 @@ ordinates with a per-octant batched ``apply``.
 The graph is a **derived object** — it depends only on cell topology
 (``Mesh2D``) and the octant sign convention. It does NOT depend on
 fluxes, sources, or iteration state, so it is built ONCE per
-``(SNMesh, octant)`` pair at mesh construction (Wave 2 / C2.4) and
+``(shape, octant)`` pair in the :meth:`SweepDependencyGraph.for_shape`
+cache (S6.4(c); historically at mesh construction, Wave 2 / C2.4) and
 reused across every source iteration / Krylov matvec / outer iteration.
 
 Architectural framing (Cardinal Rule 2)
@@ -69,7 +70,10 @@ See also
 
 from __future__ import annotations
 
+import itertools
 from dataclasses import dataclass
+from functools import lru_cache
+from types import MappingProxyType
 
 import numpy as np
 
@@ -99,8 +103,8 @@ class OctantLabel:
     short-circuit and builds no graph for it (:attr:`streams` is
     ``False``).
 
-    Frozen + slotted: hashable for use as a ``dict`` key (the SNMesh
-    holds ``Mapping[OctantLabel, SweepDependencyGraph]``).
+    Frozen + slotted: hashable for use as a mapping key (the per-shape
+    family :meth:`SweepDependencyGraph.for_shape` is keyed by it).
     """
 
     signs: tuple[int, ...]
@@ -440,6 +444,39 @@ class SweepDependencyGraph:
         return self.face_out[1]
 
     # ── Construction ────────────────────────────────────────────────
+
+    @classmethod
+    def for_shape(
+        cls, spatial_shape: tuple[int, ...],
+    ) -> "MappingProxyType[OctantLabel, SweepDependencyGraph]":
+        r"""The per-octant DAG family for a Cartesian grid shape — CACHED.
+
+        One :class:`SweepDependencyGraph` per streaming octant: the
+        :math:`2^d` sign signatures ``itertools.product((-1, +1), repeat=d)``
+        over the ``d = len(spatial_shape)`` spatial axes.  A 1-D chain gets
+        2 graphs (``±x``); a 2-D mesh the 4 in-plane octants.  (Pure-z
+        ordinates with an all-zero in-plane sign are handled by the walk's
+        ``Q/Σ_t`` short-circuit and have no entry here.)
+
+        The graphs depend ONLY on cell topology + octant sign convention —
+        independent of fluxes / sources / iteration state / cross sections —
+        so they are cached **per shape** and shared by every consumer on a
+        same-shape mesh (S6.4(c): the DAG is OWNED by the
+        ``_DAGWavefront`` representation family through this accessor, not
+        by the mesh — a mesh is pure geometry; DAG-free representations
+        never mention this substrate).
+
+        At ``d = 2`` ``itertools.product`` yields the octants in the same
+        order as the historical nested ``sx, sy`` loop — ``(-1,-1), (-1,+1),
+        (+1,-1), (+1,+1)`` — so the dict is built bit-for-bit as the
+        retired mesh-construction build did.
+
+        The returned mapping is a read-only :class:`~types.MappingProxyType`
+        — it is shared across callers, so mutation is unrepresentable (the
+        small LRU bound only re-pays the construction cost when many
+        distinct shapes interleave).
+        """
+        return _graphs_for_shape(tuple(int(n) for n in spatial_shape))
 
     @classmethod
     def from_cartesian(
@@ -967,6 +1004,25 @@ class SweepDependencyGraph:
             frontier.emit(cur, k, out_faces)
             frontier.shed(k, out_faces, capture)
             residual_octant[cell_g] = res
+
+
+@lru_cache(maxsize=8)
+def _graphs_for_shape(
+    spatial_shape: tuple[int, ...],
+) -> "MappingProxyType[OctantLabel, SweepDependencyGraph]":
+    """The cached body of :meth:`SweepDependencyGraph.for_shape` (module-level
+    so ``lru_cache`` keys on the shape tuple alone, not a class argument).
+
+    Returns a :class:`~types.MappingProxyType` — the family is SHARED across
+    every same-shape consumer, so mutation is made unrepresentable rather
+    than merely discouraged (the proxy itself is the cached object, keeping
+    same-shape identity stable)."""
+    return MappingProxyType({
+        OctantLabel(signs): SweepDependencyGraph.from_cartesian(
+            spatial_shape, label=OctantLabel(signs),
+        )
+        for signs in itertools.product((-1, +1), repeat=len(spatial_shape))
+    })
 
 
 __all__ = [
