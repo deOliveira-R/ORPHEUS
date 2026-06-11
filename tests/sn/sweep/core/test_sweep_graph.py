@@ -13,7 +13,7 @@ file pins the invariants the plan named:
 * :ref:`assert_face_pairing_consistent` — within an octant, the
   outgoing face of cell ``(i, j)`` matches the incoming face of
   ``(i + sx, j)`` (and analogous for y).
-* :ref:`apply_invariants` — running ``SweepDependencyGraph.apply``
+* :ref:`apply_invariants` — running ``SweepDependencyGraph.walk_full``
   matches a per-cell hand calculation on a tiny grid (1×1, 2×2)
   and matches the legacy inlined wavefront math on a 3×3 grid.
 """
@@ -24,7 +24,12 @@ import numpy as np
 import pytest
 
 from orpheus.sn.spatial.diamond import DiamondDifference
-from orpheus.sn.sweep_graph import OctantLabel, SweepDependencyGraph
+from orpheus.sn.sweep_graph import (
+    OctantLabel,
+    SweepDependencyGraph,
+    _CellResidual,
+    _CellSolve,
+)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -275,18 +280,21 @@ class TestApplyMatchesLegacyInlined:
         scalar_flux = np.zeros((ng, nx, ny))
         psi_x_oct = psi_x.copy()
         psi_y_oct = psi_y.copy()
-        graph.apply(
-            cell_update=DiamondDifference(),
+        graph.walk_full(
+            level_op=_CellSolve(
+                cell_update=DiamondDifference(),
+                weights_octant=weights,
+                angular_flux_octant=angular_flux,
+                scalar_flux_buf=scalar_flux,
+            ),
             psi_faces_octant=(psi_x_oct, psi_y_oct),
-            Q_octant=Q, sig_t=sig_t,
+            Q_octant=Q,
+            sig_t=sig_t,
             str_axes_octant=(str_x, str_y),
-            weights_octant=weights,
-            angular_flux_octant=angular_flux,
-            scalar_flux_buf=scalar_flux,
         )
 
         # Bit-identity on angular flux (operation order matches per
-        # update_batch's bit-identity gate from C2.2).
+        # the cell-kernel bit-identity gate, C2.2 / S6.4(e)).
         np.testing.assert_array_equal(angular_flux, ref_ang)
         # Face buffers also bit-identical.
         np.testing.assert_array_equal(psi_x_oct, ref_px)
@@ -327,14 +335,17 @@ class TestApplyMatchesLegacyInlined:
         scalar_flux = np.zeros((ng, nx, ny))
         psi_x_oct = psi_x.copy()
         psi_y_oct = psi_y.copy()
-        graph.apply(
-            cell_update=DiamondDifference(),
+        graph.walk_full(
+            level_op=_CellSolve(
+                cell_update=DiamondDifference(),
+                weights_octant=weights,
+                angular_flux_octant=angular_flux,
+                scalar_flux_buf=scalar_flux,
+            ),
             psi_faces_octant=(psi_x_oct, psi_y_oct),
-            Q_octant=Q, sig_t=sig_t,
+            Q_octant=Q,
+            sig_t=sig_t,
             str_axes_octant=(str_x, str_y),
-            weights_octant=weights,
-            angular_flux_octant=angular_flux,
-            scalar_flux_buf=scalar_flux,
         )
         np.testing.assert_array_equal(angular_flux, ref_ang)
         np.testing.assert_array_equal(psi_x_oct, ref_px)
@@ -378,28 +389,35 @@ class TestResidualWalkRoundTrip:
 
         graph = SweepDependencyGraph.from_cartesian((nx, ny), label=OctantLabel((sx, sy)))
 
-        # SOLVE: graph.apply forward-substitutes update_batch.
+        # SOLVE: walk_full forward-substitutes the solve cell kernel.
         ang = np.zeros((N_oct, ng, nx, ny))
         scal = np.zeros((ng, nx, ny))
-        graph.apply(
-            cell_update=DiamondDifference(),
+        graph.walk_full(
+            level_op=_CellSolve(
+                cell_update=DiamondDifference(),
+                weights_octant=weights,
+                angular_flux_octant=ang,
+                scalar_flux_buf=scal,
+            ),
             psi_faces_octant=(psi_x.copy(), psi_y.copy()),
-            Q_octant=Q, sig_t=sig_t,
+            Q_octant=Q,
+            sig_t=sig_t,
             str_axes_octant=(str_x, str_y),
-            weights_octant=weights,
-            angular_flux_octant=ang, scalar_flux_buf=scal,
         )
 
         # APPLY at the swept solution, from a FRESH copy with the SAME
         # boundary-incoming seeds (apply only scatters outgoing faces).
         residual = np.zeros((N_oct, ng, nx, ny))
-        graph.residual(
-            cell_update=DiamondDifference(),
+        graph.walk_full(
+            level_op=_CellResidual(
+                cell_update=DiamondDifference(),
+                psi_avg_probe_octant=ang,
+                residual_octant=residual,
+            ),
             psi_faces_octant=(psi_x.copy(), psi_y.copy()),
-            psi_avg_probe_octant=ang,
-            Q_octant=Q, sig_t=sig_t,
+            Q_octant=Q,
+            sig_t=sig_t,
             str_axes_octant=(str_x, str_y),
-            residual_octant=residual,
         )
 
         np.testing.assert_allclose(residual, 0.0, atol=1e-11)
@@ -417,21 +435,28 @@ class TestResidualWalkRoundTrip:
         graph = SweepDependencyGraph.from_cartesian((nx, ny), label=OctantLabel((+1, +1)))
         ang = np.zeros((N_oct, ng, nx, ny))
         scal = np.zeros((ng, nx, ny))
-        graph.apply(
-            cell_update=DiamondDifference(),
+        graph.walk_full(
+            level_op=_CellSolve(
+                cell_update=DiamondDifference(),
+                weights_octant=weights,
+                angular_flux_octant=ang,
+                scalar_flux_buf=scal,
+            ),
             psi_faces_octant=(psi_x.copy(), psi_y.copy()),
-            Q_octant=Q, sig_t=sig_t,
+            Q_octant=Q,
+            sig_t=sig_t,
             str_axes_octant=(str_x, str_y),
-            weights_octant=weights,
-            angular_flux_octant=ang, scalar_flux_buf=scal,
         )
         residual = np.zeros((N_oct, ng, nx, ny))
-        graph.residual(
-            cell_update=DiamondDifference(),
+        graph.walk_full(
+            level_op=_CellResidual(
+                cell_update=DiamondDifference(),
+                psi_avg_probe_octant=ang,
+                residual_octant=residual,
+            ),
             psi_faces_octant=(psi_x.copy(), psi_y.copy()),
-            psi_avg_probe_octant=ang,
-            Q_octant=Q, sig_t=sig_t,
+            Q_octant=Q,
+            sig_t=sig_t,
             str_axes_octant=(str_x, str_y),
-            residual_octant=residual,
         )
         np.testing.assert_allclose(residual, 0.0, atol=1e-11)

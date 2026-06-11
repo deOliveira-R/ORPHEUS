@@ -174,148 +174,6 @@ from orpheus.numerics.registry import RegistryMixin
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# SweepCellSlice — per-level batched-update packet (2-D Cartesian)
-# ═══════════════════════════════════════════════════════════════════════
-
-@dataclass(frozen=True, slots=True)
-class SweepCellSlice:
-    r"""Per-topological-level batched-update packet for the d-D wavefront sweep.
-
-    The wavefront sweep visits cells in topological levels (the
-    anti-hyperplanes :math:`\sum_a \mathrm{local}_a = k` of the Cartesian
-    grid under a given octant sign convention). Within one level all cells
-    are mutually independent (no upstream/downstream relation), so the
-    per-cell DD math vectorises across both the **ordinate axis** (size
-    ``N_oct`` — every ordinate in the current octant) and the
-    **anti-hyperplane axis** (size ``n_diag`` — number of cells on this
-    level) simultaneously. ``SweepCellSlice`` is the input packet
-    :meth:`CellUpdateBase.update_batch` consumes.
-
-    Dimension-generic (``d = ndim ∈ {1, 2, 3}``)
-    --------------------------------------------
-
-    Every spatial quantity is a **per-axis tuple, positional-by-axis**:
-    element ``a`` is spatial axis ``a`` — the SAME axis order as
-    :attr:`~orpheus.sn.sweep_graph.OctantLabel.signs` and
-    :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.from_cartesian`'s
-    ``shape``. At ``d = 2`` the tuples are ``(x, y)`` and the gather/scatter
-    advanced indices reduce to the legacy ``[:, :, face, jj]`` /
-    ``[:, :, ii, face]`` slices **bit-for-bit**.
-
-    Shape contract
-    --------------
-
-    Let ``N_oct`` be the number of ordinates in the active octant,
-    ``n_diag`` the number of cells on this level, ``ng`` the energy groups,
-    and ``shape = (n_0, …, n_{d-1})`` the spatial cell counts.
-
-    +-----------------+------------------------------------+--------------------------------+
-    | Field           | Shape                              | Role                           |
-    +=================+====================================+================================+
-    | ``cell_idx``    | ``d`` × ``(n_diag,)`` int          | Per-axis cell indices on this  |
-    |                 |                                    | level (``cell_idx[a]`` = the   |
-    |                 |                                    | axis-``a`` index)              |
-    +-----------------+------------------------------------+--------------------------------+
-    | ``face_in_idx`` | ``d`` × ``(n_diag,)`` int          | Per-axis incoming-face index   |
-    |                 |                                    | (``cell_idx[a] + 0`` if axis   |
-    |                 |                                    | ``a`` streams +, else ``+1``)  |
-    +-----------------+------------------------------------+--------------------------------+
-    | ``face_out_idx``| ``d`` × ``(n_diag,)`` int          | Per-axis outgoing-face index   |
-    +-----------------+------------------------------------+--------------------------------+
-    | ``psi_faces``   | ``d`` × ``(N_oct, ng, …, n_a+1, …)``| Per-axis octant-restricted     |
-    |                 |                                    | face-flux buffers; mutated in  |
-    |                 |                                    | place (outgoing scattered at   |
-    |                 |                                    | ``face_out_idx[a]``). Axis     |
-    |                 |                                    | ``a``'s buffer is ``n_a + 1``  |
-    |                 |                                    | along axis ``a`` and ``n_b``   |
-    |                 |                                    | on every other axis. Issue     |
-    |                 |                                    | #196 PR-INDEX-5 — principled   |
-    |                 |                                    | ``g`` after ``N_oct``.         |
-    +-----------------+------------------------------------+--------------------------------+
-    | ``Q``           | ``(N_oct or 1, ng, *shape)``       | Per-octant per-cell volumetric |
-    |                 |                                    | source, **already weight-      |
-    |                 |                                    | normalised**. The leading axis |
-    |                 |                                    | is ``1`` for isotropic-only    |
-    |                 |                                    | sweeps and ``N_oct`` when a    |
-    |                 |                                    | per-ordinate aniso source is   |
-    |                 |                                    | folded in.                     |
-    +-----------------+------------------------------------+--------------------------------+
-    | ``sig_t``       | ``(ng, *shape)``                   | Per-cell per-group total XS    |
-    +-----------------+------------------------------------+--------------------------------+
-    | ``str_axes``    | ``d`` × ``(N_oct, n_a)``           | Per-axis octant-restricted     |
-    |                 |                                    | streaming coefficient          |
-    |                 |                                    | ``2|μ_a|/Δa``                  |
-    +-----------------+------------------------------------+--------------------------------+
-
-    Apply direction (Wave O #208 O.4b)
-    ----------------------------------
-
-    ``psi_avg_probe`` (shape ``(N_oct, ng, *shape)``, default ``None``) is
-    the probe cell-average field consumed by
-    :meth:`CellUpdateBase.residual_batch` — the batched apply-direction
-    analogue of :meth:`update_batch`. It is ``None`` for the solve
-    direction (``update_batch`` does not read it); the matvec's
-    residual-mode graph walk sets it so ``residual_batch`` evaluates the
-    per-cell operator :math:`(L+C)\,\overline\psi - q` at the probe
-    instead of solving for :math:`\overline\psi`. This mirrors the
-    per-cell :meth:`CellUpdate.update` / :meth:`CellUpdate.residual` pair
-    at the batched level.
-
-    Mutation semantics
-    ------------------
-
-    ``psi_faces`` is mutated **in place** by :meth:`update_batch` at the
-    per-axis outgoing-face indices ``face_out_idx[a]`` for this level. The
-    caller (the
-    :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` orchestrator)
-    keeps these buffers as persistent state across levels and across
-    iterations; mutating them in place is the canonical way to propagate
-    face fluxes from one level to the next.
-
-    Frozen + slotted: the dataclass itself is immutable (no rebinding of
-    attributes) but the numpy arrays it points at are mutable — that is the
-    desired separation of concerns.
-
-    Why a raw per-axis tuple, not a ``WavefrontFlux``
-    -------------------------------------------------
-
-    The face buffers are OCTANT-RESTRICTED working copies — a fancy-index
-    copy over the ordinate sub-block, ``(N_oct, …)`` not the full mesh
-    ``(N, …)``. They are therefore NOT a mesh-bound cochain: wrapping an
-    ``N_oct``-sized buffer as a
-    :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux` would
-    violate its mesh-binding invariant
-    (:meth:`WavefrontFlux._check_partner`) — an illegal state in the *other*
-    direction. The axis↔buffer binding a type would enforce is instead
-    established ONCE where the per-axis tuple is born — since S6.4(d) the
-    full-cochain kernel's ``_octant_face_cochain`` ``range(ndim)`` loop
-    (historically ``WavefrontFlux.face(a)`` over ``WavefrontFlux.axes``,
-    which replaced the hardcoded ``psi_x = face(0); psi_y = face(1)``);
-    the octant projection and this slice preserve that axis order. The
-    kernel (:meth:`DiamondDifference.cell_kernel_batch`) likewise stays
-    raw-tuple — it touches a transient anti-hyperplane slice, not the whole
-    cochain.
-
-    See also
-    --------
-    * :meth:`CellUpdateBase.update_batch` — the consumer.
-    * :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` — the producer.
-    """
-
-    cell_idx: tuple[np.ndarray, ...]
-    face_in_idx: tuple[np.ndarray, ...]
-    face_out_idx: tuple[np.ndarray, ...]
-    psi_faces: tuple[np.ndarray, ...]
-    Q: np.ndarray
-    sig_t: np.ndarray
-    str_axes: tuple[np.ndarray, ...]
-    # Apply direction only (Wave O #208 O.4b): the probe cell-average
-    # field ``residual_batch`` evaluates the per-cell operator at.
-    # ``None`` for the solve direction (``update_batch`` ignores it).
-    psi_avg_probe: np.ndarray | None = None
-
-
-# ═══════════════════════════════════════════════════════════════════════
 # CellVisit — one visit to one cell during an SN sweep
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -712,99 +570,69 @@ class CellUpdateBase(RegistryMixin, ABC):
         """
         ...
 
-    def update_batch(self, slice_args: SweepCellSlice) -> np.ndarray:
-        r"""Vectorised per-level update for the 2-D Cartesian wavefront sweep.
+    def cell_kernel_batch(
+        self,
+        *,
+        psi_in: tuple[np.ndarray, ...],
+        s_axes: tuple[np.ndarray, ...],
+        sigt_cells: np.ndarray,
+        Q_cells: np.ndarray,
+    ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
+        r"""Pure batched SOLVE cell kernel — the level-vectorised extension point.
 
-        Default implementation raises :exc:`NotImplementedError`.
-        Strategies that want to participate in the batched 2-D
-        wavefront sweep (Wave 2 / C2.3) override this method. The
-        per-cell :meth:`update` method remains the canonical contract;
-        ``update_batch`` is an additive capability for closures whose
-        per-cell algebra also vectorises over an ``(N_oct, n_diag,
-        ng)`` slice without per-cell branching.
+        Solve the strategy's cell closure for the cell-average flux on one
+        topological level, vectorised over ``(N_oct, ng, n_diag)``: given the
+        per-axis incoming face fluxes ``psi_in`` + streaming coefficients
+        ``s_axes`` (positional-by-axis, ``d = 1, 2, 3``), the level's
+        ``sigt_cells`` ``(ng, n_diag)`` and source ``Q_cells``, return
+        ``(psi_avg, psi_out)`` with ``psi_out`` the d-tuple of outgoing face
+        fluxes.
 
-        Parameters
-        ----------
-        slice_args :
-            One topological-level packet — see :class:`SweepCellSlice`
-            for the shape contract.
-
-        Returns
-        -------
-        psi_avg :
-            Cell-average flux on this level, shape
-            ``(N_oct, ng, n_diag)`` (Issue #196 PR-INDEX-5 principled
-            layout — ``ng`` before the anti-diagonal axis; matches the
-            implementation comment at ``diamond.py`` and the
-            :meth:`residual_batch` return). The caller writes ``psi_avg``
-            into the angular-flux buffer and accumulates into the
-            scalar-flux buffer; outgoing face fluxes are scattered
-            back into the per-axis ``slice_args.psi_faces`` buffers
-            in place by ``update_batch`` itself (since the spatial
-            closure is part of the strategy's algebra).
+        STORAGE-FREE by contract (S6.4(e)): gathering the inputs from and
+        scattering ``psi_out`` back into the face cochain is the WALK's job
+        (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full` /
+        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`
+        via the ``_CellSolve`` level operation) — a strategy supplies ONLY
+        its cell algebra.  Default raises :exc:`NotImplementedError`;
+        :class:`DiamondDifference` overrides; future closures (Step / LD /
+        EC) override this pair to join the batched wavefront walks (the
+        per-cell :meth:`update` stays the canonical reference contract).
         """
         raise NotImplementedError(
-            f"{type(self).__name__} does not implement update_batch. "
-            "Override this method to enable the batched 2-D Cartesian "
-            "wavefront sweep (Wave 2 / C2.3)."
+            f"{type(self).__name__} does not implement cell_kernel_batch. "
+            "Override the kernel pair (cell_kernel_batch / "
+            "residual_kernel_batch) to enable the batched wavefront walks."
         )
 
-    def residual_batch(self, slice_args: SweepCellSlice) -> np.ndarray:
-        r"""Vectorised per-level operator residual — the apply direction.
+    def residual_kernel_batch(
+        self,
+        *,
+        psi_bar: np.ndarray,
+        psi_in: tuple[np.ndarray, ...],
+        s_axes: tuple[np.ndarray, ...],
+        sigt_cells: np.ndarray,
+        Q_cells: np.ndarray,
+    ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
+        r"""Pure batched APPLY cell kernel — the level-vectorised residual.
 
-        The batched **apply-direction analogue of** :meth:`update_batch`,
-        exactly as the per-cell :meth:`residual` is the apply-direction
-        analogue of :meth:`update`. Where ``update_batch`` SOLVES for the
-        cell-average flux on one anti-diagonal level (given source +
-        incoming faces), ``residual_batch`` evaluates the discrete
-        operator residual :math:`(L+C)\,\overline\psi - q` at a PROBE
-        cell-average field (``slice_args.psi_avg_probe``) — needed by the
-        2-D Cartesian matvec ``StreamingOperator.apply`` (Wave O #208
-        O.4b), which routes through the SAME ``SweepDependencyGraph``
-        wavefront walk as the sweep so matvec and sweep are one
-        discretization (L21).
+        The apply-direction companion of :meth:`cell_kernel_batch`, exactly
+        as the per-cell :meth:`residual` is the companion of :meth:`update`:
+        evaluate the strategy's per-cell operator residual at the GIVEN
+        probe cell-average ``psi_bar`` ``(N_oct, ng, n_diag)`` and
+        reconstruct the outgoing faces from it.  Returns
+        ``(residual, psi_out)``.
 
-        Default implementation raises :exc:`NotImplementedError`;
-        strategies that override :meth:`update_batch` should override this
-        in lockstep (the two describe the same per-level linear system in
-        solve direction and apply direction).
-
-        Round-trip contract
-        -------------------
-
-        For any level slice whose ``psi_avg_probe`` carries the value
-        ``update_batch`` would return::
-
-            psi_avg  = strategy.update_batch(slice)        # solve
-            slice2   = replace(slice, psi_avg_probe=<psi_avg scattered to cells>)
-            residual = strategy.residual_batch(slice2)     # apply at the solution
-            assert np.allclose(residual, 0.0, atol=1e-13)
-
-        i.e. the residual vanishes at the swept solution — the batched
-        analogue of the per-cell :meth:`residual`/:meth:`update` contract.
-
-        Parameters
-        ----------
-        slice_args :
-            One topological-level packet with ``psi_avg_probe`` set — see
-            :class:`SweepCellSlice` ("Apply direction").
-
-        Returns
-        -------
-        residual :
-            Per-cell residual on this level, shape ``(N_oct, ng,
-            n_diag)``. The caller writes it into the bulk-residual output
-            buffer; outgoing face fluxes are scattered back into
-            the per-axis ``slice_args.psi_faces`` buffers in place by
-            ``residual_batch`` itself (the spatial closure
-            :math:`\psi^{\rm out} = 2\overline\psi - \psi^{\rm in}` is
-            applied with the PROBE, propagating edge fluxes downstream
-            exactly as the solve does).
+        Round-trip contract: at ``psi_bar`` equal to the value
+        :meth:`cell_kernel_batch` solves for (same inputs), the residual
+        vanishes to FP noise — the batched analogue of the per-cell
+        :meth:`residual`/:meth:`update` contract.  Implement the pair in
+        LOCKSTEP (one per-level linear system, two directions).  Default
+        raises :exc:`NotImplementedError`.
         """
         raise NotImplementedError(
-            f"{type(self).__name__} does not implement residual_batch. "
-            "Override this method to enable the batched 2-D Cartesian "
-            "matvec apply (Wave O #208 O.4b)."
+            f"{type(self).__name__} does not implement residual_kernel_batch. "
+            "Override the kernel pair (cell_kernel_batch / "
+            "residual_kernel_batch) to enable the batched wavefront walks."
         )
 
 
@@ -813,6 +641,5 @@ __all__ = [
     "CellUpdate",
     "CellUpdateBase",
     "CellVisit",
-    "SweepCellSlice",
     "UpstreamState",
 ]

@@ -850,9 +850,10 @@ def _sweep_2d_scheduled(
 
     Phase 5b storage-B: the interior face cochain is a rolling 2-diagonal
     moving-frontier window (O(N·ng·nx)), carried inside
-    :meth:`SweepDependencyGraph.apply_windowed` per octant — NOT the full
+    :meth:`SweepDependencyGraph.walk_windowed` per octant — NOT the full
     O(N·ng·nx·ny) per-axis field. The full-field walk
-    (:meth:`SweepDependencyGraph.apply` on the full per-axis face cochain —
+    (:meth:`SweepDependencyGraph.walk_full` with the solve level operation,
+    on the full per-axis face cochain —
     the ``FullFieldWavefront`` kernel since S6.4(d)) is retained as the
     bit-identity verification oracle (see the ``window ≡ full-field``
     test); the converged solution is unchanged.
@@ -955,10 +956,10 @@ def _sweep_2d_wavefront(
     2. **Dispatch to the per-octant ``SweepDependencyGraph``** —
        the family-owned ``sweep_graphs`` accessor over the per-shape
        cache (S6.4(c); built once per shape, Wave 2 / C2.4).
-    3. The graph's ``apply`` walks topological levels (anti-diagonals)
-       and dispatches each level to
-       ``sn_mesh.cell_update.update_batch(slice_args)`` — vectorised
-       over ``(N_oct, n_diag, ng)`` simultaneously.
+    3. The graph's windowed walk traverses topological levels
+       (anti-diagonals) and dispatches each level to the cell-update
+       strategy's batched solve kernel — vectorised over
+       ``(N_oct, n_diag, ng)`` simultaneously.
 
     The smoking gun ``for n in range(N)`` is gone: the outer loop is now
     ``for group in SweepSchedule.jacobi(sn_mesh).groups`` (ONE all-octants

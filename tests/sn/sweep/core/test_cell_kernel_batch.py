@@ -1,36 +1,36 @@
-r"""Tests for :meth:`DiamondDifference.update_batch` and the
-:class:`SweepCellSlice` packet (Wave 2 / C2.2).
+r"""The batched cell-kernel PAIR — term-level L0 + the protocol contract.
 
-The Wave 2 plan introduces a vectorised per-level update for the 2-D
-Cartesian wavefront sweep. ``update_batch`` consumes a
-:class:`SweepCellSlice` packet and returns ``psi_avg`` of shape
-``(N_oct, n_diag, ng)``, scattering the outgoing face fluxes back into
-the persistent BC buffers ``psi_x`` / ``psi_y`` in place.
+:meth:`DiamondDifference.cell_kernel_batch` (SOLVE) and
+:meth:`~DiamondDifference.residual_kernel_batch` (APPLY) are the storage-free
+direction fork of the SN stack — the ONLY place the solve/apply algebra
+differs (S6.4).  This file pins them at the term level:
 
-This file pins three properties:
+1. **Closed-form balance** — ``ψ̄ = (Q + Σ_a s_a ψ_in_a) / (Σ_t + Σ_a s_a)``
+   and the WDD closure ``ψ_out_a = 2ψ̄ − ψ_in_a`` against a hand
+   calculation (the kernel returns the faces; SCATTERING them is the
+   walk's job, pinned in ``test_sweep_graph.py``).
+2. **Bit-identity of the ordinate vectorisation** — the kernel's batched
+   left-fold against a per-ordinate Python-loop reference, per element.
+3. **The apply direction's closed form, affinity, and the
+   solve↔apply ROUND TRIP** — the residual vanishes at the solved ψ̄
+   (the batched analogue of the per-cell ``residual``/``update`` contract).
+4. **The protocol default** — a strategy that does not override the
+   kernel pair fails loudly (:exc:`NotImplementedError`), never silently.
 
-1. **Bit-identity to the legacy inlined wavefront math** at
-   ``orpheus.sn.sweep._sweep_2d_wavefront`` lines 847-871. The
-   refactor's load-bearing constraint per the explorer surface map
-   is that ``denom = sig_t + sx + sy``,
-   ``psi_avg = (Q + sx*psi_in_x + sy*psi_in_y) / denom``, and
-   ``psi_out = 2*psi_avg - psi_in`` retain their operation order
-   exactly.
-2. **Face-flux scatter** — the WDD spatial closure values land at
-   ``face_out_x_idx`` / ``face_out_y_idx`` and nowhere else.
-3. **Default NotImplementedError** on the base class — strategies
-   that don't override ``update_batch`` fail loudly rather than
-   silently.
-
-V&V tags: ``L0`` (term-level verification of the closed-form
-algebraic update against the WDD balance formula) plus a
-``regression``-style bit-identity check against the legacy inlined
-math.
+History: migrated from ``test_cell_update_batch.py`` at S6.4(e) (the
+``SweepCellSlice``-packeted storage adapters ``update_batch`` /
+``residual_batch`` retired — gather/scatter moved to the graph walks;
+retirement = test migration).  The face-flux PLACEMENT pins moved with the
+storage: ``test_sweep_graph.py`` proves the walk's gather/scatter against a
+hand-rolled per-octant reference (all four octants).  Two claims DISSOLVED
+by construction: the negative-octant single-cell variant (the sign only
+ever selected gather INDICES — storage, not algebra) and the "residual
+without probe raises" guard (the kernel signature REQUIRES ``psi_bar`` —
+the illegal state is now unrepresentable, not runtime-checked).
 """
 
 from __future__ import annotations
 
-from dataclasses import replace
 from typing import ClassVar
 
 import numpy as np
@@ -40,94 +40,36 @@ from orpheus.sn.spatial.cell_update import (
     CellResult,
     CellUpdateBase,
     CellVisit,
-    SweepCellSlice,
     UpstreamState,
 )
 from orpheus.sn.spatial.diamond import DiamondDifference
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Helper builders
+# Helper builders — random kernel operands (no storage, no indices)
 # ─────────────────────────────────────────────────────────────────────
 
 
-def _build_slice_kwargs(
-    *,
-    nx: int,
-    ny: int,
-    N_oct: int,
-    ng: int,
-    diag_cells: list[tuple[int, int]],
-    sx_sign: int,
-    sy_sign: int,
-    seed: int = 0,
-    Q_shape_leading: int | None = None,  # None -> N_oct; 1 -> isotropic
-) -> tuple[SweepCellSlice, np.ndarray, np.ndarray]:
-    """Build a SweepCellSlice + return references to psi_x and psi_y.
-
-    Issue #196 PR-INDEX-5: principled layout — ``psi_x: (N_oct, ng,
-    nx+1, ny)``, ``psi_y: (N_oct, ng, nx, ny+1)``,
-    ``Q: (N_oct or 1, ng, nx, ny)``, ``sig_t: (ng, nx, ny)``.
-    """
+def _random_kernel_operands(
+    *, N_oct: int, ng: int, n_diag: int, seed: int, Q_leading: int | None = None,
+):
+    """Random per-level kernel inputs in the kernel's shape contract:
+    ``psi_in`` d-tuple of ``(N_oct, ng, n_diag)``, ``s_axes`` d-tuple of
+    ``(N_oct, 1, n_diag)``, ``sigt_cells (ng, n_diag)``,
+    ``Q_cells (N_oct or 1, ng, n_diag)``."""
     rng = np.random.default_rng(seed)
-    psi_x = rng.standard_normal((N_oct, ng, nx + 1, ny))
-    psi_y = rng.standard_normal((N_oct, ng, nx, ny + 1))
-    Q_lead = N_oct if Q_shape_leading is None else Q_shape_leading
-    Q = rng.standard_normal((Q_lead, ng, nx, ny))
-    sig_t = rng.uniform(0.1, 0.5, size=(ng, nx, ny))
-    str_x = rng.uniform(0.1, 1.0, size=(N_oct, nx))
-    str_y = rng.uniform(0.1, 1.0, size=(N_oct, ny))
-
-    ix_in = 0 if sx_sign >= 0 else 1
-    ix_out = 1 if sx_sign >= 0 else 0
-    iy_in = 0 if sy_sign >= 0 else 1
-    iy_out = 1 if sy_sign >= 0 else 0
-
-    ii = np.array([c[0] for c in diag_cells], dtype=int)
-    jj = np.array([c[1] for c in diag_cells], dtype=int)
-
-    return (
-        SweepCellSlice(
-            cell_idx=(ii, jj),
-            face_in_idx=(ii + ix_in, jj + iy_in),
-            face_out_idx=(ii + ix_out, jj + iy_out),
-            psi_faces=(psi_x, psi_y),
-            Q=Q, sig_t=sig_t, str_axes=(str_x, str_y),
-        ),
-        psi_x, psi_y,
+    psi_in = (
+        rng.standard_normal((N_oct, ng, n_diag)),
+        rng.standard_normal((N_oct, ng, n_diag)),
     )
-
-
-def _legacy_inlined_psi_avg(
-    slice_args: SweepCellSlice, psi_x_pre: np.ndarray, psi_y_pre: np.ndarray,
-) -> np.ndarray:
-    """Reference implementation: per-ordinate Python loop in principled
-    ``(N_oct, ng, n_diag)`` layout.
-
-    Issue #196 PR-INDEX-5: ``psi_x`` is ``(N_oct, ng, nx+1, ny)`` etc.;
-    output principled ``(N_oct, ng, n_diag)``.
-    """
-    s = slice_args
-    N_oct = s.psi_faces[0].shape[0]
-    ng = s.psi_faces[0].shape[1]
-    ii, jj = s.cell_idx
-    n_diag = len(ii)
-    psi_avg_ref = np.empty((N_oct, ng, n_diag))
-    for n in range(N_oct):
-        psi_in_x = psi_x_pre[n, :, s.face_in_idx[0], jj]    # (n_diag, ng) — advanced at end
-        psi_in_y = psi_y_pre[n, :, ii, s.face_in_idx[1]]    # (n_diag, ng)
-        # Note: numpy gives (n_diag, ng) when advanced indices trail two
-        # basic slices; transpose to (ng, n_diag) for principled output.
-        psi_in_x = psi_in_x.T                                # (ng, n_diag)
-        psi_in_y = psi_in_y.T                                # (ng, n_diag)
-        sx_ii = s.str_axes[0][n, ii][None, :]               # (1, n_diag)
-        sy_jj = s.str_axes[1][n, jj][None, :]               # (1, n_diag)
-        denom = s.sig_t[:, ii, jj] + sx_ii + sy_jj          # (ng, n_diag)
-        Q_n = s.Q[n if s.Q.shape[0] > 1 else 0, :, ii, jj].T  # (ng, n_diag)
-        psi_avg_ref[n] = (
-            Q_n + sx_ii * psi_in_x + sy_jj * psi_in_y
-        ) / denom
-    return psi_avg_ref
+    s_axes = (
+        rng.uniform(0.1, 1.0, size=(N_oct, 1, n_diag)),
+        rng.uniform(0.1, 1.0, size=(N_oct, 1, n_diag)),
+    )
+    sigt_cells = rng.uniform(0.1, 0.5, size=(ng, n_diag))
+    Q_lead = N_oct if Q_leading is None else Q_leading
+    Q_cells = rng.standard_normal((Q_lead, ng, n_diag))
+    return psi_in, s_axes, sigt_cells, Q_cells
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -136,210 +78,239 @@ def _legacy_inlined_psi_avg(
 
 
 @pytest.mark.l0
-class TestSingleCellClosedForm:
+class TestSolveKernelClosedForm:
     """Smallest possible batch — analytical hand calculation."""
 
-    def test_single_cell_psi_avg_matches_balance_formula(self):
-        """psi_avg = (Q + sx*psi_in_x + sy*psi_in_y) / (Σ_t + sx + sy).
-
-        Issue #196 PR-INDEX-5: psi_x/psi_y/Q/sig_t principled layout.
-        """
-        # 1 ordinate, 1 cell at (i=0, j=0), 1 group, sx > 0, sy > 0.
-        # psi_x principled: (N_oct=1, ng=1, nx+1=2, ny=1).
-        psi_x = np.zeros((1, 1, 2, 1))
-        psi_y = np.zeros((1, 1, 1, 2))
-        psi_x[0, 0, 0, 0] = 4.0   # face_in_x at i=0 (sx>=0 -> ix_in=0)
-        psi_y[0, 0, 0, 0] = 8.0   # face_in_y at j=0
-        # Q principled: (N_oct or 1, ng=1, nx=1, ny=1).
-        Q = np.array([[[[16.0]]]])              # (1, 1, 1, 1)
-        sig_t = np.array([[[2.0]]])             # (ng=1, nx=1, ny=1)
-        str_x = np.array([[3.0]])               # (N_oct, nx)
-        str_y = np.array([[5.0]])               # (N_oct, ny)
-        slice_args = SweepCellSlice(
-            cell_idx=(np.array([0]), np.array([0])),
-            face_in_idx=(np.array([0]), np.array([0])),
-            face_out_idx=(np.array([1]), np.array([1])),
-            psi_faces=(psi_x, psi_y),
-            Q=Q, sig_t=sig_t, str_axes=(str_x, str_y),
+    def test_psi_avg_and_closure_match_balance_formula(self):
+        """ψ̄ = (Q + s_x·ψ_in_x + s_y·ψ_in_y) / (Σ_t + s_x + s_y); the WDD
+        closure faces are returned (the walk scatters them)."""
+        psi_in = (np.full((1, 1, 1), 4.0), np.full((1, 1, 1), 8.0))
+        s_axes = (np.full((1, 1, 1), 3.0), np.full((1, 1, 1), 5.0))
+        sigt_cells = np.full((1, 1), 2.0)
+        Q_cells = np.full((1, 1, 1), 16.0)
+        psi_avg, psi_out = DiamondDifference().cell_kernel_batch(
+            psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
         )
-        psi_avg = DiamondDifference().update_batch(slice_args)
-        # (16 + 3*4 + 5*8) / (2 + 3 + 5) = (16 + 12 + 40) / 10 = 6.8
+        # (16 + 3*4 + 5*8) / (2 + 3 + 5) = 68 / 10 = 6.8
         np.testing.assert_array_equal(psi_avg, 6.8)
-        # Outgoing face-flux: 2*6.8 - 4 = 9.6 (x), 2*6.8 - 8 = 5.6 (y)
-        np.testing.assert_array_equal(psi_x[0, 0, 1, 0], 9.6)  # face_out_x at ix=1
-        np.testing.assert_array_equal(psi_y[0, 0, 0, 1], 5.6)  # face_out_y at iy=1
-        # Incoming face values must be untouched.
-        np.testing.assert_array_equal(psi_x[0, 0, 0, 0], 4.0)
-        np.testing.assert_array_equal(psi_y[0, 0, 0, 0], 8.0)
-
-    def test_single_cell_negative_sign_octant(self):
-        """sx < 0, sy < 0: ix_in=1, ix_out=0; iy_in=1, iy_out=0."""
-        psi_x = np.zeros((1, 1, 2, 1))
-        psi_y = np.zeros((1, 1, 1, 2))
-        psi_x[0, 0, 1, 0] = 4.0   # face_in_x at i=1 (sx<0 -> ix_in=1)
-        psi_y[0, 0, 0, 1] = 8.0   # face_in_y at j=1
-        Q = np.array([[[[16.0]]]])
-        sig_t = np.array([[[2.0]]])
-        str_x = np.array([[3.0]])
-        str_y = np.array([[5.0]])
-        slice_args = SweepCellSlice(
-            cell_idx=(np.array([0]), np.array([0])),
-            face_in_idx=(np.array([1]), np.array([1])),
-            face_out_idx=(np.array([0]), np.array([0])),
-            psi_faces=(psi_x, psi_y),
-            Q=Q, sig_t=sig_t, str_axes=(str_x, str_y),
-        )
-        psi_avg = DiamondDifference().update_batch(slice_args)
-        np.testing.assert_array_equal(psi_avg, 6.8)
-        # face_out_x at i=0; face_out_y at j=0.
-        np.testing.assert_array_equal(psi_x[0, 0, 0, 0], 9.6)
-        np.testing.assert_array_equal(psi_y[0, 0, 0, 0], 5.6)
+        # ψ_out_a = 2ψ̄ − ψ_in_a: 2*6.8 − 4 = 9.6 (x); 2*6.8 − 8 = 5.6 (y).
+        np.testing.assert_array_equal(psi_out[0], 9.6)
+        np.testing.assert_array_equal(psi_out[1], 5.6)
+        # The inputs are NOT mutated (the kernel is storage-free).
+        np.testing.assert_array_equal(psi_in[0], 4.0)
+        np.testing.assert_array_equal(psi_in[1], 8.0)
 
 
 # ─────────────────────────────────────────────────────────────────────
-# L0 / regression: Bit-identity to the legacy inlined sweep math
+# L0 / regression: Bit-identity of the ordinate vectorisation
 # ─────────────────────────────────────────────────────────────────────
+
+
+def _per_ordinate_loop_reference(psi_in, s_axes, sigt_cells, Q_cells):
+    """Per-ordinate Python-loop reference with the SAME left-fold order
+    ``(Σ_t + s_0) + s_1`` / ``(Q + s_0·in_0) + s_1·in_1`` the kernel uses."""
+    N_oct = psi_in[0].shape[0]
+    ref = np.empty_like(psi_in[0])
+    for n in range(N_oct):
+        Q_n = Q_cells[n if Q_cells.shape[0] > 1 else 0]
+        denom = (sigt_cells + s_axes[0][n]) + s_axes[1][n]
+        numer = (Q_n + s_axes[0][n] * psi_in[0][n]) + s_axes[1][n] * psi_in[1][n]
+        ref[n] = numer / denom
+    return ref
 
 
 @pytest.mark.l0
 @pytest.mark.regression
-class TestBitIdenticalToLegacyInlinedMath:
-    r"""Per-element bit-equality against ``_sweep_2d_wavefront`` math.
+class TestBitIdenticalToPerOrdinateLoop:
+    r"""Per-element bit-equality: the batched kernel's vectorisation over the
+    ordinate axis must reproduce the per-ordinate Python loop at IEEE-754
+    ULP — the left-fold operation order is identical by construction."""
 
-    The test runs the legacy per-ordinate inlined math (a Python
-    loop over ``n``) and compares to ``update_batch``'s output. They
-    must agree at IEEE-754 ULP — the operation order is identical
-    by construction.
-    """
-
-    @pytest.mark.parametrize("sx_sign,sy_sign", [
-        (+1, +1), (+1, -1), (-1, +1), (-1, -1),
-    ])
-    def test_bit_identical_3x3_4ord_2g(self, sx_sign, sy_sign):
-        """3×3 grid, 4 ordinates per octant, 2 groups, 3-cell anti-diag."""
-        # Anti-diagonal of length 3 on a 3×3 grid (e.g. cells [(0,2),(1,1),(2,0)]
-        # for an octant traversal — the actual indices depend on direction
-        # but for this unit test we just need a valid (ii, jj) layout.)
-        diag_cells = [(0, 0), (1, 1), (2, 2)]   # diagonal-of-3
-        slice_args, psi_x, psi_y = _build_slice_kwargs(
-            nx=3, ny=3, N_oct=4, ng=2,
-            diag_cells=diag_cells,
-            sx_sign=sx_sign, sy_sign=sy_sign,
-            seed=12,
+    def test_bit_identical_4ord_2g(self):
+        psi_in, s_axes, sigt_cells, Q_cells = _random_kernel_operands(
+            N_oct=4, ng=2, n_diag=3, seed=12,
         )
-        psi_x_pre = psi_x.copy()
-        psi_y_pre = psi_y.copy()
-        legacy_psi_avg = _legacy_inlined_psi_avg(
-            slice_args, psi_x_pre, psi_y_pre,
+        psi_avg, _ = DiamondDifference().cell_kernel_batch(
+            psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
         )
-        # Now reset psi_x, psi_y and call update_batch.
-        psi_x[...] = psi_x_pre
-        psi_y[...] = psi_y_pre
-        psi_avg = DiamondDifference().update_batch(slice_args)
-        # Bit-equality: must match per-ordinate Python-loop reference.
-        np.testing.assert_array_equal(psi_avg, legacy_psi_avg)
+        np.testing.assert_array_equal(
+            psi_avg,
+            _per_ordinate_loop_reference(psi_in, s_axes, sigt_cells, Q_cells),
+        )
 
     def test_isotropic_Q_broadcasts_correctly(self):
         """Q with leading dim 1 (isotropic source) must broadcast cleanly."""
-        slice_args, psi_x, psi_y = _build_slice_kwargs(
-            nx=3, ny=3, N_oct=4, ng=2,
-            diag_cells=[(0, 0), (1, 1), (2, 2)],
-            sx_sign=+1, sy_sign=+1, seed=21,
-            Q_shape_leading=1,        # isotropic-shaped Q
+        psi_in, s_axes, sigt_cells, Q_cells = _random_kernel_operands(
+            N_oct=4, ng=2, n_diag=3, seed=21, Q_leading=1,
         )
-        psi_x_pre = psi_x.copy()
-        psi_y_pre = psi_y.copy()
-        legacy_psi_avg = _legacy_inlined_psi_avg(
-            slice_args, psi_x_pre, psi_y_pre,
+        psi_avg, _ = DiamondDifference().cell_kernel_batch(
+            psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
         )
-        psi_x[...] = psi_x_pre
-        psi_y[...] = psi_y_pre
-        psi_avg = DiamondDifference().update_batch(slice_args)
-        np.testing.assert_array_equal(psi_avg, legacy_psi_avg)
+        np.testing.assert_array_equal(
+            psi_avg,
+            _per_ordinate_loop_reference(psi_in, s_axes, sigt_cells, Q_cells),
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────
-# L0: Face-flux scatter writes the right indices and only those
+# Wave O #208 O.4b — the APPLY kernel (closed form, affinity, round trip)
 # ─────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.l0
-class TestFaceFluxScatter:
-    """Outgoing face fluxes land at face_out_x_idx / face_out_y_idx only."""
+class TestResidualKernelClosedForm:
+    """Single-cell closed-form: r = denom·ψ̄ − (Q + s_x·ψ_in_x + s_y·ψ_in_y)."""
 
-    def test_only_face_out_indices_change(self):
-        """psi_x[face_out_x_idx, jj] changes; other entries unchanged.
-
-        Issue #196 PR-INDEX-5: psi_x principled (N_oct, ng, nx+1, ny).
-        """
-        slice_args, psi_x, psi_y = _build_slice_kwargs(
-            nx=3, ny=3, N_oct=4, ng=2,
-            diag_cells=[(0, 0), (1, 1), (2, 2)],
-            sx_sign=+1, sy_sign=+1, seed=33,
+    def test_residual_at_solution_is_zero(self):
+        """At the solved ψ̄ (= 6.8 from the solve closed-form test), the
+        residual vanishes; the closure faces are reconstructed from the
+        PROBE (so the matvec propagates edges exactly as the sweep does)."""
+        psi_in = (np.full((1, 1, 1), 4.0), np.full((1, 1, 1), 8.0))
+        s_axes = (np.full((1, 1, 1), 3.0), np.full((1, 1, 1), 5.0))
+        sigt_cells = np.full((1, 1), 2.0)
+        Q_cells = np.full((1, 1, 1), 16.0)
+        residual, psi_out = DiamondDifference().residual_kernel_batch(
+            psi_bar=np.full((1, 1, 1), 6.8),
+            psi_in=psi_in, s_axes=s_axes,
+            sigt_cells=sigt_cells, Q_cells=Q_cells,
         )
-        psi_x_pre = psi_x.copy()
-        psi_y_pre = psi_y.copy()
-        DiamondDifference().update_batch(slice_args)
+        # 10*6.8 − (16 + 3*4 + 5*8) = 68 − 68 = 0.
+        np.testing.assert_allclose(residual, 0.0, atol=1e-13)
+        np.testing.assert_array_equal(psi_out[0], 2 * 6.8 - 4.0)  # 9.6
+        np.testing.assert_array_equal(psi_out[1], 2 * 6.8 - 8.0)  # 5.6
 
-        # Face-out indices: ii + 1, jj + 1 (sx,sy > 0).
-        ii, jj = slice_args.cell_idx
-        face_out_x_idx = ii + 1   # [1, 2, 3]
-        face_out_y_idx = jj + 1   # [1, 2, 3]
-
-        # Build a mask of expected-changed locations.
-        # psi_x: (N_oct, ng, nx+1, ny); change at (:, :, face_out_x[k], jj[k]).
-        x_changed_mask = np.zeros_like(psi_x, dtype=bool)
-        for k, (i, j) in enumerate(zip(ii, jj)):
-            x_changed_mask[:, :, face_out_x_idx[k], j] = True
-        y_changed_mask = np.zeros_like(psi_y, dtype=bool)
-        for k, (i, j) in enumerate(zip(ii, jj)):
-            y_changed_mask[:, :, i, face_out_y_idx[k]] = True
-
-        # Outside the masked region nothing changed.
-        np.testing.assert_array_equal(
-            psi_x[~x_changed_mask], psi_x_pre[~x_changed_mask],
+    def test_residual_off_solution_is_affine(self):
+        """A probe shifted by δ from the solution shifts the residual by
+        denom·δ — the residual is linear in ψ̄."""
+        psi_in = (np.full((1, 1, 1), 4.0), np.full((1, 1, 1), 8.0))
+        s_axes = (np.full((1, 1, 1), 3.0), np.full((1, 1, 1), 5.0))
+        residual, _ = DiamondDifference().residual_kernel_batch(
+            psi_bar=np.full((1, 1, 1), 7.0),       # 0.2 above the solution 6.8
+            psi_in=psi_in, s_axes=s_axes,
+            sigt_cells=np.full((1, 1), 2.0),
+            Q_cells=np.full((1, 1, 1), 16.0),
         )
-        np.testing.assert_array_equal(
-            psi_y[~y_changed_mask], psi_y_pre[~y_changed_mask],
-        )
+        # 10*7.0 − 68 = 2.0  (== denom · δ = 10 · 0.2).
+        np.testing.assert_allclose(residual, 2.0, atol=1e-13)
 
-    def test_face_out_value_matches_wdd_closure(self):
-        """psi_x[face_out_x_idx] == 2*psi_avg - psi_in_x.
 
-        Issue #196 PR-INDEX-5: principled indexing.
-        """
-        slice_args, psi_x, psi_y = _build_slice_kwargs(
-            nx=3, ny=3, N_oct=4, ng=2,
-            diag_cells=[(0, 0), (1, 1), (2, 2)],
-            sx_sign=+1, sy_sign=+1, seed=44,
+@pytest.mark.l0
+class TestKernelPairRoundTrip:
+    r"""The solve↔apply contract: ``residual_kernel_batch`` at the value
+    ``cell_kernel_batch`` solves for (same inputs) vanishes — the batched
+    analogue of the per-cell ``residual``/``update`` round trip."""
+
+    @pytest.mark.parametrize("seed", [77, 78, 79])
+    def test_residual_vanishes_at_solve_solution(self, seed):
+        psi_in, s_axes, sigt_cells, Q_cells = _random_kernel_operands(
+            N_oct=4, ng=2, n_diag=3, seed=seed,
         )
-        psi_x_pre = psi_x.copy()
-        psi_y_pre = psi_y.copy()
-        psi_avg = DiamondDifference().update_batch(slice_args)
-        # Reconstruct expected outgoing face values from psi_avg + pre-buffer.
-        # psi_x principled: index as [:, :, face_idx, jj].
-        ii, jj = slice_args.cell_idx
-        psi_in_x = psi_x_pre[:, :, slice_args.face_in_idx[0], jj]
-        psi_in_y = psi_y_pre[:, :, ii, slice_args.face_in_idx[1]]
-        expected_psi_out_x = 2.0 * psi_avg - psi_in_x
-        expected_psi_out_y = 2.0 * psi_avg - psi_in_y
-        actual_psi_out_x = psi_x[
-            :, :, slice_args.face_out_idx[0], jj,
-        ]
-        actual_psi_out_y = psi_y[
-            :, :, ii, slice_args.face_out_idx[1],
-        ]
-        np.testing.assert_array_equal(actual_psi_out_x, expected_psi_out_x)
-        np.testing.assert_array_equal(actual_psi_out_y, expected_psi_out_y)
+        psi_avg, psi_out_solve = DiamondDifference().cell_kernel_batch(
+            psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
+        )
+        residual, psi_out_apply = DiamondDifference().residual_kernel_batch(
+            psi_bar=psi_avg,
+            psi_in=psi_in, s_axes=s_axes,
+            sigt_cells=sigt_cells, Q_cells=Q_cells,
+        )
+        np.testing.assert_allclose(residual, 0.0, atol=1e-13)
+        # Both directions reconstruct the SAME closure faces at the solution.
+        for a in range(2):
+            np.testing.assert_array_equal(psi_out_apply[a], psi_out_solve[a])
+
+    def test_isotropic_Q_round_trip(self):
+        """Round-trip holds with an isotropic-shaped (leading-1) Q too."""
+        psi_in, s_axes, sigt_cells, Q_cells = _random_kernel_operands(
+            N_oct=4, ng=2, n_diag=3, seed=88, Q_leading=1,
+        )
+        psi_avg, _ = DiamondDifference().cell_kernel_batch(
+            psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
+        )
+        residual, _ = DiamondDifference().residual_kernel_batch(
+            psi_bar=psi_avg,
+            psi_in=psi_in, s_axes=s_axes,
+            sigt_cells=sigt_cells, Q_cells=Q_cells,
+        )
+        np.testing.assert_allclose(residual, 0.0, atol=1e-13)
 
 
 # ─────────────────────────────────────────────────────────────────────
-# L0: NotImplementedError for strategies that don't override
+# The FP-reduction-tree-of-record pin (S6.4(e) gate-memo addendum)
 # ─────────────────────────────────────────────────────────────────────
 
 
-class _NoBatchStrategy(CellUpdateBase, key="_no_batch_strategy_test"):
-    """Test stub: only overrides ``update`` and ``residual``, not ``update_batch``."""
+@pytest.mark.regression
+class TestKernelSourceOfRecord:
+    r"""sha256 source pin on the TWO kernel bodies — the left-fold order
+    ``((Σ_t + s_0) + s_1) + …`` is bit-identity-LOAD-BEARING (IEEE-754
+    addition is non-associative; every byte-identity anchor in the SN stack
+    inherits from this fold order).
+
+    This is the GENUINE source-hash exception (contrast the retired A2D-1,
+    whose job an output oracle covered): the kernels ARE the FP reduction
+    tree of record — an algebraically-equivalent rearrangement passes every
+    value-tolerance test yet silently invalidates the 1-ULP regression
+    contract.  Any deliberate edit updates the hash IN the same commit and
+    re-baselines the bit-identity anchors per the Fork-B2 discipline.
+    """
+
+    EXPECTED: ClassVar[dict[str, str]] = {
+        "cell_kernel_batch":
+            "2b352825664639e71e8b4bce22e4d6ce540982329a426ccb171debe7eb83037e",
+        "residual_kernel_batch":
+            "7f528ef88dde07867295538f31b5c3291c5214613a53aba1b5c0a1699d99215c",
+    }
+
+    @pytest.mark.parametrize("kernel", ["cell_kernel_batch", "residual_kernel_batch"])
+    def test_kernel_source_unchanged(self, kernel):
+        import hashlib
+        import inspect
+
+        src = inspect.getsource(getattr(DiamondDifference, kernel))
+        actual = hashlib.sha256(src.encode("utf-8")).hexdigest()
+        if actual != self.EXPECTED[kernel]:
+            pytest.fail(
+                f"DiamondDifference.{kernel} source changed — this body is the "
+                "FP reduction tree of record (the left-fold order is "
+                "bit-identity-load-bearing).  If deliberate: update EXPECTED "
+                f"to {actual} in THIS commit and re-verify every byte-identity "
+                "anchor (window≡full oracles, affine-carve golden)."
+            )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Retirement audit (S6.4(e)): the 4 direction×storage walks are GONE
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.foundation
+def test_graph_exposes_two_walks_not_four():
+    """[L0 structural] The direction×storage product is retired: the graph
+    carries the TWO storage walks (``walk_full`` / ``walk_windowed``), and
+    none of the four retired direction-specific methods survives."""
+    from orpheus.sn.sweep_graph import SweepDependencyGraph
+
+    for retired in ("apply", "residual", "apply_windowed", "residual_windowed"):
+        if hasattr(SweepDependencyGraph, retired):
+            pytest.fail(
+                f"SweepDependencyGraph.{retired} re-appeared — the "
+                "direction×storage product (4 methods) was collapsed at "
+                "S6.4(e) into walk_full/walk_windowed × the _CellSolve/"
+                "_CellResidual level operations."
+            )
+    for walk in ("walk_full", "walk_windowed"):
+        if not hasattr(SweepDependencyGraph, walk):
+            pytest.fail(f"SweepDependencyGraph.{walk} missing.")
+
+
+# ─────────────────────────────────────────────────────────────────────
+# L0: NotImplementedError for strategies that don't override the pair
+# ─────────────────────────────────────────────────────────────────────
+
+
+class _NoKernelStrategy(CellUpdateBase, key="_no_kernel_strategy_test"):
+    """Test stub: only overrides the per-cell ``update`` / ``residual``,
+    not the batched kernel pair."""
 
     is_linear: ClassVar[bool] = True
     is_positivity_preserving: ClassVar[bool] = False
@@ -367,157 +338,25 @@ class _NoBatchStrategy(CellUpdateBase, key="_no_batch_strategy_test"):
 
 @pytest.mark.l0
 class TestDefaultRaisesNotImplemented:
-    """Strategies that don't override update_batch fail loudly."""
+    """Strategies that don't override the kernel pair fail loudly."""
 
-    def test_default_raises(self):
-        slice_args, _, _ = _build_slice_kwargs(
-            nx=2, ny=2, N_oct=1, ng=1,
-            diag_cells=[(0, 0)],
-            sx_sign=+1, sy_sign=+1, seed=55,
+    def test_solve_kernel_default_raises(self):
+        psi_in, s_axes, sigt_cells, Q_cells = _random_kernel_operands(
+            N_oct=1, ng=1, n_diag=1, seed=55,
         )
-        strat = _NoBatchStrategy()
-        with pytest.raises(NotImplementedError, match="update_batch"):
-            strat.update_batch(slice_args)
+        with pytest.raises(NotImplementedError, match="cell_kernel_batch"):
+            _NoKernelStrategy().cell_kernel_batch(
+                psi_in=psi_in, s_axes=s_axes,
+                sigt_cells=sigt_cells, Q_cells=Q_cells,
+            )
 
-    def test_residual_batch_default_raises(self):
-        """Strategies that don't override residual_batch fail loudly too."""
-        slice_args, _, _ = _build_slice_kwargs(
-            nx=2, ny=2, N_oct=1, ng=1,
-            diag_cells=[(0, 0)],
-            sx_sign=+1, sy_sign=+1, seed=55,
+    def test_apply_kernel_default_raises(self):
+        psi_in, s_axes, sigt_cells, Q_cells = _random_kernel_operands(
+            N_oct=1, ng=1, n_diag=1, seed=55,
         )
-        strat = _NoBatchStrategy()
-        with pytest.raises(NotImplementedError, match="residual_batch"):
-            strat.residual_batch(slice_args)
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Wave O #208 O.4b — residual_batch (the batched apply direction)
-# ─────────────────────────────────────────────────────────────────────
-
-
-def _probe_field_from_level(
-    slice_args: SweepCellSlice, psi_avg_level: np.ndarray,
-) -> np.ndarray:
-    """Scatter a per-level ``(N_oct, ng, n_diag)`` value into a full
-    ``(N_oct, ng, nx, ny)`` probe field (zeros elsewhere)."""
-    N_oct, ng = slice_args.psi_faces[0].shape[0], slice_args.psi_faces[0].shape[1]
-    nx, ny = slice_args.sig_t.shape[1], slice_args.sig_t.shape[2]
-    probe = np.zeros((N_oct, ng, nx, ny))
-    ii, jj = slice_args.cell_idx
-    probe[:, :, ii, jj] = psi_avg_level
-    return probe
-
-
-@pytest.mark.l0
-class TestResidualBatchClosedForm:
-    """Single-cell closed-form: residual = denom·ψ̄ − (Q + sx·ψ_in_x + sy·ψ_in_y)."""
-
-    def test_residual_at_solution_is_zero(self):
-        """At the swept ψ̄ (= 6.8 from the update_batch closed-form test),
-        the residual vanishes — the per-cell round-trip contract."""
-        psi_x = np.zeros((1, 1, 2, 1))
-        psi_y = np.zeros((1, 1, 1, 2))
-        psi_x[0, 0, 0, 0] = 4.0
-        psi_y[0, 0, 0, 0] = 8.0
-        Q = np.array([[[[16.0]]]])
-        sig_t = np.array([[[2.0]]])
-        str_x = np.array([[3.0]])
-        str_y = np.array([[5.0]])
-        probe = np.array([[[[6.8]]]])           # the solved ψ̄ (denom=10)
-        slice_args = SweepCellSlice(
-            cell_idx=(np.array([0]), np.array([0])),
-            face_in_idx=(np.array([0]), np.array([0])),
-            face_out_idx=(np.array([1]), np.array([1])),
-            psi_faces=(psi_x, psi_y),
-            Q=Q, sig_t=sig_t, str_axes=(str_x, str_y),
-            psi_avg_probe=probe,
-        )
-        residual = DiamondDifference().residual_batch(slice_args)
-        # 10*6.8 - (16 + 3*4 + 5*8) = 68 - 68 = 0.
-        np.testing.assert_allclose(residual, 0.0, atol=1e-13)
-        # Diamond closure still scatters the outgoing faces with the probe.
-        np.testing.assert_array_equal(psi_x[0, 0, 1, 0], 2 * 6.8 - 4.0)  # 9.6
-        np.testing.assert_array_equal(psi_y[0, 0, 0, 1], 2 * 6.8 - 8.0)  # 5.6
-
-    def test_residual_batch_without_probe_raises(self):
-        """Apply direction requires psi_avg_probe — fail loud, not cryptic."""
-        psi_x = np.zeros((1, 1, 2, 1)); psi_y = np.zeros((1, 1, 1, 2))
-        Q = np.array([[[[16.0]]]]); sig_t = np.array([[[2.0]]])
-        str_x = np.array([[3.0]]); str_y = np.array([[5.0]])
-        slice_args = SweepCellSlice(  # psi_avg_probe defaults to None
-            cell_idx=(np.array([0]), np.array([0])),
-            face_in_idx=(np.array([0]), np.array([0])),
-            face_out_idx=(np.array([1]), np.array([1])),
-            psi_faces=(psi_x, psi_y),
-            Q=Q, sig_t=sig_t, str_axes=(str_x, str_y),
-        )
-        with pytest.raises(ValueError, match="psi_avg_probe"):
-            DiamondDifference().residual_batch(slice_args)
-
-    def test_residual_off_solution_is_affine(self):
-        """A probe shifted by δ from the solution shifts the residual by
-        denom·δ — the residual is linear in ψ̄."""
-        psi_x = np.zeros((1, 1, 2, 1)); psi_x[0, 0, 0, 0] = 4.0
-        psi_y = np.zeros((1, 1, 1, 2)); psi_y[0, 0, 0, 0] = 8.0
-        Q = np.array([[[[16.0]]]]); sig_t = np.array([[[2.0]]])
-        str_x = np.array([[3.0]]); str_y = np.array([[5.0]])
-        probe = np.array([[[[7.0]]]])           # 0.2 above the solution 6.8
-        slice_args = SweepCellSlice(
-            cell_idx=(np.array([0]), np.array([0])),
-            face_in_idx=(np.array([0]), np.array([0])),
-            face_out_idx=(np.array([1]), np.array([1])),
-            psi_faces=(psi_x, psi_y),
-            Q=Q, sig_t=sig_t, str_axes=(str_x, str_y),
-            psi_avg_probe=probe,
-        )
-        residual = DiamondDifference().residual_batch(slice_args)
-        # 10*7.0 - 68 = 2.0  (== denom · δ = 10 · 0.2).
-        np.testing.assert_allclose(residual, 2.0, atol=1e-13)
-
-
-@pytest.mark.l0
-class TestResidualBatchRoundTrip:
-    r"""The batched apply↔solve contract: residual_batch at the value
-    update_batch returns is zero (the analogue of the per-cell
-    DiamondDifference.residual ↔ .update round-trip)."""
-
-    @pytest.mark.parametrize("sx_sign,sy_sign", [
-        (+1, +1), (+1, -1), (-1, +1), (-1, -1),
-    ])
-    def test_residual_vanishes_at_update_batch_solution(self, sx_sign, sy_sign):
-        slice_args, psi_x, psi_y = _build_slice_kwargs(
-            nx=3, ny=3, N_oct=4, ng=2,
-            diag_cells=[(0, 0), (1, 1), (2, 2)],
-            sx_sign=sx_sign, sy_sign=sy_sign, seed=77,
-        )
-        psi_x_pre = psi_x.copy()
-        psi_y_pre = psi_y.copy()
-        # SOLVE: update_batch returns ψ̄ and scatters outgoing faces.
-        psi_avg = DiamondDifference().update_batch(slice_args)
-        probe = _probe_field_from_level(slice_args, psi_avg)
-        # Reset the buffers so residual_batch sees the SAME incoming faces.
-        psi_x[...] = psi_x_pre
-        psi_y[...] = psi_y_pre
-        slice_apply = replace(slice_args, psi_avg_probe=probe)
-        # APPLY at the swept ψ̄ — residual must vanish.
-        residual = DiamondDifference().residual_batch(slice_apply)
-        np.testing.assert_allclose(residual, 0.0, atol=1e-13)
-
-    def test_isotropic_Q_round_trip(self):
-        """Round-trip holds with an isotropic-shaped (leading-1) Q too."""
-        slice_args, psi_x, psi_y = _build_slice_kwargs(
-            nx=3, ny=3, N_oct=4, ng=2,
-            diag_cells=[(0, 0), (1, 1), (2, 2)],
-            sx_sign=+1, sy_sign=+1, seed=88,
-            Q_shape_leading=1,
-        )
-        psi_x_pre = psi_x.copy()
-        psi_y_pre = psi_y.copy()
-        psi_avg = DiamondDifference().update_batch(slice_args)
-        probe = _probe_field_from_level(slice_args, psi_avg)
-        psi_x[...] = psi_x_pre
-        psi_y[...] = psi_y_pre
-        slice_apply = replace(slice_args, psi_avg_probe=probe)
-        residual = DiamondDifference().residual_batch(slice_apply)
-        np.testing.assert_allclose(residual, 0.0, atol=1e-13)
+        with pytest.raises(NotImplementedError, match="residual_kernel_batch"):
+            _NoKernelStrategy().residual_kernel_batch(
+                psi_bar=np.zeros((1, 1, 1)),
+                psi_in=psi_in, s_axes=s_axes,
+                sigt_cells=sigt_cells, Q_cells=Q_cells,
+            )

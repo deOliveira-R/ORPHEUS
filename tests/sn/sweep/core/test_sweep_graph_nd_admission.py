@@ -61,7 +61,12 @@ import numpy as np
 import pytest
 
 from orpheus.sn.spatial.diamond import DiamondDifference
-from orpheus.sn.sweep_graph import OctantLabel, SweepDependencyGraph
+from orpheus.sn.sweep_graph import (
+    OctantLabel,
+    SweepDependencyGraph,
+    _CellResidual,
+    _CellSolve,
+)
 
 
 pytestmark = pytest.mark.foundation
@@ -372,7 +377,7 @@ def test_d1_diamond_kernel_single_axis_streaming_sum():
 # ─── B7 — the d-generic WALK (apply / residual) runs at d=1 and d=3 ──
 #
 # B5/B6 pin the d-generic cell KERNEL; B7 pins the d-generic graph WALK
-# end-to-end (``SweepDependencyGraph.apply`` / ``.residual``). The check is
+# end-to-end (``SweepDependencyGraph.walk_full`` × both level ops). The check is
 # the geometry-agnostic matvec==sweep round-trip: the operator residual of
 # the swept solution vanishes (``test_sweep_graph.py``'s d=2 contract lifted
 # to d=1 and d=3). This is what makes "d=1/d=3 CAN walk" (the C3.2b
@@ -408,27 +413,34 @@ def _walk_roundtrip_residual(shape, signs, *, ng, N_oct, seed):
     weights = rng.uniform(0.5, 1.5, size=N_oct)
     graph = _build_nd(shape, signs)
 
-    # SOLVE — forward-substitute update_batch along the DAG.
+    # SOLVE — forward-substitute the solve cell kernel along the DAG.
     ang = np.zeros((N_oct, ng, *shape))
     scal = np.zeros((ng, *shape))
-    graph.apply(
-        cell_update=DiamondDifference(),
+    graph.walk_full(
+        level_op=_CellSolve(
+            cell_update=DiamondDifference(),
+            weights_octant=weights,
+            angular_flux_octant=ang,
+            scalar_flux_buf=scal,
+        ),
         psi_faces_octant=tuple(pf.copy() for pf in psi_faces),
-        Q_octant=Q, sig_t=sig_t,
+        Q_octant=Q,
+        sig_t=sig_t,
         str_axes_octant=str_axes,
-        weights_octant=weights,
-        angular_flux_octant=ang, scalar_flux_buf=scal,
     )
     # APPLY at the swept solution — FRESH copies with the SAME inflow seeds
     # (apply only scatters OUTGOING faces; the seeds carry the inflow).
     residual = np.zeros((N_oct, ng, *shape))
-    graph.residual(
-        cell_update=DiamondDifference(),
+    graph.walk_full(
+        level_op=_CellResidual(
+            cell_update=DiamondDifference(),
+            psi_avg_probe_octant=ang,
+            residual_octant=residual,
+        ),
         psi_faces_octant=tuple(pf.copy() for pf in psi_faces),
-        psi_avg_probe_octant=ang,
-        Q_octant=Q, sig_t=sig_t,
+        Q_octant=Q,
+        sig_t=sig_t,
         str_axes_octant=str_axes,
-        residual_octant=residual,
     )
     return residual
 

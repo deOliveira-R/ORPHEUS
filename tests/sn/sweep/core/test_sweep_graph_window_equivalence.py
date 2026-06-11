@@ -1,11 +1,10 @@
 r"""``window ≡ full-field`` equivalence — the Phase 5b storage-B oracle.
 
 The rolling :math:`(d{-}1)`-frontier moving-frontier window walks
-(:meth:`SweepDependencyGraph.apply_windowed` /
-:meth:`~SweepDependencyGraph.residual_windowed`, the storage-B PRODUCTION
+(:meth:`SweepDependencyGraph.walk_windowed`, the storage-B PRODUCTION
 path / the ``MovingFrontierWindow`` strategy) MUST reproduce the full per-axis
-face-field walks (:meth:`~SweepDependencyGraph.apply` /
-:meth:`~SweepDependencyGraph.residual`, the storage-A path, KEPT as the
+face-field walk (:meth:`~SweepDependencyGraph.walk_full`, the storage-A
+path, KEPT as the
 verification oracle) **bit-for-bit**.
 
 Both share the storage-free cell kernel
@@ -49,7 +48,12 @@ import numpy as np
 import pytest
 
 from orpheus.sn.spatial.diamond import DiamondDifference
-from orpheus.sn.sweep_graph import OctantLabel, SweepDependencyGraph
+from orpheus.sn.sweep_graph import (
+    OctantLabel,
+    SweepDependencyGraph,
+    _CellResidual,
+    _CellSolve,
+)
 
 pytestmark = pytest.mark.foundation
 
@@ -132,13 +136,17 @@ def _full_field_apply(graph, shape, N_oct, ng, inp):
     faces = _seed_faces(graph, shape, N_oct, ng, inp)
     ang = np.zeros((N_oct, ng, *shape))
     scal = np.zeros((ng, *shape))
-    graph.apply(
-        cell_update=DiamondDifference(),
+    graph.walk_full(
+        level_op=_CellSolve(
+            cell_update=DiamondDifference(),
+            weights_octant=inp["weights"],
+            angular_flux_octant=ang,
+            scalar_flux_buf=scal,
+        ),
         psi_faces_octant=faces,
-        Q_octant=inp["Q"], sig_t=inp["sig_t"],
+        Q_octant=inp["Q"],
+        sig_t=inp["sig_t"],
         str_axes_octant=inp["str_axes"],
-        weights_octant=inp["weights"],
-        angular_flux_octant=ang, scalar_flux_buf=scal,
     )
     return ang, scal, _shed_faces(graph, shape, faces)
 
@@ -150,13 +158,17 @@ def _windowed_apply(graph, shape, N_oct, ng, inp):
         np.zeros((N_oct, ng, *[shape[b] for b in range(len(shape)) if b != a]))
         for a in range(len(shape))
     )
-    graph.apply_windowed(
-        cell_update=DiamondDifference(),
+    graph.walk_windowed(
+        level_op=_CellSolve(
+            cell_update=DiamondDifference(),
+            weights_octant=inp["weights"],
+            angular_flux_octant=ang,
+            scalar_flux_buf=scal,
+        ),
         inflow=inp["inflow"],
-        Q_octant=inp["Q"], sig_t=inp["sig_t"],
+        Q_octant=inp["Q"],
+        sig_t=inp["sig_t"],
         str_axes_octant=inp["str_axes"],
-        weights_octant=inp["weights"],
-        angular_flux_octant=ang, scalar_flux_buf=scal,
         capture=cap,
     )
     return ang, scal, cap
@@ -165,13 +177,16 @@ def _windowed_apply(graph, shape, N_oct, ng, inp):
 def _full_field_residual(graph, shape, N_oct, ng, inp):
     faces = _seed_faces(graph, shape, N_oct, ng, inp)
     res = np.zeros((N_oct, ng, *shape))
-    graph.residual(
-        cell_update=DiamondDifference(),
+    graph.walk_full(
+        level_op=_CellResidual(
+            cell_update=DiamondDifference(),
+            psi_avg_probe_octant=inp["probe"],
+            residual_octant=res,
+        ),
         psi_faces_octant=faces,
-        psi_avg_probe_octant=inp["probe"],
-        Q_octant=inp["Q"], sig_t=inp["sig_t"],
+        Q_octant=inp["Q"],
+        sig_t=inp["sig_t"],
         str_axes_octant=inp["str_axes"],
-        residual_octant=res,
     )
     return res, _shed_faces(graph, shape, faces)
 
@@ -182,20 +197,25 @@ def _windowed_residual(graph, shape, N_oct, ng, inp):
         np.zeros((N_oct, ng, *[shape[b] for b in range(len(shape)) if b != a]))
         for a in range(len(shape))
     )
-    graph.residual_windowed(
-        cell_update=DiamondDifference(),
+    graph.walk_windowed(
+        level_op=_CellResidual(
+            cell_update=DiamondDifference(),
+            psi_avg_probe_octant=inp["probe"],
+            residual_octant=res,
+        ),
         inflow=inp["inflow"],
-        psi_avg_probe_octant=inp["probe"],
-        Q_octant=inp["Q"], sig_t=inp["sig_t"],
+        Q_octant=inp["Q"],
+        sig_t=inp["sig_t"],
         str_axes_octant=inp["str_axes"],
-        residual_octant=res, capture=cap,
+        capture=cap,
     )
     return res, cap
 
 
 @pytest.mark.parametrize("shape,N_oct,ng", SHAPES)
 def test_solve_window_equals_full_field(shape, N_oct, ng):
-    """apply_windowed ≡ apply, bit-for-bit, at every octant and every ``d``.
+    """walk_windowed ≡ walk_full (solve direction), bit-for-bit, at every
+    octant and every ``d``.
 
     d=2 is the bit-identity anchor; d=1 / d=3 are the synthetic ``frontier_dim``
     admission (the S4 generalisation correctness gate)."""
@@ -217,7 +237,8 @@ def test_solve_window_equals_full_field(shape, N_oct, ng):
 
 @pytest.mark.parametrize("shape,N_oct,ng", SHAPES)
 def test_residual_window_equals_full_field(shape, N_oct, ng):
-    """residual_windowed ≡ residual, bit-for-bit (the matvec twin), every ``d``."""
+    """walk_windowed ≡ walk_full (apply direction — the matvec twin),
+    bit-for-bit, every ``d``."""
     d = len(shape)
     for signs in _octants(d):
         graph = SweepDependencyGraph.from_cartesian(shape, label=OctantLabel(signs))

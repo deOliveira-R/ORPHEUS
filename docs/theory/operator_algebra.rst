@@ -4759,8 +4759,10 @@ Stage (1)'s full-angular array is the transient that dominates the peak.
 
 Phase 5c fuses the two stages. The :class:`_MovingFrontier
 <orpheus.sn.sweep_graph._MovingFrontier>` walk
-(:meth:`SweepDependencyGraph.apply_windowed
-<orpheus.sn.sweep_graph.SweepDependencyGraph.apply_windowed>`) already
+(:meth:`SweepDependencyGraph.walk_windowed
+<orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed>` — at 5c the
+solve-direction ``apply_windowed``, collapsed into the level-op walk at
+S6.4(e)) already
 visited every cell exactly once, anti-diagonal by anti-diagonal, with the
 per-level cell-average :math:`\psi_n[\text{cells}_k]` in hand. Phase 5a
 threw that local quantity into a global angular buffer and re-read it
@@ -4796,8 +4798,8 @@ swept sequentially (the octant loop — since S6.4(b) the shared
 ``_OctantWalk.sweep_group`` frame, then ``sweep_octant_group`` — each octant
 completing its full frontier walk), so the global buffer receives a **cross-octant
 ``+=``**: octant 1's complete contribution, then octant 2's, and so on.
-The output branch in :meth:`apply_windowed
-<orpheus.sn.sweep_graph.SweepDependencyGraph.apply_windowed>` is a single
+The output branch (since S6.4(e) inside the ``_CellSolve`` level
+operation; at 5c inside ``apply_windowed``) is a single
 two-way switch at the per-level output site — *angular mode* writes
 ``angular_flux_octant[:, :, ii, jj] = psi_avg`` and accumulates the scalar
 (``scalar_flux_buf``); *moment mode* does the :eq:`harmonic-moment-projection`
@@ -5062,14 +5064,15 @@ the ``reflect=None`` dependency-injection idiom of :func:`_sweep_2d_scheduled
 resolvent surface the two modes are **named methods**, ``solve`` vs
 ``solve_moments``).
 
-* :meth:`SweepDependencyGraph.apply_windowed
-  <orpheus.sn.sweep_graph.SweepDependencyGraph.apply_windowed>` — the
-  single two-way branch at the per-level output site (angular write vs
-  the :eq:`harmonic-moment-projection` ``moment_buf`` ``+=``). The
-  frontier walk and cell kernel are untouched.
-  :meth:`residual_windowed
-  <orpheus.sn.sweep_graph.SweepDependencyGraph.residual_windowed>` (the
-  Krylov matvec) is untouched — Krylov stays full-angular.
+* the solve-direction windowed walk (at 5c ``apply_windowed``; since
+  S6.4(e) :meth:`SweepDependencyGraph.walk_windowed
+  <orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed>` × the
+  ``_CellSolve`` level operation) — the single two-way branch at the
+  per-level output site (angular write vs the
+  :eq:`harmonic-moment-projection` ``moment_buf`` ``+=``). The
+  frontier walk and cell kernel are untouched.  The apply-direction walk
+  (at 5c ``residual_windowed``; now ``walk_windowed`` × ``_CellResidual``
+  — the Krylov matvec) is untouched — Krylov stays full-angular.
 * the per-group octant frame (``sweep_octant_group`` then, since S6.4(b),
   ``_OctantWalk.sweep_group``) /
   :func:`_sweep_2d_scheduled <orpheus.sn.sweep._sweep_2d_scheduled>` /

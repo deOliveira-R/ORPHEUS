@@ -426,8 +426,10 @@ The six PRs
        :class:`LegendreMomentScattering` consumes/returns the
        principled moment layout
        ``(L+1, 2L+1, ng, nx, ny)``;
-       :meth:`DiamondDifference.update_batch` consumes
-       ``(ng, ...)`` slices;
+       ``DiamondDifference.update_batch`` (the batched DD kernel of the
+       day; collapsed into the storage-free
+       :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cell_kernel_batch`
+       pair at S6.4(e)) consumes ``(ng, ...)`` slices;
        ``_sweep_2d_wavefront`` body principled.  PR-INDEX-3 bridges
        at ``fission.py:175`` and ``sweep.py:127`` retired.  Fourteen
        new ``BRIDGE_*`` named intermediates at 11 :class:`SNSolver`

@@ -87,7 +87,6 @@ from .cell_update import (
     CellResult,
     CellUpdateBase,
     CellVisit,
-    SweepCellSlice,
     UpstreamState,
 )
 
@@ -285,15 +284,15 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         source on one anti-hyperplane level, returns ``(psi_avg, psi_out)``
         where ``psi_out`` is the d-tuple of outgoing face fluxes (one per
         axis). This is the **single source of the DD cell math** (Cardinal
-        Rule 2 / Pattern 2): consumed by BOTH the full-field gather/scatter
-        walk (:meth:`update_batch`, driven by
-        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.apply` — the
-        full-field VERIFICATION ORACLE) AND the rolling moving-frontier window
-        walk (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.apply_windowed`
-        — the storage-B PRODUCTION path, a rolling :math:`(d{-}1)`-frontier).
-        The two differ ONLY in how the incoming faces are gathered and the
-        outgoing faces scattered — the cell algebra is identical, so the window
-        walk and the oracle cannot drift.
+        Rule 2 / Pattern 2): the SOLVE arm of the ``_CellSolve`` level
+        operation, consumed by BOTH storage walks — the full-cochain
+        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full` (the
+        VERIFICATION ORACLE policy) AND the rolling moving-frontier
+        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`
+        (the storage-B PRODUCTION policy).  The two differ ONLY in how the
+        incoming faces are gathered and the outgoing faces scattered — the
+        cell algebra is identical, so the window walk and the oracle cannot
+        drift.
 
         Axis convention
         ---------------
@@ -346,11 +345,11 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         reconstructs the outgoing faces from the probe
         (:math:`\psi^{\rm out}_a = 2\psi_{\rm bar} − \psi^{\rm in}_a`). Returns
         ``(residual, psi_out)`` with ``psi_out`` the d-tuple of outgoing faces.
-        Single source of the matvec cell math,
-        shared by the full-field walk (:meth:`residual_batch`, driven by
-        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.residual` — the
-        verification ORACLE) and the window PRODUCTION walk
-        (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.residual_windowed`).
+        Single source of the matvec cell math — the APPLY arm of the
+        ``_CellResidual`` level operation, shared by the same two storage
+        walks as :meth:`cell_kernel_batch`
+        (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full` /
+        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`).
         Same explicit-left-fold operation-order discipline as
         :meth:`cell_kernel_batch` (d=2 bit-identical to the legacy
         ``sigt + sx + sy`` / ``Q + sx·in_x + sy·in_y`` order).
@@ -364,205 +363,20 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         psi_out = tuple(2.0 * psi_bar - in_a for in_a in psi_in)
         return residual, psi_out
 
-    # ── Shared d-generic gather / scatter (Pattern 2 single source) ─────
+    # ── S6.4(e): the storage adapters RETIRED ───────────────────────────
     #
-    # The storage-touching front-half (gather) and back-half (scatter) are
-    # IDENTICAL between :meth:`update_batch` (solve) and :meth:`residual_batch`
-    # (apply) — the two directions differ only in the cell algebra
-    # (:meth:`cell_kernel_batch` vs :meth:`residual_kernel_batch`) and which
-    # field the closure reconstructs the outgoing faces from. Factoring the
-    # gather/scatter here keeps the per-axis advanced-index wiring a SINGLE
-    # source of truth (Cardinal Rule 2 / coding-elegance Pattern 2): the
-    # d-generic loop is written once, not twice.
+    # ``update_batch`` / ``residual_batch`` (the full-field gather → kernel →
+    # scatter wrappers) and their ``_cell_face_selector`` /
+    # ``_gather_cell_inputs`` / ``_scatter_outgoing_faces`` halves moved to
+    # the WALK layer (``SweepDependencyGraph.walk_full`` — storage is the
+    # walk's concern, not the discretization's).  This class is now pure
+    # cell algebra: the per-cell reference pair (``update`` / ``residual``)
+    # + the batched kernel pair (``cell_kernel_batch`` /
+    # ``residual_kernel_batch``) — the ONLY direction-aware math in the SN
+    # stack, and the override point for future closure strategies
+    # (Step / LD / EC supply the kernel pair; storage is handled once,
+    # above them).
 
-    @staticmethod
-    def _cell_face_selector(
-        cell_idx: tuple[np.ndarray, ...], axis: int, face_idx: np.ndarray,
-    ) -> tuple:
-        r"""Advanced-index tuple selecting axis ``axis``'s face for the level.
-
-        Starts from the cell-centred selector ``(:, :, *cell_idx)`` (the
-        leading ``(:, :)`` skips the ``(N_oct, ng)`` prefix) and replaces axis
-        ``axis``'s in-cell index with the face index ``face_idx`` at lattice
-        position ``2 + axis``. At ``d = 2`` this is ``(:, :, face, jj)`` for
-        axis 0 and ``(:, :, ii, face)`` for axis 1 — byte-identical to the
-        legacy hand-written face slices. The per-axis face indices and the
-        other axes' cell indices are all length-``n_diag`` 1-D arrays at the
-        trailing (consecutive) positions, so numpy broadcasts them together and
-        keeps the result axis in place ⟹ ``(N_oct, ng, n_diag)``.
-        """
-        sel = [slice(None), slice(None), *cell_idx]
-        sel[2 + axis] = face_idx
-        return tuple(sel)
-
-    def _gather_cell_inputs(
-        self, s: SweepCellSlice,
-    ) -> tuple[
-        tuple[np.ndarray, ...], tuple[np.ndarray, ...], np.ndarray, np.ndarray,
-    ]:
-        r"""Gather the per-axis incoming faces, streaming coefficients, Σ_t and
-        Q for one anti-hyperplane level — the shared front-half of
-        :meth:`update_batch` / :meth:`residual_batch`.
-
-        Returns ``(psi_in, s_axes, sigt_cells, Q_cells)``:
-
-        * ``psi_in`` — d-tuple, each ``(N_oct, ng, n_diag)``: axis ``a``'s
-          incoming face flux, gathered by replacing axis ``a``'s cell index
-          with its in-face index ``face_in_idx[a]``.
-        * ``s_axes`` — d-tuple, each ``(N_oct, 1, n_diag)``: axis ``a``'s
-          streaming coefficient ``2|μ_a|/Δa`` broadcast over the group axis.
-        * ``sigt_cells`` — ``(ng, n_diag)`` total-XS on the level.
-        * ``Q_cells`` — ``(N_oct or 1, ng, n_diag)`` weight-normalised source.
-
-        Every per-axis tuple is positional-by-axis, matching
-        :meth:`cell_kernel_batch`'s axis convention. At ``d = 2`` the gathers
-        are byte-identical to the legacy ``psi_x[:, :, face_in_x, jj]`` /
-        ``psi_y[:, :, ii, face_in_y]`` / ``str_x[:, ii][:, None, :]`` slices.
-        """
-        cell_idx = s.cell_idx
-        d = len(cell_idx)
-        psi_in = tuple(
-            s.psi_faces[a][self._cell_face_selector(cell_idx, a, s.face_in_idx[a])]
-            for a in range(d)
-        )
-        s_axes = tuple(
-            s.str_axes[a][:, cell_idx[a]][:, None, :] for a in range(d)
-        )
-        sigt_cells = s.sig_t[(slice(None), *cell_idx)]      # (ng, n_diag)
-        Q_cells = s.Q[(slice(None), slice(None), *cell_idx)]  # (N_oct or 1, ng, n_diag)
-        return psi_in, s_axes, sigt_cells, Q_cells
-
-    def _scatter_outgoing_faces(
-        self, s: SweepCellSlice, psi_out: tuple[np.ndarray, ...],
-    ) -> None:
-        r"""Scatter the per-axis outgoing face fluxes back into the persistent
-        :attr:`SweepCellSlice.psi_faces` buffers, in place, at each axis's
-        outgoing-face index — the shared back-half of :meth:`update_batch` /
-        :meth:`residual_batch`. At ``d = 2`` this is the legacy
-        ``psi_x[:, :, face_out_x, jj] = …`` / ``psi_y[:, :, ii, face_out_y] = …``
-        pair.
-        """
-        cell_idx = s.cell_idx
-        for a in range(len(cell_idx)):
-            s.psi_faces[a][
-                self._cell_face_selector(cell_idx, a, s.face_out_idx[a])
-            ] = psi_out[a]
-
-    # ── d-D Cartesian batched update (Wave 2 / C2.2; d-generic C3.2b) ──
-
-    def update_batch(self, slice_args: SweepCellSlice) -> np.ndarray:
-        r"""Vectorised DD update for one anti-diagonal level.
-
-        Reproduces the inlined wavefront DD math at
-        ``orpheus.sn.sweep._sweep_2d_wavefront`` lines 847-871
-        bit-for-bit, with the ordinate axis (``N_oct``) and the
-        anti-diagonal axis (``n_diag``) folded into a single batched
-        call. The math is the **balance form** of WDD on a 2-D
-        Cartesian cell:
-
-        .. math::
-
-           \overline{\psi}_{i,j}
-           \;=\; \frac{Q_{i,j}
-                       + s_{x,i}\,\psi^{\rm in}_{x,i,j}
-                       + s_{y,j}\,\psi^{\rm in}_{y,i,j}}
-                      {\Sigma_{t,i,j} + s_{x,i} + s_{y,j}},
-
-           \qquad
-           s_{x,i} = 2|\mu_x|/\Delta x_i,
-           \quad s_{y,j} = 2|\mu_y|/\Delta y_j,
-
-        with the spatial closure
-        :math:`\psi^{\rm out}_a = 2\overline{\psi} - \psi^{\rm in}_a`
-        (per axis :math:`a`). The closure values are scattered back into the
-        per-axis :attr:`SweepCellSlice.psi_faces` buffers at the
-        outgoing-face indices in place — those buffers are persistent across
-        levels.
-
-        Dimension-generic (the d=2 form above is one instance)
-        ------------------------------------------------------
-
-        The storage gather/scatter routes through :meth:`_gather_cell_inputs`
-        / :meth:`_scatter_outgoing_faces` (the per-axis advanced-index loop)
-        and the cell algebra through :meth:`cell_kernel_batch` — all three are
-        ``d``-generic (``d = ndim ∈ {1, 2, 3}``), so this method has no
-        hardcoded axis count. At ``d = 2`` the per-axis selectors reduce to
-        the legacy ``psi_x[:, :, face, jj]`` / ``psi_y[:, :, ii, face]``
-        slices byte-for-byte.
-
-        Bit-identity contract
-        ---------------------
-
-        The operation order of ``denom = sig_t + sx + sy``,
-        ``psi_avg = (Q + sx*psi_in_x + sy*psi_in_y) / denom``, and
-        ``psi_out = 2*psi_avg - psi_in`` matches the legacy inlined
-        sweep (sweep.py:847-871) exactly (the kernel's explicit left fold —
-        see :meth:`cell_kernel_batch`). Per ``vv-principles`` Bit-identity vs
-        principled-equivalence, algebraically-equivalent rearrangements break
-        the 1-ULP regression contract — do NOT refactor for "clarity".
-        """
-        psi_in, s_axes, sigt_cells, Q_cells = self._gather_cell_inputs(slice_args)
-        psi_avg, psi_out = self.cell_kernel_batch(
-            psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
-        )
-        self._scatter_outgoing_faces(slice_args, psi_out)
-        return psi_avg
-
-    # ── d-D Cartesian batched residual — the apply direction (Wave O O.4b) ──
-
-    def residual_batch(self, slice_args: SweepCellSlice) -> np.ndarray:
-        r"""Vectorised DD operator residual for one anti-hyperplane level.
-
-        The apply-direction analogue of :meth:`update_batch`: where
-        ``update_batch`` SOLVES the cell balance for :math:`\overline\psi`,
-        ``residual_batch`` evaluates the residual
-
-        .. math::
-
-           r_{i,j} \;=\; (\Sigma_{t,i,j} + s_{x,i} + s_{y,j})\,
-                          \overline\psi^{\rm probe}_{i,j}
-                       \;-\; \bigl(Q_{i,j}
-                              + s_{x,i}\,\psi^{\rm in}_{x,i,j}
-                              + s_{y,j}\,\psi^{\rm in}_{y,i,j}\bigr)
-
-        at the PROBE cell-average ``slice_args.psi_avg_probe`` (NOT the
-        solved value). ``r = (L+C)\,\overline\psi - q``; it vanishes at the
-        swept solution (the round-trip contract on
-        :meth:`CellUpdateBase.residual_batch`). The spatial closure
-        :math:`\psi^{\rm out}_a = 2\overline\psi^{\rm probe} - \psi^{\rm in}_a`
-        is scattered into the persistent buffers with the PROBE, so the
-        matvec reconstructs edge fluxes along the wavefront exactly as the
-        sweep does — matvec and sweep are ONE DD discretization (L21).
-
-        Operation-order discipline
-        --------------------------
-
-        The gather + ``denom`` reuse :meth:`update_batch`'s order via the SAME
-        shared :meth:`_gather_cell_inputs` / :meth:`residual_kernel_batch`
-        (``sig_t + sx + sy``; advanced-index gather at the trailing position)
-        so the streaming algebra stays a single source of truth. Per
-        ``vv-principles`` Bit-identity vs principled-equivalence, do NOT
-        rearrange for "clarity".
-        """
-        s = slice_args
-        if s.psi_avg_probe is None:
-            raise ValueError(
-                "residual_batch is the apply direction and requires "
-                "SweepCellSlice.psi_avg_probe; got None (that is the "
-                "solve-direction default — call update_batch instead)."
-            )
-        psi_in, s_axes, sigt_cells, Q_cells = self._gather_cell_inputs(s)
-        # Probe cell-average on this level (the apply target).
-        psi_bar = s.psi_avg_probe[(slice(None), slice(None), *s.cell_idx)]
-
-        residual, psi_out = self.residual_kernel_batch(
-            psi_bar=psi_bar, psi_in=psi_in,
-            s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
-        )
-        # Spatial closure with the PROBE — propagate edges downstream so the
-        # next level's incoming faces are reconstructed from psi_bar.
-        self._scatter_outgoing_faces(s, psi_out)
-        return residual
 
 
 __all__ = ["DiamondDifference"]

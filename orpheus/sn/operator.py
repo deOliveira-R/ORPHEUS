@@ -98,8 +98,8 @@ History
    Phase E landed): it seeds the octant-incoming face slots from the
    GIVEN ``psi.boundary.inflow`` via the typed ``wavefront.seed`` (ι_*)
    with NO ``bc.apply``, walks the same per-octant
-   :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` (``graph.residual``
-   → the diamond-difference ``CellUpdate`` closure) the 2-D *sweep*
+   :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` (the apply-direction
+   level operation → the diamond-difference ``CellUpdate`` closure) the 2-D *sweep*
    ``_sweep_2d_wavefront`` uses — so matvec ≡ sweep in 2-D by
    construction (L21, one discretization) — and emits the boundary
    consistency residual (outflow defect ``streamed − given`` + inflow

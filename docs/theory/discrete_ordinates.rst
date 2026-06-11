@@ -27,9 +27,18 @@ Key Facts
 - Key reference: Bailey, Morel & Chang (2009) — Eq. 50 (α recursion), Eq. 74 (M-M weights)
 - Verification uses :ref:`synthetic cross sections <synthetic-xs-library>`, not real nuclear data
 - 2-D wavefront sweep (Wave 2): per-octant batched dispatch via
-  :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` →
-  ``cell_update.update_batch``; mesh-time precompute of the per-
-  octant DAG; BC apply once per octant per axis (the L7-trap fix).
+  :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph`; mesh-time
+  precompute of the per-octant DAG; BC apply once per octant per axis
+  (the L7-trap fix). **Since S6.4(e)** the graph exposes TWO storage
+  walks —
+  :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full`
+  (full-cochain oracle) and
+  :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`
+  (rolling-frontier production) — each parameterised by a LEVEL
+  OPERATION object (``_CellSolve`` | ``_CellResidual``); the cell math
+  is the discretization's storage-free kernel pair
+  (:meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.cell_kernel_batch`
+  / :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.residual_kernel_batch`).
   See :ref:`sweep-octant-dependency-graph`.
 - **Both the 1-D and 2-D sweeps are BARE** (Wave O steps O.4a.2 +
   O.4b, Issue #208): :func:`~orpheus.sn.sweep.transport_sweep` (1-D)
@@ -1379,9 +1388,11 @@ forward-substitution** over a precomputed causal cell DAG (Wave 2 of
 the SN performance plan, closing Issue #4).  This subsection states
 the algebraic framing; the primitives that realise it
 (:class:`~orpheus.sn.sweep_graph.OctantLabel`,
-:class:`~orpheus.sn.sweep_graph.SweepDependencyGraph`,
-:class:`~orpheus.sn.spatial.cell_update.SweepCellSlice`,
-:meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.update_batch`)
+:class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` and its two
+storage walks, the level-operation pair ``_CellSolve`` /
+``_CellResidual``, and the discretization's kernel pair
+:meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.cell_kernel_batch`
+/ :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.residual_kernel_batch`)
 are documented in detail at
 :ref:`sweep-octant-dependency-graph` immediately below.
 
@@ -1502,17 +1513,40 @@ transport DAG / direction sweep ordering" primitive** as it lives in
 shipped architecture replaces the legacy per-ordinate ``for n in
 range(N)`` loop in :func:`~orpheus.sn.sweep._sweep_2d_wavefront` with
 a per-octant batched dispatch, lifting the per-call ``_diag_cache``
-build to mesh-time work, and isolating the DD per-cell algebra in a
-strategy method
-(:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update_batch`)
+build to mesh-time work, and isolating the per-cell DD algebra in the
+discretization's pure kernel pair
+(:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cell_kernel_batch`
+/ :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`)
 that LD / EC / Step closures can override later.
 
-The four primitives
-~~~~~~~~~~~~~~~~~~~
+.. note::
 
-The Wave-2 architecture introduces four small primitives plus a
-mesh-time precompute step.  Each is small, frozen, and unit-tested in
-isolation.
+   **Architecture history — the dispatch surface re-layered twice.**
+   Wave 2 (the original closure of Issue #4) routed the sweep through
+   a per-level *packet* (the ``SweepCellSlice`` dataclass) consumed by
+   four direction×storage methods — ``update_batch`` / ``residual_batch``
+   on the strategy (full-field) plus their ``apply_windowed`` /
+   ``residual_windowed`` siblings on the graph.  S6.4(e) **collapsed
+   that surface**: the four walk methods became TWO storage walks
+   (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full`,
+   :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`)
+   each parameterised by a level-operation OBJECT (``_CellSolve`` for
+   the solve direction, ``_CellResidual`` for the apply direction —
+   direction is never a boolean flag); the per-level ``SweepCellSlice``
+   packet was retired (it existed only to feed the now-deleted storage
+   adapters); and the strategy's ``update_batch`` / ``residual_batch``
+   were replaced by the **storage-free kernel pair**
+   ``cell_kernel_batch`` / ``residual_kernel_batch`` (pure cell
+   algebra — no gather/scatter).  The historical names ``update_batch``
+   / ``residual_batch`` / ``SweepCellSlice`` appear below only as
+   *history*; the current contract is the kernel pair + the level
+   operations.  See :ref:`sweep-dispatch-relayering` for the WHY.
+
+The primitives
+~~~~~~~~~~~~~~
+
+The architecture is a small set of frozen, individually unit-tested
+primitives plus a mesh-time precompute step.
 
 .. list-table::
    :header-rows: 1
@@ -1523,18 +1557,22 @@ isolation.
      - Role
    * - :class:`~orpheus.sn.sweep_graph.OctantLabel`
      - :mod:`orpheus.sn.sweep_graph`
-     - Frozen + slotted dataclass carrying the in-plane direction
-       signs ``(sign_x, sign_y) ∈ {-1, 0, +1}²``.  Hashable; used as
-       the key in the per-shape graph family
+     - Frozen + slotted dataclass carrying one direction sign per
+       spatial axis (``signs[axis] ∈ {-1, 0, +1}``) — a single type
+       labels a 1-D (``(±1,)``), 2-D (``(±1, ±1)``), or 3-D octant.
+       Hashable; used as the key in the per-shape graph family
        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.for_shape`
        (owned by the ``_DAGWavefront`` representation family since
-       S6.4(c) — historically a mesh attribute).  The pair
-       ``(0, 0)`` denotes the pure-:math:`z` degenerate octant — no
-       graph is built for it.  The 3-D ``sign_z`` is dropped: the
-       2-D Cartesian sweep is invariant under the out-of-plane axis,
-       so multiple ordinates with the same ``(sign_x, sign_y)`` but
-       different ``sign_z`` share a single graph instance.
-   * - :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph`
+       S6.4(c) — historically a mesh attribute).  An all-zero
+       signature denotes the pure-:math:`z` degenerate octant — no
+       graph is built for it
+       (:attr:`~orpheus.sn.sweep_graph.OctantLabel.streams` is
+       ``False``).  The 3-D ``sign_z`` is dropped by the 2-D Cartesian
+       orchestration: the in-plane sweep is invariant under the
+       out-of-plane axis, so multiple ordinates with the same in-plane
+       ``signs`` but different ``sign_z`` share a single graph instance.
+   * - :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` (+ its
+       two storage walks)
      - :mod:`orpheus.sn.sweep_graph`
      - Frozen dataclass holding the per-octant topological levels
        (anti-diagonals) and the per-axis face-index offsets.  Built
@@ -1542,35 +1580,48 @@ isolation.
        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.for_shape`
        cache (S6.4(c); historically at mesh construction); reused
        across every source iteration / Krylov matvec / outer
-       iteration.  Its :meth:`apply` walks the levels and dispatches
-       each level to ``cell_update.update_batch(slice_args)``.
-   * - :class:`~orpheus.sn.spatial.cell_update.SweepCellSlice`
+       iteration.  Exposes TWO storage walks (S6.4(e)):
+       :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full`
+       carries the COMPLETE per-axis interior face cochain (the
+       verification-oracle policy);
+       :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`
+       advances a rolling :math:`(d{-}1)`-frontier window (the
+       production policy, ``O(N·n_g·∏ n_a)`` shrunk to
+       ``O(N·n_g·∏_{a<d−1} n_a)`` backing).  The walk owns the level
+       loop, the storage, and the per-level operand extraction; it
+       dispatches the cell algebra to a level operation (next two rows).
+   * - The level-operation pair ``_CellSolve`` / ``_CellResidual``
+     - :mod:`orpheus.sn.sweep_graph`
+     - The **direction fork, as OBJECTS** (S6.4(e); direction is never
+       a boolean flag).  Exactly ONE is constructed per octant walk; the
+       storage walk calls ``level_op.cell(...)`` per topological level.
+       ``_CellSolve`` runs the solve direction — calls the strategy's
+       ``cell_kernel_batch`` then performs the Phase-5c angular-XOR-
+       moment per-level emit (write the angular flux + accumulate the
+       scalar flux, OR accumulate the harmonic-moment tensor, never
+       both).  ``_CellResidual`` runs the apply direction — calls
+       ``residual_kernel_batch`` then writes the per-level residual.
+       The per-level *emit* expressions and their order are
+       bit-identity-load-bearing — relocated verbatim from the four
+       retired walk methods.
+   * - The kernel pair
+       :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.cell_kernel_batch`
+       / :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.residual_kernel_batch`
      - :mod:`orpheus.sn.spatial.cell_update`
-     - Frozen + slotted dataclass — the **per-level packet** that
-       :meth:`update_batch` consumes.  Carries the cell indices
-       ``(ii, jj)``, the per-axis face-index arrays, and views into
-       the ``psi_x`` / ``psi_y`` interior face buffers, the source
-       ``Q``, the cross section ``sig_t``, and the per-octant
-       streaming coefficients ``str_x`` / ``str_y``.  See its
-       docstring for the full shape contract.  Since #205 Phase 5 the
-       ``psi_x`` / ``psi_y`` buffers are zero-copy
-       :meth:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux.face`
-       views of the typed interior cochain
-       :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`
-       (ephemeral, rebuilt each sweep; the boundary trace is the
-       persistent companion); the per-level indexing is byte-identical
-       (see :ref:`wavefront-flux-cochain`).
-   * - :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.update_batch`
-     - :mod:`orpheus.sn.spatial.cell_update`
-     - New method on the
-       :class:`~orpheus.sn.spatial.cell_update.CellUpdateBase` ABC.
-       Default implementation raises :exc:`NotImplementedError` —
-       additive capability, not a contract change.
-       :class:`~orpheus.sn.spatial.diamond.DiamondDifference`
-       overrides it; LD / EC / Step do not yet, and fall back to
-       per-cell :meth:`update` if dispatched through the wavefront
-       sweep (in practice the dispatch routes to
-       :meth:`update_batch` only when the strategy advertises it).
+     - The **storage-free extension point** on the
+       :class:`~orpheus.sn.spatial.cell_update.CellUpdateBase` ABC
+       (S6.4(e); historically the ``SweepCellSlice``-packeted
+       ``update_batch`` / ``residual_batch``).  Each takes the per-axis
+       incoming face fluxes + streaming coefficients + the level's cross
+       section and source and returns ``(psi_avg, psi_out)`` (solve) or
+       ``(residual, psi_out)`` (apply) — PURE cell algebra, no
+       gather/scatter (that is the walk's job).  Default raises
+       :exc:`NotImplementedError` — additive capability, not a contract
+       change.  :class:`~orpheus.sn.spatial.diamond.DiamondDifference`
+       overrides the pair; LD / EC / Step closures override it later to
+       join the batched wavefront walks (their per-cell
+       :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.update`
+       stays the canonical reference contract).
 
 Per-shape precompute pattern (family-owned since S6.4(c))
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1651,33 +1702,77 @@ These are pinned by ``tests/sn/test_sweep_graph.py`` (63 L0 tests):
 
 These four invariants are the **load-bearing correctness floor** of
 the wavefront sweep.  Any future closure (LD, EC, Step) plugged in
-via :meth:`update_batch` consumes the same invariants — they describe
+via the kernel pair consumes the same invariants — they describe
 the topology, not the algebra, so the strategy contract is orthogonal
 to the graph correctness.
 
-The dispatch boundary: graph (scheduler) vs cell update (closure)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. _sweep-dispatch-relayering:
 
-A central architectural decision in Wave 2 is the **separation
-between the scheduler and the closure** — the
-:class:`SweepDependencyGraph` is the SCHEDULER (walks topological
-levels), and ``cell_update.update_batch`` is the CLOSURE (DD-specific
-algebra).  The graph's :meth:`apply` does NOT inline any DD-specific
-math; it builds a :class:`SweepCellSlice` and dispatches.
+The dispatch boundary: walk (scheduler) vs cell update (closure)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A central architectural decision is the **separation between the
+scheduler and the closure**.  Three layers stack from storage outward
+to algebra (S6.4(e)):
+
+#. **The storage walk** —
+   :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full` (full
+   cochain) or
+   :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`
+   (rolling frontier).  Owns the topological-level loop and the
+   per-axis face gather/scatter (full cochain) or the frontier
+   seed/incoming/emit/shed cochain trace algebra (window).  Storage is
+   the walk's concern — the SAME two walks serve every closure and
+   both directions.
+
+#. **The level operation** — ``_CellSolve`` or ``_CellResidual``,
+   constructed once per octant walk and called as ``level_op.cell(...)``
+   per level.  Owns the direction fork (solve vs apply) and the
+   per-level *emit* (angular/moment write, or residual write).
+   Direction is an OBJECT, never a boolean flag passed down the walk.
+
+#. **The kernel pair** —
+   :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cell_kernel_batch`
+   /
+   :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`.
+   Owns the **pure cell algebra** and nothing else — no gather, no
+   scatter, no storage. This is the ONLY direction-aware math left in
+   the SN spatial stack.
+
+**Why this layering (the WHY behind S6.4(e)).**  Wave 2 carried the
+storage concern *inside* the strategy: the DD ``update_batch`` /
+``residual_batch`` methods gathered the cell's face inputs from the
+``SweepCellSlice`` packet, ran the algebra, and scattered the outgoing
+faces back — a four-method direction×storage product
+(``update_batch`` / ``residual_batch`` full-field +
+``apply_windowed`` / ``residual_windowed`` windowed).  That entangled
+two orthogonal concerns: a NEW closure (LD / EC / Step) would have had
+to re-implement the gather/scatter (storage) plumbing four times just
+to supply its cell math.  S6.4(e) lifts storage to the walk layer
+**once, above every strategy**, so a closure supplies ONLY its
+storage-free kernel pair (pure algebra over the per-axis incoming face
+fluxes) and inherits both storage policies (full + window) and both
+directions (solve + apply) for free.  The ``SweepCellSlice`` packet —
+which existed only to feed the retired storage adapters — is gone with
+them.  This is the Cardinal-Rule-2 "build primitives, not products"
+discipline: the four-method product collapses to a 2 (walks) × 1
+(level-op pair, direction-by-object) × 1 (kernel pair) factoring where
+each factor varies independently.
 
 This means: **DD is the only shipping closure today**, but Step / LD
-/ EC override :meth:`update_batch` later without rewriting the
-sweep driver.  The Wave C-extension rollout (Issues #157 / #158)
-ships the per-cell :meth:`update` method first; Wave 2 adds the
-parallel batched :meth:`update_batch` capability for closures whose
-per-cell algebra also vectorises across an
-``(N_oct, n_diag, ng)`` slice without per-cell branching.
+/ EC override the kernel pair later without touching the walk driver
+or the level operations.  The Wave C-extension rollout (Issues #157 /
+#158) ships the per-cell :meth:`update` method first as the canonical
+reference contract; the batched kernel pair is the parallel
+level-vectorised capability for closures whose per-cell algebra
+vectorises across an ``(N_oct, n_diag, ng)`` slice without per-cell
+branching.
 
-The DD ``update_batch`` reproduces the legacy 2-D wavefront DD math
-**bit-identically** (operation order matters; see
-:class:`~orpheus.sn.spatial.diamond.DiamondDifference` Wave-2
-docstring on bit-identity).  The math is the **balance form** of WDD
-on a 2-D Cartesian cell:
+The DD ``cell_kernel_batch`` reproduces the legacy 2-D wavefront DD
+math **bit-identically** (operation order matters; see
+:class:`~orpheus.sn.spatial.diamond.DiamondDifference` docstring on
+bit-identity).  The math is the **balance form** of WDD on a 2-D
+Cartesian cell:
 
 .. math::
    :label: dd-2d-balance-form
@@ -1763,7 +1858,7 @@ axis** — :math:`O(\text{octants}) = 4` calls, not :math:`O(N)`:
            full_face_x = sn_mesh.bc_xmax.apply(psi_x[:, nx, :, :], quad)
            psi_x[oct_idx, nx, :, :] = full_face_x[oct_idx]
        # ... analogously on y ...
-       sweep_graph.apply(...)   # all N_oct ordinates batched
+       sweep_graph.walk_windowed(level_op=_CellSolve(...), ...)  # all N_oct batched
 
 The architectural argument: the boundary operator's *semantics* are
 "map outgoing partner-octant fluxes to incoming this-octant fluxes".
@@ -1893,20 +1988,23 @@ smoking-gun probe).  The shipped speedups:
 
 The headline 421-group speedup is below the 3-10× target.  The
 honest analysis: the Wave-2 implementation eliminates the
-:math:`N`-fold ordinate loop overhead but the per-octant
-:meth:`update_batch` calls still number :math:`O(\text{levels} \times
+:math:`N`-fold ordinate loop overhead but the per-octant per-level
+kernel calls still number :math:`O(\text{levels} \times
 \text{octants}) \approx (n_x + n_y - 1) \times 4 \approx 88` per
 sweep on a ``31 × 31`` mesh, each carrying its own numpy dispatch
 cost.  At 421 groups, the per-call work scales linearly so the
 ratio of useful work to dispatch overhead remains modest.  The
-**follow-up direction** (out of scope for Issue #4): change the
-:class:`SweepCellSlice` contract to carry full-:math:`N` buffers
-plus an ``octant_indices`` field, so the ``update_batch`` calls
-are level-only (~ 60 calls / sweep) rather than
-``levels × octants`` (~ 240 calls / sweep), eliminating the
-per-octant copy round-trip.  The expected speedup would push the
-421-group result back into the 3-10× range; this is a tractable
-follow-up issue once the Wave 2 architecture is shipped.
+**follow-up direction** noted at Wave 2 was to carry full-:math:`N`
+buffers plus an ``octant_indices`` field so the kernel calls become
+level-only (~ 60 calls / sweep) rather than ``levels × octants``
+(~ 240 calls / sweep), eliminating the per-octant copy round-trip.
+The subsequent Phase 5 / S6.4 work took a different route to the
+same end: the rolling-frontier window
+(:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`)
+holds the interior cochain on a contiguous :math:`(d{-}1)`-frontier
+slab, turning the per-level gather into a basic-slice zero-copy view
+(a measured ``~0.77×`` contiguity speedup AND a ``~3×`` peak-memory
+win at d=2) — see :ref:`wavefront-flux-cochain`.
 
 Closing the smoking gun by construction is itself a load-bearing
 result: the legacy ``for n in range(N)`` is gone, the metric
@@ -1921,21 +2019,25 @@ Verification
 The Wave-2 verification chain (per the ``algebra-of-record`` skill
 discipline):
 
-* **L0 unit tests** — 60 + 10 + 63 + 13 = 146 tests on the four new
-  primitives:
+* **L0 unit tests** — on the primitives:
 
   - ``tests/sn/test_octants_property.py`` (60 tests across 8
     quadrature factories) — disjoint union, weight conservation,
     sign-signature correctness, pure-axis ordinates labelled
     ``sign=0``.
-  - ``tests/sn/test_cell_update_batch.py`` (10 tests) — bit-identity
-    against per-cell :meth:`update` on a single-cell-per-batch
-    reduction; standalone tests against analytical DD recurrence on
-    a 1×3 strip; 4-octant bit-identity vs the per-ordinate Python
-    loop.
-  - ``tests/sn/test_sweep_graph.py`` (63 tests) — the §15A.2
-    invariant set above; anti-diagonal cell coverage; topo-order
-    acyclicity per octant sign; BC face conventions.
+  - ``tests/sn/test_cell_kernel_batch.py`` (S6.4(e) successor of
+    ``test_cell_update_batch.py``) — term-level L0 on the storage-free
+    kernel pair (``cell_kernel_batch`` / ``residual_kernel_batch``):
+    bit-identity against per-cell :meth:`update` on a
+    single-cell-per-batch reduction; standalone tests against
+    analytical DD recurrence on a 1×3 strip; 4-octant bit-identity vs
+    the per-ordinate Python loop; plus a ``sha256`` source-of-record
+    pin on the two kernel bodies (the explicit left-fold order is
+    bit-identity-load-bearing).
+  - ``tests/sn/test_sweep_graph.py`` — the §15A.2 invariant set above;
+    anti-diagonal cell coverage; topo-order acyclicity per octant sign;
+    BC face conventions; and the ``walk_full`` / ``walk_windowed`` ×
+    level-operation walks (with ``window ≡ full`` bit-identity oracles).
   - ``tests/sn/primitives/test_dag_ownership.py`` (S6.4(c) successor of ``test_snmesh_sweep_graphs.py``) — graph
     contents agree with hand-derived schedule on a 3×3 mesh; dict
     keys equal ``quad.octants`` labels; cache invalidates when mesh
@@ -1984,11 +2086,21 @@ References and pointers
   refactor for the scattering source build.  See
   :ref:`sn-scattering-fission-operators`.
 * :class:`~orpheus.sn.spatial.cell_update.CellUpdateBase` — the
-  strategy ABC carrying the per-cell :meth:`update` and per-level
-  :meth:`update_batch` contracts.
+  strategy ABC carrying the per-cell :meth:`update` reference contract
+  and the storage-free batched kernel pair
+  :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.cell_kernel_batch`
+  / :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.residual_kernel_batch`
+  (S6.4(e); was the ``SweepCellSlice``-packeted ``update_batch`` /
+  ``residual_batch``).
 * :class:`~orpheus.sn.spatial.diamond.DiamondDifference` — the only
-  shipping closure that overrides :meth:`update_batch`; the
-  reference for the bit-identity contract.
+  shipping closure that overrides the kernel pair; the reference for
+  the bit-identity contract (pure cell algebra — the ONLY
+  direction-aware math in the SN spatial stack since S6.4(e) lifted
+  storage to the walk layer).
+* :mod:`orpheus.sn.sweep_graph` — the two storage walks
+  (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full`,
+  :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`)
+  and the ``_CellSolve`` / ``_CellResidual`` level operations.
 * C2.5 TESTS-FIRST harness:
   ``tests/sn/test_2d_octant_sweep_equivalence.py``.
 
@@ -2135,25 +2247,28 @@ snapshots bit-identical and to retain the historical
 sub-millisecond sweep time for typical 1-D problems.
 
 The 2-D wavefront sweep dispatches its DD per-cell algebra
-through
-:meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.update_batch`
+through the storage-free kernel pair
+:meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.cell_kernel_batch`
+/ :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.residual_kernel_batch`
 on the strategy attached to the
 :class:`~orpheus.sn.geometry.SNMesh` (Wave 2 of the SN
 performance plan; closes Issue #4 — see
-:ref:`sweep-octant-dependency-graph` for the full architecture).
+:ref:`sweep-octant-dependency-graph` for the full architecture and
+:ref:`sweep-dispatch-relayering` for the S6.4(e) re-layering).
 The "inlined DD math" formerly carried inside
 :func:`~orpheus.sn.sweep._sweep_2d_wavefront` was lifted into
-:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update_batch`
-as a single bit-identical extraction, vectorised across the
+:class:`~orpheus.sn.spatial.diamond.DiamondDifference` as a single
+bit-identical extraction, vectorised across the
 ``(N_oct, n_diag, ng)`` slice — the ordinate axis, anti-diagonal
 axis, and group axis simultaneously.  Wave C-extension's LD / EC
-/ Step closures override :meth:`update_batch` and become drop-in
+/ Step closures override the kernel pair and become drop-in
 alternatives at SNMesh construction time:
 ``SNMesh(mesh, quad, cell_update=LinearDiscontinuous())``.  The
 open design point of "how to parameterise the 2-D wavefront
 without breaking anti-diagonal vectorisation" is now closed: the
-graph is the scheduler, ``update_batch`` is the closure, the
-contract is per-level batched evaluation.
+storage walk is the scheduler, the level operation owns the
+direction fork, and the kernel pair is the closure — the contract
+is per-level batched evaluation.
 
 ERR-026 closure status (partial through Wave E)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

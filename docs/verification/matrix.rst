@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5141**
+Total tests collected: **5136**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1158, 22.5%
+   L0, 1150, 22.4%
    L1, 946, 18.4%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2995, 58.3%
-   unmarked, 6, 0.1%
+   foundation, 2996, 58.3%
+   unmarked, 8, 0.2%
 
 Tagging source
 --------------
@@ -32,12 +32,12 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5056
+   explicit, 5049
    verify, 0
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 6
+   unmarked, 8
 
 Module × level grid
 -------------------
@@ -62,7 +62,7 @@ Module × level grid
    cartesian_2d/test_l2_boundary_face_view, 0, 0, 0, 0, 11, 0
    cartesian_2d/test_scan_march_equivalence, 0, 0, 0, 0, 11, 0
    core/test_cell_balance_for_streaming, 0, 0, 0, 0, 9, 0
-   core/test_cell_update_batch, 19, 0, 0, 0, 0, 0
+   core/test_cell_kernel_batch, 11, 0, 0, 0, 1, 2
    core/test_cell_update_protocol, 0, 0, 0, 0, 16, 0
    core/test_dag_walk, 0, 0, 0, 0, 7, 0
    core/test_diamond, 0, 0, 0, 0, 53, 0
@@ -951,7 +951,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
 Unmarked tests
 --------------
 
-**6 tests** have no V&V level marker.
+**8 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -965,5 +965,6 @@ equations. See ``docs/testing/architecture.rst``
 
    ``tests/derivations/test_atkinson_product_nystrom.py``, 3
    ``tests/derivations/test_fn_projection_vs_kll_flux.py``, 2
+   ``tests/sn/sweep/core/test_cell_kernel_batch.py``, 2
    ``tests/derivations/test_fn_la13511_slab_reflected.py``, 1
 
