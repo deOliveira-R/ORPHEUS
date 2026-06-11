@@ -1,7 +1,9 @@
 r"""ScanMarch ≡ oracle — the scan-march schedule (issue #222) principled-equivalence.
 
-The 2-D scan-march sweep (:func:`orpheus.sn.sweep._sweep_2d_scanmarch`, the
-:class:`~orpheus.sn.loss_representation.ScanMarch` strategy) is a DIFFERENT
+The 2-D scan-march sweep (the
+:class:`~orpheus.sn.loss_representation.ScanMarch` strategy — since S6.4(b)
+its row-march interior kernel ``ScanMarch._sweep_interior`` on the shared
+``_OctantWalk``) is a DIFFERENT
 topological linearization of the SAME lower-triangular ``(L+C)`` solve than the
 anti-diagonal wavefront: *scan along x, march over y*.  So it is
 principled-equivalent (NOT bit-identical) to the

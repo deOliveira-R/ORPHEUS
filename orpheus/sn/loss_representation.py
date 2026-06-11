@@ -131,8 +131,9 @@ import numpy as np
 # representations' ``loss_action`` — so ``_x_scan_faces`` (the shared row-march
 # face primitive) is imported here too.
 from .sweep import (
+    _scanmarch_row,
     _sweep_1d_unified,
-    _sweep_2d_scanmarch,
+    _sweep_2d_scheduled,
     _sweep_2d_wavefront,
     _sweep_full_field,
     _x_scan_faces,
@@ -150,7 +151,7 @@ if TYPE_CHECKING:
 
     from .geometry import SNMesh
     from .operator import StreamingOperator
-    from .sweep_schedule import OctantSweep
+    from .sweep_schedule import OctantSweep, OctantSweepGroup
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -371,6 +372,80 @@ class _ApplyOperands:
 
 
 @dataclass(frozen=True)
+class _SolveOperands:
+    r"""Problem data of the SOLVE direction :math:`(L+C)^{-1} q`.
+
+    The sweep's mirror of :class:`_ApplyOperands`: the solve direction is
+    driven by the GIVEN per-ordinate volumetric source ``Q`` (the unknown is
+    :math:`\bar\psi`), where the apply direction is driven by the given probe
+    :math:`\bar\psi` (no source).  Same positional-by-axis ``str_axes``
+    convention.
+    """
+
+    Q: "np.ndarray"                      # (N, ng, *spatial) — per-ordinate source
+    sig_t: "np.ndarray"                  # (ng, *spatial)
+    str_axes: tuple["np.ndarray", ...]   # d arrays, each (N, n_a)
+
+
+@dataclass(frozen=True)
+class _SweepEmit:
+    r"""Solve-direction OUTPUT mode — angular field XOR harmonic moments.
+
+    The Phase 5c output DI (which buffers are given selects the mode —
+    mirroring :meth:`SweepDependencyGraph.apply_windowed`'s contract), made
+    a TYPE: the construction guard rejects a mixed or empty mode, so an
+    illegal half-wired output is unrepresentable.
+
+    * **angular** — ``angular_flux`` ``(N, ng, *spatial)`` written per
+      octant + ``scalar_flux`` ``(ng, *spatial)`` accumulated
+      :math:`\sum_n w_n \psi_n`.
+    * **moment** — ``moment_buf`` ``(L+1, 2L+1, ng, *spatial)`` accumulated
+      :math:`\phi_\ell^m \mathrel{+}= \sum_n w_n Y_\ell^m \psi_n` with the
+      octant harmonics ``Y`` ``(N, L+1, 2L+1)``; the full angular field is
+      never materialized (the ~3× peak-memory win; the scalar is subsumed,
+      ``moment_buf[0, 0]``).
+
+    The pure-z volumetric balance emits through :meth:`pure_z`; the
+    interior kernels accumulate at their own granularity (per
+    anti-hyperplane for the window, per row for the scan-march) reading the
+    mode off these buffers.
+    """
+
+    weights: "np.ndarray"                       # (N,)
+    angular_flux: "np.ndarray | None" = None    # (N, ng, *spatial)
+    scalar_flux: "np.ndarray | None" = None     # (ng, *spatial)
+    moment_buf: "np.ndarray | None" = None      # (L+1, 2L+1, ng, *spatial)
+    Y: "np.ndarray | None" = None               # (N, L+1, 2L+1)
+
+    def __post_init__(self) -> None:
+        angular = (self.angular_flux is not None) and (self.scalar_flux is not None)
+        moment = (self.moment_buf is not None) and (self.Y is not None)
+        if angular == moment:
+            raise ValueError(
+                "_SweepEmit: exactly ONE output mode must be wired — either "
+                "(angular_flux AND scalar_flux) or (moment_buf AND Y)."
+            )
+
+    def pure_z(self, oct_idx: "np.ndarray", psi_avg: "np.ndarray") -> None:
+        """Emit the pure-z volumetric balance ``ψ = Q/Σ_t`` (no faces).
+
+        The accumulations use ``buf[...] +=`` (item-level in-place add, the
+        same ufunc as a bare ``+=``) — a bare ``self.buf +=`` would rebind
+        the attribute and trip the frozen dataclass.
+        """
+        if self.moment_buf is None:
+            self.angular_flux[oct_idx] = psi_avg
+            self.scalar_flux[...] += np.einsum(
+                "ng...,n->g...", psi_avg, self.weights[oct_idx],
+            )
+        else:
+            self.moment_buf[...] += np.einsum(
+                "nlm,ng...,n->lmg...", self.Y[oct_idx], psi_avg,
+                self.weights[oct_idx],
+            )
+
+
+@dataclass(frozen=True)
 class _OctantWalk:
     r"""THE in-plane octant traversal of the Cartesian loss operator.
 
@@ -448,6 +523,62 @@ class _OctantWalk:
             capture = interior(oct_idx, signs_eff, inflow)
             for face, capture_a in zip(_outflow_faces(signs_eff), capture):
                 shed(face, oct_idx, capture_a)
+
+    def sweep_group(
+        self,
+        group: "OctantSweepGroup",
+        *,
+        operands: _SolveOperands,
+        emit: _SweepEmit,
+        boundary_flux: "BoundaryFlux",
+        interior: "Callable[[_SolveOperands, _SweepEmit, np.ndarray, tuple[int, ...], tuple[np.ndarray, ...]], tuple[np.ndarray, ...]]",
+    ) -> None:
+        r"""The SOLVE-direction frame for ONE octant group (S6.4 sub-step (b)).
+
+        One forward-substitution pass over the group's octants on the SAME
+        :meth:`_interior_walk` frame the matvec uses — the L21 unification.
+        The Jacobi / Gauss-Seidel splitting lives one level up (the schedule
+        loop's inter-group reflect, :func:`~orpheus.sn.sweep._sweep_2d_scheduled`);
+        this frame is the bare per-group sweep, blind to the boundary
+        coupling.  The calling representation supplies ONLY its interior
+        kernel::
+
+            interior(operands, emit, oct_idx, signs_eff, inflow) -> capture
+
+        Boundary coupling via the LIVE ``boundary_flux``: each octant reads
+        its inflow off the trace and sheds its outflow back into it as the
+        walk advances.  Distinct octants own DISJOINT ordinate slices of a
+        face, so an octant's outflow write never clobbers another octant's
+        inflow — the Jacobi single-group call is bit-identical to the legacy
+        per-octant loop, and the Gauss-Seidel schedule reflects the
+        just-shed outflow between groups so a later group reads the fresh
+        current-iterate inflow off the SAME trace (the
+        :math:`(L+C-B_{\rm lower})^{-1}` forward substitution).
+
+        The pure-z degenerate octants take the volumetric balance
+        :math:`\psi = Q_n / \Sigma_t` straight into the emit policy — no
+        faces, no boundary interaction.
+        """
+        def pure_z(oct_idx: "np.ndarray") -> None:
+            emit.pure_z(oct_idx, operands.Q[oct_idx] / operands.sig_t)
+
+        def run_interior(
+            oct_idx: "np.ndarray",
+            signs_eff: tuple[int, ...],
+            inflow: tuple["np.ndarray", ...],
+        ) -> tuple["np.ndarray", ...]:
+            return interior(operands, emit, oct_idx, signs_eff, inflow)
+
+        def shed(face: str, oct_idx: "np.ndarray", capture_a: "np.ndarray") -> None:
+            boundary_flux.face_view(face)[oct_idx] = capture_a
+
+        self._interior_walk(
+            group.sweeps,
+            inflow_of=boundary_flux.face_view,
+            shed=shed,
+            pure_z=pure_z,
+            interior=run_interior,
+        )
 
     def loss_action(
         self,
@@ -687,7 +818,55 @@ class MovingFrontierWindow(_DAGWavefront):
         return _sweep_2d_wavefront(
             Q, sig_t, self.mesh, boundary_flux,
             moment_projection=moment_projection,
+            interior=self._sweep_interior,
         )
+
+    def _sweep_interior(
+        self,
+        operands: _SolveOperands,
+        emit: _SweepEmit,
+        oct_idx: "np.ndarray",
+        signs_eff: tuple[int, ...],
+        inflow: tuple["np.ndarray", ...],
+    ) -> tuple["np.ndarray", ...]:
+        r"""Rolling-frontier interior kernel, SOLVE direction, one octant.
+
+        Drives
+        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.apply_windowed`
+        (the windowed walk of the solve cell kernel
+        :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cell_kernel_batch`)
+        over this octant's DAG, emitting per anti-hyperplane into the
+        :class:`_SweepEmit` mode buffers.  Returns the per-axis domain-edge
+        outflow ``capture``.
+        """
+        graph = self.mesh.sweep_graphs[OctantLabel(signs_eff)]
+        ng = operands.sig_t.shape[0]
+        spatial = operands.sig_t.shape[1:]
+        capture = tuple(np.empty_like(face) for face in inflow)
+        # Angular mode allocates a per-octant angular buffer (scattered into
+        # the global field below); moment mode accumulates directly into the
+        # shared moment tensor per anti-hyperplane, so NO per-octant angular
+        # field is materialized (the Phase 5c peak-memory win).
+        angular_flux_oct = (
+            np.zeros((oct_idx.size, ng, *spatial))
+            if emit.moment_buf is None else None
+        )
+        graph.apply_windowed(
+            cell_update=self.mesh.cell_update,
+            inflow=inflow,
+            Q_octant=operands.Q[oct_idx],
+            sig_t=operands.sig_t,
+            str_axes_octant=tuple(s[oct_idx] for s in operands.str_axes),
+            weights_octant=emit.weights[oct_idx],
+            capture=capture,
+            angular_flux_octant=angular_flux_oct,
+            scalar_flux_buf=emit.scalar_flux,
+            moment_buf=emit.moment_buf,
+            Y_octant=None if emit.Y is None else emit.Y[oct_idx],
+        )
+        if emit.moment_buf is None:
+            emit.angular_flux[oct_idx] = angular_flux_oct
+        return capture
 
     def loss_action(
         self, operator: "StreamingOperator", psi: "TimedFullField",
@@ -899,8 +1078,10 @@ class ScanMarch(_LossRepresentation):
     axes: ``scan(x)`` at d=1, ``scan(x) ∘ march(y)`` at d=2.  ONE primitive that
     **unifies** the 1-D :class:`CumprodScan` (its degenerate ``s_y = 0`` case)
     and the 2-D row-march: the within-row x-face recurrence is the SAME Blelloch
-    scan, the transverse coupling rides the affine source
-    (:func:`~orpheus.sn.sweep._sweep_2d_scanmarch`).
+    scan, the transverse coupling rides the affine source (the row-march
+    interior kernel :meth:`_sweep_interior`, S6.4(b) — the former private
+    ``_sweep_2d_scanmarch`` frame dissolved into the shared
+    :class:`_OctantWalk` + the Jacobi schedule).
 
     A different *schedule* from the :class:`_DAGWavefront` family (row-march vs
     anti-diagonal) over the SAME lower-triangular solve — principled-equivalent
@@ -950,10 +1131,94 @@ class ScanMarch(_LossRepresentation):
             return _sweep_1d_unified(
                 Q, sig_t, self.mesh, boundary_flux, initial_guess=initial_guess,
             )
-        return _sweep_2d_scanmarch(
+        # 2-D ⇒ the row-march sweep = the Jacobi schedule × the scan-march
+        # interior kernel on the SAME schedule loop the window uses (S6.4(b):
+        # the former private ``_sweep_2d_scanmarch`` frame dissolved into the
+        # shared walk — and the Gauss-Seidel schedule composes for free, the
+        # inter-group reflect being kernel-agnostic).
+        return _sweep_2d_scheduled(
             Q, sig_t, self.mesh, boundary_flux,
+            schedule=SweepSchedule.jacobi(self.mesh),
+            reflect=None,
             moment_projection=moment_projection,
+            interior=self._sweep_interior,
         )
+
+    def _sweep_interior(
+        self,
+        operands: _SolveOperands,
+        emit: _SweepEmit,
+        oct_idx: "np.ndarray",
+        signs_eff: tuple[int, ...],
+        inflow: tuple["np.ndarray", ...],
+    ) -> tuple["np.ndarray", ...]:
+        r"""Row-march interior kernel, SOLVE direction, one octant.
+
+        Marches the y-rows in the octant's y-sweep order: within each row the
+        diamond-difference x-face recurrence is the first-order linear scan
+        (:func:`~orpheus.sn.sweep._scanmarch_row` with the *solve*
+        coefficients ``α = 2s_x/D − 1``, ``β = 2(Q + s_y ψ_{y,in})/D``), the
+        transverse-y coupling riding the affine source.  Emits per row into
+        the :class:`_SweepEmit` mode buffers.  Returns the per-axis
+        domain-edge outflow ``(capture_x, out_y)``.
+
+        The flux-independent ``α``/``D`` are computed PER LINE (the
+        :math:`(d{-}1)`-slab working set; mesh-memoising them — the #206
+        single-source cache — is the measured follow-on).
+        """
+        sig_t = operands.sig_t                      # (ng, nx, ny)
+        ng, nx, ny = sig_t.shape
+        sx_eff, sy_eff = signs_eff
+        inflow_x, inflow_y = inflow                 # (N_oct, ng, ny) / (N_oct, ng, nx)
+        s_x, s_y = (s[oct_idx] for s in operands.str_axes)
+        Q_oct = operands.Q[oct_idx]                 # (N_oct, ng, nx, ny)
+        w_oct = emit.weights[oct_idx]               # (N_oct,)
+        Y_oct = None if emit.Y is None else emit.Y[oct_idx]
+        N_oct = oct_idx.size
+
+        x_reverse = sx_eff < 0
+        capture_x = np.empty((N_oct, ng, ny))       # domain x-outflow, per y-row
+        angular_oct = (
+            np.zeros((N_oct, ng, nx, ny)) if emit.moment_buf is None else None
+        )
+
+        # March the y-rows in the octant's y-sweep order, threading ψ_y.
+        psi_y_in = inflow_y                          # (N_oct, ng, nx) — row-0 inflow
+        out_y = psi_y_in                             # last-row out_y (ny ≥ 1 → set below)
+        y_rows = range(ny) if sy_eff >= 0 else range(ny - 1, -1, -1)
+        for j in y_rows:
+            # D = σ_t + s_x + s_y on this row; the cell-kernel left-fold order
+            # ((σ_t + s_x) + s_y) is bit-id-load-bearing WITHIN a schedule only.
+            D_row = (
+                sig_t[None, :, :, j]                 # (1, ng, nx)
+                + s_x[:, None, :]                    # (N_oct, 1, nx)
+                + s_y[:, j][:, None, None]           # (N_oct, 1, 1)
+            )                                         # (N_oct, ng, nx)
+            alpha = 2.0 * s_x[:, None, :] / D_row - 1.0
+            beta = (
+                2.0 * (Q_oct[:, :, :, j] + s_y[:, j][:, None, None] * psi_y_in)
+                / D_row
+            )
+            psi_avg_row, out_y, x_outflow = _scanmarch_row(
+                alpha, beta, inflow_x[:, :, j], psi_y_in, x_reverse,
+            )
+            psi_y_in = out_y
+            capture_x[:, :, j] = x_outflow
+            if emit.moment_buf is None:
+                angular_oct[:, :, :, j] = psi_avg_row
+                emit.scalar_flux[:, :, j] += np.einsum(
+                    "ngi,n->gi", psi_avg_row, w_oct,
+                )
+            else:
+                emit.moment_buf[:, :, :, :, j] += np.einsum(
+                    "nlm,ngi,n->lmgi", Y_oct, psi_avg_row, w_oct,
+                )
+
+        if emit.moment_buf is None:
+            emit.angular_flux[oct_idx] = angular_oct
+        # x-outflow is each row's last x-scan value (captured above); the
+        # y-outflow is the LAST-marched row's out_y.
+        return (capture_x, out_y)
 
     def loss_action(
         self, operator: "StreamingOperator", psi: "TimedFullField",

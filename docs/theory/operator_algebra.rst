@@ -4792,8 +4792,9 @@ later; 5c **projects it on the spot** and discards it. For each level
 
 accumulated into **one shared global** ``moment_buf`` of shape
 :math:`(L{+}1, 2L{+}1, n_g, n_x, n_y)`. The four in-plane octants are
-swept sequentially (``sweep_octant_group`` loops octants, each completing
-its full frontier walk), so the global buffer receives a **cross-octant
+swept sequentially (the octant loop — since S6.4(b) the shared
+``_OctantWalk.sweep_group`` frame, then ``sweep_octant_group`` — each octant
+completing its full frontier walk), so the global buffer receives a **cross-octant
 ``+=``**: octant 1's complete contribution, then octant 2's, and so on.
 The output branch in :meth:`apply_windowed
 <orpheus.sn.sweep_graph.SweepDependencyGraph.apply_windowed>` is a single
@@ -5069,7 +5070,8 @@ resolvent surface the two modes are **named methods**, ``solve`` vs
   :meth:`residual_windowed
   <orpheus.sn.sweep_graph.SweepDependencyGraph.residual_windowed>` (the
   Krylov matvec) is untouched — Krylov stays full-angular.
-* :func:`sweep_octant_group <orpheus.sn.sweep.sweep_octant_group>` /
+* the per-group octant frame (``sweep_octant_group`` then, since S6.4(b),
+  ``_OctantWalk.sweep_group``) /
   :func:`_sweep_2d_scheduled <orpheus.sn.sweep._sweep_2d_scheduled>` /
   :func:`_sweep_2d_wavefront <orpheus.sn.sweep._sweep_2d_wavefront>` /
   :func:`transport_sweep <orpheus.sn.sweep.transport_sweep>` — thread the

@@ -9,12 +9,14 @@ a duplicated octant frame.
 
 Staging (the gate memo ``s6_4_unified_walk_verification.md`` §4):
 
-* **sub-step (a)** (this commit): ``_OctantWalk`` exists and BOTH matvec
-  variants (window + scan-march) route through it.  The matvec leg of the SPY
-  test passes; the SWEEP leg still fails (``sweep_octant_group`` keeps its
-  private frame) → the SPY test is ``xfail(strict=True)`` — a recorded gap.
-* **sub-step (b)**: the sweep frames come into the walk → the SPY flips
-  xfail → xpass; REMOVE the marker in that commit.
+* **sub-step (a)**: ``_OctantWalk`` landed with BOTH matvec variants
+  (window + scan-march) routed through it; the SPY test was
+  ``xfail(strict=True)`` (the sweep door still used ``sweep_octant_group``'s
+  private frame — a recorded gap).
+* **sub-step (b)** (this commit): the sweep frames came into the walk
+  (``_OctantWalk.sweep_group`` × the representations' ``_sweep_interior``
+  kernels; ``sweep_octant_group`` + ``_sweep_2d_scanmarch`` retired) → the
+  SPY flipped xfail → PASS and the marker was removed.
 
 ``-O``-safe (vv Mode 8): ``pytest.fail`` only — no bare asserts.
 ``foundation`` — software-structure invariants (no theory ``:label:``).
@@ -63,24 +65,16 @@ def _het_operands(sn: SNMesh):
     return sig_t, psi
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "S6.4(b) pending: the SWEEP direction still uses sweep_octant_group's "
-        "private octant frame — only the matvec routes through "
-        "_OctantWalk._interior_walk at sub-step (a).  Remove this marker in "
-        "the (b) commit (the recorded-gap discipline)."
-    ),
-)
 def test_sweep_and_loss_action_hit_one_octant_walk(monkeypatch):
     """[L0 structural] sweep AND loss_action exercise the SAME
     ``_OctantWalk._interior_walk`` (the one-walk claim, observed at runtime).
 
     NEGATIVE PRE-CONDITION (why this is a tripwire, not a tautology): before
-    S6.4(b) the octant orchestration is duplicated in lockstep —
+    S6.4(b) the octant orchestration was duplicated in lockstep —
     ``sweep_octant_group`` (sweep) vs the matvec frames — so the sweep door
-    does NOT reach the shared walk and this test FAILS (the xfail above
-    records the gap).  After (b) both doors hit the ONE walk and it passes.
+    did NOT reach the shared walk and this test FAILED (landed
+    ``xfail(strict=True)`` at sub-step (a), the recorded gap).  Since (b)
+    both doors hit the ONE walk: L21 (matvec ≡ sweep) is a CODE FACT.
     """
     from orpheus.sn.loss_representation import _OctantWalk
 
@@ -114,9 +108,9 @@ def test_sweep_and_loss_action_hit_one_octant_walk(monkeypatch):
     _ = A.solve(psi)
     if not hits:
         pytest.fail(
-            "sweep did NOT route through _OctantWalk._interior_walk — the "
-            "sweep still uses sweep_octant_group's private octant frame "
-            "(the one-walk unification, S6.4(b), is open)."
+            "sweep did NOT route through _OctantWalk._interior_walk — a "
+            "private sweep octant frame has re-appeared (the S6.4(b) "
+            "one-walk unification regressed)."
         )
     # Both directions hit the ONE walk → L21 (matvec ≡ sweep) is a CODE FACT.
 

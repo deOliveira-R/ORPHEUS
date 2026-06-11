@@ -78,7 +78,6 @@ import numpy as np
 from orpheus.geometry import CoordSystem
 
 from .spatial.cell_update import UpstreamState
-from .spatial.diamond import DiamondDifference
 from .spatial.psi_half_angle_seed import CarlsonSweepContext
 from .spatial.scan import ordinate_scan
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
@@ -91,7 +90,6 @@ if TYPE_CHECKING:
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from orpheus.numerics.projection import MomentProjection
     from .geometry import SNMesh
-    from .sweep_schedule import OctantSweepGroup
     from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
@@ -793,168 +791,6 @@ def _run_1d_sweep(
 # is bit-identity for ``cell_update = DiamondDifference``; the inlined
 # DD math here meets that contract by construction.
 
-def sweep_octant_group(
-    group: "OctantSweepGroup",
-    *,
-    boundary_flux: "BoundaryFlux",
-    Q: np.ndarray,
-    sig_t: np.ndarray,
-    str_x: np.ndarray,
-    str_y: np.ndarray,
-    weights: np.ndarray,
-    sn_mesh: "SNMesh",
-    angular_flux: np.ndarray | None = None,
-    scalar_flux: np.ndarray | None = None,
-    moment_buf: np.ndarray | None = None,
-    Y: np.ndarray | None = None,
-) -> None:
-    r"""Sweep one octant GROUP's ordinates on the rolling moving-frontier
-    window, in place (Phase 3 sub-step 3b primitive; Phase 5b storage-B).
-
-    For each :class:`~orpheus.sn.sweep_schedule.OctantSweep` in ``group``,
-    dispatch to the precomputed ``SNMesh.sweep_graphs[OctantLabel(σ)]`` and
-    drive :meth:`SweepDependencyGraph.apply_windowed` — the rolling 2-diagonal
-    window walk that carries the interior face cochain in an O(N·ng·nx) buffer
-    instead of the full O(N·ng·nx·ny) per-axis field (Phase 5b storage-B). The
-    octant's domain-edge INFLOW is read from ``boundary_flux`` (its incoming
-    faces); the OUTFLOW is shed back into ``boundary_flux`` (its outgoing
-    faces) as the frontier advances.
-
-    Boundary coupling via ``boundary_flux`` (replacing the storage-A
-    whole-trace seed/absorb on a persistent ``WavefrontFlux``): each octant
-    reads ``boundary_flux.face_view(<incoming face>)[oct_idx]`` as its inflow
-    and writes ``boundary_flux.face_view(<outgoing face>)[oct_idx]`` with its
-    shed outflow. Because distinct octants own DISJOINT ordinate slices of a
-    face, an octant's outflow write never clobbers another octant's inflow —
-    so the Jacobi single-group call is bit-identical to the legacy per-octant
-    loop, and the inflowing ordinates retain their seed value exactly as the
-    storage-A ``absorb`` left them. The Gauss-Seidel schedule calls this once
-    per in-plane octant group, with the resolvent reflecting the just-shed
-    outflow between groups so a later group reads the fresh current-iterate
-    inflow off the SAME ``boundary_flux`` (the ``(L+C−B_lower)⁻¹`` forward
-    substitution).
-
-    Parameters
-    ----------
-    group : OctantSweepGroup
-        The octants to sweep (each an :class:`OctantSweep`: in-plane
-        :class:`~orpheus.sn.sweep_graph.OctantLabel` + ordinate indices).
-        ``group.reflect_faces`` is consumed by the resolvent, NOT here — this
-        function is the bare sweep, blind to the boundary coupling.
-    boundary_flux : BoundaryFlux
-        The per-ordinate boundary trace. Carries each octant's inflow on its
-        incoming faces (seeded by the caller / freshly reflected by an earlier
-        G-S group) and receives the shed outflow on its outgoing faces.
-    Q, sig_t, str_x, str_y, weights : np.ndarray
-        Per-ordinate source ``(N, ng, nx, ny)``, total XS ``(ng, nx, ny)``,
-        the streaming stencils ``(N, nx)`` / ``(N, ny)``, quadrature weights
-        ``(N,)`` — sliced per octant by the ordinate indices.
-    sn_mesh : SNMesh
-        Carries the per-octant ``sweep_graphs`` and the ``cell_update``
-        strategy.
-    angular_flux, scalar_flux : np.ndarray, optional
-        ANGULAR-mode output buffers ``(N, ng, nx, ny)`` / ``(ng, nx, ny)`` —
-        mutated in place (the angular flux scattered per octant, the scalar flux
-        accumulated ``Σ_n w_n ψ_n``). Given iff ``moment_buf`` is ``None``.
-    moment_buf, Y : np.ndarray, optional
-        MOMENT-mode output (Phase 5c): the harmonic moment accumulator
-        ``(L+1, 2L+1, ng, nx, ny)`` and the full harmonic table
-        ``(N, L+1, 2L+1)`` (octant-sliced ``Y[oct_idx]`` per octant). Given iff
-        ``angular_flux`` is ``None``. The windowed SI iterate is moments (5a), so
-        the full per-ordinate angular field is never materialized — the walk
-        projects each anti-diagonal directly into ``moment_buf``
-        (:math:`\phi_\ell^m \mathrel{+}= \sum_n w_n Y_\ell^m \psi_n`). The
-        cross-octant ``+=`` (octants share the moment buffer) reorders the
-        ordinate sum vs the post-sweep flat projection ⇒ principled-equivalence,
-        NOT bit-identity. The scalar is subsumed (``moment_buf[0, 0]``).
-    """
-    ng, nx, ny = sig_t.shape
-    cell_update = sn_mesh.cell_update
-
-    for sweep in group.sweeps:
-        # The schedule already projected the quadrature octant to its in-plane
-        # OctantLabel (sign_z dropped, mirroring the legacy ``sx = label[0];
-        # sy = label[1] if len>=2 else 0``); convert the ordinate-index tuple
-        # back to an array for value-based fancy indexing (a bare tuple would
-        # be read as a multi-axis index — NOT what we want).
-        oct_idx = np.asarray(sweep.indices)   # (N_oct,) int into N
-        sx = sweep.label.sign_x
-        sy = sweep.label.sign_y
-
-        # Pure-z degenerate octant: no in-plane streaming. The angular flux is
-        # the volumetric balance ψ = Q_n / Σ_t and the scalar flux gets a
-        # weighted contribution. No faces, no boundary interaction.
-        if sx == 0 and sy == 0:
-            Q_pure_z = Q[oct_idx]                         # (N_oct, ng, nx, ny)
-            # sig_t (ng, nx, ny) broadcasts against (N_oct, ng, nx, ny).
-            psi_avg_pure_z = Q_pure_z / sig_t              # (N_oct, ng, nx, ny)
-            if moment_buf is None:
-                angular_flux[oct_idx] = psi_avg_pure_z
-                scalar_flux += np.einsum(
-                    "ngij,n->gij",
-                    psi_avg_pure_z, weights[oct_idx],
-                )
-            else:
-                moment_buf += np.einsum(
-                    "nlm,ngij,n->lmgij",
-                    Y[oct_idx], psi_avg_pure_z, weights[oct_idx],
-                )
-            continue
-
-        # Effective in-plane sign for sweep-graph lookup. Match legacy's
-        # ``key = (1 if mx >= 0 else -1, ...)`` mapping: ordinates with
-        # ``mx == 0`` are treated as ``+1`` (the streaming coefficient is
-        # zero, and the WDD result is identical regardless of sign choice).
-        sx_eff = +1 if sx == 0 else sx
-        sy_eff = +1 if sy == 0 else sy
-        sweep_graph = sn_mesh.sweep_graphs[OctantLabel((sx_eff, sy_eff))]
-        N_oct = oct_idx.size
-
-        # ── Domain-edge inflow/outflow faces for this octant ──────────
-        # The incoming face is the LOW face of the sweep direction (xmin for
-        # +x, xmax for −x); the outgoing face is the opposite. The octant
-        # streams from inflow → outflow; ``boundary_flux`` carries both.
-        x_in_face = "xmin" if sx_eff >= 0 else "xmax"
-        x_out_face = "xmax" if sx_eff >= 0 else "xmin"
-        y_in_face = "ymin" if sy_eff >= 0 else "ymax"
-        y_out_face = "ymax" if sy_eff >= 0 else "ymin"
-
-        # Read this octant's inflow (fancy-index → a (N_oct, ng, ·) copy).
-        inflow_x = boundary_flux.face_view(x_in_face)[oct_idx]   # (N_oct, ng, ny)
-        inflow_y = boundary_flux.face_view(y_in_face)[oct_idx]   # (N_oct, ng, nx)
-
-        capture_x = np.empty((N_oct, ng, ny))   # shed domain x-outflow
-        capture_y = np.empty((N_oct, ng, nx))   # shed domain y-outflow
-
-        # Angular mode allocates a per-octant angular buffer (scattered into the
-        # global field below); moment mode accumulates directly into the shared
-        # moment buffer per anti-diagonal, so NO per-octant angular field is
-        # materialized (the Phase 5c peak-memory win).
-        angular_flux_oct = (
-            np.zeros((N_oct, ng, nx, ny)) if moment_buf is None else None
-        )
-        sweep_graph.apply_windowed(
-            cell_update=cell_update,
-            inflow=(inflow_x, inflow_y),
-            Q_octant=Q[oct_idx],
-            sig_t=sig_t,
-            str_axes_octant=(str_x[oct_idx], str_y[oct_idx]),
-            weights_octant=weights[oct_idx],
-            capture=(capture_x, capture_y),
-            angular_flux_octant=angular_flux_oct,
-            scalar_flux_buf=scalar_flux,
-            moment_buf=moment_buf,
-            Y_octant=None if Y is None else Y[oct_idx],
-        )
-
-        # Shed the outflow into the boundary trace. The outflow write touches
-        # only this octant's ordinates (disjoint from other octants' inflow
-        # ordinates), so it is ι*-faithful. Angular mode also scatters the
-        # per-octant angular field into the global buffer.
-        if moment_buf is None:
-            angular_flux[oct_idx] = angular_flux_oct
-        boundary_flux.face_view(x_out_face)[oct_idx] = capture_x
-        boundary_flux.face_view(y_out_face)[oct_idx] = capture_y
 
 
 def _sweep_2d_scheduled(
@@ -966,24 +802,33 @@ def _sweep_2d_scheduled(
     schedule: "SweepSchedule",
     reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
     moment_projection: "MomentProjection | None" = None,
+    interior: "Callable" ,
 ) -> tuple[np.ndarray, np.ndarray]:
-    r"""Polymorphic schedule-driven 2-D wavefront sweep (Phase 3 sub-step 3c).
+    r"""Polymorphic schedule-driven 2-D sweep (Phase 3 sub-step 3c; S6.4(b)
+    kernel-parameterized).
 
-    ONE uniform sweep-and-reflect loop parameterized by ``schedule`` — the
-    realization of the polymorphic Jacobi / Gauss-Seidel design (there is NO
-    ``if jacobi/gs`` branch; the splitting IS the schedule):
+    ONE uniform sweep-and-reflect loop parameterized by ``schedule`` (the
+    Jacobi / Gauss-Seidel splitting — there is NO ``if jacobi/gs`` branch;
+    the splitting IS the schedule) **and by the representation's solve
+    ``interior`` kernel** (S6.4(b) — the per-group octant frame is the shared
+    :meth:`~orpheus.sn.loss_representation._OctantWalk.sweep_group`; this
+    loop does not know HOW an octant's interior is traversed).  Because the
+    inter-group reflect is kernel-agnostic, any representation's kernel
+    composes with any schedule — e.g. the scan-march gains Gauss-Seidel for
+    free.
 
     1. The GIVEN inflow ``boundary_flux`` (carrying ``B·ψₙ`` — the lagged
        reflection of the previous iterate, prepared by the caller) is read
-       per-octant by the window walk; there is no separate whole-trace seed.
-    2. ``for group in schedule.groups``: :func:`sweep_octant_group` the group's
-       octants on the rolling window, sheding each octant's outflow into
-       ``boundary_flux`` (the ι* absorb, now per-octant during the walk). Then
-       if ``reflect`` is given AND the group has reflective outgoing faces,
-       apply ``reflect`` (the ``−B`` outflow→inflow reflection, in place,
-       face-restricted) so a LATER group reads the fresh current-iterate inflow
-       directly off ``boundary_flux`` (the ``(L+C−B_lower)⁻¹`` forward
-       substitution) — no re-seed needed, the next walk reads the trace fresh.
+       per-octant by the walk; there is no separate whole-trace seed.
+    2. ``for group in schedule.groups``: walk the group's octants
+       (:meth:`_OctantWalk.sweep_group` × ``interior``), sheding each octant's
+       outflow into ``boundary_flux`` (the ι* absorb, per-octant during the
+       walk). Then if ``reflect`` is given AND the group has reflective
+       outgoing faces, apply ``reflect`` (the ``−B`` outflow→inflow
+       reflection, in place, face-restricted) so a LATER group reads the
+       fresh current-iterate inflow directly off ``boundary_flux`` (the
+       ``(L+C−B_lower)⁻¹`` forward substitution) — no re-seed needed, the
+       next walk reads the trace fresh.
 
     * **Jacobi** (``reflect=None``, one all-octants group) — every octant reads
       the frozen seed; the inter-group reflect never fires. This is exactly the
@@ -1028,36 +873,38 @@ def _sweep_2d_scheduled(
     """
     ng, nx, ny = sig_t.shape
     N = sn_mesh.quad.N
+    # Lazy import — breaks the sweep ↔ loss_representation load-time cycle
+    # (the representation module imports this module's bodies at load; the
+    # cycle dissolves at S6.4(f) when this orchestrator moves there).
+    from .loss_representation import _OctantWalk, _SolveOperands, _SweepEmit
+
+    weights = sn_mesh.quad.weights
     if moment_projection is None:
         angular_flux = np.zeros((N, ng, nx, ny))
         scalar_flux = np.zeros((ng, nx, ny))
         moment_buf = None
-        Y = None
+        emit = _SweepEmit(
+            weights=weights, angular_flux=angular_flux, scalar_flux=scalar_flux,
+        )
     else:
         L = moment_projection.L
         moment_buf = np.zeros((L + 1, 2 * L + 1, ng, nx, ny))
-        Y = moment_projection.Y
-        angular_flux = None
-        scalar_flux = None
+        emit = _SweepEmit(
+            weights=weights, moment_buf=moment_buf, Y=moment_projection.Y,
+        )
 
-    str_x = sn_mesh.streaming_x   # (N, nx)
-    str_y = sn_mesh.streaming_y   # (N, ny)
-    weights = sn_mesh.quad.weights
-
+    operands = _SolveOperands(
+        Q=Q, sig_t=sig_t,
+        str_axes=tuple(sn_mesh.streaming(a) for a in range(sn_mesh.ndim)),
+    )
+    walk = _OctantWalk(sn_mesh)
     for group in schedule.groups:
-        sweep_octant_group(
+        walk.sweep_group(
             group,
+            operands=operands,
+            emit=emit,
             boundary_flux=boundary_flux,
-            Q=Q,
-            sig_t=sig_t,
-            str_x=str_x,
-            str_y=str_y,
-            weights=weights,
-            sn_mesh=sn_mesh,
-            angular_flux=angular_flux,
-            scalar_flux=scalar_flux,
-            moment_buf=moment_buf,
-            Y=Y,
+            interior=interior,
         )
         if reflect is not None and group.reflect_faces:
             # G-S inter-group reflect (a no-op for the Jacobi schedule, whose
@@ -1084,6 +931,7 @@ def _sweep_2d_wavefront(
     boundary_flux: "BoundaryFlux",
     *,
     moment_projection: "MomentProjection | None" = None,
+    interior: "Callable | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""2-D wavefront sweep — per-octant batched (Wave 2 / C2.6).
 
@@ -1109,17 +957,14 @@ def _sweep_2d_wavefront(
 
     The smoking gun ``for n in range(N)`` is gone: the outer loop is now
     ``for group in SweepSchedule.jacobi(sn_mesh).groups`` (ONE all-octants
-    group), and the per-octant work is delegated to
-    :func:`sweep_octant_group` — one ``SweepDependencyGraph.apply`` per octant
-    over the typed interior cochain
-    :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`
-    (Wave O #205); the boundary trace is exchanged once per sweep via the
-    typed :math:`\iota_*` (``seed``) / :math:`\iota^*` (``absorb``). The
-    ordinate axis is INTERNAL to every numpy operation.
+    group), and the per-octant work is delegated to the shared
+    ``_OctantWalk.sweep_group`` frame (S6.4(b) — formerly the private
+    ``sweep_octant_group``) driving the windowed walk per octant; the
+    boundary trace is read/shed per octant during the walk. The ordinate
+    axis is INTERNAL to every numpy operation.
 
     Phase 3 sub-step 3b — this body IS the **Jacobi** octant schedule (one
-    group, all octants, no inter-group reflect). The carve into
-    :func:`sweep_octant_group` + the polymorphic
+    group, all octants, no inter-group reflect). The polymorphic
     :class:`~orpheus.sn.sweep_schedule.SweepSchedule` lets the SI resolvent's
     **Gauss-Seidel** schedule (sub-step 3c) re-use the SAME per-octant sweep at
     finer group granularity, recovering the intra-sweep reflective coupling
@@ -1162,11 +1007,20 @@ def _sweep_2d_wavefront(
     # per-in-plane-octant schedule + a ``−B`` reflect closure, recovering the
     # boundary reflective coupling Wave O externalised. Bit-identical to the
     # pre-3c ``for octant in quad.octants`` loop.
+    #
+    # S6.4(b): ``interior`` defaults to the production window kernel — this
+    # function IS, historically, the window's bare sweep entry (the direct
+    # test consumers rely on that contract); ``MovingFrontierWindow.sweep``
+    # passes its own bound kernel explicitly.
+    if interior is None:
+        from .loss_representation import MovingFrontierWindow
+        interior = MovingFrontierWindow(sn_mesh)._sweep_interior
     return _sweep_2d_scheduled(
         Q, sig_t, sn_mesh, boundary_flux,
         schedule=SweepSchedule.jacobi(sn_mesh),
         reflect=None,
         moment_projection=moment_projection,
+        interior=interior,
     )
 
 
@@ -1273,174 +1127,6 @@ def _scanmarch_row(
     return psi_avg, out_y, x_outflow
 
 
-def _sweep_2d_scanmarch(
-    Q: np.ndarray,
-    sig_t: np.ndarray,
-    sn_mesh: "SNMesh",
-    boundary_flux: "BoundaryFlux",
-    *,
-    moment_projection: "MomentProjection | None" = None,
-) -> tuple[np.ndarray, np.ndarray]:
-    r"""2-D Cartesian within-group sweep via the **scan-march** schedule (#222).
-
-    The same lower-triangular forward substitution as the anti-diagonal
-    wavefront (:func:`_sweep_2d_wavefront`), linearized as *scan along x, march
-    over y*.  Within one y-row the diamond-difference x-face recurrence is the
-    first-order linear scan
-
-    .. math::
-
-        \mathrm{out}_x(i) = \alpha(i)\,\mathrm{in}_x(i) + \beta(i),\qquad
-        \alpha = \frac{2 s_x}{D} - 1,\quad
-        \beta = \frac{2\,(Q + s_y\,\psi_{y,\mathrm{in}})}{D},\quad
-        D = \sigma_t + s_x + s_y,
-
-    solved in closed form by :func:`~orpheus.sn.spatial.scan.ordinate_scan` —
-    the SAME primitive the 1-D :class:`~orpheus.sn.loss_representation.CumprodScan`
-    uses (at :math:`s_y = 0`, :math:`\alpha` degenerates to the slab
-    ``a_attenuation`` exactly, so the 1-D scan IS this body with no y-march).
-    The transverse-y coupling enters ONLY through the affine source
-    :math:`\beta`; the cell average is recovered from the x-faces by the SAME
-    WDD closure :math:`\bar\psi = \tfrac12(\mathrm{in}_x + \mathrm{out}_x)`, and
-    the downstream y-face :math:`\mathrm{out}_y = 2\bar\psi - \psi_{y,\mathrm{in}}`
-    is threaded to the next row.
-
-    Principled-equivalent (NOT bit-identical) to ``_sweep_2d_wavefront``: the
-    row-march and the anti-diagonal are two valid topological linearizations of
-    the same triangular solve, so they agree to FP-association — the
-    :class:`~orpheus.sn.loss_representation.FullFieldWavefront` oracle pins it at
-    nulp (issue #222 / the ``scan_march_verification.md`` G2 gate).  The flux-
-    independent :math:`\alpha`/``D`` are computed PER LINE here (the
-    :math:`(d{-}1)`-slab working set; mesh-memoising them — the #206 single-
-    source cache — is the measured follow-on).
-
-    Jacobi only (the bare within-group sweep): the four in-plane octants are
-    independent (the reflective coupling is the externalised sibling
-    :math:`-B`).  ``Q`` is the per-ordinate ``(N, ng, nx, ny)`` source
-    (producer-side ``/W``, no in-sweep scaling, no ``·V`` — the Cartesian
-    ``s_a = 2|μ|/Δ`` is already Δ-normalised).
-
-    .. note::
-
-       The octant projection + boundary-trace I/O here (the ``oct_idx`` / sign
-       lookup, the pure-z ``Q/Σ_t`` branch, the in/out face strings, the inflow
-       read + the outflow shed) is a DELIBERATE Pattern-2 duplication of
-       :func:`sweep_octant_group`'s scaffold — **edit both in lockstep**.  Fork
-       B1 (issue #222): the production window must NOT be re-carved while its
-       A2D-1 source-hash + affine-carve bit-identity anchors gate this opt-in
-       path, and ``sweep_octant_group`` is monolithic (no interior-solve seam),
-       so a shared ``_for_each_inplane_octant`` helper cannot be cut yet.
-       Consolidation trigger: S5.3 (the default-flip + window retire/unify),
-       when the scan-march becomes the production schedule and that seam can be
-       cut without disturbing those anchors.
-    """
-    ng, nx, ny = sig_t.shape
-    N = sn_mesh.quad.N
-    if moment_projection is None:
-        angular_flux = np.zeros((N, ng, nx, ny))
-        scalar_flux = np.zeros((ng, nx, ny))
-        moment_buf = None
-        Y = None
-    else:
-        L = moment_projection.L
-        moment_buf = np.zeros((L + 1, 2 * L + 1, ng, nx, ny))
-        Y = moment_projection.Y
-        angular_flux = None
-        scalar_flux = None
-
-    str_x = sn_mesh.streaming_x   # (N, nx)
-    str_y = sn_mesh.streaming_y   # (N, ny)
-    weights = sn_mesh.quad.weights
-
-    # Jacobi: ONE all-octants group (the bare sweep).  The schedule supplies the
-    # same in-plane octant projection (sign_z dropped) the wavefront uses.
-    (group,) = SweepSchedule.jacobi(sn_mesh).groups
-    for sweep in group.sweeps:
-        oct_idx = np.asarray(sweep.indices)        # (N_oct,) int into N
-        sx = sweep.label.sign_x
-        sy = sweep.label.sign_y
-
-        # Pure-z degenerate octant: no in-plane streaming → ψ = Q/Σ_t, no faces.
-        if sx == 0 and sy == 0:
-            psi_avg_pure_z = Q[oct_idx] / sig_t     # (N_oct, ng, nx, ny)
-            if moment_buf is None:
-                angular_flux[oct_idx] = psi_avg_pure_z
-                scalar_flux += np.einsum(
-                    "ngij,n->gij", psi_avg_pure_z, weights[oct_idx],
-                )
-            else:
-                moment_buf += np.einsum(
-                    "nlm,ngij,n->lmgij",
-                    Y[oct_idx], psi_avg_pure_z, weights[oct_idx],
-                )
-            continue
-
-        # μ=0 ordinates ride the +1 sweep direction (streaming coeff 0, WDD
-        # result sign-independent) — matches sweep_octant_group's sx_eff/sy_eff.
-        sx_eff = +1 if sx == 0 else sx
-        sy_eff = +1 if sy == 0 else sy
-
-        x_in_face = "xmin" if sx_eff >= 0 else "xmax"
-        x_out_face = "xmax" if sx_eff >= 0 else "xmin"
-        y_in_face = "ymin" if sy_eff >= 0 else "ymax"
-        y_out_face = "ymax" if sy_eff >= 0 else "ymin"
-
-        inflow_x = boundary_flux.face_view(x_in_face)[oct_idx]   # (N_oct, ng, ny)
-        inflow_y = boundary_flux.face_view(y_in_face)[oct_idx]   # (N_oct, ng, nx)
-
-        s_x = str_x[oct_idx]      # (N_oct, nx)
-        s_y = str_y[oct_idx]      # (N_oct, ny)
-        Q_oct = Q[oct_idx]        # (N_oct, ng, nx, ny)
-        w_oct = weights[oct_idx]  # (N_oct,)
-        Y_oct = None if Y is None else Y[oct_idx]   # (N_oct, L+1, 2L+1)
-        N_oct = oct_idx.size
-
-        x_reverse = sx_eff < 0
-        capture_x = np.empty((N_oct, ng, ny))       # domain x-outflow, per y-row
-        angular_oct = (
-            np.zeros((N_oct, ng, nx, ny)) if moment_buf is None else None
-        )
-
-        # March the y-rows in the octant's y-sweep order, threading ψ_y.
-        psi_y_in = inflow_y                          # (N_oct, ng, nx) — row-0 inflow
-        out_y = psi_y_in                             # last-row out_y (ny ≥ 1 → set below)
-        y_rows = range(ny) if sy_eff >= 0 else range(ny - 1, -1, -1)
-        for j in y_rows:
-            # D = σ_t + s_x + s_y on this row; the cell-kernel left-fold order
-            # ((σ_t + s_x) + s_y) is bit-id-load-bearing WITHIN a schedule only.
-            D_row = (
-                sig_t[None, :, :, j]                 # (1, ng, nx)
-                + s_x[:, None, :]                    # (N_oct, 1, nx)
-                + s_y[:, j][:, None, None]           # (N_oct, 1, 1)
-            )                                         # (N_oct, ng, nx)
-            alpha = 2.0 * s_x[:, None, :] / D_row - 1.0
-            beta = (
-                2.0 * (Q_oct[:, :, :, j] + s_y[:, j][:, None, None] * psi_y_in)
-                / D_row
-            )
-            psi_avg_row, out_y, x_outflow = _scanmarch_row(
-                alpha, beta, inflow_x[:, :, j], psi_y_in, x_reverse,
-            )
-            psi_y_in = out_y
-            capture_x[:, :, j] = x_outflow
-            if moment_buf is None:
-                angular_oct[:, :, :, j] = psi_avg_row
-                scalar_flux[:, :, j] += np.einsum("ngi,n->gi", psi_avg_row, w_oct)
-            else:
-                moment_buf[:, :, :, :, j] += np.einsum(
-                    "nlm,ngi,n->lmgi", Y_oct, psi_avg_row, w_oct,
-                )
-
-        # Shed the domain outflow: x-outflow is each row's last x-scan value
-        # (captured above); y-outflow is the LAST-marched row's out_y.
-        if moment_buf is None:
-            angular_flux[oct_idx] = angular_oct
-        boundary_flux.face_view(x_out_face)[oct_idx] = capture_x
-        boundary_flux.face_view(y_out_face)[oct_idx] = out_y   # (N_oct, ng, nx)
-
-    if moment_projection is None:
-        return angular_flux, scalar_flux
-    return moment_buf, None
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1552,5 +1238,4 @@ def _sweep_full_field(
 
 __all__ = [
     "transport_sweep",
-    "sweep_octant_group",
 ]
