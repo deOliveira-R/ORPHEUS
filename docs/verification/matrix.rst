@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5136**
+Total tests collected: **5102**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1150, 22.4%
-   L1, 946, 18.4%
+   L0, 1150, 22.5%
+   L1, 946, 18.5%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2996, 58.3%
+   foundation, 2962, 58.1%
    unmarked, 8, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5049
+   explicit, 5015
    verify, 0
    class-name, 46
    func-name, 0
@@ -212,7 +212,6 @@ Module × level grid
    fields/test_angular_flux, 0, 0, 0, 0, 25, 0
    fields/test_boundary_flux, 0, 0, 0, 0, 36, 0
    fields/test_boundary_source_sink_residual, 0, 0, 0, 0, 30, 0
-   fields/test_wavefront_flux, 0, 0, 0, 0, 31, 0
    geometry/test_bc_equivalence_snapshot, 0, 8, 0, 0, 0, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 30, 0, 0, 11, 0
@@ -322,7 +321,7 @@ Module × level grid
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
    spatial/test_ordinate_scan_reset, 3, 2, 0, 0, 0, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 272, 0
+   test_layer_imports, 0, 0, 0, 0, 269, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
    transport/test_field_units, 0, 0, 0, 0, 43, 0

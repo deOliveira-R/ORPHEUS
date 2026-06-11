@@ -1084,7 +1084,7 @@ class _MSpatialOperatorSum(OperatorSum):
         Notes
         -----
         Future leverage opportunity (post-T.5 cache-unification
-        micro-wave): :func:`~orpheus.sn.sweep._ensure_coll_cache` and
+        micro-wave): :func:`~orpheus.sn.loss_representation._ensure_coll_cache` and
         :class:`~orpheus.sn.solver.SNSolver` would route through this
         method as the canonical cache-construction path, making
         M_spatial the single source of truth for its own inverse
@@ -1532,7 +1532,7 @@ class StreamingOperator(LinearOperatorMixin):
 
         The SAME first-class ``LossRepresentation``
         (``orpheus.sn.loss_representation``) that
-        :func:`~orpheus.sn.sweep.transport_sweep` selects for the forward
+        :func:`~orpheus.sn.loss_representation.transport_sweep` selects for the forward
         sweep — here it carries the matvec twin: :meth:`apply` routes through
         ``representation.loss_action`` and :meth:`apply_transpose` through
         ``representation.loss_action_transpose``.  Selection is by geometry
@@ -1805,7 +1805,7 @@ class InvertibleOperator(OperatorSum):
     §III).  :class:`InvertibleOperator` is the specialisation that
     carries the identity at the type level: it inherits the
     :class:`OperatorSum` ``apply`` (the sum of the operand actions)
-    and adds ``solve`` via :func:`~orpheus.sn.sweep.transport_sweep`.
+    and adds ``solve`` via :func:`~orpheus.sn.loss_representation.transport_sweep`.
 
     Construction
     ============
@@ -2051,7 +2051,7 @@ class InvertibleOperator(OperatorSum):
         r"""Composite :class:`TimedFullField` body of :meth:`solve` (D-H.1c stage 1).
 
         Bridges through the legacy :class:`AngularFlux` solve path —
-        the WDD sweep kernel (:func:`~orpheus.sn.sweep.transport_sweep`)
+        the WDD sweep kernel (:func:`~orpheus.sn.loss_representation.transport_sweep`)
         stays untouched; this method handles only the L2↔legacy
         bridge at the public-entry boundary.
 
@@ -2091,7 +2091,7 @@ class InvertibleOperator(OperatorSum):
         )
         from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
-        from .sweep import transport_sweep
+        from .loss_representation import transport_sweep
 
         # D-H.2-C3: only the :class:`TimedFullField` composite branch remains;
         # legacy :class:`AngularFlux` retired.  ``rhs`` and ``initial_guess``

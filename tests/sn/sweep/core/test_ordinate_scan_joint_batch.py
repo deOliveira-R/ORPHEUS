@@ -27,11 +27,11 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.sn import sweep as sweep_module
+from orpheus.sn import loss_representation as sweep_module
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.source_sinks import AngularSourceSink
-from orpheus.sn.sweep import transport_sweep
+from orpheus.sn.loss_representation import transport_sweep
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 

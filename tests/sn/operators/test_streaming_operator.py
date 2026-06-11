@@ -314,7 +314,7 @@ class TestSumCapabilities:
     :meth:`CollisionOperator.__add__` to return
     :class:`~orpheus.sn.operator.InvertibleOperator`, a specialisation
     of :class:`OperatorSum` that adds ``solve`` via
-    :func:`~orpheus.sn.sweep.transport_sweep`.
+    :func:`~orpheus.sn.loss_representation.transport_sweep`.
     """
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)

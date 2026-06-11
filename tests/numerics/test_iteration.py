@@ -547,7 +547,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
         from orpheus.numerics.quadrature import Quadrature
         from orpheus.sn.scattering import ScatteringOperator
         from orpheus.sn.solver import SNSolver, solve_sn
-        from orpheus.sn.sweep import transport_sweep
+        from orpheus.sn.loss_representation import transport_sweep
 
     # 2-group homogeneous 1-D slab — the same canonical fixture
     # ``test_solver_components.py`` uses for component checks.

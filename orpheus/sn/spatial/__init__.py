@@ -20,7 +20,7 @@ The contract itself lives in :mod:`orpheus.sn.spatial.cell_update`:
 Round 1 (Issue #157) shipped the contract.
 Round 2 (Issue #158, this file's ``DiamondDifference`` re-export)
 ships the first concrete strategy as a bit-identical extraction of
-the existing inlined sweep math at :mod:`orpheus.sn.sweep`.  Wave
+the existing inlined sweep math at ``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``).  Wave
 C-extension will add Linear Discontinuous, Step, and Exponential
 Characteristic.
 

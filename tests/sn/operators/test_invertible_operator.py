@@ -9,7 +9,7 @@ R-1 Step C (2026-05-19) — the SN-specific algebraic identity
 
 is encoded at the type level by :class:`InvertibleOperator`, a
 specialisation of :class:`~orpheus.numerics.operator.OperatorSum` that
-carries ``.solve`` via :func:`~orpheus.sn.sweep.transport_sweep`.
+carries ``.solve`` via :func:`~orpheus.sn.loss_representation.transport_sweep`.
 
 The dispatch is symmetric: ``L + C`` and ``C + L`` both produce an
 ``InvertibleOperator`` (with the streaming operand stored first via the
@@ -459,7 +459,7 @@ class TestSolve:
 
         # Spy on transport_sweep — capture the source argument's values.
         captured: list[np.ndarray] = []
-        from orpheus.sn import sweep as sweep_module
+        from orpheus.sn import loss_representation as sweep_module
         original = sweep_module.transport_sweep
 
         def spy(source, *args, **kwargs):
@@ -469,7 +469,7 @@ class TestSolve:
             captured.append(np.array(source.values, copy=True))
             return original(source, *args, **kwargs)
 
-        with patch("orpheus.sn.sweep.transport_sweep", spy):
+        with patch("orpheus.sn.loss_representation.transport_sweep", spy):
             invertible.solve(rhs)
 
         assert len(captured) == 1, (
@@ -514,14 +514,14 @@ class TestSolve:
         # Spy on transport_sweep — capture initial_guess on every call.
         captured = []
 
-        from orpheus.sn import sweep as sweep_module
+        from orpheus.sn import loss_representation as sweep_module
         original = sweep_module.transport_sweep
 
         def spy(*args, **kwargs):
             captured.append(kwargs.get("initial_guess"))
             return original(*args, **kwargs)
 
-        with patch("orpheus.sn.sweep.transport_sweep", spy):
+        with patch("orpheus.sn.loss_representation.transport_sweep", spy):
             invertible.solve(rhs, initial_guess=psi_prev)
         assert len(captured) == 1
         seed = captured[0]
@@ -533,7 +533,7 @@ class TestSolve:
 
         # Cold start — no explicit seed → initial_guess should be None.
         captured.clear()
-        with patch("orpheus.sn.sweep.transport_sweep", spy):
+        with patch("orpheus.sn.loss_representation.transport_sweep", spy):
             invertible.solve(rhs)
         assert len(captured) == 1
         assert captured[0] is None
@@ -591,7 +591,7 @@ class TestSolveTimedFullField:
         # (otherwise the bare sweep sees a zero inflow trace and the
         # fixed point shifts away from the −B-driven answer).
         captured: list[tuple[np.ndarray, np.ndarray]] = []
-        from orpheus.sn import sweep as sweep_mod
+        from orpheus.sn import loss_representation as sweep_mod
         original = sweep_mod.transport_sweep
 
         def spy(
@@ -609,7 +609,7 @@ class TestSolveTimedFullField:
                 initial_guess=initial_guess,
             )
 
-        with patch("orpheus.sn.sweep.transport_sweep", spy):
+        with patch("orpheus.sn.loss_representation.transport_sweep", spy):
             invertible.solve(rhs, initial_guess=ig)
 
         assert len(captured) == 1
@@ -667,7 +667,7 @@ class TestInvertibleSolveBridgeRegression:
     per-ordinate-vs-iso magnitude convention drift in the typed
     operator algebra (issue #202, lesson :ref:`L18 <lessons-l18>`):
     ``ScatteringOperator.apply`` (typed) was returning iso-magnitude
-    while :func:`~orpheus.sn.sweep.transport_sweep` internally divided
+    while :func:`~orpheus.sn.loss_representation.transport_sweep` internally divided
     by ``W = sum_w``, so the converged fixed point sat at ``k_inf / W``
     instead of ``k_inf``.  Slab-2eg SI keff = 1.4844 vs ref = 1.875
     (ratio ≈ 1/W·c_s for W=2 GL) was the signature.

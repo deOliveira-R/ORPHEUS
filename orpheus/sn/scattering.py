@@ -692,7 +692,7 @@ class ScatteringOperator(LinearOperatorMixin):
         :math:`(\Omega\cdot\nabla + \sigma_t)\psi_n = Q/W +
         q_{\rm aniso,n}` already in per-ordinate magnitude, so the
         sweep does NOT need to apply ``/W`` again
-        (cf. :func:`~orpheus.sn.sweep.transport_sweep` whose
+        (cf. :func:`~orpheus.sn.loss_representation.transport_sweep` whose
         ``aniso_source`` parameter is documented as per-ordinate
         magnitude post-A1).  See ``coding-elegance`` SKILL.md
         §"Convention crosswalk template" / lesson L18.

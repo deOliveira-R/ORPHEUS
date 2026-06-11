@@ -30,15 +30,18 @@ of values to faces, and the load-bearing vectorisation constraint (the
 ``(N_oct, ng, n_diag)`` wavefront batch is the unit of operation)
 forbids a per-face Python object — it would reintroduce the per-cell
 fold that caused a 10–20× regression. Per-face access is therefore a
-**zero-copy view** (``face_view`` / ``face(axis)``), exactly as
-:class:`BoundaryFlux` already does. The *interior* cell-face fluxes
-are the named cochain
-:class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`
-(``C^1_int``, ephemeral, flux-only) with ``face`` / ``edge_view``
-zero-copy views; together with :class:`BoundaryFlux` (``C^1_∂``) they
-biproduct-decompose the full face cochain ``C^1 = C^1_int ⊕ C^1_∂``.
-See the theory page ``operator_algebra.rst`` § "The interior face-flux
-cochain — WavefrontFlux".
+**zero-copy view** (``face_view``), exactly as :class:`BoundaryFlux`
+does. The *interior* cell-face cochain ``C^1_int`` was, through S6.4,
+the typed ``WavefrontFlux`` (ephemeral, flux-only; with
+:class:`BoundaryFlux` ``C^1_∂`` it biproduct-decomposed the full face
+cochain ``C^1 = C^1_int ⊕ C^1_∂``). RETIRED at S6.4(f): the concept
+lives on in its two native realizations — the rolling front
+(``orpheus.sn.sweep_graph._MovingFrontier``, the values AT the moving
+wavefront, per-level ι_*-seeded / ι*-shed) and the per-octant full
+cochain history (``FullFieldWavefront._octant_face_cochain``); the
+whole-trace boundary exchange is the shared ``_OctantWalk`` frame's
+job. See the theory page ``operator_algebra.rst``
+§ "The interior face-flux cochain" for the succession history.
 """
 
 from __future__ import annotations

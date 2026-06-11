@@ -48,7 +48,7 @@ class TestCylindricalSweepRegression:
 
     def test_single_sweep_all_finite(self):
         """A single sweep must produce finite fluxes."""
-        from orpheus.sn.sweep import transport_sweep
+        from orpheus.sn.loss_representation import transport_sweep
         from orpheus.transport.source_sinks import AngularSourceSink
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.CYLINDRICAL)
@@ -160,7 +160,7 @@ class TestAzimuthalRedistribution:
         The redistribution sum Σ_m (α_{m+1/2}ψ_{m+1/2} − α_{m-1/2}ψ_{m-1/2})
         must vanish for each cell because α[0] = α[M] = 0.
         """
-        from orpheus.sn.sweep import transport_sweep
+        from orpheus.sn.loss_representation import transport_sweep
         from orpheus.transport.source_sinks import AngularSourceSink
 
         mix = get_mixture("A", "1g")
@@ -189,7 +189,7 @@ class TestAzimuthalRedistribution:
 
     def test_single_cell_uniform_source_equilibrium(self):
         """Two-cell 1G pure absorber with uniform source → φ = Q/Σ_t."""
-        from orpheus.sn.sweep import transport_sweep
+        from orpheus.sn.loss_representation import transport_sweep
         from orpheus.sn.solver import _reflect_outflow_into_inflow
         from orpheus.transport.source_sinks import AngularSourceSink
 

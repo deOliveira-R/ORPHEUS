@@ -1544,7 +1544,7 @@ The §16A.5 production-relevant subset is **the inflow rows**.
 Every SN sweep call site reads :math:`\psi_{\text{in}}[n]` only for
 :math:`n \in I_f` — outflow rows are never consumed downstream.
 The Wave 8 close-out audited all 13 ``bc.apply(...)`` sites in
-:mod:`orpheus.sn.sweep` and :mod:`orpheus.sn.operator`:
+``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``) and :mod:`orpheus.sn.operator`:
 
 * ``sweep.py:334,351`` (1-D slab) read
   ``psi_face_left_in[n_half + n]`` for positive-μ ordinates
@@ -2027,8 +2027,8 @@ contract on the apply-matvec path (the within-group operator,
 matvec lives at :func:`~orpheus.sn.operator.transport_operator_matvec_unified`).  Phase F
 (Issue #168 Phase F, 2026-05-12, also landed on
 ``refactor/sn-operator-algebra``) propagates the same pattern to the
-**SI/sweep path** (:func:`~orpheus.sn.sweep.transport_sweep` →
-:func:`~orpheus.sn.sweep._sweep_1d_spherical` /
+**SI/sweep path** (:func:`~orpheus.sn.loss_representation.transport_sweep` →
+``_sweep_1d_spherical`` (the dissolved ``sweep.py``) /
 ``_sweep_1d_cylindrical``).  See
 :ref:`sn-phase-f-carlson-sweep-path-backport` in
 :doc:`discrete_ordinates` for the math and the
@@ -2052,7 +2052,7 @@ load-bearing addition is the **Phase F seed call**:
      - Output use
    * - **#1**
      - Phase F Carlson seed
-       (:func:`~orpheus.sn.sweep._sweep_1d_spherical` early in
+       (``_sweep_1d_spherical`` (the dissolved ``sweep.py``) early in
        the call, before the per-ordinate loop)
      - ``(N, ng)`` — persistent outer-face outflow buffer
        ``bc_outer`` carrying the previous outward sweep's
@@ -2108,7 +2108,7 @@ The cylindrical path has the analogous structure with a
 each invocation extracting the level-specific most-inward
 ordinate's row from the same persistent ``bc_outer_cyl``
 buffer.  The
-:func:`~orpheus.sn.sweep._sweep_1d_cylindrical` body invokes
+``_sweep_1d_cylindrical`` (the dissolved ``sweep.py``) body invokes
 the BC operator ``len(quad.level_indices) + N_inward`` times
 total per sweep — once per :math:`\mu`-level for the Phase F
 seed, plus once per inward ordinate inside each level's

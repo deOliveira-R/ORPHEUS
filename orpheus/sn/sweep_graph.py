@@ -4,7 +4,7 @@ This module ships the **§15A.2 "upwind trace complex / causal transport
 DAG / direction sweep ordering"** primitive (Grand Report v3 lines
 2137-2171) for 2-D Cartesian SN, lifting the per-call ``_diag_cache``
 precompute that previously lived inside
-:func:`orpheus.sn.sweep._sweep_2d_wavefront` (lines 766-785) to
+:func:`orpheus.sn.loss_representation._sweep_2d_wavefront` (lines 766-785) to
 mesh-time work, and replacing the per-ordinate Python loop over
 ordinates with a per-octant batched ``apply``.
 
@@ -210,9 +210,10 @@ class _FrontierPlan:
     r"""The whole-sweep rolling :math:`(d{-}1)`-frontier window plan (storage-B).
 
     A face produced at level ``k`` is consumed at ``k+1``, so the interior face
-    cochain (the cochain :math:`C^1_{\rm int}`,
-    :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux` in its
-    full-field realization) need only be held on the two active levels — a
+    cochain (the cochain :math:`C^1_{\rm int}`; its full-field realization is
+    the per-octant ``_octant_face_cochain`` buffers — historically the typed
+    ``WavefrontFlux``, retired S6.4(f)) need only be held on the two active
+    levels — a
     rolling slab ping-ponged by parity ``k % 2``.  The slab is the
     :math:`(d{-}1)`-dim free bounding box, shrinking the interior backing from
     ``O(N·ng·∏ n_a)`` to ``O(N·ng·∏_{a<d−1} n_a)`` (the ``~3×`` peak-memory win

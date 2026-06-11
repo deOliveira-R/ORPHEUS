@@ -52,7 +52,7 @@ from .operator import (
 )
 from orpheus.numerics.quadrature import Quadrature
 from .scattering import ScatteringOperator
-from .sweep import transport_sweep
+from .loss_representation import transport_sweep
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
@@ -277,7 +277,7 @@ class _GaussSeidelResolvent:
     Jacobi SI (only the spectral rate changes — ``vv-principles`` Mode 9);
     Krylov is splitting-invariant and unaffected.
 
-    2-D Cartesian ONLY (``_sweep_2d_scheduled``).  1-D meshes route to the
+    2-D Cartesian ONLY (``_sweep_scheduled``).  1-D meshes route to the
     Jacobi resolvent (:func:`_select_si_resolvent` never constructs this for
     1-D — boundary G-S is a no-op there AND the scan is not a wavefront).
 
@@ -327,7 +327,7 @@ class _GaussSeidelResolvent:
         r"""Shared body: seed ``boundary_buf = rhs.boundary + B·ψₙ`` (the lagged
         whole-trace reflection of the previous iterate — the SAME seed the Jacobi
         path gets via the external ``B`` gain, only here ``B`` lives in the
-        resolvent), then run :func:`_sweep_2d_scheduled` with the G-S schedule
+        resolvent), then run :func:`_sweep_scheduled` with the G-S schedule
         and the face-restricted ``−B`` reflect between octant-group sweeps.
 
         The output representation is selected by ``moment_projection`` (Phase
@@ -342,7 +342,7 @@ class _GaussSeidelResolvent:
         )
         from orpheus.transport.timed_full_field import TimedFullField
         from .loss_representation import default_for
-        from .sweep import _sweep_2d_scheduled
+        from .loss_representation import _sweep_scheduled
 
         sn_mesh = self.sn_mesh
         trace = sn_mesh.trace
@@ -364,7 +364,7 @@ class _GaussSeidelResolvent:
         def _reflect(bf, faces):
             _reflect_outflow_into_inflow(bf, sn_mesh, faces=faces)
 
-        bulk_values, _scalar = _sweep_2d_scheduled(
+        bulk_values, _scalar = _sweep_scheduled(
             rhs.bulk.values,
             self._invertible.sigma,
             sn_mesh,

@@ -75,10 +75,9 @@ Key Facts
   the previously-unconsumed ``from_balance`` mint). See
   :ref:`affine-typed-field-algebra`.
 
-- **The interior cell-face angular fluxes are a typed cochain**
-  :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`
-  (Wave O step #205 Phase 5, Issue #208, ``478723d`` / ``992b0c0`` /
-  ``0e3e16c``, 2026-06-04): the 2-D wavefront sweep and matvec no
+- **The interior cell-face angular fluxes are a 1-cochain**
+  :math:`C^1_{\rm int}` (Wave O step #205 Phase 5, Issue #208,
+  2026-06-04): the 2-D wavefront sweep and matvec no
   longer carry raw ephemeral ``psi_x`` / ``psi_y`` numpy arrays. The
   interior 1-cochain :math:`C^1_{\rm int}` and the boundary trace
   :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
@@ -86,12 +85,14 @@ Key Facts
   the full face cochain** :math:`C^1 = C^1_{\rm int} \oplus
   C^1_\partial` — the :math:`V_{\rm bulk} \oplus V_{\rm boundary}`
   shape of :eq:`bc-extraction-direct-sum-state` one locus down, at the
-  *face* level. The seed/absorb the sweep applies by hand are now the
-  typed trace operators :math:`\iota_*` (:meth:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux.seed`)
-  and :math:`\iota^*` (:meth:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux.absorb`),
-  with the "absorption = identity" fact now the provable biproduct law
-  :math:`\iota^* \circ \iota_* = \mathrm{id}`. See
-  :ref:`wavefront-flux-cochain`.
+  *face* level. The seed/absorb the sweep applies are the typed trace
+  operators :math:`\iota_*` / :math:`\iota^*`, with the "absorption =
+  identity" fact the provable biproduct law :math:`\iota^* \circ
+  \iota_* = \mathrm{id}`. The dedicated ``WavefrontFlux`` carrier was
+  **retired at S6.4(f)** (#222): the cochain now lives in the rolling
+  front (``_MovingFrontier``) and the full-cochain oracle history
+  (``_octant_face_cochain``). See :ref:`wavefront-flux-cochain` for the
+  succession.
 
 - **The 2-D Cartesian SI iterate lives in moment space** (Wave O step
   #205 **Phase 5a**, ``93807aa`` / ``b97d4f9`` / ``13ca001``,
@@ -1517,7 +1518,7 @@ Wave T's verification chain combines three independent grounds:
    - :math:`(L+C).{\rm solve}(q)` bit-identical pre/post-Wave-T,
      verifying the WDD sweep procedural inverse was NOT touched
      (the :class:`InvertibleOperator.solve` body is the procedural
-     algorithm at :func:`orpheus.sn.sweep.transport_sweep`).
+     algorithm at :func:`orpheus.sn.loss_representation.transport_sweep`).
 
 5. **Performance regression gate**. The 1-D slab Krylov benchmark
    measured median 1.04× pre-T.4 baseline (under the 5% threshold).
@@ -2114,7 +2115,7 @@ Scope — both 1-D and 2-D are now bare (O.4b complete)
 
 O.4a.2 made the **1-D** sweep bare (slab / sphere / cylinder). Step
 **O.4b** then made the **2-D Cartesian wavefront sweep bare as well**
-(both :func:`~orpheus.sn.sweep._sweep_2d_wavefront` and the 2-D matvec
+(both :func:`~orpheus.sn.loss_representation._sweep_2d_wavefront` and the 2-D matvec
 :meth:`StreamingOperator._apply_2d_cartesian <orpheus.sn.operator.StreamingOperator>`):
 the intra-sweep ``bc.apply`` is **gone** for every geometry. The
 octant-incoming face edge is seeded from the *given* inflow trace and
@@ -2127,13 +2128,14 @@ self-consistency defect ``streamed − ψ.outflow``; inflow slots carry
 the identity ``ψ.inflow``), wired into the composed Krylov matvec as
 the boundary gain :math:`B` of
 :func:`_within_group_triple <orpheus.sn.solver._within_group_triple>`.
-The interior face fluxes the bare 2-D sweep + matvec propagate are now
-the typed cochain :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`
-(see :ref:`wavefront-flux-cochain`).
+The interior face fluxes the bare 2-D sweep + matvec propagate are the
+interior 1-cochain :math:`C^1_{\rm int}` — carried since S6.4(f) by the
+rolling ``_MovingFrontier`` front (the ``WavefrontFlux`` type that named
+it through #205 Phase 5 is retired; see :ref:`wavefront-flux-cochain`).
 
 The dispatch is still guarded by a **single predicate** so the two
 geometry paths cannot drift: ``sn_mesh.reduced is not None`` is the
-**same** predicate :func:`~orpheus.sn.sweep.transport_sweep` uses to
+**same** predicate :func:`~orpheus.sn.loss_representation.transport_sweep` uses to
 select the 1-D scan vs the 2-D wavefront body, and the **same**
 predicate the direct-helper guards
 (:func:`_solve_fixed_source_si <orpheus.sn.solver._solve_fixed_source_si>`,
@@ -2953,12 +2955,16 @@ flux's dataclass init-fields (``values`` / ``space`` / ``mesh``, plus
 leaf, swapping ``values`` — uniform across families, and handling the
 moment leaf's ``L`` that a ``cls.from_mesh(...)`` engine could not.
 
-.. note:: :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`
-   (the interior-face cochain, :ref:`wavefront-flux-cochain`) is
-   deliberately **NOT** a :class:`FluxRole` leaf — it is a
-   sweep-internal cochain, not an iterate state, so it stays a plain
-   :class:`~orpheus.numerics.field.Field` (verified: no production
-   ``wavefront ± wavefront``).
+.. note:: The interior-face cochain :math:`C^1_{\rm int}`
+   (:ref:`wavefront-flux-cochain`) is deliberately **NOT** a
+   :class:`FluxRole` leaf — it is a sweep-internal cochain, not an
+   iterate state, so even while the ``WavefrontFlux`` type lived it
+   stayed a plain :class:`~orpheus.numerics.field.Field` (no
+   ``wavefront ± wavefront`` affine algebra). After the carrier retired
+   at S6.4(f) the cochain is just plain numpy arrays
+   (``_MovingFrontier`` / ``_octant_face_cochain``), so the
+   "not a role leaf" conclusion holds *a fortiori* — there is no field
+   type at all to mis-place in the role grid.
 
 This makes the field-role grid a clean 4 × 4 (the displacement column
 is the affine completion):
@@ -3747,8 +3753,60 @@ did not touch ``apply``.
 
 .. _wavefront-flux-cochain:
 
-The interior face-flux cochain — :class:`WavefrontFlux` (Wave O step #205 Phase 5)
-==================================================================================
+The interior face-flux cochain — :math:`C^1_{\rm int}`
+======================================================
+
+.. note:: **Succession (S6.4(f), Issue #222, 2026-06-10) — the typed
+   carrier retired; the concept survives in its two native
+   realizations.**
+
+   The interior face cochain :math:`C^1_{\rm int}` was, from #205 Phase 5
+   through S6.4, carried by a dedicated named field ``WavefrontFlux``
+   (on the space ``InteriorFaceSpace``). **That type is retired** — the
+   modules ``orpheus/transport/fields/wavefront_flux.py`` and
+   ``orpheus/numerics/spaces/interior_face_space.py``, and the 25
+   foundation tests in ``tests/transport/fields/test_wavefront_flux.py``,
+   are deleted. The cochain **mathematics** below — the biproduct
+   :math:`C^1 = C^1_{\rm int} \oplus C^1_\partial`, the trace algebra
+   :math:`\iota_*` / :math:`\iota^*`, the flux-only single-role
+   rationale, the storage × role × locus grid — **remains valid theory**.
+   Only the Python carrier is gone, and the historical derivation is
+   kept below in past tense because it explains *why* the cochain frame
+   is the right one.
+
+   **Why it retired.** The S6.4 walk re-layering (see
+   :ref:`sweep-dispatch-relayering` in :doc:`discrete_ordinates`)
+   dissolved the type's two load-bearing verbs — the whole-trace
+   :math:`\iota_*` ``seed`` (read the octant inflow into the
+   domain-edge slots) and the whole-trace :math:`\iota^*` ``absorb``
+   (capture the domain-edge outflow) — into the shared ``_OctantWalk``
+   frame, where the per-octant inflow read, the per-octant outflow
+   shed, and the **single** :ref:`O.4b <bc-extraction>` boundary block
+   live once for every walk. The type's whole-:math:`N` **mesh-bound**
+   storage then had no place in the **per-octant** walk: an octant
+   transient cannot be a persistent mesh-bound field.
+
+   **Where the concept lives now** — two native realizations, each
+   truer to a different facet of what the type held:
+
+   * **The values AT the moving wavefront** —
+     ``orpheus.sn.sweep_graph._MovingFrontier``, the rolling
+     :math:`(d{-}1)`-frontier (per-level ``seed`` /
+     ``shed``). Arguably the *truer* realization: the retired type
+     held the wavefront's complete **history**; the frontier holds the
+     **front itself**, ping-ponged by parity across two active levels.
+   * **The full cochain history (the oracle's fuller view)** —
+     ``FullFieldWavefront._octant_face_cochain`` raw per-axis buffers
+     in ``orpheus.sn.loss_representation`` (the in-edge :math:`\iota_*`
+     seed; ``_edge_outflow`` is the :math:`\iota^*` extraction),
+     retained for verification cross-checks of the production
+     ``_MovingFrontier`` window.
+
+   The type was *a useful concept while it lived* — it named the
+   :math:`\iota_*` / :math:`\iota^*` trace operators the raw-numpy
+   sweep applied by hand, and it is the substrate on which the
+   biproduct decomposition was first articulated. The succession keeps
+   that articulation; only the now-redundant carrier is dropped.
 
 Wave O step #205 Phase 5 (`Issue #208
 <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_, commits
@@ -3756,15 +3814,16 @@ Wave O step #205 Phase 5 (`Issue #208
 2026-06-04) typed the SN wavefront sweep's **interior** cell-face
 angular fluxes — historically the raw ephemeral numpy arrays ``psi_x``
 ``(N, ng, nx{+}1, ny)`` / ``psi_y`` ``(N, ng, nx, ny{+}1)`` — as a
-named field :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`.
-This is the **face-locus** sibling of the boundary-block typing of
+named field ``WavefrontFlux``.
+This was the **face-locus** sibling of the boundary-block typing of
 :ref:`bc-extraction` (cell + trace) and the operator-output typing of
 :ref:`bc-extraction-operator-output-typing`: where those typed the
-*cell* state and the *operator outputs*, this types the *interior
-face* state that the wavefront sweep propagates between them. It kills
+*cell* state and the *operator outputs*, this typed the *interior
+face* state that the wavefront sweep propagated between them. It killed
 the ``coding-elegance`` Pattern-3 anti-pattern (a flux-bearing tensor
-with no type identity) and **names the trace operator the sweep
-applies by hand**.
+with no type identity) and **named the trace operator the sweep
+applied by hand** — the algebra that the S6.4 walk frame later
+absorbed.
 
 
 The native frame — discrete exterior calculus / cochains
@@ -3778,10 +3837,13 @@ calculus**. The per-ordinate angular flux crossing faces is a primal
 
 .. (vv-status rationale) Structural framing of the SN face fluxes as a
    primal 1-cochain. This is a definitional / representational identity
-   (the named-field typing), not a solver claim; the verifiable content
-   is the bit-identity of the typed walk against the raw psi_x/psi_y
-   walk, pinned by the octant-equivalence and Gate-K suites below, plus
-   the 25 foundation tests of test_wavefront_flux.py.
+   (the named-field typing — now carried by _MovingFrontier /
+   _octant_face_cochain after the WavefrontFlux carrier retired at
+   S6.4(f)), not a solver claim; the verifiable content is the
+   bit-identity of the typed walk against the raw psi_x/psi_y walk,
+   pinned by the octant-equivalence and Gate-K suites below (the 25
+   foundation tests of the retired test_wavefront_flux.py went with the
+   type; the window ≡ full oracle now pins the cochain walk).
 .. vv-status: wavefront-cochain-primal documented
 
 .. math::
@@ -3820,8 +3882,8 @@ the boundary 1-chains:
    C^1 \;=\; C^1_{\rm int} \;\oplus\; C^1_\partial,
    \qquad
    \begin{cases}
-     C^1_{\rm int} = \texttt{WavefrontFlux} & (\text{interior faces}), \\
-     C^1_\partial  = \texttt{BoundaryFlux}  & (\text{domain-edge faces}),
+     C^1_{\rm int} & (\text{interior faces}), \\
+     C^1_\partial  & (\text{domain-edge faces, } \texttt{BoundaryFlux}),
    \end{cases}
 
 coupled by the injection / projection at the domain edges. This is the
@@ -3848,7 +3910,7 @@ locus down** at the face level. The two loci nest:
    * - **face**
        (:eq:`wavefront-cochain-biproduct`)
      - :math:`C^1_{\rm int}`
-       (:class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`)
+       (``_MovingFrontier`` front / ``_octant_face_cochain`` history)
      - :math:`C^1_\partial`
        (:class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`)
      - the trace operators :math:`\iota_*` / :math:`\iota^*`
@@ -3859,7 +3921,8 @@ boundary trace of the cell+trace state. The interior summand differs:
 the cell biproduct carries the cell-centre flux, the face biproduct
 carries the interior *face* flux. The boundary persists (it carries
 the SI / Krylov iterate across calls); the interior is **ephemeral**
-(rebuilt each sweep), so the two summands have different lifetimes —
+(rebuilt each sweep — which is *why*, at S6.4(f), no mesh-bound type
+survived for it), so the two summands have different lifetimes —
 :eq:`wavefront-cochain-biproduct` is therefore a lifetime split as
 well as a spatial split.
 
@@ -3874,37 +3937,46 @@ cochain under the inclusion :math:`\iota \colon \partial\Omega
 is "write the boundary trace into the domain-edge faces". These are
 exactly what the pre-typing sweep did by hand —
 ``psi_x[:, :, 0, :] = boundary.face_view("xmin")`` (the seed) and the
-write-back (the absorb). :class:`WavefrontFlux` names them:
+write-back (the absorb). The retired ``WavefrontFlux`` named them as
+``seed`` / ``absorb`` methods; after S6.4(f) the same verbs live on the
+two native realizations — ``_MovingFrontier.seed`` / ``.shed`` (the
+per-level front) and ``FullFieldWavefront._octant_face_cochain`` (the
+in-edge :math:`\iota_*` seed) / ``_edge_outflow`` (the :math:`\iota^*`
+extraction):
 
-.. list-table:: The typed trace operators
+.. list-table:: The trace operators (now on the realizations)
    :header-rows: 1
    :widths: 14 22 28 36
 
    * - Symbol
-     - Method
+     - Realization verb
      - Direction
      - Role in the biproduct
    * - :math:`\iota_*`
-     - :meth:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux.seed`
+     - ``_MovingFrontier.seed`` /
+       ``FullFieldWavefront._octant_face_cochain`` in-edge
      - :math:`C^1_\partial.\text{inflow} \to C^1_{\rm int}`
        domain-edge slots
      - the **injection** :math:`\iota_\partial` of the biproduct
    * - :math:`\iota^*`
-     - :meth:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux.absorb`
+     - ``_MovingFrontier.shed`` /
+       ``FullFieldWavefront._edge_outflow``
      - :math:`C^1_{\rm int}` domain-edge slots
        :math:`\to C^1_\partial.\text{outflow}`
      - the **projection** :math:`\pi_\partial` of the biproduct
 
-Both route through the single-source-of-truth
-:meth:`_edge_slot <orpheus.transport.fields.wavefront_flux.WavefrontFlux>`
-face-to-edge map, so the injection and projection cannot desync. A
-third read accessor
-:meth:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux.edge_view`
-exposes the domain-edge slot as a zero-copy view *without* copying into
-a :class:`BoundaryFlux` — the 2-D matvec uses it to difference
-``edge_view(face) − given`` when emitting its active-trace boundary
-residual (so there is no hardcoded ``psi_x[:, :, 0, :]`` literal at the
-call site).
+Historically the retired type routed both through a single
+single-source-of-truth ``_edge_slot`` face-to-edge map, so the
+injection and projection could not desync, and exposed a third read
+accessor ``edge_view`` that returned the domain-edge slot as a
+zero-copy view *without* copying into a :class:`BoundaryFlux` — the
+2-D matvec used it to difference ``edge_view(face) − given`` when
+emitting its active-trace boundary residual (so there was no hardcoded
+``psi_x[:, :, 0, :]`` literal at the call site). After S6.4(f) the same
+single-map discipline is the shared ``_OctantWalk`` frame's: the
+per-octant inflow read and outflow shed are the ONE boundary block
+every walk uses, so the injection/projection cannot desync there
+either.
 
 The two biproduct laws follow, and are **provable** rather than
 coincidental:
@@ -3912,8 +3984,11 @@ coincidental:
 .. (vv-status rationale) The two biproduct identities — absorption =
    identity (project-after-inject) and projection-annihilates-the-
    strictly-interior (the off-diagonal block is zero). Structural laws
-   of the biproduct; pinned by test_absorption_is_identity (slab /
-   sphere / 2-D box) and test_pi_int_after_injection_is_zero_2d.
+   of the biproduct; were pinned by test_absorption_is_identity (slab /
+   sphere / 2-D box) and test_pi_int_after_injection_is_zero_2d in the
+   retired test_wavefront_flux.py. After S6.4(f) the same two laws are
+   the content of the window ≡ full-field oracle (the seed/shed
+   round-trip equals the full-cochain seed/extract, bit-identically).
 .. vv-status: wavefront-cochain-biproduct-laws documented
 
 .. math::
@@ -3927,20 +4002,26 @@ coincidental:
 The first — :math:`\iota^* \circ \iota_* = \mathrm{id}` — IS the
 "absorption = identity" fact (``seed`` then ``absorb``, with no
 wavefront walk between, returns the boundary trace unchanged). It was
-an *observation* under the raw-numpy seed/absorb; it is now a **named
-biproduct law** pinned by ``test_absorption_is_identity`` across slab /
-sphere / 2-D box. The second — :math:`\pi_{\rm int} \circ
+an *observation* under the raw-numpy seed/absorb, then a **named
+biproduct law** under the typed ``WavefrontFlux``; after S6.4(f) it is
+the seed/shed round-trip the ``_OctantWalk`` frame performs once per
+octant. The second — :math:`\pi_{\rm int} \circ
 \iota_\partial = 0` — is the biproduct's off-diagonal-zero condition:
 injecting the boundary leaves the **strictly**-interior faces
 (positions :math:`1 \ldots n{-}1` along each axis) untouched at zero
-(``test_pi_int_after_injection_is_zero_2d``).
+(in the full-cochain realization, ``_octant_face_cochain`` zero-inits
+every interior slot and seeds only the in-edge, so the strictly-interior
+faces are untouched by construction).
 
 
 Why the interior cochain is flux-only (single role)
 ---------------------------------------------------
 
-:class:`WavefrontFlux` carries the **flux** role only — unlike the
-boundary trace, it has no source / residual leaves. The reason is
+The interior cochain carries the **flux** role only — unlike the
+boundary trace, it has no source / residual leaves (the retired
+``WavefrontFlux`` was, accordingly, flux-only; the surviving
+``_MovingFrontier`` / ``_octant_face_cochain`` buffers are likewise
+plain flux arrays). The reason is
 structural, and it explains the role grid of
 :ref:`bc-extraction-operator-output-typing` from the cochain side. Per
 the second native frame (sparse triangular factorisation), the interior
@@ -3963,9 +4044,11 @@ consistency residual
                   \;-\; q.\text{inflow}
 
 (:eq:`bc-extraction-two-residuals`) lives on the boundary faces. The
-strictly-interior faces carry no such balance, so :class:`WavefrontFlux`
+strictly-interior faces carry no such balance, so the interior cochain
 is flux-only by construction — ``illegal-states-unrepresentable``: there
-is no ``InteriorFaceResidual`` to mistype an interior face as.
+was no ``InteriorFaceResidual`` to mistype an interior face as (and
+under the surviving plain-array realizations there is no role grid to
+violate at all).
 
 
 The storage × role × locus grid (Issue #205), extended with the face locus
@@ -3999,8 +4082,9 @@ Phase 5 adds the **face** locus row:
    * - **face — interior**
        (1-cochain :math:`C^1_{\rm int}`)
      - **ephemeral** (rebuilt each sweep)
-     - :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`
-       (**#205 Phase 5**)
+     - ``_MovingFrontier`` front /
+       ``_octant_face_cochain`` history
+       (**#205 Phase 5** ``WavefrontFlux``, retired S6.4(f))
      - — (off-diagonal of :math:`L_{\rm oct}`, no source role)
      - — (no cell-balance defect on interior faces)
    * - **face — boundary**
@@ -4026,11 +4110,13 @@ transient).
 Field + views, NOT per-face objects
 ------------------------------------
 
-:class:`WavefrontFlux` stores a **single flat backing buffer**
-(``space.layout.total_size``); the per-axis face fields are zero-copy
-reshape views (:meth:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux.face`).
+The retired ``WavefrontFlux`` stored a **single flat backing buffer**
+(``space.layout.total_size``); the per-axis face fields were zero-copy
+reshape views (a ``face(axis)`` accessor).
 The cross-domain-attacker **rejected** a per-face Python object on three
-independent grounds:
+independent grounds — a rejection that **still binds** the surviving
+realizations (``_MovingFrontier`` and ``_octant_face_cochain`` are both
+plain dense arrays indexed by the batch, never per-face objects):
 
 1. **Vectorisation (load-bearing).** The unit of operation is the
    ``(N_oct, ng, n_diag)`` wavefront batch; a per-face object would
@@ -4048,18 +4134,21 @@ independent grounds:
    slice-views only if both summands live on the same flat-buffer
    substrate.
 
-This mirrors :class:`BoundaryFlux`, which already uses
-``flat-buffer + FaceLayout + face_view``. The interior space
-:class:`~orpheus.numerics.spaces.interior_face_space.InteriorFaceSpace`
-is the **layout-on-space** (A.5) sibling of
-:class:`~orpheus.numerics.spaces.trace_space.TraceSpace` minus the
+This mirrored :class:`BoundaryFlux`, which still uses
+``flat-buffer + FaceLayout + face_view``. The interior space was the
+retired ``InteriorFaceSpace`` — the **layout-on-space** (A.5) sibling
+of :class:`~orpheus.numerics.spaces.trace_space.TraceSpace` minus the
 ``omega_dot_n`` directional selectors (the interior cochain has no
-inflow/outflow partition — it is flux-only). It is axis-parametric: the
-:meth:`~orpheus.numerics.spaces.interior_face_space.InteriorFaceSpace.interior_layout`
-builder takes the axis count as a parameter (one face-normal field per
-active axis), so a future 3-D Cartesian wavefront sweep is a
-*parameter* (``axes=(0,1,2)``), not a new code path — the 3-D-readiness
-the cochain frame's dimension-agnostic structure licenses
+inflow/outflow partition — it is flux-only). It was axis-parametric: its
+``interior_layout`` builder took the axis count as a parameter (one
+face-normal field per active axis). The dimension-genericity that this
+parametricity foreshadowed is now carried *directly* by the
+realizations: ``_MovingFrontier`` is built from a mesh-time
+``_FrontierPlan`` whose ``(d{-}1)``-frontier slab is constructed for any
+``d`` (a point at d=1, a line at d=2, a surface at d=3), and
+``FullFieldWavefront._octant_face_cochain`` allocates one ``n_a + 1``
+buffer per axis for any ``ndim`` — so a future 3-D Cartesian wavefront
+sweep is a *parameter*, not a new code path
 (``feedback_unify_after_two_instances``: 1-D + 2-D are two working
 instances, 3-D is the validating third).
 
@@ -4071,8 +4160,8 @@ Honest scope — a representation win, NOT a speed/rate/parallelism win
 
 .. warning::
 
-   :class:`WavefrontFlux` is a **representation / elegance win only**.
-   It does **NOT**:
+   The interior-cochain **typing** was a **representation / elegance win
+   only**. It did **NOT**:
 
    * change the asymptotic cost of the sweep,
    * recover the source-iteration convergence rate,
@@ -4080,35 +4169,43 @@ Honest scope — a representation win, NOT a speed/rate/parallelism win
 
    The cross-domain-attacker stated this as an *absence*, not a hedge:
    the wavefront DAG already gives the optimal sweep schedule, and the
-   typing relocates no arithmetic. The seed/absorb stays an **inherent
+   typing relocated no arithmetic. The seed/absorb stays an **inherent
    cheap** :math:`O(\text{boundary faces})` copy — negligible against
    the :math:`O(\text{volume})` sweep — at the **persistent-boundary /
    ephemeral-interior lifetime split**. True zero-copy between the two
    summands is *precluded* (and unnecessary) because
-   :class:`BoundaryFlux` persists across SI iterations while
-   :class:`WavefrontFlux` is rebuilt each sweep.
+   :class:`BoundaryFlux` persists across SI iterations while the
+   interior cochain is rebuilt each sweep — the very lifetime split that
+   later left it with **no** mesh-bound type after S6.4(f).
 
    The asymptotic-cost / peak-memory wins are sought elsewhere: the
    **persistent** SI iterate is shrunk by the orthogonal
    :ref:`angular windowing <sn-angular-windowing>` of Phase 5a (the
    iterate lives in moment space, :math:`N \to (L{+}1)(2L{+}1)`), and the
-   **per-sweep transient** :class:`WavefrontFlux` interior cochain
-   itself — the dominant peak-memory cost noted here — is the target of
+   **per-sweep transient** interior cochain
+   itself — the dominant peak-memory cost noted here — was the target of
    Phase 5b's storage-B rolling moving-frontier window, which never
    materializes the whole interior cochain at once and is the 3-D
-   enabler.
+   enabler. That window IS the ``_MovingFrontier`` that the interior
+   cochain now lives in: the production realization *is* the
+   memory-win, with the full-cochain ``_octant_face_cochain`` kept only
+   as the verification oracle.
 
-The payoff is the **type**: a named field, typed :math:`\iota_*` /
-:math:`\iota^*`, code that reads like the cochain math, and
-illegal-states-unrepresentable (the flux-only constraint of the
-interior locus is enforced by there being no interior-face residual
-leaf). It is also the **clean substrate** the SI Gauss–Seidel recovery
-lands on: with typed :class:`WavefrontFlux` + :class:`BoundaryFlux` +
-:math:`\iota^*`, the ``(octant × face)`` reflective-graph G-S schedule
-becomes an explicit typed composition (``sweep octant → ι* absorb → −B
-reflect → ι_* seed next octant``) rather than an implicit buffer-timing
-dance — that recovery, on this substrate, is where the actual
-convergence-rate win is sought (a separate, research-tagged step).
+The payoff *while the type lived* was the **type**: a named field,
+typed :math:`\iota_*` / :math:`\iota^*`, code that reads like the
+cochain math, and illegal-states-unrepresentable (the flux-only
+constraint of the interior locus enforced by there being no
+interior-face residual leaf). It was also framed as the **clean
+substrate** the SI Gauss–Seidel recovery would land on: the
+``(octant × face)`` reflective-graph G-S schedule as an explicit
+composition (``sweep octant → ι* absorb → −B reflect → ι_* seed next
+octant``) rather than an implicit buffer-timing dance. The S6.4 walk
+re-layering delivered exactly that explicit composition — but as the
+shared ``_OctantWalk`` frame's per-octant ``read inflow → shed outflow
+→ −B boundary block`` sequence, **without** a standalone interior-face
+type. The composition survived; the carrier did not. That recovery
+remains where the actual convergence-rate win is sought (a separate,
+research-tagged step).
 
 
 Numerical evidence — type-only ⟹ bit-identical
@@ -4150,13 +4247,15 @@ already-verified raw-numpy path:
      - the typed matvec and sweep are ONE discretisation; the bare-2-D
        BC block matches
      - 126 passed
-   * - **25 foundation tests**
-       (``tests/transport/fields/test_wavefront_flux.py``)
+   * - **foundation suite**
+       (``tests/transport/fields/test_wavefront_flux.py`` — RETIRED
+       at S6.4(f) with the type)
      - units / class identity / field+views / the two biproduct laws /
        the round-trip pin + L11 negative control / axis-parametricity
        (1-D / 2-D / 3-D one path)
-     - all ``@pytest.mark.foundation`` (software invariants, no theory
-       ``:label:``)
+     - was all ``@pytest.mark.foundation`` (software invariants, no
+       theory ``:label:``); the biproduct-law content these pinned now
+       lives in the ``window ≡ full-field`` oracle
    * - **L16 perf**
        (``diag_l16_wavefront_microbench.py``, diagnostic)
      - no per-cell / per-face Python crept into the hot path
@@ -4180,22 +4279,28 @@ The 1-D sweep is a scan, not a wavefront — deferred to ``nd_foundation``
 
 .. note::
 
-   :class:`WavefrontFlux` types the **2-D** wavefront sweep + matvec
-   only. The **1-D** sweep is a parallel-prefix **scan** (a different
-   fold): its interior fluxes are transient chain-ordered scan output
-   (``(nx, K, ng)``, no persistent interior buffer at all), the
-   structural antithesis of the cochain ``(N, ng, nx{+}1)``. Forcing
-   :class:`WavefrontFlux` into the 1-D scan would be a wrong-fit (it
-   risks the L16 ``cumprod`` efficiency and multiplies concepts). The
-   *type* is built axis-parametric (it accepts ``axes=(0,)`` through
-   the same code path — the realised 1-D benefit), but the 1-D
-   *implementation* keeps its scan fold. The one shared seam (the
-   boundary-trace exchange + DD-closure averaging) unifies cleanly only
-   when a future ``nd_foundation`` session re-expresses **both** folds
+   The retired ``WavefrontFlux`` typed the **2-D** wavefront sweep +
+   matvec only. The **1-D** sweep is a parallel-prefix **scan** (a
+   different fold): its interior fluxes are transient chain-ordered scan
+   output (``(nx, K, ng)``, no persistent interior buffer at all), the
+   structural antithesis of the cochain ``(N, ng, nx{+}1)``. Forcing the
+   type into the 1-D scan would have been a wrong-fit (it would risk the
+   L16 ``cumprod`` efficiency and multiply concepts), so the 1-D
+   *implementation* kept its scan fold. The one shared seam (the
+   boundary-trace exchange + DD-closure averaging) was deferred to a
+   future ``nd_foundation`` session that would re-express **both** folds
    as one :math:`d`-generic walk, under the hard constraint that the
    collapse must not regress the :math:`d=1` scan's parallel-prefix
-   efficiency. A future 3-D *Cartesian* sweep IS a wavefront and uses
-   :class:`WavefrontFlux` directly (``axes=(0,1,2)``).
+   efficiency. **That collapse has since landed** (the ``CumprodScan``
+   d=1 sibling and the ``_DAGWavefront`` family share the per-octant
+   DAG; see :ref:`sweep-dispatch-relayering` in
+   :doc:`discrete_ordinates`), which is part of *why* the standalone
+   ``WavefrontFlux`` carrier became redundant at S6.4(f): the
+   :math:`d`-generic walk supplies the front (``_MovingFrontier``) and
+   the oracle history (``_octant_face_cochain``) for every :math:`d`. A
+   future 3-D *Cartesian* sweep IS a wavefront and rides the same
+   ``_MovingFrontier`` window directly (the :math:`(d{-}1)`-frontier
+   slab is built for any :math:`d`).
 
 
 .. _sn-angular-windowing:
@@ -4206,9 +4311,9 @@ Angular windowing — the SI iterate lives in moment space (Phase 5a)
 Wave O step #205 **Phase 5a** (commits ``93807aa`` factoring / ``b97d4f9``
 eigenvalue inner / ``13ca001`` fixed-source inner, 2026-06-07) is a
 **moment-reduction** of the SN within-group source-iteration *iterate*.
-It is **orthogonal** to the :ref:`WavefrontFlux cochain <wavefront-flux-cochain>`
-above: where that typed the *per-ordinate* interior face flux a single
-sweep propagates (and explicitly framed the interior cochain as
+It is **orthogonal** to the :ref:`interior face-flux cochain <wavefront-flux-cochain>`
+above: where that types the *per-ordinate* interior face flux a single
+sweep propagates (and explicitly frames the interior cochain as
 per-ordinate, :math:`\psi^{(1)}_\Omega \in C^1`), Phase 5a observes that
 the **persistent** iterate the source iteration carries *between* sweeps
 does not need all :math:`N` ordinates — it needs only the
@@ -4464,8 +4569,8 @@ moment-reduction descriptor) — the
 **never even constructed** on a curvilinear mesh, so there is no illegal
 state to mistype.
 
-The restriction is **interior-bulk-only** in a second sense:
-:class:`WavefrontFlux`'s biproduct :eq:`wavefront-cochain-biproduct`
+The restriction is **interior-bulk-only** in a second sense: the
+interior-cochain biproduct :eq:`wavefront-cochain-biproduct`
 :math:`C^1 = C^1_{\rm int} \oplus C^1_\partial` keeps the **boundary
 trace** :math:`C^1_\partial` (the :class:`BoundaryFlux` summand) a
 distinct, *un-reduced* per-ordinate object. The reflective :math:`B`
@@ -4588,8 +4693,8 @@ Honest scope — a persistent-iterate + typed-state win, NOT yet a peak win
      over-claims an angular resolution the iteration never uses.
    * **Why the peak win is modest.** The **per-sweep transient**
      full-angular machinery still dominates the peak: the resolvent's
-     swept output, the :class:`WavefrontFlux` ``psi_x`` / ``psi_y``
-     interior cochain (the cochain section above), and the per-octant
+     swept output, the ``psi_x`` / ``psi_y`` interior cochain
+     :math:`C^1_{\rm int}` (the cochain section above), and the per-octant
      ``.copy()`` buffers — several full-angular-sized arrays that
      storage-A still materializes within a single sweep. Measured
      **peak** reduction is only **~1.2×** for a :math:`12\times8` config
@@ -5059,8 +5164,7 @@ Implementation map (Phase 5c)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The moment OUTPUT mode threads as an **optional projection**, mirroring
-the ``reflect=None`` dependency-injection idiom of :func:`_sweep_2d_scheduled
-<orpheus.sn.sweep._sweep_2d_scheduled>` — **not** a boolean flag (at the
+the ``reflect=None`` dependency-injection idiom of :func:`_sweep_scheduled <orpheus.sn.loss_representation._sweep_scheduled>` — **not** a boolean flag (at the
 resolvent surface the two modes are **named methods**, ``solve`` vs
 ``solve_moments``).
 
@@ -5075,9 +5179,9 @@ resolvent surface the two modes are **named methods**, ``solve`` vs
   — the Krylov matvec) is untouched — Krylov stays full-angular.
 * the per-group octant frame (``sweep_octant_group`` then, since S6.4(b),
   ``_OctantWalk.sweep_group``) /
-  :func:`_sweep_2d_scheduled <orpheus.sn.sweep._sweep_2d_scheduled>` /
-  :func:`_sweep_2d_wavefront <orpheus.sn.sweep._sweep_2d_wavefront>` /
-  :func:`transport_sweep <orpheus.sn.sweep.transport_sweep>` — thread the
+  :func:`_sweep_scheduled <orpheus.sn.loss_representation._sweep_scheduled>` /
+  :func:`_sweep_2d_wavefront <orpheus.sn.loss_representation._sweep_2d_wavefront>` /
+  :func:`transport_sweep <orpheus.sn.loss_representation.transport_sweep>` — thread the
   optional ``moment_projection`` (2-D Cartesian only; ``transport_sweep``
   raises on a 1-D mesh). Moment mode skips the per-octant angular
   allocation and ``_sweep_2d_scheduled`` returns ``(moment_buf, None)``.

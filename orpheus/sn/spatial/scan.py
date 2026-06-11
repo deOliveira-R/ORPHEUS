@@ -38,7 +38,7 @@ ops.  No Python loop over cells.
 
 The function is a **free function**, not a method on a class or on
 the :class:`CellUpdate` Protocol.  The 1-D sweep
-(:func:`~orpheus.sn.sweep._sweep_1d_unified`) CONSUMES ``ordinate_scan``
+(:func:`~orpheus.sn.loss_representation._sweep_1d_unified`) CONSUMES ``ordinate_scan``
 on the cache's ``a_attenuation`` + the per-iteration ``b`` vector
 (Step 2.5c).
 
@@ -235,3 +235,99 @@ def _pair_monoid_scan(
 
 
 __all__ = ["ordinate_scan"]
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The scan-march row primitives (relocated from sweep.py at S6.4(f) —
+# the scan family's face recurrences live with the scan substrate)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _x_scan_faces(
+    alpha: np.ndarray,
+    beta: np.ndarray,
+    psi_x_in: np.ndarray,
+    x_reverse: bool,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    r"""One x-line of the scan-march: solve the face recurrence, recover the faces.
+
+    The shared face-scan primitive of BOTH directions (Pattern 2 — single
+    source of the row-scan):
+
+    * the forward **sweep** (:func:`_scanmarch_row`) passes the *solve*
+      coefficients ``α = 2 s_x/D − 1``, ``β = 2 (Q + s_y ψ_{y,in})/D``;
+    * the **matvec** twin
+      (``ScanMarch.loss_action`` in ``orpheus.sn.loss_representation``, the
+      apply-direction row-march S6.3 moved off the operator)
+      passes the *apply* coefficients ``α = −1``, ``β = 2 ψ̄_probe`` — since ψ̄
+      is KNOWN, the closure ``out_x = 2ψ̄ − in_x`` IS a first-order recurrence in
+      the faces (a pure-reflection scan, ``|α| = 1`` so no underflow).
+
+    Solves ``out_x(i) = α(i)·in_x(i) + β(i)`` (``in_x(i) = out_x(i−1)``,
+    ``in_x(0) = psi_x_in``) by :func:`~orpheus.sn.spatial.scan.ordinate_scan`
+    along the x-chain.
+
+    Parameters
+    ----------
+    alpha, beta : np.ndarray
+        ``(N_oct, ng, nx)`` scan coefficients in **mesh** x-order.
+    psi_x_in : np.ndarray
+        ``(N_oct, ng)`` domain x-inflow face value (the chain seed).
+    x_reverse : bool
+        ``True`` for a −x octant (scan high-x → low-x): the chain is reversed
+        for the forward scan, the per-cell faces reversed back to mesh order.
+
+    Returns
+    -------
+    in_x, out_x : np.ndarray
+        ``(N_oct, ng, nx)`` upstream / downstream x-face flux per cell, mesh
+        order.
+    x_outflow : np.ndarray
+        ``(N_oct, ng)`` domain x-outflow face value (the last swept cell's
+        downstream x-face).
+    """
+    if x_reverse:
+        alpha = alpha[..., ::-1]
+        beta = beta[..., ::-1]
+    # ordinate_scan scans axis 0 (the chain): move x to the front, scan, move
+    # back. out_x_sweep[i] is the downstream x-face of swept-cell i.
+    out_x_sweep = np.moveaxis(
+        ordinate_scan(
+            np.moveaxis(alpha, -1, 0), np.moveaxis(beta, -1, 0), psi_x_in,
+        ),
+        0, -1,
+    )                                                  # (N_oct, ng, nx) sweep order
+    # in_x[i] = out_x[i−1] (upstream face), in_x[0] = psi_x_in.
+    in_x_sweep = np.concatenate(
+        [psi_x_in[..., None], out_x_sweep[..., :-1]], axis=-1,
+    )
+    x_outflow = out_x_sweep[..., -1]                   # last swept cell = domain x-out
+    if x_reverse:                                      # back to mesh order
+        return in_x_sweep[..., ::-1], out_x_sweep[..., ::-1], x_outflow
+    return in_x_sweep, out_x_sweep, x_outflow
+
+
+def _scanmarch_row(
+    alpha: np.ndarray,
+    beta: np.ndarray,
+    psi_x_in: np.ndarray,
+    psi_y_in: np.ndarray,
+    x_reverse: bool,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    r"""One y-row of the forward scan-march: x-scan, then recover :math:`\bar\psi`,
+    the downstream y-face, and the domain x-outflow.
+
+    Solves the in-row x-face recurrence via :func:`_x_scan_faces` (the *solve*
+    coefficients ``α = 2 s_x/D − 1``, ``β = 2 (Q + s_y ψ_{y,in})/D``), then
+    closes the diamond-difference cell with :math:`\bar\psi = \tfrac12
+    (\mathrm{in}_x + \mathrm{out}_x)` and :math:`\mathrm{out}_y = 2\bar\psi -
+    \psi_{y,\mathrm{in}}`.
+
+    Returns ``(psi_avg, out_y, x_outflow)`` — the cell average and the
+    downstream y-face (the next row's ``psi_y_in``) in mesh order, and the
+    domain x-outflow face value.
+    """
+    in_x, out_x, x_outflow = _x_scan_faces(alpha, beta, psi_x_in, x_reverse)
+    psi_avg = 0.5 * (in_x + out_x)
+    out_y = 2.0 * psi_avg - psi_y_in
+    return psi_avg, out_y, x_outflow

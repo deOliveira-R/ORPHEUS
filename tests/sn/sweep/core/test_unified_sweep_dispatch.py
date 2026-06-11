@@ -52,7 +52,7 @@ from orpheus.geometry import (
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial.diamond import DiamondDifference
-from orpheus.sn.sweep import transport_sweep
+from orpheus.sn.loss_representation import transport_sweep
 from orpheus.sn.loss_representation import (
     CumprodScan,
     MovingFrontierWindow,

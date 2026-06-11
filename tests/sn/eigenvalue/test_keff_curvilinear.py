@@ -521,7 +521,7 @@ class TestMultiGroupMultiRegionSpherical:
         Without the ΔA/w geometry factor, the flux spikes to ~5x at
         the origin.  With the fix, the range should be bounded.
         """
-        from orpheus.sn.sweep import transport_sweep
+        from orpheus.sn.loss_representation import transport_sweep
         from orpheus.sn.solver import _reflect_outflow_into_inflow
         from orpheus.transport.source_sinks import AngularSourceSink
         from tests.sn._test_helpers import placeholder_materials

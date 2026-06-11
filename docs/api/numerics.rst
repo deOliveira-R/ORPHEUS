@@ -395,20 +395,18 @@ codim-1 (face) quantities, both re-homing their
   **boundary** trace cochain :math:`C^1_\partial`, carrying
   ``omega_dot_n`` for the inflow / outflow directional partition. The
   space of :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`.
-* :class:`~orpheus.numerics.spaces.interior_face_space.InteriorFaceSpace`
-  — the **interior** face cochain :math:`C^1_{\rm int}`, the trace
-  space *minus* ``omega_dot_n`` (the interior cochain is flux-only, no
-  directional partition). Axis-parametric (one face-normal field per
-  active axis;
-  :meth:`~orpheus.numerics.spaces.interior_face_space.InteriorFaceSpace.interior_layout`
-  takes the axis count as a parameter). The space of
-  :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`.
+* the **interior** face cochain :math:`C^1_{\rm int}` — through S6.4
+  the typed ``InteriorFaceSpace`` (the trace space *minus*
+  ``omega_dot_n``; flux-only, axis-parametric) carrying
+  ``WavefrontFlux``; RETIRED at S6.4(f) when the walk re-layering
+  dissolved the type's boundary algebra into the shared octant frame.
+  The cochain concept's live realizations are the rolling front
+  (``_MovingFrontier``) and the per-octant full-cochain buffers
+  (``FullFieldWavefront._octant_face_cochain``).
 
-Together their cochains biproduct-decompose the full face cochain
+Together the boundary and interior cochains biproduct-decompose the
+full face cochain
 :math:`C^1 = C^1_{\rm int} \oplus C^1_\partial` (Issue #205 Phase 5).
 The full cochain frame, the :math:`\iota_*` / :math:`\iota^*` trace
-operators, the flux-only-single-role rationale, and the storage ×
-role × locus grid are documented at :ref:`wavefront-flux-cochain`
-(theory page); per-symbol docstrings live in
-:mod:`orpheus.numerics.spaces.interior_face_space` and
-:mod:`orpheus.transport.fields.wavefront_flux`.
+operators, the flux-only-single-role rationale, and the succession
+history are documented at :ref:`wavefront-flux-cochain` (theory page).

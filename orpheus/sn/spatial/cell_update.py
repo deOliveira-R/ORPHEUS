@@ -110,7 +110,7 @@ direction, not the geometry kind.
 Where downstream consumers will call this
 =========================================
 
-In Wave D, the sweep at :mod:`orpheus.sn.sweep` dispatches via
+In Wave D, the sweep at ``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``) dispatches via
 :meth:`SNMesh.dag_walk` — the per-visit packets pre-resolve
 the sweep direction so the strategy sees no sign-of-:math:`\mu`
 branching::

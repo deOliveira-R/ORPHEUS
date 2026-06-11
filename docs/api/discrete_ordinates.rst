@@ -6,7 +6,9 @@ Reference for the :mod:`orpheus.sn` package — the discrete-ordinates
 quadrature and geometry layer:
 
 * **Source iteration** via diamond-difference sweeps
-  (:mod:`~orpheus.sn.sweep`) — the default path used by
+  (:mod:`~orpheus.sn.loss_representation` — the loss representations +
+  the orchestration that historically lived in ``sweep.py``, dissolved
+  at S6.4(f)) — the default path used by
   :class:`~orpheus.sn.solver.SNSolver`.
 * **Krylov** via an explicit transport operator
   (:mod:`~orpheus.sn.operator`) — forms ``T: ψ → T·ψ`` as a
@@ -74,10 +76,10 @@ package carries rich ``.. math:: :label:`` docstrings, so it is
 cross-referenced here rather than ``automodule``-rendered, to avoid
 duplicate-label collisions with the theory pages.)
 
-Transport Sweep
----------------
+Transport Sweep — the loss representations
+------------------------------------------
 
-.. automodule:: orpheus.sn.sweep
+.. automodule:: orpheus.sn.loss_representation
    :members:
    :undoc-members:
    :show-inheritance:

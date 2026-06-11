@@ -3,8 +3,8 @@ r"""Phase F apply-vs-sweep consistency invariants (Issue #168).
 Phase D fixed the apply-matvec path's Carlson coupled-pole seed
 (:func:`~orpheus.sn.operator.transport_operator_matvec_spherical`).
 Phase F backports the same fix to the SI/sweep path
-(:func:`~orpheus.sn.sweep._sweep_1d_spherical`,
-:func:`~orpheus.sn.sweep._sweep_1d_cylindrical`) via
+(``_sweep_1d_spherical`` (the dissolved ``sweep.py``),
+``_sweep_1d_cylindrical`` (the dissolved ``sweep.py``)) via
 :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`.
 The two paths share the same Hébert §3.9.4 Eqs. (3.432)-(3.435) seed
 math — they ought to produce identical seeds on identical inputs.

@@ -2,7 +2,7 @@
 
 Round 2 of Wave C of the SN reshape campaign.  These tests pin the
 **bit-identical** contract between :class:`DiamondDifference` and
-the existing inlined sweep math at :mod:`orpheus.sn.sweep` — they
+the existing inlined sweep math at ``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``) — they
 assert ``np.array_equal`` (not ``np.allclose``) against per-cell
 scalar formulas that mirror the sweep's operation order verbatim.
 
@@ -27,14 +27,14 @@ Test classes
   ``is_positivity_preserving`` attributes have the expected
   values.
 * :class:`TestBitIdenticalSlab` — DD's slab branch reproduces
-  :func:`orpheus.sn.sweep._sweep_1d_cumprod` /
-  :func:`orpheus.sn.sweep._solve_recurrence` lines 117-123 +
+  ``_sweep_1d_cumprod`` (the dissolved ``sweep.py``) /
+  ``_solve_recurrence`` (the dissolved ``sweep.py``) lines 117-123 +
   208-222 bit-for-bit on synthetic per-cell inputs.
 * :class:`TestBitIdenticalCurvilinear` — DD's curvilinear branch
-  reproduces :func:`orpheus.sn.sweep._sweep_1d_spherical` lines
+  reproduces ``_sweep_1d_spherical`` (the dissolved ``sweep.py``) lines
   350-361 bit-for-bit.
 * :class:`TestCylindricalDegenerate` — DD's degenerate branch
-  reproduces :func:`orpheus.sn.sweep._sweep_1d_cylindrical` lines
+  reproduces ``_sweep_1d_cylindrical`` (the dissolved ``sweep.py``) lines
   533-546 bit-for-bit and signals via
   ``outgoing_spatial_flux=None``.
 * :class:`TestPositivityFailure` — DD can produce negative
@@ -134,7 +134,7 @@ class TestTraits:
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestBitIdenticalSlab:
-    """Slab DD reproduces :func:`orpheus.sn.sweep._solve_recurrence`
+    """Slab DD reproduces ``_solve_recurrence`` (the dissolved ``sweep.py``)
     bit-for-bit.
 
     The sweep solves the slab DD recurrence over a whole row of
@@ -343,7 +343,7 @@ class TestBitIdenticalSlab:
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestBitIdenticalCurvilinear:
-    """Curvilinear DD reproduces :func:`orpheus.sn.sweep._sweep_1d_spherical`
+    """Curvilinear DD reproduces ``_sweep_1d_spherical`` (the dissolved ``sweep.py``)
     bit-for-bit.
 
     The reference scalar form below mirrors sweep.py:328-329

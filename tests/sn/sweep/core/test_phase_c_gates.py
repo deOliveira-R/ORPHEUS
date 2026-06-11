@@ -60,7 +60,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial.pole_angular_closure import (
     MorelMontryAngularSweep,
 )
-from orpheus.sn.sweep import transport_sweep
+from orpheus.sn.loss_representation import transport_sweep
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField

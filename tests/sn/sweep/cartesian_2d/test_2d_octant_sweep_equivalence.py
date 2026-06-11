@@ -1,7 +1,7 @@
 r"""Per-sweep semantic-contract harness for the 2-D bare octant sweep.
 
 This file pins the **per-sweep semantic contract** of
-:func:`orpheus.sn.sweep._sweep_2d_wavefront` against frozen-reference
+:func:`orpheus.sn.loss_representation._sweep_2d_wavefront` against frozen-reference
 snapshots.  It began life as the C2.5 gate of Wave 2 (the
 loop-to-graph octant refactor) capturing snapshots from the legacy
 loop-based sweep; it was MIGRATED at Wave O #208 O.4b Phase E when the
@@ -168,7 +168,7 @@ from orpheus.sn.solver import (
     _reflect_outflow_into_inflow,
     solve_sn_fixed_source,
 )
-from orpheus.sn.sweep import _sweep_2d_wavefront
+from orpheus.sn.loss_representation import _sweep_2d_wavefront
 from tests.sn._test_helpers import placeholder_materials
 
 

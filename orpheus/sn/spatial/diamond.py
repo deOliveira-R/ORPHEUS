@@ -11,7 +11,7 @@ Architectural shift (Step 2.5)
 ==============================
 
 Pre-Step-2.5 the slab branch was kept distinct for bit-identity with
-the legacy :func:`orpheus.sn.sweep._sweep_1d_cumprod` operation order
+the legacy ``_sweep_1d_cumprod`` (the dissolved ``sweep.py``) operation order
 (``a*ψ_in + 2q/denom``, then ``½(ψ_in + ψ_out)``).  Step 2.5 retires
 the cumprod path entirely; slab now uses the same fold as sphere /
 cylinder, and the per-cell algebra is the unified

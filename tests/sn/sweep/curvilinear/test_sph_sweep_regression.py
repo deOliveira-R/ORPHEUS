@@ -99,7 +99,7 @@ class TestSphericalSweepRegression:
         This caught the missing weight_norm (1/sum_w) normalization in
         the spherical sweep source term.
         """
-        from orpheus.sn.sweep import transport_sweep
+        from orpheus.sn.loss_representation import transport_sweep
         from orpheus.sn.solver import _reflect_outflow_into_inflow
         from orpheus.transport.source_sinks import AngularSourceSink
 
@@ -131,7 +131,7 @@ class TestSphericalSweepRegression:
         Catches the negative-denominator bug from using signed α
         instead of |α| at the innermost cell where A=0.
         """
-        from orpheus.sn.sweep import transport_sweep
+        from orpheus.sn.loss_representation import transport_sweep
         from orpheus.transport.source_sinks import AngularSourceSink
 
         mesh = _homogeneous_mesh(10, 2.0, mat_id=0, coord=CoordSystem.SPHERICAL)

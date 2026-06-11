@@ -43,7 +43,7 @@ The ``orpheus/derivations/`` package is the **library** of analytical
 and semi-analytical reference solutions: SymPy ``derive_*`` functions
 paired with ``test_*`` pytest gates, importable by production code
 (see e.g. :mod:`orpheus.derivations.discrete.sn.balance` cited from
-:func:`orpheus.sn.sweep._sweep_1d_cumprod`, or
+``_sweep_1d_cumprod`` (the dissolved ``sweep.py``), or
 :mod:`orpheus.derivations.continuous.peierls_nystrom.origins.specular` cited from
 :func:`orpheus.derivations.continuous.peierls_nystrom.geometry.reflection_specular`).
 

@@ -41,8 +41,8 @@ Key Facts
   / :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.residual_kernel_batch`).
   See :ref:`sweep-octant-dependency-graph`.
 - **Both the 1-D and 2-D sweeps are BARE** (Wave O steps O.4a.2 +
-  O.4b, Issue #208): :func:`~orpheus.sn.sweep.transport_sweep` (1-D)
-  and :func:`~orpheus.sn.sweep._sweep_2d_wavefront` (2-D) no longer
+  O.4b, Issue #208): :func:`~orpheus.sn.loss_representation.transport_sweep` (1-D)
+  and :func:`~orpheus.sn.loss_representation._sweep_2d_wavefront` (2-D) no longer
   re-apply ``bc`` to the outflow — they read the *seeded* inflow
   trace directly. The reflective coupling :math:`\psi.\text{inflow} =
   B\,\psi.\text{outflow}` is delivered as a sibling :math:`-B` source
@@ -70,17 +70,21 @@ Key Facts
   4g → 1.4878); heterogeneous non-flat 2-D flux shape agrees SI-vs-Krylov
   to :math:`\sim 10^{-9}`. See
   :ref:`bc-extraction-2d-si-krylov-twin` in :doc:`operator_algebra`.
-- **The 2-D interior cell-face fluxes are a typed cochain** (Wave O
-  step #205 Phase 5, Issue #208, 2026-06-04): the 2-D wavefront sweep
-  + matvec no longer carry raw ephemeral ``psi_x`` / ``psi_y`` numpy
-  arrays — they are the named field
-  :class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux` (the
-  interior 1-cochain :math:`C^1_{\rm int}`), and the boundary
-  seed/absorb are the typed trace operators :math:`\iota_*`
-  (:meth:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux.seed`)
-  / :math:`\iota^*`
-  (:meth:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux.absorb`).
-  See :ref:`wavefront-flux-cochain` in :doc:`operator_algebra`.
+- **The 2-D interior cell-face fluxes are a 1-cochain**
+  :math:`C^1_{\rm int}` (Wave O step #205 Phase 5, Issue #208,
+  2026-06-04): the 2-D wavefront sweep + matvec no longer carry raw
+  ephemeral ``psi_x`` / ``psi_y`` numpy arrays — they are the interior
+  1-cochain :math:`C^1_{\rm int}`, and the boundary seed/absorb are the
+  typed trace operators :math:`\iota_*` / :math:`\iota^*`. A dedicated
+  ``WavefrontFlux`` field carried the cochain from #205 Phase 5 through
+  S6.4; it was **retired at S6.4(f)** (#222) when the walk re-layering
+  moved the seed/absorb verbs into the shared octant frame, and the
+  cochain now lives in the rolling front
+  (``_MovingFrontier``, ``orpheus.sn.sweep_graph``) and the
+  full-cochain oracle history (``_octant_face_cochain``,
+  ``orpheus.sn.loss_representation``).
+  See :ref:`wavefront-flux-cochain` in :doc:`operator_algebra` for the
+  succession.
 - **Storage layout**: angular flux ``(N, ng, nx, ny)``; scalar flux
   and per-cell cross sections ``(ng, nx, ny)``; 1-D problems keep
   ``ny = 1`` (singleton, NOT squeezed).  The canonical statement
@@ -1054,7 +1058,7 @@ driver) or ``direction_sign`` (direction-keyed visits, used by the
 apply matvec) as a keyword-only argument.  Both invocation modes
 encapsulate the inward / outward branching, the cylindrical
 per-:math:`\mu`-level traversal, and the pure-azimuthal degenerate
-handling.  The sweep at :mod:`orpheus.sn.sweep` consumes this
+handling.  The sweep at ``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``) consumes this
 generator::
 
     for visit in sn_mesh.dag_walk(ordinate_idx=n):
@@ -1162,7 +1166,7 @@ The first concrete strategy is
 algebra as the existing inlined sweep — Round 2 of Wave C is a
 bit-identical extraction, gated by ``np.array_equal`` hand-calc tests
 in ``tests/sn/spatial/test_diamond.py`` against the sweep's scalar
-formulas at :mod:`orpheus.sn.sweep`.
+formulas at ``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``).
 
 Per Wave C decision **D5** (one geometry-polymorphic class), the
 strategy is a single :class:`DiamondDifference` that handles slab,
@@ -1189,8 +1193,8 @@ Cartesian DD recurrence reduces to the per-cell scalar form of
 
 with ``W = Σ_n w_n`` the quadrature weight sum, mirroring the
 sweep's vectorised cumprod path
-(:func:`orpheus.sn.sweep._sweep_1d_cumprod` lines 117–123) and per-
-cell solver (:func:`orpheus.sn.sweep._solve_recurrence` lines 208–
+(``_sweep_1d_cumprod`` (the dissolved ``sweep.py``) lines 117–123) and per-
+cell solver (``_solve_recurrence`` (the dissolved ``sweep.py``) lines 208–
 222) at the operation level.  Per the strategy contract, ``source``
 arrives at the cell update **already weight-normalised** by the
 sweep — for slab, ``source = Q · Δx / W`` (and slab cell volume is
@@ -1226,7 +1230,7 @@ Morel–Montry weight :eq:`mm-weights`.  The cell-update is then
              + (\Delta A_i / w_n)\,c_{\rm out}
              + \Sigma_t\,V_i},
 
-mirroring :func:`orpheus.sn.sweep._sweep_1d_spherical` lines
+mirroring ``_sweep_1d_spherical`` (the dissolved ``sweep.py``) lines
 350–355 (and the structurally identical cylindrical branches at
 sweep.py:511–531 / sweep.py:548–575) verbatim, with closures
 
@@ -1255,7 +1259,7 @@ contributions drop out:
                        + (\Delta A / w)\,c_{\rm in}\,
                           \psi_{n-\tfrac12,\,i},
 
-mirroring :func:`orpheus.sn.sweep._sweep_1d_cylindrical` lines
+mirroring ``_sweep_1d_cylindrical`` (the dissolved ``sweep.py``) lines
 533–543 verbatim.  The strategy returns
 :attr:`~orpheus.sn.spatial.cell_update.CellResult.outgoing_spatial_flux`
 ``= None`` to signal "no face-flux write" to the sweep driver; the
@@ -1496,7 +1500,7 @@ The reflection indices are precomputed by the quadrature's
 **once per octant per axis** (not once per ordinate per axis) —
 see :ref:`sweep-octant-dependency-graph-l7-trap` for the rationale.
 
-Implemented in :func:`~orpheus.sn.sweep._sweep_2d_wavefront`, which
+Implemented in :func:`~orpheus.sn.loss_representation._sweep_2d_wavefront`, which
 is a thin orchestrator over the
 :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` primitives
 described next.
@@ -1511,7 +1515,7 @@ transport DAG / direction sweep ordering" primitive** as it lives in
 :mod:`orpheus.sn.sweep_graph` after Wave 2 of the SN performance plan
 (branch ``feature/sn-octant-sweep-graph``, closes Issue #4).  The
 shipped architecture replaces the legacy per-ordinate ``for n in
-range(N)`` loop in :func:`~orpheus.sn.sweep._sweep_2d_wavefront` with
+range(N)`` loop in :func:`~orpheus.sn.loss_representation._sweep_2d_wavefront` with
 a per-octant batched dispatch, lifting the per-call ``_diag_cache``
 build to mesh-time work, and isolating the per-cell DD algebra in the
 discretization's pure kernel pair
@@ -2148,7 +2152,7 @@ Unified sweep dispatch
 Wave D Round 2 of the SN reshape campaign (Issue #161) consolidates
 the four pre-existing sweep paths (1-D cumprod / 2-D wavefront /
 spherical / cylindrical) under one
-:func:`~orpheus.sn.sweep.transport_sweep` entry point that branches
+:func:`~orpheus.sn.loss_representation.transport_sweep` entry point that branches
 on a single boolean from the
 :class:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator`
 primitive (Wave B Issue #6 / Wave D Round 1):
@@ -2256,7 +2260,7 @@ performance plan; closes Issue #4 — see
 :ref:`sweep-octant-dependency-graph` for the full architecture and
 :ref:`sweep-dispatch-relayering` for the S6.4(e) re-layering).
 The "inlined DD math" formerly carried inside
-:func:`~orpheus.sn.sweep._sweep_2d_wavefront` was lifted into
+:func:`~orpheus.sn.loss_representation._sweep_2d_wavefront` was lifted into
 :class:`~orpheus.sn.spatial.diamond.DiamondDifference` as a single
 bit-identical extraction, vectorised across the
 ``(N_oct, n_diag, ng)`` slice — the ordinate axis, anti-diagonal
@@ -2491,7 +2495,7 @@ Diffusion-Limit Accuracy of Sn Angular Differencing Schemes"
 (LLNL preprint LLNL-JRNL-420356; OA at
 https://www.osti.gov/servlets/purl/1020346).  Phase B corrects the
 citations in :mod:`orpheus.geometry.reduced_operator`,
-:mod:`orpheus.sn.sweep`, :mod:`orpheus.sn.spatial.diamond`, and the
+``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``), :mod:`orpheus.sn.spatial.diamond`, and the
 new :mod:`orpheus.sn.spatial.pole_angular_closure` module.  Hébert
 (2009) §3.9.4 is the **primary source** for the curvilinear S\ :sub:`N`
 discretization in this codebase; Bailey-Morel-Chang 2010 is the
@@ -3131,7 +3135,7 @@ Wave O step O.4a.2 (Issue #208, commits ``d7e1316`` / ``4c0ff96`` /
 ``2bdc66d``, 2026-06-03) **removed the boundary law from the 1-D
 sweep entirely**. The boundary-edge ``inflow_full =
 bc_outer.apply(outflow_at_boundary.T)`` line shown above (the
-"keystone") is **deleted**; the 1-D :func:`~orpheus.sn.sweep.transport_sweep`
+"keystone") is **deleted**; the 1-D :func:`~orpheus.sn.loss_representation.transport_sweep`
 entry now reads the *seeded* inflow trace directly:
 
 .. code-block:: python
@@ -3178,7 +3182,7 @@ forcing function all live at :ref:`bc-extraction` in
 operator algebra.
 
 Step **O.4b** extended the bare sweep to the **2-D Cartesian
-wavefront** path (both :func:`~orpheus.sn.sweep._sweep_2d_wavefront`
+wavefront** path (both :func:`~orpheus.sn.loss_representation._sweep_2d_wavefront`
 and the 2-D matvec
 :meth:`StreamingOperator._apply_2d_cartesian <orpheus.sn.operator.StreamingOperator>`):
 the intra-octant ``bc.apply`` is gone there too, and the
@@ -3187,10 +3191,12 @@ octant-incoming edge is seeded from the given inflow trace. The
 selects the **fold shape** (1-D parallel-prefix scan vs 2-D wavefront
 DAG), **not** a bare-vs-bc-in-sweep distinction — both folds are bare,
 so the sweep body and the helper-guard sites cannot drift. The 2-D
-interior face fluxes both folds propagate are now the typed cochain
-:class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux`, with
-the boundary seed/absorb the typed trace operators :math:`\iota_*` /
-:math:`\iota^*` (#205 Phase 5 — see :ref:`wavefront-flux-cochain` in
+interior face fluxes both folds propagate are the interior 1-cochain
+:math:`C^1_{\rm int}`, with the boundary seed/absorb the typed trace
+operators :math:`\iota_*` / :math:`\iota^*` (#205 Phase 5; the
+``WavefrontFlux`` carrier that named the cochain is retired at
+S6.4(f), the cochain now living in ``_MovingFrontier`` /
+``_octant_face_cochain`` — see :ref:`wavefront-flux-cochain` in
 :doc:`operator_algebra`).
 
 .. _sn-mms-spherical-aniso-spatial-convergence:
@@ -4544,7 +4550,7 @@ Phase F Carlson seed sweep-path backport (Issue #168 Phase F)
      (:func:`~orpheus.sn.operator.transport_operator_matvec_spherical`
      / ``_cylindrical``, fixed in Phase D Step 3) into the SI/sweep
      path
-     (:func:`~orpheus.sn.sweep._sweep_1d_spherical` and
+     (``_sweep_1d_spherical`` (the dissolved ``sweep.py``) and
      ``_sweep_1d_cylindrical``).
    * The bug is the **structural twin** of the Phase D defect: the
      SI loop in :file:`orpheus/sn/sweep.py` initialised
@@ -4593,7 +4599,7 @@ Phase D Carlson seed is invoked by
 :attr:`MorelMontryAngularSweep.psi_half_seed` composition; that
 covers every Krylov-driven call.  But ORPHEUS's curvilinear
 production default is **source iteration**, which dispatches
-through :func:`~orpheus.sn.sweep.transport_sweep` rather than
+through :func:`~orpheus.sn.loss_representation.transport_sweep` rather than
 through the apply matvec, and the two paths run **different code**
 to seed the M-M half-angle recurrence:
 
@@ -4613,7 +4619,7 @@ to seed the M-M half-angle recurrence:
        XPASS on the per-ordinate flat-flux residual probe
        (residual :math:`\le 10^{-15}`).
    * - SI/sweep (Source Iteration)
-     - :func:`~orpheus.sn.sweep._sweep_1d_spherical` line 474
+     - ``_sweep_1d_spherical`` (the dissolved ``sweep.py``) line 474
        (spherical) and ``_sweep_1d_cylindrical`` line 634
        (cylindrical per-:math:`\mu`-level loop)
      - **WRONG** — hardcoded ``psi_angle = np.zeros((nx, ng))``,
@@ -5051,7 +5057,7 @@ Files touched by Phase F
   358–419 of the module); :meth:`CarlsonInwardSweep.__call__`
   refactored to delegate after folding ``psi_level → Q̄``;
   ``__all__`` extended.
-* :mod:`orpheus.sn.sweep` —
+* ``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``) —
   :func:`_sweep_1d_spherical` line ≈ 472–530: replaces the
   legacy ``psi_angle = np.zeros((nx, ng))`` with the Phase F
   Carlson seed call (uses ``bc_outer_obj.apply(bc_outer)`` to
@@ -6253,7 +6259,7 @@ Three capabilities
 
 * :meth:`~orpheus.sn.operator.InvertibleOperator.solve` —
   inverse action :math:`L^{-1}\,q` via the Wave D Round 2 unified
-  sweep (:func:`~orpheus.sn.sweep.transport_sweep`).  Bit-identical
+  sweep (:func:`~orpheus.sn.loss_representation.transport_sweep`).  Bit-identical
   to a direct :func:`transport_sweep` call on the same arguments.
 
 * :meth:`~orpheus.sn.operator.InvertibleOperator.apply_transpose` —
@@ -6287,7 +6293,7 @@ for different consumers:
   :mod:`orpheus.sn.operator`).
 
 * The **sweep operator**
-  (:func:`~orpheus.sn.sweep.transport_sweep`, dispatching through
+  (:func:`~orpheus.sn.loss_representation.transport_sweep`, dispatching through
   the Wave D Round 2 :class:`~orpheus.sn.spatial.cell_update.CellUpdate`
   Protocol with :class:`~orpheus.sn.spatial.diamond.DiamondDifference`
   as the default strategy) uses the **WDD asymmetric closure**
@@ -6886,10 +6892,11 @@ quadratures:
   :math:`(+1,-1)`).
 
 Reflecting a shared face after only the **first** outflowing group
-absorbs the *not-yet-swept* octants' slots — and because the
-:class:`~orpheus.transport.fields.wavefront_flux.WavefrontFlux` is
-rebuilt and :math:`\iota_*`-seeded each ``.solve``, those slots
-still hold the **inflow seed**, not real outflow.  The reflect then
+absorbs the *not-yet-swept* octants' slots — and because the interior
+cochain :math:`C^1_{\rm int}` (carried by the rolling
+``_MovingFrontier``) is rebuilt and :math:`\iota_*`-seeded each
+``.solve``, those slots still hold the **inflow seed**, not real
+outflow.  The reflect then
 propagates garbage and the iteration converges to the fixed point of
 the **wrong** operator (ERR-056).  Crucially, this seed-contamination
 does **not** self-correct at convergence — unlike a lagged-but-real
@@ -7437,7 +7444,7 @@ reflection step itself).
 .. note::
 
    Before the BC infrastructure was introduced,
-   :func:`~orpheus.sn.sweep.transport_sweep` accepted a
+   :func:`~orpheus.sn.loss_representation.transport_sweep` accepted a
    ``boundary_condition: str`` parameter directly.  That parameter
    has been removed --- BCs now flow through the mesh → SNMesh
    resolution path.  The description above reflects the current
@@ -7716,7 +7723,7 @@ verification to **two Cartesian dimensions**.  The 1D slab MMS tests
 verify the :math:`\mu\,\partial\psi/\partial x` streaming term in
 isolation; this section adds :math:`\mu_y\,\partial\psi/\partial y`
 and confirms that the 2D wavefront sweep
-(:func:`orpheus.sn.sweep._sweep_2d_wavefront`) with diamond-difference
+(:func:`orpheus.sn.loss_representation._sweep_2d_wavefront`) with diamond-difference
 closure achieves its design :math:`\mathcal O(h^{2})` convergence rate.
 
 **Ansatz.**  On a rectangle :math:`[0, L_x] \times [0, L_y]` with
@@ -7810,7 +7817,7 @@ diamond-difference design order.
 - Test:
   :func:`tests.sn.test_mms.test_sn_2d_cartesian_mms_converges_second_order`.
 - Sweep:
-  :func:`orpheus.sn.sweep._sweep_2d_wavefront` (the 2D diamond-difference
+  :func:`orpheus.sn.loss_representation._sweep_2d_wavefront` (the 2D diamond-difference
   kernel verified by this test).
 
 **Why this test matters.**  The existing 2D SN tests
@@ -10062,7 +10069,7 @@ Root Cause: ERR-025
 
 A focused audit of the four SN sweep paths and the source-builder
 helpers localised the bug to
-:func:`orpheus.sn.sweep._sweep_1d_cumprod`, the 1D Cartesian
+``_sweep_1d_cumprod`` (the dissolved ``sweep.py``), the 1D Cartesian
 Gauss--Legendre fast path. Its diamond-difference face-flux
 recurrence coefficients were
 
@@ -10086,7 +10093,7 @@ where :math:`W = \sum_n w_n` is the quadrature weight sum, needed
 because :func:`orpheus.sn.solver.SNSolver._add_scattering_source`
 produces :math:`Q` in **scalar-flux units** while the per-ordinate
 transport equation sees :math:`Q/W` as its right-hand side. The 2D
-wavefront sweep :func:`~orpheus.sn.sweep._sweep_2d_wavefront`
+wavefront sweep :func:`~orpheus.sn.loss_representation._sweep_2d_wavefront`
 already applied this normalisation via its ``weight_norm = 1/W``
 factor; the 1D fast path had been independently derived without it
 and drifted silently.
@@ -10184,7 +10191,7 @@ The Fix and the Test
 ---------------------
 
 The fix is a one-formula correction in
-:func:`orpheus.sn.sweep._sweep_1d_cumprod` plus a comment block
+``_sweep_1d_cumprod`` (the dissolved ``sweep.py``) plus a comment block
 pointing at ``sn_balance.derive_cumprod_recurrence`` as the
 source of truth. After the fix, Case :math:`\leftrightarrow`
 ``solve_sn`` agreement went from :math:`1.48\times 10^{-2}` to
@@ -10227,9 +10234,9 @@ BiCGSTAB using arithmetic face averages instead of the sweep's DD
 closure); these are tracked as issues #96 and #97 respectively.
 
 The four sweep paths audited during ERR-025 diagnosis ---
-:func:`~orpheus.sn.sweep._sweep_2d_wavefront`,
-:func:`~orpheus.sn.sweep._sweep_1d_spherical`,
-:func:`~orpheus.sn.sweep._sweep_1d_cylindrical`, and
+:func:`~orpheus.sn.loss_representation._sweep_2d_wavefront`,
+``_sweep_1d_spherical`` (the dissolved ``sweep.py``),
+``_sweep_1d_cylindrical`` (the dissolved ``sweep.py``), and
 post-fix ``_sweep_1d_cumprod`` --- were all verified **clean**
 against the ``sn_balance`` symbolic derivation. The source-builder
 helpers (:meth:`~orpheus.sn.solver.SNSolver._add_scattering_source`,

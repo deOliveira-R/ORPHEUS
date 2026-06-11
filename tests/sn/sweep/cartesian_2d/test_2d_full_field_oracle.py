@@ -18,8 +18,9 @@ S6.4) the octant frame, so the MATH cannot drift; only the interior storage
 policy differs, which is exactly what this pins.  (History: through S6.4(c)
 the oracle frames carried the cochain as a typed ``WavefrontFlux`` with
 whole-trace ι_*/ι* seed/absorb; the (d) fold moved the boundary algebra onto
-the shared frame, leaving ``WavefrontFlux`` without a production consumer —
-its fate is an (f)-scope decision.)
+the shared frame, and the type was RETIRED at (f) — the cochain concept lives
+on as ``_MovingFrontier`` (the front) + ``_octant_face_cochain`` (the
+history).)
 
 ``foundation`` — a software invariant (window ≡ full-field), no theory label.
 """
@@ -35,7 +36,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.loss_representation import FullFieldWavefront, MovingFrontierWindow
 from orpheus.sn.operator import StreamingOperator
-from orpheus.sn.sweep import _sweep_2d_wavefront
+from orpheus.sn.loss_representation import _sweep_2d_wavefront
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField

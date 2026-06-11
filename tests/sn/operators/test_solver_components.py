@@ -22,7 +22,7 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver, solve_sn, _reflect_outflow_into_inflow
 from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
-from orpheus.sn.sweep import transport_sweep
+from orpheus.sn.loss_representation import transport_sweep
 from tests.sn._test_helpers import SN_TESTS_ROOT
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 

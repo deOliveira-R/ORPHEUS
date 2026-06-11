@@ -520,7 +520,7 @@ def test_slab_sweep_benchmark_under_2ms() -> None:
     Marked ``@slow`` — skipped by default but runs in CI.
     """
     from orpheus.transport.source_sinks import AngularSourceSink
-    from orpheus.sn.sweep import transport_sweep
+    from orpheus.sn.loss_representation import transport_sweep
 
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, 161),
