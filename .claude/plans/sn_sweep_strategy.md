@@ -653,13 +653,52 @@ Layer 3  STRUCTURE  (on the mesh)
   preserved; ⚠ the curvilinear angular second-triangular-factor — `closure.angular_adjoint`,
   `operator.py:727` — MUST ride with `CumprodScan.loss_action_transpose`, else a spatial-only
   reverse silently drops the angular transpose).
-- **S6.4 — `_OctantWalk2D` (collapse the two Fork-B1 twins).** Extract the shared 2-D octant
-  frame (octant projection + pure-z + face I/O + the O.4b boundary block) into a
-  `_OctantWalk2D` representation base; `MovingFrontierWindow` (anti-diagonal `residual_windowed`)
-  + `ScanMarch` (row-march) provide ONLY `_interior_walk(ctx) → (LpC_oct, cap_x, cap_y)`. The
-  two "Edit both in lockstep" IOU notes (`operator.py:1828` matvec + `sweep.py` sweep) DISSOLVE.
-  `CumprodScan` + `FullFieldWavefront` stay separate (genuinely different mechanisms). **This IS
-  the S5.3 consolidation trigger the IOUs name — pulled forward.**
+- **S6.4 — ONE kernel-parameterized octant walk shared by `sweep` + `loss_action`
+  (RESCOPED 2026-06-10 — user insight: "matvec and sweep are ONE walk, differing only in the
+  cell kernel + the target; long-due debt").** The DEEPEST L21 realization. matvec and sweep
+  walk the SAME octant DAG / SAME frontier / SAME boundary seed-shed — the face recurrence
+  `out = 2ψ̄ − in` is LITERALLY identical. They fork ONLY at:
+  (i) the **CELL KERNEL** — `diamond.py` `cell_kernel_batch` (SOLVE: ψ̄ UNKNOWN, divide by
+  `D = σ_t + Σs`, uses source `q`; :273) vs `residual_kernel_batch` (APPLY: ψ̄ GIVEN,
+  pure-reflection `α = −1` no divide, evaluate the residual; :331); and
+  (ii) the **EMIT policy** — sweep → ψ + scalar/moment projection; matvec → residual bulk + the
+  O.4b boundary defect.
+  The graph ALREADY proves it: PAIRED methods `graph.apply`/`apply_windowed` (sweep, :682/:849)
+  ↔ `graph.residual`/`residual_windowed` (matvec, :770/:929) walk ONE graph, forked at the
+  kernel. ⭐ `ScanMarch` ALREADY embodies the unification — its `sweep` + `loss_action` both call
+  the ONE primitive `_x_scan_faces` (sweep.py:1186), differing only in `(α, β)`. The DAG family
+  does NOT yet: the octant orchestration is written THREE times in lockstep
+  (`sweep.py::sweep_octant_group` sweep + `MovingFrontierWindow.loss_action` +
+  `ScanMarch.loss_action` matvec); the codebase ADMITS it (`sweep.py:1328` "edit both in
+  lockstep" + the 2 Fork-B1 IOU notes).
+  **THE CARVE: extract `_OctantWalk2D` — the ONE octant traversal (octant projection + pure-z +
+  frontier + boundary seed/shed + the O.4b boundary block), parameterized by a CELL-KERNEL object
+  (`apply_windowed` | `residual_windowed`) + an EMIT policy — NOT a boolean flag.** `sweep` and
+  `loss_action` STAY the two NAMED public faces (the q-vs-ψ applications) but both delegate to the
+  ONE walk. `sweep_octant_group` + the matvec `loss_action` bodies COLLAPSE; ALL THREE "edit both
+  in lockstep" twins DISSOLVE; "matvec ≡ sweep" becomes STRUCTURAL, not test-maintained. Also
+  HARMONIZE the signatures (today `loss_action(operator, ψ)` reaches the operator for σ_t while
+  `sweep(Q, sig_t, boundary)` takes raw arrays — both should take the SAME problem data).
+- **S6.4 — the CLASS STRUCTURE (three orthogonal concerns, ONE design; AMENDS S6.1 Layer 2+3).**
+  (1) `_OctantWalk2D` = the shared sweep+matvec traversal (kernel + emit params, above) + the
+  O.4b boundary block, which is duplicated 3× today (window + scan-march + full-field) → it lives
+  HERE, shared by all three.
+  (2) **DAG ownership** (user-raised; AMENDS S6.1 LOCKED Layer 3): move the DAG OFF the mesh
+  (`geometry.py:350 self.sweep_graphs = None` — the illegal-state smell) INTO the `_DAGWavefront`
+  family {window, full-field}, lazily built + **cached per mesh-SHAPE** by an accessor the family
+  OWNS (not the mesh), so DAG-free reps (`CumprodScan`, `ScanMarch`) NEVER mention
+  `sweep_graphs`/`OctantLabel` and the mesh reverts to pure geometry. VERIFIED only `_DAGWavefront`
+  uses it (`sweep.py:910/1533` + `loss_representation.py:524/672`). S6.3 set this up (the
+  window/full-field `loss_action` now live in the family's module; `sn_mesh.sweep_graphs` →
+  `self.sweep_graphs`; the sweep `_sweep_2d_wavefront`/`_sweep_full_field` fold into the shared
+  walk or take the DAG as a param).
+  (3) **The composition**: `MovingFrontierWindow` ∈ BOTH `_OctantWalk2D` AND `_DAGWavefront`
+  → mixin/composition, NOT single inheritance; `ScanMarch` ∈ `_OctantWalk2D` only (DAG-free
+  row-march); `FullFieldWavefront` ∈ both (DAG + the shared boundary block, different interior
+  `WavefrontFlux` walk).
+  Each sub-step independently bit-identity-gated (window≡full sweep + matvec, scan-march G2.c,
+  affine-carve golden, keff). **AMENDS S6.1: Layer 2 WALK becomes kernel-parameterized (shared by
+  sweep + matvec); Layer 3 STRUCTURE moves from "on the mesh" → "owned by the DAG-using family."**
 - **S6.5 — Unify the two doors.** `InvertibleOperator.solve` + `StreamingOperator.apply` reach
   ONE `SpatialRepresentation` instance (the `InvertibleOperator` holds/derives the same instance
   as its `streaming` operand). `solve` calls `representation.sweep`; `apply` calls
