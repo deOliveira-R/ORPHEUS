@@ -9,6 +9,20 @@ first-class `SweepStrategy` abstraction.
 
 - **Designed 2026-06-10** in a multi-turn design conversation; every decision below is LOCKED
   (see §"Decisions locked").
+- **⭐⭐⭐ LATEST (2026-06-10): S5.0 + S5.1 DONE + committed; S6 CAPSTONE design LOCKED.** Read
+  the **`# ⭐⭐⭐ S6 — THE OPERATOR / REPRESENTATION RE-LAYERING`** section at the BOTTOM of this
+  file FIRST — it is the architectural keystone (the user's "why does the operator hold a matvec
+  per strategy / apply IS a sweep action / where does the explicit matrix live" questions,
+  cross-domain-attacker-validated across 4 expert frames). Commits since `954ddf4` (NOT pushed):
+  **`4ca7a05`** S5.0 (ERR-057 denormal `ordinate_scan` fix) · **`8913229`** S5.1a (the `ScanMarch`
+  sweep, `scan(x)∘march(y)`, oracle-verified) · **`0613298`** S5.1b (the row-march matvec twin +
+  the `_x_scan_faces` Pattern-2 primitive). `ScanMarch` is a complete self-consistent strategy
+  (sweep + matvec, both row-march; G2 + G2.c green; 2 elegance-enforcer PASS). **NEXT = S6** (the
+  re-layering: operator = pure algebra, rename `SweepStrategy → SpatialRepresentation`, one
+  instance both doors, `_OctantWalk2D` frame collapses the 2 Fork-B1 twins; the explicit matrix
+  becomes a peer representation). S6.0-prime = dispatch `test-architect` FIRST. **The S5.3
+  measurement (does ScanMarch beat the window?) folds into S6.9** (decide the window's fate on
+  clean representations). Cross-domain-attacker memo: agentId `a8826036ef5b5e945`.
 - **S0 ✅ DONE (2026-06-10):** `test-architect` verification plan delivered (memo
   `.claude/agent-memory/test-architect/sweep_strategy_carve_verification.md`). Key findings:
   `reduced is not None` ⟺ `is_1d` for ALL 4 constructible meshes (carve is behavior-preserving);
@@ -455,3 +469,210 @@ remains downstream.
   the speedup measurement recorded (d=2 confirmed; d=3 flagged pending or measured).
 - S5: Sphinx builds clean; the `str_axes` + `OctantLabel` shims retired (retirement audit);
   no orchestrator hand-lists a positional per-axis tuple.
+
+---
+
+# ⭐⭐⭐ S6 — THE OPERATOR / REPRESENTATION RE-LAYERING (CAPSTONE; design LOCKED 2026-06-10)
+
+> **READ THIS FIRST when picking up S6.** This is the architectural keystone of the SN
+> operator algebra, surfaced by the user's two questions (2026-06-10): *"Why does the operator
+> need `_apply_2d`? Why doesn't `apply` work for any dimensionality? Maybe the application is
+> a sweep action (sweep using the operator)? If we had the explicit matrix, where would it
+> live?"* The design below is **validated by the cross-domain-attacker across four independent
+> expert frames** (numerical linear algebra, graph theory, category theory, algebra/representation
+> — all four name the abstraction **"representation," not "strategy"**). It is LOCKED. The
+> cross-domain-attacker memo (agentId `a8826036ef5b5e945`) is the structural backing.
+
+## S6.0 — THE NATIVE FRAME (the "why")
+
+**`(L+C)` (the within-group loss operator: streaming `L` + collision `C = σ_t⊙`) is a
+lower-triangular `LinearOperator`.** Everything follows:
+
+- **Lower-triangular under the sweep partial order.** Each cell depends only on *upstream*
+  cells along an ordinate (`dag_walk_cell_indices` / `SweepDependencyGraph`). The per-octant
+  DAG **IS the sparsity pattern** that triangularizes `(L+C)`. (Block-diagonal in the ordinate
+  `n`; a *second* triangular factor in the angular index for curvilinear — the M-M/Carlson
+  recurrence, `operator.py` `_compute_LpC_transpose` ~:583.)
+- **The sweep is forward-substitution; the matvec is the row-action.** `solve = (L+C)⁻¹q`
+  (sweep) and `apply = (L+C)ψ` (matvec) are the **two actions of ONE triangular operator**.
+  They share the gather/scatter walk byte-for-byte and differ ONLY in the cell kernel
+  (`cell_kernel_batch` solve vs `residual_kernel_batch` apply) — `diamond.py:367-376` is the
+  proof, already true at the kernel layer (the L21 "one walk, two kernels").
+- **The four walks are four *representations of one operator*, not four operators.**
+  `CumprodScan` (1-D chain), `MovingFrontierWindow` (anti-diagonal, rolling frontier),
+  `ScanMarch` (row-march), `FullFieldWavefront` (full-field oracle) are *schedules/buffer
+  policies* over the SAME lower-triangular solve. **"apply the operator" IS "walk the
+  dependency graph"** — a representation concern, not an operator concern.
+
+### The smell (what's structurally wrong today)
+
+Two defects, both instances of `coding-elegance` Smell #16 (two paths claiming to be one operator):
+
+1. **Half-done dispatch.** `operator.apply(ψ) → strategy.residual(operator, ψ) →
+   operator._apply_<specific>(ψ)`. The matvec *implementation* lives back ON the operator as
+   one method per strategy (`_apply_1d`, `_apply_2d_cartesian`, `_apply_2d_cartesian_scanmarch`,
+   `_apply_full_field`). The strategy merely forwards. **The dispatch was relocated, not
+   eliminated — enum-dispatch wearing a Protocol's clothes.**
+2. **TWO DOORS to the strategy.** `apply` reaches it via `StreamingOperator.sweep_strategy →
+   default_for`; `solve` reaches it via `InvertibleOperator.solve → transport_sweep →
+   default_for` — a SECOND, independent selection. So **"matvec ≡ sweep (L21)" is a coincidence
+   maintained by `test_2d_full_field_oracle.py`, NOT a theorem enforced by construction.** The
+   two halves of one operator's representation are selected on opposite sides of the
+   operator/strategy boundary (capability asymmetry: `CAP_APPLY` on `StreamingOperator`,
+   `CAP_SOLVE` on the composite `InvertibleOperator`).
+
+## S6.1 — THE TARGET ARCHITECTURE (three layers)
+
+```
+Layer 1  OPERATOR ALGEBRA  (StreamingOperator / InvertibleOperator / OperatorSum)
+  · L = (L+C) − C  factoring; composition (L+C−S−F/k); .H + G-metric (domain/codomain)
+  · apply(ψ) = representation.loss_action(self, ψ) − σ_t·ψ.bulk      # the −C is the ONLY glue
+  · apply_transpose(φ) = representation.loss_action_transpose(self, φ) − σ_t·φ.bulk
+  · solve(q) = representation.sweep(self, q)                          # inverts the FULL (L+C)
+  · HOLDS NO _apply_* methods.  ONE representation instance, reached by BOTH solve and apply.
+        │  dispatches spatial application to ▼
+Layer 2  SPATIAL REPRESENTATION  (rename of SweepStrategy)
+  · The (L+C) operator's REPRESENTATION.  Protocol: sweep / loss_action / loss_action_transpose
+    / supports.  TWO families:
+      – matrix-FREE traversal:  CumprodScan · MovingFrontierWindow · ScanMarch · FullFieldWavefront
+      – assembled SPARSE (S6.6, deferred):  ExplicitMatrix  (sweep = spsolve_triangular,
+        loss_action = M @ ψ)
+  · loss_action returns (L+C)ψ  (NOT L·ψ — see S6.3 confirmation); the operator subtracts C.
+        ├── _OctantWalk2D (NEW base): the SHARED 2-D octant frame + the O.4b boundary block;
+        │     MovingFrontierWindow + ScanMarch provide only `_interior_walk` (anti-diag | row-march)
+        ├── CumprodScan          1-D total-order chain  (separate; geometry-aware via the cache)
+        └── FullFieldWavefront   whole-trace WavefrontFlux oracle  (separate mechanism)
+        │  reads ▼
+Layer 3  STRUCTURE  (on the mesh)
+  · SweepDependencyGraph = the sparsity structure (explicit DAG; carries update_batch / residual
+    / residual_windowed); the matrix-free walks traverse it (or the implicit scan order)
+  · DiamondDifference (cell_update) = the per-cell closure, two kernels (solve / apply)
+```
+
+### Locked decisions (cross-domain-attacker-validated, with the code grounding)
+
+1. **`operator = pure algebra`; remove the four `_apply_*` methods.** `L = (L+C) − C`
+   (`operator.py:1761`), `__add__`, `.H` + G-metric all stay on the operator.
+2. **`loss_action → (L+C)ψ`, operator does `−C` — CONFIRMED right (not `L·ψ`).** Three code
+   facts: (a) `residual_kernel_batch` natively yields `(Σ_t+Σsₐ)ψ̄ − (Q+Σsₐ·inₐ) = (L+C)ψ` at
+   zero source (`diamond.py:363`); (b) every matvec subtracts `σ_t·probe` AT THE END
+   (`operator.py:1762`); (c) the pure-z octant sets `LpC=σ_t·ψ` so `L·ψ=0` after subtraction
+   (`operator.py:1731`). Returning `L·ψ` would force `−C` INTO every walk, re-coupling the
+   collision diagonal into the streaming representation — the opposite of the factoring.
+3. **The O.4b typed boundary-residual block lives in `_OctantWalk2D.loss_action`, NOT the
+   operator algebra.** It is *trace bookkeeping of the walk* (reads `trace.outflow_indices`,
+   writes `streamed − given`). The `−B` off-diagonal that IS algebra already lives as a sibling
+   operator — leave it there.
+4. **ONE representation instance reached by BOTH `solve` and `apply`** (closes the two-doors
+   smell). Discriminating test: `assert StreamingOperator.sweep_strategy IS the instance
+   InvertibleOperator.solve uses`. Today they construct two; after S6, one.
+5. **RENAME `SweepStrategy → SpatialRepresentation`** (`residual → loss_action`,
+   `residual_transpose → loss_action_transpose`). NOT a unify-after-two-instances defer: the
+   benefit is ESTABLISHED (4 expert frames agree) and the 2nd instance already exists
+   (`CumprodScan` + `MovingFrontierWindow` are already two representations); `SweepStrategy`
+   actively mis-describes `ScanMarch.residual` (a matvec) and the future matrix (a solve).
+   Rename the ABSTRACTION now (the carve is open; bolting it on later = re-touch every call
+   site twice); defer only the matrix *implementation* (no consumer yet). Alt name considered:
+   `LossRepresentation`. **Confirm the final name with the user at S6.2 execution.**
+
+## S6.2 – S6.6 — THE STAGED REFACTOR (each independently gated + committable)
+
+> ⚠ **PROACTIVE: S6.0-prime = dispatch `test-architect` FIRST.** This is an operator-algebra
+> carve crossing the operator↔representation boundary (the `subagent-handoff-protocol` proactive
+> trigger). The plan it returns pins the bit-identity gates (A2D-1 source-hash, `window≡full`
+> oracle, `test_affine_carve_bit_identity`, `SI≡Krylov≡k_inf`) + the NEW "one representation
+> instance" discriminating test BEFORE any code moves. Per the A2D-1 pitfall: the carve WILL
+> regenerate the source hash — refresh it in the SAME commit and assert *output* byte-identity
+> via the `window≡full` oracle (not source identity).
+
+- **S6.2 — Rename + the protocol reshape.** `SweepStrategy → SpatialRepresentation`;
+  `residual → loss_action` (return `(L+C)ψ`); `residual_transpose → loss_action_transpose`.
+  Update the Protocol, the 4 concrete classes, the registry, and all call sites. The
+  `loss_action` bodies still delegate to the operator's `_apply_*` for now (pure rename, no
+  behavior change — bit-identical). **Confirm the name with the user.**
+- **S6.3 — Move the walk OFF the operator.** `operator.apply(ψ) = representation.loss_action(
+  self, ψ) − σ_t·ψ.bulk`. Move each `_apply_*` body INTO its representation's `loss_action`
+  (returning `(L+C)ψ`); the operator's `−C` subtraction is the only remaining glue. Delete the
+  four `_apply_*` methods from `StreamingOperator`. Regenerate A2D-1 (output-byte-identical via
+  oracle). Same for `apply_transpose` → `loss_action_transpose` (1-D wired; 2-D deferred raise
+  preserved; ⚠ the curvilinear angular second-triangular-factor — `closure.angular_adjoint`,
+  `operator.py:727` — MUST ride with `CumprodScan.loss_action_transpose`, else a spatial-only
+  reverse silently drops the angular transpose).
+- **S6.4 — `_OctantWalk2D` (collapse the two Fork-B1 twins).** Extract the shared 2-D octant
+  frame (octant projection + pure-z + face I/O + the O.4b boundary block) into a
+  `_OctantWalk2D` representation base; `MovingFrontierWindow` (anti-diagonal `residual_windowed`)
+  + `ScanMarch` (row-march) provide ONLY `_interior_walk(ctx) → (LpC_oct, cap_x, cap_y)`. The
+  two "Edit both in lockstep" IOU notes (`operator.py:1828` matvec + `sweep.py` sweep) DISSOLVE.
+  `CumprodScan` + `FullFieldWavefront` stay separate (genuinely different mechanisms). **This IS
+  the S5.3 consolidation trigger the IOUs name — pulled forward.**
+- **S6.5 — Unify the two doors.** `InvertibleOperator.solve` + `StreamingOperator.apply` reach
+  ONE `SpatialRepresentation` instance (the `InvertibleOperator` holds/derives the same instance
+  as its `streaming` operand). `solve` calls `representation.sweep`; `apply` calls
+  `representation.loss_action`. The "assert same instance" test goes green → the L21 invariant
+  becomes a TYPE FACT, not a test coincidence. ⚠ Keep the asymmetry: `loss_action → (L+C)ψ`
+  + operator `−C`, but `sweep → (L+C)⁻¹q` DIRECTLY (the inverse is of the full composite — no
+  `+C` to add back; `apply` is on the leaf `L`, `solve` is on the composite).
+- **S6.6 — (FORWARD / deferred) the explicit-matrix representation.** `ExplicitMatrix`
+  representation: assemble `(L+C)` as a sparse lower-triangular CSR (block-diagonal per ordinate;
+  the DD stencil → sparse) in `__post_init__`; `sweep = spsolve_triangular`; `loss_action = M@ψ`.
+  Reuse CP's `numerics.operator` assembly idiom (`cp/solver.py` already assembles+inverts at the
+  SAME `numerics.operator.LinearOperator` layer — `operator.py:18-23` names both as peer
+  representations). VALUE: a second, *construction-exact* solve/apply oracle (`spsolve_triangular`
+  IS the inverse of `M@ψ`), `scipy.sparse.tril(M)` makes triangularity runnable, and it unlocks
+  direct/ILU preconditioners + a sparsity view for DSA. Build when a consumer wants it; the
+  renamed Protocol already admits it.
+
+## S6.7 — FORWARD DESIGN / CROSS-METHOD (pollination + scope fences)
+
+- **CP (collision probability):** already lives at the explicit-matrix end (assembles dense
+  matrices + `np.linalg.solve`, `cp/solver.py:547`). SN's `ExplicitMatrix` is the SAME
+  representational pattern at the SAME `numerics.operator` layer — build it with CP's assembly
+  primitives ⇒ ~free.
+- **Diffusion:** wraps as `scipy.sparse.linalg.LinearOperator` + `bicgstab`
+  (`diffusion/solver.py:192`). SN's representation should round-trip through
+  `numerics.operator.as_scipy_linop` (already exists) so the SN Krylov inner loop + diffusion's
+  BiCGSTAB share one adapter. **S6 gate:** confirm `as_scipy_linop(representation)` still drives
+  the SN Krylov inner after the rename.
+- **MoC — SCOPE FENCE (do NOT cross).** MoC uses fiber bundles + characteristic rays, NOT a
+  cell-DAG ([[project_moc_structure]]). Keep `SpatialRepresentation` the **SN loss operator's**
+  representation; do NOT generalize it to a transport-wide concept. The `CellVisit`/`dag_walk`
+  abstraction is SN-only.
+
+## S6.8 — VERIFICATION (the gates)
+
+- **Bit-identity inheritance:** A2D-1 source-hash regenerates (output byte-identical via the
+  `window≡full` oracle); `test_affine_carve_bit_identity`, the DD regression snapshots,
+  `SI≡Krylov≡k_inf` all green under `python -O`.
+- **The discriminating test (the structural payoff):** `StreamingOperator.sweep_strategy IS`
+  the instance `InvertibleOperator.solve` uses — proves "one operator, two actions, one
+  representation" by construction (Smell #16 closed).
+- **`ScanMarch.loss_action ≡ FullFieldWavefront.loss_action`** (the renamed G2.c) stays green
+  through the move.
+- **(S6.6) the explicit-matrix oracle:** `spsolve_triangular(M, q) == CumprodScan.sweep(q)` and
+  `M @ ψ == CumprodScan.loss_action(ψ)` to nulp on a small slab; `scipy.sparse.tril(M)` is
+  exactly zero above the visit-order diagonal (triangularity made runnable).
+- **elegance-enforcer PASS:** zero `_apply_*` survive on the operator; one octant frame; the
+  two IOU twins retired (retirement audit).
+
+## S6.9 — RELATIONSHIP TO S5.3 / sequencing
+
+S6 **is** the consolidation the S5.3 IOUs point at, pulled forward (the cross-domain-attacker:
+"this carve IS the S5.3 trigger; do it now"). After S6 makes the architecture right (operator =
+algebra; representation = walk; one instance; `_OctantWalk2D` frame), the S5.3 **measurement**
+(does `ScanMarch` beat `MovingFrontierWindow` end-to-end?) decides whether the window
+*representation* retires (Fork B2) — operating now on CLEAN representations. The re-layering is
+valid regardless of the flip outcome (it makes both window + scan-march clean representations
+sharing `_OctantWalk2D`; retirement, if it comes, just deletes one `_interior_walk`).
+
+## S6 — RECOVERY (read order at pickup)
+
+1. This S6 section (the locked design).
+2. The cross-domain-attacker memo (agentId `a8826036ef5b5e945`) — the 4-frame structural backing,
+   the code-grounded confirmations, the pitfalls.
+3. The S5.1 commits `8913229` (sweep) + `0613298` (matvec) — the `ScanMarch` strategy + the
+   `_x_scan_faces` Pattern-2 primitive + the two Fork-B1 IOU notes S6.4 retires.
+4. `diamond.py:367-376` (the gather/scatter-shared, kernel-forked proof) + `operator.py:1641`
+   (`_apply_2d_cartesian`) + `operator.py:1791` (`_apply_2d_cartesian_scanmarch`) + the renamed
+   `sweep_strategy.py`.
+5. FIRST ACTION = dispatch `test-architect` (S6.0-prime) for the bit-identity + "one instance"
+   gate plan; do NOT move code before it lands.
