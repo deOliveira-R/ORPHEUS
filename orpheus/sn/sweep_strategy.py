@@ -549,15 +549,18 @@ class ScanMarch(_SweepStrategy):
     def residual(
         self, operator: "StreamingOperator", psi: "TimedFullField",
     ) -> "TimedFullField":
-        """Forward matvec twin — 1-D wired; the 2-D scan-march matvec is S5.1b."""
+        r"""Forward matvec twin — the row-march apply (L21: sweep & matvec are ONE operator).
+
+        1-D → the geometry-blind :meth:`~orpheus.sn.operator.StreamingOperator._apply_1d`;
+        2-D Cartesian → the row-march
+        :meth:`~orpheus.sn.operator.StreamingOperator._apply_2d_cartesian_scanmarch`
+        (the apply-direction scan-march, reconstructing the faces from the probe
+        with ``α = −1``, so the strategy row-marches in BOTH directions).
+        Principled-equivalent to the :class:`FullFieldWavefront` oracle (G2.c).
+        """
         if self.mesh.is_1d:
             return operator._apply_1d(psi)
-        raise NotImplementedError(
-            "ScanMarch.residual: the 2-D scan-march matvec twin lands in S5.1b "
-            "(a new StreamingOperator._apply_2d_cartesian_scanmarch, keeping the "
-            "A2D-1 source-hash free-green); the forward sweep is verified against "
-            "the FullFieldWavefront oracle first."
-        )
+        return operator._apply_2d_cartesian_scanmarch(psi)
 
     def residual_transpose(
         self, operator: "StreamingOperator", phi: "TimedFullField",

@@ -31,12 +31,15 @@ from orpheus.geometry import BC, CoordSystem, Mesh2D
 from orpheus.numerics.projection import MomentProjection
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
+from orpheus.sn.operator import StreamingOperator
 from orpheus.sn.sweep_strategy import (
     FullFieldWavefront,
     MovingFrontierWindow,
     ScanMarch,
 )
+from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.timed_full_field import TimedFullField
 
 pytestmark = pytest.mark.foundation
 
@@ -159,3 +162,42 @@ def test_scanmarch_moment_equals_window(nx, ny, lvl, ng, bc):
                                err_msg="moment tensor")
     np.testing.assert_allclose(bf_sm.values, bf_win.values, rtol=_RTOL, atol=_ATOL,
                                err_msg="post-sweep boundary trace")
+
+
+@pytest.mark.parametrize("nx,ny,lvl,ng,bc", CASES)
+def test_scanmarch_residual_equals_oracle(nx, ny, lvl, ng, bc):
+    r"""``ScanMarch.residual`` ≡ ``FullFieldWavefront.residual`` (the matvec, G2.c).
+
+    L21 — matvec and sweep are different applications of the SAME operator.  The
+    row-march APPLY path (:meth:`StreamingOperator._apply_2d_cartesian_scanmarch`)
+    reconstructs the interior faces from the probe ψ̄ via the ``α = −1``
+    reflection scan and evaluates the SAME ``(L+C)ψ`` residual the anti-diagonal
+    oracle does — pinned on the **bulk** residual AND the **O.4b boundary-block**
+    residual (the latter is what catches a face-shed convention drift).
+    Principled-equivalent (the row-march reconstructs the faces in a different
+    order), so ``assert_allclose`` (not ``array_equal``) — see ``_RTOL``/``_ATOL``.
+    """
+    rng = np.random.default_rng([nx, ny, lvl, ng, 13])   # deterministic
+    sn_mesh = _build_mesh(nx, ny, lvl, ng, bc)
+    sig_t = rng.uniform(0.3, 3.0, size=(ng, nx, ny))
+    L = StreamingOperator(sn_mesh, sig_t)
+
+    state = TimedFullField.zeros(
+        bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
+    )
+    state.bulk.values[...] = rng.uniform(-1.0, 1.0, size=state.bulk.values.shape)
+    for face in state.boundary.layout.faces:
+        fv = state.boundary.face_view(face)
+        fv[...] = rng.uniform(0.0, 1.0, size=fv.shape)
+
+    out_sm = ScanMarch(sn_mesh).residual(L, state)
+    out_or = FullFieldWavefront(sn_mesh).residual(L, state)
+
+    np.testing.assert_allclose(
+        out_sm.bulk.values, out_or.bulk.values, rtol=_RTOL, atol=_ATOL,
+        err_msg="bulk residual",
+    )
+    np.testing.assert_allclose(
+        out_sm.boundary.values, out_or.boundary.values, rtol=_RTOL, atol=_ATOL,
+        err_msg="boundary-block residual",
+    )
