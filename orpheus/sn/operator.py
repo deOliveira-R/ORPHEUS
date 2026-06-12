@@ -102,8 +102,8 @@ History
    GIVEN ``psi.boundary.inflow`` via the typed ``wavefront.seed`` (ι_*)
    with NO ``bc.apply``, walks the same per-octant
    :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` (the apply-direction
-   level operation → the diamond-difference ``CellUpdate`` closure) the 2-D *sweep*
-   ``_sweep_2d_wavefront`` uses — so matvec ≡ sweep in 2-D by
+   level operation → the diamond-difference ``CellUpdate`` closure) the multi-D *sweep*
+   ``_sweep_jacobi`` uses — so matvec ≡ sweep in 2-D by
    construction (L21, one discretization) — and emits the boundary
    consistency residual (outflow defect ``streamed − given`` + inflow
    identity) as a :class:`BoundarySourceSink`.  The reflective coupling
@@ -623,9 +623,9 @@ class _MSpatialOperatorSum(OperatorSum):
         curvature = curvature_raw if curvature_raw is not None else "cartesian"
         if curvature == "cartesian" and not sn_mesh.is_1d:
             raise NotImplementedError(
-                "_compute_LpC_transpose: the 2-D Cartesian adjoint is deferred "
-                "(O.2b lands the 1-D reverse sweep first; the 2-D reverse "
-                "sweep is a later Wave-O sub-step)."
+                "_compute_LpC_transpose: the multi-D Cartesian adjoint is "
+                "deferred (O.2b lands the 1-D reverse sweep first; the "
+                "multi-D reverse sweep is a later Wave-O sub-step)."
             )
 
         closure = sn_mesh.pole_angular_closure

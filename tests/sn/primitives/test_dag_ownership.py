@@ -237,7 +237,7 @@ class TestPerShapeCache:
 
 def _hand_diag_cache(nx: int, ny: int) -> dict[tuple[int, int], dict]:
     """Hand-derived per-octant anti-diagonal schedule, matching the
-    legacy ``_sweep_2d_wavefront`` per-call build (pre-Wave-2)."""
+    legacy ``_sweep_jacobi`` per-call build (pre-Wave-2)."""
     cache: dict[tuple[int, int], dict] = {}
     for sx in (-1, +1):
         for sy in (-1, +1):

@@ -194,6 +194,84 @@ class TestDispatchSelectsStrategy:
             )
 
 
+class TestD3SupportsMatrix:
+    """C3.6 honest-supports pins at d=3 (test-architect G-c1..c4).
+
+    A d=3 ``SNMesh`` is UNCONSTRUCTIBLE today (no ``Mesh3D``), so the
+    selection contract at d=3 is pinned at the ``supports``-predicate
+    level on a duck-typed stand-in (the predicates read only ``is_1d`` /
+    ``is_cartesian`` / ``ndim``), re-deriving ``default_for``'s
+    first-applies walk over the REAL registry without invoking the
+    unconstructible ``cls(mesh)``.  The day Mesh3D lands, ``default_for``
+    must route d=3 to the d-generic ``FullFieldWavefront`` spine — NOT
+    misroute into ``ScanMarch``, whose row-march kernels unpack d=2
+    (its ``supports`` was narrowed to tell that truth in C3.6; widen it
+    only WITH the scan(x)∘march(y,z) kernel generalization).
+    """
+
+    @staticmethod
+    def _fake(ndim: int, *, cartesian: bool = True):
+        from types import SimpleNamespace
+        return SimpleNamespace(
+            is_1d=(ndim == 1), is_cartesian=cartesian, ndim=ndim,
+        )
+
+    @pytest.mark.foundation
+    def test_scan_march_refuses_d3(self):
+        """G-c1: the narrowed predicate refuses a 3-axis Cartesian mesh."""
+        if ScanMarch.supports(self._fake(3)).ok:
+            pytest.fail(
+                "ScanMarch.supports admitted a d=3 Cartesian mesh — its "
+                "kernels unpack d=2; this would misroute production at d=3"
+            )
+
+    @pytest.mark.foundation
+    def test_scan_march_keeps_d2_and_1d_coverage(self):
+        """G-c2: the narrowing lost NO existing coverage — 2-D Cartesian,
+        1-D Cartesian (slab), and 1-D curvilinear all still admitted."""
+        for fake, name in (
+            (self._fake(2), "2-D Cartesian"),
+            (self._fake(1), "slab"),
+            (self._fake(1, cartesian=False), "1-D curvilinear"),
+        ):
+            if not ScanMarch.supports(fake).ok:
+                pytest.fail(f"ScanMarch.supports refused {name}")
+
+    @pytest.mark.foundation
+    def test_d3_cartesian_falls_through_to_full_field_spine(self):
+        """G-c3: the registry's first-applies walk lands a d=3 Cartesian
+        mesh on FullFieldWavefront — the never-stuck any-d spine."""
+        from orpheus.sn.loss_representation import (
+            LOSS_REPRESENTATIONS,
+            FullFieldWavefront,
+        )
+        fake = self._fake(3)
+        admitted = [
+            cls for cls in LOSS_REPRESENTATIONS if cls.supports(fake).ok
+        ]
+        if not admitted or admitted[0] is not FullFieldWavefront:
+            pytest.fail(
+                f"d=3 Cartesian first-applies → "
+                f"{admitted[0].__name__ if admitted else 'NOTHING'}, "
+                f"expected FullFieldWavefront (the d-generic spine)"
+            )
+
+    @pytest.mark.foundation
+    def test_d3_curvilinear_admitted_nowhere(self):
+        """A hypothetical d=3 curvilinear mesh is refused by every
+        registered representation (default_for would raise, not guess)."""
+        fake = self._fake(3, cartesian=False)
+        from orpheus.sn.loss_representation import LOSS_REPRESENTATIONS
+        admitted = [
+            cls for cls in LOSS_REPRESENTATIONS if cls.supports(fake).ok
+        ]
+        if admitted:
+            pytest.fail(
+                f"d=3 curvilinear admitted by "
+                f"{[c.__name__ for c in admitted]} — expected none"
+            )
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # TestTransportSweepDelegatesToStrategy — the ROUTING half of the contract
 # ═══════════════════════════════════════════════════════════════════════

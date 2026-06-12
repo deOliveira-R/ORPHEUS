@@ -2117,7 +2117,7 @@ Scope — both 1-D and 2-D are now bare (O.4b complete)
 
 O.4a.2 made the **1-D** sweep bare (slab / sphere / cylinder). Step
 **O.4b** then made the **2-D Cartesian wavefront sweep bare as well**
-(both :func:`~orpheus.sn.loss_representation._sweep_2d_wavefront` and the 2-D matvec
+(both :func:`~orpheus.sn.loss_representation._sweep_jacobi` and the 2-D matvec
 :meth:`StreamingOperator._apply_2d_cartesian <orpheus.sn.operator.StreamingOperator>`):
 the intra-sweep ``bc.apply`` is **gone** for every geometry. The
 octant-incoming face edge is seeded from the *given* inflow trace and
@@ -5182,7 +5182,7 @@ resolvent surface the two modes are **named methods**, ``solve`` vs
 * the per-group octant frame (``sweep_octant_group`` then, since S6.4(b),
   ``_OctantWalk.sweep_group``) /
   :func:`_sweep_scheduled <orpheus.sn.loss_representation._sweep_scheduled>` /
-  :func:`_sweep_2d_wavefront <orpheus.sn.loss_representation._sweep_2d_wavefront>` /
+  :func:`_sweep_jacobi <orpheus.sn.loss_representation._sweep_jacobi>` /
   :func:`transport_sweep <orpheus.sn.loss_representation.transport_sweep>` — thread the
   optional ``moment_projection`` (2-D Cartesian only; ``transport_sweep``
   raises on a 1-D mesh). Moment mode skips the per-octant angular

@@ -244,10 +244,10 @@ cell dependencies. They are *algorithms*, not operators.
      - chain recurrence
      - 1-D **production default**
    * - :class:`~orpheus.sn.loss_representation.ScanMarch`
-     - 1-D OR Cartesian
+     - 1-D OR 2-D Cartesian
      - ``scan(x) ∘ march(y)``
      - :math:`(d{-}1)`-slab per line
-     - multi-D **production default**
+     - 2-D **production default**
    * - :class:`~orpheus.sn.loss_representation.MovingFrontierWindow`
      - Cartesian, d = 2
      - anti-diagonal wavefront
@@ -392,7 +392,11 @@ is the deliberate **aggressive-retirement exception**: the production
 paths could not be cross-checked structurally without it. It is the one
 genuinely d-generic body (``supports`` is any-d Cartesian), so it is
 also the admission spine for synthetic d=3 correctness tests before any
-3-D quadrature exists.
+3-axis mesh exists (the angular quadrature is already 3-cosine with all
+8 sign-octants — what is missing at d=3 is ``Mesh3D``, not the
+quadrature), and the representation a d=3 Cartesian mesh falls through
+``default_for`` to (C3.6: :class:`ScanMarch` narrowed its ``supports``
+to the d=2 truth of its kernels).
 
 
 .. _loss-rep-selection:
@@ -415,8 +419,10 @@ answers one classmethod:
        @classmethod
        def supports(cls, mesh):
            return Compatibility(
-               mesh.is_1d or mesh.is_cartesian,
-               "requires a 1-D mesh (any geometry) or Cartesian geometry",
+               mesh.is_1d or (mesh.is_cartesian and mesh.ndim == 2),
+               "requires a 1-D mesh (any geometry) or a 2-D Cartesian mesh "
+               "(the d≥3 row-march kernels are deferred — the full-field "
+               "spine serves d≥3)",
            )
 
    class _DAGWavefront(_LossRepresentation):       # MovingFrontierWindow's base
@@ -483,18 +489,22 @@ reactor physics.
 
       LOSS_REPRESENTATIONS = (
           CumprodScan,            # 1-D production default
-          ScanMarch,              # multi-D Cartesian production default
-          MovingFrontierWindow,   # selectable peer
-          FullFieldWavefront,     # never-stuck oracle fallback
+          ScanMarch,              # 2-D Cartesian production default
+          MovingFrontierWindow,   # selectable peer (d = 2)
+          FullFieldWavefront,     # never-stuck any-d oracle fallback
       )
 
    At d=1 ``CumprodScan`` wins (registered first; ``ScanMarch`` would
    also apply but degenerates to the same scan with a march shell). At
-   d≥2 ``ScanMarch`` wins — the **Fork-B2 flip** (2026-06-11) that moved
-   ``ScanMarch`` ahead of ``MovingFrontierWindow`` in the tuple. The day
-   a d=3 window lands, widening its ``supports`` is the *only* change
-   needed for Cart-3D's available set to grow — one predicate, no caller
-   touched.
+   d=2 ``ScanMarch`` wins — the **Fork-B2 flip** (2026-06-11) that moved
+   ``ScanMarch`` ahead of ``MovingFrontierWindow`` in the tuple. At d=3
+   (when ``Mesh3D`` lands) the first two refuse and ``default_for``
+   falls through to the d-generic ``FullFieldWavefront`` spine — pinned
+   today at the ``supports`` level
+   (``test_unified_sweep_dispatch.py::TestD3SupportsMatrix``, C3.6).
+   The day a d=3 row-march or window lands, widening its ``supports``
+   is the *only* change needed for Cart-3D's default to upgrade — one
+   predicate, no caller touched.
 
 #. **Construction guard** — ``_LossRepresentation.__post_init__``
    re-runs ``supports(mesh)`` and raises
@@ -747,7 +757,9 @@ cross-schedule gates are therefore:
     outflow shed order is load-bearing (the ERR-056 shared-face failure
     class); the honest **d=2 limitation** is stated in the test — the
     full diagonal-cubature shared-face stressor is a d=3 case, deferred
-    until a 3-D quadrature exists;
+    until ``Mesh3D`` exists (the quadrature is already 3-cosine; the
+    schedule-level d=3 shared-face assignment is pinned synthetically by
+    ``test_sweep_schedule_nd.py``, C3.6);
   - **G6** — the closed-form
     :math:`\kinf = \lambda_{\max}(A^{-1}F)` (homogeneous, ≥2G — no
     1-group eigenvalue evidence, per the cardinal-rule degeneracy) plus

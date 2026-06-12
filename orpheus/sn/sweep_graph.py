@@ -1,10 +1,10 @@
-r"""Per-octant causal cell DAG for the 2-D Cartesian wavefront sweep.
+r"""Per-octant causal cell DAG for the Cartesian wavefront sweep (d-generic).
 
 This module ships the **§15A.2 "upwind trace complex / causal transport
 DAG / direction sweep ordering"** primitive (Grand Report v3 lines
-2137-2171) for 2-D Cartesian SN, lifting the per-call ``_diag_cache``
-precompute that previously lived inside
-:func:`orpheus.sn.loss_representation._sweep_2d_wavefront` (lines 766-785) to
+2137-2171) for Cartesian SN, lifting the per-call ``_diag_cache``
+precompute that historically lived inside the 2-D sweep body (now the
+Jacobi entry :func:`orpheus.sn.loss_representation._sweep_jacobi`) to
 mesh-time work, and replacing the per-ordinate Python loop over
 ordinates with a per-octant batched ``apply``.
 
@@ -220,7 +220,8 @@ class _FrontierPlan:
     not a memory-vs-time trade).  At d≥3 the anti-hyperplane is a simplex (not a
     box), so the selector is a fancy index (copies) — the memory win still
     holds; whether the speed win survives the d=3 *surface* is the one
-    measured-cost question deferred to profiling (no 3-D quadrature yet; the
+    measured-cost question deferred to profiling (no 3-axis MESH yet — the
+    angular quadrature is already 3-cosine with all 8 sign-octants; the
     correctness gate is the synthetic ``window ≡ full`` admission).
 
     The slab per axis ``a``: a FREE axis (``a < det``) carries a ``+1`` ghost

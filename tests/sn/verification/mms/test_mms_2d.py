@@ -3,7 +3,7 @@ r"""L1 MMS tests for SN — 2D Cartesian (1-group and 2-group).
 Phase 3.1 (1-group) and Phase 3.2 (2-group heterogeneous) of the
 verification campaign.  Both tests verify the **spatial** convergence
 of the 2D wavefront diamond-difference sweep
-(:func:`orpheus.sn.loss_representation._sweep_2d_wavefront`) on fixed-source
+(:func:`orpheus.sn.loss_representation._sweep_jacobi`) on fixed-source
 problems with closed-form reference fluxes.
 
 The 1-group test is the simpler baseline; the 2-group test adds

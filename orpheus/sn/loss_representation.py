@@ -821,7 +821,11 @@ class MovingFrontierWindow(_DAGWavefront):
     The anti-diagonal (level-scheduled) sweep over the per-octant DAG,
     carrying only the rolling frontier of interior face fluxes (a 2-diagonal
     at d=2) — the ~30 % peak-memory win over the full-field oracle.
-    Generalized to ``frontier_dim = d-1`` in S4.
+    Generalized to ``frontier_dim = d-1`` in S4 — the windowed WALK is
+    d=3-pinned at the graph layer (``walk_windowed ≡ walk_full`` bit-id,
+    ``test_sweep_graph_window_equivalence``), while ``supports`` stays
+    conservatively d=2 (select narrow) until a d≥3 compute path + mesh
+    exist; widen it WITH a measured d=3 profile, not before.
 
     A SELECTABLE PEER since the S6.9 Fork-B2 flip (2026-06-11, #222): the
     multi-D Cartesian production default is now :class:`ScanMarch` (measured
@@ -842,7 +846,7 @@ class MovingFrontierWindow(_DAGWavefront):
         initial_guess: "AngularFlux | TimedFullField | None" = None,
         moment_projection: "MomentProjection | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
-        return _sweep_2d_wavefront(
+        return _sweep_jacobi(
             Q, sig_t, self.mesh, boundary_flux,
             moment_projection=moment_projection,
             interior=self._sweep_interior,
@@ -1053,10 +1057,8 @@ class FullFieldWavefront(_DAGWavefront):
         # S6.4(d): the oracle sweep = the Jacobi schedule × the full-cochain
         # kernel on the SAME schedule loop + walk frame as production (the
         # former private ``_sweep_full_field`` frame dissolved).
-        return _sweep_scheduled(
+        return _sweep_jacobi(
             Q, sig_t, self.mesh, boundary_flux,
-            schedule=SweepSchedule.jacobi(self.mesh),
-            reflect=None,
             moment_projection=None,
             interior=self._sweep_interior,
         )
@@ -1183,13 +1185,23 @@ class ScanMarch(_LossRepresentation):
     for free) and is the natural home for the flux-independent ``a_attenuation``
     cache the wavefront lacks (#206).
 
-    Selection — ``is_1d OR is_cartesian``: 1-D any geometry (the chain scan; the
-    curvilinear Morel–Montry angular thread folds into the source) AND Cartesian
-    any d (the row-march).  **The multi-D Cartesian PRODUCTION DEFAULT since the
-    S6.9 Fork-B2 flip (2026-06-11, #222)** — the measured basis: sweep
-    0.57–0.84× / matvec 0.55–0.78× the window's time at IDENTICAL peak memory
-    (the rolling frontier has no memory edge over the row-march at d=2; both
-    are ~0.7× the full-field oracle's peak), end-to-end fixed-source 0.82×.
+    Selection — ``is_1d OR (is_cartesian AND ndim == 2)``: 1-D any geometry
+    (the chain scan; the curvilinear Morel–Montry angular thread folds into
+    the source) AND 2-D Cartesian (the row-march).  The d≥3 row-march
+    (``scan(x)∘march(y, z)`` — a raster march over the transverse
+    hyperplane) is the algorithm's natural generalization but the interior
+    kernels unpack d=2 today, so ``supports`` tells the truth (C3.6:
+    construct general, SELECT NARROW) and a d≥3 Cartesian mesh — when one
+    becomes constructible (Mesh3D, C5) — falls through ``default_for`` to
+    the genuinely d-generic :class:`FullFieldWavefront` spine instead of
+    misrouting here.  Widen this predicate WITH the kernel generalization,
+    never before it.
+
+    **The 2-D Cartesian PRODUCTION DEFAULT since the S6.9 Fork-B2 flip
+    (2026-06-11, #222)** — the measured basis: sweep 0.57–0.84× / matvec
+    0.55–0.78× the window's time at IDENTICAL peak memory (the rolling
+    frontier has no memory edge over the row-march at d=2; both are ~0.7×
+    the full-field oracle's peak), end-to-end fixed-source 0.82×.
     1-D still selects ``CumprodScan`` (registered first; same scan primitive,
     no march shell).  Mode-9 FP-invariance vs the window is pinned end-to-end
     by ``tests/sn/solve/test_scan_march_end_to_end.py``.
@@ -1198,8 +1210,10 @@ class ScanMarch(_LossRepresentation):
     @classmethod
     def supports(cls, mesh: "SNMesh") -> Compatibility:
         return Compatibility(
-            mesh.is_1d or mesh.is_cartesian,
-            "requires a 1-D mesh (any geometry) or Cartesian geometry",
+            mesh.is_1d or (mesh.is_cartesian and mesh.ndim == 2),
+            "requires a 1-D mesh (any geometry) or a 2-D Cartesian mesh "
+            "(the d≥3 row-march kernels are deferred — the full-field "
+            "spine serves d≥3)",
         )
 
     def sweep(
@@ -1231,10 +1245,8 @@ class ScanMarch(_LossRepresentation):
         # the former private ``_sweep_2d_scanmarch`` frame dissolved into the
         # shared walk — and the Gauss-Seidel schedule composes for free, the
         # inter-group reflect being kernel-agnostic).
-        return _sweep_scheduled(
+        return _sweep_jacobi(
             Q, sig_t, self.mesh, boundary_flux,
-            schedule=SweepSchedule.jacobi(self.mesh),
-            reflect=None,
             moment_projection=moment_projection,
             interior=self._sweep_interior,
         )
@@ -1427,11 +1439,12 @@ class ScanMarch(_LossRepresentation):
 #: ``_DAGWavefront`` bases) — :func:`default_for` constructs whichever it
 #: picks, so only buildable strategies belong here.
 #:
-#: Selection priority order: the 1-D scan, the d-general scan-march (the
-#: multi-D Cartesian production default since the S6.9 Fork-B2 flip,
-#: 2026-06-11), the wavefront window (a selectable peer), then the
-#: full-field oracle.  :func:`default_for` returns the FIRST that applies —
-#: the registry ORDER is the default-selection policy, single-sourced here.
+#: Selection priority order: the 1-D scan, the 2-D Cartesian scan-march
+#: (the production default since the S6.9 Fork-B2 flip, 2026-06-11), the
+#: wavefront window (a selectable peer, d=2), then the full-field oracle
+#: (any-d Cartesian — the spine a d≥3 mesh falls through to, C3.6).
+#: :func:`default_for` returns the FIRST that applies — the registry ORDER
+#: is the default-selection policy, single-sourced here.
 LOSS_REPRESENTATIONS: tuple[type[_LossRepresentation], ...] = (
     CumprodScan,
     ScanMarch,
@@ -1458,9 +1471,9 @@ def default_for(mesh: "SNMesh") -> LossRepresentation:
     ------
     IncompatibleRepresentation
         If no strategy applies.  Unreachable for any constructible mesh
-        (every 1-D mesh → ``CumprodScan``; every Cartesian mesh →
-        ``ScanMarch``), with ``FullFieldWavefront`` (the oracle) as the
-        never-stuck fallback.
+        (every 1-D mesh → ``CumprodScan``; every 2-D Cartesian mesh →
+        ``ScanMarch``; a d≥3 Cartesian mesh — when Mesh3D lands —
+        → ``FullFieldWavefront``, the never-stuck any-d spine).
     """
     for cls in LOSS_REPRESENTATIONS:
         if cls.supports(mesh).ok:
@@ -2199,7 +2212,7 @@ def _sweep_scheduled(
 
     * **Jacobi** (``reflect=None``, one all-octants group) — every octant reads
       the frozen seed; the inter-group reflect never fires. This is exactly the
-      bare sweep :func:`_sweep_2d_wavefront` passes.
+      bare sweep :func:`_sweep_jacobi` passes.
     * **Gauss-Seidel** (``reflect`` = the face-restricted ``−B``, one group per
       in-plane octant) — later groups see earlier groups' fresh reflected
       outflow. The SI scheduled resolvent supplies both: its ``.solve`` seeds
@@ -2292,7 +2305,7 @@ def _sweep_scheduled(
     return moment_buf, None
 
 
-def _sweep_2d_wavefront(
+def _sweep_jacobi(
     Q: np.ndarray,
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
@@ -2301,88 +2314,37 @@ def _sweep_2d_wavefront(
     moment_projection: "MomentProjection | None" = None,
     interior: "Callable",
 ) -> tuple[np.ndarray, np.ndarray]:
-    r"""2-D wavefront sweep — per-octant batched (Wave 2 / C2.6).
+    r"""The bare multi-D sweep = the **Jacobi** octant schedule × one
+    interior kernel (renamed from ``_sweep_2d_wavefront`` at C3.6 — the
+    body has been d-generic since S6.4(d), and it is the JACOBI spelling,
+    not a wavefront-specific one: all three multi-D representations'
+    ``sweep`` doors route through here, each supplying its own interior).
 
-    Iterates over angular **octants** (lexicographic order from
-    :attr:`AngularQuadrature.octants`). For each in-plane octant
-    :math:`\sigma = (\mathrm{sign}\,\mu_x, \mathrm{sign}\,\mu_y)`:
+    ONE group (all octants), NO inter-group reflect — delegates to the
+    polymorphic :func:`_sweep_scheduled` with ``reflect=None``.  All octants
+    read the same frozen inflow seed (**BARE**, Wave O #208 O.4b E1: the
+    octant-incoming face slots come from the GIVEN ``boundary_flux``
+    trace, no ``bc.apply`` — the reflective coupling ``B`` is delivered
+    externally between sweeps, so this is the pure bulk solve
+    ``ψ = (L+C)^{-1} q``).  The Gauss-Seidel SI resolvent calls the SAME
+    ``_sweep_scheduled`` orchestrator with the per-in-plane-octant
+    schedule + a ``−B`` reflect closure; Jacobi and G-S differ ONLY in
+    the schedule object (the splitting is selected once, never by an
+    ``if`` in the loop).
 
-    1. **BARE inflow seed** (Wave O #208 O.4b Phase E1) — the
-       octant-incoming face slot is seeded from the GIVEN inflow trace
-       ``boundary_flux.face_view(...)``; there is NO ``bc.apply``. The
-       reflective coupling ``ψ.inflow = B·ψ.outflow`` is delivered
-       externally by ``_reflect_outflow_into_inflow`` / the sibling
-       ``-B`` between sweeps (mirroring the 1-D O.4a.2 bare sweep), so
-       the sweep is the pure bulk solve ``ψ = (L+C)^{-1} q`` reading the
-       inflow as a fixed boundary datum.
-    2. **Dispatch to the per-octant ``SweepDependencyGraph``** —
-       the family-owned ``sweep_graphs`` accessor over the per-shape
-       cache (S6.4(c); built once per shape, Wave 2 / C2.4).
-    3. The graph's windowed walk traverses topological levels
-       (anti-diagonals) and dispatches each level to the cell-update
-       strategy's batched solve kernel — vectorised over
-       ``(N_oct, n_diag, ng)`` simultaneously.
+    S6.5 (#222): ``interior`` is REQUIRED — every caller names the
+    representation instance whose kernel runs (production threads the
+    operator's ONE instance; a defaulted kernel here would be a
+    construction door outside ``default_for``).  Direct test consumers
+    use the first-class ``MovingFrontierWindow(mesh).sweep(...)`` /
+    ``ScanMarch(mesh).sweep(...)`` instead of this bare entry.
 
-    The smoking gun ``for n in range(N)`` is gone: the outer loop is now
-    ``for group in SweepSchedule.jacobi(sn_mesh).groups`` (ONE all-octants
-    group), and the per-octant work is delegated to the shared
-    ``_OctantWalk.sweep_group`` frame (S6.4(b) — formerly the private
-    ``sweep_octant_group``) driving the windowed walk per octant; the
-    boundary trace is read/shed per octant during the walk. The ordinate
-    axis is INTERNAL to every numpy operation.
-
-    Phase 3 sub-step 3b — this body IS the **Jacobi** octant schedule (one
-    group, all octants, no inter-group reflect). The polymorphic
-    :class:`~orpheus.sn.sweep_schedule.SweepSchedule` lets the SI resolvent's
-    **Gauss-Seidel** schedule (sub-step 3c) re-use the SAME per-octant sweep at
-    finer group granularity, recovering the intra-sweep reflective coupling
-    Wave O externalised — while THIS default sweep stays bit-identical Jacobi.
-
-    R-1 Step 4 A1: single per-ordinate source ``Q`` shape
-    ``(N, ng, nx, ny)`` carries the producer-side-projected magnitude.
-    Sweep does NOT apply ``/W`` internally.  The legacy iso/aniso
-    parameter pair is GONE.
-
-    Issue #196 PR-INDEX-5: fully principled.  ``Q`` is consumed in
-    principled ``(N, ng, nx, ny)``; ``sig_t`` is principled
-    ``(ng, nx, ny)``.  The persistent ``psi_x`` / ``psi_y`` BC
-    buffers are principled ``(N, ng, nx+1, ny)`` / ``(N, ng, nx,
-    ny+1)``; ``angular_flux`` is returned principled
-    ``(N, ng, nx, ny)``; ``scalar_flux`` is principled
-    ``(ng, nx, ny)``.  The PR-INDEX-4 ``BRIDGE_pure_z_to_legacy``
-    transpose is GONE — the pure-z degenerate branch writes directly
-    into the principled angular_flux buffer.
-
-    Bit-identity to legacy
-    ----------------------
-
-    The PR-INDEX-1..4 sequence preserved bit-identity at every step;
-    PR-INDEX-5 flips the persistent BC buffers (so the BC apply face
-    slices reorder), which IS principled-equivalent to the legacy
-    operation per ``vv-principles`` § "Bit-identity vs principled-
-    equivalence" — the values written / read at each face slot are
-    the same, only the memory layout reorders.  Snapshots regenerate
-    under the principled layout (the snapshot generator stores the
-    final values in principled order).
+    Layout / history: ``Q`` is principled ``(N, ng, *spatial)``, ``sig_t``
+    ``(ng, *spatial)`` (R-1 A1: producer-side-projected magnitude, no
+    internal ``/W``; #196 PR-INDEX-5: principled face buffers,
+    principled-equivalent to the legacy layout per vv-principles
+    § bit-identity-vs-principled).
     """
-    # The bare 2-D sweep IS the JACOBI octant schedule (Phase 3 sub-step 3c):
-    # ONE group (all octants), NO inter-group reflect. Delegates to the
-    # polymorphic :func:`_sweep_scheduled` with ``reflect=None`` — all
-    # octants read the same frozen inflow seed (``boundary_flux``, carrying
-    # ``B·ψₙ`` for the SI driver via ``rhs.boundary``); the inter-group reflect
-    # never fires (the Jacobi group carries no ``reflect_faces``). The
-    # Gauss-Seidel SI resolvent calls the SAME orchestrator with the
-    # per-in-plane-octant schedule + a ``−B`` reflect closure, recovering the
-    # boundary reflective coupling Wave O externalised. Bit-identical to the
-    # pre-3c ``for octant in quad.octants`` loop.
-    #
-    # S6.5 (#222): ``interior`` is REQUIRED — every caller names the
-    # representation instance whose kernel runs (production threads the
-    # operator's ONE instance; the former ``None``-default minted a fresh
-    # ``MovingFrontierWindow`` here, a construction door outside
-    # ``default_for`` that the one-instance unification closed).  Direct
-    # test consumers use the first-class ``MovingFrontierWindow(mesh)
-    # .sweep(...)`` instead of this bare entry.
     return _sweep_scheduled(
         Q, sig_t, sn_mesh, boundary_flux,
         schedule=SweepSchedule.jacobi(sn_mesh),

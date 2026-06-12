@@ -266,7 +266,7 @@ def _cartesian_2d(ng: str, n_per_side: int) -> dict:
     """2D Cartesian homogeneous, LS_4 (12 ordinates), single material.
 
     Pins the 2D wavefront sweep diagonal scheduling against any
-    refactor that touches ``orpheus/sn/sweep.py::_sweep_2d_wavefront``.
+    refactor that touches ``orpheus/sn/sweep.py::_sweep_jacobi``.
     """
     fuel = get_mixture("A", ng)
     L = 2.0

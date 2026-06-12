@@ -42,7 +42,7 @@ Key Facts
   See :ref:`sweep-octant-dependency-graph`.
 - **Both the 1-D and 2-D sweeps are BARE** (Wave O steps O.4a.2 +
   O.4b, Issue #208): :func:`~orpheus.sn.loss_representation.transport_sweep` (1-D)
-  and :func:`~orpheus.sn.loss_representation._sweep_2d_wavefront` (2-D) no longer
+  and :func:`~orpheus.sn.loss_representation._sweep_jacobi` (2-D) no longer
   re-apply ``bc`` to the outflow — they read the *seeded* inflow
   trace directly. The reflective coupling :math:`\psi.\text{inflow} =
   B\,\psi.\text{outflow}` is delivered as a sibling :math:`-B` source
@@ -218,7 +218,7 @@ sweep reads the resolved BC kind strings directly from
    elif is_gl_1d:            # ny=1, mu_y=0, no aniso source
        return _sweep_1d_cumprod(...)
    else:
-       return _sweep_2d_wavefront(...)
+       return _sweep_jacobi(...)
 
 For 1D meshes (``ny=1``):
 
@@ -554,7 +554,7 @@ Both outgoing face fluxes are then updated from the DD closure:
 
 These are precomputed by :class:`SNMesh` as ``streaming(0)[n, i]`` and
 ``streaming(1)[n, j]``, so the inner loop in
-:func:`_sweep_2d_wavefront` reduces to a single vectorised division per
+:func:`_sweep_jacobi` reduces to a single vectorised division per
 diagonal.
 
 .. _balance-curvilinear:
@@ -1502,7 +1502,7 @@ The reflection indices are precomputed by the quadrature's
 **once per octant per axis** (not once per ordinate per axis) —
 see :ref:`sweep-octant-dependency-graph-l7-trap` for the rationale.
 
-Implemented in :func:`~orpheus.sn.loss_representation._sweep_2d_wavefront`, which
+Implemented in :func:`~orpheus.sn.loss_representation._sweep_jacobi`, which
 is a thin orchestrator over the
 :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` primitives
 described next.
@@ -1517,7 +1517,7 @@ transport DAG / direction sweep ordering" primitive** as it lives in
 :mod:`orpheus.sn.sweep_graph` after Wave 2 of the SN performance plan
 (branch ``feature/sn-octant-sweep-graph``, closes Issue #4).  The
 shipped architecture replaces the legacy per-ordinate ``for n in
-range(N)`` loop in :func:`~orpheus.sn.loss_representation._sweep_2d_wavefront` with
+range(N)`` loop in :func:`~orpheus.sn.loss_representation._sweep_jacobi` with
 a per-octant batched dispatch, lifting the per-call ``_diag_cache``
 build to mesh-time work, and isolating the per-cell DD algebra in the
 discretization's pure kernel pair
@@ -1821,7 +1821,7 @@ The L7-trap fix: BC apply once per octant
 Wave 2 closes a class of bugs that the test-architect dispatch
 identified as the **L7 trap** — the design pattern where a sweep
 driver re-applies a boundary operator at each ordinate iteration.
-The legacy ``_sweep_2d_wavefront`` had this shape:
+The legacy ``_sweep_jacobi`` had this shape:
 
 .. code-block:: python
 
@@ -2262,7 +2262,7 @@ performance plan; closes Issue #4 — see
 :ref:`sweep-octant-dependency-graph` for the full architecture and
 :ref:`sweep-dispatch-relayering` for the S6.4(e) re-layering).
 The "inlined DD math" formerly carried inside
-:func:`~orpheus.sn.loss_representation._sweep_2d_wavefront` was lifted into
+:func:`~orpheus.sn.loss_representation._sweep_jacobi` was lifted into
 :class:`~orpheus.sn.spatial.diamond.DiamondDifference` as a single
 bit-identical extraction, vectorised across the
 ``(N_oct, n_diag, ng)`` slice — the ordinate axis, anti-diagonal
@@ -3184,7 +3184,7 @@ forcing function all live at :ref:`bc-extraction` in
 operator algebra.
 
 Step **O.4b** extended the bare sweep to the **2-D Cartesian
-wavefront** path (both :func:`~orpheus.sn.loss_representation._sweep_2d_wavefront`
+wavefront** path (both :func:`~orpheus.sn.loss_representation._sweep_jacobi`
 and the 2-D matvec
 :meth:`StreamingOperator._apply_2d_cartesian <orpheus.sn.operator.StreamingOperator>`):
 the intra-octant ``bc.apply`` is gone there too, and the
@@ -7725,7 +7725,7 @@ verification to **two Cartesian dimensions**.  The 1D slab MMS tests
 verify the :math:`\mu\,\partial\psi/\partial x` streaming term in
 isolation; this section adds :math:`\mu_y\,\partial\psi/\partial y`
 and confirms that the 2D wavefront sweep
-(:func:`orpheus.sn.loss_representation._sweep_2d_wavefront`) with diamond-difference
+(:func:`orpheus.sn.loss_representation._sweep_jacobi`) with diamond-difference
 closure achieves its design :math:`\mathcal O(h^{2})` convergence rate.
 
 **Ansatz.**  On a rectangle :math:`[0, L_x] \times [0, L_y]` with
@@ -7819,7 +7819,7 @@ diamond-difference design order.
 - Test:
   :func:`tests.sn.test_mms.test_sn_2d_cartesian_mms_converges_second_order`.
 - Sweep:
-  :func:`orpheus.sn.loss_representation._sweep_2d_wavefront` (the 2D diamond-difference
+  :func:`orpheus.sn.loss_representation._sweep_jacobi` (the 2D diamond-difference
   kernel verified by this test).
 
 **Why this test matters.**  The existing 2D SN tests
@@ -10095,7 +10095,7 @@ where :math:`W = \sum_n w_n` is the quadrature weight sum, needed
 because :func:`orpheus.sn.solver.SNSolver._add_scattering_source`
 produces :math:`Q` in **scalar-flux units** while the per-ordinate
 transport equation sees :math:`Q/W` as its right-hand side. The 2D
-wavefront sweep :func:`~orpheus.sn.loss_representation._sweep_2d_wavefront`
+wavefront sweep :func:`~orpheus.sn.loss_representation._sweep_jacobi`
 already applied this normalisation via its ``weight_norm = 1/W``
 factor; the 1D fast path had been independently derived without it
 and drifted silently.
@@ -10236,7 +10236,7 @@ BiCGSTAB using arithmetic face averages instead of the sweep's DD
 closure); these are tracked as issues #96 and #97 respectively.
 
 The four sweep paths audited during ERR-025 diagnosis ---
-:func:`~orpheus.sn.loss_representation._sweep_2d_wavefront`,
+:func:`~orpheus.sn.loss_representation._sweep_jacobi`,
 ``_sweep_1d_spherical`` (the dissolved ``sweep.py``),
 ``_sweep_1d_cylindrical`` (the dissolved ``sweep.py``), and
 post-fix ``_sweep_1d_cumprod`` --- were all verified **clean**

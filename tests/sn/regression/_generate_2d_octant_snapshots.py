@@ -23,7 +23,7 @@ containing (Wave O #208 O.4b Phase E — bare-sweep schema):
 Snapshot grounding (Wave O #208 O.4b Phase E migration)
 =======================================================
 
-This script generates from the CURRENT (bare) ``_sweep_2d_wavefront``
+This script generates from the CURRENT (bare) ``_sweep_jacobi``
 with the external ``_reflect_outflow_into_inflow`` injected before each
 sweep — exactly the production iteration shape, and exactly what the
 companion test at
@@ -50,7 +50,7 @@ Schema migration: the legacy schema stored the full interior-edge
 ny+1)`` arrays (the legacy BoundaryFlux ``xmin_xmax_buf`` /
 ``ymin_ymax_buf`` fields).  Those fields no longer exist: the L2
 BoundaryFlux persists ONLY the four boundary face slices; the interior
-edges are EPHEMERAL inside ``_sweep_2d_wavefront``.  The test only ever
+edges are EPHEMERAL inside ``_sweep_jacobi``.  The test only ever
 compared the boundary slices, so this script now stores exactly the
 four persisted face views.
 

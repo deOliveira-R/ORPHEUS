@@ -13,7 +13,7 @@ Geometry coverage:
 CRITICAL: the layout excludes interior wavefront cache cells (the
 pre-D-G ``xmin_xmax_buf`` / ``ymin_ymax_buf`` interior positions
 ``[1:nx, :]`` and ``[:, 1:ny]`` are NOT here). Interior cells live as
-ephemeral local arrays inside ``_sweep_2d_wavefront``, matching the
+ephemeral local arrays inside ``_sweep_jacobi``, matching the
 1-D blueprint pattern (``psi_face_chain_scan`` is local in
 ``_sweep_1d_unified``).
 
@@ -126,7 +126,7 @@ class TestBoundaryFaceLayout:
         Catches Rank 5 failure mode per the verification memo:
         layout botched to include interior cells (carve incomplete).
         Per Option I (2026-05-28), interior cells live as ephemeral
-        local arrays in ``_sweep_2d_wavefront`` — not in BoundaryFlux,
+        local arrays in ``_sweep_jacobi`` — not in BoundaryFlux,
         not in any sweep-private type.
         """
         m = _2d_mesh(nx=3, ny=2, ng=2)

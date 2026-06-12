@@ -430,7 +430,7 @@ The six PRs
        day; collapsed into the storage-free
        :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cell_kernel_batch`
        pair at S6.4(e)) consumes ``(ng, ...)`` slices;
-       ``_sweep_2d_wavefront`` body principled.  PR-INDEX-3 bridges
+       ``_sweep_jacobi`` body principled.  PR-INDEX-3 bridges
        at ``fission.py:175`` and ``sweep.py:127`` retired.  Fourteen
        new ``BRIDGE_*`` named intermediates at 11 :class:`SNSolver`
        consumption sites + 3 ``sweep.py`` entry/exit points

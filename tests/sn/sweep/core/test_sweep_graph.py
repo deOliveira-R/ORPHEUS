@@ -198,7 +198,7 @@ def _hand_run_legacy_inlined(
     weights: np.ndarray,           # (N_oct,)
     sx_sign: int, sy_sign: int,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Run the inlined ``_sweep_2d_wavefront`` math one ordinate
+    """Run the inlined ``_sweep_jacobi`` math one ordinate
     at a time, on octant-restricted buffers.
 
     Issue #196 PR-INDEX-5: principled layouts throughout —

@@ -1,7 +1,7 @@
 r"""End-to-end ``windowed ≡ full-field`` 2-D equivalence — the storage-B oracle.
 
 Phase 5b replaced the full per-axis interior face cochain with a rolling
-``_MovingFrontier`` window for BOTH the 2-D sweep (`_sweep_2d_wavefront`) and
+``_MovingFrontier`` window for BOTH the 2-D sweep (`_sweep_jacobi`) and
 its matvec twin (`MovingFrontierWindow.loss_action`). The retained
 full-field paths — `FullFieldWavefront.sweep` + `.loss_action` (the d-generic
 spine; since S6.4(d) full-cochain interior KERNELS on the shared
