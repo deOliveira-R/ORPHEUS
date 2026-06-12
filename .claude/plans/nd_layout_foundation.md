@@ -64,38 +64,85 @@ in-commit). Verification design = test-architect memo
 `supports` widening — both land WITH Mesh3D (C5), each "widen the predicate
 only WITH the kernel/profile".
 
-**⏭ NEXT = C4 (#220): boundary inventory dimension-generic — the FaceLabel-keyed
-BC dict.** The C3.6 explorer audit (§5) mapped the seam precisely; a fresh session
-can start from these facts:
-- BC keying today is STRING-NAMED at three layers: (i) Mesh2D declares optional
-  fields `bc_xmin/bc_xmax/bc_ymin/bc_ymax: BC|None` (`orpheus/geometry/mesh.py`
-  ~:510, validated ~:541); (ii) `SNMesh._resolve_bcs` hand-assigns instance attrs
-  `self.bc_xmin..bc_ymax` (+ `bc_left/bc_right` aliases + degenerate 1-D
-  y-placeholders) at `orpheus/sn/geometry.py` ~:443–481; (iii)
-  `boundary_face_layout` hand-lists the 4-face 2-D layout (~:935–953 —
-  SILENT-WRONG if a 3-axis mesh ever reached it; the C4 carve retires the
-  hand-list BEFORE Mesh3D can).
-- The d-generic `FaceLabel` machinery EXISTS IN PARALLEL (`orpheus/sn/axis.py`
-  :66–93; `SNMesh.face_labels` `orpheus/sn/geometry.py` ~:704–718) but the
-  production trace does NOT derive its names from it — the
-  FaceLabel↔"xmin"-string crosswalk is implicit. C4 = derive
-  `boundary_face_layout` + the bc-attribute set FROM `face_labels` (axis-count
-  generic, "{axis}{min|max}" names already match `AXIS_NAMES` in sweep_graph.py
-  — the C3.6 SSOT).
-- CONSUMERS ARE ALREADY GENERIC over whatever the layout carries:
-  `SNBoundaryOperator._face_laws` (`orpheus/sn/boundary_operator.py` ~:121–131)
-  and `sweep_schedule._reflective_faces` both do
-  `getattr(mesh, f"bc_{face}")` over `trace.layout.faces` — so the carve is
-  producer-side only.
-- Issue #220 carries the design intent (retire the named-field hybrid split;
-  "nd_foundation §2.6 needs it for 3-D"). Protocol: explorer dependency audit on
-  `bc_xmin`-family consumers FIRST (retirement trigger), test-architect for the
-  gate design (bit-id at d≤2; the BC-resolution tests), per-substep commits,
-  elegance review, Sphinx clean.
-**THEN C5: Mesh3D + 3-D end-to-end admission** (axis-native SNMesh construction
-dissolving the constructor's isinstance seam + `_axis_widths`; the d≥3
-ScanMarch/window widenings; value-level d=3 gates replacing the synthetic
-structure pins).
+**✅ C4 (#220) DONE (2026-06-11, 4 commits `515f12f`→`2ca6429`→`93667be`→`a184686`,
+local NOT pushed; `Closes #220` rides `2ca6429`).** The boundary inventory is
+dimension-generic — the face inventory IS the BC inventory:
+- **C4.1 `515f12f`:** `FaceLabel.face_name` property (`orpheus/sn/axis.py`) = THE
+  single-sourced `(axis_index, endpoint)` → `"{axis}{min|max}"` crosswalk
+  (`_ENDPOINT_SUFFIX`: "outer"→"max"; non-canonical endpoint → ValueError
+  fail-loud — overridable `label_low/label_high` can't silently desync).
+  `AXIS_NAMES` MOVED sweep_graph.py→axis.py (bottom layer; sweep_graph retains
+  no copy; sweep_schedule/loss_representation import from axis).
+  `boundary_face_layout` = ONE loop `(label.face_name, (N, ng,
+  *face_shape(label)))` over `face_labels` (byte-identical slot order; a 3-axis
+  mesh → six slots with no edit). New L0
+  `tests/sn/primitives/test_face_name_crosswalk.py` (hand-transcribed exhaustive
+  d∈{1,2,3} table mirror-not-import, d=3 z-face admission, both negatives).
+- **C4.2 `2ca6429`:** `SNMesh.bc: dict[str, _BoundBoundaryOperator]` — ONE
+  dict-comprehension over `face_labels`; decl from
+  `axes[label.axis_index].bc[label.endpoint] or BC("reflective")` (the per-axis
+  `Axis1D.bc` inventory — the same axes `face_labels` derives from).
+  `_resolve_one` re-keyed on FaceLabel: reflective axis =
+  `AXIS_NAMES[label.axis_index]`, KILLING the hand-listed
+  `"y" if face in ("ymin","ymax") else "x"` — a LATENT d=3 bug ("zmin" would
+  have built the X-axis reflection permutation; Mode-9 class; NO ERR entry —
+  unconstructible until Mesh3D; pinned at d=2 by
+  `test_2d_reflective_y_face_builds_y_axis_permutation` + x≠y non-vacuity
+  guard). RETIRED outright (no shims): `bc_xmin..bc_ymax`, `bc_left/bc_right`
+  aliases, the 1-D y-placeholder block (production-orphan). Pole SHARPENED to
+  structural absence (sphere/cyl `bc` = {"xmax"} only; KeyError, no None
+  sentinel; zero consumers None-check — `operator.py` already membership-tests
+  `"xmin" in ...faces`). Consumers migrated (the ONLY two production readers):
+  `_face_laws` + `_reflective_faces` → `mesh.bc[face]`. 10 test files rewired
+  (incl. `tests/geometry/test_bound_compat.py` — MISSED by the audit's tests/sn
+  scope, caught by the post-migration grep gate; the y-placeholder TP pin moved
+  onto the slab's real faces w/ HISTORY note; the d=3 schedule duck-fake is now
+  `SimpleNamespace(bc={...})`). Inventory pin `set(bc)==set(layout.faces)`
+  2/4/1/1 + AttributeError/KeyError negatives.
+- **`93667be`:** dropped the orphan `verifies("sn-streaming")` tag
+  (test_invertible_operator.py:420, pre-existing since 43cb801 — that label
+  NEVER existed; ea054b3 only ever added `sn-streaming-reciprocity`). **Sphinx
+  now builds ZERO-warning.**
+- **`a184686` docs:** `boundary_conditions.rst` +503 — new `bc-face-name-carve`
+  H1 section (derivation chain, pole structural-absence table,
+  `bc-face-name-latent-d3-bug` anchor, key-decision rationale, what-retired,
+  verification); `discrete_ordinates.rst` +82 migrated;
+  `index_convention.rst` TraceField row off the retired psi_bc dict;
+  `api/geometry.rst` both registry spellings.
+- **Design decision (resolved the issue's "pick one"):** STRING-keyed dict
+  isomorphic to `FaceLayout.faces` (consumers iterate layout faces — FaceLabel
+  keys would force reverse lookups at every consumer); `FaceLabel` stays the
+  STRUCTURAL source, `face_name` its single rendering. Plain dict + KeyError
+  (siblings `_trace`/`_streaming_axes` are plain attrs; MappingProxyType would
+  be inconsistent ceremony — elegance-enforcer concurred).
+- **Gates:** bit-identity by inheritance (BC realization is object
+  construction; realizer plumbing UNCHANGED; affine sha256 goldens
+  BYTE-identical). 56 crosswalk/layout/trace/axis + 99 migrated + 86/31xf
+  phase-C+curvilinear + 770 operators/primitives + 1011 eigenvalue(asym-BC
+  keff_2d)+regression+solve+geometry+numerics (#212 deselect) + 1455 broad
+  C4.1 gate. elegance-enforcer **PASS clean** (memo
+  `agent-memory/elegance-enforcer/c4_facelabel_bc_dict.md`); test-architect
+  design `agent-memory/test-architect/c4_snmesh_bc_dict_verification.md`.
+  ⚠ a FULL `tests/sn tests/geometry tests/numerics` run was killed ~50 min in
+  (the L1 windowing/convergence ladders dominate the tail; they are NOT
+  BC-observable surfaces) — the targeted set above is the test-architect's
+  sufficient gate. Run the full tree before merge if desired.
+- **Follow-up filed: #223** (pre-#188 unified-trace drift in the
+  `boundary_conditions.rst` worked example ~:886–909 — predates C4).
+
+**⏭ NEXT = C5: Mesh3D + 3-D end-to-end admission.** Scope (from the C3.6 audit
+chain + C4): axis-native SNMesh construction dissolving the constructor's
+legacy-adapter isinstance seam + `_axis_widths` (`orpheus/sn/geometry.py`
+~:295–310); Mesh3D or direct from_axes admission (entry seam =
+`orpheus/sn/axis.py` `legacy_mesh_from_axes` raises for ≥3 axes;
+`orpheus/geometry/mesh.py` has only Mesh1D/Mesh2D); the d≥3 ScanMarch
+`scan(x)∘march(y,z)` kernel generalization + the window's d≥3 `supports`
+widening (deferred-WITH-Mesh3D per C3.6 — "widen the predicate only WITH the
+kernel/profile"); value-level d=3 gates replacing the synthetic SimpleNamespace
+structure pins (test_sweep_schedule_nd, TestD3SupportsMatrix, the crosswalk d=3
+pins all become constructible-value tests). The BOUNDARY side is now FREE:
+`boundary_face_layout` / `bc` / `_resolve_one` need ZERO edits at d=3 — that
+was C4's point.
 The PRIOR (2026-06-09) recovery below is the C2/C3-start record.
 
 ## PRIOR — POST-COMPACTION RECOVERY (2026-06-09)
