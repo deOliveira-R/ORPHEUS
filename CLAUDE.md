@@ -155,6 +155,15 @@ use raw MCP tools directly. See `nexus-guide`.
 **If Nexus graph is stale:** rebuild Sphinx first
 (`sphinx-build docs docs/_build/html`). The MCP server auto-reloads.
 
+**If working in a git worktree (EnterWorktree):** the session's MCP
+server was launched against the MAIN checkout's graph, so every Nexus
+query answers from the wrong branch until you switch — the L22 hazard
+at the knowledge-graph level. Protocol: build Sphinx inside the
+worktree, then call `mcp__nexus__use_workspace(<worktree root>)`.
+`mcp__nexus__workspaces` lists all checkouts and their graphs;
+`session_briefing` carries a workspace block that warns when the
+graph's branch no longer matches the checkout (nexus ≥ 0.12).
+
 ## Working Principles
 
 - **Plan first**: enter plan mode for any non-trivial task (3+ steps)

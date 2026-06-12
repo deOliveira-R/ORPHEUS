@@ -1,13 +1,13 @@
 {
   "mcpServers": {
     "nexus": {
-      "command": ".venv/bin/nexus",
+      "command": "${CLAUDE_PROJECT_DIR:-.}/.venv/bin/nexus",
       "args": [
         "serve",
         "--db",
-        "docs/_build/html/_nexus/graph.db",
+        "${CLAUDE_PROJECT_DIR:-.}/docs/_build/html/_nexus/graph.db",
         "--project-root",
-        "."
+        "${CLAUDE_PROJECT_DIR:-.}"
       ]
     },
     "zotero": {

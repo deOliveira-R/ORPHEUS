@@ -623,6 +623,13 @@ the mechanical symptom (a verbatim sweep copy diverged 0.137 for reflective).
 3. **Before accusing a sub-agent of L12 plausibility-substitution, confirm you
    and it read the same tree.** A real fabrication and a wrong-tree read look
    identical from the main agent's seat; only the tree check distinguishes them.
+4. **Nexus queries carry the same hazard.** The session's MCP server is
+   launched against the MAIN checkout's graph and is NOT restarted on
+   EnterWorktree. After entering a worktree: rebuild Sphinx inside the
+   worktree, then call `mcp__nexus__use_workspace(<worktree root>)`
+   (nexus ≥ 0.12). `mcp__nexus__workspaces` lists checkouts + graphs;
+   the `session_briefing` workspace block warns on graph↔checkout
+   branch mismatch.
 
 Cross-reference: `[[lessons-L12]]` (sub-agent fabrication — the failure mode I
 wrongly attributed here); the dispatched explorer was correct.
