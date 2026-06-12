@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5108**
+Total tests collected: **5123**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1150, 22.5%
-   L1, 950, 18.6%
+   L0, 1152, 22.5%
+   L1, 950, 18.5%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2964, 58.0%
+   foundation, 2977, 58.1%
    unmarked, 8, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5021
+   explicit, 5036
    verify, 0
    class-name, 46
    func-name, 0
@@ -73,11 +73,12 @@ Module × level grid
    core/test_sweep_graph, 76, 0, 0, 0, 0, 0
    core/test_sweep_graph_nd_admission, 0, 0, 0, 0, 42, 0
    core/test_sweep_graph_window_equivalence, 0, 0, 0, 0, 20, 0
-   core/test_sweep_regression, 8, 0, 0, 0, 0, 0
+   core/test_sweep_regression, 10, 0, 0, 0, 0, 0
    core/test_sweep_schedule, 0, 0, 0, 0, 9, 0
+   core/test_sweep_schedule_nd, 0, 0, 0, 0, 8, 0
    core/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 57, 0
    core/test_transport_sweep_ng2_layout_guard, 0, 0, 0, 0, 2, 0
-   core/test_unified_sweep_dispatch, 0, 0, 0, 0, 8, 0
+   core/test_unified_sweep_dispatch, 0, 0, 0, 0, 12, 0
    core/test_wavefront_cumprod_equivalence, 0, 0, 0, 0, 4, 0
    cp/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    cp/test_cylinder, 0, 9, 0, 0, 0, 0
@@ -303,7 +304,7 @@ Module × level grid
    primitives/test_octants_property, 60, 0, 0, 0, 0, 0
    primitives/test_properties, 4, 0, 0, 0, 0, 0
    primitives/test_quadrature, 49, 0, 0, 0, 0, 0
-   primitives/test_snmesh_consumes_reduced, 0, 0, 0, 0, 15, 0
+   primitives/test_snmesh_consumes_reduced, 0, 0, 0, 0, 16, 0
    primitives/test_snmesh_materials_pr_typed_0, 0, 0, 0, 0, 7, 0
    primitives/test_solution, 0, 0, 0, 0, 31, 0
    primitives/test_typed_source_sinks, 0, 0, 0, 0, 24, 0
@@ -951,7 +952,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-053``, 7
    ``ERR-054``, 2
    ``ERR-055``, **0 (MISSING)**
-   ``ERR-056``, 2
+   ``ERR-056``, 5
    ``ERR-057``, 1
 
 Unmarked tests

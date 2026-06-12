@@ -27,7 +27,9 @@ first-class `SweepStrategy` abstraction.
   the close: (a) the flux-independent `a_attenuation` cache (ScanMarch's natural adoption,
   #206-adjacent — the ScanMarch docstring names it); (b) S6.6 `ExplicitMatrix`
   (`spsolve_triangular` oracle — designed extension point, no production driver).
-  **⏭ NEXT = C3.6 (3-D end-to-end admission), the N-D campaign tail — pickup:**
+  **[C3.6 COMPLETED 2026-06-11 @ `9ae76dc` — record + the C4 pickup live in
+  `nd_layout_foundation.md` ⭐⭐⭐, the campaign index. This file is now the
+  CLOSED S-record only.]** Original pickup note (historical):
   the carried C3.3 concern = the live dispatch gates are BINARY `not is_1d` where the
   honest dispatch is `ndim` (1-D scan / multi-D representation); post-S6 this is SMALL —
   the representations + `_OctantWalk` + DAG + kernels are already d-generic, so C3.6 ≈

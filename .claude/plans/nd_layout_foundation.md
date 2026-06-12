@@ -18,13 +18,55 @@ final state: four selectable `LossRepresentation` schedules of the lower-triangu
 S6.9 Fork-B2 flip** · MovingFrontierWindow selectable peer · FullFieldWavefront
 oracle); ONE `_OctantWalk` frame + ONE instance per operator (L21 type facts);
 `sweep.py` dissolved; `WavefrontFlux` retired with succession. Branch
-`954ddf4..6767102` (29 commits) NOT pushed. **⏭ C-campaign resumes at C3.6** — the
-representations/walk/DAG/kernels are ALREADY d-generic post-S6, so C3.6 shrank to:
-the honest `ndim` dispatch at the remaining binary `not is_1d` gates, the
-`_MSpatialOperatorSum` NotImplementedError boundaries, and the d=3 admission story
-(graph-layer d=3 walk pins already exist in `test_sweep_graph_window_equivalence.py`
-shapes (3,2,3)/(4,3,2)). THEN C4 (#220) → C5. The PRIOR (2026-06-09) recovery below
-is the C2/C3-start record.
+`954ddf4..6767102` (29 commits) NOT pushed.
+
+**⭐⭐⭐ C3.6 DONE (2026-06-11, commits `4729660`→`c1a72c6`→`9ae76dc`, 33 total NOT
+pushed) — C3 IS COMPLETE.** The honest-d-dispatch cut, three sub-steps, all
+bit-identical at d≤2 (affine sha256 goldens BYTE-identical throughout, no regen):
+**(a) `4729660` schedule d-generic** — `_octant_sweep(entry, ndim)` is the SOLE
+in-plane projection (keeps ndim signs, zero-pads; d=1 labels honest 1-tuples);
+`_outgoing_faces` DERIVED from `label.signs`+`AXIS_NAMES` (SSOT moved to
+sweep_graph.py), killing the hand-listed x/y `_OUT_FACE` under which a reflective
+z-face would NEVER get a G-S reflect group at d=3 (shed-EXISTENCE sibling of
+ERR-056 — silent wrong fixed point, closed by construction before Mesh3D exists);
+`_OctantWalk` dropped its `signs[:ndim]` re-truncation (second silent projection);
+`sign_x`/`sign_y`/`streams_in_2d` shims RETIRED + tests migrated; NEW
+`test_sweep_schedule_nd.py` (8 synthetic d∈{1,3} pins: pure-helper projection +
+duck-typed `_fake_mesh_3d` driving the REAL `gauss_seidel` — mixed-BC
+x-refl/y-vac/z-refl makes an axis-name swap observable + d=3 shared-face
+last-group assignment, both `catches("ERR-056")`). Gates: 1160+295 ✓.
+**(b) `c1a72c6` streaming d-generic** — `_streaming_axes` per-axis tuple built
+over `range(ndim)` from `quad.axis_cosines(a)` (bit-id BY CONSTRUCTION: mu_x IS
+axis_cosines(0), a property view) ÷ `_axis_widths` (set in the constructor's
+legacy-adapter isinstance branch — the ONE seam, dissolves at C5 axis-native
+construction); `streaming(axis)` indexes it (guard stays SEMANTIC `is_cartesian`);
+`streaming_x/streaming_y` fields RETIRED + 2 test files migrated; phantom d=1
+`streaming_y` GONE (`streaming(1)` at d=1 raises). NEW exact-equality
+`assert_array_equal` guard (the view-not-copy tripwire), curvilinear-raise,
+out-of-range-raise. Gates: 26 + 641 ✓.
+**(c) `9ae76dc` honest supports + ONE Jacobi door** — `ScanMarch.supports`
+NARROWED to `is_1d or (is_cartesian and ndim==2)` (kernels unpack d=2; at d=3
+`default_for` falls through to the d-generic `FullFieldWavefront` spine — pinned
+at supports-level by NEW `TestD3SupportsMatrix` in test_unified_sweep_dispatch);
+`_sweep_2d_wavefront` RENAMED `_sweep_jacobi` + made the single Jacobi door
+(ScanMarch + FullFieldWavefront had INLINED the identical
+`_sweep_scheduled(..., jacobi, reflect=None)` call — 3 spellings of one policy,
+Cardinal-2 twin kill, 3 consumers each supplying only its interior kernel);
+wording sweep (operator.py `_compute_LpC_transpose` "2-D"→"multi-D";
+sweep_graph "(no 3-D quadrature yet)"→Mesh3D-is-what's-missing — the quadrature
+is ALREADY 3-cosine/8-octant; window supports-cap rationale; registry/default_for
+d=3 fall-through prose; theory pages aligned). Gates: 1193 ✓ broad; Sphinx exit 0
+baseline warnings; elegance-enforcer PASS-with-1-condition (stale line, applied
+in-commit). Verification design = test-architect memo
+`agent-memory/test-architect/c3_6_honest_d_dispatch_verification.md`.
+**Deferred (recorded in code+plan, NO issue — in-campaign):** the d≥3
+`scan(x)∘march(y,z)` ScanMarch kernel generalization + the window's d≥3
+`supports` widening — both land WITH Mesh3D (C5), each "widen the predicate
+only WITH the kernel/profile". **⏭ NEXT = C4 (#220 boundary inventory
+d-generic: FaceLabel-keyed bc dict, retire the bc_xmin/.../bc_ymax hand-lists +
+`boundary_face_layout`'s hand-listed 4-face 2-D layout — the explorer audit
+§5 in this session mapped the seam) → C5 (Mesh3D + 3-D shape admission + docs).**
+The PRIOR (2026-06-09) recovery below is the C2/C3-start record.
 
 ## PRIOR — POST-COMPACTION RECOVERY (2026-06-09)
 
@@ -224,7 +266,13 @@ LOCKED (see that plan's §"Decisions locked"). The d=1 sweep-graph dict is BUILT
 downstream.** The C3.5 `str_axes` axes-map fix + the `OctantLabel.sign_x/y`/`streams_in_2d` shim
 retirement are folded into the carve's S5.
 
-⭐ **ELEGANCE-REVIEW ACCEPTANCE ITEMS (carry forward):**
+⭐ **ELEGANCE-REVIEW ACCEPTANCE ITEMS:**
+- ✅ **C3.6/d≥3 — RESOLVED (C3.6, `9ae76dc`):** post-S6 the "5 gates" were already
+  collapsed through `loss_action` (S2); the honest dispatch landed as TRUTHFUL
+  `supports` predicates (ScanMarch narrowed to its kernels' d=2; FullFieldWavefront
+  the any-d spine; registry fall-through pinned by `TestD3SupportsMatrix`) — the
+  registry IS the ndim-keyed dispatch, no new mechanism needed. Original item below
+  for the record.
 - **C3.6/d≥3 (elegance-enforcer CONCERN, from C3.3):** the 5 dispatch gates use the BINARY
   `not sn_mesh.is_1d`, but the true dispatch space is TERNARY — 1-D chain-scan / 2-D
   window-walk / d≥3 full-field-walk. The live DISPATCH (`operator.py` `apply` ~1458 →
@@ -239,6 +287,12 @@ retirement are folded into the carve's S5.
 - ✅ **C3.2b WavefrontFlux-typing — RESOLVED** at the orchestrator boundary (see C3.2b above;
   elegance-enforcer confirmed the orchestrator-not-slice landing is the CORRECT call, not a
   shortcut — the octant transient cannot validly be a mesh-bound cochain).
+- ✅ **C3.4/C3.5 str_axes — FULLY RESOLVED (S6.4 + C3.6.b `c1a72c6`):** S6.4 made
+  every orchestrator read `tuple(sn_mesh.streaming(a) for a in range(ndim))`;
+  C3.6.b made the ACCESSOR itself index a `range(ndim)`-built per-axis tuple
+  (the last hand-listed `(streaming_x, streaming_y)` pair retired). Acceptance
+  criterion "no orchestrator hand-lists a positional per-axis tuple" holds at
+  every layer. Original item below for the record.
 - **C3.4/C3.5 (elegance-enforcer CONCERN, from C3.2b):** `str_axes = (streaming_x, streaming_y)`
   at both orchestrators is a SECOND hand-listed axis-order tuple NOT derived from
   `wavefront.axes` (latent-only at d=2 — both tuples length-2, order-trivial; the habitat opens
