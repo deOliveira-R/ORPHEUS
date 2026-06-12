@@ -75,8 +75,7 @@ class ScalarResidual(ScalarField):
         Field values of shape ``(ng, nx, ny)`` (the principled layout —
         Issue #196 PR-INDEX-7).
     space : FunctionSpace
-        The function space. Must have ``shape == (mesh.ng, mesh.nx,
-        mesh.ny)``. Use :meth:`from_mesh` to derive automatically.
+        The function space. Must have ``shape == (mesh.ng, *mesh.spatial_shape)``. Use :meth:`from_mesh` to derive automatically.
     mesh : SNMesh
         The SN phase-space carrier.
 

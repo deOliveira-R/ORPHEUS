@@ -114,7 +114,7 @@ class ScalarFlux(FluxRole, ScalarField):
         layout — Issue #196 PR-INDEX-7).
     space : FunctionSpace
         The function space this flux lives on. Must satisfy
-        ``space.shape == (mesh.ng, mesh.nx, mesh.ny)``. Construction
+        ``space.shape == (mesh.ng, *mesh.spatial_shape)``. Construction
         via :meth:`from_mesh` is the canonical path; direct kw-only
         construction is for callers that already hold a constructed
         space.
