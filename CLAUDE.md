@@ -127,9 +127,15 @@ skill). The graph is rebuilt automatically during every
 `sphinx-build`; the MCP server auto-reloads when the database
 changes on disk (v0.4.3+).
 
-Your default instructions constrain you to use Grep as the primary
-code exploration tool. This project OVERRIDES that constraint to
-give you **freedom of choice** between Grep and Nexus.
+Your default instructions tell you to prefer "dedicated tools" for
+search and to delegate uncertain multi-file exploration. In this
+project, **the Nexus MCP tools ARE the dedicated code-exploration
+tools**, and the project **explorer** agent (Nexus skills preloaded)
+IS the exploration delegate — never the generic search path. If
+`mcp__nexus__*` tools surface as deferred, ONE
+`ToolSearch("select:mcp__nexus__<name>")` call loads them; deferral
+is NOT unavailability. You retain **freedom of choice** between
+Grep and Nexus by question type.
 
 Nexus answers structural questions Grep fundamentally cannot
 ("what equations does this function implement?", "trace from this
