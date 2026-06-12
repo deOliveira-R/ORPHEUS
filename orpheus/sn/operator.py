@@ -404,16 +404,7 @@ class _MSpatialOperatorSum(OperatorSum):
         face_outer = boundary.face_view("xmax")
         face_inner = boundary.face_view("xmin") if has_inner_face else None
 
-        if curvature != "cartesian":
-            # Curvilinear: the pole seed is the r=0 REGULARITY condition
-            # (NOT a boundary condition) — read the innermost cell flux.
-            pole_face_seed = psi_view[:, :, 0].copy()
-        elif face_inner is not None:
-            # Slab: read the GIVEN inner inflow trace (the forward sweep's
-            # μ>0 seed at xmin) directly. Wave O O.4a.2 — the BC reflection
-            # is NOT re-derived here; it moves to the sibling −B.
-            pole_face_seed = face_inner
-        else:
+        if curvature == "cartesian" and face_inner is None:
             raise ValueError(
                 "Slab geometry requires psi.boundary.xmin_face to be "
                 "populated."
@@ -479,7 +470,6 @@ class _MSpatialOperatorSum(OperatorSum):
                 outflow_at_end[:, global_dir] = psi_face_in
             return outflow_at_end
 
-        outflow_at_boundary = _sweep_direction(+1, pole_face_seed)
         # Wave O O.4a.2 — KEYSTONE DELETED. The backward sweep seeds from the
         # GIVEN outer inflow trace (``face_outer``'s μ<0 / inward ordinates),
         # NOT from the forward sweep's own reflected outflow
@@ -488,6 +478,25 @@ class _MSpatialOperatorSum(OperatorSum):
         # coupling moves to the sibling −B, and the outer Krylov/SI loop drives
         # the inflow consistency ``ψ.inflow − B·ψ.outflow → 0``.
         outflow_at_inner = _sweep_direction(-1, face_outer)
+
+        if curvature != "cartesian":
+            # Carlson coupled-pole spatial seed (ERR-058 a, Issue #195):
+            # at r = 0 the outward characteristic is the CONTINUATION of
+            # the inward one — ψ(0, +μ) = ψ(0, −μ) — so the +1 sweep's
+            # pole-face seed is the −1 sweep's pole-face outflow at the
+            # mirror ordinate (already computed above: data, propagated
+            # from the outer boundary, lower-triangular).  The historical
+            # innermost-CELL-CENTRE read ψ(Δr/2) was O(h)-wrong on
+            # non-flat profiles (exact on flat ψ — which is why every
+            # flat-flux gate stayed green) and is retired; this is the
+            # #192-deferred "inward-determines-outward" pole condition.
+            pole_face_seed = outflow_at_inner.T[quad.reflection_index("x")]
+        else:
+            # Slab: read the GIVEN inner inflow trace (the forward sweep's
+            # μ>0 seed at xmin) directly. Wave O O.4a.2 — the BC reflection
+            # is NOT re-derived here; it moves to the sibling −B.
+            pole_face_seed = face_inner
+        outflow_at_boundary = _sweep_direction(+1, pole_face_seed)
 
         # Degenerate-ordinate branch (cylinder).
         degenerate_mask = np.abs(mu_x) < eps
@@ -630,6 +639,9 @@ class _MSpatialOperatorSum(OperatorSum):
 
         closure = sn_mesh.pole_angular_closure
         mu_x = quad.mu_x
+        # Mirror-ordinate permutation for the coupled-pole seed adjoint
+        # (curvilinear only; cheap to build unconditionally).
+        mirror = quad.reflection_index("x")
         A = sn_mesh.areas
         V = sn_mesh.volumes
         sgx = self.sigma_t                       # (ng, nx)
@@ -723,7 +735,13 @@ class _MSpatialOperatorSum(OperatorSum):
                 # reverse the sweep seed
                 if s > 0:
                     if curvature != "cartesian":
-                        psi_bar[:, gd, 0] += f_bar          # pole seed = ψ.bulk[:,:,0]
+                        # adjoint of the Carlson coupled-pole seed: the
+                        # forward +1 seed reads the −1 sweep's pole-face
+                        # outflow at the mirror ordinate, so the seed
+                        # cotangent routes into the −1 reversal's INITIAL
+                        # outflow cotangent (mirror partners live in the
+                        # same level; the s=−1 pass below reads it).
+                        outflow_inner_bar[:, mirror[gd]] += f_bar
                     else:
                         fi_bar[gd] += f_bar.T               # slab +1 seed = ψ.inflow[xmin]
                 else:
@@ -865,14 +883,7 @@ class _MSpatialOperatorSum(OperatorSum):
             boundary.face_view("xmin") if has_inner_face else None
         )
 
-        if curvature != "cartesian":
-            # Curvilinear: pole seed = r=0 REGULARITY condition (not a BC).
-            pole_face_seed = psi_view[:, :, 0].copy()                 # (N, ng)
-        elif face_inner is not None:
-            # Slab: read the GIVEN inner inflow trace (μ>0 seed at xmin)
-            # directly. Mirrors _compute_LpC; the BC reflection moves to −B.
-            pole_face_seed = face_inner                                  # (N, ng)
-        else:
+        if curvature == "cartesian" and face_inner is None:
             raise ValueError(
                 "Slab geometry requires psi.boundary.xmin_face to be "
                 "populated (R-1 Step 4 Step G0 retired the cell-centre "
@@ -949,16 +960,25 @@ class _MSpatialOperatorSum(OperatorSum):
                 outflow_at_end[:, global_dir] = psi_face_in
             return outflow_at_end
 
-        outflow_at_boundary = _sweep_direction(
-            direction_sign=+1, psi_face_in_init=pole_face_seed,
-        )
-
         # Wave O O.4a.2 — KEYSTONE DELETED (twin of _compute_LpC): the backward
         # sweep seeds from the GIVEN outer inflow trace (face_outer's inward
         # ordinates), NOT from the forward sweep's own reflected outflow. The
         # reflective coupling moves to the sibling −B.
         outflow_at_inner = _sweep_direction(
             direction_sign=-1, psi_face_in_init=face_outer,
+        )
+
+        if curvature != "cartesian":
+            # Carlson coupled-pole spatial seed — twin of _compute_LpC
+            # (ERR-058, Issue #195): ψ(0, +μ) = ψ(0, −μ); the +1 seed is
+            # the −1 sweep's pole-face outflow at the mirror ordinate.
+            pole_face_seed = outflow_at_inner.T[quad.reflection_index("x")]
+        else:
+            # Slab: read the GIVEN inner inflow trace (μ>0 seed at xmin)
+            # directly. Mirrors _compute_LpC; the BC reflection moves to −B.
+            pole_face_seed = face_inner                                  # (N, ng)
+        outflow_at_boundary = _sweep_direction(
+            direction_sign=+1, psi_face_in_init=pole_face_seed,
         )
 
         # Degenerate-ordinate branch (cylinder with degenerate ordinates).

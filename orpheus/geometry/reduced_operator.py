@@ -264,6 +264,17 @@ class StreamingTerms:
     tau_mm: float | None = None
     """Morel--Montry angular closure weight on this ordinate."""
 
+    mu_start: float | None = None
+    """Starting-direction angular edge of this ordinate's M-M level.
+
+    The direction the half-angle thread's seed flux lives at:
+    sphere ``-1.0``; cylinder :math:`-\\sqrt{1-\\xi_p^2}` (the level's
+    most-inward azimuthal edge); slab ``-1.0`` (neutral — the identity
+    closure never reads it).  Constant within a level.  Consumed by
+    :class:`~orpheus.sn.spatial.psi_half_angle_seed.AngularEdgeExtrapolation`
+    via :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonSweepContext`.
+    """
+
     volume: float | None = None
     """Cell volume :math:`V_i`.
 
@@ -371,11 +382,21 @@ class ReducedStreamingOperator:
     alpha_half: np.ndarray | None = None
     redist_dAw: np.ndarray | None = None
     tau_mm: np.ndarray | None = None
+    mu_start: float | None = None
+    """Starting-direction angular edge :math:`\\mu_{1/2}` of the (single)
+    M-M level — the direction the half-angle thread's seed flux lives
+    at.  Sphere: ``-1.0`` (the Hébert §3.9.4 starting direction).
+    Defined HERE, at the same construction site as the α-dome and τ
+    (single source of truth for the angular cell partition)."""
 
     # Cylindrical (per-level)
     alpha_per_level: list[np.ndarray] | None = None
     redist_dAw_per_level: list[np.ndarray] | None = None
     tau_mm_per_level: list[np.ndarray] | None = None
+    mu_start_per_level: list[float] | None = None
+    """Per-level starting-direction angular edge — cylinder:
+    :math:`\\eta_{1/2} = -\\sin\\theta_p = -\\sqrt{1-\\xi_p^2}` (the
+    most-inward azimuthal edge of level *p*)."""
 
     # Quadrature reference (kept for streaming_terms() extraction)
     _quadrature: AngularMeasure | None = field(default=None, repr=False)
@@ -441,6 +462,7 @@ class ReducedStreamingOperator:
                 alpha_in=0.0,
                 alpha_out=0.0,
                 tau_mm=1.0,
+                mu_start=-1.0,
                 volume=volume,
                 abs_mu=abs(mu_n),
             )
@@ -463,6 +485,7 @@ class ReducedStreamingOperator:
                 alpha_in=float(self.alpha_half[direction_idx]),
                 alpha_out=float(self.alpha_half[direction_idx + 1]),
                 tau_mm=float(self.tau_mm[direction_idx]),
+                mu_start=float(self.mu_start),
                 volume=volume,
                 abs_mu=abs(mu_n),
             )
@@ -496,6 +519,7 @@ class ReducedStreamingOperator:
                 alpha_in=float(alpha_lv[direction_idx]),
                 alpha_out=float(alpha_lv[direction_idx + 1]),
                 tau_mm=float(tau_lv[direction_idx]),
+                mu_start=float(self.mu_start_per_level[mu_level_idx]),
                 volume=volume,
                 abs_mu=abs(eta_n),
             )
@@ -627,6 +651,7 @@ def spherical_streaming(
         alpha_half=alpha,
         redist_dAw=redist_dAw,
         tau_mm=tau_mm,
+        mu_start=float(mu_edge[0]),
         _quadrature=angular_measure,
     )
 
@@ -713,10 +738,12 @@ def cylindrical_streaming(
     # GitHub Issue #3 tracks the φ-based edge refinement.)
     mu_z = angular_measure.mu_z  # type: ignore[attr-defined]
     tau_mm_per_level: list[np.ndarray] = []
+    mu_start_per_level: list[float] = []
     for level_idx in angular_measure.level_indices:
         eta = angular_measure.mu_x[level_idx]
         M = len(level_idx)
         sin_theta = np.sqrt(1.0 - mu_z[level_idx[0]] ** 2)
+        mu_start_per_level.append(float(-sin_theta))
         eta_edge = np.zeros(M + 1)
         eta_edge[0] = -sin_theta
         for m in range(M - 1):
@@ -741,6 +768,7 @@ def cylindrical_streaming(
         alpha_per_level=alpha_per_level,
         redist_dAw_per_level=redist_dAw_per_level,
         tau_mm_per_level=tau_mm_per_level,
+        mu_start_per_level=mu_start_per_level,
         _quadrature=angular_measure,
     )
 

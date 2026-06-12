@@ -39,6 +39,7 @@ from .pole_angular_closure import (
     default_angular_closure_class,
 )
 from .psi_half_angle_seed import (
+    AngularEdgeExtrapolation,
     CarlsonInwardSweep,
     CarlsonSweepContext,
     PsiHalfAngleSeed,
@@ -53,10 +54,16 @@ from .scan import ordinate_scan
 #
 # Issue #168 Phase D shipped the PsiHalfAngleSeed strategy family —
 # composed into MorelMontryAngularSweep via Option α (composition,
-# not sibling Protocol).  CarlsonInwardSweep is the canonical Phase D
-# default, closing ERR-026 on sphere Gate 1.1 MMS.
+# not sibling Protocol).  ERR-058 (#195, 2026-06-12) flipped the
+# default from CarlsonInwardSweep (proxy-source seed, exact only at
+# flat-flux equilibrium) to AngularEdgeExtrapolation (the input
+# field extrapolated in μ to the level's angular edge — the
+# operator-consistent seed).  CarlsonInwardSweep stays registered as
+# the Hébert §3.9.4 recurrence host for future TRUE-source-driven
+# sweep-side seeding.
 
 __all__ = [
+    "AngularEdgeExtrapolation",
     "CarlsonInwardSweep",
     "CarlsonSweepContext",
     "CellResult",

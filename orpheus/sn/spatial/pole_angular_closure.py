@@ -173,6 +173,7 @@ from orpheus.geometry import CoordSystem
 from orpheus.numerics.registry import RegistryMixin
 
 from .psi_half_angle_seed import (
+    AngularEdgeExtrapolation,
     CarlsonInwardSweep,
     CarlsonSweepContext,
     PsiHalfAngleSeed,
@@ -591,7 +592,11 @@ class MorelMontryAngularSweep(
         # mesh-bound methods raise; only the legacy ``__call__`` works.
         self._sn_mesh = sn_mesh
         self.psi_half_seed: PsiHalfAngleSeed = (
-            psi_half_seed if psi_half_seed is not None else CarlsonInwardSweep()
+            psi_half_seed if psi_half_seed is not None
+            # ERR-058 (b): the Carlson proxy-source seed is exact only
+            # at flat-flux equilibrium; the edge extrapolation is the
+            # operator-consistent default (Issue #195).
+            else AngularEdgeExtrapolation()
         )
 
         if sn_mesh is None:
@@ -604,6 +609,7 @@ class MorelMontryAngularSweep(
             self._alpha_per_level: "tuple[np.ndarray, ...] | None" = None
             self._dAw_per_level: "tuple[np.ndarray, ...] | None" = None
             self._tau_per_level: "tuple[np.ndarray, ...] | None" = None
+            self._mu_start_per_level: "tuple[float, ...] | None" = None
             self._c_in_per_level: "tuple[np.ndarray, ...] | None" = None
             self._c_out_per_level: "tuple[np.ndarray, ...] | None" = None
             self._mu_x: "np.ndarray | None" = None
@@ -626,6 +632,7 @@ class MorelMontryAngularSweep(
             self._alpha_per_level = (reduced.alpha_half,)
             self._dAw_per_level = (reduced.redist_dAw,)
             self._tau_per_level = (reduced.tau_mm,)
+            self._mu_start_per_level = (float(reduced.mu_start),)
         elif coord is CoordSystem.CYLINDRICAL:
             self.level_indices = tuple(
                 np.asarray(lvl) for lvl in quad.level_indices
@@ -633,6 +640,9 @@ class MorelMontryAngularSweep(
             self._alpha_per_level = tuple(reduced.alpha_per_level)
             self._dAw_per_level = tuple(reduced.redist_dAw_per_level)
             self._tau_per_level = tuple(reduced.tau_mm_per_level)
+            self._mu_start_per_level = tuple(
+                float(v) for v in reduced.mu_start_per_level
+            )
         else:
             raise ValueError(
                 f"MorelMontryAngularSweep supports SPHERICAL or CYLINDRICAL "
@@ -863,6 +873,7 @@ class MorelMontryAngularSweep(
                 mu_quad=mu_level.copy(),
                 weights=self._weights[level_idx].copy(),
                 bc_outer_value=bc_value,
+                mu_start=self._mu_start_per_level[p],
             )
             psi_half_seed_arr = self.psi_half_seed(psi_level, carlson_ctx)
             faces = self._psi_half_grid_for_level(
@@ -962,7 +973,6 @@ class MorelMontryAngularSweep(
         psi_bar = np.zeros((ng, N, nx))
         bc_bar = np.zeros((N, ng))
         dr = self._dr
-        denomC = dr[None, :] * sigma_t + 2.0            # (ng, nx) Carlson denominator
         for p, level_idx in enumerate(self.level_indices):
             level_idx = np.asarray(level_idx)
             M = level_idx.size
@@ -981,21 +991,25 @@ class MorelMontryAngularSweep(
                 phb = psi_half_bar[:, m + 1, :]
                 psi_bar[:, level_idx[m], :] += phb / tau_m
                 psi_half_bar[:, m, :] += -((1.0 - tau_m) / tau_m) * phb
-            seed_bar = psi_half_bar[:, 0, :]              # (ng, nx) Carlson seed cotangent
-            # ── reverse the Carlson inward DD sweep (ascending k = reverse descent)
-            w_lev = self._weights[level_idx]
+            seed_bar = psi_half_bar[:, 0, :]              # (ng, nx) seed cotangent
+            # ── reverse the seed map — DELEGATED to the strategy (it
+            # owns the forward map AND its adjoint; ERR-058 made the
+            # seed strategy swappable, so the adjoint must swap with it).
             global_inward = int(level_idx[int(np.argmin(mu_level))])
-            Qbar_bar = np.zeros((ng, nx))
-            gk_bar = np.zeros((ng,))
-            for k in range(nx):
-                phi_cell_bar = seed_bar[:, k] + 2.0 * gk_bar
-                Qbar_bar[:, k] += (dr[k] / denomC[:, k]) * phi_cell_bar
-                gk_bar = -gk_bar + (2.0 / denomC[:, k]) * phi_cell_bar
-            bc_bar[global_inward, :] += gk_bar            # bar(bc_outer_value)
-            # ── reverse Q̄ = σ_t·φ_0/Σw and φ_0 = Σ_m w_lev[m]·ψ[level_idx[m]]
-            phi0_bar = (sigma_t / w_lev.sum()) * Qbar_bar  # (ng, nx)
+            ctx = CarlsonSweepContext(
+                sigma_t=sigma_t,
+                dr=dr,
+                mu_quad=mu_level.copy(),
+                weights=self._weights[level_idx].copy(),
+                bc_outer_value=np.zeros((ng,)),  # content unread by adjoints
+                mu_start=self._mu_start_per_level[p],
+            )
+            psi_level_bar, bc_value_bar = self.psi_half_seed.seed_adjoint(
+                seed_bar, ctx,
+            )
             for m in range(M):
-                psi_bar[:, level_idx[m], :] += w_lev[m] * phi0_bar
+                psi_bar[:, level_idx[m], :] += psi_level_bar[:, m, :]
+            bc_bar[global_inward, :] += bc_value_bar
         return psi_bar, bc_bar
 
     def __call__(

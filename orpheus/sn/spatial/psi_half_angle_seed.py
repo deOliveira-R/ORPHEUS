@@ -201,6 +201,17 @@ class CarlsonSweepContext:
         flux at μ = +1 (mirrored).  For white / albedo: see literature
         memo §8 design decisions; default to 0 with documented
         treatment.
+    mu_start : float
+        Starting-direction angular edge of the level — the direction
+        the seed flux lives at.  Sphere: ``-1.0``; cylinder:
+        :math:`-\\sqrt{1-\\xi_p^2}` (the level's most-inward azimuthal
+        edge).  Sourced from the SAME construction site as the α-dome
+        and τ (``orpheus.geometry.reduced_operator``) — single source
+        of truth for the angular cell partition.  REQUIRED (no
+        default) so a forgotten cylinder site cannot silently fall
+        back to the sphere value.  Consumed by
+        :class:`AngularEdgeExtrapolation`; ignored by
+        :class:`ZeroSeed` and :class:`CarlsonInwardSweep`.
 
     Notes
     -----
@@ -217,6 +228,7 @@ class CarlsonSweepContext:
     mu_quad: np.ndarray
     weights: np.ndarray
     bc_outer_value: np.ndarray
+    mu_start: float
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -270,6 +282,13 @@ class PsiHalfAngleSeed(Protocol):
     ) -> np.ndarray:
         ...
 
+    def seed_adjoint(
+        self,
+        seed_bar: np.ndarray,
+        context: CarlsonSweepContext,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        ...
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # PsiHalfAngleSeedBase — concrete ABC with self-registration
@@ -311,6 +330,42 @@ class PsiHalfAngleSeedBase(RegistryMixin, ABC):
     ) -> np.ndarray:
         ...
 
+    @abstractmethod
+    def seed_adjoint(
+        self,
+        seed_bar: np.ndarray,
+        context: CarlsonSweepContext,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""Reverse-mode adjoint of :meth:`__call__`.
+
+        Every seed strategy is linear in ``(psi_level,
+        bc_outer_value)`` (the ``is_linear`` contract), so its adjoint
+        is a fixed linear scatter of the seed cotangent.  The strategy
+        OWNS its adjoint — co-locating forward map and reverse map so
+        a strategy swap on
+        :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+        swaps both sides at once (no hardcoded twin in
+        ``angular_adjoint``; the Hilbert-transpose oracle
+        ``derivations/diagnostics/diag_p42_adjoint_oracle.py`` pins
+        the pairing).
+
+        Parameters
+        ----------
+        seed_bar : np.ndarray
+            Cotangent of the returned seed, shape ``(ng, nx)``.
+        context : CarlsonSweepContext
+            The SAME context the forward call received.
+            ``bc_outer_value``'s content is never read (the adjoint
+            needs only the linear-map coefficients).
+
+        Returns
+        -------
+        (psi_level_bar, bc_outer_bar) : tuple of np.ndarray
+            Cotangents of the forward inputs: ``(ng, M, nx)`` for
+            ``psi_level`` and ``(ng,)`` for ``bc_outer_value``.
+        """
+        ...
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # ZeroSeed — regression-safety ablation
@@ -350,6 +405,16 @@ class ZeroSeed(PsiHalfAngleSeedBase, key="zero"):
         del context  # unused — Protocol-shape compatibility only
         ng, _M, nx = psi_level.shape
         return np.zeros((ng, nx), dtype=psi_level.dtype)
+
+    def seed_adjoint(
+        self,
+        seed_bar: np.ndarray,
+        context: CarlsonSweepContext,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Constant-zero forward map → zero cotangents."""
+        ng, nx = seed_bar.shape
+        M = context.mu_quad.size
+        return np.zeros((ng, M, nx)), np.zeros(ng)
 
     def __repr__(self) -> str:
         return "ZeroSeed()"
@@ -503,6 +568,24 @@ class CarlsonInwardSweep(
 
     .. warning::
 
+       **NOT operator-consistent off equilibrium (ERR-058 b).** The
+       :math:`\bar Q = \Sigma_t\phi_0/\!\sum w` proxy source equals the
+       true within-group source ONLY at the flat-flux equilibrium
+       :math:`\Sigma_t\phi_0 = \bar Q` (the docstring's "at the
+       converged eigenmode" premise).  On any non-equilibrium field
+       the seed solves the wrong starting-direction ODE — O(1) wrong
+       in data — and the resulting per-ordinate redistribution
+       residual is invisible to every scalar-flux check (the α-dome
+       telescopes; vv-principles anti-pattern #8).  This floored the
+       curvilinear MMS at ~0.04 L2 independent of mesh (Issue #195).
+       Superseded as the default by
+       :class:`AngularEdgeExtrapolation`; retained as the registered
+       host of the Hébert recurrence
+       (:func:`carlson_inward_sweep_from_source`) for future
+       TRUE-source-driven sweep-side seeding.
+
+    .. warning::
+
        **L = 0 isotropic-only assumption is load-bearing.** This
        strategy assumes the apply matvec's L operator carries ONLY
        the isotropic collision term :math:`\Sigma_t \psi` — scattering
@@ -602,8 +685,147 @@ class CarlsonInwardSweep(
             bc_outer_value=bc_outer,
         )
 
+    def seed_adjoint(
+        self,
+        seed_bar: np.ndarray,
+        context: CarlsonSweepContext,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""Reverse the (φ₀ fold → Q̄ → inward DD recurrence) chain.
+
+        Moved verbatim from the formerly-hardcoded block in
+        :meth:`MorelMontryAngularSweep.angular_adjoint` (Wave O O.2b)
+        when the seed adjoint became strategy-owned (ERR-058 fix).
+        Verified against the dense-probe transpose oracle
+        (``diag_p42_adjoint_oracle.py``).
+        """
+        sigma_t = context.sigma_t
+        dr = context.dr
+        weights = context.weights
+        ng, nx = seed_bar.shape
+        M = weights.size
+        denomC = dr[None, :] * sigma_t + 2.0           # (ng, nx)
+        # ── reverse the inward DD sweep (ascending k = reverse descent)
+        Qbar_bar = np.zeros((ng, nx))
+        gk_bar = np.zeros(ng)
+        for k in range(nx):
+            phi_cell_bar = seed_bar[:, k] + 2.0 * gk_bar
+            Qbar_bar[:, k] += (dr[k] / denomC[:, k]) * phi_cell_bar
+            gk_bar = -gk_bar + (2.0 / denomC[:, k]) * phi_cell_bar
+        # ── reverse Q̄ = σ_t·φ₀/Σw and φ₀ = Σ_m w[m]·ψ[m] ──────────
+        phi0_bar = (sigma_t / weights.sum()) * Qbar_bar  # (ng, nx)
+        psi_level_bar = weights[None, :, None] * phi0_bar[:, None, :]
+        return psi_level_bar, gk_bar
+
     def __repr__(self) -> str:
         return "CarlsonInwardSweep()"
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# AngularEdgeExtrapolation — the operator-consistent iterate seed
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True, slots=True)
+class AngularEdgeExtrapolation(
+    PsiHalfAngleSeedBase, key="angular_edge_extrapolation",
+):
+    r"""Seed = the INPUT FIELD extrapolated in angle to the level's edge.
+
+    The M-M recurrence's seed :math:`\psi_{1/2,i}` is, definitionally,
+    the angular flux at the level's starting-direction edge
+    :math:`\mu_{\text{start}}` (sphere: −1; cylinder:
+    :math:`-\sqrt{1-\xi_p^2}`).  For the **operator** (matvec) to be
+    consistent, the seed must approximate the *input field's* value at
+    that direction — a pure angular-extrapolation problem.  This
+    strategy extrapolates linearly in :math:`\mu` through the level's
+    two most-inward ordinates:
+
+    .. math::
+
+       \psi_{1/2,i} \;=\; (1-t)\,\psi_{m_0,i} + t\,\psi_{m_1,i},
+       \qquad
+       t = \frac{\mu_{\text{start}} - \mu_{m_0}}{\mu_{m_1} - \mu_{m_0}} .
+
+    Properties (ERR-058 closure):
+
+    * **Exact on angle-flat fields** (:math:`(1-t)+t = 1`) — every
+      per-ordinate flat-flux identity gate is untouched.
+    * **Exact on linear-in-:math:`\mu` fields** — and the M-M
+      recurrence with unclamped :math:`\tau` weights then threads the
+      ENTIRE half-angle grid exactly
+      (:math:`\psi_{m+1/2} = a + b\,\mu_{m+1/2}`), so the P1-class
+      anisotropic MMS references are admitted by the operator.
+    * **O(Δμ²)-consistent** on smooth angular profiles — the same
+      class as the angular discretisation itself.
+    * **Linear in the input** with NO dependence on σ_t, sources, or
+      the boundary trace.
+
+    Why this replaces :class:`CarlsonInwardSweep` as the default
+    -------------------------------------------------------------
+
+    The Carlson strategy solves the Hébert §3.9.4 starting-direction
+    transport equation — the canonical *sweep-side* construction — but
+    drives it with the **proxy source** :math:`\bar Q = \Sigma_t
+    \phi_0/\!\sum w`, exact only at the flat-flux equilibrium
+    :math:`\Sigma_t\phi_0 = \bar Q`.  On any non-equilibrium field
+    (every MMS reference, any vacuum/heterogeneous problem) the proxy
+    solves the wrong ODE: the seed is O(1)-in-data wrong, the
+    per-ordinate redistribution residual is O(1) at every cell, and —
+    because the α-dome telescopes under the angular weight sum —
+    every scalar-flux balance check is structurally blind to it
+    (vv-principles anti-pattern #8; the flat-flux gates sit exactly in
+    the proxy's exactness regime, Mode 7).  Empirically this floored
+    the curvilinear MMS solution error at ~0.04–0.05 independent of
+    mesh (Issue #195).  Extrapolation replaces the wrong linear map
+    with a correct one; the canonical source-driven Carlson recurrence
+    (:func:`carlson_inward_sweep_from_source` with the TRUE
+    within-group source) remains available to the sweep path as a
+    future refinement.
+    """
+
+    is_linear: ClassVar[bool] = True
+    """Fixed linear combination of two input ordinate slices."""
+
+    @staticmethod
+    def _stencil(context: CarlsonSweepContext) -> tuple[int, int, float]:
+        """(m0, m1, t): the two most-inward distinct-μ ordinates + weight."""
+        mu = context.mu_quad
+        order = np.argsort(mu)
+        m0 = int(order[0])
+        # First ordinate with μ distinct from μ_{m0} (cylinder levels
+        # carry azimuthal duplicates); degenerate single-direction
+        # levels fall back to constant extrapolation (t = 0).
+        for cand in order[1:]:
+            if abs(mu[int(cand)] - mu[m0]) > 1e-14:
+                m1 = int(cand)
+                t = float((context.mu_start - mu[m0]) / (mu[m1] - mu[m0]))
+                return m0, m1, t
+        return m0, m0, 0.0
+
+    def __call__(
+        self,
+        psi_level: np.ndarray,
+        context: CarlsonSweepContext,
+    ) -> np.ndarray:
+        m0, m1, t = self._stencil(context)
+        return (1.0 - t) * psi_level[:, m0, :] + t * psi_level[:, m1, :]
+
+    def seed_adjoint(
+        self,
+        seed_bar: np.ndarray,
+        context: CarlsonSweepContext,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Scatter the seed cotangent onto the two stencil ordinates."""
+        m0, m1, t = self._stencil(context)
+        ng, nx = seed_bar.shape
+        M = context.mu_quad.size
+        psi_level_bar = np.zeros((ng, M, nx))
+        psi_level_bar[:, m0, :] += (1.0 - t) * seed_bar
+        psi_level_bar[:, m1, :] += t * seed_bar
+        return psi_level_bar, np.zeros(ng)
+
+    def __repr__(self) -> str:
+        return "AngularEdgeExtrapolation()"
 
 
 __all__ = [

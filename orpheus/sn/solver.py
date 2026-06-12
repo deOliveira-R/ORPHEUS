@@ -1907,30 +1907,23 @@ def solve_sn_fixed_source(
         Inner solver iteration limits.
     inner_solver : {"source_iteration", "krylov", None}
         Inner-solve strategy.  When ``None`` (default), all geometries
-        use ``"source_iteration"`` — bit-identical to the Wave A-D
-        path.  ``"krylov"`` is available as an opt-in for vacuum /
-        reflective / white / albedo / mixed
-        BCs uniformly — but the curvilinear-default flip is **not**
-        enabled because empirically the symmetric-closure FD operator
-        at the curvilinear outer face uses cell-center as a face-flux
-        approximation, which is only first-order at the boundary on
-        non-constant solutions.  Switching the default to
-        ``"krylov"`` regresses the curvilinear MMS convergence rate
-        from the WDD sweep's :math:`\mathcal{O}(h^{1.3})` (still
-        ERR-026-affected, but volumetrically benign for MMS) to
-        :math:`\mathcal{O}(h^{1})` (the FD operator's boundary
-        truncation).  Round 3's BC plumbing is therefore the
-        infrastructure that *enables* a future full closure;
-        the closure itself depends on a follow-up that fixes the
-        FD operator's boundary face-flux treatment (DD diamond
-        relation at the outer boundary, or analogous extrapolation).
+        use ``"source_iteration"``.
 
-        ``"krylov"`` is still the right choice for **constant-source**
-        problems (where the cell-center-as-face-value approximation
-        is exact), as evidenced by the
-        :file:`tests/sn/test_sweep_operator_inconsistency.py` regression
-        suite — krylov gives the analytical flat flux to round-off
-        while the sweep produces the documented ERR-026 deviation.
+        History: from Phase D (2026-05-12) through the ERR-058 fix
+        (2026-06-12, Issue #195) the curvilinear ``None`` default
+        resolved to ``"krylov"``, because the SWEEP's fixed point was
+        wrong on non-flat fields (the ERR-026/ERR-058 closure-seed
+        family) while Krylov-on-apply tracked the (then-distinct)
+        matvec system.  Post-unification the sweep and matvec are ONE
+        discrete system, and the ERR-058 closure-seed fix (coupled-
+        pole spatial seed + angular-edge-extrapolation half-angle
+        seed) makes that system O(h²)-consistent — SI and Krylov now
+        converge to bit-identical fixed points on the curvilinear MMS
+        ladders, with SI ~10²× faster (no GMRES restart pathology,
+        ERR-053).  The curvilinear default therefore returned to
+        ``"source_iteration"``; ``"krylov"`` stays available as the
+        opt-in cross-check (the SI ≡ Krylov fixed-point equivalence
+        is itself a standing splitting-invariance gate, vv Mode 9).
     inner_schedule : {"gauss_seidel", "jacobi"}
         Source-iteration BOUNDARY splitting (Phase 3, ``inner_solver=
         "source_iteration"`` only).  ``"gauss_seidel"`` (default) folds the
@@ -1977,18 +1970,14 @@ def solve_sn_fixed_source(
     #   seeds the M-M angular recurrence's half-angle face flux, making
     #   per-ordinate flat-flux balance hold on sphere Gate 1.1 MMS.
     #
-    # **Phase D default flip (2026-05-12)**: curvilinear (sphere /
-    # cylinder) defaults to ``"krylov"``.  The Phase B / C / D apply
-    # matvec gives the canonical Hébert form; Krylov-on-apply
-    # converges cleanly to the apply matvec's fixed point without
-    # the ERR-026 closure-bias drift.  Cartesian (slab / 2-D) stays
-    # at ``"source_iteration"`` (the existing inner solver default
-    # for Cartesian — no ERR-026 affected closure on slab).
+    # **ERR-058 default restoration (2026-06-12, Issue #195)**: every
+    # geometry defaults to ``"source_iteration"``.  The Phase D
+    # curvilinear→Krylov flip existed because the sweep's fixed point
+    # was wrong on non-flat fields; the ERR-058 closure-seed fix made
+    # the (unified) sweep/matvec system O(h²)-consistent, SI ≡ Krylov
+    # bit-identical, and SI ~10²× faster.  See the docstring history.
     if inner_solver is None:
-        if getattr(sn_mesh, "curvature", None) in ("spherical", "cylindrical"):
-            inner_solver = "krylov"
-        else:
-            inner_solver = "source_iteration"
+        inner_solver = "source_iteration"
 
     solver = SNSolver(
         sn_mesh,

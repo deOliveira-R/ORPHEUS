@@ -2048,6 +2048,15 @@ def _run_1d_sweep(
         else:
             psi_g_first = None
 
+        # Carlson coupled-pole spatial seed (ERR-058, Issue #195): each
+        # inward (μ<0) ordinate's pole-face outflow is captured here and
+        # consumed as the spatial seed of its MIRROR outward (μ>0)
+        # ordinate — the r=0 continuity ψ(0, +μ) = ψ(0, −μ).  Mirror
+        # partners share a level, and the M-M thread sweeps inward
+        # ordinates first, so the captured value is always data.
+        mirror = sn_mesh.quad.reflection_index("x")
+        pole_outflow = np.zeros((mu.size, ng))
+
         for p_idx, level in enumerate(levels):
             ordinates_in_level = level_ordinates_list[p_idx]
             ords_arr = np.asarray(ordinates_in_level)
@@ -2065,6 +2074,7 @@ def _run_1d_sweep(
                 mu_quad=mu_in_level.copy(),
                 weights=level_weights.copy(),
                 bc_outer_value=bc_outer_value,
+                mu_start=float(geom.mu_start[most_inward_global]),
             )
             phi_aux = closure.psi_half_seed(psi_level, carlson_ctx)  # (ng, nx)
             psi_angle = phi_aux.copy()                            # (ng, nx) — principled
@@ -2083,17 +2093,21 @@ def _run_1d_sweep(
                 # Per-ordinate spatial-upstream inflow (ng,).
                 if mu_n < 0:
                     psi_in = inflow_full[global_n]               # type: ignore[index]
+                elif geom.is_degenerate[global_n]:
+                    # Degenerate (μ_r = 0) ordinate: no radial streaming —
+                    # the spatial-upstream slot is inert.
+                    psi_in = np.zeros(ng)
                 else:
-                    # R-1 Step 0: pole spatial-upstream derived from the
-                    # caller's ``initial_guess`` — same trace-space logic
-                    # as the matvec (read the input flux's pole cell).
-                    # D-H.1c stage 4 — ``ig_values`` carries the bulk
-                    # ndarray regardless of container type (legacy
-                    # AngularFlux or composite TimedFullField).
-                    if ig_values is not None:
-                        psi_in = ig_values[global_n, :, 0]
-                    else:
-                        psi_in = np.zeros(ng)
+                    # Coupled-pole seed (ERR-058 a): the mirror inward
+                    # ordinate's pole-face outflow (captured below in
+                    # this level's earlier M-M steps) — the r = 0
+                    # continuity ψ(0, +μ) = ψ(0, −μ).  Mirrors the
+                    # matvec's seed (Pattern 2 — the sweep/matvec pair
+                    # stays ONE discrete system).  The historical
+                    # pole-CELL-centre read of the previous iterate was
+                    # O(h)-wrong on non-flat profiles (exact on flat ψ —
+                    # invisible to every flat-flux gate).
+                    psi_in = pole_outflow[mirror[global_n]]
 
                 # Degenerate cyl-axis ordinate: slow per-cell path.
                 if geom.is_degenerate[global_n]:
@@ -2140,6 +2154,11 @@ def _run_1d_sweep(
                 psi_face_chain = ordinate_scan(
                     a_atten_p.T, b.T, psi_in,
                 )                                                 # (nx, ng)
+                if mu_n < 0:
+                    # Coupled-pole capture: an inward chain ends at the
+                    # pole; its final face value seeds the mirror outward
+                    # ordinate's chain (consumed above).
+                    pole_outflow[global_n] = psi_face_chain[-1]
 
                 # DD spatial closure — vectorised cell-average.
                 psi_face_in_chain = np.empty_like(psi_face_chain)
