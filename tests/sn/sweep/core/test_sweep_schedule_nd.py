@@ -10,11 +10,13 @@ point (the ERR-056 class: shed-EXISTENCE here, where the original ERR-056
 was shed-ORDER on a shared face).  These pins close that hole BY
 CONSTRUCTION before a 3-axis mesh exists.
 
-Scope boundary (vv Mode 7 — declare what the ansatz nulls): a d=3 ``SNMesh``
-is unconstructible today (no ``Mesh3D``; ``orpheus/sn/axis.py``
-``legacy_mesh_from_axes`` raises), so these pins prove the schedule's
-STRUCTURE (labels, face sets, reflect-group assignment) on duck-typed
-stand-ins, never a d=3 flux VALUE — the value claim lands with Mesh3D (C5).
+Scope boundary (vv Mode 7 — declare what the ansatz nulls): the duck-typed
+pins prove the schedule's STRUCTURE (labels, face sets, reflect-group
+assignment) cheaply at the four reads the schedule makes. Since C5.5
+(#225) a d=3 ``SNMesh`` IS constructible (mesh-less ``from_axes``):
+``test_gs_d3_schedule_from_real_mesh`` below pins the order-INVARIANT
+facts live, and the d=3 flux-VALUE claim lands in
+``tests/sn/solve/test_d3_admission.py`` (the Mode-9 G-S≡Jacobi box).
 The schedule layer is mesh-LIGHT by design: ``_octant_sweep`` /
 ``_outgoing_faces`` are pure on quadrature partition entries / labels, and
 ``SweepSchedule.gauss_seidel`` reads only ``ndim``, ``quad.octants``,

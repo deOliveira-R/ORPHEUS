@@ -1191,10 +1191,12 @@ class ScanMarch(_LossRepresentation):
     (``scan(x)∘march(y, z)`` — a raster march over the transverse
     hyperplane) is the algorithm's natural generalization but the interior
     kernels unpack d=2 today, so ``supports`` tells the truth (C3.6:
-    construct general, SELECT NARROW) and a d≥3 Cartesian mesh — when one
-    becomes constructible (Mesh3D, C5) — falls through ``default_for`` to
-    the genuinely d-generic :class:`FullFieldWavefront` spine instead of
-    misrouting here.  Widen this predicate WITH the kernel generalization,
+    construct general, SELECT NARROW) and a d≥3 Cartesian mesh
+    (constructible since C5.5/#225 via the mesh-less
+    ``SNMesh.from_axes``) falls through ``default_for`` to the genuinely
+    d-generic :class:`FullFieldWavefront` spine instead of misrouting
+    here (pinned LIVE by ``TestD3SupportsMatrix``; the d≥3 kernel
+    generalization is #227).  Widen this predicate WITH the kernel generalization,
     never before it.
 
     **The 2-D Cartesian PRODUCTION DEFAULT since the S6.9 Fork-B2 flip
@@ -1472,7 +1474,8 @@ def default_for(mesh: "SNMesh") -> LossRepresentation:
     IncompatibleRepresentation
         If no strategy applies.  Unreachable for any constructible mesh
         (every 1-D mesh → ``CumprodScan``; every 2-D Cartesian mesh →
-        ``ScanMarch``; a d≥3 Cartesian mesh — when Mesh3D lands —
+        ``ScanMarch``; a d≥3 Cartesian mesh — axis-native via
+        ``SNMesh.from_axes`` since C5.5 (#225) —
         → ``FullFieldWavefront``, the never-stuck any-d spine).
     """
     for cls in LOSS_REPRESENTATIONS:

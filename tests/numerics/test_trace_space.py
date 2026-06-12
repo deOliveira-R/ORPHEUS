@@ -495,3 +495,23 @@ def test_omega_dot_n_all_six_faces_distinct_axes():
     for row, face in enumerate(faces):
         axis, sign = {"x": 0, "y": 1, "z": 2}[face[0]], (-1 if face.endswith("min") else +1)
         np.testing.assert_array_equal(trace.omega_dot_n[row], sign * mu[axis])
+
+
+@pytest.mark.foundation
+def test_z_face_on_two_cosine_quadrature_fails_loud():
+    """A z-face against a quadrature with NO genuine third cosine RAISES.
+
+    C5.5 fail-loud guard (the C5.3 review carry, re-fixed after the
+    first guard proved dead code): the per-axis cosines are PROPERTIES
+    that zero-pad past the cubature's intrinsic dimensionality (1-D
+    Gauss-Legendre carries ``mu_z == zeros(N)``, never an absent
+    attribute), so the guard discriminates on VALUE — all-zero cosines
+    on a layout-named normal axis are a rank-mismatch, not a legitimate
+    all-tangential face. Without the raise, every ordinate at that face
+    silently classifies as neither inflow nor outflow.
+    """
+    quad = Quadrature.gauss_legendre(8)
+    np.testing.assert_array_equal(np.asarray(quad.mu_z), 0.0)  # non-vacuity
+    layout = FaceLayout.from_named_shapes([("zmin", (quad.N, 1))])
+    with pytest.raises(ValueError, match="rank-mismatch"):
+        TraceSpace.from_quadrature_and_layout(quad, layout)

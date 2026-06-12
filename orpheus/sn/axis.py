@@ -681,8 +681,9 @@ def legacy_mesh_from_axes(
         )
 
     raise NotImplementedError(
-        f"legacy_mesh_from_axes: {len(axes)}-D is not supported in C1 — "
-        f"no Mesh3D dataclass exists today (D9 of the ultraplan; the "
-        f"3-D admission gate exercises the pure shape functions on "
-        f"axis tuples directly without constructing an SNMesh)."
+        f"legacy_mesh_from_axes: the legacy mesh ADAPTER is genuinely "
+        f"d≤2 (Mesh1D / Mesh2D are the d≤2 user-facing dataclasses); "
+        f"{len(axes)}-axis meshes are mesh-adapter-free by design — "
+        f"construct via SNMesh.from_axes (C5.5, #225), which passes "
+        f"mesh=None at d≥3 and never calls this builder."
     )

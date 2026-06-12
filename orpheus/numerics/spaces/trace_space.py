@@ -107,9 +107,10 @@ truth for "which faces exist":
   This is why the curvilinear layout has no inner face (it is NOT a
   ``left/right`` pair): a solid sphere has exactly one boundary.
 * **Mesh2D Cartesian** — four faces ``xmin`` / ``xmax`` / ``ymin`` /
-  ``ymax``. 2-D cylindrical ``(r, z)`` is not implemented (azimuthal
-  averaging of the face normals is unwired) and raises
-  :class:`NotImplementedError`.
+  ``ymax``; a 3-axis Cartesian mesh (C5.5, #225) all six. 2-D
+  cylindrical ``(r, z)`` has no SN sweep and cannot become an SNMesh
+  (refused at the axis conversion during construction — since C5.3 the
+  trace itself is geometry-blind and never sees a mesh).
 
 References
 ----------
@@ -226,21 +227,25 @@ def _build_omega_dot_n(
                 f"{sorted(_FACE_NORMALS)}"
             ) from exc
         # C5.5 (#225) fail-loud: a layout naming an axis-k FACE demands
-        # genuine mu_k on the quadrature. The zero-fallback in
-        # _quadrature_axis exists for predicate sites where a missing
-        # cosine legitimately means "tangential everywhere" — but a
-        # BOUNDARY FACE with Ω·n ≡ 0 for every ordinate is a
-        # rank-mismatch (e.g. a z face on a 2-D quadrature), and
-        # zero-padding it silently misclassifies all ordinates as
-        # neither inflow nor outflow.
-        if getattr(quadrature, f"mu_{AXIS_NAMES[axis]}", None) is None:
+        # GENUINE mu_k on the quadrature. Discriminate on VALUE, not
+        # attribute presence — the per-axis cosines are properties that
+        # zero-pad past the cubature's intrinsic dimensionality (e.g.
+        # 1-D Gauss-Legendre carries mu_z == zeros(N), never an absent
+        # attribute), so an attribute test can never fire. A boundary
+        # face whose normal-axis cosines are ALL zero has Ω·n ≡ 0 for
+        # every ordinate — a rank-mismatch (a z face on a quadrature
+        # with no third cosine) that zero-padding would silently
+        # misclassify as all-tangential (neither inflow nor outflow).
+        mu_axis = _quadrature_axis(quadrature, axis)
+        if not np.any(mu_axis):
             raise ValueError(
-                f"Face {face_name!r} requires mu_{AXIS_NAMES[axis]} on "
-                f"the quadrature, which does not provide it — a "
+                f"Face {face_name!r} requires genuine "
+                f"mu_{AXIS_NAMES[axis]} cosines, but every ordinate of "
+                f"the quadrature has mu_{AXIS_NAMES[axis]} == 0 — a "
                 f"rank-mismatch between the face layout and the "
                 f"angular cubature."
             )
-        omega_dot_n[f_idx] = sign * _quadrature_axis(quadrature, axis)
+        omega_dot_n[f_idx] = sign * mu_axis
     return omega_dot_n
 
 
