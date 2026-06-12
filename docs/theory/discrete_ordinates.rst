@@ -2361,6 +2361,22 @@ is per-level batched evaluation.
 ERR-026 closure status (partial through Wave E)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. note:: **Superseded (2026-06-12, Issue #195).**
+
+   This subsection records the Wave-E-era reading: ERR-026 PARTIAL,
+   the curvilinear ``"krylov"`` default "would regress MMS to
+   :math:`\mathcal{O}(h)`", the open second-order follow-up.  That
+   reading was the best available *then* and is preserved as history.
+   It is now **superseded**: ERR-058 (#195) showed the wrong fixed
+   point was the *closure-seed* family, not a boundary-truncation
+   order; the curvilinear default returned to ``"source_iteration"``
+   (SI :math:`\equiv` Krylov bit-identical post-unification); and the
+   isotropic MMS is :math:`\mathcal{O}(h^2)`-consistent.  See
+   :ref:`sn-err-058-closure-seed-closeout` for the mechanism,
+   structural obstruction, and production decision.  The numerical
+   values below stay as bug-era evidence; their *interpretation* is
+   carried by the close-out.
+
 The curvilinear sweep's one-directional WDD closure
 :math:`\psi_{n+1/2} = (\overline{\psi} - (1 - \tau_{mm})\,
 \psi_{n-1/2})/\tau_{mm}` is preserved bit-identically by
@@ -3695,6 +3711,24 @@ Verification gate summary
 Phase D scope (shipped 2026-05-12 — Carlson coupled-pole seed)
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
+.. note:: **Read this Phase D / Phase F narrative as HISTORY (Issue
+   #195 CLOSED 2026-06-12).**  The Carlson coupled-pole *seed concept*
+   below is correct and survives; but two of Phase D's terminal
+   decisions were later reverted by the ERR-058 fix: (i) the
+   curvilinear ``inner_solver`` default flip to ``"krylov"`` was undone
+   (curvilinear now defaults to ``"source_iteration"``, SI
+   :math:`\equiv` Krylov bit-identical post-unification); and (ii) the
+   "magnitude scope OPEN / pre-asymptotic transient" framing was
+   falsified — the error PLATEAUED, the dominant defect was the
+   *angular* closure seed, and ERR-058 made the isotropic MMS a clean
+   :math:`\mathcal{O}(h^2)` ladder.  The
+   :class:`CarlsonInwardSweep` *half-angle* seed described here is also
+   superseded as the default by
+   :class:`~orpheus.sn.spatial.psi_half_angle_seed.AngularEdgeExtrapolation`.
+   The production resolution is at
+   :ref:`sn-err-058-closure-seed-closeout`; this section's per-step
+   claims are tombstoned inline where they bear on those decisions.
+
 Tracked at `Issue #192
 <https://github.com/deOliveira-R/ORPHEUS/issues/192>`_; the
 Hébert §3.9.4 inward sweep implementation is `Issue #193
@@ -4373,6 +4407,19 @@ canonical curvilinear closure path:
    ERR-026-affected curvilinear behaviour in place would be wrong
    for the production default.
 
+   .. note:: **Reverted (2026-06-12, Issue #195).**
+
+      This curvilinear ``"krylov"`` default was undone by the ERR-058
+      fix.  The premise — that the sweep path was ERR-026-affected
+      while Krylov-on-apply was not — held only because the sweep and
+      matvec were *distinct* discrete systems at Phase D time.  After
+      the Depth-B/Wave-T unification they are ONE system, and the
+      ERR-058 closure-seed fix makes that system O(h²)-consistent: SI
+      :math:`\equiv` Krylov bit-identical, SI :math:`\sim 10^2\times`
+      faster.  The curvilinear default returned to
+      ``"source_iteration"``.  See
+      :ref:`sn-err-058-closure-seed-closeout`.
+
 .. _sn-phase-d-gate-1-1-empirical:
 
 Empirical Gate 1.1 outcome (Phase D — full 12-cell crosstab)
@@ -4479,6 +4526,23 @@ matvec's two-application sequence) rather than a math claim.
 
 ERR-026 PARTIAL → PARTIAL (narrowed scope)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. note:: **Retraction (2026-06-12, Issue #195).**
+
+   The sub-claim table below classified the residual MMS magnitude as
+   a benign "pre-asymptotic transient" that finer :math:`n_x` would
+   clear (status OPEN, tracked at #195).  **That classification is
+   wrong.**  The curvilinear isotropic MMS error did not shrink under
+   refinement — it PLATEAUED mesh-independently (orders :math:`\to 0`),
+   because the dominant defect was the *angular* closure seed (the
+   Carlson proxy source), not a spatial-truncation constant.  The
+   "rate :math:`[3.33, 2.46]` already correct, only the constant is
+   large" reading was an artefact of the
+   :math:`\alpha`-dome-telescoping blindness of the scalar residual.
+   ERR-058 (#195) replaced both seeds; the isotropic MMS is now a
+   clean :math:`\mathcal{O}(h^2)` ladder.  The table is preserved as
+   bug-era evidence — its STATUS / Closed-by interpretation is
+   superseded by :ref:`sn-err-058-closure-seed-closeout`.
 
 Phase D **narrows** ERR-026's open scope.  The bug ERR-026
 originally diagnosed — *"curvilinear sweep WDD angular closure
@@ -5220,6 +5284,24 @@ Files touched by Phase F
 What stays open after Phase F (ERR-026 manifestation #7)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. note:: **Superseded (2026-06-12, Issue #195).**
+
+   The "residual O(h) SI-vs-Krylov gap = ERR-026 manifestation #7"
+   reading below — including the SI :math:`\neq` Krylov tables above
+   (pole ratio 0.778 vs Krylov 1.029; :math:`\Delta k` converging
+   :math:`\mathcal{O}(h)`) and Options (a)/(b)/(c) — was the
+   *two-distinct-systems* picture.  The gap was NOT a discretisation
+   artefact; it was the shared closure-seed defect, manifest
+   differently on the two then-distinct paths.  After the
+   Depth-B/Wave-T matvec unification the sweep and matvec became ONE
+   discrete system, and the ERR-058 closure-seed fix made SI
+   :math:`\equiv` Krylov **bit-identical** on the curvilinear MMS
+   ladders.  Option (c) (keep SI, accept an O(h) gap) is moot — there
+   is no gap; Option (b) (flip to Krylov) is the opposite of what
+   landed (SI is the faster default).  The values below stay as bug-era
+   evidence; the interpretation is carried by
+   :ref:`sn-err-058-closure-seed-closeout`.
+
 Phase F closes the **structural** pole defect (the divergent
 ratio at the pole cell on heterogeneous MR) and the
 **outer-cell** defect (sf[-1]/sf[-2] essentially reaches 1).
@@ -5365,6 +5447,588 @@ Pointers
   :doc:`boundary_conditions` — extends the Phase D
   two-BC-applies-per-matvec narrative to cover the SI sweep's
   Phase F invocation.
+
+
+.. _sn-err-058-closure-seed-closeout:
+
+ERR-058 — the curvilinear closure-seed fix (Issue #195 CLOSED)
+--------------------------------------------------------------
+
+.. admonition:: Status banner
+   :class: important
+
+   **Issue #195 CLOSED 2026-06-12.**  ERR-058 closes the curvilinear
+   *wrong-fixed-point* family — the open loop the Phase A–F narrative
+   above tracked under the name "ERR-026 PARTIAL CLOSURE".  Two
+   independent closure SEEDS in the curvilinear within-group operator
+   were wrong on every non-flat field; both are now replaced.  In
+   production:
+
+   * The **half-angle thread seed** is
+     :class:`~orpheus.sn.spatial.psi_half_angle_seed.AngularEdgeExtrapolation`
+     (the new
+     :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+     ``psi_half_seed`` default).  It replaces
+     :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`,
+     whose proxy source :math:`\bar Q = \Sigma_t\phi_0/\!\sum w` was the
+     dominant defect.
+   * The **spatial pole-face seed** of the outward (:math:`\mu>0`)
+     sweep is the *mirror inward sweep's pole-face outflow* — the
+     Carlson coupled-pole continuity :math:`\psi(0,+\mu)=\psi(0,-\mu)`
+     — replacing the historical innermost-cell-centre read
+     :math:`\psi(\Delta r/2)`.
+   * The curvilinear :func:`~orpheus.sn.solver.solve_sn_fixed_source`
+     inner default returned from ``"krylov"`` to
+     ``"source_iteration"``: post-unification the sweep and matvec are
+     ONE discrete system, so SI :math:`\equiv` Krylov to bit-identity,
+     and SI is :math:`\sim 10^2\times` faster (no GMRES restart, ERR-053).
+
+   :class:`CarlsonInwardSweep` is **retained** (not deleted) as the
+   registered host of the canonical Hébert §3.9.4 recurrence
+   (:func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`),
+   reachable only by explicit opt-in.  Its class docstring carries a
+   ``.. warning::`` block recording the proxy-source caveat by design,
+   so a future session cannot re-activate it as a default unaware of
+   the falsification.
+
+   The **anisotropic** curvilinear MMS gates improved :math:`\sim 50\times`
+   and are now limited by a *fixed-quadrature angular floor* of the
+   half-angle thread interpolation — a test-design retune tracked at
+   `Issue #229 <https://github.com/deOliveira-R/ORPHEUS/issues/229>`_,
+   **not** a residual instance of this wrong-fixed-point class.
+
+Motivation preserved — what the Phase A–F loop was chasing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The Phase A–F sections above are preserved verbatim as the
+*investigation history*.  Their reasoning was sound at the time and is
+pedagogically load-bearing — a future reader asking "why did anyone
+try a Carlson inward sweep, an apply-vs-sweep twin audit, a
+Krylov-default flip?" must find the answer there.  This subsection only
+flips the tenses on the *terminal* claims those sections reached:
+
+* Phase D **was expected to** close ERR-026 once the apply-matvec
+  half-angle seed was made non-zero; it closed the per-ordinate
+  *flat-flux identity* but left the assembled operator wrong on
+  non-flat profiles (the Carlson proxy source).  The "PARTIAL CLOSURE /
+  pre-asymptotic transient" framing it shipped **was** the best
+  available reading of the evidence then; it is now superseded.
+* Phase F **was expected to** close the SI-vs-Krylov gap by backporting
+  the same Carlson seed to the sweep.  It did make the two paths share
+  the *seed strategy*, but both still drove it with the wrong proxy
+  source, so the residual "manifestation #7 O(h) gap" it logged was a
+  symptom of the shared defect, not a discretisation artefact.  After
+  the Depth-B/Wave-T matvec unification, the sweep and matvec became
+  ONE discrete system; the gap vanished by construction once the seed
+  was fixed.
+
+The premise the *issue itself* carried — a benign "pre-asymptotic
+transient" that finer meshes would clear — was **empirically refuted**:
+on ``main`` the isotropic curvilinear MMS error PLATEAUS
+mesh-independently (sphere :math:`\sim 0.0413`, cylinder
+:math:`\sim 0.0494`, :math:`n_x` 20 :math:`\to` 640, orders
+:math:`\to 0`), with SI :math:`\equiv` Krylov bit-identical.  No
+refinement helps a plateau.
+
+The two manifestations — one class, both flat-field-exact
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ERR-058 is a **closure-seed inconsistency**: two discrete seeds inside
+the curvilinear within-group operator were constructed so that they are
+*exact* on spatially/angularly flat fields and *O(1)-wrong* on every
+other field.  Because a discrete closure seed is part of the operator,
+each seed had to be verified per-ordinate on a NON-flat field — and was
+not.
+
+.. _sn-err-058-manifestation-a:
+
+Manifestation (a) — the spatial pole-face seed
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The outward (:math:`\mu>0`) radial sweep needs an inflow value at the
+pole face :math:`r=0`.  The historical matvec
+(:meth:`~orpheus.sn.operator._MSpatialOperatorSum._compute_LpC`) and the
+sweep both read the innermost CELL-CENTRE flux :math:`\psi(\Delta r/2)`
+as if it were the pole-FACE value — a half-cell offset.  On a flat
+radial profile :math:`\psi(\Delta r/2)=\psi(0)`, so the read is exact;
+on the manufactured :math:`A(r)=\sin(\pi r/R)` ansatz it is
+:math:`\mathcal{O}(h)`-wrong.  The DD face chain propagates that seed
+error as an *undamped odd–even alternation*, and the area-weighted
+streaming amplifies it by :math:`\sim A/V \sim 1/r` near the pole.
+
+**The fix — Carlson coupled-pole continuity.**  At :math:`r=0` the
+outward characteristic is the *continuation* of the inward one: a
+neutron travelling inward along :math:`-\mu` that reaches the centre
+emerges travelling outward along :math:`+\mu`, so
+
+.. math::
+   :label: sn-err-058-coupled-pole-continuity
+
+   \psi(0,\,+\mu) \;=\; \psi(0,\,-\mu).
+
+.. (vv-status rationale) Representational identity: the r=0
+   pole-continuity boundary condition coupling the mirror ordinates.
+   Not a solver claim (no eigenvalue / flux value). The verifiable
+   content is the per-ordinate operator-admission gate
+   (test_curvilinear_operator_admits_mms, catches ERR-058) + the
+   strategy-owned seed-adjoint bit-identity (test_g_adjoint_reciprocity).
+.. vv-status: sn-err-058-coupled-pole-continuity documented
+
+The :math:`-1` (inward) sweep is therefore run FIRST.  Its pole-face
+outflow, read at the *mirror* ordinate
+``quad.reflection_index("x")``, seeds the :math:`+1` (outward) sweep.
+This is **data** — propagated from the outer boundary, lower-triangular
+in cell-visit order — not a self-reference.  It is the
+"inward-determines-outward" pole condition deferred at Phase C
+(`Issue #192 <https://github.com/deOliveira-R/ORPHEUS/issues/192>`_),
+now landed.  The seed is exact on flat :math:`\psi` (so every flat-flux
+gate is untouched), lower-triangular (so the operator stays
+forward-substitutable), and the matvec and sweep capture/consume it
+identically (so the pair stays ONE discrete system).
+
+The **adjoint** routes the :math:`+1` seed cotangent into the
+:math:`-1` reversal's initial outflow cotangent at the mirrored
+ordinates (see
+:meth:`~orpheus.sn.operator._MSpatialOperatorSum._compute_LpC_transpose`,
+pinned by the dense-probe transpose oracle
+``derivations/diagnostics/diag_p42_adjoint_oracle.py``).
+
+.. _sn-err-058-manifestation-b:
+
+Manifestation (b) — the angular half-angle thread seed (the dominant defect)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The Morel–Montry angular recurrence (Hébert §3.9.4 Eqs. 3.437/3.439)
+threads the half-angle face fluxes
+:math:`\psi_{m\pm 1/2,i}` across a :math:`\mu`-level and needs a starting
+seed :math:`\psi_{1/2,i}` at the level's most-inward angular edge.  The
+Phase D / Phase F :class:`CarlsonInwardSweep` solved the canonical
+*sweep-side* starting-direction ODE (Hébert Eqs. 3.432–3.435) for that
+seed, but drove it with the **proxy source**
+
+.. math::
+   :label: sn-err-058-proxy-source
+
+   \bar Q_i \;=\; \frac{\Sigma_{t,i}\,\phi_{0,i}}{\sum_n w_n},
+   \qquad \phi_{0,i} = \sum_n w_n\,\psi_{n,i},
+
+.. (vv-status rationale) Literature-transcribed definition of the
+   falsified proxy source (the CarlsonInwardSweep half-angle seed).
+   Recorded as the diagnosed defect, not a solver claim. Its falsity
+   is what the per-ordinate operator-admission gate (catches ERR-058)
+   detects; documented-only.
+.. vv-status: sn-err-058-proxy-source documented
+
+which equals the true within-group source ONLY at the flat-flux
+equilibrium :math:`\Sigma_t\phi_0 = \bar Q`.  On any non-equilibrium
+field — every MMS reference, every vacuum or heterogeneous problem —
+the seed solves the *wrong* starting-direction ODE.  The measured
+consequence on the isotropic MMS input
+(:math:`\psi_n = A(r)/W`, scalar value :math:`0.5`): the seed returns
+:math:`\bar\phi = 0.5777` where the correct angle-flat value is
+:math:`0.5000`, and the per-ordinate redistribution residual reaches
+:math:`\pm 55` at the pole, :math:`\pm 13` in the bulk, against a
+continuous streaming of :math:`\pm 0.31`.  **This was the dominant
+defect.**
+
+**The fix —**
+:class:`~orpheus.sn.spatial.psi_half_angle_seed.AngularEdgeExtrapolation`.
+For the *operator* (matvec) to be consistent, the seed must approximate
+the *input field's* own value at the level edge :math:`\mu_{\rm start}`
+— a pure angular-extrapolation problem with NO dependence on
+:math:`\Sigma_t`, the source, or the boundary trace.  The new strategy
+extrapolates linearly in :math:`\mu` through the level's two most-inward
+distinct-:math:`\mu` ordinates :math:`(m_0, m_1)`:
+
+.. math::
+   :label: sn-err-058-edge-extrapolation
+
+   \psi_{1/2,i} \;=\; (1-t)\,\psi_{m_0,i} + t\,\psi_{m_1,i},
+   \qquad
+   t \;=\; \frac{\mu_{\rm start} - \mu_{m_0}}{\mu_{m_1} - \mu_{m_0}}.
+
+.. (vv-status rationale) Representational identity: the
+   operator-consistent half-angle thread seed (AngularEdgeExtrapolation,
+   the new psi_half_seed default) as a fixed linear map. Not a solver
+   claim. The verifiable content is the per-ordinate operator-admission
+   gate (catches ERR-058), the isotropic MMS L1 ladders, and the
+   strategy-owned seed-adjoint bit-identity; documented-only.
+.. vv-status: sn-err-058-edge-extrapolation documented
+
+The starting-direction edge :math:`\mu_{\rm start}` (sphere
+:math:`-1`; cylinder :math:`-\sqrt{1-\xi_p^2}`, the level's most-inward
+azimuthal edge) is single-sourced from the SAME
+:math:`\alpha`/:math:`\tau` construction site as the
+:math:`\alpha`-dome (``orpheus.geometry.reduced_operator``) and threaded
+to the strategy via the REQUIRED
+:attr:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonSweepContext.mu_start`
+field — no default, so a forgotten cylinder site cannot silently fall
+back to the sphere value.
+
+**Exactness ladder.**  The extrapolation is
+
+* **exact on angle-flat fields**, because the barycentric weights sum
+  to one: :math:`(1-t)+t=1`.  Every per-ordinate flat-flux identity
+  gate is therefore untouched.
+* **exact on linear-in-:math:`\mu` fields**: write the level's input as
+  :math:`\psi_{m,i}=a_i+b_i\,\mu_m`.  Then
+
+  .. math::
+
+     \psi_{1/2,i}
+       &= (1-t)(a_i + b_i\mu_{m_0}) + t(a_i + b_i\mu_{m_1}) \\
+       &= a_i + b_i\bigl[(1-t)\mu_{m_0} + t\mu_{m_1}\bigr]
+        = a_i + b_i\,\mu_{\rm start},
+
+  the last bracket collapsing to :math:`\mu_{\rm start}` by the
+  definition of :math:`t` in :eq:`sn-err-058-edge-extrapolation`.  The
+  M-M recurrence is itself a Möbius/affine map in :math:`\mu`; seeded
+  with :math:`\psi_{1/2}=a+b\,\mu_{1/2}` it threads the ENTIRE
+  half-angle grid exactly as :math:`\psi_{m+1/2}=a+b\,\mu_{m+1/2}` (for
+  *unclamped* :math:`\tau`).  Hence the P1-class anisotropic MMS
+  references — whose ansatz is exactly :math:`(A(r)+B(r)\mu)/W` — are
+  *admitted* by the operator.
+* **O(\Delta\mu^2)-consistent** on general smooth angular profiles —
+  the same order as the angular discretisation itself.
+* **linear in the input**, so the operator-algebra capabilities
+  (:meth:`apply`, :meth:`apply_transpose`, dense probing) are
+  preserved.  The strategy OWNS its adjoint
+  (:meth:`~orpheus.sn.spatial.psi_half_angle_seed.PsiHalfAngleSeedBase.seed_adjoint`),
+  a fixed linear scatter of the seed cotangent onto the two stencil
+  ordinates, so a strategy swap on
+  :class:`MorelMontryAngularSweep` swaps both the forward and reverse
+  maps at once.
+
+.. note::
+
+   The :math:`\tau`-clamp
+   (:math:`\tau \to \max(0.5,\min(1.0,\tau_{\rm raw}))`,
+   Bailey–Morel–Chang) breaks the *exact* linear-in-:math:`\mu`
+   threading wherever it is active.  This is part of the residual
+   anisotropic angular floor quantified at :ref:`Issue #229
+   <sn-err-058-aniso-floor>` below — NOT a wrong-fixed-point defect.
+
+Why every gate stayed green — the blindness analysis
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Both seeds hid behind a regime in which they are exact, and the V&V
+suite sat *entirely inside* that regime.  This is
+``vv-principles`` Mode 7 (MMS / ansatz simplification bias) operating
+not on a manufactured solution but on the *operator's own internals*.
+
+.. list-table:: Which fields each closure seed is exact on (the blind regime)
+   :header-rows: 1
+   :widths: 30 34 36
+
+   * - Closure seed
+     - Exact on
+     - Gate that sat in the blind regime
+   * - Spatial pole-face (a)
+     - flat radial :math:`\psi`
+       (:math:`\psi(\Delta r/2)=\psi(0)`)
+     - streaming-equilibrium L0; reflective-equilibrium k\ :sub:`∞`
+   * - Angular thread (b)
+     - flat-flux equilibrium
+       (:math:`\Sigma_t\phi_0 = \bar Q`)
+     - per-ordinate flat-flux identity (Gate 1.1); homogeneous
+       reflective
+
+**The :math:`\alpha`-dome telescoping made scalar checks blind to
+(b).**  The M-M redistribution coefficients form a dome that telescopes
+under the angular weight sum: :math:`\sum_n w_n\,(\alpha_{n+1/2} -
+\alpha_{n-1/2}) = 0` REGARDLESS of the half-angle thread values.  Any
+weight-summed (scalar-flux / particle-balance) residual therefore cannot
+see a wrong half-angle thread — ``vv-principles`` anti-pattern #8
+("NEVER accept particle balance as L0 evidence; require per-ordinate
+residual") instantiated *inside a diagnostic*.  During the #195
+investigation this telescoping made the scalar residual go
+:math:`\mathcal{O}(h^2)` after fixing only (a), while the per-ordinate
+residual was still :math:`\mathcal{O}(10)` — which mis-supported a
+"near-singular operator / two-solutions gauge mode" hypothesis until a
+dense SVD showed :math:`\sigma_{\min}\approx 0.9` (never near-singular)
+and the *per-ordinate* check named the real defect.
+
+**Historical compensation explains the Phase-D-era O(h²) reading.**  At
+Phase D time the apply path measured :math:`\mathcal{O}(h^2)` under
+Krylov (the premise this issue inherited), because its closure internals
+compensated differently from the sweep.  The Depth-B/Wave-T matvec
+rebuild changed the redistribution assembly and surfaced the latent seed
+inconsistency; the SWEEP, by contrast, had ALWAYS plateaued (#195's own
+SI data :math:`[0.083, 0.095, 0.098]`).  The wrong fixed point was the
+sweep's all along — the same class as #98's original 35 %-at-:math:`r=0`
+finding.
+
+The three refuted intermediate hypotheses
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Recording the dead paths so a future session does not re-run them
+(Sphinx is the brain):
+
+#. **"Pre-asymptotic transient"** (the issue's own premise).  Refuted by
+   the :math:`n_x` 20 :math:`\to` 640 plateau — orders :math:`\to 0`, no
+   refinement helps.
+#. **A pure :math:`r=0`-regularity extrapolation spatial seed**
+   (:math:`1.5\,\psi_0 - 0.5\,\psi_1`).  Implemented; it drove the
+   *scalar* residual to :math:`\mathcal{O}(h^2)` but the solution still
+   plateaued, because the dominant defect was the *angular* seed (b),
+   invisible to the scalar residual by the telescoping above.  Superseded
+   by the coupled-pole seed :eq:`sn-err-058-coupled-pole-continuity` for
+   (a) — which is *data* rather than a one-sided stencil — once (b) was
+   diagnosed.
+#. **A "near-null gauge mode" theory** (apparent two-solutions paradox).
+   Falsified by a dense SVD: :math:`\sigma_{\min}\approx 0.9`, the
+   operator is well-conditioned.  The paradox was an artefact of the
+   scalar-blind diagnostic, not a property of the operator.
+
+Production closure decision — post-fix evidence
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Post-fix (measured 2026-06-12), the isotropic curvilinear MMS solution
+error collapses into a clean second-order ladder, with SI and Krylov
+bit-identical:
+
+.. list-table:: Post-fix isotropic curvilinear MMS L2 ladders (SI ≡ Krylov)
+   :header-rows: 1
+   :widths: 16 16 16 16 16 16
+
+   * - :math:`n_x`
+     - 20
+     - 40
+     - 80
+     - 160
+     - 320
+   * - sphere :math:`\|\phi_h-A\|_{L^2}`
+     - 1.49e-2
+     - 3.73e-3
+     - 9.28e-4
+     - 2.31e-4
+     - 5.74e-5
+   * - sphere order
+     -
+     - 2.00
+     - 2.01
+     - 2.01
+     - 2.01
+   * - cylinder :math:`\|\phi_h-A\|_{L^2}`
+     - 2.16e-3
+     - 5.39e-4
+     - 1.35e-4
+     - 3.37e-5
+     -
+   * - cylinder order
+     -
+     - 2.00
+     - 2.00
+     - 2.00
+     -
+
+The magnitude band :math:`10^{-8} < {\rm err} < 10^{-3}` is satisfied
+(sphere :math:`n_x \ge 80`, cylinder :math:`n_x \ge 40`).  SI converges
+:math:`\sim 10^2\times` faster than GMRES here (sphere :math:`n_x=160`:
+:math:`\sim 0.11\,\mathrm{s}` SI vs :math:`\sim 69\,\mathrm{s}` Krylov),
+which is why the curvilinear default returned to source iteration.
+
+The decisive *structural* gate is the **per-ordinate, volume-weighted**
+operator-admission residual of :math:`\psi_{\rm ref}` (the scalar
+residual is blind, per the telescoping above):
+
+.. list-table:: Per-ordinate volume-weighted residual of ψ_ref under (L+C−S−B), post-fix
+   :header-rows: 1
+   :widths: 25 25 25 25
+
+   * - Geometry
+     - :math:`n_c=40`
+     - :math:`n_c=80`
+     - measured order
+   * - sphere
+     - 1.97e-3
+     - 9.7e-4
+     - :math:`\approx 1.5` (pole-adjacent bounded band under
+       the :math:`r^2\,dr` weight)
+   * - cylinder
+     - 5.50e-5
+     - 1.37e-5
+     - :math:`\approx 2.0` (pointwise :math:`\mathcal{O}(h^2)`
+       everywhere)
+
+The sphere's sub-quadratic residual order is benign: the
+pole-adjacent cells legitimately carry a bounded non-decaying
+*pointwise* residual where the closure truncation meets the
+:math:`\Delta A/V \sim 1/h` geometry factor on cells whose volume
+vanishes as :math:`r^2\,dr`; the solution-error ladder above proves it
+harmless.  **Bug-era** values for this gate were :math:`\mathcal{O}(10^{-1})`-class
+(per-ordinate pointwise up to :math:`\pm 55` at the pole) — three-plus
+orders of magnitude above the post-fix bounds, which is the margin the
+ERR-058 catcher asserts.
+
+The quadrature/truncation floor is the radial DD closure order itself;
+the post-fix sphere/cylinder ladders sit at the DD design order
+(2.00–2.01), so "have you tried finer quadrature?" is pre-empted — the
+solution-error *is* second-order, and the only residual non-quadratic
+behaviour is the volume-weighted pole band, which the solution error
+does not inherit.
+
+.. _sn-err-058-aniso-floor:
+
+The anisotropic angular floor — deferred to Issue #229
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The **anisotropic** curvilinear MMS (ansatz :math:`(A(r)+B(r)\mu)/W`)
+dropped :math:`\sim 50\times` under the fix and is now limited by a
+*fixed-quadrature angular floor*, NOT by a residual wrong-fixed-point
+defect.  The mechanism: the aniso MMS imposes :math:`\psi_n` per
+ordinate, so there is no angular error *at the imposed ordinates* — but
+the M-M redistribution consumes half-angle THREAD values
+:math:`\psi_{m\pm 1/2}` that the recurrence *interpolates*.  On an
+angle-varying ansatz the thread's interpolation error is an
+angular-quadrature-resolution effect: under spatial refinement at fixed
+quadrature the solution converges to an angular floor, and the
+pure-spatial rate + magnitude assertions cannot both hold once the
+spatial error drops below it.  The floor *scales with quadrature order*
+in both geometries — the structural signature confirming the
+angular-thread attribution:
+
+.. list-table:: Anisotropic angular floor vs quadrature order (post-ERR-058, SI inner)
+   :header-rows: 1
+   :widths: 22 24 54
+
+   * - Case
+     - Quadrature
+     - Floor behaviour
+   * - sphere aniso
+     - S16 (shipped)
+     - :math:`n_x` 10→160: ``[5.9e-2, 1.5e-2, 4.0e-3, 1.15e-3, 7.3e-4]``;
+       floor :math:`\approx 7\mathrm{e}{-4}`
+   * - sphere aniso
+     - S32
+     - err@80 = 9.5e-4, err@160 = 2.9e-4 (floor drops :math:`\sim 2.5\times`)
+   * - cylinder aniso
+     - :math:`n_\mu{=}4` (shipped)
+     - :math:`n_x` 40→80: ``1.91e-2 → 1.90e-2`` (hard floor 1.9e-2)
+   * - cylinder aniso
+     - :math:`n_\mu{=}8`
+     - :math:`n_x` 40→80: ``7.50e-3 → 7.39e-3``
+       (floor drops :math:`\sim 2.6\times` per :math:`n_\mu` doubling)
+
+The :math:`\tau`-clamp (above) contributes a constant to this floor by
+breaking the exact linear-in-:math:`\mu` threading where active.  The
+quadrature-aware retune (raise the case quadrature, or split the claim
+into a pre-floor spatial-O(h²) segment + a separate
+angular-convergence assertion) is `Issue #229
+<https://github.com/deOliveira-R/ORPHEUS/issues/229>`_.
+
+Infrastructure retained
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Per the aggressive-retirement *exception* (a correct primitive that
+would be needed if the obstruction is ever bypassed is kept as an
+oracle), ERR-058 deletes no correct machinery:
+
+.. list-table:: Curvilinear closure-seed primitives — status after ERR-058
+   :header-rows: 1
+   :widths: 38 18 44
+
+   * - Primitive
+     - Status
+     - Why kept
+   * - :class:`~orpheus.sn.spatial.psi_half_angle_seed.AngularEdgeExtrapolation`
+     - **production**
+     - The new ``psi_half_seed`` default; operator-consistent on
+       non-flat fields.
+   * - :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`
+       + :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
+     - retained, opt-in
+     - Correct *source-driven* Hébert §3.9.4 recurrence; would seed a
+       future TRUE-source sweep-side closure.  Proxy-source caveat
+       pinned in its docstring ``warning`` block.
+   * - :class:`~orpheus.sn.spatial.psi_half_angle_seed.ZeroSeed`
+     - retained, ablation
+     - Reproduces the Phase B behaviour for A/B regression-safety
+       comparison.
+   * - Coupled-pole spatial seed in
+       :meth:`~orpheus.sn.operator._MSpatialOperatorSum._compute_LpC`
+       / :meth:`~orpheus.sn.loss_representation.transport_sweep`
+     - **production**
+     - The :math:`\psi(0,+\mu)=\psi(0,-\mu)` continuity; matvec + sweep
+       share it (one discrete system).
+
+Open research paths
+~~~~~~~~~~~~~~~~~~~~~
+
+Two paths could lift the anisotropic angular floor without changing the
+isotropic O(h²) result:
+
+#. **TRUE-source-driven sweep-side seed.**  Replace the
+   :class:`AngularEdgeExtrapolation` *input-field* extrapolation with the
+   canonical Hébert recurrence
+   :func:`~orpheus.sn.spatial.psi_half_angle_seed.carlson_inward_sweep_from_source`
+   driven by the genuine within-group source
+   :math:`\bar Q_i = \sum_\ell \tfrac{2\ell+1}{2}Q_\ell(r_i)(-1)^\ell`
+   (the full Legendre fold, not the :math:`\Sigma_t\phi_0` proxy).  On
+   the sweep path the true source is available; this would make the
+   *starting-direction transport* exact rather than the *input-field
+   value* exact.  Likely diagnostic probe: the per-ordinate residual at
+   the most-inward ordinate of an aniso ansatz, holding spatial mesh
+   fixed and sweeping quadrature order.
+#. **Unclamped-:math:`\tau` threading on a linear-in-:math:`\mu` shell.**
+   The exact linear-:math:`\mu` threading (above) holds only for
+   unclamped :math:`\tau`; quantify the clamp's contribution to the
+   floor and, where the cell is well-resolved
+   (:math:`\tau_{\rm raw}\in[0.5,1.0]`), thread unclamped to recover the
+   exact P1 admission.  Likely probe: the
+   :ref:`Issue #229 <sn-err-058-aniso-floor>` floor table with the clamp
+   disabled on resolved cells.
+
+Session trail (V&V audit trail)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* **ERR-058 catalogue narrative**:
+  ``.claude/skills/vv-principles/error_catalog.md`` (§ ERR-058) — the
+  authoritative two-manifestation mechanism + post-fix evidence.
+* **Re-scope record**: `Issue #195
+  <https://github.com/deOliveira-R/ORPHEUS/issues/195>`_ comments
+  (2026-06-12) — the premise refutation and the decisive probe-3
+  residual evidence.
+* **Diagnostics**: ``derivations/diagnostics/diag_195_probe{1,2,3}_*.py``
+  (the plateau / error-profile / operator-admission probes), promoted to
+  the gate ``tests/sn/verification/mms/test_curvilinear_operator_admits_mms.py``.
+* **Investigator memo**:
+  ``.claude/agent-memory/numerics-investigator/issue_195_root_cause_2_pole_closure.md``.
+
+Verification chain
+~~~~~~~~~~~~~~~~~~~
+
+The ERR-058 fix is pinned by, in order of structural decisiveness:
+
+#. :func:`tests.sn.verification.mms.test_curvilinear_operator_admits_mms.test_operator_admits_isotropic_mms_per_ordinate`
+   (``@pytest.mark.l1`` + ``catches("ERR-058")``) — the fast
+   per-ordinate volume-weighted operator-admission gate (the structurally
+   decisive check, immune to the telescoping blindness).
+#. :func:`tests.sn.verification.mms.test_mms_curvilinear.test_sn_spherical_mms_converges_second_order`
+   and
+   :func:`tests.sn.verification.mms.test_mms_curvilinear.test_sn_cylindrical_mms_converges_second_order`
+   (``catches("ERR-058")``) — the end-to-end L1 ladders whose
+   ``xfail`` markers came off with this fix; they ``verifies`` the
+   :eq:`sn-mms-spherical-psi` / :eq:`sn-mms-spherical-qext` /
+   :eq:`sn-mms-cylindrical-psi` / :eq:`sn-mms-cylindrical-qext` labels.
+#. The flat-flux and streaming-equilibrium gates pin the flat-field
+   exactness BOTH fixes preserve (so they did not regress).
+#. :func:`tests.sn.operators.test_g_adjoint_reciprocity` — pins the
+   strategy-owned seed adjoints.
+
+.. note::
+
+   **vv-status (eq-labels added by this section).**  The labels
+   :eq:`sn-err-058-coupled-pole-continuity`,
+   :eq:`sn-err-058-proxy-source`, and
+   :eq:`sn-err-058-edge-extrapolation` are *structural / representational*
+   identities (the pole-continuity boundary condition; the falsified
+   proxy-source definition; the operator-consistent edge-extrapolation
+   map).  They are NOT solver claims (no eigenvalue / flux-value claim).
+   Per the vv-status discipline they are ``documented`` — the
+   verifiable content is the per-ordinate operator-admission gate
+   (``catches("ERR-058")``) plus the strategy-owned adjoint
+   bit-identity, named in the verification chain above.
 
 
 Krylov inner solver
@@ -7132,14 +7796,31 @@ resolvent :math:`A_{\rm loss}^{-1}M` (so the loop is *literally*
 K/α-agnostic) is the α-eigenvalue wave's first step — see the
 :ref:`eigenvalue-posing` honest-scope note.
 
-The ``inverter`` parameter — closing ERR-026
----------------------------------------------
+The ``inverter`` parameter (the Wave-E ERR-026 reconciliation hook)
+-------------------------------------------------------------------
+
+.. note:: **Re-framed (2026-06-12, Issue #195).**
+
+   This section's motivating premise — that the WDD sweep ``L.solve``
+   has a *closure-bias-driven* fixed point distinct from the symmetric
+   ``apply`` closure, so routing to Krylov-on-``apply`` is what "closes
+   ERR-026" — was the *two-distinct-closures* picture.  ERR-058 (#195)
+   showed the curvilinear wrong fixed point was the *closure-seed*
+   family; once the seeds are fixed the sweep and the matvec are ONE
+   discrete system and SI ``L.solve`` :math:`\equiv` Krylov-on-``apply``
+   bit-identical (see :ref:`sn-err-058-closure-seed-closeout`).  The
+   ``inverter`` hook **remains a real, retained generality** — it lets
+   the iteration primitives swap :math:`L^{-1}` realisation (direct
+   solve, sweep, Krylov-on-apply with a preconditioner) without
+   re-implementation — but it is no longer *required* to obtain the
+   correct curvilinear fixed point.  Read the WDD-bias-vs-Krylov
+   contrast below as Wave-E-era history.
 
 Both primitives accept an ``inverter: Callable[[ndarray], ndarray]``
 that supplies :math:`L^{-1}`.  When ``None``, the primitive routes
 through :meth:`L.solve`.  When supplied, the caller controls how
-:math:`L^{-1}` is realised — and this is the load-bearing design
-choice for closing ERR-026.
+:math:`L^{-1}` is realised — the load-bearing design choice in the
+Wave-E reconciliation of ERR-026.
 
 * ``inverter = None`` (default):  :math:`L^{-1}\,q = L.solve(q)`.
   For an SN sweep this is the WDD asymmetric closure — which has a
@@ -8227,14 +8908,20 @@ sufficient evidence for the full sweep; both are required.
   :func:`orpheus.derivations.continuous.mms.sn.build_spherical_mms_case`,
   :func:`orpheus.derivations.continuous.mms.sn.build_cylindrical_mms_case`.
 - Tests:
-  :func:`tests.sn.test_mms_curvilinear.test_sn_spherical_mms_converges_second_order`
+  :func:`tests.sn.verification.mms.test_mms_curvilinear.test_sn_spherical_mms_converges_second_order`
   (sphere) and
-  :func:`tests.sn.test_mms_curvilinear.test_sn_cylindrical_mms_converges_second_order`
-  (cylinder).  Both are currently marked ``xfail strict=True``
-  pending Issue #195's pre-asymptotic-magnitude investigation —
-  the convergence ORDER (the math claim verified by these labels)
-  reaches :math:`\mathcal{O}(h^2)` cleanly; the absolute-magnitude
-  bracket at :math:`n_x = 160` is what fails.
+  :func:`tests.sn.verification.mms.test_mms_curvilinear.test_sn_cylindrical_mms_converges_second_order`
+  (cylinder), both ``catches("ERR-058")``.  **Their ``xfail`` markers
+  came off 2026-06-12 with the ERR-058 closure-seed fix** (Issue #195).
+  Post-fix the ladders are clean second-order with SI :math:`\equiv`
+  Krylov bit-identical — sphere ``[1.49e-2, 3.73e-3, 9.28e-4, 2.31e-4,
+  5.74e-5]`` (orders 2.00–2.01), cylinder ``[2.16e-3, 5.39e-4, 1.35e-4,
+  3.37e-5]`` (orders 2.00); the magnitude band
+  :math:`[10^{-8}, 10^{-3}]` is met (sphere :math:`n_x\ge 80`,
+  cylinder :math:`n_x\ge 40`).  Through the bug era (Wave E Round 3
+  2026-05 → ERR-058) they were ``xfail(strict=True)`` — the
+  now-superseded "pre-asymptotic transient" reading; see
+  :ref:`sn-err-058-closure-seed-closeout`.
 
 
 .. _sn-mms-curvilinear-aniso-verification:
@@ -8388,15 +9075,24 @@ analogue,
         \qquad \text{as } h = R/n_x \to 0\,,
 
 uses the same acceptance criterion on the cylindrical-aniso
-ansatz.  Both labels are currently consumed by Issue #168 Phase C
-Gate-3 tests under the ``xfail strict=False`` marker (ERR-026
-PARTIAL closure — the curvilinear default
-``LegacyTauSymmetricInterpolation`` profile sits at
-:math:`\mathcal{O}(h^{1.3})` until the Phase D pole-face spatial
-closure lands; Carlson seed under Issue #168 Phase D restored
-:math:`\mathcal{O}(h^2)` on the empirical probe).  The xfail
-markers are removed when ERR-026 fully closes; the convergence
-claims above are the contractual evidence the markers gate on.
+ansatz.  Both labels are consumed by the
+:file:`tests/sn/verification/mms/test_curvilinear_aniso_convergence.py`
+gate-3 tests, which **stay ``xfail``** — but, post-ERR-058 (Issue
+#195), no longer for the wrong-fixed-point reason.  The ERR-058
+closure-seed fix recovered :math:`\mathcal{O}(h^2)` *spatial*
+convergence (the isotropic ladders are clean second-order; see
+:ref:`sn-err-058-closure-seed-closeout`).  These **anisotropic** rows
+remain xfail because the angle-varying ansatz hits the
+**fixed-quadrature angular floor** of the half-angle thread
+interpolation: under spatial refinement at fixed quadrature the error
+converges to a floor (sphere S16 :math:`\approx 7\mathrm{e}{-4}`,
+cylinder :math:`n_\mu{=}4` :math:`\approx 1.9\mathrm{e}{-2}`) that
+drops only under *quadrature* refinement.  Their markers are re-pinned
+to the `Issue #229
+<https://github.com/deOliveira-R/ORPHEUS/issues/229>`_
+quadrature-aware retune (the regression gate that flips them to
+unexpected-pass when the retune lands).  See
+:ref:`sn-err-058-aniso-floor` for the floor-vs-quadrature evidence.
 
 **Verification chain (Branch 1 / Branch 2)**
 
@@ -8797,18 +9493,24 @@ Non-vacuum prescribed-inflow MMS (Phase 4 / O.2b 4.6)
      converges cleanly at :math:`\mathcal{O}(h^2)` to the **wrong**,
      boundary-zero limit. Only the flux-value-vs-:math:`A(x)` check —
      with :math:`A` non-zero at the boundary (:math:`a_0>0`) — sees it.
-   - **T3 (sphere) ships ``xfail(strict)`` on Issue #195.** The slab
-     rows are clean :math:`\mathcal{O}(h^2)` with value match; the
-     sphere L2 *stagnates* (~2.4e-2), **not** because the non-vacuum
-     machinery fails (the boundary value *is* honoured) but because the
-     curvilinear-DD interior convergence is the open ERR-026 / #195
-     pre-asymptotic signature. The sphere row now rides on the
-     curvilinear **Krylov** default of
-     :func:`~orpheus.sn.solver.solve_sn_fixed_source` (consistent with
-     the existing curvilinear MMS suite), and the slab on SI; the
-     composite-source API delivers the prescribed inflow identically to
-     both (T4). The green companion T3g provides live structural
-     coverage of the inflow + redistribution paths now.
+   - **T3 (sphere) ships ``xfail(strict)``, re-scoped to Issue #229.**
+     The slab rows are clean :math:`\mathcal{O}(h^2)` with value match.
+     The sphere row's anisotropic :math:`(A+B\mu)/W` ansatz is
+     angle-varying, so after ERR-058 (#195) recovered the spatial
+     :math:`\mathcal{O}(h^2)` convergence it now hits the
+     fixed-quadrature **angular floor** of the half-angle thread
+     interpolation (sphere S16 floor :math:`\approx 7\mathrm{e}{-4}`,
+     above the band) — NOT the old #195 plateau, and NOT a non-vacuum
+     machinery failure (the boundary value *is* honoured).  The marker
+     moved from #195 to the
+     `Issue #229 <https://github.com/deOliveira-R/ORPHEUS/issues/229>`_
+     quadrature-aware retune.  Both the sphere and slab rows now run the
+     curvilinear/Cartesian **source-iteration** default of
+     :func:`~orpheus.sn.solver.solve_sn_fixed_source` (SI :math:`\equiv`
+     Krylov bit-identical post-ERR-058); the composite-source API
+     delivers the prescribed inflow identically to every splitting (T4).
+     The green companion T3g provides live structural coverage of the
+     inflow + redistribution paths now.
 
 This section narrates the Branch-1 SymPy algebra-of-record
 (:mod:`orpheus.derivations.continuous.mms.sn`), the Branch-2 numpy
@@ -8865,7 +9567,8 @@ numpy production, structurally-independent L1 cross-check).
      - Curvilinear redistribution under non-vacuum inflow
      - L1
      - MMS (1C)
-     - **xfail(strict)** on #195 — L2 stagnates 2.4e-2 (boundary value honoured)
+     - **xfail(strict)** on #229 — aniso angular floor ≈7e-4 (spatial
+       O(h²) recovered by ERR-058; boundary value honoured)
    * - T3g (sphere)
      - Inflow honoured at :math:`r=R` + redistribution source live (green now)
      - foundation
@@ -9258,8 +9961,10 @@ prescribed-inflow boundary (:meth:`prescribed_inflow`) into one
 Migrating the rows off the bypass onto the public API *is* the
 retirement (retirement = test migration — the new code is what gets
 tested). The slab rows take the SI (1-D Jacobi) inner; the sphere row
-takes the curvilinear Krylov default; both honour the prescribed inflow
-identically (verified by T4 below).
+takes the curvilinear **source-iteration** default (post-ERR-058, #195;
+SI :math:`\equiv` Krylov bit-identical — the curvilinear ``"krylov"``
+default was reverted, see :ref:`sn-err-058-closure-seed-closeout`); both
+honour the prescribed inflow identically (verified by T4 below).
 
 **The flux/source space bridge — now INTERNAL to the solve (B.5.2).**
 The composite RHS lives in **source** space (an
@@ -9363,24 +10068,40 @@ therefore mandatory** (NEVER ship slab-only — ERR-026 territory). The
 sphere activates the redistribution term under non-vacuum inflow,
 closing the Mode-7 declaration.
 
-T3 (sphere) — why ``xfail(strict)`` on Issue #195
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+T3 (sphere) — why ``xfail(strict)``, now on Issue #229
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The sphere row
 (:func:`tests.sn.verification.analytical.test_mms_prescribed_inflow.test_mms_prescribed_inflow_sphere_activates_redistribution`)
 ships ``@pytest.mark.xfail(strict=True)`` with ``catches("ERR-026")``.
-The reason is **not** that the non-vacuum machinery fails. It is that
-the curvilinear-DD interior spatial convergence the sphere row *rides
-on* is the open Issue #195 / ERR-026 pre-asymptotic gate — the same
-signature as the existing
-:file:`tests/sn/verification/mms/test_mms_curvilinear.py` rows.
+The reason is **not** that the non-vacuum machinery fails.
 
-The measured evidence makes the distinction precise. The slab is
-pole-free and converges perfectly: orders ``[2.04, 2.01]``, finest L2
-~1.2e-3, pointwise ``max|φ−A|`` ~8e-5, boundary value matched. The
-sphere L2 (volume-weighted), in contrast, **stagnates**:
+.. note:: **Re-scoped (2026-06-12, Issue #195 CLOSED → Issue #229).**
 
-.. list-table:: T3 sphere volume-weighted L2 error (stagnation, not convergence)
+   This row's xfail was originally attributed to the #195
+   "pre-asymptotic transient" plateau (the stagnation table below).
+   The ERR-058 closure-seed fix **closed** the curvilinear
+   wrong-fixed-point family, so the stagnation is gone — the isotropic
+   curvilinear DD interior is now :math:`\mathcal{O}(h^2)`-consistent
+   (see :ref:`sn-err-058-closure-seed-closeout`).  T3's ansatz, however,
+   is the *anisotropic* :math:`(A(r)+B(r)\mu)/W`, which is angle-varying
+   and therefore hits the **fixed-quadrature angular floor** of the
+   half-angle thread interpolation (sphere S16 floor
+   :math:`\approx 7\mathrm{e}{-4}`, above the band).  The marker
+   **stays ``xfail(strict)``** but is now pinned to the
+   `Issue #229 <https://github.com/deOliveira-R/ORPHEUS/issues/229>`_
+   quadrature-aware retune, NOT the #195 plateau; it flips to
+   unexpected-pass when #229 lands (the regression gate for the retune).
+   The stagnation table below is preserved as **bug-era evidence**; its
+   "pre-asymptotic" interpretation is superseded.
+
+**Bug-era stagnation (pre-ERR-058).**  The slab was pole-free and
+converged perfectly: orders ``[2.04, 2.01]``, finest L2 ~1.2e-3,
+pointwise ``max|φ−A|`` ~8e-5, boundary value matched.  The sphere L2
+(volume-weighted), by contrast, **stagnated** mesh-independently — the
+plateau that refuted the "pre-asymptotic transient" premise:
+
+.. list-table:: T3 sphere volume-weighted L2 error (bug-era plateau, pre-ERR-058)
    :header-rows: 1
    :widths: 25 25 25 25
 
@@ -9393,26 +10114,22 @@ sphere L2 (volume-weighted), in contrast, **stagnates**:
      - 2.42e-2
      - 2.43e-2
 
-The observed "orders" are ≈ :math:`-0.02` to :math:`-0.006` — the
-error is *not* decreasing under refinement, and the finest value
-2.4e-2 sits far above the #195 in-band window :math:`[10^{-8},
-10^{-3}]`. Both the rate gate and the absolute-magnitude band fire, so
-the ``xfail(strict)`` is robust (it cannot accidentally xpass).
+The observed "orders" were ≈ :math:`-0.02` to :math:`-0.006` — the
+error was *not* decreasing under refinement, the plateau signature
+ERR-058 diagnosed.  Post-ERR-058 the spatial convergence is recovered;
+the residual gap on this *anisotropic* row is the #229 angular floor,
+which DOES drop under quadrature refinement (sphere S16
+:math:`\to` S32 halves the floor) — the structural test that the
+remaining gap is angular, not a wrong fixed point.
 
-Crucially, the **boundary value is honoured**: the finest-mesh
-:math:`\phi[-1] \approx 0.7499 \approx A(R) = 0.75`, and the
-inflow-trace spot check passes. The non-vacuum prescribed-inflow
-machinery *works*; it is only the curvilinear-DD interior spatial
-convergence that is pre-asymptotic at these meshes (the documented
-ERR-026 PARTIAL closure — the default
-``LegacyTauSymmetricInterpolation`` profile sits at
-:math:`\mathcal{O}(h^{1.3})` until the pole-face spatial closure aligns
-with Hébert §3.9.4). The ``xfail(strict)`` marker comes off when Issue
-#195 closes; an unexpected pass is the signal that #195 has been fixed
-and the marker must be removed.
+Crucially, the **boundary value is honoured** (always was): the
+finest-mesh :math:`\phi[-1] \approx 0.7499 \approx A(R) = 0.75`, and
+the inflow-trace spot check passes.  The non-vacuum prescribed-inflow
+machinery *works*; the remaining xfail is purely the angular-floor
+budget of the anisotropic ansatz under fixed quadrature.
 
-**T3g — the green structural companion.** Because T3 is gated on the
-open #195, it provides *no live* coverage of the 4.6 machinery today.
+**T3g — the green structural companion.** Because T3 is xfail (now on
+#229), it provides *no live* convergence coverage of the 4.6 machinery.
 The green companion
 :func:`tests.sn.verification.analytical.test_mms_prescribed_inflow.test_sphere_nonvacuum_inflow_honoured_and_redistribution_live`
 fills that gap with two non-convergence-dependent claims that pass
@@ -9423,7 +10140,7 @@ ordinate (:math:`\gamma_-\psi = (A(R) + \mu_n B(R))/W` with :math:`A(R)
 term is live under the 4.6 ansatz — :math:`B(r)\neq 0` on the open
 interval, with :math:`B(0)=0` pole-regular). T3g is the live structural
 guarantee that the Mode-7 sphere companion exercises the redistribution
-path even while the convergence row is parked on #195.
+path even while the convergence row is parked on #229.
 
 T4 (vv Mode 9) — splitting invariance of the prescribed inflow
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
