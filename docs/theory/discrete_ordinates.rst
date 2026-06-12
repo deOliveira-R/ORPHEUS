@@ -769,6 +769,55 @@ The code precomputes this factor as ``SNMesh.redist_dAw`` (spherical,
 shape ``(nx, N)``) and ``SNMesh.redist_dAw_per_level`` (cylindrical,
 list of ``(nx, M)`` arrays).
 
+The Streaming-Equilibrium Identity (canonical L0 gate)
+-------------------------------------------------------
+
+The flat-flux consistency proof above is the *per-cell* statement of a
+*global* exact solution that the verification suite leans on harder
+than any other: for a *homogeneous* medium with a *uniform isotropic*
+source :math:`Q` per group and boundaries that sustain a flat flux
+(reflective faces, or an infinite/periodic medium), the discrete
+transport equation has the exact fixed point
+
+.. math::
+   :label: streaming-equilibrium
+
+   \phi \;=\; \frac{Q}{\Sigma_t\,\bigl(1 - c\bigr)},
+   \qquad
+   \psi_n \;=\; \frac{\phi}{W}
+   \quad \forall n,
+   \qquad
+   W \equiv \sum_n w_n,
+   \quad
+   c \equiv \frac{\Sigma_{s0}}{\Sigma_t},
+
+per group. For a pure-attenuation configuration (no scattering in the
+residual, :math:`c = 0`) this reduces to :math:`\phi = Q/\Sigma_t` with
+the per-ordinate angular flux :math:`\psi_n = Q/(W\,\Sigma_t)`.
+
+**Why this is the canonical L0 gate.** Substituting the flat
+:math:`\psi_n` into the discrete balance :eq:`balance-general` nulls
+the streaming and redistribution terms *per ordinate* (the proof of
+consistency above), leaving the pure collision balance
+:math:`\Sigma_t\,\psi_n = Q/W + \Sigma_{s0}\,\phi/W`. Every term that
+a discretisation can get wrong — a missing :math:`\Delta A/w` factor
+(failure mode #3, the flux spike at :math:`r=0`), a wrong
+:math:`\alpha` recursion (mode #4), a face-index slip (mode #5), a
+weight-normalisation drift (:math:`1/W` vs :math:`1/4\pi`) — breaks
+the identity at machine precision, with no discretisation error to
+hide behind. The assertion is **per-ordinate**, never
+particle-balance: telescoping global balance holds by construction
+even when per-ordinate balance is wrong (the canonical ERR-006 hide;
+vv-principles anti-pattern #8).
+
+The identity holds in every geometry ORPHEUS supports (slab, sphere,
+cylinder, 2-D/3-D Cartesian) and at both algebraic access points —
+the sweep (``solve``: given :math:`Q`, recover the flat
+:math:`\psi`) and the matvec (``apply``: given the flat :math:`\psi`,
+recover the residual :math:`Q` with no spurious boundary or pole
+contribution). Tests declare it via
+``@pytest.mark.verifies("streaming-equilibrium")``.
+
 The Morel--Montry Flux Dip
 ----------------------------
 

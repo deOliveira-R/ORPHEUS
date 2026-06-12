@@ -41,7 +41,7 @@ from orpheus.derivations.continuous.fn_method.slab import (
 
 
 @pytest.mark.l1
-@pytest.mark.verifies("nm-1980-reflected-slab-fn")
+@pytest.mark.verifies("nm1980-eq15-critical-condition")
 def test_sood_table10_problem4_symmetric_pu_h2o_05():
     """Sood Table 10 problem 4 = `PUa-H2O(0.5)-1-0-SL`:
     SYMMETRIC reflected slab, Pu c=1.50, H2O c=0.90, Δ=0.5 mfp each side.

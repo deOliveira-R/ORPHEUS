@@ -38,10 +38,7 @@ from orpheus.derivations.continuous.singular_eigenfunction.sphere import (
 
 
 @pytest.mark.l1
-@pytest.mark.verifies(
-    "atalay-eq54-sphere-vacuum-isotropic",
-    "singular-eigenfunction-eq54",
-)
+@pytest.mark.verifies("singular-eigenfunction-eq54")
 def test_sphere_vacuum_isotropic_sood_ua_1_0_sp():
     """Sood ``Ua-1-0-SP`` cross-check at c=1.30, vacuum sphere.
 
@@ -62,10 +59,7 @@ def test_sphere_vacuum_isotropic_sood_ua_1_0_sp():
 
 
 @pytest.mark.l1
-@pytest.mark.verifies(
-    "atalay-eq54-sphere-vacuum-isotropic",
-    "singular-eigenfunction-eq54",
-)
+@pytest.mark.verifies("singular-eigenfunction-eq54")
 def test_sphere_vacuum_various_c():
     """Sphere vacuum critical radius scales sensibly with c.
 

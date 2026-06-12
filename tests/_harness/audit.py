@@ -105,6 +105,27 @@ def _caught_tags(items: list[TestMetadata]) -> dict[str, list[str]]:
     return caught
 
 
+def _phantom_verifies(
+    coverage: dict[str, list[str]], doc_labels: set[str]
+) -> dict[str, list[str]]:
+    """Verifies-targets declared by tests with NO matching doc ``:label:``.
+
+    The inverse of the orphan-equation gate (issue #224): a theory-page
+    label rename/removal that is not migrated into the
+    ``@pytest.mark.verifies`` strings silently drops the test from the
+    V&V matrix — the Nexus graph build skips the edge with only a log
+    line. This gate makes that drift loud at audit time.
+
+    ``doc_labels`` is scanned from ALL of ``docs/`` (not just
+    ``docs/theory/``) because verifies-targets may legitimately point
+    at labels on verification pages (e.g. ``kin-definition`` on
+    ``verification/reference_solutions``).
+    """
+    return {
+        eq: tests for eq, tests in coverage.items() if eq not in doc_labels
+    }
+
+
 # ---------------------------------------------------------------------------
 # Reporters
 # ---------------------------------------------------------------------------
@@ -115,6 +136,7 @@ def _render_text(
     *,
     theory_labels: set[str],
     documented_labels: set[str],
+    all_doc_labels: set[str],
     err_tags: set[str],
 ) -> str:
     lines: list[str] = []
@@ -183,6 +205,19 @@ def _render_text(
             lines.append(f"  {eq:40} {len(coverage[eq]):>3} test(s)")
     lines.append("")
 
+    # Phantom verifies-targets (declared by tests, no matching doc
+    # label anywhere under docs/) — the issue-#224 drift class.
+    phantoms = _phantom_verifies(coverage, all_doc_labels)
+    if phantoms:
+        lines.append(
+            f"PHANTOM verifies targets ({len(phantoms)} label(s) declared "
+            "by tests with NO matching :label: anywhere under docs/ — "
+            "these tests silently drop out of the V&V matrix):"
+        )
+        for eq in sorted(phantoms):
+            lines.append(f"  {eq:40} {len(phantoms[eq]):>3} test(s)")
+        lines.append("")
+
     # Orphan equations (declared in theory pages, never referenced by
     # any test) — excluding labels explicitly marked `.. vv-status: X
     # documented` as definitional or not-yet-implemented.
@@ -220,12 +255,19 @@ def _render_json(
     *,
     theory_labels: set[str],
     documented_labels: set[str],
+    all_doc_labels: set[str],
     err_tags: set[str],
 ) -> str:
     coverage = _equation_coverage(items)
     caught = _caught_tags(items)
     testable_labels = theory_labels - documented_labels
     payload: dict[str, Any] = {
+        "phantom_verifies": {
+            eq: tests
+            for eq, tests in sorted(
+                _phantom_verifies(coverage, all_doc_labels).items()
+            )
+        },
         "total": len(items),
         "by_level": dict(Counter(m.level or "unmarked" for m in items)),
         "by_source": dict(Counter(m.level_source for m in items)),
@@ -316,6 +358,32 @@ def _scan_theory_equations(theory_dir: Path) -> tuple[set[str], set[str]]:
     return labels, documented
 
 
+def _scan_all_doc_labels(docs_dir: Path) -> set[str]:
+    """Every ``:label:`` under ``docs/`` (excluding ``_build``).
+
+    The phantom-verifies gate compares against the FULL doc label set,
+    not just ``docs/theory/`` — verifies-targets may legitimately point
+    at verification pages. ``_build`` is excluded so stale build
+    artifacts cannot mask a genuinely-removed label.
+    """
+    if not docs_dir.is_dir():
+        return set()
+
+    labels: set[str] = set()
+    for rst in docs_dir.rglob("*.rst"):
+        if "_build" in rst.parts:
+            continue
+        try:
+            text = rst.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped.startswith(":label:"):
+                labels.add(stripped.split(":", 2)[2].strip())
+    return labels
+
+
 def _scan_err_catalog(catalog: Path) -> set[str]:
     """Extract ``ERR-NNN`` IDs from the L0 error catalog markdown."""
     if not catalog.is_file():
@@ -374,6 +442,7 @@ def main(argv: list[str] | None = None) -> int:
     items = sorted(registry.TEST_REGISTRY.values(), key=lambda m: m.nodeid)
     theory_labels, documented_labels = _scan_theory_equations(args.theory_dir)
     testable_labels = theory_labels - documented_labels
+    all_doc_labels = _scan_all_doc_labels(args.theory_dir.parent)
     err_tags = _scan_err_catalog(args.err_catalog)
 
     if args.untagged:
@@ -384,13 +453,20 @@ def main(argv: list[str] | None = None) -> int:
         coverage = _equation_coverage(items)
         caught = _caught_tags(items)
         orphans = sorted(testable_labels - coverage.keys())
+        phantoms = sorted(_phantom_verifies(coverage, all_doc_labels))
         missing_err = sorted(err_tags - caught.keys())
         if orphans:
             print("# Orphan equations (no verifying tests)")
             for eq in orphans:
                 print(eq)
-        if missing_err:
+        if phantoms:
             if orphans:
+                print()
+            print("# Phantom verifies targets (no matching doc :label:)")
+            for eq in phantoms:
+                print(eq)
+        if missing_err:
+            if orphans or phantoms:
                 print()
             print("# ERR entries with no catching test")
             for err in missing_err:
@@ -401,6 +477,7 @@ def main(argv: list[str] | None = None) -> int:
                 items,
                 theory_labels=theory_labels,
                 documented_labels=documented_labels,
+                all_doc_labels=all_doc_labels,
                 err_tags=err_tags,
             )
         )
@@ -410,6 +487,7 @@ def main(argv: list[str] | None = None) -> int:
                 items,
                 theory_labels=theory_labels,
                 documented_labels=documented_labels,
+                all_doc_labels=all_doc_labels,
                 err_tags=err_tags,
             )
         )
@@ -418,7 +496,8 @@ def main(argv: list[str] | None = None) -> int:
         untagged = sum(1 for m in items if m.level is None)
         coverage = _equation_coverage(items)
         orphans = testable_labels - coverage.keys()
-        if untagged or orphans:
+        phantoms = _phantom_verifies(coverage, all_doc_labels)
+        if untagged or orphans or phantoms:
             return 1
     return 0
 

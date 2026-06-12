@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5158**
+Total tests collected: **5160**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1151, 22.3%
-   L1, 957, 18.6%
+   L1, 957, 18.5%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3006, 58.3%
+   foundation, 3008, 58.3%
    unmarked, 8, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5071
+   explicit, 5073
    verify, 0
    class-name, 46
    func-name, 0
@@ -202,6 +202,7 @@ Module × level grid
    derivations/test_trajectory_resolvent_billiard, 0, 0, 0, 0, 11, 0
    derivations/test_trajectory_resolvent_chord_oracle, 0, 0, 0, 0, 21, 0
    derivations/test_trajectory_resolvent_power_iterate, 0, 0, 0, 0, 6, 0
+   derivations/test_xs_library_validation, 0, 0, 0, 0, 2, 0
    diffusion/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
@@ -412,6 +413,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-cyl-3d-mode-formula``, 22
    ``pitch-recovery``, 22
    ``ray-circle``, 22
+   ``singular-eigenfunction-eq46``, 21
    ``en-kernel-derivative``, 20
    ``kin-kernel-derivative``, 20
    ``peierls-rank-n-stability``, 20
@@ -443,7 +445,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``two-group-Ainv``, 11
    ``two-group-F``, 11
    ``two-group-M``, 11
-   ``atalay-eq42-extrapolated-endpoint``, 10
    ``kll-1974-slab-flux``, 10
    ``kll-1974-sphere-flux``, 10
    ``peierls-greens-cylinder-architecture``, 10
@@ -453,7 +454,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-white-bc``, 10
    ``singular-eigenfunction-eq42``, 10
    ``dd-recurrence``, 9
-   ``singular-eigenfunction-eq46``, 9
    ``sn-curvilinear-trajectory-resolvent-crosscheck``, 9
    ``tau-m``, 9
    ``tau-p``, 9
@@ -480,6 +480,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``characteristic-ode``, 6
    ``kin-kernel-special-values``, 6
    ``peierls-greens-slab-T``, 6
+   ``singular-eigenfunction-eq54``, 6
    ``cp-outer-integral-antiderivative``, 5
    ``dd-cartesian-2d``, 5
    ``en-kernel-special-values``, 5
@@ -491,7 +492,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``streaming-equilibrium``, 5
    ``xs-interp``, 5
    ``absorption-xs``, 4
-   ``atalay-eq46-slab-eq54-sphere-parity``, 4
    ``dd-slab-scalar``, 4
    ``en-kernel-integral``, 4
    ``fission-source``, 4
@@ -511,10 +511,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-mms-hetero-qext``, 4
    ``two-group-charpoly``, 4
    ``two-group-roots``, 4
-   ``atalay-table2-slab-reflected-isotropic``, 3
-   ``atalay-table2-slab-reflected-r099-precision-floor``, 3
-   ``atalay-table2-slab-vacuum-isotropic``, 3
-   ``atalay-table3-slab-vacuum-anisotropic``, 3
    ``cp-escape-from-p-cell``, 3
    ``dd-mm-closure-constants``, 3
    ``delta-psi``, 3
@@ -531,8 +527,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sigma-zero``, 3
    ``sn-mms-nonvacuum-psi``, 3
    ``sn-mms-nonvacuum-qext``, 3
-   ``atalay-eq54-sphere-vacuum-isotropic``, 2
-   ``atalay-table6-eigenvalue-moderate-d-consistency``, 2
    ``cp-second-difference-operator``, 2
    ``hilbert-adjoint-equals-metric-times-S0``, 2
    ``peierls-greens-cylinder-mr-kinf``, 2
@@ -542,7 +536,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-slab-Pesc-mode``, 2
    ``richardson-diffusion``, 2
    ``roulette-restore``, 2
-   ``singular-eigenfunction-eq54``, 2
    ``sn-case-back-substitution``, 2
    ``sn-case-matching-matrix``, 2
    ``sn-case-per-ordinate``, 2
@@ -565,7 +558,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``harmonic-moment-projection``, 1
    ``majorant``, 1
    ``moment-projection-transpose-T``, 1
-   ``nm-1980-reflected-slab-fn``, 1
+   ``nm1980-eq15-critical-condition``, 1
    ``normalisation``, 1
    ``peierls-class-b-Pss-homogeneous``, 1
    ``peierls-greens-T00-integrand``, 1

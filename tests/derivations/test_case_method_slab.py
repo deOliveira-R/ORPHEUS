@@ -57,10 +57,7 @@ from orpheus.derivations.continuous.singular_eigenfunction.slab import (
 
 
 @pytest.mark.l1
-@pytest.mark.verifies(
-    "atalay-table2-slab-vacuum-isotropic",
-    "singular-eigenfunction-eq46",
-)
+@pytest.mark.verifies("singular-eigenfunction-eq46")
 @pytest.mark.parametrize("c, d2_atalay_table2", [
     (1.30, 1.87766),
     (1.50, 1.21523),
@@ -86,10 +83,7 @@ def test_slab_vacuum_isotropic_atalay_table2(c, d2_atalay_table2):
 
 
 @pytest.mark.l1
-@pytest.mark.verifies(
-    "atalay-table2-slab-reflected-isotropic",
-    "singular-eigenfunction-eq46",
-)
+@pytest.mark.verifies("singular-eigenfunction-eq46")
 @pytest.mark.parametrize("c, R, d2_atalay_table2", [
     (1.30, 0.25, 1.40621),
     (1.30, 0.50, 0.89317),
@@ -120,7 +114,7 @@ def test_slab_reflected_isotropic_atalay_table2(c, R, d2_atalay_table2):
 
 
 @pytest.mark.l1
-@pytest.mark.verifies("atalay-table3-slab-vacuum-anisotropic")
+@pytest.mark.verifies("singular-eigenfunction-eq46")
 @pytest.mark.parametrize("c, d2_atalay_table3", [
     (1.30, 1.94146),
     (1.50, 1.25221),
@@ -201,7 +195,7 @@ def test_slab_rejects_above_validity_bound():
 
 @pytest.mark.l1
 @pytest.mark.catches("ERR-038")
-@pytest.mark.verifies("atalay-table2-slab-reflected-r099-precision-floor")
+@pytest.mark.verifies("singular-eigenfunction-eq46")
 @pytest.mark.parametrize("c, d2_atalay", [
     (1.30, 0.01456),
     (1.50, 0.00841),
@@ -237,7 +231,7 @@ def test_slab_atalay_table2_r099_first_order_floor(c, d2_atalay):
 
 @pytest.mark.l1
 @pytest.mark.catches("ERR-038")
-@pytest.mark.verifies("atalay-table6-eigenvalue-moderate-d-consistency")
+@pytest.mark.verifies("singular-eigenfunction-eq46")
 @pytest.mark.parametrize("c_atalay, R, d2_target", [
     # Atalay Table 6 (eigenvalues c at fixed 2d, f_1=0).
     # Self-consistency cross-check: at moderate d the solver MUST agree

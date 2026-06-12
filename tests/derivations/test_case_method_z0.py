@@ -68,10 +68,7 @@ ATALAY_TABLE_1 = [
 @pytest.mark.l1
 @pytest.mark.parametrize("c, nu_bar_ref, z0_ref", ATALAY_TABLE_1)
 @pytest.mark.catches("ERR-037")
-@pytest.mark.verifies(
-    "atalay-eq42-extrapolated-endpoint",
-    "singular-eigenfunction-eq42",
-)
+@pytest.mark.verifies("singular-eigenfunction-eq42")
 def test_atalay_z0_table1_isotropic(c, nu_bar_ref, z0_ref):
     """ERR-037 regression: z_0 reproduces Atalay Table 1 to ≤ 1e-5
     after the μ=tanh(t) endpoint regularisation.

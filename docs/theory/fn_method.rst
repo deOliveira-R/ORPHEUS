@@ -2198,9 +2198,25 @@ V_fn-slab-refl.3 — Critical condition NM Eq. 15 reduces to Eq. 16
 **Test gate:**
 :func:`tests.derivations.test_fn_la13511_slab_reflected.test_v_fn_slab_refl_3_eq15_critical_condition`.
 
-V_fn-slab-refl.3 verifies that the critical condition NM Eq. 15
-(collocated at the core Case discrete eigenvalue
-:math:`\xi = \nu_0`) reduces to the closed-form NM Eq. 16
+V_fn-slab-refl.3 verifies that the critical condition NM Eq. 15,
+collocated at the core Case discrete eigenvalue :math:`\xi = \nu_0`,
+
+.. math::
+   :label: nm1980-eq15-critical-condition
+
+   e^{-2\tau/\nu_0}
+   \sum_\alpha \bigl[b_\alpha B_\alpha^{(1)}(\nu_0)
+                     - a_\alpha A_\alpha(\nu_0)\bigr]
+   \;=\;
+   \sum_\alpha \bigl[a_\alpha B_\alpha^{(1)}(\nu_0)
+                     - b_\alpha A_\alpha(\nu_0)\bigr]
+
+(the rank-deficiency condition selecting the critical
+:math:`\tau` at which the :math:`3(N+1)`-row reflected-slab
+F\ :sub:`N` system with :math:`a_0 = 1` admits a non-trivial
+solution — symbolic source:
+:func:`...origins.fn_slab_reflected_derivations.derive_critical_condition_eq15_structure`)
+reduces to the closed-form NM Eq. 16
 
 .. math::
    :label: nm1980-eq16-tau-zero

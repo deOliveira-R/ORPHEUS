@@ -32,7 +32,9 @@ from orpheus.derivations.continuous.singular_eigenfunction.core.half_range impor
 
 
 @pytest.mark.l1
-@pytest.mark.verifies("atalay-eq46-slab-eq54-sphere-parity")
+@pytest.mark.verifies(
+    "singular-eigenfunction-eq46", "singular-eigenfunction-eq54",
+)
 def test_K_equals_L_at_vacuum_BC():
     """At R = 0 (vacuum), slab K_j == sphere L_j to machine precision.
 
@@ -58,7 +60,9 @@ def test_K_equals_L_at_vacuum_BC():
 
 
 @pytest.mark.l1
-@pytest.mark.verifies("atalay-eq46-slab-eq54-sphere-parity")
+@pytest.mark.verifies(
+    "singular-eigenfunction-eq46", "singular-eigenfunction-eq54",
+)
 def test_T_functions_at_vacuum():
     """T(R=0, μ) = T_1(R=0, μ) = e^{-2d/μ} (both reduce to the same vacuum form)."""
     for mu in (0.1, 0.3, 0.5, 0.7, 0.9):
@@ -71,7 +75,9 @@ def test_T_functions_at_vacuum():
 
 
 @pytest.mark.l1
-@pytest.mark.verifies("atalay-eq46-slab-eq54-sphere-parity")
+@pytest.mark.verifies(
+    "singular-eigenfunction-eq46", "singular-eigenfunction-eq54",
+)
 def test_T_functions_at_perfect_reflector():
     """T(R=1, μ) = -1, T_1(R=1, μ) = +1 (the parity-flip surfaces here)."""
     for mu in (0.1, 0.3, 0.7):
@@ -83,7 +89,9 @@ def test_T_functions_at_perfect_reflector():
 
 
 @pytest.mark.l1
-@pytest.mark.verifies("atalay-eq46-slab-eq54-sphere-parity")
+@pytest.mark.verifies(
+    "singular-eigenfunction-eq46", "singular-eigenfunction-eq54",
+)
 def test_T_functions_partial_reflection_signs():
     """For 0 < R < 1, T(R,μ) ∈ (-1, e^{-2d/μ}) and T_1(R,μ) ∈ (e^{-2d/μ}, 1).
 
