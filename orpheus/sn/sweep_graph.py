@@ -88,15 +88,6 @@ from orpheus.sn.spatial.cell_update import CellUpdateBase
 # ═══════════════════════════════════════════════════════════════════════
 
 
-#: Spatial axis names, positional-by-axis — the same axis order as
-#: :attr:`OctantLabel.signs`, the per-axis kernel tuples, and the
-#: ``"{axis}min"`` / ``"{axis}max"`` boundary-face naming convention.
-#: The single source of the axis↔name crosswalk for every face-name
-#: derivation (the walk's in/outflow faces, the schedule's outgoing
-#: faces) — no consumer hand-lists ``("x", ...), ("y", ...)`` pairs.
-AXIS_NAMES = ("x", "y", "z")
-
-
 @dataclass(frozen=True, slots=True)
 class OctantLabel:
     r"""Octant signature for the dimension-generic wavefront sweep.

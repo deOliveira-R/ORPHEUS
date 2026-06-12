@@ -62,6 +62,29 @@ class AxisCoord(StrEnum):
 # FaceLabel — canonical key for face buffers, BCs, ordinate masks
 # ═══════════════════════════════════════════════════════════════════════
 
+#: Spatial axis names, positional-by-axis — the same axis order as
+#: :attr:`SNMesh.axes`, ``OctantLabel.signs``, the per-axis kernel
+#: tuples, and the ``"{axis}min"`` / ``"{axis}max"`` boundary-face
+#: naming convention. The single source of the axis↔name crosswalk for
+#: every face-name derivation (:attr:`FaceLabel.face_name`, the walk's
+#: in/outflow faces, the schedule's outgoing faces) — no consumer
+#: hand-lists ``("x", ...), ("y", ...)`` pairs. Lives here, at the
+#: bottom of the SN dependency graph, next to the axis primitives it
+#: names; :mod:`orpheus.sn.sweep_graph` imports it downward.
+AXIS_NAMES = ("x", "y", "z")
+
+#: Canonical ``FaceLabel.endpoint`` → face-name suffix crosswalk. A
+#: solid radial axis's single ``"outer"`` endpoint renders as the
+#: ``max`` face of its axis (the historical curvilinear convention:
+#: the outer radius IS ``xmax``). Any other endpoint label — e.g. an
+#: :class:`AxisMesh` with overridden ``label_low`` / ``label_high`` —
+#: has NO face name and fails loud in :attr:`FaceLabel.face_name`,
+#: rather than silently desynchronizing from the ``"{axis}{min|max}"``
+#: world that :class:`~orpheus.numerics.face_layout.FaceLayout`,
+#: the trace space, and the sweep schedule all key on.
+_ENDPOINT_SUFFIX = {"min": "min", "max": "max", "outer": "max"}
+
+
 @dataclass(frozen=True, slots=True)
 class FaceLabel:
     r"""Canonical key identifying one boundary face of a D-dim SN mesh.
@@ -91,6 +114,37 @@ class FaceLabel:
 
     def __str__(self) -> str:
         return f"face_{self.axis_index}_{self.endpoint}"
+
+    @property
+    def face_name(self) -> str:
+        r"""Cross-module face-name rendering, ``"{axis}{min|max}"``.
+
+        The single-sourced crosswalk from the structural identity
+        ``(axis_index, endpoint)`` to the string key that
+        :class:`~orpheus.numerics.face_layout.FaceLayout`, the trace
+        space, :attr:`SNMesh.bc`, and the sweep schedule all share:
+        axis name from :data:`AXIS_NAMES`, endpoint suffix from
+        :data:`_ENDPOINT_SUFFIX` (``"outer"`` renders as ``max`` — a
+        solid radial axis's outer surface IS its ``max`` face).
+
+        Raises
+        ------
+        ValueError
+            If ``endpoint`` is not one of the canonical labels
+            (``"min"`` / ``"max"`` / ``"outer"``) — an overridden
+            axis endpoint label has no face name and must fail loud
+            rather than silently desynchronize the face-name world.
+        IndexError
+            If ``axis_index`` exceeds the named-axis inventory.
+        """
+        suffix = _ENDPOINT_SUFFIX.get(self.endpoint)
+        if suffix is None:
+            canonical = ", ".join(f"'{e}'" for e in _ENDPOINT_SUFFIX)
+            raise ValueError(
+                f"FaceLabel endpoint '{self.endpoint}' has no face name; "
+                f"canonical endpoints are {canonical}."
+            )
+        return f"{AXIS_NAMES[self.axis_index]}{suffix}"
 
 
 # ═══════════════════════════════════════════════════════════════════════

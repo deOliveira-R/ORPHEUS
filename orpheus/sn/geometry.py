@@ -907,23 +907,28 @@ class SNMesh:
         :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
         consumes this layout to lay out its flat backing buffer.
 
-        Geometry mapping:
+        Derived from :attr:`face_labels` (C4): one slot per label, named
+        by the single-sourced :attr:`FaceLabel.face_name` crosswalk,
+        shaped ``(N, ng, *face_shape(label))`` — axis-count generic, no
+        per-geometry hand-list. The geometry mapping falls out:
 
-        * 1-D slab (``reduced is not None`` and ``curvature is None``)
-          — two faces ``xmin`` / ``xmax``, each shape ``(N, ng)``.
-        * 1-D curvilinear sphere / cylinder (``curvature in
-          {"spherical", "cylindrical"}``) — one face ``xmax`` shape
-          ``(N, ng)`` (the geometric pole at r=0 is a regularity
-          condition, not a BC face).
-        * 2-D Cartesian (``reduced is None``) — four faces ``xmin`` /
-          ``xmax`` shape ``(N, ng, ny)``; ``ymin`` / ``ymax`` shape
-          ``(N, ng, nx)``.
+        * 1-D slab — two faces ``xmin`` / ``xmax``, each ``(N, ng)``.
+        * 1-D curvilinear sphere / cylinder — one face ``xmax``, shape
+          ``(N, ng)`` (the single ``"outer"`` endpoint renders as
+          ``xmax``; the geometric pole at r=0 is a regularity
+          condition, not a BC face, so it has no label and no slot).
+        * 2-D Cartesian — four faces: ``xmin`` / ``xmax`` shape
+          ``(N, ng, ny)``; ``ymin`` / ``ymax`` shape ``(N, ng, nx)``.
+        * A 3-axis mesh (C5) would yield six slots ``xmin`` … ``zmax``
+          with codimension-1 shapes — no edit needed here.
 
         Returns
         -------
         FaceLayout
             Per-geometry face descriptor. Total flat size = sum of
-            ``prod(shape)`` over all faces.
+            ``prod(shape)`` over all faces. Slot order = the canonical
+            :attr:`face_labels` order (axis ascending, endpoint in axis
+            order), which reproduces the historical hand-listed order.
 
         Notes
         -----
@@ -936,28 +941,9 @@ class SNMesh:
         from orpheus.numerics.face_layout import FaceLayout
 
         N = self.quad.N
-        ng = self.ng
-        nx = self.nx
-        ny = self.ny
-
-        if self.reduced is not None:
-            # 1-D — slab or curvilinear.
-            curv = getattr(self, "curvature", None)
-            if curv in ("spherical", "cylindrical"):
-                # Curvilinear: only the outer radial face exists.
-                return FaceLayout.from_named_shapes([("xmax", (N, ng))])
-            # 1-D slab: two faces.
-            return FaceLayout.from_named_shapes([
-                ("xmin", (N, ng)),
-                ("xmax", (N, ng)),
-            ])
-
-        # 2-D Cartesian: four faces.
         return FaceLayout.from_named_shapes([
-            ("xmin", (N, ng, ny)),
-            ("xmax", (N, ng, ny)),
-            ("ymin", (N, ng, nx)),
-            ("ymax", (N, ng, nx)),
+            (label.face_name, (N, self.ng, *self.face_shape(label)))
+            for label in self.face_labels
         ])
 
     # ── Sweep DAG traversal ───────────────────────────────────────────

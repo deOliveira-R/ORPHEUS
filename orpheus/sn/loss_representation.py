@@ -133,8 +133,8 @@ from .spatial.cell_update import UpstreamState
 from .spatial.psi_half_angle_seed import CarlsonSweepContext
 from .spatial.scan import _scanmarch_row, _x_scan_faces, ordinate_scan
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
+from .axis import AXIS_NAMES
 from .sweep_graph import (
-    AXIS_NAMES,
     OctantLabel,
     SweepDependencyGraph,
     _CellResidual,

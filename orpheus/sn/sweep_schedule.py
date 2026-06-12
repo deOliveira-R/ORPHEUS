@@ -50,7 +50,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from orpheus.sn.sweep_graph import AXIS_NAMES, OctantLabel
+from orpheus.sn.axis import AXIS_NAMES
+from orpheus.sn.sweep_graph import OctantLabel
 
 if TYPE_CHECKING:
     from orpheus.sn.geometry import SNMesh
