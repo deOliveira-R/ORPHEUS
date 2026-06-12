@@ -17,11 +17,11 @@ final state: four selectable `LossRepresentation` schedules of the lower-triangu
 `(L+C)` (CumprodScan 1-D default · **ScanMarch multi-D Cartesian default since the
 S6.9 Fork-B2 flip** · MovingFrontierWindow selectable peer · FullFieldWavefront
 oracle); ONE `_OctantWalk` frame + ONE instance per operator (L21 type facts);
-`sweep.py` dissolved; `WavefrontFlux` retired with succession. Branch
-`954ddf4..6767102` (29 commits) NOT pushed.
+`sweep.py` dissolved; `WavefrontFlux` retired with succession.
 
-**⭐⭐⭐ C3.6 DONE (2026-06-11, commits `4729660`→`c1a72c6`→`9ae76dc`, 33 total NOT
-pushed) — C3 IS COMPLETE.** The honest-d-dispatch cut, three sub-steps, all
+**⭐⭐⭐ C3.6 DONE (2026-06-11, commits `4729660`→`c1a72c6`→`9ae76dc`) — C3 IS
+COMPLETE. The WHOLE branch is PUSHED: `954ddf4..b1395c4` →
+`origin/worktree-sn-nd-layout` (34 commits, in sync, 2026-06-11).** The honest-d-dispatch cut, three sub-steps, all
 bit-identical at d≤2 (affine sha256 goldens BYTE-identical throughout, no regen):
 **(a) `4729660` schedule d-generic** — `_octant_sweep(entry, ndim)` is the SOLE
 in-plane projection (keeps ndim signs, zero-pads; d=1 labels honest 1-tuples);
@@ -62,10 +62,40 @@ in-commit). Verification design = test-architect memo
 **Deferred (recorded in code+plan, NO issue — in-campaign):** the d≥3
 `scan(x)∘march(y,z)` ScanMarch kernel generalization + the window's d≥3
 `supports` widening — both land WITH Mesh3D (C5), each "widen the predicate
-only WITH the kernel/profile". **⏭ NEXT = C4 (#220 boundary inventory
-d-generic: FaceLabel-keyed bc dict, retire the bc_xmin/.../bc_ymax hand-lists +
-`boundary_face_layout`'s hand-listed 4-face 2-D layout — the explorer audit
-§5 in this session mapped the seam) → C5 (Mesh3D + 3-D shape admission + docs).**
+only WITH the kernel/profile".
+
+**⏭ NEXT = C4 (#220): boundary inventory dimension-generic — the FaceLabel-keyed
+BC dict.** The C3.6 explorer audit (§5) mapped the seam precisely; a fresh session
+can start from these facts:
+- BC keying today is STRING-NAMED at three layers: (i) Mesh2D declares optional
+  fields `bc_xmin/bc_xmax/bc_ymin/bc_ymax: BC|None` (`orpheus/geometry/mesh.py`
+  ~:510, validated ~:541); (ii) `SNMesh._resolve_bcs` hand-assigns instance attrs
+  `self.bc_xmin..bc_ymax` (+ `bc_left/bc_right` aliases + degenerate 1-D
+  y-placeholders) at `orpheus/sn/geometry.py` ~:443–481; (iii)
+  `boundary_face_layout` hand-lists the 4-face 2-D layout (~:935–953 —
+  SILENT-WRONG if a 3-axis mesh ever reached it; the C4 carve retires the
+  hand-list BEFORE Mesh3D can).
+- The d-generic `FaceLabel` machinery EXISTS IN PARALLEL (`orpheus/sn/axis.py`
+  :66–93; `SNMesh.face_labels` `orpheus/sn/geometry.py` ~:704–718) but the
+  production trace does NOT derive its names from it — the
+  FaceLabel↔"xmin"-string crosswalk is implicit. C4 = derive
+  `boundary_face_layout` + the bc-attribute set FROM `face_labels` (axis-count
+  generic, "{axis}{min|max}" names already match `AXIS_NAMES` in sweep_graph.py
+  — the C3.6 SSOT).
+- CONSUMERS ARE ALREADY GENERIC over whatever the layout carries:
+  `SNBoundaryOperator._face_laws` (`orpheus/sn/boundary_operator.py` ~:121–131)
+  and `sweep_schedule._reflective_faces` both do
+  `getattr(mesh, f"bc_{face}")` over `trace.layout.faces` — so the carve is
+  producer-side only.
+- Issue #220 carries the design intent (retire the named-field hybrid split;
+  "nd_foundation §2.6 needs it for 3-D"). Protocol: explorer dependency audit on
+  `bc_xmin`-family consumers FIRST (retirement trigger), test-architect for the
+  gate design (bit-id at d≤2; the BC-resolution tests), per-substep commits,
+  elegance review, Sphinx clean.
+**THEN C5: Mesh3D + 3-D end-to-end admission** (axis-native SNMesh construction
+dissolving the constructor's isinstance seam + `_axis_widths`; the d≥3
+ScanMarch/window widenings; value-level d=3 gates replacing the synthetic
+structure pins).
 The PRIOR (2026-06-09) recovery below is the C2/C3-start record.
 
 ## PRIOR — POST-COMPACTION RECOVERY (2026-06-09)
