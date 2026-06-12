@@ -91,8 +91,10 @@ Key Facts
   two-paths-divergence is therefore eliminated by design (no
   second path remains). The realizer-routed mask is uniform across
   every supported mesh (1-D Cartesian / spherical / cylindrical +
-  2-D Cartesian) since Issue #188 lifted the curvilinear
-  :class:`InflowTraceSpace` deferral.
+  2-D Cartesian) since Issue #188 lifted the curvilinear deferral on
+  the boundary trace space (then named ``InflowTraceSpace``; since
+  #205 / #201 the unified
+  :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`).
 - **The realized boundary law is a first-class sibling operator**
   :math:`B` **in the SN algebra (Wave O steps O.4a.2 + O.4b, Issue
   #208).** For **every** SN geometry (1-D slab / sphere / cylinder and
@@ -246,27 +248,42 @@ Layer 1 — trace structure
 -------------------------
 
 The trace operators :math:`\gamma_\pm` carry their domain
-information in two typed :class:`~orpheus.numerics.space.FunctionSpace`
-subclasses:
+information on **one** typed
+:class:`~orpheus.numerics.space.FunctionSpace` subclass,
+:class:`~orpheus.numerics.spaces.trace_space.TraceSpace`, which stores
+the whole boundary :math:`\Gamma = \partial\Omega \times S^d` once and
+exposes inflow / outflow as two directional **selectors** over it:
 
-* :class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace` represents
-  :math:`\Gamma_- = \{(\mathbf{r}, \Omega) \in \partial\Omega \times S^2
-  : \Omega \cdot \hat n(\mathbf{r}) < 0\}` — the per-face directional
-  half of the boundary on which the incoming angular flux is
-  constrained by the law.
-* :class:`~orpheus.numerics.spaces.trace_space.OutflowTraceSpace` represents
-  :math:`\Gamma_+` symmetrically — the boundary half on which the
-  outgoing flux is *not* constrained by the BC but is *consumed* by
+* :meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.inflow_indices_for_face`
+  selects :math:`\Gamma_- = \{(\mathbf{r}, \Omega) \in \partial\Omega
+  \times S^2 : \Omega \cdot \hat n(\mathbf{r}) < 0\}` — the per-face
+  directional half of the boundary on which the incoming angular flux
+  is constrained by the law.
+* :meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.outflow_indices_for_face`
+  selects :math:`\Gamma_+` symmetrically — the boundary half on which
+  the outgoing flux is *not* constrained by the BC but is *consumed* by
   it (as :math:`\gamma_+ \psi`).
 
-Both carry a **per-face directional mask** that discretizes the
-sign predicate :math:`\mathrm{sign}(\Omega \cdot \hat n_f)` for each
-face :math:`f` of the spatial mesh — see
-:ref:`bc-trace-structure` for the geometric convention. The mask
-is what the :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`
-reads to build the sparse vacuum-mask operator
-(:class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`)
-that zeros precisely the inflow ordinates at one face.
+.. note:: **One space, two selectors (Issues #205 / #201).** The
+   pre-#188 design carried two separate typed spaces,
+   ``InflowTraceSpace`` and ``OutflowTraceSpace``, one per direction.
+   The View-G field-vocabulary refactor (#205 / #201) collapsed them
+   into the single :class:`TraceSpace
+   <orpheus.numerics.spaces.trace_space.TraceSpace>` on the observation
+   that **inflow and outflow are operations on one space, not two
+   spaces**: whether an ordinate is incoming or outgoing at a face is a
+   *predicate* — :math:`\mathrm{sign}(\Omega \cdot \hat n_f)` —
+   evaluated against the same signed-projection data, not a property of
+   the space's identity. :class:`TraceSpace` stores the signed
+   projection :math:`\Omega \cdot \hat n_f` once per face; the two
+   ``*_indices_for_face`` methods are selectors over it (see
+   :ref:`bc-trace-structure`).
+
+The signed-projection table is what the
+:class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` reads to build
+the sparse vacuum-mask operator
+(:class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`) that
+zeros precisely the inflow ordinates at one face.
 
 
 .. _bc-realizer-layer:
@@ -364,7 +381,7 @@ the load-bearing primitive that downstream consumers need:
 * The SN realizer's vacuum branch reads
   ``inflow_mask[f]`` for the specific face :math:`f` and converts
   it to an integer array of ordinate indices via
-  :meth:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace.inflow_indices_for_face`.
+  :meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.inflow_indices_for_face`.
   Those indices are the constructor argument to
   :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`.
 * The universal invariant
@@ -652,7 +669,9 @@ The Wave 5 SN dispatch table is the documented standard:
    * - :class:`VacuumInflow`
      - :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
        with the per-face ``inflow_indices`` from the method space's
-       :class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace`.
+       :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`
+       (selected by
+       :meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.inflow_indices_for_face`).
      - n/a (vacuum has no α parameter)
    * - :class:`ReflectiveBoundary(axis, α)`
      - bare
@@ -698,16 +717,27 @@ realizer's second argument. It carries:
 
 * :attr:`~orpheus.sn.method_space.SNMethodSpace.quadrature` — the
   angular quadrature (mandatory).
-* :attr:`~orpheus.sn.method_space.SNMethodSpace.face` — the face
-  label (``"left"``, ``"xmin"``, etc.) so the vacuum branch can
-  look up the right inflow indices.
+* :attr:`~orpheus.sn.method_space.SNMethodSpace.face` — the
+  face-name label (``"xmin"`` … ``"zmax"``) so the vacuum branch can
+  look up the right inflow indices. (The pre-C4 ``"left"`` / ``"right"``
+  spellings were aliases of ``"xmin"`` / ``"xmax"``; since the C4
+  face-name carve — :ref:`bc-face-name-carve` — every face is keyed by
+  its canonical ``"{axis}{min|max}"`` name.)
 * :attr:`~orpheus.sn.method_space.SNMethodSpace.inflow_indices` —
-  the per-face inflow ordinate indices for the vacuum branch.
+  the per-face inflow ordinate indices for the vacuum branch
+  (derived from the held trace at :meth:`for_face` time).
 * :attr:`~orpheus.sn.method_space.SNMethodSpace.mesh`,
-  :attr:`~orpheus.sn.method_space.SNMethodSpace.inflow_trace`,
-  :attr:`~orpheus.sn.method_space.SNMethodSpace.outflow_trace` —
-  full mesh + trace metadata for any future realizer branch that
-  needs more than the per-face index list.
+  :attr:`~orpheus.sn.method_space.SNMethodSpace.trace` — the
+  (optional) spatial mesh and the single unified
+  :class:`~orpheus.numerics.spaces.trace_space.TraceSpace` for any
+  realizer branch that needs more than the per-face index list. Since
+  the #205 / #201 unification this is **one** ``trace`` attribute, not a
+  separate ``inflow_trace`` / ``outflow_trace`` pair — inflow and
+  outflow are selectors over the same trace space (see the
+  one-space-two-selectors note above). The ``mesh`` slot is optional
+  metadata (C5.3, #225): nothing in the realizer chain reads it (the
+  inflow indices come from the trace), and an axis-native ``SNMesh``
+  with no legacy mesh adapter passes ``None``.
 
 The :meth:`SNMethodSpace.for_face` factory is the standard
 construction site at
@@ -886,56 +916,84 @@ dict-entry edit.
 Step 3 — method space construction
 ----------------------------------
 
-.. note:: **Stale narration — pre-Issue-#188 split trace (tracked by
-   Issue #223).** The step-by-step code below narrates the *pre-#188*
-   split-trace machinery: a per-face ``InflowTraceSpace`` /
-   ``OutflowTraceSpace`` pair built by ``from_mesh_and_quadrature(mesh,
-   quad, faces=...)``. The current code has **one** unified
-   :class:`~orpheus.numerics.spaces.trace_space.TraceSpace` built by the
-   geometry-blind :meth:`TraceSpace.from_quadrature_and_layout
-   <orpheus.numerics.spaces.trace_space.TraceSpace.from_quadrature_and_layout>`
-   (a quadrature + a :class:`~orpheus.numerics.face_layout.FaceLayout`,
-   no ``mesh`` / ``faces`` arguments — see :ref:`sn-c5-geometry-blind-trace`),
-   and :meth:`SNMethodSpace.for_face <orpheus.sn.method_space.SNMethodSpace.for_face>`
-   takes a single ``trace=`` rather than ``inflow_trace=`` /
-   ``outflow_trace=``. The C4 / C5 docs pass deliberately did **not**
-   rewrite this worked example (scope discipline); the holistic rewrite
-   is Issue #223. Read the block below as historical illustration of the
-   resolution *flow*, not as the current API.
-
-For the **Cartesian** path, the SNMesh has precomputed the
-``InflowTraceSpace`` once for the whole mesh at construction time:
+:meth:`_resolve_bcs` builds **one** unified
+:class:`~orpheus.numerics.spaces.trace_space.TraceSpace` for the whole
+mesh, once, and stores it on ``self._trace``. The factory is the
+geometry-blind :meth:`TraceSpace.from_quadrature_and_layout
+<orpheus.numerics.spaces.trace_space.TraceSpace.from_quadrature_and_layout>`
+— it takes the angular quadrature and the mesh's
+:attr:`~orpheus.sn.geometry.SNMesh.boundary_face_layout` (a
+:class:`~orpheus.numerics.face_layout.FaceLayout`, the single source of
+truth for which faces exist and how they pack into one flat buffer), and
+nothing else:
 
 .. code-block:: python
 
-   from orpheus.numerics.spaces.trace_space import InflowTraceSpace
+   from orpheus.numerics.spaces.trace_space import TraceSpace
 
-   self._inflow_trace = InflowTraceSpace.from_mesh_and_quadrature(
-       mesh, self.quad, faces=("left", "right"),
+   self._trace = TraceSpace.from_quadrature_and_layout(
+       self.quad, self.boundary_face_layout,
    )
 
-The per-face inflow mask is a ``(2, N)`` boolean array indexed by
-``(face_idx, ordinate_idx)``. For the left face (``axis=0,
-sign=-1``), the inflow predicate is ``-mu_x[n] < 0``, i.e.
-``mu_x[n] > 0`` — the rightward-pointing ordinates are inflow at
-the left face.
+The trace stores the **signed projection** :math:`\Omega \cdot \hat
+n_f` once per face as a ``(n_faces, N)`` float array — *not* two
+direction-specific boolean masks. Inflow and outflow are
+**selectors** over this one table, derived on demand by the sign of
+:math:`\Omega \cdot \hat n_f` (the one-space-two-selectors design of
+Issues #205 / #201; see :ref:`bc-trace-structure`). For the ``xmin``
+face (``axis=0``, outward normal :math:`-\hat x`, so
+:math:`\Omega \cdot \hat n = -\mu_x`), the inflow predicate
+:math:`\Omega \cdot \hat n < -\epsilon` becomes :math:`-\mu_x[n] <
+-\epsilon`, i.e. :math:`\mu_x[n] > \epsilon` — the rightward-pointing
+ordinates are inflow at the left boundary, as expected.
 
-The :meth:`SNMethodSpace.for_face` factory carves out the per-face
-slice:
+The :meth:`SNMethodSpace.for_face` factory takes the precomputed trace
+through a **single** ``trace=`` argument and extracts the per-face
+inflow indices for the requested face:
 
 .. code-block:: python
 
    from orpheus.sn.method_space import SNMethodSpace
 
    method_space = SNMethodSpace.for_face(
-       mesh=self.mesh,
+       mesh=self.mesh,           # optional metadata; None at d≥3
        quadrature=self.quad,
-       face="left",
-       inflow_trace=self._inflow_trace,
-       outflow_trace=self._outflow_trace,
+       face="xmin",
+       trace=self._trace,
    )
-   # method_space.inflow_indices is a 1-D int array:
-   # [n for n in range(N) if mu_x[n] > 1e-12]
+   # for_face derives inflow_indices from the trace for this one face:
+   #   inflow_indices = trace.inflow_indices_for_face("xmin")
+   # i.e. the 1-D int array [n for n in range(N) if -mu_x[n] < -eps].
+
+There is **one** trace object and **one** ``trace=`` parameter, not an
+``inflow_trace`` / ``outflow_trace`` pair. The directional split lives
+in the two selector methods
+(:meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.inflow_indices_for_face`
+/
+:meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.outflow_indices_for_face`),
+not in the space's identity. Why one space? Because whether an ordinate
+is incoming or outgoing at a face is a *predicate* evaluated against the
+same boundary data, not a property of two distinct domains — folding the
+two former spaces into one removes a class of bugs where the inflow and
+outflow descriptions of the *same* boundary could drift out of sync, and
+gives the Wave-O adjoint work (#208) a single
+:math:`|\Omega\cdot\hat n|`-weighted boundary inner product to install
+(see :ref:`bc-trace-structure`). The ``mesh=`` argument is optional
+metadata: nothing in the realizer chain reads it (the inflow indices
+come from the trace), so an axis-native ``SNMesh`` with no legacy mesh
+adapter passes ``None`` (C5.3, #225).
+
+.. note:: **Historical — the pre-Issue-#188 split trace.** Before #188
+   and the #205 / #201 unification, this step built a per-face
+   ``InflowTraceSpace`` / ``OutflowTraceSpace`` *pair* via
+   ``InflowTraceSpace.from_mesh_and_quadrature(mesh, quad,
+   faces=("left", "right"))``, and :meth:`SNMethodSpace.for_face` took
+   *two* arguments, ``inflow_trace=`` and ``outflow_trace=``. That
+   machinery is retired: there is now one geometry-blind
+   :class:`TraceSpace <orpheus.numerics.spaces.trace_space.TraceSpace>`
+   with two directional selectors. This note records the older API only
+   so that references to ``_inflow_trace`` / ``_outflow_trace`` in
+   pre-#188 commit history are legible; it is **not** the current code.
 
 Step 4 — realization
 --------------------
@@ -2228,7 +2286,7 @@ method was deleted; see
 The architectural sequence is therefore:
 
 * **Issue #188 unblocks Issue #176.** The shim's dual mode existed
-  ONLY because curvilinear :class:`InflowTraceSpace` could not be
+  ONLY because curvilinear ``InflowTraceSpace`` could not be
   constructed. Once #188 lifted that, #176's "drop the 2-arg form"
   cleanup became possible without breaking curvilinear sweeps.
 * **Issue #176 unblocks Issue #186.** The Option-A interim was
@@ -2687,7 +2745,7 @@ by the curvilinear-realizer-unification arc
 ``feature/bc-curvilinear-realizer-cleanup``
 (2026-05-11). Three GitHub issues converged on that branch:
 
-* **Issue #188** — curvilinear :class:`InflowTraceSpace` support
+* **Issue #188** — curvilinear ``InflowTraceSpace`` support
   (commits ``9cf2b0a`` + ``17067d5``). Lifted the
   :class:`NotImplementedError` guard on spherical / cylindrical
   Mesh1D so every supported mesh can build a per-face inflow mask.
