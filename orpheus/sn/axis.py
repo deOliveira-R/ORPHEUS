@@ -453,6 +453,42 @@ def n_unknowns_flat(
     return n_cells + n_face
 
 
+def coord_system(axes: tuple[Axis1D, ...]):
+    r"""Whole-mesh :class:`~orpheus.geometry.CoordSystem` of an axis tuple.
+
+    The single-axis coordinate map is
+
+    * :attr:`AxisCoord.CARTESIAN` → ``CoordSystem.CARTESIAN``
+    * :attr:`AxisCoord.RADIAL_SPHERICAL` → ``CoordSystem.SPHERICAL``
+    * :attr:`AxisCoord.RADIAL_CYLINDRICAL` → ``CoordSystem.CYLINDRICAL``
+
+    Multi-axis tuples must be all-Cartesian — a curvilinear axis only
+    has meaning as the sole axis of a 1-D solid mesh (the reduced
+    streaming operators and the pole angular closure are 1-D
+    constructions); mixing it into a product mesh is unrepresentable.
+
+    Raises
+    ------
+    NotImplementedError
+        If a multi-axis tuple contains a non-Cartesian axis.
+    """
+    from orpheus.geometry import CoordSystem
+
+    if len(axes) == 1:
+        return {
+            AxisCoord.CARTESIAN: CoordSystem.CARTESIAN,
+            AxisCoord.RADIAL_SPHERICAL: CoordSystem.SPHERICAL,
+            AxisCoord.RADIAL_CYLINDRICAL: CoordSystem.CYLINDRICAL,
+        }[axes[0].coord]
+    non_cartesian = [ax.coord for ax in axes if ax.coord is not AxisCoord.CARTESIAN]
+    if non_cartesian:
+        raise NotImplementedError(
+            f"coord_system: multi-axis meshes must be all-Cartesian; "
+            f"got non-Cartesian axis coords {non_cartesian!r}"
+        )
+    return CoordSystem.CARTESIAN
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Legacy-mesh → axis-tuple adapter
 # ═══════════════════════════════════════════════════════════════════════
@@ -548,20 +584,22 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Axis-tuple → legacy-mesh builder (for SNMesh.from_axes round-trip)
+# Axis-tuple → legacy-mesh ADAPTER builder (for SNMesh.from_axes)
 # ═══════════════════════════════════════════════════════════════════════
 
 def legacy_mesh_from_axes(
     axes: tuple[Axis1D, ...],
     mat_map: np.ndarray | None = None,
 ):
-    r"""Build a :class:`Mesh1D` / :class:`Mesh2D` from an axis tuple.
+    r"""Build the legacy :class:`Mesh1D` / :class:`Mesh2D` ADAPTER for an axis tuple.
 
-    Layer A keeps ``SNMesh.mesh`` as the legacy ``Mesh1D | Mesh2D``;
-    :meth:`SNMesh.from_axes` round-trips through this builder so the
-    existing constructor body (BC realization, streaming stencil
-    setup, materials validation) is reached uniformly regardless of
-    which constructor surface the caller used.
+    C5.1 (#225): this is NO LONGER a round-trip source — the axes an
+    :class:`~orpheus.sn.geometry.SNMesh` carries are the caller's
+    objects verbatim. :meth:`SNMesh.from_axes` calls this builder only
+    to synthesize the d≤2 ``SNMesh.mesh`` adapter for the consumers
+    still reading through it (1-D reduced streaming construction,
+    trace build, realizer metadata) — each dissolves across C5.2–C5.5,
+    and this builder narrows/retires with them.
 
     Parameters
     ----------

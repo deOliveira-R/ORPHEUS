@@ -1,8 +1,12 @@
 r"""Augmented geometry for S\ :sub:`N` discrete ordinates transport.
 
-:class:`SNMesh` wraps a :class:`~geometry.mesh.Mesh1D` or
-:class:`~geometry.mesh.Mesh2D` and precomputes the coordinate-specific
-streaming stencil used by the transport sweep.
+:class:`SNMesh` is axis-primary (C5.1, #225): its canonical spatial
+representation is a tuple of :class:`~orpheus.sn.axis.Axis1D`, and it
+precomputes the coordinate-specific streaming stencil used by the
+transport sweep. Two construction surfaces funnel into one body — the
+axis-native :meth:`SNMesh.from_axes`, and the legacy
+:class:`~geometry.mesh.Mesh1D` / :class:`~geometry.mesh.Mesh2D`
+constructor (converted to axes once at the boundary).
 
 Three coordinate systems are supported: Cartesian (1D/2D), spherical
 (1D), and cylindrical (1D).  Curvilinear geometries precompute angular
@@ -40,6 +44,7 @@ from .axis import (
     FaceLabel,
     RadialAxisMesh,
     axes_from_legacy_mesh,
+    coord_system as _axis_coord_system,
     face_labels as _axis_face_labels,
     face_outflow_ordinates as _axis_face_outflow_ordinates,
     face_shape as _axis_face_shape,
@@ -93,10 +98,16 @@ class InconsistentMaterialsError(ValueError):
 class SNMesh:
     """Augmented geometry for the discrete ordinates method.
 
-    Wraps a :class:`~geometry.mesh.Mesh1D` or :class:`~geometry.mesh.Mesh2D`
-    and precomputes the streaming stencil (diamond-difference coefficients
-    that depend only on geometry and angular quadrature, not on cross
-    sections).
+    Axis-primary (C5.1, #225): the canonical spatial representation is
+    :attr:`axes` — a tuple of :class:`~orpheus.sn.axis.Axis1D` — from
+    which all shape metadata derives. Constructed either axis-natively
+    via :meth:`from_axes` or from a legacy
+    :class:`~geometry.mesh.Mesh1D` / :class:`~geometry.mesh.Mesh2D`
+    (converted to axes once at the inbound boundary; the legacy object
+    is retained as :attr:`mesh` for the consumers still reading through
+    it). Precomputes the streaming stencil (diamond-difference
+    coefficients that depend only on geometry and angular quadrature,
+    not on cross sections).
 
     For Cartesian geometry the stencil stores one per-axis array, read via
     :meth:`streaming`:
@@ -192,6 +203,39 @@ class SNMesh:
         cell_update: CellUpdate | None = None,
         pole_angular_closure: PoleAngularClosure | None = None,
     ) -> None:
+        # The legacy inbound surface (C5.1 axis-primary inversion,
+        # #225): convert the Mesh1D / Mesh2D declaration to the
+        # canonical axis tuple ONCE at the boundary, extract the one
+        # payload the axes cannot carry (the material assignment —
+        # named ``mat_ids`` on Mesh1D, ``mat_map`` on Mesh2D), and run
+        # the same construction body as :meth:`from_axes`. Everything
+        # downstream derives from ``self.axes``; ``self.mesh`` survives
+        # as inbound provenance for the consumers still reading through
+        # it (1-D reduced streaming construction, trace build, realizer
+        # metadata, MMS helpers) — each on the C5 retirement path.
+        self._init_core(
+            axes=axes_from_legacy_mesh(mesh),
+            mesh=mesh,
+            mat_map=mesh.mat_ids if isinstance(mesh, Mesh1D) else mesh.mat_map,
+            quadrature=quadrature,
+            materials=materials,
+            cell_update=cell_update,
+            pole_angular_closure=pole_angular_closure,
+        )
+
+    def _init_core(
+        self,
+        *,
+        axes: tuple[Axis1D, ...],
+        mesh: Mesh1D | Mesh2D,
+        mat_map: np.ndarray | None,
+        quadrature: AngularQuadrature,
+        materials: "dict[int, Mixture]",
+        cell_update: CellUpdate | None,
+        pole_angular_closure: PoleAngularClosure | None,
+    ) -> None:
+        # The ONE construction body both surfaces funnel into (C5.1).
+        #
         # Issue #197 PR-TYPED-0: ``materials`` is a REQUIRED parameter.
         # SNMesh IS the SN phase space (mesh × quadrature × material
         # group structure); constructing it without materials would
@@ -205,19 +249,17 @@ class SNMesh:
         self.mesh = mesh
         self.quad = quadrature
         self.materials: "dict[int, Mixture]" = materials
-        # R-1 Phase A C1: every SNMesh exposes an axis-tuple view of its
-        # dimensionality. The axis tuple is the canonical
-        # dim-agnostic ground truth for spatial_shape / face_labels /
-        # face_shape / face_outflow_ordinates / n_unknowns_flat (the
-        # properties below); legacy ``nx``/``ny``/``dx``/``dy`` survive
-        # this layer as deprecated shims and retire in a followup.
-        # The adapter handles both 1-D coord systems (Cartesian /
-        # spherical / cylindrical) and 2-D Cartesian — see
-        # :func:`orpheus.sn.axis.axes_from_legacy_mesh`. From C6 onward
-        # every dim-agnostic operator reads its shape from
-        # :attr:`SNMesh.axes`, NOT from ``mesh.coord`` /
-        # ``mesh.edges_x`` / ``mesh.bc_xmin``.
-        self.axes: tuple[Axis1D, ...] = axes_from_legacy_mesh(mesh)
+        # The axis tuple is the PRIMARY representation (C5.1): stored
+        # verbatim — never round-tripped through a legacy mesh and
+        # re-derived — it is the canonical dim-agnostic ground truth
+        # for spatial_shape / face_labels / face_shape /
+        # face_outflow_ordinates / n_unknowns_flat / coord /
+        # _axis_widths (the properties and metadata below); legacy
+        # ``nx``/``ny``/``dx``/``dy`` survive this layer as deprecated
+        # shims and retire in C5.2. Every dim-agnostic operator reads
+        # its shape from :attr:`SNMesh.axes`, NOT from ``mesh.coord``
+        # / ``mesh.edges_x`` / ``mesh.bc_xmin``.
+        self.axes: tuple[Axis1D, ...] = tuple(axes)
         # Cell-update strategy (Wave D Round 2 Issue #161). Defaults to
         # :class:`DiamondDifference`, which reproduces the existing
         # inlined sweep math bit-identically — every regression snapshot
@@ -280,33 +322,49 @@ class SNMesh:
         # spatial tail has rank == ndim (1-D → (nx,), no phantom ny=1).
         # ``mat_map`` / ``_volumes`` are spatial_shape-shaped; the scalar
         # nx/ny + dx/dy survive as legacy metadata read-throughs only
-        # (the dy=1 / ny=1 shims feed no array construction).
-        if isinstance(mesh, Mesh1D):
-            self.nx: int = mesh.N
-            self.ny: int = 1
-            self.dx: np.ndarray = mesh.widths
-            self.dy: np.ndarray = np.array([1.0])
-            self.mat_map: np.ndarray = mesh.mat_ids
-            self._volumes: np.ndarray = mesh.volumes
-            self._areas: np.ndarray | None = mesh.areas
-            # Per-axis cell widths, positional-by-axis — the d-generic
-            # widths source the streaming stencil iterates (NO phantom
-            # second axis; the dy=[1.0] shim above is legacy metadata
-            # only).  This isinstance branch is the one legacy-mesh
-            # adapter seam; it dissolves when axis-native construction
-            # lands (C5 / Mesh3D).
-            self._axis_widths: tuple[np.ndarray, ...] = (mesh.widths,)
+        # (the dy=1 / ny=1 shims feed no array construction; retire C5.2).
+        #
+        # C5.1: ALL shape metadata derives from the axes — the pre-C5.1
+        # per-dataclass isinstance branch is dissolved. ``np.diff(edges)``
+        # is bitwise identical to the legacy spellings it replaces
+        # (``Mesh1D.widths`` / ``Mesh2D.dx`` / ``Mesh2D.dy`` are exactly
+        # ``np.diff`` of the same edge arrays — mesh.py:287, :567, :572).
+        # Per-axis cell widths, positional-by-axis — the d-generic widths
+        # source the streaming stencil iterates (NO phantom second axis;
+        # the dy=[1.0] shim below is legacy metadata only).
+        self._axis_widths: tuple[np.ndarray, ...] = tuple(
+            np.diff(ax.edges) for ax in self.axes
+        )
+        # Material assignment: the one construction payload the axes do
+        # not carry. ``None`` (axis-native default) → single material
+        # with id 0; shape MUST match spatial_shape (parse, don't
+        # validate downstream).
+        if mat_map is None:
+            mat_map = np.zeros(self.spatial_shape, dtype=int)
         else:
-            self.nx = mesh.nx
-            self.ny = mesh.ny
-            self.dx = mesh.dx
-            self.dy = mesh.dy
-            self.mat_map = mesh.mat_map
-            self._volumes = mesh.volumes
-            # 2-D mesh has per-face areas of a different shape; not
-            # consumed by today's matvec callers — leave None.
-            self._areas = None
-            self._axis_widths = (mesh.dx, mesh.dy)
+            mat_map = np.asarray(mat_map, dtype=int)
+            if mat_map.shape != self.spatial_shape:
+                raise ValueError(
+                    f"SNMesh: mat_map shape {mat_map.shape} must match "
+                    f"spatial_shape={self.spatial_shape}"
+                )
+        self.mat_map: np.ndarray = mat_map
+        # Cell volumes / radial face areas stay dataclass-owned for now
+        # (preserves the Mesh1D curvilinear formulas + the
+        # ``precomputed_volumes`` ULP escape hatch bit-identically); the
+        # axis-native d≥3 volume formula lands with the 3-axis admission
+        # (C5.5). 2-D per-face areas have a different shape and feed no
+        # matvec caller — None.
+        self._volumes: np.ndarray = mesh.volumes
+        self._areas: np.ndarray | None = mesh.areas if self.ndim == 1 else None
+        # Legacy scalar shims (retire C5.2) — derived from the axes, not
+        # the dataclass fields.
+        self.nx: int = self.spatial_shape[0]
+        self.ny: int = self.spatial_shape[1] if self.ndim >= 2 else 1
+        self.dx: np.ndarray = self._axis_widths[0]
+        self.dy: np.ndarray = (
+            self._axis_widths[1] if self.ndim >= 2 else np.array([1.0])
+        )
 
         # Dispatch stencil setup by coordinate system.
         #
@@ -325,14 +383,23 @@ class SNMesh:
         # (sweep.py + solver.py) to read through it.  Until then, the
         # backward-compat ``@property`` accessors below preserve the
         # legacy attribute names with a ``DeprecationWarning``.
-        match mesh.coord:
+        # C5.1: the whole-mesh coordinate system derives from the axes
+        # (:func:`orpheus.sn.axis.coord_system` — multi-axis tuples are
+        # all-Cartesian by construction), NOT from ``mesh.coord``. The
+        # 1-D arms still hand the legacy ``Mesh1D`` to the reduced
+        # streaming constructors (the genuine remaining Mesh1D
+        # consumers — shared with MoC/CP via
+        # :mod:`orpheus.geometry.reduced_operator`).
+        self.coord: CoordSystem = _axis_coord_system(self.axes)
+        match self.coord:
             case CoordSystem.CARTESIAN:
                 self._setup_cartesian()
                 # Slab also gets a ``ReducedStreamingOperator`` for
                 # completeness so ``sn_mesh.reduced`` is always populated;
                 # the slab variant carries empty curvature arrays and
                 # ``requires_upstream_angular_state = False``.
-                if isinstance(mesh, Mesh1D):
+                if self.ndim == 1:
+                    assert isinstance(mesh, Mesh1D)
                     self.reduced: ReducedStreamingOperator = slab_streaming(
                         mesh, quadrature,
                     )
@@ -351,8 +418,8 @@ class SNMesh:
                 self.curvature = "spherical"
                 self._streaming_axes = None
 
-        # Resolve boundary conditions from mesh declarations
-        self._resolve_bcs(mesh)
+        # Resolve boundary conditions from the per-axis declarations
+        self._resolve_bcs()
 
         # ── Materials consistency validation (Issue #197 PR-TYPED-0) ──
         # Two checks at construction time:
@@ -384,15 +451,15 @@ class SNMesh:
                 self._user_supplied_closure
             )
         else:
-            closure_cls = default_angular_closure_class(mesh.coord)
+            closure_cls = default_angular_closure_class(self.coord)
             self.pole_angular_closure = closure_cls(self)
         # Drop the temporary attribute now that the closure is bound.
         del self._user_supplied_closure
 
     # ── Boundary condition resolution ─────────────────────────────────
 
-    def _resolve_bcs(self, mesh: Mesh1D | Mesh2D) -> None:
-        r"""Resolve geometry-declared BCs into Wave-8 realized operators.
+    def _resolve_bcs(self) -> None:
+        r"""Resolve per-axis-declared BCs into Wave-8 realized operators.
 
         ``None`` on the axis defaults to ``BC("reflective")`` (infinite
         lattice / eigenvalue convention).
@@ -434,13 +501,16 @@ class SNMesh:
         # stays trace-less (``_trace = None``).
         self._trace = None
         build_trace = (
-            isinstance(mesh, Mesh1D)
-            or (isinstance(mesh, Mesh2D) and mesh.coord == CoordSystem.CARTESIAN)
+            isinstance(self.mesh, Mesh1D)
+            or (
+                isinstance(self.mesh, Mesh2D)
+                and self.mesh.coord == CoordSystem.CARTESIAN
+            )
         )
         if build_trace:
             from orpheus.numerics.spaces.trace_space import TraceSpace
             self._trace = TraceSpace.from_mesh_and_quadrature(
-                mesh, self.quad, self.boundary_face_layout,
+                self.mesh, self.quad, self.boundary_face_layout,
             )
 
         self.bc: dict[str, _BoundBoundaryOperator] = {
@@ -741,25 +811,32 @@ class SNMesh:
         cell_update: CellUpdate | None = None,
         pole_angular_closure: PoleAngularClosure | None = None,
     ) -> "SNMesh":
-        r"""Build an :class:`SNMesh` from an axis tuple.
+        r"""Build an :class:`SNMesh` from an axis tuple — the axis-native surface.
 
-        The dim-agnostic constructor surface introduced by R-1 Phase A
-        C1. The axis tuple is round-tripped through a legacy
-        :class:`Mesh1D` / :class:`Mesh2D` so the existing constructor
-        body (BC realization, streaming stencil, materials validation,
-        pole-angular closure binding) is reached uniformly regardless
-        of which surface the caller used. Layer A keeps ``SNMesh.mesh``
-        as a :class:`Mesh1D` / :class:`Mesh2D`; the round-trip retires
-        with the legacy mesh dataclass in a later phase.
+        C5.1 (axis-primary inversion, #225): the caller's axes ARE the
+        mesh's axes — stored verbatim and never round-tripped through a
+        legacy mesh and re-derived (the pre-C5.1 round-trip silently
+        reset custom endpoint labels to ``min``/``max``/``outer``). A
+        legacy :class:`Mesh1D` / :class:`Mesh2D` ADAPTER is still
+        synthesized at d≤2 for the consumers that read through
+        ``self.mesh`` (1-D reduced streaming construction, trace build,
+        realizer metadata) — each dissolves across C5.2–C5.5.
+
+        Endpoint labels must be canonical (``min``/``max``/``outer``):
+        the :attr:`bc` dict is keyed by
+        :attr:`~orpheus.sn.axis.FaceLabel.face_name`, which fails loud
+        on a custom label (C4 doctrine — overridable labels cannot
+        silently desync the face-name crosswalk). Custom labels are for
+        standalone axis use, not SNMesh construction.
 
         Parameters
         ----------
         axes : tuple of :class:`~orpheus.sn.axis.Axis1D`
             Per-axis 1-D mesh descriptors. Length 1 → 1-D mesh;
-            length 2 → 2-D Cartesian mesh. Length ≥3 is NOT supported
-            in C1 — no ``Mesh3D`` dataclass exists today (D9 of the
-            ultraplan; the 3-D admission gate exercises the pure
-            shape functions in :mod:`orpheus.sn.axis` directly).
+            length 2 → 2-D Cartesian mesh. Length ≥3 raises until the
+            3-axis admission chain completes (C5.5 of #225 — the trace
+            layer, volume measure, and solver windowing gates are
+            mesh-adapter-bound until C5.2–C5.4 dissolve them).
         quadrature : :class:`AngularQuadrature`
             Angular quadrature.
         materials : dict[int, Mixture]
@@ -775,14 +852,27 @@ class SNMesh:
             (curvilinear → :class:`MorelMontryAngularSweep`,
             Cartesian → :class:`IdentityAngularClosure`).
         """
+        axes = tuple(axes)
+        if len(axes) >= 3:
+            raise NotImplementedError(
+                f"SNMesh.from_axes: {len(axes)}-axis admission lands in "
+                f"C5.5 (#225). The construction body is axis-generic "
+                f"(C5.1), but the trace layer, volume measure, and "
+                f"solver windowing gates are still mesh-adapter-bound "
+                f"until C5.2–C5.4 dissolve them."
+            )
         mesh = legacy_mesh_from_axes(axes, mat_map=mat_map)
-        return cls(
+        obj = cls.__new__(cls)
+        obj._init_core(
+            axes=axes,
             mesh=mesh,
+            mat_map=mat_map,
             quadrature=quadrature,
             materials=materials,
             cell_update=cell_update,
             pole_angular_closure=pole_angular_closure,
         )
+        return obj
 
     def material_xs_field(self) -> "MaterialXSField":
         """Build the macroscopic XS field from this mesh's materials.
