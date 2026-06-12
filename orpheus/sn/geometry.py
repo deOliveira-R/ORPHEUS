@@ -97,10 +97,12 @@ class SNMesh:
     that depend only on geometry and angular quadrature, not on cross
     sections).
 
-    For Cartesian geometry the stencil stores:
+    For Cartesian geometry the stencil stores one per-axis array, read via
+    :meth:`streaming`:
 
-    * ``streaming_x[n, i]`` = :math:`2|\\mu_{x,n}| / \\Delta x_i`
-    * ``streaming_y[n, j]`` = :math:`2|\\mu_{y,n}| / \\Delta y_j`
+    * ``streaming(a)[n, i]`` = :math:`2|\\mu_{a,n}| / \\Delta a_i`
+      for every axis ``a < ndim`` (built over ``range(ndim)`` from
+      ``quad.axis_cosines(a)`` — no hand-listed x/y pair).
 
     For future curvilinear geometries, additional curvature terms
     (:math:`\\alpha_n / r_i`) will be stored in ``self.curvature``.
@@ -287,6 +289,13 @@ class SNMesh:
             self.mat_map: np.ndarray = mesh.mat_ids
             self._volumes: np.ndarray = mesh.volumes
             self._areas: np.ndarray | None = mesh.areas
+            # Per-axis cell widths, positional-by-axis — the d-generic
+            # widths source the streaming stencil iterates (NO phantom
+            # second axis; the dy=[1.0] shim above is legacy metadata
+            # only).  This isinstance branch is the one legacy-mesh
+            # adapter seam; it dissolves when axis-native construction
+            # lands (C5 / Mesh3D).
+            self._axis_widths: tuple[np.ndarray, ...] = (mesh.widths,)
         else:
             self.nx = mesh.nx
             self.ny = mesh.ny
@@ -297,15 +306,16 @@ class SNMesh:
             # 2-D mesh has per-face areas of a different shape; not
             # consumed by today's matvec callers — leave None.
             self._areas = None
+            self._axis_widths = (mesh.dx, mesh.dy)
 
         # Dispatch stencil setup by coordinate system.
         #
         # Curvilinear connection-coefficient math (sphere / cylinder) lives
         # in :mod:`orpheus.geometry.reduced_operator` (Wave B Issue 6) so
         # MoC and CP can consume the same primitive — Cardinal Rule 2
-        # forbids duplicating it on each solver-side mesh class.  Cartesian
-        # streaming_x / streaming_y stencils are SN-specific (DD denominator
-        # precomputation) and stay local to ``_setup_cartesian``.
+        # forbids duplicating it on each solver-side mesh class.  The
+        # Cartesian per-axis streaming stencils are SN-specific (DD
+        # denominator precomputation) and stay local to ``_setup_cartesian``.
         #
         # ``self.reduced`` is the canonical accessor every downstream
         # consumer should bind to: ``sn_mesh.reduced.streaming_terms(
@@ -332,15 +342,14 @@ class SNMesh:
                 assert isinstance(mesh, Mesh1D)
                 self.reduced = cylindrical_streaming(mesh, quadrature)
                 self.curvature: str | None = "cylindrical"
-                # 2-D Cartesian-style streaming arrays not used here.
-                self.streaming_x: np.ndarray | None = None
-                self.streaming_y: np.ndarray | None = None
+                # Cartesian-style per-axis streaming arrays not used here
+                # (curvilinear streaming lives in reduced.streaming_terms).
+                self._streaming_axes = None
             case CoordSystem.SPHERICAL:
                 assert isinstance(mesh, Mesh1D)
                 self.reduced = spherical_streaming(mesh, quadrature)
                 self.curvature = "spherical"
-                self.streaming_x = None
-                self.streaming_y = None
+                self._streaming_axes = None
 
         # Resolve boundary conditions from mesh declarations
         self._resolve_bcs(mesh)
@@ -655,11 +664,10 @@ class SNMesh:
 
         The dimension-generic accessor the anti-hyperplane DAG walk reads as
         ``str_axes[axis]`` — the per-axis term in the cell-balance denominator
-        :math:`\Sigma_t + \sum_a 2|\mu_a|/\Delta_a`.  Wraps the per-axis
-        Cartesian streaming arrays (``streaming_x`` / ``streaming_y``) under one
-        ``axis``-keyed call, so the d-generic orchestrators iterate
-        ``range(ndim)`` instead of hand-listing a positional
-        ``(streaming_x, streaming_y)`` tuple (the two cannot then drift order).
+        :math:`\Sigma_t + \sum_a 2|\mu_a|/\Delta_a`.  Indexes the per-axis
+        stencil tuple ``_setup_cartesian`` builds over ``range(ndim)`` (since
+        C3.6 there is no hand-listed ``(streaming_x, streaming_y)`` pair to
+        drift out of axis order — the tuple IS positional-by-axis from birth).
 
         Cartesian-only (the anti-hyperplane lattice is a Cartesian object);
         curvilinear meshes carry their streaming in
@@ -677,7 +685,7 @@ class SNMesh:
             raise IndexError(
                 f"streaming axis {axis} out of range for ndim={self.ndim}"
             )
-        return (self.streaming_x, self.streaming_y)[axis]
+        return self._streaming_axes[axis]
 
     # ── Dim-agnostic geometry primitives (R-1 Phase A C1) ─────────────
 
@@ -1322,28 +1330,28 @@ class SNMesh:
     # ── Stencil setup ─────────────────────────────────────────────────
 
     def _setup_cartesian(self) -> None:
-        """Precompute Cartesian diamond-difference streaming coefficients.
+        r"""Precompute Cartesian diamond-difference streaming coefficients.
 
-        These are the purely geometric parts of the DD denominator:
+        These are the purely geometric parts of the DD denominator,
+        one array per spatial axis:
 
         .. math::
 
-            \\text{denom} = \\Sigma_t + \\frac{2|\\mu_x|}{\\Delta x}
-                            + \\frac{2|\\mu_y|}{\\Delta y}
+            \text{denom} = \Sigma_t + \sum_{a < d} \frac{2|\mu_a|}{\Delta a}
 
         Precomputing avoids per-ordinate per-cell divisions in the
-        inner sweep loop.
+        inner sweep loop.  Built over ``range(ndim)`` from the canonical
+        per-axis accessors (``quad.axis_cosines(a)`` — the legacy
+        ``mu_x`` / ``mu_y`` names are property views of exactly these
+        columns, so the d-generic build is bit-identical to the former
+        hand-listed x/y pair), with NO phantom axis: a 1-D mesh carries
+        one streaming array, not an ``ny=1`` second.
         """
-        mu_x = self.quad.mu_x
-        mu_y = self.quad.mu_y
-
-        # streaming_x[n, i] = 2|μ_x[n]| / dx[i] — shape (N_ord, nx)
-        self.streaming_x: np.ndarray = (
-            2.0 * np.abs(mu_x)[:, None] / self.dx[None, :]
-        )
-        # streaming_y[n, j] = 2|μ_y[n]| / dy[j] — shape (N_ord, ny)
-        self.streaming_y: np.ndarray = (
-            2.0 * np.abs(mu_y)[:, None] / self.dy[None, :]
+        # _streaming_axes[a][n, i] = 2|μ_a[n]| / Δa[i] — shape (N_ord, n_a)
+        self._streaming_axes: tuple[np.ndarray, ...] | None = tuple(
+            2.0 * np.abs(self.quad.axis_cosines(a))[:, None]
+            / widths[None, :]
+            for a, widths in enumerate(self._axis_widths)
         )
 
         # Curvature terms (None for Cartesian — placeholder for curvilinear)

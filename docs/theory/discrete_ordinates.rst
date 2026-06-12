@@ -172,10 +172,12 @@ mesh) is shared with :ref:`theory-collision-probability` and
    inspects the raw :class:`~geometry.mesh.BC` objects.  Precomputed
    stencil contents per coordinate system:
 
-   - **Cartesian**: ``streaming_x[n,i] = 2|mu_x|/dx[i]`` and
-     ``streaming_y[n,j] = 2|mu_y|/dy[j]`` --- the diamond-difference
-     denominator terms, precomputed to avoid per-cell division in the
-     sweep hot loop.
+   - **Cartesian**: one per-axis array ``streaming(a)[n,i] =
+     2|mu_a|/da[i]`` for every axis ``a < ndim`` (built over
+     ``range(ndim)`` from ``quad.axis_cosines(a)`` since C3.6 ---
+     no hand-listed x/y pair, no phantom axis on a slab) --- the
+     diamond-difference denominator terms, precomputed to avoid
+     per-cell division in the sweep hot loop.
    - **Spherical**: ``face_areas`` (:math:`4\pi r^2`), ``delta_A``,
      ``alpha_half`` (angular redistribution dome),
      ``redist_dAw`` (:math:`\Delta A_i / w_n`, shape ``(nx, N)``),
@@ -498,7 +500,7 @@ cell-average angular flux:
 This is the simplest balance equation: no :math:`\alpha` redistribution
 and no :math:`\Delta A` factor, because slab geometry has no curvature.
 The streaming coefficient :math:`2|\mu|/\Delta x` is precomputed by
-:class:`SNMesh` as ``streaming_x[n, i]``.
+:class:`SNMesh` as ``streaming(0)[n, i]``.
 
 .. _balance-cartesian-2d:
 
@@ -550,8 +552,8 @@ Both outgoing face fluxes are then updated from the DD closure:
    \psi^x_{\rm out} = 2\psi_{n,i,j} - \psi^x_{\rm in}, \qquad
    \psi^y_{\rm out} = 2\psi_{n,i,j} - \psi^y_{\rm in}
 
-These are precomputed by :class:`SNMesh` as ``streaming_x[n, i]`` and
-``streaming_y[n, j]``, so the inner loop in
+These are precomputed by :class:`SNMesh` as ``streaming(0)[n, i]`` and
+``streaming(1)[n, j]``, so the inner loop in
 :func:`_sweep_2d_wavefront` reduces to a single vectorised division per
 diagonal.
 

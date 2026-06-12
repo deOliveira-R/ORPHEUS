@@ -168,13 +168,29 @@ def test_cylinder_deprecated_properties_route_to_reduced() -> None:
 
 @pytest.mark.foundation
 def test_slab_keeps_cartesian_streaming_arrays() -> None:
-    """``_setup_cartesian`` stays — DD-denominator arrays are SN-specific."""
+    """``_setup_cartesian`` stays — DD-denominator arrays are SN-specific.
+
+    HISTORY (C3.6): the slab carries exactly ONE per-axis streaming array
+    — the phantom ``ny=1`` ``streaming_y`` padding is gone (the stencil is
+    built over ``range(ndim)``); ``streaming(1)`` on a 1-D mesh is an
+    IndexError, not a silently-shaped phantom.
+    """
     sn = _slab_mesh()
-    # 2-D stencils populated for 1-D slab (ny=1 padding).
-    assert sn.streaming_x is not None
-    assert sn.streaming_y is not None
+    assert sn.streaming(0) is not None
+    with pytest.raises(IndexError, match="out of range for ndim=1"):
+        sn.streaming(1)
     # No curvature on Cartesian.
     assert sn.curvature is None
+
+
+@pytest.mark.foundation
+def test_curvilinear_streaming_accessor_raises() -> None:
+    """G-b4 (C3.6): ``streaming(axis)`` is Cartesian-only — curvilinear
+    meshes carry streaming in ``reduced.streaming_terms`` (the chain-scan
+    substrate), never the per-axis DD stencil."""
+    for sn in (_sphere_mesh(), _cylinder_mesh()):
+        with pytest.raises(AttributeError, match="Cartesian-only"):
+            sn.streaming(0)
 
 
 # ---------------------------------------------------------------------------

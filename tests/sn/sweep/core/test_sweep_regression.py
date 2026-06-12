@@ -100,7 +100,7 @@ class TestSNMesh:
     """Tests for the SNMesh augmented geometry."""
 
     def test_stencil_values_cartesian(self):
-        """streaming_x[n,i] must equal 2|μ_x[n]| / dx[i]."""
+        """streaming(0)[n,i] must equal 2|μ_x[n]| / dx[i]."""
         mesh = Mesh1D(edges=np.array([0.0, 0.1, 0.3, 0.6]),
                       mat_ids=np.array([0, 1, 2]))
         quad = Quadrature.gauss_legendre(4)
@@ -110,14 +110,49 @@ class TestSNMesh:
             for i in range(sn_mesh.nx):
                 expected = 2.0 * abs(quad.mu_x[n]) / mesh.widths[i]
                 np.testing.assert_allclose(
-                    sn_mesh.streaming_x[n, i], expected, rtol=1e-14,
+                    sn_mesh.streaming(0)[n, i], expected, rtol=1e-14,
                 )
+
+    def test_stencil_exactly_equals_axis_cosines_build(self):
+        """G-b3 (C3.6): EXACT equality (not allclose) of the d-generic
+        stencil against the hand-spelled ``2|axis_cosines(a)|/Δa`` —
+        the bit-identity guard.  ``mu_x``/``mu_y`` are property VIEWS of
+        ``axis_cosines(0)/(1)``, so the ``range(ndim)`` build must be
+        bit-identical to the retired hand-listed x/y pair; if a future
+        refactor turns the view into a rounded copy, the rtol gates above
+        stay green while this one trips."""
+        mesh = Mesh2D(
+            edges_x=np.linspace(0, 1, 4),
+            edges_y=np.linspace(0, 0.5, 3),
+            mat_map=np.zeros((3, 2), dtype=int),
+        )
+        quad = Quadrature.lebedev(order=17)
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+        for a, widths in enumerate((mesh.dx, mesh.dy)):
+            np.testing.assert_array_equal(
+                sn_mesh.streaming(a),
+                2.0 * np.abs(quad.axis_cosines(a))[:, None] / widths[None, :],
+            )
+
+    def test_streaming_axis_out_of_range_raises(self):
+        """G-b5 (C3.6): ``streaming(2)`` on a 2-D mesh is an IndexError —
+        no phantom third axis."""
+        mesh = Mesh2D(
+            edges_x=np.linspace(0, 1, 3),
+            edges_y=np.linspace(0, 1, 3),
+            mat_map=np.zeros((2, 2), dtype=int),
+        )
+        sn_mesh = SNMesh(
+            mesh, Quadrature.lebedev(order=5), placeholder_materials(),
+        )
+        with pytest.raises(IndexError, match="out of range for ndim=2"):
+            sn_mesh.streaming(2)
 
     def test_stencil_dd_denom_equivalence(self):
         """Precomputed stencil must reproduce the original DD denominator.
 
         Original: denom = Σ_t + 2|μ_x|/dx + 2|μ_y|/dy
-        Stencil:  denom = Σ_t + streaming_x[n,i] + streaming_y[n,j]
+        Stencil:  denom = Σ_t + streaming(0)[n,i] + streaming(1)[n,j]
         """
         mesh = Mesh2D(
             edges_x=np.linspace(0, 1, 4),  # 3 cells, dx=1/3
@@ -132,7 +167,7 @@ class TestSNMesh:
             for i in range(sn_mesh.nx):
                 for j in range(sn_mesh.ny):
                     old = sig_t + 2*abs(quad.mu_x[n])/mesh.dx[i] + 2*abs(quad.mu_y[n])/mesh.dy[j]
-                    new = sig_t + sn_mesh.streaming_x[n, i] + sn_mesh.streaming_y[n, j]
+                    new = sig_t + sn_mesh.streaming(0)[n, i] + sn_mesh.streaming(1)[n, j]
                     np.testing.assert_allclose(new, old, rtol=1e-14)
 
     def test_mesh1d_shapes(self):
