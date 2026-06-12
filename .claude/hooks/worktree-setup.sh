@@ -41,6 +41,12 @@ if [ -z "$wt" ] || [ ! -d "$wt" ]; then
     exit 2
 fi
 
+# Keep pyright's executionEnvironments in sync with the worktree set
+# (cross-tree type-identity noise — see regen-pyrightconfig.sh). Takes
+# effect at the NEXT pyright-langserver start; cheap, so run it before
+# the long venv/Sphinx build.
+bash "$(dirname "$0")/regen-pyrightconfig.sh" || true
+
 log="${TMPDIR:-/tmp}/orpheus-worktree-setup-$(basename "$wt").log"
 
 if (cd "$wt" && bash scripts/setup.sh "$@") >"$log" 2>&1; then

@@ -168,6 +168,11 @@
           {
             "type": "command",
             "command": "cat .claude/hooks/session-start.txt"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/regen-pyrightconfig.sh",
+            "timeout": 15
           }
         ]
       }
@@ -182,6 +187,16 @@
             "asyncRewake": true,
             "statusMessage": "Setting up worktree: venv + Nexus graph...",
             "timeout": 1800
+          }
+        ]
+      },
+      {
+        "matcher": "ExitWorktree",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/regen-pyrightconfig.sh",
+            "timeout": 15
           }
         ]
       },
