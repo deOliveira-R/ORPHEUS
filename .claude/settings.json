@@ -189,5 +189,13 @@
   },
   "enabledPlugins": {
     "pyright-lsp@claude-plugins-official": true
+  },
+  "deniedMcpServers": [
+    { "serverName": "kicad" },
+    { "serverName": "gitea" },
+    { "serverName": "github" }
+  ],
+  "env": {
+    "ENABLE_TOOL_SEARCH": "false"
   }
 }
