@@ -224,23 +224,77 @@ def test_from_axes_curvilinear_keeps_mesh1d_reduced_path(
     np.testing.assert_equal(sorted(native.bc), sorted(legacy.bc))
 
 
-# ─── d≥3 admission gate (flips green in C5.5) ────────────────────────────
+# ─── C5.5 — d=3 axis-native admission (the constructive gates) ──────────
 
 
-def test_d3_admission_gate_names_c55() -> None:
-    """3-axis construction refuses loudly, naming the admission substep.
+def _d3_axes() -> tuple:
+    """nx=3, ny=4, nz=5 with distinct extents — Mode-2 asymmetry."""
+    return (
+        AxisMesh(edges=np.linspace(0.0, 1.0, 4)),
+        AxisMesh(edges=np.linspace(0.0, 2.0, 5)),
+        AxisMesh(edges=np.linspace(0.0, 3.0, 6)),
+    )
 
-    This is the inverse of red-first gate C5-G1
-    (``test_from_axes_d3_constructs``): until C5.2–C5.4 dissolve the
-    mesh-adapter-bound trace / volume-measure / windowing seams, a
-    3-axis SNMesh would be a half-constructed object. This pin is
-    DELETED when C5.5 lands and the constructive gate replaces it.
+
+def test_from_axes_d3_constructs() -> None:
+    """C5-G1 (the red-first sentinel, green since C5.5): 3-axis admission.
+
+    A 3-axis Cartesian SNMesh constructs through the SAME generic body
+    as d≤2 — mesh-adapter-free from birth (``mesh is None``).
     """
-    axes = (AxisMesh(edges=np.linspace(0.0, 1.0, 4)),) * 3
-    with pytest.raises(NotImplementedError, match="C5.5"):
-        SNMesh.from_axes(
-            axes, Quadrature.level_symmetric(sn_order=4), _MATERIALS,
+    m = SNMesh.from_axes(
+        _d3_axes(), Quadrature.level_symmetric(sn_order=4), _MATERIALS,
+    )
+    np.testing.assert_equal(m.ndim, 3)
+    np.testing.assert_equal(m.spatial_shape, (3, 4, 5))
+    np.testing.assert_equal(m.mesh, None)
+    np.testing.assert_equal(m.is_cartesian, True)
+    np.testing.assert_equal(m.is_1d, False)
+    np.testing.assert_equal(m.nx, 3)
+
+
+def test_d3_cartesian_builds_trace_and_bc_inventory() -> None:
+    """C5-G7: six faces on trace, layout, and the bc dict — one inventory."""
+    m = SNMesh.from_axes(
+        _d3_axes(), Quadrature.level_symmetric(sn_order=4), _MATERIALS,
+    )
+    six = ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")
+    np.testing.assert_equal(tuple(m.trace.layout.faces), six)
+    np.testing.assert_equal(tuple(m.boundary_face_layout.faces), six)
+    np.testing.assert_equal(sorted(m.bc), sorted(six))
+    np.testing.assert_equal(
+        tuple(label.face_name for label in m.face_labels), six,
+    )
+
+
+def test_d3_volumes_cartesian_outer_product() -> None:
+    """C5-G5: axis-native volumes equal the hand outer product of widths.
+
+    The oracle recomputes from the EDGES (structurally independent of
+    the implementation's reduce-outer call): V[i,j,k] = Δx_i·Δy_j·Δz_k.
+    """
+    axes = _d3_axes()
+    m = SNMesh.from_axes(
+        axes, Quadrature.level_symmetric(sn_order=4), _MATERIALS,
+    )
+    dx, dy, dz = (np.diff(ax.edges) for ax in axes)
+    oracle = np.einsum("i,j,k->ijk", dx, dy, dz)
+    np.testing.assert_equal(m.volumes.shape, (3, 4, 5))
+    np.testing.assert_allclose(m.volumes, oracle, rtol=1e-15)
+    for axis in range(3):
+        np.testing.assert_array_equal(
+            m.axis_widths[axis], np.diff(axes[axis].edges),
         )
+
+
+def test_volume_measure_d3_integrates_to_total_volume() -> None:
+    """C5-G12: ∫ 1 dV per group equals the box volume Lx·Ly·Lz (closed form)."""
+    m = SNMesh.from_axes(
+        _d3_axes(), Quadrature.level_symmetric(sn_order=4), _MATERIALS,
+    )
+    ones = np.ones((int(np.prod(m.spatial_shape)), m.ng))
+    total = m.volume_measure(ones)
+    np.testing.assert_allclose(total, [1.0 * 2.0 * 3.0] * m.ng, rtol=1e-13)
 
 
 # ─── coord_system pure primitive ─────────────────────────────────────────

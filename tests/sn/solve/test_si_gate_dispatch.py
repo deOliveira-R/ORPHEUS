@@ -15,10 +15,11 @@ the gate functions to the genuine conditions:
 
 The gate functions read only ``is_cartesian`` / ``ndim`` / ``is_1d``
 (plus, for a constructed G-S resolvent, the schedule inputs), so the
-d=3 rows pin with a duck-typed mesh until C5.5 makes a real 3-axis
-mesh constructible — at which point the constructible twin
-(``test_d3_maybe_window_passthrough`` on a real ``from_axes`` mesh)
-replaces the synthetic d=3 row here.
+rows here pin the gate FUNCTIONS cheaply with a duck-typed mesh; the
+constructible real-mesh twin lives in
+``tests/sn/solve/test_d3_admission.py::test_d3_real_mesh_window_passthrough_and_gs_admissible``
+(landed with C5.5) and the value-level FP-invariance in the Mode-9 box
+there.
 
 Assertions are ``np.testing`` / ``pytest.fail`` only (Mode-8 safe
 under the canonical ``-O``).

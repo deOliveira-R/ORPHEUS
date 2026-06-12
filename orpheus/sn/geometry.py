@@ -227,7 +227,7 @@ class SNMesh:
         self,
         *,
         axes: tuple[Axis1D, ...],
-        mesh: Mesh1D | Mesh2D,
+        mesh: Mesh1D | Mesh2D | None,
         mat_map: np.ndarray | None,
         quadrature: AngularQuadrature,
         materials: "dict[int, Mixture]",
@@ -354,14 +354,24 @@ class SNMesh:
                     f"spatial_shape={self.spatial_shape}"
                 )
         self.mat_map: np.ndarray = mat_map
-        # Cell volumes / radial face areas stay dataclass-owned for now
-        # (preserves the Mesh1D curvilinear formulas + the
-        # ``precomputed_volumes`` ULP escape hatch bit-identically); the
-        # axis-native d≥3 volume formula lands with the 3-axis admission
-        # (C5.5). 2-D per-face areas have a different shape and feed no
-        # matvec caller — None.
-        self._volumes: np.ndarray = mesh.volumes
-        self._areas: np.ndarray | None = mesh.areas if self.ndim == 1 else None
+        # Cell volumes / radial face areas stay dataclass-owned while
+        # the adapter is present (preserves the Mesh1D curvilinear
+        # formulas + the ``precomputed_volumes`` ULP escape hatch
+        # bit-identically). Axis-native (mesh-less, d≥3 — all-Cartesian
+        # by construction, ``_axis_coord_system`` refuses mixed): the
+        # cell volume is the tensor-product cell measure, the iterated
+        # outer product of the per-axis widths ``V[i,j,k] =
+        # Δx_i·Δy_j·Δz_k``. 2-D per-face areas have a different shape
+        # and feed no matvec caller — None.
+        if mesh is not None:
+            self._volumes: np.ndarray = mesh.volumes
+            self._areas: np.ndarray | None = (
+                mesh.areas if self.ndim == 1 else None
+            )
+        else:
+            from functools import reduce
+            self._volumes = reduce(np.multiply.outer, self.axis_widths)
+            self._areas = None
         # ``nx`` = spatial_shape[0] sugar (see the axis_widths comment
         # above for why ny/dx/dy are gone — C5.2 phantom retirement).
         self.nx: int = self.spatial_shape[0]
@@ -652,11 +662,24 @@ class SNMesh:
         Delegates to the legacy dataclass's measure while the adapter
         is present (bit-identity: same atoms, same construction —
         including the ``precomputed_volumes`` escape hatch and the
-        curvilinear volume formulas the dataclass owns). The
-        axis-native arm (``self.mesh is None``, d≥3) lands with the
-        3-axis admission in C5.5.
+        curvilinear volume formulas the dataclass owns). Axis-native
+        (``self.mesh is None``, d≥3 — C5.5, #225): the rank-d analogue
+        of :attr:`Mesh2D.volume_measure` — atoms are the cell-centre
+        tuples ordered with ``np.meshgrid(..., indexing='ij')`` (the
+        same layout ``volumes.ravel()`` exposes), weights the flattened
+        cell volumes.
         """
-        return self.mesh.volume_measure
+        if self.mesh is not None:
+            return self.mesh.volume_measure
+        from orpheus.numerics.measure import DiscreteMeasure
+        centers = [0.5 * (ax.edges[:-1] + ax.edges[1:]) for ax in self.axes]
+        grids = np.meshgrid(*centers, indexing="ij")
+        nodes = np.stack([g.ravel() for g in grids], axis=-1)
+        return DiscreteMeasure(
+            nodes=nodes,
+            weights=self.volumes.ravel(),
+            space=f"spatial_R{self.ndim}",
+        )
 
     @property
     def areas(self) -> np.ndarray:
@@ -849,10 +872,10 @@ class SNMesh:
         ----------
         axes : tuple of :class:`~orpheus.sn.axis.Axis1D`
             Per-axis 1-D mesh descriptors. Length 1 → 1-D mesh;
-            length 2 → 2-D Cartesian mesh. Length ≥3 raises until the
-            3-axis admission chain completes (C5.5 of #225 — the trace
-            layer, volume measure, and solver windowing gates are
-            mesh-adapter-bound until C5.2–C5.4 dissolve them).
+            length 2 → 2-D Cartesian mesh; length ≥3 → d-D Cartesian
+            (C5.5, #225 — all-Cartesian required, mesh-adapter-free
+            from birth, swept by the d-generic ``FullFieldWavefront``
+            spine).
         quadrature : :class:`AngularQuadrature`
             Angular quadrature.
         materials : dict[int, Mixture]
@@ -869,15 +892,16 @@ class SNMesh:
             Cartesian → :class:`IdentityAngularClosure`).
         """
         axes = tuple(axes)
-        if len(axes) >= 3:
-            raise NotImplementedError(
-                f"SNMesh.from_axes: {len(axes)}-axis admission lands in "
-                f"C5.5 (#225). The construction body is axis-generic "
-                f"(C5.1), but the trace layer, volume measure, and "
-                f"solver windowing gates are still mesh-adapter-bound "
-                f"until C5.2–C5.4 dissolve them."
-            )
-        mesh = legacy_mesh_from_axes(axes, mat_map=mat_map)
+        # C5.5 (#225): d≥3 is mesh-adapter-free from birth — every
+        # consumer that read through ``self.mesh`` was dissolved across
+        # C5.2–C5.4 (volume measure, trace, windowing gates) or is
+        # d≤2-only (the 1-D reduced streaming constructors, the MMS
+        # helpers). d≤2 still synthesizes the legacy adapter for those
+        # remaining consumers.
+        mesh = (
+            legacy_mesh_from_axes(axes, mat_map=mat_map)
+            if len(axes) <= 2 else None
+        )
         obj = cls.__new__(cls)
         obj._init_core(
             axes=axes,

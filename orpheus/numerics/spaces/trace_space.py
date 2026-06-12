@@ -225,6 +225,21 @@ def _build_omega_dot_n(
                 f"Unknown face name {face_name!r}; valid faces are "
                 f"{sorted(_FACE_NORMALS)}"
             ) from exc
+        # C5.5 (#225) fail-loud: a layout naming an axis-k FACE demands
+        # genuine mu_k on the quadrature. The zero-fallback in
+        # _quadrature_axis exists for predicate sites where a missing
+        # cosine legitimately means "tangential everywhere" — but a
+        # BOUNDARY FACE with Ω·n ≡ 0 for every ordinate is a
+        # rank-mismatch (e.g. a z face on a 2-D quadrature), and
+        # zero-padding it silently misclassifies all ordinates as
+        # neither inflow nor outflow.
+        if getattr(quadrature, f"mu_{AXIS_NAMES[axis]}", None) is None:
+            raise ValueError(
+                f"Face {face_name!r} requires mu_{AXIS_NAMES[axis]} on "
+                f"the quadrature, which does not provide it — a "
+                f"rank-mismatch between the face layout and the "
+                f"angular cubature."
+            )
         omega_dot_n[f_idx] = sign * _quadrature_axis(quadrature, axis)
     return omega_dot_n
 

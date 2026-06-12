@@ -52,30 +52,84 @@ from .operator import (
 )
 from orpheus.numerics.quadrature import Quadrature
 from .scattering import ScatteringOperator
+from .axis import Axis1D
 from .loss_representation import transport_sweep
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
 
 def _apply_default_bcs(
-    mesh: Mesh1D | Mesh2D,
+    geometry: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
     boundary_condition: str,
-) -> Mesh1D | Mesh2D:
+) -> "Mesh1D | Mesh2D | tuple[Axis1D, ...]":
     """Apply *boundary_condition* string to all faces that lack explicit BCs.
 
-    Returns the original mesh unchanged when it already carries explicit
-    :class:`~orpheus.geometry.mesh.BC` declarations, so user-set BCs
+    Returns the original declaration unchanged when it already carries
+    ANY explicit :class:`~orpheus.geometry.mesh.BC`, so user-set BCs
     always take precedence over the ``boundary_condition`` parameter.
+
+    C5.5 (#225): handles BOTH entry-surface geometry declarations — a
+    legacy :class:`Mesh1D` / :class:`Mesh2D` (per-face dataclass
+    fields) and an axis tuple (per-endpoint ``bc`` slots on each
+    :class:`~orpheus.sn.axis.AxisMesh` /
+    :class:`~orpheus.sn.axis.RadialAxisMesh`). The all-or-nothing
+    semantics are identical on both representations.
     """
     bc = BC(boundary_condition)
-    if isinstance(mesh, Mesh1D):
-        if mesh.bc_left is None and mesh.bc_right is None:
-            return replace(mesh, bc_left=bc, bc_right=bc)
-    else:
+    if isinstance(geometry, Mesh1D):
+        if geometry.bc_left is None and geometry.bc_right is None:
+            return replace(geometry, bc_left=bc, bc_right=bc)
+        return geometry
+    if isinstance(geometry, Mesh2D):
         faces = ("bc_xmin", "bc_xmax", "bc_ymin", "bc_ymax")
-        if all(getattr(mesh, f) is None for f in faces):
-            return replace(mesh, **{f: bc for f in faces})
-    return mesh
+        if all(getattr(geometry, f) is None for f in faces):
+            return replace(geometry, **{f: bc for f in faces})
+        return geometry
+    axes = tuple(geometry)
+    if any(b is not None for ax in axes for b in ax.bc.values()):
+        return axes
+    from .axis import RadialAxisMesh
+    return tuple(
+        replace(ax, bc_outer=bc) if isinstance(ax, RadialAxisMesh)
+        else replace(ax, bc_low=bc, bc_high=bc)
+        for ax in axes
+    )
+
+
+def _as_sn_mesh(
+    geometry: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
+    quadrature: "AngularQuadrature",
+    materials: "dict[int, Mixture]",
+    boundary_condition: "str | None" = None,
+    mat_map: "np.ndarray | None" = None,
+) -> "SNMesh":
+    r"""Normalize the entry-surface geometry declaration into an SNMesh.
+
+    The single inbound seam for both ``solve_sn`` entries (C5.5,
+    #225): ``geometry`` is a legacy :class:`Mesh1D` / :class:`Mesh2D`
+    (the d≤2 user-facing declaration) or an axis tuple — the
+    axis-native surface and the ONLY 3-D entry
+    (:meth:`SNMesh.from_axes`). ``boundary_condition`` (the
+    fixed-source vacuum convention) fills faces only when the
+    declaration carries no explicit BC, on either representation;
+    ``None`` (the eigenvalue entry) leaves the declaration verbatim —
+    unset faces then resolve to the SNMesh-level reflective default
+    (the infinite-lattice eigenvalue convention). ``mat_map`` is the
+    axes-entry material-assignment channel (shape ``spatial_shape``;
+    defaults to single-material id 0) — a legacy mesh carries its own
+    and combining the two raises.
+    """
+    if boundary_condition is not None:
+        geometry = _apply_default_bcs(geometry, boundary_condition)
+    if isinstance(geometry, (Mesh1D, Mesh2D)):
+        if mat_map is not None:
+            raise ValueError(
+                "mat_map is the axes-entry material channel; a legacy "
+                "Mesh1D/Mesh2D carries its own mat_ids/mat_map — "
+                "declare the assignment on the mesh."
+            )
+        return SNMesh(geometry, quadrature, materials)
+    return SNMesh.from_axes(geometry, quadrature, materials, mat_map=mat_map)
 
 
 # Issue #197 PR-TYPED-5: SNFixedSourceResult + SNResult RETIRED.
@@ -1522,7 +1576,7 @@ def _reflect_outflow_into_inflow(
 
 def solve_sn(
     materials: dict[int, Mixture],
-    mesh: Mesh1D | Mesh2D,
+    mesh: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
     quadrature: AngularQuadrature,
     inner_solver: str = "source_iteration",
     scattering_order: int = 0,
@@ -1532,6 +1586,7 @@ def solve_sn(
     max_inner: int = 200,
     inner_tol: float = 1e-8,
     inner_schedule: str = "jacobi",
+    mat_map: "np.ndarray | None" = None,
 ) -> Solution:
     """Solve the multi-group SN eigenvalue problem.
 
@@ -1540,8 +1595,10 @@ def solve_sn(
     directly: materials are :class:`~orpheus.data.macro_xs.mixture.Mixture`
     objects keyed by material ID, ``mesh`` is a
     :class:`~orpheus.geometry.Mesh1D` / :class:`~orpheus.geometry.Mesh2D`
-    (build via :meth:`Mesh1D.from_geometry` for multi-region 1-D cases),
-    and ``quadrature`` is an explicitly chosen
+    (build via :meth:`Mesh1D.from_geometry` for multi-region 1-D cases)
+    OR an axis tuple — the axis-native surface and the ONLY 3-D entry
+    (C5.5, #225; per-axis BCs ride the axes, ``mat_map=`` carries the
+    material assignment), and ``quadrature`` is an explicitly chosen
     :class:`~orpheus.sn.quadrature.AngularQuadrature` — Gauss-Legendre
     for slab, level-symmetric / product quadrature for curvilinear, or
     Lebedev for 2-D.
@@ -1610,8 +1667,10 @@ def solve_sn(
 
     # Build augmented geometry (precomputes streaming stencil).
     # Issue #197 PR-TYPED-0: materials now lives on SNMesh — the
-    # phase-space-as-such object.
-    sn_mesh = SNMesh(mesh, quadrature, materials)
+    # phase-space-as-such object. C5.5 (#225): the declaration may be a
+    # legacy mesh or an axis tuple (the only 3-D entry); unset faces
+    # resolve to the SNMesh reflective default (eigenvalue convention).
+    sn_mesh = _as_sn_mesh(mesh, quadrature, materials, mat_map=mat_map)
 
     solver = SNSolver(
         sn_mesh,
@@ -1783,7 +1842,7 @@ def _build_fixed_source_rhs(
 
 def solve_sn_fixed_source(
     materials: dict[int, Mixture],
-    mesh: Mesh1D | Mesh2D,
+    mesh: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
     quadrature: AngularQuadrature,
     external_source: "np.ndarray | TimedFullField",
     boundary_condition: str = "vacuum",
@@ -1792,6 +1851,7 @@ def solve_sn_fixed_source(
     inner_tol: float = 1e-12,
     inner_solver: str | None = None,
     inner_schedule: str = "gauss_seidel",
+    mat_map: "np.ndarray | None" = None,
 ) -> Solution:
     r"""Solve the multi-group SN fixed-source transport problem.
 
@@ -1896,10 +1956,13 @@ def solve_sn_fixed_source(
     """
     t_start = time.perf_counter()
 
-    # Apply boundary_condition parameter to mesh if no explicit BCs set
-    mesh = _apply_default_bcs(mesh, boundary_condition)
-    # Issue #197 PR-TYPED-0: materials threaded through SNMesh.
-    sn_mesh = SNMesh(mesh, quadrature, materials)
+    # Normalize the geometry declaration (legacy mesh OR axis tuple —
+    # the only 3-D entry; C5.5 #225) into the SN phase space;
+    # boundary_condition fills faces only when the declaration carries
+    # no explicit BC.
+    sn_mesh = _as_sn_mesh(
+        mesh, quadrature, materials, boundary_condition, mat_map=mat_map,
+    )
 
     # Issue #168 status (Phase D ERR-026 closure, 2026-05-12):
     #
