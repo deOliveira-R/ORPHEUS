@@ -160,7 +160,7 @@ def _krylov_power_iteration_kinf(
         raise ValueError(f"unknown preconditioner_kind: {preconditioner_kind!r}")
 
     N = sn_mesh.quad.N
-    nx, ny, ng = sn_mesh.nx, sn_mesh.ny, solver.ng
+    n_cells, ng = int(np.prod(sn_mesh.spatial_shape)), solver.ng
     krylov = KrylovAcceleration(
         # Wave O O.2a: mirror the honest production gains from
         # ``SNSolver._within_group_triple`` — the resolvent ``L+C`` plus the
@@ -173,7 +173,7 @@ def _krylov_power_iteration_kinf(
         LC, solver.scattering_op, SNBoundaryOperator(sn_mesh),
         preconditioner=precond,
         tol=1e-12, max_iter=300,
-        restart=N * ng * nx * ny,
+        restart=N * ng * n_cells,
     )
 
     phi = solver.initial_flux_distribution()

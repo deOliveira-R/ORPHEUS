@@ -101,7 +101,7 @@ class TestAngularResidual:
         m = _slab_mesh()
         r = AngularResidual.from_mesh(np.ones(_ang_shape(m)), m)
         assert r.values.shape == _ang_shape(m)
-        assert (r.N, r.ng, r.nx, r.ny) == (m.quad.N, m.ng, m.nx, m.ny)
+        assert (r.N, r.ng) == (m.quad.N, m.ng)
 
     def test_from_ndarray_alias(self) -> None:
         m = _slab_mesh()
@@ -168,7 +168,7 @@ class TestScalarResidual:
         m = _slab_mesh()
         r = ScalarResidual.from_mesh(np.ones(_sca_shape(m)), m)
         assert r.values.shape == _sca_shape(m)
-        assert (r.ng, r.nx, r.ny) == (m.ng, m.nx, m.ny)
+        assert r.ng == m.ng
 
     def test_shape_validation_rejects_wrong_shape(self) -> None:
         m = _slab_mesh()

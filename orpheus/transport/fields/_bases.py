@@ -155,15 +155,9 @@ class BulkField(Field):
         r"""Number of energy groups (delegated to ``mesh.ng``)."""
         return self.mesh.ng
 
-    @property
-    def nx(self) -> int:
-        r"""Number of cells along x (delegated to ``mesh.nx``)."""
-        return self.mesh.nx
-
-    @property
-    def ny(self) -> int:
-        r"""Number of cells along y (delegated to ``mesh.ny``)."""
-        return self.mesh.ny
+    # C5.2 (#225): the ``nx``/``ny`` read-throughs are RETIRED — a
+    # field keyed on ``(nx, ny)`` silently truncates a 3-D tensor.
+    # Spatial shape reads are rank-generic: ``mesh.spatial_shape``.
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)

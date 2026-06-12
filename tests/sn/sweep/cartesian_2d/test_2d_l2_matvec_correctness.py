@@ -190,7 +190,7 @@ def test_apply_vs_sweep_2d_residual_cancellation() -> None:
     sigma_t = np.array(
         [
             mesh.materials[0].SigT[g]
-            * np.ones((mesh.nx, mesh.ny))
+            * np.ones(mesh.spatial_shape)
             for g in range(mesh.ng)
         ]
     )
@@ -290,7 +290,7 @@ def test_2d_matvec_linearity_random_state() -> None:
     sigma_t = np.array(
         [
             mesh.materials[0].SigT[g]
-            * np.ones((mesh.nx, mesh.ny))
+            * np.ones(mesh.spatial_shape)
             for g in range(mesh.ng)
         ]
     )

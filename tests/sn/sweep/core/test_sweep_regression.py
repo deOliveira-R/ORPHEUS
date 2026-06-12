@@ -165,7 +165,7 @@ class TestSNMesh:
         sig_t = 0.5  # scalar for simplicity
         for n in range(quad.N):
             for i in range(sn_mesh.nx):
-                for j in range(sn_mesh.ny):
+                for j in range(sn_mesh.spatial_shape[1]):
                     old = sig_t + 2*abs(quad.mu_x[n])/mesh.dx[i] + 2*abs(quad.mu_y[n])/mesh.dy[j]
                     new = sig_t + sn_mesh.streaming(0)[n, i] + sn_mesh.streaming(1)[n, j]
                     np.testing.assert_allclose(new, old, rtol=1e-14)
@@ -177,7 +177,6 @@ class TestSNMesh:
         sn_mesh = SNMesh(mesh, quad, placeholder_materials(mat_ids=(0, 1, 2)))
 
         assert sn_mesh.nx == 5
-        assert sn_mesh.ny == 1
         assert sn_mesh.spatial_shape == (5,)
         assert sn_mesh.mat_map.shape == sn_mesh.spatial_shape
         assert sn_mesh.volumes.shape == sn_mesh.spatial_shape
@@ -194,7 +193,7 @@ class TestSNMesh:
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
 
         assert sn_mesh.nx == 3
-        assert sn_mesh.ny == 2
+        assert sn_mesh.spatial_shape[1] == 2
         assert sn_mesh.mat_map.shape == (3, 2)
         assert sn_mesh.volumes.shape == (3, 2)
         assert sn_mesh.is_1d is False

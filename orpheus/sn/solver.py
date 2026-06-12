@@ -946,7 +946,7 @@ class SNSolver:
         quantities).  ``compute_keff`` consumes it via ``.sum()``.
         """
         ng = self.ng
-        mu = self.sn_mesh.mesh.volume_measure
+        mu = self.sn_mesh.volume_measure
 
         # Fission production: ∫ νΣ_f · φ dV, vectorised over groups.
         # Issue #196 PR-INDEX-5: both ``mat_xs.fission_production`` and
@@ -985,7 +985,7 @@ class SNSolver:
         ``(ng, nx, ny)``.
         """
         ng = self.ng
-        mu = self.sn_mesh.mesh.volume_measure
+        mu = self.sn_mesh.volume_measure
         # Issue #197 PR-TYPED-2: consumes mat_xs directly (no shim).
         per_cell_per_group = np.einsum(
             "g...,g...->g...", self.mat_xs.absorption_cross_section, flux_distribution,

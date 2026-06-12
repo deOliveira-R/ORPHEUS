@@ -303,22 +303,21 @@ class TestTransportSweepDelegatesToStrategy:
 
         selected = type(default_for(sn_mesh)).__name__
         calls = {"sweep": 0}
-        N, ng, nx, ny = sn_mesh.quad.N, sn_mesh.ng, sn_mesh.nx, sn_mesh.ny
+        N, ng = sn_mesh.quad.N, sn_mesh.ng
+        spatial = sn_mesh.spatial_shape
 
         class _SpyStrategy:
             def sweep(self, *args, **kwargs):
                 calls["sweep"] += 1
-                return (np.zeros((N, ng, nx, ny)), np.zeros((ng, nx, ny)))
+                return (np.zeros((N, ng, *spatial)), np.zeros((ng, *spatial)))
 
         monkeypatch.setattr(
             loss_representation, "default_for", lambda mesh: _SpyStrategy(),
         )
 
-        # 1-D meshes carry (ng, nx) Σ_t; 2-D Cartesian carries (ng, nx, ny).
-        sig_t = (
-            np.ones((ng, nx)) if sn_mesh.reduced is not None
-            else np.ones((ng, nx, ny))
-        )
+        # Σ_t is (ng, *spatial) at any rank — (ng, nx) for 1-D,
+        # (ng, nx, ny) for 2-D Cartesian (C5.2: no phantom ny).
+        sig_t = np.ones((ng, *spatial))
         source = AngularSourceSink.zeros_on(sn_mesh)
         transport_sweep(source, sig_t, sn_mesh, BoundaryFlux.zeros_on(sn_mesh))
 

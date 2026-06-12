@@ -301,7 +301,7 @@ def _build_sig_t(
     Issue #196 PR-INDEX-4: principled ``(ng, nx, ny)`` layout to match
     ``_sweep_jacobi``'s direct contract.
     """
-    nx, ny = sn_mesh.nx, sn_mesh.ny
+    nx, ny = sn_mesh.spatial_shape
     sig_t = np.zeros((ng, nx, ny))
     for mid, mix in materials.items():
         cells = sn_mesh.mat_map == mid
@@ -481,7 +481,7 @@ def _case_1_smoke() -> OctantEquivalenceInputs:
     materials = {0: get_mixture("A", "1g")}
     sig_t = _build_sig_t(sn_mesh, materials, ng=1)
     # PR-INDEX-4: principled (ng, nx, ny).
-    Q = np.ones((1, sn_mesh.nx, sn_mesh.ny))
+    Q = np.ones((1, *sn_mesh.spatial_shape))
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
         boundary_flux=BoundaryFlux.zeros_on(sn_mesh), aniso_source=None,
@@ -519,7 +519,7 @@ def _case_2_reflective() -> OctantEquivalenceInputs:
     )
     materials = {0: get_mixture("A", "1g")}
     sig_t = _build_sig_t(sn_mesh, materials, ng=1)
-    Q = np.ones((1, sn_mesh.nx, sn_mesh.ny))
+    Q = np.ones((1, *sn_mesh.spatial_shape))
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
         boundary_flux=_empty_boundary_flux(sn_mesh), aniso_source=None,
@@ -580,7 +580,7 @@ def _case_3_mixed_bc_het() -> OctantEquivalenceInputs:
     # heterogeneity / multi-group axes.  Uniform-Q + heterogeneous Σ_t
     # is the canonical fingerprint that surfaces redistribution bugs
     # on a flat-source baseline.  PR-INDEX-4 (ng, nx, ny).
-    Q = np.ones((2, sn_mesh.nx, sn_mesh.ny))
+    Q = np.ones((2, *sn_mesh.spatial_shape))
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
         boundary_flux=_empty_boundary_flux(sn_mesh), aniso_source=None,
@@ -616,11 +616,11 @@ def _case_4_heterogeneous() -> OctantEquivalenceInputs:
     # a single layout flip — bit-identity preserved by view-only
     # transpose.
     x = np.linspace(0.0, 1.0, sn_mesh.nx)[:, None, None]
-    y = np.linspace(0.0, 1.0, sn_mesh.ny)[None, :, None]
+    y = np.linspace(0.0, 1.0, sn_mesh.spatial_shape[1])[None, :, None]
     Q_legacy = (
         np.array([1.0, 0.5])[None, None, :]
         + 0.5 * x + 0.3 * y
-        + 0.1 * rng.standard_normal((sn_mesh.nx, sn_mesh.ny, 2))
+        + 0.1 * rng.standard_normal((*sn_mesh.spatial_shape, 2))
     )
     Q = np.transpose(Q_legacy, (2, 0, 1)).copy()  # (ng, nx, ny)
     return OctantEquivalenceInputs(
@@ -665,7 +665,7 @@ def _case_5_q_aniso() -> OctantEquivalenceInputs:
     # (N, ng, nx, ny) for the numerical-value parity with pre-PR-4
     # snapshots.
     x = np.linspace(0.0, 1.0, sn_mesh.nx)[:, None, None]
-    y = np.linspace(0.0, 1.0, sn_mesh.ny)[None, :, None]
+    y = np.linspace(0.0, 1.0, sn_mesh.spatial_shape[1])[None, :, None]
     Q_legacy = (
         np.array([1.0, 0.5])[None, None, :]
         + 0.5 * x + 0.3 * y
@@ -677,7 +677,7 @@ def _case_5_q_aniso() -> OctantEquivalenceInputs:
     mu_y = sn_mesh.quad.mu_y[:, None, None, None]
     Q_aniso_legacy = (
         0.2 * mu_x * Q_legacy[None, ...] + 0.1 * mu_y * Q_legacy[None, ...]
-        + 0.05 * rng.standard_normal((N, sn_mesh.nx, sn_mesh.ny, 2))
+        + 0.05 * rng.standard_normal((N, *sn_mesh.spatial_shape, 2))
     )
     Q_aniso = np.transpose(Q_aniso_legacy, (0, 3, 1, 2)).copy()  # (N, ng, nx, ny)
     return OctantEquivalenceInputs(
@@ -714,7 +714,7 @@ def _case_6_pure_z() -> OctantEquivalenceInputs:
     )
     materials = {0: get_mixture("A", "1g")}
     sig_t = _build_sig_t(sn_mesh, materials, ng=1)
-    Q = np.ones((1, sn_mesh.nx, sn_mesh.ny))  # PR-INDEX-4 (ng, nx, ny)
+    Q = np.ones((1, *sn_mesh.spatial_shape))  # PR-INDEX-4 (ng, nx, ny)
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
         boundary_flux=BoundaryFlux.zeros_on(sn_mesh), aniso_source=None,
@@ -815,7 +815,7 @@ def _case_7_closed_form_anchor() -> _ClosedFormAnchorInputs:
     Q_per_group = np.array([1.0, 0.5])
     # Issue #196 PR-INDEX-5: principled (ng, nx, ny).
     Q = np.broadcast_to(
-        Q_per_group[:, None, None], (2, sn_mesh.nx, sn_mesh.ny),
+        Q_per_group[:, None, None], (2, *sn_mesh.spatial_shape),
     ).copy()
     # Build the (Σ_t,g - Σ_s,g→g)·δ_{gg'} - Σ_s,g'→g (off-diag) matrix.
     # ``mix.sig_s[0]`` is the P0 scattering matrix with ``[g_src, g_dst]``
@@ -828,7 +828,7 @@ def _case_7_closed_form_anchor() -> _ClosedFormAnchorInputs:
     phi_per_group = np.linalg.solve(A, Q_per_group)
     # Issue #196 PR-INDEX-5: principled (ng, nx, ny).
     expected_phi = np.broadcast_to(
-        phi_per_group[:, None, None], (2, sn_mesh.nx, sn_mesh.ny),
+        phi_per_group[:, None, None], (2, *sn_mesh.spatial_shape),
     ).copy()
     return _ClosedFormAnchorInputs(
         sn_mesh=sn_mesh, Q=Q, materials=materials,

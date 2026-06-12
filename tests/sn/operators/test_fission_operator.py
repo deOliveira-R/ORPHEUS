@@ -109,7 +109,7 @@ class TestBitIdenticalExtraction:
         numpy chooses for ``(a * b).sum(axis=0)``.
         """
         np.random.seed(42)
-        nx, ny, ng = solver_2g.sn_mesh.nx, solver_2g.sn_mesh.ny, solver_2g.ng
+        (nx, ny), ng = solver_2g.sn_mesh.spatial_shape, solver_2g.ng
         # PR-INDEX-4: FissionOperator.apply consumes / returns principled
         # (ng, nx, ny).  Use that shape directly.
         phi = np.random.rand(ng, nx, ny) + 0.1
@@ -136,7 +136,7 @@ class TestBitIdenticalExtraction:
         requires nulp relaxation.
         """
         np.random.seed(7)
-        nx, ny, ng = solver_2g.sn_mesh.nx, solver_2g.sn_mesh.ny, solver_2g.ng
+        (nx, ny), ng = solver_2g.sn_mesh.spatial_shape, solver_2g.ng
         phi = np.random.rand(ng, nx, ny) + 0.1
 
         for k in [1.0, 0.93, 1.27, 0.5]:
@@ -155,14 +155,14 @@ class TestRank1EnergyStructure:
 
     def test_zero_flux_zero_source(self, solver_2g):
         """φ = 0 => F·φ = 0 (linearity guard)."""
-        nx, ny, ng = solver_2g.sn_mesh.nx, solver_2g.sn_mesh.ny, solver_2g.ng
+        (nx, ny), ng = solver_2g.sn_mesh.spatial_shape, solver_2g.ng
         phi = np.zeros((ng, nx, ny))
         out = solver_2g.fission_op.apply(phi)
         np.testing.assert_array_equal(out, np.zeros_like(phi))
 
     def test_apply_linearity(self, solver_2g):
         """F·(αφ_1 + βφ_2) = αF·φ_1 + βF·φ_2."""
-        nx, ny, ng = solver_2g.sn_mesh.nx, solver_2g.sn_mesh.ny, solver_2g.ng
+        (nx, ny), ng = solver_2g.sn_mesh.spatial_shape, solver_2g.ng
         np.random.seed(13)
         phi1 = np.random.rand(ng, nx, ny) + 0.1
         phi2 = np.random.rand(ng, nx, ny) + 0.1
@@ -210,7 +210,7 @@ class TestRank1EnergyStructure:
         """Σ_g χ_g = 1 per material (sanity check on the per-cell χ array)."""
         # Note: for materials with no fission, chi may be zero; we only check
         # the cells whose mixture has nonzero νΣ_f.
-        nx, ny = solver_2g.sn_mesh.nx, solver_2g.sn_mesh.ny
+        nx, ny = solver_2g.sn_mesh.spatial_shape
         # PR-INDEX-3: solver.mat_xs.emission_spectrum / solver.mat_xs.fission_production are (ng, nx, ny).
         for mid, (ix_arr, iy_arr) in solver_2g.mat_xs.cells_by_material.items():
             for ix, iy in zip(ix_arr, iy_arr):
@@ -225,7 +225,7 @@ class TestKDivisionConvention:
     def test_apply_does_not_divide_by_k(self, solver_2g):
         """apply(φ) is independent of any eigenvalue — pure linear action."""
         np.random.seed(99)
-        nx, ny, ng = solver_2g.sn_mesh.nx, solver_2g.sn_mesh.ny, solver_2g.ng
+        (nx, ny), ng = solver_2g.sn_mesh.spatial_shape, solver_2g.ng
         # PR-INDEX-4: principled (ng, nx, ny).
         phi = np.random.rand(ng, nx, ny) + 0.1
 
@@ -241,7 +241,7 @@ class TestKDivisionConvention:
         Issue #196 PR-INDEX-5: ``phi`` principled ``(ng, nx, ny)``.
         """
         np.random.seed(101)
-        nx, ny, ng = solver_2g.sn_mesh.nx, solver_2g.sn_mesh.ny, solver_2g.ng
+        (nx, ny), ng = solver_2g.sn_mesh.spatial_shape, solver_2g.ng
         phi = np.random.rand(ng, nx, ny) + 0.1
 
         out_k_one = solver_2g.compute_fission_source(phi, 1.0)
@@ -386,7 +386,7 @@ class TestRankOneTensorProductKernel:
         np.random.seed(57)
         nx, ny, ng = (
             solver_2g.sn_mesh.nx,
-            solver_2g.sn_mesh.ny,
+            solver_2g.sn_mesh.spatial_shape[1],
             solver_2g.ng,
         )
         phi_arr = np.random.rand(ng, nx, ny) + 0.1

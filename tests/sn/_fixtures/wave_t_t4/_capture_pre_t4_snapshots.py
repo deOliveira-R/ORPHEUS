@@ -192,7 +192,7 @@ def _make_state(sn_mesh: SNMesh, *, seed: int) -> TimedFullField:
     rng = np.random.default_rng(seed)
     N = sn_mesh.quad.N
     ng = sn_mesh.ng
-    nx, ny = sn_mesh.nx, sn_mesh.ny
+    nx, ny = sn_mesh.spatial_shape
     psi_values = rng.uniform(0.05, 1.0, size=(N, ng, nx, ny))
     state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
     from dataclasses import replace
@@ -210,7 +210,7 @@ def _make_sigma_t(sn_mesh: SNMesh) -> np.ndarray:
     material-id array reshaped from Mesh1D.mat_ids / Mesh2D.mat_map).
     """
     ng = sn_mesh.ng
-    nx, ny = sn_mesh.nx, sn_mesh.ny
+    nx, ny = sn_mesh.spatial_shape
     sig_t = np.empty((ng, nx, ny), dtype=float)
     mat_map = sn_mesh.mat_map  # (nx, ny)
     for ix in range(nx):

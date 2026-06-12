@@ -620,6 +620,10 @@ def legacy_mesh_from_axes(
         mat_map = np.zeros(shape, dtype=int)
     else:
         mat_map = np.asarray(mat_map, dtype=int)
+        # NOTE: SNMesh._init_core re-validates this shape — it is the
+        # SURVIVING guard when this adapter builder retires with the
+        # legacy mesh consumers (C5.2-C5.5); do not delete the
+        # _init_core copy as "redundant" with this one.
         if mat_map.shape != shape:
             raise ValueError(
                 f"legacy_mesh_from_axes: mat_map shape {mat_map.shape} "

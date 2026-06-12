@@ -83,10 +83,10 @@ def test_d2_metadata_byte_identical_axis_vs_legacy() -> None:
 
     np.testing.assert_equal(native.spatial_shape, legacy.spatial_shape)
     np.testing.assert_equal(native.coord, legacy.coord)
-    np.testing.assert_equal((native.nx, native.ny), (legacy.nx, legacy.ny))
+    np.testing.assert_equal(native.nx, legacy.nx)
     for axis in range(2):
         np.testing.assert_array_equal(
-            native._axis_widths[axis], legacy._axis_widths[axis],
+            native.axis_widths[axis], legacy.axis_widths[axis],
         )
         np.testing.assert_array_equal(
             native.streaming(axis), legacy.streaming(axis),
@@ -121,8 +121,7 @@ def test_1d_slab_metadata_byte_identical_axis_vs_legacy() -> None:
     )
 
     np.testing.assert_equal(native.spatial_shape, legacy.spatial_shape)
-    np.testing.assert_array_equal(native._axis_widths[0], legacy._axis_widths[0])
-    np.testing.assert_array_equal(native.dx, legacy.dx)
+    np.testing.assert_array_equal(native.axis_widths[0], legacy.axis_widths[0])
     np.testing.assert_array_equal(native.volumes, legacy.volumes)
     np.testing.assert_array_equal(native.areas, legacy.areas)
     np.testing.assert_array_equal(native.mat_map, legacy.mat_map)
@@ -264,3 +263,53 @@ def test_coord_system_primitive() -> None:
     )
     with pytest.raises(NotImplementedError, match="all-Cartesian"):
         coord_system((cart, sph))
+
+
+# ─── C5.2 — phantom-shim retirement + native volume_measure ─────────────
+
+
+def _slab_sn() -> SNMesh:
+    return SNMesh.from_axes(
+        (AxisMesh(edges=np.linspace(0.0, 4.0, 9)),),
+        Quadrature.gauss_legendre(n_ordinates=8), _MATERIALS,
+    )
+
+
+def test_c52_retired_shims_fail_loud() -> None:
+    """``ny``/``dx``/``dy`` raise AttributeError (C5.2 retirement, #225).
+
+    ``ny``/``dy`` LIED at d=1 (phantom ``1``/``[1.0]`` — the #214 bug
+    class) and underspecify at d≥3; ``dx`` was a duplicate spelling of
+    ``axis_widths[0]``. ``nx`` survives as ``spatial_shape[0]`` sugar.
+    """
+    sn = _slab_sn()
+    np.testing.assert_equal(sn.nx, sn.spatial_shape[0])
+    for retired in ("ny", "dx", "dy"):
+        with pytest.raises(AttributeError):
+            getattr(sn, retired)
+    mat_xs = sn.material_xs_field()
+    np.testing.assert_equal(mat_xs.spatial_shape, sn.spatial_shape)
+    for retired in ("nx", "ny"):
+        with pytest.raises(AttributeError):
+            getattr(mat_xs, retired)
+
+
+def test_volume_measure_d2_delegates_byte_identical() -> None:
+    """C5-G13: ``SNMesh.volume_measure`` ≡ the legacy dataclass's measure.
+
+    The SN-side consumers (keff production/absorption rates) now read
+    ``sn_mesh.volume_measure``; while the mesh adapter is present the
+    property must integrate byte-identically to
+    ``sn_mesh.mesh.volume_measure`` (same atoms, same construction).
+    """
+    edges_x = np.linspace(0.0, 2.0, 5)
+    edges_y = np.linspace(0.0, 3.0, 8)
+    sn = SNMesh.from_axes(
+        (AxisMesh(edges=edges_x), AxisMesh(edges=edges_y)),
+        Quadrature.lebedev(17), _MATERIALS,
+    )
+    rng = np.random.default_rng(42)
+    values = rng.random((int(np.prod(sn.spatial_shape)), sn.ng))
+    np.testing.assert_array_equal(
+        sn.volume_measure(values), sn.mesh.volume_measure(values),
+    )

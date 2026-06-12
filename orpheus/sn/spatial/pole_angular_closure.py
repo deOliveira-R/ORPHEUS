@@ -613,7 +613,7 @@ class MorelMontryAngularSweep(
             self._N: "int | None" = None
             return
 
-        coord = sn_mesh.mesh.coord
+        coord = sn_mesh.coord
         quad = sn_mesh.quad
         reduced = sn_mesh.reduced
         N = quad.N
@@ -660,7 +660,7 @@ class MorelMontryAngularSweep(
         # ── Carlson-sweep machinery (psi-independent mesh + quad data)
         self._mu_x = quad.mu_x
         self._weights = quad.weights
-        self._dr = sn_mesh.dx
+        self._dr = sn_mesh.axis_widths[0]
         self._V = sn_mesh.volumes
         self._N = N
 

@@ -106,8 +106,9 @@ class TestHarmonicMomentFieldConstruction:
         m = _slab_mesh()
         phi = HarmonicMomentField.zeros_for_mesh_and_L(m, L=0)
         assert phi.ng == m.ng
-        assert phi.nx == m.nx
-        assert phi.ny == m.ny
+        # C5.2 (#225): nx/ny field read-throughs retired; spatial
+        # shape reads are rank-generic via the mesh.
+        assert phi.mesh.spatial_shape == m.spatial_shape
 
     def test_space_is_tensor_product_of_sh_and_cell_group(self) -> None:
         r"""D-E invariant: the typed field's ``space`` is a

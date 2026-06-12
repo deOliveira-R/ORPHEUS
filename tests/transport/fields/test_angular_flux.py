@@ -273,12 +273,16 @@ class TestMetadata:
         psi = AngularFlux.zeros_on(m)
         assert psi.ng == 3
 
-    def test_nx_property(self) -> None:
-        m = _slab_mesh(nx=7)
-        psi = AngularFlux.zeros_on(m)
-        assert psi.nx == 7
+    def test_spatial_shape_via_mesh(self) -> None:
+        """C5.2 (#225): spatial reads are rank-generic via the mesh.
 
-    def test_ny_property(self) -> None:
+        The ``nx``/``ny`` field read-throughs are RETIRED — an
+        ``(nx, ny)``-keyed read silently truncates a 3-D tensor.
+        """
         m = _cartesian_2d_mesh(nx=3, ny=5)
         psi = AngularFlux.zeros_on(m)
-        assert psi.ny == 5
+        np.testing.assert_equal(psi.mesh.spatial_shape, (3, 5))
+        with pytest.raises(AttributeError):
+            psi.nx
+        with pytest.raises(AttributeError):
+            psi.ny

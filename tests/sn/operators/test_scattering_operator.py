@@ -96,7 +96,7 @@ def _ref_iso_scatter_inplace(solver, Q, phi):
     spatial pair.
     """
     out = Q.copy()
-    nx, ny = solver.sn_mesh.nx, solver.sn_mesh.ny
+    nx, ny = solver.sn_mesh.spatial_shape
     for ix in range(nx):
         for iy in range(ny):
             mid = int(solver.sn_mesh.mat_map[ix, iy])
@@ -111,7 +111,7 @@ def _ref_n2n_inplace(solver, Q, phi):
     :func:`_ref_iso_scatter_inplace`).
     """
     out = Q.copy()
-    nx, ny = solver.sn_mesh.nx, solver.sn_mesh.ny
+    nx, ny = solver.sn_mesh.spatial_shape
     for ix in range(nx):
         for iy in range(ny):
             mid = int(solver.sn_mesh.mat_map[ix, iy])
@@ -142,7 +142,7 @@ class TestProtocolCompliance:
         """apply(psi) must accept typed AngularFlux ``(N, ng, nx, ny)`` (D-I.2)."""
         op = solver_2g_p0.scattering_op
         N = op.n_ordinates
-        psi_values = np.ones((N, op.ng, op.nx, op.ny))
+        psi_values = np.ones((N, op.ng, *op.spatial_shape))
         psi = AngularFlux.from_mesh(psi_values, solver_2g_p0.sn_mesh)
         out = op.apply(psi)
         assert out.values.shape == psi.values.shape
@@ -163,7 +163,7 @@ class TestBitIdenticalExtractionP0:
         Issue #196 PR-INDEX-4: principled ``(ng, nx, ny)`` end-to-end.
         """
         np.random.seed(42)
-        nx, ny, ng = solver_2g_p0.sn_mesh.nx, solver_2g_p0.sn_mesh.ny, solver_2g_p0.ng
+        (nx, ny), ng = solver_2g_p0.sn_mesh.spatial_shape, solver_2g_p0.ng
         phi = np.random.rand(ng, nx, ny) + 0.1
         Q = np.random.rand(ng, nx, ny)
 
@@ -177,7 +177,7 @@ class TestBitIdenticalExtractionP0:
     def test_add_n2n_source_matches_reference(self, solver_2g_p0):
         """ScatteringOperator.add_n2n_source = the per-cell reference."""
         np.random.seed(123)
-        nx, ny, ng = solver_2g_p0.sn_mesh.nx, solver_2g_p0.sn_mesh.ny, solver_2g_p0.ng
+        (nx, ny), ng = solver_2g_p0.sn_mesh.spatial_shape, solver_2g_p0.ng
         phi = np.random.rand(ng, nx, ny) + 0.1
         Q = np.random.rand(ng, nx, ny)
 
@@ -190,7 +190,7 @@ class TestBitIdenticalExtractionP0:
 
     def test_zero_flux_zero_addition(self, solver_2g_p0):
         """φ = 0 => ScatteringOperator adds zero (linearity guard)."""
-        nx, ny, ng = solver_2g_p0.sn_mesh.nx, solver_2g_p0.sn_mesh.ny, solver_2g_p0.ng
+        (nx, ny), ng = solver_2g_p0.sn_mesh.spatial_shape, solver_2g_p0.ng
         Q = np.ones((ng, nx, ny))
         phi = np.zeros_like(Q)
         Q_before = Q.copy()
@@ -204,7 +204,7 @@ class TestBitIdenticalExtractionP0:
         principled ``(ng, nx, ny)``.  No bridge.
         """
         np.random.seed(7)
-        nx, ny, ng = solver_2g_p0.sn_mesh.nx, solver_2g_p0.sn_mesh.ny, solver_2g_p0.ng
+        (nx, ny), ng = solver_2g_p0.sn_mesh.spatial_shape, solver_2g_p0.ng
         phi = np.random.rand(ng, nx, ny) + 0.1
         Q_init = np.random.rand(ng, nx, ny)
 
@@ -222,7 +222,7 @@ class TestBitIdenticalExtractionP0:
         Issue #196 PR-INDEX-5: principled ``(ng, nx, ny)`` end-to-end.
         """
         np.random.seed(11)
-        nx, ny, ng = solver_2g_p0.sn_mesh.nx, solver_2g_p0.sn_mesh.ny, solver_2g_p0.ng
+        (nx, ny), ng = solver_2g_p0.sn_mesh.spatial_shape, solver_2g_p0.ng
         phi = np.random.rand(ng, nx, ny) + 0.1
         Q_init = np.random.rand(ng, nx, ny)
 
@@ -261,7 +261,7 @@ class TestAnisotropicScatteringExtraction:
     def test_returns_none_for_p0(self, solver_2g_p0):
         """L=0 => Pℓ contribution is None (signal: no aniso source needed)."""
         N = solver_2g_p0.quad.N
-        nx, ny, ng = solver_2g_p0.sn_mesh.nx, solver_2g_p0.sn_mesh.ny, solver_2g_p0.ng
+        (nx, ny), ng = solver_2g_p0.sn_mesh.spatial_shape, solver_2g_p0.ng
         # D-I.2: typed AngularFlux carrier.
         psi_values = np.ones((N, ng, nx, ny))
         psi = AngularFlux.from_mesh(psi_values, solver_2g_p0.sn_mesh)
@@ -277,7 +277,7 @@ class TestAnisotropicScatteringExtraction:
         """Isotropic ψ_n = const for every ordinate => P1+ Galerkin moments = 0."""
         op = solver_2g_p1.scattering_op
         N = op.n_ordinates
-        psi_iso_values = np.ones((N, op.ng, op.nx, op.ny))
+        psi_iso_values = np.ones((N, op.ng, *op.spatial_shape))
         psi_iso = AngularFlux.from_mesh(psi_iso_values, solver_2g_p1.sn_mesh)
         Q_aniso = op.build_aniso_source(psi_iso)
         assert Q_aniso is not None
@@ -296,7 +296,7 @@ class TestAnisotropicScatteringExtraction:
         op = solver_2g_p1.scattering_op
         N = op.n_ordinates
         np.random.seed(42)
-        psi_values = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
+        psi_values = np.random.rand(N, op.ng, *op.spatial_shape) + 0.1
         psi_typed = AngularFlux.from_mesh(psi_values, solver_2g_p1.sn_mesh)
 
         out_via_delegator = solver_2g_p1._build_aniso_scattering(psi_values)
@@ -332,7 +332,7 @@ class TestApplySemantics:
         """
         op = solver_2g_p0.scattering_op
         N = op.n_ordinates
-        nx, ny, ng = op.nx, op.ny, op.ng
+        (nx, ny), ng = op.spatial_shape, op.ng
 
         np.random.seed(5)
         psi_values = np.random.rand(N, ng, nx, ny) + 0.1
@@ -358,7 +358,7 @@ class TestApplySemantics:
         """ψ = 0 => S·ψ = 0 (linearity guard)."""
         op = solver_2g_p0.scattering_op
         N = op.n_ordinates
-        psi_values = np.zeros((N, op.ng, op.nx, op.ny))
+        psi_values = np.zeros((N, op.ng, *op.spatial_shape))
         psi = AngularFlux.from_mesh(psi_values, solver_2g_p0.sn_mesh)
         out = op.apply(psi)
         np.testing.assert_array_equal(out.values, np.zeros_like(psi_values))
@@ -375,7 +375,7 @@ class TestApplySemantics:
         vector-space dunders for the right-hand combination."""
         op = solver_2g_p0.scattering_op
         N = op.n_ordinates
-        nx, ny, ng = op.nx, op.ny, op.ng
+        (nx, ny), ng = op.spatial_shape, op.ng
         m = solver_2g_p0.sn_mesh
 
         np.random.seed(13)
@@ -432,7 +432,7 @@ class TestProducerSideNormalisation:
         solver = solver_2g_p0
         op = solver.scattering_op
         N = op.n_ordinates
-        nx, ny, ng = op.nx, op.ny, op.ng
+        (nx, ny), ng = op.spatial_shape, op.ng
 
         c = 0.37
         psi_values = np.full((N, ng, nx, ny), c)
@@ -858,7 +858,7 @@ class TestAlgebraicIdentity:
         assert op.scattering_order == 0
         N = op.n_ordinates
         np.random.seed(42)
-        psi_values = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
+        psi_values = np.random.rand(N, op.ng, *op.spatial_shape) + 0.1
         psi = AngularFlux.from_mesh(psi_values, solver_2g_p0.sn_mesh)
         self._check_identity(op, psi)
 
@@ -866,7 +866,7 @@ class TestAlgebraicIdentity:
         """Case 1b — uniform ψ probes the diagonal isolation path."""
         op = solver_2g_p0.scattering_op
         N = op.n_ordinates
-        psi_values = np.ones((N, op.ng, op.nx, op.ny))
+        psi_values = np.ones((N, op.ng, *op.spatial_shape))
         psi = AngularFlux.from_mesh(psi_values, solver_2g_p0.sn_mesh)
         self._check_identity(op, psi)
 
@@ -876,7 +876,7 @@ class TestAlgebraicIdentity:
         assert op.scattering_order >= 1
         N = op.n_ordinates
         np.random.seed(101)
-        psi_values = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
+        psi_values = np.random.rand(N, op.ng, *op.spatial_shape) + 0.1
         psi = AngularFlux.from_mesh(psi_values, solver_2g_p1_n2n.sn_mesh)
         self._check_identity(op, psi)
 
@@ -890,7 +890,7 @@ class TestAlgebraicIdentity:
         assert any_nonzero_n2n, "fixture must carry non-zero (n,2n)"
         N = op.n_ordinates
         np.random.seed(202)
-        psi_values = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
+        psi_values = np.random.rand(N, op.ng, *op.spatial_shape) + 0.1
         psi = AngularFlux.from_mesh(psi_values, solver_2g_p1_n2n.sn_mesh)
         self._check_identity(op, psi)
 
@@ -906,7 +906,7 @@ class TestAlgebraicIdentity:
             assert np.any(off != 0.0)
         N = op.n_ordinates
         np.random.seed(303)
-        psi_values = np.random.rand(N, op.ng, op.nx, op.ny) + 0.1
+        psi_values = np.random.rand(N, op.ng, *op.spatial_shape) + 0.1
         psi = AngularFlux.from_mesh(psi_values, solver_2g_p1_n2n.sn_mesh)
         self._check_identity(op, psi)
 
@@ -1234,7 +1234,7 @@ class TestAnisoMomentSourcePath:
 
         N = solver.quad.N
         ng = solver.ng
-        nx, ny = solver.sn_mesh.nx, solver.sn_mesh.ny
+        nx, ny = solver.sn_mesh.spatial_shape
         rng = np.random.default_rng(seed)
         psi_values = rng.uniform(0.05, 1.0, size=(N, ng, nx, ny))
         return AngularFlux.from_mesh(psi_values, solver.sn_mesh)
@@ -1244,7 +1244,7 @@ class TestAnisoMomentSourcePath:
         from orpheus.transport.fields.scalar_flux import ScalarFlux
 
         ng = solver.ng
-        nx, ny = solver.sn_mesh.nx, solver.sn_mesh.ny
+        nx, ny = solver.sn_mesh.spatial_shape
         rng = np.random.default_rng(seed)
         phi_values = rng.uniform(0.05, 1.0, size=(ng, nx, ny))
         return ScalarFlux.from_mesh(phi_values, solver.sn_mesh)
@@ -1351,7 +1351,7 @@ class TestAnisoMomentSourcePath:
         rng = np.random.default_rng(20260530)
         N = op.n_ordinates
         psi_values = rng.uniform(
-            0.05, 1.0, size=(N, op.ng, op.nx, op.ny),
+            0.05, 1.0, size=(N, op.ng, *op.spatial_shape),
         )
         psi = AngularFlux.from_mesh(psi_values, sn_mesh)
 

@@ -190,7 +190,7 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
     sn = SNMesh(mesh, quad, {0: _make_1g_mixture(sigma_t, sigma_s)})
     solver = SNSolver(sn, max_inner=500, inner_tol=1e-13)
     LC, S, B = _within_group_triple(solver)
-    n_dof = quad.N * sn.ng * sn.nx * sn.ny + int(sn.trace.layout.total_size)
+    n_dof = quad.N * sn.ng * int(np.prod(sn.spatial_shape)) + int(sn.trace.layout.total_size)
 
     face = "xmin"
     q_ext = _prescribed_inflow_source(sn, psi_in=psi_in, face=face)

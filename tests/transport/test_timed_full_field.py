@@ -96,7 +96,7 @@ class TestConstruction:
         m = _cartesian_2d_mesh()
         state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m)
         assert isinstance(state, TimedFullField)
-        assert state.bulk.values.shape == (m.quad.N, m.ng, m.nx, m.ny)
+        assert state.bulk.values.shape == (m.quad.N, m.ng, *m.spatial_shape)
         assert state.boundary.layout.total_size == state.boundary.values.size
 
     def test_factory_custom_history_depth(self) -> None:

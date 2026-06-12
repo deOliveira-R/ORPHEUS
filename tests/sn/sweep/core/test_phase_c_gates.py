@@ -809,7 +809,7 @@ def test_sweep_curvilinear_per_ordinate_flat_flux_residual(
     # we want to pin that the sweep-path's helper produces the same
     # seed as the apply-path helper, given identical inputs.
     sigma_t_gx = sig_t_arr  # (ng, nx) — rank-d
-    dr = sn_mesh.dx
+    dr = sn_mesh.axis_widths[0]
 
     # GL-2 surrogate weights summing to 2 — for this structural-
     # alignment probe we use a 2-ordinate quadrature with weights

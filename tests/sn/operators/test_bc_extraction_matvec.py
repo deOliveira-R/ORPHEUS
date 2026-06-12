@@ -369,7 +369,7 @@ class TestVacuumMatvecBitIdentity:
         quad = Quadrature.level_symmetric(sn_order=4)
         try:
             sn_mesh = SNMesh(mesh, quad, placeholder_materials())
-            if sn_mesh.ny <= 1:
+            if sn_mesh.spatial_shape[1] <= 1:
                 pytest.skip(
                     "2-D Cartesian vacuum bit-identity needs an ny>1 mesh; "
                     "wire the 2-D builder per tests/sn/sweep/cartesian_2d/ "

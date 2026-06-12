@@ -84,7 +84,7 @@ def _slab_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNMesh:
 class TestBulkLeaves:
     def test_collision_is_bulk(self) -> None:
         sn = _slab_mesh()
-        sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
+        sigma_t = np.ones((sn.ng, *sn.spatial_shape))
         C = CollisionOperator(sn, sigma_t)
         assert C.block_role is BlockRole.BULK
         assert isinstance(C, BulkOperator)
@@ -102,7 +102,7 @@ class TestBulkLeaves:
 class TestFullLeaves:
     def test_streaming_is_full(self) -> None:
         sn = _slab_mesh()
-        sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
+        sigma_t = np.ones((sn.ng, *sn.spatial_shape))
         L = StreamingOperator(sn, sigma_t)
         assert L.block_role is BlockRole.FULL
         assert isinstance(L, FullOperator)
@@ -110,7 +110,7 @@ class TestFullLeaves:
 
     def test_invertible_L_plus_C_is_full(self) -> None:
         sn = _slab_mesh()
-        sigma_t = np.ones((sn.ng, sn.nx, sn.ny))
+        sigma_t = np.ones((sn.ng, *sn.spatial_shape))
         composite = StreamingOperator(sn, sigma_t) + CollisionOperator(sn, sigma_t)
         assert isinstance(composite, InvertibleOperator)
         assert composite.block_role is BlockRole.FULL
@@ -206,7 +206,7 @@ class TestComposerRoleDerivation:
 
     @staticmethod
     def _ops(sn):
-        sig = np.ones((sn.ng, sn.nx, sn.ny))
+        sig = np.ones((sn.ng, *sn.spatial_shape))
         return (
             StreamingOperator(sn, sig),
             CollisionOperator(sn, sig),

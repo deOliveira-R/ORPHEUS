@@ -118,7 +118,7 @@ def _sigt_2g(sn_mesh: SNMesh) -> np.ndarray:
     """Per-cell per-group total cross-section field ``(ng, nx, ny)`` for mix A 2g."""
     mix = get_mixture("A", "2g")
     ng = mix.SigT.size
-    nx, ny = sn_mesh.nx, sn_mesh.ny
+    nx, ny = sn_mesh.spatial_shape
     return np.broadcast_to(mix.SigT[:, None, None], (ng, nx, ny)).copy()
 
 
@@ -234,7 +234,7 @@ class TestStreamingEquilibrium2D:
         """Flat ψ_n,g = φ_g/W everywhere, with a consistent uniform trace."""
         N = sn_mesh.quad.N
         ng = phi.size
-        nx, ny = sn_mesh.nx, sn_mesh.ny
+        nx, ny = sn_mesh.spatial_shape
         state = TimedFullField.zeros(
             bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
         )
@@ -262,7 +262,7 @@ class TestStreamingEquilibrium2D:
         sn_mesh = _homogeneous_reflective_2d(nx=4, ny=4)
         quad = sn_mesh.quad
         N, ng = quad.N, 2
-        nx, ny = sn_mesh.nx, sn_mesh.ny
+        nx, ny = sn_mesh.spatial_shape
         W = float(quad.weights.sum())
 
         # Pure attenuation: treat Σ_t as the full collision (Σ_s = 0 in the
@@ -313,7 +313,7 @@ class TestStreamingEquilibrium2D:
         sn_mesh = _homogeneous_reflective_2d(nx=4, ny=4)
         quad = sn_mesh.quad
         N, ng = quad.N, 2
-        nx, ny = sn_mesh.nx, sn_mesh.ny
+        nx, ny = sn_mesh.spatial_shape
         W = float(quad.weights.sum())
 
         sig_t = np.zeros((ng, nx, ny))

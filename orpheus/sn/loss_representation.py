@@ -1930,7 +1930,7 @@ def _run_1d_sweep(
         # See ``MorelMontryAngularSweep.precompute_psi_state`` (the
         # matvec entry point) for the symmetric routing.
         sigma_t_gx = sig_t_p                                  # (ng, nx)
-        dr = sn_mesh.dx
+        dr = sn_mesh.axis_widths[0]
 
         if is_sphere:
             levels = [None]

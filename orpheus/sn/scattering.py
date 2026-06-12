@@ -349,14 +349,13 @@ class ScatteringOperator(LinearOperatorMixin):
         return self.quadrature.N
 
     @property
-    def nx(self) -> int:
-        """Spatial extent in x — read-through from :attr:`mat_xs`."""
-        return self.mat_xs.nx
+    def spatial_shape(self) -> tuple[int, ...]:
+        """Per-axis cell counts — read-through from :attr:`mat_xs`.
 
-    @property
-    def ny(self) -> int:
-        """Spatial extent in y."""
-        return self.mat_xs.ny
+        C5.2 (#225): replaces the retired ``nx``/``ny`` pair (rank-
+        generic; honest at any spatial dimension).
+        """
+        return self.mat_xs.spatial_shape
 
     @property
     def ng(self) -> int:

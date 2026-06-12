@@ -211,7 +211,7 @@ class TestFaceLayoutSliceViews:
         bf = BoundaryFlux.zeros_on(m)
         xmin_view = bf.face_view("xmin")
         N = m.quad.N
-        assert xmin_view.shape == (N, m.ng, m.ny)
+        assert xmin_view.shape == (N, m.ng, m.spatial_shape[1])
         xmin_view[0, 0, 0] = 9.0
         flat_idx = bf.layout.faces["xmin"].offset
         assert bf.values[flat_idx] == 9.0

@@ -235,8 +235,7 @@ class MaterialXSField:
         class _StubMesh:
             """Tiny stand-in covering only what MaterialXSField reads."""
             def __init__(self) -> None:
-                self.nx = nx
-                self.ny = ny
+                self.spatial_shape = (nx, ny)
                 self.ng = ng
                 self.mat_map = mat_map
                 # The materials dict — minimal Mixture-shaped stand-in.
@@ -455,14 +454,14 @@ class MaterialXSField:
         return self.mesh.ng
 
     @property
-    def nx(self) -> int:
-        """Spatial extent in x — read-through from :attr:`mesh`."""
-        return self.mesh.nx
+    def spatial_shape(self) -> tuple[int, ...]:
+        """Per-axis cell counts — read-through from :attr:`mesh`.
 
-    @property
-    def ny(self) -> int:
-        """Spatial extent in y — read-through from :attr:`mesh`."""
-        return self.mesh.ny
+        C5.2 (#225): replaces the retired ``nx``/``ny`` pair — ONE
+        rank-generic metadata read-through instead of two d-bound ones
+        (``ny`` lied at d=1 and silently truncated at d≥3).
+        """
+        return self.mesh.spatial_shape
 
     # ── Typed verbs — the lifted per-material dispatch loops ─────────
 

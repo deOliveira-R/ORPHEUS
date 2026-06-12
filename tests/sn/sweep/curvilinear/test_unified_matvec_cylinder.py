@@ -136,7 +136,7 @@ def _hand_reference_cyl_matvec(
     out = np.zeros((N, ng, nx))
 
     sigma_t_gx = sigma_t
-    dr = sn_mesh.dx
+    dr = sn_mesh.axis_widths[0]
     psi_g_first = psi_view.transpose(1, 0, 2)
     outer_inflow_estimate = bc_outer.apply(psi_view[:, :, -1])
     level_indices = quad.level_indices

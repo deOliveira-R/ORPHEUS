@@ -254,7 +254,7 @@ class SNMesh:
         # re-derived — it is the canonical dim-agnostic ground truth
         # for spatial_shape / face_labels / face_shape /
         # face_outflow_ordinates / n_unknowns_flat / coord /
-        # _axis_widths (the properties and metadata below); legacy
+        # axis_widths (the properties and metadata below); legacy
         # ``nx``/``ny``/``dx``/``dy`` survive this layer as deprecated
         # shims and retire in C5.2. Every dim-agnostic operator reads
         # its shape from :attr:`SNMesh.axes`, NOT from ``mesh.coord``
@@ -310,9 +310,10 @@ class SNMesh:
         # the within-group sweep + Krylov path).
         #
         # PR-TYPED-6.5 Phase 2.9: instantiation is deferred until AFTER
-        # the ``match mesh.coord:`` block populates ``self.reduced`` /
-        # ``self._volumes`` / ``self.dx`` (the data the strategies bind
-        # to).  Cartesian gets :class:`IdentityAngularClosure`; sphere
+        # the coord dispatch block populates ``self.reduced`` /
+        # ``self._volumes`` / ``self.axis_widths`` (the data the
+        # strategies bind to).  Cartesian gets
+        # :class:`IdentityAngularClosure`; sphere
         # and cylinder get :class:`MorelMontryAngularSweep`.  See the
         # ``self.pole_angular_closure = …`` line after ``self._resolve_bcs(...)``
         # below.
@@ -320,19 +321,23 @@ class SNMesh:
 
         # Per-cell arrays follow the (N, ng, *spatial) convention: the
         # spatial tail has rank == ndim (1-D → (nx,), no phantom ny=1).
-        # ``mat_map`` / ``_volumes`` are spatial_shape-shaped; the scalar
-        # nx/ny + dx/dy survive as legacy metadata read-throughs only
-        # (the dy=1 / ny=1 shims feed no array construction; retire C5.2).
+        # ``mat_map`` / ``_volumes`` are spatial_shape-shaped.
         #
         # C5.1: ALL shape metadata derives from the axes — the pre-C5.1
         # per-dataclass isinstance branch is dissolved. ``np.diff(edges)``
         # is bitwise identical to the legacy spellings it replaces
         # (``Mesh1D.widths`` / ``Mesh2D.dx`` / ``Mesh2D.dy`` are exactly
         # ``np.diff`` of the same edge arrays — mesh.py:287, :567, :572).
-        # Per-axis cell widths, positional-by-axis — the d-generic widths
-        # source the streaming stencil iterates (NO phantom second axis;
-        # the dy=[1.0] shim below is legacy metadata only).
-        self._axis_widths: tuple[np.ndarray, ...] = tuple(
+        # ``axis_widths`` is THE single spelling of per-axis cell widths,
+        # positional-by-axis — the d-generic source for the streaming
+        # stencil iterates and the 1-D ``dr`` consumers (NO phantom
+        # second axis). C5.2 retired the ``dx``/``dy``/``ny`` duplicates:
+        # ``dy``/``ny`` LIED at d=1 (phantom ``[1.0]``/``1`` — the #214
+        # bug class) and underspecified at d≥3; ``dx`` was a duplicate
+        # spelling of ``axis_widths[0]``. ``nx`` survives as documented
+        # ``spatial_shape[0]`` sugar (honest at any d; broad legitimate
+        # 1-D consumer base).
+        self.axis_widths: tuple[np.ndarray, ...] = tuple(
             np.diff(ax.edges) for ax in self.axes
         )
         # Material assignment: the one construction payload the axes do
@@ -357,14 +362,9 @@ class SNMesh:
         # matvec caller — None.
         self._volumes: np.ndarray = mesh.volumes
         self._areas: np.ndarray | None = mesh.areas if self.ndim == 1 else None
-        # Legacy scalar shims (retire C5.2) — derived from the axes, not
-        # the dataclass fields.
+        # ``nx`` = spatial_shape[0] sugar (see the axis_widths comment
+        # above for why ny/dx/dy are gone — C5.2 phantom retirement).
         self.nx: int = self.spatial_shape[0]
-        self.ny: int = self.spatial_shape[1] if self.ndim >= 2 else 1
-        self.dx: np.ndarray = self._axis_widths[0]
-        self.dy: np.ndarray = (
-            self._axis_widths[1] if self.ndim >= 2 else np.array([1.0])
-        )
 
         # Dispatch stencil setup by coordinate system.
         #
@@ -442,7 +442,7 @@ class SNMesh:
 
         # ── Pole-angular closure binding (PR-TYPED-6.5 Phase 2.9) ──
         # All upstream state needed by the closure constructors is now
-        # available (``self.reduced``, ``self._volumes``, ``self.dx``,
+        # available (``self.reduced``, ``self._volumes``, ``self.axis_widths``,
         # ``self.quad``, ``self.ng``).  If the user supplied a closure
         # at construction, use it verbatim; otherwise instantiate the
         # default-by-coord-system bound to ``self``.
@@ -640,8 +640,28 @@ class SNMesh:
 
     @property
     def volumes(self) -> np.ndarray:
-        """Cell volumes, shape (nx, ny)."""
+        """Cell volumes, shape ``spatial_shape`` (rank ``ndim``)."""
         return self._volumes
+
+    @property
+    def volume_measure(self):
+        r"""Cell-volume :class:`~orpheus.numerics.measure.DiscreteMeasure`.
+
+        The natural integration measure :math:`\mu_V = \sum_i V_i\,
+        \delta_{c_i}` for volume-integrated rates (keff
+        production/absorption — the canonical consumers in
+        :mod:`orpheus.sn.solver`). C5.2 (#225): SN-side consumers read
+        THIS property, not ``sn_mesh.mesh.volume_measure`` — the mesh
+        adapter is a construction provenance detail, not a data path.
+
+        Delegates to the legacy dataclass's measure while the adapter
+        is present (bit-identity: same atoms, same construction —
+        including the ``precomputed_volumes`` escape hatch and the
+        curvilinear volume formulas the dataclass owns). The
+        axis-native arm (``self.mesh is None``, d≥3) lands with the
+        3-axis admission in C5.5.
+        """
+        return self.mesh.volume_measure
 
     @property
     def areas(self) -> np.ndarray:
@@ -741,8 +761,9 @@ class SNMesh:
         for 3-D (followup) would return ``(nx, ny, nz)``.
 
         Every dim-agnostic shape reader (typed-field factories, pack
-        convention, sweep DAG) reads from here, NOT from ``self.nx``
-        / ``self.ny`` (the legacy shims that retire in a followup).
+        convention, sweep DAG) reads from here. ``self.nx`` is sugar
+        for ``spatial_shape[0]``; the phantom-bearing ``ny``/``dx``/
+        ``dy`` shims were retired in C5.2 (#225).
         """
         return _axis_spatial_shape(self.axes)
 
@@ -1395,7 +1416,7 @@ class SNMesh:
         self._streaming_axes: tuple[np.ndarray, ...] | None = tuple(
             2.0 * np.abs(self.quad.axis_cosines(a))[:, None]
             / widths[None, :]
-            for a, widths in enumerate(self._axis_widths)
+            for a, widths in enumerate(self.axis_widths)
         )
 
         # Curvature terms (None for Cartesian — placeholder for curvilinear)

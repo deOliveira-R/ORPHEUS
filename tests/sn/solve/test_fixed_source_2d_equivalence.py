@@ -84,7 +84,7 @@ def test_2d_homogeneous_reflective_krylov_hits_q_over_sigma_t() -> None:
     sum_w = float(quad.weights.sum())
 
     q_iso = 0.5
-    Q_iso = np.full((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny), q_iso)
+    Q_iso = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), q_iso)
     src = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
 
     result = solve_sn_fixed_source(
@@ -142,7 +142,7 @@ def test_2d_heterogeneous_si_krylov_equivalence() -> None:
     materials = {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
     sn_mesh = SNMesh(mesh, quad, materials)
 
-    Q_iso = np.ones((sn_mesh.ng, sn_mesh.nx, sn_mesh.ny))
+    Q_iso = np.ones((sn_mesh.ng, *sn_mesh.spatial_shape))
     src = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
 
     common = dict(

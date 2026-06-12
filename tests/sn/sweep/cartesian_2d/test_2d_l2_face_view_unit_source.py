@@ -137,7 +137,7 @@ def test_unit_at_face_produces_nonzero_matvec(face: str) -> None:
     from orpheus.sn.operator import StreamingOperator
 
     mesh = _pure_streamer_2d_mesh()
-    sigma_t = np.ones((1, mesh.nx, mesh.ny))
+    sigma_t = np.ones((1, *mesh.spatial_shape))
     L = StreamingOperator(mesh, sigma_t)
     state = _zero_state_with_unit_face(mesh, face)
 
@@ -162,7 +162,7 @@ def test_four_faces_produce_distinct_outputs() -> None:
     from orpheus.sn.operator import StreamingOperator
 
     mesh = _pure_streamer_2d_mesh()
-    sigma_t = np.ones((1, mesh.nx, mesh.ny))
+    sigma_t = np.ones((1, *mesh.spatial_shape))
     L = StreamingOperator(mesh, sigma_t)
 
     outputs = {}
