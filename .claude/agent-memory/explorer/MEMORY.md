@@ -12,6 +12,13 @@ stale and re-derivable in seconds via Nexus. Keep notes here durable, not transi
 - [HarmonicMomentField UNITS convention](harmonic_moment_field_units_convention.md) — why a stored SH moment carries SCALAR-flux units (no-prefactor SH, Y_0^0=1, weights sum to 4π → sr cancels); R≠M*; ERR-039/ERR-051 history.
 - [Phase 5 µ-resolved primitive inventory](phase5_mu_resolved_primitive_inventory.md) — µ-resolved vs µ-integrated primitives in peierls_geometry.py for the continuous-µ specular multibounce closure.
 
+## Active carve audits (in-flight worktree work)
+
+- [C4 BC FaceLabel producer audit (#220)](c4_bc_facelabel_producer_audit.md) — producer-side-only TRUE (2 generic prod consumers); axis.bc[endpoint] EXISTS; missing FaceLabel→"xmin" crosswalk; 1-D bc_ymin/ymax placeholders + 2-D bc_left/right = orphans; _resolve_one "zmin"→"x" latent d3 bug.
+- [C3.6 dimensional-dispatch audit](c36_dimensional_dispatch_audit.md) — post-#222 is_1d/ndim survivors; 3 (b) sites (ScanMarch supports/kernel mismatch, _octant_sweep sign_z truncation, _OUT_FACE x/y hand-list); d=3 admission chain; quadrature NOT the blocker.
+- [SN phantom-axis rank-change audit](sn_phantom_axis_rank_change_audit.md) — dropping the phantom ny=1 (1-D → genuine (N,ng,nx)); the single-lever `_bases._shape_for_mesh`, the local(C/S/F survive)/structured(L+sweep) split, the latent to_flat vs n_unknowns_flat mismatch (orthogonal, not load-bearing).
+- [ScanMarch seam crosswalk (#222)](scan_march_seam_crosswalk.md) — DD-kernel↔scan-recurrence α=2s_x/D−1, β=2(Q+s_y·ψy_in)/D (verified at nulp); a_attenuation cache is 1-D-ONLY (2-D recomputes inline = #206); march/reflective-shed seam; supports=is_1d OR is_cartesian; anti-surprises (psi_avg=0.5(in+out) STILL holds 2-D; aniso/moment/multigroup OUTSIDE the recurrence; curvilinear is d=1-only).
+
 ## Committed pre-carve dependency audits (durable rationale; line maps may have drifted)
 
 - [D-I.3 dependency audit](D-I.3_dependency_audit.md) — retiring the bare-ndarray adapter arm of StreamingOperator.apply; production+test caller inventory + readiness verdict.
