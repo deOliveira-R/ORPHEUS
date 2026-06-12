@@ -43,8 +43,7 @@ class TestOctantLabel:
         for sx in (-1, 0, +1):
             for sy in (-1, 0, +1):
                 lab = OctantLabel((sx, sy))
-                assert lab.sign_x == sx
-                assert lab.sign_y == sy
+                assert lab.signs == (sx, sy)
 
     def test_invalid_sign_raises(self):
         with pytest.raises(ValueError, match=r"signs\[0\]"):
@@ -52,12 +51,15 @@ class TestOctantLabel:
         with pytest.raises(ValueError, match=r"signs\[1\]"):
             OctantLabel((+1, -2))
 
-    def test_streams_in_2d(self):
-        assert OctantLabel((+1, +1)).streams_in_2d
-        assert OctantLabel((-1, +1)).streams_in_2d
-        assert OctantLabel((+1, 0)).streams_in_2d   # y-axis-aligned still streams in x
-        assert OctantLabel((0, -1)).streams_in_2d
-        assert not OctantLabel((0, 0)).streams_in_2d  # pure-z degenerate
+    def test_streams(self):
+        assert OctantLabel((+1, +1)).streams
+        assert OctantLabel((-1, +1)).streams
+        assert OctantLabel((+1, 0)).streams   # y-axis-aligned still streams in x
+        assert OctantLabel((0, -1)).streams
+        assert not OctantLabel((0, 0)).streams  # pure-z degenerate (2-D label)
+        # d-generic: the same predicate at d=1 and d=3.
+        assert OctantLabel((-1,)).streams
+        assert not OctantLabel((0, 0, 0)).streams
 
     def test_hashable_for_dict_keys(self):
         d = {OctantLabel((+1, -1)): "x"}

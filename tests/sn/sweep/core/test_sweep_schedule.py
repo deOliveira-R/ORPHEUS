@@ -76,19 +76,21 @@ def _reflective_faces(sn: SNMesh) -> set[str]:
     }
 
 
+# Hand-transcribed (axis, sign) → face table — deliberately NOT derived from
+# the production ``AXIS_NAMES`` f-string (mirror-not-import: production
+# derives, the test hand-lists, so a drift in either is observable —
+# vv L11 structural independence).
+_FACE_OF = {
+    (0, +1): "xmax", (0, -1): "xmin",
+    (1, +1): "ymax", (1, -1): "ymin",
+    (2, +1): "zmax", (2, -1): "zmin",
+}
+
+
 def _expected_outgoing(label: OctantLabel) -> set[str]:
     """First-principles outgoing faces for an octant label (independent of the
-    schedule module's internal map — vv L11 structural independence)."""
-    faces: set[str] = set()
-    if label.sign_x > 0:
-        faces.add("xmax")
-    elif label.sign_x < 0:
-        faces.add("xmin")
-    if label.sign_y > 0:
-        faces.add("ymax")
-    elif label.sign_y < 0:
-        faces.add("ymin")
-    return faces
+    schedule module's derivation — vv L11 structural independence)."""
+    return {_FACE_OF[(a, s)] for a, s in enumerate(label.signs) if s != 0}
 
 
 # ─── Jacobi structure ────────────────────────────────────────────────
@@ -117,16 +119,21 @@ def test_jacobi_is_one_group_no_reflect_box():
 
 def test_gs_slab_reflective_specular_faces():
     """Discriminating (first principles): two groups in lexicographic order;
-    the −x octant exits through ``xmin``, the +x octant through ``xmax``."""
+    the −x octant exits through ``xmin``, the +x octant through ``xmax``.
+
+    HISTORY (C3.6): the d=1 labels are honest 1-tuples ``(±1,)`` — the
+    schedule projects to the mesh's ``ndim``.  Before C3.6 they carried a
+    phantom zero-padded second sign ``(±1, 0)`` that the walk re-truncated.
+    """
     sn = _slab((BC.reflective, BC.reflective))
     sched = SweepSchedule.gauss_seidel(sn)
     assert sched.kind == "gauss_seidel"
-    # one octant per group; lexicographic order puts (-1,0) before (+1,0).
+    # one octant per group; lexicographic order puts (-1,) before (+1,).
     labels = [g.sweeps[0].label for g in sched.groups]
-    assert labels == [OctantLabel((-1, 0)), OctantLabel((+1, 0))]
+    assert labels == [OctantLabel((-1,)), OctantLabel((+1,))]
     reflect = {g.sweeps[0].label: g.reflect_faces for g in sched.groups}
-    assert reflect[OctantLabel((-1, 0))] == ("xmin",)
-    assert reflect[OctantLabel((+1, 0))] == ("xmax",)
+    assert reflect[OctantLabel((-1,))] == ("xmin",)
+    assert reflect[OctantLabel((+1,))] == ("xmax",)
 
 
 def test_gs_slab_vacuum_reflective_only_reflective_face_reflects():
@@ -184,9 +191,9 @@ def test_gs_box_half_reflective_no_reflect_on_vacuum_axis():
         assert "ymin" not in g.reflect_faces
         assert "ymax" not in g.reflect_faces
         label = g.sweeps[0].label
-        if label.sign_x > 0:
+        if label.signs[0] > 0:
             assert g.reflect_faces == ("xmax",)
-        elif label.sign_x < 0:
+        elif label.signs[0] < 0:
             assert g.reflect_faces == ("xmin",)
 
 

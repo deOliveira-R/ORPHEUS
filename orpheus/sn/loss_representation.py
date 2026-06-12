@@ -134,6 +134,7 @@ from .spatial.psi_half_angle_seed import CarlsonSweepContext
 from .spatial.scan import _scanmarch_row, _x_scan_faces, ordinate_scan
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
 from .sweep_graph import (
+    AXIS_NAMES,
     OctantLabel,
     SweepDependencyGraph,
     _CellResidual,
@@ -321,11 +322,6 @@ class _LossRepresentation:
 # _OctantWalk — THE in-plane octant traversal (S6.4, #222)
 # ═══════════════════════════════════════════════════════════════════════
 
-#: Spatial axis names, positional-by-axis — the same axis order as
-#: :attr:`OctantLabel.signs` and every per-axis kernel tuple.
-_AXIS_NAMES = ("x", "y", "z")
-
-
 def _inflow_faces(signs_eff: tuple[int, ...]) -> tuple[str, ...]:
     """Per-axis domain faces an octant's streaming ENTERS through.
 
@@ -336,7 +332,7 @@ def _inflow_faces(signs_eff: tuple[int, ...]) -> tuple[str, ...]:
     the WDD result is sign-independent).
     """
     return tuple(
-        f"{_AXIS_NAMES[a]}min" if s >= 0 else f"{_AXIS_NAMES[a]}max"
+        f"{AXIS_NAMES[a]}min" if s >= 0 else f"{AXIS_NAMES[a]}max"
         for a, s in enumerate(signs_eff)
     )
 
@@ -345,7 +341,7 @@ def _outflow_faces(signs_eff: tuple[int, ...]) -> tuple[str, ...]:
     """Per-axis domain faces an octant's streaming EXITS through (the
     opposite of :func:`_inflow_faces`, axis by axis)."""
     return tuple(
-        f"{_AXIS_NAMES[a]}max" if s >= 0 else f"{_AXIS_NAMES[a]}min"
+        f"{AXIS_NAMES[a]}max" if s >= 0 else f"{AXIS_NAMES[a]}min"
         for a, s in enumerate(signs_eff)
     )
 
@@ -503,10 +499,13 @@ class _OctantWalk:
         "matvec ≡ sweep is one walk" is a code fact, not a test-maintained
         coincidence.
         """
-        ndim = self.mesh.ndim
         for sweep in sweeps:
             oct_idx = np.asarray(sweep.indices)
-            signs = sweep.label.signs[:ndim]
+            # The schedule's ``_octant_sweep`` is the SOLE in-plane projection
+            # site, so the label carries exactly ``mesh.ndim`` signs — no
+            # re-truncation here (a second silent projection could mask a
+            # mis-sized label; a wrong length now fails loud at the face zips).
+            signs = sweep.label.signs
             if not any(signs):
                 # Pure-z degenerate octant: no in-plane streaming — no
                 # faces, no boundary interaction. The direction's policy

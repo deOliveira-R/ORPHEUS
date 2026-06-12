@@ -50,21 +50,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from orpheus.sn.sweep_graph import OctantLabel
+from orpheus.sn.sweep_graph import AXIS_NAMES, OctantLabel
 
 if TYPE_CHECKING:
     from orpheus.sn.geometry import SNMesh
 
 
 __all__ = ["OctantSweep", "OctantSweepGroup", "SweepSchedule"]
-
-
-# An octant streaming in the +axis direction outflows through the axis-max face;
-# a grazing (sign 0) axis has NO net outflow on that axis (omitted below).
-_OUT_FACE = {
-    ("x", +1): "xmax", ("x", -1): "xmin",
-    ("y", +1): "ymax", ("y", -1): "ymin",
-}
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,7 +96,10 @@ class SweepSchedule:
     def jacobi(cls, sn_mesh: "SNMesh") -> "SweepSchedule":
         """One group, all octants, no inter-group reflect — the bare all-octants
         sweep with the whole ``B·ψₙ`` seed frozen for the entire sweep."""
-        sweeps = tuple(_octant_sweep(entry) for entry in sn_mesh.quad.octants)
+        sweeps = tuple(
+            _octant_sweep(entry, sn_mesh.ndim)
+            for entry in sn_mesh.quad.octants
+        )
         return cls(
             groups=(OctantSweepGroup(sweeps=sweeps, reflect_faces=()),),
             kind="jacobi",
@@ -116,15 +111,15 @@ class SweepSchedule:
         re-reflects the reflective faces its octants outflow through.
 
         Octant partition entries that share an in-plane :class:`OctantLabel`
-        (they differ only in the out-of-plane sign_z the 2-D sweep ignores) are
-        MERGED into one group so a face's outflow is complete before it is
-        reflected.
+        (they differ only in out-of-plane signs the in-plane sweep ignores —
+        e.g. ``sign_z`` over a 2-D mesh) are MERGED into one group so a
+        face's outflow is complete before it is reflected.
         """
         reflective = _reflective_faces(sn_mesh)
         ordered: list[OctantLabel] = []
         by_label: dict[OctantLabel, list[OctantSweep]] = {}
         for entry in sn_mesh.quad.octants:
-            sweep = _octant_sweep(entry)
+            sweep = _octant_sweep(entry, sn_mesh.ndim)
             if sweep.label not in by_label:
                 by_label[sweep.label] = []
                 ordered.append(sweep.label)
@@ -170,31 +165,44 @@ class SweepSchedule:
         return cls(groups=groups, kind="gauss_seidel")
 
 
-def _octant_sweep(entry) -> OctantSweep:
+def _octant_sweep(entry, ndim: int) -> OctantSweep:
     """Project a quadrature octant partition entry to its in-plane sweep unit.
 
-    The partition ``.label`` is ``(sign_x[, sign_y[, sign_z]])`` (∈ {−1, 0, +1});
-    the 2-D Cartesian sweep is invariant under sign_z, so the in-plane
-    :class:`OctantLabel` drops it (mirroring ``_sweep_2d_wavefront``).
+    The partition ``.label`` carries one sign per direction-space axis
+    (``(sign_x[, sign_y[, sign_z]])``, each ∈ {−1, 0, +1}).  The in-plane
+    :class:`OctantLabel` keeps the mesh's first ``ndim`` signs and projects
+    the rest out (the in-plane sweep is invariant under the out-of-plane
+    signs — e.g. a 2-D Cartesian mesh under an ``S²`` cubature drops
+    ``sign_z``); a quadrature with FEWER signs than the mesh has axes
+    (a slab quadrature over a multi-D mesh) zero-pads — sign ``0`` means
+    "no streaming on this axis".  This is the SOLE in-plane projection
+    site: every :class:`OctantLabel` downstream (the walk, the per-octant
+    DAG keys, the G-S face assignment) has exactly ``ndim`` signs.
     """
     label = entry.label
-    sign_x = int(label[0])
-    sign_y = int(label[1]) if len(label) >= 2 else 0
+    signs = tuple(
+        int(label[a]) if a < len(label) else 0 for a in range(ndim)
+    )
     return OctantSweep(
-        label=OctantLabel((sign_x, sign_y)),
+        label=OctantLabel(signs),
         indices=tuple(int(i) for i in entry.indices),
     )
 
 
 def _outgoing_faces(label: OctantLabel) -> tuple[str, ...]:
     """The boundary faces an octant OUTFLOWS through (strict sign — a grazing
-    ``sign == 0`` axis contributes no net outflow on that axis)."""
-    faces: list[str] = []
-    for axis, sign in (("x", label.sign_x), ("y", label.sign_y)):
-        face = _OUT_FACE.get((axis, sign))
-        if face is not None:
-            faces.append(face)
-    return tuple(faces)
+    ``sign == 0`` axis contributes no net outflow on that axis).
+
+    Derived per axis from the label's own signs (an octant streaming in the
+    ``+a`` direction outflows through the ``a``-max face), so the face set is
+    correct at any ``ndim`` — there is no hand-listed axis table to fall out
+    of date when a third axis arrives.
+    """
+    return tuple(
+        f"{AXIS_NAMES[a]}{'max' if s > 0 else 'min'}"
+        for a, s in enumerate(label.signs)
+        if s != 0
+    )
 
 
 def _reflective_faces(sn_mesh: "SNMesh") -> frozenset[str]:

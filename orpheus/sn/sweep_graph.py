@@ -84,8 +84,17 @@ from orpheus.sn.spatial.cell_update import CellUpdateBase
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# OctantLabel — 2-D in-plane octant signature
+# OctantLabel — in-plane octant signature (one sign per mesh axis)
 # ═══════════════════════════════════════════════════════════════════════
+
+
+#: Spatial axis names, positional-by-axis — the same axis order as
+#: :attr:`OctantLabel.signs`, the per-axis kernel tuples, and the
+#: ``"{axis}min"`` / ``"{axis}max"`` boundary-face naming convention.
+#: The single source of the axis↔name crosswalk for every face-name
+#: derivation (the walk's in/outflow faces, the schedule's outgoing
+#: faces) — no consumer hand-lists ``("x", ...), ("y", ...)`` pairs.
+AXIS_NAMES = ("x", "y", "z")
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,10 +104,13 @@ class OctantLabel:
     Carries one direction sign per spatial axis,
     ``signs[axis] ∈ {-1, 0, +1}``, so a single type labels a 1-D
     (``(±1,)``), 2-D (``(±1, ±1)``), or 3-D (``(±1, ±1, ±1)``) octant.
-    The out-of-plane ``sign_z`` of an ``S²`` ordinate label may be
-    dropped by the 2-D Cartesian orchestration (the in-plane sweep is
-    invariant under it); multiple ordinates that project to the same
-    in-plane ``signs`` share a single :class:`SweepDependencyGraph`.
+    Ordinate-label signs beyond the mesh's spatial ``ndim`` (e.g. the
+    ``sign_z`` of an ``S²`` ordinate over a 2-D mesh) are projected out
+    by the schedule (:func:`orpheus.sn.sweep_schedule._octant_sweep` —
+    the SOLE in-plane projection site; the in-plane sweep is invariant
+    under the out-of-plane signs); multiple ordinates that project to
+    the same in-plane ``signs`` share a single
+    :class:`SweepDependencyGraph`.
 
     A label whose signs are *all* zero denotes the degenerate
     no-streaming set of ordinates (e.g. the pure-:math:`z` ordinates in
@@ -131,26 +143,6 @@ class OctantLabel:
     def streams(self) -> bool:
         """``False`` for the all-zero degenerate label; ``True`` otherwise."""
         return any(s != 0 for s in self.signs)
-
-    # ── 2-D in-plane convenience: the orchestration that is still
-    #    explicitly 2-D (the moving-frontier window walk, the matvec
-    #    twin, the schedule) reads ``sign_x`` / ``sign_y`` and the
-    #    ``streams_in_2d`` alias. These retire as those call sites go
-    #    d-generic in a later C3 stage.
-    @property
-    def sign_x(self) -> int:
-        """In-plane x-sign (``signs[0]``); valid for ``ndim ≥ 1``."""
-        return self.signs[0]
-
-    @property
-    def sign_y(self) -> int:
-        """In-plane y-sign (``signs[1]``); valid for ``ndim ≥ 2``."""
-        return self.signs[1]
-
-    @property
-    def streams_in_2d(self) -> bool:
-        """Deprecated alias for :attr:`streams` (2-D call-site compat)."""
-        return self.streams
 
 
 # ═══════════════════════════════════════════════════════════════════════

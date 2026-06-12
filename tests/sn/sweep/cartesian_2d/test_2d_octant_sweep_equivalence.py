@@ -282,7 +282,7 @@ def _build_sn_mesh(
     elif quadrature == "Lebedev5":
         # Lebedev order 5 has two pure-z ordinates (n=4: (0,0,+1),
         # n=5: (0,0,-1)).  This is the only ORPHEUS quadrature in this
-        # harness's roster that exhibits the ``sign_x == 0 == sign_y``
+        # harness's roster that exhibits the ``signs == (0, 0)``
         # degenerate-ordinate path.
         quad = Quadrature.lebedev(order=5)                  # N = 14
     else:
@@ -698,7 +698,7 @@ def _case_6_pure_z() -> OctantEquivalenceInputs:
     cannot stream in 2-D.  In the legacy code these take the
     ``psi_avg = Q_n / sig_t`` branch and skip the spatial sweep.  The
     new code must produce the same output via the
-    ``sign_x == 0 == sign_y`` branch in its octant dispatch.
+    ``signs == (0, 0)`` branch in its octant dispatch.
 
     No project quadrature in the Sn family (Sn order 4, 6) exhibits
     pure-z; Lebedev is the only family that does, so we use it here.
@@ -900,7 +900,7 @@ CASES: tuple[OctantEquivalenceCase, ...] = (
             "Pure-z degenerate ordinates — Lebedev order 5 (N=14, "
             "two pure-z), all-vacuum, 1G homogeneous, uniform Q."
         ),
-        failure_mode="#3 pure-z skip path (sign_x==0==sign_y)",
+        failure_mode="#3 pure-z skip path (signs == (0, 0))",
         builder=_case_6_pure_z,
     ),
 )
