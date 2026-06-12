@@ -300,14 +300,22 @@ def get_materials(n_regions: int, ng_key: str) -> dict[int, Mixture]:
 
 
 def validate_all() -> None:
-    """Verify XS consistency for all regions and group counts."""
+    """Verify XS consistency for all regions and group counts.
+
+    Raises :class:`ValueError` (NOT ``assert``) so the gate fires under
+    the canonical ``python -O`` invocation too — a bare ``assert`` in a
+    production module is stripped by ``-O`` (vv-principles Mode 8), and
+    this import-time check is the ONLY consistency gate on the hardcoded
+    verification XS tables (issue #228).
+    """
     for region, groups in XS.items():
         for ng_key, xs in groups.items():
             sig_t_check = xs["sig_c"] + xs["sig_f"] + xs["sig_s"].sum(axis=1)
-            assert np.allclose(xs["sig_t"], sig_t_check), (
-                f"XS inconsistency in region {region}, {ng_key}: "
-                f"sig_t={xs['sig_t']} ≠ sig_c+sig_f+sig_s={sig_t_check}"
-            )
+            if not np.allclose(xs["sig_t"], sig_t_check):
+                raise ValueError(
+                    f"XS inconsistency in region {region}, {ng_key}: "
+                    f"sig_t={xs['sig_t']} ≠ sig_c+sig_f+sig_s={sig_t_check}"
+                )
 
 
 # Validate on import
