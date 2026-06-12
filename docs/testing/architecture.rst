@@ -90,6 +90,20 @@ Design principles
    is behind us; foundation finally gave the non-physics tests a
    home (see :ref:`vv-foundation-tests`).
 
+7. **Type-error ratchet** (issue #226). The package carries a large
+   pre-existing pyright error surface; until the per-module burn-down
+   reaches zero, the enforceable invariant is monotonicity.
+   ``tests/test_pyright_ratchet.py`` (``foundation`` + ``slow``,
+   skips without a host pyright) compares live per-module error
+   counts against ``tests/_harness/pyright_baseline.json`` and fails
+   in BOTH directions — an increase is a regression, a decrease must
+   be locked in via
+   ``python -m tests._harness.pyright_ratchet --update`` so
+   improvements can't silently erode. The single source for the
+   counting is :mod:`tests._harness.pyright_ratchet`; the baseline
+   records the pyright version because counts move across pyright
+   releases without code changes.
+
 Authoring a test
 ----------------
 
