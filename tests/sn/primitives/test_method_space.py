@@ -41,7 +41,7 @@ def _slab_trace(mesh: Mesh1D, quad) -> TraceSpace:
     layout = FaceLayout.from_named_shapes(
         [("xmin", (quad.N, 1)), ("xmax", (quad.N, 1))]
     )
-    return TraceSpace.from_mesh_and_quadrature(mesh, quad, layout)
+    return TraceSpace.from_quadrature_and_layout(quad, layout)
 
 
 def _cartesian2d_trace(mesh: Mesh2D, quad, nx: int, ny: int) -> TraceSpace:
@@ -49,7 +49,7 @@ def _cartesian2d_trace(mesh: Mesh2D, quad, nx: int, ny: int) -> TraceSpace:
         ("xmin", (quad.N, 1, ny)), ("xmax", (quad.N, 1, ny)),
         ("ymin", (quad.N, 1, nx)), ("ymax", (quad.N, 1, nx)),
     ])
-    return TraceSpace.from_mesh_and_quadrature(mesh, quad, layout)
+    return TraceSpace.from_quadrature_and_layout(quad, layout)
 
 
 # ─────────────────────────────────────────────────────────────────────

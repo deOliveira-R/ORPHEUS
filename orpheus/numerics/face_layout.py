@@ -48,7 +48,24 @@ import numpy as np
 from numpy.typing import NDArray
 
 
-__all__ = ["FaceSlot", "FaceLayout"]
+__all__ = ["AXIS_NAMES", "FaceSlot", "FaceLayout"]
+
+
+#: Spatial axis names, positional-by-axis — the single source of the
+#: axis↔name crosswalk for the ``"{axis}min"`` / ``"{axis}max"``
+#: boundary-face naming convention that :class:`FaceLayout`, the trace
+#: space, :attr:`SNMesh.bc <orpheus.sn.geometry.SNMesh.bc>`, and the
+#: sweep schedule all key on. No consumer hand-lists ``("x", ...),
+#: ("y", ...)`` pairs — every face-name derivation
+#: (:attr:`FaceLabel.face_name <orpheus.sn.axis.FaceLabel.face_name>`,
+#: the walk's in/outflow faces, the schedule's outgoing faces, the
+#: trace's outward-normal table) renders through this tuple. Lives
+#: here, at the bottom of the dependency graph next to
+#: :class:`FaceLayout` (the keeper of the face-name string world);
+#: :mod:`orpheus.sn.axis` imports it upward (moved from there in C5.3,
+#: #225, so the geometry-blind trace space could share it without an
+#: sn-ward import).
+AXIS_NAMES = ("x", "y", "z")
 
 
 @dataclass(frozen=True)

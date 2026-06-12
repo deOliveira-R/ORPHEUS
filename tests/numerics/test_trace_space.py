@@ -66,19 +66,17 @@ def _cartesian2d_layout(N: int, ng: int, nx: int, ny: int) -> FaceLayout:
 
 
 def _trace_2d(quad, nx: int = 3, ny: int = 3, ng: int = 1) -> TraceSpace:
-    mesh = _mesh2d(CoordSystem.CARTESIAN, nx, ny)
-    return TraceSpace.from_mesh_and_quadrature(
-        mesh, quad, _cartesian2d_layout(quad.N, ng, nx, ny),
+    return TraceSpace.from_quadrature_and_layout(
+        quad, _cartesian2d_layout(quad.N, ng, nx, ny),
     )
 
 
 def _trace_1d(coord: CoordSystem, quad, ng: int = 1) -> TraceSpace:
-    mesh = _mesh1d(coord)
     if coord is CoordSystem.CARTESIAN:
         layout = _slab_layout(quad.N, ng)
     else:
         layout = _curvilinear_layout(quad.N, ng)
-    return TraceSpace.from_mesh_and_quadrature(mesh, quad, layout)
+    return TraceSpace.from_quadrature_and_layout(quad, layout)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -269,25 +267,24 @@ def test_curvilinear_xmax_matches_cartesian_xmax():
 # ─────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.l0
-def test_2d_cylindrical_raises():
-    """L0: 2-D cylindrical Mesh2D raises NotImplementedError — the
-    (r, z) face normals need azimuthal averaging that is unwired."""
-    quad = Quadrature.lebedev(11)
-    mesh = _mesh2d(CoordSystem.CYLINDRICAL)
-    layout = _cartesian2d_layout(quad.N, 1, 3, 3)
-    with pytest.raises(NotImplementedError, match="curvilinear"):
-        TraceSpace.from_mesh_and_quadrature(mesh, quad, layout)
+# C5.3 (#225): the former ``test_2d_cylindrical_raises`` retired WITH the
+# gate it pinned — TraceSpace is geometry-blind (it never sees a mesh), so
+# the 2-D-cylindrical refusal lives where the geometry enters: SNMesh
+# construction (``axes_from_legacy_mesh`` raises NotImplementedError for
+# 2-D non-Cartesian; pinned in
+# tests/sn/primitives/test_axis_native_construction.py).
 
 
 @pytest.mark.l0
 def test_unknown_face_in_layout_raises():
     """L0: a layout naming a face absent from the normal table raises."""
     quad = Quadrature.gauss_legendre(8)
-    mesh = _mesh1d(CoordSystem.CARTESIAN)
-    bad = FaceLayout.from_named_shapes([("zmin", (quad.N, 1))])
+    # C5.3 (#225): "zmin" is a KNOWN face (the normal table derives
+    # from AXIS_NAMES and carries all six axis-aligned faces) — the
+    # unknown-face probe needs a name outside the axis world.
+    bad = FaceLayout.from_named_shapes([("wmin", (quad.N, 1))])
     with pytest.raises(ValueError, match="Unknown face name"):
-        TraceSpace.from_mesh_and_quadrature(mesh, quad, bad)
+        TraceSpace.from_quadrature_and_layout(quad, bad)
 
 
 @pytest.mark.l0
@@ -442,3 +439,59 @@ def test_trace_metric_group_independent():
     expected_col = np.abs(space.omega_dot_n[f_idx]) * np.asarray(quad.weights)
     for g in range(w_face.shape[1]):
         np.testing.assert_array_equal(w_face[:, g], expected_col)
+
+
+# ─────────────────────────────────────────────────────────────────────
+# C5.3 (#225) — z faces in the AXIS_NAMES-derived normal table
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.foundation
+def test_face_normals_z_derived_from_axis_names():
+    """The normal table carries all six axis-aligned faces (axis, sign).
+
+    C5-G9: derived from AXIS_NAMES, not hand-listed — a table that
+    silently lacked zmin/zmax was the pre-C5.3 d=3 blocker.
+    """
+    from orpheus.numerics.spaces.trace_space import _FACE_NORMALS
+    expected = {
+        "xmin": (0, -1), "xmax": (0, +1),
+        "ymin": (1, -1), "ymax": (1, +1),
+        "zmin": (2, -1), "zmax": (2, +1),
+    }
+    np.testing.assert_equal(_FACE_NORMALS, expected)
+
+
+@pytest.mark.foundation
+def test_omega_dot_n_zmax_is_plus_mu_z():
+    """C5-G10: the zmax row is exactly +mu_z, zmin exactly −mu_z."""
+    quad = Quadrature.level_symmetric(sn_order=4)
+    layout = FaceLayout.from_named_shapes([
+        ("zmin", (quad.N, 1)), ("zmax", (quad.N, 1)),
+    ])
+    trace = TraceSpace.from_quadrature_and_layout(quad, layout)
+    np.testing.assert_array_equal(trace.omega_dot_n[0], -np.asarray(quad.mu_z))
+    np.testing.assert_array_equal(trace.omega_dot_n[1], +np.asarray(quad.mu_z))
+
+
+@pytest.mark.foundation
+def test_omega_dot_n_all_six_faces_distinct_axes():
+    """C5-G11: each face row maps to ITS axis cosine (Mode-2 swap detector).
+
+    A diagonal cubature (level-symmetric) has genuinely distinct
+    mu_x/mu_y/mu_z arrays, so a zmin→mu_x (the pre-C4 reflection bug
+    class) or mu_y↔mu_z swap is an array mismatch, not a coincidence.
+    """
+    quad = Quadrature.level_symmetric(sn_order=4)
+    faces = ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")
+    layout = FaceLayout.from_named_shapes(
+        [(f, (quad.N, 1)) for f in faces],
+    )
+    trace = TraceSpace.from_quadrature_and_layout(quad, layout)
+    mu = [np.asarray(quad.mu_x), np.asarray(quad.mu_y), np.asarray(quad.mu_z)]
+    # Non-vacuity: the three cosine arrays must genuinely differ.
+    if np.array_equal(mu[0], mu[1]) or np.array_equal(mu[1], mu[2]):
+        pytest.fail("cubature does not distinguish the axis cosines")
+    for row, face in enumerate(faces):
+        axis, sign = {"x": 0, "y": 1, "z": 2}[face[0]], (-1 if face.endswith("min") else +1)
+        np.testing.assert_array_equal(trace.omega_dot_n[row], sign * mu[axis])

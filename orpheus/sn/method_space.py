@@ -111,7 +111,7 @@ class SNMethodSpace:
     def for_face(
         cls,
         *,
-        mesh: "Mesh1D | Mesh2D",
+        mesh: "Optional[Mesh1D | Mesh2D]" = None,
         quadrature: "AngularQuadrature",
         face: str,
         trace: "Optional[TraceSpace]" = None,
@@ -121,18 +121,21 @@ class SNMethodSpace:
         If ``trace`` is provided, extract the inflow indices for
         ``face`` and store them. This is the standard construction
         site at :meth:`SNMesh._resolve_bcs` time -- the trace space is
-        built once per ``(mesh, quad)`` pair and passed through so
+        built once per quadrature+layout pair and passed through so
         per-face indices are derived on demand.
 
         Parameters
         ----------
         mesh
-            Spatial mesh.
+            Spatial mesh — OPTIONAL metadata (C5.3, #225): nothing in
+            the realizer chain reads it (inflow indices come from the
+            trace); an axis-native ``SNMesh`` with no legacy mesh
+            adapter passes ``None``.
         quadrature
             Angular quadrature.
         face
-            Face label (one of ``"xmin"``, ``"xmax"``, ``"ymin"``,
-            ``"ymax"``).
+            Face name (``"{axis}{min|max}"`` — e.g. ``"xmin"`` …
+            ``"zmax"``).
         trace
             Optional precomputed unified
             :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`.

@@ -495,23 +495,18 @@ class SNMesh:
         # TRUE boundary faces (``boundary_face_layout``): slab
         # ``xmin``/``xmax``, curvilinear ``xmax`` only (the pole at r=0
         # is the angular closure's regularity condition, not a BC
-        # face), 2-D Cartesian ``xmin``/``xmax``/``ymin``/``ymax``.
-        # Inflow / outflow are selectors over the signed Ω·n it
-        # carries. 2-D cylindrical :class:`Mesh2D` has no SN sweep and
-        # stays trace-less (``_trace = None``).
-        self._trace = None
-        build_trace = (
-            isinstance(self.mesh, Mesh1D)
-            or (
-                isinstance(self.mesh, Mesh2D)
-                and self.mesh.coord == CoordSystem.CARTESIAN
-            )
+        # face), multi-D Cartesian all ``2·ndim`` faces. Inflow /
+        # outflow are selectors over the signed Ω·n it carries.
+        #
+        # C5.3 (#225): UNCONDITIONAL — the pre-C5.3 isinstance gate
+        # excluded only 2-D cylindrical Mesh2D, which cannot become an
+        # SNMesh at all (the axis conversion at construction refuses
+        # it), so every constructible SNMesh builds its trace. The
+        # trace is geometry-blind (quadrature + face names only).
+        from orpheus.numerics.spaces.trace_space import TraceSpace
+        self._trace = TraceSpace.from_quadrature_and_layout(
+            self.quad, self.boundary_face_layout,
         )
-        if build_trace:
-            from orpheus.numerics.spaces.trace_space import TraceSpace
-            self._trace = TraceSpace.from_mesh_and_quadrature(
-                self.mesh, self.quad, self.boundary_face_layout,
-            )
 
         self.bc: dict[str, _BoundBoundaryOperator] = {
             label.face_name: self._resolve_one(
@@ -912,22 +907,23 @@ class SNMesh:
         return MaterialXSField.from_mesh(self)
 
     @property
-    def trace(self) -> "Optional[TraceSpace]":
+    def trace(self) -> "TraceSpace":
         r"""The unified boundary :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`.
 
         One concrete trace space for the whole boundary :math:`\Gamma`,
-        built (A.2/A.3) from this mesh + quadrature +
-        :attr:`boundary_face_layout`. It is the single source of truth
-        for the signed projection :math:`\Omega\cdot\hat n_f` per face;
-        the inflow / outflow *selectors*
+        built (A.2/A.3) from this mesh's quadrature +
+        :attr:`boundary_face_layout` (geometry-blind since C5.3, #225).
+        It is the single source of truth for the signed projection
+        :math:`\Omega\cdot\hat n_f` per face; the inflow / outflow
+        *selectors*
         (:meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.outflow_indices_for_face`)
         replace the inline ``sign(Ω·n)`` masks that the streaming matvec
         and the boundary realizer previously each recomputed.
 
-        ``None`` only for trace-less meshes — a curvilinear (cylindrical)
-        :class:`~orpheus.geometry.mesh.Mesh2D`, which has no SN sweep.
-        Every mesh that drives a sweep (1-D slab / sphere / cylinder,
-        2-D Cartesian) carries a non-``None`` trace.
+        ALWAYS non-``None`` (C5.3): the only mesh the pre-C5.3 gate
+        excluded — a cylindrical :class:`~orpheus.geometry.mesh.Mesh2D`
+        — cannot become an SNMesh at all, so every constructible SNMesh
+        carries a trace.
         """
         return self._trace
 

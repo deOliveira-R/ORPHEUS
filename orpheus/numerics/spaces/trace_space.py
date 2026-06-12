@@ -134,10 +134,10 @@ from typing import TYPE_CHECKING, Optional
 import numpy as np
 from numpy.typing import NDArray
 
+from orpheus.numerics.face_layout import AXIS_NAMES
 from orpheus.numerics.space import FunctionSpace
 
 if TYPE_CHECKING:
-    from orpheus.geometry.mesh import Mesh1D, Mesh2D
     from orpheus.numerics.face_layout import FaceLayout
     from orpheus.numerics.quadrature import Quadrature
 
@@ -162,13 +162,19 @@ _TANGENTIAL_EPS: float = 4.0 * np.finfo(np.float64).eps
 # is the outward-normal sign (±1). The signed projection is
 # ``Ω · n = sign * mu[axis]``. This single table serves every supported
 # mesh: 1-D meshes use ``xmin`` / ``xmax`` (radial axis is the x-axis;
-# curvilinear has ``xmax`` only), 2-D Cartesian uses all four.
+# curvilinear has ``xmax`` only), 2-D Cartesian the four x/y faces,
+# 3-D Cartesian all six.
+#
+# C5.3 (#225): DERIVED from :data:`~orpheus.numerics.face_layout.AXIS_NAMES`
+# — the same crosswalk every face-name producer renders through
+# (``FaceLabel.face_name``, the sweep schedule, the walk) — instead of a
+# hand-listed 4-face transcription that silently lacked the z faces.
+# ``min`` is the −axis face (outward normal −ê_axis), ``max`` the +axis.
 
 _FACE_NORMALS: dict[str, tuple[int, int]] = {
-    "xmin": (0, -1),
-    "xmax": (0, +1),
-    "ymin": (1, -1),
-    "ymax": (1, +1),
+    f"{name}{suffix}": (axis, sign)
+    for axis, name in enumerate(AXIS_NAMES)
+    for suffix, sign in (("min", -1), ("max", +1))
 }
 
 
@@ -191,7 +197,6 @@ def _quadrature_axis(quadrature: "Quadrature", axis: int) -> np.ndarray:
 
 
 def _build_omega_dot_n(
-    mesh: "Mesh1D | Mesh2D",
     quadrature: "Quadrature",
     faces: tuple[str, ...],
 ) -> NDArray:
@@ -201,23 +206,15 @@ def _build_omega_dot_n(
     :math:`\mathrm{sign}_f \cdot \mu_{\text{axis}(f)}` — the outward
     projection of every ordinate onto face ``f``'s normal. Inflow /
     outflow / tangential are derived from its sign on demand.
+
+    C5.3 (#225): geometry-blind — every datum comes from the quadrature
+    and the face NAMES (the axis-aligned outward normals are implied by
+    the ``"{axis}{min|max}"`` convention). The former ``mesh``
+    parameter was gate-only: its curvilinear-``Mesh2D`` refusal is
+    unreachable (such a mesh cannot become an ``SNMesh`` — the axis
+    conversion at construction refuses it), and the isinstance check
+    carried no data.
     """
-    # Local import to avoid a cycle with geometry.mesh.
-    from orpheus.geometry.coord import CoordSystem
-    from orpheus.geometry.mesh import Mesh1D, Mesh2D
-
-    if isinstance(mesh, Mesh2D) and mesh.coord != CoordSystem.CARTESIAN:
-        raise NotImplementedError(
-            "TraceSpace for curvilinear Mesh2D (coord=CYLINDRICAL) is "
-            "deferred until a 2-D cylindrical sweep arrives: the (r, z) "
-            "face normals require azimuthal averaging that is not wired "
-            "into the projection table."
-        )
-    if not isinstance(mesh, (Mesh1D, Mesh2D)):
-        raise TypeError(
-            f"mesh must be Mesh1D or Mesh2D, got {type(mesh).__name__}"
-        )
-
     n_ord = int(quadrature.N)
     omega_dot_n = np.zeros((len(faces), n_ord), dtype=float)
     for f_idx, face_name in enumerate(faces):
@@ -322,19 +319,21 @@ class TraceSpace(FunctionSpace):
         return tuple(self.layout.faces)
 
     @classmethod
-    def from_mesh_and_quadrature(
+    def from_quadrature_and_layout(
         cls,
-        mesh: "Mesh1D | Mesh2D",
         quadrature: "Quadrature",
         layout: "FaceLayout",
     ) -> "TraceSpace":
-        r"""Build the trace space from a mesh, quadrature, and face layout.
+        r"""Build the trace space from a quadrature and a face layout.
+
+        C5.3 (#225): geometry-blind — the former ``mesh`` parameter
+        (``from_mesh_and_quadrature``) was gate-only and is retired;
+        every datum comes from the quadrature and the layout's face
+        names (axis-aligned outward normals implied by the
+        ``"{axis}{min|max}"`` convention).
 
         Parameters
         ----------
-        mesh : Mesh1D | Mesh2D
-            Spatial mesh. Supplies the geometric context for the face
-            normals (and gates 2-D cylindrical, which is unimplemented).
         quadrature : Quadrature
             Angular quadrature exposing ``mu_x`` (always) and ``mu_y`` /
             ``mu_z`` (when applicable).
@@ -348,13 +347,11 @@ class TraceSpace(FunctionSpace):
 
         Raises
         ------
-        NotImplementedError
-            If ``mesh`` is a curvilinear :class:`Mesh2D`.
         ValueError
             If ``layout`` names a face absent from the normal table.
         """
         faces = tuple(layout.faces)
-        omega_dot_n = _build_omega_dot_n(mesh, quadrature, faces)
+        omega_dot_n = _build_omega_dot_n(quadrature, faces)
         # Wave O / O.2b (#208): the partial-current boundary metric
         # G_s = |Ω·n_f| ⊙ w_n — the cosine-weighted angular quadrature under
         # which the BoundaryOperator Hilbert adjoints (B.H) are physically
@@ -377,8 +374,8 @@ class TraceSpace(FunctionSpace):
         if self.omega_dot_n is None or self.layout is None:
             raise RuntimeError(
                 "TraceSpace was constructed without omega_dot_n / layout; "
-                "use TraceSpace.from_mesh_and_quadrature() instead of the "
-                "bare dataclass constructor."
+                "use TraceSpace.from_quadrature_and_layout() instead of "
+                "the bare dataclass constructor."
             )
         try:
             return self.face_names.index(face)

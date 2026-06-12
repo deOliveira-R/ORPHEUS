@@ -313,3 +313,38 @@ def test_volume_measure_d2_delegates_byte_identical() -> None:
     np.testing.assert_array_equal(
         sn.volume_measure(values), sn.mesh.volume_measure(values),
     )
+
+
+# ─── C5.3 — geometry-blind trace; 2-D cylindrical refused at construction ─
+
+
+def test_2d_cylindrical_mesh_refused_at_construction() -> None:
+    """A 2-D cylindrical Mesh2D cannot become an SNMesh (C5.3 pin, #225).
+
+    Migrated from tests/numerics/test_trace_space.py
+    ``test_2d_cylindrical_raises``: the trace space is geometry-blind
+    now (it never sees a mesh), so the refusal lives where the geometry
+    enters — the axis conversion at SNMesh construction.
+    """
+    mesh2d_cyl = Mesh2D(
+        edges_x=np.linspace(0.0, 1.0, 4),
+        edges_y=np.linspace(0.0, 1.0, 4),
+        mat_map=np.zeros((3, 3), dtype=int),
+        coord=CoordSystem.CYLINDRICAL,
+    )
+    with pytest.raises(NotImplementedError, match="non-Cartesian"):
+        SNMesh(mesh2d_cyl, Quadrature.lebedev(17), _MATERIALS)
+
+
+def test_d2_trace_builds_for_every_constructible_geometry() -> None:
+    """C5-G8: trace is UNCONDITIONAL — every constructible SNMesh has one."""
+    slab = _slab_sn()
+    np.testing.assert_equal(sorted(slab.trace.layout.faces), ["xmax", "xmin"])
+    sphere = SNMesh.from_axes(
+        (RadialAxisMesh(
+            edges=np.linspace(0.0, 1.0, 4),
+            coord=AxisCoord.RADIAL_SPHERICAL,
+        ),),
+        Quadrature.gauss_legendre(n_ordinates=8), _MATERIALS,
+    )
+    np.testing.assert_equal(tuple(sphere.trace.layout.faces), ("xmax",))
