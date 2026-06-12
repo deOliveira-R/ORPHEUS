@@ -184,6 +184,16 @@
             "timeout": 1800
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/nexus-brief.sh",
+            "timeout": 10
+          }
+        ]
       }
     ]
   },
