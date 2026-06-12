@@ -32,8 +32,8 @@ Construction
 ============
 
 The per-face boundary laws already live on the
-:class:`~orpheus.sn.geometry.SNMesh` as ``bc_xmin`` / ``bc_xmax`` / ``bc_ymin``
-/ ``bc_ymax`` (each a :class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
+:class:`~orpheus.sn.geometry.SNMesh` in the face-name-keyed ``bc`` dict
+(each entry a :class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
 wrapping a realized law that carries :attr:`BlockRole.BOUNDARY`). The whole-trace
 ``B`` is the block-diagonal composition over the mesh's true boundary faces: for
 each face present in the trace it applies that face's law to that face's slot.
@@ -74,7 +74,7 @@ class SNBoundaryOperator(LinearOperatorMixin):
 
     Block-diagonal over the mesh's true boundary faces: ``B.apply(ψ)`` returns a
     :class:`~orpheus.transport.timed_full_field.TimedFullField` with **zero bulk**
-    and, on each face, ``bc_<face>.apply(ψ.boundary.face_view(<face>))`` — the
+    and, on each face, ``bc[<face>].apply(ψ.boundary.face_view(<face>))`` — the
     per-face realized boundary law applied to that face's trace slot. It composes
     as ``−B`` in ``(L_full + C − S − F − B)`` (acting on the same
     :class:`TimedFullField` carrier as ``L``/``C``/``S``/``F``).
@@ -107,7 +107,7 @@ class SNBoundaryOperator(LinearOperatorMixin):
     ----------
     sn_mesh : SNMesh
         The augmented geometry — carries the per-face boundary laws
-        (``bc_xmin``/...) and the unified trace space (same instance the
+        (the face-name-keyed ``bc`` dict) and the unified trace space (same instance the
         composite carrier is bound to; the mesh-identity invariant of
         :class:`~orpheus.sn.operator.StreamingOperator` applies here too).
     """
@@ -121,13 +121,15 @@ class SNBoundaryOperator(LinearOperatorMixin):
     def _face_laws(self) -> dict[str, object]:
         """Map each true boundary face → its per-face realized law.
 
-        Read from ``sn_mesh.bc_<face>`` for the faces the trace carries
+        Read from ``sn_mesh.bc`` for the faces the trace carries
         (slab ``xmin``/``xmax``; curvilinear ``xmax`` only; 2-D Cartesian
-        all four). Single source of truth — the laws are the same objects
+        all four) — the dict and the trace layout share their keys by
+        construction (both derived from ``face_labels``, C4 / #220).
+        Single source of truth — the laws are the same objects
         the sweep consumes, so ``B`` cannot drift from the realized BCs.
         """
         return {
-            face: getattr(self.sn_mesh, f"bc_{face}")
+            face: self.sn_mesh.bc[face]
             for face in self.sn_mesh.trace.layout.faces
         }
 

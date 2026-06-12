@@ -76,7 +76,7 @@ def _bc_fill_outer(psi_view: np.ndarray, sn_mesh: SNMesh) -> np.ndarray:
     if not incoming_mask.any():
         return psi_view
     outer_face = psi_view[:, :, -1]
-    inflow_full = sn_mesh.bc_right.apply(outer_face)
+    inflow_full = sn_mesh.bc["xmax"].apply(outer_face)
     psi_view = psi_view.copy()
     psi_view[incoming_mask, :, -1] = inflow_full[incoming_mask, :]
     return psi_view
@@ -128,7 +128,7 @@ def _hand_reference_cyl_matvec(
     V = sn_mesh.volumes
     mu_x = quad.mu_x
 
-    bc_outer = sn_mesh.bc_right
+    bc_outer = sn_mesh.bc["xmax"]
     pac = sn_mesh.pole_angular_closure
     if pac is None:
         pac = MorelMontryAngularSweep()

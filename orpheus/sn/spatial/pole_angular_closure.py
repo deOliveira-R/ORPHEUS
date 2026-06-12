@@ -1194,8 +1194,11 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
 
     The ``if curvature == "cartesian"`` was a Pattern-4 leak — geometry
     dispatch baked into the matvec body.  With Identity in place, the
-    branch becomes ``if sn_mesh.bc_left is None`` (PR-TYPED-6.5 Phase
-    3a) and ``sn_mesh.pole_angular_closure`` is ALWAYS a valid object
+    branch keyed on the mesh's face inventory instead (PR-TYPED-6.5
+    Phase 3a — historically ``if sn_mesh.bc_left is None``; post-C4 /
+    #220 the curvilinear pole is structurally not a face, i.e. no
+    ``"xmin"`` entry in ``sn_mesh.bc``) and
+    ``sn_mesh.pole_angular_closure`` is ALWAYS a valid object
     (no ``is None`` test).
 
     Parameters

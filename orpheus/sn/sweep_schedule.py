@@ -216,5 +216,5 @@ def _reflective_faces(sn_mesh: "SNMesh") -> frozenset[str]:
     return frozenset(
         face
         for face in sn_mesh.trace.layout.faces
-        if getattr(sn_mesh, f"bc_{face}") == "reflective"
+        if sn_mesh.bc[face] == "reflective"
     )

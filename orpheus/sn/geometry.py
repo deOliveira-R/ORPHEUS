@@ -33,6 +33,7 @@ from orpheus.geometry.reduced_operator import (
     spherical_streaming,
 )
 from .axis import (
+    AXIS_NAMES,
     Axis1D,
     AxisCoord,
     AxisMesh,
@@ -140,26 +141,25 @@ class SNMesh:
         (1-D Cartesian, 1-D spherical, 1-D cylindrical, 2-D
         Cartesian) and wrapped in :class:`_BoundBoundaryOperator`
         for compatibility with the SN-side call surface.
-    bc_left, bc_right : _BoundBoundaryOperator | None
-        Resolved BC operator at the inner/outer (1-D) boundaries.
-        A :class:`_BoundBoundaryOperator` shim wrapping the realized
-        1-arg :class:`LinearOperator` and carrying a free-form
-        ``kind`` tag so ``sn_mesh.bc_left == "vacuum"`` style
-        comparisons keep working. **A solid sphere / cylinder has
-        only ONE boundary** — the outer radius (``bc_right`` /
-        ``bc_xmax``); on curvilinear meshes ``bc_left`` (= ``bc_xmin``)
-        is ``None`` because the pole r=0 is the angular closure's
-        regularity condition, not a BC face. Slab keeps both.
-        Issue #188 / C188.3 removed the curvilinear bypass; the
-        realizer is applied uniformly for every face that exists.
-    bc_xmin, bc_xmax, bc_ymin, bc_ymax : _BoundBoundaryOperator | None
-        Same conventions for the 4 faces of a 2-D mesh. On 1-D
-        meshes ``bc_xmin`` / ``bc_xmax`` alias ``bc_left`` /
-        ``bc_right`` (``bc_xmin`` is ``None`` on curvilinear), and ``bc_ymin`` / ``bc_ymax`` are realized
-        :class:`ReflectiveBoundary(axis="y")` placeholders routed
-        through the realizer with
-        :meth:`SNMethodSpace.minimal(quad)`; for GL1D the realized
-        op is an identity :class:`PermutationOperator` (no-op).
+    bc : dict[str, _BoundBoundaryOperator]
+        Resolved BC operator per boundary face, keyed by the face
+        name — the SAME keys as :attr:`boundary_face_layout` /
+        ``trace.layout.faces``, both derived from :attr:`face_labels`
+        through the single-sourced
+        :attr:`~orpheus.sn.axis.FaceLabel.face_name` crosswalk (C4,
+        #220). Each value is a :class:`_BoundBoundaryOperator` shim
+        wrapping the realized 1-arg :class:`LinearOperator` and
+        carrying a ``kind`` tag so ``sn_mesh.bc["xmin"] == "vacuum"``
+        style comparisons work. The face inventory IS the BC
+        inventory: slab ``{"xmin", "xmax"}``; **a solid sphere /
+        cylinder has only ONE entry** (``"xmax"``, the outer radius —
+        the pole r=0 is the angular closure's regularity condition,
+        not a BC face, so it has NO entry rather than a ``None``);
+        2-D Cartesian all four faces. Issue #188 / C188.3 removed
+        the curvilinear bypass; the realizer is applied uniformly
+        for every face that exists. The pre-C4 named attributes
+        (``bc_xmin`` … ``bc_ymax``, ``bc_left`` / ``bc_right``, the
+        degenerate 1-D y-placeholders) are retired.
     """
 
     BOUNDARY_OPERATOR_REGISTRY: ClassVar[dict[str, type[BoundaryTraceLaw]]] = {
@@ -394,20 +394,33 @@ class SNMesh:
     def _resolve_bcs(self, mesh: Mesh1D | Mesh2D) -> None:
         r"""Resolve geometry-declared BCs into Wave-8 realized operators.
 
-        ``None`` on the mesh defaults to ``BC("reflective")`` (infinite
+        ``None`` on the axis defaults to ``BC("reflective")`` (infinite
         lattice / eigenvalue convention).
 
-        Wave 8 (C8.3) + Issue #188 / C188.3: each face attribute
-        carries a :class:`_BoundBoundaryOperator` shim wrapping the
-        1-arg :class:`LinearOperator` produced by
-        :class:`SNBoundaryRealizer`. The realizer is applied uniformly
-        for 1-D Cartesian, 1-D spherical, 1-D cylindrical, and 2-D
-        Cartesian meshes (C188.1 + C188.2 lifted the Mesh1D
-        curvilinear guard on the trace space; C188.3 removes the
-        matching curvilinear bypass here). A solid sphere / cylinder
-        has only the outer (``xmax``) boundary face — ``bc_left`` /
-        ``bc_xmin`` are ``None`` (the pole r=0 is the angular
-        closure's regularity condition, not a BC face).
+        C4 (#220): ONE loop over :attr:`face_labels` — the BC
+        declaration for each label comes from its axis
+        (``axes[label.axis_index].bc[label.endpoint]``, the same
+        per-axis inventory :attr:`face_labels` derives the labels
+        from), is realized by :meth:`_resolve_one`, and lands in the
+        :attr:`bc` dict under the label's
+        :attr:`~orpheus.sn.axis.FaceLabel.face_name`. The face
+        inventory IS the BC inventory by construction: a face that
+        exists has exactly one entry; a face that doesn't (the
+        curvilinear pole r=0 — a regularity condition handled by the
+        angular pole closure, not a BC face) is structurally absent
+        (Pattern 4 — a pole-BC is unrepresentable). The pre-C4 hybrid
+        1-D/2-D ``isinstance`` split with hand-assigned named
+        attributes (``bc_xmin`` … ``bc_ymax``, ``bc_left`` /
+        ``bc_right`` aliases, degenerate 1-D y-placeholders) is
+        retired — consumers key into :attr:`bc` by the same face
+        names the trace layout carries.
+
+        Wave 8 (C8.3) + Issue #188 / C188.3: each entry carries a
+        :class:`_BoundBoundaryOperator` shim wrapping the 1-arg
+        :class:`LinearOperator` produced by
+        :class:`SNBoundaryRealizer`, uniformly for every supported
+        mesh (1-D Cartesian, 1-D spherical, 1-D cylindrical, 2-D
+        Cartesian).
         """
         default = BC("reflective")
 
@@ -430,67 +443,16 @@ class SNMesh:
                 mesh, self.quad, self.boundary_face_layout,
             )
 
-        if isinstance(mesh, Mesh1D):
-            is_curvilinear = (
-                getattr(self, "curvature", None) in ("spherical", "cylindrical")
+        self.bc: dict[str, _BoundBoundaryOperator] = {
+            label.face_name: self._resolve_one(
+                self.axes[label.axis_index].bc[label.endpoint] or default,
+                label,
             )
-            if is_curvilinear:
-                # A solid sphere / cylinder has exactly ONE boundary:
-                # the outer radius (``xmax``). The geometric pole at
-                # r=0 is NOT a boundary face — it is a regularity /
-                # symmetry condition (ψ(0,μ)=ψ(0,−μ), the r→0 limit of
-                # the angular-redistribution term) handled by the
-                # angular pole closure, NOT an externally-imposed BC.
-                # The matvec agrees: it sets ``bc_inner = None`` for
-                # curvilinear and routes the centreline through
-                # ``pole_angular_closure``; ``boundary_face_layout``
-                # agrees (``xmax`` only). So there is no inner boundary
-                # operator — ``bc_left`` / ``bc_xmin`` are ``None``.
-                self.bc_right = self._resolve_one(
-                    mesh.bc_right or default, "xmax",
-                )
-                self.bc_xmax = self.bc_right
-                self.bc_left = None
-                self.bc_xmin = None
-            else:
-                # 1-D slab: two genuine boundaries. The radial axis IS
-                # the x-axis, so the faces are ``xmin`` / ``xmax``
-                # (matching the unified trace + boundary_face_layout).
-                self.bc_left = self._resolve_one(mesh.bc_left or default, "xmin")
-                self.bc_right = self._resolve_one(mesh.bc_right or default, "xmax")
-                self.bc_xmin = self.bc_left
-                self.bc_xmax = self.bc_right
-            # Expose degenerate y-face placeholders for uniform sweep
-            # access. The ``y`` faces of a 1-D mesh carry no spatial
-            # extent; 1-D sweeps don't consume them. The realizer's
-            # :class:`ReflectiveBoundary` branch does NOT read
-            # ``inflow_indices`` (only ``law.axis`` +
-            # ``quad.reflection_index``), so a minimal method space
-            # suffices. For :class:`GaussLegendre1D`,
-            # ``reflection_index("y")`` is the identity permutation
-            # (every ordinate is its own partner because ``mu_y == 0``),
-            # so the realized op is a no-op.
-            y_method_space = SNMethodSpace.minimal(self.quad)
-            y_realized = SNBoundaryRealizer().realize(
-                ReflectiveBoundary(axis="y", albedo=1.0),
-                y_method_space,
-            )
-            self.bc_ymin = _BoundBoundaryOperator(
-                y_realized, kind="reflective",
-            )
-            self.bc_ymax = _BoundBoundaryOperator(
-                y_realized, kind="reflective",
-            )
-        else:
-            self.bc_xmin = self._resolve_one(mesh.bc_xmin or default, "xmin")
-            self.bc_xmax = self._resolve_one(mesh.bc_xmax or default, "xmax")
-            self.bc_ymin = self._resolve_one(mesh.bc_ymin or default, "ymin")
-            self.bc_ymax = self._resolve_one(mesh.bc_ymax or default, "ymax")
-            self.bc_left = self.bc_xmin
-            self.bc_right = self.bc_xmax
+            for label in self.face_labels
+        }
 
-    def _resolve_one(self, bc: BC, face: str):
-        r"""Realize a BC on the given face.
+    def _resolve_one(self, bc: BC, label: FaceLabel) -> "_BoundBoundaryOperator":
+        r"""Realize a BC on the face identified by ``label``.
 
         Build an :class:`SNMethodSpace` carrying the precomputed
         unified :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`,
@@ -498,16 +460,23 @@ class SNMesh:
         result in :class:`_BoundBoundaryOperator` so the SN-side call
         surface sees a uniform 1-arg ``apply(psi)`` contract.
 
+        A reflective law reflects across the face's own axis —
+        ``AXIS_NAMES[label.axis_index]`` — so the reflection partner
+        is correct at any dimension by construction (the pre-C4
+        hand-list mapped every non-y face to ``"x"``, which would
+        have silently built the wrong permutation for a z-face).
+
         Issue #188 / C188.3: every supported mesh (1-D Cartesian,
         1-D spherical, 1-D cylindrical, 2-D Cartesian) routes
         through the realizer here. The pre-C188.3 curvilinear
         bypass — which wrapped the raw 2-arg
         :class:`BoundaryTraceLaw` with a bound quadrature — is
         gone, made redundant by the unified trace's curvilinear
-        support. ``face`` must name a face present in the trace
-        (``xmin`` / ``xmax`` / ``ymin`` / ``ymax``); curvilinear's
-        inner pole is handled by the angular closure, not here.
+        support. ``label`` must identify a face present in the
+        trace; curvilinear's inner pole has no label and is handled
+        by the angular closure, not here.
         """
+        face = label.face_name
         law_cls = self.BOUNDARY_OPERATOR_REGISTRY.get(bc.kind)
         if law_cls is None:
             supported = ", ".join(
@@ -517,11 +486,10 @@ class SNMesh:
                 f"SN solver does not support boundary condition '{bc.kind}' "
                 f"on face '{face}'. Supported: {supported}."
             )
-        # Construct the law instance with face-appropriate axis for
+        # Construct the law instance with the face's own axis for
         # reflective; the others take no kwargs.
         if law_cls is ReflectiveBoundary:
-            axis = "y" if face in ("ymin", "ymax") else "x"
-            law = law_cls(axis=axis, albedo=1.0)
+            law = law_cls(axis=AXIS_NAMES[label.axis_index], albedo=1.0)
         else:
             law = law_cls()
 

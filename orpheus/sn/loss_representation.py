@@ -1901,12 +1901,12 @@ def _run_1d_sweep(
         # views via :meth:`face_view`.  Slab layout has both ``xmin``
         # and ``xmax`` slots (shape ``(N, ng)`` each); writes through
         # the view propagate to the flat backing buffer.  Per-cell-call
-        # outflow persistence below (``bc_left_face[ords] = ...``)
+        # outflow persistence below (``xmin_face[ords] = ...``)
         # mutates these views in place.
-        bc_left_face = boundary_flux.face_view("xmin")   # (N, ng)
-        bc_right_face = boundary_flux.face_view("xmax")  # (N, ng)
-        inflow_left = bc_left_face    # incoming-ord slots = seeded inflow
-        inflow_right = bc_right_face  # incoming-ord slots = seeded inflow
+        xmin_face = boundary_flux.face_view("xmin")   # (N, ng)
+        xmax_face = boundary_flux.face_view("xmax")  # (N, ng)
+        inflow_left = xmin_face    # incoming-ord slots = seeded inflow
+        inflow_right = xmax_face  # incoming-ord slots = seeded inflow
         levels = [None]
         level_ordinates_list = [list(range(N))]
         bc_outer = None
@@ -1941,7 +1941,7 @@ def _run_1d_sweep(
             level_ordinates_list = [list(level_indices[p]) for p in levels]
 
         inflow_left = inflow_right = None
-        bc_left_face = bc_right_face = None
+        xmin_face = xmax_face = None
 
     # ── SLAB joint-batch fast path ────────────────────────────────────
     #
@@ -2016,9 +2016,9 @@ def _run_1d_sweep(
             # Persist outflow at the appropriate boundary face — the
             # last chain output is the outgoing-face flux on that side.
             if direction_sign == +1:
-                bc_right_face[ords] = psi_face_chain_scan[-1]  # (K, ng)
+                xmax_face[ords] = psi_face_chain_scan[-1]  # (K, ng)
             else:
-                bc_left_face[ords] = psi_face_chain_scan[-1]   # (K, ng)
+                xmin_face[ords] = psi_face_chain_scan[-1]   # (K, ng)
 
     # ── CURVILINEAR per-ordinate path ─────────────────────────────────
     #

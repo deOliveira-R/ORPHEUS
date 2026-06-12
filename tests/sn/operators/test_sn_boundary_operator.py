@@ -148,7 +148,7 @@ class TestApply:
         psi = _random_state(sn)
         out = SNBoundaryOperator(sn).apply(psi)
         for face in sn.trace.layout.faces:
-            bc = getattr(sn, f"bc_{face}")
+            bc = sn.bc[face]
             inflow = sn.trace.inflow_indices_for_face(face)
             outflow = sn.trace.outflow_indices_for_face(face)
             got = out.boundary.face_view(face)
@@ -204,7 +204,7 @@ class TestApplyTransposeCapability:
         psi = _random_state(sn)
         out = B.apply_transpose(psi)
         for face in sn.trace.layout.faces:
-            bc = getattr(sn, f"bc_{face}")
+            bc = sn.bc[face]
             inflow = sn.trace.inflow_indices_for_face(face)
             outflow = sn.trace.outflow_indices_for_face(face)
             got = out.boundary.face_view(face)

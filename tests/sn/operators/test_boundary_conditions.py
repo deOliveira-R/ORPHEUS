@@ -64,8 +64,8 @@ class TestSNBCResolution:
     def test_default_is_reflective(self, slab_mesh, quad):
         """None on mesh resolves to 'reflective' (eigenvalue default)."""
         sn = SNMesh(slab_mesh, quad, placeholder_materials())
-        assert sn.bc_left == "reflective"
-        assert sn.bc_right == "reflective"
+        assert sn.bc["xmin"] == "reflective"
+        assert sn.bc["xmax"] == "reflective"
 
     def test_explicit_vacuum(self, slab_mesh, quad):
         mesh = Mesh1D(
@@ -73,8 +73,8 @@ class TestSNBCResolution:
             bc_left=BC.vacuum, bc_right=BC.vacuum,
         )
         sn = SNMesh(mesh, quad, placeholder_materials())
-        assert sn.bc_left == "vacuum"
-        assert sn.bc_right == "vacuum"
+        assert sn.bc["xmin"] == "vacuum"
+        assert sn.bc["xmax"] == "vacuum"
 
     def test_mixed_bcs(self, slab_mesh, quad):
         mesh = Mesh1D(
@@ -82,8 +82,8 @@ class TestSNBCResolution:
             bc_left=BC.reflective, bc_right=BC.vacuum,
         )
         sn = SNMesh(mesh, quad, placeholder_materials())
-        assert sn.bc_left == "reflective"
-        assert sn.bc_right == "vacuum"
+        assert sn.bc["xmin"] == "reflective"
+        assert sn.bc["xmax"] == "vacuum"
 
     def test_unknown_bc_raises(self, slab_mesh, quad):
         mesh = Mesh1D(
@@ -110,10 +110,10 @@ class TestSNBCResolution:
             bc_ymin=BC.reflective, bc_ymax=BC.vacuum,
         )
         sn = SNMesh(mesh, quad, placeholder_materials())
-        assert sn.bc_xmin == "reflective"
-        assert sn.bc_xmax == "vacuum"
-        assert sn.bc_ymin == "reflective"
-        assert sn.bc_ymax == "vacuum"
+        assert sn.bc["xmin"] == "reflective"
+        assert sn.bc["xmax"] == "vacuum"
+        assert sn.bc["ymin"] == "reflective"
+        assert sn.bc["ymax"] == "vacuum"
 
     def test_curvilinear_vacuum_resolves(self, quad):
         """Spherical/cylindrical accept vacuum; sweep enforces zero-incoming
@@ -126,7 +126,7 @@ class TestSNBCResolution:
             bc_right=BC.vacuum,
         )
         sn = SNMesh(mesh, quad, placeholder_materials())
-        assert sn.bc_right == "vacuum"
+        assert sn.bc["xmax"] == "vacuum"
 
 
 # ═══════════════════════════════════════════════════════════════════════

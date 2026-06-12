@@ -84,7 +84,7 @@ class _BoundBoundaryOperator(LinearOperatorMixin):
     :class:`LinearOperatorMixin` dunders delegate to :attr:`inner`.
     The optional :attr:`kind` tag carries the originating
     :class:`~orpheus.geometry.mesh.BC` kind string and is the basis
-    for the ``sn_mesh.bc_xmin == "reflective"`` style comparisons that
+    for the ``sn_mesh.bc["xmin"] == "reflective"`` style comparisons that
     several SN tests and the BC-resolution diagnostic rely on.
 
     Parameters
@@ -112,7 +112,7 @@ class _BoundBoundaryOperator(LinearOperatorMixin):
     @property
     def block_role(self):  # type: ignore[override]
         # Forward the realized law's block-role classification (Issue #208
-        # / Wave O) so ``isinstance(sn_mesh.bc_left, BoundaryOperator)``
+        # / Wave O) so ``isinstance(sn_mesh.bc["xmin"], BoundaryOperator)``
         # reads the inner op's role. The realized boundary laws carry
         # ``BlockRole.BOUNDARY``; the rank-0 affine PrescribedInflow source
         # carries ``None`` (it is ``q.boundary``, not a linear ``B``).

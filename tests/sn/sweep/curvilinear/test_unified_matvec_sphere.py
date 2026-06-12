@@ -84,7 +84,7 @@ def _bc_fill_outer(
         return psi_view
     # Apply BC: outgoing → incoming at the outer face.
     outer_face = psi_view[:, :, -1, 0]  # (N, ng) — current full outer face
-    inflow_full = sn_mesh.bc_right.apply(outer_face)  # (N, ng)
+    inflow_full = sn_mesh.bc["xmax"].apply(outer_face)  # (N, ng)
     psi_view = psi_view.copy()
     psi_view[incoming_mask, :, -1, 0] = inflow_full[incoming_mask, :]
     return psi_view

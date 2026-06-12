@@ -102,7 +102,8 @@ def _fake_mesh_3d(**bcs: str) -> SimpleNamespace:
     """Duck-typed 3-axis mesh: exactly the four reads the schedule makes.
 
     ``bcs`` is keyed by plain face name (``xmin="reflective"``); unnamed
-    faces default to vacuum.  The 8 sign-octants stand in for an S²
+    faces default to vacuum.  Post-C4 (#220) the consumer contract is the
+    face-name-keyed ``bc`` dict, mirrored here.  The 8 sign-octants stand in for an S²
     cubature's octant partition (one ordinate each, lexicographic order —
     the assignment assertions are order-relative, matching how
     ``gauss_seidel`` consumes the entry order).
@@ -115,7 +116,7 @@ def _fake_mesh_3d(**bcs: str) -> SimpleNamespace:
         ndim=3,
         quad=SimpleNamespace(octants=octants),
         trace=SimpleNamespace(layout=SimpleNamespace(faces=_D3_FACES)),
-        **{f"bc_{face}": bcs.get(face, "vacuum") for face in _D3_FACES},
+        bc={face: bcs.get(face, "vacuum") for face in _D3_FACES},
     )
 
 

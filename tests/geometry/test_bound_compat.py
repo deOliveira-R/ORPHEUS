@@ -12,7 +12,7 @@ two thin surfaces:
 * :attr:`capabilities` — delegates to the wrapped operator so the
   shim composes cleanly with other Wave-0 primitives.
 * :attr:`kind` + ``__eq__`` against strings — preserves the legacy
-  ``sn_mesh.bc_xmin == "reflective"`` comparison surface.
+  ``sn_mesh.bc["xmin"] == "reflective"`` comparison surface.
 
 History
 =======
@@ -121,7 +121,7 @@ def test_composes_with_operator_algebra():
 def test_kind_tag_supports_legacy_string_equality():
     """The shim accepts an optional ``kind`` tag and implements
     ``__eq__`` against strings — preserves the legacy SN-side
-    ``sn_mesh.bc_xmin == "reflective"`` comparison that
+    ``sn_mesh.bc["xmin"] == "reflective"`` comparison that
     test_boundary_conditions.py + the BC-resolution diagnostic rely
     on. Without a kind tag the comparison returns ``NotImplemented``
     (so ``shim == "x"`` is False).
@@ -226,9 +226,9 @@ class Test188WiringContracts:
         # ONE boundary: the unified trace carries only the outer face.
         assert sn._trace is not None
         assert sn._trace.face_names == ("xmax",)
-        # No inner-face operator at the pole.
-        assert sn.bc_left is None
-        assert sn.bc_xmin is None
+        # No inner-face entry at the pole (C4 / #220 — structurally
+        # absent from the face-name-keyed ``bc`` dict, not ``None``).
+        assert set(sn.bc) == {"xmax"}
         # Outer face: realizer-path shim wrapping the realized vacuum
         # primitive.  Post-Wave-T.1 the realizer lifts the vacuum mask
         # into the streaming tensor-product form
@@ -238,28 +238,32 @@ class Test188WiringContracts:
         # into the tensor product to pin that the realized angular factor
         # is STILL the vacuum mask — the structure changed, the semantics
         # did not.
-        assert isinstance(sn.bc_right, _BoundBoundaryOperator)
-        assert isinstance(sn.bc_right.inner, TensorProductOperator)
-        ordinate_factor = sn.bc_right.inner.ops[0]
+        assert isinstance(sn.bc["xmax"], _BoundBoundaryOperator)
+        assert isinstance(sn.bc["xmax"].inner, TensorProductOperator)
+        ordinate_factor = sn.bc["xmax"].inner.ops[0]
         assert isinstance(ordinate_factor, IncomingOrdinateMaskTensor)
         # Kind tag survives for the legacy string-comparison surface.
-        assert sn.bc_right == "vacuum"
+        assert sn.bc["xmax"] == "vacuum"
 
-    def test_1d_y_face_placeholders_realized_through_minimal_space(self):
-        """Issue #188 / C188.3: the 1-D ``bc_ymin`` / ``bc_ymax``
-        placeholders route through :class:`SNBoundaryRealizer` with
-        :meth:`SNMethodSpace.minimal` — no bound quadrature is
-        needed, since the realized op is already 1-arg. The 1-D
-        trace space cannot service
-        ``inflow_indices_for_face('ymin')`` (its face_names are
-        ``("left", "right")`` only) but the realizer's
-        :class:`ReflectiveBoundary` branch does NOT consume
-        inflow_indices, only ``law.axis`` and
-        ``quad.reflection_index``. For :class:`GaussLegendre1D`,
-        ``reflection_index("y")`` returns the identity permutation
-        (every ordinate is its own partner because ``mu_y == 0``),
-        so the realized op is a no-op
-        :class:`PermutationOperator`.
+    def test_1d_reflective_faces_realized_as_permutation_tp(self):
+        """1-D slab reflective faces shim-wrap a REALIZED reflective
+        primitive. Post-D-B+1 the realizer lifts the specular
+        permutation into the streaming tensor-product form
+        ``PermutationOperator(axis=0) ⊗ IdentityOperator`` (the
+        §16A.10 ``B = G_patch ⊗ K_omega ⊗ K_g`` decomposition;
+        albedo == 1.0 so the bare-permutation TP fast path is
+        taken). Drill into the tensor product to pin that the
+        realized angular factor is STILL the reflection permutation
+        — the structure changed, the semantics did not.
+
+        HISTORY: this pin originally lived on the degenerate 1-D
+        ``bc_ymin`` / ``bc_ymax`` placeholders (Issue #188 /
+        C188.3), which C4 (#220) retired — a 1-D mesh's ``bc``
+        inventory now carries NO y-entries (no production code ever
+        read the placeholders). The structural claim — realized
+        reflective law in TP form behind the shim — is geometry
+        content, so it moved onto the slab's REAL ``xmin`` /
+        ``xmax`` faces.
         """
         from orpheus.geometry import BC, CoordSystem, Mesh1D
         from orpheus.numerics.operator import TensorProductOperator
@@ -270,26 +274,20 @@ class Test188WiringContracts:
             edges=np.linspace(0.0, 1.0, 5),
             mat_ids=np.zeros(4, dtype=int),
             coord=CoordSystem.CARTESIAN,
-            bc_left=BC("vacuum"),
-            bc_right=BC("vacuum"),
+            bc_left=BC("reflective"),
+            bc_right=BC("reflective"),
         )
         quad = Quadrature.gauss_legendre(4)
         sn = SNMesh(mesh, quad, placeholder_materials())
 
-        # y-face placeholders shim-wrap a REALIZED reflective primitive.
-        # Post-D-B+1 the realizer lifts the specular permutation into the
-        # streaming tensor-product form ``PermutationOperator(axis=0) ⊗
-        # IdentityOperator`` (the §16A.10 ``B = G_patch ⊗ K_omega ⊗ K_g``
-        # decomposition; albedo == 1.0 so the bare-permutation TP fast
-        # path is taken).  Drill into the tensor product to pin that the
-        # realized angular factor is STILL the no-op reflection
-        # permutation — the structure changed, the semantics did not.
-        assert isinstance(sn.bc_ymin, _BoundBoundaryOperator)
-        assert isinstance(sn.bc_ymax, _BoundBoundaryOperator)
-        assert isinstance(sn.bc_ymin.inner, TensorProductOperator)
-        assert isinstance(sn.bc_ymax.inner, TensorProductOperator)
-        assert isinstance(sn.bc_ymin.inner.ops[0], PermutationOperator)
-        assert isinstance(sn.bc_ymax.inner.ops[0], PermutationOperator)
-        # Kind preserved for the legacy string-compare surface.
-        assert sn.bc_ymin == "reflective"
-        assert sn.bc_ymax == "reflective"
+        for face in ("xmin", "xmax"):
+            assert isinstance(sn.bc[face], _BoundBoundaryOperator), face
+            assert isinstance(sn.bc[face].inner, TensorProductOperator), face
+            angular = sn.bc[face].inner.ops[0]
+            assert isinstance(angular, PermutationOperator), face
+            # GL1D x-reflection pairs mu with -mu — the flip permutation.
+            np.testing.assert_array_equal(
+                angular.perm, quad.reflection_index("x"),
+            )
+            # Kind preserved for the legacy string-compare surface.
+            assert sn.bc[face] == "reflective"

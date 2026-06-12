@@ -663,13 +663,13 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
 
     # Capture any BC apply calls during the matvec.
     captured_inputs: list[np.ndarray] = []
-    original_apply = sn_mesh.bc_right.apply
+    original_apply = sn_mesh.bc["xmax"].apply
 
     def capture_apply(inp):
         captured_inputs.append(np.array(inp, copy=True))
         return original_apply(inp)
 
-    with patch.object(sn_mesh.bc_right, "apply", side_effect=capture_apply):
+    with patch.object(sn_mesh.bc["xmax"], "apply", side_effect=capture_apply):
         out = op.apply(psi_state)
 
     # EXTRACTION: the post-O.4a.2 matvec does NOT apply the BC — it reads

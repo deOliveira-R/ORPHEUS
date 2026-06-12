@@ -1,32 +1,35 @@
-r"""Tests for ``SNMesh._resolve_bcs`` Wave-8 + C188.3 realizer wiring.
+r"""Tests for ``SNMesh._resolve_bcs`` Wave-8 + C188.3 + C4 realizer wiring.
 
 The Wave-8 SNMesh routes BC resolution through
-:class:`SNBoundaryRealizer` for every supported mesh. Each face
-attribute (``bc_xmin`` / ``bc_xmax`` / ``bc_ymin`` / ``bc_ymax`` /
-``bc_left`` / ``bc_right``) becomes a :class:`_BoundBoundaryOperator`
-shim wrapping the 1-arg realized :class:`LinearOperator`. The shim's
-``apply(psi, *_extra, **_kw)`` forwards to the realized op's 1-arg
-``apply(psi)`` for backward-compat with the 13 production call sites
-that still pass ``(psi, quad)``. Wave 9 migrates those.
+:class:`SNBoundaryRealizer` for every supported mesh. C4 (#220) made
+the resolution surface dimension-generic: ONE loop over
+:attr:`SNMesh.face_labels` populates the face-name-keyed
+:attr:`SNMesh.bc` dict (``sn.bc["xmin"]`` …), whose keys equal
+``boundary_face_layout.faces`` by construction (both derived from
+``face_labels`` through the single-sourced
+:attr:`FaceLabel.face_name` crosswalk). Each entry is a
+:class:`_BoundBoundaryOperator` shim wrapping the 1-arg realized
+:class:`LinearOperator`. The pre-C4 named attributes (``bc_xmin`` …
+``bc_ymax``, ``bc_left`` / ``bc_right`` aliases, degenerate 1-D
+y-placeholders) are retired — negatives pinned below.
 
-Issue #188 / C188.3 (this revision): the curvilinear bypass branch
-in ``_resolve_one`` is gone. With the unified
+Issue #188 / C188.3: the curvilinear bypass branch in
+``_resolve_one`` is gone. With the unified
 :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`'s curvilinear
 support, 1-D spherical and 1-D cylindrical meshes route through the
 SAME realizer-then-shim path as Cartesian meshes — but a solid
 sphere / cylinder has only the outer (``xmax``) boundary face; the
-pole r=0 is the angular closure's regularity condition, so
-``bc_left`` / ``bc_xmin`` are ``None``. The 1-D y-face placeholders
-use a minimal method space (no trace; the realizer's
-:class:`ReflectiveBoundary` branch does not consume inflow_indices).
-For GL1D the y-reflection permutation is the identity, so the
-realized op is a no-op.
+pole r=0 is the angular closure's regularity condition, so the
+``bc`` dict has NO pole entry (structurally absent, not ``None``).
 
 V&V tags
 --------
 ``@pytest.mark.l1`` — the wiring assertions are cross-implementation
 checks (Wave-5 realizer dispatch + Wave-2 trace-mask construction +
 Wave-8 shim composition produce the same observable per-face apply).
+
+Verification design (C4):
+``.claude/agent-memory/test-architect/c4_snmesh_bc_dict_verification.md``.
 """
 from __future__ import annotations
 
@@ -107,12 +110,12 @@ def test_2d_cartesian_vacuum_xmin_masks_only_inflow(quad_2d):
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
     sn = SNMesh(mesh, quad_2d, placeholder_materials())
-    assert isinstance(sn.bc_xmin, _BoundBoundaryOperator)
-    assert sn.bc_xmin == "vacuum"
+    assert isinstance(sn.bc["xmin"], _BoundBoundaryOperator)
+    assert sn.bc["xmin"] == "vacuum"
 
     rng = np.random.default_rng(42)
     psi = rng.uniform(0.5, 2.0, size=(quad_2d.N, 3, 2))
-    out = sn.bc_xmin.apply(psi)
+    out = sn.bc["xmin"].apply(psi)
     inflow = np.flatnonzero(quad_2d.mu_x > 1e-12)
     non_inflow = np.setdiff1d(np.arange(quad_2d.N), inflow)
     np.testing.assert_array_equal(out[inflow], 0.0)
@@ -131,14 +134,46 @@ def test_2d_cartesian_reflective_ymax_returns_permutation(quad_2d):
         bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
     )
     sn = SNMesh(mesh, quad_2d, placeholder_materials())
-    assert isinstance(sn.bc_ymax, _BoundBoundaryOperator)
-    assert sn.bc_ymax == "reflective"
+    assert isinstance(sn.bc["ymax"], _BoundBoundaryOperator)
+    assert sn.bc["ymax"] == "reflective"
 
     rng = np.random.default_rng(1)
     psi = rng.standard_normal(size=(quad_2d.N, 4, 2))
     ref = quad_2d.reflection_index("y")
     expected = psi[ref]
-    np.testing.assert_array_equal(sn.bc_ymax.apply(psi), expected)
+    np.testing.assert_array_equal(sn.bc["ymax"].apply(psi), expected)
+
+
+def test_2d_reflective_y_face_builds_y_axis_permutation(quad_2d):
+    """A y-face's reflective law reflects across the Y axis — structurally.
+
+    The pre-C4 ``_resolve_one`` mapped every non-y face to axis ``"x"``
+    via a hand-listed membership test (``"y" if face in ("ymin",
+    "ymax") else "x"``) — correct at d≤2 by string coincidence, but a
+    z-face would have silently built the X-axis permutation (the wrong
+    reflection partner — vv Mode-9 class). Post-C4 the axis IS the
+    label's own ``AXIS_NAMES[axis_index]``. Pin the d=2 observable:
+    the realized ymin permutation equals ``reflection_index("y")``,
+    and the x/y permutations differ under Lebedev (else the pin would
+    be vacuous).
+    """
+    mesh = Mesh2D(
+        edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
+        mat_map=np.zeros((4, 3), dtype=int),
+        bc_xmin=BC("reflective"), bc_xmax=BC("reflective"),
+        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+    )
+    sn = SNMesh(mesh, quad_2d, placeholder_materials())
+    if np.array_equal(
+        quad_2d.reflection_index("x"), quad_2d.reflection_index("y")
+    ):
+        pytest.fail("vacuous pin: x and y reflection maps coincide")
+    for face, axis in (("ymin", "y"), ("ymax", "y"), ("xmin", "x")):
+        perm = _angular_factor(sn.bc[face].inner)
+        assert isinstance(perm, PermutationOperator)
+        np.testing.assert_array_equal(
+            perm.perm, quad_2d.reflection_index(axis),
+        )
 
 
 def test_2d_cartesian_construction_populates_trace(quad_2d):
@@ -160,7 +195,7 @@ def test_2d_cartesian_construction_populates_trace(quad_2d):
 
 
 # ─────────────────────────────────────────────────────────────────────
-# 1-D Cartesian: realizer wiring through bc_left / bc_right
+# 1-D Cartesian: realizer wiring through bc["xmin"] / bc["xmax"]
 # ─────────────────────────────────────────────────────────────────────
 
 
@@ -174,60 +209,83 @@ def test_1d_cartesian_vacuum_right_masks_only_inflow(quad_1d):
         bc_left=BC("reflective"), bc_right=BC("vacuum"),
     )
     sn = SNMesh(mesh, quad_1d, placeholder_materials())
-    assert isinstance(sn.bc_right, _BoundBoundaryOperator)
-    assert sn.bc_right == "vacuum"
+    assert isinstance(sn.bc["xmax"], _BoundBoundaryOperator)
+    assert sn.bc["xmax"] == "vacuum"
 
     psi = np.arange(quad_1d.N * 2, dtype=float).reshape(quad_1d.N, 2)
-    out = sn.bc_right.apply(psi)
+    out = sn.bc["xmax"].apply(psi)
     inflow = np.flatnonzero(quad_1d.mu_x < -1e-12)
     non_inflow = np.setdiff1d(np.arange(quad_1d.N), inflow)
     np.testing.assert_array_equal(out[inflow], 0.0)
     np.testing.assert_array_equal(out[non_inflow], psi[non_inflow])
 
 
-def test_1d_cartesian_y_face_placeholders_realized_through_minimal_space(quad_1d):
-    """Issue #188 / C188.3: 1-D meshes route the degenerate y-face
-    :class:`ReflectiveBoundary` placeholders through
-    :class:`SNBoundaryRealizer` with :meth:`SNMethodSpace.minimal` —
-    the 1-D trace space cannot service
-    ``inflow_indices_for_face('ymin')`` (its face_names are
-    ``("xmin", "xmax")`` only) but the realizer's
-    :class:`ReflectiveBoundary` branch does NOT read inflow_indices,
-    only ``law.axis`` and ``quad.reflection_index``. For
-    :class:`GaussLegendre1D`, ``reflection_index("y")`` returns the
-    identity permutation (every ordinate is its own partner because
-    ``mu_y == 0``), so the realized op is an identity
-    :class:`PermutationOperator` — a no-op 1-arg
-    :class:`LinearOperator`. The shim carries no bound quadrature
-    (``_quadrature is None``) since the realized op is already 1-arg.
+# ─────────────────────────────────────────────────────────────────────
+# C4 (#220): the bc-dict inventory IS the face inventory
+# ─────────────────────────────────────────────────────────────────────
+
+
+def test_bc_inventory_equals_face_layout_across_geometries(quad_1d, quad_2d):
+    """``set(sn.bc) == set(boundary_face_layout.faces)`` — by construction.
+
+    Both sides derive from ``face_labels`` through the SAME
+    ``FaceLabel.face_name`` crosswalk, so the BC inventory and the
+    face layout cannot drift. Entry counts: slab 2, 2-D Cartesian 4,
+    sphere 1, cylinder 1 (issue #220 acceptance). The 1-D inventories
+    carry NO y-entries — the pre-C4 degenerate y-placeholders (a
+    realized no-op ``ReflectiveBoundary(axis="y")`` pair no production
+    code ever read) are retired, dict misses fail loud below.
     """
-    mesh = Mesh1D(
-        edges=np.linspace(0, 1, 5),
-        mat_ids=np.zeros(4, dtype=int),
+    slab = SNMesh(
+        Mesh1D(edges=np.linspace(0, 1, 5), mat_ids=np.zeros(4, dtype=int)),
+        quad_1d, placeholder_materials(),
     )
-    sn = SNMesh(mesh, quad_1d, placeholder_materials())
-    assert isinstance(sn.bc_ymin, _BoundBoundaryOperator)
-    assert isinstance(sn.bc_ymax, _BoundBoundaryOperator)
-    # Inner is the REALIZED PermutationOperator (NOT the raw law),
-    # post-T.1 lifted into ``Permutation ⊗ Identity``.
-    ymin_perm = _angular_factor(sn.bc_ymin.inner)
-    ymax_perm = _angular_factor(sn.bc_ymax.inner)
-    assert isinstance(ymin_perm, PermutationOperator)
-    assert isinstance(ymax_perm, PermutationOperator)
-    # The permutation is the identity for GL1D y-reflection.
-    np.testing.assert_array_equal(ymin_perm.perm, np.arange(quad_1d.N))
-    np.testing.assert_array_equal(ymax_perm.perm, np.arange(quad_1d.N))
-    # No bound quadrature — the realized op is already 1-arg.
-    # Issue #176 / C176.1 dropped the _quadrature attribute entirely.
-    assert not hasattr(sn.bc_ymin, "_quadrature")
-    assert not hasattr(sn.bc_ymax, "_quadrature")
-    # Kind preserved for the legacy string-compare surface.
-    assert sn.bc_ymin == "reflective"
-    assert sn.bc_ymax == "reflective"
-    # No-op identity apply: any psi goes through unchanged.
-    psi = np.arange(quad_1d.N * 3, dtype=float).reshape(quad_1d.N, 3)
-    np.testing.assert_array_equal(sn.bc_ymin.apply(psi), psi)
-    np.testing.assert_array_equal(sn.bc_ymax.apply(psi), psi)
+    two_d = SNMesh(
+        Mesh2D(edges_x=np.linspace(0, 1, 5), edges_y=np.linspace(0, 1, 4),
+               mat_map=np.zeros((4, 3), dtype=int)),
+        quad_2d, placeholder_materials(),
+    )
+    sphere = SNMesh(
+        Mesh1D(edges=np.linspace(0.1, 1.0, 6), mat_ids=np.zeros(5, dtype=int),
+               coord=CoordSystem.SPHERICAL),
+        quad_1d, placeholder_materials(),
+    )
+    cylinder = SNMesh(
+        Mesh1D(edges=np.linspace(0.1, 1.0, 6), mat_ids=np.zeros(5, dtype=int),
+               coord=CoordSystem.CYLINDRICAL),
+        Quadrature.level_symmetric(sn_order=4), placeholder_materials(),
+    )
+    expected = {
+        "slab": (slab, {"xmin", "xmax"}),
+        "2d": (two_d, {"xmin", "xmax", "ymin", "ymax"}),
+        "sphere": (sphere, {"xmax"}),
+        "cylinder": (cylinder, {"xmax"}),
+    }
+    for name, (sn, faces) in expected.items():
+        if set(sn.bc) != faces:
+            pytest.fail(f"{name}: bc keys {set(sn.bc)} != {faces}")
+        if set(sn.bc) != set(sn.boundary_face_layout.faces):
+            pytest.fail(f"{name}: bc keys drift from boundary_face_layout")
+
+
+def test_bc_dict_misses_and_retired_attributes_fail_loud(quad_1d):
+    """Negatives: a face that doesn't exist is a ``KeyError`` (plain
+    dict — no masking default), and the retired named attributes are
+    ``AttributeError`` (no silent ``None``-shim survives; a read-through
+    ``@property`` reappearing would be a deprecation outliving its
+    cycle).
+    """
+    slab = SNMesh(
+        Mesh1D(edges=np.linspace(0, 1, 5), mat_ids=np.zeros(4, dtype=int)),
+        quad_1d, placeholder_materials(),
+    )
+    with pytest.raises(KeyError):
+        slab.bc["ymin"]
+    for retired in (
+        "bc_left", "bc_right", "bc_xmin", "bc_xmax", "bc_ymin", "bc_ymax",
+    ):
+        with pytest.raises(AttributeError):
+            getattr(slab, retired)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -240,8 +298,8 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
     solid sphere has exactly ONE boundary — the outer radius
     (``xmax``); the pole r=0 is the angular closure's regularity
     condition, not a BC face. The unified :class:`TraceSpace` therefore
-    carries only the ``xmax`` face, and ``bc_left`` / ``bc_xmin`` are
-    ``None`` (no inner boundary). The realizer's vacuum branch returns
+    carries only the ``xmax`` face, and the ``bc`` dict has NO pole
+    entry (structurally absent). The realizer's vacuum branch returns
     an :class:`IncomingOrdinateMaskTensor` over the per-face inflow
     indices (mu_x < 0 at the outer face). Per §16A.5 the mask zeros
     ONLY the inflow rows, leaving outflow rows untouched.
@@ -255,16 +313,16 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
     sn = SNMesh(mesh, quad_1d, placeholder_materials())
     # Realizer path: shim wraps a realized 1-arg op, post-T.1 lifted
     # into ``IncomingOrdinateMaskTensor ⊗ Identity``.
-    assert isinstance(sn.bc_right, _BoundBoundaryOperator)
+    assert isinstance(sn.bc["xmax"], _BoundBoundaryOperator)
     assert isinstance(
-        _angular_factor(sn.bc_right.inner), IncomingOrdinateMaskTensor
+        _angular_factor(sn.bc["xmax"].inner), IncomingOrdinateMaskTensor
     )
     # Issue #176 / C176.1 dropped the _quadrature attribute entirely.
-    assert not hasattr(sn.bc_right, "_quadrature")
-    assert sn.bc_right == "vacuum"
-    # ONE boundary: no inner-face operator at the pole.
-    assert sn.bc_left is None
-    assert sn.bc_xmin is None
+    assert not hasattr(sn.bc["xmax"], "_quadrature")
+    assert sn.bc["xmax"] == "vacuum"
+    # ONE boundary: no inner-face entry at the pole (C4 — structurally
+    # absent, not None).
+    assert set(sn.bc) == {"xmax"}
     # The unified trace carries only the outer ``xmax`` face.
     assert sn._trace is not None
     assert sn._trace.face_names == ("xmax",)
@@ -278,7 +336,7 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
 
     # §16A.5 inflow-only mask: zeros inflow rows, preserves outflow.
     psi = np.arange(quad_1d.N * 2, dtype=float).reshape(quad_1d.N, 2) + 1.0
-    out = sn.bc_right.apply(psi)
+    out = sn.bc["xmax"].apply(psi)
     non_inflow = np.setdiff1d(np.arange(quad_1d.N), expected_inflow)
     np.testing.assert_array_equal(out[expected_inflow], 0.0)
     np.testing.assert_array_equal(out[non_inflow], psi[non_inflow])
@@ -288,8 +346,8 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
     """A solid cylinder has ONE boundary — the outer radius (``xmax``).
     Any ``bc_left`` declaration at the pole r=0 is moot: the centreline
     is a geometry-forced symmetry handled by the angular pole closure,
-    not an externally-imposed BC. So ``bc_left`` / ``bc_xmin`` are
-    ``None``, and only the outer reflective BC is realized. The
+    not an externally-imposed BC. So the ``bc`` dict has no pole
+    entry, and only the outer reflective BC is realized. The
     :class:`ReflectiveBoundary` branch produces a
     :class:`PermutationOperator` over ``quad.reflection_index("x")``;
     the shim wraps it with no bound quadrature.
@@ -302,20 +360,19 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     sn = SNMesh(mesh, quad, placeholder_materials())
-    # ONE boundary: no inner-face operator at the pole (the bc_left
+    # ONE boundary: no inner-face entry at the pole (the bc_left
     # declaration on the mesh is ignored — the axis is the pole
     # closure's regularity condition, always symmetric by geometry).
-    assert sn.bc_left is None
-    assert sn.bc_xmin is None
+    assert set(sn.bc) == {"xmax"}
     assert sn._trace is not None
     assert sn._trace.face_names == ("xmax",)
     # Outer face: realizer path; shim wraps a realized 1-arg op,
     # post-T.1 lifted into ``Permutation ⊗ Identity``.
-    assert isinstance(sn.bc_right, _BoundBoundaryOperator)
-    outer_perm = _angular_factor(sn.bc_right.inner)
+    assert isinstance(sn.bc["xmax"], _BoundBoundaryOperator)
+    outer_perm = _angular_factor(sn.bc["xmax"].inner)
     assert isinstance(outer_perm, PermutationOperator)
-    assert not hasattr(sn.bc_right, "_quadrature")
-    assert sn.bc_right == "reflective"
+    assert not hasattr(sn.bc["xmax"], "_quadrature")
+    assert sn.bc["xmax"] == "reflective"
     np.testing.assert_array_equal(
         outer_perm.perm, quad.reflection_index("x"),
     )
@@ -325,7 +382,7 @@ def test_1d_cylindrical_one_boundary_outer_reflective():
     rng = np.random.default_rng(7)
     psi = rng.standard_normal(size=(quad.N, 2))
     np.testing.assert_array_equal(
-        sn.bc_right.apply(psi),
+        sn.bc["xmax"].apply(psi),
         psi[quad.reflection_index("x")],
     )
 

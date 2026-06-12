@@ -53,12 +53,12 @@ class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
 
     The :attr:`kind` attribute stays ``"vacuum"`` (the registry key
     under which this class is indexed) for backward compat with
-    string-kind comparisons (``sn_mesh.bc_right == "vacuum"``).
+    string-kind comparisons (``sn_mesh.bc["xmax"] == "vacuum"``).
     """
 
     #: String tag for legacy string-kind comparisons. Preserved
     #: across the Issue #186 descriptor cleanup so the SN-side
-    #: ``sn_mesh.bc_right == "vacuum"`` test contract still holds.
+    #: ``sn_mesh.bc["xmax"] == "vacuum"`` test contract still holds.
     kind: str = "vacuum"
 
     def __eq__(self, other: object) -> bool:

@@ -1322,9 +1322,9 @@ class StreamingOperator(LinearOperatorMixin):
     Parameters
     ----------
     sn_mesh : SNMesh
-        The augmented geometry carrying quadrature, BCs, pole closure,
-        and (for curvilinear) the precomputed connection coefficients.
-        ``StreamingOperator`` reads ``sn_mesh.bc_*`` directly — no
+        The augmented geometry carrying quadrature, BCs (the
+        face-name-keyed ``sn_mesh.bc`` dict), pole closure, and (for
+        curvilinear) the precomputed connection coefficients — no
         ``boundary`` constructor parameter.
     sigma_t : np.ndarray
         Total cross-section, shape ``(ng, nx, ny)`` (Issue #196 PR-INDEX-3).
