@@ -417,7 +417,7 @@ class TestSolve:
         assert psi.bulk.values.max() > 0
 
     @pytest.mark.l0
-    @pytest.mark.verifies("sn-streaming", "transport-cartesian")
+    @pytest.mark.verifies("transport-cartesian")
     def test_solve_consumes_per_ordinate_rhs(self) -> None:
         r"""``InvertibleOperator.solve`` passes ``rhs.bulk.values`` unmodified to the sweep.
 
