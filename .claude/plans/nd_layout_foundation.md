@@ -130,7 +130,57 @@ dimension-generic — the face inventory IS the BC inventory:
 - **Follow-up filed: #223** (pre-#188 unified-trace drift in the
   `boundary_conditions.rst` worked example ~:886–909 — predates C4).
 
-**⏭ NEXT = C5: Mesh3D + 3-D end-to-end admission.** A fresh session picks up
+## ✅ C5 DONE (2026-06-12) — clean-then-extend: axis-primary inversion + 3-D admission (#225)
+
+**One line:** d=3 Cartesian is ADMITTED end-to-end on the `FullFieldWavefront`
+oracle spine via the axis-native `SNMesh.from_axes` (NO Mesh3D dataclass —
+design fork resolved by the user to option B) — but only AFTER a four-substep
+cleanup pass (user directive: "clean before extending"; memory
+`feedback_clean_before_extend.md`) that made the admission a no-op extension
+of one generic construction body instead of a third arm on every seam.
+
+**Commit chain (local, NOT pushed):** `2dd16c5` C5.1 axis-primary inversion
+(verbatim axes, ONE `_init_core`, isinstance metadata branch dissolved,
+custom labels fail loud) → `a28798d` C5.2 phantom retirement (ny/dy/dx gone,
+PUBLIC `axis_widths`, field/mat-xs/scattering nx-ny chains → rank-generic
+`spatial_shape`, native `SNMesh.coord`/`volume_measure`, ~30 test files
+migrated) → `a9a0faf` docs nit → `e66025b` C5.3 geometry-blind trace
+(`_FACE_NORMALS` derived from `AXIS_NAMES` — the hand table silently lacked
+z; `AXIS_NAMES` moved DOWN to `numerics/face_layout.py`;
+`from_mesh_and_quadrature` → `from_quadrature_and_layout`, dead mesh param
+retired; trace UNCONDITIONAL) → `580bc9b` C5.4 Mode-9 gate retarget
+(`reduced is None` proxy — ALSO true at d=3, would have silently
+moment-windowed a 3-D solve — → genuine `is_cartesian and ndim == 2`; G-S
+gate → `is_cartesian and not is_1d`, the "2-D ONLY" resolvent claim was stale
+narration) → `1da1e2f` C5.5 3-D admission (mesh=None at d≥3; axis-native
+volumes = iterated outer product; rank-d `volume_measure`; ONE entry seam
+`_as_sn_mesh` on both `solve_sn` entries + axes-entry `mat_map=` kwarg;
+trace rank-mismatch fail-loud) → `294f9c0` C5.6 pin flips (LIVE `default_for`
+selection on a real mesh; real-mesh schedule companion).
+
+**Value-gate evidence** (`tests/sn/solve/test_d3_admission.py`, all through
+production entries): k_inf 3-D≡2-D≡1-D (2g `1.8750000050` vs closed-form
+`1.875`, abs<1e-8; 4g same), pure-absorber per-ordinate `ψ=Q/(WΣt)` rtol
+1e-10, scattering `φ=(diag(Σt)−Σs0ᵀ)⁻¹Q` measured 2.6e-9
+(SI-convergence-limited; DD flat-flux exact), Mode-9 G-S≡Jacobi FP-invariance
+on the mixed-BC (x-refl/y-vac/z-refl) asymmetric (5,3,4) het-2G box under the
+DIAGONAL level-symmetric cubature (`catches(ERR-056)`). sha256 affine goldens
+BYTE-identical after every substep. elegance-enforcer: C5.1 PASS-with-nits
+(all folded), C5.2 PASS-with-nits (folded in a9a0faf), C5.3 PASS-with-nits
+(the `_quadrature_axis` zero-fallback carry CLOSED in C5.5).
+
+**Follow-ups filed:** #227 (ScanMarch d≥3 `scan∘march` + window `supports`
+widening — measurement-gated vs the spine; multi-D adjoint listed as the
+pre-existing orthogonal deferral) + #228 (vv Mode-8 audit: bare asserts in
+value gates inert under the canonical `-O` — test_keff_2d flagged instance).
+
+**⏭ NEXT:** push when the user asks (the C4 chain + the C5 chain are both
+local); merge → close #225/#220; then the deferred perf work (#227) or the
+next campaign (DSA #2 / #200 per the Wave-O memory). The PRIOR C5 pickup
+paragraph below is HISTORICAL (the chain it plans is done).
+
+**HISTORICAL — the C5 plan as picked up (superseded by the DONE record above):**
+A fresh session picks up
 from THIS paragraph (+ the "### Environment" block below for paths/invocations
 — still accurate, except the branch tip is now the C4 chain, local NOT pushed).
 
