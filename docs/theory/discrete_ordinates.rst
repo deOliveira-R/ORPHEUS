@@ -167,7 +167,10 @@ mesh) is shared with :ref:`theory-collision-probability` and
    stencil.  It also **resolves boundary conditions**: each ``BC`` tag
    on the mesh is looked up in :attr:`SNMesh.BOUNDARY_OPERATOR_REGISTRY` and converted
    to a validated kind string (``"vacuum"`` or ``"reflective"``)
-   stored as ``sn_mesh.bc_left``, ``sn_mesh.bc_right``, etc.
+   stored in the face-name-keyed :attr:`SNMesh.bc` dict
+   (``sn_mesh.bc["xmin"]``, ``sn_mesh.bc["xmax"]``, ... — the dict
+   keys are the mesh's true boundary faces; see
+   :ref:`bc-face-name-carve`).
    The sweep reads these resolved strings directly --- it never
    inspects the raw :class:`~geometry.mesh.BC` objects.  Precomputed
    stencil contents per coordinate system:
@@ -206,8 +209,9 @@ Quadrature Dispatch
 The sweep dispatcher in :func:`transport_sweep` routes based on the
 ``SNMesh.curvature`` attribute and the quadrature type.  Boundary
 conditions are **not** passed as a parameter to the sweep --- the
-sweep reads the resolved BC kind strings directly from
-``sn_mesh.bc_left``, ``sn_mesh.bc_right``, etc.:
+sweep reads the resolved BC kind strings directly from the
+face-name-keyed :attr:`SNMesh.bc` dict (``sn_mesh.bc["xmin"]``,
+``sn_mesh.bc["xmax"]``, ...; see :ref:`bc-face-name-carve`):
 
 .. code-block:: python
 
@@ -1871,6 +1875,21 @@ The architectural argument: the boundary operator's *semantics* are
 That mapping is per-octant by construction — applying it once per
 ordinate within an octant is redundant; applying it once per octant
 is structurally correct.
+
+.. note::
+
+   The ``sn_mesh.bc_xmin.apply(..., quad)`` spellings in the two
+   code blocks above are **historical** (the Wave-2 era 2-arg
+   ``apply`` on a per-attribute BC surface). Both spellings are
+   retired: the 2-arg ``apply`` by Issue #186 (the law is now a pure
+   descriptor; the realizer produces a strict 1-arg operator — see
+   :ref:`bc-trace-law-descriptor-model`), and the per-attribute
+   ``bc_<face>`` surface by C4 / #220 in favour of the
+   face-name-keyed :attr:`SNMesh.bc` dict
+   (``sn_mesh.bc["xmin"].apply(psi)`` — see
+   :ref:`bc-face-name-carve`). The blocks are preserved verbatim
+   because they document the *L7-trap structure* the Wave-2 carve
+   closed, which is independent of the storage spelling.
 
 The L7-trap detector test
 ``tests/sn/test_2d_octant_sweep_equivalence.py::case-3`` is the
@@ -4363,7 +4382,9 @@ compare against the matvec's observable output.  Phase D
 strengthens this to a **capture-and-compare** check that pins the
 exact value the matvec passes into the BC trace law:
 
-#. Patch :meth:`sn_mesh.bc_right.apply` to capture every input
+#. Patch ``sn_mesh.bc["xmax"].apply`` (the outer radial face —
+   a sphere's ``"outer"`` endpoint renders as ``"xmax"`` since
+   C4 / #220, see :ref:`bc-face-name-carve`) to capture every input
    array passed to it during one matvec call.
 #. Independently reconstruct the WDD-propagated outflow trace via
    a reference implementation (:func:`_outflow_at_boundary_for_sphere`).
@@ -4371,7 +4392,7 @@ exact value the matvec passes into the BC trace law:
    ``rtol=1e-14`` — exactly bit-equal up to FP non-associativity.
 
 The strengthening matters because the Phase D matvec now calls
-:meth:`bc_right.apply` **twice** per matvec:
+``bc["xmax"].apply`` **twice** per matvec:
 
 #. **Phase D Carlson context call** — applied to cell-centred
    outer-cell :math:`\psi` to build ``bc_outer_value`` for the
@@ -5436,16 +5457,19 @@ the descriptor-tree algebra
 sole descriptor→operator type transformer. See
 :ref:`bc-trace-law-descriptor-model` for the design rationale.
 
-The resolved BCs at ``sn_mesh.bc_left`` etc. expose the uniform
+The resolved BCs at ``sn_mesh.bc["xmin"]`` etc. expose the uniform
 1-arg contract through the
 :class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
 shim — internal to the package, not in
 :attr:`orpheus.geometry.boundary.__all__`. Post Issue #186 the
 shim is a **strict 1-arg passthrough** (extra args raise
 :class:`TypeError`); it carries the originating ``BC.kind`` string
-so the legacy ``sn_mesh.bc_left == "vacuum"`` diagnostic
+so the ``sn_mesh.bc["xmin"] == "vacuum"`` diagnostic
 comparison continues to evaluate True iff the underlying law is
-:class:`VacuumInflow`. See :ref:`bc-tensor-decompositions` below
+:class:`VacuumInflow`. (C4 / #220 re-keyed this surface from the
+per-attribute ``sn_mesh.bc_left`` to the face-name-keyed
+:attr:`SNMesh.bc` dict — see :ref:`bc-face-name-carve`.)
+See :ref:`bc-tensor-decompositions` below
 for the operator-algebra view and
 :ref:`theory-boundary-conditions` for the full trace-law /
 realizer architecture.
@@ -5699,24 +5723,34 @@ Issue #188 + #176.
 The :meth:`SNMesh._resolve_one` dispatch constructs the resolved
 operator via :meth:`SNBoundaryRealizer.realize(law, method_space)`
 where the ``method_space`` is built by
-:meth:`SNMethodSpace.for_face` carrying the precomputed
-:class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace` (built
+:meth:`SNMethodSpace.for_face` carrying the precomputed unified
+:class:`~orpheus.numerics.spaces.trace_space.TraceSpace` (built
 once at :class:`SNMesh` construction for every supported mesh).
-The
+The reflective branch derives its reflection axis from the face's
+own :class:`~orpheus.sn.axis.FaceLabel` —
+``AXIS_NAMES[label.axis_index]`` — so the partner is correct at any
+dimension by construction (C4 / #220; see
+:ref:`bc-face-name-latent-d3-bug`). The
 :class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
-shim wraps the result with a ``kind`` tag for the legacy
-``sn_mesh.bc_xmin == "vacuum"`` string-equality surface.
+shim wraps the result with a ``kind`` tag for the
+``sn_mesh.bc["xmin"] == "vacuum"`` string-equality surface.
 
-For the 1-D y-face placeholders (``bc_ymin`` / ``bc_ymax`` on
-:class:`Mesh1D`), the realizer is invoked with
-:meth:`SNMethodSpace.minimal(quad)` and a
-:class:`ReflectiveBoundary(axis="y")` law. For
-:class:`GaussLegendre1D` the realized op is a no-op
-:class:`PermutationOperator` (the ``y``-reflection index is the
-identity permutation because :math:`\mu_y \equiv 0` on the 1-D
-quadrature). The realizer's reflective branch does NOT read
-:attr:`inflow_indices`, so the minimal method space is safe. See
-:ref:`bc-1d-y-placeholder-design` for the full rationale.
+.. note::
+
+   **The 1-D y-face placeholders were retired in C4 / #220.** Pre-C4,
+   a slab :class:`SNMesh` carried a pair of realized no-op
+   ``ReflectiveBoundary(axis="y")`` operators at ``bc_ymin`` /
+   ``bc_ymax`` so cross-dimensional code could read them without
+   coord-system gating — but **no production code ever read them**
+   (a 1-D mesh's ``trace.layout.faces`` is ``("xmin", "xmax")``).
+   C4 makes them unrepresentable: a slab has no y-axis in its
+   :attr:`~SNMesh.axes` tuple, so
+   :func:`~orpheus.sn.axis.face_labels` emits no y-label and
+   :attr:`SNMesh.bc` has no y-entry — ``slab.bc["ymin"]`` is a
+   :class:`KeyError`, not a no-op. See
+   :ref:`bc-face-name-carve-what-retired` for the full retirement
+   record (the pre-C4 "why the placeholders were once safe"
+   rationale is preserved there).
 
 **Pre-cleanup history.** Before Issue #188 + #176 (closed
 2026-05-11), curvilinear ``Mesh1D`` bypassed the realizer because

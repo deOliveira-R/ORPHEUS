@@ -74,7 +74,11 @@ The geometry module makes **no assumptions** about what a given
 ``kind`` means physically. Semantics are resolved by each solver's
 augmented mesh (``SNMesh``, ``CPMesh``, ``MOCMesh``, ``MCMesh``,
 ``DiffusionSolver``) at construction time via a class-level
-``BC_REGISTRY: dict[str, Callable]``. This registry maps kind
+registry (``BC_REGISTRY: dict[str, Callable]`` on CP / MC /
+diffusion; ``BOUNDARY_OPERATOR_REGISTRY: dict[str,
+type[BoundaryTraceLaw]]`` on ``SNMesh``, whose values are realized
+into per-face operators in the face-name-keyed ``SNMesh.bc`` dict).
+This registry maps kind
 strings to factory functions that translate the abstract declaration
 into solver-specific internal state (e.g. setting incoming angular
 flux to zero for SN vacuum, or choosing a collision-probability

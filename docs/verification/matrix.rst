@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5123**
+Total tests collected: **5129**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1152, 22.5%
-   L1, 950, 18.5%
+   L1, 952, 18.6%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 2977, 58.1%
+   foundation, 2981, 58.1%
    unmarked, 8, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5036
+   explicit, 5042
    verify, 0
    class-name, 46
    func-name, 0
@@ -290,7 +290,7 @@ Module × level grid
    operators/test_scattering_operator, 1, 0, 0, 0, 66, 0
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 21, 0
    operators/test_sn_boundary_realizer, 0, 20, 0, 0, 0, 0
-   operators/test_snmesh_realizer_wiring, 0, 9, 0, 0, 0, 0
+   operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
    operators/test_streaming_operator, 0, 0, 0, 0, 64, 0
    operators/test_streaming_operator_decomposition, 19, 0, 0, 0, 0, 0
@@ -299,6 +299,7 @@ Module × level grid
    primitives/test_boundary_face_layout, 0, 0, 0, 0, 5, 0
    primitives/test_cell_flattening_invariant, 0, 0, 0, 0, 3, 0
    primitives/test_dag_ownership, 0, 0, 0, 0, 18, 0
+   primitives/test_face_name_crosswalk, 0, 0, 0, 0, 4, 0
    primitives/test_harmonic_moment_field, 0, 0, 0, 0, 31, 0
    primitives/test_method_space, 6, 0, 0, 0, 0, 0
    primitives/test_octants_property, 60, 0, 0, 0, 0, 0
@@ -603,7 +604,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-mms-spherical-aniso-spatial-convergence``, 1
    ``sn-mms-spherical-psi``, 1
    ``sn-mms-spherical-qext``, 1
-   ``sn-streaming``, 1
    ``splitting``, 1
 
 Orphan equations

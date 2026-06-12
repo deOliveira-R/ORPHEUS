@@ -756,7 +756,9 @@ axes :math:`(n_x, n_y)`.
      - :math:`\psi` restricted to :math:`\Gamma_-` or :math:`\Gamma_+`
      - 1/(cm²·s·sr)
      - ``(N_inflow, ng)`` per face
-     - ``psi_bc["bc_*"]`` dict entries
+     - :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+       face views, keyed by face name (``face_view("xmin")`` …) —
+       the pre-#197 ``psi_bc`` dict is retired
        (:func:`~orpheus.sn.loss_representation.transport_sweep`)
 
 The conversion functions between the two principal types are the

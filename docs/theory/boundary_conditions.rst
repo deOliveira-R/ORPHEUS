@@ -946,9 +946,11 @@ which is a self-adjoint, idempotent Wave-0 primitive with
 Step 5 — wrap with a kind tag
 -----------------------------
 
-Every ``SNMesh.bc_*`` attribute carries a uniform 1-arg
+Every ``SNMesh.bc[<face>]`` entry carries a uniform 1-arg
 ``apply(psi)`` contract (Wave 9 migrated 13 production sites from
-2-arg to 1-arg). Post Issue #186 / C-B3.4 the
+2-arg to 1-arg; C4 / #220 re-keyed the per-attribute ``bc_<face>``
+surface to the face-name-keyed :attr:`~SNMesh.bc` dict — see
+:ref:`bc-face-name-carve`). Post Issue #186 / C-B3.4 the
 :class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
 shim is a **strict 1-arg passthrough** that adds two pieces of
 metadata to the realized operator:
@@ -956,8 +958,8 @@ metadata to the realized operator:
 * a free-form ``kind`` string tag carrying the originating
   :class:`~orpheus.geometry.mesh.BC` kind (``"vacuum"`` /
   ``"reflective"`` / ...) — load-bearing for the
-  ``sn_mesh.bc_left == "vacuum"`` string-equality surface that
-  several legacy SN tests and the BC-resolution diagnostic rely
+  ``sn_mesh.bc["xmin"] == "vacuum"`` string-equality surface that
+  several SN tests and the BC-resolution diagnostic rely
   on;
 * :meth:`capabilities` delegation to the wrapped inner operator
   so consumers composing the shim with other Wave-0 primitives
@@ -1006,7 +1008,7 @@ the uniform 1-arg interface:
 
 .. code-block:: python
 
-   psi_in = self.bc_left.apply(psi_out_full)
+   psi_in = self.bc["xmin"].apply(psi_out_full)
    # Shim forwards to IncomingOrdinateMaskTensor.apply, which zeros
    # only the inflow ordinates; outflow rows pass through unchanged.
 
@@ -1985,9 +1987,10 @@ The Phase D test
 :func:`tests.sn.test_phase_c_gates.test_bc_trace_contract_capture_and_compare_sphere`
 (parametrised over ``vacuum`` and ``reflective``):
 
-#. Monkey-patches :meth:`sn_mesh.bc_right.apply` with a recorder
-   wrapper that appends every input array passed to it during one
-   matvec call.
+#. Monkey-patches ``sn_mesh.bc["xmax"].apply`` (the outer radial
+   face — a sphere's ``"outer"`` endpoint renders as ``"xmax"``)
+   with a recorder wrapper that appends every input array passed to
+   it during one matvec call.
 #. Independently reconstructs the WDD-propagated outflow trace via
    a reference implementation
    (``_outflow_at_boundary_for_sphere(sn_mesh, sig_t, psi_input)``).
@@ -2202,46 +2205,448 @@ The architectural sequence is therefore:
   Once those landed, the descriptor cleanup (#186 / B3 + β2)
   became the next step on the architectural ladder.
 
-.. _bc-1d-y-placeholder-design:
+.. _bc-face-name-carve:
 
-1-D y-face placeholders
------------------------
+The face-name carve — one crosswalk, one face-keyed BC dict (C4 / Issue #220)
+=============================================================================
 
-A :class:`Mesh1D` mesh has no physical ``y`` faces, but
-:class:`SNMesh` exposes ``bc_ymin`` / ``bc_ymax`` attributes
-uniformly with the 2-D path so cross-dimensional code can read
-them without coord-system gating. After Issue #188, those
-placeholders route through the realizer with
-:meth:`SNMethodSpace.minimal(quad)` and a
-:class:`ReflectiveBoundary(axis="y")` law. Three pre-investigated
-facts make this safe:
+Wave 8 through Issue #186 settled *how a single boundary law is
+realized* (the law / realizer / shim split of
+:ref:`bc-overview-three-layers`). What they did **not** settle is
+*how the set of resolved laws is keyed and stored on the* ``SNMesh``.
+Pre-C4 that storage was a hand-listed per-geometry construction with
+named attributes — ``bc_xmin`` / ``bc_xmax`` / ``bc_ymin`` /
+``bc_ymax`` (2-D), ``bc_left`` / ``bc_right`` aliases (1-D), plus a
+pair of degenerate ``bc_ymin`` / ``bc_ymax`` placeholders on a slab
+that no production code ever read. Three separate hand-lists carried
+the same ``(axis, endpoint) → "{axis}{min|max}"`` knowledge, and a
+fourth hand-list mapped a face name back to a reflection axis. C4
+(part of the N-D layout campaign, Issue #220) collapses all four to
+**one crosswalk function and one dict-comprehension loop**, keyed by
+the same :class:`~orpheus.sn.axis.FaceLabel` inventory the trace
+layout already derives from.
 
-1. **``GaussLegendre1D.reflection_index("y")`` returns the
-   identity permutation.** Every ordinate is its own ``y``-reflected
-   partner because :math:`\mu_y \equiv 0` on the 1-D quadrature
-   (only ``mu_x`` is populated). The realized
-   :class:`PermutationOperator` is therefore a no-op.
-2. **The SN realizer's reflective branch reads only ``law.axis``
-   and ``quad.reflection_index(axis)``** — never the per-face
-   :attr:`inflow_indices`. The minimal method space carries the
-   quadrature only; the absence of an :class:`InflowTraceSpace`
-   for the ``y`` faces is not a problem for this branch.
-3. **The 1-D trace space has
-   ``face_names == ("left", "right")``** — calling
-   :meth:`SNMethodSpace.for_face(face="ymin", inflow_trace=...)`
-   would raise. ``.minimal(quad)`` is therefore required.
+This is the storage-layer counterpart of the realizer unification
+in :ref:`bc-curvilinear-realizer-unification`: that section made the
+*realization path* uniform across geometries; this one makes the
+*storage and keying* uniform across **dimensions**. After C4 a
+3-axis mesh (when ``Mesh3D`` lands in C5) yields six face slots and
+six BC entries with **no edit** to either producer — the pre-C4
+3-branch body would have been silently wrong the day it was reached.
 
-Production consumers in
-:meth:`solution_to_angular_flux` only invoke ``bc_ymin.apply(...)``
-on 1-D meshes when ``curvature is None`` (the slab case), and the
-inner ``if mu_y[n] > 1e-15`` filter discards every ordinate on
-GL1D — so the no-op behaviour is observably correct.
+The three string-named layers and the single crosswalk
+-------------------------------------------------------
 
-Closure
--------
+Three SN-side structures key on the same boundary-face string names
+``"xmin"`` / ``"xmax"`` / ``"ymin"`` / ``"ymax"`` (and, in C5,
+``"zmin"`` / ``"zmax"``):
 
-Closed by branch ``feature/bc-curvilinear-realizer-cleanup``
-(2026-05-11). Three GitHub issues converged on this branch:
+.. list-table:: The three face-name-keyed layers and their shared crosswalk
+   :header-rows: 1
+   :widths: 26 30 44
+
+   * - Layer
+     - Structure
+     - Role
+   * - **Face layout**
+     - :attr:`SNMesh.boundary_face_layout`
+       (:class:`~orpheus.numerics.face_layout.FaceLayout`)
+     - The flat-buffer descriptor: which faces exist, each face's
+       per-face shape ``(N, ng, *codim-1 cells)``, and the offsets
+       that pack them into one backing array.
+   * - **Trace space**
+     - :attr:`SNMesh._trace`
+       (:class:`~orpheus.numerics.spaces.trace_space.TraceSpace`)
+     - The inner-product geometry on the boundary: per-face
+       inflow / outflow ordinate masks over the signed
+       :math:`\Omega\cdot\hat n` it carries (``trace.layout.faces``
+       reproduces the same names).
+   * - **BC dict**
+     - :attr:`SNMesh.bc`
+       (``dict[str, _BoundBoundaryOperator]``)
+     - The resolved boundary operator per face — the realized
+       1-arg law that maps an outgoing face trace to its incoming
+       partner.
+
+Pre-C4 each of these grew its key set from its own per-geometry
+hand-list. The crosswalk knowledge — "axis 0 is ``x``; the
+``min`` / ``max`` endpoints suffix the axis name; a solid radial
+axis's single ``outer`` endpoint renders as the ``max`` face"
+— was duplicated at the layout builder, the BC resolver, and the
+reflective-axis dispatch. C4 lifts that knowledge into **one**
+single-sourced rendering on the structural face key:
+
+.. code-block:: python
+
+   # orpheus/sn/axis.py
+   AXIS_NAMES = ("x", "y", "z")
+   _ENDPOINT_SUFFIX = {"min": "min", "max": "max", "outer": "max"}
+
+   @dataclass(frozen=True, slots=True)
+   class FaceLabel:
+       axis_index: int
+       endpoint: str   # "min" / "max" / "outer"
+
+       @property
+       def face_name(self) -> str:
+           suffix = _ENDPOINT_SUFFIX.get(self.endpoint)
+           if suffix is None:                       # fail loud
+               raise ValueError(...)
+           return f"{AXIS_NAMES[self.axis_index]}{suffix}"
+
+:attr:`FaceLabel.face_name <orpheus.sn.axis.FaceLabel.face_name>`
+is THE rendering of the structural identity ``(axis_index,
+endpoint)`` into the ``"{axis}{min|max}"`` string world. Both
+producers — :attr:`SNMesh.boundary_face_layout` and
+:meth:`SNMesh._resolve_bcs` — call it, so a key drift between the
+face layout and the BC dict is **unrepresentable by construction**:
+they cannot disagree because they read the same function over the
+same :func:`~orpheus.sn.axis.face_labels` inventory.
+
+.. note::
+
+   ``AXIS_NAMES`` moved **down** from
+   :mod:`orpheus.sn.sweep_graph` to :mod:`orpheus.sn.axis` in C4 —
+   to the bottom of the SN dependency graph, next to the axis
+   primitives it names. ``sweep_graph`` re-exported it only outward;
+   ``sweep_schedule`` and ``loss_representation`` now import it
+   downward. This puts the single source of the axis↔name crosswalk
+   in the same module as :class:`~orpheus.sn.axis.FaceLabel`, the
+   walk's in/outflow-face derivation, and the schedule's
+   outgoing-face derivation — no consumer hand-lists
+   ``("x", ...), ("y", ...)`` pairs any longer.
+
+The ``"outer" → "max"`` convention and fail-loud
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A solid sphere or cylinder is a :class:`~orpheus.sn.axis.RadialAxisMesh`
+with a single ``"outer"`` endpoint (the pole at :math:`r=0` is
+**not** an endpoint — see :ref:`bc-pole-structural-absence`). The
+crosswalk renders ``"outer"`` as the ``max`` face of its axis, so a
+sphere's outer radius is keyed ``"xmax"``. This is the **historical
+curvilinear convention** — every curvilinear boundary operator,
+trace face name, and sweep schedule already keys the outer radius on
+``"xmax"`` — preserved verbatim by ``_ENDPOINT_SUFFIX["outer"] =
+"max"`` rather than re-derived.
+
+Any endpoint label that is **not** one of the three canonical
+strings (``"min"`` / ``"max"`` / ``"outer"``) raises
+:class:`ValueError`. An :class:`~orpheus.sn.axis.AxisMesh` exposes
+user-overridable ``label_low`` / ``label_high`` fields (a slab user
+may rename them ``"left"`` / ``"right"`` for convention); such a
+renamed endpoint has **no face name** and must fail loud rather than
+silently desynchronize from the ``"{axis}{min|max}"`` world that the
+three layers key on. The failure surfaces at L0 — at the crosswalk
+itself — not three layers up as a mis-keyed boundary operator or a
+``KeyError`` deep inside a sweep.
+
+The derivation chain — face_labels → {layout, bc}
+-------------------------------------------------
+
+The SN phase space factors as a tensor product of per-axis 1-D
+meshes (grand report §15.1). The axis tuple
+:attr:`SNMesh.axes` is therefore the root of every boundary-keyed
+structure:
+
+.. code-block:: text
+
+   SNMesh.axes  (tuple[Axis1D, ...])
+        │
+        │  face_labels(axes) — one FaceLabel per (axis, endpoint),
+        │  iterated axis-ascending then endpoint-in-axis-order
+        ▼
+   SNMesh.face_labels  (tuple[FaceLabel, ...])
+        │
+        ├─── boundary_face_layout : one slot per label,
+        │       named  label.face_name,  shaped (N, ng, *face_shape(label))
+        │
+        └─── bc : one entry per label,
+                keyed  label.face_name,  resolved from
+                axes[label.axis_index].bc[label.endpoint]
+
+The BC **declaration** source for each face is the per-axis
+inventory ``axes[label.axis_index].bc[label.endpoint]`` — the
+*same* axes that ``face_labels`` derives the labels from. The face
+inventory **is** the BC inventory: a face that exists has exactly
+one declaration; a face that does not (the pole) has no label and no
+entry. The resolution loop is one comprehension:
+
+.. code-block:: python
+
+   # orpheus/sn/geometry.py — _resolve_bcs (post-C4)
+   default = BC("reflective")
+   self.bc: dict[str, _BoundBoundaryOperator] = {
+       label.face_name: self._resolve_one(
+           self.axes[label.axis_index].bc[label.endpoint] or default,
+           label,
+       )
+       for label in self.face_labels
+   }
+
+``None`` on an axis defaults to ``BC("reflective")`` (the
+infinite-lattice / eigenvalue convention). Each declaration is
+realized by :meth:`SNMesh._resolve_one`, whose realizer plumbing
+(registry → :meth:`SNMethodSpace.for_face` →
+:class:`SNBoundaryRealizer` → :class:`_BoundBoundaryOperator`) is
+**unchanged** from the pre-C4 path — C4 changed only the *keying and
+storage*, not the *realization*. Hence the resolved operators are
+bit-identical objects to the pre-C4 ones (see
+:ref:`bc-face-name-carve-verification`).
+
+The :attr:`boundary_face_layout` producer is the dual comprehension:
+
+.. code-block:: python
+
+   # orpheus/sn/geometry.py — boundary_face_layout (post-C4)
+   return FaceLayout.from_named_shapes([
+       (label.face_name, (N, self.ng, *self.face_shape(label)))
+       for label in self.face_labels
+   ])
+
+The pre-C4 body of each producer was a 3-branch ``isinstance`` /
+coord-system split (1-D slab / 1-D curvilinear / 2-D Cartesian) that
+hand-listed the face names. The dict-comprehension slot order
+reproduces the historical hand-listed order **byte-for-byte** —
+``face_labels`` iterates axis-ascending then endpoint-in-axis-order,
+which is exactly the order the hand-lists used. The affine
+``sha256`` goldens stayed byte-identical across the carve.
+
+.. _bc-pole-structural-absence:
+
+The pole is structurally absent, not null (Pattern 4 sharpened)
+---------------------------------------------------------------
+
+A :class:`~orpheus.sn.axis.RadialAxisMesh` has
+``endpoints = ("outer",)`` — exactly one BC-bearing endpoint. A
+solid sphere or cylinder therefore has a ``bc`` dict with **exactly
+one entry** (``"xmax"``) and **no pole entry**. The geometric pole
+at :math:`r=0` is the angular closure's regularity condition (the
+:math:`1-\mu^2` redistribution coefficient vanishes at
+:math:`\mu=\pm 1`; the inward sweep seeds from a moment-folded
+source at :math:`\mu=-1` — see
+:ref:`sn-pole-angular-closure-protocol` in
+:doc:`discrete_ordinates`), not a BC trace law.
+
+C4 **sharpens** the pre-existing Pattern-4 treatment of the pole.
+Pre-C4 the pole-as-non-BC was spelled by an explicit null:
+``bc_left = bc_xmin = None`` — a named attribute that *exists* and
+*holds* ``None``. Post-C4 the pole-BC is **structurally absent**: a
+dict key that does not exist. Asking for it is a :class:`KeyError`,
+not a ``None`` that a consumer might forget to guard:
+
+.. list-table:: Pole-BC representation before and after C4
+   :header-rows: 1
+   :widths: 30 35 35
+
+   * - Aspect
+     - Pre-C4 (``None`` placeholder)
+     - Post-C4 (structural absence)
+   * - Sphere ``bc`` surface
+     - ``bc_xmin = None``, ``bc_xmax = <op>``
+     - ``bc = {"xmax": <op>}``
+   * - Asking for the pole
+     - ``sn_mesh.bc_xmin`` → ``None``
+     - ``sn_mesh.bc["xmin"]`` → :class:`KeyError`
+   * - Failure mode of a buggy consumer
+     - silent ``None.apply`` → ``AttributeError`` deep
+       in a sweep, or a guard that *should* exist but
+       doesn't
+     - immediate ``KeyError`` at the access site — the
+       illegal access is unrepresentable rather than null
+
+This is the illegal-states-unrepresentable principle (Pattern 4)
+applied to the dict: a pole-BC is not "a BC that is ``None``", it is
+"not a face at all". The :func:`~orpheus.sn.axis.face_labels`
+inventory simply does not emit a label for the pole, so neither
+producer writes a slot or entry for it.
+
+.. _bc-face-name-latent-d3-bug:
+
+The latent d=3 axis-dispatch bug, closed by construction
+--------------------------------------------------------
+
+Before C4, :meth:`SNMesh._resolve_one` derived a reflective law's
+reflection axis from a hand-listed membership test::
+
+    axis = "y" if face in ("ymin", "ymax") else "x"
+
+This is correct at :math:`d \le 2` by string coincidence — every
+non-``y`` face is on the ``x`` axis. But a ``"zmin"`` / ``"zmax"``
+face (a 3-axis mesh) would have fallen into the ``else`` branch and
+silently built the **X-axis** reflection permutation — the *wrong
+reflection partner*. A reflective law that reflects across the wrong
+axis is a ``vv-principles`` **Mode-9 class** error (a law that is
+wrong on a configuration the degenerate lower-dimensional test never
+reaches): it would produce a plausible-but-wrong converged flux on a
+3-D reflective problem, invisible to any :math:`d \le 2` test.
+
+C4 derives the axis from the label's own
+``AXIS_NAMES[label.axis_index]``, so the reflection partner is
+correct at **any** dimension by construction::
+
+    law = ReflectiveBoundary(axis=AXIS_NAMES[label.axis_index], albedo=1.0)
+
+This is the boundary-resolution sibling of the C3.6 finding that a
+z-face never sheds in the in-plane projection — both are latent
+3-D correctness traps closed *before* ``Mesh3D`` exists, so that the
+N-D layout campaign reaches C5 with the boundary keying already
+3-D-correct.
+
+.. note::
+
+   **No ERR entry was filed for the latent d=3 axis bug.** ``Mesh3D``
+   is unconstructible today (no dataclass exists until C5), so no
+   3-axis mesh ever reached ``_resolve_one`` and **no production bug
+   ever shipped**. The d=2 observable proxy
+   (``test_2d_reflective_y_face_builds_y_axis_permutation``, with a
+   non-vacuity guard that the x- and y-reflection maps differ under
+   Lebedev) pins the *structural* correctness of the per-label axis
+   derivation, which is what makes the d=3 extension correct by
+   construction. The error catalog records *shipped* L0-caught bugs;
+   a defect closed by construction before its triggering type exists
+   is documented here, not in ``error_catalog.md``.
+
+Why string-keyed, not FaceLabel-keyed
+-------------------------------------
+
+Issue #220 allowed either a ``dict[str, ...]`` keyed by face name or
+a ``dict[FaceLabel, ...]`` keyed by the structural label directly.
+C4 chose **string-keyed**, isomorphic to
+:attr:`FaceLayout.faces <orpheus.numerics.face_layout.FaceLayout>`,
+for one reason: **every consumer iterates ``trace.layout.faces``
+(strings)**. The within-group operator's
+:meth:`SNBoundaryOperator._face_laws` and the schedule's
+``_reflective_faces`` both walk the trace layout's face-name strings
+and index the BC by that string. A ``FaceLabel``-keyed dict would
+force a reverse ``name → label`` lookup at *every* consumer, re-deriving
+the very crosswalk C4 single-sources.
+
+:class:`~orpheus.sn.axis.FaceLabel` remains the **structural source**
+— it is the load-bearing key for the dim-agnostic face inventory,
+the outflow-ordinate mask cache, and the sweep DAG's face-trace
+state. ``face_name`` is its *single rendering* into the string world
+the consumers already speak. One crosswalk function, called by both
+producers, makes the keys of the layout and the BC dict identical by
+construction:
+
+.. math::
+
+   \operatorname{set}(\texttt{sn\_mesh.bc})
+   = \operatorname{set}(\texttt{boundary\_face\_layout.faces})
+   = \{\, \ell.\texttt{face\_name} : \ell \in \texttt{face\_labels} \,\}
+
+— a set equality that *cannot drift* because both sides are the same
+comprehension over the same inventory.
+
+.. _bc-face-name-carve-what-retired:
+
+What C4 retired
+---------------
+
+C4 retires every pre-C4 named-attribute spelling of the resolved BC
+surface, with no deprecation shim (aggressive retirement — a
+read-through ``@property`` outliving its merge cycle would be the
+very desync the carve removes):
+
+* **The named instance attributes** ``bc_xmin`` / ``bc_xmax`` /
+  ``bc_ymin`` / ``bc_ymax`` (2-D) and the ``bc_left`` / ``bc_right``
+  aliases (1-D). Consumers now key into :attr:`SNMesh.bc` by face
+  name. Accessing a retired attribute is an :class:`AttributeError`.
+* **The degenerate 1-D y-face placeholders.** Pre-C4, a slab
+  :class:`SNMesh` carried a pair of realized no-op
+  ``ReflectiveBoundary(axis="y")`` operators at ``bc_ymin`` /
+  ``bc_ymax``, routed through :meth:`SNMethodSpace.minimal` so
+  cross-dimensional code could read them without coord-system
+  gating. **No production code ever read them**: a 1-D mesh's
+  ``trace.layout.faces`` is ``("xmin", "xmax")``, so the generic
+  consumers (which iterate the trace layout) never asked for a
+  y-face. The placeholders were a uniformity affordance with no
+  consumer — exactly the kind of dead realized state the
+  face-labels-derived dict makes unrepresentable: a slab has no
+  y-axis in its :attr:`~SNMesh.axes` tuple, so
+  :func:`~orpheus.sn.axis.face_labels` emits no y-label, so
+  :attr:`bc` has no y-entry, so ``slab.bc["ymin"]`` is a
+  :class:`KeyError`. (Pre-C4 design rationale for *why the
+  placeholders were once safe* is preserved in the
+  :ref:`bc-curvilinear-realizer-unification` history above; C4
+  removes the need for the rationale by removing the placeholders.)
+* **The hand-listed reflective-axis dispatch**
+  (``"y" if face in (...) else "x"``) — see
+  :ref:`bc-face-name-latent-d3-bug`.
+
+Consumers migrated in C4: :meth:`SNBoundaryOperator._face_laws`
+(within-group operator) and ``sweep_schedule._reflective_faces``
+(the schedule) both changed from ``getattr(mesh, f"bc_{face}")`` to
+``mesh.bc[face]``, iterating over ``trace.layout.faces`` exactly as
+before.
+
+.. _bc-face-name-carve-verification:
+
+Verification — bit-identity by inheritance + new L0 pins
+--------------------------------------------------------
+
+C4 is a **structural** carve: it changes keying and storage, not
+the realized operators or any numerical value. The verification
+strategy reflects that:
+
+* **Bit-identity by inheritance.** A BC realization is object
+  construction; :meth:`_resolve_one`'s realizer plumbing (registry
+  → :meth:`SNMethodSpace.for_face` → :class:`SNBoundaryRealizer` →
+  :class:`_BoundBoundaryOperator`) is unchanged. The resolved
+  operators are the same objects as before, so every solver test
+  that exercises them inherits its prior verification. The affine
+  ``sha256`` goldens stayed byte-identical; the broad sweep /
+  operators / primitives / solve suite (1455 tests) is green.
+* **L0 crosswalk pins**
+  (:mod:`tests.sn.primitives.test_face_name_crosswalk`,
+  foundation-tagged). An exhaustive **hand-transcribed**
+  ``(axis, endpoint) → face-name`` table for :math:`d \in \{1,2,3\}`
+  (mirror-not-import, so the test is not tautological against the
+  production derivation it verifies), the d=3 ``z``-face admission
+  (the crosswalk is a pure function, so the 3-axis rendering is
+  verifiable **now** with no ``Mesh3D``), and both fail-loud
+  negatives (a non-canonical endpoint → :class:`ValueError`; an
+  axis beyond the named inventory → :class:`IndexError`).
+* **L0 bc-dict / face-layout inventory pins**
+  (:mod:`tests.sn.operators.test_snmesh_realizer_wiring`,
+  foundation-tagged):
+
+  - ``test_bc_inventory_equals_face_layout_across_geometries`` —
+    ``set(sn.bc) == set(boundary_face_layout.faces)`` across slab
+    (2 faces), 2-D Cartesian (4), sphere (1), cylinder (1), the
+    Issue #220 acceptance set.
+  - ``test_2d_reflective_y_face_builds_y_axis_permutation`` — the
+    d=2 observable proxy for the latent d=3 axis-dispatch bug, with
+    a non-vacuity guard asserting the x- and y-reflection maps
+    differ under Lebedev (else the pin would be vacuous).
+  - ``test_bc_dict_misses_and_retired_attributes_fail_loud`` — a
+    face that does not exist is a :class:`KeyError` (plain dict, no
+    masking default); every retired named attribute is an
+    :class:`AttributeError` (no silent ``None``-shim survives).
+
+The test-architect verification design memo is
+``.claude/agent-memory/test-architect/c4_snmesh_bc_dict_verification.md``.
+
+C4 closure
+----------
+
+The face-name carve lands in two parts under Issue #220 (the SN N-D
+layout campaign): C4.1 (the :attr:`FaceLabel.face_name` crosswalk +
+the :attr:`boundary_face_layout` loop collapse) and the bc-dict
+resolution loop + named-attribute retirement. The carve is byte-identical
+on every numerical output (affine ``sha256`` goldens unchanged) and
+leaves the SN boundary keying **3-D-correct by construction** ahead of
+``Mesh3D`` (C5). The realizer plumbing it sits on top of was unified by
+the predecessor close-out below.
+
+Predecessor closure — curvilinear realizer unification (Issue #188 + #176 + #186)
+---------------------------------------------------------------------------------
+
+The realizer path that C4 keys into was made uniform across geometries
+by the curvilinear-realizer-unification arc
+(:ref:`bc-curvilinear-realizer-unification`), closed by branch
+``feature/bc-curvilinear-realizer-cleanup``
+(2026-05-11). Three GitHub issues converged on that branch:
 
 * **Issue #188** — curvilinear :class:`InflowTraceSpace` support
   (commits ``9cf2b0a`` + ``17067d5``). Lifted the
@@ -2264,8 +2669,10 @@ Closed by branch ``feature/bc-curvilinear-realizer-cleanup``
 
 The :class:`_BoundBoundaryOperator` shim survives because the
 ``kind``-string tag is load-bearing for the BC-resolution
-diagnostic and several legacy ``sn_mesh.bc_left ==
-"vacuum"``-style test sites; the dual-mode bound-quadrature
+diagnostic and several ``sn_mesh.bc["xmin"] ==
+"vacuum"``-style test sites (the dict-keyed spelling since C4 / #220;
+this was ``sn_mesh.bc_left == "vacuum"`` pre-C4); the dual-mode
+bound-quadrature
 backing is gone (#176), and the ``*_extra, **_kw`` swallow is
 gone (#186 / C-B3.4). Every supported mesh consumes a strict
 1-arg :class:`LinearOperator` produced by
