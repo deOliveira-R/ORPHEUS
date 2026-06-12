@@ -5,15 +5,33 @@ campaign.  Both use isotropic-in-angle ansatz :math:`\psi_n(r) = A(r)/W`
 with :math:`A(r) = \sin(\pi r/R)`, so the angular redistribution terms
 vanish and the spatial DD convergence rate is isolated.
 
-Both tests are tagged ``@pytest.mark.xfail(strict=True)`` through Wave
-E Round 3 — see :file:`tests/sn/l1_analytical/test_mms_curvilinear_aniso_dd_convergence.py`
-for the full closure narrative; the legacy isotropic tests share the
-same root cause (curvilinear FD operator boundary face-flux is
-first-order on non-constant solutions, plus ERR-026 sweep WDD wrong
-fixed point).
+Closure history (Issue #195, ERR-026 → ERR-058): these tests carried
+``xfail(strict=True)`` from Wave E Round 3 (2026-05) through the
+ERR-058 fix (2026-06-12).  The terminal root causes were two
+self-referential closure seeds in the curvilinear within-group
+operator, each exact on flat ψ (hence invisible to every flat-flux
+gate, vv-principles Mode 7) and O(1)-wrong on non-flat fields:
+
+* **ERR-058 a (spatial)** — the +μ pole-face seed read the innermost
+  CELL-CENTRE flux as the r=0 face value (O(h) wrong); fixed by the
+  Carlson coupled-pole seed ψ(0, +μ) = ψ(0, −μ) (the inward chain's
+  pole outflow at the mirror ordinate).
+* **ERR-058 b (angular)** — the M-M half-angle thread's Carlson seed
+  solved the starting-direction ODE with the proxy source
+  Σ_t·φ₀/Σw (exact only at flat-flux equilibrium); fixed by the
+  ``AngularEdgeExtrapolation`` seed (the input field extrapolated in
+  μ to the level's angular edge).  The proxy's per-ordinate O(1)
+  residual was invisible to every scalar check because the α-dome
+  telescopes under the angular weight sum (anti-pattern #8).
+
+Post-fix measured ladders (2026-06-12, SI ≡ Krylov bit-identical):
+sphere ``[1.49e-2, 3.73e-3, 9.28e-4, 2.31e-4, 5.74e-5]`` at
+nx ∈ {20..320} (orders 2.00–2.01); cylinder ``[2.16e-3, 5.39e-4,
+1.35e-4, 3.37e-5]`` at nx ∈ {20..160} (orders 2.00).  Both
+assertions (rate AND magnitude band) now hold as plain tests.
 
 See :doc:`/theory/discrete_ordinates` (curvilinear MMS sections)
-for the full derivation.
+for the full derivation, and ``error_catalog.md`` ERR-058.
 """
 
 from __future__ import annotations
@@ -39,28 +57,8 @@ def _l2_1d(phi_num: np.ndarray, phi_ref: np.ndarray, volumes: np.ndarray) -> flo
 # ═══════════════════════════════════════════════════════════════════════
 
 @pytest.mark.l1
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "ERR-026 PARTIAL — Phase D (commits 9512459..c44fe9b, 2026-05-12) "
-        "shipped the canonical Hébert §3.9.4 Carlson coupled-pole "
-        "inward μ=−1 sweep as the M-M angular recurrence's half-angle "
-        "seed.  Per-ordinate flat-flux residual on Gate 1.1 sphere MMS "
-        "collapsed to machine precision (≤ 1e-15), AND the empirical "
-        "spatial convergence rate on this MMS ansatz under "
-        "Krylov+Carlson is O(h²) at nx ∈ {20, 40, 80} (orders [3.33, "
-        "2.46]).  However, the absolute-magnitude check at line ~96 "
-        "(`1e-8 < errors[-1] < 1e-3`) fails at nx=160 because the L2 "
-        "error is pre-asymptotic — at nx=80 the error is ~0.11 (probe), "
-        "extrapolating with order 2.46 gives ~0.02 at nx=160, falling "
-        "below 1e-3 only at nx ≥ 320-640.  This is either a benign "
-        "pre-asymptotic transient (fix: refine mesh or relax magnitude "
-        "bound) OR a coefficient bug (fix: investigate the MMS source "
-        "discretisation vs the operator).  Issue #195 tracks the "
-        "investigation + marker removal."
-    ),
-)
 @pytest.mark.slow
+@pytest.mark.catches("ERR-058")
 @pytest.mark.verifies(
     "transport-spherical",
     "sn-mms-spherical-psi", "sn-mms-spherical-qext",
@@ -71,6 +69,15 @@ def test_sn_spherical_mms_converges_second_order():
     The ansatz :math:`A(r) = \sin(\pi r/R)` vanishes at r=0 (symmetry)
     and r=R (vacuum).  Angular redistribution vanishes for isotropic
     flux, so only the radial DD closure drives the convergence rate.
+
+    xfail removed 2026-06-12 (Issue #195): the ERR-058 closure-seed
+    fix (coupled-pole spatial seed + angular-edge-extrapolation
+    half-angle seed) restored O(h²) collapse — measured errors
+    ``[1.49e-2, 3.73e-3, 9.28e-4, 2.31e-4]`` at this ladder, orders
+    2.00–2.01, magnitude band satisfied at nx=160.  This gate is the
+    primary regression catcher for the ERR-058 closure-seed class
+    (any seed that is exact-on-flat-ψ but O(1)-wrong on non-flat
+    fields re-floors this ladder).
     """
     case = build_spherical_mms_case()
 
@@ -101,24 +108,8 @@ def test_sn_spherical_mms_converges_second_order():
 # ═══════════════════════════════════════════════════════════════════════
 
 @pytest.mark.l1
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "ERR-026 PARTIAL — coupled to the spherical isotropic case "
-        "(this file, sphere variant).  Phase D's Carlson coupled-pole "
-        "seed restored the canonical convergence rate (O(h²) under "
-        "Krylov+Carlson on the empirical probe), but the absolute-"
-        "magnitude check at nx=160 still fails because the L2 error "
-        "is pre-asymptotic.  Issue #195 tracks the investigation + "
-        "marker removal.  Cylindrical Gate 1.1 PASSES under canonical "
-        "M-M angular closure (the per-level α-dome telescoping "
-        "absorbed the wrong-seed discrepancy pre-Phase-D; the canonical "
-        "seed now ships for cylindrical too).  This test stays xfail "
-        "coupled to the sphere's #195 outcome — the convergence-magnitude "
-        "investigation applies to both geometries."
-    ),
-)
 @pytest.mark.slow
+@pytest.mark.catches("ERR-058")
 @pytest.mark.verifies(
     "transport-cylindrical",
     "sn-mms-cylindrical-psi", "sn-mms-cylindrical-qext",
@@ -129,6 +120,12 @@ def test_sn_cylindrical_mms_converges_second_order():
     Same structure as the spherical test but on a cylindrical mesh
     with Product quadrature (polar × azimuthal).  Azimuthal
     redistribution vanishes for isotropic flux.
+
+    xfail removed 2026-06-12 (Issue #195 / ERR-058): measured errors
+    ``[2.16e-3, 5.39e-4, 1.35e-4, 3.37e-5]`` at this ladder, orders
+    2.00; magnitude band satisfied from nx=40.  See the sphere
+    variant's docstring + the module docstring for the closure
+    narrative.
     """
     case = build_cylindrical_mms_case()
 

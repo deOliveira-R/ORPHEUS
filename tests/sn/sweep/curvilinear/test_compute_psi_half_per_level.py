@@ -120,7 +120,7 @@ class TestShapeContract:
             mu_quad=np.linspace(-1.0, 1.0, M),
             weights=np.full(M, 2.0 / M),
             bc_outer_value=np.zeros(ng),
-        )
+            mu_start=-1.0,)
         psi_half = sweep.compute_psi_half_per_level(
             psi_level, tau_level, carlson_context=ctx,
         )
@@ -325,7 +325,7 @@ class TestSeedContract:
             mu_quad=np.linspace(-1.0, 1.0, M),
             weights=np.full(M, 2.0 / M),
             bc_outer_value=np.zeros(ng),
-        )
+            mu_start=-1.0,)
         psi_half_with_ctx = sweep_zero.compute_psi_half_per_level(
             psi_level, tau_level, carlson_context=ctx,
         )

@@ -211,13 +211,13 @@ def test_mms_prescribed_inflow_slab_converges_second_order(case_kind: str):
 @pytest.mark.xfail(
     strict=True,
     reason=(
-        "ERR-026 PARTIAL / #195 curvilinear DD pre-asymptotic — see "
-        "tests/sn/verification/mms/test_mms_curvilinear.py. The non-vacuum "
-        "+ redistribution machinery is verified (rate + value), but the "
-        "underlying curvilinear DD spatial convergence it rides on is the "
-        "OPEN #195 gate (the absolute-magnitude band fails until the "
-        "pole-face spatial closure aligns with Hébert §3.9.4). Marker comes "
-        "off when #195 closes."
+        "ERR-058 (#195, 2026-06-12) closed the curvilinear wrong-fixed- "
+        "point family; this case (aniso sphere ansatz, prescribed "
+        "inflow) now rides the same fixed-quadrature ANGULAR floor "
+        "as the aniso MMS gates (the M-M half-angle thread values "
+        "are interpolated, not imposed).  The band assertion fails "
+        "until the quadrature-aware retune.  Tracked at Issue #229; "
+        "marker comes off with the #229 retune."
     ),
 )
 @pytest.mark.verifies(

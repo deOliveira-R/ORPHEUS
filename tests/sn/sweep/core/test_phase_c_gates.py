@@ -593,14 +593,25 @@ def _outflow_at_boundary_for_sphere_from_bulk(
     # Mirror the matvec body's ``(ng, N, nx)`` ordering.
     psi_g_first = psi_bulk.transpose(1, 0, 2)
     outgoing_mask = quad.mu_x > +eps
+    incoming_mask = quad.mu_x < -eps
     outflow_at_boundary = np.zeros((ng, quad.N))
     if not np.any(outgoing_mask):
         return outflow_at_boundary
-    # Lewis-Miller pole-face IC (matches the unified matvec's
-    # ``pole_face_seed`` derivation for sphere — cell-centre proxy at
-    # the innermost cell because there's no inner-face BC on a solid
-    # sphere).
-    psi_face_in = psi_g_first[:, outgoing_mask, 0].copy()
+    # Carlson coupled-pole seed (ERR-058 a, Issue #195): the inward
+    # (−1) chain runs first, seeded from the GIVEN outer inflow trace
+    # (zero in this test's composite), and its pole-face outflow at
+    # the MIRROR ordinate seeds the outward chain — the r = 0
+    # continuity ψ(0, +μ) = ψ(0, −μ).  The pre-ERR-058 cell-centre
+    # proxy read ψ(Δr/2) as the pole-face value (O(h)-wrong on
+    # non-flat profiles) and is retired.
+    psi_face_in_inward = np.zeros((ng, int(incoming_mask.sum())))
+    for i in range(nx - 1, -1, -1):
+        psi_cell = psi_g_first[:, incoming_mask, i]
+        psi_face_in_inward = 2.0 * psi_cell - psi_face_in_inward
+    pole_outflow = np.zeros((ng, quad.N))
+    pole_outflow[:, incoming_mask] = psi_face_in_inward
+    mirror = quad.reflection_index("x")
+    psi_face_in = pole_outflow[:, mirror][:, outgoing_mask]
     for i in range(nx):
         psi_cell = psi_g_first[:, outgoing_mask, i]
         psi_face_out = 2.0 * psi_cell - psi_face_in
@@ -827,7 +838,7 @@ def test_sweep_curvilinear_per_ordinate_flat_flux_residual(
         mu_quad=mu_apply,
         weights=weights_apply,
         bc_outer_value=bc_outer_value_apply,
-    )
+        mu_start=-1.0,)
     seed_apply = CarlsonInwardSweep()(psi_level_flat, ctx)  # (1, nx)
 
     # Build the sweep-path Carlson seed (under test) — matching the

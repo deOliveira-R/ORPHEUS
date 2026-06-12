@@ -149,7 +149,7 @@ def _make_context(
     return CarlsonSweepContext(
         sigma_t=sigma_t, dr=dr, mu_quad=mu_quad,
         weights=weights, bc_outer_value=bc_outer,
-    )
+        mu_start=-1.0,)
 
 
 class TestZeroSeedShapeAndBitIdentity:
@@ -329,7 +329,7 @@ class TestCarlsonFlatPsiAlgebraicIdentity:
             mu_quad=np.linspace(-0.9, 0.9, M),
             weights=np.full(M, 0.5),
             bc_outer_value=np.array([0.0]),
-        )
+            mu_start=-1.0,)
         result = CarlsonInwardSweep()(psi_level, context)
         # Hand-trace: phi_face_outer = 0; phi_0(ψ_input) = 2.
         # Q̄[k] = 0.5 · σ_t[k] · 2 = σ_t[k].
@@ -406,7 +406,7 @@ class TestSeedLinearity:
             mu_quad=context.mu_quad,
             weights=context.weights,
             bc_outer_value=np.zeros_like(context.bc_outer_value),
-        )
+            mu_start=-1.0,)
         out_combined = CarlsonInwardSweep()(
             alpha * psi1 + beta * psi2, context_no_bc,
         )
@@ -476,19 +476,33 @@ class TestCarlsonStructuralIndependence:
 
 class TestMorelMontryDefaultSeed:
     """Pin that MorelMontryAngularSweep's default psi_half_seed is the
-    canonical Phase D Carlson coupled-pole sweep.
+    operator-consistent angular-edge extrapolation (ERR-058 b, #195).
 
-    A future regression that flips the default to ``ZeroSeed`` (the
-    Phase B pre-fix behaviour) is caught here.
+    A future regression that flips the default back to
+    ``CarlsonInwardSweep`` (the proxy-source seed, exact only at
+    flat-flux equilibrium) or ``ZeroSeed`` (the Phase B pre-fix
+    behaviour) is caught here.
     """
 
     @pytest.mark.foundation
-    def test_default_seed_is_carlson_inward_sweep(self) -> None:
+    def test_default_seed_is_angular_edge_extrapolation(self) -> None:
         from orpheus.sn.spatial.pole_angular_closure import (
             MorelMontryAngularSweep,
         )
+        from orpheus.sn.spatial.psi_half_angle_seed import (
+            AngularEdgeExtrapolation,
+        )
         instance = MorelMontryAngularSweep()
-        assert isinstance(instance.psi_half_seed, CarlsonInwardSweep)
+        assert isinstance(instance.psi_half_seed, AngularEdgeExtrapolation)
+
+    @pytest.mark.foundation
+    def test_carlson_remains_registered_opt_in(self) -> None:
+        """The Hébert recurrence host stays available by explicit key."""
+        from orpheus.sn.spatial.psi_half_angle_seed import (
+            PsiHalfAngleSeedBase,
+        )
+        cls = PsiHalfAngleSeedBase.registry["carlson_inward_sweep"]
+        assert cls is CarlsonInwardSweep
 
     @pytest.mark.foundation
     def test_can_construct_with_zero_seed_opt_out(self) -> None:

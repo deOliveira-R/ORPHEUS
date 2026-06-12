@@ -16,10 +16,15 @@ term the isotropic ansatz nulls):
 
 Both variants are kept (they verify DIFFERENT equation labels and the
 phase-C pair carries the ERR-026 catcher) — the consolidation removes
-the duplicated FILE, not the distinct coverage. All stay ``xfail``:
-ERR-026's curvilinear-sweep WDD fixed point is closed at the
-per-ordinate flat-flux level (Phase D Carlson coupled-pole seed) but
-the L2 convergence magnitude is pre-asymptotic at nx=80 (Issue #195).
+the duplicated FILE, not the distinct coverage. All stay ``xfail``,
+but the reason changed on 2026-06-12: the ERR-058 closure-seed fix
+(#195) closed the curvilinear wrong-fixed-point family (the isotropic
+companions now pass plain and their markers are GONE), and the aniso
+cases dropped ~50× in error.  What remains here is the
+fixed-quadrature ANGULAR floor of the per-ordinate-imposed aniso
+ansatz — a test-design limitation tracked at Issue #229 (the M-M
+half-angle thread values are interpolated, not imposed; the floor
+scales down with quadrature order).
 
 Pairing rationale (the failure-narrowing instrument): the anisotropic
 ansatz differs from the isotropic one ONLY in the :math:`B(r)\zeta`
@@ -60,17 +65,15 @@ def _l2_1d(phi_num: np.ndarray, phi_ref: np.ndarray, volumes: np.ndarray) -> flo
 @pytest.mark.xfail(
     strict=False,
     reason=(
-        "ERR-026 PARTIAL CLOSURE (Phase C 2026-05-12, updated "
-        "PR-TYPED-6.5 2026-05-18): the sweep-frame apply matvec "
-        "rewrite + B1'' face-state architecture closed the spatial "
-        "side of ERR-026, but the Gate 1.1 empirical probe with "
-        "``MorelMontryAngularSweep`` on sphere still does not preserve "
-        "the per-ordinate flat-flux invariant by design (α-dome "
-        "cancellation across pure-azimuthal degenerate ordinates "
-        "happens to telescope cleanly on cylinder; sphere does not).  "
-        "The MMS convergence rate stays at the ~O(h^1.3) profile until "
-        "a follow-up aligns the pole-face spatial closure with the "
-        "canonical Hébert §3.9.4 angular recurrence."
+        "ERR-058 (#195, 2026-06-12) CLOSED the curvilinear "
+        "wrong-fixed-point family (closure-seed fix); this case's error "
+        "dropped ~50x and the coarse-segment orders are now ~1.98.  The "
+        "remaining failure is the fixed-quadrature ANGULAR floor of the "
+        "per-ordinate-imposed aniso ansatz (the M-M half-angle thread "
+        "values are interpolated, not imposed): the fine-segment rate "
+        "degrades as the spatial error meets the floor (sphere S16 "
+        "~7e-4; cylinder n_mu=4 ~1.9e-2; floor scales with quadrature). "
+        "Test-design retune tracked at Issue #229."
     ),
 )
 def test_sn_spherical_aniso_mms_spatial_convergence_phase_c():
@@ -108,9 +111,15 @@ def test_sn_spherical_aniso_mms_spatial_convergence_phase_c():
 @pytest.mark.xfail(
     strict=False,
     reason=(
-        "ERR-026 PARTIAL CLOSURE — same rationale as the spherical "
-        "Gate 3.1 test; see its docstring. Cylindrical follows the "
-        "same deferral path until the pole-face spatial-closure fix."
+        "ERR-058 (#195, 2026-06-12) CLOSED the curvilinear "
+        "wrong-fixed-point family (closure-seed fix); this case's error "
+        "dropped ~50x and the coarse-segment orders are now ~1.98.  The "
+        "remaining failure is the fixed-quadrature ANGULAR floor of the "
+        "per-ordinate-imposed aniso ansatz (the M-M half-angle thread "
+        "values are interpolated, not imposed): the fine-segment rate "
+        "degrades as the spatial error meets the floor (sphere S16 "
+        "~7e-4; cylinder n_mu=4 ~1.9e-2; floor scales with quadrature). "
+        "Test-design retune tracked at Issue #229."
     ),
 )
 def test_sn_cylindrical_aniso_mms_spatial_convergence_phase_c():
@@ -175,15 +184,19 @@ def test_sn_spherical_angular_convergence_at_fixed_mesh():
 @pytest.mark.xfail(
     strict=True,
     reason=(
-        "ERR-026 PARTIAL — Phase D (commits 9512459..c44fe9b, 2026-05-12) "
-        "shipped the canonical Hébert §3.9.4 Carlson coupled-pole "
-        "inward μ=−1 sweep as the M-M angular recurrence's half-angle "
-        "seed AND flipped the curvilinear inner solver default to "
-        "Krylov.  Per-ordinate flat-flux residual on Gate 1.1 sphere "
-        "MMS collapsed to machine precision (≤ 1e-15).  The absolute-"
-        "magnitude check at nx=80 (`1e-8 < errors[-1] < 1e-3`) fails "
-        "because the L2 error is pre-asymptotic.  Issue #195 tracks the "
-        "investigation + marker removal."
+        "ERR-058 (#195, 2026-06-12) CLOSED the curvilinear "
+        "wrong-fixed-point family (closure-seed fix: coupled-pole "
+        "spatial seed + angular-edge-extrapolation half-angle seed); "
+        "this case's error dropped ~50x. The REMAINING failure is a "
+        "TEST-DESIGN limitation, not a solver bug: the "
+        "per-ordinate-imposed anisotropic ansatz leaves the M-M "
+        "half-angle thread values INTERPOLATED (not imposed), so at "
+        "fixed quadrature the solution converges spatially to an "
+        "angular-discretization floor (sphere S16 ~7e-4, S32 ~2.9e-4; "
+        "cylinder n_mu=4 ~1.9e-2, n_mu=8 ~7.4e-3 - floor scales with "
+        "quadrature). The pure-spatial rate+band assertions cannot both "
+        "hold in the tested window at the shipped quadrature. Issue "
+        "#229 tracks the quadrature-aware retune + marker removal."
     ),
 )
 @pytest.mark.slow
@@ -226,13 +239,19 @@ def test_sn_spherical_aniso_mms_converges_second_order():
 @pytest.mark.xfail(
     strict=True,
     reason=(
-        "ERR-026 PARTIAL — coupled to the spherical anisotropic case. "
-        "Phase D shipped the Carlson coupled-pole seed for both "
-        "geometries; per-ordinate flat-flux identity is closed.  The "
-        "absolute-magnitude check at nx=80 still fails because the L2 "
-        "error is pre-asymptotic, same root cause as the sphere "
-        "variant.  Issue #195 tracks the convergence-magnitude "
-        "investigation + marker removal."
+        "ERR-058 (#195, 2026-06-12) CLOSED the curvilinear "
+        "wrong-fixed-point family (closure-seed fix: coupled-pole "
+        "spatial seed + angular-edge-extrapolation half-angle seed); "
+        "this case's error dropped ~50x. The REMAINING failure is a "
+        "TEST-DESIGN limitation, not a solver bug: the "
+        "per-ordinate-imposed anisotropic ansatz leaves the M-M "
+        "half-angle thread values INTERPOLATED (not imposed), so at "
+        "fixed quadrature the solution converges spatially to an "
+        "angular-discretization floor (sphere S16 ~7e-4, S32 ~2.9e-4; "
+        "cylinder n_mu=4 ~1.9e-2, n_mu=8 ~7.4e-3 - floor scales with "
+        "quadrature). The pure-spatial rate+band assertions cannot both "
+        "hold in the tested window at the shipped quadrature. Issue "
+        "#229 tracks the quadrature-aware retune + marker removal."
     ),
 )
 @pytest.mark.slow

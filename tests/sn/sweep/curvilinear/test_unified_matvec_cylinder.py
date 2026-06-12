@@ -155,7 +155,7 @@ def _hand_reference_cyl_matvec(
                 mu_quad=mu_level.copy(),
                 weights=weights_level.copy(),
                 bc_outer_value=bc_outer_value_level,
-            )
+                mu_start=-1.0,)
         )
 
     redist_full = pac(

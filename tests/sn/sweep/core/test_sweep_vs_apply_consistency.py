@@ -77,7 +77,7 @@ def test_carlson_seed_apply_sweep_equivalence_flat_psi(
         sigma_t=sigma_t_gx, dr=dr,
         mu_quad=mu, weights=weights,
         bc_outer_value=bc_outer,
-    )
+        mu_start=-1.0,)
     seed_apply = CarlsonInwardSweep()(psi_level, ctx)
 
     # Sweep path: feeds Q̄ = 0.5 · Σ_t · φ_0 = 0.5 · Σ_t · 2 · ψ_const
