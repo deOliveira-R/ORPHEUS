@@ -248,16 +248,20 @@ class TestTransportSweep:
         np.testing.assert_array_equal(phi1, phi2,
                                       err_msg="Sweep not deterministic")
 
-    @pytest.mark.xfail(
-        reason="Pre-existing frozen-snapshot drift: sweep_ref_2g.npy "
-        "predates the Wave-T reduction-tree refactors and drifted past "
-        "rtol=1e-14. Regenerating the snapshot is a deliberate "
-        "bit-identity decision (vv-principles §bit-identity), out of "
-        "scope for the taxonomy reorg. Pin xfail until regenerated.",
-        strict=False,
-    )
     def test_matches_saved_reference(self, solver_2g):
-        """Sweep output must match the saved reference (bitwise regression)."""
+        """Sweep output must match the saved reference (bitwise regression).
+
+        Snapshot regenerated for issue #175 (2026-06-12) via
+        ``derivations/diagnostics/diag_175_sweep_snapshot_regen.py``: the
+        pre-Wave-2 snapshot was doubly stale — pre-octant-batching VALUES
+        and pre-PR-INDEX-5 LAYOUT ``(nx, ny, ng)``. Per vv-principles
+        §bit-identity, the regenerated values were verified against a
+        structurally-independent reference: a from-scratch per-cell-loop
+        2-D DD sweep (no shared code with the production
+        windowed-frontier kernel) agrees to max |Δψ| = 3.5e-17,
+        rel |Δφ| ≤ 9.8e-16. Re-run the diagnostic before any future
+        regeneration.
+        """
         solver, _, sn_mesh, quad = solver_2g
         np.random.seed(7)
         Q = np.random.rand(solver.ng, *sn_mesh.spatial_shape) + 0.01
