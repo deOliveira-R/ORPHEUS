@@ -54,3 +54,46 @@ Nits (cosmetic, non-blocking, did NOT require rework):
 The `default_branch` (origin/HEAD → main/master) retired the old `for base in
 ("main","master"): ... if files: break` fallback in `query.py` that conflated
 "ref absent" with "no .py changed" — a genuine convention bug, not just style.
+
+---
+
+**AMBIENT-LAYER review (later 4 commits `700df12→72b36b9→cff9113→2d7d13f`, vs
+parent `9b1fb68`, 2026-06-12). Verdict: PASS-with-nits.** 423 tests green,
+pyright 0/0. The "ambient push channel": `brief.py` (NEW, edit-time `file_brief`
+reads SQLite DIRECTLY — no networkx, ~100ms warm budget), `GitProvenance.from_stamp`
++ `STAMP_*` vocab, `changed_files` None/`frozenset()` tri-state, server
+position-staleness warning on `node_at`, `NodeResult.file_path/lineno` reverse bridge.
+
+What good looked like (reinforce):
+- **`STAMP_*` + `from_stamp` is a real SSOT win** (Pattern 2+7). Collapsed 4 reader
+  sites that hand-indexed raw `prov["git_branch"]`/`.get("git_commit")` into one
+  vocabulary owned by the writer's module. Deferred to the 2nd/3rd reader (Pattern 6,
+  per commit msg) — correct timing.
+- **Tri-state staleness** (`None`=unknown ≠ `frozenset()`=verified-unchanged ≠
+  non-empty) carried in `bool | None`, each state independently tested. Docstring
+  forbids the collapse callers would make ("a commit this clone lacks is MORE
+  suspect"). Pattern 4 in the small.
+- **Performance comments state CONSTRAINTS not narration** — "per-type SQL predicate
+  tempts the planner onto the huge type index, measured 15× slower"; "must not pay
+  ~150ms graph-stack import". They explain why the obvious refactor is wrong.
+- **Lazy-networkx split + additive `idx_node_attrs_key_value`** verified genuinely
+  additive (no prior node_attrs index to retire; SCHEMA_VERSION stays 1, old DBs
+  readable). No retirement obligation.
+
+The flagged `brief._norm` vs `query.node_at._norm` "twin" = **JUSTIFIED BIFURCATION,
+NOT a twin path.** Byte-identical bodies but opposite substrates: node_at normalizes
+in NetworkX-space (graph already in memory), brief normalizes in SQL-space (builds
+`json.dumps` literal spellings to push the match into the indexed `WHERE value IN`,
+because never-load-the-graph IS its reason to exist). Unifying forces brief to load
+the graph (defeats budget) — same "one contract, two substrates" shape as the SN
+SI-vs-Krylov / apply-vs-residual fold. CONCERN-not-VIOLATION: bound it (reciprocal
+cross-ref comment + a corner-probing equivalence test: symlink/mixed-sep through
+BOTH), do NOT collapse (Pattern 6 / FaceField-deferral precedent).
+
+Open nits (cheap, in-session, non-blocking): (1) the two `_norm` share only a
+one-directional prose pointer + no equivalence pin → drift habitat when one hardens
+(symlink/casefold) and the other doesn't → silent: ambient brief reports wrong file's
+blast radius. (2) `brief.py`'s 2nd-tier basename `LIKE...ESCAPE` fallback (the
+subtlest code — hand-rolled `\\`/`\%`/`\_` escaping + load-bearing trailing-`"`
+anchor) has ZERO test coverage; it only runs on the corner inputs no exact-match test
+hits. Both silent-failure shaped → defend with a test.
