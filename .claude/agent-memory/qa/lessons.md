@@ -93,6 +93,50 @@ default lane. Verify with `--collect-only -m "not slow"`.
 
 ---
 
+## L-006 -- Mode-8 (-O strip) classification: rewriter boundary + testpaths
+
+Two facts gate whether a bare `assert` is a real `-O` false-green:
+
+1. **Assertion-rewriter boundary.** pytest rewrites bare asserts ONLY
+   in (a) collected test modules and (b) registered conftest/plugins.
+   Asserts in `orpheus/` production modules (incl. `orpheus/derivations/`)
+   are NEVER rewritten, so under `-O` they are inert NO-OPs. (`np.testing.*`
+   / `pytest.fail` are function calls -> fire under `-O` regardless.)
+2. **`testpaths = ["tests"]`.** The canonical suite collects ONLY `tests/`.
+   `test_*` wrappers that live INSIDE an `orpheus/derivations/*.py` module
+   (e.g. `balance.py:test_cartesian_1d`) are NOT collected -> their
+   internal asserts run only on a manual `pytest orpheus/.../balance.py`
+   (the docstring usage), never by `python -O -m pytest`. Those are class-D
+   (dead w.r.t. the suite), NOT class-A.
+
+**Classification recipe** for a bare assert in `orpheus/`:
+- Nexus `callers` on the function node. Filter to callers whose id starts
+  `tests.` (collected) vs `orpheus.derivations.` (in-module wrapper, dead).
+- If a COLLECTED test calls it: read what the test independently asserts on
+  the RETURN VALUE. If the test cross-checks the same property against a
+  structurally-independent path (e.g. SymPy coeffs vs the DD sweep), the
+  internal assert is class-B redundant (the H4 self-reference trap does NOT
+  bite because producer and consumer are independent). If the test only
+  consumes the return and the assert is the sole correctness gate -> class-A.
+- `isinstance(...)` after a `case`/`if coord`-branch, and `x is not None`
+  on an Optional the contract guarantees -> class-C type-narrowing (strip =
+  designed; downstream AttributeError if ever violated).
+- `assert row == n_unk` before `np.linalg.solve` (matrix-assembly row count),
+  `if __debug__:` blocks, `assert <closed-form sanity>` guarding `[0]`
+  indexing of a `sp.solve` result whose REAL verification is a returned
+  `pass_*` boolean -> class-C.
+- Import-time `validate_all()` on a HARDCODED data table (xs_library.py:307,
+  `np.allclose(sig_t, sig_c+sig_f+sig_s.sum)`) with NO independent
+  collected-test coverage and a constructor (`Mixture`) that does NOT
+  re-validate -> class-A genuine false-green: the only consistency gate on
+  the canonical XS library, silently inert under `-O`.
+
+**The #228 audit** (56 sites): 1 class-A (`xs_library.py:307`), rest C/D.
+The original premise (test_keff_2d bare asserts inert) was REFUTED -- those
+ARE collected -> rewritten -> fire under `-O`.
+
+---
+
 ## L-004 -- vv-status rationale comments must NOT use [brackets]
 
 The `:vv-status: documented` directive lives in the same RST file as
