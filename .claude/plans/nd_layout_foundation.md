@@ -130,19 +130,55 @@ dimension-generic — the face inventory IS the BC inventory:
 - **Follow-up filed: #223** (pre-#188 unified-trace drift in the
   `boundary_conditions.rst` worked example ~:886–909 — predates C4).
 
-**⏭ NEXT = C5: Mesh3D + 3-D end-to-end admission.** Scope (from the C3.6 audit
-chain + C4): axis-native SNMesh construction dissolving the constructor's
-legacy-adapter isinstance seam + `_axis_widths` (`orpheus/sn/geometry.py`
-~:295–310); Mesh3D or direct from_axes admission (entry seam =
-`orpheus/sn/axis.py` `legacy_mesh_from_axes` raises for ≥3 axes;
-`orpheus/geometry/mesh.py` has only Mesh1D/Mesh2D); the d≥3 ScanMarch
-`scan(x)∘march(y,z)` kernel generalization + the window's d≥3 `supports`
-widening (deferred-WITH-Mesh3D per C3.6 — "widen the predicate only WITH the
-kernel/profile"); value-level d=3 gates replacing the synthetic SimpleNamespace
-structure pins (test_sweep_schedule_nd, TestD3SupportsMatrix, the crosswalk d=3
-pins all become constructible-value tests). The BOUNDARY side is now FREE:
-`boundary_face_layout` / `bc` / `_resolve_one` need ZERO edits at d=3 — that
-was C4's point.
+**⏭ NEXT = C5: Mesh3D + 3-D end-to-end admission.** A fresh session picks up
+from THIS paragraph (+ the "### Environment" block below for paths/invocations
+— still accurate, except the branch tip is now the C4 chain, local NOT pushed).
+
+*The d=3 admission chain in dependency order* (established by the C3.6 explorer
+audit, unchanged by C4 except the boundary entry is now DONE):
+1. **3-axis admission** — the entry seam: `orpheus/sn/axis.py`
+   `legacy_mesh_from_axes` raises for ≥3 axes (THE admission gate);
+   `orpheus/geometry/mesh.py` has only Mesh1D (:211) / Mesh2D (:491).
+   ⚠ **DESIGN FORK to resolve FIRST (plan mode / user input):** (A) add a
+   legacy `Mesh3D` dataclass + extend the constructor's isinstance adapter, vs
+   (B) **axis-native** — 3-D enters ONLY via the existing `SNMesh.from_axes`
+   (`orpheus/sn/geometry.py` ~:734), and the legacy-adapter isinstance branch
+   + `_axis_widths` seam (~:295–310, the "ONE seam, dissolves at C5"
+   marker from C3.6.b) dissolves instead of growing a third arm. (B) is the
+   architecture-forward option (the legacy meshes stay the d≤2 user-facing
+   surface; d=3 is axis-native from birth — no third legacy dataclass to
+   retire later); (A) keeps Mesh1D/2D/3D symmetric for other solver families.
+   Check `from_axes`'s current completeness (it routes through
+   `legacy_mesh_from_axes` today — that round-trip is exactly what must break).
+2. **Constructor metadata** — `spatial_shape`/`face_labels`/`face_shape` etc.
+   are ALREADY d-generic (axis.py pure functions); the isinstance branch's
+   `_axis_widths`/`mat_map`/volumes derivations are the d≤2-bound part.
+3. **Streaming data** — `_streaming_axes` already `range(ndim)`-generic
+   (C3.6.b); needs only the widths tuple to be 3-long.
+4. **Boundary** — ✅ FREE (C4): `boundary_face_layout`/`bc`/`_resolve_one`
+   need ZERO edits; crosswalk z-pins already green.
+5. **Schedule/DAG** — ✅ d-generic (C3.3 + C3.6.a; `itertools.product`
+   octants, derived outgoing faces).
+6. **Kernels** — the d≥3 ScanMarch `scan(x)∘march(y,z)` generalization + the
+   window's d≥3 `supports` widening (BOTH deferred-WITH-Mesh3D per C3.6:
+   "widen the predicate only WITH the kernel/profile"). Until then
+   `default_for` falls through to the d-generic `FullFieldWavefront` spine —
+   d=3 WORKS on the oracle representation from day one; ScanMarch/window
+   widenings are perf follow-ups gated on measurement.
+7. **Solver gates** — audit `solve_sn`/eigenvalue entries for `ndim==2`
+   assumptions (C3.6 audit found the loss-representation layer clean; the
+   solver layer was NOT exhaustively audited for d=3).
+*Test strategy:* the synthetic SimpleNamespace structure pins
+(`test_sweep_schedule_nd.py`, `TestD3SupportsMatrix` in
+`test_unified_sweep_dispatch.py`, the crosswalk d=3 table) all FLIP to
+constructible-value tests; new value-level gates = d=3 fixed-source `Q/Σ_t`
+infinite-medium + mixed-BC asymmetric box (Mode-9: vacuum/reflective mixed,
+nx≠ny≠nz) + k_inf 3-D≡1-D≡2-D equivalence on a homogeneous reflective box;
+bit-identity at d≤2 throughout (affine sha256 goldens, NO regen).
+*Protocol:* explorer audit on the from_axes/legacy-adapter seam + the solver-
+gate sweep (item 7) FIRST → resolve the design fork (plan mode; user steer) →
+test-architect 3-D gate design → per-substep commits, elegance review,
+Sphinx clean (zero-warning baseline now), push only when asked.
 The PRIOR (2026-06-09) recovery below is the C2/C3-start record.
 
 ## PRIOR — POST-COMPACTION RECOVERY (2026-06-09)
