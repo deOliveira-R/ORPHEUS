@@ -171,6 +171,20 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "EnterWorktree",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/worktree-setup.sh",
+            "asyncRewake": true,
+            "statusMessage": "Setting up worktree: venv + Nexus graph...",
+            "timeout": 1800
+          }
+        ]
+      }
     ]
   },
   "enabledPlugins": {
