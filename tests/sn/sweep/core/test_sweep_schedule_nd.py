@@ -183,3 +183,53 @@ def test_jacobi_d3_one_group_all_octants():
         OctantLabel(signs)
         for signs in itertools.product((-1, +1), repeat=3)
     }
+
+
+# ─── C5.5 (#225): the real mesh presents the duck-typed contract ─────
+
+
+@pytest.mark.catches("ERR-056")
+def test_gs_d3_schedule_from_real_mesh():
+    """A real ``from_axes`` 3-axis mesh feeds ``gauss_seidel`` the same
+    interface the synthetic pins above assumed — and the order-invariant
+    schedule facts hold on it: 8 unmerged sign-octant groups, the
+    reflected set is exactly the reflective faces, each shared face is
+    assigned to EXACTLY ONE group (the ERR-056 discipline), and a group
+    only reflects faces it outflows. (Order-RELATIVE facts — which
+    group is "last" — depend on the cubature's octant enumeration and
+    are pinned synthetically above.)
+    """
+    import numpy as np
+    from orpheus.derivations.common.xs_library import make_mixture
+    from orpheus.geometry import BC
+    from orpheus.numerics.quadrature import Quadrature
+    from orpheus.sn.axis import AxisMesh
+    from orpheus.sn.geometry import SNMesh
+
+    refl, vac = BC("reflective"), BC("vacuum")
+    mix = make_mixture(
+        sig_t=np.array([1.0]), sig_c=np.array([0.5]),
+        sig_f=np.array([0.0]), nu=np.array([0.0]),
+        chi=np.array([1.0]), sig_s=np.array([[0.5]]),
+    )
+    mesh = SNMesh.from_axes(
+        (
+            AxisMesh(edges=np.linspace(0.0, 1.0, 3), bc_low=refl, bc_high=refl),
+            AxisMesh(edges=np.linspace(0.0, 1.0, 4), bc_low=vac, bc_high=vac),
+            AxisMesh(edges=np.linspace(0.0, 1.0, 5), bc_low=refl, bc_high=refl),
+        ),
+        Quadrature.level_symmetric(sn_order=4),
+        {0: mix},
+    )
+    sched = SweepSchedule.gauss_seidel(mesh)
+    assert sched.kind == "gauss_seidel"
+    assert len(sched.groups) == 8
+    counts: dict[str, int] = {}
+    for g in sched.groups:
+        label = g.sweeps[0].label
+        assert label.ndim == 3
+        assert set(g.reflect_faces) <= _expected_outgoing(label)
+        for f in g.reflect_faces:
+            counts[f] = counts.get(f, 0) + 1
+    assert set(counts) == {"xmin", "xmax", "zmin", "zmax"}
+    assert all(c == 1 for c in counts.values()), counts

@@ -197,15 +197,15 @@ class TestDispatchSelectsStrategy:
 class TestD3SupportsMatrix:
     """C3.6 honest-supports pins at d=3 (test-architect G-c1..c4).
 
-    A d=3 ``SNMesh`` is UNCONSTRUCTIBLE today (no ``Mesh3D``), so the
-    selection contract at d=3 is pinned at the ``supports``-predicate
-    level on a duck-typed stand-in (the predicates read only ``is_1d`` /
-    ``is_cartesian`` / ``ndim``), re-deriving ``default_for``'s
-    first-applies walk over the REAL registry without invoking the
-    unconstructible ``cls(mesh)``.  The day Mesh3D lands, ``default_for``
-    must route d=3 to the d-generic ``FullFieldWavefront`` spine — NOT
-    misroute into ``ScanMarch``, whose row-march kernels unpack d=2
-    (its ``supports`` was narrowed to tell that truth in C3.6; widen it
+    The ``supports`` predicates read only ``is_1d`` / ``is_cartesian``
+    / ``ndim``, so the PREDICATE pins stay duck-typed (cheap, and they
+    document the narrowing contract at the predicate level). Since
+    C5.5 (#225) a 3-axis ``SNMesh`` is constructible via
+    ``from_axes``, so the SELECTION pin (G-c3) runs the LIVE
+    ``default_for`` on a real mesh — it must route d=3 to the
+    d-generic ``FullFieldWavefront`` spine, NOT misroute into
+    ``ScanMarch``, whose row-march kernels unpack d=2 (its
+    ``supports`` was narrowed to tell that truth in C3.6; widen it
     only WITH the scan(x)∘march(y,z) kernel generalization).
     """
 
@@ -239,21 +239,39 @@ class TestD3SupportsMatrix:
 
     @pytest.mark.foundation
     def test_d3_cartesian_falls_through_to_full_field_spine(self):
-        """G-c3: the registry's first-applies walk lands a d=3 Cartesian
-        mesh on FullFieldWavefront — the never-stuck any-d spine."""
+        """G-c3 (FLIPPED to a real mesh in C5.5/#225): the LIVE
+        ``default_for`` selection — not just the predicate walk — lands
+        a real 3-axis Cartesian mesh on FullFieldWavefront, the
+        never-stuck any-d spine."""
+        import numpy as np
+        from orpheus.derivations.common.xs_library import make_mixture
+        from orpheus.numerics.quadrature import Quadrature
+        from orpheus.sn.axis import AxisMesh
+        from orpheus.sn.geometry import SNMesh
         from orpheus.sn.loss_representation import (
-            LOSS_REPRESENTATIONS,
             FullFieldWavefront,
+            default_for,
         )
-        fake = self._fake(3)
-        admitted = [
-            cls for cls in LOSS_REPRESENTATIONS if cls.supports(fake).ok
-        ]
-        if not admitted or admitted[0] is not FullFieldWavefront:
+        mix = make_mixture(
+            sig_t=np.array([1.0]), sig_c=np.array([0.5]),
+            sig_f=np.array([0.0]), nu=np.array([0.0]),
+            chi=np.array([1.0]), sig_s=np.array([[0.5]]),
+        )
+        mesh = SNMesh.from_axes(
+            (
+                AxisMesh(edges=np.linspace(0.0, 1.0, 3)),
+                AxisMesh(edges=np.linspace(0.0, 1.0, 4)),
+                AxisMesh(edges=np.linspace(0.0, 1.0, 5)),
+            ),
+            Quadrature.level_symmetric(sn_order=4),
+            {0: mix},
+        )
+        selected = default_for(mesh)
+        if type(selected) is not FullFieldWavefront:
             pytest.fail(
-                f"d=3 Cartesian first-applies → "
-                f"{admitted[0].__name__ if admitted else 'NOTHING'}, "
-                f"expected FullFieldWavefront (the d-generic spine)"
+                f"d=3 Cartesian default_for → "
+                f"{type(selected).__name__}, expected FullFieldWavefront "
+                f"(the d-generic spine)"
             )
 
     @pytest.mark.foundation
