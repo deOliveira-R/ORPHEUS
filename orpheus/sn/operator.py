@@ -2053,10 +2053,12 @@ class InvertibleOperator(OperatorSum):
         term-for-term; the cross-octant accumulation reorders the ordinate sum
         vs the flat post-sweep projection ⇒ principled-equivalence, NOT
         bit-identity.  2-D Cartesian ONLY (the windowed-SI path; the windowing
-        gate ``sn_mesh.reduced is None`` guarantees it).  ``solve`` followed by
-        the flat :meth:`MomentProjection.apply` is the fuller-view verification
-        oracle (``vv-principles``; the aggressive-retirement "verification
-        oracle" exception).
+        gate — the genuine ``is_cartesian and ndim == 2`` condition in
+        ``_maybe_window`` since C5.4 (#225), replacing the ``reduced is
+        None`` proxy that was ALSO true at d=3 Cartesian — guarantees it).
+        ``solve`` followed by the flat :meth:`MomentProjection.apply` is the
+        fuller-view verification oracle (``vv-principles``; the
+        aggressive-retirement "verification oracle" exception).
         """
         return self._solve_timed_full_field(
             rhs, initial_guess=initial_guess, moment_projection=projection,

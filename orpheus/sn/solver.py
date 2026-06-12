@@ -258,9 +258,9 @@ def _within_group_krylov(
 
 
 class _GaussSeidelResolvent:
-    r"""SI-only resolvent folding the BOUNDARY reflection ``B`` into the 2-D
-    wavefront sweep via an octant-group Gauss-Seidel ``SweepSchedule`` (Phase 3
-    sub-step 3c).
+    r"""SI-only resolvent folding the BOUNDARY reflection ``B`` into the
+    multi-D wavefront sweep via an octant-group Gauss-Seidel
+    ``SweepSchedule`` (Phase 3 sub-step 3c).
 
     The plain SI resolvent is ``(L+C)`` with ``B`` lagged as an external gain
     (inter-sweep Jacobi — ``B·ψₙ`` rides ``rhs.boundary``).  This resolvent
@@ -277,9 +277,13 @@ class _GaussSeidelResolvent:
     Jacobi SI (only the spectral rate changes — ``vv-principles`` Mode 9);
     Krylov is splitting-invariant and unaffected.
 
-    2-D Cartesian ONLY (``_sweep_scheduled``).  1-D meshes route to the
-    Jacobi resolvent (:func:`_select_si_resolvent` never constructs this for
-    1-D — boundary G-S is a no-op there AND the scan is not a wavefront).
+    Multi-D Cartesian (``_sweep_scheduled`` has been d-generic since C3;
+    the schedule derives octant groups + outgoing faces at any ndim — the
+    pre-C5.4 "2-D ONLY" claim was stale Phase-3 narration).  1-D meshes
+    route to the Jacobi resolvent (:func:`_select_si_resolvent` never
+    constructs this for 1-D — boundary G-S is a no-op there AND the scan
+    is not a wavefront).  d=3 G-S FP-invariance is value-gated by the
+    C5.5 Mode-9 mixed-BC box (#225).
 
     Satisfies the :class:`~orpheus.numerics.iteration.SourceIteration` ``L``
     contract: ``capabilities`` advertises ``{CAP_APPLY, CAP_SOLVE}`` and
@@ -426,7 +430,10 @@ class _MomentWindowedResolvent:
     full-angular: the Morel–Montry Carlson coupled-pole closure seeds from
     the previous iterate's per-ordinate ``ψ`` at ``μ = −1`` (lesson L21),
     which the moment tensor does not carry.  The solver gates this wrapper
-    on ``sn_mesh.reduced is None`` (2-D Cartesian).
+    on the genuine ``is_cartesian and ndim == 2`` condition in
+    ``_maybe_window`` (C5.4, #225 — the former ``reduced is None`` proxy
+    was ALSO true at d=3 Cartesian, where the in-sweep moment kernel does
+    not exist).
 
     **Principled-equivalence (5c), not bit-identity.**  ``M`` is built from the
     SAME quadrature harmonics the scattering operator uses, so the per-cell
@@ -512,15 +519,21 @@ def _maybe_window(base_resolvent, scattering_op, sn_mesh):
 
     The SINGLE site of the windowing-eligibility gate (``coding-elegance``
     Pattern 7 — the convention lives in one place, shared by the eigenvalue
-    and fixed-source SI drivers): 2-D Cartesian (``sn_mesh.reduced is None``)
-    holds the SI iterate as harmonic moments via
-    :class:`_MomentWindowedResolvent`; curvilinear (1-D) stays full-angular —
-    the Morel–Montry Carlson seed reads the previous per-ordinate iterate at
-    ``μ=−1`` (lesson L21), which the moment tensor does not carry.  ``M`` is
-    sourced from the scattering operator's own quadrature ⇒ the stored moments
-    are bit-identical to ``S``'s internal projection.
+    and fixed-source SI drivers): genuinely 2-D Cartesian holds the SI
+    iterate as harmonic moments via :class:`_MomentWindowedResolvent`;
+    curvilinear (1-D) stays full-angular — the Morel–Montry Carlson seed
+    reads the previous per-ordinate iterate at ``μ=−1`` (lesson L21), which
+    the moment tensor does not carry.  ``M`` is sourced from the scattering
+    operator's own quadrature ⇒ the stored moments are bit-identical to
+    ``S``'s internal projection.
+
+    C5.4 (#225, vv Mode 9): the gate is the GENUINE condition
+    ``is_cartesian and ndim == 2`` — the pre-C5.4 ``reduced is None``
+    proxy was a coincidence that is ALSO true at d=3 Cartesian and would
+    have silently moment-windowed a 3-D solve (the in-sweep moment
+    emission is a 2-D kernel; ``FullFieldWavefront`` refuses moment mode).
     """
-    if sn_mesh.reduced is None:
+    if sn_mesh.is_cartesian and sn_mesh.ndim == 2:
         return (
             _MomentWindowedResolvent(
                 base_resolvent,
@@ -561,23 +574,35 @@ def _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule: str):
 
     * ``"jacobi"`` (or any 1-D mesh) → ``(L+C, (S, B))``: ``B`` lagged as an
       external gain (inter-sweep Jacobi — today's path, every geometry).
-    * ``"gauss_seidel"`` on a 2-D Cartesian mesh → ``(GaussSeidelResolvent, (S,))``:
-      ``B`` folded INTO the resolvent (the octant-group G-S forward
-      substitution).  ``S`` stays a lagged gain in BOTH (only the boundary
-      coupling gets G-S; the sweep never re-scatters mid-sweep).
+    * ``"gauss_seidel"`` on a multi-D Cartesian mesh →
+      ``(GaussSeidelResolvent, (S,))``: ``B`` folded INTO the resolvent (the
+      octant-group G-S forward substitution).  ``S`` stays a lagged gain in
+      BOTH (only the boundary coupling gets G-S; the sweep never re-scatters
+      mid-sweep).
 
     1-D falls back to Jacobi: boundary G-S is a no-op on the scattering-
-    dominated 1-D regime AND the 1-D scan is not a wavefront
-    (:func:`_GaussSeidelResolvent` is 2-D-only).  The converged fixed point is
-    identical either way — this only selects the SI spectral rate.
+    dominated 1-D regime AND the 1-D scan is not a wavefront.  The converged
+    fixed point is identical either way — this only selects the SI spectral
+    rate.
+
+    C5.4 (#225): the G-S gate is the GENUINE condition ``is_cartesian and
+    not is_1d`` — the pre-C5.4 ``reduced is None`` proxy was 2-D-Cartesian
+    by coincidence only. ``SweepSchedule.gauss_seidel`` and the scheduled
+    sweep are d-generic (C3); d=3 G-S FP-invariance is value-gated by the
+    C5.5 Mode-9 mixed-BC box (vv Mode 9 — never trust a splitting on a
+    degenerate regime alone).
     """
     if inner_schedule not in ("jacobi", "gauss_seidel"):
         raise ValueError(
             f"Unknown inner_schedule: {inner_schedule!r}. "
-            f"Valid choices are 'gauss_seidel' (boundary G-S, 2-D Cartesian) "
-            f"or 'jacobi' (the splitting-invariant control)."
+            f"Valid choices are 'gauss_seidel' (boundary G-S, multi-D "
+            f"Cartesian) or 'jacobi' (the splitting-invariant control)."
         )
-    if inner_schedule == "gauss_seidel" and sn_mesh.reduced is None:
+    if (
+        inner_schedule == "gauss_seidel"
+        and sn_mesh.is_cartesian
+        and not sn_mesh.is_1d
+    ):
         from .sweep_schedule import SweepSchedule
 
         schedule = SweepSchedule.gauss_seidel(sn_mesh)
@@ -695,7 +720,7 @@ class SNSolver:
         if inner_schedule not in ("jacobi", "gauss_seidel"):
             raise ValueError(
                 f"Unknown inner_schedule: {inner_schedule!r}. "
-                f"Valid choices are 'gauss_seidel' (boundary G-S, 2-D "
+                f"Valid choices are 'gauss_seidel' (boundary G-S, multi-D "
                 f"Cartesian — auto-falls-back to Jacobi on 1-D) or 'jacobi'."
             )
         self.sn_mesh = sn_mesh
