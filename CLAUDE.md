@@ -122,8 +122,8 @@ This project provides **Nexus** (`sphinxcontrib-nexus`), the single
 knowledge graph for ORPHEUS. It unifies code structure (call graphs,
 imports, inheritance, type annotations) with documentation structure
 (equations, cross-references, citations, theory pages) in one
-queryable graph. It runs as an MCP server with 20 tools and 4
-resources. The graph is rebuilt automatically during every
+queryable graph. It runs as an MCP server (tool list: `nexus-guide`
+skill). The graph is rebuilt automatically during every
 `sphinx-build`; the MCP server auto-reloads when the database
 changes on disk (v0.4.3+).
 
