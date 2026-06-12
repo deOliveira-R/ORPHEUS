@@ -50,6 +50,24 @@ this page, this page is correct.
   ``(N, ng, nx, ny)`` layout is now universal on the typed
   :class:`~orpheus.transport.fields.angular_flux.AngularFlux` carrier.
 
+.. note:: **The spatial tail is rank-generic** (Issue #225 / C5).
+
+   ``(N, ng, nx, ny)`` is the :math:`d \le 2` spelling of the
+   rank-generic layout ``(N, ng, *spatial_shape)``.  At :math:`d = 1`,
+   ``spatial_shape == (nx,)`` (written ``(N, ng, nx, ny)`` with the
+   trailing ``ny = 1`` singleton preserved, **never** a phantom second
+   axis — see below).  At :math:`d = 3` an axis-native :class:`SNMesh`
+   (:ref:`sn-axis-primary-c5`) produces ``(N, ng, nx, ny, nz)``.
+   Energy-first / spatial-last and ordinate-first hold at every rank;
+   only the **length** of the spatial tail changes.  Every field /
+   cross-section / scattering read since C5.2 keys on the rank-generic
+   :attr:`~orpheus.sn.geometry.SNMesh.spatial_shape`, **not** on a
+   hard-coded ``(nx, ny)`` pair (an ``(nx, ny)``-keyed read silently
+   truncates a 3-D tensor — the live :math:`d = 3` landmine C5.2
+   retired; see :ref:`sn-c5-phantom-retirement`).  The :math:`d \le 2`
+   bytes are unchanged (affine ``sha256`` goldens identical across the
+   carve).
+
 .. admonition:: Authoritative origin
 
    The derivation of this layout is encoded in

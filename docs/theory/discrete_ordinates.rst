@@ -162,9 +162,17 @@ mesh) is shared with :ref:`theory-collision-probability` and
    --- for the SN solver, that default is reflective.
    See :ref:`boundary-conditions` for details.
 
-2. **Augmented geometry** --- :class:`SNMesh` wraps the base mesh and
-   an angular quadrature, precomputing the coordinate-specific streaming
-   stencil.  It also **resolves boundary conditions**: each ``BC`` tag
+2. **Augmented geometry** --- :class:`SNMesh` pairs the spatial mesh
+   with an angular quadrature, precomputing the coordinate-specific
+   streaming stencil.  Its **primary representation is the per-axis
+   tuple** :attr:`SNMesh.axes` (the SN phase space factors as a tensor
+   product of per-axis 1-D meshes): a legacy ``Mesh1D`` / ``Mesh2D`` is
+   converted to axes **once** at the inbound boundary, and
+   :meth:`SNMesh.from_axes` stores the caller's tuple verbatim. After
+   C5 (:ref:`sn-axis-primary-c5`) :attr:`SNMesh.mesh` is *inbound
+   provenance only* — ``None`` for an axis-native :math:`d \ge 3` mesh,
+   which carries no legacy mesh at all.  It also **resolves boundary
+   conditions**: each ``BC`` tag
    on the mesh is looked up in :attr:`SNMesh.BOUNDARY_OPERATOR_REGISTRY` and converted
    to a validated kind string (``"vacuum"`` or ``"reflective"``)
    stored in the face-name-keyed :attr:`SNMesh.bc` dict
@@ -191,16 +199,22 @@ mesh) is shared with :ref:`theory-collision-probability` and
      ``tau_mm_per_level`` (per-level Morel--Montry weights).
 
 3. **Solver** --- :func:`solve_sn` creates an ``SNMesh``, builds the
-   ``SNSolver``, and runs power iteration.
+   ``SNSolver``, and runs power iteration. At :math:`d \le 2` the input
+   is a ``Mesh1D`` / ``Mesh2D``; at :math:`d = 3` the input is the
+   **axes tuple** itself (the only 3-D entry — there is no ``Mesh3D``;
+   see :ref:`sn-c5-3d-admission`).
 
 .. code-block:: text
 
-   Mesh1D / Mesh2D (base geometry + BC declarations)
-       |
-       v
-   SNMesh (stencil + quadrature + alpha coefficients + resolved BCs)
-       |
-       v
+   Mesh1D / Mesh2D (d<=2)   OR   axes tuple (d=3, axis-native)
+       |                              |
+       |  axes_from_legacy_mesh       |  (stored verbatim)
+       +------------+-----------------+
+                    v
+   SNMesh.axes  (PRIMARY)  -->  SNMesh (stencil + quadrature
+                                + alpha coefficients + resolved BCs)
+                    |
+                    v
    solve_sn() --> SNResult
 
 Quadrature Dispatch
@@ -2614,7 +2628,7 @@ Sweep-frame apply matvec (Issue #168 Phase C)
    * The structural-frame name for the rewrite is the **sweep /
      wavefront frame** (cross-domain-attacker 2026-05-12 analysis):
      the "ghost cell" idiom is realised as a typed
-     :class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace` vector
+     :class:`~orpheus.numerics.spaces.trace_space.TraceSpace` vector
      defined by the realised BC operator, not extrapolated from
      interior cell centres.
 
@@ -3124,7 +3138,7 @@ and writes only the inflow slots; the outflow slots in the output
 are unspecified by the §16A.3 contract and the matvec reads back
 only ``inflow_full[incoming_mask, :]``. This is the user's "ghost
 cell for higher-order boundary closure" idiom realised as a typed
-:class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace` vector
+:class:`~orpheus.numerics.spaces.trace_space.TraceSpace` vector
 defined by the realised BC operator — not extrapolated from
 interior cell centres.
 
@@ -5432,9 +5446,10 @@ job is now done by :meth:`SNMesh._resolve_one`, which dispatches
 through :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`
 **uniformly** for every supported mesh (1-D Cartesian, 1-D
 spherical, 1-D cylindrical, 2-D Cartesian) — see
-:ref:`bc-sn-resolution-table` below. Issue #188 (curvilinear
-:class:`InflowTraceSpace` support) and Issue #176 (drop 2-arg
-``apply`` + simplify shim) collapsed the pre-cleanup
+:ref:`bc-sn-resolution-table` below. Issue #188 (curvilinear support
+in the trace space — then named ``InflowTraceSpace``, now the unified
+:class:`~orpheus.numerics.spaces.trace_space.TraceSpace`) and Issue
+#176 (drop 2-arg ``apply`` + simplify shim) collapsed the pre-cleanup
 Cartesian-vs-curvilinear bypass into a single realizer-routed
 path; details at :ref:`bc-curvilinear-realizer-unification`.
 
@@ -5753,9 +5768,12 @@ shim wraps the result with a ``kind`` tag for the
    rationale is preserved there).
 
 **Pre-cleanup history.** Before Issue #188 + #176 (closed
-2026-05-11), curvilinear ``Mesh1D`` bypassed the realizer because
-:meth:`InflowTraceSpace.from_mesh_and_quadrature` raised
-:class:`NotImplementedError` on those coord systems; the
+2026-05-11), curvilinear ``Mesh1D`` bypassed the realizer because the
+trace factory (then ``InflowTraceSpace.from_mesh_and_quadrature``, since
+C5.3 the geometry-blind
+:meth:`TraceSpace.from_quadrature_and_layout
+<orpheus.numerics.spaces.trace_space.TraceSpace.from_quadrature_and_layout>`)
+raised :class:`NotImplementedError` on those coord systems; the
 ``_BoundBoundaryOperator`` shim carried a dual mode where the
 ``quadrature=`` kwarg, when non-``None``, bound an
 :class:`AngularQuadrature` and forwarded ``inner.apply(psi,

@@ -5272,17 +5272,22 @@ Three consumers read the mask today:
   paths (Issue #188 + #176, closed 2026-05-11).
 
 Construction goes through the classmethod factory
-:meth:`InflowTraceSpace.from_mesh_and_quadrature`, which builds
-the mask from the spatial mesh's face-normal table and the
-quadrature's direction-cosine arrays. Every :class:`Mesh1D` coord
+:meth:`TraceSpace.from_quadrature_and_layout
+<orpheus.numerics.spaces.trace_space.TraceSpace.from_quadrature_and_layout>`,
+which (since Issue #225 / C5.3) is **geometry-blind**: it builds the
+per-face :math:`\Omega\cdot\hat n` masks from the angular quadrature's
+direction-cosine arrays and a :class:`~orpheus.numerics.face_layout.FaceLayout`
+whose ``"{axis}{min|max}"`` face names imply axis-aligned outward
+normals — no spatial mesh is consulted. Every :class:`Mesh1D` coord
 system (``CARTESIAN`` / ``SPHERICAL`` / ``CYLINDRICAL``) shares the
-same ``("left", "right")`` face structure with the radial axis as
-the outward normal — :class:`GaussLegendre1D` is the shared
-quadrature, with ``mu_x`` as the direction cosine along that axis.
-The :class:`Mesh2D` factory supports ``coord=CARTESIAN`` only;
-2-D cylindrical (axisymmetric :math:`(r, z)`) raises
-:class:`NotImplementedError` and will until a 2-D cylindrical SN
-sweep ships in ORPHEUS (none exists today).
+same ``("xmin", "xmax")`` radial-axis face structure —
+:class:`GaussLegendre1D` is the shared quadrature, with ``mu_x`` as the
+direction cosine along that axis — and 2-D / 3-D Cartesian add the
+``y`` / ``z`` faces from the same convention. The 2-D cylindrical
+(axisymmetric :math:`(r, z)`) case never reaches the factory: such a
+:class:`Mesh2D` cannot become an :class:`SNMesh` (no 2-D cylindrical SN
+sweep exists), so the refusal lives at the :class:`SNMesh` construction
+surface, not the trace factory. See :ref:`sn-c5-geometry-blind-trace`.
 
 The two trace spaces and the
 :class:`~orpheus.geometry.boundary.InflowSourceSpec` Protocol

@@ -381,28 +381,38 @@ the load-bearing primitive that downstream consumers need:
   Issue #176 then dropped the legacy 2-arg shim that existed only
   to bridge that deferral.
 
-The class :class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace`
-carries the mask as an ``Optional[np.ndarray]`` field excluded from
+The class :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`
+carries the per-face :math:`\Omega\cdot\hat n` masks as
+``Optional[np.ndarray]`` fields excluded from
 :meth:`__eq__` and :meth:`__hash__` — preserving the
 :class:`~orpheus.numerics.space.FunctionSpace` identity convention
-``(name, shape)``. Construction goes through the classmethod
-factory :meth:`InflowTraceSpace.from_mesh_and_quadrature`; the bare
-dataclass constructor is reserved for trace spaces whose mask will
-be populated later (or never).
+``(name, shape)``. Construction goes through the classmethod factory
+:meth:`TraceSpace.from_quadrature_and_layout
+<orpheus.numerics.spaces.trace_space.TraceSpace.from_quadrature_and_layout>`;
+the bare dataclass constructor is reserved for trace spaces whose mask
+will be populated later (or never).
 
-**Coord-system coverage (post Issue #188).** The factory supports
-every :class:`~orpheus.geometry.mesh.Mesh1D` coord system
-(``CARTESIAN`` / ``SPHERICAL`` / ``CYLINDRICAL``) because they all
-share the same ``("left", "right")`` face structure and the
-:class:`~orpheus.sn.quadrature.GaussLegendre1D` adapter's
-:math:`\mu_x` is the direction cosine along the chosen axis (the
-Cartesian-x axis for slab; the radial axis for curvilinear). The
-:class:`~orpheus.geometry.mesh.Mesh2D` factory supports
-``coord=CARTESIAN`` only — 2-D cylindrical (axisymmetric
-:math:`(r, z)`) ``Mesh2D`` raises :class:`NotImplementedError` and
-will continue to do so until ORPHEUS gains a 2-D cylindrical SN
-sweep (a face-normal table and azimuthal-averaging mask predicate
-will then be needed).
+**Geometry-blind, layout-driven (post Issue #225 / C5.3).** The factory
+is **geometry-blind**: it takes only the angular quadrature and a
+:class:`~orpheus.numerics.face_layout.FaceLayout` (canonically
+:attr:`SNMesh.boundary_face_layout <orpheus.sn.geometry.SNMesh>`), and
+reads every datum from those two — the layout's ``"{axis}{min|max}"``
+face names imply axis-aligned outward normals, so the
+:math:`\Omega\cdot\hat n` row for an axis-:math:`a` face is
+:math:`\pm\mu_a` (sign from ``min`` / ``max``). It works for every
+constructible :class:`~orpheus.geometry.mesh.Mesh1D` coord system
+(``CARTESIAN`` / ``SPHERICAL`` / ``CYLINDRICAL`` — all share the
+``("xmin", "xmax")`` radial-axis face structure, with
+:class:`~orpheus.sn.quadrature.GaussLegendre1D`'s :math:`\mu_x` as the
+direction cosine along that axis), for 2-D Cartesian, and — since
+C5.5 — for 3-axis Cartesian. The factory has **no** geometry refusal:
+the former ``mesh`` parameter (on the retired
+``from_mesh_and_quadrature``) was gate-only and is gone (see
+:ref:`sn-c5-geometry-blind-trace`). The 2-D cylindrical
+(axisymmetric :math:`(r, z)`) case never reaches the factory because
+such a :class:`~orpheus.geometry.mesh.Mesh2D` cannot become an
+:class:`SNMesh` (no 2-D cylindrical SN sweep exists); the refusal lives
+at the :class:`SNMesh` construction surface, not in the trace factory.
 
 
 .. _bc-law-layer:
@@ -876,6 +886,23 @@ dict-entry edit.
 Step 3 — method space construction
 ----------------------------------
 
+.. note:: **Stale narration — pre-Issue-#188 split trace (tracked by
+   Issue #223).** The step-by-step code below narrates the *pre-#188*
+   split-trace machinery: a per-face ``InflowTraceSpace`` /
+   ``OutflowTraceSpace`` pair built by ``from_mesh_and_quadrature(mesh,
+   quad, faces=...)``. The current code has **one** unified
+   :class:`~orpheus.numerics.spaces.trace_space.TraceSpace` built by the
+   geometry-blind :meth:`TraceSpace.from_quadrature_and_layout
+   <orpheus.numerics.spaces.trace_space.TraceSpace.from_quadrature_and_layout>`
+   (a quadrature + a :class:`~orpheus.numerics.face_layout.FaceLayout`,
+   no ``mesh`` / ``faces`` arguments — see :ref:`sn-c5-geometry-blind-trace`),
+   and :meth:`SNMethodSpace.for_face <orpheus.sn.method_space.SNMethodSpace.for_face>`
+   takes a single ``trace=`` rather than ``inflow_trace=`` /
+   ``outflow_trace=``. The C4 / C5 docs pass deliberately did **not**
+   rewrite this worked example (scope discipline); the holistic rewrite
+   is Issue #223. Read the block below as historical illustration of the
+   resolution *flow*, not as the current API.
+
 For the **Cartesian** path, the SNMesh has precomputed the
 ``InflowTraceSpace`` once for the whole mesh at construction time:
 
@@ -988,8 +1015,11 @@ when non-``None``, bound an
 :class:`~orpheus.sn.quadrature.AngularQuadrature` and forwarded
 ``inner.apply(psi, bound_quad)`` to a legacy 2-arg
 :class:`BoundaryTraceLaw` body. That dual-mode existed ONLY
-because :meth:`InflowTraceSpace.from_mesh_and_quadrature` raised
-:class:`NotImplementedError` for curvilinear ``Mesh1D``, which
+because the trace factory (then named ``InflowTraceSpace.from_mesh_and_quadrature``,
+since C5.3 the geometry-blind
+:meth:`TraceSpace.from_quadrature_and_layout
+<orpheus.numerics.spaces.trace_space.TraceSpace.from_quadrature_and_layout>`)
+raised :class:`NotImplementedError` for curvilinear ``Mesh1D``, which
 forced :meth:`SNMesh._resolve_one` to bypass the realizer for
 spherical / cylindrical meshes. Issue #188 lifted that
 deferral; Issue #176 (C176.1) dropped the bound-quadrature mode
@@ -2146,11 +2176,15 @@ Curvilinear realizer unification (Issue #188 + #176 close-out)
 
 The pre-cleanup architecture carried a **Cartesian / curvilinear
 split** at :meth:`SNMesh._resolve_one`: the slab and 2-D Cartesian
-paths constructed an :class:`InflowTraceSpace` and routed the BC
-through :class:`SNBoundaryRealizer`, while spherical and
-cylindrical ``Mesh1D`` bypassed the realizer entirely because
-:meth:`InflowTraceSpace.from_mesh_and_quadrature` raised
-:class:`NotImplementedError` on those coord systems. The bypass
+paths constructed a trace space (then named ``InflowTraceSpace``,
+unified into :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`
+post-#188 and made geometry-blind in C5.3) and routed the BC through
+:class:`SNBoundaryRealizer`, while spherical and cylindrical ``Mesh1D``
+bypassed the realizer entirely because that factory
+(``from_mesh_and_quadrature``, since C5.3
+:meth:`TraceSpace.from_quadrature_and_layout
+<orpheus.numerics.spaces.trace_space.TraceSpace.from_quadrature_and_layout>`)
+raised :class:`NotImplementedError` on those coord systems. The bypass
 wrapped the bare law instance in
 :class:`_BoundBoundaryOperator(law, quadrature=self.quad)`, a
 dual-mode shim whose ``apply(psi)`` forwarded
@@ -2230,9 +2264,12 @@ This is the storage-layer counterpart of the realizer unification
 in :ref:`bc-curvilinear-realizer-unification`: that section made the
 *realization path* uniform across geometries; this one makes the
 *storage and keying* uniform across **dimensions**. After C4 a
-3-axis mesh (when ``Mesh3D`` lands in C5) yields six face slots and
-six BC entries with **no edit** to either producer — the pre-C4
-3-branch body would have been silently wrong the day it was reached.
+3-axis mesh yields six face slots and six BC entries with **no edit**
+to either producer — the pre-C4 3-branch body would have been
+silently wrong the day it was reached. C5 (:ref:`sn-axis-primary-c5`)
+admits exactly that 3-axis mesh — not via a hypothetical ``Mesh3D``
+dataclass but via the axes tuple directly — and the face-name keying
+built here carries it through unchanged.
 
 The three string-named layers and the single crosswalk
 -------------------------------------------------------
@@ -2494,10 +2531,12 @@ N-D layout campaign reaches C5 with the boundary keying already
 
 .. note::
 
-   **No ERR entry was filed for the latent d=3 axis bug.** ``Mesh3D``
-   is unconstructible today (no dataclass exists until C5), so no
-   3-axis mesh ever reached ``_resolve_one`` and **no production bug
-   ever shipped**. The d=2 observable proxy
+   **No ERR entry was filed for the latent d=3 axis bug.** When C4
+   landed, no 3-axis mesh was constructible (the axis-native d=3
+   admission did not arrive until C5 — :ref:`sn-axis-primary-c5`), so
+   no 3-axis mesh had ever reached ``_resolve_one`` and **no production
+   bug ever shipped**: the hand-listed dispatch was retired *before*
+   any caller could exercise its wrong branch. The d=2 observable proxy
    (``test_2d_reflective_y_face_builds_y_axis_permutation``, with a
    non-vacuity guard that the x- and y-reflection maps differ under
    Lebedev) pins the *structural* correctness of the per-label axis
@@ -2694,6 +2733,508 @@ Grand Report v3 §16A.3 (the three-layer architecture) is now
 operators do. Grand Report v3 §16A.5 (the trace-correct vacuum
 representation) is uniform across coord systems and the legacy
 zeros-all path no longer exists.
+
+
+.. _sn-axis-primary-c5:
+
+The axis-primary inversion and 3-D admission (C5 / Issue #225)
+==============================================================
+
+C4 (:ref:`bc-face-name-carve`) made the *boundary keying*
+dimension-agnostic. C5 makes the **whole mesh** dimension-agnostic and
+then admits the first 3-axis Cartesian :class:`SNMesh` — *without* a
+``Mesh3D`` dataclass. The design fork (resolved by the user,
+2026-06-11) is **axis-native**: a 3-D problem enters ORPHEUS only
+through :meth:`SNMesh.from_axes` with a 3-tuple of
+:class:`~orpheus.sn.axis.AxisMesh`. :class:`~orpheus.geometry.mesh.Mesh1D`
+and :class:`~orpheus.geometry.mesh.Mesh2D` stay the :math:`d \le 2`
+user-facing surface, bit-identical to before
+(``sha256`` affine goldens unchanged, no regeneration). A ``Mesh3D``
+would have had **exactly one consumer** (SN — ``cp`` / ``mc`` / ``moc`` /
+``diffusion`` consume zero ``Mesh2D``); the "Unify after two instances"
+discipline forbids minting a base type for a single consumer.
+
+The campaign's keystone insight, surfaced by the C5 elegance audit, was
+that the d=3 admission could not be a clean *extension* until a
+pre-existing **data-flow inversion** in the constructor was repaired. C5
+is therefore sequenced *clean before extend*: C5.1–C5.4 invert and
+de-phantom the mesh layer, and only then C5.5 admits d=3 as a
+one-line gate removal.
+
+.. _sn-c5-lossy-roundtrip:
+
+Pre-C5: the lossy axes → mesh → axes round-trip
+-----------------------------------------------
+
+The SN phase space factors as a tensor product of per-axis 1-D meshes
+(grand report §15.1); the natural primary representation of an
+:class:`SNMesh` is therefore its **axes tuple**
+:attr:`SNMesh.axes`. Pre-C5.1 the constructor did not treat it that
+way. :meth:`SNMesh.from_axes` *synthesized a legacy*
+:class:`~orpheus.geometry.mesh.Mesh1D` / :class:`~orpheus.geometry.mesh.Mesh2D`
+from the caller's axes (via ``legacy_mesh_from_axes``), handed that
+mesh to ``__init__``, and ``__init__`` then **discarded the caller's
+tuple and re-derived the axes from the synthesized mesh**:
+
+.. code-block:: text
+
+   from_axes(axes)                     __init__(mesh, ...)
+        │                                    │
+        │  legacy_mesh_from_axes(axes)       │  axes = axes_from(mesh)   ← re-derived
+        ▼                                    ▼
+   Mesh1D / Mesh2D  ───────────────────►  self.axes   (NOT the caller's tuple)
+
+This ``axes → mesh → axes`` round-trip is **lossy** in two ways, and
+its existence was the structural reason d=3 appeared to need a "third
+construction arm":
+
+1. **Custom endpoint labels were silently reset.** An
+   :class:`~orpheus.sn.axis.AxisMesh` carries user-overridable
+   ``label_low`` / ``label_high`` fields (a slab user may name them
+   ``"left"`` / ``"right"``). The legacy mesh has no slot for those
+   labels, so the round-trip dropped them and the re-derived axes came
+   back with default labels — a silent desync of exactly the kind C4's
+   :attr:`FaceLabel.face_name <orpheus.sn.axis.FaceLabel.face_name>`
+   crosswalk relies on never happening.
+2. **d=3 had nowhere to round-trip *through*.** A 3-axis tuple cannot
+   synthesize a ``Mesh1D`` or ``Mesh2D``, so the inverted flow
+   *mandated* a legacy mesh at every dimension — which is exactly the
+   ``d \ge 3`` blocker the user directive named ("clean before
+   extending").
+
+C5.1 inverts the flow: the axes tuple becomes primary, stored verbatim.
+
+.. _sn-c5-axis-primary-construction:
+
+The axis-primary construction — one body, verbatim axes
+-------------------------------------------------------
+
+Post-C5.1, **both** entry surfaces funnel into one private body,
+``_init_core``, which stores the axes tuple as-is:
+
+.. code-block:: text
+
+   SNMesh(mesh, ...)   ──►  axes = axes_from_legacy_mesh(mesh)   (convert ONCE,
+                                                                  at the inbound
+                                                                  boundary)
+   from_axes(axes, ...) ─►  axes  (stored verbatim — the caller's tuple)
+                                            │
+                                            ▼
+                                       _init_core(axes, ...)
+
+The legacy ``SNMesh(mesh, ...)`` surface converts via
+``axes_from_legacy_mesh`` **once**, at the inbound boundary
+(parse-don't-validate); :meth:`SNMesh.from_axes` stores the caller's
+tuple directly. There is no longer an ``axes → mesh → axes``
+round-trip — the conversion is one-directional, ``mesh → axes``, and
+only on the legacy surface.
+
+The pre-C5.1 constructor branched on ``isinstance(mesh, Mesh1D)`` vs
+``isinstance(mesh, Mesh2D)`` to compute per-dimension metadata (cell
+widths, spatial shape). That **isinstance metadata branch dissolves**
+into axis-derived properties. The single load-bearing identity is that
+per-axis cell widths come from the axis edges:
+
+.. math::
+   :label: sn-axis-widths
+
+   \texttt{axis\_widths}[a] = \operatorname{np.diff}(\texttt{axes}[a].\texttt{edges})
+
+This is **bitwise identical** to the legacy per-dataclass spellings it
+replaces — :attr:`Mesh1D.widths <orpheus.geometry.mesh.Mesh1D>`,
+:attr:`Mesh2D.dx <orpheus.geometry.mesh.Mesh2D>`, and
+:attr:`Mesh2D.dy <orpheus.geometry.mesh.Mesh2D>` are each
+``np.diff(edges)`` over the same edge arrays (``mesh.py:287`` /
+``:567`` / ``:572``), so the carve produces the same floating-point
+bytes. The whole-mesh coordinate system is likewise derived from the
+per-axis coordinates by a new pure primitive
+:func:`~orpheus.sn.axis.coord_system` (a multi-axis mesh must be
+all-Cartesian); the constructor's reduced-operator dispatch and the
+pole-closure default now read the **axis-derived** :attr:`SNMesh.coord`,
+not ``mesh.coord``.
+
+After C5.1, :attr:`SNMesh.mesh` is **inbound provenance only** — it
+records *which legacy mesh the caller passed, if any*. It is ``None``
+when the mesh was built from axes at :math:`d \ge 3` (no legacy mesh
+exists to record). A handful of :math:`d \le 2` consumers (the 1-D
+reduced streaming constructors, the trace build, realizer metadata)
+still read ``self.mesh`` at C5.1; each dissolves across C5.2–C5.5 as
+its datum is repointed to an axis-native source. ``legacy_mesh_from_axes``
+narrows from a round-trip *source* to a :math:`d \le 2` **adapter**
+synthesis for those remaining consumers.
+
+Custom endpoint labels now fail loud (C4 doctrine)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+With the axes stored verbatim, a custom endpoint label survives
+construction — and therefore reaches the
+:attr:`FaceLabel.face_name <orpheus.sn.axis.FaceLabel.face_name>`
+crosswalk. A label that is **not** one of the canonical strings
+(``"min"`` / ``"max"`` / ``"outer"``) now raises :class:`ValueError`
+**at construction** (the crosswalk's fail-loud — see
+:ref:`bc-face-name-carve`), rather than being silently normalized away
+by the round-trip. This is the C4 doctrine made operative by C5.1:
+**overridable labels cannot silently desync the crosswalk**, so a label
+the three face-keyed layers cannot key on must fail at L0, at the
+construction site, not three layers up as a mis-keyed boundary
+operator or a ``KeyError`` deep inside a sweep. (Pre-C5.1 the
+round-trip *masked* this class of user error by discarding the label;
+that masking is gone.)
+
+.. _sn-c5-phantom-retirement:
+
+C5.2 — the phantom shims retire (ny, dy, dx)
+--------------------------------------------
+
+With per-axis widths and the rank-generic :attr:`SNMesh.spatial_shape`
+now native, the legacy phantom-bearing metadata retires. Every spatial
+read becomes rank-honest:
+
+.. list-table:: The retired spellings and their rank-honest replacements
+   :header-rows: 1
+   :widths: 24 30 46
+
+   * - Retired spelling
+     - The phantom it carried
+     - Replacement
+   * - ``SNMesh.ny`` / ``SNMesh.dy``
+     - At :math:`d = 1` these **lied** — ``ny`` returned a phantom
+       ``1`` and ``dy`` a phantom ``[1.0]`` (the Issue #214 phantom
+       class), and at :math:`d \ge 3` they underspecify the mesh.
+     - :attr:`SNMesh.spatial_shape` (the per-axis cell counts) and
+       :attr:`SNMesh.axis_widths` (per-axis widths). ``AttributeError``
+       on the retired names.
+   * - ``SNMesh.dx``
+     - A duplicate spelling of the per-axis widths.
+     - :attr:`SNMesh.axis_widths` — promoted from the private
+       ``_axis_widths`` to **the** single public spelling of per-axis
+       cell widths.
+   * - ``SNMesh.nx``
+     - (kept) Documented :attr:`spatial_shape[0] <SNMesh.spatial_shape>`
+       sugar — honest at any :math:`d`, with a broad legitimate 1-D
+       consumer base.
+     - unchanged.
+
+The phantom ``ny`` / ``dy`` at :math:`d = 1` is the **same defect
+class** the N-D layout campaign closed at C2 / Issue #214: a trailing
+singleton that masquerades as a real axis. The C5.2 retirement removes
+the masquerade at the metadata source.
+
+The two production ``dr`` consumers (the
+:mod:`~orpheus.sn.loss_representation` 1-D bare sweep and the
+:mod:`~orpheus.sn.spatial.pole_angular_closure` Carlson preamble) repoint
+from ``.dx`` to :attr:`SNMesh.axis_widths`. The
+field / cross-section / scattering read-through chains collapse to the
+rank-generic :attr:`spatial_shape <SNMesh.spatial_shape>`:
+
+* :class:`~orpheus.transport.fields.angular_flux.AngularFlux` (and the
+  ``BulkField`` base) **retire** their ``nx`` / ``ny`` read-throughs.
+  This is a live :math:`d = 3` landmine, not cosmetic: an
+  ``(nx, ny)``-keyed field read **silently truncates** a 3-D tensor to
+  its first two axes (a ``vv-principles`` Mode-2 / Mode-5 class
+  index error that the degenerate :math:`d \le 2` test never reaches).
+* :class:`~orpheus.sn.material_xs_field.MaterialXSField` and
+  :class:`~orpheus.sn.scattering.ScatteringOperator` collapse their
+  ``nx`` / ``ny`` reads to **one** rank-generic
+  :attr:`spatial_shape <SNMesh.spatial_shape>` read-through each.
+
+Finally, a new :attr:`SNMesh.volume_measure` property gives the
+SN-side ``keff`` rate consumers (the production / absorption rates in
+:mod:`~orpheus.sn.solver`) a native source: they read it instead of
+reaching through ``sn_mesh.mesh.volume_measure``. While the
+:math:`d \le 2` adapter is present it delegates to the dataclass
+measure (bit-identical, including the ``precomputed_volumes`` hatch);
+the axis-native arm lands with C5.5.
+
+.. _sn-c5-geometry-blind-trace:
+
+C5.3 — the geometry-blind trace space (z faces admitted)
+--------------------------------------------------------
+
+The trace layer (:ref:`bc-trace-structure`) carried two C5-blockers:
+a hand-listed face-normal table that **silently lacked the z faces**,
+and a gate-only ``mesh`` parameter on the trace factory.
+
+**The face-normal source collapses onto** ``AXIS_NAMES``. Pre-C5.3,
+``trace_space._FACE_NORMALS`` was a hand-listed **four-entry**
+transcription (``xmin`` / ``xmax`` / ``ymin`` / ``ymax``) — it had no
+``zmin`` / ``zmax`` rows, the silent :math:`d = 3` blocker. C5.3
+derives the table from :data:`~orpheus.numerics.face_layout.AXIS_NAMES`
+so every axis-aligned face (all **six** at :math:`d = 3`) is present by
+construction: face ``"{axis}min"`` has outward normal
+:math:`-\hat e_{\text{axis}}`, face ``"{axis}max"`` has :math:`+\hat
+e_{\text{axis}}`. The :math:`\Omega\cdot\hat n` row for ``zmax`` is
+then exactly :math:`+\mu_z` and for ``zmin`` exactly :math:`-\mu_z`.
+
+To share the ``"{axis}{min|max}"`` crosswalk without an ``sn``-ward
+import from the ``numerics`` layer, ``AXIS_NAMES`` **moved down** to
+:mod:`orpheus.numerics.face_layout` — the home of
+:class:`~orpheus.numerics.face_layout.FaceLayout`, keeper of the face
+string-name world. :mod:`orpheus.sn.axis` re-exports it, so SN consumers
+are unchanged; the trace space (a ``numerics`` leaf) now reads it
+without depending on ``sn``.
+
+**The trace factory is geometry-blind.** The mesh parameter on the old
+``from_mesh_and_quadrature`` factory was **gate-only** — its single use
+was an ``isinstance`` check that refused a curvilinear ``Mesh2D``. That
+refusal is **unreachable**: a curvilinear ``Mesh2D`` cannot become an
+:class:`SNMesh` in the first place (2-D cylindrical SN has no sweep), so
+no such mesh ever reached the factory. The ``isinstance`` check carried
+no data the factory used. C5.3 therefore renames the factory to
+:meth:`TraceSpace.from_quadrature_and_layout
+<orpheus.numerics.spaces.trace_space.TraceSpace.from_quadrature_and_layout>`
+and **retires the dead mesh parameter** (aggressive retirement; callers
+and the bare-constructor error message migrated). Every datum now comes
+from the quadrature (the :math:`\mu_x` / :math:`\mu_y` / :math:`\mu_z`
+cosines) and the layout's face names (the axis-aligned normals implied
+by the ``"{axis}{min|max}"`` convention).
+
+With the gate gone, :meth:`SNMesh._resolve_bcs` builds the trace
+**unconditionally** (the pre-C5.3 ``isinstance`` gate excluded only the
+unconstructible 2-D cylindrical mesh), and :attr:`SNMesh.trace` is typed
+and documented as **always non-None**.
+:meth:`SNMethodSpace.for_face <orpheus.sn.method_space.SNMethodSpace.for_face>`'s
+``mesh`` parameter becomes **optional metadata** — nothing in the
+realizer chain reads it, and an axis-native :class:`SNMesh` passes
+``None``.
+
+.. note::
+
+   **The fail-loud rank-mismatch raise (the C5.3 elegance-review
+   carry, landed in C5.5).** A trace built for an axis-:math:`k` face
+   on a quadrature that lacks ``mu_k`` previously **zero-padded** the
+   :math:`\Omega\cdot\hat n` row to all-tangential — silently
+   producing a face on which *no* ordinate is inflow or outflow. C5.5
+   makes ``_build_omega_dot_n`` raise loudly on that rank mismatch:
+   asking for a ``"zmax"`` face from a 2-D quadrature is a
+   construction error, not a silent all-tangential face.
+
+.. _sn-c5-windowing-gs-gate:
+
+C5.4 — windowing and Gauss–Seidel gate on genuine dimensionality (vv Mode 9)
+----------------------------------------------------------------------------
+
+C5.4 is the **highest-risk edit of the campaign** — a textbook
+``vv-principles`` **Mode 9** case (a splitting / optimization verified
+only in a regime where the wrong gate is *accidentally* satisfied). Two
+gates inside the SN source-iteration driver keyed on
+``sn_mesh.reduced is None``:
+
+* the **moment-windowing** gate (:meth:`_maybe_window
+  <orpheus.sn.solver>`), which decides whether the SI iterate is held
+  as compact harmonic moments rather than the full angular flux; and
+* the **Gauss–Seidel resolvent** selector (``_select_si_resolvent``),
+  which decides whether the boundary-G-S accelerator is used.
+
+``reduced is None`` is a **coincidence proxy**: it is ``None`` for
+*every* multi-D Cartesian mesh, including a :math:`d = 3` one. The
+moment-windowing path's in-sweep moment-emission kernel is **2-D
+only** (it indexes a ``(N_oct, ng, nx, ny)`` block; see Issue #227).
+So at :math:`d = 3` the old proxy would have **silently
+moment-windowed the SI iterate** — the
+:class:`~orpheus.sn.loss_representation.FullFieldWavefront` spine
+refuses moment mode on the Jacobi path and ``None``-subscripts on the
+G-S path: a **corrupted iterate, not a principled refusal**. This is
+precisely the Mode-9 failure: a :math:`d \le 2` test cannot observe it
+because at :math:`d \le 2` ``reduced is None`` *and* the 2-D kernel is
+correct, so the proxy and the truth coincide.
+
+C5.4 retargets both gates to the **genuine** dimensionality predicate:
+
+.. list-table:: The Mode-9 gate retarget
+   :header-rows: 1
+   :widths: 34 30 36
+
+   * - Gate
+     - Pre-C5.4 (coincidence proxy)
+     - Post-C5.4 (genuine condition)
+   * - Moment windowing (``_maybe_window``)
+     - ``reduced is None``
+     - ``is_cartesian and ndim == 2`` — the genuine
+       windowing-eligibility condition (the 2-D moment kernel's exact
+       domain).
+   * - Boundary-G-S (``_select_si_resolvent``)
+     - ``reduced is None``
+     - ``is_cartesian and not is_1d`` — multi-D Cartesian.
+
+The G-S resolvent's old ``"2-D Cartesian ONLY"`` docstring was **stale
+Phase-3 narration**: :attr:`SweepSchedule.gauss_seidel
+<orpheus.sn.sweep_schedule>` and the scheduled sweep
+(``_sweep_scheduled``) have been **d-generic since C3**, so the
+resolvent is constructible at :math:`d = 3`. The narration is corrected
+in C5.4; the actual :math:`d = 3` boundary-G-S *fixed-point invariance*
+(that G-S and Jacobi converge to the **same** flux) is **value-gated**
+by the C5.5 Mode-9 mixed-BC box (:ref:`sn-c5-value-gates`) before any
+:math:`d = 3` G-S solve is trusted — the Mode-9 discipline made
+operative: never gate a splitting's FP-invariance on a degenerate box.
+
+The one ``reduced is not None`` branch that **stays** is the 1-D
+sweep-cache: there the predicate keys on the *availability of the data
+it reads* (the reduced-operator cache), not on dimensionality. That is
+not a proxy — it is the genuine guard.
+
+.. _sn-c5-3d-admission:
+
+C5.5 — 3-D Cartesian admission: the axes tuple is the only 3-D entry
+--------------------------------------------------------------------
+
+After the C5.1–C5.4 cleanup, the :math:`d = 3` admission is an
+**extension, not a new arm**. A 3-axis Cartesian :class:`SNMesh` now
+constructs and **solves** through the same generic body as
+:math:`d \le 2`, **mesh-adapter-free from birth** (``self.mesh is
+None``) on the d-generic
+:class:`~orpheus.sn.loss_representation.FullFieldWavefront` spine.
+
+* **The gate retires.** :meth:`SNMesh.from_axes` drops the
+  ``d \ge 3`` admission guard; :math:`d \le 2` still synthesizes the
+  legacy adapter for its remaining consumers.
+* **Axis-native arms.** The cell-volume array is the iterated outer
+  product of the per-axis widths,
+  :math:`V[i,j,k] = \mathrm{d}x_i\,\mathrm{d}y_j\,\mathrm{d}z_k`; the
+  :attr:`volume_measure <SNMesh.volume_measure>` is the rank-:math:`d`
+  meshgrid-of-centers
+  :class:`~orpheus.numerics.measure.DiscreteMeasure` (the natural
+  rank-:math:`d` generalization of the ``Mesh2D`` analogue).
+* **Entry surface.** :func:`~orpheus.sn.solver.solve_sn` and
+  :func:`~orpheus.sn.solver.solve_sn_fixed_source` accept the **axes
+  tuple** — the *only* 3-D entry — through one inbound seam
+  (``_as_sn_mesh``). A new ``mat_map`` keyword is the axes-entry
+  material channel (it raises if combined with a legacy mesh, which
+  carries its own material map). Default-BC semantics are handled per
+  surface (``_apply_default_bcs`` accepts both declaration styles —
+  per-face dataclass fields *or* per-endpoint axis slots — with the
+  same all-or-nothing semantics).
+
+.. note::
+
+   **Two default-BC conventions, by design.** The *solver* entry
+   defaults un-declared faces to **vacuum** (the fixed-source
+   convention — an un-specified boundary leaks); a freshly constructed
+   :class:`SNMesh` with no BC declarations defaults to **reflective**
+   (the infinite-lattice / eigenvalue convention — see
+   :ref:`bc-face-name-carve`). The d=3 admission preserves **both**
+   conventions on their respective surfaces; the value gates below
+   exercise the reflective (eigenvalue) convention for the headline
+   :math:`k_\infty` identity and a mixed convention for the Mode-9 box.
+
+.. _sn-c5-value-gates:
+
+Numerical evidence — the d=3 value gates
+----------------------------------------
+
+C5.5's admission is gated by four value tests
+(:mod:`tests.sn.solve.test_d3_admission`), **all driven through the
+production entry points** (``np.testing.assert_*`` only — Mode-8 safe
+under ``python -O``, where bare ``assert`` is stripped). Each probes a
+distinct failure class:
+
+.. list-table:: The d=3 admission value gates
+   :header-rows: 1
+   :widths: 30 16 54
+
+   * - Gate
+     - V&V level
+     - Evidence
+   * - **k_inf 3-D ≡ 2-D ≡ 1-D**
+     - L1 (closed-form eigenvalue)
+     - Homogeneous all-reflective boxes at :math:`d = 1, 2, 3`. The
+       reference is the closed-form matrix eigenvalue
+       :math:`k_\infty = \lambda_{\max}(A^{-1}F)`,
+       :math:`A = \operatorname{diag}(\Sigma_t) - \Sigma_{s0}^{\mathsf T}`
+       — **never** the sweep. Each dimension matches ``case.k_inf`` to
+       ``atol=1e-8``; the d=3 box solved
+       :math:`1.8750000050` against the closed form :math:`1.875`
+       (2g). Run at **2 groups and 4 groups, never 1 group** — a 1-G
+       eigenvalue is the flux-shape-independent ratio
+       :math:`\nu\Sigma_f/\Sigma_a` and is degenerate.
+   * - **Per-ordinate ψ = Q/(W·Σₜ)**
+     - L1 (closed-form flux)
+     - Pure absorber (:math:`c = 0`), all-reflective. DD is flat-flux
+       *exact* and :math:`c = 0` needs no iteration, so **every**
+       ordinate must carry the closed-form value
+       :math:`\psi_{n,g} = Q_g/(W\,\Sigma_{t,g})` to ``rtol=1e-10``.
+       Per-group distinct :math:`Q` and :math:`\Sigma_t` make a group
+       swap (Mode-2) observable; the per-ordinate residual is the
+       sharpest Mode-1 / Mode-3 / Mode-4 probe.
+   * - **Scattering multigroup balance**
+     - L1 (closed-form flux)
+     - Scattering medium, all-reflective:
+       :math:`\phi = (\operatorname{diag}(\Sigma_t) -
+       \Sigma_{s0}^{\mathsf T})^{-1} Q`. The group-coupling companion —
+       a **Mode-6 convention-drift catcher** because mixture C's
+       scattering matrix is **asymmetric**, so :math:`\Sigma_s` vs
+       :math:`\Sigma_s^{\mathsf T}` (the ``SigS`` / ``SigS^T``
+       convention, see :ref:`theory-discrete-ordinates`) is observable.
+       Measured max relative error :math:`2.6\times 10^{-9}` — this is
+       **SI-convergence-limited, not a discretization error** (DD is
+       flat-flux exact on a homogeneous box).
+   * - **Mode-9 G-S ≡ Jacobi FP-invariance**
+     - L2 (integration)
+     - Boundary-Gauss–Seidel and Jacobi converge to the **same** d=3
+       fixed point on a box that **breaks every degenerate
+       coincidence**: mixed BCs (x-reflective / y-vacuum / z-reflective
+       — axis-asymmetric, so a wrong reflection partner shifts the
+       answer), ``nx ≠ ny ≠ nz`` (5, 3, 4), a heterogeneous 2-G split
+       across x (a non-flat-flux guard), and a **diagonal**
+       level-symmetric cubature (ERR-056 shared-face discipline —
+       diagonal cubatures share faces between octants, the regime where
+       a wrong G-S shared-face reflect is observable). :math:`k_{\rm
+       eff}` agrees to ``atol=1e-8`` *and* the normalized flux shape to
+       ``rtol=1e-6``.
+
+The four gates together cover the verification ladder for the new
+capability: a closed-form eigenvalue (L1, the only pillar that can
+verify :math:`k`), two closed-form flux identities (L1, isolating the
+streaming / collision / scattering operators per-term), and a
+splitting FP-invariance on the degenerate-breaking box (L2 / Mode-9).
+The eigenvalue gate's reference is **structurally independent** of the
+sweep (a matrix eigensolve, not a transport solve), satisfying the
+``vv-principles`` requirement that an eigenvalue claim rest on a
+closed-form or semi-analytical reference rather than MMS.
+
+What runs the d=3 path, and what is deferred
+--------------------------------------------
+
+The :math:`d = 3` admission runs on the **d-generic
+FullFieldWavefront ORACLE spine** — the never-stuck full-field
+representation that is correct from day one (the four value gates), but
+**not** the optimized sweep kernels. Two kernel widenings are deferred
+to Issue #227, gated on *measurement* against the spine (the C3.6
+principle: "construct general, select narrow, specialize only on
+measured cost"):
+
+* **ScanMarch** :math:`d \ge 3` — the row-march kernels currently
+  unpack 2-D pairs; the
+  :math:`\text{scan}(x)\circ\text{march}(y, z)` generalization widens
+  the predicate **only with** the kernel and a profile showing it beats
+  the spine.
+* **MovingFrontierWindow** :math:`d \ge 3` — the rolling-frontier
+  window is built ``frontier_dim = d-1`` and its ``supports`` is
+  conservatively ``is_cartesian and ndim == 2``; the :math:`d = 3`
+  windowed *walk* is graph-layer-pinned but the window kernels need
+  their own profile (the 2-D window was a ~0.71–0.80× **speedup** plus
+  a peak-memory win — the :math:`d = 3` economics need separate
+  numbers).
+
+Separately, the **multi-D adjoint** (``loss_action_transpose`` raises
+:class:`NotImplementedError` at any multi-D) is a **pre-existing
+deferral** orthogonal to C5 (G-adjoint campaign territory), noted here
+only so the :math:`d = 3` capability map is complete.
+
+C5 closure
+----------
+
+C5 lands in six substeps under Issue #225 (the SN N-D layout campaign):
+C5.1 (axis-primary inversion), C5.2 (phantom-shim retirement +
+native ``coord`` / ``volume_measure``), C5.3 (geometry-blind trace),
+C5.4 (Mode-9 windowing / G-S gate retarget), C5.5 (3-D admission), and
+C5.6 (structure-pin flips to the now-constructible mesh). The
+:math:`d \le 2` path is **byte-identical** on every numerical output
+(the affine ``sha256`` goldens are unchanged across the whole carve);
+the :math:`d = 3` path is correct from birth on the FullFieldWavefront
+spine, value-gated by the four tests above. The campaign reaches its
+3-D admission **without** a ``Mesh3D`` dataclass — the axes tuple,
+made primary by C5.1, *is* the N-D entry.
 
 
 Anti-pattern catalog
