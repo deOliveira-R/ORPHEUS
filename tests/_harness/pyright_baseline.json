@@ -1,7 +1,7 @@
 {
   "_comment": "Pyright error ratchet baseline (ORPHEUS#226). Counts must only go DOWN. Regenerate after an intentional improvement with: python -m tests._harness.pyright_ratchet --update",
   "pyright_version": "1.1.410",
-  "total": 707,
+  "total": 706,
   "modules": {
     "(root)": 7,
     "cp": 22,
@@ -15,7 +15,7 @@
     "mc": 2,
     "moc": 2,
     "numerics": 61,
-    "sn": 264,
+    "sn": 263,
     "thermal_hydraulics": 6,
     "transport": 5
   }

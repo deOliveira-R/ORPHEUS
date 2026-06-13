@@ -495,6 +495,7 @@ class _MSpatialOperatorSum(OperatorSum):
             # Slab: read the GIVEN inner inflow trace (the forward sweep's
             # μ>0 seed at xmin) directly. Wave O O.4a.2 — the BC reflection
             # is NOT re-derived here; it moves to the sibling −B.
+            assert face_inner is not None  # guaranteed by the cartesian guard
             pole_face_seed = face_inner
         outflow_at_boundary = _sweep_direction(+1, pole_face_seed)
 
@@ -976,6 +977,7 @@ class _MSpatialOperatorSum(OperatorSum):
         else:
             # Slab: read the GIVEN inner inflow trace (μ>0 seed at xmin)
             # directly. Mirrors _compute_LpC; the BC reflection moves to −B.
+            assert face_inner is not None  # guaranteed by the cartesian guard
             pole_face_seed = face_inner                                  # (N, ng)
         outflow_at_boundary = _sweep_direction(
             direction_sign=+1, psi_face_in_init=pole_face_seed,

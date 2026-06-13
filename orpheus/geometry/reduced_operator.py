@@ -472,6 +472,7 @@ class ReducedStreamingOperator:
             assert self.alpha_half is not None
             assert self.redist_dAw is not None
             assert self.tau_mm is not None
+            assert self.mu_start is not None
             # Sphere: ``direction_idx`` IS the global ordinate index.
             mu_n = float(self._quadrature.mu_x[direction_idx])
             return StreamingTerms(
@@ -500,6 +501,7 @@ class ReducedStreamingOperator:
             assert self.alpha_per_level is not None
             assert self.redist_dAw_per_level is not None
             assert self.tau_mm_per_level is not None
+            assert self.mu_start_per_level is not None
             # Cylinder: ``direction_idx`` is the within-level azimuthal
             # index; the global ordinate is read through
             # ``level_indices``.  ``mu_x[global_n]`` carries η (the

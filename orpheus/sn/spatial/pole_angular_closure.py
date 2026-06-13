@@ -628,12 +628,14 @@ class MorelMontryAngularSweep(
         # Sphere: every ordinate is one level (M_p = N, n_levels = 1).
         # Cylinder: μ-levels from ProductQuadrature / LevelSymmetricSN.
         if coord is CoordSystem.SPHERICAL:
+            assert reduced.mu_start is not None  # set by spherical_streaming
             self.level_indices = (np.arange(N),)
             self._alpha_per_level = (reduced.alpha_half,)
             self._dAw_per_level = (reduced.redist_dAw,)
             self._tau_per_level = (reduced.tau_mm,)
             self._mu_start_per_level = (float(reduced.mu_start),)
         elif coord is CoordSystem.CYLINDRICAL:
+            assert reduced.mu_start_per_level is not None  # set by cyl factory
             self.level_indices = tuple(
                 np.asarray(lvl) for lvl in quad.level_indices
             )
@@ -858,6 +860,7 @@ class MorelMontryAngularSweep(
             consumes the row matching the level's most-inward ordinate.
         """
         self._require_mesh_bound()
+        assert self._mu_start_per_level is not None  # set when mesh-bound
         # (N, ng, nx) → (ng, N, nx) — reorder for level access.
         psi_g_first = psi_view.swapaxes(0, 1)
         per_level: list[_MMHalfGrid] = []
@@ -968,6 +971,7 @@ class MorelMontryAngularSweep(
             inflow at each level's most-inward ordinate).
         """
         self._require_mesh_bound()
+        assert self._mu_start_per_level is not None  # set when mesh-bound
         ng, nx = int(sigma_t.shape[0]), int(sigma_t.shape[1])
         N = int(self._mu_x.shape[0])
         psi_bar = np.zeros((ng, N, nx))
