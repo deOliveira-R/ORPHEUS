@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5160**
+Total tests collected: **5163**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1151, 22.3%
-   L1, 957, 18.5%
+   L1, 959, 18.6%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3008, 58.3%
+   foundation, 3009, 58.3%
    unmarked, 8, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5073
+   explicit, 5076
    verify, 0
    class-name, 46
    func-name, 0
@@ -98,7 +98,7 @@ Module × level grid
    curvilinear/test_compute_psi_half_per_level, 27, 0, 0, 0, 2, 0
    curvilinear/test_cyl_sweep_regression, 4, 0, 4, 0, 0, 0
    curvilinear/test_pole_angular_closure, 0, 0, 0, 0, 13, 0
-   curvilinear/test_psi_half_angle_seed, 4, 1, 0, 0, 19, 0
+   curvilinear/test_psi_half_angle_seed, 4, 1, 0, 0, 20, 0
    curvilinear/test_si_cyl_20cell_nan_regression, 0, 0, 0, 0, 4, 0
    curvilinear/test_sph_sweep_regression, 13, 0, 0, 0, 0, 0
    curvilinear/test_streaming_equilibrium_curvilinear, 27, 0, 0, 0, 0, 0
@@ -234,6 +234,7 @@ Module × level grid
    mc/test_monte_carlo, 0, 12, 0, 0, 0, 0
    mc/test_properties, 24, 0, 0, 0, 0, 0
    mms/test_curvilinear_aniso_convergence, 0, 5, 0, 0, 0, 0
+   mms/test_curvilinear_operator_admits_mms, 0, 2, 0, 0, 0, 0
    mms/test_mms, 0, 2, 0, 0, 0, 0
    mms/test_mms_2d, 0, 3, 0, 0, 0, 0
    mms/test_mms_aniso, 0, 2, 0, 0, 0, 0
@@ -666,7 +667,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **216** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **219** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -850,6 +851,9 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``si-within-group-fixed-point``
 - ``sigs-convention``
 - ``singular-eigenfunction-eq5``
+- ``sn-err-058-coupled-pole-continuity``
+- ``sn-err-058-edge-extrapolation``
+- ``sn-err-058-proxy-source``
 - ``sn-mms-nonvacuum-psi``
 - ``sn-mms-nonvacuum-sph-psi``
 - ``sood-eq18-1g-balance``
@@ -951,6 +955,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-055``, **0 (MISSING)**
    ``ERR-056``, 7
    ``ERR-057``, 1
+   ``ERR-058``, 4
 
 Unmarked tests
 --------------

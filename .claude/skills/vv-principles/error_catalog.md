@@ -1661,6 +1661,26 @@ default for ``solve_sn``).
 > without auditing its sister is a Cardinal Rule 2 (architecture)
 > violation that ERR-026 instantiated twice.
 
+### CLOSED 2026-06-12 (ERR-058 / Issue #195)
+
+**Status: CLOSED.** The wrong-fixed-point family this entry opened
+(2026-04-17, the 35–50% r=0 deviation that grows under refinement) is
+terminally closed by the ERR-058 closure-seed fix — see the ERR-058
+entry for the full mechanism: (a) the pole-face CELL-CENTRE spatial
+seed → Carlson coupled-pole seed ψ(0,+μ) = ψ(0,−μ); (b) the M-M
+half-angle thread's proxy-source Carlson seed (Q̄ = Σ_t·φ₀/Σw, exact
+only at flat-flux equilibrium) → ``AngularEdgeExtrapolation``.
+Post-fix the curvilinear isotropic MMS collapses O(h²) into the
+absolute-magnitude band (sphere orders 2.00–2.01 to 5.74e-5 at
+nx=320; cylinder 2.00 to 3.37e-5 at nx=160), SI ≡ Krylov
+bit-identical, and the 2 isotropic xfail-strict tripwires in
+``tests/sn/verification/mms/test_mms_curvilinear.py`` are REMOVED
+(now plain tests carrying ``catches("ERR-058")``).  The 4 anisotropic
+xfail markers remain for a DIFFERENT, non-ERR-026 reason — the
+fixed-quadrature angular floor of the per-ordinate-imposed aniso
+ansatz, a test-design retune tracked at Issue #229.  Phase A–D
+narrative above preserved as history.  Closes #98 → #99 → #168 → #195.
+
 ---
 
 ## ERR-027 — Peierls slab K-matrix: naive GL collocation for cross-panel entries

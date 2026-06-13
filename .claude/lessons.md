@@ -778,3 +778,35 @@ to `np.testing`/`pytest.fail` is a consistency/clarity choice, not a correctness
 (3) when auditing for Mode 8, grep the NON-collected surface (helpers, `derivations/`,
 `_test_helpers`, production `assert`s), and when in doubt run the deliberate-failure probe —
 it is cheaper than any amount of reasoning about the toolchain.
+
+## L27 — Angular-closure residual audits MUST be per-ordinate; weight-summed checks are blind BY CONSTRUCTION (2026-06-12)
+
+During the #195/ERR-058 investigation, a diagnostic computed the
+"operator residual of the manufactured solution" as the WEIGHT-SUMMED
+(scalar) angular reduction `Σ_n w_n r_n` — and reported O(h²) while the
+per-ordinate residual was O(10). The M-M redistribution's α-dome
+telescopes under the angular weight sum REGARDLESS of the half-angle
+thread values, so a scalar residual cannot see a wrong angular closure
+— this is anti-pattern #8 ("particle balance holds" ≠ per-ordinate
+balance) instantiated inside a DIAGNOSTIC, where it mis-supported a
+"near-singular operator" hypothesis for a full investigation round
+(falsified only by a dense SVD: σ_min ≈ 0.9, plus an explicit
+per-ordinate `|apply(ψ_ref) − q|` check that read 13.4 where the scalar
+read 2e-4).
+
+Operational rules:
+1. Any residual/admission audit of an operator with an ANGULAR
+   redistribution term must assert per-ordinate (max or volume-weighted
+   per-ordinate norm), never only the weight-summed reduction.
+2. A closure SEED is part of the operator: enumerate the field family
+   each seed is EXACT on (flat-in-space, flat-in-angle, equilibrium) and
+   make sure at least one gate sits OUTSIDE that family. Both ERR-058
+   seeds were exact on the flat fields every existing gate used (Mode 7
+   at the operator-internals level).
+3. When two solution paths agree bit-identically (SI ≡ Krylov), that is
+   evidence they share ONE discrete system — not that the system is
+   right. Post-unification, agreement gates must be re-classified from
+   "independent cross-check" to "twin-consistency check" (L4-class).
+
+Catalog: ERR-058 (mechanism + fixes). Promoted gate:
+`tests/sn/verification/mms/test_curvilinear_operator_admits_mms.py`.
