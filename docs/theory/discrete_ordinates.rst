@@ -5658,6 +5658,135 @@ ordinates (see
 pinned by the dense-probe transpose oracle
 ``derivations/diagnostics/diag_p42_adjoint_oracle.py``).
 
+.. _sn-coupled-pole-mu-level-invariant:
+
+The μ-level-preservation invariant the mirror seed relies on
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The coupled-pole continuity :eq:`sn-err-058-coupled-pole-continuity`
+seeds the outward (:math:`+\mu`) pole face from the inward (:math:`-\mu`)
+sweep's pole outflow read **at the mirror ordinate** — concretely,
+``pole_face_seed = outflow_at_inner.T[quad.reflection_index("x")]`` in
+both matvec twins
+(:meth:`~orpheus.sn.operator._MSpatialOperatorSum._compute_LpC` and its
+adjoint partner) and ``psi_in = pole_outflow[mirror[global_n]]`` in the
+SI sweep twin (:meth:`~orpheus.sn.loss_representation.transport_sweep`).
+That single index — ``reflection_index("x")[n]`` — is what makes the
+seed correct, and it carries a load-bearing assumption that is invisible
+in the code but essential to the physics.
+
+**The invariant.**  For the mirror seed to realise
+:math:`\psi(0,+\mu_r)=\psi(0,-\mu_r)`, the partner
+``reflection_index("x")[n]`` MUST be the *intra-level sign-flip partner*
+of ordinate :math:`n`: the ordinate in the **same** :math:`\mu`-level
+(same axial cosine :math:`\mu_z` — the level index) with the radial
+cosine :math:`\mu_x` negated and :math:`\mu_y,\mu_z` held.
+
+.. math::
+   :label: sn-coupled-pole-mu-level-invariant-eq
+
+   m \;=\; \mathrm{reflection\_index}(\text{"x"})[n]
+   \;\Longrightarrow\;
+   \mu_x[m] = -\,\mu_x[n],\quad
+   \mu_y[m] = \mu_y[n],\quad
+   \mu_z[m] = \mu_z[n].
+
+.. (vv-status rationale) Structural / representational identity: the
+   defining property the x-mirror partner MUST satisfy for the
+   coupled-pole seed to be physically correct (intra-level μ_x
+   sign-flip). Not a solver claim (no eigenvalue / flux value). The
+   verifiable content is the foundation gate
+   test_x_reflection_is_intra_level_signflip_partner (asserts the three
+   equalities over gauss_legendre/level_symmetric/product cubatures) +
+   its involution sibling; documented-only.
+.. vv-status: sn-coupled-pole-mu-level-invariant-eq documented
+
+**Why the physics demands it.**  The pole continuity is a statement at a
+*fixed axial direction*: a neutron travelling inward along :math:`-\mu_x`
+at axial cosine :math:`\mu_z` reaches the centre and emerges travelling
+outward along :math:`+\mu_x` at the **same** :math:`\mu_z`.  The axial
+component does not turn at the pole — only the radial one reverses.  So
+the reflected partner must stay in the same :math:`\mu`-level; a
+cross-level partner would couple two different axial directions and seed
+the outward sweep with a value from the *wrong* characteristic.
+
+**Why it holds by construction today.**  Two facts conspire.  First,
+``reflection_index("x")`` resolves to
+``reflection_partners[0] = _find_reflections(-mu_x, mu_y, mu_z, ...)``
+(:func:`orpheus.numerics.quadrature.directional._compute_sphere_reflection_partners`),
+which nearest-neighbour-matches each node against its image with
+**only** :math:`\mu_x` negated — :math:`\mu_y,\mu_z` are passed through
+unchanged.  Second, the cylinder/sphere level is grouped on the
+**axial** cosine: the level factories key ``level_indices`` on
+:math:`|\mu_z|` (sphere / level-symmetric — ``rules_sphere.py``) or hold
+:math:`\mu_z=\mu_{\rm GL}` fixed per level (product — ``rules_product.py``),
+never on :math:`\mu_x`.  Because the x-mirror holds :math:`\mu_z` and the
+level is indexed by :math:`\mu_z`, the x-mirror provably maps an ordinate
+to a partner in its own level.  The two facts are *independent* code
+sites, so the invariant is an emergent property of their agreement — not
+something either site enforces alone.
+
+.. warning::
+
+   **This is a silent-corruption surface — a Mode-7 blind spot at the
+   operator-internals level.**  If ``reflection_index("x")`` ever
+   returned a **cross-level** partner — a future cubature whose
+   reflection table is built differently, or a refactor of
+   :func:`~orpheus.numerics.quadrature.directional._compute_sphere_reflection_partners`
+   that no longer holds :math:`\mu_z` — then
+   ``pole_outflow[mirror[n]]`` would read a *different axial direction's*
+   pole value, and the break would be **completely silent under the
+   existing solver suite**.  The reason is the same blindness that hid
+   ERR-058 itself: on a spatially/angularly **flat** :math:`\psi` field
+   the mirror partner's pole value equals the ordinate's own value, so
+   the seed is exact regardless of *which* ordinate it reads.  Every
+   flat-flux gate, every streaming-equilibrium L0, every reflective
+   :math:`k_\infty` check would stay green while the operator quietly
+   coupled the wrong characteristics on any non-flat field (``vv-principles``
+   Mode 7 — the ansatz-simplification blindness — operating on the
+   operator's own internals, exactly the ERR-058 class).  A scalar /
+   particle-balance residual cannot see it either, because the
+   :math:`\alpha`-dome telescoping (above) sums away per-ordinate seed
+   errors.
+
+**Why it now has its own foundation gate.**  Because the solver tests are
+structurally blind to a cross-level regression, the invariant is pinned
+*directly* — not through any flux or eigenvalue, but as a property of the
+quadrature's reflection table itself — by the foundation test
+:func:`tests.sn.sweep.curvilinear.test_coupled_pole_mu_level_invariant.test_x_reflection_is_intra_level_signflip_partner`.
+It asserts all three equalities of
+:eq:`sn-coupled-pole-mu-level-invariant-eq` (intra-level membership,
+:math:`\mu_x` sign-flip, :math:`\mu_y,\mu_z` held) over the
+``gauss_legendre`` / ``level_symmetric`` / ``product`` cubatures the
+curvilinear sweep actually uses; the sibling
+:func:`~tests.sn.sweep.curvilinear.test_coupled_pole_mu_level_invariant.test_x_reflection_is_an_involution`
+pins ``mirror ∘ mirror = id`` (the partner relation is symmetric — a
+necessary corollary of the sign-flip).  Both are
+``@pytest.mark.foundation``; the first carries
+``@pytest.mark.verifies("sn-err-058-coupled-pole-continuity")``, tying
+the table-level invariant to the continuity equation it underwrites.
+This gate is the regression tripwire that turns the silent-corruption
+surface into a loud one: a cross-level reflection table fails it
+immediately, *before* any solver ever runs.
+
+.. note::
+
+   **Re-scope of Issue #193.**  This invariant is what
+   `Issue #193 <https://github.com/deOliveira-R/ORPHEUS/issues/193>`_
+   now pins.  The issue *originally* targeted a different "level-locality"
+   concern — that the cylindrical matvec's
+   ``bc_outer.apply``-once-then-per-level-extract pattern stayed correct.
+   That concern **dissolved**: Wave O O.4a.2 removed the ``bc_outer.apply``
+   keystone from the matvec entirely (the reflective coupling :math:`B`
+   moved *outside* the bare sweep as a first-class sibling — see the
+   boundary-condition extraction record at :ref:`bc-extraction`), and the
+   surviving SI-sweep seed reads the **raw** inflow trace with no
+   ``apply`` at all, so the
+   apply/restrict commutativity the original test would have guarded is
+   now vacuous.  The genuinely load-bearing :math:`\mu`-level invariant
+   *moved* to the coupled-pole seed mirror documented here, and that is
+   what #193 was re-scoped to gate.
+
 .. _sn-err-058-manifestation-b:
 
 Manifestation (b) — the angular half-angle thread seed (the dominant defect)
