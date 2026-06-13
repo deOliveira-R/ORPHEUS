@@ -3413,7 +3413,7 @@ without any spatial or angular discretisation choice; it is the
 State 1A closed-form pillar in the ``algebra-of-record`` taxonomy.
 The Phase C sweep-frame matvec recovers it to ``rtol ≤ 5e-4`` on the
 2-group homogeneous reflective sphere; pinned at
-:func:`tests.sn.test_phase_c_crosscheck.test_sn_spherical_homogeneous_kinf_recovery_2g`.
+:func:`tests.sn.verification.analytical.test_phase_c_crosscheck.test_sn_spherical_homogeneous_kinf_recovery_2g`.
 
 The clean :math:`k_\infty` recovery is **not** a contradiction of
 ERR-026 staying at PARTIAL CLOSURE. The eigenvalue is shape-
@@ -3487,7 +3487,7 @@ because :math:`P_1` anisotropic eigenvalue is still
 shape-independent for a homogeneous reflective problem.
 
 The test placeholder at
-:func:`tests.sn.test_phase_c_crosscheck.test_sn_cylinder_homogeneous_vs_trajectory_resolvent_1g`
+:func:`tests.sn.verification.analytical.test_phase_c_crosscheck.test_sn_cylinder_homogeneous_vs_trajectory_resolvent_1g`
 is marked SKIP pending Phase D's pole-face spatial-closure
 refinement. The placeholder is **structurally important**: it pins
 the names of the bare entry points so the Phase D session knows
@@ -4730,15 +4730,19 @@ Phase F Carlson seed sweep-path backport (Issue #168 Phase F)
      :math:`\psi(r=0)` quasi-isotropy: ``cv(ψ@i=0)``
      **0.520** → **0.404**, ``max/min(ψ@i=0)`` **6.4×** →
      **1.16×** (Pomraning 1989 prediction substantially approached).
-   * **What stays open**: the residual O(h) per-cell WDD
-     spatial-closure asymmetry between SI and Krylov paths is now
-     **manifestation #7 of ERR-026** (tracked in
-     ``error_catalog.md``). The Phase E flux-shape sentinel
-     (:func:`tests.sn.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`)
-     stays ``xfail-strict`` — the failure mode reclassified from
-     "structural divergence at the pole" (Phase F-closed) to
-     "convergence-rate gap between SI and Krylov on the
-     heterogeneous MR snapshot".
+   * **What was logged as open** *(now CLOSED, #196)*: the residual
+     O(h) per-cell WDD spatial-closure asymmetry between SI and Krylov
+     paths was logged as **manifestation #7 of ERR-026**.  It is now
+     **CLOSED** — ERR-058 (#195) showed the gap was a shared
+     closure-seed defect, not a discretisation asymmetry; #196 verified
+     SI :math:`\equiv` Krylov to the iteration floor on the
+     heterogeneous eigenvalue path and added the permanent regression
+     gate (see :ref:`sn-phase-f-residual-o-h-open` and
+     :ref:`sn-issue-196-eigenvalue-equivalence`).  The Phase E
+     flux-shape sentinel
+     (:func:`tests.sn.verification.analytical.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`)
+     **no longer xfails** — it runs as a plain L1 test, the
+     structurally-independent Variant-α anchor.
 
 The twin-path bug Phase D left open
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -5153,9 +5157,28 @@ the residual O(h) WDD spatial-closure asymmetry (see
 **diverging-vs-refinement** signature that made the Phase E
 flux-shape sentinel xfail-strict is closed.
 
+.. note:: **Retraction (2026-06-13, Issue #196).**
+
+   The table below logs a residual SI :math:`\neq` Krylov
+   :math:`\mathcal{O}(h)` gap (pole ratio 0.778 vs Krylov 1.029;
+   :math:`\Delta k` 0.286 % at n=40 halving per mesh doubling) and
+   reads it as a benign discretisation artefact of "two methods now
+   solving the same equation".  **That interpretation is wrong.**  The
+   methods did NOT yet solve the same equation at Phase F: the
+   *shared* closure seeds were still O(1)-wrong on non-flat fields
+   (ERR-058).  After ERR-058 (#195) fixed the seeds, the
+   :math:`\mathcal{O}(h)` gap **collapsed to the iteration floor** —
+   SI :math:`\equiv` Krylov to :math:`|\Delta k|\approx
+   1.9\mathrm{e}{-11}` and L∞ flux-shape :math:`\approx
+   2.4\mathrm{e}{-10}` on ``sphere_2g_3reg`` n=40 (from a bug-era
+   3.9e-3 / ~30 %); the pole ratio reaches 1 to that floor.  The
+   measured numbers stay below as bug-era evidence; the
+   production-decision record and post-fix evidence are
+   :ref:`sn-issue-196-eigenvalue-equivalence`.
+
 Mesh-refinement convergence (SI vs Krylov, post-Phase-F):
 
-.. list-table:: Post-Phase-F SI-vs-Krylov convergence on ``sphere_2g_3reg``
+.. list-table:: Post-Phase-F SI-vs-Krylov convergence on ``sphere_2g_3reg`` (bug-era — gap closed by ERR-058/#196)
    :header-rows: 1
    :widths: 10 22 18 22 18 14
 
@@ -5184,18 +5207,22 @@ Mesh-refinement convergence (SI vs Krylov, post-Phase-F):
      - 1.0018
      - 0.065 %
 
-The :math:`k_{\text{eff}}` gap between SI and Krylov drops
-by **a factor of 2 per mesh doubling — clean
-:math:`\mathcal{O}(h)`** convergence to a shared limit.
+*(Bug-era reading, retracted — see the note above.)* The
+:math:`k_{\text{eff}}` gap between SI and Krylov drops
+by a factor of 2 per mesh doubling — apparent clean
+:math:`\mathcal{O}(h)` convergence to a shared limit.
 Pre-Phase-F the SI sat on the wrong structural fixed point
 (0.473–0.522 ratio asymptote diverging from 1) while Krylov
 converged to ~1 — the two methods **solved different
-equations**, and refinement made it worse for SI.
-Post-Phase-F they solve the same equation; the residual gap
-is a numerical artefact of the WDD spatial-closure
-asymmetry between the SI's per-cell upwind sweep and the
-apply-matvec's symmetric-closure FD operator, vanishing in
-the fine-mesh limit.
+equations**, and refinement made it worse for SI.  Phase F
+removed the *divergent* signature but, as ERR-058 later
+showed, left a *shared* O(1)-on-non-flat seed defect: the two
+paths still did not solve the same equation, and the residual
+:math:`\mathcal{O}(h)` gap above is the slow trace of that
+shared defect, not a discretisation artefact.  ERR-058 (#195)
+fixed the seeds and the gap collapsed to the iteration floor
+(:ref:`sn-issue-196-eigenvalue-equivalence`); there is no
+residual O(h) gap in production.
 
 Files touched by Phase F
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -5246,14 +5273,15 @@ Files touched by Phase F
 
 **Updated tests**
 
-* :func:`tests.sn.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`
-  — ``xfail-strict`` reason string updated from
-  *"UNRESOLVED structural discrepancy with hypothesised pole
-  issue"* to *"Phase F closed gross divergence; residual
-  O(h) drift awaits further work"*.  The marker stays so a
-  future tightening (or Krylov-default flip per
-  :ref:`sn-phase-f-residual-o-h-open` Option (b))
-  self-enforces removal.
+* :func:`tests.sn.verification.analytical.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`
+  — *(Phase-F action, since superseded.)* Phase F updated the
+  ``xfail-strict`` reason string from *"UNRESOLVED structural
+  discrepancy with hypothesised pole issue"* to *"Phase F closed
+  gross divergence; residual O(h) drift awaits further work"*, on
+  the expectation a future tightening would self-enforce removal.
+  **The xfail was removed by ERR-058 (#195):** the canary now runs
+  as a plain L1 test (the structurally-independent Variant-α anchor;
+  see :ref:`sn-issue-196-eigenvalue-equivalence`).
 
 **Snapshot regeneration**
 
@@ -5281,67 +5309,99 @@ Files touched by Phase F
 
 .. _sn-phase-f-residual-o-h-open:
 
-What stays open after Phase F (ERR-026 manifestation #7)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ERR-026 manifestation #7 — CLOSED by ERR-058 (#195), verified + pinned by #196
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. note:: **Superseded (2026-06-12, Issue #195).**
+.. admonition:: Status — manifestation #7 is CLOSED (Issue #196, 2026-06-13)
+   :class: important
 
-   The "residual O(h) SI-vs-Krylov gap = ERR-026 manifestation #7"
-   reading below — including the SI :math:`\neq` Krylov tables above
-   (pole ratio 0.778 vs Krylov 1.029; :math:`\Delta k` converging
-   :math:`\mathcal{O}(h)`) and Options (a)/(b)/(c) — was the
-   *two-distinct-systems* picture.  The gap was NOT a discretisation
-   artefact; it was the shared closure-seed defect, manifest
-   differently on the two then-distinct paths.  After the
-   Depth-B/Wave-T matvec unification the sweep and matvec became ONE
-   discrete system, and the ERR-058 closure-seed fix made SI
-   :math:`\equiv` Krylov **bit-identical** on the curvilinear MMS
-   ladders.  Option (c) (keep SI, accept an O(h) gap) is moot — there
-   is no gap; Option (b) (flip to Krylov) is the opposite of what
-   landed (SI is the faster default).  The values below stay as bug-era
-   evidence; the interpretation is carried by
-   :ref:`sn-err-058-closure-seed-closeout`.
+   **This was the LAST open manifestation of ERR-026; closing it
+   formally retires the curvilinear-SN wrong-fixed-point family.**  The
+   "residual :math:`\mathcal{O}(h)` SI-vs-Krylov gap" reading below —
+   including the SI :math:`\neq` Krylov tables above (pole ratio 0.778
+   vs Krylov 1.029; :math:`\Delta k` converging :math:`\mathcal{O}(h)`)
+   and Options (a)/(b)/(c) — was the *two-distinct-systems* picture and
+   is **bug-era history**.  The gap was NOT a discretisation artefact;
+   it was the shared closure-seed defect (ERR-058), manifest
+   differently on the two then-distinct paths.
 
-Phase F closes the **structural** pole defect (the divergent
-ratio at the pole cell on heterogeneous MR) and the
-**outer-cell** defect (sf[-1]/sf[-2] essentially reaches 1).
-What remains is a milder **convergence-rate** gap between
-SI and Krylov on heterogeneous MR snapshots: at n=40 the
-per-cell shape differs by ~5 %, converging O(h) toward zero
-under refinement.  This is reclassified in
-``error_catalog.md`` as **ERR-026 manifestation #7**:
+   * **ERR-048** (Phase G Step 2, 2026-05-13) closed only the **L0
+     flat-field** twin-agreement: it patched the SI sweep to MATCH the
+     apply-matvec conventions on the homogeneous streaming-equilibrium
+     gauntlet (pole-face WDD IC mirror + Carlson seed normalisation).
+     The **L1 heterogeneous eigenvalue** :math:`\mathcal{O}(h)`
+     asymmetry that manifestation #7 names **PERSISTED** — which is
+     exactly why #196 stayed OPEN — because the shared closure seeds
+     were still *exact-on-flat / O(1)-wrong-on-non-flat* (the ERR-058
+     defect).
+   * **ERR-058** (Issue #195, 2026-06-12) was the TERMINAL fix: it
+     replaced the shared closure seeds with correct ones — the
+     coupled-pole spatial seed :math:`\psi(0,+\mu)=\psi(0,-\mu)` and the
+     :class:`~orpheus.sn.spatial.psi_half_angle_seed.AngularEdgeExtrapolation`
+     half-angle seed — so BOTH inner solvers operate on the SAME correct
+     discrete operator.
+   * **#196** (2026-06-13) VERIFIED the eigenvalue-path equivalence and
+     added the permanent regression gate.  See
+     :ref:`sn-issue-196-eigenvalue-equivalence` for the measured
+     evidence (sphere :math:`|\Delta k|=4.68\mathrm{e}{-12}`, cylinder
+     :math:`1.91\mathrm{e}{-11}` on the bug-era snapshot cases) and the
+     gate description.
+
+   Option (c) (keep SI, accept an O(h) gap) is moot — there is no gap;
+   Option (b) (flip to Krylov) is the opposite of what landed (SI is
+   restored as the faster default).  The full production-decision
+   record is :ref:`sn-issue-196-eigenvalue-equivalence`.
+
+The bug-era reading (preserved as history) ran: Phase F closed the
+**structural** pole defect (the divergent ratio at the pole cell on
+heterogeneous MR) and the **outer-cell** defect (sf[-1]/sf[-2]
+essentially reaches 1); what was thought to remain was a milder
+**convergence-rate** gap between SI and Krylov on heterogeneous MR
+snapshots (at n=40 per-cell shape differing by ~5 %, apparently
+converging :math:`\mathcal{O}(h)` toward zero under refinement),
+logged in ``error_catalog.md`` as **ERR-026 manifestation #7**:
 
    *"SI-vs-Krylov per-cell agreement (residual O(h) WDD
    asymmetry) — OPEN, new follow-up after Phase F."*
 
-The Phase E flux-shape sentinel
-:func:`tests.sn.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`
-stays ``xfail-strict``.  Two viable closures for the residual
-gap, tracked as Phase F-extensions:
+That row now reads **CLOSED by ERR-058 (#195), verified + pinned by
+#196**.  The Phase E flux-shape sentinel
+:func:`tests.sn.verification.analytical.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`
+**no longer xfails** — it runs as a plain L1 test (the
+structurally-independent Variant-α anchor; see
+:ref:`sn-issue-196-eigenvalue-equivalence`).  The two viable
+closures that were tracked as Phase F-extensions are recorded here
+**only as bug-era history** — neither was taken, because both
+presupposed the shared fixed point was correct and only the
+arithmetic differed, which the terminal diagnosis refuted:
 
-* **Option (a) — Sweep WDD-closure refinement.**  Investigate
-  the per-cell WDD recurrence
+* **Option (a) — Sweep WDD-closure refinement** *(bug-era,
+  not taken).*  Investigate the per-cell WDD recurrence
   :math:`\psi_{n+1/2} = (\psi_n - (1-\tau)\psi_{n-1/2})/\tau`
-  in :func:`_sweep_1d_spherical` to identify the residual
+  in ``_sweep_1d_spherical`` to identify the residual
   numerical asymmetry vs the apply matvec's symmetric closure
   :math:`\psi_{n\pm 1/2} = \tau \psi_{\text{next}} +
-  (1-\tau) \psi_{\text{this}}`.  Cleanest fix, but requires
-  more diagnostic work on the spatial-closure relation.
+  (1-\tau) \psi_{\text{this}}`.  This presumed the seed was
+  correct and only the spatial closure differed — false: the
+  seed itself was the defect.
 * **Option (b) — Flip curvilinear ``inner_solver`` default to
-  Krylov.**  :func:`solve_sn` for spherical / cylindrical
-  routes through :func:`_solve_krylov` (which already has the
-  Phase D Carlson seed and produces the cleanly-converging
-  fixed point).  Would invalidate the 6 curvilinear snapshots
-  a second time but achieve full per-cell shape agreement at
-  n=40.
+  Krylov** *(bug-era, not taken — in fact reverted).*
+  :func:`solve_sn` for spherical / cylindrical would route
+  through the Krylov inner (which carried the Phase D Carlson
+  seed and produced the cleanly-converging fixed point).  This
+  was the Phase-D-era flip; ERR-058 made the SI sweep correct, so
+  the default was **reverted to ``source_iteration``** (SI is
+  :math:`\sim 10^2\times` faster and now equivalent).
 
-Phase F ships **option (c)**: keep SI default, achieve
-structural alignment of the seed math, accept the residual
-O(h) discretisation gap.  The empirical evidence (SI-vs-Krylov
-gap converges :math:`\mathcal{O}(h)` to a shared limit) makes
-this defensible — the methods now solve the same equation; the
-remaining drift is a numerical artefact of the discretisation
-asymmetry, not a structural divergence.
+Phase F shipped **option (c)** at the time (keep SI default, achieve
+structural alignment of the seed math, accept a residual O(h) gap)
+on the reasoning that the methods "now solve the same equation".
+The terminal diagnosis (ERR-058) showed they did **not** yet solve
+the same equation — the *shared* fixed point was itself wrong on
+non-flat fields.  Once the seeds were fixed there is no residual gap
+to accept: SI and Krylov agree to the iteration floor at the
+eigenvalue level (see :ref:`sn-issue-196-eigenvalue-equivalence`),
+and bit-identically at the fixed-source level.
 
 The anti-pattern Phase F surfaced
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -5477,11 +5537,16 @@ ERR-058 — the curvilinear closure-seed fix (Issue #195 CLOSED)
      Carlson coupled-pole continuity :math:`\psi(0,+\mu)=\psi(0,-\mu)`
      — replacing the historical innermost-cell-centre read
      :math:`\psi(\Delta r/2)`.
-   * The curvilinear :func:`~orpheus.sn.solver.solve_sn_fixed_source`
-     inner default returned from ``"krylov"`` to
-     ``"source_iteration"``: post-unification the sweep and matvec are
-     ONE discrete system, so SI :math:`\equiv` Krylov to bit-identity,
-     and SI is :math:`\sim 10^2\times` faster (no GMRES restart, ERR-053).
+   * The curvilinear inner default returned from ``"krylov"`` to
+     ``"source_iteration"`` (both
+     :func:`~orpheus.sn.solver.solve_sn_fixed_source` and the
+     eigenvalue :func:`~orpheus.sn.solver.solve_sn`): post-unification
+     the sweep and matvec are ONE discrete system, so SI
+     :math:`\equiv` Krylov **bit-identical for fixed-source** and to
+     the **iteration floor for eigenvalue** (the eigenvalue solve wraps
+     the inner in power iteration — see
+     :ref:`sn-issue-196-bit-identical-vs-floor`).  SI is
+     :math:`\sim 10^2\times` faster than GMRES (no restart, ERR-053).
 
    :class:`CarlsonInwardSweep` is **retained** (not deleted) as the
    registered host of the canonical Hébert §3.9.4 recurrence
@@ -6029,6 +6094,240 @@ The ERR-058 fix is pinned by, in order of structural decisiveness:
    verifiable content is the per-ordinate operator-admission gate
    (``catches("ERR-058")``) plus the strategy-owned adjoint
    bit-identity, named in the verification chain above.
+
+.. _sn-issue-196-eigenvalue-equivalence:
+
+Issue #196 — eigenvalue-path SI≡Krylov verification and the permanent gate
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. admonition:: Status — manifestation #7 verified and pinned (Issue #196 CLOSED, 2026-06-13)
+   :class: important
+
+   ERR-058 (#195, above) replaced the wrong shared closure seeds; **#196
+   is the verification and regression-gate step** that confirms the
+   replacement closed ERR-026 manifestation #7 at the *eigenvalue*
+   level and locks the closure against re-introduction.  This was the
+   LAST open manifestation of ERR-026 — with #196 closed, the
+   curvilinear-SN wrong-fixed-point family is **formally retired**.
+
+The two-layer history (why the L0 close did not suffice)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Manifestation #7 names a specific defect: a residual :math:`\mathcal{O}(h)`
+SI-vs-Krylov WDD spatial-closure asymmetry on curvilinear SN.  Pre-fix,
+the source-iteration inner (drives the curvilinear sweep) and the Krylov
+inner (drives the apply-matvec) produced eigenvalues differing at
+:math:`\mathcal{O}(h)`: **0.286 %** on ``sphere_2g_3reg`` at n=40, **~30
+%** per-cell on eigenvector shape, the gap halving under mesh refinement.
+
+Two closures touched this defect, and the honest history distinguishes
+them:
+
+* **ERR-048** (Phase G Step 2, 2026-05-13) closed only the **L0
+  flat-field** twin-agreement.  It patched the SI sweep
+  (``_sweep_1d_spherical`` / ``_sweep_1d_cylindrical``) to MATCH the
+  apply-matvec conventions on the homogeneous streaming-equilibrium
+  gauntlet (pole-face WDD IC mirror + Carlson seed :math:`\bar Q`
+  normalisation).  The **L1 heterogeneous eigenvalue**
+  :math:`\mathcal{O}(h)` asymmetry that manifestation #7 names
+  **PERSISTED** — which is exactly why #196 stayed OPEN — because the
+  shared closure seeds were still *exact-on-flat /
+  O(1)-wrong-on-non-flat* (the ERR-058 defect).
+* **ERR-058** (Issue #195, 2026-06-12) was the TERMINAL fix.  It
+  replaced the shared closure seeds with correct ones (the coupled-pole
+  spatial seed :math:`\psi(0,+\mu)=\psi(0,-\mu)` and the
+  :class:`~orpheus.sn.spatial.psi_half_angle_seed.AngularEdgeExtrapolation`
+  half-angle seed), making BOTH inner solvers operate on the SAME
+  correct discrete operator.
+
+.. _sn-issue-196-bit-identical-vs-floor:
+
+Bit-identical (fixed-source) vs floor-equivalent (eigenvalue)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The post-fix SI :math:`\equiv` Krylov agreement is **not the same kind
+of agreement** on the two solver entry points, and the distinction is
+load-bearing:
+
+* **Fixed-source** (:func:`~orpheus.sn.solver.solve_sn_fixed_source` on
+  the curvilinear MMS ladders): SI :math:`\equiv` Krylov is
+  **BIT-IDENTICAL**.  Post-unification the sweep and the matvec are ONE
+  discrete operator on one quadrature; the within-group inner
+  (``L.solve`` vs Krylov-on-``apply``) realises the *same* :math:`L^{-1}`
+  arithmetic, so the two paths return the same bits.
+* **Eigenvalue** (:func:`~orpheus.sn.solver.solve_sn` with
+  ``inner_solver="source_iteration"`` vs ``"krylov"``): SI
+  :math:`\equiv` Krylov to the **ITERATION FLOOR** (~:math:`1.9\mathrm{e}{-11}`
+  in :math:`k_{\text{eff}}`, ~:math:`2.4\mathrm{e}{-10}` in flux shape),
+  **NOT bit-identical**.  The eigenvalue solve wraps the inner in power
+  iteration; SI and Krylov are *different iteration schemes* that
+  converge to the **same correct fixed point** only to ~``inner_tol``.
+  Same physics, not the same arithmetic.
+
+Confusing the two would mis-state the verification claim.  The earlier
+close-out's "SI :math:`\equiv` Krylov bit-identical on the curvilinear
+MMS ladders" is correct **for the fixed-source ladders specifically**;
+the eigenvalue verification below is *floor-equivalence*, which is the
+right and sufficient claim for an eigenvalue solve.
+
+Measured eigenvalue-path equivalence (Issue #196)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+All values measured 2026-06-12 under tight iteration tolerances for
+BOTH inner solvers (``keff_tol=1e-12``, ``flux_tol=1e-10``,
+``inner_tol=1e-10``).  The eigenvalue snapshot cases are the exact
+acceptance cases of #196:
+
+.. list-table:: SI≡Krylov eigenvalue equivalence — the bug-era heterogeneous snapshot cases
+   :header-rows: 1
+   :widths: 30 22 22 26
+
+   * - Case
+     - :math:`|\Delta k|` (post-fix)
+     - max :math:`|\Delta\varphi|_{L\infty}` (post-fix)
+     - Bug-era (pre-ERR-058)
+   * - ``sphere_2g_3reg_dd_n40``
+     - :math:`4.68\mathrm{e}{-12}`
+     - :math:`5.88\mathrm{e}{-11}`
+     - :math:`|\Delta k|=3.9\mathrm{e}{-3}` (0.286 %), shape ~30 %
+   * - ``cyl_2g_3reg_LS4_dd_n40``
+     - :math:`1.91\mathrm{e}{-11}`
+     - :math:`4.32\mathrm{e}{-11}`
+     - same :math:`\mathcal{O}(h)` family, gap halving under refinement
+
+The homogeneous (k_inf-degenerate, flat-flux) curvilinear snapshots
+agree at the rounding floor — as expected, since on a flat eigenmode the
+redistribution terms null and SI/Krylov differ only by accumulated
+round-off:
+
+.. list-table:: SI≡Krylov eigenvalue equivalence — homogeneous (flat-flux) snapshots
+   :header-rows: 1
+   :widths: 38 26 26
+
+   * - Case
+     - :math:`|\Delta k|`
+     - relative :math:`\varphi` diff
+   * - ``sphere_2g_homogeneous_dd_n20``
+     - :math:`6.92\mathrm{e}{-13}`
+     - :math:`2.15\mathrm{e}{-10}`
+   * - ``cyl_1g_homogeneous_LS4_dd_n20``
+     - :math:`2.22\mathrm{e}{-16}`
+     - :math:`2.27\mathrm{e}{-11}`
+   * - ``cyl_1g_homogeneous_product_dd_n20``
+     - :math:`6.66\mathrm{e}{-16}`
+     - :math:`1.10\mathrm{e}{-10}`
+
+.. note::
+
+   The homogeneous cases agree to the floor but, on their own, supply
+   **no** evidence for the curvilinear closure — a flat eigenmode is
+   degenerate (``flat = flat``; 1-group :math:`k=\nu\Sigma_f/\Sigma_a`
+   is flux-shape independent, vv-principles anti-patterns #3/#4).  The
+   load-bearing evidence is the **heterogeneous 2-group** cases above,
+   where the flux is genuinely non-flat and the angular-redistribution
+   terms are exercised.
+
+The permanent regression gate (Issue #196)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The manifestation-#7 catcher is
+:func:`tests.sn.eigenvalue.test_keff_curvilinear.test_si_krylov_eigenvalue_equivalence_sphere`
+and
+:func:`tests.sn.eigenvalue.test_keff_curvilinear.test_si_krylov_eigenvalue_equivalence_cylinder`,
+each carrying ``@pytest.mark.catches("ERR-026")``.  Configuration:
+heterogeneous 2-group fuel|moderator (region A inner, region B outer,
+n=10+10), solved twice under ``inner_solver="source_iteration"`` and
+``inner_solver="krylov"`` at the tight tolerances above.  The gate
+asserts:
+
+.. list-table:: Manifestation-#7 gate thresholds vs measured vs bug-era
+   :header-rows: 1
+   :widths: 26 24 24 26
+
+   * - Quantity
+     - Asserted bound
+     - Measured (post-fix)
+     - Bug-era (would trip)
+   * - sphere :math:`|\Delta k|`
+     - :math:`< 1\mathrm{e}{-7}`
+     - :math:`1.9\mathrm{e}{-11}`
+     - :math:`3.9\mathrm{e}{-3}`
+   * - sphere per-group :math:`|\Delta\varphi|_{L\infty}`
+     - :math:`< 1\mathrm{e}{-6}`
+     - :math:`2.4\mathrm{e}{-10}`
+     - ~30 %
+   * - cylinder :math:`|\Delta k|`
+     - :math:`< 1\mathrm{e}{-7}`
+     - :math:`1.1\mathrm{e}{-11}`
+     - same family
+   * - cylinder per-group :math:`|\Delta\varphi|_{L\infty}`
+     - :math:`< 1\mathrm{e}{-6}`
+     - :math:`2.6\mathrm{e}{-11}`
+     - ~30 %
+
+A **non-flat-flux guard** (group-0 radial ``max/min > 1.2``) precedes
+the equivalence assertion so the test cannot pass vacuously on a
+degenerate flat mode — sphere radial ``max/min`` = 3.34, cylinder =
+1.67, both well above the guard.  The bug-era values (3.9e-3 / ~30 %)
+exceed the asserted bounds by **4–5 orders of magnitude**, so the gate
+would have tripped loudly on the pre-fix code.
+
+.. note::
+
+   **Runtime-mode discipline (vv-principles anti-pattern #8).**  The
+   canonical ORPHEUS invocation is ``python -O``, under which bare
+   ``assert`` statements are stripped to no-ops.  These gates assert via
+   bare ``assert`` inside the *collected test module*, which pytest
+   rewrites at collection time so the asserts fire under ``-O``.  This
+   was confirmed empirically: a negative control with a
+   :math:`1\mathrm{e}{-15}` tolerance failed as required under ``-O``.
+
+Structural-independence — why SI≡Krylov alone is not the whole proof
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+SI :math:`\equiv` Krylov is **twin-path agreement** — necessary but not
+sufficient (vv-principles L11: two implementations agreeing is
+cross-implementation evidence, not correctness evidence).  Both inner
+solvers could in principle converge to the same *wrong* fixed point.
+The independent ground that makes the closure a *correctness* claim, not
+merely a *consistency* claim, comes from two structurally-independent
+legs:
+
+* The **k_inf homogeneous legs** — on a uniform reflective infinite
+  medium :math:`k_\infty=\nu\Sigma_f/\Sigma_a` is an analytical
+  (closed-form) eigenvalue the SN snapshots must reproduce.
+* The **Variant-α Green's-function cross-check**
+  (:func:`tests.sn.verification.analytical.test_phase_c_crosscheck.test_phase_e_trajectory_resolvent_flux_shape_crosscheck`),
+  now a plain L1 test (xfail removed), which compares the SN flux-shape
+  snapshot against the composite-GL trajectory-resolvent reference
+  within 8 % (sphere) / 12 % (cylinder).  This reference is a
+  semi-analytical pillar structurally independent of the SN sweep, so
+  agreement pins the *converged-to value*, not just twin-path
+  consistency.
+
+Production-decision record — curvilinear default reverted to SI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The curvilinear :attr:`~orpheus.sn.solver.SNSolver.inner_solver` default
+is now ``"source_iteration"``, **reverted from the Phase-D Krylov
+flip**.  The Phase-D flip existed ONLY because the sweep's fixed point
+was wrong; ERR-058 made it correct, so SI is restored as the default —
+it is :math:`\sim 10^2\times` faster than GMRES (no restart) and now
+equivalent (bit-identical fixed-source / floor-equivalent eigenvalue).
+
+Crucially, **neither of the old Phase-F closures was taken**:
+
+* *Option (a) — make SI bit-identical to Krylov by refining the WDD
+  closure* presupposed the seed was correct and only the spatial
+  arithmetic differed.
+* *Option (b) — flip the default to Krylov* presupposed the Krylov fixed
+  point was the correct one and SI's was a discretisation artefact.
+
+Both presupposed the *shared* fixed point was correct and only the
+arithmetic differed.  The terminal diagnosis (ERR-058) showed the shared
+fixed point **itself** was wrong on non-flat fields; once the seeds were
+fixed, both inner solvers reach the same *correct* fixed point and the
+"choose between them" framing dissolves — SI is restored on speed alone.
 
 
 Krylov inner solver

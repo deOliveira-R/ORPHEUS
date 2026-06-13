@@ -1638,18 +1638,26 @@ Updated ERR-026 manifestation table:
 | 2 | Per-ordinate identity (apply-path Gate 1.1) | CLOSED by Phase D |
 | 3 | Convergence rate (L1 MMS rate) | CLOSED by Phase D Krylov flip |
 | 4 | trajectory_resolvent MR quadrature instability | CLOSED by Phase E |
-| 5 | L1 absolute magnitude (errors[-1] < 1e-3) | OPEN via #195 |
+| 5 | L1 absolute magnitude (errors[-1] < 1e-3) | **CLOSED by ERR-058 (#195)** — curvilinear isotropic MMS collapses O(h²) into the band (sphere 5.74e-5 @ nx=320, cyl 3.37e-5 @ nx=160) |
 | 6 | Heterogeneous eigenvector shape (sweep-path Carlson seed) | **CLOSED by Phase F** (full closure via Phase G Step 2 ERR-048 pole-face IC + Carlson seed source fixes) |
-| 7 | SI-vs-Krylov per-cell agreement (residual O(h) WDD asymmetry) | **CLOSED by Phase G Step 2 Path C (ERR-048)** — the residual O(h) drift was the manifestation of TWO surgical convention defects (pole-face WDD IC + Carlson seed source); fixing both reduces SI-vs-Krylov gap from O(h) to machine precision on the L0 streaming-equilibrium gauntlet |
+| 7 | SI-vs-Krylov per-cell agreement (residual O(h) WDD asymmetry) | **CLOSED by ERR-058 (#195), verified + pinned by #196 (2026-06-12).** Phase G Step 2 (ERR-048) closed only the *L0 flat-field* twin-agreement (SI sweep ≡ apply-matvec on the streaming-equilibrium gauntlet); the *L1 heterogeneous eigenvalue* O(h) asymmetry this row names PERSISTED — hence #196 stayed open — because the shared closure seeds were still exact-on-flat / O(1)-wrong-on-non-flat (the ERR-058 defect). ERR-058's correct shared seeds (coupled-pole spatial + `AngularEdgeExtrapolation`) closed it at the eigenvalue level: SI ≡ Krylov to ~1.9e-11 k_eff / ~2.4e-10 flux-shape on sphere_2g_3reg n=40 (bug-era 3.9e-3 / ~30 %), pinned by `tests/sn/eigenvalue/test_keff_curvilinear.py::test_si_krylov_eigenvalue_equivalence_{sphere,cylinder}` |
 
-Phase F follow-up: file a NEW issue tracking manifestation #7
-(SI-vs-Krylov WDD spatial-closure asymmetry, residual O(h) drift
-that does NOT block production but blocks ``xfail`` removal on
-``test_phase_e_trajectory_resolvent_flux_shape_crosscheck``).
-Two viable closures: (a) sweep WDD-closure refinement to make
-SI bit-identical to Krylov; (b) flip curvilinear ``inner_solver``
-default to ``krylov`` for the snapshot generator (already the
-default for ``solve_sn``).
+Phase F follow-up (DONE 2026-06-12): the new issue tracking
+manifestation #7 was filed as **#196** and is now **CLOSED**.
+Neither Phase-F closure option was needed — option (a) "make SI
+bit-identical to Krylov" and option (b) "flip the curvilinear
+default to ``krylov``" both presupposed the sweep fixed point was
+CORRECT and only the SI-vs-matvec arithmetic differed.  The
+terminal diagnosis (ERR-058, #195) showed the shared fixed point
+itself was WRONG on non-flat fields; fixing the closure seeds made
+SI ≡ Krylov to the iteration floor on the SAME (now correct)
+operator, so the curvilinear default stays ``source_iteration``
+(reverted from the Phase-D Krylov flip — SI is ~10²× faster and now
+bit-equivalent in fixed-source, floor-equivalent in eigenvalue).
+The canary ``test_phase_e_trajectory_resolvent_flux_shape_crosscheck``
+runs as a plain L1 test (xfail removed); the permanent
+manifestation-#7 catcher is
+``tests/sn/eigenvalue/test_keff_curvilinear.py::test_si_krylov_eigenvalue_equivalence_{sphere,cylinder}``.
 
 **Anti-pattern surfaced by Phase F (proposed addition to
 ``vv-principles/SKILL.md``)**:
