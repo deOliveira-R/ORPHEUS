@@ -137,6 +137,32 @@ ARE collected -> rewritten -> fire under `-O`.
 
 ---
 
+## L-007 -- foundation + verifies(...) is silent level conflation
+
+The harness (`tests/_harness/registry.py`) accepts `@pytest.mark.foundation`
+stacked with `@pytest.mark.verifies("<eq>")`: `_existing_level` resolves
+`level="foundation"` while `_collect_str_marker_args(item,"verifies")`
+SEPARATELY records the equation, so Nexus writes a `tests` edge and the
+audit credits the physics equation with the foundation test's parametrizations
+(observed: a documented eq showed "6 test(s)" from one 6-param foundation test
+that never touches a non-flat ψ). The registry docstring forbids it verbatim
+("Foundation tests never carry a `verifies(...)` marker"), but NOTHING enforces
+it — collection is silent.
+
+**Rule**: a `foundation` test verifies a SOFTWARE invariant (data-structure /
+factory / reflection-index contract); it MUST NOT carry `verifies(<physics-eq>)`.
+The tell is a `documented`/representational-identity equation whose ONLY
+"coverage" is a foundation test. Check the theory page's `.. vv-status:`
+rationale: if it names the REAL verifiers (MMS operator-admission gate,
+adjoint bit-identity) and the foundation test is not among them, the marker is
+a misleading edge — drop `verifies(...)`, keep `foundation`, reference the eq
+in prose via `:ref:` only. Fix is 1 line (delete the marker); re-run
+`python -O -m tests._harness.audit` to confirm the eq drops out of the
+coverage attribution. (Caught 2026-06 on
+`test_coupled_pole_mu_level_invariant.py`, eq `sn-err-058-coupled-pole-continuity`.)
+
+---
+
 ## L-004 -- vv-status rationale comments must NOT use [brackets]
 
 The `:vv-status: documented` directive lives in the same RST file as

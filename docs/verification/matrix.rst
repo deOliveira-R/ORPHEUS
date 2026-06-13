@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5166**
+Total tests collected: **5178**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1151, 22.3%
+   L0, 1151, 22.2%
    L1, 961, 18.6%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3010, 58.3%
+   foundation, 3022, 58.4%
    unmarked, 8, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5079
+   explicit, 5091
    verify, 0
    class-name, 46
    func-name, 0
@@ -96,6 +96,7 @@ Module × level grid
    cross_method/test_polymorphism, 0, 0, 0, 0, 5, 0
    curvilinear/test_apply_matvec_cylinder_invariants, 24, 0, 0, 0, 0, 0
    curvilinear/test_compute_psi_half_per_level, 27, 0, 0, 0, 2, 0
+   curvilinear/test_coupled_pole_mu_level_invariant, 0, 0, 0, 0, 12, 0
    curvilinear/test_cyl_sweep_regression, 4, 0, 4, 0, 0, 0
    curvilinear/test_pole_angular_closure, 0, 0, 0, 0, 13, 0
    curvilinear/test_psi_half_angle_seed, 4, 1, 0, 0, 20, 0
@@ -668,7 +669,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **219** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **220** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -852,6 +853,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``si-within-group-fixed-point``
 - ``sigs-convention``
 - ``singular-eigenfunction-eq5``
+- ``sn-coupled-pole-mu-level-invariant-eq``
 - ``sn-err-058-coupled-pole-continuity``
 - ``sn-err-058-edge-extrapolation``
 - ``sn-err-058-proxy-source``
