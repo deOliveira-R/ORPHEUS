@@ -573,3 +573,130 @@ class TestMultiGroupMultiRegionSpherical:
             f"keff not converging: Δ(10−5)={diff_1:.6f}, Δ(20−10)={diff_2:.6f}, "
             f"keffs={[f'{k:.6f}' for k in keffs]}"
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# SI ≡ Krylov inner-solver equivalence on the curvilinear EIGENVALUE path
+# (ERR-026 manifestation #7 — Issue #196)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Before the ERR-058 closure-seed fix (Issue #195, 2026-06-12) the
+# curvilinear sweep converged to a DIFFERENT fixed point than the
+# apply-matvec, so the source-iteration inner (which drives the sweep) and
+# the Krylov inner (which drives the matvec) produced eigenvalues differing
+# at O(h): 0.286 % on sphere_2g_3reg at n=40, ~30 % per-cell on the
+# eigenvector shape, the gap halving under refinement.  Logged as ERR-026
+# manifestation #7 (Issue #196).
+#
+# ERR-058 closed the wrong-fixed-point family: BOTH inner solvers now operate
+# on the SAME correct discrete operator (the coupled-pole spatial seed
+# ψ(0,+μ)=ψ(0,−μ) + the ``AngularEdgeExtrapolation`` half-angle seed), so they
+# MUST converge to the same eigenpair — up to the iteration floor, NOT
+# bit-identically (they are different iteration schemes, not the same
+# arithmetic).  This gate pins that agreement; any re-introduced
+# sweep-vs-matvec closure asymmetry (the ERR-026 class) re-opens the O(h) gap
+# and trips here with 4+ orders of margin.
+#
+# Structural-independence discipline (vv-principles L11): SI≡Krylov alone is
+# twin-path agreement — NECESSARY, NOT SUFFICIENT (both share the production
+# operator and could share a defect).  It is anchored by the homogeneous
+# k_inf legs above (``test_homogeneous_exact`` — closed-form infinite-medium
+# eigenvalue) and the Variant-α Green's-function cross-check
+# (``verification/analytical/test_phase_c_crosscheck.py``), which supply the
+# structurally-independent ground.  Here the flux is genuinely NON-FLAT
+# (fuel|moderator, 2G) so the angular-redistribution terms are exercised —
+# not a homogeneous/1G degenerate (vv-principles anti-patterns #3 / #4).
+
+_SI_KRYLOV_KEFF_TOL = 1e-7    # bug-era |Δk| ~3.9e-3; observed floor ~1.9e-11
+_SI_KRYLOV_SHAPE_TOL = 1e-6   # bug-era ~30 %; observed floor ~2.4e-10
+
+
+def _assert_si_krylov_eigenvalue_equivalence(materials, mesh, quad) -> float:
+    """Solve the eigenvalue problem under both inner solvers; assert the
+    converged eigenpair agrees to the iteration floor (ERR-026 manifestation
+    #7 catcher).
+
+    Both inners solve the identical ``(L+C−S−F)ψ = (1/k)Fψ`` operator on the
+    SAME quadrature, so the equivalence holds for any quadrature.  Returns the
+    group-0 radial-profile max/min so the caller can assert the flux is
+    genuinely non-flat (else the equivalence is vacuous).
+    """
+    sol_si = solve_sn(
+        materials, mesh, quad, inner_solver="source_iteration",
+        keff_tol=1e-12, flux_tol=1e-10, max_inner=500, inner_tol=1e-10,
+    )
+    sol_kry = solve_sn(
+        materials, mesh, quad, inner_solver="krylov",
+        keff_tol=1e-12, flux_tol=1e-10, max_inner=4000, inner_tol=1e-10,
+    )
+
+    k_si, k_kry = sol_si.keff, sol_kry.keff
+    assert k_si is not None and k_kry is not None  # eigenvalue solve sets keff
+    dk = abs(k_si - k_kry)
+    assert dk < _SI_KRYLOV_KEFF_TOL, (
+        f"SI keff={k_si:.10f} vs Krylov keff={k_kry:.10f} "
+        f"(|Δk|={dk:.2e} ≥ {_SI_KRYLOV_KEFF_TOL:.0e}) — curvilinear "
+        f"SI-vs-Krylov eigenvalue asymmetry (ERR-026 manifestation #7)"
+    )
+
+    phi_si = np.asarray(sol_si.scalar_flux.values, dtype=np.float64)   # (ng, nx)
+    phi_kry = np.asarray(sol_kry.scalar_flux.values, dtype=np.float64)
+    # Eigenvectors are scale-free → L∞-normalise each group before comparison.
+    for g in range(phi_si.shape[0]):
+        a = phi_si[g] / np.max(np.abs(phi_si[g]))
+        b = phi_kry[g] / np.max(np.abs(phi_kry[g]))
+        shape_diff = float(np.max(np.abs(a - b)))
+        assert shape_diff < _SI_KRYLOV_SHAPE_TOL, (
+            f"group {g} flux SHAPE max|Δφ_L∞|={shape_diff:.2e} ≥ "
+            f"{_SI_KRYLOV_SHAPE_TOL:.0e} — SI vs Krylov eigenvector diverged "
+            f"(ERR-026 manifestation #7)"
+        )
+    prof = phi_si[0]
+    return float(prof.max() / prof.min())
+
+
+@_SPH_VERIFIES
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.catches("ERR-026")
+def test_si_krylov_eigenvalue_equivalence_sphere():
+    """Sphere: SI ≡ Krylov converged eigenpair on a heterogeneous 2G problem.
+
+    Measured 2026-06-12 (post-ERR-058): |Δk|=1.9e-11, L∞ flux-shape
+    diff=2.4e-10, radial max/min=3.34 (non-flat guard fires).  Bug-era
+    (pre-ERR-058, n=40 sphere_2g_3reg): |Δk|~3.9e-3, shape ~30 %.
+    """
+    materials = {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
+    mesh = _two_region_mesh(
+        outers=(0.5, 1.0), mat_ids=(2, 0), n_cells=(10, 10),
+        coord=CoordSystem.SPHERICAL,
+    )
+    quad = Quadrature.gauss_legendre(8)
+    maxmin = _assert_si_krylov_eigenvalue_equivalence(materials, mesh, quad)
+    assert maxmin > 1.2, (
+        f"sphere flux too flat (group-0 max/min={maxmin:.3f}); redistribution "
+        f"not exercised — SI≡Krylov equivalence would be vacuous"
+    )
+
+
+@_CYL_VERIFIES
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.catches("ERR-026")
+def test_si_krylov_eigenvalue_equivalence_cylinder():
+    """Cylinder: SI ≡ Krylov converged eigenpair on a heterogeneous 2G problem.
+
+    Measured 2026-06-12 (post-ERR-058): |Δk|=1.1e-11, L∞ flux-shape
+    diff=2.6e-11, radial max/min=1.67 (non-flat guard fires).
+    """
+    materials = {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
+    mesh = _two_region_mesh(
+        outers=(0.5, 1.0), mat_ids=(2, 0), n_cells=(10, 10),
+        coord=CoordSystem.CYLINDRICAL,
+    )
+    quad = Quadrature.product(n_mu=4, n_phi=8)
+    maxmin = _assert_si_krylov_eigenvalue_equivalence(materials, mesh, quad)
+    assert maxmin > 1.2, (
+        f"cylinder flux too flat (group-0 max/min={maxmin:.3f}); redistribution "
+        f"not exercised — SI≡Krylov equivalence would be vacuous"
+    )

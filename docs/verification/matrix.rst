@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5164**
+Total tests collected: **5166**
 
 V&V level distribution
 ----------------------
@@ -17,7 +17,7 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1151, 22.3%
-   L1, 959, 18.6%
+   L1, 961, 18.6%
    L2, 36, 0.7%
    L3, 0, 0.0%
    foundation, 3010, 58.3%
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5077
+   explicit, 5079
    verify, 0
    class-name, 46
    func-name, 0
@@ -209,7 +209,7 @@ Module × level grid
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
    eigenvalue/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
    eigenvalue/test_keff_2d, 19, 0, 0, 0, 0, 0
-   eigenvalue/test_keff_curvilinear, 0, 15, 12, 0, 0, 0
+   eigenvalue/test_keff_curvilinear, 0, 17, 12, 0, 0, 0
    eigenvalue/test_keff_slab, 0, 6, 0, 0, 0, 0
    fields/test_angular_flux, 0, 0, 0, 0, 24, 0
    fields/test_boundary_flux, 0, 0, 0, 0, 36, 0
@@ -346,28 +346,28 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    :header: Equation label, Tests
    :widths: 50, 10
 
-   ``matrix-eigenvalue``, 213
-   ``mg-balance``, 168
+   ``matrix-eigenvalue``, 215
+   ``mg-balance``, 170
    ``peierls-unified``, 158
-   ``one-group-kinf``, 132
+   ``one-group-kinf``, 134
    ``peierls-rank-n-bc-closure``, 124
-   ``reflective-bc``, 110
-   ``alpha-recursion``, 100
-   ``wdd-closure``, 100
-   ``wdd-face``, 100
+   ``reflective-bc``, 112
+   ``alpha-recursion``, 102
+   ``wdd-closure``, 102
+   ``wdd-face``, 102
    ``collision-rate``, 94
-   ``multigroup``, 79
-   ``alpha-cylindrical``, 74
-   ``mm-weights``, 74
+   ``multigroup``, 81
+   ``alpha-cylindrical``, 75
+   ``mm-weights``, 75
    ``ki3-def``, 64
    ``e3-def``, 61
    ``blelloch-1990-eq-1-5``, 57
    ``self-slab``, 55
    ``hebert-3-432``, 54
    ``self-cyl``, 54
+   ``balance-general``, 53
    ``p-inf``, 53
    ``self-sph``, 52
-   ``balance-general``, 51
    ``chord-length``, 51
    ``fission-matrix``, 51
    ``removal-matrix``, 51
@@ -396,13 +396,13 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-equation``, 33
    ``sigma-keff``, 33
    ``dd-slab``, 32
+   ``transport-spherical``, 32
    ``free-flight``, 31
-   ``transport-spherical``, 31
+   ``transport-cylindrical``, 29
    ``chi-sampling``, 28
    ``decompose``, 28
    ``scattering-cdf``, 28
    ``sn-curvilinear-homogeneous-kinf-recovery``, 28
-   ``transport-cylindrical``, 28
    ``cp-flat-source-derivation``, 27
    ``cp-flat-source-double-integral``, 27
    ``cp-unified-outer-integration``, 27
@@ -924,7 +924,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-023``, 1
    ``ERR-024``, 1
    ``ERR-025``, 5
-   ``ERR-026``, 87
+   ``ERR-026``, 89
    ``ERR-027``, 5
    ``ERR-028``, 1
    ``ERR-029``, 6
