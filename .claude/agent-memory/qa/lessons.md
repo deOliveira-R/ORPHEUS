@@ -163,6 +163,78 @@ coverage attribution. (Caught 2026-06 on
 
 ---
 
+## L-008 -- False-xfail under a stale index: verify the FAILURE REASON, not just xfail status
+
+A `xfail(strict=True)` test is "satisfied" the moment it fails for ANY
+reason -- the strict gate only checks pass/fail, never WHY. A stale array
+index (e.g. `(ng,nx)` flux read as `values[:,0]` -> length-1 cell-0 slice
+broadcast against a length-nx reference -> garbage L2 ~14 that DIVERGES)
+makes the test a FALSE xfail: green suite, but failing for a reason
+unrelated to its documented xfail reason (#229 floor). The W1 review
+(2026-06-13) caught the FIXED version: `values[:,0]`->`values[0,:]`.
+
+**Rule**: when a diff touches an array index inside a strict-xfail test,
+re-run it with `pytest --runxfail` to surface the REAL failure and confirm
+it matches the xfail `reason=` (here sphere orders [1.995,1.999,1.407] +
+err[-1]=1.4e-3 = the genuine #229 fine-mesh floor; cylinder orders ~0
+err~1.9e-2 = structural floor). Then re-run WITHOUT --runxfail (`-rxX`) to
+confirm it stays XFAIL (no strict-XPASS suite break). Same bug class as
+the rank-d-carve fallout (`Q_numerical[:,0,:,0]->[:,0,:]`); `(ng,nx)`
+1-group MMS is ALWAYS `[0,:]` for the radial profile, `[:,0]` is cell-0.
+
+## L-010 -- Mode-8 (-O) does NOT apply to bare asserts in collected tests/ modules
+
+A bare `assert` in a test file UNDER `tests/` IS rewritten by pytest's
+assertion rewriter at COLLECTION time and FIRES under `python -O` — the
+interpreter `-O` flag strips asserts in NON-rewritten modules only
+(production `orpheus/`, see L-006). The `PytestConfigWarning: assertions not
+in test modules or plugins will be ignored` is about non-test-module asserts;
+it does NOT mean the collected test's bare asserts are inert. Definitive
+probe (run once if unsure): a collected `test_x(): assert 1==2` under
+`-O` FAILS. So a W2/W3/W4-style file whose load-bearing gates are all bare
+`assert np.all(orders > 1.9)` is SAFE under the canonical `-O` invocation.
+Do NOT raise a Mode-8 flag for bare asserts in `tests/` — reserve Mode-8 for
+bare asserts in `orpheus/` production paths (L-006 recipe).
+
+## L-011 -- Replicate the test's OWN solve helper before judging a "value" claim
+
+A prescribed-inflow / non-vacuum-BC MMS value-claim depends on `q.boundary`
+being wired. A naive `solve_sn_fixed_source(...)` (vacuum default) reproduces
+the WRONG number (measured 50% outer-cell error vs the test's 0.26%) — which
+looks like the test is lying but is actually the test's own catcher firing
+("vacuum inflow misses the A(R)>0 surface term"). ALWAYS import and call the
+test module's internal `_solve(case, nc)` to reproduce a value claim; a
+divergent hand-replication usually means YOU dropped the BC, not the test.
+(Caught 2026-06-13 W3 prescribed_inflow review: test's `_solve` gave max-rel
+2.637e-3 at nx=160, matching the docstring exactly.)
+
+## L-012 -- "BC X is load-bearing because k=k_inf" holds ONLY for homogeneous
+
+A directional-eigenvalue test's "vacuum BC is load-bearing — a reflective
+sphere has k=k_inf, flux-shape independent, so P1 can't change k" reasoning
+is TRUE only for a HOMOGENEOUS reflective medium. For a HETEROGENEOUS
+reflective finite sphere the flux is NON-flat, so P1 DOES change k via
+spectral/spatial coupling (measured Δ=2.4e-2 reflective vs 1.4e-2 vacuum —
+reflective Δ was LARGER, not zero). The k=k_inf control fires cleanly only
+on a homogeneous fissile sphere (measured reflective Δ=1.5e-12, machine
+zero). When a docstring justifies a BC choice via k_inf, check the config:
+if it is heterogeneous, the justification is wrong even though the test's
+assertions (on the vacuum config) still hold — a Cardinal-Rule-3 (WHY must be
+right) doc-correctness flag, not a test-validity failure.
+
+## L-009 -- "floor scales with quadrature" is a falsifiable gate, not a tautology
+
+When a fix is claimed to clean a convergence RATE but NOT remove a floor,
+the honest gate (vv anti-pattern #5/#17) pins the floor as a verified
+quadrature-SCALING quantity rather than asserting "floor removed". The W1
+`test_w1_aniso_sphere_floor_scales_with_quadrature` asserts
+`err(S32,nx=160) < err(S16,nx=160)/2.0`. This is FALSIFIABLE: a fixed
+closure-bug floor would be quadrature-independent -> ratio ~1.0 -> gate
+FAILS. Only a #229-style interpolation floor (the half-angle thread is
+interpolated, scales with angular order) passes (measured ratio 3.42).
+A "floor scales" gate is a CLAIM about floor character, distinct from
+both the rate gate and a (false) removal gate -- accept it.
+
 ## L-004 -- vv-status rationale comments must NOT use [brackets]
 
 The `:vv-status: documented` directive lives in the same RST file as
