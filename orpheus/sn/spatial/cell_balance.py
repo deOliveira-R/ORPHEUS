@@ -307,7 +307,9 @@ def cell_balance_terms(
     V = st.volume
 
     # M-M closure constants — degenerate to zero for slab (neutral
-    # alpha values) and clamped to (½, 1] for curvilinear.
+    # alpha values).  Curvilinear τ: the CYLINDER clamps to (½, 1]
+    # (structural τ_raw=0 ÷0 block); the SPHERE uses the unclamped
+    # Bailey-Morel-Chang Eq. 43 weight (W1 — see spherical_streaming).
     c_out = st.alpha_out / tau
     c_in = (1.0 - tau) / tau * st.alpha_out + st.alpha_in
 

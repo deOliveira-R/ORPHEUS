@@ -68,6 +68,21 @@ The Morel--Montry angular closure
 
 with the :math:`[1/2, 1]` clamp keeping the M-M weighting positive.
 
+.. note::
+
+   **W1 (2026-06-13):** the SPHERE drops this clamp and uses the raw
+   Bailey-Morel-Chang Eq. 43 weight
+   :math:`\tau_m = (\mu_m - \mu_{m-1/2})/(\mu_{m+1/2} - \mu_{m-1/2})`
+   directly — the unique weight exact for a flux linear in :math:`\mu`.
+   The clamp was an over-conservative positivity floor (mis-cited to
+   Lewis & Miller §4.5) that re-floored the anisotropic solution while
+   being 100 % spurious on physical fields.  The clamp above is
+   RETAINED only for the CYLINDER, where the most-inward azimuthal
+   ordinate gives :math:`\tau_{\mathrm{raw}} = 0` exactly (a structural
+   :math:`\div 0` block, tracked by Issue #229).  See
+   :func:`spherical_streaming` / :func:`cylindrical_streaming` for the
+   implementations; the full vindication lands on the theory page (W5).
+
 References
 ==========
 
@@ -630,9 +645,23 @@ def spherical_streaming(
     # ΔA_i / w_n — the geometry redistribution factor (nx, N).
     redist_dAw = delta_A[:, None] / w[None, :]
 
-    # Morel–Montry closure (Bailey-Morel-Chang 2010 Eq. 5) with
-    # [1/2, 1] clamp keeping the M-M weighting positive (Lewis &
-    # Miller §4.5).  μ_{1/2} = -1, μ_{N+1/2} = +1.
+    # Morel–Montry / weighted-diamond angular weight: the fractional
+    # position of μ_n within its half-angle interval [μ_{n-1/2}, μ_{n+1/2}].
+    # This is Bailey–Morel–Chang (2010) Eq. 43 — the UNIQUE weight that is
+    # exact for a flux linear in μ.  μ_{1/2} = -1, μ_{N+1/2} = +1.
+    #
+    # NO [1/2, 1] clamp (W1, branch fix/curvilinear-aniso-pole-and-clamp):
+    # Bailey allows τ ∈ [0, 1] and recommends *exactly this* unclamped
+    # weight; the former clamp was an over-conservative positivity floor
+    # mis-cited to Lewis & Miller §4.5.  It re-floored the anisotropic
+    # solution (it threads a linear-in-μ field only to O(clamp gap), not
+    # to machine precision) WITHOUT preventing any real negativity —
+    # verified 100% spurious on every physical converged sphere solve
+    # (thick absorber, near-vacuum, c=0.999, S64; all strictly positive).
+    # The sphere dome is non-singular (dmu = w_n > 0 on GL, τ_raw ∈ ~[0.39,
+    # 0.61]) so the ½ degeneracy fallback never fires.  The CYLINDER keeps
+    # its clamp — there τ_raw = 0 exactly (structural ÷0 block; see
+    # ``cylindrical_streaming`` and #229).
     mu_edge = np.zeros(N + 1)
     mu_edge[0] = -1.0
     for n in range(N):
@@ -640,8 +669,7 @@ def spherical_streaming(
     tau_mm = np.empty(N)
     for n in range(N):
         dmu = mu_edge[n + 1] - mu_edge[n]
-        tau_raw = (mu[n] - mu_edge[n]) / dmu if abs(dmu) > 1e-15 else 0.5
-        tau_mm[n] = max(0.5, min(1.0, tau_raw))
+        tau_mm[n] = (mu[n] - mu_edge[n]) / dmu if abs(dmu) > 1e-15 else 0.5
 
     return ReducedStreamingOperator(
         coord=CoordSystem.SPHERICAL,
@@ -730,11 +758,21 @@ def cylindrical_streaming(
             delta_A[:, None] / w_level[None, :]  # (nx, M)
         )
 
-    # Morel–Montry closure (Bailey-Morel-Chang 2010 Eq. 5) per μ-level.
+    # Morel–Montry closure (Bailey-Morel-Chang 2010 Eq. 43) per μ-level.
     # For cylindrical, ordinates are η-sorted but weights come from
     # φ-space (not η-space), so the weight-sum edge approach is wrong.
     # Instead, cell edges are at midpoints of consecutive η values
     # with endpoints at ±sin θ.  This gives a proper η-partition.
+    #
+    # The [1/2, 1] clamp is RETAINED here (unlike the sphere, where W1
+    # removed it — see ``spherical_streaming``).  The clamp is STRUCTURAL
+    # for the cylinder: the most-inward azimuthal ordinate sits exactly on
+    # the level boundary (``eta[0] == eta_edge[0] == -sin θ``), so its raw
+    # weight is ``τ_raw = (eta[0] − eta_edge[0])/deta = 0`` bit-exactly —
+    # the recurrence ``ψ_out = (ψ_avg − (1−τ)ψ_in)/τ`` would divide by zero
+    # unclamped.  Removing the clamp needs a 2-D (η, φ) angular closure
+    # (the product/LS quadratures carry duplicate azimuthal η that a 1-D
+    # η-thread cannot represent); that is out of scope and tracked by #229.
     #
     # (See SNMesh._setup_cylindrical for the same construction;
     # GitHub Issue #3 tracks the φ-based edge refinement.)
