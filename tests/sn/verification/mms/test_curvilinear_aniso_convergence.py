@@ -14,17 +14,30 @@ term the isotropic ansatz nulls):
   ``sn-mms-{sph,cyl}-aniso-{psi,qext}`` equation labels + the absolute-
   magnitude band assertion.
 
-Both variants are kept (they verify DIFFERENT equation labels and the
-phase-C pair carries the ERR-026 catcher) — the consolidation removes
-the duplicated FILE, not the distinct coverage. All stay ``xfail``,
-but the reason changed on 2026-06-12: the ERR-058 closure-seed fix
-(#195) closed the curvilinear wrong-fixed-point family (the isotropic
-companions now pass plain and their markers are GONE), and the aniso
-cases dropped ~50× in error.  What remains here is the
-fixed-quadrature ANGULAR floor of the per-ordinate-imposed aniso
-ansatz — a test-design limitation tracked at Issue #229 (the M-M
-half-angle thread values are interpolated, not imposed; the floor
-scales down with quadrature order).
+**#229 RETUNE (2026-06-13, post-W1 unclamp** ``b2d8a6d`` **): all xfails
+REMOVED; the 6 aniso equation labels are now carried by GREEN tests.** The
+earlier ERR-058 fix (#195) closed the curvilinear wrong-fixed-point family;
+what remained was the fixed-quadrature ANGULAR floor of the
+per-ordinate-imposed aniso ansatz (the M-M half-angle thread values are
+interpolated, not imposed; the floor scales DOWN with quadrature order —
+tracked by #229).  The retune asserts what is TRUE rather than a rate that
+cannot hold (vv anti-pattern #5/#17):
+
+* SPHERE — has a pre-floor O(h²) window.  The spatial RATE lives in the W1
+  section below: :func:`test_w1_aniso_sphere_S32_clean_o_h2_full_ladder`
+  (full ladder at S32) + the S16 coarse-rate discriminator + the
+  floor-scaling gate.  :func:`test_sn_spherical_aniso_mms_converges_second_order`
+  carries the psi/qext labels as a coarse-rate + magnitude band.
+* CYLINDER — NO O(h²) window at any practical quadrature (the floor
+  dominates; the (η,φ) angular variation cannot be threaded by a 1-D
+  η-march — #229).  :func:`test_cyl_aniso_floor_scales_with_quadrature`
+  carries the spatial-convergence label as the floor-SCALING claim;
+  :func:`test_sn_cylindrical_aniso_mms_converges_second_order` carries the
+  psi/qext labels as the floor band.
+
+The pole-cell O(h) at r→0 (L∞-only, invisible to these volume-weighted L2
+gates) is a SEPARATE inherent limitation — see #233 and
+``test_curvilinear_pole_cell_characterization.py``.
 
 Pairing rationale (the failure-narrowing instrument): the anisotropic
 ansatz differs from the isotropic one ONLY in the :math:`B(r)\zeta`
@@ -74,95 +87,71 @@ def _aniso_sphere_l2_ladder(n_cells, *, n_ordinates: int) -> np.ndarray:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Phase C Gate Set 3 — spatial + angular convergence (catches ERR-026)
+# Angular-floor + angular-convergence gates (catches ERR-026)
 # ═══════════════════════════════════════════════════════════════════════
 
-@pytest.mark.slow
-@pytest.mark.verifies("sn-mms-spherical-aniso-spatial-convergence")
-@pytest.mark.catches("ERR-026")
-@pytest.mark.xfail(
-    strict=False,
-    reason=(
-        "ERR-058 (#195, 2026-06-12) CLOSED the curvilinear "
-        "wrong-fixed-point family (closure-seed fix); this case's error "
-        "dropped ~50x and the coarse-segment orders are now ~1.98.  The "
-        "remaining failure is the fixed-quadrature ANGULAR floor of the "
-        "per-ordinate-imposed aniso ansatz (the M-M half-angle thread "
-        "values are interpolated, not imposed): the fine-segment rate "
-        "degrades as the spatial error meets the floor (sphere S16 "
-        "~7e-4; cylinder n_mu=4 ~1.9e-2; floor scales with quadrature). "
-        "Test-design retune tracked at Issue #229."
-    ),
-)
-def test_sn_spherical_aniso_mms_spatial_convergence_phase_c():
-    r"""Gate 3.1 — spherical spatial MMS, anisotropic ansatz.
-
-    Refines nx ∈ {10, 20, 40, 80}. Asserts ``min(orders[-2:]) > 1.9``.
-    """
-    case = build_spherical_anisotropic_mms_case()
-    n_cells = [10, 20, 40, 80]
-    errors = []
-    for nc in n_cells:
-        mesh = case.build_mesh(nc)
-        Q = case.external_source(mesh)
-        result = solve_sn_fixed_source(
-            case.materials, mesh, case.quadrature, Q,
-            max_inner=500, inner_tol=1e-13,
-        )
-        phi_num = result.scalar_flux.values[0, :]  # (ng=1, nx, ny=1)
-        phi_ref = case.phi_exact(mesh.centers)
-        errors.append(_l2_1d(phi_num, phi_ref, mesh.volumes))
-
-    errors = np.asarray(errors)
-    orders = np.log2(errors[:-1] / errors[1:])
-    print(f"spherical_aniso errors: {errors}")
-    print(f"spherical_aniso orders: {orders}")
-    assert np.all(orders[-2:] > 1.9), (
-        f"Expected O(h^2) in the last 2 orders; got orders={orders}, "
-        f"errors={errors}"
-    )
+# NOTE (#229 retune, 2026-06-13): the sphere phase-C spatial test was
+# RETIRED — its ``sn-mms-spherical-aniso-spatial-convergence`` label is
+# carried GREEN by the W1 S32 full-ladder gate
+# (``test_w1_aniso_sphere_S32_clean_o_h2_full_ladder`` below) + the W1
+# coarse-rate discriminator, which supersede the old S16 ``orders[-2:]``
+# claim (that segment is floor-degraded — the assertion was wrong).  The
+# cylinder phase-C test was REPURPOSED into the floor-scaling gate below
+# (the cylinder has no O(h²) window — see
+# ``test_sn_cylindrical_aniso_mms_converges_second_order``).
 
 
 @pytest.mark.slow
 @pytest.mark.verifies("sn-mms-cylindrical-aniso-spatial-convergence")
 @pytest.mark.catches("ERR-026")
-@pytest.mark.xfail(
-    strict=False,
-    reason=(
-        "ERR-058 (#195, 2026-06-12) CLOSED the curvilinear "
-        "wrong-fixed-point family (closure-seed fix); this case's error "
-        "dropped ~50x and the coarse-segment orders are now ~1.98.  The "
-        "remaining failure is the fixed-quadrature ANGULAR floor of the "
-        "per-ordinate-imposed aniso ansatz (the M-M half-angle thread "
-        "values are interpolated, not imposed): the fine-segment rate "
-        "degrades as the spatial error meets the floor (sphere S16 "
-        "~7e-4; cylinder n_mu=4 ~1.9e-2; floor scales with quadrature). "
-        "Test-design retune tracked at Issue #229."
-    ),
-)
-def test_sn_cylindrical_aniso_mms_spatial_convergence_phase_c():
-    r"""Gate 3.2 — cylindrical spatial MMS, anisotropic ansatz."""
-    case = build_cylindrical_anisotropic_mms_case()
-    n_cells = [10, 20, 40, 80]
-    errors = []
-    for nc in n_cells:
-        mesh = case.build_mesh(nc)
+def test_cyl_aniso_floor_scales_with_quadrature():
+    r"""[#229 verified floor — cylinder] The cylindrical anisotropic MMS
+    angular floor SCALES with quadrature order (it is the M-M half-angle-
+    thread interpolation floor, NOT a fixed closure artefact).
+
+    The cylinder has no pre-floor :math:`O(h^2)` window (see
+    :func:`test_sn_cylindrical_aniso_mms_converges_second_order`), so the
+    ``sn-mms-cylindrical-aniso-spatial-convergence`` equation label is
+    verified HERE as the floor-SCALING claim instead of a spatial rate: at
+    fixed-fine ``nx=80`` the volume-weighted L2 error must DROP when the
+    AZIMUTHAL quadrature order doubles ``n_phi`` 8→16.  This pins the floor
+    as a verified, quadrature-dependent quantity (vv-principles: a floor
+    shown to scale is a CLAIM, not an unexplained limitation) and is the
+    cylinder sibling of the sphere
+    :func:`test_w1_aniso_sphere_floor_scales_with_quadrature`.
+
+    ⭐ The scaling axis is ``n_phi`` (AZIMUTHAL), NOT ``n_mu`` (polar): the
+    cylindrical radial direction cosine is :math:`\eta = \sin\theta\cos\phi`
+    and the M-M thread marches in azimuth :math:`\phi` on each polar
+    :math:`\mu`-level, so the half-angle-thread interpolation floor is set
+    by the azimuthal resolution.  Measured 2026-06-13 (nx=80):
+    ``n_phi`` 8→16→32 = 1.90e-2 → 7.37e-3 → 3.10e-3 (ratios 2.58×, 2.38×);
+    holding ``n_phi`` fixed and varying ``n_mu`` 4→8→16 leaves the floor
+    FLAT (1.90e-2, 1.91e-2, 1.91e-2) — the floor is azimuthal.  Gate doubles
+    ``n_phi`` 8→16 with a 2.0× margin.
+    """
+    nx = 80
+    errors = {}
+    for n_phi in (8, 16):
+        case = build_cylindrical_anisotropic_mms_case(n_phi=n_phi)
+        mesh = case.build_mesh(nx)
         Q = case.external_source(mesh)
         result = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, Q,
             max_inner=500, inner_tol=1e-13,
         )
-        phi_num = result.scalar_flux.values[0, :]  # (ng=1, nx, ny=1)
+        phi_num = result.scalar_flux.values[0, :]  # (ng=1, nx)
         phi_ref = case.phi_exact(mesh.centers)
-        errors.append(_l2_1d(phi_num, phi_ref, mesh.volumes))
+        errors[n_phi] = _l2_1d(phi_num, phi_ref, mesh.volumes)
 
-    errors = np.asarray(errors)
-    orders = np.log2(errors[:-1] / errors[1:])
-    print(f"cyl_aniso errors: {errors}")
-    print(f"cyl_aniso orders: {orders}")
-    assert np.all(orders[-2:] > 1.9), (
-        f"Expected O(h^2) in the last 2 orders; got orders={orders}, "
-        f"errors={errors}"
+    print(f"cyl_aniso floor nx={nx}: n_phi8={errors[8]:.3e} "
+          f"n_phi16={errors[16]:.3e} ratio={errors[8] / errors[16]:.2f}")
+    assert errors[16] < errors[8] / 2.0, (
+        f"cyl aniso floor did NOT scale with the azimuthal quadrature: "
+        f"n_phi8={errors[8]:.3e}, n_phi16={errors[16]:.3e} "
+        f"(ratio {errors[8] / errors[16]:.2f} < 2.0) — the floor is not the "
+        f"#229 azimuthal-thread interpolation floor; investigate a fixed "
+        f"closure artefact"
     )
 
 
@@ -196,39 +185,39 @@ def test_sn_spherical_angular_convergence_at_fixed_mesh():
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Strict-xfail spatial variant (psi / qext equation labels + magnitude band)
+# Magnitude / coarse-rate gates (psi / qext equation labels) — GREEN post
+# #229 retune: sphere coarse-O(h²)+band, cylinder floor-band (no rate)
 # ═══════════════════════════════════════════════════════════════════════
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "ERR-058 (#195, 2026-06-12) CLOSED the curvilinear "
-        "wrong-fixed-point family (closure-seed fix: coupled-pole "
-        "spatial seed + angular-edge-extrapolation half-angle seed); "
-        "this case's error dropped ~50x. The REMAINING failure is a "
-        "TEST-DESIGN limitation, not a solver bug: the "
-        "per-ordinate-imposed anisotropic ansatz leaves the M-M "
-        "half-angle thread values INTERPOLATED (not imposed), so at "
-        "fixed quadrature the solution converges spatially to an "
-        "angular-discretization floor (sphere S16 ~7e-4, S32 ~2.9e-4; "
-        "cylinder n_mu=4 ~1.9e-2, n_mu=8 ~7.4e-3 - floor scales with "
-        "quadrature). The pure-spatial rate+band assertions cannot both "
-        "hold in the tested window at the shipped quadrature. Issue "
-        "#229 tracks the quadrature-aware retune + marker removal."
-    ),
-)
 @pytest.mark.slow
 @pytest.mark.verifies(
     "transport-spherical",
     "sn-mms-spherical-aniso-psi",
     "sn-mms-spherical-aniso-qext",
 )
+@pytest.mark.catches("ERR-026")
 def test_sn_spherical_aniso_mms_converges_second_order():
-    r"""Spherical SN with anisotropic ansatz must show :math:`\mathcal{O}(h^2)`
-    AND land in the absolute-magnitude band ``1e-8 < err[-1] < 1e-3``.
+    r"""Spherical SN anisotropic MMS: :math:`O(h^2)` on the COARSE segment
+    + the converged solution lands in the magnitude band
+    ``1e-8 < err[-1] < 5e-3`` (psi/qext equation labels).
 
-    Activates the :math:`(1-\mu^2) B(r)/r` angular-redistribution term
-    via :math:`\psi_n(r) = (A(r) + B(r) \mu_n)/W`.
+    Activates the :math:`(1-\mu^2) B(r)/r` angular-redistribution term via
+    :math:`\psi_n(r) = (A(r) + B(r)\mu_n)/W`.  Asserts BOTH the spatial
+    RATE (coarse segment ``nx∈{10,20,40}``, before the #229 angular floor
+    bites) AND the MAGNITUDE (the band catches a re-floored wrong fixed
+    point — the ERR-026 class).
+
+    The FULL-ladder O(h²) claim lives in
+    :func:`test_w1_aniso_sphere_S32_clean_o_h2_full_ladder` (S32, where the
+    #229 interpolation floor drops below 1e-3).  At the default S16 the
+    floor degrades the FINE order (~1.4), so this test asserts the rate
+    only on the coarse segment.  The band upper was loosened 1e-3→5e-3 in
+    the #229 retune: post-W1 (unclamp) the S16 fine floor is ~1.4e-3 (the
+    fortuitous-cancellation lower clamped floor is gone — see commit
+    ``b2d8a6d`` / the W1 section below).
+
+    Measured 2026-06-13 (post-W1, S16): err
+    [5.92e-2, 1.48e-2, 3.71e-3, 1.40e-3], coarse orders [1.995, 1.999].
     """
     case = build_spherical_anisotropic_mms_case()
 
@@ -247,45 +236,49 @@ def test_sn_spherical_aniso_mms_converges_second_order():
 
     errors = np.asarray(errors)
     orders = np.log2(errors[:-1] / errors[1:])
+    print(f"spherical_aniso errors={errors} orders={orders}")
 
-    assert np.all(orders > 1.9), (
-        f"Expected O(h^2), got orders={orders}, errors={errors}"
+    assert np.all(orders[:2] > 1.9), (
+        f"coarse-segment O(h²) lost (the #229 angular floor should not reach "
+        f"nx≤40 at S16); orders={orders}, errors={errors}"
     )
-    assert 1e-8 < errors[-1] < 1e-3
+    assert 1e-8 < errors[-1] < 5e-3, (
+        f"sphere aniso finest L2 {errors[-1]:.3e} outside band [1e-8, 5e-3] — "
+        f"a re-floored wrong fixed point (ERR-026) would exceed 5e-3"
+    )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "ERR-058 (#195, 2026-06-12) CLOSED the curvilinear "
-        "wrong-fixed-point family (closure-seed fix: coupled-pole "
-        "spatial seed + angular-edge-extrapolation half-angle seed); "
-        "this case's error dropped ~50x. The REMAINING failure is a "
-        "TEST-DESIGN limitation, not a solver bug: the "
-        "per-ordinate-imposed anisotropic ansatz leaves the M-M "
-        "half-angle thread values INTERPOLATED (not imposed), so at "
-        "fixed quadrature the solution converges spatially to an "
-        "angular-discretization floor (sphere S16 ~7e-4, S32 ~2.9e-4; "
-        "cylinder n_mu=4 ~1.9e-2, n_mu=8 ~7.4e-3 - floor scales with "
-        "quadrature). The pure-spatial rate+band assertions cannot both "
-        "hold in the tested window at the shipped quadrature. Issue "
-        "#229 tracks the quadrature-aware retune + marker removal."
-    ),
-)
 @pytest.mark.slow
 @pytest.mark.verifies(
     "transport-cylindrical",
     "sn-mms-cylindrical-aniso-psi",
     "sn-mms-cylindrical-aniso-qext",
 )
+@pytest.mark.catches("ERR-026")
 def test_sn_cylindrical_aniso_mms_converges_second_order():
-    r"""Cylindrical SN with anisotropic ansatz must show :math:`\mathcal{O}(h^2)`
-    AND land in the absolute-magnitude band.
+    r"""Cylindrical SN anisotropic MMS: the converged solution lands in the
+    magnitude band ``1e-3 < err[-1] < 5e-2`` (psi/qext labels) — NO spatial-
+    rate claim.
 
-    Activates the :math:`\xi_n^2 B(r)/r` cylindrical analog of the
-    spherical redistribution term. :math:`\xi^2 \neq 1 - \eta^2` in
-    general, so the cylindrical case exercises a structurally distinct
-    quadrature evaluation from the sphere.
+    Activates the :math:`\xi_n^2 B(r)/r` cylindrical analog of the spherical
+    redistribution term (:math:`\xi^2 \neq 1-\eta^2` in general, so this is
+    a structurally distinct quadrature evaluation).
+
+    ⭐ KEY ASYMMETRY vs the sphere (the #229 framing): the cylinder has NO
+    pre-floor :math:`O(h^2)` window at ANY practical quadrature — the M-M
+    half-angle-thread angular floor dominates the spatial error before
+    :math:`O(h^2)` establishes (even at high azimuthal order the coarsest-
+    segment rate reaches only ~1.8; the product/LS quadratures carry duplicate azimuthal
+    :math:`\eta` a 1-D :math:`\eta`-thread cannot thread exactly — a 2-D
+    (η,φ) closure is needed, out of scope, #229).  So this test asserts the
+    floor BAND, not a rate.  The floor-SCALES-with-quadrature claim (the
+    second half of the #229 two-claim split) lives in
+    :func:`test_cyl_aniso_floor_scales_with_quadrature` below.  The wide
+    band catches a re-floored wrong fixed point (the ERR-026 class — a wrong
+    FP exceeds 5e-2).
+
+    Measured 2026-06-13 (n_mu=4): err [2.21e-2, 1.95e-2, 1.91e-2, 1.90e-2]
+    → floors at ~1.9e-2.
     """
     case = build_cylindrical_anisotropic_mms_case()
 
@@ -303,12 +296,13 @@ def test_sn_cylindrical_aniso_mms_converges_second_order():
         errors.append(_l2_1d(phi_num, phi_ref, mesh.volumes))
 
     errors = np.asarray(errors)
-    orders = np.log2(errors[:-1] / errors[1:])
+    print(f"cyl_aniso errors={errors}")
 
-    assert np.all(orders > 1.9), (
-        f"Expected O(h^2), got orders={orders}, errors={errors}"
+    assert 1e-3 < errors[-1] < 5e-2, (
+        f"cyl aniso finest L2 {errors[-1]:.3e} outside the angular-floor band "
+        f"[1e-3, 5e-2] — below 1e-3 means the floor lifted (revisit #229); "
+        f"above 5e-2 is a re-floored wrong fixed point (ERR-026)"
     )
-    assert 1e-8 < errors[-1] < 1e-3
 
 
 # ═══════════════════════════════════════════════════════════════════════
