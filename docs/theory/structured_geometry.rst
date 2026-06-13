@@ -216,8 +216,9 @@ SN, MoC, and CP curvilinear sweeps all march through the same data:
 * **the geometry factor** :math:`\Delta A_i / w_n` that ensures
   per-ordinate flat-flux consistency,
 * **the Bailey 2009 dome recursion** for :math:`\alpha`, and
-* **the Morel--Montry angular closure** :math:`\tau_{mm}` clamped to
-  :math:`[1/2, 1]`.
+* **the Morel--Montry angular closure** :math:`\tau_{mm}`
+  (unclamped raw weight on the sphere; :math:`[1/2, 1]`-clamped on the
+  cylinder — see :eq:`morel-montry-clamp` below).
 
 Per Cardinal Rule 2 (architecture is critical), the same data **MUST
 NOT** be duplicated across solvers.
@@ -246,22 +247,54 @@ The cylindrical analog runs **per-:math:`\mu`-level**: each level
 where :math:`\eta` is the radial direction cosine and :math:`M` is the
 number of azimuthal ordinates on that level.
 
-The Morel--Montry closure (Lewis & Miller 1984, §4.5; Bailey
-et al. 2009 Eq. 74):
+The Morel--Montry closure (Bailey-Morel-Chang 2010 Eq. 43) is the raw
+*fractional position* of the ordinate :math:`\mu_m` in its half-angle
+interval; the production code applies a **geometry-dependent** clamp on
+top of it:
 
 .. math::
    :label: morel-montry-clamp
 
-   \tau_m = \mathrm{clip}\!\left(
-       \frac{\mu_m - \mu_{m-1/2}}{\mu_{m+1/2} - \mu_{m-1/2}},
-       \;\tfrac12,\; 1
-   \right)
+   \tau_m^{\rm raw} = \frac{\mu_m - \mu_{m-1/2}}{\mu_{m+1/2} - \mu_{m-1/2}},
+   \qquad
+   \tau_m = \begin{cases}
+     \tau_m^{\rm raw} & \text{sphere (unclamped, since W1)} \\[4pt]
+     \mathrm{clip}\!\left(\tau_m^{\rm raw},\;\tfrac12,\;1\right)
+       & \text{cylinder}
+   \end{cases}
 
 .. vv-status: morel-montry-clamp documented
+   Rationale: this is the literature-transcribed definition of the M-M
+   angular closure weight (Bailey-Morel-Chang 2010 Eq. 43) plus the
+   production clamp policy; it is a representational identity, not a
+   solver claim. The verifiable content is the bit-identity hash gate
+   ``tests/geometry/test_reduced_operator.py`` (the τ arrays match the
+   legacy SNMesh setup) and the W1 clamp-silence + positivity gates
+   named at :ref:`sn-curvilinear-aniso-norm-reconciliation`.
 
-clamps the M-M weighting to :math:`[1/2, 1]` so the closure remains
-positive (Lewis & Miller §4.5).  For spherical geometry the cell-edge
-direction cosines :math:`\mu_{m+1/2}` are the partial weight sums
+The raw weight :math:`\tau_m^{\rm raw}` is the **unique** weight exact
+for a flux linear in :math:`\mu` (Bailey-Morel-Chang 2010 Eq. 43), with
+admissible range :math:`\tau \in [0, 1]`.
+
+* **SPHERE** uses :math:`\tau_m^{\rm raw}` directly (since W1,
+  2026-06-13).  On Gauss--Legendre quadrature
+  :math:`\tau_m^{\rm raw} \in [0.39, 0.61]` — always interior to
+  :math:`[0,1]` — so the closure stays positive without a clamp.  The
+  former :math:`[1/2, 1]` clamp was an over-conservative,
+  mis-cited (to Lewis & Miller §4.5) positivity floor that was 100 %
+  spurious on physical fields and re-floored the anisotropic solution.
+  The full vindication is at
+  :ref:`sn-curvilinear-aniso-norm-reconciliation` in
+  :doc:`discrete_ordinates`.
+* **CYLINDER** retains the clamp :math:`\tau_m =
+  \mathrm{clip}(\tau_m^{\rm raw}, \tfrac12, 1)`: product / level-
+  symmetric quadratures put the most-inward azimuthal ordinate exactly
+  on :math:`\eta = -\sin\theta`, giving :math:`\tau_m^{\rm raw} = 0`
+  exactly (a structural :math:`\div 0` block, tracked by
+  `Issue #229 <https://github.com/deOliveira-R/ORPHEUS/issues/229>`_).
+
+For spherical geometry the cell-edge direction cosines
+:math:`\mu_{m+1/2}` are the partial weight sums
 :math:`\sum_{n \le m} w_n` shifted by :math:`\mu_{1/2} = -1`; for
 cylindrical geometry the weights live in :math:`\varphi`-space rather
 than :math:`\eta`-space, so the cell edges are taken at the midpoints

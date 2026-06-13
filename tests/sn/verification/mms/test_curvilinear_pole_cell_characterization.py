@@ -88,12 +88,15 @@ The pole order MEASURES ~1.0 (asymptotically); the assertions
 LOWER-BOUND it at 0.8 deliberately, so a future LD/nodal fix that lifts
 the pole to O(h^2) keeps this gate GREEN (2.0 > 0.8).
 
-W5 note: the pole-cell ERR-NNN is minted in W5; a ``@catches("ERR-NNN")``
-link will be added to the characterization tests below at that time.
+The pole-cell defect is catalogued as **ERR-059** (W5, 2026-06-13;
+``.claude/skills/vv-principles/error_catalog.md``) — a DOCUMENTED
+INHERENT LIMITATION (WONTFIX-for-DD).  All four tests below carry
+``@pytest.mark.catches("ERR-059")``.
 
 References
 ----------
 * Issue #233 — the WONTFIX rationale + full cross-refs.
+* ERR-059 — the catalogued pole-cell inherent-limitation entry.
 * :eq:`dd-curvilinear-scalar` — the curvilinear DD cell-update whose
   pole behaviour this gate characterizes.
 * Hebert 2009 Eq. 3.430 — the shell-volume-average definition of the
@@ -189,6 +192,7 @@ def _orders(errors: np.ndarray) -> np.ndarray:
 # ═══════════════════════════════════════════════════════════════════════
 
 @pytest.mark.l1
+@pytest.mark.catches("ERR-059")
 @pytest.mark.verifies(
     "dd-curvilinear-scalar",
     "transport-spherical",
@@ -243,6 +247,7 @@ def test_sphere_global_L2_second_order_dual_reference():
 
 
 @pytest.mark.l1
+@pytest.mark.catches("ERR-059")
 @pytest.mark.verifies(
     "dd-curvilinear-scalar",
     "transport-cylindrical",
@@ -288,6 +293,7 @@ def test_cylinder_global_L2_second_order():
 # ═══════════════════════════════════════════════════════════════════════
 
 @pytest.mark.l1
+@pytest.mark.catches("ERR-059")
 def test_sphere_pole_cell_first_order_and_Linf_dominant():
     r"""CHARACTERIZATION: sphere pole cell is first-order + L-inf-dominant (#233).
 
@@ -314,8 +320,8 @@ def test_sphere_pole_cell_first_order_and_Linf_dominant():
       pole fraction of total L-inf error: 1.00 at every mesh
       interior (max over r/R > 0.1)                           orders 1.84 1.92 1.96
 
-    W5 will add a @catches("ERR-NNN") link to this test (the pole-cell
-    ERR-NNN is minted in W5).
+    Catalogued as ERR-059 (DOCUMENTED INHERENT LIMITATION); this test
+    carries ``@pytest.mark.catches("ERR-059")``.
     """
     pole_err = []
     interior_err = []
@@ -363,6 +369,7 @@ def test_sphere_pole_cell_first_order_and_Linf_dominant():
 
 
 @pytest.mark.l1
+@pytest.mark.catches("ERR-059")
 def test_cylinder_pole_first_order_vs_volume_average_masked_by_midpoint():
     r"""CHARACTERIZATION: cylinder shares the identical pole defect, MASKED (#233).
 

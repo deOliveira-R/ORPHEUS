@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5178**
+Total tests collected: **5192**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1151, 22.2%
-   L1, 961, 18.6%
+   L0, 1153, 22.2%
+   L1, 971, 18.7%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3022, 58.4%
+   foundation, 3024, 58.2%
    unmarked, 8, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5091
+   explicit, 5105
    verify, 0
    class-name, 46
    func-name, 0
@@ -105,6 +105,7 @@ Module × level grid
    curvilinear/test_streaming_equilibrium_curvilinear, 27, 0, 0, 0, 0, 0
    curvilinear/test_unified_matvec_cylinder, 29, 2, 0, 0, 0, 0
    curvilinear/test_unified_matvec_sphere, 2, 0, 0, 0, 0, 0
+   curvilinear/test_w1_clamp_silent_on_flat, 0, 2, 0, 0, 2, 0
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_mixture, 4, 0, 0, 0, 0, 0
    data/test_mixture_scattering_ratio, 0, 0, 0, 0, 3, 0
@@ -210,7 +211,7 @@ Module × level grid
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
    eigenvalue/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
    eigenvalue/test_keff_2d, 19, 0, 0, 0, 0, 0
-   eigenvalue/test_keff_curvilinear, 0, 17, 12, 0, 0, 0
+   eigenvalue/test_keff_curvilinear, 0, 19, 12, 0, 0, 0
    eigenvalue/test_keff_slab, 0, 6, 0, 0, 0, 0
    fields/test_angular_flux, 0, 0, 0, 0, 24, 0
    fields/test_boundary_flux, 0, 0, 0, 0, 36, 0
@@ -234,8 +235,10 @@ Module × level grid
    mc/test_gaps, 7, 9, 0, 0, 0, 0
    mc/test_monte_carlo, 0, 12, 0, 0, 0, 0
    mc/test_properties, 24, 0, 0, 0, 0, 0
-   mms/test_curvilinear_aniso_convergence, 0, 5, 0, 0, 0, 0
+   mms/test_curvilinear_aniso_convergence, 0, 7, 0, 0, 0, 0
+   mms/test_curvilinear_aniso_scattering_p1, 2, 0, 0, 0, 0, 0
    mms/test_curvilinear_operator_admits_mms, 0, 2, 0, 0, 0, 0
+   mms/test_curvilinear_pole_cell_characterization, 0, 4, 0, 0, 0, 0
    mms/test_mms, 0, 2, 0, 0, 0, 0
    mms/test_mms_2d, 0, 3, 0, 0, 0, 0
    mms/test_mms_aniso, 0, 2, 0, 0, 0, 0
@@ -371,8 +374,8 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``self-sph``, 52
    ``chord-length``, 51
    ``fission-matrix``, 51
+   ``flux-moments``, 51
    ``removal-matrix``, 51
-   ``flux-moments``, 49
    ``transport-cartesian``, 49
    ``wigner-seitz``, 49
    ``attenuation``, 48
@@ -396,10 +399,10 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``keff-mean``, 33
    ``peierls-equation``, 33
    ``sigma-keff``, 33
+   ``transport-spherical``, 33
    ``dd-slab``, 32
-   ``transport-spherical``, 32
    ``free-flight``, 31
-   ``transport-cylindrical``, 29
+   ``transport-cylindrical``, 30
    ``chi-sampling``, 28
    ``decompose``, 28
    ``scattering-cdf``, 28
@@ -416,13 +419,13 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-cyl-3d-mode-formula``, 22
    ``pitch-recovery``, 22
    ``ray-circle``, 22
+   ``pn-scatter``, 21
    ``singular-eigenfunction-eq46``, 21
+   ``dd-curvilinear-scalar``, 20
    ``en-kernel-derivative``, 20
    ``kin-kernel-derivative``, 20
    ``peierls-rank-n-stability``, 20
    ``dd-cartesian-1d``, 19
-   ``dd-curvilinear-scalar``, 18
-   ``pn-scatter``, 17
    ``direction-sampling``, 16
    ``discrete-measure-integrate``, 16
    ``fission-weight``, 16
@@ -549,11 +552,15 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-mms-2d-2g-psi``, 2
    ``sn-mms-cylindrical-aniso-psi``, 2
    ``sn-mms-cylindrical-aniso-qext``, 2
+   ``sn-mms-cylindrical-psi``, 2
+   ``sn-mms-cylindrical-qext``, 2
    ``sn-mms-nonvacuum-sph-psi``, 2
    ``sn-mms-nonvacuum-sph-qext``, 2
    ``sn-mms-p1-qext``, 2
    ``sn-mms-spherical-aniso-psi``, 2
    ``sn-mms-spherical-aniso-qext``, 2
+   ``sn-mms-spherical-psi``, 2
+   ``sn-mms-spherical-qext``, 2
    ``addition-theorem``, 1
    ``branching``, 1
    ``collision-estimator``, 1
@@ -595,20 +602,16 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-mms-2d-psi``, 1
    ``sn-mms-2d-qext``, 1
    ``sn-mms-cylindrical-aniso-spatial-convergence``, 1
-   ``sn-mms-cylindrical-psi``, 1
-   ``sn-mms-cylindrical-qext``, 1
    ``sn-mms-p1-psi``, 1
    ``sn-mms-psi``, 1
    ``sn-mms-qext``, 1
    ``sn-mms-spherical-aniso-spatial-convergence``, 1
-   ``sn-mms-spherical-psi``, 1
-   ``sn-mms-spherical-qext``, 1
    ``splitting``, 1
 
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **55** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **59** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -653,7 +656,11 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``si-within-group-operator-eq``
 - ``sn-axis-widths``
 - ``sn-cell-flatten-roundtrip``
+- ``sn-p1-cylinder-hand-ref``
+- ``sn-p1-sphere-hand-ref``
+- ``sn-pole-cell-shell-average``
 - ``sn-streaming-reciprocity``
+- ``sn-tau-mm-raw``
 - ``sn-within-group-system``
 - ``spectrum-case-eigenfunction-equation``
 - ``spectrum-case-eigenfunction-explicit``
@@ -926,7 +933,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-023``, 1
    ``ERR-024``, 1
    ``ERR-025``, 5
-   ``ERR-026``, 89
+   ``ERR-026``, 94
    ``ERR-027``, 5
    ``ERR-028``, 1
    ``ERR-029``, 6
@@ -959,6 +966,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-056``, 7
    ``ERR-057``, 1
    ``ERR-058``, 4
+   ``ERR-059``, 4
 
 Unmarked tests
 --------------

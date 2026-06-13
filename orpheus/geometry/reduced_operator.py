@@ -55,33 +55,44 @@ carries its own :math:`(M+1)`-tuple of :math:`\alpha` with
 :math:`\alpha^{(p)}_{m+1/2} = \alpha^{(p)}_{m-1/2} - w_m\,\eta_m`,
 where :math:`\eta` is the radial direction cosine.
 
-The Morel--Montry angular closure
-(Lewis & Miller 1984 §4.5; Bailey-Morel-Chang 2010 Eq. 5):
+The Morel--Montry angular closure weight (Bailey-Morel-Chang 2010
+Eq. 43) is the *fractional position* of the ordinate :math:`\mu_m` in
+its half-angle interval :math:`[\mu_{m-1/2}, \mu_{m+1/2}]`:
 
 .. math::
-   :label: morel-montry-clamp
 
-   \tau_m = \mathrm{clip}\!\left(
-       \frac{\mu_m - \mu_{m-1/2}}{\mu_{m+1/2} - \mu_{m-1/2}},
-       \;\tfrac12,\; 1
-   \right),
+   \tau_m = \frac{\mu_m - \mu_{m-1/2}}{\mu_{m+1/2} - \mu_{m-1/2}}.
 
-with the :math:`[1/2, 1]` clamp keeping the M-M weighting positive.
+This raw weight is the UNIQUE choice exact for a flux linear in
+:math:`\mu` (Bailey-Morel-Chang 2010 Eq. 43), with admissible range
+:math:`\tau \in [0, 1]`.  The canonical definition-of-record, the
+:math:`[1/2, 1]`-clamp history, the W1 mis-citation finding, and the
+geometry split are on the theory page — see
+:eq:`morel-montry-clamp` (the equation-of-record) in
+:doc:`/theory/structured_geometry` and the comprehensive vindication
+at :ref:`sn-curvilinear-aniso-norm-reconciliation` in
+:doc:`/theory/discrete_ordinates`.
 
-.. note::
+**Geometry split (W1, 2026-06-13; see** :func:`spherical_streaming` /
+:func:`cylindrical_streaming` **for the implementations).**
 
-   **W1 (2026-06-13):** the SPHERE drops this clamp and uses the raw
-   Bailey-Morel-Chang Eq. 43 weight
-   :math:`\tau_m = (\mu_m - \mu_{m-1/2})/(\mu_{m+1/2} - \mu_{m-1/2})`
-   directly — the unique weight exact for a flux linear in :math:`\mu`.
-   The clamp was an over-conservative positivity floor (mis-cited to
-   Lewis & Miller §4.5) that re-floored the anisotropic solution while
-   being 100 % spurious on physical fields.  The clamp above is
-   RETAINED only for the CYLINDER, where the most-inward azimuthal
-   ordinate gives :math:`\tau_{\mathrm{raw}} = 0` exactly (a structural
-   :math:`\div 0` block, tracked by Issue #229).  See
-   :func:`spherical_streaming` / :func:`cylindrical_streaming` for the
-   implementations; the full vindication lands on the theory page (W5).
+* **SPHERE** uses the raw :math:`\tau_m` above directly — unclamped.
+  The former :math:`[1/2, 1]` clamp was an over-conservative
+  positivity floor (mis-cited to Lewis & Miller §4.5) that re-floored
+  the anisotropic solution while being 100 % spurious on physical
+  fields (unclamped sphere SI is stable + strictly positive on
+  thick-absorber / near-vacuum / :math:`c = 0.999` / S64 stress
+  configs).  On Gauss--Legendre quadrature :math:`\tau_{m}^{\rm raw}
+  \in [0.39, 0.61]` (never 0), so the unclamped weight is always
+  admissible.
+* **CYLINDER** retains the clamp
+  :math:`\tau_m = \mathrm{clip}(\tau_m^{\rm raw}, \tfrac12, 1)`,
+  because product / level-symmetric quadratures place the most-inward
+  azimuthal ordinate exactly on :math:`\eta = -\sin\theta`, giving
+  :math:`\tau_m^{\rm raw} = 0` exactly — a structural :math:`\div 0`
+  block in the unclamped recurrence.  Removing the clamp here needs a
+  2-D :math:`(\eta, \varphi)` angular closure (out of scope), tracked
+  by Issue #229.
 
 References
 ==========
@@ -94,9 +105,12 @@ References
 * Bailey, T. S., Morel, J. E., & Chang, J. H. (2010).  *Asymptotic
   Diffusion-Limit Accuracy of Sn Angular Differencing Schemes*.
   NSE 165(2):149-169 (LLNL preprint LLNL-JRNL-420356; OA at
-  https://www.osti.gov/servlets/purl/1020346).  Auxiliary
-  justification for the M-M clamp via formal-:math:`\varepsilon`
-  asymptotic-diffusion-limit analysis.
+  https://www.osti.gov/servlets/purl/1020346).  **Eq. 43** gives the
+  Morel--Montry weight :math:`\tau_m` above as the unique weight exact
+  for a flux linear in :math:`\mu`, admissible range :math:`\tau \in
+  [0, 1]` — the W1 source for dropping the spherical clamp.  The paper
+  also frames the :math:`\beta`-contamination diffusion-limit analysis
+  via formal-:math:`\varepsilon` expansion.
 
   *Citation correction (Issue #168 Phase B)*: this module's
   pre-Phase-B docstring cited "Bailey, T. S., Adams, M. L., Yang, B.,
@@ -107,8 +121,10 @@ References
   unrelated to curvilinear S\ :sub:`N` :math:`\alpha`-recursion.  The
   intended reference is Bailey-Morel-Chang 2010 (above).
 * Lewis, E. E., & Miller, W. F. (1984). *Computational Methods of
-  Neutron Transport*.  §4.5 — angular redistribution closure;
-  the :math:`\tau_{mm}` clamp keeps the closure stable.
+  Neutron Transport*.  §4.5 — angular redistribution closure.  (NB:
+  the historical :math:`[1/2, 1]` clamp was MIS-cited to this §4.5 —
+  L&M §4.5 does not prescribe it; W1 traced the exact-on-linear weight
+  to Bailey-Morel-Chang 2010 Eq. 43.)
 
 See also
 ========

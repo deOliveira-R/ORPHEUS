@@ -1684,10 +1684,29 @@ nx=320; cylinder 2.00 to 3.37e-5 at nx=160), SI ≡ Krylov
 bit-identical, and the 2 isotropic xfail-strict tripwires in
 ``tests/sn/verification/mms/test_mms_curvilinear.py`` are REMOVED
 (now plain tests carrying ``catches("ERR-058")``).  The 4 anisotropic
-xfail markers remain for a DIFFERENT, non-ERR-026 reason — the
-fixed-quadrature angular floor of the per-ordinate-imposed aniso
-ansatz, a test-design retune tracked at Issue #229.  Phase A–D
+xfail markers were REMOVED by W3 (Issue #229, commit ``679a1e6``,
+2026-06-13) — they covered a DIFFERENT, non-ERR-026 reason (the
+fixed-quadrature angular half-angle-thread INTERPOLATION floor of the
+per-ordinate-imposed aniso ansatz), and the gates were retuned to
+assert what is TRUE (sphere coarse O(h²) window + magnitude band;
+cylinder verified floor-scaling, no rate claim — the cylinder has no
+pre-floor O(h²) window at any practical quadrature).  Phase A–D
 narrative above preserved as history.  Closes #98 → #99 → #168 → #195.
+
+**Surviving manifestation (distinct root, NOT the wrong-fixed-point
+class).**  ERR-026 was the curvilinear *wrong-fixed-point* family
+(closure-seed bias, terminally closed by ERR-058 / #195 / #196).  What
+SURVIVES the curvilinear-aniso program (W1–W5, 2026-06-13) is a
+DIFFERENT, inherent defect: the central-cell (r → 0) scalar flux is
+first-order O(h) in the pointwise / L∞ norm because plain diamond is
+inconsistent at the zero-area inner face — see **ERR-059** (Issue #233,
+DOCUMENTED INHERENT LIMITATION, WONTFIX-for-DD).  It is NOT a residual
+instance of ERR-026 (the fixed point is now CORRECT; the limitation is
+the spatial *order* at the singular cell, invisible to the L2 / k_eff
+gates that ERR-026 ever blocked).  The W1 ``τ``-clamp mis-citation
+finding (sphere unclamp, commit ``b2d8a6d``) is the other W1–W5 leg of
+this family's clean-up — see the ``τ-clamp mis-citation finding``
+entry at the end of this catalog.
 
 ---
 
@@ -4392,3 +4411,55 @@ Coordination: the fix lives in `orpheus/sn/spatial/scan.py:80-138`; it is orthog
 **Lesson.** A discrete CLOSURE SEED is part of the operator and must be verified per-ordinate on a NON-FLAT field: (i) any seed that is a self-referential read of the unknown family it seeds (cell-centre-as-face) or a proxy-sourced auxiliary solve (Σ_tφ₀ for the true source) should be treated as wrong-until-proven on non-equilibrium data; (ii) scalar/balance residuals are structurally blind to redistribution-thread defects (the telescoping is BY CONSTRUCTION) — residual audits of angular closures MUST be per-ordinate; (iii) "every gate is green" is evidence about the gates' regime, not about the operator: enumerate which fields each closure seed is exact on, and place at least one gate outside that set.
 
 **Test reference:** `tests/sn/verification/mms/test_curvilinear_operator_admits_mms.py` (`catches("ERR-058")`), `tests/sn/verification/mms/test_mms_curvilinear.py` (both ladders, `catches("ERR-058")`). Fixed in `orpheus/sn/operator.py`, `orpheus/sn/loss_representation.py`, `orpheus/sn/spatial/psi_half_angle_seed.py` (+ `mu_start` threading through `orpheus/geometry/reduced_operator.py` → `StreamingTerms` → `GeometryCoefficients` / closure binding). Issues #195/#168/#99/#98; follow-up #229.
+
+---
+
+## ERR-059 — Curvilinear central-cell (r→0) scalar flux is first-order O(h): inherent to plain diamond difference, invisible to the volume-weighted L2 / k_eff gates (documented limitation, WONTFIX-for-DD)
+
+**Date:** 2026-06-13 (W2 of the curvilinear-aniso program, Issue #233)
+**Module:** `sn` (the curvilinear diamond-difference cell update — `orpheus/sn/spatial/diamond.py` / `cell_balance.py` central-cell branch; the `dd-curvilinear-scalar` cell-update closure).
+**Failure mode:** #5 Index/closure error at a coordinate singularity — the diamond closure `ψ̄ = ½(ψ_in + ψ_out)` is inconsistent at the zero-area inner face A(0) = 0, giving first-order spatial accuracy at the single central cell. NOT a wrong-answer-accepted bug (ERR-026 was that, now CLOSED) — this is an INHERENT property of the standard scheme.
+
+**The defect.** At the r → 0 central cell the inner radial face has zero area (A(0) = 0). The diamond spatial closure then gives `ψ_out = 2ψ̄`, which **over-predicts the pole outer face by exactly +50 %** (mesh-independent rel. error 0.5000) relative to the true face value `A(h)` vs the volume-average `2⟨A⟩_vol = 2·¾A(h) = 1.5·A(h)`. Deeper: the conservative *balance itself* is inconsistent at the pole — fed the EXACT cell average and EXACT inflow it solves for an outer face −46 % wrong, and the residual-per-volume plateaus mesh-independently, because `A_in = 0` degenerates the streaming surface integral while `V ~ h³`. Result: the central-cell scalar flux converges at O(h^0.95) (pointwise / L∞), not O(h²), while the interior converges clean O(h²).
+
+**Decomposition (W2 numerics-investigator, diag_16..31).** The apparent error is ~75 % a comparison artifact + ~25 % genuine inherent residual:
+
+1. **~75 % MMS comparison artifact.** The production spherical MMS evaluates the source at the cell MIDPOINT and compares `phi_solver` against `phi_exact(midpoint)`. But the spherical DD discrete unknown IS the cell-VOLUME average `(4π/V)∫r²φ dr` (Hébert 2009 Eq. 3.430 — the unknown is *defined* as the shell average, not a point value). Under r²dr weighting the volume-average and the midpoint differ by O(h) at the pole (volume-centroid at ¾h, not ½h). Using the shell-averaged source AND the shell-volume-average reference drops the pole error ~4× (0.0212 → 0.00497).
+2. **~25 % genuine but LITERATURE-ACCEPTED INHERENT first order.** Even the fully-consistent FV-MMS (shell-avg source + shell-avg ref) leaves the pole at clean O(h^1.00) — the diamond-at-zero-inner-area inconsistency above. Hébert §3.9.4 and Stacey §9.9 BOTH use this plain-diamond + Carlson-starting-direction + symmetry scheme at the central cell with NO special O(h²) closure and NEITHER flags reduced order there (literature-researcher: Tier-2 search found no paper on a special O(h²) central-cell closure).
+3. **NOT cleanly fixable by a local closure.** The volume-weighted linear reconstruction `ψ̄ = β·ψ_out + (1−β)·ψ_in` with β = ¾ at the pole (the value O(h³)-consistent vs ⟨A⟩_vol at exact faces) was validated end-to-end (faithful production-sweep monkeypatch + β=½-identity guard to 3e-16): β = ¾ does NOT restore O(h²) — pole stays O(h), magnitude slightly worse, full-mesh β degrades the interior. A genuine fix needs a non-local higher-order central-cell scheme: linear-discontinuous (#6), cell-updates (#158), or nodal (Wu-Xie-Fischer 1999 NSE 133).
+
+**Why it hid (and why it needed a new probe to surface).** It is INVISIBLE to the production volume-weighted L2 norm AND to k_eff:
+
+- The production `test_sn_spherical_mms_converges_second_order` uses the volume-weighted L2 `√Σ V·diff²`. The pole O(h) at ONE cell of V ~ h³ contributes √V ~ h^1.5 → ~h^2.5 to L2 — subdominant to the interior O(h²). Both midpoint AND volume-average L2 references converge clean O(h^2.00); only L∞ (pole) is O(h).
+- k_eff is shape-blind: reflective sphere = k_inf = 1.875 EXACT mesh-independent; vacuum sphere converges monotone to ~1.78590 at O(h^1.48), increments 2e-5 at nx=160 (far below engineering tolerance).
+- This is the SECOND time a curvilinear defect hid behind a norm choice: ERR-058 hid behind flat-field exactness; ERR-059 hides behind the L2 volume weight + the midpoint comparison. The decisive surfacing probe was a per-cell pointwise/L∞ rate decomposition (`E_test = E_artifact(midpoint−volavg) + E_true(solver−volavg)`).
+
+**Cylinder shares the same defect, MASKED.** Cyl pole vs MIDPOINT is O(h²) (1.94/1.97/1.98) but vs the VOLUME-AVERAGE is O(h) (0.99/0.99/1.00) — the SAME diamond inconsistency, accidentally hidden by the midpoint comparison (the cyl r dr linear weight puts the volume-centroid where diamond's ½A(h) ≈ midpoint A(h/2)). So the cylinder pole is NOT "clean O(h²)" — it is the same O(h) volume-average defect.
+
+**Which test catches it.** `tests/sn/verification/mms/test_curvilinear_pole_cell_characterization.py` (W2, commit `255eba4`) — a CHARACTERIZATION gate (`@pytest.mark.l1`, `@pytest.mark.catches("ERR-059")`). It pins the limitation WITHOUT calcifying it: the pole L∞ order is **lower-bounded only** (> 0.8, "at least first order, does not regress"), the pole is the L∞-dominant cell (fraction > 0.99), and the interior is clean O(h²) (> 1.8) — NO upper bound on the pole order, so a future LD/nodal fix that lifts the pole to O(h²) keeps the gate green (vv anti-patterns #5/#17). The GUARANTEE half (carrying `verifies("dd-curvilinear-scalar", ...)`) asserts the global volume-weighted L2 is O(h²) under BOTH a midpoint AND a Hébert-3.430 shell-volume-average reference (built from `scipy.integrate.quad` — a trusted-library integrator structurally independent of the solver); agreement on the order across two structurally-different references proves the L2 order is REAL, not a midpoint artifact.
+
+**Status: DOCUMENTED INHERENT LIMITATION 2026-06-13 (WONTFIX-for-DD).** Issue #233 stays **OPEN** to track the future higher-order central-cell scheme (LD #6 / cell-updates #158 / nodal). NOT a code bug in the diamond-difference scheme; it is the accepted, literature-unflagged behaviour of plain diamond at a coordinate singularity. Distinct from #168 (outer face, CLOSED), ERR-058 / #195 (the closure seed, CLOSED), and the angular floors (#229). Full theory treatment: `docs/theory/discrete_ordinates.rst` §`sn-pole-cell-spatial-closure`.
+
+**Lesson.** A convergence-rate gate on a volume-weighted L2 norm is structurally blind to an error concentrated at a measure-zero-in-the-limit cell (the pole, V ~ h³). When verifying a curvilinear / coordinate-singularity scheme, ADD a pointwise / L∞ per-cell probe alongside the integral-norm gate — and choose the MMS reference quantity to MATCH the scheme's discrete unknown (the cell-VOLUME average per Hébert 3.430, NOT a midpoint point-value), or the comparison itself injects a spurious O(h) at the singular cell. The shell-volume-average reference is the structurally-independent ground that separates the comparison artifact from the genuine residual.
+
+---
+
+## τ-clamp mis-citation finding (W1, 2026-06-13) — a correctness-of-design finding, not a bug-class instance
+
+**Date:** 2026-06-13 (W1 of the curvilinear-aniso program; companion to ERR-059).
+**Module:** `sn` / `geometry` (`orpheus/geometry/reduced_operator.py` `spherical_streaming`).
+**Class:** correctness-of-DESIGN finding (a mis-cited, over-conservative patch that was 100 % spurious on physical fields) — NOT a new wrong-answer instance, so it carries no `catches("ERR-NNN")` of its own. It is the W1 leg of the ERR-026-family clean-up.
+
+**Finding.** The spherical Morel--Montry weighted-diamond weight `τ_n = (μ_n − μ_{n-1/2})/(μ_{n+1/2} − μ_{n-1/2})` had been wrapped in a `[½, 1]` clamp, cited to Lewis & Miller §4.5. Triple-confirmed mis-citation:
+
+1. **Literature.** Bailey-Morel-Chang (2010) NSE 165 **Eq. 43** give exactly this UNCLAMPED `τ_raw` as the unique weight exact for a flux linear in μ, admissible range τ ∈ [0, 1]; Hébert §3.9.4 uses pure diamond (τ = ½), no clamp; Lewis & Miller §4.5 does NOT prescribe the `[½, 1]` clamp — the citation was wrong.
+2. **Positivity never needed.** On every realistic converged solve (smooth MMS, homogeneous k_eff = 1, thick absorber) there are ZERO negative half-angle fluxes, clamped or unclamped; every clamp activation is spurious (160/320/80/240 activations across stress configs, 0 protective). On GL quadrature `τ_raw ∈ [0.39, 0.61]` (never 0), always interior to [0,1].
+3. **Stability without it.** Unclamped sphere SI converges with strictly positive, finite scalar flux on every stress config (thick absorber, near-vacuum, c = 0.999, S64).
+
+**Fix (W1, commit `b2d8a6d`).** Drop the clamp for the SPHERE only (use raw `τ_raw`); CYLINDER keeps it (product/LS quadratures put the most-inward azimuthal ordinate exactly on η = −sinθ → `τ_raw = 0` exactly, a structural ÷0 block needing a 2-D (η,φ) closure, #229). The removal is STATIC (config-time), so the operator stays linear and the SI ≡ Krylov twin identity holds — a *dynamic* (ψ-dependent) negative-flux fixup would make the operator nonlinear and break the twin.
+
+**Mixed accuracy signature (the gotcha worth recording).** Unclamping cleans the coarse rate (sphere S16 coarse orders 1.978 → 1.995) but RAISES the S16 fine floor (7.3e-4 → 1.2e-3): the lower clamped floor was a *fortuitous cancellation* (the clamp's constant bias partly offset the #229 angular-thread interpolation floor), not a genuine accuracy gain. Iso solves are unchanged in real arithmetic but NOT bit-identical at IEEE-754 (the τ-bearing reduction returns ψ exactly only ~81 % of the time, ≤1 ULP else; converged drift |Δk| = 2.3e-13 on homogeneous-reflective sphere — an FP-tail anchored to k_inf = 1.875).
+
+**Which gate.** `tests/sn/sweep/curvilinear/test_w1_clamp_silent_on_flat.py` (closure-unit τ-independence on flat fields; converged iso anchored to k_inf; unclamped positivity) + the W1 `@slow` aniso discriminators in `tests/sn/verification/mms/test_curvilinear_aniso_convergence.py`.
+
+**Lesson.** A positivity clamp on a discretisation weight is a tax, not a safeguard, UNTIL you have measured that the negativity it guards against actually arises on physical (converged, smooth) fields — and traced the clamp to a primary source. A clamp justified only by "it keeps the closure positive" against fields the physics never produces should be treated as wrong-until-the-negativity-is-demonstrated. (Companion to ERR-058's "every gate green is evidence about the gates' regime, not the operator" — here: every clamp activation is evidence about pathological roughness, not physical solves.)
