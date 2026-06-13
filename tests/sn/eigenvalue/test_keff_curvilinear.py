@@ -17,7 +17,7 @@ import pytest
 
 from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
-from orpheus.geometry import CoordSystem
+from orpheus.geometry import BC, CoordSystem
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.solver import SNSolver, solve_sn
@@ -700,3 +700,119 @@ def test_si_krylov_eigenvalue_equivalence_cylinder():
         f"cylinder flux too flat (group-0 max/min={maxmin:.3f}); redistribution "
         f"not exercised — SI≡Krylov equivalence would be vacuous"
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# #9 — P1 directional EIGENVALUE in curvilinear (path-(II) Legendre scatter)
+# ═══════════════════════════════════════════════════════════════════════
+#
+# The L0 operator-source gate
+# (``tests/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py``)
+# proves the curvilinear ℓ=1 scattering source equals its hand-reference
+# per ordinate.  These L1 rows close the loop at the EIGENVALUE level:
+# they verify the PHYSICAL DIRECTION of the effect — a forward-peaked P1
+# (positive mean cosine, ``SigS[1] >= 0``) preserves the forward
+# direction of scattered neutrons, which in a finite VACUUM-bounded
+# sphere ENHANCES leakage and therefore LOWERS k_eff.
+#
+# Mirrors ``test_keff_2d.py::test_p1_changes_heterogeneous_keff`` but
+# asserts the SIGN + a leakage-monotone mechanism pin, not merely that
+# P0 != P1.  Reached through the public ``solve_sn(..., scattering_order)``
+# path.  Materials: fuel = ``get_mixture("A","2g")`` (the only fissile 2g
+# mixture; asymmetric downscatter-only P0 avoids ERR-002 + the 1G
+# eigenvalue degeneracy; SigS[1] forward-peaked), moderator =
+# ``get_mixture("C","2g")``.  Vacuum outer BC is LOAD-BEARING because it
+# makes P1's k_eff effect a LEAKAGE effect specifically (the mechanism the
+# monotone test isolates).  NB the "no leakage ⟹ P1 cannot change k"
+# argument holds ONLY for a HOMOGENEOUS reflective sphere (k = k_inf,
+# flux-shape independent — that is the monotone test's genuine k_inf
+# control, where reflective Δk = 1.5e-12 ≈ 0).  A HETEROGENEOUS reflective
+# sphere has a non-flat flux, so P1 still changes k there via spectral /
+# spatial coupling (measured reflective Δ = 2.4e-2) — independent of
+# leakage; the vacuum BC is what pins the effect to leakage for the SIGN +
+# leakage-monotone claims below.
+
+
+def _sphere_keff(materials, mesh, scattering_order: int) -> float:
+    """k_eff of a spherical SN eigenvalue solve at the given Pℓ order."""
+    quad = Quadrature.gauss_legendre(8)
+    return solve_sn(
+        materials, mesh, quad,
+        scattering_order=scattering_order,
+        max_outer=300, max_inner=500, inner_tol=1e-10, keff_tol=1e-8,
+    ).keff
+
+
+@pytest.mark.verifies("pn-scatter")
+@pytest.mark.l1
+class TestSphereP1DirectionalEigenvalue:
+    """#9 — forward-peaked P1 LOWERS k_eff in a vacuum-bounded sphere."""
+
+    def test_p1_lowers_heterogeneous_keff(self):
+        """[L1] HET vacuum sphere: forward-peaked P1 reduces k_eff vs P0.
+
+        Fuel core (r<5) + moderator shell (R=10), vacuum outer.  The 2G
+        fissile mixture makes this a genuine eigenvalue claim (NOT 1G
+        degenerate, NOT flux-shape independent).  A forward-peaked P1
+        enhances leakage at the outer boundary, so ``keff_P1 < keff_P0``;
+        the gap is bounded into a physical band (a runaway gap would
+        signal a sign-flipped / absorption-mimicking P1).
+
+        Measured (GL8): keff_P0=0.8648, keff_P1=0.8508, Δ=1.40e-2.
+        """
+        materials = {0: get_mixture("A", "2g"), 1: get_mixture("C", "2g")}
+        mesh = _two_region_mesh(
+            outers=(5.0, 10.0), mat_ids=(0, 1), n_cells=(20, 20),
+            coord=CoordSystem.SPHERICAL, bc=BC.vacuum,
+        )
+        keff_p0 = _sphere_keff(materials, mesh, 0)
+        keff_p1 = _sphere_keff(materials, mesh, 1)
+        delta = keff_p0 - keff_p1
+
+        assert keff_p1 < keff_p0, (
+            f"forward-peaked P1 must LOWER k_eff via enhanced leakage, "
+            f"got keff_P0={keff_p0:.6f} keff_P1={keff_p1:.6f} "
+            f"(Δ={delta:.3e}); a non-negative Δ means the curvilinear "
+            f"P1 scattering source has the wrong directional sign."
+        )
+        assert 1e-3 < delta < 5e-2, (
+            f"keff_P0 - keff_P1 = {delta:.3e} is outside the physical band "
+            f"(1e-3, 5e-2): below the floor the effect is numerically "
+            f"vacuous; above the ceiling the P1 block is mimicking "
+            f"absorption rather than redistributing direction."
+        )
+
+    @pytest.mark.slow
+    def test_p1_leakage_monotone_with_sphere_size(self):
+        """[L1] Leakage-monotone mechanism pin: |Δk| grows as the sphere
+        shrinks.
+
+        The directional-eigenvalue NEGATIVE CONTROL.  P1's effect on
+        k_eff is a LEAKAGE effect, so it must intensify when the
+        surface-to-volume ratio rises (smaller sphere).  A homogeneous
+        fissile sphere at R=4 must show a LARGER positive
+        ``keff_P0 - keff_P1`` than at R=25, and both must stay positive.
+        A P1 that mimicked absorption (volumetric, not surface) would
+        instead grow with VOLUME — violating this monotonicity.
+
+        Measured (GL8): Δ(R=4)=3.75e-3 > Δ(R=25)=2.89e-4 > 0.
+        """
+        materials = {0: get_mixture("A", "2g")}
+        deltas = {}
+        for radius in (4.0, 25.0):
+            mesh = _homogeneous_mesh(
+                20, radius, mat_id=0,
+                coord=CoordSystem.SPHERICAL, bc=BC.vacuum,
+            )
+            deltas[radius] = (
+                _sphere_keff(materials, mesh, 0)
+                - _sphere_keff(materials, mesh, 1)
+            )
+
+        assert deltas[4.0] > deltas[25.0] > 0, (
+            f"P1's k_eff effect must be leakage-monotone in sphere size: "
+            f"Δ(R=4)={deltas[4.0]:.3e} > Δ(R=25)={deltas[25.0]:.3e} > 0 "
+            f"required.  A non-monotone or sign-flipped ordering means the "
+            f"curvilinear P1 source is not behaving as a surface-leakage "
+            f"redistribution (it may be mimicking volumetric absorption)."
+        )
