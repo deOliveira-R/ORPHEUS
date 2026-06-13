@@ -192,8 +192,11 @@ def _make_state(sn_mesh: SNMesh, *, seed: int) -> TimedFullField:
     rng = np.random.default_rng(seed)
     N = sn_mesh.quad.N
     ng = sn_mesh.ng
-    nx, ny = sn_mesh.spatial_shape
-    psi_values = rng.uniform(0.05, 1.0, size=(N, ng, nx, ny))
+    # Rank-agnostic (C2 rank-d carve): 1-D meshes carry spatial_shape
+    # (nx,), 2-D (nx, ny).
+    psi_values = rng.uniform(
+        0.05, 1.0, size=(N, ng, *sn_mesh.spatial_shape),
+    )
     state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
     from dataclasses import replace
     return replace(
@@ -210,15 +213,13 @@ def _make_sigma_t(sn_mesh: SNMesh) -> np.ndarray:
     material-id array reshaped from Mesh1D.mat_ids / Mesh2D.mat_map).
     """
     ng = sn_mesh.ng
-    nx, ny = sn_mesh.spatial_shape
-    sig_t = np.empty((ng, nx, ny), dtype=float)
-    mat_map = sn_mesh.mat_map  # (nx, ny)
-    for ix in range(nx):
-        for iy in range(ny):
-            mid = int(mat_map[ix, iy])
-            mat = sn_mesh.materials[mid]
-            for g in range(ng):
-                sig_t[g, ix, iy] = float(mat.SigT[g])
+    spatial = sn_mesh.spatial_shape
+    sig_t = np.empty((ng, *spatial), dtype=float)
+    mat_map = np.asarray(sn_mesh.mat_map).reshape(spatial)
+    for idx in np.ndindex(*spatial):
+        mat = sn_mesh.materials[int(mat_map[idx])]
+        for g in range(ng):
+            sig_t[(g, *idx)] = float(mat.SigT[g])
     return sig_t
 
 

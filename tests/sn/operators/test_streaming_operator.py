@@ -806,11 +806,11 @@ class TestT4bPreT4RegressionSnapshot:
             ),
             seed=20260531 + 1,
         )
-        # The pre-T.4 snapshot bundle was captured under the legacy
-        # phantom (N, ng, nx, 1) layout; drop the trailing ny=1 axis to
-        # compare against the rank-d (N, ng, nx) production output.
+        # Snapshot bundle re-captured 2026-06-12 (post-ERR-058
+        # closure-seed fix, #195) in the rank-d native (N, ng, nx)
+        # layout — the legacy phantom-ny adapter is retired.
         np.testing.assert_array_equal(
-            bulk, snapshots["slab_1g_vacuum_apply_bulk"][..., 0],
+            bulk, snapshots["slab_1g_vacuum_apply_bulk"],
         )
         np.testing.assert_array_equal(
             boundary, snapshots["slab_1g_vacuum_apply_boundary"],
@@ -825,7 +825,7 @@ class TestT4bPreT4RegressionSnapshot:
             seed=20260531 + 2,
         )
         np.testing.assert_array_equal(
-            bulk, snapshots["slab_2g_vacuum_apply_bulk"][..., 0],
+            bulk, snapshots["slab_2g_vacuum_apply_bulk"],
         )
         np.testing.assert_array_equal(
             boundary, snapshots["slab_2g_vacuum_apply_boundary"],
@@ -844,7 +844,7 @@ class TestT4bPreT4RegressionSnapshot:
             seed=20260531 + 3,
         )
         np.testing.assert_array_equal(
-            bulk, snapshots["slab_2g_reflective_apply_bulk"][..., 0],
+            bulk, snapshots["slab_2g_reflective_apply_bulk"],
         )
         np.testing.assert_array_equal(
             boundary, snapshots["slab_2g_reflective_apply_boundary"],
@@ -1031,7 +1031,7 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         bulk, boundary = self._capture_arm(_sphere_mesh(ng=1), seed=20260531 + 11)
         # Snapshot bundle is legacy (N, ng, nx, 1); drop the phantom ny=1.
         np.testing.assert_allclose(
-            bulk, snapshots["sphere_1g_apply_bulk"][..., 0],
+            bulk, snapshots["sphere_1g_apply_bulk"],
             rtol=1e-13, atol=1e-14,
         )
         np.testing.assert_array_equal(
@@ -1045,7 +1045,7 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         )
         bulk, boundary = self._capture_arm(_sphere_mesh(ng=2), seed=20260531 + 12)
         np.testing.assert_allclose(
-            bulk, snapshots["sphere_2g_apply_bulk"][..., 0],
+            bulk, snapshots["sphere_2g_apply_bulk"],
             rtol=1e-13, atol=1e-14,
         )
         np.testing.assert_array_equal(
@@ -1059,7 +1059,7 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         )
         bulk, boundary = self._capture_arm(_cylinder_mesh(ng=1), seed=20260531 + 21)
         np.testing.assert_allclose(
-            bulk, snapshots["cyl_1g_apply_bulk"][..., 0],
+            bulk, snapshots["cyl_1g_apply_bulk"],
             rtol=1e-13, atol=1e-14,
         )
         np.testing.assert_array_equal(
@@ -1073,7 +1073,7 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         )
         bulk, boundary = self._capture_arm(_cylinder_mesh(ng=2), seed=20260531 + 22)
         np.testing.assert_allclose(
-            bulk, snapshots["cyl_2g_apply_bulk"][..., 0],
+            bulk, snapshots["cyl_2g_apply_bulk"],
             rtol=1e-13, atol=1e-14,
         )
         np.testing.assert_array_equal(

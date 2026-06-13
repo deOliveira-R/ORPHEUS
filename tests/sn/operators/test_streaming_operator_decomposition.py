@@ -266,12 +266,21 @@ class TestSubtractiveDefinition:
 
 
 class TestResolutionADifferentFromPriorWrong:
-    """Resolution A's L.apply DIFFERS from the prior wrong matvec(σ_t=0).
+    """σ_t=0 relation between Resolution A's L.apply and the matvec(σ_t=0).
 
-    Sanity check that we're shipping a genuinely different formulation
-    from the reverted ``ad37ca0`` approach. For SPHERE the prior approach
-    degenerates the Carlson seed denominator and produces an O(0.01..1)
-    different operator on random ψ.
+    HISTORY: through the CarlsonInwardSweep default era this class pinned
+    that the two constructions DIFFER on sphere — the discriminating
+    lever was the Carlson seed's σ_t-dependence (its denominator
+    ``dr·σ_t + 2`` degenerates to ``2`` at σ_t=0), distinguishing
+    Resolution A from the reverted ``ad37ca0`` approach by O(0.01..1).
+
+    ERR-058 (#195, 2026-06-12) flipped the default half-angle seed to
+    ``AngularEdgeExtrapolation``, which is σ_t-INDEPENDENT — so at
+    σ_t = 0 the subtractive Resolution-A L and the σ_t=0 matvec now
+    legitimately COINCIDE (measured 1.3e-16).  The pin is inverted to
+    assert the new truth: agreement at FP noise.  If a future seed
+    strategy reintroduces σ_t-dependence into the closure, this gate
+    flips loudly and the σ_t=0 equivalence claim must be re-derived.
 
     For CYLINDER, the empirical σ_t coupling through the Carlson seed is
     structurally small under the PR-TYPED-6c Step 3 unified body —
@@ -336,9 +345,10 @@ class TestResolutionADifferentFromPriorWrong:
             np.linalg.norm(diff_bulk)
             / max(np.linalg.norm(l_correct_state.bulk.values), 1e-300)
         )
-        assert rel > 1e-3, (
-            f"{geometry}: Resolution A's L.apply and prior agent's "
-            f"L.apply differ only by {rel:.3e} — expected O(0.01..1) "
-            f"difference because the prior approach degenerates the "
-            f"Carlson seed denominator ``dr·σ_t + 2 → 2``."
+        assert rel < 1e-12, (
+            f"{geometry}: Resolution A's L.apply and the σ_t=0 matvec "
+            f"differ by {rel:.3e} — with the σ_t-independent "
+            f"AngularEdgeExtrapolation seed (ERR-058) they must "
+            f"coincide at σ_t = 0.  A σ_t-dependent closure seed has "
+            f"been (re)introduced; re-derive this equivalence claim."
         )
