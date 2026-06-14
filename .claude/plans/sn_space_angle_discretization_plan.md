@@ -1,5 +1,31 @@
 # SN (space ⊗ angle) discretization — development plan (cold-start)
 
+**⭐ Status (updated 2026-06-14, session 4): #206 LANDED → Tier 2 IS NOW LIVE.**
+#206 is DONE + merged ff-only to `main` @ `cba6d2f` + PUSHED (origin synced) + CLOSED; branch
+deleted. Full record = `.claude/plans/issue_206_carve.md` "PHASE A+B+C DONE" block + memory
+[[project-issue-206-matvec-carve]]. **What this changed for THIS plan (the §2/Tier line refs
+below are now STALE — re-read against the post-#206 structure):**
+- The 1-D sweep `_run_1d_sweep`/`_sweep_1d_unified` RELOCATED into `_OneDimScanWalk._run`/`.sweep`
+  (`orpheus/sn/loss_representation.py`); the 1-D matvec RELOCATED into `_OneDimScanWalk._apply_walk`
+  (off the operator). The old `:2004/:2113/:2167` line refs → now methods on `_OneDimScanWalk`.
+- **Tier 1 §2 (curvilinear CellUpdate seam) is LARGELY DONE:** the diamond CLOSURE
+  (`ψ̄=½(in+out)` ⟺ `out=2ψ̄−in`) is single-sourced through `cell_update.cell_average_from_faces` /
+  `outgoing_face_from_average` everywhere (#206 Phase A). The `is_affine_scannable` trait (on
+  `CellUpdateBase`) is built + `CumprodScan.supports`/`ScanMarch.supports` GATE on it.
+- **THE REMAINING §2/Tier-2a SEAM WORK (the real Tier 2a enabler):** DD is `is_affine_scannable`
+  (uses the fast closed-form `ordinate_scan`); a non-DD spatial scheme (#158 LD/step-characteristic)
+  will be NOT affine-scannable → it must DISPATCH through the per-cell `cell_update.update` path.
+  That per-cell path EXISTS in `_OneDimScanWalk._run` ONLY for the degenerate-cyl ordinate
+  (generalize it to a non-affine-scannable fast path). The supports-gate will currently REJECT a
+  non-affine-scannable cell_update → that's the seam to open for #158. (`emit_angular`/`_apply_walk`
+  apply-side is the matvec twin to keep in lockstep.)
+- **IMMEDIATE Tier-2 entry order:** Tier 1 **§1** (#236 axis-typing `SpatialScheme`/`AngularScheme`)
+  is STILL PENDING (cheap, foundational — task was "#236 §1 LD-axis type disambiguation") → do it
+  first, THEN Tier 2a (#158 non-DD occupant + per-cell dispatch) ∥ Tier 2b (#235 cyl 2-D angular).
+  ⚠ Re-confirm the #219 MethodSpace-home question (§ below) BEFORE the §1 registry split.
+- Follow-ups from #206 (orthogonal to Tier 2): #237 (degenerate-cyl test stressor), #238
+  (M_spatial/M_angular_redist leaf audit), deferred nULP denom-fold.
+
 **Status (updated 2026-06-14, session 3):**
 - ⭐ **§2 PIVOTED to #206.** Built the `CellUpdate` seam capability + cache delegation (the §2 steps 1–2,
   DONE + verified, uncommitted on `refactor/sn-cellupdate-seam-slab`). Then the dependency audit revealed
