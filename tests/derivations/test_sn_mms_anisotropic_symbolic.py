@@ -40,7 +40,7 @@ References
 - :doc:`/theory/discrete_ordinates` — anisotropic curvilinear MMS
   section (labels ``sn-mms-spherical-aniso-psi``, ``sn-mms-spherical-aniso-qext``,
   ``sn-mms-cylindrical-aniso-psi``, ``sn-mms-cylindrical-aniso-qext``).
-- [Bailey2009]_ Eq. 7-10 (spherical) and 50-55 (cylindrical) for the
+- [BaileyMorelChang2010]_ for the spherical and cylindrical
   angular redistribution operator structure.
 """
 from __future__ import annotations

@@ -27,8 +27,6 @@ Key Facts
 - Key reference: Bailey, Morel & Chang (**2010**) NSE 165 ([BaileyMorelChang2010]_)
   — Eq. 43 (the M-M weight, unique exact-on-linear-in-μ); Hébert (2009)
   §3.9.4 ([Hebert2009]_) for the dome recursion + Carlson seed.
-  (The legacy ``[Bailey2009]_`` bibliography key conflates this with an
-  unrelated diffusion-FE paper — see the warning on that entry.)
 - **Curvilinear anisotropic SN** — the "#229 floor" was **three**
   distinct errors (sphere pole-cell O(h) spatial #233; sphere angular
   τ-clamp; cylinder angular floor #229), separated by a norm difference
@@ -136,8 +134,8 @@ Three coordinate systems are supported:
 
 All three share a single balance-equation framework with a geometry
 factor :math:`\Delta A / w` that guarantees per-ordinate flat-flux
-consistency.  The treatment follows [Bailey2009]_ for the curvilinear
-formulation, [LewisMiller1984]_ for the general framework, and
+consistency.  The treatment follows [BaileyMorelChang2010]_ for the
+curvilinear formulation, [LewisMiller1984]_ for the general framework, and
 [CaseZweifel1967]_ for the angular discretisation.
 
 The solver is implemented in :class:`SNSolver`, which satisfies the
@@ -423,7 +421,8 @@ structure ideal for the cylindrical sweep.  Weights:
 
 Sum to :math:`4\pi`.  Within each level, ordinates are sorted by
 increasing :math:`\eta = \sin\theta\cos\varphi` to match the
-:math:`\alpha` recursion convention from [Bailey2009]_ Eq. 50.
+:math:`\alpha` recursion convention from [BaileyMorelChang2010]_ (the
+curvilinear :math:`\alpha`-recursion).
 
 Implemented in :class:`ProductQuadrature`.
 
@@ -657,8 +656,8 @@ For cylindrical (per :math:`\mu`-level):
 **Step 3: Apply the geometry factor** :math:`\Delta A / w`.
 
 The raw discretisation above does NOT preserve per-ordinate flat-flux
-consistency.  The correct form from [Bailey2009]_ includes the geometry
-factor :math:`\Delta A_i / w_n`:
+consistency.  The correct form from [BaileyMorelChang2010]_ includes the
+geometry factor :math:`\Delta A_i / w_n`:
 
 .. math::
    :label: balance-general
@@ -669,8 +668,9 @@ factor :math:`\Delta A_i / w_n`:
    \bigl[\alpha_{n+\frac12}\psi_{n+\frac12} - \alpha_{n-\frac12}\psi_{n-\frac12}\bigr]
    + \Sigt{} V_i \psi_{n,i} = S_i V_i
 
-where :math:`\Delta A_i = A_{i+1/2} - A_{i-1/2}`.  This is
-[Bailey2009]_ Eq. 7--10 for spherical and Eq. 50--55 for cylindrical.
+where :math:`\Delta A_i = A_{i+1/2} - A_{i-1/2}`.  This is the curvilinear
+balance form of [BaileyMorelChang2010]_ for both spherical and cylindrical
+geometry.
 
 Note why :eq:`dd-cartesian-1d` has no :math:`\alpha` or :math:`\Delta A`
 terms: in Cartesian geometry the face area is unity (:math:`A = 1`), so
@@ -709,9 +709,9 @@ recursion uses :math:`\eta` instead of :math:`\mu`:
 
    \alpha_{p,m+\frac12} = \alpha_{p,m-\frac12} - w_m \eta_m
 
-This is [Bailey2009]_ Eq. 50.  Each level's :math:`\alpha` values form
-an independent dome from :math:`\eta = -\sin\theta` to
-:math:`\eta = +\sin\theta`.
+This is the [BaileyMorelChang2010]_ curvilinear :math:`\alpha`-recursion.
+Each level's :math:`\alpha` values form an independent dome from
+:math:`\eta = -\sin\theta` to :math:`\eta = +\sin\theta`.
 
 **Dome shape properties:**
 
@@ -850,7 +850,7 @@ This can be rewritten as:
 
    \psi_{n+\frac12} = 2\psi_{n,i} - \psi_{n-\frac12}
 
-The contamination factor :math:`\beta` ([Bailey2009]_ Eq. 41) quantifies
+The contamination factor :math:`\beta` ([BaileyMorelChang2010]_) quantifies
 the coupling between the leading-order scalar flux and the first-order
 current in the asymptotic diffusion limit.  For spherical geometry:
 
@@ -875,7 +875,7 @@ Weighted Diamond Difference (WDD) and Morel--Montry Weights
 -------------------------------------------------------------
 
 The Morel--Montry (M-M) angular closure replaces the equal-weight DD
-with position-dependent weights :math:`\tau_n` [Bailey2009]_ Eq. 74:
+with position-dependent weights :math:`\tau_n` [BaileyMorelChang2010]_ Eq. 43:
 
 .. math::
    :label: wdd-closure
@@ -11882,7 +11882,8 @@ The Root Cause
 
 **Bug 1: Wrong** :math:`\alpha` **recursion.**  The code used
 :math:`\alpha = \text{cumsum}(+w\xi)` with the azimuthal cosine
-:math:`\xi` (``mu_y``).  The correct recursion ([Bailey2009]_ Eq. 50)
+:math:`\xi` (``mu_y``).  The correct recursion ([BaileyMorelChang2010]_,
+the curvilinear :math:`\alpha`-recursion)
 is :math:`\alpha = \text{cumsum}(-w\eta)` with the radial cosine
 :math:`\eta` (``mu_x``), and ordinates must be sorted by increasing
 :math:`\eta` within each level.
@@ -11939,7 +11940,7 @@ has nothing to do with signs.
 The Fix
 -------
 
-Applied the [Bailey2009]_ formulation:
+Applied the [BaileyMorelChang2010]_ formulation:
 
 1. Corrected :math:`\alpha` recursion:
    :math:`\alpha_{m+1/2} = \alpha_{m-1/2} - w_m \eta_m`
@@ -12376,28 +12377,6 @@ converged inner solve.
 
 References
 ==========
-
-.. [Bailey2009] T.S. Bailey, J.E. Morel, and J.H. Chang,
-   "A piecewise-linear finite element discretization of the diffusion
-   equation for arbitrary polyhedral grids,"
-   *Nuclear Science and Engineering*, 162:3, 2009.
-   (Eq. 50: :math:`\alpha` recursion; Eq. 53--54: WDD;
-   Eq. 74: Morel--Montry weights.)
-
-   .. warning::
-
-      This bibliography entry conflates two different Bailey papers and
-      should be split (tracked separately).  The cited *title* ("A
-      piecewise-linear finite element discretization ... arbitrary
-      polyhedral grids") is **Bailey-Adams-Yang-Zika 2009 JCP 227** — a
-      diffusion-FE paper unrelated to curvilinear S\ :sub:`N`.  The
-      curvilinear :math:`\alpha`-recursion and Morel--Montry weights
-      (Eqs. 50 / 74 above) belong to **Bailey-Morel-Chang 2010**
-      (:ref:`see below <bib-bailey-morel-chang-2010>`).  The
-      :math:`\tau`-clamp vindication (W1) traced the exact-on-linear
-      weight specifically to Bailey-Morel-Chang 2010 **Eq. 43**.  Body
-      citations of ``[Bailey2009]_`` for the dome / M-M weights should
-      migrate to ``[BaileyMorelChang2010]_``.
 
 .. _bib-bailey-morel-chang-2010:
 

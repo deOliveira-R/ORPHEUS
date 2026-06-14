@@ -1598,8 +1598,8 @@ treatment of the within-group source iteration.
 - [AdamsLarsen2002]_ §III --- the SAILOR / Larsen-Adams
   preconditioned-Krylov framework that motivates the
   ``(N, ng)`` joint-batch storage.
-- [Bailey2009]_ Eq. 50 (curvilinear :math:`\alpha` recursion) and
-  Eq. 74 (Morel--Montry weights) --- the curvilinear M--M angular
+- [BaileyMorelChang2010]_ (the curvilinear :math:`\alpha` recursion) and
+  Eq. 43 (Morel--Montry weights) --- the curvilinear M--M angular
   thread that obstructs joint-batch over ordinates and motivates
   the principled :math:`n` leading layout.
 - [Blelloch1990]_ §1.5 ("First-Order Linear Recurrences") --- the

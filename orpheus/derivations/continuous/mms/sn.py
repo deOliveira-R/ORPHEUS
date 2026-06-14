@@ -1817,8 +1817,8 @@ redistribution operator and both vanish for any isotropic ansatz.
      ("MMS simplification bias").
    - :class:`SNSphericalMMSCase`, :class:`SNCylindricalMMSCase` —
      isotropic siblings retained for narrow-down diagnostics.
-   - [Bailey2009]_ Eq. 7-10 (spherical) and 50-55 (cylindrical) for
-     the angular-redistribution operator structure.
+   - [BaileyMorelChang2010]_ for the spherical and cylindrical
+     angular-redistribution operator structure.
 """
 
 
