@@ -1814,7 +1814,7 @@ class _OneDimScanWalk:
         from orpheus.transport.timed_full_field import TimedFullField
 
         m_cell, _m_ang_cell, m_boundary = self._apply_walk(
-            operator, psi, emit_angular=False,
+            operator.sigma_t, psi, emit_angular=False,
         )
         return TimedFullField(
             bulk=AngularSourceSink.from_mesh(m_cell, self.mesh),
@@ -1824,7 +1824,7 @@ class _OneDimScanWalk:
         )
 
     def loss_action_decomposed(
-        self, operator: "StreamingOperator", psi: "TimedFullField",
+        self, sigma_t: "np.ndarray", psi: "TimedFullField",
     ) -> "tuple[TimedFullField, TimedFullField]":
         r"""The ``(M_spatial, M_angular_redist)`` split of ``(L+C)ψ``.
 
@@ -1842,16 +1842,19 @@ class _OneDimScanWalk:
 
         ``M_spatial.bulk + M_angular_redist.bulk == (L+C)ψ.bulk`` by construction
         (``m_spat = m_full − m_ang`` elementwise). The operator-side
-        ``_MSpatialOperatorSum._compute_decomposition`` delegates here; its three
-        consumers (``M_spatial.apply`` / ``M_angular_redist.apply`` / the
-        ``_SpatialSweepDirection`` slow path) keep their contract.
+        ``_MSpatialOperatorSum._compute_decomposition`` delegates here (passing
+        its ``sigma_t``); its three consumers (``M_spatial.apply`` /
+        ``M_angular_redist.apply`` / the ``_SpatialSweepDirection`` slow path)
+        keep their contract.
         """
         from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
         m_cell, m_ang_cell, m_boundary = self._apply_walk(
-            operator, psi, emit_angular=True,
+            sigma_t, psi, emit_angular=True,
         )
+        if m_ang_cell is None:  # invariant: emit_angular=True allocates the buffer
+            raise AssertionError("_apply_walk(emit_angular=True) must emit m_ang")
         m_spat_cell = m_cell - m_ang_cell
         m_spat = TimedFullField(
             bulk=AngularSourceSink.from_mesh(m_spat_cell, self.mesh),
@@ -1868,7 +1871,7 @@ class _OneDimScanWalk:
         return m_spat, m_ang
 
     def _apply_walk(
-        self, operator: "StreamingOperator", psi: "TimedFullField",
+        self, sigma_t: "np.ndarray", psi: "TimedFullField",
         *, emit_angular: bool,
     ) -> "tuple[np.ndarray, np.ndarray | None, BoundarySourceSink]":
         r"""The shared 1-D apply-direction walk — ONE source for both emissions.
@@ -1904,9 +1907,11 @@ class _OneDimScanWalk:
         (OUTFLOW = self-consistency defect, INFLOW = identity; NO BC reflection —
         the sibling ``−B`` carries it). The Morel–Montry angular redistribution +
         the Carlson coupled-pole seed (curvilinear) ride through
-        ``pole_angular_closure`` (ERR-058 / #195 — NEVER re-inlined). ``σ_t`` is
-        ``operator.sigma_t`` (the same ``(ng, nx)`` array the operator threads
-        into ``M_spatial``).
+        ``pole_angular_closure`` (ERR-058 / #195 — NEVER re-inlined). ``sigma_t``
+        is the ``(ng, nx)`` group total cross-section, passed directly — the
+        frame needs no operator handle (the protocol :meth:`loss_action` /
+        :meth:`loss_action_transpose` adapt ``operator.sigma_t``; the operator's
+        ``_compute_decomposition`` passes its own ``sigma_t``).
         """
         from orpheus.transport.source_sinks import BoundarySourceSink
         from .spatial.cell_balance import cell_balance_for_streaming
@@ -1926,11 +1931,10 @@ class _OneDimScanWalk:
             raise ValueError(f"Unknown curvature: {curvature!r}")
         if curvature == "cartesian" and not sn_mesh.is_1d:
             raise NotImplementedError(
-                "_MSpatialOperatorSum._compute_LpC: multi-D Cartesian "
-                "is not yet wired through dag_walk; only the 1-D slab "
-                "is implemented.  Multi-D Cartesian routes through the "
-                "representation's `loss_action` (S6.3 moved it off this "
-                "operator; `ScanMarch` is the production default)."
+                "_OneDimScanWalk._apply_walk: multi-D Cartesian is not "
+                "handled by the 1-D scan walk; multi-D Cartesian routes "
+                "through ScanMarch / _OctantWalk (the production default), "
+                "not this frame."
             )
 
         pole_angular_closure = sn_mesh.pole_angular_closure
@@ -1946,7 +1950,7 @@ class _OneDimScanWalk:
         out_ang_g_first = np.zeros((ng, N, nx)) if emit_angular else None
 
         V = sn_mesh.volumes
-        sigma_t_gx = operator.sigma_t
+        sigma_t_gx = sigma_t
 
         boundary = psi.boundary
         trace = sn_mesh.trace
@@ -2016,11 +2020,11 @@ class _OneDimScanWalk:
                     )
                     m_full = (denom * psi_cell - numer_upstream) / V[i]
                     out_g_first[:, global_dir, i] = m_full
-                    if emit_angular:
+                    if out_ang_g_first is not None:
                         # The curvilinear angular-redistribution share (the
                         # cell_contribution is already computed above; zero for
-                        # slab's IdentityAngularClosure). loss_action's hot path
-                        # skips this store (emit_angular=False).
+                        # the slab IdentityAngularClosure). loss_action's hot path
+                        # leaves the buffer unallocated (None) and skips this.
                         out_ang_g_first[:, global_dir, i] = (
                             angular_denom_term[None, :] * psi_cell
                             - angular_numer_upstream
@@ -2101,7 +2105,7 @@ class _OneDimScanWalk:
                 )
                 m_full = (denom * psi_cell - numer_upstream) / V[i]
                 out_g_first[:, global_deg, i] = m_full
-                if emit_angular:
+                if out_ang_g_first is not None:
                     out_ang_g_first[:, global_deg, i] = (
                         angular_denom_term[None, :] * psi_cell
                         - angular_numer_upstream
@@ -2109,7 +2113,8 @@ class _OneDimScanWalk:
 
         m_cell = out_g_first.swapaxes(0, 1)
         m_ang_cell = (
-            out_ang_g_first.swapaxes(0, 1) if emit_angular else None
+            out_ang_g_first.swapaxes(0, 1)
+            if out_ang_g_first is not None else None
         )
 
         # Wave O O.4a.2 — the boundary block of (L+C) carries the two trace
