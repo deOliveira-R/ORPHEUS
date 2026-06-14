@@ -466,7 +466,9 @@ class _MSpatialOperatorSum(OperatorSum):
                     )
                     m_full = (denom * psi_cell - numer_upstream) / V[i]
                     out_g_first[:, global_dir, i] = m_full
-                    psi_face_in = 2.0 * psi_cell - psi_face_in
+                    psi_face_in = sn_mesh.cell_update.outgoing_face_from_average(
+                        psi_cell, psi_face_in
+                    )
                 outflow_at_end[:, global_dir] = psi_face_in
             return outflow_at_end
 
@@ -957,7 +959,9 @@ class _MSpatialOperatorSum(OperatorSum):
                     out_spat_g_first[:, global_dir, i] = m_spat
                     out_ang_g_first[:, global_dir, i] = m_ang
 
-                    psi_face_in = 2.0 * psi_cell - psi_face_in
+                    psi_face_in = sn_mesh.cell_update.outgoing_face_from_average(
+                        psi_cell, psi_face_in
+                    )
                 outflow_at_end[:, global_dir] = psi_face_in
             return outflow_at_end
 

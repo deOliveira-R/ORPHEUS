@@ -699,7 +699,10 @@ class CumprodScan(_LossRepresentation):
 
     @classmethod
     def supports(cls, mesh: "SNMesh") -> Compatibility:
-        return Compatibility(mesh.is_1d, "requires a 1-D mesh")
+        return Compatibility(
+            mesh.is_1d and mesh.cell_update.is_affine_scannable,
+            "requires a 1-D mesh with an affine-scannable cell-update scheme",
+        )
 
     def sweep(
         self,
@@ -1212,10 +1215,11 @@ class ScanMarch(_LossRepresentation):
     @classmethod
     def supports(cls, mesh: "SNMesh") -> Compatibility:
         return Compatibility(
-            mesh.is_1d or (mesh.is_cartesian and mesh.ndim == 2),
-            "requires a 1-D mesh (any geometry) or a 2-D Cartesian mesh "
-            "(the d≥3 row-march kernels are deferred — the full-field "
-            "spine serves d≥3)",
+            (mesh.is_1d or (mesh.is_cartesian and mesh.ndim == 2))
+            and mesh.cell_update.is_affine_scannable,
+            "requires an affine-scannable cell-update scheme on a 1-D mesh "
+            "(any geometry) or a 2-D Cartesian mesh (the d≥3 row-march "
+            "kernels are deferred — the full-field spine serves d≥3)",
         )
 
     def sweep(
@@ -2001,7 +2005,9 @@ def _run_1d_sweep(
             psi_face_in_chain = np.empty_like(psi_face_chain_scan)
             psi_face_in_chain[0] = psi_in_chain
             psi_face_in_chain[1:] = psi_face_chain_scan[:-1]
-            psi_avg_scan = 0.5 * (psi_face_in_chain + psi_face_chain_scan)
+            psi_avg_scan = sn_mesh.cell_update.cell_average_from_faces(
+                psi_face_in_chain, psi_face_chain_scan
+            )
             # (nx, K, ng) → per-ordinate (ng, nx) via reorder.
             psi_avg_per_ord = np.transpose(psi_avg_scan, (1, 2, 0))  # (K, ng, nx)
 
@@ -2164,7 +2170,9 @@ def _run_1d_sweep(
                 psi_face_in_chain = np.empty_like(psi_face_chain)
                 psi_face_in_chain[0] = psi_in
                 psi_face_in_chain[1:] = psi_face_chain[:-1]
-                psi_avg_chain = 0.5 * (psi_face_in_chain + psi_face_chain)
+                psi_avg_chain = sn_mesh.cell_update.cell_average_from_faces(
+                    psi_face_in_chain, psi_face_chain
+                )
                 # Principled view: (ng, nx).
                 psi_avg_chain_p = psi_avg_chain.T                # (ng, nx)
 

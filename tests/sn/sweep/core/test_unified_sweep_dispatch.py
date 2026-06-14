@@ -197,9 +197,12 @@ class TestDispatchSelectsStrategy:
 class TestD3SupportsMatrix:
     """C3.6 honest-supports pins at d=3 (test-architect G-c1..c4).
 
-    The ``supports`` predicates read only ``is_1d`` / ``is_cartesian``
-    / ``ndim``, so the PREDICATE pins stay duck-typed (cheap, and they
-    document the narrowing contract at the predicate level). Since
+    The ``supports`` predicates read ``is_1d`` / ``is_cartesian`` /
+    ``ndim`` (the dimensional narrowing) and — for the scan reps since
+    #206 A1 — ``cell_update.is_affine_scannable`` (the scheme must be
+    scannable), so the PREDICATE pins stay duck-typed (the fake supplies
+    an affine-scannable scheme; these pins document the dimensional
+    narrowing at the predicate level). Since
     C5.5 (#225) a 3-axis ``SNMesh`` is constructible via
     ``from_axes``, so the SELECTION pin (G-c3) runs the LIVE
     ``default_for`` on a real mesh — it must route d=3 to the
@@ -214,6 +217,11 @@ class TestD3SupportsMatrix:
         from types import SimpleNamespace
         return SimpleNamespace(
             is_1d=(ndim == 1), is_cartesian=cartesian, ndim=ndim,
+            # #206 A1: the scan reps (CumprodScan / ScanMarch) now ALSO
+            # gate on ``cell_update.is_affine_scannable`` — the fake
+            # supplies an affine-scannable scheme so these pins exercise
+            # the DIMENSIONAL narrowing, not the scheme gate.
+            cell_update=SimpleNamespace(is_affine_scannable=True),
         )
 
     @pytest.mark.foundation
