@@ -233,6 +233,60 @@ Per-phase: qa + elegance-enforcer; `python -m tests._harness.audit` exit 0; Sphi
 - `orpheus/sn/spatial/cell_balance.py:120` — `cell_balance_for_streaming` (multi-consumer, KEEP).
 - New: the shared 1-D-scan frame (Phase B); A-NEW baseline test under `tests/sn/sweep/core/`.
 
+## ⭐ PHASE A DONE + Phase B design (2026-06-14, post specialist plans)
+
+**Phase A COMPLETE + committed** (`refactor/sn-cellupdate-seam-slab`, 8 commits `3ca8562`→`f61e1b0`):
+the diamond face closure is single-sourced through the `cell_update` seam across CumprodScan +
+ScanMarch-1D + ScanMarch-2D + matvec. A2-denom FOLDED INTO Phase C (user decision). Curvilinear
+sweep closure landed in A1. scan.py carries ZERO inline diamond arithmetic. Gates: A-NEW strict 6,
+sweep/core 443, recipe2 70, recipe3 65, 2-D gate 102 — all strict where escalation works; elegance PASS×2.
+
+### ⚠ test-architect FINDING 1 — `-W error::DriftWarning` is INERT in `tests/sn/regression/`
+`tests/sn/regression/conftest.py:25` forces `always::...DriftWarning`, OVERRIDING the CLI `-W error`.
+So "strict bit-id via `-W error`" is a NO-OP for the regression suite. The GENUINE strict gate is
+`tests/sn/sweep/core` (no conftest override — the A-NEW gate lives here) + `tests/sn/solve/test_affine_carve_bit_identity.py`.
+The regression suite is a TOLERANCE gate (diff the DriftWarning summary, don't expect zero).
+**Pre-existing 1-D regression drift profile (Phase B/C MUST reproduce verbatim, NOT zero):**
+`cyl_1g_homogeneous_{LS4,product}_dd_n20` (scalar ~272k/298k ULP), `sphere_2g_homogeneous_dd_n20`
+(k_eff 3032 / scalar 30580 ULP), `sphere_2g_p1_aniso_dd_n20` (scalar 278 ULP). ALL slab rows strict-clean.
+
+### Phase B verification (test-architect)
+- **Strict gate (the REAL one):** `pytest -O tests/sn/sweep/core tests/sn/solve/test_affine_carve_bit_identity.py -W "error::tests.sn.regression._regression_assert.DriftWarning" -p no:cacheprovider`. Foundation-for-B baseline: sweep/core **443 pass / 1 skip / 4 xfail**; +affine_carve+regression **16 pass**; A-NEW **6 strict**; dispatch **12**.
+- **Drift-profile reproduce:** `pytest -O tests/sn/regression/test_dd_regression.py -k "not 2d"` → diff DriftWarning summary vs above.
+- **B2 import-surface (NEW gate to add):** extend `tests/sn/sweep/core/test_unified_sweep_dispatch.py` (or new `test_one_dim_walk.py` mirroring `test_one_octant_walk.py`): relocated frame resolves from new home; CumprodScan/ScanMarch-1D `.sweep` still bind through the frame; NO `is_solve`/`is_apply` bool param (signature inspection — the anti-degradation tripwire).
+- **B3 cumprod≡wavefront:** `tests/sn/sweep/core/test_wavefront_cumprod_equivalence.py` EXISTS + green (CumprodScan≡FullFieldWavefront + analytical k_inf). Re-use.
+- No new frame oracle needed (A-NEW covers it). No SPH route-around needed (those reds are in `operators/`, not Phase-B paths).
+
+### Phase B design (explorer blast-radius + synthesis) — `_OneDimScanWalk`
+- **Relocation is CLEAN:** `_sweep_1d_unified:1719`, `_ensure_geom_cache:1782`, `_ensure_coll_cache:1791`,
+  `_run_1d_sweep:1817` (+`_initial_guess_values:1675`) have ZERO external callers; the 2 prod callers
+  (`CumprodScan.sweep:726`, `ScanMarch.sweep:1246`) call `_sweep_1d_unified` IDENTICALLY; tests mention
+  names in docstrings only. Pure intra-module relocation → bit-identical, no import/test churn.
+- **Template:** `_OctantWalk` (`:444-682`) = `@dataclass(frozen=True)` sole field `mesh: SNMesh`, no `__init__`;
+  `_interior_walk` shared seam; forks via injected OBJECTS (cell-kernel callable + `_SweepEmit`), NEVER a bool
+  (tripwire `:466-468`, `test_one_octant_walk.py`). Build the 1-D analogue `_OneDimScanWalk(mesh)`.
+- **What the 1-D frame hosts:** the two-stratum cache ensure/stash (preserve the `sn_mesh._{geom,coll}_cache`
+  contract — solver pre-stashes at `solver.py:902-914`, `_ensure_*` is the lazy fallback; keep build-count=1),
+  the slab joint-batch (`:1961-2033`) + curvilinear per-ordinate (`:2040-2197`) bodies, `_initial_guess_values`,
+  boundary-face I/O (slab xmin+xmax, curvilinear xmax-only), the moment-mode `ValueError`.
+- **Phase-B fork = GEOMETRY (`is_slab`), NOT solve/apply** — the 1-D scan's only variation is geometry.
+  Phase B wires SOLVE only; leave the seam where the Phase-C apply-kernel attaches.
+- **DO NOT retrofit `_SweepEmit`** — the 1-D body writes ndarrays directly at chain/ordinate granularity
+  (≠ `_SweepEmit`'s per-octant granularity); keep direct writes (simplest + bit-identical).
+- **Coupling (preserve):** pole_angular_closure/Carlson seed (curvilinear, `:2049`/`:2080-2088`, Pattern-2 with
+  matvec — route, don't re-inline), boundary_flux, `initial_guess` passthrough (slab ignores, curvilinear consumes).
+- **⚠ Phase-C real design question (explorer gap):** the 1-D matvec is `M_spatial._compute_LpC` (separate object,
+  per-cell recurrence), NOT a scan in a shared frame. Phase C must pull the per-ordinate recurrence into the
+  frame as the apply-kernel (re-express matvec as the α=−1,β=2ψ̄ scan via `_x_scan_faces`) AND unify with
+  `M_spatial`'s spatial sum + fold A2-denom (`affine_scan_coefficients`). The four-leg standoff lives here.
+- Memos: `.claude/agent-memory/explorer/issue_206_phase_b_frame_blast_radius.md` (blast radius),
+  `.claude/agent-memory/test-architect/issue_206_cellupdate_seam_verification.md` (refined Phase-B gates).
+
+### Phase B implementation note
+The `_run_1d_sweep` body is ~380 lines; relocating it into a method re-indents the whole body + churns
+`sn_mesh`→`self.mesh`. Best done with FRESH context (a 380-line bit-identity-critical move in a bloated
+context is an L16-class error risk). Gate at every step with the strict A-NEW + sweep/core gates.
+
 ## DO NOT
 - Do NOT fold the shared 1-D core into `CumprodScan` — it's shared with `ScanMarch`-1D (build a
   shared frame, mirroring `_OctantWalk`).
