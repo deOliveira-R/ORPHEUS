@@ -2208,9 +2208,9 @@ class _OneDimScanWalk:
         curvature = curvature_raw if curvature_raw is not None else "cartesian"
         if curvature == "cartesian" and not sn_mesh.is_1d:
             raise NotImplementedError(
-                "_compute_LpC_transpose: the multi-D Cartesian adjoint is "
-                "deferred (O.2b lands the 1-D reverse sweep first; the "
-                "multi-D reverse sweep is a later Wave-O sub-step)."
+                "_OneDimScanWalk.loss_action_transpose: the multi-D Cartesian "
+                "adjoint is deferred (O.2b lands the 1-D reverse sweep first; "
+                "the multi-D reverse sweep is a later Wave-O sub-step)."
             )
 
         closure = sn_mesh.pole_angular_closure

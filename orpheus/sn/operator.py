@@ -151,16 +151,15 @@ __all__ = [
     "CollisionOperator",
     "AngularRedistributionOperator",
 ]
-# Wave T T.5 close-out (matvec retirement, post-T.5.2):
-# `_transport_operator_matvec_unified` is DELETED — its body lives
-# as `_MSpatialOperatorSum._compute_decomposition`, a private method
-# on the orchestrator that emits BOTH M_spatial and M_angular_redist
-# contributions in ONE bidirectional sweep (dual emission).  The
-# ψ-keyed cache lets `M_angular_redist.apply` reuse the spatial
-# walk state at zero cost when `StreamingOperator.apply` calls
-# both consumers within the same call boundary.  External consumers
-# of the canonical matvec call `(L + C).apply(state)` via the
-# public operator-algebra path.
+# Wave T T.5 / #206 Phase C: the 1-D matvec walk lives in
+# `_OneDimScanWalk` (orpheus.sn.loss_representation) — both the fused
+# `(L+C)ψ` (`loss_action`) and the `(M_spatial, M_angular_redist)` split
+# (`loss_action_decomposed`) share its `_apply_walk` core (Cardinal Rule 2,
+# one source). `_MSpatialOperatorSum._compute_decomposition` is a thin
+# delegation to `loss_action_decomposed` for the standalone-leaf consumers;
+# the production hot path is `StreamingOperator.apply` → `loss_action`
+# (single emission, no angular store). External consumers call
+# `(L + C).apply(state)` via the public operator-algebra path.
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -345,53 +344,33 @@ class _MSpatialOperatorSum(OperatorSum):
     def _compute_decomposition(
         self, psi: "TimedFullField",
     ) -> tuple["TimedFullField", "TimedFullField"]:
-        r"""Dual-emission single-pass matvec — returns ``(M_spat, M_ang)``.
+        r"""The ``(M_spatial, M_angular_redist)`` split — delegates to the frame.
 
-        Walks the bidirectional sweep ONCE and emits both contributions
-        into separate buffers:
+        #206 Phase C: the walk that emits both contributions LIVES in
+        :meth:`~orpheus.sn.loss_representation._OneDimScanWalk.loss_action_decomposed`
+        (the shared ``_apply_walk`` — the SAME source
+        :meth:`StreamingOperator.apply` uses for the fused ``(L+C)ψ``; Cardinal
+        Rule 2, the former byte-twin dual-emission walk that lived here is GONE).
 
-        * ``M_spat`` carries streaming + collision (i.e. ``(L+C) -
-          M_angular_redist``).  Its boundary carries the face residuals
-          (only the spatial sweep writes face residuals per MA-Q4).
-        * ``M_ang`` carries the curvilinear angular-redistribution
-          contribution (zeros for slab/Cartesian via
-          ``IdentityAngularClosure.cell_contribution``).  Its boundary
-          is zero (M_angular_redist is a BulkOperator per MA-Q4).
+        * ``M_spat`` carries streaming + collision (``(L+C) − M_angular_redist``);
+          its boundary carries the face residuals (only the spatial sweep writes
+          them — MA-Q4).
+        * ``M_ang`` carries the curvilinear Morel–Montry angular redistribution
+          (zero for slab/Cartesian via ``IdentityAngularClosure``); a
+          ``BulkOperator``, so its boundary is zero.
+        * ``M_spat.bulk + M_ang.bulk == (L+C)·ψ.bulk`` by construction
+          (``m_spat = m_full − m_ang`` elementwise — bit-exact on slab where
+          ``m_ang ≡ 0``, ~ULP on curvilinear from the per-cell subtraction).
 
-        Wave T T.5 close-out — replaces ``_transport_operator_matvec_unified``
-        as the canonical single source of truth for the 1-D matvec.
-        The function-level helper retired in this commit; the body
-        lives here as the operator-algebra-native orchestrator.
-
-        Why dual emission in one walk
-        ------------------------------
-
-        The cell-balance algebra is **additive**:
-
-        .. math::
-
-           m_{\rm full} = m_{\rm spatial} + m_{\rm angular}
-
-        where :math:`m_{\rm angular} = (\rm{angular\_denom\_term} \cdot
-        \psi_{\rm cell} - \rm{angular\_numer\_upstream}) / V_i` and
-        :math:`m_{\rm spatial} = m_{\rm full} - m_{\rm angular}` (Pattern 2
-        — single source of truth via ``cell_balance_for_streaming``).
-
-        Computing both in one cell visit costs O(1) extra arithmetic
-        per cell vs the legacy single-emission path.  Without dual
-        emission, the M_spatial / M_angular_redist composition costs
-        ~1.7× (two walks); with dual emission + ψ-keyed cache it
-        costs ~1.0× (matches the legacy shortcut).
-
-        ψ-keyed cache
-        --------------
-
-        ``StreamingOperator.apply`` calls ``M_spatial.apply(ψ)`` then
-        ``M_angular_redist.apply(ψ)`` on the SAME ψ.  The first call
-        populates the cache; the second hits it and returns the
-        precomputed pair without re-walking.  ``id(ψ)`` is the cache
-        key — sufficient because ``TimedFullField`` is value-immutable
-        within the bounds of one ``StreamingOperator.apply`` call.
+        **No cache.** An earlier docstring described a ψ-keyed cache letting the
+        second consumer reuse the first's walk — it was never implemented. Each
+        of the THREE consumers (:meth:`_SpatialSweepDirection.apply`,
+        :meth:`apply` on the parent ``_MSpatialOperatorSum``,
+        :meth:`AngularRedistributionOperator.apply`) re-walks. This is NOT the
+        production hot path: ``StreamingOperator.apply`` uses the fused
+        single-emission ``loss_action`` (``emit_angular=False`` — no angular
+        store) and never calls this; the split serves only the standalone
+        ``M_spatial`` / ``M_angular_redist`` leaves.
 
         Parameters
         ----------
@@ -401,11 +380,7 @@ class _MSpatialOperatorSum(OperatorSum):
         Returns
         -------
         (M_spatial_result, M_angular_redist_result) : tuple of TimedFullField
-            Both carry the same ``history_depth`` and SNMesh as ``psi``.
-            ``M_spat.bulk + M_ang.bulk == (L+C)·ψ.bulk`` bit-exact (the
-            decomposition unwinds via the additive cell-balance algebra,
-            modulo a per-cell FP subtraction that introduces ~ULP
-            drift on the slab path).
+            Both carry ``psi``'s ``history_depth`` and SNMesh.
         """
         from .loss_representation import _OneDimScanWalk
 
@@ -469,12 +444,13 @@ class _MSpatialOperatorSum(OperatorSum):
     def apply(self, psi: "TimedFullField") -> "TimedFullField":
         r"""Orchestrated apply — returns the spatial part of the decomposition.
 
-        Wave T T.5 close-out (matvec retirement): delegates to
-        :meth:`_compute_decomposition` which walks the bidirectional
-        sweep ONCE and emits both M_spatial and M_angular_redist
-        contributions.  The ψ-keyed cache lets
-        ``StreamingOperator.apply``'s subsequent ``M_angular_redist.apply(ψ)``
-        call reuse the walk state at zero cost.
+        #206 Phase C: delegates to :meth:`_compute_decomposition`, which routes
+        through ``_OneDimScanWalk.loss_action_decomposed`` (the shared
+        ``_apply_walk``) and returns ``(M_spatial, M_angular_redist)``; this
+        method keeps only the spatial half.  There is NO cache — a sibling
+        ``M_angular_redist.apply(ψ)`` re-walks (these standalone leaves are not
+        the production hot path; ``StreamingOperator.apply`` uses the fused
+        single-emission ``loss_action``).
 
         For slab: ``M_spatial.apply(ψ) == (L+C)·ψ`` bit-exact because
         the slab cell-balance has zero angular contribution
@@ -952,13 +928,12 @@ class StreamingOperator(LinearOperatorMixin):
         """
         if getattr(self.sn_mesh, "curvature", None) is None:
             return ZeroOperator()
-        # T.4c — curvilinear: bespoke AngularRedistributionOperator
-        # leaf.  Wave T T.5 close-out (matvec retirement): the leaf
-        # now takes a reference to `self.M_spatial` so its `.apply`
-        # can hit the ψ-keyed dual-emission cache populated by the
-        # spatial walk, sharing state at zero cost when
-        # `StreamingOperator.apply` calls both `M_spatial.apply` and
-        # `M_angular_redist.apply` within the same call boundary.
+        # T.4c — curvilinear: bespoke AngularRedistributionOperator leaf.
+        # It holds a reference to `self.M_spatial` so its `.apply` can call
+        # `M_spatial._compute_decomposition(ψ)` and read the M_ang half (the
+        # split's single source — #206 Phase C; the walk lives in
+        # `_OneDimScanWalk._apply_walk`). No cache: each leaf re-walks (these
+        # standalone leaves are not the production hot path).
         return AngularRedistributionOperator(
             sn_mesh=self.sn_mesh,
             sigma_t=self.sigma_t,
