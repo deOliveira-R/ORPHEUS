@@ -270,7 +270,7 @@ scan" (this is *legitimate* d-specificity by the algorithm's nature,
 not a narrow crutch). The geometry difference (slab vs sphere vs
 cylinder) is absorbed by the two-stratum sweep cache, so all three
 geometries share **one body**
-(:func:`~orpheus.sn.loss_representation._sweep_1d_unified` →
+(:meth:`~orpheus.sn.loss_representation._OneDimScanWalk.sweep` →
 :func:`~orpheus.sn.spatial.scan.ordinate_scan`); the curvilinear
 Morel–Montry angular redistribution folds into the scan's affine
 source. The recurrence and its closed-form cumprod/cumsum solution are

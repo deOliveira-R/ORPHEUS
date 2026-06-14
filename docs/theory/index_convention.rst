@@ -1173,7 +1173,7 @@ Three array shapes that look like exceptions but are not:
   ``ny=1`` singleton is preserved at the public-API surface, but
   internal 1-D primitives work on ``(ng, nx)`` for clarity.
 - The 1-D scratch buffer ``Q_p = Q[:, :, 0]`` in
-  :func:`_sweep_1d_unified` is a zero-copy view of the public
+  :meth:`._OneDimScanWalk.sweep` is a zero-copy view of the public
   ``(ng, nx, ny)`` source.  No layout decision is made here ---
   it's a slice of the principled storage.
 
@@ -1419,7 +1419,7 @@ uses the same numpy expression as its 2-D counterpart.  Squeezing
 ``ny`` would force per-dimension branching in every consumer.
 
 **The single exception** is the per-cell cross-section slice in
-:func:`_sweep_1d_unified`: ``sig_t_1d = sig_t[:, :, 0]`` strips the
+:meth:`._OneDimScanWalk.sweep`: ``sig_t_1d = sig_t[:, :, 0]`` strips the
 trailing axis for the cache primitive's ``(ng, nx)`` contract.
 This is a localised slice, not a layout decision; the result is
 re-broadcast to ``ny=1`` at the sweep's public-API exit.

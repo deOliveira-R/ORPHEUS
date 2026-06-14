@@ -73,7 +73,7 @@ make the curvilinear formula degenerate to the slab form:
 With these values the curvilinear ``denom`` collapses to ``2|μ| + σ_t·V``
 (the slab form), ``a = 2·2|μ|/denom - 1 = (2|μ| - σ_t·V)/(2|μ| + σ_t·V)``,
 and ``b = 2·q/denom``.  The same three tensor ops in
-:func:`~orpheus.sn.loss_representation._sweep_1d_unified` drive slab, sphere, and cylinder.
+:meth:`~orpheus.sn.loss_representation._OneDimScanWalk.sweep` drive slab, sphere, and cylinder.
 
 Pattern 2 anchor — single source of truth
 =========================================

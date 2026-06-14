@@ -393,3 +393,65 @@ class TestDefaultCellUpdate:
         sn_mesh = SNMesh(mesh, quad, placeholder_materials(), cell_update=custom)
         if sn_mesh.cell_update is not custom:
             pytest.fail("explicit cell_update was not stored on the mesh")
+
+
+@pytest.mark.foundation
+class TestOneDimScanWalkFrame:
+    """#206 Phase B: the 1-D sweep is OWNED by ``_OneDimScanWalk`` — the 1-D
+    analogue of ``_OctantWalk`` — shared by ``CumprodScan.sweep`` and the
+    ``ScanMarch`` 1-D branch (the former module-level helpers
+    ``_sweep_1d_unified`` / ``_run_1d_sweep`` / ``_ensure_*_cache`` were
+    relocated into it, bit-identical).
+    """
+
+    def test_frame_resolves_as_frozen_mesh_holder(self):
+        """[foundation] The frame resolves from its new home and is a frozen
+        ``mesh``-only dataclass (mirrors ``_OctantWalk``)."""
+        import dataclasses
+
+        from orpheus.sn.loss_representation import _OneDimScanWalk
+
+        if not dataclasses.is_dataclass(_OneDimScanWalk):
+            pytest.fail("_OneDimScanWalk must be a dataclass (mirror _OctantWalk)")
+        names = [f.name for f in dataclasses.fields(_OneDimScanWalk)]
+        if names != ["mesh"]:
+            pytest.fail(
+                f"_OneDimScanWalk fields must be exactly ['mesh'] (a frozen frame "
+                f"holding only the mesh, like _OctantWalk); got {names}"
+            )
+        if not _OneDimScanWalk.__dataclass_params__.frozen:  # type: ignore[attr-defined]
+            pytest.fail("_OneDimScanWalk must be frozen (immutable frame)")
+
+    def test_frame_is_kernel_parameterized_not_boolean(self):
+        """[foundation] ``_OneDimScanWalk`` forks at the geometry branch (and,
+        in Phase C, a kernel object), NEVER a boolean ``is_solve``/``is_apply``
+        flag (coding-elegance Smell #3).  This is the twin-path tripwire that
+        guards ``_OctantWalk`` (``test_one_octant_walk``), applied to the 1-D
+        frame so the Phase-C matvec attachment cannot degrade into a flag.
+        AST identifiers only (docstrings naming the anti-pattern don't trip it);
+        ``-O``-safe.
+        """
+        import ast
+        import inspect
+        import textwrap
+
+        from orpheus.sn.loss_representation import _OneDimScanWalk
+
+        smells = {"is_solve", "is_apply", "is_matvec"}
+        tree = ast.parse(textwrap.dedent(inspect.getsource(_OneDimScanWalk)))
+        identifiers = {
+            node.id for node in ast.walk(tree) if isinstance(node, ast.Name)
+        } | {
+            node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute)
+        } | {
+            node.arg for node in ast.walk(tree)
+            if isinstance(node, (ast.arg, ast.keyword)) and node.arg is not None
+        }
+        offenders = sorted(identifiers & smells)
+        if offenders:
+            pytest.fail(
+                f"_OneDimScanWalk carries boolean direction flag(s) {offenders} — "
+                "the 1-D carve degraded into the boolean-flag anti-pattern "
+                "(coding-elegance Smell #3). The cell operation MUST attach as a "
+                "kernel OBJECT/callable (Phase C), not a flag."
+            )

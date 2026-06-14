@@ -38,7 +38,7 @@ ops.  No Python loop over cells.
 
 The function is a **free function**, not a method on a class or on
 the :class:`CellUpdate` Protocol.  The 1-D sweep
-(:func:`~orpheus.sn.loss_representation._sweep_1d_unified`) CONSUMES ``ordinate_scan``
+(:meth:`~orpheus.sn.loss_representation._OneDimScanWalk.sweep`) CONSUMES ``ordinate_scan``
 on the cache's ``a_attenuation`` + the per-iteration ``b`` vector
 (Step 2.5c).
 

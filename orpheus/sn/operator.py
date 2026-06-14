@@ -1113,7 +1113,7 @@ class _MSpatialOperatorSum(OperatorSum):
         Notes
         -----
         Future leverage opportunity (post-T.5 cache-unification
-        micro-wave): :func:`~orpheus.sn.loss_representation._ensure_coll_cache` and
+        micro-wave): :meth:`~orpheus.sn.loss_representation._OneDimScanWalk._ensure_coll_cache` and
         :class:`~orpheus.sn.solver.SNSolver` would route through this
         method as the canonical cache-construction path, making
         M_spatial the single source of truth for its own inverse
