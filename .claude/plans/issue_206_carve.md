@@ -233,13 +233,40 @@ Per-phase: qa + elegance-enforcer; `python -m tests._harness.audit` exit 0; Sphi
 - `orpheus/sn/spatial/cell_balance.py:120` — `cell_balance_for_streaming` (multi-consumer, KEEP).
 - New: the shared 1-D-scan frame (Phase B); A-NEW baseline test under `tests/sn/sweep/core/`.
 
-## ⭐ PHASE A DONE + Phase B design (2026-06-14, post specialist plans)
+## ⭐ PHASE A + B DONE — Phase C is NEXT (2026-06-14, post specialist plans)
 
 **Phase A COMPLETE + committed** (`refactor/sn-cellupdate-seam-slab`, 8 commits `3ca8562`→`f61e1b0`):
 the diamond face closure is single-sourced through the `cell_update` seam across CumprodScan +
 ScanMarch-1D + ScanMarch-2D + matvec. A2-denom FOLDED INTO Phase C (user decision). Curvilinear
 sweep closure landed in A1. scan.py carries ZERO inline diamond arithmetic. Gates: A-NEW strict 6,
 sweep/core 443, recipe2 70, recipe3 65, 2-D gate 102 — all strict where escalation works; elegance PASS×2.
+
+**Phase B COMPLETE + committed** (`1facf96` refactor + `8faa08c` elegance + `9b1f316` matrix regen):
+the 1-D sweep free helpers (`_sweep_1d_unified`/`_run_1d_sweep`/`_ensure_*_cache`) RELOCATED into
+`_OneDimScanWalk` (`@dataclass(frozen=True) mesh`, the 1-D analogue of `_OctantWalk`). `_sweep_1d_unified`
+→`.sweep`, `_run_1d_sweep`→`._run`, cache ensures→methods; `_initial_guess_values` KEPT module-level.
+2 prod callers route through `_OneDimScanWalk(self.mesh).sweep(...)`. SOLVE-only (fork at GEOMETRY
+`is_slab`, NOT solve/apply; matvec stays on operator). B2 gate `TestOneDimScanWalkFrame` (frozen
+mesh-holder + no-`is_solve` AST tripwire). PURE RELOCATION → bit-identical: A-NEW strict 6,
+sweep/core+affine_carve strict 446 (=baseline), regression drift-profile reproduced byte-for-byte
+(12 DriftWarnings, identical ULP), dispatch+B2 14; elegance PASS-WITH-NITS (both nits fixed: 3
+theory-doc xrefs + 4 blank lines); Sphinx exit 0 no new warnings (Nexus graph REFRESHED to branch);
+audit exit 0. ⚠ test-architect FINDING 1 persists: `-W error::DriftWarning` is INERT in
+`tests/sn/regression/` (conftest forces `always`) — the strict gate is sweep/core+solve, regression
+is tolerance-only.
+
+**⏭ PHASE C (NEXT — the highest-risk phase, the four-leg standoff):** move the 1-D matvec OFF the
+operator (`_MSpatialOperatorSum._compute_LpC`/`_compute_LpC_transpose`) INTO `_OneDimScanWalk` as the
+APPLY-direction kernel, + fold the A2-denom (`affine_scan_coefficients`). The explorer's "real Phase-C
+design question": the matvec is a per-cell recurrence on a SEPARATE object — Phase C must re-express
+it as the α=−1,β=2ψ̄ scan (via `_x_scan_faces`) AND unify with `M_spatial`'s spatial sum, then
+`apply = loss_action(ψ) − σ_t·ψ` (Resolution-A, the only operator glue). PRESERVE: `_compute_decomposition`'s
+3 consumers (M_spatial/M_angular_redist split), `closure.angular_adjoint` (transpose), the Carlson seed
+via `pole_angular_closure`, the degenerate-cylinder branch. START Phase C with: test-architect
+(four-leg standoff plan) + explorer (apply-kernel unification design) dispatches — proactive triggers
+for a high-risk operator-algebra carve crossing the operator↔loss_representation boundary. Likely
+principled-equiv (nULP) on the denom, bit-identical on the closure (per "Key facts" #4). Best done
+with FRESH context (correctness-critical).
 
 ### ⚠ test-architect FINDING 1 — `-W error::DriftWarning` is INERT in `tests/sn/regression/`
 `tests/sn/regression/conftest.py:25` forces `always::...DriftWarning`, OVERRIDING the CLI `-W error`.
