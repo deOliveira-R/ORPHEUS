@@ -74,7 +74,12 @@ References
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
+
+if TYPE_CHECKING:
+    from .cell_update import CellUpdateBase
 
 
 def ordinate_scan(
@@ -313,21 +318,25 @@ def _scanmarch_row(
     psi_x_in: np.ndarray,
     psi_y_in: np.ndarray,
     x_reverse: bool,
+    cell_update: CellUpdateBase,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     r"""One y-row of the forward scan-march: x-scan, then recover :math:`\bar\psi`,
     the downstream y-face, and the domain x-outflow.
 
     Solves the in-row x-face recurrence via :func:`_x_scan_faces` (the *solve*
     coefficients ``α = 2 s_x/D − 1``, ``β = 2 (Q + s_y ψ_{y,in})/D``), then
-    closes the diamond-difference cell with :math:`\bar\psi = \tfrac12
-    (\mathrm{in}_x + \mathrm{out}_x)` and :math:`\mathrm{out}_y = 2\bar\psi -
-    \psi_{y,\mathrm{in}}`.
+    closes the diamond cell through the ``cell_update`` seam (#206 A — the
+    diamond closure lives in ONE place, shared with the 1-D sweep + the
+    matvec twin): :math:`\bar\psi = \tfrac12 (\mathrm{in}_x + \mathrm{out}_x)`
+    via :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.cell_average_from_faces`
+    and :math:`\mathrm{out}_y = 2\bar\psi - \psi_{y,\mathrm{in}}` via
+    :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.outgoing_face_from_average`.
 
     Returns ``(psi_avg, out_y, x_outflow)`` — the cell average and the
     downstream y-face (the next row's ``psi_y_in``) in mesh order, and the
     domain x-outflow face value.
     """
     in_x, out_x, x_outflow = _x_scan_faces(alpha, beta, psi_x_in, x_reverse)
-    psi_avg = 0.5 * (in_x + out_x)
-    out_y = 2.0 * psi_avg - psi_y_in
+    psi_avg = cell_update.cell_average_from_faces(in_x, out_x)
+    out_y = cell_update.outgoing_face_from_average(psi_avg, psi_y_in)
     return psi_avg, out_y, x_outflow

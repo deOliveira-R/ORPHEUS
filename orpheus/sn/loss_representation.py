@@ -1314,6 +1314,7 @@ class ScanMarch(_LossRepresentation):
             )
             psi_avg_row, out_y, x_outflow = _scanmarch_row(
                 alpha, beta, inflow_x[:, :, j], psi_y_in, x_reverse,
+                self.mesh.cell_update,
             )
             psi_y_in = out_y
             capture_x[:, :, j] = x_outflow
@@ -1419,7 +1420,9 @@ class ScanMarch(_LossRepresentation):
                 - s_x[:, None, :] * in_x_row
                 - s_y[:, j][:, None, None] * psi_y_in
             )
-            out_y = 2.0 * psi_bar_row - psi_y_in
+            out_y = self.mesh.cell_update.outgoing_face_from_average(
+                psi_bar_row, psi_y_in
+            )
             psi_y_in = out_y
             cap_x[:, :, j] = x_outflow
         return LpC_oct, (cap_x, out_y)
