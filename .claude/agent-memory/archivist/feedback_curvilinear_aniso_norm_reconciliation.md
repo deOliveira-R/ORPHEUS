@@ -93,17 +93,45 @@ W2 gate. Baseline + final both = **1 warning** (pre-existing `paramref`).
   `:ref:` cross-link). This is the safe way to collapse a .py↔.rst dup
   label without an automodule.
 
-## FLAG raised (reported to main agent)
+## FLAG raised (reported to main agent) — CLOSED by #234 (Tier 0)
 
 The `[Bailey2009]` bibliography entry in discrete_ordinates.rst CONFLATES
 two papers: it carries the Bailey-Adams-Yang-Zika *title* (diffusion-FE,
 unrelated) but attributes the curvilinear SN Eq.50/74 to it. The real
 source is Bailey-Morel-Chang 2010 (Eq.43 = the exact-on-linear M-M
-weight). I added a corrected `[BaileyMorelChang2010]` entry + a
-`.. warning::` on `[Bailey2009]` recommending body cites migrate. Did NOT
-blanket-rewrite the 6+ `[Bailey2009]_` body cites (out of W5 scope;
-flagged for a follow-up). The .py docstring's References already had this
-correction noted — the bib entry just hadn't caught up.
+weight). W5 added a corrected `[BaileyMorelChang2010]` entry + a
+`.. warning::` on `[Bailey2009]` recommending body cites migrate, but did
+NOT blanket-rewrite the body cites (out of W5 scope).
+
+**#234 (branch `docs/bailey-bib-migration`) closed this loop.** Migrated
+ALL `[Bailey2009]_` → `[BaileyMorelChang2010]_` (9 body cites in
+discrete_ordinates.rst + 1 in index_convention.rst + 2 docstrings:
+`mms/sn.py`, `test_sn_mms_anisotropic_symbolic.py`), deleted the orphaned
+`[Bailey2009]` entry + its nested warning, dropped the stale Key Facts
+parenthetical, KEPT the `bib-bailey-morel-chang-2010` anchor. Final grep
+= zero `Bailey2009` in source; `-E` build = 1 warning (the same pre-existing
+`mesh.py` paramref ERROR — baseline unchanged), zero citation/ref warnings.
+
+**Equation-number discipline (the load-bearing correctness call):** the
+old Bailey-2009 eq numbers (Eq.50/7-10/41/53-55/74) are from the WRONG
+paper and DON'T map to B-M-C 2010. Decisions: M-M weight/τ → **Eq. 43**
+(confidently — matches the existing W5 `:6677/:6688/:7204` convention);
+all α-recursion numbers → **generalized** ("the curvilinear α-recursion",
+drop number); bare cites → straight migrate. **β contamination factor →
+GENERALIZED** (dropped the old Eq.41): the brief GUESSED "B-M-C Eq.41-42"
+but I could NOT confirm a B-M-C number for β (the W5 sections cite τ=Eq.43,
+NOT β), so per the caveat I dropped the spurious number rather than assert
+an unconfirmed one. **Flag for spot-check: if you have B-M-C 2010 open,
+β's actual eq number could be re-added.**
+
+**Cross-doc citation mechanism confirmed:** `index_convention.rst` has its
+OWN `References` section + local bib entries (`[Blelloch1990]`,
+`[Brent1974]`) but `[LewisMiller1984]`/`[AdamsLarsen2002]`/`[Bailey2009]`/
+`[BaileyMorelChang2010]` are ALL defined ONLY in discrete_ordinates.rst.
+docutils/Sphinx citations resolve PROJECT-WIDE → index_convention already
+relied on cross-doc resolution for the migrated key; NO local entry needed.
+The .py/test docstrings are NOT automodule'd → their `[...]_` cites are
+NOT rendered (no undefined-citation warning), kept for human reading.
 
 Cross-ref: [[feedback_err058_success_closeout_supersedes_phase_chain]]
 (the #195 close-out this builds on), [[feedback_issue_196_eigenvalue_verification_closeout]]

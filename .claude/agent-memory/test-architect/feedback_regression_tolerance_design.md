@@ -46,10 +46,33 @@ over a since-fixed bug. The principled gate IS the claim. Implemented at
   pytest surfaces every occurrence in the summary (not once-per-location).
 - DEMONSTRATE both tripwire modes: informational (test passes, warning
   in summary on a +3 ULP perturbation) AND escalated (`-W error::...`
-  → hard FAIL on the same perturbation). A freshly-regenerated snapshot
-  is bit-identical to the current solver, so DriftWarning is dormant in
-  the real suite — the drift only appears cross-run / cross-machine; the
-  demo perturbation is how you prove the tripwire works.
+  → hard FAIL on the same perturbation). The demo perturbation is how you
+  prove the tripwire works.
+
+**⭐ CARVE-VERIFICATION COROLLARY (#236 §2, 2026-06-13): an ITERATED
+end-to-end snapshot CANNOT serve as the bit-identity gate for a
+"zero-numerical-change" refactor — descend to a single-step DIRECT
+snapshot.** MEASURED on clean `main` (no carve): the committed iterated DD
+snapshots (`test_dd_regression.py`) ALREADY drift under `-W
+error::DriftWarning` (e.g. `cyl_1g_homogeneous` 272005 ULP / 3.56e-11 rel;
+`sphere_2g_homog` 30580 ULP) — cross-run/cross-machine iterative FP jitter
+against the frozen `.npz`. So the prior "DriftWarning is dormant in the
+real suite" claim is FALSE for iterated cases (it holds only same-run
+same-machine). CONSEQUENCE for a carve that must prove DD didn't move: the
+`SAFETY×conv_tol` iterated gate stays green either way (too loose to
+witness bit-identity), and `-W error::DriftWarning` is noisy. The
+bit-identity PROOF must live where there is NO outer iteration — a
+single-sweep / single-matvec snapshot on a fixed-seed RANDOM ψ (het, ≥2g,
+non-zero inflow → activates the curvilinear redistribution; flat ψ nulls
+it), captured pre-carve via the root-conftest `--capture-baseline` flag
+(`tests/conftest.py:42`, the Wave-O `test_bc_extraction_matvec.py`
+mechanism), asserted `np.testing.assert_array_equal` (rtol=0) post-carve;
+the only legitimate drift is `reduction_depth × ULP` (→ `kind="direct"`,
+`nulp=nx`, WITH the 3-criteria note if the fold order shifts). Pair the
+snapshot ("did not move a bit") with a closed-form `(diagΣ_t−Σ_s0ᵀ)⁻¹Q`
+anchor ("value is correct") — vv §bit-identity criterion 2.
 
 See [[eigen-on-nonfissile-mixture-is-malformed]] for the snapshot-regen
-guard that surfaced alongside this.
+guard that surfaced alongside this; [[snapshot-migration-when-production-goes-bare]]
+for the broader "schema = persisted∩compared + vacuum-bit-id correctness
+gate" recipe.
