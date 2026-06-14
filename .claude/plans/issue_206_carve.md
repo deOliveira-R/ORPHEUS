@@ -32,7 +32,12 @@ the two memos (below) before touching code.
   gate `CumprodScan`/`ScanMarch.supports` on `is_affine_scannable`. ⚠ line numbers DRIFTED from the
   issue text — re-grep the closure sites; the audit's numbers in this file were current at `eab05ab`.
 - **Pre-existing reds (NOT ours — route around, do not fix here):** `test_sphere_{1g,2g}_apply_bit_identical`
-  (stale post-ERR-058) + #212 `test_keff_slab::test_heterogeneous_absolute_keff` hang. See the gate recipe.
+  (stale post-ERR-058) + **`TestVacuumMatvecBitIdentity::test_vacuum_bulk_bit_identical_1d[*-SPH]`**
+  (3 seeds; the SAME stale-sphere-snapshot class — the committed `bc_extraction_baseline/` sphere `.npz`
+  predates the ERR-058 closure-seed fix; PROVEN pre-existing 2026-06-14: `_compute_LpC`/the matvec denom
+  helper/the `.npz` are byte-identical `eab05ab`→foundation, and `test_g_adjoint_reciprocity[SPH]` +
+  `test_phase_c_crosscheck` sphere-kinf PASS → current sphere matvec is CORRECT, the `.npz` is stale)
+  + #212 `test_keff_slab::test_heterogeneous_absolute_keff` hang. See the gate recipe.
 - **NEVER `git add`:** `.claude/plans/r1_phase_a_dim_agnostic_ultraplan.md`,
   `derivations/diagnostics/diag_s69_scanmarch_vs_window_bench.py`, `scratch/literature/`, `docs/_build/`.
   Stage explicit paths only. Commit trailer: `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
@@ -185,22 +190,31 @@ bit-identical (whole 1-D suite under `-W error::DriftWarning`).
   non-flat. `test_affine_carve_bit_identity::si_slab_2g_het` (sha256 anchor) + a sphere aniso companion.
 
 **Gate-run recipe** (route around pre-existing reds — confirmed NOT ours):
+⚠ `DriftWarning` MUST use the QUALIFIED path — bare `error::DriftWarning` raises
+`AttributeError: module 'builtins' has no attribute 'DriftWarning'` (pytest can't resolve it).
 1. Phase A/B strict bit-id (1-D, -O): `pytest -O tests/sn/regression tests/sn/sweep
-   tests/sn/solve/test_affine_carve_bit_identity.py -W error::DriftWarning
-   -k "not (sphere_1g_apply or sphere_2g_apply)"`
+   tests/sn/solve/test_affine_carve_bit_identity.py
+   -W "error::tests.sn.regression._regression_assert.DriftWarning"
+   -k "not (sphere_1g_apply or sphere_2g_apply)"`  (now ALSO runs the A-NEW gate
+   `tests/sn/sweep/core/test_affine_carve_baseline.py`)
 2. A/B+C value (1-D, -O): `pytest -O tests/sn/verification/analytical/test_phase_c_crosscheck.py
    tests/sn/operators/test_g_adjoint_reciprocity.py
    tests/sn/operators/test_loss_action_convention.py
    tests/sn/operators/test_streaming_operator_decomposition.py
-   tests/sn/operators/test_bc_extraction_matvec.py`
+   tests/sn/operators/test_bc_extraction_matvec.py
+   -k "not (vacuum_bulk_bit_identical_1d and SPH)"`  ⟵ routes around the stale sphere `.npz`
 3. Mode-8 bare-assert gates (NO -O):
    `pytest tests/sn/operators/test_streaming_operator.py
    "tests/sn/operators/test_bc_extraction_matvec.py::TestStreamingEquilibriumValue"
    -k "not (sphere_1g_apply or sphere_2g_apply)"`
 4. `--deselect tests/sn/eigenvalue/test_keff_slab.py::test_heterogeneous_absolute_keff` (#212 hang).
 
-**Pre-existing reds (NOT this carve; stash-confirmed on clean HEAD):**
-`test_sphere_{1g,2g}_apply_bit_identical` (stale post-ERR-058 #195) + #212 het-keff hang.
+**Pre-existing reds (NOT this carve; PROVEN pre-existing at `eab05ab` 2026-06-14):**
+`test_sphere_{1g,2g}_apply_bit_identical` + `TestVacuumMatvecBitIdentity::test_vacuum_bulk_bit_identical_1d[*-SPH]`
+(BOTH stale post-ERR-058 #195 sphere snapshots — current sphere matvec is CORRECT per the passing
+`test_g_adjoint_reciprocity[SPH]` + `test_phase_c_crosscheck` references; the committed `.npz` baselines
+are the stale party, a #195 re-capture task, NOT this carve) + #212 het-keff hang.
+FOUNDATION baseline (recipes, 2026-06-14): recipe 2 = 70 pass / 3 SPH-stale fail / 3 skip; recipe 3 = 65 pass.
 Per-phase: qa + elegance-enforcer; `python -m tests._harness.audit` exit 0; Sphinx clean.
 
 ---
