@@ -746,14 +746,14 @@ class CumprodScan(_LossRepresentation):
     ) -> "TimedFullField":
         r"""1-D adjoint loss action ``(L+C)ᵀφ`` — the reverse spatial sum.
 
-        S6.3: returns ``(L+C)ᵀφ`` (the operator subtracts ``C`` in
-        :meth:`apply_transpose`).  ``operator.M_spatial._compute_LpC_transpose``
-        carries the curvilinear angular SECOND triangular factor
-        (``closure.angular_adjoint``) — so the spatial reverse NEVER silently
-        drops the angular adjoint (pinned by ``test_g_adjoint_reciprocity``
-        sphere/cyl, -O-firing since S6.3a).
+        S6.3 / #206 Phase C: returns ``(L+C)ᵀφ`` (the operator subtracts ``C`` in
+        :meth:`apply_transpose`).  The transpose walk LIVES in
+        :meth:`._OneDimScanWalk.loss_action_transpose`, which carries the
+        curvilinear angular SECOND triangular factor (``closure.angular_adjoint``)
+        — so the spatial reverse NEVER silently drops the angular adjoint
+        (pinned by ``test_g_adjoint_reciprocity`` sphere/cyl, -O-firing).
         """
-        return operator.M_spatial._compute_LpC_transpose(phi)
+        return _OneDimScanWalk(self.mesh).loss_action_transpose(operator, phi)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1434,7 +1434,8 @@ class ScanMarch(_LossRepresentation):
     ) -> "TimedFullField":
         """Adjoint loss action — 1-D wired ``(L+C)ᵀφ``; multi-D Cartesian deferred."""
         if self.mesh.is_1d:
-            return operator.M_spatial._compute_LpC_transpose(phi)
+            # #206 Phase C: the 1-D transpose walk lives in _OneDimScanWalk.
+            return _OneDimScanWalk(self.mesh).loss_action_transpose(operator, phi)
         raise NotImplementedError(
             "ScanMarch.loss_action_transpose: the multi-D Cartesian adjoint is "
             "deferred (O.2b lands the 1-D reverse sweep first; the multi-D "
@@ -2057,6 +2058,189 @@ class _OneDimScanWalk:
             boundary=m_boundary,
             _history=(),
             history_depth=psi.history_depth,
+        )
+
+    def loss_action_transpose(
+        self, operator: "StreamingOperator", phi: "TimedFullField",
+    ) -> "TimedFullField":
+        r"""1-D adjoint loss action ``(L+C)ᵀφ`` — the matvec transpose.
+
+        #206 Phase C: the reverse-mode adjoint of :meth:`loss_action`,
+        relocated verbatim off ``_MSpatialOperatorSum._compute_LpC_transpose``
+        (Wave O / O.2b, #208). The forward matvec is a forward-substitution
+        sweep (lower-triangular in cell-visit order, with the Morel–Montry
+        angular recurrence + Carlson pole seed forming a SECOND triangular
+        factor in the ordinate index); its Euclidean transpose is the
+        reverse-substitution sweep:
+
+        * reversed cell traversal (the DD face-flux chain
+          ``ψ_face_in ← 2·ψ_cell − ψ_face_in`` transposed);
+        * the boundary block SWAPPED — the forward FULL operator reads the
+          inflow trace and writes the outflow trace, so the transpose reads
+          OUTFLOW cotangents and writes INFLOW cotangents;
+        * the angular factor reversed, delegated to ``closure.angular_adjoint``
+          (zero for the slab identity closure) — NEVER re-inlined; the
+          Carlson coupled-pole seed adjoint routes through the mirror
+          permutation.
+
+        Every coefficient is ψ-independent (geometry + σ_t): ``denom`` is
+        recomputed through the SAME ``cell_balance_for_streaming`` /
+        ``cell_contribution`` the forward uses (Pattern 2 — no twin algebra).
+        Returns ``(L+C)ᵀφ``;
+        :meth:`~orpheus.sn.operator.StreamingOperator.apply_transpose`
+        subtracts ``σ_t·φ`` ONCE (Resolution A, ``C`` a self-adjoint diagonal).
+        Pinned by the G-adjoint reciprocity gate ``test_g_adjoint_reciprocity``
+        (slab / sphere / cylinder, -O-firing) + its L11 wrong-trace-metric
+        negative control.
+        """
+        from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
+        from orpheus.transport.timed_full_field import TimedFullField
+        from .spatial.cell_balance import cell_balance_for_streaming
+
+        sn_mesh = self.mesh
+        quad = sn_mesh.quad
+        N = quad.N
+        ng = phi.bulk.values.shape[1]
+        nx = sn_mesh.nx
+        eps = 1e-15
+        curvature_raw = getattr(sn_mesh, "curvature", None)
+        curvature = curvature_raw if curvature_raw is not None else "cartesian"
+        if curvature == "cartesian" and not sn_mesh.is_1d:
+            raise NotImplementedError(
+                "_compute_LpC_transpose: the multi-D Cartesian adjoint is "
+                "deferred (O.2b lands the 1-D reverse sweep first; the "
+                "multi-D reverse sweep is a later Wave-O sub-step)."
+            )
+
+        closure = sn_mesh.pole_angular_closure
+        mu_x = quad.mu_x
+        # Mirror-ordinate permutation for the coupled-pole seed adjoint
+        # (curvilinear only; cheap to build unconditionally).
+        mirror = quad.reflection_index("x")
+        A = sn_mesh.areas
+        V = sn_mesh.volumes
+        sgx = operator.sigma_t                       # (ng, nx)
+        trace = sn_mesh.trace
+        has_inner_face = "xmin" in phi.boundary.layout.faces
+
+        out_bar = phi.bulk.values.swapaxes(0, 1)   # (ng, N, nx)
+        fo = phi.boundary.face_view("xmax")                       # (N, ng)
+        fi = phi.boundary.face_view("xmin") if has_inner_face else None
+
+        psi_bar = np.zeros((ng, N, nx))
+        fo_bar = np.zeros((N, ng))
+        fi_bar = np.zeros((N, ng)) if has_inner_face else None
+        numer_bar = [
+            np.zeros((ng, np.asarray(li).size, nx))
+            for li in closure.level_indices
+        ]
+
+        # ── reverse the boundary writeback (mirror _compute_LpC m_boundary) ──
+        # m.outflow = (swept outflow) − ψ.outflow;  m.inflow = ψ.inflow.
+        outflow_boundary_bar = np.zeros((ng, N))    # +1 sweep outflow → xmax
+        outflow_inner_bar = np.zeros((ng, N))       # −1 sweep outflow → xmin (slab); pole-discarded (curv)
+        oo = trace.outflow_indices_for_face("xmax")
+        oi = trace.inflow_indices_for_face("xmax")
+        if oo.size:
+            outflow_boundary_bar[:, oo] += fo[oo].T
+            fo_bar[oo] += -fo[oo]
+        if oi.size:
+            fo_bar[oi] += fo[oi]
+        if has_inner_face:
+            io = trace.outflow_indices_for_face("xmin")
+            ii = trace.inflow_indices_for_face("xmin")
+            if io.size:
+                outflow_inner_bar[:, io] += fi[io].T
+                fi_bar[io] += -fi[io]
+            if ii.size:
+                fi_bar[ii] += fi[ii]
+
+        # ── ψ-independent angular_denom_term source (dummy state) ──
+        psi_state_coef = closure.precompute_psi_state(
+            np.zeros((N, ng, nx)),
+            sigma_t=sgx,
+            bc_outer_inflow_estimate=np.zeros((N, ng)),
+        )
+
+        # ── reverse the spatial DD sweeps (both directions, per level) ──
+        for p, level_idx in enumerate(closure.level_indices):
+            level_idx = np.asarray(level_idx)
+            mu_level = mu_x[level_idx]
+            for s in (+1, -1):
+                within = np.where(
+                    mu_level > +eps if s > 0 else mu_level < -eps
+                )[0]
+                if within.size == 0:
+                    continue
+                gd = level_idx[within]
+                abs_mu = np.abs(mu_x[gd])
+                cells = list(sn_mesh.dag_walk_cell_indices(
+                    direction_sign=s, mu_level_idx=p,
+                ))
+                if not cells:
+                    continue
+                f_bar = (
+                    outflow_boundary_bar[:, gd] if s > 0
+                    else outflow_inner_bar[:, gd]
+                ).copy()
+                for i in reversed(cells):
+                    A_downstream = A[i + 1] if s > 0 else A[i]
+                    A_total = A[i] + A[i + 1]
+                    angular_denom_term, _ = closure.cell_contribution(
+                        psi_state_coef, i, p, within,
+                    )
+                    denom, _ = cell_balance_for_streaming(
+                        abs_mu=abs_mu,
+                        A_downstream=A_downstream,
+                        A_total=A_total,
+                        total_xs=sgx[:, i],
+                        volume=V[i],
+                        psi_face_in=np.zeros((ng, within.size)),
+                        angular_denom_term=angular_denom_term,
+                        angular_numer_upstream=np.zeros((ng, within.size)),
+                    )                                       # (ng, n_mask)
+                    ob = out_bar[:, gd, i]
+                    # reverse psi_face_in = 2·psi_cell − psi_face_in_old
+                    psi_bar[:, gd, i] += 2.0 * f_bar
+                    f_bar = -f_bar
+                    # reverse m = (denom·ψ − |μ|A_total·psi_face_in − angular_numer)/V
+                    psi_bar[:, gd, i] += denom * ob / V[i]
+                    f_bar += -(abs_mu * A_total)[None, :] * ob / V[i]
+                    numer_bar[p][:, within, i] += -ob / V[i]
+                # reverse the sweep seed
+                if s > 0:
+                    if curvature != "cartesian":
+                        # adjoint of the Carlson coupled-pole seed: the
+                        # forward +1 seed reads the −1 sweep's pole-face
+                        # outflow at the mirror ordinate, so the seed
+                        # cotangent routes into the −1 reversal's INITIAL
+                        # outflow cotangent (mirror partners live in the
+                        # same level; the s=−1 pass below reads it).
+                        outflow_inner_bar[:, mirror[gd]] += f_bar
+                    else:
+                        fi_bar[gd] += f_bar.T               # slab +1 seed = ψ.inflow[xmin]
+                else:
+                    fo_bar[gd] += f_bar.T                   # −1 seed = ψ.inflow[xmax]
+
+        # ── reverse the angular factor (delegated; zero for the slab closure) ──
+        psi_ang_bar, bc_ang_bar = closure.angular_adjoint(
+            tuple(numer_bar), sigma_t=sgx,
+        )
+        psi_bar += psi_ang_bar
+        fo_bar += bc_ang_bar
+
+        # ── assemble the typed composite ──
+        m_boundary = BoundarySourceSink.zeros_on(sn_mesh)
+        m_boundary.face_view("xmax")[...] = fo_bar
+        if has_inner_face:
+            m_boundary.face_view("xmin")[...] = fi_bar
+        return TimedFullField(
+            bulk=AngularSourceSink.from_mesh(
+                psi_bar.swapaxes(0, 1), sn_mesh,
+            ),
+            boundary=m_boundary,
+            _history=(),
+            history_depth=phi.history_depth,
         )
 
     def _ensure_geom_cache(self) -> GeometryCoefficients:
