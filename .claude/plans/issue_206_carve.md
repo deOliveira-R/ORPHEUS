@@ -2,9 +2,13 @@
 
 ## ⭐ START HERE (post-compaction, cold-start)
 
-**This plan is APPROVED (user, 2026-06-14 session 3). Next action = begin Phase 0 → Phase A1 (slab).**
-Work it INLINE, turn-by-turn (surgical SN carve — NOT method-implementer). Read this whole file +
-the two memos (below) before touching code.
+**✅ PHASES A + B + C ALL DONE (2026-06-14). #206 is CODE-COMPLETE on `refactor/sn-cellupdate-seam-slab`.
+Next action = merge ff-only to `main` (carries the #206 close) → then resume Tier 2
+(`.claude/plans/sn_space_angle_discretization_plan.md`: #158/#233 spatial ∥ #235 angular).**
+See the "⭐ PHASE A + B + C DONE" block below for the full record. The deferred optional nULP
+denom-fold (SCAN option) is documented there — NOT part of #206 (the denom is already structurally
+single-sourced; both specialists recommended bit-identical-first, the fold's elegance win is marginal
+and it forfeits the strict 0-ULP gate).
 
 - **Branch:** `refactor/sn-cellupdate-seam-slab` (off `main @ eab05ab`). **Steps 1–2 of the seam
   (the `cell_update` capability + cache delegation) are DONE + verified but UNCOMMITTED** — they
@@ -233,7 +237,51 @@ Per-phase: qa + elegance-enforcer; `python -m tests._harness.audit` exit 0; Sphi
 - `orpheus/sn/spatial/cell_balance.py:120` — `cell_balance_for_streaming` (multi-consumer, KEEP).
 - New: the shared 1-D-scan frame (Phase B); A-NEW baseline test under `tests/sn/sweep/core/`.
 
-## ⭐ PHASE A + B DONE — Phase C is NEXT (2026-06-14, post specialist plans)
+## ⭐ PHASE A + B + C DONE — #206 ready to merge (2026-06-14)
+
+**✅ PHASE C COMPLETE + committed** (`refactor/sn-cellupdate-seam-slab`, 5 commits
+`eaafbe1`→`f55b90c`): the 1-D `(L+C)` matvec moved OFF the operator INTO `_OneDimScanWalk`.
+- `eaafbe1` forward (`_compute_LpC`→`_OneDimScanWalk.loss_action`, verbatim, bit-identical).
+- `7300f3e` transpose (`_compute_LpC_transpose`→`.loss_action_transpose`, verbatim).
+- `acbcddc` collapse the `_compute_decomposition` byte-twin: shared `_apply_walk` core
+  (emits `m_full` + optionally `m_ang` via `emit_angular`), `loss_action` / `loss_action_decomposed`
+  thin assemblers; `_compute_decomposition` → one-line delegation.
+- `c1edaf7` retire `_compute_LpC`/`_compute_LpC_transpose` (431 lines) + type/doc cleanup
+  (`sigma_t` passed directly — no operator duck-typing; buffer-presence guards; stale-ref fixes).
+- `f55b90c` review-finding doc fixes (NIT-1 stale transpose msg + NIT-2 phantom ψ-keyed cache narrative).
+
+**DECISIONS (load-bearing):** (1) **DENSITY** option — relocate VERBATIM (keep `cell_balance_for_streaming`
+density grouping) → strict **0-ULP bit-identical**, NOT the nULP scan-cache denom-fold. The denom is
+ALREADY structurally single-sourced (`cell_balance_for_streaming` ≡ `affine_scan_coefficients` denom,
+byte-for-byte). (2) **`emit_angular` fork is PERF-LOAD-BEARING:** always-emitting `m_ang` was a MEASURED
++14–19% on the matvec hot path (the production Krylov `apply` discards `m_ang`); the hot `loss_action`
+(`emit_angular=False`) skips it → re-benchmarked back to pre-C4 cost. (3) the SPLIT stays on the operator
+(operator algebra); `_compute_decomposition` sources the full from the relocated walk → ONE spatial walk.
+Operator glue `apply = loss_action ± σ_t·ψ` (Resolution-A) UNCHANGED.
+
+**GATES (ALL GREEN):** strict bit-id A-NEW sweep+matvec 9 @ 0 ULP (`-W error::...DriftWarning` in
+sweep/core+solve, the genuine strict floor — qa proved it LIVE via a 1-ULP perturbation that FAILED);
+value+blast (operators+sweep/core) 928; Mode-8 no-O 108; g-adjoint reciprocity 12 (+L11 control
+quantified: true-metric 1.4e-16 vs wrong-metric 0.16); decomposition invariant T4b/T4c; leg-1 kinf
+closed-form + decomposition direct-call 20; broad solve 60 + eigenvalue 57. **Reviews:** elegance-enforcer
+PASS-WITH-NITS (both NITs fixed in `f55b90c`); qa all-6-claims SUPPORTED (mechanical AST-diff: forward
++ transpose + degenerate-branch byte-identical mod the 2 substitutions). **Sphinx** build exit 0 (no new
+warnings; Nexus refreshed); **V&V audit** exit 0.
+
+**FOLLOW-UPS filed:** #237 (degenerate-cylinder matvec/sweep branch has NO test stressor —
+`level_symmetric` has no `|μ_x|<eps` ordinate; PRE-EXISTING hole, branch is correct-by-AST-diff),
+#238 (do `M_spatial`/`M_angular_redist` separately-applicable leaves still earn their keep now that
+`_compute_decomposition` is cold? — likely real consumer is #2 DSA / #200 precond). The optional nULP
+denom-fold (fork sweep+apply at a shared cell-kernel via the scan cache) is DEFERRED — a clean future
+step, oracle-pinnable, NOT needed for #206.
+
+**PRE-EXISTING REDS (route-around, NOT this carve, all tracked):** #232 (2 2-D Cartesian `mu_y` BC),
+#195 (3 stale SPH vacuum/apply `.npz` snapshots), #212 (`test_keff_slab::test_heterogeneous_absolute_keff`
+hang). Recipes + `-k`/`--deselect` in the "Verification" section above.
+
+---
+
+### (historical) PHASE A + B DONE — Phase C was NEXT (2026-06-14, post specialist plans)
 
 **Phase A COMPLETE + committed** (`refactor/sn-cellupdate-seam-slab`, 8 commits `3ca8562`→`f61e1b0`):
 the diamond face closure is single-sourced through the `cell_update` seam across CumprodScan +
