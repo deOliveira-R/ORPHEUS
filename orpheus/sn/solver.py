@@ -906,7 +906,7 @@ class SNSolver:
             # (rank-d (N, ng, *spatial); no phantom ny axis to drop).
             sig_t_1d = self.mat_xs.total_cross_section  # (ng, nx)
             self.coll_cache = CollisionCache.from_geometry(
-                self.geom_cache, sig_t_1d,
+                self.geom_cache, sig_t_1d, sn_mesh.cell_update,
             )
             # Stash the caches on the SNMesh so the sweep can find them
             # without threading a solver reference through ``transport_sweep``.
@@ -958,7 +958,7 @@ class SNSolver:
         if self.geom_cache is not None:
             sig_t_1d = self.mat_xs.total_cross_section
             self.coll_cache = CollisionCache.from_geometry(
-                self.geom_cache, sig_t_1d,
+                self.geom_cache, sig_t_1d, self.sn_mesh.cell_update,
             )
             self.sn_mesh._coll_cache = self.coll_cache  # type: ignore[attr-defined]
 

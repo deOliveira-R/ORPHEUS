@@ -106,6 +106,7 @@ import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
     from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.spatial.cell_update import CellUpdateBase
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -394,10 +395,25 @@ class CollisionCache:
         cls,
         geom: GeometryCoefficients,
         sig_t: np.ndarray,
+        cell_update: "CellUpdateBase",
     ) -> "CollisionCache":
         r"""Populate Stratum 2 from Stratum 1 + per-cell :math:`\Sigma_t`.
 
-        Pure broadcasting — three numpy ops, no Python per-cell loop.
+        The :math:`\Sigma_t`-epoch DD scan coefficients
+        ``(a_attenuation, inverse_denom)`` are owned by the cell-update
+        scheme (Issue #236 §2): this method delegates their three numpy
+        ops to :meth:`cell_update.affine_scan_coefficients
+        <orpheus.sn.spatial.cell_update.CellUpdate.affine_scan_coefficients>`
+        so the cache reflects whichever spatial closure ``SNMesh`` selected
+        — the cache keeps storage + lifetime; the scheme owns the math
+        (Cardinal Rule 2 / Pattern 2, single source of truth).  This cache
+        feeds the DAG-free scan schedules (``CumprodScan`` / ``ScanMarch``),
+        so ``cell_update`` is always an ``is_affine_scannable`` scheme here
+        (the scan strategies' ``supports`` gate guarantees it).
+
+        Pure broadcasting — three numpy ops in
+        ``affine_scan_coefficients`` plus the order-dependent ``cumprod_a``
+        here, no Python per-cell loop.
 
         Parameters
         ----------
@@ -408,49 +424,45 @@ class CollisionCache:
             principled 1-D sweep contract (``ng``, ``sn_mesh.nx``) — see
             Issue #196 PR-INDEX-2 in
             ``.claude/plans/principled_index_migration.md``.
+        cell_update : CellUpdateBase
+            The selected spatial closure scheme (e.g.
+            :class:`~orpheus.sn.spatial.diamond.DiamondDifference`).  Must
+            be ``is_affine_scannable``; supplies the closed-form recurrence
+            coefficients via :meth:`affine_scan_coefficients`.
 
         Notes
         -----
         Output layout is ``(N, ng, nx)`` for every field.  The cumulative
         product ``cumprod_a`` runs along ``axis=2`` (the trailing cell
         axis); under the principled layout the cell axis is NOT axis 1.
+        The ``cumprod_a`` stays HERE (not in the cell-update) because it is
+        a *scan-schedule* transform — a prefix product along the chain
+        order — not closure math.
         """
         cls._build_count += 1
-        # ── Per-ordinate per-cell geometric streaming (no group axis) ─
-        # streaming_face[n, i] = 2|μ_n| · A_down[n, i]   [dimensionless]
-        streaming_face_term = 2.0 * geom.abs_mu[:, None] * geom.A_down  # (N, nx)
-        # curvature_redist[n, i] = dA_w[n, i] · c_out[n]  [dimensionless]
-        curvature_redistribution_term = (
-            geom.dA_w * geom.c_out[:, None]
-        )                                                                # (N, nx)
-        # geometric_streaming[n, i] is the sum of streaming + curvature.
-        geometric_streaming_term = (
-            streaming_face_term + curvature_redistribution_term
-        )                                                                # (N, nx)
 
         # ── σ_t chain-ordered per ordinate: (N, ng, nx) ───────────────
         # sig_t is (ng, nx); reorder the cell axis (axis 1 of sig_t)
         # by geom.chain_idx (N, nx).  Result has shape (ng, N, nx);
-        # transpose to (N, ng, nx) to match the principled layout.
+        # transpose to (N, ng, nx) to match the principled layout.  This
+        # chain reorder is a scan-schedule data-prep step, so it stays in
+        # the cache builder (the cell-update is ordering-agnostic).
         sig_t_chain = sig_t[:, geom.chain_idx].transpose(1, 0, 2)        # (N, ng, nx)
 
-        # ── Collision volume term Σ_t · V  [units: 1/cm × cm³ = cm²] ──
-        collision_volume_term = sig_t_chain * geom.V[:, None, :]         # (N, ng, nx)
-
-        # ── Denominator (N, ng, nx)  [units: cm²] ─────────────────────
-        # Broadcast geometric_streaming_term (N, nx) against ng axis.
-        denom = (
-            geometric_streaming_term[:, None, :]
-            + collision_volume_term
-        )                                                                 # (N, ng, nx)
-        inverse_denom = 1.0 / denom                                       # (N, ng, nx)
-
-        # ── Attenuation a = 2|μ|·A_total / denom − 1 ──────────────────
-        # 2|μ_n|·A_total[n,i] is (N, nx); broadcast into ng axis.
-        a_numer = 2.0 * geom.abs_mu[:, None] * geom.A_total              # (N, nx)
-        a_attenuation = (
-            a_numer[:, None, :] * inverse_denom - 1.0
-        )                                                                 # (N, ng, nx)
+        # ── (a, 1/denom) delegated to the cell-update scheme ──────────
+        # The σ_t-epoch, source-independent recurrence coefficients
+        # a = 2|μ|·A_total/denom − 1, denom = 2|μ|·A_down + dA_w·c_out
+        # + Σ_t·V.  The scheme owns the closure math; the cache keeps the
+        # storage and the (order-dependent) cumprod.
+        a_attenuation, inverse_denom = cell_update.affine_scan_coefficients(
+            abs_mu=geom.abs_mu,
+            A_down=geom.A_down,
+            A_total=geom.A_total,
+            dA_w=geom.dA_w,
+            c_out=geom.c_out,
+            V=geom.V,
+            sig_t=sig_t_chain,
+        )                                                                # both (N, ng, nx)
 
         # ── cumprod along the cell axis (axis 2 in principled layout) ─
         cumprod_a = np.cumprod(a_attenuation, axis=2)                    # (N, ng, nx)

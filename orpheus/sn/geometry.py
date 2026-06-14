@@ -55,7 +55,7 @@ from .axis import (
 from .boundary_realizer import SNBoundaryRealizer
 from .method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
-from .spatial.cell_update import CellUpdate, CellVisit
+from .spatial.cell_update import CellUpdateBase, CellVisit
 from .spatial.diamond import DiamondDifference
 from .spatial.pole_angular_closure import (
     IdentityAngularClosure,
@@ -200,7 +200,7 @@ class SNMesh:
         mesh: Mesh1D | Mesh2D,
         quadrature: AngularQuadrature,
         materials: "dict[int, Mixture]",
-        cell_update: CellUpdate | None = None,
+        cell_update: CellUpdateBase | None = None,
         pole_angular_closure: PoleAngularClosure | None = None,
     ) -> None:
         # The legacy inbound surface (C5.1 axis-primary inversion,
@@ -231,7 +231,7 @@ class SNMesh:
         mat_map: np.ndarray | None,
         quadrature: AngularQuadrature,
         materials: "dict[int, Mixture]",
-        cell_update: CellUpdate | None,
+        cell_update: CellUpdateBase | None,
         pole_angular_closure: PoleAngularClosure | None,
     ) -> None:
         # The ONE construction body both surfaces funnel into (C5.1).
@@ -268,7 +268,7 @@ class SNMesh:
         # dispatches via ``self.cell_update.update(...)``.  Wave C-extension
         # will ship LD / EC / Step strategies; users will then pass
         # ``cell_update=LinearDiscontinuous()`` etc. at construction time.
-        self.cell_update: CellUpdate = (
+        self.cell_update: CellUpdateBase = (
             cell_update if cell_update is not None else DiamondDifference()
         )
         # Issue #168 Phase C retired the Phase A ``BoundaryFaceFlux``
@@ -847,7 +847,7 @@ class SNMesh:
         materials: "dict[int, Mixture]",
         *,
         mat_map: np.ndarray | None = None,
-        cell_update: CellUpdate | None = None,
+        cell_update: CellUpdateBase | None = None,
         pole_angular_closure: PoleAngularClosure | None = None,
     ) -> "SNMesh":
         r"""Build an :class:`SNMesh` from an axis tuple — the axis-native surface.
@@ -884,7 +884,7 @@ class SNMesh:
         mat_map : ndarray or None
             Material-id assignment. Shape ``spatial_shape``. Defaults
             to all-zeros (single material with id 0).
-        cell_update : CellUpdate or None
+        cell_update : CellUpdateBase or None
             Cell-update strategy. Defaults to :class:`DiamondDifference`.
         pole_angular_closure : PoleAngularClosure or None
             Override the default pole-angular closure

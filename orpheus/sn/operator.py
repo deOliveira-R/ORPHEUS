@@ -1128,7 +1128,9 @@ class _MSpatialOperatorSum(OperatorSum):
         # per-(N, ng, nx); multi-D Cartesian routes through the
         # representation's `loss_action` and does not use this cache).
         sig_t_1d = self.sigma_t
-        return CollisionCache.from_geometry(geom, sig_t_1d)
+        return CollisionCache.from_geometry(
+            geom, sig_t_1d, self.sn_mesh.cell_update,
+        )
 
     def apply(self, psi: "TimedFullField") -> "TimedFullField":
         r"""Orchestrated apply — returns the spatial part of the decomposition.

@@ -1802,7 +1802,7 @@ def _ensure_coll_cache(
         # 1-D meshes: sig_t is the principled (ng, nx) layout the cache
         # expects natively (rank-d (N, ng, *spatial); no phantom ny axis).
         sig_t_1d = sig_t  # (ng, nx)
-        cache = CollisionCache.from_geometry(geom, sig_t_1d)
+        cache = CollisionCache.from_geometry(geom, sig_t_1d, sn_mesh.cell_update)
         sn_mesh._coll_cache = cache  # type: ignore[attr-defined]
     return cache
 

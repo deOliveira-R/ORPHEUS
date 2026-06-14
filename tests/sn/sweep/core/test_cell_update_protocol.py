@@ -60,6 +60,7 @@ class IdentityCellUpdate:
 
     is_linear: ClassVar[bool] = True
     is_positivity_preserving: ClassVar[bool] = True
+    is_affine_scannable: ClassVar[bool] = False
 
     def update(
         self,
@@ -116,6 +117,7 @@ class FakeCurvilinearStrategy:
 
     is_linear: ClassVar[bool] = True
     is_positivity_preserving: ClassVar[bool] = False
+    is_affine_scannable: ClassVar[bool] = False
 
     def update(
         self,

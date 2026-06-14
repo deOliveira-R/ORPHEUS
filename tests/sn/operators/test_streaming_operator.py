@@ -1118,7 +1118,9 @@ class TestT5MaterializeInverseCache:
 
         # Compare to the canonical from_geometry path.
         geom = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
-        cache_canonical = CollisionCache.from_geometry(geom, sig_t)
+        cache_canonical = CollisionCache.from_geometry(
+            geom, sig_t, sn_mesh.cell_update,
+        )
 
         # All three cache fields bit-identical (both paths call the
         # SAME `from_geometry` factory; this verifies the delegation

@@ -135,7 +135,7 @@ def test_collision_cache_built_at_sigma_t_bind() -> None:
     # sig_t is (ng, nx) under PR-INDEX-2.  Two groups × four cells,
     # uniform per group: group 0 has σ_t=1.0, group 1 has σ_t=2.0.
     sig_t = np.array([[1.0] * 4, [2.0] * 4])  # (ng=2, nx=4)
-    coll = CollisionCache.from_geometry(geom, sig_t)
+    coll = CollisionCache.from_geometry(geom, sig_t, sn_mesh.cell_update)
 
     # (N, ng, nx) — N=4 ordinates, ng=2 groups, nx=4 cells.
     assert coll.inverse_denom.shape == (4, 2, 4)
@@ -175,7 +175,7 @@ def test_two_strata_independence_by_ng_axis() -> None:
 
     # Stratum 2 — every tensor has the (N, ng, nx) shape (PR-INDEX-2).
     sig_t = np.ones((3, 5))  # (ng=3, nx=5) under PR-INDEX-2
-    coll = CollisionCache.from_geometry(geom, sig_t)
+    coll = CollisionCache.from_geometry(geom, sig_t, sn_mesh.cell_update)
     for name in ("inverse_denom", "a_attenuation", "cumprod_a"):
         field_arr = getattr(coll, name)
         assert field_arr.shape == (4, 3, 5), f"{name} shape {field_arr.shape} != (4, 3, 5)"
@@ -351,7 +351,7 @@ def test_cache_driven_sweep_matches_per_cell_update(
     rng = np.random.default_rng(42)
     # Issue #196 PR-INDEX-2: cache consumes σ_t as (ng, nx).
     sig_t = 1.0 + 0.5 * rng.random((ng, nx))                  # (ng, nx)
-    coll = CollisionCache.from_geometry(geom, sig_t)
+    coll = CollisionCache.from_geometry(geom, sig_t, sn_mesh.cell_update)
 
     # Build a representative source in (ng, nx) — principled layout.
     if source_kind == "uniform":
@@ -458,7 +458,7 @@ def test_cache_populator_matches_cell_balance_terms() -> None:
     # Build (nx, ng) first via outer product for readability, then transpose.
     sig_t_xg = np.linspace(0.5, 1.5, 8)[:, None] * np.array([[1.0, 2.0]])  # (8, 2)
     sig_t = sig_t_xg.T                                                     # (ng=2, nx=8)
-    coll = CollisionCache.from_geometry(geom, sig_t)
+    coll = CollisionCache.from_geometry(geom, sig_t, sn_mesh.cell_update)
 
     # Sample two ordinates × two cells (chain positions).
     quad = sn_mesh.quad
