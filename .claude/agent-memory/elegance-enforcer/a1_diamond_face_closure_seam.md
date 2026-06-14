@@ -30,7 +30,12 @@ redundancy: gate = frontend-checkable `Compatibility.reason`; the scan-family-tr
 construction guard catches `default_for` bypass. No helper-extraction warranted (unify-after-one
 for two 2-line predicates).
 
-**THE FINDING (CONCERN, out of A1 scope, follow-up):** a surviving FACE-closure twin in the
+**THE FINDING (CONCERN — RESOLVED 2026-06-14 by the ScanMarch-2D routing carve; see
+[[scanmarch_2d_diamond_closure_routing]]):** `:1422` `out_y` is now routed through
+`outgoing_face_from_average`; `:1410` β=2ψ̄ correctly LEFT as the scan coefficient (cross-ref in the
+`_x_scan_faces` docstring). The concept is back to ONE site. ORIGINAL finding below for the record.
+
+a surviving FACE-closure twin in the
 ScanMarch 2-D row-march — `loss_representation.py:1410` (`2.0*psi_bar_row` as scan coeff `β`) +
 `:1422` (`out_y = 2.0*psi_bar_row - psi_y_in`), inside `_loss_action_interior`. `_x_scan_faces`'s
 docstring (`scan.py:262-264`) LITERALLY names the apply form `out_x = 2ψ̄ − in_x` → identical
