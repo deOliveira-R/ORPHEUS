@@ -732,13 +732,14 @@ class CumprodScan(_LossRepresentation):
     ) -> "TimedFullField":
         r"""1-D forward loss action ``(L+C)ψ`` — the geometry-blind spatial sum.
 
-        S6.3: returns the FULL within-group loss ``(L+C)ψ``; the operator
-        subtracts the collision diagonal ``C = σ_t⊙`` in :meth:`apply`.  The
-        1-D ``(L+C)`` action IS the operator's spatial operator-sum
-        ``operator.M_spatial`` (per-direction streaming + collision-share); the
-        angular Morel–Montry redistribution rides inside ``_compute_LpC``.
+        S6.3 / #206 Phase C: returns the FULL within-group loss ``(L+C)ψ``; the
+        operator subtracts the collision diagonal ``C = σ_t⊙`` in :meth:`apply`.
+        The matvec walk LIVES in :meth:`._OneDimScanWalk.loss_action` (the
+        apply-direction twin of the sweep — L21 "matvec ≡ sweep"); the angular
+        Morel–Montry redistribution + Carlson pole seed ride through
+        ``pole_angular_closure`` there (NOT re-inlined).
         """
-        return operator.M_spatial._compute_LpC(psi)
+        return _OneDimScanWalk(self.mesh).loss_action(operator, psi)
 
     def loss_action_transpose(
         self, operator: "StreamingOperator", phi: "TimedFullField",
@@ -1362,9 +1363,10 @@ class ScanMarch(_LossRepresentation):
         :meth:`_loss_action_interior`.
         """
         if self.mesh.is_1d:
-            # d=1 ⇒ scan(x) with no transverse march: the spatial operator-sum
-            # (the s_y = 0 degeneration of the 2-D scan-march).
-            return operator.M_spatial._compute_LpC(psi)
+            # d=1 ⇒ scan(x) with no transverse march: the 1-D apply-direction
+            # walk (#206 Phase C — the s_y = 0 degeneration of the 2-D
+            # scan-march; the matvec walk lives in _OneDimScanWalk.loss_action).
+            return _OneDimScanWalk(self.mesh).loss_action(operator, psi)
         return _OctantWalk(self.mesh).loss_action(
             operator, psi, self._loss_action_interior,
         )
@@ -1794,6 +1796,267 @@ class _OneDimScanWalk:
         return self._run(
             Q, sig_t, boundary_flux, geom, coll,
             initial_guess=initial_guess,
+        )
+
+    def loss_action(
+        self, operator: "StreamingOperator", psi: "TimedFullField",
+    ) -> "TimedFullField":
+        r"""1-D forward loss action ``(L+C)ψ`` — the matvec, apply direction.
+
+        #206 Phase C: the 1-D ``(L+C)`` matvec walk LIVES here now (relocated
+        verbatim off ``_MSpatialOperatorSum._compute_LpC``, bit-identical). The
+        apply direction is the structural twin of :meth:`sweep` — both are the
+        SAME ``(L+C)`` operator (L21 "matvec ≡ sweep"). The sweep SOLVES
+        ``(L+C)⁻¹q`` (forward substitution); this APPLIES ``(L+C)ψ`` to a
+        KNOWN probe: reconstruct the outgoing face via the already-seamed diamond
+        closure ``out = 2ψ̄ − in`` (``cell_update.outgoing_face_from_average``,
+        Phase A), then form the per-cell DENSITY-form residual
+        ``m_full = (denom·ψ̄ − numer_upstream)/V``. The DENSITY grouping keeps
+        the ``cell_balance_for_streaming`` denom (byte-identical to the scan
+        cache's ``affine_scan_coefficients`` denom) — bit-identical to the
+        pre-carve operator path (no reciprocal round-trip).
+
+        Returns the FULL ``(L+C)ψ``; :meth:`~orpheus.sn.operator.StreamingOperator.apply`
+        subtracts ``σ_t·ψ`` ONCE to recover ``Lψ`` (Resolution A). The
+        Morel–Montry angular redistribution + the Carlson coupled-pole seed
+        (curvilinear) ride through ``pole_angular_closure`` (ERR-058 / #195 —
+        NEVER re-inlined). ``σ_t`` is ``operator.sigma_t`` (the same ``(ng, nx)``
+        array the operator threads into ``M_spatial``).
+        """
+        from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
+        from orpheus.transport.timed_full_field import TimedFullField
+        from .spatial.cell_balance import cell_balance_for_streaming
+        from .spatial.pole_angular_closure import MorelMontryAngularSweep
+
+        sn_mesh = self.mesh
+        psi_view = psi.bulk.values
+        quad = sn_mesh.quad
+        N = quad.N
+        ng = psi_view.shape[1]
+        nx = sn_mesh.nx
+        eps = 1e-15
+        curvature_raw = getattr(sn_mesh, "curvature", None)
+        curvature = curvature_raw if curvature_raw is not None else "cartesian"
+
+        if curvature not in ("spherical", "cylindrical", "cartesian"):
+            raise ValueError(f"Unknown curvature: {curvature!r}")
+        if curvature == "cartesian" and not sn_mesh.is_1d:
+            raise NotImplementedError(
+                "_MSpatialOperatorSum._compute_LpC: multi-D Cartesian "
+                "is not yet wired through dag_walk; only the 1-D slab "
+                "is implemented.  Multi-D Cartesian routes through the "
+                "representation's `loss_action` (S6.3 moved it off this "
+                "operator; `ScanMarch` is the production default)."
+            )
+
+        pole_angular_closure = sn_mesh.pole_angular_closure
+        if pole_angular_closure is None and curvature != "cartesian":
+            pole_angular_closure = MorelMontryAngularSweep()
+
+        mu_x = quad.mu_x
+        level_indices: tuple[np.ndarray, ...] = pole_angular_closure.level_indices
+        A = sn_mesh.areas
+
+        psi_g_first = psi_view.swapaxes(0, 1)
+        out_g_first = np.zeros((ng, N, nx))
+
+        V = sn_mesh.volumes
+        sigma_t_gx = operator.sigma_t
+
+        boundary = psi.boundary
+        trace = sn_mesh.trace
+        has_inner_face = "xmin" in boundary.layout.faces
+        face_outer = boundary.face_view("xmax")
+        face_inner = boundary.face_view("xmin") if has_inner_face else None
+
+        if curvature == "cartesian" and face_inner is None:
+            raise ValueError(
+                "Slab geometry requires psi.boundary.xmin_face to be "
+                "populated."
+            )
+
+        # Wave O O.4a.2: the pole-closure inflow estimate is the GIVEN outer
+        # inflow trace (``precompute_psi_state`` reads its μ<0 / inward
+        # ordinates), not the reflected forward outflow.
+        outer_inflow_estimate = face_outer
+        psi_state = pole_angular_closure.precompute_psi_state(
+            psi_view, sigma_t=sigma_t_gx,
+            bc_outer_inflow_estimate=outer_inflow_estimate,
+        )
+
+        def _sweep_direction(
+            direction_sign: int,
+            psi_face_in_init: np.ndarray,
+        ) -> np.ndarray:
+            outflow_at_end = np.zeros((ng, N))
+            for p, level_idx in enumerate(level_indices):
+                level_idx_arr = np.asarray(level_idx)
+                mu_level = mu_x[level_idx_arr]
+                within_mask = (
+                    mu_level > +eps if direction_sign > 0
+                    else mu_level < -eps
+                )
+                if not np.any(within_mask):
+                    continue
+                global_dir = level_idx_arr[within_mask]
+                abs_mu = np.abs(mu_x[global_dir])
+                within_positions = np.where(within_mask)[0]
+
+                cell_indices = list(
+                    sn_mesh.dag_walk_cell_indices(
+                        direction_sign=direction_sign, mu_level_idx=p,
+                    )
+                )
+                if not cell_indices:
+                    continue
+                psi_face_in = psi_face_in_init[global_dir, :].T
+
+                for i in cell_indices:
+                    psi_cell = psi_g_first[:, global_dir, i]
+                    angular_denom_term, angular_numer_upstream = (
+                        pole_angular_closure.cell_contribution(
+                            psi_state, i, p, within_positions,
+                        )
+                    )
+                    A_downstream = A[i + 1] if direction_sign > 0 else A[i]
+                    denom, numer_upstream = cell_balance_for_streaming(
+                        abs_mu=abs_mu,
+                        A_downstream=A_downstream,
+                        A_total=A[i] + A[i + 1],
+                        total_xs=sigma_t_gx[:, i],
+                        volume=V[i],
+                        psi_face_in=psi_face_in,
+                        angular_denom_term=angular_denom_term,
+                        angular_numer_upstream=angular_numer_upstream,
+                    )
+                    m_full = (denom * psi_cell - numer_upstream) / V[i]
+                    out_g_first[:, global_dir, i] = m_full
+                    psi_face_in = sn_mesh.cell_update.outgoing_face_from_average(
+                        psi_cell, psi_face_in
+                    )
+                outflow_at_end[:, global_dir] = psi_face_in
+            return outflow_at_end
+
+        # Wave O O.4a.2 — KEYSTONE DELETED. The backward sweep seeds from the
+        # GIVEN outer inflow trace (``face_outer``'s μ<0 / inward ordinates),
+        # NOT from the forward sweep's own reflected outflow
+        # (``inflow_full = bc_outer.apply(outflow_at_boundary.T)``). This
+        # decouples bulk ↔ boundary inside one matvec call: the reflective
+        # coupling moves to the sibling −B, and the outer Krylov/SI loop drives
+        # the inflow consistency ``ψ.inflow − B·ψ.outflow → 0``.
+        outflow_at_inner = _sweep_direction(-1, face_outer)
+
+        if curvature != "cartesian":
+            # Carlson coupled-pole spatial seed (ERR-058 a, Issue #195):
+            # at r = 0 the outward characteristic is the CONTINUATION of
+            # the inward one — ψ(0, +μ) = ψ(0, −μ) — so the +1 sweep's
+            # pole-face seed is the −1 sweep's pole-face outflow at the
+            # mirror ordinate (already computed above: data, propagated
+            # from the outer boundary, lower-triangular).  The historical
+            # innermost-CELL-CENTRE read ψ(Δr/2) was O(h)-wrong on
+            # non-flat profiles (exact on flat ψ — which is why every
+            # flat-flux gate stayed green) and is retired; this is the
+            # #192-deferred "inward-determines-outward" pole condition.
+            pole_face_seed = outflow_at_inner.T[quad.reflection_index("x")]
+        else:
+            # Slab: read the GIVEN inner inflow trace (the forward sweep's
+            # μ>0 seed at xmin) directly. Wave O O.4a.2 — the BC reflection
+            # is NOT re-derived here; it moves to the sibling −B.
+            assert face_inner is not None  # guaranteed by the cartesian guard
+            pole_face_seed = face_inner
+        outflow_at_boundary = _sweep_direction(+1, pole_face_seed)
+
+        # Degenerate-ordinate branch (cylinder).
+        degenerate_mask = np.abs(mu_x) < eps
+        if np.any(degenerate_mask):
+            global_deg = np.where(degenerate_mask)[0]
+            deg_level: list[int] = []
+            deg_within: list[int] = []
+            for n_global in global_deg:
+                for p, lvl in enumerate(level_indices):
+                    lvl_arr = np.asarray(lvl)
+                    pos = np.where(lvl_arr == n_global)[0]
+                    if pos.size > 0:
+                        deg_level.append(p)
+                        deg_within.append(int(pos[0]))
+                        break
+            n_deg = global_deg.size
+            abs_mu_deg = np.abs(mu_x[global_deg])
+            zero_face = np.zeros((ng, n_deg))
+            for i in range(nx):
+                angular_denom_term = np.empty(n_deg)
+                angular_numer_upstream = np.empty((ng, n_deg))
+                for col_idx in range(n_deg):
+                    denom_one, numer_one = pole_angular_closure.cell_contribution(
+                        psi_state, i, deg_level[col_idx],
+                        np.array([deg_within[col_idx]]),
+                    )
+                    angular_denom_term[col_idx] = denom_one[0]
+                    angular_numer_upstream[:, col_idx] = numer_one[:, 0]
+
+                psi_cell = psi_g_first[:, global_deg, i]
+                denom, numer_upstream = cell_balance_for_streaming(
+                    abs_mu=abs_mu_deg,
+                    A_downstream=0.0,
+                    A_total=A[i] + A[i + 1],
+                    total_xs=sigma_t_gx[:, i],
+                    volume=V[i],
+                    psi_face_in=zero_face,
+                    angular_denom_term=angular_denom_term,
+                    angular_numer_upstream=angular_numer_upstream,
+                )
+                m_full = (denom * psi_cell - numer_upstream) / V[i]
+                out_g_first[:, global_deg, i] = m_full
+
+        m_cell = out_g_first.swapaxes(0, 1)
+
+        # Wave O O.4a.2 — the boundary block of (L+C) carries the two trace
+        # DIAGONALS of the block matrix; the off-diagonal −B is a sibling
+        # operator (so this matvec contains NO BC reflection):
+        #   * OUTFLOW slots — the self-consistency defect
+        #     ``ψ.outflow − streamed`` (the r_outflow row's I·ψ.outflow
+        #     diagonal minus L_out,b·ψ.bulk). UNCHANGED from pre-extraction;
+        #     kept as ``computed − stored`` so the vacuum path is bit-identical
+        #     (the per-row sign is free — q.outflow ≡ 0, the outflow trace is a
+        #     pure definition with no source).
+        #   * INFLOW slots — the identity ``ψ.inflow`` (the r_inflow row's
+        #     I·ψ.inflow diagonal). NEW at O.4a.2. The sibling −B adds
+        #     −B·ψ.outflow, so the full (L+C−S−F−B) inflow residual is
+        #     ``ψ.inflow − B·ψ.outflow`` (the consistency the outer loop drives
+        #     to q.inflow, the prescribed inflow / zero for vacuum+reflective).
+        # The outflow / inflow ordinate sets are the disjoint sign(Ω·n)
+        # partitions read from the unified TraceSpace selector (single source
+        # of truth) — A.4 retired the inline ``mu_x > ±eps`` masks.
+        m_boundary = BoundarySourceSink.zeros_on(sn_mesh)
+        outer_outflow = trace.outflow_indices_for_face("xmax")
+        if outer_outflow.size:
+            m_boundary.face_view("xmax")[outer_outflow, :] = (
+                outflow_at_boundary[:, outer_outflow].T
+                - face_outer[outer_outflow, :]
+            )
+        outer_inflow = trace.inflow_indices_for_face("xmax")
+        if outer_inflow.size:
+            m_boundary.face_view("xmax")[outer_inflow, :] = (
+                face_outer[outer_inflow, :]
+            )
+        if face_inner is not None:
+            inner_outflow = trace.outflow_indices_for_face("xmin")
+            if inner_outflow.size:
+                m_boundary.face_view("xmin")[inner_outflow, :] = (
+                    outflow_at_inner[:, inner_outflow].T
+                    - face_inner[inner_outflow, :]
+                )
+            inner_inflow = trace.inflow_indices_for_face("xmin")
+            if inner_inflow.size:
+                m_boundary.face_view("xmin")[inner_inflow, :] = (
+                    face_inner[inner_inflow, :]
+                )
+
+        return TimedFullField(
+            bulk=AngularSourceSink.from_mesh(m_cell, sn_mesh),
+            boundary=m_boundary,
+            _history=(),
+            history_depth=psi.history_depth,
         )
 
     def _ensure_geom_cache(self) -> GeometryCoefficients:
