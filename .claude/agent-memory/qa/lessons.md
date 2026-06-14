@@ -235,6 +235,59 @@ interpolated, scales with angular order) passes (measured ratio 3.42).
 A "floor scales" gate is a CLAIM about floor character, distinct from
 both the rate gate and a (false) removal gate -- accept it.
 
+## L-013 -- Verbatim-relocation claims: prove by NORMALIZED ast-diff, not by re-running gates alone
+
+A "this code moved verbatim with deterministic substitutions X→Y" claim is
+provable MECHANICALLY: extract the OLD body + NEW body, apply the claimed
+substitutions to OLD (`.replace("self.sn_mesh","self.mesh")` etc.), strip
+docstrings/imports/comments/blanks, and `difflib.unified_diff`. A TRUE
+verbatim relocation reduces to ONLY: the signature line + the deliberately-
+added fork (e.g. an `emit_angular`-guarded block) + the return-shape change.
+Any other line in the diff is an unaudited edit hiding inside a "pure move"
+claim. This is FAST (seconds) and far stronger than re-running a regression
+gate, because the gate may admit drift (see L-014) or have a coverage hole
+(see L-015). Used 2026-06-14 on #206 Phase C: the 1-D `_compute_LpC`→
+`_apply_walk` move + `_compute_LpC_transpose`→`loss_action_transpose` move
+both reduced to signature-only diffs (transpose: ZERO body lines changed).
+
+## L-014 -- A regression gate's HARD floor and its STRICT (bit-identity) floor are different gates
+
+A `kind="direct"` regression assert (`assert_array_almost_equal_nulp(
+nulp=reduction_depth)`) HARD-tolerates up to `reduction_depth` ULP. "Bit-
+identical (0 ULP)" for a pure-refactor PR is enforced ONLY by the
+`-W error::DriftWarning` escalation layered ON TOP. So "the gate passes"
+≠ "bit-identical" — verify WHICH invocation ran. Prove the strict floor is
+LIVE (not a false gate): perturb the committed baseline `.npy` by 1 ULP
+(`np.nextafter`), run with `-W error::DriftWarning` → MUST fail; without it
+→ passes with a DriftWarning. Restore via `git checkout --` (np.save appends
+`.npy` to a manual `.bak` name — don't hand-roll the backup).
+
+## L-015 -- conftest filterwarnings overrides are SESSION-GLOBAL but do NOT cross-leak to sibling dirs (verify, don't assume)
+
+`tests/sn/regression/conftest.py::pytest_configure` does
+`config.addinivalue_line("filterwarnings","always::DriftWarning")`, which
+makes `-W error::DriftWarning` INERT for that directory's own iterative DD
+snapshots (they emit 100s–10000s ULP drift but never fail under `-W error`).
+The fear: this leaks to a sibling gate (`tests/sn/sweep/core/`) co-collected
+in the same session → false green. EMPIRICALLY DISPROVEN 2026-06-14: with a
+1-ULP-perturbed `sweep/core` baseline AND `tests/sn/regression/` co-
+collected, the `sweep/core` A-NEW gate STILL FAILED under `-W error::
+DriftWarning` (per-item filterwarnings precedence: the `-W` CLI filter beats
+the conftest `addinivalue_line` for items OUTSIDE regression/). So a "the
+override leaks" worry is testable, not theoretical — perturb-and-run before
+flagging it as a blind gate.
+
+## L-016 -- "branch fires under quadrature Q" claims need a degeneracy probe, not faith
+
+#206 claim 5 asserted the cylinder pure-azimuthal degenerate-ordinate branch
+(`|mu_x|<1e-15`, `A_downstream=0`) "fires under the A-NEW matvec[CYL] leg".
+FALSE: `Quadrature.level_symmetric(sn_order=2..8)` ALL have `min|mu_x| ≥
+0.22` — ZERO degenerate ordinates. The branch is dead code under standard
+LS cubature and is exercised by NO current test. Probe in 3 lines
+(`np.count_nonzero(np.abs(q.mu_x)<1e-15)`) before accepting a branch-
+coverage claim. (Not a regression — the branch was a verbatim relocation,
+proven by L-013 — but the EVIDENCE for it is vacuous; flag the coverage gap.)
+
 ## L-004 -- vv-status rationale comments must NOT use [brackets]
 
 The `:vv-status: documented` directive lives in the same RST file as
