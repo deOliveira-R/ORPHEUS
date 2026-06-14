@@ -1804,28 +1804,111 @@ class _OneDimScanWalk:
     ) -> "TimedFullField":
         r"""1-D forward loss action ``(L+C)ψ`` — the matvec, apply direction.
 
-        #206 Phase C: the 1-D ``(L+C)`` matvec walk LIVES here now (relocated
-        verbatim off ``_MSpatialOperatorSum._compute_LpC``, bit-identical). The
-        apply direction is the structural twin of :meth:`sweep` — both are the
-        SAME ``(L+C)`` operator (L21 "matvec ≡ sweep"). The sweep SOLVES
-        ``(L+C)⁻¹q`` (forward substitution); this APPLIES ``(L+C)ψ`` to a
-        KNOWN probe: reconstruct the outgoing face via the already-seamed diamond
-        closure ``out = 2ψ̄ − in`` (``cell_update.outgoing_face_from_average``,
-        Phase A), then form the per-cell DENSITY-form residual
-        ``m_full = (denom·ψ̄ − numer_upstream)/V``. The DENSITY grouping keeps
-        the ``cell_balance_for_streaming`` denom (byte-identical to the scan
-        cache's ``affine_scan_coefficients`` denom) — bit-identical to the
-        pre-carve operator path (no reciprocal round-trip).
+        #206 Phase C: ``(L+C)ψ`` via the shared :meth:`_apply_walk` (the
+        apply-direction twin of :meth:`sweep` — L21 "matvec ≡ sweep"). Returns
+        the FULL ``(L+C)ψ``;
+        :meth:`~orpheus.sn.operator.StreamingOperator.apply` subtracts ``σ_t·ψ``
+        ONCE to recover ``Lψ`` (Resolution A).
+        """
+        from orpheus.transport.source_sinks import AngularSourceSink
+        from orpheus.transport.timed_full_field import TimedFullField
 
-        Returns the FULL ``(L+C)ψ``; :meth:`~orpheus.sn.operator.StreamingOperator.apply`
-        subtracts ``σ_t·ψ`` ONCE to recover ``Lψ`` (Resolution A). The
-        Morel–Montry angular redistribution + the Carlson coupled-pole seed
-        (curvilinear) ride through ``pole_angular_closure`` (ERR-058 / #195 —
-        NEVER re-inlined). ``σ_t`` is ``operator.sigma_t`` (the same ``(ng, nx)``
-        array the operator threads into ``M_spatial``).
+        m_cell, _m_ang_cell, m_boundary = self._apply_walk(
+            operator, psi, emit_angular=False,
+        )
+        return TimedFullField(
+            bulk=AngularSourceSink.from_mesh(m_cell, self.mesh),
+            boundary=m_boundary,
+            _history=(),
+            history_depth=psi.history_depth,
+        )
+
+    def loss_action_decomposed(
+        self, operator: "StreamingOperator", psi: "TimedFullField",
+    ) -> "tuple[TimedFullField, TimedFullField]":
+        r"""The ``(M_spatial, M_angular_redist)`` split of ``(L+C)ψ``.
+
+        #206 Phase C: collapses the former ``_compute_decomposition`` byte-twin.
+        Both contributions come from the SINGLE :meth:`_apply_walk` pass (the
+        same walk :meth:`loss_action` uses) — so the spatial walk has exactly
+        ONE source (Cardinal Rule 2):
+
+        * ``M_spatial = (L+C) − M_angular_redist`` carries streaming + collision
+          share AND the boundary trace block (only the spatial sweep writes face
+          residuals; MA-Q4).
+        * ``M_angular_redist`` carries the curvilinear Morel–Montry angular
+          redistribution (zero for slab/Cartesian); a ``BulkOperator``, so its
+          boundary is zero.
+
+        ``M_spatial.bulk + M_angular_redist.bulk == (L+C)ψ.bulk`` by construction
+        (``m_spat = m_full − m_ang`` elementwise). The operator-side
+        ``_MSpatialOperatorSum._compute_decomposition`` delegates here; its three
+        consumers (``M_spatial.apply`` / ``M_angular_redist.apply`` / the
+        ``_SpatialSweepDirection`` slow path) keep their contract.
         """
         from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
         from orpheus.transport.timed_full_field import TimedFullField
+
+        m_cell, m_ang_cell, m_boundary = self._apply_walk(
+            operator, psi, emit_angular=True,
+        )
+        m_spat_cell = m_cell - m_ang_cell
+        m_spat = TimedFullField(
+            bulk=AngularSourceSink.from_mesh(m_spat_cell, self.mesh),
+            boundary=m_boundary,
+            _history=(),
+            history_depth=psi.history_depth,
+        )
+        m_ang = TimedFullField(
+            bulk=AngularSourceSink.from_mesh(m_ang_cell, self.mesh),
+            boundary=BoundarySourceSink.zeros_on(self.mesh),
+            _history=(),
+            history_depth=psi.history_depth,
+        )
+        return m_spat, m_ang
+
+    def _apply_walk(
+        self, operator: "StreamingOperator", psi: "TimedFullField",
+        *, emit_angular: bool,
+    ) -> "tuple[np.ndarray, np.ndarray | None, BoundarySourceSink]":
+        r"""The shared 1-D apply-direction walk — ONE source for both emissions.
+
+        #206 Phase C: relocated verbatim off
+        ``_MSpatialOperatorSum._compute_LpC`` (single-emission matvec) AND
+        ``_compute_decomposition`` (its dual-emission byte-twin) — now ONE walk.
+        The apply direction is the structural twin of :meth:`sweep` (L21 "matvec
+        ≡ sweep"). The sweep SOLVES ``(L+C)⁻¹q``; this APPLIES ``(L+C)ψ`` to a
+        KNOWN probe: reconstruct the outgoing face via the already-seamed diamond
+        closure ``out = 2ψ̄ − in`` (``cell_update.outgoing_face_from_average``,
+        Phase A), then form the per-cell DENSITY-form residual
+        ``m_full = (denom·ψ̄ − numer_upstream)/V``. The DENSITY grouping keeps the
+        ``cell_balance_for_streaming`` denom (byte-identical to the scan cache's
+        ``affine_scan_coefficients`` denom) — bit-identical to the pre-carve
+        operator path (no reciprocal round-trip).
+
+        ``emit_angular`` selects the EMISSION granularity (NOT a second walk —
+        the spatial recurrence is identical either way):
+
+        * ``False`` — :meth:`loss_action`'s hot path: emit only ``m_full``
+          (``m_ang_cell`` is ``None``). Skips the per-cell angular-residual store
+          — measured ~15 % of the matvec, and the production Krylov path does not
+          need the ``(M_spatial, M_angular_redist)`` split, so it does not pay.
+        * ``True`` — :meth:`loss_action_decomposed`'s cold path: ALSO emit the
+          angular-redistribution share
+          ``m_ang = (angular_denom_term·ψ̄ − angular_numer_upstream)/V`` (the
+          ``cell_contribution`` is already computed for the denom; zero for
+          slab/Cartesian).
+
+        Returns ``(m_full_cell, m_ang_cell, m_boundary)`` — the two bulk buffers
+        in cell-first ``(N, ng, nx)`` layout + the shared boundary trace block
+        (OUTFLOW = self-consistency defect, INFLOW = identity; NO BC reflection —
+        the sibling ``−B`` carries it). The Morel–Montry angular redistribution +
+        the Carlson coupled-pole seed (curvilinear) ride through
+        ``pole_angular_closure`` (ERR-058 / #195 — NEVER re-inlined). ``σ_t`` is
+        ``operator.sigma_t`` (the same ``(ng, nx)`` array the operator threads
+        into ``M_spatial``).
+        """
+        from orpheus.transport.source_sinks import BoundarySourceSink
         from .spatial.cell_balance import cell_balance_for_streaming
         from .spatial.pole_angular_closure import MorelMontryAngularSweep
 
@@ -1860,6 +1943,7 @@ class _OneDimScanWalk:
 
         psi_g_first = psi_view.swapaxes(0, 1)
         out_g_first = np.zeros((ng, N, nx))
+        out_ang_g_first = np.zeros((ng, N, nx)) if emit_angular else None
 
         V = sn_mesh.volumes
         sigma_t_gx = operator.sigma_t
@@ -1932,6 +2016,15 @@ class _OneDimScanWalk:
                     )
                     m_full = (denom * psi_cell - numer_upstream) / V[i]
                     out_g_first[:, global_dir, i] = m_full
+                    if emit_angular:
+                        # The curvilinear angular-redistribution share (the
+                        # cell_contribution is already computed above; zero for
+                        # slab's IdentityAngularClosure). loss_action's hot path
+                        # skips this store (emit_angular=False).
+                        out_ang_g_first[:, global_dir, i] = (
+                            angular_denom_term[None, :] * psi_cell
+                            - angular_numer_upstream
+                        ) / V[i]
                     psi_face_in = sn_mesh.cell_update.outgoing_face_from_average(
                         psi_cell, psi_face_in
                     )
@@ -2008,8 +2101,16 @@ class _OneDimScanWalk:
                 )
                 m_full = (denom * psi_cell - numer_upstream) / V[i]
                 out_g_first[:, global_deg, i] = m_full
+                if emit_angular:
+                    out_ang_g_first[:, global_deg, i] = (
+                        angular_denom_term[None, :] * psi_cell
+                        - angular_numer_upstream
+                    ) / V[i]
 
         m_cell = out_g_first.swapaxes(0, 1)
+        m_ang_cell = (
+            out_ang_g_first.swapaxes(0, 1) if emit_angular else None
+        )
 
         # Wave O O.4a.2 — the boundary block of (L+C) carries the two trace
         # DIAGONALS of the block matrix; the off-diagonal −B is a sibling
@@ -2053,12 +2154,7 @@ class _OneDimScanWalk:
                     face_inner[inner_inflow, :]
                 )
 
-        return TimedFullField(
-            bulk=AngularSourceSink.from_mesh(m_cell, sn_mesh),
-            boundary=m_boundary,
-            _history=(),
-            history_depth=psi.history_depth,
-        )
+        return m_cell, m_ang_cell, m_boundary
 
     def loss_action_transpose(
         self, operator: "StreamingOperator", phi: "TimedFullField",
