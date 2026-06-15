@@ -288,6 +288,65 @@ LS cubature and is exercised by NO current test. Probe in 3 lines
 coverage claim. (Not a regression — the branch was a verbatim relocation,
 proven by L-013 — but the EVIDENCE for it is vacuous; flag the coverage gap.)
 
+## L-017 -- Diffusion-limit silent-error: probe the THICK-CELL regime, not just refined mesh
+
+A spatial scheme advertised "diffusion-limit-consistent" but shipped with a
+FLAT source (slope source Q̂=0, e.g. LD Increment A #158) is O(h²) AND exact
+on linears AND passes a sin-ansatz MMS -- yet SILENTLY loses the diffusion
+limit on optically THICK cells. The MMS ladder hides it because every
+refinement drives σ_t·h → thin where flat-source LD is fine; the failure
+lives at σ_t·h ≫ 1 (coarse mesh on a diffusive medium), exactly where a
+practical user runs.
+
+**Probe recipe** (the discriminating oracle is DD, which IS interior-diffusion-
+consistent via WDD): fixed coarse mesh, vacuum BC, eps-scaled diffusive
+material (σ_t=1/eps, σ_a=eps, c→1, Q=eps), compare DD_mid vs scheme_mid as h
+refines. Measured #158-A: DD holds ~0.950 at every refinement; flat-source LD
+gives 0.401 at σ_t·h=100 (~58% deficit) and only recovers (0.884) at σ_t·h=12.5.
+DO NOT trust a REFLECTIVE-BC infinite-medium probe at c≈1 -- it needs 1e5+
+inner iters and both DD and LD read 81.9% wrong from non-convergence (a probe
+artifact, NOT physics). Vacuum thick-cell head-to-head vs DD is the clean cut.
+
+**The flag**: this is a SILENT wrong-answer exposure when (a) the docstring
+headline claims "diffusion-limit-consistent" / "all four diffusion limits"
+(true of full LD, FALSE of the flat-source cut that shipped), (b) the flat-Q̂
+restriction is buried in code comments only ("flat (Q̂=0)", "Increment C"),
+(c) NO user-facing warning and NO xfail/tripwire guards the interim. A
+deferred-to-increment-C limitation needs EITHER a forward xfail tripwire
+(strict=False, flips to xpass when C lands) OR a docstring user-warning that
+the diffusion limit requires the moment source -- a staging note in a plan
+file is NOT enough when the public entry (solve_sn_fixed_source cell_update=)
+accepts the scheme NOW.
+
+## L-018 -- "matvec path tested" needs an instrumented call-count, not a round-trip
+
+A batched residual_kernel_batch round-trip test (residual(cell_kernel_batch(q))≈0)
+is a SELF-consistency check (both arms share _kernel_terms) -- it is NOT the
+L14 leg-2 (matvec correct) or leg-3 (matvec≡sweep). To know whether the
+forward matvec is even EXERCISED end-to-end, monkeypatch-count the two kernels
+during the solve: #158-A LD MMS solve = 1600 cell_kernel_batch (sweep/solve)
++ 0 residual_kernel_batch (matvec). SI sweeps never touch loss_action. The
+matvec runs ONLY under inner_solver='krylov'. Probe it: LD-via-Krylov gave the
+SAME flux as LD-via-SI to 4.1e-14 (matvec IS correct + matvec≡sweep holds) --
+but NO committed test drives it, so the claim "matvec works" is true-but-
+unverified (NEEDS-EVIDENCE: a 1-line inner_solver='krylov' MMS sibling closes it).
+
+## L-019 -- A stress-ansatz flagged by the test-architect is a binding contract, not advice
+
+When the test-architect memo's GATE spec mandates an angularly-non-trivial,
+mixed-scale (k=1,3), heterogeneous-2G, a0>0-non-vanishing-at-boundary stress
+ansatz AND the shipped MMS test instead uses build_1d_slab_mms_case() (the
+canonical sin(πx/L), 1G, homogeneous -- the EXACT Mode-7 simplification bias
+the spec said to override), that is a gate-downgrade, not a stylistic choice.
+The sin ansatz: vanishes at both faces (BC handling untested), isotropic-in-μ
+(no per-ordinate spatial variation in the moments), 1G (flux-shape degenerate
+per H1), homogeneous (nulls redistribution per H2). It cannot stress LD's
+slope-moment closure. The per-cell linear-exactness oracle (gate 1) IS
+structurally independent and non-tautological (sign-flip breaks it by 1.88 vs
+1e-12 tol -- verified), so LD is not unverified -- but the L1 MMS leg ran on
+the weak ansatz. Cross-check the shipped test's case-builder against the
+test-architect's ansatz spec; a mismatch is a flag even when all tests pass.
+
 ## L-004 -- vv-status rationale comments must NOT use [brackets]
 
 The `:vv-status: documented` directive lives in the same RST file as
