@@ -22,7 +22,79 @@
   scan-solve byte-id 505/1/4; operators 7 pre-existing reds only; sweep/spatial 544;
   analytical+MMS+regression 118; LD matvec≡sweep + two-paths green; SPH reds NOT
   masked (hard-fail ~1e15 ULP).
-- **Phase 2 (s_axes=g + #239 + audit): NEXT.** test-architect FIRST.
+- **Phase 2 (s_axes=g + #239 + DiscretizationScheme rename + audit): NEXT.** test-architect FIRST.
+
+## Architecture model — the diffusion-mirror factoring (Phase 2 rationale + the deferred target)
+
+Derived by mirroring the SN solver against a *hypothetical* diffusion solver: assemble both
+explicit LHS matrices and demand "what's shared" is **coherent from both seats** (the strong
+signal). SN matrix row (per ordinate): `[Σ_t·V + streaming-diag]·ψ̄_i − (streaming coupling)·ψ̄_{i-1}`
+— lower-triangular (directional, 1st-order → *sweep*). Diffusion row:
+`−D̃_{i-½}·φ_{i-1} + [Σ_r·V + D̃_{i-½}+D̃_{i+½}]·φ_i − D̃_{i+½}·φ_{i+1}` — symmetric tridiagonal
+(2nd-order → *SPD solve*), `D̃ = D·A/Δ`.
+
+### The six layers (refined 2026-06-15 with the InvertibleOperator ↔ loss-rep separation)
+1. **Spatial geometry** (`A_face`, `V`, `Δ`, incidence) — method-agnostic. ALREADY shared:
+   `orpheus/geometry/{coord,mesh}.py` (`compute_volumes_1d`/`compute_areas_1d`, `Mesh1D`/`Mesh2D`);
+   CP reads `mesh.areas` directly (`cp/solver.py:369`). Smells (low-pri): `SNMesh.volumes/.areas`
+   re-export `mesh.*` (obscures origin — read `Mesh` like CP); d≥3 volume stranded in SNMesh
+   (`geometry.py:373`, no `Mesh3D`).
+2. **Method-augmented mesh** — geometry × the method's per-face coefficient. SN
+   `streaming = |μ_n|·A_down/V` (the ONE legit SN augmentation, `_setup_cartesian` `geometry.py:1435`);
+   diffusion `leakage = D·A/Δ`. Curvilinear "reduced" geometry (`geometry/reduced_operator.py`,
+   shared with MoC/CP): pure part (`face_areas`/`delta_A` from `Mesh`) + M-M augmented
+   (`alpha_half`, `redist_dAw = ΔA/w`, `tau_mm`).
+3. **Material data** (`Σ_t/Σ_s/νΣ_f`; `D` from `Σ_tr`) — shared xs library (DATA only).
+4. **DiscretizationScheme** (DD/LD/Step) — the method-AGNOSTIC closure: flux representation
+   (DOFs/cell) + reference-element overlaps (mass `∫P_aP_b`, derivative `∫P_aP_b'`, stiffness
+   `∫P_a'P_b'`, face evals `P_a(±1)`). **NO `|μ|`, NO `D`, NO `Σ`.** ⚠ NOT what the code holds today.
+5. **InvertibleOperator** — defines WHAT'S ON THE LHS: which operator terms (`L+C−S−F` …) AND which
+   `Σ` is on the reaction diagonal (transport `Σ_t` with within-group scatter in the SOURCE, vs
+   removal `Σ_r=Σ_t−Σ_s0` folded in). **The `Σ`-choice (transport vs removal) lives HERE — it is an
+   OPERATOR concern, NOT a scheme or loss-rep concern** (user, 2026-06-15). Reads Layers 2+3.
+6. **Loss representation** — REALIZES the operator's action: assemble the explicit matrix, OR
+   forward-substitution (sweep), OR matvec (Krylov subspace). **Agnostic to the operator's contents**
+   — it realizes whatever `InvertibleOperator` it is given. To do so it pulls the operator's
+   terms+`Σ` (L5), the scheme's closure (L4), and `g` (L2), assembles the cell coefficients, and
+   schedules them.
+
+### Coherence result (the strong signal)
+Both loss reps need from the scheme the SAME core — flux representation + **mass** overlap (→ the
+`Σ·V` reaction diagonal) + **face** map (→ currents) — differing ONLY in which derivative-order
+overlap (SN: 1st-derivative = streaming; diffusion: stiffness = leakage), both from the same basis.
+And both pull `Σ` from THEIR operator (L5), not the scheme. Shared seam = **the scheme exposes the
+basis/overlaps; the InvertibleOperator supplies `Σ`; each loss rep assembles + schedules its own
+realization.** Coherent from both seats. ✓
+
+### What's mislayered TODAY (the sharpened point-2 finding)
+The current `CellUpdate`/"DiscretizationScheme" CONFLATES Layers 4+5+6: it holds the **loss-rep's
+realization work** (assemble the SN cell coefficients) in three schedule-forms, each TAKING `sig_t`
+(the OPERATOR's `Σ`, L5) and `|μ|/g` (L2):
+- group 1 `update`/`residual` (per-cell, DAG); group 2 `cell_kernel_batch`/`residual_kernel_batch`
+  (÷V batched, DAG → `sweep_graph.py:849/890`); group 3 `affine_scan_coefficients` → `(a,
+  inverse_denom, w)` (×V scan → `CollisionCache` `sweep_cache.py:465` + the 2-D ScanMarch).
+- groups 2 & 3 are **convention-twins** (÷V kernel vs ×V scan) of the SAME relation; the
+  method-agnostic closure (DD's `w`, LD's `θ`) is buried + replicated across all three.
+→ `affine_scan_coefficients` is **doubly mislocated**: it is the loss-rep's REALIZATION of the
+  operator (not a scheme concern), AND it takes the OPERATOR's `Σ` (`sig_t`, L5, not the scheme's).
+  The scheme should see ONLY the basis/closure — no `Σ`, no `g`.
+
+### Target vs Phase-2 scope (unify-after-two)
+- **TARGET (with #2 consistent-DSA diffusion — the second consumer that validates the seam):**
+  scheme = method-agnostic basis/overlaps (L4 only); the cell-coefficient assembly (groups 1/2/3 /
+  `affine_scan_coefficients`) becomes the SN **loss representation** realizing its `InvertibleOperator`
+  — pulling `Σ` from the operator, `g` from the mesh, the closure from the scheme, assembling
+  GENERICALLY (no scheme-branch — the FEM weak-form pattern), and scheduling (matrix/sweep/matvec).
+  A future diffusion loss rep reuses the SAME scheme + its own operator. This seam IS consistent DSA
+  (diffusion discretization = angular moment of the SN scheme).
+- **PHASE 2 (now) — non-speculative cleanup ONLY:** s_axes=g (L2 de-pollution), ScanMarch → scheme
+  coefficients (remove inline DD; consistent with the target — the coefficients it consumes are
+  realization work that later migrates), `CellUpdate → DiscretizationScheme` rename (correct OBJECT
+  name; document it CURRENTLY also carries the loss-rep realization + the operator's `Σ`, both
+  migrating with #2). Name `affine_scan_coefficients` accurately + note the DAG twin + that it takes
+  the operator's `Σ`. **DO NOT** extract the overlap interface, move assembly to the loss rep, or
+  strip `Σ` from the scheme now — that needs the second consumer (DSA) to validate (unify-after-two).
+  Record the geometry smells (V/A re-export, Mesh3D gap) low-priority.
 
 ## Phase 0 — favoritism removal: the HAND-OFF (apply on MAIN, not this branch)
 
@@ -145,3 +217,29 @@ Step-4 close-out (#36: theory-page LD coefficient-model section + SymPy derivati
   `bc_extraction` `[*-SPH]`): strict bit-id baselines red since #206/ERR-058 — need a
   principled re-baseline-to-current OR confirm a real bug (tied to #195/#209). File/track
   as the curvilinear snapshot cleanup (NOT this carve).
+- **Geometry low-pri** (from the diffusion-mirror map): `SNMesh.volumes/.areas` re-export
+  `mesh.*` (diffusion should read `Mesh` directly like CP `cp/solver.py:369`); no `Mesh3D`
+  (d≥3 tensor-product volume stranded in `SNMesh.geometry.py:373`). Promote when a shared
+  spatial-geometry base is needed (i.e. with #2 diffusion).
+
+## EXIT — when all #240 phases are complete
+
+When Phase 2 lands (s_axes=g + #239 + `DiscretizationScheme` rename + audit; verified +
+elegance/qa reviewed + committed) and #240 is closed, resume here:
+
+1. **IMMEDIATE → `.claude/plans/issue_158_spatial_cellupdate_carve.md` §"Increment C" (#37).**
+   The LD diffusion limit: thread `φ̂` (flux slope) into the within-group iterate → the
+   scattering source `(Q̄, Q̂=Σ_s·φ̂)`; the `test_ld_thick_diffusive_limit_xfail` tripwire
+   flips to xpass; #233 pole-cell lift. Then Step-4 close-out (#36: theory-page LD
+   coefficient-model section + SymPy derivation into `derivations/`) and Increment D (#38:
+   multi-D bilinear LD `cell_kernel_batch` → the 2-D LD two-paths gate). State/roadmap =
+   `[[project-issue-158-ld-dag]]`; parent thrust = `.claude/plans/sn_space_angle_discretization_plan.md`
+   (Tier 2a).
+2. **DEFERRED ARCHITECTURAL → with #2 (consistent DSA):** realize the TARGET in the
+   Architecture-model section — scheme = basis/overlaps (L4); the SN cell-coefficient
+   assembly → SN loss representation (pulling `Σ` from the `InvertibleOperator`); a diffusion
+   loss rep reuses the scheme. The diffusion-mirror exploration (this plan) is the design
+   record; it lands when the second method makes the overlap interface concrete.
+3. **MERGE:** `feature/sn-space-angle-tier2` → `main` (ff-only). Apply the Phase-0 hand-off
+   to main's CURRENT `vv-principles`/`coding-elegance` + soften `.claude/rules/`; coordinate
+   with the parallel tool-routing session. Then delete the branch.
