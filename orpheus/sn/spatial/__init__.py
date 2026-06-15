@@ -31,6 +31,7 @@ See the SN reshape campaign plan at
 
 from .cell_update import CellResult, CellUpdate, UpstreamState
 from .diamond import DiamondDifference
+from .linear_discontinuous import LinearDiscontinuous
 from .pole_angular_closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
@@ -70,6 +71,7 @@ __all__ = [
     "CellUpdate",
     "DiamondDifference",
     "IdentityAngularClosure",
+    "LinearDiscontinuous",
     "MorelMontryAngularSweep",
     "PoleAngularClosure",
     "PoleAngularClosureBase",

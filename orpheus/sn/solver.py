@@ -45,6 +45,7 @@ from orpheus.geometry import BC, Mesh1D, Mesh2D
 from orpheus.numerics.eigenvalue import power_iteration
 from .fission import FissionOperator
 from .geometry import SNMesh
+from .spatial.cell_update import CellUpdateBase
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
 from .operator import (
     CollisionOperator,
@@ -102,6 +103,8 @@ def _as_sn_mesh(
     materials: "dict[int, Mixture]",
     boundary_condition: "str | None" = None,
     mat_map: "np.ndarray | None" = None,
+    *,
+    cell_update: "CellUpdateBase | None" = None,
 ) -> "SNMesh":
     r"""Normalize the entry-surface geometry declaration into an SNMesh.
 
@@ -128,8 +131,10 @@ def _as_sn_mesh(
                 "Mesh1D/Mesh2D carries its own mat_ids/mat_map — "
                 "declare the assignment on the mesh."
             )
-        return SNMesh(geometry, quadrature, materials)
-    return SNMesh.from_axes(geometry, quadrature, materials, mat_map=mat_map)
+        return SNMesh(geometry, quadrature, materials, cell_update=cell_update)
+    return SNMesh.from_axes(
+        geometry, quadrature, materials, mat_map=mat_map, cell_update=cell_update,
+    )
 
 
 # Issue #197 PR-TYPED-5: SNFixedSourceResult + SNResult RETIRED.
@@ -899,7 +904,15 @@ class SNSolver:
         # ReducedStreamingOperator — 2-D Cartesian uses the wavefront path.
         self.geom_cache: GeometryCoefficients | None = None
         self.coll_cache: CollisionCache | None = None
-        if sn_mesh.reduced is not None:
+        # The two-stratum scan cache feeds the DAG-FREE scan strategies
+        # (CumprodScan / ScanMarch) ONLY — its σ_t stratum is the closed-form
+        # affine recurrence ``affine_scan_coefficients`` (the scan-family
+        # triple), which a NON-affine-scannable scheme (LinearDiscontinuous,
+        # #158) does not supply.  Such schemes run on the DAG wavefront
+        # (FullFieldWavefront), which consumes the per-cell ``cell_kernel_batch``
+        # directly — never the scan cache.  Build the cache only when the scan
+        # path can actually be selected (DD keeps its bit-identical cache).
+        if sn_mesh.reduced is not None and sn_mesh.cell_update.is_affine_scannable:
             self.geom_cache = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
             # No bridge needed: ``mat_xs.total_cross_section`` is the
             # principled ``(ng, nx)`` 1-D layout the cache expects
@@ -1852,6 +1865,7 @@ def solve_sn_fixed_source(
     inner_solver: str | None = None,
     inner_schedule: str = "gauss_seidel",
     mat_map: "np.ndarray | None" = None,
+    cell_update: "CellUpdateBase | None" = None,
 ) -> Solution:
     r"""Solve the multi-group SN fixed-source transport problem.
 
@@ -1955,6 +1969,7 @@ def solve_sn_fixed_source(
     # no explicit BC.
     sn_mesh = _as_sn_mesh(
         mesh, quadrature, materials, boundary_condition, mat_map=mat_map,
+        cell_update=cell_update,
     )
 
     # Issue #168 status (Phase D ERR-026 closure, 2026-05-12):
