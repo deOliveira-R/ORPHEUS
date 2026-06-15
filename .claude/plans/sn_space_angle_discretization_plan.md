@@ -1,5 +1,19 @@
 # SN (space ⊗ angle) discretization — development plan (cold-start)
 
+**⭐⭐ Status (updated 2026-06-14, session 5): Tier 2a #158 Increment A LANDED.**
+LinearDiscontinuous (LD) is the first non-DD spatial scheme — a **polymorphic** discretization
+protocol that runs on `FullFieldWavefront` (the any-d DAG oracle) via the group-2 cell kernel,
+exactly as DD does. **NO new sweep strategy** (a 1-D-DAG `OneDimPerCellWalk` twin was tried →
+rejected by the user → reverted; the right answer is the existing polymorphic `FullFieldWavefront`).
+DONE + committed LOCAL (`2b56348` feat / `30aadb9` chore on `feature/sn-space-angle-tier2`, NOT
+pushed/merged). 526/1skip/5xfail strict; elegance PASS-w-NITS + qa SUPPORTED. ⚠ Flat-source LD
+(Q̂=0) is O(h²) but loses the diffusion limit → gated by an xfail tripwire + docstring caveat;
+the canonical source is Increment C. **NEXT = Increment B (affine-scan bonus: LD also rides
+CumprodScan/ScanMarch).** AUTHORITATIVE record = `.claude/plans/issue_158_spatial_cellupdate_carve.md`
+"⭐ INCREMENT A LANDED" block + memory [[project-issue-158-ld-dag]]. (The §1/§2 framing + the
+B/C/D capability-group decomposition supersede the original "Tier 2a #158" sketch below — read the
+issue_158 plan first.)
+
 **⭐ Status (updated 2026-06-14, session 4): #206 LANDED → Tier 2 IS NOW LIVE.**
 #206 is DONE + merged ff-only to `main` @ `cba6d2f` + PUSHED (origin synced) + CLOSED; branch
 deleted. Full record = `.claude/plans/issue_206_carve.md` "PHASE A+B+C DONE" block + memory
