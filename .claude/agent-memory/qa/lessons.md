@@ -383,6 +383,38 @@ AND pinned ≡ the SI sweep. When re-reviewing a follow-up increment, re-check
 whether it closes a prior increment's NEEDS-EVIDENCE item (the call-count probe
 is the verification, not the round-trip self-consistency test).
 
+## L-022 -- re-baseline masking-check: re-run the CONVERTED gate, prove the pre-existing red STILL hard-fails ≫ nulp; characterize drift via git-show OLD-vs-NEW .npy
+
+When a commit converts a STRICT `assert_array_equal` snapshot gate to a nULP
+`assert_regression(kind="direct")` AND deliberately leaves some baselines
+untouched (claiming the untouched ones carry a SEPARATE pre-existing structural
+red), the masking failure mode is: the looser gate silently SWALLOWS the real
+red. The decisive check is NOT "the suite is green" -- it is re-running the
+converted gate on the LEFT-UNTOUCHED arms and confirming they STILL HARD-FAIL
+at a magnitude ≫ the nulp bound (#240 SPH bulk: ~1e15 ULP vs nulp=nx=5; the
+conversion did not mask them). A re-baseline that silenced a real red would show
+those arms flipping green.
+Characterize the drift PRINCIPLEDLY (criterion c) by diffing the OLD vs NEW
+snapshot bytes directly: `git show <commit>~1:path.npy > /tmp/old.npy` +
+`git show <commit>:path.npy > /tmp/new.npy`, then ULP-diff. This shows the
+EXACT re-baseline scope (#240: only 3 SLAB `_apply_bulk` keys changed; ALL
+`_apply_boundary`, ALL `_solve_*`, ALL curvilinear, ALL 2-D keys byte-identical)
+and proves the boundary-byte-identical claim from the binary itself, not prose.
+The LIVE-code-vs-REGENERATED-snapshot ULP is necessarily 0 (snapshot was
+regenerated at HEAD) -- it does NOT characterize the drift; only OLD-vs-NEW does.
+A near-zero cancellation value can show a large ULP count (#240 seed=2: 64 ULP
+at |val|=0.024, absΔ=2.22e-16, every other element exactly 1 ULP) -- inspect the
+worst element's magnitude before calling it an algorithmic change; large-ULP at
+small-magnitude is a ULP-metric artifact, not a non-associativity bound
+violation. Criterion 2 (structural-independence) is the load-bearing one: run
+the multi-group analytical k∞ recovery (`test_si_carve_recovers_analytical_kinf`
+2eg/4eg) + LD MMS O(h²) -- old-vs-new ULP proximity is necessary-not-sufficient.
+Cross-ref [[lessons-L020]] (git .npy status + ULP/sha256 over docstring),
+[[lessons-L014]] (HARD nulp floor vs STRICT DriftWarning floor; the streaming
+boundary gate is `assert_regression` not strict, but is exactly as strict as
+`assert_array_equal` under the canonical `-W error::DriftWarning` -- prove it by
+running the snapshot class under that flag: #240 = 18 passed / 0 escalations).
+
 ## L-004 -- vv-status rationale comments must NOT use [brackets]
 
 The `:vv-status: documented` directive lives in the same RST file as
