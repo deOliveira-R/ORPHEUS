@@ -555,8 +555,31 @@ class CellUpdateBase(RegistryMixin, ABC):
     unless it explicitly declares otherwise (mirroring how
     :meth:`cell_kernel_batch` raises by default until a scheme opts into the
     batched wavefront walks).  An affine scheme overrides this to ``True``
-    AND supplies the scan-family triple (:meth:`affine_scan_coefficients`,
-    :meth:`cell_average_from_faces`, :meth:`outgoing_face_from_average`)."""
+    AND supplies the per-cell coefficient triple ``(a, inverse_denom, w)`` via
+    :meth:`affine_scan_coefficients` — that is the scheme's *entire* group-3
+    SOLVE contribution (#158 the coefficient model).  The generic scan-solve
+    *operations* (source emission, cell-average) are NOT per-scheme: they live
+    once in :mod:`orpheus.sn.spatial.affine_closure`, parameterized by those
+    coefficients.  The matvec APPLY (a concrete probe ψ̄) rides the scheme's
+    group-2 :meth:`residual_kernel_batch` — see :attr:`matvec_via_kernel`."""
+
+    matvec_via_kernel: ClassVar[bool] = False
+    r"""Whether the 1-D **Cartesian matvec** rides this scheme's group-2
+    :meth:`residual_kernel_batch` (the ÷V density kernel) rather than the
+    specialised ``cell_balance`` density path in
+    :meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`.
+
+    The matvec analog of :attr:`is_affine_scannable`: a scheme whose matvec IS
+    its ``residual_kernel_batch`` (e.g. :class:`LinearDiscontinuous`, whose
+    Schur residual has no separate ``cell_balance`` form) overrides this to
+    ``True``.  :class:`DiamondDifference` keeps ``False`` — its Cartesian matvec
+    stays on the byte-identical ``cell_balance_for_streaming`` density path
+    (the #206 Phase-C carve, the form the ``cell_balance`` denom shares with the
+    scan cache) so DD is **bit-identical** to the pre-#158 operator, including
+    on non-power-of-2 cell widths where the ÷V kernel re-association would drift
+    ~1 ULP.  (``cell_balance`` is also DD's curvilinear matvec path, Morel–Montry
+    included — that arm is on the non-Cartesian branch, which never consults this
+    flag.)"""
 
     @classmethod
     def _registry_base(cls) -> type:
@@ -679,23 +702,32 @@ class CellUpdateBase(RegistryMixin, ABC):
         c_out: np.ndarray,
         V: np.ndarray,
         sig_t: np.ndarray,
-    ) -> tuple[np.ndarray, np.ndarray]:
-        r""":math:`\Sigma_t`-epoch affine-scan coefficients ``(a_attenuation, inverse_denom)``.
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        r""":math:`\Sigma_t`-epoch affine-scan coefficients ``(a, inverse_denom, w)``.
 
-        The closed-form scan (Blelloch §1.5) of the per-ordinate spatial
-        sweep is the first-order linear recurrence
-        :math:`\psi^{s}[i+1] = a[i]\,\psi^{s}[i] + b[i]`.  This method
-        returns the **source-independent** half of that recurrence — the
-        per-ordinate-per-cell-per-group transmission multiplier
-        :math:`a` and the reciprocal denominator
-        :math:`1/\mathrm{denom}` — which depend only on geometry and
-        :math:`\Sigma_t` (one constant-:math:`\Sigma_t` epoch), NOT on the
-        volumetric source.  The source-dependent emission ``b`` and the
-        order-dependent ``cumprod_a`` are the SCAN caller's job (see
-        :meth:`CellUpdate.affine_scan_coefficients` for the full contract).
+        The scheme's **entire** group-3 contribution (#158 the coefficient
+        model): the three per-ordinate-per-cell-per-group coefficients that
+        characterize a consistent affine cell, all source-INDEPENDENT (one
+        constant-:math:`\Sigma_t` epoch):
 
-        Default raises :exc:`NotImplementedError`; an
-        ``is_affine_scannable`` scheme (:class:`DiamondDifference`)
+        * ``a`` — the closed-form scan (Blelloch §1.5) transmission multiplier
+          of the first-order recurrence :math:`\psi^{s}[i+1]=a[i]\psi^{s}[i]+b[i]`;
+        * ``inverse_denom`` — the reciprocal cell-balance diagonal :math:`1/S`;
+        * ``w`` — the **cell-average blend weight**
+          (:math:`\bar\psi=(1-w)\psi_{\rm in}+w\,\psi_{\rm out}`); DD's ``w=½``,
+          LD's ``w=1/(1+k)``.
+
+        The source-dependent emission ``b`` and the order-dependent
+        ``cumprod_a`` are NOT here — ``cumprod_a`` is a scan-schedule transform
+        (:class:`~orpheus.sn.spatial.sweep_cache.CollisionCache`), and ``b``
+        plus the cell-average / outgoing-face / matvec-residual operations are
+        the representation's job, applied generically from these coefficients by
+        :mod:`orpheus.sn.spatial.affine_closure` (the same three coefficients
+        feed the scan, the matvec, and a future explicit-matrix assembly — no
+        per-scheme closure method, no cell math in any sweep body).
+
+        Default raises :exc:`NotImplementedError`; an ``is_affine_scannable``
+        scheme (:class:`DiamondDifference`, :class:`LinearDiscontinuous`)
         overrides.  A non-affine scheme leaves it raising — and the scan
         strategies' ``supports`` gate on ``is_affine_scannable`` keeps it
         off the scan path in the first place.
@@ -703,50 +735,9 @@ class CellUpdateBase(RegistryMixin, ABC):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement affine_scan_coefficients "
             "(is_affine_scannable is False).  Only affine-scannable closures "
-            "supply the closed-form scan recurrence consumed by CumprodScan / "
-            "ScanMarch; non-affine closures run on the DAG wavefront schedule."
-        )
-
-    def cell_average_from_faces(
-        self, face_in: np.ndarray, face_out: np.ndarray,
-    ) -> np.ndarray:
-        r"""Closure solve-direction A: cell-average :math:`\bar\psi` from the two faces.
-
-        The scan recurrence produces the downstream face flux directly; the
-        cell-average is then recovered from the (incoming, outgoing) face
-        pair via the closure relation.  For Diamond Difference this is the
-        diamond mean :math:`\bar\psi = \tfrac12(\psi_{\rm in}+\psi_{\rm out})`;
-        a different closure (Step, LD) recovers :math:`\bar\psi` differently.
-        Companion inverse direction: :meth:`outgoing_face_from_average`.
-
-        Default raises :exc:`NotImplementedError`; an affine-scannable
-        scheme overrides.
-        """
-        raise NotImplementedError(
-            f"{type(self).__name__} does not implement cell_average_from_faces "
-            "(is_affine_scannable is False)."
-        )
-
-    def outgoing_face_from_average(
-        self, cell_avg: np.ndarray, face_in: np.ndarray,
-    ) -> np.ndarray:
-        r"""Closure solve-direction B: downstream face from :math:`\bar\psi` and the inflow.
-
-        The inverse of :meth:`cell_average_from_faces`: given the cell-average
-        and the incoming face, reconstruct the outgoing face.  For Diamond
-        Difference this is the WDD difference relation
-        :math:`\psi_{\rm out} = 2\bar\psi - \psi_{\rm in}`.  Consumed by the
-        transverse march of ``ScanMarch`` (the y-direction face update where
-        :math:`\bar\psi` is already known from the in-row x-scan); it is the
-        SAME relation the per-cell :meth:`update` spatial closure and the
-        batched :meth:`cell_kernel_batch` reconstruction spell inline.
-
-        Default raises :exc:`NotImplementedError`; an affine-scannable
-        scheme overrides.
-        """
-        raise NotImplementedError(
-            f"{type(self).__name__} does not implement outgoing_face_from_average "
-            "(is_affine_scannable is False)."
+            "supply the (a, inverse_denom, w) coefficient triple consumed by "
+            "CumprodScan / ScanMarch; non-affine closures run on the DAG "
+            "wavefront schedule."
         )
 
 

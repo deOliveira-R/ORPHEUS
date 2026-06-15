@@ -128,12 +128,14 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
     r"""DD admits the closed-form affine recurrence
     :math:`\psi_{\rm out} = a\,\psi_{\rm in} + b` (Blelloch §1.5): the
     cell-average is an affine function of the SINGLE upstream face flux,
-    so the DAG-free scan schedules (``CumprodScan``, ``ScanMarch``) can
-    consume DD via :meth:`affine_scan_coefficients` +
-    :meth:`cell_average_from_faces` + :meth:`outgoing_face_from_average`.
-    (A Linear-Discontinuous closure couples two face moments and is
-    therefore NOT affine-scannable — it would set this ``False`` and run
-    on the DAG wavefront schedule.)"""
+    so the DAG-free scan schedules (``CumprodScan``, ``ScanMarch``) consume DD
+    via its per-cell coefficient triple :meth:`affine_scan_coefficients`
+    ``(a, inverse_denom, w)`` and the generic
+    :mod:`~orpheus.sn.spatial.affine_closure` ops (#158 the coefficient model);
+    DD's blend weight is ``w = ½`` (the symmetric diamond mean).
+    (Linear-Discontinuous couples two face moments, but its slope is eliminated
+    by the Schur complement — so LD is ALSO affine-scannable, with
+    ``w = 1/(1+k)``; #158 Increment B.)"""
 
     def update(
         self,
@@ -386,8 +388,15 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         c_out: np.ndarray,     # (N,)        α_out / τ  (M-M outgoing closure const)
         V: np.ndarray,         # (N, nx)     cell volume per ordinate
         sig_t: np.ndarray,     # (N, ng, nx) Σ_t in the SAME cell ordering as the geometry arrays
-    ) -> tuple[np.ndarray, np.ndarray]:
-        r"""DD's :math:`\Sigma_t`-epoch scan coefficients — ``(a_attenuation, inverse_denom)``.
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        r"""DD's :math:`\Sigma_t`-epoch scan coefficients — ``(a_attenuation, inverse_denom, cell_average_weight)``.
+
+        The third coefficient ``cell_average_weight`` is DD's blend weight
+        ``w = ½`` (broadcast; the symmetric diamond mean
+        :math:`\bar\psi = \tfrac12(\psi_{\rm in}+\psi_{\rm out})`) — #158 the
+        coefficient model.  The generic :mod:`~orpheus.sn.spatial.affine_closure`
+        ops consume it; DD carries no cell-average / outgoing-face / source-
+        emission method of its own.
 
         The single source of the DD affine-recurrence coefficients
         (Cardinal Rule 2 / Pattern 2): :class:`CollisionCache.from_geometry`
@@ -462,39 +471,12 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         # transmission multiplier a = 2|μ|·A_total / denom − 1
         a_numer = 2.0 * abs_mu[:, None] * A_total                        # (N, nx)
         a_attenuation = a_numer[:, None, :] * inverse_denom - 1.0        # (N, ng, nx)
-        return a_attenuation, inverse_denom
-
-    def cell_average_from_faces(
-        self, face_in: np.ndarray, face_out: np.ndarray,
-    ) -> np.ndarray:
-        r"""Diamond cell-average :math:`\bar\psi = \tfrac12(\psi_{\rm in}+\psi_{\rm out})`.
-
-        Closure solve-direction A (see :meth:`CellUpdate.cell_average_from_faces`):
-        the scan recurrence produces the downstream face flux directly, and
-        the cell-average is the diamond mean of the (incoming, outgoing) face
-        pair.  Consumed by every scan body (slab ``_run_1d_unified``,
-        curvilinear, ``ScanMarch`` x-row) — the single source replacing the
-        ``0.5 * (psi_face_in + psi_face_out)`` written inline at each site.
-        Inverse direction: :meth:`outgoing_face_from_average`.
-        """
-        return 0.5 * (face_in + face_out)
-
-    def outgoing_face_from_average(
-        self, cell_avg: np.ndarray, face_in: np.ndarray,
-    ) -> np.ndarray:
-        r"""Diamond reconstruction :math:`\psi_{\rm out} = 2\bar\psi - \psi_{\rm in}`.
-
-        Closure solve-direction B (the inverse of
-        :meth:`cell_average_from_faces`): given the cell-average and the
-        incoming face, reconstruct the outgoing face via the WDD difference
-        relation.  This is the SAME relation already spelled inline by the
-        per-cell :meth:`update` spatial closure (:math:`2\psi_{\rm avg} -
-        \psi^s_{\rm in}`) and the batched :meth:`cell_kernel_batch` /
-        :meth:`residual_kernel_batch` per-axis reconstruction; the named
-        method makes it a single source the ``ScanMarch`` transverse y-march
-        consumes (Issue #236 §2 PR3).
-        """
-        return 2.0 * cell_avg - face_in
+        # Cell-average blend weight (#158 the coefficient model): DD is the
+        # symmetric diamond mean ψ̄ = ½(ψ_in+ψ_out), i.e. w = ½ everywhere.  The
+        # generic closure ops in ``affine_closure`` consume this; DD carries NO
+        # cell-average / outgoing-face / source-emission method of its own.
+        cell_average_weight = np.full_like(a_attenuation, 0.5)            # (N, ng, nx)
+        return a_attenuation, inverse_denom, cell_average_weight
 
     # ── S6.4(e): the storage adapters RETIRED ───────────────────────────
     #
@@ -507,13 +489,19 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
     #   1. the per-cell reference pair (``update`` / ``residual``) — the
     #      canonical contract every scheme MUST provide;
     #   2. the batched kernel pair (``cell_kernel_batch`` /
-    #      ``residual_kernel_batch``) — the DAG wavefront family;
-    #   3. the scan-family triple (``affine_scan_coefficients`` /
-    #      ``cell_average_from_faces`` / ``outgoing_face_from_average``) — the
-    #      DAG-free scan family (CumprodScan / ScanMarch), Issue #236 §2.
+    #      ``residual_kernel_batch``) — the DAG wavefront family (and the matvec
+    #      apply twin of the scan, since the apply direction has a concrete ψ̄);
+    #   3. the scan-family coefficients ``affine_scan_coefficients`` →
+    #      ``(a, inverse_denom, w)`` — the DAG-free scan SOLVE family
+    #      (CumprodScan / ScanMarch), consumed by the generic
+    #      :mod:`~orpheus.sn.spatial.affine_closure` ops (#158 the coefficient
+    #      model; the per-scheme ``cell_average_from_faces`` /
+    #      ``outgoing_face_from_average`` closure methods are RETIRED — the
+    #      operations are now generic in ``w``).
     # This is the ONLY direction-aware math in the SN stack, and the override
-    # point for future closure strategies (Step / LD / EC supply groups 2 and,
-    # if affine-scannable, 3; storage is handled once, above them).
+    # point for future closure strategies (Step / LD / EC supply group 2 and,
+    # if affine-scannable, the group-3 coefficients; storage is handled once,
+    # above them).
 
 
 

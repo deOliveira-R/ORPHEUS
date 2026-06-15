@@ -28,6 +28,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D, slab_streaming
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial import LinearDiscontinuous, UpstreamState
+from orpheus.sn.spatial.affine_closure import cell_average, source_emission
 from orpheus.sn.spatial.cell_update import CellResult, CellUpdateBase, CellVisit
 
 
@@ -200,10 +201,11 @@ class TestLDRoundTrip:
 
 class TestLDTraits:
     @pytest.mark.foundation
-    def test_is_affine_scannable_false(self) -> None:
-        """LD couples two face moments → NOT affine-scannable (routes to the
-        per-cell walk, away from CumprodScan/ScanMarch)."""
-        assert LinearDiscontinuous.is_affine_scannable is False
+    def test_is_affine_scannable_true(self) -> None:
+        """LD's slope is eliminated by the Schur complement → the single-upstream
+        affine recurrence holds → LD IS affine-scannable (#158 Increment B) and
+        rides CumprodScan/ScanMarch via the coefficient model."""
+        assert LinearDiscontinuous.is_affine_scannable is True
 
     @pytest.mark.foundation
     def test_is_linear_true_not_positivity_preserving(self) -> None:
@@ -312,6 +314,45 @@ class TestLDKernel:
         np.testing.assert_allclose(
             res1.outgoing_spatial_flux, psi_out2.ravel(), rtol=1e-12, atol=1e-13,
         )
+
+    @pytest.mark.foundation
+    def test_group3_equals_group2_scan_flat(self) -> None:
+        r"""Affine-scan coefficients (×V, group 3) ≡ batched kernel (÷V, group 2).
+
+        #158 Inc B sign-trap catcher: LD's ``affine_scan_coefficients`` builds
+        the ×V Schur ``(a, inverse_denom, w)`` — a *genuinely different formula*
+        from the ÷V ``cell_kernel_batch`` (the LM-1989 §1.4/§6 slope-row sign
+        trap lives in the ×V transmission ``a``).  Applying the generic
+        coefficient-model ops (``ψ_out = a·ψ_in + b``, ``b = QV·inv/w``;
+        ``ψ̄ = (1−w)ψ_in + w·ψ_out``) must reproduce the trusted Increment-A
+        kernel cell-for-cell.  Single cell, flat source (Q̂ = 0), 2G.
+        """
+        _, st, _, _ = _slab_visit(cell_idx=2, n_ord=4)
+        assert st.abs_mu is not None and st.volume is not None
+        mu, h = float(st.abs_mu), float(st.volume)
+        sig = np.array([1.2, 0.7])
+        q_bar = np.array([2.0, 0.5])
+        psi_in = np.array([0.3, 0.1])
+        strat = LinearDiscontinuous()
+        # group 2 (÷V kernel) — the trusted Increment-A reference path.
+        psi_avg2, (psi_out2,) = strat.cell_kernel_batch(
+            psi_in=(psi_in[None, :, None],),
+            s_axes=(np.array([[[2.0 * mu / h]]]),),
+            sigt_cells=sig[:, None], Q_cells=q_bar[None, :, None],
+        )
+        # group 3 (×V coefficients) + the generic affine_closure ops.
+        a, inv, w = strat.affine_scan_coefficients(
+            abs_mu=np.array([mu]), A_down=np.array([[1.0]]),
+            A_total=np.array([[2.0]]), dA_w=np.array([[0.0]]),
+            c_out=np.array([[0.0]]), V=np.array([[h]]),
+            sig_t=sig[None, :, None],
+        )                                                    # each (1, 2, 1)
+        psi_in_b = psi_in[None, :, None]                     # (1, 2, 1)
+        qv = (q_bar * h)[None, :, None]                      # ×V volumetric source
+        psi_out3 = a * psi_in_b + source_emission(qv, inv, w)
+        psi_avg3 = cell_average(psi_in_b, psi_out3, w)
+        np.testing.assert_allclose(psi_avg3, psi_avg2, rtol=1e-12, atol=1e-13)
+        np.testing.assert_allclose(psi_out3, psi_out2, rtol=1e-12, atol=1e-13)
 
     @pytest.mark.foundation
     def test_cell_kernel_batch_rejects_multi_d(self) -> None:

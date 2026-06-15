@@ -122,10 +122,19 @@ Traits
   (``is_positivity_preserving = False``), so the clean 2×2 linear solve stands.
 * ``is_positivity_preserving = False`` — LD can produce negative cell-average
   AND negative edge fluxes in thin / steep-source cells (Lewis & Miller §5.3).
-* ``is_affine_scannable = False`` — LD couples two face moments, so it does
-  **not** admit the single-upstream affine recurrence that
-  ``CumprodScan`` / ``ScanMarch`` consume; it routes through the per-cell DAG
-  walk (the ``OneDimPerCellWalk`` loss-representation — Issue #158 Step 2).
+* ``is_affine_scannable = True`` (Issue #158 Increment B) — although LD carries
+  TWO cell moments, the slope :math:`\hat\psi` is a LOCAL quantity eliminated by
+  the Schur complement, leaving a *single-upstream* affine recurrence
+  :math:`\psi_{\rm out}=a\,\psi_{\rm in}+b` with ``a`` source-independent (proven
+  numerically to machine ε).  So LD ALSO rides the DAG-free scan schedules
+  (``CumprodScan`` / ``ScanMarch``) via the coefficient model — it supplies its
+  three per-cell coefficients ``(a, inverse_denom, w)`` through
+  :meth:`~LinearDiscontinuous.affine_scan_coefficients` and the generic
+  :mod:`~orpheus.sn.spatial.affine_closure` ops do the rest.  (The polymorphic
+  ``FullFieldWavefront`` DAG oracle — Increment A — still backs the group-2
+  kernel; the two-paths gate pins ``CumprodScan``-LD ≡ ``FullFieldWavefront``-LD.)
+  **Slab/Cartesian only** — the curvilinear scan coefficients are unpublished
+  (the guard in ``affine_scan_coefficients`` raises on non-neutral curvature).
 
 References
 ==========
@@ -262,7 +271,19 @@ class LinearDiscontinuous(CellUpdateBase, key="linear_discontinuous"):
 
     is_linear: ClassVar[bool] = True
     is_positivity_preserving: ClassVar[bool] = False
-    is_affine_scannable: ClassVar[bool] = False
+    is_affine_scannable: ClassVar[bool] = True
+    r"""LD admits the single-upstream affine recurrence (#158 Increment B): the
+    slope :math:`\hat\psi` is eliminated by the Schur complement, leaving
+    :math:`\psi_{\rm out}=a\psi_{\rm in}+b` with ``a`` source-independent.  LD
+    therefore supplies the scan coefficient triple via
+    :meth:`affine_scan_coefficients` and rides ``CumprodScan`` / ``ScanMarch``.
+    Slab/Cartesian only — the method raises on curvilinear geometry."""
+
+    matvec_via_kernel: ClassVar[bool] = True
+    r"""LD's matvec IS its group-2 :meth:`residual_kernel_batch` (the ÷V Schur
+    residual — there is no separate ``cell_balance`` density form for LD), so
+    the Cartesian ``_apply_walk`` arm routes LD through the kernel.  DD keeps
+    ``False`` (its byte-identical ``cell_balance`` path)."""
 
     theta: ClassVar[float] = 1.0 / 3.0
     r"""The slope-moment weight :math:`\theta` (LM-1989 Eq. 4.3b).  The value
@@ -468,3 +489,71 @@ class LinearDiscontinuous(CellUpdateBase, key="linear_discontinuous"):
         residual = eff_denom * psi_bar - rhs
         psi_out = psi_bar + g_over_theta * (psi_bar - in0) / d2
         return residual, (psi_out,)
+
+    # ── Scan-family coefficients (group 3 — the DAG-free schedules) ──────────
+    #
+    # The ×V "denom" convention the scan machinery uses (CollisionCache /
+    # ordinate_scan): the SAME LD as the ÷V group-2 kernel above, scaled by V
+    # (S_scan = V·S_kernel, SymPy-verified), so CumprodScan-LD and
+    # FullFieldWavefront-LD are principled-equivalent at nULP (the two-paths
+    # gate).  Slab/Cartesian only — the curvilinear LD closure is unpublished.
+
+    def affine_scan_coefficients(
+        self,
+        *,
+        abs_mu: np.ndarray,    # (N,)        |μ_n|
+        A_down: np.ndarray,    # (N, nx)     downstream face area (slab: 1)
+        A_total: np.ndarray,   # (N, nx)     A_inner + A_outer (unused; slab=2)
+        dA_w: np.ndarray,      # (N, nx)     ΔA/w curvature redistribution (slab: 0)
+        c_out: np.ndarray,     # (N, nx)     M-M outgoing closure const (slab: 0)
+        V: np.ndarray,         # (N, nx)     cell volume per ordinate
+        sig_t: np.ndarray,     # (N, ng, nx) Σ_t in the geometry's cell ordering
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        r"""LD's :math:`\Sigma_t`-epoch scan coefficients ``(a, inverse_denom, w)``.
+
+        The Schur-reduced slab LD 2×2 (flat :math:`\hat Q = 0`) in the ×V
+        convention (``m = |μ|·A_down``, ``t = Σ_t V``, ``p = m/θ``):
+
+        .. math::
+
+           D_2 &= t + p, \qquad k = p / D_2, \\
+           S   &= (t + m) + m\,p / D_2,
+                  \qquad \mathrm{inverse\_denom} = 1/S, \\
+           a   &= m\,(1+k)^2 / S - k,
+                  \qquad w = 1/(1+k).
+
+        ``a`` is source-independent (the affine transmission); ``w`` is the
+        cell-average blend weight (:math:`\bar\psi=(1-w)\psi_{\rm in}+w\psi_{\rm
+        out}`).  All three SymPy-verified against the per-cell 2×2 + the ÷V
+        :meth:`cell_kernel_batch` form (#158 Increment B).
+
+        Slab-only guard
+        ---------------
+
+        The curvilinear (sphere/cylinder) LD scan closure is unpublished.  Its
+        signal is non-neutral curvature: slab carries ``dA_w == 0`` and
+        ``c_out == 0`` EXACTLY (the :func:`slab_streaming` neutral element);
+        curvilinear carries non-zero values.  Raising here fails fast at the
+        :class:`~orpheus.sn.spatial.sweep_cache.CollisionCache` build
+        (``SNSolver.__init__``) before any sweep or matvec runs — so a 1-D
+        sphere/cylinder mesh carrying ``LinearDiscontinuous`` (which would match
+        ``CumprodScan.supports`` via ``is_1d and is_affine_scannable``) is
+        rejected loudly rather than silently running DD-shaped curvature math.
+        """
+        if np.any(dA_w != 0.0) or np.any(c_out != 0.0):
+            raise NotImplementedError(
+                "LinearDiscontinuous.affine_scan_coefficients supports the "
+                "slab/Cartesian LD only; the curvilinear (sphere/cylinder) LD "
+                "scan closure is unpublished (#158).  A non-neutral curvature "
+                "was detected (dA_w / c_out are not all zero)."
+            )
+        theta = self.theta
+        m = abs_mu[:, None, None] * A_down[:, None, :]   # |μ|·A_down  (N, 1, nx)
+        t = sig_t * V[:, None, :]                         # Σ_t·V       (N, ng, nx)
+        p = m / theta                                     # |μ|/θ       (N, 1, nx)
+        d2 = t + p                                        # D₂          (N, ng, nx)
+        k = p / d2                                        # (N, ng, nx)
+        inverse_denom = 1.0 / ((t + m) + m * p / d2)      # 1/S         (N, ng, nx)
+        a = m * (1.0 + k) ** 2 * inverse_denom - k        # transmission (N, ng, nx)
+        w = 1.0 / (1.0 + k)                               # blend weight (N, ng, nx)
+        return a, inverse_denom, w

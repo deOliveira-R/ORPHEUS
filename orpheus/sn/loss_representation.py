@@ -129,6 +129,7 @@ import numpy as np
 # bodies share one home, so the historical load-time import cycle is gone.
 from orpheus.geometry import CoordSystem
 
+from .spatial.affine_closure import cell_average, source_emission
 from .spatial.cell_update import UpstreamState
 from .spatial.psi_half_angle_seed import CarlsonSweepContext
 from .spatial.scan import _scanmarch_row, _x_scan_faces, ordinate_scan
@@ -141,6 +142,12 @@ from .sweep_graph import (
     _CellSolve,
 )
 from .sweep_schedule import SweepSchedule
+
+#: Source-free ``Q_cells`` for the matvec apply (the operator action ``(L+C)ψ̄``
+#: carries no volumetric source).  Shared read-only ``(1,1,1)`` zero broadcast
+#: into ``residual_kernel_batch`` — the kernel only READS ``Q_cells`` (it never
+#: mutates it), so one shared instance is safe and avoids a per-cell allocation.
+_MATVEC_ZERO_SOURCE = np.zeros((1, 1, 1))
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -1315,7 +1322,6 @@ class ScanMarch(_LossRepresentation):
             )
             psi_avg_row, out_y, x_outflow = _scanmarch_row(
                 alpha, beta, inflow_x[:, :, j], psi_y_in, x_reverse,
-                self.mesh.cell_update,
             )
             psi_y_in = out_y
             capture_x[:, :, j] = x_outflow
@@ -1422,9 +1428,10 @@ class ScanMarch(_LossRepresentation):
                 - s_x[:, None, :] * in_x_row
                 - s_y[:, j][:, None, None] * psi_y_in
             )
-            out_y = self.mesh.cell_update.outgoing_face_from_average(
-                psi_bar_row, psi_y_in
-            )
+            # DD diamond reconstruction out_y = 2ψ̄ − ψ_y_in (2-D scan-march is
+            # DD-only; the residual + x-recon above already bake in w=½ — the
+            # 2-D coefficient-model lift is deferred, see ``_scanmarch_row``).
+            out_y = 2.0 * psi_bar_row - psi_y_in
             psi_y_in = out_y
             cap_x[:, :, j] = x_outflow
         return LpC_oct, (cap_x, out_y)
@@ -1881,13 +1888,21 @@ class _OneDimScanWalk:
         ``_compute_decomposition`` (its dual-emission byte-twin) — now ONE walk.
         The apply direction is the structural twin of :meth:`sweep` (L21 "matvec
         ≡ sweep"). The sweep SOLVES ``(L+C)⁻¹q``; this APPLIES ``(L+C)ψ`` to a
-        KNOWN probe: reconstruct the outgoing face via the already-seamed diamond
-        closure ``out = 2ψ̄ − in`` (``cell_update.outgoing_face_from_average``,
-        Phase A), then form the per-cell DENSITY-form residual
-        ``m_full = (denom·ψ̄ − numer_upstream)/V``. The DENSITY grouping keeps the
-        ``cell_balance_for_streaming`` denom (byte-identical to the scan cache's
-        ``affine_scan_coefficients`` denom) — bit-identical to the pre-carve
-        operator path (no reciprocal round-trip).
+        KNOWN probe ψ̄.  Since the apply has a concrete ψ̄ it rides a
+        scheme-specific density residual (#158 the coefficient model):
+
+        * **Cartesian + ``matvec_via_kernel``** (e.g. LD) —
+          ``cell_update.residual_kernel_batch`` (the ÷V ``g=|μ|/Δ`` kernel)
+          returns the density residual AND the outgoing face in one call.
+        * **Otherwise (DD, all geometries)** — the byte-identical
+          ``cell_balance_for_streaming`` density path
+          (``m_full = (denom·ψ̄ − numer_upstream)/V``) with DD's diamond march
+          ``out = 2ψ̄ − in`` inlined.  DD keeps ``matvec_via_kernel=False`` so it
+          stays bit-identical to the pre-#158 operator on EVERY mesh (the ÷V
+          kernel re-associates ~1 ULP on non-power-of-2 widths); this arm also
+          carries the curvilinear Morel–Montry thread (not a pure
+          ``(a, inverse_denom, w)`` coefficient).  LD is slab-only + rides the
+          kernel, so it never reaches this arm.
 
         ``emit_angular`` selects the EMISSION granularity (NOT a second walk —
         the spatial recurrence is identical either way):
@@ -2002,6 +2017,36 @@ class _OneDimScanWalk:
 
                 for i in cell_indices:
                     psi_cell = psi_g_first[:, global_dir, i]
+                    if curvature == "cartesian" and sn_mesh.cell_update.matvec_via_kernel:
+                        # Coefficient model (#158 Inc B): a scheme whose matvec IS
+                        # its group-2 ÷V kernel (``matvec_via_kernel`` — e.g. LD,
+                        # which has no separate ``cell_balance`` density form)
+                        # rides ``residual_kernel_batch`` here — it returns BOTH
+                        # the density residual and the outgoing face, the apply
+                        # twin of the scan solve.  ``s = 2|μ|/Δ`` (slab A=1, V=Δ);
+                        # source-free (``Q_cells = 0``).  DD keeps
+                        # ``matvec_via_kernel=False`` → it falls through to the
+                        # byte-identical ``cell_balance`` path below (DD stays
+                        # bit-identical to the pre-#158 operator).  Cartesian has
+                        # no Morel–Montry thread, so ``out_ang`` stays zero.
+                        resid, (psi_out_cell,) = (
+                            sn_mesh.cell_update.residual_kernel_batch(
+                                psi_bar=psi_cell.T[:, :, None],          # (K, ng, 1)
+                                psi_in=(psi_face_in.T[:, :, None],),
+                                s_axes=((2.0 * abs_mu / V[i])[:, None, None],),
+                                sigt_cells=sigma_t_gx[:, i][None, :, None],
+                                Q_cells=_MATVEC_ZERO_SOURCE,   # source-free apply
+                            )
+                        )
+                        out_g_first[:, global_dir, i] = resid[:, :, 0].T  # (ng, K)
+                        psi_face_in = psi_out_cell[:, :, 0].T             # (ng, K)
+                        continue
+                    # The ``cell_balance`` density path — DD's matvec for BOTH
+                    # Cartesian (zero angular) AND curvilinear (the Morel–Montry
+                    # angular thread, NOT a pure (a, inverse_denom, w) coefficient)
+                    # — byte-identical to the pre-#158 operator, with DD's diamond
+                    # march ``out = 2ψ̄ − in`` inlined.  LD never reaches here
+                    # (``matvec_via_kernel=True`` + slab-only).
                     angular_denom_term, angular_numer_upstream = (
                         pole_angular_closure.cell_contribution(
                             psi_state, i, p, within_positions,
@@ -2022,16 +2067,12 @@ class _OneDimScanWalk:
                     out_g_first[:, global_dir, i] = m_full
                     if out_ang_g_first is not None:
                         # The curvilinear angular-redistribution share (the
-                        # cell_contribution is already computed above; zero for
-                        # the slab IdentityAngularClosure). loss_action's hot path
-                        # leaves the buffer unallocated (None) and skips this.
+                        # cell_contribution is already computed above).
                         out_ang_g_first[:, global_dir, i] = (
                             angular_denom_term[None, :] * psi_cell
                             - angular_numer_upstream
                         ) / V[i]
-                    psi_face_in = sn_mesh.cell_update.outgoing_face_from_average(
-                        psi_cell, psi_face_in
-                    )
+                    psi_face_in = 2.0 * psi_cell - psi_face_in   # DD diamond march
                 outflow_at_end[:, global_dir] = psi_face_in
             return outflow_at_end
 
@@ -2549,26 +2590,28 @@ class _OneDimScanWalk:
                 # Indexed slice [ords] yields (K, ng, nx) — no transpose.
                 inv_denom_chain = coll.inverse_denom[ords]         # (K, ng, nx)
                 a_atten_chain = coll.a_attenuation[ords]           # (K, ng, nx)
+                w_chain = coll.cell_average_weight[ords]           # (K, ng, nx)
 
-                # b shape needed for ordinate_scan: (nx, K, ng) with cells
-                # on axis 0 (scan axis).  Build (K, ng, nx) first, then
-                # transpose.
-                b_chain = 2.0 * QV_full_chain * inv_denom_chain   # (K, ng, nx)
-                # Scan-input layout: (nx, K, ng).
+                # Affine source emission b = QV·inverse_denom/w (#158 coefficient
+                # model — DD's 2·QV·inv is the w=½ case).  (K, ng, nx);
+                # ordinate_scan wants the cell axis leading → transpose.
+                b_chain = source_emission(QV_full_chain, inv_denom_chain, w_chain)
                 a_scan = np.transpose(a_atten_chain, (2, 0, 1))   # (nx, K, ng)
                 b_scan = np.transpose(b_chain, (2, 0, 1))         # (nx, K, ng)
+                w_scan = np.transpose(w_chain, (2, 0, 1))         # (nx, K, ng)
 
                 # ONE scan call per chain — joint-batched over (K, ng).
                 psi_face_chain_scan = ordinate_scan(
                     a_scan, b_scan, psi_in_chain,
                 )                                                  # (nx, K, ng)
 
-                # DD spatial closure — face-in shifts upstream by 1.
+                # Spatial closure ψ̄ = (1−w)ψ_in + w·ψ_out (DD's ½-mean is w=½)
+                # — face-in shifts upstream by 1.
                 psi_face_in_chain = np.empty_like(psi_face_chain_scan)
                 psi_face_in_chain[0] = psi_in_chain
                 psi_face_in_chain[1:] = psi_face_chain_scan[:-1]
-                psi_avg_scan = self.mesh.cell_update.cell_average_from_faces(
-                    psi_face_in_chain, psi_face_chain_scan
+                psi_avg_scan = cell_average(
+                    psi_face_in_chain, psi_face_chain_scan, w_scan,
                 )
                 # (nx, K, ng) → per-ordinate (ng, nx) via reorder.
                 psi_avg_per_ord = np.transpose(psi_avg_scan, (1, 2, 0))  # (K, ng, nx)
@@ -2715,7 +2758,12 @@ class _OneDimScanWalk:
                     # Indexed slice [global_n] yields (ng, nx) — no transpose.
                     inv_denom_p = coll.inverse_denom[global_n]       # (ng, nx)
                     a_atten_p = coll.a_attenuation[global_n]         # (ng, nx)
-                    b = 2.0 * (QV_chain + ang_contrib) * inv_denom_p  # (ng, nx)
+                    w_p = coll.cell_average_weight[global_n]         # (ng, nx)
+                    # Affine source emission b = (QV + angular)·inverse_denom/w
+                    # (#158 coefficient model — the Morel–Montry angular
+                    # redistribution rides the volumetric source; DD's
+                    # 2·(QV+ang)·inv is the w=½ case).
+                    b = source_emission(QV_chain + ang_contrib, inv_denom_p, w_p)  # (ng, nx)
 
                     # ordinate_scan: leading axis is the scan/cell axis.
                     # Pass (nx, ng) — transpose from (ng, nx).
@@ -2728,12 +2776,13 @@ class _OneDimScanWalk:
                         # ordinate's chain (consumed above).
                         pole_outflow[global_n] = psi_face_chain[-1]
 
-                    # DD spatial closure — vectorised cell-average.
+                    # Spatial closure ψ̄ = (1−w)ψ_in + w·ψ_out (w_p.T → (nx, ng)
+                    # to match the scan layout) — vectorised cell-average.
                     psi_face_in_chain = np.empty_like(psi_face_chain)
                     psi_face_in_chain[0] = psi_in
                     psi_face_in_chain[1:] = psi_face_chain[:-1]
-                    psi_avg_chain = self.mesh.cell_update.cell_average_from_faces(
-                        psi_face_in_chain, psi_face_chain
+                    psi_avg_chain = cell_average(
+                        psi_face_in_chain, psi_face_chain, w_p.T,
                     )
                     # Principled view: (ng, nx).
                     psi_avg_chain_p = psi_avg_chain.T                # (ng, nx)

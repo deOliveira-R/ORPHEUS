@@ -1,25 +1,33 @@
-r"""L1 MMS — Linear-Discontinuous (LD) SN on a 1-D slab, via the DAG oracle.
+r"""L1 MMS — Linear-Discontinuous (LD) SN on a 1-D slab, via the affine scan.
 
-LD is the first non-Diamond-Difference spatial scheme (#158).  Being
-non-affine-scannable it runs on :class:`FullFieldWavefront` — the
-dimension-generic DAG oracle (incl. 1-D slab) that calls the polymorphic
-cell kernel ``cell_update.cell_kernel_batch`` exactly as it calls DD.  This
-gate pins two things:
+LD is the first non-Diamond-Difference spatial scheme (#158).  Since Increment B
+it is **affine-scannable** (the Schur complement eliminates the slope, leaving
+the single-upstream recurrence ``ψ_out = a·ψ_in + b``), so a 1-D slab LD mesh
+rides the fast DAG-free ``CumprodScan`` via the coefficient model — it supplies
+``(a, inverse_denom, w)`` through ``affine_scan_coefficients`` and the generic
+``affine_closure`` ops do the rest.  The polymorphic ``FullFieldWavefront`` DAG
+oracle (Increment A, via ``cell_kernel_batch``) remains the verification
+reference — the two-paths gate pins ``CumprodScan``-LD ≡ ``FullFieldWavefront``-LD.
+This file pins:
 
-* **Routing** — a 1-D slab mesh carrying ``cell_update=LinearDiscontinuous()``
-  is dispatched to ``FullFieldWavefront`` by ``default_for`` (and a DD mesh
-  still picks the fast ``CumprodScan`` — no selection regression).
-* **Spatial order** — the LD scheme converges :math:`\mathcal{O}(h^2)` on the
-  manufactured slab problem, run end-to-end through
+* **Routing** — a 1-D slab LD mesh dispatches to ``CumprodScan`` by
+  ``default_for`` (and a DD mesh still picks ``CumprodScan`` too — both affine,
+  no selection regression).
+* **Spatial order** — LD converges :math:`\mathcal{O}(h^2)` on the manufactured
+  slab problem, run end-to-end through
   ``solve_sn_fixed_source(..., cell_update=LinearDiscontinuous())``.
+* **Two-paths (#158 Inc B)** — ``CumprodScan``-LD ≡ ``FullFieldWavefront``-LD
+  (principled-equivalent at nULP; the ×V scan vs ÷V kernel conventions agree).
+* **Matvec ≡ sweep** — the Krylov apply (LD's group-2 ``residual_kernel_batch``
+  via ``_apply_walk``) matches the SI sweep.
 
 The per-cell exactness-on-linears (the strong structurally-independent
-correctness oracle) lives in ``tests/sn/spatial/test_linear_discontinuous.py``;
-this file pins the convergence order through the production sweep path.
+correctness oracle) lives in ``tests/sn/spatial/test_linear_discontinuous.py``.
 
 Related: ``orpheus.sn.spatial.linear_discontinuous`` (the occupant);
-``orpheus.sn.loss_representation.FullFieldWavefront`` (the DAG oracle);
-``.claude/plans/issue_158_spatial_cellupdate_carve.md`` (Increment A).
+``orpheus.sn.spatial.affine_closure`` (the generic coefficient-model ops);
+``orpheus.sn.loss_representation.{CumprodScan, FullFieldWavefront}``;
+``.claude/plans/mellow-swinging-breeze.md`` (Increment B).
 """
 
 from __future__ import annotations
@@ -44,18 +52,19 @@ def _l2_error(phi_num: np.ndarray, phi_ref: np.ndarray, widths: np.ndarray) -> f
 
 
 @pytest.mark.foundation
-def test_ld_slab_mesh_routes_to_full_field_wavefront() -> None:
-    """A 1-D non-affine (LD) mesh dispatches to the DAG oracle; DD stays on
-    the scan (no selection regression)."""
+def test_ld_slab_mesh_routes_to_cumprod_scan() -> None:
+    """A 1-D slab LD mesh dispatches to the fast affine scan (#158 Inc B); DD
+    stays on the scan too (both affine — no selection regression)."""
     case = build_1d_slab_mms_case()
     mesh = case.build_mesh(16)
     ld_mesh = SNMesh(mesh, case.quadrature, case.materials,
                      cell_update=LinearDiscontinuous())
     dd_mesh = SNMesh(mesh, case.quadrature, case.materials)
-    if not isinstance(default_for(ld_mesh), FullFieldWavefront):
+    if not isinstance(default_for(ld_mesh), CumprodScan):
         pytest.fail(
             "LD slab mesh routed to "
-            f"{type(default_for(ld_mesh)).__name__}, expected FullFieldWavefront"
+            f"{type(default_for(ld_mesh)).__name__}, expected CumprodScan "
+            "(LD is affine-scannable since Increment B)"
         )
     if not isinstance(default_for(dd_mesh), CumprodScan):
         pytest.fail(
@@ -111,10 +120,10 @@ def test_sn_1d_slab_ld_mms_converges_second_order() -> None:
 def test_sn_1d_slab_ld_mms_krylov_matches_si() -> None:
     r"""LD forward matvec ≡ SI sweep (the L14 matvec≡sweep leg).
 
-    The Krylov inner exercises LD's ``residual_kernel_batch`` via
-    ``FullFieldWavefront.loss_action`` (the apply twin of the SI sweep's
-    ``cell_kernel_batch``); both must converge to the SAME manufactured flux —
-    the per-cell matvec is otherwise untouched by the SI path.
+    Since Increment B LD routes to ``CumprodScan``: the Krylov inner exercises
+    LD's ``residual_kernel_batch`` via the scan walk's ``_apply_walk`` cartesian
+    arm (the apply twin of the SI sweep's group-3 ``affine_scan_coefficients`` +
+    generic ``cell_average``); both must converge to the SAME manufactured flux.
     """
     case = build_1d_slab_mms_case()
     mesh = case.build_mesh(80)
@@ -132,6 +141,84 @@ def test_sn_1d_slab_ld_mms_krylov_matches_si() -> None:
         kry.scalar_flux.values[0], si.scalar_flux.values[0],
         rtol=1e-9, atol=1e-11,
     )
+
+
+@pytest.mark.l1
+@pytest.mark.verifies("ld-cartesian-1d")
+def test_ld_two_paths_scan_equals_dag_oracle() -> None:
+    r"""#158 Inc B headline — ``CumprodScan``-LD ≡ ``FullFieldWavefront``-LD.
+
+    The fast affine scan (``CumprodScan``, group-3 ``affine_scan_coefficients``
+    in the ×V convention) and the polymorphic DAG oracle
+    (``FullFieldWavefront``, group-2 ``cell_kernel_batch`` in the ÷V ``g=|μ|/Δ``
+    convention) solve the SAME LD discrete system via two different schedules
+    AND two different scalings.  They are **principled-equivalent** (NOT
+    byte-identical: ``S_scan = V·S_kernel`` + distinct reduction trees), so the
+    two-paths cross-check pins LD's affine coefficients against the trusted
+    Increment-A kernel — the system-level analogue of the unit group2≡group3
+    gate, and the slope-row sign-trap catcher at the schedule level.
+
+    STRESSING config (Mode-9 — a flat/homogeneous two-paths gate would be
+    FP-coincidentally exact): heterogeneous per-cell-per-group ``σ_t`` (≥2G) +
+    a non-flat random per-ordinate source.  One sweep each, on a fresh boundary
+    (the sweep mutates it in place).
+    """
+    from orpheus.geometry import BC, CoordSystem, Mesh1D
+    from orpheus.numerics.quadrature import Quadrature
+    from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.derivations.continuous.mms.sn import _make_2g_asymmetric_mixture
+
+    nx = 24
+    materials = {0: _make_2g_asymmetric_mixture(
+        np.array([1.0, 1.5]), np.array([[0.3, 0.2], [0.0, 0.6]]),
+    )}
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 5.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CARTESIAN, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+    )
+    quad = Quadrature.gauss_legendre(8)
+    ld_mesh = SNMesh(mesh, quad, materials, cell_update=LinearDiscontinuous())
+    N, ng = quad.N, ld_mesh.ng
+
+    rng = np.random.default_rng(20260614)
+    sig_t = rng.uniform(0.3, 3.0, size=(ng, nx))          # het, ≥2G
+    Q = rng.standard_normal((N, ng, nx))                  # non-flat per-ordinate
+
+    _, phi_scan = CumprodScan(ld_mesh).sweep(
+        Q, sig_t, BoundaryFlux.zeros_on(ld_mesh),
+    )
+    _, phi_dag = FullFieldWavefront(ld_mesh).sweep(
+        Q, sig_t, BoundaryFlux.zeros_on(ld_mesh),
+    )
+    # Principled-equivalent (×V scan vs ÷V kernel): tight nULP-scale band, well
+    # below any algorithmic-difference signature (a sign-trap would be O(1)).
+    np.testing.assert_allclose(phi_scan, phi_dag, rtol=1e-12, atol=1e-13)
+
+
+@pytest.mark.foundation
+def test_ld_curvilinear_scan_rejected() -> None:
+    """Slab-only guard (#158 Inc B): a 1-D *curvilinear* LD mesh would match
+    ``CumprodScan.supports`` (``is_1d and is_affine_scannable``), but the
+    curvilinear LD scan closure is unpublished — ``affine_scan_coefficients``
+    must raise (fail-fast at the ``CollisionCache`` build in
+    ``SNSolver.__init__``) rather than silently run DD-shaped curvature math."""
+    from orpheus.geometry import BC, CoordSystem, Mesh1D
+    from orpheus.numerics.quadrature import Quadrature
+    from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
+
+    nx = 8
+    materials = {0: _make_1g_mixture(1.0, 0.5)}
+    sphere = Mesh1D(
+        edges=np.linspace(0.0, 1.0, nx + 1), mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.SPHERICAL, bc_left=BC("reflective"), bc_right=BC("vacuum"),
+    )
+    quad = Quadrature.gauss_legendre(8)
+    Q = np.ones((quad.N, 1, nx)) / quad.weights.sum()
+    with pytest.raises(NotImplementedError, match="slab/Cartesian"):
+        solve_sn_fixed_source(
+            materials, sphere, quad, Q, boundary_condition="vacuum",
+            cell_update=LinearDiscontinuous(),
+        )
 
 
 @pytest.mark.l1

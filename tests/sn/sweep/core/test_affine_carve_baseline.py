@@ -15,10 +15,11 @@ axes that the #206 carve actually touches:
    cancellation.  Uniform σ_t + flat ψ NULL it (vv §H2), so a flat-ψ /
    uniform-σ_t gate would pass GREEN while a real curvilinear closure bug
    hides.  Phase A's whole point is routing BOTH the sweep and the matvec
-   through the SAME ``cell_update`` closure
-   (``outgoing_face_from_average`` / ``cell_average_from_faces`` /
-   ``affine_scan_coefficients``); the redistribution path is exactly where
-   a routing slip would show.
+   through the SAME ``cell_update`` cell math (#206 Phase A: the closure
+   methods; #158 Increment B refactored group-3 to the coefficient model —
+   ``affine_scan_coefficients`` → ``(a, inverse_denom, w)`` consumed by the
+   generic ``affine_closure`` ops, the per-scheme closure methods retired); the
+   redistribution path is exactly where a routing slip would show.
 
 2. **Non-flat random ψ / Q** (≥2 groups) — fixed-seed random bulk +
    boundary trace (matvec) and a fixed-seed random per-ordinate source
