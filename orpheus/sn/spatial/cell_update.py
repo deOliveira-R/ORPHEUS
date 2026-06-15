@@ -561,25 +561,11 @@ class CellUpdateBase(RegistryMixin, ABC):
     *operations* (source emission, cell-average) are NOT per-scheme: they live
     once in :mod:`orpheus.sn.spatial.affine_closure`, parameterized by those
     coefficients.  The matvec APPLY (a concrete probe ψ̄) rides the scheme's
-    group-2 :meth:`residual_kernel_batch` — see :attr:`matvec_via_kernel`."""
-
-    matvec_via_kernel: ClassVar[bool] = False
-    r"""Whether the 1-D **Cartesian matvec** rides this scheme's group-2
-    :meth:`residual_kernel_batch` (the ÷V density kernel) rather than the
-    specialised ``cell_balance`` density path in
-    :meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`.
-
-    The matvec analog of :attr:`is_affine_scannable`: a scheme whose matvec IS
-    its ``residual_kernel_batch`` (e.g. :class:`LinearDiscontinuous`, whose
-    Schur residual has no separate ``cell_balance`` form) overrides this to
-    ``True``.  :class:`DiamondDifference` keeps ``False`` — its Cartesian matvec
-    stays on the byte-identical ``cell_balance_for_streaming`` density path
-    (the #206 Phase-C carve, the form the ``cell_balance`` denom shares with the
-    scan cache) so DD is **bit-identical** to the pre-#158 operator, including
-    on non-power-of-2 cell widths where the ÷V kernel re-association would drift
-    ~1 ULP.  (``cell_balance`` is also DD's curvilinear matvec path, Morel–Montry
-    included — that arm is on the non-Cartesian branch, which never consults this
-    flag.)"""
+    group-2 :meth:`residual_kernel_batch` UNIFORMLY for every affine scheme
+    (Cartesian) — DD reproduces its diamond march, LD its Schur residual, with
+    no scheme branch (#158/#240 the coefficient model — there is no per-scheme
+    matvec capability flag; bit-identity is never a design constraint, only a
+    free bonus when the kernel re-association happens to be exact)."""
 
     @classmethod
     def _registry_base(cls) -> type:

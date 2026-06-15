@@ -41,32 +41,40 @@ group-3 ≡ group-2 gate (``test_group3_equals_group2_scan_flat``) pins the SOLV
 direction (``ψ̄``/``ψ_out``) against the trusted Increment-A kernel.
 
 The apply direction (matvec) is NOT a generic op here: with a CONCRETE probe
-``ψ̄`` it rides a scheme-specific density residual (the natural apply twin of the
-scan solve).  A scheme whose matvec IS its group-2
+``ψ̄`` it rides the scheme's group-2
 :meth:`~orpheus.sn.spatial.cell_update.CellUpdate.residual_kernel_batch` (the ÷V
 ``g=|μ|/Δ`` form — it returns the density residual AND the outgoing face in one
-call) declares
-:attr:`~orpheus.sn.spatial.cell_update.CellUpdateBase.matvec_via_kernel`
-(e.g. Linear-Discontinuous).  Diamond Difference keeps its specialised
-``cell_balance`` density path (byte-identical to the pre-#158 operator).  A
-future ``ExplicitMatrix`` representation would assemble the **×V** coefficients
-into matrix entries (diagonal ``S = 1/inverse_denom``, upstream coupling
+call, the natural apply twin of the scan solve).  EVERY affine scheme routes its
+Cartesian matvec through this one kernel UNIFORMLY (#158/#240 — no per-scheme
+matvec branch, no capability flag): Diamond Difference reproduces its diamond
+march ``ψ_out = 2ψ̄ − ψ_in``, Linear-Discontinuous its Schur residual (its kernel
+halves the scheme-agnostic ``s = 2|μ|/Δ`` to ``g = |μ|/Δ`` internally).  A future
+``ExplicitMatrix`` representation would assemble the **×V** coefficients into
+matrix entries (diagonal ``S = 1/inverse_denom``, upstream coupling
 ``(1−w+w·a)/inverse_denom`` — which equals DD's ``2|μ|`` and LD's ``|μ|(1+k)``);
 that is the ×V matrix convention, NOT the ÷V ``residual_kernel_batch`` density
 form (they differ by the cell volume ``V``).
 
 .. note::
 
-   For ``w=½`` (Diamond Difference) the generic ops are **byte-identical** to
-   the pre-coefficient-model closures: ``0.5*in + 0.5*out`` equals
-   ``0.5*(in+out)`` and ``QV·inv/0.5`` equals ``2·QV·inv`` bit-for-bit, because
-   multiply/divide by ½ is an exact power-of-2 scaling that commutes with IEEE
-   rounding.  So DD stays byte-identical — its regression snapshots do NOT
-   re-baseline (the gate ``tests/sn/sweep/core tests/sn/solve -W
-   error::DriftWarning`` is green at 505/1/4).  **Principled-equivalence** (~1
-   ULP, ``vv-principles`` §"Bit-identity vs principled-equivalence") applies only
-   to ``w ≠ ½`` schemes — e.g. LD, whose ×V scan vs ÷V kernel two-paths agree at
-   nULP, not bit-for-bit.
+   **The scan SOLVE ops** (:func:`source_emission` / :func:`cell_average`) are,
+   for ``w=½`` (Diamond Difference), **byte-identical** to the
+   pre-coefficient-model closures: ``0.5*in + 0.5*out`` equals ``0.5*(in+out)``
+   and ``QV·inv/0.5`` equals ``2·QV·inv`` bit-for-bit, because multiply/divide
+   by ½ is an exact power-of-2 scaling that commutes with IEEE rounding.  So DD's
+   SCAN snapshots stay byte-identical (the ``tests/sn/sweep/core tests/sn/solve
+   -W error::DriftWarning`` gate is green).
+
+   **The matvec APPLY is a deliberate principled-equivalence re-baseline.**  DD's
+   Cartesian matvec moved off the ×V ``cell_balance`` density path onto the ÷V
+   ``residual_kernel_batch`` kernel (#240, retiring the bit-identity-only
+   ``matvec_via_kernel`` special case), which re-associates ~1 ULP on
+   non-power-of-2 cell widths.  This is sanctioned by ``vv-principles``
+   §"Bit-identity vs principled-equivalence": bit-identity is never a design
+   constraint — the architecture (one uniform matvec kernel, no scheme flag) is
+   the compounding asset; a regenerated ~1-ULP golden is the negligible cost.
+   The same principled-equivalence (~1 ULP) governs LD's ×V scan vs ÷V kernel
+   two-paths agreement.
 """
 
 from __future__ import annotations

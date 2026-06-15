@@ -130,6 +130,7 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import SN_TESTS_ROOT, placeholder_materials
+from tests.sn.regression._regression_assert import assert_regression
 
 # ─────────────────────────────────────────────────────────────────────
 # Baseline snapshot store + the --capture-baseline flag.
@@ -250,24 +251,38 @@ def _LpC_apply(sn_mesh: SNMesh, state: TimedFullField, sigma_t: np.ndarray) -> T
 
 @pytest.mark.foundation
 class TestVacuumMatvecBitIdentity:
-    """Vacuum ``(L+C).apply`` is byte-identical pre/post extraction.
+    """Vacuum ``(L+C).apply`` regression — principled-equivalent post-#240.
 
-    Catches: the carve perturbing the vacuum path (which MUST be
-    byte-identical — the given-zero-inflow extracted sweep IS today's
-    sweep, since for vacuum the deleted ``inflow_full = bc_outer.apply(
-    outflow)`` returns ZERO inflow, exactly what the extracted path reads
-    from the zero boundary trace).
+    ORIGINALLY a strict byte-identity gate for the O.4a.2 BC-extraction
+    carve (the given-zero-inflow extracted sweep IS today's sweep for
+    vacuum, since the deleted ``inflow_full = bc_outer.apply(outflow)``
+    returns ZERO inflow).  #240 moved the Cartesian matvec onto the uniform
+    ÷V ``residual_kernel_batch`` kernel (DD+LD), so the **slab** vacuum bulk
+    matvec now re-associates ~1 ULP — the SLB baselines were re-captured and
+    the bulk gate narrowed to :func:`assert_regression` (principled-
+    equivalence; bit-identity is the escalatable ``DriftWarning``).  The
+    boundary-slot gate stays strict byte-identity (it did not move — the
+    outflow defect reconstructs from the same ``ψ_out = 2ψ̄ − ψ_in`` faces).
+
+    Curvilinear (SPH) baselines carry a SEPARATE pre-existing STRUCTURAL
+    red (#195/#209) — the curvilinear matvec evolved since the 92be67a
+    capture; the nULP gate hard-fails it (drift ~1e15 ULP), correctly
+    keeping it flagged rather than masked.  Re-baselining the curvilinear
+    arms is deferred to the curvilinear snapshot cleanup (NOT this carve).
     """
 
     @pytest.mark.parametrize("geometry", _GEOMS_1D)
     @pytest.mark.parametrize("seed", [0, 1, 2])
     def test_vacuum_bulk_bit_identical_1d(self, geometry, seed, request):
-        """[foundation] Vacuum bulk matvec is byte-identical pre/post carve.
+        """[foundation] Vacuum bulk matvec regression (principled-equiv post-#240).
 
-        The bulk residual (N, ng, nx, ny) of (L+C).apply MUST not move a
-        single bit when the reflective re-apply is deleted, because for
-        vacuum the deleted line contributed ZERO inflow to the backward
-        sweep — identical to reading a zero inflow trace.
+        The bulk residual (N, ng, nx, ny) of (L+C).apply was byte-identical
+        across the O.4a.2 BC-extraction carve (for vacuum the deleted line
+        contributed ZERO inflow — identical to reading a zero inflow trace).
+        #240 then moved the Cartesian matvec onto the uniform ÷V kernel, so
+        the slab arm re-associates ~1 ULP (nULP gate + DriftWarning).  SPH
+        carries a pre-existing structural red (#195/#209) the gate still
+        catches.
         """
         sn_mesh = _build_sn_mesh(geometry, bc="vacuum")
         state = _random_state(sn_mesh, seed, zero_boundary=True)
@@ -285,14 +300,23 @@ class TestVacuumMatvecBitIdentity:
             f"--capture-baseline at HEAD 92be67a BEFORE the carve"
         )
         expected = np.load(path)
-        np.testing.assert_array_equal(
+        # #240: the Cartesian matvec rides the uniform ÷V
+        # ``residual_kernel_batch`` kernel (DD+LD), which re-associates the
+        # cell-balance reduction ~1 ULP vs the pre-#240 ×V ``cell_balance``
+        # path — a principled-equivalence re-baseline (vv-principles
+        # §"Bit-identity vs principled-equivalence").  The gate is nULP at
+        # reduction_depth=nx with the escalatable DriftWarning (bit-identity
+        # is the opt-in ``-W error::DriftWarning`` bonus).  The SLB baselines
+        # were regenerated; the curvilinear (SPH/CYL) baselines are UNCHANGED
+        # — SPH carries a separate pre-existing STRUCTURAL red (#195/#209, the
+        # post-92be67a curvilinear matvec evolution) which this nULP gate
+        # still hard-fails (drift ~1e15 ULP ≫ nx), correctly keeping it
+        # flagged rather than masked.
+        assert_regression(
             out.bulk.values, expected,
-            err_msg=(
-                f"{geometry} seed={seed}: vacuum BULK matvec moved a bit "
-                f"under the BC extraction — the keystone deletion "
-                f"PERTURBED the vacuum path (it must be byte-identical: "
-                f"deleted inflow=0 for vacuum)."
-            ),
+            conv_tol=0.0, kind="direct", reduction_depth=sn_mesh.nx,
+            case_name=f"vacuum_bulk_{geometry}_seed{seed}",
+            quantity="vacuum_bulk_matvec",
         )
 
     @pytest.mark.parametrize("geometry", _GEOMS_1D)

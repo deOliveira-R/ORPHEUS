@@ -279,12 +279,6 @@ class LinearDiscontinuous(CellUpdateBase, key="linear_discontinuous"):
     :meth:`affine_scan_coefficients` and rides ``CumprodScan`` / ``ScanMarch``.
     Slab/Cartesian only — the method raises on curvilinear geometry."""
 
-    matvec_via_kernel: ClassVar[bool] = True
-    r"""LD's matvec IS its group-2 :meth:`residual_kernel_batch` (the ÷V Schur
-    residual — there is no separate ``cell_balance`` density form for LD), so
-    the Cartesian ``_apply_walk`` arm routes LD through the kernel.  DD keeps
-    ``False`` (its byte-identical ``cell_balance`` path)."""
-
     theta: ClassVar[float] = 1.0 / 3.0
     r"""The slope-moment weight :math:`\theta` (LM-1989 Eq. 4.3b).  The value
     :math:`\theta = 1/3` is the SN-exact linear-discontinuous closure (LM-1989

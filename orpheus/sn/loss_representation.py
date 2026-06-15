@@ -1891,18 +1891,21 @@ class _OneDimScanWalk:
         KNOWN probe ψ̄.  Since the apply has a concrete ψ̄ it rides a
         scheme-specific density residual (#158 the coefficient model):
 
-        * **Cartesian + ``matvec_via_kernel``** (e.g. LD) —
+        * **Cartesian (every affine scheme)** —
           ``cell_update.residual_kernel_batch`` (the ÷V ``g=|μ|/Δ`` kernel)
-          returns the density residual AND the outgoing face in one call.
-        * **Otherwise (DD, all geometries)** — the byte-identical
-          ``cell_balance_for_streaming`` density path
-          (``m_full = (denom·ψ̄ − numer_upstream)/V``) with DD's diamond march
-          ``out = 2ψ̄ − in`` inlined.  DD keeps ``matvec_via_kernel=False`` so it
-          stays bit-identical to the pre-#158 operator on EVERY mesh (the ÷V
-          kernel re-associates ~1 ULP on non-power-of-2 widths); this arm also
-          carries the curvilinear Morel–Montry thread (not a pure
-          ``(a, inverse_denom, w)`` coefficient).  LD is slab-only + rides the
-          kernel, so it never reaches this arm.
+          returns the density residual AND the outgoing face in one call.  DD and
+          LD route through it UNIFORMLY (#158/#240) — DD reproduces its diamond
+          march, LD its Schur residual, with no scheme branch.  ``s = 2|μ|/Δ`` is
+          scheme-agnostic (LD's kernel halves it to ``g = |μ|/Δ`` internally).
+          (DD's Cartesian matvec re-associates ~1 ULP vs the pre-#240
+          ``cell_balance`` path on non-power-of-2 widths — a deliberate
+          principled-equivalence re-baseline, not a special case.)
+        * **Curvilinear (DD-only)** — the ``cell_balance_for_streaming`` density
+          path (``m_full = (denom·ψ̄ − numer_upstream)/V``) carrying the
+          Morel–Montry angular thread (NOT a pure ``(a, inverse_denom, w)``
+          coefficient), with DD's diamond march ``out = 2ψ̄ − in`` inlined.
+          Curvilinear SN is DD-only (the LD curvilinear closure is unpublished),
+          so this is a single-occupant geometry, not a polymorphism gap.
 
         ``emit_angular`` selects the EMISSION granularity (NOT a second walk —
         the spatial recurrence is identical either way):
@@ -2017,18 +2020,17 @@ class _OneDimScanWalk:
 
                 for i in cell_indices:
                     psi_cell = psi_g_first[:, global_dir, i]
-                    if curvature == "cartesian" and sn_mesh.cell_update.matvec_via_kernel:
-                        # Coefficient model (#158 Inc B): a scheme whose matvec IS
-                        # its group-2 ÷V kernel (``matvec_via_kernel`` — e.g. LD,
-                        # which has no separate ``cell_balance`` density form)
-                        # rides ``residual_kernel_batch`` here — it returns BOTH
-                        # the density residual and the outgoing face, the apply
-                        # twin of the scan solve.  ``s = 2|μ|/Δ`` (slab A=1, V=Δ);
-                        # source-free (``Q_cells = 0``).  DD keeps
-                        # ``matvec_via_kernel=False`` → it falls through to the
-                        # byte-identical ``cell_balance`` path below (DD stays
-                        # bit-identical to the pre-#158 operator).  Cartesian has
-                        # no Morel–Montry thread, so ``out_ang`` stays zero.
+                    if curvature == "cartesian":
+                        # Coefficient model (#158/#240): the Cartesian matvec rides
+                        # the scheme's group-2 ÷V kernel ``residual_kernel_batch``
+                        # UNIFORMLY — DD reproduces its diamond march, LD its Schur
+                        # residual, with NO scheme branch (the kernel returns BOTH
+                        # the density residual and the outgoing face, the apply twin
+                        # of the scan solve).  ``s = 2|μ|/Δ`` (slab A_down=1, V=Δ)
+                        # is the scheme-agnostic streaming coefficient — LD's kernel
+                        # halves it to ``g=|μ|/Δ`` internally; source-free apply
+                        # (``Q_cells = 0``).  Cartesian has no Morel–Montry thread,
+                        # so ``out_ang`` stays zero (the curvilinear arm carries it).
                         resid, (psi_out_cell,) = (
                             sn_mesh.cell_update.residual_kernel_batch(
                                 psi_bar=psi_cell.T[:, :, None],          # (K, ng, 1)
@@ -2041,12 +2043,14 @@ class _OneDimScanWalk:
                         out_g_first[:, global_dir, i] = resid[:, :, 0].T  # (ng, K)
                         psi_face_in = psi_out_cell[:, :, 0].T             # (ng, K)
                         continue
-                    # The ``cell_balance`` density path — DD's matvec for BOTH
-                    # Cartesian (zero angular) AND curvilinear (the Morel–Montry
-                    # angular thread, NOT a pure (a, inverse_denom, w) coefficient)
-                    # — byte-identical to the pre-#158 operator, with DD's diamond
-                    # march ``out = 2ψ̄ − in`` inlined.  LD never reaches here
-                    # (``matvec_via_kernel=True`` + slab-only).
+                    # Curvilinear matvec — the ``cell_balance`` density path
+                    # carrying the Morel–Montry angular thread (NOT a pure
+                    # (a, inverse_denom, w) coefficient, so it cannot ride the
+                    # coefficient-model kernel above).  Curvilinear SN is DD-only
+                    # (the LD curvilinear closure is unpublished — guarded in
+                    # ``LinearDiscontinuous.affine_scan_coefficients``), so DD's
+                    # diamond march ``out = 2ψ̄ − in`` inlined here is a
+                    # single-occupant geometry, NOT a polymorphism gap.
                     angular_denom_term, angular_numer_upstream = (
                         pole_angular_closure.cell_contribution(
                             psi_state, i, p, within_positions,

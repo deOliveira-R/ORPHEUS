@@ -42,6 +42,7 @@ from orpheus.sn.operator import (
     StreamingOperator,
 )
 from tests.sn._test_helpers import _LC_matvec
+from tests.sn.regression._regression_assert import assert_regression
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -759,16 +760,24 @@ class TestT4bAlgebraDecompositionInvariantSlab:
 
 
 class TestT4bPreT4RegressionSnapshot:
-    """L4-1 / L4-5 / L4-6 / L4-7 — bit-identity vs pre-T.4 snapshots.
+    """L4-1 / L4-5 / L4-6 / L4-7 — slab matvec regression vs pre-T.4 snapshots.
 
-    Per the T.4 verification spec §6 R3 (reduction-order drift) — the
-    slab path's M_spatial.apply delegates to `_transport_operator_matvec_unified`
-    bit-exact (no reduction reorder), so Route A strict bit-identity
-    applies.
+    Originally a STRICT bit-identity gate (Route A: the slab matvec used
+    the ×V ``cell_balance`` density path with no reduction reorder).  #240
+    moved the Cartesian matvec onto the uniform ÷V
+    ``cell_update.residual_kernel_batch`` kernel (DD AND LD, retiring the
+    bit-identity-only ``matvec_via_kernel`` special case) — which
+    re-associates the cell-balance reduction (~1 ULP mean, max ~64 at a
+    near-zero cancellation value; max relΔ ~1e-14).  Per ``vv-principles``
+    §"Bit-identity vs principled-equivalence" the snapshot was re-baselined
+    and the gate narrowed to :func:`assert_regression` (``kind="direct"``,
+    ``nulp=reduction_depth``).  Bit-identity is NOT lost — it is the
+    escalatable ``DriftWarning`` (``-W error::DriftWarning`` re-pins exact
+    bytes for a pure-refactor PR), i.e. an opt-in bonus rather than an
+    always-on constraint.
 
-    Curvilinear (sphere, cylinder) arms are also pinned here because
-    T.4b leaves curvilinear ON the legacy path — these snapshots
-    must stay bit-identical.  T.4c will revisit them.
+    Boundary traces stay byte-identical (0 ULP) — the outflow defect is
+    reconstructed from the same ``ψ_out = 2ψ̄ − ψ_in`` faces.
     """
 
     @pytest.fixture(scope="class")
@@ -798,56 +807,69 @@ class TestT4bPreT4RegressionSnapshot:
         out = L.apply(state)
         return out.bulk.values.copy(), out.boundary.values.copy()
 
-    def test_slab_1g_vacuum_apply_bit_identical(self, snapshots):
-        """L4-1 — slab 1G vacuum, P0 fixture."""
-        bulk, boundary = self._capture_arm(
-            _slab_for_snapshot_arm(
+    def _assert_arm(self, snapshots, *, tag: str, mesh: SNMesh, seed: int) -> None:
+        """Re-run the slab matvec arm: BULK principled-equivalent, BOUNDARY strict.
+
+        The BULK residual rides the ÷V ``residual_kernel_batch`` kernel, which
+        re-associates the cell-balance reduction ~1 ULP (#240), so its gate is
+        ``assert_regression(kind="direct")`` — a single matvec's only drift
+        source is FP-non-associativity over the cell-chain reduction, bounded by
+        ``nulp=reduction_depth`` (the face propagates through ``mesh.nx`` cells).
+        That bound never bites here: the live output reproduces the regenerated
+        same-build snapshot to 0 ULP.  (A stray near-zero cancellation value can
+        read a large ULP *metric* for a tiny absolute Δ — e.g. ~64 ULP at
+        |ψ|~1e-2, absΔ~2e-16 — but those vanish against the same-build snapshot
+        and never reach the gate.)  Bit-identity is retained as the escalatable
+        ``DriftWarning`` (``-W error::DriftWarning`` re-pins exact bytes).
+
+        The BOUNDARY trace did NOT move (0 ULP — the outflow defect reconstructs
+        from the same ``ψ_out = 2ψ̄ − ψ_in`` faces), so it keeps the STRICT
+        ``assert_array_equal`` gate: bit-identity as a free bonus, per
+        ``vv-principles`` — strict where the implementation is genuinely
+        unchanged.
+        """
+        bulk, boundary = self._capture_arm(mesh, seed=seed)
+        assert_regression(
+            bulk, snapshots[f"{tag}_apply_bulk"],
+            conv_tol=0.0, kind="direct", reduction_depth=mesh.nx,
+            case_name=f"{tag}_apply_bulk", quantity="apply_bulk",
+        )
+        np.testing.assert_array_equal(
+            boundary, snapshots[f"{tag}_apply_boundary"],
+        )
+
+    def test_slab_1g_vacuum_apply_principled_equiv(self, snapshots):
+        """L4-1 — slab 1G vacuum, P0 fixture (#240 uniform-kernel matvec)."""
+        self._assert_arm(
+            snapshots, tag="slab_1g_vacuum",
+            mesh=_slab_for_snapshot_arm(
                 ng=1, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
             ),
             seed=20260531 + 1,
         )
-        # Snapshot bundle re-captured 2026-06-12 (post-ERR-058
-        # closure-seed fix, #195) in the rank-d native (N, ng, nx)
-        # layout — the legacy phantom-ny adapter is retired.
-        np.testing.assert_array_equal(
-            bulk, snapshots["slab_1g_vacuum_apply_bulk"],
-        )
-        np.testing.assert_array_equal(
-            boundary, snapshots["slab_1g_vacuum_apply_boundary"],
-        )
 
-    def test_slab_2g_vacuum_apply_bit_identical(self, snapshots):
+    def test_slab_2g_vacuum_apply_principled_equiv(self, snapshots):
         """L4-1 — slab 2G vacuum, P1 asymmetric SigS (ERR-002 detector)."""
-        bulk, boundary = self._capture_arm(
-            _slab_for_snapshot_arm(
+        self._assert_arm(
+            snapshots, tag="slab_2g_vacuum",
+            mesh=_slab_for_snapshot_arm(
                 ng=2, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
             ),
             seed=20260531 + 2,
         )
-        np.testing.assert_array_equal(
-            bulk, snapshots["slab_2g_vacuum_apply_bulk"],
-        )
-        np.testing.assert_array_equal(
-            boundary, snapshots["slab_2g_vacuum_apply_boundary"],
-        )
 
-    def test_slab_2g_reflective_apply_bit_identical(self, snapshots):
+    def test_slab_2g_reflective_apply_principled_equiv(self, snapshots):
         """L4-1 — slab 2G with reflective inner BC + vacuum outer.
 
         Catches BC convention drift via the D-B+1 specular permutation
         path (the D-B+1 production tensor-network instance).
         """
-        bulk, boundary = self._capture_arm(
-            _slab_for_snapshot_arm(
+        self._assert_arm(
+            snapshots, tag="slab_2g_reflective",
+            mesh=_slab_for_snapshot_arm(
                 ng=2, bc_left=BC("reflective"), bc_right=BC("vacuum"),
             ),
             seed=20260531 + 3,
-        )
-        np.testing.assert_array_equal(
-            bulk, snapshots["slab_2g_reflective_apply_bulk"],
-        )
-        np.testing.assert_array_equal(
-            boundary, snapshots["slab_2g_reflective_apply_boundary"],
         )
 
 
