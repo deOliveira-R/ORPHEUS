@@ -347,6 +347,42 @@ structurally independent and non-tautological (sign-flip breaks it by 1.88 vs
 the weak ansatz. Cross-check the shipped test's case-builder against the
 test-architect's ansatz spec; a mismatch is a flag even when all tests pass.
 
+## L-020 -- "w=½ generic ops are byte-identical to DD's factored form" is TRUE (verify the IEEE micro-fact, not the docstring)
+
+A coefficient-model refactor that replaces DD's factored closures with generic
+affine ops parameterized by w=½ CAN be genuinely byte-identical, because mult-
+by-0.5 is an exact power-of-2 scaling: `0.5*(a+b) == 0.5*a + 0.5*b` bit-for-bit
+for ALL doubles (verified 2M random pairs, 0 differ) -- the single rounding in
+`a+b` equals the single rounding in `0.5a+0.5b` (each summand exactly halved,
+exponent-shifted). Likewise `QV*inv/0.5 == 2.0*QV*inv` (0 differ). So
+`cell_average=(1-w)in+w*out` and `source_emission=QV*inv/w` at w=½ reproduce
+DD's `0.5*(in+out)` / `2*QV*inv` EXACTLY. (#158 Inc B, 2026-06-14.)
+
+**The trap**: the production docstring (`affine_closure.py`) CLAIMED the
+opposite -- "principled-equivalent, not byte-identical, ~1 ULP, DD snapshots
+re-baseline". That is STALE/WRONG: 0 `.npy` snapshots changed in the working
+tree, and the sha256 byte-identity gate (`test_affine_carve_bit_identity.py`,
+`si_slab_2g_het`) stayed GREEN. A Cardinal-Rule-3 doc-correctness flag, NOT a
+numerics flag. ALWAYS resolve a "byte-identical?" dispute by (a) `git status
+--short '**/*.npy'` (re-baseline tell) + (b) the sha256/array_equal gate +
+(c) the IEEE micro-fact at the python prompt -- never by the docstring's claim.
+
+**Liveness (L-014 applied to sha256)**: prove a sha256 gate is LIVE before
+trusting its green -- monkeypatch the touched op to inject `np.nextafter(out,
+inf)` (+1 ULP) and confirm the hash flips. Verified the slab psi-sha flips
+under a 1-ULP perturbation of `source_emission`, so the green is real.
+
+## L-021 -- Increment B closed the L-018 matvec-coverage gap for LD
+
+L-018 flagged (Inc A) that LD's matvec was correct-but-UNVERIFIED (no committed
+test drove `residual_kernel_batch`; SI sweeps only touch the solve kernel).
+Inc B added `test_sn_1d_slab_ld_mms_krylov_matches_si` (inner_solver='krylov'),
+which an instrumented call-count proves drives `residual_kernel_batch=640`,
+`cell_kernel_batch=0` -- the matvec path is now genuinely exercised end-to-end
+AND pinned ≡ the SI sweep. When re-reviewing a follow-up increment, re-check
+whether it closes a prior increment's NEEDS-EVIDENCE item (the call-count probe
+is the verification, not the round-trip self-consistency test).
+
 ## L-004 -- vv-status rationale comments must NOT use [brackets]
 
 The `:vv-status: documented` directive lives in the same RST file as

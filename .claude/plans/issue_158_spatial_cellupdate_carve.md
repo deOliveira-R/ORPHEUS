@@ -1,8 +1,15 @@
 # Tier 2a — LinearDiscontinuous as a FULL selectable discretization protocol (#158)
 
-> **STATUS (2026-06-14):** Step 1 (LD occupant) + **Increment A DONE + verified + reviewed**
-> on `feature/sn-space-angle-tier2` (NOT committed — user commits when asked). Next: Increment B.
-> Durable mirror of the plan-mode file. Parent: `.claude/plans/sn_space_angle_discretization_plan.md`.
+> **STATUS (2026-06-15):** Step 1 + **Increment A committed LOCAL** (`2b56348`/`30aadb9`/`3f0cbc2`)
+> + **Increment B (the COEFFICIENT MODEL) CODE DONE + VERIFIED + REVIEWED** (awaiting user "commit").
+> on `feature/sn-space-angle-tier2`. **Authoritative B plan + prototype = `mellow-swinging-breeze.md`**
+> (plan-mode file). B = `affine_scan_coefficients`→`(a, inverse_denom, w)`; closure methods retired →
+> generic `affine_closure.py`; matvec APPLY via the `matvec_via_kernel` capability (LD→`residual_kernel_batch`,
+> DD→`cell_balance` byte-id); LD `is_affine_scannable=True` + slab guard → LD rides `CumprodScan`.
+> DD BYTE-IDENTICAL (505/1/4); two-paths + group3≡group2 + O(h²) + matvec≡sweep green; elegance PASS
+> (×2) + qa SUPPORTED; #239 filed (2-D ScanMarch lift). NEXT after B-commit: Increment C (diffusion
+> limit) or Step-4 close-out (#36: theory page + SymPy derivation into `derivations/`).
+> Parent: `.claude/plans/sn_space_angle_discretization_plan.md`.
 >
 > **⭐ INCREMENT A LANDED (the corrected architecture — user directive: NO twin DAG):**
 > LD runs on `FullFieldWavefront` (the polymorphic any-d DAG oracle, incl. 1-D slab) via the

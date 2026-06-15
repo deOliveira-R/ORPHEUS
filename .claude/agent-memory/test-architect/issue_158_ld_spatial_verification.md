@@ -1,11 +1,619 @@
 ---
 name: issue-158-ld-spatial-verification
-description: Verification plan + pytest skeletons for the Linear-Discontinuous (LD) SN cell-update scheme + the OneDimPerCellWalk dispatch seam (#158). 5 gates, L17 crosswalk, slab-Cartesian LD MMS ansatz (angular-stress override of the simplification bias), seam-control nULP tolerance, DD-no-regression strict invocation.
+description: Verification plan for the Linear-Discontinuous (LD) SN cell-update scheme (#158). Increment A (LANDED — DAG-oracle gates) + Increment B (PRE-IMPL — the affine-scan bonus that flips is_affine_scannable→True so LD rides CumprodScan/ScanMarch). Two-paths agreement (CumprodScan-LD ≡ FullFieldWavefront-LD, principled-equiv nulp), routing-test INVERSION, DD strict bit-identity pin, ×V slope-row sign-trap gate.
 metadata:
   type: project
 ---
 
 # Issue #158 — Linear-Discontinuous (LD) spatial scheme + dispatch-seam verification
+
+> **ORIENTATION (2026-06-14).** Increment A has LANDED on
+> `feature/sn-space-angle-tier2` (HEAD `3f0cbc2`; LD module
+> `orpheus/sn/spatial/linear_discontinuous.py`, gate-1
+> `tests/sn/spatial/test_linear_discontinuous.py`, MMS gate
+> `tests/sn/verification/mms/test_mms_ld_slab.py`). The §below "INCREMENT A
+> SHIPPED" reconciles what landed vs the original plan. The Increment-B
+> section (the affine-scan bonus) is the CURRENT pre-impl deliverable — read
+> it FIRST if you are gating Increment B. The original pre-impl plan (the
+> `OneDimPerCellWalk` seam, 5 gates) is PRESERVED below as history but was
+> SUPERSEDED: LD landed on the existing `FullFieldWavefront` DAG oracle
+> (group-2 `cell_kernel_batch`), NOT a new `OneDimPerCellWalk` rep — the
+> `OneDimPerCellWalk` attempt was reverted per the user. Increment B does NOT
+> resurrect it; it generalizes the group-3 (scan) contract so LD ALSO rides
+> the fast `CumprodScan`/`ScanMarch`.
+
+---
+
+# ════════════════════════════════════════════════════════════════════
+# INCREMENT A — SHIPPED (reconciliation; live evidence 2026-06-14)
+# ════════════════════════════════════════════════════════════════════
+
+What landed vs the original 5-gate plan (read before extending):
+
+- **The dispatch seam is NOT `OneDimPerCellWalk`.** LD is
+  `is_affine_scannable=False` and routes to `FullFieldWavefront` (the
+  dimension-generic DAG oracle, incl. 1-D slab) via its group-2 batched
+  kernel `cell_kernel_batch`/`residual_kernel_batch` (the ÷V `g=|μ|/Δ`
+  form). The GAP my original plan described ("a 1-D non-scannable mesh is
+  admitted by NOTHING") was closed by `FullFieldWavefront.supports` already
+  admitting any-d Cartesian incl. 1-D — so no new rep was needed. **Original
+  gates 1, 3, 5 shipped; gate 2 (the `OneDimPerCellWalk` seam control) is
+  N/A (no such rep); gate 4 (#233 pole) stays deferred (curvilinear LD
+  unpublished — `update`/`residual` raise on a curvilinear visit).**
+- **The DRIVER GAP is CLOSED.** `solve_sn_fixed_source` now threads
+  `cell_update` (`solver.py:107/1868` → `SNMesh(..., cell_update=...)`
+  `:134/1972`). All Increment-A + Increment-B tests drive LD END-TO-END
+  through the high-level driver — NO direct `SNMesh`/`SNSolver`
+  construction needed (my original skeleton's workaround is obsolete).
+- **Gate 1 (round-trip + linear-exactness) shipped + STRENGTHENED.** The
+  shipped `tests/sn/spatial/test_linear_discontinuous.py` adds a
+  `TestLDLinearExactness` oracle I did not spec: LD reproduces ψ=a+bx to
+  machine precision (cell-avg AND outflow). This is the
+  structurally-independent correctness gate that catches the LM-1989
+  §1.4/§6 slope-row SIGN TRAP — stronger than the round-trip alone (the
+  round-trip is blind to a sign error consistent between solve+apply).
+  KEEP this; Increment B leans on it.
+- **Gate 3 (MMS O(h²)) shipped on the SHIPPED `build_1d_slab_mms_case`
+  (sin ansatz), NOT my `SNSlabLDStressMMSCase` stress ansatz.** The shipped
+  gate asserts `orders[-1]>1.95`, `all>1.85`, value band `1e-9<err<1e-2`.
+  **The Mode-7 ansatz-bias OVERRIDE is STILL OWED** — see Increment-B §B5
+  (the two-paths gate is where the stress ansatz now earns its keep; a
+  flat/sin two-paths gate is Mode-9-degenerate-blind).
+- **The `is_affine_scannable=False` → group-2-only fact is the Increment-B
+  pivot.** LD ships group 1 (per-cell `update`/`residual`) + group 2
+  (batched `cell_kernel_batch`/`residual_kernel_batch`) but NOT group 3
+  (scan triple — it raises by default). Increment B ADDS group 3.
+
+**Live baselines (worktree of `feature/sn-space-angle-tier2` @ `3f0cbc2`,
+2026-06-14, `.venv/bin/python -O -m pytest`):**
+```
+tests/sn/spatial/test_linear_discontinuous.py tests/sn/verification/mms/test_mms_ld_slab.py
+  → 21 passed, 1 xfailed in 6.54s
+  (the 1 xfailed = test_ld_thick_diffusive_limit_xfail — the Increment-C
+   diffusion-limit tripwire; stays xfail through Increment B.)
+
+tests/sn/sweep/core tests/sn/solve -W "error::tests.sn.regression._regression_assert.DriftWarning"
+  → 505 passed, 1 skipped, 4 xfailed in 81.29s
+  (the DD strict bit-identity gate — Increment B's negative control.)
+```
+
+---
+
+# ════════════════════════════════════════════════════════════════════
+# INCREMENT B — the affine-scan bonus (PRE-IMPL — CURRENT deliverable)
+# ════════════════════════════════════════════════════════════════════
+
+**SUT (the carve):** generalize the CellUpdate "group 3" (the DAG-free
+affine-scan triple) so LD ALSO rides `CumprodScan`/`ScanMarch`,
+polymorphically, exactly as DD does. After B,
+`LinearDiscontinuous.is_affine_scannable` flips `False→True`, and a 1-D
+slab LD mesh routes to `CumprodScan` (the fast path) instead of
+`FullFieldWavefront` (the oracle). LD IS provably affine-scannable:
+`ψ_out = a·ψ_in + b` with `a` (transmission) source-independent to ε
+(verified from the ÷V `_kernel_terms`: source-free `ψ_out/ψ_in` is a
+function of `g, θ, Σ_t` only — no `Q`, no `ψ_in` magnitude).
+
+**The four production touch-points B carves (read from the LD-branch
+source):**
+1. `LinearDiscontinuous.affine_scan_coefficients(...) -> (a_attenuation,
+   inverse_denom)` — NEW. The σ_t-epoch LD transmission, consumed by
+   `CollisionCache.from_geometry` (`sweep_cache.py:457`). DD's form is
+   `a = 2|μ|·A_total·inv_denom − 1` (`diamond.py:462`); LD's is the
+   Schur-reduced outflow-over-inflow ratio — NOT the DD form. **THE
+   sign-trap habitat** (the LM-1989 slope-row sign re-expressed in the ×V
+   cache convention).
+2. `LinearDiscontinuous.cell_average_from_faces(face_in, face_out)` — NEW.
+   DD's `½(in+out)` (`diamond.py:480`); LD's is the weighted face mean
+   `(1−w)·ψ_in + w·ψ_out` with a σ_t-epoch per-cell weight `w` (DD = the
+   `w=½` special case).
+3. `LinearDiscontinuous.outgoing_face_from_average(cell_avg, face_in)` —
+   NEW. DD's `2ψ̄−ψ_in` (`diamond.py:497`); LD reconstructs the outflow
+   from (ψ̄, ψ_in) via the slope row.
+4. The source emission `b` — currently INLINED at
+   `loss_representation.py:2556` (slab joint-batch,
+   `b = 2.0·QV_full_chain·inv_denom_chain`) AND `:2718` (curvilinear
+   per-ordinate, `b = 2.0·(QV_chain+ang_contrib)·inv_denom_p`). B moves
+   this into a scheme method (DD's factor-2 form = the special case). **NB
+   the curvilinear `:2718` site carries the M-M `ang_contrib` — slab LD
+   does NOT touch it, but the carve MUST NOT perturb its DD reduction (it
+   is inside gate 5's strict-bit-id surface).**
+
+**SOLVER-SIDE SEAM (the non-obvious blast point, `solver.py:915`):** after
+B, LD (`is_affine_scannable=True`) takes the `if … is_affine_scannable`
+branch → `CollisionCache.from_geometry(geom_cache, sig_t_1d,
+cell_update=LD)` builds the LD scan cache (calls
+`LD.affine_scan_coefficients` + `cumprod_a`). The source-prep for the scan
+must build LD's **two-moment** source (avg + slope) — the scan body
+consumes `b` which now needs the slope-moment source `ŝ`. This is the seam
+where the Increment-A "flat-source" `Q̂=0` cut meets the scan: B is still
+flat (`Q̂=0` — Increment C threads the slope source), so the scan `b` uses
+only the average-moment source, and LD's `affine_scan_coefficients`/`b`
+encode the Q̂=0 Schur form. **Gate B6 pins exactly this: the scan path
+flat-source LD ≡ the DAG-oracle flat-source LD.**
+
+---
+
+## L14 four-leg standoff — how the Increment-B gates instantiate it
+
+The carve is a NEW production path for the SAME LD discretization (scan
+schedule instead of DAG schedule). The legs:
+
+| Leg | Claim layer | Increment-B gate |
+|-----|-------------|------------------|
+| (1) structurally-indep reference | convergence-order (math, L1) | **B5** CumprodScan-LD MMS O(h²) on the STRESS ansatz (the new path independently matches the manufactured ref) |
+| (3) scan ≡ DAG-oracle (the headline) | software invariant (foundation) | **B6** two-paths: `solve_sn_fixed_source(LD)`-via-CumprodScan ≡ -via-FullFieldWavefront, principled-equiv nulp |
+| (3) scan-matvec ≡ scan-sweep | software invariant (foundation) | **B7** LD Krylov (scan `loss_action`) ≡ LD SI (scan sweep) on the scan path |
+| no-regression (negative control) | bit-identity inheritance | **B1** DD strict bit-identity survives the group-3 generalization + b-move |
+| routing | selection contract | **B2** routing INVERTS (LD→CumprodScan); **B3** DD still→CumprodScan/ScanMarch |
+| (×V sign-trap) | software invariant (foundation) | **B4** group2(÷V) ≡ group3(×V scan coeffs) at Q̂=0 — the analogue of Increment-A's group1≡group2 |
+| (4) refinement | built INTO B5 (the ladder) | the convergence ladder |
+
+Claim-layer gate: B5/B6/B7 are convergence-order / software-invariant
+claims. **NO eigenvalue gate** — LD is a spatial-closure change; MMS does
+NOT prove eigenvalues (vv hierarchical taxonomy). The homogeneous `k_inf`
+eigenvalue gates (DD path) are untouched and stay green via B1.
+
+---
+
+## GATE B1 — DD strict bit-identity SURVIVES the carve (negative control)
+
+**Claim:** moving `b` out of the scan body and generalizing
+`cell_average_from_faces`/`outgoing_face_from_average`/the scan denom MUST
+NOT perturb DD's IEEE-754 reduction order. DD is the `w=½`, factor-2
+special case — its `cell_average_from_faces`, `affine_scan_coefficients`,
+and source emission must stay byte-for-byte.
+
+**The pin (NO new test file — this IS the invocation, confirmed live
+2026-06-14 at the LD-branch HEAD = 505/1/4):**
+```
+.venv/bin/python -O -m pytest tests/sn/sweep/core tests/sn/solve \
+  -W "error::tests.sn.regression._regression_assert.DriftWarning"
+```
+After the Increment-B landing this MUST still be **505 passed / 1 skipped /
+4 xfailed** (re-confirm the 4 xfailed ids are the SAME pre-existing standing
+reds — #206 cyl-matvec etc. — NOT newly introduced).
+
+**Which snapshots specifically (the DD-bit-id-bearing tests in that
+surface):** `tests/sn/sweep/core/test_sweep_regression.py` (the slab/sphere/
+cyl DD scan snapshots, pinned `rtol=1e-12`) — these exercise the EXACT three
+sites the carve touches: the `b` emission (the source half of the scan
+recurrence), `cell_average_from_faces` (the `½(in+out)` fold at
+`loss_representation.py:2570/2735`), and `affine_scan_coefficients` (the
+`CollisionCache` σ_t stratum). If the carve regroups DD's ops (e.g. folds the
+factor-2 differently, or reorders the weighted-mean), the `DriftWarning`
+escalates to error HERE. **Why NOT `tests/sn/regression/`:** its
+`conftest.py:pytest_configure` forces `simplefilter("always", DriftWarning)`
++ an `always::…DriftWarning` ini line → shadows `-W error`, INERTING the
+escalation there. The strict gate runs on `sweep/core`+`solve` (no override —
+FINDING-1, [[issue_206_phase_c_verification]]).
+
+**DISCIPLINE for the implementer (coding-elegance Pattern 7, single source):**
+DD's `b` emission factor-2 and LD's general `b` MUST be ONE scheme method
+(e.g. `cell_update.scan_source_emission(QV, inverse_denom, ...)` with DD
+returning `2·QV·inv_denom`). The scan body at `:2556`/`:2718` calls it; DD's
+override reproduces the byte-exact `2.0 * QV_full_chain * inv_denom_chain`
+order. **The carve MUST preserve the `2.0 * X * Y` operation order in DD's
+override verbatim** (IEEE-754 non-associativity — `2.0*(X*Y)` ≠ `(2.0*X)*Y`
+at ULP; read the live line, match it). This is the bit-identity trap; B1 is
+its catcher.
+
+---
+
+## GATE B2 — Routing INVERSION (the test that must be UPDATED, not added)
+
+**Claim:** after B, `default_for(LD 1-D slab mesh)` returns `CumprodScan`
+(was `FullFieldWavefront` in Increment A).
+
+**⭐ THE INCREMENT-A TEST THAT MUST BE UPDATED (NOT added-alongside):**
+`tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_slab_mesh_routes_to_full_field_wavefront`.
+It currently asserts (lines 55-59):
+```python
+if not isinstance(default_for(ld_mesh), FullFieldWavefront):
+    pytest.fail("LD slab mesh routed to ... expected FullFieldWavefront")
+```
+After B this assertion INVERTS — LD now routes to `CumprodScan`. **Rename
+the test** `test_ld_slab_mesh_routes_to_full_field_wavefront` →
+`test_ld_slab_mesh_routes_to_cumprod_scan` and flip the expected type to
+`CumprodScan`. Also drop the now-unused `FullFieldWavefront` import (or keep
+it for B6's two-paths gate, which constructs both reps explicitly). **Do NOT
+leave the old test asserting the old routing** — it would be a FALSE gate
+(asserting a contract the carve deliberately reverses). The
+clean-before-extend rule (retire-as-you-go): the routing assertion is a
+behavioral contract that the successor (`CumprodScan`) now owns; rewire it,
+do not duplicate.
+
+The DD-still-selects half of that same test (lines 60-64,
+`default_for(dd_mesh) → CumprodScan`) stays as-is (DD routing unchanged).
+
+**Companion mutual-exclusion (NEW, in the same test — vv anti-pattern #11:
+a contract gate needs BOTH a must-select and a must-NOT-select):**
+```python
+# after B: LD is affine-scannable; FullFieldWavefront must NO LONGER be
+# the FIRST supporting rep, but it must still ADMIT the LD mesh (any-d
+# Cartesian). The discriminator is default_for ORDER, not supports().
+assert CumprodScan.supports(ld_mesh).ok        # NEW: LD now supported by the scan
+assert FullFieldWavefront.supports(ld_mesh).ok # still true (the spine admits it)
+# the INVERSION proof: CumprodScan is registered FIRST, so it wins.
+```
+NB: this differs from the Increment-A mutual-exclusion (where
+`CumprodScan.supports(ld_mesh)` was `False`). After B it becomes `True` —
+that is the whole point. The selection is decided by `LOSS_REPRESENTATIONS`
+registry ORDER (CumprodScan first), not by mutual exclusion of `supports`.
+
+---
+
+## GATE B3 — DD routing no-regression (the registry ordering is undisturbed)
+
+**Claim:** generalizing the group-3 contract did not shift DD's selection.
+`default_for(DD 1-D slab) == CumprodScan`; `default_for(DD 2-D Cartesian)
+== ScanMarch`.
+
+**Pinned by (existing):**
+`tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_slab_mesh_routes_to_*`
+(the DD half) +
+`tests/sn/sweep/core/test_unified_sweep_dispatch.py::TestDispatchSelectsStrategy`
+(if present — confirm it still pins DD slab/sphere/cyl→CumprodScan and 2-D→
+ScanMarch). **No NEW test needed if those already cover the DD selection** —
+B3 is the assertion that they STAY green. The B1 strict-bit-id snapshots
+ALSO catch a DD misrouting (a DD mesh that fell off CumprodScan would change
+its numerical reduction tree → DriftWarning), so B3 is belt-and-braces at
+the selection layer.
+
+---
+
+## GATE B4 — group2(÷V) ≡ group3(×V scan coeffs) at Q̂=0 (the sign-trap gate)
+
+**Claim:** software invariant (foundation). LD's NEW group-3 scan triple
+(`affine_scan_coefficients` + `cell_average_from_faces` +
+`outgoing_face_from_average`, the ×V `CollisionCache` convention) computes
+the SAME LD as the LANDED group-2 batched kernel (`cell_kernel_batch`, the
+÷V `g=|μ|/Δ` convention), at the flat `Q̂=0` slice. **This is the EXACT
+analogue of Increment-A's `test_group1_equals_group2_flat`
+(`test_linear_discontinuous.py:285`) — which cross-checks group1(×V per-cell)
+≡ group2(÷V kernel). B4 adds the third leg: group2(÷V) ≡ group3(×V scan).**
+
+**Why this is THE sign-trap catcher (the brief's (e) requirement):** the
+LM-1989 §1.4/§6 slope-row SIGN TRAP re-appears every time LD's slope
+algebra is re-expressed in a new convention. Increment A caught the per-cell
+(×V) and kernel (÷V) instances via linear-exactness + group1≡group2. The
+group-3 `affine_scan_coefficients` is a THIRD expression of the slope row
+(the Schur transmission `a`), in the ×V cache convention — a fresh habitat
+for a sign flip / factor drift. A wrong sign in LD's scan `a` would make the
+scan transmission diverge from the kernel transmission. **The Q̂=0 slice is
+load-bearing:** the slope SOURCE (Q̂≠0) is Increment C; at Q̂=0 the slope
+UNKNOWN ψ̂ is still solved (that is what delivers O(h²)), so the transmission
+`a` and the source-free `b` ARE exercised — the sign trap on the UNKNOWN
+path is fully visible. (The slope-SOURCE sign — the other half of the trap —
+stays untested until Increment C; gate B4 documents this scope.)
+
+**New test:**
+`tests/sn/spatial/test_linear_discontinuous.py::TestLDKernel::test_group2_equals_group3_scan_flat`
+(co-locate with the existing `test_group1_equals_group2_flat`). For a slab
+cell with `(|μ|, h, Σ_t, ψ_in)`:
+- group 2 (÷V): `cell_kernel_batch(psi_in, s_axes=(2|μ|/h,), sigt, Q_cells)`
+  → `(psi_avg2, psi_out2)`.
+- group 3 (×V scan): build the affine recurrence by hand from the triple —
+  `a_atten, inv_denom = LD.affine_scan_coefficients(abs_mu, A_down=1,
+  A_total=2, dA_w=0, c_out=0, V=h, sig_t)`; `b = LD.scan_source_emission(
+  QV=Q̄·h, inverse_denom=inv_denom, ...)` (the moved emission, flat Q̂=0);
+  one-cell recurrence `psi_out3 = a_atten·psi_in + b`; recover
+  `psi_avg3 = LD.cell_average_from_faces(psi_in, psi_out3)`.
+- assert `psi_avg2 ≡ psi_avg3` AND `psi_out2 ≡ psi_out3`.
+
+**TOLERANCE:** `rtol=1e-12, atol=1e-13` (the SAME as the Increment-A
+group1≡group2 gate). These are TWO algebraic forms of the same per-cell LD
+in real arithmetic; the ULP drift is a handful of divisions deep. NOT
+`array_equal` — the ÷V and ×V forms group `Σ_t·h` vs `Σ_t` differently (the
+exact density-vs-scan denom-grouping precedent from #206 Phase C). `n_groups
+∈ {1,2}` (1G control + 2G real gate — a group-coupling sign drift in the ×V
+denom must be observable; vv H1). `@pytest.mark.foundation`.
+
+**Failure mode coverage:** this is the `mode #1 sign flip` + `mode #6
+convention drift` catcher for the ×V scan `a`. A sign flip in LD's scan
+transmission makes `psi_out3 ≠ psi_out2` (the per-cell magnitudes diverge);
+a missing/extra factor in the ×V denom makes `psi_avg3 ≠ psi_avg2`.
+
+---
+
+## GATE B5 — CumprodScan-LD MMS O(h²) on the STRESS ansatz (leg 1)
+
+**Claim:** convergence-order (math, L1) + flux-shape. The NEW fast scan
+path independently matches the manufactured reference at O(h²). MMS = the
+math/flux-shape pillar (NOT eigenvalue).
+
+**The Increment-A MMS gate
+(`test_mms_ld_slab.py::test_sn_1d_slab_ld_mms_converges_second_order`) runs
+on `FullFieldWavefront`-LD** (Increment A's only path). After B, the DEFAULT
+`solve_sn_fixed_source(LD)` routes to `CumprodScan` — so that EXISTING test,
+unchanged, now exercises the SCAN path automatically. **This is the cleanest
+B5: the Increment-A MMS gate transparently re-targets to the scan after the
+routing flip.** Re-confirm it stays green (orders[-1]>1.95, all>1.85, value
+band `1e-9<err<1e-2`) — if the scan `b`/transmission carries a bug, the
+order or value band breaks.
+
+**⭐ BUT: the Increment-A MMS uses the SHIPPED `build_1d_slab_mms_case` (sin
+ansatz) — the Mode-7 simplification bias my original plan flagged and the
+shipped code did NOT override.** For Increment B this is the moment to land
+the override, because B6 (two-paths) on a flat/sin problem is Mode-9-
+degenerate-blind (a smooth single-scale sin field can make the scan and DAG
+reduction trees accidentally close). **NEW test (the stress companion):**
+`tests/sn/verification/mms/test_mms_ld_slab.py::test_sn_1d_slab_ld_mms_stress_converges_second_order`.
+Markers `@pytest.mark.l1 @pytest.mark.slow @pytest.mark.verifies("ld-cartesian-1d",
+"ld-slab")`. Drives `solve_sn_fixed_source(LD)` (→ CumprodScan after B) on
+the STRESS ansatz; ladder `n_cells=[20,40,80,160]`; assert `orders[-1]>1.95
+∧ all>1.85` + value band.
+
+### THE STRESS ANSATZ (the simplification-bias override — owed since Inc. A)
+```
+ψ_{n,g}(x) = [ a0_g + a1_g·sin(πx/L) + a2_g·cos(3πx/L)
+               + μ_n·( b0_g + b1_g·sin(2πx/L) ) ] / W
+```
+with **a0_g > 0 load-bearing** (NON-vanishing at both boundaries → real
+vacuum-inflow BC that the LD boundary closure must satisfy with a non-trivial
+interior; the sin ansatz vanishes at the boundary and leaves BC handling
+untested — [[phase4_46_nonvacuum_mms_ansatz]]). Concretely:
+- `k₁=1, k₂=3, k₃=2` → **mixed spatial scales** (low + high harmonic) so the
+  coarse-mesh O(h²) error is high-frequency-dominated → STRESSES the closure
+  + gives the ladder real dynamic range (NOT floor-limited; the shipped sin
+  gate is "mildly pre-asymptotic on the coarse pair" per its own docstring —
+  the stress ansatz is what makes the coarse pair clear 1.85 honestly).
+- **angularly non-trivial** via `μ_n·(b0+b1·sin)` — even though slab has no
+  angular redistribution, the per-ordinate streaming `μ·∂ψ/∂x` now carries
+  TWO spatial scales per ordinate, so LD's cell-average vs slope moments see
+  a genuinely μ-dependent field (NOT the isotropic-flat field sin produces).
+- **≥2 groups, HETEROGENEOUS Σ_t(x)** (reuse `_default_hetero_xs_functions`,
+  `derivations/continuous/mms/sn.py`, Σ_a>0 guaranteed) + non-trivial
+  per-group `a`/`b` coeffs so downscatter coupling is exercised (mode #6).
+
+**Source = SymPy (algebra-of-record Branch 1; NEVER hand-transcribe):** a
+new `SNSlabLDStressMMSCase` in `derivations/continuous/mms/sn.py`. Substitute
+the ansatz into `μ∂_xψ + Σ_tψ = (1/W)(Σ_s^Tφ + Q^ext)`, solve for `Q^ext`.
+`φ_g = ∫ψdμ` → the `μ·(…)` term integrates to zero over symmetric GL → `φ_g
+= a0+a1·sin+a2·cos`; the streaming derivative carries the full ansatz. Pin
+the symbolic source with a `@pytest.mark.foundation` derive-test, then
+consume it. (NB the slope-moment source Q̂ of this manufactured ψ is NON-zero
+— but Increment B is flat-source LD, so the MMS must supply Q^ext to the
+solver as the per-ordinate average source ONLY, matching the flat-LD
+contract; the O(h²) holds because the slope UNKNOWN is solved. This is the
+same flat-source posture as the shipped sin gate, which already converges
+O(h²) — confirm the stress gate does too. If the stress gate reveals an
+order DROP below 2 on the flat cut that the sin ansatz masked, that is a
+genuine Increment-B finding → file an ERR + decide whether it gates B or
+defers to C.)
+
+**vv §5 (rate ≠ correctness):** assert BOTH the rate AND the value band
+against the imposed `phi_exact` (the structurally-independent reference IS
+the manufactured solution — that is what makes MMS a flux-shape pillar).
+
+---
+
+## GATE B6 — TWO-PATHS AGREEMENT (the headline; CumprodScan-LD ≡ FullFieldWavefront-LD)
+
+**Claim:** software invariant (foundation), the L14 leg-3 standoff. The NEW
+fast scan path and the LANDED, already-trusted DAG oracle are the SAME LD
+discretization via two different SCHEDULES — they must agree on the scalar
+flux.
+
+**The two paths are NOT bit-identical (justify the tolerance regime — the
+brief's (a)+(d)):** the scan path
+(`CumprodScan` → `_OneDimScanWalk.sweep` → `ordinate_scan` cumprod/cumsum)
+builds `denom` via the ×V `CollisionCache.inverse_denom` convention
+(`2|μ|·A_down + Σ_t·V` grouping, `sweep_cache.py:351`) and evaluates the
+recurrence as a closed-form parallel-prefix `cumprod·(ψ_0 + cumsum(b/cumprod))`
+(Blelloch §1.5, `scan.py:31`). The DAG oracle
+(`FullFieldWavefront` → `cell_kernel_batch`) builds `denom` via the ÷V
+`g=|μ|/Δ` convention (`linear_discontinuous.py:414-418`) and evaluates a
+sequential anti-hyperplane walk (per-level explicit fold). The two compute
+the SAME LD value in real arithmetic but accumulate over DIFFERENT IEEE-754
+reduction trees (density-vs-scan denom grouping × parallel-prefix-vs-walk
+accumulation). Addition/multiplication are non-associative → they disagree at
+ULP. Per `vv-principles` §Bit-identity vs principled-equivalence, ALL THREE
+criteria hold:
+1. **principled** — each intermediate (`inverse_denom`, the per-cell
+   `cell_average_flux`, the scan `cumprod_a`) is a named, inspectable
+   quantity; the scan denom IS the LD effective denominator, the DAG denom
+   IS the same denominator regrouped ÷V.
+2. **structurally-independent reference** — the agreement gate is PAIRED
+   with B5 (BOTH paths independently match the manufactured MMS flux). The
+   two-paths nULP-distance alone is necessary-not-sufficient; B5 supplies
+   the structural ground (the imposed solution).
+3. **drift dimensionally explained** — single-step solve over the cell
+   chain → drift bounded by `(reduction depth) × ULP`. The chain is `nx`
+   cells deep AND the SI/Krylov outer iterates ~`O(iters)` times → bound
+   `≈ (nx · iteration_count) × condition × ULP`.
+
+**TOLERANCE DECISION (justified):** because the comparison is on the
+END-TO-END converged scalar flux (an iterative solve, not a single sweep),
+use `np.testing.assert_allclose(rtol=SAFETY × inner_tol, atol=...)` with
+`inner_tol=1e-11` and `SAFETY≈100`, i.e. `rtol≈1e-9` — the SAME
+"iterative→`SAFETY×conv_tol`" regime [[feedback_regression_tolerance_design]]
+and the SAME tolerance the Increment-A `test_sn_1d_slab_ld_mms_krylov_matches_si`
+already uses (`rtol=1e-9, atol=1e-11`) for an analogous two-path
+(SI≡Krylov) end-to-end agreement. **Do NOT use `array_equal` or `nulp`**
+on the END-TO-END flux — the iterative solve makes the FP-drift accumulate
+beyond a fixed ULP count (the per-SWEEP scan≡DAG drift IS a fixed nULP, but
+the converged-fixed-point drift rides the iteration count). If a
+SINGLE-SWEEP agreement is also wanted (tighter, cleaner), add it separately:
+one `transport_sweep` through each rep on the SAME `(Q, sig_t, boundary)` →
+`assert_array_almost_equal_nulp(nulp=nx)` (the per-sweep fixed-depth drift —
+the #206 Phase-C density-vs-scan precedent). **Recommend BOTH:** the
+single-sweep nULP gate (sharp, fixed-depth) AND the end-to-end converged
+`rtol=1e-9` gate (the production claim).
+
+**New test:**
+`tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_two_paths_scan_equals_dag_oracle`.
+Markers `@pytest.mark.l1 @pytest.mark.verifies("ld-cartesian-1d")`.
+
+**STRESSING CONFIG (the brief's (d) — Mode-9 degenerate-blindness defense):**
+the two-paths gate MUST run on a config that BREAKS any FP-coincidence:
+- **heterogeneous Σ_t(x)** (the STRESS ansatz's per-cell-varying σ_t, NOT a
+  uniform medium — uniform σ_t can make the ×V and ÷V denoms coincide more
+  closely);
+- **≥2 groups with asymmetric downscatter** (1G is flux-shape-degenerate —
+  a group-coupling drift between the two reduction trees is invisible in 1G;
+  vv H1 + Mode-9);
+- **non-flat per-ordinate field** (the STRESS ansatz's `μ·(b0+b1·sin)` term
+  — a flat/isotropic field nulls the per-ordinate variation that the two
+  schedules accumulate differently);
+- a **moderate mesh** (`nx≈40`, the B5 stress-ansatz mesh) so the chain is
+  deep enough that the cumprod-vs-walk reduction-tree difference is real.
+
+Concretely, REUSE `SNSlabLDStressMMSCase` (the B5 case): drive
+`solve_sn_fixed_source(case.materials, mesh, case.quadrature, Q,
+cell_update=LD)` TWICE — once forcing `CumprodScan`, once forcing
+`FullFieldWavefront` — and compare `result.scalar_flux.values`. **Forcing
+the rep:** `solve_sn_fixed_source` selects via `default_for`, which after B
+returns `CumprodScan` for LD. To force `FullFieldWavefront` for the oracle
+leg, either (a) thread a `loss_representation=` override if the driver
+exposes one, or (b) construct `SNMesh` + drive the rep directly via
+`transport_sweep`/`SNSolver` with the explicit rep (the Increment-A pattern
+— check whether `solve_sn_fixed_source` grew a `loss_representation` kwarg;
+if not, the explicit-rep path is the test's vehicle and a `loss_representation`
+kwarg is a candidate driver-ergonomics follow-up to FILE). **VERIFY the
+forcing actually engaged** (assert `type(default_for(ld_mesh)) is CumprodScan`
+for the default leg AND that the oracle leg genuinely ran FullFieldWavefront)
+— a two-paths gate where both legs secretly ran the same rep is a silent
+false green (the canary-that-cannot-trip, Mode-8-adjacent).
+
+---
+
+## GATE B7 — scan-matvec ≡ scan-sweep (leg 3 on the new path)
+
+**Claim:** software invariant (foundation). On the NEW scan path, LD's
+forward matvec (`CumprodScan.loss_action` → `_OneDimScanWalk.loss_action`)
+≡ LD's SI sweep (`CumprodScan.sweep`). The Increment-A
+`test_sn_1d_slab_ld_mms_krylov_matches_si` pins this for the DAG path; after
+B's routing flip, that SAME test re-targets to the scan path automatically
+(both `inner_solver="krylov"` and the default SI now route LD through
+`CumprodScan`). **Re-confirm it stays green** (`rtol=1e-9, atol=1e-11`).
+
+**⚠ HAZARD — does LD's scan `loss_action` exist?** `_OneDimScanWalk.loss_action`
+(`loss_representation.py:742`) is the matvec twin of the sweep. It consumes
+the SAME group-3 scan triple (`affine_scan_coefficients`,
+`outgoing_face_from_average`). The carve MUST supply LD's group-3 such that
+BOTH the sweep AND the matvec scan bodies work — `loss_action` reconstructs
+the outflow via `outgoing_face_from_average` (`:2032` in the apply walk).
+B7 (= the re-targeted Krylov≡SI test) is the catcher if LD's
+`outgoing_face_from_average` is wrong in the matvec direction. If the carve
+ships the scan SWEEP but not a working scan MATVEC, B7 fails (Krylov can't
+converge or diverges from SI). **This is the matvec≡sweep leg — do NOT skip
+it; a scan sweep without a verified scan matvec is half a carve** (the L14
+leg-3 standoff demands both directions).
+
+---
+
+## L17 CONVENTION CROSSWALK — Increment B (the ×V scan convention)
+
+The carve crosses: the per-cell ÷V kernel convention (group 2, LANDED) ↔
+the ×V `CollisionCache` scan convention (group 3, NEW) ↔ the scan body's
+`b` emission ↔ the `_OneDimScanWalk` sweep/matvec. (Template:
+coding-elegance Pattern 7.)
+
+| Value | group-2 kernel (÷V, LANDED) | group-3 scan (×V, NEW) | scan body (`_OneDimScanWalk`) | Normalizing side |
+|-------|----------------------------|------------------------|-------------------------------|------------------|
+| streaming coeff | `g = |μ|/Δ` (`s_axes/2`) | `2|μ|·A_down` folded into `inverse_denom` denom | the cache builds `inverse_denom`; the body reads `coll.inverse_denom[ords]` | **CELL OP** owns both conventions; B4 pins them equal at Q̂=0 |
+| transmission `a` | implicit in `psi_out/psi_in` source-free | `a_attenuation` from `affine_scan_coefficients` (×V) — **DD's `2|μ|·A_total·inv−1` is NOT LD's**; LD's is the Schur outflow ratio | `coll.a_attenuation[ords]` → `ordinate_scan(a, b, ψ_in)` | **CELL OP** (`affine_scan_coefficients`) — THE sign-trap site |
+| source emission `b` | n/a (kernel folds Q into rhs) | `b = scheme.scan_source_emission(QV, inv_denom)`; DD = `2·QV·inv_denom` | `:2556` slab / `:2718` curv — MOVE the inline `b` into the scheme method | **PRODUCER** (the scheme owns its emission; the body just calls it) — Pattern 7 |
+| cell-average from faces | `psi_avg` solved directly | `cell_average_from_faces(in,out)`; DD=`½(in+out)`, LD=`(1−w)in+w·out` | `:2570`/`:2735` consume it | **CELL OP** (the weighted-mean weight `w` is σ_t-epoch per-cell) |
+| outflow from average | `2ψ̄−in` (kernel) | `outgoing_face_from_average(ψ̄,in)`; DD=`2ψ̄−in`, LD via slope row | the matvec apply walk `:2032` consumes it | **CELL OP** — B7 (matvec) catches a wrong LD form here |
+| `/W` source norm | already `/W` (producer) | SAME — `QV = Q·V`, Q already `/W` | the body multiplies by V only (`:2447`) | **PRODUCER** (unchanged from DD; LD MUST NOT re-divide) |
+
+**The Bridge rows (where Pattern 7 demands action):**
+- **`b` emission**: bridge is the SCHEME method (move the inline `b` to
+  `scan_source_emission`). DD's override reproduces `2.0·QV·inv_denom`
+  byte-exact (B1 catcher). LD's encodes the Q̂=0 Schur emission.
+- **transmission `a`**: bridge is `affine_scan_coefficients`. DD's is
+  `2|μ|·A_total·inv−1`; LD's is its OWN Schur ratio (NOT a copy of DD's
+  with different numbers — a genuinely different formula). **The single
+  most likely sign-trap re-introduction site; B4 is its catcher.**
+- **`/W`**: bridge already at the producer (Pattern 7 satisfied). LD MUST
+  NOT re-apply `/W` in `scan_source_emission` (DD doesn't — the `2·QV·inv`
+  has no `/W`; the `/W` was applied upstream by `AngularSourceSink`).
+
+---
+
+## Failure-mode coverage — Increment B (vv §6 + numerical-bug-signatures)
+
+| Failure mode | Increment-B gate that catches it |
+|---|---|
+| #1 sign flip (LD scan transmission `a` / slope row in ×V) | **B4** group2≡group3 at Q̂=0 (per-cell magnitudes diverge) + **B5** stress MMS diverges under refinement |
+| #2 variable swap (`a` vs `inv_denom`, in vs out face) | **B4** + **B6** two-paths (scan ≠ DAG oracle) |
+| #3 missing/extra factor (the moved `b` drops the 2, or the LD weight `w`) | **B1** DD bit-id breaks (factor-2 changed) + **B4** (LD `psi_avg` wrong) + **B5** value band |
+| #4 wrong recursion (cumprod chain index drift in LD scan) | **B6** two-paths (scan ≠ DAG) + **B7** matvec≡sweep |
+| #5 index error (scan chain reorder for LD) | **B5** stress MMS (non-uniform field) + **B6** |
+| #6 convention drift (×V vs ÷V denom grouping; `/W` re-applied; `Lψ` vs `(L+C)ψ` in scan matvec) | L17 crosswalk Bridge rows; **B4** (denom) + **B7** (matvec `loss_action`) |
+| Mode 7 MMS simplification bias | **B5** stress ansatz override (a0>0, mixed k=1+k=3, μ-nontrivial, 2G het) — OWED since Inc. A, landed here |
+| Mode 8 `-O` strips bare assert | ALL Increment-B gates use `np.testing.assert_*` / `pytest.fail` (verified the Increment-A LD tests fire under `-O` — 21 passed live) |
+| **Mode 9 splitting/acceleration in degenerate regime** | **B6 stressing config** — a two-paths gate on a flat/homogeneous/1G problem is Mode-9-blind (the two reduction trees can be accidentally FP-coincident on a smooth uniform field). B6 runs on heterogeneous ≥2G non-flat (the STRESS ansatz) → breaks the coincidence. **THE Increment-B-specific Mode-9 hazard** (Increment A had none — it was a single discretization on a single path; B introduces a SECOND path → the FP-invariance-across-paths claim is exactly the kind Mode-9 warns about, even though it's a schedule change not a splitting). |
+
+**NEW failure-mode-table consideration (self-improvement trigger):** Mode 9
+historically targets *splittings/accelerators* (G-S, σ_r-fold, DSA). The
+Increment-B two-paths agreement is a *schedule* change (scan vs DAG), not a
+splitting — but the SAME degenerate-regime-blindness applies: the FP-
+invariance-across-schedules claim can pass on a degenerate config and hide a
+real per-ordinate/group reduction-tree bug. **This is a NEW sub-case of Mode
+9 (schedule-equivalence, not splitting-equivalence).** Per the
+self-improvement directive, this generalization of Mode 9 ("an
+equivalence-across-implementations FP claim — splitting OR schedule OR
+representation — must run on a degeneracy-breaking config") should be noted
+when the plan is delivered. It does NOT need a new ERR (no caught bug yet),
+but the Mode-9 skill row's scope ("a splitting") is narrower than the
+phenomenon — flag to sharpen "splitting/acceleration" → "splitting /
+acceleration / schedule / representation equivalence" in the vv-principles
+Mode-9 row. (The #206 Phase-C scan-vs-DAG nULP gates are the same class and
+already in practice — this just names the principle.)
+
+---
+
+## Summary for the dispatcher (Increment B)
+
+- **Headline gate B6 (two-paths):** `solve_sn_fixed_source(LD)`-via-
+  `CumprodScan` ≡ -via-`FullFieldWavefront` on the STRESS ansatz
+  (heterogeneous, 2G asymmetric downscatter, μ-non-trivial, nx≈40).
+  Tolerance = `rtol=1e-9` (iterative→`SAFETY×inner_tol`) end-to-end, PLUS
+  a single-sweep `nulp=nx` gate (fixed-depth). NOT `array_equal` (×V-vs-÷V
+  denom grouping + cumprod-vs-walk reduction trees). PAIR with B5 (both
+  paths independently match the MMS ref — the structural ground). VERIFY
+  each leg actually ran its rep (no silent same-rep false green).
+- **Routing test INVERTS, do NOT add-alongside:** rename
+  `test_ld_slab_mesh_routes_to_full_field_wavefront` →
+  `…_routes_to_cumprod_scan`, flip the expected type. The mutual-exclusion
+  flips too: `CumprodScan.supports(ld_mesh)` becomes `True` after B.
+- **DD strict bit-identity (B1) is the negative control:** `pytest
+  tests/sn/sweep/core tests/sn/solve -W
+  "error::tests.sn.regression._regression_assert.DriftWarning"` MUST stay
+  505/1/4 (confirmed live 2026-06-14). Snapshots = `test_sweep_regression.py`
+  (DD slab/sphere/cyl scan). The moved `b` emission MUST reproduce DD's
+  `2.0·QV·inv_denom` op-order byte-exact (single-source scheme method; DD =
+  the special case).
+- **The sign-trap gate (B4):** group2(÷V kernel) ≡ group3(×V scan coeffs)
+  at Q̂=0 — the third leg of the Increment-A group1≡group2 cross-check, in
+  the NEW ×V scan convention where the LM-1989 slope-row sign re-appears.
+  `rtol=1e-12`, 1G+2G. The single most likely re-introduction site is LD's
+  `affine_scan_coefficients` transmission `a` (NOT a copy of DD's
+  `2|μ|·A_total·inv−1` — LD's own Schur ratio).
+- **The owed Mode-7 override (B5):** land `SNSlabLDStressMMSCase` (a0>0,
+  k=1+k=3 mixed scales, μ-nontrivial, 2G het) NOW — the two-paths gate
+  (B6) needs a degeneracy-breaking config or it's Mode-9-blind. Source via
+  SymPy (Branch 1), foundation derive-test, flat-source posture (Q̂=0,
+  O(h²) from the solved slope unknown).
+- **The matvec leg (B7):** the re-targeted `test_sn_1d_slab_ld_mms_krylov_matches_si`
+  must stay green on the scan path — LD's `outgoing_face_from_average` must
+  work in BOTH the scan sweep AND the scan matvec (`_OneDimScanWalk.loss_action`).
+  A scan sweep without a verified scan matvec is half a carve.
+- **Flat-source caveat UNCHANGED:** B is a schedule bonus, NOT the slope
+  source. `test_ld_thick_diffusive_limit_xfail` stays xfail. Do NOT claim B
+  fixes the diffusion limit.
+
+---
+
+# ════════════════════════════════════════════════════════════════════
+# ORIGINAL PRE-IMPL PLAN (Increment-A era — SUPERSEDED, kept as history)
+# The OneDimPerCellWalk seam below was NOT how LD landed (reverted per user;
+# LD rides FullFieldWavefront's group-2 kernel). The MMS ansatz override
+# (gate 3) and the DD-strict-gate invocation (gate 5) carry forward into
+# Increment B above. Read the Increment-B section for the CURRENT contract.
+# ════════════════════════════════════════════════════════════════════
 
 Pre-implementation verification plan. The SUT (`LinearDiscontinuous`
 cell-update + `OneDimPerCellWalk` loss-representation) does NOT exist yet;

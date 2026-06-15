@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5200**
+Total tests collected: **5227**
 
 V&V level distribution
 ----------------------
@@ -16,12 +16,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1153, 22.2%
-   L1, 971, 18.7%
+   L0, 1153, 22.1%
+   L1, 975, 18.7%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3032, 58.3%
-   unmarked, 8, 0.2%
+   foundation, 3054, 58.4%
+   unmarked, 9, 0.2%
 
 Tagging source
 --------------
@@ -32,12 +32,12 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5113
+   explicit, 5139
    verify, 0
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 8
+   unmarked, 9
 
 Module × level grid
 -------------------
@@ -245,6 +245,7 @@ Module × level grid
    mms/test_mms_aniso, 0, 2, 0, 0, 0, 0
    mms/test_mms_curvilinear, 0, 2, 0, 0, 0, 0
    mms/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
+   mms/test_mms_ld_slab, 0, 4, 0, 0, 2, 0
    moc/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    moc/test_mms, 0, 3, 0, 0, 0, 0
    moc/test_moc, 0, 3, 0, 0, 0, 0
@@ -333,9 +334,10 @@ Module × level grid
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
    solve/test_si_gate_dispatch, 0, 0, 0, 0, 4, 0
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
+   spatial/test_linear_discontinuous, 0, 0, 0, 0, 18, 1
    spatial/test_ordinate_scan_reset, 3, 2, 0, 0, 0, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 269, 0
+   test_layer_imports, 0, 0, 0, 0, 271, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -377,7 +379,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``fission-matrix``, 51
    ``flux-moments``, 51
    ``removal-matrix``, 51
-   ``transport-cartesian``, 49
+   ``transport-cartesian``, 50
    ``wigner-seitz``, 49
    ``attenuation``, 48
    ``optical-thickness``, 48
@@ -523,6 +525,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``delta-psi``, 3
    ``hetero-tolerance``, 3
    ``isotropic-source``, 3
+   ``ld-cartesian-1d``, 3
    ``moc-keff-update``, 3
    ``moc-mms-psi-ref``, 3
    ``moc-mms-qext``, 3
@@ -567,6 +570,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``collision-estimator``, 1
    ``e1-decomposition``, 1
    ``harmonic-moment-projection``, 1
+   ``ld-slab``, 1
    ``majorant``, 1
    ``moment-projection-transpose-T``, 1
    ``nm1980-eq15-critical-condition``, 1
@@ -972,7 +976,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
 Unmarked tests
 --------------
 
-**8 tests** have no V&V level marker.
+**9 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -988,4 +992,5 @@ equations. See ``docs/testing/architecture.rst``
    ``tests/derivations/test_fn_projection_vs_kll_flux.py``, 2
    ``tests/sn/sweep/core/test_cell_kernel_batch.py``, 2
    ``tests/derivations/test_fn_la13511_slab_reflected.py``, 1
+   ``tests/sn/spatial/test_linear_discontinuous.py``, 1
 
