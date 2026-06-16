@@ -280,8 +280,14 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     slope :math:`\hat\psi` is eliminated by the Schur complement, leaving
     :math:`\psi_{\rm out}=a\psi_{\rm in}+b` with ``a`` source-independent.  LD
     therefore supplies the scan coefficient triple via
-    :meth:`affine_scan_coefficients` and rides ``CumprodScan`` / ``ScanMarch``.
-    Slab/Cartesian only — the method raises on curvilinear geometry."""
+    :meth:`affine_scan_coefficients` and rides ``CumprodScan`` (and the **1-D**
+    ``ScanMarch``).  Slab/Cartesian only — the method raises on curvilinear
+    geometry.  NOTE this is the **single-axis** trait; LD leaves
+    ``transverse_coupling_is_facewise`` at its ``False`` default because its
+    multi-D closure is BILINEAR (an independent slope moment per axis), so the
+    d-D coupling is slope-wise (1st-order), NOT a 0th-order face value — the
+    d-D closure does not separate into per-axis scans, and LD rides the DAG
+    wavefront in :math:`d \ge 2`, not the scan-march (#38 / #240 D5b)."""
 
     theta: ClassVar[float] = 1.0 / 3.0
     r"""The slope-moment weight :math:`\theta` (LM-1989 Eq. 4.3b).  The value

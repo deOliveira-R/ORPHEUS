@@ -52,10 +52,13 @@ from orpheus.geometry import (
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial.diamond import DiamondDifference
+from orpheus.sn.spatial.linear_discontinuous import LinearDiscontinuous
 from orpheus.sn.loss_representation import transport_sweep
 from orpheus.sn.loss_representation import (
     CumprodScan,
+    MovingFrontierWindow,
     ScanMarch,
+    FullFieldWavefront,
     default_for,
 )
 from tests.sn._test_helpers import placeholder_materials
@@ -119,6 +122,29 @@ def _2d_sn_mesh(nx: int = 4, ny: int = 4) -> SNMesh:
     )
     quad = Quadrature.level_symmetric(sn_order=4)
     return SNMesh(mesh, quad, placeholder_materials())
+
+
+def _2d_ld_sn_mesh(nx: int = 4, ny: int = 3) -> SNMesh:
+    """2-D Cartesian SNMesh carrying a Linear-Discontinuous scheme.
+
+    NON-SQUARE by default (``nx=4, ny=3``) — an x↔y blindness defence (a
+    square box can hide an axis swap).  Level-Symmetric S4 supplies genuine
+    ``mu_y`` (#214-safe).  This is the mesh whose multi-D LD closure is
+    BILINEAR (a per-axis slope moment) and therefore NOT scan-march
+    compatible — the #240 D5-0 negative-routing fixture.
+    """
+    mesh = Mesh2D(
+        edges_x=np.linspace(0.0, 1.0, nx + 1),
+        edges_y=np.linspace(0.0, 1.0, ny + 1),
+        mat_map=np.zeros((nx, ny), dtype=int),
+        bc_xmin=BC("vacuum"),
+        bc_xmax=BC("vacuum"),
+        bc_ymin=BC("vacuum"),
+        bc_ymax=BC("vacuum"),
+    )
+    quad = Quadrature.level_symmetric(sn_order=4)
+    return SNMesh(mesh, quad, placeholder_materials(),
+                  scheme=LinearDiscontinuous())
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -213,7 +239,7 @@ class TestD3SupportsMatrix:
     """
 
     @staticmethod
-    def _fake(ndim: int, *, cartesian: bool = True):
+    def _fake(ndim: int, *, cartesian: bool = True, facewise: bool = True):
         from types import SimpleNamespace
         return SimpleNamespace(
             is_1d=(ndim == 1), is_cartesian=cartesian, ndim=ndim,
@@ -221,7 +247,18 @@ class TestD3SupportsMatrix:
             # gate on ``scheme.is_affine_scannable`` — the fake
             # supplies an affine-scannable scheme so these pins exercise
             # the DIMENSIONAL narrowing, not the scheme gate.
-            scheme=SimpleNamespace(is_affine_scannable=True),
+            #
+            # #240 D5-0: the d≥2 ScanMarch arm gates on the DISTINCT
+            # ``transverse_coupling_is_facewise`` (cross-axis separability),
+            # NOT ``is_affine_scannable`` (single-axis prefix scannability).
+            # A DD-shaped scheme reports facewise=True (admitted at d=2); an
+            # LD-shaped scheme reports facewise=False (refused at d≥2 but
+            # still affine-scannable in 1-D).  Defaults to the DD shape so the
+            # dimensional-narrowing pins below exercise the right trait.
+            scheme=SimpleNamespace(
+                is_affine_scannable=True,
+                transverse_coupling_is_facewise=facewise,
+            ),
         )
 
     @pytest.mark.foundation
@@ -296,6 +333,178 @@ class TestD3SupportsMatrix:
                 f"d=3 curvilinear admitted by "
                 f"{[c.__name__ for c in admitted]} — expected none"
             )
+
+    # ── #240 D5-0 — routing honesty (the confirmed-LIVE 2-D LD misroute) ──
+    #
+    # Pre-D5-0, ``ScanMarch.supports(2-D LD).ok == True`` so
+    # ``default_for(2-D LD) == ScanMarch``; ScanMarch's row-march interior
+    # runs INLINE Diamond-Difference with no scheme dispatch, so a 2-D LD
+    # mesh SILENTLY computes DD (dropping LD's bilinear slope).  D5-0 narrows
+    # the d≥2 ScanMarch arm to read ``transverse_coupling_is_facewise`` (the
+    # cross-axis separability the row-march actually requires), which LD
+    # leaves at ``False``.  The misroute becomes a refusal: the mesh falls
+    # through to the wavefront, whose LD sweep RAISES the honest d=1-only
+    # ``NotImplementedError`` (D5b closes the raise).  These gates pin the
+    # contract BOTH ways (vv anti-pattern #11): LD must NOT route to
+    # ScanMarch (negative), DD/1-D-LD must still route as before (positive).
+
+    @pytest.mark.foundation
+    def test_scan_march_refuses_2d_non_facewise_scheme_fake(self):
+        """D5-0 (fake): the narrowed predicate refuses a 2-D mesh whose
+        scheme reports ``transverse_coupling_is_facewise=False`` (LD-shaped),
+        while still admitting the DD-shaped (facewise) 2-D mesh."""
+        ld_like = self._fake(2, facewise=False)
+        if ScanMarch.supports(ld_like).ok:
+            pytest.fail(
+                "ScanMarch.supports admitted a 2-D mesh whose scheme is NOT "
+                "transverse-coupling-facewise (LD-shaped) — its row-march "
+                "runs inline DD, silently dropping the bilinear slope"
+            )
+        dd_like = self._fake(2, facewise=True)
+        if not ScanMarch.supports(dd_like).ok:
+            pytest.fail(
+                "ScanMarch.supports refused a 2-D facewise (DD-shaped) "
+                "scheme — the narrowing lost the production default"
+            )
+
+    @pytest.mark.foundation
+    def test_scan_march_refuses_2d_ld_real_mesh(self):
+        """D5-0 negative (real mesh): a 2-D Cartesian LD ``SNMesh`` (bilinear
+        slope coupling) must NOT select ScanMarch — its row-march kernel runs
+        inline DD, silently dropping LD's slope.  This is the CONFIRMED-LIVE
+        misroute (``default_for(2-D LD) == ScanMarch`` pre-D5-0)."""
+        sn = _2d_ld_sn_mesh()
+        if ScanMarch.supports(sn).ok:
+            pytest.fail(
+                "ScanMarch.supports admitted a 2-D LD mesh — its row-march "
+                "kernel runs inline DD (loss_representation interior), "
+                "silently dropping LD's bilinear slope; the misroute computes "
+                "DD, not LD"
+            )
+
+    @pytest.mark.foundation
+    def test_2d_ld_default_for_routes_to_wavefront(self):
+        """D5-0 selection: ``default_for`` on a 2-D LD mesh lands on a
+        WAVEFRONT (MovingFrontierWindow / FullFieldWavefront), NEVER
+        ScanMarch.  (Pre-D5b the wavefront RAISES on the LD multi-D
+        ``cell_kernel_batch``; that is HONEST — what is forbidden is the
+        silent ScanMarch inline-DD path.)"""
+        sn = _2d_ld_sn_mesh()
+        selected = default_for(sn)
+        if isinstance(selected, ScanMarch):
+            pytest.fail(
+                "2-D LD routed to ScanMarch (inline DD) — the misroute"
+            )
+        if not isinstance(selected, (MovingFrontierWindow, FullFieldWavefront)):
+            pytest.fail(
+                f"2-D LD default_for → {type(selected).__name__}, expected a "
+                f"wavefront (MovingFrontierWindow / FullFieldWavefront)"
+            )
+
+    @pytest.mark.foundation
+    def test_2d_ld_sweep_raises_not_silently_dd(self):
+        """D5-0 the headline honesty claim: sweeping a 2-D LD mesh no longer
+        silently yields DD values — it RAISES the d=1-only
+        ``NotImplementedError`` (the loud not-yet-implemented signal D5b
+        closes).  Pre-D5-0 this path returned DD numbers via the ScanMarch
+        inline-DD row-march; post-D5-0 the LD mesh routes to the wavefront,
+        whose multi-D LD ``cell_kernel_batch`` raises."""
+        import numpy as np
+        from orpheus.derivations.common.xs_library import make_mixture
+        from orpheus.sn import solve_sn_fixed_source
+
+        mix = make_mixture(
+            sig_t=np.array([1.0]), sig_c=np.array([0.5]),
+            sig_f=np.array([0.0]), nu=np.array([0.0]),
+            chi=np.array([1.0]), sig_s=np.array([[0.5]]),
+        )
+        nx, ny = 4, 3
+        mesh = Mesh2D(
+            edges_x=np.linspace(0.0, 1.0, nx + 1),
+            edges_y=np.linspace(0.0, 1.0, ny + 1),
+            mat_map=np.zeros((nx, ny), dtype=int),
+            bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
+            bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+        )
+        quad = Quadrature.level_symmetric(sn_order=4)
+        N = quad.weights.size
+        Q = np.ones((N, 1, nx, ny))            # (N, ng, nx, ny) per-ordinate
+        raised = False
+        try:
+            solve_sn_fixed_source(
+                {0: mix}, mesh, quad, Q,
+                scheme=LinearDiscontinuous(),
+                max_inner=2, inner_tol=1e-8,
+            )
+        except NotImplementedError:
+            raised = True
+        if not raised:
+            pytest.fail(
+                "2-D LD fixed-source did NOT raise — a silent return means "
+                "the mesh ran ScanMarch's inline DD (the D5-0 misroute) "
+                "instead of the honest d=1-only NotImplementedError"
+            )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# TestSchemeTraitProbe — strategy-free scheme-property probe (D5-0)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestSchemeTraitProbe:
+    """The scheme property is answerable with NO strategy in scope.
+
+    The cross-domain-attacker's second-consumer discriminator (#240 D5-0
+    Frame 1): if the only way to learn whether a scheme's multi-D transverse
+    coupling is facewise/separable is ``ScanMarch.supports(mesh).ok``, the
+    property is strategy-entangled (a frame leak).  These probes read the
+    trait DIRECTLY off the scheme class — no ``ScanMarch``, no ``supports``,
+    no mesh — proving ``transverse_coupling_is_facewise`` is a genuine scheme
+    property the diffusion ADI / line-SOR preconditioner (#240's next
+    consumer) can reuse with no rename.
+    """
+
+    @pytest.mark.foundation
+    def test_dd_reports_facewise_transverse_coupling(self):
+        """DD's slopeless cell-average closure couples transverse axes by a
+        0th-order face value → facewise/separable → True."""
+        if DiamondDifference.transverse_coupling_is_facewise is not True:
+            pytest.fail(
+                "DiamondDifference.transverse_coupling_is_facewise is "
+                f"{DiamondDifference.transverse_coupling_is_facewise!r}, "
+                "expected True (DD's transverse term is a 0th-order face value)"
+            )
+
+    @pytest.mark.foundation
+    def test_ld_reports_non_facewise_transverse_coupling(self):
+        """LD's bilinear DG-P1 closure couples transverse axes by a 1st-order
+        slope moment → non-separable → False (the default it opts out to)."""
+        if LinearDiscontinuous.transverse_coupling_is_facewise is not False:
+            pytest.fail(
+                "LinearDiscontinuous.transverse_coupling_is_facewise is "
+                f"{LinearDiscontinuous.transverse_coupling_is_facewise!r}, "
+                "expected False (LD's transverse coupling is a 1st-order "
+                "slope moment, not a face value)"
+            )
+
+    @pytest.mark.foundation
+    def test_facewise_distinct_from_affine_scannable(self):
+        """The two traits answer DIFFERENT questions: LD is affine-scannable
+        (single-axis, True) yet NOT transverse-coupling-facewise (cross-axis,
+        False).  If they coincided on LD the conflation that drove the D5-0
+        misroute would still be latent."""
+        if LinearDiscontinuous.is_affine_scannable is not True:
+            pytest.fail("LD.is_affine_scannable expected True (1-D scannable)")
+        if LinearDiscontinuous.transverse_coupling_is_facewise is not False:
+            pytest.fail(
+                "LD.transverse_coupling_is_facewise expected False — the two "
+                "traits MUST diverge on LD (single-axis vs cross-axis claim)"
+            )
+        # DD coincides on both (it satisfies both claims) — the trait split is
+        # only OBSERVABLE on a scheme where they diverge, which is LD.
+        if not (DiamondDifference.is_affine_scannable
+                and DiamondDifference.transverse_coupling_is_facewise):
+            pytest.fail("DD expected True on both traits")
 
 
 # ═══════════════════════════════════════════════════════════════════════

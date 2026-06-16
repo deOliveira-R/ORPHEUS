@@ -1224,12 +1224,32 @@ class ScanMarch(_LossRepresentation):
 
     @classmethod
     def supports(cls, mesh: "SNMesh") -> Compatibility:
+        # The 1-D arm reads ``is_affine_scannable`` (single-axis prefix
+        # scannability — LD's 1-D scan IS valid here).  The d≥2 arm reads the
+        # DISTINCT ``transverse_coupling_is_facewise`` (cross-axis
+        # separability): the row-march ``scan(x) ∘ march(y)`` is exact ONLY
+        # when the transverse coupling folds into the scan source as a
+        # 0th-order face value (DD/Step), NOT when it is a 1st-order slope
+        # moment (LD's bilinear multi-D closure).  Conflating the two — a 1-D
+        # trait licensing a multi-D schedule — silently misroutes a 2-D LD
+        # mesh into the inline-DD row-march (#240 D5-0); the split keeps the
+        # selection honest.
+        if mesh.is_1d:
+            return Compatibility(
+                mesh.scheme.is_affine_scannable,
+                "requires an affine-scannable cell-update scheme on a "
+                "1-D mesh (any geometry)",
+            )
         return Compatibility(
-            (mesh.is_1d or (mesh.is_cartesian and mesh.ndim == 2))
-            and mesh.scheme.is_affine_scannable,
-            "requires an affine-scannable cell-update scheme on a 1-D mesh "
-            "(any geometry) or a 2-D Cartesian mesh (the d≥3 row-march "
-            "kernels are deferred — the full-field spine serves d≥3)",
+            mesh.is_cartesian
+            and mesh.ndim == 2
+            and mesh.scheme.transverse_coupling_is_facewise,
+            "2-D scan-march requires a scheme whose transverse coupling is "
+            "facewise (separable into independent per-axis 1-D scans) — the "
+            "slopeless cell-average closures (Diamond Difference, Step); "
+            "Linear-Discontinuous's bilinear slope coupling needs the "
+            "wavefront (the d≥3 row-march kernels are deferred — the "
+            "full-field spine serves d≥3)",
         )
 
     def sweep(

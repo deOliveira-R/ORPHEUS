@@ -61,6 +61,9 @@ class IdentityDiscretizationScheme:
     is_linear: ClassVar[bool] = True
     is_positivity_preserving: ClassVar[bool] = True
     is_affine_scannable: ClassVar[bool] = False
+    # #240 D5-0: the Protocol gained a fourth class-level trait
+    # (cross-axis separability); a conforming scheme must declare it.
+    transverse_coupling_is_facewise: ClassVar[bool] = False
 
     def update(
         self,
@@ -118,6 +121,9 @@ class FakeCurvilinearStrategy:
     is_linear: ClassVar[bool] = True
     is_positivity_preserving: ClassVar[bool] = False
     is_affine_scannable: ClassVar[bool] = False
+    # #240 D5-0: the Protocol gained a fourth class-level trait
+    # (cross-axis separability); a conforming scheme must declare it.
+    transverse_coupling_is_facewise: ClassVar[bool] = False
 
     def update(
         self,
@@ -246,6 +252,62 @@ class TestTraitAttributes:
     def test_curvilinear_strategy_traits(self):
         assert FakeCurvilinearStrategy.is_linear is True
         assert FakeCurvilinearStrategy.is_positivity_preserving is False
+
+
+class TestCapabilityTraitsAreGenuineBools:
+    """The four capability traits MUST be genuine ``bool``, not merely truthy.
+
+    ``DiscretizationScheme`` is ``@runtime_checkable``; on Python 3.12+
+    ``isinstance`` validates member *presence*, NOT type — so a scheme
+    declaring e.g. ``transverse_coupling_is_facewise = "yes"`` would pass
+    ``isinstance(x, DiscretizationScheme)`` and then read *truthy* in
+    ``ScanMarch.supports``, silently mis-routing (a narrower instance of the
+    very #240 D5-0 silent-DD bug the trait was minted to close).  The
+    presence-only check has no teeth against this; THIS test is the teeth:
+    every REGISTERED production scheme declares all four capability traits as
+    genuine ``bool``.  (#240 D5-0 elegance review — the gatekeeper's
+    symmetric-on-the-Protocol resolution: keep the traits symmetric, close the
+    footgun with a registry-wide type assertion rather than dropping the
+    member from the Protocol.)
+    """
+
+    _CAPABILITY_TRAITS = (
+        "is_linear",
+        "is_positivity_preserving",
+        "is_affine_scannable",
+        "transverse_coupling_is_facewise",
+    )
+
+    @pytest.mark.foundation
+    def test_registered_schemes_declare_genuine_bool_traits(self):
+        # Force-import the concrete schemes so they populate the registry.
+        import orpheus.sn.spatial.diamond  # noqa: F401
+        import orpheus.sn.spatial.linear_discontinuous  # noqa: F401
+        from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
+
+        registry = DiscretizationSchemeBase.registry
+        if not registry:
+            pytest.fail(
+                "DiscretizationSchemeBase.registry is empty — the concrete "
+                "schemes did not register (import side effect missing); the "
+                "bool-trait teeth would be vacuous."
+            )
+        for key, scheme_cls in registry.items():
+            for trait in self._CAPABILITY_TRAITS:
+                value = getattr(scheme_cls, trait)
+                # ``isinstance(value, bool)`` is exactly "is a genuine bool":
+                # ``isinstance(1, bool)`` is False (int is not bool), and
+                # np.bool_ is not a Python-bool subclass — both rejected, as
+                # intended (capability traits are Python-level declarations).
+                if not isinstance(value, bool):
+                    pytest.fail(
+                        f"{scheme_cls.__name__} (key={key!r}).{trait} = "
+                        f"{value!r} is {type(value).__name__}, not bool. "
+                        f"Capability traits MUST be genuine bool — a truthy "
+                        f"non-bool passes the presence-only @runtime_checkable "
+                        f"isinstance and then silently mis-routes in "
+                        f"supports() (#240 D5-0)."
+                    )
 
 
 class TestDataclassImmutability:

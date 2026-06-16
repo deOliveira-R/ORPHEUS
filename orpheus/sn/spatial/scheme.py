@@ -359,21 +359,47 @@ class DiscretizationScheme(Protocol):
         non-affine-scannable scheme is routed to the DAG wavefront
         schedule by :meth:`LossRepresentation.default_for` (the scan
         strategies gate their ``supports`` on this trait).  Read-only
-        class attribute.
+        class attribute.  This is a statement about a **single** spatial
+        axis (1-D prefix-scannability); it is distinct from
+        ``transverse_coupling_is_facewise``, which is the **cross-axis**
+        statement a multi-D scan-march needs (see below).
+    transverse_coupling_is_facewise : bool
+        Whether, in :math:`d \ge 2`, the cell closure's coupling from a
+        NON-swept axis enters as a **0th-order face value** (a Dirichlet
+        trace, one number per (group, cell)) rather than a **1st-order
+        slope moment** — equivalently, whether the d-D cell closure is
+        **tensor-product separable** into independent per-axis 1-D scans
+        chained through scalar face traces.  ``True`` for slopeless
+        cell-average closures (Diamond Difference / Step): the transverse
+        term folds into the scan's affine source, so a row-march
+        (``ScanMarch``) along one axis absorbs every other axis into its
+        source.  ``False`` for the bilinear DG-P1 Linear-Discontinuous
+        closure: its transverse coupling is the per-axis slope moment,
+        which CANNOT reduce to a single face value (the cell's transverse
+        face flux varies linearly along the in-cell swept coordinate), so
+        the d-D LD closure is irreducibly axis-coupled and rides the DAG
+        wavefront, not the scan-march.  ``False`` is the conservative
+        default: a scheme must OPT IN to claiming facewise/separable
+        transverse coupling, so a newly-added scheme that forgets to set
+        it is safely excluded from the :math:`d \ge 2` scan-march and
+        falls back to the wavefront.  Read-only class attribute.
 
     Notes
     -----
-    All three traits are class-level so they can be inspected without
+    All four traits are class-level so they can be inspected without
     instantiating the strategy.  Code that selects a closure based on
     cell-thickness or stiffness criteria reads ``is_linear``;
     diagnostics that gate on whether negative fluxes can appear read
-    ``is_positivity_preserving``; the sweep-schedule selection reads
-    ``is_affine_scannable``.
+    ``is_positivity_preserving``; the **1-D** sweep-schedule selection
+    reads ``is_affine_scannable``; the **multi-D** scan-march selection
+    (and a future diffusion ADI / line-SOR preconditioner — #240's
+    confirmed next consumer) reads ``transverse_coupling_is_facewise``.
     """
 
     is_linear: bool
     is_positivity_preserving: bool
     is_affine_scannable: bool
+    transverse_coupling_is_facewise: bool
 
     def update(
         self,
@@ -691,6 +717,62 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     no scheme branch (#158/#240 the coefficient model — there is no per-scheme
     matvec capability flag; bit-identity is never a design constraint, only a
     free bonus when the kernel re-association happens to be exact)."""
+
+    transverse_coupling_is_facewise: ClassVar[bool] = False
+    r"""Opt-in (``False`` default): does the multi-D cell closure couple a
+    NON-swept axis only through a **face value** (0th-order trace), so the
+    :math:`d`-D update factors into independent per-axis 1-D scans chained by
+    scalar traces?
+
+    The numerical-PDE statement.  On a scan over axis :math:`x`, the coupling
+    from a transverse axis :math:`y` is EITHER a single 0th-order face trace
+    :math:`\psi_{y,\rm in}` — a known upstream Dirichlet value that folds into
+    the x-recurrence's affine source — OR a 1st-order slope moment
+    :math:`\hat\psi_y` that the x-slope row consumes (because the cell's
+    y-face flux varies linearly along the in-cell x-coordinate).  When the
+    coupling is *facewise* (the first case), the d-D cell closure is
+    **tensor-product separable**: the multi-axis update is a sum over axes of
+    independent per-axis face contributions and the scan-march
+    ``scan(x) ∘ march(y, …)`` is exact.  When it is *slope-wise* (the second
+    case), the closure is **non-separable** — an irreducible
+    :math:`(1+d) \times (1+d)` per-cell block whose Schur complement does NOT
+    diagonalize across axes — and the scheme must ride the DAG wavefront.
+
+    Contrast with ``is_affine_scannable``.  ``is_affine_scannable`` is the
+    **1-D** (single-axis) prefix-scannability claim ``ψ_out = a·ψ_in + b``;
+    ``transverse_coupling_is_facewise`` is the **cross-axis** separability
+    claim a :math:`d \ge 2` scan-march needs.  These are DIFFERENT questions:
+    Linear-Discontinuous satisfies the first (its 1-D slope is eliminated by
+    the local Schur complement, leaving a single-upstream affine recurrence)
+    but NOT the second (its multi-D closure carries an independent slope per
+    axis — bilinear — so the transverse coupling is a slope moment, not a face
+    value).  Overloading the single 1-D trait to license a multi-D schedule is
+    the conflation that silently misroutes a 2-D LD mesh into the inline-DD
+    row-march (#240 D5-0); minting this distinct trait makes the illegal
+    LD/scan-march pairing unrepresentable.
+
+    Per scheme.
+
+    * **Diamond Difference** (central / Keller box, slopeless cell-average) —
+      ``True``.  Its transverse term is the 0th-order face value
+      ``s_y · ψ_{y,in}`` folded into the scan source.
+    * **Step** (first-order upwind, slopeless) — will be ``True`` when built
+      (it shares DD's facewise transverse structure; it is only a docstring
+      stub today, ``scheme.py``'s ``class Step``).
+    * **Linear-Discontinuous** (DG-P1-upwind, bilinear in :math:`d \ge 2`) —
+      ``False`` (the default; LD opts OUT).
+
+    Forward reuse.  A diffusion ADI / line-SOR preconditioner (#240's
+    confirmed next consumer) decides whether it can sweep one axis at a time
+    by reading THIS SAME predicate — the trait is named for the scheme
+    property (separable transverse coupling), not for the ``ScanMarch``
+    strategy, precisely so a second separability-exploiting consumer needs no
+    rename.
+
+    Source: Maginot, Ragusa & Morel (2016, *Upstream LD*) and Adams (2001)
+    establish the irreducible multi-dimensional coupling of the LD slope
+    moments; the DD / box facewise separability is the standard
+    tensor-product central-difference structure (Lewis & Miller §§4.5, 8)."""
 
     @classmethod
     def _registry_base(cls) -> type:

@@ -140,6 +140,20 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
     by the Schur complement — so LD is ALSO affine-scannable, with
     ``w = 1/(1+k)``; #158 Increment B.)"""
 
+    transverse_coupling_is_facewise: ClassVar[bool] = True
+    r"""DD's multi-D transverse coupling is **facewise** (separable): the
+    coupling from a non-swept axis :math:`y` enters the x-recurrence as the
+    single 0th-order face value ``s_y · ψ_{y,in}`` folded into the scan's
+    affine source (the explicit per-axis left-fold in :meth:`update`), so the
+    d-D DD closure factors into independent per-axis 1-D scans chained by
+    scalar face traces.  DD is therefore admitted to the :math:`d \ge 2`
+    scan-march (``ScanMarch``); see
+    :attr:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.transverse_coupling_is_facewise`
+    for the trait contract and the contrast with the (single-axis)
+    ``is_affine_scannable``.  Linear-Discontinuous, whose multi-D coupling is a
+    1st-order slope moment (bilinear), leaves this trait at its ``False``
+    default and rides the DAG wavefront instead (#240 D5b / #38)."""
+
     def update(
         self,
         visit: CellVisit,
