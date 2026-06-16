@@ -82,6 +82,7 @@ from typing import ClassVar
 
 import numpy as np
 
+from .affine_closure import outgoing_face_from_average
 from .cell_balance import cell_balance_for_streaming, cell_balance_terms
 from .cell_update import (
     CellResult,
@@ -166,7 +167,12 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         # ``ψ^s_out = 2·ψ_avg − ψ^s_in`` exactly.
         psi_spat_out: np.ndarray | None = None
         if visit.face_area_downstream > 0.0:
-            psi_spat_out = 2.0 * psi_avg - upstream_state.spatial_upstream
+            # DD reconstruction ``2ψ̄ − ψ_in`` is the ``w=½`` case of the
+            # generic affine outflow ``(ψ̄ − (1−w)ψ_in)/w`` (byte-identical:
+            # ``÷0.5`` is exact ``×2``).
+            psi_spat_out = outgoing_face_from_average(
+                psi_avg, upstream_state.spatial_upstream, 0.5,
+            )
 
         # ── Angular closure (Morel-Montry) ──────────────────────────
         # Outputs ``None`` when this geometry has no angular state to
@@ -343,7 +349,11 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
             denom = denom + 2.0 * s_a                      # left fold → (N_oct, ng, n_diag); 2 = DD's 1/w
             numer = numer + 2.0 * s_a * in_a
         psi_avg = numer / denom                            # (N_oct, ng, n_diag)
-        psi_out = tuple(2.0 * psi_avg - in_a for in_a in psi_in)
+        # DD diamond MEAN reconstruction = the ``w=½`` generic affine outflow
+        # (byte-identical: ``÷0.5`` is exact ``×2``).
+        psi_out = tuple(
+            outgoing_face_from_average(psi_avg, in_a, 0.5) for in_a in psi_in
+        )
         return psi_avg, psi_out
 
     def residual_kernel_batch(
@@ -381,7 +391,11 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
             denom = denom + 2.0 * s_a                      # left fold; 2 = DD's 1/w
             numer = numer + 2.0 * s_a * in_a
         residual = denom * psi_bar - numer                 # (N_oct, ng, n_diag)
-        psi_out = tuple(2.0 * psi_bar - in_a for in_a in psi_in)
+        # DD diamond MEAN reconstruction = the ``w=½`` generic affine outflow
+        # (byte-identical: ``÷0.5`` is exact ``×2``).
+        psi_out = tuple(
+            outgoing_face_from_average(psi_bar, in_a, 0.5) for in_a in psi_in
+        )
         return residual, psi_out
 
     # ── Scan-family capability (Issue #236 §2 — the DAG-free schedules) ──

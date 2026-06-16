@@ -105,3 +105,28 @@ def cell_average(
     to sum to one).  DD's ``½(ψ_in + ψ_out)`` is the ``w=½`` special case.
     """
     return (1.0 - w) * face_in + w * face_out
+
+
+def outgoing_face_from_average(
+    psi_bar: np.ndarray, face_in: np.ndarray, w: np.ndarray,
+) -> np.ndarray:
+    r"""Downstream face flux from the cell average: ``ψ_out = (ψ̄ − (1−w)·ψ_in)/w``.
+
+    The inverse of :func:`cell_average` (the convex face blend
+    ``ψ̄ = (1−w)·ψ_in + w·ψ_out``).  The universal affine-scheme outflow
+    reconstruction: DD's diamond mean ``2ψ̄ − ψ_in`` is the ``w=½`` case;
+    LD's ``(1+k)ψ̄ − k·ψ_in`` is the ``w=1/(1+k)`` case.
+
+    .. note::
+
+       For ``w=½`` (Diamond Difference) this is **byte-identical** to the
+       inlined ``2·ψ̄ − ψ_in``: ``÷0.5`` is the exact power-of-2 ``×2`` and
+       round-to-nearest commutes with exact doubling, so
+       ``fl(2·(ψ̄ − 0.5·ψ_in)) == fl(2ψ̄ − ψ_in)`` bit-for-bit.  For LD's
+       ``w=1/(1+k)`` it is algebraically equal to ``ψ̄ + (g/θ)(ψ̄ − ψ_in)/D₂``
+       but takes a DIFFERENT reduction tree (compute ``w`` then ``÷w`` vs the
+       direct ``ψ̄ + k·(…)``), so LD reconstruction is a principled
+       ~1-ULP re-baseline (``vv-principles`` §"Bit-identity vs
+       principled-equivalence"), not a byte-identical move.
+    """
+    return (psi_bar - (1.0 - w) * face_in) / w

@@ -129,7 +129,11 @@ import numpy as np
 # bodies share one home, so the historical load-time import cycle is gone.
 from orpheus.geometry import CoordSystem
 
-from .spatial.affine_closure import cell_average, source_emission
+from .spatial.affine_closure import (
+    cell_average,
+    outgoing_face_from_average,
+    source_emission,
+)
 from .spatial.cell_update import UpstreamState
 from .spatial.psi_half_angle_seed import CarlsonSweepContext
 from .spatial.scan import _scanmarch_row, _x_scan_faces, ordinate_scan
@@ -1449,7 +1453,11 @@ class ScanMarch(_LossRepresentation):
             # DD diamond reconstruction out_y = 2ψ̄ − ψ_y_in (the 2 here is the
             # diamond MEAN — cell-average reconstruction, NOT the streaming
             # factor; 2-D scan-march is DD-only, coefficient-model lift #239).
-            out_y = 2.0 * psi_bar_row - psi_y_in
+            # The ``w=½`` generic affine outflow (byte-identical: ``÷0.5`` is
+            # exact ``×2``).  The β scan source ``2ψ̄`` at the ``_x_scan_faces``
+            # call above is a SCAN-recurrence term (not a direct
+            # reconstruction) and is left for the #239 coefficient-model lift.
+            out_y = outgoing_face_from_average(psi_bar_row, psi_y_in, 0.5)
             psi_y_in = out_y
             cap_x[:, :, j] = x_outflow
         return LpC_oct, (cap_x, out_y)

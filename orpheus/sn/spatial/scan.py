@@ -76,6 +76,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from .affine_closure import outgoing_face_from_average
+
 
 def ordinate_scan(
     a: np.ndarray,
@@ -341,5 +343,7 @@ def _scanmarch_row(
     """
     in_x, out_x, x_outflow = _x_scan_faces(alpha, beta, psi_x_in, x_reverse)
     psi_avg = 0.5 * (in_x + out_x)              # DD diamond mean (w = ½)
-    out_y = 2.0 * psi_avg - psi_y_in           # DD diamond reconstruction
+    # DD diamond reconstruction ``2ψ̄ − ψ_in`` = the ``w=½`` generic affine
+    # outflow (byte-identical: ``÷0.5`` is exact ``×2``).
+    out_y = outgoing_face_from_average(psi_avg, psi_y_in, 0.5)
     return psi_avg, out_y, x_outflow

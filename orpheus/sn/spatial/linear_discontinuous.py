@@ -168,6 +168,7 @@ from typing import ClassVar
 
 import numpy as np
 
+from .affine_closure import outgoing_face_from_average
 from .cell_update import (
     CellResult,
     CellUpdateBase,
@@ -456,7 +457,11 @@ class LinearDiscontinuous(CellUpdateBase, key="linear_discontinuous"):
             psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
         )
         psi_avg = rhs / eff_denom
-        psi_out = psi_avg + g_over_theta * (psi_avg - in0) / d2
+        # LD reconstruction ``(1+k)ψ̄ − k·ψ_in`` is the ``w=1/(1+k)`` case of
+        # the generic affine outflow ``(ψ̄ − (1−w)ψ_in)/w`` (k = (g/θ)/D₂); a
+        # principled ~1-ULP re-baseline (different reduction tree).
+        w = 1.0 / (1.0 + g_over_theta / d2)
+        psi_out = outgoing_face_from_average(psi_avg, in0, w)
         return psi_avg, (psi_out,)
 
     def residual_kernel_batch(
@@ -481,7 +486,11 @@ class LinearDiscontinuous(CellUpdateBase, key="linear_discontinuous"):
             psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
         )
         residual = eff_denom * psi_bar - rhs
-        psi_out = psi_bar + g_over_theta * (psi_bar - in0) / d2
+        # LD reconstruction ``(1+k)ψ̄ − k·ψ_in`` is the ``w=1/(1+k)`` case of
+        # the generic affine outflow ``(ψ̄ − (1−w)ψ_in)/w`` (k = (g/θ)/D₂); a
+        # principled ~1-ULP re-baseline (different reduction tree).
+        w = 1.0 / (1.0 + g_over_theta / d2)
+        psi_out = outgoing_face_from_average(psi_bar, in0, w)
         return residual, (psi_out,)
 
     # ── Scan-family coefficients (group 3 — the DAG-free schedules) ──────────

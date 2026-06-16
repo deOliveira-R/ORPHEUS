@@ -275,11 +275,16 @@ class TestKernelSourceOfRecord:
     # left fold (``denom += 2.0*s_a``, ``numer += 2.0*s_a*in_a``); the fold is
     # still bit-identical to the legacy ``sigt + sx + sy`` because ``2*g_a``
     # equals the former pre-scaled ``2|μ|/Δ`` exactly (power-of-2 commute).
+    # Re-hashed #240 Phase 2 D1: the inlined diamond reconstruction
+    # ``2ψ̄ − ψ_in`` now routes through the generic
+    # ``affine_closure.outgoing_face_from_average(ψ̄, ψ_in, 0.5)`` — a SOURCE
+    # change only; the ``w=½`` op is byte-identical to ``2ψ̄ − ψ_in`` (``÷0.5``
+    # is exact ``×2``), so every numerical byte-identity anchor stays green.
     EXPECTED: ClassVar[dict[str, str]] = {
         "cell_kernel_batch":
-            "f2457ebaeda89b7fb712f3b2af2a5e9057f140dc42b9216752ac8053e9cbd380",
+            "645e063ada305b993a2c3ceadad1e049f896fc241893367f6ba9f47aed4d5f56",
         "residual_kernel_batch":
-            "96a61a50f2f454af07e0021b9fcec61dc2640909382429717b73892a8a4cf086",
+            "23b9787b5788cd4c5a716334220cedc30dc52e514b5c2e42689566883faabd6c",
     }
 
     @pytest.mark.parametrize("kernel", ["cell_kernel_batch", "residual_kernel_batch"])

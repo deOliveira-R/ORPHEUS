@@ -1471,6 +1471,44 @@ Exploiting GL symmetry, only positive-:math:`\mu` ordinates are swept
 forward; negative-:math:`\mu` ordinates are obtained by reversing the
 cell array and sweeping with the same coefficients.
 
+.. _sn-affine-outgoing-face-reconstruction:
+
+Generic affine outflow reconstruction
+--------------------------------------
+
+.. math::
+   :label: sn-affine-outgoing-face-reconstruction-eq
+
+   \psi_{\rm out} = \frac{\bar\psi - (1-w)\,\psi_{\rm in}}{w}
+
+The single-source inverse of the convex cell-average blend
+:math:`\bar\psi = (1-w)\psi_{\rm in} + w\,\psi_{\rm out}`
+(:eq:`dd-recurrence` closure :math:`\psi_{\rm out} = 2\bar\psi - \psi_{\rm in}`
+is the :math:`w=\tfrac12` case).  Every consistent affine spatial scheme
+reconstructs its downstream face from this one parameterized formula: Diamond
+Difference at :math:`w=\tfrac12` (diamond mean), Linear Discontinuous at
+:math:`w = 1/(1+k)` with :math:`k = (|\mu|/\theta)/D_2`.  At :math:`w=\tfrac12`
+the reconstruction is byte-identical to the inlined :math:`2\bar\psi - \psi_{\rm in}`
+(division by :math:`\tfrac12` is the exact power-of-two doubling, which commutes
+with round-to-nearest); LD's :math:`w=1/(1+k)` is algebraically equal to its
+inlined Schur form :math:`\bar\psi + (|\mu|/\theta)(\bar\psi - \psi_{\rm in})/D_2`
+but takes a different floating-point reduction tree (a principled
+:math:`\sim`\ 1-ULP re-baseline).
+
+.. todo:: Archivist expansion needed (#240 Phase 2 Step D6).
+   This stub anchors the generic affine-scheme outflow reconstruction
+   :func:`orpheus.sn.spatial.affine_closure.outgoing_face_from_average` (the
+   inverse of :func:`~orpheus.sn.spatial.affine_closure.cell_average`).  The
+   #240 Phase 2 Step D1 carve single-sources the per-scheme inlined
+   reconstruction (DD ``2ψ̄ − ψ_in``, LD ``(1+k)ψ̄ − k·ψ_in``) through this op.
+   Unit gate: :mod:`tests.sn.spatial.test_affine_closure` (exact-inverse
+   round-trip, DD ``w=½`` byte-identity, LD ``w=1/(1+k)`` algebraic equality).
+   Closeout memo:
+   ``.claude/agent-memory/method-implementer/issue_240_phase2_step_d1_closeout.md``.
+   The full narrative (the Step/DD/LD ↔ advection-scheme correspondence — upwind
+   / box-central / DG-P1-upwind, the ``w(Σ)`` Péclet/κ-scheme blend, the
+   spatial⊗angular factorization) is the D6 archivist deliverable.
+
 .. _sweep-wavefront:
 
 Cartesian 2D: Anti-Diagonal Wavefront Sweep

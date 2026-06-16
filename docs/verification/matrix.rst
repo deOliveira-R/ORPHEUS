@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5247**
+Total tests collected: **5250**
 
 V&V level distribution
 ----------------------
@@ -20,7 +20,7 @@ V&V level distribution
    L1, 975, 18.6%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3074, 58.6%
+   foundation, 3077, 58.6%
    unmarked, 9, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5159
+   explicit, 5162
    verify, 0
    class-name, 46
    func-name, 0
@@ -335,6 +335,7 @@ Module × level grid
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
    solve/test_si_gate_dispatch, 0, 0, 0, 0, 4, 0
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
+   spatial/test_affine_closure, 0, 0, 0, 0, 3, 0
    spatial/test_linear_discontinuous, 0, 0, 0, 0, 18, 1
    spatial/test_ordinate_scan_reset, 3, 2, 0, 0, 0, 0
    test_convergence, 0, 0, 1, 0, 0, 0
@@ -617,7 +618,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **63** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **64** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -664,6 +665,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``si-jacobi-fixed-point``
 - ``si-sigma-r-fold-mismatch``
 - ``si-within-group-operator-eq``
+- ``sn-affine-outgoing-face-reconstruction-eq``
 - ``sn-axis-widths``
 - ``sn-cell-flatten-roundtrip``
 - ``sn-p1-cylinder-hand-ref``
