@@ -1515,6 +1515,91 @@ but takes a different floating-point reduction tree (a principled
    / box-central / DG-P1-upwind, the ``w(Σ)`` Péclet/κ-scheme blend, the
    spatial⊗angular factorization) is the D6 archivist deliverable.
 
+.. _ld-ubld-multidim:
+
+Multi-dimensional LD: the tensor-product bilinear (UBLD) cell system
+---------------------------------------------------------------------
+
+The multi-dimensional analog of Linear Discontinuous on a **Cartesian**
+cell is **NOT** the simplex-P1 :math:`\{1, x, y\}` object
+(:math:`1+d` moments).  Adams (2001) proved simplex-LD *fails* the thick
+diffusion limit on quadrilaterals, while the **bilinear / trilinear
+DG-P1** (UBLD) — basis :math:`\{1, x, y, xy\}` (:math:`2^d` moments) —
+*passes*.  The :math:`xy` cross moment is diffusion-limit-load-bearing.
+
+The :math:`d`-generic per-cell Galerkin system is assembled as Kronecker
+products of the verified 1-D LD factor operators (the streaming
+:math:`\Omega\cdot\nabla = \sum_a \mu_a \partial_a` is a sum over axes;
+the tensor-product basis separates):
+
+.. math::
+   :label: ld-ubld-cell-system
+
+   A\,\vec\psi = \vec R, \qquad
+   A = G + F_{\rm out} + \Sigma_t M, \qquad
+   \vec R = M\,\vec S + F_{\rm in}\,\psi_{\rm in}^{\rm traces},
+
+a :math:`2^d \times 2^d` dense non-symmetric solve, with
+:math:`M = M_1 \otimes \cdots \otimes M_d` (mass),
+:math:`G = \sum_a \mu_a\,(M_1 \otimes \cdots \otimes G_{1d} \otimes
+\cdots \otimes M_d)` (streaming: gradient on the active axis, mass on the
+transverse axes), and :math:`F_{\rm out}` likewise from the per-axis
+downstream-face trace.
+
+.. math::
+   :label: ld-ubld-d1-reduction
+
+   A\big|_{d=1} =
+   \begin{bmatrix} \Sigma_t h + |\mu| & |\mu| \\
+                   -|\mu| & \Sigma_t \theta h + |\mu| \end{bmatrix}
+
+The :math:`d=1` reduction (Kronecker-with-one-factor identity) recovers
+the production slab 2×2 :eq:`dd-cartesian-1d`-sibling exactly; the
+:math:`xy` coupling falls out of the algebra for :math:`d \ge 2`.
+
+.. math::
+   :label: ld-ubld-exact-on-bilinear
+
+   \psi(x,y) = a + bx + cy + dxy
+   \;\Longrightarrow\;
+   \vec\psi_{\rm solved} = \vec\psi_{\rm exact-projections}
+
+The UBLD is **exact on any bilinear flux** (the multi-D analog of the
+1-D "exact on linear-in-x" oracle), the :math:`xy` cross moment
+exercised — the structurally-independent correctness gate for the
+:math:`d \ge 2` closure.
+
+.. todo:: Archivist expansion needed (#240 / #38 / #37 — D5b-S1 Branch 1).
+   This stub anchors the Branch-1 (SymPy) algebra-of-record for the
+   :math:`d`-generic UBLD per-cell system.  The canonical symbolic
+   reference is
+   :mod:`orpheus.derivations.discrete.sn.ld_ubld` — the Kronecker
+   assembler (``assemble_ubld``) + the five ``derive_*`` verification
+   functions (d=1 reduction to the production slab LD and its ÷V /
+   ×V views, d=2 exact-on-bilinear, d=3 trilinear readiness).  The
+   d=1 reduction is proven equal to the production
+   :mod:`orpheus.sn.spatial.linear_discontinuous` 2×2 + Schur
+   :math:`S` / slope :math:`\hat\psi` / :math:`D_2'` closed forms, AND
+   to the ÷V ``_kernel_terms`` and ×V ``affine_scan_coefficients``
+   views (the "single-source the math" proof for Branch 2).  Foundation
+   gate: :mod:`tests.sn.spatial.test_ld_ubld_symbolic` (6 tests).
+   Closeout memo:
+   ``.claude/agent-memory/method-implementer/issue_240_d5b_s1_ld_ubld_branch1_closeout.md``.
+   Literature contract:
+   ``.claude/agent-memory/literature-researcher/multi_d_ld_closure.md``
+   (MRM-2016 Eqs. 1-12; Adams-2001 thick-diffusion verdict; BLA-1992).
+
+   Brief for the full narrative: the UBLD weak form derivation
+   (Galerkin + upwind face flux); WHY bilinear not simplex-P1 (the
+   thick-diffusion-limit verdict, the role of the :math:`xy` moment);
+   the Kronecker single-source build (mass on transverse axes, the
+   :math:`\theta^{(\#\text{active axes})}` moment-weight pattern
+   :math:`1, \theta, \theta, \theta^2` in 2-D); the
+   :math:`2^{d-1}`-moment face cochain widening (Branch-2 / face-payload
+   contract); the diffusion-limit consistency (Increment-C slope-source
+   dependency).  Branch 2 (the numpy production primitive) is a separate
+   follow-on dispatch.
+
 .. _sweep-wavefront:
 
 Cartesian 2D: Anti-Diagonal Wavefront Sweep
