@@ -76,7 +76,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from .affine_closure import outgoing_face_from_average
+from .cell_update import CellUpdateBase
 
 
 def ordinate_scan(
@@ -332,10 +332,12 @@ def _scanmarch_row(
        closure is inlined here to match.  Since #240 the per-axis streaming the
        caller feeds is the RAW ``g`` (the diamond ``2`` is applied in the
        caller's ``_sweep_interior``, not the producer).  The 1-D paths moved to
-       the :mod:`~orpheus.sn.spatial.affine_closure` coefficient model (#158 Inc
-       B); lifting the 2-D scan-march onto ``affine_scan_coefficients`` +
-       ``affine_closure`` (so Linear-Discontinuous can ride the 2-D row-march)
-       is the deferred 2-D coefficient-model refactor (#239).
+       the coefficient model (#158 Inc B) — the generic base reconstruction
+       staticmethods on
+       :class:`~orpheus.sn.spatial.cell_update.CellUpdateBase`; lifting the 2-D
+       scan-march onto ``affine_scan_coefficients`` + those staticmethods (so
+       Linear-Discontinuous can ride the 2-D row-march) is the deferred 2-D
+       coefficient-model refactor (#239).
 
     Returns ``(psi_avg, out_y, x_outflow)`` — the cell average and the
     downstream y-face (the next row's ``psi_y_in``) in mesh order, and the
@@ -345,5 +347,5 @@ def _scanmarch_row(
     psi_avg = 0.5 * (in_x + out_x)              # DD diamond mean (w = ½)
     # DD diamond reconstruction ``2ψ̄ − ψ_in`` = the ``w=½`` generic affine
     # outflow (byte-identical: ``÷0.5`` is exact ``×2``).
-    out_y = outgoing_face_from_average(psi_avg, psi_y_in, 0.5)
+    out_y = CellUpdateBase.outgoing_face_from_average(psi_avg, psi_y_in, 0.5)
     return psi_avg, out_y, x_outflow

@@ -276,15 +276,18 @@ class TestKernelSourceOfRecord:
     # still bit-identical to the legacy ``sigt + sx + sy`` because ``2*g_a``
     # equals the former pre-scaled ``2|μ|/Δ`` exactly (power-of-2 commute).
     # Re-hashed #240 Phase 2 D1: the inlined diamond reconstruction
-    # ``2ψ̄ − ψ_in`` now routes through the generic
-    # ``affine_closure.outgoing_face_from_average(ψ̄, ψ_in, 0.5)`` — a SOURCE
-    # change only; the ``w=½`` op is byte-identical to ``2ψ̄ − ψ_in`` (``÷0.5``
-    # is exact ``×2``), so every numerical byte-identity anchor stays green.
+    # ``2ψ̄ − ψ_in`` now routes through the generic affine outflow op.
+    # Re-hashed #240 Phase 2 D2: that op was homed from the ``affine_closure``
+    # module onto the scheme base, so the call is now
+    # ``self.outgoing_face_from_average(ψ̄, ψ_in, 0.5)`` (the inherited
+    # ``CellUpdateBase`` staticmethod).  A SOURCE change only; the ``w=½`` op is
+    # byte-identical to ``2ψ̄ − ψ_in`` (``÷0.5`` is exact ``×2``), so every
+    # numerical byte-identity anchor stays green.
     EXPECTED: ClassVar[dict[str, str]] = {
         "cell_kernel_batch":
-            "645e063ada305b993a2c3ceadad1e049f896fc241893367f6ba9f47aed4d5f56",
+            "c7b6fbdca73b87ffad364170597dca484f5ee8eb1e1d32223e86bae5832a3121",
         "residual_kernel_batch":
-            "23b9787b5788cd4c5a716334220cedc30dc52e514b5c2e42689566883faabd6c",
+            "954c4cc5274aa4c67a031d15a5f1615b6afe855b6e8607bd05a6a3afb1d3ab18",
     }
 
     @pytest.mark.parametrize("kernel", ["cell_kernel_batch", "residual_kernel_batch"])

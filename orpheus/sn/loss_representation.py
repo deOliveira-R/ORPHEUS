@@ -129,11 +129,6 @@ import numpy as np
 # bodies share one home, so the historical load-time import cycle is gone.
 from orpheus.geometry import CoordSystem
 
-from .spatial.affine_closure import (
-    cell_average,
-    outgoing_face_from_average,
-    source_emission,
-)
 from .spatial.cell_update import UpstreamState
 from .spatial.psi_half_angle_seed import CarlsonSweepContext
 from .spatial.scan import _scanmarch_row, _x_scan_faces, ordinate_scan
@@ -1457,7 +1452,9 @@ class ScanMarch(_LossRepresentation):
             # exact ``×2``).  The β scan source ``2ψ̄`` at the ``_x_scan_faces``
             # call above is a SCAN-recurrence term (not a direct
             # reconstruction) and is left for the #239 coefficient-model lift.
-            out_y = outgoing_face_from_average(psi_bar_row, psi_y_in, 0.5)
+            out_y = self.mesh.cell_update.outgoing_face_from_average(
+                psi_bar_row, psi_y_in, 0.5,
+            )
             psi_y_in = out_y
             cap_x[:, :, j] = x_outflow
         return LpC_oct, (cap_x, out_y)
@@ -2637,7 +2634,9 @@ class _OneDimScanWalk:
                 # Affine source emission b = QV·inverse_denom/w (#158 coefficient
                 # model — DD's 2·QV·inv is the w=½ case).  (K, ng, nx);
                 # ordinate_scan wants the cell axis leading → transpose.
-                b_chain = source_emission(QV_full_chain, inv_denom_chain, w_chain)
+                b_chain = self.mesh.cell_update.source_emission(
+                    QV_full_chain, inv_denom_chain, w_chain,
+                )
                 a_scan = np.transpose(a_atten_chain, (2, 0, 1))   # (nx, K, ng)
                 b_scan = np.transpose(b_chain, (2, 0, 1))         # (nx, K, ng)
                 w_scan = np.transpose(w_chain, (2, 0, 1))         # (nx, K, ng)
@@ -2652,7 +2651,7 @@ class _OneDimScanWalk:
                 psi_face_in_chain = np.empty_like(psi_face_chain_scan)
                 psi_face_in_chain[0] = psi_in_chain
                 psi_face_in_chain[1:] = psi_face_chain_scan[:-1]
-                psi_avg_scan = cell_average(
+                psi_avg_scan = self.mesh.cell_update.cell_average(
                     psi_face_in_chain, psi_face_chain_scan, w_scan,
                 )
                 # (nx, K, ng) → per-ordinate (ng, nx) via reorder.
@@ -2805,7 +2804,9 @@ class _OneDimScanWalk:
                     # (#158 coefficient model — the Morel–Montry angular
                     # redistribution rides the volumetric source; DD's
                     # 2·(QV+ang)·inv is the w=½ case).
-                    b = source_emission(QV_chain + ang_contrib, inv_denom_p, w_p)  # (ng, nx)
+                    b = self.mesh.cell_update.source_emission(
+                        QV_chain + ang_contrib, inv_denom_p, w_p,
+                    )  # (ng, nx)
 
                     # ordinate_scan: leading axis is the scan/cell axis.
                     # Pass (nx, ng) — transpose from (ng, nx).
@@ -2823,7 +2824,7 @@ class _OneDimScanWalk:
                     psi_face_in_chain = np.empty_like(psi_face_chain)
                     psi_face_in_chain[0] = psi_in
                     psi_face_in_chain[1:] = psi_face_chain[:-1]
-                    psi_avg_chain = cell_average(
+                    psi_avg_chain = self.mesh.cell_update.cell_average(
                         psi_face_in_chain, psi_face_chain, w_p.T,
                     )
                     # Principled view: (ng, nx).

@@ -5,7 +5,9 @@ it is **affine-scannable** (the Schur complement eliminates the slope, leaving
 the single-upstream recurrence ``ψ_out = a·ψ_in + b``), so a 1-D slab LD mesh
 rides the fast DAG-free ``CumprodScan`` via the coefficient model — it supplies
 ``(a, inverse_denom, w)`` through ``affine_scan_coefficients`` and the generic
-``affine_closure`` ops do the rest.  The polymorphic ``FullFieldWavefront`` DAG
+base reconstruction staticmethods (``source_emission`` / ``cell_average`` /
+``outgoing_face_from_average`` on ``CellUpdateBase``) do the rest.  The
+polymorphic ``FullFieldWavefront`` DAG
 oracle (Increment A, via ``cell_kernel_batch``) remains the verification
 reference — the two-paths gate pins ``CumprodScan``-LD ≡ ``FullFieldWavefront``-LD.
 This file pins:
@@ -25,7 +27,8 @@ The per-cell exactness-on-linears (the strong structurally-independent
 correctness oracle) lives in ``tests/sn/spatial/test_linear_discontinuous.py``.
 
 Related: ``orpheus.sn.spatial.linear_discontinuous`` (the occupant);
-``orpheus.sn.spatial.affine_closure`` (the generic coefficient-model ops);
+``orpheus.sn.spatial.cell_update.CellUpdateBase`` (the generic coefficient-model
+reconstruction staticmethods);
 ``orpheus.sn.loss_representation.{CumprodScan, FullFieldWavefront}``;
 ``.claude/plans/mellow-swinging-breeze.md`` (Increment B).
 """

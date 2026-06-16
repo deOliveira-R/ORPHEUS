@@ -82,7 +82,6 @@ from typing import ClassVar
 
 import numpy as np
 
-from .affine_closure import outgoing_face_from_average
 from .cell_balance import cell_balance_for_streaming, cell_balance_terms
 from .cell_update import (
     CellResult,
@@ -131,8 +130,11 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
     cell-average is an affine function of the SINGLE upstream face flux,
     so the DAG-free scan schedules (``CumprodScan``, ``ScanMarch``) consume DD
     via its per-cell coefficient triple :meth:`affine_scan_coefficients`
-    ``(a, inverse_denom, w)`` and the generic
-    :mod:`~orpheus.sn.spatial.affine_closure` ops (#158 the coefficient model);
+    ``(a, inverse_denom, w)`` and the generic base reconstruction staticmethods
+    (:meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.source_emission` /
+    :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.cell_average` /
+    :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.outgoing_face_from_average`;
+    #158 the coefficient model);
     DD's blend weight is ``w = ½`` (the symmetric diamond mean).
     (Linear-Discontinuous couples two face moments, but its slope is eliminated
     by the Schur complement — so LD is ALSO affine-scannable, with
@@ -170,7 +172,7 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
             # DD reconstruction ``2ψ̄ − ψ_in`` is the ``w=½`` case of the
             # generic affine outflow ``(ψ̄ − (1−w)ψ_in)/w`` (byte-identical:
             # ``÷0.5`` is exact ``×2``).
-            psi_spat_out = outgoing_face_from_average(
+            psi_spat_out = self.outgoing_face_from_average(
                 psi_avg, upstream_state.spatial_upstream, 0.5,
             )
 
@@ -352,7 +354,7 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         # DD diamond MEAN reconstruction = the ``w=½`` generic affine outflow
         # (byte-identical: ``÷0.5`` is exact ``×2``).
         psi_out = tuple(
-            outgoing_face_from_average(psi_avg, in_a, 0.5) for in_a in psi_in
+            self.outgoing_face_from_average(psi_avg, in_a, 0.5) for in_a in psi_in
         )
         return psi_avg, psi_out
 
@@ -394,7 +396,7 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         # DD diamond MEAN reconstruction = the ``w=½`` generic affine outflow
         # (byte-identical: ``÷0.5`` is exact ``×2``).
         psi_out = tuple(
-            outgoing_face_from_average(psi_bar, in_a, 0.5) for in_a in psi_in
+            self.outgoing_face_from_average(psi_bar, in_a, 0.5) for in_a in psi_in
         )
         return residual, psi_out
 
@@ -416,8 +418,11 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         The third coefficient ``cell_average_weight`` is DD's blend weight
         ``w = ½`` (broadcast; the symmetric diamond mean
         :math:`\bar\psi = \tfrac12(\psi_{\rm in}+\psi_{\rm out})`) — #158 the
-        coefficient model.  The generic :mod:`~orpheus.sn.spatial.affine_closure`
-        ops consume it; DD carries no cell-average / outgoing-face / source-
+        coefficient model.  The generic base reconstruction staticmethods
+        (:meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.cell_average` /
+        :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.outgoing_face_from_average`
+        / :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.source_emission`)
+        consume it; DD carries no cell-average / outgoing-face / source-
         emission method of its own.
 
         The single source of the DD affine-recurrence coefficients
@@ -495,7 +500,7 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         a_attenuation = a_numer[:, None, :] * inverse_denom - 1.0        # (N, ng, nx)
         # Cell-average blend weight (#158 the coefficient model): DD is the
         # symmetric diamond mean ψ̄ = ½(ψ_in+ψ_out), i.e. w = ½ everywhere.  The
-        # generic closure ops in ``affine_closure`` consume this; DD carries NO
+        # generic base reconstruction staticmethods consume this; DD carries NO
         # cell-average / outgoing-face / source-emission method of its own.
         cell_average_weight = np.full_like(a_attenuation, 0.5)            # (N, ng, nx)
         return a_attenuation, inverse_denom, cell_average_weight
@@ -515,9 +520,11 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
     #      apply twin of the scan, since the apply direction has a concrete ψ̄);
     #   3. the scan-family coefficients ``affine_scan_coefficients`` →
     #      ``(a, inverse_denom, w)`` — the DAG-free scan SOLVE family
-    #      (CumprodScan / ScanMarch), consumed by the generic
-    #      :mod:`~orpheus.sn.spatial.affine_closure` ops (#158 the coefficient
-    #      model; the per-scheme ``cell_average_from_faces`` /
+    #      (CumprodScan / ScanMarch), consumed by the generic base
+    #      reconstruction staticmethods (``source_emission`` / ``cell_average``
+    #      / ``outgoing_face_from_average`` on
+    #      :class:`~orpheus.sn.spatial.cell_update.CellUpdateBase`; #158 the
+    #      coefficient model; the per-scheme ``cell_average_from_faces`` /
     #      ``outgoing_face_from_average`` closure methods are RETIRED — the
     #      operations are now generic in ``w``).
     # This is the ONLY direction-aware math in the SN stack, and the override

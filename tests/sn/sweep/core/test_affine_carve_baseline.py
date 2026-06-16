@@ -18,8 +18,9 @@ axes that the #206 carve actually touches:
    through the SAME ``cell_update`` cell math (#206 Phase A: the closure
    methods; #158 Increment B refactored group-3 to the coefficient model —
    ``affine_scan_coefficients`` → ``(a, inverse_denom, w)`` consumed by the
-   generic ``affine_closure`` ops, the per-scheme closure methods retired); the
-   redistribution path is exactly where a routing slip would show.
+   generic base reconstruction staticmethods on ``CellUpdateBase``, the
+   per-scheme closure methods retired); the redistribution path is exactly
+   where a routing slip would show.
 
 2. **Non-flat random ψ / Q** (≥2 groups) — fixed-seed random bulk +
    boundary trace (matvec) and a fixed-seed random per-ordinate source

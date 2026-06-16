@@ -1497,10 +1497,16 @@ but takes a different floating-point reduction tree (a principled
 
 .. todo:: Archivist expansion needed (#240 Phase 2 Step D6).
    This stub anchors the generic affine-scheme outflow reconstruction
-   :func:`orpheus.sn.spatial.affine_closure.outgoing_face_from_average` (the
-   inverse of :func:`~orpheus.sn.spatial.affine_closure.cell_average`).  The
+   :meth:`orpheus.sn.spatial.cell_update.CellUpdateBase.outgoing_face_from_average`
+   (the inverse of
+   :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.cell_average`).  The
    #240 Phase 2 Step D1 carve single-sources the per-scheme inlined
-   reconstruction (DD ``2ψ̄ − ψ_in``, LD ``(1+k)ψ̄ − k·ψ_in``) through this op.
+   reconstruction (DD ``2ψ̄ − ψ_in``, LD ``(1+k)ψ̄ − k·ψ_in``) through this op;
+   Step D2 homed the three reconstruction ops (``source_emission`` /
+   ``cell_average`` / ``outgoing_face_from_average``) as ``@staticmethod``\ s
+   onto the :class:`~orpheus.sn.spatial.cell_update.CellUpdateBase`
+   (DiscretizationScheme base) — the generic advection–reaction reconstruction,
+   diffusion-consumable, retiring the dangling ``affine_closure`` module.
    Unit gate: :mod:`tests.sn.spatial.test_affine_closure` (exact-inverse
    round-trip, DD ``w=½`` byte-identity, LD ``w=1/(1+k)`` algebraic equality).
    Closeout memo:

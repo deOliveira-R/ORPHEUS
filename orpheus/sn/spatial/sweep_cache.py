@@ -377,8 +377,11 @@ class CollisionCache:
     :math:`\bar\psi=(1-w)\psi_{\rm in}+w\,\psi_{\rm out}`.  DD is ``w=½``
     everywhere; LD is ``w=1/(1+k)``.  Stored chain-ordered alongside
     ``a_attenuation`` / ``inverse_denom`` so the scan body and the matvec apply
-    the generic :mod:`~orpheus.sn.spatial.affine_closure` ops without
-    re-deriving any per-scheme cell math."""
+    the generic base reconstruction staticmethods
+    (:meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.source_emission` /
+    :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.cell_average` /
+    :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.outgoing_face_from_average`)
+    without re-deriving any per-scheme cell math."""
 
     _build_count: ClassVar[int] = 0
     """Class-level counter incremented on every :meth:`from_geometry`.

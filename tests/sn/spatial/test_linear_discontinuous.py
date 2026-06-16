@@ -28,8 +28,10 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D, slab_streaming
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial import LinearDiscontinuous, UpstreamState
-from orpheus.sn.spatial.affine_closure import cell_average, source_emission
 from orpheus.sn.spatial.cell_update import CellResult, CellUpdateBase, CellVisit
+
+cell_average = CellUpdateBase.cell_average
+source_emission = CellUpdateBase.source_emission
 
 
 def _slab_mesh(nx: int = 5, length: float = 1.0) -> Mesh1D:
@@ -341,7 +343,7 @@ class TestLDKernel:
             s_axes=(np.array([[[mu / h]]]),),
             sigt_cells=sig[:, None], Q_cells=q_bar[None, :, None],
         )
-        # group 3 (×V coefficients) + the generic affine_closure ops.
+        # group 3 (×V coefficients) + the generic base reconstruction staticmethods.
         a, inv, w = strat.affine_scan_coefficients(
             abs_mu=np.array([mu]), A_down=np.array([[1.0]]),
             A_total=np.array([[2.0]]), dA_w=np.array([[0.0]]),

@@ -129,8 +129,12 @@ Traits
   numerically to machine ε).  So LD ALSO rides the DAG-free scan schedules
   (``CumprodScan`` / ``ScanMarch``) via the coefficient model — it supplies its
   three per-cell coefficients ``(a, inverse_denom, w)`` through
-  :meth:`~LinearDiscontinuous.affine_scan_coefficients` and the generic
-  :mod:`~orpheus.sn.spatial.affine_closure` ops do the rest.  (The polymorphic
+  :meth:`~LinearDiscontinuous.affine_scan_coefficients` and the generic base
+  reconstruction staticmethods
+  (:meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.source_emission` /
+  :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.cell_average` /
+  :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.outgoing_face_from_average`)
+  do the rest.  (The polymorphic
   ``FullFieldWavefront`` DAG oracle — Increment A — still backs the group-2
   kernel; the two-paths gate pins ``CumprodScan``-LD ≡ ``FullFieldWavefront``-LD.)
   **Slab/Cartesian only** — the curvilinear scan coefficients are unpublished
@@ -168,7 +172,6 @@ from typing import ClassVar
 
 import numpy as np
 
-from .affine_closure import outgoing_face_from_average
 from .cell_update import (
     CellResult,
     CellUpdateBase,
@@ -412,13 +415,17 @@ class LinearDiscontinuous(CellUpdateBase, key="linear_discontinuous"):
         s_axes: tuple[np.ndarray, ...],
         sigt_cells: np.ndarray,
         Q_cells: np.ndarray,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         r"""The ÷V Schur intermediates for the DAG kernel (1-D, flat source).
 
         Single source for BOTH :meth:`cell_kernel_batch` (solve) and
         :meth:`residual_kernel_batch` (apply).  Returns
-        ``(eff_denom S, rhs, d2, g_over_theta, in0)`` — all broadcast to
-        ``(N_oct, ng, n_diag)`` (or the inputs' broadcast).
+        ``(eff_denom S, rhs, w, in0)`` — all broadcast to ``(N_oct, ng,
+        n_diag)`` (or the inputs' broadcast).  ``w = 1/(1+k)`` with ``k =
+        (g/θ)/D₂`` is LD's cell-average blend weight — the SAME derivation BOTH
+        kernel arms feed into :meth:`outgoing_face_from_average`, so the SOLVE
+        and APPLY directions can never drift (D2 fold; keeps them locked when
+        the D6-noted ``w(Σ)`` blend work lands).
         """
         if len(s_axes) != 1:
             raise NotImplementedError(
@@ -433,7 +440,12 @@ class LinearDiscontinuous(CellUpdateBase, key="linear_discontinuous"):
         d2 = g_over_theta + sigt_cells             # D₂ (Schur slope denom)
         eff_denom = (g + sigt_cells) + g * g_over_theta / d2          # Schur S
         rhs = Q_cells + g * in0 + g * g_over_theta * in0 / d2  # flat (Q̂ = 0)
-        return eff_denom, rhs, d2, g_over_theta, in0
+        # LD reconstruction ``(1+k)ψ̄ − k·ψ_in`` is the ``w=1/(1+k)`` case of
+        # the generic affine outflow ``(ψ̄ − (1−w)ψ_in)/w`` (k = (g/θ)/D₂); a
+        # principled ~1-ULP re-baseline (different reduction tree).  Derived ONCE
+        # here so both kernel arms share it.
+        w = 1.0 / (1.0 + g_over_theta / d2)
+        return eff_denom, rhs, w, in0
 
     def cell_kernel_batch(
         self,
@@ -453,15 +465,11 @@ class LinearDiscontinuous(CellUpdateBase, key="linear_discontinuous"):
         consumed by :meth:`SweepDependencyGraph.walk_full` /
         :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`.
         """
-        eff_denom, rhs, d2, g_over_theta, in0 = self._kernel_terms(
+        eff_denom, rhs, w, in0 = self._kernel_terms(
             psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
         )
         psi_avg = rhs / eff_denom
-        # LD reconstruction ``(1+k)ψ̄ − k·ψ_in`` is the ``w=1/(1+k)`` case of
-        # the generic affine outflow ``(ψ̄ − (1−w)ψ_in)/w`` (k = (g/θ)/D₂); a
-        # principled ~1-ULP re-baseline (different reduction tree).
-        w = 1.0 / (1.0 + g_over_theta / d2)
-        psi_out = outgoing_face_from_average(psi_avg, in0, w)
+        psi_out = self.outgoing_face_from_average(psi_avg, in0, w)
         return psi_avg, (psi_out,)
 
     def residual_kernel_batch(
@@ -482,15 +490,11 @@ class LinearDiscontinuous(CellUpdateBase, key="linear_discontinuous"):
         of the ``_CellResidual`` level operation (the matvec walk); for the
         operator action ``Q_cells`` is zero (source-free).
         """
-        eff_denom, rhs, d2, g_over_theta, in0 = self._kernel_terms(
+        eff_denom, rhs, w, in0 = self._kernel_terms(
             psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
         )
         residual = eff_denom * psi_bar - rhs
-        # LD reconstruction ``(1+k)ψ̄ − k·ψ_in`` is the ``w=1/(1+k)`` case of
-        # the generic affine outflow ``(ψ̄ − (1−w)ψ_in)/w`` (k = (g/θ)/D₂); a
-        # principled ~1-ULP re-baseline (different reduction tree).
-        w = 1.0 / (1.0 + g_over_theta / d2)
-        psi_out = outgoing_face_from_average(psi_bar, in0, w)
+        psi_out = self.outgoing_face_from_average(psi_bar, in0, w)
         return residual, (psi_out,)
 
     # ── Scan-family coefficients (group 3 — the DAG-free schedules) ──────────
