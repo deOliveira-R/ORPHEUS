@@ -480,6 +480,34 @@ wrong value ever shipped). Verification consequences I confirmed:
    Passes but brittle; acceptable because the teeth gate owns the structural
    distinction and 1 ULP is FP noise. (Reviewed 2026-06-15 #240 Step B.)
 
+## L-025 -- "no missed site" for a dedup-carve: grep WHOLE tree + cross-ref the PLAN, not the closeout
+
+A "route N inlined duplicates through one op" carve's missed-site check is NOT
+satisfied by grepping the diff's touched files. Grep the WHOLE module subtree
+(`orpheus/sn/`) for the OLD reconstruction literal (`= 2.0*psi... -`, the LD
+`psi... + .../d2` form), then classify EACH residual hit as routed /
+deferred-by-design / MISSED. Two failure modes a closeout memo can hide:
+1. A deferral can belong to a THIRD category the closeout's bucket doesn't name.
+   #240 D1 closeout listed only "scan-recurrence" deferrals (β-source `2ψ̄` at
+   `loss_representation.py:1435`) but the genuinely-remaining direct DD `2ψ̄−in`
+   at `loss_representation.py:2117` (`_OneDimScanWalk._sweep_direction`,
+   curvilinear matvec) was NOT in that bucket. It is correctly deferred — but the
+   authority is the PLAN (`issue_240_phase2_step_d_homing.md` scoped D1 to
+   *Cartesian* inlined `2ψ̄−in`; the curvilinear-angular-fused thread is the NEXT
+   campaign), NOT the closeout. ALWAYS read the plan's D-step scope line + `git
+   blame` the deferral comment (here `fde76ac5`, pre-D1 → genuine standing
+   rationale, not a paper-over).
+2. A "missed" site can already be routed ONE LEVEL DEEP: the Cartesian arm of
+   the same `_sweep_direction` (line 2056-2083) calls `residual_kernel_batch`,
+   which D1 routed — so its reconstruction IS routed transitively. Check the
+   call graph, not just the literal.
+
+Verdict rule: a residual OLD-literal hit is a DEFECT only if (a) it is a direct
+`ψ_out=reconstruct(ψ̄,in)` (not a scan-recurrence β-source), (b) not transitively
+routed, AND (c) in the carve's DECLARED scope per the plan. Fail any of the
+three → documented follow-up, not a blocker. (#240 D1, 2026-06-16: exactly ONE
+residual direct DD recon tree-wide = line 2117, in-(c)-fail = deferred OK.)
+
 ## L-004 -- vv-status rationale comments must NOT use [brackets]
 
 The `:vv-status: documented` directive lives in the same RST file as
