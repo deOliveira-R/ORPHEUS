@@ -72,15 +72,28 @@ pytestmark = pytest.mark.foundation
 #   default ≡ forced window at solver tol) + the ScanMarch G2.c nulp oracle.
 #   The 1-D slab hashes are UNTOUCHED (CumprodScan stays the 1-D default —
 #   the flip's blast radius pin).
+# * 2026-06-15 (#240 Phase 2 Step B) — the TWO ``krylov_2d_p1_aniso_het`` hashes
+#   regenerated. The Step-B carve made ``InvertibleOperator.apply`` OWN its
+#   matvec (``loss_action(self.sigma)`` direct) instead of the inherited leaf
+#   sum ``(loss_action(σ_t) − σ_t·ψ) + σ_t·ψ`` — the override DROPS that
+#   ``−σ_t·ψ + σ_t·ψ`` round-trip, so the 2-D Cartesian matvec re-associates
+#   ≤5 ULP per application; accumulated through GMRES (inner_tol=1e-12) the
+#   converged Krylov bytes shift at the ~1e-12 GMRES-tolerance level. Verified
+#   structurally-independent: the Krylov converged φ agrees with the SI 2-D φ
+#   (which does NOT use the apply override — bit-identical to ITS golden) to
+#   3.9e-12 rel (vv-principles 3-criteria: named ``loss_action`` / SI cross-
+#   check / drift = GMRES-tol × ULP). The SI 2-D + slab hashes are UNTOUCHED
+#   (SI rides ``solve``, not ``apply`` — the carve's apply-only blast-radius
+#   pin).
 GOLDEN = {
     "si_2d_p1_aniso_het_psi_sha":
         "1befe8ddf69a915d46f56cba6ffae55fe8231cee45f48673ee42042b03bb8ac8",
     "si_2d_p1_aniso_het_phi_sha":
         "b61b68c8c8b25ab587b745f5b5a78b45afb8ff212acac2ad3e682567f311f729",
     "krylov_2d_p1_aniso_het_psi_sha":
-        "26e3a303fe7d7ea6d94cd12d6e1a8d3f1d3a5e805f1912aa5f1388af37c14787",
+        "1688f5829be232366f46a04535ea2ff3990839d84ae5e60cebe35c68577cab9f",
     "krylov_2d_p1_aniso_het_phi_sha":
-        "4fda80b8ac55c0afb918f336a8fddb4eca01382d59d7efa2a86019e9c3e83179",
+        "0bcc9c2251e6ec875bd5e78650b1ea47a7f08fa5448b005d30af12338791e9ba",
     "si_slab_2g_het_psi_sha":
         "353d7db054781af44dc4682ca3330c0c7490d54185bf5a3a8a83b83b85b4b1f3",
     "si_slab_2g_het_phi_sha":

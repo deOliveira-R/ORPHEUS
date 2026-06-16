@@ -35,7 +35,6 @@ from orpheus.geometry import BC, CoordSystem, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.loss_representation import FullFieldWavefront, MovingFrontierWindow
-from orpheus.sn.operator import StreamingOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -127,14 +126,13 @@ def test_matvec_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
     sn_mesh = _build_mesh(nx, ny, lvl, ng, bc)
     N = sn_mesh.quad.N
     sig_t = _random_sig_t(rng, ng, nx, ny)
-    L = StreamingOperator(sn_mesh, sig_t)
 
     state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
     state.bulk.values[...] = rng.uniform(-1.0, 1.0, size=state.bulk.values.shape)
     _seed_random_inflow(rng, state.boundary)
 
-    out_win = MovingFrontierWindow(sn_mesh).loss_action(L, state)
-    out_full = FullFieldWavefront(sn_mesh).loss_action(L, state)
+    out_win = MovingFrontierWindow(sn_mesh).loss_action(sig_t, state)
+    out_full = FullFieldWavefront(sn_mesh).loss_action(sig_t, state)
 
     np.testing.assert_array_equal(
         out_win.bulk.values, out_full.bulk.values, err_msg="bulk residual",

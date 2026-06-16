@@ -583,6 +583,48 @@ class AngularRedistributionOperator(LinearOperatorMixin):
         return m_ang
 
 
+def _require_typed_composite(
+    method: str, sn_mesh: "SNMesh", field: "TimedFullField",
+) -> None:
+    r"""The shared matvec input contract — typed composite + mesh identity.
+
+    The two guards :meth:`StreamingOperator.apply` introduced (D-I.3d typed
+    contract + the mesh-identity invariant) are now consumed by EVERY SN
+    matvec entry that takes a :class:`TimedFullField`:
+    :meth:`StreamingOperator.apply` / :meth:`apply_transpose` AND the #240
+    Phase 2 Step B :meth:`InvertibleOperator.apply` / :meth:`apply_transpose`
+    overrides.  Single source of the contract (``coding-elegance`` Pattern 2 /
+    Pattern 4 — illegal inputs unrepresentable at one place, not re-validated
+    per leaf).
+
+    Parameters
+    ----------
+    method : str
+        Qualified method name for the error message (e.g.
+        ``"StreamingOperator.apply"``).
+    sn_mesh : SNMesh
+        The operator's mesh — ``field.bulk.mesh`` must be the SAME instance.
+    field : TimedFullField
+        The matvec input (``psi`` for apply, ``phi`` for the transpose).
+    """
+    from orpheus.transport.timed_full_field import TimedFullField
+
+    if not isinstance(field, TimedFullField):
+        raise TypeError(
+            f"{method}: expected TimedFullField, got "
+            f"{type(field).__name__}.  D-I.3d (2026-05-29) retired the "
+            "bare-ndarray packed-vector contract; construct a typed "
+            "composite via ``TimedFullField.zeros(bulk=AngularFlux, "
+            "boundary=BoundaryFlux, mesh=sn_mesh)`` or explicit "
+            "``TimedFullField(bulk=..., boundary=...)``."
+        )
+    if sn_mesh is not field.bulk.mesh:
+        raise ValueError(
+            f"{method}: operator and composite must share the SAME "
+            "SNMesh instance (mesh-identity invariant)."
+        )
+
+
 @dataclass
 class StreamingOperator(LinearOperatorMixin):
     r"""Pure streaming + angular-redistribution operator :math:`L` as a
@@ -780,20 +822,7 @@ class StreamingOperator(LinearOperatorMixin):
         from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
-        if not isinstance(psi, TimedFullField):
-            raise TypeError(
-                "StreamingOperator.apply: expected TimedFullField, got "
-                f"{type(psi).__name__}.  D-I.3d (2026-05-29) retired the "
-                "bare-ndarray packed-vector contract; construct a typed "
-                "composite via ``TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)`` or "
-                "explicit ``TimedFullField(bulk=..., boundary=...)``."
-            )
-
-        if self.sn_mesh is not psi.bulk.mesh:
-            raise ValueError(
-                "StreamingOperator.apply: operator and composite must "
-                "share the SAME SNMesh instance (mesh-identity invariant)."
-            )
+        _require_typed_composite("StreamingOperator.apply", self.sn_mesh, psi)
 
         # L = (L+C) − C (Resolution A): the representation returns the FULL
         # within-group loss (L+C)ψ (its walk — L21: matvec and sweep are two
@@ -802,7 +831,7 @@ class StreamingOperator(LinearOperatorMixin):
         # is the collision-diagonal subtraction C = σ_t⊙, applied ONCE here (it
         # was 5× duplicated across the retired _apply_*). C has no boundary
         # action, so the (L+C)ψ boundary residual passes through unchanged.
-        lpc = self.loss_representation.loss_action(self, psi)
+        lpc = self.loss_representation.loss_action(self.sigma_t, psi)
         out_bulk = lpc.bulk.values - self.sigma_t[None] * psi.bulk.values
         return TimedFullField(
             bulk=AngularSourceSink.from_mesh(out_bulk, self.sn_mesh),
@@ -838,22 +867,15 @@ class StreamingOperator(LinearOperatorMixin):
         from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
-        if not isinstance(phi, TimedFullField):
-            raise TypeError(
-                "StreamingOperator.apply_transpose: expected TimedFullField, "
-                f"got {type(phi).__name__}."
-            )
-        if self.sn_mesh is not phi.bulk.mesh:
-            raise ValueError(
-                "StreamingOperator.apply_transpose: operator and composite "
-                "must share the SAME SNMesh instance (mesh-identity invariant)."
-            )
+        _require_typed_composite(
+            "StreamingOperator.apply_transpose", self.sn_mesh, phi,
+        )
         # Lᵀ = (L+C)ᵀ − C (Resolution A; C = σ_t⊙ is a self-adjoint diagonal).
         # The representation returns (L+C)ᵀφ (its reverse walk — CumprodScan
         # carries the curvilinear angular second triangular factor; the multi-D
         # Cartesian adjoint stays a deferral raise, never a silent wrong
         # answer). The operator subtracts C here, ONCE, mirroring :meth:`apply`.
-        lpct = self.loss_representation.loss_action_transpose(self, phi)
+        lpct = self.loss_representation.loss_action_transpose(self.sigma_t, phi)
         out_bulk = lpct.bulk.values - self.sigma_t[None] * phi.bulk.values
         return TimedFullField(
             bulk=AngularSourceSink.from_mesh(out_bulk, self.sn_mesh),
@@ -1142,12 +1164,17 @@ class InvertibleOperator(OperatorSum):
     for this specific composite — that's the algebraic foundation of
     the entire SN method (Lewis & Miller §3.2; Adams & Larsen 2002
     §III).  :class:`InvertibleOperator` is the specialisation that
-    carries the identity at the type level: it inherits the
-    :class:`OperatorSum` ``apply`` (the sum of the operand actions)
-    and adds ``solve`` as the forward substitution on
-    :attr:`loss_representation` — the SAME
+    carries the identity at the type level: it OWNS its full action
+    algebra.  :meth:`apply` / :meth:`apply_transpose` OVERRIDE the
+    :class:`OperatorSum` leaf-sum to return the within-group loss
+    :math:`(L+C)\psi = M(\sigma)\psi` (and its transpose) DIRECTLY via
+    :attr:`loss_representation`, single-sourcing :math:`\sigma` from the
+    diagonal — the SAME :math:`\sigma` ``solve`` threads into the WDD
+    sweep (#240 Phase 2 Step B).  ``solve`` is the forward substitution
+    on that SAME
     :class:`~orpheus.sn.loss_representation.LossRepresentation` instance
-    the matvec consumes (S6.5, #222).
+    (S6.5, #222), so matvec, adjoint, and sweep are three actions of ONE
+    operator (L21).
 
     Construction
     ============
@@ -1173,10 +1200,13 @@ class InvertibleOperator(OperatorSum):
     Capability set
     ==============
 
-    ``frozenset({CAP_APPLY, CAP_SOLVE})`` — adds ``solve`` to the
-    parent :class:`OperatorSum`'s ``apply``-only set.
-    ``apply_transpose`` is reserved for Phase H (adjoint propagation
-    through the composite).
+    ``frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE, CAP_SOLVE})`` — adds
+    ``solve`` (the WDD sweep) to the parent :class:`OperatorSum`'s set;
+    ``apply_transpose`` propagates by the :class:`OperatorSum` closure
+    law (both :math:`L` and :math:`C` advertise it) and is OVERRIDDEN to
+    the composite's own :math:`M(\sigma)^{\mathsf T}` action (Wave O #208 /
+    #240 Step B).  The multi-D Cartesian adjoint raises (the
+    representation's deferral contract — never a silent wrong answer).
 
     The ``.solve`` API
     ==================
@@ -1293,6 +1323,55 @@ class InvertibleOperator(OperatorSum):
     def sigma(self) -> np.ndarray:
         r"""The diagonal coefficient used by ``solve`` (σ_t or σ_r)."""
         return self.diagonal.sigma
+
+    # ── apply / apply_transpose: the composite's OWN matvec (#240 Step B) ──
+
+    def apply(self, psi: "TimedFullField") -> "TimedFullField":
+        r"""Matvec :math:`(L+C)\,\psi = M(\sigma)\,\psi` — the composite OWNS it.
+
+        #240 Phase 2 Step B.  Both the matvec and the sweep are actions of the
+        ONE :math:`(L+C)` operator (L21 "matvec ≡ sweep"), realised with THIS
+        composite's diagonal :math:`\sigma` (``self.sigma`` = the collision
+        leaf's :math:`\sigma` — the SAME array :meth:`solve` threads into the
+        WDD sweep).  The representation's :meth:`loss_action` returns the FULL
+        within-group loss :math:`(L+C)\psi = M(\sigma)\psi` directly.
+
+        This OVERRIDES the inherited :meth:`OperatorSum.apply` (``L.apply +
+        C.apply``).  The leaf sum is value-equal *only by coincidence*: in the
+        forward direction the WDD matvec is AFFINE in :math:`\sigma`
+        (:math:`M(\sigma)\psi = \text{streaming\_action}(\psi) + \sigma\cdot\psi`),
+        so ``L.apply(σ_t) + C.apply(σ_r)`` collapses to
+        :math:`\text{streaming\_action}(\psi) + \sigma_r\cdot\psi = M(\sigma_r)\psi`
+        — the right value, but sourcing :math:`\sigma` from ``L.sigma_t`` (the
+        streaming leaf) while :meth:`solve` sources it from ``C``.  Two sources
+        that agree only because production builds :math:`L` and :math:`C` from
+        the same :math:`\sigma_t`.  The override single-sources :math:`\sigma`
+        from the diagonal (``coding-elegance`` Pattern 2: one ``loss_action``,
+        one source of :math:`\sigma`), removing the latent affine-in-:math:`\sigma`
+        coupling — the composite never asks the leaf for a :math:`\sigma`-bearing
+        action it must then undo.
+        """
+        _require_typed_composite("InvertibleOperator.apply", self.sn_mesh, psi)
+        return self.loss_representation.loss_action(self.sigma, psi)
+
+    def apply_transpose(self, phi: "TimedFullField") -> "TimedFullField":
+        r"""Adjoint matvec :math:`(L+C)^{\mathsf T}\,\phi = M(\sigma)^{\mathsf T}\,\phi`.
+
+        The adjoint sibling of :meth:`apply` (#240 Phase 2 Step B): the
+        representation's :meth:`loss_action_transpose` realises
+        :math:`(L+C)^{\mathsf T}\phi = M(\sigma)^{\mathsf T}\phi` directly with
+        THIS composite's diagonal :math:`\sigma`, overriding the inherited
+        :meth:`OperatorSum.apply_transpose` leaf sum.  Multi-D Cartesian raises
+        (the representation's deferral contract — never a silent wrong answer).
+        The plain Euclidean transpose; the metric conjugation of the physical
+        G-adjoint ``.H`` is applied AROUND this by
+        :class:`~orpheus.numerics.operator._AdjointOperator` (pinned by
+        ``test_g_adjoint_reciprocity``).
+        """
+        _require_typed_composite(
+            "InvertibleOperator.apply_transpose", self.sn_mesh, phi,
+        )
+        return self.loss_representation.loss_action_transpose(self.sigma, phi)
 
     # ── solve: WDD sweep ─────────────────────────────────────────────
 

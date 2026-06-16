@@ -203,6 +203,321 @@ it imposes the **load-bearing contract** on every representation:
    :math:`L`, and cross-checks the :math:`-C` glue against an
    independent :class:`~orpheus.sn.operator.CollisionOperator`.
 
+.. _loss-rep-removal-form-matvec:
+
+The composite owns its matvec — the removal form :math:`C(\sigma_r)`
+------------------------------------------------------------------------
+
+So far the matvec :math:`(L+C)\psi` has been described as the matvec twin of
+the sweep, applied by :meth:`~orpheus.sn.operator.StreamingOperator.apply`
+(:eq:`loss-rep-resolution-a`). But the *composite* operator
+:class:`~orpheus.sn.operator.InvertibleOperator` — the :math:`A = (L+C)`
+object whose :meth:`~orpheus.sn.operator.InvertibleOperator.solve` *is* the
+sweep — has its own matvec too, and getting that matvec to single-source its
+diagonal :math:`\sigma` from the *same* place :meth:`solve` does is the
+substance of issue #240 Phase 2 Step B. This subsection records that carve: a
+**principled-equivalence** refactor (not a bug fix — no wrong value ever
+shipped) that turns a value-correct-by-coincidence leaf sum into a
+correct-by-construction action, and in doing so foreclosed a latent trap that
+the **removal form** :math:`\mathrm{InvertibleOperator}(L(\sigma_t),
+C(\sigma_r))` would have made observable.
+
+The :math:`\sigma` parameter is now explicit
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The protocol signature of the two matvec actions changed: both
+:meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action` and
+:meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action_transpose`
+now take the collision diagonal :math:`\sigma` **explicitly** as their first
+argument (``loss_action(sigma, psi)``), exactly symmetric with the sweep door
+``sweep(Q, sig_t, ...)``. Before the carve the representation read
+``operator.sigma_t`` *off an operator handle* it was passed — so the leaf, not
+its caller, decided which :math:`\sigma` the matvec realised. After the carve
+the **caller single-sources** :math:`\sigma`:
+
+* :meth:`~orpheus.sn.operator.StreamingOperator.apply` passes its own
+  ``sigma_t`` (and subtracts it back via Resolution A, :eq:`loss-rep-resolution-a`);
+* the **new** :meth:`~orpheus.sn.operator.InvertibleOperator.apply` /
+  :meth:`~orpheus.sn.operator.InvertibleOperator.apply_transpose` overrides pass
+  the composite's *own* diagonal ``self.sigma`` — the SAME array
+  :meth:`~orpheus.sn.operator.InvertibleOperator.solve` threads into the WDD
+  sweep — and realise :math:`M(\sigma)\psi` *directly*, via
+  ``self.loss_representation.loss_action(self.sigma, psi)``, instead of inheriting
+  the :meth:`~orpheus.numerics.operator.OperatorSum.apply` leaf sum.
+
+This is the **one-instance theorem** (:ref:`loss-rep-one-walk-one-instance`)
+extended to the diagonal: the operator already held ONE representation instance
+shared by :meth:`apply` and :meth:`solve`; now it also holds ONE
+:math:`\sigma`, supplied by the same operand whichever door is exercised. The
+removal form is what makes that single-sourcing *matter*.
+
+The affine-in-:math:`\sigma` structure of the forward matvec
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The inherited :meth:`~orpheus.numerics.operator.OperatorSum.apply` is the
+literal leaf sum :math:`L.\mathrm{apply}(\psi) + C.\mathrm{apply}(\psi)`. The
+crux of the carve is that this leaf sum is value-correct **only by
+coincidence** — a coincidence that follows from a structural property of the
+*forward* (apply) direction that does **not** hold in the sweep direction.
+
+Start from the WDD cell balance derived in :doc:`discrete_ordinates`. In the
+forward (apply) direction the cell average :math:`\bar\psi` is **known**: it is
+the input. The matvec is the *row action* — it reconstructs the residual that
+the balance would have to absorb,
+
+.. math::
+   :label: loss-rep-affine-cell
+
+   M(\sigma)\,\psi\big|_{\rm cell}
+   \;=\;
+   \mathrm{denom}\cdot\bar\psi \;-\; \mathrm{numer}_{\rm upstream},
+   \qquad
+   \mathrm{denom} \;=\; \underbrace{\textstyle\sum_a s_a}_{\text{streaming}}
+                        \;+\; \sigma,
+
+with :math:`s_a = 2|\mu_a|/\Delta a` the per-axis streaming coefficient
+(:eq:`loss-rep-scanmarch-solve`). Because :math:`\bar\psi` is known,
+:math:`\sigma` enters :eq:`loss-rep-affine-cell` only through the *additive*
+term :math:`\mathrm{denom}\cdot\bar\psi = (\sum_a s_a)\bar\psi +
+\sigma\bar\psi`. Collecting the :math:`\sigma`-independent part into a
+``streaming_action``,
+
+.. math::
+   :label: loss-rep-affine
+
+   M(\sigma)\,\psi
+   \;=\;
+   \mathrm{streaming\_action}(\psi) \;+\; \sigma\cdot\psi
+   \qquad\text{(forward matvec is AFFINE in }\sigma\text{).}
+
+This is the decisive fact. **The matvec is affine in** :math:`\sigma`: a clean
+additive :math:`+\,\sigma\cdot\psi`, never a :math:`1/\mathrm{denom}`.
+
+Contrast the **sweep** direction, where :math:`\bar\psi` is the *unknown*. The
+cell-average solve is :math:`\bar\psi = \mathrm{numer}/\mathrm{denom}` — and
+now :math:`\sigma` sits in the **denominator** (:math:`\mathrm{denom} = \sum_a
+s_a + \sigma`), so :math:`\bar\psi` is a *rational* function of :math:`\sigma`,
+**non-affine**. The whole non-affinity of the loss operator in :math:`\sigma`
+lives in the sweep direction; the apply direction is affine because it never
+inverts the denominator. (This asymmetry is why the round-trip
+:math:`\mathrm{apply}\circ\mathrm{solve}` cannot detect a :math:`\sigma`-routing
+error in ``apply`` alone — see the verification subsection below.)
+
+The affine structure :eq:`loss-rep-affine` is precisely what makes the
+inherited leaf sum value-correct. Each leaf reads its **own** diagonal:
+:math:`L.\mathrm{apply}` returns :math:`M(\sigma_t)\psi - \sigma_t\cdot\psi =
+\mathrm{streaming\_action}(\psi)` (Resolution A subtracts :math:`L`'s own
+:math:`\sigma_t`), and :math:`C.\mathrm{apply}` returns :math:`\sigma_r\cdot\psi`
+(the collision leaf's own :math:`\sigma_r`). Summing,
+
+.. math::
+   :label: loss-rep-leaf-sum
+
+   \underbrace{L.\mathrm{apply}(\psi)}_{M(\sigma_t)\psi - \sigma_t\psi
+                                       \;=\; \mathrm{streaming\_action}(\psi)}
+   \;+\;
+   \underbrace{C.\mathrm{apply}(\psi)}_{\sigma_r\cdot\psi}
+   \;=\;
+   \mathrm{streaming\_action}(\psi) + \sigma_r\cdot\psi
+   \;=\;
+   M(\sigma_r)\,\psi.
+
+So the leaf sum **does** compute :math:`M(\sigma_r)\psi`, the right value for
+the removal form — but it gets there by sourcing :math:`\sigma_t` from
+``L.sigma_t`` (the streaming leaf), cancelling it, and then *re-adding*
+:math:`\sigma_r` from ``C``. The value is right; the **source is wrong** —
+:math:`\sigma` is sourced from a *different operand* than the one
+:meth:`solve` uses, and only the affine structure :eq:`loss-rep-affine` keeps
+that from showing up as a wrong number.
+
+The two-source hazard
+~~~~~~~~~~~~~~~~~~~~~~~
+
+The latent defect is a **twin-source**. The composite's two doors source the
+diagonal :math:`\sigma` from two *different* operands:
+
+.. list-table:: Where the two doors source :math:`\sigma` (pre-carve)
+   :header-rows: 1
+   :widths: 24 38 38
+
+   * - Door
+     - Sources :math:`\sigma` from
+     - Realises
+   * - :meth:`InvertibleOperator.solve`
+     - the collision leaf ``C`` (``self.sigma``)
+     - :math:`(L+C(\sigma_C))^{-1}q` (the sweep)
+   * - inherited ``OperatorSum.apply``
+     - the streaming leaf ``L`` (``L.sigma_t``)
+     - :math:`\mathrm{streaming\_action} + \sigma_C\cdot\psi`
+       via :eq:`loss-rep-leaf-sum`
+
+They **agree** today only because production always builds :math:`L` and
+:math:`C` from the *same* :math:`\sigma_t` (``L.sigma_t == C.sigma``). The
+moment they differ — the removal form — the two doors realise actions sourced
+from different diagonals, held in agreement purely by the affine coincidence
+:eq:`loss-rep-affine`. This is the ``coding-elegance`` Smell of a *value
+correct by coincidence rather than by construction*: the inherited
+``OperatorSum.apply`` is a twin-path realisation of the composite's own
+action, re-deriving the streaming part through :math:`\sigma_t` only to cancel
+it.
+
+The override (#240 Step B) collapses the twin-source. Both
+:meth:`~orpheus.sn.operator.InvertibleOperator.apply` and
+:meth:`~orpheus.sn.operator.InvertibleOperator.apply_transpose` now read the
+composite's **own** ``self.sigma`` — the SAME array
+:meth:`~orpheus.sn.operator.InvertibleOperator.solve` threads into the sweep —
+and call ``loss_action(self.sigma, psi)`` directly:
+
+.. code-block:: python
+
+   class InvertibleOperator(OperatorSum):
+       def apply(self, psi):                         # (L+C)ψ = M(σ)ψ
+           _require_typed_composite("InvertibleOperator.apply", self.sn_mesh, psi)
+           return self.loss_representation.loss_action(self.sigma, psi)
+
+       def apply_transpose(self, phi):               # (L+C)ᵀφ = M(σ)ᵀφ
+           _require_typed_composite(..., self.sn_mesh, phi)
+           return self.loss_representation.loss_action_transpose(self.sigma, phi)
+
+This is ``coding-elegance`` Pattern 2 (single source of truth): **one**
+``loss_action``, **one** source of :math:`\sigma`, consumed identically by
+both directions. The composite never asks a leaf for a :math:`\sigma`-bearing
+action it must then undo. The input contract (typed composite + the
+mesh-identity invariant) is itself single-sourced through the module-level
+``_require_typed_composite`` helper that :meth:`StreamingOperator.apply` now
+shares. The multi-D Cartesian *adjoint* still raises the representation's
+deferral (``ScanMarch.loss_action_transpose`` is a ``NotImplementedError`` —
+the reverse-mode multi-D sweep is the O.2b follow-on) rather than silently
+routing around it, so :meth:`apply_transpose` is correct-by-construction or a
+loud refusal, never a silent wrong answer.
+
+The removal form makes the distinction observable
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The **removal form** is the within-group regime that makes the two-source
+distinction visible. It folds the within-group self-scatter into the
+collision diagonal,
+
+.. math::
+   :label: loss-rep-removal-sigma
+
+   \sigma_r \;=\; \sigma_t \;-\; \Sigma_{s,0}^{\,g\to g},
+
+so the composite becomes :math:`\mathrm{InvertibleOperator}(L(\sigma_t),
+C(\sigma_r))` with :math:`\sigma_C = \sigma_r \neq \sigma_t` (Adams & Larsen
+2002 §III — the within-group iteration framing in which the sweep
+:math:`(L+C)^{-1}` *is* the transport operator; #200). On this form the
+sweep solves :math:`(L+C(\sigma_r))^{-1}`, and the matvec MUST realise the
+matching :math:`M(\sigma_r)\psi` — its inverse twin (L21). With
+:math:`\sigma_t \neq \sigma_r` the question "**which** :math:`\sigma` does the
+matvec realise?" finally has two different answers, and the override is the one
+that single-sources :math:`\sigma_r` from ``C`` exactly as :meth:`solve` does.
+
+There is **no production caller of the removal form yet**: the consumer that
+would build :math:`\sigma_r` is the within-group self-scatter fold of issue
+#200, which is not wired. The :class:`~orpheus.sn.operator.CollisionOperator`
+already accepts either :math:`\sigma_t` or :math:`\sigma_r` (it carries no
+interpretation flag — both are :math:`(\mathrm{ng}, \ldots)` arrays applied as
+:math:`\sigma\cdot\psi`), and a :math:`\sigma_r`-*sweep* is **not** a correct
+within-group accelerator for anisotropic flux (it inverts the
+diagonal-in-angle removal :math:`\sigma_r\,I`, not the isotropic-projection
+self-scatter :math:`\Sigma_{s,0}P_{\rm iso}` — issue #215, 46–56 % errors on
+vacuum/heterogeneous). The carve is therefore *prophylactic*: the override
+forecloses the latent twin-source **before** any consumer can trip it. It
+would have become a genuine numerical trap only if a future refactor made
+``L.apply`` *non-affine* in :math:`\sigma` (e.g. an :math:`L`-leaf that itself
+inverts a denominator) — at which point :eq:`loss-rep-leaf-sum` would no
+longer collapse to :math:`M(\sigma_r)\psi`. The override removes that coupling
+by construction.
+
+Verification — value-preserving re-association, structurally cross-checked
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Because the carve preserves the matvec *value* and only re-associates the
+floating-point reduction, it is verified as a #240-Phase-2-Step-A-shape
+change (a value-preserving re-association), against the
+:ref:`vv-principles three criteria <loss-rep-bit-vs-principled>`. The gate is
+``tests/sn/operators/test_removal_form_matvec_sweep.py``, ``foundation``-tagged
+and ``verifies("loss-rep-resolution-a")`` (the carve *sharpens* the existing
+Resolution-A equation rather than minting a new label — the composite-owns-its-matvec
+convention is the same :eq:`loss-rep-resolution-a` glue, now single-sourcing
+:math:`\sigma`). It has four parts:
+
+(a) **The structural teeth** —
+    ``test_invertible_apply_is_M_of_C_sigma_bit_identical`` (and its adjoint
+    sibling, slab/sphere/cyl) demand
+    :math:`(L+C).\mathrm{apply}(\psi) = M(\sigma_r)\psi`
+    **bit-identically** (``array_equal``, 0 ULP) against a structurally
+    *independent* reference: a SEPARATE :class:`~orpheus.sn.operator.StreamingOperator`
+    whose **own** :math:`\sigma_t` *is* :math:`\sigma_r`, so its
+    ``loss_action(σ_r, ψ)`` is unambiguously :math:`M(\sigma_r)\psi` (no
+    removal/leak ambiguity — the leaf reads its own diagonal). Under the
+    override, ``op.apply`` IS that same ``loss_action`` call on the same walk →
+    0 ULP. Under the pre-fix leak it is the leaf sum :eq:`loss-rep-leaf-sum`:
+    value-equal but a *different* reduction tree → :math:`\le 2` ULP off
+    ``array_equal`` → it fails. **These are the only gates that discriminate
+    the carve.** They were ``xfail(strict=True)`` until the override landed;
+    the marker is removed and they now pass plainly. The 2-D adjoint is
+    *excluded* because ``ScanMarch.loss_action_transpose`` is the deferral
+    raise.
+
+(b) **The value ground** — the matvec≡sweep round-trip
+    (``test_removal_form_matvec_sweep_roundtrip``: slab/cyl/2-D, sphere
+    excluded) and the affine-in-:math:`\sigma` value characterisation
+    (``test_removal_form_apply_value_equals_M_of_sigma_r``). These PASS under
+    BOTH the leak and the override — the leak is value-correct
+    (:eq:`loss-rep-affine`), so the round-trip
+    :math:`\mathrm{apply}\circ\mathrm{solve}\approx\mathrm{id}` cannot tell
+    leaky from override (a vv Mode-9 degeneracy *in the round-trip gate's
+    design* — the teeth therefore live in (a), not here). Sphere is excluded
+    from the bare round-trip because the curvilinear Morel–Montry sweep reads
+    the previous iterate for the Carlson coupled-pole closure (ERR-058
+    family), so a single :meth:`solve` is not the one-shot inverse of
+    :meth:`apply`; the sphere matvec≡sweep claim rides the teeth gate (a) plus
+    the production-:math:`\sigma` fixed-point bridge.
+
+(c) **The production-:math:`\sigma` invariant** —
+    ``test_production_sigma_apply_value_preserved`` builds the *production*
+    composite (:math:`\sigma_C = \sigma_t`) and an explicit
+    ``L.apply + C.apply`` leaf-sum reference, and asserts they agree to
+    ``nulp=6``. The override **drops** the redundant
+    :math:`(x - \sigma\psi) + \sigma\psi` round-trip the leaf sum carries
+    (:math:`L.\mathrm{apply}` returns :math:`\mathrm{loss\_action}(\sigma_t) -
+    \sigma_t\psi`, then :math:`C.\mathrm{apply}` adds :math:`\sigma_t\psi`
+    back), so the override is the **more accurate** path. The drift is
+    FP-non-associativity (reduction-depth :math:`\times` ULP), measured
+    :math:`\le 2` ULP on slab/sphere (the 1-D ``_OneDimScanWalk``),
+    :math:`\le 4` on cylinder, :math:`\le 5` on 2-D Cartesian (the
+    ``_OctantWalk``). The gate's tolerance was itself re-baselined off a
+    ``bitexact=True`` spec: that spec came from a probe comparing two
+    *override-style* paths (0 ULP), but the real gate compares
+    override-vs-leaf-sum, where bit-identity is *not* a property of the pair
+    (the override removes the round-trip). All three vv criteria hold — named
+    intermediate (``loss_action``), verified against :math:`M(\sigma_r)` by the
+    teeth (a), drift bounded by reduction depth.
+
+(d) **The negative control** —
+    ``test_removal_form_nonpositive_sigma_r_rejected`` confirms
+    :math:`\mathrm{InvertibleOperator}(L, C(\sigma_r\le 0))` raises at
+    construction (vv L11: a contract-validation path needs BOTH a positive
+    must-not-raise case — the removal cases — AND a negative must-raise case).
+
+The eigenvalue cross-check (the closed-form :math:`\kinf = \nu\Sigma_f /
+\Sigma_a` for a homogeneous reflective medium with the within-group
+self-scatter folded into :math:`\sigma_r`,
+``test_removal_form_kinf_independent_reference_2g``) is the *structurally
+independent* reference required by vv criterion 2 for the removal regime; it is
+``xfail`` until the #200 solver entry exists. The blast-radius split is itself
+the structural-independence evidence that the apply re-baseline is principled:
+APPLY-path snapshots (the cyl/2-D matvec golden) re-associate by :math:`\le 5`
+ULP, but SWEEP/SOLVE snapshots (slab/sphere) stay **bit-identical** — they ride
+:meth:`solve`, which never touched the override. And the 2-D Krylov converged
+flux (which *does* drive the override through GMRES) agrees with the 2-D SI
+converged flux (which does **not** use the override) to :math:`3.9\times10^{-12}`
+relative — two structurally distinct iteration paths landing on the same fixed
+point, the cross-check that the apply-direction re-baseline did not move the
+physics.
+
 The two actions bottom out, for every Cartesian representation, in **one
 pure kernel pair** on
 :class:`~orpheus.sn.spatial.diamond.DiamondDifference`:

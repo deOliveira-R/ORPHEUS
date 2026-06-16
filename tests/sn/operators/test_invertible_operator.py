@@ -257,7 +257,18 @@ class TestCapabilitiesAndInvariants:
 
 class TestApply:
     def test_apply_equals_l_plus_c_on_typed_flux(self) -> None:
-        r"""``(L+C).apply(ψ) == L.apply(ψ) + C.apply(ψ)`` for TimedFullField."""
+        r"""``(L+C).apply(ψ) == L.apply(ψ) + C.apply(ψ)`` for TimedFullField (slab, bit-identical).
+
+        Since #240 Phase 2 Step B ``InvertibleOperator.apply`` OWNS its matvec
+        via ``loss_representation.loss_action(self.sigma)`` (it no longer routes
+        through the inherited ``OperatorSum.apply`` leaf sum).  At production
+        ``σ_C == σ_t`` on slab (``_OneDimScanWalk``) the override and the leaf
+        sum are BIT-IDENTICAL (``array_equal``; the slab diamond walk re-
+        associates to 0 ULP) — this pins that value preservation.  For the
+        removal form ``σ_r ≠ σ_t`` the two would diverge by ≤2 ULP (affine-in-σ
+        re-association); the structural distinction is the teeth gate in
+        ``test_removal_form_matvec_sweep.py``.
+        """
         sn = _slab_mesh(nx=4, n_ord=4, ng=2)
         sigma_t = np.full((sn.ng, *sn.spatial_shape), 0.8)
         L = StreamingOperator(sn, sigma_t)

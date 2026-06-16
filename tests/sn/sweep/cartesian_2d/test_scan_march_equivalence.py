@@ -33,7 +33,6 @@ from orpheus.geometry import BC, CoordSystem, Mesh2D
 from orpheus.numerics.projection import MomentProjection
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import StreamingOperator
 from orpheus.sn.loss_representation import (
     FullFieldWavefront,
     MovingFrontierWindow,
@@ -192,7 +191,6 @@ def test_scanmarch_residual_equals_oracle(nx, ny, lvl, ng, bc):
     rng = np.random.default_rng([nx, ny, lvl, ng, 13])   # deterministic
     sn_mesh = _build_mesh(nx, ny, lvl, ng, bc)
     sig_t = rng.uniform(0.3, 3.0, size=(ng, nx, ny))
-    L = StreamingOperator(sn_mesh, sig_t)
 
     state = TimedFullField.zeros(
         bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
@@ -202,8 +200,8 @@ def test_scanmarch_residual_equals_oracle(nx, ny, lvl, ng, bc):
         fv = state.boundary.face_view(face)
         fv[...] = rng.uniform(0.0, 1.0, size=fv.shape)
 
-    out_sm = ScanMarch(sn_mesh).loss_action(L, state)
-    out_or = FullFieldWavefront(sn_mesh).loss_action(L, state)
+    out_sm = ScanMarch(sn_mesh).loss_action(sig_t, state)
+    out_or = FullFieldWavefront(sn_mesh).loss_action(sig_t, state)
 
     np.testing.assert_allclose(
         out_sm.bulk.values, out_or.bulk.values, rtol=_RTOL, atol=_ATOL,

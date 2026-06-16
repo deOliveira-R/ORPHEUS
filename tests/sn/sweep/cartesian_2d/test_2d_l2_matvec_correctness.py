@@ -172,11 +172,22 @@ def test_solve_sn_2d_krylov_homogeneous_reflective_recovers_kinf() -> None:
 @pytest.mark.foundation
 @pytest.mark.catches("ERR-026")
 def test_apply_vs_sweep_2d_residual_cancellation() -> None:
-    r"""``(L + C).apply(state).bulk == L.apply(state).bulk + C.apply(state).bulk``.
+    r"""``(L + C).apply(state).bulk ≈ L.apply(state).bulk + C.apply(state).bulk`` (allclose).
 
-    Pillar: algebraic identity (``OperatorSum.apply`` distributes over
-    ``+``).  Catches ERR-026 family on the 2-D L2 path.  This is the
-    2-D analog of ``test_apply_vs_sweep_consistency``'s 1-D tripwire.
+    Pillar: allclose-consistency check.  Since #240 Phase 2 Step B this is NO
+    LONGER the load-bearing ERR-026 anchor: ``InvertibleOperator.apply`` now
+    OWNS its matvec via ``loss_representation.loss_action(self.sigma)`` and does
+    NOT route through the inherited ``OperatorSum.apply`` leaf sum, so the
+    distribution identity ``(L+C).apply == L.apply + C.apply`` is FALSE
+    BY CONSTRUCTION for the removal form ``σ_r ≠ σ_t`` (the matvec realises
+    ``M(σ_C)``, the leaf sum realises ``M(σ_t) − σ_t + σ_r = M(σ_r)`` ONLY by the
+    affine-in-σ coincidence).  Here ``σ_C == σ_t`` (production), so the override
+    and the leaf sum are value-equal to ≤2 ULP « 1e-12 — this test pins that the
+    composite's owned matvec did NOT change the production value.  The
+    structural ERR-026 anchor (the override owns ``loss_action(σ_C)``, NOT the
+    leaf sum) moved to ``test_removal_form_matvec_sweep.py``'s teeth gate
+    (``test_invertible_apply_is_M_of_C_sigma_bit_identical``).  This is the 2-D
+    analog of ``test_apply_vs_sweep_consistency``'s 1-D tripwire.
     """
     from orpheus.sn.operator import CollisionOperator, StreamingOperator
 

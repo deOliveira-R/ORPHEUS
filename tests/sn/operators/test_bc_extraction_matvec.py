@@ -280,9 +280,18 @@ class TestVacuumMatvecBitIdentity:
         across the O.4a.2 BC-extraction carve (for vacuum the deleted line
         contributed ZERO inflow — identical to reading a zero inflow trace).
         #240 then moved the Cartesian matvec onto the uniform ÷V kernel, so
-        the slab arm re-associates ~1 ULP (nULP gate + DriftWarning).  SPH
-        carries a pre-existing structural red (#195/#209) the gate still
-        catches.
+        the slab arm re-associates ~1 ULP (nULP gate + DriftWarning).  #240
+        Phase 2 Step B (2026-06-15) then made ``(L+C).apply`` OWN its matvec
+        (``loss_action(self.sigma)`` direct) instead of the inherited leaf sum
+        ``(loss_action(σ_t) − σ_t·ψ) + σ_t·ψ`` — the override DROPS that
+        ``−σ_t·ψ + σ_t·ψ`` round-trip, so the CURVILINEAR (CYL) bulk re-
+        associates up to ~46 ULP (rel ~4e-17 — pure FP-non-associativity on a
+        near-zero output element; the override is the MORE accurate path).  The
+        CYL baselines were RE-CAPTURED under the override (principled re-baseline,
+        ``vv-principles`` 3-criteria: named ``loss_action`` intermediate /
+        verified by the teeth gate in ``test_removal_form_matvec_sweep.py`` /
+        drift = reduction-depth × ULP).  SPH carries a pre-existing structural
+        red (#195/#209) the gate still catches (NOT re-captured).
         """
         sn_mesh = _build_sn_mesh(geometry, bc="vacuum")
         state = _random_state(sn_mesh, seed, zero_boundary=True)
@@ -307,11 +316,13 @@ class TestVacuumMatvecBitIdentity:
         # §"Bit-identity vs principled-equivalence").  The gate is nULP at
         # reduction_depth=nx with the escalatable DriftWarning (bit-identity
         # is the opt-in ``-W error::DriftWarning`` bonus).  The SLB baselines
-        # were regenerated; the curvilinear (SPH/CYL) baselines are UNCHANGED
-        # — SPH carries a separate pre-existing STRUCTURAL red (#195/#209, the
-        # post-92be67a curvilinear matvec evolution) which this nULP gate
-        # still hard-fails (drift ~1e15 ULP ≫ nx), correctly keeping it
-        # flagged rather than masked.
+        # were regenerated at #240; the CYL baselines were RE-CAPTURED at #240
+        # Phase 2 Step B (the apply override drops the ``−σ_t·ψ + σ_t·ψ`` round-
+        # trip → ~46 ULP / rel ~4e-17 re-association — principled).  SPH carries
+        # a separate pre-existing STRUCTURAL red (#195/#209, the post-92be67a
+        # curvilinear matvec evolution) which this nULP gate still hard-fails
+        # (drift ~1e15 ULP ≫ nx), correctly keeping it flagged rather than
+        # masked — so SPH baselines were NOT re-captured.
         assert_regression(
             out.bulk.values, expected,
             conv_tol=0.0, kind="direct", reduction_depth=sn_mesh.nx,

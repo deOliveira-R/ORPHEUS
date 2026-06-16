@@ -22,7 +22,7 @@ Two checks, complementary:
   analytical fact.
 
 * **the −C glue, cross-checked against an INDEPENDENT collision operator.**
-  ``apply(ψ).bulk == loss_action(L, ψ).bulk − C.apply(ψ).bulk`` on a ≥2G
+  ``apply(ψ).bulk == loss_action(σ_t, ψ).bulk − C.apply(ψ).bulk`` on a ≥2G
   heterogeneous NON-FLAT config, where ``C`` is a SEPARATELY-constructed
   :class:`~orpheus.sn.operator.CollisionOperator` — so the subtrahend is verified
   to be exactly ``σ_t·ψ`` (the same σ_t), applied ONCE, not the production
@@ -107,7 +107,7 @@ def test_loss_action_is_full_loss_LpC_flat_reflective(case):
     for face in psi.boundary.layout.faces:
         psi.boundary.face_view(face)[...] = 1.0   # flat trace (in = out = avg)
 
-    lpc = rep.loss_action(L, psi)
+    lpc = rep.loss_action(sig_t, psi)
     lpsi = L.apply(psi)
 
     np.testing.assert_allclose(
@@ -128,7 +128,7 @@ def test_loss_action_is_full_loss_LpC_flat_reflective(case):
 
 @pytest.mark.parametrize("case", list(_CASES))
 def test_apply_equals_loss_action_minus_independent_collision_het(case):
-    r"""[L0] the −C glue: apply(ψ) = loss_action(L,ψ) − C·ψ, C INDEPENDENT (≥2G het).
+    r"""[L0] the −C glue: apply(ψ) = loss_action(σ_t,ψ) − C·ψ, C INDEPENDENT (≥2G het).
 
     Resolution A ``L = (L+C) − C`` with ``C = σ_t⊙``, cross-checked against a
     SEPARATELY-built :class:`CollisionOperator` so the subtrahend is verified to
@@ -148,7 +148,7 @@ def test_apply_equals_loss_action_minus_independent_collision_het(case):
         fv = psi.boundary.face_view(face)
         fv[...] = rng.standard_normal(fv.shape)
 
-    lpc = rep.loss_action(L, psi)
+    lpc = rep.loss_action(sig_t, psi)
     lpsi = L.apply(psi)
     cpsi = C.apply(psi)
 

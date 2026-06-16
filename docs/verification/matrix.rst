@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5227**
+Total tests collected: **5247**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1153, 22.1%
-   L1, 975, 18.7%
+   L0, 1153, 22.0%
+   L1, 975, 18.6%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3054, 58.4%
+   foundation, 3074, 58.6%
    unmarked, 9, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5139
+   explicit, 5159
    verify, 0
    class-name, 46
    func-name, 0
@@ -295,6 +295,7 @@ Module × level grid
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
    operators/test_operator_block_role, 0, 0, 0, 0, 20, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 16, 0
+   operators/test_removal_form_matvec_sweep, 0, 0, 0, 0, 20, 0
    operators/test_scattering_operator, 1, 0, 0, 0, 66, 0
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 21, 0
    operators/test_sn_boundary_realizer, 0, 20, 0, 0, 0, 0
@@ -415,6 +416,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``cp-unified-outer-integration``, 27
    ``azimuthal-angles``, 24
    ``dc-slab``, 24
+   ``loss-rep-resolution-a``, 24
    ``peierls-specular-bc-defn``, 24
    ``second-diff-cyl``, 24
    ``second-diff-sph``, 24
@@ -508,7 +510,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``hebert-3-323``, 4
    ``keff-update``, 4
    ``loss-rep-LpC``, 4
-   ``loss-rep-resolution-a``, 4
    ``macro-sum``, 4
    ``peierls-greens-V-alpha-1``, 4
    ``peierls-greens-V-alpha-2``, 4
@@ -616,7 +617,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **59** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **63** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -648,6 +649,10 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``hebert-3-434``
 - ``hebert-3-435``
 - ``inflow-mask-discrete``
+- ``loss-rep-affine``
+- ``loss-rep-affine-cell``
+- ``loss-rep-leaf-sum``
+- ``loss-rep-removal-sigma``
 - ``ordinate-partition-inflow-outflow``
 - ``phase-c-cell-update``
 - ``phase-c-streaming-spherical``
