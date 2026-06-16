@@ -272,13 +272,14 @@ the balance would have to absorb,
    \;=\;
    \mathrm{denom}\cdot\bar\psi \;-\; \mathrm{numer}_{\rm upstream},
    \qquad
-   \mathrm{denom} \;=\; \underbrace{\textstyle\sum_a s_a}_{\text{streaming}}
+   \mathrm{denom} \;=\; \underbrace{\textstyle\sum_a c_a}_{\text{streaming}}
                         \;+\; \sigma,
 
-with :math:`s_a = 2|\mu_a|/\Delta a` the per-axis streaming coefficient
-(:eq:`loss-rep-scanmarch-solve`). Because :math:`\bar\psi` is known,
+with :math:`c_a = 2|\mu_a|/\Delta a` the per-axis scheme-scaled streaming
+coupling (:eq:`loss-rep-scanmarch-solve`; the diamond :math:`2` is the
+scheme's). Because :math:`\bar\psi` is known,
 :math:`\sigma` enters :eq:`loss-rep-affine-cell` only through the *additive*
-term :math:`\mathrm{denom}\cdot\bar\psi = (\sum_a s_a)\bar\psi +
+term :math:`\mathrm{denom}\cdot\bar\psi = (\sum_a c_a)\bar\psi +
 \sigma\bar\psi`. Collecting the :math:`\sigma`-independent part into a
 ``streaming_action``,
 
@@ -296,7 +297,7 @@ additive :math:`+\,\sigma\cdot\psi`, never a :math:`1/\mathrm{denom}`.
 Contrast the **sweep** direction, where :math:`\bar\psi` is the *unknown*. The
 cell-average solve is :math:`\bar\psi = \mathrm{numer}/\mathrm{denom}` — and
 now :math:`\sigma` sits in the **denominator** (:math:`\mathrm{denom} = \sum_a
-s_a + \sigma`), so :math:`\bar\psi` is a *rational* function of :math:`\sigma`,
+c_a + \sigma`), so :math:`\bar\psi` is a *rational* function of :math:`\sigma`,
 **non-affine**. The whole non-affinity of the loss operator in :math:`\sigma`
 lives in the sweep direction; the apply direction is affine because it never
 inverts the denominator. (This asymmetry is why the round-trip
@@ -620,38 +621,92 @@ Within each transverse row the diamond-difference x-face recurrence is
 the **same Blelloch scan** that
 :class:`~orpheus.sn.loss_representation.CumprodScan` uses
 (:func:`~orpheus.sn.spatial.scan._scanmarch_row`); the transverse
-coupling rides the affine source. The solve coefficients are
+coupling rides the affine source. The per-axis streaming the row-march
+feeds is the **raw down-face coefficient** :math:`g_a = |\mu_a|/\Delta a`;
+since #240 Phase 2 Step D5a the diamond factor :math:`2 = 1/w_{\rm DD}`
+that scales it lives in the *scheme*, not inline in the march
+(:ref:`loss-rep-scanmarch-coefficient-model`). The scheme returns the
+per-axis cell-balance coupling
 
 .. math::
    :label: loss-rep-scanmarch-solve
 
-   \alpha \;=\; \frac{2 s_x}{D} - 1,
+   c_a \;=\; 2\,g_a \;=\; \frac{2|\mu_a|}{\Delta a},
    \qquad
-   \beta \;=\; \frac{2\,(Q + s_y\,\psi_{y,\rm in})}{D},
-   \qquad
-   D \;=\; \Sigma_t + s_x + s_y,
+   S \;=\; \Sigma_t + c_x + c_y,
 
-where :math:`s_a = 2|\mu_a|/\Delta a` is the per-axis streaming
-coefficient. This **unifies** the 1-D
-:class:`~orpheus.sn.loss_representation.CumprodScan` (its degenerate
-:math:`s_y = 0` case) and the 2-D row-march in one primitive, and is
-DAG-free (no graph is built).
+and from it the affine x-scan coefficients
+:math:`(\alpha, \beta)` that close the row,
+
+.. math::
+   :label: loss-rep-scanmarch-solve-affine
+
+   \alpha \;=\; 2\,c_x\cdot\mathrm{inverse\_denom} - 1,
+   \qquad
+   \beta \;=\; \big(Q + c_y\,\psi_{y,\rm in}\big)\,
+               \frac{\mathrm{inverse\_denom}}{w},
+   \qquad
+   \mathrm{inverse\_denom} \;=\; \frac1S,
+   \quad w = \tfrac12,
+
+where the diagonal :math:`S`, its reciprocal
+:math:`\mathrm{inverse\_denom}`, the diamond transmission :math:`\alpha`,
+the blend weight :math:`w`, and the transverse coupling :math:`c_y` all
+come from a single scheme call,
+:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`;
+the affine source :math:`\beta` is the generic
+:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.source_emission`
+(:math:`\beta = QV_{\rm eff}\cdot\mathrm{inverse\_denom}/w` with
+:math:`QV_{\rm eff} = Q + c_y\,\psi_{y,\rm in}`). The :math:`\times
+\mathrm{inverse\_denom}` reciprocal form — never a :math:`\div S`
+division — is the same coefficient model the 1-D
+:class:`~orpheus.sn.loss_representation.CumprodScan` rides
+(:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.affine_scan_coefficients`),
+so the row-march **unifies** the 1-D scan (its degenerate
+:math:`c_y = 0` case) and the 2-D row-march in one primitive, is DAG-free
+(no graph is built), and is now scheme-generic over every
+``transverse_coupling_is_facewise`` closure rather than hard-wired to
+Diamond Difference. At :math:`w = \tfrac12` these reduce to the legacy
+inline DD values byte-for-byte (:math:`\alpha = 2c_x/S - 1`,
+:math:`\beta = 2(Q + c_y\psi_{y,\rm in})/S`), :math:`\div\tfrac12` being an
+exact power-of-2 :math:`\times 2`; the cell then closes generically in
+the blend weight via
+:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average`
+(:math:`\bar\psi = (1-w)\psi^{\rm in}_x + w\,\psi^{\rm out}_x`) and
+:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
+(:math:`\psi^{\rm out}_y = (\bar\psi - (1-w)\psi^{\rm in}_y)/w`).
 
 The matvec twin reconstructs the interior x-faces from the *known*
-probe :math:`\bar\psi`: because :math:`\bar\psi` is known, the WDD
-closure :math:`\psi^{\rm out}_x = 2\bar\psi - \psi^{\rm in}_x` is itself
-a first-order recurrence — a **pure-reflection scan** with
-:math:`\alpha = -1`, :math:`\beta = 2\bar\psi`
-(:func:`~orpheus.sn.spatial.scan._x_scan_faces`) — and the per-cell
-residual is
+probe :math:`\bar\psi` through the scheme's apply-direction **reflection
+scan**
+(:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.reflect_scan_coefficients`):
+because :math:`\bar\psi` is known, the WDD closure
+:math:`\psi^{\rm out}_x = 2\bar\psi - \psi^{\rm in}_x` is itself a
+first-order recurrence — a **pure-reflection scan** with the recurrence
+form of
+:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
+at :math:`w = \tfrac12`,
 
 .. math::
    :label: loss-rep-scanmarch-apply
 
+   \alpha \;=\; -\frac{1-w}{w} \;=\; -1,
+   \qquad
+   \beta \;=\; \frac{\bar\psi}{w} \;=\; 2\bar\psi
+   \qquad(\text{DD},\ w = \tfrac12),
+
+evaluated by :func:`~orpheus.sn.spatial.scan._x_scan_faces`. The per-cell
+residual then rides the uniform :math:`\div V` matvec kernel
+:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`
+that every facewise closure shares,
+
+.. math::
+   :label: loss-rep-scanmarch-apply-residual
+
    r_{i,j} \;=\;
-   (\Sigma_t + s_x + s_y)\,\bar\psi_{i,j}
-   \;-\; s_x\,\psi^{\rm in}_{x,i,j}
-   \;-\; s_y\,\psi^{\rm in}_{y,i,j}
+   (\Sigma_t + c_x + c_y)\,\bar\psi_{i,j}
+   \;-\; c_x\,\psi^{\rm in}_{x,i,j}
+   \;-\; c_y\,\psi^{\rm in}_{y,i,j}
    \;\equiv\; (L+C)\bar\psi
    \quad(\text{at zero source}),
 
@@ -661,6 +716,266 @@ conditioning robustness of ``ordinate_scan`` (ERR-054 / ERR-057 handled
 per line for free) and is the natural home for the flux-independent
 ``a_attenuation`` two-stratum cache the wavefront lacks (the #206
 follow-on).
+
+
+.. _loss-rep-scanmarch-coefficient-model:
+
+ScanMarch on the coefficient model (the #239 lift)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Before #240 Phase 2 Step D5a (committed ``66dbd9a``, 2026-06-16) the 2-D
+row-march **hard-coded** Diamond Difference's
+:math:`\alpha`/:math:`\beta`/:math:`D` arithmetic inline:
+``ScanMarch._sweep_interior`` and ``ScanMarch._loss_action_interior`` carried
+the diamond factor :math:`2 = 1/w_{\rm DD}` and the cell-average blend
+:math:`w = \tfrac12` literally in their bodies, so the row-march worked for
+**DD only** — no other closure could ride it polymorphically. D5a folds those
+two interior kernels onto the **scheme coefficient model** (#239) that the 1-D
+:class:`~orpheus.sn.loss_representation.CumprodScan` has ridden since #158
+Inc B. The scheme now *owns* the discretization constants; the row-march
+becomes a pure schedule that asks the scheme for its coefficients and consumes
+generic reconstruction ops. This is the carve that makes the scan-march
+**scheme-generic over every** ``transverse_coupling_is_facewise`` closure
+(:ref:`loss-rep-scanmarch-facewise`) — the equations :eq:`loss-rep-scanmarch-solve`,
+:eq:`loss-rep-scanmarch-solve-affine` and :eq:`loss-rep-scanmarch-apply` above
+are the post-fold (coefficient-model) form.
+
+**The litmus that drove the fold** (``coding-elegance`` Pattern 2 / the
+coefficient-model litmus): *if an explicit-matrix representation would have to
+re-derive a calculation the sweep does, that calculation belongs on the
+scheme.* The diamond :math:`2` and the blend :math:`w` are precisely such
+shared calculations — the DD cell balance and the DD cell-average closure —
+yet they sat duplicated in the row-march body, the 1-D scan cache, and the
+batch kernels. D5a moves them to the one place they are defined.
+
+**Raw streaming in, scheme-scaled coupling out.** The per-axis streaming the
+row-march feeds the scheme is the **raw down-face coefficient**
+:math:`g_a = |\mu_a|/\Delta a` — *not* the pre-scaled :math:`2|\mu_a|/\Delta a`
+the inline code used to thread. The scheme applies its own diamond factor and
+returns the scaled coupling :math:`c_a = 2 g_a` (:eq:`loss-rep-scanmarch-solve`).
+Both interior kernels go through one scheme door per direction:
+
+.. list-table:: The two scheme doors D5a routes the row-march through
+   :header-rows: 1
+   :widths: 18 30 52
+
+   * - Direction
+     - Scheme producer
+     - Returns / consumes
+   * - SOLVE
+     - :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`
+       ``(s_scan, s_transverse, sig_t)``
+     - the affine x-scan tuple
+       :math:`(a,\ \mathrm{inverse\_denom},\ w,\ \text{transverse\_couplings})`
+       with :math:`\mathrm{scan\_diag} = 2 g_x`, :math:`c_\perp = 2 g_\perp`,
+       :math:`S = \Sigma_t + \mathrm{scan\_diag} + \sum_\perp c_\perp`,
+       :math:`\mathrm{inverse\_denom} = 1/S`,
+       :math:`a = 2\,\mathrm{scan\_diag}\cdot\mathrm{inverse\_denom} - 1`,
+       :math:`w = \tfrac12`
+   * - APPLY
+     - :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.reflect_scan_coefficients`
+       ``(psi_bar)``
+     - the pure-reflection :math:`(\alpha = -1,\ \beta = 2\bar\psi)`
+       recurrence (:eq:`loss-rep-scanmarch-apply`) — the :math:`(\alpha,\beta)`
+       form of
+       :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
+       at :math:`w = \tfrac12`, :math:`w`-generic via
+       :meth:`~orpheus.sn.spatial.diamond.DiamondDifference._reflection_coeffs`
+
+**SOLVE — the row asks, the scheme answers, the cell closes generically.**
+Per y-row, ``ScanMarch._sweep_interior`` calls
+:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`
+to obtain :math:`(a, \mathrm{inverse\_denom}, w, (c_y,))`. The transverse-y
+coupling :math:`c_y` does **not** stay separate — it folds into the affine
+source: the effective volumetric source is
+:math:`QV_{\rm eff} = Q + c_y\,\psi_{y,\rm in}`, and the additive scan
+coefficient is the generic
+:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.source_emission`,
+:math:`\beta = \mathrm{source\_emission}(QV_{\rm eff}, \mathrm{inverse\_denom},
+w) = QV_{\rm eff}\cdot\mathrm{inverse\_denom}/w`, while
+:math:`\alpha = a`. The in-row x-face recurrence
+:math:`\psi^{\rm out}_x = \alpha\,\psi^{\rm in}_x + \beta` is the **same
+Blelloch scan** (:func:`~orpheus.sn.spatial.scan._x_scan_faces`) the 1-D
+``CumprodScan`` runs; the cell then closes **generically in the blend weight**
+:math:`w` via the base reconstruction staticmethods —
+:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average`
+recovers :math:`\bar\psi = (1-w)\psi^{\rm in}_x + w\,\psi^{\rm out}_x` and
+:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
+sheds the downstream y-face :math:`\psi^{\rm out}_y = (\bar\psi -
+(1-w)\psi^{\rm in}_y)/w` (the next row's :math:`\psi_{y,\rm in}`). This entire
+closure runs through
+:func:`~orpheus.sn.spatial.scan._scanmarch_row`, which gained a ``w`` parameter
+in D5a (it was a hard-coded ``0.5``) and now consumes the scheme-supplied
+blend.
+
+**APPLY — reconstruct off the known probe, residual through the uniform
+matvec kernel.** Per y-row, ``ScanMarch._loss_action_interior`` reconstructs
+the interior x-faces from the *known* probe :math:`\bar\psi` via the scheme's
+reflection scan
+:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.reflect_scan_coefficients`
+(:eq:`loss-rep-scanmarch-apply`), then evaluates the per-cell residual **and**
+the transverse-y outflow through the uniform :math:`\div V` matvec kernel
+:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`
+(:eq:`loss-rep-scanmarch-apply-residual`) — the same batched kernel the
+anti-diagonal wavefront family uses for its apply direction. This kernel is the
+natural home for the matvec because the apply direction has a *concrete*
+:math:`\bar\psi`, so the per-cell residual is independent of its neighbours and
+needs no closed-form scan; only the SOLVE direction is x-coupled (cell
+:math:`i`'s inflow is cell :math:`i-1`'s outflow) and therefore needs the
+closed-form affine scan coefficients.
+
+**Why APPLY reuses a kernel but SOLVE needs a new producer.** The asymmetry is
+structural, not incidental:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 14 43 43
+
+   * - Direction
+     - Coupling structure
+     - Scheme surface
+   * - APPLY
+     - :math:`\bar\psi` is the **input** → per-cell residual is independent →
+       a batched ÷V kernel applies directly
+     - reuse the existing
+       :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`
+   * - SOLVE
+     - :math:`\bar\psi` is the **unknown**, x-coupled cell-to-cell → cannot
+       use an independent-batch kernel
+     - new closed-form scan producer
+       :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`
+
+**Single-sourcing the DD constants.** The fold rests on three pieces of
+single-source-of-truth plumbing on
+:class:`~orpheus.sn.spatial.diamond.DiamondDifference`:
+
+* the cell-balance diagonal :math:`S = \Sigma_t + \sum_a 2 g_a` is built once
+  by the shared private
+  :meth:`~orpheus.sn.spatial.diamond.DiamondDifference._cartesian_streaming_diagonal`,
+  consumed by **all three** Cartesian producers —
+  :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cell_kernel_batch`,
+  :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`,
+  and the new
+  :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`
+  — as an **explicit left fold** :math:`((\Sigma_t + 2 g_0) + 2 g_1) + \cdots`
+  (NOT ``sum()``), the IEEE-754 reduction tree of record
+  (:ref:`loss-rep-bit-vs-principled`);
+* the blend weight :math:`w = \tfrac12` is the named module constant ``_DD_W``
+  — the literal ``0.5`` has exactly one definition site, so no body can drift
+  it;
+* the apply-direction reflection arithmetic
+  :math:`\alpha = -(1-w)/w,\ \beta = \bar\psi/w` is the :math:`w`-generic
+  :meth:`~orpheus.sn.spatial.diamond.DiamondDifference._reflection_coeffs`,
+  which DD's
+  :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.reflect_scan_coefficients`
+  calls at ``_DD_W``, so the future Step closure inherits it for free.
+
+The curvilinear ``affine_scan_coefficients`` merge — unifying the 1-D-chain
+producer and the Cartesian row-march producer into one surface — is deliberately
+**deferred to #242**: ``affine_scan_coefficients`` is 1-D-chain-shaped (it
+carries curvilinear geometry arguments ``abs_mu``/``A_down``/``A_total``/``dA_w``/``c_out``/``V``
+with no transverse slot), whereas ``cartesian_scan_coefficients`` needs the
+transverse :math:`c_\perp` in the diagonal and the raw scan-axis :math:`g`, so
+they are kept as separate methods for now (a ``d``-generic ``s_transverse``
+tuple keeps the latter ready for d=3, where the row would sum multiple
+transverse couplings).
+
+**The bit-identity / principled-equivalence posture.** The carve is a
+**principled ~1-ULP re-baseline** (``vv-principles``
+§":ref:`Bit-identity vs principled-equivalence <loss-rep-bit-vs-principled>`",
+precedent #158-B1), not a bit-identical move on the 2-D path. The reason is
+specific: the pre-D5a ``ScanMarch._sweep_interior`` was the **one remaining**
+place in the SN stack still using a :math:`\div D` **division**
+(:math:`\alpha = 2 s_x / D`, :math:`\beta = 2(\cdots)/D`), *not* the
+:math:`\times\,\mathrm{inverse\_denom}` **reciprocal** the 1-D
+``CumprodScan`` already rode. Folding the 2-D solve onto the coefficient model
+switches :math:`\div D \to \times(1/D)`, a genuine FP-association change — the
+*same* sanctioned re-baseline the 1-D path took at #158 Inc B — and the matvec
+likewise re-associates as it joins the ÷V ``residual_kernel_batch`` reduction.
+
+.. admonition:: What re-baselined and what stayed byte-identical
+   :class: note
+
+   The fold re-associates :math:`\sim 1` ULP on the **2-D solve AND the 2-D
+   matvec**; the converged *values* are unchanged. The discriminating
+   evidence (verified against the three ``vv-principles`` criteria, not
+   old-vs-new proximity):
+
+   * **principled** — named coefficient-model ops, zero inline DD in
+     ``_sweep_interior`` / ``_loss_action_interior`` / ``_scanmarch_row``;
+   * **structurally-independent reference, two angles** — (i) the
+     ``ScanMarch ≡ FullFieldWavefront`` oracle
+     (``test_scan_march_equivalence.py``, :eq:`loss-rep-scanmarch`) pins the
+     value to the analytical :math:`k_\infty = 1.875` /
+     :math:`\varphi = Q/\Sigma_t` grounds, and (ii) ``test_keff_2d`` pins the
+     homogeneous :math:`k_\infty = \nu\Sigma_f/\Sigma_a` (a closed-form,
+     :math:`\ge 2`-group eigenvalue ground — never a 1-group degeneracy);
+   * **two structurally-independent code paths agree** — the post-fold 2-D
+     SI ``.solve`` :math:`\varphi` equals the Krylov ``.apply``
+     :math:`\varphi` to :math:`\approx 2.8\times10^{-12}` relative (the SI
+     iterate never touches the matvec override; the Krylov matvec does), and
+     the drift is FP-non-associativity (iteration-count :math:`\times` ULP for
+     SI, GMRES-tol :math:`\times` ULP for Krylov);
+   * **the 1-D scan path is byte-identical** — it already rode
+     :math:`\times\,\mathrm{inverse\_denom}`, so the fold did not touch it.
+     This is the **negative control**: the slab SHA in
+     ``test_affine_carve_bit_identity.py`` is byte-unchanged, proving the
+     re-baseline is confined to the 2-D path the division-to-reciprocal switch
+     actually moved.
+
+This matches the affine-carve file's own history: the 2-D Krylov golden hashes
+re-baselined at #240 Phase 2 Step B for the apply re-association; D5a extends
+that to the **SI-2D solve** arm too, because the solve fold is what switched the
+division to the reciprocal.
+
+**Verification gates.** The carve is pinned by, in order:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 28 18 54
+
+   * - Gate
+     - Tag
+     - What it pins
+   * - ``test_scan_march_equivalence.py``
+     - ``foundation``,
+       ``verifies("loss-rep-scanmarch", -solve, -apply)``
+     - ScanMarch :math:`\equiv` FullFieldWavefront oracle at ``nulp`` /
+       absolute tolerance, on :math:`\ge 2`-group heterogeneous anisotropic
+       **non-square** meshes (the x↔y swap moat, failure Mode 2). The existing
+       parametrize already covers the Mode-9 degeneracy break (a non-square,
+       multi-group, reflective tuple) — no new case was needed.
+   * - ``test_streaming_operator.py::TestT4bPreT4RegressionSnapshot``
+     - regression
+     - the cart2d matvec frozen reference plus three slab arms; the cart2d
+       ``*_apply_bulk`` snapshots were **regenerated in-commit** to the
+       post-D5a value (the regenerate-in-commit discipline,
+       :ref:`loss-rep-bit-vs-principled`), boundary byte-identical.
+   * - ``test_affine_carve_bit_identity.py``
+     - regression (strict)
+     - the negative control — the 1-D slab SHA is byte-unchanged; the two
+       2-D SHAs (``si_2d_p1_aniso_het``, ``krylov_2d_p1_aniso_het``)
+       re-baselined off the division-to-reciprocal switch.
+
+The two equation labels :eq:`loss-rep-scanmarch-solve` and
+:eq:`loss-rep-scanmarch-apply` are the gate's ``verifies(...)`` targets, so the
+rewrite above keeps both labels (the bodies changed to the coefficient-model
+form; the *claims* — the scan-march coefficients and their solve/apply
+realizations — are unchanged and the oracle still pins them).
+
+**The zero-inline-DD consequence.** With the fold complete,
+``ScanMarch._sweep_interior``, ``ScanMarch._loss_action_interior`` and
+``_scanmarch_row`` carry **no** inline ``2.0*``, **no** ``Diamond`` reference,
+and **no** hard-coded ``0.5`` in code (only in docstrings as :math:`w = \tfrac12`
+notes). Polymorphic readiness is therefore satisfied *by construction*: the
+moment a ``Step.cartesian_scan_coefficients`` /
+``Step.reflect_scan_coefficients`` pair lands, Step rides the row-march with
+**zero** further ``ScanMarch`` change. This also gives the routing gate
+(:ref:`loss-rep-scanmarch-facewise`) its second, independent enforcement leg:
+Linear-Discontinuous's exclusion from the row-march is now enforced both by
+``ScanMarch.supports`` (the trait gate) **and** by the structural *absence* of
+inline DD — the two routes agree, so a non-facewise scheme can neither be
+selected for the row-march nor silently compute DD inside it.
 
 
 MovingFrontierWindow — the rolling-frontier wavefront
@@ -966,9 +1281,10 @@ it runs the *same* first-order linear scan
 (:func:`~orpheus.sn.spatial.scan._scanmarch_row`) the 1-D
 :class:`~orpheus.sn.loss_representation.CumprodScan` uses, and the coupling to
 the previously-marched row enters **the scan's affine source** as a single
-term :math:`s_y\,\psi_{y,\rm in}` (:eq:`loss-rep-scanmarch-solve`). Read off
-the solve coefficient
-:math:`\beta = 2(Q + s_y\,\psi_{y,\rm in})/D`: the *only* way axis :math:`y`
+term :math:`c_y\,\psi_{y,\rm in}` (:eq:`loss-rep-scanmarch-solve-affine`). Read
+off the solve coefficient
+:math:`\beta = (Q + c_y\,\psi_{y,\rm in})\,\mathrm{inverse\_denom}/w`: the
+*only* way axis :math:`y`
 reaches the x-scan is through that one number :math:`\psi_{y,\rm in}` — the
 0th-order **face value** entering the row from below. The march absorbs every
 non-swept axis into the scan source as one scalar trace per cell.
@@ -1001,7 +1317,8 @@ diamond mean :math:`\psi^{\rm out} = 2\bar\psi - \psi^{\rm in}`. Its
 :math:`d`-D balance (:eq:`dd-cartesian-2d`) is the standard tensor-product
 central-difference structure (Lewis & Miller §§4.5, 8): the coupling from a
 transverse axis :math:`y` is the **single 0th-order face value**
-:math:`s_y\,\psi_{y,\rm in}` that folds straight into the scan source. In the
+:math:`c_y\,\psi_{y,\rm in}` (:math:`c_y = 2 g_y`) that folds straight into the
+scan source. In the
 batched DD kernel
 (:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cell_kernel_batch`) this
 is the explicit per-axis left fold

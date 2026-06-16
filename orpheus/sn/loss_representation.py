@@ -1298,14 +1298,18 @@ class ScanMarch(_LossRepresentation):
         r"""Row-march interior kernel, SOLVE direction, one octant.
 
         Marches the y-rows in the octant's y-sweep order: within each row the
-        diamond-difference x-face recurrence is the first-order linear scan
-        (:func:`~orpheus.sn.spatial.scan._scanmarch_row` with the *solve*
-        coefficients ``α = 2s_x/D − 1``, ``β = 2(Q + s_y ψ_{y,in})/D``), the
-        transverse-y coupling riding the affine source.  Emits per row into
-        the :class:`_SweepEmit` mode buffers.  Returns the per-axis
-        domain-edge outflow ``(capture_x, out_y)``.
+        x-face recurrence is the first-order linear scan
+        (:func:`~orpheus.sn.spatial.scan._scanmarch_row`) whose coefficients
+        come from the scheme's
+        :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cartesian_scan_coefficients`
+        — the row body carries NO inline diamond ``2`` or blend ``w`` (the
+        scheme owns them; #240 D5a / #239 the coefficient-model lift).  The
+        transverse-y coupling ``c_y · ψ_{y,in}`` rides the affine source via
+        :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.source_emission`.
+        Emits per row into the :class:`_SweepEmit` mode buffers.  Returns the
+        per-axis domain-edge outflow ``(capture_x, out_y)``.
 
-        The flux-independent ``α``/``D`` are computed PER LINE (the
+        The flux-independent scan coefficients are computed PER LINE (the
         :math:`(d{-}1)`-slab working set; mesh-memoising them — the #206
         single-source cache — is the measured follow-on).
         """
