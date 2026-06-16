@@ -545,6 +545,39 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     No registry insert; ``DiscretizationSchemeBase.create("step")`` is
     immediately callable.
 
+    Generic advection–reaction interface (Σ-stateless — #240 Phase 2 Step D4)
+    ========================================================================
+
+    The coefficient methods (:meth:`affine_scan_coefficients`,
+    :meth:`cell_kernel_batch`, :meth:`residual_kernel_batch`) are parameterized
+    by **(streaming / wave-speed, reaction-rate** :math:`\Sigma_t`\ **, source,
+    geometry)** and hold **NO** cross-section state — a scheme instance carries
+    no :math:`\Sigma`, no materials, no mesh.  The reaction-rate is an EXPLICIT
+    argument (``sig_t`` / ``total_xs`` / ``sigt_cells``) sourced by the caller
+    from the operator's collision term (Step B); the SN sweep passes
+    :math:`\Sigma_t`, but any consumer may pass an arbitrary reaction-rate (an
+    off-diagonal removal :math:`\Sigma_r = \Sigma_t - \Sigma_{s0}`, a
+    diffusion-removal, a pure-advection :math:`\Sigma \to 0`).  This is the
+    **model-agnostic advection–reaction spatial discretization** the diffusion
+    solver will consume — standalone AND as the consistent-DSA preconditioner
+    (#2).
+
+    The coefficient triple is generic in the wave-speed and the reaction-rate:
+    **Step ↔ first-order upwind**, **DD ↔ central / Keller box**, **LD ↔
+    DG-P1-upwind**; the cell-average blend ``w(Σ)`` (½ → 1) is the CFD Péclet /
+    κ-scheme blend (DD's ``w = ½`` is the central scheme, Σ-independent; LD's
+    ``w = 1/(1+k)`` runs ½ at :math:`\Sigma \to 0` to 1 at :math:`\Sigma \to
+    \infty`), NOT an SN artefact.  The diffusion-readiness contract is pinned
+    by :mod:`tests.sn.spatial.test_scheme_reaction_rate_contract` (the
+    closed-form-at-arbitrary-Σ positive + the Σ-statelessness teeth).  The full
+    Step/DD/LD ↔ advection-scheme narrative (box ≡ diamond, the Péclet coupling,
+    the spatial ⊗ angular factorization) is the #240 Step D6 deliverable on
+    :doc:`/theory/discrete_ordinates`.
+
+    A model-agnostic parameter rename is DEFERRED to #241 (``total_xs`` →
+    ``reaction_xs``, ``cell_average_weight`` → ``face_blend_weight``);
+    ``streaming`` is KEPT — the one genuine SN/CFD frame conflict.
+
     Reconstruction ops — the generic affine cell algebra (#158 Inc B / #240 D2)
     ===========================================================================
 
