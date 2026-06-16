@@ -508,6 +508,39 @@ routed, AND (c) in the carve's DECLARED scope per the plan. Fail any of the
 three → documented follow-up, not a blocker. (#240 D1, 2026-06-16: exactly ONE
 residual direct DD recon tree-wide = line 2117, in-(c)-fail = deferred OK.)
 
+## L-027 -- prove a routing-predicate fix's negative-test teeth by REVERTING ONLY production
+
+A "close-the-misroute" change (narrow a strategy `supports()` predicate so a
+mesh stops selecting the wrong sweep rep) ships negative tests that assert the
+misroute is GONE. Anti-pattern #11 demands the negative test could have FAILED
+against the buggy code; for a routing predicate the cheapest proof is:
+`git stash push -- <production files only>` (leave the NEW tests in the working
+tree), then run the new tests against the reverted-to-pre-fix production. The
+negative tests MUST go red AND the red message must NAME the original bug (not
+just `AttributeError`); the strategy-free trait probes correctly go red with
+`AttributeError: no attribute '<trait>'` (the trait did not exist pre-fix) —
+that is the EXPECTED shape, not a flaw. `git stash pop` to restore. (#240
+D5-0, 2026-06-16: all 7 new tests RED pre-fix; `test_2d_ld_sweep_raises_not_
+silently_dd` red = "did NOT raise — silent return = ran inline DD" = the LIVE
+silent-DD hole proven, not asserted.)
+
+Bit-identity claim for a routing-only change: the load-bearing gate is
+DESELECT-the-new-tests → pre-existing count UNCHANGED (the predicate touches no
+computed flux). A directory-scoped strict gate's TOTAL legitimately grows by
++N_new (new tests live in the gated dir); the invariant is "no PRE-EXISTING
+test's value moved", verified by deselection, NOT "total count unchanged"
+(#240 D5-0: full 512/1/4, deselect-7 → 505/1/4 = the real proof).
+
+Pyright adjudication for a docstring/ClassVar-only diff: prove ZERO net-new
+diagnostics by capturing pyright on the touched files at pre-fix AND post-fix
+(stash the production), line-number-STRIP (`sed -E 's/:[0-9]+:[0-9]+//'`), and
+diff. Identical-modulo-line-shift = the inserted docstring block shifted every
+pre-existing diagnostic by exactly its line count (e.g. +14 from a 14-line
+ClassVar block); the diagnostic SET is unchanged → all pre-existing, no
+regression. A file that contributes ZERO CLI diagnostics standalone means the
+user's "import-unresolved" / "not accessed" items are IDE/cross-tree config
+artifacts, not blockers.
+
 ## L-004 -- vv-status rationale comments must NOT use [brackets]
 
 The `:vv-status: documented` directive lives in the same RST file as

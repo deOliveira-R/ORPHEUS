@@ -3,9 +3,20 @@
 > **Durable in-repo recovery anchor** (project rule: plans live in ORPHEUS/.claude/, not ~/.claude).
 > Parent: `.claude/plans/next_principled_polymorphism.md` / `issue_240_phase2_layer_separation.md`.
 > Branch `feature/sn-space-angle-tier2`. Approved 2026-06-16.
-> **STATUS: D1–D4 DONE + committed. D5 (RE-SCOPED — a CAMPAIGN: #239 N-D DD scan-march +
-> N-dim LD / complete polymorphism, subsumes #158 Inc D) + D6 (docs) NEXT. Pick up at D5's
-> design pass (proactive test-architect FIRST). See the D5 section + [[project-issue-158-ld-dag]].**
+> **STATUS: D1–D4 + D5-0 DONE + committed. D5 DESIGN PASS DONE** (test-architect spec +
+> literature-researcher + cross-domain-attacker — memos under `.claude/agent-memory/`).
+> **D5-0 (routing honesty) committed `4b465b7`:** scheme-named ClassVar trait
+> `transverse_coupling_is_facewise` (DD `True`, LD default `False`) closes the LIVE
+> 2-D-LD→ScanMarch silent-DD misroute (a 2-D LD mesh was silently computing DD); the
+> footgun of a presence-only `@runtime_checkable` isinstance is closed with the
+> `TestCapabilityTraitsAreGenuineBools` registry-wide bool teeth. **⭐ D5b RESHAPED by the
+> literature (Adams 2001 / Maginot-Ragusa-Morel 2016 / Börgers-Larsen-Adams 1992):** the
+> Cartesian N-D LD must be the **tensor-product UBLD (`2^d` moments per cell — `{1,x,y,xy}`),
+> NOT the simplex `1+d` (`{1,x,y}`)** — the `xy` cross moment is diffusion-limit-load-bearing;
+> the simplex object FAILS the thick-diffusion limit on quadrilaterals (would have shipped a
+> silent physics bug). The cell/face contract WIDENS (cell unknown `2^d`, each face a
+> `2^{d-1}`-moment object) → needs an architecture pass. NEXT = **D5a** (DD scan-march fold),
+> then **D5b** (UBLD, needs its own design pass), then **D6**. See §D5 + [[project-issue-158-ld-dag]].
 > Commits: A+B `f0d68c3`/`4937c3a` · D1 `8bc1a49` · D2 `784edeb` · D3 `4f04126` · D4 `c40a341`
 > (+ chore records each). D4 finding: scheme was ALREADY Σ-stateless → D4 = the
 > diffusion-readiness contract gate + the Base interface note (no code change). The deferred
@@ -114,18 +125,32 @@ proactive test-architect FIRST), two threads:
   (`CollisionCache`/`from_geometry` is 1-D-only) + the transverse `s_y·ψ_y` folded into
   `source_emission`. Principled ~1-ULP re-baseline (#158-B1; two-paths oracle + cart2d apply snapshot,
   Mode-9 het/non-square/diagonal cubature).
-* **D5b — N-dim LD (bilinear multi-axis slope) — SUBSUMES #158 Increment D (#38).** LD's multi-D
-  closure is BILINEAR (independent slope per axis) → does NOT fit the scan-march's "x-scan +
-  transverse-DIRECT-y" (transverse coupling is a SLOPE, not a face value), so LD-in-N-D rides the
-  **DAG wavefront** (`cell_kernel_batch`/`residual_kernel_batch`, the full per-cell bilinear Schur),
-  NOT the scan-march. Close the arbitrary code gap: LD's `_kernel_terms`/`cell_kernel_batch` handle
-  `len(s_axes) > 1` (the multi-axis Schur). Then LD runs N-D on the wavefront; the scan-march stays a
-  DD/Step (slopeless) OPTIMIZATION whose `supports()` returns `Compatibility(False, "bilinear slope
-  coupling needs the wavefront")` for LD-in-N-D — a STRUCTURAL exclusion (mathematically true, like
-  "can't invert streaming without collision"), NOT a polymorphism violation. Verify: each scheme has
-  ≥1 valid strategy per dim; routing-flip (DD≠LD same config); LD's absolute anchor (multi-D LD MMS
-  O(h²) — the LM-1989 slope-sign trap, the recurring `Q̂≠0` slope-source coverage gap the elegance/qa
-  reviews flagged).
+* **D5b — N-dim LD on the DAG wavefront — SUBSUMES #158 Increment D (#38).** ⭐ **RESHAPED by the
+  D5 literature pass** (`.claude/agent-memory/literature-researcher/multi_d_ld_closure.md`): the
+  "BILINEAR = one slope per axis (`1+d` moments)" intuition is **WRONG for Cartesian cells**. Two
+  distinct objects: the **simplex-P1 LD** (`{1,x,y}`, `1+d` moments) **FAILS the thick-diffusion
+  limit on quadrilaterals** (Adams 2001, NSE 137); the **tensor-product UBLD** (`{1,x,y,xy}`, **`2^d`
+  moments** — 4 in 2-D, 8 in 3-D) **preserves it** (the `xy` cross moment is the load-bearing term;
+  Maginot-Ragusa-Morel 2016, NSE 185, UBLD Eqs. 1-12; Börgers-Larsen-Adams 1992). **So D5b builds the
+  UBLD, not the simplex** — building the naive `1+d` object would ship a silent diffusion-limit
+  physics bug. The per-cell system is a **`2^d×2^d` dense Galerkin solve** (`A = G + F_out + σ_t·M`);
+  the elegant build = **assemble M/G/F as Kronecker products of the verified 1-D LD operators**
+  (d=1 reduces to identity, single-sources the 1-D math, oracle = "exact on a bilinear flux"). LD
+  still rides the **DAG wavefront** (`FullFieldWavefront`/`MovingFrontierWindow`, pure scheme-delegators
+  via `sweep_graph.py:849/890`); close the `linear_discontinuous.py:430` `len(s_axes)!=1` raise with
+  the `2^d` kernel. ⚠ **Cell/face contract WIDENS**: the cell unknown is `2^d`-long and each outgoing
+  face is a `2^{d-1}`-moment object (avg + transverse slope), NOT scalar — exceeds the current
+  `CellResult`/`WavefrontFlux` scalar slots → **architecture pass before coding** (the 1-D Schur-scalar
+  collapse likely does NOT survive to multi-D). Lumping (FLBLD/LLD) deferred — `is_positivity_preserving`
+  stays `False` (no bilinear DFE is positivity-preserving). The scan-march stays a DD/Step (slopeless)
+  optimization whose `supports()` already (D5-0) excludes LD via `transverse_coupling_is_facewise=False`
+  — the STRUCTURAL exclusion. Verify (test-architect spec §2-D5b + cross-domain-attacker MMS frame):
+  each scheme ≥1 valid strategy per dim; routing-flip DD≠LD; multi-D UBLD MMS O(h²) with a `Q̂≠0`
+  slope source AND **x↔y-broken cross-harmonics in the slope drivers B,C** (the cross-domain-attacker
+  strengthening — a reflection-symmetric same-sign slope-row bug would else cancel in the flux); the
+  `ld-thick-diffusive` tripwire flips xfail→PASS on UBLD (would stay FAIL on the simplex — correct
+  physics, document the basis-dependence). INVERT `test_cell_kernel_batch_rejects_multi_d`. D5b needs
+  its OWN design pass (the contract widening + the Kronecker assembly).
 
 **Connections:** the `SweepStrategy` first-class abstraction (`.claude/plans/sn_sweep_strategy.md` —
 protocol `sweep`+`residual`+`supports`; `Compatibility(ok,reason)` selection on `is_cartesian`+`ndim`)
