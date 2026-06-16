@@ -3,11 +3,51 @@
 > **Durable in-repo recovery anchor** (project rule: plans live in ORPHEUS/.claude/).
 > Parent: `.claude/plans/issue_240_phase2_step_d_homing.md` (§D5). Subsumes **#158 Increment D / #38**.
 > Branch `feature/sn-space-angle-tier2` (off `main`@`cba6d2f`), NOT pushed/merged.
-> **STATUS (2026-06-16): NOT STARTED. D5-0 + D5a DONE (the routing substrate is honest).**
-> D5b is the THIRD and genuinely-new-math thread of the D5 campaign. It needs **its OWN
-> design pass** (the cell/face contract widening is an architecture decision — Cardinal Rule 2)
-> BEFORE implementation. The D5 design pass (test-architect spec + literature formulation +
-> cross-domain-attacker frame check) is DONE — the three memos below are the authoritative inputs.
+> **STATUS (2026-06-16): DESIGN PASS DONE + APPROVED. Implementing D5b-S1.**
+> The design pass (plan mode) resolved the two open architecture questions WITH THE USER and
+> EXPANDED the scope — see "⭐⭐ THE TWO DECISIONS" below. The approved implementation plan is
+> `.claude/plans/mellow-swinging-breeze.md` (the S1–S5 sub-step sequence + the unified
+> `n_spatial_moments` lattice). Tasks: #58 (umbrella, in_progress) → #59 (S1, in_progress) →
+> #60 (S2) → #61 (S3, the Inc C fold) → #62 (S4, MMS) → #55 (D6). D5b now subsumes BOTH
+> #37 (Inc C, FOLDED IN) and #38 (Inc D, = this).
+> D5-0 + D5a DONE (the routing substrate is honest). The D5 design pass (test-architect spec +
+> literature formulation + cross-domain-attacker frame check) is DONE — the three memos below
+> are the authoritative inputs.
+
+## ⭐⭐ THE TWO DECISIONS (design pass 2026-06-16 — do not lose across compaction)
+
+**Decision 1 — FOLD Increment C (#37) into D5b.** D5b ships the d-generic *global
+moment-source iterate* (the scattering-slope feedback `φ̂`), closing the diffusion limit for
+BOTH d=1 (#37) AND d ≥ 2 in ONE arc. (User chose "Fold Inc C into D5b" over "defer".)
+
+**Decision 2 — UNIFY the per-cell algebra WITHOUT a 1-D perf regression** (user: "why can't we
+have unification while keeping performance?"). Single-source the UBLD per-cell algebra as ONE
+d-generic **primitive** (Kronecker-assembled M/G/F + moment elimination); *derive* the d=1
+`affine_scan_coefficients` from it (the closed-form `2×2` Schur = the affine scan recurrence) so
+d=1 keeps riding **CumprodScan** (cumprod-vectorized; zero 1-D regression; L16-safe); d ≥ 2
+rides the wavefront via a **batched `2^d×2^d` solve** (`np.linalg.solve` over the anti-diagonal
+cell stack — vectorized across cells, NOT a per-cell Python loop). Do NOT retire the scan path —
+re-derive it from the primitive.
+
+**The unifying architecture — ONE `n_spatial_moments` reduction lattice.** A class-level scheme
+trait `n_spatial_moments: ClassVar[int]` (DD/Step = 1, LD-d = `2^d`) indexes the whole contract:
+cell unknown (`ψ̄` → `2^d`), face payload (scalar → trailing `2^{d-1}` moment axis), iterate flux
+(`φ̄` → `2^d` spatial moments), scattering (`Σ_s` → `Σ_s ⊗ I_{spatial-moment}`), source build
+(`(ng,)` → `(2^d, ng)`). DD/Step at `n=1` are the trivial reduction — the carve MUST keep them
+**bit-identical** by construction (the backward-compat invariant gating every sub-step).
+
+**Two structural findings that de-risked the carve (the two explorer passes):**
+- `WavefrontFlux`/`InteriorFaceSpace` were RETIRED at S6.4(f). The interior face cochain is now
+  raw per-axis ndarray tuples, and the DAG walk (`SweepDependencyGraph.walk_full`/`walk_windowed`)
+  is ALREADY moment-agnostic and ALREADY exercises the per-axis multi-face collection (DD 2-D
+  drives it). ⇒ NO new face type — append a trailing moment axis to the per-axis ndarrays; the
+  walk plumbing carries it untouched; the KERNEL owns the `2^d×2^d` solve.
+- Today ONLY `φ̄` exists anywhere (iterate, `ScatteringOperator`, production cell kernel are all
+  single-spatial-moment; the LD `(2,ng)` two-moment path is reachable only from a UNIT TEST). ⇒
+  Inc C *introduces* a spatial-slope contract; it does not extend one that already flows. Minimal
+  sites: scalar-flux reconstruction (`_CellSolve.cell`, accumulate `φ̂`); the iterate flux field
+  (new `(n_spatial_moments, ng, *spatial)` slot); `ScatteringOperator.apply` (lift over the
+  spatial-moment axis); `Q_cells` (grow a slope-source row).
 
 ## ⭐⭐⭐ THE LOAD-BEARING FINDING (do not lose this across compaction)
 
@@ -218,21 +258,17 @@ At D5b pickup:
    `ld-slab`); expand the LD theory `.. todo:` stub (`discrete_ordinates.rst:1498`) into the rich
    UBLD derivation + the Step/DD/LD↔advection narrative.
 
-## OPEN DESIGN QUESTIONS (resolve in the design pass — these need the user)
+## DESIGN QUESTIONS — RESOLVED (design pass 2026-06-16)
 
-1. **The face-cochain type (THE decision):** how do `CellResult` + `WavefrontFlux` carry the `2^d`
-   cell / `2^{d-1}` face moments? A typed moment-vector? Does the 1-D scalar path reduce as the d=1
-   case (one type, Kronecker-empty-axes) or stay a parallel optimization? (The Kronecker build wants
-   ONE type that reduces; the perf path may want the 1-D scalar kept — the "construct general, select
-   narrow" principle of `sn_sweep_strategy.md`.)
-2. **D5b vs 1-D Increment C (#37, task #37, PENDING):** Inc C threads the global moment-source
-   (`φ̂` in the iterate). The UBLD `2^d` solve is inherently a full-moment solve (it solves for ψ̂_xy
-   etc.), so its SOURCE wants moment components (`S̄, Ŝ_x, Ŝ_y, Ŝ_xy`). **Does D5b REQUIRE Inc C first
-   (the moment-source iterate), or can D5b ship flat-source (Q̂=0 scattering, the moments solved as
-   unknowns) and defer the slope-SOURCE to Inc C?** This determines the MMS Q̂ posture AND the
-   sequencing (does #37 block #38/D5b?). Likely: D5b can ship the UBLD CELL SOLVE flat-source (the
-   diffusion limit is about the CLOSURE, gated by `ld-thick-diffusive`), with the moment-source
-   scattering as a paired/follow-on increment. **Confirm with the user / a design pass.**
+1. **The face-cochain type — DISSOLVED by the code's current state.** `WavefrontFlux`/
+   `InteriorFaceSpace` are RETIRED; the face cochain is raw per-axis ndarrays and the walk is
+   already moment-agnostic. RESOLUTION: append a trailing `2^{d-1}` moment axis to the per-axis
+   face payload; the kernel owns the `2^d` solve; the 1-D scalar path is the d=1 (trailing-dim-1)
+   reduction. NO new type. (See "⭐⭐ THE TWO DECISIONS" + the `n_spatial_moments` lattice above.)
+2. **D5b vs Increment C — USER CHOSE TO FOLD INC C IN.** D5b ships the d-generic moment-source
+   iterate (`φ̂`); the multi-D thick-diffusive tripwire PASSES within D5b, and the same contract
+   closes 1-D #37. Sequenced as S2 (flat scattering, external/MMS moment source threaded) → S3
+   (the scattering-slope feedback `Σ_s·φ̂`). So #37 does NOT block S1/S2; it IS S3.
 3. **UBLD-only vs UBLD+FLBLD:** ship unlumped UBLD first (decided); FLBLD/SCB = a tracked follow-up.
 4. **d=2 only vs d=2+d=3:** D5b targets d=2 (the matrix is 4×4, the MMS is 2-D). d=3 (8×8, trilinear)
    is deferred (no 3-D quadrature production path; #227-adjacent). The Kronecker assembly is d-generic

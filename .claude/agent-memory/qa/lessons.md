@@ -607,3 +607,51 @@ pins the ScanMarch DEFAULT path to `νΣ_f/Σ_a` ≥2G; the G6 closed-form ancho
 says "the oracle pins analytical k_inf=1.875" is LOOSE — the oracle is
 transitively pinned; the direct anchor lives in a different file. Confirm the
 anchor file is GREEN before crediting the oracle with analytical grounding.
+
+## L-029 -- a re-encoded closed form is NOT L11-circular when compared against an INDEPENDENTLY-ASSEMBLED primitive (the d=1-reduction-to-production oracle)
+
+L-026 said a token-for-token copy of a production formula is circular as a VALUE
+check (a sign-flip in prod propagates into the test, stays green). The DISTINCT
+case here (#240 D5b-S1, the SymPy UBLD): the test's RIGHT side re-encodes the
+production `_schur_terms` S/eff_source/.slope (test lines 346-351, verbatim of
+`linear_discontinuous.py:332-335,258-259`) — BUT the LEFT side is the symbolic
+primitive's d=1 reduction obtained by `A⁻¹R` of a SEPARATELY-built Kronecker
+matrix (`assemble_ubld([h],[mu],...)` → `LUsolve`), NOT a re-statement of
+`_schur_terms`. So `diff_psi_bar==0` proves "the production Schur scalar EQUALS
+the independently-assembled 2×2 solve" — one side is genuinely structurally
+independent. A sign-flip in `_schur_terms` would NOT propagate into the Kronecker
+assembly → the oracle WOULD catch it. The circularity test is: **does the bug
+live on BOTH sides of the diff?** Re-encoded-formula-vs-re-encoded-formula =
+circular (L-026); re-encoded-formula-vs-independent-construction = legitimate.
+
+The genuinely-independent anchor in the same gate is `test_d1_symbolic_primitive_
+matches_production_update`: evaluates the symbolic d=1 ψ̄/ψ_out at concrete 2-group
+het numbers and asserts `LinearDiscontinuous().update` (the LIVE running algebra,
+not a copied formula) reproduces them ≤1e-12 — closes the loop to production.
+
+Sub-claims to ALSO check on a "the production X-view equals the d=1 reduction"
+oracle: `diff_face` (`psi_out` vs `downstream_face_trace`) is BOTH sides the SAME
+solve vector → a trace-operator-consistency check, NOT a structural-indep value
+check (fine, it's a foundation closure-consistency claim, not a value claim — do
+not credit it as independence). The ÷V `_kernel_terms` and ×V `affine_scan_
+coefficients` views BOTH reduce to the same independently-assembled LEFT (verified
+by transcribing prod lines 443-453 / 564-571 myself → diff 0); `a_source_indep`
+= `Qbar not in a.free_symbols` is a real structural property of the transmission.
+
+**Fast mutation-probe for a symbolically-SLOW gate**: when a foundation gate's
+`sp.simplify(diff)` is pathologically slow on the MUTATED (garbage) expression
+(#240 D5b: d2 exact-on-bilinear `simplify` of the |μ_axis|-dropped residual hit
+the 400s pytest timeout — a `simplify` perf artifact, NOT gate evidence), DON'T
+wait on the full pytest. Apply the mutation, then call the `derive_*` builder with
+the params as CONCRETE RATIONALS from the start (no symbolic LUsolve blowup) and
+read `diff` at concrete numbers: #240 mutated d2 residual = [0.596,-0.396,0.179,
+-0.226] (manifestly non-zero on all 4 moments) → `is_zero_matrix` False →
+`_require_zero_matrix`→`pytest.fail` → test FAILS. That is DECISIVE and seconds-
+fast; the slow `simplify` only confirms the same non-zero. The d1 tests staying
+GREEN under the mutation (proven: `test_d1_symbolic_primitive_matches_production_
+update` passed 1.45s under mutation — d1 routes inflow inline via
+`mu*fin_trace_weight()*psi_in`, never through `assemble_inflow_axis`) IS the
+"d=1 oracle is blind to a per-axis factor" evidence (ERR-060 H2 multi-D analog).
+ALWAYS revert the mutation (both return branches here) + re-run green (6 passed)
+before closing. (Reviewed 2026-06-16 #240 D5b-S1 Branch 1 — VERDICT: all 6 claims
+SUPPORTED.)
