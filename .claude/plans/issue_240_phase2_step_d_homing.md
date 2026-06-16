@@ -3,7 +3,7 @@
 > **Durable in-repo recovery anchor** (project rule: plans live in ORPHEUS/.claude/, not ~/.claude).
 > Parent: `.claude/plans/next_principled_polymorphism.md` / `issue_240_phase2_layer_separation.md`.
 > Branch `feature/sn-space-angle-tier2`. Approved 2026-06-16.
-> **STATUS: D1–D4 + D5-0 DONE + committed. D5 DESIGN PASS DONE** (test-architect spec +
+> **STATUS: D1–D4 + D5-0 + D5a DONE + committed. D5 DESIGN PASS DONE** (test-architect spec +
 > literature-researcher + cross-domain-attacker — memos under `.claude/agent-memory/`).
 > **D5-0 (routing honesty) committed `4b465b7`:** scheme-named ClassVar trait
 > `transverse_coupling_is_facewise` (DD `True`, LD default `False`) closes the LIVE
@@ -15,8 +15,13 @@
 > NOT the simplex `1+d` (`{1,x,y}`)** — the `xy` cross moment is diffusion-limit-load-bearing;
 > the simplex object FAILS the thick-diffusion limit on quadrilaterals (would have shipped a
 > silent physics bug). The cell/face contract WIDENS (cell unknown `2^d`, each face a
-> `2^{d-1}`-moment object) → needs an architecture pass. NEXT = **D5a** (DD scan-march fold),
-> then **D5b** (UBLD, needs its own design pass), then **D6**. See §D5 + [[project-issue-158-ld-dag]].
+> `2^{d-1}`-moment object) → needs an architecture pass. **D5a DONE + committed** (`66dbd9a` fold
+> + `377ccb3` docs): the 2-D ScanMarch folded onto the scheme coefficient model — scheme-generic
+> row-march, zero inline DD, principled ~1-ULP re-baseline; the DD Cartesian diagonal single-sourced
+> (`_cartesian_streaming_diagonal` + `_DD_W`); curvilinear-merge deferred to **#242**. NEXT = **D5b**
+> (UBLD — its OWN design pass: the `2^d` tensor-product basis + the cell/face contract widening + the
+> Kronecker assembly), then **D6** (incl. linking 3 orphan labels: `loss-rep-facewise-separable`,
+> `loss-rep-scanmarch-solve-affine`, `loss-rep-scanmarch-apply-residual`). See §D5 + [[project-issue-158-ld-dag]].
 > Commits: A+B `f0d68c3`/`4937c3a` · D1 `8bc1a49` · D2 `784edeb` · D3 `4f04126` · D4 `c40a341`
 > (+ chore records each). D4 finding: scheme was ALREADY Σ-stateless → D4 = the
 > diffusion-readiness contract gate + the Base interface note (no code change). The deferred

@@ -551,3 +551,59 @@ docutils parses each [xxx] as a citation reference, producing
 "duplicate citation" warnings under `-W`. Use (parens) instead of
 [brackets] in rationale comments, and prefer a single-line `..`
 comment over a multi-line `..  / .. / ..` continuation block.
+
+## L-028 -- the ÷D vs ×(1/D) re-baseline: a "byte-identical" coefficient-model premise fails where the consumer still divides; verify the ORDERING before trusting a snapshot regen
+
+When a fold routes a leftover-inline path onto an established coefficient model,
+the fold is byte-identical ONLY where the consumer already uses the
+`×inverse_denom` reciprocal form. A consumer still on `÷denom` DIVISION (a
+leftover inline path) re-baselines ~1 ULP when it joins the model — division and
+reciprocal-then-multiply are NOT IEEE-bit-identical (`2*X/D ≠ 2*X*(1/D)` at 1
+ULP; verified `cartesian_scan_coefficients` reproduces the OLD inline alpha/beta
+to max abs diff 2.22e-16 = exactly 1 ULP, NOT array_equal). #240 D5a: the spec's
+"2-D SOLVE stays byte-identical" premise was WRONG — the pre-D5a
+`ScanMarch._sweep_interior` was the ONE remaining `÷D_row` path (the 1-D
+CumprodScan already rode `×inv`), so the SOLVE re-baselined too (BOTH
+`si_2d_p1_aniso_het` AND `krylov_2d_p1_aniso_het` golden sha moved; the slab/1-D
+sha UNCHANGED = the true negative control). The method-implementer's
+load-bearing finding (caught a wrong spec premise) was CORRECT — confirm it by
+direct algebraic inspection: replicate the OLD inline `alpha = 2*sx2/D - 1`,
+`beta = 2*(Q+sy2*psi_y)/D` and the NEW `a, inv, w, (c_y,) =
+cartesian_scan_coefficients(...)` + `source_emission(Q + c_y*psi_y, inv, w)` at
+controlled input → max rel diff ~2e-16 (`c_y == 2*g_y` byte-exact, `w==0.5`).
+
+**Snapshot-regen ORDERING masking-check** (don't let a re-baseline launder an
+EARLIER untracked drift): the load-bearing claim is "pre-fold LIVE matvec ==
+FROZEN snapshot at 0 ULP" — i.e. the frozen IS the correct pre-fold reference.
+PROVE it: `git stash push -- <PRODUCTION + the regen'd snapshot>` (KEEP the new
+test arms) → run the new arms vs the OLD code + OLD frozen snapshot under
+`-W error::DriftWarning` → MUST pass at 0 ULP (proves frozen ≡ pre-fold live).
+Then OLD-code + NEW(regen) snapshot → MUST hard-fail (proves the regen is real +
+the gate is live). #240 D5a: 3 cart2d arms passed strict pre-fold, hard-failed
+"6 ULP (max 256)" with the swap = ordering holds. OLD-vs-NEW snapshot ULP-diff:
+relΔ ~1.2-3.6e-16 = 1 ULP of the O(1) field (maxabs 1.8-3.6e-15 @ |val|~17-75);
+the 256-ULP metric is the L-022 large-ULP@small-mag near-zero-cancellation
+artifact. Boundary trace + the `_LpC_` key + ALL non-cart2d (slab/curvilinear)
+keys stayed byte-identical (0 ULP) — blast radius = the 2-D row-march ONLY.
+
+**The STRICT-FROZEN docstring stales silently on a re-baseline** (CR3 / L-020):
+`test_bc_extraction_2d.py::test_vacuum_bulk_bit_identical` uses
+`np.testing.assert_array_equal` (STRICT) with a docstring claiming "must not move
+a single bit" / "must stay frozen" / "E0-T1 proved bit-identical to the pre-carve
+path". D5a regenerated its `.npy` baselines (relΔ ~1.5e-16) but did NOT touch the
+test file → the "must stay frozen" WHY is now FALSE (the output is no longer
+bit-identical to the pre-carve path; it is strict-against-the-POST-D5a value).
+Gate functions correctly; rationale prose lags. Flag as a doc-correctness nit,
+not a blocker. ALWAYS check: a silently-regenerated strict `.npy` baseline whose
+CONSUMER test file is untouched → grep the consumer docstring for "frozen" /
+"bit-identical to pre-carve" / "must not move a single bit" and flag the stale WHY.
+
+**The two-paths oracle's analytical anchor is TRANSITIVE, not direct** (L14): the
+D5a.1 `test_scan_march_equivalence` asserts `ScanMarch.sweep ≡ FullFieldWavefront`
+via `assert_allclose` = TWO-PATHS-AGREE. The analytical `k_inf`/`φ=Q/Σ_t` ground
+is reached SEPARATELY (`test_keff_2d::TestHomogeneousExact::test_homogeneous_exact`
+pins the ScanMarch DEFAULT path to `νΣ_f/Σ_a` ≥2G; the G6 closed-form anchor in
+`test_scan_march_end_to_end` runs WINDOW-forced, NOT ScanMarch). A closeout that
+says "the oracle pins analytical k_inf=1.875" is LOOSE — the oracle is
+transitively pinned; the direct anchor lives in a different file. Confirm the
+anchor file is GREEN before crediting the oracle with analytical grounding.
