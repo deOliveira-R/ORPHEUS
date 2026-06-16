@@ -90,6 +90,15 @@ from .scheme import (
     UpstreamState,
 )
 
+#: Diamond-Difference cell-average blend weight ``w = ½`` (the symmetric
+#: diamond mean ``ψ̄ = ½(ψ_in + ψ_out)``).  This single constant is what makes
+#: a scheme "Diamond Difference": the streaming diagonal carries ``2 = 1/w_DD``
+#: and every reconstruction (cell-average, outgoing face, source emission)
+#: rides this ``w``.  Named so the five sites that historically hard-stamped
+#: the literal ``0.5`` reference ONE source of truth (``_DD_W is exactly
+#: 0.5`` — referencing it is byte-identical to the literal).
+_DD_W: float = 0.5
+
 
 @dataclass(frozen=True, slots=True)
 class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
@@ -187,7 +196,7 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
             # generic affine outflow ``(ψ̄ − (1−w)ψ_in)/w`` (byte-identical:
             # ``÷0.5`` is exact ``×2``).
             psi_spat_out = self.outgoing_face_from_average(
-                psi_avg, upstream_state.spatial_upstream, 0.5,
+                psi_avg, upstream_state.spatial_upstream, _DD_W,
             )
 
         # ── Angular closure (Morel-Montry) ──────────────────────────
@@ -302,6 +311,69 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         # scalar-form residual contract (Issue #196 Phase G Step 1).
         return denom[:, 0] * cell_avg - (source + numer_upstream[:, 0])
 
+    # ── Shared DD Cartesian sub-primitives (single source — #240 D5a) ──
+    #
+    # The streaming-diagonal fold ``S = Σ_t + Σ 2 g_a`` and the ``w=½``
+    # reflection coefficients are the ONE place the diamond ``2 = 1/w_DD``
+    # enters the Cartesian producers.  Before #240 D5a the ``2 g_a`` fold was
+    # hand-transcribed in THREE producers (``cell_kernel_batch`` /
+    # ``residual_kernel_batch`` / ``cartesian_scan_coefficients``) and the
+    # ``w=½`` recurrence in a fourth; these two helpers collapse them so the
+    # diamond constant has exactly one home (Cardinal Rule 2 / Pattern 2).
+
+    @staticmethod
+    def _cartesian_streaming_diagonal(
+        sigt_cells: np.ndarray,
+        s_axes: tuple[np.ndarray, ...],
+    ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
+        r"""DD's ×V streaming diagonal ``S = Σ_t + Σ_a 2 g_a`` + per-axis couplings.
+
+        Given the local reaction-rate ``sigt_cells`` and the RAW down-face
+        streaming ``g_a = |μ_a|/Δ_a`` per spatial axis (``s_axes``), returns
+        ``(denom, couplings)`` where ``couplings[a] = 2 g_a`` is DD's diamond-
+        scaled per-axis face term and ``denom = Σ_t + Σ_a 2 g_a`` is the cell-
+        balance diagonal.  Each caller reuses ``couplings[a]`` on the upstream-
+        numerator term (``Σ_a couplings[a]·ψ_in_a``) so the diamond ``2`` is
+        applied ONCE per axis, never recomputed.
+
+        Operation-order discipline (the byte-identity pin)
+        --------------------------------------------------
+
+        The diagonal is an **explicit left fold** ``((Σ_t + 2 g_0) + 2 g_1) +
+        …`` over ``s_axes`` in axis order (NOT ``sum()``) — bit-identical to the
+        legacy ``sigt + sx + sy`` (with ``sx = 2|μ_x|/Δx``) accumulation, because
+        ``2·g_a`` equals the former pre-scaled ``2|μ_a|/Δa`` exactly (multiply by
+        2 is an IEEE-754-exact power-of-2 scaling that commutes with rounding).
+        The scan producer passes ``s_axes = (s_scan, *s_transverse)`` so its
+        scan-first order coincides with the batch kernels' axis order — the same
+        bytes from all three callers.  Per ``vv-principles`` §"Bit-identity vs
+        principled-equivalence", do NOT switch to ``sum()`` or regroup.
+        """
+        couplings = tuple(2.0 * s_a for s_a in s_axes)  # each: DD's 2 = 1/w_DD
+        denom = sigt_cells
+        for c_a in couplings:
+            denom = denom + c_a                          # explicit left fold
+        return denom, couplings
+
+    @staticmethod
+    def _reflection_coeffs(
+        psi_bar: np.ndarray, w: "float | np.ndarray",
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""Apply-direction reflection scan coefficients ``(α = −(1−w)/w, β = ψ̄/w)``.
+
+        The recurrence form of :meth:`outgoing_face_from_average`: with a KNOWN
+        cell average ``psi_bar``, the downstream face is
+        :math:`ψ_{\rm out} = (ψ̄ − (1−w)ψ_{\rm in})/w = β + α·ψ_{\rm in}`.  Pure
+        in ``(ψ̄, w)``, no instance state — the shared arithmetic behind DD's
+        :meth:`reflect_scan_coefficients` (``w = _DD_W`` gives ``α = −1``,
+        ``β = 2ψ̄``) and the future Step twin.  Byte-identical to the inlined
+        ``α = −1 / β = 2ψ̄`` at ``w = ½`` (``-(1-0.5)/0.5 == -1.0`` and
+        ``ψ̄/0.5 == 2ψ̄`` exactly).
+        """
+        alpha = np.full_like(psi_bar, -(1.0 - w) / w)
+        beta = psi_bar / w
+        return alpha, beta
+
     # ── 2-D Cartesian batched CELL KERNEL (storage-free; Pattern 2) ──
 
     def cell_kernel_batch(
@@ -350,7 +422,10 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         the ``2`` (a denom-only ``2`` would be a non-uniform 2× bug → wrong
         ``ψ̄``). The closure ``2ψ̄ − ψ_in`` is the diamond MEAN (also a ``2``,
         but the cell-average reconstruction, not the streaming factor).
-        The axis reduction is an **explicit left fold** (NOT ``sum()``) so the
+        The streaming diagonal + the per-axis couplings ``2 g_a`` come from
+        :meth:`_cartesian_streaming_diagonal` (the single source of DD's ``2 g``
+        fold); the upstream-numerator term reuses those couplings.  The axis
+        reduction is an **explicit left fold** (NOT ``sum()``) so the
         accumulation order is ``((sigt + 2g_0) + 2g_1) + …`` /
         ``((Q + 2g_0·in_0) + 2g_1·in_1) + …`` — bit-identical to the legacy
         ``sigt + sx + sy`` (with ``sx = 2|μ_x|/Δx``) order, because ``2·g_a``
@@ -359,16 +434,15 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         ``vv-principles`` Bit-identity vs principled-equivalence, do NOT switch
         to ``sum()`` or rearrange for "clarity".
         """
-        denom = sigt_cells                                 # (ng, n_diag)
+        denom, couplings = self._cartesian_streaming_diagonal(sigt_cells, s_axes)
         numer = Q_cells                                    # (N_oct or 1, ng, n_diag)
-        for s_a, in_a in zip(s_axes, psi_in):
-            denom = denom + 2.0 * s_a                      # left fold → (N_oct, ng, n_diag); 2 = DD's 1/w
-            numer = numer + 2.0 * s_a * in_a
+        for c_a, in_a in zip(couplings, psi_in):
+            numer = numer + c_a * in_a                     # reuse 2g_a coupling
         psi_avg = numer / denom                            # (N_oct, ng, n_diag)
         # DD diamond MEAN reconstruction = the ``w=½`` generic affine outflow
         # (byte-identical: ``÷0.5`` is exact ``×2``).
         psi_out = tuple(
-            self.outgoing_face_from_average(psi_avg, in_a, 0.5) for in_a in psi_in
+            self.outgoing_face_from_average(psi_avg, in_a, _DD_W) for in_a in psi_in
         )
         return psi_avg, psi_out
 
@@ -398,19 +472,20 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full` /
         :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`).
         Same explicit-left-fold operation-order discipline as
-        :meth:`cell_kernel_batch` (``2·g_a`` equals the former pre-scaled
-        ``2|μ_a|/Δa`` bit-for-bit; d=2 bit-identical to the legacy fold order).
+        :meth:`cell_kernel_batch`, via the shared
+        :meth:`_cartesian_streaming_diagonal` (``2·g_a`` equals the former
+        pre-scaled ``2|μ_a|/Δa`` bit-for-bit; d=2 bit-identical to the legacy
+        fold order).
         """
-        denom = sigt_cells                                 # (ng, n_diag)
+        denom, couplings = self._cartesian_streaming_diagonal(sigt_cells, s_axes)
         numer = Q_cells                                    # (N_oct or 1, ng, n_diag)
-        for s_a, in_a in zip(s_axes, psi_in):
-            denom = denom + 2.0 * s_a                      # left fold; 2 = DD's 1/w
-            numer = numer + 2.0 * s_a * in_a
+        for c_a, in_a in zip(couplings, psi_in):
+            numer = numer + c_a * in_a                     # reuse 2g_a coupling
         residual = denom * psi_bar - numer                 # (N_oct, ng, n_diag)
         # DD diamond MEAN reconstruction = the ``w=½`` generic affine outflow
         # (byte-identical: ``÷0.5`` is exact ``×2``).
         psi_out = tuple(
-            self.outgoing_face_from_average(psi_bar, in_a, 0.5) for in_a in psi_in
+            self.outgoing_face_from_average(psi_bar, in_a, _DD_W) for in_a in psi_in
         )
         return residual, psi_out
 
@@ -516,8 +591,83 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         # symmetric diamond mean ψ̄ = ½(ψ_in+ψ_out), i.e. w = ½ everywhere.  The
         # generic base reconstruction staticmethods consume this; DD carries NO
         # cell-average / outgoing-face / source-emission method of its own.
-        cell_average_weight = np.full_like(a_attenuation, 0.5)            # (N, ng, nx)
+        cell_average_weight = np.full_like(a_attenuation, _DD_W)          # (N, ng, nx)
         return a_attenuation, inverse_denom, cell_average_weight
+
+    def cartesian_scan_coefficients(
+        self,
+        *,
+        s_scan: np.ndarray,                # (..., n_scan) RAW down-face g on the scanned axis
+        s_transverse: tuple[np.ndarray, ...],  # d−1 arrays, each broadcasting over (..., n_scan) — RAW g on the known transverse axes
+        sig_t: np.ndarray,                 # (ng, n_scan) Σ_t on the row
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, tuple[np.ndarray, ...]]:
+        r"""DD's row-march scan coefficients ``(a, inverse_denom, w, transverse_couplings)``.
+
+        The 2-D/3-D scan-march analogue of :meth:`affine_scan_coefficients`
+        (#239 the coefficient-model lift): given the RAW down-face streaming
+        ``g = |μ|/Δ`` on the scanned axis ``s_scan`` and the known transverse
+        axes ``s_transverse``, plus :math:`\Sigma_t`, return the DD
+        :math:`\Sigma_t`-epoch coefficients.  DD applies its diamond
+        :math:`2 = 1/w_{\rm DD}` HERE (the scheme owns the factor — the row body
+        carries NO ``2.0*`` and NO hard-coded ``0.5``):
+
+        .. math::
+
+           \text{diag}_{\rm scan} &= 2 g_{\rm scan},
+           \qquad c_\perp = 2 g_\perp, \\
+           S &= \Sigma_t + \text{diag}_{\rm scan} + \sum_\perp c_\perp,
+           \qquad \mathrm{inverse\_denom} = 1/S, \\
+           a &= 2\,\text{diag}_{\rm scan}\,\mathrm{inverse\_denom} - 1,
+           \qquad w = \tfrac12.
+
+        The transverse couplings :math:`c_\perp = 2 g_\perp` are scheme-owned
+        and feed BOTH the diagonal (above) and the affine source (the caller
+        folds :math:`\sum c_\perp \psi_\perp^{\rm in}` into ``QV`` for
+        :meth:`source_emission`).  The same single source of the DD cell math
+        as :meth:`cell_kernel_batch` / :meth:`residual_kernel_batch` (the
+        explicit ``2 g`` left fold), specialised to one scanned + ``d−1`` known
+        axes — Cardinal Rule 2 / Pattern 2.
+
+        Operation-order note
+        --------------------
+
+        ``inverse_denom = 1/S`` is the reciprocal cell-balance diagonal — the
+        ×V "denom" convention the generic reconstruction staticmethods consume
+        (the ``×inverse_denom`` form, NOT the legacy ``÷S`` division).  The
+        ``2 g_a`` left fold over (scan, transverse...) comes from the shared
+        :meth:`_cartesian_streaming_diagonal` (passing ``s_axes =
+        (s_scan, *s_transverse)`` so the scan-first order coincides with
+        :meth:`cell_kernel_batch`'s axis order); per ``vv-principles``
+        §"Bit-identity vs principled-equivalence" the scan SOLVE rides the
+        byte-identical ``×inverse_denom`` reconstruction (the DD scan snapshots
+        stay strict).
+        """
+        # S = Σ_t + 2g_scan + Σ 2g_⊥, with couplings[0]=2g_scan, couplings[1:]=2g_⊥.
+        denom, couplings = self._cartesian_streaming_diagonal(
+            sig_t, (s_scan, *s_transverse),
+        )                                                                 # (ng, n_scan)
+        scan_diag, transverse_couplings = couplings[0], couplings[1:]
+        inverse_denom = 1.0 / denom
+        a = 2.0 * scan_diag * inverse_denom - 1.0                         # transmission
+        w = np.full_like(a, _DD_W)                                        # DD diamond mean
+        return a, inverse_denom, w, transverse_couplings
+
+    def reflect_scan_coefficients(
+        self, psi_bar: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""DD apply-direction reflection scan coefficients ``(α = −1, β = 2ψ̄)``.
+
+        The recurrence form of DD's diamond reconstruction
+        :math:`\psi_{\rm out} = 2\bar\psi - \psi_{\rm in}` =
+        :meth:`outgoing_face_from_average` at ``w = ½``: ``α = −(1−w)/w = −1``
+        (a pure reflection, ``|α| = 1`` — no scan underflow) and ``β = ψ̄/w =
+        2ψ̄``.  Delegates to the shared :meth:`_reflection_coeffs` at
+        ``w = _DD_W`` — the ``w``-generic arithmetic lives once (the diamond
+        ``½`` lives in the scheme; the row body carries no inline ``2.0*``), and
+        the Step twin will inherit it free.  Byte-identical to the legacy inline
+        ``α = −1`` / ``β = 2ψ̄`` (``-(1-0.5)/0.5 == -1.0`` and ``ψ̄/0.5 == 2ψ̄``).
+        """
+        return self._reflection_coeffs(psi_bar, _DD_W)
 
     # ── S6.4(e): the storage adapters RETIRED ───────────────────────────
     #

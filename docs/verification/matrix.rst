@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5266**
+Total tests collected: **5270**
 
 V&V level distribution
 ----------------------
@@ -20,7 +20,7 @@ V&V level distribution
    L1, 975, 18.5%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3093, 58.7%
+   foundation, 3097, 58.8%
    unmarked, 9, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5178
+   explicit, 5182
    verify, 0
    class-name, 46
    func-name, 0
@@ -66,7 +66,7 @@ Module × level grid
    core/test_cell_kernel_batch, 11, 0, 0, 0, 1, 2
    core/test_dag_walk, 0, 0, 0, 0, 7, 0
    core/test_diamond, 0, 0, 0, 0, 53, 0
-   core/test_discretization_scheme_protocol, 0, 0, 0, 0, 16, 0
+   core/test_discretization_scheme_protocol, 0, 0, 0, 0, 17, 0
    core/test_ordinate_scan, 52, 0, 0, 0, 0, 0
    core/test_ordinate_scan_joint_batch, 5, 0, 0, 0, 0, 0
    core/test_phase_c_gates, 8, 0, 0, 0, 9, 0
@@ -301,7 +301,7 @@ Module × level grid
    operators/test_sn_boundary_realizer, 0, 20, 0, 0, 0, 0
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
-   operators/test_streaming_operator, 0, 0, 0, 0, 64, 0
+   operators/test_streaming_operator, 0, 0, 0, 0, 67, 0
    operators/test_streaming_operator_decomposition, 19, 0, 0, 0, 0, 0
    operators/test_typed_residual_evaluation, 1, 0, 0, 0, 3, 0
    primitives/test_axis_native_construction, 0, 0, 0, 0, 15, 0
@@ -619,7 +619,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **64** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **65** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -653,6 +653,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``inflow-mask-discrete``
 - ``loss-rep-affine``
 - ``loss-rep-affine-cell``
+- ``loss-rep-facewise-separable``
 - ``loss-rep-leaf-sum``
 - ``loss-rep-removal-sigma``
 - ``ordinate-partition-inflow-outflow``

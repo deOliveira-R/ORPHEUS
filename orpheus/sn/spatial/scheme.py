@@ -526,6 +526,18 @@ class DiscretizationScheme(Protocol):
         """
         ...
 
+    # NOTE: the scan-family capability methods — ``affine_scan_coefficients``
+    # (1-D / curvilinear chain), ``cartesian_scan_coefficients`` +
+    # ``reflect_scan_coefficients`` (the multi-D row-march), and the batched
+    # kernel pair ``cell_kernel_batch`` / ``residual_kernel_batch`` — are NOT
+    # part of this Protocol.  They are OPT-IN capabilities (guarded by the
+    # ``is_affine_scannable`` / ``transverse_coupling_is_facewise`` traits and
+    # the strategy ``supports`` gates), carried on
+    # :class:`DiscretizationSchemeBase` with raising defaults.  The Protocol
+    # declares ONLY the universal per-cell contract (``update`` / ``residual``)
+    # every scheme MUST provide, so a minimal synthetic scheme passes
+    # ``@runtime_checkable`` ``isinstance`` on the two required members alone.
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # DiscretizationSchemeBase — concrete ABC carrying RegistryMixin
@@ -933,6 +945,87 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
             "supply the (a, inverse_denom, w) coefficient triple consumed by "
             "CumprodScan / ScanMarch; non-affine closures run on the DAG "
             "wavefront schedule."
+        )
+
+    def cartesian_scan_coefficients(
+        self,
+        *,
+        s_scan: np.ndarray,
+        s_transverse: tuple[np.ndarray, ...],
+        sig_t: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, tuple[np.ndarray, ...]]:
+        r"""Cartesian row-march scan coefficients ``(a, inverse_denom, w, transverse_couplings)``.
+
+        The multi-D **scan-march** analogue of :meth:`affine_scan_coefficients`
+        (which is the 1-D / curvilinear chain producer): given the RAW down-face
+        streaming ``g = |μ|/Δ`` on the **scanned** axis (``s_scan``) and on the
+        already-known **transverse** axes (``s_transverse``, one entry per
+        non-swept Cartesian axis — the 0th-order face traces a row-march
+        absorbs into its affine source), plus the local :math:`\Sigma_t`,
+        return the four :math:`\Sigma_t`-epoch coefficients that drive the
+        in-row first-order x-scan ``ψ_out = a·ψ_in + b``:
+
+        * ``a`` — the scan transmission multiplier (source-INDEPENDENT);
+        * ``inverse_denom`` — the reciprocal cell-balance diagonal
+          :math:`1/S` with :math:`S = \Sigma_t + (\text{scan diag}) +
+          \sum (\text{transverse diag})`;
+        * ``w`` — the cell-average blend weight
+          (:math:`\bar\psi = (1-w)\psi_{\rm in} + w\,\psi_{\rm out}`);
+        * ``transverse_couplings`` — one coefficient per transverse axis, the
+          scheme-OWNED coupling on the known upstream transverse face flux that
+          enters BOTH the diagonal (above) AND the affine source (the caller
+          folds :math:`\sum c_\perp\,\psi_\perp^{\rm in}` into ``QV`` before
+          :meth:`source_emission`).  For Diamond Difference each is
+          :math:`2 g_\perp` (its diamond :math:`2 = 1/w_{\rm DD}`).
+
+        The caller (``ScanMarch._sweep_interior``) then composes the recurrence
+        generically — ``b = source_emission(QV + Σ c_⊥ ψ_⊥, inverse_denom, w)``,
+        ``ψ̄ = cell_average(in, out, w)``, ``ψ_out_⊥ =
+        outgoing_face_from_average(ψ̄, ψ_⊥, w)`` — so the diamond ``2`` and the
+        blend ``w`` live HERE, never inline in the row body (#239 the 2-D
+        coefficient-model lift; the scan-march becomes scheme-generic over
+        every ``transverse_coupling_is_facewise`` closure — Diamond Difference
+        today, Step when it lands).
+
+        Only a ``transverse_coupling_is_facewise`` scheme overrides this — the
+        separable facewise transverse coupling is exactly the precondition the
+        d-D row-march needs (a bilinear LD closure carries its transverse term
+        as a slope moment, not a face value, and rides the DAG wavefront
+        instead — its ``False`` trait keeps it off the scan-march, and this
+        default raise is the belt-and-braces backstop).
+
+        Default raises :exc:`NotImplementedError`.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement "
+            "cartesian_scan_coefficients (transverse_coupling_is_facewise is "
+            "False).  Only a facewise/separable closure supplies the row-march "
+            "scan coefficients consumed by the multi-D ScanMarch; a bilinear "
+            "closure rides the DAG wavefront schedule."
+        )
+
+    def reflect_scan_coefficients(
+        self, psi_bar: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""Apply-direction x-face reflection scan coefficients ``(α, β)``.
+
+        The matvec twin of :meth:`cartesian_scan_coefficients`: in the APPLY
+        direction the cell-average ``psi_bar`` is KNOWN (the probe), so the
+        downstream x-face is the pure reconstruction
+        :math:`\psi_{\rm out} = (\bar\psi - (1-w)\psi_{\rm in})/w =
+        \beta + \alpha\,\psi_{\rm in}` — a first-order recurrence in the faces
+        with ``α = −(1−w)/w`` and ``β = ψ̄/w`` (the recurrence form of
+        :meth:`outgoing_face_from_average`, so the blend ``w`` lives in the
+        scheme, never inline).  For Diamond Difference ``w = ½`` gives ``α = −1``
+        (a pure reflection, :math:`|α| = 1` so no scan underflow) and
+        ``β = 2ψ̄``.
+
+        Only a ``transverse_coupling_is_facewise`` scheme overrides it (the
+        scan-march apply twin); the default raises.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement reflect_scan_coefficients "
+            "(transverse_coupling_is_facewise is False)."
         )
 
     # ── Generic affine reconstruction ops (#158 Inc B / #240 D2) ─────────────

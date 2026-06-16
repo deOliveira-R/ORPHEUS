@@ -283,11 +283,21 @@ class TestKernelSourceOfRecord:
     # ``DiscretizationSchemeBase`` staticmethod).  A SOURCE change only; the ``w=½`` op is
     # byte-identical to ``2ψ̄ − ψ_in`` (``÷0.5`` is exact ``×2``), so every
     # numerical byte-identity anchor stays green.
+    # Re-hashed #240 Phase 2 D5a (single-source): the ``Σ_t + Σ 2g_a`` left fold
+    # + the per-axis ``2g_a`` couplings now come from the shared
+    # ``DiamondDifference._cartesian_streaming_diagonal`` (the ONE home of the
+    # diamond ``2 = 1/w_DD`` across the 3 Cartesian producers); the
+    # upstream-numerator reuses ``couplings[a]`` (``c_a*in_a`` is byte-identical
+    # to ``(2.0*s_a)*in_a``) and the outflow ``w`` is the named ``_DD_W``
+    # (exactly ``0.5``).  A SOURCE change only — the FP reduction tree is
+    # PRESERVED (left fold + reuse), so every numerical byte-identity anchor
+    # (window≡full oracle, affine-carve golden, T4b cart2d/slab snapshot) stays
+    # green; verified before re-hashing.
     EXPECTED: ClassVar[dict[str, str]] = {
         "cell_kernel_batch":
-            "c7b6fbdca73b87ffad364170597dca484f5ee8eb1e1d32223e86bae5832a3121",
+            "fb93a78818a2074dea948451d529459a9df01d820ef554e67b8b8cc1db753351",
         "residual_kernel_batch":
-            "954c4cc5274aa4c67a031d15a5f1615b6afe855b6e8607bd05a6a3afb1d3ab18",
+            "9449877341f37a34e89f6cded6e1a060c8caf78936c37cdd2cabe5dea5c324f6",
     }
 
     @pytest.mark.parametrize("kernel", ["cell_kernel_batch", "residual_kernel_batch"])

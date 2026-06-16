@@ -872,6 +872,81 @@ class TestT4bPreT4RegressionSnapshot:
             seed=20260531 + 3,
         )
 
+    # ── #240 D5a — 2-D Cartesian ScanMarch matvec frozen-reference arm ──
+    #
+    # The cart2d apply snapshots (frozen pre-#240, UNCONSUMED until D5a) pin the
+    # 2-D row-march matvec ``ScanMarch._loss_action_interior`` — the
+    # value-preserving linchpin (GATE D5a.2) that catches a fold bug which
+    # preserves the D5a.1 ``ScanMarch ≡ FullFieldWavefront`` relation but shifts
+    # the VALUE (a "both paths move together" blind spot of the two-paths gate).
+    # D5a routed the row-march off inline DD onto ``scheme.residual_kernel_batch``
+    # + ``scheme.reflect_scan_coefficients`` (#239 coefficient-model lift), which
+    # re-associates the cell-balance reduction ~1 ULP (the same principled
+    # re-baseline as the slab arms, #240). The frozen bulk snapshot was
+    # regenerated to the post-D5a value (max absΔ ~3.6e-15 vs the byte-identical
+    # pre-D5a value — verified pre-fold the frozen ≡ current at 0 ULP), per
+    # ``vv-principles`` §"Bit-identity vs principled-equivalence" (the value is
+    # independently grounded by the D5a.1 oracle, NOT by old-vs-new proximity).
+    # Boundary trace is byte-identical (0 ULP — the outflow defect reconstructs
+    # from the same ``ψ_out = 2ψ̄ − ψ_in`` faces).
+
+    def _assert_cart2d_arm(
+        self, snapshots, *, tag: str, ng: int, bc_kind: str, seed: int,
+    ) -> None:
+        """Re-run the 2-D Cartesian ScanMarch matvec arm: BULK principled, BOUNDARY strict.
+
+        Uses the capture-script mesh / sigma_t / ψ constructors verbatim so the
+        live matvec consumes the SAME inputs the frozen snapshot was captured
+        from (no fixture drift). ``reduction_depth=mesh.nx`` per the cart2d
+        x-scan chain depth.
+        """
+        from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
+            _cart2d_mesh, _make_sigma_t, _make_state,
+        )
+        sn_mesh = _cart2d_mesh(ng=ng, bc_kind=bc_kind)
+        sig_t = _make_sigma_t(sn_mesh)
+        L = StreamingOperator(sn_mesh, sig_t)
+        state = _make_state(sn_mesh, seed=seed)
+        out = L.apply(state)
+        assert_regression(
+            out.bulk.values, snapshots[f"{tag}_apply_bulk"],
+            conv_tol=0.0, kind="direct", reduction_depth=sn_mesh.nx,
+            case_name=f"{tag}_apply_bulk", quantity="apply_bulk",
+        )
+        np.testing.assert_array_equal(
+            out.boundary.values, snapshots[f"{tag}_apply_boundary"],
+        )
+
+    def test_cart2d_1g_specular_apply_principled_equiv(self, snapshots):
+        """D5a.2 — 2-D Cartesian 1G reflective (specular), ScanMarch matvec."""
+        self._assert_cart2d_arm(
+            snapshots, tag="cart2d_1g_specular", ng=1, bc_kind="specular",
+            seed=20260531 + 31,
+        )
+
+    def test_cart2d_1g_vacuum_apply_principled_equiv(self, snapshots):
+        """D5a.2 — 2-D Cartesian 1G vacuum, ScanMarch matvec.
+
+        Vacuum NULLS the reflective face-shed: pairs with the specular arm so a
+        BC-coupled fold bug (transverse face convention) is not hidden by the
+        reflective permutation path.
+        """
+        self._assert_cart2d_arm(
+            snapshots, tag="cart2d_1g_vacuum", ng=1, bc_kind="vacuum",
+            seed=20260531 + 32,
+        )
+
+    def test_cart2d_2g_specular_apply_principled_equiv(self, snapshots):
+        """D5a.2 — 2-D Cartesian 2G P1-asymmetric reflective, ScanMarch matvec.
+
+        ≥2G with asymmetric downscatter (ERR-002 detector) + reflective BC — the
+        Cardinal-6 multi-group + heterogeneous degeneracy-break for the matvec.
+        """
+        self._assert_cart2d_arm(
+            snapshots, tag="cart2d_2g_specular", ng=2, bc_kind="specular",
+            seed=20260531 + 33,
+        )
+
 
 class TestT4cAlgebraDecompositionInvariantCurvilinear:
     """A-2 / A-3 — curvilinear algebra-decomposition invariant.

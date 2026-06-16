@@ -139,11 +139,17 @@ def _sigt_2g(sn_mesh: SNMesh) -> np.ndarray:
 class TestVacuum2DBitIdentity:
     """Vacuum 2-D ``L.apply`` bulk is byte-identical to the committed snapshot.
 
-    E0-T1 already PROVED the bare 2-D vacuum bulk is bit-identical to the
-    pre-carve production path; this gate PINS that output as a permanent
-    regression reference.  Parametrized over ≥3 fixed seeds — a random ψ̄
-    stresses the diamond-difference bulk stencil (a flat ψ̄ would NULL the
-    redistribution, vv §H2).
+    This gate PINS the bare 2-D vacuum bulk matvec as a permanent strict
+    (``np.array_equal``) regression reference.  The committed baseline is the
+    **post-#240-D5a frozen value**: E0-T1 proved the bare 2-D vacuum bulk was
+    bit-identical to the pre-carve production path, and #240-D5a then
+    re-baselined it by ~1 ULP when the 2-D Cartesian matvec moved onto the
+    scheme coefficient model (the ``÷D → ×inverse_denom`` FP re-association — a
+    sanctioned principled re-baseline per ``vv-principles`` §"Bit-identity vs
+    principled-equivalence", NOT a bug).  Henceforth the bulk must not move a
+    single bit vs that frozen post-D5a snapshot.  Parametrized over ≥3 fixed
+    seeds — a random ψ̄ stresses the diamond-difference bulk stencil (a flat ψ̄
+    would NULL the redistribution, vv §H2).
     """
 
     @pytest.mark.parametrize("seed", [0, 1, 2])
@@ -153,9 +159,11 @@ class TestVacuum2DBitIdentity:
         Build a vacuum 2-D mesh, seed ``psi.bulk`` with fixed-seed random
         values and a ZERO inflow trace, apply the bare ``StreamingOperator``,
         and assert ``L.apply(psi).bulk.values`` is ``np.array_equal`` to the
-        committed baseline.  For vacuum the inflow trace is zero, so the bare
-        path reads exactly the zero edge the pre-carve path produced — the
-        bulk must not move a single bit.
+        committed baseline (the **post-#240-D5a** frozen value — see the class
+        docstring for the ~1-ULP coefficient-model re-baseline).  For vacuum the
+        inflow trace is zero, so the bare path reads exactly the zero edge the
+        bulk stencil produces — the bulk must not move a single bit vs the
+        frozen reference.
         """
         sn_mesh = _vacuum_2d(nx=4, ny=4)
         sig_t = _sigt_2g(sn_mesh)
@@ -191,8 +199,8 @@ class TestVacuum2DBitIdentity:
             err_msg=(
                 f"2-D vacuum seed={seed}: the bare 2-D matvec bulk moved a "
                 f"bit vs the committed snapshot — the keystone 2-D path was "
-                f"perturbed (E0-T1 proved this output is bit-identical to the "
-                f"pre-carve path; it must stay frozen)."
+                f"perturbed (the baseline is the post-#240-D5a frozen value; it "
+                f"must stay frozen vs that strict reference)."
             ),
         )
 

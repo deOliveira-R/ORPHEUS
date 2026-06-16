@@ -85,15 +85,37 @@ pytestmark = pytest.mark.foundation
 #   check / drift = GMRES-tol × ULP). The SI 2-D + slab hashes are UNTOUCHED
 #   (SI rides ``solve``, not ``apply`` — the carve's apply-only blast-radius
 #   pin).
+# * 2026-06-16 (#240 Phase 2 Step D5a) — ALL FOUR 2-D hashes regenerated (BOTH
+#   ``si_2d_p1_aniso_het`` AND ``krylov_2d_p1_aniso_het``). D5a folded the 2-D
+#   row-march ``ScanMarch._sweep_interior`` (SOLVE) + ``_loss_action_interior``
+#   (matvec) off inline DiamondDifference onto the scheme's coefficient model
+#   (#239): the SOLVE now consumes ``scheme.cartesian_scan_coefficients`` →
+#   ``(a, inverse_denom, w)`` + ``source_emission``/``cell_average`` (the
+#   ``×inverse_denom`` reciprocal form, replacing the ONE remaining inline ``÷D``
+#   DIVISION — so this is the same byte re-association the 1-D CumprodScan
+#   already rides, NOT a numerics change); the matvec rides
+#   ``scheme.residual_kernel_batch`` + ``reflect_scan_coefficients``. Both folds
+#   re-associate the 2-D cell-balance reduction ~1 ULP. The SI shift accumulates
+#   through source iteration (iter_count × ULP); the Krylov shift through GMRES
+#   (GMRES-tol × ULP). Verified structurally-independent: the post-fold SI 2-D φ
+#   (``.solve`` fold) and Krylov 2-D φ (``.apply`` fold) — DIFFERENT code paths —
+#   agree to 4.2e-12 rel, AND the ScanMarch≡FullFieldWavefront oracle
+#   (test_scan_march_equivalence.py) pins the value to the analytical
+#   ``k_inf``/``φ=Q/Σ_t`` grounds (vv-principles §"Bit-identity vs principled-
+#   equivalence" 3-criteria: named coefficient-model ops / two-path + oracle
+#   cross-check / drift = iter-or-GMRES-tol × ULP). The 1-D slab hashes are
+#   UNTOUCHED — D5a's blast radius is the 2-D row-march ONLY (the 1-D CumprodScan
+#   scan path is byte-identical), which is exactly the D5a.3 negative-control
+#   proof that the fold did not leak into the 1-D solve.
 GOLDEN = {
     "si_2d_p1_aniso_het_psi_sha":
-        "1befe8ddf69a915d46f56cba6ffae55fe8231cee45f48673ee42042b03bb8ac8",
+        "847f302c28cc3e096252412d7ce266f982c112b416178ddbd40be7a62d97459c",
     "si_2d_p1_aniso_het_phi_sha":
-        "b61b68c8c8b25ab587b745f5b5a78b45afb8ff212acac2ad3e682567f311f729",
+        "688e65b34c3563a54ae39bedf22ff533cd2518bdd6462752efe191912dc45713",
     "krylov_2d_p1_aniso_het_psi_sha":
-        "1688f5829be232366f46a04535ea2ff3990839d84ae5e60cebe35c68577cab9f",
+        "ae9b35efb3b4f3b09411db1dcd9d1201a60985bb7cbd7087e6dddbcba0a1a196",
     "krylov_2d_p1_aniso_het_phi_sha":
-        "0bcc9c2251e6ec875bd5e78650b1ea47a7f08fa5448b005d30af12338791e9ba",
+        "0c8a6ce13c9fcdd831fe421e59a5d24cc6571bb5b323edf2063571bda6cca749",
     "si_slab_2g_het_psi_sha":
         "353d7db054781af44dc4682ca3330c0c7490d54185bf5a3a8a83b83b85b4b1f3",
     "si_slab_2g_het_phi_sha":

@@ -1326,33 +1326,30 @@ class ScanMarch(_LossRepresentation):
         )
 
         # March the y-rows in the octant's y-sweep order, threading ψ_y.
+        scheme = self.mesh.scheme
         psi_y_in = inflow_y                          # (N_oct, ng, nx) — row-0 inflow
         out_y = psi_y_in                             # last-row out_y (ny ≥ 1 → set below)
         y_rows = range(ny) if sy_eff >= 0 else range(ny - 1, -1, -1)
         for j in y_rows:
-            # NOTE(#239): the 2-D row-march still INLINES DD's closure.  Since
-            # #240 the per-axis ``s`` is the RAW down-face streaming ``g``, so
-            # the diamond factor ``2 = 1/w_DD`` is applied HERE (denom x-term
-            # ``2g_x``, y-term ``2g_y``).  The coefficient-model lift — consume
-            # the scheme's affine coefficients like the 1-D ``CumprodScan``, so
-            # the ``2`` lives in the scheme and Linear-Discontinuous can ride
-            # the 2-D row-march — is deferred (#239).
-            sx2 = 2.0 * s_x[:, None, :]              # (N_oct, 1, nx) DD x denom-term 2g_x
-            sy2 = 2.0 * s_y[:, j][:, None, None]     # (N_oct, 1, 1)  DD y denom-term 2g_y
-            # D = σ_t + 2g_x + 2g_y on this row; the left-fold order
-            # ((σ_t + 2g_x) + 2g_y) is bit-id-load-bearing WITHIN a schedule.
-            D_row = (
-                sig_t[None, :, :, j]                 # (1, ng, nx)
-                + sx2
-                + sy2
-            )                                         # (N_oct, ng, nx)
-            alpha = 2.0 * sx2 / D_row - 1.0          # diamond closure 2 × denom-term 2g_x
-            beta = (
-                2.0 * (Q_oct[:, :, :, j] + sy2 * psi_y_in)
-                / D_row
+            # #239 coefficient-model lift: the row-march asks the SCHEME for its
+            # affine x-scan coefficients (the diamond ``2 = 1/w_DD`` + the
+            # transverse coupling ``c_y = 2 g_y`` live in the scheme, NOT inline
+            # here), so the scan-march is generic over every facewise closure
+            # (DD today; Step rides it free once Step exists).  The transverse-y
+            # ``g_y`` is the KNOWN-upstream 0th-order face value the row absorbs
+            # into the affine source (``transverse_coupling_is_facewise``).
+            a_scan, inverse_denom, w_row, (c_y,) = scheme.cartesian_scan_coefficients(
+                s_scan=s_x[:, None, :],              # (N_oct, 1, nx) RAW g_x
+                s_transverse=(s_y[:, j][:, None, None],),  # (N_oct, 1, 1) RAW g_y
+                sig_t=sig_t[None, :, :, j],          # (1, ng, nx) Σ_t on this row
+            )
+            # Affine source b = source_emission(Q + c_y·ψ_y, inverse_denom, w):
+            # the transverse-y direct term folds into the effective source.
+            beta = scheme.source_emission(
+                Q_oct[:, :, :, j] + c_y * psi_y_in, inverse_denom, w_row,
             )
             psi_avg_row, out_y, x_outflow = _scanmarch_row(
-                alpha, beta, inflow_x[:, :, j], psi_y_in, x_reverse,
+                a_scan, beta, inflow_x[:, :, j], psi_y_in, w_row, x_reverse,
             )
             psi_y_in = out_y
             capture_x[:, :, j] = x_outflow
@@ -1434,47 +1431,41 @@ class ScanMarch(_LossRepresentation):
         N_oct = oct_idx.size
 
         x_reverse = sx_eff < 0
-        alpha_reflect = np.full((N_oct, ng, nx), -1.0)   # α = −1, reused per row
+        scheme = self.mesh.scheme
         LpC_oct = np.empty((N_oct, ng, nx, ny))
         cap_x = np.empty((N_oct, ng, ny))            # domain x-outflow, per y-row
+        s_x_row = s_x[:, None, :]                    # (N_oct, 1, nx) RAW g_x — row-invariant
 
-        # March the y-rows in the octant's y-sweep order, reconstructing the
-        # transverse-y face ψ_y from the KNOWN probe (out_y = 2ψ̄ − ψy_in).
+        # March the y-rows in the octant's y-sweep order.  #239 coefficient-model
+        # lift: the scheme owns the diamond ``2`` and the blend ``w`` — the
+        # x-faces reconstruct off the probe via the scheme's reflection scan
+        # (``α = −1``, ``β = 2ψ̄`` for DD), and the per-cell residual + the
+        # transverse-y outflow ride the scheme's ``residual_kernel_batch`` (the
+        # ÷V matvec kernel every facewise closure shares).  No inline DD.
         psi_y_in = inflow_y                          # (N_oct, ng, nx) — row-0 inflow
         out_y = psi_y_in                             # last-row out_y (ny ≥ 1 → set below)
         y_rows = range(ny) if sy_eff >= 0 else range(ny - 1, -1, -1)
         for j in y_rows:
             psi_bar_row = probe_oct[:, :, :, j]      # (N_oct, ng, nx)
-            # Reconstruct the x-faces from the probe: out_x = 2ψ̄ − in_x.
+            # Reconstruct the x-faces from the KNOWN probe (scheme reflection
+            # scan ``ψ_out = α·ψ_in + β``; for DD ``out_x = 2ψ̄ − in_x``).
+            alpha_reflect, beta_reflect = scheme.reflect_scan_coefficients(
+                psi_bar_row,
+            )
             in_x_row, _out_x_row, x_outflow = _x_scan_faces(
-                alpha_reflect, 2.0 * psi_bar_row, inflow_x[:, :, j], x_reverse,
+                alpha_reflect, beta_reflect, inflow_x[:, :, j], x_reverse,
             )
-            # NOTE(#239): inline DD — since #240 ``s_x``/``s_y`` are the RAW
-            # down-face streaming ``g``, so the diamond ``2 = 1/w_DD`` is applied
-            # here (denom x-term ``2g_x``, y-term ``2g_y``). Coefficient-model
-            # lift (consume the scheme's affine coeffs) deferred (#239).
-            sx2 = 2.0 * s_x[:, None, :]              # (N_oct, 1, nx) DD x denom-term 2g_x
-            sy2 = 2.0 * s_y[:, j][:, None, None]     # (N_oct, 1, 1)  DD y denom-term 2g_y
-            D_row = (
-                sig_t[None, :, :, j]                 # (1, ng, nx)
-                + sx2
-                + sy2
+            # Per-cell residual (L+C)ψ̄ + the transverse-y outflow via the
+            # scheme's ÷V matvec kernel: residual = (Σ_t + Σ 2g_a)ψ̄ − Σ 2g_a·in_a
+            # at zero source; psi_out is the (out_x, out_y) face pair.
+            residual_row, (_out_x_face, out_y) = scheme.residual_kernel_batch(
+                psi_bar=psi_bar_row,
+                psi_in=(in_x_row, psi_y_in),
+                s_axes=(s_x_row, s_y[:, j][:, None, None]),
+                sigt_cells=sig_t[:, :, j],
+                Q_cells=np.zeros((1, ng, nx)),
             )
-            LpC_oct[:, :, :, j] = (
-                D_row * psi_bar_row
-                - sx2 * in_x_row
-                - sy2 * psi_y_in
-            )
-            # DD diamond reconstruction out_y = 2ψ̄ − ψ_y_in (the 2 here is the
-            # diamond MEAN — cell-average reconstruction, NOT the streaming
-            # factor; 2-D scan-march is DD-only, coefficient-model lift #239).
-            # The ``w=½`` generic affine outflow (byte-identical: ``÷0.5`` is
-            # exact ``×2``).  The β scan source ``2ψ̄`` at the ``_x_scan_faces``
-            # call above is a SCAN-recurrence term (not a direct
-            # reconstruction) and is left for the #239 coefficient-model lift.
-            out_y = self.mesh.scheme.outgoing_face_from_average(
-                psi_bar_row, psi_y_in, 0.5,
-            )
+            LpC_oct[:, :, :, j] = residual_row
             psi_y_in = out_y
             cap_x[:, :, j] = x_outflow
         return LpC_oct, (cap_x, out_y)

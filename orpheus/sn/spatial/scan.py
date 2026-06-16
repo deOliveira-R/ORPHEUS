@@ -314,38 +314,39 @@ def _scanmarch_row(
     beta: np.ndarray,
     psi_x_in: np.ndarray,
     psi_y_in: np.ndarray,
+    w: "float | np.ndarray",
     x_reverse: bool,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     r"""One y-row of the forward scan-march: x-scan, then recover :math:`\bar\psi`,
     the downstream y-face, and the domain x-outflow.
 
-    Solves the in-row x-face recurrence via :func:`_x_scan_faces` (the *solve*
-    coefficients ``α = 2 s_x/D − 1``, ``β = 2 (Q + s_y ψ_{y,in})/D``), then
-    closes the **Diamond-Difference** cell:
-    :math:`\bar\psi = \tfrac12 (\mathrm{in}_x + \mathrm{out}_x)` and
-    :math:`\mathrm{out}_y = 2\bar\psi - \psi_{y,\mathrm{in}}`.
+    Solves the in-row x-face recurrence via :func:`_x_scan_faces` (the scheme's
+    *solve* coefficients ``α = a``, ``β = source_emission(Q + c_y ψ_{y,in}, …)``
+    from
+    :meth:`~orpheus.sn.spatial.scheme.DiscretizationScheme.cartesian_scan_coefficients`),
+    then closes the cell **generically in the blend weight** ``w`` via the base
+    reconstruction staticmethods:
+    :math:`\bar\psi = (1-w)\,\mathrm{in}_x + w\,\mathrm{out}_x`
+    (:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average`)
+    and :math:`\mathrm{out}_y = (\bar\psi - (1-w)\,\psi_{y,\mathrm{in}})/w`
+    (:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`).
 
     .. note::
 
-       The 2-D scan-march is **Diamond-Difference-only** today: the ``α``/``β``
-       above already bake in DD's ``w=½`` diamond (the ``2`` factors), so the
-       closure is inlined here to match.  Since #240 the per-axis streaming the
-       caller feeds is the RAW ``g`` (the diamond ``2`` is applied in the
-       caller's ``_sweep_interior``, not the producer).  The 1-D paths moved to
-       the coefficient model (#158 Inc B) — the generic base reconstruction
-       staticmethods on
-       :class:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase`; lifting the 2-D
-       scan-march onto ``affine_scan_coefficients`` + those staticmethods (so
-       Linear-Discontinuous can ride the 2-D row-march) is the deferred 2-D
-       coefficient-model refactor (#239).
+       Since #239 the row-march is scheme-generic: the caller
+       (``ScanMarch._sweep_interior``) reads the diamond ``2`` and the blend
+       ``w`` off the scheme's ``cartesian_scan_coefficients`` (DD's
+       ``w = ½`` is the byte-identical special case — ``0.5*(in+out)`` equals
+       ``cell_average(in, out, ½)`` bit-for-bit, ``÷½`` being an exact ``×2``);
+       any ``transverse_coupling_is_facewise`` closure (DD today, Step next)
+       rides this body unchanged.  The bilinear LD closure rides the DAG
+       wavefront instead (#158 Inc D).
 
     Returns ``(psi_avg, out_y, x_outflow)`` — the cell average and the
     downstream y-face (the next row's ``psi_y_in``) in mesh order, and the
     domain x-outflow face value.
     """
     in_x, out_x, x_outflow = _x_scan_faces(alpha, beta, psi_x_in, x_reverse)
-    psi_avg = 0.5 * (in_x + out_x)              # DD diamond mean (w = ½)
-    # DD diamond reconstruction ``2ψ̄ − ψ_in`` = the ``w=½`` generic affine
-    # outflow (byte-identical: ``÷0.5`` is exact ``×2``).
-    out_y = DiscretizationSchemeBase.outgoing_face_from_average(psi_avg, psi_y_in, 0.5)
+    psi_avg = DiscretizationSchemeBase.cell_average(in_x, out_x, w)
+    out_y = DiscretizationSchemeBase.outgoing_face_from_average(psi_avg, psi_y_in, w)
     return psi_avg, out_y, x_outflow
