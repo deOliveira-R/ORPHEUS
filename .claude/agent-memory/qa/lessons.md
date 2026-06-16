@@ -443,6 +443,43 @@ confirming the cross-check passes — isolates "stale test input" from "code bug
 Prove the breaks are NEW (not pre-existing) by stash-pop: the 2 broke ONLY with
 the diff applied; on clean HEAD they pass. (Caught 2026-06-15 #240 Step A.)
 
+## L-024 -- affine-in-σ "value-correct leaf sum" carve: prove teeth bite by DISABLING the override
+
+#240 Step B: `InvertibleOperator.apply` overrides the inherited
+`OperatorSum.apply` (leaf sum `L.apply+C.apply`) to single-source σ from C via
+`loss_action(self.sigma)`. The matvec is AFFINE in σ in the FORWARD direction
+(`M(σ)ψ = streaming_action(ψ) + σ·ψ`), so the leaf sum is value-EQUAL to the
+override to ≤2 ULP — a value-correct-by-coincidence twin source, NOT a bug (no
+wrong value ever shipped). Verification consequences I confirmed:
+
+1. **Teeth gate MUST be `array_equal` (0 ULP), not allclose.** Only bit-identity
+   discriminates leak-vs-override (both are value-equal). PROVE the teeth bite
+   by DISABLING the override (rename `apply`→`_DISABLED_apply` so
+   `OperatorSum.apply` leaf-sum takes over) → all 7 teeth (4 fwd + 3 transpose)
+   FAIL at exactly the predicted ULP (max 1.42e-14 / 7.99e-15 rel = ≤2 ULP).
+   Restore byte-exact (sha256 match). This is the L-007/L-022 marker-removal
+   masking-check applied to a strict-xfail→pass flip.
+2. **NOT a `catches(ERR-NNN)`** — no wrong value shipped → `foundation` gate,
+   `verifies(...)` only. The carve says so explicitly and is right.
+3. **Migration loud-fail**: a missed caller passing an operator where the σ
+   ARRAY is expected → `AttributeError` on `sig_t.shape[0]` / `[None]` (the
+   dataclass operator has no `.shape`/`__getitem__`) — NOT a silent wrong-shaped
+   array. Confirm by grepping the operator class for `shape`/`__getitem__`.
+4. **Structurally-independent ref for a re-baselined Krylov golden = the SI
+   golden for the SAME config.** SI rides `solve` (no apply override); Krylov
+   rides matvec (override). They agree 3.9e-12 → the NEW Krylov value is CORRECT,
+   not merely close-to-OLD (vv criterion 2). The SI golden stays UNCHANGED (apply-
+   only blast radius) — that invariance IS the cross-check.
+5. **seed0 46-ULP flag = large-ULP@small-mag artifact** (maxabs 3.55e-15 ≡ the
+   CYL matvec order; rel ~7e-15). Masking-check (L-022): OLD CYL `.npy` HARD-FAILS
+   under NEW code (`46 ULP ≫ nulp=reduction_depth=5`) — proves the re-baseline
+   load-bearing; SPH untouched red STILL hard-fails (~1e15 ULP, #195/#209) —
+   proves the gate not globally loosened.
+6. **WATCH (fragility, not a blocker)**: an `array_equal` slab-apply value-pin is
+   SEED-DEPENDENT (seed=7 → 0 ULP, seed=0 → 1 ULP via `TimedFullField.__add__`).
+   Passes but brittle; acceptable because the teeth gate owns the structural
+   distinction and 1 ULP is FP noise. (Reviewed 2026-06-15 #240 Step B.)
+
 ## L-004 -- vv-status rationale comments must NOT use [brackets]
 
 The `:vv-status: documented` directive lives in the same RST file as

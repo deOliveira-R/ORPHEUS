@@ -2,7 +2,7 @@
 
 > **Durable in-repo recovery anchor** (the project rule: plans live in ORPHEUS/.claude/, not ~/.claude).
 > Parent: `.claude/plans/next_principled_polymorphism.md`. Branch `feature/sn-space-angle-tier2`.
-> Approved 2026-06-15. **STATUS: Step A DONE + committed `d717d4d`. Steps B/C/D NEXT.**
+> Approved 2026-06-15. **STATUS: Steps A + B DONE. Steps C/D NEXT.**
 
 ## Context (the user's redirect, 2026-06-15)
 
@@ -68,15 +68,38 @@ k∞≥2G = 41p); only the 7 pre-existing reds (#195/#209 SPH ×5, #214 mu_y ×2
 (NIT-2 = the `abs_mu/V[i]` dedup, tracked on #240; NIT-1 = optional naming in the #239 seam, left),
 qa SUPPORTED, Sphinx clean.
 
-### Step B — close the Σ matvec leak — NEXT
-`loss_action`/`loss_action_transpose` receive the diagonal from **C** (pass the `InvertibleOperator`,
-or thread σ explicitly) instead of `operator.sigma_t`; fix the 3 leak sites (`loss_representation.py:626,
-1824, 2268`) + keep the `StreamingOperator` Resolution-A `−σ⊙` subtraction consistent with the matvec
-σ. Leaf kernels + `cell_balance` need NO change (parameter-driven). NEW capability gate: build
-`InvertibleOperator(L, C(σ_r))` with σ_r ≠ σ_t and assert **matvec ≡ sweep** (true L21) — the test
-that would have caught the leak. Behavior-preserving for production (σ_t=σ_t today). Minimal-seam
-detail in the explorer Σ-flow memo (this session). `CollisionOperator.sigma` is the diagonal handle;
-`InvertibleOperator` exposes `.streaming`(L)/`.diagonal`(C)/`.sigma`.
+### Step B — close the Σ matvec leak — ✅ DONE (refactor, awaiting commit hash)
+⭐ **PREMISE REFRAME (proactive test-architect, verified):** the "Σ matvec leak" is **NOT a numerical
+bug.** The forward WDD matvec is **AFFINE in σ** — `M(σ)ψ = streaming_action(ψ) + σ·ψ` (in the apply
+direction ψ̄ is KNOWN, so σ enters as a clean `+σ·ψ̄`, NOT in a `1/denom`; the non-affinity is the
+SWEEP direction, where `.solve` already sources σ from C correctly). So the inherited leaf-sum
+`L.apply(σ_t)+C.apply(σ_r) = streaming_action(ψ)+σ_r·ψ = M(σ_r)ψ` was already value-correct. Step B is
+therefore a **correct-by-construction** carve (single-source σ; remove the operator-as-σ-carrier
+smell), NOT a correctness fix. The teeth gate is **bit-identity** (`op.apply == M(σ_C)` exactly — leak
+≤2 ULP off, override exact), not a round-trip (the round-trip passes under the unfixed code — no teeth).
+
+**Landed:** (1) protocol signature `loss_action`/`loss_action_transpose` `(operator, ψ)` → `(sigma, ψ)`
+across all 9 loss-rep classes (symmetric with `sweep(Q, sig_t, …)`; `operator` was read ONLY for
+`.sigma_t`). (2) `InvertibleOperator.apply`/`apply_transpose` OVERRIDES = `loss_action(self.sigma, ψ)`
+— the composite owns its matvec, σ single-sourced from C (the same σ `.solve` threads). (3)
+`_require_typed_composite` Pattern-2 shared input guard (both `StreamingOperator` + `InvertibleOperator`).
+NEW gate `tests/sn/operators/test_removal_form_matvec_sweep.py` (the 7 bit-identity teeth + value-ground
++ production-σ guard + the σ_r>0 negative; `verifies("loss-rep-resolution-a")`; the #200 k_inf ground is
+xfail). **Re-baselines (principled, ≤5 ULP — the override drops the `(x−σψ)+σψ` round-trip):**
+`matvec_bulk_{SPH,CYL}`, `vacuum_bulk_CYL_seed{0,1,2}`, the `krylov_2d_p1_aniso_het` golden; SWEEP/SOLVE
+bit-identical (slab/sphere); structural-independence = SI≡Krylov 3.9e-12 (SI golden unchanged).
+**Reviews:** qa SUPPORTED 5/5 (teeth empirically bite; migration fails LOUDLY — `StreamingOperator` has
+no `.shape`); elegance PASS (2 NITs FIXED: NIT-1 diagonal-naming `sigma`/`sigma_gx` on the forward
+`_apply_walk` thread + `_OctantWalk` alias removal; NIT-2 stale class docstring + capability block);
+archivist 5-subsection theory narrative, Sphinx clean. **1 real bug caught (pyright) + fixed:** the
+`_OctantWalk.pure_z` `sig_t` NameError from the alias removal → `sigma`. Gates: 1080 passed (full set),
+505 passed (strict DriftWarning, zero escalation), Sphinx clean (only pre-existing `paramref`).
+
+⏭ **Step-D follow-up noted:** the deeper 2-D `_ApplyOperands.sig_t` field + interior-kernel σ-param
+naming still assert σ_t (cascades into `diamond.py`); that rename rides Step D's cell-coefficient-
+assembly relocation. NIT-1 was deliberately bounded to the forward `_apply_walk` thread (elegance-
+enforcer's explicit scope); the `_run` SWEEP locals (`sig_t_p`/`sigma_t_gx`) stay σ_t-canonical (sweep
+contract). Recovery: `.claude/agent-memory/method-implementer/issue_240_phase2_stepb_closeout.md`.
 
 ### Step C — affine-closure free functions → SN loss-rep methods — after B
 Move `cell_average`/`source_emission`/`outgoing_face_from_average` (add the missing inverse op
