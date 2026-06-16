@@ -130,8 +130,10 @@ proactive test-architect FIRST), two threads:
   (`CollisionCache`/`from_geometry` is 1-D-only) + the transverse `s_y·ψ_y` folded into
   `source_emission`. Principled ~1-ULP re-baseline (#158-B1; two-paths oracle + cart2d apply snapshot,
   Mode-9 het/non-square/diagonal cubature).
-* **D5b — N-dim LD on the DAG wavefront — SUBSUMES #158 Increment D (#38).** ⭐ **RESHAPED by the
-  D5 literature pass** (`.claude/agent-memory/literature-researcher/multi_d_ld_closure.md`): the
+* **D5b — N-dim LD on the DAG wavefront — SUBSUMES #158 Increment D (#38).**
+  **⭐⭐⭐ Full self-contained D5b design = `.claude/plans/issue_240_phase2_step_d5b_ubld.md`
+  (READ FIRST — the authoritative recovery anchor; the summary below is the digest).**
+  ⭐ **RESHAPED by the D5 literature pass** (`.claude/agent-memory/literature-researcher/multi_d_ld_closure.md`): the
   "BILINEAR = one slope per axis (`1+d` moments)" intuition is **WRONG for Cartesian cells**. Two
   distinct objects: the **simplex-P1 LD** (`{1,x,y}`, `1+d` moments) **FAILS the thick-diffusion
   limit on quadrilaterals** (Adams 2001, NSE 137); the **tensor-product UBLD** (`{1,x,y,xy}`, **`2^d`
