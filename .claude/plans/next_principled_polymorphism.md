@@ -22,7 +22,19 @@
   scan-solve byte-id 505/1/4; operators 7 pre-existing reds only; sweep/spatial 544;
   analytical+MMS+regression 118; LD matvec≡sweep + two-paths green; SPH reds NOT
   masked (hard-fail ~1e15 ULP).
-- **Phase 2 (s_axes=g + #239 + DiscretizationScheme rename + audit): NEXT.** test-architect FIRST.
+- **Phase 2 — SCOPE EXPANDED (user redirect 2026-06-15) to a 3-LAYER SEPARATION:
+  agnostic DiscretizationScheme (basis only) · SN loss-representation (owns its
+  realization, consumes the InvertibleOperator's Σ — not `L.sigma_t`) · the
+  InvertibleOperator (Σ-choice lives in C). AUTHORITATIVE detail + staging now in
+  `.claude/plans/issue_240_phase2_layer_separation.md` (the §"Phase 2" below is the
+  SUPERSEDED narrower s_axes=g+#239 framing — kept for the convention analysis).**
+  Staged A→B→C→D: **Step A (s_axes=g) ✅ DONE + committed `d717d4d`** (bit-identical;
+  elegance PASS-WITH-NITS, qa SUPPORTED, Sphinx clean). **Step B (close the Σ matvec
+  leak) NEXT**, then C (affine-closure free funcs → SN loss-rep methods) + D
+  (scheme basis-only + relocate assembly + rename + #239; needs a design pass).
+  Two investigations grounded it: diffusion-mirror (`affine_closure` is SN-specific,
+  not agnostic) + InvertibleOperator Σ-flow trace (`.solve` honors C, matvec leaks
+  `L.sigma_t` — silent L21 break under a removal-form operator).
 
 ## Architecture model — the diffusion-mirror factoring (Phase 2 rationale + the deferred target)
 

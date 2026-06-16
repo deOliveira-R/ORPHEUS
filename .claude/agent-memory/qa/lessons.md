@@ -415,6 +415,34 @@ boundary gate is `assert_regression` not strict, but is exactly as strict as
 `assert_array_equal` under the canonical `-W error::DriftWarning` -- prove it by
 running the snapshot class under that flag: #240 = 18 passed / 0 escalations).
 
+## L-023 -- convention-relocation re-baseline: scan the WHOLE tree for the OLD-convention literal, not just the diff's touched tests
+
+When a kernel's input contract changes convention (#240: `SNMesh.streaming` /
+`s_axes` went from pre-scaled `2|μ|/Δ` to RAW `g=|μ|/Δ`, with the scheme now
+applying the diamond `2`), EVERY test that hand-feeds the kernel the OLD literal
+is now passing physically-wrong input. The diff author re-baselined the
+convention-encoding tests in the SAME directory as the code change
+(`tests/sn/sweep/core/`) but MISSED 3 sites in a SIBLING dir
+(`tests/sn/spatial/test_linear_discontinuous.py:272/303/340`, all
+`s_axes=(2.0*mu/h,)`). 2 of the 3 broke (the geometry-cross-checks
+`test_group1_equals_group2_flat` + `test_group3_equals_group2_scan_flat`: one
+arm feeds the stale literal to `cell_kernel_batch`, the other derives `g` from
+`abs_mu`/`V` correctly → divergence). The 3rd (`test_batched_round_trip`)
+SURVIVED because it is a self-consistency round-trip (both arms share the stale
+`s_axes`; residual at solved ψ̄ vanishes regardless of convention — the L-018
+trap: a round-trip does NOT pin a convention).
+
+**Recipe**: after confirming the touched-file gates pass, `grep -rn` the WHOLE
+test tree for the OLD-convention literal (`2.0 *mu/ *h`, `2.0 *np.abs.*/widths`,
+`s_axes=.*2\.0\*`, `streaming\(.\).*2\.0\*`). For each hit, classify: a
+cross-check against a geometry-derived value WILL break (genuine missed
+re-baseline → main goes red); a self-consistency round-trip survives but is now
+feeding wrong physics (latent stale-convention test → fix for intent). Prove
+the kernel is CORRECT (not buggy) by feeding the NEW literal locally and
+confirming the cross-check passes — isolates "stale test input" from "code bug".
+Prove the breaks are NEW (not pre-existing) by stash-pop: the 2 broke ONLY with
+the diff applied; on clean HEAD they pass. (Caught 2026-06-15 #240 Step A.)
+
 ## L-004 -- vv-status rationale comments must NOT use [brackets]
 
 The `:vv-status: documented` directive lives in the same RST file as
