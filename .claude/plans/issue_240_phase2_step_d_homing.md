@@ -3,7 +3,9 @@
 > **Durable in-repo recovery anchor** (project rule: plans live in ORPHEUS/.claude/, not ~/.claude).
 > Parent: `.claude/plans/next_principled_polymorphism.md` / `issue_240_phase2_layer_separation.md`.
 > Branch `feature/sn-space-angle-tier2`. Approved 2026-06-16.
-> **STATUS: D1–D4 DONE + committed. D5 (#239) + D6 (docs) NEXT.**
+> **STATUS: D1–D4 DONE + committed. D5 (RE-SCOPED — a CAMPAIGN: #239 N-D DD scan-march +
+> N-dim LD / complete polymorphism, subsumes #158 Inc D) + D6 (docs) NEXT. Pick up at D5's
+> design pass (proactive test-architect FIRST). See the D5 section + [[project-issue-158-ld-dag]].**
 > Commits: A+B `f0d68c3`/`4937c3a` · D1 `8bc1a49` · D2 `784edeb` · D3 `4f04126` · D4 `c40a341`
 > (+ chore records each). D4 finding: scheme was ALREADY Σ-stateless → D4 = the
 > diffusion-readiness contract gate + the Base interface note (no code change). The deferred
@@ -95,10 +97,40 @@ reaction-rate (Σ) as an EXPLICIT param sourced from C (extends Step B); scheme 
 state. Interface → `(wave-speed, reaction-rate, source, geometry) → coefficients/cell-update`,
 diffusion-ready. `cell_balance.total_xs` already supports this.
 
-**D5 — #239 (2-D Cartesian ScanMarch onto the coefficient model).** Needs the new
-`outgoing_face_from_average` + a 2-D coefficient cache (`CollisionCache` is 1-D-only) + the
-transverse `s_y·ψy` folded into `source_emission`. Principled ~1-ULP re-baseline (#158-B1).
-DD/slopeless-only (bilinear 2-D LD out of scope, #158 Inc D). MAY split off.
+**D5 — complete spatial-closure polymorphism in N-D (#239 + N-dim LD).** ⭐ RE-SCOPED by the
+user (2026-06-16): *"LD, like any other spatial closure, needs to be able to run on all sweep
+strategies."* Complete-polymorphism principle ([[feedback-principled-over-bit-identical]],
+"equivalent capabilities across polymorphism"): every spatial closure (DD/Step/LD) must have a
+VALID path on every sweep strategy in every dimension; the only permitted exclusions are
+STRUCTURAL (declared via `supports()`/`Compatibility(reason)`), never arbitrary code gaps.
+**CURRENT GAP: LD is 1-D-ONLY** — it rides `CumprodScan` (1-D scan) but its multi-D kernel
+(`_kernel_terms`/`cell_kernel_batch`) RAISES `NotImplementedError` for `len(s_axes) != 1`. DD runs
+1-D + N-D (scan + wavefront); LD's N-D is the hole. D5 is now a CAMPAIGN (own design pass + a
+proactive test-architect FIRST), two threads:
+
+* **D5a — #239: the N-D DD scan-march onto the coefficient model.** The 2-D `ScanMarch`
+  (`loss_representation.py` `_sweep_interior`/`_loss_action_interior`) inlines DD `2g`/`alpha`/`beta`;
+  fold onto the coefficient model via `outgoing_face_from_average` (D1) + an **N-D coefficient cache**
+  (`CollisionCache`/`from_geometry` is 1-D-only) + the transverse `s_y·ψ_y` folded into
+  `source_emission`. Principled ~1-ULP re-baseline (#158-B1; two-paths oracle + cart2d apply snapshot,
+  Mode-9 het/non-square/diagonal cubature).
+* **D5b — N-dim LD (bilinear multi-axis slope) — SUBSUMES #158 Increment D (#38).** LD's multi-D
+  closure is BILINEAR (independent slope per axis) → does NOT fit the scan-march's "x-scan +
+  transverse-DIRECT-y" (transverse coupling is a SLOPE, not a face value), so LD-in-N-D rides the
+  **DAG wavefront** (`cell_kernel_batch`/`residual_kernel_batch`, the full per-cell bilinear Schur),
+  NOT the scan-march. Close the arbitrary code gap: LD's `_kernel_terms`/`cell_kernel_batch` handle
+  `len(s_axes) > 1` (the multi-axis Schur). Then LD runs N-D on the wavefront; the scan-march stays a
+  DD/Step (slopeless) OPTIMIZATION whose `supports()` returns `Compatibility(False, "bilinear slope
+  coupling needs the wavefront")` for LD-in-N-D — a STRUCTURAL exclusion (mathematically true, like
+  "can't invert streaming without collision"), NOT a polymorphism violation. Verify: each scheme has
+  ≥1 valid strategy per dim; routing-flip (DD≠LD same config); LD's absolute anchor (multi-D LD MMS
+  O(h²) — the LM-1989 slope-sign trap, the recurring `Q̂≠0` slope-source coverage gap the elegance/qa
+  reviews flagged).
+
+**Connections:** the `SweepStrategy` first-class abstraction (`.claude/plans/sn_sweep_strategy.md` —
+protocol `sweep`+`residual`+`supports`; `Compatibility(ok,reason)` selection on `is_cartesian`+`ndim`)
+is the natural home for the `supports()` exclusions; #158 Increment D (#38) is SUBSUMED. `is_affine_scannable`
+likely needs to be dimension-aware (LD: True 1-D / False multi-D) OR `supports()` carries it.
 
 **D6 — docs + next-campaign issue.** Archivist: add Step/DD/LD ↔ advection-scheme
 correspondence to `docs/theory/discrete_ordinates.rst` + scheme docstrings (upwind/box-central/
@@ -114,9 +146,15 @@ product** (extract curvilinear angular redistribution → distinct AngularScheme
   (baseline 505/1/4). Rename: migrate name/attr-pinned tests; oracle/solver tests survive.
 * **D4: bit-identical** prod + a NEW capability gate (explicit reaction-rate ≠ mesh Σ → matches
   direct build), mirroring Step B's removal-form teeth.
-* **D5: ~1-ULP** — two-paths oracle `test_scanmarch_sweep_equals_oracle`/`_residual_equals_oracle`
-  + a cart2d apply arm on `TestT4bPreT4RegressionSnapshot` (Mode-9: het/2G-asym/non-square,
-  diagonal cubature).
+* **D5a (#239 DD scan-march): ~1-ULP** — two-paths oracle `test_scanmarch_sweep_equals_oracle`/
+  `_residual_equals_oracle` + a cart2d apply arm on `TestT4bPreT4RegressionSnapshot` (Mode-9:
+  het/2G-asym/non-square, diagonal cubature).
+* **D5b (N-dim LD): NEW capability** (not bit-id) — multi-D LD MMS O(h²) on the wavefront (the
+  LM-1989 slope-sign trap; MUST include a non-vanishing slope source `Q̂≠0`, the recurring coverage
+  gap); a per-(scheme×strategy×dim) coverage matrix (every scheme has ≥1 valid strategy per dim;
+  `supports()` rejects LD-on-scan-march-in-N-D with the structural reason, asserted as a NEGATIVE
+  gate); routing-flip DD≠LD on the same N-D config. ⚠ proactive **test-architect FIRST** — this is a
+  cross-strategy/cross-dim carve (the L17 trigger) AND a new L0/L1 reference (multi-D LD MMS).
 * **Basis/contract gate (vv L11):** thin scheme exposes basis/traits; recon ops reachable as
   Base methods; Mode-8 negative arms use `pytest.fail`.
 * **Routing-flip (#158-B3 analogue):** DD vs LD same 1-D het 2G → DIFFERENT + each scheme's
