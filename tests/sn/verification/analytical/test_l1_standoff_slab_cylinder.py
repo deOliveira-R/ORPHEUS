@@ -29,7 +29,7 @@ References (semi-analytical pillar per ``vv-principles``):
   boundary recurrence).
 
 Sweep route (``inner_solver="source_iteration"``) routes through
-``transport_sweep`` / ``CellUpdate.update``, which uses WDD
+``transport_sweep`` / ``DiscretizationScheme.update``, which uses WDD
 (Cartesian) / the same per-cell algebra as
 :func:`transport_operator_matvec_unified` (curvilinear).
 """
@@ -180,7 +180,7 @@ def test_cylinder_l1_sweep_vs_trajectory_resolvent() -> None:
     r"""**Cylinder Leg 2** — sweep ≡ trajectory_resolvent reference.
 
     Production source-iteration path (``transport_sweep`` /
-    ``CellUpdate.update``) on the 3-region 2G ABA cylinder. No shim:
+    ``DiscretizationScheme.update``) on the 3-region 2G ABA cylinder. No shim:
     the sweep already uses the WDD-correct per-cell algebra that the
     unified matvec also wraps.
     """

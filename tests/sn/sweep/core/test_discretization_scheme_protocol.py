@@ -1,10 +1,10 @@
-"""Software-contract tests for the CellUpdate protocol.
+"""Software-contract tests for the DiscretizationScheme protocol.
 
 These tests exercise the **strategy contract** shipped in Round 1 of
 Wave C of the SN reshape campaign — the
-:class:`~orpheus.sn.spatial.cell_update.CellUpdate` ``Protocol`` plus
-the :class:`~orpheus.sn.spatial.cell_update.UpstreamState` and
-:class:`~orpheus.sn.spatial.cell_update.CellResult` dataclasses.  The
+:class:`~orpheus.sn.spatial.scheme.DiscretizationScheme` ``Protocol`` plus
+the :class:`~orpheus.sn.spatial.scheme.UpstreamState` and
+:class:`~orpheus.sn.spatial.scheme.CellResult` dataclasses.  The
 L1 transport math is verified transitively via the existing sweep
 MMS suite; these tests are software-contract claims (runtime
 checkability, immutability, slab vs curvilinear discrimination) and
@@ -32,9 +32,9 @@ from orpheus.geometry import (
     spherical_streaming,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.spatial.cell_update import (
+from orpheus.sn.spatial.scheme import (
     CellResult,
-    CellUpdate,
+    DiscretizationScheme,
     CellVisit,
     UpstreamState,
 )
@@ -45,7 +45,7 @@ from orpheus.sn.spatial.cell_update import (
 # ═══════════════════════════════════════════════════════════════════════
 
 @dataclass(frozen=True, slots=True)
-class IdentityCellUpdate:
+class IdentityDiscretizationScheme:
     """Synthetic strategy: trivial closure ``ψ_avg = source / Σ_t``.
 
     Returns ``outgoing_spatial_flux=None`` and
@@ -69,7 +69,7 @@ class IdentityCellUpdate:
         source: np.ndarray,
         upstream_state: UpstreamState,
     ) -> CellResult:
-        del visit, upstream_state  # unused by IdentityCellUpdate
+        del visit, upstream_state  # unused by IdentityDiscretizationScheme
         return CellResult(
             cell_average_flux=source / total_xs,
             outgoing_spatial_flux=None,
@@ -86,15 +86,15 @@ class IdentityCellUpdate:
     ) -> np.ndarray:
         """Apply-direction companion to :meth:`update`.
 
-        ``IdentityCellUpdate`` solves ``Σ_t · ψ = q``, so the residual
+        ``IdentityDiscretizationScheme`` solves ``Σ_t · ψ = q``, so the residual
         is ``Σ_t · cell_avg − source``.  At ``cell_avg = source / Σ_t``
         the residual is zero by construction.
         """
-        del visit, upstream_state  # unused by IdentityCellUpdate
+        del visit, upstream_state  # unused by IdentityDiscretizationScheme
         return total_xs * cell_avg - source
 
 @dataclass(frozen=True, slots=True)
-class BadCellUpdate:
+class BadDiscretizationScheme:
     """Synthetic non-strategy: missing the ``update`` method.
 
     Used to verify that the runtime-checkable Protocol correctly
@@ -212,22 +212,22 @@ def _spherical_mesh() -> Mesh1D:
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestProtocolConformance:
-    """``isinstance`` runtime-checkable semantics on the CellUpdate Protocol."""
+    """``isinstance`` runtime-checkable semantics on the DiscretizationScheme Protocol."""
 
     @pytest.mark.foundation
     def test_identity_strategy_is_recognized(self):
-        strat = IdentityCellUpdate()
-        assert isinstance(strat, CellUpdate)
+        strat = IdentityDiscretizationScheme()
+        assert isinstance(strat, DiscretizationScheme)
 
     @pytest.mark.foundation
     def test_bad_strategy_is_rejected(self):
-        bad = BadCellUpdate()
-        assert not isinstance(bad, CellUpdate)
+        bad = BadDiscretizationScheme()
+        assert not isinstance(bad, DiscretizationScheme)
 
     @pytest.mark.foundation
     def test_curvilinear_strategy_is_recognized(self):
         strat = FakeCurvilinearStrategy()
-        assert isinstance(strat, CellUpdate)
+        assert isinstance(strat, DiscretizationScheme)
 
 
 class TestTraitAttributes:
@@ -235,10 +235,10 @@ class TestTraitAttributes:
 
     @pytest.mark.foundation
     def test_identity_traits(self):
-        assert IdentityCellUpdate.is_linear is True
-        assert IdentityCellUpdate.is_positivity_preserving is True
+        assert IdentityDiscretizationScheme.is_linear is True
+        assert IdentityDiscretizationScheme.is_positivity_preserving is True
         # Also accessible on the instance
-        s = IdentityCellUpdate()
+        s = IdentityDiscretizationScheme()
         assert s.is_linear is True
         assert s.is_positivity_preserving is True
 

@@ -28,10 +28,10 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D, slab_streaming
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial import LinearDiscontinuous, UpstreamState
-from orpheus.sn.spatial.cell_update import CellResult, CellUpdateBase, CellVisit
+from orpheus.sn.spatial.scheme import CellResult, DiscretizationSchemeBase, CellVisit
 
-cell_average = CellUpdateBase.cell_average
-source_emission = CellUpdateBase.source_emission
+cell_average = DiscretizationSchemeBase.cell_average
+source_emission = DiscretizationSchemeBase.source_emission
 
 
 def _slab_mesh(nx: int = 5, length: float = 1.0) -> Mesh1D:
@@ -216,12 +216,12 @@ class TestLDTraits:
 
     @pytest.mark.foundation
     def test_registered_under_key(self) -> None:
-        assert CellUpdateBase.registry["linear_discontinuous"] is LinearDiscontinuous
+        assert DiscretizationSchemeBase.registry["linear_discontinuous"] is LinearDiscontinuous
 
     @pytest.mark.foundation
     def test_create_from_registry(self) -> None:
         assert isinstance(
-            CellUpdateBase.create("linear_discontinuous"), LinearDiscontinuous,
+            DiscretizationSchemeBase.create("linear_discontinuous"), LinearDiscontinuous,
         )
 
 

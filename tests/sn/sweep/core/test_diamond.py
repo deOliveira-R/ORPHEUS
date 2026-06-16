@@ -60,7 +60,7 @@ from orpheus.geometry import (
 from orpheus.geometry.reduced_operator import StreamingTerms
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial import DiamondDifference, UpstreamState
-from orpheus.sn.spatial.cell_update import CellVisit
+from orpheus.sn.spatial.scheme import CellVisit
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -747,29 +747,29 @@ class TestPositivityFailure:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Issue 9.6 — CellUpdateBase registry membership
+# Issue 9.6 — DiscretizationSchemeBase registry membership
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class TestCellUpdateBaseRegistry:
+class TestDiscretizationSchemeBaseRegistry:
     """``DiamondDifference`` self-registers under ``key="diamond_difference"``."""
 
     @pytest.mark.foundation
     def test_diamond_difference_registered(self) -> None:
-        from orpheus.sn.spatial.cell_update import CellUpdateBase
+        from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
         from orpheus.sn.spatial.diamond import DiamondDifference
 
-        assert "diamond_difference" in CellUpdateBase.registry
+        assert "diamond_difference" in DiscretizationSchemeBase.registry
         assert (
-            CellUpdateBase.registry["diamond_difference"] is DiamondDifference
+            DiscretizationSchemeBase.registry["diamond_difference"] is DiamondDifference
         )
 
     @pytest.mark.foundation
     def test_diamond_difference_factory_returns_concrete(self) -> None:
-        from orpheus.sn.spatial.cell_update import CellUpdateBase
+        from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
         from orpheus.sn.spatial.diamond import DiamondDifference
 
-        instance = CellUpdateBase.create("diamond_difference")
+        instance = DiscretizationSchemeBase.create("diamond_difference")
         assert isinstance(instance, DiamondDifference)
 
 
@@ -794,7 +794,7 @@ def _slab_visit_inputs(
 
     Returns ``(visit, total_xs, source, upstream)``.  ``source`` is
     already weight-normalised (``Q · chord · weight_norm``) per the
-    :class:`CellUpdate` contract — the helper does the bookkeeping
+    :class:`DiscretizationScheme` contract — the helper does the bookkeeping
     here so tests stay focused on the residual contract.
     """
     mesh = _slab_mesh(nx=nx, length=1.0)

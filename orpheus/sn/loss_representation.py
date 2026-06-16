@@ -129,7 +129,7 @@ import numpy as np
 # bodies share one home, so the historical load-time import cycle is gone.
 from orpheus.geometry import CoordSystem
 
-from .spatial.cell_update import UpstreamState
+from .spatial.scheme import UpstreamState
 from .spatial.psi_half_angle_seed import CarlsonSweepContext
 from .spatial.scan import _scanmarch_row, _x_scan_faces, ordinate_scan
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
@@ -709,7 +709,7 @@ class CumprodScan(_LossRepresentation):
     @classmethod
     def supports(cls, mesh: "SNMesh") -> Compatibility:
         return Compatibility(
-            mesh.is_1d and mesh.cell_update.is_affine_scannable,
+            mesh.is_1d and mesh.scheme.is_affine_scannable,
             "requires a 1-D mesh with an affine-scannable cell-update scheme",
         )
 
@@ -898,7 +898,7 @@ class MovingFrontierWindow(_DAGWavefront):
         )
         graph.walk_windowed(
             level_op=_CellSolve(
-                cell_update=self.mesh.cell_update,
+                scheme=self.mesh.scheme,
                 weights_octant=emit.weights[oct_idx],
                 angular_flux_octant=angular_flux_oct,
                 scalar_flux_buf=emit.scalar_flux,
@@ -960,7 +960,7 @@ class MovingFrontierWindow(_DAGWavefront):
         capture = tuple(np.empty_like(face) for face in inflow)
         graph.walk_windowed(
             level_op=_CellResidual(
-                cell_update=self.mesh.cell_update,
+                scheme=self.mesh.scheme,
                 psi_avg_probe_octant=operands.probe[oct_idx],
                 residual_octant=LpC_oct,
             ),
@@ -1101,7 +1101,7 @@ class FullFieldWavefront(_DAGWavefront):
         angular_oct = np.zeros((oct_idx.size, ng, *spatial))
         graph.walk_full(
             level_op=_CellSolve(
-                cell_update=self.mesh.cell_update,
+                scheme=self.mesh.scheme,
                 weights_octant=emit.weights[oct_idx],
                 angular_flux_octant=angular_oct,
                 scalar_flux_buf=emit.scalar_flux,
@@ -1159,7 +1159,7 @@ class FullFieldWavefront(_DAGWavefront):
         LpC_oct = np.zeros((oct_idx.size, ng, *spatial))
         graph.walk_full(
             level_op=_CellResidual(
-                cell_update=self.mesh.cell_update,
+                scheme=self.mesh.scheme,
                 psi_avg_probe_octant=operands.probe[oct_idx],
                 residual_octant=LpC_oct,
             ),
@@ -1226,7 +1226,7 @@ class ScanMarch(_LossRepresentation):
     def supports(cls, mesh: "SNMesh") -> Compatibility:
         return Compatibility(
             (mesh.is_1d or (mesh.is_cartesian and mesh.ndim == 2))
-            and mesh.cell_update.is_affine_scannable,
+            and mesh.scheme.is_affine_scannable,
             "requires an affine-scannable cell-update scheme on a 1-D mesh "
             "(any geometry) or a 2-D Cartesian mesh (the d≥3 row-march "
             "kernels are deferred — the full-field spine serves d≥3)",
@@ -1452,7 +1452,7 @@ class ScanMarch(_LossRepresentation):
             # exact ``×2``).  The β scan source ``2ψ̄`` at the ``_x_scan_faces``
             # call above is a SCAN-recurrence term (not a direct
             # reconstruction) and is left for the #239 coefficient-model lift.
-            out_y = self.mesh.cell_update.outgoing_face_from_average(
+            out_y = self.mesh.scheme.outgoing_face_from_average(
                 psi_bar_row, psi_y_in, 0.5,
             )
             psi_y_in = out_y
@@ -1559,7 +1559,7 @@ def transport_sweep(
 
     Boundary conditions are read from ``sn_mesh`` (resolved at
     construction time from the geometry mesh's :class:`BC` declarations).
-    The cell-update strategy is read from ``sn_mesh.cell_update``
+    The cell-update strategy is read from ``sn_mesh.scheme``
     (defaults to :class:`DiamondDifference`).
 
     Single-source contract (R-1 Step 4 A1)
@@ -1796,7 +1796,7 @@ class _OneDimScanWalk:
 
         For the rare degenerate cylindrical pure-azimuthal ordinate
         (``geom.is_degenerate[n] == True``, ``|η| < 10^{-15}``), the scan
-        is meaningless and the slow per-cell ``cell_update.update`` path
+        is meaningless and the slow per-cell ``scheme.update`` path
         runs instead.
 
         Cache provenance
@@ -1810,7 +1810,7 @@ class _OneDimScanWalk:
         ---------------------
 
         The cache-driven path produces algebraically the SAME values as the
-        per-cell ``cell_update.update`` reference iteration (the Pattern 2
+        per-cell ``scheme.update`` reference iteration (the Pattern 2
         dual-view contract).  The cache's ``a_attenuation`` field IS the
         per-ordinate sequence of transmission coefficients that
         Step 2.5b's ``affine_coefficients`` builder produced — but
@@ -1917,7 +1917,7 @@ class _OneDimScanWalk:
         scheme-specific density residual (#158 the coefficient model):
 
         * **Cartesian (every affine scheme)** —
-          ``cell_update.residual_kernel_batch`` (the ÷V ``g=|μ|/Δ`` kernel)
+          ``scheme.residual_kernel_batch`` (the ÷V ``g=|μ|/Δ`` kernel)
           returns the density residual AND the outgoing face in one call.  DD and
           LD route through it UNIFORMLY (#158/#240) — DD reproduces its diamond
           march, LD its Schur residual, with no scheme branch.  ``s = 2|μ|/Δ`` is
@@ -2067,7 +2067,7 @@ class _OneDimScanWalk:
                         # single-sourcing it (``streaming(0)[global_dir, i]``) is a
                         # deferred follow-up pending a widths-vs-volumes bit-id check.
                         resid, (psi_out_cell,) = (
-                            sn_mesh.cell_update.residual_kernel_batch(
+                            sn_mesh.scheme.residual_kernel_batch(
                                 psi_bar=psi_cell.T[:, :, None],          # (K, ng, 1)
                                 psi_in=(psi_face_in.T[:, :, None],),
                                 s_axes=((abs_mu / V[i])[:, None, None],),
@@ -2453,7 +2453,7 @@ class _OneDimScanWalk:
             # 1-D meshes: sig_t is the principled (ng, nx) layout the cache
             # expects natively (rank-d (N, ng, *spatial); no phantom ny axis).
             sig_t_1d = sig_t  # (ng, nx)
-            cache = CollisionCache.from_geometry(geom, sig_t_1d, self.mesh.cell_update)
+            cache = CollisionCache.from_geometry(geom, sig_t_1d, self.mesh.scheme)
             self.mesh._coll_cache = cache  # type: ignore[attr-defined]
         return cache
 
@@ -2513,7 +2513,7 @@ class _OneDimScanWalk:
         Q_per_ord = Q                                            # (N, ng, nx)
         sig_t_p = sig_t                                          # (ng, nx)
         V = self.mesh.volumes                                      # (nx,) — no group axis
-        cell_update = self.mesh.cell_update
+        scheme = self.mesh.scheme
 
         coord = self.mesh.reduced.coord  # type: ignore[union-attr]
         is_slab = coord is CoordSystem.CARTESIAN
@@ -2634,7 +2634,7 @@ class _OneDimScanWalk:
                 # Affine source emission b = QV·inverse_denom/w (#158 coefficient
                 # model — DD's 2·QV·inv is the w=½ case).  (K, ng, nx);
                 # ordinate_scan wants the cell axis leading → transpose.
-                b_chain = self.mesh.cell_update.source_emission(
+                b_chain = self.mesh.scheme.source_emission(
                     QV_full_chain, inv_denom_chain, w_chain,
                 )
                 a_scan = np.transpose(a_atten_chain, (2, 0, 1))   # (nx, K, ng)
@@ -2651,7 +2651,7 @@ class _OneDimScanWalk:
                 psi_face_in_chain = np.empty_like(psi_face_chain_scan)
                 psi_face_in_chain[0] = psi_in_chain
                 psi_face_in_chain[1:] = psi_face_chain_scan[:-1]
-                psi_avg_scan = self.mesh.cell_update.cell_average(
+                psi_avg_scan = self.mesh.scheme.cell_average(
                     psi_face_in_chain, psi_face_chain_scan, w_scan,
                 )
                 # (nx, K, ng) → per-ordinate (ng, nx) via reorder.
@@ -2774,9 +2774,9 @@ class _OneDimScanWalk:
                                 spatial_upstream=psi_in,
                                 angular_upstream=psi_angle[:, i],
                             )
-                            # cell_update.update expects per-cell (ng,)
+                            # scheme.update expects per-cell (ng,)
                             # arrays — sig_t / source slice on the cell axis.
-                            result = cell_update.update(
+                            result = scheme.update(
                                 visit=visit,
                                 total_xs=sig_t_p[:, i],
                                 source=QV_full[:, i],
@@ -2804,7 +2804,7 @@ class _OneDimScanWalk:
                     # (#158 coefficient model — the Morel–Montry angular
                     # redistribution rides the volumetric source; DD's
                     # 2·(QV+ang)·inv is the w=½ case).
-                    b = self.mesh.cell_update.source_emission(
+                    b = self.mesh.scheme.source_emission(
                         QV_chain + ang_contrib, inv_denom_p, w_p,
                     )  # (ng, nx)
 
@@ -2824,7 +2824,7 @@ class _OneDimScanWalk:
                     psi_face_in_chain = np.empty_like(psi_face_chain)
                     psi_face_in_chain[0] = psi_in
                     psi_face_in_chain[1:] = psi_face_chain[:-1]
-                    psi_avg_chain = self.mesh.cell_update.cell_average(
+                    psi_avg_chain = self.mesh.scheme.cell_average(
                         psi_face_in_chain, psi_face_chain, w_p.T,
                     )
                     # Principled view: (ng, nx).

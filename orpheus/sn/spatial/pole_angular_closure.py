@@ -153,7 +153,7 @@ See also
   boundary-flux Protocol whose architecture this module mirrors; the
   sweep-frame matvec rewrite subsumed it.  Retained as a
   cross-reference for the architectural-mirror pattern only.
-* :class:`~orpheus.sn.spatial.cell_update.CellUpdate` —
+* :class:`~orpheus.sn.spatial.scheme.DiscretizationScheme` —
   per-cell-update strategy contract; the curvilinear sweep also runs
   the DD angular recurrence inside its
   :class:`~orpheus.sn.spatial.diamond.DiamondDifference` strategy

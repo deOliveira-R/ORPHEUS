@@ -170,13 +170,13 @@ def test_registries_are_isolated():
 
 @pytest.mark.foundation
 def test_registries_disjoint_across_codebase():
-    """BoundaryTraceLaw and CellUpdateBase registries don't share keys
+    """BoundaryTraceLaw and DiscretizationSchemeBase registries don't share keys
     just because they both use RegistryMixin."""
     from orpheus.geometry.boundary import BoundaryTraceLaw
-    from orpheus.sn.spatial.cell_update import CellUpdateBase
+    from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
 
     # The two registries are distinct dicts.
-    assert BoundaryTraceLaw.registry is not CellUpdateBase.registry
+    assert BoundaryTraceLaw.registry is not DiscretizationSchemeBase.registry
     # And they hold their own subclasses, not each other's.
     for cls in BoundaryTraceLaw.registry.values():
-        assert cls not in CellUpdateBase.registry.values()
+        assert cls not in DiscretizationSchemeBase.registry.values()

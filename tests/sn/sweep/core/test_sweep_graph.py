@@ -286,7 +286,7 @@ class TestApplyMatchesLegacyInlined:
         psi_y_oct = psi_y.copy()
         graph.walk_full(
             level_op=_CellSolve(
-                cell_update=DiamondDifference(),
+                scheme=DiamondDifference(),
                 weights_octant=weights,
                 angular_flux_octant=angular_flux,
                 scalar_flux_buf=scalar_flux,
@@ -341,7 +341,7 @@ class TestApplyMatchesLegacyInlined:
         psi_y_oct = psi_y.copy()
         graph.walk_full(
             level_op=_CellSolve(
-                cell_update=DiamondDifference(),
+                scheme=DiamondDifference(),
                 weights_octant=weights,
                 angular_flux_octant=angular_flux,
                 scalar_flux_buf=scalar_flux,
@@ -398,7 +398,7 @@ class TestResidualWalkRoundTrip:
         scal = np.zeros((ng, nx, ny))
         graph.walk_full(
             level_op=_CellSolve(
-                cell_update=DiamondDifference(),
+                scheme=DiamondDifference(),
                 weights_octant=weights,
                 angular_flux_octant=ang,
                 scalar_flux_buf=scal,
@@ -414,7 +414,7 @@ class TestResidualWalkRoundTrip:
         residual = np.zeros((N_oct, ng, nx, ny))
         graph.walk_full(
             level_op=_CellResidual(
-                cell_update=DiamondDifference(),
+                scheme=DiamondDifference(),
                 psi_avg_probe_octant=ang,
                 residual_octant=residual,
             ),
@@ -441,7 +441,7 @@ class TestResidualWalkRoundTrip:
         scal = np.zeros((ng, nx, ny))
         graph.walk_full(
             level_op=_CellSolve(
-                cell_update=DiamondDifference(),
+                scheme=DiamondDifference(),
                 weights_octant=weights,
                 angular_flux_octant=ang,
                 scalar_flux_buf=scal,
@@ -454,7 +454,7 @@ class TestResidualWalkRoundTrip:
         residual = np.zeros((N_oct, ng, nx, ny))
         graph.walk_full(
             level_op=_CellResidual(
-                cell_update=DiamondDifference(),
+                scheme=DiamondDifference(),
                 psi_avg_probe_octant=ang,
                 residual_octant=residual,
             ),

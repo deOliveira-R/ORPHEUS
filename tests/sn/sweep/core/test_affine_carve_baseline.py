@@ -15,10 +15,10 @@ axes that the #206 carve actually touches:
    cancellation.  Uniform σ_t + flat ψ NULL it (vv §H2), so a flat-ψ /
    uniform-σ_t gate would pass GREEN while a real curvilinear closure bug
    hides.  Phase A's whole point is routing BOTH the sweep and the matvec
-   through the SAME ``cell_update`` cell math (#206 Phase A: the closure
+   through the SAME ``scheme`` cell math (#206 Phase A: the closure
    methods; #158 Increment B refactored group-3 to the coefficient model —
    ``affine_scan_coefficients`` → ``(a, inverse_denom, w)`` consumed by the
-   generic base reconstruction staticmethods on ``CellUpdateBase``, the
+   generic base reconstruction staticmethods on ``DiscretizationSchemeBase``, the
    per-scheme closure methods retired); the redistribution path is exactly
    where a routing slip would show.
 
@@ -292,7 +292,7 @@ class TestAffineCarveMatvecBaseline:
     :func:`tests.sn._test_helpers.het_operands` builds heterogeneous σ_t
     AND a random bulk + random boundary trace, so every loss-action term
     — including the curvilinear ``dA_w · c_out`` redistribution path the
-    carve routes through ``cell_update`` — is ACTIVE.  A flat-ψ gate
+    carve routes through ``scheme`` — is ACTIVE.  A flat-ψ gate
     would pass while a redistribution-routing bug hides (vv §H2).
     """
 

@@ -425,7 +425,7 @@ def _walk_roundtrip_residual(shape, signs, *, ng, N_oct, seed):
     scal = np.zeros((ng, *shape))
     graph.walk_full(
         level_op=_CellSolve(
-            cell_update=DiamondDifference(),
+            scheme=DiamondDifference(),
             weights_octant=weights,
             angular_flux_octant=ang,
             scalar_flux_buf=scal,
@@ -440,7 +440,7 @@ def _walk_roundtrip_residual(shape, signs, *, ng, N_oct, seed):
     residual = np.zeros((N_oct, ng, *shape))
     graph.walk_full(
         level_op=_CellResidual(
-            cell_update=DiamondDifference(),
+            scheme=DiamondDifference(),
             psi_avg_probe_octant=ang,
             residual_octant=residual,
         ),

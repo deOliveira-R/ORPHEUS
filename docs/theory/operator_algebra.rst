@@ -5040,7 +5040,7 @@ slice) catcher.
 .. warning::
 
    The oracle and the system-under-test share the **same** cell kernel
-   (:meth:`~orpheus.sn.cell_update.DiamondDifference.cell_kernel_batch`)
+   (:meth:`~orpheus.sn.scheme.DiamondDifference.cell_kernel_batch`)
    and the **same** :math:`Y` / ``weights``, differing only in reduction
    *order*. They are therefore **procedurally** independent, **not
    structurally** independent (``vv-principles`` § "Structural

@@ -17,7 +17,7 @@ same algebra** in slab, sphere, and cylindrical 1-D — only the
 populated fields of :class:`~orpheus.geometry.reduced_operator.StreamingTerms`
 change.  A monolithic sweep that inlines the closure is the
 historical pattern (see ``orpheus.sn.sweep``); lifting the closure to
-a :class:`CellUpdate` strategy makes it possible to:
+a :class:`DiscretizationScheme` strategy makes it possible to:
 
 * unit-test the cell-update math in isolation (without spinning up a
   full SNMesh + iteration loop),
@@ -29,7 +29,7 @@ a :class:`CellUpdate` strategy makes it possible to:
 This is Round 1 of Wave C of the SN reshape campaign — see Issues
 #157 (this contract) and #158 (the bit-identical
 :class:`DiamondDifference` extraction).  Wave D Issue 12 (#159)
-rewrites the sweep itself around ``cell_update.update(...)`` so the
+rewrites the sweep itself around ``scheme.update(...)`` so the
 sweep dispatches to whichever strategy was selected; until then, the
 existing sweep still inlines the math and the strategies live as a
 parallel, testable abstraction.
@@ -123,7 +123,7 @@ branching::
                 if reduced_op.requires_upstream_angular_state
                 else None,
         )
-        result = cell_update.update(visit, total_xs, source, upstream)
+        result = scheme.update(visit, total_xs, source, upstream)
         psi_avg[visit.cell_idx] = result.cell_average_flux
         if result.outgoing_spatial_flux is not None:
             psi_face = result.outgoing_spatial_flux
@@ -185,7 +185,7 @@ class CellVisit:
     for a given ordinate, where edges are oriented by
     :math:`\mathrm{sign}(\Omega \cdot \hat n_{\text{face}})`.  This
     dataclass is the per-visit packet a
-    :class:`CellUpdate` strategy receives — all sweep-direction data
+    :class:`DiscretizationScheme` strategy receives — all sweep-direction data
     is **pre-resolved** here.  The strategy sees only the
     upstream/downstream view of this cell, never the geometric
     inner/outer view.
@@ -260,7 +260,7 @@ class CellVisit:
 
 @dataclass(frozen=True, slots=True)
 class UpstreamState:
-    r"""Per-cell input state that a :class:`CellUpdate` consumes.
+    r"""Per-cell input state that a :class:`DiscretizationScheme` consumes.
 
     Attributes
     ----------
@@ -289,7 +289,7 @@ class UpstreamState:
 
 @dataclass(frozen=True, slots=True)
 class CellResult:
-    r"""Per-cell output state produced by a :class:`CellUpdate`.
+    r"""Per-cell output state produced by a :class:`DiscretizationScheme`.
 
     Attributes
     ----------
@@ -319,11 +319,11 @@ class CellResult:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# CellUpdate Protocol
+# DiscretizationScheme Protocol
 # ═══════════════════════════════════════════════════════════════════════
 
 @runtime_checkable
-class CellUpdate(Protocol):
+class DiscretizationScheme(Protocol):
     r"""Strategy contract for a per-cell SN sweep update.
 
     Concrete implementations (e.g. :class:`DiamondDifference` shipping
@@ -502,17 +502,17 @@ class CellUpdate(Protocol):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# CellUpdateBase — concrete ABC carrying RegistryMixin
+# DiscretizationSchemeBase — concrete ABC carrying RegistryMixin
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class CellUpdateBase(RegistryMixin, ABC):
+class DiscretizationSchemeBase(RegistryMixin, ABC):
     r"""Concrete abstract base for self-registering cell-update strategies.
 
-    Round 1 of Wave C shipped :class:`CellUpdate` as a
+    Round 1 of Wave C shipped :class:`DiscretizationScheme` as a
     ``runtime_checkable`` Protocol so concrete strategies could be
     matched by structural typing without inheritance. Issue 9.6 adds
-    :class:`CellUpdateBase` as a parallel **concrete ABC** layered on
+    :class:`DiscretizationSchemeBase` as a parallel **concrete ABC** layered on
     top of :class:`RegistryMixin`: strategies that inherit it
     self-register under their ``key=`` class-creation kwarg, gaining
     name-keyed lookup via :meth:`create`. The Protocol stays — third-
@@ -535,14 +535,14 @@ class CellUpdateBase(RegistryMixin, ABC):
 
     Adding a new strategy is now a one-line edit::
 
-        class Step(CellUpdateBase, key="step"):
+        class Step(DiscretizationSchemeBase, key="step"):
             is_linear: ClassVar[bool] = True
             is_positivity_preserving: ClassVar[bool] = True
 
             def update(self, visit, total_xs, source, upstream_state):
                 ...
 
-    No registry insert; ``CellUpdateBase.create("step")`` is
+    No registry insert; ``DiscretizationSchemeBase.create("step")`` is
     immediately callable.
 
     Reconstruction ops — the generic affine cell algebra (#158 Inc B / #240 D2)
@@ -637,7 +637,7 @@ class CellUpdateBase(RegistryMixin, ABC):
     ×V scan vs ÷V kernel two-paths agreement.
     """
 
-    registry: ClassVar[dict[str, type["CellUpdateBase"]]] = {}
+    registry: ClassVar[dict[str, type["DiscretizationSchemeBase"]]] = {}
 
     is_linear: ClassVar[bool]
     is_positivity_preserving: ClassVar[bool]
@@ -661,7 +661,7 @@ class CellUpdateBase(RegistryMixin, ABC):
 
     @classmethod
     def _registry_base(cls) -> type:
-        return CellUpdateBase
+        return DiscretizationSchemeBase
 
     @abstractmethod
     def update(
@@ -684,7 +684,7 @@ class CellUpdateBase(RegistryMixin, ABC):
     ) -> np.ndarray:
         r"""Per-cell operator residual :math:`L_{\text{cell}}\,\bar\psi - q`.
 
-        See :meth:`CellUpdate.residual` for the full contract.
+        See :meth:`DiscretizationScheme.residual` for the full contract.
         Subclasses MUST implement this in lockstep with :meth:`update`
         — the two methods describe the same per-cell linear system
         in solve direction (``update``) and apply direction
@@ -883,8 +883,8 @@ class CellUpdateBase(RegistryMixin, ABC):
 
 __all__ = [
     "CellResult",
-    "CellUpdate",
-    "CellUpdateBase",
+    "DiscretizationScheme",
+    "DiscretizationSchemeBase",
     "CellVisit",
     "UpstreamState",
 ]

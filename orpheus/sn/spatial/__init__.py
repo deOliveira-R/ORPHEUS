@@ -6,14 +6,14 @@ Linear Discontinuous, Exponential Characteristic, Step — that a
 1-D SN sweep uses to march through a cell and produce its
 average flux + outgoing states.
 
-The contract itself lives in :mod:`orpheus.sn.spatial.cell_update`:
+The contract itself lives in :mod:`orpheus.sn.spatial.scheme`:
 
-* :class:`~orpheus.sn.spatial.cell_update.CellUpdate` — the
+* :class:`~orpheus.sn.spatial.scheme.DiscretizationScheme` — the
   ``@runtime_checkable Protocol``.
-* :class:`~orpheus.sn.spatial.cell_update.UpstreamState` —
+* :class:`~orpheus.sn.spatial.scheme.UpstreamState` —
   per-cell input state (spatial face flux + optional angular
   half-flux).
-* :class:`~orpheus.sn.spatial.cell_update.CellResult` — per-cell
+* :class:`~orpheus.sn.spatial.scheme.CellResult` — per-cell
   output state (average flux, outgoing spatial flux, outgoing
   angular state).
 
@@ -29,7 +29,7 @@ See the SN reshape campaign plan at
 ``.claude/plans/mossy-mapping-pine.md`` for context.
 """
 
-from .cell_update import CellResult, CellUpdate, UpstreamState
+from .scheme import CellResult, DiscretizationScheme, UpstreamState
 from .diamond import DiamondDifference
 from .linear_discontinuous import LinearDiscontinuous
 from .pole_angular_closure import (
@@ -68,7 +68,7 @@ __all__ = [
     "CarlsonInwardSweep",
     "CarlsonSweepContext",
     "CellResult",
-    "CellUpdate",
+    "DiscretizationScheme",
     "DiamondDifference",
     "IdentityAngularClosure",
     "LinearDiscontinuous",

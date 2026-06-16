@@ -4,7 +4,7 @@ Issue #196 Phase G Step 2.5 collapses the historical 3-branch
 :class:`DiamondDifference` (slab, curvilinear, cylindrical-degenerate)
 into ONE polymorphic body.  Geometry is data carried by
 :class:`~orpheus.geometry.reduced_operator.StreamingTerms` and
-:class:`~orpheus.sn.spatial.cell_update.CellVisit`; the strategy does
+:class:`~orpheus.sn.spatial.scheme.CellVisit`; the strategy does
 NOT branch on geometry kind.
 
 Architectural shift (Step 2.5)
@@ -68,7 +68,7 @@ References
 See also
 ========
 
-* :class:`~orpheus.sn.spatial.cell_update.CellUpdate` — the
+* :class:`~orpheus.sn.spatial.scheme.DiscretizationScheme` — the
   Protocol this strategy satisfies.
 * :func:`cell_balance_terms` — the unified algebra (Step 2.5).
 * :doc:`/theory/discrete_ordinates`, "Cell update strategies (the
@@ -83,16 +83,16 @@ from typing import ClassVar
 import numpy as np
 
 from .cell_balance import cell_balance_for_streaming, cell_balance_terms
-from .cell_update import (
+from .scheme import (
     CellResult,
-    CellUpdateBase,
+    DiscretizationSchemeBase,
     CellVisit,
     UpstreamState,
 )
 
 
 @dataclass(frozen=True, slots=True)
-class DiamondDifference(CellUpdateBase, key="diamond_difference"):
+class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
     r"""Diamond-Difference (DD) cell-update strategy — geometry-polymorphic.
 
     A **single** body handles slab, sphere, cylinder, and the
@@ -131,9 +131,9 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
     so the DAG-free scan schedules (``CumprodScan``, ``ScanMarch``) consume DD
     via its per-cell coefficient triple :meth:`affine_scan_coefficients`
     ``(a, inverse_denom, w)`` and the generic base reconstruction staticmethods
-    (:meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.source_emission` /
-    :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.cell_average` /
-    :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.outgoing_face_from_average`;
+    (:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.source_emission` /
+    :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average` /
+    :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`;
     #158 the coefficient model);
     DD's blend weight is ``w = ½`` (the symmetric diamond mean).
     (Linear-Discontinuous couples two face moments, but its slope is eliminated
@@ -210,7 +210,7 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         same per-cell linear system.  At the converged cell average
         (i.e. when ``cell_avg == update(...).cell_average_flux``), the
         residual is zero to floating-point rounding.  See
-        :meth:`CellUpdate.residual` for the full contract.
+        :meth:`DiscretizationScheme.residual` for the full contract.
 
         Round-trip with :meth:`update`
         ------------------------------
@@ -419,9 +419,9 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         ``w = ½`` (broadcast; the symmetric diamond mean
         :math:`\bar\psi = \tfrac12(\psi_{\rm in}+\psi_{\rm out})`) — #158 the
         coefficient model.  The generic base reconstruction staticmethods
-        (:meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.cell_average` /
-        :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.outgoing_face_from_average`
-        / :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.source_emission`)
+        (:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average` /
+        :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
+        / :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.source_emission`)
         consume it; DD carries no cell-average / outgoing-face / source-
         emission method of its own.
 
@@ -523,7 +523,7 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
     #      (CumprodScan / ScanMarch), consumed by the generic base
     #      reconstruction staticmethods (``source_emission`` / ``cell_average``
     #      / ``outgoing_face_from_average`` on
-    #      :class:`~orpheus.sn.spatial.cell_update.CellUpdateBase`; #158 the
+    #      :class:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase`; #158 the
     #      coefficient model; the per-scheme ``cell_average_from_faces`` /
     #      ``outgoing_face_from_average`` closure methods are RETIRED — the
     #      operations are now generic in ``w``).

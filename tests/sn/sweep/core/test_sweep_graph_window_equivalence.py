@@ -138,7 +138,7 @@ def _full_field_apply(graph, shape, N_oct, ng, inp):
     scal = np.zeros((ng, *shape))
     graph.walk_full(
         level_op=_CellSolve(
-            cell_update=DiamondDifference(),
+            scheme=DiamondDifference(),
             weights_octant=inp["weights"],
             angular_flux_octant=ang,
             scalar_flux_buf=scal,
@@ -160,7 +160,7 @@ def _windowed_apply(graph, shape, N_oct, ng, inp):
     )
     graph.walk_windowed(
         level_op=_CellSolve(
-            cell_update=DiamondDifference(),
+            scheme=DiamondDifference(),
             weights_octant=inp["weights"],
             angular_flux_octant=ang,
             scalar_flux_buf=scal,
@@ -179,7 +179,7 @@ def _full_field_residual(graph, shape, N_oct, ng, inp):
     res = np.zeros((N_oct, ng, *shape))
     graph.walk_full(
         level_op=_CellResidual(
-            cell_update=DiamondDifference(),
+            scheme=DiamondDifference(),
             psi_avg_probe_octant=inp["probe"],
             residual_octant=res,
         ),
@@ -199,7 +199,7 @@ def _windowed_residual(graph, shape, N_oct, ng, inp):
     )
     graph.walk_windowed(
         level_op=_CellResidual(
-            cell_update=DiamondDifference(),
+            scheme=DiamondDifference(),
             psi_avg_probe_octant=inp["probe"],
             residual_octant=res,
         ),

@@ -765,7 +765,7 @@ class TestT4bPreT4RegressionSnapshot:
     Originally a STRICT bit-identity gate (Route A: the slab matvec used
     the ×V ``cell_balance`` density path with no reduction reorder).  #240
     moved the Cartesian matvec onto the uniform ÷V
-    ``cell_update.residual_kernel_batch`` kernel (DD AND LD, retiring the
+    ``scheme.residual_kernel_batch`` kernel (DD AND LD, retiring the
     bit-identity-only ``matvec_via_kernel`` special case) — which
     re-associates the cell-balance reduction (~1 ULP mean, max ~64 at a
     near-zero cancellation value; max relΔ ~1e-14).  Per ``vv-principles``
@@ -1141,7 +1141,7 @@ class TestT5MaterializeInverseCache:
         # Compare to the canonical from_geometry path.
         geom = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
         cache_canonical = CollisionCache.from_geometry(
-            geom, sig_t, sn_mesh.cell_update,
+            geom, sig_t, sn_mesh.scheme,
         )
 
         # All three cache fields bit-identical (both paths call the

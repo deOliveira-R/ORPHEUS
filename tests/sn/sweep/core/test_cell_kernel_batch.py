@@ -38,9 +38,9 @@ from typing import ClassVar
 import numpy as np
 import pytest
 
-from orpheus.sn.spatial.cell_update import (
+from orpheus.sn.spatial.scheme import (
     CellResult,
-    CellUpdateBase,
+    DiscretizationSchemeBase,
     CellVisit,
     UpstreamState,
 )
@@ -280,7 +280,7 @@ class TestKernelSourceOfRecord:
     # Re-hashed #240 Phase 2 D2: that op was homed from the ``affine_closure``
     # module onto the scheme base, so the call is now
     # ``self.outgoing_face_from_average(ψ̄, ψ_in, 0.5)`` (the inherited
-    # ``CellUpdateBase`` staticmethod).  A SOURCE change only; the ``w=½`` op is
+    # ``DiscretizationSchemeBase`` staticmethod).  A SOURCE change only; the ``w=½`` op is
     # byte-identical to ``2ψ̄ − ψ_in`` (``÷0.5`` is exact ``×2``), so every
     # numerical byte-identity anchor stays green.
     EXPECTED: ClassVar[dict[str, str]] = {
@@ -337,7 +337,7 @@ def test_graph_exposes_two_walks_not_four():
 # ─────────────────────────────────────────────────────────────────────
 
 
-class _NoKernelStrategy(CellUpdateBase, key="_no_kernel_strategy_test"):
+class _NoKernelStrategy(DiscretizationSchemeBase, key="_no_kernel_strategy_test"):
     """Test stub: only overrides the per-cell ``update`` / ``residual``,
     not the batched kernel pair."""
 

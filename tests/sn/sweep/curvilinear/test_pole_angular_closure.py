@@ -64,7 +64,7 @@ class TestProtocolConformance:
 class TestRegistry:
     """RegistryMixin self-registration for the PoleAngularClosure family.
 
-    Mirrors the BoundaryFaceFlux / CellUpdate registry contracts —
+    Mirrors the BoundaryFaceFlux / DiscretizationScheme registry contracts —
     each strategy self-registers at import time and is name-keyed
     addressable via ``PoleAngularClosureBase.create(...)``.
     """

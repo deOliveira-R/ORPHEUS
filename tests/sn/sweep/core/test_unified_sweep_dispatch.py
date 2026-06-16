@@ -199,7 +199,7 @@ class TestD3SupportsMatrix:
 
     The ``supports`` predicates read ``is_1d`` / ``is_cartesian`` /
     ``ndim`` (the dimensional narrowing) and — for the scan reps since
-    #206 A1 — ``cell_update.is_affine_scannable`` (the scheme must be
+    #206 A1 — ``scheme.is_affine_scannable`` (the scheme must be
     scannable), so the PREDICATE pins stay duck-typed (the fake supplies
     an affine-scannable scheme; these pins document the dimensional
     narrowing at the predicate level). Since
@@ -218,10 +218,10 @@ class TestD3SupportsMatrix:
         return SimpleNamespace(
             is_1d=(ndim == 1), is_cartesian=cartesian, ndim=ndim,
             # #206 A1: the scan reps (CumprodScan / ScanMarch) now ALSO
-            # gate on ``cell_update.is_affine_scannable`` — the fake
+            # gate on ``scheme.is_affine_scannable`` — the fake
             # supplies an affine-scannable scheme so these pins exercise
             # the DIMENSIONAL narrowing, not the scheme gate.
-            cell_update=SimpleNamespace(is_affine_scannable=True),
+            scheme=SimpleNamespace(is_affine_scannable=True),
         )
 
     @pytest.mark.foundation
@@ -356,11 +356,11 @@ class TestTransportSweepDelegatesToStrategy:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# TestDefaultCellUpdate
+# TestDefaultDiscretizationScheme
 # ═══════════════════════════════════════════════════════════════════════
 
-class TestDefaultCellUpdate:
-    """``SNMesh.cell_update`` defaults to :class:`DiamondDifference`.
+class TestDefaultDiscretizationScheme:
+    """``SNMesh.scheme`` defaults to :class:`DiamondDifference`.
 
     The default is what guarantees bit-identity with the pre-Wave-D
     sweep — DD's per-cell math is a bit-identical extraction of the
@@ -370,17 +370,17 @@ class TestDefaultCellUpdate:
 
     @pytest.mark.foundation
     def test_default_is_diamond_difference(self):
-        """No ``cell_update`` argument → defaults to DD."""
+        """No ``scheme`` argument → defaults to DD."""
         sn_mesh = _slab_sn_mesh()
-        if not isinstance(sn_mesh.cell_update, DiamondDifference):
+        if not isinstance(sn_mesh.scheme, DiamondDifference):
             pytest.fail(
-                f"default cell_update is {type(sn_mesh.cell_update).__name__}, "
+                f"default scheme is {type(sn_mesh.scheme).__name__}, "
                 f"expected DiamondDifference"
             )
 
     @pytest.mark.foundation
-    def test_explicit_cell_update_honored(self):
-        """User-passed ``cell_update`` is stored on the mesh."""
+    def test_explicit_scheme_honored(self):
+        """User-passed ``scheme`` is stored on the mesh."""
         custom = DiamondDifference()  # the only strategy that ships in Wave D
         mesh = Mesh1D(
             edges=np.linspace(0.0, 1.0, 9),
@@ -390,9 +390,9 @@ class TestDefaultCellUpdate:
             bc_right=BC("vacuum"),
         )
         quad = Quadrature.gauss_legendre(n_ordinates=8)
-        sn_mesh = SNMesh(mesh, quad, placeholder_materials(), cell_update=custom)
-        if sn_mesh.cell_update is not custom:
-            pytest.fail("explicit cell_update was not stored on the mesh")
+        sn_mesh = SNMesh(mesh, quad, placeholder_materials(), scheme=custom)
+        if sn_mesh.scheme is not custom:
+            pytest.fail("explicit scheme was not stored on the mesh")
 
 
 @pytest.mark.foundation

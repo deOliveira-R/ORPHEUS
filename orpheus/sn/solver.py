@@ -45,7 +45,7 @@ from orpheus.geometry import BC, Mesh1D, Mesh2D
 from orpheus.numerics.eigenvalue import power_iteration
 from .fission import FissionOperator
 from .geometry import SNMesh
-from .spatial.cell_update import CellUpdateBase
+from .spatial.scheme import DiscretizationSchemeBase
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
 from .operator import (
     CollisionOperator,
@@ -104,7 +104,7 @@ def _as_sn_mesh(
     boundary_condition: "str | None" = None,
     mat_map: "np.ndarray | None" = None,
     *,
-    cell_update: "CellUpdateBase | None" = None,
+    scheme: "DiscretizationSchemeBase | None" = None,
 ) -> "SNMesh":
     r"""Normalize the entry-surface geometry declaration into an SNMesh.
 
@@ -131,9 +131,9 @@ def _as_sn_mesh(
                 "Mesh1D/Mesh2D carries its own mat_ids/mat_map — "
                 "declare the assignment on the mesh."
             )
-        return SNMesh(geometry, quadrature, materials, cell_update=cell_update)
+        return SNMesh(geometry, quadrature, materials, scheme=scheme)
     return SNMesh.from_axes(
-        geometry, quadrature, materials, mat_map=mat_map, cell_update=cell_update,
+        geometry, quadrature, materials, mat_map=mat_map, scheme=scheme,
     )
 
 
@@ -912,14 +912,14 @@ class SNSolver:
         # (FullFieldWavefront), which consumes the per-cell ``cell_kernel_batch``
         # directly — never the scan cache.  Build the cache only when the scan
         # path can actually be selected (DD keeps its bit-identical cache).
-        if sn_mesh.reduced is not None and sn_mesh.cell_update.is_affine_scannable:
+        if sn_mesh.reduced is not None and sn_mesh.scheme.is_affine_scannable:
             self.geom_cache = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
             # No bridge needed: ``mat_xs.total_cross_section`` is the
             # principled ``(ng, nx)`` 1-D layout the cache expects
             # (rank-d (N, ng, *spatial); no phantom ny axis to drop).
             sig_t_1d = self.mat_xs.total_cross_section  # (ng, nx)
             self.coll_cache = CollisionCache.from_geometry(
-                self.geom_cache, sig_t_1d, sn_mesh.cell_update,
+                self.geom_cache, sig_t_1d, sn_mesh.scheme,
             )
             # Stash the caches on the SNMesh so the sweep can find them
             # without threading a solver reference through ``transport_sweep``.
@@ -971,7 +971,7 @@ class SNSolver:
         if self.geom_cache is not None:
             sig_t_1d = self.mat_xs.total_cross_section
             self.coll_cache = CollisionCache.from_geometry(
-                self.geom_cache, sig_t_1d, self.sn_mesh.cell_update,
+                self.geom_cache, sig_t_1d, self.sn_mesh.scheme,
             )
             self.sn_mesh._coll_cache = self.coll_cache  # type: ignore[attr-defined]
 
@@ -1865,7 +1865,7 @@ def solve_sn_fixed_source(
     inner_solver: str | None = None,
     inner_schedule: str = "gauss_seidel",
     mat_map: "np.ndarray | None" = None,
-    cell_update: "CellUpdateBase | None" = None,
+    scheme: "DiscretizationSchemeBase | None" = None,
 ) -> Solution:
     r"""Solve the multi-group SN fixed-source transport problem.
 
@@ -1969,7 +1969,7 @@ def solve_sn_fixed_source(
     # no explicit BC.
     sn_mesh = _as_sn_mesh(
         mesh, quadrature, materials, boundary_condition, mat_map=mat_map,
-        cell_update=cell_update,
+        scheme=scheme,
     )
 
     # Issue #168 status (Phase D ERR-026 closure, 2026-05-12):

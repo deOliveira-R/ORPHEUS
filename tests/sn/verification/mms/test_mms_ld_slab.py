@@ -6,7 +6,7 @@ the single-upstream recurrence ``ψ_out = a·ψ_in + b``), so a 1-D slab LD mesh
 rides the fast DAG-free ``CumprodScan`` via the coefficient model — it supplies
 ``(a, inverse_denom, w)`` through ``affine_scan_coefficients`` and the generic
 base reconstruction staticmethods (``source_emission`` / ``cell_average`` /
-``outgoing_face_from_average`` on ``CellUpdateBase``) do the rest.  The
+``outgoing_face_from_average`` on ``DiscretizationSchemeBase``) do the rest.  The
 polymorphic ``FullFieldWavefront`` DAG
 oracle (Increment A, via ``cell_kernel_batch``) remains the verification
 reference — the two-paths gate pins ``CumprodScan``-LD ≡ ``FullFieldWavefront``-LD.
@@ -17,7 +17,7 @@ This file pins:
   no selection regression).
 * **Spatial order** — LD converges :math:`\mathcal{O}(h^2)` on the manufactured
   slab problem, run end-to-end through
-  ``solve_sn_fixed_source(..., cell_update=LinearDiscontinuous())``.
+  ``solve_sn_fixed_source(..., scheme=LinearDiscontinuous())``.
 * **Two-paths (#158 Inc B)** — ``CumprodScan``-LD ≡ ``FullFieldWavefront``-LD
   (principled-equivalent at nULP; the ×V scan vs ÷V kernel conventions agree).
 * **Matvec ≡ sweep** — the Krylov apply (LD's group-2 ``residual_kernel_batch``
@@ -27,7 +27,7 @@ The per-cell exactness-on-linears (the strong structurally-independent
 correctness oracle) lives in ``tests/sn/spatial/test_linear_discontinuous.py``.
 
 Related: ``orpheus.sn.spatial.linear_discontinuous`` (the occupant);
-``orpheus.sn.spatial.cell_update.CellUpdateBase`` (the generic coefficient-model
+``orpheus.sn.spatial.scheme.DiscretizationSchemeBase`` (the generic coefficient-model
 reconstruction staticmethods);
 ``orpheus.sn.loss_representation.{CumprodScan, FullFieldWavefront}``;
 ``.claude/plans/mellow-swinging-breeze.md`` (Increment B).
@@ -61,7 +61,7 @@ def test_ld_slab_mesh_routes_to_cumprod_scan() -> None:
     case = build_1d_slab_mms_case()
     mesh = case.build_mesh(16)
     ld_mesh = SNMesh(mesh, case.quadrature, case.materials,
-                     cell_update=LinearDiscontinuous())
+                     scheme=LinearDiscontinuous())
     dd_mesh = SNMesh(mesh, case.quadrature, case.materials)
     if not isinstance(default_for(ld_mesh), CumprodScan):
         pytest.fail(
@@ -83,7 +83,7 @@ def test_sn_1d_slab_ld_mms_converges_second_order() -> None:
     r"""LD SN on a 1-D slab shows measured :math:`\mathcal{O}(h^2)` end-to-end.
 
     Drives the manufactured slab problem through
-    ``solve_sn_fixed_source(cell_update=LinearDiscontinuous())`` — which routes
+    ``solve_sn_fixed_source(scheme=LinearDiscontinuous())`` — which routes
     to ``FullFieldWavefront`` calling LD's ``cell_kernel_batch`` — at four mesh
     refinements.  Asserts the order converges to 2 (the finest pair > 1.95; the
     pre-asymptotic coarse pair > 1.85) AND the converged value (the magnitude
@@ -99,7 +99,7 @@ def test_sn_1d_slab_ld_mms_converges_second_order() -> None:
         result = solve_sn_fixed_source(
             case.materials, mesh, case.quadrature, Q,
             boundary_condition="vacuum", max_inner=500, inner_tol=1e-13,
-            cell_update=LinearDiscontinuous(),
+            scheme=LinearDiscontinuous(),
         )
         phi_num = result.scalar_flux.values[0, :]
         phi_ref = case.phi_exact(mesh.centers)
@@ -133,12 +133,12 @@ def test_sn_1d_slab_ld_mms_krylov_matches_si() -> None:
     Q = case.external_source(mesh)
     si = solve_sn_fixed_source(
         case.materials, mesh, case.quadrature, Q, boundary_condition="vacuum",
-        max_inner=500, inner_tol=1e-13, cell_update=LinearDiscontinuous(),
+        max_inner=500, inner_tol=1e-13, scheme=LinearDiscontinuous(),
     )
     kry = solve_sn_fixed_source(
         case.materials, mesh, case.quadrature, Q, boundary_condition="vacuum",
         max_inner=500, inner_tol=1e-13, inner_solver="krylov",
-        cell_update=LinearDiscontinuous(),
+        scheme=LinearDiscontinuous(),
     )
     np.testing.assert_allclose(
         kry.scalar_flux.values[0], si.scalar_flux.values[0],
@@ -180,7 +180,7 @@ def test_ld_two_paths_scan_equals_dag_oracle() -> None:
         coord=CoordSystem.CARTESIAN, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
     )
     quad = Quadrature.gauss_legendre(8)
-    ld_mesh = SNMesh(mesh, quad, materials, cell_update=LinearDiscontinuous())
+    ld_mesh = SNMesh(mesh, quad, materials, scheme=LinearDiscontinuous())
     N, ng = quad.N, ld_mesh.ng
 
     rng = np.random.default_rng(20260614)
@@ -220,7 +220,7 @@ def test_ld_curvilinear_scan_rejected() -> None:
     with pytest.raises(NotImplementedError, match="slab/Cartesian"):
         solve_sn_fixed_source(
             materials, sphere, quad, Q, boundary_condition="vacuum",
-            cell_update=LinearDiscontinuous(),
+            scheme=LinearDiscontinuous(),
         )
 
 
@@ -261,7 +261,7 @@ def test_ld_thick_diffusive_limit_xfail() -> None:
     ld = solve_sn_fixed_source(
         materials, mesh, quad, Q, boundary_condition="vacuum",
         inner_solver="krylov", max_inner=2000, inner_tol=1e-10,
-        cell_update=LinearDiscontinuous(),
+        scheme=LinearDiscontinuous(),
     )
     mid = nx // 2
     dd_mid = float(dd.scalar_flux.values[0, mid])

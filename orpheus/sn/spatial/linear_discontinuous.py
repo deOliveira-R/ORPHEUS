@@ -1,7 +1,7 @@
 r"""Linear-Discontinuous (LD) cell-update strategy — slab / Cartesian (Issue #158).
 
 The first higher-order, O(h²) occupant of the swappable per-cell
-spatial-strategy contract (:mod:`orpheus.sn.spatial.cell_update`), sibling to
+spatial-strategy contract (:mod:`orpheus.sn.spatial.scheme`), sibling to
 the shipping :class:`~orpheus.sn.spatial.diamond.DiamondDifference` (DD).
 **Full** LD (with the slope SOURCE moment :math:`\hat Q` carried) is
 diffusion-limit-consistent — Larsen-Morel-Miller 1987 proves Step has **no**
@@ -131,9 +131,9 @@ Traits
   three per-cell coefficients ``(a, inverse_denom, w)`` through
   :meth:`~LinearDiscontinuous.affine_scan_coefficients` and the generic base
   reconstruction staticmethods
-  (:meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.source_emission` /
-  :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.cell_average` /
-  :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.outgoing_face_from_average`)
+  (:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.source_emission` /
+  :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average` /
+  :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`)
   do the rest.  (The polymorphic
   ``FullFieldWavefront`` DAG oracle — Increment A — still backs the group-2
   kernel; the two-paths gate pins ``CumprodScan``-LD ≡ ``FullFieldWavefront``-LD.)
@@ -157,7 +157,7 @@ References
 See also
 ========
 
-* :class:`~orpheus.sn.spatial.cell_update.CellUpdate` — the Protocol this
+* :class:`~orpheus.sn.spatial.scheme.DiscretizationScheme` — the Protocol this
   strategy satisfies; :class:`~orpheus.sn.spatial.diamond.DiamondDifference`
   — the single-moment sibling whose ``update`` / ``residual`` shape this
   mirrors.
@@ -172,9 +172,9 @@ from typing import ClassVar
 
 import numpy as np
 
-from .cell_update import (
+from .scheme import (
     CellResult,
-    CellUpdateBase,
+    DiscretizationSchemeBase,
     CellVisit,
     UpstreamState,
 )
@@ -259,13 +259,13 @@ class _LDCellTerms:
                 - self._mu * self._psi_in) / self._d2p
 
 
-class LinearDiscontinuous(CellUpdateBase, key="linear_discontinuous"):
+class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     r"""Linear-Discontinuous (LD) cell-update strategy — slab / Cartesian.
 
     Two spatial moments per (group, ordinate) cell: the cell-average flux and
     the cell-average slope, with the upwind-discontinuous face closure.  The
     slope is eliminated locally by the Schur complement so the update fits the
-    scalar :class:`~orpheus.sn.spatial.cell_update.CellUpdate` contract.  See
+    scalar :class:`~orpheus.sn.spatial.scheme.DiscretizationScheme` contract.  See
     the module docstring for the derivation, the SymPy-verified 2×2, and the
     Schur-complement scalar form.
 
@@ -376,7 +376,7 @@ class LinearDiscontinuous(CellUpdateBase, key="linear_discontinuous"):
         The apply direction of the Schur-reduced scalar system: at the
         :math:`\bar\psi` that :meth:`update` solves for, this vanishes to
         floating-point rounding (the round-trip contract,
-        :meth:`CellUpdate.residual`).  Linear in ``cell_avg``; affine in
+        :meth:`DiscretizationScheme.residual`).  Linear in ``cell_avg``; affine in
         ``source``.  Slab only.
         """
         _require_slab(upstream_state)

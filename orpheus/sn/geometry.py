@@ -55,7 +55,7 @@ from .axis import (
 from .boundary_realizer import SNBoundaryRealizer
 from .method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
-from .spatial.cell_update import CellUpdateBase, CellVisit
+from .spatial.scheme import DiscretizationSchemeBase, CellVisit
 from .spatial.diamond import DiamondDifference
 from .spatial.pole_angular_closure import (
     IdentityAngularClosure,
@@ -200,7 +200,7 @@ class SNMesh:
         mesh: Mesh1D | Mesh2D,
         quadrature: AngularQuadrature,
         materials: "dict[int, Mixture]",
-        cell_update: CellUpdateBase | None = None,
+        scheme: DiscretizationSchemeBase | None = None,
         pole_angular_closure: PoleAngularClosure | None = None,
     ) -> None:
         # The legacy inbound surface (C5.1 axis-primary inversion,
@@ -219,7 +219,7 @@ class SNMesh:
             mat_map=mesh.mat_ids if isinstance(mesh, Mesh1D) else mesh.mat_map,
             quadrature=quadrature,
             materials=materials,
-            cell_update=cell_update,
+            scheme=scheme,
             pole_angular_closure=pole_angular_closure,
         )
 
@@ -231,7 +231,7 @@ class SNMesh:
         mat_map: np.ndarray | None,
         quadrature: AngularQuadrature,
         materials: "dict[int, Mixture]",
-        cell_update: CellUpdateBase | None,
+        scheme: DiscretizationSchemeBase | None,
         pole_angular_closure: PoleAngularClosure | None,
     ) -> None:
         # The ONE construction body both surfaces funnel into (C5.1).
@@ -265,11 +265,11 @@ class SNMesh:
         # inlined sweep math bit-identically — every regression snapshot
         # at ``tests/sn/regression/snapshots/`` was generated with DD
         # and continues to match bit-for-bit when the unified sweep
-        # dispatches via ``self.cell_update.update(...)``.  Wave C-extension
+        # dispatches via ``self.scheme.update(...)``.  Wave C-extension
         # will ship LD / EC / Step strategies; users will then pass
-        # ``cell_update=LinearDiscontinuous()`` etc. at construction time.
-        self.cell_update: CellUpdateBase = (
-            cell_update if cell_update is not None else DiamondDifference()
+        # ``scheme=LinearDiscontinuous()`` etc. at construction time.
+        self.scheme: DiscretizationSchemeBase = (
+            scheme if scheme is not None else DiamondDifference()
         )
         # Issue #168 Phase C retired the Phase A ``BoundaryFaceFlux``
         # Protocol entirely. The sweep-frame apply matvec now uses WDD
@@ -851,7 +851,7 @@ class SNMesh:
         materials: "dict[int, Mixture]",
         *,
         mat_map: np.ndarray | None = None,
-        cell_update: CellUpdateBase | None = None,
+        scheme: DiscretizationSchemeBase | None = None,
         pole_angular_closure: PoleAngularClosure | None = None,
     ) -> "SNMesh":
         r"""Build an :class:`SNMesh` from an axis tuple — the axis-native surface.
@@ -888,7 +888,7 @@ class SNMesh:
         mat_map : ndarray or None
             Material-id assignment. Shape ``spatial_shape``. Defaults
             to all-zeros (single material with id 0).
-        cell_update : CellUpdateBase or None
+        scheme : DiscretizationSchemeBase or None
             Cell-update strategy. Defaults to :class:`DiamondDifference`.
         pole_angular_closure : PoleAngularClosure or None
             Override the default pole-angular closure
@@ -913,7 +913,7 @@ class SNMesh:
             mat_map=mat_map,
             quadrature=quadrature,
             materials=materials,
-            cell_update=cell_update,
+            scheme=scheme,
             pole_angular_closure=pole_angular_closure,
         )
         return obj
@@ -1190,7 +1190,7 @@ class SNMesh:
         Consumers that build their own per-cell algebra from primitives
         (the unified matvec ``transport_operator_matvec_unified``) only
         need the cell traversal order, not the full
-        :class:`~orpheus.sn.spatial.cell_update.CellVisit` packet.
+        :class:`~orpheus.sn.spatial.scheme.CellVisit` packet.
 
         Eliminates per-cell-per-call ``ReducedStreamingOperator.streaming_terms()``
         construction + frozen-dataclass overhead.  PR-TYPED-6c profiling

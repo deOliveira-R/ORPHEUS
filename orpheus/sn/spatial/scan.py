@@ -37,7 +37,7 @@ numpy: ``cumprod_a · (psi_0 + cumsum(b / cumprod_a))`` — three numpy
 ops.  No Python loop over cells.
 
 The function is a **free function**, not a method on a class or on
-the :class:`CellUpdate` Protocol.  The 1-D sweep
+the :class:`DiscretizationScheme` Protocol.  The 1-D sweep
 (:meth:`~orpheus.sn.loss_representation._OneDimScanWalk.sweep`) CONSUMES ``ordinate_scan``
 on the cache's ``a_attenuation`` + the per-iteration ``b`` vector
 (Step 2.5c).
@@ -76,7 +76,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from .cell_update import CellUpdateBase
+from .scheme import DiscretizationSchemeBase
 
 
 def ordinate_scan(
@@ -334,7 +334,7 @@ def _scanmarch_row(
        caller's ``_sweep_interior``, not the producer).  The 1-D paths moved to
        the coefficient model (#158 Inc B) — the generic base reconstruction
        staticmethods on
-       :class:`~orpheus.sn.spatial.cell_update.CellUpdateBase`; lifting the 2-D
+       :class:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase`; lifting the 2-D
        scan-march onto ``affine_scan_coefficients`` + those staticmethods (so
        Linear-Discontinuous can ride the 2-D row-march) is the deferred 2-D
        coefficient-model refactor (#239).
@@ -347,5 +347,5 @@ def _scanmarch_row(
     psi_avg = 0.5 * (in_x + out_x)              # DD diamond mean (w = ½)
     # DD diamond reconstruction ``2ψ̄ − ψ_in`` = the ``w=½`` generic affine
     # outflow (byte-identical: ``÷0.5`` is exact ``×2``).
-    out_y = CellUpdateBase.outgoing_face_from_average(psi_avg, psi_y_in, 0.5)
+    out_y = DiscretizationSchemeBase.outgoing_face_from_average(psi_avg, psi_y_in, 0.5)
     return psi_avg, out_y, x_outflow

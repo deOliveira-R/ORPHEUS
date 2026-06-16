@@ -46,7 +46,7 @@ from orpheus.sn.spatial.cell_balance import (
     cell_balance_for_streaming,
     cell_balance_terms,
 )
-from orpheus.sn.spatial.cell_update import UpstreamState
+from orpheus.sn.spatial.scheme import UpstreamState
 
 # Per-cell streaming-balance algebra: structural invariants of the
 # cell_balance_for_streaming primitive (no theory-page :label:).
@@ -408,7 +408,7 @@ def test_diamond_residual_consumes_cell_balance_for_streaming(
 ):
     """Verify :meth:`DiamondDifference.residual` produces the same
     output as direct delegation to :func:`cell_balance_for_streaming`."""
-    from orpheus.sn.spatial.cell_update import CellVisit
+    from orpheus.sn.spatial.scheme import CellVisit
     from orpheus.sn.spatial.diamond import DiamondDifference
 
     st = st_factory()
@@ -444,9 +444,9 @@ def test_diamond_residual_consumes_cell_balance_for_streaming(
 
 def test_diamond_residual_round_trip_at_converged_cell_avg():
     """At the converged cell_avg (from update), the residual is zero
-    to FP rounding — the canonical CellUpdate apply-solve consistency
+    to FP rounding — the canonical DiscretizationScheme apply-solve consistency
     contract (Issue #196 Phase G Step 1)."""
-    from orpheus.sn.spatial.cell_update import CellVisit
+    from orpheus.sn.spatial.scheme import CellVisit
     from orpheus.sn.spatial.diamond import DiamondDifference
 
     st = _curvilinear_streaming_terms()

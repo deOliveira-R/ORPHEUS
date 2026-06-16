@@ -16,7 +16,7 @@ from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.sn.quadrature import ProductQuadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.spatial.psi_half_angle_seed import carlson_inward_sweep_from_source
-from orpheus.sn.spatial.cell_update import UpstreamState
+from orpheus.sn.spatial.scheme import UpstreamState
 
 
 def custom_cylinder_si_sweep(
@@ -34,7 +34,7 @@ def custom_cylinder_si_sweep(
     reduced = sn_mesh.reduced
     A = reduced.face_areas
     V = sn_mesh.volumes[:, 0]
-    cell_update = sn_mesh.cell_update
+    scheme = sn_mesh.scheme
 
     bc_outer_obj = sn_mesh.bc_right
 
@@ -118,7 +118,7 @@ def custom_cylinder_si_sweep(
                     spatial_upstream=psi_spatial_in,
                     angular_upstream=psi_angle[i],
                 )
-                result = cell_update.update(
+                result = scheme.update(
                     visit=visit,
                     total_xs=sig_t_1d[i],
                     source=QV[i],

@@ -19,7 +19,7 @@ Architectural framing (Cardinal Rule 2)
 =======================================
 
 Per the project memory note ``project_moc_structure.md`` and
-:doc:`../sn/spatial/cell_update`, this DAG abstraction is **SN-specific
+:doc:`../sn/spatial/scheme`, this DAG abstraction is **SN-specific
 by design**. MoC will define its own analog (per-ray traversal — fiber
 bundles + solution sheaves, NOT a topological sort over a cell graph).
 There is no shared ``SweepGraph`` Protocol because there is no shared
@@ -53,9 +53,9 @@ References
   ``assert_boundary_trace_classification``,
   ``assert_cycles_are_declared``).
 * Wave 2 plan ``.claude/plans/transient-giggling-cake.md`` C2.3 —
-  this module's design + dispatch boundary with ``CellUpdate``.
-* :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.cell_kernel_batch`
-  / :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.residual_kernel_batch`
+  this module's design + dispatch boundary with ``DiscretizationScheme``.
+* :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch`
+  / :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`
   — the closure-pluggable kernel pair the level operations dispatch
   (since S6.4(e); historically the ``SweepCellSlice``-packeted
   ``update_batch``, Wave 2 / C2.2).
@@ -80,7 +80,7 @@ from types import MappingProxyType
 
 import numpy as np
 
-from orpheus.sn.spatial.cell_update import CellUpdateBase
+from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -346,7 +346,7 @@ class SweepDependencyGraph:
     operation dispatches the strategy's kernel pair
     (``cell_kernel_batch`` / ``residual_kernel_batch``), so the
     WDD / LD / EC / Step closure is pluggable. This aligns with the
-    strategy contract in :mod:`orpheus.sn.spatial.cell_update`.
+    strategy contract in :mod:`orpheus.sn.spatial.scheme`.
 
     Attributes
     ----------
@@ -814,7 +814,7 @@ class _CellSolve:
       per level (the full angular field never materializes).
     """
 
-    cell_update: CellUpdateBase
+    scheme: DiscretizationSchemeBase
     weights_octant: np.ndarray                    # (N_oct,)
     angular_flux_octant: "np.ndarray | None" = None
     scalar_flux_buf: "np.ndarray | None" = None
@@ -846,7 +846,7 @@ class _CellSolve:
         sigt_cells: np.ndarray,
         Q_cells: np.ndarray,
     ) -> tuple[np.ndarray, ...]:
-        psi_avg, psi_out = self.cell_update.cell_kernel_batch(
+        psi_avg, psi_out = self.scheme.cell_kernel_batch(
             psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
         )
         cell = (slice(None), *cell_idx)
@@ -873,7 +873,7 @@ class _CellResidual:
     (L21).
     """
 
-    cell_update: CellUpdateBase
+    scheme: DiscretizationSchemeBase
     psi_avg_probe_octant: np.ndarray              # (N_oct, ng, *spatial) — read
     residual_octant: np.ndarray                   # (N_oct, ng, *spatial) — written
 
@@ -887,7 +887,7 @@ class _CellResidual:
         Q_cells: np.ndarray,
     ) -> tuple[np.ndarray, ...]:
         cell_g = (slice(None), slice(None), *cell_idx)
-        residual, psi_out = self.cell_update.residual_kernel_batch(
+        residual, psi_out = self.scheme.residual_kernel_batch(
             psi_bar=self.psi_avg_probe_octant[cell_g],
             psi_in=psi_in, s_axes=s_axes,
             sigt_cells=sigt_cells, Q_cells=Q_cells,

@@ -104,7 +104,7 @@ History
    GIVEN ``psi.boundary.inflow`` via the typed ``wavefront.seed`` (ι_*)
    with NO ``bc.apply``, walks the same per-octant
    :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` (the apply-direction
-   level operation → the diamond-difference ``CellUpdate`` closure) the multi-D *sweep*
+   level operation → the diamond-difference ``DiscretizationScheme`` closure) the multi-D *sweep*
    ``_sweep_jacobi`` uses — so matvec ≡ sweep in 2-D by
    construction (L21, one discretization) — and emits the boundary
    consistency residual (outflow defect ``streamed − given`` + inflow
@@ -438,7 +438,7 @@ class _MSpatialOperatorSum(OperatorSum):
         # representation's `loss_action` and does not use this cache).
         sig_t_1d = self.sigma_t
         return CollisionCache.from_geometry(
-            geom, sig_t_1d, self.sn_mesh.cell_update,
+            geom, sig_t_1d, self.sn_mesh.scheme,
         )
 
     def apply(self, psi: "TimedFullField") -> "TimedFullField":

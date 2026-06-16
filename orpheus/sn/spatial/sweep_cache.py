@@ -106,7 +106,7 @@ import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
     from orpheus.sn.geometry import SNMesh
-    from orpheus.sn.spatial.cell_update import CellUpdateBase
+    from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -378,9 +378,9 @@ class CollisionCache:
     everywhere; LD is ``w=1/(1+k)``.  Stored chain-ordered alongside
     ``a_attenuation`` / ``inverse_denom`` so the scan body and the matvec apply
     the generic base reconstruction staticmethods
-    (:meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.source_emission` /
-    :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.cell_average` /
-    :meth:`~orpheus.sn.spatial.cell_update.CellUpdateBase.outgoing_face_from_average`)
+    (:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.source_emission` /
+    :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average` /
+    :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`)
     without re-deriving any per-scheme cell math."""
 
     _build_count: ClassVar[int] = 0
@@ -405,20 +405,20 @@ class CollisionCache:
         cls,
         geom: GeometryCoefficients,
         sig_t: np.ndarray,
-        cell_update: "CellUpdateBase",
+        scheme: "DiscretizationSchemeBase",
     ) -> "CollisionCache":
         r"""Populate Stratum 2 from Stratum 1 + per-cell :math:`\Sigma_t`.
 
         The :math:`\Sigma_t`-epoch DD scan coefficients
         ``(a_attenuation, inverse_denom)`` are owned by the cell-update
         scheme (Issue #236 §2): this method delegates their three numpy
-        ops to :meth:`cell_update.affine_scan_coefficients
-        <orpheus.sn.spatial.cell_update.CellUpdate.affine_scan_coefficients>`
+        ops to :meth:`scheme.affine_scan_coefficients
+        <orpheus.sn.spatial.scheme.DiscretizationScheme.affine_scan_coefficients>`
         so the cache reflects whichever spatial closure ``SNMesh`` selected
         — the cache keeps storage + lifetime; the scheme owns the math
         (Cardinal Rule 2 / Pattern 2, single source of truth).  This cache
         feeds the DAG-free scan schedules (``CumprodScan`` / ``ScanMarch``),
-        so ``cell_update`` is always an ``is_affine_scannable`` scheme here
+        so ``scheme`` is always an ``is_affine_scannable`` scheme here
         (the scan strategies' ``supports`` gate guarantees it).
 
         Pure broadcasting — three numpy ops in
@@ -434,7 +434,7 @@ class CollisionCache:
             principled 1-D sweep contract (``ng``, ``sn_mesh.nx``) — see
             Issue #196 PR-INDEX-2 in
             ``.claude/plans/principled_index_migration.md``.
-        cell_update : CellUpdateBase
+        scheme : DiscretizationSchemeBase
             The selected spatial closure scheme (e.g.
             :class:`~orpheus.sn.spatial.diamond.DiamondDifference`).  Must
             be ``is_affine_scannable``; supplies the closed-form recurrence
@@ -465,7 +465,7 @@ class CollisionCache:
         # + Σ_t·V.  The scheme owns the closure math; the cache keeps the
         # storage and the (order-dependent) cumprod.
         a_attenuation, inverse_denom, cell_average_weight = (
-            cell_update.affine_scan_coefficients(
+            scheme.affine_scan_coefficients(
                 abs_mu=geom.abs_mu,
                 A_down=geom.A_down,
                 A_total=geom.A_total,

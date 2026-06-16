@@ -64,9 +64,9 @@ Module × level grid
    core/test_affine_carve_baseline, 0, 0, 0, 0, 6, 0
    core/test_cell_balance_for_streaming, 0, 0, 0, 0, 9, 0
    core/test_cell_kernel_batch, 11, 0, 0, 0, 1, 2
-   core/test_cell_update_protocol, 0, 0, 0, 0, 16, 0
    core/test_dag_walk, 0, 0, 0, 0, 7, 0
    core/test_diamond, 0, 0, 0, 0, 53, 0
+   core/test_discretization_scheme_protocol, 0, 0, 0, 0, 16, 0
    core/test_ordinate_scan, 52, 0, 0, 0, 0, 0
    core/test_ordinate_scan_joint_batch, 5, 0, 0, 0, 0, 0
    core/test_phase_c_gates, 8, 0, 0, 0, 9, 0

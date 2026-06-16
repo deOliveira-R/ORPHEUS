@@ -991,7 +991,7 @@ scale through the same algebra.
      - :class:`~orpheus.sn.operator.StreamingOperator`
      - Streaming :math:`\Omega \cdot \nabla\psi`; per-ordinate
        sweep over :func:`~orpheus.sn.geometry.SNMesh.dag_walk`,
-       fold over :meth:`CellUpdate.residual`
+       fold over :meth:`DiscretizationScheme.residual`
    * - :math:`C`
      - :class:`~orpheus.sn.operator.CollisionOperator`
      - Collision :math:`\Sigma_t \psi`; one broadcast multiply

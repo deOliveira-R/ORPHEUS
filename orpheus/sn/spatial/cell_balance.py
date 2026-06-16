@@ -5,7 +5,7 @@ computes the algebraic intermediates of the per-cell DD balance for
 slab, sphere, cylinder (non-degenerate), and cylindrical pure-azimuthal
 degenerate cells.  Geometry is data carried by
 :class:`~orpheus.geometry.reduced_operator.StreamingTerms` and
-:class:`~orpheus.sn.spatial.cell_update.CellVisit`; the helper does NOT
+:class:`~orpheus.sn.spatial.scheme.CellVisit`; the helper does NOT
 branch on geometry kind.
 
 Mathematical content
@@ -75,7 +75,7 @@ import numpy as np
 if TYPE_CHECKING:  # pragma: no cover
     from orpheus.geometry.reduced_operator import StreamingTerms
 
-    from .cell_update import UpstreamState
+    from .scheme import UpstreamState
 
 
 @dataclass(frozen=True, slots=True)

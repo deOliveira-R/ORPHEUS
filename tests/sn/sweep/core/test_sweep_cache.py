@@ -9,7 +9,7 @@ Twelve tests in five thematic groups (per plan §"Test catalog"):
   built EXACTLY ONCE across a 5+ iteration Picard fixed-point;
   ``rebind_cross_sections`` invalidates only :class:`CollisionCache`.
 * **Dual-view consistency** (#6-7): the cache-driven sweep result matches the
-  per-cell ``cell_update.update`` iteration to ``rtol=1e-13`` (Pattern 2).
+  per-cell ``scheme.update`` iteration to ``rtol=1e-13`` (Pattern 2).
 * **Performance gates** (#8-9): slab benchmark ≤ 1.5 ms; full SN suite < 5 min.
 * **Production gates** (#10-12): L0 streaming-equilibrium, regression
   snapshots, Step 2.5b's pair-monoid associativity all stay green.
@@ -33,7 +33,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial.cell_balance import cell_balance_terms
-from orpheus.sn.spatial.cell_update import UpstreamState
+from orpheus.sn.spatial.scheme import UpstreamState
 from orpheus.sn.spatial.diamond import DiamondDifference
 from orpheus.sn.spatial.scan import ordinate_scan
 from orpheus.sn.spatial.sweep_cache import CollisionCache, GeometryCoefficients
@@ -135,7 +135,7 @@ def test_collision_cache_built_at_sigma_t_bind() -> None:
     # sig_t is (ng, nx) under PR-INDEX-2.  Two groups × four cells,
     # uniform per group: group 0 has σ_t=1.0, group 1 has σ_t=2.0.
     sig_t = np.array([[1.0] * 4, [2.0] * 4])  # (ng=2, nx=4)
-    coll = CollisionCache.from_geometry(geom, sig_t, sn_mesh.cell_update)
+    coll = CollisionCache.from_geometry(geom, sig_t, sn_mesh.scheme)
 
     # (N, ng, nx) — N=4 ordinates, ng=2 groups, nx=4 cells.
     assert coll.inverse_denom.shape == (4, 2, 4)
@@ -175,7 +175,7 @@ def test_two_strata_independence_by_ng_axis() -> None:
 
     # Stratum 2 — every tensor has the (N, ng, nx) shape (PR-INDEX-2).
     sig_t = np.ones((3, 5))  # (ng=3, nx=5) under PR-INDEX-2
-    coll = CollisionCache.from_geometry(geom, sig_t, sn_mesh.cell_update)
+    coll = CollisionCache.from_geometry(geom, sig_t, sn_mesh.scheme)
     for name in ("inverse_denom", "a_attenuation", "cumprod_a"):
         field_arr = getattr(coll, name)
         assert field_arr.shape == (4, 3, 5), f"{name} shape {field_arr.shape} != (4, 3, 5)"
@@ -322,10 +322,10 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
 @pytest.mark.parametrize("geometry", ["slab", "sphere"])
 @pytest.mark.parametrize("ng", [1, 2, 3])
 @pytest.mark.parametrize("source_kind", ["uniform", "linear", "gaussian"])
-def test_cache_driven_sweep_matches_per_cell_update(
+def test_cache_driven_sweep_matches_per_cell_scheme_update(
     geometry: str, ng: int, source_kind: str,
 ) -> None:
-    """Test #6 — cache-driven sweep equals per-cell ``cell_update.update``.
+    """Test #6 — cache-driven sweep equals per-cell ``scheme.update``.
 
     For each (geometry × ng × source) combination, run ONE ordinate's
     spatial scan through:
@@ -351,7 +351,7 @@ def test_cache_driven_sweep_matches_per_cell_update(
     rng = np.random.default_rng(42)
     # Issue #196 PR-INDEX-2: cache consumes σ_t as (ng, nx).
     sig_t = 1.0 + 0.5 * rng.random((ng, nx))                  # (ng, nx)
-    coll = CollisionCache.from_geometry(geom, sig_t, sn_mesh.cell_update)
+    coll = CollisionCache.from_geometry(geom, sig_t, sn_mesh.scheme)
 
     # Build a representative source in (ng, nx) — principled layout.
     if source_kind == "uniform":
@@ -458,7 +458,7 @@ def test_cache_populator_matches_cell_balance_terms() -> None:
     # Build (nx, ng) first via outer product for readability, then transpose.
     sig_t_xg = np.linspace(0.5, 1.5, 8)[:, None] * np.array([[1.0, 2.0]])  # (8, 2)
     sig_t = sig_t_xg.T                                                     # (ng=2, nx=8)
-    coll = CollisionCache.from_geometry(geom, sig_t, sn_mesh.cell_update)
+    coll = CollisionCache.from_geometry(geom, sig_t, sn_mesh.scheme)
 
     # Sample two ordinates × two cells (chain positions).
     quad = sn_mesh.quad
