@@ -3,7 +3,13 @@
 > **Durable in-repo recovery anchor** (project rule: plans live in ORPHEUS/.claude/, not ~/.claude).
 > Parent: `.claude/plans/next_principled_polymorphism.md` / `issue_240_phase2_layer_separation.md`.
 > Branch `feature/sn-space-angle-tier2`. Approved 2026-06-16.
-> **STATUS: planning done; D1 NEXT. Steps A+B committed (`f0d68c3`/`4937c3a`).**
+> **STATUS: D1–D4 DONE + committed. D5 (#239) + D6 (docs) NEXT.**
+> Commits: A+B `f0d68c3`/`4937c3a` · D1 `8bc1a49` · D2 `784edeb` · D3 `4f04126` · D4 `c40a341`
+> (+ chore records each). D4 finding: scheme was ALREADY Σ-stateless → D4 = the
+> diffusion-readiness contract gate + the Base interface note (no code change). The deferred
+> model-agnostic param rename (cross-domain-attacker) is filed as **#241**
+> (`total_xs`→`reaction_xs`, `cell_average_weight`→`face_blend_weight`; `streaming` KEPT).
+> All bit-identical/principled; gates green throughout (strict 505/1/4, full 1083→1093).
 
 ## Context
 
