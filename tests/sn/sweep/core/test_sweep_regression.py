@@ -100,7 +100,9 @@ class TestSNMesh:
     """Tests for the SNMesh augmented geometry."""
 
     def test_stencil_values_cartesian(self):
-        """streaming(0)[n,i] must equal 2|μ_x[n]| / dx[i]."""
+        """streaming(0)[n,i] is the RAW down-face streaming |μ_x[n]| / dx[i]
+        (#240) — the diamond 2 = 1/w_DD is the scheme's, applied in the cell
+        kernel, NOT baked into this geometric accessor."""
         mesh = Mesh1D(edges=np.array([0.0, 0.1, 0.3, 0.6]),
                       mat_ids=np.array([0, 1, 2]))
         quad = Quadrature.gauss_legendre(4)
@@ -108,7 +110,7 @@ class TestSNMesh:
 
         for n in range(quad.N):
             for i in range(sn_mesh.nx):
-                expected = 2.0 * abs(quad.mu_x[n]) / mesh.widths[i]
+                expected = abs(quad.mu_x[n]) / mesh.widths[i]
                 np.testing.assert_allclose(
                     sn_mesh.streaming(0)[n, i], expected, rtol=1e-14,
                 )
@@ -131,7 +133,7 @@ class TestSNMesh:
         for a, widths in enumerate((mesh.dx, mesh.dy)):
             np.testing.assert_array_equal(
                 sn_mesh.streaming(a),
-                2.0 * np.abs(quad.axis_cosines(a))[:, None] / widths[None, :],
+                np.abs(quad.axis_cosines(a))[:, None] / widths[None, :],
             )
 
     def test_streaming_axis_out_of_range_raises(self):
@@ -152,7 +154,10 @@ class TestSNMesh:
         """Precomputed stencil must reproduce the original DD denominator.
 
         Original: denom = Σ_t + 2|μ_x|/dx + 2|μ_y|/dy
-        Stencil:  denom = Σ_t + streaming(0)[n,i] + streaming(1)[n,j]
+        Stencil:  denom = Σ_t + 2·streaming(0)[n,i] + 2·streaming(1)[n,j]
+                  (#240: ``streaming`` is the RAW g = |μ|/Δ; the DD scheme
+                  applies the diamond 2 = 1/w_DD, so the denom doubles each
+                  streaming term).
         """
         mesh = Mesh2D(
             edges_x=np.linspace(0, 1, 4),  # 3 cells, dx=1/3
@@ -167,7 +172,7 @@ class TestSNMesh:
             for i in range(sn_mesh.nx):
                 for j in range(sn_mesh.spatial_shape[1]):
                     old = sig_t + 2*abs(quad.mu_x[n])/mesh.dx[i] + 2*abs(quad.mu_y[n])/mesh.dy[j]
-                    new = sig_t + sn_mesh.streaming(0)[n, i] + sn_mesh.streaming(1)[n, j]
+                    new = sig_t + 2*sn_mesh.streaming(0)[n, i] + 2*sn_mesh.streaming(1)[n, j]
                     np.testing.assert_allclose(new, old, rtol=1e-14)
 
     def test_mesh1d_shapes(self):

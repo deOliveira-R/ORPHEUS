@@ -233,11 +233,13 @@ def _hand_run_legacy_inlined(
             # numpy keeps the order, shape ``(ng, n_diag)``.
             psi_in_x = psi_x[n, :, ii + ix_in, jj].T  # advanced separated → (n_diag, ng); .T → (ng, n_diag)
             psi_in_y = psi_y[n, :, ii, jj + iy_in].T
-            sx = str_x[n, ii][None, :]                 # (1, n_diag)
-            sy = str_y[n, jj][None, :]                 # (1, n_diag)
-            denom = sig_t[:, ii, jj] + sx + sy         # (ng, n_diag)
+            sx = str_x[n, ii][None, :]                 # (1, n_diag) — raw g_x (#240)
+            sy = str_y[n, jj][None, :]                 # (1, n_diag) — raw g_y
+            # DD applies its diamond 2 = 1/w_DD to BOTH denom and numer (#240);
+            # left-fold order ((sigt + 2g_x) + 2g_y) mirrors cell_kernel_batch.
+            denom = sig_t[:, ii, jj] + 2.0 * sx + 2.0 * sy   # (ng, n_diag)
             Qn = Q[n if Q.shape[0] > 1 else 0, :, ii, jj].T  # (ng, n_diag)
-            psi_avg = (Qn + sx * psi_in_x + sy * psi_in_y) / denom
+            psi_avg = (Qn + 2.0 * sx * psi_in_x + 2.0 * sy * psi_in_y) / denom
             psi_x[n, :, ii + ix_out, jj] = (2.0 * psi_avg - psi_in_x).T
             psi_y[n, :, ii, jj + iy_out] = (2.0 * psi_avg - psi_in_y).T
             angular_flux[n, :, ii, jj] = psi_avg.T  # numpy scatter (n_diag, ng) into (ng, ii, jj)

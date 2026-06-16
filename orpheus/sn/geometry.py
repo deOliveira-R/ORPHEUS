@@ -736,14 +736,18 @@ class SNMesh:
         return self.curvature is None
 
     def streaming(self, axis: int) -> np.ndarray:
-        r"""Per-axis WDD streaming coefficient ``2|μ_axis|/Δ_axis``, ``(N, n_axis)``.
+        r"""Per-axis RAW down-face streaming ``g = |μ_axis|·A_down/V = |μ_axis|/Δ_axis``, ``(N, n_axis)``.
 
         The dimension-generic accessor the anti-hyperplane DAG walk reads as
-        ``str_axes[axis]`` — the per-axis term in the cell-balance denominator
-        :math:`\Sigma_t + \sum_a 2|\mu_a|/\Delta_a`.  Indexes the per-axis
-        stencil tuple ``_setup_cartesian`` builds over ``range(ndim)`` (since
-        C3.6 there is no hand-listed ``(streaming_x, streaming_y)`` pair to
-        drift out of axis order — the tuple IS positional-by-axis from birth).
+        ``str_axes[axis]`` — the **scheme-agnostic** geometric streaming.  Each
+        spatial scheme applies its OWN closure factor: DD contributes
+        :math:`\sum_a 2g_a` to the cell-balance denominator (the
+        :math:`2 = 1/w_{\rm DD}` is DD's diamond closure, applied in its kernel,
+        NOT here — #240); Linear-Discontinuous reads the same raw ``g``.
+        Indexes the per-axis stencil tuple ``_setup_cartesian`` builds over
+        ``range(ndim)`` (since C3.6 there is no hand-listed
+        ``(streaming_x, streaming_y)`` pair to drift out of axis order — the
+        tuple IS positional-by-axis from birth).
 
         Cartesian-only (the anti-hyperplane lattice is a Cartesian object);
         curvilinear meshes carry their streaming in
@@ -1415,26 +1419,35 @@ class SNMesh:
     # ── Stencil setup ─────────────────────────────────────────────────
 
     def _setup_cartesian(self) -> None:
-        r"""Precompute Cartesian diamond-difference streaming coefficients.
+        r"""Precompute the raw per-axis down-face streaming coefficient ``g``.
 
-        These are the purely geometric parts of the DD denominator,
-        one array per spatial axis:
+        The **scheme-agnostic** geometric streaming, one array per spatial
+        axis:
 
         .. math::
 
-            \text{denom} = \Sigma_t + \sum_{a < d} \frac{2|\mu_a|}{\Delta a}
+            g_a \;=\; \frac{|\mu_a|\,A_{\rm down}}{V}
+                \;=\; \frac{|\mu_a|}{\Delta a}
+                \qquad(\text{Cartesian tensor-product: } A_{\rm down}/V = 1/\Delta a)
 
-        Precomputing avoids per-ordinate per-cell divisions in the
-        inner sweep loop.  Built over ``range(ndim)`` from the canonical
-        per-axis accessors (``quad.axis_cosines(a)`` — the legacy
-        ``mu_x`` / ``mu_y`` names are property views of exactly these
-        columns, so the d-generic build is bit-identical to the former
-        hand-listed x/y pair), with NO phantom axis: a 1-D mesh carries
-        one streaming array, not an ``ny=1`` second.
+        This is NOT the DD denominator term.  The diamond-difference closure
+        contributes :math:`\Sigma_t + \sum_a 2g_a` to the cell-balance
+        denominator — the factor :math:`2 = 1/w_{\rm DD}` is DD's diamond
+        closure (:math:`\psi_{\rm out} = 2\bar\psi - \psi_{\rm in}`), owned by
+        the *scheme* and applied inside its cell kernel, NOT baked into this
+        geometric accessor (#240).  Linear-Discontinuous reads the same raw
+        ``g`` without DD's factor.
+
+        Precomputing avoids per-ordinate per-cell divisions in the inner
+        sweep loop.  Built over ``range(ndim)`` from the canonical per-axis
+        accessors (``quad.axis_cosines(a)`` — the legacy ``mu_x`` / ``mu_y``
+        names are property views of exactly these columns), with NO phantom
+        axis: a 1-D mesh carries one streaming array, not an ``ny=1`` second.
         """
-        # _streaming_axes[a][n, i] = 2|μ_a[n]| / Δa[i] — shape (N_ord, n_a)
+        # _streaming_axes[a][n, i] = |μ_a[n]| / Δa[i] — the RAW down-face
+        # streaming g (shape (N_ord, n_a)); the scheme owns its closure factor.
         self._streaming_axes: tuple[np.ndarray, ...] | None = tuple(
-            2.0 * np.abs(self.quad.axis_cosines(a))[:, None]
+            np.abs(self.quad.axis_cosines(a))[:, None]
             / widths[None, :]
             for a, widths in enumerate(self.axis_widths)
         )

@@ -269,7 +269,7 @@ class TestLDKernel:
         assert st.abs_mu is not None and st.volume is not None
         mu, h = float(st.abs_mu), float(st.volume)
         sig = np.array([1.2, 0.7])
-        s_axes = (np.array([[[2.0 * mu / h]]]),)        # (1,1,1)
+        s_axes = (np.array([[[mu / h]]]),)        # (1,1,1)
         sigt = sig[:, None]                              # (2,1)
         Q = np.array([2.0, 0.5])[None, :, None]          # (1,2,1)
         pin = (np.array([0.3, 0.1])[None, :, None],)     # (1,2,1)
@@ -297,10 +297,11 @@ class TestLDKernel:
         q_bar = np.array([2.0, 0.5])
         psi_in = np.array([0.3, 0.1])
         strat = LinearDiscontinuous()
-        # group 2 (÷V kernel): s = 2|μ|/h, Q_cells = Q̄, flat (Q̂=0)
+        # group 2 (÷V kernel): s = |μ|/h (raw g, #240 — LD reads g directly,
+        # no diamond factor), Q_cells = Q̄, flat (Q̂=0)
         psi_avg2, (psi_out2,) = strat.cell_kernel_batch(
             psi_in=(psi_in[None, :, None],),
-            s_axes=(np.array([[[2.0 * mu / h]]]),),
+            s_axes=(np.array([[[mu / h]]]),),
             sigt_cells=sig[:, None], Q_cells=q_bar[None, :, None],
         )
         # group 1 (×V per-cell): source = (Q̄·h, 0) → flat
@@ -337,7 +338,7 @@ class TestLDKernel:
         # group 2 (÷V kernel) — the trusted Increment-A reference path.
         psi_avg2, (psi_out2,) = strat.cell_kernel_batch(
             psi_in=(psi_in[None, :, None],),
-            s_axes=(np.array([[[2.0 * mu / h]]]),),
+            s_axes=(np.array([[[mu / h]]]),),
             sigt_cells=sig[:, None], Q_cells=q_bar[None, :, None],
         )
         # group 3 (×V coefficients) + the generic affine_closure ops.

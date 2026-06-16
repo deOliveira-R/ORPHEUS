@@ -286,7 +286,7 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         self,
         *,
         psi_in: tuple[np.ndarray, ...],   # d arrays, each (N_oct, ng, n_diag) — incoming face flux per axis
-        s_axes: tuple[np.ndarray, ...],   # d arrays, each (N_oct, 1, n_diag) — streaming coeff 2|μ_a|/Δa per axis
+        s_axes: tuple[np.ndarray, ...],   # d arrays, each (N_oct, 1, n_diag) — RAW down-face streaming g=|μ_a|/Δa per axis (DD applies its diamond 2 here)
         sigt_cells: np.ndarray,           # (ng, n_diag) — Σ_t on the level
         Q_cells: np.ndarray,              # (N_oct or 1, ng, n_diag) — weight-normalised
     ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
@@ -320,22 +320,28 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         Operation-order discipline (and d=2 bit-identity)
         -------------------------------------------------
 
-        The math is :math:`\psi_{\rm avg} = (Q + \sum_a s_a\,\psi^{\rm in}_a) /
-        (\Sigma_t + \sum_a s_a)`, closure :math:`\psi^{\rm out}_a = 2\psi_{\rm
-        avg} - \psi^{\rm in}_a`. The axis reduction is an **explicit left
-        fold** (NOT ``sum()``) so the accumulation order is
-        ``((sigt + s_0) + s_1) + …`` / ``((Q + s_0·in_0) + s_1·in_1) + …`` —
-        which at ``d = 2`` reproduces the legacy ``sigt + sx + sy`` /
-        ``Q + sx·in_x + sy·in_y`` order **bit-for-bit** (IEEE-754 addition is
-        non-associative; the fold order is load-bearing). Per ``vv-principles``
-        Bit-identity vs principled-equivalence, do NOT switch to ``sum()`` or
-        rearrange for "clarity" — it breaks the 1-ULP regression contract.
+        The math is :math:`\psi_{\rm avg} = (Q + \sum_a 2 g_a\,\psi^{\rm in}_a) /
+        (\Sigma_t + \sum_a 2 g_a)`, closure :math:`\psi^{\rm out}_a = 2\psi_{\rm
+        avg} - \psi^{\rm in}_a`, where ``s_a = g_a`` is the RAW down-face
+        streaming and the **scheme** applies its diamond factor ``2 = 1/w_DD``
+        (#240): both the denominator term AND the upstream-numerator term gain
+        the ``2`` (a denom-only ``2`` would be a non-uniform 2× bug → wrong
+        ``ψ̄``). The closure ``2ψ̄ − ψ_in`` is the diamond MEAN (also a ``2``,
+        but the cell-average reconstruction, not the streaming factor).
+        The axis reduction is an **explicit left fold** (NOT ``sum()``) so the
+        accumulation order is ``((sigt + 2g_0) + 2g_1) + …`` /
+        ``((Q + 2g_0·in_0) + 2g_1·in_1) + …`` — bit-identical to the legacy
+        ``sigt + sx + sy`` (with ``sx = 2|μ_x|/Δx``) order, because ``2·g_a``
+        equals the former pre-scaled ``2|μ_a|/Δa`` exactly (multiply by 2 is an
+        IEEE-754-exact power-of-2 scaling that commutes with rounding). Per
+        ``vv-principles`` Bit-identity vs principled-equivalence, do NOT switch
+        to ``sum()`` or rearrange for "clarity".
         """
         denom = sigt_cells                                 # (ng, n_diag)
         numer = Q_cells                                    # (N_oct or 1, ng, n_diag)
         for s_a, in_a in zip(s_axes, psi_in):
-            denom = denom + s_a                            # left fold → (N_oct, ng, n_diag)
-            numer = numer + s_a * in_a
+            denom = denom + 2.0 * s_a                      # left fold → (N_oct, ng, n_diag); 2 = DD's 1/w
+            numer = numer + 2.0 * s_a * in_a
         psi_avg = numer / denom                            # (N_oct, ng, n_diag)
         psi_out = tuple(2.0 * psi_avg - in_a for in_a in psi_in)
         return psi_avg, psi_out
@@ -345,7 +351,7 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
         *,
         psi_bar: np.ndarray,             # (N_oct, ng, n_diag) — the probe cell-average
         psi_in: tuple[np.ndarray, ...],  # d arrays, each (N_oct, ng, n_diag)
-        s_axes: tuple[np.ndarray, ...],  # d arrays, each (N_oct, 1, n_diag) — streaming coeff per axis
+        s_axes: tuple[np.ndarray, ...],  # d arrays, each (N_oct, 1, n_diag) — RAW down-face streaming g per axis (DD applies its diamond 2 here)
         sigt_cells: np.ndarray,          # (ng, n_diag)
         Q_cells: np.ndarray,             # (N_oct or 1, ng, n_diag)
     ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
@@ -353,25 +359,27 @@ class DiamondDifference(CellUpdateBase, key="diamond_difference"):
 
         The apply-direction companion of :meth:`cell_kernel_batch` (same
         positional-by-axis tuple convention — see its "Axis convention"):
-        evaluates :math:`r = (\Sigma_t + \sum_a s_a)\,\psi_{\rm bar} − (Q +
-        \sum_a s_a\,\psi^{\rm in}_a)` at the PROBE cell-average, and
+        evaluates :math:`r = (\Sigma_t + \sum_a 2 g_a)\,\psi_{\rm bar} − (Q +
+        \sum_a 2 g_a\,\psi^{\rm in}_a)` at the PROBE cell-average, and
         reconstructs the outgoing faces from the probe
-        (:math:`\psi^{\rm out}_a = 2\psi_{\rm bar} − \psi^{\rm in}_a`). Returns
-        ``(residual, psi_out)`` with ``psi_out`` the d-tuple of outgoing faces.
-        Single source of the matvec cell math — the APPLY arm of the
+        (:math:`\psi^{\rm out}_a = 2\psi_{\rm bar} − \psi^{\rm in}_a`).  ``s_a =
+        g_a`` is the RAW down-face streaming; the **scheme** applies its diamond
+        ``2 = 1/w_DD`` to BOTH the denom and the upstream-numerator term (#240).
+        Returns ``(residual, psi_out)`` with ``psi_out`` the d-tuple of outgoing
+        faces. Single source of the matvec cell math — the APPLY arm of the
         ``_CellResidual`` level operation, shared by the same two storage
         walks as :meth:`cell_kernel_batch`
         (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full` /
         :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`).
         Same explicit-left-fold operation-order discipline as
-        :meth:`cell_kernel_batch` (d=2 bit-identical to the legacy
-        ``sigt + sx + sy`` / ``Q + sx·in_x + sy·in_y`` order).
+        :meth:`cell_kernel_batch` (``2·g_a`` equals the former pre-scaled
+        ``2|μ_a|/Δa`` bit-for-bit; d=2 bit-identical to the legacy fold order).
         """
         denom = sigt_cells                                 # (ng, n_diag)
         numer = Q_cells                                    # (N_oct or 1, ng, n_diag)
         for s_a, in_a in zip(s_axes, psi_in):
-            denom = denom + s_a                            # left fold
-            numer = numer + s_a * in_a
+            denom = denom + 2.0 * s_a                      # left fold; 2 = DD's 1/w
+            numer = numer + 2.0 * s_a * in_a
         residual = denom * psi_bar - numer                 # (N_oct, ng, n_diag)
         psi_out = tuple(2.0 * psi_bar - in_a for in_a in psi_in)
         return residual, psi_out

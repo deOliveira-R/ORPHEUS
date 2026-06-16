@@ -1308,16 +1308,25 @@ class ScanMarch(_LossRepresentation):
         out_y = psi_y_in                             # last-row out_y (ny ≥ 1 → set below)
         y_rows = range(ny) if sy_eff >= 0 else range(ny - 1, -1, -1)
         for j in y_rows:
-            # D = σ_t + s_x + s_y on this row; the cell-kernel left-fold order
-            # ((σ_t + s_x) + s_y) is bit-id-load-bearing WITHIN a schedule only.
+            # NOTE(#239): the 2-D row-march still INLINES DD's closure.  Since
+            # #240 the per-axis ``s`` is the RAW down-face streaming ``g``, so
+            # the diamond factor ``2 = 1/w_DD`` is applied HERE (denom x-term
+            # ``2g_x``, y-term ``2g_y``).  The coefficient-model lift — consume
+            # the scheme's affine coefficients like the 1-D ``CumprodScan``, so
+            # the ``2`` lives in the scheme and Linear-Discontinuous can ride
+            # the 2-D row-march — is deferred (#239).
+            sx2 = 2.0 * s_x[:, None, :]              # (N_oct, 1, nx) DD x denom-term 2g_x
+            sy2 = 2.0 * s_y[:, j][:, None, None]     # (N_oct, 1, 1)  DD y denom-term 2g_y
+            # D = σ_t + 2g_x + 2g_y on this row; the left-fold order
+            # ((σ_t + 2g_x) + 2g_y) is bit-id-load-bearing WITHIN a schedule.
             D_row = (
                 sig_t[None, :, :, j]                 # (1, ng, nx)
-                + s_x[:, None, :]                    # (N_oct, 1, nx)
-                + s_y[:, j][:, None, None]           # (N_oct, 1, 1)
+                + sx2
+                + sy2
             )                                         # (N_oct, ng, nx)
-            alpha = 2.0 * s_x[:, None, :] / D_row - 1.0
+            alpha = 2.0 * sx2 / D_row - 1.0          # diamond closure 2 × denom-term 2g_x
             beta = (
-                2.0 * (Q_oct[:, :, :, j] + s_y[:, j][:, None, None] * psi_y_in)
+                2.0 * (Q_oct[:, :, :, j] + sy2 * psi_y_in)
                 / D_row
             )
             psi_avg_row, out_y, x_outflow = _scanmarch_row(
@@ -1418,19 +1427,25 @@ class ScanMarch(_LossRepresentation):
             in_x_row, _out_x_row, x_outflow = _x_scan_faces(
                 alpha_reflect, 2.0 * psi_bar_row, inflow_x[:, :, j], x_reverse,
             )
+            # NOTE(#239): inline DD — since #240 ``s_x``/``s_y`` are the RAW
+            # down-face streaming ``g``, so the diamond ``2 = 1/w_DD`` is applied
+            # here (denom x-term ``2g_x``, y-term ``2g_y``). Coefficient-model
+            # lift (consume the scheme's affine coeffs) deferred (#239).
+            sx2 = 2.0 * s_x[:, None, :]              # (N_oct, 1, nx) DD x denom-term 2g_x
+            sy2 = 2.0 * s_y[:, j][:, None, None]     # (N_oct, 1, 1)  DD y denom-term 2g_y
             D_row = (
                 sig_t[None, :, :, j]                 # (1, ng, nx)
-                + s_x[:, None, :]                    # (N_oct, 1, nx)
-                + s_y[:, j][:, None, None]           # (N_oct, 1, 1)
+                + sx2
+                + sy2
             )
             LpC_oct[:, :, :, j] = (
                 D_row * psi_bar_row
-                - s_x[:, None, :] * in_x_row
-                - s_y[:, j][:, None, None] * psi_y_in
+                - sx2 * in_x_row
+                - sy2 * psi_y_in
             )
-            # DD diamond reconstruction out_y = 2ψ̄ − ψ_y_in (2-D scan-march is
-            # DD-only; the residual + x-recon above already bake in w=½ — the
-            # 2-D coefficient-model lift is deferred, see ``_scanmarch_row``).
+            # DD diamond reconstruction out_y = 2ψ̄ − ψ_y_in (the 2 here is the
+            # diamond MEAN — cell-average reconstruction, NOT the streaming
+            # factor; 2-D scan-march is DD-only, coefficient-model lift #239).
             out_y = 2.0 * psi_bar_row - psi_y_in
             psi_y_in = out_y
             cap_x[:, :, j] = x_outflow
@@ -2026,16 +2041,21 @@ class _OneDimScanWalk:
                         # UNIFORMLY — DD reproduces its diamond march, LD its Schur
                         # residual, with NO scheme branch (the kernel returns BOTH
                         # the density residual and the outgoing face, the apply twin
-                        # of the scan solve).  ``s = 2|μ|/Δ`` (slab A_down=1, V=Δ)
-                        # is the scheme-agnostic streaming coefficient — LD's kernel
-                        # halves it to ``g=|μ|/Δ`` internally; source-free apply
+                        # of the scan solve).  ``s_axes`` is the RAW down-face
+                        # streaming ``g = |μ|·A_down/V = |μ|/Δ`` (slab A_down=1,
+                        # V=Δ) — the scheme applies its own closure factor (DD the
+                        # diamond 2, LD none; #240).  Source-free apply
                         # (``Q_cells = 0``).  Cartesian has no Morel–Montry thread,
                         # so ``out_ang`` stays zero (the curvilinear arm carries it).
+                        # NOTE(#240): ``abs_mu / V[i]`` re-derives the raw ``g`` that
+                        # ``SNMesh.streaming(0)`` already produces — a Pattern-2 dup;
+                        # single-sourcing it (``streaming(0)[global_dir, i]``) is a
+                        # deferred follow-up pending a widths-vs-volumes bit-id check.
                         resid, (psi_out_cell,) = (
                             sn_mesh.cell_update.residual_kernel_batch(
                                 psi_bar=psi_cell.T[:, :, None],          # (K, ng, 1)
                                 psi_in=(psi_face_in.T[:, :, None],),
-                                s_axes=((2.0 * abs_mu / V[i])[:, None, None],),
+                                s_axes=((abs_mu / V[i])[:, None, None],),
                                 sigt_cells=sigma_t_gx[:, i][None, :, None],
                                 Q_cells=_MATVEC_ZERO_SOURCE,   # source-free apply
                             )

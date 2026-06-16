@@ -205,9 +205,10 @@ def test_d3_level_membership_is_index_sum_hyperplane():
 
 
 def test_diamond_kernel_admits_three_axis_streaming_sum():
-    r"""B5: the WDD cell kernel's ``denom = Σ_t + Σ_axis s_axis`` and
-    ``psi_avg = (Q + Σ_axis s_axis·in_axis)/denom`` reduce correctly when
-    given a 3-tuple of per-axis streaming coefficients.
+    r"""B5: the WDD cell kernel's ``denom = Σ_t + Σ_axis 2 g_axis`` and
+    ``psi_avg = (Q + Σ_axis 2 g_axis·in_axis)/denom`` reduce correctly when
+    given a 3-tuple of per-axis RAW streaming coefficients ``g`` (#240 — the
+    scheme applies its diamond 2 = 1/w_DD to each term).
 
     This is the d-generic successor of the explicit ``sx``/``sy`` 2-axis
     form. The structural claim: the kernel sums over ``d`` axes and the
@@ -227,12 +228,16 @@ def test_diamond_kernel_admits_three_axis_streaming_sum():
     Q = 0.8
 
     # Structurally-independent hand oracle (scalar, d-generic by sum).
-    denom_ref = sigt + sum(s)
-    psi_avg_ref = (Q + sum(si * ai for si, ai in zip(s, psi_in))) / denom_ref
+    # #240: s is the RAW down-face streaming g; the DD scheme applies its
+    # diamond 2 = 1/w_DD to each streaming term (denom AND numer).
+    denom_ref = sigt + sum(2.0 * si for si in s)
+    psi_avg_ref = (
+        Q + sum(2.0 * si * ai for si, ai in zip(s, psi_in))
+    ) / denom_ref
     psi_out_ref = tuple(2.0 * psi_avg_ref - ai for ai in psi_in)
 
     np.testing.assert_allclose(
-        denom_ref, 2.6, rtol=0, atol=1e-15,
+        denom_ref, 4.7, rtol=0, atol=1e-15,   # 0.5 + 2·(0.3+0.7+1.1) = 4.7
         err_msg="hand-oracle denom drifted (sanity)",
     )
 
@@ -330,8 +335,9 @@ def test_d1_dag_has_nx_levels_one_cell_each(nx):
 
 def test_d1_diamond_kernel_single_axis_streaming_sum():
     r"""B6c: the d-generic cell kernel at d=1 reduces to the known 1-D DD
-    closure: ``denom = σ_t + s_x``, ``psi_avg = (Q + s_x·in_x)/denom``,
-    ``psi_out = 2·psi_avg − in_x``.
+    closure: ``denom = σ_t + 2 g_x``, ``psi_avg = (Q + 2 g_x·in_x)/denom``,
+    ``psi_out = 2·psi_avg − in_x`` (#240 — ``s`` is raw ``g``; the scheme
+    applies its diamond 2 = 1/w_DD).
 
     The d=1 specialisation of B5: ``Σ_axis`` over ONE axis. This is the
     SAME scalar recurrence (per cell) that ``ordinate_scan`` computes in
@@ -346,12 +352,13 @@ def test_d1_diamond_kernel_single_axis_streaming_sum():
     psi_in = (1.3,)
     Q = 0.8
 
-    denom_ref = sigt + sum(s)           # 1.2
-    psi_avg_ref = (Q + s[0] * psi_in[0]) / denom_ref
+    # #240: s is the RAW down-face streaming g; the DD scheme applies the 2.
+    denom_ref = sigt + sum(2.0 * si for si in s)   # 0.5 + 2·0.7 = 1.9
+    psi_avg_ref = (Q + 2.0 * s[0] * psi_in[0]) / denom_ref
     psi_out_ref = 2.0 * psi_avg_ref - psi_in[0]
 
     np.testing.assert_allclose(
-        denom_ref, 1.2, rtol=0, atol=1e-15,
+        denom_ref, 1.9, rtol=0, atol=1e-15,
         err_msg="d=1 hand-oracle denom drifted (sanity)",
     )
     # The REAL d-generic kernel at d=1 (single streaming axis).

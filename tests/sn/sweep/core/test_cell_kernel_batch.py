@@ -5,10 +5,12 @@ r"""The batched cell-kernel PAIR — term-level L0 + the protocol contract.
 direction fork of the SN stack — the ONLY place the solve/apply algebra
 differs (S6.4).  This file pins them at the term level:
 
-1. **Closed-form balance** — ``ψ̄ = (Q + Σ_a s_a ψ_in_a) / (Σ_t + Σ_a s_a)``
+1. **Closed-form balance** — ``ψ̄ = (Q + Σ_a 2g_a ψ_in_a) / (Σ_t + Σ_a 2g_a)``
    and the WDD closure ``ψ_out_a = 2ψ̄ − ψ_in_a`` against a hand
-   calculation (the kernel returns the faces; SCATTERING them is the
-   walk's job, pinned in ``test_sweep_graph.py``).
+   calculation, where ``s_a = g_a`` is the RAW down-face streaming and the
+   scheme applies its diamond factor ``2 = 1/w_DD`` (#240) to BOTH the denom
+   and the upstream-numerator term (the kernel returns the faces; SCATTERING
+   them is the walk's job, pinned in ``test_sweep_graph.py``).
 2. **Bit-identity of the ordinate vectorisation** — the kernel's batched
    left-fold against a per-ordinate Python-loop reference, per element.
 3. **The apply direction's closed form, affinity, and the
@@ -82,20 +84,28 @@ class TestSolveKernelClosedForm:
     """Smallest possible batch — analytical hand calculation."""
 
     def test_psi_avg_and_closure_match_balance_formula(self):
-        """ψ̄ = (Q + s_x·ψ_in_x + s_y·ψ_in_y) / (Σ_t + s_x + s_y); the WDD
-        closure faces are returned (the walk scatters them)."""
+        r"""ψ̄ = (Q + 2g_x·ψ_in_x + 2g_y·ψ_in_y) / (Σ_t + 2g_x + 2g_y); the WDD
+        closure faces are returned (the walk scatters them).
+
+        ``s_axes`` is the RAW down-face streaming ``g`` (#240) — the scheme
+        applies its diamond ``2`` internally, so the hand-calc carries the ``2``
+        on every streaming term (Design A: the kernel param IS the raw ``g``).
+        """
         psi_in = (np.full((1, 1, 1), 4.0), np.full((1, 1, 1), 8.0))
-        s_axes = (np.full((1, 1, 1), 3.0), np.full((1, 1, 1), 5.0))
+        s_axes = (np.full((1, 1, 1), 3.0), np.full((1, 1, 1), 5.0))  # raw g
         sigt_cells = np.full((1, 1), 2.0)
         Q_cells = np.full((1, 1, 1), 16.0)
         psi_avg, psi_out = DiamondDifference().cell_kernel_batch(
             psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
         )
-        # (16 + 3*4 + 5*8) / (2 + 3 + 5) = 68 / 10 = 6.8
-        np.testing.assert_array_equal(psi_avg, 6.8)
-        # ψ_out_a = 2ψ̄ − ψ_in_a: 2*6.8 − 4 = 9.6 (x); 2*6.8 − 8 = 5.6 (y).
-        np.testing.assert_array_equal(psi_out[0], 9.6)
-        np.testing.assert_array_equal(psi_out[1], 5.6)
+        # denom = Σ_t + 2g_x + 2g_y = 2 + 2·3 + 2·5 = 18  (the scheme's diamond 2)
+        # numer = Q + 2g_x·ψx + 2g_y·ψy = 16 + 2·3·4 + 2·5·8 = 120
+        # ψ̄ = 120 / 18  (small integers are exact; only the division rounds)
+        psi_bar = 120.0 / 18.0
+        np.testing.assert_array_equal(psi_avg, psi_bar)
+        # ψ_out_a = 2ψ̄ − ψ_in_a  (the diamond MEAN — not the streaming factor)
+        np.testing.assert_array_equal(psi_out[0], 2.0 * psi_bar - 4.0)
+        np.testing.assert_array_equal(psi_out[1], 2.0 * psi_bar - 8.0)
         # The inputs are NOT mutated (the kernel is storage-free).
         np.testing.assert_array_equal(psi_in[0], 4.0)
         np.testing.assert_array_equal(psi_in[1], 8.0)
@@ -108,13 +118,17 @@ class TestSolveKernelClosedForm:
 
 def _per_ordinate_loop_reference(psi_in, s_axes, sigt_cells, Q_cells):
     """Per-ordinate Python-loop reference with the SAME left-fold order
-    ``(Σ_t + s_0) + s_1`` / ``(Q + s_0·in_0) + s_1·in_1`` the kernel uses."""
+    ``(Σ_t + 2g_0) + 2g_1`` / ``(Q + 2g_0·in_0) + 2g_1·in_1`` the kernel uses
+    (the scheme's diamond ``2`` on each raw-``g`` streaming term — #240)."""
     N_oct = psi_in[0].shape[0]
     ref = np.empty_like(psi_in[0])
     for n in range(N_oct):
         Q_n = Q_cells[n if Q_cells.shape[0] > 1 else 0]
-        denom = (sigt_cells + s_axes[0][n]) + s_axes[1][n]
-        numer = (Q_n + s_axes[0][n] * psi_in[0][n]) + s_axes[1][n] * psi_in[1][n]
+        denom = (sigt_cells + 2.0 * s_axes[0][n]) + 2.0 * s_axes[1][n]
+        numer = (
+            (Q_n + 2.0 * s_axes[0][n] * psi_in[0][n])
+            + 2.0 * s_axes[1][n] * psi_in[1][n]
+        )
         ref[n] = numer / denom
     return ref
 
@@ -159,39 +173,42 @@ class TestBitIdenticalToPerOrdinateLoop:
 
 @pytest.mark.l0
 class TestResidualKernelClosedForm:
-    """Single-cell closed-form: r = denom·ψ̄ − (Q + s_x·ψ_in_x + s_y·ψ_in_y)."""
+    r"""Single-cell closed-form: r = denom·ψ̄ − (Q + 2g_x·ψ_in_x + 2g_y·ψ_in_y),
+    ``denom = Σ_t + 2g_x + 2g_y`` (the scheme's diamond ``2`` on raw ``g``, #240)."""
 
     def test_residual_at_solution_is_zero(self):
-        """At the solved ψ̄ (= 6.8 from the solve closed-form test), the
+        r"""At the solved ψ̄ (= 120/18 from the solve closed-form test), the
         residual vanishes; the closure faces are reconstructed from the
         PROBE (so the matvec propagates edges exactly as the sweep does)."""
         psi_in = (np.full((1, 1, 1), 4.0), np.full((1, 1, 1), 8.0))
-        s_axes = (np.full((1, 1, 1), 3.0), np.full((1, 1, 1), 5.0))
+        s_axes = (np.full((1, 1, 1), 3.0), np.full((1, 1, 1), 5.0))  # raw g
         sigt_cells = np.full((1, 1), 2.0)
         Q_cells = np.full((1, 1, 1), 16.0)
+        psi_bar = 120.0 / 18.0
         residual, psi_out = DiamondDifference().residual_kernel_batch(
-            psi_bar=np.full((1, 1, 1), 6.8),
+            psi_bar=np.full((1, 1, 1), psi_bar),
             psi_in=psi_in, s_axes=s_axes,
             sigt_cells=sigt_cells, Q_cells=Q_cells,
         )
-        # 10*6.8 − (16 + 3*4 + 5*8) = 68 − 68 = 0.
+        # denom·ψ̄ − numer = 18·(120/18) − 120 = 120 − 120 = 0.
         np.testing.assert_allclose(residual, 0.0, atol=1e-13)
-        np.testing.assert_array_equal(psi_out[0], 2 * 6.8 - 4.0)  # 9.6
-        np.testing.assert_array_equal(psi_out[1], 2 * 6.8 - 8.0)  # 5.6
+        np.testing.assert_array_equal(psi_out[0], 2.0 * psi_bar - 4.0)
+        np.testing.assert_array_equal(psi_out[1], 2.0 * psi_bar - 8.0)
 
     def test_residual_off_solution_is_affine(self):
-        """A probe shifted by δ from the solution shifts the residual by
+        r"""A probe shifted by δ from the solution shifts the residual by
         denom·δ — the residual is linear in ψ̄."""
         psi_in = (np.full((1, 1, 1), 4.0), np.full((1, 1, 1), 8.0))
-        s_axes = (np.full((1, 1, 1), 3.0), np.full((1, 1, 1), 5.0))
+        s_axes = (np.full((1, 1, 1), 3.0), np.full((1, 1, 1), 5.0))  # raw g
         residual, _ = DiamondDifference().residual_kernel_batch(
-            psi_bar=np.full((1, 1, 1), 7.0),       # 0.2 above the solution 6.8
+            psi_bar=np.full((1, 1, 1), 7.0),       # above the solution 120/18
             psi_in=psi_in, s_axes=s_axes,
             sigt_cells=np.full((1, 1), 2.0),
             Q_cells=np.full((1, 1, 1), 16.0),
         )
-        # 10*7.0 − 68 = 2.0  (== denom · δ = 10 · 0.2).
-        np.testing.assert_allclose(residual, 2.0, atol=1e-13)
+        # denom·ψ̄ − numer = 18·7.0 − 120 = 126 − 120 = 6.0
+        #   (== denom · δ = 18 · (7 − 120/18)).
+        np.testing.assert_allclose(residual, 6.0, atol=1e-13)
 
 
 @pytest.mark.l0
@@ -254,11 +271,15 @@ class TestKernelSourceOfRecord:
     re-baselines the bit-identity anchors per the Fork-B2 discipline.
     """
 
+    # Updated #240 (s_axes=g): both kernels internalise the diamond 2 in the
+    # left fold (``denom += 2.0*s_a``, ``numer += 2.0*s_a*in_a``); the fold is
+    # still bit-identical to the legacy ``sigt + sx + sy`` because ``2*g_a``
+    # equals the former pre-scaled ``2|μ|/Δ`` exactly (power-of-2 commute).
     EXPECTED: ClassVar[dict[str, str]] = {
         "cell_kernel_batch":
-            "2b352825664639e71e8b4bce22e4d6ce540982329a426ccb171debe7eb83037e",
+            "f2457ebaeda89b7fb712f3b2af2a5e9057f140dc42b9216752ac8053e9cbd380",
         "residual_kernel_batch":
-            "7f528ef88dde07867295538f31b5c3291c5214613a53aba1b5c0a1699d99215c",
+            "96a61a50f2f454af07e0021b9fcec61dc2640909382429717b73892a8a4cf086",
     }
 
     @pytest.mark.parametrize("kernel", ["cell_kernel_batch", "residual_kernel_batch"])

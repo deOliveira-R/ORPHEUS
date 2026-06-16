@@ -327,11 +327,13 @@ def _scanmarch_row(
 
        The 2-D scan-march is **Diamond-Difference-only** today: the ``α``/``β``
        above already bake in DD's ``w=½`` diamond (the ``2`` factors), so the
-       closure is inlined here to match.  The 1-D paths moved to the
-       :mod:`~orpheus.sn.spatial.affine_closure` coefficient model (#158 Inc B);
-       lifting the 2-D scan-march onto ``affine_scan_coefficients`` +
+       closure is inlined here to match.  Since #240 the per-axis streaming the
+       caller feeds is the RAW ``g`` (the diamond ``2`` is applied in the
+       caller's ``_sweep_interior``, not the producer).  The 1-D paths moved to
+       the :mod:`~orpheus.sn.spatial.affine_closure` coefficient model (#158 Inc
+       B); lifting the 2-D scan-march onto ``affine_scan_coefficients`` +
        ``affine_closure`` (so Linear-Discontinuous can ride the 2-D row-march)
-       is the deferred 2-D coefficient-model refactor.
+       is the deferred 2-D coefficient-model refactor (#239).
 
     Returns ``(psi_avg, out_y, x_outflow)`` — the cell average and the
     downstream y-face (the next row's ``psi_y_in``) in mesh order, and the

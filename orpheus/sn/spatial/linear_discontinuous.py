@@ -426,7 +426,7 @@ class LinearDiscontinuous(CellUpdateBase, key="linear_discontinuous"):
                 "bilinear (an independent slope per axis) and is deferred "
                 "(#158 Increment D)."
             )
-        g = 0.5 * s_axes[0]                         # |μ|/Δ  (N_oct, 1, n_diag)
+        g = s_axes[0]                               # raw down-face streaming |μ|/Δ (N_oct, 1, n_diag); #240 — was 0.5*s when s carried DD's diamond 2
         g_over_theta = g / self.theta
         in0 = psi_in[0]                             # (N_oct, ng, n_diag)
         d2 = g_over_theta + sigt_cells             # D₂ (Schur slope denom)
