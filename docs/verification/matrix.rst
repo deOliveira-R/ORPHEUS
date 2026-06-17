@@ -627,7 +627,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **86** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **92** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -663,14 +663,20 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``ld-ubld-d1-reduction``
 - ``ld-ubld-divv-scale-free-kernel``
 - ``ld-ubld-exact-on-bilinear``
+- ``ld-ubld-kronecker-assembly``
+- ``ld-ubld-kronecker-factors``
+- ``ld-ubld-mass-weights``
 - ``ld-ubld-moment-scan-source``
 - ``ld-ubld-n-spatial-moments``
+- ``ld-ubld-octant-moment-frame-signs``
 - ``ld-ubld-pure-z-collision``
 - ``ld-ubld-rule-of-three-collapse``
 - ``ld-ubld-s2-s3-operators``
 - ``ld-ubld-scale-free-invariants``
 - ``ld-ubld-scattering-moment-lift``
+- ``ld-ubld-slope-angular-reduction``
 - ``ld-ubld-unified-moment-residual``
+- ``ld-ubld-weak-form``
 - ``loss-rep-affine``
 - ``loss-rep-affine-cell``
 - ``loss-rep-facewise-separable``

@@ -1495,25 +1495,96 @@ inlined Schur form :math:`\bar\psi + (|\mu|/\theta)(\bar\psi - \psi_{\rm in})/D_
 but takes a different floating-point reduction tree (a principled
 :math:`\sim`\ 1-ULP re-baseline).
 
-.. todo:: Archivist expansion needed (#240 Phase 2 Step D6).
-   This stub anchors the generic affine-scheme outflow reconstruction
-   :meth:`orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`
-   (the inverse of
-   :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average`).  The
-   #240 Phase 2 Step D1 carve single-sources the per-scheme inlined
-   reconstruction (DD ``2ψ̄ − ψ_in``, LD ``(1+k)ψ̄ − k·ψ_in``) through this op;
-   Step D2 homed the three reconstruction ops (``source_emission`` /
-   ``cell_average`` / ``outgoing_face_from_average``) as ``@staticmethod``\ s
-   onto the :class:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase`
-   (DiscretizationScheme base) — the generic advection–reaction reconstruction,
-   diffusion-consumable, retiring the dangling ``affine_closure`` module.
-   Unit gate: :mod:`tests.sn.spatial.test_affine_closure` (exact-inverse
-   round-trip, DD ``w=½`` byte-identity, LD ``w=1/(1+k)`` algebraic equality).
-   Closeout memo:
-   ``.claude/agent-memory/method-implementer/issue_240_phase2_step_d1_closeout.md``.
-   The full narrative (the Step/DD/LD ↔ advection-scheme correspondence — upwind
-   / box-central / DG-P1-upwind, the ``w(Σ)`` Péclet/κ-scheme blend, the
-   spatial⊗angular factorization) is the D6 archivist deliverable.
+The one parameterized formula above is the **single source** of the
+downstream-face reconstruction for *every* affine 1-D spatial scheme.  It is
+homed (with its forward partner, the cell-average blend
+:math:`\bar\psi = (1-w)\psi_{\rm in} + w\,\psi_{\rm out}`, and the source
+emission) as a ``@staticmethod`` on the
+:class:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase`, so the per-scheme
+classes (:class:`~orpheus.sn.spatial.diamond.DiamondDifference`,
+:class:`~orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous`, Step)
+carry NO inlined reconstruction of their own — they differ only by the value
+they pass for the blend weight :math:`w`.  The #240 Phase 2 Step D1 carve
+collapsed the previously-duplicated inline forms (Diamond Difference's
+:math:`2\bar\psi - \psi_{\rm in}`, Linear Discontinuous's
+:math:`(1+k)\bar\psi - k\,\psi_{\rm in}`) onto this one op
+(:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average`),
+the algebraic inverse of
+:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_average`; Step D2
+made the trio (``source_emission`` / ``cell_average`` /
+``outgoing_face_from_average``) generic advection–reaction reconstructions
+(diffusion-consumable, retiring the dangling ``affine_closure`` module).  The
+unit gate is :mod:`tests.sn.spatial.test_affine_closure`: the exact-inverse
+round-trip :math:`\bar\psi(\,\psi_{\rm in}, \psi_{\rm out}(\psi_{\rm in}, \bar\psi)\,) = \bar\psi`,
+the DD :math:`w = \tfrac12` byte-identity, and the LD :math:`w = 1/(1+k)`
+algebraic equality.
+
+The Step / DD / LD ladder is the transport-sweep face of a correspondence
+familiar from finite-volume advection: each scheme is one choice of how the
+**downstream** face value is reconstructed from the cell average and the
+**upstream** face value, parameterized by the convex blend weight :math:`w`.
+
+.. list-table:: The affine spatial schemes as advection-flux reconstructions
+   :header-rows: 1
+   :widths: 16 14 30 40
+
+   * - Scheme
+     - Blend :math:`w`
+     - Face reconstruction
+     - Advection-scheme analog
+   * - **Step** (upwind)
+     - :math:`w \to 1`
+     - :math:`\psi_{\rm out} = \bar\psi` (cell value carried to the
+       downstream face)
+     - first-order **upwind**: the outgoing flux IS the cell-centre value, no
+       slope.  Monotone, unconditionally positive, :math:`O(h)`.
+   * - **Diamond Difference**
+     - :math:`w = \tfrac12`
+     - :math:`\psi_{\rm out} = 2\bar\psi - \psi_{\rm in}` (central / box mean)
+     - **box / central** difference: the cell average is the arithmetic mean of
+       the two faces.  :math:`O(h^2)`, but can go negative (the DD flux dip).
+   * - **Linear Discontinuous**
+     - :math:`w = 1/(1+k)`,
+       :math:`k = (|\mu|/\theta)/D_2`
+     - :math:`\psi_{\rm out} = \bar\psi + \hat\psi` (DG-P1 upstream trace)
+     - **DG-P1 with upwind face flux**: a discontinuous linear profile per cell,
+       the downstream face is the cell's own :math:`P_0 + P_1` trace.
+       :math:`O(h^2)`, diffusion-limit-consistent (slope-source-fed).
+
+The weight :math:`w = 1/(1+k)` is a **Péclet-type blend**: writing
+:math:`k = (|\mu|/\theta)/D_2` (the stream-to-collision ratio of
+:eq:`ld-ubld-scale-free-invariants`, scaled by the Legendre normalization
+:math:`\theta = \tfrac13`), the optically thin cell (:math:`\Sigma_t h \to 0`,
+streaming-dominated, :math:`k \to \infty`) drives :math:`w \to 0` so the
+downstream face approaches the *upstream* face (the streaming limit, no
+collisional re-equilibration within the cell); the optically thick cell
+(:math:`\Sigma_t h \to \infty`, collision-dominated, :math:`k \to 0`) drives
+:math:`w \to 1` so the downstream face approaches the cell average (the
+diffusive limit).  This is exactly the role the Péclet number plays in a
+:math:`\kappa`-scheme advection blend — :math:`w` interpolates between upwind
+(:math:`w=1`) and central (:math:`w=\tfrac12`) as a function of the cell
+optical thickness.  Diamond Difference's fixed :math:`w=\tfrac12` is the
+:math:`\Sigma_t = 0` (pure streaming) value of the LD weight only in the
+degenerate sense that DD ignores the within-cell collision balance the LD
+slope resolves; the two coincide on the *average* but DD has no slope row at
+all.
+
+.. note::
+
+   **The spatial closure factors out of the angular index, and the multi-D
+   extension factors out of the dimension.**  The reconstruction op above is
+   stated per ordinate per axis, so it is a *spectator* to the angular moment
+   axis (the angular reduction :eq:`two-moment-angular` rides over it, see
+   :ref:`two-moment-axes`) — the same op serves a P0 and a P3 calculation
+   unchanged.  In the same spirit, the multi-dimensional LD closure
+   (:ref:`ld-ubld-multidim`, next) is the **tensor product** of this 1-D
+   per-axis reconstruction across :math:`d` axes: the per-cell
+   :math:`2^d \times 2^d` operator is assembled as a Kronecker product of the
+   verified 1-D factor operators, so the affine 1-D closure documented here is
+   the literal :math:`d=1` building block of the :math:`d`-generic UBLD system
+   :eq:`ld-ubld-cell-system`.  Spatial scheme :math:`\otimes` angular order
+   :math:`\otimes` dimension: three orthogonal axes of choice, each a tensor
+   factor, none special-casing the others.
 
 .. _ld-ubld-multidim:
 
@@ -1569,36 +1640,175 @@ The UBLD is **exact on any bilinear flux** (the multi-D analog of the
 exercised — the structurally-independent correctness gate for the
 :math:`d \ge 2` closure.
 
-.. todo:: Archivist expansion needed (#240 / #38 / #37 — D5b-S1 Branch 1).
-   This stub anchors the Branch-1 (SymPy) algebra-of-record for the
-   :math:`d`-generic UBLD per-cell system.  The canonical symbolic
-   reference is
-   :mod:`orpheus.derivations.discrete.sn.ld_ubld` — the Kronecker
-   assembler (``assemble_ubld``) + the five ``derive_*`` verification
-   functions (d=1 reduction to the production slab LD and its ÷V /
-   ×V views, d=2 exact-on-bilinear, d=3 trilinear readiness).  The
-   d=1 reduction is proven equal to the production
-   :mod:`orpheus.sn.spatial.linear_discontinuous` 2×2 + Schur
-   :math:`S` / slope :math:`\hat\psi` / :math:`D_2'` closed forms, AND
-   to the ÷V ``_kernel_terms`` and ×V ``affine_scan_coefficients``
-   views (the "single-source the math" proof for Branch 2).  Foundation
-   gate: :mod:`tests.sn.spatial.test_ld_ubld_symbolic` (6 tests).
-   Closeout memo:
-   ``.claude/agent-memory/method-implementer/issue_240_d5b_s1_ld_ubld_branch1_closeout.md``.
-   Literature contract:
-   ``.claude/agent-memory/literature-researcher/multi_d_ld_closure.md``
-   (MRM-2016 Eqs. 1-12; Adams-2001 thick-diffusion verdict; BLA-1992).
+The Branch-1 algebra-of-record (the UBLD weak form)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-   Brief for the full narrative: the UBLD weak form derivation
-   (Galerkin + upwind face flux); WHY bilinear not simplex-P1 (the
-   thick-diffusion-limit verdict, the role of the :math:`xy` moment);
-   the Kronecker single-source build (mass on transverse axes, the
-   :math:`\theta^{(\#\text{active axes})}` moment-weight pattern
-   :math:`1, \theta, \theta, \theta^2` in 2-D); the
-   :math:`2^{d-1}`-moment face cochain widening (Branch-2 / face-payload
-   contract); the diffusion-limit consistency (Increment-C slope-source
-   dependency).  Branch 2 (the numpy production primitive) is a separate
-   follow-on dispatch.
+The canonical symbolic reference for the :math:`d`-generic UBLD system is the
+SymPy module :mod:`orpheus.derivations.discrete.sn.ld_ubld` (the
+algebra-of-record, State 1A closed-form): the Kronecker assembler
+``assemble_ubld`` plus five ``derive_*`` verification functions, each proven by
+``sympy.simplify(diff) == 0``.  It is the discrete-SN sibling of
+``orpheus.derivations.discrete.sn.balance`` — a *symbolic discretization the
+production solver must satisfy*, NOT a continuous reference.
+
+The per-cell system descends from the Galerkin weak form of the within-group
+streaming–collision operator (Maginot, Ragusa & Morel 2016, "Non-negative
+Methods for Bilinear Discontinuous Differencing of the :math:`S_N` Equations on
+Quadrilaterals", NSE 185(1):17–42, Eqs. 1–12).  Multiplying the transport
+equation :math:`\Omega\cdot\nabla\psi + \Sigma_t\psi = S` by each basis function
+:math:`B_i` and integrating over the cell :math:`K`, then integrating the
+streaming term by parts (MRM-2016 Eq. 6),
+
+.. math::
+   :label: ld-ubld-weak-form
+
+   \underbrace{(\Omega\cdot)\!\oint_{\partial K} \hat n\,B_i\,\psi\,d\ell}_{\text{surface (upwind)}}
+   \;-\; \int_K \psi\,(\Omega\cdot\nabla B_i)\,dV
+   \;+\; \Sigma_t\!\int_K B_i\,\psi\,dV
+   \;=\; \int_K B_i\,S\,dV,
+
+gives three operators per cell — the **mass** :math:`M_{ij} = \int_K B_i B_j`
+(the collision term), the **gradient/stiffness** :math:`G_{ij} = \int_K B_i\,(\Omega\cdot\nabla B_j)`
+(the volumetric streaming term, coupling all :math:`2^d` moments), and the
+**surface** matrix split per face into an OUTFLOW block (:math:`\Omega\cdot\hat n > 0`,
+implicit, the cell's own unknowns) and an INFLOW block (:math:`\Omega\cdot\hat n < 0`,
+**upwind**: the incoming face value is the upstream neighbour's outflow trace,
+moved to the RHS).  Assembling gives exactly the dense system
+:eq:`ld-ubld-cell-system`, :math:`A = G + F_{\rm out} + \Sigma_t M`,
+:math:`\vec R = M\vec S + F_{\rm in}\,\psi_{\rm in}^{\rm traces}`.
+
+Why bilinear, not simplex-P1
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The naïve multi-D analog of 1-D LD — "cell average plus one slope per axis",
+the simplex-P1 basis :math:`\{1, x, y\}` of :math:`1+d` moments — is the
+**wrong object on a Cartesian cell**.  Adams (2001, "Discontinuous Finite
+Element Transport Solutions in Thick Diffusive Problems", NSE 137(3):298–333)
+proved that simplex-LD *fails* the thick diffusion limit on quadrilaterals,
+while the **bilinear / trilinear DG-P1** (UBLD) — the tensor-product basis
+:math:`\{1, x, y, xy\}` of :math:`2^d` moments — *passes* it.  The reason is the
+:math:`xy` **cross moment**: it is exactly what the simplex basis lacks, and it
+is the term the leading-order asymptotic diffusion balance needs (Börgers,
+Larsen & Adams 1992, "The asymptotic diffusion limit of a linear discontinuous
+discretization of a two-dimensional linear transport equation", JCP
+98(2):285–300, give the 2-D rectangular analysis explicitly).  The simplex-P1
+basis *does* preserve the limit on a genuine simplex (triangle/tetra) mesh
+(Wareing, McGhee, Morel & Pautz 2001, NSE 138(3):256–268) — but that is a
+different cell topology, not a quadrilateral.  ORPHEUS builds Cartesian cells,
+so the :math:`2^d` tensor-product object is the diffusion-limit-consistent
+choice; the choice is **load-bearing**, not a convenience (see
+:ref:`ld-ubld-scattering-moment-lift` for the companion half of the same
+asymptotic argument).
+
+The Kronecker single-source build
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The three matrices are NOT hand-transcribed entry-by-entry (that would be a
+:math:`4\times4` / :math:`8\times8` transcription waiting for a sign error).
+They are assembled as **Kronecker products of the verified 1-D LD factor
+operators** in the Legendre moment basis :math:`\{1, P_1\}` on width :math:`h`:
+
+.. math::
+   :label: ld-ubld-kronecker-factors
+
+   M_{1d} = \mathrm{diag}(h,\ \theta h),
+   \qquad
+   G_{1d} = |\mu|\begin{bmatrix} 0 & 0 \\ -2 & 0 \end{bmatrix},
+   \qquad
+   F_{\rm out}^{1d} = |\mu|\begin{bmatrix} 1 & 1 \\ 1 & 1 \end{bmatrix},
+
+with the streaming :math:`\Omega\cdot\nabla = \sum_a \mu_a\,\partial_a` a sum
+over axes (the tensor-product basis separates), so
+
+.. math::
+   :label: ld-ubld-kronecker-assembly
+
+   M = M_1 \otimes \cdots \otimes M_d,
+   \qquad
+   G = \sum_a \mu_a\,(M_1 \otimes \cdots \otimes G_{1d}^{(a)} \otimes \cdots \otimes M_d),
+
+i.e. the gradient acts on the active axis and **the mass on every transverse
+axis** (the volume-integral factorization — this is the load-bearing build
+choice).  The :math:`F_{\rm out}` surface matrix is assembled likewise; the
+inflow is a :math:`B(-1) = [1, -1]` test-weighting on the active axis (mass on
+transverse axes) times :math:`|\mu_{\rm axis}|`.  The diagonal mass weights are
+then the Kronecker product of the per-axis diagonals — a power of
+:math:`\theta = \tfrac13` equal to the **number of active (slope) axes** of each
+moment:
+
+.. math::
+   :label: ld-ubld-mass-weights
+
+   M_{ii} = \theta^{|i|},
+   \qquad
+   |i| = \#\{a : o_a = 1\}
+   \;\Longrightarrow\;
+   \begin{cases}
+     1        & \bar\psi \quad (\text{no slope axis}) \\
+     \theta   & \hat\psi_x,\ \hat\psi_y \quad (\text{one slope axis}) \\
+     \theta^2 & \hat\psi_{xy} \quad (\text{two slope axes})
+   \end{cases}
+
+so the 2-D weights are :math:`(1, \theta, \theta, \theta^2)` and the 3-D
+:math:`xyz` cross moment carries :math:`\theta^3`.  These weights re-appear in
+the matvec mass-normalization (:eq:`ld-ubld-unified-moment-residual`) — they are
+the SAME diagonal Legendre mass.  The :math:`d=1` case is a Kronecker product
+with a single factor (an identity), so it reduces EXACTLY to the production
+slab 2×2 :eq:`ld-ubld-d1-reduction`; the :math:`xy` coupling *emerges* from the
+algebra for :math:`d \ge 2` — no entry is hand-written.
+
+The two oracles
+^^^^^^^^^^^^^^^
+
+The module proves the construction with two structurally distinct oracles
+(both ``sympy.simplify(diff) == 0``):
+
+* **Oracle (i) — the :math:`d=1` reduction.**
+  ``derive_d1_reduction_to_production`` shows the assembled :math:`d=1` system
+  equals the production
+  :mod:`orpheus.sn.spatial.linear_discontinuous` 2×2 entry-for-entry, with the
+  Schur complement :math:`S` and the effective slope denominator
+  :math:`D_2' = \Sigma_t h\theta + |\mu|` recovered as the production closed
+  forms.  Two further reductions
+  (``derive_d1_kernel_view_equals`` / ``derive_d1_scan_view_equals``) prove the
+  same :math:`d=1` reduces to BOTH the ÷V DAG kernel ``_kernel_terms`` and the
+  ×V scan ``affine_scan_coefficients`` views — the "single-source the math"
+  proof that Branch 2's three production views are the SAME algebra
+  (:eq:`ld-ubld-rule-of-three-collapse`).
+
+* **Oracle (ii) — exact-on-bilinear at :math:`d=2`.**
+  ``derive_d2_exact_on_bilinear`` feeds an exactly-bilinear flux
+  :math:`\psi = a + bx + cy + dxy` through the DG-exact upstream face moments and
+  the projected source moments, and shows the 4 solved moments equal the exact
+  projections (:eq:`ld-ubld-exact-on-bilinear`).  The :math:`xy` cross moment is
+  genuinely exercised (:math:`d \ne 0` symbolically) — this is the multi-D
+  analog of the 1-D "exact on linear-in-x" oracle and the structurally
+  independent correctness gate for the :math:`d \ge 2` closure.
+
+The foundation gate is :mod:`tests.sn.spatial.test_ld_ubld_symbolic` (6
+``@pytest.mark.foundation`` tests, one per ``derive_*`` plus an anchor to the
+live production ``LinearDiscontinuous.update``); the literature contract is
+recorded in
+``.claude/agent-memory/literature-researcher/multi_d_ld_closure.md`` (MRM-2016
+Eqs. 1–12; the Adams-2001 thick-diffusion verdict; BLA-1992); the closeout is
+``.claude/agent-memory/method-implementer/issue_240_d5b_s1_ld_ubld_branch1_closeout.md``.
+
+.. admonition:: ERR-060 — the oracle that earned its keep
+   :class: tip
+
+   The first draft of ``assemble_inflow_axis`` dropped the :math:`|\mu_{\rm axis}|`
+   streaming factor on the inflow RHS (failure Mode 3, a missing factor).  The
+   bug was INVISIBLE to all three :math:`d=1` oracles — the :math:`d=1` RHS is
+   built inline, never routed through the multi-axis inflow assembler — and was
+   caught by Oracle (ii), the :math:`d=2` exact-on-bilinear gate, which is the
+   first consumer of ``assemble_inflow_axis``.  Mutation-verified
+   :math:`-O`-safe: re-dropping the factor turns the :math:`d=2` test red while
+   the :math:`d=1` tests stay green (proving they are blind to the bug class).
+   This is the algebra-of-record discipline working as designed — the bug never
+   reached production.  (The ERR-060 marker belongs on the *exact-on-bilinear*
+   gates, NOT on the cell-matrix ``A == A`` pin, which checks
+   ``assemble_ubld``'s A/M/G/:math:`F_{\rm out}` and is structurally blind to the
+   dropped inflow factor — see ``error_catalog.md`` ERR-060.)
 
 .. _ld-ubld-branch2-primitive:
 
@@ -1652,39 +1862,101 @@ place, proven ``==`` the dense primitive's :math:`d=1` reduction
 (symbolically by the Branch-1 oracles, numerically end-to-end by the
 Branch-2 gate).
 
-.. todo:: Archivist expansion needed (#240 / #38 / #37 — D5b-S1 Branch 2).
-   This stub anchors the Branch-2 (numpy) production primitive
-   :mod:`orpheus.sn.spatial._ubld` (``assemble_ubld`` /
-   ``per_cell_solve`` — the :math:`d`-generic dense reference;
-   ``d1_closed_form`` / :class:`~orpheus.sn.spatial._ubld.D1ClosedForm`
-   — the vectorized :math:`d=1` fast path with the ÷V / ×V / ×V-scan
-   views).  The three production views in
-   :mod:`orpheus.sn.spatial.linear_discontinuous`
-   (``_schur_terms`` / ``_kernel_terms`` /
-   ``affine_scan_coefficients``) single-source through it (the
-   Rule-of-Three collapse, Cardinal Rule 2 / Pattern 2).  Verification:
-   :mod:`tests.sn.spatial.test_ld_ubld_primitive` (10 tests) — the numpy
-   primitive == the SymPy oracle at :math:`d=1` (matrices + moments) and
-   exact-on-bilinear at :math:`d=2`; the shared closed form == the dense
-   :math:`d=1` solve in all three views; and the LIVE production scheme
-   (``update`` / ``cell_kernel_batch`` / ``affine_scan_coefficients``)
-   == the dense primitive (the link proof closing the elegance-enforcer's
-   Branch-1 CONCERN).  Closeout memo:
-   ``.claude/agent-memory/method-implementer/issue_240_d5b_s1_ld_ubld_branch2_closeout.md``.
+The numpy production counterpart descends from the SAME specialized SymPy
+ancestor as the Branch-1 algebra-of-record above; only the evaluation strategy
+differs (Branch 1 closes the algebra symbolically, Branch 2 evaluates it on
+arrays).  The discipline is **construct general, select narrow, specialize only
+on measured cost**:
 
-   Brief for the full narrative: the layered "construct general (dense),
-   select narrow (closed form), specialize on measured cost" pattern; WHY
-   the production :math:`d=1` must stay on the vectorized closed form
-   (the L16 performance constraint — CumprodScan rides the scan view's
-   ``(a, inverse_denom, w)``; the DAG kernel rides the ÷V arrays); the
-   ×V vs ÷V vs ×V-scan scaling crosswalk
-   (:math:`D_2' = \theta V\,d_2`, :math:`S_{\times V} = V\,
-   \mathrm{eff\_denom}`); the principled ~1-ULP re-baseline of the LD
-   views (the helper's reduction tree vs the legacy inline associations,
-   absorbed by the LD gates' ``rtol = 1e-12`` — the DD-only strict gate
-   is the bit-identical negative control); and the S2 hand-off (the
-   :math:`d \ge 2` bilinear cell-batch kernel + the
-   :math:`2^{d-1}`-moment face cochain wiring onto the dense primitive).
+* **Construct general — the dense primitive.**  ``assemble_ubld`` /
+  ``per_cell_solve`` build and solve the :math:`2^d \times 2^d` system
+  :eq:`ld-ubld-cell-system` for every :math:`d`, batched over the cell /
+  ordinate / group stack with a single :func:`numpy.linalg.solve`.  This is the
+  canonical :math:`d`-generic source — :math:`d=1` (today), :math:`d \ge 2`
+  (S2 wires the bilinear cell batch onto it), :math:`d = 3` (trilinear).
+
+* **Select narrow — the :math:`d=1` closed form.**  ``d1_closed_form`` /
+  :class:`~orpheus.sn.spatial._ubld.D1ClosedForm` is the analytic Schur
+  complement of the primitive's :math:`d=1` 2×2, VECTORIZED over the stack with
+  no dense solve.  Both scale-free invariants of :eq:`ld-ubld-scale-free-invariants`
+  drive it.
+
+* **Specialize on measured cost.**  In production :math:`d=1` does **not**
+  route through the dense solve — that would be the per-cell-solve performance
+  regression (the L16 constraint).  The closed form keeps the production
+  :math:`d=1` sweep on the vectorized fast path
+  (:class:`~orpheus.sn.loss_representation.CumprodScan` rides the ×V scan view's
+  :math:`(a, \mathrm{inverse\_denom}, w)`; the DAG kernel rides the ÷V arrays).
+
+The Rule-of-Three collapse
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Before the carve, the LD 2×2 algebra was transcribed in three production views
+that had drifted into three independent copies.  All three now derive their
+coefficients from the single ``d1_closed_form`` source
+(:eq:`ld-ubld-rule-of-three-collapse`), applying only their scaling at the call
+site — the Cardinal-Rule-2 / `coding-elegance` Pattern-2 single-source collapse:
+
+.. list-table:: The three production 1-D views — one algebra, three scalings
+   :header-rows: 1
+   :widths: 30 16 54
+
+   * - Production view (in :mod:`orpheus.sn.spatial.linear_discontinuous`)
+     - Scaling
+     - Consumer
+   * - ``_schur_terms``
+     - :math:`\times V`
+     - the per-cell Schur (the matvec / ``update`` / ``residual`` path)
+   * - ``_kernel_terms``
+     - :math:`\div V`
+     - the scale-free DAG wavefront kernel (the :math:`d \ge 2` arm rides the
+       ÷V system, :eq:`ld-ubld-divv-scale-free-kernel`)
+   * - ``affine_scan_coefficients``
+     - :math:`\times V` scan
+     - the Blelloch parallel-prefix scan (the production :math:`d=1` sweep)
+
+The ×V / ÷V / ×V-scan choice is the volume scaling applied to the same
+coefficients: dividing the Galerkin balance by the cell volume :math:`V` leaves
+a scale-free system in the per-axis streaming :math:`g_a = |\mu_a| A_{\rm down}/V`
+and :math:`\Sigma_t` alone (the form the :math:`d \ge 2` kernel consumes — fed
+unit widths and :math:`\mathrm{mus} = (g_0, \ldots)`, it reduces EXACTLY to
+``d1_closed_form``); multiplying restores the volume-weighted per-cell Schur
+(:math:`D_2' = \theta V\,d_2`, :math:`S_{\times V} = V\cdot\mathrm{eff\_denom}`).
+Each view is proven ``==`` the dense primitive's :math:`d=1` reduction —
+symbolically by the Branch-1 oracles above (``derive_d1_kernel_view_equals`` /
+``derive_d1_scan_view_equals``), numerically end-to-end by the Branch-2 gate.
+
+.. note::
+
+   **A principled ~1-ULP re-baseline, not a bit-identity break.**  Routing the
+   three LD views through the shared helper changes the floating-point
+   *reduction tree* relative to the legacy inline associations: the helper
+   computes :math:`(g, \Sigma_t, k, w)` once and forms each coefficient as an
+   algebraic function of them, whereas the old inline code interleaved the
+   multiplies and adds differently.  In exact arithmetic the values are
+   identical; in IEEE-754 they differ at ~1 ULP because addition is not
+   associative.  This satisfies all three `vv-principles` criteria for
+   accepting a non-bit-exact change: every intermediate
+   (:math:`g`, :math:`k`, :math:`w`) is a *named, inspectable* physics
+   quantity; the value is verified against the structurally-independent
+   Branch-1 symbolic oracle; and the drift is FP-non-associativity bounded by
+   the reduction depth.  The LD gates carry ``rtol = 1e-12`` (far above the
+   ULP-scale drift); the DD-only strict gate remains the **bit-identical
+   negative control** (DD never reaches the LD helper — its :math:`w=\tfrac12`
+   reconstruction is the exact power-of-two doubling that commutes with
+   round-to-nearest).
+
+The verification is :mod:`tests.sn.spatial.test_ld_ubld_primitive` (10 tests):
+the numpy primitive :math:`==` the SymPy oracle at :math:`d=1` (matrices +
+moments) and exact-on-bilinear at :math:`d=2`; the shared closed form
+:math:`==` the dense :math:`d=1` solve in all three views; and the LIVE
+production scheme (``update`` / ``cell_kernel_batch`` /
+``affine_scan_coefficients``) :math:`==` the dense primitive (the link proof).
+The closeout is
+``.claude/agent-memory/method-implementer/issue_240_d5b_s1_ld_ubld_branch2_closeout.md``.
+The :math:`d \ge 2` hand-off (the bilinear cell-batch kernel + the
+:math:`2^{d-1}`-moment face cochain wiring onto this primitive) is S2, the next
+subsection.
 
 .. _ld-ubld-d2-wavefront-wiring:
 
@@ -1734,46 +2006,91 @@ faces are the trace of the tensor-Legendre solution at the downstream node
 the next cell's upwind inflow consumes (out-of-cell == in-of-next-cell —
 the closure consistency the matvec twin verifies).
 
-.. todo:: Archivist expansion needed (#240 / #38 / #37 — D5b-S2 wiring).
-   This stub anchors the :math:`d \ge 2` UBLD wiring onto the DAG
-   wavefront.  The kernel dispatch is in
-   :mod:`orpheus.sn.spatial.linear_discontinuous`
-   (``cell_kernel_batch`` / ``residual_kernel_batch`` fork on
-   ``len(s_axes)``: the :math:`d=1` closed-form fast path vs the
-   :math:`d \ge 2` dense ``_ubld_system`` / ``per_cell_solve``); the
-   face-cochain widening is in :mod:`orpheus.sn.sweep_graph`
-   (``_MovingFrontier`` trailing moment axis, the ``_CellSolve`` /
-   ``_CellResidual`` moment-reducing emit) and
-   :mod:`orpheus.sn.loss_representation`
-   (``FullFieldWavefront._octant_face_cochain``, the window
-   ``_inflow_to_moments`` zero-pad).  Verification: the kernel round-trip
-   + matvec-twin face reconstruction
-   (:mod:`tests.sn.spatial.test_linear_discontinuous`
-   ``TestLDKernel`` — D5b.0 inverted, D5b.1); the end-to-end two-paths
-   FFW≡MFW, the DD≠LD routing-flip, and the O(h²) convergence smoke
-   (:mod:`tests.sn.verification.mms.test_mms_ld_2d` — D5b.3/.5/.2); the
-   d=2 numpy↔symbolic entry-wise ``A==A`` CELL-assembly pin +
-   ``test_d2_exact_on_bilinear`` (the genuine inflow ``|μ_axis|`` / ERR-060
-   catcher — it routes through ``assemble_inflow_axis``, which the
-   cell-matrix ``A==A`` pin does not)
-   (:mod:`tests.sn.spatial.test_ld_ubld_primitive`).
-   Design record (the convention crosswalk — moment ordering, the Q lift,
-   the domain-edge minimal touch):
-   ``.claude/plans/issue_240_d5b_s2_crosswalk.md``; recovery anchor:
-   ``.claude/plans/issue_240_phase2_step_d5b_ubld.md``.
+The scale-free ÷V system fed to the dense primitive
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-   Brief for the full narrative: the scale-free ÷V dense system (why
-   ``hs = [1, …]``, ``mus = [g_a, …]`` reproduces the ÷V balance and
-   reduces to ``d1_closed_form``); the moment-ordering crosswalk (the
-   Kronecker x-outer/y-inner ``[bar, ŷ, x̂, x̂y]`` cell order, the
-   per-axis ``2^{d-1}`` transverse face order, the downstream-node trace
-   reconstruction); the DD bit-identity backward-compat invariant (the
-   ``per_axis == 1`` gate keeps the scalar face / rank-3 emit
-   byte-identical); the S2 scope boundaries (the average-moment iterate
-   only — the full ``loss_action`` / Krylov 2-D LD needs the spatial-moment
-   iterate ``φ̂``, S3; the non-vanishing domain-inflow moment trace —
-   ``BoundaryFlux`` widening — S4; the strengthened vv Mode-7 stress-ansatz
-   MMS and the thick-diffusive tripwire, S4).
+The :math:`d \ge 2` arm rides the **scale-free ÷V** form of the dense system
+:eq:`ld-ubld-divv-scale-free-kernel`.  Dividing the Galerkin balance by the
+cell volume leaves a system depending only on the per-axis ÷V streaming
+:math:`g_a = |\mu_a|/\Delta_a` (the ``s_axes`` the kernel already receives) and
+:math:`\Sigma_t`.  In code this means the dense assembler ``_ubld_system`` /
+``per_cell_solve`` is fed **unit widths** (``hs = [1, …]``) and
+``mus = (g_0, …, g_{d-1})`` — so at :math:`d = 1` it reduces EXACTLY to
+``d1_closed_form`` (the ÷V view of the Rule-of-Three above), and at
+:math:`d \ge 2` it is the same dense object the Branch-1 oracle proves
+exact-on-bilinear.  The kernel dispatch lives in
+:mod:`orpheus.sn.spatial.linear_discontinuous` (``cell_kernel_batch`` /
+``residual_kernel_batch``): the :math:`d=1` closed-form fast path vs the
+:math:`d \ge 2` dense ``_ubld_system`` / ``per_cell_solve``.
+
+The downstream faces are the trace of the tensor-Legendre cell solution at the
+downstream node: since :math:`P_0(+1) = P_1(+1) = 1`, the outgoing face on axis
+:math:`a` sums the :math:`o_a = 0` and :math:`o_a = 1` blocks of the cell moment
+vector, producing a :math:`2^{d-1}`-moment face object (average + transverse
+slopes) in the transverse-Kronecker order the next cell's upwind inflow
+consumes.  *Out-of-cell == in-of-next-cell* is the closure consistency the
+matvec twin verifies.
+
+The moment-ordering crosswalk
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The cell moment vector is the tensor (Kronecker) product of the per-axis 1-D
+Legendre basis, ordered **x-outer / y-inner** so the all-:math:`P_0` cell
+average is always slot 0 (the same convention the :ref:`spatial-moment-space`
+factor surfaces, :eq:`spatial-moment-kronecker-order`).  The Kronecker layout in
+2-D is :math:`[\bar\psi,\ \hat\psi_y,\ \hat\psi_x,\ \hat\psi_{xy}]` (indexing
+:math:`[o_x, o_y]` with :math:`o_x` outer); each downstream face carries its
+:math:`2^{d-1}` transverse moments in the matching per-axis order.  The
+crosswalk between the cell-moment order, the per-face transverse order, and the
+downstream-node trace reconstruction is the design record's load-bearing detail
+(``.claude/plans/issue_240_d5b_s2_crosswalk.md``; recovery anchor
+``.claude/plans/issue_240_phase2_step_d5b_ubld.md``).
+
+The DD bit-identity backward-compat invariant
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+All three contract widenings — the dense kernel arm, the multi-moment
+face-cochain trailing axis (:mod:`orpheus.sn.sweep_graph` ``_MovingFrontier``;
+the ``_CellSolve`` / ``_CellResidual`` moment-reducing emit), and the window
+zero-pad (:mod:`orpheus.sn.loss_representation`
+``FullFieldWavefront._octant_face_cochain``, the ``_inflow_to_moments`` pad) —
+are GATED on the single scheme trait
+:attr:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.spatial_basis_per_axis`
+of :eq:`ld-ubld-n-spatial-moments`.  At ``per_axis == 1`` (DD / Step) the tail
+is the EMPTY tuple (:eq:`spatial-moment-append-policy`), so the scalar face and
+the rank-3 ``psi_avg`` emit are kept byte-identical — DD backward-compatibility
+falls out of the ``face_moment_tail`` formula, NOT an ``if scheme is DD`` branch.
+This is the negative control: the DD/Step gate stays at its exact pre-S2 golden.
+
+S2 scope boundaries
+^^^^^^^^^^^^^^^^^^^
+
+S2 wires the :math:`d \ge 2` UBLD kernel so 2-D LD *runs* on the DAG wavefront,
+but it is deliberately scoped to the **average-moment iterate** only.  Three
+things remain owed to the later sub-steps, and naming them here is the honest
+boundary:
+
+* The full ``loss_action`` / Krylov 2-D LD needs the spatial-moment iterate
+  :math:`\hat\phi` to travel between sweeps so the scattering slope source
+  :math:`\Sigma_s\hat\phi` couples the slopes globally — **S3**
+  (:ref:`ld-ubld-unified-moment-matvec`).  Without it the S2 closure is
+  :math:`O(h^2)` but diffusion-limit-inconsistent (the flat-source signature).
+
+* The non-vanishing domain-inflow moment trace (the ``BoundaryFlux`` /
+  ``mesh.trace`` widening to a :math:`2^{d-1}` transverse face moment) — **S4**
+  (and its honest-scope caveat, :ref:`ld-cartesian-2d`).
+
+* The strengthened vv Mode-7 stress-ansatz MMS and the thick-diffusive
+  tripwire — **S4** and **S3** respectively.
+
+The verification is the kernel round-trip + matvec-twin face reconstruction
+(:mod:`tests.sn.spatial.test_linear_discontinuous` ``TestLDKernel``), the
+end-to-end two-paths FFW :math:`\equiv` MFW, the DD :math:`\ne` LD routing-flip,
+and the :math:`O(h^2)` convergence smoke
+(:mod:`tests.sn.verification.mms.test_mms_ld_2d`), plus the :math:`d=2`
+numpy↔symbolic entry-wise ``A == A`` cell-assembly pin and the
+``test_d2_exact_on_bilinear`` ERR-060 catcher
+(:mod:`tests.sn.spatial.test_ld_ubld_primitive`).
 
 .. _two-moment-axes:
 
@@ -2401,17 +2718,20 @@ The design record (the angular-vs-spatial distinction, the FP resolution) is
 The unified moment matvec: a forward apply is intrinsically moment-valued (S3)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. todo::
-
-   Archivist expansion needed.  This stub records the S3 unified-moment-matvec
-   architecture; the rich narrative (the diffusion-limit asymptotics, the
-   matvec/sweep mass-normalization derivation, the branch-removal argument)
-   is owed.  Source: :mod:`orpheus.sn.spatial.linear_discontinuous`
-   (``cell_kernel_batch`` / ``residual_kernel_batch`` — now ONE d-generic moment
-   path), :mod:`orpheus.sn.sweep_graph` (``_CellSolve`` / ``_CellResidual`` — the
-   ``len(s_axes) > 1`` moment gate RETIRED), :mod:`orpheus.sn.loss_representation`
-   (the ``_spatial_moment_tail`` buffer widening).  Closeout:
-   ``.claude/agent-memory/method-implementer/issue_240_d5b_s3_unified_matvec_closeout.md``.
+Sub-step **D5b-S3** completes the apply direction: applying the per-cell
+:math:`2^d \times 2^d` UBLD operator (:eq:`ld-ubld-cell-system`) to a moment
+vector is intrinsically moment-valued, so the matvec carries the full
+:math:`(\bar\psi, \hat\psi)` moment vector in every dimension.  The
+architectural payoff is a branch removal; the *physics* payoff is the recovery
+of the thick-cell diffusion limit, which hinges on a single
+frame-consistency identity (ERR-061) that the rest of this subsection derives.
+The source files are :mod:`orpheus.sn.spatial.linear_discontinuous`
+(``cell_kernel_batch`` / ``residual_kernel_batch`` — now ONE :math:`d`-generic
+moment path), :mod:`orpheus.sn.sweep_graph` (``_CellSolve`` / ``_CellResidual``
+— the ``len(s_axes) > 1`` moment gate retired), and
+:mod:`orpheus.sn.loss_representation` (the ``_spatial_moment_tail`` buffer
+widening); the closeout is
+``.claude/agent-memory/method-implementer/issue_240_d5b_s3_unified_matvec_closeout.md``.
 
 The earlier increments (A/B) made the :math:`d{=}1` LD **matvec** Schur-reduce
 to a scalar residual: the slope :math:`\hat\psi` was eliminated, leaving a
@@ -2452,6 +2772,141 @@ The architectural headline is **branch removal** (Cardinal Rule 2): the
 ``isinstance(scheme, ...)`` branches — dispatch stays via the scheme PROTOCOL +
 geometry-keyed ``supports()``.
 
+.. _ld-ubld-sweep-global-frame:
+
+The sweep-frame / global-frame involution (ERR-061 — the diffusion-limit root cause)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This is the load-bearing result of the whole multi-dimensional LD campaign, and
+it is the kind of "what failed and why" Cardinal Rule 3 demands be archived in
+full.  Threading the moment matvec made the operator *internally consistent*
+(matvec :math:`\equiv` sweep round-trip to :math:`10^{-16}`, source-iteration
+:math:`\equiv` Krylov on the SAME operator) — and yet the converged flux was
+**wrong**: on a thick scattering slab (:math:`\Sigma_t = 40`, :math:`c = 0.99`,
+:math:`\Sigma_t h = 10`/cell, vacuum) at :math:`n_x = 4` the LD scalar flux was
+1.47 against the diffusion solution 2.31 (relative error 36 %), and the error
+did not grow under refinement — it *shrank* as the cells thinned (the classic
+flat-source-LD signature, persisting THROUGH the slope-source thread).
+
+The cause is a frame-consistency error between two individually-correct
+components.  The per-cell LD kernel produces and consumes the :math:`2^d` moment
+vector in the per-ordinate **sweep frame**: each axis :math:`a` is oriented so
+the *downstream* face is at the local coordinate :math:`+1`.  For an ordinate
+sweeping in the NEGATIVE global direction on axis :math:`a`
+(:math:`\mathrm{octant\_sign}_a = -1`) the sweep coordinate is the *reverse* of
+the global coordinate, so the slope (:math:`P_1`) moment on that axis is
+sign-FLIPPED relative to the global-:math:`x` slope.  But the iterate
+:math:`\hat\phi` and its scattering source :math:`\Sigma_s\hat\phi` live in the
+**global frame** — the angular reduction sums slopes across ordinates of BOTH
+sweep directions,
+
+.. math::
+   :label: ld-ubld-slope-angular-reduction
+
+   \hat\phi(\vec r, g) \;=\; \sum_{n=1}^{N} w_n\,\hat\psi_n(\vec r, g).
+
+The producer (``_CellSolve.cell`` emit) stored the raw sweep-frame slope; the
+consumer (``integrate_angular`` / the scattering apply) summed it as if it were
+global-frame.  So the backward ordinates' opposite-signed slopes partially
+CANCELLED the forward ones: at a cell with a positive global-:math:`x` gradient
+the forward ordinate had :math:`\hat\psi_n = +0.048` but the backward had
+:math:`-0.028` — opposite signs, the smoking gun.  The summed
+:math:`\hat\phi` was :math:`\sim 6\times` too small to satisfy the LM-1989
+discrete diffusion continuity (Larsen & Morel 1989, JCP 83(1):212–236, Eq. 4.9b,
+:math:`\bar\phi_j + \hat\phi_j = \bar\phi_{j+1} - \hat\phi_{j+1}`), the slope
+source was under-driven, and the discrete diffusion limit was the wrong
+diffusion operator.
+
+The fix is a single-sourced :math:`2^d` moment-frame **involution**,
+:func:`~orpheus.sn.spatial._ubld.octant_moment_frame_signs`,
+
+.. math::
+   :label: ld-ubld-octant-moment-frame-signs
+
+   \mathrm{sign}[o_0, \ldots, o_{d-1}]
+   \;=\;
+   \prod_{a=0}^{d-1} (\mathrm{octant\_sign}_a)^{\,o_a},
+   \qquad o_a \in \{0, 1\},
+
+indexed in the tensor-Legendre Kronecker layout (:math:`o_a` = the :math:`P_0` /
+:math:`P_1` selector on axis :math:`a`).  The **average** moment (all
+:math:`o_a = 0`) is sign-invariant (the empty product is :math:`1`); a per-axis
+**slope** flips once if that axis sweeps backward; the 2-D **cross** moment
+:math:`\hat\psi_{xy}` flips when an ODD number of its active axes reverse.  The
+map is its own inverse, so the SAME sign vector converts global :math:`\to`
+sweep on the source/probe INPUT and sweep :math:`\to` global on the
+moment/residual OUTPUT.  It is applied through the shared ``_reframe`` helper at
+the cell ops; the OUTGOING FACE (``psi_out``) stays sweep-frame — it propagates
+along the wavefront and never crosses into the global-frame iterate (so it is
+left untouched).  DD/Step (``spatial_basis_per_axis == 1``) get ``None`` (the
+sign-invariant average-only moment), so they pass through ``_reframe``
+untouched and stay byte-identical (the negative control); a flat scalar source
+(matvec zero / flat external — only the average moment) is frame-invariant and
+skipped by the ``arr.shape[-1] != frame_signs.shape[0]`` guard, so it is never
+broadcast into a spurious moment axis.
+
+After the fix the diffusion limit is recovered on BOTH the matvec (Krylov) and
+the sweep (source-iteration) paths:
+
+.. list-table:: Thick-slab LD vs DD relative error, before/after the frame fix
+   :header-rows: 1
+   :widths: 14 22 22 22
+
+   * - Mesh
+     - Cell optical depth
+     - Before (sweep-frame slope)
+     - After (global-frame slope)
+   * - 1-D, :math:`n_x = 4`
+     - :math:`\Sigma_t h = 10`
+     - 38.9 %
+     - 4.1 %
+   * - 1-D, :math:`n_x = 16`
+     - :math:`\Sigma_t h = 2.5`
+     - 7.9 %
+     - 0.2 %
+   * - 1-D, :math:`n_x = 64`
+     - :math:`\Sigma_t h = 0.6`
+     - 0.9 %
+     - 0.0 %
+   * - 2-D, :math:`n = 4/8/16`
+     - thick :math:`\to` thin
+     - 8.4 %
+     - 1.7 % :math:`\to` 0.4 %
+
+.. warning::
+
+   **The matvec-self-consistency gate is necessary but NEVER sufficient for a
+   moment-iterate fold.**  Every component here was individually correct (the
+   2×2 matched LM-1989 Eq. 4.3, the dense UBLD matched the analytic 2×2, the
+   scattering produced :math:`\Sigma_s\hat\phi` at full strength, the matvec
+   round-trip vanished to :math:`10^{-16}`, and source-iteration :math:`\equiv`
+   Krylov on the SAME operator).  The bug was the frame consistency *between*
+   two correct components — a wrong fixed point that the round-trip and the
+   SI :math:`\equiv` Krylov gates are structurally BLIND to: they prove the
+   operator is internally consistent, NOT that its fixed point is the
+   physically-correct one (`vv-principles` §5 — "O(h²) to the wrong limit is
+   still O(h²)").  The decisive evidence was a structurally-independent
+   from-scratch LD-SN solver (a direct LM-1989 2×2 + source iteration, no
+   ORPHEUS kernel) that reproduced ORPHEUS's WRONG value bit-for-bit when it
+   summed sweep-frame slopes and RECOVERED the diffusion limit when it stored
+   global-frame slopes — pinning the root cause independent of ORPHEUS's code.
+   The lesson: gate the converged VALUE against a structurally-independent
+   reference (the continuous diffusion solution + the independent from-scratch
+   kernel), never the round-trip.  This is failure Mode 1 (sign flip) +
+   Mode 6 (convention drift) — see ``error_catalog.md`` ERR-061.
+
+The thick-cell diffusion tripwire is
+``tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit``
+(1G) and ``::test_ld_thick_diffusive_limit_2g`` (2G heterogeneous, a
+group-coupled slope source — Mode 6), both ``@pytest.mark.l1
+@pytest.mark.catches("ERR-061")`` and both Mode-8-safe
+(``np.testing.assert_array_less`` fires under ``-O``).  The slope-frame
+fingerprint is pinned by
+``derivations/diagnostics/diag_240_d5b_s3_probe_11_root_cause.py`` (forward and
+backward ordinate slopes must share sign in the global frame), and the
+structurally-independent confirmation by
+``diag_240_d5b_s3_probe_08_independent_ld.py``.
+
 .. _ld-ubld-pure-z-collision-twin:
 
 The pure-z collision-only twin — sweep :math:`\equiv` matvec single source
@@ -2464,30 +2919,62 @@ The pure-z collision-only twin — sweep :math:`\equiv` matvec single source
    \qquad\Longleftrightarrow\qquad
    \text{(matvec)}\quad (L+C)\,\bar\psi = \sigma_t\,\bar\psi
 
-.. todo:: Archivist expansion needed (the L21 collision-only twin — ERR-062).
+The pure-z degenerate ordinates (:math:`\mu_x = \mu_y = 0`, the :math:`\pm z`
+poles of a Lebedev or product cubature in a 2-D Cartesian sweep) have no
+in-plane streaming, so the cell is **collision-only**: the loss couples to
+:math:`\sigma_t` alone, and the sweep balance :math:`\bar\psi = Q/\sigma_t` and
+its matvec twin :math:`(L+C)\bar\psi = \sigma_t\bar\psi` are two applications of
+the SAME operator (:eq:`ld-ubld-pure-z-collision`).  This is the L21 twin-path
+relationship — sweep and matvec are the same physics evaluated in opposite
+directions — and it is exactly the kind of paired closure that drifts when a new
+axis lands on one side and is forgotten on the other.
 
-   The pure-z degenerate ordinates (:math:`\mu_x = \mu_y = 0`, the
-   :math:`\pm z` poles of a Lebedev / product cubature) have no in-plane
-   streaming, so the cell is collision-only: the sweep balance
-   :math:`\bar\psi = Q/\sigma_t` and its matvec twin
-   :math:`(L+C)\bar\psi = \sigma_t\bar\psi` are two applications of the SAME
-   operator (:eq:`ld-ubld-pure-z-collision`).  At a multi-moment closure (LD)
-   the source / probe carries the trailing :math:`2^d` spatial-moment axis that
-   :math:`\sigma_t` :math:`(ng, *\text{spatial})` lacks; each moment scales by
-   the SAME scalar, so :math:`\sigma_t` gains a length-1 trailing axis to
-   broadcast.  This reshape is single-sourced through
-   :func:`~orpheus.sn.loss_representation._moment_broadcast_sigma`, called by
-   BOTH the sweep ``pure_z`` arm and the matvec ``pure_z`` arm — the L21 twin
-   cannot diverge on the moment-axis convention (the qa Concern A blocker:
-   the matvec arm previously lacked the guard the sweep already had, so
-   ``inner_solver="krylov"`` on a pure-z-bearing quadrature broadcast-crashed).
-   DD/Step (no moment axis) → :math:`\sigma_t` unchanged, byte-identical.
-   Source: :mod:`orpheus.sn.loss_representation` (``_moment_broadcast_sigma``,
-   the ``loss_action`` / ``octant_jacobi`` ``pure_z`` arms).  Gate:
+At a multi-moment closure (LD) the source :math:`Q` and the probe
+:math:`\bar\psi` carry the trailing :math:`2^d` spatial-moment axis that
+:math:`\sigma_t` of shape :math:`(ng, *\text{spatial})` lacks; each moment
+scales by the SAME scalar (:math:`1/\sigma_t` on the solve, :math:`\sigma_t` on
+the apply), so :math:`\sigma_t` must gain a length-1 trailing axis to broadcast.
+This reshape is single-sourced through
+:func:`~orpheus.sn.loss_representation._moment_broadcast_sigma`
+(:math:`\sigma \mapsto \sigma[\ldots, \text{None}]` iff the moment-valued
+operand out-ranks :math:`\sigma`), called by BOTH the sweep ``pure_z`` arm
+(:math:`Q\,/\,\texttt{\_moment\_broadcast\_sigma}(\sigma_t, Q)`) and the matvec
+``pure_z`` arm
+(:math:`\texttt{\_moment\_broadcast\_sigma}(\sigma, \bar\psi)\cdot\bar\psi`), so
+the twin cannot diverge on the moment-axis convention.  DD/Step (no moment axis)
+:math:`\to` :math:`\sigma_t` unchanged, byte-identical.
+
+.. admonition:: ERR-062 — the matvec twin forgot the guard the sweep already had
+   :class: warning
+
+   Before this fix the sweep arm HAD the moment-broadcast guard but the matvec
+   arm wrote the bare ``sigma * probe[oct_idx]``, so a moment-valued probe
+   broadcast-FAILED.  The consequence:
+   ``solve_sn_fixed_source(scheme=LinearDiscontinuous(), inner_solver="krylov")``
+   on ANY 2-D Cartesian LD mesh whose quadrature carries pure-z ordinates raised
+   ``ValueError`` at the first Krylov matvec.  The bug hid through the whole
+   D5b-S3 development because every committed 2-D LD test used
+   ``level_symmetric`` — which has NO pure-z ordinates — while the production
+   MMS uses a Lebedev quadrature that does.  This is the canonical L21
+   twin-path asymmetry recurring a THIRD time ("the matvec needs a committed
+   gate, not a round-trip"): the round-trip and FFW :math:`\equiv` MFW gates
+   ran on ``level_symmetric`` and never exercised the pure-z arm at all.  The
+   gate is
    ``tests/sn/verification/mms/test_mms_ld_2d.py::test_ld_2d_krylov_equals_si_pure_z_quadrature``
-   (2-D LD Krylov :math:`\equiv` SI on a pure-z Lebedev quadrature, het 2G
-   non-square; ``catches("ERR-062")``).  Closeout:
-   ``.claude/agent-memory/method-implementer/issue_240_d5b_s3_purez_gate_closeout.md``.
+   (``@pytest.mark.foundation @pytest.mark.catches("ERR-062")``), on a Mode-9
+   degeneracy-break config: a pure-z-bearing Lebedev order-5 quadrature
+   (:math:`N = 14`, genuine :math:`\mu_y` + the 2 :math:`\pm z` poles),
+   heterogeneous 2-material map, 2-group asymmetric XS with non-zero self-scatter,
+   NON-SQUARE :math:`5\times4`, vacuum edges.  Mutation-verified: re-introducing
+   the bare ``sigma * probe[oct_idx]`` makes the gate FAIL with the exact
+   ``ValueError``; with the fix Krylov :math:`\equiv` SI to :math:`\sim10^{-11}`
+   (the same :math:`(L+C-S_{\rm full})` fixed point).  See ``error_catalog.md``
+   ERR-062.
+
+The source is :mod:`orpheus.sn.loss_representation` (``_moment_broadcast_sigma``,
+the ``loss_action`` matvec ``pure_z`` arm and its source-iteration sweep twin);
+the closeout is
+``.claude/agent-memory/method-implementer/issue_240_d5b_s3_purez_gate_closeout.md``.
 
 .. _ld-ubld-moment-scan:
 
@@ -2509,37 +2996,78 @@ diffusion-limit-consistent operator the matvec does.
               \;-\; \frac{\theta\,|\mu| A_{\rm down}\,\hat S}{D_2'}\,
                     \frac{\mathrm{inv}}{w}}_{\text{slope source}\ \Sigma_s\hat\phi}
 
-.. todo:: Archivist expansion needed (D5b-S3 OWED-2 — the moment scan).
+The scan propagates the scalar downstream FACE
+:math:`\psi_{\rm out} = a\,\psi_{\rm in} + b` along the cell chain with the
+**slope-augmented** affine source :eq:`ld-ubld-moment-scan-source`: the flat
+(cell-average) emission :math:`\bar S\,\mathrm{inv}/w` plus the slope-source
+contribution :math:`\theta\hat S/D_2' - (\theta|\mu|A_{\rm down}\hat S/D_2')\,\mathrm{inv}/w`
+that carries :math:`\Sigma_s\hat\phi` into the recurrence.  Then it reconstructs
+the per-cell :math:`(\bar\psi, \hat\psi)` moments from the chained upstream face.
+The slope-row :math:`\hat S` algebra is single-sourced through
+:meth:`~orpheus.sn.spatial._ubld.D1ClosedForm._slope_fold`, shared by the
+per-cell matvec Schur (:meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.schur_xV`)
+AND the scan
+(:meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.scan_slope_face_source` for the
+face-chain term, :meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.scan_reconstruct`
+for the per-cell moments).
 
-   The scan propagates the scalar downstream FACE
-   :math:`\psi_{\rm out} = a\,\psi_{\rm in} + b` along the chain with the
-   slope-augmented affine source :eq:`ld-ubld-moment-scan-source`, then
-   reconstructs the per-cell :math:`(\bar\psi, \hat\psi)` moments from the
-   chained upstream face (the scan twin of the per-cell Schur).  The
-   slope-row fold (the :math:`\hat S` algebra) is single-sourced through
-   :meth:`~orpheus.sn.spatial._ubld.D1ClosedForm._slope_fold`, shared by the
-   per-cell matvec (:meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.schur_xV`)
-   AND the scan
-   (:meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.scan_slope_face_source` /
-   :meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.scan_reconstruct`).
+Why the face/cell split is necessary (the load-bearing math)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-   Like the matvec, the scan applies the
-   :func:`~orpheus.sn.spatial._ubld.octant_moment_frame_signs` involution:
-   the source moments are mapped global→sweep on INPUT and the reconstructed
-   :math:`(\bar\psi, \hat\psi)` sweep→global on OUTPUT, so the angular
-   reduction :math:`\hat\phi = \sum_n w_n \hat\psi_n` is frame-consistent and
-   the diffusion limit is recovered on the SI path too (ERR-061).  The scalar
-   outgoing face stays sweep-frame (it propagates along the chain).  DD/Step
-   (``per_axis == 1``) → no moment axis, the scan stays byte-identical (the
-   negative control).  SymPy module / live scheme:
-   :mod:`orpheus.sn.spatial._ubld` (``D1ClosedForm``),
-   :meth:`orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous.moment_scan_closure`,
-   :meth:`orpheus.sn.loss_representation._OneDimScanWalk._run` (the slab
-   joint-batch moment branch).  Gate:
-   ``tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_two_paths_scan_equals_dag_oracle``
-   (scan ≡ DAG) + ``::test_ld_thick_diffusive_limit`` (the diffusion limit on
-   the SI path).  Closeout:
-   ``.claude/agent-memory/method-implementer/issue_240_d5b_s3_owed2_scan_closeout.md``.
+A moment-carrying parallel-prefix scan is **NOT** a drop-in widening of the
+scalar scan.  For *flat-source* LD the cell average is the convex blend of the
+two faces, :math:`\bar\psi = (1-w)\psi_{\rm in} + w\,\psi_{\rm out}`, so the
+scalar scan can reconstruct :math:`\bar\psi` directly from the chained faces.
+With a *slope* source, that closure **decouples**: :math:`\bar\psi` and
+:math:`\psi_{\rm out}` no longer satisfy the convex blend, because the slope
+source enters the cell balance without entering the face propagation the same
+way.  The scan therefore splits the work in two:
+
+#. the FACE chain :math:`\psi_{\rm out} = a\,\psi_{\rm in} + b` propagates with
+   the slope-augmented :math:`b` (:eq:`ld-ubld-moment-scan-source`), so the next
+   cell's :math:`\psi_{\rm in}` is the correct dense :math:`\bar\psi + \hat\psi`;
+
+#. the CELL moments :math:`(\bar\psi, \hat\psi)` are reconstructed per cell from
+   the chained :math:`\psi_{\rm in}` via the per-cell Schur
+   (``scan_reconstruct``), **not** via ``cell_average``.
+
+Conflating the two (using ``cell_average`` for :math:`\bar\psi` on the moment
+scan) gives the WRONG cell average while the face chain still looks right — the
+silent trap this split avoids.  The reconstruction was verified against a
+from-scratch dense :math:`d=1` chain (face / :math:`\bar\psi` / :math:`\hat\psi`
+all match to :math:`10^{-12}`) and against the live DAG (scan :math:`\equiv` DAG
+to :math:`10^{-16}` on a 2G-heterogeneous non-flat config).
+
+The same global-frame involution as the matvec
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Like the matvec, the scan applies the SAME
+:func:`~orpheus.sn.spatial._ubld.octant_moment_frame_signs` involution
+(:eq:`ld-ubld-octant-moment-frame-signs`) through the shared ``_reframe``
+helper: the source moments are mapped global :math:`\to` sweep on INPUT and the
+reconstructed :math:`(\bar\psi, \hat\psi)` sweep :math:`\to` global on OUTPUT, so
+the angular reduction :math:`\hat\phi = \sum_n w_n \hat\psi_n`
+(:eq:`ld-ubld-slope-angular-reduction`) is frame-consistent and the diffusion
+limit is recovered on the source-iteration path too (the sweep-side analog of
+the ERR-061 matvec fix).  The backward sweep flips the slope so forward and
+backward ordinates reinforce rather than cancel.  The scalar OUTGOING FACE stays
+sweep-frame — it propagates along the chain and never crosses into the global
+iterate (the :math:`d=1` face cochain is :math:`2^{d-1} = 1`, scalar, so it is
+not reframed).  The scan is a **consumer** of the matvec's machinery, never a
+twin: the same ``_slope_fold`` powers the per-cell Schur and the scan, and the
+same involution powers the DAG and the scan.  DD/Step (``per_axis == 1``) get no
+moment axis, so the scan runs the existing flat slab body verbatim and stays
+byte-identical (the negative control).
+
+The SymPy module / live scheme is :mod:`orpheus.sn.spatial._ubld`
+(``D1ClosedForm``),
+:meth:`orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous.moment_scan_closure`,
+and :meth:`orpheus.sn.loss_representation._OneDimScanWalk._run` (the slab
+joint-batch moment branch); the gates are
+``tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_two_paths_scan_equals_dag_oracle``
+(scan :math:`\equiv` DAG) and ``::test_ld_thick_diffusive_limit`` (the diffusion
+limit on the SI path, the same ERR-061 catcher the matvec uses); the closeout is
+``.claude/agent-memory/method-implementer/issue_240_d5b_s3_owed2_scan_closeout.md``.
 
 .. _ld-cartesian-2d:
 
@@ -2567,32 +3095,106 @@ the continuous-PDE residual, derived symbolically (Branch 1, the
 algebra-of-record) and structurally independent of the LD cell-update code
 (L11).
 
-.. todo:: Archivist expansion needed (#240 / #38 / #37 — D5b-S4).
+Why this ansatz (the Mode-7 stress design)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-   The Branch-1 SymPy derivation lives in
-   :mod:`orpheus.derivations.continuous.mms.sn`
-   (:func:`~orpheus.derivations.continuous.mms.sn.derive_2d_cartesian_ld_stress_mms`
-   and the symbolic builder ``_2d_cartesian_ld_stress_symbolic``); the Branch-2
-   numerical factory is
-   :class:`~orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase`
-   (built by ``build_2d_cartesian_ld_stress_mms_case``).  Foundation gate:
-   :mod:`tests.derivations.test_sn_mms_ld_2d_stress_symbolic` (the SymPy
-   substitution identity + an INDEPENDENT finite-difference residual check +
-   the Branch-2 ≡ Branch-1 source cross-check + the Mode-7 activation /
-   x↔y-asymmetry checks).  End-to-end L1 gates:
-   :mod:`tests.sn.verification.mms.test_mms_ld_2d`
-   (``test_ld_2d_stress_converges_second_order`` — the headline O(h²) + value
-   band; ``test_ld_2d_stress_krylov_equals_si`` — the L14 matvec twin on the
-   stress habitat; ``test_ld_2d_stress_two_paths_ffw_equals_mfw`` — the two-DAG-
-   schedule invariant on the stress source).
+The angular structure :math:`\psi = (A + \mu_x B + \mu_y C)/W` is chosen so the
+**per-ordinate** field carries a genuine spatial slope on each axis: the
+LD :math:`x`-slope row discretizes :math:`\partial_x\psi`, which sees
+:math:`\mu_x\,\partial_x B/W` — a :math:`\mu_x`-weighted slope the DD
+cell-average path *cannot* represent (DD has no slope moment).  The scalar flux,
+however, is :math:`\phi = \int\psi\,d\mu = A` (the :math:`\mu_x B + \mu_y C`
+terms integrate to zero over a symmetric quadrature), so the manufactured scalar
+solution is :math:`A` alone — the slope is a *genuinely angular-resolved*
+forcing, not a trivial consequence of the average.  This is the vv Mode-7
+override: the simplest trig that satisfies the BCs would leave the slope rows
+nulled by construction (the classic isotropic-ansatz bias); this ansatz
+*activates* them deliberately.  Two further design choices:
 
-   Brief: the ansatz activates the bilinear per-axis slope rows (the DD
-   cell-average path cannot represent the :math:`\mu`-weighted slope), the
-   AVERAGE-moment prescribed-inflow boundary closure (:math:`a_0>0`), and the
-   2G downscatter group coupling.  The convergence verifies the slope-UNKNOWN
-   sign of the LM-1989 trap; mutation-verified load-bearing (a same-sign
-   slope-row sign flip in the UBLD streaming row :math:`\partial_x B_1` makes
-   the solve diverge).
+* **The :math:`b_2, c_2` cross-harmonics break the x↔y reflection.**  Were
+  :math:`B` and :math:`C` related by an :math:`x\leftrightarrow y` reflection, a
+  *same-sign* slope-row sign bug (the most likely transcription error, since
+  both slope rows share the cell-update code path) could leave the measured
+  symmetric flux unchanged — a false green.  Adding distinct cross-harmonic
+  content to :math:`B` and :math:`C` (so no reflection maps one to the other)
+  makes the :math:`x`-slope-source and :math:`y`-slope-source genuinely
+  independent, so a same-sign slope error breaks the measured flux.
+
+* **:math:`a_0 > 0` (non-vanishing at all four edges)** stresses the
+  prescribed-inflow boundary closure.  A solution that vanished at the boundary
+  by construction would test nothing about the BC handling.  (The curvilinear
+  pole-regularity constraint :math:`B(0) = 0` does NOT apply here — a Cartesian
+  cell has no :math:`1/r` redistribution, so the slope drivers are unconstrained
+  at the boundary.)
+
+The manufactured source is the continuous-PDE residual,
+:math:`\mu_x\partial_x\psi + \mu_y\partial_y\psi + \Sigma_t\psi = (1/W)(\Sigma_s\phi + Q^{\rm ext})`,
+derived symbolically (Branch 1, the algebra-of-record) and **structurally
+independent** of the LD cell-update code (L11): the SymPy derivation never
+touches the discretization.  Branch 1 and Branch 2 share their spatial
+amplitudes as single-sourced :math:`(\text{num}, \text{den})` pairs
+(``Rational`` for SymPy, exact float for numpy), so the Branch-2
+:math:`\equiv` Branch-1 source cross-check pins the two *evaluators* agree to
+machine precision (:math:`1.5\times10^{-16}`), not just the symbolic identity.
+
+The Branch-1 SymPy derivation lives in
+:mod:`orpheus.derivations.continuous.mms.sn`
+(:func:`~orpheus.derivations.continuous.mms.sn.derive_2d_cartesian_ld_stress_mms`
+and the symbolic builder ``_2d_cartesian_ld_stress_symbolic``); the Branch-2
+numerical factory is
+:class:`~orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase`
+(built by ``build_2d_cartesian_ld_stress_mms_case``).
+
+What this verifies (and what it cannot)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The MMS closes the **slope-UNKNOWN** half of the LM-1989 slope-row sign trap in
+:math:`d \ge 2`: the bilinear closure genuinely solves :math:`\hat\psi_x` and
+:math:`\hat\psi_y` from the average plus the scattering source, and the
+convergence is :math:`O(h^2)` to the manufactured value.  The slope-UNKNOWN sign
+is **mutation-verified load-bearing**: on this tightly-coupled UBLD wavefront
+closure (the slope feeds the propagating face cochain), a slope-row sign error
+does not merely shift the limit — it *diverges* the iteration:
+
+.. list-table:: Mutation verification of the slope-row sign (S4)
+   :header-rows: 1
+   :widths: 50 26 24
+
+   * - Mutation of the UBLD slope-row sign
+     - Strengthened result
+     - Verdict
+   * - full per-axis gradient sign flip
+     - NaN
+     - CAUGHT
+   * - finite-trace slope :math:`[1,-1]\to[1,1]`
+     - order :math:`-4.62`
+     - CAUGHT
+   * - surgical slope-row :math:`-2 \to +2` (both axes, the faithful "same-sign"
+       transcription error)
+     - inf
+     - CAUGHT
+
+(Baseline strengthened: order 2.00–2.14, finest residual :math:`3.5\text{–}6.0\times10^{-3}`.)
+Because the catch is catastrophic (NaN/inf), there is no false-green regime for
+this closure to hide in — a stronger guarantee than the subtle-cancellation
+scenario the strengthening was originally designed against.
+
+The foundation gate is :mod:`tests.derivations.test_sn_mms_ld_2d_stress_symbolic`
+(the SymPy substitution identity, an INDEPENDENT finite-difference residual check
+that does not reuse SymPy's own ``diff`` — L11, the Branch-2 :math:`\equiv`
+Branch-1 source cross-check, and the Mode-7 activation / x↔y-asymmetry checks);
+the end-to-end L1 gates are :mod:`tests.sn.verification.mms.test_mms_ld_2d`
+(``test_ld_2d_stress_converges_second_order`` — the headline :math:`O(h^2)` +
+value band, ``@l1`` ``@verifies("ld-cartesian-2d", "transport-cartesian-2d")``;
+``test_ld_2d_stress_krylov_equals_si`` — the L14 matvec twin on the stress
+habitat; ``test_ld_2d_stress_two_paths_ffw_equals_mfw`` — the two-DAG-schedule
+invariant).  The closeout is
+``.claude/agent-memory/method-implementer/issue_240_d5b_s4_ld_2d_stress_mms_closeout.md``.
+
+The half this MMS does NOT close — the slope-SOURCE sign convention — is the
+subject of the honest-scope note below; it is a genuinely unverified state
+(vv Mode 10), deferred to a moment-source-consumption increment (#247), not a
+detail glossed over.
 
 .. note:: Honest scope — the slope-SOURCE half of the LM-1989 trap is NOT verified.
 
