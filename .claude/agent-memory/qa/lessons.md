@@ -655,3 +655,83 @@ update` passed 1.45s under mutation — d1 routes inflow inline via
 ALWAYS revert the mutation (both return branches here) + re-run green (6 passed)
 before closing. (Reviewed 2026-06-16 #240 D5b-S1 Branch 1 — VERDICT: all 6 claims
 SUPPORTED.)
+
+## L-031 -- #240 D5b-S2 (d≥2 UBLD LD wiring): a self-consistency round-trip + an A==A pin can BOTH be blind to the bug their docstring/marker claims; the genuine catcher is the continuous-PDE exact-on-bilinear oracle; and "matvec twin verified" ≠ end-to-end Krylov
+
+D5b-S2 wires the d≥2 bilinear LD kernel onto the wavefront (`cell_kernel_batch`/
+`residual_kernel_batch` route `len(s_axes)≥2` → `_ubld_system`+`per_cell_solve`;
+`_ubld_outgoing_faces` sums the o_a=0,1 Kronecker blocks; faces in `2^{d-1}`
+transverse order). DD/Step held byte-identical (513-strict gate UNCHANGED ==
+S1 baseline; `tail=() if n_face_moments==1` → no length-1 axis appended; gate is
+DIMENSION `len(s_axes)>1` AND trait `spatial_basis_per_axis>1`). Moment-ordering
+out-face↔inflow consistency VERIFIED by hand (`_ubld_outgoing_faces` == manual
+Kronecker trace; inflow consumer accepts same `2^{d-1}` object per axis, x↔y
+non-square). d=1 closed form `==` dense `per_cell_solve` reduction (L29 anchor holds).
+
+1. **MISATTRIBUTED `catches(ERR-NNN)` — the decisive finding.** The NEW
+   `test_d2_assembled_matrices_match_symbolic` (entry-wise A/M/G/F_out numpy↔SymPy
+   pin) carries `@catches("ERR-060")` but is BLIND to ERR-060: ERR-060 was the
+   dropped `|μ_axis|` factor in `assemble_inflow_axis` (the INFLOW assembly), and
+   the A==A pin checks `assemble_ubld` (the CELL matrices — A/M/G/F_out contain NO
+   inflow factor). MUTATION-PROVEN: drop `|μ_axis|` in `_ubld.py:254` (`return out`
+   instead of `mu_axis[...,None]*out`) → of the 3 `catches(ERR-060)` tests, ONLY
+   the numpy `test_d2_exact_on_bilinear` fails; the A==A pin PASSES (matrix count
+   2→3 inflated by a non-catcher). The pin IS a legit Mode-3 structural pin (a
+   dropped streaming factor in G IS caught — verified by a hand-built buggy-G), but
+   it does NOT catch the specific bug its marker claims. FIX = drop the
+   `catches("ERR-060")` marker (keep `foundation` + the docstring's "catches a
+   dropped/mis-scaled factor in the Kronecker assembly" claim, which is true);
+   follow-up nit, NOT a blocker (the genuine catcher is correctly marked). RULE:
+   for any `catches(ERR-NNN)` on a NEW test, MUTATE the exact documented bug and
+   confirm THIS test (not just SOME test) goes red — a marker is a coverage CLAIM,
+   L-007 applied to `catches`.
+2. **Round-trip (D5b.1) is self-consistent → blind to inflow bugs (L-018/L-023
+   reconfirmed in d≥2).** `test_residual_zero_at_solved_cell_avg_2d` PASSED under
+   the |μ_axis| mutation (solve+apply share `_ubld_inflow` → the dropped factor
+   cancels). It correctly feeds the FULL `psi_bar=psi_avg` (4 moments, not partial)
+   + NON-flat per-axis `psi_in` (slope active) + ng∈{1,2} het → it pins solve≡apply
+   SAME-system + the matvec-twin face reconstruction (both axes, x↔y-asymmetric
+   replay: residual ~2e-16, out_x==rout_x/out_y==rout_y, matvec non-trivial at a
+   different probe). But the VALUE-correctness of the multi-D kernel rests on
+   `test_d2_exact_on_bilinear` (the L11/L26-clean continuous-PDE oracle: source
+   `Q=Ω·∇ψ+Σ_tψ` from a known bilinear ψ via SymPy, asserts solved moments == exact
+   Legendre projections, cross-moment xy active d=0.9 — a kernel sign-flip would NOT
+   propagate into the SymPy projections) + the MMS smoke. Sound: the indep oracle IS
+   committed and IS the genuine ERR-060 catcher.
+3. **"Matvec twin verified" is KERNEL-LEVEL only; end-to-end Krylov RAISES
+   (deferred, honest).** Brief/spec D5b.4 wanted "Krylov≡SI on the 2-D LD path",
+   but `_CellResidual.cell` RAISES `NotImplementedError` for d≥2 LD (the matvec walk
+   needs the `2^d`-moment spatial iterate = S3). PROVEN: 2-D LD SI solve works
+   end-to-end (finite flux); `inner_solver="krylov"` RAISES loudly (deferred). This
+   is the CORRECT interim per L-017 (loud raise, NOT silent-wrong) — the kernel-level
+   `residual_kernel_batch` matvec IS verified (round-trip + asymmetric replay), and
+   the raise blocks an accidental wrong Krylov answer. L14 leg-3 (matvec≡sweep
+   END-TO-END) is genuinely deferred; the kernel twin is the strongest claim S2 can
+   make. NOT a blocker (loud-fail interim); the spec's D5b.4 "Krylov≡SI" wording
+   over-reaches S2's actual scope — the SHIPPED scope (kernel twin + raise) is honest
+   and the test file documents it.
+4. **Smoke MMS honestly scoped (Brief Q2 = SUPPORTED).** `test_ld_2d_converges_
+   second_order_smoke` is `@l1` NO `@verifies`, checks BOTH rate (`orders[-1]>1.85,
+   all>1.7`) AND a value band (`1e-8<err[-1]<1e-2`) → NOT a Mode-5 rate-only false
+   green. The absence of `verifies("ld-cartesian-2d")` is CORRECT: the isotropic
+   sin·sin ansatz (`build_2d_cartesian_heterogeneous_mms_case`) under-stresses the
+   bilinear slope (Mode-7) + S2 threads only the average source moment (Q̂=0); the
+   real flux-shape claim (strengthened μ-non-trivial ansatz + Q̂≠0 moment source +
+   non-vanishing boundary) is deferred to S4 — a SOUND deferral, NOT a hole, because
+   the kernel value-correctness is independently pinned by the exact-on-bilinear
+   oracle (the slope IS exercised there, cross-moment active). `ld-cartesian-2d`
+   correctly NOT minted (S4/D6). DD≠LD routing-flip (D5b.5) is 1G but legit (a
+   discrimination contract, not an eigenvalue claim; DD≠LD is structural).
+5. **Pyright (Brief Q6): exactly ONE net-new diagnostic** (pre/post stash-diff,
+   rule-level JSON, 51→52). `linear_discontinuous.py:556` `_ubld_inflow` returns
+   `np.ndarray|None` (`R=None` seeded, accumulated in a `for a in range(d)` loop
+   pyright can't prove non-empty). REAL but benign type nit (d≥1 ⇒ loop always runs
+   ⇒ never None at return; SI solve confirmed live). Pattern-3 nit, follow-up: seed
+   `R` with the first term. The other 51 (`AngularSourceSink`/`PoleAngularClosure`/
+   `sweep_graph` None-subscript) are ALL pre-existing/rooting-noise. Mode-8 (Q7):
+   clean — the 2 prod bare asserts in touched files are PRE-EXISTING (scheme.py:499
+   is in a DOCSTRING; loss_rep:2238 pre-existing type-narrow); new tests use
+   np.testing/pytest.fail; test-file bare asserts are in `tests/` (rewritten, L-010).
+   VERDICT 2026-06-16: SUPPORTED-WITH-CONCERNS — all numerics sound; 1 marker
+   misattribution (follow-up) + 1 pyright nit (follow-up) + spec-vs-shipped scope
+   wording on D5b.4 (honest as shipped). NO false-green, NO blocker.

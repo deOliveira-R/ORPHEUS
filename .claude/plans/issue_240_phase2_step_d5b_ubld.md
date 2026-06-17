@@ -3,7 +3,7 @@
 > **Durable in-repo recovery anchor** (project rule: plans live in ORPHEUS/.claude/).
 > Parent: `.claude/plans/issue_240_phase2_step_d_homing.md` (§D5). Subsumes **#158 Increment D / #38**.
 > Branch `feature/sn-space-angle-tier2` (off `main`@`cba6d2f`), NOT pushed/merged.
-> **STATUS (2026-06-16): D5b-S1 DONE + committed. Next = D5b-S2 (the d≥2 kernel + face widening).**
+> **STATUS (2026-06-16): D5b-S2 DONE + committed (`495af60`, reviewed). Next = D5b-S3 (fold Inc C — the φ̂ spatial-moment iterate).**
 > S1 (the unified per-cell UBLD primitive) is complete on both branches:
 > **S1 commit chain** (branch `feature/sn-space-angle-tier2`, NOT pushed/merged):
 > `7abba5d` (design plan, pre-session) → `cb84b7b` (Branch-1 SymPy algebra-of-record + oracles)
@@ -27,21 +27,53 @@
 > (`.claude/skills/` is in the standing forbidden set — land via the instruction-architecture flow;
 > the `catches("ERR-060")` marker IS committed in the test).
 >
-> ⏭ **S2 (#60) ENTRY POINT:** wire `cell_kernel_batch`/`residual_kernel_batch` for d≥2 onto
-> `_ubld.per_cell_solve(assemble_ubld(...))` (the batched `2^d` solve, vectorized over the
-> anti-diagonal — NOT per-cell Python) + the `2^{d-1}`-moment face-cochain payload widening (trailing
-> axis on `_MovingFrontier._win` / `FullFieldWavefront._octant_face_cochain` + the gather/scatter
-> selectors in `sweep_graph.py`) + the `Q_cells` `(2^d, ng)` moment slot (external/MMS source);
-> close the `linear_discontinuous.py` raise; INVERT the D5b.0 pin; DD/Step held bit-identical (n=1
-> trailing-dim-1 reduction). Gates D5b.0/.1/.3/.4/.5; multi-D MMS O(h²) in the non-diffusive regime
-> (thick-diffusive deferred to S3). **S2 audit carry-forwards** (from the S1 hindsight review):
-> (1) add a d=2 numpy↔symbolic `A==A` ENTRY-WISE pin — the matrix-equality pin fires only at d=1
-> today; the d≥2 numpy assembly is currently pinned ONLY by physics (exact-on-bilinear); the
-> |μ_axis| inflow factor is the ERR-060 Mode-3 habitat d=1 is blind to (re-probe
-> `test_d2_exact_on_bilinear` after the face-cochain widening). (2) S2 is the production consumer of
-> `assemble_ubld`/`per_cell_solve`/`assemble_inflow_axis` (built+verified in S1, currently test-only).
-> (3) opportunistic (D6): replace production line-number citations in the `ld_ubld.py` oracle comments
-> with symbol citations.
+> ✅ **S2 (#60) DONE + committed (`495af60`; chore records in the follow-up `chore(claude)`).**
+> The d≥2 UBLD LD kernel runs on the DAG wavefront: `cell_kernel_batch`/`residual_kernel_batch`
+> fork on `len(s_axes)` — d=1 stays on `d1_closed_form`→CumprodScan (no perf regression), d≥2
+> assembles `A=G+F_out+Σ_t·M` (Kronecker, `_ubld_system`) + the per-axis upwind inflow
+> (`_ubld_inflow`→`assemble_inflow_axis`) and solves the batched `2^d` system (`per_cell_solve`);
+> outgoing faces = the tensor-Legendre downstream-node trace (sum of `o_a∈{0,1}` blocks,
+> `_ubld_outgoing_faces`). The contract is indexed by ONE trait
+> `spatial_basis_per_axis` (DD/Step=1, LD=2; per-cell=`per_axis**d`, per-face=`per_axis**(d-1)`);
+> the `is_multi_moment` (per_axis>1) gate widens the interior face cochain
+> (`_MovingFrontier._win`, `FullFieldWavefront._octant_face_cochain`) + the moment-reducing emit
+> (`_CellSolve`/`_CellResidual`) — DD/Step **byte-identical** (no length-1 axis appended). `Q_cells`
+> scalar source is lifted to slot 0 (`AVERAGE_MOMENT`) inside `_ubld_system` (no `_SolveOperands.Q`
+> carrier change this step). Single sources minted in `_ubld.py`: `AVERAGE_MOMENT` (slot-0 layout)
+> + `face_moment_tail` (the two storage policies). The D5b.0 pin INVERTED
+> (`test_cell_kernel_batch_admits_multi_d`).
+> **Gates green:** DD bit-id strict (sweep/core+solve+cartesian_2d) **562 / 2 skip / 4 xfail** no
+> golden moved; D5b.1 round-trip (full `2^d`, non-flat inflow, het); D5b.4 kernel matvec twin (faces
+> both directions); D5b.3 two-paths FFW≡MFW (NON-SQUARE, forced reps); D5b.5 DD≠LD routing-flip; the
+> carry-forward d=2 numpy↔symbolic A==A CELL pin + `test_d2_exact_on_bilinear` (the genuine ERR-060
+> inflow catcher); 2-D LD MMS O(h²) smoke (vacuum, `@l1` NO `verifies` — Mode-7 honest); LD
+> spatial+primitive+symbolic 40; Sphinx clean (matrix regen). **Reviews:** elegance PASS-WITH-NITS
+> (orphaned `is_affine_scannable` docstring; `AVERAGE_MOMENT`/`face_moment_tail` single-source; gate
+> invariant comment) ALL FIXED; qa SUPPORTED-WITH-CONCERNS (dropped a misattributed
+> `catches("ERR-060")` off the cell-A==A pin; `_ubld_inflow` `|None` seed) ALL FIXED.
+> ⚠ The method-implementer DIED on an API-overload AFTER completing the impl+tests+crosswalk+docs
+> (NOT mid-logic); the main agent triaged the tree (imports+gates green), ran the reviews, fixed all
+> nits, and committed. The crosswalk `.claude/plans/issue_240_d5b_s2_crosswalk.md` is the design
+> record (moment ordering `[bar,ŷ,x̂,x̂y]`, the Q lift, the domain-edge minimal touch).
+>
+> ⏭ **S3 (#61) ENTRY POINT — fold Increment C (the φ̂ spatial-moment iterate; closes the diffusion
+> limit for d=1 #37 AND d≥2).** PROACTIVE `test-architect` dispatch FIRST (cross-subsystem carve —
+> the existing memo covers D5b.0–.5 but NOT the spatial-moment-iterate FP-invariance; write the
+> crosswalk, L17). Sites: `_CellSolve.cell` accumulate `φ̂` (today reduces on the average moment
+> only — `psi_avg[..., AVERAGE_MOMENT]`); the between-sweep flux field gains a
+> `(n_spatial_moments, ng, *spatial)` slot; `_SolveOperands.Q` grows the trailing `2^d` moment axis
+> (the genuine MMS/scattering moment-source carrier S2 deferred — S2 lifts a SCALAR source inside the
+> kernel); `ScatteringOperator.apply` lifts over the spatial-moment axis (`Σ_s⊗I`); close the d≥2
+> Krylov 2-D LD matvec raise (`_CellResidual.cell` — it RAISES today, the loud-fail S2 left). DD/Step
+> untouched (n=1 → `Σ_s⊗I_1`). **Gates:** the multi-D `ld-thick-diffusive` tripwire flips xfail→PASS
+> + the 1-D #37 thick-diffusive flips xfail→PASS; **vv Mode-9 FP-invariance** (the moment-source
+> splitting MUST NOT move the converged FP — verify on an ANISOTROPIC/heterogeneous config + a
+> DIAGONAL cubature, NOT the isotropic-reflective box). **S4 (#62)** then mints the strengthened
+> Mode-7 stress-ansatz MMS + the non-vanishing-boundary `BoundaryFlux` moment trace + the
+> `@verifies("ld-cartesian-2d")` flux-shape claim (S2 left the smoke unverified-by-design).
+> **S2 carry-forwards STILL OPEN for D6:** replace production line-number citations in the
+> `ld_ubld.py` oracle comments with symbol citations; mint/link the UBLD orphan equation family
+> (`ld-ubld-n-spatial-moments`, `ld-ubld-divv-scale-free-kernel`, + the S1 set, + `ld-cartesian-2d`).
 > The design pass (plan mode) resolved the two open architecture questions WITH THE USER and
 > EXPANDED the scope — see "⭐⭐ THE TWO DECISIONS" below. The approved implementation plan is
 > `.claude/plans/mellow-swinging-breeze.md` (the S1–S5 sub-step sequence + the unified
