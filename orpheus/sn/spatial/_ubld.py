@@ -310,6 +310,16 @@ class D1ClosedForm:
         """
         return Q_cells + self.g * psi_in + self.g * self.g_over_theta * psi_in / self.d2
 
+    def _xV(self, V: np.ndarray | float) -> tuple[np.ndarray, np.ndarray]:
+        r"""The ×V streaming ``m = |μ|A_down = g·V`` and Schur diagonal ``S = V·eff_denom``.
+
+        The shared ÷V→×V scaling both ×V views (:meth:`schur_xV`, :meth:`scan_xV`)
+        build on — single-sourced so the convention lives in ONE place (it goes
+        live the moment ÷V→×V changes, e.g. a curvilinear ``V_eff`` or the D6
+        ``w(Σ)`` blend).
+        """
+        return self.g * V, V * self.eff_denom
+
     def schur_xV(
         self,
         V: np.ndarray | float,
@@ -343,9 +353,8 @@ class D1ClosedForm:
         Returns ``(S, eff_source, eff_numer, slope_source, mu_Adown, D₂')`` so
         the production ``_schur_terms`` builds its bundle from this ONE site.
         """
-        mu_Adown = self.g * V                       # |μ|·A_down (×V streaming)
+        mu_Adown, S = self._xV(V)                   # |μ|·A_down, ×V Schur diagonal
         d2p = self.theta * V * self.d2              # D₂' = Σ_t·θ·V + |μ|·A_down
-        S = V * self.eff_denom                      # ×V Schur diagonal
         eff_source = s_bar - s_hat * mu_Adown * self.theta / d2p
         eff_numer = mu_Adown * psi_in * (d2p + mu_Adown) / d2p
         slope_source = self.theta * s_hat
@@ -368,8 +377,7 @@ class D1ClosedForm:
         ``a`` is source-independent (the affine transmission ``ψ_out = a·ψ_in +
         b``); ``w`` is the cell-average blend weight (scale-free).
         """
-        m = self.g * V                              # |μ|·A_down
-        S = V * self.eff_denom                      # ×V Schur diagonal
+        m, S = self._xV(V)                          # |μ|·A_down, ×V Schur diagonal
         inverse_denom = 1.0 / S
         a = m * (1.0 + self.k) ** 2 * inverse_denom - self.k
         return a, inverse_denom, self.w
