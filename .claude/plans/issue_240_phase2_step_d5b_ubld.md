@@ -5,6 +5,30 @@
 > Branch `feature/sn-space-angle-tier2` (off `main`@`cba6d2f`), NOT pushed/merged.
 > **STATUS (2026-06-17): D5b-S3 DONE + COMMITTED (`e74eafb` feat / `3e8f101` chore). The unified all-d LD moment matvec + the diffusion-limit closure (ERR-061) + OWED-2 scan + the pure-z gate (ERR-062) are landed; #37 (Inc C) + #38 (Inc D) CLOSED (folded). ⭐ RESUME AT D5b-S4 (#62, strengthened 2-D MMS + the `ld-cartesian-2d` verifies label) and/or D6 (#55, docs expansion — the archivist stubs `two-moment-axes`/`spatial-moment-space`/`ld-ubld-unified-moment-residual`/`ld-ubld-moment-scan`/`ld-ubld-pure-z-collision` await rich-narrative expansion). Branch NOT pushed. ⚠ error_catalog.md (ERR-060/061/062) restored in the working tree but UNCOMMITTED — lands via the instruction-architecture flow; the `catches` markers ARE committed.**
 >
+> ⭐ **STATUS UPDATE (2026-06-17): D5b-S4 DONE + COMMITTED (`882341d` test / chore next).**
+> The strengthened 2-D Cartesian LD stress MMS (`SN2DCartesianLDStressMMSCase` + Branch-1
+> SymPy algebra-of-record + 8 `@foundation` derive-tests + the L1 D5b.2/.3/.4 gates, all
+> `@verifies("ld-cartesian-2d")`) is landed; the `ld-cartesian-2d` label STUB is minted
+> (archivist expands in D6). Flow: method-implementer build → elegance PASS-WITH-NITS + qa
+> SUPPORTED-WITH-CONCERNS → 4 nits resolved (parametrize Branch2≡Branch1 over BOTH groups +
+> 2 cells; extract `_build_per_cell_hetero_materials` killing the `build_materials` byte-twin
+> with the DD het case; sharpen the honest-scope note to vv Mode 10; rename the
+> over-promising struct-indep test). Main-agent re-verify GREEN (15 S4 gates + 632
+> no-regression + 50 MMS-dir + Sphinx clean; Nexus graph refreshed). ⭐ **HONEST SCOPE (do
+> NOT overclaim):** verifies the slope-UNKNOWN half of the LM-1989 trap; the slope-SOURCE
+> half is UNVERIFIED — the external Q̂ is not consumed (`_lift_external_source_to_moments`
+> zeros the slope rows; `solve_sn_fixed_source` rejects a moment-resolved external source)
+> AND the scattering channel `Σ_s·φ̂` EXERCISES-but-does-not-CONSTRAIN the slope-source sign
+> (vv **Mode 10** activated-but-unconstrained, qa-discovered: a slope-source sign flip leaves
+> the O(h²) order + value band unchanged because `Σ_s·φ̂` is O(h)-small, error enters above
+> O(h²)). DEFERRED → **#247** (moment-resolved external source + boundary trace + a
+> slope-source-sign-sensitive gate; candidate D5b-S5). vv Mode 10 + qa L-034 added to the
+> skills (instruction-architecture flow). ⭐ **RESUME AT D6 (#55):** archivist rich-narrative
+> expansion of the committed doc stubs (`ld-cartesian-2d` + S3's `two-moment-axes` /
+> `spatial-moment-space` / `ld-ubld-unified-moment-residual` / `ld-ubld-moment-scan` /
+> `ld-ubld-pure-z-collision`) + mint the orphan UBLD eq labels + ff-merge readiness for
+> `feature/sn-space-angle-tier2`→`main` + apply the Phase-0 hand-off.
+>
 > ⭐⭐⭐ **THE D5b-S3 ARCHITECTURE DECISION (2026-06-17, settled with the user — do not lose):**
 > The S3-A consumer dispatch surfaced a genuine fork: the d=1 LD **matvec** is Schur-reduced to a
 > SCALAR residual, but `A=(L+C)−S` (OperatorSum) subtracts a now-`(2,)`-moment `S·ψ` element-wise →

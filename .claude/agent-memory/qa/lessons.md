@@ -877,3 +877,78 @@ markers honest. The d≥2 matvec pure_z crash is a real latent defect (loud, nar
 + the missing d≥2 Krylov gate is a genuine coverage hole — both follow-ups, NOT
 commit blockers (the SHIPPED scope is SI-verified d≥2 + matvec-verified d=1; no
 false-green). No false-green found anywhere.
+
+## L-034 -- #240 D5b-S4 (2-D LD stress MMS) VERDICT SUPPORTED-WITH-CONCERNS: the honest-scope claim must be SHARPENED -- the scattering channel EXERCISES the slope-source code path but the MMS is empirically BLIND to a sign error there
+
+D5b-S4 = a vv-Mode-7 strengthened 2-D Cartesian LD MMS `ψ=[A+μ_x·B+μ_y·C]/W`
+verifying the multi-D bilinear UBLD slope rows landed in S3. VERDICT SUPPORTED-WITH-
+CONCERNS; numerics SOUND, no false-green, no blocker.
+
+1. **L11 structural independence GENUINE.** The SymPy source is from the
+   CONTINUOUS PDE (no `_LDCellTerms`/`_schur_terms`/`_ubld`). The FD-residual
+   cross-check IS a genuine 2nd structural path PROVEN: corrupt `Q_closed`'s
+   `μ_x·∂_xA` streaming sign → FD residual 0.047 ≫ 1e-7 tol (FD uses numpy
+   central-diff of ψ, RHS embeds SymPy `diff` → a diff sign error breaks the
+   equality). Branch2==Branch1 source ≤1e-13. Single-source `_LD2D_STRESS_COEFFS`
+   `(num,den)` pairs (Rational∥float) = amplitudes can't drift.
+2. **⭐ THE HONEST-SCOPE FINDING (sharpen point 2).** The closeout/docs say the
+   slope-SOURCE half is "DEFERRED" because the EXTERNAL Q̂ is zeroed
+   (`_lift_external_source_to_moments` → `lifted[...,AVERAGE_MOMENT]`, slopes=0,
+   confirmed). BUT the SCATTERING source `Σ_s·φ̂` IS a genuine `(N,ng,nx,2^d)`
+   moment source consumed through the SAME `Q_cells` slot as an external Q̂ would
+   be (loss_rep:2814-2825 lifts BOTH into the same `Q_per_ord`→`QV_per_ord`; the
+   slope-row sign code path `_reframe`+UBLD is source-AGNOSTIC). INSTRUMENTED the
+   solve: iterate scalar-flux moments fed to `apply_p0_in_scatter` carry NON-ZERO
+   slope rows (avg=1.31, x-slope=0.257, y-slope=0.129, xy=0.067), scattered
+   `Σ_s⊗I_spatial` (`fg,fc...->gc...`) → the slope-source rows ARE populated +
+   consumed. SO the slope-source CODE PATH is exercised. BUT — DECISIVE MUTATIONS
+   on the slope-source rows (`_CellSolve.cell` Q_cells[...,1:]): SIGN-FLIP → order
+   stays 1.97, finest in-band → NOT caught; ZERO the rows → order 1.99 NOT caught;
+   ×3 magnitude → order 2.02 NOT caught. The scattering-slope source is an
+   O(h)-small DG-internal forcing (slopes ~5× < average, c≤1.0) whose sign/
+   magnitude affects the converged flux ABOVE O(h²) → absorbed in the floor. So
+   the PRECISE honest claim is NEITHER of the brief's two options: it is
+   "slope-source code path EXERCISED via scattering but the MMS is BLIND to a
+   slope-source SIGN error (a sign flip is not caught) — genuinely UNVERIFIED for
+   the sign convention; external-Q̂ plumbing also deferred." The docs' "DEFERRED"
+   is substantively CORRECT (sign unverified) but the parenthetical "the only
+   moment-valued source consumed is Σ_s·φ̂" UNDER-states that this consumed source
+   does NOT verify the sign → CR3 doc-sharpen (follow-up, not blocker): the note
+   should say the scattering channel exercises-but-does-not-constrain the
+   slope-source sign.
+3. **VALUE band REAL + tight (Mode-5 not rate-only).** Reproduced: errs
+   [1.42e-2,3.54e-3,8.81e-4], orders [2.00,2.01], maxrelerr 1.78e-2→1.2e-3 (4×/
+   halving), flux range matches ref. Band (1e-9,1e-2): upper 1e-2 is BELOW the
+   coarsest error 1.42e-2 → a wrong-limit/non-converged flux WOULD exit the band.
+   Genuine value gate.
+4. **Mutation conclusion SOUND + I isolated what the closeout couldn't.** The
+   slope-UNKNOWN half: sign-flip `_GRAD_1D[1,0]:-2→+2` → NaN (caught); a FINITE
+   x↔y-symmetric 10% error (`_GRAD_1D` ×0.9) → order −0.06, finest 0.072 ≫ band
+   (CAUGHT, NOT divergent — the missing subtle-finite discriminator). So the
+   strengthening is non-vacuous + load-bearing for the slope-UNKNOWN half (catches
+   both catastrophic AND finite). The strengthening's SPECIFIC x↔y-asymmetry value
+   targets the slope-SOURCE same-sign trap — which (per finding 2) this MMS cannot
+   reach AT ALL → the x↔y strengthening is defensive-correct-but-currently-
+   untestable (ship per spec; its payoff arrives with the moment-source increment).
+5. **Gate/marker integrity.** `ld-cartesian-2d` minted (1 unique `:label:`),
+   audit `ld-cartesian-2d → 4 tests` exit 0, all verifies targets resolve
+   (transport-cartesian-2d/multigroup/mg-balance exist). Quadrature exactness
+   CONFIRMED: LS S4 `<μ_x²>=<μ_y²>=1/3`, `<μ_xμ_y>=<μ_x>=<μ_x³>=0`, ZERO pure-z →
+   `φ=A` exact. Mode-8 clean (0 bare asserts new files + 0 in S4 prod additions).
+   Mode-7 declaration present. ⚠ L-007 NIT: `test_v_ld2d_stress_substitution_
+   identity` stacks `@foundation @verifies("ld-cartesian-2d")` = the conflation
+   L-007 warns of — BUT (a) established convention (anisotropic_symbolic.py:69-70/
+   147-148 do the same for algebra-of-record substitution gates), (b) the label is
+   NOT solely foundation-backed (3 genuine L1 verifiers) → the L-007 tell ("ONLY
+   coverage is foundation") does NOT bite → minor consistency nit, not blocker.
+6. **Modes 1-6 defenses ALL present.** 2G, het (176 unique cell materials,
+   spatially-varying σ_t), STRICTLY-asymmetric downscatter (SigS[0→1]=0.233,
+   [1→0]=0.000 — pure downscatter, transpose-sensitive), non-square mesh 16×11 +
+   domain 1.3×0.9.
+
+VERDICT 2026-06-17 SUPPORTED-WITH-CONCERNS: 1 CR3 doc-sharpen (the scattering
+channel exercises-but-doesn't-constrain the slope-source sign — the honest note
+under-states this) + 1 L-007 marker nit (convention, non-biting) — both
+follow-ups. The shipped scope (slope-UNKNOWN sign verified + average-moment
+boundary + matvec twin + two-paths, mutation-verified non-vacuous) is honest. No
+false-green, no blocker.
