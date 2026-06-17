@@ -5,23 +5,43 @@
 > Branch `feature/sn-space-angle-tier2` (off `main`@`cba6d2f`), NOT pushed/merged.
 > **STATUS (2026-06-16): D5b-S1 DONE + committed. Next = D5b-S2 (the d≥2 kernel + face widening).**
 > S1 (the unified per-cell UBLD primitive) is complete on both branches:
-> Branch 1 (SymPy algebra-of-record + oracles) = `cb84b7b` (feat) / `9382ace` (chore);
-> Branch 2 (production numpy primitive `orpheus/sn/spatial/_ubld.py` + the LD Rule-of-Three
-> collapse — `_schur_terms`/`_kernel_terms`/`affine_scan_coefficients` single-source through
-> `d1_closed_form`) = `69b19c9` (refactor) + chore. Bit-identical DD negative control
-> (513 strict-gate pass, no golden moved); LD principled ~1-ULP re-baseline (no golden moved);
-> the d-generic dense `assemble_ubld`/`per_cell_solve` primitive is built + d=2-exact-on-bilinear
-> verified (the S2 d≥2 path) but NOT yet wired (the `linear_discontinuous.py` `len(s_axes)!=1`
-> raise stays in place). ERR-060 caught (dropped |μ_axis| inflow factor). elegance PASS-with-nits
-> + qa SUPPORTED both branches. ⚠ The ERR-060 `error_catalog.md` entry is written in the working
-> tree but UNCOMMITTED (`.claude/skills/` is in the standing forbidden set — land via the
-> instruction-architecture flow; the `catches("ERR-060")` marker IS committed in the test).
-> ⏭ S2 (#60): wire `cell_kernel_batch`/`residual_kernel_batch` for d≥2 onto `per_cell_solve`
-> (batched 2^d solve) + the `2^{d-1}`-moment face-cochain payload widening (trailing axis on
-> `_MovingFrontier._win` / `_octant_face_cochain` + the gather/scatter selectors) + `Q_cells`
-> moment slot; close the raise; INVERT the D5b.0 pin. Carry-forward (elegance): the d=2 inflow
-> `|μ_axis|` factor is a Mode-3 habitat the d=1 paths are structurally blind to — re-probe the
-> `test_d2_exact_on_bilinear` gate after the face-cochain widening.
+> **S1 commit chain** (branch `feature/sn-space-angle-tier2`, NOT pushed/merged):
+> `7abba5d` (design plan, pre-session) → `cb84b7b` (Branch-1 SymPy algebra-of-record + oracles)
+> / `9382ace` (chore) → `69b19c9` (Branch-2 production numpy primitive `orpheus/sn/spatial/_ubld.py`
+> + the LD Rule-of-Three collapse: `_schur_terms`/`_kernel_terms`/`affine_scan_coefficients`
+> single-source through `d1_closed_form`) / `effdfc1` (chore) → `c8489e4` (status) →
+> `3567567` (hindsight `_xV` extraction) / `e080b10` (audit chore).
+> **Verification:** bit-identical DD negative control (513 strict-gate pass, no golden `.npy` moved);
+> LD principled ~1-ULP re-baseline (no golden moved); the d-generic dense `assemble_ubld`/
+> `per_cell_solve` primitive is built + d=2-exact-on-bilinear verified (the S2 d≥2 path) but NOT yet
+> wired (the `linear_discontinuous.py` `len(s_axes)!=1` raise STAYS). ERR-060 caught (dropped
+> |μ_axis| inflow factor). elegance PASS + qa SUPPORTED both branches.
+> **Hindsight audit (post-S1, independent elegance-enforcer): PASS — the code landed in the right
+> place.** `d1_closed_form`/`D1ClosedForm` correctly live in `_ubld.py` (co-located with the dense
+> reduction they're proven `==` to — NOT moved into `LinearDiscontinuous`); the dense primitive
+> ahead of its S2 consumer is the justified reference-oracle exception (it caught ERR-060); the
+> sympy↔numpy split is the justified algebra-of-record (do NOT single-source the 1-D factors —
+> defeats structural independence; `balance.py` confirmed clean of a 3rd copy). ONE real duplicated
+> expression FIXED (`3567567`: `schur_xV`/`scan_xV` shared `g·V`/`V·eff_denom` → `D1ClosedForm._xV`).
+> ⚠ The ERR-060 `error_catalog.md` entry is written in the working tree but UNCOMMITTED
+> (`.claude/skills/` is in the standing forbidden set — land via the instruction-architecture flow;
+> the `catches("ERR-060")` marker IS committed in the test).
+>
+> ⏭ **S2 (#60) ENTRY POINT:** wire `cell_kernel_batch`/`residual_kernel_batch` for d≥2 onto
+> `_ubld.per_cell_solve(assemble_ubld(...))` (the batched `2^d` solve, vectorized over the
+> anti-diagonal — NOT per-cell Python) + the `2^{d-1}`-moment face-cochain payload widening (trailing
+> axis on `_MovingFrontier._win` / `FullFieldWavefront._octant_face_cochain` + the gather/scatter
+> selectors in `sweep_graph.py`) + the `Q_cells` `(2^d, ng)` moment slot (external/MMS source);
+> close the `linear_discontinuous.py` raise; INVERT the D5b.0 pin; DD/Step held bit-identical (n=1
+> trailing-dim-1 reduction). Gates D5b.0/.1/.3/.4/.5; multi-D MMS O(h²) in the non-diffusive regime
+> (thick-diffusive deferred to S3). **S2 audit carry-forwards** (from the S1 hindsight review):
+> (1) add a d=2 numpy↔symbolic `A==A` ENTRY-WISE pin — the matrix-equality pin fires only at d=1
+> today; the d≥2 numpy assembly is currently pinned ONLY by physics (exact-on-bilinear); the
+> |μ_axis| inflow factor is the ERR-060 Mode-3 habitat d=1 is blind to (re-probe
+> `test_d2_exact_on_bilinear` after the face-cochain widening). (2) S2 is the production consumer of
+> `assemble_ubld`/`per_cell_solve`/`assemble_inflow_axis` (built+verified in S1, currently test-only).
+> (3) opportunistic (D6): replace production line-number citations in the `ld_ubld.py` oracle comments
+> with symbol citations.
 > The design pass (plan mode) resolved the two open architecture questions WITH THE USER and
 > EXPANDED the scope — see "⭐⭐ THE TWO DECISIONS" below. The approved implementation plan is
 > `.claude/plans/mellow-swinging-breeze.md` (the S1–S5 sub-step sequence + the unified
