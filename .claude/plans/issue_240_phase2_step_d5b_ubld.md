@@ -23,11 +23,17 @@
 > the O(h²) order + value band unchanged because `Σ_s·φ̂` is O(h)-small, error enters above
 > O(h²)). DEFERRED → **#247** (moment-resolved external source + boundary trace + a
 > slope-source-sign-sensitive gate; candidate D5b-S5). vv Mode 10 + qa L-034 added to the
-> skills (instruction-architecture flow). ⭐ **RESUME AT D6 (#55):** archivist rich-narrative
-> expansion of the committed doc stubs (`ld-cartesian-2d` + S3's `two-moment-axes` /
-> `spatial-moment-space` / `ld-ubld-unified-moment-residual` / `ld-ubld-moment-scan` /
-> `ld-ubld-pure-z-collision`) + mint the orphan UBLD eq labels + ff-merge readiness for
-> `feature/sn-space-angle-tier2`→`main` + apply the Phase-0 hand-off.
+> skills (instruction-architecture flow). ⭐ **D6 (#55) DONE (`f6bc093` docs / `5193049`
+> chore):** the 7 D5b theory stubs expanded to publishable depth (the `n_spatial_moments`
+> lattice + the UBLD weak-form / Kronecker assembly + the ERR-061 sweep/global-frame
+> involution + the `ld-cartesian-2d` stress MMS, honest scope preserved) + 6 derivation
+> eq-labels minted + Sphinx clean. **D5b COMPLETE end-to-end (S1→S2→S3→S4→D6); #54 (D5) +
+> #58 (D5b) closed.** ff-merge readiness CONFIRMED: local `main` = `cba6d2f` IS the
+> merge-base → `git merge --ff-only` succeeds; the branch is 53 commits ahead of `main` /
+> `origin/main`, NOT pushed. ⭐ **RESUME = the ff-merge decision (USER-GATED — merging to
+> local main + pushing both need an explicit ask) + the #236 Spatial×Angular tensor-product
+> EXIT campaign (a NEW effort/branch) + the Phase-0 favoritism hand-off (instruction-
+> architecture flow, the forbidden skill files).**
 >
 > ⭐⭐⭐ **THE D5b-S3 ARCHITECTURE DECISION (2026-06-17, settled with the user — do not lose):**
 > The S3-A consumer dispatch surfaced a genuine fork: the d=1 LD **matvec** is Schur-reduced to a
