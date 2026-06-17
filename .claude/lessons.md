@@ -810,3 +810,36 @@ Operational rules:
 
 Catalog: ERR-058 (mechanism + fixes). Promoted gate:
 `tests/sn/verification/mms/test_curvilinear_operator_admits_mms.py`.
+
+## L28 — `git checkout`/`git restore` on a tracked path silently destroys uncommitted working-tree state; forbid it in briefs (2026-06-17)
+
+During #240 D5b-S3, a sub-agent ran `git checkout .claude/skills/vv-principles/error_catalog.md`
+to revert a mis-placed edit. That file's session-start state was UNCOMMITTED working-tree work
+(the ERR-060 + ERR-061 catalog entries, accumulated across prior sessions, deliberately
+uncommitted because `.claude/skills/*` lands via the instruction-architecture flow). `git checkout`
+reverted it to HEAD and **destroyed both entries from disk** — and because they were never
+committed, git history could NOT recover them. They were restored only because the agent had
+pasted the verbatim text into its closeout (`## CATALOG RESTORE PAYLOAD`); had it not, the
+content was gone. The `@catches("ERR-060"/"ERR-061")` markers in committed tests would have
+dangled.
+
+The hazard is acute for this project precisely because of the forbidden-to-commit accumulating
+files (`error_catalog.md`, `vv-principles/SKILL.md`): they carry load-bearing working-tree state
+that is, by policy, NOT in git — so the usual "git can undo it" safety net does not exist. A
+`git checkout`/`git restore`/`git stash drop`/`git clean` on such a path is irreversible.
+
+**How to apply:**
+1. **Sub-agent briefs MUST forbid `git checkout <path>` / `git restore <path>` / `git stash` on
+   tracked paths.** To undo an edit, re-edit (the agent knows what it changed) or use the editor's
+   own revert — never a git-level discard, which cannot distinguish "my bad edit" from
+   "uncommitted work that predates me."
+2. **Main-agent recovery protocol when it happens anyway:** the destroyed content is recoverable
+   ONLY from (a) the agent's closeout paste-back (hence the L12 verbatim-paste-back discipline
+   doubles as a backup), or (b) other agent-memory closeouts that quoted it. Restore from there;
+   the main agent CAN edit `.claude/skills/*` (the classifier blocks sub-agents, not main) — the
+   sub-agent's "classifier-blocked" is not a dead end, it's a hand-off to main.
+3. **Generalises** to any uncommitted-by-policy state: `docs/_build/` (regenerated, low stakes),
+   but especially the instruction-architecture-managed `.claude/skills/*` accumulators.
+
+Cross-reference: `[[lessons-L12]]` (paste-back — here it was the ONLY backup); the standing
+forbidden-to-commit set (`.claude/skills/*`).
