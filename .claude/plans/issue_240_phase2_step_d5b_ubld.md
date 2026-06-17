@@ -3,7 +3,25 @@
 > **Durable in-repo recovery anchor** (project rule: plans live in ORPHEUS/.claude/).
 > Parent: `.claude/plans/issue_240_phase2_step_d_homing.md` (§D5). Subsumes **#158 Increment D / #38**.
 > Branch `feature/sn-space-angle-tier2` (off `main`@`cba6d2f`), NOT pushed/merged.
-> **STATUS (2026-06-16): DESIGN PASS DONE + APPROVED. Implementing D5b-S1.**
+> **STATUS (2026-06-16): D5b-S1 DONE + committed. Next = D5b-S2 (the d≥2 kernel + face widening).**
+> S1 (the unified per-cell UBLD primitive) is complete on both branches:
+> Branch 1 (SymPy algebra-of-record + oracles) = `cb84b7b` (feat) / `9382ace` (chore);
+> Branch 2 (production numpy primitive `orpheus/sn/spatial/_ubld.py` + the LD Rule-of-Three
+> collapse — `_schur_terms`/`_kernel_terms`/`affine_scan_coefficients` single-source through
+> `d1_closed_form`) = `69b19c9` (refactor) + chore. Bit-identical DD negative control
+> (513 strict-gate pass, no golden moved); LD principled ~1-ULP re-baseline (no golden moved);
+> the d-generic dense `assemble_ubld`/`per_cell_solve` primitive is built + d=2-exact-on-bilinear
+> verified (the S2 d≥2 path) but NOT yet wired (the `linear_discontinuous.py` `len(s_axes)!=1`
+> raise stays in place). ERR-060 caught (dropped |μ_axis| inflow factor). elegance PASS-with-nits
+> + qa SUPPORTED both branches. ⚠ The ERR-060 `error_catalog.md` entry is written in the working
+> tree but UNCOMMITTED (`.claude/skills/` is in the standing forbidden set — land via the
+> instruction-architecture flow; the `catches("ERR-060")` marker IS committed in the test).
+> ⏭ S2 (#60): wire `cell_kernel_batch`/`residual_kernel_batch` for d≥2 onto `per_cell_solve`
+> (batched 2^d solve) + the `2^{d-1}`-moment face-cochain payload widening (trailing axis on
+> `_MovingFrontier._win` / `_octant_face_cochain` + the gather/scatter selectors) + `Q_cells`
+> moment slot; close the raise; INVERT the D5b.0 pin. Carry-forward (elegance): the d=2 inflow
+> `|μ_axis|` factor is a Mode-3 habitat the d=1 paths are structurally blind to — re-probe the
+> `test_d2_exact_on_bilinear` gate after the face-cochain widening.
 > The design pass (plan mode) resolved the two open architecture questions WITH THE USER and
 > EXPANDED the scope — see "⭐⭐ THE TWO DECISIONS" below. The approved implementation plan is
 > `.claude/plans/mellow-swinging-breeze.md` (the S1–S5 sub-step sequence + the unified
