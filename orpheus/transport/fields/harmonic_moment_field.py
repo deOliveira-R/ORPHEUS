@@ -92,6 +92,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.spaces.spatial_moment_space import spatial_moment_tail
 from orpheus.numerics.spaces.spherical_harmonic_space import (
     SphericalHarmonicSpace,
 )
@@ -153,6 +154,18 @@ class HarmonicMomentField(FluxRole, MomentField):
 
     L: int
 
+    #: Optional within-cell spatial-moment basis size per axis (#240
+    #: D5b-S3-A0). Default ``1`` — the cell-average closure, byte-identical
+    #: to the pre-S3 ``(L+1, 2L+1, ng, *spatial)`` shape. At ``> 1`` (the
+    #: LD windowed iterate, selected at S3-A) a trailing
+    #: ``spatial_moments ** ndim`` axis rides on every moment so the
+    #: in-sweep ``moment_buf`` can carry the within-cell slopes that the
+    #: diffusion-limit-consistent scattering source needs between sweeps.
+    #: Threaded through :meth:`from_mesh_and_L` / :meth:`_phase_space_shape`
+    #: from the same ``spatial_moment_tail`` "append iff > 1" policy as the
+    #: angular/scalar bulk families.
+    spatial_moments: int = 1
+
     #: The affine difference-space sibling minted by ``φ_ℓᵐ ⊖ φ_ℓᵐ`` (#208) — the
     #: tangent vector :class:`MomentDisplacement` (the windowed-SI iterate
     #: increment; carries the same ``L`` + tensor-product space). See
@@ -169,17 +182,29 @@ class HarmonicMomentField(FluxRole, MomentField):
     # ── Construction validation ──────────────────────────────────────
 
     def _phase_space_shape(self) -> tuple[int, ...]:
-        r"""The ``(L+1, 2L+1, ng, *spatial)`` moment phase-space shape.
+        r"""The ``(L+1, 2L+1, ng, *spatial[, spatial_moments**ndim])`` moment shape.
 
         Implements :meth:`BulkField._phase_space_shape`; the shared
         :meth:`BulkField.__post_init__` validator consumes it. The
         leading two axes encode the harmonic truncation order ``L``;
         the spatial tail is rank-``d`` (``(nx,)`` 1-D, ``(nx,ny)`` 2-D)
         via ``mesh.spatial_shape`` — no phantom ``ny``.
+
+        At :attr:`spatial_moments` ``> 1`` (the LD windowed iterate) a
+        trailing within-cell spatial-moment axis of length
+        ``spatial_moments ** ndim`` is appended (#240 D5b-S3-A0); the
+        "append iff > 1" decision is single-sourced from
+        :func:`~orpheus.numerics.spaces.spatial_moment_space.spatial_moment_tail`,
+        so the default ``1`` leaves the shape EXACTLY as before
+        (byte-identical) and AGREES with the
+        :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
+        factor that :meth:`from_mesh_and_L` composes.
         """
+        n_moments = self.spatial_moments ** self.mesh.ndim
         return (
             self.L + 1, 2 * self.L + 1,
             self.mesh.ng, *self.mesh.spatial_shape,
+            *spatial_moment_tail(n_moments),
         )
 
     # ── Algebra extensions (over BulkField) ──────────────────────────
@@ -204,7 +229,7 @@ class HarmonicMomentField(FluxRole, MomentField):
 
     @classmethod
     def from_mesh_and_L(
-        cls, values: NDArray, mesh: "SNMesh", L: int,
+        cls, values: NDArray, mesh: "SNMesh", L: int, *, spatial_moments: int = 1,
     ) -> "HarmonicMomentField":
         r"""Construct from raw values + mesh + L, deriving the
         :class:`TensorProductSpace`.
@@ -217,18 +242,37 @@ class HarmonicMomentField(FluxRole, MomentField):
         typed transport Field — the moment-axis structure is now
         type-visible through the composition tree (queryable via
         ``space.find_factor(SphericalHarmonicSpace).L`` per Issue #207).
+
+        ``spatial_moments`` (default ``1``, byte-identical #240 D5b-S3-A0)
+        optionally composes a within-cell
+        :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
+        factor on AFTER the cell-group space — EXACTLY the same ``*``
+        composition that adds the angular ``SphericalHarmonicSpace``,
+        making the spatial-moment axis equally
+        ``space.find_factor(SpatialMomentSpace).per_axis``-queryable. The
+        "append iff > 1" gate is single-sourced from
+        :func:`~orpheus.numerics.spaces.spatial_moment_space.spatial_moment_tail`
+        (matching :meth:`_phase_space_shape`).
         """
         sh_space = SphericalHarmonicSpace.from_L(L)
         cell_group_space = FunctionSpace(
             name="cell_group",
             shape=(mesh.ng, *mesh.spatial_shape),
         )
-        space = sh_space * cell_group_space
-        return cls(values=values, space=space, mesh=mesh, L=L)
+        # The within-cell spatial-moment factor is appended through the SAME
+        # single-source gate every carrier uses (BulkField._compose_spatial_moments,
+        # "append iff > 1"), on top of the angular ``sh ⊗ cell_group`` composition.
+        space = cls._compose_spatial_moments(
+            sh_space * cell_group_space, mesh, spatial_moments,
+        )
+        return cls(
+            values=values, space=space, mesh=mesh, L=L,
+            spatial_moments=spatial_moments,
+        )
 
     @classmethod
     def zeros_for_mesh_and_L(
-        cls, mesh: "SNMesh", L: int,
+        cls, mesh: "SNMesh", L: int, *, spatial_moments: int = 1,
     ) -> "HarmonicMomentField":
         r"""Construct a zero moment field at order ``L`` sized to ``mesh`` (B.5.A).
 
@@ -239,11 +283,19 @@ class HarmonicMomentField(FluxRole, MomentField):
         :class:`~orpheus.transport.timed_full_field.TimedFullField` composite
         slot, so it does not need the uniform allocator interface. Replaces the
         retired ``SNMesh.zeros_harmonic_moments``.
+
+        ``spatial_moments`` (default ``1``, byte-identical #240 D5b-S3-A0)
+        sizes the optional within-cell spatial-moment axis of the zero
+        buffer to match :meth:`from_mesh_and_L`.
         """
+        n_moments = spatial_moments ** mesh.ndim
         values = np.zeros(
-            (L + 1, 2 * L + 1, mesh.ng, *mesh.spatial_shape),
+            (L + 1, 2 * L + 1, mesh.ng, *mesh.spatial_shape,
+             *spatial_moment_tail(n_moments)),
         )
-        return cls.from_mesh_and_L(values, mesh, L)
+        return cls.from_mesh_and_L(
+            values, mesh, L, spatial_moments=spatial_moments,
+        )
 
     @classmethod
     def from_ndarray(

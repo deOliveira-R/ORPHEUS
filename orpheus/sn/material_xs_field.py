@@ -477,18 +477,31 @@ class MaterialXSField:
         Encapsulates the per-material loop that previously lived at
         ``scattering.py:405`` (``ScatteringOperator.add_iso_source``).
 
+        Spatial-moment-axis-agnostic (#240 D5b-S3 — the
+        :math:`\Sigma_s \otimes I_{\rm spatial}` lift): the cell-axis subscript
+        carries a trailing ``...`` so a SPATIAL-MOMENT axis (LD's ``2^d`` per
+        cell, the diffusion-limit-consistent slope source :math:`\Sigma_s\hat\phi`)
+        rides through as a SPECTATOR broadcast — :math:`\Sigma_s` carries NO
+        spatial-moment index, so it is applied to EVERY spatial moment of
+        :math:`\phi` independently.  At the single-moment closures (DD/Step,
+        ``phi`` rank ``(ng, nx, ny)``) the trailing axis is ABSENT and the
+        ``...`` matches nothing → BYTE-IDENTICAL to the pre-S3 ``fc->gc``
+        (verified rank-2-exact).
+
         Parameters
         ----------
         Q : np.ndarray
-            Isotropic source, shape ``(ng, nx, ny)``.  Modified in place.
+            Isotropic source, shape ``(ng, nx, ny)`` (or ``(ng, nx, ny, 2^d)``
+            at an LD multi-moment closure).  Modified in place.
         phi : np.ndarray
-            Scalar flux, shape ``(ng, nx, ny)``.
+            Scalar flux, same shape as ``Q`` (its spatial-moment axis, if any,
+            is the spectator).
         """
         for mid, idx in self.cells_by_material.items():
             sig_s0 = self.sig_s_legendre(mid)[0]  # (ng, ng)
             cells = (slice(None), *idx)
             Q[cells] += np.einsum(
-                "fg,fc->gc", sig_s0, phi[cells],
+                "fg,fc...->gc...", sig_s0, phi[cells],
             )
 
     def apply_n2n(self, Q: np.ndarray, phi: np.ndarray) -> None:
@@ -500,18 +513,25 @@ class MaterialXSField:
         Encapsulates the per-material loop that previously lived at
         ``scattering.py:426`` (``ScatteringOperator.add_n2n_source``).
 
+        Spatial-moment-axis-agnostic (#240 D5b-S3, the same
+        :math:`\Sigma \otimes I_{\rm spatial}` spectator-broadcast as
+        :meth:`apply_p0_in_scatter`): the cell-axis subscript carries a trailing
+        ``...`` so an LD spatial-moment axis rides through; byte-identical at the
+        single-moment closures (trailing axis absent).
+
         Parameters
         ----------
         Q : np.ndarray
-            Isotropic source, shape ``(ng, nx, ny)``.  Modified in place.
+            Isotropic source, shape ``(ng, nx, ny)`` (or ``(ng, nx, ny, 2^d)``
+            at an LD multi-moment closure).  Modified in place.
         phi : np.ndarray
-            Scalar flux, shape ``(ng, nx, ny)``.
+            Scalar flux, same shape as ``Q``.
         """
         for mid, idx in self.cells_by_material.items():
             sig2 = self.n2n_matrix(mid)
             cells = (slice(None), *idx)
             Q[cells] += 2.0 * np.einsum(
-                "fg,fc->gc", sig2, phi[cells],
+                "fg,fc...->gc...", sig2, phi[cells],
             )
 
     def apply_legendre_scattering_moments(
@@ -539,7 +559,8 @@ class MaterialXSField:
         Parameters
         ----------
         moments : np.ndarray
-            Moment field of shape ``(L+1, 2L+1, ng, nx, ny)``.  The
+            Moment field of shape ``(L+1, 2L+1, ng, nx, ny)`` (or
+            ``(L+1, 2L+1, ng, nx, ny, 2^d)`` at an LD multi-moment closure).  The
             :math:`m` axis is the addition-theorem-shifted index where
             slot ``l + m`` holds :math:`(\ell, m)`.
         L : int
@@ -554,6 +575,14 @@ class MaterialXSField:
         -------
         np.ndarray
             Same shape as ``moments``.
+
+        Notes
+        -----
+        Spatial-moment-axis-agnostic (#240 D5b-S3, the
+        :math:`\Sigma_s \otimes I_{\rm spatial}` lift): the cell-axis subscript
+        carries a trailing ``...`` so an LD spatial-moment axis rides through as
+        a spectator broadcast; byte-identical at the single-moment closures
+        (trailing axis absent).
         """
         out = np.zeros_like(moments)
         l_start = 1 if skip_l0 else 0
@@ -567,7 +596,7 @@ class MaterialXSField:
                 # numpy from rearranging axes when fancy-indexing.
                 moments_view = moments[l, :n_m][cells]
                 out_block = np.einsum(
-                    "mfc,fg->mgc", moments_view, sig_s_mid[l],
+                    "mfc...,fg->mgc...", moments_view, sig_s_mid[l],
                 )
                 out[l, :n_m][cells] = (
                     out_block + out[l, :n_m][cells]

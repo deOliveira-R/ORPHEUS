@@ -68,6 +68,10 @@ from numpy.typing import NDArray
 
 from orpheus.numerics.field import Field
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.spaces.spatial_moment_space import (
+    SpatialMomentSpace,
+    spatial_moment_tail,
+)
 from orpheus.numerics.spaces.trace_space import TraceSpace
 
 if TYPE_CHECKING:
@@ -148,6 +152,82 @@ class BulkField(Field):
                 f"instances is forbidden — the field is mesh-bound."
             )
 
+    # ── Optional spatial-moment factor (#240 D5b-S3-A0) ──────────────
+
+    @staticmethod
+    def _compose_spatial_moments(
+        space: FunctionSpace, mesh: "SNMesh", spatial_moments_per_axis: int,
+    ) -> FunctionSpace:
+        r"""Append the optional within-cell spatial-moment factor to ``space``.
+
+        Composes a
+        :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
+        factor (the within-cell tensor-Legendre DG basis #240 D5b-S3) onto
+        ``space`` via the tensor-product ``*`` — EXACTLY as
+        :meth:`HarmonicMomentField.from_mesh_and_L` composes the
+        angular-moment :class:`SphericalHarmonicSpace`. The factor is the
+        Linear-Discontinuous closure's spatial-slope carrier that travels
+        between source-iteration sweeps (the diffusion-limit-consistent
+        scattering source :math:`\Sigma_s \otimes I_{\rm spatial}`).
+
+        **Gated on ``spatial_moments_per_axis > 1`` (construct-general /
+        select-narrow, #240 D5b-S3-A0).** The total within-cell moment
+        count is ``spatial_moments_per_axis ** mesh.ndim``. When the count
+        is ``1``, the ``spatial_moment_tail`` policy returns ``()`` and
+        this method returns ``space`` UNCHANGED — the field space stays
+        BYTE-IDENTICAL to its pre-S3 shape (the backward-compat invariant,
+        single-sourced from
+        :func:`orpheus.sn.spatial._ubld.face_moment_tail` via
+        :func:`~orpheus.numerics.spaces.spatial_moment_space.spatial_moment_tail`).
+
+        ``spatial_moments_per_axis`` is an EXPLICIT parameter (the
+        ``spatial_moments`` factory parameter, default ``1`` everywhere),
+        NOT auto-read from ``mesh.scheme.spatial_basis_per_axis``. This is
+        the construct-general / select-narrow discipline: the CAPABILITY to
+        carry the axis exists, but every current call site passes the
+        default ``1`` so NO production field — DD, Step, OR LD — carries
+        the axis yet. The iterate / cell-emit / source seams that thread
+        the scheme's ``spatial_basis_per_axis`` here (selecting the axis
+        for LD) are the NEXT sub-step (S3-A). Reading the scheme by default
+        would silently widen LD field shapes and break LD byte-identity
+        before the consumers that fill the axis exist — a Pattern-4
+        violation (an axis no producer fills is an illegal state).
+        """
+        n_moments = spatial_moments_per_axis ** mesh.ndim
+        # "append iff > 1" — single-sourced; () at n==1 → no factor, byte-id.
+        if spatial_moment_tail(n_moments) == ():
+            return space
+        return space * SpatialMomentSpace.from_per_axis(
+            spatial_moments_per_axis, mesh.ndim,
+        )
+
+    @staticmethod
+    def _spatial_moment_tail_of(space: FunctionSpace) -> tuple[int, ...]:
+        r"""The trailing spatial-moment shape suffix carried by ``space``, or ``()``.
+
+        Reads the optional
+        :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
+        factor OFF a composed space — the space is the single source of
+        truth for the moment width, so :meth:`_phase_space_shape` derives
+        the expected widened shape from here rather than re-threading the
+        factory's ``spatial_moments`` parameter into a stored field
+        (Angular/Scalar leaves carry no such field — only the windowed
+        :class:`HarmonicMomentField` does, because its ``L`` field already
+        breaks the uniform-signature contract).
+
+        Returns ``()`` for a non-composed / DD-default space (no factor →
+        byte-identical validation prefix), and ``(per_axis ** ndim,)`` when
+        a :class:`SpatialMomentSpace` factor is present.
+        """
+        find_factor = getattr(space, "find_factor", None)
+        if find_factor is None:
+            return ()  # a bare FunctionSpace (DD default) — no factor.
+        try:
+            factor = find_factor(SpatialMomentSpace)
+        except KeyError:
+            return ()
+        return factor.shape
+
     # ── Metadata read-throughs ───────────────────────────────────────
 
     @property
@@ -189,31 +269,56 @@ class AngularField(BulkField):
         return (mesh.quad.N, mesh.ng, *mesh.spatial_shape)
 
     @classmethod
-    def _space_for_mesh(cls, mesh: "SNMesh") -> FunctionSpace:
+    def _space_for_mesh(
+        cls, mesh: "SNMesh", *, spatial_moments: int = 1,
+    ) -> FunctionSpace:
         r"""The leaf's :class:`FunctionSpace` for ``mesh`` (name + shape).
 
         Single source of truth for the leaf's space identity, shared by
         :meth:`from_mesh` and :meth:`zeros_on`.
+
+        ``spatial_moments`` (default ``1``) is the optional within-cell
+        spatial-moment basis size per axis (#240 D5b-S3-A0). At the default
+        ``1`` the space is the EXACT pre-S3
+        ``FunctionSpace(name=cls._SPACE_NAME, shape=(N, ng, *spatial))`` —
+        byte-identical for DD/Step AND LD (no current caller passes > 1).
+        At ``> 1`` a
+        :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
+        factor is composed on (see :meth:`BulkField._compose_spatial_moments`).
         """
-        return FunctionSpace(
+        base = FunctionSpace(
             name=cls._SPACE_NAME, shape=cls._shape_for_mesh(mesh),
         )
+        return cls._compose_spatial_moments(base, mesh, spatial_moments)
 
     def _phase_space_shape(self) -> tuple[int, ...]:
-        return type(self)._shape_for_mesh(self.mesh)
+        # Base ``(N, ng, *spatial)`` prefix + the optional spatial-moment
+        # tail read off the field's own space (the single source of truth
+        # for the moment width). ``()`` for a DD-default space → the
+        # validator cross-checks EXACTLY the pre-S3 shape (byte-identical).
+        return (
+            *type(self)._shape_for_mesh(self.mesh),
+            *type(self)._spatial_moment_tail_of(self.space),
+        )
 
     @classmethod
-    def from_mesh(cls, values: NDArray, mesh: "SNMesh"):
+    def from_mesh(cls, values: NDArray, mesh: "SNMesh", *, spatial_moments: int = 1):
         r"""Construct from raw values + mesh, deriving the space.
 
         The space is ``FunctionSpace(name=cls._SPACE_NAME,
-        shape=(N, ng, nx, ny))`` — single source of truth for both the
-        leaf's space identity and the construction shape.
+        shape=(N, ng, *spatial))`` — single source of truth for both the
+        leaf's space identity and the construction shape. ``spatial_moments``
+        (default ``1``, byte-identical) optionally composes the within-cell
+        spatial-moment factor (#240 D5b-S3-A0).
         """
-        return cls(values=values, space=cls._space_for_mesh(mesh), mesh=mesh)
+        return cls(
+            values=values,
+            space=cls._space_for_mesh(mesh, spatial_moments=spatial_moments),
+            mesh=mesh,
+        )
 
     @classmethod
-    def zeros_on(cls, mesh: "SNMesh"):
+    def zeros_on(cls, mesh: "SNMesh", *, spatial_moments: int = 1):
         r"""Construct a zero field of this leaf sized to ``mesh`` (B.5.A).
 
         The bulk-locus zero factory: derives the space from ``mesh`` and
@@ -221,8 +326,12 @@ class AngularField(BulkField):
         uniform leaf-side allocator that
         :meth:`~orpheus.transport.timed_full_field.TimedFullField.zeros`
         calls; replaces the retired ``SNMesh.zeros_*`` mesh-side factories.
+        ``spatial_moments`` (default ``1``, byte-identical) optionally
+        composes the within-cell spatial-moment factor (#240 D5b-S3-A0).
         """
-        return cls.zeros(cls._space_for_mesh(mesh), mesh=mesh)
+        return cls.zeros(
+            cls._space_for_mesh(mesh, spatial_moments=spatial_moments), mesh=mesh,
+        )
 
     @classmethod
     def from_ndarray(cls, arr: NDArray, mesh: "SNMesh"):
@@ -259,26 +368,51 @@ class ScalarField(BulkField):
         return (mesh.ng, *mesh.spatial_shape)
 
     @classmethod
-    def _space_for_mesh(cls, mesh: "SNMesh") -> FunctionSpace:
+    def _space_for_mesh(
+        cls, mesh: "SNMesh", *, spatial_moments: int = 1,
+    ) -> FunctionSpace:
         r"""The leaf's :class:`FunctionSpace` for ``mesh`` (name + shape).
 
         Single source of truth for the leaf's space identity, shared by
         :meth:`from_mesh` and :meth:`zeros_on`.
+
+        ``spatial_moments`` (default ``1``) is the optional within-cell
+        spatial-moment basis size per axis (#240 D5b-S3-A0). At the default
+        ``1`` the space is the EXACT pre-S3
+        ``FunctionSpace(name=cls._SPACE_NAME, shape=(ng, *spatial))`` —
+        byte-identical. The :class:`ScalarSourceSink` scattering-source
+        accumulator is the carrier that selects ``> 1`` at S3-A so the
+        slope rows can hold :math:`\Sigma_s \cdot \hat\phi`.
         """
-        return FunctionSpace(
+        base = FunctionSpace(
             name=cls._SPACE_NAME, shape=cls._shape_for_mesh(mesh),
         )
+        return cls._compose_spatial_moments(base, mesh, spatial_moments)
 
     def _phase_space_shape(self) -> tuple[int, ...]:
-        return type(self)._shape_for_mesh(self.mesh)
+        # Base ``(ng, *spatial)`` prefix + the optional spatial-moment tail
+        # read off the field's own space (single source of truth). ``()``
+        # for a DD-default space → byte-identical validation.
+        return (
+            *type(self)._shape_for_mesh(self.mesh),
+            *type(self)._spatial_moment_tail_of(self.space),
+        )
 
     @classmethod
-    def from_mesh(cls, values: NDArray, mesh: "SNMesh"):
-        r"""Construct from raw values + mesh, deriving the space."""
-        return cls(values=values, space=cls._space_for_mesh(mesh), mesh=mesh)
+    def from_mesh(cls, values: NDArray, mesh: "SNMesh", *, spatial_moments: int = 1):
+        r"""Construct from raw values + mesh, deriving the space.
+
+        ``spatial_moments`` (default ``1``, byte-identical) optionally
+        composes the within-cell spatial-moment factor (#240 D5b-S3-A0).
+        """
+        return cls(
+            values=values,
+            space=cls._space_for_mesh(mesh, spatial_moments=spatial_moments),
+            mesh=mesh,
+        )
 
     @classmethod
-    def zeros_on(cls, mesh: "SNMesh"):
+    def zeros_on(cls, mesh: "SNMesh", *, spatial_moments: int = 1):
         r"""Construct a zero field of this leaf sized to ``mesh`` (B.5.A).
 
         The bulk-locus zero factory: derives the space from ``mesh`` and
@@ -286,8 +420,12 @@ class ScalarField(BulkField):
         uniform leaf-side allocator that
         :meth:`~orpheus.transport.timed_full_field.TimedFullField.zeros`
         calls; replaces the retired ``SNMesh.zeros_*`` mesh-side factories.
+        ``spatial_moments`` (default ``1``, byte-identical) optionally
+        composes the within-cell spatial-moment factor (#240 D5b-S3-A0).
         """
-        return cls.zeros(cls._space_for_mesh(mesh), mesh=mesh)
+        return cls.zeros(
+            cls._space_for_mesh(mesh, spatial_moments=spatial_moments), mesh=mesh,
+        )
 
     @classmethod
     def from_ndarray(cls, arr: NDArray, mesh: "SNMesh"):

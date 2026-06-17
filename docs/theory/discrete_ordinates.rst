@@ -1775,6 +1775,148 @@ the closure consistency the matvec twin verifies).
    ``BoundaryFlux`` widening — S4; the strengthened vv Mode-7 stress-ansatz
    MMS and the thick-diffusive tripwire, S4).
 
+.. _ld-ubld-scattering-moment-lift:
+
+The Σ_s ⊗ I spatial-moment scattering lift (S3-A, partial)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sub-step **D5b-S3** completes the *physics* of the multi-dimensional UBLD
+Linear-Discontinuous scheme: where S2 ships an O(h²) but
+diffusion-limit-INCONSISTENT closure (it scatters only the spatial-AVERAGE
+moment — the slope rows of the source are zero), S3 threads the canonical
+slope source so the converged operator becomes the
+diffusion-limit-CONSISTENT one.  This is a *physics-completion*, not an
+iteration-only change: the converged fixed point CHANGES (the
+``ld-thick-diffusive`` tripwire flips because the limit becomes correct),
+so it is NOT verified against the S2 fixed point.
+
+The load-bearing bridge is the scattering operator's
+:math:`\Sigma_s \otimes I_{\rm spatial}` lift: :math:`\Sigma_s` carries no
+spatial-moment index, so it is applied to EVERY spatial moment of the
+scalar flux INDEPENDENTLY,
+
+.. math::
+   :label: ld-ubld-scattering-moment-lift
+
+   \bigl(\Sigma_s \otimes I_{\rm spatial}\bigr)\,
+   (\bar\phi,\ \hat\phi_x,\ \hat\phi_y,\ \hat\phi_{xy})
+   \;=\;
+   (\Sigma_s\,\bar\phi,\ \Sigma_s\,\hat\phi_x,\
+    \Sigma_s\,\hat\phi_y,\ \Sigma_s\,\hat\phi_{xy}),
+
+so the spatial-moment axis is a SPECTATOR to the energy-group matmul,
+exactly as the cell axis is.  In code this is the per-material group
+contraction with a trailing ``...`` spectator
+(``"fg,fc...->gc..."``): at the single-moment closures (Diamond
+Difference / Step, ``per_axis == 1``) the trailing axis is ABSENT and the
+``...`` matches nothing, so the lift is BYTE-IDENTICAL to the pre-S3
+scattering (the negative-control bit-identity, verified rank-2-exact).
+At ``per_axis == 1`` :math:`S_{\rm full} \equiv S_{\rm flat}`; only an LD
+multi-moment closure activates the slope rows.
+
+.. todo:: Archivist expansion needed (#240 / #38 / #37 — D5b-S3-A, IN-FLIGHT).
+   This stub anchors the :math:`\Sigma_s \otimes I_{\rm spatial}`
+   scattering-lift bridge, which is the LANDED half of S3-A.  The lift is in
+   :mod:`orpheus.sn.material_xs_field` (``apply_p0_in_scatter`` /
+   ``apply_n2n`` / ``apply_legendre_scattering_moments`` — the cell-axis
+   einsum subscripts gained a trailing ``...`` spectator); the projection
+   primitives :mod:`orpheus.numerics.projection`
+   (``MomentProjection`` / ``HarmonicMomentReconstruction``) were already
+   trailing-axis-agnostic.  The remaining S3-A wiring (the
+   :math:`\hat\phi` spatial-moment ITERATE carrier, the cell-emit moment
+   accumulation, the d=1 scan + d≥2 wavefront moment-source seams, the
+   d=1 forward matvec) is OWED — it is BLOCKED on widening the typed-field
+   space-shape contract (``ScalarField`` / ``AngularField`` / ``MomentField``
+   validate ``shape == (ng, *spatial)`` with no slot for the trailing
+   ``2^d`` spatial-moment axis), a foundational typed-field design decision
+   documented in the closeout
+   ``.claude/agent-memory/method-implementer/issue_240_d5b_s3_a_inc_c_closeout.md``.
+
+   Brief for the full narrative: the physics-completion vs iteration-only
+   distinction (why the FP CHANGES and is verified against the diffusion
+   limit, NOT the S2 FP — Adams-2001 / LMM-1987 / BLA-1992); the
+   :math:`\Sigma_s \otimes I_{\rm spatial}` spectator-broadcast as the
+   Pattern-7 producer-side lift (byte-identical at the single-moment
+   closure); the spatial-moment axis convention (orthogonal to the harmonic
+   :math:`(\ell, m)` axis; rides on the scalar flux's spatial moments); the
+   typed-field space widening the iterate carrier needs (the make-or-break
+   design decision); and the two source seams (the d=1 scan slope source via
+   ``D1ClosedForm.kernel_rhs`` / ``schur_xV``, the d≥2 wavefront genuine
+   ``(2^d, ng)`` moment source via ``_ubld_system``).  Design record:
+   ``.claude/plans/issue_240_d5b_s3_crosswalk.md`` + the verification spec
+   ``.claude/agent-memory/test-architect/d5b_s3_inc_c_moment_iterate_verification.md``.
+
+.. _spatial-moment-space:
+
+The SpatialMomentSpace: a first-class within-cell DG moment carrier (S3-A0)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The typed-field-space half of S3-A (the half the scattering-lift TODO above
+flagged as a hard prerequisite).  The within-cell tensor-Legendre DG moment
+axis — how :math:`\psi` varies in space WITHIN a cell — is minted as a
+first-class function space,
+:class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`,
+the **spatial** sibling of the **angular**
+:class:`~orpheus.numerics.spaces.spherical_harmonic_space.SphericalHarmonicSpace`.
+The two "moment" notions are ORTHOGONAL axes (angular harmonics over
+direction :math:`\Omega` vs spatial Legendre over within-cell position
+:math:`x`); naming each as its own typed factor keeps the distinction
+type-visible and dispels the collision.
+
+.. math::
+   :label: spatial-moment-space-size
+
+   \dim(\text{SpatialMomentSpace}) \;=\; (\text{per\_axis})^{d},
+   \qquad
+   \text{per\_axis} =
+   \begin{cases}
+     1 & \text{DD / Step (cell-average } \{1\}\text{)} \\
+     2 & \text{LD (linear } \{1, P_1\}\text{)}
+   \end{cases}
+
+The factor composes via the tensor product ``*`` into the bulk-field spaces
+EXACTLY as the angular factor does, and is recovered by type via
+``space.find_factor(SpatialMomentSpace).per_axis`` (#207).  The
+field-space factories
+(:meth:`~orpheus.transport.fields._bases.AngularField.from_mesh`,
+:meth:`~orpheus.transport.fields._bases.ScalarField.from_mesh`,
+:meth:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField.from_mesh_and_L`)
+gained an OPTIONAL ``spatial_moments`` parameter (default ``1``) that
+appends the factor **iff the within-cell count exceeds 1** — the
+"append iff > 1" gate single-sourced from
+:func:`orpheus.sn.spatial._ubld.face_moment_tail`.  At the default the
+field space is BYTE-IDENTICAL to its pre-S3 shape for EVERY scheme (DD,
+Step, AND LD): this step builds the CAPABILITY only (construct-general /
+select-narrow), and no production field selects the axis yet.
+
+.. todo:: Archivist expansion needed (#240 / #38 / #37 — D5b-S3-A0).
+   This stub anchors the first-class
+   :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
+   (the typed-field-space half of S3-A).  The SymPy / numerics ground is in
+   :mod:`orpheus.numerics.spaces.spatial_moment_space` (the space + the
+   ``spatial_moment_tail`` "append iff > 1" policy delegating to
+   :func:`orpheus.sn.spatial._ubld.face_moment_tail`); the field-space
+   widening is in :mod:`orpheus.transport.fields._bases`
+   (``BulkField._compose_spatial_moments``) and
+   :mod:`orpheus.transport.fields.harmonic_moment_field`.  Foundation gates:
+   :mod:`tests.numerics.test_spatial_moment_space` (space layer) +
+   ``tests/sn/spatial/test_spatial_moment_field_space.py`` (factory widening
+   + byte-identity-at-default negative control).
+
+   Brief for the full narrative: WHY a first-class typed factor (not a bare
+   ``int`` trailing axis) — the Pattern-4 make-illegal-states-unrepresentable
+   framing (a φ̂-carrying field becomes a legal, typed, ``find_factor``-queryable
+   state instead of an opaque widened ndarray); the angular-vs-spatial moment
+   distinction and why they are orthogonal tensor factors; the Kronecker
+   ordering (slot-0 cell-average from
+   :data:`orpheus.sn.spatial._ubld.AVERAGE_MOMENT`; d=2 order
+   :math:`[\bar\psi, \hat\psi_y, \hat\psi_x, \hat\psi_{xy}]`); the
+   construct-general / select-narrow discipline (the capability is default-OFF;
+   the iterate / cell-emit / source seams that SELECT it are S3-A proper); and
+   the ``find_factor`` query that closes the #207 documented-but-unimplemented
+   gap on :class:`~orpheus.numerics.space.TensorProductSpace`.  Closeout:
+   ``.claude/agent-memory/method-implementer/`` (the S3-A0 entry).
+
 .. _sweep-wavefront:
 
 Cartesian 2D: Anti-Diagonal Wavefront Sweep

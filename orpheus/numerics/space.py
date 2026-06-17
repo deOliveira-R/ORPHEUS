@@ -393,6 +393,51 @@ class TensorProductSpace(FunctionSpace):
     def __hash__(self) -> int:
         return FunctionSpace.__hash__(self)
 
+    def find_factor[T: "FunctionSpace"](self, factor_type: type[T]) -> T:
+        r"""Return the (first) tensor factor that is an instance of ``factor_type``.
+
+        The tree query the moment-carrier fields rely on to recover their
+        typed factor from a composed space — e.g.
+        ``space.find_factor(SphericalHarmonicSpace).L`` recovers the
+        angular truncation order, and
+        ``space.find_factor(SpatialMomentSpace).per_axis`` recovers the
+        spatial-moment basis size — without the consumer having to know
+        the factor's position in the product (issue #207). The factories
+        compose factors in a fixed order, but consumers query by TYPE, not
+        index, so the layout can change without breaking the query.
+
+        Parameters
+        ----------
+        factor_type : type[T]
+            The :class:`FunctionSpace` subclass to search for among
+            :attr:`factors`. The return is typed AS this class (generic),
+            so ``find_factor(SphericalHarmonicSpace).L`` /
+            ``find_factor(SpatialMomentSpace).per_axis`` type-resolve — the
+            method's reason to exist is the typed bridge from a composed
+            space back to its factor's metadata.
+
+        Returns
+        -------
+        T
+            The first factor that ``isinstance(factor, factor_type)``, typed
+            as ``factor_type``.
+
+        Raises
+        ------
+        KeyError
+            If no factor matches ``factor_type`` — an explicit failure
+            (the query is a structural assertion: the caller believes the
+            composed space carries this factor).
+        """
+        for f in self.factors:
+            if isinstance(f, factor_type):
+                return f
+        raise KeyError(
+            f"TensorProductSpace {self.name!r} has no factor of type "
+            f"{factor_type.__name__}; factors are "
+            f"{[type(f).__name__ for f in self.factors]!r}."
+        )
+
     @classmethod
     def from_factors(
         cls, factors: tuple["FunctionSpace", ...],

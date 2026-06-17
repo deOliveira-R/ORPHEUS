@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5294**
+Total tests collected: **5329**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1153, 21.8%
-   L1, 976, 18.4%
+   L0, 1153, 21.6%
+   L1, 976, 18.3%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3120, 58.9%
+   foundation, 3155, 59.2%
    unmarked, 9, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5206
+   explicit, 5241
    verify, 0
    class-name, 46
    func-name, 0
@@ -276,6 +276,7 @@ Module × level grid
    numerics/test_rules_sphere, 0, 7, 0, 0, 29, 0
    numerics/test_space, 0, 0, 0, 0, 15, 0
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
+   numerics/test_spatial_moment_space, 0, 0, 0, 0, 22, 0
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 0, 0
    numerics/test_spherical_harmonic_space, 0, 6, 0, 0, 6, 0
    numerics/test_symmetry, 0, 0, 0, 0, 71, 0
@@ -342,8 +343,9 @@ Module × level grid
    spatial/test_linear_discontinuous, 0, 0, 0, 0, 20, 1
    spatial/test_ordinate_scan_reset, 3, 2, 0, 0, 0, 0
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
+   spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 272, 0
+   test_layer_imports, 0, 0, 0, 0, 273, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -622,7 +624,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **74** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **76** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -661,6 +663,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``ld-ubld-n-spatial-moments``
 - ``ld-ubld-rule-of-three-collapse``
 - ``ld-ubld-scale-free-invariants``
+- ``ld-ubld-scattering-moment-lift``
 - ``loss-rep-affine``
 - ``loss-rep-affine-cell``
 - ``loss-rep-facewise-separable``
@@ -688,6 +691,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``sn-streaming-reciprocity``
 - ``sn-tau-mm-raw``
 - ``sn-within-group-system``
+- ``spatial-moment-space-size``
 - ``spectrum-case-eigenfunction-equation``
 - ``spectrum-case-eigenfunction-explicit``
 - ``spectrum-continuum-eigenfunction``

@@ -8,6 +8,11 @@ subclasses that carry domain-specific metadata beyond
 * :class:`SphericalHarmonicSpace` (P1.2) — moment-space carrier for SH
   coefficients with the ``MomentMassMatrix`` diagonal already broadcast
   to the storage layout.
+* :class:`SpatialMomentSpace` (#240 D5b-S3) — moment-space carrier for
+  the within-cell tensor-Legendre DG (LD) **spatial** moments. The
+  spatial sibling of :class:`SphericalHarmonicSpace` (angular moments):
+  it carries how :math:`\psi` varies in space WITHIN a cell, an axis
+  orthogonal to the angular-moment axis.
 * :class:`TraceSpace` (#205 / #201 unification) — the single
   whole-boundary trace function space. Carries the :class:`FaceLayout`
   + the signed :math:`\Omega\cdot\hat n` per face; inflow / outflow are
@@ -31,6 +36,10 @@ References
 from __future__ import annotations
 
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.spaces.spatial_moment_space import (
+    SpatialMomentSpace,
+    spatial_moment_tail,
+)
 from orpheus.numerics.spaces.spherical_harmonic_space import (
     SphericalHarmonicSpace,
 )
@@ -38,6 +47,8 @@ from orpheus.numerics.spaces.trace_space import TraceSpace
 
 __all__ = [
     "FullFieldSpace",
+    "SpatialMomentSpace",
     "SphericalHarmonicSpace",
     "TraceSpace",
+    "spatial_moment_tail",
 ]
