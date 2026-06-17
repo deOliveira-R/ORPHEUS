@@ -105,6 +105,37 @@ upstream fix solves the downstream gap. Plain magnitude propagation is
 NOT the default — many integrals are insensitive to upstream-spline
 small shifts when the cancellation structure absorbs them.
 
+## L7: A direction-dependent per-ordinate moment must be lifted to the global frame BEFORE the angular reduction
+
+ERR-061 (#240 D5b-S3, 2026-06-17). An LD slope moment ψ̂_n produced in the
+per-ordinate SWEEP frame (downstream-positive) and summed by the angular
+reduction φ̂=Σ_n w_n ψ̂_n (which feeds the isotropic scattering slope source
+Σ_s·φ̂) MUST be sign-corrected to the GLOBAL frame for backward ordinates first
+— else forward and backward slopes CANCEL (φ̂ ~6× under-driven) and the scheme
+loses the diffusion limit (LD nx=4: 38.9% off DD). The fix is a per-octant
+moment-frame involution ∏_a (octant_sign_a)^{o_a} applied at the producer-
+consumer seam (source/probe global→sweep IN, moment/residual sweep→global OUT;
+the outgoing FACE stays sweep-frame, it propagates the wavefront).
+
+Three durable methodology points:
+1. **The angular reduction is the discriminator.** A per-ordinate convention bug
+   is invisible until a quantity is summed across ordinates of OPPOSITE sweep
+   direction. This is H2/H3 (flat flux nulls the slope; round-trip/conservation
+   are telescoping-degenerate to the frame error) applied to the moment iterate.
+2. **Matvec self-consistency (SI≡Krylov, round-trip≈0) is NEVER sufficient for a
+   moment-iterate fold.** It proves the operator is internally consistent, not
+   that its fixed point is physically correct (vv §5). Gate the converged VALUE
+   against a structurally-independent reference, not the round-trip — the brief
+   named this trap and it held.
+3. **When all components are individually correct but the FP is wrong, build a
+   STRUCTURALLY-INDEPENDENT from-scratch kernel.** It reproducing the wrong value
+   bit-for-bit localizes the bug to the SHARED math (the 2×2 + the frame
+   convention); the independent fix confirms the fix class without touching
+   production. When the literature says the scheme IS consistent but your
+   faithful implementation isn't, the bug is a CONVENTION between two correct
+   pieces (the sweep↔global frame at the seam), not in either piece.
+See [[issue-240-d5b-s3-diffusion-limit]].
+
 ## L6: A curvilinear matvec is verified only against a NON-FLAT per-ordinate hand reference
 
 Flat ψ makes every redistribution/routing bug in a curvilinear SN matvec

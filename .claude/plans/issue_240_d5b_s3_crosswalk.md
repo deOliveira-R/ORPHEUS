@@ -18,7 +18,24 @@ The plan's "FP-invariance vs the flat-source FP" wording is a **Mode-9 mis-appli
 The genuine Mode-9 invariant is: SI-with-lagged-moment-iterate ≡ direct/Krylov solve of the SAME
 `(L+C − S_full)` operator (the within-group analog of D5b.4, lifted to the full operator).
 
-## The A/B split (along the sweep vs matvec L14 boundary)
+## ⭐⭐ RESOLUTION (2026-06-17) — A/B split SUPERSEDED by the unified moment matvec
+
+The A/B split below was drawn on the assumption that "the d=1 matvec just works" (S3-A flips the 1-D
+tripwire via the existing d=1 krylov-slab matvec). The S3-A consumer dispatch REFUTED that: the d=1 LD
+matvec is **Schur-reduced to a SCALAR** residual, and `A=(L+C)−S` (OperatorSum) subtracts `S·ψ`
+ELEMENT-WISE — so a φ̂-carrying `(2,)`-moment `S·ψ` cannot subtract from the scalar `(L+C)·ψ`. The user +
+main agent resolved it: **the scalar d=1 matvec was a FLAT-SOURCE artifact (Q̂≡0 ⇒ slope globally
+uncoupled ⇒ scalar Krylov unknown), NOT a d=1 Schur degeneration.** A matvec is a forward APPLY (nothing
+to eliminate); Inc C makes `Σ_s·φ̂` couple the slope GLOBALLY in every dimension ⇒ the matvec is
+moment-valued for ALL d. **DECISION: unify the matvec — `(L+C)·ψ⃗` returns the `spatial_basis_per_axis^d`
+moment residual for all d (DD/Step=1=byte-identical; LD-1D=2; LD-2D=4); fold the former S3-B (d≥2 matvec
+raise) into ONE all-d step.** Branch-freeness is the acceptance bar (drop the `len(s_axes)>1` moment
+conjunct → the scheme trait alone; collapse LD's kernel forks to one d-generic path; retire the scalar
+`kernel_rhs` matvec arm; shape-agnostic carriers via `face_moment_tail`; CumprodScan SWEEP untouched,
+`scan_xV` gains `s_hat`). Full record: the durable plan's "⭐⭐⭐ THE D5b-S3 ARCHITECTURE DECISION" block.
+The "S3-A/S3-B" labels below are now ONE step "S3 unified moment matvec"; GATES 1–5 all in-scope.
+
+## The A/B split (along the sweep vs matvec L14 boundary) — HISTORICAL (see RESOLUTION above)
 
 > ⭐ **UPDATE (2026-06-17): S3-A split again — a typed-field-space prerequisite (S3-A0) emerged + is
 > DONE.** The first S3-A dispatch surfaced that carrying φ̂ in the iterate needs the typed-field

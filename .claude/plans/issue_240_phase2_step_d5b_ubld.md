@@ -3,7 +3,95 @@
 > **Durable in-repo recovery anchor** (project rule: plans live in ORPHEUS/.claude/).
 > Parent: `.claude/plans/issue_240_phase2_step_d_homing.md` (§D5). Subsumes **#158 Increment D / #38**.
 > Branch `feature/sn-space-angle-tier2` (off `main`@`cba6d2f`), NOT pushed/merged.
-> **STATUS (2026-06-17): D5b-S2 DONE (`495af60`). D5b-S3 SPLIT A0/A/B. S3-A0 DONE+committed (`d313d16` feat / `96dfc96` chore) + moments Sphinx docs DONE (`a2dbb39`). ⭐ RESUME AT D5b-S3-A — the φ̂-iterate CONSUMER (the SpatialMomentSpace primitive is now BUILT; S3-A SELECTS it). Branch 45 ahead of origin, NOT pushed.**
+> **STATUS (2026-06-17): D5b-S3 DONE + COMMITTED (`e74eafb` feat / `3e8f101` chore). The unified all-d LD moment matvec + the diffusion-limit closure (ERR-061) + OWED-2 scan + the pure-z gate (ERR-062) are landed; #37 (Inc C) + #38 (Inc D) CLOSED (folded). ⭐ RESUME AT D5b-S4 (#62, strengthened 2-D MMS + the `ld-cartesian-2d` verifies label) and/or D6 (#55, docs expansion — the archivist stubs `two-moment-axes`/`spatial-moment-space`/`ld-ubld-unified-moment-residual`/`ld-ubld-moment-scan`/`ld-ubld-pure-z-collision` await rich-narrative expansion). Branch NOT pushed. ⚠ error_catalog.md (ERR-060/061/062) restored in the working tree but UNCOMMITTED — lands via the instruction-architecture flow; the `catches` markers ARE committed.**
+>
+> ⭐⭐⭐ **THE D5b-S3 ARCHITECTURE DECISION (2026-06-17, settled with the user — do not lose):**
+> The S3-A consumer dispatch surfaced a genuine fork: the d=1 LD **matvec** is Schur-reduced to a
+> SCALAR residual, but `A=(L+C)−S` (OperatorSum) subtracts a now-`(2,)`-moment `S·ψ` element-wise →
+> a φ̂-carrying iterate cannot route through the scalar d=1 matvec. RESOLUTION (the user's framing +
+> my analysis): **the scalar d=1 matvec was a FLAT-SOURCE artifact, NOT a d=1 Schur degeneration.**
+> The Schur reduction is a *solve* technique (it degenerates naturally on the SWEEP and already
+> carries the slope via `schur_xV`'s `s_hat`); a *matvec is a forward apply* — applying the per-cell
+> `2^d×2^d` operator to the moment vector is intrinsically moment-valued. Pre-Inc-C, Q̂≡0 left the
+> slope ψ̂ globally-uncoupled, so the Krylov unknown was legitimately scalar. **Inc C makes `Σ_s·φ̂`
+> couple the slope GLOBALLY in EVERY dimension** → the slope is a genuine global DOF for all d.
+> ⇒ **UNIFY the matvec across all d: `(L+C)·ψ⃗` returns the `spatial_basis_per_axis^d`-moment
+> residual for ALL d** (DD/Step=1=scalar=byte-identical; LD-1D=2; LD-2D=4). `A=(L+C)−S_full` is then
+> ONE honest operator in every dimension. This **FOLDS the former S3-B (d≥2 matvec raise) INTO S3**
+> — land complete `(L+C−S_full)` for LD in all d at once. (User Q2 chose "fold all-d".)
+> **BRANCH-FREENESS is the acceptance bar (Cardinal Rule 2, user-verified achievable):** the carve
+> NET-REMOVES branches. (1) Drop the `len(s_axes) > 1` conjunct in the moment gates
+> (`sweep_graph.py:883`/`:929`) → the pure scheme trait `spatial_basis_per_axis > 1` alone (admits
+> d=1 LD). (2) Collapse LD's `if len(s_axes)==1/!=1` kernel forks (`linear_discontinuous.py:468/618/656`)
+> to ONE d-generic moment path (S1 proved `assemble_ubld`'s d=1 reduction == the 1-D algebra); RETIRE
+> the scalar `kernel_rhs` Q̂=0 matvec arm (flat-source artifact). (3) Close the d≥2 `_CellResidual.cell`
+> raise (widen `_ApplyOperands.probe`; InvertibleOperator flat-ravel is shape-agnostic). (4) SHAPE-AGNOSTIC
+> carriers via the `face_moment_tail`/`spatial_moment_tail` formula (`per_axis==1 → tail==() → scalar →
+> byte-identical`), NEVER `if LD-d≥2: widen`. (5) d=1 SWEEP stays CumprodScan (perf via STRATEGY
+> selection, not an `if d==1`); `scan_xV` gains `s_hat` single-sourced with `schur_xV` through
+> `D1ClosedForm`. (6) ZERO `isinstance(scheme)` (audit confirms none today); curvilinear LD stays a
+> DECLARED structural exclusion. Audit confirmed (grep, 2026-06-17): zero scheme-type branches today;
+> the only dimension branches are the `len(s_axes)>1` moment conjunct (collapses) + the LD kernel forks
+> (collapse) + legitimate geometry-keyed `supports()`/`Compatibility` (stay) + the curvilinear exclusion
+> (stays). GATES now ALL in-scope: 4 (DD bit-id 513/1/4) / 1 (both tripwires flip, 2G-het) / 3 (genuine
+> Mode-9 SI≡Krylov on `(L+C−S_full)`, aniso+diagonal-cubature+nonzero-c) / 2 (MMS O(h²)) / 5 (1G guard).
+> Dispatch brief is the authoritative spec; closeout → `issue_240_d5b_s3_unified_matvec_closeout.md`.
+>
+> ⭐ **IMPL STATUS (2026-06-17, NOT committed — working tree holds 11 production + 2 test files + doc stubs):**
+> The unified-moment-matvec ARCHITECTURE LANDED + branch-free (grep clean: no `len(s_axes)>1`, no
+> scheme-isinstance). **GATE 4 byte-id 513/1/4 (main-agent re-run); GATE 3 SI≡Krylov 4.99e-11; matvec≡sweep
+> round-trip 1e-16; GATE 2 2-D 3-pass.** ⚠⚠ **BUT the DIFFUSION LIMIT is NOT recovered** — thick-cell LD
+> converges to DD only with refinement (main-agent CONFIRMED: nx=4 rel=0.389 / nx=16 0.079 / nx=64 0.008 =
+> the flat-source signature Inc C must KILL). The operator is internally self-consistent (matvec≡sweep,
+> SI≡Krylov) but is NOT the diffusion-consistent operator. The 1-D tripwire CORRECTLY LEFT xfailed (no false
+> green). **numerics-investigator DISPATCHED (background) for OWED-1.** PRIME SUSPECT = the moment-source
+> weighting convention: S3-A0 chose `S_full=Σ_s⊗I` (raw) + the agent M-normalized the matvec (`M⁻¹·(L+C)`),
+> algebraically self-consistent but maybe NOT diffusion-consistent vs the principled `S_full=Σ_s⊗M` +
+> natural residual (the slope rows `M_ii=θ=1/3` may be under-driven 3× while `M_00=1` average agrees → the
+> φ̂-TINY smoking gun, ~−0.02 vs φ̄~1.5). SECOND SUSPECT = the d=1 dense `assemble_ubld` slope row (NEVER
+> exercised pre-carve; S1's bilinear-exactness oracle NULLS the diffusion regime — Mode-7 at the primitive).
+> Investigator EMPOWERED to revisit the Σ_s⊗I decision (DD-no-op at M=1). OWED-2 (the `scan_xV` `s_hat` for
+> the d=1 CumprodScan SI path) is coupled, flagged. Archivist DEFERRED until the convention settles (L10).
+> Recovery: `issue_240_d5b_s3_unified_matvec_closeout.md` (the M-norm derivation) + the investigator closeout
+> `issue_240_d5b_s3_diffusion_limit.md`.
+>
+> ⭐ **UPDATE 2 (2026-06-17) — OWED-1 FIXED (ERR-061); OWED-2 is a COMMIT BLOCKER (3 red tests), being fixed.**
+> numerics-investigator found + fixed OWED-1: **ERR-061** = the per-ordinate LD slope `ψ̂_n` lived in the
+> SWEEP frame but `φ̂ = Σ_n w_n ψ̂_n` (the scattering slope source) assumed the GLOBAL-x frame → backward
+> ordinates (μ<0) CANCELLED the forward slopes → φ̂ ~6× under-driven (sign-flip #1 + convention-drift #6).
+> FIX = a single-sourced `2^d` moment-frame involution `octant_moment_frame_signs(octant_signs, per_axis)`
+> via `_reframe` at the `_CellSolve`/`_CellResidual` octant boundary (DD/Step per_axis=1 → None → byte-id).
+> Cracked by a from-scratch LM-1989 solver reproducing the WRONG value bit-for-bit (sweep-frame) then the
+> RIGHT value (global-frame). **Diffusion limit RECOVERED (main-agent re-run): nx=4 rel 0.389→0.041 / 16
+> 0.079→0.002 / 64 0.008→0.000; tripwire flips to genuine PASS.** ⚠⚠ **OWED-2 is NOT a deferrable follow-on
+> — it REDS 3 tests** (main-agent re-run, `test_mms_ld_slab.py`): `test_sn_1d_slab_ld_mms_converges_second_order`,
+> `test_sn_1d_slab_ld_mms_krylov_matches_si`, `test_ld_two_paths_scan_equals_dag_oracle` — the d=1 LD
+> CumprodScan SI/scan path CRASHES on the moment source (`broadcast (N,1,nx,2) vs (1,1,nx)`; a regression,
+> the scan was valid pre-S3). FIX (investigator-specified) = `scan_xV` gains `s_hat` single-sourced with
+> `schur_xV` through `D1ClosedForm` + apply the SAME `octant_moment_frame_signs((dir_sign,),2)` involution
+> on the scan (backward: `-Σ_s·φ̂/W` IN, sign-flip ψ̂ OUT) → scan≡DAG. **method-implementer DISPATCHED for
+> OWED-2 (background); NOT committable until the 3 reds are green.** Then: full re-verify (GATE 4 513/1/4 +
+> the 3 reds green + diffusion repro + GATE 3) → elegance + qa on the COMPLETE S3 → commit. #246 filed
+> (typed SpatialMomentSpace shape-probe predicate, S4 deadline). ERR-061 written to error_catalog.md
+> (forbidden-to-commit; land via instruction-architecture flow); `catches("ERR-061")` markers ARE committed.
+>
+> ⭐ **UPDATE 3 (2026-06-17) — OWED-2 DONE + full re-verify GREEN; reviews IN; one qa BLOCKER being fixed.**
+> OWED-2 single-sourced (`D1ClosedForm._slope_fold` shared by matvec + scan; scan consumes the same
+> `octant_moment_frame_signs`/`_reframe` involution — Pattern 2). **Main-agent FULL re-verify ALL GREEN:**
+> imports OK; branch-grep clean; diffusion nx=4 rel 0.041 BOTH solvers; GATE 4 513/1/4; LD slab MMS 7 passed;
+> spatial+operators 575P/7F (the 7 git-stash-confirmed pre-existing curvilinear-SPH). **REVIEWS: elegance
+> PASS-WITH-NITS** (zero BLOCK; single-sourcing provable; optional nit = hoist `frame_signs_for` free func).
+> **qa SUPPORTED-WITH-CONCERNS** — headline correctness GENUINE (the from-scratch LM-1989 solver reproduces the
+> WRONG value bit-for-bit sweep-frame then the RIGHT global-frame, VALUE-anchored to analytical diffusion 2.36;
+> `catches("ERR-061")` mutation-verified; `@foundation` independent ground stays green). ⚠ **qa CONCERN A
+> (COMMIT BLOCKER, being fixed):** the d≥2 LD **matvec** `pure_z` arm (`loss_representation.py:742`) lacks the
+> **sweep**'s moment-broadcast guard (`:654-655`) → 2-D LD Krylov on a PURE-Z-bearing quad (MMS N=110 has 2;
+> `level_symmetric` none = why it hid) CRASHES `broadcast (2,6,6) vs (1,2,6,6,4)`. L21/L14 twin-path asymmetry;
+> the matvec twin was never gated vs the sweep on a pure-z quad (3rd recurrence of "matvec needs a committed
+> gate"). Loud crash, NO false-green. **method-implementer DISPATCHED (background): single-source/port the
+> pure_z guard + add a COMMITTED 2-D LD Krylov≡SI gate on a pure-z quad + bundle the elegance hoist.** Concern B
+> (non-blocking): 4 runtime-safe pyright nits; the `verifies("ld-cartesian-1d"/"ld-slab")` labels lack math
+> blocks (pre-existing, archivist/D6). NOT committable until Concern A green; then re-verify → commit.
 > S1 (the unified per-cell UBLD primitive) is complete on both branches:
 > **S1 commit chain** (branch `feature/sn-space-angle-tier2`, NOT pushed/merged):
 > `7abba5d` (design plan, pre-session) → `cb84b7b` (Branch-1 SymPy algebra-of-record + oracles)

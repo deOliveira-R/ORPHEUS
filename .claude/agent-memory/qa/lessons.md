@@ -799,3 +799,81 @@ construct-general / select-narrow capability addition:
    worry about "find_factor-returns-object at space.py:521" was a brief
    mis-attribution: :521 is `DualSpace.of`, pre-existing. (VERDICT 2026-06-16:
    SUPPORTED, no blocker, no follow-up.)
+
+## L-033 -- #240 D5b-S3 (LD diffusion-limit completion, ERR-061) VERDICT SUPPORTED-WITH-CONCERNS: the structural-independence ground is GENUINE (L11 clean) but the d≥2 matvec ships a LATENT pure_z twin-path crash no committed gate drives
+
+D5b-S3 = the unified all-d LD moment matvec + ERR-061 frame fix (slope ψ̂_n
+stored in per-ordinate SWEEP frame, summed by consumer as GLOBAL → backward
+ordinates CANCEL the forward slope → φ̂ 6× under-driven → diffusion limit lost;
+fixed by `octant_moment_frame_signs` = ∏_a sign_a^{o_a} involution via `_reframe`).
+
+1. **The headline correctness claim is REAL (L11 clean, NOT L4).** The
+   from-scratch LM-1989 solver (`_independent_ld_slab` in
+   `tests/sn/spatial/test_ld_slope_frame.py`) is GENUINELY structurally
+   independent: hand-built cell 2×2 `[[σh+μ,μ],[-μ/θ,σh+μ/θ]]`, hand SI, NO
+   ORPHEUS kernel. Verified live: sweep-frame=1.4717 (== ORPHEUS pre-fix
+   bit-for-bit), global-frame=2.3080 (rel 2.3% vs ANALYTICAL diffusion 2.362).
+   Anchor is the closed-form diffusion VALUE (`@foundation`
+   `test_independent_ld_global_frame_recovers_diffusion`), NOT "LD≈DD". The
+   production LD value 2.30798 == the independent solver's global-frame value 4dp
+   AND matches analytical diffusion (2.3%) BETTER than it matches DD (4.1%) → the
+   chain prod-LD≡indep-LD≡analytical closes. The frame primitive verified at the
+   prompt: ∏ closed form exact, DD→None, genuine involution (s·s=1 ∀octant), d=2
+   x̂y flips iff ODD # axes reverse.
+2. **`catches("ERR-061")` markers MUTATION-VERIFIED.** Neuter `_reframe`
+   (`return arr` — single mutation, `loss_representation.py:147` imports the SAME
+   helper so ALL paths hit) → the 3 prod-path catchers (slope-frame consistency,
+   thick-diffusion 1G, thick-diffusion 2G) ALL go RED with the ERR-061 mechanism
+   in the err_msg; the `@foundation` independent ground STAYS GREEN by design (no
+   `catches`, doesn't ride `_reframe`). Correct per anti-pattern #11 / L-007.
+   (catalog entry lists only the 2 thick tests; the slope-frame test ALSO carries
+   `catches("ERR-061")` — minor catalog omission, not wrong.)
+3. **Mode-7-at-primitive resolved** (the brief's load-bearing concern): the S1
+   `assemble_ubld` exact-on-bilinear oracle nulled the diffusion slope; the NEW
+   thick-cell tripwire (σ_t·h=10, c=0.99, COARSE nx=4 — NOT refined mesh, the
+   L-017 thick-cell probe) + the 2G-het Mode-6 companion (asym SigS
+   [[30,9.6],[0,39.6]], both groups recover, g0→g1=9.6/g1→g0=0 → transpose-
+   sensitive) genuinely exercise the regime. ERR-061 catalog entry COMPLETE
+   (mechanism + fix + #1+#6 classification + how-it-hid + lesson + bug-signature
+   x-link).
+4. **DD/Step byte-identity = TRUE** (negative control): GATE 4 513/1/4 under
+   `-W error::DriftWarning` IDENTICAL pre/post; `git status --short '**/*.npy'`
+   EMPTY (no golden moved). `face_moment_tail(1)==()` + `octant_moment_frame_signs(_,1)==None`
+   → DD never grows the moment axis. The 7 spatial+operators reds are GENUINELY
+   pre-existing (git-stash: at clean HEAD the same 7 + 2 fix-dependent tests fail;
+   with diff exactly 7; the 7 = sphere matvec ×5 + 2-D mu_y BC ×2, none touch the
+   slab scan / moment frame).
+
+⚠ **THE CONCERN (the d≥2 matvec twin-path gap — a real follow-up).** "matvec≡sweep
+for BOTH d=1 and d≥2" is NOT fully verified. d=1 has committed gates (scan≡DAG
++ Krylov≡SI). d≥2 has NO committed end-to-end Krylov≡SI gate (grep krylov in the
+d≥2 MMS files = EMPTY; the closeout's "rel 4.99e-11" was an UNCOMMITTED manual
+smoke). The d≥2 raise WAS retired (`_CellResidual.cell` comment "d≥2 raise is
+RETIRED") so the path is live — but RUNNING it on the MMS case quad (N=110, **2
+pure-z ordinates**) CRASHES: `loss_representation.py:742` matvec `pure_z` does
+`LpC[oct_idx]=sigma*probe[oct_idx]` with NO moment-axis broadcast guard → ValueError
+`(2,6,6) vs (1,2,6,6,4)`. The SWEEP `pure_z` (line 654-655) HAS the guard
+(`if q.ndim>sig.ndim+1: sig=sig[...,None]`); the matvec twin does NOT — a Pattern-2
+twin-path asymmetry. Latent because the d≥2 verification uses SI (smoke) + sweep-vs-
+sweep two-paths on level_symmetric (ZERO pure-z); the matvec `pure_z`+moments combo
+is untested. LOUD crash (ValueError), NOT silent-wrong → no false-green ships, but the
+closeout's "2-D Krylov works end-to-end" is only true for no-pure-z quads. Fix = port
+the sweep `pure_z` moment-broadcast guard to the matvec `pure_z` + add a committed 2-D
+LD Krylov≡SI gate on a quad WITH pure-z (the L-018/L-021 "matvec needs a committed
+call-count/end-to-end gate, not a round-trip" lesson, recurring a THIRD time).
+
+OTHER follow-ups (non-blocking): (a) 4 net-new pyright nits (apples-to-apples
+stash PRE 110 / POST 113 + comm: `D1ClosedForm` un-imported but used in a
+`moment_scan_closure` return annotation — runtime-safe via `from __future__`;
+`scheme.moment_scan_closure` LD-only method on a base-typed handle behind the
+`is_moment` gate; `Q.spatial_moments_per_axis` narrowness; 1 reportReturnType) —
+all Pattern-3 type-narrowness debt; (b) `verifies("ld-cartesian-1d","ld-slab")`
+labels have NO `:label:` math block in docs/theory (pre-existing — already at HEAD,
+audit tracks them with 6/4 tests, exit 0; `ld-cartesian-2d` correctly deferred per
+L-031); minted in S4/archivist. Mode-8 clean (2 prod bare asserts in touched files
+PRE-EXISTING: loss_rep:2376 type-narrow, solver:866 in `if __debug__:`). VERDICT
+2026-06-17: SUPPORTED-WITH-CONCERNS. Numerics + the headline fix SOUND, byte-id real,
+markers honest. The d≥2 matvec pure_z crash is a real latent defect (loud, narrow)
++ the missing d≥2 Krylov gate is a genuine coverage hole — both follow-ups, NOT
+commit blockers (the SHIPPED scope is SI-verified d≥2 + matvec-verified d=1; no
+false-green). No false-green found anywhere.
