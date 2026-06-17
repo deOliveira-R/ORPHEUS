@@ -172,6 +172,7 @@ from typing import ClassVar
 
 import numpy as np
 
+from ._ubld import d1_closed_form
 from .scheme import (
     CellResult,
     DiscretizationSchemeBase,
@@ -237,7 +238,7 @@ class _LDCellTerms:
     eff_denom: np.ndarray            #: ``(ng,)`` Schur effective denominator S
     eff_source: np.ndarray           #: ``(ng,)`` source folded through the slope row
     eff_numer_upstream: np.ndarray   #: ``(ng,)`` inflow folded through the slope row
-    _mu: float                       #: ``|μ|`` (slope reconstruction)
+    _mu: np.ndarray                  #: ``|μ|·A_down`` (= ``|μ|`` for slab; slope reconstruction)
     _d2p: np.ndarray                 #: ``(ng,)`` :math:`D_2' = \Sigma_t\theta h + |\mu|`
     _slope_source: np.ndarray        #: ``(ng,)`` :math:`\theta\hat S` (slope-row RHS source)
     _psi_in: np.ndarray              #: ``(ng,)`` inflow face flux
@@ -329,17 +330,24 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         theta = self.theta
         psi_in = upstream_state.spatial_upstream
 
-        d2p = total_xs * theta * h + mu                      # (ng,)  D₂'
-        eff_denom = (mu * mu + (total_xs * h + mu) * d2p) / d2p           # S
-        eff_source = s_bar - s_hat * mu * theta / d2p
-        eff_numer_upstream = mu * psi_in * (d2p + mu) / d2p
+        # Single-source the LD 2×2 Schur through the shared d=1 closed form
+        # (#240 D5b-S1 Branch 2): slab A_down = 1, V = h, so the ÷V
+        # streaming-over-volume is g = |μ|/h.  ``schur_xV`` returns the ×V
+        # per-cell intermediates (S, eff_source, eff_numer, θ·ŝ, |μ|A_down, D₂')
+        # in the SAME shape the production closed forms used to compute inline —
+        # the LD 2×2 algebra now lives ONCE (in ``_ubld.d1_closed_form``), proven
+        # == the d-generic dense primitive's d=1 reduction.
+        cf = d1_closed_form(mu / h, total_xs, theta)
+        eff_denom, eff_source, eff_numer_upstream, slope_source, mu_Adown, d2p = (
+            cf.schur_xV(h, s_bar, s_hat, psi_in)
+        )
         return _LDCellTerms(
             eff_denom=eff_denom,
             eff_source=eff_source,
             eff_numer_upstream=eff_numer_upstream,
-            _mu=mu,
+            _mu=mu_Adown,
             _d2p=d2p,
-            _slope_source=theta * s_hat,
+            _slope_source=slope_source,
             _psi_in=psi_in,
         )
 
@@ -441,17 +449,17 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
                 "(#158 Increment D)."
             )
         g = s_axes[0]                               # raw down-face streaming |μ|/Δ (N_oct, 1, n_diag); #240 — was 0.5*s when s carried DD's diamond 2
-        g_over_theta = g / self.theta
         in0 = psi_in[0]                             # (N_oct, ng, n_diag)
-        d2 = g_over_theta + sigt_cells             # D₂ (Schur slope denom)
-        eff_denom = (g + sigt_cells) + g * g_over_theta / d2          # Schur S
-        rhs = Q_cells + g * in0 + g * g_over_theta * in0 / d2  # flat (Q̂ = 0)
-        # LD reconstruction ``(1+k)ψ̄ − k·ψ_in`` is the ``w=1/(1+k)`` case of
-        # the generic affine outflow ``(ψ̄ − (1−w)ψ_in)/w`` (k = (g/θ)/D₂); a
-        # principled ~1-ULP re-baseline (different reduction tree).  Derived ONCE
-        # here so both kernel arms share it.
-        w = 1.0 / (1.0 + g_over_theta / d2)
-        return eff_denom, rhs, w, in0
+        # Single-source the LD 2×2 Schur through the shared d=1 closed form
+        # (#240 D5b-S1 Branch 2): the ÷V kernel reads ``eff_denom`` (the Schur S
+        # per volume) and the flat-source ÷V ``kernel_rhs`` straight off the same
+        # helper the ×V views use — the LD algebra lives ONCE.  ``w = 1/(1+k)``
+        # (k = (g/θ)/D₂) is the cell-average blend weight both kernel arms feed
+        # into ``outgoing_face_from_average``.  A principled ~1-ULP re-baseline
+        # (the helper's ``g·k`` vs the legacy inline ``(g·g/θ)/D₂`` association).
+        cf = d1_closed_form(g, sigt_cells, self.theta)
+        rhs = cf.kernel_rhs(Q_cells, in0)           # flat (Q̂ = 0)
+        return cf.eff_denom, rhs, cf.w, in0
 
     def cell_kernel_batch(
         self,
@@ -560,13 +568,15 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
                 "scan closure is unpublished (#158).  A non-neutral curvature "
                 "was detected (dA_w / c_out are not all zero)."
             )
-        theta = self.theta
-        m = abs_mu[:, None, None] * A_down[:, None, :]   # |μ|·A_down  (N, 1, nx)
-        t = sig_t * V[:, None, :]                         # Σ_t·V       (N, ng, nx)
-        p = m / theta                                     # |μ|/θ       (N, 1, nx)
-        d2 = t + p                                        # D₂          (N, ng, nx)
-        k = p / d2                                        # (N, ng, nx)
-        inverse_denom = 1.0 / ((t + m) + m * p / d2)      # 1/S         (N, ng, nx)
-        a = m * (1.0 + k) ** 2 * inverse_denom - k        # transmission (N, ng, nx)
-        w = 1.0 / (1.0 + k)                               # blend weight (N, ng, nx)
-        return a, inverse_denom, w
+        # Single-source the LD 2×2 Schur through the shared d=1 closed form
+        # (#240 D5b-S1 Branch 2): the ×V scan reads ``(a, inverse_denom, w)``
+        # off the same helper the ÷V kernel and ×V per-cell views use.  The
+        # ÷V streaming-over-volume is g = |μ|·A_down/V; ``scan_xV`` re-applies
+        # the ×V cell-volume scaling (S = V·eff_denom) to recover the
+        # transmission ``a = m(1+k)²/S − k`` (source-independent) and the
+        # blend weight ``w = 1/(1+k)``.  The LD algebra lives ONCE.
+        V_full = V[:, None, :]                            # (N, 1, nx)
+        m = abs_mu[:, None, None] * A_down[:, None, :]    # |μ|·A_down  (N, 1, nx)
+        g = m / V_full                                    # ÷V streaming (N, 1, nx)
+        cf = d1_closed_form(g, sig_t, self.theta)
+        return cf.scan_xV(V_full)

@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5277**
+Total tests collected: **5288**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1153, 21.8%
-   L1, 975, 18.5%
+   L1, 975, 18.4%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3104, 58.8%
+   foundation, 3115, 58.9%
    unmarked, 9, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5189
+   explicit, 5200
    verify, 0
    class-name, 46
    func-name, 0
@@ -336,12 +336,13 @@ Module × level grid
    solve/test_si_gate_dispatch, 0, 0, 0, 0, 4, 0
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
    spatial/test_affine_closure, 0, 0, 0, 0, 3, 0
+   spatial/test_ld_ubld_primitive, 0, 0, 0, 0, 10, 0
    spatial/test_ld_ubld_symbolic, 0, 0, 0, 0, 6, 0
    spatial/test_linear_discontinuous, 0, 0, 0, 0, 18, 1
    spatial/test_ordinate_scan_reset, 3, 2, 0, 0, 0, 0
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 271, 0
+   test_layer_imports, 0, 0, 0, 0, 272, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -620,7 +621,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **70** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **72** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -655,6 +656,8 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``ld-ubld-cell-system``
 - ``ld-ubld-d1-reduction``
 - ``ld-ubld-exact-on-bilinear``
+- ``ld-ubld-rule-of-three-collapse``
+- ``ld-ubld-scale-free-invariants``
 - ``loss-rep-affine``
 - ``loss-rep-affine-cell``
 - ``loss-rep-facewise-separable``
@@ -987,7 +990,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-057``, 1
    ``ERR-058``, 4
    ``ERR-059``, 4
-   ``ERR-060``, 1
+   ``ERR-060``, 2
 
 Unmarked tests
 --------------

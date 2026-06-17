@@ -1600,6 +1600,92 @@ exercised — the structurally-independent correctness gate for the
    dependency).  Branch 2 (the numpy production primitive) is a separate
    follow-on dispatch.
 
+.. _ld-ubld-branch2-primitive:
+
+The Branch-2 production primitive + the single-sourced d=1 fast path
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The numpy production counterpart of the symbolic algebra-of-record above
+is :mod:`orpheus.sn.spatial._ubld`, in two layers that share ONE source
+of truth.  Layer 1 is the :math:`d`-generic dense primitive
+(``assemble_ubld`` / ``per_cell_solve``): a batched-over-cells Kronecker
+build of the :math:`2^d \times 2^d` system :eq:`ld-ubld-cell-system`,
+solved with a batched :func:`numpy.linalg.solve`.  It is the CANONICAL
+:math:`d`-generic source for both :math:`d=1` (today) and :math:`d \ge 2`
+(S2 wires the bilinear cell-batch kernel onto it); in production
+:math:`d=1` does **not** route through this dense solve (that would be
+the per-cell-solve performance regression).
+
+Layer 2 is the shared :math:`d=1` closed form ``d1_closed_form`` — the
+analytic Schur complement of the primitive's :math:`d=1` 2×2, VECTORIZED
+over the cell / ordinate / group stack (no dense solve), so the
+production :math:`d=1` path stays on the fast path.  The entire closure
+rides two SCALE-FREE invariants:
+
+.. math::
+   :label: ld-ubld-scale-free-invariants
+
+   k = \frac{g/\theta}{g/\theta + \Sigma_t}, \qquad
+   w = \frac{1}{1 + k}, \qquad g = \frac{|\mu|\,A_{\rm down}}{V},
+
+with ``w`` the cell-average blend weight
+(:math:`\bar\psi = (1-w)\psi_{\rm in} + w\,\psi_{\rm out}`).  Every
+production view's coefficients are an algebraic function of
+:math:`(g, \Sigma_t, k, w)` times a power of the cell volume :math:`V`
+(the ×V vs ÷V choice applied at the call site).
+
+.. math::
+   :label: ld-ubld-rule-of-three-collapse
+
+   \texttt{\_schur\_terms}\;(\times V), \quad
+   \texttt{\_kernel\_terms}\;(\div V), \quad
+   \texttt{affine\_scan\_coefficients}\;(\times V\ \text{scan})
+   \;\longleftarrow\; \texttt{d1\_closed\_form}
+
+The three production 1-D views in
+:mod:`orpheus.sn.spatial.linear_discontinuous` — the ×V per-cell Schur
+(``_schur_terms``), the ÷V DAG kernel (``_kernel_terms``), and the ×V
+scan (``affine_scan_coefficients``) — now ALL derive their coefficients
+from ``d1_closed_form``, applying their ×V / ÷V / ×V-scan scaling at the
+call site.  The LD 2×2 algebra (the Rule-of-Three) collapses to ONE
+place, proven ``==`` the dense primitive's :math:`d=1` reduction
+(symbolically by the Branch-1 oracles, numerically end-to-end by the
+Branch-2 gate).
+
+.. todo:: Archivist expansion needed (#240 / #38 / #37 — D5b-S1 Branch 2).
+   This stub anchors the Branch-2 (numpy) production primitive
+   :mod:`orpheus.sn.spatial._ubld` (``assemble_ubld`` /
+   ``per_cell_solve`` — the :math:`d`-generic dense reference;
+   ``d1_closed_form`` / :class:`~orpheus.sn.spatial._ubld.D1ClosedForm`
+   — the vectorized :math:`d=1` fast path with the ÷V / ×V / ×V-scan
+   views).  The three production views in
+   :mod:`orpheus.sn.spatial.linear_discontinuous`
+   (``_schur_terms`` / ``_kernel_terms`` /
+   ``affine_scan_coefficients``) single-source through it (the
+   Rule-of-Three collapse, Cardinal Rule 2 / Pattern 2).  Verification:
+   :mod:`tests.sn.spatial.test_ld_ubld_primitive` (10 tests) — the numpy
+   primitive == the SymPy oracle at :math:`d=1` (matrices + moments) and
+   exact-on-bilinear at :math:`d=2`; the shared closed form == the dense
+   :math:`d=1` solve in all three views; and the LIVE production scheme
+   (``update`` / ``cell_kernel_batch`` / ``affine_scan_coefficients``)
+   == the dense primitive (the link proof closing the elegance-enforcer's
+   Branch-1 CONCERN).  Closeout memo:
+   ``.claude/agent-memory/method-implementer/issue_240_d5b_s1_ld_ubld_branch2_closeout.md``.
+
+   Brief for the full narrative: the layered "construct general (dense),
+   select narrow (closed form), specialize on measured cost" pattern; WHY
+   the production :math:`d=1` must stay on the vectorized closed form
+   (the L16 performance constraint — CumprodScan rides the scan view's
+   ``(a, inverse_denom, w)``; the DAG kernel rides the ÷V arrays); the
+   ×V vs ÷V vs ×V-scan scaling crosswalk
+   (:math:`D_2' = \theta V\,d_2`, :math:`S_{\times V} = V\,
+   \mathrm{eff\_denom}`); the principled ~1-ULP re-baseline of the LD
+   views (the helper's reduction tree vs the legacy inline associations,
+   absorbed by the LD gates' ``rtol = 1e-12`` — the DD-only strict gate
+   is the bit-identical negative control); and the S2 hand-off (the
+   :math:`d \ge 2` bilinear cell-batch kernel + the
+   :math:`2^{d-1}`-moment face cochain wiring onto the dense primitive).
+
 .. _sweep-wavefront:
 
 Cartesian 2D: Anti-Diagonal Wavefront Sweep
