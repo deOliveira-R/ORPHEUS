@@ -41,6 +41,8 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.derivations.continuous.mms.sn import (
     build_2d_cartesian_heterogeneous_mms_case,
+    build_2d_cartesian_ld_stress_mms_case,
+    build_nonvacuum_fixed_source,
 )
 from orpheus.geometry import BC, CoordSystem, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
@@ -301,3 +303,178 @@ def test_ld_2d_krylov_equals_si_pure_z_quadrature():
         phi_kr, phi_si, rtol=1e-9, atol=1e-10,
         err_msg="2-D LD Krylov ≠ SI on the pure-z quadrature (ERR-062)",
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# D5b.2 (HEADLINE) — 2-D LD STRESS MMS O(h²) + value band, on FullFieldWavefront
+# ═══════════════════════════════════════════════════════════════════════
+#
+# The vv-Mode-7 strengthened ansatz (SN2DCartesianLDStressMMSCase): μ-bilinear
+# (μ_x·B + μ_y·C activates the per-axis bilinear slope rows), NON-vanishing
+# boundary trace (a0>0 → prescribed inflow), NON-SQUARE het 2G.  Unlike the
+# vacuum-edge smoke gate above, this is the flux-shape VERIFICATION claim
+# (@verifies("ld-cartesian-2d")), not just a convergence check.  See the
+# SN2DCartesianLDStressMMSCase docstring for the HONEST SCOPE: this closes the
+# slope-UNKNOWN half of the LM-1989 trap; the slope-SOURCE half is deferred
+# (the production lifts only the AVERAGE-moment external source — solver.py
+# `_lift_external_source_to_moments`).
+
+
+def _ld_stress_l2_errors(case, n_cells):
+    r"""Volume-weighted L2 error of the LD stress solve at each mesh, run on the
+    NON-vacuum prescribed-inflow source (the FullFieldWavefront oracle leg)."""
+    errors = []
+    for nc in n_cells:
+        mesh = case.build_mesh(nc)
+        materials = case.build_materials(mesh)
+        sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+        rhs = build_nonvacuum_fixed_source(case, sn)
+        result = solve_sn_fixed_source(
+            materials, mesh, case.quadrature, rhs,
+            max_inner=500, inner_tol=1e-12, scheme=LinearDiscontinuous(),
+        )
+        phi = result.scalar_flux.values                 # (ng, nx, ny)
+        sq = 0.0
+        for g in range(phi.shape[0]):
+            ref = case.phi_exact(mesh.centers_x, mesh.centers_y, g)
+            sq += _l2_2d(phi[g] - ref, mesh.volumes) ** 2
+        errors.append(np.sqrt(sq))
+    return np.asarray(errors)
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.verifies("ld-cartesian-2d", "transport-cartesian-2d")
+def test_ld_2d_stress_converges_second_order():
+    r"""D5b.2: the 2-D bilinear LD closure converges O(h²) to the manufactured
+    STRESS solution :math:`A_g(x,y)`, with a non-vanishing prescribed-inflow
+    boundary trace — the headline flux-shape verification of the multi-D slope
+    rows.
+
+    The strengthened ansatz :math:`\psi = (A + \mu_x B + \mu_y C)/W` activates
+    the per-axis bilinear slope rows (DD cannot represent the μ-weighted slope);
+    :math:`a_0>0` stresses the boundary closure at the face-average moment;
+    NON-SQUARE het 2G is the x↔y-swap + multigroup discrimination.  Asserts the
+    observed order climbs to 2 (finest > 1.95, all > 1.85) AND the converged
+    VALUE lands in a band against ``phi_exact`` (vv §5: rate ≠ correctness — the
+    manufactured solution IS the structurally-independent reference).
+
+    HONEST SCOPE: this verifies the slope-UNKNOWN sign + the AVERAGE-moment
+    boundary closure.  The slope-SOURCE sign half of the LM-1989 trap is
+    DEFERRED (the production consumes a flat-in-moment external source); see the
+    case docstring.  ``-O``-safe (``np.testing.*`` / ``pytest.fail``)."""
+    case = build_2d_cartesian_ld_stress_mms_case()
+    errors = _ld_stress_l2_errors(case, [16, 32, 64])
+    orders = np.log2(errors[:-1] / errors[1:])
+    if not (orders[-1] > 1.95 and np.all(orders > 1.85)):
+        pytest.fail(
+            f"2-D LD stress MMS did not show O(h²) convergence: orders={orders} "
+            f"from errors={errors}"
+        )
+    # Value band (rate ≠ correctness — the manufactured solution is the ref).
+    if not (1e-9 < errors[-1] < 1e-2):
+        pytest.fail(f"2-D LD stress finest error out of band: {errors[-1]}")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# D5b.4 — 2-D LD Krylov ≡ SI on the STRESS config (the matvec-twin leg, L14)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.l1
+@pytest.mark.verifies("ld-cartesian-2d")
+def test_ld_2d_stress_krylov_equals_si():
+    r"""D5b.4: 2-D LD ``inner_solver='krylov'`` ≡ ``'source_iteration'`` on the
+    STRESS config — the L14 matvec-twin leg on the slope-active habitat.
+
+    Krylov drives ``(L+C−S_full)`` via ``loss_action`` (``residual_kernel_batch``,
+    the apply twin); SI via the sweep (``cell_kernel_batch``).  Both must reach
+    the SAME within-group fixed point on the strengthened μ-bilinear, het-2G,
+    non-square, NON-vacuum config (the existing pure-z gate covers a different
+    habitat — collision-only ordinates; THIS gate covers the bilinear-slope +
+    non-vanishing-trace habitat).  Their converged scalar fluxes agree to solver
+    tolerance.  Mode-9 degeneracy-break: het 2G with live self-scatter,
+    μ-non-trivial, non-square, non-vanishing inflow.  ``-O``-safe."""
+    case = build_2d_cartesian_ld_stress_mms_case()
+    mesh = case.build_mesh(16)
+    materials = case.build_materials(mesh)
+    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    rhs = build_nonvacuum_fixed_source(case, sn)
+    kw = dict(max_inner=500, inner_tol=1e-12, scheme=LinearDiscontinuous())
+
+    phi_kr = solve_sn_fixed_source(
+        materials, mesh, case.quadrature, rhs, inner_solver="krylov", **kw,
+    ).scalar_flux.values
+    phi_si = solve_sn_fixed_source(
+        materials, mesh, case.quadrature, rhs,
+        inner_solver="source_iteration", **kw,
+    ).scalar_flux.values
+
+    if not np.all(np.isfinite(phi_kr)):
+        pytest.fail("2-D LD stress Krylov produced non-finite flux")
+    np.testing.assert_allclose(
+        phi_kr, phi_si, rtol=1e-9, atol=1e-11,
+        err_msg="2-D LD stress Krylov ≠ SI (matvec twin disagrees with sweep)",
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# D5b.3 (STRESS upgrade) — FullFieldWavefront ≡ MovingFrontierWindow on the
+# strengthened ansatz (alongside the existing random-source vacuum pin)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.l1
+@pytest.mark.verifies("ld-cartesian-2d")
+def test_ld_2d_stress_two_paths_ffw_equals_mfw():
+    r"""D5b.3 (stress upgrade): the 2-D LD discretization via the two DAG
+    schedules agrees on the STRESS source.
+
+    ``FullFieldWavefront`` (anti-diagonal full cochain) ≡ ``MovingFrontierWindow``
+    (rolling frontier) — the SAME LD ``cell_kernel_batch`` via two storage
+    policies, now driven by the manufactured strengthened-ansatz source (not the
+    random vacuum source of ``test_ld_2d_two_paths_ffw_equals_mfw``).  The
+    agreement proves the WALK storage doesn't perturb LD's cell math on the
+    real slope-active habitat.  Each leg is FORCED to its INTENDED rep (a
+    two-paths gate where both legs secretly run the same rep is a silent false
+    green).  The non-vanishing boundary trace is seeded identically on both.
+
+    NOTE this drives the LOW-LEVEL ``rep.sweep`` directly (not the full solve)
+    so each schedule is pinned explicitly; the source is the manufactured
+    per-ordinate field on a coarse mesh (one sweep, fixed reduction depth →
+    nulp-class agreement)."""
+    case = build_2d_cartesian_ld_stress_mms_case()
+    mesh = case.build_mesh(10)                       # coarse, NON-SQUARE (10×7)
+    materials = case.build_materials(mesh)
+    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    nx, ny = mesh.mat_map.shape
+    ng = case.n_groups
+    Q = case.external_source(mesh)                   # (N, ng, nx, ny)
+    sig_t = np.stack([
+        case.sigma_t_fn(*np.meshgrid(mesh.centers_x, mesh.centers_y,
+                                     indexing="ij"), g)
+        for g in range(ng)
+    ])                                               # (ng, nx, ny)
+
+    mfw = MovingFrontierWindow(sn)
+    ffw = FullFieldWavefront(sn)
+    if not isinstance(default_for(sn), MovingFrontierWindow):
+        pytest.fail("expected the 2-D LD default rep to be MovingFrontierWindow")
+
+    # Non-vanishing prescribed inflow → a seeded BoundaryFlux on both legs.
+    bss = case.prescribed_inflow(sn)
+    bf_win = BoundaryFlux.zeros_on(sn)
+    bf_full = BoundaryFlux.zeros_on(sn)
+    bf_win.values[...] = bss.values
+    bf_full.values[...] = bss.values
+
+    ang_w, scal_w = mfw.sweep(Q, sig_t, bf_win)
+    ang_f, scal_f = ffw.sweep(Q, sig_t, bf_full)
+
+    np.testing.assert_allclose(
+        ang_w, ang_f, rtol=1e-9, atol=1e-12, err_msg="angular flux FFW≠MFW",
+    )
+    np.testing.assert_allclose(
+        scal_w, scal_f, rtol=1e-9, atol=1e-12, err_msg="scalar flux FFW≠MFW",
+    )
+    np.testing.assert_array_almost_equal_nulp(scal_w, scal_f, nulp=nx * ny)

@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5333**
+Total tests collected: **5344**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1153, 21.6%
-   L1, 978, 18.3%
+   L1, 981, 18.4%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3157, 59.2%
+   foundation, 3165, 59.2%
    unmarked, 9, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5245
+   explicit, 5256
    verify, 0
    class-name, 46
    func-name, 0
@@ -197,6 +197,7 @@ Module × level grid
    derivations/test_singular_eigenfunction_cylinder_xverif, 0, 1, 0, 0, 0, 0
    derivations/test_singular_eigenfunction_spectrum, 0, 0, 0, 0, 16, 0
    derivations/test_sn_mms_anisotropic_symbolic, 0, 0, 0, 0, 12, 0
+   derivations/test_sn_mms_ld_2d_stress_symbolic, 0, 0, 0, 0, 8, 0
    derivations/test_sn_mms_nonvacuum_symbolic, 0, 0, 0, 0, 9, 0
    derivations/test_sood_registry_cache, 0, 0, 0, 0, 15, 0
    derivations/test_sood_registry_compatibility, 0, 2, 0, 0, 107, 0
@@ -245,7 +246,7 @@ Module × level grid
    mms/test_mms_aniso, 0, 2, 0, 0, 0, 0
    mms/test_mms_curvilinear, 0, 2, 0, 0, 0, 0
    mms/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
-   mms/test_mms_ld_2d, 0, 1, 0, 0, 3, 0
+   mms/test_mms_ld_2d, 0, 4, 0, 0, 3, 0
    mms/test_mms_ld_slab, 0, 5, 0, 0, 2, 0
    moc/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    moc/test_mms, 0, 3, 0, 0, 0, 0
@@ -445,10 +446,10 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``keff-cycle``, 16
    ``roulette-conservation``, 16
    ``roulette-prob``, 16
+   ``transport-cartesian-2d``, 16
    ``peierls-greens-hollow-sph-architecture``, 15
    ``second-diff-general``, 15
    ``peierls-greens-annulus-architecture``, 14
-   ``transport-cartesian-2d``, 14
    ``peierls-greens-slab-asym-architecture``, 13
    ``complementarity``, 12
    ``kinf-1g``, 12
@@ -518,6 +519,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``fixed-source-solve``, 4
    ``hebert-3-323``, 4
    ``keff-update``, 4
+   ``ld-cartesian-2d``, 4
    ``ld-slab``, 4
    ``loss-rep-LpC``, 4
    ``macro-sum``, 4
@@ -1008,6 +1010,9 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-057``, 1
    ``ERR-058``, 4
    ``ERR-059``, 4
+   ``ERR-060``, 2
+   ``ERR-061``, 3
+   ``ERR-062``, 1
 
 Unmarked tests
 --------------

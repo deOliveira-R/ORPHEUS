@@ -2541,6 +2541,95 @@ diffusion-limit-consistent operator the matvec does.
    the SI path).  Closeout:
    ``.claude/agent-memory/method-implementer/issue_240_d5b_s3_owed2_scan_closeout.md``.
 
+.. _ld-cartesian-2d:
+
+The 2-D Cartesian LD stress MMS (D5b-S4)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sub-step **D5b-S4** is the L1 flux-shape verification of the multi-dimensional
+bilinear (UBLD) Linear-Discontinuous closure: a Method-of-Manufactured-Solutions
+reference whose trial flux is :math:`\mu`-bilinear (so the per-axis SPATIAL
+slope rows are genuinely activated, the vv Mode-7 override) with a NON-vanishing
+boundary trace (so the prescribed-inflow boundary closure is stressed).
+
+.. math::
+   :label: ld-cartesian-2d
+
+   \psi_{n,g}(x,y) = \frac{1}{W}\bigl[\,A_g(x,y)
+       + \mu_{x,n}\,B_g(x,y) + \mu_{y,n}\,C_g(x,y)\,\bigr],
+   \qquad
+   \phi_g(x,y) = A_g(x,y),
+
+with the strengthened drivers (the :math:`b_2,\,c_2` cross-harmonics break the
+x↔y reflection so a same-sign slope-row sign bug cannot cancel) and
+:math:`a_0 > 0` (non-vanishing at all four edges).  The manufactured source is
+the continuous-PDE residual, derived symbolically (Branch 1, the
+algebra-of-record) and structurally independent of the LD cell-update code
+(L11).
+
+.. todo:: Archivist expansion needed (#240 / #38 / #37 — D5b-S4).
+
+   The Branch-1 SymPy derivation lives in
+   :mod:`orpheus.derivations.continuous.mms.sn`
+   (:func:`~orpheus.derivations.continuous.mms.sn.derive_2d_cartesian_ld_stress_mms`
+   and the symbolic builder ``_2d_cartesian_ld_stress_symbolic``); the Branch-2
+   numerical factory is
+   :class:`~orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase`
+   (built by ``build_2d_cartesian_ld_stress_mms_case``).  Foundation gate:
+   :mod:`tests.derivations.test_sn_mms_ld_2d_stress_symbolic` (the SymPy
+   substitution identity + an INDEPENDENT finite-difference residual check +
+   the Branch-2 ≡ Branch-1 source cross-check + the Mode-7 activation /
+   x↔y-asymmetry checks).  End-to-end L1 gates:
+   :mod:`tests.sn.verification.mms.test_mms_ld_2d`
+   (``test_ld_2d_stress_converges_second_order`` — the headline O(h²) + value
+   band; ``test_ld_2d_stress_krylov_equals_si`` — the L14 matvec twin on the
+   stress habitat; ``test_ld_2d_stress_two_paths_ffw_equals_mfw`` — the two-DAG-
+   schedule invariant on the stress source).
+
+   Brief: the ansatz activates the bilinear per-axis slope rows (the DD
+   cell-average path cannot represent the :math:`\mu`-weighted slope), the
+   AVERAGE-moment prescribed-inflow boundary closure (:math:`a_0>0`), and the
+   2G downscatter group coupling.  The convergence verifies the slope-UNKNOWN
+   sign of the LM-1989 trap; mutation-verified load-bearing (a same-sign
+   slope-row sign flip in the UBLD streaming row :math:`\partial_x B_1` makes
+   the solve diverge).
+
+.. note:: Honest scope — the slope-SOURCE half of the LM-1989 trap is NOT verified.
+
+   The LM-1989 slope-row sign trap has two halves: the slope-UNKNOWN sign
+   (always exercised when the slope is non-trivially solved — VERIFIED by this
+   MMS; mutation-verified — a slope-UNKNOWN sign flip diverges / leaves the
+   value band) and the slope-SOURCE sign :math:`\hat Q`.  The slope-SOURCE half
+   is **not** verified here, for two distinct reasons:
+
+   - The **external** manufactured slope-moment source :math:`\hat Q` is not
+     consumed.  :func:`orpheus.sn.solver.solve_sn_fixed_source` validates the
+     bulk against the flat ``(N, ng, *spatial)`` shape, and
+     ``_lift_external_source_to_moments`` lifts it onto the AVERAGE moment with
+     the slope rows zeroed.
+
+   - The **scattering** slope source :math:`\Sigma_s \hat\phi` (the
+     Increment-C iterate feedback) IS consumed and DOES drive the slope-source
+     code path — but this value-band MMS is empirically BLIND to a sign error
+     there: a slope-source-row sign flip leaves BOTH the :math:`O(h^2)` order
+     AND the scalar-flux value band unchanged, because :math:`\Sigma_s\hat\phi`
+     is an :math:`O(h)`-small DG-internal forcing whose error enters above
+     :math:`O(h^2)` and is absorbed below the value-band floor.  This is the
+     *activated-but-unconstrained* test-design failure mode (vv-principles
+     Mode 10): the code path runs, but the gate cannot constrain its sign.
+
+   So the slope-SOURCE sign convention is **genuinely UNVERIFIED** — not merely
+   a deferred plumbing detail.  The boundary trace is the same story at the
+   AVERAGE moment only: ``mesh.trace`` carries one SCALAR value per face per
+   ordinate per group, and ``_inflow_to_moments`` seeds it onto the
+   face-AVERAGE moment and zeros the transverse face-slope.  The manufactured
+   :math:`\hat Q` and the transverse face-slope trace ARE derived (Branch 1 is
+   slope-source-ready); closing the slope-SOURCE half needs (1) a
+   moment-resolved external-source entry, (2) a gate sensitive to the
+   slope-source sign (a moment-resolved value band, not the scalar-flux band),
+   and (3) a moment-resolved boundary trace — a production-wiring increment
+   beyond the S3 moment matvec.
+
 .. _sweep-wavefront:
 
 Cartesian 2D: Anti-Diagonal Wavefront Sweep

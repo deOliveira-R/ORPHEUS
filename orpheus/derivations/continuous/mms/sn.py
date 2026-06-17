@@ -862,38 +862,9 @@ class SN2DCartesian2GHeterogeneousMMSCase:
 
     def build_materials(self, mesh: Mesh2D) -> dict[int, Mixture]:
         """Build per-cell materials by sampling Σ(x,y) at cell centres."""
-        cx = mesh.centers_x
-        cy = mesh.centers_y
-        ng = self.n_groups
-        materials: dict[int, Mixture] = {}
-
-        for i, xi in enumerate(cx):
-            for j, yj in enumerate(cy):
-                cell_id = mesh.mat_map[i, j]
-                xa = np.array([xi])
-                ya = np.array([yj])
-                sig_t = np.array([
-                    float(self.sigma_t_fn(xa, ya, g)[0]) for g in range(ng)
-                ])
-                sig_s_row = np.zeros((ng, ng))
-                for g_from in range(ng):
-                    for g_to in range(ng):
-                        sig_s_row[g_from, g_to] = float(
-                            self.sigma_s_fn(xa, ya, g_from, g_to)[0]
-                        )
-                sig_a = sig_t - sig_s_row.sum(axis=1)
-                # Synthetic MMS mixture: no physical energy grid (Phase E).
-                materials[cell_id] = Mixture(
-                    SigC=sig_a,
-                    SigL=np.zeros(ng),
-                    SigF=np.zeros(ng),
-                    SigP=np.zeros(ng),
-                    SigT=sig_t,
-                    SigS=[csr_matrix(sig_s_row)],
-                    Sig2=csr_matrix(np.zeros((ng, ng))),
-                    chi=np.zeros(ng),
-                )
-        return materials
+        return _build_per_cell_hetero_materials(
+            mesh, self.sigma_t_fn, self.sigma_s_fn, self.n_groups,
+        )
 
     # ── Manufactured source ──────────────────────────────────────────
 
@@ -1004,6 +975,54 @@ def _default_hetero_2d_xs_functions(
     return sigma_t_fn, sigma_s_fn
 
 
+def _build_per_cell_hetero_materials(
+    mesh: Mesh2D,
+    sigma_t_fn: "Callable[[np.ndarray, np.ndarray, int], np.ndarray]",
+    sigma_s_fn: "Callable[[np.ndarray, np.ndarray, int, int], np.ndarray]",
+    n_groups: int,
+) -> dict[int, Mixture]:
+    r"""Per-cell :class:`Mixture` map, sampling :math:`\Sigma(x,y)` at cell
+    centres — one :class:`Mixture` per cell, with
+    :math:`\Sigma_a = \Sigma_t - \sum_{g'}\Sigma_s[g, g']`.
+
+    Shared by every 2-D Cartesian heterogeneous MMS case (the DD
+    :class:`SN2DCartesian2GHeterogeneousMMSCase` and the LD
+    :class:`SN2DCartesianLDStressMMSCase`): the per-cell material *assembly* is
+    common mechanism (a synthetic MMS mixture — no fission, no physical energy
+    grid), while the MMS independence lives in each case's ``external_source`` /
+    ``phi_exact``.  Single-sourced here so a future :class:`Mixture` field change
+    cannot silently diverge the two references (Cardinal Rule 2)."""
+    cx = mesh.centers_x
+    cy = mesh.centers_y
+    materials: dict[int, Mixture] = {}
+    for i, xi in enumerate(cx):
+        for j, yj in enumerate(cy):
+            cell_id = mesh.mat_map[i, j]
+            xa = np.array([xi])
+            ya = np.array([yj])
+            sig_t = np.array([
+                float(sigma_t_fn(xa, ya, g)[0]) for g in range(n_groups)
+            ])
+            sig_s_row = np.zeros((n_groups, n_groups))
+            for g_from in range(n_groups):
+                for g_to in range(n_groups):
+                    sig_s_row[g_from, g_to] = float(
+                        sigma_s_fn(xa, ya, g_from, g_to)[0]
+                    )
+            sig_a = sig_t - sig_s_row.sum(axis=1)
+            materials[cell_id] = Mixture(
+                SigC=sig_a,
+                SigL=np.zeros(n_groups),
+                SigF=np.zeros(n_groups),
+                SigP=np.zeros(n_groups),
+                SigT=sig_t,
+                SigS=[csr_matrix(sig_s_row)],
+                Sig2=csr_matrix(np.zeros((n_groups, n_groups))),
+                chi=np.zeros(n_groups),
+            )
+    return materials
+
+
 def build_2d_cartesian_heterogeneous_mms_case(
     length_x: float = 5.0,
     length_y: float = 5.0,
@@ -1021,6 +1040,571 @@ def build_2d_cartesian_heterogeneous_mms_case(
     )
     quad = Quadrature.lebedev(order=lebedev_order)
     return SN2DCartesian2GHeterogeneousMMSCase(
+        name=name,
+        length_x=float(length_x),
+        length_y=float(length_y),
+        c_spectrum=np.asarray(c_spectrum, dtype=float),
+        sigma_t_fn=sigma_t_fn,
+        sigma_s_fn=sigma_s_fn,
+        quadrature=quad,
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# #240 D5b-S4 — 2-D Cartesian Linear-Discontinuous STRESS MMS
+# (the multi-D bilinear UBLD slope-row verification — vv Mode-7 override)
+# ═══════════════════════════════════════════════════════════════════════
+r"""
+2-D Cartesian LD stress MMS — activates the bilinear per-axis SPATIAL slope rows.
+
+**Why this case exists (vv Mode-7 override).** The existing 2-D MMS
+(:class:`SN2DCartesianMMSCase`, :class:`SN2DCartesian2GHeterogeneousMMSCase`) is
+**isotropic-in-μ** (:math:`\psi = A(x,y)/W`, no :math:`\mu` dependence).  That
+ansatz NULLS the per-axis slope rows of the bilinear (UBLD) Linear-Discontinuous
+closure — the very machinery #240 D5b introduces (the :math:`2^d`-moment cell
+:math:`\{\bar\psi, \hat\psi_x, \hat\psi_y, \hat\psi_{xy}\}`).  An isotropic
+ansatz tests NOTHING about the multi-D slope coupling; the LD smoke gate
+(``test_ld_2d_converges_second_order_smoke``) is a CONVERGENCE check, not a
+flux-shape verification of the bilinear slope.  This stress ansatz is the
+flux-shape verification (the ``@verifies("ld-cartesian-2d")`` claim).
+
+**The trial solution** (per group :math:`g`):
+
+.. math::
+
+   \psi_{n,g}(x,y) = \frac{1}{W}\bigl[\,A_g(x,y)
+       + \mu_{x,n}\,B_g(x,y) + \mu_{y,n}\,C_g(x,y)\,\bigr]
+
+with the per-group spatial drivers (the strengthening = the
+:math:`b_2,\,c_2` cross-harmonic terms in the SLOPE drivers, chosen so
+:math:`B` and :math:`C` are NOT x↔y reflections of each other):
+
+.. math::
+
+   A_g &= a_{0,g} + a_{1,g}\sin\!\tfrac{\pi x}{L_x}\sin\!\tfrac{\pi y}{L_y}
+        + a_{2,g}\cos\!\tfrac{2\pi x}{L_x}\cos\!\tfrac{3\pi y}{L_y}\\
+   B_g &= b_{0,g} + b_{1,g}\sin\!\tfrac{2\pi x}{L_x}\sin\!\tfrac{\pi y}{L_y}
+        + b_{2,g}\cos\!\tfrac{\pi x}{L_x}\cos\!\tfrac{2\pi y}{L_y}\\
+   C_g &= c_{0,g} + c_{1,g}\sin\!\tfrac{\pi x}{L_x}\sin\!\tfrac{2\pi y}{L_y}
+        + c_{2,g}\sin\!\tfrac{3\pi x}{L_x}\cos\!\tfrac{\pi y}{L_y}
+
+**Activated / nulled-term declaration (vv Mode 7 — MANDATORY):**
+
+============================  =====================================================
+Term                          Activated by
+============================  =====================================================
+x-axis LD slope (UNKNOWN)     :math:`\mu_x B_g` with :math:`\partial_x B \neq 0`:
+                              the bilinear x-slope row solves a genuinely
+                              x-varying, :math:`\mu_x`-weighted field — the NEW
+                              multi-D coupling DD cannot represent.
+y-axis LD slope (UNKNOWN)     :math:`\mu_y C_g` with :math:`\partial_y C \neq 0`,
+                              INDEPENDENT of x (the bilinearity: the two slopes
+                              do not collapse).
+cross-axis x↔y discrimination the :math:`b_2,c_2` cross-harmonics break the x↔y
+                              reflection so a same-sign slope-row SIGN bug (both
+                              rows share ``_LDCellTerms.slope``) CANNOT cancel in
+                              the measured flux (the LM-1989 same-sign trap).
+boundary closure (AVERAGE)    :math:`a_{0,g}>0` → :math:`\psi \neq 0` on all four
+                              edges → the prescribed-inflow trace is exercised at
+                              the FACE-AVERAGE moment (the production widens the
+                              scalar trace onto the average moment).
+group coupling                per-group ``a/b/c`` + 2G asymmetric downscatter
+                              (mode #6 convention drift).
+============================  =====================================================
+
+**NULLED — the slope-SOURCE half of the LM-1989 trap, and the transverse
+face-slope inflow moment** (see "Honest scope" below).
+
+**The scalar flux** is :math:`\phi_g = \int\psi\,d\mu = A_g(x,y)` — the
+:math:`\mu_x B + \mu_y C` terms integrate to zero over any symmetric quadrature
+(:math:`\langle\mu_x\rangle=\langle\mu_y\rangle=0`).  The VALUE band checks the
+converged scalar flux against :math:`A_g`; the per-ordinate streaming derivative
+carries the full :math:`\mu`-weighted ansatz into the manufactured source.
+
+**Quadrature exactness.** Streaming a :math:`\mu`-linear :math:`\psi` produces
+:math:`\mu_x^2,\,\mu_x\mu_y,\,\mu_y^2` source terms.  The scalar-flux identity
+:math:`\phi=A` needs :math:`\langle\mu_x\rangle=\langle\mu_y\rangle=
+\langle\mu_x\mu_y\rangle=0` and :math:`\langle\mu_x^2\rangle=\langle\mu_y^2
+\rangle=W/3` — exact for level-symmetric S4+ and Lebedev order≥5 on the full
+sphere (probed; ``test_ld_2d.py`` selects ``level_symmetric(4)`` for the
+headline gate, no pure-z ordinate; ``lebedev`` for the matvec-twin gate).
+
+**Honest scope (cross-domain-attacker Frame 2 §224–236; the LM-1989 trap).**
+The trap has TWO halves:
+
+1. the slope-UNKNOWN sign (always exercised when the slope is non-trivially
+   solved — VERIFIED here: :math:`B,\,C` drive non-trivial per-ordinate fields,
+   the bilinear closure solves :math:`\hat\psi_x,\,\hat\psi_y` from the average +
+   the scattering source); and
+2. the slope-SOURCE sign :math:`\hat Q` (exercised ONLY when a non-zero
+   slope-moment EXTERNAL source is supplied AND consumed).
+
+The production (#240 D5b-S3) consumes a flat-in-moment EXTERNAL source: the
+public ``solve_sn_fixed_source`` entry validates the bulk against the flat
+``(N, ng, *spatial)`` shape, and ``_lift_external_source_to_moments`` lifts it
+onto the AVERAGE moment with the slope rows ZEROED (``solver.py`` documents this:
+"the strengthened Q̂≠0 ansatz is S4").  The only moment-valued source the
+production consumes is the iterate-driven SCATTERING source :math:`\Sigma_s
+\cdot\hat\phi`, NOT an external :math:`\hat Q`.  Likewise the boundary trace
+``mesh.trace`` carries one SCALAR value per face per ordinate per group (no
+:math:`2^{d-1}` transverse-moment axis); ``_inflow_to_moments`` seeds the scalar
+onto the face-AVERAGE moment and zeros the transverse face-slope (the loss-rep
+docstring flags this as "the #240 D5b-S4 boundary widening").
+
+CONSEQUENCE: this MMS verifies the multi-D slope-UNKNOWN sign + the
+AVERAGE-moment boundary closure.  The slope-SOURCE sign half and the transverse
+face-slope inflow moment are **deferred** — they need a moment-resolved external
+source entry AND a moment-resolved boundary trace (a production-wiring increment
+beyond the S3 moment matvec).  The manufactured :math:`\hat Q` IS derived here
+(Branch 1 is slope-source-READY); only the production CONSUMPTION path is
+missing.  Per Frame 2 §232: do NOT claim the multi-D LD MMS closes the LM-1989
+trap — it closes the slope-UNKNOWN half.
+
+.. seealso::
+
+   - ``.claude/skills/vv-principles/SKILL.md`` — Mode 7 (MMS simplification bias).
+   - :class:`SN2DCartesianLDStressMMSCase` (Branch-2 numerical factory).
+   - :func:`derive_2d_cartesian_ld_stress_mms` (Branch-1 SymPy gate).
+"""
+
+
+#: Spatial harmonic amplitudes of the LD stress drivers as ``(numerator,
+#: denominator)`` pairs — the SINGLE source shared by Branch 1 (SymPy, via
+#: :func:`sympy.Rational`) and Branch 2 (numpy, via the float ratio).  Rows are
+#: ``(A_coeffs, B_coeffs, C_coeffs)``, each ``((n0,d0), (n1,d1), (n2,d2))``
+#: for the constant / first-harmonic / cross-harmonic amplitudes.  The ``b2,
+#: c2`` cross-harmonics (and the differing harmonic pairs) break the x↔y
+#: reflection so a same-sign slope-row sign bug cannot cancel (Frame 2).
+_LD2D_STRESS_COEFFS: tuple[tuple[tuple[int, int], ...], ...] = (
+    ((7, 10), (1, 2), (3, 10)),     # A: a0 (>0, non-vanishing edges), a1, a2
+    ((2, 5), (1, 4), (1, 5)),       # B: b0, b1 (∂_x ≠ 0), b2 cross-harmonic
+    ((3, 10), (7, 20), (3, 20)),    # C: c0, c1 (∂_y ≠ 0), c2 cross-harmonic
+)
+
+
+def _ld2d_stress_amplitudes() -> "tuple[np.ndarray, np.ndarray, np.ndarray]":
+    r"""The Branch-2 float amplitude triples ``(A_amp, B_amp, C_amp)``.
+
+    Reads the single-sourced :data:`_LD2D_STRESS_COEFFS` (the SAME pairs Branch 1
+    feeds to :func:`sympy.Rational`) as exact floats, so the numpy evaluator and
+    the SymPy algebra-of-record cannot drift on the amplitudes."""
+    return tuple(
+        np.array([n / d for (n, d) in row], dtype=float)
+        for row in _LD2D_STRESS_COEFFS
+    )
+
+
+def _2d_cartesian_ld_stress_symbolic() -> "tuple":
+    r"""Build the symbolic objects for the 2-D Cartesian LD stress MMS.
+
+    Returns ``(x, y, mu_x, mu_y, Lx, Ly, Sigma_t, Sigma_s, W, A, B, C, psi,
+    phi, Q_closed)``: the strengthened :math:`\mu`-bilinear ansatz and the
+    closed-form per-ordinate source.  The drivers carry concrete (Rational)
+    spatial harmonic coefficients so the substitution residual SIMPLIFIES to
+    zero cleanly; the per-group amplitude :math:`c_g` and the cross sections
+    enter the Branch-2 evaluator (this single-group symbolic layer pins the
+    spatial + angular ALGEBRA — the group axis scales mechanically, the
+    algebra-of-record minimal-SymPy + scaling-argument).
+
+    The continuous 2-D within-group transport PDE (Cartesian — NO angular
+    redistribution):
+
+    .. math::
+
+       \mu_x\,\partial_x\psi + \mu_y\,\partial_y\psi + \Sigma_t\,\psi
+       = \frac{1}{W}\bigl(\Sigma_s\,\phi + Q^{\rm ext}\bigr),
+       \qquad \phi = A(x,y).
+
+    Solving for :math:`Q^{\rm ext}` (the scalar flux :math:`\phi=A` because
+    :math:`\langle\mu_x\rangle=\langle\mu_y\rangle=0`) gives the closed form
+
+    .. math::
+
+       Q^{\rm ext}_n &= \mu_x\,\partial_x A + \mu_y\,\partial_y A
+                         \quad(\text{streaming of the average})\\
+            &+ \mu_x^2\,\partial_x B + \mu_x\mu_y\,\partial_y B
+                         \quad(\text{streaming of the }\mu_x B\text{ slope})\\
+            &+ \mu_x\mu_y\,\partial_x C + \mu_y^2\,\partial_y C
+                         \quad(\text{streaming of the }\mu_y C\text{ slope})\\
+            &+ (\Sigma_t-\Sigma_s)\,A
+                         \quad(\text{removal} - \text{in-scatter, isotropic})\\
+            &+ \Sigma_t\,(\mu_x B + \mu_y C)
+                         \quad(\text{removal of the anisotropic part}).
+
+    The :math:`\mu_x\mu_y` cross terms (from streaming :math:`B` along y and
+    :math:`C` along x) are the genuinely-bilinear pieces — they exercise the
+    cross moment :math:`\hat\psi_{xy}` the simplex-P1 closure lacks.
+    """
+    import sympy as sp  # local import: keep the symbolic dependency lazy
+
+    x, y, mu_x, mu_y = sp.symbols("x y mu_x mu_y", real=True)
+    Lx, Ly = sp.symbols("L_x L_y", positive=True, real=True)
+    Sigma_t, Sigma_s, W = sp.symbols(
+        "Sigma_t Sigma_s W", positive=True, real=True,
+    )
+
+    # Strengthened drivers (concrete spatial harmonics; Rational amplitudes so
+    # simplify() closes cleanly).  A carries a mixed cross-harmonic
+    # (cos2x·cos3y); the SLOPE drivers B, C ALSO carry cross-harmonics
+    # (b2·cosx·cos2y, c2·sin3x·cosy) — chosen so B and C are NOT x↔y reflections
+    # (the same-sign slope-row trap defence, Frame 2 §256–268).  The amplitudes
+    # are the single-sourced :data:`_LD2D_STRESS_COEFFS` the Branch-2 numpy
+    # evaluator reads too, so Branch 1 and Branch 2 descend from the SAME spatial
+    # algebra (the L1 cross-check pins the two evaluators agree, NOT just the
+    # symbolic identity).
+    px, py = sp.pi / Lx, sp.pi / Ly
+    (a0, a1, a2), (b0, b1, b2), (c0, c1, c2) = (
+        tuple(sp.Rational(n, d) for (n, d) in row) for row in _LD2D_STRESS_COEFFS
+    )
+    A = a0 + a1 * sp.sin(px * x) * sp.sin(py * y) \
+        + a2 * sp.cos(2 * px * x) * sp.cos(3 * py * y)
+    B = b0 + b1 * sp.sin(2 * px * x) * sp.sin(py * y) \
+        + b2 * sp.cos(px * x) * sp.cos(2 * py * y)
+    C = c0 + c1 * sp.sin(px * x) * sp.sin(2 * py * y) \
+        + c2 * sp.sin(3 * px * x) * sp.cos(py * y)
+
+    psi = (A + mu_x * B + mu_y * C) / W
+    phi = A  # <mu_x> = <mu_y> = 0 over a symmetric quadrature
+
+    Q_closed = (
+        mu_x * sp.diff(A, x) + mu_y * sp.diff(A, y)
+        + mu_x**2 * sp.diff(B, x) + mu_x * mu_y * sp.diff(B, y)
+        + mu_x * mu_y * sp.diff(C, x) + mu_y**2 * sp.diff(C, y)
+        + (Sigma_t - Sigma_s) * A
+        + Sigma_t * (mu_x * B + mu_y * C)
+    )
+    return (x, y, mu_x, mu_y, Lx, Ly, Sigma_t, Sigma_s, W, A, B, C,
+            psi, phi, Q_closed)
+
+
+def derive_2d_cartesian_ld_stress_mms() -> dict:
+    r"""V_ld2d-stress — 2-D Cartesian LD stress-MMS source identity (Branch 1).
+
+    Proves: substituting the strengthened :math:`\mu`-bilinear ansatz
+    :math:`\psi_n = (A + \mu_x B + \mu_y C)/W` into the continuous 2-D
+    Cartesian SN operator (NO angular redistribution)
+
+    .. math::
+
+       \mu_x\,\partial_x\psi + \mu_y\,\partial_y\psi + \Sigma_t\,\psi
+       = \frac{1}{W}\bigl(\Sigma_s\,\phi + Q^{\rm ext}\bigr)
+
+    yields the closed-form :math:`Q^{\rm ext}_n` (the substitution residual
+    vanishes under :func:`sympy.simplify`).  This is the load-bearing
+    algebra-of-record claim (L11): the source is the unique manufactured RHS
+    consistent with the ansatz, derived from the CONTINUOUS PDE — it touches
+    NONE of the LD cell-update code (not ``_LDCellTerms``, not ``_schur_terms``,
+    not ``_ubld``), so a sign bug in the LD slope rows cannot also corrupt the
+    reference (the defining property of a structurally-independent MMS).
+    """
+    import sympy as sp
+
+    (x, y, mu_x, mu_y, Lx, Ly, Sigma_t, Sigma_s, W,
+     A, B, C, psi, phi_, Q_closed) = _2d_cartesian_ld_stress_symbolic()
+
+    LHS = mu_x * sp.diff(psi, x) + mu_y * sp.diff(psi, y) + Sigma_t * psi
+    Q_subst = sp.simplify(W * LHS - Sigma_s * phi_)
+    diff = sp.simplify(Q_subst - Q_closed)
+
+    return {
+        "name": "V_ld2d-stress: 2-D Cartesian LD stress MMS source identity",
+        "psi": psi,
+        "phi": phi_,
+        "Q_substituted": Q_subst,
+        "Q_closed": Q_closed,
+        "diff": diff,
+        "pass": diff == 0,
+    }
+
+
+@dataclass(frozen=True)
+class SN2DCartesianLDStressMMSCase:
+    r"""2-D Cartesian Linear-Discontinuous STRESS MMS (#240 D5b-S4).
+
+    The vv-Mode-7 strengthened ansatz that activates the bilinear (UBLD) LD
+    per-axis SPATIAL slope rows — the multi-D coupling #240 D5b introduced.
+    Per group :math:`g`:
+
+    .. math::
+
+       \psi_{n,g}(x,y) = \frac{1}{W}\bigl[A_g(x,y)
+           + \mu_{x,n} B_g(x,y) + \mu_{y,n} C_g(x,y)\bigr],
+
+    with the shared spatial drivers (single-sourced
+    :data:`_LD2D_STRESS_COEFFS`) scaled by a per-group amplitude :math:`c_g`.
+    See the module docstring above for the full driver definitions, the
+    activated/nulled-term declaration, and the HONEST SCOPE (the slope-SOURCE
+    half of the LM-1989 trap is DEFERRED — the production consumes only the
+    AVERAGE-moment external source + face-average boundary trace).
+
+    Cross sections are **callables** :math:`\Sigma(x,y,g)` evaluated at cell
+    centres (one :class:`Mixture` per cell); reuses
+    :func:`_default_hetero_2d_xs_functions` (heterogeneous, :math:`\Sigma_a>0`,
+    2G asymmetric downscatter).  The domain is NON-SQUARE (:math:`L_x \neq
+    L_y`) — the x↔y-swap defence.  The mesh BCs are VACUUM; the non-vanishing
+    inflow trace is injected via :meth:`prescribed_inflow` (the ``q.boundary``
+    slot), NOT a mesh BC — exactly the :class:`SNSlabNonVacuumMMSCase` posture
+    lifted to 2-D.
+    """
+
+    name: str
+    length_x: float
+    length_y: float
+    c_spectrum: np.ndarray
+    sigma_t_fn: "Callable[[np.ndarray, np.ndarray, int], np.ndarray]"
+    sigma_s_fn: "Callable[[np.ndarray, np.ndarray, int, int], np.ndarray]"
+    quadrature: Quadrature
+    n_groups: int = 2
+    tolerance: str = "O(h^2)"
+    equation_labels: tuple[str, ...] = (
+        # ``ld-cartesian-2d`` is a NEW label D6 (archivist) mints in
+        # docs/theory/discrete_ordinates.rst — carried here now (the verifies
+        # edge is written by Nexus; the label block is the archivist's stub).
+        "ld-cartesian-2d",
+        "transport-cartesian-2d",
+        "multigroup",
+        "mg-balance",
+    )
+
+    # ── Spatial drivers (Branch 2 numpy; the SAME harmonics as Branch 1) ──
+
+    def _drivers(
+        self, x: np.ndarray, y: np.ndarray, g: int,
+    ) -> "tuple[np.ndarray, ...]":
+        r"""Return ``(A, dA_dx, dA_dy, B, dB_dx, dB_dy, C, dC_dx, dC_dy)`` on the
+        2-D grid ``(len(x), len(y))``, scaled by the per-group amplitude
+        :math:`c_g`.  Reads the single-sourced amplitudes
+        (:func:`_ld2d_stress_amplitudes`), so the numpy drivers cannot drift
+        from the SymPy algebra-of-record."""
+        x = np.asarray(x, dtype=float)
+        y = np.asarray(y, dtype=float)
+        Lx, Ly = self.length_x, self.length_y
+        px, py = np.pi / Lx, np.pi / Ly
+        (a, b, c) = _ld2d_stress_amplitudes()
+        cg = float(self.c_spectrum[g])
+
+        sx, cx = np.sin(px * x), np.cos(px * x)
+        s2x, c2x = np.sin(2 * px * x), np.cos(2 * px * x)
+        s3x, c3x = np.sin(3 * px * x), np.cos(3 * px * x)
+        sy, cy = np.sin(py * y), np.cos(py * y)
+        s2y, c2y = np.sin(2 * py * y), np.cos(2 * py * y)
+        s3y, c3y = np.sin(3 * py * y), np.cos(3 * py * y)
+
+        def outer(fx, fy):
+            return fx[:, None] * fy[None, :]
+
+        # A = a0 + a1 sin(px x) sin(py y) + a2 cos(2px x) cos(3py y)
+        A = cg * (a[0] + a[1] * outer(sx, sy) + a[2] * outer(c2x, c3y))
+        dA_dx = cg * (a[1] * px * outer(cx, sy)
+                      - a[2] * 2 * px * outer(s2x, c3y))
+        dA_dy = cg * (a[1] * py * outer(sx, cy)
+                      - a[2] * 3 * py * outer(c2x, s3y))
+        # B = b0 + b1 sin(2px x) sin(py y) + b2 cos(px x) cos(2py y)
+        B = cg * (b[0] + b[1] * outer(s2x, sy) + b[2] * outer(cx, c2y))
+        dB_dx = cg * (b[1] * 2 * px * outer(c2x, sy)
+                      - b[2] * px * outer(sx, c2y))
+        dB_dy = cg * (b[1] * py * outer(s2x, cy)
+                      - b[2] * 2 * py * outer(cx, s2y))
+        # C = c0 + c1 sin(px x) sin(2py y) + c2 sin(3px x) cos(py y)
+        C = cg * (c[0] + c[1] * outer(sx, s2y) + c[2] * outer(s3x, cy))
+        dC_dx = cg * (c[1] * px * outer(cx, s2y)
+                      + c[2] * 3 * px * outer(c3x, cy))
+        dC_dy = cg * (c[1] * 2 * py * outer(sx, c2y)
+                      - c[2] * py * outer(s3x, sy))
+        return A, dA_dx, dA_dy, B, dB_dx, dB_dy, C, dC_dx, dC_dy
+
+    def phi_exact(
+        self, x: np.ndarray, y: np.ndarray, g: int = 0,
+    ) -> np.ndarray:
+        r"""Reference scalar flux :math:`\phi_g(x,y) = A_g(x,y)` (the
+        :math:`\mu_x B + \mu_y C` terms integrate to zero).  Shape
+        ``(len(x), len(y))``."""
+        return self._drivers(x, y, g)[0]
+
+    # ── Mesh + materials construction (mirror the 2G het 2-D case) ────────
+
+    def build_mesh(self, nx: int, ny: int | None = None) -> Mesh2D:
+        """VACUUM-BC 2-D mesh with a unique material ID per cell.
+
+        Non-square by default (``ny = max(1, round(nx · Ly/Lx))`` when ``ny``
+        is None) — the x↔y-swap defence carries into the refinement ladder."""
+        if ny is None:
+            ny = max(1, round(nx * self.length_y / self.length_x))
+        edges_x = np.linspace(0.0, self.length_x, nx + 1)
+        edges_y = np.linspace(0.0, self.length_y, ny + 1)
+        mat_map = np.arange(nx * ny, dtype=int).reshape(nx, ny)
+        return Mesh2D(
+            edges_x=edges_x, edges_y=edges_y, mat_map=mat_map,
+            coord=CoordSystem.CARTESIAN,
+            bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
+            bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+        )
+
+    def build_materials(self, mesh: Mesh2D) -> dict[int, Mixture]:
+        """Per-cell materials sampling :math:`\\Sigma(x,y)` at cell centres
+        (the shared 2-D heterogeneous-MMS material builder)."""
+        return _build_per_cell_hetero_materials(
+            mesh, self.sigma_t_fn, self.sigma_s_fn, self.n_groups,
+        )
+
+    # ── Manufactured source (Branch 2 numpy — the lambdified Branch 1) ────
+
+    def external_source(self, mesh: Mesh2D) -> np.ndarray:
+        r"""Per-ordinate, per-cell, per-group external source — shape
+        ``(N_ord, ng, nx, ny)`` (the FLAT per-ordinate density the production
+        consumes; the spatial moments of this source are PROJECTED at solve
+        time, but the production lifts only the AVERAGE moment — see the module
+        docstring HONEST SCOPE).
+
+        The manufactured source is the PDE residual
+
+        .. math::
+
+           Q^{\rm ext}_{n,g} = \mu_x\,\partial_x A_g + \mu_y\,\partial_y A_g
+               + \mu_x^2\,\partial_x B_g + \mu_x\mu_y\,\partial_y B_g
+               + \mu_x\mu_y\,\partial_x C_g + \mu_y^2\,\partial_y C_g
+               + \Sigma_{t,g}\,A_g + \Sigma_{t,g}\,(\mu_x B_g + \mu_y C_g)
+               - \sum_{g'}\Sigma_s[g', g]\,A_{g'},
+
+        emitted as a per-ordinate density (divided by :math:`\sum_n w_n` at the
+        producer boundary, Pattern 7 — the solver multiplies by the cell
+        volume).  Bit-equal to the lambdified Branch-1 SymPy closed form
+        (:func:`derive_2d_cartesian_ld_stress_mms`) on a sample cell.
+        """
+        cx = mesh.centers_x
+        cy = mesh.centers_y
+        ng = self.n_groups
+        nx, ny_ = len(cx), len(cy)
+
+        mu_x = self.quadrature.mu_x
+        mu_y = self.quadrature.mu_y
+        sum_w = float(self.quadrature.weights.sum())
+        N = len(mu_x)
+
+        xx, yy = np.meshgrid(cx, cy, indexing="ij")   # (nx, ny)
+        xx_flat, yy_flat = xx.ravel(), yy.ravel()
+
+        # Per-group drivers + their derivatives on the (nx, ny) grid.
+        drivers = [self._drivers(cx, cy, g) for g in range(ng)]
+
+        Q = np.zeros((N, ng, nx, ny_))
+        mxx = mu_x[:, None, None] ** 2
+        myy = mu_y[:, None, None] ** 2
+        mxy = (mu_x * mu_y)[:, None, None]
+        mx = mu_x[:, None, None]
+        my = mu_y[:, None, None]
+        for g in range(ng):
+            (A, dA_dx, dA_dy, B, dB_dx, dB_dy,
+             C, dC_dx, dC_dy) = drivers[g]
+            sig_t_g = self.sigma_t_fn(xx_flat, yy_flat, g).reshape(nx, ny_)
+
+            # Streaming μ_x ∂_x ψ + μ_y ∂_y ψ, per ordinate.
+            streaming = (
+                mx * dA_dx[None] + my * dA_dy[None]
+                + mxx * dB_dx[None] + mxy * dB_dy[None]
+                + mxy * dC_dx[None] + myy * dC_dy[None]
+            )
+            # Removal Σ_t ψ = Σ_t (A + μ_x B + μ_y C), per ordinate.
+            removal = sig_t_g[None] * (
+                A[None] + mx * B[None] + my * C[None]
+            )
+            # In-scatter Σ_{g'} Σ_s[g', g] φ_{g'} = Σ_{g'} Σ_s[g', g] A_{g'}
+            # (ORPHEUS SigS[g_from, g_to] — the transpose-active term).
+            in_scatter = np.zeros((nx, ny_))
+            for g_from in range(ng):
+                sig_s = self.sigma_s_fn(
+                    xx_flat, yy_flat, g_from, g,
+                ).reshape(nx, ny_)
+                in_scatter += sig_s * drivers[g_from][0]
+            Q[:, g, :, :] = streaming + removal - in_scatter[None]
+        # Pattern 7 — emit per-ordinate density.
+        Q /= sum_w
+        return Q
+
+    def prescribed_inflow(self, sn_mesh):
+        r"""The ``q.boundary`` prescribed-inflow term (a
+        :class:`~orpheus.transport.source_sinks.BoundarySourceSink`).
+
+        For each domain face and group :math:`g`, the inflow ordinate slots
+        carry :math:`\gamma_-\psi = \psi_{n,g}(x_{\rm face}, \mu_n)/W`, the
+        face-trace of the manufactured angular flux.  Because :math:`a_0>0` the
+        trace is NON-zero on all four edges — the boundary closure is stressed
+        at the FACE-AVERAGE moment (the production widens the scalar trace onto
+        the average moment; the transverse face-SLOPE moment is DROPPED — the
+        deferred S4 boundary widening, see the module docstring HONEST SCOPE).
+
+        Materialised via the ergonomic
+        :meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
+        generator (full ``(N, ng, n_face)`` per face; the generator keeps only
+        the inflow ordinates).  The per-face value at transverse coordinate
+        :math:`t` along the face is :math:`\psi_{n,g}` evaluated at the face's
+        cell-centre transverse positions.
+        """
+        from orpheus.transport.source_sinks import BoundarySourceSink
+
+        W = float(self.quadrature.weights.sum())
+        mu_x = self.quadrature.mu_x
+        mu_y = self.quadrature.mu_y
+        ng = self.n_groups
+        mesh = sn_mesh.mesh
+        cx = mesh.centers_x
+        cy = mesh.centers_y
+        Lx, Ly = self.length_x, self.length_y
+
+        # Each face's transverse cell-centre coordinates: the x-faces vary in y,
+        # the y-faces vary in x.  ψ_{n,g}(x_face, y_t) = (A + μ_x B + μ_y C)/W.
+        face_coords = {
+            "xmin": (np.array([0.0]), cy),
+            "xmax": (np.array([Lx]), cy),
+            "ymin": (cx, np.array([0.0])),
+            "ymax": (cx, np.array([Ly])),
+        }
+        face_values: dict[str, np.ndarray] = {}
+        for face, (xf, yf) in face_coords.items():
+            n_t = max(len(xf), len(yf))            # transverse cell count
+            vals = np.empty((len(mu_x), ng, n_t))
+            for g in range(ng):
+                A, _, _, B, _, _, C, _, _ = self._drivers(xf, yf, g)
+                # A/B/C are (len(xf), len(yf)); one of the two is length-1 →
+                # squeeze to the transverse axis (n_t,).
+                A_t = A.reshape(n_t)
+                B_t = B.reshape(n_t)
+                C_t = C.reshape(n_t)
+                # ψ_{n,g}(face, t) / W per ordinate, per transverse cell.
+                vals[:, g, :] = (
+                    A_t[None, :]
+                    + mu_x[:, None] * B_t[None, :]
+                    + mu_y[:, None] * C_t[None, :]
+                ) / W
+            face_values[face] = vals
+        return BoundarySourceSink.prescribed_inflow(sn_mesh, face_values)
+
+
+def build_2d_cartesian_ld_stress_mms_case(
+    length_x: float = 1.3,
+    length_y: float = 0.9,
+    c_spectrum: tuple[float, float] = (1.0, 0.4),
+    level_symmetric_order: int = 4,
+    quadrature: "Quadrature | None" = None,
+    name: str = "sn_mms_2d_cartesian_ld_stress",
+) -> SN2DCartesianLDStressMMSCase:
+    r"""Build the canonical 2-D Cartesian LD stress MMS case (#240 D5b-S4).
+
+    NON-SQUARE domain (``length_x=1.3 ≠ length_y=0.9`` — the x↔y-swap defence),
+    heterogeneous 2G (``_default_hetero_2d_xs_functions``, :math:`\Sigma_a>0`,
+    asymmetric downscatter), per-group amplitudes :math:`\mathbf c=(1.0, 0.4)`.
+
+    The default quadrature is **level-symmetric S4** (N=24): it resolves the
+    bilinear streaming moments :math:`\langle\mu_x^2\rangle=\langle\mu_y^2
+    \rangle=W/3`, :math:`\langle\mu_x\mu_y\rangle=0` EXACTLY (so :math:`\phi=A`)
+    and carries NO pure-z ordinate (the cheap headline-gate quadrature).  Pass
+    a Lebedev quadrature for the matvec-twin gate (it carries the ±z poles, the
+    ERR-062 pure-z habitat)."""
+    sigma_t_fn, sigma_s_fn = _default_hetero_2d_xs_functions(
+        float(length_x), float(length_y),
+    )
+    quad = quadrature or Quadrature.level_symmetric(level_symmetric_order)
+    return SN2DCartesianLDStressMMSCase(
         name=name,
         length_x=float(length_x),
         length_y=float(length_y),
