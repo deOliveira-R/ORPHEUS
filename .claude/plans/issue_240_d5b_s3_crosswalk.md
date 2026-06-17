@@ -20,10 +20,22 @@ The genuine Mode-9 invariant is: SI-with-lagged-moment-iterate ≡ direct/Krylov
 
 ## The A/B split (along the sweep vs matvec L14 boundary)
 
-- **S3-A (#61, this dispatch) — the forward / SI path.** The φ̂ iterate carrier (both windowed +
-  un-windowed) + the `Σ_s ⊗ I` scattering lift + the source seams. Flips BOTH thick-diffusive
-  tripwires: the 1-D (#37) via the existing d=1 krylov-slab matvec (no raise there — `S` enters the
-  matvec via `S.apply`'s slope lift); the 2-D via SI (the sweep path). Gates 1/2/4/5.
+> ⭐ **UPDATE (2026-06-17): S3-A split again — a typed-field-space prerequisite (S3-A0) emerged + is
+> DONE.** The first S3-A dispatch surfaced that carrying φ̂ in the iterate needs the typed-field
+> space-shape contract widened first (the `Field.__post_init__` shape gate has no slot for a moment
+> axis). That became **S3-A0 (#64) ✅ DONE + committed (`d313d16`/`96dfc96`):** minted
+> `SpatialMomentSpace` (user chose the typed-factor design) + the optional `spatial_moments` factory
+> param (DEFAULT-OFF, byte-identical) + closed #207 (`find_factor`) + folded in the `Σ_s ⊗ I`
+> scattering einsum lift. So the scattering-lift + the typed-space half of "S3-A" below are ALREADY
+> DONE; the REMAINING S3-A (#61) is the CONSUMER that SELECTS the now-built SpatialMomentSpace factor.
+> API to consume: `.claude/agent-memory/method-implementer/issue_240_d5b_s3_a0_spatial_moment_space_closeout.md`.
+
+- **S3-A (#61) — the forward / SI path (CONSUMER, the remaining work).** SELECT the SpatialMomentSpace
+  factor for the φ̂ iterate carrier (both windowed + un-windowed, via the S3-A0 `spatial_moments`
+  factory param) + the φ̂ cell-emit accumulation + the source seams. (The `Σ_s ⊗ I` scattering lift is
+  DONE in S3-A0.) Flips BOTH thick-diffusive tripwires: the 1-D (#37) via the existing d=1 krylov-slab
+  matvec (no raise there — `S` enters the matvec via `S.apply`'s slope lift); the 2-D via SI (the
+  sweep path). Gates 1/2/4/5.
 - **S3-B (#63) — the d≥2 Krylov matvec.** Close the `_CellResidual.cell:929` raise + widen the apply
   probe + the flat ravel → 2-D Krylov works. Gate 3 (Krylov≡SI on `(L+C − S_full)`).
 

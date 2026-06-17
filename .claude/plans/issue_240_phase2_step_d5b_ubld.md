@@ -3,7 +3,7 @@
 > **Durable in-repo recovery anchor** (project rule: plans live in ORPHEUS/.claude/).
 > Parent: `.claude/plans/issue_240_phase2_step_d_homing.md` (§D5). Subsumes **#158 Increment D / #38**.
 > Branch `feature/sn-space-angle-tier2` (off `main`@`cba6d2f`), NOT pushed/merged.
-> **STATUS (2026-06-16): D5b-S2 DONE (`495af60`). D5b-S3 SPLIT A0/A/B; S3-A0 DONE + reviewed. Next = D5b-S3-A (the φ̂-iterate consumer).**
+> **STATUS (2026-06-17): D5b-S2 DONE (`495af60`). D5b-S3 SPLIT A0/A/B. S3-A0 DONE+committed (`d313d16` feat / `96dfc96` chore) + moments Sphinx docs DONE (`a2dbb39`). ⭐ RESUME AT D5b-S3-A — the φ̂-iterate CONSUMER (the SpatialMomentSpace primitive is now BUILT; S3-A SELECTS it). Branch 45 ahead of origin, NOT pushed.**
 > S1 (the unified per-cell UBLD primitive) is complete on both branches:
 > **S1 commit chain** (branch `feature/sn-space-angle-tier2`, NOT pushed/merged):
 > `7abba5d` (design plan, pre-session) → `cb84b7b` (Branch-1 SymPy algebra-of-record + oracles)
@@ -64,8 +64,9 @@
 > the point). **DO NOT gate S3-FP==S2-FP (a Mode-9 mis-application — REJECTED).** The genuine Mode-9
 > invariant = SI-with-lag ≡ Krylov on the SAME `(L+C−S_full)`. S3 SPLIT along sweep/matvec (L14):
 >
-> **S3-A0 (#64) ✅ DONE + reviewed (this arc) — the typed-field-space foundation.** User chose option
-> (b): a first-class typed space factor. Minted `SpatialMomentSpace(FunctionSpace)` (peer of
+> **S3-A0 (#64) ✅ DONE + committed (`d313d16` feat / `96dfc96` chore) — the typed-field-space
+> foundation.** User chose option (b): a first-class typed space factor. Minted
+> `SpatialMomentSpace(FunctionSpace)` (peer of
 > `SphericalHarmonicSpace`; the within-cell tensor-Legendre DG basis, size `per_axis^d`); the flux +
 > source-sink factories OPTIONALLY compose it via `*` (the `_compose_spatial_moments` single-source,
 > "append iff >1"), DEFAULT-OFF — CONSTRUCT GENERAL, no production field carries the axis yet →
@@ -76,7 +77,12 @@
 > the single-source). ⚠ #245 filed (relocate `AVERAGE_MOMENT`/`face_moment_tail` `_ubld`→`numerics` —
 > the numerics→sn UP-import smell; deferred per Pattern 6).
 >
-> **S3-A (#61) NEXT — the φ̂-iterate consumer (forward/SI).** SELECT the SpatialMomentSpace factor for
+> **S3-A (#61) RESUME HERE — the φ̂-iterate consumer (forward/SI).** The SpatialMomentSpace primitive
+> is BUILT (S3-A0); S3-A SELECTS it. READ the S3-A0 API + the prior in-flight analysis:
+> `.claude/agent-memory/method-implementer/issue_240_d5b_s3_a0_spatial_moment_space_closeout.md`
+> (the `spatial_moments` factory param + `_compose_spatial_moments` + `find_factor`) +
+> `.claude/agent-memory/method-implementer/issue_240_d5b_s3_a_inc_c_closeout.md` (the §BLOCKER now
+> resolved by S3-A0). SELECT the SpatialMomentSpace factor for
 > the LD iterate: `_CellSolve.cell` accumulate `φ̂` (stop dropping at `psi_avg[..., AVERAGE_MOMENT]`);
 > the between-sweep iterate carriers (un-windowed `AngularFlux` + windowed `HarmonicMomentField`) gain
 > the axis (via the S3-A0 `spatial_moments` factory param, selected from
@@ -89,9 +95,9 @@
 > **S4 (#62)** = the strengthened Mode-7 MMS + the non-vanishing-boundary `BoundaryFlux` trace +
 > `@verifies("ld-cartesian-2d")`.
 >
-> **DEFERRED docs (the user asked):** the archivist authors the angular-vs-spatial moments Sphinx
-> discussion against the committed `SpatialMomentSpace` (stub anchors `spatial-moment-space` +
-> `ld-ubld-scattering-moment-lift` exist). **S2 carry-forwards STILL OPEN for D6:** `ld_ubld.py` oracle
+> **DOCS (user-requested) ✅ DONE (`a2dbb39`):** the angular-vs-spatial moments discussion
+> (`two-moment-axes`) + both D5b-S3 stubs (`spatial-moment-space`, `ld-ubld-scattering-moment-lift`)
+> expanded to full narrative; Sphinx clean. **S2 carry-forwards STILL OPEN for D6:** `ld_ubld.py` oracle
 > line-number→symbol citations; mint/link the UBLD orphan equation family.
 > The design pass (plan mode) resolved the two open architecture questions WITH THE USER and
 > EXPANDED the scope — see "⭐⭐ THE TWO DECISIONS" below. The approved implementation plan is
