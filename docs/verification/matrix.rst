@@ -624,7 +624,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **76** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **83** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -662,6 +662,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``ld-ubld-exact-on-bilinear``
 - ``ld-ubld-n-spatial-moments``
 - ``ld-ubld-rule-of-three-collapse``
+- ``ld-ubld-s2-s3-operators``
 - ``ld-ubld-scale-free-invariants``
 - ``ld-ubld-scattering-moment-lift``
 - ``loss-rep-affine``
@@ -691,6 +692,8 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``sn-streaming-reciprocity``
 - ``sn-tau-mm-raw``
 - ``sn-within-group-system``
+- ``spatial-moment-append-policy``
+- ``spatial-moment-kronecker-order``
 - ``spatial-moment-space-size``
 - ``spectrum-case-eigenfunction-equation``
 - ``spectrum-case-eigenfunction-explicit``
@@ -701,6 +704,10 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``spectrum-transport-equation``
 - ``spectrum-x-function``
 - ``trace-sign-predicate``
+- ``two-moment-angular``
+- ``two-moment-carrier-space``
+- ``two-moment-spatial``
+- ``two-moment-tensor-product``
 - ``vacuum-legacy-vs-trace-correct``
 
 Documented-only equations
