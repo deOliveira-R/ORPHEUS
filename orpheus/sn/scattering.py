@@ -156,6 +156,19 @@ if TYPE_CHECKING:
 __all__ = ["LegendreMomentScattering", "ScatteringOperator"]
 
 
+def _spatial_moments_of(phi: "np.ndarray | ScalarFlux") -> int:
+    r"""Within-cell spatial-moment count per axis carried by ``phi``, or ``1``.
+
+    The scattering-source accumulators (:meth:`ScatteringOperator._assemble_per_ordinate_source`)
+    must match the driving flux's spatial-moment width so the in-place
+    ``Σ_s ⊗ I`` accumulation does not broadcast-fail (#240 D5b-S3).  A typed
+    :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` carries the width
+    as a :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
+    factor on its space (the single source of truth — read it OFF the field, do
+    not re-thread an int); a bare ``ndarray`` φ has no factor → ``1``."""
+    return getattr(phi, "spatial_moments_per_axis", 1)
+
+
 @dataclass(frozen=True)
 class LegendreMomentScattering(LinearOperatorMixin):
     r"""Per-ℓ block-diagonal scattering on harmonic-moment space.
@@ -511,13 +524,21 @@ class ScatteringOperator(LinearOperatorMixin):
         mesh : SNMesh
             Phase-space carrier (sizes the zero accumulators + ``sum_w``).
         """
-        iso: ScalarSourceSink = ScalarSourceSink.zeros_on(mesh)
+        # The iso accumulator carries the trailing spatial-moment axis when the
+        # driving flux does (the φ̂ iterate, #240 D5b-S3 — the Σ_s ⊗ I lift
+        # scatters every spatial moment, so the in-place ``+=`` needs the same
+        # width or it broadcast-fails).  Read the width OFF the ScalarFlux's
+        # space (the single source of truth); a bare-ndarray φ stays scalar.
+        spatial_moments = _spatial_moments_of(phi)
+        iso: ScalarSourceSink = ScalarSourceSink.zeros_on(
+            mesh, spatial_moments=spatial_moments,
+        )
         iso = self.add_iso_source(iso, phi)
         iso = self.add_n2n_source(iso, phi)
         aniso = (
             aniso_or_none
             if aniso_or_none is not None
-            else AngularSourceSink.zeros_on(mesh)
+            else AngularSourceSink.zeros_on(mesh, spatial_moments=spatial_moments)
         )
         sum_w = float(mesh.quad.weights.sum())
         return (iso / sum_w) + aniso
@@ -597,7 +618,12 @@ class ScatteringOperator(LinearOperatorMixin):
         if isinstance(Q, ScalarSourceSink):
             Q_values = Q.values.copy()
             self.mat_xs.apply_p0_in_scatter(Q_values, phi_values)
-            return ScalarSourceSink.from_mesh(Q_values, Q.mesh)
+            # Preserve Q's spatial-moment width (#240 D5b-S3 — the φ̂ accumulator
+            # carries the trailing 2^d axis; re-wrapping without it would lose
+            # the typed factor and raise on the shape).
+            return ScalarSourceSink.from_mesh(
+                Q_values, Q.mesh, spatial_moments=Q.spatial_moments_per_axis,
+            )
         self.mat_xs.apply_p0_in_scatter(Q, phi_values)
         return None
 
@@ -639,7 +665,10 @@ class ScatteringOperator(LinearOperatorMixin):
         if isinstance(Q, ScalarSourceSink):
             Q_values = Q.values.copy()
             self.mat_xs.apply_n2n(Q_values, phi_values)
-            return ScalarSourceSink.from_mesh(Q_values, Q.mesh)
+            # Preserve Q's spatial-moment width (#240 D5b-S3, as add_iso_source).
+            return ScalarSourceSink.from_mesh(
+                Q_values, Q.mesh, spatial_moments=Q.spatial_moments_per_axis,
+            )
         self.mat_xs.apply_n2n(Q, phi_values)
         return None
 
@@ -752,7 +781,13 @@ class ScatteringOperator(LinearOperatorMixin):
         ).apply(angular_flux.values)
         sum_w = float(self.weights.sum())
         out_values = self._aniso_source_from_moment_values(moment_values) / sum_w
-        return AngularSourceSink.from_mesh(out_values, mesh)
+        # The R·Λ·M chain is spatial-moment-axis-agnostic (#240 D5b-S3); when the
+        # angular iterate carries φ̂, the aniso source does too — the typed wrap
+        # selects the SpatialMomentSpace factor (read off the iterate's space).
+        return AngularSourceSink.from_mesh(
+            out_values, mesh,
+            spatial_moments=angular_flux.spatial_moments_per_axis,
+        )
 
     # ── Foldable / residual split ─────────────────────────────────────
     #
@@ -1122,10 +1157,16 @@ class ScatteringOperator(LinearOperatorMixin):
         if self.scattering_order == 0:
             aniso = None
         else:
+            # The R·Λ reconstruction is spatial-moment-axis-agnostic (every
+            # einsum carries a trailing ``...`` spectator, #240 D5b-S3-A0), so
+            # the aniso source carries φ̂'s trailing axis when the moment iterate
+            # does; the typed wrap selects the SpatialMomentSpace factor.
             out_values = self._aniso_source_from_moment_values(
                 phi_moments.values,
             ) / float(self.weights.sum())
-            aniso = AngularSourceSink.from_mesh(out_values, mesh)
+            aniso = AngularSourceSink.from_mesh(
+                out_values, mesh, spatial_moments=phi_moments.spatial_moments,
+            )
         # ℓ=0 moment IS the scalar flux (Y_0^0 = 1) — the typed accessor
         # carries that convention (== integrate_angular bit-exactly).
         return self._assemble_per_ordinate_source(

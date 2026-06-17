@@ -225,22 +225,28 @@ def test_ld_curvilinear_scan_rejected() -> None:
 
 
 @pytest.mark.l1
-@pytest.mark.xfail(
-    strict=False,
-    reason="#158 Increment C: flat-source LD (Q̂=0) loses the diffusion limit; "
-    "needs the canonical slope source Σ_s·φ̂ in the iterate. DD is "
-    "interior-diffusion-consistent (LMM-1987); flat-source LD is not yet — "
-    "this tripwire flips to xpass when Increment C threads the moment source.",
-)
-def test_ld_thick_diffusive_limit_xfail() -> None:
-    r"""Forward tripwire: thick diffusive slab — flat-source LD ≠ DD interior.
+@pytest.mark.verifies("ld-cartesian-1d", "ld-slab")
+@pytest.mark.catches("ERR-061")
+def test_ld_thick_diffusive_limit() -> None:
+    r"""Thick diffusive slab: LD recovers the diffusion limit (≈ DD interior).
 
-    On an optically thick, scattering-dominated mesh, DD reproduces the interior
-    diffusion solution (LMM-1987 Table I); the flat-source LD shipped in
-    Increment A does NOT (the slope source — incl. the scattering slope — is
-    Increment C).  This gate ASPIRES to LD ≈ DD; it currently FAILS (xfail) and
-    will flip to xpass when the canonical source lands.  Documents the
-    flat-source limitation as a GATE, not only a docstring caution.
+    On an optically thick, scattering-dominated mesh (σ_t·h = 10/cell, c→1) DD
+    reproduces the interior diffusion solution (LMM-1987 Table I); the FULL LD
+    with the threaded slope source Σ_s·φ̂ (Increment C) does too — LD ≈ DD at the
+    midpoint at the COARSE mesh (NOT only under refinement).
+
+    Increment C threads the spatial-slope iterate φ̂.  #240 D5b-S3 fixed the
+    slope-moment FRAME (ERR-061): the per-ordinate slope ψ̂_n is stored in the
+    GLOBAL-x frame so the angular reduction φ̂ = Σ_n w_n ψ̂_n (which feeds the
+    isotropic scattering slope source Σ_s·φ̂) does NOT cancel forward against
+    backward ordinates.  Pre-fix LD was 38.9% off DD at nx=4 (the flat-source
+    signature persisting through the under-driven slope); post-fix it is < 5%.
+
+    Reference: the continuous diffusion solution (LMM-1987 §; DD-as-anchor is the
+    diffusion proxy — DD's 1-D diffusion-limit consistency is the
+    separately-published ground, vv §three-pillars).  The 2G-het group-coupled
+    companion is ``test_ld_thick_diffusive_limit_2g`` (Mode-6 — the slope source
+    Σ_s^T·φ̂ couples groups; a 1G-only gate is a degeneracy guard failure).
     """
     from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
     from orpheus.geometry import BC, CoordSystem, Mesh1D
@@ -267,7 +273,58 @@ def test_ld_thick_diffusive_limit_xfail() -> None:
     dd_mid = float(dd.scalar_flux.values[0, mid])
     ld_mid = float(ld.scalar_flux.values[0, mid])
     rel = abs(ld_mid - dd_mid) / abs(dd_mid)
-    assert rel < 0.05, (
-        f"flat-source LD midpoint {ld_mid:.4f} vs DD {dd_mid:.4f} "
-        f"(rel {rel:.1%}) — the diffusion limit needs the slope source (Inc. C)"
+    # Mode-8: a function-call assertion (fires under -O), NOT a bare assert.
+    np.testing.assert_array_less(
+        rel, 0.05,
+        err_msg=(
+            f"LD midpoint {ld_mid:.4f} vs DD {dd_mid:.4f} (rel {rel:.1%}) — "
+            "the LD diffusion limit needs the global-frame slope moment "
+            "(#240 D5b-S3 / ERR-061; the scattering slope source Σ_s·φ̂)"
+        ),
     )
+
+
+@pytest.mark.l1
+@pytest.mark.verifies("ld-cartesian-1d", "ld-slab")
+@pytest.mark.catches("ERR-061")
+def test_ld_thick_diffusive_limit_2g() -> None:
+    r"""2G-het companion of the thick-diffusion limit (Mode-6 — group coupling).
+
+    The slope-scattering source ``Σ_s^T·φ̂`` is group-coupled; a 1G test cannot
+    see a ``Σ_s^T`` transpose / convention bug on the slope rows (1G Σ_s is
+    scalar).  This drives a 2-group asymmetric-downscatter thick slab and asserts
+    LD ≈ DD at the coarse mesh in BOTH groups — the non-degenerate companion to
+    the 1G gate (vv Cardinal Rule 6 / H1; #240 D5b-S3 GATE 5).
+    """
+    from orpheus.derivations.continuous.mms.sn import _make_2g_asymmetric_mixture
+    from orpheus.geometry import BC, CoordSystem, Mesh1D
+    from orpheus.numerics.quadrature import Quadrature
+
+    nx, length = 4, 1.0
+    # Thick, scattering-dominated, ASYMMETRIC 2G downscatter (g0→g1 off-diagonal).
+    sig_t = np.array([40.0, 40.0])
+    sig_s = np.array([[30.0, 9.6], [0.0, 39.6]])   # c≈0.99 each group, asym
+    materials = {0: _make_2g_asymmetric_mixture(sig_t, sig_s)}
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, length, nx + 1), mat_ids=np.zeros(nx, dtype=int),
+        coord=CoordSystem.CARTESIAN, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+    )
+    quad = Quadrature.gauss_legendre(8)
+    Q = np.ones((quad.N, 2, nx)) / quad.weights.sum()
+    common = dict(boundary_condition="vacuum", inner_solver="krylov",
+                  max_inner=4000, inner_tol=1e-10)
+    dd = solve_sn_fixed_source(materials, mesh, quad, Q, **common)
+    ld = solve_sn_fixed_source(materials, mesh, quad, Q,
+                               scheme=LinearDiscontinuous(), **common)
+    mid = nx // 2
+    for g in range(2):
+        dd_mid = float(dd.scalar_flux.values[g, mid])
+        ld_mid = float(ld.scalar_flux.values[g, mid])
+        rel = abs(ld_mid - dd_mid) / abs(dd_mid)
+        np.testing.assert_array_less(
+            rel, 0.06,
+            err_msg=(
+                f"group {g}: LD {ld_mid:.4f} vs DD {dd_mid:.4f} (rel {rel:.1%}) "
+                "— 2G group-coupled slope source (#240 D5b-S3 / ERR-061, Mode-6)"
+            ),
+        )

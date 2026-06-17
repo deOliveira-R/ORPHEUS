@@ -217,3 +217,87 @@ def test_dd_and_ld_2d_converge_to_different_values():
             "DD ≈ LD at coarse mesh — LD is silently computing DD (the D5-0 "
             "misroute regressed, or the bilinear closure was not exercised)"
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# D5b.6 (foundation) — 2-D LD Krylov ≡ SI on a PURE-Z-bearing quadrature
+# (ERR-062: the matvec pure-z arm's missing moment-broadcast guard)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-062")
+def test_ld_2d_krylov_equals_si_pure_z_quadrature():
+    r"""D5b.6: 2-D LD ``inner_solver='krylov'`` ≡ ``'source_iteration'`` on a
+    quadrature WITH pure-z ordinates (μ_x = μ_y = 0) — the EXACT habitat of the
+    qa Concern A blocker (ERR-062).
+
+    The matvec ``loss_action`` pure-z arm ``(L+C)ψ̄ = σ·ψ̄`` lacked the
+    moment-axis broadcast guard its sweep twin ``ψ̄ = Q/σ_t`` already had: when
+    the LD probe carries the trailing ``2^d`` spatial-moment axis, ``σ·probe``
+    broadcast-FAILED (``ValueError: operands could not be broadcast together
+    with shapes (ng,nx,ny) (1,ng,nx,ny,2^d)``).  The bug hid on
+    ``level_symmetric`` (NO pure-z ordinate → the pure-z arm never runs); it
+    fires on a Lebedev / product quadrature that DOES carry the ±z poles.
+
+    The fix single-sources the moment-broadcast through
+    ``_moment_broadcast_sigma`` so the two collision-only twins (sweep ≡ matvec)
+    cannot diverge (Pattern 2 / L21).  Krylov solves ``(L+C−S_full)`` via the
+    matvec; SI via the sweep — both must reach the SAME within-group fixed point,
+    so their converged scalar fluxes agree to solver tolerance.
+
+    Mode-9 degeneracy-break config (the genuine cross-check, not a degenerate
+    coincidence): a pure-z-bearing **Lebedev** quadrature (genuine ``mu_y``, the
+    ±z poles), **heterogeneous** 2-material map (A/B), **2-group asymmetric**
+    cross sections with **non-zero self-scatter** (``c > 0`` — the
+    ``(L+C−S)`` scattering source is live), **NON-SQUARE** ``nx ≠ ny``, vacuum
+    edges (zero domain inflow → no S4 boundary-trace widening).  WITHOUT the fix
+    the Krylov solve raises ``ValueError`` at the first matvec; WITH it the two
+    paths agree.  ``-O``-safe (``np.testing.*`` / ``pytest.fail``)."""
+    nx, ny = 5, 4                                   # NON-SQUARE (x↔y-swap defence)
+    mat_map = np.zeros((nx, ny), dtype=int)
+    mat_map[nx // 2:, :] = 1                         # heterogeneous: A | B split
+    mesh = Mesh2D(
+        edges_x=np.linspace(0.0, 1.3, nx + 1),
+        edges_y=np.linspace(0.0, 0.9, ny + 1),
+        mat_map=mat_map,
+        coord=CoordSystem.CARTESIAN,
+        bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
+        bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
+    )
+    # Lebedev order 5 (N=14) carries 2 pure-z ordinates (the ±z poles) AND
+    # genuine mu_y — the cheap pure-z habitat (the production 2-D Cartesian MMS
+    # uses Lebedev order 17 / N=110 with the same 2 pure-z ordinates).
+    quad = Quadrature.lebedev(order=5)
+    is_pure_z = (np.abs(quad.mu_x) < 1e-12) & (np.abs(quad.mu_y) < 1e-12)
+    if not np.any(is_pure_z):
+        pytest.fail(
+            "test premise broken: the quadrature has NO pure-z ordinate, so the "
+            "pure-z matvec arm (ERR-062's habitat) is never exercised"
+        )
+
+    materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
+    ng = 2
+    N = quad.N
+    rng = np.random.default_rng(583)
+    Q = rng.uniform(0.0, 2.0, size=(N, ng, nx, ny))
+
+    kw = dict(
+        boundary_condition="vacuum", max_inner=500, inner_tol=1e-12,
+        scheme=LinearDiscontinuous(),
+    )
+    # WITHOUT the fix this raises ValueError on the first Krylov matvec.
+    phi_kr = solve_sn_fixed_source(
+        materials, mesh, quad, Q, inner_solver="krylov", **kw,
+    ).scalar_flux.values
+    phi_si = solve_sn_fixed_source(
+        materials, mesh, quad, Q, inner_solver="source_iteration", **kw,
+    ).scalar_flux.values
+
+    if not np.all(np.isfinite(phi_kr)):
+        pytest.fail("2-D LD Krylov produced non-finite flux")
+    # Same (L+C−S_full) fixed point reached by two structurally-distinct inners.
+    np.testing.assert_allclose(
+        phi_kr, phi_si, rtol=1e-9, atol=1e-10,
+        err_msg="2-D LD Krylov ≠ SI on the pure-z quadrature (ERR-062)",
+    )

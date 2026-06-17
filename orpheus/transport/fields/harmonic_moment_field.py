@@ -377,7 +377,13 @@ class HarmonicMomentField(FluxRole, MomentField):
             with the same mesh.
         """
         from orpheus.transport.fields.scalar_flux import ScalarFlux
-        return ScalarFlux.from_mesh(self.values[0, 0].copy(), self.mesh)
+        # ``values[0, 0]`` is ``(ng, *spatial[, 2^d])`` — the φ̂ spatial-moment
+        # axis (if any) rides on the ℓ=0 moment and is propagated as a TYPED
+        # factor (#240 D5b-S3; ``spatial_moments`` is this field's stored width).
+        return ScalarFlux.from_mesh(
+            self.values[0, 0].copy(), self.mesh,
+            spatial_moments=self.spatial_moments,
+        )
 
     # ── Truncation ───────────────────────────────────────────────────
 

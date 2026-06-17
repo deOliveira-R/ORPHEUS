@@ -228,6 +228,30 @@ class BulkField(Field):
             return ()
         return factor.shape
 
+    @property
+    def spatial_moments_per_axis(self) -> int:
+        r"""The within-cell spatial-moment count per axis carried by this field.
+
+        Reads the ``per_axis`` parameter OFF the optional
+        :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
+        factor on this field's space (the single source of truth for the moment
+        width, #240 D5b-S3-A0).  Returns ``1`` for a non-composed / DD-default
+        space.  Producers that derive a moment-carrying child field (e.g.
+        :meth:`AngularFlux.integrate_angular`,
+        :meth:`HarmonicMomentField.scalar_flux`) pass this as the child's
+        ``spatial_moments`` so the moment axis is propagated as a TYPED factor,
+        not an opaque widened ndarray."""
+        from orpheus.numerics.spaces.spatial_moment_space import SpatialMomentSpace
+
+        find_factor = getattr(self.space, "find_factor", None)
+        if find_factor is None:
+            return 1
+        try:
+            factor = find_factor(SpatialMomentSpace)
+        except KeyError:
+            return 1
+        return factor.per_axis
+
     # ── Metadata read-throughs ───────────────────────────────────────
 
     @property

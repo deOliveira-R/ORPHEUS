@@ -23,17 +23,18 @@ truth:
 2. **The shared d=1 closed form** (:func:`d1_closed_form`).  The analytic
    Schur complement of the primitive's ``d = 1`` ``2×2`` — VECTORIZED over the
    cell / ordinate / group stack (no per-cell dense solve), so the production
-   ``d = 1`` path stays on the fast path (L16).  This is the ONE place the slab
-   LD ``2×2`` algebra lives: the three production views
+   ``d = 1`` SCAN stays on the fast path (L16).  This is the ONE place the slab
+   LD ``2×2`` SCAN/per-cell algebra lives: the two ×V production views
    (:meth:`~orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous._schur_terms`
-   — ×V per-cell;
-   :meth:`~orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous._kernel_terms`
-   — ÷V DAG kernel;
+   — ×V per-cell ``update``/``residual``;
    :meth:`~orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous.affine_scan_coefficients`
-   — ×V scan) all derive their coefficients from this helper, applying their
-   ×V / ÷V / ×V-scan scaling at the call site.  Collapsing the Rule-of-Three
-   (Cardinal Rule 2 / Pattern 2): the LD ``2×2`` Schur is single-sourced and
-   proven ``== `` the dense primitive's ``d = 1`` reduction (symbolically by
+   — ×V ``CumprodScan`` coefficients) derive their coefficients from this
+   helper, applying their ×V scaling at the call site.  The DAG-wavefront kernel
+   pair (``cell_kernel_batch`` / ``residual_kernel_batch``) does NOT use the
+   closed form — a matvec is a forward APPLY, intrinsically moment-valued, so it
+   rides the d-generic dense primitive (1) for every d (#240 D5b-S3, the unified
+   moment matvec); at d=1 the dense ``2×2`` IS this closed form's Schur, proven
+   ``==`` (symbolically by
    :mod:`orpheus.derivations.discrete.sn.ld_ubld`, in code by
    ``tests/sn/spatial/test_ld_ubld_primitive.py``).
 
@@ -61,7 +62,8 @@ References
   this module is the numpy Branch-2 of (the symbolic ``simplify(diff) == 0``
   proofs of the d=1 reduction + the three-view equality).
 * :mod:`orpheus.sn.spatial.linear_discontinuous` — the production LD scheme
-  whose three 1-D views single-source through :func:`d1_closed_form`.
+  whose two ×V 1-D views (per-cell + scan) single-source through
+  :func:`d1_closed_form`; its DAG kernel rides the d-generic dense primitive.
 * Larsen & Morel (1989). JCP 83(1):212-236 — the slab-LD moment system.
 * Maginot, Ragusa & Morel (2016). NSE 185(1):17-42 — the d-D Cartesian UBLD.
 """
@@ -107,6 +109,61 @@ def face_moment_tail(n_face_moments: int) -> tuple[int, ...]:
     ``FullFieldWavefront`` full cochain), which must agree on the tail shape.
     """
     return () if n_face_moments == 1 else (n_face_moments,)
+
+
+def octant_moment_frame_signs(
+    octant_signs: tuple[int, ...], spatial_basis_per_axis: int,
+) -> "np.ndarray | None":
+    r"""Sweep-frame ⇄ global-frame sign vector for the ``2^d`` moment axis.
+
+    The per-cell LD moment vector is produced and consumed by the cell kernel
+    in the per-ordinate SWEEP frame: each axis ``a`` is oriented so the
+    "downstream" face is at the local coordinate ``+1``.  For an ordinate
+    sweeping in the NEGATIVE global direction on axis ``a`` (``octant_signs[a]
+    == -1``) the sweep coordinate is the REVERSE of the global coordinate, so
+    the slope (``P₁``) moment on that axis is sign-FLIPPED relative to the
+    global-frame slope (#240 D5b-S3 — the diffusion-limit root cause).
+
+    The iterate / scattering source ``Σ_s·φ̂`` lives in the GLOBAL frame (the
+    angular reduction ``φ̂ = Σ_n w_n ψ̂_n`` sums slopes across ordinates of BOTH
+    sweep directions — they must share one frame or they partially cancel).
+    This returns the ``2^d``-length sign vector that maps between the two
+    frames in the tensor-Legendre Kronecker layout ``[o_0, …, o_{d-1}]``
+    (``o_a ∈ {0,1}`` = P₀/P₁ on axis ``a``, axis 0 outer):
+
+    .. math::
+
+        \mathrm{sign}[o_0,\dots,o_{d-1}] = \prod_{a=0}^{d-1}
+            (\mathrm{octant\_signs}[a])^{o_a}.
+
+    The average moment (all ``o_a = 0``) is sign-invariant; a per-axis slope
+    flips once if that axis sweeps backward; the d=2 cross moment ``x̂y`` flips
+    when an ODD number of its active axes sweep backward.  The map is an
+    INVOLUTION (its own inverse), so the SAME vector converts global→sweep on
+    the source/probe INPUT and sweep→global on the moment/residual OUTPUT.
+
+    Single-moment closures (DD/Step, ``spatial_basis_per_axis == 1``) have a
+    sign-invariant average-only moment, so this returns ``None`` — the single
+    source of the "no frame map" convention every consumer keys on (``_reframe``
+    passes the array through untouched, so DD/Step stay byte-identical; the
+    backward-compat invariant).  A zero octant sign (the degenerate no-streaming
+    pure-transverse set) leaves the slope on that axis un-flipped (``0^0 = 1``
+    for the average; a slope on a non-streaming axis is a degenerate ordinate
+    the wavefront short-circuits — never reached here).
+    """
+    if spatial_basis_per_axis == 1:
+        return None
+    d = len(octant_signs)
+    size = spatial_basis_per_axis ** d
+    signs = np.ones(size)
+    for flat in range(size):
+        factor = 1
+        for a in range(d):
+            o_a = (flat // (spatial_basis_per_axis ** (d - 1 - a))) % spatial_basis_per_axis
+            if o_a and octant_signs[a] < 0:
+                factor = -factor
+        signs[flat] = factor
+    return signs
 
 
 def mass_1d(h: np.ndarray, theta: float) -> np.ndarray:
@@ -340,6 +397,31 @@ class D1ClosedForm:
         """
         return self.g * V, V * self.eff_denom
 
+    def _slope_fold(
+        self, V: np.ndarray | float, s_hat: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        r"""The shared slope-row fold — the ONE site of the ``s_hat`` algebra.
+
+        Single-sources the slope-moment elimination both ×V slope consumers ride
+        — the per-cell Schur (:meth:`schur_xV`, the matvec/per-cell update) AND
+        the moment-aware SCAN (:meth:`scan_slope_face_source` / :meth:`scan_reconstruct`,
+        the 1-D production sweep, #240 D5b-S3 OWED-2).  With ``|μ|A_down = g·V``
+        and the ×V slope denominator :math:`D_2' = \theta V d_2 = \Sigma_t\theta V
+        + |\mu|A_{\rm down}` (the extra ``θ`` vs the ÷V ``d2``):
+
+        * ``mu_Adown = |μ|A_down`` — the ×V streaming (slope reconstruction),
+        * ``d2p = D₂'`` — the ×V slope denominator,
+        * ``eff_source_shift = s_hat·θ·|μ|A_down/D₂'`` — the amount the slope
+          source pulls OUT of the average-row effective source
+          (``eff_source = s_bar − eff_source_shift``),
+        * ``slope_source = θ·s_hat`` — the slope-row RHS source (drives ``ψ̂``).
+        """
+        mu_Adown = self.g * V
+        d2p = self.theta * V * self.d2
+        eff_source_shift = s_hat * mu_Adown * self.theta / d2p
+        slope_source = self.theta * s_hat
+        return mu_Adown, d2p, eff_source_shift, slope_source
+
     def schur_xV(
         self,
         V: np.ndarray | float,
@@ -370,14 +452,16 @@ class D1ClosedForm:
         * ``mu_Adown = |μ|A_down`` — the ×V streaming (for the slope reconstr.),
         * ``D₂'`` — the ×V slope denominator.
 
-        Returns ``(S, eff_source, eff_numer, slope_source, mu_Adown, D₂')`` so
-        the production ``_schur_terms`` builds its bundle from this ONE site.
+        The slope-row fold is single-sourced through :meth:`_slope_fold` (shared
+        with the moment-aware scan, #240 D5b-S3 OWED-2 — Pattern 2: ONE site for
+        the ``s_hat`` algebra).  Returns ``(S, eff_source, eff_numer, slope_source,
+        mu_Adown, D₂')`` so the production ``_schur_terms`` builds its bundle from
+        this ONE site.
         """
-        mu_Adown, S = self._xV(V)                   # |μ|·A_down, ×V Schur diagonal
-        d2p = self.theta * V * self.d2              # D₂' = Σ_t·θ·V + |μ|·A_down
-        eff_source = s_bar - s_hat * mu_Adown * self.theta / d2p
+        S = V * self.eff_denom                       # ×V Schur diagonal
+        mu_Adown, d2p, eff_source_shift, slope_source = self._slope_fold(V, s_hat)
+        eff_source = s_bar - eff_source_shift
         eff_numer = mu_Adown * psi_in * (d2p + mu_Adown) / d2p
-        slope_source = self.theta * s_hat
         return S, eff_source, eff_numer, slope_source, mu_Adown, d2p
 
     def scan_xV(
@@ -395,12 +479,73 @@ class D1ClosedForm:
            a = m\,(1+k)^2 / S_{\times V} - k, \qquad w = 1/(1+k).
 
         ``a`` is source-independent (the affine transmission ``ψ_out = a·ψ_in +
-        b``); ``w`` is the cell-average blend weight (scale-free).
+        b``); ``w`` is the cell-average blend weight (scale-free).  These three
+        coefficients are SOURCE-INDEPENDENT (one ``Σ_t``-epoch — the cache holds
+        them); the SLOPE source ``s_hat`` enters the source-dependent ``b`` and
+        the per-cell reconstruction via :meth:`scan_moment_terms` /
+        :meth:`scan_reconstruct` (#240 D5b-S3 OWED-2).
         """
         m, S = self._xV(V)                          # |μ|·A_down, ×V Schur diagonal
         inverse_denom = 1.0 / S
         a = m * (1.0 + self.k) ** 2 * inverse_denom - self.k
         return a, inverse_denom, self.w
+
+    def scan_slope_face_source(
+        self, V: np.ndarray | float, s_hat: np.ndarray,
+        inverse_denom: np.ndarray, w: np.ndarray | float,
+    ) -> np.ndarray:
+        r"""The SLOPE source's contribution to the face-chain affine source ``b``.
+
+        The 1-D moment SCAN propagates the downstream FACE
+        :math:`\psi_{\rm out} = a\,\psi_{\rm in} + b` along the chain (#240 D5b-S3
+        OWED-2).  With a slope source ``s_hat`` (the scattering-slope source
+        :math:`\Sigma_s\hat\phi` × V) the face-chain ``b`` gains a slope term on
+        top of the flat-source emission ``source_emission(s_bar, inv, w)``:
+
+        .. math::
+
+           b = \underbrace{s_{\rm bar}\,\tfrac{\mathrm{inv}}{w}}
+                          _{\text{flat-source (average) emission}}
+             + \underbrace{\tfrac{\theta\,s_{\rm hat}}{D_2'}
+               - \tfrac{\theta\,|\mu|A_{\rm down}\,s_{\rm hat}}{D_2'}
+                 \cdot \tfrac{\mathrm{inv}}{w}}_{\text{this method (slope)}}.
+
+        The first slope term ``θ s_hat / D₂'`` is the slope's direct lift onto the
+        outgoing face (``ψ_out = ψ̄ + ψ̂``); the second is the slope source's pull
+        on the average-row effective source (``−eff_source_shift`` run through the
+        emission ``inv/w``).  The flat-source ``b`` stays the existing
+        :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.source_emission`
+        call (DD/Step never reach here — ``s_hat`` is the LD-only slope moment),
+        so this is a pure ADDITION, never a re-baseline of the average path.  The
+        fold is single-sourced through :meth:`_slope_fold`.
+        """
+        _mu_Adown, d2p, eff_source_shift, slope_source = self._slope_fold(V, s_hat)
+        return slope_source / d2p - eff_source_shift * inverse_denom / w
+
+    def scan_reconstruct(
+        self,
+        V: np.ndarray | float,
+        s_bar: np.ndarray,
+        s_hat: np.ndarray,
+        psi_in: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""Per-cell ``(ψ̄, ψ̂)`` from the chained upstream face — the scan twin.
+
+        Once the moment SCAN has the chained upstream face ``psi_in`` per cell
+        (from :meth:`scan_slope_face_source` + the Blelloch scan), the
+        cell-average ``ψ̄`` and slope ``ψ̂`` moments are the SAME Schur
+        reconstruction the per-cell :meth:`schur_xV` does — re-used here so the
+        moment iterate ``φ̂ = Σ_n w_n ψ̂_n`` the scan emits is byte-consistent with
+        the DAG (#240 D5b-S3 OWED-2; both ride :meth:`_slope_fold`).  ``s_bar`` /
+        ``s_hat`` are the ×V source moments (``Q̄·V`` / ``Q̂·V``); ``psi_in`` the
+        per-cell upstream face.
+        """
+        S, eff_source, eff_numer, slope_source, mu_Adown, d2p = self.schur_xV(
+            V, s_bar, s_hat, psi_in,
+        )
+        psi_bar = (eff_source + eff_numer) / S
+        psi_hat = (mu_Adown * psi_bar + slope_source - mu_Adown * psi_in) / d2p
+        return psi_bar, psi_hat
 
 
 def d1_closed_form(
@@ -436,5 +581,6 @@ __all__ = [
     "d1_closed_form",
     "face_moment_tail",
     "mass_1d",
+    "octant_moment_frame_signs",
     "per_cell_solve",
 ]

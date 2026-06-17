@@ -249,8 +249,13 @@ class SNBoundaryOperator(LinearOperatorMixin):
             # — so the carrier is correct whatever representation the input bulk
             # carries (full-angular :class:`AngularFlux` OR the Phase-5a windowed
             # :class:`HarmonicMomentField`).  ``B`` is the boundary block ``A_ss``:
-            # it reads the trace and emits zero bulk regardless.
-            bulk=AngularSourceSink.zeros_on(mesh),
+            # it reads the trace and emits zero bulk regardless.  The zero bulk
+            # carries the input's spatial-moment width (#240 D5b-S3) so it
+            # composes element-wise with the moment-carrying ``(L+C)ψ`` in the
+            # SI / Krylov ``(L+C − S − B)ψ`` matvec.  DD/Step → no factor.
+            bulk=AngularSourceSink.zeros_on(
+                mesh, spatial_moments=mesh.scheme.spatial_basis_per_axis,
+            ),
             boundary=self._reflect_trace(psi.boundary, method),
             _history=(),
             history_depth=psi.history_depth,

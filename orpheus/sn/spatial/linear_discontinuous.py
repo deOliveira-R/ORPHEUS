@@ -177,6 +177,7 @@ from ._ubld import (
     assemble_inflow_axis,
     assemble_ubld,
     d1_closed_form,
+    face_moment_tail,
     per_cell_solve,
 )
 from .scheme import (
@@ -428,75 +429,25 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     # kernel consumes — so ``g = s/2 = |μ|/Δ`` is LD's streaming-over-volume.
     # This is the ÷V form of the per-cell :meth:`update`/:meth:`residual` 2×2
     # (which carry the ×V, ``∂r/∂source = −1`` contract scaling); the two are
-    # the SAME LD, pinned consistent **at the flat Q̂=0 slice** by the
-    # group1≡group2 gate (mirrors how DD keeps its per-cell ``residual`` and
-    # ``residual_kernel_batch`` separate).  The slope-source (Q̂≠0) equivalence
-    # — which exercises the LM-1989 §1.4/§6 slope-row SIGN TRAP — is pinned when
-    # the moment source is threaded (Increment C); until then only the slope
-    # UNKNOWN path (Q̂=0) is cross-checked between the two forms.
+    # the SAME LD, pinned consistent by the group1≡group2 gate.
     #
-    # Dimension fork (#240 D5b-S2): the d=1 slab arm rides the vectorised
-    # closed-form Schur (``_kernel_terms`` → ``d1_closed_form``, NO dense solve
-    # — the L16 fast path); the d≥2 bilinear arm rides the d-generic dense UBLD
-    # primitive (``_ubld_system`` → ``per_cell_solve`` over the level's
-    # anti-diagonal cell stack — the batched ``2^d×2^d`` solve).  Both arms are
-    # the SAME tensor-product UBLD algebra (``orpheus.sn.spatial._ubld``); the
-    # d=1 closed form is the analytic Schur of the d=1 dense system, proven ``==``
-    # by ``tests/sn/spatial/test_ld_ubld_primitive.py``.  The slope SOURCE ``Q̂``
-    # is folded only when a moment source is threaded (#158 Increment C / S3);
-    # the slope UNKNOWN ``ψ̂`` is ALWAYS solved (that is what delivers O(h²)).
-
-    def _kernel_terms(
-        self,
-        *,
-        psi_in: tuple[np.ndarray, ...],
-        s_axes: tuple[np.ndarray, ...],
-        sigt_cells: np.ndarray,
-        Q_cells: np.ndarray,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        r"""The ÷V Schur intermediates for the DAG kernel (1-D, flat source).
-
-        Single source for BOTH :meth:`cell_kernel_batch` (solve) and
-        :meth:`residual_kernel_batch` (apply).  Returns
-        ``(eff_denom S, rhs, w, in0)`` — all broadcast to ``(N_oct, ng,
-        n_diag)`` (or the inputs' broadcast).  ``w = 1/(1+k)`` with ``k =
-        (g/θ)/D₂`` is LD's cell-average blend weight — the SAME derivation BOTH
-        kernel arms feed into :meth:`outgoing_face_from_average`, so the SOLVE
-        and APPLY directions can never drift (D2 fold; keeps them locked when
-        the D6-noted ``w(Σ)`` blend work lands).
-        """
-        if len(s_axes) != 1:
-            raise ValueError(
-                "_kernel_terms is the d=1 closed-form Schur helper; got "
-                f"d={len(s_axes)} streaming axes.  The d≥2 bilinear UBLD arm "
-                "routes through _ubld_system / per_cell_solve (the dense "
-                "primitive), dispatched by cell_kernel_batch / "
-                "residual_kernel_batch on len(s_axes)."
-            )
-        g = s_axes[0]                               # raw down-face streaming |μ|/Δ (N_oct, 1, n_diag); #240 — was 0.5*s when s carried DD's diamond 2
-        in0 = psi_in[0]                             # (N_oct, ng, n_diag)
-        # Single-source the LD 2×2 Schur through the shared d=1 closed form
-        # (#240 D5b-S1 Branch 2): the ÷V kernel reads ``eff_denom`` (the Schur S
-        # per volume) and the flat-source ÷V ``kernel_rhs`` straight off the same
-        # helper the ×V views use — the LD algebra lives ONCE.  ``w = 1/(1+k)``
-        # (k = (g/θ)/D₂) is the cell-average blend weight both kernel arms feed
-        # into ``outgoing_face_from_average``.  A principled ~1-ULP re-baseline
-        # (the helper's ``g·k`` vs the legacy inline ``(g·g/θ)/D₂`` association).
-        cf = d1_closed_form(g, sigt_cells, self.theta)
-        rhs = cf.kernel_rhs(Q_cells, in0)           # flat (Q̂ = 0)
-        return cf.eff_denom, rhs, cf.w, in0
-
-    # ── d≥2 bilinear UBLD kernel (the dense Kronecker primitive) ─────────
-    #
-    # The d≥2 arm uses the d-generic ÷V UBLD dense system from
-    # ``orpheus.sn.spatial._ubld``.  The ÷V system is SCALE-FREE: dividing the
-    # Galerkin balance by the cell volume ``V = ∏_a Δ_a`` leaves a system that
-    # depends ONLY on the per-axis ÷V streaming ``g_a = |μ_a|/Δ_a`` (the
-    # ``s_axes`` the kernel already receives) and ``Σ_t`` — so the dense
-    # assembler is fed ``hs = [1, …, 1]`` (unit widths) and ``mus = [g_0, …]``
-    # (the streaming carries the ÷V factor).  This reduces EXACTLY to
-    # ``d1_closed_form`` at d=1 (the d=1 closed form is the analytic Schur of
-    # this dense system, proven == by test_ld_ubld_primitive.py).
+    # UNIFIED MOMENT KERNEL (#240 D5b-S3): a matvec is a forward APPLY — applying
+    # the per-cell ``2^d × 2^d`` operator to the moment vector is intrinsically
+    # MOMENT-valued in EVERY d.  The kernel pair therefore rides ONE d-generic
+    # dense UBLD path (``_ubld_system`` → ``per_cell_solve``) for all d; the
+    # former d=1 Schur-reduced SCALAR matvec arm (``_kernel_terms`` →
+    # ``kernel_rhs``) was a flat-source artifact (Q̂=0 left the slope ψ̂ with no
+    # global coupling) — RETIRED.  The L16 closed-form fast path lives in the
+    # d=1 PRODUCTION sweep (CumprodScan → ``affine_scan_coefficients`` →
+    # ``d1_closed_form``), selected by strategy on geometry, NOT by an ``if d==1``
+    # in the kernel.  The ÷V dense system is SCALE-FREE: dividing the Galerkin
+    # balance by the cell volume ``V = ∏_a Δ_a`` leaves a system depending ONLY
+    # on the per-axis ÷V streaming ``g_a = |μ_a|/Δ_a`` (the ``s_axes`` the kernel
+    # receives) and ``Σ_t``, so the dense assembler is fed unit widths
+    # ``hs = [1, …]`` and ``mus = [g_0, …]``.  At d=1 this is EXACTLY
+    # ``d1_closed_form``'s 2×2 (the closed form is its analytic Schur, proven ==
+    # by ``tests/sn/spatial/test_ld_ubld_primitive.py``), so the moment matvec
+    # and the closed-form scan agree at the solved state.
 
     def _ubld_system(
         self,
@@ -513,11 +464,14 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         upwind-inflow face contributions are added by the SOLVE / APPLY arms
         (they vary by direction).
 
-        ``Q_cells`` is the FLAT scalar average source ``(N_oct or 1, ng,
-        n_diag)`` (S2 — external/MMS moment-source slopes ``Q̂≠0`` are S3): it
-        is lifted to the ``(…, 2^d)`` moment vector with the average moment in
-        slot 0 and the rest zero (so a zero scalar source — the matvec
-        ``_MATVEC_ZERO_SOURCE`` — broadcasts to zero moments).
+        ``Q_cells`` is the per-cell source.  It is SHAPE-AGNOSTIC over the
+        spatial-moment axis (#240 D5b-S3): a genuine ``(…, 2^d)`` moment source
+        — average in slot 0, the scattering-slope source ``Σ_s·φ̂`` in the slope
+        rows — flows through verbatim (its trailing axis IS the ``2^d`` moment
+        axis); a flat scalar ``(N_oct or 1, ng, n_diag)`` source (the matvec
+        ``_MATVEC_ZERO_SOURCE`` or a flat external source) is lifted onto the
+        moment vector with the average moment in slot 0 and the rest zero.  The
+        average-moment slot index is the single-sourced :data:`AVERAGE_MOMENT`.
         """
         d = len(s_axes)
         size = 2**d
@@ -528,11 +482,21 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         sig_full = sig_b + np.zeros_like(gs[0])
         ones = [np.ones_like(g) for g in gs]
         assembled = assemble_ubld(ones, gs, sig_full, self.theta)
-        # Lift the flat scalar average source onto the 2^d moment vector
-        # (slot 0 = average; the rest are the slope/cross moments, zero in S2).
-        batch = assembled["A"].shape[:-2]
-        S_moments = np.zeros(batch + (size,))
-        S_moments[..., AVERAGE_MOMENT] = np.asarray(Q_cells) + np.zeros(batch)
+        batch = assembled["A"].shape[:-2]   # (N_oct, ng, n_diag) — the cell stack
+        Q = np.asarray(Q_cells)
+        # Discriminate moment vs flat by RANK against the cell-stack batch
+        # (unambiguous — the flat scalar source broadcasts to ``batch``, ndim
+        # ≤ len(batch); the genuine moment source is ``batch + (2^d,)``, exactly
+        # one more axis).  A trailing-axis-SIZE test would be fragile (a level's
+        # cell count could equal ``2^d`` at small meshes).
+        if Q.ndim == len(batch) + 1:
+            # Genuine moment source — its trailing axis IS the 2^d moment axis
+            # (the scattering-slope source Σ_s·φ̂ rides the slope rows; #240 S3).
+            S_moments = Q + np.zeros(batch + (size,))
+        else:
+            # Flat scalar source — lift onto slot 0 (average), rest zero.
+            S_moments = np.zeros(batch + (size,))
+            S_moments[..., AVERAGE_MOMENT] = Q + np.zeros(batch)
         R_source = np.einsum("...ij,...j->...i", assembled["M"], S_moments)
         return assembled, R_source
 
@@ -548,12 +512,32 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         cochain).  :func:`~orpheus.sn.spatial._ubld.assemble_inflow_axis`
         weights it into the active-axis test functions ``B(-1)=[1,-1]`` and the
         transverse mass, times ``g_a`` (the ÷V streaming, ``mus[axis]``).
+
+        At d=1 the transverse-moment count is ``2^{d-1} = 1`` and the walk's
+        face cochain carries NO explicit moment axis (``face_moment_tail(1) ==
+        ()``), so each face arrives as ``(N_oct, ng, n_diag)``.  The dense
+        inflow assembler needs the transverse-moment axis EXPLICIT (it is the
+        face's LAST axis), so a trailing length-1 axis is appended here at d=1
+        (#240 D5b-S3 — the unified moment matvec routes d=1 LD through the dense
+        primitive).  The decision keys on ``face_moment_tail(2^{d-1}) == ()``
+        (deterministic on ``d``, NOT on a shape probe — a scalar face's
+        trailing ``n_diag == 1`` is indistinguishable from a length-1 moment
+        axis by shape alone).  This is LD-only (DD never reaches this method),
+        so it does not touch DD's byte-identical scalar face convention.
         """
+        d = len(s_axes)
+        # The walk omits the moment axis exactly when its tail is empty (d=1).
+        needs_moment_axis = face_moment_tail(2 ** (d - 1)) == ()
         ones = [np.ones_like(g) for g in s_axes]
         gs = [np.asarray(g) for g in s_axes]
+        faces = [
+            np.asarray(psi_in[a])[..., None] if needs_moment_axis
+            else np.asarray(psi_in[a])
+            for a in range(d)
+        ]
         terms = [
-            assemble_inflow_axis(ones, gs, a, np.asarray(psi_in[a]), self.theta)
-            for a in range(len(s_axes))
+            assemble_inflow_axis(ones, gs, a, faces[a], self.theta)
+            for a in range(d)
         ]
         R = terms[0]                                # d ≥ 1 ⇒ ≥ 1 axis, never empty
         for term in terms[1:]:
@@ -579,12 +563,18 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         twin D5b.4 + the round-trip D5b.1 verify).
         """
         batch = psi_moments.shape[:-1]
+        # The face tail follows the walk's cochain convention: a 2^{d-1}-moment
+        # axis when > 1 (d ≥ 2), ABSENT at d=1 (face_moment_tail(1) == () — the
+        # walk's scalar d=1 face cochain).  This mirrors _ubld_inflow's d=1
+        # axis-append, keeping out-of-cell == in-of-next-cell consistent (#240
+        # D5b-S3 — the unified moment matvec).
+        tail = face_moment_tail(2 ** (d - 1))
         tensor = psi_moments.reshape(*batch, *([2] * d))
         faces = []
         for a in range(d):
             cell_axis = len(batch) + a
             face = tensor.take(0, axis=cell_axis) + tensor.take(1, axis=cell_axis)
-            faces.append(face.reshape(*batch, 2 ** (d - 1)))
+            faces.append(face.reshape(*batch, *tail))
         return tuple(faces)
 
     def cell_kernel_batch(
@@ -595,33 +585,26 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         sigt_cells: np.ndarray,
         Q_cells: np.ndarray,
     ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
-        r"""Pure batched LD cell SOLVE — the DAG wavefront kernel (d-generic).
+        r"""Pure batched LD cell SOLVE — the d-generic DAG wavefront kernel.
 
-        **d=1** (slab): solves the Schur-reduced LD 2×2 for the cell-average
-        flux on one anti-hyperplane level (vectorised over ``(N_oct, ng,
-        n_diag)``, the L16 closed-form fast path) and reconstructs the scalar
-        downstream face :math:`\psi_{\rm out}=\bar\psi+\hat\psi`.
-
-        **d≥2** (bilinear UBLD): assembles the batched ÷V ``2^d×2^d`` dense
-        system (``A ψ⃗ = M·S⃗ + Σ_a F_in^{(a)}``) over the level's anti-diagonal
-        cell stack and solves it with one batched
+        Assembles the batched ÷V ``2^d × 2^d`` dense UBLD system
+        (``A ψ⃗ = M·S⃗ + Σ_a F_in^{(a)}``) over the level's anti-diagonal cell
+        stack and solves it with one batched
         :func:`~orpheus.sn.spatial._ubld.per_cell_solve`.  Returns the full
-        ``2^d``-moment ``psi_avg`` ``(N_oct, ng, n_diag, 2^d)`` and the d-tuple
-        of ``2^{d-1}``-moment downstream faces (one per axis).
+        ``2^d``-moment ``psi_avg`` ``(N_oct, ng, n_diag, 2^d)`` — the cell-average
+        in slot 0, the slope moments after — and the d-tuple of
+        ``2^{d-1}``-moment downstream faces (one per axis).  ONE moment path for
+        every d (#240 D5b-S3): at d=1 the system is the LD ``2×2`` whose Schur
+        complement is :func:`~orpheus.sn.spatial._ubld.d1_closed_form` (the L16
+        production scan's fast path), proven equal by
+        ``tests/sn/spatial/test_ld_ubld_primitive.py``.
 
         STORAGE-FREE by contract: the WALK gathers ``psi_in`` (per-axis
-        ``2^{d-1}``-moment faces at d≥2; scalar at d=1) and scatters the
-        outgoing faces.  The SOLVE arm of the ``_CellSolve`` level operation
-        consumed by :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full`
-        / :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`.
+        ``2^{d-1}``-moment faces; a scalar at d=1) and scatters the outgoing
+        faces.  The SOLVE arm of the ``_CellSolve`` level operation consumed by
+        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full` /
+        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`.
         """
-        if len(s_axes) == 1:
-            eff_denom, rhs, w, in0 = self._kernel_terms(
-                psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
-            )
-            psi_avg = rhs / eff_denom
-            psi_out = self.outgoing_face_from_average(psi_avg, in0, w)
-            return psi_avg, (psi_out,)
         d = len(s_axes)
         assembled, R_source = self._ubld_system(s_axes, sigt_cells, Q_cells)
         R = R_source + self._ubld_inflow(s_axes, psi_in)
@@ -637,35 +620,42 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         sigt_cells: np.ndarray,
         Q_cells: np.ndarray,
     ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
-        r"""Pure batched LD operator residual — the apply twin (d-generic).
+        r"""Pure batched LD operator residual — the d-generic apply twin.
 
-        **d=1**: evaluates :math:`r = S\,\bar\psi - \mathrm{rhs}` at the PROBE
-        scalar cell-average and reconstructs the scalar outgoing face from it.
-
-        **d≥2**: evaluates the bilinear UBLD residual :math:`r = A\,\vec\psi -
-        R` at the PROBE ``2^d``-moment vector ``psi_bar`` ``(N_oct, ng, n_diag,
-        2^d)`` and reconstructs the d ``2^{d-1}``-moment downstream faces from
-        the probe (so the matvec edge fluxes propagate along the wavefront
-        exactly as the sweep's — the L21 matvec ≡ sweep).
+        A matvec is a forward APPLY: it evaluates the bilinear UBLD residual
+        :math:`r = A\,\vec\psi - R` at the PROBE ``2^d``-moment vector
+        ``psi_bar`` ``(N_oct, ng, n_diag, 2^d)`` and reconstructs the d
+        ``2^{d-1}``-moment downstream faces from the probe (so the matvec edge
+        fluxes propagate along the wavefront exactly as the sweep's — L21 matvec
+        ≡ sweep).  ONE moment path for every d (#240 D5b-S3): the residual is
+        intrinsically moment-valued (average ROW + slope ROWS), so the former
+        d=1 Schur-reduced SCALAR matvec arm — a flat-source (Q̂=0) artifact — is
+        retired.
 
         At the ``psi_bar`` :meth:`cell_kernel_batch` solves for (same inputs)
         the residual vanishes to FP noise (the batched round-trip, D5b.1).  The
-        APPLY arm of the ``_CellResidual`` level operation (the matvec walk);
-        for the operator action ``Q_cells`` is zero (source-free).
+        APPLY arm of the ``_CellResidual`` level operation (the matvec walk).
+
+        Mass-diagonal normalization (#240 D5b-S3 — the matvec/sweep moment-source
+        consistency).  The UBLD RHS folds the cell source mass-weighted
+        (``R_source = M·S⃗``, the test-function projection); but the operator-algebra
+        ``A = (L+C) − S`` subtracts the scattering moment source ``S.apply(ψ)`` RAW
+        (per-ordinate, un-projected) at the ``OperatorSum`` level.  Dividing the
+        residual by the (diagonal) mass ``M`` puts ``(L+C)ψ`` in RAW per-moment
+        units so the row-for-row ``− S.apply(ψ)`` is consistent — the slope rows
+        would otherwise disagree by the Legendre mass factor ``M_ii = θ^{|i|}``
+        (``|i|`` = number of active slope axes).  The division preserves the
+        round-trip (``A·ψ⃗ − R = 0 ⇒ (A·ψ⃗ − R)/M_ii = 0``) and matches the d=1
+        DD ÷V convention (where ``M_00 = 1`` so the average row is already raw).
         """
-        if len(s_axes) == 1:
-            eff_denom, rhs, w, in0 = self._kernel_terms(
-                psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
-            )
-            residual = eff_denom * psi_bar - rhs
-            psi_out = self.outgoing_face_from_average(psi_bar, in0, w)
-            return residual, (psi_out,)
         d = len(s_axes)
         assembled, R_source = self._ubld_system(s_axes, sigt_cells, Q_cells)
         R = R_source + self._ubld_inflow(s_axes, psi_in)
-        residual = (
-            np.einsum("...ij,...j->...i", assembled["A"], psi_bar) - R
-        )
+        residual = np.einsum("...ij,...j->...i", assembled["A"], psi_bar) - R
+        # M is diagonal in the Legendre basis (M = ⊗ diag(1, θ)); divide each
+        # moment row by its mass so the residual is in raw per-moment units.
+        mass_diag = np.diagonal(assembled["M"], axis1=-2, axis2=-1)
+        residual = residual / mass_diag
         return residual, self._ubld_outgoing_faces(psi_bar, d)
 
     # ── Scan-family coefficients (group 3 — the DAG-free schedules) ──────────
@@ -737,3 +727,38 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         g = m / V_full                                    # ÷V streaming (N, 1, nx)
         cf = d1_closed_form(g, sig_t, self.theta)
         return cf.scan_xV(V_full)
+
+    def moment_scan_closure(
+        self,
+        *,
+        abs_mu: np.ndarray,    # (ng, nx) or (nx,)   |μ_n|·A_down/V is rebuilt below
+        A_down: np.ndarray,
+        V: np.ndarray,
+        sig_t: np.ndarray,
+    ) -> D1ClosedForm:
+        r"""The per-cell :class:`~orpheus.sn.spatial._ubld.D1ClosedForm` for the
+        1-D moment SCAN (#240 D5b-S3 OWED-2).
+
+        The slope-source-aware companion of :meth:`affine_scan_coefficients`: the
+        flat-source scan reads only ``(a, inverse_denom, w)`` (source-independent,
+        cached), but the FULL LD with the threaded scattering-slope source
+        ``Σ_s·φ̂`` needs the slope fold too — the face-chain affine-source
+        contribution (:meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.scan_slope_face_source`)
+        and the per-cell ``(ψ̄, ψ̂)`` reconstruction
+        (:meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.scan_reconstruct`).  Both
+        ride the SAME ``D1ClosedForm`` the flat scan's ``(a, inverse_denom, w)``
+        come from (Pattern 2 — ONE LD algebra site; the slope fold is shared with
+        the per-cell Schur :meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.schur_xV`
+        via ``_slope_fold``).
+
+        Inputs are broadcastable per-ordinate-per-cell-per-group arrays
+        (``abs_mu``/``A_down``/``V`` carry NO group axis; ``sig_t`` is ``(ng, …)``);
+        the ÷V streaming ``g = |μ|·A_down/V`` is rebuilt here from the SAME
+        geometry the cached coefficients use, so the scan's flat ``b`` and its
+        slope correction agree to FP.  Slab/Cartesian only (the curvilinear LD
+        moment scan is unpublished — guarded at the cache build by
+        :meth:`affine_scan_coefficients`; this method is reached only after that
+        guard has passed).
+        """
+        g = abs_mu * A_down / V
+        return d1_closed_form(g, sig_t, self.theta)

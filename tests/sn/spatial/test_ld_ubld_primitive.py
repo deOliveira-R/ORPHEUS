@@ -46,6 +46,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D, slab_streaming
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial import LinearDiscontinuous, UpstreamState
 from orpheus.sn.spatial._ubld import (
+    AVERAGE_MOMENT,
     assemble_inflow_axis,
     assemble_ubld,
     d1_closed_form,
@@ -401,7 +402,11 @@ class TestProductionViewsAnchoredToPrimitive:
 
     @pytest.mark.foundation
     def test_production_kernel_equals_dense(self) -> None:
-        """LinearDiscontinuous.cell_kernel_batch (÷V) == the dense primitive d=1."""
+        """LinearDiscontinuous.cell_kernel_batch (÷V) == the dense primitive d=1.
+
+        #240 D5b-S3: the unified moment matvec returns the FULL 2^d moment
+        vector at d=1 too — the scalar average is slot AVERAGE_MOMENT, the
+        outgoing face the 2^{d-1}=1 axis."""
         _, mu_v, h_v = self._slab_cell()
         sig = np.array([1.2, 0.7])
         q_bar = np.array([2.0, 0.5])
@@ -414,8 +419,13 @@ class TestProductionViewsAnchoredToPrimitive:
             s_axes=(np.array([[[mu_v / h_v]]]),),
             sigt_cells=sig[:, None], Q_cells=q_bar[None, :, None],
         )
-        np.testing.assert_allclose(psi_avg.ravel(), pbar_d, rtol=1e-12, atol=1e-13)
-        np.testing.assert_allclose(psi_out.ravel(), pout_d, rtol=1e-12, atol=1e-13)
+        np.testing.assert_allclose(
+            psi_avg[..., AVERAGE_MOMENT].ravel(), pbar_d, rtol=1e-12, atol=1e-13,
+        )
+        # The d=1 outgoing face carries NO moment axis (scalar cochain).
+        np.testing.assert_allclose(
+            psi_out.ravel(), pout_d, rtol=1e-12, atol=1e-13,
+        )
 
     @pytest.mark.foundation
     def test_production_scan_equals_dense(self) -> None:

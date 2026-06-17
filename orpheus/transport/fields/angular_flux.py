@@ -126,7 +126,13 @@ class AngularFlux(FluxRole, AngularField):
         """
         from orpheus.transport.fields.scalar_flux import ScalarFlux
         weights = self.mesh.quad.weights
-        # values shape (N, ng, nx, ny); contract over leading N axis
-        # with weights (N,) → (ng, nx, ny).
+        # values shape (N, ng, nx, ny[, 2^d]); contract over leading N axis
+        # with weights (N,) → (ng, nx, ny[, 2^d]).  The ``ng...`` einsum is
+        # spatial-moment-axis-agnostic, so a φ̂-carrying angular flux reduces to
+        # a φ̂-carrying scalar flux (#240 D5b-S3); the moment width is propagated
+        # as a TYPED factor read off this field's space, not an opaque axis.
         scalar_values = np.einsum("n,ng...->g...", weights, self.values)
-        return ScalarFlux.from_mesh(scalar_values, self.mesh)
+        return ScalarFlux.from_mesh(
+            scalar_values, self.mesh,
+            spatial_moments=self.spatial_moments_per_axis,
+        )

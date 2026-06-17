@@ -129,7 +129,11 @@ import numpy as np
 # bodies share one home, so the historical load-time import cycle is gone.
 from orpheus.geometry import CoordSystem
 
-from .spatial._ubld import AVERAGE_MOMENT, face_moment_tail
+from .spatial._ubld import (
+    AVERAGE_MOMENT,
+    face_moment_tail,
+    octant_moment_frame_signs,
+)
 from .spatial.scheme import UpstreamState
 from .spatial.psi_half_angle_seed import CarlsonSweepContext
 from .spatial.scan import _scanmarch_row, _x_scan_faces, ordinate_scan
@@ -140,6 +144,7 @@ from .sweep_graph import (
     SweepDependencyGraph,
     _CellResidual,
     _CellSolve,
+    _reframe,
 )
 from .sweep_schedule import SweepSchedule
 
@@ -148,6 +153,27 @@ from .sweep_schedule import SweepSchedule
 #: into ``residual_kernel_batch`` — the kernel only READS ``Q_cells`` (it never
 #: mutates it), so one shared instance is safe and avoids a per-cell allocation.
 _MATVEC_ZERO_SOURCE = np.zeros((1, 1, 1))
+
+
+def frame_signs_for(
+    scheme: "DiscretizationSchemeBase", signs: tuple[int, ...],
+) -> "np.ndarray | None":
+    r"""Sweep⇄global moment-frame sign vector bound to a scheme — or ``None``.
+
+    The ONE binding of an octant's ``signs`` and the scheme's
+    ``spatial_basis_per_axis`` to the single-source involution
+    :func:`~orpheus.sn.spatial._ubld.octant_moment_frame_signs` (#240 D5b-S3 —
+    the diffusion-limit root cause; the primitive owns the ``None``-for-DD/Step
+    no-op convention).  Hoisted to module level so BOTH the
+    :class:`_LossRepresentation` cell-op frames (via
+    :meth:`_LossRepresentation._moment_frame_signs`) AND the
+    :class:`_OneDimScanWalk` 1-D scan/matvec sites call ONE binding —
+    ``_OneDimScanWalk`` does not inherit ``_LossRepresentation`` and so cannot
+    reach the method (Pattern 2 — the last binding-dup the per-axis read was
+    repeated across).
+    """
+    return octant_moment_frame_signs(signs, scheme.spatial_basis_per_axis)
+
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -159,6 +185,7 @@ if TYPE_CHECKING:
 
     from .geometry import SNMesh
     from .operator import StreamingOperator
+    from .spatial.scheme import DiscretizationSchemeBase
     from .sweep_schedule import OctantSweep, OctantSweepGroup
 
 
@@ -291,6 +318,40 @@ class _LossRepresentation:
         single derivation site of the multi-moment face-cochain width."""
         per_axis = self.mesh.scheme.spatial_basis_per_axis
         return per_axis ** (self.mesh.ndim - 1)
+
+    def _moment_frame_signs(
+        self, signs_eff: tuple[int, ...],
+    ) -> "np.ndarray | None":
+        r"""Octant sweep⇄global moment-frame sign vector — or ``None`` for DD/Step.
+
+        The cell kernel works in the per-ordinate SWEEP frame; the iterate
+        ``φ̂`` + its scattering source ``Σ_s·φ̂`` live in the GLOBAL frame, so the
+        ``_CellSolve`` / ``_CellResidual`` level operations re-sign the slope
+        moments at the octant boundary (#240 D5b-S3 — the diffusion-limit root
+        cause).  Thin delegate to the module-level :func:`frame_signs_for`
+        binding (this octant's ``signs_eff`` + the scheme's ``per_axis``), the
+        ONE site that binds the involution to a scheme — shared with the
+        :class:`_OneDimScanWalk` 1-D scan/matvec sites (which cannot reach this
+        method).
+        """
+        return frame_signs_for(self.mesh.scheme, signs_eff)
+
+    @property
+    def _spatial_moment_tail(self) -> tuple[int, ...]:
+        r"""Trailing per-CELL spatial-moment axis shape :math:`(\text{per\_axis})^d`.
+
+        The bulk-field analogue of :attr:`_n_face_moments` (the FACE tail is
+        ``per_axis^{d-1}``; the CELL tail is ``per_axis^d``).  A multi-moment
+        closure (LD, ``per_axis > 1``) carries this trailing axis on the
+        iterate / source / probe / residual / angular-octant buffers so the
+        spatial-moment iterate ``φ̂`` travels between sweeps (#240 D5b-S3 — the
+        unified moment matvec).  DD/Step (``per_axis == 1``) → ``()`` (no axis;
+        every buffer stays byte-identical — the negative control).  Single
+        source via :func:`~orpheus.sn.spatial._ubld.face_moment_tail` (the same
+        "append iff > 1" policy ``spatial_moment_tail`` delegates to), fed the
+        per-CELL count ``per_axis^d``."""
+        per_axis = self.mesh.scheme.spatial_basis_per_axis
+        return face_moment_tail(per_axis ** self.mesh.ndim)
 
     def _inflow_to_moments(
         self, inflow: tuple["np.ndarray", ...],
@@ -427,6 +488,31 @@ class _SolveOperands:
     Q: "np.ndarray"                      # (N, ng, *spatial) — per-ordinate source
     sig_t: "np.ndarray"                  # (ng, *spatial)
     str_axes: tuple["np.ndarray", ...]   # d arrays, each (N, n_a)
+
+
+def _moment_broadcast_sigma(
+    sig: "np.ndarray", moment_valued: "np.ndarray",
+) -> "np.ndarray":
+    r"""``σ_t`` reshaped to broadcast over a trailing spatial-moment axis.
+
+    The pure-z degenerate ordinates have no in-plane streaming, so the cell is
+    collision-only and the loss couples to ``σ_t`` alone — the SOLVE balance is
+    ``ψ̄ = Q / σ_t`` and its matvec twin is ``(L+C)ψ̄ = σ_t · ψ̄``.  At a
+    multi-moment closure (LD, #240 D5b-S3) ``Q`` / ``ψ̄`` carry a trailing
+    ``2^d`` spatial-moment axis that ``σ_t`` ``(ng, *spatial)`` lacks; each
+    moment is scaled by the SAME scalar ``1/σ_t`` (resp. ``σ_t``), so ``σ_t``
+    gains a length-1 trailing axis to broadcast.  DD/Step (no moment axis) →
+    ``sig`` unchanged, byte-identical.
+
+    The SINGLE source of the pure-z moment-broadcast convention: both the
+    sweep arm (:math:`Q/σ_t`) and the matvec arm (:math:`σ_t·ψ̄`) call this, so
+    the L21 twin (sweep ≡ matvec are two applications of the same collision-only
+    operator) CANNOT diverge on the moment-axis reshape.  The discriminator is
+    the moment-valued array's rank vs ``σ_t``'s — ``probe`` / ``Q`` is
+    ``(N…, ng, *spatial[, 2^d])`` so it carries one MORE leading (ordinate) axis
+    than ``σ_t`` already, hence the ``+ 1``.
+    """
+    return sig[..., None] if moment_valued.ndim > sig.ndim + 1 else sig
 
 
 @dataclass(frozen=True)
@@ -605,7 +691,11 @@ class _OctantWalk:
         faces, no boundary interaction.
         """
         def pure_z(oct_idx: "np.ndarray") -> None:
-            emit.pure_z(oct_idx, operands.Q[oct_idx] / operands.sig_t)
+            # ψ = Q/Σ_t for the in-plane-degenerate ordinates.  The trailing 2^d
+            # spatial-moment axis (#240 D5b-S3) is broadcast on Σ_t by the SHARED
+            # helper (the SAME convention the matvec twin's σ_t·ψ̄ rides — L21).
+            q = operands.Q[oct_idx]
+            emit.pure_z(oct_idx, q / _moment_broadcast_sigma(operands.sig_t, q))
 
         def run_interior(
             oct_idx: "np.ndarray",
@@ -665,15 +755,23 @@ class _OctantWalk:
         ng = sigma.shape[0]
         spatial = sigma.shape[1:]
         probe = psi.bulk.values
+        # The matvec is intrinsically moment-valued (#240 D5b-S3): a multi-moment
+        # closure (LD) carries a trailing 2^d spatial-moment axis on the probe
+        # / accumulators so the apply returns the full moment residual.  DD/Step
+        # (per_axis == 1) → ``()`` tail, every buffer byte-identical.  The tail
+        # is read OFF the probe (its space already carries the SpatialMomentSpace
+        # factor — the iterate is the single source of truth for the width).
+        per_axis = sn_mesh.scheme.spatial_basis_per_axis
+        moment_tail = face_moment_tail(per_axis ** ndim)
         operands = _ApplyOperands(
             probe=probe,
             sig_t=sigma,
             str_axes=tuple(sn_mesh.streaming(a) for a in range(ndim)),
-            Q_zero=np.zeros((1, ng, *spatial)),
+            Q_zero=np.zeros((1, ng, *spatial, *moment_tail)),
         )
 
         # (L+C)·ψ̄ accumulator; ``apply`` subtracts Σ_t·ψ̄ → bare-streaming Lψ̄.
-        LpC = np.zeros((sn_mesh.quad.N, ng, *spatial))
+        LpC = np.zeros((sn_mesh.quad.N, ng, *spatial, *moment_tail))
         trace = sn_mesh.trace
         boundary = psi.boundary
         streamed = {
@@ -682,8 +780,13 @@ class _OctantWalk:
         }
 
         def pure_z(oct_idx: "np.ndarray") -> None:
-            # (L+C)·ψ̄ = σ·ψ̄ for the in-plane-degenerate ordinates.
-            LpC[oct_idx] = sigma * probe[oct_idx]
+            # (L+C)·ψ̄ = σ·ψ̄ for the in-plane-degenerate ordinates.  The trailing
+            # 2^d spatial-moment axis (#240 D5b-S3) is broadcast on σ by the SAME
+            # shared helper the sweep twin's Q/σ_t rides (L21 — the qa Concern A
+            # blocker: a quadrature WITH pure-z ordinates + a moment-valued probe
+            # broadcast-crashed here without the guard the sweep already had).
+            probe_oct = probe[oct_idx]
+            LpC[oct_idx] = _moment_broadcast_sigma(sigma, probe_oct) * probe_oct
 
         def run_interior(
             oct_idx: "np.ndarray",
@@ -720,7 +823,7 @@ class _OctantWalk:
                 out_boundary.face_view(face)[in_idx] = given[in_idx]
 
         return TimedFullField(
-            bulk=AngularSourceSink.from_mesh(LpC, sn_mesh),
+            bulk=AngularSourceSink.from_mesh(LpC, sn_mesh, spatial_moments=per_axis),
             boundary=out_boundary,
             _history=(),
             history_depth=psi.history_depth,
@@ -932,9 +1035,11 @@ class MovingFrontierWindow(_DAGWavefront):
         # Angular mode allocates a per-octant angular buffer (scattered into
         # the global field below); moment mode accumulates directly into the
         # shared moment tensor per anti-hyperplane, so NO per-octant angular
-        # field is materialized (the Phase 5c peak-memory win).
+        # field is materialized (the Phase 5c peak-memory win).  At a
+        # multi-moment closure (LD) the angular buffer carries the trailing 2^d
+        # spatial-moment axis (the φ̂ iterate, #240 D5b-S3); DD/Step → ``()``.
         angular_flux_oct = (
-            np.zeros((oct_idx.size, ng, *spatial))
+            np.zeros((oct_idx.size, ng, *spatial, *self._spatial_moment_tail))
             if emit.moment_buf is None else None
         )
         graph.walk_windowed(
@@ -945,6 +1050,7 @@ class MovingFrontierWindow(_DAGWavefront):
                 scalar_flux_buf=emit.scalar_flux,
                 moment_buf=emit.moment_buf,
                 Y_octant=None if emit.Y is None else emit.Y[oct_idx],
+                moment_frame_signs=self._moment_frame_signs(signs_eff),
             ),
             inflow=inflow,
             Q_octant=operands.Q[oct_idx],
@@ -1004,20 +1110,35 @@ class MovingFrontierWindow(_DAGWavefront):
         graph = self.sweep_graphs[OctantLabel(signs_eff)]
         ng = operands.sig_t.shape[0]
         spatial = operands.sig_t.shape[1:]
-        LpC_oct = np.zeros((oct_idx.size, ng, *spatial))
+        # The unified moment matvec (#240 D5b-S3): a multi-moment closure carries
+        # the trailing 2^d spatial-moment axis on the residual + the 2^{d-1}-moment
+        # face cochain, exactly as the SOLVE direction (_sweep_interior).  The
+        # probe already carries the moment axis (operands.probe).  DD/Step
+        # (per_axis == 1) → ``()`` tail + n_face_moments == 1, byte-identical.
+        n_face_moments = self._n_face_moments
+        LpC_oct = np.zeros((oct_idx.size, ng, *spatial, *self._spatial_moment_tail))
+        inflow = self._inflow_to_moments(inflow)
         capture = tuple(np.empty_like(face) for face in inflow)
         graph.walk_windowed(
             level_op=_CellResidual(
                 scheme=self.mesh.scheme,
                 psi_avg_probe_octant=operands.probe[oct_idx],
                 residual_octant=LpC_oct,
+                moment_frame_signs=self._moment_frame_signs(signs_eff),
             ),
             inflow=inflow,
             Q_octant=operands.Q_zero,
             sig_t=operands.sig_t,
             str_axes_octant=tuple(s[oct_idx] for s in operands.str_axes),
             capture=capture,
+            n_face_moments=n_face_moments,
         )
+        # Domain-edge capture carries the trailing moment axis; the boundary
+        # trace consumes the average moment (slot 0).  S3 domain edges are
+        # vacuum, so this only feeds the discarded capture (the non-vacuum
+        # moment trace is S4).
+        if n_face_moments > 1:
+            capture = tuple(c[..., AVERAGE_MOMENT] for c in capture)
         return LpC_oct, capture
 
 
@@ -1173,13 +1294,17 @@ class FullFieldWavefront(_DAGWavefront):
         psi_faces_oct = self._octant_face_cochain(
             spatial, signs_eff, inflow, n_face_moments,
         )
-        angular_oct = np.zeros((oct_idx.size, ng, *spatial))
+        # The angular octant buffer carries the trailing 2^d spatial-moment axis
+        # at a multi-moment closure (the φ̂ iterate, #240 D5b-S3); DD/Step →
+        # ``()`` tail, byte-identical.
+        angular_oct = np.zeros((oct_idx.size, ng, *spatial, *self._spatial_moment_tail))
         graph.walk_full(
             level_op=_CellSolve(
                 scheme=self.mesh.scheme,
                 weights_octant=emit.weights[oct_idx],
                 angular_flux_octant=angular_oct,
                 scalar_flux_buf=emit.scalar_flux,
+                moment_frame_signs=self._moment_frame_signs(signs_eff),
             ),
             psi_faces_octant=psi_faces_oct,
             Q_octant=operands.Q[oct_idx],
@@ -1236,20 +1361,31 @@ class FullFieldWavefront(_DAGWavefront):
         ng = sig_t.shape[0]
         spatial = sig_t.shape[1:]
         graph = self.sweep_graphs[OctantLabel(signs_eff)]
-        psi_faces_oct = self._octant_face_cochain(spatial, signs_eff, inflow)
-        LpC_oct = np.zeros((oct_idx.size, ng, *spatial))
+        # The unified moment matvec oracle (#240 D5b-S3): the full cochain carries
+        # the 2^{d-1}-moment faces + the residual the 2^d spatial-moment axis.
+        n_face_moments = self._n_face_moments
+        psi_faces_oct = self._octant_face_cochain(
+            spatial, signs_eff, inflow, n_face_moments,
+        )
+        LpC_oct = np.zeros((oct_idx.size, ng, *spatial, *self._spatial_moment_tail))
         graph.walk_full(
             level_op=_CellResidual(
                 scheme=self.mesh.scheme,
                 psi_avg_probe_octant=operands.probe[oct_idx],
                 residual_octant=LpC_oct,
+                moment_frame_signs=self._moment_frame_signs(signs_eff),
             ),
             psi_faces_octant=psi_faces_oct,
             Q_octant=operands.Q_zero,
             sig_t=sig_t,
             str_axes_octant=tuple(s[oct_idx] for s in operands.str_axes),
         )
-        return LpC_oct, self._edge_outflow(psi_faces_oct, spatial, signs_eff)
+        capture = self._edge_outflow(psi_faces_oct, spatial, signs_eff)
+        # Boundary trace consumes the average moment (slot 0) at a multi-moment
+        # closure; S3 domain edges are vacuum (the non-vacuum moment trace is S4).
+        if n_face_moments > 1:
+            capture = tuple(c[..., AVERAGE_MOMENT] for c in capture)
+        return LpC_oct, capture
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1944,8 +2080,14 @@ class _OneDimScanWalk:
         m_cell, _m_ang_cell, m_boundary = self._apply_walk(
             sigma, psi, emit_angular=False,
         )
+        # The matvec output carries the trailing 2^d spatial-moment axis at a
+        # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
+        # selects the SpatialMomentSpace factor.  DD/Step → no factor, byte-id.
         return TimedFullField(
-            bulk=AngularSourceSink.from_mesh(m_cell, self.mesh),
+            bulk=AngularSourceSink.from_mesh(
+                m_cell, self.mesh,
+                spatial_moments=self.mesh.scheme.spatial_basis_per_axis,
+            ),
             boundary=m_boundary,
             _history=(),
             history_depth=psi.history_depth,
@@ -1984,14 +2126,22 @@ class _OneDimScanWalk:
         if m_ang_cell is None:  # invariant: emit_angular=True allocates the buffer
             raise AssertionError("_apply_walk(emit_angular=True) must emit m_ang")
         m_spat_cell = m_cell - m_ang_cell
+        # The decomposed matvec carries the trailing 2^d spatial-moment axis at a
+        # multi-moment closure (#240 D5b-S3; curvilinear LD is unpublished, so
+        # this is DD-only in practice — per_axis == 1 → byte-identical).
+        per_axis = self.mesh.scheme.spatial_basis_per_axis
         m_spat = TimedFullField(
-            bulk=AngularSourceSink.from_mesh(m_spat_cell, self.mesh),
+            bulk=AngularSourceSink.from_mesh(
+                m_spat_cell, self.mesh, spatial_moments=per_axis,
+            ),
             boundary=m_boundary,
             _history=(),
             history_depth=psi.history_depth,
         )
         m_ang = TimedFullField(
-            bulk=AngularSourceSink.from_mesh(m_ang_cell, self.mesh),
+            bulk=AngularSourceSink.from_mesh(
+                m_ang_cell, self.mesh, spatial_moments=per_axis,
+            ),
             boundary=BoundarySourceSink.zeros_on(self.mesh),
             _history=(),
             history_depth=psi.history_depth,
@@ -2090,8 +2240,18 @@ class _OneDimScanWalk:
         A = sn_mesh.areas
 
         psi_g_first = psi_view.swapaxes(0, 1)
-        out_g_first = np.zeros((ng, N, nx))
-        out_ang_g_first = np.zeros((ng, N, nx)) if emit_angular else None
+        # The unified moment matvec (#240 D5b-S3): a multi-moment closure (LD)
+        # carries a trailing 2^d spatial-moment axis on the iterate.  In 1-D
+        # d=1, 2^d = per_axis (2 for LD) and the FACE cochain is 2^{d-1} = 1
+        # (scalar), so only the cell probe / residual carries the axis.  DD/Step
+        # (per_axis == 1) → ``()`` tail, every buffer byte-identical.  The width
+        # is read OFF the iterate's space (the single source of truth).
+        per_axis = sn_mesh.scheme.spatial_basis_per_axis
+        moment_tail = face_moment_tail(per_axis ** sn_mesh.ndim)
+        out_g_first = np.zeros((ng, N, nx, *moment_tail))
+        out_ang_g_first = (
+            np.zeros((ng, N, nx, *moment_tail)) if emit_angular else None
+        )
 
         V = sn_mesh.volumes
         sigma_gx = sigma
@@ -2117,10 +2277,20 @@ class _OneDimScanWalk:
             bc_outer_inflow_estimate=outer_inflow_estimate,
         )
 
+        # The d=1 matvec probe (the iterate) is GLOBAL-frame; the residual
+        # kernel works in the SWEEP frame, so for a BACKWARD sweep
+        # (``direction_sign < 0``) the LD slope moment must be re-signed on the
+        # probe IN and the residual OUT — the d=1 counterpart of the d≥2
+        # ``_CellResidual`` frame map (#240 D5b-S3 root cause).  ``direction_sign``
+        # IS the d=1 ``signs_eff``, so this rides the SAME single-source
+        # binding (:func:`frame_signs_for`) as the d≥2 sites (``None`` for
+        # DD/Step → byte-identical).
+
         def _sweep_direction(
             direction_sign: int,
             psi_face_in_init: np.ndarray,
         ) -> np.ndarray:
+            frame_signs = frame_signs_for(sn_mesh.scheme, (direction_sign,))
             outflow_at_end = np.zeros((ng, N))
             for p, level_idx in enumerate(level_indices):
                 level_idx_arr = np.asarray(level_idx)
@@ -2149,29 +2319,43 @@ class _OneDimScanWalk:
                     if curvature == "cartesian":
                         # Coefficient model (#158/#240): the Cartesian matvec rides
                         # the scheme's group-2 ÷V kernel ``residual_kernel_batch``
-                        # UNIFORMLY — DD reproduces its diamond march, LD its Schur
-                        # residual, with NO scheme branch (the kernel returns BOTH
-                        # the density residual and the outgoing face, the apply twin
-                        # of the scan solve).  ``s_axes`` is the RAW down-face
-                        # streaming ``g = |μ|·A_down/V = |μ|/Δ`` (slab A_down=1,
-                        # V=Δ) — the scheme applies its own closure factor (DD the
-                        # diamond 2, LD none; #240).  Source-free apply
-                        # (``Q_cells = 0``).  Cartesian has no Morel–Montry thread,
-                        # so ``out_ang`` stays zero (the curvilinear arm carries it).
+                        # UNIFORMLY — DD reproduces its diamond march, LD its
+                        # bilinear UBLD residual, with NO scheme branch (the kernel
+                        # returns BOTH the moment residual and the outgoing face,
+                        # the apply twin of the scan solve).  ``s_axes`` is the RAW
+                        # down-face streaming ``g = |μ|·A_down/V = |μ|/Δ`` (slab
+                        # A_down=1, V=Δ).  Source-free apply (``Q_cells = 0``).
+                        # Cartesian has no Morel–Montry thread, so ``out_ang``
+                        # stays zero (the curvilinear arm carries it).
                         # NOTE(#240): ``abs_mu / V[i]`` re-derives the raw ``g`` that
                         # ``SNMesh.streaming(0)`` already produces — a Pattern-2 dup;
                         # single-sourcing it (``streaming(0)[global_dir, i]``) is a
                         # deferred follow-up pending a widths-vs-volumes bit-id check.
+                        #
+                        # The unified moment matvec (#240 D5b-S3): the probe carries
+                        # the trailing 2^d moment axis (``moment_tail``); the d=1
+                        # FACE is scalar (2^{d-1} = 1).  ``swapaxes(0, 1)[:, :, None]``
+                        # maps ``(ng, K[, 2^d]) → (K, ng, 1[, 2^d])`` (the ``[None]``
+                        # inserts the n_diag axis BEFORE the moment axis) — agnostic
+                        # over the trailing pack (DD scalar → byte-identical).
+                        probe_cell = _reframe(
+                            np.swapaxes(psi_cell, 0, 1)[:, :, None], frame_signs,
+                        )
                         resid, (psi_out_cell,) = (
                             sn_mesh.scheme.residual_kernel_batch(
-                                psi_bar=psi_cell.T[:, :, None],          # (K, ng, 1)
+                                psi_bar=probe_cell,
                                 psi_in=(psi_face_in.T[:, :, None],),
                                 s_axes=((abs_mu / V[i])[:, None, None],),
                                 sigt_cells=sigma_gx[:, i][None, :, None],
                                 Q_cells=_MATVEC_ZERO_SOURCE,   # source-free apply
                             )
                         )
-                        out_g_first[:, global_dir, i] = resid[:, :, 0].T  # (ng, K)
+                        resid = _reframe(resid, frame_signs)
+                        # resid (K, ng, 1[, 2^d]) → (ng, K[, 2^d]); the outgoing
+                        # face is scalar (K, ng, 1) → (ng, K).
+                        out_g_first[:, global_dir, i] = np.swapaxes(
+                            resid[:, :, 0], 0, 1,
+                        )
                         psi_face_in = psi_out_cell[:, :, 0].T             # (ng, K)
                         continue
                     # Curvilinear matvec — the ``cell_balance`` density path
@@ -2615,17 +2799,46 @@ class _OneDimScanWalk:
         is_slab = coord is CoordSystem.CARTESIAN
         is_sphere = coord is CoordSystem.SPHERICAL
 
+        # ── Spatial-moment width (the unified moment matvec, #240 D5b-S3 OWED-2)
+        # A multi-moment closure (LD, ``per_axis > 1``) carries a trailing 2^d
+        # spatial-moment axis on the iterate / source / output so the within-cell
+        # slope iterate ``φ̂`` travels between sweeps (the SCAN analogue of the
+        # DAG's ``_CellSolve`` φ̂ accumulation).  DD/Step (``per_axis == 1``) →
+        # ``()`` tail, every buffer + every recurrence byte-identical (the
+        # negative control).  Single source via ``face_moment_tail`` (the same
+        # "append iff > 1" policy the rest of the carve keys on).
+        per_axis = scheme.spatial_basis_per_axis
+        moment_tail = face_moment_tail(per_axis ** self.mesh.ndim)
+        is_moment = moment_tail != ()
+
+        # A multi-moment closure lifts a FLAT scalar source onto the average
+        # moment (slope 0), exactly as the DAG's ``_ubld_system`` does (#240
+        # D5b-S3): the scattering-slope source ``Σ_s·φ̂`` arrives as a genuine
+        # ``(N, ng, nx, 2^d)`` moment source, but an external / flat source (the
+        # two-paths oracle, a manufactured Q̄) is rank-3 and lifts here so the
+        # scan and the DAG consume the SAME source convention.  Discriminated by
+        # RANK (a genuine moment source carries exactly ONE extra axis), the same
+        # contract the DAG kernel uses.
+        if is_moment and Q_per_ord.ndim == 3:
+            lifted = np.zeros((N, ng, nx, *moment_tail))
+            lifted[..., AVERAGE_MOMENT] = Q_per_ord
+            Q_per_ord = lifted
+
         # ── Common pre-scale ──────────────────────────────────────────────
         # R-1 Step 4 A1 — single per-ordinate source.  The producer applied
         # ``1/W`` already; the sweep multiplies by cell volume V only.
         # No iso/aniso distinction internally — every WDD recurrence
-        # consumes the same ``QV_per_ord``.
-        QV_per_ord = Q_per_ord * V[None, None, :]                # (N, ng, nx)
+        # consumes the same ``QV_per_ord``.  When the source carries the
+        # spatial-moment axis (LD's ``[Q̄, Q̂]``), V broadcasts over it (each
+        # moment scaled by the cell volume — the ×V source-moment convention
+        # ``s_bar = Q̄·V`` / ``s_hat = Q̂·V`` the d=1 closed form consumes).
+        V_b = V[None, None, :, None] if is_moment else V[None, None, :]
+        QV_per_ord = Q_per_ord * V_b                             # (N, ng, nx[, 2^d])
 
-        # Internal principled layout — angular flux (N, ng, nx, 1),
-        # scalar flux (ng, nx) working buffer (ny added at return).
-        angular_flux = np.zeros((N, ng, nx))
-        scalar_flux = np.zeros((ng, nx))
+        # Internal principled layout — angular flux (N, ng, nx[, 2^d]),
+        # scalar flux (ng, nx[, 2^d]) working buffer (ny added at return).
+        angular_flux = np.zeros((N, ng, nx, *moment_tail))
+        scalar_flux = np.zeros((ng, nx, *moment_tail))
 
         # ── BC inflow + per-level Carlson seed (curvilinear only) ─────────
         #
@@ -2719,7 +2932,7 @@ class _OneDimScanWalk:
                 # single-source convention: ``QV_per_ord`` already encodes
                 # per-ordinate magnitude × cell volume.  Slice the K
                 # ordinates and reorder along the chain axis.
-                QV_full_chain = QV_per_ord[ords][:, :, chain]      # (K, ng, nx)
+                QV_full_chain = QV_per_ord[ords][:, :, chain]      # (K, ng, nx[, 2^d])
 
                 # Cache fields are (N, ng, nx) natively under PR-INDEX-2.
                 # Indexed slice [ords] yields (K, ng, nx) — no transpose.
@@ -2727,49 +2940,123 @@ class _OneDimScanWalk:
                 a_atten_chain = coll.a_attenuation[ords]           # (K, ng, nx)
                 w_chain = coll.cell_average_weight[ords]           # (K, ng, nx)
 
-                # Affine source emission b = QV·inverse_denom/w (#158 coefficient
-                # model — DD's 2·QV·inv is the w=½ case).  (K, ng, nx);
-                # ordinate_scan wants the cell axis leading → transpose.
-                b_chain = self.mesh.scheme.source_emission(
-                    QV_full_chain, inv_denom_chain, w_chain,
-                )
-                a_scan = np.transpose(a_atten_chain, (2, 0, 1))   # (nx, K, ng)
-                b_scan = np.transpose(b_chain, (2, 0, 1))         # (nx, K, ng)
-                w_scan = np.transpose(w_chain, (2, 0, 1))         # (nx, K, ng)
+                if not is_moment:
+                    # ── Slopeless (DD/Step) flat-source scan — byte-identical ──
+                    # Affine source emission b = QV·inverse_denom/w (#158
+                    # coefficient model — DD's 2·QV·inv is the w=½ case).
+                    # (K, ng, nx); ordinate_scan wants the cell axis leading.
+                    b_chain = self.mesh.scheme.source_emission(
+                        QV_full_chain, inv_denom_chain, w_chain,
+                    )
+                    a_scan = np.transpose(a_atten_chain, (2, 0, 1))   # (nx, K, ng)
+                    b_scan = np.transpose(b_chain, (2, 0, 1))         # (nx, K, ng)
+                    w_scan = np.transpose(w_chain, (2, 0, 1))         # (nx, K, ng)
 
-                # ONE scan call per chain — joint-batched over (K, ng).
-                psi_face_chain_scan = ordinate_scan(
-                    a_scan, b_scan, psi_in_chain,
-                )                                                  # (nx, K, ng)
+                    # ONE scan call per chain — joint-batched over (K, ng).
+                    psi_face_chain_scan = ordinate_scan(
+                        a_scan, b_scan, psi_in_chain,
+                    )                                                  # (nx, K, ng)
 
-                # Spatial closure ψ̄ = (1−w)ψ_in + w·ψ_out (DD's ½-mean is w=½)
-                # — face-in shifts upstream by 1.
-                psi_face_in_chain = np.empty_like(psi_face_chain_scan)
-                psi_face_in_chain[0] = psi_in_chain
-                psi_face_in_chain[1:] = psi_face_chain_scan[:-1]
-                psi_avg_scan = self.mesh.scheme.cell_average(
-                    psi_face_in_chain, psi_face_chain_scan, w_scan,
-                )
-                # (nx, K, ng) → per-ordinate (ng, nx) via reorder.
-                psi_avg_per_ord = np.transpose(psi_avg_scan, (1, 2, 0))  # (K, ng, nx)
+                    # Spatial closure ψ̄ = (1−w)ψ_in + w·ψ_out (DD's ½-mean is
+                    # w=½) — face-in shifts upstream by 1.
+                    psi_face_in_chain = np.empty_like(psi_face_chain_scan)
+                    psi_face_in_chain[0] = psi_in_chain
+                    psi_face_in_chain[1:] = psi_face_chain_scan[:-1]
+                    psi_avg_scan = self.mesh.scheme.cell_average(
+                        psi_face_in_chain, psi_face_chain_scan, w_scan,
+                    )
+                    # (nx, K, ng) → per-ordinate (ng, nx) via reorder.
+                    psi_avg_per_ord = np.transpose(psi_avg_scan, (1, 2, 0))  # (K,ng,nx)
+                    # Scatter back to cell-index order + write angular_flux,
+                    # accumulate scalar_flux.
+                    psi_avg_cell_order = psi_avg_per_ord[:, :, inv]   # (K, ng, nx)
+                    angular_flux[ords, :, :] = psi_avg_cell_order
+                    w_ords = weights[ords]                            # (K,)
+                    scalar_flux += np.einsum(
+                        "k,kgx->gx", w_ords, psi_avg_cell_order,
+                    )
+                    psi_face_out = psi_face_chain_scan[-1]            # (K, ng)
+                else:
+                    # ── Multi-moment (LD) slope-source scan ─────────────────
+                    # The full LD with the threaded scattering-slope source
+                    # ``Σ_s·φ̂`` (#240 D5b-S3 OWED-2): the scan propagates the
+                    # downstream FACE (scalar — the d=1 face is 2^{d-1}=1) along
+                    # the chain with a slope-augmented affine source, then
+                    # reconstructs the (ψ̄, ψ̂) cell moments per cell — both
+                    # single-sourced through the d=1 closed form (Pattern 2).
+                    #
+                    # FRAME (the diffusion-limit root cause, ERR-061): the cell
+                    # kernel works in the per-ordinate SWEEP frame, but the
+                    # iterate ``φ̂`` + the scattering source ``Σ_s·φ̂`` live in the
+                    # GLOBAL frame, so for a BACKWARD sweep the slope moment must
+                    # be re-signed — global→sweep IN on the source moments,
+                    # sweep→global OUT on the (ψ̄, ψ̂) result — exactly the SAME
+                    # single-source binding ``_CellSolve``/``_apply_walk`` ride
+                    # at d≥1.  The scalar OUTGOING FACE stays sweep-frame (it
+                    # propagates along the chain, never crossing into the iterate).
+                    frame_signs = frame_signs_for(scheme, (direction_sign,))  # (2^d,)
+                    # Source moments in chain order; global→sweep IN.
+                    QV_chain_sweep = _reframe(QV_full_chain, frame_signs)
+                    s_bar = QV_chain_sweep[..., AVERAGE_MOMENT]        # (K, ng, nx)
+                    s_hat = QV_chain_sweep[..., 1]                     # (K, ng, nx)
 
-                # Scatter back to cell-index order + write angular_flux,
-                # accumulate scalar_flux.
-                psi_avg_cell_order = psi_avg_per_ord[:, :, inv]   # (K, ng, nx)
-                angular_flux[ords, :, :] = psi_avg_cell_order
+                    # The per-cell d=1 closed form — the ONE LD algebra handle
+                    # (slope fold shared with the matvec/per-cell Schur).
+                    abs_mu_c = geom.abs_mu[ords][:, None, None]        # (K, 1, 1)
+                    A_down_c = geom.A_down[ords][:, None, :]           # (K, 1, nx)
+                    V_c = geom.V[ords][:, None, :]                     # (K, 1, nx)
+                    # Σ_t chain-ordered (ng, nx) → broadcast (1, ng, nx) over K.
+                    sig_t_chain = sig_t_p[:, chain][None, :, :]        # (1, ng, nx)
+                    cf = scheme.moment_scan_closure(
+                        abs_mu=abs_mu_c, A_down=A_down_c, V=V_c,
+                        sig_t=sig_t_chain,
+                    )
+                    # Face-chain affine source b = flat emission + slope term.
+                    b_chain = (
+                        scheme.source_emission(s_bar, inv_denom_chain, w_chain)
+                        + cf.scan_slope_face_source(
+                            V_c, s_hat, inv_denom_chain, w_chain,
+                        )
+                    )                                                  # (K, ng, nx)
+                    a_scan = np.transpose(a_atten_chain, (2, 0, 1))   # (nx, K, ng)
+                    b_scan = np.transpose(b_chain, (2, 0, 1))         # (nx, K, ng)
 
-                # scalar_flux += Σ_n w_n · ψ_n  (broadcast over K).
-                w_ords = weights[ords]                            # (K,)
-                scalar_flux += np.einsum(
-                    "k,kgx->gx", w_ords, psi_avg_cell_order,
-                )
+                    # ONE scan call per chain — the scalar downstream FACE.
+                    psi_face_chain_scan = ordinate_scan(
+                        a_scan, b_scan, psi_in_chain,
+                    )                                                  # (nx, K, ng)
+                    psi_face_in_chain = np.empty_like(psi_face_chain_scan)
+                    psi_face_in_chain[0] = psi_in_chain
+                    psi_face_in_chain[1:] = psi_face_chain_scan[:-1]
+                    # (nx, K, ng) → (K, ng, nx): the per-cell upstream face.
+                    psi_in_cell = np.transpose(psi_face_in_chain, (1, 2, 0))
+
+                    # Reconstruct the (ψ̄, ψ̂) cell moments — the scan twin of the
+                    # per-cell Schur (sweep frame).
+                    psi_bar, psi_hat = cf.scan_reconstruct(
+                        V_c, s_bar, s_hat, psi_in_cell,
+                    )                                                  # (K, ng, nx)
+                    mom_sweep = np.stack([psi_bar, psi_hat], axis=-1)  # (K,ng,nx,2)
+                    # sweep→global OUT on the moment (the involution's inverse =
+                    # itself).
+                    mom_global = _reframe(mom_sweep, frame_signs)
+                    # Scatter back to cell-index order; write moment angular flux,
+                    # accumulate the moment scalar flux φ̂ = Σ_n w_n ψ̂_n.
+                    mom_cell_order = mom_global[:, :, inv, :]          # (K,ng,nx,2)
+                    angular_flux[ords] = mom_cell_order
+                    w_ords = weights[ords]                            # (K,)
+                    scalar_flux += np.einsum(
+                        "k,kgxp->gxp", w_ords, mom_cell_order,
+                    )
+                    psi_face_out = psi_face_chain_scan[-1]            # (K, ng) scalar
 
                 # Persist outflow at the appropriate boundary face — the
-                # last chain output is the outgoing-face flux on that side.
+                # last chain output is the (scalar) outgoing-face flux on that
+                # side (the d=1 face cochain is moment-free for both closures).
                 if direction_sign == +1:
-                    xmax_face[ords] = psi_face_chain_scan[-1]  # (K, ng)
+                    xmax_face[ords] = psi_face_out             # (K, ng)
                 else:
-                    xmin_face[ords] = psi_face_chain_scan[-1]   # (K, ng)
+                    xmin_face[ords] = psi_face_out             # (K, ng)
 
         # ── CURVILINEAR per-ordinate path ─────────────────────────────────
         #
@@ -3040,16 +3327,24 @@ def _sweep_scheduled(
     spatial = sig_t.shape[1:]
     N = sn_mesh.quad.N
     weights = sn_mesh.quad.weights
+    # The output buffers carry the trailing 2^d spatial-moment axis at a
+    # multi-moment closure (the φ̂ iterate accumulated by ``_CellSolve``; #240
+    # D5b-S3) — both the angular field (FFW oracle / non-windowed) and the
+    # harmonic-moment tensor (windowed production).  DD/Step (per_axis == 1) →
+    # ``()`` tail, every buffer byte-identical (the negative control).
+    moment_tail = face_moment_tail(
+        sn_mesh.scheme.spatial_basis_per_axis ** sn_mesh.ndim
+    )
     if moment_projection is None:
-        angular_flux = np.zeros((N, ng, *spatial))
-        scalar_flux = np.zeros((ng, *spatial))
+        angular_flux = np.zeros((N, ng, *spatial, *moment_tail))
+        scalar_flux = np.zeros((ng, *spatial, *moment_tail))
         moment_buf = None
         emit = _SweepEmit(
             weights=weights, angular_flux=angular_flux, scalar_flux=scalar_flux,
         )
     else:
         L = moment_projection.L
-        moment_buf = np.zeros((L + 1, 2 * L + 1, ng, *spatial))
+        moment_buf = np.zeros((L + 1, 2 * L + 1, ng, *spatial, *moment_tail))
         emit = _SweepEmit(
             weights=weights, moment_buf=moment_buf, Y=moment_projection.Y,
         )

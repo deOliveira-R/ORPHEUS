@@ -80,8 +80,26 @@ from types import MappingProxyType
 
 import numpy as np
 
-from orpheus.sn.spatial._ubld import AVERAGE_MOMENT, face_moment_tail
+from orpheus.sn.spatial._ubld import face_moment_tail, octant_moment_frame_signs
 from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
+
+
+def _reframe(arr: np.ndarray, frame_signs: "np.ndarray | None") -> np.ndarray:
+    r"""Apply the sweep⇄global moment-frame involution to a moment array.
+
+    ``frame_signs`` is the ``2^d``-length involution from
+    :func:`~orpheus.sn.spatial._ubld.octant_moment_frame_signs` (#240 D5b-S3).
+    It re-signs the slope moments ONLY when ``arr`` actually carries the
+    trailing ``2^d`` moment axis (a genuine iterate / moment source / residual);
+    a single-moment closure (``frame_signs is None``) OR a flat scalar source
+    (no trailing moment axis — only the average moment, which is sign-invariant)
+    passes through untouched, so DD/Step stay byte-identical and a flat source
+    is never broadcast into a spurious moment axis.  The map is its own inverse
+    (global→sweep on input == sweep→global on output).
+    """
+    if frame_signs is None or arr.shape[-1] != frame_signs.shape[0]:
+        return arr
+    return arr * frame_signs
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -838,6 +856,7 @@ class _CellSolve:
     scalar_flux_buf: "np.ndarray | None" = None
     moment_buf: "np.ndarray | None" = None
     Y_octant: "np.ndarray | None" = None
+    moment_frame_signs: "np.ndarray | None" = None  # (2^d,) sweep⇄global slope frame
 
     def __post_init__(self) -> None:
         # Exactly ONE output mode must be wired (mirrors _SweepEmit's guard
@@ -864,34 +883,45 @@ class _CellSolve:
         sigt_cells: np.ndarray,
         Q_cells: np.ndarray,
     ) -> tuple[np.ndarray, ...]:
+        # The cell kernel consumes/produces the moment vector in the per-ordinate
+        # SWEEP frame.  The iterate (φ̂) + its scattering source ``Σ_s·φ̂`` live in
+        # the GLOBAL frame, so a GENUINE moment source ``Q_cells`` is mapped
+        # global→sweep on input and the emitted ``psi_avg`` sweep→global on output
+        # (#240 D5b-S3 — the diffusion-limit root cause: backward-ordinate slopes
+        # are sign-flipped between the two frames; summing them un-corrected
+        # cancels φ̂).  ``_reframe`` applies the ``2^d`` involution
+        # (``octant_moment_frame_signs``) ONLY to a genuine moment array (trailing
+        # axis == 2^d); a FLAT scalar source (matvec zero / flat external)
+        # populates only the average moment (sign +1) and is frame-invariant, so
+        # it passes through untouched.  DD/Step (``None``) → byte-identical.  The
+        # OUTGOING FACE (``psi_out``) stays in the sweep frame — it propagates
+        # along the wavefront, never crosses into the global-frame iterate.
         psi_avg, psi_out = self.scheme.cell_kernel_batch(
-            psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
+            psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells,
+            Q_cells=_reframe(Q_cells, self.moment_frame_signs),
         )
-        # The d≥2 bilinear UBLD closure returns a trailing ``2^d``-moment axis on
-        # ``psi_avg``; the scalar / moment emit reduces on the AVERAGE moment
-        # (slot 0).  DD/Step (always) AND LD at d=1 (the closed-form fast path
-        # returns a SCALAR average) keep ``psi_avg`` rank-3 → the original
-        # einsums fire byte-identically (#240 D5b).  The gate is the DIMENSION
-        # (``len(s_axes) > 1``), not the scheme trait alone: LD's per-axis basis
-        # is 2 in every d, but only the d≥2 dense kernel carries the trailing
-        # moment axis.  (The spatial-moment ITERATE ``φ̂`` is S3 — the average
-        # moment is all the scalar-flux iterate carries this step.)  This emit
-        # gate is coextensive with the face-cochain width gate
-        # (``n_face_moments = per_axis ** (ndim-1) != 1``) ONLY while the walk
-        # supplies one ``s_axes`` entry per spatial axis (``len(s_axes) == ndim``);
-        # that invariant holds today (the DAG walk builds full per-axis tuples).
-        if len(s_axes) > 1 and self.scheme.spatial_basis_per_axis > 1:
-            psi_avg = psi_avg[..., AVERAGE_MOMENT]
+        psi_avg = _reframe(psi_avg, self.moment_frame_signs)
+        # Multi-moment closures (LD's bilinear UBLD in EVERY d ≥ 1) return a
+        # trailing ``2^d``-moment ``psi_avg`` and the spatial-moment iterate φ̂
+        # accumulates ALL of it (#240 D5b-S3 — Increment C carries φ̂ between
+        # sweeps so the scattering-slope source ``Σ_s·φ̂`` couples globally).
+        # The emit einsums are spatial-moment-axis-AGNOSTIC (``ng...`` /
+        # ``nlm,ng...``) — the same convention :meth:`_SweepEmit.pure_z` uses —
+        # so the trailing ``2^d`` moment axis (the cell-level ``d`` plus the
+        # spatial-moment ``p``) rides through with no per-axis branch.
+        # DiamondDifference at ``per_axis == 1`` returns a rank-3 (scalar)
+        # ``psi_avg`` → the trailing pack is just the cell axis ``d``, the
+        # original byte-identical reduction (the negative control).
         cell = (slice(None), *cell_idx)
         cell_g = (slice(None), *cell)
         if self.moment_buf is None:
             self.scalar_flux_buf[cell] += np.einsum(
-                "ngd,n->gd", psi_avg, self.weights_octant,
+                "ng...,n->g...", psi_avg, self.weights_octant,
             )
             self.angular_flux_octant[cell_g] = psi_avg
         else:
             self.moment_buf[(slice(None), *cell_g)] += np.einsum(
-                "nlm,ngd,n->lmgd", self.Y_octant, psi_avg, self.weights_octant,
+                "nlm,ng...,n->lmg...", self.Y_octant, psi_avg, self.weights_octant,
             )
         return psi_out
 
@@ -907,8 +937,9 @@ class _CellResidual:
     """
 
     scheme: DiscretizationSchemeBase
-    psi_avg_probe_octant: np.ndarray              # (N_oct, ng, *spatial) — read
-    residual_octant: np.ndarray                   # (N_oct, ng, *spatial) — written
+    psi_avg_probe_octant: np.ndarray              # (N_oct, ng, *spatial[, 2^d]) — read
+    residual_octant: np.ndarray                   # (N_oct, ng, *spatial[, 2^d]) — written
+    moment_frame_signs: "np.ndarray | None" = None  # (2^d,) sweep⇄global slope frame
 
     def cell(
         self,
@@ -919,28 +950,29 @@ class _CellResidual:
         sigt_cells: np.ndarray,
         Q_cells: np.ndarray,
     ) -> tuple[np.ndarray, ...]:
-        # The full matvec walk on a multi-moment closure (LD's bilinear UBLD in
-        # d≥2) needs the FULL 2^d-moment probe, but the apply iterate carries
-        # only the cell-average moment this step (the spatial-moment iterate φ̂
-        # is #240 D5b-S3).  Fail loudly rather than feed the bilinear residual a
-        # scalar probe that broadcasts wrong.  The kernel-level matvec twin
-        # (residual_kernel_batch at the full solved state) IS verified at S2;
-        # the within-group SI path (cell_kernel_batch) is the production driver.
-        if len(s_axes) > 1 and self.scheme.spatial_basis_per_axis > 1:
-            raise NotImplementedError(
-                "The multi-D LD forward matvec (loss_action / Krylov) needs the "
-                "2^d-moment spatial iterate, deferred to #240 D5b-S3; the "
-                "production 2-D LD path is the within-group source-iteration "
-                "sweep (cell_kernel_batch). The kernel-level matvec twin "
-                "(residual_kernel_batch) is verified directly."
-            )
+        # The unified moment matvec (#240 D5b-S3): the probe carries the full
+        # ``2^d``-moment spatial iterate (a trailing axis on the bulk field at a
+        # multi-moment closure), so the per-cell slice feeds the bilinear UBLD
+        # residual its full moment vector — the d≥2 raise is RETIRED.  At a
+        # single-moment closure (DD/Step) there is no trailing axis and the slice
+        # yields the scalar probe byte-identically (the negative control).
+        #
+        # The probe (the iterate) is GLOBAL-frame; the residual kernel works in
+        # the per-ordinate SWEEP frame (the same frame the cell SOLVE uses), so
+        # the probe + source map global→sweep on input and the residual maps
+        # sweep→global on output — the matvec twin of the SOLVE's frame map
+        # (#240 D5b-S3 root cause; ``moment_frame_signs`` is the same ``2^d``
+        # involution).  DD/Step (``None``) → byte-identical.  The OUTGOING FACE
+        # stays sweep-frame (it propagates along the wavefront).
         cell_g = (slice(None), slice(None), *cell_idx)
+        signs = self.moment_frame_signs
         residual, psi_out = self.scheme.residual_kernel_batch(
-            psi_bar=self.psi_avg_probe_octant[cell_g],
+            psi_bar=_reframe(self.psi_avg_probe_octant[cell_g], signs),
             psi_in=psi_in, s_axes=s_axes,
-            sigt_cells=sigt_cells, Q_cells=Q_cells,
+            sigt_cells=sigt_cells,
+            Q_cells=_reframe(Q_cells, signs),
         )
-        self.residual_octant[cell_g] = residual
+        self.residual_octant[cell_g] = _reframe(residual, signs)
         return psi_out
 
 

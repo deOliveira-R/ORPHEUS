@@ -28,6 +28,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D, slab_streaming
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial import LinearDiscontinuous, UpstreamState
+from orpheus.sn.spatial._ubld import AVERAGE_MOMENT
 from orpheus.sn.spatial.scheme import CellResult, DiscretizationSchemeBase, CellVisit
 
 cell_average = DiscretizationSchemeBase.cell_average
@@ -300,7 +301,9 @@ class TestLDKernel:
         psi_in = np.array([0.3, 0.1])
         strat = LinearDiscontinuous()
         # group 2 (÷V kernel): s = |μ|/h (raw g, #240 — LD reads g directly,
-        # no diamond factor), Q_cells = Q̄, flat (Q̂=0)
+        # no diamond factor), Q_cells = Q̄, flat (Q̂=0).  #240 D5b-S3: the unified
+        # moment matvec returns the FULL 2^d moment vector at d=1 too — the
+        # scalar average is slot AVERAGE_MOMENT, the face the 2^{d-1}=1 axis.
         psi_avg2, (psi_out2,) = strat.cell_kernel_batch(
             psi_in=(psi_in[None, :, None],),
             s_axes=(np.array([[[mu / h]]]),),
@@ -312,10 +315,13 @@ class TestLDKernel:
             UpstreamState(spatial_upstream=psi_in, angular_upstream=None),
         )
         np.testing.assert_allclose(
-            res1.cell_average_flux, psi_avg2.ravel(), rtol=1e-12, atol=1e-13,
+            res1.cell_average_flux, psi_avg2[..., AVERAGE_MOMENT].ravel(),
+            rtol=1e-12, atol=1e-13,
         )
+        # The d=1 outgoing face carries NO moment axis (scalar cochain).
         np.testing.assert_allclose(
-            res1.outgoing_spatial_flux, psi_out2.ravel(), rtol=1e-12, atol=1e-13,
+            res1.outgoing_spatial_flux, psi_out2.ravel(),
+            rtol=1e-12, atol=1e-13,
         )
 
     @pytest.mark.foundation
@@ -337,12 +343,20 @@ class TestLDKernel:
         q_bar = np.array([2.0, 0.5])
         psi_in = np.array([0.3, 0.1])
         strat = LinearDiscontinuous()
-        # group 2 (÷V kernel) — the trusted Increment-A reference path.
+        # group 2 (÷V kernel) — the d-generic dense UBLD path (#240 D5b-S3: the
+        # unified moment matvec returns the FULL 2^d moment vector at d=1 too —
+        # the scalar average is slot AVERAGE_MOMENT; the outgoing face carries
+        # the 2^{d-1}=1 axis).
         psi_avg2, (psi_out2,) = strat.cell_kernel_batch(
             psi_in=(psi_in[None, :, None],),
             s_axes=(np.array([[[mu / h]]]),),
             sigt_cells=sig[:, None], Q_cells=q_bar[None, :, None],
         )
+        psi_avg2_bar = psi_avg2[..., AVERAGE_MOMENT]          # (1, 2, 1) scalar avg
+        # The d=1 outgoing face carries NO moment axis (face_moment_tail(1) ==
+        # () — the walk's scalar d=1 cochain convention), so it is already the
+        # scalar face (1, 2, 1).
+        psi_out2_bar = psi_out2
         # group 3 (×V coefficients) + the generic base reconstruction staticmethods.
         a, inv, w = strat.affine_scan_coefficients(
             abs_mu=np.array([mu]), A_down=np.array([[1.0]]),
@@ -354,8 +368,8 @@ class TestLDKernel:
         qv = (q_bar * h)[None, :, None]                      # ×V volumetric source
         psi_out3 = a * psi_in_b + source_emission(qv, inv, w)
         psi_avg3 = cell_average(psi_in_b, psi_out3, w)
-        np.testing.assert_allclose(psi_avg3, psi_avg2, rtol=1e-12, atol=1e-13)
-        np.testing.assert_allclose(psi_out3, psi_out2, rtol=1e-12, atol=1e-13)
+        np.testing.assert_allclose(psi_avg3, psi_avg2_bar, rtol=1e-12, atol=1e-13)
+        np.testing.assert_allclose(psi_out3, psi_out2_bar, rtol=1e-12, atol=1e-13)
 
     @pytest.mark.foundation
     def test_cell_kernel_batch_admits_multi_d(self) -> None:

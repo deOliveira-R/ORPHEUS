@@ -2396,6 +2396,151 @@ The design record (the angular-vs-spatial distinction, the FP resolution) is
 ``.claude/plans/issue_240_d5b_s3_crosswalk.md``; the closeout is
 ``.claude/agent-memory/method-implementer/issue_240_d5b_s3_a0_spatial_moment_space_closeout.md``.
 
+.. _ld-ubld-unified-moment-matvec:
+
+The unified moment matvec: a forward apply is intrinsically moment-valued (S3)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. todo::
+
+   Archivist expansion needed.  This stub records the S3 unified-moment-matvec
+   architecture; the rich narrative (the diffusion-limit asymptotics, the
+   matvec/sweep mass-normalization derivation, the branch-removal argument)
+   is owed.  Source: :mod:`orpheus.sn.spatial.linear_discontinuous`
+   (``cell_kernel_batch`` / ``residual_kernel_batch`` — now ONE d-generic moment
+   path), :mod:`orpheus.sn.sweep_graph` (``_CellSolve`` / ``_CellResidual`` — the
+   ``len(s_axes) > 1`` moment gate RETIRED), :mod:`orpheus.sn.loss_representation`
+   (the ``_spatial_moment_tail`` buffer widening).  Closeout:
+   ``.claude/agent-memory/method-implementer/issue_240_d5b_s3_unified_matvec_closeout.md``.
+
+The earlier increments (A/B) made the :math:`d{=}1` LD **matvec** Schur-reduce
+to a scalar residual: the slope :math:`\hat\psi` was eliminated, leaving a
+scalar cell-average unknown.  That was a *flat-source artifact* — with
+:math:`\hat Q = 0` the slope had no global coupling, so the Krylov unknown could
+stay scalar.  Increment C makes the scattering slope source
+:math:`\Sigma_s\hat\phi` couple the slope GLOBALLY (the diffusion-limit-
+consistent operator :eq:`ld-ubld-scattering-moment-lift`), so the slope becomes a
+genuine global degree of freedom in **every** dimension.
+
+.. math::
+   :label: ld-ubld-unified-moment-residual
+
+   (L+C)\,\vec\psi
+   \;=\;
+   M^{-1}\bigl(A\,\vec\psi - F_{\rm in}\bigr),
+   \qquad
+   A = (L+C-S)\ \Longleftrightarrow\
+   (L+C)\,\vec\psi - S\,\vec\psi = \vec q_{\rm ext}
+
+A matvec is a forward APPLY: applying the per-cell
+:math:`2^d \times 2^d` UBLD operator to the moment vector is intrinsically
+moment-valued, so ``cell_kernel_batch`` and ``residual_kernel_batch`` collapse to
+ONE d-generic dense path for every :math:`d` (the former :math:`d{=}1`
+Schur-reduced scalar arm — and the :math:`d \ge 2` raise — are both retired).
+The :math:`M^{-1}` factor in :eq:`ld-ubld-unified-moment-residual` is the
+matvec/sweep moment-source consistency: the UBLD RHS folds the cell source
+mass-weighted (:math:`R = M\vec S`, the test-function projection), but the
+operator algebra :math:`A = (L+C) - S` subtracts :math:`S\vec\psi` RAW at the
+``OperatorSum`` level, so the residual is divided by the diagonal Legendre mass
+to put :math:`(L+C)\vec\psi` in raw per-moment units (the slope rows would
+otherwise disagree by :math:`M_{ii} = \theta^{|i|}`).
+
+The architectural headline is **branch removal** (Cardinal Rule 2): the
+``len(s_axes) > 1`` moment gate at the cell-solve / cell-residual emit is GONE
+(replaced by the pure scheme trait ``spatial_basis_per_axis > 1``), the
+:math:`d{=}1` scalar kernel twin is retired, and there are ZERO
+``isinstance(scheme, ...)`` branches — dispatch stays via the scheme PROTOCOL +
+geometry-keyed ``supports()``.
+
+.. _ld-ubld-pure-z-collision-twin:
+
+The pure-z collision-only twin — sweep :math:`\equiv` matvec single source
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. math::
+   :label: ld-ubld-pure-z-collision
+
+   \text{(solve)}\quad \bar\psi = \frac{Q}{\sigma_t}
+   \qquad\Longleftrightarrow\qquad
+   \text{(matvec)}\quad (L+C)\,\bar\psi = \sigma_t\,\bar\psi
+
+.. todo:: Archivist expansion needed (the L21 collision-only twin — ERR-062).
+
+   The pure-z degenerate ordinates (:math:`\mu_x = \mu_y = 0`, the
+   :math:`\pm z` poles of a Lebedev / product cubature) have no in-plane
+   streaming, so the cell is collision-only: the sweep balance
+   :math:`\bar\psi = Q/\sigma_t` and its matvec twin
+   :math:`(L+C)\bar\psi = \sigma_t\bar\psi` are two applications of the SAME
+   operator (:eq:`ld-ubld-pure-z-collision`).  At a multi-moment closure (LD)
+   the source / probe carries the trailing :math:`2^d` spatial-moment axis that
+   :math:`\sigma_t` :math:`(ng, *\text{spatial})` lacks; each moment scales by
+   the SAME scalar, so :math:`\sigma_t` gains a length-1 trailing axis to
+   broadcast.  This reshape is single-sourced through
+   :func:`~orpheus.sn.loss_representation._moment_broadcast_sigma`, called by
+   BOTH the sweep ``pure_z`` arm and the matvec ``pure_z`` arm — the L21 twin
+   cannot diverge on the moment-axis convention (the qa Concern A blocker:
+   the matvec arm previously lacked the guard the sweep already had, so
+   ``inner_solver="krylov"`` on a pure-z-bearing quadrature broadcast-crashed).
+   DD/Step (no moment axis) → :math:`\sigma_t` unchanged, byte-identical.
+   Source: :mod:`orpheus.sn.loss_representation` (``_moment_broadcast_sigma``,
+   the ``loss_action`` / ``octant_jacobi`` ``pure_z`` arms).  Gate:
+   ``tests/sn/verification/mms/test_mms_ld_2d.py::test_ld_2d_krylov_equals_si_pure_z_quadrature``
+   (2-D LD Krylov :math:`\equiv` SI on a pure-z Lebedev quadrature, het 2G
+   non-square; ``catches("ERR-062")``).  Closeout:
+   ``.claude/agent-memory/method-implementer/issue_240_d5b_s3_purez_gate_closeout.md``.
+
+.. _ld-ubld-moment-scan:
+
+The :math:`d{=}1` moment SCAN (the production sweep) — D5b-S3 OWED-2
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The unified moment *matvec* above is the APPLY direction; the production
+:math:`d{=}1` LD SWEEP (source iteration) rides the fast Blelloch parallel-prefix
+scan (:class:`~orpheus.sn.loss_representation.CumprodScan`), NOT the dense
+per-cell solve (L16).  Sub-step **D5b-S3 OWED-2** threads the spatial-moment
+iterate :math:`\hat\phi` through that scan so the SI path recovers the SAME
+diffusion-limit-consistent operator the matvec does.
+
+.. math::
+   :label: ld-ubld-moment-scan-source
+
+   b \;=\; \underbrace{\bar S\,\frac{\mathrm{inv}}{w}}_{\text{flat (average) emission}}
+       \;+\; \underbrace{\frac{\theta\,\hat S}{D_2'}
+              \;-\; \frac{\theta\,|\mu| A_{\rm down}\,\hat S}{D_2'}\,
+                    \frac{\mathrm{inv}}{w}}_{\text{slope source}\ \Sigma_s\hat\phi}
+
+.. todo:: Archivist expansion needed (D5b-S3 OWED-2 — the moment scan).
+
+   The scan propagates the scalar downstream FACE
+   :math:`\psi_{\rm out} = a\,\psi_{\rm in} + b` along the chain with the
+   slope-augmented affine source :eq:`ld-ubld-moment-scan-source`, then
+   reconstructs the per-cell :math:`(\bar\psi, \hat\psi)` moments from the
+   chained upstream face (the scan twin of the per-cell Schur).  The
+   slope-row fold (the :math:`\hat S` algebra) is single-sourced through
+   :meth:`~orpheus.sn.spatial._ubld.D1ClosedForm._slope_fold`, shared by the
+   per-cell matvec (:meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.schur_xV`)
+   AND the scan
+   (:meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.scan_slope_face_source` /
+   :meth:`~orpheus.sn.spatial._ubld.D1ClosedForm.scan_reconstruct`).
+
+   Like the matvec, the scan applies the
+   :func:`~orpheus.sn.spatial._ubld.octant_moment_frame_signs` involution:
+   the source moments are mapped global→sweep on INPUT and the reconstructed
+   :math:`(\bar\psi, \hat\psi)` sweep→global on OUTPUT, so the angular
+   reduction :math:`\hat\phi = \sum_n w_n \hat\psi_n` is frame-consistent and
+   the diffusion limit is recovered on the SI path too (ERR-061).  The scalar
+   outgoing face stays sweep-frame (it propagates along the chain).  DD/Step
+   (``per_axis == 1``) → no moment axis, the scan stays byte-identical (the
+   negative control).  SymPy module / live scheme:
+   :mod:`orpheus.sn.spatial._ubld` (``D1ClosedForm``),
+   :meth:`orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous.moment_scan_closure`,
+   :meth:`orpheus.sn.loss_representation._OneDimScanWalk._run` (the slab
+   joint-batch moment branch).  Gate:
+   ``tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_two_paths_scan_equals_dag_oracle``
+   (scan ≡ DAG) + ``::test_ld_thick_diffusive_limit`` (the diffusion limit on
+   the SI path).  Closeout:
+   ``.claude/agent-memory/method-implementer/issue_240_d5b_s3_owed2_scan_closeout.md``.
+
 .. _sweep-wavefront:
 
 Cartesian 2D: Anti-Diagonal Wavefront Sweep

@@ -441,11 +441,18 @@ class _GaussSeidelResolvent:
             # operator, not a parallel construction.
             interior=self._invertible.loss_representation._sweep_interior,
         )
+        # The sweep output carries the trailing 2^d spatial-moment axis at a
+        # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
+        # selects the SpatialMomentSpace factor.  DD/Step → no factor, byte-id.
+        per_axis = sn_mesh.scheme.spatial_basis_per_axis
         if moment_projection is None:
-            bulk = AngularFlux.from_mesh(bulk_values, sn_mesh)
+            bulk = AngularFlux.from_mesh(
+                bulk_values, sn_mesh, spatial_moments=per_axis,
+            )
         else:
             bulk = HarmonicMomentField.from_mesh_and_L(
                 bulk_values, sn_mesh, moment_projection.L,
+                spatial_moments=per_axis,
             )
         return TimedFullField(
             bulk=bulk,
@@ -620,6 +627,30 @@ def _windowed_cold_start(scattering_op, sn_mesh, *, history_depth):
     return TimedFullField(
         bulk=HarmonicMomentField.zeros_for_mesh_and_L(
             sn_mesh, scattering_op.scattering_order,
+            spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
+        ),
+        boundary=BoundaryFlux.zeros_on(sn_mesh),
+        _history=(),
+        history_depth=history_depth,
+    )
+
+
+def _unwindowed_cold_start(sn_mesh, *, history_depth):
+    r"""Zero un-windowed (full-angular) SI cold-start iterate.
+
+    The full-angular ``AngularFlux`` iterate the 1-D / curvilinear SI driver
+    holds.  Selects the SpatialMomentSpace factor (#240 D5b-S3) so a
+    multi-moment closure (LD) carries the φ̂ axis end-to-end — composing with the
+    moment-carrying ``q_ext`` + ``S.apply(ψ)`` in the SI rhs.  DD/Step
+    (per_axis == 1) → no factor (byte-identical to the prior ``TimedFullField.zeros``).
+    The un-windowed sibling of :func:`_windowed_cold_start` (Pattern 2)."""
+    from orpheus.transport.fields.angular_flux import AngularFlux
+    from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.timed_full_field import TimedFullField
+
+    return TimedFullField(
+        bulk=AngularFlux.zeros_on(
+            sn_mesh, spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
         ),
         boundary=BoundaryFlux.zeros_on(sn_mesh),
         _history=(),
@@ -1283,8 +1314,8 @@ class SNSolver:
                     S, self.sn_mesh, history_depth=2,
                 )
             else:
-                initial_guess = TimedFullField.zeros(
-                    bulk=AngularFlux, boundary=BoundaryFlux, mesh=self.sn_mesh,
+                initial_guess = _unwindowed_cold_start(
+                    self.sn_mesh, history_depth=2,
                 )
 
         psi_typed, _residuals = si.solve(
@@ -1847,10 +1878,55 @@ def _build_fixed_source_rhs(
             f"fixed-source bulk shape {bulk_values.shape} does not match "
             f"(N, ng, *spatial) = {expected}"
         )
+    # The external source carries the trailing 2^d spatial-moment axis at a
+    # multi-moment closure (#240 D5b-S3) so it composes with the moment-carrying
+    # scattering source ``S.apply(ψ)`` in the SI rhs ``q_ext + S.apply(ψ)``.  The
+    # EXTERNAL source is flat-in-moment (Q̂ = 0 — the slope rows are zero; the
+    # strengthened Q̂≠0 ansatz is S4): lift onto slot 0 (average), rest zero.
+    # DD/Step (per_axis == 1) → no lift, byte-identical.
+    bulk_values, per_axis = _lift_external_source_to_moments(bulk_values, sn_mesh)
     return TimedFullField(
-        bulk=AngularSourceSink.from_mesh(bulk_values, sn_mesh),
+        bulk=AngularSourceSink.from_mesh(
+            bulk_values, sn_mesh, spatial_moments=per_axis,
+        ),
         boundary=boundary,
     )
+
+
+def _lift_external_source_to_moments(
+    bulk_values: "np.ndarray", sn_mesh: SNMesh,
+) -> "tuple[np.ndarray, int]":
+    r"""Lift a flat external source ``(N, ng, *spatial)`` onto the ``2^d`` moment
+    vector (average in slot 0, slopes zero), returning ``(lifted, per_axis)``.
+
+    Single source of the external-source moment lift shared by the fixed-source
+    and eigenvalue paths (#240 D5b-S3).  ``per_axis == 1`` (DD/Step) → returns
+    the input unchanged (byte-identical, no moment axis)."""
+    from orpheus.sn.spatial._ubld import AVERAGE_MOMENT, face_moment_tail
+
+    per_axis = sn_mesh.scheme.spatial_basis_per_axis
+    tail = face_moment_tail(per_axis ** sn_mesh.ndim)
+    if tail == ():
+        return bulk_values, per_axis
+    lifted = np.zeros((*bulk_values.shape, *tail), dtype=bulk_values.dtype)
+    lifted[..., AVERAGE_MOMENT] = bulk_values
+    return lifted, per_axis
+
+
+def _average_moment_scalar(phi: "np.ndarray", sn_mesh: SNMesh) -> "np.ndarray":
+    r"""Reduce a (possibly moment-carrying) scalar flux to its cell-AVERAGE.
+
+    The user-facing :class:`Solution` scalar flux is the cell-average moment
+    (slot 0); a multi-moment closure's φ̂ slopes are internal within-cell DG
+    structure (#240 D5b-S3).  ``phi`` from a multi-moment closure carries a
+    trailing ``2^d`` axis — take slot ``AVERAGE_MOMENT``; DD/Step (per_axis ==
+    1) → no axis → return unchanged."""
+    from orpheus.sn.spatial._ubld import AVERAGE_MOMENT, face_moment_tail
+
+    per_axis = sn_mesh.scheme.spatial_basis_per_axis
+    if face_moment_tail(per_axis ** sn_mesh.ndim) == ():
+        return phi
+    return phi[..., AVERAGE_MOMENT]
 
 
 def solve_sn_fixed_source(
@@ -2120,8 +2196,8 @@ def _solve_fixed_source_si(
             S, sn_mesh, history_depth=q_ext_composite.history_depth,
         )
     else:
-        initial_guess = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
+        initial_guess = _unwindowed_cold_start(
+            sn_mesh, history_depth=q_ext_composite.history_depth,
         )
     psi_typed, residuals = si.solve(
         q_ext_composite, initial_guess=initial_guess,
@@ -2162,7 +2238,12 @@ def _solve_fixed_source_si(
     # self-consistent (``scalar == ∫ angular dΩ``), matching the un-windowed
     # contract.  (For the un-windowed path ``angular_out`` IS ``psi_typed``, so
     # this is bit-identical to the prior ``psi_typed.bulk.integrate_angular``.)
-    phi = angular_out.bulk.integrate_angular().values
+    # The user-facing scalar flux is the cell-AVERAGE moment (slot 0) — a
+    # multi-moment closure's φ̂ slopes are internal DG structure, not the scalar
+    # flux the Solution reports (#240 D5b-S3).
+    phi = _average_moment_scalar(
+        angular_out.bulk.integrate_angular().values, sn_mesh,
+    )
     return Solution(
         angular_flux=angular_out,
         scalar_flux=ScalarFlux.from_mesh(phi, sn_mesh),
@@ -2272,25 +2353,34 @@ def _solve_fixed_source_krylov(
     # source of truth — ``_within_group_triple`` / ``_within_group_krylov``;
     # shared with the eigenvalue Krylov + SI paths). ──────────────────
     LC, S, B = _within_group_triple(solver)
+    # The Krylov unknown carries the trailing 2^d spatial-moment axis at a
+    # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the flat dof count
+    # grows by per_axis^d (the ravel reads the template's full bulk shape, so it
+    # tracks automatically — n_dof is the explicit cross-check).  DD/Step → 1.
+    per_axis = sn_mesh.scheme.spatial_basis_per_axis
+    n_moments = per_axis ** sn_mesh.ndim
     krylov = _within_group_krylov(
         LC, S, B,
-        n_dof=N * ng * int(np.prod(sn_mesh.spatial_shape)),
+        n_dof=N * ng * int(np.prod(sn_mesh.spatial_shape)) * n_moments,
         max_iter=max_inner, tol=inner_tol,
     )
 
     # B.5.2: pass a FLUX initial_guess so the Krylov solution_template (the
     # return type) is a flux; x0 stays all-zeros (bit-identical to the prior
-    # initial_guess=None cold start).
+    # initial_guess=None cold start).  The template carries the φ̂ moment axis at
+    # a multi-moment closure (the ravel keys on its shape).
     psi_typed, residuals = krylov.solve(
         q_ext_composite,
-        initial_guess=TimedFullField.zeros(
-            bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
+        initial_guess=_unwindowed_cold_start(
+            sn_mesh, history_depth=q_ext_composite.history_depth,
         ),
     )
     # D-H.1c stage 2 — psi_typed is a TimedFullField (the Krylov
     # ravellable protocol unravels back to the template type, which is
-    # ``q_ext_composite``).  Read bulk for scalar reduction.
-    phi = psi_typed.bulk.integrate_angular().values
+    # ``q_ext_composite``).  Read bulk for scalar reduction (cell-average moment).
+    phi = _average_moment_scalar(
+        psi_typed.bulk.integrate_angular().values, sn_mesh,
+    )
     converged_flag = bool(residuals) and residuals[-1] < inner_tol
     n_outer = len(residuals)
     flux_residuals = [float(r) for r in residuals]
