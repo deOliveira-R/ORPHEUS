@@ -125,6 +125,46 @@ class TestPrimitiveMatchesSymbolic:
         )
 
     @pytest.mark.foundation
+    def test_d2_assembled_matrices_match_symbolic(self) -> None:
+        r"""The numpy d=2 A / M / G / F_out equal the symbolic ones ENTRY-WISE.
+
+        D5b-S2 carry-forward (the S1 hindsight audit): at d=1 the matrix-equality
+        pin (``test_d1_assembled_matrices_match_symbolic``) fires, but the d≥2
+        numpy CELL assembly was pinned ONLY by the physics exact-on-bilinear
+        oracle.  An ENTRY-WISE ``A == A`` (+ M / G / F_out) at d=2 is the
+        structural pin that catches a dropped / mis-scaled factor in the numpy
+        Kronecker CELL assembly directly (e.g. the streaming factor in ``G`` or a
+        θ-weight in ``M``), not only through a solved-flux coincidence.
+
+        Scope (why NO ``catches("ERR-060")`` marker): ``assemble_ubld`` builds
+        the CELL matrices only — it does NOT carry the upwind-inflow ``|μ_axis|``
+        factor (that lives in ``assemble_inflow_axis``).  A dropped ``|μ_axis|``
+        inflow factor (ERR-060) leaves A/M/G/F_out unchanged → this pin stays
+        GREEN; the inflow factor is caught by ``test_d2_exact_on_bilinear``
+        (which routes through the inflow assembler).  Marking this pin
+        ``catches("ERR-060")`` would be a coverage overclaim."""
+        mx, my, hx_v, hy_v, sig_v = 0.6, 0.4, 0.5, 0.7, 1.2
+        mu_x, mu_y, hx, hy, sig_t = sp.symbols(
+            "mu_x mu_y h_x h_y Sigma_t", positive=True,
+        )
+        sasm = sym.assemble_ubld([hx, hy], [mu_x, mu_y], sig_t, sym.THETA)
+        subs = {
+            mu_x: mx, mu_y: my, hx: hx_v, hy: hy_v, sig_t: sig_v,
+            sym.THETA: sp.Rational(1, 3),
+        }
+        nasm = assemble_ubld(
+            [np.array(hx_v), np.array(hy_v)],
+            [np.array(mx), np.array(my)],
+            np.array(sig_v), THETA,
+        )
+        for key in ("A", "M", "G", "F_out"):
+            sym_mat = np.array(sasm[key].subs(subs)).astype(float)
+            np.testing.assert_allclose(
+                nasm[key], sym_mat, rtol=1e-13, atol=1e-14,
+                err_msg=f"numpy d=2 {key} != symbolic {key} (entry-wise)",
+            )
+
+    @pytest.mark.foundation
     def test_d1_assemble_is_batched(self) -> None:
         """The d=1 assembler/solve vectorize over a (N_oct, ng, n_diag) stack."""
         rng = np.random.default_rng(240)

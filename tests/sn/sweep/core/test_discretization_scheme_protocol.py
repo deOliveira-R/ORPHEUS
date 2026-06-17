@@ -64,6 +64,9 @@ class IdentityDiscretizationScheme:
     # #240 D5-0: the Protocol gained a fourth class-level trait
     # (cross-axis separability); a conforming scheme must declare it.
     transverse_coupling_is_facewise: ClassVar[bool] = False
+    # #240 D5b-S2: the Protocol gained a fifth class-level trait (the per-axis
+    # spatial-moment basis size); a slopeless cell-average scheme declares 1.
+    spatial_basis_per_axis: ClassVar[int] = 1
 
     def update(
         self,
@@ -124,6 +127,9 @@ class FakeCurvilinearStrategy:
     # #240 D5-0: the Protocol gained a fourth class-level trait
     # (cross-axis separability); a conforming scheme must declare it.
     transverse_coupling_is_facewise: ClassVar[bool] = False
+    # #240 D5b-S2: the Protocol gained a fifth class-level trait (the per-axis
+    # spatial-moment basis size); a slopeless cell-average scheme declares 1.
+    spatial_basis_per_axis: ClassVar[int] = 1
 
     def update(
         self,

@@ -88,6 +88,26 @@ _FOUT_1D = np.array([[1.0, 1.0], [1.0, 1.0]])
 #: dimensionless 1-D upstream-face test-weighting ``B(-1)`` (per unit ``|μ|``).
 _FIN_TRACE = np.array([1.0, -1.0])
 
+#: Index of the cell/face AVERAGE moment in the tensor-Legendre Kronecker
+#: layout (``[bar, …]``): the all-``P₀`` moment is first (d=2 cell order
+#: ``[ψ̄, ψ̂_y, ψ̂_x, ψ̂_xy]``; per-axis face order ``[bar, slope]``).  Single
+#: source for the slot-0 convention every moment consumer reduces on (#240 D5b)
+#: — change the layout here, not at the six scattered ``[..., 0]`` call sites.
+AVERAGE_MOMENT = 0
+
+
+def face_moment_tail(n_face_moments: int) -> tuple[int, ...]:
+    r"""Trailing moment-axis shape suffix for a face-cochain buffer.
+
+    A multi-moment closure (LD's bilinear face, ``n_face_moments > 1``) carries a
+    trailing ``2^{d-1}``-moment axis; a cell-average closure (DD/Step,
+    ``== 1``) leaves the face rank untouched (``()`` — NO length-1 axis appended)
+    so its buffers stay byte-identical (#240 D5b — the backward-compat invariant).
+    Single source for both storage policies (``_MovingFrontier`` window +
+    ``FullFieldWavefront`` full cochain), which must agree on the tail shape.
+    """
+    return () if n_face_moments == 1 else (n_face_moments,)
+
 
 def mass_1d(h: np.ndarray, theta: float) -> np.ndarray:
     r"""Batched 1-D LD mass ``diag(h, θh)`` — shape ``(..., 2, 2)``.
@@ -409,10 +429,12 @@ def d1_closed_form(
 
 
 __all__ = [
+    "AVERAGE_MOMENT",
     "D1ClosedForm",
     "assemble_inflow_axis",
     "assemble_ubld",
     "d1_closed_form",
+    "face_moment_tail",
     "mass_1d",
     "per_cell_solve",
 ]

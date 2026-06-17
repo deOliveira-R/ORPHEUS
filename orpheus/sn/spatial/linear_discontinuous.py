@@ -172,7 +172,13 @@ from typing import ClassVar
 
 import numpy as np
 
-from ._ubld import d1_closed_form
+from ._ubld import (
+    AVERAGE_MOMENT,
+    assemble_inflow_axis,
+    assemble_ubld,
+    d1_closed_form,
+    per_cell_solve,
+)
 from .scheme import (
     CellResult,
     DiscretizationSchemeBase,
@@ -289,6 +295,18 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     d-D coupling is slope-wise (1st-order), NOT a 0th-order face value — the
     d-D closure does not separate into per-axis scans, and LD rides the DAG
     wavefront in :math:`d \ge 2`, not the scan-march (#38 / #240 D5b)."""
+
+    spatial_basis_per_axis: ClassVar[int] = 2
+    r"""LD carries TWO spatial moments per axis — the Legendre basis
+    :math:`\{1, P_1\}` (cell-average + slope).  The per-cell unknown is
+    therefore :math:`2^d` (d=1: the slab ``{ψ̄, ψ̂}``; d=2: the bilinear
+    ``{ψ̄, ψ̂_x, ψ̂_y, ψ̂_xy}``; the cross moment ``ψ̂_xy`` is the
+    diffusion-limit-load-bearing term simplex-P1 lacks), and each downstream
+    face carries :math:`2^{d-1}` transverse moments (d=1: a scalar; d=2:
+    ``{face-bar, face-slope}``).  The ``per_axis > 1`` gate routes LD onto the
+    multi-moment face-cochain + the moment-reducing emit (#240 D5b);
+    DiamondDifference at ``per_axis == 1`` keeps the scalar path byte-identical.
+    See :mod:`orpheus.sn.spatial._ubld` for the d-generic Kronecker primitive."""
 
     theta: ClassVar[float] = 1.0 / 3.0
     r"""The slope-moment weight :math:`\theta` (LM-1989 Eq. 4.3b).  The value
@@ -417,10 +435,16 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     # the moment source is threaded (Increment C); until then only the slope
     # UNKNOWN path (Q̂=0) is cross-checked between the two forms.
     #
-    # 1-D only for now: a multi-D LD is bilinear (an independent slope per
-    # axis) — deferred (#158 Increment D).  The slope source ``Q̂`` is folded
-    # only when a moment source is threaded (#158 Increment C); the slope
-    # UNKNOWN ``ψ̂`` is ALWAYS solved (that is what delivers O(h²)).
+    # Dimension fork (#240 D5b-S2): the d=1 slab arm rides the vectorised
+    # closed-form Schur (``_kernel_terms`` → ``d1_closed_form``, NO dense solve
+    # — the L16 fast path); the d≥2 bilinear arm rides the d-generic dense UBLD
+    # primitive (``_ubld_system`` → ``per_cell_solve`` over the level's
+    # anti-diagonal cell stack — the batched ``2^d×2^d`` solve).  Both arms are
+    # the SAME tensor-product UBLD algebra (``orpheus.sn.spatial._ubld``); the
+    # d=1 closed form is the analytic Schur of the d=1 dense system, proven ``==``
+    # by ``tests/sn/spatial/test_ld_ubld_primitive.py``.  The slope SOURCE ``Q̂``
+    # is folded only when a moment source is threaded (#158 Increment C / S3);
+    # the slope UNKNOWN ``ψ̂`` is ALWAYS solved (that is what delivers O(h²)).
 
     def _kernel_terms(
         self,
@@ -442,11 +466,12 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         the D6-noted ``w(Σ)`` blend work lands).
         """
         if len(s_axes) != 1:
-            raise NotImplementedError(
-                "LinearDiscontinuous.cell_kernel_batch supports d=1 (slab/1-D) "
-                f"only; got d={len(s_axes)} streaming axes.  A multi-D LD is "
-                "bilinear (an independent slope per axis) and is deferred "
-                "(#158 Increment D)."
+            raise ValueError(
+                "_kernel_terms is the d=1 closed-form Schur helper; got "
+                f"d={len(s_axes)} streaming axes.  The d≥2 bilinear UBLD arm "
+                "routes through _ubld_system / per_cell_solve (the dense "
+                "primitive), dispatched by cell_kernel_batch / "
+                "residual_kernel_batch on len(s_axes)."
             )
         g = s_axes[0]                               # raw down-face streaming |μ|/Δ (N_oct, 1, n_diag); #240 — was 0.5*s when s carried DD's diamond 2
         in0 = psi_in[0]                             # (N_oct, ng, n_diag)
@@ -461,6 +486,107 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         rhs = cf.kernel_rhs(Q_cells, in0)           # flat (Q̂ = 0)
         return cf.eff_denom, rhs, cf.w, in0
 
+    # ── d≥2 bilinear UBLD kernel (the dense Kronecker primitive) ─────────
+    #
+    # The d≥2 arm uses the d-generic ÷V UBLD dense system from
+    # ``orpheus.sn.spatial._ubld``.  The ÷V system is SCALE-FREE: dividing the
+    # Galerkin balance by the cell volume ``V = ∏_a Δ_a`` leaves a system that
+    # depends ONLY on the per-axis ÷V streaming ``g_a = |μ_a|/Δ_a`` (the
+    # ``s_axes`` the kernel already receives) and ``Σ_t`` — so the dense
+    # assembler is fed ``hs = [1, …, 1]`` (unit widths) and ``mus = [g_0, …]``
+    # (the streaming carries the ÷V factor).  This reduces EXACTLY to
+    # ``d1_closed_form`` at d=1 (the d=1 closed form is the analytic Schur of
+    # this dense system, proven == by test_ld_ubld_primitive.py).
+
+    def _ubld_system(
+        self,
+        s_axes: tuple[np.ndarray, ...],
+        sigt_cells: np.ndarray,
+        Q_cells: np.ndarray,
+    ) -> tuple[dict, np.ndarray]:
+        r"""Assemble the batched ÷V UBLD dense system + the source-moment RHS.
+
+        Returns ``(assembled, R_source)`` where ``assembled`` is the
+        :func:`~orpheus.sn.spatial._ubld.assemble_ubld` dict (``A`` of shape
+        ``(N_oct, ng, n_diag, 2^d, 2^d)``) and ``R_source`` the source
+        contribution ``M·S⃗_moments`` of shape ``(N_oct, ng, n_diag, 2^d)``.  The
+        upwind-inflow face contributions are added by the SOLVE / APPLY arms
+        (they vary by direction).
+
+        ``Q_cells`` is the FLAT scalar average source ``(N_oct or 1, ng,
+        n_diag)`` (S2 — external/MMS moment-source slopes ``Q̂≠0`` are S3): it
+        is lifted to the ``(…, 2^d)`` moment vector with the average moment in
+        slot 0 and the rest zero (so a zero scalar source — the matvec
+        ``_MATVEC_ZERO_SOURCE`` — broadcasts to zero moments).
+        """
+        d = len(s_axes)
+        size = 2**d
+        # g_a = s_axes[a] (N_oct, 1, n_diag); broadcast to (N_oct, ng, n_diag)
+        # against sigt_cells (ng, n_diag).
+        sig_b = np.asarray(sigt_cells)
+        gs = [np.asarray(s) + np.zeros_like(sig_b) for s in s_axes]
+        sig_full = sig_b + np.zeros_like(gs[0])
+        ones = [np.ones_like(g) for g in gs]
+        assembled = assemble_ubld(ones, gs, sig_full, self.theta)
+        # Lift the flat scalar average source onto the 2^d moment vector
+        # (slot 0 = average; the rest are the slope/cross moments, zero in S2).
+        batch = assembled["A"].shape[:-2]
+        S_moments = np.zeros(batch + (size,))
+        S_moments[..., AVERAGE_MOMENT] = np.asarray(Q_cells) + np.zeros(batch)
+        R_source = np.einsum("...ij,...j->...i", assembled["M"], S_moments)
+        return assembled, R_source
+
+    def _ubld_inflow(
+        self,
+        s_axes: tuple[np.ndarray, ...],
+        psi_in: tuple[np.ndarray, ...],
+    ) -> np.ndarray:
+        r"""Sum the per-axis upwind-inflow RHS contributions (the ÷V form).
+
+        Each ``psi_in[a]`` is the upstream neighbour's outflow trace on axis
+        ``a`` — a ``2^{d-1}``-moment transverse object (the widened face
+        cochain).  :func:`~orpheus.sn.spatial._ubld.assemble_inflow_axis`
+        weights it into the active-axis test functions ``B(-1)=[1,-1]`` and the
+        transverse mass, times ``g_a`` (the ÷V streaming, ``mus[axis]``).
+        """
+        ones = [np.ones_like(g) for g in s_axes]
+        gs = [np.asarray(g) for g in s_axes]
+        terms = [
+            assemble_inflow_axis(ones, gs, a, np.asarray(psi_in[a]), self.theta)
+            for a in range(len(s_axes))
+        ]
+        R = terms[0]                                # d ≥ 1 ⇒ ≥ 1 axis, never empty
+        for term in terms[1:]:
+            R = R + term
+        return R
+
+    @staticmethod
+    def _ubld_outgoing_faces(
+        psi_moments: np.ndarray, d: int,
+    ) -> tuple[np.ndarray, ...]:
+        r"""Reconstruct the d downstream faces from the ``2^d`` moment vector.
+
+        The outgoing face on axis ``a`` is the trace of the cell's
+        tensor-Legendre function at the downstream node (``s_a = +1``, where
+        ``P₀(+1)=P₁(+1)=1``), projected onto the ``2^{d-1}`` transverse Legendre
+        moments.  In the Kronecker layout (axis 0 outer … axis d−1 inner) the
+        ``2^d`` vector reshapes to ``(2,)*d`` indexed by ``(o_0, …, o_{d-1})``;
+        the trace on axis ``a`` SUMS the ``o_a=0`` and ``o_a=1`` blocks (the
+        ``B(+1)`` weights) and flattens the remaining transverse axes in their
+        own Kronecker order — EXACTLY the order
+        :meth:`_ubld_inflow`/:func:`assemble_inflow_axis` consumes on axis ``a``
+        (so out-of-cell == in-of-next-cell; the closure consistency the matvec
+        twin D5b.4 + the round-trip D5b.1 verify).
+        """
+        batch = psi_moments.shape[:-1]
+        tensor = psi_moments.reshape(*batch, *([2] * d))
+        faces = []
+        for a in range(d):
+            cell_axis = len(batch) + a
+            face = tensor.take(0, axis=cell_axis) + tensor.take(1, axis=cell_axis)
+            faces.append(face.reshape(*batch, 2 ** (d - 1)))
+        return tuple(faces)
+
     def cell_kernel_batch(
         self,
         *,
@@ -469,22 +595,38 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         sigt_cells: np.ndarray,
         Q_cells: np.ndarray,
     ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
-        r"""Pure batched LD cell SOLVE — the DAG wavefront kernel (1-D, slab).
+        r"""Pure batched LD cell SOLVE — the DAG wavefront kernel (d-generic).
 
-        Solves the Schur-reduced LD cell for the cell-average flux on one
-        anti-hyperplane level (vectorised over ``(N_oct, ng, n_diag)``) and
-        reconstructs the downstream face :math:`\psi_{\rm out}=\bar\psi+\hat\psi`.
-        STORAGE-FREE by contract: the WALK gathers ``psi_in`` and scatters
-        ``psi_out``.  The SOLVE arm of the ``_CellSolve`` level operation
-        consumed by :meth:`SweepDependencyGraph.walk_full` /
-        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`.
+        **d=1** (slab): solves the Schur-reduced LD 2×2 for the cell-average
+        flux on one anti-hyperplane level (vectorised over ``(N_oct, ng,
+        n_diag)``, the L16 closed-form fast path) and reconstructs the scalar
+        downstream face :math:`\psi_{\rm out}=\bar\psi+\hat\psi`.
+
+        **d≥2** (bilinear UBLD): assembles the batched ÷V ``2^d×2^d`` dense
+        system (``A ψ⃗ = M·S⃗ + Σ_a F_in^{(a)}``) over the level's anti-diagonal
+        cell stack and solves it with one batched
+        :func:`~orpheus.sn.spatial._ubld.per_cell_solve`.  Returns the full
+        ``2^d``-moment ``psi_avg`` ``(N_oct, ng, n_diag, 2^d)`` and the d-tuple
+        of ``2^{d-1}``-moment downstream faces (one per axis).
+
+        STORAGE-FREE by contract: the WALK gathers ``psi_in`` (per-axis
+        ``2^{d-1}``-moment faces at d≥2; scalar at d=1) and scatters the
+        outgoing faces.  The SOLVE arm of the ``_CellSolve`` level operation
+        consumed by :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full`
+        / :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`.
         """
-        eff_denom, rhs, w, in0 = self._kernel_terms(
-            psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
-        )
-        psi_avg = rhs / eff_denom
-        psi_out = self.outgoing_face_from_average(psi_avg, in0, w)
-        return psi_avg, (psi_out,)
+        if len(s_axes) == 1:
+            eff_denom, rhs, w, in0 = self._kernel_terms(
+                psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
+            )
+            psi_avg = rhs / eff_denom
+            psi_out = self.outgoing_face_from_average(psi_avg, in0, w)
+            return psi_avg, (psi_out,)
+        d = len(s_axes)
+        assembled, R_source = self._ubld_system(s_axes, sigt_cells, Q_cells)
+        R = R_source + self._ubld_inflow(s_axes, psi_in)
+        psi_moments = per_cell_solve(assembled, R)
+        return psi_moments, self._ubld_outgoing_faces(psi_moments, d)
 
     def residual_kernel_batch(
         self,
@@ -495,21 +637,36 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         sigt_cells: np.ndarray,
         Q_cells: np.ndarray,
     ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
-        r"""Pure batched LD operator residual — the apply twin (1-D, slab).
+        r"""Pure batched LD operator residual — the apply twin (d-generic).
 
-        Evaluates :math:`r = S\,\bar\psi - \mathrm{rhs}` at the PROBE
-        cell-average and reconstructs the outgoing face from the probe.  At the
-        ``psi_bar`` :meth:`cell_kernel_batch` solves for (same inputs) the
-        residual vanishes to FP noise (the batched round-trip).  The APPLY arm
-        of the ``_CellResidual`` level operation (the matvec walk); for the
-        operator action ``Q_cells`` is zero (source-free).
+        **d=1**: evaluates :math:`r = S\,\bar\psi - \mathrm{rhs}` at the PROBE
+        scalar cell-average and reconstructs the scalar outgoing face from it.
+
+        **d≥2**: evaluates the bilinear UBLD residual :math:`r = A\,\vec\psi -
+        R` at the PROBE ``2^d``-moment vector ``psi_bar`` ``(N_oct, ng, n_diag,
+        2^d)`` and reconstructs the d ``2^{d-1}``-moment downstream faces from
+        the probe (so the matvec edge fluxes propagate along the wavefront
+        exactly as the sweep's — the L21 matvec ≡ sweep).
+
+        At the ``psi_bar`` :meth:`cell_kernel_batch` solves for (same inputs)
+        the residual vanishes to FP noise (the batched round-trip, D5b.1).  The
+        APPLY arm of the ``_CellResidual`` level operation (the matvec walk);
+        for the operator action ``Q_cells`` is zero (source-free).
         """
-        eff_denom, rhs, w, in0 = self._kernel_terms(
-            psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
+        if len(s_axes) == 1:
+            eff_denom, rhs, w, in0 = self._kernel_terms(
+                psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
+            )
+            residual = eff_denom * psi_bar - rhs
+            psi_out = self.outgoing_face_from_average(psi_bar, in0, w)
+            return residual, (psi_out,)
+        d = len(s_axes)
+        assembled, R_source = self._ubld_system(s_axes, sigt_cells, Q_cells)
+        R = R_source + self._ubld_inflow(s_axes, psi_in)
+        residual = (
+            np.einsum("...ij,...j->...i", assembled["A"], psi_bar) - R
         )
-        residual = eff_denom * psi_bar - rhs
-        psi_out = self.outgoing_face_from_average(psi_bar, in0, w)
-        return residual, (psi_out,)
+        return residual, self._ubld_outgoing_faces(psi_bar, d)
 
     # ── Scan-family coefficients (group 3 — the DAG-free schedules) ──────────
     #

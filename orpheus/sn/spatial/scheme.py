@@ -383,10 +383,29 @@ class DiscretizationScheme(Protocol):
         transverse coupling, so a newly-added scheme that forgets to set
         it is safely excluded from the :math:`d \ge 2` scan-march and
         falls back to the wavefront.  Read-only class attribute.
+    spatial_basis_per_axis : int
+        The number of spatial moments the cell closure carries **per spatial
+        axis** (the size of its 1-D moment basis).  ``1`` for the slopeless
+        cell-average closures (Diamond Difference / Step — basis ``{1}``);
+        ``2`` for Linear-Discontinuous (the Legendre basis ``{1, P₁}`` per
+        axis).  The tensor-product (Kronecker) structure of the UBLD cell makes
+        the per-cell and per-face moment counts dimension-dependent derivations
+        of this single per-axis number (with ``d`` the spatial dimension at the
+        call site): the per-cell unknown is :math:`(\text{per\_axis})^d`-long
+        (DD: 1; LD-2D: 4; LD-3D: 8) and each downstream face carries
+        :math:`(\text{per\_axis})^{d-1}` transverse moments (DD: 1; LD-2D: 2).
+        The boolean ``per_axis > 1`` is the GATE on every multi-moment wiring
+        site (the face-cochain trailing moment axis, the moment-reducing emit)
+        — DD/Step at ``per_axis == 1`` keep the rank-:math:`r` scalar face and
+        the rank-3 ``psi_avg`` EXACTLY (no trailing length-1 axis is appended),
+        the backward-compat invariant (#240 D5b).  A pure per-cell
+        ``ClassVar[int]`` would be WRONG for LD (its count is
+        dimension-dependent); the per-axis basis size encodes the tensor-product
+        structure UBLD is built on.  Read-only class attribute.
 
     Notes
     -----
-    All four traits are class-level so they can be inspected without
+    All five traits are class-level so they can be inspected without
     instantiating the strategy.  Code that selects a closure based on
     cell-thickness or stiffness criteria reads ``is_linear``;
     diagnostics that gate on whether negative fluxes can appear read
@@ -400,6 +419,7 @@ class DiscretizationScheme(Protocol):
     is_positivity_preserving: bool
     is_affine_scannable: bool
     transverse_coupling_is_facewise: bool
+    spatial_basis_per_axis: int
 
     def update(
         self,
@@ -785,6 +805,47 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     establish the irreducible multi-dimensional coupling of the LD slope
     moments; the DD / box facewise separability is the standard
     tensor-product central-difference structure (Lewis & Miller §§4.5, 8)."""
+
+    spatial_basis_per_axis: ClassVar[int] = 1
+    r"""The cell closure's number of spatial moments **per spatial axis** (its
+    1-D moment-basis size); the default ``1`` is the slopeless cell-average
+    closure (Diamond Difference / Step).
+
+    The tensor-product (Kronecker) UBLD structure makes the per-cell and
+    per-face moment counts dimension-dependent derivations of this single
+    per-axis number, with ``d`` the spatial dimension known at the call site
+    (``len(s_axes)``):
+
+    * **per-cell unknown** = :math:`(\text{per\_axis})^d` moments — DD: ``1``;
+      Linear-Discontinuous at d=2: ``4`` (``{ψ̄, ψ̂_x, ψ̂_y, ψ̂_xy}``); at d=3:
+      ``8``.
+    * **per-face transverse object** = :math:`(\text{per\_axis})^{d-1}` moments
+      — DD: ``1`` (a scalar face); LD at d=2: ``2`` (``{face-bar, face-slope}``).
+
+    The boolean ``per_axis > 1`` is the GATE on every multi-moment wiring site
+    (#240 D5b): the interior face-cochain trailing moment axis
+    (:class:`~orpheus.sn.sweep_graph._MovingFrontier` /
+    :meth:`~orpheus.sn.loss_representation.FullFieldWavefront._octant_face_cochain`)
+    and the moment-reducing scalar/moment emit
+    (:class:`~orpheus.sn.sweep_graph._CellSolve` /
+    :class:`~orpheus.sn.sweep_graph._CellResidual`).  DD/Step at
+    ``per_axis == 1`` keep the rank-:math:`r` scalar face and rank-3 ``psi_avg``
+    EXACTLY — no trailing length-1 axis is appended (a uniform length-1 axis
+    would re-associate DD's emit einsum and break bit-identity), the
+    load-bearing backward-compat invariant.
+
+    Why per-AXIS, not per-cell.  A pure per-cell ``ClassVar[int]`` is WRONG for
+    LD: its per-cell count is :math:`2^d`, dimension-dependent.  The per-axis
+    basis size is the dimension-invariant trait, and it directly encodes the
+    tensor-product structure UBLD is built on (the per-cell system is the
+    Kronecker product of ``d`` copies of the 1-D ``per_axis × per_axis``
+    factor).  An affine cell-average scheme leaves the default ``1``; a
+    higher-order moment scheme overrides (LD → ``2``).  Read-only class
+    attribute.
+
+    Source: Maginot, Ragusa & Morel (2016) §2 Eqs. (8)-(12) — the
+    tensor-product bilinear basis; the d=1 reduction lives in
+    :mod:`orpheus.sn.spatial._ubld` (``d1_closed_form``)."""
 
     @classmethod
     def _registry_base(cls) -> type:

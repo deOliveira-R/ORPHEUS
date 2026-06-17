@@ -80,6 +80,7 @@ from types import MappingProxyType
 
 import numpy as np
 
+from orpheus.sn.spatial._ubld import AVERAGE_MOMENT, face_moment_tail
 from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
 
 
@@ -250,19 +251,30 @@ class _MovingFrontier:
     the advance, :meth:`shed` the :math:`\iota^*` domain-outflow capture.
     """
 
-    __slots__ = ("_win", "_plan")
+    __slots__ = ("_win", "_plan", "_face_moments")
 
-    def __init__(self, N_oct: int, ng: int, plan: _FrontierPlan) -> None:
+    def __init__(
+        self, N_oct: int, ng: int, plan: _FrontierPlan, n_face_moments: int = 1,
+    ) -> None:
         free = plan.free_bbox
         det = plan.det
+        # The interior face cochain carries a trailing ``2^{d-1}``-moment axis
+        # for a multi-moment closure (LD's bilinear face — #240 D5b); the
+        # slopeless cell-average closures (DD/Step) leave ``n_face_moments == 1``
+        # and the trailing axis is ABSENT (no length-1 axis appended), keeping
+        # the rank-r face buffers byte-identical.  The seed/incoming/emit/shed
+        # selectors index the leading (N_oct, ng, parity, *slab) axes only, so a
+        # trailing moment axis rides along untouched.
+        tail = face_moment_tail(n_face_moments)
         win = []
         for a, n_a in enumerate(plan.spatial_shape):
             shp = list(free)
             if a < det:                          # FREE axis: +1 ghost on coord a
                 shp[a] = n_a + 1
-            win.append(np.zeros((N_oct, ng, 2, *shp)))
+            win.append(np.zeros((N_oct, ng, 2, *shp, *tail)))
         self._win = tuple(win)
         self._plan = plan
+        self._face_moments = n_face_moments
 
     def seed(self, prev: int, lvl: int, inflow: tuple[np.ndarray, ...]) -> None:
         r""":math:`\iota_*` — inject the domain inflow into the slab at this
@@ -729,6 +741,7 @@ class SweepDependencyGraph:
         sig_t: np.ndarray,                         # (ng, *spatial)
         str_axes_octant: tuple[np.ndarray, ...],   # d-tuple, each (N_oct, n_a)
         capture: tuple[np.ndarray, ...],           # d-tuple — per-axis domain outflow, written
+        n_face_moments: int = 1,                   # trailing 2^{d-1} face-moment axis (LD multi-D)
     ) -> None:
         r"""Rolling-frontier level walk — the storage-B PRODUCTION policy.
 
@@ -741,9 +754,14 @@ class SweepDependencyGraph:
         recycles.  Pinned bit-identical to :meth:`walk_full` by the
         ``window ≡ full`` oracles (d=1/d=2/d=3) — same cell math, same level
         order, different storage.
+
+        ``n_face_moments`` is the per-face transverse moment count
+        :math:`(\text{per\_axis})^{d-1}` (DD/Step: 1; LD-2D: 2) — the frontier
+        slabs carry a trailing moment axis when ``> 1`` (#240 D5b), absent
+        otherwise (DD byte-identical).
         """
         N_oct, ng = inflow[0].shape[0], inflow[0].shape[1]
-        frontier = _MovingFrontier(N_oct, ng, self.window_plan)
+        frontier = _MovingFrontier(N_oct, ng, self.window_plan, n_face_moments)
         for k, cell_idx in enumerate(self.levels):
             cur, prev = k % 2, (k - 1) % 2
             frontier.seed(prev, k, inflow)
@@ -849,6 +867,21 @@ class _CellSolve:
         psi_avg, psi_out = self.scheme.cell_kernel_batch(
             psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
         )
+        # The d≥2 bilinear UBLD closure returns a trailing ``2^d``-moment axis on
+        # ``psi_avg``; the scalar / moment emit reduces on the AVERAGE moment
+        # (slot 0).  DD/Step (always) AND LD at d=1 (the closed-form fast path
+        # returns a SCALAR average) keep ``psi_avg`` rank-3 → the original
+        # einsums fire byte-identically (#240 D5b).  The gate is the DIMENSION
+        # (``len(s_axes) > 1``), not the scheme trait alone: LD's per-axis basis
+        # is 2 in every d, but only the d≥2 dense kernel carries the trailing
+        # moment axis.  (The spatial-moment ITERATE ``φ̂`` is S3 — the average
+        # moment is all the scalar-flux iterate carries this step.)  This emit
+        # gate is coextensive with the face-cochain width gate
+        # (``n_face_moments = per_axis ** (ndim-1) != 1``) ONLY while the walk
+        # supplies one ``s_axes`` entry per spatial axis (``len(s_axes) == ndim``);
+        # that invariant holds today (the DAG walk builds full per-axis tuples).
+        if len(s_axes) > 1 and self.scheme.spatial_basis_per_axis > 1:
+            psi_avg = psi_avg[..., AVERAGE_MOMENT]
         cell = (slice(None), *cell_idx)
         cell_g = (slice(None), *cell)
         if self.moment_buf is None:
@@ -886,6 +919,21 @@ class _CellResidual:
         sigt_cells: np.ndarray,
         Q_cells: np.ndarray,
     ) -> tuple[np.ndarray, ...]:
+        # The full matvec walk on a multi-moment closure (LD's bilinear UBLD in
+        # d≥2) needs the FULL 2^d-moment probe, but the apply iterate carries
+        # only the cell-average moment this step (the spatial-moment iterate φ̂
+        # is #240 D5b-S3).  Fail loudly rather than feed the bilinear residual a
+        # scalar probe that broadcasts wrong.  The kernel-level matvec twin
+        # (residual_kernel_batch at the full solved state) IS verified at S2;
+        # the within-group SI path (cell_kernel_batch) is the production driver.
+        if len(s_axes) > 1 and self.scheme.spatial_basis_per_axis > 1:
+            raise NotImplementedError(
+                "The multi-D LD forward matvec (loss_action / Krylov) needs the "
+                "2^d-moment spatial iterate, deferred to #240 D5b-S3; the "
+                "production 2-D LD path is the within-group source-iteration "
+                "sweep (cell_kernel_batch). The kernel-level matvec twin "
+                "(residual_kernel_batch) is verified directly."
+            )
         cell_g = (slice(None), slice(None), *cell_idx)
         residual, psi_out = self.scheme.residual_kernel_batch(
             psi_bar=self.psi_avg_probe_octant[cell_g],

@@ -358,15 +358,70 @@ class TestLDKernel:
         np.testing.assert_allclose(psi_out3, psi_out2, rtol=1e-12, atol=1e-13)
 
     @pytest.mark.foundation
-    def test_cell_kernel_batch_rejects_multi_d(self) -> None:
-        """A multi-D LD is bilinear (deferred #158 Inc. D) → d≥2 raises."""
+    def test_cell_kernel_batch_admits_multi_d(self) -> None:
+        """D5b: the multi-D bilinear UBLD kernel runs (was: raised d=1-only).
+
+        A d=2 ``s_axes`` now solves the ``2^2 = 4`` per-cell bilinear system
+        and returns ``(psi_avg_moments, (out_x, out_y))`` — one outgoing
+        ``2^{d-1}=2``-moment face per streaming axis.  This INVERTS the former
+        ``test_cell_kernel_batch_rejects_multi_d`` pin (#240 D5b-S2)."""
         strat = LinearDiscontinuous()
-        two = np.zeros((1, 1, 1))
-        with pytest.raises(NotImplementedError, match="d=1"):
-            strat.cell_kernel_batch(
-                psi_in=(two, two), s_axes=(two, two),
-                sigt_cells=np.ones((1, 1)), Q_cells=np.zeros((1, 1, 1)),
-            )
+        # one cell, 1 group, 1 diag slot; per-axis 2^{d-1}=2-moment inflow faces.
+        g = np.array([[[0.8]]])                       # (N_oct=1, 1, n_diag=1)
+        face = np.zeros((1, 1, 1, 2))                 # (…, 2^{d-1}) transverse moments
+        psi_avg, faces = strat.cell_kernel_batch(
+            psi_in=(face, face), s_axes=(g, g),
+            sigt_cells=np.ones((1, 1)), Q_cells=np.ones((1, 1, 1)),
+        )
+        np.testing.assert_array_equal(psi_avg.shape, (1, 1, 1, 4))
+        if len(faces) != 2:
+            pytest.fail(f"expected one outgoing face per axis (2); got {len(faces)}")
+        for out_a in faces:
+            np.testing.assert_array_equal(out_a.shape, (1, 1, 1, 2))
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("ng", [1, 2])
+    def test_residual_zero_at_solved_cell_avg_2d(self, ng: int) -> None:
+        r"""D5b.1 round-trip: ``residual_kernel_batch`` vanishes at the FULL
+        ``2^d`` state ``cell_kernel_batch`` solves for.
+
+        The d=2 ``cell_kernel_batch`` (solve) and ``residual_kernel_batch``
+        (apply) describe the SAME bilinear UBLD per-cell system; the residual at
+        the solved ``2^d``-moment vector is FP-noise.  Feeds NON-flat per-axis
+        ``psi_in`` (the bilinear slope per axis ACTIVE — a flat in_x/in_y would
+        null the slope and hide the multi-D coupling) and the FULL solved
+        ``2^d`` state (a partial / average-only feed passes spuriously).  ``ng``
+        ∈ {1, 2}: 1G the degenerate control, 2G HETEROGENEOUS the real gate (vv
+        H1).  ``atol=1e-12`` (the 2^d dense solve is a few division ULP deeper
+        than DD's 1e-13).  Also pins the outgoing faces reconstruct identically
+        in BOTH directions per axis (the D5b.4 matvec-twin face hazard)."""
+        strat = LinearDiscontinuous()
+        rng = np.random.default_rng(58 + ng)
+        N_oct, n_diag = 2, 3
+        g_x = rng.uniform(0.3, 1.2, (N_oct, 1, n_diag))
+        g_y = rng.uniform(0.3, 1.2, (N_oct, 1, n_diag))
+        # 2G HETEROGENEOUS per-group sigt (1G degenerate control + 2G real gate).
+        sig = rng.uniform(0.5, 2.0, (ng, n_diag))
+        Q = rng.uniform(0.2, 2.0, (N_oct, ng, n_diag))
+        # NON-flat per-axis 2^{d-1}=2-moment inflow faces (slope ACTIVE).
+        in_x = rng.uniform(0.05, 0.6, (N_oct, ng, n_diag, 2))
+        in_y = rng.uniform(0.05, 0.6, (N_oct, ng, n_diag, 2))
+
+        psi_avg, (out_x, out_y) = strat.cell_kernel_batch(
+            psi_in=(in_x, in_y), s_axes=(g_x, g_y), sigt_cells=sig, Q_cells=Q,
+        )
+        residual, (rout_x, rout_y) = strat.residual_kernel_batch(
+            psi_bar=psi_avg, psi_in=(in_x, in_y),
+            s_axes=(g_x, g_y), sigt_cells=sig, Q_cells=Q,
+        )
+        np.testing.assert_allclose(
+            residual, 0.0, atol=1e-12,
+            err_msg="d=2 LD residual does not vanish at the solved 2^d state",
+        )
+        # The matvec must reconstruct the outgoing faces identically to the
+        # sweep — both directions per axis (D5b.4 hazard).
+        np.testing.assert_allclose(out_x, rout_x, atol=1e-13, err_msg="out_x drift")
+        np.testing.assert_allclose(out_y, rout_y, atol=1e-13, err_msg="out_y drift")
 
 
 def test_ld_returns_cell_result() -> None:

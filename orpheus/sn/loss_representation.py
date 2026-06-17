@@ -129,6 +129,7 @@ import numpy as np
 # bodies share one home, so the historical load-time import cycle is gone.
 from orpheus.geometry import CoordSystem
 
+from .spatial._ubld import AVERAGE_MOMENT, face_moment_tail
 from .spatial.scheme import UpstreamState
 from .spatial.psi_half_angle_seed import CarlsonSweepContext
 from .spatial.scan import _scanmarch_row, _x_scan_faces, ordinate_scan
@@ -278,6 +279,41 @@ class _LossRepresentation:
         raise NotImplementedError(
             f"{cls.__name__} must implement supports()"
         )
+
+    @property
+    def _n_face_moments(self) -> int:
+        r"""Per-face transverse moment count :math:`(\text{per\_axis})^{d-1}`.
+
+        The interior face cochain (full or windowed) carries this many moments
+        per face for the selected scheme: ``1`` for the slopeless cell-average
+        closures (DD/Step → byte-identical scalar faces) and ``2^{d-1}`` for the
+        bilinear UBLD Linear-Discontinuous closure (#240 D5b — d=2: 2).  The
+        single derivation site of the multi-moment face-cochain width."""
+        per_axis = self.mesh.scheme.spatial_basis_per_axis
+        return per_axis ** (self.mesh.ndim - 1)
+
+    def _inflow_to_moments(
+        self, inflow: tuple["np.ndarray", ...],
+    ) -> tuple["np.ndarray", ...]:
+        r"""Widen the scalar domain inflow to a per-face moment object.
+
+        The boundary trace carries one scalar value per face today; a
+        multi-moment closure's cochain needs a ``2^{d-1}``-moment domain inflow.
+        For the S2 foundation gates the domain inflow is VACUUM / zero, so each
+        per-axis face becomes a zeros moment array (the average moment seeded by
+        the scalar, the transverse slopes zero — and for vacuum the average is
+        zero too).  The non-vanishing domain-inflow moment trace is the #240
+        D5b-S4 boundary widening.  At a single-moment closure this is the
+        identity (the trailing axis is absent)."""
+        n = self._n_face_moments
+        if n == 1:
+            return inflow
+        widened = []
+        for face in inflow:
+            buf = np.zeros((*face.shape, n))
+            buf[..., AVERAGE_MOMENT] = face   # average moment ← scalar inflow
+            widened.append(buf)
+        return tuple(widened)
 
     def sweep(
         self,
@@ -887,6 +923,11 @@ class MovingFrontierWindow(_DAGWavefront):
         graph = self.sweep_graphs[OctantLabel(signs_eff)]
         ng = operands.sig_t.shape[0]
         spatial = operands.sig_t.shape[1:]
+        # Multi-moment closures (LD's bilinear UBLD) carry a trailing
+        # 2^{d-1}-moment face axis on the cochain; the domain inflow + capture
+        # widen to match (#240 D5b).  Single-moment (DD/Step) → identity.
+        n_face_moments = self._n_face_moments
+        inflow = self._inflow_to_moments(inflow)
         capture = tuple(np.empty_like(face) for face in inflow)
         # Angular mode allocates a per-octant angular buffer (scattered into
         # the global field below); moment mode accumulates directly into the
@@ -910,9 +951,16 @@ class MovingFrontierWindow(_DAGWavefront):
             sig_t=operands.sig_t,
             str_axes_octant=tuple(s[oct_idx] for s in operands.str_axes),
             capture=capture,
+            n_face_moments=n_face_moments,
         )
         if emit.moment_buf is None:
             emit.angular_flux[oct_idx] = angular_flux_oct
+        # The domain-edge capture carries the trailing moment axis at a
+        # multi-moment closure; the boundary trace consumes the average moment
+        # (slot 0).  S2 domain edges are vacuum, so this only feeds the
+        # discarded capture; the non-vacuum moment trace is S4.
+        if n_face_moments > 1:
+            capture = tuple(c[..., AVERAGE_MOMENT] for c in capture)
         return capture
 
     def loss_action(
@@ -1010,6 +1058,7 @@ class FullFieldWavefront(_DAGWavefront):
         spatial: tuple[int, ...],
         signs_eff: tuple[int, ...],
         inflow: tuple["np.ndarray", ...],
+        n_face_moments: int = 1,
     ) -> tuple["np.ndarray", ...]:
         r"""Allocate one octant's FULL per-axis interior face cochain, with the
         domain in-edges seeded from the octant's inflow.
@@ -1020,17 +1069,34 @@ class FullFieldWavefront(_DAGWavefront):
         invariant every other slot (interior + out-edge) is written before any
         read, so a zero initialization is byte-identical to the historical
         whole-trace ι_* seed.
+
+        ``n_face_moments`` is the per-face transverse moment count
+        :math:`(\text{per\_axis})^{d-1}` (DD/Step: 1; LD-2D: 2 — #240 D5b).  At
+        ``> 1`` each face buffer carries a trailing moment axis; the IN-edge is
+        seeded with the domain inflow's average moment (slot 0), the transverse
+        slope moments left zero.  For the S2 foundation gates the domain inflow
+        is VACUUM / zero, so the whole moment object is zero; the non-vanishing
+        domain-inflow moment trace is #240 D5b-S4 (the boundary widening).  At
+        ``n_face_moments == 1`` the trailing axis is ABSENT — DD's rank-r face
+        buffers are byte-identical.
         """
         N_oct, ng = inflow[0].shape[0], inflow[0].shape[1]
         ndim = len(spatial)
+        tail = face_moment_tail(n_face_moments)
         faces = []
         for a in range(ndim):
             face_shape = list(spatial)
             face_shape[a] += 1
-            buf = np.zeros((N_oct, ng, *face_shape))
+            buf = np.zeros((N_oct, ng, *face_shape, *tail))
             in_edge = [slice(None)] * (2 + ndim)
             in_edge[2 + a] = 0 if signs_eff[a] >= 0 else spatial[a]
-            buf[tuple(in_edge)] = inflow[a]
+            if n_face_moments == 1:
+                buf[tuple(in_edge)] = inflow[a]
+            else:
+                # Seed the average moment (slot 0) with the scalar domain inflow;
+                # transverse slope moments stay zero (S2 vacuum → all zero; the
+                # non-vanishing moment trace is the S4 boundary widening).
+                buf[(*in_edge, AVERAGE_MOMENT)] = inflow[a]
             faces.append(buf)
         return tuple(faces)
 
@@ -1041,7 +1107,13 @@ class FullFieldWavefront(_DAGWavefront):
         signs_eff: tuple[int, ...],
     ) -> tuple["np.ndarray", ...]:
         """Extract the per-axis domain OUT-edge slots (the octant's shed
-        outflow) from the walked cochain."""
+        outflow) from the walked cochain.
+
+        At a multi-moment closure the captured slot carries the trailing
+        ``2^{d-1}`` moment axis; the domain-edge consumer (the boundary trace)
+        takes the average moment.  For S2 the captured outflow feeds only the
+        per-axis ``capture`` arrays the walk discards on a vacuum domain edge.
+        """
         ndim = len(spatial)
         capture = []
         for a in range(ndim):
@@ -1096,8 +1168,11 @@ class FullFieldWavefront(_DAGWavefront):
         sig_t = operands.sig_t
         ng = sig_t.shape[0]
         spatial = sig_t.shape[1:]
+        n_face_moments = self._n_face_moments
         graph = self.sweep_graphs[OctantLabel(signs_eff)]
-        psi_faces_oct = self._octant_face_cochain(spatial, signs_eff, inflow)
+        psi_faces_oct = self._octant_face_cochain(
+            spatial, signs_eff, inflow, n_face_moments,
+        )
         angular_oct = np.zeros((oct_idx.size, ng, *spatial))
         graph.walk_full(
             level_op=_CellSolve(
@@ -1112,7 +1187,13 @@ class FullFieldWavefront(_DAGWavefront):
             str_axes_octant=tuple(s[oct_idx] for s in operands.str_axes),
         )
         emit.angular_flux[oct_idx] = angular_oct
-        return self._edge_outflow(psi_faces_oct, spatial, signs_eff)
+        capture = self._edge_outflow(psi_faces_oct, spatial, signs_eff)
+        # The boundary trace consumes the average moment (slot 0) at a
+        # multi-moment closure; S2 domain edges are vacuum so this feeds only
+        # the discarded capture (the non-vacuum moment trace is S4).
+        if n_face_moments > 1:
+            capture = tuple(c[..., AVERAGE_MOMENT] for c in capture)
+        return capture
 
     def loss_action(
         self, sigma: "np.ndarray", psi: "TimedFullField",

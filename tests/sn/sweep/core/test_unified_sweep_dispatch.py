@@ -386,8 +386,8 @@ class TestD3SupportsMatrix:
     def test_2d_ld_default_for_routes_to_wavefront(self):
         """D5-0 selection: ``default_for`` on a 2-D LD mesh lands on a
         WAVEFRONT (MovingFrontierWindow / FullFieldWavefront), NEVER
-        ScanMarch.  (Pre-D5b the wavefront RAISES on the LD multi-D
-        ``cell_kernel_batch``; that is HONEST — what is forbidden is the
+        ScanMarch.  (D5b-S2 lands the multi-D LD ``cell_kernel_batch`` so the
+        wavefront now RUNS the bilinear UBLD; what is forbidden remains the
         silent ScanMarch inline-DD path.)"""
         sn = _2d_ld_sn_mesh()
         selected = default_for(sn)
@@ -402,23 +402,24 @@ class TestD3SupportsMatrix:
             )
 
     @pytest.mark.foundation
-    def test_2d_ld_sweep_raises_not_silently_dd(self):
-        """D5-0 the headline honesty claim: sweeping a 2-D LD mesh no longer
-        silently yields DD values — it RAISES the d=1-only
-        ``NotImplementedError`` (the loud not-yet-implemented signal D5b
-        closes).  Pre-D5-0 this path returned DD numbers via the ScanMarch
-        inline-DD row-march; post-D5-0 the LD mesh routes to the wavefront,
-        whose multi-D LD ``cell_kernel_batch`` raises."""
+    def test_2d_ld_sweep_runs_genuine_ld_not_dd(self):
+        """D5b-S2 closes the D5-0 honest-interim raise: a 2-D LD fixed-source
+        now RUNS (the multi-D bilinear UBLD kernel) and produces a GENUINELY
+        DIFFERENT converged flux from DD on the same mesh/materials/source —
+        the catcher that LD is computing LD, not silently collapsing to DD (the
+        D5-0 misroute would have given DD≡LD).  Inverts the former
+        ``test_2d_ld_sweep_raises_not_silently_dd`` (#240 D5b)."""
         import numpy as np
         from orpheus.derivations.common.xs_library import make_mixture
         from orpheus.sn import solve_sn_fixed_source
+        from orpheus.sn.spatial import DiamondDifference
 
         mix = make_mixture(
             sig_t=np.array([1.0]), sig_c=np.array([0.5]),
             sig_f=np.array([0.0]), nu=np.array([0.0]),
             chi=np.array([1.0]), sig_s=np.array([[0.5]]),
         )
-        nx, ny = 4, 3
+        nx, ny = 4, 3                          # coarse — where O(h²) closures diverge
         mesh = Mesh2D(
             edges_x=np.linspace(0.0, 1.0, nx + 1),
             edges_y=np.linspace(0.0, 1.0, ny + 1),
@@ -429,20 +430,23 @@ class TestD3SupportsMatrix:
         quad = Quadrature.level_symmetric(sn_order=4)
         N = quad.weights.size
         Q = np.ones((N, 1, nx, ny))            # (N, ng, nx, ny) per-ordinate
-        raised = False
-        try:
-            solve_sn_fixed_source(
-                {0: mix}, mesh, quad, Q,
-                scheme=LinearDiscontinuous(),
-                max_inner=2, inner_tol=1e-8,
-            )
-        except NotImplementedError:
-            raised = True
-        if not raised:
+        res_ld = solve_sn_fixed_source(
+            {0: mix}, mesh, quad, Q,
+            scheme=LinearDiscontinuous(), max_inner=200, inner_tol=1e-10,
+        )
+        res_dd = solve_sn_fixed_source(
+            {0: mix}, mesh, quad, Q,
+            scheme=DiamondDifference(), max_inner=200, inner_tol=1e-10,
+        )
+        phi_ld = res_ld.scalar_flux.values
+        phi_dd = res_dd.scalar_flux.values
+        if not np.all(np.isfinite(phi_ld)):
+            pytest.fail("2-D LD fixed-source produced non-finite flux")
+        if np.allclose(phi_dd, phi_ld, rtol=1e-3):
             pytest.fail(
-                "2-D LD fixed-source did NOT raise — a silent return means "
-                "the mesh ran ScanMarch's inline DD (the D5-0 misroute) "
-                "instead of the honest d=1-only NotImplementedError"
+                "2-D LD converged flux ≈ DD — LD is silently computing DD "
+                "(the D5-0 misroute regressed, or the bilinear closure was "
+                "not exercised)"
             )
 
 

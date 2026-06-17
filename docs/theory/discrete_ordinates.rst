@@ -1686,6 +1686,95 @@ Branch-2 gate).
    :math:`d \ge 2` bilinear cell-batch kernel + the
    :math:`2^{d-1}`-moment face cochain wiring onto the dense primitive).
 
+.. _ld-ubld-d2-wavefront-wiring:
+
+Wiring the d≥2 UBLD kernel onto the DAG wavefront (S2)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Sub-step **D5b-S2** closes the :math:`d = 1`-only kernel raise so
+Linear-Discontinuous runs in :math:`d \ge 2` on the DAG wavefront,
+consuming the verified dense primitive.  Three contract widenings, all
+GATED on a single scheme trait so Diamond Difference / Step stay
+byte-identical:
+
+.. math::
+   :label: ld-ubld-n-spatial-moments
+
+   \text{per-cell} = (\text{per\_axis})^{d}, \qquad
+   \text{per-face} = (\text{per\_axis})^{d-1}, \qquad
+   \text{per\_axis} =
+   \begin{cases} 1 & \text{DD / Step} \\ 2 & \text{LD} \end{cases}
+
+The class-level trait
+:attr:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.spatial_basis_per_axis`
+(the 1-D moment-basis size) indexes the whole contract via the
+tensor-product structure: the per-cell unknown is
+:math:`(\text{per\_axis})^d` (LD-2D: 4) and each downstream face carries
+:math:`(\text{per\_axis})^{d-1}` transverse moments (LD-2D: 2).  The
+boolean ``per_axis > 1`` gates the multi-moment face-cochain trailing
+axis and the moment-reducing emit; DD/Step at ``per_axis == 1`` keep the
+rank-:math:`r` scalar face and rank-3 ``psi_avg`` EXACTLY.
+
+.. math::
+   :label: ld-ubld-divv-scale-free-kernel
+
+   A_{\div V}\,\vec\psi = M_{\div V}\,\vec S + \sum_a F_{\rm in}^{(a)},
+   \qquad
+   \psi_{\rm out}^{(a)}[t] = \psi[o_a{=}0,\,t] + \psi[o_a{=}1,\,t]
+
+The :math:`d \ge 2` arm rides the **scale-free ÷V** form of the dense
+system: dividing the Galerkin balance by the cell volume leaves a system
+depending only on the per-axis ÷V streaming :math:`g_a = |\mu_a|/\Delta_a`
+(the ``s_axes`` the kernel already receives) and :math:`\Sigma_t` — so the
+dense assembler is fed unit widths and ``mus = (g_0, \ldots)``, reducing
+EXACTLY to ``d1_closed_form`` at :math:`d=1`.  The :math:`d` downstream
+faces are the trace of the tensor-Legendre solution at the downstream node
+(:math:`P_0(+1) = P_1(+1) = 1` sums the :math:`o_a{=}0` and
+:math:`o_a{=}1` blocks), in the :math:`2^{d-1}` transverse-Kronecker order
+the next cell's upwind inflow consumes (out-of-cell == in-of-next-cell —
+the closure consistency the matvec twin verifies).
+
+.. todo:: Archivist expansion needed (#240 / #38 / #37 — D5b-S2 wiring).
+   This stub anchors the :math:`d \ge 2` UBLD wiring onto the DAG
+   wavefront.  The kernel dispatch is in
+   :mod:`orpheus.sn.spatial.linear_discontinuous`
+   (``cell_kernel_batch`` / ``residual_kernel_batch`` fork on
+   ``len(s_axes)``: the :math:`d=1` closed-form fast path vs the
+   :math:`d \ge 2` dense ``_ubld_system`` / ``per_cell_solve``); the
+   face-cochain widening is in :mod:`orpheus.sn.sweep_graph`
+   (``_MovingFrontier`` trailing moment axis, the ``_CellSolve`` /
+   ``_CellResidual`` moment-reducing emit) and
+   :mod:`orpheus.sn.loss_representation`
+   (``FullFieldWavefront._octant_face_cochain``, the window
+   ``_inflow_to_moments`` zero-pad).  Verification: the kernel round-trip
+   + matvec-twin face reconstruction
+   (:mod:`tests.sn.spatial.test_linear_discontinuous`
+   ``TestLDKernel`` — D5b.0 inverted, D5b.1); the end-to-end two-paths
+   FFW≡MFW, the DD≠LD routing-flip, and the O(h²) convergence smoke
+   (:mod:`tests.sn.verification.mms.test_mms_ld_2d` — D5b.3/.5/.2); the
+   d=2 numpy↔symbolic entry-wise ``A==A`` CELL-assembly pin +
+   ``test_d2_exact_on_bilinear`` (the genuine inflow ``|μ_axis|`` / ERR-060
+   catcher — it routes through ``assemble_inflow_axis``, which the
+   cell-matrix ``A==A`` pin does not)
+   (:mod:`tests.sn.spatial.test_ld_ubld_primitive`).
+   Design record (the convention crosswalk — moment ordering, the Q lift,
+   the domain-edge minimal touch):
+   ``.claude/plans/issue_240_d5b_s2_crosswalk.md``; recovery anchor:
+   ``.claude/plans/issue_240_phase2_step_d5b_ubld.md``.
+
+   Brief for the full narrative: the scale-free ÷V dense system (why
+   ``hs = [1, …]``, ``mus = [g_a, …]`` reproduces the ÷V balance and
+   reduces to ``d1_closed_form``); the moment-ordering crosswalk (the
+   Kronecker x-outer/y-inner ``[bar, ŷ, x̂, x̂y]`` cell order, the
+   per-axis ``2^{d-1}`` transverse face order, the downstream-node trace
+   reconstruction); the DD bit-identity backward-compat invariant (the
+   ``per_axis == 1`` gate keeps the scalar face / rank-3 emit
+   byte-identical); the S2 scope boundaries (the average-moment iterate
+   only — the full ``loss_action`` / Krylov 2-D LD needs the spatial-moment
+   iterate ``φ̂``, S3; the non-vanishing domain-inflow moment trace —
+   ``BoundaryFlux`` widening — S4; the strengthened vv Mode-7 stress-ansatz
+   MMS and the thick-diffusive tripwire, S4).
+
 .. _sweep-wavefront:
 
 Cartesian 2D: Anti-Diagonal Wavefront Sweep
