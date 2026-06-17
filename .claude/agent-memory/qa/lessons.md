@@ -735,3 +735,67 @@ non-square). d=1 closed form `==` dense `per_cell_solve` reduction (L29 anchor h
    VERDICT 2026-06-16: SUPPORTED-WITH-CONCERNS — all numerics sound; 1 marker
    misattribution (follow-up) + 1 pyright nit (follow-up) + spec-vs-shipped scope
    wording on D5b.4 (honest as shipped). NO false-green, NO blocker.
+
+## L-032 -- "construct-general-only" capability-addition: the byte-id gate needs teeth on BOTH the auto-select AND the phantom-length-1-axis mistake
+
+#240 D5b-S3-A0 minted a typed `SpatialMomentSpace` factor + an OPTIONAL
+`spatial_moments: int = 1` param on the flux/source field-space factories
+(`AngularField`/`ScalarField`/`HarmonicMomentField`), DEFAULT-OFF. The load-
+bearing claim = byte-identical capability addition (DD/Step/LD all unchanged in
+a live solve, no production field carries the axis yet). VERDICT: SUPPORTED (all
+7 brief questions). The transferable verification pattern for a
+construct-general / select-narrow capability addition:
+
+1. **Two DISTINCT teeth-proofs, not one.** A "capability default-OFF" gate can
+   leak two ways: (a) the factory AUTO-SELECTS the wider shape (auto-reads
+   `mesh.scheme.spatial_basis_per_axis` → LD silently widens), (b) the gate
+   appends a PHANTOM length-1 axis at default (re-associates a downstream
+   reduction even though "nothing widened"). PROVE BOTH bite:
+   - (a) MUTATION: force the helper to auto-read the scheme → ONLY the `[ld]`
+     byte-id arms red (DD scheme reads 1, stays green) = the gate discriminates
+     auto-select. (#240: `test_*_default_byte_identical_all_schemes[ld]` ×2 red.)
+   - (b) MUTATION: make the "append iff >1" policy append at n==1 too
+     (`return (n,)` instead of `() if n==1 else (n,)`) → byte-id arms red for
+     ALL schemes (DD+LD) = the gate discriminates a phantom axis. (#240: 9 red.)
+   The negative-control assertion that catches (b) is `not hasattr(field.space,
+   "factors")` — a default field must be a BARE `FunctionSpace`, not a length-1
+   `TensorProductSpace`. Independently confirm DD `(24,2,3,4)` == LD `(24,2,3,4)`
+   at default DESPITE LD's `spatial_basis_per_axis==2` (the construct-general
+   proof: the scheme SAYS 2 but the factory does not read it).
+
+2. **The "append iff >1" policy MUST be single-sourced** (Pattern 7). #240's
+   `spatial_moment_tail` delegates to `_ubld.face_moment_tail` (`() if n==1 else
+   (n,)`); the cell-tail and face-cochain-tail can never disagree. Verify the
+   delegation by reading both + the `AVERAGE_MOMENT=0` constant the space's
+   `average_moment_index` surfaces (NOT a re-spelled `0`).
+
+3. **Einsum "spectator-broadcast" lift (`fc->gc` ⇒ `fc...->gc...`) is provably
+   byte-identical at rank-2-exact** AND correct as `Σ⊗I_spatial`: at the python
+   prompt, `np.array_equal(einsum('fg,fc->gc',...), einsum('fg,fc...->gc...',...))`
+   on rank-2 input = True (the `...` matches nothing → no axis); on rank-3 input,
+   `einsum('fg,fc...->gc...')` == per-moment-independent stack (each spatial
+   moment scattered independently). The IEEE micro-fact resolves the byte-id
+   dispute, NOT the docstring (L-020). (#240: all 3 `material_xs_field.py`
+   einsum lifts — apply_p0/apply_n2n/legendre_moments — array_equal at DD/Step.)
+
+4. **The strict gate baseline is 513 (not 562).** The S3 crosswalk's "562/2skip"
+   was a STALE-PLAN figure; the live S2/S3 baseline is 513P/1skip/4xf under
+   `-W error::DriftWarning` (matches L-031). Re-confirmed; no golden moved
+   (`git status --short '**/*.npy'` = empty). When a closeout and a plan
+   disagree on a count, RUN the gate — the closeout's 513 was right.
+
+5. **Adding a dataclass FIELD (not just a space factor) to a Flux leaf ripples
+   to its Displacement sibling.** `FluxRole._mint_displacement` (`φ⊖φ`) copies
+   EVERY init field → `MomentDisplacement` needed the same `spatial_moments`
+   field or `φ⊖φ` raises TypeError. Verify the affine round-trip (`φ⊖φ→disp`,
+   `φ+disp→φ` array_equal) at BOTH default AND widened. (#240: both exact.)
+
+6. **Pyright net-new = 0** proven apples-to-apples (L-027/L-030): run the SAME
+   5 touched files PRE (stash prod + hold the new untracked file) and POST,
+   path+line-strip, `comm -23`. All 8 errors pre-existing (`DualSpace.of`
+   return, `MaterialXSField` Optional, `from_face_arrays` Optional layout,
+   `_check_partner` `other.L` on object); the NEW file alone = 0 errors; the new
+   `find_factor` RAISES KeyError (not returns None) → type-clean. The brief's
+   worry about "find_factor-returns-object at space.py:521" was a brief
+   mis-attribution: :521 is `DualSpace.of`, pre-existing. (VERDICT 2026-06-16:
+   SUPPORTED, no blocker, no follow-up.)

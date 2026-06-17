@@ -3,7 +3,7 @@
 > **Durable in-repo recovery anchor** (project rule: plans live in ORPHEUS/.claude/).
 > Parent: `.claude/plans/issue_240_phase2_step_d_homing.md` (§D5). Subsumes **#158 Increment D / #38**.
 > Branch `feature/sn-space-angle-tier2` (off `main`@`cba6d2f`), NOT pushed/merged.
-> **STATUS (2026-06-16): D5b-S2 DONE + committed (`495af60`, reviewed). Next = D5b-S3 (fold Inc C — the φ̂ spatial-moment iterate).**
+> **STATUS (2026-06-16): D5b-S2 DONE (`495af60`). D5b-S3 SPLIT A0/A/B; S3-A0 DONE + reviewed. Next = D5b-S3-A (the φ̂-iterate consumer).**
 > S1 (the unified per-cell UBLD primitive) is complete on both branches:
 > **S1 commit chain** (branch `feature/sn-space-angle-tier2`, NOT pushed/merged):
 > `7abba5d` (design plan, pre-session) → `cb84b7b` (Branch-1 SymPy algebra-of-record + oracles)
@@ -56,24 +56,43 @@
 > nits, and committed. The crosswalk `.claude/plans/issue_240_d5b_s2_crosswalk.md` is the design
 > record (moment ordering `[bar,ŷ,x̂,x̂y]`, the Q lift, the domain-edge minimal touch).
 >
-> ⏭ **S3 (#61) ENTRY POINT — fold Increment C (the φ̂ spatial-moment iterate; closes the diffusion
-> limit for d=1 #37 AND d≥2).** PROACTIVE `test-architect` dispatch FIRST (cross-subsystem carve —
-> the existing memo covers D5b.0–.5 but NOT the spatial-moment-iterate FP-invariance; write the
-> crosswalk, L17). Sites: `_CellSolve.cell` accumulate `φ̂` (today reduces on the average moment
-> only — `psi_avg[..., AVERAGE_MOMENT]`); the between-sweep flux field gains a
-> `(n_spatial_moments, ng, *spatial)` slot; `_SolveOperands.Q` grows the trailing `2^d` moment axis
-> (the genuine MMS/scattering moment-source carrier S2 deferred — S2 lifts a SCALAR source inside the
-> kernel); `ScatteringOperator.apply` lifts over the spatial-moment axis (`Σ_s⊗I`); close the d≥2
-> Krylov 2-D LD matvec raise (`_CellResidual.cell` — it RAISES today, the loud-fail S2 left). DD/Step
-> untouched (n=1 → `Σ_s⊗I_1`). **Gates:** the multi-D `ld-thick-diffusive` tripwire flips xfail→PASS
-> + the 1-D #37 thick-diffusive flips xfail→PASS; **vv Mode-9 FP-invariance** (the moment-source
-> splitting MUST NOT move the converged FP — verify on an ANISOTROPIC/heterogeneous config + a
-> DIAGONAL cubature, NOT the isotropic-reflective box). **S4 (#62)** then mints the strengthened
-> Mode-7 stress-ansatz MMS + the non-vanishing-boundary `BoundaryFlux` moment trace + the
-> `@verifies("ld-cartesian-2d")` flux-shape claim (S2 left the smoke unverified-by-design).
-> **S2 carry-forwards STILL OPEN for D6:** replace production line-number citations in the
-> `ld_ubld.py` oracle comments with symbol citations; mint/link the UBLD orphan equation family
-> (`ld-ubld-n-spatial-moments`, `ld-ubld-divv-scale-free-kernel`, + the S1 set, + `ld-cartesian-2d`).
+> ⭐ **S3 = fold Increment C (the φ̂ spatial-moment iterate; closes the diffusion limit d=1 #37 AND
+> d≥2). PROACTIVE test-architect + explorer dispatches DONE.** Authoritative design record =
+> `.claude/plans/issue_240_d5b_s3_crosswalk.md` (READ FIRST). ⭐ **FP RESOLUTION (load-bearing):**
+> Inc C is a PHYSICS-COMPLETION, NOT iteration-only — S2 converges to `(L+C−S_flat)` (diffusion-limit-
+> INCONSISTENT), S3 to `(L+C−S_full)` (CONSISTENT, `S_full=Σ_s⊗I_spatial`). The FP CHANGES (that IS
+> the point). **DO NOT gate S3-FP==S2-FP (a Mode-9 mis-application — REJECTED).** The genuine Mode-9
+> invariant = SI-with-lag ≡ Krylov on the SAME `(L+C−S_full)`. S3 SPLIT along sweep/matvec (L14):
+>
+> **S3-A0 (#64) ✅ DONE + reviewed (this arc) — the typed-field-space foundation.** User chose option
+> (b): a first-class typed space factor. Minted `SpatialMomentSpace(FunctionSpace)` (peer of
+> `SphericalHarmonicSpace`; the within-cell tensor-Legendre DG basis, size `per_axis^d`); the flux +
+> source-sink factories OPTIONALLY compose it via `*` (the `_compose_spatial_moments` single-source,
+> "append iff >1"), DEFAULT-OFF — CONSTRUCT GENERAL, no production field carries the axis yet →
+> byte-identical (DD strict 513/1/4, mutation-verified teeth both ways). Also closed #207
+> (`TensorProductSpace.find_factor`, now generic). The Σ_s⊗I scattering einsum lift
+> (`material_xs_field.py`, the prior dispatch's landed half) folded into this commit. elegance
+> PASS-WITH-NITS + qa SUPPORTED, all nits fixed (find_factor generic; from_mesh_and_L routed through
+> the single-source). ⚠ #245 filed (relocate `AVERAGE_MOMENT`/`face_moment_tail` `_ubld`→`numerics` —
+> the numerics→sn UP-import smell; deferred per Pattern 6).
+>
+> **S3-A (#61) NEXT — the φ̂-iterate consumer (forward/SI).** SELECT the SpatialMomentSpace factor for
+> the LD iterate: `_CellSolve.cell` accumulate `φ̂` (stop dropping at `psi_avg[..., AVERAGE_MOMENT]`);
+> the between-sweep iterate carriers (un-windowed `AngularFlux` + windowed `HarmonicMomentField`) gain
+> the axis (via the S3-A0 `spatial_moments` factory param, selected from
+> `scheme.spatial_basis_per_axis**ndim`); the two source seams (d≥2 `_ubld_system` genuine `(2^d,ng)`
+> Q; d=1 scan `D1ClosedForm.kernel_rhs`/`schur_xV` Q̂ — currently hard-coded 0); `ScatteringOperator.apply`
+> producer is ALREADY moment-agnostic (S3-A0). Flips BOTH thick-diffusive tripwires (1-D #37 krylov-slab;
+> 2-D via SI). Gates GATE1 (both tripwires, 2G-het MANDATORY)/GATE2 (transport MMS O(h²))/GATE4 (DD
+> bit-id)/GATE5 (1G guard). **S3-B (#63)** = close the d≥2 Krylov matvec raise (`_CellResidual.cell` —
+> the `2^d` probe + flat ravel); GATE3 (SI≡Krylov on `(L+C−S_full)`, aniso+diagonal-cubature+nonzero-c).
+> **S4 (#62)** = the strengthened Mode-7 MMS + the non-vanishing-boundary `BoundaryFlux` trace +
+> `@verifies("ld-cartesian-2d")`.
+>
+> **DEFERRED docs (the user asked):** the archivist authors the angular-vs-spatial moments Sphinx
+> discussion against the committed `SpatialMomentSpace` (stub anchors `spatial-moment-space` +
+> `ld-ubld-scattering-moment-lift` exist). **S2 carry-forwards STILL OPEN for D6:** `ld_ubld.py` oracle
+> line-number→symbol citations; mint/link the UBLD orphan equation family.
 > The design pass (plan mode) resolved the two open architecture questions WITH THE USER and
 > EXPANDED the scope — see "⭐⭐ THE TWO DECISIONS" below. The approved implementation plan is
 > `.claude/plans/mellow-swinging-breeze.md` (the S1–S5 sub-step sequence + the unified
