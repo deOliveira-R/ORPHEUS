@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5370**
+Total tests collected: **5364**
 
 V&V level distribution
 ----------------------
@@ -20,7 +20,7 @@ V&V level distribution
    L1, 981, 18.3%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3191, 59.4%
+   foundation, 3185, 59.4%
    unmarked, 9, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5282
+   explicit, 5276
    verify, 0
    class-name, 46
    func-name, 0
@@ -105,7 +105,7 @@ Module × level grid
    curvilinear/test_si_cyl_20cell_nan_regression, 0, 0, 0, 0, 4, 0
    curvilinear/test_sph_sweep_regression, 13, 0, 0, 0, 0, 0
    curvilinear/test_streaming_equilibrium_curvilinear, 27, 0, 0, 0, 0, 0
-   curvilinear/test_tau_producer_equivalence, 0, 0, 0, 0, 9, 0
+   curvilinear/test_tau_producer_equivalence, 0, 0, 0, 0, 5, 0
    curvilinear/test_unified_matvec_cylinder, 29, 2, 0, 0, 0, 0
    curvilinear/test_unified_matvec_sphere, 2, 0, 0, 0, 0, 0
    curvilinear/test_w1_clamp_silent_on_flat, 0, 2, 0, 0, 2, 0
@@ -229,7 +229,7 @@ Module × level grid
    geometry/test_geometry, 0, 0, 0, 0, 55, 0
    geometry/test_law_composition, 0, 2, 0, 0, 16, 0
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
-   geometry/test_reduced_operator, 0, 0, 0, 0, 49, 0
+   geometry/test_reduced_operator, 0, 0, 0, 0, 47, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 36, 0
    homogeneous/test_continuous_reference, 0, 7, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 4, 0, 0, 0, 0

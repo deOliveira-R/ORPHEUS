@@ -200,13 +200,20 @@ mesh) is shared with :ref:`theory-collision-probability` and
      diamond-difference denominator terms, precomputed to avoid
      per-cell division in the sweep hot loop.
    - **Spherical**: ``face_areas`` (:math:`4\pi r^2`), ``delta_A``,
-     ``alpha_half`` (angular redistribution dome),
-     ``redist_dAw`` (:math:`\Delta A_i / w_n`, shape ``(nx, N)``),
-     and ``tau_mm`` (Morel--Montry closure weights).
+     ``alpha_half`` (angular redistribution dome), and
+     ``redist_dAw`` (:math:`\Delta A_i / w_n`, shape ``(nx, N)``).
    - **Cylindrical**: ``face_areas`` (:math:`2\pi r`), ``delta_A``,
-     ``alpha_per_level`` (per-level redistribution domes),
-     ``redist_dAw_per_level`` (list of ``(nx, M)`` arrays), and
-     ``tau_mm_per_level`` (per-level Morel--Montry weights).
+     ``alpha_per_level`` (per-level redistribution domes), and
+     ``redist_dAw_per_level`` (list of ``(nx, M)`` arrays).
+
+   The Morel--Montry angular weight :math:`\tau` is **not** a factory
+   output: it is owned by the angular closure
+   (:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`),
+   since the geometry-side producer was retired in Issue #236 Phase 2
+   Step C (see :ref:`sn-tau-c-on-cellvisit-live`).  The geometry
+   factories carry **geometry only** — face areas, the
+   :math:`\alpha`-dome, the redistribution factor :math:`\Delta A/w`,
+   and the level starting-direction edge :math:`\mu_{1/2}`.
 
 3. **Solver** --- :func:`solve_sn` creates an ``SNMesh``, builds the
    ``SNSolver``, and runs power iteration. At :math:`d \le 2` the input
@@ -950,8 +957,16 @@ weight :eq:`mm-weights` is the unique weight exact for a flux linear in
   0.5 / 1.0 pattern described above is the clamp acting on these
   zero-width angular cells).
 
-The code stores these as ``SNMesh.tau_mm`` (spherical, shape ``(N,)``)
-and ``SNMesh.tau_mm_per_level`` (cylindrical, list of ``(M,)`` arrays).
+The clamp lives **inside the angular closure**, in
+:func:`~orpheus.sn.spatial.pole_angular_closure.morel_montry_tau_per_level`
+(sphere unclamped, cylinder clipped to :math:`[\tfrac12, 1]`).  The
+closure exposes the resulting weight per global ordinate through
+:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`
+(spherical: a single :math:`(N,)` array; cylindrical: the per-level
+weights gathered to the global ordinate order).  Issue #236 Phase 2
+retired the parallel geometry-side :math:`\tau` producer that formerly
+baked these weights onto :class:`StreamingTerms`; :math:`\tau` is now
+produced **solely** by the closure (see :ref:`sn-tau-c-on-cellvisit-live`).
 
 .. _sn-tau-closure-owned:
 
@@ -1178,10 +1193,11 @@ fast path now all read the angular weight :math:`\tau` :eq:`mm-weights`
 (and the derived constants :eq:`dd-mm-closure-constants`) off the
 closure rather than off the geometry-owned ``StreamingTerms.tau_mm``.
 After B3 there is **no live reader** of ``StreamingTerms.tau_mm``
-anywhere in the sweep, scan, or matvec — which is precisely the
-precondition Step C verifies before it deletes the geometry-side
-:math:`\tau` producer (the two parallel producers can be reduced to one
-only once nothing live depends on the soon-to-be-deleted one).
+anywhere in the sweep, scan, or matvec — precisely the precondition
+that let Step C delete the geometry-side :math:`\tau` producer (the two
+parallel producers could be reduced to one only once nothing live
+depended on the soon-to-be-deleted one; that retirement has now landed
+— see the close-out at the end of this section).
 
 This is the third of the four c-fold sites (after the cache populator
 in B1 and the residual twin in B2) and the fifth :math:`\tau` consumer.
@@ -1486,8 +1502,8 @@ zero**.  The DriftWarning-escalating ``tests/sn/sweep/core``,
 
 The bit-identity guarantee is what makes B3 the **regression floor for
 Step C**.  Two committed catchers pin the new live paths so that the
-forthcoming retirement of the parallel geometry-:math:`\tau` producer
-cannot silently break them:
+retirement of the parallel geometry-:math:`\tau` producer (now landed,
+Step C) cannot silently break them:
 
 * The **Leg-1 producer-equivalence gate** pins
   ``closure.tau_per_ordinate`` to the BMC-2010-Eq. 43 reference, so the
@@ -1498,12 +1514,19 @@ cannot silently break them:
   ``tests/sn/sweep/core/test_cell_visit_c_stamp.py`` walks a real
   production ``dag_walk`` (sphere, multi-level cylinder, slab) and — in
   its dedicated :math:`\tau` arm — asserts every ``visit.tau`` equals
-  that visit's **own** ``streaming_terms.tau_mm`` at 0-ULP.  The
-  reference is the *geometry-produced* ``st.tau_mm`` (a
-  structurally-independent producer, not the closure comparing against
-  itself — vv L11): the test pins the stamp's *ordinate map*, the
-  complement of what Leg-1 pins (the producers' *values*).  This arm was
-  added specifically because B3 made the
+  the **independently recomputed** Morel--Montry weight for that visit's
+  ordinate at 0-ULP.  The reference is
+  :func:`~orpheus.derivations.discrete.sn.contamination.morel_montry_weights`
+  (a structurally-independent code path to the same BMC-2010-Eq. 43
+  weight, not the closure comparing against itself — vv L11): the test
+  pins the stamp's *ordinate map*, the complement of what Leg-1 pins
+  (the producers' *values*).  Before Step C this catcher used the
+  *geometry-produced* ``st.tau_mm`` as its independent reference; when
+  Step C deleted that field the oracle was re-pointed onto
+  ``morel_montry_weights`` (with the cylinder clamp replicated), keeping
+  it geometry-:math:`\tau`-free and still structurally independent of
+  the closure under test.  This arm was added specifically because B3
+  made the
   :attr:`~orpheus.sn.spatial.scheme.CellVisit.tau` stamp **live** while
   the existing named twins never call the rewired reader (vv L11
   Mode 11): a mutation stamping ``tau = ... * 1.1`` drifts the converged
@@ -1517,22 +1540,85 @@ cannot silently break them:
   corruption of the CumprodScan :math:`\tau` split, pinning the third
   live consumer.
 
-With these in place, Step C can delete the geometry-side :math:`\tau`
-producer (:func:`~orpheus.geometry.reduced_operator.spherical_streaming`
+With these in place, **Step C has now deleted** the geometry-side
+:math:`\tau` producer.  The :math:`\tau` blocks inside
+:func:`~orpheus.geometry.reduced_operator.spherical_streaming`
+(the ``mu_edge`` weight-sum loop)
 :math:`\,/\,`
-:func:`~orpheus.geometry.reduced_operator.cylindrical_streaming` and the
-slab synthetic), together with the now-orphaned
-``StreamingTerms.tau_mm``, ``StreamingTerms.alpha_in`` /
-``alpha_out`` (whose sole readers were the c-rebuild sites B1--B3 just
-retired),
-:attr:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.tau_mm`,
-and ``tau_mm_per_level`` — confident that nothing live depends on them.
+:func:`~orpheus.geometry.reduced_operator.cylindrical_streaming` (the
+per-level ``eta_edge`` loop) and the slab synthetic were excised, and
+the now-orphaned ``StreamingTerms.tau_mm``, ``StreamingTerms.alpha_in``
+/ ``alpha_out`` (whose sole readers were the c-rebuild sites B1--B3 just
+retired), ``ReducedStreamingOperator.tau_mm``, and
+``ReducedStreamingOperator.tau_mm_per_level`` dataclass fields were
+dropped — confident that nothing live depended on them.
 See :mod:`orpheus.sn.spatial.pole_angular_closure` for the
 ``tau_per_ordinate`` accessor and the three-constant cache,
 :mod:`orpheus.sn.spatial.scheme` for the
 :attr:`~orpheus.sn.spatial.scheme.CellVisit.tau` field,
 :mod:`orpheus.sn.geometry` for the single production stamp, and
 :mod:`orpheus.sn.spatial.sweep_cache` for the scan split.
+
+.. _sn-tau-step-c-closeout:
+
+Step C close-out — the geometry-side τ producer is retired
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The retirement is a **surgical field excision plus a test-oracle
+migration**, not a blind delete: the τ producer was already dead in
+*production* (B3 left zero live readers), but it remained load-bearing
+as a *test oracle* — the regression-floor catchers used the
+geometry-produced ``st.tau_mm`` as their structurally-independent
+reference.  Migrate-then-delete preserved the floor:
+
+#. **The oracles were re-pointed first.** The production-stamp catcher
+   and the surviving producer-equivalence legs now read
+   :func:`~orpheus.derivations.discrete.sn.contamination.morel_montry_weights`
+   — a different code path to the same BMC-2010-Eq. 43 weight, unclamped
+   on both geometries, with the cylinder clamp :math:`\mathrm{clip}(\cdot,
+   \tfrac12, 1)` replicated in the test surrogate.  This kept the floor
+   green *while geometry-:math:`\tau` was still present*, proving the
+   migration faithful before any deletion.  The two
+   ``*_equals_geometry_factory_0ulp`` legs of
+   ``test_tau_producer_equivalence.py`` (which compared closure-:math:`\tau`
+   against the soon-to-be-deleted factory output) became vacuous and were
+   retired; the independent-reference and clamp-difference legs survive.
+
+#. **The producers were excised surgically.** The τ blocks are
+   *interleaved* with still-live outputs:
+   :func:`~orpheus.geometry.reduced_operator.spherical_streaming` shares
+   its ``mu_edge`` array with the live ``mu_start`` (the Hébert §3.9.4
+   starting direction :math:`\mu_{1/2} = -1.0`), and
+   :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming`
+   shares its per-level loop with the live ``mu_start_per_level``.  A
+   whole-function deletion would have been wrong; only the τ statements
+   were removed.  The :math:`\alpha`-dome (``alpha_half`` /
+   ``alpha_per_level``), the redistribution factor ``redist_dAw``, the
+   face areas, and the starting-direction edges all **stay on the
+   geometry operator** — they are genuinely geometric.
+
+#. **The deletion was proven inert.** The bit-identity regression gates
+   (run under an escalated ``DriftWarning``) showed **zero** failures
+   across the sweep / scan / matvec suites, and the test-count delta
+   reconciled exactly to the four retired ``*_equals_geometry_factory``
+   legs and the two retired ``test_reduced_operator.py``
+   τ-bit-identical tests — no silent test loss.  After deletion the
+   re-pointed catcher was **mutation-verified RED** (a :math:`\times 1.1`
+   stamp and a ``c_in`` :math:`\leftrightarrow` ``c_out`` swap both
+   reddened it against the independent oracle), confirming the migrated
+   catcher is a real catcher reading the independent reference, not a
+   tautology against the closure.
+
+.. note::
+
+   The legacy ``__call__``-argument ``tau_mm`` on the unbound
+   :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+   path (``MorelMontryAngularSweep(sn_mesh=None)``, where :math:`\tau` is
+   passed as a runtime argument because the closure is not mesh-bound) is
+   a **separate surface** and **survives Step C** unchanged — it is the
+   closure's own runtime parameter, not the geometry-side field the carve
+   retired.  Its retirement is tracked separately under
+   `Issue #248 <https://github.com/deOliveira-R/ORPHEUS/issues/248>`_.
 
 Substituting the WDD Closure into the Balance Equation
 -------------------------------------------------------

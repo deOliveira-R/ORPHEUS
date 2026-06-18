@@ -250,7 +250,11 @@ number of azimuthal ordinates on that level.
 The Morel--Montry closure (Bailey-Morel-Chang 2010 Eq. 43) is the raw
 *fractional position* of the ordinate :math:`\mu_m` in its half-angle
 interval; the production code applies a **geometry-dependent** clamp on
-top of it:
+top of it (since Issue #236 Phase 2 Step C this weight, clamp included,
+is produced on the angular closure in
+:func:`~orpheus.sn.spatial.pole_angular_closure.morel_montry_tau_per_level`,
+not on the geometry-streaming factory — the definition below is
+geometry-agnostic and stands regardless of where it is evaluated):
 
 .. math::
    :label: morel-montry-clamp
@@ -267,10 +271,15 @@ top of it:
    Rationale: this is the literature-transcribed definition of the M-M
    angular closure weight (Bailey-Morel-Chang 2010 Eq. 43) plus the
    production clamp policy; it is a representational identity, not a
-   solver claim. The verifiable content is the bit-identity hash gate
-   ``tests/geometry/test_reduced_operator.py`` (the τ arrays match the
-   legacy SNMesh setup) and the W1 clamp-silence + positivity gates
-   named at :ref:`sn-curvilinear-aniso-norm-reconciliation`.
+   solver claim. Since Issue #236 Phase 2 Step C the weight is produced
+   solely by the angular closure
+   (``morel_montry_tau_per_level``); the verifiable content is the
+   producer-equivalence floor in
+   ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py`` (the
+   closure τ matches the structurally-independent
+   ``contamination.morel_montry_weights`` reference, with the cylinder
+   clamp as the only difference) and the W1 clamp-silence + positivity
+   gates named at :ref:`sn-curvilinear-aniso-norm-reconciliation`.
 
 The raw weight :math:`\tau_m^{\rm raw}` is the **unique** weight exact
 for a flux linear in :math:`\mu` (Bailey-Morel-Chang 2010 Eq. 43), with
@@ -309,20 +318,25 @@ per coordinate system:
 * :func:`~orpheus.geometry.reduced_operator.slab_streaming(mesh, ang)
   <orpheus.geometry.reduced_operator.slab_streaming>` — Cartesian 1-D;
   no curvature math.  ``requires_upstream_angular_state = False``,
-  ``angular_marching_axis = None``.  All ``alpha_*``, ``redist_dAw``,
-  ``tau_mm`` arrays remain ``None``.
+  ``angular_marching_axis = None``.  All ``alpha_*`` and ``redist_dAw``
+  arrays remain ``None``.
 * :func:`~orpheus.geometry.reduced_operator.spherical_streaming(mesh, ang)
   <orpheus.geometry.reduced_operator.spherical_streaming>` — 1-D spherical
-  with the dome recursion :eq:`bailey-dome-recursion` and Morel--Montry
-  closure :eq:`morel-montry-clamp`.  ``requires_upstream_angular_state =
+  with the dome recursion :eq:`bailey-dome-recursion`.  The Morel--Montry
+  closure weight :eq:`morel-montry-clamp` is owned by the angular closure,
+  not this factory (Issue #236 Phase 2 Step C).
+  ``requires_upstream_angular_state =
   True``, ``angular_marching_axis = "mu"``.
 * :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming(mesh, ang)
   <orpheus.geometry.reduced_operator.cylindrical_streaming>` — 1-D
-  cylindrical with **per-:math:`\mu`-level** :math:`\alpha`,
-  :math:`\Delta A/w`, and :math:`\tau_{mm}` lists.  Requires the
+  cylindrical with **per-:math:`\mu`-level** :math:`\alpha` and
+  :math:`\Delta A/w` lists.  Requires the
   angular measure to expose ``level_indices`` (e.g.,
   :class:`~orpheus.sn.quadrature.LevelSymmetricSN`,
-  :class:`~orpheus.sn.quadrature.ProductQuadrature`).
+  :class:`~orpheus.sn.quadrature.ProductQuadrature`).  The Morel--Montry
+  weight :math:`\tau` is **not** produced here — it is owned by the
+  angular closure (Issue #236 Phase 2 Step C; see
+  :ref:`sn-tau-c-on-cellvisit-live` in :doc:`discrete_ordinates`).
 
 The per-cell, per-direction inputs needed by a sweep cell update are
 extracted via
@@ -417,15 +431,31 @@ every downstream consumer should bind to::
 returns the per-(cell, direction) packet a sweep cell update needs —
 no more reaching into ``SNMesh`` for a half-dozen separate arrays.
 
-The legacy attribute names (``alpha_half``, ``redist_dAw``, ``tau_mm``,
-``alpha_per_level``, ``redist_dAw_per_level``, ``tau_mm_per_level``,
-``face_areas``, ``delta_A``) survive as ``@property`` accessors that
-emit :class:`DeprecationWarning` and route to the matching attribute
-on ``self.reduced``.  This preserves the 6 production read sites in
-``orpheus/sn/sweep.py`` and ``orpheus/sn/solver.py`` for the
-duration of Wave D Round 2 (Issue 12) and Wave E, which then migrate
-those call sites to ``streaming_terms(...)`` directly and remove the
-deprecated properties.
+During Wave D Round 1.1 the legacy attribute names (``alpha_half``,
+``redist_dAw``, ``tau_mm``, ``alpha_per_level``,
+``redist_dAw_per_level``, ``tau_mm_per_level``, ``face_areas``,
+``delta_A``) survived transitionally as ``@property`` accessors that
+emitted :class:`DeprecationWarning` and routed to the matching
+attribute on ``self.reduced``.  This preserved the 6 production read
+sites in ``orpheus/sn/sweep.py`` and ``orpheus/sn/solver.py`` while
+Wave D Round 2 (Issue 12) and Wave E migrated those call sites to
+``streaming_terms(...)`` directly.
+
+.. note::
+
+   **The curvature-specific deprecation shims are gone.**  The six
+   curvature accessors (``alpha_half``, ``redist_dAw``, ``tau_mm`` and
+   the cylindrical per-level analogues) were retired in Wave E Round 2
+   (`Issue #164 <https://github.com/deOliveira-R/ORPHEUS/issues/164>`_)
+   along with the BiCGSTAB FD-operator API that was their only
+   consumer; bind to ``self.reduced.<name>`` directly.  Independently,
+   Issue #236 Phase 2 Step C **removed** ``tau_mm`` /
+   ``tau_mm_per_level`` as fields on :class:`ReducedStreamingOperator`
+   entirely — the Morel--Montry weight is no longer carried by the
+   geometry layer at all (it is closure-owned; see
+   :ref:`sn-tau-c-on-cellvisit-live` in :doc:`discrete_ordinates`).  So
+   neither name routes through ``self.reduced`` today; the τ entries in
+   the list above are retained only to record the Wave-D-era shim set.
 
 The Cartesian path is unchanged: ``SNMesh._setup_cartesian`` still
 populates the :math:`2|\mu|/\Delta x` and :math:`2|\mu_y|/\Delta y`
