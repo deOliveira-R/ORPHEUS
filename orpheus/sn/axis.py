@@ -360,42 +360,6 @@ def face_shape(
     )
 
 
-def _quadrature_axis_cosines(quad, axis_index: int) -> np.ndarray:
-    r"""Per-axis direction cosines, read from the underlying :class:`DiscreteMeasure`.
-
-    The quadrature's directional data lives in ``quad.measure.nodes`` —
-    either shape ``(N,)`` (1-D scalar measure on :math:`[-1, 1]`) or
-    ``(N, d)`` (d-dimensional measure on :math:`S^{d-1}`). The
-    axis-index → column-index pairing is identity by construction:
-    column :math:`i` of ``nodes`` is the projection of every ordinate
-    onto the :math:`i`-th canonical direction in the quadrature's
-    intrinsic frame.
-
-    For axis indices beyond the quadrature's dimensionality (e.g. axis
-    1 of a slab :class:`GaussLegendre1D` quadrature, or axis 2 of a
-    2-D in-plane quadrature), this returns zeros — the dim-agnostic
-    shape primitive interprets "no quadrature data on this axis" as
-    "no ordinate is outflowing on it"
-    (:func:`face_outflow_ordinates` then returns an empty array).
-
-    Cardinal Rule 2 + ``coding-elegance`` Pattern 2 / Pattern 7: the
-    quadrature's named ``mu_x``/``mu_y``/``mu_z`` attributes are
-    denormalized views of these very columns. Reading
-    ``measure.nodes`` directly bypasses the denormalized intermediate
-    and removes the per-axis name dispatch (``if axis_index == 0:
-    return quad.mu_x``) — there is exactly ONE source of truth for
-    the per-ordinate direction data, the :class:`DiscreteMeasure`
-    that every concrete quadrature already wraps.
-    """
-    nodes = quad.measure.nodes
-    n_points = quad.measure.n_points
-    if nodes.ndim == 1:
-        return nodes if axis_index == 0 else np.zeros(n_points)
-    if axis_index >= nodes.shape[1]:
-        return np.zeros(n_points)
-    return nodes[:, axis_index]
-
-
 _OUTWARD_ENDPOINTS = frozenset({"max", "outer"})
 _OUTFLOW_COSINE_TOL = 1e-15
 
@@ -412,7 +376,7 @@ def face_outflow_ordinates(
     neither inflow nor outflow at the boundary and are skipped by
     every consumer (the sweep, the matvec, and the pack convention).
     """
-    mu_axis = _quadrature_axis_cosines(quad, label.axis_index)
+    mu_axis = quad.axis_cosines(label.axis_index)
     sign = +1.0 if label.endpoint in _OUTWARD_ENDPOINTS else -1.0
     return np.where(sign * mu_axis > _OUTFLOW_COSINE_TOL)[0]
 
