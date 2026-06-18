@@ -178,6 +178,12 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
     angular condition lives on the pole-angular closure; the PAIR validity is
     :func:`~orpheus.sn.spatial.pairing.pair_diffusion_limit_consistent`."""
 
+    supports_curvilinear: ClassVar[bool] = True
+    r"""DD has a curvilinear cell closure: :meth:`update` runs the Morel–Montry
+    angular redistribution (the ``angular_upstream is not None`` branch) for
+    sphere/cylinder, and DD rides ``CumprodScan`` on every 1-D geometry.  So a
+    curvilinear mesh may select a DD scheme (the default for sphere/cylinder)."""
+
     def update(
         self,
         visit: CellVisit,

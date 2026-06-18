@@ -328,6 +328,17 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     ``beta_first_order_consistent``); the PAIR validity is
     :func:`~orpheus.sn.spatial.pairing.pair_diffusion_limit_consistent`."""
 
+    supports_curvilinear: ClassVar[bool] = False
+    r"""LD is slab/Cartesian ONLY: the curvilinear (sphere/cylinder) LD cell
+    closure is unpublished and must be derived (Issue #158 curvilinear arm /
+    #6); :meth:`update` / :meth:`residual` raise on a curvilinear visit (via
+    :func:`_require_slab`).  The conservative ``False`` (= the base default,
+    declared explicitly here for the citation) makes the sweep-strategy
+    selection reject a curvilinear-LD mesh at construction
+    (:meth:`~orpheus.sn.loss_representation.CumprodScan.supports`) instead of
+    passing on ``is_affine_scannable`` (a geometry-blind 1-D trait) and raising
+    mid-sweep."""
+
     theta: ClassVar[float] = 1.0 / 3.0
     r"""The slope-moment weight :math:`\theta` (LM-1989 Eq. 4.3b).  The value
     :math:`\theta = 1/3` is the SN-exact linear-discontinuous closure (LM-1989

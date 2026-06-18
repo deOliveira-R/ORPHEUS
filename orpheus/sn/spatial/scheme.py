@@ -422,6 +422,21 @@ class DiscretizationScheme(Protocol):
         spatial-DD one.  ``False`` is the conservative default (a scheme is
         not assumed consistent until it declares so with a citation).
         Read-only class attribute.
+    supports_curvilinear : bool
+        Whether the scheme has a CURVILINEAR (sphere/cylinder) cell closure —
+        i.e. whether its :meth:`update` / :meth:`residual` handle the
+        Morel–Montry angular-redistribution thread (a non-``None``
+        ``angular_upstream``).  Diamond Difference does (``True``);
+        Linear-Discontinuous does NOT (``False`` — the curvilinear LD closure
+        is unpublished, Issue #158 curvilinear arm / #6) and is slab/Cartesian
+        only.  The 1-D sweep-strategy selection
+        (:meth:`~orpheus.sn.loss_representation.CumprodScan.supports` /
+        :meth:`~orpheus.sn.loss_representation.ScanMarch.supports`) reads this
+        so a curvilinear mesh paired with a slab-only scheme is rejected at
+        SELECTION with a clear reason, rather than passing ``supports()`` on
+        ``is_affine_scannable`` (a geometry-blind 1-D trait) and raising
+        mid-sweep.  ``False`` is the conservative default.  Read-only class
+        attribute.
 
     Notes
     -----
@@ -441,6 +456,7 @@ class DiscretizationScheme(Protocol):
     transverse_coupling_is_facewise: bool
     spatial_basis_per_axis: int
     diffusion_limit_consistent: bool
+    supports_curvilinear: bool
 
     def update(
         self,
@@ -884,6 +900,18 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     spatial DD verdict (``True``, leading-order) is NOT the DD-in-angle
     :math:`\beta`-failure (the curvilinear flux dip is an ANGULAR artefact —
     BMC 2010, not LMM 1987).  Read-only class attribute."""
+
+    supports_curvilinear: ClassVar[bool] = False
+    r"""Whether the scheme has a curvilinear (sphere/cylinder) cell closure
+    (handles the Morel–Montry angular-redistribution thread).  Opt-in
+    (``False`` default — slab/Cartesian only until a curvilinear closure is
+    declared, mirroring ``is_affine_scannable`` /
+    ``transverse_coupling_is_facewise``).  The 1-D sweep-strategy selection
+    reads this so a curvilinear mesh with a slab-only scheme is rejected at
+    SELECTION (a clear ``Compatibility`` reason), not passed on the
+    geometry-blind ``is_affine_scannable`` trait and raised mid-sweep.  ``True``
+    for Diamond Difference; ``False`` for Linear-Discontinuous (the curvilinear
+    LD closure is unpublished — #158/#6).  Read-only class attribute."""
 
     @classmethod
     def _registry_base(cls) -> type:
