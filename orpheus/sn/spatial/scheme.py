@@ -847,6 +847,26 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     tensor-product bilinear basis; the d=1 reduction lives in
     :mod:`orpheus.sn.spatial._ubld` (``d1_closed_form``)."""
 
+    @property
+    def is_multi_moment(self) -> bool:
+        r"""``True`` iff this closure carries within-cell spatial moments.
+
+        The named, scheme-level form of the ``per_axis > 1`` gate the
+        multi-moment wiring keys on (#240 D5b / #246): a closure is
+        multi-moment iff it tracks a within-cell slope (``ψ̂``) in addition
+        to the cell-average (``ψ̄``) — LD (DG-P1-upwind) → ``True``;
+        DD / Step (slopeless cell-average) → ``False``.  This is the
+        UNCONDITIONAL scheme truth (it reads the closure's basis size, not
+        any field provenance), so the inner-walk sites that must decide
+        "is the array I am threading a moment buffer?" route through it
+        rather than re-spelling ``spatial_basis_per_axis > 1`` (single
+        source of truth).  It is exactly equivalent to ``frame_signs is not
+        None`` at a streaming octant (the
+        :func:`~orpheus.sn.spatial._ubld.octant_moment_frame_signs`
+        involution is ``None`` iff ``per_axis == 1``), and to the 1-D scan's
+        ``moment_tail != ()`` width-presence test."""
+        return self.spatial_basis_per_axis > 1
+
     @classmethod
     def _registry_base(cls) -> type:
         return DiscretizationSchemeBase

@@ -80,24 +80,41 @@ from types import MappingProxyType
 
 import numpy as np
 
+from orpheus.numerics.moment_layout import is_moment_valued_by_rank
 from orpheus.sn.spatial._ubld import face_moment_tail, octant_moment_frame_signs
 from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
 
 
-def _reframe(arr: np.ndarray, frame_signs: "np.ndarray | None") -> np.ndarray:
+def _reframe(
+    arr: np.ndarray,
+    frame_signs: "np.ndarray | None",
+    *,
+    is_moment_valued: bool,
+) -> np.ndarray:
     r"""Apply the sweep⇄global moment-frame involution to a moment array.
 
+    Reframe iff this is a moment buffer at a non-trivial closure.
+
     ``frame_signs`` is the ``2^d``-length involution from
-    :func:`~orpheus.sn.spatial._ubld.octant_moment_frame_signs` (#240 D5b-S3).
-    It re-signs the slope moments ONLY when ``arr`` actually carries the
-    trailing ``2^d`` moment axis (a genuine iterate / moment source / residual);
-    a single-moment closure (``frame_signs is None``) OR a flat scalar source
-    (no trailing moment axis — only the average moment, which is sign-invariant)
-    passes through untouched, so DD/Step stay byte-identical and a flat source
-    is never broadcast into a spurious moment axis.  The map is its own inverse
+    :func:`~orpheus.sn.spatial._ubld.octant_moment_frame_signs` (#240 D5b-S3),
+    and is ``None`` for a single-moment closure (DD/Step) — the
+    already-typed ``frame_signs is None ⟺ DD/Step`` gate.  ``is_moment_valued``
+    states, from the array's TYPED ORIGIN, whether ``arr`` actually carries the
+    trailing ``2^d`` moment axis (a genuine iterate / moment source / residual)
+    or is a flat scalar buffer (a matvec-zero / flat external source, whose
+    only populated moment is the sign-invariant average).  Only a moment array
+    at a multi-moment closure gets re-signed; everything else passes through
+    untouched, so DD/Step stay byte-identical and a flat source is never
+    broadcast into a spurious moment axis.  The map is its own inverse
     (global→sweep on input == sweep→global on output).
+
+    #246: the old guard keyed the moment-axis question on a COINCIDENTAL
+    trailing-axis length (``arr.shape[-1] != frame_signs.shape[0]``) — at d=2
+    a non-moment array whose trailing axis is coincidentally ``2^d == 4`` would
+    mis-fire the sign-flip.  ``is_moment_valued`` keys the question on intent
+    (the caller knows the array's typed origin), not on a coincidental size.
     """
-    if frame_signs is None or arr.shape[-1] != frame_signs.shape[0]:
+    if frame_signs is None or not is_moment_valued:
         return arr
     return arr * frame_signs
 
@@ -896,11 +913,33 @@ class _CellSolve:
         # it passes through untouched.  DD/Step (``None``) → byte-identical.  The
         # OUTGOING FACE (``psi_out``) stays in the sweep frame — it propagates
         # along the wavefront, never crosses into the global-frame iterate.
+        moment_valued = self.scheme.is_multi_moment
+        # The cell SOLVE source can arrive EITHER moment-lifted (production
+        # ``solve_sn_fixed_source`` runs ``_lift_external_source_to_moments``,
+        # so ``Q_cells`` is ``(N_oct, ng, n_diag, 2^d)`` — its trailing axis IS
+        # the moment axis, slopes carry the scattering source ``Σ_s·φ̂`` that
+        # needs global→sweep re-signing) OR flat (the lower-level
+        # ``FullFieldWavefront``/``MovingFrontierWindow`` ``sweep`` API passes a
+        # flat ``(N_oct, ng, n_diag)`` source that ``_ubld_system`` lifts onto
+        # slot 0 itself).  A flat source has only the sign-invariant average
+        # moment, so it must NOT be reframed.  Discriminate by RANK against
+        # ``sigt_cells`` via the shared S4-safe
+        # :func:`~orpheus.numerics.moment_layout.is_moment_valued_by_rank`
+        # (single-sourced with ``_moment_broadcast_sigma``; a coincidental
+        # ``n_diag == 2^d`` would mis-fire a trailing-length probe, the rank
+        # cannot).  At DD/Step ``frame_signs`` is None → no-op regardless.
+        source_is_moment = is_moment_valued_by_rank(Q_cells, sigt_cells)
         psi_avg, psi_out = self.scheme.cell_kernel_batch(
             psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells,
-            Q_cells=_reframe(Q_cells, self.moment_frame_signs),
+            Q_cells=_reframe(
+                Q_cells, self.moment_frame_signs, is_moment_valued=source_is_moment,
+            ),
         )
-        psi_avg = _reframe(psi_avg, self.moment_frame_signs)
+        # ``psi_avg`` is the cell-solve moment output — a genuine ``2^d`` moment
+        # vector at a multi-moment closure (LD), a scalar at DD/Step.
+        psi_avg = _reframe(
+            psi_avg, self.moment_frame_signs, is_moment_valued=moment_valued,
+        )
         # Multi-moment closures (LD's bilinear UBLD in EVERY d ≥ 1) return a
         # trailing ``2^d``-moment ``psi_avg`` and the spatial-moment iterate φ̂
         # accumulates ALL of it (#240 D5b-S3 — Increment C carries φ̂ between
@@ -966,13 +1005,26 @@ class _CellResidual:
         # stays sweep-frame (it propagates along the wavefront).
         cell_g = (slice(None), slice(None), *cell_idx)
         signs = self.moment_frame_signs
+        moment_valued = self.scheme.is_multi_moment
         residual, psi_out = self.scheme.residual_kernel_batch(
-            psi_bar=_reframe(self.psi_avg_probe_octant[cell_g], signs),
+            # The probe (the iterate) carries the full ``2^d`` moment axis at a
+            # multi-moment closure (LD); a scalar probe at DD/Step.
+            psi_bar=_reframe(
+                self.psi_avg_probe_octant[cell_g], signs,
+                is_moment_valued=moment_valued,
+            ),
             psi_in=psi_in, s_axes=s_axes,
             sigt_cells=sigt_cells,
-            Q_cells=_reframe(Q_cells, signs),
+            # The matvec source is an all-zero buffer (the operator action
+            # ``(L+C)ψ̄`` carries no volumetric source) — identically zero, so
+            # the involution is a no-op regardless; pass ``False`` honestly.
+            Q_cells=_reframe(Q_cells, signs, is_moment_valued=False),
         )
-        self.residual_octant[cell_g] = _reframe(residual, signs)
+        # The residual is a genuine ``2^d`` moment vector at a multi-moment
+        # closure (LD), a scalar at DD/Step.
+        self.residual_octant[cell_g] = _reframe(
+            residual, signs, is_moment_valued=moment_valued,
+        )
         return psi_out
 
 

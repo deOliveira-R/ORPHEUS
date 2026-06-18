@@ -128,6 +128,7 @@ import numpy as np
 # unified body) lives IN this module — ``sweep.py`` dissolved; selector and
 # bodies share one home, so the historical load-time import cycle is gone.
 from orpheus.geometry import CoordSystem
+from orpheus.numerics.moment_layout import is_moment_valued_by_rank
 
 from .spatial._ubld import (
     AVERAGE_MOMENT,
@@ -507,12 +508,11 @@ def _moment_broadcast_sigma(
     The SINGLE source of the pure-z moment-broadcast convention: both the
     sweep arm (:math:`Q/σ_t`) and the matvec arm (:math:`σ_t·ψ̄`) call this, so
     the L21 twin (sweep ≡ matvec are two applications of the same collision-only
-    operator) CANNOT diverge on the moment-axis reshape.  The discriminator is
-    the moment-valued array's rank vs ``σ_t``'s — ``probe`` / ``Q`` is
-    ``(N…, ng, *spatial[, 2^d])`` so it carries one MORE leading (ordinate) axis
-    than ``σ_t`` already, hence the ``+ 1``.
+    operator) CANNOT diverge on the moment-axis reshape.  The moment-axis
+    discriminator is :func:`~orpheus.numerics.moment_layout.is_moment_valued_by_rank`
+    (single-sourced with the ``_CellSolve`` cell-solve source-reframe gate).
     """
-    return sig[..., None] if moment_valued.ndim > sig.ndim + 1 else sig
+    return sig[..., None] if is_moment_valued_by_rank(moment_valued, sig) else sig
 
 
 @dataclass(frozen=True)
@@ -2291,6 +2291,10 @@ class _OneDimScanWalk:
             psi_face_in_init: np.ndarray,
         ) -> np.ndarray:
             frame_signs = frame_signs_for(sn_mesh.scheme, (direction_sign,))
+            # The d=1 scan probe + residual are genuine moment buffers at a
+            # multi-moment closure (LD); scalar at DD/Step (frame_signs None →
+            # the reframe is a short-circuit no-op regardless).
+            is_moment_valued = sn_mesh.scheme.is_multi_moment
             outflow_at_end = np.zeros((ng, N))
             for p, level_idx in enumerate(level_indices):
                 level_idx_arr = np.asarray(level_idx)
@@ -2340,6 +2344,7 @@ class _OneDimScanWalk:
                         # over the trailing pack (DD scalar → byte-identical).
                         probe_cell = _reframe(
                             np.swapaxes(psi_cell, 0, 1)[:, :, None], frame_signs,
+                            is_moment_valued=is_moment_valued,
                         )
                         resid, (psi_out_cell,) = (
                             sn_mesh.scheme.residual_kernel_batch(
@@ -2350,7 +2355,9 @@ class _OneDimScanWalk:
                                 Q_cells=_MATVEC_ZERO_SOURCE,   # source-free apply
                             )
                         )
-                        resid = _reframe(resid, frame_signs)
+                        resid = _reframe(
+                            resid, frame_signs, is_moment_valued=is_moment_valued,
+                        )
                         # resid (K, ng, 1[, 2^d]) → (ng, K[, 2^d]); the outgoing
                         # face is scalar (K, ng, 1) → (ng, K).
                         out_g_first[:, global_dir, i] = np.swapaxes(
@@ -2995,8 +3002,13 @@ class _OneDimScanWalk:
                     # at d≥1.  The scalar OUTGOING FACE stays sweep-frame (it
                     # propagates along the chain, never crossing into the iterate).
                     frame_signs = frame_signs_for(scheme, (direction_sign,))  # (2^d,)
+                    # Inside the multi-moment (LD) branch: the source ``QV`` and
+                    # the reconstructed ``(ψ̄, ψ̂)`` are genuine moment buffers
+                    # (``is_moment`` ≡ ``scheme.is_multi_moment``).
                     # Source moments in chain order; global→sweep IN.
-                    QV_chain_sweep = _reframe(QV_full_chain, frame_signs)
+                    QV_chain_sweep = _reframe(
+                        QV_full_chain, frame_signs, is_moment_valued=is_moment,
+                    )
                     s_bar = QV_chain_sweep[..., AVERAGE_MOMENT]        # (K, ng, nx)
                     s_hat = QV_chain_sweep[..., 1]                     # (K, ng, nx)
 
@@ -3039,7 +3051,9 @@ class _OneDimScanWalk:
                     mom_sweep = np.stack([psi_bar, psi_hat], axis=-1)  # (K,ng,nx,2)
                     # sweep→global OUT on the moment (the involution's inverse =
                     # itself).
-                    mom_global = _reframe(mom_sweep, frame_signs)
+                    mom_global = _reframe(
+                        mom_sweep, frame_signs, is_moment_valued=is_moment,
+                    )
                     # Scatter back to cell-index order; write moment angular flux,
                     # accumulate the moment scalar flux φ̂ = Σ_n w_n ψ̂_n.
                     mom_cell_order = mom_global[:, :, inv, :]          # (K,ng,nx,2)

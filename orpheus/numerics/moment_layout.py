@@ -1,10 +1,12 @@
 r"""Physics-free spatial-moment layout policy (tensor-Legendre Kronecker).
 
 L1 primitive (mathematics, knows no neutrons) — the moment-axis sibling of
-:mod:`orpheus.numerics.face_layout`. The two layout conventions every
-spatial-moment consumer keys on — the slot-0 cell/face **average** index
-and the "append a trailing moment axis iff there is more than one moment"
-**tail** policy — live HERE, in exactly one place.
+:mod:`orpheus.numerics.face_layout`. The physics-free moment-axis primitives
+every spatial-moment consumer keys on live HERE, in exactly one place: the
+slot-0 cell/face **average** index (:data:`AVERAGE_MOMENT`), the "append a
+trailing moment axis iff there is more than one moment" **tail** policy
+(:func:`face_moment_tail`), and the rank-based "is this buffer moment-valued?"
+discriminator (:func:`is_moment_valued_by_rank`).
 
 Why ``numerics`` and not ``sn.spatial`` (#245)
 ==============================================
@@ -29,15 +31,20 @@ SN module re-exports these names downward (the
 :data:`orpheus.numerics.face_layout.AXIS_NAMES` precedent) so SN
 consumers keep importing them next to the UBLD primitives they name.
 
-This module is leaf (no imports beyond the standard library) — pure
-``int`` / ``tuple`` arithmetic — so importing it can never re-introduce
-a cycle.
+This module is leaf — no ``orpheus`` imports (numpy enters only under
+``TYPE_CHECKING``, for the rank-predicate type hints) — so importing it can
+never re-introduce a cycle.
 """
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 
-__all__ = ["AVERAGE_MOMENT", "face_moment_tail"]
+if TYPE_CHECKING:
+    import numpy as np
+
+
+__all__ = ["AVERAGE_MOMENT", "face_moment_tail", "is_moment_valued_by_rank"]
 
 
 #: Index of the cell/face AVERAGE moment in the tensor-Legendre Kronecker
@@ -59,3 +66,25 @@ def face_moment_tail(n_face_moments: int) -> tuple[int, ...]:
     ``FullFieldWavefront`` full cochain), which must agree on the tail shape.
     """
     return () if n_face_moments == 1 else (n_face_moments,)
+
+
+def is_moment_valued_by_rank(array: "np.ndarray", reference: "np.ndarray") -> bool:
+    r"""Does ``array`` carry the trailing spatial-moment axis, judged by RANK?
+
+    ``True`` iff ``array`` has more than one axis beyond ``reference`` — the
+    S4-safe discriminator for "is this a moment-valued buffer". A moment buffer
+    is ``(N…, ng, *spatial, 2^d)`` while its scalar reference (``Σ_t`` /
+    ``sigt_cells``) is the per-ordinate-stripped ``(ng, *spatial)``, so a genuine
+    moment buffer carries one MORE leading (ordinate) axis PLUS the trailing
+    ``2^d`` moment axis — net ``> reference.ndim + 1`` — whereas a flat
+    ``(N…, ng, *spatial)`` buffer (a matvec-zero / flat external source) sits at
+    exactly ``reference.ndim + 1``.
+
+    RANK, not trailing-size: a coincidental ``n_diag == 2^d`` (a d=2 anti-diagonal
+    of exactly 4 cells) mis-fires a ``shape[-1] == 2^d`` probe, but the rank of a
+    flat buffer never collides with a moment buffer's (#246). The single source
+    for the matvec moment-broadcast
+    (:func:`orpheus.sn.loss_representation._moment_broadcast_sigma`) and the
+    cell-solve source-reframe gate (``orpheus.sn.sweep_graph._CellSolve``).
+    """
+    return array.ndim > reference.ndim + 1
