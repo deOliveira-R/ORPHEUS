@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5364**
+Total tests collected: **5370**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1153, 21.5%
-   L1, 981, 18.3%
+   L1, 987, 18.4%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3185, 59.4%
+   foundation, 3185, 59.3%
    unmarked, 9, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5276
+   explicit, 5282
    verify, 0
    class-name, 46
    func-name, 0
@@ -250,6 +250,7 @@ Module × level grid
    mms/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
    mms/test_mms_ld_2d, 0, 4, 0, 0, 3, 0
    mms/test_mms_ld_slab, 0, 5, 0, 0, 2, 0
+   mms/test_space_angle_separability, 0, 6, 0, 0, 0, 0
    moc/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    moc/test_mms, 0, 3, 0, 0, 0, 0
    moc/test_moc, 0, 3, 0, 0, 0, 0
@@ -505,6 +506,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``ld-cartesian-1d``, 6
    ``peierls-greens-slab-T``, 6
    ``singular-eigenfunction-eq54``, 6
+   ``sn-space-angle-separability``, 6
    ``cp-outer-integral-antiderivative``, 5
    ``dd-cartesian-2d``, 5
    ``en-kernel-special-values``, 5
@@ -552,6 +554,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sigma-zero``, 3
    ``sn-mms-nonvacuum-psi``, 3
    ``sn-mms-nonvacuum-qext``, 3
+   ``sn-space-angle-cross-term``, 3
    ``cp-second-difference-operator``, 2
    ``hilbert-adjoint-equals-metric-times-S0``, 2
    ``peierls-greens-cylinder-mr-kinf``, 2
@@ -730,7 +733,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **220** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **222** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -920,6 +923,8 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-err-058-proxy-source``
 - ``sn-mms-nonvacuum-psi``
 - ``sn-mms-nonvacuum-sph-psi``
+- ``sn-space-angle-cross-term``
+- ``sn-space-angle-separability``
 - ``sood-eq18-1g-balance``
 - ``sood-eq19-kinf-1g``
 - ``sood-eq20-kinf-1g-c-form``
@@ -987,7 +992,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-023``, 1
    ``ERR-024``, 1
    ``ERR-025``, 5
-   ``ERR-026``, 94
+   ``ERR-026``, 96
    ``ERR-027``, 5
    ``ERR-028``, 1
    ``ERR-029``, 6

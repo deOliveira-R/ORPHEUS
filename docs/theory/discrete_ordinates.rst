@@ -1620,6 +1620,419 @@ reference.  Migrate-then-delete preserved the floor:
    retired.  Its retirement is tracked separately under
    `Issue #248 <https://github.com/deOliveira-R/ORPHEUS/issues/248>`_.
 
+.. _sn-space-angle-separability-section:
+
+Space ⊗ angle separability — the (spatial ⊗ angular) product capstone (Issue #236 Phase 3)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This section closes the Issue #236 *(spatial* :math:`\otimes` *angular)
+product* narrative on the theory page.  The campaign had three phases:
+
+* **Phase 1 — pairing validity.**  The spatial closure (the diamond /
+  weighted-diamond cell update of :eq:`dd-curvilinear-scalar`) and the
+  angular closure (the Morel--Montry weight :math:`\tau` of
+  :eq:`mm-weights`, the redistribution dome
+  :eq:`alpha-recursion`) are two distinct, independently-selectable
+  axes — a genuine tensor product, with separate injection points on
+  :class:`~orpheus.sn.geometry.SNMesh` (``cell_update=`` for the spatial
+  scheme, ``pole_angular_closure=`` for the angular scheme).
+* **Phase 2 — :math:`\tau`-ownership carve.**  The angular weight
+  :math:`\tau` was moved off the geometry operator and onto the angular
+  closure, so the angular axis literally *owns* its own discretisation
+  knob (:ref:`sn-tau-closure-owned` through
+  :ref:`sn-tau-step-c-closeout`).  That carve made the product
+  *structural in the type system*, not merely conceptual.
+* **Phase 3 — separability characterisation (this section).**  Having
+  established the product and given each axis its own knob, the final
+  question is: *how do the two error contributions combine?*  The answer
+  is geometry-dependent, and it is the campaign's headline claim.
+
+The decomposition is pinned permanently by the L1 MMS characterisation
+gate :mod:`tests.sn.verification.mms.test_space_angle_separability`,
+which carries ``@pytest.mark.verifies("sn-space-angle-separability")``
+against :eq:`sn-space-angle-separability` below.
+
+The space–angle error decomposition
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Write the total SN discretisation error of the scalar flux as a function
+of the two refinement parameters — the spatial mesh size
+:math:`h \sim 1/n_{\rm cells}` and the angular (quadrature) order
+:math:`N` (the ordinate count, or the azimuthal order :math:`n_\varphi`
+in the cylinder).  Let :math:`E_{\rm space}(h)` be the error of the
+spatial closure at infinite quadrature order and :math:`E_{\rm angle}(N)`
+the error of the angular closure on an exactly-resolved spatial mesh.
+The campaign's headline result is the geometry-split law
+
+.. math::
+   :label: sn-space-angle-separability
+
+   E(h, N) \;\approx\;
+   \begin{cases}
+     E_{\rm space}(h) \,+\, E_{\rm angle}(N),
+       & \text{Cartesian (slab / 2-D / 3-D): \textbf{separates}},\\[1.2ex]
+     \max\!\bigl(E_{\rm space}(h),\, E_{\rm angle}(N)\bigr),
+       & \text{curvilinear (sphere / cylinder): \textbf{gates}}.
+   \end{cases}
+
+The two regimes are distinguished operationally by the **mixed second
+difference** — the discrete :math:`\partial^2 E / \partial h\,\partial N`
+evaluated on a two-quadrature error table over a coarse/fine pair of
+mesh sizes:
+
+.. math::
+   :label: sn-space-angle-cross-term
+
+   M \;=\; E[h_1, N_1] - E[h_1, N_2] - E[h_2, N_1] + E[h_2, N_2],
+   \qquad
+   \frac{|M|}{\max(\Delta E_h,\, \Delta E_N)} \;
+   \begin{cases}
+     \ll 1, & \text{separable (additive),}\\
+     = \mathcal{O}(1), & \text{gated (coupled).}
+   \end{cases}
+
+For an additively separable error, :math:`E[h,N] = f(h) + g(N)` exactly,
+so the cross-term telescopes to zero: :math:`M = f(h_1) + g(N_1) -
+f(h_1) - g(N_2) - f(h_2) - g(N_1) + f(h_2) + g(N_2) = 0`.  A non-zero
+:math:`M` is therefore a *direct, mechanism-anchored* measurement that
+the two axes interact — that the second mixed partial of the error
+surface does not vanish.  This is the quantity the ST5 gate measures.
+
+.. (vv-status rationale) Characterisation claim, now tested: both the
+   law :eq:`sn-space-angle-separability` and its discriminator
+   :eq:`sn-space-angle-cross-term` describe the STRUCTURE of the
+   discretisation-error surface (the regime discrimination), not a
+   solver eigenvalue or flux VALUE.  This is an L1 MMS-convergence-
+   structure (math) claim per vv-principles — MMS does not reach the
+   eigenvalue layer, so neither label is, or ever becomes, an
+   eigenvalue / flux-value claim.  The ST5 characterisation gate
+   ``test_space_angle_separability.py`` now carries the
+   ``verifies`` markers for both labels, so each is ``documented`` AND
+   ``tested``: the verifying ``tests`` edge is the characterisation
+   gate (an L1 MMS gate), not a closed-form / semi-analytical value
+   reference.  What each gate leg verifies:
+     * :eq:`sn-space-angle-separability` (the geometry-split decomposition
+       law) is pinned by all six legs as a *positive* signature — the
+       Cartesian legs assert separability (mixed-second-difference
+       :math:`\to 0`, N-independent spatial rate); the curvilinear legs
+       assert gating (N-gated spatial rate).  The marker is FILE-level.
+     * :eq:`sn-space-angle-cross-term` (the mixed-second-difference
+       discriminator :math:`M`) is the gate's measured instrument: the
+       three legs that assert directly on :math:`|M|/\max`
+       (``test_cartesian_slab_iso_space_angle_separable``,
+       ``test_cartesian_slab_p1_aniso_floor_n_independent``,
+       ``test_sphere_cross_term_large_discriminates_from_cartesian``)
+       carry the per-test ``verifies`` marker.  The discriminator is a
+       quantity the gate *measures against a declared threshold*, not a
+       passive derivation step, so the ``tested`` edge is a real
+       coverage claim.
+   The posture mirrors the pole-cell characterisation gate this gate is
+   modelled on (#233).
+.. vv-status: sn-space-angle-separability documented
+.. vv-status: sn-space-angle-separability tested
+.. vv-status: sn-space-angle-cross-term documented
+.. vv-status: sn-space-angle-cross-term tested
+
+Why the two axes factorize: LMM-1987 (spatial) × BMC-2010 (angular)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The decomposition is not an empirical accident — it is forced by the
+structure of the asymptotic *diffusion-limit-consistency* literature,
+which is **literally split into a spatial paper and an angular paper**.
+This split is the strongest possible evidence that the consistency
+conditions live on two separate axes.
+
+* **The spatial condition** — Larsen, Morel & Miller, "Asymptotic
+  solutions of numerical transport problems in optically thick,
+  diffusive regimes," *Journal of Computational Physics*
+  **69(2):283--324 (1987)**, DOI
+  `10.1016/0021-9991(87)90170-7 <https://doi.org/10.1016/0021-9991(87)90170-7>`_
+  (and Part II, Larsen & Morel, JCP **83(2):212--236 (1989)**, DOI
+  10.1016/0021-9991(89)90229-5).  LMM analyse the *spatial* differencing
+  scheme's diffusion limit (cells scaled so they are not optically
+  thin): a scheme whose discrete spatial limit is itself a valid
+  diffusion discretisation (linear-discontinuous, weighted-diamond with
+  the right closure) is "substantially more accurate" than one without
+  (bare diamond difference).  This is a condition **on the spatial axis
+  alone** — the angular order does not enter.
+
+* **The angular condition** — Bailey, Morel & Chang,
+  [BaileyMorelChang2010]_, "The asymptotic diffusion-limit accuracy of
+  S\ :sub:`N` angular differencing schemes," *Nuclear Science and
+  Engineering* **165(2):149--169 (2010)**, DOI
+  `10.13182/NSE08-66 <https://doi.org/10.13182/NSE08-66>`_.  BMC analyse
+  the SN equations **discretised only in angle, with space kept
+  continuous** (their analysis deliberately removes spatial differencing
+  to isolate the angular error).  They prove that the angular axis
+  carries its *own* diffusion-limit condition, independent of the
+  spatial one.  Their p. 151 statement is the separability fact in the
+  authors' own words: the spatial half "has been shown by Larsen, Morel,
+  and Miller," while "retaining full first-order consistency can be
+  important for **angular** discretisations" — the angular contribution
+  they introduce.
+
+The two conditions factorise.  In the leading-order (:math:`\varepsilon^0`)
+diffusion limit, *any* weighted-diamond angular weight (step, diamond,
+Morel--Montry) preserves consistency — BMC Eqs. (23)--(25).  The
+**first-order** (:math:`\varepsilon^1`) limit carries a contamination
+term :math:`\beta` (BMC Eq. 40), a **purely angular** functional of the
+redistribution coefficients and quadrature,
+:math:`\beta = \sum_m \mu_m\bigl[\alpha_{m+1/2}\mu_{m+1/2} -
+\alpha_{m-1/2}\mu_{m-1/2}\bigr]`, which vanishes *only* for the
+Morel--Montry weights (BMC Eq. 43, the weight of :eq:`mm-weights`).
+Because :math:`\beta` depends on no spatial quantity, the angular
+condition is provable on its own axis — exactly as the spatial
+condition is provable on its own axis.  The diffusion limit needs
+**both**:
+
+.. math::
+
+   \text{accurate diffusion limit}
+   \;\;\Longleftrightarrow\;\;
+   \underbrace{(\text{LMM spatial condition})}_{\text{depends on the spatial scheme only}}
+   \;\;\wedge\;\;
+   \underbrace{(\text{BMC angular condition},\ \beta = 0)}_{\text{depends on the angular weights only}}.
+
+This conjunction of two single-axis conditions is *why* the Cartesian
+error separates additively (each axis contributes its own consistency
+defect, and the two defects add) and *why* a bad pairing can still break
+the limit (independence of *selection* is not independence of
+*consequence* — both conditions must hold simultaneously).
+
+.. note::
+
+   The literature's double-use of the name "linear-discontinuous" (LD)
+   is itself evidence of the two-axis structure: LMM and every
+   spatial-scheme paper list LD as a *spatial* scheme, while Lathrop
+   (2000) lists "linear-discontinuous" among his *angular* differencing
+   schemes.  The same trial-space name applies on either axis; the
+   ORPHEUS registries disambiguate by axis (a spatial cell-update vs an
+   angular closure), never a single ``LD`` enum.  This is the #158
+   (spatial scheme) vs #6 (LD *angular* finite elements) distinction.
+
+Cartesian separates, curvilinear gates
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The geometry split of :eq:`sn-space-angle-separability` follows
+mechanically from *where the angular redistribution term lives*.
+
+**Cartesian — additive separation.**  In slab / 2-D / 3-D Cartesian
+geometry the curvilinear angular-redistribution term
+:math:`\frac{1-\mu^2}{r}\,\partial_\mu\psi` is **absent**
+(:math:`r \to \infty`; there is no :math:`1/r`).  The angular closure is
+the :class:`~orpheus.sn.spatial.pole_angular_closure.IdentityAngularClosure`,
+which contributes no redistribution: each ordinate's spatial sweep is
+fully independent of every other ordinate.  The Cartesian cell update
+(:eq:`dd-2d-balance-form` / the slab balance) consumes only the per-axis
+streaming ratios and :math:`\Sigma_t` — **no** :math:`\tau`, **no**
+angular state.  The spatial error and the angular (quadrature) error are
+generated by disjoint mechanisms, so they add:
+:math:`E(h,N) \approx E_{\rm space}(h) + E_{\rm angle}(N)`, and the
+mixed partial vanishes.  The operational signature is that the spatial
+convergence **rate** is the same at every quadrature order
+(N-independent O(h\ :sup:`2`)).
+
+**Curvilinear — multiplicative gating.**  In the sphere / cylinder the
+Morel--Montry angular thread
+
+.. math::
+
+   \psi_{n+\frac12} \;=\;
+       \frac{\overline{\psi}_n - (1-\tau_n)\,\psi_{n-\frac12}}{\tau_n}
+
+couples the ordinates *sequentially within a* :math:`\mu`-*level*, and
+the coupling enters the **shared cell-balance denominator** of
+:eq:`dd-curvilinear-scalar`: the redistribution divisor
+:math:`(\Delta A_i / w_n)\,c_{\rm out}` (with
+:math:`c_{\rm out} = \alpha_{\rm out}/\tau_n`) sits in the *same*
+denominator that produces the spatial cell average
+:math:`\overline{\psi}_{n,i}` the spatial closure then uses.  The
+angular interpolation error of the :math:`\tau`-thread therefore
+**caps** the accuracy the spatial closure can deliver: at a coarse
+quadrature, refining :math:`h` cannot drive the cell average below the
+angular floor, because the angular term contaminates the denominator
+the spatial refinement acts through.  Hence the error *gates*:
+:math:`E(h,N) \approx \max(E_{\rm space}(h), E_{\rm angle}(N))`.  You
+cannot harvest fine-:math:`h` accuracy at coarse :math:`N`; both axes
+must advance together.  The mechanism is documented in detail at
+:ref:`sn-tau-c-on-cellvisit-live` (why :math:`\tau` is an angular
+property that nonetheless flows through the spatial denominator) and the
+shared-denominator algebra is :eq:`dd-curvilinear-scalar`.
+
+.. warning::
+
+   The gating is a property of *today's* curvilinear closure (the 1-D
+   :math:`\eta`-march Morel--Montry thread), not a law of nature.  A
+   future 2-D angular closure (#229) that resolves the
+   :math:`(\eta,\varphi)` azimuthal variation the 1-D march cannot
+   thread, or a higher-order spatial scheme (#158 / #6), would *lift*
+   the gating — at which point the curvilinear error would begin to
+   separate.  The ST5 gate is designed so that lifting the floor reddens
+   the gating assertions (the coarse-N saturated h-ratio rises toward
+   the O(h\ :sup:`2`) value), signalling that the regime changed; that
+   redding is the intended signal to *re-tune* the gate to the new,
+   better regime, **not** a regression.
+
+Measured cross-term evidence
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The decomposition was established empirically by the four
+``diag_sep_*`` probes (reproduced bit-for-bit after the Phase-2
+:math:`\tau` carve) and is now pinned by the ST5 gate.  The measured
+mixed-second-difference :math:`|M|/\max` spans **three orders of
+magnitude** between the separable Cartesian and the gated sphere — a
+clean discrimination band, not a brittle exact number.
+
+.. list-table:: Measured space–angle error structure (2026-06-18,
+   ``nx ∈ {20, 40, 80}``)
+   :header-rows: 1
+   :widths: 18 14 30 24 14
+
+   * - Geometry
+     - Regime
+     - Scalar-flux L2 ladder (coarse → fine quadrature)
+     - Spatial h-ratios (coarse-N / fine-N)
+     - :math:`|M|/\max`
+   * - Slab (isotropic)
+     - **separates**
+     - N=4 ``[5.42e-4, 1.35e-4, 3.38e-5]`` · N=16 ``[5.40e-4, 1.35e-4, 3.37e-5]``
+     - ``[4.01, 4.00]`` / ``[4.01, 4.00]`` (N-independent O(h²))
+     - **0.0047**
+   * - Slab (P1 aniso)
+     - **separates**
+     - N=4 floor ``6.80e-3`` · N=16 floor ``6.79e-3`` (flat, angular floor)
+     - flat at both N (floor N-independent to <0.3 %)
+     - **0.0038**
+   * - Cylinder
+     - **gates**
+     - :math:`n_\varphi`\ =8 ``[1.95e-2, 1.91e-2, 1.90e-2]`` · :math:`n_\varphi`\ =16 ``[8.05e-3, 7.47e-3, 7.37e-3]``
+     - ``[1.02, 1.00]`` (saturated); azimuthal floor drops 2.58× at :math:`n_\varphi` 8→16
+     - **0.019** (small only because :math:`E \approx E_{\rm angle}` swamps)
+   * - Sphere
+     - **gates**
+     - N=8 ``[1.47e-2, 5.40e-3, 4.69e-3]`` · N=32 ``[1.50e-2, 3.71e-3, 9.29e-4]``
+     - ``[2.71, 1.15]`` (saturates) / ``[4.04, 4.00]`` (O(h²) recovers)
+     - **0.411**
+
+The reading of the table:
+
+* **Slab (both rows): separable.**  The spatial h-ratio is :math:`\approx
+  4` (O(h\ :sup:`2`)) at *every* quadrature order — the spatial rate is
+  blind to :math:`N`.  The isotropic row has a genuine O(h\ :sup:`2`)
+  window; the P1-anisotropic row sits at a flat MMS/angular floor that
+  is the *same* at every :math:`N`.  Both have :math:`|M|/\max \le
+  0.005` — the cross-term vanishes whether or not the angular axis is
+  active.  The P1 row is the load-bearing control: separability survives
+  an *active* angular term, so it is not an artefact of the isotropic
+  degeneracy.
+
+* **Sphere: gating, the discriminator.**  At coarse N=8 the finest
+  spatial h-ratio collapses to **1.15** — refinement saturates at the
+  angular floor.  At fine N=32 the *same* spatial ladder recovers
+  :math:`\approx 4.00` (O(h\ :sup:`2`)).  The spatial rate *depends on*
+  :math:`N` — the defining gating fact — and the cross-term
+  :math:`|M|/\max = 0.411` sits three orders above the Cartesian
+  ceiling.
+
+* **Cylinder: the extreme of gating.**  There is no pre-floor
+  O(h\ :sup:`2`) window at any practical azimuthal order — the
+  :math:`(\eta,\varphi)` variation a 1-D :math:`\eta`-march cannot
+  thread exactly (#229) — so :math:`E \approx E_{\rm angle}(n_\varphi)`
+  and the spatial h-ratio is :math:`\approx 1` at fixed :math:`n_\varphi`.
+  The positive signature is the floor's azimuthal scaling: it drops
+  :math:`2.58\times` when :math:`n_\varphi` doubles.  (The cylinder's
+  small :math:`|M|/\max` is *not* evidence of separability — it is small
+  because the angular floor so dominates that the spatial delta
+  :math:`\Delta E_h` in the denominator is itself near zero; the gating
+  is read from the *saturation* and the *azimuthal scaling*, not the
+  cross-term magnitude.)
+
+.. note::
+
+   The scalar (weight-summed) L2 of the table is, by construction, blind
+   to a *wrong angular closure* — the Morel--Montry :math:`\alpha`-dome
+   telescopes under :math:`\sum_n w_n \psi_n` (vv-principles L27 / the
+   per-ordinate-flat-flux discipline).  Because the curvilinear gating is
+   *itself* an angular-closure phenomenon, the ST5 gate adds a
+   **per-ordinate** leg
+   (``test_curvilinear_gating_per_ordinate_not_blind``) that reproduces
+   the sphere gating signature from the max-over-ordinates per-ordinate
+   L2 (N=8 finest h-ratio 1.16 saturates; N=32 recovers ≈3) — so the
+   gate cannot be telescoped blind to a future angular-closure
+   regression.  That leg corrects a measured 1/W normalisation trap:
+   ``case.psi_exact(r, μ_n)`` returns :math:`A(r) + B(r)\mu_n` *without*
+   the :math:`1/W` factor by its own contract, while the solver stores
+   the per-ordinate flux *with* it — the reference must be divided by
+   :math:`W = \sum_n w_n` before comparison, else a 2× mismatch swamps
+   the metric.
+
+The #233 pole-cell × #229 azimuthal-floor interference
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The gating law has a concrete consequence for the two open curvilinear
+defects.  The spatial pole-cell :math:`\mathcal{O}(h)` order (#233,
+documented at :ref:`sn-pole-cell-spatial-closure` and minted as ERR-059
+in :ref:`sn-curvilinear-aniso-norm-reconciliation`) and the azimuthal
+angular floor (#229) are **not independent contributors** to the
+curvilinear error — they *interfere through the gating*.
+
+The mechanism: the angular thread's interpolation error sets the floor
+that spatial refinement saturates at.  So the pole-cell spatial defect
+(#233) is only *visible* — only the dominant error — once the angular
+floor (#229) has been pushed below it by refining :math:`N`.  At a
+coarse quadrature the #229 angular floor *masks* the #233 pole-cell
+order entirely (the spatial ladder saturates before the
+:math:`\mathcal{O}(h)` pole-cell term emerges); only at a fine
+quadrature does the spatial ladder run long enough for the pole-cell
+order to surface.  This is precisely why the sphere N=8 ladder saturates
+at 1.15 while N=32 recovers O(h\ :sup:`2`): the same spatial closure,
+read through two different angular floors.
+
+This interference is the reason the two issues must be characterised
+*together* rather than as separate spatial and angular bugs, and the
+reason a fix to one cannot be validated in isolation: lifting the #229
+angular floor (a 2-D angular closure) would *expose* the #233 pole-cell
+order that the floor currently masks.  The gating law
+:eq:`sn-space-angle-separability` makes this dependency explicit — the
+curvilinear error is :math:`\max(E_{\rm space}, E_{\rm angle})`, so
+whichever defect is larger *hides* the other.
+
+The permanent pin: the ST5 characterization gate
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The decomposition is pinned permanently by
+:mod:`tests.sn.verification.mms.test_space_angle_separability` (Issue
+#236 Phase 3, sub-task ST5), an **L1** MMS characterisation gate modelled
+on the pole-cell characterisation gate
+``test_curvilinear_pole_cell_characterization.py`` (#233).  It carries
+``@pytest.mark.verifies("sn-space-angle-separability")`` against
+:eq:`sn-space-angle-separability`.  Its six legs pin both regimes as
+*positive* signatures (never as an xfail-pending-fix):
+
+* **Cartesian, separable** — ``test_cartesian_slab_iso_space_angle_separable``
+  (N-independent O(h\ :sup:`2`) spatial rate, :math:`|M|/\max < 0.05`)
+  and ``test_cartesian_slab_p1_aniso_floor_n_independent`` (the active-
+  angular-axis control: the P1 floor is N-independent and the cross-term
+  stays :math:`\approx 0`).
+* **Curvilinear, gating** —
+  ``test_sphere_spatial_rate_is_quadrature_gated`` (the discriminator:
+  coarse-N saturates, fine-N recovers O(h\ :sup:`2`); the proven
+  ``@catches("ERR-026")`` catcher via the fine-N O(h\ :sup:`2`)-recovery
+  assertion), ``test_sphere_cross_term_large_discriminates_from_cartesian``
+  (:math:`|M|/\max > 0.15`),
+  ``test_cylinder_spatial_saturates_at_azimuthal_floor`` (spatial
+  saturation + azimuthal floor scaling), and
+  ``test_curvilinear_gating_per_ordinate_not_blind`` (the L27
+  angular-aware per-ordinate leg, also ``@catches("ERR-026")``).
+
+The gate is *characterisation*, not calcification: if a future 2-D
+angular closure (#229) or higher-order spatial scheme (#158 / #6) lifts
+the curvilinear gating, the gating assertions are designed to redden so
+the regime change is *signalled* and the gate is re-tuned to the new
+(better) regime — they are not xfails awaiting a fix.  The ``@slow``
+mark reflects that the curvilinear solves dominate the ~2 s wall-clock,
+not that the gate is optional.
+
 Substituting the WDD Closure into the Balance Equation
 -------------------------------------------------------
 
