@@ -348,6 +348,13 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         scan-first order coincides with the batch kernels' axis order — the same
         bytes from all three callers.  Per ``vv-principles`` §"Bit-identity vs
         principled-equivalence", do NOT switch to ``sum()`` or regroup.
+
+        Scope: CARTESIAN only, by design.  The curvilinear DD diagonal
+        (:meth:`affine_scan_coefficients`) is a different mathematical object —
+        face-area streaming + the Morel–Montry curvature redistribution, with no
+        Cartesian analogue — so it is NOT folded in here; see its "Why a separate
+        diagonal" note for the structural split and the deferred unification to
+        the diffusion scheme's generic advection–reaction diagonal (#242).
         """
         couplings = tuple(2.0 * s_a for s_a in s_axes)  # each: DD's 2 = 1/w_DD
         denom = sigt_cells
@@ -573,6 +580,36 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         so do NOT regroup for "clarity" (it is NOT the ``cell_kernel_batch``
         explicit-left-fold order — that is the batch capability's discipline).
         Per ``vv-principles`` Bit-identity vs principled-equivalence.
+
+        Why a SEPARATE diagonal from the Cartesian helper (#242)
+        -----------------------------------------------------------------------
+
+        Both compute "the cell-balance diagonal ``S``" — a shared CONCEPT — but
+        the REALIZATIONS are different mathematical objects, so they are NOT
+        folded into one helper (Cardinal Rule 2 reconsidered; the Rule-of-Three
+        tripwire is explicitly retired for this pair):
+
+        * Cartesian (:meth:`_cartesian_streaming_diagonal`):
+          ``S = Σ_t + Σ_a 2 g_a`` with ``g_a = |μ_a|/Δ_a`` — ÷Δ raw down-face
+          streaming, NO volume weighting, NO angular coupling.
+        * Curvilinear (here): ``S = Σ_t·V + 2|μ|·A_down + (ΔA/w)·c_out`` — the ×V
+          collision, FACE-AREA streaming, AND the Morel–Montry curvature
+          redistribution ``(ΔA/w)·c_out`` (``c_out = α_out/τ``).  That
+          redistribution term couples the SPATIAL diagonal to the ANGULAR
+          closure and has NO Cartesian analogue; the op-order reproduces
+          ``CollisionCache.from_geometry``'s factoring — a DIFFERENT bit-identity
+          pin (``rtol=1e-12`` slab snapshots) than the Cartesian explicit-left-fold.
+
+        The genuine unification is ``S = Σ_t·V + streaming_diag`` with
+        ``streaming_diag`` a geometry-parameterised contribution (Cartesian
+        ``Σ 2g`` / curvilinear ``2|μ|A_down + (ΔA/w)c_out`` / a diffusion
+        ``∇·D∇`` term) — the generic ADVECTION–REACTION diagonal the diffusion
+        scheme (#240's next model / the consistent-DSA ``A_diff``) will build and
+        consume.  That is where the merge belongs: it needs the diffusion
+        consumer to validate the abstraction (``coding-elegance`` Pattern 6 —
+        build the primitive once two real occupants exist), and forcing the
+        curvilinear producer through the Cartesian helper NOW would re-baseline
+        its snapshots for no immediate gain.  Deferred to that work (#242).
         """
         # streaming + curvature (no group axis) — units: dimensionless
         streaming_face_term = 2.0 * abs_mu[:, None] * A_down              # (N, nx)
