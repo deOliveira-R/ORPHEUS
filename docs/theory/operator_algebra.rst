@@ -1074,7 +1074,7 @@ shape choice.
        (slab / 2-D Cartesian)
      - :class:`AngularRedistributionOperator`
        wrapping
-       :meth:`PoleAngularClosure.cell_contribution`
+       :meth:`PoleAngularClosureBase.cell_contribution`
      - **MA-Q1 fallback**: the M-M half-grid
        recurrence (Hébert 2009 §3.9.4
        Eqs. 3.432-3.435) sequentially couples
@@ -1303,7 +1303,7 @@ For sphere / cylinder geometries, :attr:`StreamingOperator.M_angular_redist`
 returns an :class:`AngularRedistributionOperator` — a bespoke
 :class:`LinearOperator` leaf wrapping the M-M (Morel-Montry) half-grid
 recurrence. The leaf consumes the per-cell M-M algebra at
-:meth:`PoleAngularClosure.cell_contribution` (Pattern 6 — single
+:meth:`PoleAngularClosureBase.cell_contribution` (Pattern 6 — single
 source of truth for the M-M coefficients).
 
 **Why a leaf and not a tensor product**. Per Hébert 2009 §3.9.4,
@@ -1336,7 +1336,7 @@ unrepresentable), the converse holds: do not represent states
 
 **Per-cell algebra**. The leaf's :meth:`apply` walks every
 :math:`(p,\,i)` pair (μ-level × spatial cell) and calls
-:meth:`PoleAngularClosure.cell_contribution`. The cell-balance
+:meth:`PoleAngularClosureBase.cell_contribution`. The cell-balance
 algebra at
 :func:`orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`
 decomposes additively into three terms:
@@ -1370,7 +1370,7 @@ leaf carries
 with :math:`{\rm angular\_denom\_term} = (\Delta A / w)\,c_{\rm out}`
 and :math:`{\rm angular\_numer\_upstream} = (\Delta A / w)\,c_{\rm in}\,
 \psi_{m-1/2,\,i,\,g}` per the M-M closure (see
-:class:`orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+:class:`orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
 for the closure data).
 
 .. vv-status: wave-t-cell-balance-three-terms documented
@@ -1630,7 +1630,7 @@ Cross-references
     these two private orchestrator methods. The public surface is the
     :meth:`StreamingOperator.apply` /
     :attr:`StreamingOperator.M_spatial` boundary.
-  - :class:`orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+  - :class:`orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
     — the M-M closure data and per-cell algebra primitive.
   - :func:`orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`
     — the three-term cell-balance primitive.

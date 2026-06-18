@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5370**
+Total tests collected: **5369**
 
 V&V level distribution
 ----------------------
@@ -16,7 +16,7 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1153, 21.5%
+   L0, 1152, 21.5%
    L1, 987, 18.4%
    L2, 36, 0.7%
    L3, 0, 0.0%
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5282
+   explicit, 5281
    verify, 0
    class-name, 46
    func-name, 0
@@ -97,7 +97,7 @@ Module × level grid
    cross_method/test_eigenvalue, 0, 31, 0, 0, 53, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 5, 0
    curvilinear/test_apply_matvec_cylinder_invariants, 24, 0, 0, 0, 0, 0
-   curvilinear/test_compute_psi_half_per_level, 27, 0, 0, 0, 2, 0
+   curvilinear/test_compute_psi_half_per_level, 26, 0, 0, 0, 2, 0
    curvilinear/test_coupled_pole_mu_level_invariant, 0, 0, 0, 0, 12, 0
    curvilinear/test_cyl_sweep_regression, 4, 0, 4, 0, 0, 0
    curvilinear/test_pole_angular_closure, 0, 0, 0, 0, 13, 0

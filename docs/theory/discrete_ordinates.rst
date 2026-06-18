@@ -208,7 +208,7 @@ mesh) is shared with :ref:`theory-collision-probability` and
 
    The Morel--Montry angular weight :math:`\tau` is **not** a factory
    output: it is owned by the angular closure
-   (:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`),
+   (:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.tau_per_ordinate`),
    since the geometry-side producer was retired in Issue #236 Phase 2
    Step C (see :ref:`sn-tau-c-on-cellvisit-live`).  The geometry
    factories carry **geometry only** — face areas, the
@@ -961,7 +961,7 @@ The clamp lives **inside the angular closure**, in
 :func:`~orpheus.sn.spatial.pole_angular_closure.morel_montry_tau_per_level`
 (sphere unclamped, cylinder clipped to :math:`[\tfrac12, 1]`).  The
 closure exposes the resulting weight per global ordinate through
-:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`
+:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.tau_per_ordinate`
 (spherical: a single :math:`(N,)` array; cylindrical: the per-level
 weights gathered to the global ordinate order).  Issue #236 Phase 2
 retired the parallel geometry-side :math:`\tau` producer that formerly
@@ -1032,9 +1032,9 @@ c_in / c_out are angular-closure constants — Step B1 (one site folded)
    :class:`~orpheus.sn.spatial.sweep_cache.GeometryCoefficients` populator
    (:meth:`~orpheus.sn.spatial.sweep_cache.GeometryCoefficients.from_mesh_and_quad`),
    which already holds ``sn_mesh`` and so reads
-   :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.c_out_per_ordinate`
+   :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.c_out_per_ordinate`
    /
-   :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.c_in_per_ordinate`
+   :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.c_in_per_ordinate`
    with zero plumbing.  The accessor pair is PUBLIC and polymorphic on the
    base
    :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`:
@@ -1095,9 +1095,9 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
    :meth:`~orpheus.sn.geometry.SNMesh._make_cell_visit` — through which
    ALL four ``dag_walk`` yield paths funnel (Pattern 2, no per-site
    divergence) — stamps them from
-   :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.c_in_per_ordinate`
+   :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.c_in_per_ordinate`
    /
-   :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.c_out_per_ordinate`
+   :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.c_out_per_ordinate`
    indexed by the GLOBAL ordinate (``direction_idx`` for slab / sphere,
    ``level_indices[p][m]`` for cylinder — mirroring
    :meth:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.streaming_terms`).
@@ -1140,9 +1140,9 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
    carve, all bit-identical (0-ULP):
 
    * **Per-ordinate gather cached (L16).** The public accessors
-     :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.c_in_per_ordinate`
+     :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.c_in_per_ordinate`
      /
-     :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.c_out_per_ordinate`
+     :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.c_out_per_ordinate`
      re-ran the full :math:`(N,)` per-level :math:`\to` global gather on
      EVERY access, so the per-visit stamp made the visit-producing loop
      :math:`O(N^2\,n_x)`.  The gather is a pure permutation of immutable
@@ -1242,7 +1242,7 @@ the angular weight in alongside the genuinely geometric
 which already binds the quadrature and already computes :math:`\tau`
 from it in :func:`~orpheus.sn.spatial.pole_angular_closure.morel_montry_tau_per_level`.
 The closure exposes it through one public, polymorphic accessor,
-:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`,
+:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.tau_per_ordinate`,
 a read-only :math:`(N,)` array indexed by the global ordinate.  The
 two concrete strategies answer it differently *by type*, with no
 ``coord ==`` branch anywhere:
@@ -1255,13 +1255,16 @@ two concrete strategies answer it differently *by type*, with no
   its identity element (see below).
 
 This is the same both-sites mint B1 applied to the :math:`c`-accessors:
-:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`
-is declared on the ``@runtime_checkable``
-:class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
-Protocol **and** on the
+:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.tau_per_ordinate`
+is declared on the
 :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
-ABC, so the contract is complete for both the structural-typing and the
-nominal-inheritance consumers.  The gather itself is a pure permutation
+ABC, so the contract is complete for every consumer.  (Phase B
+originally declared these accessors on **both** the
+``@runtime_checkable`` ``PoleAngularClosure`` Protocol and the ABC, to
+serve structural-typing and nominal-inheritance consumers alike;
+Issue #236 Phase 2 B2 retyped every consumer onto the ABC and Issue
+#248 deleted the now-orphaned Protocol, so the ABC is the single
+declaration site.)  The gather itself is a pure permutation
 of the immutable per-level data, hoisted once into each mesh-bound
 ``__init__`` via the shared
 :meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase._build_per_ordinate_cache`
@@ -1421,7 +1424,7 @@ Morel--Montry outgoing-angular-face thread — *does* need the raw
 and reads it from :attr:`~orpheus.sn.spatial.scheme.CellVisit.tau`
 (stamped by
 :meth:`~orpheus.sn.geometry.SNMesh._make_cell_visit` from
-:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`)
+:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.tau_per_ordinate`)
 rather than from ``visit.streaming_terms.tau_mm``.  This is the line
 the :math:`1.0` default protects.
 
@@ -1430,7 +1433,7 @@ product that replaces the per-cell Python loop for the curvilinear
 sweep — needs the same recurrence in a form amenable to a forward scan.
 :class:`~orpheus.sn.spatial.sweep_cache.GeometryCoefficients` sources
 :math:`\tau` from
-:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`
+:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.tau_per_ordinate`
 and precomputes the split
 
 .. math::
@@ -5368,8 +5371,34 @@ context for the empirical-defects-investigation reasoning chain.
 
 .. _sn-pole-angular-closure-protocol:
 
-PoleAngularClosure (Issue #168 Phase B)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The pole angular closure (Issue #168 Phase B)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. note:: **Contract evolution (Issue #236 Phase 2 B2 → Issue #248).**
+   This subsection originally introduced the angular-closure contract
+   as a ``@runtime_checkable`` ``PoleAngularClosure`` **Protocol**
+   (structural typing, Phase B). Issue #236 Phase 2 B2 retyped every
+   production consumer (matvec / sweep / geometry / scheme /
+   cell-balance) onto the
+   :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
+   **ABC** and made the three strategy methods
+   (:meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.precompute_psi_state`,
+   :meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.cell_contribution`,
+   ``angular_adjoint``) ``@abstractmethod`` on it. That left the
+   Protocol orphaned and divergent — it carried the ``c_*``/``tau``
+   accessors and a legacy ``__call__`` bundle but **not** the three
+   strategy methods — so **Issue #248 deleted it** along with the dead
+   ``__call__`` bundle (and its ``tau_mm`` argument) and the orphaned
+   recurrence helpers. The ABC is now the **sole** angular-closure
+   contract; production consumes
+   :meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.precompute_psi_state`
+   + :meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.cell_contribution`,
+   never ``__call__``. The narrative below preserves Phase B's
+   reasoning; read "strategy ABC" wherever the original said "strategy
+   Protocol". The section anchor ``sn-pole-angular-closure-protocol``
+   is retained (it is cross-referenced from
+   :doc:`/theory/boundary_conditions` and elsewhere); only the human
+   label "protocol" is now loose — the contract is an ABC.
 
 Phase B addresses **Defect 3** of Issue #168 — the angular-redistribution
 truncation gap on angularly-varying :math:`\psi`.  The pre-Phase-B
@@ -5379,8 +5408,8 @@ which is the **flat-flux collapse** of Hébert (2009) §3.9.4
 Eqs. 3.428 + 3.437/3.439 — exact when :math:`\psi` is constant in
 :math:`\mu`, but only :math:`\mathcal{O}(1)` accurate on
 angularly-varying :math:`\psi`.  Phase B lifts this evaluation into
-a :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
-strategy Protocol — analogous to Phase A's
+a :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
+strategy ABC — analogous to Phase A's
 :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux` —
 and ships **three concrete strategies** trading off bit-identity,
 flat-flux invariance, and asymptotic accuracy:
@@ -5473,7 +5502,7 @@ ERR-026 closure status (Phase B partial)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Phase B ships the architectural infrastructure for closing Defect 3
-(the :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+(the :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
 Protocol + canonical
 :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`)
 without flipping the default — the canonical form in isolation does
@@ -5506,19 +5535,31 @@ Half-angle grid exposure (Issue #197 PR-TYPED-6b)
    ``psi_angular_upstream`` argument — closing the apply-vs-sweep
    twin path on the curvilinear angular branch.
 
-   Pattern 2 (Single source of truth).  Both the public method AND
-   the redistribution body inside
-   :meth:`MorelMontryAngularSweep.__call__` route through
-   :func:`~orpheus.sn.spatial.pole_angular_closure._mm_psi_half_grid_single_level`.
-   The :eq:`pole-mm-recurrence` recurrence body lives once.
+   Pattern 2 (Single source of truth).  The :eq:`pole-mm-recurrence`
+   recurrence body lives once, in the staticmethod
+   ``MorelMontryAngularSweep._psi_half_grid_single_level``.  Both the
+   public ``compute_psi_half_per_level`` AND the live production path
+   route through it: the matvec/sweep call
+   :meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.precompute_psi_state`,
+   which dispatches per level through ``_psi_half_grid_for_level``,
+   which calls the same staticmethod.  (Phase B / Phase C drove the
+   redistribution through a single ``__call__`` bundle that also routed
+   through this kernel; Issue #248 deleted the bundle, so the
+   single-source-of-truth invariant now binds
+   ``compute_psi_half_per_level`` and ``precompute_psi_state``
+   directly.)
 
    Test gate:
-   :file:`tests/sn/spatial/test_compute_psi_half_per_level.py` —
-   21 foundation + L0 tests pinning method existence,
-   shape contract, recurrence formula, Carlson-context seed
-   contract, Pattern 2 round-trip to ``__call__``, linearity, and
-   refactor-regression on
-   :func:`_mm_weighted_angular_recurrence_single_level`.
+   :file:`tests/sn/sweep/curvilinear/test_compute_psi_half_per_level.py`
+   — foundation + L0 tests pinning method existence, shape contract,
+   the verbatim Hébert recurrence formula
+   :math:`\phi_{m+1/2} = (\phi_m - (1-\tau_m)\phi_{m-1/2})/\tau_m`,
+   Carlson-context seed contract, the Pattern-2 round-trip
+   (``compute_psi_half_per_level`` against the
+   ``_psi_half_grid_single_level`` staticmethod), and linearity. After
+   Issue #248 these gates drive the recurrence through the **live**
+   surface the matvec consumes, rather than the retired ``__call__``
+   bundle.
 
    Closeout memo:
    ``.claude/agent-memory/method-implementer/issue_197_pr_typed_6b_closeout.md``.
@@ -5568,9 +5609,9 @@ Phase C resumes the spatial-closure alignment that Phase B
 identified as the load-bearing precondition for the
 curvilinear-default flip (see
 :ref:`sn-pole-angular-closure-protocol` for Phase B's full
-:class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
-Protocol narrative; this subsection picks up at the point Phase B
-left for follow-up). Three unblockers landed before Phase C
+:class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
+closure-contract narrative; this subsection picks up at the point
+Phase B left for follow-up). Three unblockers landed before Phase C
 resumed:
 
 1. The trajectory_resolvent (Peierls Variant α Green's-function)
@@ -5679,7 +5720,7 @@ balance, ORPHEUS-normalised):
         - A_{i-1/2}\,\psi^{\text{face}}_{n,i-1/2,g} \bigr],
 
 with the redistribution term provided by the Phase B
-:class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+:class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
 strategy and the collision term :math:`\Sigma_t \psi^{\text{cell}}_{n,i,g}`
 unchanged. The full per-cell update is
 
@@ -5689,11 +5730,18 @@ unchanged. The full per-cell update is
    (T\psi)_{n,i,g} \;=\; S_{n,i,g} \;+\; R_{n,i,g} \;+\;
    \Sigma_t(i,g)\,\psi^{\text{cell}}_{n,i,g},
 
-where :math:`R_{n,i,g}` is the
-:meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.__call__`
-output (Bailey :math:`\Delta A_i / w_n` redistribution factor with
-the strategy-specific :math:`\alpha_{n+1/2}\psi_{n+1/2} -
-\alpha_{n-1/2}\psi_{n-1/2}` evaluation). See
+where :math:`R_{n,i,g}` is the strategy's redistribution output
+(Bailey :math:`\Delta A_i / w_n` redistribution factor with the
+strategy-specific :math:`\alpha_{n+1/2}\psi_{n+1/2} -
+\alpha_{n-1/2}\psi_{n-1/2}` evaluation). In current production this
+is produced by
+:meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.cell_contribution`,
+consuming the per-level state that
+:meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.precompute_psi_state`
+stamps once per sweep. (Phase B / Phase C shipped this redistribution
+through a single ``__call__`` bundle on the strategy; that legacy
+bundle — and its ``tau_mm`` argument — was retired in Issue #248, and
+the two strategy methods are now the sole production surface.) See
 :eq:`bailey-dome-recursion` for the :math:`\alpha` recurrence and
 :eq:`pole-mm-recurrence` for the M–M angular DD form.
 
@@ -5827,12 +5875,12 @@ What stays
 ^^^^^^^^^^
 
 * The Phase B
-  :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
-  Protocol stays. The sphere centre / cylinder axis is **intrinsic
-  geometry** (a coordinate-system singularity, not an external BC),
-  so the three-strategy Phase B Protocol is the right shape; only
-  the **default** is under question, and that is the Phase D
-  decision point.
+  :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
+  closure contract (the ABC, since Issue #248) stays. The sphere
+  centre / cylinder axis is **intrinsic geometry** (a coordinate-system
+  singularity, not an external BC), so the three-strategy angular
+  closure is the right shape; only the **default** is under question,
+  and that is the Phase D decision point.
 * The :meth:`~orpheus.sn.operator.InvertibleOperator.apply_transpose`
   machinery via dense-probe construction stays. Linearity of the
   rewritten :meth:`~orpheus.sn.operator.InvertibleOperator.apply`
@@ -7205,7 +7253,7 @@ The
 :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonSweepContext`
 dataclass bundles the four inputs the Carlson sweep needs that
 are NOT in the standard
-:class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+:class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
 ``__call__`` signature (``sigma_t``, ``dr``, ``mu_quad``,
 ``weights``, ``bc_outer_value``), keeping the call-signature
 expansion to a single new optional keyword — a minimal
