@@ -1360,3 +1360,57 @@ RECIPE for a characterization gate's `catches`: re-emerge the bug at its LIVE pr
 (here: divergent h-ratio<1), confirm the SPECIFIC named assertion reddens. Prove rewriter LIVE
 in-tree (not just tmp copy). All probes reverted by re-edit (L28, never git); final `git diff`
 on prod+test EMPTY.
+
+## L-037b -- migrating a test off a deleted dead path: the re-encoded recurrence is L11-legit, but a hand-calc fixture with α-endpoint-zero is BLIND to a recurrence-tail regression (find the real catcher)
+
+#248 retired the orphaned `PoleAngularClosure` Protocol + dead `__call__`/`tau_mm`
+bundle and migrated the hand-calc tests off `__call__` onto a `_redistribution_via_
+live_path` helper that threads ψ through the LIVE `compute_psi_half_per_level`
+(→ `_psi_half_grid_single_level`, the SAME kernel production's `precompute_psi_state`
+consumes) + an explicit α/ΔA/w/V geometry fold the test owns. VERDICT: migration is
+SUPPORTED (non-tautological), but two findings worth carrying:
+
+1. **The kernel-routing is genuine (CRUX = SUPPORTED).** Verify by tracing BOTH
+   surfaces to the shared kernel by hand (`compute_psi_half_per_level:1331` and
+   prod `precompute_psi_state`→`_psi_half_grid_for_level:1092` BOTH call
+   `_psi_half_grid_single_level`). Then mutation-prove: sign-flip the PRODUCTION
+   `(1.0 - tau_m)` recurrence term → the τ-parametrized recurrence pins
+   (`test_compute_psi_half_per_level::TestRecurrenceFormula[0.5..1.0]` +
+   `TestCallOutputUnchanged`) RED + the end-to-end MMS operator-admits RED. The
+   re-encoded recurrence `faces[m+1]==(ψ_m−(1−τ)faces[m])/τ` is NOT L26-circular:
+   the test re-spells the CORRECT formula and compares two production faces, so a
+   wrong-sign production output disagrees (proven RED). L26's "value pinned
+   independently" branch (formula-as-reference between consecutive prod outputs).
+
+2. **THE HAND-CALC FIXTURES ARE DEGENERATE-BLIND (L-016/Mode-10 gap, NOT a
+   blocker).** `TestMorelMontryHandCalc` (sphere α=[0,1/√3,0]) +
+   `TestCylindricalLevelDispatch` (2 levels, each α=[0,c,0]) stayed GREEN under the
+   SAME production sign-flip. Reason: τ=0.5 + seed=0 makes face[1] sign-independent,
+   and the dome-ENDPOINT-zero `α_{N+1/2}=0` zeroes the ONLY differing face
+   (`α[2]·faces[2]` with `α[2]=0`; faces[2] flips 4→8 but R unchanged ±1.1547).
+   So these specific tests do NOT pin the recurrence tail — they pin the
+   geometry fold + the (sign-independent) first face only. Acceptable because the
+   recurrence IS pinned elsewhere (finding 1), but if asked "do the hand-calc tests
+   pin the recurrence?" the answer is NO — the τ-parametrized + MMS tests do.
+   RULE: a hand-calc redistribution fixture with α-dome endpoints zero (the
+   physical dome) cannot see a regression in the LAST half-face; always locate
+   the τ≠0.5, full-α, or MMS catcher before crediting hand-calc tests with
+   recurrence coverage. Probe: mutate prod kernel, run the WHOLE migrated set
+   verbose (don't tail-truncate a bundled run — the MMS reds scroll off).
+
+3. **Deleted-test vacuity (Item 4 = SUPPORTED).** `test_redistribution_from_psi_
+   half_matches_call` compared method-fold vs `_mm_weighted_angular_recurrence_
+   single_level` (the dead helper `__call__` used). Once that helper is deleted the
+   `redist_from_helper` side is unrunnable → genuinely vacuous, NOT unique coverage:
+   the live-kernel equivalence survives in `test_method_delegates_to_psi_half_grid_
+   helper` (`compute_psi_half_per_level ≡ _psi_half_grid_single_level`, array_equal).
+   Count reconciles: pole_angular_closure 13→13, compute_psi_half 20→19 (−1).
+
+Retirement cleanliness (Item 1): grep `PoleAngularClosure\b | grep -v Base` →
+ONLY docstring/comment history (zero import/annotation/isinstance/call); `MorelMontry
+AngularSweep()` instantiates (not abstract) + `callable()` False (no `__call__`);
+base IS abstract; helpers `_weighted_angular_recurrence_single_level`/`_redistribution
+_for_level` gone; cross-refs repointed →Base in operator/solver/geometry/scheme/
+cell_balance/psi_half_angle_seed. No `verifies`/`catches` markers (foundation/L0
+only, L-007 clean). Probes reverted by re-edit (L28); final `git diff` on prod+test =
+only the intended carve. VERDICT 2026-06-18: SUPPORTED.
