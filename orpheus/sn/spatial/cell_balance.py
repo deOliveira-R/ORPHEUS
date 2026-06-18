@@ -264,6 +264,9 @@ def cell_balance_terms(
     A_downstream: float,
     total_xs: np.ndarray,
     upstream_state: "UpstreamState",
+    *,
+    c_in: float,
+    c_out: float,
 ) -> CellBalanceTerms:
     r"""Unified per-cell balance terms — geometry-blind by data.
 
@@ -274,6 +277,15 @@ def cell_balance_terms(
     curvilinear) and the value of ``A_downstream`` (``0.0`` for
     cylindrical-degenerate, ``1.0`` for slab, the physical outgoing
     face area for curvilinear).
+
+    Issue #236 Phase 2 B3: the Morel--Montry weighted-diamond
+    constants ``c_in`` / ``c_out`` are ANGULAR-CLOSURE-OWNED inputs,
+    passed by the caller from :attr:`CellVisit.c_in` / ``c_out`` (the
+    closure stamps them from its ``c_{in,out}_per_ordinate`` accessors
+    via :meth:`SNMesh._make_cell_visit`).  They are NO LONGER rebuilt
+    here from ``st.alpha_*`` / ``st.tau_mm`` — this helper does not read
+    τ at all.  The spatial scheme receives the angular constants as
+    DATA, preserving the spatial :math:`\otimes` angular separation.
 
     Parameters
     ----------
@@ -292,6 +304,14 @@ def cell_balance_terms(
         Per-cell upstream state.  ``spatial_upstream`` is always
         populated.  ``angular_upstream`` is ``None`` for slab and
         populated (``(ng,)``) for curvilinear.
+    c_in :
+        Angular-closure-owned Morel--Montry "in" constant
+        :math:`(1-\tau)/\tau\,\alpha_{\rm out} + \alpha_{\rm in}` for this
+        ordinate — read from :attr:`CellVisit.c_in`.  ``0.0`` for slab.
+    c_out :
+        Angular-closure-owned Morel--Montry "out" constant
+        :math:`\alpha_{\rm out}/\tau` for this ordinate — read from
+        :attr:`CellVisit.c_out`.  ``0.0`` for slab.
 
     Returns
     -------
@@ -303,15 +323,13 @@ def cell_balance_terms(
     abs_mu = st.abs_mu
     A_total = st.face_area_inner + st.face_area_outer
     dA_w = st.delta_A_over_w
-    tau = st.tau_mm
     V = st.volume
 
-    # M-M closure constants — degenerate to zero for slab (neutral
-    # alpha values).  Curvilinear τ: the CYLINDER clamps to (½, 1]
-    # (structural τ_raw=0 ÷0 block); the SPHERE uses the unclamped
-    # Bailey-Morel-Chang Eq. 43 weight (W1 — see spherical_streaming).
-    c_out = st.alpha_out / tau
-    c_in = (1.0 - tau) / tau * st.alpha_out + st.alpha_in
+    # The M-M closure constants c_in / c_out arrive as ANGULAR-CLOSURE-
+    # OWNED data (Issue #236 Phase 2 B3) — the closure produces them from
+    # its α-dome / τ and stamps them on the CellVisit; this helper consumes
+    # them, it does not derive them.  Slab carries 0.0 (neutral identity
+    # closure); curvilinear carries the physical weighted-diamond values.
 
     # Denominator: 2|μ|·A_down (vanishes for cyl-degenerate via
     # A_down=0; reduces to 2|μ|·1 for slab) + curvature redistribution

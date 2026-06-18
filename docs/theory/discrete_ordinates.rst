@@ -1133,7 +1133,7 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
      :math:`O(N^2\,n_x)`.  The gather is a pure permutation of immutable
      per-level data, so it is now computed ONCE in each mesh-bound
      ``__init__`` (shared
-     :meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase._build_c_per_ordinate_cache`,
+     :meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase._build_per_ordinate_cache`,
      called by both ``MorelMontryAngularSweep`` and
      ``IdentityAngularClosure``) and the accessors return the read-only
      cache (``setflags(write=False)`` guards the shared :math:`(N,)` view
@@ -1162,6 +1162,89 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
      (``test_cell_balance_for_streaming.py``) hand-recomputes were unified
      into one shared ``tests/sn/sweep/core/_c_surrogate.py`` consumed by
      both files and the new catcher.
+
+.. _sn-tau-c-on-cellvisit-live:
+
+The live sweep + scan consume closure-owned τ / c — Step B3
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. todo:: Archivist expansion needed.
+
+   Step B3 makes the LIVE per-cell sweep, the matvec solve path, and the
+   CumprodScan fast path all CONSUME the angular-closure-owned
+   :math:`\tau` :eq:`mm-weights` and the derived :math:`c_{\rm in}` /
+   :math:`c_{\rm out}` :eq:`dd-mm-closure-constants` instead of the
+   geometry-owned :attr:`StreamingTerms.tau_mm`.  After B3, NOTHING in the
+   live sweep / scan / matvec reads ``StreamingTerms.tau_mm`` — the
+   precondition Step C verifies before deleting the geometry-side
+   :math:`\tau` producer.
+
+   Three live consumers are folded:
+
+   * **The scalar solve helper.**
+     :func:`~orpheus.sn.spatial.cell_balance.cell_balance_terms` (the
+     ``DiamondDifference.update`` solve direction) stops rebuilding
+     :math:`c` from ``st.alpha_* / st.tau_mm`` — it RECEIVES
+     :math:`c_{\rm in}` / :math:`c_{\rm out}` as keyword inputs from
+     :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update`, which
+     reads them off
+     :attr:`~orpheus.sn.spatial.scheme.CellVisit.c_in` /
+     :attr:`~orpheus.sn.spatial.scheme.CellVisit.c_out` (the B2-stamped
+     fields).  The helper no longer reads :math:`\tau` at all.
+
+   * **The angular recurrence.** ``DD.update``'s Morel--Montry thread
+     :math:`\psi^a_{\rm out} = (\bar\psi - (1-\tau)\,\psi^a_{\rm in})/\tau`
+     reads :math:`\tau` from the new
+     :attr:`~orpheus.sn.spatial.scheme.CellVisit.tau` field (DEFAULT
+     :math:`1.0` — the neutral M-M weight the Cartesian identity closure
+     supplies; a :math:`0.0` default would be a divide-by-zero landmine),
+     stamped by
+     :meth:`~orpheus.sn.geometry.SNMesh._make_cell_visit` from
+     :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`
+     — matching the :math:`c` provenance.
+
+   * **The CumprodScan split.** The
+     :class:`~orpheus.sn.spatial.sweep_cache.GeometryCoefficients`
+     populator sources :math:`\tau` from
+     :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`
+     and derives the scan-recurrence split ``tau_inv`` :math:`= 1/\tau`,
+     ``mm_a_in_coeff`` :math:`= (1-\tau)/\tau` (the legit perf-cache
+     hoist, L16) — consumed at the loss-representation scan fast path
+     :math:`\texttt{tau\_inv}\cdot\bar\psi - \texttt{mm\_a\_in\_coeff}\cdot
+     \psi^a_{\rm in}`, the twin of ``DD.update``'s raw-:math:`\tau` form.
+     The closure exposes only the PRIMITIVE :math:`\tau` (Pattern 5 —
+     build the primitive, not the product); consumers derive the trivial
+     :math:`1/\tau`, :math:`(1-\tau)/\tau` algebra locally.
+
+   The closure mints a public polymorphic
+   :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`
+   accessor on BOTH the
+   ``@runtime_checkable`` Protocol AND the
+   :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
+   ABC (mirroring the B1 :math:`c`-accessor mint), returning the
+   read-only :math:`(N,)` global-ordinate gather of
+   ``_tau_per_level`` built once in
+   :meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase._build_per_ordinate_cache`
+   (renamed from ``_build_c_per_ordinate_cache`` — it now gathers three
+   constants).
+
+   Step B3 is BIT-IDENTICAL (0-ULP): ``visit.tau`` /
+   ``closure.tau_per_ordinate`` / the cache ``tau_inv`` / ``mm_a_in_coeff``
+   equal the former ``st.tau_mm``-derived values bit-for-bit — closure-
+   :math:`\tau` is 0-ULP equal to geometry-:math:`\tau` (Step-A Leg-1
+   producer-equivalence gate) and the per-level :math:`\to (N,)` gather is
+   a pure permutation.  Verified in-process at
+   :math:`\lvert\texttt{visit.tau} - \texttt{st.tau\_mm}\rvert \equiv 0`
+   on sphere (single-level) + cylinder (multi-level), and on the
+   DriftWarning-escalating ``tests/sn/sweep/core`` + ``tests/sn/spatial``
+   + ``tests/sn/solve`` snapshots.  Step C (the next dispatch) retires the
+   now-orphaned geometry-side :math:`\tau` producer
+   (:func:`~orpheus.geometry.reduced_operator.spherical_streaming` /
+   :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming`) and
+   the ``StreamingTerms.tau_mm`` / ``alpha_*`` fields.  See
+   :mod:`orpheus.sn.spatial.scheme` for the ``CellVisit.tau`` field,
+   :mod:`orpheus.sn.geometry` for the production stamp, and
+   :mod:`orpheus.sn.spatial.sweep_cache` for the scan split.
 
 Substituting the WDD Closure into the Balance Equation
 -------------------------------------------------------

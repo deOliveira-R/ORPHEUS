@@ -1299,27 +1299,28 @@ class SNMesh:
         face_area_downstream: float,
         st: StreamingTerms,
     ) -> CellVisit:
-        r"""Assemble one :class:`CellVisit`, sourcing the angular-closure c.
+        r"""Assemble one :class:`CellVisit`, sourcing the angular-closure τ / c.
 
-        Issue #236 Phase 2 B2 — the single production site that stamps the
-        Morel--Montry weighted-diamond constants
-        (:attr:`CellVisit.c_in` / :attr:`CellVisit.c_out`) onto a visit.
+        Issue #236 Phase 2 B2/B3 — the single production site that stamps the
+        Morel--Montry angular weight :attr:`CellVisit.tau` (B3) and the
+        derived weighted-diamond constants
+        (:attr:`CellVisit.c_in` / :attr:`CellVisit.c_out`, B2) onto a visit.
         ALL four ``dag_walk`` yield paths (slab / sphere / cylinder /
-        cylindrical-degenerate) funnel through here so the c-lookup lives
+        cylindrical-degenerate) funnel through here so the lookup lives
         in exactly ONE place (Pattern 2 — no per-site divergence).
 
-        The constants are read from the mesh's canonical angular-closure
+        The values are read from the mesh's canonical angular-closure
         owner :attr:`pole_angular_closure` via its per-global-ordinate
         ``(N,)`` accessors
-        (:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.c_in_per_ordinate`
-        / ``c_out_per_ordinate``) — NOT rebuilt from
-        ``st.alpha_*`` / ``st.tau_mm`` (the inline formula the four
-        former duplication sites carried).  ``global_ordinate`` is the
+        (:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`
+        / ``c_in_per_ordinate`` / ``c_out_per_ordinate``) — NOT rebuilt from
+        ``st.alpha_*`` / ``st.tau_mm`` (the inline formula the former
+        duplication sites carried).  ``global_ordinate`` is the
         GLOBAL ordinate index: ``direction_idx`` for slab / sphere,
         ``level_indices[mu_level_idx][m]`` for cylinder (mirroring the
         index :meth:`streaming_terms` resolves).  Slab / Cartesian reads
-        the identity closure's neutral zeros, so ``c_in == c_out == 0.0``
-        there.
+        the identity closure's neutral values, so ``c_in == c_out == 0.0``
+        and ``tau == 1.0`` there.
         """
         closure = self.pole_angular_closure
         return CellVisit(
@@ -1328,6 +1329,7 @@ class SNMesh:
             face_area_downstream=face_area_downstream,
             c_in=float(closure.c_in_per_ordinate[global_ordinate]),
             c_out=float(closure.c_out_per_ordinate[global_ordinate]),
+            tau=float(closure.tau_per_ordinate[global_ordinate]),
         )
 
     def _iter_cartesian_visits(

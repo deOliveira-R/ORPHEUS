@@ -152,7 +152,12 @@ def test_n_mask_1_matches_scalar_curvilinear():
         angular_upstream=np.array([0.4, 0.6]),
     )
 
-    terms = cell_balance_terms(st, A_downstream, total_xs, upstream)
+    # Issue #236 Phase 2 B3: cell_balance_terms takes c_in / c_out as data;
+    # supply them from the shared surrogate (this test has a raw st, no visit).
+    c_in_v, c_out_v = c_from_streaming_terms(st)
+    terms = cell_balance_terms(
+        st, A_downstream, total_xs, upstream, c_in=c_in_v, c_out=c_out_v,
+    )
 
     (
         abs_mu, A_down, A_total, psi_face_in,
@@ -188,7 +193,11 @@ def test_n_mask_1_matches_scalar_slab():
         angular_upstream=None,
     )
 
-    terms = cell_balance_terms(st, A_downstream, total_xs, upstream)
+    # Issue #236 Phase 2 B3: slab carries neutral α=0 / τ=1 ⇒ c_in = c_out = 0.
+    c_in_v, c_out_v = c_from_streaming_terms(st)
+    terms = cell_balance_terms(
+        st, A_downstream, total_xs, upstream, c_in=c_in_v, c_out=c_out_v,
+    )
 
     (
         abs_mu, A_down, A_total, psi_face_in,
