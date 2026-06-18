@@ -1012,3 +1012,73 @@ non-conflation warning is present in all 4 docstrings (scheme Protocol, base,
 diamond, pole closure) + the lit memo — the critical nuance the brief flagged
 is handled. All 4 traits are genuine `bool` (not truthy-1) so `is True` is
 safe; conformance test added the trait to the genuine-bool teeth list.
+
+---
+
+## L-035 — #236 Phase 1b (honest curvilinear-LD selection: `supports_curvilinear` trait + `_curvilinear_capability` gate). VERDICT SUPPORTED, no blocker/follow-up
+
+The change: a 7th scheme trait `supports_curvilinear` (DD=True, LD=False, base
+default False) + single-source `_curvilinear_capability(mesh)` returning ok
+unless `(not is_cartesian) and (not scheme.supports_curvilinear)`, composed into
+`CumprodScan.supports` / `ScanMarch.supports` (1-D arm only) and HOISTED above
+the loop in `default_for` (raises `IncompatibleRepresentation` with the SPECIFIC
+reason instead of the generic "no sweep strategy supports" fall-through).
+
+**Over-rejection proof (Q1) is ALGEBRAIC, not just test-green:** enumerate all 4
+strategies' `supports`. For a curvilinear mesh `is_cartesian=False`; Window +
+FullFieldWavefront both require `is_cartesian` → already reject; only the two
+1-D scans can ever apply, and BOTH now embed the same gate. So the `default_for`
+hoist is a pure REASON-improvement, NEVER a behavior change — there is no mesh
+where `_curvilinear_capability` rejects but a strategy would have admitted. 2-D
+Cartesian-LD: `is_cartesian=True` → gate ok → falls through to ScanMarch's d≥2
+`transverse_coupling_is_facewise` arm (the #240 D5-0 honest-selection, untouched).
+The gate's two premises hold: `is_cartesian = (curvature is None)` so curvilinear-
+1D → False (geometry.py:722), and `is_1d`⊥`is_cartesian` are orthogonal axes.
+
+**Teeth proof (mutation, L28/L34 — edit-in-place + manual revert, NOT git):**
+flip `LinearDiscontinuous.supports_curvilinear` False→True via python read/replace/
+write → the 4 POSITIVE arms (SPH+CYL × {default_for raises, supports.ok=False})
+go RED, the 3 NEGATIVE controls (curvilinear-DD ×2, slab-LD ×1) STAY GREEN =
+correct signature (mutation only touches LD curvilinear admissibility). Restore,
+diff-stat back to original +11. SEPARATELY proved the DD negative control is NOT
+vacuous: flip `DiamondDifference.supports_curvilinear` True→False → curvilinear-DD
+raises `IncompatibleRepresentation` → `test_curvilinear_dd_still_selects_cumprod_scan`
+RED. Both teeth bite; restore both.
+
+**Message-specificity test is NOT self-referential (Q5, anti-ERR-051):** the
+reason string is built in PROD (`_curvilinear_capability`) as
+`f"{type(mesh.scheme).__name__} has no curvilinear cell closure (slab/Cartesian
+only)..."` — names the actual scheme class + actual deficiency + actual issue
+(#158/#6). The test discriminates `"curvilinear" in reason AND "no sweep strategy
+supports" not in reason` = asserts the SPECIFIC gate path was taken vs the generic
+fall-through (two genuinely different code paths, two different strings, verified
+by direct invocation). Unlike ERR-051 (fixture constructed to make the wrong
+assertion succeed), the fixture here is a real curvilinear-LD mesh.
+
+**Defense-in-depth INTACT (Q3):** `_require_slab` (update:419/residual:445) +
+`affine_scan_coefficients` NotImplementedError("slab/Cartesian", :742) UNTOUCHED.
+The solve-path exception type is UNCHANGED (`NotImplementedError`, not the new
+selection `IncompatibleRepresentation`): `solve_sn_fixed_source` builds `SNSolver`
+→ `CollisionCache` build (→ affine_scan_coefficients raise) BEFORE the sweep
+dispatcher reaches `default_for`. CACHE WINS THE RACE — `test_ld_curvilinear_scan_
+rejected` (test_mms_ld_slab.py, path is tests/sn/verification/mms/ NOT
+tests/sn/spatial/ as the brief said) still passes expecting NotImplementedError.
+
+**Inertness (Q4):** gate returns ok=True for every previously-valid mesh ⇒
+bit-identical sweep numerics (no .npy needed — selection-only, touches no flux).
+Confirmed by full slab-LD MMS suite (7 pass) + entire tests/sn/sweep/core (460
+pass/1 skip/4 xfail, pre-existing). The 7th trait propagated to the 2 Protocol
+mocks + the `_fake` SimpleNamespace (curv_capable=True default) + the genuine-bool
+conformance teeth list — all 45 in the 2 touched test files green under -O.
+
+**Out-of-scope note:** the working tree also carries vv-principles SKILL.md (Mode-10
++ the catches-marker-is-a-coverage-claim para) + error_catalog.md (ERR-060/061/062)
+edits — these document PRIOR #240 D5b work (already in L-029..L-033), NOT Phase 1b;
+consistent with memory, not part of this code review.
+
+RULE crystallized: for a SELECTION-LAYER gate hoisted above a strategy loop, prove
+non-over-rejection ALGEBRAICALLY (enumerate every strategy's predicate, show the
+hoisted gate's reject-set ⊆ the loop's reject-set) — green tests alone don't bound
+the input space. And a gate composed into N `supports` + hoisted into `default_for`
+is inert-by-construction iff its reject condition implies all strategies already
+reject (here: curvilinear ⇒ Window/FFW reject on is_cartesian, scans embed the gate).
