@@ -843,3 +843,42 @@ that is, by policy, NOT in git — so the usual "git can undo it" safety net doe
 
 Cross-reference: `[[lessons-L12]]` (paste-back — here it was the ONLY backup); the standing
 forbidden-to-commit set (`.claude/skills/*`).
+
+## L29 — A retirement audit's caller-search must include VARIABLE-BOUND calls + xfail(strict=False) masks the break (2026-06-18)
+
+Retiring `MorelMontryAngularSweep.__call__` (#248), the explorer L20 audit + the
+method-implementer + qa all confirmed "zero live callers" — yet ONE caller survived:
+`tests/sn/sweep/curvilinear/test_unified_matvec_cylinder.py:170` `redist_full = pac(...)`,
+where `pac = sn_mesh.pole_angular_closure`. The searches missed it on TWO axes:
+
+1. **The grep shape was too narrow.** The audit searched `MorelMontryAngularSweep()(...)`
+   (inline class-instantiation call) and the type name `PoleAngularClosure` — but a
+   `__call__` invocation through a VARIABLE handle (`pac(...)`, `closure(...)`, `op(...)`)
+   contains NEITHER the class name NOR `()(`. When retiring a dunder (`__call__`,
+   `__getitem__`, `__matmul__`, …) the caller search MUST also grep variable-bound
+   invocations for the common handle names the codebase binds the object to
+   (`grep -rnE "[^a-zA-Z_.]\b(pac|closure|sweep|op|operator)\("`), then read each hit.
+   Nexus `callers` does NOT edge dynamic `obj(...)` calls cleanly either — grep is the
+   authoritative signal here, and only if its pattern covers variable-bound forms.
+
+2. **`xfail(strict=False)` swallowed the break as a false-green.** The only consumer of the
+   broken site was `@pytest.mark.xfail(reason="#206", strict=False)`. After the deletion,
+   the call raised `TypeError` (non-callable) — which `strict=False` recorded as a normal
+   xfail. The suite stayed green; the test was now xfailing for a SPURIOUS reason
+   (an upstream TypeError), not the documented one. The tell: a multi-case matvec xfail
+   that completes in 0.61 s (it errored at line 1, never ran the 27 cases). **When deleting
+   a surface, treat every `xfail(strict=False)` test that touches it as SUSPECT: run it
+   under `--runxfail` and confirm it reaches its REAL assertion (the documented failure),
+   not an upstream error. A sub-second wall-clock on a heavy xfail is the signature it
+   errored early.** This is vv Mode-8's sibling at the xfail layer (a gate that cannot
+   trip — here, cannot reach its assertion).
+
+**How to apply:** add both checks to the L20 retirement audit checklist — (a) the
+variable-bound caller grep for dunder retirements; (b) the `--runxfail` sweep of every
+`xfail(strict=False)` test touching the retired surface. The fix here reused the same
+live-path migration pattern (`redistribution_via_live_path`) the in-scope tests already
+adopted — so the cost of catching it late was one extra method-implementer round-trip,
+not a redesign.
+
+Cross-reference: `[[lessons-L20]]` (the audit IS the plan — this sharpens its caller-search);
+`[[lessons-L26]]` (Mode-8 / xfail false-green family); qa memory `lessons.md` L-037b.
