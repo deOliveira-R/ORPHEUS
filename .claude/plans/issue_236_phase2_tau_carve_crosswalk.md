@@ -282,3 +282,40 @@ Each sub-step: implement → elegance + qa → commit. Structural anchors (matve
 MMS, adjoint reciprocity) are the correctness floor; DriftWarning-strict (from `sweep/core`+
 `solve`, NOT the non-escalating regression dir) is the bit-id gate. The pre-existing
 `cyl_1g_homogeneous_product_dd_n20` 3.9e-11 drift is NOT a fresh anchor.
+
+---
+
+## 8. STATUS — B1 + B2 DONE + committed (2026-06-18)
+
+- **B1 DONE** (`b7fed4d` feat / `af1d074` chore): P3 c-fold via the public `c_{in,out}_per_ordinate`
+  accessor. Bit-identical 0-ULP. elegance PASS-WITH-NITS + qa SUPPORTED.
+- **B2 DONE** (this commit): `CellVisit.c_in/c_out` (defaulted 0.0) + the single production stamp
+  `SNMesh._make_cell_visit` (all dag_walk yield sites funnel through it) + `DD.residual` reads
+  `visit.c` + the **#226 binding fix** (closure consumers retyped Protocol→ABC `PoleAngularClosureBase`;
+  `precompute_psi_state`/`cell_contribution`/`angular_adjoint` declared `@abstractmethod` on the ABC —
+  completing the strategy contract, matching `DiscretizationSchemeBase`). Finishing fixes: the
+  per-ordinate gather is now **cached** O(1) at closure construction (was O(N²·nx) per-visit re-gather —
+  1.46× sweep speedup, value-identical) + a committed production-stamp catcher
+  `tests/sn/sweep/core/test_cell_visit_c_stamp.py` (closes the qa vv-**Mode-11** gap — walks real
+  visits, asserts `visit.c == inline rebuild` 0-ULP, mutation-verified) + the test surrogate dedup'd to
+  `tests/sn/sweep/core/_c_surrogate.py`. Bit-identical 0-ULP; elegance PASS-WITH-NITS + qa SUPPORTED.
+
+### ⚠ KEY FINDING for B3 (qa, verified): `DD.residual` has NO live production callers.
+The explorer mis-classified P2 — the live matvec residual uses `cell_contribution` +
+`cell_balance_for_streaming` (+ the batched `residual_kernel_batch`); the per-cell `DD.residual` (the
+B2 target) is a real but **currently-unused** Krylov/GMRES capability (its only `scheme.py:557` "caller"
+is a docstring). So B2 was a **zero-live-risk foundation step** (hence its trivially-green matvec twin).
+**The `CellVisit.c` mechanism becomes LIVE in B3** when P1 (`cell_balance_terms` via `DD.update`, which
+IS the live sweep path) reads `visit.c`. B3 = `DD.update` reads `visit.c_in/c_out` (already stamped) and
+passes them to `cell_balance_terms` instead of `cell_balance_terms` rebuilding from `st.tau_mm`/`alpha`;
+PLUS the 5th τ consumer (`DD.update:230` angular recurrence → closure-τ off the visit, which needs a
+`CellVisit.tau` field stamped the same way, enabling Step C to drop `StreamingTerms.tau_mm`).
+
+### Owed follow-ups (track, not blockers):
+- **Orphaned `PoleAngularClosure` Protocol** (elegance NIT-3 / closes the B1 ARCH-OPP): after B2 retyped
+  every consumer to the ABC, the `@runtime_checkable` Protocol has zero production type/isinstance uses
+  AND has already diverged (lacks the 3 new strategy methods). Retire it or reconcile with the ABC —
+  Step-C tail. FILE/track as `module:sn type:improvement`.
+- **Assembly collapse** (elegance NIT-1): `DD.residual`'s scalar `(ΔA/w)·c` assembly twins
+  `cell_contribution`'s vectorized one (byte-pinned by the equivalence tests). Collapse when B3/Phase-6
+  routes `DD.residual` through `closure.cell_contribution` (the `diamond.py:289-303` TODO).

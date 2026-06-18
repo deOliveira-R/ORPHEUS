@@ -1142,3 +1142,61 @@ the 0-ULP test is the empirical pin but the two premises are WHY it holds and th
 you close an unrun slow twin by inference. For an UNMODIFIED-at-HEAD xfail set under a
 0-ULP change, the xfail set is invariant by construction (git status empty + numerics
 unchanged) — assess provenance (`reason=`, #issue, strict=) instead of re-running.
+
+---
+
+## L-037 -- "matvec twin proves it" can be VACUOUS — sentinel-instrument the production reader, do not trust the closeout's named gate
+
+#236 Phase 2 B2 folded the inline `c_out=α_out/τ` / `c_in=(1-τ)/τ·α_out+α_in`
+rebuild off `DiamondDifference.residual` onto `CellVisit.c_in`/`c_out`, stamped
+by a NEW production helper `SNMesh._make_cell_visit` reading the B1 closure
+accessors `c_{in,out}_per_ordinate[global_ordinate]`. The closeout named the
+slow matvec-twin (`test_unified_matvec_{sphere,cylinder}`) as bit-id evidence #2
+and proof the global-ordinate mapping is byte-correct.
+
+**It is NOT.** Sentinel-instrumenting `DD.residual` (a file-write, -O-safe, NOT
+a bare assert) and running the full 640s matvec-twin proved `DD.residual` was
+**NEVER CALLED** (sentinel file never created). The curvilinear matvec reads
+`pole_angular_closure.cell_contribution(...)` → `_c_in_per_level` DIRECTLY (B1's
+P3 fold), NOT `visit.c`; the Cartesian matvec uses `residual_kernel_batch`. The
+per-visit `DD.residual` (the ONLY production reader of `visit.c_in`/`c_out`,
+diamond.py:308-309) has ZERO production callers — its sole `scheme.py:557`
+"caller" is a DOCSTRING round-trip example. So the matvec-twin green is evidence
+the curvilinear matvec is UNCHANGED (true — B2 didn't touch it), NOT that the
+`visit.c` data path is correct.
+
+**Teeth split (the load-bearing distinction):**
+- A c_in↔c_out swap INSIDE `DD.residual` (diamond.py:308-309) IS caught — 24
+  `tests/sn/sweep/core` tests red (the reference rebuilds the correct slot from
+  `streaming_terms`, the swapped read disagrees).
+- A c_in↔c_out swap in the PRODUCTION STAMP `_make_cell_visit` is caught by
+  **NO committed test** — full `tests/sn/sweep/core` (460) + anchors (23) +
+  matvec-twin (6/27xf) ALL stay green under the swap. Every `.residual` test
+  caller builds `CellVisit(...)` directly with a SURROGATE-stamped c
+  (`_c_from_streaming_terms`/`_visit_c` recompute the SAME `α_out/τ` formula), so
+  both sides of the assertion carry the identical wrong c — structurally blind to
+  the stamp.
+
+The global-ordinate mapping (the HIGHEST-risk part — a wrong ordinate index
+silently mis-maps c, esp. cylinder `level_indices[p][m]`) is verified ONLY by an
+in-process probe: walk every `dag_walk` visit through `_make_cell_visit`, compare
+`visit.c` vs the OLD inline rebuild from `visit.streaming_terms` — 0-ULP across
+sphere(single-level) + cylinder(2-level) at ≥2 orders. That probe (claim-1) IS
+the only mapping evidence; it is independent and decisive, BUT it is not a
+committed gate.
+
+**V&V GAP filed**: the B2 production stamp + the `visit.c` data path have NO
+committed regression catcher. The surrogate-fed tests pin the `DD.residual`
+ASSEMBLY threading (which field → which slot), not the c VALUE nor the stamp's
+ordinate mapping. Follow-up: a committed test that drives a real SNMesh sweep
+through `_make_cell_visit` and feeds the stamped visit to `DD.residual`, OR
+asserts `_make_cell_visit(...).c == inline_rebuild(st)` over the production
+`dag_walk` (promote claim-1's probe).
+
+**RULE**: when a closeout names a SLOW gate as bit-id evidence for a NEW data
+path, SENTINEL-INSTRUMENT the new path's production reader (file-write, -O-safe)
+and confirm the gate actually EXECUTES it before crediting the gate. "The named
+twin is green" ≠ "the named twin exercises the rewired code." A surrogate that
+recomputes the production formula on BOTH sides of an assertion is L26-circular
+for the VALUE but legitimate for the THREADING — separate the two when judging
+teeth (mutate the stamp AND mutate the consumer; they reach different test sets).
