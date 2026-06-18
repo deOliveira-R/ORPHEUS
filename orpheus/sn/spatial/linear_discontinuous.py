@@ -452,7 +452,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     def _ubld_system(
         self,
         s_axes: tuple[np.ndarray, ...],
-        sigt_cells: np.ndarray,
+        reaction_xs: np.ndarray,
         Q_cells: np.ndarray,
     ) -> tuple[dict, np.ndarray]:
         r"""Assemble the batched ÷V UBLD dense system + the source-moment RHS.
@@ -476,8 +476,8 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         d = len(s_axes)
         size = 2**d
         # g_a = s_axes[a] (N_oct, 1, n_diag); broadcast to (N_oct, ng, n_diag)
-        # against sigt_cells (ng, n_diag).
-        sig_b = np.asarray(sigt_cells)
+        # against reaction_xs (ng, n_diag).
+        sig_b = np.asarray(reaction_xs)
         gs = [np.asarray(s) + np.zeros_like(sig_b) for s in s_axes]
         sig_full = sig_b + np.zeros_like(gs[0])
         ones = [np.ones_like(g) for g in gs]
@@ -582,7 +582,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         *,
         psi_in: tuple[np.ndarray, ...],
         s_axes: tuple[np.ndarray, ...],
-        sigt_cells: np.ndarray,
+        reaction_xs: np.ndarray,
         Q_cells: np.ndarray,
     ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
         r"""Pure batched LD cell SOLVE — the d-generic DAG wavefront kernel.
@@ -606,7 +606,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`.
         """
         d = len(s_axes)
-        assembled, R_source = self._ubld_system(s_axes, sigt_cells, Q_cells)
+        assembled, R_source = self._ubld_system(s_axes, reaction_xs, Q_cells)
         R = R_source + self._ubld_inflow(s_axes, psi_in)
         psi_moments = per_cell_solve(assembled, R)
         return psi_moments, self._ubld_outgoing_faces(psi_moments, d)
@@ -617,7 +617,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         psi_bar: np.ndarray,
         psi_in: tuple[np.ndarray, ...],
         s_axes: tuple[np.ndarray, ...],
-        sigt_cells: np.ndarray,
+        reaction_xs: np.ndarray,
         Q_cells: np.ndarray,
     ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
         r"""Pure batched LD operator residual — the d-generic apply twin.
@@ -649,7 +649,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         DD ÷V convention (where ``M_00 = 1`` so the average row is already raw).
         """
         d = len(s_axes)
-        assembled, R_source = self._ubld_system(s_axes, sigt_cells, Q_cells)
+        assembled, R_source = self._ubld_system(s_axes, reaction_xs, Q_cells)
         R = R_source + self._ubld_inflow(s_axes, psi_in)
         residual = np.einsum("...ij,...j->...i", assembled["A"], psi_bar) - R
         # M is diagonal in the Legendre basis (M = ⊗ diag(1, θ)); divide each
@@ -675,7 +675,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         dA_w: np.ndarray,      # (N, nx)     ΔA/w curvature redistribution (slab: 0)
         c_out: np.ndarray,     # (N, nx)     M-M outgoing closure const (slab: 0)
         V: np.ndarray,         # (N, nx)     cell volume per ordinate
-        sig_t: np.ndarray,     # (N, ng, nx) Σ_t in the geometry's cell ordering
+        reaction_xs: np.ndarray,  # (N, ng, nx) Σ_t in the geometry's cell ordering
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         r"""LD's :math:`\Sigma_t`-epoch scan coefficients ``(a, inverse_denom, w)``.
 
@@ -725,7 +725,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         V_full = V[:, None, :]                            # (N, 1, nx)
         m = abs_mu[:, None, None] * A_down[:, None, :]    # |μ|·A_down  (N, 1, nx)
         g = m / V_full                                    # ÷V streaming (N, 1, nx)
-        cf = d1_closed_form(g, sig_t, self.theta)
+        cf = d1_closed_form(g, reaction_xs, self.theta)
         return cf.scan_xV(V_full)
 
     def moment_scan_closure(
@@ -734,7 +734,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         abs_mu: np.ndarray,    # (ng, nx) or (nx,)   |μ_n|·A_down/V is rebuilt below
         A_down: np.ndarray,
         V: np.ndarray,
-        sig_t: np.ndarray,
+        reaction_xs: np.ndarray,
     ) -> D1ClosedForm:
         r"""The per-cell :class:`~orpheus.sn.spatial._ubld.D1ClosedForm` for the
         1-D moment SCAN (#240 D5b-S3 OWED-2).
@@ -752,7 +752,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         via ``_slope_fold``).
 
         Inputs are broadcastable per-ordinate-per-cell-per-group arrays
-        (``abs_mu``/``A_down``/``V`` carry NO group axis; ``sig_t`` is ``(ng, …)``);
+        (``abs_mu``/``A_down``/``V`` carry NO group axis; ``reaction_xs`` is ``(ng, …)``);
         the ÷V streaming ``g = |μ|·A_down/V`` is rebuilt here from the SAME
         geometry the cached coefficients use, so the scan's flat ``b`` and its
         slope correction agree to FP.  Slab/Cartesian only (the curvilinear LD
@@ -761,4 +761,4 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         guard has passed).
         """
         g = abs_mu * A_down / V
-        return d1_closed_form(g, sig_t, self.theta)
+        return d1_closed_form(g, reaction_xs, self.theta)

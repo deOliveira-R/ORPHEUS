@@ -1562,7 +1562,7 @@ class ScanMarch(_LossRepresentation):
             a_scan, inverse_denom, w_row, (c_y,) = scheme.cartesian_scan_coefficients(
                 s_scan=s_x[:, None, :],              # (N_oct, 1, nx) RAW g_x
                 s_transverse=(s_y[:, j][:, None, None],),  # (N_oct, 1, 1) RAW g_y
-                sig_t=sig_t[None, :, :, j],          # (1, ng, nx) Σ_t on this row
+                reaction_xs=sig_t[None, :, :, j],    # (1, ng, nx) Σ_t on this row
             )
             # Affine source b = source_emission(Q + c_y·ψ_y, inverse_denom, w):
             # the transverse-y direct term folds into the effective source.
@@ -1683,7 +1683,7 @@ class ScanMarch(_LossRepresentation):
                 psi_bar=psi_bar_row,
                 psi_in=(in_x_row, psi_y_in),
                 s_axes=(s_x_row, s_y[:, j][:, None, None]),
-                sigt_cells=sig_t[:, :, j],
+                reaction_xs=sig_t[:, :, j],
                 Q_cells=np.zeros((1, ng, nx)),
             )
             LpC_oct[:, :, :, j] = residual_row
@@ -2351,7 +2351,7 @@ class _OneDimScanWalk:
                                 psi_bar=probe_cell,
                                 psi_in=(psi_face_in.T[:, :, None],),
                                 s_axes=((abs_mu / V[i])[:, None, None],),
-                                sigt_cells=sigma_gx[:, i][None, :, None],
+                                reaction_xs=sigma_gx[:, i][None, :, None],
                                 Q_cells=_MATVEC_ZERO_SOURCE,   # source-free apply
                             )
                         )
@@ -2945,7 +2945,7 @@ class _OneDimScanWalk:
                 # Indexed slice [ords] yields (K, ng, nx) — no transpose.
                 inv_denom_chain = coll.inverse_denom[ords]         # (K, ng, nx)
                 a_atten_chain = coll.a_attenuation[ords]           # (K, ng, nx)
-                w_chain = coll.cell_average_weight[ords]           # (K, ng, nx)
+                w_chain = coll.face_blend_weight[ords]             # (K, ng, nx)
 
                 if not is_moment:
                     # ── Slopeless (DD/Step) flat-source scan — byte-identical ──
@@ -3021,7 +3021,7 @@ class _OneDimScanWalk:
                     sig_t_chain = sig_t_p[:, chain][None, :, :]        # (1, ng, nx)
                     cf = scheme.moment_scan_closure(
                         abs_mu=abs_mu_c, A_down=A_down_c, V=V_c,
-                        sig_t=sig_t_chain,
+                        reaction_xs=sig_t_chain,
                     )
                     # Face-chain affine source b = flat emission + slope term.
                     b_chain = (
@@ -3196,7 +3196,7 @@ class _OneDimScanWalk:
                     # Indexed slice [global_n] yields (ng, nx) — no transpose.
                     inv_denom_p = coll.inverse_denom[global_n]       # (ng, nx)
                     a_atten_p = coll.a_attenuation[global_n]         # (ng, nx)
-                    w_p = coll.cell_average_weight[global_n]         # (ng, nx)
+                    w_p = coll.face_blend_weight[global_n]           # (ng, nx)
                     # Affine source emission b = (QV + angular)·inverse_denom/w
                     # (#158 coefficient model — the Morel–Montry angular
                     # redistribution rides the volumetric source; DD's

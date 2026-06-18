@@ -57,7 +57,7 @@ def _random_kernel_operands(
 ):
     """Random per-level kernel inputs in the kernel's shape contract:
     ``psi_in`` d-tuple of ``(N_oct, ng, n_diag)``, ``s_axes`` d-tuple of
-    ``(N_oct, 1, n_diag)``, ``sigt_cells (ng, n_diag)``,
+    ``(N_oct, 1, n_diag)``, ``reaction_xs (ng, n_diag)``,
     ``Q_cells (N_oct or 1, ng, n_diag)``."""
     rng = np.random.default_rng(seed)
     psi_in = (
@@ -68,10 +68,10 @@ def _random_kernel_operands(
         rng.uniform(0.1, 1.0, size=(N_oct, 1, n_diag)),
         rng.uniform(0.1, 1.0, size=(N_oct, 1, n_diag)),
     )
-    sigt_cells = rng.uniform(0.1, 0.5, size=(ng, n_diag))
+    reaction_xs = rng.uniform(0.1, 0.5, size=(ng, n_diag))
     Q_lead = N_oct if Q_leading is None else Q_leading
     Q_cells = rng.standard_normal((Q_lead, ng, n_diag))
-    return psi_in, s_axes, sigt_cells, Q_cells
+    return psi_in, s_axes, reaction_xs, Q_cells
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -93,10 +93,10 @@ class TestSolveKernelClosedForm:
         """
         psi_in = (np.full((1, 1, 1), 4.0), np.full((1, 1, 1), 8.0))
         s_axes = (np.full((1, 1, 1), 3.0), np.full((1, 1, 1), 5.0))  # raw g
-        sigt_cells = np.full((1, 1), 2.0)
+        reaction_xs = np.full((1, 1), 2.0)
         Q_cells = np.full((1, 1, 1), 16.0)
         psi_avg, psi_out = DiamondDifference().cell_kernel_batch(
-            psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
+            psi_in=psi_in, s_axes=s_axes, reaction_xs=reaction_xs, Q_cells=Q_cells,
         )
         # denom = Σ_t + 2g_x + 2g_y = 2 + 2·3 + 2·5 = 18  (the scheme's diamond 2)
         # numer = Q + 2g_x·ψx + 2g_y·ψy = 16 + 2·3·4 + 2·5·8 = 120
@@ -116,7 +116,7 @@ class TestSolveKernelClosedForm:
 # ─────────────────────────────────────────────────────────────────────
 
 
-def _per_ordinate_loop_reference(psi_in, s_axes, sigt_cells, Q_cells):
+def _per_ordinate_loop_reference(psi_in, s_axes, reaction_xs, Q_cells):
     """Per-ordinate Python-loop reference with the SAME left-fold order
     ``(Σ_t + 2g_0) + 2g_1`` / ``(Q + 2g_0·in_0) + 2g_1·in_1`` the kernel uses
     (the scheme's diamond ``2`` on each raw-``g`` streaming term — #240)."""
@@ -124,7 +124,7 @@ def _per_ordinate_loop_reference(psi_in, s_axes, sigt_cells, Q_cells):
     ref = np.empty_like(psi_in[0])
     for n in range(N_oct):
         Q_n = Q_cells[n if Q_cells.shape[0] > 1 else 0]
-        denom = (sigt_cells + 2.0 * s_axes[0][n]) + 2.0 * s_axes[1][n]
+        denom = (reaction_xs + 2.0 * s_axes[0][n]) + 2.0 * s_axes[1][n]
         numer = (
             (Q_n + 2.0 * s_axes[0][n] * psi_in[0][n])
             + 2.0 * s_axes[1][n] * psi_in[1][n]
@@ -141,28 +141,28 @@ class TestBitIdenticalToPerOrdinateLoop:
     ULP — the left-fold operation order is identical by construction."""
 
     def test_bit_identical_4ord_2g(self):
-        psi_in, s_axes, sigt_cells, Q_cells = _random_kernel_operands(
+        psi_in, s_axes, reaction_xs, Q_cells = _random_kernel_operands(
             N_oct=4, ng=2, n_diag=3, seed=12,
         )
         psi_avg, _ = DiamondDifference().cell_kernel_batch(
-            psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
+            psi_in=psi_in, s_axes=s_axes, reaction_xs=reaction_xs, Q_cells=Q_cells,
         )
         np.testing.assert_array_equal(
             psi_avg,
-            _per_ordinate_loop_reference(psi_in, s_axes, sigt_cells, Q_cells),
+            _per_ordinate_loop_reference(psi_in, s_axes, reaction_xs, Q_cells),
         )
 
     def test_isotropic_Q_broadcasts_correctly(self):
         """Q with leading dim 1 (isotropic source) must broadcast cleanly."""
-        psi_in, s_axes, sigt_cells, Q_cells = _random_kernel_operands(
+        psi_in, s_axes, reaction_xs, Q_cells = _random_kernel_operands(
             N_oct=4, ng=2, n_diag=3, seed=21, Q_leading=1,
         )
         psi_avg, _ = DiamondDifference().cell_kernel_batch(
-            psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
+            psi_in=psi_in, s_axes=s_axes, reaction_xs=reaction_xs, Q_cells=Q_cells,
         )
         np.testing.assert_array_equal(
             psi_avg,
-            _per_ordinate_loop_reference(psi_in, s_axes, sigt_cells, Q_cells),
+            _per_ordinate_loop_reference(psi_in, s_axes, reaction_xs, Q_cells),
         )
 
 
@@ -182,13 +182,13 @@ class TestResidualKernelClosedForm:
         PROBE (so the matvec propagates edges exactly as the sweep does)."""
         psi_in = (np.full((1, 1, 1), 4.0), np.full((1, 1, 1), 8.0))
         s_axes = (np.full((1, 1, 1), 3.0), np.full((1, 1, 1), 5.0))  # raw g
-        sigt_cells = np.full((1, 1), 2.0)
+        reaction_xs = np.full((1, 1), 2.0)
         Q_cells = np.full((1, 1, 1), 16.0)
         psi_bar = 120.0 / 18.0
         residual, psi_out = DiamondDifference().residual_kernel_batch(
             psi_bar=np.full((1, 1, 1), psi_bar),
             psi_in=psi_in, s_axes=s_axes,
-            sigt_cells=sigt_cells, Q_cells=Q_cells,
+            reaction_xs=reaction_xs, Q_cells=Q_cells,
         )
         # denom·ψ̄ − numer = 18·(120/18) − 120 = 120 − 120 = 0.
         np.testing.assert_allclose(residual, 0.0, atol=1e-13)
@@ -203,7 +203,7 @@ class TestResidualKernelClosedForm:
         residual, _ = DiamondDifference().residual_kernel_batch(
             psi_bar=np.full((1, 1, 1), 7.0),       # above the solution 120/18
             psi_in=psi_in, s_axes=s_axes,
-            sigt_cells=np.full((1, 1), 2.0),
+            reaction_xs=np.full((1, 1), 2.0),
             Q_cells=np.full((1, 1, 1), 16.0),
         )
         # denom·ψ̄ − numer = 18·7.0 − 120 = 126 − 120 = 6.0
@@ -219,16 +219,16 @@ class TestKernelPairRoundTrip:
 
     @pytest.mark.parametrize("seed", [77, 78, 79])
     def test_residual_vanishes_at_solve_solution(self, seed):
-        psi_in, s_axes, sigt_cells, Q_cells = _random_kernel_operands(
+        psi_in, s_axes, reaction_xs, Q_cells = _random_kernel_operands(
             N_oct=4, ng=2, n_diag=3, seed=seed,
         )
         psi_avg, psi_out_solve = DiamondDifference().cell_kernel_batch(
-            psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
+            psi_in=psi_in, s_axes=s_axes, reaction_xs=reaction_xs, Q_cells=Q_cells,
         )
         residual, psi_out_apply = DiamondDifference().residual_kernel_batch(
             psi_bar=psi_avg,
             psi_in=psi_in, s_axes=s_axes,
-            sigt_cells=sigt_cells, Q_cells=Q_cells,
+            reaction_xs=reaction_xs, Q_cells=Q_cells,
         )
         np.testing.assert_allclose(residual, 0.0, atol=1e-13)
         # Both directions reconstruct the SAME closure faces at the solution.
@@ -237,16 +237,16 @@ class TestKernelPairRoundTrip:
 
     def test_isotropic_Q_round_trip(self):
         """Round-trip holds with an isotropic-shaped (leading-1) Q too."""
-        psi_in, s_axes, sigt_cells, Q_cells = _random_kernel_operands(
+        psi_in, s_axes, reaction_xs, Q_cells = _random_kernel_operands(
             N_oct=4, ng=2, n_diag=3, seed=88, Q_leading=1,
         )
         psi_avg, _ = DiamondDifference().cell_kernel_batch(
-            psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells, Q_cells=Q_cells,
+            psi_in=psi_in, s_axes=s_axes, reaction_xs=reaction_xs, Q_cells=Q_cells,
         )
         residual, _ = DiamondDifference().residual_kernel_batch(
             psi_bar=psi_avg,
             psi_in=psi_in, s_axes=s_axes,
-            sigt_cells=sigt_cells, Q_cells=Q_cells,
+            reaction_xs=reaction_xs, Q_cells=Q_cells,
         )
         np.testing.assert_allclose(residual, 0.0, atol=1e-13)
 
@@ -293,11 +293,19 @@ class TestKernelSourceOfRecord:
     # PRESERVED (left fold + reuse), so every numerical byte-identity anchor
     # (window≡full oracle, affine-carve golden, T4b cart2d/slab snapshot) stays
     # green; verified before re-hashing.
+    # Re-hashed #241 (model-agnostic parameter rename): the kernel reaction-rate
+    # parameter ``sigt_cells`` was renamed to the role name ``reaction_xs`` in
+    # both kernel signatures + bodies (and the shared
+    # ``_cartesian_streaming_diagonal`` it calls).  A SOURCE-TEXT change ONLY —
+    # an identifier rename touches no operand, no operation, and no fold order,
+    # so the FP reduction tree is bit-for-bit PRESERVED; every numerical
+    # byte-identity anchor (window≡full oracle, affine-carve golden, DD strict
+    # regression snapshot) stays green (verified before re-hashing).
     EXPECTED: ClassVar[dict[str, str]] = {
         "cell_kernel_batch":
-            "fb93a78818a2074dea948451d529459a9df01d820ef554e67b8b8cc1db753351",
+            "0e3195534ec7fa4257c5ad6ae294b6d531fb9282997ef0e348153c85e5cef03c",
         "residual_kernel_batch":
-            "9449877341f37a34e89f6cded6e1a060c8caf78936c37cdd2cabe5dea5c324f6",
+            "96f5a7d8fff90f153fb9f83a63f0a05592e7d84be1e6197df72a318c9adc5d7b",
     }
 
     @pytest.mark.parametrize("kernel", ["cell_kernel_batch", "residual_kernel_batch"])
@@ -380,22 +388,22 @@ class TestDefaultRaisesNotImplemented:
     """Strategies that don't override the kernel pair fail loudly."""
 
     def test_solve_kernel_default_raises(self):
-        psi_in, s_axes, sigt_cells, Q_cells = _random_kernel_operands(
+        psi_in, s_axes, reaction_xs, Q_cells = _random_kernel_operands(
             N_oct=1, ng=1, n_diag=1, seed=55,
         )
         with pytest.raises(NotImplementedError, match="cell_kernel_batch"):
             _NoKernelStrategy().cell_kernel_batch(
                 psi_in=psi_in, s_axes=s_axes,
-                sigt_cells=sigt_cells, Q_cells=Q_cells,
+                reaction_xs=reaction_xs, Q_cells=Q_cells,
             )
 
     def test_apply_kernel_default_raises(self):
-        psi_in, s_axes, sigt_cells, Q_cells = _random_kernel_operands(
+        psi_in, s_axes, reaction_xs, Q_cells = _random_kernel_operands(
             N_oct=1, ng=1, n_diag=1, seed=55,
         )
         with pytest.raises(NotImplementedError, match="residual_kernel_batch"):
             _NoKernelStrategy().residual_kernel_batch(
                 psi_bar=np.zeros((1, 1, 1)),
                 psi_in=psi_in, s_axes=s_axes,
-                sigt_cells=sigt_cells, Q_cells=Q_cells,
+                reaction_xs=reaction_xs, Q_cells=Q_cells,
             )

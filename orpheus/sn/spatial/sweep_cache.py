@@ -372,7 +372,7 @@ class CollisionCache:
     inverse_denom: np.ndarray        # (N, ng, nx) — chain-ordered along nx (axis 2)
     a_attenuation: np.ndarray        # (N, ng, nx) — chain-ordered along nx (axis 2)
     cumprod_a: np.ndarray            # (N, ng, nx) — chain-ordered along nx (axis 2)
-    cell_average_weight: np.ndarray  # (N, ng, nx) — the scheme's blend weight w
+    face_blend_weight: np.ndarray  # (N, ng, nx) — the scheme's blend weight w
     r"""The per-cell cell-average blend weight ``w`` (#158 coefficient model):
     :math:`\bar\psi=(1-w)\psi_{\rm in}+w\,\psi_{\rm out}`.  DD is ``w=½``
     everywhere; LD is ``w=1/(1+k)``.  Stored chain-ordered alongside
@@ -464,7 +464,7 @@ class CollisionCache:
         # a = 2|μ|·A_total/denom − 1, denom = 2|μ|·A_down + dA_w·c_out
         # + Σ_t·V.  The scheme owns the closure math; the cache keeps the
         # storage and the (order-dependent) cumprod.
-        a_attenuation, inverse_denom, cell_average_weight = (
+        a_attenuation, inverse_denom, face_blend_weight = (
             scheme.affine_scan_coefficients(
                 abs_mu=geom.abs_mu,
                 A_down=geom.A_down,
@@ -472,7 +472,7 @@ class CollisionCache:
                 dA_w=geom.dA_w,
                 c_out=geom.c_out,
                 V=geom.V,
-                sig_t=sig_t_chain,
+                reaction_xs=sig_t_chain,
             )
         )                                                                # all (N, ng, nx)
 
@@ -483,7 +483,7 @@ class CollisionCache:
             inverse_denom=inverse_denom,
             a_attenuation=a_attenuation,
             cumprod_a=cumprod_a,
-            cell_average_weight=cell_average_weight,
+            face_blend_weight=face_blend_weight,
         )
 
 

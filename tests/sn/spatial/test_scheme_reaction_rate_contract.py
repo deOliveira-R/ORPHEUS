@@ -116,7 +116,7 @@ def _dd_coeffs(scheme: DiamondDifference, sigma: float):
     return scheme.affine_scan_coefficients(
         c_out=np.zeros((_N,)),          # DD: c_out is (N,)
         V=np.full((_N, _NX), _V),
-        sig_t=_sig_t(sigma),
+        reaction_xs=_sig_t(sigma),
         **geo,
     )
 
@@ -126,7 +126,7 @@ def _ld_coeffs(scheme: LinearDiscontinuous, sigma: float):
     return scheme.affine_scan_coefficients(
         c_out=np.zeros((_N, _NX)),      # LD: c_out is (N, nx)
         V=np.full((_N, _NX), _V),
-        sig_t=_sig_t(sigma),
+        reaction_xs=_sig_t(sigma),
         **geo,
     )
 

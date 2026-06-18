@@ -248,7 +248,7 @@ def test_diamond_kernel_admits_three_axis_streaming_sum():
     s_b = tuple(np.full((1, 1, 1), si) for si in s)
     psi_avg, psi_out = dd.cell_kernel_batch(
         psi_in=psi_in_b, s_axes=s_b,
-        sigt_cells=np.full((1, 1), sigt),      # (ng, n_diag)
+        reaction_xs=np.full((1, 1), sigt),     # (ng, n_diag)
         Q_cells=np.full((1, 1, 1), Q),         # (N_oct, ng, n_diag)
     )
     np.testing.assert_allclose(
@@ -366,7 +366,7 @@ def test_d1_diamond_kernel_single_axis_streaming_sum():
     psi_avg, psi_out = dd.cell_kernel_batch(
         psi_in=(np.full((1, 1, 1), psi_in[0]),),
         s_axes=(np.full((1, 1, 1), s[0]),),
-        sigt_cells=np.full((1, 1), sigt),
+        reaction_xs=np.full((1, 1), sigt),
         Q_cells=np.full((1, 1, 1), Q),
     )
     np.testing.assert_allclose(

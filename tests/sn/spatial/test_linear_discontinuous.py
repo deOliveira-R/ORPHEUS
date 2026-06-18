@@ -278,10 +278,10 @@ class TestLDKernel:
         pin = (np.array([0.3, 0.1])[None, :, None],)     # (1,2,1)
         strat = LinearDiscontinuous()
         psi_avg, (psi_out,) = strat.cell_kernel_batch(
-            psi_in=pin, s_axes=s_axes, sigt_cells=sigt, Q_cells=Q,
+            psi_in=pin, s_axes=s_axes, reaction_xs=sigt, Q_cells=Q,
         )
         resid, (psi_out2,) = strat.residual_kernel_batch(
-            psi_bar=psi_avg, psi_in=pin, s_axes=s_axes, sigt_cells=sigt, Q_cells=Q,
+            psi_bar=psi_avg, psi_in=pin, s_axes=s_axes, reaction_xs=sigt, Q_cells=Q,
         )
         np.testing.assert_allclose(resid, 0.0, atol=1e-12)
         np.testing.assert_allclose(psi_out, psi_out2)
@@ -307,7 +307,7 @@ class TestLDKernel:
         psi_avg2, (psi_out2,) = strat.cell_kernel_batch(
             psi_in=(psi_in[None, :, None],),
             s_axes=(np.array([[[mu / h]]]),),
-            sigt_cells=sig[:, None], Q_cells=q_bar[None, :, None],
+            reaction_xs=sig[:, None], Q_cells=q_bar[None, :, None],
         )
         # group 1 (×V per-cell): source = (Q̄·h, 0) → flat
         res1 = strat.update(
@@ -350,7 +350,7 @@ class TestLDKernel:
         psi_avg2, (psi_out2,) = strat.cell_kernel_batch(
             psi_in=(psi_in[None, :, None],),
             s_axes=(np.array([[[mu / h]]]),),
-            sigt_cells=sig[:, None], Q_cells=q_bar[None, :, None],
+            reaction_xs=sig[:, None], Q_cells=q_bar[None, :, None],
         )
         psi_avg2_bar = psi_avg2[..., AVERAGE_MOMENT]          # (1, 2, 1) scalar avg
         # The d=1 outgoing face carries NO moment axis (face_moment_tail(1) ==
@@ -362,7 +362,7 @@ class TestLDKernel:
             abs_mu=np.array([mu]), A_down=np.array([[1.0]]),
             A_total=np.array([[2.0]]), dA_w=np.array([[0.0]]),
             c_out=np.array([[0.0]]), V=np.array([[h]]),
-            sig_t=sig[None, :, None],
+            reaction_xs=sig[None, :, None],
         )                                                    # each (1, 2, 1)
         psi_in_b = psi_in[None, :, None]                     # (1, 2, 1)
         qv = (q_bar * h)[None, :, None]                      # ×V volumetric source
@@ -385,7 +385,7 @@ class TestLDKernel:
         face = np.zeros((1, 1, 1, 2))                 # (…, 2^{d-1}) transverse moments
         psi_avg, faces = strat.cell_kernel_batch(
             psi_in=(face, face), s_axes=(g, g),
-            sigt_cells=np.ones((1, 1)), Q_cells=np.ones((1, 1, 1)),
+            reaction_xs=np.ones((1, 1)), Q_cells=np.ones((1, 1, 1)),
         )
         np.testing.assert_array_equal(psi_avg.shape, (1, 1, 1, 4))
         if len(faces) != 2:
@@ -422,11 +422,11 @@ class TestLDKernel:
         in_y = rng.uniform(0.05, 0.6, (N_oct, ng, n_diag, 2))
 
         psi_avg, (out_x, out_y) = strat.cell_kernel_batch(
-            psi_in=(in_x, in_y), s_axes=(g_x, g_y), sigt_cells=sig, Q_cells=Q,
+            psi_in=(in_x, in_y), s_axes=(g_x, g_y), reaction_xs=sig, Q_cells=Q,
         )
         residual, (rout_x, rout_y) = strat.residual_kernel_batch(
             psi_bar=psi_avg, psi_in=(in_x, in_y),
-            s_axes=(g_x, g_y), sigt_cells=sig, Q_cells=Q,
+            s_axes=(g_x, g_y), reaction_xs=sig, Q_cells=Q,
         )
         np.testing.assert_allclose(
             residual, 0.0, atol=1e-12,

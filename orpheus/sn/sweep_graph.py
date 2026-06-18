@@ -759,7 +759,7 @@ class SweepDependencyGraph:
                 s_axes=tuple(
                     str_axes_octant[a][:, cell_idx[a]][:, None, :] for a in range(d)
                 ),
-                sigt_cells=sig_t[(slice(None), *cell_idx)],
+                reaction_xs=sig_t[(slice(None), *cell_idx)],
                 Q_cells=Q_octant[(slice(None), slice(None), *cell_idx)],
             )
             for a in range(d):
@@ -811,7 +811,7 @@ class SweepDependencyGraph:
                     s[:, c][:, None, :]
                     for s, c in zip(str_axes_octant, cell_idx)
                 ),
-                sigt_cells=sig_t[(slice(None), *cell_idx)],
+                reaction_xs=sig_t[(slice(None), *cell_idx)],
                 Q_cells=Q_octant[(slice(None), slice(None), *cell_idx)],
             )
             frontier.emit(cur, k, psi_out)
@@ -897,7 +897,7 @@ class _CellSolve:
         *,
         psi_in: tuple[np.ndarray, ...],
         s_axes: tuple[np.ndarray, ...],
-        sigt_cells: np.ndarray,
+        reaction_xs: np.ndarray,
         Q_cells: np.ndarray,
     ) -> tuple[np.ndarray, ...]:
         # The cell kernel consumes/produces the moment vector in the per-ordinate
@@ -923,14 +923,14 @@ class _CellSolve:
         # flat ``(N_oct, ng, n_diag)`` source that ``_ubld_system`` lifts onto
         # slot 0 itself).  A flat source has only the sign-invariant average
         # moment, so it must NOT be reframed.  Discriminate by RANK against
-        # ``sigt_cells`` via the shared S4-safe
+        # ``reaction_xs`` via the shared S4-safe
         # :func:`~orpheus.numerics.moment_layout.is_moment_valued_by_rank`
         # (single-sourced with ``_moment_broadcast_sigma``; a coincidental
         # ``n_diag == 2^d`` would mis-fire a trailing-length probe, the rank
         # cannot).  At DD/Step ``frame_signs`` is None → no-op regardless.
-        source_is_moment = is_moment_valued_by_rank(Q_cells, sigt_cells)
+        source_is_moment = is_moment_valued_by_rank(Q_cells, reaction_xs)
         psi_avg, psi_out = self.scheme.cell_kernel_batch(
-            psi_in=psi_in, s_axes=s_axes, sigt_cells=sigt_cells,
+            psi_in=psi_in, s_axes=s_axes, reaction_xs=reaction_xs,
             Q_cells=_reframe(
                 Q_cells, self.moment_frame_signs, is_moment_valued=source_is_moment,
             ),
@@ -986,7 +986,7 @@ class _CellResidual:
         *,
         psi_in: tuple[np.ndarray, ...],
         s_axes: tuple[np.ndarray, ...],
-        sigt_cells: np.ndarray,
+        reaction_xs: np.ndarray,
         Q_cells: np.ndarray,
     ) -> tuple[np.ndarray, ...]:
         # The unified moment matvec (#240 D5b-S3): the probe carries the full
@@ -1014,7 +1014,7 @@ class _CellResidual:
                 is_moment_valued=moment_valued,
             ),
             psi_in=psi_in, s_axes=s_axes,
-            sigt_cells=sigt_cells,
+            reaction_xs=reaction_xs,
             # The matvec source is an all-zero buffer (the operator action
             # ``(L+C)ψ̄`` carries no volumetric source) — identically zero, so
             # the involution is a no-op regardless; pass ``False`` honestly.

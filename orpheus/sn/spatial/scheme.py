@@ -611,7 +611,8 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     by **(streaming / wave-speed, reaction-rate** :math:`\Sigma_t`\ **, source,
     geometry)** and hold **NO** cross-section state — a scheme instance carries
     no :math:`\Sigma`, no materials, no mesh.  The reaction-rate is an EXPLICIT
-    argument (``sig_t`` / ``total_xs`` / ``sigt_cells``) sourced by the caller
+    argument (``reaction_xs`` on the coefficient + kernel methods; ``total_xs``
+    on the per-cell :meth:`update`/:meth:`residual`) sourced by the caller
     from the operator's collision term (Step B); the SN sweep passes
     :math:`\Sigma_t`, but any consumer may pass an arbitrary reaction-rate (an
     off-diagonal removal :math:`\Sigma_r = \Sigma_t - \Sigma_{s0}`, a
@@ -632,9 +633,14 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     the spatial ⊗ angular factorization) is the #240 Step D6 deliverable on
     :doc:`/theory/discrete_ordinates`.
 
-    A model-agnostic parameter rename is DEFERRED to #241 (``total_xs`` →
-    ``reaction_xs``, ``cell_average_weight`` → ``face_blend_weight``);
-    ``streaming`` is KEPT — the one genuine SN/CFD frame conflict.
+    The model-agnostic parameter rename is DONE (#241): the coefficient +
+    kernel reaction-rate parameter — formerly spelled three ways across these
+    methods — now carries the single role name ``reaction_xs``, and the blend
+    weight's long handle is ``face_blend_weight`` (the math symbol ``w`` is
+    kept).  ``streaming`` / ``s_axes`` are KEPT — the one genuine SN/CFD frame
+    conflict (diffusion has no advective μ-coefficient).  The per-cell
+    :meth:`update`/:meth:`residual` keep ``total_xs`` (the scalar SN
+    cell-balance form is not part of the model-agnostic coefficient layer).
 
     Reconstruction ops — the generic affine cell algebra (#158 Inc B / #240 D2)
     ===========================================================================
@@ -905,7 +911,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         *,
         psi_in: tuple[np.ndarray, ...],
         s_axes: tuple[np.ndarray, ...],
-        sigt_cells: np.ndarray,
+        reaction_xs: np.ndarray,
         Q_cells: np.ndarray,
     ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
         r"""Pure batched SOLVE cell kernel — the level-vectorised extension point.
@@ -914,7 +920,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         topological level, vectorised over ``(N_oct, ng, n_diag)``: given the
         per-axis incoming face fluxes ``psi_in`` + streaming coefficients
         ``s_axes`` (positional-by-axis, ``d = 1, 2, 3``), the level's
-        ``sigt_cells`` ``(ng, n_diag)`` and source ``Q_cells``, return
+        ``reaction_xs`` ``(ng, n_diag)`` and source ``Q_cells``, return
         ``(psi_avg, psi_out)`` with ``psi_out`` the d-tuple of outgoing face
         fluxes.
 
@@ -940,7 +946,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         psi_bar: np.ndarray,
         psi_in: tuple[np.ndarray, ...],
         s_axes: tuple[np.ndarray, ...],
-        sigt_cells: np.ndarray,
+        reaction_xs: np.ndarray,
         Q_cells: np.ndarray,
     ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
         r"""Pure batched APPLY cell kernel — the level-vectorised residual.
@@ -987,7 +993,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         dA_w: np.ndarray,
         c_out: np.ndarray,
         V: np.ndarray,
-        sig_t: np.ndarray,
+        reaction_xs: np.ndarray,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         r""":math:`\Sigma_t`-epoch affine-scan coefficients ``(a, inverse_denom, w)``.
 
@@ -1033,7 +1039,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         *,
         s_scan: np.ndarray,
         s_transverse: tuple[np.ndarray, ...],
-        sig_t: np.ndarray,
+        reaction_xs: np.ndarray,
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, tuple[np.ndarray, ...]]:
         r"""Cartesian row-march scan coefficients ``(a, inverse_denom, w, transverse_couplings)``.
 

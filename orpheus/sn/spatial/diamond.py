@@ -323,12 +323,12 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
 
     @staticmethod
     def _cartesian_streaming_diagonal(
-        sigt_cells: np.ndarray,
+        reaction_xs: np.ndarray,
         s_axes: tuple[np.ndarray, ...],
     ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
         r"""DD's ×V streaming diagonal ``S = Σ_t + Σ_a 2 g_a`` + per-axis couplings.
 
-        Given the local reaction-rate ``sigt_cells`` and the RAW down-face
+        Given the local reaction-rate ``reaction_xs`` and the RAW down-face
         streaming ``g_a = |μ_a|/Δ_a`` per spatial axis (``s_axes``), returns
         ``(denom, couplings)`` where ``couplings[a] = 2 g_a`` is DD's diamond-
         scaled per-axis face term and ``denom = Σ_t + Σ_a 2 g_a`` is the cell-
@@ -357,7 +357,7 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         the diffusion scheme's generic advection–reaction diagonal (#242).
         """
         couplings = tuple(2.0 * s_a for s_a in s_axes)  # each: DD's 2 = 1/w_DD
-        denom = sigt_cells
+        denom = reaction_xs
         for c_a in couplings:
             denom = denom + c_a                          # explicit left fold
         return denom, couplings
@@ -388,7 +388,7 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         *,
         psi_in: tuple[np.ndarray, ...],   # d arrays, each (N_oct, ng, n_diag) — incoming face flux per axis
         s_axes: tuple[np.ndarray, ...],   # d arrays, each (N_oct, 1, n_diag) — RAW down-face streaming g=|μ_a|/Δa per axis (DD applies its diamond 2 here)
-        sigt_cells: np.ndarray,           # (ng, n_diag) — Σ_t on the level
+        reaction_xs: np.ndarray,          # (ng, n_diag) — Σ_t on the level
         Q_cells: np.ndarray,              # (N_oct or 1, ng, n_diag) — weight-normalised
     ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
         r"""Pure batched WDD cell update — dimension-generic, NO storage access.
@@ -441,7 +441,7 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         ``vv-principles`` Bit-identity vs principled-equivalence, do NOT switch
         to ``sum()`` or rearrange for "clarity".
         """
-        denom, couplings = self._cartesian_streaming_diagonal(sigt_cells, s_axes)
+        denom, couplings = self._cartesian_streaming_diagonal(reaction_xs, s_axes)
         numer = Q_cells                                    # (N_oct or 1, ng, n_diag)
         for c_a, in_a in zip(couplings, psi_in):
             numer = numer + c_a * in_a                     # reuse 2g_a coupling
@@ -459,7 +459,7 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         psi_bar: np.ndarray,             # (N_oct, ng, n_diag) — the probe cell-average
         psi_in: tuple[np.ndarray, ...],  # d arrays, each (N_oct, ng, n_diag)
         s_axes: tuple[np.ndarray, ...],  # d arrays, each (N_oct, 1, n_diag) — RAW down-face streaming g per axis (DD applies its diamond 2 here)
-        sigt_cells: np.ndarray,          # (ng, n_diag)
+        reaction_xs: np.ndarray,         # (ng, n_diag)
         Q_cells: np.ndarray,             # (N_oct or 1, ng, n_diag)
     ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
         r"""Pure batched DD operator residual — dimension-generic, NO storage.
@@ -484,7 +484,7 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         pre-scaled ``2|μ_a|/Δa`` bit-for-bit; d=2 bit-identical to the legacy
         fold order).
         """
-        denom, couplings = self._cartesian_streaming_diagonal(sigt_cells, s_axes)
+        denom, couplings = self._cartesian_streaming_diagonal(reaction_xs, s_axes)
         numer = Q_cells                                    # (N_oct or 1, ng, n_diag)
         for c_a, in_a in zip(couplings, psi_in):
             numer = numer + c_a * in_a                     # reuse 2g_a coupling
@@ -507,11 +507,11 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         dA_w: np.ndarray,      # (N, nx)     ΔA / w_n  (curvature redistribution)
         c_out: np.ndarray,     # (N,)        α_out / τ  (M-M outgoing closure const)
         V: np.ndarray,         # (N, nx)     cell volume per ordinate
-        sig_t: np.ndarray,     # (N, ng, nx) Σ_t in the SAME cell ordering as the geometry arrays
+        reaction_xs: np.ndarray,  # (N, ng, nx) Σ_t in the SAME cell ordering as the geometry arrays
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        r"""DD's :math:`\Sigma_t`-epoch scan coefficients — ``(a_attenuation, inverse_denom, cell_average_weight)``.
+        r"""DD's :math:`\Sigma_t`-epoch scan coefficients — ``(a_attenuation, inverse_denom, face_blend_weight)``.
 
-        The third coefficient ``cell_average_weight`` is DD's blend weight
+        The third coefficient ``face_blend_weight`` is DD's blend weight
         ``w = ½`` (broadcast; the symmetric diamond mean
         :math:`\bar\psi = \tfrac12(\psi_{\rm in}+\psi_{\rm out})`) — #158 the
         coefficient model.  The generic base reconstruction staticmethods
@@ -566,8 +566,8 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         argument shares ONE per-ordinate cell ordering chosen by the caller,
         and the returned ``(N, ng, nx)`` arrays match it.  The scan caller
         passes *chain* order (so it can ``cumprod`` ``a`` along the cell axis);
-        ``sig_t`` is therefore the chain-gathered ``(N, ng, nx)`` tensor, not
-        the natural ``(ng, nx)`` field.
+        ``reaction_xs`` is therefore the chain-gathered ``(N, ng, nx)`` tensor,
+        not the natural ``(ng, nx)`` field.
 
         Operation-order discipline (the bit-identity TRAP)
         --------------------------------------------------
@@ -618,7 +618,7 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
             streaming_face_term + curvature_redistribution_term
         )                                                                # (N, nx)
         # collision Σ_t·V (group-resolved) — units: cm² (1/cm × cm³)
-        collision_volume_term = sig_t * V[:, None, :]                    # (N, ng, nx)
+        collision_volume_term = reaction_xs * V[:, None, :]              # (N, ng, nx)
         denom = geometric_streaming_term[:, None, :] + collision_volume_term  # (N, ng, nx)
         inverse_denom = 1.0 / denom                                       # (N, ng, nx)
         # transmission multiplier a = 2|μ|·A_total / denom − 1
@@ -628,15 +628,15 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         # symmetric diamond mean ψ̄ = ½(ψ_in+ψ_out), i.e. w = ½ everywhere.  The
         # generic base reconstruction staticmethods consume this; DD carries NO
         # cell-average / outgoing-face / source-emission method of its own.
-        cell_average_weight = np.full_like(a_attenuation, _DD_W)          # (N, ng, nx)
-        return a_attenuation, inverse_denom, cell_average_weight
+        face_blend_weight = np.full_like(a_attenuation, _DD_W)           # (N, ng, nx)
+        return a_attenuation, inverse_denom, face_blend_weight
 
     def cartesian_scan_coefficients(
         self,
         *,
         s_scan: np.ndarray,                # (..., n_scan) RAW down-face g on the scanned axis
         s_transverse: tuple[np.ndarray, ...],  # d−1 arrays, each broadcasting over (..., n_scan) — RAW g on the known transverse axes
-        sig_t: np.ndarray,                 # (ng, n_scan) Σ_t on the row
+        reaction_xs: np.ndarray,           # (ng, n_scan) Σ_t on the row
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, tuple[np.ndarray, ...]]:
         r"""DD's row-march scan coefficients ``(a, inverse_denom, w, transverse_couplings)``.
 
@@ -681,7 +681,7 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         """
         # S = Σ_t + 2g_scan + Σ 2g_⊥, with couplings[0]=2g_scan, couplings[1:]=2g_⊥.
         denom, couplings = self._cartesian_streaming_diagonal(
-            sig_t, (s_scan, *s_transverse),
+            reaction_xs, (s_scan, *s_transverse),
         )                                                                 # (ng, n_scan)
         scan_diag, transverse_couplings = couplings[0], couplings[1:]
         inverse_denom = 1.0 / denom

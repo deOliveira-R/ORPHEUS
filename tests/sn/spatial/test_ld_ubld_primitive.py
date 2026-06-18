@@ -417,7 +417,7 @@ class TestProductionViewsAnchoredToPrimitive:
         psi_avg, (psi_out,) = LinearDiscontinuous().cell_kernel_batch(
             psi_in=(psi_in[None, :, None],),
             s_axes=(np.array([[[mu_v / h_v]]]),),
-            sigt_cells=sig[:, None], Q_cells=q_bar[None, :, None],
+            reaction_xs=sig[:, None], Q_cells=q_bar[None, :, None],
         )
         np.testing.assert_allclose(
             psi_avg[..., AVERAGE_MOMENT].ravel(), pbar_d, rtol=1e-12, atol=1e-13,
@@ -441,7 +441,7 @@ class TestProductionViewsAnchoredToPrimitive:
             abs_mu=np.array([mu_v]), A_down=np.array([[1.0]]),
             A_total=np.array([[2.0]]), dA_w=np.array([[0.0]]),
             c_out=np.array([[0.0]]), V=np.array([[h_v]]),
-            sig_t=sig[None, :, None],
+            reaction_xs=sig[None, :, None],
         )                                                    # each (1, 2, 1)
         psi_in_b = psi_in[None, :, None]
         qv = (q_bar * h_v)[None, :, None]

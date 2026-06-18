@@ -74,7 +74,7 @@ def is_moment_valued_by_rank(array: "np.ndarray", reference: "np.ndarray") -> bo
     ``True`` iff ``array`` has more than one axis beyond ``reference`` — the
     S4-safe discriminator for "is this a moment-valued buffer". A moment buffer
     is ``(N…, ng, *spatial, 2^d)`` while its scalar reference (``Σ_t`` /
-    ``sigt_cells``) is the per-ordinate-stripped ``(ng, *spatial)``, so a genuine
+    ``reaction_xs``) is the per-ordinate-stripped ``(ng, *spatial)``, so a genuine
     moment buffer carries one MORE leading (ordinate) axis PLUS the trailing
     ``2^d`` moment axis — net ``> reference.ndim + 1`` — whereas a flat
     ``(N…, ng, *spatial)`` buffer (a matvec-zero / flat external source) sits at
