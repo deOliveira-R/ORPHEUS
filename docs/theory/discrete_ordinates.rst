@@ -1168,83 +1168,371 @@ c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
 The live sweep + scan consume closure-owned τ / c — Step B3
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. todo:: Archivist expansion needed.
+Step B1 folded the one free seam (the cache populator); Step B2 carried
+the redistribution constants :math:`c_{\rm in}` / :math:`c_{\rm out}`
+onto the :class:`~orpheus.sn.spatial.scheme.CellVisit` so the
+*apply-direction* residual could read them as data.  Step B3 is the
+step that makes the **live** paths consume the closure-owned weight:
+the per-cell sweep solve, the matvec solve, and the CumprodScan
+fast path now all read the angular weight :math:`\tau` :eq:`mm-weights`
+(and the derived constants :eq:`dd-mm-closure-constants`) off the
+closure rather than off the geometry-owned ``StreamingTerms.tau_mm``.
+After B3 there is **no live reader** of ``StreamingTerms.tau_mm``
+anywhere in the sweep, scan, or matvec — which is precisely the
+precondition Step C verifies before it deletes the geometry-side
+:math:`\tau` producer (the two parallel producers can be reduced to one
+only once nothing live depends on the soon-to-be-deleted one).
 
-   Step B3 makes the LIVE per-cell sweep, the matvec solve path, and the
-   CumprodScan fast path all CONSUME the angular-closure-owned
-   :math:`\tau` :eq:`mm-weights` and the derived :math:`c_{\rm in}` /
-   :math:`c_{\rm out}` :eq:`dd-mm-closure-constants` instead of the
-   geometry-owned :attr:`StreamingTerms.tau_mm`.  After B3, NOTHING in the
-   live sweep / scan / matvec reads ``StreamingTerms.tau_mm`` — the
-   precondition Step C verifies before deleting the geometry-side
-   :math:`\tau` producer.
+This is the third of the four c-fold sites (after the cache populator
+in B1 and the residual twin in B2) and the fifth :math:`\tau` consumer.
+Like its predecessors it is **bit-identical (0-ULP)**: the carve moves
+the *source* of an already-correct number, it does not change the
+number.  The sections below derive why :math:`\tau` belongs to the
+angular closure, why the constants must travel as visit *data* rather
+than as a closure *reference*, why the field default is :math:`1.0`
+(and not the more obvious :math:`0.0`), how the three live consumers
+share one operator, and what makes the fold provably bit-identical and
+therefore a safe regression floor for Step C.
 
-   Three live consumers are folded:
+τ is an angular-scheme property the closure owns
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-   * **The scalar solve helper.**
-     :func:`~orpheus.sn.spatial.cell_balance.cell_balance_terms` (the
-     ``DiamondDifference.update`` solve direction) stops rebuilding
-     :math:`c` from ``st.alpha_* / st.tau_mm`` — it RECEIVES
-     :math:`c_{\rm in}` / :math:`c_{\rm out}` as keyword inputs from
-     :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update`, which
-     reads them off
-     :attr:`~orpheus.sn.spatial.scheme.CellVisit.c_in` /
-     :attr:`~orpheus.sn.spatial.scheme.CellVisit.c_out` (the B2-stamped
-     fields).  The helper no longer reads :math:`\tau` at all.
+The Morel--Montry weight
 
-   * **The angular recurrence.** ``DD.update``'s Morel--Montry thread
-     :math:`\psi^a_{\rm out} = (\bar\psi - (1-\tau)\,\psi^a_{\rm in})/\tau`
-     reads :math:`\tau` from the new
-     :attr:`~orpheus.sn.spatial.scheme.CellVisit.tau` field (DEFAULT
-     :math:`1.0` — the neutral M-M weight the Cartesian identity closure
-     supplies; a :math:`0.0` default would be a divide-by-zero landmine),
-     stamped by
-     :meth:`~orpheus.sn.geometry.SNMesh._make_cell_visit` from
-     :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`
-     — matching the :math:`c` provenance.
+.. math::
 
-   * **The CumprodScan split.** The
-     :class:`~orpheus.sn.spatial.sweep_cache.GeometryCoefficients`
-     populator sources :math:`\tau` from
-     :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`
-     and derives the scan-recurrence split ``tau_inv`` :math:`= 1/\tau`,
-     ``mm_a_in_coeff`` :math:`= (1-\tau)/\tau` (the legit perf-cache
-     hoist, L16) — consumed at the loss-representation scan fast path
-     :math:`\texttt{tau\_inv}\cdot\bar\psi - \texttt{mm\_a\_in\_coeff}\cdot
-     \psi^a_{\rm in}`, the twin of ``DD.update``'s raw-:math:`\tau` form.
-     The closure exposes only the PRIMITIVE :math:`\tau` (Pattern 5 —
-     build the primitive, not the product); consumers derive the trivial
-     :math:`1/\tau`, :math:`(1-\tau)/\tau` algebra locally.
+   \tau_n = \frac{\mu_n - \mu_{n-\frac12}}{\mu_{n+\frac12} - \mu_{n-\frac12}}
 
-   The closure mints a public polymorphic
-   :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`
-   accessor on BOTH the
-   ``@runtime_checkable`` Protocol AND the
-   :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
-   ABC (mirroring the B1 :math:`c`-accessor mint), returning the
-   read-only :math:`(N,)` global-ordinate gather of
-   ``_tau_per_level`` built once in
-   :meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase._build_per_ordinate_cache`
-   (renamed from ``_build_c_per_ordinate_cache`` — it now gathers three
-   constants).
+(:eq:`mm-weights`, Bailey--Morel--Chang 2010 Eq. 43) is built **entirely**
+from the angular quadrature: the ordinate cosine :math:`\mu_n`, the
+neighbouring angular-cell edges :math:`\mu_{n\pm 1/2}`, and — for the
+cylinder — the :math:`\mu`-level partition that groups ordinates.  Not
+one of those inputs is a property of the *spatial* streaming geometry:
+:math:`\tau` does not depend on the cell volume :math:`V_i`, the face
+areas :math:`A_{i\pm 1/2}`, the surface-curvature redistribution area
+:math:`\Delta A_i`, or the radial mesh at all.  It is a number attached
+to an **ordinate**, not to a **cell**.
 
-   Step B3 is BIT-IDENTICAL (0-ULP): ``visit.tau`` /
-   ``closure.tau_per_ordinate`` / the cache ``tau_inv`` / ``mm_a_in_coeff``
-   equal the former ``st.tau_mm``-derived values bit-for-bit — closure-
-   :math:`\tau` is 0-ULP equal to geometry-:math:`\tau` (Step-A Leg-1
-   producer-equivalence gate) and the per-level :math:`\to (N,)` gather is
-   a pure permutation.  Verified in-process at
-   :math:`\lvert\texttt{visit.tau} - \texttt{st.tau\_mm}\rvert \equiv 0`
-   on sphere (single-level) + cylinder (multi-level), and on the
-   DriftWarning-escalating ``tests/sn/sweep/core`` + ``tests/sn/spatial``
-   + ``tests/sn/solve`` snapshots.  Step C (the next dispatch) retires the
-   now-orphaned geometry-side :math:`\tau` producer
-   (:func:`~orpheus.geometry.reduced_operator.spherical_streaming` /
-   :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming`) and
-   the ``StreamingTerms.tau_mm`` / ``alpha_*`` fields.  See
-   :mod:`orpheus.sn.spatial.scheme` for the ``CellVisit.tau`` field,
-   :mod:`orpheus.sn.geometry` for the production stamp, and
-   :mod:`orpheus.sn.spatial.sweep_cache` for the scan split.
+That :math:`\tau` had historically lived on
+:class:`~orpheus.geometry.reduced_operator.StreamingTerms` (as
+``tau_mm``) was an accident of where the curvilinear sweep was first
+assembled — the streaming-geometry factory happened to be the object
+in scope when the weighted-diamond closure was wired in, so it baked
+the angular weight in alongside the genuinely geometric
+:math:`\alpha`-dome and face areas.  The architectural correction
+(Issue #236 Phase 2) is to give the weight back to its owner: the
+**pole-angular closure**
+(:class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`),
+which already binds the quadrature and already computes :math:`\tau`
+from it in :func:`~orpheus.sn.spatial.pole_angular_closure.morel_montry_tau_per_level`.
+The closure exposes it through one public, polymorphic accessor,
+:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`,
+a read-only :math:`(N,)` array indexed by the global ordinate.  The
+two concrete strategies answer it differently *by type*, with no
+``coord ==`` branch anywhere:
+
+* :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+  returns its own per-level :math:`\tau` gathered to the global order;
+* :class:`~orpheus.sn.spatial.pole_angular_closure.IdentityAngularClosure`
+  (Cartesian) returns the neutral :math:`\tau \equiv 1` — there is no
+  angular redistribution in slab geometry, so the M-M weight reduces to
+  its identity element (see below).
+
+This is the same both-sites mint B1 applied to the :math:`c`-accessors:
+:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`
+is declared on the ``@runtime_checkable``
+:class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
+Protocol **and** on the
+:class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
+ABC, so the contract is complete for both the structural-typing and the
+nominal-inheritance consumers.  The gather itself is a pure permutation
+of the immutable per-level data, hoisted once into each mesh-bound
+``__init__`` via the shared
+:meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase._build_per_ordinate_cache`
+(renamed from ``_build_c_per_ordinate_cache`` now that it gathers three
+constants — :math:`c_{\rm in}`, :math:`c_{\rm out}`, and :math:`\tau`
+— rather than two); the accessor returns the cached read-only view, so
+the per-visit lookup is :math:`O(1)`.
+
+The spatial ⊗ angular separation forbids coupling DD to the closure
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If :math:`\tau` is owned by the angular closure but consumed in the
+spatial cell update, the obvious move would be to hand the closure
+object to the cell-update scheme so it can ask for
+:math:`\tau`.  That move is **forbidden by design**, and the reason is
+the load-bearing architectural fact of the SN sweep.
+
+:class:`~orpheus.sn.spatial.diamond.DiamondDifference` is a **stateless
+spatial discretization scheme**.  It reads only the per-cell
+:class:`~orpheus.sn.spatial.scheme.CellVisit` packet and the
+sweep-resolved :class:`~orpheus.sn.spatial.scheme.UpstreamState`; it
+never sees the mesh, the quadrature, or the angular closure.  The whole
+point of the spatial :math:`\otimes` angular product is that the
+spatial scheme is interchangeable (diamond difference, linear
+discontinuous, ...) without knowing *which* angular treatment sits on
+the other axis of the tensor product, and the angular closure is
+interchangeable (Morel--Montry, identity, a future Carlson variant)
+without knowing the spatial scheme.  Coupling
+:class:`~orpheus.sn.spatial.diamond.DiamondDifference` to
+:class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
+would collapse that product into a Cartesian-vs-curvilinear conditional
+inside the spatial scheme — exactly the geometry dispatch the unified
+body was built to delete.
+
+So the constants travel as **data**, not as a **dependency**.  The
+:class:`~orpheus.sn.spatial.scheme.CellVisit` packet — which the
+orchestrator already populates per cell and per ordinate — carries the
+angular-closure-owned numbers as plain ``float`` fields:
+:attr:`~orpheus.sn.spatial.scheme.CellVisit.c_in` and
+:attr:`~orpheus.sn.spatial.scheme.CellVisit.c_out` (added in B2) and now
+:attr:`~orpheus.sn.spatial.scheme.CellVisit.tau` (B3).  They are stamped
+at exactly **one** production site,
+:meth:`~orpheus.sn.geometry.SNMesh._make_cell_visit`, through which all
+four ``dag_walk`` yield paths (slab, sphere, cylinder, cylindrical
+pure-azimuthal degenerate) funnel — Pattern 2, no per-site divergence.
+That site reads the closure's per-global-ordinate accessors and stamps:
+
+.. code-block:: python
+
+   closure = self.pole_angular_closure
+   return CellVisit(
+       cell_idx=cell_idx,
+       streaming_terms=st,
+       face_area_downstream=face_area_downstream,
+       c_in=float(closure.c_in_per_ordinate[global_ordinate]),
+       c_out=float(closure.c_out_per_ordinate[global_ordinate]),
+       tau=float(closure.tau_per_ordinate[global_ordinate]),
+   )
+
+where ``global_ordinate`` is the global ordinate index resolved the
+same way :meth:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.streaming_terms`
+resolves it (``direction_idx`` for slab / sphere,
+``level_indices[mu_level_idx][m]`` for cylinder).  The spatial scheme
+downstream sees only ``visit.tau`` / ``visit.c_in`` / ``visit.c_out``;
+it has no idea a closure produced them.  The provenance is recorded in
+the field docstrings (the constants are distinct in origin from the
+geometry-owned :attr:`~orpheus.sn.spatial.scheme.CellVisit.streaming_terms`),
+but the *type system* never lets the spatial axis reach across to the
+angular axis.
+
+Why the CellVisit.tau default is 1.0, not 0.0
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:attr:`~orpheus.sn.spatial.scheme.CellVisit.tau` defaults to
+:math:`1.0`, not the zero a numeric field usually defaults to.  The
+default is the value the slab / Cartesian path leaves in place — the
+identity closure supplies it through ``tau_per_ordinate`` — and the
+choice is forced by the angular recurrence the value feeds.
+
+:math:`\tau = 1` is the **neutral element** of the Morel--Montry weight.
+With :math:`\tau_n = 1` the WDD angular closure
+:eq:`wdd-closure` becomes
+:math:`\psi_{n,i} = \tau_n\,\psi_{n+\frac12} + (1-\tau_n)\,\psi_{n-\frac12}
+= \psi_{n+\frac12}`, i.e. the step (fully-outgoing) closure, and the
+outgoing-face recurrence
+
+.. math::
+
+   \psi^a_{\rm out} = \frac{\bar\psi - (1-\tau)\,\psi^a_{\rm in}}{\tau}
+   \;\xrightarrow{\;\tau = 1\;}\;
+   \frac{\bar\psi - 0}{1} = \bar\psi
+
+reduces to the **identity** in :math:`\bar\psi` — exactly what slab
+geometry needs, where there is no angular redistribution and the
+"angular-out" state is just the cell average.  Likewise the
+denominator constant :math:`c_{\rm out} = \alpha_{n+1/2}/\tau` and the
+scan split :math:`1/\tau`, :math:`(1-\tau)/\tau` are all well-defined
+and reduce to their slab values (:math:`0`, :math:`1`, :math:`0`
+respectively, since :math:`\alpha = 0` on the slab).
+
+A :math:`0.0` default, by contrast, is a **divide-by-zero landmine**.
+Every consumer of :math:`\tau` divides by it:
+:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update`'s angular
+thread divides :math:`(\bar\psi - (1-\tau)\psi^a_{\rm in})` by
+:math:`\tau`; the cache derives ``tau_inv = 1/tau``.  A visit that
+reached the curvilinear branch with an un-stamped :math:`\tau = 0`
+would produce a silent ``inf``/``nan`` rather than a loud error.  The
+:math:`1.0` default makes the *un-stamped* visit compute the
+**identity** transformation — the safe no-op — which is both correct
+for the slab (where the stamp is genuinely neutral) and a benign
+fallback that surfaces a missing stamp as a *wrong-but-finite* answer a
+regression snapshot catches, rather than a ``nan`` that propagates.
+
+The three live consumers and the L21 framing
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Three live paths read the closure-owned :math:`\tau` (or the constants
+derived from it) after B3.  The first two are the **solve** and
+**apply** directions of the same per-cell linear system; the third is
+the vectorized scan form of the same recurrence — the apply / sweep
+duality this page calls the **L21 twin-path** (two applications of the
+*same* operator; cf. :ref:`phase-c-sweep-frame-matvec` for the
+apply-direction matvec that is the twin of the curvilinear sweep).
+
+**(1) The scalar solve helper.**
+:func:`~orpheus.sn.spatial.cell_balance.cell_balance_terms` — the
+:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update` solve
+direction — no longer rebuilds :math:`c_{\rm in}` / :math:`c_{\rm out}`
+from ``st.alpha_* / st.tau_mm``.  Its signature now takes them as
+keyword inputs, and
+:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update` supplies
+them straight off the visit::
+
+   terms = cell_balance_terms(
+       visit.streaming_terms, visit.face_area_downstream, total_xs,
+       upstream_state, c_in=visit.c_in, c_out=visit.c_out,
+   )
+
+The helper now reads :math:`\tau` **not at all** — it consumes only the
+already-derived :math:`c` constants, which is the right factoring: the
+cell-balance denominator :eq:`dd-solve` needs
+:math:`(\Delta A_i / w_n)\,c_{\rm out}`, and the upstream numerator
+needs :math:`(\Delta A_i / w_n)\,c_{\rm in}\,\psi_{n-\frac12}`, neither
+of which references :math:`\tau` once :math:`c` is in hand.
+
+**(2) The angular recurrence.** The other half of
+:meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update` — the
+Morel--Montry outgoing-angular-face thread — *does* need the raw
+:math:`\tau`:
+
+.. math::
+   :label: dd-mm-angular-recurrence
+
+   \psi^a_{\rm out}
+   = \frac{\bar\psi - (1 - \tau)\,\psi^a_{\rm in}}{\tau}
+
+and reads it from :attr:`~orpheus.sn.spatial.scheme.CellVisit.tau`
+(stamped by
+:meth:`~orpheus.sn.geometry.SNMesh._make_cell_visit` from
+:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`)
+rather than from ``visit.streaming_terms.tau_mm``.  This is the line
+the :math:`1.0` default protects.
+
+**(3) The CumprodScan split.** The vectorized fast path — the cumulative
+product that replaces the per-cell Python loop for the curvilinear
+sweep — needs the same recurrence in a form amenable to a forward scan.
+:class:`~orpheus.sn.spatial.sweep_cache.GeometryCoefficients` sources
+:math:`\tau` from
+:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`
+and precomputes the split
+
+.. math::
+   :label: dd-mm-scan-split
+
+   \texttt{tau\_inv} = \frac{1}{\tau},
+   \qquad
+   \texttt{mm\_a\_in\_coeff} = \frac{1 - \tau}{\tau},
+
+consumed at the loss-representation scan recurrence (in
+:mod:`orpheus.sn.loss_representation`) as
+
+.. math::
+
+   \psi^a_{\rm out}
+   = \texttt{tau\_inv}\cdot\bar\psi
+     - \texttt{mm\_a\_in\_coeff}\cdot\psi^a_{\rm in}
+   = \frac{\bar\psi}{\tau} - \frac{1-\tau}{\tau}\,\psi^a_{\rm in},
+
+which is algebraically identical to :eq:`dd-mm-angular-recurrence` — the
+same operator, applied in the vectorized frame.  Precomputing
+:math:`1/\tau` and :math:`(1-\tau)/\tau` is a legitimate
+perform-once-at-construction hoist (L16): the closure exposes only the
+**primitive** :math:`\tau` (Pattern 5 — build the primitive, not the
+product), and each consumer derives the trivial :math:`1/\tau`,
+:math:`(1-\tau)/\tau`, :math:`\alpha_{\rm out}/\tau` algebra it needs at
+its own definition site.  The scan derivation lives in the cache; the
+recurrence consumes it.  That keeps the closure's surface minimal (one
+weight) while letting two structurally-different consumers (a scalar
+Python recurrence and a vectorized NumPy scan) each shape it to their
+reduction tree.
+
+Why the fold is bit-identical, and the regression floor for Step C
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Step B3 is **bit-identical (0-ULP)**.  The argument has two legs, both
+already established by the earlier carve steps:
+
+#. **Closure-:math:`\tau` is 0-ULP equal to geometry-:math:`\tau`.** The
+   closure's
+   :func:`~orpheus.sn.spatial.pole_angular_closure.morel_montry_tau_per_level`
+   is a line-for-line replica of the geometry factory's :math:`\tau`
+   arithmetic (Step A), pinned by the **Leg-1 producer-equivalence
+   gate** ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py``
+   to the geometry-factory value (0-ULP) *and* to the
+   structurally-independent reference
+   :func:`~orpheus.derivations.discrete.sn.contamination.morel_montry_weights`
+   (a different code path to the same BMC-2010-Eq. 43 weight).  Reading
+   :math:`\tau` from the closure therefore yields exactly the same
+   ``float64`` bits the former ``st.tau_mm`` read carried.
+
+#. **The per-level :math:`\to (N,)` gather is a pure permutation.** No
+   arithmetic happens between the closure's per-level :math:`\tau` and
+   the global-ordinate :math:`(N,)` view the accessor returns — only a
+   reindex.  So every derived quantity (:math:`c_{\rm in}`,
+   :math:`c_{\rm out}`, ``tau_inv``, ``mm_a_in_coeff``) is bit-for-bit
+   what the inline rebuilds produced.
+
+This was confirmed not only by the regression snapshots but **in
+process**: at sphere (single :math:`\mu`-level) and cylinder
+(multi-level) configurations,
+:math:`\lvert\texttt{visit.tau} - \texttt{st.tau\_mm}\rvert`,
+:math:`\lvert\texttt{closure.tau\_per\_ordinate} - \texttt{st.tau\_mm}\rvert`,
+and ``np.array_equal`` on the cache's ``tau_inv`` / ``mm_a_in_coeff``
+against the geometry-:math:`\tau`-derived split were **all exactly
+zero**.  The DriftWarning-escalating ``tests/sn/sweep/core``,
+``tests/sn/spatial``, and ``tests/sn/solve`` snapshots stayed unmoved
+(588 + 60 green), with zero drift escalation.
+
+The bit-identity guarantee is what makes B3 the **regression floor for
+Step C**.  Two committed catchers pin the new live paths so that the
+forthcoming retirement of the parallel geometry-:math:`\tau` producer
+cannot silently break them:
+
+* The **Leg-1 producer-equivalence gate** pins
+  ``closure.tau_per_ordinate`` to the BMC-2010-Eq. 43 reference, so the
+  closure remains the correct sole producer after the geometry one is
+  deleted.
+
+* The **production-stamp catcher**
+  ``tests/sn/sweep/core/test_cell_visit_c_stamp.py`` walks a real
+  production ``dag_walk`` (sphere, multi-level cylinder, slab) and — in
+  its dedicated :math:`\tau` arm — asserts every ``visit.tau`` equals
+  that visit's **own** ``streaming_terms.tau_mm`` at 0-ULP.  The
+  reference is the *geometry-produced* ``st.tau_mm`` (a
+  structurally-independent producer, not the closure comparing against
+  itself — vv L11): the test pins the stamp's *ordinate map*, the
+  complement of what Leg-1 pins (the producers' *values*).  This arm was
+  added specifically because B3 made the
+  :attr:`~orpheus.sn.spatial.scheme.CellVisit.tau` stamp **live** while
+  the existing named twins never call the rewired reader (vv L11
+  Mode 11): a mutation stamping ``tau = ... * 1.1`` drifts the converged
+  cylinder scalar flux by :math:`\sim 0.2\,\%` with **no** other test
+  red, so the dedicated arm is the only committed catcher of a
+  :math:`\tau`-stamp ordinate-map error.  Mutation-verified RED on the
+  :math:`\times 1.1` stamp across sphere + cylinder + slab; GREEN clean.
+
+* The **seam-6 scan catcher**
+  ``tests/sn/sweep/core/test_affine_carve_baseline.py`` reddens on a
+  corruption of the CumprodScan :math:`\tau` split, pinning the third
+  live consumer.
+
+With these in place, Step C can delete the geometry-side :math:`\tau`
+producer (:func:`~orpheus.geometry.reduced_operator.spherical_streaming`
+:math:`\,/\,`
+:func:`~orpheus.geometry.reduced_operator.cylindrical_streaming` and the
+slab synthetic), together with the now-orphaned
+``StreamingTerms.tau_mm``, ``StreamingTerms.alpha_in`` /
+``alpha_out`` (whose sole readers were the c-rebuild sites B1--B3 just
+retired),
+:attr:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.tau_mm`,
+and ``tau_mm_per_level`` — confident that nothing live depends on them.
+See :mod:`orpheus.sn.spatial.pole_angular_closure` for the
+``tau_per_ordinate`` accessor and the three-constant cache,
+:mod:`orpheus.sn.spatial.scheme` for the
+:attr:`~orpheus.sn.spatial.scheme.CellVisit.tau` field,
+:mod:`orpheus.sn.geometry` for the single production stamp, and
+:mod:`orpheus.sn.spatial.sweep_cache` for the scan split.
 
 Substituting the WDD Closure into the Balance Equation
 -------------------------------------------------------

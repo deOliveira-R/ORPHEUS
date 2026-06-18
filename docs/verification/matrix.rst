@@ -630,7 +630,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **92** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **94** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -642,6 +642,8 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``billiard-resolvent-neumann``
 - ``billiard-transfer-operator``
 - ``billiard-variant-alpha-rank1``
+- ``dd-mm-angular-recurrence``
+- ``dd-mm-scan-split``
 - ``eigen-alpha-derivation``
 - ``eigen-k-posing``
 - ``eigen-resolvent``
