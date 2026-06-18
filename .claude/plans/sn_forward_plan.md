@@ -40,6 +40,13 @@ ANGULAR factor and the curvilinear corner.
 
 ## PRIMARY next effort — #236: realize the (spatial ⊗ angular) discretization product
 
+> **STATUS (2026-06-17): IN PROGRESS — Phase 1 (the pairing-validity surface, the headline)
+> DONE + committed on `feature/sn-spatial-angular-product` (NOT pushed; 4 commits
+> `52966c3`→`5a01670`).** Detailed campaign plan (Phase 2 τ-relocation carve + Phase 3
+> separability gate, with the τ producer/consumer map) =
+> `.claude/plans/issue_236_spatial_angular_product.md`. The sub-task framing below is the
+> ORIGINAL scoping; Phase 1 covered ST4 (1a) + ST2 (1b) + confirmed ST1 already satisfied.
+
 **Readiness (assessed 2026-06-17, post-D5b).** The issue's "Current state" table predates
 the #240 Step D / D5a / D5b campaign and is stale. At current HEAD:
 
