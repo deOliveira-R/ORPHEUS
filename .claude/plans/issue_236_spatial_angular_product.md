@@ -2,11 +2,13 @@
 
 > **Durable in-repo recovery anchor** (project rule: plans live in `ORPHEUS/.claude/`).
 > Supersedes the session-scoped `~/.claude/plans/mellow-swinging-breeze.md` (the original
-> plan-mode file). **Phase 1 (pairing-validity) ✅ DONE + Phase 2 (the τ-relocation carve,
-> A→B1→B2→B3→C) ✅ DONE + committed (2026-06-18).** ONLY **Phase 3 (ST5, separability gate, #68)**
-> remains. Branch `feature/sn-spatial-angular-product` off `main` @ `3ac96b4`, **19 ahead, NOT pushed**.
+> plan-mode file). **🎉 #236 COMPLETE (2026-06-18): Phase 1 (pairing-validity) ✅ + Phase 2
+> (the τ-relocation carve, A→B1→B2→B3→C) ✅ + Phase 3 (ST5, separability gate) ✅ — ALL DONE +
+> committed.** Branch `feature/sn-spatial-angular-product` off `main` @ `3ac96b4`, **NOT pushed**
+> (see `git log` for the exact ahead-count). Phase-3 gate = `1f42fb5` (test) / `82f8c28` (docs).
 > Phase-2 detail: crosswalk `.claude/plans/issue_236_phase2_tau_carve_crosswalk.md` §§8/9/10
 > (B1/B2 · B3 · Step C) + Step-C audit `.claude/plans/issue_236_stepC_dependency_audit.md`.
+> Follow-up: **#249** (single-source the mms/ test helpers — the `volume_weighted_l2` migration).
 
 ## Context
 
@@ -112,12 +114,27 @@ angular-redistribution operator; a scalar residual is blind to a wrong angular c
 → `elegance-enforcer` + `qa` → resolve nits → commit (feat + chore) → archivist documents the
 τ-ownership relocation + the product narrative on `theory/discrete_ordinates` (Cardinal Rule 3).
 
-## NEXT — Phase 3 (ST5): separability characterization gate ◀◀ THE ACTIVE PIECE (#68)
+## Phase 3 (ST5): separability characterization gate ✅ DONE + committed (`1f42fb5` test / `82f8c28` docs)
+
+The last #236 campaign piece — INDEPENDENT of the τ carve. **Shipped 2026-06-18.** The four
+`diag_sep_*` probes turned out to SURVIVE in this job's tmp dir
+(`/Users/rodrigo/.claude/jobs/84fd66f8/tmp/diag_sep_*.py` — the "never persisted" note was a
+repo-scoped `find`; they were in the job tmp), so Phase 3 was a PROMOTION, not a reconstruction.
+The permanent gate is `tests/sn/verification/mms/test_space_angle_separability.py` (6 legs, L1,
+~3 s). Two equation labels minted on `theory/discrete_ordinates.rst` (`sn-space-angle-separability`
+the decomposition law + `sn-space-angle-cross-term` the mixed-2nd-diff discriminator), both
+vv-status documented+tested. Sequence run: test-architect (spec + the gating signature + the L27
+decision) → main-agent hoist (`volume_weighted_l2` single-source, #249) + 2-col shape guard →
+elegance PASS-WITH-NITS + qa SUPPORTED (both `catches("ERR-026")` mutation-proven; L27
+independence proven) → archivist (capstone section + labels + vv-status reconciliation) → commit.
+⭐ Load-bearing: the **L27 per-ordinate leg** (scalar weight-sum is blind to a wrong angular
+closure) + the **1/W `psi_exact` convention trap** (guarded). **#236 is now COMPLETE.**
+
+### [HISTORICAL — the Phase 3 plan as authored]
 
 The last #236 campaign piece — INDEPENDENT of the τ carve (no τ-carve dependency; lands any time).
 Promote the four `diag_sep_*` probes (space_angle / cyl / slab / slab_iso) from the ephemeral
-job-dir (they were NEVER persisted — `find . -name 'diag_sep*'` = empty as of 2026-06-18, so they
-must be RECONSTRUCTED) into a PERMANENT gate under `tests/sn/verification/`.
+job-dir into a PERMANENT gate under `tests/sn/verification/`.
 
 **Authoritative recovery (READ FIRST):**
 - **Probe construction** — `.claude/agent-memory/numerics-investigator/sn_space_angle_discretization_coupling.md`

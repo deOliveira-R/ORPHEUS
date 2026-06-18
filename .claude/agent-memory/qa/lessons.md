@@ -1319,3 +1319,44 @@ SEPARATE namespace (no import), the surviving `alpha_in is None` refs are docstr
 prose. pyright on a DELETION: count unchanged + ZERO refs to the deleted symbol
 (a deletion removes code, cannot add a type error). Step C CLOSED the L-038 B3
 τ-stamp Mode-11 gap (the `visit.tau` arm now exists, reading the indep surrogate).
+
+---
+
+## L-040 -- #236 Phase 3 ST5 separability characterization gate: VERDICT SUPPORTED
+
+The (space ⊗ angle) separability gate `tests/sn/verification/mms/test_space_angle_separability.py`
+(6 tests, 2.87s, NOT a fast canary despite no real @slow need). All 6 items validated:
+
+- **Mode-8/L26 LIVE**: collected module under `tests/` (testpaths) → rewriter fires;
+  proven BOTH ways (tmp copy AND in-tree perturb `r_n4>3.5`→`>5.0` → RED under `-O`,
+  re-edit back). The generic "assertions not in test modules" config warning is about
+  plugins/helpers, NOT this module's asserts.
+- **`catches("ERR-026")` GENUINE on `test_sphere_spatial_rate_is_quadrature_gated`**:
+  MUTATION-PROVEN by re-emerging ERR-026 at its LIVE SI-sweep locus
+  `loss_representation.py:3229-3231` `ang_contrib = dA_w*c_in*psi` (×1.05, the curvilinear
+  angular redistribution). Reproduced the EXACT catalog fingerprint: N=32 error GROWS under
+  refinement `[26.67,27.16,27.27]` h-ratios `[0.98,0.996]<1` (DIVERGENT, catalog's "Error vs
+  refinement: Diverges") → `assert np.all(r_n32>3.0)` RED. The per-ordinate leg ALSO RED
+  (sanity guard fired first under inflated FP; its `r_n32>2.0` would also catch). NOTE: corrupt
+  the LIVE path not the matvec `cell_contribution` (curvilinear default=source_iteration → SI
+  sweep inlines its own redistribution at L3229, NOT the `cell_contribution` Krylov path).
+  The two NON-marked sphere/cyl tests correctly OMIT the marker (cross-term `|M|/max` not
+  mutation-proven direct; honest anti-phantom per vv `catches`-is-coverage).
+- **L27/L11 per-ordinate leg STRUCTURALLY INDEP**: `angular_flux.bulk.values` (N,ng,nx) vs
+  `scalar_flux.values` (ng,nx); proved `scalar == Σ_n w_n ψ_n` to 0.0 AND per-ordinate spread
+  0.021 at cell0 (anisotropic → not telescoped). The metric the scalar is blind to.
+- **Convention trap REAL + guarded**: `psi_exact` returns `A+Bμ` WITHOUT 1/W (sn.py:2944 docstring
+  +code); solver `external_source` ÷sum_w (sn.py:2994). Test ÷sum_w (L180) is the right fix.
+  Dropping it → per-ord L2 reads 8.11 (=docstring's ~8.1, W=2.0 swamp) → `po_n8[0]<1.0` sanity
+  guard FIRES with precise msg = real tripwire (proven by re-introducing the trap in a copy).
+- **Tolerances HONEST not aspirational**: discrimination band Cartesian `<0.05` / curvilinear
+  `>0.15` sits between measured 0.005↔0.41 (3 orders headroom); "re-tune not regression" framing
+  on gating bounds is correct vv posture (#229 lift would redden → intended signal). Bounds
+  DISCRIMINATE separable-from-gated, don't pin brittle exact numbers.
+- **Isolated**: zero refs to pre-existing-red operator paths (#232/#195/#209/#214).
+
+RECIPE for a characterization gate's `catches`: re-emerge the bug at its LIVE production locus
+(match the inner-solver path the gate actually drives), confirm the documented catalog FINGERPRINT
+(here: divergent h-ratio<1), confirm the SPECIFIC named assertion reddens. Prove rewriter LIVE
+in-tree (not just tmp copy). All probes reverted by re-edit (L28, never git); final `git diff`
+on prod+test EMPTY.
