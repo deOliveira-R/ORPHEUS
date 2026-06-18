@@ -1268,3 +1268,54 @@ whether the path is dead (B2) or LIVE (B3) by instrumenting a solve with a
 quadrature that has degenerate ordinates (`product`, NOT `gauss_legendre`/
 `level_symmetric` which have ZERO degenerate ords per L-016) — a LIVE unpinned
 path is a silent-wrong exposure, a dead one is only a latent landmine.
+
+---
+
+## L-039 -- Migrate-then-delete of a DEAD-in-prod / LIVE-as-oracle field: prove the migrated @catches still BINDS (#236 Step C, geometry-τ retirement)
+
+Step C deleted `StreamingTerms.tau_mm`/`alpha_in`/`alpha_out` +
+`ReducedStreamingOperator.tau_mm`/`tau_mm_per_level` (ZERO live prod readers
+post-B3) but they were LIVE as the L11 oracle of the regression-floor catchers.
+The implementer re-pointed the surrogate `_c_surrogate.py` + the `dag_walk`
+stamp catcher `test_cell_visit_c_stamp.py` + the ERR-026 W1 catcher
+`test_w1_clamp_silent_on_flat.py` onto the structurally-independent
+`contamination.morel_montry_weights` (a DIFFERENT code path — uses
+`_cell_edge_cosines`; the closure SUT `morel_montry_tau_per_level` INLINES its
+own mu_edge/eta_edge loops → genuine L11) with the prod clamp replicated
+(cyl `np.clip(τ,½,1)`, sphere unclamped). VERDICT: SUPPORTED, bit-id real.
+
+**The verification that closed the review (3 distinct teeth-proofs):**
+1. **Bit-id by DriftWarning-escalation, NOT by a green count.** Run the gates
+   under `-W error::DriftWarning`; 0 failures = no live numeric moved. The count
+   delta (762→758 G1, 552→552 G3) must reconcile EXACTLY to the retired tests
+   (4 `*_equals_geometry_factory_0ulp` legs) — a delta that does NOT reconcile =
+   silent test loss = BLOCKER.
+2. **Stamp catcher with a PROD mutation point** → mutate the prod stamp directly
+   (`tau *= 1.1`, `c_in↔c_out` swap in `geometry.py:_make_cell_visit`, python
+   read/replace/write per L28); confirm RED + the slab discriminator
+   (τ×1.1 reds slab b/c 1·1.1≠1; c-swap GREEN on slab b/c c=0 invisible) → revert.
+3. **Unit-invariant @catches with NO prod mutation point** (the ERR-026 W1 clamp
+   catcher asserts `_flat_field_coeff(clamped τ) ≈ _flat_field_coeff(raw τ)` to a
+   few-ULP bound — a self-contained recompute, not reachable from a prod line):
+   prove it still BINDS by injecting the DOCUMENTED bug-class leak into the test's
+   OWN recompute helper and confirming the divergence blows past the tolerance.
+   ERR-026 = τ leaking into the flat-field cell algebra; drop the `(1-τ)/τ·α_out`
+   cancellation term → clamped-vs-raw diff jumps 2.2e-16 → 1.45e-2 (≫ the 1e-12
+   bound) ⇒ the assertion is NOT vacuous post-migration. ALSO verify the
+   guard-the-guard fires non-vacuously (the clamp BITES: `changed.size>0`, 8 ords
+   for S16) and the migrated α source (`op.alpha_half (N+1,)`) is correctly bound.
+
+**RULE**: a migrated `@catches(ERR-NNN)` on a unit-invariant test (no production
+call site to mutate) is NOT proven live by re-running it green — prove it BINDS by
+re-introducing the EXACT documented bug-class into whatever the assertion compares
+(here the test's own recompute helper, since the leak class lives in the formula
+the helper encodes) and confirming the measured quantity diverges past the bound.
+A faithful-LOOKING migration can silently turn a unit invariant tautological
+(both sides recompute from the same migrated source). Mode-11 / L-031 family at
+the oracle level. Cross-subsystem dangling-attr check: grep WHOLE tree for
+`StreamingTerms(`/`ReducedStreamingOperator(` constructors + deleted-kwarg + live
+`st.X is None` branches — the trajectory-resolvent `alpha_in`/`alpha_out` is a
+SEPARATE namespace (no import), the surviving `alpha_in is None` refs are docstring
+prose. pyright on a DELETION: count unchanged + ZERO refs to the deleted symbol
+(a deletion removes code, cannot add a type error). Step C CLOSED the L-038 B3
+τ-stamp Mode-11 gap (the `visit.tau` arm now exists, reading the indep surrogate).

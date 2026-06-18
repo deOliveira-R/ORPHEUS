@@ -322,13 +322,43 @@ elegance PASS-WITH-NITS (no must-fix; follow-ups: NIT-2 extract a `tau_recurrenc
 on a 3rd occurrence — count is 2, defer per unify-after-two; NIT-1 archivist stub expansion).
 Sphinx stub `sn-tau-c-on-cellvisit-live` added (build-clean); archivist expansion DISPATCHED.
 
-**NEXT — Step C (retirement, L20):** delete the geometry-τ producers
-(`reduced_operator.py:681-688` sphere / `:798-815` cyl / `:495` slab synthetic) +
-`ReducedStreamingOperator.tau_mm`/`tau_mm_per_level` + `StreamingTerms.tau_mm` + the
-orphaned `StreamingTerms.alpha_in/out` (sole readers were the c-sites, now retired). Migrate
-`test_reduced_operator.py::test_tau_mm_*` onto the closure producer. Follow-up **#248**
-(orphaned `PoleAngularClosure` Protocol). The Leg-1 gate + the new τ-stamp arm are the
-regression floor that lets C delete the parallel geometry-τ safely.
+## 10. STATUS — Step C DONE (the geometry-τ retirement) (2026-06-18)
+
+**Step C DONE + committed** (`5108cb1` refactor): the dead geometry-side τ producer is
+RETIRED. **migrate-then-delete** (the audit `.claude/plans/issue_236_stepC_dependency_audit.md`
+found geometry-τ was still a TEST ORACLE → migrate first, while green):
+- **Phase 1 (oracle migration):** `_c_surrogate.py` rewritten → `c_from_constants(τ,α_in,α_out)`
+  + `mm_constants_for_ordinate(op,cell,dir[,lvl])` reading τ from the INDEPENDENT
+  `contamination.morel_montry_weights` (clamped [½,1] cyl / unclamped sphere) + α from the
+  surviving `op.alpha_half`/`alpha_per_level`. Re-pointed the τ-stamp catcher, the Leg-1 gate
+  (retired its 2 geometry-factory legs, kept the independent-reference legs), + 5 further oracle
+  readers (incl. `test_w1_clamp_silent_on_flat` @catches ERR-026).
+- **Phase 2 (surgical deletion):** the τ blocks in `spherical_streaming`/`cylindrical_streaming`/
+  slab + the `streaming_terms()` bakes; the 5 fields (`StreamingTerms.tau_mm`/`alpha_in`/`alpha_out`,
+  `ReducedStreamingOperator.tau_mm`/`tau_mm_per_level`). KEPT all live geometry (`alpha_*`/`redist_dAw`/
+  `mu_start`/faces); `mu_start`→`-1.0` sphere / `sin_theta`-derived cyl. Slab↔curvilinear now
+  discriminated by `upstream_state.angular_upstream is None`. Stale B3-era comments fixed (the
+  "replicates spherical_streaming EXACTLY" + "StreamingTerms carries tau_mm" claims → past tense).
+
+BIT-IDENTICAL (qa SUPPORTED, reproduced): 758+60 DriftWarning-escalate green, delta reconciles
+(−4 Leg-1 legs, −2 reduced_operator τ tests; producer-equivalence floor survives; no silent
+coverage loss). 7 operators reds PRE-EXISTING. L11 genuine + τ-stamp/ERR-026 catchers
+mutation-verified RED. elegance PASS-WITH-NITS (must-fix stale comments resolved).
+
+⭐ **T5 SURVIVES** (deliberate): the legacy unbound `MorelMontryAngularSweep(sn_mesh=None)`
+`__call__`-arg `tau_mm` (Protocol `:305`/ABC `:502`/bodies `:1391`/`:1449`/`:1475`) is a separate
+runtime-arg surface, NOT the geometry bake — tracked **#248** (orphaned Protocol retirement).
+
+**NEXT:** the doc-only Sphinx τ-reference sweep (`docs/theory/discrete_ordinates.rst` +
+`structured_geometry.rst`) — archivist DISPATCHED. Then **#236 Phase 2 is COMPLETE**; Phase 3
+(ST5, separability gate, #68) is the remaining campaign piece.
+
+---
+
+**Step-C scope (now done):** delete the geometry-τ producers
+(`reduced_operator.py` sphere/cyl/slab) + `ReducedStreamingOperator.tau_mm`/`tau_mm_per_level` +
+`StreamingTerms.tau_mm` + the orphaned `StreamingTerms.alpha_in/out`. The Leg-1 gate + the new
+τ-stamp arm are the regression floor that let C delete the parallel geometry-τ safely.
 
 ---
 
