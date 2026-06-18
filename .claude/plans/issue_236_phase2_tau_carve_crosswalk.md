@@ -223,3 +223,62 @@ def test_all_consumers_read_closure_c_coefficients(coord):
 ## 6. Live baselines captured this session (paste-back, L12)
 
 See the closeout message §"Live baselines" for the verbatim stdout fences.
+
+---
+
+## 7. STEP A DONE + Step B/C dependency audit (explorer, 2026-06-17)
+
+**Step A committed** `cdb6488` (feat) + `1a084fe` (chore): the closure PRODUCES τ
+(`morel_montry_tau_per_level`, `pole_angular_closure.py:514-600`) and uses it for its own
+matvec contribution (P0). Bit-identical; geometry factory still bakes an identical τ for the
+sweep path (parallel run, Leg-1-gated). elegance PASS-WITH-NITS + qa SUPPORTED (mutation-proven).
+
+### The explorer audit reshaped Step B/C — TWO findings beyond the crosswalk:
+
+**(α) A FIFTH τ consumer the 4-c-site framing missed.** `DD.update:230`
+(`tau = visit.streaming_terms.tau_mm`) reads τ for the ANGULAR WDD recurrence
+`(ψ_avg − (1−τ)ψ_in)/τ` — NOT a c-rebuild. So retiring the geometry-side τ producer is
+GATED on re-sourcing this consumer's τ from the closure too. The c-fold collapse alone does
+NOT remove the geometry τ producer.
+
+**(β) The closure-access seam.** P3 (`sweep_cache.GeometryCoefficients.from_mesh_and_quad`)
+already holds `sn_mesh` → reaches `sn_mesh.pole_angular_closure` with ZERO plumbing (the free
+seam). P1 (`cell_balance_terms`) + P2 (`DD.residual`) run through the deliberately-stateless
+`DD` scheme (no closure ref reachable). The clean threading: **`dag_walk` attaches the
+closure's angular contribution (+ closure-τ) onto each `CellVisit`** (the mesh-aware producer
+that already carries `streaming_terms`); P1/P2 + DD.update:230 read it off the visit. Keeps
+`DD` mesh-free; matches the documented `diamond.py:289-303` TODO. The angular recurrence STAYS
+in DD.update — it just reads closure-sourced τ via the visit (no need to carve the recurrence
+itself).
+
+**α is OUT of scope** (geometry: the face-area dome recursion `α_{n+1/2}=α_{n-1/2}−w_n μ_n`).
+The closure reads α from `reduced` (as today) and produces c from closure-τ + geometry-α —
+0-ULP equal to the consumers' inline c. **L20 bonus:** the sole production readers of
+`StreamingTerms.alpha_in/out` are the 3 c-sites → after the c-folds retire, those fields orphan
+→ retireable in the Step-C tail (they survive `DD.update:230`, which reads `tau_mm` not α).
+
+**Bit-identity (explorer Q2):** P1/P2 per-cell scalar; P0 closure vectorized `(M_p,)` — same
+elementwise op order → per-element 0-ULP. P3's per-level→`(N,)` global gather is a pure
+permutation (`level_ordinates`) → value-identical. So the c-fold collapse is ~BIT-IDENTICAL,
+not principled-equivalence (the test-architect's re-association worry was the denom ASSEMBLY,
+which each consumer keeps).
+
+### Refined sub-step plan (full relocation via the CellVisit seam):
+
+- **B1** — P3 (`sweep_cache.py:298,309-310`): source c from `sn_mesh.pole_angular_closure` via a
+  NEW PUBLIC accessor (do NOT reach into `_c_in_per_level`). Gather per-level→`(N,)`. Bit-id.
+  Gate: `test_cache_populator_matches_cell_balance_terms` 0-ULP + regression snapshots.
+- **B2** — `dag_walk`/`CellVisit`: attach the closure's per-(cell,ordinate) angular contribution
+  onto the visit; rewire P2 (`diamond.py:306-307`) to read it (delete its inline c-rebuild).
+- **B3** — rewire P1 (`cell_balance.py:313-314`) to read the visit's contribution; rewire
+  DD.update:230's angular recurrence to read closure-τ off the visit (the 5th consumer).
+- **C** — retire the geometry-side τ producers (`reduced_operator.py:681-688` sphere,
+  `:798-815` cyl, `:495` slab synthetic) + the `ReducedStreamingOperator.tau_mm`/
+  `tau_mm_per_level` fields + `StreamingTerms.tau_mm` + the orphaned `StreamingTerms.alpha_in/out`.
+  L20 surfaces enumerated by the explorer (production/test/orphan); migrate the τ-bit-identical
+  geometry tests (`test_reduced_operator.py::test_tau_mm_*`) onto the closure producer.
+
+Each sub-step: implement → elegance + qa → commit. Structural anchors (matvec twin, per-ordinate
+MMS, adjoint reciprocity) are the correctness floor; DriftWarning-strict (from `sweep/core`+
+`solve`, NOT the non-escalating regression dir) is the bit-id gate. The pre-existing
+`cyl_1g_homogeneous_product_dd_n20` 3.9e-11 drift is NOT a fresh anchor.
