@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5344**
+Total tests collected: **5367**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1153, 21.6%
-   L1, 981, 18.4%
+   L0, 1153, 21.5%
+   L1, 981, 18.3%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3165, 59.2%
+   foundation, 3188, 59.4%
    unmarked, 9, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5256
+   explicit, 5279
    verify, 0
    class-name, 46
    func-name, 0
@@ -79,7 +79,7 @@ Module × level grid
    core/test_sweep_schedule_nd, 0, 0, 0, 0, 9, 0
    core/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 57, 0
    core/test_transport_sweep_ng2_layout_guard, 0, 0, 0, 0, 2, 0
-   core/test_unified_sweep_dispatch, 0, 0, 0, 0, 21, 0
+   core/test_unified_sweep_dispatch, 0, 0, 0, 0, 28, 0
    core/test_wavefront_cumprod_equivalence, 0, 0, 0, 0, 4, 0
    cp/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    cp/test_cylinder, 0, 9, 0, 0, 0, 0
@@ -104,6 +104,7 @@ Module × level grid
    curvilinear/test_si_cyl_20cell_nan_regression, 0, 0, 0, 0, 4, 0
    curvilinear/test_sph_sweep_regression, 13, 0, 0, 0, 0, 0
    curvilinear/test_streaming_equilibrium_curvilinear, 27, 0, 0, 0, 0, 0
+   curvilinear/test_tau_producer_equivalence, 0, 0, 0, 0, 9, 0
    curvilinear/test_unified_matvec_cylinder, 29, 2, 0, 0, 0, 0
    curvilinear/test_unified_matvec_sphere, 2, 0, 0, 0, 0, 0
    curvilinear/test_w1_clamp_silent_on_flat, 0, 2, 0, 0, 2, 0
@@ -344,10 +345,11 @@ Module × level grid
    spatial/test_ld_ubld_symbolic, 0, 0, 0, 0, 6, 0
    spatial/test_linear_discontinuous, 0, 0, 0, 0, 20, 1
    spatial/test_ordinate_scan_reset, 3, 2, 0, 0, 0, 0
+   spatial/test_pairing_diffusion_limit, 0, 0, 0, 0, 6, 0
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 273, 0
+   test_layer_imports, 0, 0, 0, 0, 274, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0

@@ -953,6 +953,44 @@ weight :eq:`mm-weights` is the unique weight exact for a flux linear in
 The code stores these as ``SNMesh.tau_mm`` (spherical, shape ``(N,)``)
 and ``SNMesh.tau_mm_per_level`` (cylindrical, list of ``(M,)`` arrays).
 
+.. _sn-tau-closure-owned:
+
+τ is an angular-scheme property — the closure owns it (Issue #236 Phase 2)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. todo:: Archivist expansion needed.
+
+   The Morel--Montry weight :math:`\tau` :eq:`mm-weights` is a function of
+   the quadrature :math:`(\mu, w, \text{levels})` ALONE — an
+   ANGULAR-scheme property, not a geometry one.  Issue #236 Phase 2
+   (Step A) relocates :math:`\tau` PRODUCTION onto the angular closure:
+   :func:`~orpheus.sn.spatial.pole_angular_closure.morel_montry_tau_per_level`
+   produces :math:`\tau` from the quadrature the closure already binds,
+   and
+   :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+   consumes its OWN :math:`\tau` for the matvec contribution (P0) instead
+   of reading it back from the streaming-geometry factory
+   (:func:`~orpheus.geometry.reduced_operator.spherical_streaming` /
+   :func:`~orpheus.geometry.reduced_operator.cylindrical_streaming`).
+
+   Step A is BIT-IDENTICAL: the producer is a 0-ULP line-for-line replica
+   of the factory arithmetic (sphere unclamped, cylinder clamped to
+   :math:`[\tfrac12, 1]`), so the geometry factory still bakes an
+   IDENTICAL :math:`\tau` for the sweep path while the carve de-risks by
+   parallel-run-and-compare.  The producer-equivalence gate (Leg 1)
+   ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py`` pins
+   the closure-produced :math:`\tau` to (a) the geometry-factory value
+   (0-ULP) AND (b) the structurally-independent reference
+   :func:`~orpheus.derivations.discrete.sn.contamination.morel_montry_weights`
+   (a different code path to the same BMC-2010-Eq.43 weight).  The
+   Cartesian :class:`~orpheus.sn.spatial.pole_angular_closure.IdentityAngularClosure`
+   supplies the neutral :math:`\tau = 1` WITHOUT a geometry branch — the
+   closure TYPE is the dispatch.
+
+   Step B (a later dispatch) retires the geometry-side
+   :math:`\tau` producer and consolidates the four-site
+   ``c_in``/``c_out`` duplication onto the closure.
+
 Substituting the WDD Closure into the Balance Equation
 -------------------------------------------------------
 

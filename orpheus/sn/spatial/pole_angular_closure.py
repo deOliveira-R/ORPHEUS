@@ -489,6 +489,118 @@ class _MMHalfGrid:
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# Morel–Montry τ producer — the ANGULAR-scheme weight, owned by the closure
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Issue #236 Phase 2 (Step A): τ — the Morel–Montry / weighted-diamond
+# angular weight, BMC 2010 Eq. 43 — is a function of the quadrature
+# ``(μ, w, levels)`` ALONE.  It is an ANGULAR-scheme property, so the
+# angular closure PRODUCES it here from the ``quad`` it already binds,
+# rather than reading it back from the streaming-GEOMETRY factory
+# (``reduced_operator.py``).  The arithmetic below is a line-for-line
+# replica of the factory's two producers (``spherical_streaming``
+# :λ681-688 and ``cylindrical_streaming`` :λ798-815), reproduced EXACTLY
+# (accumulation order, the cylinder clamp, the ½ degeneracy fallback) so
+# the closure-produced τ is 0-ULP equal to the value the geometry factory
+# bakes for the sweep path (the Leg-1 producer-equivalence gate pins this).
+#
+# STRUCTURAL INDEPENDENCE (vv-principles L11): this is the closure's OWN
+# code, NOT a call into ``contamination.morel_montry_weights`` — that
+# function is the VERIFICATION reference for the Leg-1 cross-check, and
+# using it in production would collapse the cross-check into a tautology
+# (reference contamination).  The closure replicates the factory directly.
+
+
+def morel_montry_tau_per_level(
+    quad: Any,
+    coord: CoordSystem,
+) -> tuple[np.ndarray, ...]:
+    r"""Produce the Morel–Montry angular weight :math:`\tau` per μ-level.
+
+    :math:`\tau_m = (\mu_m - \mu_{m-1/2})/(\mu_{m+1/2} - \mu_{m-1/2})`
+    (Bailey–Morel–Chang 2010 Eq. 43) — the UNIQUE weight exact for a
+    flux linear in :math:`\mu`.  This is a property of the angular
+    quadrature only; it is produced HERE on the angular closure rather
+    than on the streaming-geometry factory (Issue #236 Phase 2).
+
+    Parameters
+    ----------
+    quad :
+        Quadrature exposing ``mu_x`` (radial cosine / η), ``weights``,
+        ``mu_z`` (axial cosine, cylinder only), and ``level_indices``
+        (cylinder only).  This is ``sn_mesh.quad``.
+    coord :
+        :class:`~orpheus.geometry.CoordSystem` — ``SPHERICAL`` or
+        ``CYLINDRICAL``.  The closure TYPE already dispatches on
+        geometry; this branch only selects the edge convention.
+
+    Returns
+    -------
+    tuple of ``(M_p,)`` arrays, one per μ-level.  Sphere is a single
+    level ``(N,)``; cylinder is one ``(M_p,)`` array per azimuthal level.
+
+    Notes
+    -----
+    The sphere weight is **UNCLAMPED** (W1; the sphere dome is
+    non-singular on GL, :math:`\tau_\text{raw} \in \sim[0.39, 0.61]`).
+    The cylinder weight is **CLAMPED** to :math:`[\tfrac12, 1]` — the
+    most-inward azimuthal ordinate sits exactly on the level boundary
+    (:math:`\eta_0 = \eta_{1/2} = -\sin\theta`) so its raw weight is
+    :math:`\tau_\text{raw} = 0` bit-exactly; the recurrence
+    :math:`(\psi - (1-\tau)\psi)/\tau` would divide by zero unclamped
+    (structural; #229).
+    """
+    if coord is CoordSystem.SPHERICAL:
+        # Replicates spherical_streaming (reduced_operator.py:681-688)
+        # EXACTLY: weight-sum edges from −1.0, unclamped τ_raw, ½ fallback.
+        mu = quad.mu_x
+        w = quad.weights
+        N = quad.N
+        mu_edge = np.zeros(N + 1)
+        mu_edge[0] = -1.0
+        for n in range(N):
+            mu_edge[n + 1] = mu_edge[n] + w[n]
+        tau_mm = np.empty(N)
+        for n in range(N):
+            dmu = mu_edge[n + 1] - mu_edge[n]
+            tau_mm[n] = (
+                (mu[n] - mu_edge[n]) / dmu if abs(dmu) > 1e-15 else 0.5
+            )
+        return (tau_mm,)
+
+    if coord is CoordSystem.CYLINDRICAL:
+        # Replicates cylindrical_streaming (reduced_operator.py:798-815)
+        # EXACTLY: η-midpoint edges with ±sinθ endpoints, per μ-level,
+        # then the structural [½, 1] clamp.
+        mu_z = quad.mu_z
+        tau_per_level: list[np.ndarray] = []
+        for level_idx in quad.level_indices:
+            eta = quad.mu_x[level_idx]
+            M = len(level_idx)
+            sin_theta = np.sqrt(1.0 - mu_z[level_idx[0]] ** 2)
+            eta_edge = np.zeros(M + 1)
+            eta_edge[0] = -sin_theta
+            for m in range(M - 1):
+                eta_edge[m + 1] = 0.5 * (eta[m] + eta[m + 1])
+            eta_edge[M] = sin_theta
+            tau = np.empty(M)
+            for m in range(M):
+                deta = eta_edge[m + 1] - eta_edge[m]
+                tau_raw = (
+                    (eta[m] - eta_edge[m]) / deta if abs(deta) > 1e-15 else 0.5
+                )
+                tau[m] = max(0.5, min(1.0, tau_raw))
+            tau_per_level.append(tau)
+        return tuple(tau_per_level)
+
+    raise ValueError(
+        f"morel_montry_tau_per_level supports SPHERICAL or CYLINDRICAL "
+        f"coordinate systems; got {coord!r}. Cartesian uses the neutral "
+        f"τ = 1.0 supplied by IdentityAngularClosure."
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # MorelMontryAngularSweep — Phase B canonical (default)
 # ═══════════════════════════════════════════════════════════════════════
 #
@@ -652,12 +764,21 @@ class MorelMontryAngularSweep(
         # ── Per-level partition (M-M's concept, NOT the quadrature's)
         # Sphere: every ordinate is one level (M_p = N, n_levels = 1).
         # Cylinder: μ-levels from ProductQuadrature / LevelSymmetricSN.
+        # Issue #236 Phase 2 (Step A): the angular closure OWNS τ.  It is
+        # produced HERE from the quadrature ``(μ, w, levels)`` the closure
+        # already binds — an angular-scheme property — instead of read back
+        # from the streaming-geometry factory (``reduced.tau_mm`` /
+        # ``reduced.tau_mm_per_level``).  ``morel_montry_tau_per_level``
+        # replicates the factory arithmetic 0-ULP, so this is bit-identical
+        # to HEAD (the geometry factory still produces an identical τ for
+        # the sweep path; the Leg-1 gate pins the producer equivalence).
+        tau_per_level = morel_montry_tau_per_level(quad, coord)
         if coord is CoordSystem.SPHERICAL:
             assert reduced.mu_start is not None  # set by spherical_streaming
             self.level_indices = (np.arange(N),)
             self._alpha_per_level = (reduced.alpha_half,)
             self._dAw_per_level = (reduced.redist_dAw,)
-            self._tau_per_level = (reduced.tau_mm,)
+            self._tau_per_level = tau_per_level
             self._mu_start_per_level = (float(reduced.mu_start),)
         elif coord is CoordSystem.CYLINDRICAL:
             assert reduced.mu_start_per_level is not None  # set by cyl factory
@@ -666,7 +787,7 @@ class MorelMontryAngularSweep(
             )
             self._alpha_per_level = tuple(reduced.alpha_per_level)
             self._dAw_per_level = tuple(reduced.redist_dAw_per_level)
-            self._tau_per_level = tuple(reduced.tau_mm_per_level)
+            self._tau_per_level = tau_per_level
             self._mu_start_per_level = tuple(
                 float(v) for v in reduced.mu_start_per_level
             )
