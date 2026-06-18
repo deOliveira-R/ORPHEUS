@@ -1200,3 +1200,71 @@ twin is green" ≠ "the named twin exercises the rewired code." A surrogate that
 recomputes the production formula on BOTH sides of an assertion is L26-circular
 for the VALUE but legitimate for the THREADING — separate the two when judging
 teeth (mutate the stamp AND mutate the consumer; they reach different test sets).
+
+## L-038 -- #236 B3 "live τ fold": the stamp-catcher gap RECURRED even after B2's Mode-11 lesson — the new field on the SAME packet was left unpinned, and this time the path is LIVE not dead
+
+B3 relocated the Morel-Montry τ onto the angular closure and stamped it on
+`CellVisit.tau` (seam: `geometry.py:_make_cell_visit` reads
+`closure.tau_per_ordinate[global_ordinate]`), consumed by `DD.update`'s angular
+recurrence `(ψ̄-(1-τ)ψ_in)/τ`. The closeout claimed bit-identity, and the 3 named
+gate suites (sweep/core + spatial + cartesian_2d + solve, 657 tests) + the two
+"catcher" tests (`test_tau_producer_equivalence.py`, `test_cell_visit_c_stamp.py`)
+are all GREEN. **VERDICT was SUPPORTED-WITH-A-MODE-11-GAP**: the numerics are
+correct, but a 10% corruption of the `_make_cell_visit` τ stamp reddens NOTHING
+across the entire brief-named gate set.
+
+**The decisive distinction from B2 (L-037).** B2's `visit.c`→`DD.residual` path
+was DEAD (zero production callers), so a wrong c-stamp could not ship a wrong
+ANSWER. B3's `visit.tau`→`DD.update` path is **LIVE**: a cylinder SI solve with a
+`product(n_mu,n_phi)` quadrature routes its DEGENERATE-axis ordinates
+(`|μ_x|<1e-15`, `geom.is_degenerate`, `face_area_downstream=0`) through the slow
+per-cell `scheme.update` at `loss_representation.py:3214` — instrumented: 896
+`DD.update` calls, ALL reading `visit.tau∈{0.5,1.0}`. A `replace(visit,
+tau=τ*1.1)` injection on that path moved the converged cylinder scalar by **0.2%
+(2.04e-3 rel)** — a real physical wrong-answer, NOT FP noise. So this is a
+genuine silent-wrong exposure for cylinder+product-quad, not a dead-code nit.
+
+**Why every gate is blind** (the H1/H3/H4 + Mode-11 convergence):
+- `test_cell_visit_c_stamp.py` walks real `dag_walk` (the right instrument!) but
+  only asserts `visit.c_in`/`visit.c_out` — it was NOT extended to assert
+  `visit.tau`. The natural catcher exists and was left one line short.
+- `test_diamond.py`/`test_ordinate_scan.py` build visits BYPASSING
+  `_make_cell_visit` (stamp `tau=` from `st.tau_mm` directly) → pin DD's
+  CONSUMPTION, structurally blind to the production STAMP (L-031 surrogate-blind).
+- `test_tau_producer_equivalence.py` pins the PRODUCER (`morel_montry_tau_per_level`
+  == geometry-factory τ) and `closure._tau_per_level`, both Step-A artifacts that
+  predate B3 — it never touches `tau_per_ordinate`, `_make_cell_visit`, or
+  `visit.tau`. Producer-correct ≠ stamp-wired-correct.
+- `test_cyl_sweep_regression.py` USES `product(4,8)` (8 degenerate ords, so it
+  EXERCISES the live path) but asserts only isfinite / `max<1e6` / `keff[product]≈
+  keff[level_sym]` rtol=1e-6 (both shift together = H4 self-reference) / α-dome /
+  positivity / flat-flux residual=0 (H3 — flat ψ nulls redistribution per L-016 +
+  Signature 1). NONE pins the converged non-flat scalar vs a frozen snapshot.
+
+**The genuinely-live SEAM-6 τ (sweep_cache → CumprodScan fast path) IS pinned**:
+corrupting `closure.tau_per_ordinate` in `sweep_cache.py:330` (feeds
+`geom.tau_inv`/`mm_a_in_coeff`, the non-degenerate curvilinear scan recurrence)
+reddens `test_affine_carve_baseline.py::test_sweep_angular_and_scalar_unmoved
+[SPH/CYL]` HARD (~9e18 ULP — it pins a single raw `transport_sweep` angular+scalar
+output, un-converged, so the half-angle thread τ feeds is caught). So the MAIN
+production numerics path has a committed catcher; only the DEGENERATE-ordinate
+`DD.update`/`CellVisit.tau` sub-path is unpinned.
+
+**FIX (the missing committed gate)**: extend `test_cell_visit_c_stamp.py` to ALSO
+assert `visit.tau == closure-independent-inline-τ` over the real `dag_walk` (the
+surrogate already reads `st.tau_mm`; add a `tau` arm) — OR add a cylinder+product
+SI-solve snapshot that pins the converged scalar at ≤1e-6 (catches the 0.2% drift
+on the degenerate path). The producer/consumer gates exist; the STAMP gate for τ
+is the one-line gap. Filed as a follow-up (NOT a blocker — numerics are correct,
+no wrong answer ships at HEAD because the production solve τ IS sourced right; the
+gap is a latent regression catcher hole on a live path).
+
+**RULE**: when a fold adds a NEW FIELD to a packet whose OTHER fields already had
+a Mode-11 gap flagged (B2→B3 on `CellVisit`), the FIRST check is "did the new
+field get added to the existing dag_walk stamp-catcher?" — a c+τ packet needs a
+c-AND-τ stamp assertion. Re-running the B2 stamp mutation recipe on the NEW field
+is mandatory; do not assume the prior gate covers the new field. AND: re-verify
+whether the path is dead (B2) or LIVE (B3) by instrumenting a solve with a
+quadrature that has degenerate ordinates (`product`, NOT `gauss_legendre`/
+`level_symmetric` which have ZERO degenerate ords per L-016) — a LIVE unpinned
+path is a silent-wrong exposure, a dead one is only a latent landmine.

@@ -285,6 +285,53 @@ MMS, adjoint reciprocity) are the correctness floor; DriftWarning-strict (from `
 
 ---
 
+## 9. STATUS — B3 DONE (the LIVE fold) (2026-06-18)
+
+**B3 DONE + committed** (this commit). The LIVE sweep + scan now CONSUME the closure-owned
+τ/c; geometry-τ (`StreamingTerms.tau_mm`) has NO live reader left — the Step-C precondition.
+**6 seams** (NOT the 5 the §8 framing named — the L20 audit caught a 6th τ consumer the
+crosswalk missed): (1) closure `tau_per_ordinate` accessor + `_tau_per_ordinate_cache`
+(`_build_c_per_ordinate_cache`→`_build_per_ordinate_cache`, gathers 3 constants); (2)
+`CellVisit.tau: float = 1.0` (neutral M-M weight — a `0.0` default is a ÷0 landmine); (3)
+`SNMesh._make_cell_visit` stamps τ from `closure.tau_per_ordinate[global_ordinate]`; (4) the
+P1 c-fold — `cell_balance_terms(..., *, c_in, c_out)` no longer rebuilds c from `st.tau_mm`;
+(5) `DD.update` passes `visit.c_in/c_out` + reads `tau = visit.tau` (the angular recurrence);
+(6) **the 6th consumer** — `sweep_cache.GeometryCoefficients` sources τ from
+`closure.tau_per_ordinate` (feeding `tau_inv`/`mm_a_in_coeff`, the CumprodScan fast-path
+recurrence `loss_representation.py:3270` — `tau_inv·ψ̄ − mm_a_in_coeff·ψ_in`, the L21 twin of
+DD.update's `(ψ̄−(1−τ)ψ_in)/τ`). Pattern 5: the closure exposes only the PRIMITIVE τ;
+consumers derive `1/τ`, `(1−τ)/τ`, `α_out/τ` locally.
+
+**Bit-identical 0-ULP** (closure-τ == geometry-τ via the Leg-1 gate; gather a pure
+permutation). Gates GREEN (qa re-ran, SUPPORTED): sweep/core+spatial+cartesian_2d 588 + solve
+60 under DriftWarning-escalate; the 7 `tests/sn/operators` reds independently confirmed
+PRE-EXISTING (#195/#209 curvilinear matvec snapshots + #214 2-D), none touch the seams. The
+**fixture ripple** (35 reds → fixed) was genuine fixture under-specification (visits built
+bypassing `_make_cell_visit`, stamped via the independent surrogate `c_from_streaming_terms`
+/ analytic `ref_c_*`), NOT a masked production bug.
+
+⭐ **vv Mode-11 closed (the B2 lesson, NOT repeated):** qa mutation-proved the `CellVisit.tau`
+stamp (seams 2/3/5) shipped with NO committed catcher despite being LIVE (a τ-stamp `×1.1`
+drifts the converged cylinder scalar 0.2%, no test red). FIXED before commit — extended
+`tests/sn/sweep/core/test_cell_visit_c_stamp.py` with a τ arm (`visit.tau == st.tau_mm`,
+structurally-independent geometry-vs-closure producers; mutation-verified RED on a `×1.1`
+stamp across sphere+cyl+slab, GREEN clean). The seam-6 scan-τ path was ALREADY pinned
+(`test_affine_carve_baseline[SPH/CYL]` reds on its corruption).
+
+elegance PASS-WITH-NITS (no must-fix; follow-ups: NIT-2 extract a `tau_recurrence_reference`
+on a 3rd occurrence — count is 2, defer per unify-after-two; NIT-1 archivist stub expansion).
+Sphinx stub `sn-tau-c-on-cellvisit-live` added (build-clean); archivist expansion DISPATCHED.
+
+**NEXT — Step C (retirement, L20):** delete the geometry-τ producers
+(`reduced_operator.py:681-688` sphere / `:798-815` cyl / `:495` slab synthetic) +
+`ReducedStreamingOperator.tau_mm`/`tau_mm_per_level` + `StreamingTerms.tau_mm` + the
+orphaned `StreamingTerms.alpha_in/out` (sole readers were the c-sites, now retired). Migrate
+`test_reduced_operator.py::test_tau_mm_*` onto the closure producer. Follow-up **#248**
+(orphaned `PoleAngularClosure` Protocol). The Leg-1 gate + the new τ-stamp arm are the
+regression floor that lets C delete the parallel geometry-τ safely.
+
+---
+
 ## 8. STATUS — B1 + B2 DONE + committed (2026-06-18)
 
 - **B1 DONE** (`b7fed4d` feat / `af1d074` chore): P3 c-fold via the public `c_{in,out}_per_ordinate`
