@@ -32,6 +32,7 @@ from orpheus.geometry.boundary import (
 from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
 from orpheus.geometry.reduced_operator import (
     ReducedStreamingOperator,
+    StreamingTerms,
     cylindrical_streaming,
     slab_streaming,
     spherical_streaming,
@@ -60,7 +61,7 @@ from .spatial.diamond import DiamondDifference
 from .spatial.pole_angular_closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
-    PoleAngularClosure,
+    PoleAngularClosureBase,
     default_angular_closure_class,
 )
 
@@ -201,7 +202,7 @@ class SNMesh:
         quadrature: AngularQuadrature,
         materials: "dict[int, Mixture]",
         scheme: DiscretizationSchemeBase | None = None,
-        pole_angular_closure: PoleAngularClosure | None = None,
+        pole_angular_closure: PoleAngularClosureBase | None = None,
     ) -> None:
         # The legacy inbound surface (C5.1 axis-primary inversion,
         # #225): convert the Mesh1D / Mesh2D declaration to the
@@ -232,7 +233,7 @@ class SNMesh:
         quadrature: AngularQuadrature,
         materials: "dict[int, Mixture]",
         scheme: DiscretizationSchemeBase | None,
-        pole_angular_closure: PoleAngularClosure | None,
+        pole_angular_closure: PoleAngularClosureBase | None,
     ) -> None:
         # The ONE construction body both surfaces funnel into (C5.1).
         #
@@ -457,7 +458,7 @@ class SNMesh:
         # at construction, use it verbatim; otherwise instantiate the
         # default-by-coord-system bound to ``self``.
         if self._user_supplied_closure is not None:
-            self.pole_angular_closure: PoleAngularClosure = (
+            self.pole_angular_closure: PoleAngularClosureBase = (
                 self._user_supplied_closure
             )
         else:
@@ -852,7 +853,7 @@ class SNMesh:
         *,
         mat_map: np.ndarray | None = None,
         scheme: DiscretizationSchemeBase | None = None,
-        pole_angular_closure: PoleAngularClosure | None = None,
+        pole_angular_closure: PoleAngularClosureBase | None = None,
     ) -> "SNMesh":
         r"""Build an :class:`SNMesh` from an axis tuple — the axis-native surface.
 
@@ -890,7 +891,7 @@ class SNMesh:
             to all-zeros (single material with id 0).
         scheme : DiscretizationSchemeBase or None
             Cell-update strategy. Defaults to :class:`DiamondDifference`.
-        pole_angular_closure : PoleAngularClosure or None
+        pole_angular_closure : PoleAngularClosureBase or None
             Override the default pole-angular closure
             (curvilinear → :class:`MorelMontryAngularSweep`,
             Cartesian → :class:`IdentityAngularClosure`).
@@ -1290,6 +1291,45 @@ class SNMesh:
             )
         return int(cand[0])
 
+    def _make_cell_visit(
+        self,
+        *,
+        cell_idx: int,
+        global_ordinate: int,
+        face_area_downstream: float,
+        st: StreamingTerms,
+    ) -> CellVisit:
+        r"""Assemble one :class:`CellVisit`, sourcing the angular-closure c.
+
+        Issue #236 Phase 2 B2 — the single production site that stamps the
+        Morel--Montry weighted-diamond constants
+        (:attr:`CellVisit.c_in` / :attr:`CellVisit.c_out`) onto a visit.
+        ALL four ``dag_walk`` yield paths (slab / sphere / cylinder /
+        cylindrical-degenerate) funnel through here so the c-lookup lives
+        in exactly ONE place (Pattern 2 — no per-site divergence).
+
+        The constants are read from the mesh's canonical angular-closure
+        owner :attr:`pole_angular_closure` via its per-global-ordinate
+        ``(N,)`` accessors
+        (:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.c_in_per_ordinate`
+        / ``c_out_per_ordinate``) — NOT rebuilt from
+        ``st.alpha_*`` / ``st.tau_mm`` (the inline formula the four
+        former duplication sites carried).  ``global_ordinate`` is the
+        GLOBAL ordinate index: ``direction_idx`` for slab / sphere,
+        ``level_indices[mu_level_idx][m]`` for cylinder (mirroring the
+        index :meth:`streaming_terms` resolves).  Slab / Cartesian reads
+        the identity closure's neutral zeros, so ``c_in == c_out == 0.0``
+        there.
+        """
+        closure = self.pole_angular_closure
+        return CellVisit(
+            cell_idx=cell_idx,
+            streaming_terms=st,
+            face_area_downstream=face_area_downstream,
+            c_in=float(closure.c_in_per_ordinate[global_ordinate]),
+            c_out=float(closure.c_out_per_ordinate[global_ordinate]),
+        )
+
     def _iter_cartesian_visits(
         self,
         ordinate_idx: int,
@@ -1311,10 +1351,13 @@ class SNMesh:
             st = self.reduced.streaming_terms(
                 cell_idx=i, direction_idx=ordinate_idx,
             )
-            yield CellVisit(
+            # Slab: ``direction_idx`` IS the global ordinate; the identity
+            # closure yields neutral c == 0.0 (#236 Phase 2 B2).
+            yield self._make_cell_visit(
                 cell_idx=i,
-                streaming_terms=st,
+                global_ordinate=ordinate_idx,
                 face_area_downstream=1.0,
+                st=st,
             )
 
     def _iter_spherical_visits(
@@ -1342,10 +1385,12 @@ class SNMesh:
             face_downstream = (
                 st.face_area_outer if select_outer else st.face_area_inner
             )
-            yield CellVisit(
+            # Sphere: ``direction_idx`` IS the global ordinate (#236 B2).
+            yield self._make_cell_visit(
                 cell_idx=i,
-                streaming_terms=st,
+                global_ordinate=ordinate_idx,
                 face_area_downstream=face_downstream,
+                st=st,
             )
 
     def _iter_cylindrical_visits(
@@ -1388,10 +1433,15 @@ class SNMesh:
                     direction_idx=ordinate_idx,
                     mu_level_idx=mu_level_idx,
                 )
-                yield CellVisit(
+                # Cylinder: the global ordinate is resolved through the
+                # level partition (``global_n`` above) — the SAME index
+                # ``streaming_terms`` used to read the per-level α / τ
+                # (#236 Phase 2 B2).
+                yield self._make_cell_visit(
                     cell_idx=i,
-                    streaming_terms=st,
+                    global_ordinate=global_n,
                     face_area_downstream=0.0,
+                    st=st,
                 )
             return
 
@@ -1410,10 +1460,12 @@ class SNMesh:
             face_downstream = (
                 st.face_area_outer if select_outer else st.face_area_inner
             )
-            yield CellVisit(
+            # Cylinder: global ordinate via the level partition (#236 B2).
+            yield self._make_cell_visit(
                 cell_idx=i,
-                streaming_terms=st,
+                global_ordinate=global_n,
                 face_area_downstream=face_downstream,
+                st=st,
             )
 
     # ── Stencil setup ─────────────────────────────────────────────────

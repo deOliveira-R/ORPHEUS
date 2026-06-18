@@ -233,6 +233,28 @@ class CellVisit:
           face flow, so the ``2|\mu| A_{\rm down}`` term vanishes
           via ``A_down = 0`` (geometric truth) rather than via the
           numerical threshold ``abs_mu < 1e-15``.
+    c_in : float
+        **Angular-closure-owned** (Issue #236 Phase 2 B2): the
+        Morel--Montry weighted-diamond upstream-numerator constant
+        :math:`c_{\rm in} = (1-\tau_m)/\tau_m\,\alpha_{m+1/2}
+        + \alpha_{m-1/2}` for THIS visit's ordinate.  Sourced from the
+        mesh's :attr:`~orpheus.sn.geometry.SNMesh.pole_angular_closure`
+        via :attr:`PoleAngularClosure.c_in_per_ordinate` (the per-global-
+        ordinate ``(N,)`` accessor), NOT rebuilt inline.  ``0.0`` for
+        slab / Cartesian (the identity closure carries no angular
+        redistribution).  Distinct in provenance from the geometry-owned
+        :attr:`streaming_terms` — the angular closure is the canonical
+        owner of the weighted-diamond constants; the spatial scheme
+        (:class:`DiamondDifference`) consumes them as DATA on the visit,
+        never by coupling to the closure object (keeps the
+        spatial :math:`\otimes` angular separation).
+    c_out : float
+        **Angular-closure-owned** (Issue #236 Phase 2 B2): the
+        Morel--Montry weighted-diamond denominator constant
+        :math:`c_{\rm out} = \alpha_{m+1/2}/\tau_m` for THIS visit's
+        ordinate.  Sourced from
+        :attr:`PoleAngularClosure.c_out_per_ordinate`.  ``0.0`` for slab
+        / Cartesian.  See :attr:`c_in` for the provenance rationale.
 
     Notes
     -----
@@ -252,6 +274,8 @@ class CellVisit:
     cell_idx: int
     streaming_terms: StreamingTerms
     face_area_downstream: float = 0.0
+    c_in: float = 0.0
+    c_out: float = 0.0
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -62,6 +62,12 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial import DiamondDifference, UpstreamState
 from orpheus.sn.spatial.scheme import CellVisit
 
+# Issue #236 Phase 2 B2 Fix 3 — the ONE shared hand-transcribed surrogate
+# for the M-M ``(c_in, c_out)`` constants (was a private byte-identical
+# copy here; unified with ``test_cell_balance_for_streaming.py`` and the
+# production-stamp catcher).
+from tests.sn.sweep.core._c_surrogate import c_from_streaming_terms
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # Mesh fixtures
@@ -815,8 +821,11 @@ def _slab_visit_inputs(
     # Slab visit: face_area_downstream = 1.0 (Issue #196 Step 2.5
     # neutral curvature) so the unified DD body's spatial-closure
     # branch runs (slab DOES have a downstream face — the cell-edge).
+    # Slab α = 0 / τ = 1 → c_in = c_out = 0.0 (#236 Phase 2 B2).
+    c_in, c_out = c_from_streaming_terms(st)
     visit = CellVisit(
         cell_idx=cell_idx, streaming_terms=st, face_area_downstream=1.0,
+        c_in=c_in, c_out=c_out,
     )
     return visit, total_xs, source, upstream
 
@@ -857,8 +866,10 @@ def _sphere_visit_inputs(
         angular_upstream=psi_angle_in,
     )
     A_down = st.face_area_outer if outward else st.face_area_inner
+    c_in, c_out = c_from_streaming_terms(st)
     visit = CellVisit(
         cell_idx=cell_idx, streaming_terms=st, face_area_downstream=A_down,
+        c_in=c_in, c_out=c_out,
     )
     return visit, total_xs, source, upstream
 
@@ -905,8 +916,10 @@ def _cylinder_visit_inputs(
         st.face_area_outer if (st.mu is not None and st.mu >= 0.0)
         else st.face_area_inner
     )
+    c_in, c_out = c_from_streaming_terms(st)
     visit = CellVisit(
         cell_idx=cell_idx, streaming_terms=st, face_area_downstream=A_down,
+        c_in=c_in, c_out=c_out,
     )
     return visit, total_xs, source, upstream
 
@@ -956,8 +969,10 @@ def _cylinder_degenerate_visit_inputs(
         spatial_upstream=np.zeros(n_groups),
         angular_upstream=psi_angle_in,
     )
+    c_in, c_out = c_from_streaming_terms(st)
     visit = CellVisit(
         cell_idx=cell_idx, streaming_terms=st, face_area_downstream=0.0,
+        c_in=c_in, c_out=c_out,
     )
     return visit, total_xs, source, upstream
 
@@ -1368,13 +1383,16 @@ class TestResidual:
         )
         cell_avg = np.array([0.7, 0.3])
 
+        c_in, c_out = c_from_streaming_terms(st)
         visit_inward = CellVisit(
             cell_idx=3, streaming_terms=st,
             face_area_downstream=st.face_area_inner,
+            c_in=c_in, c_out=c_out,
         )
         visit_outward = CellVisit(
             cell_idx=3, streaming_terms=st,
             face_area_downstream=st.face_area_outer,
+            c_in=c_in, c_out=c_out,
         )
 
         strat = DiamondDifference()

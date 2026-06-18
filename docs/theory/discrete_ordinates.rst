@@ -1048,6 +1048,121 @@ c_in / c_out are angular-closure constants — Step B1 (one site folded)
    accessor and :mod:`orpheus.sn.spatial.sweep_cache` for the folded
    consumer.
 
+.. _sn-closure-c-on-cellvisit:
+
+c_in / c_out reach the stateless DD scheme as CellVisit data — Step B2
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. todo:: Archivist expansion needed.
+
+   Step B2 folds the SECOND of the four inline ``c_in`` / ``c_out``
+   rebuild sites — the matvec-twin residual
+   :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual`
+   (formerly rebuilding :math:`c_{\rm out} = \alpha_{\rm out}/\tau`,
+   :math:`c_{\rm in} = (1-\tau)/\tau\,\alpha_{\rm out} + \alpha_{\rm in}`
+   inline from the geometry-owned :class:`StreamingTerms`).
+
+   The architectural crux: :class:`~orpheus.sn.spatial.diamond.DiamondDifference`
+   is deliberately STATELESS — it reads only the
+   :class:`~orpheus.sn.spatial.scheme.CellVisit` packet + the
+   :class:`~orpheus.sn.spatial.scheme.UpstreamState`, never the mesh or
+   the angular closure.  So the closure-owned :math:`c` cannot reach
+   ``DD.residual`` by coupling DD to the closure object (that would break
+   the spatial :math:`\otimes` angular separation — the SPATIAL scheme
+   must not see the ANGULAR closure's type).  Instead the constants travel
+   as DATA: the :class:`~orpheus.sn.spatial.scheme.CellVisit` gains two
+   angular-closure-owned fields
+   (:attr:`~orpheus.sn.spatial.scheme.CellVisit.c_in` /
+   :attr:`~orpheus.sn.spatial.scheme.CellVisit.c_out`, distinct in
+   provenance from the geometry-owned
+   :attr:`~orpheus.sn.spatial.scheme.CellVisit.streaming_terms`), and the
+   single production site
+   :meth:`~orpheus.sn.geometry.SNMesh._make_cell_visit` — through which
+   ALL four ``dag_walk`` yield paths funnel (Pattern 2, no per-site
+   divergence) — stamps them from
+   :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.c_in_per_ordinate`
+   /
+   :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.c_out_per_ordinate`
+   indexed by the GLOBAL ordinate (``direction_idx`` for slab / sphere,
+   ``level_indices[p][m]`` for cylinder — mirroring
+   :meth:`~orpheus.geometry.reduced_operator.ReducedStreamingOperator.streaming_terms`).
+   ``DD.residual`` then reads ``visit.c_in`` / ``visit.c_out``; the
+   :math:`(\Delta A/w)`-scaled assembly that follows is byte-unchanged —
+   only the SOURCE of :math:`c` moved.
+
+   Step B2 also completes the matvec's typed-consumer binding (Issue
+   #226): the unified SN matvec reads ``sn_mesh.pole_angular_closure``
+   typed against the
+   :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`
+   ABC and drives the angular path through
+   :meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.precompute_psi_state`,
+   :meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.cell_contribution`,
+   and
+   :meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.angular_adjoint`.
+   These were declared ``@abstractmethod`` on the ABC (matching the
+   precedent where
+   :class:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase` declares
+   ``update`` / ``residual`` abstract so ``mesh.scheme`` consumers see the
+   full contract) — making the ABC the COMPLETE strategy contract instead
+   of declaring only ``__call__``.
+
+   Step B2 is BIT-IDENTICAL: ``visit.c_in`` / ``visit.c_out``
+   (closure-sourced) equal the former inline values 0-ULP — the closure
+   computes :math:`c` from closure-:math:`\tau` (0-ULP equal to
+   geometry-:math:`\tau`, Step-A Leg-1) and the SAME geometry-:math:`\alpha`,
+   and the per-level :math:`\to (N,)` gather is a pure permutation.  The
+   matvec residual path (fed by ``DD.residual``) stays bit-for-bit on the
+   ``tests/sn/sweep/curvilinear/test_unified_matvec_{sphere,cylinder}.py``
+   twin and on the DriftWarning-escalating
+   ``tests/sn/sweep/core`` + ``tests/sn/solve`` snapshots.  The remaining
+   TWO ``c`` rebuild sites
+   (:func:`~orpheus.sn.spatial.cell_balance.cell_balance_terms` for the
+   ``DD.update`` solve path; the geometry-side :math:`\tau` producer) are
+   Step B3 / C.  See :mod:`orpheus.sn.spatial.scheme` for the CellVisit
+   fields and :mod:`orpheus.sn.geometry` for the production stamp.
+
+   B2 review fixes (finishing pass).  THREE follow-ups landed after the
+   carve, all bit-identical (0-ULP):
+
+   * **Per-ordinate gather cached (L16).** The public accessors
+     :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.c_in_per_ordinate`
+     /
+     :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.c_out_per_ordinate`
+     re-ran the full :math:`(N,)` per-level :math:`\to` global gather on
+     EVERY access, so the per-visit stamp made the visit-producing loop
+     :math:`O(N^2\,n_x)`.  The gather is a pure permutation of immutable
+     per-level data, so it is now computed ONCE in each mesh-bound
+     ``__init__`` (shared
+     :meth:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase._build_c_per_ordinate_cache`,
+     called by both ``MorelMontryAngularSweep`` and
+     ``IdentityAngularClosure``) and the accessors return the read-only
+     cache (``setflags(write=False)`` guards the shared :math:`(N,)` view
+     B1's ``GeometryCoefficients`` populator holds).  Measured on a
+     ``sphere N=32 nx=200`` walk: :math:`\sim 32\,\text{ms} \to \sim
+     22\,\text{ms}` per sweep (:math:`\sim 1.46\times`), value-identical.
+
+   * **Committed production-stamp catcher (vv L11 Mode 11).** The original
+     carve had NO committed test exercising ``_make_cell_visit``'s c-stamp
+     — the matvec twin reads the closure's ``cell_contribution`` directly
+     (never ``DD.residual``), and the diamond / cell-balance fixtures stamp
+     visits with a SURROGATE.  A wrong global-ordinate map (a
+     ``c_in``:math:`\leftrightarrow`\ ``c_out`` swap, a mis-scattered
+     cylinder level block) would ship silently.
+     ``tests/sn/sweep/core/test_cell_visit_c_stamp.py`` walks a REAL
+     production ``dag_walk`` (sphere + multi-level cylinder + slab) and
+     asserts every ``visit.c_in`` / ``visit.c_out`` equals the constants
+     recomputed INLINE from that visit's OWN
+     :class:`~orpheus.geometry.reduced_operator.StreamingTerms` at 0-ULP
+     (the hand-transcribed independent reference, not the closure's own
+     ``c`` — vv L11).  Mutation-verified: the ``c_in``\ /\ ``c_out`` swap
+     reddens the sphere + cylinder cases.
+
+   * **Test-surrogate dedup (Pattern 2).** The byte-identical
+     ``_c_from_streaming_terms`` (``test_diamond.py``) and ``_visit_c``
+     (``test_cell_balance_for_streaming.py``) hand-recomputes were unified
+     into one shared ``tests/sn/sweep/core/_c_surrogate.py`` consumed by
+     both files and the new catcher.
+
 Substituting the WDD Closure into the Balance Equation
 -------------------------------------------------------
 

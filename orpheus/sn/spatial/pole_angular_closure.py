@@ -357,6 +357,16 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
     level_indices: "tuple[np.ndarray, ...] | None"
     _c_in_per_level: "tuple[np.ndarray, ...] | None"
     _c_out_per_level: "tuple[np.ndarray, ...] | None"
+    # Cached ``(N,)`` global-ordinate gathers of the two per-level constants
+    # (Issue #236 Phase 2 B2 Fix 1).  The per-level→global gather is a pure
+    # permutation of the immutable ``_c_*_per_level``, so it is computed ONCE
+    # in each concrete ``__init__`` (via ``_build_c_per_ordinate_cache``) and
+    # the public ``c_*_per_ordinate`` accessors return the cache — O(1) per
+    # access instead of re-running the ``(N,)`` gather on every read (the
+    # per-visit ``_make_cell_visit`` stamp would otherwise be O(N²·nx)).
+    # ``None`` in the unbound legacy mode (``_c_*_per_level is None``).
+    _c_in_per_ordinate_cache: "np.ndarray | None"
+    _c_out_per_ordinate_cache: "np.ndarray | None"
 
     beta_first_order_consistent: ClassVar[bool] = False
     r"""Whether this angular redistribution closure satisfies the
@@ -423,35 +433,65 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
             out[level] = values
         return out
 
+    def _build_c_per_ordinate_cache(self) -> None:
+        """Gather both per-level constants to ``(N,)`` ONCE at construction.
+
+        Issue #236 Phase 2 B2 Fix 1 (L16) — every concrete mesh-bound
+        ``__init__`` calls this AFTER binding ``_c_in_per_level`` /
+        ``_c_out_per_level`` (and ``level_indices``).  The gather is a pure
+        permutation of immutable per-level data, so caching it makes the
+        public accessors O(1).  The cached arrays are marked READ-ONLY
+        (``setflags(write=False)``) so a consumer that holds a reference to
+        the shared ``(N,)`` view (e.g. the ``GeometryCoefficients`` populator,
+        B1's P3) cannot corrupt the cache.
+
+        Precondition: the per-level constants are bound (mesh-bound mode);
+        the unbound legacy path sets the cache to ``None`` directly and never
+        calls this (illegal-states-unrepresentable, Pattern 4).
+        """
+        if self._c_in_per_level is None or self._c_out_per_level is None:
+            raise RuntimeError(
+                "_build_c_per_ordinate_cache requires bound per-level "
+                "constants; call only after binding _c_*_per_level."
+            )
+        c_in_cache = self._gather_per_ordinate(self._c_in_per_level)
+        c_out_cache = self._gather_per_ordinate(self._c_out_per_level)
+        c_in_cache.setflags(write=False)
+        c_out_cache.setflags(write=False)
+        self._c_in_per_ordinate_cache = c_in_cache
+        self._c_out_per_ordinate_cache = c_out_cache
+
     @property
     def c_in_per_ordinate(self) -> np.ndarray:
         r"""Upstream-numerator closure constant :math:`c_{\rm in}` per global ordinate.
 
         ``(N,)`` array; :math:`(1-\tau_m)/\tau_m\,\alpha_{m+1/2} +
         \alpha_{m-1/2}` for M-M, all-zero for the Cartesian identity closure.
+        Returns the read-only cache built once at construction (Fix 1, L16).
         """
-        if self._c_in_per_level is None:
+        if self._c_in_per_ordinate_cache is None:
             raise RuntimeError(
                 "c_in_per_ordinate requires a mesh-bound closure; the legacy "
                 "unbound MorelMontryAngularSweep(sn_mesh=None) has no "
                 "precomputed constants."
             )
-        return self._gather_per_ordinate(self._c_in_per_level)
+        return self._c_in_per_ordinate_cache
 
     @property
     def c_out_per_ordinate(self) -> np.ndarray:
         r"""Denominator closure constant :math:`c_{\rm out}` per global ordinate.
 
         ``(N,)`` array; :math:`\alpha_{m+1/2}/\tau_m` for M-M, all-zero for the
-        Cartesian identity closure.
+        Cartesian identity closure.  Returns the read-only cache built once at
+        construction (Fix 1, L16).
         """
-        if self._c_out_per_level is None:
+        if self._c_out_per_ordinate_cache is None:
             raise RuntimeError(
                 "c_out_per_ordinate requires a mesh-bound closure; the legacy "
                 "unbound MorelMontryAngularSweep(sn_mesh=None) has no "
                 "precomputed constants."
             )
-        return self._gather_per_ordinate(self._c_out_per_level)
+        return self._c_out_per_ordinate_cache
 
     @abstractmethod
     def __call__(
@@ -464,6 +504,74 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         level_indices: "list[np.ndarray] | None" = None,
         carlson_context: "CarlsonSweepContext | list[CarlsonSweepContext] | None" = None,
     ) -> np.ndarray:
+        ...
+
+    # ── Matvec strategy contract (Issue #236 Phase 2 B2 — ABC completion) ──
+    #
+    # The unified SN matvec (``loss_representation.py``) reads
+    # ``sn_mesh.pole_angular_closure`` typed against THIS ABC and drives the
+    # angular path through these three methods.  Declaring them abstract here
+    # makes the ABC the COMPLETE strategy contract — exactly as
+    # :class:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase` declares
+    # ``update`` / ``residual`` abstract so ``mesh.scheme`` consumers (typed
+    # against that ABC) see the full contract.  Without these declarations the
+    # matvec tripped pyright on "unknown attribute for PoleAngularClosureBase"
+    # despite every concrete closure implementing them.  Return types are
+    # deliberately loose (``object`` for the per-level half-grid state) so the
+    # two concrete realizations vary: M-M returns a per-level ``_MMHalfGrid``
+    # tuple from :meth:`precompute_psi_state` (Identity returns ``None`` — no
+    # curvature grid), while both honour the ``(denom, upstream_numer)`` /
+    # adjoint array-pair shapes.
+
+    @abstractmethod
+    def precompute_psi_state(
+        self,
+        psi_view: np.ndarray,
+        *,
+        sigma_t: np.ndarray,
+        bc_outer_inflow_estimate: np.ndarray,
+    ) -> object:
+        r"""Precompute per-level closure state for one matvec pass.
+
+        Returns opaque per-level state (M-M: a ``_MMHalfGrid`` tuple of
+        Carlson-seeded half-angle grids; Identity: ``None``) that
+        :meth:`cell_contribution` consumes.  See the concrete overrides.
+        (The Cartesian identity closure widens ``sigma_t`` /
+        ``bc_outer_inflow_estimate`` to optional — a contravariant-safe
+        param widening — since it ignores both.)
+        """
+        ...
+
+    @abstractmethod
+    def cell_contribution(
+        self,
+        psi_state: Any,
+        cell_idx: int,
+        level_idx: int,
+        within_positions: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""Per-cell angular contribution to the cell-balance terms.
+
+        Returns ``(denom_term, upstream_numer_term)`` — the closure's
+        additions to the cell-balance denominator (``(ΔA/w)·c_out``) and
+        upstream numerator (``(ΔA/w)·c_in·ψ_{m-1/2}``).  Zero arrays for
+        the Cartesian identity closure.
+        """
+        ...
+
+    @abstractmethod
+    def angular_adjoint(
+        self,
+        numer_bar: "tuple[np.ndarray, ...]",
+        *,
+        sigma_t: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""Reverse-mode adjoint of the matvec angular coupling (Wave O O.2b).
+
+        Returns the bulk and outer-trace cotangents of the forward angular
+        path.  Zero arrays for the Cartesian identity closure (no curvature
+        coupling).  See :meth:`MorelMontryAngularSweep.angular_adjoint`.
+        """
         ...
 
 
@@ -857,6 +965,9 @@ class MorelMontryAngularSweep(
             self._mu_start_per_level: "tuple[float, ...] | None" = None
             self._c_in_per_level: "tuple[np.ndarray, ...] | None" = None
             self._c_out_per_level: "tuple[np.ndarray, ...] | None" = None
+            # No mesh ⇒ no per-ordinate cache; the accessors raise (Fix 1).
+            self._c_in_per_ordinate_cache: "np.ndarray | None" = None
+            self._c_out_per_ordinate_cache: "np.ndarray | None" = None
             self._mu_x: "np.ndarray | None" = None
             self._weights: "np.ndarray | None" = None
             self._dr: "np.ndarray | None" = None
@@ -922,6 +1033,8 @@ class MorelMontryAngularSweep(
             c_in_levels.append((1.0 - tau) / tau * alpha_out + alpha_in)
         self._c_in_per_level = tuple(c_in_levels)
         self._c_out_per_level = tuple(c_out_levels)
+        # ── Cache the (N,) global-ordinate gather ONCE (Fix 1, L16) ──
+        self._build_c_per_ordinate_cache()
 
         # ── Carlson-sweep machinery (psi-independent mesh + quad data)
         self._mu_x = quad.mu_x
@@ -1530,6 +1643,10 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
         self._c_out_per_level: "tuple[np.ndarray, ...] | None" = (
             np.zeros(self._N),
         )
+        # ── Cache the (N,) global-ordinate gather ONCE (Fix 1, L16) ──
+        # Cartesian always binds the neutral zeros; the cache is the read-only
+        # ``(N,)`` zeros the slab visit-stamp reads (c_in == c_out == 0.0).
+        self._build_c_per_ordinate_cache()
 
     # ── Strategy Protocol surface ────────────────────────────────────
 
