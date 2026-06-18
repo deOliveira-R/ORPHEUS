@@ -56,19 +56,10 @@ from orpheus.derivations.continuous.mms.sn import (
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.geometry import SNMesh
 
+from tests.sn._test_helpers import volume_weighted_l2
+
 
 # ── shared solve helper (the PUBLIC composite-source API) ────────────
-
-
-def _l2_error(phi_num: np.ndarray, phi_ref: np.ndarray, measure: np.ndarray) -> float:
-    """Measure-weighted discrete L2 norm of the flux error.
-
-    Slab uses ``mesh.widths``; curvilinear uses ``mesh.volumes`` (the
-    cross-domain-attacker H-vol note: the L2 norm MUST be volume-weighted
-    for the curvilinear order to be measured correctly).
-    """
-    diff = phi_num - phi_ref
-    return float(np.sqrt(np.sum(measure * diff * diff)))
 
 
 def _solve(case, n_cells: int, *, g: int = 0):
@@ -159,7 +150,7 @@ def test_mms_prescribed_inflow_slab_converges_second_order(case_kind: str):
         for nc in n_cells:
             mesh, sn, psi, phi = _solve(case, nc, g=g)
             ref = case.phi_exact(mesh.centers, g)
-            errors.append(_l2_error(phi, ref, mesh.widths))
+            errors.append(volume_weighted_l2(phi, ref, mesh.widths))
             finest = (mesh, sn, psi, phi, ref)
         errors = np.asarray(errors)
         orders = np.log2(errors[:-1] / errors[1:])
@@ -244,7 +235,7 @@ def test_mms_prescribed_inflow_sphere_activates_redistribution():
         mesh, sn, psi, phi = _solve(case, nc, g=0)
         ref = case.phi_exact(mesh.centers)
         # volume-weighted L2 (curvilinear — H-vol note).
-        errors.append(_l2_error(phi, ref, mesh.volumes))
+        errors.append(volume_weighted_l2(phi, ref, mesh.volumes))
         finest = (mesh, sn, psi, phi, ref)
     errors = np.asarray(errors)
     print(f"sphere non-vacuum L2 errors={errors}")
