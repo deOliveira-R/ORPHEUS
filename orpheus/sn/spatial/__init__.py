@@ -36,7 +36,6 @@ from .pairing import pair_diffusion_limit_consistent
 from .pole_angular_closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
-    PoleAngularClosure,
     PoleAngularClosureBase,
     default_angular_closure_class,
 )
@@ -74,7 +73,6 @@ __all__ = [
     "IdentityAngularClosure",
     "LinearDiscontinuous",
     "MorelMontryAngularSweep",
-    "PoleAngularClosure",
     "PoleAngularClosureBase",
     "PsiHalfAngleSeed",
     "PsiHalfAngleSeedBase",

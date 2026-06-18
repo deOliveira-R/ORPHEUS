@@ -2053,7 +2053,7 @@ def solve_sn_fixed_source(
     # * Phase A (Defects 1 + 2): the ``BoundaryFaceFlux`` Protocol
     #   retired in Phase C.
     # * Phase B (Defect 3): :class:`MorelMontryAngularSweep` is now
-    #   the SNMesh-default :class:`PoleAngularClosure`.
+    #   the SNMesh-default :class:`PoleAngularClosureBase`.
     # * Phase C (sweep-frame matvec): the apply matvec is one sweep
     #   iteration semantically, with WDD spatial closure.
     # * Phase D (Carlson coupled-pole seed):

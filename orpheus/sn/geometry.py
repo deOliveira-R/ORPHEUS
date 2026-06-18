@@ -1312,7 +1312,7 @@ class SNMesh:
         The values are read from the mesh's canonical angular-closure
         owner :attr:`pole_angular_closure` via its per-global-ordinate
         ``(N,)`` accessors
-        (:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.tau_per_ordinate`
+        (:attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase.tau_per_ordinate`
         / ``c_in_per_ordinate`` / ``c_out_per_ordinate``) — NOT rebuilt from
         ``st.alpha_*`` / ``st.tau_mm`` (the inline formula the former
         duplication sites carried).  ``global_ordinate`` is the

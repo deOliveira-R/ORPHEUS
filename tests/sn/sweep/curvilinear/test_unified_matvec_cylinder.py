@@ -46,11 +46,14 @@ from orpheus.sn.geometry import SNMesh
 from tests.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial.pole_angular_closure import (
-    MorelMontryAngularSweep,
     morel_montry_tau_per_level,
 )
 from orpheus.sn.spatial.psi_half_angle_seed import CarlsonSweepContext
-from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
+from tests.sn._test_helpers import (
+    legacy_proxy_matvec,
+    placeholder_materials,
+    redistribution_via_live_path,
+)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -132,9 +135,11 @@ def _hand_reference_cyl_matvec(
     mu_x = quad.mu_x
 
     bc_outer = sn_mesh.bc["xmax"]
+    # A cylindrical SNMesh always binds a MorelMontryAngularSweep(self) (the
+    # default-by-coord-system closure — see SNMesh._init_core); it is the SAME
+    # mesh-bound instance the production matvec's ``precompute_psi_state``
+    # drives.
     pac = sn_mesh.pole_angular_closure
-    if pac is None:
-        pac = MorelMontryAngularSweep()
 
     out = np.zeros((N, ng, nx))
 
@@ -161,21 +166,38 @@ def _hand_reference_cyl_matvec(
                 mu_start=-1.0,)
         )
 
-    # Issue #236 Step C: the geometry-side cylinder τ producer was retired;
-    # source the legacy ``__call__``-arg τ (the T5 unbound-closure path this
-    # hand reference drives) from the surviving closure producer.
+    # Issue #248: the dead legacy ``MorelMontryAngularSweep.__call__`` bundle
+    # was retired.  Reconstruct the per-level redistribution through the LIVE
+    # production surface (the shared ``redistribution_via_live_path`` helper:
+    # the ``compute_psi_half_per_level`` recurrence kernel the matvec's
+    # ``precompute_psi_state`` consumes, composed with the explicit α/ΔA/w/V
+    # fold).  This mirrors how production drives cylindrical — ``precompute_
+    # psi_state`` loops ``level_indices`` running the SAME single-level
+    # recurrence per μ-level with that level's Carlson coupled-pole seed.
+    #
+    # The hand reference's structural-independence claim is about the
+    # ROUTING/scatter (each ordinate processed in its own scalar pass, no
+    # bool-mask scatter into the legacy's misrouting ``ks``), NOT about the
+    # redistribution closure — so consuming the live redistribution is
+    # consistent.  Source the M-M ``τ`` clamp from the surviving closure
+    # producer (the geometry-side cylinder τ producer was retired in #236
+    # Step C).
     tau_mm_per_level = list(
         morel_montry_tau_per_level(quad, CoordSystem.CYLINDRICAL)
     )
-    redist_full = pac(
-        psi_g_first,
-        reduced.alpha_per_level,
-        reduced.redist_dAw_per_level,
-        tau_mm_per_level,
-        V,
-        level_indices=level_indices,
-        carlson_context=carlson_ctx_per_level,
-    )  # (ng, N, nx)
+    redist_full = np.zeros((ng, N, nx))
+    for p, level_idx in enumerate(level_indices):
+        level_idx_arr = np.asarray(level_idx)
+        psi_level = psi_g_first[:, level_idx_arr, :]  # (ng, M_p, nx)
+        redist_full[:, level_idx_arr, :] = redistribution_via_live_path(
+            pac,
+            psi_level,
+            reduced.alpha_per_level[p],
+            reduced.redist_dAw_per_level[p],
+            tau_mm_per_level[p],
+            V,
+            carlson_context=carlson_ctx_per_level[p],
+        )
 
     outflow_at_boundary = np.zeros((ng, N))
 

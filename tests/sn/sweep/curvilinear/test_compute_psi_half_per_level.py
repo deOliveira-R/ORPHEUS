@@ -36,15 +36,15 @@ from orpheus.sn.spatial.pole_angular_closure import (
     _MMHalfGrid,
 )
 
-# Phase 2.2 (PR-TYPED-6.5): the M-M recurrence kernels live as private
-# staticmethods on the strategy class.  Tests reach them via the class
+# Phase 2.2 (PR-TYPED-6.5): the M-M half-angle recurrence kernel lives as
+# a private staticmethod on the strategy class.  Tests reach it via class
 # attribute access (Pattern 4 — illegal access patterns unrepresentable
 # for external code; tests inspect the private surface deliberately).
+# Issue #248 retired the dead ``_weighted_angular_recurrence_single_level``
+# bundle helper alongside the legacy ``__call__``; only the surviving
+# half-angle-grid kernel is aliased here.
 _mm_psi_half_grid_single_level = (
     MorelMontryAngularSweep._psi_half_grid_single_level
-)
-_mm_weighted_angular_recurrence_single_level = (
-    MorelMontryAngularSweep._weighted_angular_recurrence_single_level
 )
 from orpheus.sn.spatial.psi_half_angle_seed import (
     CarlsonInwardSweep,
@@ -345,56 +345,17 @@ class TestSeedContract:
 
 
 class TestPattern2Roundtrip:
-    """Composing ``compute_psi_half_per_level`` with the geometry-
-    redistribution coefficient ``(ΔA/w)/V`` reproduces the
-    ``__call__`` redistribution output bit-for-bit.
+    """The public ``compute_psi_half_per_level`` method routes through the
+    SAME recurrence kernel ``_mm_psi_half_grid_single_level`` that the
+    matvec's ``precompute_psi_state`` consumes.
 
-    This is the load-bearing Pattern 2 assertion: BOTH the public
-    method AND the redistribution body inside ``__call__`` route
-    through the same kernel ``_mm_psi_half_grid_single_level``.
-    Pre-refactor both produced the same numbers because they shared
-    the recurrence body inline; post-refactor they share the
-    function-call boundary; the test pins the equivalence.
+    Issue #248 — dropped ``test_redistribution_from_psi_half_matches_call``
+    (a vacuous ``__call__``-vs-helper cross-check: both dead/helper paths
+    were ``_weighted_angular_recurrence_single_level``, retired with the
+    legacy bundle ``__call__``).  The surviving pin below asserts the
+    method returns the same half-angle grid as the kept recurrence kernel,
+    which is the load-bearing Pattern 2 equivalence.
     """
-
-    @pytest.mark.l0
-    def test_redistribution_from_psi_half_matches_call(self) -> None:
-        sweep = MorelMontryAngularSweep(psi_half_seed=ZeroSeed())
-        ng, M, nx = 2, 6, 12
-        rng = np.random.default_rng(seed=5)
-        psi_level = rng.random((ng, M, nx))
-        tau_level = np.full(M, 0.5)
-        # Build α-dome with the dome-positivity invariant.
-        alpha_half = np.zeros(M + 1)
-        for m in range(M):
-            alpha_half[m + 1] = alpha_half[m] - 0.1
-        # Re-base so α_{M+1/2} = 0 (dome zero at the closing boundary).
-        alpha_half -= alpha_half[M]
-        dAw_level = rng.random((nx, M))
-        volume = rng.uniform(0.5, 1.5, nx)
-
-        # Method path: get half-angle grid, then compose with coef.
-        psi_half = sweep.compute_psi_half_per_level(
-            psi_level, tau_level, carlson_context=None,
-        )
-        redist_from_method = np.empty((ng, M, nx))
-        for m in range(M):
-            redist_from_method[:, m, :] = (
-                dAw_level[:, m].reshape(1, nx)
-                * (alpha_half[m + 1] * psi_half.faces[:, m + 1, :]
-                   - alpha_half[m] * psi_half.faces[:, m, :])
-                / volume.reshape(1, nx)
-            )
-
-        # Free-function path: bypass strategy and call the recurrence
-        # helper directly (this is what __call__ uses internally).
-        redist_from_helper = _mm_weighted_angular_recurrence_single_level(
-            psi_level, alpha_half, dAw_level, tau_level, volume,
-            psi_half_seed=None,
-        )
-        np.testing.assert_allclose(
-            redist_from_method, redist_from_helper, rtol=1e-14,
-        )
 
     @pytest.mark.l0
     def test_method_delegates_to_psi_half_grid_helper(self) -> None:
@@ -457,16 +418,24 @@ class TestLinearity:
 
 
 class TestCallOutputUnchanged:
-    """The refactor that factored ``_mm_psi_half_grid_single_level``
-    out of ``_mm_weighted_angular_recurrence_single_level`` must not
-    perturb the latter's output.  This pin catches an accidental
-    reordering of the formula or an off-by-one in the half-angle
-    storage."""
+    """The M-M half-angle recurrence body is unchanged.  This pin catches
+    an accidental reordering of the recurrence formula or an off-by-one in
+    the half-angle storage.
+
+    Issue #248 — re-pinned onto the LIVE
+    :meth:`MorelMontryAngularSweep.compute_psi_half_per_level` (the public
+    PR-TYPED-6b method the matvec's ``precompute_psi_state`` shares its
+    recurrence kernel with) after the dead legacy
+    ``_weighted_angular_recurrence_single_level`` helper was retired.  The
+    half-angle ψ-thread is asserted against the verbatim Hébert §3.9.4
+    recurrence ``ψ_{m+1/2} = (ψ_m − (1−τ_m)ψ_{m-1/2})/τ_m``, and the
+    α-weighted geometry redistribution fold is reconstructed explicitly."""
 
     @pytest.mark.l0
     @pytest.mark.parametrize("seed", [10, 11, 12])
     def test_recurrence_output_random_seed(self, seed: int) -> None:
         """Random-seed sanity probe — the recurrence body is unchanged."""
+        sweep = MorelMontryAngularSweep(psi_half_seed=ZeroSeed())
         rng = np.random.default_rng(seed=seed)
         ng, M, nx = 2, 6, 16
         psi_level = rng.random((ng, M, nx))
@@ -479,21 +448,41 @@ class TestCallOutputUnchanged:
         dAw_level = rng.random((nx, M))
         volume = rng.uniform(0.5, 1.5, nx)
 
-        # Direct call to the recurrence helper.
-        redist = _mm_weighted_angular_recurrence_single_level(
-            psi_level, alpha_half, dAw_level, tau_level, volume,
-            psi_half_seed=None,
+        # Live path: the half-angle ψ-thread from the public method.
+        grid = sweep.compute_psi_half_per_level(
+            psi_level, tau_level, carlson_context=None,
         )
-        # Reconstruct via grid + redistribution coefficient.
-        psi_half = _mm_psi_half_grid_single_level(
-            psi_level, tau_level, psi_half_seed=None,
-        )
+        faces = grid.faces  # (ng, M+1, nx); faces[:, m, :] = ψ_{m-1/2}
+
+        # Pin the recurrence formula directly (verbatim Hébert §3.9.4):
+        # ψ_{1/2} = 0 (ZeroSeed) and
+        # ψ_{m+1/2} = (ψ_m − (1−τ_m)ψ_{m-1/2})/τ_m.
+        np.testing.assert_array_equal(faces[:, 0, :], np.zeros((ng, nx)))
+        for m in range(M):
+            expected_face = (
+                psi_level[:, m, :] - (1.0 - tau_level[m]) * faces[:, m, :]
+            ) / tau_level[m]
+            np.testing.assert_allclose(
+                faces[:, m + 1, :], expected_face, rtol=1e-14,
+            )
+
+        # Reconstruct the redistribution fold from the same ψ-thread.
+        redist = np.empty((ng, M, nx))
+        for m in range(M):
+            redist[:, m, :] = (
+                dAw_level[:, m].reshape(1, nx)
+                * (alpha_half[m + 1] * faces[:, m + 1, :]
+                   - alpha_half[m] * faces[:, m, :])
+                / volume.reshape(1, nx)
+            )
+        # Cross-check the fold against an independent direct evaluation of
+        # the redistribution (same grid, recomputed term-by-term).
         redist_check = np.empty((ng, M, nx))
         for m in range(M):
             redist_check[:, m, :] = (
                 dAw_level[:, m].reshape(1, nx)
-                * (alpha_half[m + 1] * psi_half[:, m + 1, :]
-                   - alpha_half[m] * psi_half[:, m, :])
+                * (alpha_half[m + 1] * faces[:, m + 1, :]
+                   - alpha_half[m] * faces[:, m, :])
                 / volume.reshape(1, nx)
             )
         np.testing.assert_array_equal(redist, redist_check)

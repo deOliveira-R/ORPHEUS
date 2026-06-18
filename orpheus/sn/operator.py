@@ -143,7 +143,6 @@ if TYPE_CHECKING:
     from .geometry import SNMesh
     from orpheus.numerics.projection import MomentProjection
     from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
-    from .spatial.pole_angular_closure import PoleAngularClosure
     from .loss_representation import LossRepresentation
 
 __all__ = [
@@ -505,7 +504,7 @@ class AngularRedistributionOperator(LinearOperatorMixin):
     The per-level M-M closure supplies
     ``angular_denom_term = (ΔA/w) · c_out`` and
     ``angular_numer_upstream = (ΔA/w) · c_in · ψ_{m-1/2, i, g}`` via
-    :meth:`PoleAngularClosure.cell_contribution`.  Calling
+    :meth:`PoleAngularClosureBase.cell_contribution`.  Calling
     ``cell_contribution`` with ``within_positions = arange(n_p)``
     (all ordinates in the level) yields the full per-level
     contribution in one shot — the matvec body's per-direction split

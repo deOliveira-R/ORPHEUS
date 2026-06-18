@@ -241,7 +241,7 @@ class CellVisit:
         :math:`c_{\rm in} = (1-\tau_m)/\tau_m\,\alpha_{m+1/2}
         + \alpha_{m-1/2}` for THIS visit's ordinate.  Sourced from the
         mesh's :attr:`~orpheus.sn.geometry.SNMesh.pole_angular_closure`
-        via :attr:`PoleAngularClosure.c_in_per_ordinate` (the per-global-
+        via :attr:`PoleAngularClosureBase.c_in_per_ordinate` (the per-global-
         ordinate ``(N,)`` accessor), NOT rebuilt inline.  ``0.0`` for
         slab / Cartesian (the identity closure carries no angular
         redistribution).  Distinct in provenance from the geometry-owned
@@ -255,7 +255,7 @@ class CellVisit:
         Morel--Montry weighted-diamond denominator constant
         :math:`c_{\rm out} = \alpha_{m+1/2}/\tau_m` for THIS visit's
         ordinate.  Sourced from
-        :attr:`PoleAngularClosure.c_out_per_ordinate`.  ``0.0`` for slab
+        :attr:`PoleAngularClosureBase.c_out_per_ordinate`.  ``0.0`` for slab
         / Cartesian.  See :attr:`c_in` for the provenance rationale.
     tau : float
         **Angular-closure-owned** (Issue #236 Phase 2 B3): the
@@ -264,7 +264,7 @@ class CellVisit:
         Eq. 43) from which :attr:`c_in` / :attr:`c_out` are derived.
         Sourced from the mesh's
         :attr:`~orpheus.sn.geometry.SNMesh.pole_angular_closure` via
-        :attr:`PoleAngularClosure.tau_per_ordinate`.  The DEFAULT is
+        :attr:`PoleAngularClosureBase.tau_per_ordinate`.  The DEFAULT is
         ``1.0`` (NOT ``0.0``) — :math:`\tau = 1` is the neutral M-M weight
         the Cartesian identity closure supplies, making the angular
         recurrence :math:`(\bar\psi - (1-\tau)\psi^{\theta}_{\rm in})/\tau`
