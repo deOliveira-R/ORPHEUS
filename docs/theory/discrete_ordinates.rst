@@ -991,6 +991,63 @@ and ``SNMesh.tau_mm_per_level`` (cylindrical, list of ``(M,)`` arrays).
    :math:`\tau` producer and consolidates the four-site
    ``c_in``/``c_out`` duplication onto the closure.
 
+.. _sn-closure-c-constants-owned:
+
+c_in / c_out are angular-closure constants — Step B1 (one site folded)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. todo:: Archivist expansion needed.
+
+   The weighted-diamond constants
+
+   .. math::
+
+      c_{\rm out}[m] &= \frac{\alpha_{m+1/2}}{\tau_m}, \\
+      c_{\rm in}[m]  &= \frac{1-\tau_m}{\tau_m}\,\alpha_{m+1/2}
+                        + \alpha_{m-1/2}
+
+   are an ANGULAR-closure property: a function of the closure's own
+   :math:`\alpha`-dome and :math:`\tau` weight :eq:`mm-weights`
+   :eq:`dd-mm-closure-constants`.  Issue #236 Phase 2 Step B consolidates
+   the FOUR independent inline rebuilds of this pair onto the closure,
+   which already computes it once at construction (per :math:`\mu`-level,
+   :math:`(M_p,)` arrays in ``_c_in_per_level`` / ``_c_out_per_level``).
+
+   Step B1 (this dispatch) folds the ONE free seam — the
+   :class:`~orpheus.sn.spatial.sweep_cache.GeometryCoefficients` populator
+   (:meth:`~orpheus.sn.spatial.sweep_cache.GeometryCoefficients.from_mesh_and_quad`),
+   which already holds ``sn_mesh`` and so reads
+   :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.c_out_per_ordinate`
+   /
+   :attr:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure.c_in_per_ordinate`
+   with zero plumbing.  The accessor pair is PUBLIC and polymorphic on the
+   base
+   :class:`~orpheus.sn.spatial.pole_angular_closure.PoleAngularClosureBase`:
+   :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
+   returns its precomputed per-level :math:`c` gathered to the
+   :math:`(N,)` global-ordinate order; the Cartesian
+   :class:`~orpheus.sn.spatial.pole_angular_closure.IdentityAngularClosure`
+   returns the NEUTRAL zeros (:math:`\alpha=0,\ \tau=1 \Rightarrow c=0`).
+   The dispatch is by closure TYPE, not by a ``coord ==`` branch in the
+   cache.
+
+   Step B1 is BIT-IDENTICAL: the closure computes :math:`c` from
+   closure-:math:`\tau` (0-ULP equal to geometry-:math:`\tau`, pinned by
+   the Step-A Leg-1 gate) and the SAME :math:`\alpha` the populator read,
+   so the closure's per-level :math:`c` equals the inline :math:`c`
+   bit-for-bit; the per-level :math:`\to (N,)` gather is a pure
+   permutation (no arithmetic).  The anchor gate
+   ``tests/sn/sweep/core/test_sweep_cache.py::test_cache_populator_matches_cell_balance_terms``
+   pins the cache ``denom`` (which carries :math:`(\Delta A/w)\,c_{\rm out}`)
+   to :func:`~orpheus.sn.spatial.cell_balance.cell_balance_terms` at
+   ``rtol=1e-14``, and the curvilinear regression snapshots stay unmoved.
+
+   The remaining THREE inline ``c`` rebuild sites (they need CellVisit
+   threading) are later dispatches (Step B2 / B3 / C).  See
+   :mod:`orpheus.sn.spatial.pole_angular_closure` for the canonical
+   accessor and :mod:`orpheus.sn.spatial.sweep_cache` for the folded
+   consumer.
+
 Substituting the WDD Closure into the Balance Equation
 -------------------------------------------------------
 

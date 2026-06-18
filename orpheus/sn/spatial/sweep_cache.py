@@ -233,8 +233,6 @@ class GeometryCoefficients:
         dA_w = np.empty((N, nx), dtype=np.float64)
         V = np.empty((N, nx), dtype=np.float64)
         tau = np.empty(N, dtype=np.float64)
-        alpha_in = np.empty(N, dtype=np.float64)
-        alpha_out = np.empty(N, dtype=np.float64)
         mu_start = np.empty(N, dtype=np.float64)
         is_degenerate = np.zeros(N, dtype=bool)
 
@@ -296,8 +294,6 @@ class GeometryCoefficients:
             # same alpha/tau pair).
             st0 = visits[0].streaming_terms
             tau[global_n] = st0.tau_mm
-            alpha_in[global_n] = st0.alpha_in
-            alpha_out[global_n] = st0.alpha_out
             mu_start[global_n] = st0.mu_start
             # Cylindrical pure-azimuthal degenerate: visit carries
             # face_area_downstream == 0.0 (geometric truth).  The slow
@@ -305,9 +301,24 @@ class GeometryCoefficients:
             if visits[0].face_area_downstream == 0.0 and abs_mu[global_n] < 1e-15:
                 is_degenerate[global_n] = True
 
-        # ── M-M closure constants (slab: alpha=0, tau=1 → c=0) ────────
-        c_out = alpha_out / tau
-        c_in = (1.0 - tau) / tau * alpha_out + alpha_in
+        # ── M-M closure constants from the angular closure (Issue #236) ──
+        # ``c_out = α_{m+1/2}/τ`` and ``c_in = (1−τ)/τ·α_{m+1/2} + α_{m−1/2}``
+        # are an ANGULAR-closure property — the pole-angular closure is their
+        # canonical owner (it precomputes them at construction from the same
+        # α-dome / τ this populator's geometry factory uses).  Read the
+        # ``(N,)`` global-ordinate views directly instead of rebuilding the
+        # same scalar formula here (Cardinal Rule 2; coding-elegance Pattern 7).
+        # The closure dispatches by TYPE: MorelMontry (sphere/cylinder) returns
+        # its precomputed c; the Cartesian IdentityAngularClosure returns the
+        # neutral zeros (α=0, τ=1 ⇒ c=0) — the very zeros a slab consumer would
+        # otherwise inline — so this populator stays geometry-blind by data.
+        # Bit-identical: closure-τ is 0-ULP equal to geometry-τ (Step-A Leg-1
+        # gate) and the α slices are shared, so the closure's per-level c equals
+        # the inline c bit-for-bit; the per-level→(N,) gather is a pure
+        # permutation (no arithmetic).
+        closure = sn_mesh.pole_angular_closure
+        c_out = closure.c_out_per_ordinate
+        c_in = closure.c_in_per_ordinate
         tau_inv = 1.0 / tau
         mm_a_in_coeff = (1.0 - tau) / tau
 

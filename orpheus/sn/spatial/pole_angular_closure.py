@@ -272,7 +272,30 @@ class PoleAngularClosure(Protocol):
     asymptotic cost as the legacy inlined redistribution evaluation.
     """
 
-    is_linear: bool
+    is_linear: ClassVar[bool]
+
+    @property
+    def c_in_per_ordinate(self) -> np.ndarray:
+        r"""Upstream-numerator closure constant :math:`c_{\rm in}`, ``(N,)`` global.
+
+        Issue #236 Phase 2 — the angular closure is the canonical owner of the
+        weighted-diamond constants
+        :math:`c_{\rm in} = (1-\tau)/\tau\,\alpha_{m+1/2} + \alpha_{m-1/2}`.
+        Consumers keyed on the global ordinate axis (the
+        :class:`~orpheus.sn.spatial.sweep_cache.GeometryCoefficients` populator,
+        the matvec) read this ``(N,)`` view rather than rebuilding the formula.
+        Zero for the Cartesian identity closure (no angular redistribution).
+        """
+        ...
+
+    @property
+    def c_out_per_ordinate(self) -> np.ndarray:
+        r"""Denominator closure constant :math:`c_{\rm out}`, ``(N,)`` global.
+
+        :math:`c_{\rm out} = \alpha_{m+1/2}/\tau`; zero for the Cartesian
+        identity closure.  See :attr:`c_in_per_ordinate`.
+        """
+        ...
 
     def __call__(
         self,
@@ -325,6 +348,16 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
 
     is_linear: ClassVar[bool]
 
+    # ── Instance state set by every concrete subclass' ``__init__`` ──
+    # The per-:math:`\mu`-level ordinate partition and the precomputed
+    # closure constants.  Annotated here (not assigned) so the polymorphic
+    # ``c_in_per_ordinate`` / ``c_out_per_ordinate`` accessors below typecheck
+    # against the shared contract; the concrete value is bound in each
+    # subclass (M-M from its α-dome / τ, Identity to neutral zeros).
+    level_indices: "tuple[np.ndarray, ...] | None"
+    _c_in_per_level: "tuple[np.ndarray, ...] | None"
+    _c_out_per_level: "tuple[np.ndarray, ...] | None"
+
     beta_first_order_consistent: ClassVar[bool] = False
     r"""Whether this angular redistribution closure satisfies the
     Bailey–Morel–Chang (2010) first-order diffusion-limit condition
@@ -344,6 +377,81 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
     @classmethod
     def _registry_base(cls) -> type:
         return PoleAngularClosureBase
+
+    # ── Angular-closure constants per global ordinate (Issue #236 Phase 2) ──
+    # The Morel–Montry weighted-diamond closure derives two algebraic
+    # constants per μ-level from its α-dome and τ weight:
+    #
+    #   c_out[m] = α_{m+1/2} / τ_m
+    #   c_in[m]  = (1−τ_m)/τ_m · α_{m+1/2} + α_{m−1/2}
+    #
+    # The closure is their CANONICAL owner — it computes them once at
+    # construction (per μ-level, ``(M_p,)`` arrays) from the very α and τ it
+    # already binds.  Consumers that key on the GLOBAL ordinate axis (the
+    # :class:`~orpheus.sn.spatial.sweep_cache.GeometryCoefficients` populator,
+    # the matvec) read the gathered ``(N,)`` views below instead of rebuilding
+    # the same scalar formula at their own site (Cardinal Rule 2 single source
+    # of truth; coding-elegance Pattern 7 — normalise at the definition site).
+    #
+    # The Cartesian :class:`IdentityAngularClosure` returns the NEUTRAL zero
+    # contribution (α ≡ 0, τ ≡ 1 ⇒ c_in = c_out = 0) — the same zeros a slab
+    # consumer would otherwise inline — so the consumer stays geometry-blind.
+
+    def _gather_per_ordinate(
+        self, per_level: "tuple[np.ndarray, ...]"
+    ) -> np.ndarray:
+        """Scatter per-:math:`\\mu`-level ``(M_p,)`` values to ``(N,)`` global order.
+
+        Pure permutation (no arithmetic) keyed on :attr:`level_indices` — the
+        per-level→global ordinate map the closure already owns.  Sphere is the
+        single-level (``M_p = N``) case; cylinder has one block per level.
+        """
+        level_indices = self.level_indices
+        if level_indices is None:
+            raise RuntimeError(
+                "c_*_per_ordinate requires a mesh-bound closure; the legacy "
+                "unbound MorelMontryAngularSweep(sn_mesh=None) has no level "
+                "partition."
+            )
+        N = sum(int(lvl.size) for lvl in level_indices)
+        # ``np.zeros`` (not ``np.empty``): the level partition fully covers
+        # [0, N) today so every slot is overwritten, but a future non-covering
+        # partition then yields a deterministic 0 rather than uninitialised
+        # garbage (elegance review, B1).
+        out = np.zeros(N, dtype=np.float64)
+        for level, values in zip(level_indices, per_level, strict=True):
+            out[level] = values
+        return out
+
+    @property
+    def c_in_per_ordinate(self) -> np.ndarray:
+        r"""Upstream-numerator closure constant :math:`c_{\rm in}` per global ordinate.
+
+        ``(N,)`` array; :math:`(1-\tau_m)/\tau_m\,\alpha_{m+1/2} +
+        \alpha_{m-1/2}` for M-M, all-zero for the Cartesian identity closure.
+        """
+        if self._c_in_per_level is None:
+            raise RuntimeError(
+                "c_in_per_ordinate requires a mesh-bound closure; the legacy "
+                "unbound MorelMontryAngularSweep(sn_mesh=None) has no "
+                "precomputed constants."
+            )
+        return self._gather_per_ordinate(self._c_in_per_level)
+
+    @property
+    def c_out_per_ordinate(self) -> np.ndarray:
+        r"""Denominator closure constant :math:`c_{\rm out}` per global ordinate.
+
+        ``(N,)`` array; :math:`\alpha_{m+1/2}/\tau_m` for M-M, all-zero for the
+        Cartesian identity closure.
+        """
+        if self._c_out_per_level is None:
+            raise RuntimeError(
+                "c_out_per_ordinate requires a mesh-bound closure; the legacy "
+                "unbound MorelMontryAngularSweep(sn_mesh=None) has no "
+                "precomputed constants."
+            )
+        return self._gather_per_ordinate(self._c_out_per_level)
 
     @abstractmethod
     def __call__(
@@ -1395,7 +1503,11 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
         self._ng: int = sn_mesh.ng
         nx = sn_mesh.nx
         # Trivial single-level partition: every ordinate in one level.
-        self.level_indices: tuple[np.ndarray, ...] = (np.arange(self._N),)
+        # Annotated ``| None`` to match the base contract (M-M's unbound legacy
+        # mode stores None); Identity always binds the single-level partition.
+        self.level_indices: "tuple[np.ndarray, ...] | None" = (
+            np.arange(self._N),
+        )
         # Neutral M-M coefficients per level — Cartesian carries no
         # angular redistribution, so α_{±1/2} = 0, τ = 1, ΔA/w = 0, and
         # the algebraic constants c_in = c_out = 0.  Exposed under the
@@ -1410,10 +1522,12 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
         self._tau_per_level: tuple[np.ndarray, ...] = (
             np.ones(self._N),
         )
-        self._c_in_per_level: tuple[np.ndarray, ...] = (
+        # Annotated ``| None`` to match the base contract (M-M's unbound
+        # legacy mode stores None); Identity always binds the neutral zeros.
+        self._c_in_per_level: "tuple[np.ndarray, ...] | None" = (
             np.zeros(self._N),
         )
-        self._c_out_per_level: tuple[np.ndarray, ...] = (
+        self._c_out_per_level: "tuple[np.ndarray, ...] | None" = (
             np.zeros(self._N),
         )
 
