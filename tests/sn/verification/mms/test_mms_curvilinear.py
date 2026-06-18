@@ -45,11 +45,7 @@ from orpheus.derivations.continuous.mms.sn import (
 )
 from orpheus.sn import solve_sn_fixed_source
 
-
-def _l2_1d(phi_num: np.ndarray, phi_ref: np.ndarray, volumes: np.ndarray) -> float:
-    """Volume-weighted L2 norm for 1D curvilinear meshes."""
-    diff = phi_num - phi_ref
-    return float(np.sqrt(np.sum(volumes * diff * diff)))
+from tests.sn._test_helpers import volume_weighted_l2
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -92,7 +88,7 @@ def test_sn_spherical_mms_converges_second_order():
         )
         phi_num = result.scalar_flux.values[0, :]  # PR-INDEX-5: g=0 radial slice
         phi_ref = case.phi_exact(mesh.centers)
-        errors.append(_l2_1d(phi_num, phi_ref, mesh.volumes))
+        errors.append(volume_weighted_l2(phi_num, phi_ref, mesh.volumes))
 
     errors = np.asarray(errors)
     orders = np.log2(errors[:-1] / errors[1:])
@@ -140,7 +136,7 @@ def test_sn_cylindrical_mms_converges_second_order():
         )
         phi_num = result.scalar_flux.values[0, :]  # PR-INDEX-5: g=0 radial slice
         phi_ref = case.phi_exact(mesh.centers)
-        errors.append(_l2_1d(phi_num, phi_ref, mesh.volumes))
+        errors.append(volume_weighted_l2(phi_num, phi_ref, mesh.volumes))
 
     errors = np.asarray(errors)
     orders = np.log2(errors[:-1] / errors[1:])

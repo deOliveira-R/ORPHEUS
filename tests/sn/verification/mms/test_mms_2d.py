@@ -27,10 +27,7 @@ from orpheus.derivations.continuous.mms.sn import (
 )
 from orpheus.sn import solve_sn_fixed_source
 
-
-def _l2_2d(err: np.ndarray, volumes: np.ndarray) -> float:
-    r"""Volume-weighted :math:`L^{2}` norm on a 2D mesh."""
-    return float(np.sqrt(np.sum(volumes * err * err)))
+from tests.sn._test_helpers import volume_weighted_l2
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -66,7 +63,7 @@ def test_sn_2d_cartesian_mms_converges_second_order():
         # PR-INDEX-5: scalar_flux principled (ng=1, nx, ny) → g=0 slice.
         phi_num = result.scalar_flux.values[0, :, :]          # (nx, ny)
         phi_ref = case.phi_exact(mesh.centers_x, mesh.centers_y)
-        errors.append(_l2_2d(phi_num - phi_ref, mesh.volumes))
+        errors.append(volume_weighted_l2(phi_num, phi_ref, mesh.volumes))
 
     errors = np.asarray(errors)
     orders = np.log2(errors[:-1] / errors[1:])
@@ -116,7 +113,7 @@ def test_sn_2d_cartesian_2g_heterogeneous_mms_converges_second_order():
         phi_solver = result.scalar_flux.values  # (ng, nx, ny)
         for g, errs in [(0, errs_g0), (1, errs_g1)]:
             phi_ref = case.phi_exact(mesh.centers_x, mesh.centers_y, g)
-            errs.append(_l2_2d(phi_solver[g, :, :] - phi_ref, mesh.volumes))
+            errs.append(volume_weighted_l2(phi_solver[g, :, :], phi_ref, mesh.volumes))
 
     errs_g0_arr = np.asarray(errs_g0)
     errs_g1_arr = np.asarray(errs_g1)

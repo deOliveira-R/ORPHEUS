@@ -30,6 +30,8 @@ import pytest
 from orpheus.derivations import continuous_get
 from orpheus.sn import solve_sn_fixed_source
 
+from tests.sn._test_helpers import volume_weighted_l2
+
 
 pytestmark = [pytest.mark.l1, pytest.mark.verifies(
     "transport-cartesian",

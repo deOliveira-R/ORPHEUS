@@ -48,10 +48,7 @@ from orpheus.sn.loss_representation import (
 )
 from orpheus.sn.spatial import LinearDiscontinuous
 
-
-def _l2_error(phi_num: np.ndarray, phi_ref: np.ndarray, widths: np.ndarray) -> float:
-    diff = phi_num - phi_ref
-    return float(np.sqrt(np.sum(widths * diff * diff)))
+from tests.sn._test_helpers import volume_weighted_l2
 
 
 @pytest.mark.foundation
@@ -103,7 +100,7 @@ def test_sn_1d_slab_ld_mms_converges_second_order() -> None:
         )
         phi_num = result.scalar_flux.values[0, :]
         phi_ref = case.phi_exact(mesh.centers)
-        errors.append(_l2_error(phi_num, phi_ref, mesh.widths))
+        errors.append(volume_weighted_l2(phi_num, phi_ref, mesh.widths))
 
     errors = np.asarray(errors)
     orders = np.log2(errors[:-1] / errors[1:])

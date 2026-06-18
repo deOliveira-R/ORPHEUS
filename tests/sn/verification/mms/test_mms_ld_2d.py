@@ -56,10 +56,7 @@ from orpheus.sn.loss_representation import (
 from orpheus.sn.spatial import DiamondDifference, LinearDiscontinuous
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 
-
-def _l2_2d(err: np.ndarray, volumes: np.ndarray) -> float:
-    r"""Volume-weighted :math:`L^2` norm on a 2-D mesh."""
-    return float(np.sqrt(np.sum(volumes * err * err)))
+from tests.sn._test_helpers import volume_weighted_l2
 
 
 def _nonsquare_het_2g_mesh(nx: int = 5, ny: int = 4):
@@ -120,7 +117,7 @@ def test_ld_2d_converges_second_order_smoke():
         sq = 0.0
         for g in range(phi.shape[0]):
             ref = case.phi_exact(mesh.centers_x, mesh.centers_y, g)
-            sq += _l2_2d(phi[g] - ref, mesh.volumes) ** 2
+            sq += volume_weighted_l2(phi[g], ref, mesh.volumes) ** 2
         errors.append(np.sqrt(sq))
 
     errors = np.asarray(errors)
@@ -337,7 +334,7 @@ def _ld_stress_l2_errors(case, n_cells):
         sq = 0.0
         for g in range(phi.shape[0]):
             ref = case.phi_exact(mesh.centers_x, mesh.centers_y, g)
-            sq += _l2_2d(phi[g] - ref, mesh.volumes) ** 2
+            sq += volume_weighted_l2(phi[g], ref, mesh.volumes) ** 2
         errors.append(np.sqrt(sq))
     return np.asarray(errors)
 

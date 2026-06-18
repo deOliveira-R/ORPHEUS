@@ -117,6 +117,8 @@ from orpheus.derivations.continuous.mms.sn import (
 )
 from orpheus.sn import solve_sn_fixed_source
 
+from tests.sn._test_helpers import volume_weighted_l2
+
 # ── ladders / quadrature ────────────────────────────────────────────────
 # [40, 80, 160, 320] is decisive for the rates (the production gate's
 # [20..160] does not resolve the pole asymptote cleanly) and runs in
@@ -150,12 +152,6 @@ def _shell_avg_reference(case, mesh, weight_power: int) -> np.ndarray:
         _shell_avg(profile, mesh.edges[i], mesh.edges[i + 1], weight_power)
         for i in range(mesh.N)
     ])
-
-
-def _l2(phi: np.ndarray, ref: np.ndarray, volumes: np.ndarray) -> float:
-    """Volume-weighted L2 norm — the production-gate norm."""
-    diff = phi - ref
-    return float(np.sqrt(np.sum(volumes * diff * diff)))
 
 
 def _solve_sphere(nx: int) -> np.ndarray:
@@ -228,8 +224,8 @@ def test_sphere_global_L2_second_order_dual_reference():
         phi = np.asarray(sol.scalar_flux.values)[0]
         ref_mid = case.phi_exact(mesh.centers)
         ref_va = _shell_avg_reference(case, mesh, weight_power=2)
-        err_mid.append(_l2(phi, ref_mid, mesh.volumes))
-        err_va.append(_l2(phi, ref_va, mesh.volumes))
+        err_mid.append(volume_weighted_l2(phi, ref_mid, mesh.volumes))
+        err_va.append(volume_weighted_l2(phi, ref_va, mesh.volumes))
 
     err_mid = np.asarray(err_mid)
     err_va = np.asarray(err_va)
@@ -276,7 +272,7 @@ def test_cylinder_global_L2_second_order():
         )
         phi = np.asarray(sol.scalar_flux.values)[0]
         ref_mid = case.phi_exact(mesh.centers)
-        errors.append(_l2(phi, ref_mid, mesh.volumes))
+        errors.append(volume_weighted_l2(phi, ref_mid, mesh.volumes))
 
     errors = np.asarray(errors)
     orders = _orders(errors)

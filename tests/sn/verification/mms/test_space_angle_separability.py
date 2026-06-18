@@ -120,7 +120,7 @@ from orpheus.derivations.continuous.mms.sn import (
 )
 from orpheus.sn import solve_sn_fixed_source
 
-from tests.sn._test_helpers import volume_weighted_l2
+from tests.sn._test_helpers import scalar_flux_l2_ladder, volume_weighted_l2
 
 # Every leg verifies the space⊗angle decomposition law (eq. sn-space-angle-
 # separability) from a different angle; the cross-term legs ALSO verify the
@@ -140,22 +140,6 @@ _N_CELLS = (20, 40, 80)
 # The error norm is the single-source ``volume_weighted_l2`` primitive
 # (tests/sn/_test_helpers.py) — NOT a 7th private copy of the mms/ ``_l2_1d``.
 # ──────────────────────────────────────────────────────────────────────────
-
-def _scalar_l2_ladder(case, n_cells) -> np.ndarray:
-    """Volume-weighted scalar-flux L2 error ladder for one fixed-quadrature case."""
-    errors = []
-    for nc in n_cells:
-        mesh = case.build_mesh(nc)
-        Q = case.external_source(mesh)
-        result = solve_sn_fixed_source(
-            case.materials, mesh, case.quadrature, Q,
-            max_inner=500, inner_tol=1e-13,
-        )
-        phi_num = result.scalar_flux.values[0, :]
-        phi_ref = case.phi_exact(mesh.centers)
-        errors.append(volume_weighted_l2(phi_num, phi_ref, mesh.volumes))
-    return np.asarray(errors)
-
 
 def _sphere_per_ordinate_max_l2_ladder(case, n_cells) -> np.ndarray:
     r"""Max-over-ordinates per-ordinate volume-weighted L2 error ladder (the L27
@@ -244,8 +228,8 @@ def test_cartesian_slab_iso_space_angle_separable():
     Cartesian path acquired a space–angle coupling it must not have.
     """
     L2 = np.column_stack([
-        _scalar_l2_ladder(build_1d_slab_mms_case(n_ordinates=4), _N_CELLS),
-        _scalar_l2_ladder(build_1d_slab_mms_case(n_ordinates=16), _N_CELLS),
+        scalar_flux_l2_ladder(build_1d_slab_mms_case(n_ordinates=4), _N_CELLS),
+        scalar_flux_l2_ladder(build_1d_slab_mms_case(n_ordinates=16), _N_CELLS),
     ])
     r_n4 = _h_ratios(L2[:, 0])
     r_n16 = _h_ratios(L2[:, 1])
@@ -291,8 +275,8 @@ def test_cartesian_slab_p1_aniso_floor_n_independent():
       |M|/max = 0.0038.  Floor differs N4 vs N16 by < 0.3 %.
     """
     L2 = np.column_stack([
-        _scalar_l2_ladder(build_p1_aniso_mms_case(n_ordinates=4), _N_CELLS),
-        _scalar_l2_ladder(build_p1_aniso_mms_case(n_ordinates=16), _N_CELLS),
+        scalar_flux_l2_ladder(build_p1_aniso_mms_case(n_ordinates=4), _N_CELLS),
+        scalar_flux_l2_ladder(build_p1_aniso_mms_case(n_ordinates=16), _N_CELLS),
     ])
     M, dEh, dEN, rel = _mixed_second_difference(L2)
     floor_n4 = L2[-1, 0]
@@ -344,8 +328,8 @@ def test_sphere_spatial_rate_is_quadrature_gated():
     redden and must be RE-TUNED to the new (better) regime, not deleted.  That
     re-tune is the intended signal that the gating was lifted, not a regression.
     """
-    L2_n8 = _scalar_l2_ladder(build_spherical_anisotropic_mms_case(n_ordinates=8), _N_CELLS)
-    L2_n32 = _scalar_l2_ladder(build_spherical_anisotropic_mms_case(n_ordinates=32), _N_CELLS)
+    L2_n8 = scalar_flux_l2_ladder(build_spherical_anisotropic_mms_case(n_ordinates=8), _N_CELLS)
+    L2_n32 = scalar_flux_l2_ladder(build_spherical_anisotropic_mms_case(n_ordinates=32), _N_CELLS)
     r_n8 = _h_ratios(L2_n8)
     r_n32 = _h_ratios(L2_n32)
     print(f"sphere gating: N8 err={L2_n8} ratios={r_n8}  N32 err={L2_n32} ratios={r_n32}")
@@ -399,8 +383,8 @@ def test_sphere_cross_term_large_discriminates_from_cartesian():
     marker is a coverage claim, not a topic tag).
     """
     L2 = np.column_stack([
-        _scalar_l2_ladder(build_spherical_anisotropic_mms_case(n_ordinates=8), _N_CELLS),
-        _scalar_l2_ladder(build_spherical_anisotropic_mms_case(n_ordinates=32), _N_CELLS),
+        scalar_flux_l2_ladder(build_spherical_anisotropic_mms_case(n_ordinates=8), _N_CELLS),
+        scalar_flux_l2_ladder(build_spherical_anisotropic_mms_case(n_ordinates=32), _N_CELLS),
     ])
     M, dEh, dEN, rel = _mixed_second_difference(L2)
     print(f"sphere cross-term |M|/max={rel:.3f} (M={M:+.3e} dEh={dEh:.3e} dEN={dEN:.3e})")
@@ -443,8 +427,8 @@ def test_cylinder_spatial_saturates_at_azimuthal_floor():
     """
     case8 = build_cylindrical_anisotropic_mms_case(n_mu=4, n_phi=8)
     case16 = build_cylindrical_anisotropic_mms_case(n_mu=4, n_phi=16)
-    L2_p8 = _scalar_l2_ladder(case8, _N_CELLS)
-    L2_p16 = _scalar_l2_ladder(case16, _N_CELLS)
+    L2_p8 = scalar_flux_l2_ladder(case8, _N_CELLS)
+    L2_p16 = scalar_flux_l2_ladder(case16, _N_CELLS)
     r_p8 = _h_ratios(L2_p8)
     floor_drop = L2_p8[-1] / L2_p16[-1]
     print(f"cyl: n_phi8 err={L2_p8} ratios={r_p8}  n_phi16 err={L2_p16}  "
