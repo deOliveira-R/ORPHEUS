@@ -197,16 +197,17 @@ def test_per_axis_1_size_is_unit_no_widening(ndim):
 
 
 @pytest.mark.foundation
-def test_average_moment_index_matches_ubld_single_source():
-    r"""``average_moment_index`` equals the ``_ubld.AVERAGE_MOMENT`` single-source.
+def test_average_moment_index_matches_moment_layout_single_source():
+    r"""``average_moment_index`` equals the ``moment_layout.AVERAGE_MOMENT`` single-source.
 
     Structural independence (L11): the space's slot-0 convention is checked
-    against the ``_ubld`` constant DIRECTLY (the production single-source
-    every moment consumer reduces on), NOT against a literal ``0`` re-spelled
-    in the test. If the Kronecker layout's slot-0 convention ever moves,
-    BOTH the production reductions and this property track it together.
+    against the canonical ``moment_layout`` constant DIRECTLY (the production
+    single-source every moment consumer reduces on, #245), NOT against a
+    literal ``0`` re-spelled in the test. If the Kronecker layout's slot-0
+    convention ever moves, BOTH the production reductions and this property
+    track it together.
     """
-    from orpheus.sn.spatial._ubld import AVERAGE_MOMENT
+    from orpheus.numerics.moment_layout import AVERAGE_MOMENT
 
     sm = SpatialMomentSpace.from_per_axis(2, 2)
     np.testing.assert_equal(sm.average_moment_index, AVERAGE_MOMENT)

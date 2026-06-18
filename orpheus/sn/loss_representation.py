@@ -347,7 +347,7 @@ class _LossRepresentation:
         spatial-moment iterate ``φ̂`` travels between sweeps (#240 D5b-S3 — the
         unified moment matvec).  DD/Step (``per_axis == 1``) → ``()`` (no axis;
         every buffer stays byte-identical — the negative control).  Single
-        source via :func:`~orpheus.sn.spatial._ubld.face_moment_tail` (the same
+        source via :func:`~orpheus.numerics.moment_layout.face_moment_tail` (the same
         "append iff > 1" policy ``spatial_moment_tail`` delegates to), fed the
         per-CELL count ``per_axis^d``."""
         per_axis = self.mesh.scheme.spatial_basis_per_axis

@@ -177,7 +177,7 @@ class BulkField(Field):
         this method returns ``space`` UNCHANGED — the field space stays
         BYTE-IDENTICAL to its pre-S3 shape (the backward-compat invariant,
         single-sourced from
-        :func:`orpheus.sn.spatial._ubld.face_moment_tail` via
+        :func:`orpheus.numerics.moment_layout.face_moment_tail` via
         :func:`~orpheus.numerics.spaces.spatial_moment_space.spatial_moment_tail`).
 
         ``spatial_moments_per_axis`` is an EXPLICIT parameter (the

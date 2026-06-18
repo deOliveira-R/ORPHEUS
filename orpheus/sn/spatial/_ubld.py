@@ -74,6 +74,18 @@ from dataclasses import dataclass
 
 import numpy as np
 
+# ``AVERAGE_MOMENT`` and ``face_moment_tail`` are the physics-free
+# moment-layout policy; their canonical home is the leaf numerics module
+# ``orpheus.numerics.moment_layout`` (#245 — relocated DOWN so the typed
+# ``SpatialMomentSpace`` no longer reaches UP into ``sn.spatial`` for them).
+# Re-exported here (kept in ``__all__``) so SN consumers keep importing them
+# next to the UBLD primitives they name — the
+# ``numerics.face_layout.AXIS_NAMES`` precedent.
+from orpheus.numerics.moment_layout import (  # noqa: F401
+    AVERAGE_MOMENT,
+    face_moment_tail,
+)
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # The 1-D LD factor operators (Legendre moment basis {1, P₁} on width h)
@@ -89,26 +101,6 @@ _GRAD_1D = np.array([[0.0, 0.0], [-2.0, 0.0]])
 _FOUT_1D = np.array([[1.0, 1.0], [1.0, 1.0]])
 #: dimensionless 1-D upstream-face test-weighting ``B(-1)`` (per unit ``|μ|``).
 _FIN_TRACE = np.array([1.0, -1.0])
-
-#: Index of the cell/face AVERAGE moment in the tensor-Legendre Kronecker
-#: layout (``[bar, …]``): the all-``P₀`` moment is first (d=2 cell order
-#: ``[ψ̄, ψ̂_y, ψ̂_x, ψ̂_xy]``; per-axis face order ``[bar, slope]``).  Single
-#: source for the slot-0 convention every moment consumer reduces on (#240 D5b)
-#: — change the layout here, not at the six scattered ``[..., 0]`` call sites.
-AVERAGE_MOMENT = 0
-
-
-def face_moment_tail(n_face_moments: int) -> tuple[int, ...]:
-    r"""Trailing moment-axis shape suffix for a face-cochain buffer.
-
-    A multi-moment closure (LD's bilinear face, ``n_face_moments > 1``) carries a
-    trailing ``2^{d-1}``-moment axis; a cell-average closure (DD/Step,
-    ``== 1``) leaves the face rank untouched (``()`` — NO length-1 axis appended)
-    so its buffers stay byte-identical (#240 D5b — the backward-compat invariant).
-    Single source for both storage policies (``_MovingFrontier`` window +
-    ``FullFieldWavefront`` full cochain), which must agree on the tail shape.
-    """
-    return () if n_face_moments == 1 else (n_face_moments,)
 
 
 def octant_moment_frame_signs(

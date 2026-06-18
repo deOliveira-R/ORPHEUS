@@ -51,7 +51,7 @@ always the all-:math:`P_0` cell average:
   :math:`[\bar\psi,\ \hat\psi_z,\ \hat\psi_y,\ \hat\psi_{yz},\ \hat\psi_x,\ \hat\psi_{xz},\ \hat\psi_{xy},\ \hat\psi_{xyz}]`
 
 The slot-0 (cell-average) convention is single-sourced from
-:data:`orpheus.sn.spatial._ubld.AVERAGE_MOMENT`, the same constant every
+:data:`orpheus.numerics.moment_layout.AVERAGE_MOMENT`, the same constant every
 moment consumer reduces on — this space does not re-spell the literal.
 
 Construct-general / select-narrow (#240 D5b-S3-A0)
@@ -64,16 +64,18 @@ DD/Step field space stays byte-identical to its pre-S3 shape. No
 production field selects the axis yet; the iterate / cell-emit / source
 seams that DO select it are the next sub-step (S3-A). The "append iff
 > 1" policy is single-sourced from
-:func:`orpheus.sn.spatial._ubld.face_moment_tail` (the cell analogue,
+:func:`orpheus.numerics.moment_layout.face_moment_tail` (the cell analogue,
 :func:`~orpheus.numerics.spaces.spatial_moment_space.spatial_moment_tail`,
 delegates to it so the policy lives in exactly one place).
 
 References
 ----------
 
-* :mod:`orpheus.sn.spatial._ubld` — the UBLD cell assembler; the
-  Kronecker moment ordering and the ``AVERAGE_MOMENT`` / "append iff > 1"
-  single-sources this space mirrors.
+* :mod:`orpheus.numerics.moment_layout` — the physics-free moment-layout
+  policy (``AVERAGE_MOMENT`` slot-0 + the "append iff > 1" tail) this space
+  surfaces; single-sourced there (#245).
+* :mod:`orpheus.sn.spatial._ubld` — the UBLD cell assembler; the Kronecker
+  moment ordering this space's slot layout mirrors.
 * :class:`orpheus.sn.spatial.scheme.DiscretizationSchemeBase` — carries
   ``spatial_basis_per_axis`` (DD/Step = 1, LD = 2), the per-axis basis
   size this space's :attr:`per_axis` is derived from.
@@ -90,39 +92,26 @@ from dataclasses import dataclass
 
 from orpheus.numerics.space import FunctionSpace
 
+# The slot-0 cell-average index + the "append iff > 1" tail policy are the
+# physics-free moment-layout primitives, now homed in the leaf numerics
+# module ``orpheus.numerics.moment_layout`` (#245).  A top-level import is
+# safe — ``moment_layout`` is leaf (stdlib only), so it cannot re-introduce
+# the numerics → SN cycle the old deferred ``_ubld`` import worked around.
+from orpheus.numerics.moment_layout import AVERAGE_MOMENT, face_moment_tail
+
 
 __all__ = ["SpatialMomentSpace", "spatial_moment_tail"]
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Single-source the slot-0 + "append iff > 1" policies from _ubld.
-#
-# The ``_ubld`` import is deferred to call time (NOT module level): a
-# top-level ``from orpheus.sn.spatial._ubld import ...`` triggers the
-# ``orpheus.sn`` package ``__init__`` (which pulls ``orpheus.transport``
-# → ``harmonic_moment_field`` → back to THIS module), a circular import.
-# The numerics layer must not depend on the SN package at IMPORT time.
-# ``_ubld`` itself is leaf (numpy-only), so the deferred import is cheap;
-# the constants/functions still live in exactly one place there.
-# ─────────────────────────────────────────────────────────────────────
-
-
-def _average_moment_index() -> int:
-    """The slot-0 cell-average index, single-sourced from ``_ubld``."""
-    from orpheus.sn.spatial._ubld import AVERAGE_MOMENT
-
-    return AVERAGE_MOMENT
-
-
-# ─────────────────────────────────────────────────────────────────────
-# The "append iff > 1" policy — single-sourced from _ubld.face_moment_tail
+# The "append iff > 1" policy — the CELL analogue of face_moment_tail
 # ─────────────────────────────────────────────────────────────────────
 
 
 def spatial_moment_tail(n_cell_moments: int) -> tuple[int, ...]:
     r"""Trailing spatial-moment-axis shape suffix for a bulk-field buffer.
 
-    The CELL analogue of :func:`orpheus.sn.spatial._ubld.face_moment_tail`
+    The CELL analogue of :func:`orpheus.numerics.moment_layout.face_moment_tail`
     (which sizes the per-FACE transverse cochain). A multi-moment closure
     (LD, ``n_cell_moments == per_axis**ndim > 1``) carries a trailing
     spatial-moment axis on the bulk field; a cell-average closure (DD/Step,
@@ -130,15 +119,11 @@ def spatial_moment_tail(n_cell_moments: int) -> tuple[int, ...]:
     appended) so its buffers / spaces stay byte-identical (#240 D5b — the
     backward-compat invariant).
 
-    Delegates to :func:`~orpheus.sn.spatial._ubld.face_moment_tail` so the
-    "append iff > 1" decision lives in EXACTLY ONE place — the cell-moment
+    Delegates to :func:`~orpheus.numerics.moment_layout.face_moment_tail` so
+    the "append iff > 1" decision lives in EXACTLY ONE place — the cell-moment
     tail and the face-cochain tail must never disagree on the policy
     (``coding-elegance`` Pattern 7: normalise the convention at one site).
-    The ``_ubld`` import is deferred (see module-level note) to avoid the
-    numerics → SN import cycle.
     """
-    from orpheus.sn.spatial._ubld import face_moment_tail
-
     return face_moment_tail(n_cell_moments)
 
 
@@ -288,9 +273,9 @@ class SpatialMomentSpace(FunctionSpace):
     def average_moment_index(self) -> int:
         r"""The slot of the cell-average (all-:math:`P_0`) moment — always 0.
 
-        Single-sourced from :data:`orpheus.sn.spatial._ubld.AVERAGE_MOMENT`
+        Single-sourced from :data:`orpheus.numerics.moment_layout.AVERAGE_MOMENT`
         (the Kronecker layout puts the all-:math:`P_0` moment first); this
         property surfaces the convention on the space without re-spelling
-        the literal (the ``_ubld`` import is deferred — module-level note).
+        the literal.
         """
-        return _average_moment_index()
+        return AVERAGE_MOMENT
