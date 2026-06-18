@@ -325,6 +325,22 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
 
     is_linear: ClassVar[bool]
 
+    beta_first_order_consistent: ClassVar[bool] = False
+    r"""Whether this angular redistribution closure satisfies the
+    Bailey–Morel–Chang (2010) first-order diffusion-limit condition
+    :math:`\beta = 0` (BMC Eq. (41), the angular functional
+    :math:`\sum_m \mu_m[\alpha_{m+1/2}\mu_{m+1/2} - \alpha_{m-1/2}\mu_{m-1/2}]`).
+    This is the ANGULAR half of the (spatial ⊗ angular) diffusion-limit
+    condition; the SPATIAL half is the discretization scheme's
+    ``diffusion_limit_consistent`` (Larsen–Morel–Miller 1987), and the PAIR's
+    validity is their conjunction
+    (:func:`~orpheus.sn.spatial.pairing.pair_diffusion_limit_consistent`).
+    Opt-in (``False`` default): a redistribution closure is NOT assumed
+    :math:`\beta`-consistent until it declares so with a citation.  ``True`` for
+    Morel–Montry (BMC Eq. (42) sets :math:`\beta = 0`) and — vacuously — for the
+    Cartesian identity closure (no redistribution term ⇒ all :math:`\alpha
+    \equiv 0` ⇒ :math:`\beta \equiv 0`).  Read-only class attribute."""
+
     @classmethod
     def _registry_base(cls) -> type:
         return PoleAngularClosureBase
@@ -579,6 +595,15 @@ class MorelMontryAngularSweep(
     """The M-M weighted DD angular recurrence is an affine combination
     of cell-centre values (constant α, ΔA/w, τ coefficients); the
     output is linear in ``psi_cells``."""
+
+    beta_first_order_consistent: ClassVar[bool] = True
+    r"""Morel–Montry is the UNIQUE weighted-diamond-in-angle closure that sets
+    the Bailey–Morel–Chang first-order functional :math:`\beta = 0` (BMC 2010
+    Eq. (42): :math:`\tau_m = (\mu_m - \mu_{m-1/2})/(\mu_{m+1/2} - \mu_{m-1/2})`,
+    the weight that makes Eq. (41) vanish; BMC Table I shows the M-M sum is zero
+    to round-off while step/diamond-in-angle are nonzero).  So an M-M curvilinear
+    closure preserves the FIRST-order diffusion limit, not merely the
+    leading-order one — the angular half of the pair-validity condition."""
 
     def __init__(
         self,
@@ -1231,6 +1256,17 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
 
     is_linear: ClassVar[bool] = True
     """Returning zero is the canonical linear operation."""
+
+    beta_first_order_consistent: ClassVar[bool] = True
+    r"""Vacuously :math:`\beta`-consistent: the Cartesian streaming operator
+    :math:`\mu\partial_x` carries NO angular-redistribution term, so all
+    Bailey–Morel–Chang :math:`\alpha` coefficients are identically zero (BMC 2010
+    Eq. (41) is built entirely from the :math:`\alpha`'s; they arise only from
+    the curvilinear :math:`(1-\mu^2)/r\,\partial_\mu` term — cf. BMC R–Z
+    Eqs. (49)-(50)).  With no angular edge flux to close there is nothing to get
+    wrong: :math:`\beta \equiv 0` term-by-term.  This is what makes the
+    pair-validity predicate COLLAPSE to the spatial condition alone in Cartesian
+    (:func:`~orpheus.sn.spatial.pairing.pair_diffusion_limit_consistent`)."""
 
     def __init__(self, sn_mesh: "SNMesh") -> None:
         self._sn_mesh = sn_mesh

@@ -32,6 +32,7 @@ See the SN reshape campaign plan at
 from .scheme import CellResult, DiscretizationScheme, UpstreamState
 from .diamond import DiamondDifference
 from .linear_discontinuous import LinearDiscontinuous
+from .pairing import pair_diffusion_limit_consistent
 from .pole_angular_closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
@@ -81,4 +82,5 @@ __all__ = [
     "ZeroSeed",
     "default_angular_closure_class",
     "ordinate_scan",
+    "pair_diffusion_limit_consistent",
 ]

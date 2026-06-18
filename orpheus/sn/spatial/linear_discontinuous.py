@@ -9,22 +9,25 @@ valid intermediate diffusion limit while LD has all four, the load-bearing
 reason a non-DD spatial scheme can lift the curvilinear pole-cell ``O(h)`` floor
 (Issue #233).
 
-.. warning::
+.. note::
 
-   **Diffusion-limit status — read before using LD on a diffusive problem.**
-   The CURRENT implementation (Issue #158 Increment A) ships LD with a **flat
-   cell source** (:math:`\hat Q = 0`): the slope UNKNOWN :math:`\hat\psi` is
-   always solved (that is what delivers O(h²) on smooth, streaming-dominated
-   problems), but the slope SOURCE — including the scattering-source slope
-   :math:`\Sigma_s\hat\phi` — is **not yet threaded** (that needs the flux slope
-   :math:`\hat\phi` in the iterate, the "global moment-contract", Increment C).
-   The diffusion-limit proof above is a property of the FULL (canonical) LD; the
-   flat cut is **O(h²) but NOT diffusion-limit-consistent** — on an optically
-   thick, scattering-dominated (``c → 1``) mesh the flat-source flux can be tens
-   of percent off (it recovers only as cells are refined optically thin).  Use
-   DD or a thin mesh for thick diffusive problems until Increment C lands; the
-   forward tripwire is
-   ``tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit_xfail``.
+   **Diffusion-limit status (current implementation).**  The scattering slope
+   source :math:`\Sigma_s\hat\phi` IS now threaded through the global
+   spatial-moment iterate (Increment C / #240 D5b-S3; the ERR-061 frame fix
+   stores the per-ordinate slope :math:`\hat\psi_n` in the global-x frame so the
+   angular reduction :math:`\hat\phi = \sum_n w_n\hat\psi_n` does not cancel
+   forward against backward ordinates).  Full LD therefore **recovers the
+   thick-diffusion limit** — :class:`LinearDiscontinuous` declares
+   ``diffusion_limit_consistent = True`` and the limit is PINNED (no longer
+   xfail) by
+   ``tests/sn/verification/mms/test_mms_ld_slab.py::test_ld_thick_diffusive_limit``
+   (1G) + ``::test_ld_thick_diffusive_limit_2g`` (2G, group-coupled).  Remaining
+   gap (Issue #247): the EXTERNAL slope source :math:`\hat Q^{\rm ext}` is still
+   zeroed — the scattering channel EXERCISES the slope-source code path but does
+   not CONSTRAIN its sign (vv-principles Mode 10, "activated-but-unconstrained"),
+   so a manufactured solution with a non-vanishing external slope source is not
+   yet supported.  This does NOT affect the diffusion limit, which is
+   scattering-driven (:math:`\hat Q^{\rm ext} = 0`).
 
 Why LD carries two moments
 ==========================
@@ -308,6 +311,22 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     multi-moment face-cochain + the moment-reducing emit (#240 D5b);
     DiamondDifference at ``per_axis == 1`` keeps the scalar path byte-identical.
     See :mod:`orpheus.sn.spatial._ubld` for the d-generic Kronecker primitive."""
+
+    diffusion_limit_consistent: ClassVar[bool] = True
+    r"""Full LD's thick-diffusion limit IS a consistent diffusion discretization
+    (Larsen–Morel 1989 Part II §IV Eqs. (4.16)-(4.19): the limit Eq. (4.16a) is a
+    "stable and consistently differenced version of the diffusion equation" with
+    accurate diffusion boundary conditions; LMM-1987 §VII "all four diffusion
+    limits").  This is the load-bearing reason a non-DD spatial scheme can lift
+    the curvilinear pole-cell :math:`O(h)` floor (#233).  ⚠ The property is a
+    statement about FULL LD — it REQUIRES the slope SOURCE moment
+    :math:`\Sigma_s\hat\phi` threaded through the iterate (Increment C / #240
+    D5b-S3), which is now landed; the limit is PINNED (no longer xfail) by
+    ``test_ld_thick_diffusive_limit`` (see the module note).  A flat-source LD
+    (:math:`\hat Q = 0`) would be ``O(h²)`` but NOT diffusion-limit-consistent.
+    The angular first-order condition is separate (the pole-angular closure's
+    ``beta_first_order_consistent``); the PAIR validity is
+    :func:`~orpheus.sn.spatial.pairing.pair_diffusion_limit_consistent`."""
 
     theta: ClassVar[float] = 1.0 / 3.0
     r"""The slope-moment weight :math:`\theta` (LM-1989 Eq. 4.3b).  The value
