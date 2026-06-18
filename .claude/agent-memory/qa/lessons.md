@@ -952,3 +952,63 @@ under-states this) + 1 L-007 marker nit (convention, non-biting) — both
 follow-ups. The shipped scope (slope-UNKNOWN sign verified + average-moment
 boundary + matvec twin + two-paths, mutation-verified non-vacuous) is honest. No
 false-green, no blocker.
+
+---
+
+## L-034 — Inert capability-trait + pairing-predicate carve (#236 Phase 1a)
+
+A "behavior-neutral, production never reads the trait" claim for a new
+`ClassVar[bool]` capability trait + a pure conjunction predicate. VERDICT
+SUPPORTED (all 6 Qs), no blocker, no follow-up.
+
+**Bit-identity (inertness) proof recipe** = grep the WHOLE `orpheus/` tree
+for BOTH trait names AND the predicate name, then classify every hit as one
+of {ClassVar DECLARATION, `:func:` docstring xref, `__init__` re-export,
+predicate-body read}. Inert iff the predicate is the ONLY reader AND the
+predicate itself is never CALLED in production (grep `name(` minus the `def`
+and minus `:func:` → exit 1 = zero call sites). No solve path branches on the
+trait ⇒ numerically inert by construction (no .npy/golden touched needed —
+the read-set is empty). #236: DD/LD `=True`, MM/Identity beta `=True`, base
+defaults `=False`; predicate exported but uncalled.
+
+**Transcription-pin teeth (the `is True` value tests) MUST be mutation-proven
+THROUGH pytest, not by direct function call.** Under `-O`, calling a test
+function directly (`python -O script that imports T and calls T.test_*()`)
+BYPASSES pytest's assertion rewriter → bare `assert` becomes a no-op →
+mutation appears NOT to bite (FALSE "no teeth"). The rewriter only fires
+during pytest COLLECTION. Correct probe: edit the production trait in place
+(NOT via git — L28 forbids checkout/restore/stash of tracked paths; use a
+python read-text/replace/write-text + manual revert), run the gate via
+`pytest -O`, confirm RED, then revert + confirm diff-stat clean. #236: flip
+`DD.diffusion_limit_consistent=False` → 2 tests red `assert False is True`;
+flip predicate `and`→`or` → truth-table + real-instance tests red
+`assert True is False`. Both reverted byte-clean.
+
+**Stub-based negative is NOT the ERR-051 self-referential trap when the stubs
+constrain real predicate LOGIC.** The `SimpleNamespace(trait=ok)` rows span
+the full 2×2 truth table; only the TRUE conjunction passes all four → the
+`and`→`or` mutation reds (proven). The stubs are legitimate BECAUSE no real
+`(False, *)` scheme exists yet (`class Step` at scheme.py:617 is inside a
+DOCSTRING example literal-block, genuinely unbuilt — grep finds no real class;
+only DD/LD ship, both True). vv #11 satisfied: real occupants on the True
+branch, stubs on the False branches testing logic.
+
+**`@foundation` (no `@verifies`) is CORRECT for a value-transcription +
+predicate-logic gate** — the trait is a software-invariant relabel of a
+literature verdict, the underlying PHYSICS rides ELSEWHERE (LD limit:
+`test_ld_thick_diffusive_limit` 1G + `_2g` — both confirmed GREEN, docstring
+"PINNED no longer xfail" accurate; old `_xfail` tripwire confirmed GONE).
+Per L-007: a `verifies(...)` here would be silent level conflation.
+
+**Cartesian collapse encoded by trait, not branch** = confirmed: `pairing.py`
+has ZERO geometry test; `IdentityAngularClosure.beta=True` makes the
+conjunction reduce to spatial-alone. Elegant (Pattern-4 illegal-states /
+collapse-as-value).
+
+**Docstring honesty** = the #247 Mode-10 note ("external slope source EXERCISES
+but does not CONSTRAIN the sign — activated-but-unconstrained") is exactly
+right per L-033; neither over- nor under-claims. The DD spatial-vs-angular
+non-conflation warning is present in all 4 docstrings (scheme Protocol, base,
+diamond, pole closure) + the lit memo — the critical nuance the brief flagged
+is handled. All 4 traits are genuine `bool` (not truthy-1) so `is True` is
+safe; conformance test added the trait to the genuine-bool teeth list.
