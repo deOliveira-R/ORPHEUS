@@ -1082,3 +1082,63 @@ hoisted gate's reject-set ⊆ the loop's reject-set) — green tests alone don't
 the input space. And a gate composed into N `supports` + hoisted into `default_for`
 is inert-by-construction iff its reject condition implies all strategies already
 reject (here: curvilinear ⇒ Window/FFW reject on is_cartesian, scans embed the gate).
+
+---
+
+## L-036 #236 Phase 2 Step A (τ producer relocation: factory→angular-closure, parallel-run-and-compare)
+
+VERDICT 2026-06-17: all 5 claims SUPPORTED, no blocker, no follow-up.
+
+Step A relocates production of the Morel–Montry angular weight τ onto a new
+closure producer `morel_montry_tau_per_level(quad, coord)` (pole_angular_closure.py
+:514-600) which replicates `reduced_operator.py` sphere :681-688 / cyl :798-815
+CHARACTER-FOR-CHARACTER (accumulation order, `1e-15` guard, `0.5` fallback, cyl
+`max(0.5,min(1.0,·))` clamp). The matvec path (P0) now reads closure-τ; the sweep
+path (P1/P2/P3) STILL reads factory-τ via sweep_cache:298/cell_balance:306/
+diamond:230,305 (intentional de-risk; Steps B/C retire the factory side later).
+
+BIT-IDENTITY LOGIC (the core claim) closes via a runtime-identity premise + a
+char-for-char arithmetic premise, BOTH verified directly (don't trust the 0-ULP
+test alone): (1) `sn_mesh.quad IS the passed quad` AND `quad.mu_x/weights IS same
+array` the factory's `angular_measure` receives (proved by `is` checks) → same
+INPUTS; (2) the two producers are a line-for-line replica → same ARITHMETIC. Same
+inputs + same arithmetic ⇒ 0-ULP, independently of the Leg-1 `np.array_equal` gate.
+Confirmed 0-ULP across ALL twin quadrature families (LS-S4/S6, product(2,4), GL
+N=8/16/32), so the "0-ULP τ ⟹ unchanged matvec" inference is closed for the EXACT
+configs the 11-min slow twin exercises — no need to re-run it.
+
+MATVEC-TWIN XFAIL PROVENANCE (don't re-run, ASSESS): the twin files
+test_unified_matvec_{sphere,cylinder}.py are UNMODIFIED at HEAD (git status empty);
+Step A touched only pole_angular_closure.py + the new test file. The 27 xfailed =
+`test_unified_cylinder_matches_hand_reference` parametrized 3 quad × 3 n_cells × 3
+seed, decorated `xfail(reason="...#206", strict=False)` — a PRE-EXISTING #206 route-
+around. #206 is a matvec/sweep WDD divergence INDEPENDENT of τ ownership: a 0-ULP τ
+relocation leaves the matvec numerics unchanged, so the xfail set is INVARIANT (no
+new fail, no xpass). `strict=False` means an accidental xpass wouldn't red the suite
+— but the bit-identity logic predicts none, and the implementer reported 0.
+
+MUTATION-PROOF (L28 edit-in-place via python read/replace/write, NEVER git restore):
+removing the cyl clamp (`tau[m]=max(0.5,min(1.0,tau_raw))` → `tau[m]=tau_raw`) reddens
+4 tests — BOTH 0-ULP factory-equivalence arms (factory still clamps, mutated closure
+doesn't → bit-identity breaks; closure shows 0.0/6.7e-16 where factory gives 0.5) AND
+BOTH negative-control arms (closure now == RAW unclamped reference → `closure==clamp(ref)`
+fails). The bit-identity gate AND the clamp negative-control independently catch it.
+Restore by re-edit; confirm 9-passed green + mutation marker gone.
+
+TEST-DESIGN QUALITY (anti-pattern #11): the Leg-1 gate has BOTH positive (closure-τ ==
+factory + == structurally-independent `contamination.morel_montry_weights` ref) AND
+negative (cyl `closure==clamp(ref)` AND `closure != raw_ref where clamp bites`, with a
+guard-the-guard `any(t.min()<0.5)` so the control isn't vacuous). Mode-8: VALUE checks
+use `np.array_equal`/`np.testing`; the bare `assert np.array_equal(...)` in the test
+MODULE fire under -O (rewriter live — PROVEN by the mutation reddening them, L-010).
+Structural independence (L11) INTACT: `contamination.morel_montry_weights` appears in
+production ONLY in 2 COMMENT lines (508,511) explaining why it's avoided — never
+imported/called; it's the verification reference, so using it in prod would be a
+tautology (reference contamination).
+
+RULE: for a "bit-identical producer relocation" claim, verify BOTH premises directly
+(runtime input-identity via `is`, arithmetic char-for-char via side-by-side read) —
+the 0-ULP test is the empirical pin but the two premises are WHY it holds and they let
+you close an unrun slow twin by inference. For an UNMODIFIED-at-HEAD xfail set under a
+0-ULP change, the xfail set is invariant by construction (git status empty + numerics
+unchanged) — assess provenance (`reason=`, #issue, strict=) instead of re-running.
