@@ -7445,8 +7445,9 @@ Manifestation (a) — the spatial pole-face seed
 
 The outward (:math:`\mu>0`) radial sweep needs an inflow value at the
 pole face :math:`r=0`.  The historical matvec
-(:meth:`~orpheus.sn.operator._MSpatialOperatorSum._compute_LpC`) and the
-sweep both read the innermost CELL-CENTRE flux :math:`\psi(\Delta r/2)`
+(now the fused
+:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`) and
+the sweep both read the innermost CELL-CENTRE flux :math:`\psi(\Delta r/2)`
 as if it were the pole-FACE value — a half-cell offset.  On a flat
 radial profile :math:`\psi(\Delta r/2)=\psi(0)`, so the read is exact;
 on the manufactured :math:`A(r)=\sin(\pi r/R)` ansatz it is
@@ -7487,7 +7488,7 @@ identically (so the pair stays ONE discrete system).
 The **adjoint** routes the :math:`+1` seed cotangent into the
 :math:`-1` reversal's initial outflow cotangent at the mirrored
 ordinates (see
-:meth:`~orpheus.sn.operator._MSpatialOperatorSum._compute_LpC_transpose`,
+:meth:`~orpheus.sn.loss_representation._OneDimScanWalk.loss_action_transpose`,
 pinned by the dense-probe transpose oracle
 ``derivations/diagnostics/diag_p42_adjoint_oracle.py``).
 
@@ -7500,10 +7501,10 @@ The coupled-pole continuity :eq:`sn-err-058-coupled-pole-continuity`
 seeds the outward (:math:`+\mu`) pole face from the inward (:math:`-\mu`)
 sweep's pole outflow read **at the mirror ordinate** — concretely,
 ``pole_face_seed = outflow_at_inner.T[quad.reflection_index("x")]`` in
-both matvec twins
-(:meth:`~orpheus.sn.operator._MSpatialOperatorSum._compute_LpC` and its
-adjoint partner) and ``psi_in = pole_outflow[mirror[global_n]]`` in the
-SI sweep twin (:meth:`~orpheus.sn.loss_representation.transport_sweep`).
+the fused matvec
+(:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk` and
+its adjoint partner) and ``psi_in = pole_outflow[mirror[global_n]]`` in
+the SI sweep twin (:meth:`~orpheus.sn.loss_representation.transport_sweep`).
 That single index — ``reflection_index("x")[n]`` — is what makes the
 seed correct, and it carries a load-bearing assumption that is invisible
 in the code but essential to the physics.
@@ -7991,7 +7992,7 @@ oracle), ERR-058 deletes no correct machinery:
      - Reproduces the Phase B behaviour for A/B regression-safety
        comparison.
    * - Coupled-pole spatial seed in
-       :meth:`~orpheus.sn.operator._MSpatialOperatorSum._compute_LpC`
+       :meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`
        / :meth:`~orpheus.sn.loss_representation.transport_sweep`
      - **production**
      - The :math:`\psi(0,+\mu)=\psi(0,-\mu)` continuity; matvec + sweep

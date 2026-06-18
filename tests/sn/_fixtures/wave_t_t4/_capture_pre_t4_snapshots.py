@@ -1,12 +1,17 @@
 """Wave T step T.4a — pre-T.4 snapshot capture script.
 
 Captures the numerical output of ``StreamingOperator.apply``,
-``(L+C).apply``, and ``(L+C).solve`` on deterministic fixtures BEFORE
-the T.4 lift rewires ``StreamingOperator.apply`` into the
-``M_spatial + M_angular_redist`` decomposition.  The captured arrays
-are loaded back by the L4-1..L4-7 regression tests in
-``tests/sn/test_streaming_operator.py::TestPreT4RegressionSnapshot``
-and ``tests/sn/test_invertible_operator.py`` (extended).
+``(L+C).apply``, and ``(L+C).solve`` on deterministic fixtures as the
+pre-T.4 matvec baseline.  The captured arrays are loaded back by the
+surviving snapshot regression tests in
+``tests/sn/operators/test_streaming_operator.py``
+(``TestT4bPreT4RegressionSnapshot`` /
+``TestT4cPreT4RegressionSnapshotCurvilinear``).
+
+#238: the ``StreamingOperator.apply`` fused matvec is verified directly
+against these snapshots; the former ``M_spatial + M_angular_redist``
+decomposition-invariant capture (``_capture_LpC_apply``) is vestigial —
+the typed-leaf split it pinned was retired (no production consumer).
 
 Per the T.4 verification spec
 (``.claude/agent-memory/test-architect/wave_t_t4_streaming_verification_spec.md``)
@@ -249,11 +254,13 @@ def _capture_apply(name: str, sn_mesh: SNMesh, *, seed: int,
 
 def _capture_LpC_apply(name: str, sn_mesh: SNMesh, *, seed: int,
                        snapshots: dict[str, np.ndarray]) -> None:
-    """Capture (L+C).apply(ψ) — verifies algebra-decomposition invariant.
+    """Capture (L+C).apply(ψ) — the fused within-group matvec snapshot.
 
-    After T.4c, ``M_spatial.apply + M_angular_redist.apply ==
-    (L+C).apply`` value-equal to this snapshot (with σ_t·ψ subtraction
-    unwinding at the apply boundary per Q3 decision γ).
+    #238: the algebra-decomposition invariant this once verified
+    (``M_spatial.apply + M_angular_redist.apply == (L+C).apply``) was
+    retired with the typed-leaf split; ``(L+C).apply`` is the fused
+    matvec ``M(σ_t)ψ`` (σ_t·ψ subtraction unwinding at the apply
+    boundary per Resolution A).
     """
     L, C = _build_L_C(sn_mesh)
     LpC = L + C  # InvertibleOperator

@@ -18,18 +18,18 @@ typed composite carrier (bulk = :class:`~orpheus.transport.fields.angular_flux.A
 boundary = :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`).
 Producer-side normalisation (Pattern 7): the typed contract is
 enforced at every operator entry; no bare-ndarray packed-vector
-adapter.  The geometry-agnostic kernel is
-:meth:`_MSpatialOperatorSum._compute_decomposition` (1-D slab /
-sphere / cylinder; dual-emission body that produces both
-``M_spatial`` and ``M_angular_redist`` contributions in one
-bidirectional sweep).  The multi-D Cartesian matvec is the
+adapter.  The geometry-agnostic 1-D matvec kernel is
+:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`
+(1-D slab / sphere / cylinder; the fused ``(L+C)ψ`` single-emission
+body, the apply-direction twin of the sweep; #206 Phase C moved it off
+this operator INTO the representation).  The curvilinear Morel–Montry
+angular redistribution is computed IN-SWEEP there (it is not a separable
+typed leaf — the #238-retired ``M_spatial`` / ``M_angular_redist`` split
+had no production consumer).  The multi-D Cartesian matvec is the
 representation's ``loss_action`` walk that S6.3 moved OFF this operator
 (``orpheus.sn.loss_representation``; production default ``ScanMarch``
 since the S6.9 Fork-B2 flip, with ``MovingFrontierWindow`` a selectable
 peer).
-Wave T T.5 close-out retired the module-level
-``_transport_operator_matvec_unified`` helper — its body lives as
-the orchestrator's private dual-emission method.
 
 Three geometries are supported:
 
@@ -133,7 +133,6 @@ from orpheus.numerics.operator import (
     CAP_SOLVE,
     LinearOperatorMixin,
     OperatorSum,
-    ZeroOperator,
 )
 
 from orpheus.numerics.quadrature import Quadrature
@@ -149,438 +148,19 @@ if TYPE_CHECKING:
 __all__ = [
     "StreamingOperator",
     "CollisionOperator",
-    "AngularRedistributionOperator",
 ]
-# Wave T T.5 / #206 Phase C: the 1-D matvec walk lives in
-# `_OneDimScanWalk` (orpheus.sn.loss_representation) — both the fused
-# `(L+C)ψ` (`loss_action`) and the `(M_spatial, M_angular_redist)` split
-# (`loss_action_decomposed`) share its `_apply_walk` core (Cardinal Rule 2,
-# one source). `_MSpatialOperatorSum._compute_decomposition` is a thin
-# delegation to `loss_action_decomposed` for the standalone-leaf consumers;
-# the production hot path is `StreamingOperator.apply` → `loss_action`
-# (single emission, no angular store). External consumers call
-# `(L + C).apply(state)` via the public operator-algebra path.
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# Wave T T.4 — `M_spatial` decomposition primitives
-# ═══════════════════════════════════════════════════════════════════════
-#
-# `StreamingOperator.apply` exposes `M_spatial` (streaming + collision-
-# share contribution per spatial axis per direction sign) and
-# `M_angular_redist` (curvilinear M-M redistribution, ZeroOperator
-# for slab/Cartesian).  The "L = M - C" subtractive contract lives at
-# `StreamingOperator.apply`'s boundary (Pattern 7 producer-side
-# normalisation; per the T.4 verification spec Q3 = (γ)).
-#
-# `M_spatial` is an :class:`OperatorSum` of per-direction-sign summands
-# (`_SpatialSweepDirection(+1)` and `_SpatialSweepDirection(-1)`).  This
-# per-direction structure is type-level — it exposes the natural
-# operator algebra for: (a) Wave O typing (per-direction BC dependency
-# structure: forward sweep reads inner BC and writes outer-face
-# residual; backward symmetrically), (b) adjoint propagation (`M_x_fwd.H
-# = M_x_back` with swapped BCs), (c) future DSA-class preconditioners
-# (which traditionally split per-direction for the P_1 diffusion
-# limit), (d) parallel-in-direction execution, and (e) per-direction
-# debugging slicing (catches ERR-006 family signatures cleanly).
-#
-# Per the T.4 spec MA-Q1 master condition, the per-direction summands
-# are NOT clean `TensorProductOperator` factors — the WDD sweep
-# recurrence sequentially couples cells along the spatial axis, and
-# the per-direction WDD outflow at the outer face is the natural
-# coupling between the forward and backward sweeps via `bc_outer`.
-# A clean `(D_axis & Ω_axis & I_g)` 3-factor wrap would false-assert
-# separability the recurrence doesn't support (same Q2 critique
-# applied to curvilinear angular redistribution).
-#
-# Per the T.4 verification spec follow-up (post-spec architectural
-# question resolved with user concurrence): the per-direction summands
-# expose structure at the type level; `_MSpatialOperatorSum.apply`
-# overrides the default `OperatorSum.apply` to run ONE bidirectional
-# sweep with shared local state — matches today's perf (1×) instead
-# of the 1.5× cost of two independent forward sweeps that would
-# otherwise be required (the backward sweep's seed depends on the
-# forward sweep's WDD outflow via `bc_outer`).
-#
-# Slab status: `M_spatial = (L+C)` (no angular redistribution); the
-# orchestrated apply delegates to `_transport_operator_matvec_unified`
-# bit-exact.  Curvilinear T.4c will introduce `M_angular_redist` as
-# a bespoke leaf and subtract its contribution to produce M_spatial
-# alone; for now, `M_spatial.apply` IS the unified matvec output.
-
-
-@dataclass(frozen=True)
-class _SpatialSweepDirection(LinearOperatorMixin):
-    r"""One direction sign's contribution to :attr:`StreamingOperator.M_spatial`.
-
-    Carries the per-direction algebra exposure for the Wave T
-    tensor-network refactor.  Each instance represents the action of
-    the spatial-streaming + collision-share part of :math:`(L+C)` for
-    ordinates of a specific direction sign (μ_x > 0 for
-    ``direction_sign = +1``; μ_x < 0 for ``-1``).
-
-    Per the T.4 verification spec follow-up (user-endorsed design):
-    the production apply path goes through
-    :class:`_MSpatialOperatorSum`, which orchestrates the bidirectional
-    sweep in one pass with shared state.  Standalone
-    :meth:`_SpatialSweepDirection.apply` is the slow fallback —
-    available for testing, debugging, and the Wave-O / adjoint
-    inspection paths where the per-direction algebra needs to be
-    exercised in isolation.
-
-    See Also
-    --------
-    _MSpatialOperatorSum : the orchestrator that owns the production apply.
-    StreamingOperator.M_spatial : the property that returns the orchestrator.
-    """
-
-    sn_mesh: "SNMesh"
-    sigma_t: np.ndarray
-    direction_sign: int  # +1 or -1
-    capabilities: frozenset[str] = field(
-        default_factory=lambda: frozenset({CAP_APPLY})
-    )
-
-    def apply(self, psi: "TimedFullField") -> "TimedFullField":
-        r"""Standalone per-direction action — slow path.
-
-        Runs the FULL bidirectional matvec (because the backward
-        direction's seed depends on the forward direction's WDD
-        outflow via ``bc_outer``) and returns ONLY the contribution at
-        ordinates of this direction sign; ordinates of the opposite
-        sign carry zeros.
-
-        In production, :meth:`_MSpatialOperatorSum.apply` overrides the
-        default :meth:`OperatorSum.apply` so that the two summands
-        share the bidirectional sweep cost.  Use this standalone path
-        ONLY for testing, debugging, or future Wave-O / adjoint
-        composition that exercises per-direction algebra in isolation.
-        """
-        from orpheus.transport.fields.angular_flux import AngularFlux
-        from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
-        from orpheus.transport.timed_full_field import TimedFullField
-
-        sn_mesh = self.sn_mesh
-        # Wave T T.5 close-out (matvec retirement): construct a
-        # transient orchestrator and invoke its dual-emission body
-        # to recover the FULL (L+C) = M_spat + M_ang, then mask.
-        # This is the slow standalone path — production
-        # `StreamingOperator.apply` does NOT take this route.
-        transient_orchestrator = _MSpatialOperatorSum(sn_mesh, self.sigma_t)
-        m_spat, m_ang = transient_orchestrator._compute_decomposition(psi)
-        full_bulk = m_spat.bulk.values + m_ang.bulk.values
-        full_boundary = m_spat.boundary  # M_ang.boundary is zero (per MA-Q4)
-
-        # Mask out ordinates of the opposite sign.
-        quad = sn_mesh.quad
-        mu_x = quad.mu_x
-        eps = 1e-15
-        if self.direction_sign > 0:
-            ordinate_mask = mu_x > eps
-        else:
-            ordinate_mask = mu_x < -eps
-
-        masked_bulk = full_bulk.copy()
-        masked_bulk[~ordinate_mask] = 0.0
-
-        # Boundary residual: forward sweep writes the outer-face WDD
-        # outflow residual; backward sweep writes the inner-face
-        # residual (for slab).  The per-direction split exposes which
-        # face each direction's contribution lives on.
-        masked_boundary = BoundarySourceSink.zeros_on(sn_mesh)
-        full_boundary_layout = full_boundary.layout
-        for face_name in full_boundary_layout.faces:
-            full_face = full_boundary.face_view(face_name)
-            target_face = masked_boundary.face_view(face_name)
-            target_face[ordinate_mask, :] = full_face[ordinate_mask, :]
-
-        return TimedFullField(
-            bulk=AngularSourceSink.from_mesh(masked_bulk, sn_mesh),
-            boundary=masked_boundary,
-            _history=(),
-            history_depth=psi.history_depth,
-        )
-
-
-class _MSpatialOperatorSum(OperatorSum):
-    r""":attr:`StreamingOperator.M_spatial` — :class:`OperatorSum` of per-direction summands with orchestrated unified apply.
-
-    Algebraically: :math:`M_{\rm spatial} = M_{x,+} + M_{x,-}` (slab,
-    sphere, cylinder; 1-D spatial axis).  The two summands are
-    :class:`_SpatialSweepDirection(+1)` and
-    :class:`_SpatialSweepDirection(-1)`.
-
-    Operationally: :meth:`apply` overrides :meth:`OperatorSum.apply` so
-    that the bidirectional sweep runs ONCE with shared local state
-    (matching the legacy `_transport_operator_matvec_unified` perf
-    profile, ~1× walltime).  The default
-    :meth:`OperatorSum.apply` semantics
-    (``self.a.apply(x) + self.b.apply(x)``) would cost ~1.5× because
-    each standalone :meth:`_SpatialSweepDirection.apply` must redo the
-    forward sweep to compute the backward sweep's outer-face seed via
-    ``bc_outer``.
-
-    Per the T.4 verification spec follow-up (user-endorsed Design B):
-    "orchestrated `M_spatial.apply` with shared internal state, lifting
-    the local-variable WDD outflow at the outer face into a named
-    coupling point between the forward and backward summands".
-
-    Slab status: ``M_spatial`` covers ALL of ``(L+C)`` because slab has
-    no angular redistribution.  Curvilinear T.4c will introduce
-    :class:`AngularRedistributionOperator` (the bespoke leaf for M-M
-    half-grid) and the apply will subtract that contribution to
-    produce only the spatial part.
-    """
-
-    def __init__(self, sn_mesh: "SNMesh", sigma_t: np.ndarray) -> None:
-        forward = _SpatialSweepDirection(sn_mesh, sigma_t, +1)
-        backward = _SpatialSweepDirection(sn_mesh, sigma_t, -1)
-        super().__init__(forward, backward)
-        # Store mesh + xs as attributes so the orchestrated apply has
-        # access without re-binding through the per-direction summands.
-        self.sn_mesh = sn_mesh
-        self.sigma_t = sigma_t
-
-    def _compute_decomposition(
-        self, psi: "TimedFullField",
-    ) -> tuple["TimedFullField", "TimedFullField"]:
-        r"""The ``(M_spatial, M_angular_redist)`` split — delegates to the frame.
-
-        #206 Phase C: the walk that emits both contributions LIVES in
-        :meth:`~orpheus.sn.loss_representation._OneDimScanWalk.loss_action_decomposed`
-        (the shared ``_apply_walk`` — the SAME source
-        :meth:`StreamingOperator.apply` uses for the fused ``(L+C)ψ``; Cardinal
-        Rule 2, the former byte-twin dual-emission walk that lived here is GONE).
-
-        * ``M_spat`` carries streaming + collision (``(L+C) − M_angular_redist``);
-          its boundary carries the face residuals (only the spatial sweep writes
-          them — MA-Q4).
-        * ``M_ang`` carries the curvilinear Morel–Montry angular redistribution
-          (zero for slab/Cartesian via ``IdentityAngularClosure``); a
-          ``BulkOperator``, so its boundary is zero.
-        * ``M_spat.bulk + M_ang.bulk == (L+C)·ψ.bulk`` by construction
-          (``m_spat = m_full − m_ang`` elementwise — bit-exact on slab where
-          ``m_ang ≡ 0``, ~ULP on curvilinear from the per-cell subtraction).
-
-        **No cache.** An earlier docstring described a ψ-keyed cache letting the
-        second consumer reuse the first's walk — it was never implemented. Each
-        of the THREE consumers (:meth:`_SpatialSweepDirection.apply`,
-        :meth:`apply` on the parent ``_MSpatialOperatorSum``,
-        :meth:`AngularRedistributionOperator.apply`) re-walks. This is NOT the
-        production hot path: ``StreamingOperator.apply`` uses the fused
-        single-emission ``loss_action`` (``emit_angular=False`` — no angular
-        store) and never calls this; the split serves only the standalone
-        ``M_spatial`` / ``M_angular_redist`` leaves.
-
-        Parameters
-        ----------
-        psi : TimedFullField
-            Angular flux + boundary trace composite.
-
-        Returns
-        -------
-        (M_spatial_result, M_angular_redist_result) : tuple of TimedFullField
-            Both carry ``psi``'s ``history_depth`` and SNMesh.
-        """
-        from .loss_representation import _OneDimScanWalk
-
-        # #206 Phase C: the dual-emission (M_spatial, M_angular_redist) split is
-        # the SAME 1-D apply walk loss_action uses — ONE source (Cardinal Rule 2;
-        # the former byte-twin of _compute_LpC is gone). The frame needs only the
-        # mesh + the group total xs (no operator handle).
-        return _OneDimScanWalk(self.sn_mesh).loss_action_decomposed(
-            self.sigma_t, psi,
-        )
-
-    def materialize_inverse_cache(self):
-        r"""Build the :class:`~orpheus.sn.spatial.sweep_cache.CollisionCache`
-        for this M_spatial / σ_t pair.
-
-        Wave T T.5 close-out — exposes the cache from M_spatial's
-        natural angle (Pattern 2 dual-view of the
-        :meth:`CollisionCache.from_geometry` primitive).  The cache
-        holds the per-cell-per-group-per-ordinate DD scan coefficients
-        (`inverse_denom`, `a_attenuation`, `cumprod_a`) that the sweep
-        path consumes; computing them from M_spatial documents the
-        relationship "this operator IS the matvec whose inverse-on-
-        the-sweep-path uses these cached coefficients".
-
-        Returns
-        -------
-        CollisionCache
-            A fresh cache instance — increments
-            :attr:`CollisionCache._build_count`.  Per the cache
-            invariance contract (sweep_cache.py:356-361), within a
-            constant-σ_t epoch the cache MUST be built exactly once;
-            callers MUST not invoke this method redundantly inside an
-            inner Krylov / SI iteration.
-
-        Notes
-        -----
-        Future leverage opportunity (post-T.5 cache-unification
-        micro-wave): :meth:`~orpheus.sn.loss_representation._OneDimScanWalk._ensure_coll_cache` and
-        :class:`~orpheus.sn.solver.SNSolver` would route through this
-        method as the canonical cache-construction path, making
-        M_spatial the single source of truth for its own inverse
-        cache.  Today both call :meth:`CollisionCache.from_geometry`
-        directly; the unification requires SNSolver to thread the
-        StreamingOperator (or M_spatial) into the cache build, which
-        is a separate refactor.
-        """
-        from orpheus.sn.spatial.sweep_cache import (
-            CollisionCache,
-            GeometryCoefficients,
-        )
-
-        geom = GeometryCoefficients.from_mesh_and_quad(self.sn_mesh)
-        # 1-D drop of y axis for the sweep cache contract (it stores
-        # per-(N, ng, nx); multi-D Cartesian routes through the
-        # representation's `loss_action` and does not use this cache).
-        sig_t_1d = self.sigma_t
-        return CollisionCache.from_geometry(
-            geom, sig_t_1d, self.sn_mesh.scheme,
-        )
-
-    def apply(self, psi: "TimedFullField") -> "TimedFullField":
-        r"""Orchestrated apply — returns the spatial part of the decomposition.
-
-        #206 Phase C: delegates to :meth:`_compute_decomposition`, which routes
-        through ``_OneDimScanWalk.loss_action_decomposed`` (the shared
-        ``_apply_walk``) and returns ``(M_spatial, M_angular_redist)``; this
-        method keeps only the spatial half.  There is NO cache — a sibling
-        ``M_angular_redist.apply(ψ)`` re-walks (these standalone leaves are not
-        the production hot path; ``StreamingOperator.apply`` uses the fused
-        single-emission ``loss_action``).
-
-        For slab: ``M_spatial.apply(ψ) == (L+C)·ψ`` bit-exact because
-        the slab cell-balance has zero angular contribution
-        (``IdentityAngularClosure.cell_contribution`` returns zeros).
-
-        For curvilinear: ``M_spatial.apply(ψ) == (L+C)·ψ −
-        M_angular_redist.apply(ψ)`` per the additive cell-balance
-        algebra.  The subtraction is realised in the dual-emission
-        body (single walk) — no second-pass cost.
-        """
-        m_spat, _ = self._compute_decomposition(psi)
-        return m_spat
-
-
-@dataclass(frozen=True)
-class AngularRedistributionOperator(LinearOperatorMixin):
-    r"""Bespoke curvilinear angular-redistribution leaf — :attr:`StreamingOperator.M_angular_redist` for sphere / cylinder.
-
-    Per the Wave T T.4 verification spec Q2 (user-endorsed) — the M-M
-    half-grid recurrence (Hébert §3.9.4 Eqs. 3.432-3.435) is
-    sequentially coupled along the angular axis: ``α_{m+1/2}`` recurs
-    from ``α_{m-1/2}`` with absorption coefficients that depend on σ_t
-    and the upstream half-angle ψ.  This is a SWEEP operator, NOT a
-    diagonal per-angular-axis factor.  A 3-factor TP wrap
-    ``(leaf & I_x & I_g)`` would false-assert separability the
-    recurrence doesn't support — same MA-Q1 master condition that
-    applies to the spatial WDD recurrence in :class:`_SpatialSweepDirection`:
-    coupled physics falls back to ``OperatorSum`` summands, NOT clean
-    tensor products.
-
-    Per-cell algebra (extracted from `cell_balance_for_streaming`)
-    --------------------------------------------------------------
-
-    The cell-balance algebra decomposes additively:
-
-    .. math::
-
-       (L+C)\,\psi\big|_{\rm cell} \;=\; m_{\rm streaming} \;+\;
-                                         m_{\rm collision} \;+\;
-                                         m_{\rm angular\_redist}
-
-    where
-
-    .. math::
-
-       m_{\rm angular\_redist} \;=\;
-         \frac{1}{V_i}\bigl[
-            \mathrm{angular\_denom\_term} \cdot \psi_{\rm cell}
-          - \mathrm{angular\_numer\_upstream}
-         \bigr]
-
-    The per-level M-M closure supplies
-    ``angular_denom_term = (ΔA/w) · c_out`` and
-    ``angular_numer_upstream = (ΔA/w) · c_in · ψ_{m-1/2, i, g}`` via
-    :meth:`PoleAngularClosure.cell_contribution`.  Calling
-    ``cell_contribution`` with ``within_positions = arange(n_p)``
-    (all ordinates in the level) yields the full per-level
-    contribution in one shot — the matvec body's per-direction split
-    is an optimization, not an algebraic requirement.
-
-    Boundary residual semantics (per the spec MA-Q4)
-    -------------------------------------------------
-
-    M_angular_redist writes ONLY to bulk; the angular redistribution
-    is an interior-cell operation that doesn't traverse the spatial
-    boundary.  Output ``boundary`` is the zero
-    :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`.
-
-    Slab status
-    ------------
-
-    For Cartesian (slab + 2-D), the property dispatch in
-    :class:`StreamingOperator` returns :class:`ZeroOperator` instead
-    of this leaf — there is no curvilinear redistribution to compute
-    (``IdentityAngularClosure.cell_contribution`` returns zeros by
-    construction).  This leaf is instantiated ONLY for sphere /
-    cylinder.
-
-    Parameters
-    ----------
-    sn_mesh : SNMesh
-        Curvilinear (spherical or cylindrical) SN mesh carrying the
-        M-M ``pole_angular_closure`` strategy.
-    sigma_t : np.ndarray
-        Per-group per-cell total cross section, ``(ng, nx, ny)``.
-        Bound at constructor time per Resolution A's subtractive
-        contract (the M-M Carlson coupled-pole seed is rational in
-        σ_t — Hébert §3.9.4 Eqs. 3.432-3.435).
-    """
-
-    sn_mesh: "SNMesh"
-    sigma_t: np.ndarray
-    m_spatial: "_MSpatialOperatorSum"
-    capabilities: frozenset[str] = field(
-        default_factory=lambda: frozenset({CAP_APPLY})
-    )
-
-    def apply(self, psi: "TimedFullField") -> "TimedFullField":
-        r"""Returns the angular-redistribution part of the M_spatial decomposition.
-
-        Wave T T.5 close-out (matvec retirement): delegates to the
-        parent orchestrator's :meth:`_MSpatialOperatorSum._compute_decomposition`,
-        which walks the bidirectional sweep ONCE and emits both
-        ``(M_spatial, M_angular_redist)`` contributions.  Standalone
-        usage walks the full bidirectional sweep — slow path; the
-        production hot path in ``StreamingOperator.apply`` calls
-        ``_compute_decomposition`` directly and reads BOTH outputs in
-        one shot to avoid the redundant second walk.
-
-        Returns a :class:`TimedFullField` with bulk = the
-        redistribution contribution and boundary = zeros (per MA-Q4
-        — only the spatial sweep writes face residuals).
-        """
-        sn_mesh = self.sn_mesh
-        if sn_mesh is not psi.bulk.mesh:
-            raise ValueError(
-                "AngularRedistributionOperator.apply: operator and "
-                "composite must share the SAME SNMesh instance "
-                "(mesh-identity invariant)."
-            )
-        if getattr(sn_mesh, "pole_angular_closure", None) is None:
-            raise ValueError(
-                "AngularRedistributionOperator requires a curvilinear "
-                "SNMesh with a bound `pole_angular_closure`.  "
-                "Cartesian meshes should route through "
-                "`StreamingOperator.M_angular_redist`, which returns "
-                "`ZeroOperator` and never instantiates this leaf."
-            )
-        _, m_ang = self.m_spatial._compute_decomposition(psi)
-        return m_ang
+# #206 Phase C / #238: the 1-D matvec walk lives in `_OneDimScanWalk`
+# (orpheus.sn.loss_representation) — the fused `(L+C)ψ` (`loss_action`)
+# rides its `_apply_walk` core (Cardinal Rule 2, one source). The
+# production hot path is `StreamingOperator.apply` → `loss_action`
+# (single emission). External consumers call `(L + C).apply(state)` via
+# the public operator-algebra path. The former separately-applicable
+# `(M_spatial, M_angular_redist)` operator-leaf split (`_SpatialSweepDirection`
+# / `_MSpatialOperatorSum` / `AngularRedistributionOperator`) was retired in
+# #238 — it had no production consumer; the curvilinear Morel–Montry angular
+# redistribution is computed IN-SWEEP inside `_apply_walk`, not as a separable
+# typed leaf, and is verified by the anisotropic curvilinear MMS
+# (`tests/sn/verification/mms/test_curvilinear_aniso_convergence.py`).
 
 
 def _require_typed_composite(
@@ -901,66 +481,12 @@ class StreamingOperator(LinearOperatorMixin):
         (``default_for``): 1-D → ``CumprodScan``; multi-D Cartesian →
         ``ScanMarch`` (the S6.9 Fork-B2 default).  ``cached_property`` because
         the selection is fixed by the mesh, stable across the operator's
-        lifetime (mirrors :attr:`M_spatial` / :attr:`M_angular_redist`); the
-        lazy import breaks the operator ↔ loss_representation module cycle.
+        lifetime; the lazy import breaks the operator ↔ loss_representation
+        module cycle.
         """
         from .loss_representation import default_for
 
         return default_for(self.sn_mesh)
-
-    # ── Wave T T.4 — `M_spatial` / `M_angular_redist` properties ─────
-
-    @cached_property
-    def M_spatial(self) -> "_MSpatialOperatorSum":
-        r"""Per-direction streaming + collision-share part of :math:`(L+C)`.
-
-        :class:`OperatorSum` of two :class:`_SpatialSweepDirection`
-        summands (forward-sweep μ_x > 0 and backward-sweep μ_x < 0).
-        See :class:`_MSpatialOperatorSum` for the orchestrated apply
-        semantics + Wave-O / adjoint / DSA leverage rationale.
-
-        Slab status: ``M_spatial`` covers ALL of ``(L+C)``.
-        Curvilinear (T.4c): ``M_spatial = (L+C) − M_angular_redist``.
-
-        ``cached_property`` because the summand identities are stable
-        across the operator's lifetime (factories of
-        :class:`_SpatialSweepDirection`).
-        """
-        return _MSpatialOperatorSum(self.sn_mesh, self.sigma_t)
-
-    @cached_property
-    def M_angular_redist(self) -> "LinearOperator":
-        r"""Curvilinear M-M angular redistribution part of :math:`(L+C)`.
-
-        Slab (Cartesian): returns :class:`ZeroOperator` — there is no
-        angular redistribution for the geometry-blind slab cell
-        balance (``IdentityAngularClosure`` produces zero contributions).
-
-        Curvilinear sphere/cylinder (T.4c future): returns the bespoke
-        :class:`AngularRedistributionOperator` leaf wrapping the M-M
-        half-grid recurrence.  The leaf is NOT a
-        :class:`TensorProductOperator` — the half-grid is sequentially
-        coupled per Hébert §3.9.4 (the recurrence on ``α_{m±1/2}``
-        couples angular ordinates AND depends on σ_t).  Per the T.4
-        verification spec MA-Q1 master condition, "coupled physics
-        falls back to OperatorSum, not SOTP".
-
-        ``cached_property`` because the leaf identity is stable across
-        the operator's lifetime.
-        """
-        if getattr(self.sn_mesh, "curvature", None) is None:
-            return ZeroOperator()
-        # T.4c — curvilinear: bespoke AngularRedistributionOperator leaf.
-        # It holds a reference to `self.M_spatial` so its `.apply` can call
-        # `M_spatial._compute_decomposition(ψ)` and read the M_ang half (the
-        # split's single source — #206 Phase C; the walk lives in
-        # `_OneDimScanWalk._apply_walk`). No cache: each leaf re-walks (these
-        # standalone leaves are not the production hot path).
-        return AngularRedistributionOperator(
-            sn_mesh=self.sn_mesh,
-            sigma_t=self.sigma_t,
-            m_spatial=self.M_spatial,
-        )
 
     # ── Algebra dispatch — sweep-invertible composite (R-1 Step C) ────
 

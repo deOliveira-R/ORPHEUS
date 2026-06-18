@@ -293,10 +293,10 @@ def legacy_proxy_matvec(
 
     # Wave T T.5 close-out (matvec retirement): route through the
     # public operator-algebra path `(L + C).apply`.  The legacy
-    # `_transport_operator_matvec_unified` helper was DELETED;
-    # `_MSpatialOperatorSum._compute_decomposition` is the canonical
-    # dual-emission body, and `(L + C).apply` = `L.apply + C.apply`
-    # = `(M_spat + M_ang - sigma_t * psi) + sigma_t * psi` = (L+C)
+    # `_transport_operator_matvec_unified` helper was DELETED; the
+    # canonical 1-D matvec body is now `_OneDimScanWalk._apply_walk`
+    # (the fused `(L+C)ψ`), and `(L + C).apply` = `L.apply + C.apply`
+    # = `((L+C)ψ - sigma_t * psi) + sigma_t * psi` = (L+C)
     # bit-exact for the legacy semantic.  The ``bc_outer`` /
     # ``pole_angular_closure`` override parameters are not used by
     # any production caller of this helper today (all call sites pass
@@ -326,11 +326,12 @@ def _LC_matvec(
 
     Wave T T.5 close-out (matvec retirement, post-T.5.2): the module-
     level helper ``_transport_operator_matvec_unified`` was DELETED;
-    its body lives as
-    :meth:`_MSpatialOperatorSum._compute_decomposition`.  This shim
-    constructs the canonical ``(L + C)`` operator-algebra composite
-    and delegates to its public :meth:`apply` — the migration target
-    for tests that previously called the deleted helper directly.
+    the canonical 1-D matvec body is now
+    :meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`
+    (the fused ``(L+C)ψ``).  This shim constructs the canonical
+    ``(L + C)`` operator-algebra composite and delegates to its public
+    :meth:`apply` — the migration target for tests that previously
+    called the deleted helper directly.
 
     Bit-identical to the legacy call ``_transport_operator_matvec_unified(psi, sigma_t)``
     for default ``bc_outer`` / ``pole_angular_closure`` (the only call

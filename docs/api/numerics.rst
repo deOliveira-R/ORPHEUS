@@ -123,8 +123,9 @@ consumers landed May 2026):
   :class:`OperatorSum` over bespoke leaves, not SOTP).
 * :class:`~orpheus.numerics.operator.OperatorSum` — the additive
   composer :math:`A + B`. Wave T promoted this to load-bearing
-  status (T.3 scattering kernel, T.4
-  :attr:`StreamingOperator.M_spatial`); see :ref:`wave-t-shape-table`.
+  status (T.3 scattering kernel; the T.4 per-direction streaming split
+  was retired in #238 — the fused matvec walks both directions in one
+  pass); see :ref:`wave-t-shape-table`.
 * :class:`~orpheus.numerics.operator.RankOneOperator` — rank-1
   outer product :math:`|\ell\rangle\langle r|` on a tagged axis;
   native to the multigroup fission emission
@@ -168,18 +169,16 @@ master condition that decides between :class:`TensorProductOperator`,
        over bespoke leaves per the MA-Q1 master condition. See
        :ref:`wave-t-tensor-network` for the per-substep rationale.
    * - :class:`~orpheus.numerics.operator.OperatorSum`
-     - 2 (load-bearing, post Wave T)
+     - 1 (load-bearing, post Wave T)
      - Wave T T.3 scattering kernel
        (:attr:`ScatteringOperator.kernel` =
        ``reduce(add, kernel_summands)`` over per-ℓ
-       :class:`_PerLegendreOrderScattering`); Wave T T.4 streaming
-       spatial (:attr:`StreamingOperator.M_spatial` =
-       :class:`_MSpatialOperatorSum` over two
-       :class:`_SpatialSweepDirection` summands)
-     - The subclass
-       :class:`~orpheus.sn.operator._MSpatialOperatorSum` overrides
-       :meth:`apply` to run the bidirectional sweep ONCE with shared
-       state (Design B), avoiding the 1.5× cost of the naïve sum.
+       :class:`_PerLegendreOrderScattering`)
+     - The T.4 streaming per-direction split (``M_spatial`` as an
+       :class:`OperatorSum` of two per-direction summands) was retired
+       in #238 — it had no production consumer; the fused matvec
+       (:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`)
+       walks both directions in ONE bidirectional pass.
        See :ref:`wave-t-orchestrated-apply`.
    * - :class:`~orpheus.numerics.operator.RankOneOperator`
      - 1
@@ -199,24 +198,26 @@ forward-reference by Wave O typing work):
   :attr:`ScatteringOperator.kernel_summands`. Implements
   :math:`R_\ell \circ \Lambda_\ell \circ M_\ell` for one Legendre
   order.
-* :class:`orpheus.sn.operator._SpatialSweepDirection` — per-direction
-  sweep summand of :attr:`StreamingOperator.M_spatial`. Standalone
-  :meth:`apply` is the slow per-direction fallback for testing /
-  adjoint inspection / DSA preconditioner work.
-* :class:`orpheus.sn.operator._MSpatialOperatorSum` — subclass of
-  :class:`OperatorSum` that orchestrates the per-direction sweep
-  with shared state. Returned by
-  :attr:`StreamingOperator.M_spatial`.
-* :class:`orpheus.sn.operator.AngularRedistributionOperator` —
-  bespoke curvilinear angular-redistribution leaf wrapping the M-M
-  half-grid per-cell algebra. Returned by
-  :attr:`StreamingOperator.M_angular_redist` for sphere / cylinder
-  (returns :class:`ZeroOperator` for slab / 2-D Cartesian).
+
+.. note::
+
+   Wave T also shipped a per-direction streaming split (``M_spatial`` /
+   ``M_angular_redist`` over ``_SpatialSweepDirection`` /
+   ``_MSpatialOperatorSum`` / ``AngularRedistributionOperator``) as
+   separately-applicable typed leaves to anticipate Wave-O adjoint /
+   DSA consumers. **#238 retired that split**: no production code ever
+   applied the leaves separately (the #240 adjoint uses the fused
+   ``loss_action_transpose``), so the streaming + curvilinear
+   Morel–Montry angular redistribution is computed IN-SWEEP inside the
+   fused matvec
+   (:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`),
+   verified end-to-end by the anisotropic curvilinear MMS
+   (:ref:`sn-mms-curvilinear-aniso-verification`).
 
 The leading-underscore primitives are intentionally private (the
-public surface is via the :attr:`M_spatial` / :attr:`M_angular_redist`
-/ :attr:`kernel` / :attr:`kernel_summands` properties on the operator
-classes). Wave O (`Issue #208
+public surface is via the :attr:`~orpheus.sn.scattering.ScatteringOperator.kernel`
+/ :attr:`~orpheus.sn.scattering.ScatteringOperator.kernel_summands`
+properties on the operator classes). Wave O (`Issue #208
 <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_) will introduce
 ``BulkOperator`` / ``FullOperator`` / ``BoundaryOperator`` Protocols
 that may promote some of these to public status if a downstream

@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5358**
+Total tests collected: **5345**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1160, 21.6%
-   L1, 981, 18.3%
+   L0, 1160, 21.7%
+   L1, 981, 18.4%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3172, 59.2%
+   foundation, 3159, 59.1%
    unmarked, 9, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5270
+   explicit, 5257
    verify, 0
    class-name, 46
    func-name, 0
@@ -305,7 +305,7 @@ Module × level grid
    operators/test_sn_boundary_realizer, 0, 20, 0, 0, 0, 0
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
-   operators/test_streaming_operator, 0, 0, 0, 0, 67, 0
+   operators/test_streaming_operator, 0, 0, 0, 0, 54, 0
    operators/test_streaming_operator_decomposition, 19, 0, 0, 0, 0, 0
    operators/test_typed_residual_evaluation, 1, 0, 0, 0, 3, 0
    primitives/test_axis_native_construction, 0, 0, 0, 0, 15, 0

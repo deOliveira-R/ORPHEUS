@@ -950,23 +950,19 @@ Key Facts (Wave T)
   contract that requires "all summands are
   :class:`TensorProductOperator`" forecloses scattering and streaming.
 
-- **Per-direction streaming split**:
-  :attr:`StreamingOperator.M_spatial` is an :class:`OperatorSum` of
-  forward (μ_x > 0) and backward (μ_x < 0) sweep summands — NOT a
-  monolithic sweep. The split is architecturally load-bearing for
-  Wave O typing, adjoint propagation, DSA-class preconditioners,
-  cross-method (billiard / trajectory-resolvent) pollination, and
-  per-direction debugging slicing.
-
-- **Orchestrated apply (Design B)**:
-  :class:`_MSpatialOperatorSum` overrides the default
-  :class:`OperatorSum`'s additive apply because the two per-direction
-  summands share local state — the forward-sweep outer-face WDD
-  outflow seeds the backward sweep's :attr:`bc_outer` boundary
-  condition. The naïve sum would cost 1.5× the unified matvec because
-  each standalone leaf would re-run the forward sweep to compute its
-  own seed. Perf measured at median 1.04× pre-T.4 baseline (commit
-  ``90e7d4e``).
+- **In-sweep streaming (the retired per-direction split, #238)**: the
+  forward (μ_x > 0) and backward (μ_x < 0) WDD recurrences are walked in
+  ONE bidirectional pass inside
+  :meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk` (the
+  fused ``(L+C)ψ`` matvec, the apply-direction twin of the sweep). Wave T
+  briefly exposed the two directions as separately-applicable typed leaves
+  (``M_spatial = _SpatialSweepDirection(+1) + _SpatialSweepDirection(-1)``)
+  to anticipate Wave-O adjoint / DSA-class consumers — but #240's adjoint
+  uses the fused ``loss_action_transpose`` and no production code ever
+  applied the leaves separately, so #238 retired the split. The
+  per-direction coupling structure it documented (the backward sweep's seed
+  depends on the forward sweep's outer-face WDD outflow) is still real and
+  is why the matvec is one shared pass, not two independent forward sweeps.
 
 - **Hybrid 2-D Cartesian**: T.4 lifted 1-D only. The 2-D Cartesian
   path (then ``StreamingOperator._apply_2d_cartesian``) stayed
@@ -1046,35 +1042,38 @@ shape choice.
        the §15.2 SOTP target form fails the
        :class:`TensorProductOperator` contract.
    * - Streaming spatial
-       part
-       (:attr:`StreamingOperator.M_spatial`)
-     - :class:`OperatorSum` of two
-       per-direction bespoke leaves
-       (subclass
-       :class:`_MSpatialOperatorSum`)
-     - ``_SpatialSweepDirection(+1) +
-       _SpatialSweepDirection(-1)`` orchestrated
-       via :meth:`_MSpatialOperatorSum.apply`
+       part (in-sweep;
+       #238 retired the
+       ``M_spatial`` leaf)
+     - Fused WDD recurrence in
+       :meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`
+     - The forward (μ_x > 0) + backward (μ_x < 0)
+       sweeps walked in ONE bidirectional pass
+       (formerly the ``M_spatial`` per-direction
+       :class:`OperatorSum`)
      - **MA-Q1 fallback**: the WDD recurrence
        :math:`\psi_{\text{face,out}} = 2\bar\psi
        - \psi_{\text{face,in}}` sequentially
-       couples cells along x. The per-direction
-       summands expose structure at the type
-       level but are NOT clean
+       couples cells along x. It is NOT a clean
        :math:`(D_x \otimes \Omega_x \otimes I_g)`
-       3-factor TPs — the sweep operator is the
-       leaf factor.
+       3-factor TP — the sweep operator is the
+       leaf factor. The two directions cannot be
+       applied independently (the backward seed
+       depends on the forward outer-face outflow),
+       which is why the matvec is one shared pass.
    * - Streaming angular
        redistribution
-       (:attr:`StreamingOperator.M_angular_redist`)
-     - Bespoke
-       :class:`LinearOperator`
-       leaf (sphere / cylinder)
-       OR :class:`ZeroOperator`
-       (slab / 2-D Cartesian)
-     - :class:`AngularRedistributionOperator`
-       wrapping
-       :meth:`PoleAngularClosure.cell_contribution`
+       (in-sweep; #238
+       retired the
+       ``M_angular_redist``
+       leaf)
+     - In-sweep Morel–Montry thread inside
+       :meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`
+       (sphere / cylinder; zero for slab / 2-D
+       Cartesian)
+     - The per-cell M-M contribution from
+       :meth:`PoleAngularClosure.cell_contribution`,
+       added to the cell balance during the walk
      - **MA-Q1 fallback**: the M-M half-grid
        recurrence (Hébert 2009 §3.9.4
        Eqs. 3.432-3.435) sequentially couples
@@ -1083,7 +1082,9 @@ shape choice.
        absorption coefficients. Not a diagonal
        angular factor; a 3-factor TP wrap would
        false-assert separability the recurrence
-       doesn't support.
+       doesn't support. Verified end-to-end by the
+       anisotropic curvilinear MMS
+       (:ref:`sn-mms-curvilinear-aniso-verification`).
 
 
 The MA-Q1 master condition
@@ -1148,58 +1149,64 @@ without information loss.
 
 .. _wave-t-streaming-deep-dive:
 
-Streaming :math:`M_{\rm spatial}` deep dive — per-direction split
------------------------------------------------------------------
+Streaming deep dive — in-sweep WDD recurrence (the retired per-direction split)
+-------------------------------------------------------------------------------
 
-:attr:`StreamingOperator.M_spatial` is an :class:`OperatorSum` of
-**two per-direction-sign summands**:
-:class:`_SpatialSweepDirection(+1)` (forward sweep, :math:`\mu_x > 0`)
-and :class:`_SpatialSweepDirection(-1)` (backward sweep,
-:math:`\mu_x < 0`). The split serves five distinct future consumers,
-none of which justifies the split on its own but which together carry
-significant architectural payload.
+.. note:: #238 — the ``M_spatial`` / ``M_angular_redist`` typed-leaf split was retired.
 
-**Why split per direction:**
+   Wave T briefly exposed the streaming matvec as separately-applicable
+   typed leaves: ``StreamingOperator.M_spatial`` (an :class:`OperatorSum`
+   of two per-direction-sign sweep summands) and
+   ``StreamingOperator.M_angular_redist`` (a bespoke curvilinear
+   angular-redistribution leaf). The split was designed to anticipate
+   Wave-O adjoint propagation, DSA-class preconditioners, and
+   per-direction debugging. **#238 retired it**: no production code ever
+   applied the leaves separately (the #240 G-adjoint rides the fused
+   ``loss_action_transpose``; the open #200 block-inverse preconditioner
+   and #2 DSA never landed), so keeping the leaves alive solely to feed
+   their own structural tests was the same orphan smell one level down.
+   The streaming + curvilinear Morel–Montry angular redistribution is now
+   computed **in-sweep** inside the fused matvec
+   :meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk` (the
+   apply-direction twin of the sweep), and the angular-redistribution term
+   is verified end-to-end by the anisotropic curvilinear MMS
+   (:ref:`sn-mms-curvilinear-aniso-verification`,
+   ``catches("ERR-026")``) — the surviving structural-independence ground.
 
-1. **Wave O typing** — the natural type signal for the per-direction
-   summand exposes the BC dependency footprint cleanly: the forward
-   summand reads :attr:`bc_inner` (or the symmetry axis for sphere /
-   cylinder) and writes the outer-face WDD residual; the backward
-   summand reads the outer-face inflow (the BC's
-   :meth:`apply(outgoing)` result) and writes the inner-face WDD
-   residual. Without the split, every consumer would have to
-   re-derive this dependency structure.
+The *physics* the split documented is unchanged and load-bearing: the
+WDD spatial recurrence and the M-M angular recurrence are both
+sequentially coupled, which is why neither admits a clean
+:class:`TensorProductOperator` factorisation (the MA-Q1 master condition
+above). The two equations below pin that coupling, and they are the
+reason the matvec is a single sequential walk rather than a stack of
+independent per-axis broadcasts.
 
-2. **Adjoint propagation**. The reverse-direction sweep is the
-   structural transpose of the forward sweep with swapped boundary
-   conditions: :math:`(M_{x,+})^* = M_{x,-}^{\text{BC-swapped}}`. The
-   per-direction split exposes the dual operator's identity at the
-   type level, so the adjoint sensitivity path
-   (deferred to Phase H) can match per-direction summands without
-   mining the internal sweep body.
+**Where the WDD recurrence comes from**. For a single ordinate with
+:math:`\mu_x > 0`, the discrete cell balance over cell :math:`i`
+(width :math:`\Delta x_i`, total cross-section :math:`\Sigma_t(i)`,
+cell-averaged in-group source :math:`\bar Q_i`) is
 
-3. **DSA-class preconditioners**. Traditional diffusion-synthetic
-   acceleration schemes split per-direction at the P_1 closure level.
-   The per-direction summand is the structural unit the DSA
-   preconditioner consumes.
+.. math::
 
-4. **Cross-method pollination**. The billiard solver and the
-   trajectory-resolvent reference both expose per-direction sweep
-   primitives in their own architectures (a single forward-trajectory
-   evaluation in billiard; a single ray-direction Bickley-Naylor pass
-   in trajectory-resolvent). Exposing the per-direction summand at
-   the SN type level provides a future structural bridge.
+   |\mu|\,\bigl[(\psi_{\text{face,out}})_i - (\psi_{\text{face,in}})_i\bigr]
+   \;+\; \Sigma_t(i)\,\Delta x_i\,\bar\psi_i
+   \;=\; \Delta x_i\,\bar Q_i .
 
-5. **Per-direction debugging slicing**. The ERR-006 family
-   (curvilinear sweep divergence) and Signature-1 recurrence-coupled
-   bugs (catalogued in the ``vv-principles`` skill) manifest
-   *per direction* before they manifest in the summed
-   matvec. A per-direction property gives test code a clean
-   inspection point without re-implementing the sweep body in the
-   test.
+This single equation carries **two** unknowns —
+:math:`(\psi_{\text{face,out}})_i` and the cell average
+:math:`\bar\psi_i`. The diamond-difference (DD) closure supplies the
+second relation, asserting the cell average is the arithmetic mean of
+the two faces,
 
-**WDD coupling along x**. The sequential coupling that breaks SOTP
-applies *within* each per-direction summand. The forward sweep is
+.. math::
+
+   \bar\psi_i \;=\;
+     \tfrac12\bigl[(\psi_{\text{face,in}})_i + (\psi_{\text{face,out}})_i\bigr]
+   \;\Longleftrightarrow\;
+   (\psi_{\text{face,out}})_i \;=\; 2\,\bar\psi_i - (\psi_{\text{face,in}})_i .
+
+Substituting the closure into the balance and solving for the cell
+average gives the **forward WDD recurrence**:
 
 .. math::
    :label: wdd-forward-recurrence
@@ -1212,102 +1219,313 @@ applies *within* each per-direction summand. The forward sweep is
      2\,\bar\psi_i \;-\; (\psi_{\text{face,in}})_i
 
 with :math:`(\psi_{\text{face,in}})_{i+1} =
-(\psi_{\text{face,out}})_i`. The cell-balance algebra at
+(\psi_{\text{face,out}})_i` (the outflow of cell :math:`i` is the
+inflow of cell :math:`i+1`).
+
+**Why this forbids a tensor product**. The recurrence is a
+*sequential* dependence: the cell-:math:`i+1` average cannot be
+formed until the cell-:math:`i` outflow is known, which itself
+depends on cell :math:`i-1`, and so on back to the boundary inflow.
+Unrolling the recurrence to its closed form makes the structure
+explicit — the cell average is a lower-triangular linear functional
+of the upstream source and the inflow face:
+
+.. math::
+
+   \bar\psi_i \;=\;
+     \frac{|\mu|}{\Delta x_i\Sigma_t(i)+|\mu|}\,\psi_{\text{bdy,in}}
+     \prod_{j<i}\frac{2|\mu| - \Delta x_j\Sigma_t(j) - |\mu|}
+                     {\Delta x_j\Sigma_t(j)+|\mu|}
+     \;+\;\bigl(\text{source terms}\bigr),
+
+i.e. the action on the spatial axis is the *whole* lower-triangular
+sweep operator :math:`T_x`, not a per-cell diagonal that broadcasts.
+There is no factorisation :math:`(D_x \otimes \Omega_x \otimes I_g)`
+in which :math:`D_x` acts independently on each spatial cell: the
+off-diagonal products :math:`\prod_{j<i}(\cdots)` carry information
+*between* cells and *depend on the ordinate* :math:`\mu` through the
+denominators. The spatial factor and the angular index are entangled
+inside the recurrence — the disjoint-axes contract of
+:class:`TensorProductOperator` (:eq:`wave-t-ma-q1-master-condition`)
+fails. The cell-balance algebra at
 :func:`orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`
 hides this recurrence inside the named denom-numer primitives, but
-the recurrence is the load-bearing structure that prevents a clean
-:math:`(D_x \otimes \Omega_x \otimes I_g)` 3-factor TP.
+the recurrence is the load-bearing structure that makes the streaming
+matvec a sweep rather than a broadcast.
 
 .. vv-status: wdd-forward-recurrence documented
 
-**Forward-backward coupling at the outer face**. The two
-per-direction summands are independent *in their per-direction
-contribution*, but they share local state: the forward sweep's
-outer-face WDD outflow IS the input to the backward sweep's outer-face
-BC application. In the legacy unified-matvec body, this shared state
-was a local variable; under the per-direction operator-algebra split,
-it becomes the **named shared state** of the
-:class:`_MSpatialOperatorSum` orchestrator.
+**Forward-backward coupling at the outer face**. The forward (μ_x > 0)
+and backward (μ_x < 0) sweeps cannot be applied independently: the
+backward sweep's seed depends on the forward sweep's outer-face WDD
+outflow. Concretely, the forward sweep marches from the inner boundary
+to the outer boundary, terminating with the outer-face outflow
+:math:`(\psi_{\text{face,out}})_{N-1}`; the backward sweep then marches
+from the outer boundary back inward, and on a reflective or curvilinear
+mesh its seed inflow at the outer face is determined by that same
+forward outflow. The two directions therefore cannot run as two parallel
+independent forward sweeps — the data dependency from the forward
+terminus into the backward seed is intrinsic to the recurrence. This is
+why
+:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`
+walks both directions in ONE bidirectional pass, regardless of whether
+the directions are exposed as separate operator leaves. (Exposing them
+as leaves does not remove the coupling — it only forces the leaves to
+share state, which is precisely the smell that motivated the
+now-retired orchestrator; see :ref:`wave-t-orchestrated-apply`.)
 
 .. note::
 
-   The forward-outflow-seeds-backward-inflow coupling described in
-   this paragraph was the *pre*-O.4a.2 mechanism, where the backward
-   sweep's inflow was ``bc_outer.apply(forward_outflow)`` inside one
-   matvec. Wave O step O.4a.2 (Issue #208) **deleted that intra-call
-   reflective re-apply** — the boundary law :math:`B` is now a sibling
-   :math:`-B` operator and the backward sweep reads the *given* outer
-   inflow trace directly. The orchestrator's named shared state today
-   is the forward outflow as it feeds the **outflow self-consistency
-   defect** on the outflow trace row, not a reflected inflow seed.
+   The forward-outflow-seeds-backward-inflow coupling was the
+   *pre*-O.4a.2 mechanism, where the backward sweep's inflow was
+   ``bc_outer.apply(forward_outflow)`` inside one matvec. Wave O step
+   O.4a.2 (Issue #208) **deleted that intra-call reflective re-apply** —
+   the boundary law :math:`B` is now a sibling :math:`-B` operator and
+   the backward sweep reads the *given* outer inflow trace directly. The
+   forward outflow today feeds the **outflow self-consistency defect** on
+   the outflow trace row, not a reflected inflow seed.
    See :ref:`bc-extraction`.
 
 
 .. _wave-t-orchestrated-apply:
 
-Orchestrated :meth:`apply` (Design B)
--------------------------------------
+One bidirectional pass — design rationale and the retired per-direction split
+-----------------------------------------------------------------------------
 
-:class:`_MSpatialOperatorSum` is a **subclass** of
-:class:`OperatorSum` (so its ``.a`` and ``.b`` attributes carry the
-two :class:`_SpatialSweepDirection` summands for type introspection
-by Wave O / adjoint / DSA). The subclass **overrides**
-:meth:`OperatorSum.apply` because the default
+The fused matvec
+:meth:`~orpheus.sn.loss_representation._OneDimScanWalk._apply_walk` runs
+the bidirectional sweep **once**, returning the full :math:`(L+C)\,\psi`.
+This is the whole production story today; the rest of this section records
+*why* Wave T briefly exposed a richer surface, *what* that surface looked
+like, and *why* #238 retired it. The history is load-bearing: it
+documents a structural fact — that the per-direction split could never
+have been cheaper or simpler than the fused pass — so a future session
+does not re-introduce the split on the mistaken belief that it buys
+modularity for free.
+
+What Wave T originally built (Design B)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Wave T exposed the streaming matvec as a **subclass of**
+:class:`OperatorSum`, ``_MSpatialOperatorSum``, whose two summands were
+``_SpatialSweepDirection(+1)`` (the μ_x > 0 forward sweep) and
+``_SpatialSweepDirection(-1)`` (the μ_x < 0 backward sweep), so that
+
+.. math::
+
+   M_{\rm spatial} \;=\;
+     \texttt{_SpatialSweepDirection}(+1)
+     \;+\;
+     \texttt{_SpatialSweepDirection}(-1) .
+
+Carrying the two directions as named ``.a`` / ``.b`` attributes of an
+:class:`OperatorSum` made them visible to type introspection by Wave O
+(:ref:`bc-extraction`), adjoint propagation, and any DSA-class
+preconditioner that might want to address one direction at a time. The
+subclass **overrode** :meth:`OperatorSum.apply`, because the default
+implementation
 
 .. math::
 
    \texttt{OperatorSum.apply}(x) \;=\;
      \texttt{self.a.apply}(x) \;+\; \texttt{self.b.apply}(x)
 
-would cost 1.5× the unified matvec walltime: each standalone
-:meth:`_SpatialSweepDirection.apply` invokes
-:meth:`_MSpatialOperatorSum._compute_LpC <orpheus.sn.operator._MSpatialOperatorSum._compute_LpC>` (which already runs the
-**bidirectional** sweep internally) and masks the opposite-direction
-ordinates to zero. Calling the unified matvec twice — once per
-direction summand — duplicates the forward sweep cost.
+would have cost **1.5× the unified matvec walltime**. The reason is the
+forward-backward coupling of :ref:`wave-t-streaming-deep-dive`: each
+standalone ``_SpatialSweepDirection.apply`` internally ran the *entire*
+bidirectional sweep (it had to, to obtain the seed coupling) and then
+masked the opposite-direction ordinates to zero. Summing the two
+standalone summands therefore re-ran the forward sweep twice. The
+orchestrator's override ran the bidirectional sweep once via the shared
+``_MSpatialOperatorSum._compute_LpC`` and returned the full
+:math:`(L+C)\,\psi`, avoiding the duplication; the standalone
+per-direction summands were preserved only as a slow fallback for
+testing, adjoint inspection, and per-direction debugging.
 
-The orchestrator runs the bidirectional sweep **once** via
-:meth:`_MSpatialOperatorSum._compute_LpC <orpheus.sn.operator._MSpatialOperatorSum._compute_LpC>` and returns the full
-:math:`(L+C)\,\psi` for slab (since slab has no curvilinear
-redistribution; see :ref:`wave-t-curvilinear-deep-dive` below for the
-curvilinear subtraction). The standalone
-:meth:`_SpatialSweepDirection.apply` is preserved as a slow fallback
-for testing, Wave-O adjoint inspection, and per-direction debugging
-slicing.
-
-**Why this matters architecturally**. The forward-sweep outer-face
-WDD outflow that was a hidden local variable in the legacy unified
-matvec body is now the **named shared state** of the orchestrator
-(:meth:`_MSpatialOperatorSum._compute_LpC <orpheus.sn.operator._MSpatialOperatorSum._compute_LpC>`).
-Pattern 6 (single source of
-truth) of the project's ``coding-elegance`` skill requires that hidden
-coupling points become named. Wave T does not refactor the sweep
-body; it lifts the hidden coupling into a named property at the
-operator-algebra level.
-
+The forward-sweep outer-face WDD outflow that had been a hidden local
+of the legacy unified matvec was lifted by the orchestrator into the
+*named shared state* of ``_compute_LpC`` (``coding-elegance`` Pattern 6
+— single source of truth: hidden coupling points must become named).
 The full bidirectional matvec is mathematically equivalent to
-:math:`M_{x,+}\,\psi + M_{x,-}\,\psi`, and the
-:meth:`_MSpatialOperatorSum.apply` orchestrator returns the same
-value bit-exact (Route A — preserving the unified matvec's reduction
-order). The standalone per-direction summands return masked outputs
-that, when summed, equal the unified matvec output at
+:math:`M_{x,+}\,\psi + M_{x,-}\,\psi`; the orchestrator returned that
+value bit-exact (preserving the unified matvec's reduction order), while
+the masked per-direction summands summed to the same value at
 FP-non-associativity ULP.
+
+The five anticipated consumers — and why none materialised
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The split was speculative architecture: it was built to *anticipate*
+future consumers that would want a separately-applicable per-direction
+or per-term operator leaf. The honest record of what was expected, and
+what actually happened, is:
+
+.. list-table:: Anticipated consumers of the per-direction / per-term split
+   :header-rows: 1
+   :widths: 26 38 36
+
+   * - Anticipated consumer
+     - Why a separate leaf was expected to help
+     - What actually shipped (why it didn't materialise)
+   * - **Wave-O adjoint** (Issue #208 / #240 G-adjoint)
+     - A per-direction leaf was expected to make
+       :math:`M_{\rm spatial}^{\mathsf T}` introspectable
+       direction-by-direction, so the adjoint could be assembled by
+       transposing each summand.
+     - The #240 G-adjoint rides the **fused**
+       :meth:`~orpheus.sn.loss_representation._OneDimScanWalk.loss_action_transpose`
+       — the apply-direction twin transposed as a whole walk. The
+       transpose of a lower-triangular sweep is an upper-triangular
+       sweep over the *same* coupling; splitting it per direction first
+       gains nothing and re-introduces the shared-state coupling.
+   * - **#2 consistent DSA**
+     - A diffusion-synthetic accelerator was expected to consume an
+       isolated spatial-streaming leaf as the operator to precondition.
+     - DSA consumes the **fused residual** of :math:`(L+C-S)` plus a
+       *separate* diffusion operator :math:`A_{\rm diff} = L + C - S`
+       built in-algebra; it never needs the streaming term split from
+       collision, let alone the forward direction split from the
+       backward. The accelerator (Issue #2) never landed, and the
+       architecture decided on its issue is the in-algebra diffusion
+       operator, not a per-direction streaming leaf.
+   * - **#200 block-inverse preconditioner**
+     - A per-direction leaf was expected to feed a block-inverse Krylov
+       preconditioner that addressed each direction block.
+     - The full Morel–Montry sweep is *already* the natural
+       :math:`O(N)` exact inverse :math:`(L+C)^{-1}` (the sweep solves
+       in one pass). A spatial/angular block split of an operator whose
+       inverse is already a single cheap pass would be **weaker, not
+       cheaper** — a block preconditioner approximates an inverse that
+       the sweep computes exactly. #200 remains open and, when it lands,
+       has no reason to want the split.
+   * - **Per-direction debugging**
+     - Inspecting one sweep direction in isolation while debugging.
+     - The fused walk is debuggable directly (the per-level / per-cell
+       visits are observable inside the single pass); a standalone
+       direction summand that re-runs the whole bidirectional sweep and
+       masks the other direction is a *worse* debugging surface than the
+       single pass, because the masking hides the coupling under test.
+   * - **Slow per-direction test fallback**
+     - A standalone per-direction ``apply`` as a structural cross-check
+       on the fused pass.
+     - The cross-check that mattered — that the fused
+       :math:`(L+C)\,\psi` is correct — is supplied by the
+       anisotropic curvilinear MMS
+       (:ref:`sn-mms-curvilinear-aniso-verification`), a
+       *structurally-independent* L1 ground. A bit-identity invariant
+       between the fused pass and the sum of its own per-direction
+       summands (see :ref:`wave-t-curvilinear-deep-dive`) only verified
+       that the split *reconstructed itself*, not that either branch was
+       correct.
+
+Why #238 retired the split — the orphan-smell one level down
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+After #206 moved the 1-D matvec walk into the loss representation, the
+``_SpatialSweepDirection`` / ``_MSpatialOperatorSum`` /
+``AngularRedistributionOperator`` leaves had **zero production
+consumers**. Every production matvec went through the fused walk; the
+leaves existed only to be applied by their own structural tests — the
+algebra-decomposition invariant
+:math:`(L+C)\,\psi \equiv M_{\rm spatial}\,\psi + M_{\rm angular\_redist}\,\psi`
+(see :ref:`wave-t-curvilinear-deep-dive`). This is the classic *orphan
+smell*: machinery kept alive solely to feed the tests that exist solely
+to verify that machinery. Cardinal Rule 2 (architecture is critical)
+treats a self-referential test loop as a code smell — the tests prove
+the decomposition is internally consistent without proving anything a
+production consumer relies on.
+
+The decisive observation is that the split was never going to be the
+cheaper *or* the more modular path, for a structural reason rather than
+an incidental one:
+
+- **It could not be cheaper.** The forward-backward coupling
+  (:ref:`wave-t-streaming-deep-dive`) means a standalone per-direction
+  apply must run the whole bidirectional sweep anyway. The orchestrator
+  existed precisely to undo the 1.5× penalty of the naïve sum — i.e. to
+  claw back to the cost of the single fused pass it was wrapping. The
+  fused pass is the floor; the split can at best tie it.
+- **It could not be more modular.** Exposing the directions as leaves did
+  not decouple them — it forced them to *share named state*
+  (``_compute_LpC``'s lifted outflow), so the "modular" surface was a
+  pair of objects that could not be evaluated independently. That is the
+  illegal state ``coding-elegance`` Pattern 4 warns against:
+  representing two summands as separable when the math makes them
+  inseparable.
+
+So #238 removed the orchestrator and both leaves entirely. The single
+bidirectional pass survives as the production path; the 1.5× cost the
+override avoided is now moot — there is only one pass to run — and the
+single-source-of-truth property is satisfied *more directly*: one walk,
+one source, no orchestrator coordinating two summands that were never
+independent. The angular-redistribution term that the curvilinear leaf
+isolated is computed in-sweep (see :ref:`wave-t-curvilinear-deep-dive`)
+and verified end-to-end by the anisotropic curvilinear MMS
+(:ref:`sn-mms-curvilinear-aniso-verification`, ``catches("ERR-026")``)
+— the surviving structural-independence ground.
+
+.. note:: **If a future consumer genuinely needs a per-direction or
+   per-term leaf.** Should a #200 block-inverse preconditioner or a #2
+   DSA variant ever surface a *real* need for a separately-applicable
+   spatial / angular leaf (one that does not re-run the full
+   bidirectional sweep), the correct move is **not** to resurrect
+   ``_MSpatialOperatorSum``. The structural obstruction above — that the
+   forward-backward coupling makes the directions inseparable — has to be
+   addressed first: the consumer would need a formulation in which the
+   coupling itself is the object being preconditioned (e.g. an in-algebra
+   diffusion operator for DSA, per the architecture decided on Issue #2),
+   not a re-split of the sweep into directions that secretly share state.
+   The fused
+   :meth:`~orpheus.sn.loss_representation._OneDimScanWalk.loss_action`
+   /
+   :meth:`~orpheus.sn.loss_representation._OneDimScanWalk.loss_action_transpose`
+   pair is the principled surface; build the new consumer against it.
 
 
 .. _wave-t-curvilinear-deep-dive:
 
-Curvilinear :math:`M_{\rm angular\_redist}` — bespoke leaf
-----------------------------------------------------------
+Curvilinear angular redistribution — in-sweep Morel–Montry thread
+-----------------------------------------------------------------
 
-For sphere / cylinder geometries, :attr:`StreamingOperator.M_angular_redist`
-returns an :class:`AngularRedistributionOperator` — a bespoke
-:class:`LinearOperator` leaf wrapping the M-M (Morel-Montry) half-grid
-recurrence. The leaf consumes the per-cell M-M algebra at
-:meth:`PoleAngularClosure.cell_contribution` (Pattern 6 — single
-source of truth for the M-M coefficients).
+For sphere / cylinder geometries the curvilinear M-M (Morel–Montry)
+half-grid angular redistribution is woven into the cell balance during
+the fused walk (it returns zero for slab / 2-D Cartesian). The per-cell
+M-M coefficients come from
+:meth:`PoleAngularClosure.cell_contribution` (Pattern 6 — single source
+of truth for the M-M coefficients). #238 retired the bespoke
+``AngularRedistributionOperator`` leaf that re-walked the matvec only to
+isolate this term; the redistribution is the same in-sweep computation,
+now without a separately-applicable wrapper.
 
-**Why a leaf and not a tensor product**. Per Hébert 2009 §3.9.4,
-Eqs. 3.432-3.435, the M-M closure produces an angular recurrence
+**Where the angular-redistribution term comes from**. In curvilinear
+geometry the streaming operator acquires a term with no slab analogue:
+the angular derivative that accounts for the rotation of the local
+direction frame as a particle streams along a curved trajectory. For
+the sphere this is :math:`\frac{1-\mu^2}{r}\,\partial\psi/\partial\mu`;
+for the cylinder it is :math:`-\frac1r\,\partial(\xi\psi)/\partial\varphi`.
+Discretised over the cell volume (see the canonical derivation in
+:doc:`discrete_ordinates`, Step 2–3, Eq. :eq:`balance-general`), it
+becomes a *half-grid* difference between angular faces
+:math:`m\pm\tfrac12`,
+
+.. math::
+
+   \int_{V_i}\frac{1-\mu^2}{r}\frac{\partial\psi}{\partial\mu}\,dV
+   \;\approx\;
+   \alpha_{m+\frac12}\,\psi_{m+\frac12}
+   \;-\;
+   \alpha_{m-\frac12}\,\psi_{m-\frac12},
+
+with the geometry factor :math:`\Delta A_i / w_n` restoring per-ordinate
+flat-flux consistency (without it, the cancellation that makes a spatially
+uniform angular flux exact holds only in the *sum* over ordinates, not
+per ordinate — the Morel–Montry flux dip near :math:`r=0`). The
+half-angle fluxes :math:`\psi_{m\pm 1/2}` are not free unknowns: they are
+fixed by a closure that ties each half-angle to its neighbour, which is
+the source of the sequential coupling below.
+
+**Why not a tensor product**. Per Hébert 2009 §3.9.4, Eqs. 3.432-3.435,
+the M-M closure produces an angular recurrence
 
 .. math::
    :label: mm-half-grid-recurrence
@@ -1321,24 +1539,28 @@ angular ordinates is sequential along the half-grid axis with
 σ_t-dependent absorption. The factor that produces
 :math:`\alpha_{m+1/2}` from :math:`\alpha_{m-1/2}` IS the entire
 recurrence; there is no clean per-angular-axis diagonal factor that
-respects the disjoint-axes contract.
+respects the disjoint-axes contract. A 3-factor TP wrap would
+**false-assert separability** the recurrence doesn't support
+(``coding-elegance`` Pattern 4 — do not represent illegal states).
+
+This is the *angular* analogue of the spatial WDD obstruction of
+:ref:`wave-t-streaming-deep-dive`: where the WDD recurrence couples
+spatial cell :math:`i+1` to cell :math:`i`, the M-M recurrence couples
+angular half-face :math:`m+\tfrac12` to :math:`m-\tfrac12`. Both are
+lower-triangular sweeps over a single axis with ordinate- and
+material-dependent coefficients, and **both run inside the same fused
+walk**, sequentially nested: the outer loop is the spatial sweep, and at
+each spatial cell the inner M-M thread advances the angular half-grid.
+That nesting is precisely what a :class:`SumOfTensorProductsOperator`
+cannot express — a sum of per-axis tensor factors is a flat algebraic
+form with no notion of one axis's recurrence running *inside* another's.
 
 .. vv-status: mm-half-grid-recurrence documented
 
-A 3-factor TP wrap of the form ``leaf & I_x & I_g`` would
-**false-assert separability** the recurrence doesn't support:
-:meth:`TensorProductOperator.assert_separable` would erroneously
-pass for an operator whose leaf factor secretly couples
-:math:`(N, n_x)` jointly through the sequential per-level recurrence.
-Per the ``coding-elegance`` skill's Pattern 4 (make illegal states
-unrepresentable), the converse holds: do not represent states
-(separability) that aren't actually legal.
-
-**Per-cell algebra**. The leaf's :meth:`apply` walks every
-:math:`(p,\,i)` pair (μ-level × spatial cell) and calls
-:meth:`PoleAngularClosure.cell_contribution`. The cell-balance
-algebra at
-:func:`orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`
+**Per-cell algebra**. The walk visits every :math:`(p,\,i)` pair
+(μ-level × spatial cell) and calls
+:meth:`PoleAngularClosure.cell_contribution`. The cell-balance algebra
+at :func:`orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`
 decomposes additively into three terms:
 
 .. math::
@@ -1355,9 +1577,7 @@ decomposes additively into three terms:
      {\rm spatial\_upstream\_term} \;+\;
      {\rm angular\_numer\_upstream}
 
-The :math:`M_{\rm spatial}` summand carries the streaming +
-collision-share contribution; the :math:`M_{\rm angular\_redist}`
-leaf carries
+The angular-redistribution contribution to the cell balance is
 
 .. math::
 
@@ -1371,25 +1591,19 @@ with :math:`{\rm angular\_denom\_term} = (\Delta A / w)\,c_{\rm out}`
 and :math:`{\rm angular\_numer\_upstream} = (\Delta A / w)\,c_{\rm in}\,
 \psi_{m-1/2,\,i,\,g}` per the M-M closure (see
 :class:`orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
-for the closure data).
+for the closure data). It is an interior-cell operation that does not
+traverse the spatial boundary; only the spatial sweep writes face
+residuals.
 
 .. vv-status: wave-t-cell-balance-three-terms documented
 
-**Boundary residual semantics**. :attr:`M_angular_redist` writes
-**only to bulk**; angular redistribution is an interior-cell operation
-that doesn't traverse the spatial boundary. Output ``boundary`` is the
-zero :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`.
-Only :class:`_SpatialSweepDirection` writes non-trivial face
-residuals.
 
+Curvilinear bookkeeping (formerly the M_spatial-via-subtraction smell)
+----------------------------------------------------------------------
 
-Curvilinear :math:`M_{\rm spatial}` via subtraction
----------------------------------------------------
-
-For curvilinear (sphere / cylinder), :meth:`_MSpatialOperatorSum.apply`
-computes :math:`M_{\rm spatial}` by **subtracting**
-:math:`M_{\rm angular\_redist}` from the unified
-:math:`(L+C)\,\psi`:
+When the retired ``M_spatial`` leaf existed, its curvilinear value was
+defined by *subtracting* the angular-redistribution share from the
+unified :math:`(L+C)\,\psi`:
 
 .. math::
    :label: wave-t-mspat-curvilinear-subtraction
@@ -1400,26 +1614,16 @@ computes :math:`M_{\rm spatial}` by **subtracting**
 
 .. vv-status: wave-t-mspat-curvilinear-subtraction documented
 
-This subtraction introduces a minor architectural smell: the curvilinear
-:math:`M_{\rm spatial}` depends on :math:`M_{\rm angular\_redist}` for
-its definition. The alternative — re-implementing the spatial-only
-sweep without M-M coupling at the leaf level — would duplicate the
-per-level :func:`dag_walk` + Carlson coupled-pole structure that
-already lives in :meth:`_MSpatialOperatorSum._compute_decomposition <orpheus.sn.operator._MSpatialOperatorSum._compute_decomposition>`. The
-subtraction is the cleanest path that preserves Pattern 6 (single
-source of truth).
-
-The smell is bounded by an **algebra-decomposition invariant test**:
-
-.. math::
-
-   (L+C)\,\psi \;\equiv\;
-     M_{\rm spatial}\,\psi \;+\; M_{\rm angular\_redist}\,\psi
-
-at principled-equivalence ULP per
-the ``vv-principles`` skill (~16×ULP for the
-1-D curvilinear matvec). If the subtraction ever falsely cancels (or
-adds) a term, this test fires.
+#238 retired both leaves, so this subtractive definition no longer ships:
+the fused matvec emits :math:`(L+C)\,\psi` directly with the
+angular-redistribution term already folded into the cell balance, and the
+spatial / angular split is never materialised. The algebra-decomposition
+invariant test that bounded the old subtraction
+(:math:`(L+C)\,\psi \equiv M_{\rm spatial}\,\psi + M_{\rm angular\_redist}\,\psi`
+at principled-equivalence ULP) retired with the leaves; the surviving
+guarantee that the angular term is correct is the anisotropic curvilinear
+MMS (:ref:`sn-mms-curvilinear-aniso-verification`), which exercises the
+full curvilinear :math:`(L+C)` end-to-end.
 
 
 The 2-D Cartesian hybrid (Q1)
@@ -1507,13 +1711,16 @@ Wave T's verification chain combines three independent grounds:
    - :meth:`TensorProductOperator.assert_separable` passes on every
      TP-shaped operator (BC realizers, fission). This is structurally
      inapplicable to :class:`OperatorSum`-of-bespoke-leaves (T.3
-     scattering kernel, T.4 :attr:`M_spatial`) — see the
-     "out of scope" note in
+     scattering kernel; the T.4 streaming matvec, fused since #238) —
+     see the "out of scope" note in
      ``.claude/plans/wave_t_tensor_network.md`` §6 T.5.
 
-   - :math:`(L+C)\,\psi \equiv M_{\rm spatial}\,\psi +
-     M_{\rm angular\_redist}\,\psi` at Route A bit-identity (slab) or
-     ~16×ULP principled equivalence (curvilinear).
+   - **(#238 retired)** the Wave-T algebra-decomposition invariant
+     :math:`(L+C)\,\psi \equiv M_{\rm spatial}\,\psi +
+     M_{\rm angular\_redist}\,\psi` pinned the typed-leaf split; with the
+     split removed the surviving guarantee that the curvilinear
+     angular-redistribution term is correct is the anisotropic
+     curvilinear MMS (:ref:`sn-mms-curvilinear-aniso-verification`).
 
    - :math:`(L+C).{\rm solve}(q)` bit-identical pre/post-Wave-T,
      verifying the WDD sweep procedural inverse was NOT touched
@@ -1524,9 +1731,9 @@ Wave T's verification chain combines three independent grounds:
 
 5. **Performance regression gate**. The 1-D slab Krylov benchmark
    measured median 1.04× pre-T.4 baseline (under the 5% threshold).
-   The :func:`cached_property` decorators on :attr:`M_spatial` and
-   :attr:`M_angular_redist` ensure construction happens once per
-   :class:`StreamingOperator` lifetime, not per :meth:`apply`.
+   (#238 retired the ``M_spatial`` / ``M_angular_redist`` cached
+   properties along with the typed-leaf split; the fused matvec carries
+   no per-leaf construction cost.)
 
 
 What :class:`SumOfTensorProductsOperator` was supposed to do — and didn't
@@ -1613,23 +1820,19 @@ Cross-references
     properties; the bespoke
     :class:`orpheus.sn.scattering._PerLegendreOrderScattering` leaf.
   - :class:`orpheus.sn.operator.StreamingOperator` and its
-    :attr:`~orpheus.sn.operator.StreamingOperator.M_spatial` /
-    :attr:`~orpheus.sn.operator.StreamingOperator.M_angular_redist`
-    properties; the bespoke
-    :class:`orpheus.sn.operator._SpatialSweepDirection`,
-    :class:`orpheus.sn.operator._MSpatialOperatorSum`, and
-    :class:`orpheus.sn.operator.AngularRedistributionOperator`
-    leaves.
-  - :meth:`orpheus.sn.operator._MSpatialOperatorSum._compute_LpC`
-    (single-emission hot path) and
-    :meth:`orpheus.sn.operator._MSpatialOperatorSum._compute_decomposition`
-    (dual-emission ``(M_spatial, M_angular_redist)`` split) — the
-    unified 1-D matvec body. The module-level
-    ``_transport_operator_matvec_unified`` helper was **deleted** at
-    Wave T step T.5.2 (commit ``ad813fd``); its body was inlined into
-    these two private orchestrator methods. The public surface is the
-    :meth:`StreamingOperator.apply` /
-    :attr:`StreamingOperator.M_spatial` boundary.
+    :meth:`~orpheus.sn.operator.StreamingOperator.apply` /
+    :meth:`~orpheus.sn.operator.StreamingOperator.apply_transpose`
+    public matvec surface. (#238 retired the per-direction
+    ``M_spatial`` / ``M_angular_redist`` typed-leaf split — the
+    ``_SpatialSweepDirection`` / ``_MSpatialOperatorSum`` /
+    ``AngularRedistributionOperator`` leaves had no production
+    consumer.)
+  - :meth:`orpheus.sn.loss_representation._OneDimScanWalk._apply_walk`
+    — the fused single-emission 1-D matvec body (``(L+C)ψ``), the
+    apply-direction twin of the sweep. #206 Phase C moved the walk off
+    the operator INTO the representation; #238 removed the dual-emission
+    ``(M_spatial, M_angular_redist)`` arm (no production consumer). The
+    public surface is :meth:`StreamingOperator.apply`.
   - :class:`orpheus.sn.spatial.pole_angular_closure.PoleAngularClosure`
     — the M-M closure data and per-cell algebra primitive.
   - :func:`orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`
@@ -2565,19 +2768,12 @@ Thirteen sites (operator outputs + ``q_ext`` sources) flipped from
    * - Module / symbol
      - Site
      - Emission
-   * - :mod:`orpheus.sn.operator`
-     - :meth:`_SpatialSweepDirection.apply <orpheus.sn.operator.StreamingOperator>`
-     - bare-sweep boundary block
-   * - :mod:`orpheus.sn.operator`
-     - ``_compute_LpC`` (``m_boundary``)
+   * - :mod:`orpheus.sn.loss_representation`
+     - ``_OneDimScanWalk._apply_walk`` (``m_boundary``) — the fused
+       1-D matvec body; #206 relocated it here, #238 folded the former
+       ``_compute_LpC`` / ``_compute_decomposition`` /
+       ``_SpatialSweepDirection`` sites into this single walk
      - :math:`L+C` boundary block
-   * - :mod:`orpheus.sn.operator`
-     - ``_compute_decomposition`` (``m_spat_boundary``, the
-       **dual-emission twin** — flipped identically)
-     - :math:`L+C` boundary block (decomposed)
-   * - :mod:`orpheus.sn.operator`
-     - ``_compute_decomposition`` (``M_angular`` zero)
-     - auto-allocated zero
    * - :mod:`orpheus.sn.operator`
      - :meth:`StreamingOperator._apply_2d_cartesian <orpheus.sn.operator.StreamingOperator>`
      - 2-D boundary block

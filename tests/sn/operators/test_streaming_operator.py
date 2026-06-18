@@ -41,7 +41,6 @@ from orpheus.sn.operator import (
     CollisionOperator,
     StreamingOperator,
 )
-from tests.sn._test_helpers import _LC_matvec
 from tests.sn.regression._regression_assert import assert_regression
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
@@ -516,30 +515,23 @@ class TestOperatorAlgebraCompositionUnderTimedFullField:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Wave T T.4b — M_spatial / M_angular_redist decomposition tests
+# StreamingOperator.apply — pre-T.4 matvec regression snapshots
 # ═══════════════════════════════════════════════════════════════════════
 #
-# Per `.claude/agent-memory/test-architect/wave_t_t4_streaming_verification_spec.md`
-# §4 — the algebraic-identity tests for the new
-# `StreamingOperator.M_spatial` + `M_angular_redist` decomposition.
+# These gates pin the production fused-matvec path ``StreamingOperator.apply``
+# (= ``(L+C)ψ − σ_t·ψ``) against frozen pre-T.4 snapshots — slab (principled-
+# equivalence, the #240 ÷V kernel re-associates ~1 ULP; boundary strict) +
+# curvilinear (principled-equivalence) + 2-D Cartesian ScanMarch.
 #
-# Spec deviation from §4 (resolved via user-endorsed design follow-up
-# captured in the T.4b commit message):
-#
-# * L2-1 / L2-2 / L2-7 were specified for a clean SOTP form
-#   `(D_axis & Ω_axis & I_g)` with one summand per spatial axis.  The
-#   honest decomposition has 2 bespoke per-direction-sign summands (the
-#   WDD recurrence couples spatial + angular axes via sweep direction;
-#   not a clean tensor-product factor — same MA-Q1 critique applies as
-#   for curvilinear M_angular_redist).
-# * Revised: L2-1 = M_spatial is `_MSpatialOperatorSum` (an OperatorSum
-#   subclass) with 2 `_SpatialSweepDirection` summands (forward μ_x > 0,
-#   backward μ_x < 0).  L2-2 = each summand is a bespoke LinearOperator
-#   leaf, NOT a `TensorProductOperator`.  L2-7 = direction_sign values
-#   are disjoint (+1 / -1).
-# * T.4b scope: SLAB ONLY.  Curvilinear (sphere, cylinder) goes through
-#   the legacy path until T.4c lands the bespoke AngularRedistributionOperator
-#   leaf.  2-D Cartesian stays procedural per Q1 hybrid.
+# #238 retired the separately-applicable ``(M_spatial, M_angular_redist)``
+# operator-leaf split and its structural / decomposition-invariant /
+# standalone-apply / materialize-inverse-cache tests: that split had no
+# production consumer (everything rides the fused ``loss_action``), and the
+# curvilinear Morel–Montry angular redistribution it isolated is verified
+# end-to-end by the anisotropic curvilinear MMS
+# (``tests/sn/verification/mms/test_curvilinear_aniso_convergence.py``,
+# ``catches("ERR-026")``).  The shared fixture builders below feed the
+# surviving snapshot regression gates.
 
 PRE_T4_SNAPSHOTS_PATH = (
     "tests/sn/_fixtures/wave_t_t4/pre_t4_snapshots.npz"
@@ -601,162 +593,6 @@ def _sigma_t_from_mat_map(sn_mesh: SNMesh) -> np.ndarray:
         for g in range(ng):
             sig_t[(g, *cell)] = float(mat.SigT[g])
     return sig_t
-
-
-class TestT4bMSpatialStructure:
-    """L2-1 / L2-3 / L2-5 / L2-6 / L2-7 — type-level structural tests.
-
-    Per the T.4 verification spec §4, with deviation noted above
-    (per-direction summands, NOT 3-factor TP).
-    """
-
-    def test_M_spatial_is_operator_sum_with_two_per_direction_summands_slab(self):
-        """L2-1 (revised) — slab M_spatial is `_MSpatialOperatorSum`
-        with 2 per-direction `_SpatialSweepDirection` summands.
-        """
-        from orpheus.sn.operator import (
-            _MSpatialOperatorSum,
-            _SpatialSweepDirection,
-        )
-        from orpheus.numerics.operator import OperatorSum
-
-        sn_mesh = _slab_mesh()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
-
-        M_spat = L.M_spatial
-        assert isinstance(M_spat, _MSpatialOperatorSum)
-        assert isinstance(M_spat, OperatorSum)
-        # Default `OperatorSum` is binary — `a` is forward, `b` is
-        # backward.  Wave O will read these as the per-direction
-        # algebra exposure.
-        assert isinstance(M_spat.a, _SpatialSweepDirection)
-        assert isinstance(M_spat.b, _SpatialSweepDirection)
-
-    def test_M_spatial_summand_direction_signs_disjoint(self):
-        """L2-7 (revised) — the two per-direction summands have
-        disjoint direction_sign values (one +1, one -1).
-        """
-        from orpheus.sn.operator import _SpatialSweepDirection
-
-        sn_mesh = _slab_mesh()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
-        M_spat = L.M_spatial
-
-        signs = {M_spat.a.direction_sign, M_spat.b.direction_sign}
-        assert signs == {+1, -1}
-
-    def test_M_angular_redist_slab_is_zero_operator(self):
-        """L2-3 — slab `M_angular_redist` is `ZeroOperator`.
-
-        Slab has no curvilinear angular redistribution (the M-M
-        half-grid degenerates; ``IdentityAngularClosure`` returns zero
-        contributions per the cell-balance algebra).
-        """
-        from orpheus.numerics.operator import ZeroOperator
-
-        sn_mesh = _slab_mesh()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
-        assert isinstance(L.M_angular_redist, ZeroOperator)
-
-    def test_M_angular_redist_curvilinear_is_bespoke_leaf(self):
-        """L2-4 (T.4c) — curvilinear ``M_angular_redist`` is the bespoke
-        :class:`AngularRedistributionOperator` leaf.
-
-        Per the spec Q2 = (iii) bespoke leaf — the M-M half-grid
-        recurrence is sequentially coupled along the angular axis;
-        wrapping it as a 3-factor TP would false-assert separability
-        the recurrence doesn't support.  The leaf carries
-        ``{CAP_APPLY}`` and standalone applies per-cell M-M
-        ``cell_contribution`` algebra.
-        """
-        from orpheus.sn.operator import AngularRedistributionOperator
-
-        for builder in (_spherical_mesh, _cylindrical_mesh):
-            sn_mesh = builder()
-            sig_t = _sig_t_uniform(sn_mesh)
-            L = StreamingOperator(sn_mesh, sig_t)
-            M_ang = L.M_angular_redist
-            assert isinstance(M_ang, AngularRedistributionOperator)
-            assert M_ang.capabilities == frozenset({CAP_APPLY})
-            # The leaf carries the same sn_mesh and sigma_t as the
-            # parent operator (no copy; shared reference).
-            assert M_ang.sn_mesh is sn_mesh
-            assert M_ang.sigma_t is sig_t
-
-    def test_M_spatial_capabilities_apply_only(self):
-        """L2-6 — M_spatial advertises `{CAP_APPLY}` only.
-
-        OperatorSum's capability closure: apply propagates iff both
-        operands have apply (they do); solve does NOT propagate; the
-        transpose closure is unset because per-direction leaves carry
-        `{CAP_APPLY}` only (no `apply_transpose` yet — adjoint Krylov
-        is plan §4 item 4, deferred).
-        """
-        sn_mesh = _slab_mesh()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
-        assert L.M_spatial.capabilities == frozenset({CAP_APPLY})
-
-    def test_M_spatial_cached_property_returns_same_instance(self):
-        """The summand identities are stable across re-access — a
-        :func:`cached_property` invariant.  Important for Wave O
-        / adjoint sites that may hold references to summands across
-        invocations.
-        """
-        sn_mesh = _slab_mesh()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
-        assert L.M_spatial is L.M_spatial
-
-
-class TestT4bAlgebraDecompositionInvariantSlab:
-    """A-1 — slab algebra-decomposition invariant.
-
-    `L.apply(ψ).bulk + σ_t·ψ.bulk == M_spatial.apply(ψ).bulk + M_angular_redist.apply(ψ).bulk`
-
-    For slab, M_angular_redist = ZeroOperator, so the RHS reduces to
-    M_spatial.apply(ψ).bulk alone.  This pins the Q3 (γ) subtraction
-    contract: σ_t·ψ subtraction at apply boundary; algebra unwinds
-    bit-exact.
-    """
-
-    def test_slab_apply_decomposition_invariant(self):
-        """L = M_spatial + M_angular_redist − σ_t·ψ — bit-exact for slab."""
-        sn_mesh = _slab_for_snapshot_arm(
-            ng=2, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-        )
-        sig_t = _sigma_t_from_mat_map(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
-
-        rng = np.random.default_rng(20260531 + 41)
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
-        from dataclasses import replace
-        state = replace(
-            state,
-            bulk=replace(
-                state.bulk,
-                values=rng.uniform(0.05, 1.0, size=state.bulk.values.shape),
-            ),
-        )
-
-        L_out = L.apply(state)
-        M_spat_out = L.M_spatial.apply(state)
-        # M_angular_redist.apply on slab returns the zero operator's
-        # output; the algebra invariant unwinds via M_spatial alone.
-
-        expected_bulk = (
-            M_spat_out.bulk.values
-            - sig_t[None] * state.bulk.values
-        )
-        np.testing.assert_array_equal(L_out.bulk.values, expected_bulk)
-        # Boundary residual is carried by M_spatial alone (M_angular_redist
-        # does not write to boundary; Resolution A subtraction is bulk-only).
-        np.testing.assert_array_equal(
-            L_out.boundary.values, M_spat_out.boundary.values,
-        )
 
 
 class TestT4bPreT4RegressionSnapshot:
@@ -948,138 +784,6 @@ class TestT4bPreT4RegressionSnapshot:
         )
 
 
-class TestT4cAlgebraDecompositionInvariantCurvilinear:
-    """A-2 / A-3 — curvilinear algebra-decomposition invariant.
-
-    `(L+C).apply(ψ) == M_spatial.apply(ψ) + M_angular_redist.apply(ψ)`
-    at principled-equivalence ULP precision (per `vv-principles` §
-    "Bit-identity vs principled-equivalence" three-criteria gate —
-    M_spatial is computed via subtraction `(L+C) - M_ang` in
-    `_MSpatialOperatorSum.apply` for curvilinear, so the equivalence
-    differs from bit-identity at FP-non-associativity ULP).
-    """
-
-    def _build_curvilinear_fixture(self, builder, seed: int):
-        """Construct a curvilinear sn_mesh + sig_t + state fixture."""
-        from dataclasses import replace
-        sn_mesh = builder(ng=2)
-        sig_t = _sigma_t_from_mat_map(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
-        rng = np.random.default_rng(seed)
-        state = replace(
-            state,
-            bulk=replace(
-                state.bulk,
-                values=rng.uniform(0.05, 1.0, size=state.bulk.values.shape),
-            ),
-        )
-        return L, state
-
-    def test_sphere_LpC_equals_M_spatial_plus_M_angular_redist(self):
-        """A-2 — sphere: `(L+C)·ψ == M_spat·ψ + M_ang·ψ` (ULP-clean)."""
-        from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
-            _sphere_mesh,
-        )
-        L, state = self._build_curvilinear_fixture(_sphere_mesh, seed=20260531 + 42)
-
-        unified = _LC_matvec(state, L.sigma_t)
-        M_spat = L.M_spatial.apply(state)
-        M_ang = L.M_angular_redist.apply(state)
-
-        # `(L+C) == M_spatial + M_angular_redist` at principled-
-        # equivalence ULP — the subtraction `M_spatial = (L+C) - M_ang`
-        # inside `_MSpatialOperatorSum.apply` re-introduces FP-non-
-        # associativity drift bounded by ~reduction_depth × ULP.
-        np.testing.assert_allclose(
-            M_spat.bulk.values + M_ang.bulk.values,
-            unified.bulk.values,
-            rtol=1e-14, atol=1e-14,
-        )
-        # Boundary: M_angular_redist writes zero → M_spatial.boundary
-        # equals the unified boundary exactly (bit-identical).
-        np.testing.assert_array_equal(
-            M_spat.boundary.values, unified.boundary.values,
-        )
-
-    def test_cylinder_LpC_equals_M_spatial_plus_M_angular_redist(self):
-        """A-3 — cylinder: same invariant on multi-level fixture."""
-        from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
-            _cylinder_mesh,
-        )
-        L, state = self._build_curvilinear_fixture(_cylinder_mesh, seed=20260531 + 43)
-
-        unified = _LC_matvec(state, L.sigma_t)
-        M_spat = L.M_spatial.apply(state)
-        M_ang = L.M_angular_redist.apply(state)
-
-        np.testing.assert_allclose(
-            M_spat.bulk.values + M_ang.bulk.values,
-            unified.bulk.values,
-            rtol=1e-14, atol=1e-14,
-        )
-        np.testing.assert_array_equal(
-            M_spat.boundary.values, unified.boundary.values,
-        )
-
-    def test_curvilinear_M_angular_redist_writes_no_boundary(self):
-        """MA-Q4 — `M_angular_redist.apply` writes ZERO to boundary
-        for sphere AND cylinder.  The angular redistribution is an
-        interior-cell operation per the cell-balance algebra; spatial
-        face residuals belong to `M_spatial` alone (Wave O typing
-        consequence: M_angular_redist is a BulkOperator, M_spatial
-        is a FullOperator).
-        """
-        from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
-            _sphere_mesh, _cylinder_mesh,
-        )
-        for builder, seed in (
-            (_sphere_mesh, 20260531 + 81),
-            (_cylinder_mesh, 20260531 + 82),
-        ):
-            L, state = self._build_curvilinear_fixture(builder, seed=seed)
-            M_ang = L.M_angular_redist.apply(state)
-            np.testing.assert_array_equal(
-                M_ang.boundary.values, np.zeros_like(M_ang.boundary.values),
-            )
-
-    def test_curvilinear_M_angular_redist_linearity(self):
-        """A-8 — linearity of `M_angular_redist.apply` for curvilinear.
-
-        `M_ang(α·ψ + β·φ) = α·M_ang(ψ) + β·M_ang(φ)`.  Verified at
-        FP precision because M-M's `cell_contribution` is linear in
-        `psi_state`, and `precompute_psi_state` is linear in ψ
-        (Carlson coupled-pole seed is linear; M-M closure is
-        ``is_linear = True``).
-        """
-        from dataclasses import replace
-        from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
-            _sphere_mesh,
-        )
-
-        sn_mesh = _sphere_mesh(ng=2)
-        sig_t = _sigma_t_from_mat_map(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
-        rng = np.random.default_rng(20260531 + 91)
-
-        # Two random ψ states.
-        psi_shape = (sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape)
-        psi_a = rng.uniform(0.05, 1.0, size=psi_shape)
-        psi_b = rng.uniform(0.05, 1.0, size=psi_shape)
-        alpha, beta = 0.37, -0.91
-
-        def _make(values):
-            state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
-            return replace(state, bulk=replace(state.bulk, values=values))
-
-        out_a = L.M_angular_redist.apply(_make(psi_a)).bulk.values
-        out_b = L.M_angular_redist.apply(_make(psi_b)).bulk.values
-        out_lin = L.M_angular_redist.apply(_make(alpha * psi_a + beta * psi_b)).bulk.values
-
-        expected = alpha * out_a + beta * out_b
-        np.testing.assert_allclose(out_lin, expected, rtol=1e-13, atol=1e-14)
-
-
 class TestT4cPreT4RegressionSnapshotCurvilinear:
     """L4-2 / L4-3 — sphere + cylinder principled-equivalence vs pre-T.4 snapshot.
 
@@ -1176,109 +880,3 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
         np.testing.assert_array_equal(
             boundary, snapshots["cyl_2g_apply_boundary"],
         )
-
-
-class TestT5MaterializeInverseCache:
-    """T.5 close-out — `M_spatial.materialize_inverse_cache(sigma_t)` API surface.
-
-    Exposes the `CollisionCache` from M_spatial's natural angle
-    (Pattern 2 dual-view of `CollisionCache.from_geometry`).  The
-    method delegates to the existing factory; no new cache logic is
-    introduced.  This test pins the API and verifies the cache fields
-    match what `CollisionCache.from_geometry` would produce
-    independently — same factory, same numerics.
-
-    Future leverage (post-T.5 cache-unification micro-wave, NOT in
-    T.5 scope): `_ensure_coll_cache` in `sn/sweep.py` could route
-    through this method as the canonical cache-construction path,
-    making M_spatial the single source of truth for its own inverse
-    cache.  Today both pathways co-exist; this method exposes the
-    operator-side angle so future refactoring has a name to migrate
-    toward.
-    """
-
-    def test_M_spatial_materialize_inverse_cache_returns_collision_cache(self):
-        """`M_spatial.materialize_inverse_cache()` returns a CollisionCache
-        with the same fields as the canonical `from_geometry` factory."""
-        from orpheus.sn.spatial.sweep_cache import (
-            CollisionCache,
-            GeometryCoefficients,
-        )
-
-        sn_mesh = _slab_mesh()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
-
-        # Build the cache via M_spatial.
-        cache_via_op = L.M_spatial.materialize_inverse_cache()
-        assert isinstance(cache_via_op, CollisionCache)
-
-        # Compare to the canonical from_geometry path.
-        geom = GeometryCoefficients.from_mesh_and_quad(sn_mesh)
-        cache_canonical = CollisionCache.from_geometry(
-            geom, sig_t, sn_mesh.scheme,
-        )
-
-        # All three cache fields bit-identical (both paths call the
-        # SAME `from_geometry` factory; this verifies the delegation
-        # is wired correctly).
-        np.testing.assert_array_equal(
-            cache_via_op.inverse_denom, cache_canonical.inverse_denom,
-        )
-        np.testing.assert_array_equal(
-            cache_via_op.a_attenuation, cache_canonical.a_attenuation,
-        )
-        np.testing.assert_array_equal(
-            cache_via_op.cumprod_a, cache_canonical.cumprod_a,
-        )
-
-
-class TestT4bMSpatialStandaloneApply:
-    """Standalone per-direction `_SpatialSweepDirection.apply` slow-path
-    invariants.  Used by future Wave-O / adjoint composition where the
-    per-direction algebra is exercised in isolation.
-
-    For T.4b: verify that the standalone summands SUM to the unified
-    M_spatial.apply output bit-exact (algebraic-equivalence gate).
-    """
-
-    def test_sum_of_per_direction_standalone_applies_equals_unified(self):
-        """`M_x_forward.apply(ψ) + M_x_backward.apply(ψ) == M_spatial.apply(ψ)`.
-
-        The standalone per-direction apply is slow (each redoes the
-        full bidirectional sweep then masks) but algebraically
-        consistent with the orchestrated apply (the OperatorSum
-        algebraic identity holds at value level).
-
-        Verified on slab to keep the test fast; the per-direction
-        decomposition's correctness is independent of geometry.
-        """
-        from dataclasses import replace
-
-        sn_mesh = _slab_for_snapshot_arm(
-            ng=2, bc_left=BC("vacuum"), bc_right=BC("vacuum"),
-        )
-        sig_t = _sigma_t_from_mat_map(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
-        rng = np.random.default_rng(20260531 + 73)
-        state = replace(
-            state,
-            bulk=replace(
-                state.bulk,
-                values=rng.uniform(0.05, 1.0, size=state.bulk.values.shape),
-            ),
-        )
-
-        M_spat = L.M_spatial
-        forward_out = M_spat.a.apply(state)
-        backward_out = M_spat.b.apply(state)
-        sum_bulk = forward_out.bulk.values + backward_out.bulk.values
-        sum_boundary = forward_out.boundary.values + backward_out.boundary.values
-
-        unified_out = M_spat.apply(state)
-        np.testing.assert_array_equal(sum_bulk, unified_out.bulk.values)
-        np.testing.assert_array_equal(
-            sum_boundary, unified_out.boundary.values,
-        )
-

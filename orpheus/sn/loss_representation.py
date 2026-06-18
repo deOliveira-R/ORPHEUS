@@ -1596,8 +1596,8 @@ class ScanMarch(_LossRepresentation):
         r"""Forward loss action ``(L+C)ψ`` — the row-march apply (L21: sweep & matvec, ONE operator).
 
         S6.3: the matvec ``(L+C)ψ`` walk LIVES here.  1-D → the geometry-blind
-        spatial operator-sum ``operator.M_spatial`` (the ``s_y = 0`` degeneration
-        of the 2-D scan-march).  2-D Cartesian → the row-march reconstruction of
+        :meth:`_OneDimScanWalk._apply_walk` (the ``s_y = 0`` degeneration of the
+        2-D scan-march).  2-D Cartesian → the row-march reconstruction of
         the interior faces from the KNOWN probe via
         :func:`~orpheus.sn.spatial.scan._x_scan_faces` with the apply coefficients
         ``α = −1``, ``β = 2 ψ̄`` (a pure-reflection scan: since ψ̄ is known the WDD
@@ -2077,9 +2077,7 @@ class _OneDimScanWalk:
         from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
-        m_cell, _m_ang_cell, m_boundary = self._apply_walk(
-            sigma, psi, emit_angular=False,
-        )
+        m_cell, m_boundary = self._apply_walk(sigma, psi)
         # The matvec output carries the trailing 2^d spatial-moment axis at a
         # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
         # selects the SpatialMomentSpace factor.  DD/Step → no factor, byte-id.
@@ -2093,70 +2091,13 @@ class _OneDimScanWalk:
             history_depth=psi.history_depth,
         )
 
-    def loss_action_decomposed(
-        self, sigma_t: "np.ndarray", psi: "TimedFullField",
-    ) -> "tuple[TimedFullField, TimedFullField]":
-        r"""The ``(M_spatial, M_angular_redist)`` split of ``(L+C)ψ``.
-
-        #206 Phase C: collapses the former ``_compute_decomposition`` byte-twin.
-        Both contributions come from the SINGLE :meth:`_apply_walk` pass (the
-        same walk :meth:`loss_action` uses) — so the spatial walk has exactly
-        ONE source (Cardinal Rule 2):
-
-        * ``M_spatial = (L+C) − M_angular_redist`` carries streaming + collision
-          share AND the boundary trace block (only the spatial sweep writes face
-          residuals; MA-Q4).
-        * ``M_angular_redist`` carries the curvilinear Morel–Montry angular
-          redistribution (zero for slab/Cartesian); a ``BulkOperator``, so its
-          boundary is zero.
-
-        ``M_spatial.bulk + M_angular_redist.bulk == (L+C)ψ.bulk`` by construction
-        (``m_spat = m_full − m_ang`` elementwise). The operator-side
-        ``_MSpatialOperatorSum._compute_decomposition`` delegates here (passing
-        its ``sigma_t``); its three consumers (``M_spatial.apply`` /
-        ``M_angular_redist.apply`` / the ``_SpatialSweepDirection`` slow path)
-        keep their contract.
-        """
-        from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
-        from orpheus.transport.timed_full_field import TimedFullField
-
-        m_cell, m_ang_cell, m_boundary = self._apply_walk(
-            sigma_t, psi, emit_angular=True,
-        )
-        if m_ang_cell is None:  # invariant: emit_angular=True allocates the buffer
-            raise AssertionError("_apply_walk(emit_angular=True) must emit m_ang")
-        m_spat_cell = m_cell - m_ang_cell
-        # The decomposed matvec carries the trailing 2^d spatial-moment axis at a
-        # multi-moment closure (#240 D5b-S3; curvilinear LD is unpublished, so
-        # this is DD-only in practice — per_axis == 1 → byte-identical).
-        per_axis = self.mesh.scheme.spatial_basis_per_axis
-        m_spat = TimedFullField(
-            bulk=AngularSourceSink.from_mesh(
-                m_spat_cell, self.mesh, spatial_moments=per_axis,
-            ),
-            boundary=m_boundary,
-            _history=(),
-            history_depth=psi.history_depth,
-        )
-        m_ang = TimedFullField(
-            bulk=AngularSourceSink.from_mesh(
-                m_ang_cell, self.mesh, spatial_moments=per_axis,
-            ),
-            boundary=BoundarySourceSink.zeros_on(self.mesh),
-            _history=(),
-            history_depth=psi.history_depth,
-        )
-        return m_spat, m_ang
-
     def _apply_walk(
         self, sigma: "np.ndarray", psi: "TimedFullField",
-        *, emit_angular: bool,
-    ) -> "tuple[np.ndarray, np.ndarray | None, BoundarySourceSink]":
-        r"""The shared 1-D apply-direction walk — ONE source for both emissions.
+    ) -> "tuple[np.ndarray, BoundarySourceSink]":
+        r"""The 1-D apply-direction walk — the fused ``(L+C)ψ`` single emission.
 
         #206 Phase C: relocated verbatim off
-        ``_MSpatialOperatorSum._compute_LpC`` (single-emission matvec) AND
-        ``_compute_decomposition`` (its dual-emission byte-twin) — now ONE walk.
+        ``_MSpatialOperatorSum._compute_LpC`` (single-emission matvec).
         The apply direction is the structural twin of :meth:`sweep` (L21 "matvec
         ≡ sweep"). The sweep SOLVES ``(L+C)⁻¹q``; this APPLIES ``(L+C)ψ`` to a
         KNOWN probe ψ̄.  Since the apply has a concrete ψ̄ it rides a
@@ -2173,28 +2114,21 @@ class _OneDimScanWalk:
           principled-equivalence re-baseline, not a special case.)
         * **Curvilinear (DD-only)** — the ``cell_balance_for_streaming`` density
           path (``m_full = (denom·ψ̄ − numer_upstream)/V``) carrying the
-          Morel–Montry angular thread (NOT a pure ``(a, inverse_denom, w)``
-          coefficient), with DD's diamond march ``out = 2ψ̄ − in`` inlined.
-          Curvilinear SN is DD-only (the LD curvilinear closure is unpublished),
-          so this is a single-occupant geometry, not a polymorphism gap.
+          Morel–Montry angular redistribution thread IN-SWEEP (NOT a pure
+          ``(a, inverse_denom, w)`` coefficient), with DD's diamond march
+          ``out = 2ψ̄ − in`` inlined.  Curvilinear SN is DD-only (the LD
+          curvilinear closure is unpublished), so this is a single-occupant
+          geometry, not a polymorphism gap.  The angular-redistribution term is
+          verified end-to-end by the anisotropic curvilinear MMS
+          (``tests/sn/verification/mms/test_curvilinear_aniso_convergence.py``,
+          ``catches("ERR-026")``); #238 retired the separately-applicable
+          ``M_angular_redist`` leaf that re-walked here only to isolate this
+          term (it had no production consumer).
 
-        ``emit_angular`` selects the EMISSION granularity (NOT a second walk —
-        the spatial recurrence is identical either way):
-
-        * ``False`` — :meth:`loss_action`'s hot path: emit only ``m_full``
-          (``m_ang_cell`` is ``None``). Skips the per-cell angular-residual store
-          — measured ~15 % of the matvec, and the production Krylov path does not
-          need the ``(M_spatial, M_angular_redist)`` split, so it does not pay.
-        * ``True`` — :meth:`loss_action_decomposed`'s cold path: ALSO emit the
-          angular-redistribution share
-          ``m_ang = (angular_denom_term·ψ̄ − angular_numer_upstream)/V`` (the
-          ``cell_contribution`` is already computed for the denom; zero for
-          slab/Cartesian).
-
-        Returns ``(m_full_cell, m_ang_cell, m_boundary)`` — the two bulk buffers
-        in cell-first ``(N, ng, nx)`` layout + the shared boundary trace block
-        (OUTFLOW = self-consistency defect, INFLOW = identity; NO BC reflection —
-        the sibling ``−B`` carries it). The Morel–Montry angular redistribution +
+        Returns ``(m_full_cell, m_boundary)`` — the bulk buffer in cell-first
+        ``(N, ng, nx)`` layout + the boundary trace block (OUTFLOW =
+        self-consistency defect, INFLOW = identity; NO BC reflection — the
+        sibling ``−B`` carries it). The Morel–Montry angular redistribution +
         the Carlson coupled-pole seed (curvilinear) ride through
         ``pole_angular_closure`` (ERR-058 / #195 — NEVER re-inlined). ``sigma``
         is the ``(ng, nx)`` group diagonal cross-section, passed directly — the
@@ -2204,8 +2138,8 @@ class _OneDimScanWalk:
         directly (symmetric with :meth:`sweep`'s ``sig_t``), so the diagonal is
         single-sourced by the CALLER (``StreamingOperator.apply`` passes its
         ``sigma_t``; ``InvertibleOperator.apply`` passes the composite's
-        diagonal ``self.sigma``; the operator's ``_compute_decomposition`` passes
-        its own ``sigma_t``) — the frame never reads it off an operator handle.
+        diagonal ``self.sigma``) — the frame never reads it off an operator
+        handle.
         """
         from orpheus.transport.source_sinks import BoundarySourceSink
         from .spatial.cell_balance import cell_balance_for_streaming
@@ -2249,9 +2183,6 @@ class _OneDimScanWalk:
         per_axis = sn_mesh.scheme.spatial_basis_per_axis
         moment_tail = face_moment_tail(per_axis ** sn_mesh.ndim)
         out_g_first = np.zeros((ng, N, nx, *moment_tail))
-        out_ang_g_first = (
-            np.zeros((ng, N, nx, *moment_tail)) if emit_angular else None
-        )
 
         V = sn_mesh.volumes
         sigma_gx = sigma
@@ -2329,8 +2260,8 @@ class _OneDimScanWalk:
                         # the apply twin of the scan solve).  ``s_axes`` is the RAW
                         # down-face streaming ``g = |μ|·A_down/V = |μ|/Δ`` (slab
                         # A_down=1, V=Δ).  Source-free apply (``Q_cells = 0``).
-                        # Cartesian has no Morel–Montry thread, so ``out_ang``
-                        # stays zero (the curvilinear arm carries it).
+                        # Cartesian has no Morel–Montry angular redistribution
+                        # thread (the curvilinear arm below carries it).
                         # NOTE(#240): ``abs_mu / V[i]`` re-derives the raw ``g`` that
                         # ``SNMesh.streaming(0)`` already produces — a Pattern-2 dup;
                         # single-sourcing it (``streaming(0)[global_dir, i]``) is a
@@ -2391,13 +2322,6 @@ class _OneDimScanWalk:
                     )
                     m_full = (denom * psi_cell - numer_upstream) / V[i]
                     out_g_first[:, global_dir, i] = m_full
-                    if out_ang_g_first is not None:
-                        # The curvilinear angular-redistribution share (the
-                        # cell_contribution is already computed above).
-                        out_ang_g_first[:, global_dir, i] = (
-                            angular_denom_term[None, :] * psi_cell
-                            - angular_numer_upstream
-                        ) / V[i]
                     psi_face_in = 2.0 * psi_cell - psi_face_in   # DD diamond march
                 outflow_at_end[:, global_dir] = psi_face_in
             return outflow_at_end
@@ -2472,17 +2396,8 @@ class _OneDimScanWalk:
                 )
                 m_full = (denom * psi_cell - numer_upstream) / V[i]
                 out_g_first[:, global_deg, i] = m_full
-                if out_ang_g_first is not None:
-                    out_ang_g_first[:, global_deg, i] = (
-                        angular_denom_term[None, :] * psi_cell
-                        - angular_numer_upstream
-                    ) / V[i]
 
         m_cell = out_g_first.swapaxes(0, 1)
-        m_ang_cell = (
-            out_ang_g_first.swapaxes(0, 1)
-            if out_ang_g_first is not None else None
-        )
 
         # Wave O O.4a.2 — the boundary block of (L+C) carries the two trace
         # DIAGONALS of the block matrix; the off-diagonal −B is a sibling
@@ -2526,7 +2441,7 @@ class _OneDimScanWalk:
                     face_inner[inner_inflow, :]
                 )
 
-        return m_cell, m_ang_cell, m_boundary
+        return m_cell, m_boundary
 
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "TimedFullField",

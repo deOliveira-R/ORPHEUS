@@ -323,22 +323,15 @@ class TestResolutionADifferentFromPriorWrong:
 
         # Prior agent's wrong L.apply: matvec at σ_t = 0 (which has
         # different boundary behaviour because the Carlson seed
-        # denominator degenerates).  Wave T post-T.5 (matvec
-        # retirement): the function `_transport_operator_matvec_unified`
-        # was DELETED; reach into `_MSpatialOperatorSum._compute_decomposition`
-        # directly to bypass `InvertibleOperator`'s σ > 0 validation
-        # (this is a deliberate test of the wrong-prior behaviour).
-        from orpheus.sn.operator import _MSpatialOperatorSum
-        orch_zero = _MSpatialOperatorSum(sn_mesh, sigma_zero)
-        m_spat_zero, m_ang_zero = orch_zero._compute_decomposition(state)
-        # M = m_spat + m_ang (no σ_t·ψ subtraction since σ_t = 0).
-        import dataclasses
-        l_prior_state = dataclasses.replace(
-            m_spat_zero,
-            bulk=AngularFlux.from_mesh(
-                m_spat_zero.bulk.values + m_ang_zero.bulk.values, sn_mesh,
-            ),
-        )
+        # denominator degenerates).  Reach into the 1-D walk's fused
+        # `loss_action` at σ_t = 0 directly — this is `(L+C)ψ` with C ≡ 0
+        # (σ·ψ = 0), so it equals the σ_t = 0 matvec `M(ψ; 0)`.  Going
+        # through the representation bypasses `InvertibleOperator`'s σ > 0
+        # validation (a deliberate test of the wrong-prior behaviour).
+        # #238 retired `_MSpatialOperatorSum._compute_decomposition` (the
+        # former route to M); the fused walk is the single surviving source.
+        from orpheus.sn.loss_representation import default_for
+        l_prior_state = default_for(sn_mesh).loss_action(sigma_zero, state)
 
         diff_bulk = l_correct_state.bulk.values - l_prior_state.bulk.values
         rel = (
