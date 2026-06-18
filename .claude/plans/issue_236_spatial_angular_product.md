@@ -2,9 +2,11 @@
 
 > **Durable in-repo recovery anchor** (project rule: plans live in `ORPHEUS/.claude/`).
 > Supersedes the session-scoped `~/.claude/plans/mellow-swinging-breeze.md` (the original
-> plan-mode file). Phase 1 (the headline) is DONE + committed; Phase 2 (the τ-relocation
-> carve, the architectural heart) + Phase 3 (separability gate) remain.
-> Branch `feature/sn-spatial-angular-product` off `main` @ `3ac96b4`, **NOT pushed**.
+> plan-mode file). **Phase 1 (pairing-validity) ✅ DONE + Phase 2 (the τ-relocation carve,
+> A→B1→B2→B3→C) ✅ DONE + committed (2026-06-18).** ONLY **Phase 3 (ST5, separability gate, #68)**
+> remains. Branch `feature/sn-spatial-angular-product` off `main` @ `3ac96b4`, **19 ahead, NOT pushed**.
+> Phase-2 detail: crosswalk `.claude/plans/issue_236_phase2_tau_carve_crosswalk.md` §§8/9/10
+> (B1/B2 · B3 · Step C) + Step-C audit `.claude/plans/issue_236_stepC_dependency_audit.md`.
 
 ## Context
 
@@ -56,7 +58,22 @@ register Step with `diffusion_limit_consistent=False` + LMM Eq.5.20 when built).
 
 ---
 
-## NEXT — Phase 2 (ST3): τ is an angular property, not a streaming-geometry field
+## Phase 2 (ST3) ✅ DONE + committed (2026-06-18) — τ relocated onto the angular closure
+
+**Done across A→B1→B2→B3→C** (`cdb6488`→`b58ed83`, bit-identical throughout; qa SUPPORTED +
+elegance PASS each step). τ now lives SOLELY on `morel_montry_tau_per_level` (closure-owned,
+cylinder clamp inside the closure), stamped on `CellVisit.tau` via `_make_cell_visit`, consumed
+by `DD.update` + the CumprodScan split + `cell_balance_terms`; the geometry-side producers +
+`StreamingTerms.tau_mm`/`alpha_in`/`alpha_out` + `ReducedStreamingOperator.tau_mm`/`tau_mm_per_level`
+are DELETED. Two load-bearing catches: the **L20 6th τ consumer** (B3, the scan recurrence) + the
+**migrate-then-delete oracle relocation** (Step C, onto the independent `contamination.morel_montry_weights`).
+**T5** (legacy unbound `MorelMontryAngularSweep(sn_mesh=None)` `__call__`-arg `tau_mm`) survives → **#248**.
+Authoritative record: crosswalk §§8/9/10. The original Phase-2 plan body is retained below as the
+historical design record.
+
+---
+
+### [HISTORICAL — the Phase 2 plan as authored] τ is an angular property, not a streaming-geometry field
 
 **The architectural heart.** The Bailey–Morel–Chang angular weight τ is currently computed in
 the streaming-GEOMETRY factory and baked into the SPATIAL cell-balance. Relocate τ-PRODUCTION
@@ -95,13 +112,34 @@ angular-redistribution operator; a scalar residual is blind to a wrong angular c
 → `elegance-enforcer` + `qa` → resolve nits → commit (feat + chore) → archivist documents the
 τ-ownership relocation + the product narrative on `theory/discrete_ordinates` (Cardinal Rule 3).
 
-## THEN — Phase 3 (ST5): separability characterization gate
+## NEXT — Phase 3 (ST5): separability characterization gate ◀◀ THE ACTIVE PIECE (#68)
 
-Promote the four `diag_sep_*` probes (space_angle / cyl / slab / slab_iso; construction
-documented in `.claude/agent-memory/numerics-investigator/sn_space_angle_discretization_coupling.md`)
-from the ephemeral job-dir into a permanent gate under `tests/sn/verification/` (analogous to the
-#233 floor test). Asserts Cartesian additive cross-term ≈ 0 (separable); curvilinear
-`E ≈ max(E_space, E_angle)` (the interference/gating constraint). Independent — lands any time.
+The last #236 campaign piece — INDEPENDENT of the τ carve (no τ-carve dependency; lands any time).
+Promote the four `diag_sep_*` probes (space_angle / cyl / slab / slab_iso) from the ephemeral
+job-dir (they were NEVER persisted — `find . -name 'diag_sep*'` = empty as of 2026-06-18, so they
+must be RECONSTRUCTED) into a PERMANENT gate under `tests/sn/verification/`.
+
+**Authoritative recovery (READ FIRST):**
+- **Probe construction** — `.claude/agent-memory/numerics-investigator/sn_space_angle_discretization_coupling.md`
+  (how the four probes were built + the measured separability evidence).
+- **ST5 theory** — `.claude/agent-memory/literature-researcher/space_angle_discretization_separability.md`
+  (the LMM-1987 spatial × BMC-2010 angular separability split — WHY the product separates).
+
+**The gate asserts** (the product's separability claim, empirically pinned):
+- **Cartesian** (slab / slab_iso): the additive cross-term ≈ 0 → the (spatial ⊗ angular) error
+  SEPARATES (`E ≈ E_space + E_angle`, no interference).
+- **Curvilinear** (sphere / cyl): `E ≈ max(E_space, E_angle)` — the interference/gating constraint
+  (the #233 ↔ #235 coupling; curvilinear does NOT separate additively).
+
+**Pattern:** analogous to the #233 floor test (find an existing `tests/sn/verification/` gate to
+mirror the structure — none currently matches `separab/233/235/coupling`, so model it on the
+nearest convergence/MMS floor test). Likely a NEW `tests/sn/verification/` module.
+
+**Sequence (proactive trigger — a NEW verification gate):** dispatch **`test-architect`** FIRST
+to design the gate spec (which refinement series, what cross-term estimator, the separable-vs-gated
+tolerances, sphere+cyl+slab+slab_iso coverage — vv L27: per-ordinate, never weight-summed, for the
+curvilinear angular term) → `method-implementer` (reconstruct the probes + the gate) → elegance +
+qa → commit (feat + chore). Then **#236 is COMPLETE** (Phase 1 + 2 + 3 all done).
 
 ---
 
