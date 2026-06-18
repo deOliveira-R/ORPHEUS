@@ -96,10 +96,11 @@ def test_sphere_reduced_is_reduced_streaming_operator() -> None:
     assert sn.reduced.coord is CoordSystem.SPHERICAL
     assert sn.reduced.requires_upstream_angular_state is True
     assert sn.reduced.angular_marching_axis == "mu"
-    # Sphere populates alpha_half / redist_dAw / tau_mm.
+    # Sphere populates alpha_half / redist_dAw.  (Issue #236 Step C
+    # retired the geometry-side tau_mm — the M-M angular weight is now
+    # closure-owned.)
     assert sn.reduced.alpha_half is not None
     assert sn.reduced.redist_dAw is not None
-    assert sn.reduced.tau_mm is not None
 
 
 @pytest.mark.foundation
@@ -109,10 +110,11 @@ def test_cylinder_reduced_is_reduced_streaming_operator() -> None:
     assert sn.reduced.coord is CoordSystem.CYLINDRICAL
     assert sn.reduced.requires_upstream_angular_state is True
     assert sn.reduced.angular_marching_axis == "mu"
-    # Cylinder populates per-level structures.
+    # Cylinder populates per-level structures.  (Issue #236 Step C
+    # retired the geometry-side tau_mm_per_level — the M-M angular
+    # weight is now closure-owned.)
     assert sn.reduced.alpha_per_level is not None
     assert sn.reduced.redist_dAw_per_level is not None
-    assert sn.reduced.tau_mm_per_level is not None
 
 
 # ---------------------------------------------------------------------------

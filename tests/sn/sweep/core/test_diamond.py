@@ -62,11 +62,17 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial import DiamondDifference, UpstreamState
 from orpheus.sn.spatial.scheme import CellVisit
 
-# Issue #236 Phase 2 B2 Fix 3 — the ONE shared hand-transcribed surrogate
-# for the M-M ``(c_in, c_out)`` constants (was a private byte-identical
-# copy here; unified with ``test_cell_balance_for_streaming.py`` and the
-# production-stamp catcher).
-from tests.sn.sweep.core._c_surrogate import c_from_streaming_terms
+# Issue #236 Phase 2 B2 Fix 3 / Step C — the ONE shared independent
+# surrogate for the M-M ``(c_in, c_out)`` constants and the ``(τ, α)``
+# triple (was a private byte-identical copy here; unified with
+# ``test_cell_balance_for_streaming.py`` and the production-stamp catcher).
+# Step C: τ now comes from the structurally-independent
+# ``contamination.morel_montry_weights`` (geometry-τ retired); α from the
+# operator's surviving dome.
+from tests.sn.sweep.core._c_surrogate import (
+    c_from_constants,
+    mm_constants_for_ordinate,
+)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -378,7 +384,7 @@ class TestBitIdenticalCurvilinear:
         direction_idx = quad.N - 2  # positive μ, not extremal
         st = op.streaming_terms(cell_idx, direction_idx)
         # Confirm we have the curvilinear bundle populated.
-        assert st.alpha_in is not None
+        assert st.delta_A_over_w is not None
         assert st.abs_mu >= 1e-15  # non-degenerate
 
         total_xs = np.array([1.3, 0.9])
@@ -393,18 +399,19 @@ class TestBitIdenticalCurvilinear:
         )
 
         # Reference scalar form — mirrors sweep.py:328-329 + 350-361.
-        # Outward (μ > 0): downstream face is the OUTER face.
+        # Outward (μ > 0): downstream face is the OUTER face.  Issue #236
+        # Step C: τ / α come from the independent surrogate (geometry-τ
+        # retired); c_* from the hand-transcribed formula.
+        tau, alpha_in, alpha_out = mm_constants_for_ordinate(
+            op, cell_idx, direction_idx,
+        )
         abs_mu = st.abs_mu
         A_inner = st.face_area_inner
         A_outer = st.face_area_outer
         A_downstream = A_outer  # outward sweep
         dA_w = st.delta_A_over_w
-        alpha_in = st.alpha_in
-        alpha_out = st.alpha_out
-        tau = st.tau_mm
         V = st.volume
-        ref_c_out = alpha_out / tau
-        ref_c_in = (1.0 - tau) / tau * alpha_out + alpha_in
+        ref_c_in, ref_c_out = c_from_constants(tau, alpha_in, alpha_out)
         ref_denom = (
             2.0 * abs_mu * A_downstream + dA_w * ref_c_out + total_xs * V
         )
@@ -474,11 +481,14 @@ class TestBitIdenticalCurvilinear:
             angular_upstream=psi_angle_in,
         )
 
+        # Issue #236 Step C: τ / α from the independent surrogate.
+        tau, alpha_in, alpha_out = mm_constants_for_ordinate(
+            op, cell_idx, direction_idx,
+        )
         abs_mu = st.abs_mu
         # Inward (μ < 0): downstream face is the INNER face.
         A_downstream = st.face_area_inner
-        ref_c_out = st.alpha_out / st.tau_mm
-        ref_c_in = (1.0 - st.tau_mm) / st.tau_mm * st.alpha_out + st.alpha_in
+        ref_c_in, ref_c_out = c_from_constants(tau, alpha_in, alpha_out)
         ref_denom = (
             2.0 * abs_mu * A_downstream
             + st.delta_A_over_w * ref_c_out
@@ -492,7 +502,7 @@ class TestBitIdenticalCurvilinear:
         ref_psi_avg = ref_numer / ref_denom
         ref_psi_spat_out = 2.0 * ref_psi_avg - psi_spat_in
         ref_psi_angle_out = (
-            (ref_psi_avg - (1.0 - st.tau_mm) * psi_angle_in) / st.tau_mm
+            (ref_psi_avg - (1.0 - tau) * psi_angle_in) / tau
         )
 
         # Inward visit: face_area_downstream = inner face.  Issue #236
@@ -502,7 +512,7 @@ class TestBitIdenticalCurvilinear:
             cell_idx=cell_idx,
             streaming_terms=st,
             face_area_downstream=st.face_area_inner,
-            c_in=ref_c_in, c_out=ref_c_out, tau=st.tau_mm,
+            c_in=ref_c_in, c_out=ref_c_out, tau=tau,
         )
         strat = DiamondDifference()
         result = strat.update(visit, total_xs, source, upstream)
@@ -564,11 +574,13 @@ class TestCylindricalDegenerate:
             face_area_inner=st_real.face_area_inner,
             face_area_outer=st_real.face_area_outer,
             delta_A_over_w=st_real.delta_A_over_w,
-            alpha_in=st_real.alpha_in,
-            alpha_out=st_real.alpha_out,
-            tau_mm=st_real.tau_mm,
             volume=st_real.volume,
             abs_mu=1e-16,
+        )
+        # Issue #236 Step C: τ / α (clamped cylinder τ) for the same
+        # ordinate the real packet came from, via the independent surrogate.
+        tau, alpha_in, alpha_out = mm_constants_for_ordinate(
+            op, cell_idx=1, direction_idx=0, mu_level_idx=0,
         )
 
         ng = 2
@@ -584,25 +596,24 @@ class TestCylindricalDegenerate:
         )
 
         # Reference scalar form — mirrors sweep.py:533-543.
-        ref_c_out = st.alpha_out / st.tau_mm
-        ref_c_in = (1.0 - st.tau_mm) / st.tau_mm * st.alpha_out + st.alpha_in
+        ref_c_in, ref_c_out = c_from_constants(tau, alpha_in, alpha_out)
         ref_denom = st.delta_A_over_w * ref_c_out + total_xs * st.volume
         ref_numer = source + st.delta_A_over_w * ref_c_in * psi_angle_in
         ref_psi_avg = ref_numer / ref_denom
         ref_psi_angle_out = (
-            (ref_psi_avg - (1.0 - st.tau_mm) * psi_angle_in) / st.tau_mm
+            (ref_psi_avg - (1.0 - tau) * psi_angle_in) / tau
         )
 
         # Degenerate visit: no spatial face flow ⇒
         # face_area_downstream = 0.0 (geometric truth; Issue #196
         # Step 2.5 replaced the ``None`` sentinel with float 0.0).
         # Issue #236 Phase 2 B3: stamp the M-M c_in / c_out / τ DD.update
-        # reads off the visit (clamped cylinder τ from st.tau_mm).
+        # reads off the visit (clamped cylinder τ from the surrogate).
         visit = CellVisit(
             cell_idx=1,
             streaming_terms=st,
             face_area_downstream=0.0,
-            c_in=ref_c_in, c_out=ref_c_out, tau=st.tau_mm,
+            c_in=ref_c_in, c_out=ref_c_out, tau=tau,
         )
         strat = DiamondDifference()
         result = strat.update(visit, total_xs, source, upstream)
@@ -651,11 +662,12 @@ class TestCylindricalDegenerate:
             face_area_inner=st_real.face_area_inner,
             face_area_outer=st_real.face_area_outer,
             delta_A_over_w=st_real.delta_A_over_w,
-            alpha_in=st_real.alpha_in,
-            alpha_out=st_real.alpha_out,
-            tau_mm=st_real.tau_mm,
             volume=st_real.volume,
             abs_mu=1e-16,
+        )
+        # Issue #236 Step C: τ / α from the independent surrogate.
+        tau, alpha_in, alpha_out = mm_constants_for_ordinate(
+            op, cell_idx=1, direction_idx=0, mu_level_idx=0,
         )
 
         total_xs = np.array([0.6, 1.0])
@@ -674,12 +686,12 @@ class TestCylindricalDegenerate:
         # Issue #236 Phase 2 B3: stamp the M-M c_in / c_out / τ DD.update
         # reads off the visit (the production denom carries dA_w·c_out, which
         # sets the |μ|→0 spatial-upstream sensitivity floor this test bounds).
-        c_in_v, c_out_v = c_from_streaming_terms(st)
+        c_in_v, c_out_v = c_from_constants(tau, alpha_in, alpha_out)
         visit = CellVisit(
             cell_idx=1,
             streaming_terms=st,
             face_area_downstream=0.0,
-            c_in=c_in_v, c_out=c_out_v, tau=st.tau_mm,
+            c_in=c_in_v, c_out=c_out_v, tau=tau,
         )
         strat = DiamondDifference()
         result_a = strat.update(visit, total_xs, source, upstream_a)
@@ -836,7 +848,10 @@ def _slab_visit_inputs(
     # neutral curvature) so the unified DD body's spatial-closure
     # branch runs (slab DOES have a downstream face — the cell-edge).
     # Slab α = 0 / τ = 1 → c_in = c_out = 0.0 (#236 Phase 2 B2).
-    c_in, c_out = c_from_streaming_terms(st)
+    tau, alpha_in, alpha_out = mm_constants_for_ordinate(
+        op, cell_idx, direction_idx,
+    )
+    c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
     visit = CellVisit(
         cell_idx=cell_idx, streaming_terms=st, face_area_downstream=1.0,
         c_in=c_in, c_out=c_out,
@@ -880,7 +895,10 @@ def _sphere_visit_inputs(
         angular_upstream=psi_angle_in,
     )
     A_down = st.face_area_outer if outward else st.face_area_inner
-    c_in, c_out = c_from_streaming_terms(st)
+    tau, alpha_in, alpha_out = mm_constants_for_ordinate(
+        op, cell_idx, direction_idx,
+    )
+    c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
     visit = CellVisit(
         cell_idx=cell_idx, streaming_terms=st, face_area_downstream=A_down,
         c_in=c_in, c_out=c_out,
@@ -930,7 +948,10 @@ def _cylinder_visit_inputs(
         st.face_area_outer if (st.mu is not None and st.mu >= 0.0)
         else st.face_area_inner
     )
-    c_in, c_out = c_from_streaming_terms(st)
+    tau, alpha_in, alpha_out = mm_constants_for_ordinate(
+        op, cell_idx, direction_idx, mu_level_idx=mu_level_idx,
+    )
+    c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
     visit = CellVisit(
         cell_idx=cell_idx, streaming_terms=st, face_area_downstream=A_down,
         c_in=c_in, c_out=c_out,
@@ -967,11 +988,12 @@ def _cylinder_degenerate_visit_inputs(
         face_area_inner=st_real.face_area_inner,
         face_area_outer=st_real.face_area_outer,
         delta_A_over_w=st_real.delta_A_over_w,
-        alpha_in=st_real.alpha_in,
-        alpha_out=st_real.alpha_out,
-        tau_mm=st_real.tau_mm,
         volume=st_real.volume,
         abs_mu=1e-16,
+    )
+    # Issue #236 Step C: τ / α from the independent surrogate.
+    tau, alpha_in, alpha_out = mm_constants_for_ordinate(
+        op, cell_idx=cell_idx, direction_idx=0, mu_level_idx=0,
     )
     if total_xs is None:
         total_xs = np.linspace(0.5, 1.2, n_groups)
@@ -983,7 +1005,7 @@ def _cylinder_degenerate_visit_inputs(
         spatial_upstream=np.zeros(n_groups),
         angular_upstream=psi_angle_in,
     )
-    c_in, c_out = c_from_streaming_terms(st)
+    c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
     visit = CellVisit(
         cell_idx=cell_idx, streaming_terms=st, face_area_downstream=0.0,
         c_in=c_in, c_out=c_out,
@@ -1393,6 +1415,9 @@ class TestResidual:
         quad = Quadrature.gauss_legendre(8)
         op = spherical_streaming(mesh, quad)
         st = op.streaming_terms(cell_idx=3, direction_idx=1)  # μ<0
+        tau, alpha_in, alpha_out = mm_constants_for_ordinate(
+            op, cell_idx=3, direction_idx=1,
+        )
         total_xs = np.array([1.0, 0.5])
         source = np.array([0.1, 0.05])
         upstream = UpstreamState(
@@ -1401,7 +1426,7 @@ class TestResidual:
         )
         cell_avg = np.array([0.7, 0.3])
 
-        c_in, c_out = c_from_streaming_terms(st)
+        c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
         visit_inward = CellVisit(
             cell_idx=3, streaming_terms=st,
             face_area_downstream=st.face_area_inner,

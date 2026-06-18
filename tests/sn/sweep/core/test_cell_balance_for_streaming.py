@@ -48,11 +48,25 @@ from orpheus.sn.spatial.cell_balance import (
 )
 from orpheus.sn.spatial.scheme import UpstreamState
 
-# Issue #236 Phase 2 B2 Fix 3 — the ONE shared hand-transcribed surrogate
-# for the M-M ``(c_in, c_out)`` constants (was a private byte-identical
-# copy ``_visit_c`` here; unified with ``test_diamond.py`` and the
-# production-stamp catcher).
-from tests.sn.sweep.core._c_surrogate import c_from_streaming_terms
+# Issue #236 Phase 2 B2 Fix 3 / Step C — the ONE shared hand-transcribed
+# surrogate for the M-M ``(c_in, c_out)`` constants (was a private
+# byte-identical copy ``_visit_c`` here; unified with ``test_diamond.py``
+# and the production-stamp catcher).  Step C: τ / α are now passed
+# explicitly (the geometry-side ``StreamingTerms`` τ/α packing was
+# retired); these synthetic packets carry their chosen M-M triple as
+# module constants below.
+from tests.sn.sweep.core._c_surrogate import c_from_constants
+
+# Synthetic M-M (τ, α_in, α_out) triple for the representative
+# curvilinear packet — chosen values that were previously baked onto
+# the (now-retired) ``StreamingTerms.tau_mm`` / ``alpha_in`` / ``alpha_out``
+# fields.  Slab is the neutral element (τ = 1, α = 0).
+_CURVILINEAR_TAU = 0.75
+_CURVILINEAR_ALPHA_IN = 0.1
+_CURVILINEAR_ALPHA_OUT = 0.15
+_SLAB_TAU = 1.0
+_SLAB_ALPHA_IN = 0.0
+_SLAB_ALPHA_OUT = 0.0
 
 # Per-cell streaming-balance algebra: structural invariants of the
 # cell_balance_for_streaming primitive (no theory-page :label:).
@@ -67,32 +81,31 @@ pytestmark = pytest.mark.foundation
 
 
 def _curvilinear_streaming_terms() -> StreamingTerms:
-    """Build a representative curvilinear (sphere-ish) StreamingTerms."""
+    """Build a representative curvilinear (sphere-ish) StreamingTerms.
+
+    The M-M triple lives in the module constants ``_CURVILINEAR_TAU`` /
+    ``_CURVILINEAR_ALPHA_{IN,OUT}`` (Step C — the geometry-side ``tau_mm``
+    / ``alpha_*`` packing on ``StreamingTerms`` was retired).
+    """
     return StreamingTerms(
         chord_length=0.5,
         mu=0.3,
         face_area_inner=1.2,
         face_area_outer=1.5,
         delta_A_over_w=0.3,
-        alpha_in=0.1,
-        alpha_out=0.15,
-        tau_mm=0.75,
         volume=0.6,
         abs_mu=0.3,
     )
 
 
 def _slab_streaming_terms() -> StreamingTerms:
-    """Slab StreamingTerms (Step 2.5 neutral curvature)."""
+    """Slab StreamingTerms (Step 2.5 neutral curvature; neutral M-M triple)."""
     return StreamingTerms(
         chord_length=0.5,
         mu=0.3,
         face_area_inner=1.0,
         face_area_outer=1.0,
         delta_A_over_w=0.0,
-        alpha_in=0.0,
-        alpha_out=0.0,
-        tau_mm=1.0,
         volume=0.5,
         abs_mu=0.3,
     )
@@ -102,23 +115,27 @@ def _scalar_to_vectorized_inputs(
     st: StreamingTerms,
     A_downstream_scalar: float,
     upstream: UpstreamState,
+    *,
+    tau: float,
+    alpha_in: float,
+    alpha_out: float,
 ):
     """Convert per-cell scalar StreamingTerms to ``(n_mask=1,)`` inputs.
 
     Returns ``(abs_mu, A_down, A_total, psi_face_in,
     angular_denom_term, angular_numer_upstream)`` — the closure-aware
     PR-TYPED-6.5 Phase 2.11 helper argument shape.  The angular
-    contributions are computed inline from the M-M coefficients on
-    ``st`` to verify ``cell_balance_for_streaming`` reproduces the
-    pre-Phase-2.11 behaviour under equivalent inputs.
+    contributions are computed inline from the explicit M-M triple
+    (Step C — no longer read off ``st``) to verify
+    ``cell_balance_for_streaming`` reproduces the pre-Phase-2.11
+    behaviour under equivalent inputs.
     """
     abs_mu = np.array([st.abs_mu], dtype=float)
     A_down = np.array([A_downstream_scalar], dtype=float)
     A_total = np.array([st.face_area_inner + st.face_area_outer], dtype=float)
     dA_w_scalar = st.delta_A_over_w
-    tau = st.tau_mm
-    c_out_scalar = st.alpha_out / tau
-    c_in_scalar = (1.0 - tau) / tau * st.alpha_out + st.alpha_in
+    c_out_scalar = alpha_out / tau
+    c_in_scalar = (1.0 - tau) / tau * alpha_out + alpha_in
     psi_face_in = upstream.spatial_upstream[:, None]            # (ng, 1)
     angular_denom_term = np.array(
         [dA_w_scalar * c_out_scalar], dtype=float,
@@ -152,9 +169,12 @@ def test_n_mask_1_matches_scalar_curvilinear():
         angular_upstream=np.array([0.4, 0.6]),
     )
 
-    # Issue #236 Phase 2 B3: cell_balance_terms takes c_in / c_out as data;
-    # supply them from the shared surrogate (this test has a raw st, no visit).
-    c_in_v, c_out_v = c_from_streaming_terms(st)
+    # Issue #236 Phase 2 B3 / Step C: cell_balance_terms takes c_in / c_out
+    # as data; supply them from the shared surrogate on the chosen M-M triple
+    # (this test has a raw st, no visit).
+    c_in_v, c_out_v = c_from_constants(
+        _CURVILINEAR_TAU, _CURVILINEAR_ALPHA_IN, _CURVILINEAR_ALPHA_OUT,
+    )
     terms = cell_balance_terms(
         st, A_downstream, total_xs, upstream, c_in=c_in_v, c_out=c_out_v,
     )
@@ -162,7 +182,11 @@ def test_n_mask_1_matches_scalar_curvilinear():
     (
         abs_mu, A_down, A_total, psi_face_in,
         angular_denom_term, angular_numer_upstream,
-    ) = _scalar_to_vectorized_inputs(st, A_downstream, upstream)
+    ) = _scalar_to_vectorized_inputs(
+        st, A_downstream, upstream,
+        tau=_CURVILINEAR_TAU, alpha_in=_CURVILINEAR_ALPHA_IN,
+        alpha_out=_CURVILINEAR_ALPHA_OUT,
+    )
 
     denom_v, numer_v = cell_balance_for_streaming(
         abs_mu=abs_mu, A_downstream=A_down, A_total=A_total,
@@ -193,8 +217,11 @@ def test_n_mask_1_matches_scalar_slab():
         angular_upstream=None,
     )
 
-    # Issue #236 Phase 2 B3: slab carries neutral α=0 / τ=1 ⇒ c_in = c_out = 0.
-    c_in_v, c_out_v = c_from_streaming_terms(st)
+    # Issue #236 Phase 2 B3 / Step C: slab carries neutral α=0 / τ=1
+    # ⇒ c_in = c_out = 0.
+    c_in_v, c_out_v = c_from_constants(
+        _SLAB_TAU, _SLAB_ALPHA_IN, _SLAB_ALPHA_OUT,
+    )
     terms = cell_balance_terms(
         st, A_downstream, total_xs, upstream, c_in=c_in_v, c_out=c_out_v,
     )
@@ -202,7 +229,10 @@ def test_n_mask_1_matches_scalar_slab():
     (
         abs_mu, A_down, A_total, psi_face_in,
         angular_denom_term, angular_numer_upstream,
-    ) = _scalar_to_vectorized_inputs(st, A_downstream, upstream)
+    ) = _scalar_to_vectorized_inputs(
+        st, A_downstream, upstream,
+        tau=_SLAB_TAU, alpha_in=_SLAB_ALPHA_IN, alpha_out=_SLAB_ALPHA_OUT,
+    )
     # Slab fixture has dA_w = 0 and c_in = c_out = 0 → both angular
     # contributions are zero arrays.
     np.testing.assert_array_equal(angular_denom_term, np.zeros(1))
@@ -411,26 +441,33 @@ def test_angular_upstream_none_equals_zero_angular_term():
 
 
 @pytest.mark.parametrize(
-    "st_factory, A_down, ang_upstream",
+    "st_factory, A_down, ang_upstream, triple",
     [
-        (_curvilinear_streaming_terms, 1.5, np.array([0.4, 0.6])),
-        (_slab_streaming_terms, 1.0, None),
+        (
+            _curvilinear_streaming_terms, 1.5, np.array([0.4, 0.6]),
+            (_CURVILINEAR_TAU, _CURVILINEAR_ALPHA_IN, _CURVILINEAR_ALPHA_OUT),
+        ),
+        (
+            _slab_streaming_terms, 1.0, None,
+            (_SLAB_TAU, _SLAB_ALPHA_IN, _SLAB_ALPHA_OUT),
+        ),
     ],
     ids=["curvilinear", "slab"],
 )
 def test_diamond_residual_consumes_cell_balance_for_streaming(
-    st_factory, A_down, ang_upstream,
+    st_factory, A_down, ang_upstream, triple,
 ):
     """Verify :meth:`DiamondDifference.residual` produces the same
     output as direct delegation to :func:`cell_balance_for_streaming`."""
     from orpheus.sn.spatial.scheme import CellVisit
     from orpheus.sn.spatial.diamond import DiamondDifference
 
+    tau, alpha_in, alpha_out = triple
     st = st_factory()
-    c_in, c_out = c_from_streaming_terms(st)
+    c_in, c_out = c_from_constants(tau, alpha_in, alpha_out)
     visit = CellVisit(
         cell_idx=7, streaming_terms=st, face_area_downstream=A_down,
-        c_in=c_in, c_out=c_out,
+        c_in=c_in, c_out=c_out, tau=tau,
     )
     total_xs = np.array([1.2, 0.8])
     source = np.array([0.05, 0.07])
@@ -447,7 +484,10 @@ def test_diamond_residual_consumes_cell_balance_for_streaming(
     (
         abs_mu, A_d, A_tot, psi_face_in,
         angular_denom_term, angular_numer_upstream,
-    ) = _scalar_to_vectorized_inputs(st, A_down, upstream)
+    ) = _scalar_to_vectorized_inputs(
+        st, A_down, upstream,
+        tau=tau, alpha_in=alpha_in, alpha_out=alpha_out,
+    )
     denom, numer = cell_balance_for_streaming(
         abs_mu=abs_mu, A_downstream=A_d, A_total=A_tot,
         total_xs=total_xs, volume=st.volume,
@@ -467,10 +507,12 @@ def test_diamond_residual_round_trip_at_converged_cell_avg():
     from orpheus.sn.spatial.diamond import DiamondDifference
 
     st = _curvilinear_streaming_terms()
-    c_in, c_out = c_from_streaming_terms(st)
+    c_in, c_out = c_from_constants(
+        _CURVILINEAR_TAU, _CURVILINEAR_ALPHA_IN, _CURVILINEAR_ALPHA_OUT,
+    )
     visit = CellVisit(
         cell_idx=3, streaming_terms=st, face_area_downstream=1.5,
-        c_in=c_in, c_out=c_out,
+        c_in=c_in, c_out=c_out, tau=_CURVILINEAR_TAU,
     )
     total_xs = np.array([1.2, 0.8])
     source = np.array([0.05, 0.07])

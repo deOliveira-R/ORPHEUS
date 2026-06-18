@@ -788,12 +788,13 @@ class _MMHalfGrid:
 # ``(μ, w, levels)`` ALONE.  It is an ANGULAR-scheme property, so the
 # angular closure PRODUCES it here from the ``quad`` it already binds,
 # rather than reading it back from the streaming-GEOMETRY factory
-# (``reduced_operator.py``).  The arithmetic below is a line-for-line
-# replica of the factory's two producers (``spherical_streaming``
-# :λ681-688 and ``cylindrical_streaming`` :λ798-815), reproduced EXACTLY
-# (accumulation order, the cylinder clamp, the ½ degeneracy fallback) so
-# the closure-produced τ is 0-ULP equal to the value the geometry factory
-# bakes for the sweep path (the Leg-1 producer-equivalence gate pins this).
+# (``reduced_operator.py``).  This is now the SOLE τ producer: Issue #236
+# Step C retired the geometry-side twin (the former ``spherical_streaming``
+# / ``cylindrical_streaming`` τ blocks).  The arithmetic below was
+# originally derived to be 0-ULP identical to that twin (accumulation
+# order, the cylinder clamp, the ½ degeneracy fallback) — pinned through
+# the carve by the Leg-1 producer-equivalence gate, which now compares this
+# producer against the independent ``contamination.morel_montry_weights``.
 #
 # STRUCTURAL INDEPENDENCE (vv-principles L11): this is the closure's OWN
 # code, NOT a call into ``contamination.morel_montry_weights`` — that
@@ -842,8 +843,8 @@ def morel_montry_tau_per_level(
     (structural; #229).
     """
     if coord is CoordSystem.SPHERICAL:
-        # Replicates spherical_streaming (reduced_operator.py:681-688)
-        # EXACTLY: weight-sum edges from −1.0, unclamped τ_raw, ½ fallback.
+        # Sphere τ (the former spherical_streaming producer, retired in
+        # Step C): weight-sum edges from −1.0, unclamped τ_raw, ½ fallback.
         mu = quad.mu_x
         w = quad.weights
         N = quad.N
@@ -860,8 +861,8 @@ def morel_montry_tau_per_level(
         return (tau_mm,)
 
     if coord is CoordSystem.CYLINDRICAL:
-        # Replicates cylindrical_streaming (reduced_operator.py:798-815)
-        # EXACTLY: η-midpoint edges with ±sinθ endpoints, per μ-level,
+        # Cylinder τ (the former cylindrical_streaming producer, retired
+        # in Step C): η-midpoint edges with ±sinθ endpoints, per μ-level,
         # then the structural [½, 1] clamp.
         mu_z = quad.mu_z
         tau_per_level: list[np.ndarray] = []
