@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5345**
+Total tests collected: **5356**
 
 V&V level distribution
 ----------------------
@@ -17,11 +17,11 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1160, 21.7%
-   L1, 981, 18.4%
+   L1, 988, 18.4%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3159, 59.1%
-   unmarked, 9, 0.2%
+   foundation, 3162, 59.0%
+   unmarked, 10, 0.2%
 
 Tagging source
 --------------
@@ -32,12 +32,12 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5257
+   explicit, 5267
    verify, 0
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 9
+   unmarked, 10
 
 Module × level grid
 -------------------
@@ -247,7 +247,7 @@ Module × level grid
    mms/test_mms_aniso, 0, 2, 0, 0, 0, 0
    mms/test_mms_curvilinear, 0, 2, 0, 0, 0, 0
    mms/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
-   mms/test_mms_ld_2d, 0, 4, 0, 0, 3, 0
+   mms/test_mms_ld_2d, 0, 11, 0, 0, 6, 1
    mms/test_mms_ld_slab, 0, 5, 0, 0, 2, 0
    moc/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    moc/test_mms, 0, 3, 0, 0, 0, 0
@@ -460,6 +460,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``reciprocity``, 12
    ``ws-pitch``, 12
    ``inf-hom-balance``, 11
+   ``ld-cartesian-2d``, 11
    ``loss-rep-scanmarch``, 11
    ``loss-rep-scanmarch-apply``, 11
    ``loss-rep-scanmarch-solve``, 11
@@ -521,7 +522,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``fixed-source-solve``, 4
    ``hebert-3-323``, 4
    ``keff-update``, 4
-   ``ld-cartesian-2d``, 4
    ``ld-slab``, 4
    ``loss-rep-LpC``, 4
    ``macro-sum``, 4
@@ -629,7 +629,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **92** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **94** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -661,6 +661,8 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``hebert-3-434``
 - ``hebert-3-435``
 - ``inflow-mask-discrete``
+- ``ld-cartesian-2d-bilinear-coeffs``
+- ``ld-cartesian-2d-projection-coeff``
 - ``ld-ubld-cell-system``
 - ``ld-ubld-d1-reduction``
 - ``ld-ubld-divv-scale-free-kernel``
@@ -1025,7 +1027,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
 Unmarked tests
 --------------
 
-**9 tests** have no V&V level marker.
+**10 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1042,4 +1044,5 @@ equations. See ``docs/testing/architecture.rst``
    ``tests/sn/sweep/core/test_cell_kernel_batch.py``, 2
    ``tests/derivations/test_fn_la13511_slab_reflected.py``, 1
    ``tests/sn/spatial/test_linear_discontinuous.py``, 1
+   ``tests/sn/verification/mms/test_mms_ld_2d.py``, 1
 

@@ -301,7 +301,9 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
     r"""LD carries TWO spatial moments per axis — the Legendre basis
     :math:`\{1, P_1\}` (cell-average + slope).  The per-cell unknown is
     therefore :math:`2^d` (d=1: the slab ``{ψ̄, ψ̂}``; d=2: the bilinear
-    ``{ψ̄, ψ̂_x, ψ̂_y, ψ̂_xy}``; the cross moment ``ψ̂_xy`` is the
+    ``{ψ̄, ψ̂_y, ψ̂_x, ψ̂_xy}`` in tensor-Legendre Kronecker order — slot 1 = the
+    y-slope, slot 2 = the x-slope (axis 0 = x outer, axis 1 = y inner); the cross
+    moment ``ψ̂_xy`` is the
     diffusion-limit-load-bearing term simplex-P1 lacks), and each downstream
     face carries :math:`2^{d-1}` transverse moments (d=1: a scalar; d=2:
     ``{face-bar, face-slope}``).  The ``per_axis > 1`` gate routes LD onto the

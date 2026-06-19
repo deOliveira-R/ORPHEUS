@@ -3191,46 +3191,435 @@ habitat; ``test_ld_2d_stress_two_paths_ffw_equals_mfw`` — the two-DAG-schedule
 invariant).  The closeout is
 ``.claude/agent-memory/method-implementer/issue_240_d5b_s4_ld_2d_stress_mms_closeout.md``.
 
-The half this MMS does NOT close — the slope-SOURCE sign convention — is the
-subject of the honest-scope note below; it is a genuinely unverified state
-(vv Mode 10), deferred to a moment-source-consumption increment (#247), not a
-detail glossed over.
+The slope-SOURCE sign convention has TWO halves of its own (external
+:math:`\hat Q` vs the boundary transverse-face-slope).  The EXTERNAL half is
+now closed (**Leg A, #247**); the BOUNDARY half is still deferred (**#251**) —
+see the honest-scope note below.
 
-.. note:: Honest scope — the slope-SOURCE half of the LM-1989 trap is NOT verified.
+.. _ld-cartesian-2d-slope-source:
+
+.. note:: Honest scope — the slope-SOURCE half of the LM-1989 trap (Leg A
+   VERIFIED #247; Leg B deferred #251).
 
    The LM-1989 slope-row sign trap has two halves: the slope-UNKNOWN sign
    (always exercised when the slope is non-trivially solved — VERIFIED by this
    MMS; mutation-verified — a slope-UNKNOWN sign flip diverges / leaves the
-   value band) and the slope-SOURCE sign :math:`\hat Q`.  The slope-SOURCE half
-   is **not** verified here, for two distinct reasons:
+   value band) and the slope-SOURCE sign :math:`\hat Q`.  The slope-SOURCE
+   half splits further:
 
-   - The **external** manufactured slope-moment source :math:`\hat Q` is not
-     consumed.  :func:`orpheus.sn.solver.solve_sn_fixed_source` validates the
-     bulk against the flat ``(N, ng, *spatial)`` shape, and
-     ``_lift_external_source_to_moments`` lifts it onto the AVERAGE moment with
-     the slope rows zeroed.
+   - **Leg A — the EXTERNAL slope-moment source** :math:`\hat Q` — is now
+     VERIFIED (#247).  :func:`orpheus.sn.solver.solve_sn_fixed_source` accepts
+     a typed union of TWO bulk ranks — flat ``(N, ng, *spatial)`` (slope rows
+     zeroed, the honest default) OR moment-resolved
+     ``(N, ng, *spatial, per_axis**ndim)`` (the projected slope rows threaded
+     through) — and ``_lift_external_source_to_moments`` threads the
+     moment-resolved slope rows into the SI rhs alongside the scattering
+     source.  The slope-source sign is pinned STRUCTURALLY (the converged flux
+     is only sub-floor sensitive — the vv Mode 10 trap): the lift threads the
+     projected moment vector through at machine precision, and a CONSUMED
+     slope-row sign flip moves the converged flux :math:`O(1)` above the inner
+     tolerance, while the FLAT scalar gate stays GREEN (the Mode-10 asymmetry
+     that closed the gap).
 
-   - The **scattering** slope source :math:`\Sigma_s \hat\phi` (the
-     Increment-C iterate feedback) IS consumed and DOES drive the slope-source
-     code path — but this value-band MMS is empirically BLIND to a sign error
-     there: a slope-source-row sign flip leaves BOTH the :math:`O(h^2)` order
-     AND the scalar-flux value band unchanged, because :math:`\Sigma_s\hat\phi`
-     is an :math:`O(h)`-small DG-internal forcing whose error enters above
-     :math:`O(h^2)` and is absorbed below the value-band floor.  This is the
-     *activated-but-unconstrained* test-design failure mode (vv-principles
-     Mode 10): the code path runs, but the gate cannot constrain its sign.
+   - **The SCATTERING slope source** :math:`\Sigma_s \hat\phi` (the
+     Increment-C iterate feedback) IS consumed and is now mutation-verified
+     NOT sign-blind (#247, mutation control M4): flipping the iso slope rows of
+     the per-ordinate scattering source moves the converged flux above the
+     inner tolerance.  (The old value-band MMS WAS empirically blind to this —
+     a slope-source-row sign flip left both the :math:`O(h^2)` order and the
+     scalar-flux value band unchanged, because :math:`\Sigma_s\hat\phi` is an
+     :math:`O(h)`-small DG-internal forcing whose error enters above
+     :math:`O(h^2)` — the canonical vv Mode 10 instance.  The #247 mutation
+     control replaces the value-band with the consumption proof.)
 
-   So the slope-SOURCE sign convention is **genuinely UNVERIFIED** — not merely
-   a deferred plumbing detail.  The boundary trace is the same story at the
-   AVERAGE moment only: ``mesh.trace`` carries one SCALAR value per face per
-   ordinate per group, and ``_inflow_to_moments`` seeds it onto the
-   face-AVERAGE moment and zeros the transverse face-slope.  The manufactured
-   :math:`\hat Q` and the transverse face-slope trace ARE derived (Branch 1 is
-   slope-source-ready); closing the slope-SOURCE half needs (1) a
-   moment-resolved external-source entry, (2) a gate sensitive to the
-   slope-source sign (a moment-resolved value band, not the scalar-flux band),
-   and (3) a moment-resolved boundary trace — a production-wiring increment
-   beyond the S3 moment matvec.
+   - **Leg B — the BOUNDARY transverse-face-slope** — remains DEFERRED
+     (**#251**).  The boundary trace ``mesh.trace`` carries one SCALAR value
+     per face per ordinate per group (no :math:`2^{d-1}` transverse-moment
+     axis), and ``_inflow_to_moments`` seeds it onto the face-AVERAGE moment
+     and zeros the transverse face-slope.  Closing Leg B needs a
+     moment-resolved boundary trace (a ``TraceSpace`` widening +
+     ``_inflow_to_moments``) — a DIFFERENT production path than the bulk lift
+     Leg A landed.
+
+   The full Leg A narrative — the tensor-Legendre projection convention, the
+   typed-union bulk widening, the Mode-10 structural-teeth design, and the
+   M1–M4 mutation table — is the subsection :ref:`ld-cartesian-2d-legA`
+   immediately below.
+
+.. _ld-cartesian-2d-legA:
+
+Leg A — the external slope-moment source :math:`\hat Q` (#247)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This subsection is the rich record of the EXTERNAL half of the slope-SOURCE
+trap, closed under Issue #247.  The change is small in code (two named sites in
+:func:`orpheus.sn.solver._build_fixed_source_rhs` and
+``_lift_external_source_to_moments``) but it is the first time an LD external
+source can carry sub-cell slope information through the public solver, so the
+*verification* design — not the code — is the load-bearing content here.  Why
+the slope-SOURCE sign is genuinely hard to pin (the vv **Mode 10** trap) and how
+the gate gets teeth anyway is the canonical resolution of an
+activated-but-unconstrained term; it is recorded in full because the lesson
+recurs whenever a term is consumed yet enters the measured quantity below the
+discretization floor.
+
+The tensor-Legendre projection convention (the CRUX)
+''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+To feed a slope-resolved external source into the UBLD closure, a continuous
+:math:`Q^{\rm ext}(x,y)` must be projected onto the per-cell tensor-Legendre
+moment vector that the cell update consumes.  The single load-bearing decision
+is *which normalization* the projected moments carry — and the answer is locked
+by the UBLD mass matrix, not chosen for convenience.
+
+The UBLD cell mass on one axis is :math:`M_{\rm 1d} = \mathrm{diag}(h,\,\theta
+h)`, :math:`\theta = 1/3` (Eq. :eq:`ld-ubld-mass-weights`), the L2-Gram of the
+Legendre moment basis :math:`\{P_0 = 1,\ P_1 = \xi\}` on :math:`\xi \in [-1,1]`:
+:math:`\langle P_0, P_0\rangle = h`, :math:`\langle P_1, P_1\rangle = \theta h =
+h/3`.  The cell kernel forms its right-hand side as :math:`R_{\rm source} = M\,
+S_{\rm moments}` (the d=1 reduction Eq. :eq:`ld-ubld-d1-reduction` confirms
+:math:`R_{\rm prod} = [\,\bar Q\,h,\ \theta\,\hat Q\,h\,]` symbolically).  The
+mass matrix therefore *already* supplies the per-volume and the
+:math:`\theta` weighting.  The projection must NOT duplicate it.  The projected
+moment is the **bare per-volume Legendre coefficient**:
+
+.. math::
+   :label: ld-cartesian-2d-projection-coeff
+
+   \bar q \;=\; \frac{1}{V}\!\int_{\rm cell} q \;=\; \text{(cell average)}
+   \quad\text{(slot 0)},
+   \qquad
+   \hat q_a \;=\; \frac{\langle q,\,P_1(\xi_a)\rangle}
+                       {\langle P_1,\,P_1\rangle}
+              \quad\text{(the }P_1\text{ coefficient on axis }a).
+
+For a cell-linear source :math:`q = a + b\,x`, the axis coefficient is
+:math:`\hat q = b\,h/2` — **no** :math:`\theta`, **no** :math:`h`, **no**
+:math:`V` in the projected number; the kernel's :math:`M` adds them downstream.
+Sharing the :math:`\theta`/:math:`h` weighting between the projection and the
+mass would double-count it; this is the apples-to-apples constraint that makes
+the projected slope rows match what :math:`M^{-1}R` expects.
+
+For a general bilinear :math:`q = a_{00} + a_{10}x + a_{01}y + a_{11}xy` on a
+cell :math:`[x_L,x_R]\times[y_L,y_R]` (:math:`h_x = x_R-x_L`, centre
+:math:`x_c`; similarly :math:`y`), the four tensor-Legendre coefficients are
+hand-derivable in closed form:
+
+.. math::
+   :label: ld-cartesian-2d-bilinear-coeffs
+
+   \bar q   &= a_{00} + a_{10}x_c + a_{01}y_c + a_{11}x_c y_c, \\
+   \hat q_y &= \tfrac{h_y}{2}\,(a_{01} + a_{11}x_c), \\
+   \hat q_x &= \tfrac{h_x}{2}\,(a_{10} + a_{11}y_c), \\
+   \hat q_{xy} &= \tfrac{h_x}{2}\,\tfrac{h_y}{2}\,a_{11}.
+
+These four numbers are the structurally-independent reference for the projector
+(see the teeth subsection): a bilinear integrand is integrated exactly by a
+2-point Gauss rule, so the quadrature projector reproduces them to machine
+precision.
+
+**The d=2 Kronecker moment order is** :math:`[\bar\psi,\ \hat\psi_y,\
+\hat\psi_x,\ \hat\psi_{xy}]` — axis 0 (:math:`x`) is the OUTER Kronecker
+factor, axis 1 (:math:`y`) the INNER, so the slot order
+:math:`[(0,0),(0,1),(1,0),(1,1)]` places the **x-slope at slot 2**, the y-slope
+at slot 1, the cross-moment at slot 3 (consistent with
+Eq. :eq:`spatial-moment-kronecker-order`).  The cell mass diagonal satisfies
+:math:`\mathrm{diag}(M) = \mathrm{diag}(h_x,\theta h_x) \otimes
+\mathrm{diag}(h_y,\theta h_y)`, the Kronecker product that fixes which slot is
+which.
+
+**The projection supplies GLOBAL-frame coefficients.**  The natural Legendre
+coefficients of :math:`q(x,y)` live in the global :math:`x`/:math:`y` frame; the
+per-octant sweep frame (where a downwind axis runs the other way) is *not* the
+projection's concern.  Production reframes the source global→sweep per octant in
+:meth:`~orpheus.sn.sweep_graph._CellSolve.cell` via the slope-sign involution
+:math:`\mathrm{octant\_moment\_frame\_signs}`
+(Eq. :eq:`ld-ubld-octant-moment-frame-signs`,
+:func:`orpheus.sn.spatial._ubld.octant_moment_frame_signs`), exactly as it
+reframes the scattering slope source.  So the external :math:`\hat Q` rides the
+SAME global→sweep machinery the scattering moments already use — the
+:ref:`ld-ubld-sweep-global-frame` involution that the S3 unified matvec had to
+get right (ERR-061) is reused unchanged, with no new cell branch.
+
+The projector is structurally independent of production (L11): it evaluates
+:math:`\int q\,P_k` with :func:`numpy.polynomial.legendre.leggauss` directly and
+NEVER calls ``_lift_external_source_to_moments`` nor any
+:class:`~orpheus.sn.spatial.linear_discontinuous.LinearDiscontinuous` cell op.
+The reference (Eq. :eq:`ld-cartesian-2d-bilinear-coeffs`) is hand-laid
+polynomial algebra, so "the projector matches the reference" is not a production
+echo.  One subtlety, pinned by its own sub-gate: the projector returns the cell
+**average** in slot 0, whereas the legacy flat producer ``case.external_source``
+evaluates :math:`Q` at the cell **centre**; the two differ by :math:`O(h^2)`
+(slot-0 ratio :math:`\sim 0.93` at ``nc=8``).  The projector slot-0 is therefore
+cross-checked against an *independent* fine-quadrature cell average, NOT against
+the cell-centre producer (which would falsely fail by :math:`O(h^2)`).
+
+The typed-union bulk widening
+'''''''''''''''''''''''''''''
+
+Before #247, :func:`~orpheus.sn.solver.solve_sn_fixed_source` accepted a single
+flat bulk shape :math:`(N, n_g, *\text{spatial})` and rejected everything else.
+The widening makes the bulk a **typed union of two ndarray ranks**, discriminated
+by RANK, not trailing size:
+
+.. list-table:: The widened bulk-source contract (``_build_fixed_source_rhs``)
+   :header-rows: 1
+   :widths: 26 24 50
+
+   * - Bulk shape
+     - Closure
+     - Meaning
+   * - :math:`(N, n_g, *\text{spatial})` (flat)
+     - any
+     - the original path — slope moments :math:`\hat Q` zeroed by the lift (the
+       honest default, exact for a region-uniform source).  Byte-identical to
+       pre-#247.
+   * - :math:`(N, n_g, *\text{spatial},\, \text{per\_axis}^{\,d})`
+       (moment-resolved)
+     - LD only (``per_axis > 1``)
+     - the caller projected :math:`Q^{\rm ext}` onto the tensor-Legendre moment
+       vector; the lift threads the slope rows through to join the
+       moment-carrying scattering source :math:`\Sigma_s\hat\phi` in the SI rhs.
+   * - anything else
+     - any
+     - ``ValueError`` (see the negative pin)
+
+**Why discriminate by RANK, not trailing size.**  A moment-resolved bulk has
+exactly one more axis than a flat bulk; a coincidental spatial dimension could
+happen to equal :math:`2^d`, so testing the trailing-axis *length* would
+misclassify a flat bulk whose last spatial dim is 4.  The rank is unambiguous: a
+flat bulk has :math:`2 + |{\rm spatial}|` axes, a moment-resolved bulk has one
+more.  ``_lift_external_source_to_moments`` makes the same rank decision
+(``bulk_values.ndim == 2 + len(spatial_shape)`` is the flat-rank test) — the
+moment-layout primitive :func:`orpheus.numerics.moment_layout.is_moment_valued_by_rank`
+is the canonical discriminator for the cell-internal path.
+
+**Why DD/Step rejects a moment bulk.**  At a flat closure
+(:math:`\text{per\_axis} = 1`, hence :math:`n_{\rm cell\ moments} = 1`) there is
+NO moment axis — the cell carries a single average, with no slope to fill.  A
+moment-resolved input there is a category error, so the validation rejects it
+outright (only flat is valid).  This is Pattern 4 (illegal states made
+unrepresentable): the relaxation admits exactly the two principled ranks and
+nothing in between.
+
+**The negative pin.**  The relaxation must not swallow a real shape bug.  A
+moment-resolved bulk whose trailing axis :math:`\neq \text{per\_axis}^{\,d}`
+(e.g. a 5-wide axis on a 2-D LD mesh where :math:`2^d = 4`) raises a
+``ValueError`` that names the expected :math:`2^d` and the full moment-vector
+shape.  The gate
+``test_moment_resolved_bulk_still_rejects_wrong_trailing_axis`` pins both arms:
+the LD 5-wide reject AND the DD 4-wide reject.
+
+The lift then has three arms, single-sourced for the fixed-source and eigenvalue
+paths:
+
+.. list-table:: ``_lift_external_source_to_moments`` (the three arms)
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Input
+     - Action
+   * - DD/Step (``tail == ()``)
+     - input returned UNCHANGED — byte-identical, the backward-compat negative
+       control.
+   * - flat :math:`(N, n_g, *\text{spatial})`
+     - zero the :math:`2^d` buffer, copy the flat values onto slot 0 (average);
+       slope rows stay ZERO (:math:`\hat Q = 0`, the honest default).
+   * - moment-resolved :math:`(N, n_g, *\text{spatial},\, 2^d)`
+     - thread the moment vector through UNCHANGED (validate the trailing axis);
+       the slope rows the caller projected reach the SI rhs.
+
+No callable-projection entry is exposed (Pattern 6, defer abstraction): there is
+no production consumer that needs the solver to project a continuous source, and
+adding one would make the verification a tautology (the gate would compare the
+production projector to itself).  The MMS test does its OWN projection and passes
+the array — structurally independent of production by construction (L11).
+
+The Mode-10 structural-teeth design
+'''''''''''''''''''''''''''''''''''
+
+The slope-SOURCE sign is the textbook vv **Mode 10** trap (an
+*activated-but-unconstrained* term): the slope-source code path is genuinely
+exercised — the slope rows are populated, threaded, reframed per octant, and
+consumed by the cell update — yet a sign flip on those rows does **not** move the
+converged scalar flux above the discretization floor.  The reason is that the
+slope-source contribution enters the converged flux as an :math:`O(h^2)`-small
+forcing that rides *on top of* the :math:`O(h^2)` discretization error.  Probed
+live, the average-moment L2 error vs :math:`\phi_{\rm exact}` under an
+x-slope-source sign flip:
+
+.. list-table:: Why the converged flux is sub-floor sensitive to the slope-source sign
+   :header-rows: 1
+   :widths: 30 40 30
+
+   * - ``nc``
+     - correct slope (L2 err / order)
+     - x-slope FLIPPED (L2 err / order)
+   * - 16
+     - :math:`8.18\times10^{-3}`
+     - :math:`1.17\times10^{-2}`
+   * - 32
+     - :math:`1.99\times10^{-3}` (2.04)
+     - :math:`2.96\times10^{-3}` (1.98)
+   * - 64
+     - :math:`4.86\times10^{-4}` (2.03)
+     - :math:`7.38\times10^{-4}` (2.01)
+   * - 128
+     - :math:`1.18\times10^{-4}` (2.05)
+     - :math:`1.81\times10^{-4}` (2.03)
+
+Both converge at clean :math:`O(h^2)`; the flipped error is only
+:math:`\sim 1.4\text{–}1.5\times` larger at every mesh, and the ratio is roughly
+CONSTANT under refinement.  Two consequences for the gate:
+
+* **A convergence-ORDER leg is blind to the sign.**  The order stays 2 both ways
+  — :math:`O(h^2)` to the wrong limit is still :math:`O(h^2)` (the vv §5
+  warning).
+* **A fixed-mesh value-band is too fragile.**  A band that separates the correct
+  from the flipped converged flux would need a tolerance tighter than the
+  :math:`\sim 1.5\times` gap, and the :math:`O(h^2)` discretization error itself
+  eats that margin.  The smallest signal — the :math:`xy` cross-slope — moves
+  the converged flux only :math:`\sim 6\times10^{-5}` relative; no value-band
+  survives that.
+
+So the teeth do **not** come from the converged flux.  They come from two places
+where the sign flip is :math:`O(1)`:
+
+1. **The lift threads the projection through at machine precision** (the
+   production-change proof).  ``test_ld_2d_external_slope_source_threaded_through_lift``
+   feeds the projected moment vector to the production lift and asserts the
+   returned moment source equals the projection EXACTLY — every slope slot, via
+   ``np.testing.assert_array_equal``.  A regression that re-zeroes the slope rows
+   (the EXACT bug #247 closes) breaks this at :math:`O(1)`, where the converged
+   flux would never catch it.  A NEGATIVE-CONTROL leg in the same test pins that
+   a FLAT bulk still lifts onto slot 0 with the slope rows EXACTLY ZERO (the
+   honest default is preserved).
+2. **A consumed slope-row sign flip moves the converged flux :math:`\gg` solver
+   tolerance** (the consumption proof).  The inner solve converges to
+   :math:`10^{-12}`; a flip of a CONSUMED slope row moves the flux by
+   :math:`\sim 3\times10^{-3}` (x), :math:`\sim 10^{-2}` (y), or
+   :math:`\sim 6\times10^{-5}` (xy) relative.  The acceptance band
+   ``_CONSUMPTION_TOL = 1e-8`` sits :math:`\sim 5\times10^7\times` above the
+   fixed point yet far below the §0 trap — the smallest probed flip (xy) clears
+   it by :math:`\sim 6000\times`.  This is sharp BECAUSE the test contrasts two
+   solves of the *same* problem that differ only in a sign, so the
+   discretization floor cancels and the slope-source contribution is the signal.
+
+The convergence-ORDER leg
+(``test_ld_2d_external_slope_source_converges_second_order``,
+``@verifies("ld-cartesian-2d")``) is kept as a NECESSARY check — it proves the
+threaded slope rows are CONSISTENT (the slope-unknown plus the source together
+produce a 2nd-order moment, probed :math:`8.18\times10^{-3} \to
+1.99\times10^{-3}` at ``nc 16 → 32``) — but it is explicitly **not** the sign
+teeth.  A POSITIVE leg
+(``test_ld_2d_external_slope_source_improves_on_flat``) closes the loop: the
+moment-resolved solve lands strictly closer to :math:`\phi = A` than the
+flat-in-moment solve (:math:`3.4\times10^{-3} < 5.9\times10^{-3}` at ``nc=24``),
+so the threaded slopes carry real sub-cell information, not noise.
+
+.. note:: **A current-invariant lesson worth recording (vv Mode 10).**
+
+   A Mode-10 gap is closed NOT by tightening the converged-flux value band (the
+   :math:`O(h^2)`-small forcing is sub-floor) but by two :math:`O(1)` structural
+   teeth: (1) assert the production *producer* threads the projection through at
+   machine precision (catches a regression to zeroing), and (2) assert a
+   *consumed* source-row sign flip moves the converged answer :math:`\gg` solver
+   tol (catches sign-blindness), paired with the FLAT no-op leg that pins the
+   asymmetry (the old scalar gate is correctly blind, by construction).  The
+   convergence-order leg is necessary for slope consistency but is not the sign
+   teeth.  This is the canonical resolution whenever a term is genuinely consumed
+   yet its error enters the measured quantity below the convergence floor.
+
+The mutation-control table (M1–M4)
+''''''''''''''''''''''''''''''''''
+
+The primary sign-catchers are mutation controls (vv anti-pattern #11 — a
+``catches`` claim is verified by re-introducing the exact bug and confirming the
+gate reddens).  Two distinct mutations stress two distinct source paths: the
+EXTERNAL :math:`\hat Q` (the NEW #247 consumption, M1–M3) and the SCATTERING
+:math:`\Sigma_s\hat\phi` (the EXISTING S3 consumption, M4).  Each flips a slope
+row and asserts the converged flux changes :math:`\gg` ``_CONSUMPTION_TOL`` while
+the FLAT scalar gate stays GREEN — that asymmetry IS the Mode-10 gap being
+closed.
+
+.. list-table:: The slope-SOURCE sign mutation controls
+   :header-rows: 1
+   :widths: 6 30 34 30
+
+   * - \#
+     - Source row flipped
+     - The NEW moment gate must
+     - The FLAT scalar gate
+       (``..._stress_converges_second_order``)
+   * - M1
+     - EXTERNAL :math:`\hat Q` x-slope (slot 2)
+     - go RED — converged flux moves :math:`\sim 3\times10^{-3}` (the
+       consumption proof)
+     - stays GREEN — it feeds a flat source, slope row already 0, flipping zero
+       is a no-op
+   * - M2
+     - EXTERNAL :math:`\hat Q` y-slope (slot 1)
+     - go RED — flux moves :math:`\sim 10^{-2}`
+     - stays GREEN (flat → no-op)
+   * - M3
+     - EXTERNAL :math:`\hat Q` cross-moment (slot 3)
+     - go RED — flux moves :math:`\sim 6\times10^{-5}` (the weakest signal,
+       still :math:`\sim 6000\times` over tol)
+     - stays GREEN (flat → no-op)
+   * - M4
+     - SCATTERING :math:`\Sigma_s\hat\phi` iso slope rows (slots 1:)
+     - go RED — flux moves :math:`\sim 2.6\times10^{-3}`
+     - stays GREEN — the scalar gate's converged flux is only :math:`\sim
+       1.4\times` sensitive (sub-floor)
+
+**M1–M3 verify the NEW external consumption.**  Before #247 the lift zeroed the
+external slope rows, so a flip of an already-zero row was a no-op and the
+"flipped reddens" assertion could not hold — these mutations only become
+catchers once the lift threads the slope rows.  The test flips slot
+:math:`\{2,1,3\}` of the projected :math:`\hat Q` and re-solves the full public
+solve; the same flip on the FLAT source is then asserted to be a no-op directly
+(``flat_lift[..., slot]`` is exactly zero), pinning the asymmetry that closed
+the gap.
+
+**M4 verifies the EXISTING scattering consumption was never sign-blind.**  The
+scattering slope source :math:`\Sigma_s\hat\phi` (the Increment-C iterate
+feedback, Eq. :eq:`ld-ubld-scattering-moment-lift`) has been consumed since S3,
+but the OLD value-band MMS was empirically blind to its sign — a slope-source-row
+sign flip left both the :math:`O(h^2)` order and the scalar-flux value band
+unchanged, because :math:`\Sigma_s\hat\phi` is an :math:`O(h)`-small DG-internal
+forcing whose error enters above :math:`O(h^2)`.  M4 monkeypatches
+``ScatteringOperator._assemble_per_ordinate_source`` (the :math:`\Sigma_s
+\otimes I` over every spatial moment) to negate the iso slope rows and confirms
+the converged flux moves :math:`\sim 2.6\times10^{-3}` — the consumption proof
+replaces the value-band the old gate relied on.
+
+Each mutation is reverted in a ``finally`` block, and all #247 gates are
+``-O``-safe (``np.testing.*`` / ``pytest.fail`` / ``pytest.raises`` only, no
+bare ``assert`` that ``python -O`` would strip — vv Mode 8).
+
+No ERR entry was minted: Mode 10 here is a proactive-gap close, not a caught
+production bug.  The lift correctly zeroed an unverified-but-honest default
+(:math:`\hat Q = 0`); the slope-source sign was UNVERIFIED, not WRONG.  Per the
+"log every caught bug" directive, an ``@catches`` marker is added only when a
+real production bug surfaces; none did.
+
+Sources and gates
+'''''''''''''''''
+
+The production change is in :func:`orpheus.sn.solver._build_fixed_source_rhs`
+(the typed-union validation) and ``_lift_external_source_to_moments`` (the
+slope-thread arm), both confined to ``solver.py``.  The end-to-end gates live in
+:mod:`tests.sn.verification.mms.test_mms_ld_2d` (the #247 block):
+``test_ld_2d_external_slope_source_threaded_through_lift`` (the foundation
+structural teeth), ``..._converges_second_order`` and ``..._improves_on_flat``
+(the L1 necessary + positive legs), ``..._sign_mutation_reddens`` (M1–M3),
+``test_ld_2d_scattering_slope_source_sign_mutation_reddens`` (M4),
+``test_moment_resolved_bulk_still_rejects_wrong_trailing_axis`` (the negative
+pin), with the projection-correctness foundation sub-gates
+``test_tensor_legendre_projection_matches_hand_polynomial`` and
+``test_projection_slot0_is_cell_average_not_centre``.  The bit-identity of the
+flat/DD path is guarded by the strict ``DriftWarning`` regression gate (no golden
+moved — the typed-union widening leaves the flat path byte-identical).
 
 .. _sweep-wavefront:
 

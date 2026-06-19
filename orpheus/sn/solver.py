@@ -1823,11 +1823,25 @@ def _build_fixed_source_rhs(
     single construction point (Cardinal Rule 2 — the SI and Krylov inner
     paths both consume what it returns, rather than each re-deriving it).
 
-    ``external_source`` is accepted in two forms:
+    ``external_source`` is accepted in three forms (the bulk array is a typed
+    union of TWO ndarray ranks; see :func:`_lift_external_source_to_moments`):
 
-    * ``np.ndarray`` of shape ``(N, ng, nx, ny)`` — the per-ordinate-density
-      BULK source only; the boundary is vacuum (all-zero). The original
-      form; every pre-existing caller keeps working unchanged.
+    * **flat** ``np.ndarray`` of shape ``(N, ng, *spatial)`` — the
+      per-ordinate-density BULK source only; the boundary is vacuum (all-zero).
+      The original form; every pre-existing caller keeps working unchanged
+      (the slope moments :math:`\hat Q` are zeroed by the lift — the honest
+      default, exact for a region-uniform source).
+    * **moment-resolved** ``np.ndarray`` of shape
+      ``(N, ng, *spatial, per_axis**ndim)`` — a multi-moment closure (LD)
+      external source whose trailing axis carries the per-cell tensor-Legendre
+      moment vector (slot 0 = cell average, the slope rows = :math:`\hat Q`,
+      d=2 Kronecker order ``[Q̄, Q̂_y, Q̂_x, Q̂_xy]``).  The CALLER projects
+      :math:`Q^{\rm ext}` onto the moment vector (e.g. by Gauss quadrature
+      ``∫q·Pₖ``); this entry threads the slope rows through unchanged so they
+      join the moment-carrying scattering source ``Σ_s·φ̂`` in the SI rhs
+      (#247 — the slope-SOURCE half of the LM-1989 trap).  Only meaningful for
+      LD (``per_axis > 1``); a moment-resolved input on a DD/Step mesh
+      (``per_axis == 1``, no moment axis) is rejected by the flat-shape check.
     * :class:`TimedFullField` — the full COMPOSITE source (bulk + a possibly
       non-vacuum prescribed-inflow boundary, e.g. from
       :meth:`BoundarySourceSink.prescribed_inflow`). Its leaf values are
@@ -1835,7 +1849,7 @@ def _build_fixed_source_rhs(
       ``(mesh, quadrature, materials)``, so this is an exact values-copy onto
       the solve's own mesh instance — required because the within-group
       operators are built on ``sn_mesh`` and :class:`TimedFullField` algebra
-      enforces mesh identity.
+      enforces mesh identity.  Its bulk may be flat OR moment-resolved.
     """
     from orpheus.transport.source_sinks import (
         AngularSourceSink,
@@ -1872,18 +1886,48 @@ def _build_fixed_source_rhs(
             )
         boundary = BoundarySourceSink.zeros_on(sn_mesh)
 
-    # Issue #196 PR-INDEX-5: bulk source principled (N, ng, *spatial).
-    if bulk_values.shape != expected:
+    # Issue #196 PR-INDEX-5 + #247: the bulk source is a typed union of TWO
+    # principled ndarray ranks — flat ``(N, ng, *spatial)`` (the original path)
+    # OR moment-resolved ``(N, ng, *spatial, per_axis**ndim)`` (LD only; the new
+    # slope-SOURCE path).  Discriminate by RANK (NOT trailing-size — a
+    # coincidental spatial dim could equal 2^d): a flat bulk has exactly
+    # ``len(expected)`` axes; a moment-resolved bulk has ONE more (the trailing
+    # 2^d moment axis).  Reject everything else, INCLUDING a moment axis whose
+    # length ≠ per_axis**ndim, and (for DD/Step where there is no moment axis) a
+    # moment-resolved input outright (only flat is valid at per_axis == 1).
+    n_cell_moments = sn_mesh.scheme.spatial_basis_per_axis ** sn_mesh.ndim
+    moment_expected = (*expected, n_cell_moments)
+    is_flat = bulk_values.shape == expected
+    is_moment_resolved = (
+        n_cell_moments > 1 and bulk_values.shape == moment_expected
+    )
+    if not (is_flat or is_moment_resolved):
+        if n_cell_moments > 1 and bulk_values.shape[:-1] == expected:
+            # Right rank for a moment-resolved bulk, but the trailing moment
+            # axis is the wrong width — name the expected 2^d so the relaxation
+            # does not swallow a real shape bug (#247 negative pin).
+            raise ValueError(
+                f"fixed-source moment-resolved bulk shape {bulk_values.shape} "
+                f"has trailing moment axis {bulk_values.shape[-1]}, expected "
+                f"per_axis**ndim = {n_cell_moments} "
+                f"(moment vector {moment_expected})"
+            )
         raise ValueError(
             f"fixed-source bulk shape {bulk_values.shape} does not match "
             f"(N, ng, *spatial) = {expected}"
+            + (
+                f" or the moment-resolved {moment_expected}"
+                if n_cell_moments > 1 else ""
+            )
         )
     # The external source carries the trailing 2^d spatial-moment axis at a
     # multi-moment closure (#240 D5b-S3) so it composes with the moment-carrying
-    # scattering source ``S.apply(ψ)`` in the SI rhs ``q_ext + S.apply(ψ)``.  The
-    # EXTERNAL source is flat-in-moment (Q̂ = 0 — the slope rows are zero; the
-    # strengthened Q̂≠0 ansatz is S4): lift onto slot 0 (average), rest zero.
-    # DD/Step (per_axis == 1) → no lift, byte-identical.
+    # scattering source ``S.apply(ψ)`` in the SI rhs ``q_ext + S.apply(ψ)``.  A
+    # FLAT external source is flat-in-moment (Q̂ = 0 — the slope rows are zero,
+    # the honest default exact for a region-uniform source): lift onto slot 0
+    # (average), rest zero.  A MOMENT-RESOLVED external source already carries
+    # the slope rows Q̂ (the caller projected them — #247): thread them through
+    # unchanged.  DD/Step (per_axis == 1) → no lift, byte-identical.
     bulk_values, per_axis = _lift_external_source_to_moments(bulk_values, sn_mesh)
     return TimedFullField(
         bulk=AngularSourceSink.from_mesh(
@@ -1896,21 +1940,54 @@ def _build_fixed_source_rhs(
 def _lift_external_source_to_moments(
     bulk_values: "np.ndarray", sn_mesh: SNMesh,
 ) -> "tuple[np.ndarray, int]":
-    r"""Lift a flat external source ``(N, ng, *spatial)`` onto the ``2^d`` moment
-    vector (average in slot 0, slopes zero), returning ``(lifted, per_axis)``.
+    r"""Lift / thread an external source onto the ``2^d`` cell-moment vector,
+    returning ``(lifted, per_axis)``.
 
-    Single source of the external-source moment lift shared by the fixed-source
-    and eigenvalue paths (#240 D5b-S3).  ``per_axis == 1`` (DD/Step) → returns
-    the input unchanged (byte-identical, no moment axis)."""
+    Single source of the external-source moment lift for the fixed-source path
+    (#240 D5b-S3 / #247 — the slope-SOURCE widening).  One production caller
+    (:func:`_build_fixed_source_rhs`); kept as a single-source helper so a future
+    eigenvalue external-source hook reuses the same lift/thread policy.
+    ``bulk_values`` is a typed union of TWO ndarray ranks, discriminated by RANK
+    (NOT trailing-size —
+    :func:`~orpheus.numerics.moment_layout.is_moment_valued_by_flat_rank` against
+    the flat ``(N, ng, *spatial)`` rank; a coincidental spatial dim could equal
+    ``2^d``):
+
+    * **DD/Step** (``per_axis == 1``, ``tail == ()``): no moment axis — return
+      the input unchanged (byte-identical, the backward-compat negative
+      control).
+    * **flat** ``(N, ng, *spatial)``: zero the ``2^d`` buffer, copy the flat
+      input onto slot 0 (average), leave the slope rows :math:`\hat Q` ZERO —
+      the honest default (``q̂ = 0`` is exact with no sub-cell information).
+    * **moment-resolved** ``(N, ng, *spatial, 2^d)``: the caller already
+      projected the slope rows (#247) — thread the moment vector through
+      UNCHANGED (validate its trailing axis == ``2^d``).  Joins the
+      moment-carrying scattering source ``Σ_s·φ̂`` in the SI rhs; the per-octant
+      slope-sign reframe (``sweep_graph._CellSolve`` /
+      ``octant_moment_frame_signs``) re-signs the external slopes global→sweep
+      EXACTLY as it does the scattering slopes — no new cell branch."""
+    from orpheus.numerics.moment_layout import is_moment_valued_by_flat_rank
     from orpheus.sn.spatial._ubld import AVERAGE_MOMENT, face_moment_tail
 
     per_axis = sn_mesh.scheme.spatial_basis_per_axis
-    tail = face_moment_tail(per_axis ** sn_mesh.ndim)
+    n_cell_moments = per_axis ** sn_mesh.ndim
+    tail = face_moment_tail(n_cell_moments)
     if tail == ():
         return bulk_values, per_axis
-    lifted = np.zeros((*bulk_values.shape, *tail), dtype=bulk_values.dtype)
-    lifted[..., AVERAGE_MOMENT] = bulk_values
-    return lifted, per_axis
+    flat_ndim = 2 + len(sn_mesh.spatial_shape)  # (N, ng, *spatial)
+    if not is_moment_valued_by_flat_rank(bulk_values, flat_ndim):
+        # Flat input → lift onto slot 0, slopes zero (the honest default).
+        lifted = np.zeros((*bulk_values.shape, *tail), dtype=bulk_values.dtype)
+        lifted[..., AVERAGE_MOMENT] = bulk_values
+        return lifted, per_axis
+    # Moment-resolved input → thread the slope rows through unchanged (#247).
+    if bulk_values.shape[-1] != n_cell_moments:
+        raise ValueError(
+            f"_lift_external_source_to_moments: moment-resolved bulk has "
+            f"trailing moment axis {bulk_values.shape[-1]}, expected "
+            f"per_axis**ndim = {n_cell_moments}"
+        )
+    return bulk_values, per_axis
 
 
 def _average_moment_scalar(phi: "np.ndarray", sn_mesh: SNMesh) -> "np.ndarray":

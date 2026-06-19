@@ -1139,26 +1139,38 @@ The trap has TWO halves:
 2. the slope-SOURCE sign :math:`\hat Q` (exercised ONLY when a non-zero
    slope-moment EXTERNAL source is supplied AND consumed).
 
-The production (#240 D5b-S3) consumes a flat-in-moment EXTERNAL source: the
-public ``solve_sn_fixed_source`` entry validates the bulk against the flat
-``(N, ng, *spatial)`` shape, and ``_lift_external_source_to_moments`` lifts it
-onto the AVERAGE moment with the slope rows ZEROED (``solver.py`` documents this:
-"the strengthened Q̂≠0 ansatz is S4").  The only moment-valued source the
-production consumes is the iterate-driven SCATTERING source :math:`\Sigma_s
-\cdot\hat\phi`, NOT an external :math:`\hat Q`.  Likewise the boundary trace
-``mesh.trace`` carries one SCALAR value per face per ordinate per group (no
-:math:`2^{d-1}` transverse-moment axis); ``_inflow_to_moments`` seeds the scalar
-onto the face-AVERAGE moment and zeros the transverse face-slope (the loss-rep
-docstring flags this as "the #240 D5b-S4 boundary widening").
+The slope-SOURCE sign half (the EXTERNAL :math:`\hat Q`) is now VERIFIED
+(**Leg A, #247**).  The public ``solve_sn_fixed_source`` entry accepts a typed
+union of TWO bulk ranks — flat ``(N, ng, *spatial)`` (the slope rows
+:math:`\hat Q` zeroed, the honest default) OR moment-resolved
+``(N, ng, *spatial, per_axis**ndim)`` (the projected slope rows threaded
+through) — and ``_lift_external_source_to_moments`` threads the moment-resolved
+slope rows into the SI rhs alongside the iterate-driven SCATTERING source
+:math:`\Sigma_s\cdot\hat\phi`.  The slope-SOURCE sign is pinned by the
+per-moment structural gate + the mutation controls (M1–M4) in
+``tests/sn/verification/mms/test_mms_ld_2d.py`` (the #247 block): flipping a
+CONSUMED slope-source row changes the converged flux ≫ the inner tolerance,
+while the FLAT scalar gate stays GREEN (the Mode-10 asymmetry that closed the
+gap).  Per vv-principles Mode 10: the converged flux is only sub-floor sensitive
+to the slope-source sign (an O(h²)-small forcing), so the teeth are STRUCTURAL
+(the lift threads the projection through unchanged at machine precision; the
+consumed flip moves the answer O(1) above tol), NOT a converged-value band.
 
-CONSEQUENCE: this MMS verifies the multi-D slope-UNKNOWN sign + the
-AVERAGE-moment boundary closure.  The slope-SOURCE sign half and the transverse
-face-slope inflow moment are **deferred** — they need a moment-resolved external
-source entry AND a moment-resolved boundary trace (a production-wiring increment
-beyond the S3 moment matvec).  The manufactured :math:`\hat Q` IS derived here
-(Branch 1 is slope-source-READY); only the production CONSUMPTION path is
-missing.  Per Frame 2 §232: do NOT claim the multi-D LD MMS closes the LM-1989
-trap — it closes the slope-UNKNOWN half.
+The BOUNDARY transverse-face-slope (**Leg B**) remains DEFERRED — tracked in
+**#251**.  The boundary trace ``mesh.trace`` carries one SCALAR value per face
+per ordinate per group (no :math:`2^{d-1}` transverse-moment axis);
+``_inflow_to_moments`` seeds the scalar onto the face-AVERAGE moment and zeros
+the transverse face-slope (the loss-rep docstring flags this as "the #240 D5b-S4
+boundary widening").  Leg B needs a moment-resolved boundary trace
+(a ``TraceSpace`` widening + ``_inflow_to_moments``) — a DIFFERENT production
+path than the bulk lift Leg A landed.
+
+CONSEQUENCE: this MMS now verifies the multi-D slope-UNKNOWN sign + the
+slope-SOURCE sign (Leg A) + the AVERAGE-moment boundary closure.  The transverse
+face-slope inflow moment (Leg B, #251) is still deferred.  The manufactured
+:math:`\hat Q` IS derived here (Branch 1 is slope-source-READY) and now CONSUMED
+(Leg A).  Per Frame 2 §232: the LM-1989 trap's bulk half is closed by Leg A;
+the boundary half awaits #251.
 
 .. seealso::
 
@@ -1333,9 +1345,15 @@ class SN2DCartesianLDStressMMSCase:
     with the shared spatial drivers (single-sourced
     :data:`_LD2D_STRESS_COEFFS`) scaled by a per-group amplitude :math:`c_g`.
     See the module docstring above for the full driver definitions, the
-    activated/nulled-term declaration, and the HONEST SCOPE (the slope-SOURCE
-    half of the LM-1989 trap is DEFERRED — the production consumes only the
-    AVERAGE-moment external source + face-average boundary trace).
+    activated/nulled-term declaration, and the HONEST SCOPE.  The slope-SOURCE
+    half of the LM-1989 trap (the EXTERNAL :math:`\hat Q`) is now VERIFIED
+    (**Leg A, #247**): the public entry accepts a moment-resolved external
+    source and the lift threads the projected slope rows through (pinned by the
+    per-moment structural gate + mutation controls in
+    ``tests/sn/verification/mms/test_mms_ld_2d.py``).  Only the BOUNDARY
+    transverse-face-slope (**Leg B, #251**) remains deferred — it needs a
+    moment-resolved boundary trace (the production still consumes a face-average
+    boundary trace).
 
     Cross sections are **callables** :math:`\Sigma(x,y,g)` evaluated at cell
     centres (one :class:`Mixture` per cell); reuses

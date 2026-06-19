@@ -359,10 +359,13 @@ def test_ld_2d_stress_converges_second_order():
     VALUE lands in a band against ``phi_exact`` (vv §5: rate ≠ correctness — the
     manufactured solution IS the structurally-independent reference).
 
-    HONEST SCOPE: this verifies the slope-UNKNOWN sign + the AVERAGE-moment
-    boundary closure.  The slope-SOURCE sign half of the LM-1989 trap is
-    DEFERRED (the production consumes a flat-in-moment external source); see the
-    case docstring.  ``-O``-safe (``np.testing.*`` / ``pytest.fail``)."""
+    HONEST SCOPE: this gate verifies the slope-UNKNOWN sign + the AVERAGE-moment
+    boundary closure on the FLAT external source (the slope rows are zero here,
+    so it is BLIND to the slope-SOURCE sign — the Mode-10 gap).  The slope-SOURCE
+    sign half of the LM-1989 trap is now VERIFIED separately (Leg A, #247) by the
+    per-moment structural gate + mutation controls in the #247 block below; the
+    BOUNDARY transverse-face-slope (Leg B) is tracked in #251.  See the case
+    docstring.  ``-O``-safe (``np.testing.*`` / ``pytest.fail``)."""
     case = build_2d_cartesian_ld_stress_mms_case()
     errors = _ld_stress_l2_errors(case, [16, 32, 64])
     orders = np.log2(errors[:-1] / errors[1:])
@@ -478,3 +481,557 @@ def test_ld_2d_stress_two_paths_ffw_equals_mfw():
         scal_w, scal_f, rtol=1e-9, atol=1e-12, err_msg="scalar flux FFW≠MFW",
     )
     np.testing.assert_array_almost_equal_nulp(scal_w, scal_f, nulp=nx * ny)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# #247 — slope-SOURCE half of the LM-1989 trap (the Mode-10 closeout).
+#
+# STUBS: marked xfail-strict / skip until the production widening lands
+# (solve_sn_fixed_source accepts a moment-resolved bulk; the lift passes
+# the slope rows; a moment-resolved boundary trace).  See
+# `.claude/agent-memory/test-architect/issue_247_moment_source_gate_spec.md`
+# for the full design + the PROBED Mode-10 evidence (the slope-SOURCE sign
+# flip is O(h²)-small → the teeth are STRUCTURAL, not the converged flux).
+#
+# Projection convention (the CRUX, locked): the projected moment is the
+# BARE per-volume tensor-Legendre coefficient (q̄ = cell average, slot 0;
+# q̂_a = ⟨q,P₁⟩/⟨P₁,P₁⟩ on axis a — NO θ, NO h, NO V — the kernel's mass
+# M = diag(h, θh) adds them).  d=2 Kronecker order [ψ̄, ψ̂_y, ψ̂_x, ψ̂_xy]
+# (x slope = SLOT 2).  GLOBAL frame (production reframes per-octant).  The
+# projector calls leggauss directly — NEVER _lift_external_source_to_moments
+# nor any LD cell op (L11 structural independence / non-tautology).
+# ═══════════════════════════════════════════════════════════════════════
+
+_D2_MOMENT_SLOTS = {(0, 0): 0, (0, 1): 1, (1, 0): 2, (1, 1): 3}  # [bar,y,x,xy]
+
+
+def _project_scalar_to_tensor_legendre(mesh, fn, *, ng, q_nodes=6, per_ord=None):
+    r"""Project a scalar field ``fn(x_grid, y_grid, g) -> (len(x),len(y))`` (or
+    ``(per_ord, len(x), len(y))``) onto the per-cell tensor-Legendre moments.
+
+    Structurally INDEPENDENT of production: uses only
+    :func:`numpy.polynomial.legendre.leggauss`.  Returns the BARE per-volume
+    Legendre coefficients ``q̄`` (slot 0 = cell average), ``q̂_a`` (slot a =
+    ``⟨q,P₁⟩/⟨P₁,P₁⟩``), in the d=2 Kronecker order ``[bar, y, x, xy]``.  This
+    is exactly the ``S_moments`` the LD cell op consumes (the kernel's mass
+    ``M=diag(h,θh)`` applies the volume/θ weighting — the projection must NOT).
+    """
+    from numpy.polynomial.legendre import leggauss
+
+    xi, wq = leggauss(q_nodes)
+    W2 = wq.sum()
+    leg = {0: np.ones_like(xi), 1: xi}
+    mean_p2 = {0: 1.0, 1: float((wq * xi * xi).sum() / W2)}  # mean(P1²)=1/3
+    ex, ey = mesh.edges_x, mesh.edges_y
+    cx, cy = mesh.centers_x, mesh.centers_y
+    nx, ny = len(cx), len(cy)
+    lead = () if per_ord is None else (per_ord,)
+    out = np.zeros((*lead, ng, nx, ny, 4))
+    for i in range(nx):
+        xq = (ex[i] + ex[i + 1]) / 2 + (ex[i + 1] - ex[i]) / 2 * xi
+        for j in range(ny):
+            yq = (ey[j] + ey[j + 1]) / 2 + (ey[j + 1] - ey[j]) / 2 * xi
+            for g in range(ng):
+                F = fn(xq, yq, g)  # (q,q) or (per_ord,q,q)
+                for ox in (0, 1):
+                    for oy in (0, 1):
+                        wgt = np.outer(wq * leg[ox], wq * leg[oy]) / (W2 * W2)
+                        coeff = np.einsum("...ij,ij->...", F, wgt) / (
+                            mean_p2[ox] * mean_p2[oy]
+                        )
+                        out[..., g, i, j, _D2_MOMENT_SLOTS[(ox, oy)]] = coeff
+    return out
+
+
+# ───────────────────────────────────────────────────────────────────────
+# DELIVERABLE 3 — projection-correctness sub-gate (L11, foundation)
+# ───────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.foundation
+def test_tensor_legendre_projection_matches_hand_polynomial():
+    r"""#247 sub-gate: the quadrature projector reproduces the EXACT
+    tensor-Legendre coefficients of a KNOWN bilinear polynomial.
+
+    ``q = a00 + a10 x + a01 y + a11 xy`` on a cell has the hand-derivable
+    coefficients (Legendre ``{1,ξ}``, ``ξ∈[-1,1]``, the SAME basis as the UBLD
+    mass ``diag(h,θh)``):
+
+        q̄    = a00 + a10·xc + a01·yc + a11·xc·yc      (slot 0)
+        q̂_y  = (hy/2)(a01 + a11·xc)                   (slot 1)
+        q̂_x  = (hx/2)(a10 + a11·yc)                   (slot 2)
+        q̂_xy = (hx/2)(hy/2)·a11                       (slot 3)
+
+    A bilinear integrand is integrated EXACTLY by ``q_nodes>=2``, so the match
+    is machine precision.  Non-tautology (L11): the projector uses only
+    ``leggauss`` + the hand-derived integral — NEVER
+    ``_lift_external_source_to_moments`` nor any LD cell op; the reference is
+    hand-laid polynomial algebra, not a production echo.  ``-O``-safe."""
+    from numpy.polynomial.legendre import leggauss
+
+    xL, xR, yL, yR = 1.0, 1.4, 2.0, 2.6
+    a00, a10, a01, a11 = 0.7, 1.3, -0.5, 2.1
+    hx, hy = xR - xL, yR - yL
+    xc, yc = (xL + xR) / 2, (yL + yR) / 2
+
+    # Inline single-cell projector (the helper above is mesh-wide; here we want
+    # one cell to keep the hand reference trivial).
+    xi, wq = leggauss(4)
+    W2 = wq.sum()
+    leg = {0: np.ones_like(xi), 1: xi}
+    mean_p2 = {0: 1.0, 1: float((wq * xi * xi).sum() / W2)}
+    xq = xc + (hx / 2) * xi
+    yq = yc + (hy / 2) * xi
+    XX, YY = np.meshgrid(xq, yq, indexing="ij")
+    F = a00 + a10 * XX + a01 * YY + a11 * XX * YY
+    got = {}
+    for ox in (0, 1):
+        for oy in (0, 1):
+            wgt = np.outer(wq * leg[ox], wq * leg[oy]) / (W2 * W2)
+            got[(ox, oy)] = float(np.sum(F * wgt) / (mean_p2[ox] * mean_p2[oy]))
+
+    expect = {
+        (0, 0): a00 + a10 * xc + a01 * yc + a11 * xc * yc,
+        (0, 1): (hy / 2) * (a01 + a11 * xc),
+        (1, 0): (hx / 2) * (a10 + a11 * yc),
+        (1, 1): (hx / 2) * (hy / 2) * a11,
+    }
+    for key, slot_name in [
+        ((0, 0), "average"), ((1, 0), "x-slope"),
+        ((0, 1), "y-slope"), ((1, 1), "xy"),
+    ]:
+        np.testing.assert_allclose(
+            got[key], expect[key], rtol=0, atol=1e-13,
+            err_msg=f"projector {slot_name} coeff wrong (normalization drift)",
+        )
+
+
+@pytest.mark.foundation
+def test_projection_slot0_is_cell_average_not_centre():
+    r"""#247 sub-gate (2nd leg): the projector's slot-0 IS the cell AVERAGE,
+    not the cell-CENTRE value (the §1 normalization caveat).
+
+    The existing flat ``case.external_source`` evaluates Q at the cell centre;
+    the projector cell-averages.  They differ by O(h²).  Pin that slot-0
+    equals an INDEPENDENT fine-quadrature (q_nodes=12) cell average to ~1e-8
+    (so the projector is doing genuine averaging) — and do NOT cross-check
+    slot-0 against ``external_source`` (which would falsely fail by O(h²)).
+    ``-O``-safe."""
+    case = build_2d_cartesian_ld_stress_mms_case()
+    mesh = case.build_mesh(8)
+    a_only = lambda x, y, g: case._drivers(x, y, g)[0]  # noqa: E731
+    coarse = _project_scalar_to_tensor_legendre(mesh, a_only, ng=case.n_groups, q_nodes=6)
+    fine = _project_scalar_to_tensor_legendre(mesh, a_only, ng=case.n_groups, q_nodes=12)
+    np.testing.assert_allclose(
+        coarse[..., 0], fine[..., 0], rtol=0, atol=1e-7,
+        err_msg="projector slot-0 is not the (quadrature-converged) cell average",
+    )
+
+
+# ───────────────────────────────────────────────────────────────────────
+# Shared #247 plumbing — the manufactured moment source + a faithful SI loop
+# driving rep.sweep with a MOMENT-resolved source (bypasses the not-yet-
+# widened solver entry).  Replaced by the public solve once production lands.
+# ───────────────────────────────────────────────────────────────────────
+
+
+def _manufactured_Q_pointwise(case, x, y, g, quad):
+    r"""Closed-form ``Q^ext_{n,g}(x,y)`` per ordinate, on a matched (x,y) grid
+    — the SAME residual ``case.external_source`` emits, but pointwise (for
+    quadrature projection).  Per-ordinate density (÷ sum_w)."""
+    mu_x, mu_y = quad.mu_x, quad.mu_y
+    sum_w = float(quad.weights.sum())
+    N, ng = len(mu_x), case.n_groups
+    A, dAx, dAy, B, dBx, dBy, C, dCx, dCy = case._drivers(x, y, g)
+    sig = case.sigma_t_fn(np.repeat(x, len(y)), np.tile(y, len(x)), g).reshape(
+        len(x), len(y)
+    )
+    in_sc = np.zeros((len(x), len(y)))
+    for gf in range(ng):
+        ss = case.sigma_s_fn(
+            np.repeat(x, len(y)), np.tile(y, len(x)), gf, g
+        ).reshape(len(x), len(y))
+        in_sc += ss * case._drivers(x, y, gf)[0]
+    Q = np.zeros((N, len(x), len(y)))
+    for n in range(N):
+        stream = (
+            mu_x[n] * dAx + mu_y[n] * dAy
+            + mu_x[n] ** 2 * dBx + mu_x[n] * mu_y[n] * dBy
+            + mu_x[n] * mu_y[n] * dCx + mu_y[n] ** 2 * dCy
+        )
+        Q[n] = (stream + sig * (A + mu_x[n] * B + mu_y[n] * C) - in_sc) / sum_w
+    return Q
+
+
+def _project_external_source(case, mesh):
+    r"""Project the manufactured per-ordinate ``Q^ext`` onto the GLOBAL-frame
+    tensor-Legendre moment vector ``(N, ng, nx, ny, 4)`` — the moment-resolved
+    external source the production widening consumes (#247)."""
+    quad = case.quadrature
+    fn = lambda x, y, g: _manufactured_Q_pointwise(case, x, y, g, quad)  # noqa: E731
+    return _project_scalar_to_tensor_legendre(
+        mesh, fn, ng=case.n_groups, q_nodes=6, per_ord=quad.N,
+    )
+
+
+def _moment_resolved_rhs(case, sn, mesh, *, moment_source=None):
+    r"""Build the composite RHS whose BULK is the moment-resolved external
+    source (``(N, ng, nx, ny, 4)`` — slot 0 = average, slope rows = projected
+    :math:`\hat Q`) and whose boundary is the manufactured prescribed inflow.
+
+    Drives the WIDENED public ``solve_sn_fixed_source`` (the production #247
+    path): ``_build_fixed_source_rhs`` accepts the moment-resolved bulk and
+    ``_lift_external_source_to_moments`` threads the slope rows through.  The
+    moment source is computed by the structurally-independent projector
+    (:func:`_project_external_source` → ``leggauss`` only); pass an explicit
+    ``moment_source`` to override (the mutation controls flip a slope row)."""
+    from orpheus.transport.source_sinks import AngularSourceSink
+    from orpheus.transport.timed_full_field import TimedFullField
+
+    Qm = _project_external_source(case, mesh) if moment_source is None else moment_source
+    return TimedFullField(
+        bulk=AngularSourceSink.from_mesh(Qm, sn, spatial_moments=2),
+        boundary=case.prescribed_inflow(sn),
+    )
+
+
+def _solve_moment_resolved(case, nc, *, moment_source=None):
+    r"""Run the full public solve on the moment-resolved external source at mesh
+    ``nc`` and return ``(scalar_flux_values, mesh)`` — the WIDENED #247 path."""
+    mesh = case.build_mesh(nc)
+    materials = case.build_materials(mesh)
+    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    rhs = _moment_resolved_rhs(case, sn, mesh, moment_source=moment_source)
+    result = solve_sn_fixed_source(
+        materials, mesh, case.quadrature, rhs,
+        max_inner=500, inner_tol=1e-12, scheme=LinearDiscontinuous(),
+    )
+    return result.scalar_flux.values, mesh
+
+
+def _A_l2_err(case, phi, mesh):
+    r"""Volume-weighted L2 error of a scalar flux ``phi`` (``(ng, nx, ny)``) vs
+    the manufactured average :math:`\phi = A` over all groups."""
+    sq = 0.0
+    for g in range(phi.shape[0]):
+        ref = case.phi_exact(mesh.centers_x, mesh.centers_y, g)
+        sq += _l2_2d(phi[g] - ref, mesh.volumes) ** 2
+    return float(np.sqrt(sq))
+
+
+# ───────────────────────────────────────────────────────────────────────
+# DELIVERABLE — the STRUCTURAL teeth: the production lift threads the
+# moment-resolved slope rows through UNCHANGED (machine precision).  This is
+# the sharpest, non-tautological proof of the actual #247 production change
+# (the slope rows are no longer zeroed); a regression that re-zeroes them is
+# caught at O(1) here, where the converged flux is only sub-floor sensitive
+# (spec §0).  L11: the projected reference is built by leggauss only — it never
+# calls _lift_external_source_to_moments nor any LD cell op.
+# ───────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.foundation
+def test_ld_2d_external_slope_source_threaded_through_lift():
+    r"""#247 STRUCTURAL teeth — the production lift threads a moment-resolved
+    external source through UNCHANGED (the slope rows :math:`\hat Q` are no
+    longer zeroed).
+
+    The actual production change is ``_lift_external_source_to_moments`` going
+    from "zero the 2^d buffer + slot-0 ← flat (slopes ZERO)" to "thread a
+    moment-resolved bulk through".  This pins it directly + at machine precision:
+    feed the projected moment vector to the lift and assert the returned moment
+    source equals the projection EXACTLY (every slope slot, not just slot 0).  A
+    regression that re-zeroes the slope rows breaks this O(1) (the spec §0 trap:
+    the converged flux would NOT catch it — its slope-source sensitivity is
+    sub-floor).  Non-tautology (L11): the projection is built by ``leggauss``
+    only; the SECOND leg (the flat path lifts onto slot-0 with slopes ZERO) is
+    the negative control that pins the honest default is preserved.  ``-O``-safe.
+    """
+    from orpheus.sn.solver import _lift_external_source_to_moments
+
+    case = build_2d_cartesian_ld_stress_mms_case()
+    mesh = case.build_mesh(8)
+    materials = case.build_materials(mesh)
+    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    Qm = _project_external_source(case, mesh)        # (N, ng, nx, ny, 4)
+
+    lifted, per_axis = _lift_external_source_to_moments(Qm, sn)
+    if per_axis != 2:
+        pytest.fail(f"expected LD per_axis == 2, got {per_axis}")
+    # The whole moment vector — slot 0 AND the slope rows — threads UNCHANGED.
+    np.testing.assert_array_equal(
+        lifted, Qm,
+        err_msg="moment-resolved external source not threaded through the lift "
+        "unchanged (the #247 slope rows were dropped/zeroed)",
+    )
+    # NEGATIVE CONTROL: a FLAT bulk still lifts onto slot 0 with slopes ZERO
+    # (the honest default — the backward-compat invariant must not move).
+    flat = case.external_source(mesh)                 # (N, ng, nx, ny)
+    flat_lifted, _ = _lift_external_source_to_moments(flat, sn)
+    np.testing.assert_array_equal(
+        flat_lifted[..., 0], flat,
+        err_msg="flat external source slot-0 not preserved (regression)",
+    )
+    np.testing.assert_array_equal(
+        flat_lifted[..., 1:], 0.0,
+        err_msg="flat external source slope rows are no longer ZERO (the honest "
+        "default Q̂=0 regressed)",
+    )
+
+
+# ───────────────────────────────────────────────────────────────────────
+# DELIVERABLE 1 — per-moment / converged O(h²) convergence with the
+# slope-SOURCE consumed (NECESSARY but per §0 NOT SUFFICIENT for the SIGN).
+# ───────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l1
+@pytest.mark.slow
+@pytest.mark.verifies("ld-cartesian-2d")
+def test_ld_2d_external_slope_source_converges_second_order():
+    r"""#247 Deliverable 1 — the WIDENED public solve, fed the moment-resolved
+    external source (the projected slope rows :math:`\hat Q` consumed), converges
+    O(h²) to the manufactured :math:`\phi = A`.
+
+    Proves the slope rows are CONSISTENT: the slope-UNKNOWN + the slope-SOURCE
+    together produce a 2nd-order solution.  NECESSARY (a wrong-MAGNITUDE slope
+    source would break the order) but per §0 NOT SUFFICIENT for the SIGN — a sign
+    flip leaves the order at ~2 (the slope-SOURCE error is O(h²)-small, the
+    Mode-10 trap); the SIGN teeth are the mutation control below.  ``-O``-safe.
+    """
+    case = build_2d_cartesian_ld_stress_mms_case()
+    n_cells = [16, 32, 64]
+    errors = np.array([
+        _A_l2_err(case, *_solve_moment_resolved(case, nc)) for nc in n_cells
+    ])
+    orders = np.log2(errors[:-1] / errors[1:])
+    if not (orders[-1] > 1.9 and np.all(orders > 1.8)):
+        pytest.fail(
+            f"moment-resolved external source did not converge O(h²): "
+            f"orders={orders} from errors={errors}"
+        )
+    if not (1e-9 < errors[-1] < 1e-2):
+        pytest.fail(f"moment-resolved finest error out of band: {errors[-1]}")
+
+
+@pytest.mark.l1
+@pytest.mark.verifies("ld-cartesian-2d")
+def test_ld_2d_external_slope_source_improves_on_flat():
+    r"""#247 — the projected slope-SOURCE rows IMPROVE the converged flux vs the
+    flat (slope-zeroed) external source.
+
+    A POSITIVE verification that the consumed :math:`\hat Q` carries real
+    sub-cell information: at a fixed mesh the moment-resolved solve lands strictly
+    closer to the manufactured :math:`\phi = A` than the flat-in-moment solve
+    (probed ≈ 3.4e-3 vs 5.9e-3 at nc=24).  Distinct from a value-band: it
+    compares two production runs that differ ONLY in whether the slope rows are
+    threaded, so the discretization floor cancels and the slope-source
+    contribution is the signal.  ``-O``-safe."""
+    case = build_2d_cartesian_ld_stress_mms_case()
+    nc = 24
+    phi_mom, mesh = _solve_moment_resolved(case, nc)
+    # The flat (slope-zeroed) sibling — same boundary trace, same average source.
+    materials = case.build_materials(mesh)
+    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    rhs_flat = build_nonvacuum_fixed_source(case, sn)
+    phi_flat = solve_sn_fixed_source(
+        materials, mesh, case.quadrature, rhs_flat,
+        max_inner=500, inner_tol=1e-12, scheme=LinearDiscontinuous(),
+    ).scalar_flux.values
+
+    err_mom = _A_l2_err(case, phi_mom, mesh)
+    err_flat = _A_l2_err(case, phi_flat, mesh)
+    if not (err_mom < err_flat):
+        pytest.fail(
+            f"moment-resolved external source ({err_mom:.3e}) did NOT improve on "
+            f"the flat source ({err_flat:.3e}) — the slope rows carry no signal"
+        )
+
+
+# ───────────────────────────────────────────────────────────────────────
+# DELIVERABLE 2 — the mutation control (anti-pattern #11, the PRIMARY
+# sign-catcher).  M1–M3 (EXTERNAL Q̂) + M4 (SCATTERING Σ_s·φ̂).  The teeth:
+# flipping a CONSUMED source slope row changes the converged flux by ≫ solver
+# tol (the consumption proof — O(1) above the 1e-12 fixed point), while the
+# FLAT scalar gate (test_ld_2d_stress_converges_second_order) stays GREEN
+# because it feeds an already-zero slope row (the Mode-10 asymmetry).
+# ───────────────────────────────────────────────────────────────────────
+
+#: A converged-flux change this far above the inner tolerance proves the flipped
+#: source row was CONSUMED (not carried-and-ignored).  The inner solve converges
+#: to 1e-12; the smallest probed slope flip moves the flux ~6e-5 (the xy slot) —
+#: ~5e7× above tol.  The band is well clear of FP / iteration noise yet far below
+#: the spec §0 trap (a value-band against A would need a tolerance tighter than
+#: the ~1.5× discretization gap, which the O(h²) floor eats).
+_CONSUMPTION_TOL = 1e-8
+
+
+@pytest.mark.l1
+@pytest.mark.verifies("ld-cartesian-2d")
+@pytest.mark.parametrize("slot,name", [(2, "x-slope"), (1, "y-slope"), (3, "xy")])
+def test_ld_2d_external_slope_source_sign_mutation_reddens(slot, name):
+    r"""#247 Deliverable 2 (M1–M3) — flipping the EXTERNAL :math:`\hat Q`
+    slope-row sign (slot 2=x, 1=y, 3=xy) CHANGES the converged flux (the
+    consumption proof) while the FLAT scalar-flux gate stays GREEN.
+
+    TEETH (the consumption proof, O(1) above the 1e-12 fixed point — NOT the
+    sub-floor converged-flux value-band of spec §0): a sign flip on the
+    CONSUMED slope-source row moves the converged scalar flux by ≫
+    ``_CONSUMPTION_TOL`` (probed ~3e-3 x-slope, ~1e-2 y-slope, ~6e-5 xy at
+    nc=24).  The asymmetry that closes the Mode-10 gap: the FLAT scalar gate
+    ``test_ld_2d_stress_converges_second_order`` feeds an already-zero slope row,
+    so a flip there is a no-op (verified directly below by the FLAT no-op leg) —
+    the flat gate stays GREEN under the same flip.  ``-O``-safe."""
+    case = build_2d_cartesian_ld_stress_mms_case()
+    nc = 24
+    phi_ok, mesh = _solve_moment_resolved(case, nc)
+
+    Qm = _project_external_source(case, mesh)
+    Qm_flip = Qm.copy()
+    Qm_flip[..., slot] *= -1.0
+    phi_flip, _ = _solve_moment_resolved(case, nc, moment_source=Qm_flip)
+
+    change = np.abs(phi_flip - phi_ok).max() / np.abs(phi_ok).max()
+    if not (change > _CONSUMPTION_TOL):
+        pytest.fail(
+            f"flipping the EXTERNAL {name} slope-source row did NOT change the "
+            f"converged flux (|Δφ|/|φ|={change:.3e} ≤ {_CONSUMPTION_TOL:.0e}) — "
+            f"the slope row is NOT consumed (the #247 lift regressed to zeroing)"
+        )
+
+    # The Mode-10 asymmetry: the SAME flip on the FLAT external source is a
+    # no-op (the flat path zeroes the slope row, so flipping zero changes
+    # nothing) — the flat scalar gate is correctly BLIND to the slope-source
+    # sign, which is exactly why #247 adds the moment-resolved gate.
+    materials = case.build_materials(mesh)
+    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    from orpheus.sn.solver import _lift_external_source_to_moments
+    flat = case.external_source(mesh)
+    flat_lift, _ = _lift_external_source_to_moments(flat, sn)
+    np.testing.assert_array_equal(
+        flat_lift[..., slot], 0.0,
+        err_msg=f"the FLAT external source {name} slope row is non-zero — the "
+        "flat gate would NOT be blind to the flip (the Mode-10 asymmetry breaks)",
+    )
+
+
+@pytest.mark.l1
+@pytest.mark.verifies("ld-cartesian-2d")
+def test_ld_2d_scattering_slope_source_sign_mutation_reddens():
+    r"""#247 Deliverable 2 (M4) — flipping the SCATTERING :math:`\Sigma_s\cdot
+    \hat\phi` slope-row sign CHANGES the converged flux.
+
+    Distinct from M1–M3: this verifies the EXISTING (S3) scattering consumption
+    was never sign-blind, whereas M1–M3 verify the NEW external consumption.
+    Monkeypatch the per-ordinate scattering-source assembler
+    (:meth:`ScatteringOperator._assemble_per_ordinate_source` — the ``Σ_s⊗I``
+    over every spatial moment, the moment-carrying source that joins the external
+    :math:`\hat Q`) to negate the iso slope rows (slots 1:), reverted in
+    ``finally``.  TEETH = the consumption proof (probed |Δφ|/|φ| ≈ 2.6e-3 at
+    nc=24, ≫ ``_CONSUMPTION_TOL``).  ``-O``-safe."""
+    import orpheus.sn.scattering as scat_mod
+
+    case = build_2d_cartesian_ld_stress_mms_case()
+    nc = 24
+    mesh = case.build_mesh(nc)
+    materials = case.build_materials(mesh)
+    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    rhs = build_nonvacuum_fixed_source(case, sn)
+    kw = dict(max_inner=500, inner_tol=1e-12, scheme=LinearDiscontinuous())
+
+    phi_ok = solve_sn_fixed_source(
+        materials, mesh, case.quadrature, rhs, **kw,
+    ).scalar_flux.values
+
+    orig = scat_mod.ScatteringOperator._assemble_per_ordinate_source
+
+    def _flip_iso_slopes(self, phi, aniso_or_none, mesh_):
+        out = orig(self, phi, aniso_or_none, mesh_)
+        # Moment-valued per-ordinate source → flip every slope row (slots 1:).
+        if out.values.ndim >= 5 and out.values.shape[-1] > 1:
+            out.values[..., 1:] *= -1.0
+        return out
+
+    scat_mod.ScatteringOperator._assemble_per_ordinate_source = _flip_iso_slopes
+    try:
+        phi_flip = solve_sn_fixed_source(
+            materials, mesh, case.quadrature, rhs, **kw,
+        ).scalar_flux.values
+    finally:
+        scat_mod.ScatteringOperator._assemble_per_ordinate_source = orig
+
+    change = np.abs(phi_flip - phi_ok).max() / np.abs(phi_ok).max()
+    if not (change > _CONSUMPTION_TOL):
+        pytest.fail(
+            f"flipping the SCATTERING slope-source rows did NOT change the "
+            f"converged flux (|Δφ|/|φ|={change:.3e} ≤ {_CONSUMPTION_TOL:.0e}) — "
+            f"the scattering slope source Σ_s·φ̂ is sign-blind"
+        )
+
+
+# ───────────────────────────────────────────────────────────────────────
+# DELIVERABLE 5 — the negative pin (the relaxed bulk-shape check still rejects
+# a wrong trailing-moment axis, so the typed-union relaxation does not swallow
+# real shape bugs).
+# ───────────────────────────────────────────────────────────────────────
+
+
+def test_moment_resolved_bulk_still_rejects_wrong_trailing_axis():
+    r"""#247 Deliverable 5 — the widened bulk-shape check (typed union: flat OR
+    moment-resolved bulk) STILL rejects a trailing-moment axis ≠ ``per_axis**ndim
+    = 4`` (the moment-vector contract), so the relaxation does not swallow real
+    shape bugs.  Also pins that DD/Step (``per_axis == 1``, no moment axis)
+    rejects ANY moment-resolved bulk (only flat is valid there).  ``-O``-safe
+    (``pytest.raises``)."""
+    from orpheus.sn.spatial import DiamondDifference
+
+    case = build_2d_cartesian_ld_stress_mms_case()
+    mesh = case.build_mesh(8)
+    materials = case.build_materials(mesh)
+    N = case.quadrature.N
+    ng = case.n_groups
+    nx, ny = mesh.mat_map.shape
+
+    # LD: a trailing axis of length 5 (≠ 2^d = 4) is a real shape bug.
+    bad_width = np.zeros((N, ng, nx, ny, 5))
+    with pytest.raises(ValueError, match=r"per_axis\*\*ndim = 4"):
+        solve_sn_fixed_source(
+            materials, mesh, case.quadrature, bad_width,
+            scheme=LinearDiscontinuous(),
+        )
+
+    # DD/Step: no moment axis exists → a moment-resolved (4-wide) bulk is
+    # rejected outright (only flat (N, ng, *spatial) is valid).
+    bad_dd = np.zeros((N, ng, nx, ny, 4))
+    with pytest.raises(ValueError, match=r"does not match"):
+        solve_sn_fixed_source(
+            materials, mesh, case.quadrature, bad_dd,
+            scheme=DiamondDifference(),
+        )
+
+
+# ───────────────────────────────────────────────────────────────────────
+# Leg B — the BOUNDARY transverse face-slope (the OTHER half of the LM-1989
+# trap).  Tracked in #251 (NOT #247): it needs a moment-resolved boundary
+# trace (a TraceSpace widening + _inflow_to_moments — a DIFFERENT production
+# change than the bulk lift Leg A landed here).  Kept as a skip so the test
+# file documents the remaining deferral.
+# ───────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.skip(
+    reason="#251 (split out of #247): the boundary transverse-face-slope needs a "
+    "moment-resolved boundary trace (TraceSpace + _inflow_to_moments widening) — "
+    "a DIFFERENT production path than the bulk lift verified in Leg A (#247)."
+)
+@pytest.mark.l1
+@pytest.mark.verifies("ld-cartesian-2d")
+def test_ld_2d_boundary_transverse_face_slope():
+    r"""#251 Leg B — the transverse face-slope of the manufactured inflow
+    (projected onto the ``2^{d-1}`` face Legendre basis) is consumed: the
+    near-boundary value-band tightens vs the face-average-only trace, and
+    flipping the transverse-face-slope sign reddens.  SEPARATE from Leg A
+    (external Q̂, #247 — verified above): different production path (boundary,
+    not bulk), smaller signal (~12% of the face-average, probed), so bundling
+    would let Leg A mask a Leg B regression.  ``-O``-safe."""
+    pytest.skip("stub — Leg B is tracked in #251 (boundary trace widening)")
