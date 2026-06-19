@@ -214,7 +214,10 @@ def _within_group_triple(solver: "SNSolver") -> tuple:
 
     sn_mesh = solver.sn_mesh
     L = StreamingOperator(sn_mesh, solver.mat_xs.total_cross_section)
-    C = CollisionOperator(sn_mesh, solver.mat_xs.total_cross_section)
+    # C = M[σ_t] (#257 S3b promotion): construct from the typed
+    # CrossSectionField accessor (the field side of the operator
+    # promotion), not the raw ndarray view.
+    C = CollisionOperator(sn_mesh, solver.mat_xs.total_cross_section_field)
     return (
         L + C,
         solver.scattering_op,
@@ -922,7 +925,7 @@ class SNSolver:
         # the Carlson seed (R-1 Phase 1.2 unification).
         self.L = (
             StreamingOperator(sn_mesh, self.mat_xs.total_cross_section)
-            + CollisionOperator(sn_mesh, self.mat_xs.total_cross_section)
+            + CollisionOperator(sn_mesh, self.mat_xs.total_cross_section_field)
         )
         self.S = self.scattering_op
         self.F = self.fission_op
@@ -997,7 +1000,7 @@ class SNSolver:
         # Mirror onto the L operator so its apply path stays consistent.
         self.L = (
             StreamingOperator(self.sn_mesh, self.mat_xs.total_cross_section)
-            + CollisionOperator(self.sn_mesh, self.mat_xs.total_cross_section)
+            + CollisionOperator(self.sn_mesh, self.mat_xs.total_cross_section_field)
         )
         if self.geom_cache is not None:
             sig_t_1d = self.mat_xs.total_cross_section

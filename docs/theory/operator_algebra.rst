@@ -470,6 +470,62 @@ angular axis this matters: an :math:`(N, n_x, n_y, n_g)` field with
 does NOT need a :math:`(10^7, 10^7)` materialised diagonal.
 
 
+.. _multiplication-operator-promotion:
+
+The multiplication operator — a coefficient field promoted (§5.7)
+=================================================================
+
+.. todo:: Archivist expansion needed (#257 S3b).
+
+   The full multiplier-algebra narrative — the embedding
+   :math:`M : L^\infty \to B(L^2)` as a faithful unital
+   ``*``-homomorphism onto the diagonal subalgebra, the spectrum law
+   :math:`\mathrm{spec}(M[f]) = \mathrm{ess\,range}(f)`, why the
+   promotion makes "a cross section IS a diagonal operator" literally
+   true, and the worked law-suite derivations — belongs here. Sources
+   for the expansion:
+
+   * Code: :mod:`orpheus.transport.multiplication_operator`
+     (the §5.7 promotion ``M[f]``) and
+     :class:`~orpheus.sn.operator.CollisionOperator`
+     (the named leaf ``C = M[σ_t]``, a thin subclass).
+   * Field side: :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
+     (#257 S1) and
+     :meth:`~orpheus.sn.material_xs_field.MaterialXSField.total_cross_section_field`
+     (#257 S2).
+   * Broadcast engine: :class:`~orpheus.numerics.operator.DiagonalOperator`
+     (#257 S3a, the N-D engine this operator delegates to).
+   * Tests: ``tests/transport/test_multiplication_operator.py``
+     (the broadcast oracle + the multiplier-algebra law-suite).
+   * Plan: ``.claude/plans/issue_257_coefficient_field_promotion.md`` (S3b).
+   * Frame memo:
+     ``.claude/agent-memory/cross-domain-attacker/coefficient_field_promotion_frames.md``.
+
+   Brief: the grand report §5.5–5.7 promotion takes a
+   :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
+   :math:`f` (the *symbol*) to the diagonal operator
+   :math:`M[f]` (multiplication by :math:`f`). For the leading-ordinate
+   broadcast on a per-ordinate carrier :math:`\psi(\hat\Omega_n, g, \vec r)`:
+
+   .. math::
+      :label: multiplication-operator-action
+
+      (M[f]\,\psi)_{n,g,\vec r} \;=\; f_{g,\vec r}\,\psi_{n,g,\vec r},
+
+   delegated to the N-D :eq:`diagonal-operator-action` broadcast engine
+   (``DiagonalOperator(f.values, broadcast_axes=(0,))``). The promotion
+   satisfies :math:`M[1]=I`, :math:`M[0]=0` (codomain-aware: collision's
+   zero is a *source*), linearity :math:`M[af+bg]=aM[f]+bM[g]`, the
+   homomorphism :math:`M[f]M[g]=M[f g]`, self-adjointness
+   :math:`M[f]^*=M[f]` for real :math:`f`, and the honest spectrum gate
+   ``CAP_SOLVE`` **iff** :math:`\min|f|>0` (the legacy
+   :class:`~orpheus.sn.operator.CollisionOperator` advertised
+   ``CAP_SOLVE`` unconditionally and produced silent IEEE NaN on
+   :math:`\sigma=0`; the promotion adds the gate it lacked).
+
+.. vv-status: multiplication-operator-action documented
+
+
 .. _tensorial-framing:
 
 Tensor product algebra

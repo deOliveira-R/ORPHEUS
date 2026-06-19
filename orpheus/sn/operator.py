@@ -136,10 +136,12 @@ from orpheus.numerics.operator import (
 )
 
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.transport.multiplication_operator import MultiplicationOperator
 
 if TYPE_CHECKING:
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.fields.cross_section_field import CrossSectionField
     from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.numerics.space import FunctionSpace
     from .geometry import SNMesh
@@ -507,18 +509,22 @@ class StreamingOperator(LinearOperatorMixin["TimedFullField"]):
         return super().__add__(other)
 
 
-@dataclass
-class CollisionOperator(LinearOperatorMixin["TimedFullField"]):
-    r"""Pure collision operator :math:`C = \sigma\cdot` as a
-    :class:`~orpheus.numerics.operator.LinearOperator` leaf.
+class CollisionOperator(MultiplicationOperator):
+    r"""The §5.7 named leaf :math:`C = M[\sigma_t]` — collision as a multiplier.
 
     The "C" of the Phase G four-operator algebra
-    :math:`A_{\rm wg} = L + C - S_{\rm foldable}`. Diagonal in position,
-    group, and direction:
-
-    .. math::
-
-        (C\psi)_{n,i,j,g} \;=\; \sigma(i,j,g)\,\psi_{n,i,j,g}
+    :math:`A_{\rm wg} = L + C - S_{\rm foldable}`. Collision IS a
+    :class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`
+    — the promotion of the total cross-section field
+    :math:`\sigma_t` to the diagonal multiplier
+    :math:`(C\psi)_{n,i,j,g} = \sigma_t(i,j,g)\,\psi_{n,i,j,g}` (the
+    grand report §5.7 promotion ``C = M[σ_t]``). The base class owns
+    :meth:`~MultiplicationOperator.apply` / :meth:`~MultiplicationOperator.solve`
+    / :meth:`~MultiplicationOperator.apply_transpose` (single-sourced —
+    the multiply lives once, in the numerics broadcast engine,
+    ``coding-elegance`` Pattern 2); this subclass adds ONLY the
+    SN-specific name, the back-compat ``(sn_mesh, sigma)`` constructor,
+    and the ``L + C → InvertibleOperator`` algebra dispatch.
 
     The supplied ``sigma`` is per-cell per-group only — the operator
     broadcasts identically across every ordinate ``n`` because the
@@ -553,108 +559,82 @@ class CollisionOperator(LinearOperatorMixin["TimedFullField"]):
     Capability set
     --------------
 
-    ``frozenset({CAP_APPLY, CAP_SOLVE, CAP_APPLY_TRANSPOSE})`` —
-    collision is the simplest sort of operator. ``solve(q) = q / σ``
-    is element-wise division; ``apply_transpose == apply`` because the
-    operator is self-adjoint (diagonal in every basis the SN method
-    operates in). All three capabilities are analytic.
+    ``{CAP_APPLY, CAP_APPLY_TRANSPOSE}`` always; ``CAP_SOLVE`` is added
+    **iff** :math:`\min|\sigma| > 0` — the multiplier spectrum law
+    :math:`\mathrm{spec}(M[\sigma]) = \mathrm{ess\,range}(\sigma)`
+    inherited from the base class (#257 S3b). ``solve(q) = q/σ`` is
+    element-wise division; ``apply_transpose == apply`` because the
+    operator is self-adjoint (a real diagonal). This is a deliberate
+    *behavioural strengthening* over the pre-S3b operator, which
+    advertised ``CAP_SOLVE`` unconditionally and produced silent IEEE
+    NaN on ``σ == 0``: collision now revokes ``CAP_SOLVE`` on a zero
+    entry (Pattern 4 — an operator that cannot invert never advertises
+    it; the production σ_t is bounded away from 0, so the three live
+    construction sites are unaffected). The
+    :class:`InvertibleOperator` resolvent has its own stricter
+    construction-time ``σ > 0`` check — unchanged.
 
     Parameters
     ----------
     sn_mesh : SNMesh
         The augmented geometry — carries mesh + quadrature + boundary
-        operators (same as :class:`StreamingOperator`).
-    sigma : np.ndarray
-        Per-cell per-group cross-section, shape ``(ng, nx, ny)``
-        (Issue #196 PR-INDEX-3). May be σ_t (full collision) or σ_r
-        (removal — within-group self-scatter folded). The operator's
+        operators (same as :class:`StreamingOperator`). Stored as
+        :attr:`sn_mesh`; the :class:`InvertibleOperator` mesh-identity
+        invariant asserts ``streaming.sn_mesh is diagonal.sn_mesh``, so
+        the SAME object passed to both ``L`` and ``C`` is preserved.
+    sigma : np.ndarray or CrossSectionField
+        Per-cell per-group cross-section, shape ``(ng, *spatial)``
+        (Issue #196 PR-INDEX-3). An ``np.ndarray`` (the legacy /
+        test-caller path) is wrapped into a
+        :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
+        on ``sn_mesh``; a :class:`CrossSectionField` (the rewired
+        production sites, reading
+        :attr:`~orpheus.sn.material_xs_field.MaterialXSField.total_cross_section_field`)
+        is passed straight to the base. May be σ_t (full collision) or
+        σ_r (removal — within-group self-scatter folded); the operator's
         action is identical.
     """
 
-    sn_mesh: "SNMesh"
-    sigma: np.ndarray
+    # Inherit ``block_role = BlockRole.BULK`` and the
+    # apply/solve/apply_transpose multiplier action from
+    # :class:`MultiplicationOperator`. This subclass is NOT a dataclass
+    # (the base's ``coefficient`` field is set explicitly here, after the
+    # ndarray↔CrossSectionField back-compat conversion).
 
-    capabilities: frozenset[str] = field(
-        default_factory=lambda: frozenset(
-            {CAP_APPLY, CAP_SOLVE, CAP_APPLY_TRANSPOSE}
-        )
-    )
-    # Collision is a BULK operator — diagonal in (cell, group, ordinate),
-    # no boundary action (A_bb only). Issue #208 / Wave O. Class-level
-    # constant (unannotated so the dataclass does not treat it as a field).
-    block_role = BlockRole.BULK
+    def __init__(
+        self, sn_mesh: "SNMesh", sigma: "np.ndarray | CrossSectionField",
+    ) -> None:
+        from orpheus.transport.fields.cross_section_field import CrossSectionField
 
-    # D-I.1 (2026-05-29): lazy ``_eq_map`` cache + ``_ensure_eq_map`` +
-    # ``_sigma_at_unknowns`` retired together with the bare-ndarray
-    # packed-vector apply / solve arms.  All consumers route through
-    # :class:`TimedFullField`; no packed-vector decoder needed.
+        if isinstance(sigma, CrossSectionField):
+            coefficient = sigma
+        else:
+            # Legacy / test-caller path: wrap the bare ``(ng, *spatial)``
+            # ndarray into the typed coefficient on this mesh — the SAME
+            # ``from_mesh`` factory the production
+            # ``mat_xs.total_cross_section_field`` accessor uses, so the
+            # two construction paths produce structurally identical
+            # coefficients.
+            coefficient = CrossSectionField.from_mesh(np.asarray(sigma), sn_mesh)
+        # Store the SN mesh as the SAME object the caller passed — the
+        # InvertibleOperator mesh-identity invariant (``streaming.sn_mesh
+        # is diagonal.sn_mesh``) depends on it. Then run the base
+        # dataclass init (sets ``coefficient`` + computes ``capabilities``
+        # from the spectrum gate).
+        self.sn_mesh = sn_mesh
+        super().__init__(coefficient=coefficient)
 
-    def apply(self, psi: "TimedFullField") -> "TimedFullField":
-        r"""Forward action :math:`C\,\psi = \sigma\cdot\psi` on the composite carrier.
+    @property
+    def sigma(self) -> np.ndarray:
+        r"""The per-cell per-group cross-section ``(ng, *spatial)`` (σ_t or σ_r).
 
-        The diagonal action :math:`\sigma\cdot\psi` is per-cell per-group,
-        broadcast across every ordinate.  Bulk receives
-        ``σ ⊙ ψ.bulk.values``; boundary is the implicit-zero
-        :class:`BoundaryFlux` — collision has no face-trace contribution
-        (the cell-balance :math:`\sigma\cdot\psi` term is a CELL quantity;
-        the boundary residual is a TRACE equation).  Option β3 / Issue #208
-        will encode this bulk-only nature in the type via
-        :class:`BulkOperator`.
-
-        D-I.1 (2026-05-29) retired the legacy bare-ndarray packed-vector
-        arm.  :class:`TimedFullField` is the sole accepted carrier.
+        Single source of truth: the raw values OF the coefficient field
+        (``coding-elegance`` Pattern 2 — no duplicate ndarray storage).
+        :class:`InvertibleOperator` reads ``self.diagonal.sigma`` to
+        thread σ into the WDD sweep and validates ``np.all(sigma > 0)``
+        at construction.
         """
-        from orpheus.transport.timed_full_field import TimedFullField
-        from orpheus.transport.fields.angular_flux import AngularFlux
-        from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
-        mesh = psi.bulk.mesh
-        return TimedFullField(
-            bulk=AngularSourceSink.from_mesh(
-                self.sigma[None] * psi.bulk.values, mesh,
-            ),
-            boundary=BoundarySourceSink.zeros_on(mesh),
-            _history=(),
-            history_depth=psi.history_depth,
-        )
-
-    def solve(self, q: "TimedFullField") -> "TimedFullField":
-        r"""Inverse action :math:`C^{-1}\,q = q/\sigma` on the composite carrier.
-
-        Trivially invertible on the bulk: collision is diagonal, so the
-        inverse is per-slot reciprocal scaling.  Returns NaN / Inf at
-        slots where ``σ == 0`` per the IEEE-754 division contract —
-        consumers constructing :math:`\sigma_r = \sigma_t -
-        \Sigma_{s,0}^{g\to g}` must guarantee positivity (the operator
-        does not check).
-
-        Boundary is the implicit-zero :class:`BoundaryFlux` (Option β3,
-        formal pseudoinverse on the rank-deficient face block — face
-        slots of ``q`` are NOT inverted because collision contributes
-        no volumetric term on the trace).
-
-        D-I.1 retired the legacy bare-ndarray packed-vector arm.
-        :class:`TimedFullField` is the sole accepted carrier.
-        """
-        from orpheus.transport.timed_full_field import TimedFullField
-        from orpheus.transport.fields.angular_flux import AngularFlux
-        from orpheus.transport.fields.boundary_flux import BoundaryFlux
-        mesh = q.bulk.mesh
-        return TimedFullField(
-            bulk=AngularFlux.from_mesh(
-                q.bulk.values / self.sigma[None], mesh,
-            ),
-            boundary=BoundaryFlux.zeros_on(mesh),
-            _history=(),
-            history_depth=q.history_depth,
-        )
-
-    def apply_transpose(self, psi: "TimedFullField") -> "TimedFullField":
-        r"""Adjoint action :math:`C^*\,\psi = \sigma\cdot\psi`.
-
-        Equal to :meth:`apply` — collision is self-adjoint (diagonal
-        operator). Returned bit-equal to ``apply(psi)``.
-        """
-        return self.apply(psi)
+        return self.coefficient.values
 
     # ── Algebra dispatch — sweep-invertible composite (R-1 Step C) ────
 
@@ -666,7 +646,8 @@ class CollisionOperator(LinearOperatorMixin["TimedFullField"]):
         with the streaming operator placed first (the canonical
         ``L + C`` ordering for the algebraic identity).  Otherwise
         falls through to the generic :class:`OperatorSum` via the
-        mixin.
+        :class:`MultiplicationOperator` / mixin ``__add__`` — the ONLY
+        operator-algebra method this leaf adds over the multiplier base.
         """
         if isinstance(other, StreamingOperator):
             return InvertibleOperator(other, self)
