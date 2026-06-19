@@ -54,6 +54,30 @@ flux-typed (added to / differenced from ``γψ``), so — unlike the bulk —
 source and residual do NOT pick up the volumetric ``cm⁻³``. This is the
 sharpest "units ≠ meaning" case and the reason the gate must be class.
 
+The coefficient signature (#257 — the multiplier-algebra coefficient)
+=====================================================================
+
+One further signature carries the cross-section COEFFICIENT — the
+:class:`~orpheus.transport.fields._coefficient_role.CoefficientRole` leaf,
+distinct from the ten state leaves above. A coefficient is not a flux or a
+rate density; it is the *symbol* of a multiplication operator
+(``C = M[σ_t]``, the §5.7 promotion). The #208 operator unit-gain is exactly
+the product of a state signature and a coefficient signature:
+
+============================  ===============  =====================================
+Constant                      Unit             Leaves
+============================  ===============  =====================================
+:data:`CROSS_SECTION_UNITS`   ``1/cm``         CrossSectionField (σ_t, σ_a, νΣ_f)
+============================  ===============  =====================================
+
+``ANGULAR_FLUX_UNITS`` (``cm⁻²·s⁻¹·sr⁻¹``) × ``CROSS_SECTION_UNITS`` (``cm⁻¹``)
+= ``ANGULAR_RATE_UNITS`` (``cm⁻³·s⁻¹·sr⁻¹``): multiplying a flux by a cross
+section yields the matching rate density — which is why the collision operator
+maps the flux signature to the rate signature. (The fission emission spectrum
+χ is a dimensionless coefficient too, but its probability-simplex invariant
+lives on the source ``Mixture.chi``, not on a field — see #257 — so it adds no
+unit signature here.)
+
 Two conventions baked in here (both deliberate)
 ===============================================
 
@@ -114,6 +138,7 @@ __all__ = [
     "SCALAR_FLUX_UNITS",
     "ANGULAR_RATE_UNITS",
     "SCALAR_RATE_UNITS",
+    "CROSS_SECTION_UNITS",
 ]
 
 #: The ONE shared unit registry for ORPHEUS. Every ``UNITS`` constant is built
@@ -142,3 +167,16 @@ ANGULAR_RATE_UNITS: Unit = UREG.cm**-3 / UREG.s / UREG.sr
 #: ``1/(cm³·s)`` — volumetric angle-integrated rate density. Scalar sources
 #: and residuals.
 SCALAR_RATE_UNITS: Unit = UREG.cm**-3 / UREG.s
+
+# The coefficient signature (#257 — the multiplier-algebra coefficient).
+# NOT a state quantity (flux / rate density) but the cross-section COEFFICIENT
+# that promotes to a multiplication operator (C = M[σ_t], the §5.7 promotion).
+
+#: ``1/cm`` — macroscopic cross section :math:`\Sigma` (σ_t, σ_a, νΣ_f, the
+#: σ_s diagonal). The coefficient of a collision / production
+#: :class:`~orpheus.numerics.operator.LinearOperator` promoted from a
+#: :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`.
+#: Multiplied into a flux it yields the matching rate density — the #208
+#: operator unit-gain ``ANGULAR_FLUX_UNITS × CROSS_SECTION_UNITS =
+#: ANGULAR_RATE_UNITS``.
+CROSS_SECTION_UNITS: Unit = UREG.cm**-1
