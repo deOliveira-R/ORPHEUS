@@ -25,7 +25,37 @@
   Gate `tests/numerics/test_vector_protocol.py` (8 pass `-O`, pyright clean,
   elegance+qa reviewed — qa mutation-verified the negatives).
 - **Step 2 (P3.6) — DEFERRED** per fork #2.
-- **NEXT = Step 3** (Protocol retype `apply(x: V) -> V`; decide fork #3 there).
+- **Step 3 — IN PROGRESS. ⚠ DESIGN RECONCILIATION (type-forced, verified against pyright error sites):**
+  the Q1 memo's "single method-scoped `V`, NOT per-operator generics" is type-theoretically
+  UNTENABLE. `InvertibleOperator.apply` overriding `OperatorSum.apply` (`operator.py:858/886`)
+  and `OperatorSum.__init__(a,b: LinearOperator)` accepting `StreamingOperator`/`CollisionOperator`
+  (`operator.py:813`) can ONLY clear if `OperatorSum`+`InvertibleOperator` share a CLASS-level
+  `V=TimedFullField` (a method-scoped `V` narrows contravariantly → still incompatible). So the
+  design = **class-level `Generic[V]`/`Protocol[V]` (the [[issue-226-operator-generics-map]] §7
+  mechanism) WITH `V` BOUND to `Vector`** (step-1's contribution — answers the Q1 memo's
+  "unbounded ceremony" objection: a BOUNDED generic names the contract AND clears the overrides,
+  and the existing `# type: ignore[arg-type]` on every Mixin dunder get REMOVED).
+  ✅ **Step 3 DONE — `41a92cb`** `refactor(numerics)`. Class-level `Generic[V]`/`Protocol[V]`
+  bound to `Vector`; SN ops bind `[TimedFullField]`; `apply(self, x: V, /)` positional-only;
+  drivers `Generic[V]` with `q_ext: V`. Operator-algebra pyright fileset **92→74 (−18)** — the
+  6 `reportIncompatibleMethodOverride` + the whole q_ext/TFF `reportArgumentType` cascade GONE;
+  10 dunder `# type: ignore[arg-type]` REMOVED, zero new ignores. Bit-identical (exactly the 7
+  baseline reds, 1739 passed). `vector.py` amended: dunders `-> Vector` → `-> Self` (PEP 673;
+  needed for `TimedFullField` to satisfy the bound under the generic). A `TYPE_CHECKING`-only
+  `apply` stub on the Mixin lets `self` satisfy `LinearOperator[V]` in the dunders (elegance
+  measured it strictly cleaner than per-dunder self-typing — self-typing re-opens the cascade).
+  ⚠ **Fork #3 RESOLVED → S/F left PLAIN, NOT bound.** Binding+annotating the singledispatch base
+  poisoned the `ScalarFlux→ScalarSourceSink` arm; the 2 `reportIncompatibleMethodOverride` at
+  `fission.py:223`/`scattering.py:962` are a PRE-EXISTING pyright `singledispatchmethod[NoReturn]`
+  modelling gap (invariant at HEAD), orthogonal to #256.
+  ⚠ **Step 3↔4 COUPLING (discovered):** threading `q_ext: V` (which clears the solver.py cascade)
+  is INSEPARABLE from the ravel boundary — the residual iteration.py driver-internal widening
+  (psi from the untyped `_zeros_like`/`_unravel_like` is `Unknown`) is closed by **step 4** (the
+  `Ravellable` protocol + `as_scipy_linop_typed`). NIT-1 (typing `_solve_with_seed`) was tried and
+  empirically INCREASES errors (74→77, psi widens upstream from `_zeros_like`) → deferred to step 4.
+- **NEXT = Step 4** (single-source scipy serialization + `Ravellable` protocol). This ALSO completes
+  the iteration.py driver generic (clears the step-3 ravel-boundary widening). Design = §1 D6 +
+  Q6 in the cross-domain-attacker memo + §4 in the explorer code-map.
 
 ⚠ **BASELINE REDS (route around in every gate):** `main` carries 7 pre-existing
 reds — #250 (5 stale SPHERE bit-identity snapshots) + #232 (2 `mu_y` 2-D-mesh +
