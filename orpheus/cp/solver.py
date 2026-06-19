@@ -877,14 +877,11 @@ def solve_cp(
         inner_tol=params.inner_tol, max_inner=params.max_inner,
         mesh=mesh,
     )
-    # pyright: ignore justification — CPSolver implements every EigenvalueSolver
-    # method except ``compute_production_rate``, which the Protocol and
-    # ``power_iteration`` BOTH treat as optional at the call site (accessed via
-    # ``getattr(solver, "compute_production_rate", None)`` with a documented
-    # legacy-trajectory fallback).  CPSolver deliberately omits it (it conditions
-    # via ``phi *= 1/max(phi)`` instead); adding it would change numerical
-    # behaviour.  The conformance is real but not structurally modellable.
-    keff, keff_history, phi = power_iteration(solver, max_iter=params.max_outer)  # pyright: ignore[reportArgumentType]
+    # CPSolver conforms to the core EigenvalueSolver Protocol; it omits the
+    # OPTIONAL ProductionRateSolver member ``compute_production_rate`` by design
+    # (it conditions via ``phi *= 1/max(phi)``), and ``power_iteration`` narrows
+    # with ``isinstance(solver, ProductionRateSolver)`` and falls back when absent.
+    keff, keff_history, phi = power_iteration(solver, max_iter=params.max_outer)
 
     flux_fuel, flux_clad, flux_cool = _volume_averaged_fluxes(
         phi, mesh.volumes, mesh.mat_ids)

@@ -55,7 +55,7 @@ dispatched via :attr:`~orpheus.numerics.iteration.KEigenvalue.eigenvalue_method`
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 import numpy as np
 
@@ -130,6 +130,35 @@ class EigenvalueSolver(Protocol):
         """
         ...
 
+    def converged(
+        self,
+        keff: float,
+        keff_old: float,
+        flux_distribution: np.ndarray,
+        flux_old: np.ndarray,
+        iteration: int,
+    ) -> bool:
+        """Return True when the outer iteration has converged."""
+        ...
+
+
+@runtime_checkable
+class ProductionRateSolver(EigenvalueSolver, Protocol):
+    """An :class:`EigenvalueSolver` that has adopted the production-rate
+    normalisation contract (ERR-052).
+
+    Modelling the optionality HONESTLY: ``compute_production_rate`` is the
+    OPTIONAL extension of the base contract, NOT a required member.
+    :func:`power_iteration` renormalises with it when the solver provides it
+    and falls back to the un-normalised legacy trajectory otherwise (the
+    deprecation window for CP / diffusion / MoC / homogeneous).  Solvers still
+    in that window -- e.g. :class:`~orpheus.cp.solver.CPSolver` -- conform to
+    :class:`EigenvalueSolver` WITHOUT this method and plug into
+    ``power_iteration`` with no suppression.  ``runtime_checkable`` lets the
+    driver narrow with ``isinstance`` (which fires under ``python -O``, unlike
+    a stripped ``assert``).
+    """
+
     def compute_production_rate(self, flux_distribution: np.ndarray) -> float:
         """Total volume-integrated neutron production rate (scalar).
 
@@ -144,17 +173,6 @@ class EigenvalueSolver(Protocol):
         may omit this method; :func:`power_iteration` falls back to
         the un-normalised legacy trajectory in that case.
         """
-        ...
-
-    def converged(
-        self,
-        keff: float,
-        keff_old: float,
-        flux_distribution: np.ndarray,
-        flux_old: np.ndarray,
-        iteration: int,
-    ) -> bool:
-        """Return True when the outer iteration has converged."""
         ...
 
 
@@ -202,9 +220,8 @@ def power_iteration(
         # Solvers that have not adopted ``compute_production_rate``
         # retain the legacy un-normalised trajectory (the deprecation
         # window for CP / diffusion / MoC / homogeneous migration).
-        production = getattr(solver, "compute_production_rate", None)
-        if production is not None:
-            p = float(production(flux_distribution))
+        if isinstance(solver, ProductionRateSolver):
+            p = float(solver.compute_production_rate(flux_distribution))
             if p > 0.0:
                 flux_distribution = flux_distribution / p
         keff = solver.compute_keff(flux_distribution)

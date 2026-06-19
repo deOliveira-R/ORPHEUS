@@ -1,6 +1,6 @@
 """Model-independent numerical methods for reactor physics."""
 
-from .eigenvalue import EigenvalueSolver, power_iteration
+from .eigenvalue import EigenvalueSolver, ProductionRateSolver, power_iteration
 from .field import Field
 from .iteration import KEigenvalue, SourceIteration
 from .measure import (
@@ -66,6 +66,7 @@ __all__ = [
     "OperatorProduct",
     "OperatorSum",
     "PetrovGalerkinProjection",
+    "ProductionRateSolver",
     "ProjectionOperator",
     "RankOneOperator",
     "ScaledOperator",
