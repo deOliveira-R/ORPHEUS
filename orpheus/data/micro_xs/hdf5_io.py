@@ -30,6 +30,7 @@ Layout inside each temperature group::
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 import h5py
 import numpy as np
@@ -68,26 +69,26 @@ def save_isotope(iso: Isotope, h5file: h5py.File) -> None:
 def load_isotope_h5(path: Path, temp_K: int) -> Isotope:
     """Load an Isotope from an HDF5 file for a given temperature."""
     with h5py.File(path, "r") as f:
-        grp = f[f"{temp_K}K"]
+        grp = cast(h5py.Group, f[f"{temp_K}K"])
 
-        aw = float(grp.attrs["aw"])
-        temp = float(grp.attrs["temp"])
-        eg = grp["eg"][:]
+        aw = float(cast(np.floating, grp.attrs["aw"]))
+        temp = float(cast(np.floating, grp.attrs["temp"]))
+        eg = cast(h5py.Dataset, grp["eg"])[:]
         ng = len(eg) - 1
-        sig0 = grp["sig0"][:]
+        sig0 = cast(h5py.Dataset, grp["sig0"])[:]
         n_sig0 = len(sig0)
 
-        sigC = grp["sigC"][:]
-        sigL = grp["sigL"][:]
-        sigF = grp["sigF"][:]
-        sigT = grp["sigT"][:]
-        nubar = grp["nubar"][:]
-        chi = grp["chi"][:]
+        sigC = cast(h5py.Dataset, grp["sigC"])[:]
+        sigL = cast(h5py.Dataset, grp["sigL"])[:]
+        sigF = cast(h5py.Dataset, grp["sigF"])[:]
+        sigT = cast(h5py.Dataset, grp["sigT"])[:]
+        nubar = cast(h5py.Dataset, grp["nubar"])[:]
+        chi = cast(h5py.Dataset, grp["chi"])[:]
 
         sig2 = _load_sparse(grp, "sig2", ng=ng)
 
         # Reconstruct sigS structure: [legendre][sig0_idx]
-        sig_s_grp = grp["sigS"]
+        sig_s_grp = cast(h5py.Group, grp["sigS"])
         n_legendre = max(int(k.split("_")[0][1:]) for k in sig_s_grp.keys()) + 1
         sigS = [
             [_load_sparse(sig_s_grp, f"L{j}_S{k}", ng=ng) for k in range(n_sig0)]
@@ -116,8 +117,10 @@ def _save_sparse(parent: h5py.Group, name: str, mat: csr_matrix) -> None:
 
 def _load_sparse(parent: h5py.Group, name: str, ng: int = NG) -> csr_matrix:
     """Load a sparse matrix from COO triplets."""
-    grp = parent[name]
-    row = grp["row"][:]
-    col = grp["col"][:]
-    data = grp["data"][:]
-    return coo_matrix((data, (row, col)), shape=(ng, ng)).tocsr()
+    grp = cast(h5py.Group, parent[name])
+    row = cast(h5py.Dataset, grp["row"])[:]
+    col = cast(h5py.Dataset, grp["col"])[:]
+    data = cast(h5py.Dataset, grp["data"])[:]
+    # coo_matrix(...).tocsr() returns a csr_matrix at runtime (matrix lineage);
+    # pyright infers the untyped tocsr() body as csr_array, so cast to the truth.
+    return cast(csr_matrix, coo_matrix((data, (row, col)), shape=(ng, ng)).tocsr())

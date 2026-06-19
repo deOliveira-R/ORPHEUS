@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import cast
 
 import numpy as np
 from scipy.sparse import coo_matrix, csr_matrix
@@ -138,6 +139,15 @@ def _extract_mf6(
     ifrom_list: list[int] = []
     ito_list: list[int] = []
     sig: dict[tuple[int, int], list[float]] = {}
+
+    # n_lgn/n_sig0 are set from the section header (the SEQ==1 record), which
+    # also increments n_temp.  The read sites below are all guarded by
+    # ``n_temp == temp_idx`` with temp_idx >= 1, so a read can only happen
+    # after the header bound both — these defaults are provably never read and
+    # exist only so the control flow is statically sound (no UnboundLocalError
+    # on a malformed file, and no false "possibly unbound" from the checker).
+    n_lgn = 0
+    n_sig0 = 0
 
     while i < n_row and m[i, 6] != -1:
         if m[i, 7] == 6 and m[i, 8] == mt:
@@ -265,11 +275,17 @@ def _build_isotope(
 
     # --- (n,2n) matrix: MF=6, MT=16 ---
     n2n = _extract_mf6(16, i_temp, m)
+    sig2: csr_matrix
     if n2n is not None:
         ifrom2, ito2, sig2_data = n2n
-        sig2 = coo_matrix(
-            (sig2_data[(0, 0)], (ifrom2 - 1, ito2 - 1)), shape=(NG, NG)
-        ).tocsr()
+        # coo_matrix(...).tocsr() is a csr_matrix at runtime (matrix lineage);
+        # the untyped tocsr() body makes pyright infer csr_array, so cast.
+        sig2 = cast(
+            csr_matrix,
+            coo_matrix(
+                (sig2_data[(0, 0)], (ifrom2 - 1, ito2 - 1)), shape=(NG, NG)
+            ).tocsr(),
+        )
     else:
         sig2 = csr_matrix((NG, NG))
 
@@ -369,9 +385,14 @@ def _init_scattering(
                 vals = data[key].copy()
                 vals[thermal_mask] = 0.0
                 vals += 1e-30  # match MATLAB's +1e-30 to avoid exact zeros
-                sigS[j_lgn][i_sig0] = coo_matrix(
-                    (vals, (ifrom - 1, ito - 1)), shape=(NG, NG)
-                ).tocsr()
+                # .tocsr() yields a csr_matrix at runtime; cast past the
+                # csr_array inference of the untyped tocsr() body.
+                sigS[j_lgn][i_sig0] = cast(
+                    csr_matrix,
+                    coo_matrix(
+                        (vals, (ifrom - 1, ito - 1)), shape=(NG, NG)
+                    ).tocsr(),
+                )
     return sigS
 
 
