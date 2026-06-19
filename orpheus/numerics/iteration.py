@@ -116,7 +116,7 @@ from __future__ import annotations
 
 import inspect
 import warnings
-from typing import Callable, Protocol
+from typing import Callable, Generic, Protocol
 
 import numpy as np
 import scipy.sparse.linalg as spla
@@ -127,6 +127,7 @@ from .operator import (
     LinearOperator,
     MissingCapability,
 )
+from .vector import V
 
 
 __all__ = [
@@ -304,7 +305,7 @@ def _default_keff_estimator(
 # ───────────────────────────────────────────────────────────────────────
 
 
-class SourceIteration:
+class SourceIteration(Generic[V]):
     r"""Fixed-point iteration for :math:`\bigl(L - \sum_i g_i\bigr)\,\psi =
     q_{\rm ext}`.
 
@@ -390,8 +391,8 @@ class SourceIteration:
 
     def __init__(
         self,
-        L: LinearOperator,
-        *gains: LinearOperator,
+        L: LinearOperator[V],
+        *gains: LinearOperator[V],
         max_iter: int = 1000,
         tol: float = 1e-8,
     ) -> None:
@@ -447,9 +448,9 @@ class SourceIteration:
 
     def solve(
         self,
-        q_ext: np.ndarray,
-        initial_guess: np.ndarray | None = None,
-    ) -> tuple[np.ndarray, list[float]]:
+        q_ext: V,
+        initial_guess: V | None = None,
+    ) -> tuple[V, list[float]]:
         r"""Run fixed-point iteration to convergence.
 
         Parameters
@@ -551,7 +552,7 @@ class SourceIteration:
 # ───────────────────────────────────────────────────────────────────────
 
 
-class KrylovAcceleration:
+class KrylovAcceleration(Generic[V]):
     r"""GMRES on :math:`\bigl(L - \sum_i g_i\bigr)\,\psi = q_{\rm ext}` —
     sibling of :class:`SourceIteration` for the same algebra.
 
@@ -655,8 +656,8 @@ class KrylovAcceleration:
 
     def __init__(
         self,
-        L: LinearOperator,
-        *gains: LinearOperator,
+        L: LinearOperator[V],
+        *gains: LinearOperator[V],
         preconditioner: Preconditioner | None = None,
         max_iter: int = 1000,
         tol: float = 1e-8,
@@ -694,9 +695,9 @@ class KrylovAcceleration:
 
     def solve(
         self,
-        q_ext: np.ndarray,
-        initial_guess: np.ndarray | None = None,
-    ) -> tuple[np.ndarray, list[float]]:
+        q_ext: V,
+        initial_guess: V | None = None,
+    ) -> tuple[V, list[float]]:
         r"""Run GMRES on :math:`(L - S - F)\,\psi = q_{\rm ext}` to convergence.
 
         Parameters

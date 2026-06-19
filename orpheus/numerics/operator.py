@@ -57,6 +57,7 @@ from typing import (
     TYPE_CHECKING,
     Callable,
     ClassVar,
+    Generic,
     Optional,
     Protocol,
     runtime_checkable,
@@ -64,6 +65,8 @@ from typing import (
 
 import numpy as np
 import scipy.sparse.linalg as spla
+
+from orpheus.numerics.vector import V
 
 if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
@@ -254,7 +257,7 @@ class IncompatibleOperatorComposition(ValueError):
 
 
 @runtime_checkable
-class LinearOperator(Protocol):
+class LinearOperator(Protocol[V]):
     r"""Contract for a matrix-free linear operator on a flux vector.
 
     Any object exposing :meth:`apply` and a :pydata:`capabilities`
@@ -314,12 +317,18 @@ class LinearOperator(Protocol):
         """
         ...
 
-    def apply(self, x: np.ndarray) -> np.ndarray:
+    def apply(self, x: V, /) -> V:
         r"""Return :math:`L\,x`.
 
         Mandatory. Every :class:`LinearOperator` must implement this.
         The :pydata:`capabilities` set MUST include
         :pydata:`CAP_APPLY` whenever this method is functional.
+
+        The :data:`~orpheus.numerics.vector.V` type variable expresses
+        the endomorphism honestly: ``apply`` returns the same
+        :class:`~orpheus.numerics.vector.Vector` carrier it consumes
+        (flux, scalar, moment state, or the flat ``np.ndarray`` of the
+        scipy serialization boundary).
         """
         ...
 
@@ -340,7 +349,7 @@ def _has(op: object, cap: str) -> bool:
 # ───────────────────────────────────────────────────────────────────────
 
 
-class LinearOperatorMixin:
+class LinearOperatorMixin(Generic[V]):
     """Mixin installing operator-algebra dunders on a :class:`LinearOperator`.
 
     Inherit this on any user-defined operator class to gain the natural
@@ -396,6 +405,16 @@ class LinearOperatorMixin:
     #: dataclass, so its annotation is never field-processed.
     block_role: ClassVar[Optional[BlockRole]] = None
 
+    if TYPE_CHECKING:
+        # Declared for the type checker ONLY (this block never executes at
+        # runtime): it lets ``self`` satisfy the :class:`LinearOperator`
+        # ``[V]`` Protocol inside the algebra dunders below, so ``A + B`` /
+        # ``A @ B`` / ``α * A`` compose without an ``# type: ignore``. The
+        # mixin still defines NO runtime ``apply`` — every concrete operator
+        # supplies its own (the mixin "defines no state"); this stub only
+        # names the endomorphism contract the concrete classes honour.
+        def apply(self, x: V, /) -> V: ...
+
     # ------------------------------------------------------------------
     # Function-space tagging (defaults — concrete operators may override)
     # ------------------------------------------------------------------
@@ -412,27 +431,27 @@ class LinearOperatorMixin:
     # Algebra dunders
     # ------------------------------------------------------------------
 
-    def __add__(self, other: "LinearOperator") -> "OperatorSum":
-        return OperatorSum(self, other)  # type: ignore[arg-type]
+    def __add__(self, other: "LinearOperator[V]") -> "OperatorSum[V]":
+        return OperatorSum(self, other)
 
-    def __radd__(self, other: "LinearOperator") -> "OperatorSum":
-        return OperatorSum(other, self)  # type: ignore[arg-type]
+    def __radd__(self, other: "LinearOperator[V]") -> "OperatorSum[V]":
+        return OperatorSum(other, self)
 
-    def __sub__(self, other: "LinearOperator") -> "OperatorSum":
-        return OperatorSum(self, ScaledOperator(-1.0, other))  # type: ignore[arg-type]
+    def __sub__(self, other: "LinearOperator[V]") -> "OperatorSum[V]":
+        return OperatorSum(self, ScaledOperator(-1.0, other))
 
-    def __rsub__(self, other: "LinearOperator") -> "OperatorSum":
-        return OperatorSum(other, ScaledOperator(-1.0, self))  # type: ignore[arg-type]
+    def __rsub__(self, other: "LinearOperator[V]") -> "OperatorSum[V]":
+        return OperatorSum(other, ScaledOperator(-1.0, self))
 
-    def __mul__(self, other: float) -> "ScaledOperator":
+    def __mul__(self, other: float) -> "ScaledOperator[V]":
         if not isinstance(other, (int, float, np.floating, np.integer)):
             return NotImplemented
-        return ScaledOperator(float(other), self)  # type: ignore[arg-type]
+        return ScaledOperator(float(other), self)
 
-    def __rmul__(self, other: float) -> "ScaledOperator":
+    def __rmul__(self, other: float) -> "ScaledOperator[V]":
         return self.__mul__(other)
 
-    def __neg__(self) -> "ScaledOperator":
+    def __neg__(self) -> "ScaledOperator[V]":
         r"""Unary minus: return :math:`-A` as ``ScaledOperator(-1.0, A)``.
 
         Pythonic completion of the ``__sub__`` family — when ``A - B``
@@ -445,9 +464,9 @@ class LinearOperatorMixin:
         splitting (``A = D - (L + U)``, where ``-(L + U)`` is the
         off-diagonal coupling).
         """
-        return ScaledOperator(-1.0, self)  # type: ignore[arg-type]
+        return ScaledOperator(-1.0, self)
 
-    def __truediv__(self, scalar: float) -> "ScaledOperator":
+    def __truediv__(self, scalar: float) -> "ScaledOperator[V]":
         r"""Scalar division: ``A / α`` is ``(1/α) * A``.
 
         Used for normalisation in eigenvalue / Krylov iterations
@@ -462,12 +481,12 @@ class LinearOperatorMixin:
         """
         if not isinstance(scalar, (int, float, np.floating, np.integer)):
             return NotImplemented
-        return ScaledOperator(1.0 / float(scalar), self)  # type: ignore[arg-type]
+        return ScaledOperator(1.0 / float(scalar), self)
 
-    def __matmul__(self, other: "LinearOperator") -> "OperatorProduct":
-        return OperatorProduct(self, other)  # type: ignore[arg-type]
+    def __matmul__(self, other: "LinearOperator[V]") -> "OperatorProduct[V]":
+        return OperatorProduct(self, other)
 
-    def __and__(self, other: "LinearOperator") -> "TensorProductOperator":
+    def __and__(self, other: "LinearOperator[V]") -> "TensorProductOperator":
         r"""Return :math:`A \otimes B` — the per-axis tensor-product operator.
 
         Per Grand Report v3 §6.3 line 721 and §15.1 line 2044. For two
@@ -479,10 +498,10 @@ class LinearOperatorMixin:
         the result is flattened so ``(A & B) & C`` and ``A & (B & C)``
         produce the same instance ``TensorProductOperator((A, B, C))``.
         """
-        return TensorProductOperator._build(self, other)  # type: ignore[arg-type]
+        return TensorProductOperator._build(self, other)
 
-    def __rand__(self, other: "LinearOperator") -> "TensorProductOperator":
-        return TensorProductOperator._build(other, self)  # type: ignore[arg-type]
+    def __rand__(self, other: "LinearOperator[V]") -> "TensorProductOperator":
+        return TensorProductOperator._build(other, self)
 
     def __call__(self, *args, **kwargs):
         """Alias for :meth:`apply`. Lets user code write ``A(x)``.
@@ -497,7 +516,7 @@ class LinearOperatorMixin:
         """
         return self.apply(*args, **kwargs)  # type: ignore[attr-defined]
 
-    def __pow__(self, n: int) -> "LinearOperator":
+    def __pow__(self, n: int) -> "LinearOperator[V]":
         r"""Return :math:`A^n` for non-negative integer ``n``.
 
         ``n == 0`` returns :class:`IdentityOperator`. ``n == 1``
@@ -519,16 +538,16 @@ class LinearOperatorMixin:
             return IdentityOperator()
         if n == 1:
             return self  # type: ignore[return-value]
-        result: "LinearOperator" = self  # type: ignore[assignment]
+        result: "LinearOperator[V]" = self  # type: ignore[assignment]
         for _ in range(n - 1):
-            result = result @ self  # type: ignore[operator]
+            result = result @ self
         return result
 
     # ------------------------------------------------------------------
     # Adjoint
     # ------------------------------------------------------------------
 
-    def adjoint(self) -> "LinearOperator":
+    def adjoint(self) -> "LinearOperator[V]":
         r"""Return the Hilbert adjoint :math:`A^*`.
 
         For an operator :math:`A : V \to W` with diagonal inner-product
@@ -553,7 +572,7 @@ class LinearOperatorMixin:
         return _AdjointOperator(self)  # type: ignore[arg-type]
 
     @property
-    def H(self) -> "LinearOperator":
+    def H(self) -> "LinearOperator[V]":
         """Alias for :meth:`adjoint`. Matches the Grand Report v3 §6.3
         Hilbert-adjoint vocabulary (``A.H`` reads as "A dagger")."""
         return self.adjoint()
@@ -577,7 +596,7 @@ class LinearOperatorMixin:
 # ---------------------------------------------------------------------------
 
 
-class _AdjointOperator(LinearOperatorMixin):
+class _AdjointOperator(LinearOperatorMixin[V]):
     """Hilbert-adjoint wrapper around a :class:`LinearOperator`.
 
     Constructed by :meth:`LinearOperatorMixin.adjoint` (and its alias
@@ -594,7 +613,7 @@ class _AdjointOperator(LinearOperatorMixin):
     until a consumer demands it.
     """
 
-    def __init__(self, inner: "LinearOperator") -> None:
+    def __init__(self, inner: "LinearOperator[V]") -> None:
         self.inner = inner
         # Capability swap: adjoint can apply iff inner can apply_transpose.
         caps: set[str] = set()
@@ -620,7 +639,7 @@ class _AdjointOperator(LinearOperatorMixin):
     def codomain(self) -> Optional["FunctionSpace"]:
         return getattr(self.inner, "domain", None)
 
-    def apply(self, y: np.ndarray) -> np.ndarray:
+    def apply(self, y: V) -> V:
         if not _has(self.inner, CAP_APPLY_TRANSPOSE):
             raise MissingCapability(
                 f"adjoint application requires {CAP_APPLY_TRANSPOSE!r} on "
@@ -649,7 +668,7 @@ class _AdjointOperator(LinearOperatorMixin):
             result = inner_domain.apply_inverse_metric(result)
         return result
 
-    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+    def apply_transpose(self, x: V) -> V:
         raise NotImplementedError(
             "apply_transpose on an _AdjointOperator wrapper is not "
             "supported in 9.6; if a consumer needs it, take the adjoint "
@@ -657,7 +676,7 @@ class _AdjointOperator(LinearOperatorMixin):
         )
 
 
-class OperatorSum(LinearOperatorMixin):
+class OperatorSum(LinearOperatorMixin[V]):
     r"""Sum of two linear operators: :math:`(A + B)\,x = A\,x + B\,x`.
 
     Capability closure laws:
@@ -680,7 +699,7 @@ class OperatorSum(LinearOperatorMixin):
         mid-iteration.
     """
 
-    def __init__(self, a: LinearOperator, b: LinearOperator) -> None:
+    def __init__(self, a: LinearOperator[V], b: LinearOperator[V]) -> None:
         if not _has(a, CAP_APPLY):
             raise MissingCapability(
                 f"OperatorSum requires apply on both operands; left "
@@ -736,14 +755,14 @@ class OperatorSum(LinearOperatorMixin):
         a_cod = getattr(self.a, "codomain", None)
         return a_cod if a_cod is not None else getattr(self.b, "codomain", None)
 
-    def apply(self, x: np.ndarray) -> np.ndarray:
+    def apply(self, x: V, /) -> V:
         return self.a.apply(x) + self.b.apply(x)
 
-    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+    def apply_transpose(self, x: V, /) -> V:
         return self.a.apply_transpose(x) + self.b.apply_transpose(x)  # type: ignore[attr-defined]
 
 
-class OperatorProduct(LinearOperatorMixin):
+class OperatorProduct(LinearOperatorMixin[V]):
     r"""Composition of two linear operators: :math:`(A\,B)\,x = A(B\,x)`.
 
     Capability closure laws:
@@ -762,7 +781,7 @@ class OperatorProduct(LinearOperatorMixin):
         If either operand lacks :pydata:`CAP_APPLY` at construction.
     """
 
-    def __init__(self, a: LinearOperator, b: LinearOperator) -> None:
+    def __init__(self, a: LinearOperator[V], b: LinearOperator[V]) -> None:
         if not _has(a, CAP_APPLY):
             raise MissingCapability(
                 f"OperatorProduct requires apply on both operands; "
@@ -804,19 +823,19 @@ class OperatorProduct(LinearOperatorMixin):
         # A @ B: output space is A.codomain.
         return getattr(self.a, "codomain", None)
 
-    def apply(self, x: np.ndarray) -> np.ndarray:
+    def apply(self, x: V, /) -> V:
         return self.a.apply(self.b.apply(x))
 
-    def solve(self, b_vec: np.ndarray) -> np.ndarray:
+    def solve(self, b_vec: V) -> V:
         # (AB)^{-1} = B^{-1} A^{-1}
         return self.b.solve(self.a.solve(b_vec))  # type: ignore[attr-defined]
 
-    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+    def apply_transpose(self, x: V, /) -> V:
         # (AB)^T = B^T A^T
         return self.b.apply_transpose(self.a.apply_transpose(x))  # type: ignore[attr-defined]
 
 
-class ScaledOperator(LinearOperatorMixin):
+class ScaledOperator(LinearOperatorMixin[V]):
     r"""Scalar multiple of a linear operator: :math:`(\alpha L)\,x = \alpha\,(L\,x)`.
 
     Scalar multiplication is a unitary operation on the capability
@@ -826,7 +845,7 @@ class ScaledOperator(LinearOperatorMixin):
     at composition time).
     """
 
-    def __init__(self, scalar: float, op: LinearOperator) -> None:
+    def __init__(self, scalar: float, op: LinearOperator[V]) -> None:
         if not _has(op, CAP_APPLY):
             raise MissingCapability(
                 f"ScaledOperator requires apply on its operand; "
@@ -863,18 +882,18 @@ class ScaledOperator(LinearOperatorMixin):
     def codomain(self) -> Optional["FunctionSpace"]:
         return getattr(self.op, "codomain", None)
 
-    def apply(self, x, *extra, **kwextra):
+    def apply(self, x: V, /, *extra, **kwextra) -> V:
         return self.scalar * self.op.apply(x, *extra, **kwextra)
 
-    def solve(self, b_vec: np.ndarray) -> np.ndarray:
+    def solve(self, b_vec: V) -> V:
         # (αL)^{-1} = (1/α) L^{-1}
         return (1.0 / self.scalar) * self.op.solve(b_vec)  # type: ignore[attr-defined]
 
-    def apply_transpose(self, x, *extra, **kwextra):
+    def apply_transpose(self, x: V, /, *extra, **kwextra) -> V:
         return self.scalar * self.op.apply_transpose(x, *extra, **kwextra)  # type: ignore[attr-defined]
 
 
-class IdentityOperator(LinearOperatorMixin):
+class IdentityOperator(LinearOperatorMixin[V]):
     r"""The identity operator :math:`I\,x = x`.
 
     All three primitive capabilities are trivially supported:
@@ -886,17 +905,17 @@ class IdentityOperator(LinearOperatorMixin):
         {CAP_APPLY, CAP_SOLVE, CAP_APPLY_TRANSPOSE}
     )
 
-    def apply(self, x: np.ndarray) -> np.ndarray:
+    def apply(self, x: V, /) -> V:
         return x
 
-    def solve(self, b_vec: np.ndarray) -> np.ndarray:
+    def solve(self, b_vec: V) -> V:
         return b_vec
 
-    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+    def apply_transpose(self, x: V, /) -> V:
         return x
 
 
-class ZeroOperator(LinearOperatorMixin):
+class ZeroOperator(LinearOperatorMixin[V]):
     r"""The zero operator :math:`0\,x = 0`.
 
     Has ``apply`` (returns the zero of its CODOMAIN) and
@@ -945,16 +964,16 @@ class ZeroOperator(LinearOperatorMixin):
     capabilities: frozenset[str] = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
     def __init__(
-        self, codomain_zero: "Callable[[object], object] | None" = None,
+        self, codomain_zero: "Callable[[V], V] | None" = None,
     ) -> None:
         self._codomain_zero = codomain_zero
 
-    def apply(self, x):
+    def apply(self, x: V, /) -> V:
         if self._codomain_zero is not None:
             return self._codomain_zero(x)
         return 0.0 * x
 
-    def apply_transpose(self, x):
+    def apply_transpose(self, x: V, /) -> V:
         return 0.0 * x
 
 

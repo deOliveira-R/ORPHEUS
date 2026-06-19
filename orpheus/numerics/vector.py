@@ -74,7 +74,7 @@ which concrete carrier (flux, scalar, or moment state) flows through.
 
 from __future__ import annotations
 
-from typing import Protocol, TypeVar, runtime_checkable
+from typing import Protocol, Self, TypeVar, runtime_checkable
 
 __all__ = ["Vector", "V"]
 
@@ -119,19 +119,19 @@ class Vector(Protocol):
     cross-space combination at runtime.
     """
 
-    def __add__(self, other: Vector) -> Vector:
+    def __add__(self, other: Self) -> Self:
         """Return ``self + other`` (vector addition with a like vector)."""
         ...
 
-    def __sub__(self, other: Vector) -> Vector:
+    def __sub__(self, other: Self) -> Self:
         """Return ``self - other`` (vector subtraction of a like vector)."""
         ...
 
-    def __rmul__(self, scalar: float) -> Vector:
+    def __rmul__(self, scalar: float) -> Self:
         """Return ``scalar * self`` (left-multiplication by a scalar)."""
         ...
 
-    def __truediv__(self, scalar: float) -> Vector:
+    def __truediv__(self, scalar: float) -> Self:
         """Return ``self / scalar`` (division by a scalar).
 
         Used by the eigenvalue drivers to renormalise the carrier in

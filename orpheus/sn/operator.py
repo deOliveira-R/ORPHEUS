@@ -209,7 +209,7 @@ def _require_typed_composite(
 
 
 @dataclass
-class StreamingOperator(LinearOperatorMixin):
+class StreamingOperator(LinearOperatorMixin["TimedFullField"]):
     r"""Pure streaming + angular-redistribution operator :math:`L` as a
     :class:`~orpheus.numerics.operator.LinearOperator` leaf.
 
@@ -508,7 +508,7 @@ class StreamingOperator(LinearOperatorMixin):
 
 
 @dataclass
-class CollisionOperator(LinearOperatorMixin):
+class CollisionOperator(LinearOperatorMixin["TimedFullField"]):
     r"""Pure collision operator :math:`C = \sigma\cdot` as a
     :class:`~orpheus.numerics.operator.LinearOperator` leaf.
 
@@ -678,7 +678,7 @@ class CollisionOperator(LinearOperatorMixin):
 # ─────────────────────────────────────────────────────────────────────────
 
 
-class InvertibleOperator(OperatorSum):
+class InvertibleOperator(OperatorSum["TimedFullField"]):
     r"""Sweep-invertible composite :math:`L + C` carrying ``.solve`` = WDD sweep.
 
     R-1 Step C (2026-05-19) — the SN-specific algebraic identity

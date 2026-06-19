@@ -136,7 +136,7 @@ class ProjectionOperator(LinearOperatorMixin, ABC):
     capabilities: frozenset[str] = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
     @abstractmethod
-    def apply(self, x: np.ndarray) -> np.ndarray:
+    def apply(self, x: np.ndarray, /) -> np.ndarray:
         ...
 
 
@@ -228,7 +228,7 @@ class ReconstructionOperator(LinearOperatorMixin, ABC):
     capabilities: frozenset[str] = frozenset({CAP_APPLY})
 
     @abstractmethod
-    def apply(self, coefficients: np.ndarray) -> np.ndarray:
+    def apply(self, coefficients: np.ndarray, /) -> np.ndarray:
         ...
 
 
