@@ -163,7 +163,11 @@ class CPMesh:
         cylindrical or spherical meshes."""
         p = self.params
         radii = self.mesh.edges[1:]
-        q = composite_gauss_legendre(self.mesh.edges, p.n_quad_y)
+        # ``composite_gauss_legendre`` declares ``breakpoints: Sequence[float]``
+        # and immediately does ``np.asarray(..., dtype=float)`` internally, so a
+        # 1-D float ndarray is accepted at runtime; ``.tolist()`` supplies the
+        # declared Sequence type with no numerical change.
+        q = composite_gauss_legendre(self.mesh.edges.tolist(), p.n_quad_y)
         self._y_pts, self._y_wts = q.pts, q.wts
         self._chords = chord_half_lengths(radii, self._y_pts)
 
@@ -290,6 +294,20 @@ class CPMesh:
         y_wts = self._y_wts
         kernel = self._kernel
         kernel_zero = self._kernel_zero
+        # Invariant: this method is reached only for cylindrical/spherical
+        # meshes (see ``compute_pinf_group``'s coord match), for which
+        # ``_setup_radial_quadrature`` + the radial setup populate all four
+        # attributes.  The slab path sets them to None but never calls here.
+        # The guard makes that invariant explicit to both readers and the
+        # type checker, and raises (not dead code) if a future caller ever
+        # routes a non-radial mesh through this path.
+        if (chords is None or y_wts is None
+                or kernel is None or kernel_zero is None):
+            raise RuntimeError(
+                "_compute_radial_rcp requires radial-quadrature setup "
+                "(chords, y-weights, kernel); this mesh has none. It must "
+                "only be called for cylindrical or spherical geometries."
+            )
         n_y = len(y_wts)
 
         tau = sig_t_g[:, None] * chords  # (N, n_y)
@@ -535,6 +553,11 @@ class CPSolver:
         n_inner_this_outer = np.zeros(ng, dtype=int)
 
         for g in range(ng):
+            # Bind the inner-iteration count for every path: when
+            # ``max_inner <= 0`` the inner ``range`` is empty and the loop
+            # body never runs, so without this the post-loop read would raise
+            # NameError.  ``0`` then truthfully records "no inner iterations".
+            n_in = 0
             for n_in in range(1, self.max_inner + 1):
                 phi_g_old = phi[:, g].copy()
 
@@ -854,7 +877,14 @@ def solve_cp(
         inner_tol=params.inner_tol, max_inner=params.max_inner,
         mesh=mesh,
     )
-    keff, keff_history, phi = power_iteration(solver, max_iter=params.max_outer)
+    # pyright: ignore justification — CPSolver implements every EigenvalueSolver
+    # method except ``compute_production_rate``, which the Protocol and
+    # ``power_iteration`` BOTH treat as optional at the call site (accessed via
+    # ``getattr(solver, "compute_production_rate", None)`` with a documented
+    # legacy-trajectory fallback).  CPSolver deliberately omits it (it conditions
+    # via ``phi *= 1/max(phi)`` instead); adding it would change numerical
+    # behaviour.  The conformance is real but not structurally modellable.
+    keff, keff_history, phi = power_iteration(solver, max_iter=params.max_outer)  # pyright: ignore[reportArgumentType]
 
     flux_fuel, flux_clad, flux_cool = _volume_averaged_fluxes(
         phi, mesh.volumes, mesh.mat_ids)
