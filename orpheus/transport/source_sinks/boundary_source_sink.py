@@ -124,6 +124,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 
+from orpheus.numerics.moment_layout import AVERAGE_MOMENT
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import BoundaryField
 
@@ -195,8 +196,10 @@ class BoundarySourceSink(BoundaryField):
         The ergonomic generator for the affine-BC inhomogeneous term
         :math:`q` in :math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q`: for
         each face named in ``face_values``, the **inflow** ordinate slots
-        are written from the given ``(N, ng)`` array and **every other
-        slot is left zero**. The outflow slots of a prescribed-inflow
+        are written from the given per-face slot and **every other slot
+        is left zero** (the trailing axes span the group, the transverse
+        spatial axis, and — for a moment-resolved LD trace, #251 — the
+        ``2^{d-1}``-transverse-moment axis). The outflow slots of a prescribed-inflow
         source are physically meaningless — the sweep determines outflow,
         not the source — so they are *unrepresentable* here by
         construction (``coding-elegance`` Pattern 4). Faces absent from
@@ -230,7 +233,9 @@ class BoundarySourceSink(BoundaryField):
             (:meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.inflow_indices_for_face`).
         face_values : Mapping[str, NDArray]
             ``{face_name: values}`` where ``values`` is the full per-face
-            slot, shape ``(N, ng)`` over all ordinates. Only the inflow
+            slot, shape ``(N, ng, *face_shape[, 2^{d-1}])`` over all
+            ordinates (the trailing transverse-moment axis present only
+            for a moment-resolved LD trace, #251). Only the inflow
             ordinate rows are read; the remainder is ignored.
 
         Returns
@@ -262,14 +267,29 @@ class BoundarySourceSink(BoundaryField):
                     f"{cls.__name__}.prescribed_inflow: {face!r} is not a "
                     f"face of the layout; available: {sorted(known)!r}"
                 )
-            view = bss.face_view(face)  # (N, ng), memory-shared with bss.values
+            view = bss.face_view(face)  # full per-face slot, mem-shared with bss
             arr = np.asarray(values, dtype=float)
-            if arr.shape != view.shape:
+            inflow = trace.inflow_indices_for_face(face)
+            # A moment-resolved LD trace slot is (N, ng, *transverse, 2^{d-1})
+            # (#251).  The caller may supply EITHER the full moment slot OR a
+            # SCALAR (N, ng, *transverse) array (the existing scalar prescribed
+            # inflow — every face-AVERAGE caller).  Discriminate by shape:
+            #   * full slot  → write the whole slot (DD/Step's scalar slot is the
+            #     full slot, so this is the byte-identical path);
+            #   * scalar onto a moment slot → seed the AVERAGE moment (slot 0),
+            #     the transverse slope moments stay zero (the scalar default is
+            #     blind to the along-face variation — the Leg-B asymmetry).
+            # ``[inflow]`` selects the inflow ordinate ROWS (axis 0) and spans
+            # all trailing axes (a trailing ``, :`` would assume exactly one).
+            if arr.shape == view.shape:
+                view[inflow] = arr[inflow]
+            elif view.ndim > arr.ndim and arr.shape == view.shape[:-1]:
+                view[inflow, ..., AVERAGE_MOMENT] = arr[inflow]
+            else:
                 raise ValueError(
                     f"{cls.__name__}.prescribed_inflow: face {face!r} values "
                     f"shape {arr.shape!r} does not match the layout slot "
-                    f"shape {view.shape!r} (expected the full (N, ng) slot)."
+                    f"shape {view.shape!r} (expected the full per-face slot, or "
+                    f"a scalar {view.shape[:-1]!r} onto a moment-resolved slot)."
                 )
-            inflow = trace.inflow_indices_for_face(face)
-            view[inflow, :] = arr[inflow, :]
         return bss

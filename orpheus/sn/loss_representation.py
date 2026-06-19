@@ -128,7 +128,11 @@ import numpy as np
 # unified body) lives IN this module — ``sweep.py`` dissolved; selector and
 # bodies share one home, so the historical load-time import cycle is gone.
 from orpheus.geometry import CoordSystem
-from orpheus.numerics.moment_layout import is_moment_valued_by_rank
+from orpheus.numerics.moment_layout import (
+    face_moment_count,
+    is_moment_valued_by_flat_rank,
+    is_moment_valued_by_rank,
+)
 
 from .spatial._ubld import (
     AVERAGE_MOMENT,
@@ -315,10 +319,11 @@ class _LossRepresentation:
         The interior face cochain (full or windowed) carries this many moments
         per face for the selected scheme: ``1`` for the slopeless cell-average
         closures (DD/Step → byte-identical scalar faces) and ``2^{d-1}`` for the
-        bilinear UBLD Linear-Discontinuous closure (#240 D5b — d=2: 2).  The
-        single derivation site of the multi-moment face-cochain width."""
-        per_axis = self.mesh.scheme.spatial_basis_per_axis
-        return per_axis ** (self.mesh.ndim - 1)
+        bilinear UBLD Linear-Discontinuous closure (#240 D5b — d=2: 2).  Reads
+        the multi-moment face-cochain width from the single-source
+        :func:`~orpheus.numerics.moment_layout.face_moment_count` (shared with the
+        trace producer :meth:`~orpheus.sn.geometry.SNMesh.boundary_face_layout`)."""
+        return face_moment_count(self.mesh.scheme.spatial_basis_per_axis, self.mesh.ndim)
 
     def _moment_frame_signs(
         self, signs_eff: tuple[int, ...],
@@ -357,24 +362,53 @@ class _LossRepresentation:
     def _inflow_to_moments(
         self, inflow: tuple["np.ndarray", ...],
     ) -> tuple["np.ndarray", ...]:
-        r"""Widen the scalar domain inflow to a per-face moment object.
+        r"""Carry the per-face domain inflow as a ``2^{d-1}``-moment object.
 
-        The boundary trace carries one scalar value per face today; a
-        multi-moment closure's cochain needs a ``2^{d-1}``-moment domain inflow.
-        For the S2 foundation gates the domain inflow is VACUUM / zero, so each
-        per-axis face becomes a zeros moment array (the average moment seeded by
-        the scalar, the transverse slopes zero — and for vacuum the average is
-        zero too).  The non-vanishing domain-inflow moment trace is the #240
-        D5b-S4 boundary widening.  At a single-moment closure this is the
-        identity (the trailing axis is absent)."""
+        A multi-moment closure's cochain consumes a ``2^{d-1}``-transverse-moment
+        domain inflow per face (per-axis Legendre order ``[bar, slope, …]``); the
+        boundary trace supplies it.  This is the boundary twin of Leg A's bulk
+        :func:`~orpheus.sn.solver._lift_external_source_to_moments` — it
+        rank-DISCRIMINATES the incoming face against the flat (moment-free) face
+        rank ``d + 1`` (a scalar face ``(N_oct, ng, *transverse)`` has rank
+        ``2 + (d−1) = d + 1``; transverse carries ``d−1`` axes):
+
+        * **single-moment closure** (DD/Step, ``n == 1``): identity — the trailing
+          axis is absent, every buffer byte-identical.
+        * **scalar inflow** (a vacuum face / the existing scalar prescribed
+          inflow): widen — zeros buffer, the AVERAGE moment (slot 0) seeded by
+          the scalar, the transverse slopes ZERO (a scalar trace carries no
+          along-face variation; the Leg-B asymmetry — the scalar default is
+          correctly blind to the transverse slope).
+        * **moment-resolved inflow** (the #251 moment-resolved boundary trace,
+          ``2^{d-1}``-valued): PASS THROUGH — the producer (the widened trace,
+          ``geometry.boundary_face_layout``) already carries the projected
+          transverse face-slope; this method threads it unchanged.  Validates the
+          trailing transverse-moment width == ``2^{d-1}`` (a clear ValueError
+          otherwise — the moment-resolved relaxation must not swallow a real shape
+          bug; ``coding-elegance`` Pattern 4).
+
+        The projection that fills slot 1 lives at the call site (the MMS / the
+        trace producer), NEVER here — production accepts the moment-resolved face,
+        does not compute it (Pattern 6, L11 structural independence, exactly Leg A).
+        """
         n = self._n_face_moments
         if n == 1:
             return inflow
+        # A scalar face is (N_oct, ng, *transverse); transverse carries d−1 axes,
+        # so its flat rank is 2 + (d − 1) = ndim + 1.  A moment-resolved face
+        # carries one MORE (the trailing 2^{d-1}-moment) axis (#251).
+        flat_face_ndim = self.mesh.ndim + 1
         widened = []
         for face in inflow:
-            buf = np.zeros((*face.shape, n))
-            buf[..., AVERAGE_MOMENT] = face   # average moment ← scalar inflow
-            widened.append(buf)
+            if is_moment_valued_by_flat_rank(face, flat_face_ndim):
+                _assert_face_moment_width(
+                    face, n, where=f"{type(self).__name__}._inflow_to_moments",
+                )
+                widened.append(face)            # thread the projected slope through
+            else:
+                buf = np.zeros((*face.shape, n))
+                buf[..., AVERAGE_MOMENT] = face  # average moment ← scalar inflow
+                widened.append(buf)
         return tuple(widened)
 
     def sweep(
@@ -429,6 +463,26 @@ class _LossRepresentation:
 # ═══════════════════════════════════════════════════════════════════════
 # _OctantWalk — THE in-plane octant traversal (S6.4, #222)
 # ═══════════════════════════════════════════════════════════════════════
+
+def _assert_face_moment_width(face: "np.ndarray", n: int, *, where: str) -> None:
+    r"""Guard a moment-resolved face inflow's trailing transverse-moment width.
+
+    A moment-resolved boundary inflow MUST carry exactly ``n = 2^{d-1}``
+    transverse moments, or the relaxation silently MIS-BROADCASTS: a width-1
+    trailing axis fans the single moment across all ``n`` slots — a wrong-physics
+    seed numpy does NOT reject.  Single source of the face-moment-width contract,
+    shared by the windowed :meth:`_LossRepresentation._inflow_to_moments` and the
+    FFW-oracle :meth:`FullFieldWavefront._octant_face_cochain` seed — the twin
+    face-cochain entry points must validate identically (#251).
+    """
+    if face.shape[-1] != n:
+        raise ValueError(
+            f"{where}: moment-resolved face inflow trailing width "
+            f"{face.shape[-1]} != the per-face transverse-moment count "
+            f"2^(d-1) = {n}.  A moment-resolved boundary inflow must carry "
+            f"exactly 2^(d-1) transverse moments."
+        )
+
 
 def _inflow_faces(signs_eff: tuple[int, ...]) -> tuple[str, ...]:
     """Per-axis domain faces an octant's streaming ENTERS through.
@@ -1061,12 +1115,11 @@ class MovingFrontierWindow(_DAGWavefront):
         )
         if emit.moment_buf is None:
             emit.angular_flux[oct_idx] = angular_flux_oct
-        # The domain-edge capture carries the trailing moment axis at a
-        # multi-moment closure; the boundary trace consumes the average moment
-        # (slot 0).  S2 domain edges are vacuum, so this only feeds the
-        # discarded capture; the non-vacuum moment trace is S4.
-        if n_face_moments > 1:
-            capture = tuple(c[..., AVERAGE_MOMENT] for c in capture)
+        # The domain-edge capture carries the trailing 2^{d-1}-transverse-moment
+        # axis at a multi-moment closure; the moment-resolved boundary trace
+        # (#251 — geometry.boundary_face_layout) STORES it whole (the outflow
+        # moments land in the now-moment-shaped slot, no longer collapsed to the
+        # average).  DD/Step (n_face_moments == 1) → no moment axis, byte-identical.
         return capture
 
     def loss_action(
@@ -1133,12 +1186,11 @@ class MovingFrontierWindow(_DAGWavefront):
             capture=capture,
             n_face_moments=n_face_moments,
         )
-        # Domain-edge capture carries the trailing moment axis; the boundary
-        # trace consumes the average moment (slot 0).  S3 domain edges are
-        # vacuum, so this only feeds the discarded capture (the non-vacuum
-        # moment trace is S4).
-        if n_face_moments > 1:
-            capture = tuple(c[..., AVERAGE_MOMENT] for c in capture)
+        # Domain-edge capture carries the trailing 2^{d-1}-transverse-moment axis
+        # at a multi-moment closure; the moment-resolved boundary trace (#251)
+        # STORES it whole into the now-moment-shaped ``streamed`` slot (which
+        # inherits the widened face_view shape) — the B-residual emit below then
+        # carries the outflow moments.  DD/Step → no moment axis, byte-identical.
         return LpC_oct, capture
 
 
@@ -1194,16 +1246,28 @@ class FullFieldWavefront(_DAGWavefront):
         ``n_face_moments`` is the per-face transverse moment count
         :math:`(\text{per\_axis})^{d-1}` (DD/Step: 1; LD-2D: 2 — #240 D5b).  At
         ``> 1`` each face buffer carries a trailing moment axis; the IN-edge is
-        seeded with the domain inflow's average moment (slot 0), the transverse
-        slope moments left zero.  For the S2 foundation gates the domain inflow
-        is VACUUM / zero, so the whole moment object is zero; the non-vanishing
-        domain-inflow moment trace is #240 D5b-S4 (the boundary widening).  At
-        ``n_face_moments == 1`` the trailing axis is ABSENT — DD's rank-r face
-        buffers are byte-identical.
+        seeded from the domain inflow.  The inflow is rank-DISCRIMINATED against
+        the flat face rank ``d + 1`` (a scalar face ``(N_oct, ng, *transverse)``
+        has rank ``2 + (d−1) = d + 1``), exactly as the windowed twin's
+        :meth:`_inflow_to_moments`:
+
+        * a SCALAR inflow (a vacuum face) seeds the AVERAGE moment (slot 0); the
+          transverse slope moments stay zero (the scalar default is blind to the
+          along-face variation — the Leg-B asymmetry);
+        * a MOMENT-RESOLVED inflow (the #251 moment-resolved boundary trace,
+          ``2^{d-1}``-valued) seeds ALL ``2^{d-1}`` moments — the projected
+          transverse face-slope is threaded into the cochain unchanged.
+
+        For the S2 foundation gates the domain inflow is VACUUM / zero, so the
+        whole moment object is zero.  At ``n_face_moments == 1`` the trailing axis
+        is ABSENT — DD's rank-r face buffers are byte-identical.
         """
         N_oct, ng = inflow[0].shape[0], inflow[0].shape[1]
         ndim = len(spatial)
         tail = face_moment_tail(n_face_moments)
+        # A scalar face is (N_oct, ng, *transverse) — rank 2 + (d−1) = ndim + 1;
+        # a moment-resolved face carries one MORE trailing axis (#251).
+        flat_face_ndim = ndim + 1
         faces = []
         for a in range(ndim):
             face_shape = list(spatial)
@@ -1213,10 +1277,20 @@ class FullFieldWavefront(_DAGWavefront):
             in_edge[2 + a] = 0 if signs_eff[a] >= 0 else spatial[a]
             if n_face_moments == 1:
                 buf[tuple(in_edge)] = inflow[a]
+            elif is_moment_valued_by_flat_rank(inflow[a], flat_face_ndim):
+                # Moment-resolved inflow (#251): seed ALL 2^{d-1} moments — the
+                # projected transverse face-slope threads into the cochain.  Guard
+                # the width as the windowed twin does (else a width-1 trailing axis
+                # silently broadcasts the single moment across all n slots).
+                _assert_face_moment_width(
+                    inflow[a], n_face_moments,
+                    where="FullFieldWavefront._octant_face_cochain",
+                )
+                buf[tuple(in_edge)] = inflow[a]
             else:
-                # Seed the average moment (slot 0) with the scalar domain inflow;
-                # transverse slope moments stay zero (S2 vacuum → all zero; the
-                # non-vanishing moment trace is the S4 boundary widening).
+                # Scalar inflow: seed the average moment (slot 0); the transverse
+                # slope moments stay zero (vacuum → all zero; the scalar default
+                # is blind to the along-face variation — the Leg-B asymmetry).
                 buf[(*in_edge, AVERAGE_MOMENT)] = inflow[a]
             faces.append(buf)
         return tuple(faces)
@@ -1313,11 +1387,10 @@ class FullFieldWavefront(_DAGWavefront):
         )
         emit.angular_flux[oct_idx] = angular_oct
         capture = self._edge_outflow(psi_faces_oct, spatial, signs_eff)
-        # The boundary trace consumes the average moment (slot 0) at a
-        # multi-moment closure; S2 domain edges are vacuum so this feeds only
-        # the discarded capture (the non-vacuum moment trace is S4).
-        if n_face_moments > 1:
-            capture = tuple(c[..., AVERAGE_MOMENT] for c in capture)
+        # The domain-edge capture carries the trailing 2^{d-1}-transverse-moment
+        # axis at a multi-moment closure; the moment-resolved boundary trace
+        # (#251) STORES it whole (oracle twin of the windowed _sweep_interior).
+        # DD/Step → no moment axis, byte-identical.
         return capture
 
     def loss_action(
@@ -1381,10 +1454,10 @@ class FullFieldWavefront(_DAGWavefront):
             str_axes_octant=tuple(s[oct_idx] for s in operands.str_axes),
         )
         capture = self._edge_outflow(psi_faces_oct, spatial, signs_eff)
-        # Boundary trace consumes the average moment (slot 0) at a multi-moment
-        # closure; S3 domain edges are vacuum (the non-vacuum moment trace is S4).
-        if n_face_moments > 1:
-            capture = tuple(c[..., AVERAGE_MOMENT] for c in capture)
+        # The domain-edge capture carries the trailing 2^{d-1}-transverse-moment
+        # axis at a multi-moment closure; the moment-resolved boundary trace
+        # (#251) STORES it whole (oracle twin of the windowed _loss_action_interior).
+        # DD/Step → no moment axis, byte-identical.
         return LpC_oct, capture
 
 

@@ -46,6 +46,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "AVERAGE_MOMENT",
+    "face_moment_count",
     "face_moment_tail",
     "is_moment_valued_by_flat_rank",
     "is_moment_valued_by_rank",
@@ -58,6 +59,23 @@ __all__ = [
 #: source for the slot-0 convention every moment consumer reduces on (#240 D5b)
 #: — change the layout here, not at the scattered ``[..., 0]`` call sites.
 AVERAGE_MOMENT = 0
+
+
+def face_moment_count(per_axis: int, ndim: int) -> int:
+    r"""Per-face transverse spatial-moment count :math:`(\text{per\_axis})^{d-1}`.
+
+    A face is codimension-1, so it carries the tensor-Legendre moments of the
+    ``d-1`` along-face (transverse) axes: ``1`` for the cell-average closures
+    (DD/Step → scalar faces, byte-identical) and ``2^{d-1}`` for the bilinear
+    UBLD Linear-Discontinuous closure (d=2: ``2`` — ``[face-bar, face-slope]``).
+    Single source of the "face is codimension-1" policy (the ``d-1`` exponent)
+    shared by the trace producer
+    (:meth:`orpheus.sn.geometry.SNMesh.boundary_face_layout`) and the interior
+    face cochain (``orpheus.sn.loss_representation._LossRepresentation._n_face_moments``),
+    which MUST agree on the face width or the capture↔shed seam mis-shapes (#251).
+    The CELL count is the sibling ``per_axis ** ndim`` (no ``-1``).
+    """
+    return per_axis ** (ndim - 1)
 
 
 def face_moment_tail(n_face_moments: int) -> tuple[int, ...]:

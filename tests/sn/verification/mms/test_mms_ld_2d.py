@@ -45,6 +45,7 @@ from orpheus.derivations.continuous.mms.sn import (
     build_nonvacuum_fixed_source,
 )
 from orpheus.geometry import BC, CoordSystem, Mesh2D
+from orpheus.numerics.moment_layout import AVERAGE_MOMENT
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.geometry import SNMesh
@@ -1010,28 +1011,467 @@ def test_moment_resolved_bulk_still_rejects_wrong_trailing_axis():
         )
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# #251 — Leg B: the BOUNDARY transverse face-slope (the OTHER half of the
+# LM-1989 trap).  SEPARATE production path from Leg A (#247, the bulk lift):
+# the manufactured prescribed inflow varies ALONG each face (transverse), but
+# the boundary trace carries one SCALAR per face/ordinate/group and
+# `_inflow_to_moments` (loss_representation.py:357-378) ZEROS the 2^{d-1}
+# transverse face-slope.  Leg B closes that.
+#
+# THE PROBED MODE-10 EVIDENCE (the design driver, see
+# `.claude/agent-memory/test-architect/issue_251_legB_boundary_gate_spec.md`):
+#   * The transverse face-slope is ~12% of the face-average and decays O(h)
+#     (intra-cell slope: |face_slope|/|face_bar| median 0.16/0.09/0.05 at
+#     nc=8/16/32).
+#   * ⚠ "IMPROVES ON FLAT" IS NOT ACHIEVABLE (sharper than Leg A): seeding the
+#     REAL transverse slope makes the converged near-boundary A-error SLIGHTLY
+#     WORSE (1.015e-2 → 1.030e-2 at nc=16; flipped is slightly BETTER) — the
+#     boundary correction is sub-floor (below the bulk O(h²) A-error).  So the
+#     teeth are STRUCTURAL ONLY (no converged-value improvement leg).
+#   * The CONSUMPTION signal IS detectable: a +slope/−slope flip moves the
+#     converged NEAR-BOUNDARY flux 4.1e-3 (nc=16), ≫ _CONSUMPTION_TOL (1e-8),
+#     LINEAR in the slope magnitude (proves genuine consumption).
+#   * The scalar-inflow no-op is BYTE-IDENTICAL (slope=0 → array_equal to today).
+#
+# Face-moment NORMALIZATION (the CRUX, locked — coordinate with the
+# method-implementer's TraceSpace widening): the trace must carry the BARE
+# per-transverse Legendre coefficients [face-bar=slot 0, transverse-slope=slot
+# 1].  The cochain's transverse mass `mass_1d(h_t, θ)=diag(h_t, θh_t)`
+# (assemble_inflow_axis, _ubld.py:270) adds the h_t/θ weighting — the projection
+# must NOT (exactly Leg A's M=diag(h,θh), transposed to the transverse axis).
+# ⚠ today's scalar trace carries the cell-CENTRE value, not the average; the
+# Deliverable-1 structural gate compares SLOT-1 only (slot-0 may differ
+# centre-vs-average).  The face projector calls leggauss directly — NEVER
+# _inflow_to_moments nor any LD cell op (L11 structural independence).
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _face_transverse_legendre(t_edges, j, fn_t, *, q_nodes=6):
+    r"""Project a 1-D transverse field ``fn_t(t_quad) -> (q,)`` on face cell ``j``
+    (``[t_edges[j], t_edges[j+1]]``) onto the BARE face Legendre coefficients.
+
+    Returns ``(face_bar, face_slope)`` where ``face_bar = ⟨ψ,P₀⟩/⟨P₀,P₀⟩`` (the
+    transverse cell AVERAGE) and ``face_slope = ⟨ψ,P₁⟩/⟨P₁,P₁⟩`` (the BARE
+    transverse-slope coefficient, NO θ, NO h_t — the cochain's transverse mass
+    ``diag(h_t, θh_t)`` adds them).  Structurally INDEPENDENT of production
+    (``leggauss`` only — never ``_inflow_to_moments`` nor ``assemble_inflow_axis``
+    nor any LD cell op; L11).  The 1-D-transverse factor of the tensor projector
+    :func:`_project_scalar_to_tensor_legendre`."""
+    from numpy.polynomial.legendre import leggauss
+
+    xi, wq = leggauss(q_nodes)
+    W2 = wq.sum()
+    mean_p1sq = float((wq * xi * xi).sum() / W2)  # mean(P1²) = 1/3
+    tL, tR = t_edges[j], t_edges[j + 1]
+    tq = (tL + tR) / 2 + (tR - tL) / 2 * xi
+    psi = fn_t(tq)
+    face_bar = float((wq * psi).sum() / W2)
+    face_slope = float((wq * xi * psi).sum() / (W2 * mean_p1sq))
+    return face_bar, face_slope
+
+
 # ───────────────────────────────────────────────────────────────────────
-# Leg B — the BOUNDARY transverse face-slope (the OTHER half of the LM-1989
-# trap).  Tracked in #251 (NOT #247): it needs a moment-resolved boundary
-# trace (a TraceSpace widening + _inflow_to_moments — a DIFFERENT production
-# change than the bulk lift Leg A landed here).  Kept as a skip so the test
-# file documents the remaining deferral.
+# DELIVERABLE 3 — the face-projection-correctness foundation sub-gate (L11).
+# GREEN NOW (it tests only the test-side face projector; no production change).
 # ───────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.skip(
-    reason="#251 (split out of #247): the boundary transverse-face-slope needs a "
-    "moment-resolved boundary trace (TraceSpace + _inflow_to_moments widening) — "
-    "a DIFFERENT production path than the bulk lift verified in Leg A (#247)."
-)
+@pytest.mark.foundation
+def test_face_transverse_legendre_projection_matches_hand_polynomial():
+    r"""#251 sub-gate (L11): the transverse face projector reproduces the EXACT
+    face Legendre coefficients of a KNOWN 1-D polynomial.
+
+    ``ψ_face(t) = c0 + c1 t`` on a face cell ``[tL,tR]`` has the hand-derivable
+    BARE coefficients (Legendre ``{1,ξ}``, ``ξ∈[-1,1]`` — the SAME basis as the
+    cochain's transverse mass ``diag(h_t, θh_t)``):
+
+        face_bar   = c0 + c1·tc          (slot 0 — transverse cell AVERAGE)
+        face_slope = (h_t/2)·c1          (slot 1 — bare transverse P₁ coeff)
+
+    A linear integrand is integrated EXACTLY by ``q_nodes>=2``, so the match is
+    machine precision.  Non-tautology (L11): the projector uses only ``leggauss``
+    + the hand-derived integral — NEVER ``_inflow_to_moments`` /
+    ``assemble_inflow_axis`` / any LD cell op; the reference is hand-laid 1-D
+    polynomial algebra.  The 1-D-transverse analog of
+    ``test_tensor_legendre_projection_matches_hand_polynomial``.  ``-O``-safe."""
+    tL, tR = 2.0, 2.6
+    c0, c1 = -0.5, 2.1
+    ht = tR - tL
+    tc = (tL + tR) / 2
+
+    face_bar, face_slope = _face_transverse_legendre(
+        np.array([tL, tR]), 0, lambda t: c0 + c1 * t, q_nodes=4,
+    )
+    np.testing.assert_allclose(
+        face_bar, c0 + c1 * tc, rtol=0, atol=1e-13,
+        err_msg="face projector bar (transverse average) coeff wrong",
+    )
+    np.testing.assert_allclose(
+        face_slope, (ht / 2) * c1, rtol=0, atol=1e-13,
+        err_msg="face projector transverse-slope coeff wrong (normalization "
+        "drift — must be the BARE (h_t/2)·c1, NOT θ/h_t-weighted)",
+    )
+
+
+@pytest.mark.foundation
+def test_face_projection_slot0_is_transverse_cell_average():
+    r"""#251 sub-gate (2nd leg): the face projector's slot-0 IS the transverse
+    cell AVERAGE, not the cell-CENTRE value (the §1 normalization caveat).
+
+    Today's scalar boundary trace carries the cell-CENTRE eval of the
+    manufactured inflow; the face projector cell-averages along the transverse
+    coordinate.  They differ by O(h²).  Pin that slot-0 equals an INDEPENDENT
+    fine-quadrature (q_nodes=12) transverse cell average to ~1e-8 (so the
+    projector is doing genuine averaging) — and do NOT cross-check slot-0
+    against ``case.prescribed_inflow`` (centre eval, which differs by O(h²)).
+    ``-O``-safe."""
+    case = build_2d_cartesian_ld_stress_mms_case()
+    mesh = case.build_mesh(8)
+    ey = mesh.edges_y
+    # Manufactured inflow on face xmin (x=0, transverse y), ordinate 0, group 0.
+    quad = case.quadrature
+    W = float(quad.weights.sum())
+    mu_x0, mu_y0 = quad.mu_x[0], quad.mu_y[0]
+
+    def fn_t(tq):  # ψ_{0,0}(x=0, y=tq) / W
+        A, _, _, B, _, _, C, _, _ = case._drivers(np.array([0.0]), tq, 0)
+        return (A.reshape(-1) + mu_x0 * B.reshape(-1) + mu_y0 * C.reshape(-1)) / W
+
+    for j in range(len(mesh.centers_y)):
+        bar_coarse, _ = _face_transverse_legendre(ey, j, fn_t, q_nodes=6)
+        bar_fine, _ = _face_transverse_legendre(ey, j, fn_t, q_nodes=12)
+        np.testing.assert_allclose(
+            bar_coarse, bar_fine, rtol=0, atol=1e-7,
+            err_msg=f"face projector slot-0 (cell {j}) is not the "
+            "(quadrature-converged) transverse cell average",
+        )
+
+
+# ───────────────────────────────────────────────────────────────────────
+# Shared #251 plumbing — the per-face transverse face-slope buffers (the
+# REAL projected manufactured slope) + a faithful SURROGATE that widens
+# `_inflow_to_moments` to seed slot-1 from them (mirrors what the production
+# moment-resolved boundary trace will do).  The surrogate keys on the inflow
+# face's transverse length + matches the per-octant ordinate slice against the
+# centre-eval the trace carries (PROBED: face_view ≡ centre-eval, maxdiff 0).
+# ───────────────────────────────────────────────────────────────────────
+
+
+def _face_transverse_buffers(case, mesh):
+    r"""Per-face ``(centre, slope)`` buffers, shape ``(N, ng, n_transverse)``.
+
+    ``centre`` = the cell-CENTRE eval the trace carries today (the surrogate's
+    matching key); ``slope`` = the BARE projected transverse face-slope (slot 1).
+    Structurally independent (``_face_transverse_legendre`` → ``leggauss``)."""
+    quad = case.quadrature
+    W = float(quad.weights.sum())
+    mu_x, mu_y = quad.mu_x, quad.mu_y
+    ng = case.n_groups
+    N = len(mu_x)
+    ex, ey = mesh.edges_x, mesh.edges_y
+    cx, cy = mesh.centers_x, mesh.centers_y
+    Lx, Ly = case.length_x, case.length_y
+    out: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+    specs = {
+        "xmin": ("x", 0.0, ey, cy), "xmax": ("x", Lx, ey, cy),
+        "ymin": ("y", 0.0, ex, cx), "ymax": ("y", Ly, ex, cx),
+    }
+    for face, (const_axis, const_val, te, tc) in specs.items():
+        n_t = len(tc)
+        centre = np.zeros((N, ng, n_t))
+        slope = np.zeros((N, ng, n_t))
+        for g in range(ng):
+            # Centre eval (the trace value): drivers at the transverse cell centres.
+            if const_axis == "x":
+                A, _, _, B, _, _, C, _, _ = case._drivers(np.array([const_val]), tc, g)
+            else:
+                A, _, _, B, _, _, C, _, _ = case._drivers(tc, np.array([const_val]), g)
+            A, B, C = A.reshape(-1), B.reshape(-1), C.reshape(-1)
+            centre[:, g, :] = (
+                A[None, :] + mu_x[:, None] * B[None, :] + mu_y[:, None] * C[None, :]
+            ) / W
+            for j in range(n_t):
+                for n in range(N):
+                    def fn_t(tq, _g=g, _n=n, _ax=const_axis, _cv=const_val):
+                        if _ax == "x":
+                            Aa, _, _, Bb, _, _, Cc, _, _ = case._drivers(
+                                np.array([_cv]), tq, _g)
+                        else:
+                            Aa, _, _, Bb, _, _, Cc, _, _ = case._drivers(
+                                tq, np.array([_cv]), _g)
+                        return (Aa.reshape(-1) + mu_x[_n] * Bb.reshape(-1)
+                                + mu_y[_n] * Cc.reshape(-1)) / W
+                    _, sl = _face_transverse_legendre(te, j, fn_t, q_nodes=6)
+                    slope[n, g, j] = sl
+        out[face] = (centre, slope)
+    return out
+
+
+def _solve_with_boundary_slope(case, nc, *, slope_sign):
+    r"""Full PUBLIC solve with a moment-resolved transverse face-slope on the
+    prescribed-inflow boundary trace (the REAL #251 production path — no
+    monkeypatch).
+
+    ``slope_sign``: ``None`` → today's scalar avg/centre-only prescribed inflow
+    (no transverse moment supplied); ``+1.0`` → moment-resolved trace with the
+    REAL projected transverse slope on slot-1; ``-1.0`` → the flipped slope;
+    ``0.0`` → a moment-resolved trace with slot-1 = 0 (the scalar no-op control,
+    must be byte-identical to ``None``).  The moment-resolved boundary is built by
+    the public
+    :meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
+    (slot 0 = the trace scalar/centre, slot 1 = ``slope_sign × projected slope``),
+    bundled with the manufactured bulk source, and solved by the public
+    ``solve_sn_fixed_source`` — so this drives the production moment-resolved trace
+    END-TO-END (the sweep consumes slot-1, the capture stores the outflow
+    moments).  This closes the prior surrogate's vv Mode-11 blindness (the
+    monkeypatch pinned only the consumer; the public moment-resolved trace stamp
+    is now exercised too).  Returns ``(scalar_flux_values, mesh)``."""
+    from orpheus.transport.source_sinks import (
+        AngularSourceSink, BoundarySourceSink,
+    )
+    from orpheus.transport.timed_full_field import TimedFullField
+
+    mesh = case.build_mesh(nc)
+    materials = case.build_materials(mesh)
+    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    if slope_sign is None:
+        # Today's scalar prescribed inflow (the average-only trace).
+        rhs = build_nonvacuum_fixed_source(case, sn)
+    else:
+        # A moment-resolved prescribed inflow: per face, (N, ng, n_t, 2) with
+        # slot 0 = the trace scalar (centre eval) and slot 1 = the projected
+        # transverse face-slope × slope_sign.  L11: the slope is built by
+        # _face_transverse_buffers → leggauss only (never _inflow_to_moments).
+        bufs = _face_transverse_buffers(case, mesh)
+        face_values = {}
+        for face, (centre, slope) in bufs.items():
+            slot = np.zeros((*centre.shape, 2))
+            slot[..., AVERAGE_MOMENT] = centre
+            slot[..., 1] = slope_sign * slope
+            face_values[face] = slot
+        rhs = TimedFullField(
+            bulk=AngularSourceSink.from_mesh(case.external_source(mesh), sn),
+            boundary=BoundarySourceSink.prescribed_inflow(sn, face_values),
+        )
+    result = solve_sn_fixed_source(
+        materials, mesh, case.quadrature, rhs,
+        max_inner=500, inner_tol=1e-12, scheme=LinearDiscontinuous(),
+    )
+    return result.scalar_flux.values, mesh
+
+
+def _edge_cell_mask(mesh):
+    r"""Boolean ``(nx, ny)`` mask of cells adjacent to any domain edge."""
+    nx, ny = mesh.mat_map.shape
+    mask = np.zeros((nx, ny), dtype=bool)
+    mask[0, :] = mask[-1, :] = mask[:, 0] = mask[:, -1] = True
+    return mask
+
+
+# ───────────────────────────────────────────────────────────────────────
+# DELIVERABLE 1 (PRIMARY) — the STRUCTURAL teeth: the widened boundary trace
+# threads the projected transverse slope into slot-1 at machine precision.
+# xfail-strict until the moment-resolved boundary trace lands (#251).
+# ───────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.foundation
+def test_ld_2d_boundary_slope_threaded_through_inflow_to_moments():
+    r"""#251 STRUCTURAL teeth — the production widening threads the projected
+    transverse face-slope into the face cochain's slot-1 at MACHINE PRECISION
+    (the analog of Leg A's lift pass-through; the production-change proof).
+
+    The sharpest non-tautological proof of the actual #251 change (the transverse
+    slope is no longer zeroed).  The spec §0 converged flux is sub-floor
+    sensitive to the boundary slope, so this O(1) structural check is the right
+    teeth — a regression that re-zeroes slot-1 is caught here.  L11: the projected
+    reference is built by ``leggauss`` only (``_face_transverse_legendre``) — it
+    never calls ``_inflow_to_moments`` nor ``assemble_inflow_axis``.
+
+    The widened ``_inflow_to_moments`` (loss_representation.py) rank-discriminates
+    the moment-resolved inflow and threads slot-1 through unchanged (this gate was
+    xfail-strict until that landed; #251).  ``-O``-safe."""
+    case = build_2d_cartesian_ld_stress_mms_case()
+    mesh = case.build_mesh(8)
+    materials = case.build_materials(mesh)
+    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    rep = default_for(sn)
+
+    # A moment-resolved boundary inflow: per face, (N_oct, ng, n_t, 2) with
+    # slot 0 = the trace scalar (centre), slot 1 = the projected transverse slope.
+    # POSITIVE: the widened _inflow_to_moments must thread slot-1 through.  We
+    # build the moment-resolved inflow the production trace will carry and assert
+    # the producer preserves slot-1.  (Targets _inflow_to_moments directly — the
+    # stable single producer site — independent of the eventual TraceSpace shape.)
+    bufs = _face_transverse_buffers(case, mesh)
+    # Take face xmin's inflow ordinates as a representative moment-resolved face.
+    centre, slope = bufs["xmin"]                       # (N, ng, n_t)
+    mu_x = case.quadrature.mu_x
+    inflow_ord = np.where(mu_x > 0)[0]
+    scalar_face = centre[inflow_ord]                   # (N_in, ng, n_t)
+    moment_face = np.zeros((*scalar_face.shape, 2))
+    moment_face[..., 0] = scalar_face
+    moment_face[..., 1] = slope[inflow_ord]
+
+    # The widened producer must (a) RECOGNISE the moment-resolved input (NOT
+    # append a second moment axis) and (b) thread slot-1 through unchanged.
+    # TODAY: _inflow_to_moments treats the (N,ng,n_t,2) moment face as a SCALAR
+    # and appends ANOTHER (...,2) axis → output rank is wrong AND slot-1 zeroed,
+    # so BOTH assertions below fail (the #251 gap).  When production widens it to
+    # rank-discriminate (like Leg A's lift) and pass slot-1 through, BOTH xpass.
+    widened = rep._inflow_to_moments((moment_face,))[0]
+    if widened.shape != moment_face.shape:
+        pytest.fail(
+            f"_inflow_to_moments did not RECOGNISE the moment-resolved inflow: "
+            f"output shape {widened.shape} != input {moment_face.shape} (it "
+            f"appended a spurious moment axis — the #251 rank discriminator is "
+            f"not yet implemented)"
+        )
+    np.testing.assert_array_equal(
+        widened[..., 1], moment_face[..., 1],
+        err_msg="the production _inflow_to_moments did NOT thread the transverse "
+        "face-slope (slot-1) through — it re-zeroed it (the #251 gap is open)",
+    )
+    # slot-0 (the trace scalar / bar) is threaded unchanged too.
+    np.testing.assert_array_equal(
+        widened[..., AVERAGE_MOMENT], moment_face[..., AVERAGE_MOMENT],
+        err_msg="the production _inflow_to_moments altered slot-0 of a "
+        "moment-resolved inflow (the bar/average must pass through unchanged)",
+    )
+
+
+@pytest.mark.foundation
+def test_ld_2d_boundary_scalar_inflow_no_op_negative_control():
+    r"""#251 NEGATIVE control — a SCALAR inflow (no transverse moment) keeps the
+    transverse slope EXACTLY ZERO through ``_inflow_to_moments`` (byte-identical
+    to today).
+
+    The Leg-B asymmetry: the scalar default is correctly BLIND to the transverse
+    slope.  This is the foundation invariant the bit-identity guard (Deliverable
+    4) rests on — and it holds TODAY (the scalar widening seeds only slot 0), so
+    this gate is GREEN now and MUST stay green after the production widening (the
+    scalar path must remain byte-identical).  ``-O``-safe."""
+    case = build_2d_cartesian_ld_stress_mms_case()
+    mesh = case.build_mesh(8)
+    materials = case.build_materials(mesh)
+    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    rep = default_for(sn)
+
+    bufs = _face_transverse_buffers(case, mesh)
+    centre, _ = bufs["xmin"]
+    mu_x = case.quadrature.mu_x
+    scalar_face = centre[np.where(mu_x > 0)[0]]        # (N_in, ng, n_t) — scalar
+
+    widened = rep._inflow_to_moments((scalar_face,))[0]
+    # slot-0 ← the scalar; slot-1 EXACTLY zero (a scalar inflow has no slope).
+    np.testing.assert_array_equal(
+        widened[..., AVERAGE_MOMENT], scalar_face,
+        err_msg="scalar inflow did not land on slot-0 unchanged",
+    )
+    np.testing.assert_array_equal(
+        widened[..., 1], np.zeros_like(widened[..., 1]),
+        err_msg="scalar inflow produced a non-zero transverse slope (the "
+        "scalar-default no-op / Leg-B asymmetry broke)",
+    )
+
+
+# ───────────────────────────────────────────────────────────────────────
+# DELIVERABLE 2 — the consumption-proof mutation control (anti-pattern #11).
+# Flipping the CONSUMED transverse-face-slope sign moves the converged
+# near-boundary flux ≫ _CONSUMPTION_TOL; the scalar-inflow gate stays blind.
+# xfail-strict until the moment-resolved boundary trace lands (#251).
+# ───────────────────────────────────────────────────────────────────────
+
+
 @pytest.mark.l1
 @pytest.mark.verifies("ld-cartesian-2d")
-def test_ld_2d_boundary_transverse_face_slope():
-    r"""#251 Leg B — the transverse face-slope of the manufactured inflow
-    (projected onto the ``2^{d-1}`` face Legendre basis) is consumed: the
-    near-boundary value-band tightens vs the face-average-only trace, and
-    flipping the transverse-face-slope sign reddens.  SEPARATE from Leg A
-    (external Q̂, #247 — verified above): different production path (boundary,
-    not bulk), smaller signal (~12% of the face-average, probed), so bundling
-    would let Leg A mask a Leg B regression.  ``-O``-safe."""
-    pytest.skip("stub — Leg B is tracked in #251 (boundary trace widening)")
+def test_ld_2d_boundary_slope_sign_mutation_reddens():
+    r"""#251 Deliverable 2 (the PRIMARY sign-catcher) — flipping the CONSUMED
+    transverse-face-slope sign CHANGES the converged near-boundary flux (the
+    consumption proof) while the SCALAR-inflow path stays blind (the no-op).
+
+    TEETH (the consumption proof, O(1) above the 1e-12 fixed point — NOT a
+    value-band against A, which the spec §0b shows is sub-floor): a sign flip on
+    the CONSUMED transverse face-slope moves the converged NEAR-BOUNDARY scalar
+    flux by ≫ ``_CONSUMPTION_TOL`` (probed |Δφ|/|φ| ≈ 4.1e-3 near-bdy at nc=16,
+    ~5.6 orders above tol; LINEAR in the slope magnitude → genuine consumption).
+    The Mode-10 asymmetry: with a SCALAR inflow (slot-1 ≡ 0) the flip is a no-op
+    (verified by the scalar no-op leg below) — the scalar path is correctly BLIND
+    to the transverse slope, which is exactly why #251 widens the trace.
+
+    PUBLIC-API-DRIVEN (the #251 production trace landed): the helper
+    ``_solve_with_boundary_slope`` builds a moment-resolved
+    :meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
+    (slot-1 = ±projected slope) and solves via the public
+    ``solve_sn_fixed_source`` — so it exercises the production moment-resolved
+    boundary trace END-TO-END (the producer stamp AND the cochain consumer).  This
+    closed the prior surrogate's vv Mode-11 blindness (the monkeypatch pinned only
+    the consumer; the public moment trace stamp is now exercised too — the
+    threading gate ``test_ld_2d_boundary_slope_threaded_through_inflow_to_moments``
+    is the dedicated stamp catcher).  ``-O``-safe."""
+    case = build_2d_cartesian_ld_stress_mms_case()
+    nc = 16
+    phi_pos, mesh = _solve_with_boundary_slope(case, nc, slope_sign=+1.0)
+    phi_neg, _ = _solve_with_boundary_slope(case, nc, slope_sign=-1.0)
+
+    edge = _edge_cell_mask(mesh)
+    d = (phi_pos - phi_neg)[:, edge]
+    base = phi_pos[:, edge]
+    change = float(np.sqrt(np.sum(d * d)) / np.sqrt(np.sum(base * base)))
+    if not (change > _CONSUMPTION_TOL):
+        pytest.fail(
+            f"flipping the CONSUMED transverse face-slope did NOT change the "
+            f"converged near-boundary flux (|Δφ|/|φ|={change:.3e} ≤ "
+            f"{_CONSUMPTION_TOL:.0e}) — the transverse slope is NOT consumed "
+            f"(the #251 boundary trace is still zeroing it)"
+        )
+
+    # The Mode-10 asymmetry: a SCALAR inflow (slot-1 ≡ 0) is unaffected by the
+    # flip — its slope row is zero, so flipping zero changes nothing.  The scalar
+    # no-op solve is byte-identical to today's avg/centre-only solve.
+    phi_today, _ = _solve_with_boundary_slope(case, nc, slope_sign=None)
+    phi_zero, _ = _solve_with_boundary_slope(case, nc, slope_sign=0.0)
+    np.testing.assert_array_equal(
+        phi_zero, phi_today,
+        err_msg="the scalar no-op (slot-1 = 0) solve is NOT byte-identical to "
+        "today's avg/centre-only solve — the scalar default / Leg-B asymmetry "
+        "broke (the bit-identity guard would fail)",
+    )
+
+
+# ───────────────────────────────────────────────────────────────────────
+# DELIVERABLE 6 — the negative pin: reject a wrong transverse-moment width.
+# The boundary moment width is 2^{d-1} (= 2 for d=2 LD); the widened trace
+# must reject a moment-resolved inflow with a different trailing width, and
+# DD/Step must reject any moment-resolved inflow.
+# xfail-strict until the moment-resolved boundary trace lands (#251).
+# ───────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.foundation
+def test_ld_2d_boundary_trace_rejects_wrong_transverse_width():
+    r"""#251 Deliverable 6 — the widened boundary trace STILL rejects a
+    transverse-moment width ≠ ``2^{d-1} = 2`` (the face-moment contract), so the
+    moment-resolved relaxation does not swallow real shape bugs.
+
+    The widened ``_inflow_to_moments`` (loss_representation.py) ACCEPTS a
+    moment-resolved inflow (rank-discriminated against the flat face rank) and
+    rejects a wrong trailing width (e.g. 3 ≠ ``2^{d-1}``) with a clear ValueError
+    naming ``2^(d-1)`` (``coding-elegance`` Pattern 4 — the relaxation does not
+    swallow real shape bugs; this gate was xfail-strict until that landed, #251).
+    ``-O``-safe (``pytest.raises``)."""
+    case = build_2d_cartesian_ld_stress_mms_case()
+    mesh = case.build_mesh(8)
+    materials = case.build_materials(mesh)
+    sn = SNMesh(mesh, case.quadrature, materials, scheme=LinearDiscontinuous())
+    rep = default_for(sn)
+
+    bufs = _face_transverse_buffers(case, mesh)
+    centre, _ = bufs["xmin"]
+    scalar_face = centre[np.where(case.quadrature.mu_x > 0)[0]]  # (N_in, ng, n_t)
+    # A moment-resolved inflow with a WRONG trailing width (3 ≠ 2^{d-1} = 2).
+    bad_width = np.zeros((*scalar_face.shape, 3))
+    bad_width[..., 0] = scalar_face
+    with pytest.raises(ValueError):
+        rep._inflow_to_moments((bad_width,))

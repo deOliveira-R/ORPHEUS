@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5356**
+Total tests collected: **5361**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1160, 21.7%
+   L0, 1160, 21.6%
    L1, 988, 18.4%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3162, 59.0%
+   foundation, 3167, 59.1%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5267
+   explicit, 5272
    verify, 0
    class-name, 46
    func-name, 0
@@ -247,7 +247,7 @@ Module × level grid
    mms/test_mms_aniso, 0, 2, 0, 0, 0, 0
    mms/test_mms_curvilinear, 0, 2, 0, 0, 0, 0
    mms/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
-   mms/test_mms_ld_2d, 0, 11, 0, 0, 6, 1
+   mms/test_mms_ld_2d, 0, 11, 0, 0, 11, 1
    mms/test_mms_ld_slab, 0, 5, 0, 0, 2, 0
    moc/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    moc/test_mms, 0, 3, 0, 0, 0, 0
@@ -629,7 +629,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **94** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **97** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -662,6 +662,9 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``hebert-3-435``
 - ``inflow-mask-discrete``
 - ``ld-cartesian-2d-bilinear-coeffs``
+- ``ld-cartesian-2d-face-bilinear-coeffs``
+- ``ld-cartesian-2d-face-projection-coeff``
+- ``ld-cartesian-2d-face-slot-shape``
 - ``ld-cartesian-2d-projection-coeff``
 - ``ld-ubld-cell-system``
 - ``ld-ubld-d1-reduction``

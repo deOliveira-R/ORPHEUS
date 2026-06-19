@@ -1025,6 +1025,26 @@ class SNMesh:
         * A 3-axis mesh (C5) would yield six slots ``xmin`` … ``zmax``
           with codimension-1 shapes — no edit needed here.
 
+        Spatial-moment tail (#251 — Leg B of #247)
+        ------------------------------------------
+        A multi-moment closure (LD's bilinear UBLD face) carries a
+        trailing ``2^{d-1}``-transverse-moment axis per face slot, so a
+        moment-resolved prescribed inflow can carry the along-face
+        (transverse) Legendre slope and the sweep outflow can STORE
+        those ``2^{d-1}`` moments instead of collapsing to the average
+        (slot 0).  The width is the scheme's per-face count
+        ``per_axis^{d-1}``, appended via the single-source
+        :func:`~orpheus.numerics.moment_layout.face_moment_tail` (the
+        same "append iff > 1" policy the cell-cochain
+        :attr:`_LossRepresentation._n_face_moments` /
+        :attr:`_spatial_moment_tail` key on).  DD/Step
+        (``per_axis == 1`` → ``per_axis^{d-1} == 1`` → ``face_moment_tail
+        == ()``) leaves every slot shape untouched, so the trace stays
+        byte-identical — the negative control.  A 1-D slab face is a
+        point (``face_shape == ()`` → ``per_axis^0 == 1`` → no tail even
+        for LD-1D), so the transverse face-moment is a 2-D-and-higher
+        concern by construction.
+
         Returns
         -------
         FaceLayout
@@ -1042,10 +1062,17 @@ class SNMesh:
         :class:`~orpheus.sn.sweep_scratch.SweepScratch` post-D-G.
         """
         from orpheus.numerics.face_layout import FaceLayout
+        from orpheus.numerics.moment_layout import face_moment_count, face_moment_tail
 
         N = self.quad.N
+        # Per-face transverse moment count per_axis^{d-1} (#251) — the FACE
+        # tail (the CELL tail is per_axis^d).  DD/Step → () → byte-identical.
+        # Single-sourced with the cochain's ``_n_face_moments`` via
+        # ``face_moment_count`` so the producer and the consumer cannot drift.
+        n_face_moments = face_moment_count(self.scheme.spatial_basis_per_axis, self.ndim)
+        moment_tail = face_moment_tail(n_face_moments)
         return FaceLayout.from_named_shapes([
-            (label.face_name, (N, self.ng, *self.face_shape(label)))
+            (label.face_name, (N, self.ng, *self.face_shape(label), *moment_tail))
             for label in self.face_labels
         ])
 
