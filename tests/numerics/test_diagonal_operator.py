@@ -1,11 +1,24 @@
 r"""Tests for :class:`orpheus.numerics.operator.DiagonalOperator`.
 
+The operator is the N-D broadcast engine: it multiplies a carrier
+tensor by a coefficient occupying a sub-product of the carrier's axes,
+broadcasting over the complementary ``broadcast_axes`` (i.e.
+``np.expand_dims(coeff, broadcast_axes) * carrier``). The 1-D
+``(weights, axis)`` form is the rank-1 special case (one axis,
+rank-agnostic broadcast over the rest) and stays bit-identical.
+
 Verifies the operator's invariants:
 
-* Self-adjointness: ``apply == apply_transpose`` for real weights.
-* Apply along axis 0 and along non-zero axes (broadcasting).
-* ``solve`` round-trip: ``solve(apply(x)) == x`` when no zero weights.
-* Capability set: ``CAP_SOLVE`` advertised iff weights are all non-zero.
+* Self-adjointness: ``apply == apply_transpose`` for real coefficients.
+* 1-D special case: apply along axis 0 and non-zero axes (broadcasting).
+* N-D broadcast oracle: the leading-axis ``σ_t`` form
+  ``DiagonalOperator(sigma, broadcast_axes=(0,))`` reduces EXACTLY to
+  ``sigma[None] * carrier`` (the bit-identity hinge for the transport
+  ``MultiplicationOperator(σ_t)`` promotion), and the 1-D form is
+  bit-identical to the old ``_reshape(w, axis) * x``.
+* ``solve`` round-trip: ``solve(apply(x)) == x`` when no zero entries.
+* Capability set: ``CAP_SOLVE`` advertised iff coefficient is all
+  non-zero.
 * Composition under the operator algebra (``+``, ``-``, ``*``, ``@``).
 * Construction from a ``DiscreteMeasure`` via :meth:`from_measure`.
 """
@@ -101,7 +114,7 @@ class TestDiagonalCapabilitiesAndSolve:
 
     def test_solve_with_zero_weight_raises(self):
         D = DiagonalOperator(np.array([1.0, 0.0, 2.0]))
-        with pytest.raises(MissingCapability, match="non-zero weights"):
+        with pytest.raises(MissingCapability, match="non-zero coefficient"):
             D.solve(np.ones(3))
 
 
@@ -164,6 +177,105 @@ class TestDiagonalFromMeasure:
 
 @pytest.mark.l0
 class TestDiagonalRejectsBadInput:
-    def test_2d_weights_rejected(self):
-        with pytest.raises(ValueError, match="1-D"):
+    def test_2d_coefficient_without_broadcast_axes_rejected(self):
+        """The 1-D special case (no ``broadcast_axes``) requires a 1-D
+        coefficient. An N-D coefficient must declare the carrier axes it
+        broadcasts over."""
+        with pytest.raises(ValueError, match="1-D special case"):
             DiagonalOperator(np.ones((3, 3)))
+
+    def test_coefficient_rank_must_match_complement_rank(self):
+        """NEW contract: with ``broadcast_axes`` the coefficient rank
+        MUST equal ``carrier.ndim - len(broadcast_axes)`` (NOT "1-D").
+        A (ng, nx) coefficient broadcasting over the leading ordinate
+        axis demands a 3-D ``(N, ng, nx)`` carrier; a rank-2 carrier is
+        rejected (expected coefficient rank 1 ≠ actual rank 2)."""
+        D = DiagonalOperator(np.ones((2, 5)), broadcast_axes=(0,))
+        with pytest.raises(ValueError, match="rank-1 coefficient"):
+            D.apply(np.ones((2, 5)))  # carrier rank 2 ⇒ expects rank-1 coeff
+        # And it works for the matching rank-3 carrier:
+        np.testing.assert_array_equal(
+            D.apply(np.ones((3, 2, 5))),
+            np.ones((3, 2, 5)),
+        )
+
+    def test_broadcast_axes_must_be_distinct(self):
+        with pytest.raises(ValueError, match="distinct"):
+            DiagonalOperator(np.ones((2, 3)), broadcast_axes=(0, 0))
+
+
+@pytest.mark.foundation
+class TestDiagonalBroadcastOracle:
+    r"""Foundation: the N-D broadcast engine reduces exactly to the two
+    target forms.
+
+    Bit-identity here is **inherited verification**, not coincidence:
+    the engine performs the SAME single broadcast-multiply
+    (``np.expand_dims(coeff, broadcast_axes) * carrier``) as the
+    reference — reduction depth 1, no summation — so
+    :func:`np.testing.assert_array_equal` (0 ULP) is the correct gate
+    and IS expected. A non-bit-identical result would only be
+    acceptable if it arose from a MORE principled construction (the
+    user's principled-equivalence directive); a pure broadcast can
+    produce no such re-association, so a reviewer MUST NOT silently
+    loosen this to ``allclose``/``nulp``.
+    """
+
+    def test_leading_axis_equals_sigma_None_times_carrier(self):
+        r"""The σ_t case S3b needs: a ``(ng, *spatial)`` coefficient
+        broadcast over the LEADING ordinate axis of a ``(N, ng, *spatial)``
+        carrier reduces EXACTLY to ``sigma[None] * carrier``.
+
+        The carrier is built with **nx ≠ ny** (``(N, 2, 5, 3)``): a
+        transposed / wrong-axis broadcast (vv mode #2 variable-swap)
+        would either raise (rank/shape mismatch) or mis-scale, so this
+        regime discriminates the axis-ordering bug the equal-nx-ny case
+        is blind to.
+        """
+        rng = np.random.default_rng(seed=2025)
+        n_ord, ng, nx, ny = 6, 2, 5, 3
+        sigma = rng.uniform(0.1, 3.0, size=(ng, nx, ny))
+        psi = rng.standard_normal((n_ord, ng, nx, ny))
+
+        D = DiagonalOperator(sigma, broadcast_axes=(0,))
+        # The exact form the promoted CollisionOperator/MultiplicationOperator
+        # must reproduce.
+        np.testing.assert_array_equal(D.apply(psi), sigma[None] * psi)
+
+    def test_one_d_axis_mode_equals_legacy_reshape(self):
+        """The 1-D special case is bit-identical to the old
+        ``_reshape(w, axis) * x`` broadcast — verified against an
+        independent hand-built reshape for several axes/ranks."""
+        rng = np.random.default_rng(seed=7)
+
+        def legacy_reshape_apply(w, axis, x):
+            shape = [1] * x.ndim
+            shape[axis] = -1
+            return w.reshape(shape) * x
+
+        for axis, carrier_shape in [
+            (0, (4,)),
+            (0, (4, 7)),
+            (1, (3, 4, 5)),
+            (2, (3, 4, 5)),
+        ]:
+            n = carrier_shape[axis]
+            w = rng.standard_normal(n)
+            x = rng.standard_normal(carrier_shape)
+            D = DiagonalOperator(w, axis=axis)
+            np.testing.assert_array_equal(
+                D.apply(x), legacy_reshape_apply(w, axis, x)
+            )
+
+    def test_non_leading_broadcast_axis(self):
+        """The engine is not hardcoded to ``axis=0``: a ``(N, nx)``
+        coefficient broadcasting over a MIDDLE axis ``(N, ng, nx)``
+        reduces to ``coeff[:, None, :] * carrier``."""
+        rng = np.random.default_rng(seed=13)
+        n_ord, ng, nx = 4, 3, 5
+        coeff = rng.uniform(0.1, 2.0, size=(n_ord, nx))
+        carrier = rng.standard_normal((n_ord, ng, nx))
+        D = DiagonalOperator(coeff, broadcast_axes=(1,))
+        np.testing.assert_array_equal(
+            D.apply(carrier), coeff[:, None, :] * carrier
+        )

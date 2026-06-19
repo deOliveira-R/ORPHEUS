@@ -1434,65 +1434,133 @@ class SumOfTensorProductsOperator(LinearOperatorMixin):
 
 
 class DiagonalOperator(LinearOperatorMixin):
-    r"""Diagonal multiplication on a tagged tensor axis.
+    r"""Diagonal (pointwise) multiplication by a coefficient field.
 
-    For a 1-D weight vector :math:`w \in \mathbb{R}^N` and target axis
-    ``axis``, the operator acts on a multi-axis tensor :math:`x` by
-    elementwise multiplication along ``axis``:
+    The operator multiplies a carrier tensor :math:`x` by a coefficient
+    array :math:`c` that occupies a **sub-product** of the carrier's
+    axes and is **constant** over the complementary ``broadcast_axes``:
 
     .. math::
 
-        (D x)_{\ldots,\,n,\,\ldots} \;=\; w_n \, x_{\ldots,\,n,\,\ldots}
+        (D x)_{\mathbf{i}} \;=\;
+        c_{\,\mathbf{i}\setminus\mathrm{bcast}} \; x_{\mathbf{i}}
 
-    All other axes broadcast through unchanged. This is the canonical
-    "diagonal in some basis" operator — the abstraction the Grand Report
-    v3 §9 names :math:`W` (``AngularWeightMatrix``) when the basis is
-    the discrete-ordinate set of an angular cubature, and the same
-    primitive any method needs for "multiply-by-weights along one axis"
-    (MoC track-weight diagonal, CP region-volume weighting, MC
-    importance weighting).
+    i.e. ``D.apply(x) == np.expand_dims(c, broadcast_axes) * x``. The
+    coefficient's rank equals ``x.ndim - len(broadcast_axes)`` and its
+    axes map, in order, onto the carrier axes NOT in ``broadcast_axes``.
 
-    Self-adjoint by construction (real-valued weights), so
+    This is the canonical "diagonal in some basis" / pointwise-multiply
+    operator. Two regimes it must express:
+
+    * **1-D special case** — a 1-D coefficient on ONE carrier axis,
+      broadcast over all others. This is the Grand Report v3 §9
+      :math:`W` (``AngularWeightMatrix``) and the "multiply-by-weights
+      along one axis" primitive (MoC track-weight diagonal, CP
+      region-volume weighting, MC importance weighting). Spell it
+      ``DiagonalOperator(w, axis=k)``; the action is rank-agnostic
+      (broadcasts over however many other axes the carrier has).
+    * **The multigroup-collision case** — a coefficient of shape
+      ``(ng, *spatial)`` broadcast over the LEADING ordinate axis of a
+      ``(N, ng, *spatial)`` angular flux, so that
+      ``D.apply(psi) == sigma[None] * psi``. This is the broadcast
+      engine the transport-layer ``MultiplicationOperator(σ_t)``
+      delegates to. Spell it
+      ``DiagonalOperator(sigma, broadcast_axes=(0,))``.
+
+    Self-adjoint by construction (real-valued coefficient), so
     :meth:`apply_transpose` is the same code path as :meth:`apply`.
-    Invertible iff all weights are non-zero, in which case
-    :pydata:`CAP_SOLVE` is advertised and :meth:`solve` divides by the
-    weights along ``axis``.
+    Invertible iff every coefficient entry is non-zero, in which case
+    :pydata:`CAP_SOLVE` is advertised and :meth:`solve` divides.
 
     Parameters
     ----------
-    weights : np.ndarray
-        1-D weight vector :math:`w`, shape ``(N,)``.
+    coefficient : np.ndarray
+        The coefficient field :math:`c`. Its rank determines how many
+        carrier axes it occupies (``x.ndim - len(broadcast_axes)``).
+    broadcast_axes : tuple of int, optional
+        The carrier axes over which the coefficient is constant — the
+        positions :func:`numpy.expand_dims` inserts singleton dims.
+        When omitted, the **1-D special case** applies: ``coefficient``
+        MUST be 1-D and ``axis`` selects the single carrier axis it
+        occupies (rank-agnostic broadcast over the rest).
     axis : int, default 0
-        Tensor axis on which to multiply. The operator broadcasts on
-        every other axis.
+        Used ONLY in the 1-D special case (``broadcast_axes is None``):
+        the single carrier axis the 1-D coefficient occupies. Ignored
+        when ``broadcast_axes`` is given.
 
     Notes
     -----
 
-    Construction does NOT eagerly materialise an :math:`N \times N`
-    diagonal matrix; the action is implemented as a single
-    broadcast-multiply (``self._reshape() * x``) so memory cost is
-    :math:`O(N)` regardless of the input tensor's shape.
+    Construction does NOT materialise a dense diagonal matrix; the
+    action is a single broadcast-multiply
+    (``self._broadcast(x.ndim) * x``) so memory cost is
+    :math:`O(\mathrm{size}(c))` regardless of the carrier's shape.
 
-    Use :meth:`from_measure` when the weights live on a
+    The two construction modes are unified through one broadcast helper
+    (:meth:`_broadcast`): the 1-D ``axis`` mode is rank-agnostic (the
+    carrier's rank is read at apply-time, so the same operator acts on
+    a 1-D, 2-D, or N-D carrier), whereas the explicit ``broadcast_axes``
+    mode pins both the coefficient rank and the complement, which a
+    multi-axis coefficient requires.
+
+    The ``weights``/``axis`` attributes remain available in the 1-D
+    case (``coefficient`` is exposed for both modes) as the back-compat
+    alias for ``from_measure`` ergonomics and the existing 1-D call
+    sites. Composition (``&`` / :class:`TensorProductOperator`,
+    ``@`` / :class:`OperatorProduct`) does NOT read them — every composer
+    routes purely through ``apply`` / ``solve``.
+
+    Use :meth:`from_measure` when a 1-D coefficient lives on a
     :class:`~orpheus.numerics.measure.DiscreteMeasure` — common for the
     angular axis of an SN field, where the operator is built from
     ``quad.weights``.
     """
 
-    def __init__(self, weights: np.ndarray, axis: int = 0) -> None:
-        weights_arr = np.asarray(weights, dtype=float)
-        if weights_arr.ndim != 1:
-            raise ValueError(
-                f"DiagonalOperator weights must be 1-D, got shape "
-                f"{weights_arr.shape}"
-            )
-        self.weights = weights_arr
-        self.axis = int(axis)
+    def __init__(
+        self,
+        coefficient: np.ndarray,
+        broadcast_axes: tuple[int, ...] | None = None,
+        *,
+        axis: int = 0,
+    ) -> None:
+        coeff = np.asarray(coefficient, dtype=float)
 
-        # Solve is supported iff every weight is non-zero. We check
-        # eagerly at construction so the capability is honest.
-        invertible = bool(np.all(weights_arr != 0.0))
+        if broadcast_axes is None:
+            # 1-D special case: a single-axis coefficient broadcasting,
+            # rank-agnostically, over every other carrier axis. The
+            # carrier rank is unknown at construction, so the broadcast
+            # placement is deferred to apply-time (see _broadcast).
+            if coeff.ndim != 1:
+                raise ValueError(
+                    f"DiagonalOperator without broadcast_axes is the 1-D "
+                    f"special case; coefficient must be 1-D, got shape "
+                    f"{coeff.shape}. For an N-D coefficient pass "
+                    f"broadcast_axes=(...)."
+                )
+            self.broadcast_axes: tuple[int, ...] | None = None
+        else:
+            # General case: an N-D coefficient pinned onto an explicit
+            # complement of carrier axes.
+            bcast = tuple(int(a) for a in broadcast_axes)
+            if len(set(bcast)) != len(bcast):
+                raise ValueError(
+                    f"DiagonalOperator broadcast_axes must be distinct, "
+                    f"got {bcast}."
+                )
+            self.broadcast_axes = bcast
+
+        # ``axis`` is consulted ONLY in the 1-D special case; storing it
+        # as a plain int (default 0) keeps the attribute well-typed and
+        # harmless in broadcast mode.
+        self.axis = int(axis)
+        self.coefficient = coeff
+
+        # Solve is supported iff every coefficient entry is non-zero. We
+        # check eagerly at construction so the capability is honest
+        # (Pattern 4: an operator that cannot invert never advertises
+        # CAP_SOLVE; the legacy bare-σ collision path had no such gate
+        # and produced silent IEEE NaN on σ=0).
+        invertible = bool(np.all(coeff != 0.0))
         caps = {CAP_APPLY, CAP_APPLY_TRANSPOSE}
         if invertible:
             caps.add(CAP_SOLVE)
@@ -1504,32 +1572,74 @@ class DiagonalOperator(LinearOperatorMixin):
     ) -> "DiagonalOperator":
         """Construct from the weights of a :class:`DiscreteMeasure`.
 
-        Convenience constructor for the canonical case where the
+        Convenience constructor for the canonical 1-D case where the
         diagonal IS the discrete measure's weights — e.g.
         ``DiagonalOperator.from_measure(quad.measure, axis=0)`` is the
         Grand Report v3 §9 ``AngularWeightMatrix``.
         """
         return cls(measure.weights, axis=axis)
 
-    def _reshape(self, ndim: int) -> np.ndarray:
-        """Reshape ``self.weights`` to broadcast over an ``ndim``-tensor.
+    @property
+    def weights(self) -> np.ndarray:
+        """The 1-D coefficient vector (the historical ``weights`` name).
 
-        Returns a view of shape ``(1, ..., 1, N, 1, ..., 1)`` with
-        ``N`` at position ``self.axis``.
+        Available ONLY in the 1-D special case (``broadcast_axes is
+        None``); it is the back-compat alias for ``from_measure`` and
+        the existing 1-D call sites. Reading it on a multi-axis-
+        coefficient instance is an illegal state and raises (Pattern 4)
+        rather than returning an N-D array under a 1-D name.
         """
-        shape = [1] * ndim
-        shape[self.axis] = -1
-        return self.weights.reshape(shape)
+        if self.broadcast_axes is not None:
+            raise AttributeError(
+                "DiagonalOperator.weights is the 1-D special case's "
+                "coefficient vector; this operator has an N-D coefficient "
+                f"of shape {self.coefficient.shape} on broadcast_axes="
+                f"{self.broadcast_axes}. Use .coefficient instead."
+            )
+        return self.coefficient
+
+    def _broadcast(self, ndim: int) -> np.ndarray:
+        """Reshape the coefficient to broadcast over an ``ndim`` carrier.
+
+        Single source of truth for both construction modes:
+
+        * 1-D ``axis`` mode — return a view of shape
+          ``(1, ..., 1, N, 1, ..., 1)`` with ``N`` at ``self.axis``
+          (rank-agnostic: built fresh for the carrier's actual ``ndim``).
+        * explicit ``broadcast_axes`` mode — return
+          ``np.expand_dims(coefficient, broadcast_axes)``, inserting a
+          singleton at each broadcast axis so the coefficient occupies
+          the complementary axes in order.
+        """
+        if self.broadcast_axes is None:
+            shape = [1] * ndim
+            shape[self.axis] = -1
+            return self.coefficient.reshape(shape)
+        return np.expand_dims(self.coefficient, self.broadcast_axes)
+
+    def _check_shape(self, x: np.ndarray) -> None:
+        """Validate the carrier's rank/axis sizes against the coefficient."""
+        if self.broadcast_axes is None:
+            if x.shape[self.axis] != self.coefficient.shape[0]:
+                raise ValueError(
+                    f"DiagonalOperator(axis={self.axis}) expects axis size "
+                    f"{self.coefficient.shape[0]}; got {x.shape[self.axis]} "
+                    f"in input of shape {x.shape}."
+                )
+            return
+        expected_rank = x.ndim - len(self.broadcast_axes)
+        if self.coefficient.ndim != expected_rank:
+            raise ValueError(
+                f"DiagonalOperator(broadcast_axes={self.broadcast_axes}) "
+                f"expects a rank-{expected_rank} coefficient for a "
+                f"{x.ndim}-D carrier; got rank-{self.coefficient.ndim} "
+                f"coefficient of shape {self.coefficient.shape}."
+            )
 
     def apply(self, x: np.ndarray) -> np.ndarray:
         x_arr = np.asarray(x)
-        if x_arr.shape[self.axis] != self.weights.shape[0]:
-            raise ValueError(
-                f"DiagonalOperator(axis={self.axis}) expects axis size "
-                f"{self.weights.shape[0]}; got {x_arr.shape[self.axis]} "
-                f"in input of shape {x_arr.shape}."
-            )
-        return self._reshape(x_arr.ndim) * x_arr
+        self._check_shape(x_arr)
+        return self._broadcast(x_arr.ndim) * x_arr
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         # Real-valued diagonal is self-adjoint.
@@ -1538,17 +1648,12 @@ class DiagonalOperator(LinearOperatorMixin):
     def solve(self, b_vec: np.ndarray) -> np.ndarray:
         if CAP_SOLVE not in self.capabilities:
             raise MissingCapability(
-                "DiagonalOperator.solve requires non-zero weights; "
-                "this operator has at least one zero weight."
+                "DiagonalOperator.solve requires non-zero coefficient "
+                "entries; this operator has at least one zero entry."
             )
         b_arr = np.asarray(b_vec)
-        if b_arr.shape[self.axis] != self.weights.shape[0]:
-            raise ValueError(
-                f"DiagonalOperator(axis={self.axis}) expects axis size "
-                f"{self.weights.shape[0]}; got {b_arr.shape[self.axis]} "
-                f"in input of shape {b_arr.shape}."
-            )
-        return b_arr / self._reshape(b_arr.ndim)
+        self._check_shape(b_arr)
+        return b_arr / self._broadcast(b_arr.ndim)
 
 
 class RankOneOperator(LinearOperatorMixin):
