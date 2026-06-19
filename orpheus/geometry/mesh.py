@@ -240,6 +240,17 @@ class Mesh1D:
     bc_left: BC | None = None
     bc_right: BC | None = None
 
+    # Derived geometric attributes, computed eagerly in ``__post_init__`` and
+    # stored via ``object.__setattr__`` (frozen).  Declared here so the public
+    # ``.widths`` / ``.centers`` / ``.volumes`` / ``.areas`` surface is
+    # statically known; ``init=False`` keeps them out of ``__init__`` and
+    # ``repr=False`` / ``compare=False`` keep ``__repr__`` / ``__eq__`` /
+    # ``__hash__`` byte-for-byte unchanged (pure static-visibility decls).
+    widths: np.ndarray = field(init=False, repr=False, compare=False)
+    centers: np.ndarray = field(init=False, repr=False, compare=False)
+    volumes: np.ndarray = field(init=False, repr=False, compare=False)
+    areas: np.ndarray = field(init=False, repr=False, compare=False)
+
     def __post_init__(self) -> None:
         edges = np.asarray(self.edges, dtype=float)
         mat_ids = np.asarray(self.mat_ids, dtype=int)
