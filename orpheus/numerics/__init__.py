@@ -41,6 +41,7 @@ from .projection import (
 )
 from .space import DualSpace, FunctionSpace, TensorProductSpace
 from .symmetry import SubgroupOfO3
+from .vector import V, Vector
 
 __all__ = [
     "BundleMeasure",
@@ -76,6 +77,8 @@ __all__ = [
     "SumOfTensorProductsOperator",
     "TensorProductOperator",
     "TensorProductSpace",
+    "V",
+    "Vector",
     "ZeroOperator",
     "as_scipy_linop",
     "equispaced",
