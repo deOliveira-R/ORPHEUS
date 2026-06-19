@@ -85,7 +85,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Iterable
+from typing import ClassVar, Iterable
 
 import numpy as np
 
@@ -272,6 +272,20 @@ class SubgroupOfO3:
 
     # The actual storage: a tag (named enum or parameterised dataclass).
     __slots__ = ("_tag",)
+
+    # Pre-instantiated named singletons — assigned at module scope below,
+    # after the class and ``_NamedSubgroup`` are fully defined.  Declared
+    # here as ClassVars so the public ``SubgroupOfO3.SO2`` / ``.OctahedralOh``
+    # / ... access surface is statically known (these are class attributes,
+    # not instance slots, so they coexist with ``__slots__``).
+    Trivial: ClassVar[SubgroupOfO3]
+    Z2: ClassVar[SubgroupOfO3]
+    SO2: ClassVar[SubgroupOfO3]
+    O2: ClassVar[SubgroupOfO3]
+    OctahedralOh: ClassVar[SubgroupOfO3]
+    IcosahedralIh: ClassVar[SubgroupOfO3]
+    SO3: ClassVar[SubgroupOfO3]
+    O3: ClassVar[SubgroupOfO3]
 
     def __init__(self, tag: "_NamedSubgroup | Cn | Dnh") -> None:
         self._tag = tag
@@ -946,14 +960,14 @@ def _orbit_closure(
 
 # Pre-instantiated singletons attached to the public class. These are
 # the canonical way users obtain a SubgroupOfO3 for a named entry.
-SubgroupOfO3.Trivial = SubgroupOfO3._from_named(_NamedSubgroup.Trivial)        # type: ignore[attr-defined]
-SubgroupOfO3.Z2 = SubgroupOfO3._from_named(_NamedSubgroup.Z2)                  # type: ignore[attr-defined]
-SubgroupOfO3.SO2 = SubgroupOfO3._from_named(_NamedSubgroup.SO2)                # type: ignore[attr-defined]
-SubgroupOfO3.O2 = SubgroupOfO3._from_named(_NamedSubgroup.O2)                  # type: ignore[attr-defined]
-SubgroupOfO3.OctahedralOh = SubgroupOfO3._from_named(_NamedSubgroup.OctahedralOh)  # type: ignore[attr-defined]
-SubgroupOfO3.IcosahedralIh = SubgroupOfO3._from_named(_NamedSubgroup.IcosahedralIh)  # type: ignore[attr-defined]
-SubgroupOfO3.SO3 = SubgroupOfO3._from_named(_NamedSubgroup.SO3)                # type: ignore[attr-defined]
-SubgroupOfO3.O3 = SubgroupOfO3._from_named(_NamedSubgroup.O3)                  # type: ignore[attr-defined]
+SubgroupOfO3.Trivial = SubgroupOfO3._from_named(_NamedSubgroup.Trivial)
+SubgroupOfO3.Z2 = SubgroupOfO3._from_named(_NamedSubgroup.Z2)
+SubgroupOfO3.SO2 = SubgroupOfO3._from_named(_NamedSubgroup.SO2)
+SubgroupOfO3.O2 = SubgroupOfO3._from_named(_NamedSubgroup.O2)
+SubgroupOfO3.OctahedralOh = SubgroupOfO3._from_named(_NamedSubgroup.OctahedralOh)
+SubgroupOfO3.IcosahedralIh = SubgroupOfO3._from_named(_NamedSubgroup.IcosahedralIh)
+SubgroupOfO3.SO3 = SubgroupOfO3._from_named(_NamedSubgroup.SO3)
+SubgroupOfO3.O3 = SubgroupOfO3._from_named(_NamedSubgroup.O3)
 
 
 __all__ = [
