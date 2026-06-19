@@ -396,7 +396,7 @@ def n_unknowns_flat(
     ----------
     axes : tuple of Axis1D
         The axis tuple (i.e. :attr:`SNMesh.axes`).
-    quad : AngularQuadrature
+    quad : Quadrature
         Angular quadrature; needed for the per-face outflow mask.
     ng : int
         Number of energy groups.

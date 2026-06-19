@@ -8,7 +8,7 @@ from the hot path:
 * :class:`GeometryCoefficients` — Stratum 1, geometry+quadrature only.  Built
   once at :class:`~orpheus.sn.solver.SNSolver` construction.  No ``ng`` axis;
   invariant under cross-section rebinds, BC changes, every outer / inner /
-  Picard iteration.  Lifetime = ``SNMesh`` × ``AngularQuadrature``.
+  Picard iteration.  Lifetime = ``SNMesh`` × ``Quadrature``.
 
 * :class:`CollisionCache` — Stratum 2, geometry × :math:`\Sigma_t`.  Built
   when :math:`\Sigma_t` is bound.  Lifetime = constant-:math:`\Sigma_t` epoch

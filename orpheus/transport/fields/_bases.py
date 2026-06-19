@@ -363,7 +363,7 @@ class AngularField(BulkField):
         return cls.from_mesh(arr, mesh)
 
     @property
-    def N(self) -> int:  # noqa: N802 — matches AngularQuadrature.N
+    def N(self) -> int:  # noqa: N802 — matches Quadrature.N
         r"""Number of angular ordinates (delegated to ``mesh.quad.N``)."""
         return self.mesh.quad.N
 

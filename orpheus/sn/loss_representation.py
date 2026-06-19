@@ -186,6 +186,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.projection import MomentProjection
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
     from .geometry import SNMesh

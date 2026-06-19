@@ -99,7 +99,7 @@ def _apply_default_bcs(
 
 def _as_sn_mesh(
     geometry: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
-    quadrature: "AngularQuadrature",
+    quadrature: "Quadrature",
     materials: "dict[int, Mixture]",
     boundary_condition: "str | None" = None,
     mat_map: "np.ndarray | None" = None,
@@ -1621,7 +1621,7 @@ def _reflect_outflow_into_inflow(
 def solve_sn(
     materials: dict[int, Mixture],
     mesh: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
-    quadrature: AngularQuadrature,
+    quadrature: Quadrature,
     inner_solver: str = "source_iteration",
     scattering_order: int = 0,
     max_outer: int = 500,
@@ -1643,7 +1643,7 @@ def solve_sn(
     OR an axis tuple — the axis-native surface and the ONLY 3-D entry
     (C5.5, #225; per-axis BCs ride the axes, ``mat_map=`` carries the
     material assignment), and ``quadrature`` is an explicitly chosen
-    :class:`~orpheus.sn.quadrature.AngularQuadrature` — Gauss-Legendre
+    :class:`~orpheus.numerics.quadrature.Quadrature` — Gauss-Legendre
     for slab, level-symmetric / product quadrature for curvilinear, or
     Lebedev for 2-D.
 
@@ -1656,7 +1656,7 @@ def solve_sn(
     ----------
     materials : dict mapping material ID to Mixture.
     mesh : Mesh1D or Mesh2D (base geometry).
-    quadrature : AngularQuadrature
+    quadrature : Quadrature
         Explicitly chosen by the caller — Gauss-Legendre for slab,
         level-symmetric / product quadrature for curvilinear 1-D,
         Lebedev for 2-D. Mismatches between geometry and quadrature
@@ -2009,7 +2009,7 @@ def _average_moment_scalar(phi: "np.ndarray", sn_mesh: SNMesh) -> "np.ndarray":
 def solve_sn_fixed_source(
     materials: dict[int, Mixture],
     mesh: "Mesh1D | Mesh2D | tuple[Axis1D, ...]",
-    quadrature: AngularQuadrature,
+    quadrature: Quadrature,
     external_source: "np.ndarray | TimedFullField",
     boundary_condition: str = "vacuum",
     scattering_order: int = 0,
@@ -2181,7 +2181,7 @@ def _solve_fixed_source_si(
     sn_mesh: SNMesh,
     q_ext_composite: TimedFullField,
     mesh: Mesh1D | Mesh2D,
-    quadrature: AngularQuadrature,
+    quadrature: Quadrature,
     materials: dict[int, Mixture],
     t_start: float,
     max_inner: int,
@@ -2335,7 +2335,7 @@ def _solve_fixed_source_krylov(
     sn_mesh: SNMesh,
     q_ext_composite: TimedFullField,
     mesh: Mesh1D | Mesh2D,
-    quadrature: AngularQuadrature,
+    quadrature: Quadrature,
     materials: dict[int, Mixture],
     t_start: float,
     max_inner: int,

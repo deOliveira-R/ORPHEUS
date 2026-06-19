@@ -72,7 +72,7 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
     ----------
     axis : str
         Axis of reflection: ``"x"``, ``"y"``, or ``"z"``. The
-        :meth:`~orpheus.sn.quadrature.AngularQuadrature.reflection_index`
+        :meth:`~orpheus.numerics.quadrature.Quadrature.reflection_index`
         method maps each ordinate to its reflected partner under this
         axis.
     albedo : float
@@ -116,7 +116,7 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
     # ------------------------------------------------------------------
 
     def assert_is_involutive(
-        self, quadrature: "AngularQuadrature"
+        self, quadrature: "Quadrature"
     ) -> None:
         r"""Reflection permutation must be an involution
         (:math:`\pi \circ \pi = \mathrm{id}`).
@@ -136,7 +136,7 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
             )
 
     def assert_geometry_map_measure_preserving(
-        self, quadrature: "AngularQuadrature"
+        self, quadrature: "Quadrature"
     ) -> None:
         r"""Reflection is an isometry; measure preservation follows
         from involution-ness combined with per-ordinate weight

@@ -1,7 +1,7 @@
 r"""SN-specific angular operator primitives for the boundary realizer.
 
 Hosts angular primitives that are SN-specific (i.e. depend on the
-:class:`~orpheus.sn.quadrature.AngularQuadrature` direction-cosine /
+:class:`~orpheus.numerics.quadrature.Quadrature` direction-cosine /
 weight arrays) but are independent of any single boundary condition.
 They are consumed by the Wave-5
 :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` to realize
@@ -128,7 +128,7 @@ class AngularAverageOperator(LinearOperatorMixin):
     @classmethod
     def from_quadrature(
         cls,
-        quadrature: "AngularQuadrature",
+        quadrature: "Quadrature",
         axis: str,
         outward_sign: int,
     ) -> "AngularAverageOperator":
@@ -136,7 +136,7 @@ class AngularAverageOperator(LinearOperatorMixin):
 
         Parameters
         ----------
-        quadrature : AngularQuadrature
+        quadrature : Quadrature
             Quadrature whose ``weights`` and ``mu_x`` / ``mu_y`` /
             ``mu_z`` arrays drive the cosine-weighted average. Only
             slices of those arrays are retained (copied) — the

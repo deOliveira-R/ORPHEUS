@@ -123,7 +123,7 @@ class SNMesh:
     ----------
     mesh : Mesh1D or Mesh2D
         Base geometry.
-    quadrature : AngularQuadrature
+    quadrature : Quadrature
         Angular quadrature (Gauss–Legendre, Lebedev, etc.).
     materials : dict mapping material id to Mixture
         Macroscopic cross sections keyed by the integer ids appearing
@@ -198,7 +198,7 @@ class SNMesh:
     def __init__(
         self,
         mesh: Mesh1D | Mesh2D,
-        quadrature: AngularQuadrature,
+        quadrature: Quadrature,
         materials: "dict[int, Mixture]",
         scheme: DiscretizationSchemeBase | None = None,
         pole_angular_closure: PoleAngularClosure | None = None,
@@ -229,7 +229,7 @@ class SNMesh:
         axes: tuple[Axis1D, ...],
         mesh: Mesh1D | Mesh2D | None,
         mat_map: np.ndarray | None,
-        quadrature: AngularQuadrature,
+        quadrature: Quadrature,
         materials: "dict[int, Mixture]",
         scheme: DiscretizationSchemeBase | None,
         pole_angular_closure: PoleAngularClosure | None,
@@ -847,7 +847,7 @@ class SNMesh:
     def from_axes(
         cls,
         axes: tuple[Axis1D, ...],
-        quadrature: "AngularQuadrature",
+        quadrature: "Quadrature",
         materials: "dict[int, Mixture]",
         *,
         mat_map: np.ndarray | None = None,
@@ -880,7 +880,7 @@ class SNMesh:
             (C5.5, #225 — all-Cartesian required, mesh-adapter-free
             from birth, swept by the d-generic ``FullFieldWavefront``
             spine).
-        quadrature : :class:`AngularQuadrature`
+        quadrature : :class:`Quadrature`
             Angular quadrature.
         materials : dict[int, Mixture]
             Materials dict keyed by material id; same contract as the

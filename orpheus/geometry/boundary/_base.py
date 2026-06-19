@@ -220,7 +220,7 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
     # ------------------------------------------------------------------
 
     def assert_inflow_outflow_classification(
-        self, quadrature: "AngularQuadrature"
+        self, quadrature: "Quadrature"
     ) -> None:
         r"""Every ordinate is either inflow or outflow (no tangential).
 
@@ -231,7 +231,7 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
         """
 
     def assert_outgoing_leakage_unconstrained(
-        self, quadrature: "AngularQuadrature"
+        self, quadrature: "Quadrature"
     ) -> None:
         r"""The outgoing-trace flux is not constrained by the BC.
 
@@ -240,7 +240,7 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
         """
 
     def assert_geometry_map_measure_preserving(
-        self, quadrature: "AngularQuadrature"
+        self, quadrature: "Quadrature"
     ) -> None:
         r"""The geometric map preserves the angular measure
         :math:`w(\Omega)\,|\Omega\cdot n|`.
@@ -257,7 +257,7 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
         """
 
     def assert_source_lives_on_incoming_trace(
-        self, quadrature: "AngularQuadrature"
+        self, quadrature: "Quadrature"
     ) -> None:
         r"""The source :math:`q` is nonzero only on
         :math:`\Gamma_-`.

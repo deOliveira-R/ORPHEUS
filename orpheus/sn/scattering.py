@@ -149,6 +149,7 @@ from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
 
 if TYPE_CHECKING:
+    from .geometry import SNMesh
     from .material_xs_field import MaterialXSField
     from orpheus.numerics.quadrature import Quadrature
 
@@ -316,7 +317,7 @@ class ScatteringOperator(LinearOperatorMixin):
         that previously lived on this class now routes through one of
         the typed verbs (``mat_xs.apply_p0_in_scatter``, ``apply_n2n``,
         etc.) which encapsulates the dispatch.
-    quadrature : AngularQuadrature
+    quadrature : Quadrature
         The angular quadrature.  Carries ``N``, ``weights``, and
         :meth:`spherical_harmonics` — the previously-leaked
         ``n_ordinates`` / ``weights`` / ``Y`` constructor parameters
@@ -329,7 +330,7 @@ class ScatteringOperator(LinearOperatorMixin):
     """
 
     mat_xs: "MaterialXSField"
-    quadrature: "AngularQuadrature"
+    quadrature: "Quadrature"
     scattering_order: int
 
     capabilities: frozenset[str] = field(
@@ -548,7 +549,7 @@ class ScatteringOperator(LinearOperatorMixin):
         cls,
         *,
         mat_xs: "MaterialXSField",
-        quadrature: "AngularQuadrature",
+        quadrature: "Quadrature",
         scattering_order: int,
     ) -> "ScatteringOperator":
         """Construct from a :class:`MaterialXSField` + quadrature.
@@ -558,7 +559,7 @@ class ScatteringOperator(LinearOperatorMixin):
         ``sig_s0``, ``cells_by_mat``, ``Y``, ``weights``, ``n_ordinates``,
         ``nx``, ``ny``, ``ng``) into two typed objects.  The
         :class:`MaterialXSField` carries everything per-material plus
-        the spatial topology; the :class:`AngularQuadrature` carries
+        the spatial topology; the :class:`Quadrature` carries
         ``N`` / ``weights`` / harmonics.
         """
         return cls(

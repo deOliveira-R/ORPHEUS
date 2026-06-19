@@ -174,6 +174,7 @@ import numpy as np
 
 from ._ubld import (
     AVERAGE_MOMENT,
+    D1ClosedForm,
     assemble_inflow_axis,
     assemble_ubld,
     d1_closed_form,

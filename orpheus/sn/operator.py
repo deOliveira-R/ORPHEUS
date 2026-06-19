@@ -120,7 +120,7 @@ History
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
@@ -138,7 +138,10 @@ from orpheus.numerics.operator import (
 from orpheus.numerics.quadrature import Quadrature
 
 if TYPE_CHECKING:
+    from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.timed_full_field import TimedFullField
+    from orpheus.numerics.space import FunctionSpace
     from .geometry import SNMesh
     from orpheus.numerics.projection import MomentProjection
     from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink

@@ -88,14 +88,14 @@ class SNMethodSpace:
     ``trace`` and keeps the reference for any future consumer.
     """
 
-    quadrature: "AngularQuadrature"
+    quadrature: "Quadrature"
     face: Optional[str] = None
     inflow_indices: Optional[np.ndarray] = None
     mesh: "Optional[Mesh1D | Mesh2D]" = None
     trace: "Optional[TraceSpace]" = None
 
     @classmethod
-    def minimal(cls, quadrature: "AngularQuadrature") -> "SNMethodSpace":
+    def minimal(cls, quadrature: "Quadrature") -> "SNMethodSpace":
         """Quadrature-only method space (Wave 5 backward-compat).
 
         Used by realizers / tests that don't need mesh+face
@@ -112,7 +112,7 @@ class SNMethodSpace:
         cls,
         *,
         mesh: "Optional[Mesh1D | Mesh2D]" = None,
-        quadrature: "AngularQuadrature",
+        quadrature: "Quadrature",
         face: str,
         trace: "Optional[TraceSpace]" = None,
     ) -> "SNMethodSpace":
