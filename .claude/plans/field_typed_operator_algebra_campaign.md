@@ -1,6 +1,26 @@
 # Field-typed operator algebra — campaign plan (GH #256)
 
-**STATUS: EXECUTING on branch `feature/field-typed-operator-algebra`.**
+**STATUS: RE-SCOPED into #257 (2026-06-19). Steps 1+3 are the FOUNDATION; the
+rest folds into the larger CoefficientField/operator-as-promotion thread.**
+
+⭐⭐ **RE-SCOPE (user architecture review):** the user pushed back that the bare
+`Generic[V]` is unexplanatory ("if type hinting doesn't help, it's compliance
+theatrics") and that cross-sections should be fields. This surfaced that the
+grand report §5.5–5.7 ALREADY specifies the target: **`CoefficientField`** (Field
+sibling) promoted to **`MultiplicationOperator`** (`C = M[σ_t]`), `IntegralKernelOperator`
+(S/F from Kernels), the Operator/Kernel/Functional suffix law, and the honest
+**`TransportState`** bound (refines `Vector`; `np.ndarray` does NOT satisfy it) that
+makes `apply(x: TransportState) -> TransportState` read like the domain. Filed as
+**#257** (the new home). Frame hardened: `.claude/agent-memory/cross-domain-attacker/coefficient_field_promotion_frames.md`
+(multiplier-algebra embedding M: L^∞→B(L²); coefficient space = cone/simplex not
+torsor; fission = `M_χ∘ProductionRateFunctional∘M_νΣf`; rename §4158 `.multiplication_operator()`
+to avoid the §5.7 class collision). **#256 steps 1 (`cfb651b`) + 3 (`41a92cb`) STAND as
+the foundation; steps 4/5/6 (scipy single-source, Functional=§5.6 suffix, BoundaryMomentField)
+re-home into #257's implementation plan.** NEXT = explorer blast-radius census → #257 plan.
+
+---
+
+**(historical) STATUS: EXECUTING on branch `feature/field-typed-operator-algebra`.**
 
 ⭐ **PICKUP DECISIONS (2026-06-19, settled with user):**
 - **Branch base:** merged the 15 unpushed foundation+pyright commits to local
