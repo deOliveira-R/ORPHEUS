@@ -39,6 +39,7 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import CollisionOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.full_field import FullField
 from orpheus.transport.source_sinks import AngularSourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
@@ -171,7 +172,7 @@ class TestApply:
         C = CollisionOperator(sn_mesh, sigma)
         psi = _random_state(sn_mesh)
         out = C.apply(psi)
-        assert isinstance(out, TimedFullField)
+        assert isinstance(out, FullField)  # #257 S8a: timeless codomain (base arrow)
         assert isinstance(out.bulk, AngularSourceSink)
         assert out.bulk.values.shape == psi.bulk.values.shape
 
@@ -250,7 +251,7 @@ class TestSolve:
         C = CollisionOperator(sn_mesh, sigma)
         q = _random_state(sn_mesh)
         out = C.solve(q)
-        assert isinstance(out, TimedFullField)
+        assert isinstance(out, FullField)  # #257 S8a: timeless codomain (base arrow)
         assert isinstance(out.bulk, AngularFlux)
         assert out.bulk.values.shape == q.bulk.values.shape
 
@@ -445,12 +446,31 @@ class TestCompositeInvariants:
         np.testing.assert_array_equal(out.boundary.values, 0.0)
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_history_depth_preserved(self, name, builder):
-        """Composite return preserves input ``history_depth`` capacity."""
+    def test_output_is_timeless_full_field(self, name, builder):
+        """#257 S8a — the matvec leaf is a base arrow ``FullField -> FullField``.
+
+        The operator output is the TIMELESS
+        :class:`~orpheus.transport.full_field.FullField` (history-free),
+        regardless of the input iterate's ``history_depth``: the comonad
+        lives on the iteration driver, not on the operator (was: the old
+        convention stamped ``history_depth`` onto the output — re-pointed).
+        """
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
         C = CollisionOperator(sn_mesh, sigma)
         for depth in (0, 1, 2, 4):
             state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=depth)
-            assert C.apply(state).history_depth == depth
-            assert C.solve(state).history_depth == depth
+            out_apply = C.apply(state)
+            out_solve = C.solve(state)
+            # base-arrow codomain: a timeless FullField, NOT the timed subclass.
+            # ``-O``-firing (Mode 8): explicit raises, not bare ``assert``.
+            if type(out_apply) is not FullField or isinstance(out_apply, TimedFullField):
+                pytest.fail(
+                    f"{name} depth={depth}: C.apply output must be a timeless "
+                    f"FullField, got {type(out_apply).__name__}"
+                )
+            if type(out_solve) is not FullField or isinstance(out_solve, TimedFullField):
+                pytest.fail(
+                    f"{name} depth={depth}: C.solve output must be a timeless "
+                    f"FullField, got {type(out_solve).__name__}"
+                )

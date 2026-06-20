@@ -133,6 +133,7 @@ from orpheus.numerics.operator import (
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.production_rate_functional import ProductionRateFunctional
+from orpheus.transport.full_field import FullField
 from orpheus.transport.source_sinks import ScalarSourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 
@@ -385,7 +386,7 @@ class FissionOperator(LinearOperatorMixin):
         )
 
     @apply.register
-    def _(self, psi: TimedFullField) -> "TimedFullField":
+    def _(self, psi: TimedFullField) -> "FullField":
         r"""Composite :class:`TimedFullField` variant — bulk-only fission emission.
 
         Math: identical to the :class:`AngularFlux` branch above —
@@ -420,13 +421,14 @@ class FissionOperator(LinearOperatorMixin):
         per_ord = AngularSourceSink.from_isotropic(
             fission_iso.values, psi.bulk.mesh,
         )
-        return TimedFullField(
+        return FullField(
             # B.5.2: the operator output IS a source (Fψ rate density) — emit
             # the AngularSourceSink directly, not a re-wrap into AngularFlux.
+            # #257 S8a: history-free (the matvec leaf is a base arrow; the
+            # comonad lives on the driver, which reattaches the timed type when
+            # this source is added to the timed rhs).
             bulk=per_ord,
             boundary=BoundarySourceSink.zeros_on(psi.bulk.mesh),
-            _history=(),
-            history_depth=psi.history_depth,
         )
 
     @apply.register

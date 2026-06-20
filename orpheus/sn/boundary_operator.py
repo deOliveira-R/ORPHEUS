@@ -62,8 +62,8 @@ if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.geometry import SNMesh
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.full_field import FullField
     from orpheus.transport.source_sinks import BoundarySourceSink
-    from orpheus.transport.timed_full_field import TimedFullField
 
 
 __all__ = ["SNBoundaryOperator"]
@@ -228,14 +228,16 @@ class SNBoundaryOperator(LinearOperatorMixin):
         return out_boundary
 
     def _apply_faces(
-        self, psi: "TimedFullField", method: str,
-    ) -> "TimedFullField":
+        self, psi: "FullField", method: str,
+    ) -> "FullField":
         r"""Lift the trace-only :meth:`_reflect_trace` onto the full
-        :class:`TimedFullField` carrier with **zero bulk** — the ``A_ss`` block
-        as an operator on ``V = V_bulk ⊕ V_boundary``.
+        :class:`~orpheus.transport.full_field.FullField` carrier with **zero
+        bulk** — the ``A_ss`` block as an operator on ``V = V_bulk ⊕
+        V_boundary``.  #257 S8a: history-free (the matvec leaf is a base arrow
+        ``FullField -> FullField``; the comonad lives on the driver).
         """
+        from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import AngularSourceSink
-        from orpheus.transport.timed_full_field import TimedFullField
 
         mesh = self.sn_mesh
         if psi.bulk.mesh is not mesh:
@@ -244,7 +246,7 @@ class SNBoundaryOperator(LinearOperatorMixin):
                 "share the same SNMesh instance (mesh-identity invariant); "
                 f"got field mesh {psi.bulk.mesh!r} vs operator mesh {mesh!r}."
             )
-        return TimedFullField(
+        return FullField(
             # Zero bulk source, sized from the MESH — not ``zeros_like(psi.bulk)``
             # — so the carrier is correct whatever representation the input bulk
             # carries (full-angular :class:`AngularFlux` OR the Phase-5a windowed
@@ -257,11 +259,9 @@ class SNBoundaryOperator(LinearOperatorMixin):
                 mesh, spatial_moments=mesh.scheme.spatial_basis_per_axis,
             ),
             boundary=self._reflect_trace(psi.boundary, method),
-            _history=(),
-            history_depth=psi.history_depth,
         )
 
-    def apply(self, psi: "TimedFullField") -> "TimedFullField":
+    def apply(self, psi: "FullField") -> "FullField":
         r"""Forward action ``B·ψ`` — per-face boundary law on the trace, zero bulk."""
         return self._apply_faces(psi, "apply")
 
@@ -293,7 +293,7 @@ class SNBoundaryOperator(LinearOperatorMixin):
         """
         return self._reflect_trace(boundary, "apply", faces=faces)
 
-    def apply_transpose(self, psi: "TimedFullField") -> "TimedFullField":
+    def apply_transpose(self, psi: "FullField") -> "FullField":
         r"""Euclidean transpose ``Bᵀ·ψ`` — per-face ``apply_transpose``, zero bulk.
 
         Reachable only when every per-face law advertises

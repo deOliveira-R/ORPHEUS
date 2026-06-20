@@ -176,6 +176,7 @@ from orpheus.transport.source_sinks import (
     AngularSourceSink,
     BoundarySourceSink,
 )
+from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
 # Runtime (not TYPE_CHECKING-only) — the windowed moment-iterate ``apply``
 # arm registers on this type via ``@apply.register``, which needs the
@@ -1204,7 +1205,7 @@ class ScatteringOperator(LinearOperatorMixin):
         )
 
     @apply.register
-    def _(self, psi: TimedFullField) -> "TimedFullField":
+    def _(self, psi: TimedFullField) -> "FullField":
         r"""Composite :class:`TimedFullField` variant — bulk-only scattering source.
 
         Math: identical to the :class:`AngularFlux` branch above —
@@ -1243,11 +1244,12 @@ class ScatteringOperator(LinearOperatorMixin):
         # boundary is the implicit-zero :class:`BoundarySourceSink` —
         # scattering is volumetric (Option β3 / Wave O #208).
         combined = self.apply(psi.bulk)
-        return TimedFullField(
+        # #257 S8a: history-free (the matvec leaf is a base arrow
+        # ``FullField -> FullField``; the comonad lives on the driver, which
+        # reattaches the timed type when this source is added to the timed rhs).
+        return FullField(
             bulk=combined,
             boundary=BoundarySourceSink.zeros_on(psi.bulk.mesh),
-            _history=(),
-            history_depth=psi.history_depth,
         )
 
     @apply.register

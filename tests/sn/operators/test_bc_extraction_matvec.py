@@ -128,6 +128,7 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import CollisionOperator, StreamingOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import SN_TESTS_ROOT, placeholder_materials
 from tests.sn.regression._regression_assert import assert_regression
@@ -231,8 +232,12 @@ def _random_state(sn_mesh: SNMesh, seed: int, *, zero_boundary: bool = True) -> 
     )
 
 
-def _LpC_apply(sn_mesh: SNMesh, state: TimedFullField, sigma_t: np.ndarray) -> TimedFullField:
-    """``(L + C).apply(state)`` via the public operator-algebra path."""
+def _LpC_apply(sn_mesh: SNMesh, state: TimedFullField, sigma_t: np.ndarray) -> "FullField":
+    """``(L + C).apply(state)`` via the public operator-algebra path.
+
+    #257 S8a — the matvec leaf is a base arrow, so ``(L + C).apply`` returns a
+    timeless :class:`~orpheus.transport.full_field.FullField` source.
+    """
     L = StreamingOperator(sn_mesh, sigma_t)
     C = CollisionOperator(sn_mesh, sigma_t)
     return (L + C).apply(state)

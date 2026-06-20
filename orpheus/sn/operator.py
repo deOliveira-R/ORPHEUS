@@ -142,6 +142,7 @@ if TYPE_CHECKING:
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from orpheus.transport.fields.cross_section_field import CrossSectionField
+    from orpheus.transport.full_field import FullField
     from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.numerics.space import FunctionSpace
     from .geometry import SNMesh
@@ -169,18 +170,25 @@ __all__ = [
 
 
 def _require_typed_composite(
-    method: str, sn_mesh: "SNMesh", field: "TimedFullField",
+    method: str, sn_mesh: "SNMesh", field: "FullField",
 ) -> None:
-    r"""The shared matvec input contract — typed composite + mesh identity.
+    r"""The shared matvec input contract — timeless composite + mesh identity.
 
     The two guards :meth:`StreamingOperator.apply` introduced (D-I.3d typed
     contract + the mesh-identity invariant) are now consumed by EVERY SN
-    matvec entry that takes a :class:`TimedFullField`:
+    matvec entry that takes a :class:`FullField`:
     :meth:`StreamingOperator.apply` / :meth:`apply_transpose` AND the #240
     Phase 2 Step B :meth:`InvertibleOperator.apply` / :meth:`apply_transpose`
     overrides.  Single source of the contract (``coding-elegance`` Pattern 2 /
     Pattern 4 — illegal inputs unrepresentable at one place, not re-validated
     per leaf).
+
+    #257 S8a — the input contract is the TIMELESS
+    :class:`~orpheus.transport.full_field.FullField` (the matvec leaves are
+    base arrows ``FullField -> FullField``; only the iteration driver carries
+    the history-bearing :class:`TimedFullField` comonad).  A
+    :class:`TimedFullField` IS a :class:`FullField`, so the SI / Krylov drivers
+    that pass a timed iterate still satisfy the guard; a bare ndarray does not.
 
     Parameters
     ----------
@@ -189,19 +197,20 @@ def _require_typed_composite(
         ``"StreamingOperator.apply"``).
     sn_mesh : SNMesh
         The operator's mesh — ``field.bulk.mesh`` must be the SAME instance.
-    field : TimedFullField
+    field : FullField
         The matvec input (``psi`` for apply, ``phi`` for the transpose).
+        A timeless :class:`FullField` or its timed subclass.
     """
-    from orpheus.transport.timed_full_field import TimedFullField
+    from orpheus.transport.full_field import FullField
 
-    if not isinstance(field, TimedFullField):
+    if not isinstance(field, FullField):
         raise TypeError(
-            f"{method}: expected TimedFullField, got "
+            f"{method}: expected FullField, got "
             f"{type(field).__name__}.  D-I.3d (2026-05-29) retired the "
-            "bare-ndarray packed-vector contract; construct a typed "
-            "composite via ``TimedFullField.zeros(bulk=AngularFlux, "
-            "boundary=BoundaryFlux, mesh=sn_mesh)`` or explicit "
-            "``TimedFullField(bulk=..., boundary=...)``."
+            "bare-ndarray packed-vector contract; construct a timeless "
+            "composite via ``FullField(bulk=AngularFlux(...), "
+            "boundary=BoundaryFlux(...))`` (or the timed "
+            "``TimedFullField(bulk=..., boundary=...)`` for an iterate)."
         )
     if sn_mesh is not field.bulk.mesh:
         raise ValueError(
@@ -211,7 +220,7 @@ def _require_typed_composite(
 
 
 @dataclass
-class StreamingOperator(LinearOperatorMixin["TimedFullField"]):
+class StreamingOperator(LinearOperatorMixin["FullField"]):
     r"""Pure streaming + angular-redistribution operator :math:`L` as a
     :class:`~orpheus.numerics.operator.LinearOperator` leaf.
 
@@ -357,7 +366,7 @@ class StreamingOperator(LinearOperatorMixin["TimedFullField"]):
         # Endomorphism on the composite (see :meth:`domain`).
         return self.sn_mesh.full_field_space
 
-    def apply(self, psi: "TimedFullField") -> "TimedFullField":
+    def apply(self, psi: "FullField") -> "FullField":
         r"""Subtractive forward action :math:`L\,\psi = M(\psi;\sigma_t)
         - \sigma_t \odot \psi.bulk`.
 
@@ -398,14 +407,16 @@ class StreamingOperator(LinearOperatorMixin["TimedFullField"]):
 
         Returns
         -------
-        TimedFullField
-            ``L·ψ`` as a typed composite — bulk carries the cell
+        FullField
+            ``L·ψ`` as a timeless composite — bulk carries the cell
             action, boundary carries the face residual at the
             layout-assigned trace slots (non-zero at outer face for
             curvilinear; non-zero at outer + inner faces for slab).
+            History-free (#257 S8a — the matvec leaf is a base arrow
+            ``FullField -> FullField``; the comonad lives on the driver).
         """
+        from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import AngularSourceSink
-        from orpheus.transport.timed_full_field import TimedFullField
 
         _require_typed_composite("StreamingOperator.apply", self.sn_mesh, psi)
 
@@ -418,14 +429,12 @@ class StreamingOperator(LinearOperatorMixin["TimedFullField"]):
         # action, so the (L+C)ψ boundary residual passes through unchanged.
         lpc = self.loss_representation.loss_action(self.sigma_t, psi)
         out_bulk = lpc.bulk.values - self.sigma_t[None] * psi.bulk.values
-        return TimedFullField(
+        return FullField(
             bulk=AngularSourceSink.from_mesh(out_bulk, self.sn_mesh),
             boundary=lpc.boundary,
-            _history=(),
-            history_depth=psi.history_depth,
         )
 
-    def apply_transpose(self, phi: "TimedFullField") -> "TimedFullField":
+    def apply_transpose(self, phi: "FullField") -> "FullField":
         r"""Hilbert transpose :math:`L^{\mathsf T}\,\phi` (Wave O / O.2b, #208).
 
         Resolution A: :math:`L = (L + C) - C` with :math:`C = \sigma_t\odot`
@@ -449,8 +458,8 @@ class StreamingOperator(LinearOperatorMixin["TimedFullField"]):
         ``test_g_adjoint_reciprocity`` (slab / sphere / cylinder, -O-firing) +
         its L11 wrong-trace-metric negative control.
         """
+        from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import AngularSourceSink
-        from orpheus.transport.timed_full_field import TimedFullField
 
         _require_typed_composite(
             "StreamingOperator.apply_transpose", self.sn_mesh, phi,
@@ -462,11 +471,9 @@ class StreamingOperator(LinearOperatorMixin["TimedFullField"]):
         # answer). The operator subtracts C here, ONCE, mirroring :meth:`apply`.
         lpct = self.loss_representation.loss_action_transpose(self.sigma_t, phi)
         out_bulk = lpct.bulk.values - self.sigma_t[None] * phi.bulk.values
-        return TimedFullField(
+        return FullField(
             bulk=AngularSourceSink.from_mesh(out_bulk, self.sn_mesh),
             boundary=lpct.boundary,
-            _history=(),
-            history_depth=phi.history_depth,
         )
 
     # ── LossRepresentation carve (S2) — the polymorphic matvec dispatch ─────
@@ -659,7 +666,7 @@ class CollisionOperator(MultiplicationOperator):
 # ─────────────────────────────────────────────────────────────────────────
 
 
-class InvertibleOperator(OperatorSum["TimedFullField"]):
+class InvertibleOperator(OperatorSum["FullField"]):
     r"""Sweep-invertible composite :math:`L + C` carrying ``.solve`` = WDD sweep.
 
     R-1 Step C (2026-05-19) — the SN-specific algebraic identity
@@ -836,7 +843,7 @@ class InvertibleOperator(OperatorSum["TimedFullField"]):
 
     # ── apply / apply_transpose: the composite's OWN matvec (#240 Step B) ──
 
-    def apply(self, psi: "TimedFullField") -> "TimedFullField":
+    def apply(self, psi: "FullField") -> "FullField":
         r"""Matvec :math:`(L+C)\,\psi = M(\sigma)\,\psi` — the composite OWNS it.
 
         #240 Phase 2 Step B.  Both the matvec and the sweep are actions of the
@@ -864,7 +871,7 @@ class InvertibleOperator(OperatorSum["TimedFullField"]):
         _require_typed_composite("InvertibleOperator.apply", self.sn_mesh, psi)
         return self.loss_representation.loss_action(self.sigma, psi)
 
-    def apply_transpose(self, phi: "TimedFullField") -> "TimedFullField":
+    def apply_transpose(self, phi: "FullField") -> "FullField":
         r"""Adjoint matvec :math:`(L+C)^{\mathsf T}\,\phi = M(\sigma)^{\mathsf T}\,\phi`.
 
         The adjoint sibling of :meth:`apply` (#240 Phase 2 Step B): the

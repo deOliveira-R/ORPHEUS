@@ -132,6 +132,7 @@ def _krylov_power_iteration_kinf(
     from orpheus.sn.geometry import SNMesh
     from orpheus.sn.operator import CollisionOperator, StreamingOperator
     from orpheus.sn.solver import SNSolver
+    from orpheus.transport.full_field import FullField
     from orpheus.transport.source_sinks import AngularSourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
@@ -178,7 +179,11 @@ def _krylov_power_iteration_kinf(
 
     phi = solver.initial_flux_distribution()
     keff = 1.0
-    psi_typed_warm: TimedFullField | None = None
+    # #257 S8a — the Krylov matvec leaves are base arrows ``FullField ->
+    # FullField`` so ``krylov.solve`` is inferred over the FullField carrier;
+    # the runtime warm iterate is still a TimedFullField (templated on the timed
+    # ``initial_guess``), which IS a FullField.
+    psi_typed_warm: "FullField | None" = None
     for n_outer in range(max_outer):
         fis = solver.compute_fission_source(phi, keff)
         q_ext_per_ord = AngularSourceSink.from_isotropic(fis, sn_mesh)

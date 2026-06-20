@@ -186,6 +186,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.projection import MomentProjection
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.full_field import FullField
     from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
@@ -250,8 +251,8 @@ class LossRepresentation(Protocol):
         ...
 
     def loss_action(
-        self, sigma: "np.ndarray", psi: "TimedFullField",
-    ) -> "TimedFullField":
+        self, sigma: "np.ndarray", psi: "FullField",
+    ) -> "FullField":
         r"""The forward within-group loss action :math:`(L+C)\,\psi` for this geometry.
 
         The sweep's operator-twin (L21 — sweep and matvec are different
@@ -270,8 +271,8 @@ class LossRepresentation(Protocol):
         ...
 
     def loss_action_transpose(
-        self, sigma: "np.ndarray", phi: "TimedFullField",
-    ) -> "TimedFullField":
+        self, sigma: "np.ndarray", phi: "FullField",
+    ) -> "FullField":
         r"""The adjoint loss action :math:`(L+C)^{\mathsf T}\,\phi` for this geometry.
 
         Return the FULL adjoint loss :math:`(L+C)^{\mathsf T}\phi` (the operator
@@ -427,8 +428,8 @@ class _LossRepresentation:
         )
 
     def loss_action(
-        self, sigma: "np.ndarray", psi: "TimedFullField",
-    ) -> "TimedFullField":
+        self, sigma: "np.ndarray", psi: "FullField",
+    ) -> "FullField":
         """The forward loss action ``(L+C)ψ`` — every concrete leaf implements it.
 
         Returns the FULL within-group loss ``(L+C)ψ`` (NOT ``Lψ``); the operator
@@ -440,8 +441,8 @@ class _LossRepresentation:
         )
 
     def loss_action_transpose(
-        self, sigma: "np.ndarray", phi: "TimedFullField",
-    ) -> "TimedFullField":
+        self, sigma: "np.ndarray", phi: "FullField",
+    ) -> "FullField":
         """The adjoint loss action ``(L+C)ᵀφ`` — 1-D implemented or a deferral raise.
 
         Returns the FULL adjoint loss ``(L+C)ᵀφ`` (the operator subtracts ``C`` in
@@ -773,9 +774,9 @@ class _OctantWalk:
     def loss_action(
         self,
         sigma: "np.ndarray",
-        psi: "TimedFullField",
+        psi: "FullField",
         interior: "Callable[[_ApplyOperands, np.ndarray, tuple[int, ...], tuple[np.ndarray, ...]], tuple[np.ndarray, tuple[np.ndarray, ...]]]",
-    ) -> "TimedFullField":
+    ) -> "FullField":
         r"""The APPLY-direction frame :math:`(L+C)\,\psi` (S6.4 sub-step (a)).
 
         Owns everything the matvec frames previously duplicated in lockstep:
@@ -800,10 +801,10 @@ class _OctantWalk:
         :meth:`~orpheus.sn.operator.StreamingOperator.apply` subtracts
         :math:`\Sigma_t\,\bar\psi` exactly once (Resolution A).
         """
+        from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import (
             AngularSourceSink, BoundarySourceSink,
         )
-        from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = self.mesh
         ndim = sn_mesh.ndim
@@ -877,11 +878,9 @@ class _OctantWalk:
             if in_idx.size:
                 out_boundary.face_view(face)[in_idx] = given[in_idx]
 
-        return TimedFullField(
+        return FullField(
             bulk=AngularSourceSink.from_mesh(LpC, sn_mesh, spatial_moments=per_axis),
             boundary=out_boundary,
-            _history=(),
-            history_depth=psi.history_depth,
         )
 
 
@@ -931,8 +930,8 @@ class CumprodScan(_LossRepresentation):
         )
 
     def loss_action(
-        self, sigma: "np.ndarray", psi: "TimedFullField",
-    ) -> "TimedFullField":
+        self, sigma: "np.ndarray", psi: "FullField",
+    ) -> "FullField":
         r"""1-D forward loss action ``(L+C)ψ`` — the geometry-blind spatial sum.
 
         S6.3 / #206 Phase C: returns the FULL within-group loss ``(L+C)ψ``; the
@@ -945,8 +944,8 @@ class CumprodScan(_LossRepresentation):
         return _OneDimScanWalk(self.mesh).loss_action(sigma, psi)
 
     def loss_action_transpose(
-        self, sigma: "np.ndarray", phi: "TimedFullField",
-    ) -> "TimedFullField":
+        self, sigma: "np.ndarray", phi: "FullField",
+    ) -> "FullField":
         r"""1-D adjoint loss action ``(L+C)ᵀφ`` — the reverse spatial sum.
 
         S6.3 / #206 Phase C: returns ``(L+C)ᵀφ`` (the operator subtracts ``C`` in
@@ -1006,8 +1005,8 @@ class _DAGWavefront(_LossRepresentation):
         return SweepDependencyGraph.for_shape(self.mesh.spatial_shape)
 
     def loss_action_transpose(
-        self, sigma: "np.ndarray", phi: "TimedFullField",
-    ) -> "TimedFullField":
+        self, sigma: "np.ndarray", phi: "FullField",
+    ) -> "FullField":
         r"""The multi-D Cartesian adjoint is DEFERRED (shared by both policies).
 
         The forward matvec works for both buffer policies, but the
@@ -1124,8 +1123,8 @@ class MovingFrontierWindow(_DAGWavefront):
         return capture
 
     def loss_action(
-        self, sigma: "np.ndarray", psi: "TimedFullField",
-    ) -> "TimedFullField":
+        self, sigma: "np.ndarray", psi: "FullField",
+    ) -> "FullField":
         r"""2-D Cartesian forward loss action ``(L+C)ψ`` via the rolling-frontier window.
 
         S6.4 sub-step (a): routes through the shared :class:`_OctantWalk`
@@ -1395,8 +1394,8 @@ class FullFieldWavefront(_DAGWavefront):
         return capture
 
     def loss_action(
-        self, sigma: "np.ndarray", psi: "TimedFullField",
-    ) -> "TimedFullField":
+        self, sigma: "np.ndarray", psi: "FullField",
+    ) -> "FullField":
         r"""Forward loss action ORACLE ``(L+C)ψ`` — the full-field DAG walk (d-generic).
 
         S6.4(d): routes through the shared :class:`_OctantWalk` apply frame,
@@ -1665,8 +1664,8 @@ class ScanMarch(_LossRepresentation):
         return (capture_x, out_y)
 
     def loss_action(
-        self, sigma: "np.ndarray", psi: "TimedFullField",
-    ) -> "TimedFullField":
+        self, sigma: "np.ndarray", psi: "FullField",
+    ) -> "FullField":
         r"""Forward loss action ``(L+C)ψ`` — the row-march apply (L21: sweep & matvec, ONE operator).
 
         S6.3: the matvec ``(L+C)ψ`` walk LIVES here.  1-D → the geometry-blind
@@ -1766,8 +1765,8 @@ class ScanMarch(_LossRepresentation):
         return LpC_oct, (cap_x, out_y)
 
     def loss_action_transpose(
-        self, sigma: "np.ndarray", phi: "TimedFullField",
-    ) -> "TimedFullField":
+        self, sigma: "np.ndarray", phi: "FullField",
+    ) -> "FullField":
         """Adjoint loss action — 1-D wired ``(L+C)ᵀφ``; multi-D Cartesian deferred."""
         if self.mesh.is_1d:
             # #206 Phase C: the 1-D transpose walk lives in _OneDimScanWalk.
@@ -2136,8 +2135,8 @@ class _OneDimScanWalk:
         )
 
     def loss_action(
-        self, sigma: "np.ndarray", psi: "TimedFullField",
-    ) -> "TimedFullField":
+        self, sigma: "np.ndarray", psi: "FullField",
+    ) -> "FullField":
         r"""1-D forward loss action ``(L+C)ψ`` — the matvec, apply direction.
 
         #206 Phase C: ``(L+C)ψ`` via the shared :meth:`_apply_walk` (the
@@ -2148,25 +2147,23 @@ class _OneDimScanWalk:
         coefficient, passed explicitly (#240 Step B); :meth:`_apply_walk` already
         took a plain ``sigma_t`` array, so the change is signature-only here.
         """
+        from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import AngularSourceSink
-        from orpheus.transport.timed_full_field import TimedFullField
 
         m_cell, m_boundary = self._apply_walk(sigma, psi)
         # The matvec output carries the trailing 2^d spatial-moment axis at a
         # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
         # selects the SpatialMomentSpace factor.  DD/Step → no factor, byte-id.
-        return TimedFullField(
+        return FullField(
             bulk=AngularSourceSink.from_mesh(
                 m_cell, self.mesh,
                 spatial_moments=self.mesh.scheme.spatial_basis_per_axis,
             ),
             boundary=m_boundary,
-            _history=(),
-            history_depth=psi.history_depth,
         )
 
     def _apply_walk(
-        self, sigma: "np.ndarray", psi: "TimedFullField",
+        self, sigma: "np.ndarray", psi: "FullField",
     ) -> "tuple[np.ndarray, BoundarySourceSink]":
         r"""The 1-D apply-direction walk — the fused ``(L+C)ψ`` single emission.
 
@@ -2518,8 +2515,8 @@ class _OneDimScanWalk:
         return m_cell, m_boundary
 
     def loss_action_transpose(
-        self, sigma: "np.ndarray", phi: "TimedFullField",
-    ) -> "TimedFullField":
+        self, sigma: "np.ndarray", phi: "FullField",
+    ) -> "FullField":
         r"""1-D adjoint loss action ``(L+C)ᵀφ`` — the matvec transpose.
 
         #206 Phase C: the reverse-mode adjoint of :meth:`loss_action`,
@@ -2550,8 +2547,8 @@ class _OneDimScanWalk:
         (slab / sphere / cylinder, -O-firing) + its L11 wrong-trace-metric
         negative control.
         """
+        from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
-        from orpheus.transport.timed_full_field import TimedFullField
         from .spatial.cell_balance import cell_balance_for_streaming
 
         sn_mesh = self.mesh
@@ -2691,13 +2688,11 @@ class _OneDimScanWalk:
         m_boundary.face_view("xmax")[...] = fo_bar
         if has_inner_face:
             m_boundary.face_view("xmin")[...] = fi_bar
-        return TimedFullField(
+        return FullField(
             bulk=AngularSourceSink.from_mesh(
                 psi_bar.swapaxes(0, 1), sn_mesh,
             ),
             boundary=m_boundary,
-            _history=(),
-            history_depth=phi.history_depth,
         )
 
     def _ensure_geom_cache(self) -> GeometryCoefficients:

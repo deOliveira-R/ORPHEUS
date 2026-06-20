@@ -363,7 +363,8 @@ class TestCompositeInvariants:
     """
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
-    def test_returns_timed_full_field(self, name, builder):
+    def test_returns_timeless_full_field(self, name, builder):
+        from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
@@ -374,11 +375,12 @@ class TestCompositeInvariants:
 
         out = L.apply(state)
 
-        assert isinstance(out, TimedFullField)
+        # #257 S8a — the matvec leaf is a base arrow ``FullField -> FullField``,
+        # so the output is the TIMELESS FullField (history-free).
+        assert isinstance(out, FullField)
+        assert not isinstance(out, TimedFullField)
         assert isinstance(out.bulk, AngularSourceSink)
         assert out.bulk.mesh is sn_mesh
-        assert out.history_depth == state.history_depth
-        assert out._history == ()
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
     def test_boundary_carries_face_residual(self, name, builder):
@@ -421,18 +423,32 @@ class TestCompositeInvariants:
         np.testing.assert_array_equal(out.boundary.values, 0.0)
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
-    def test_history_depth_preserved(self, name, builder):
-        """Composite return preserves input ``history_depth`` capacity."""
+    def test_output_is_timeless_full_field(self, name, builder):
+        """#257 S8a — the matvec leaf is a base arrow ``FullField -> FullField``.
+
+        The operator output is the TIMELESS
+        :class:`~orpheus.transport.full_field.FullField` (history-free),
+        regardless of the input iterate's ``history_depth``: the comonad
+        lives on the iteration driver, not on the operator (was: the old
+        convention stamped ``history_depth`` onto the output — re-pointed).
+        ``-O``-firing (Mode 8): explicit raise, not bare ``assert``.
+        """
+        from orpheus.transport.full_field import FullField
+
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh, sig_t)
         for depth in (0, 1, 2, 4):
             state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=depth)
             out = L.apply(state)
-            assert out.history_depth == depth
+            if type(out) is not FullField or isinstance(out, TimedFullField):
+                pytest.fail(
+                    f"{name} depth={depth}: L.apply output must be a timeless "
+                    f"FullField, got {type(out).__name__}"
+                )
 
-    def test_2d_cartesian_produces_timed_full_field(self):
-        """D-H.2-C4d — 2-D Cartesian path returns a TimedFullField.
+    def test_2d_cartesian_produces_full_field(self):
+        """D-H.2-C4d — 2-D Cartesian path returns a (timeless) FullField.
 
         Pre-C4d this test pinned the deferred ``NotImplementedError``
         stub for the 2-D path; C4d ships the L2-native FD kernel
@@ -441,12 +457,15 @@ class TestCompositeInvariants:
         ``ScanMarch`` default since S6.9) and the path becomes
         functional.
         Structural invariant test: the return is the composite carrier
-        with the correct bulk type.
+        with the correct bulk type.  #257 S8a — the matvec leaf is a base
+        arrow ``FullField -> FullField`` (history-free; was: pinned the
+        history-bearing ``TimedFullField`` — re-pointed).
         """
         from orpheus.geometry import Mesh2D
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
         )
+        from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
@@ -463,10 +482,14 @@ class TestCompositeInvariants:
         state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         out = L.apply(state)
 
-        assert isinstance(out, TimedFullField)
+        # base-arrow codomain: a timeless FullField, NOT the timed subclass.
+        if type(out) is not FullField or isinstance(out, TimedFullField):
+            pytest.fail(
+                f"L.apply output must be a timeless FullField, "
+                f"got {type(out).__name__}"
+            )
         assert isinstance(out.bulk, AngularSourceSink)
         assert out.bulk.mesh is sn_mesh
-        assert out.history_depth == state.history_depth
 
     def test_mesh_identity_invariant(self):
         """Distinct SNMesh instances must reject the apply."""
@@ -491,13 +514,15 @@ class TestOperatorAlgebraCompositionUnderTimedFullField:
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES_1D)
     def test_LC_apply_composite(self, name, builder):
-        """``(L + C).apply(state)`` returns a TimedFullField.
+        """``(L + C).apply(state)`` returns a TIMELESS FullField.
 
-        ``L + C`` dispatches to :class:`InvertibleOperator` (subclass
-        of :class:`OperatorSum`); its inherited ``.apply`` evaluates
-        ``L.apply(state) + C.apply(state)`` and the addition succeeds
-        only if BOTH return TimedFullField.
+        ``L + C`` dispatches to :class:`InvertibleOperator`; its
+        :meth:`apply` evaluates the representation ``loss_action``.  #257 S8a —
+        the matvec leaf is a base arrow ``FullField -> FullField`` (the comonad
+        lives on the driver), so the output is the TIMELESS FullField
+        (history-free).
         """
+        from orpheus.transport.full_field import FullField
         from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = builder()
@@ -509,9 +534,9 @@ class TestOperatorAlgebraCompositionUnderTimedFullField:
 
         out = A.apply(state)
 
-        assert isinstance(out, TimedFullField)
+        assert isinstance(out, FullField)
+        assert not isinstance(out, TimedFullField)
         assert out.bulk.mesh is sn_mesh
-        assert out.history_depth == state.history_depth
 
 
 # ═══════════════════════════════════════════════════════════════════════

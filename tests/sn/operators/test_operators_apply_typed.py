@@ -44,6 +44,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.source_sinks import AngularSourceSink
 from orpheus.transport.fields.scalar_flux import ScalarFlux
+from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.sn.scattering import ScatteringOperator
 from tests.sn._test_helpers import placeholder_materials
@@ -114,7 +115,7 @@ def test_F_apply_timed_full_field_returns_composite(name, builder) -> None:
     F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
 
     Fpsi = F.apply(state)
-    assert isinstance(Fpsi, TimedFullField)
+    assert isinstance(Fpsi, FullField)  # #257 S8a: timeless codomain (base arrow)
     assert isinstance(Fpsi.bulk, AngularSourceSink)
     assert Fpsi.bulk.values.shape == state.bulk.values.shape
     assert Fpsi.bulk.mesh is sn
@@ -159,7 +160,7 @@ def test_S_apply_timed_full_field_zero_boundary(name, builder) -> None:
     )
 
     Spsi = S.apply(state)
-    assert isinstance(Spsi, TimedFullField)
+    assert isinstance(Spsi, FullField)  # #257 S8a: timeless codomain (base arrow)
     assert isinstance(Spsi.bulk, AngularSourceSink)
     assert Spsi.bulk.values.shape == state.bulk.values.shape
     # S is volumetric; result's boundary is implicit-zero.
@@ -180,7 +181,7 @@ def test_C_apply_timed_full_field_zero_boundary(name, builder) -> None:
     C = CollisionOperator(sn, sigma)
 
     Cpsi = C.apply(state)
-    assert isinstance(Cpsi, TimedFullField)
+    assert isinstance(Cpsi, FullField)  # #257 S8a: timeless codomain (base arrow)
     assert isinstance(Cpsi.bulk, AngularSourceSink)
     assert Cpsi.bulk.values.shape == state.bulk.values.shape
     np.testing.assert_array_equal(Cpsi.boundary.values, 0.0)
@@ -215,7 +216,7 @@ def test_L_apply_timed_full_field_returns_composite(name, builder) -> None:
     L = StreamingOperator(sn, sigma_t)
 
     Lpsi = L.apply(state)
-    assert isinstance(Lpsi, TimedFullField)
+    assert isinstance(Lpsi, FullField)  # #257 S8a: timeless codomain (base arrow)
     assert isinstance(Lpsi.bulk, AngularSourceSink)
     assert Lpsi.bulk.values.shape == state.bulk.values.shape
     # L emits the face residual into .boundary; for these random
@@ -261,10 +262,12 @@ def test_full_algebra_returns_timed_full_field(name, builder) -> None:
     A = L + C - S - F  # full operator-algebra composition
     out = A.apply(state)
 
-    assert isinstance(out, TimedFullField)
+    # #257 S8a — every matvec leaf is a base arrow ``FullField -> FullField``,
+    # so the composed algebra output is the TIMELESS FullField (history-free);
+    # the comonad lives on the iteration driver, not the operator.
+    assert isinstance(out, FullField)
+    assert not isinstance(out, TimedFullField)
     assert out.bulk.mesh is sn
-    assert out.history_depth == state.history_depth
-    assert out._history == ()
 
 
 @pytest.mark.parametrize("name,builder", GEOMETRIES)

@@ -48,6 +48,7 @@ from tests.sn._test_helpers import _LC_matvec
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
@@ -318,7 +319,10 @@ class TestOutputShape:
         # — the operator output is Aψ (a rate-density / flux source), NOT a
         # residual.  B.5.2: a residual only arises from from_balance(Aψ, b),
         # never straight off an operator output (the boundary mirrors the bulk).
-        assert isinstance(result, TimedFullField)
+        # #257 S8a — the matvec leaf is a base arrow ``FullField -> FullField``
+        # (the comonad lives on the driver); the output is the TIMELESS FullField.
+        assert isinstance(result, FullField)
+        assert not isinstance(result, TimedFullField)
         assert isinstance(result.bulk, AngularSourceSink)
         assert isinstance(result.boundary, BoundarySourceSink)
         # Cell values: (N, ng, *spatial).
@@ -479,7 +483,9 @@ class TestTwoDCartesianRaises:
         sigma_t = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0)
         psi = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         result = _LC_matvec(psi, sigma_t)
-        assert isinstance(result, TimedFullField)
+        # #257 S8a — base arrow output is the TIMELESS FullField.
+        assert isinstance(result, FullField)
+        assert not isinstance(result, TimedFullField)
         # On zero input the matvec is zero (linearity sentinel).
         np.testing.assert_array_equal(
             result.bulk.values, np.zeros_like(result.bulk.values),

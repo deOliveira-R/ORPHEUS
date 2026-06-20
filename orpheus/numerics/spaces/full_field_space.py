@@ -197,17 +197,24 @@ class FullFieldSpace(FunctionSpace):
     def _rebuild(x, bulk_values: np.ndarray, boundary_values: np.ndarray):
         r"""Return a copy of composite field ``x`` with new block ``values``.
 
-        Rebuilds via :func:`dataclasses.replace` on the frozen leaves
-        (``x.bulk`` / ``x.boundary``) and on the composite — preserving each
-        leaf's ``space`` / ``mesh`` and the composite's ``history_depth``,
-        dropping the iteration ``_history`` (a metric application is
-        algebra, not a state step). No concrete type import (duck-typed).
+        Rebuilds the frozen leaves (``x.bulk`` / ``x.boundary``) via
+        :func:`dataclasses.replace` — preserving each leaf's ``space`` /
+        ``mesh`` — then routes the recombined pair through the composite's
+        polymorphic :meth:`_recombine` hook.  The hook gives the correct
+        concrete type for either carrier: a timeless
+        :class:`~orpheus.transport.full_field.FullField` rebuilds a
+        ``FullField`` (no history concept), a timed
+        :class:`~orpheus.transport.timed_full_field.TimedFullField` rebuilds a
+        ``TimedFullField`` with its ``history_depth`` and an EMPTY history
+        (a metric application is algebra, not a state step).  #257 S8a — since
+        operator matvec outputs are now the TIMELESS ``FullField`` (base
+        arrows), the G-adjoint metric path receives either carrier; routing
+        through ``_recombine`` (not a hardcoded ``_history=()``) handles both.
+        No concrete type import (duck-typed on the ``_recombine`` hook).
         """
-        return replace(
-            x,
+        return x._recombine(
             bulk=replace(x.bulk, values=bulk_values),
             boundary=replace(x.boundary, values=boundary_values),
-            _history=(),
         )
 
     def apply_metric(self, x):

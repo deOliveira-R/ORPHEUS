@@ -105,14 +105,14 @@ from orpheus.numerics.operator import (
 
 if TYPE_CHECKING:
     from orpheus.transport.fields.cross_section_field import CrossSectionField
-    from orpheus.transport.timed_full_field import TimedFullField
+    from orpheus.transport.full_field import FullField
 
 
 __all__ = ["MultiplicationOperator"]
 
 
 @dataclass(eq=False)
-class MultiplicationOperator(LinearOperatorMixin["TimedFullField"]):
+class MultiplicationOperator(LinearOperatorMixin["FullField"]):
     r"""The promotion :math:`M[f]` of a coefficient field to a diagonal operator.
 
     Stores ONLY the coefficient; the mesh is read off the carrier at
@@ -182,7 +182,7 @@ class MultiplicationOperator(LinearOperatorMixin["TimedFullField"]):
 
     # ── The §5.7 promotion: f ↦ M[f] on the leading ordinate axis ────────
 
-    def apply(self, psi: "TimedFullField") -> "TimedFullField":
+    def apply(self, psi: "FullField") -> "FullField":
         r"""Forward action :math:`M[f]\,\psi = f \cdot \psi` on the composite.
 
         The pointwise multiply :math:`f\,\psi` is per-cell per-group,
@@ -197,22 +197,20 @@ class MultiplicationOperator(LinearOperatorMixin["TimedFullField"]):
         (a multiplier has no face-trace action — the cell-balance
         :math:`f\,\psi` term is a CELL quantity).
         """
+        from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import (
             AngularSourceSink,
             BoundarySourceSink,
         )
-        from orpheus.transport.timed_full_field import TimedFullField
 
         mesh = psi.bulk.mesh
         out_bulk = self.engine.apply(psi.bulk.values)
-        return TimedFullField(
+        return FullField(
             bulk=AngularSourceSink.from_mesh(out_bulk, mesh),
             boundary=BoundarySourceSink.zeros_on(mesh),
-            _history=(),
-            history_depth=psi.history_depth,
         )
 
-    def solve(self, q: "TimedFullField") -> "TimedFullField":
+    def solve(self, q: "FullField") -> "FullField":
         r"""Inverse action :math:`M[f]^{-1}\,q = q / f = M[1/f]\,q`.
 
         Requires ``CAP_SOLVE`` (the spectrum law: :math:`\min|f| > 0`);
@@ -226,18 +224,16 @@ class MultiplicationOperator(LinearOperatorMixin["TimedFullField"]):
         """
         from orpheus.transport.fields.angular_flux import AngularFlux
         from orpheus.transport.fields.boundary_flux import BoundaryFlux
-        from orpheus.transport.timed_full_field import TimedFullField
+        from orpheus.transport.full_field import FullField
 
         mesh = q.bulk.mesh
         out_bulk = self.engine.solve(q.bulk.values)
-        return TimedFullField(
+        return FullField(
             bulk=AngularFlux.from_mesh(out_bulk, mesh),
             boundary=BoundaryFlux.zeros_on(mesh),
-            _history=(),
-            history_depth=q.history_depth,
         )
 
-    def apply_transpose(self, psi: "TimedFullField") -> "TimedFullField":
+    def apply_transpose(self, psi: "FullField") -> "FullField":
         r"""Adjoint action :math:`M[f]^{*}\,\psi = M[\bar f]\,\psi = M[f]\,\psi`.
 
         Equal to :meth:`apply` — a real-valued multiplier is self-adjoint

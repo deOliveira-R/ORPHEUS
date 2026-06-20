@@ -472,13 +472,14 @@ class TestProducerSideNormalisation:
 class TestCompositeInvariants:
     """Composite :class:`TimedFullField` variant: bulk-only scattering."""
 
-    def test_returns_timed_full_field(self, solver_2g_p0):
-        """Composite input → composite output (dispatch contract)."""
+    def test_returns_timeless_full_field(self, solver_2g_p0):
+        """Composite input → TIMELESS composite output (#257 S8a base arrow)."""
         from dataclasses import replace
 
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
         )
+        from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import AngularSourceSink
         from orpheus.transport.timed_full_field import TimedFullField
 
@@ -490,11 +491,12 @@ class TestCompositeInvariants:
 
         out = solver_2g_p0.scattering_op.apply(state)
 
-        assert isinstance(out, TimedFullField)
+        # #257 S8a — the matvec leaf is a base arrow ``FullField -> FullField``,
+        # so the output is the TIMELESS FullField (history-free).
+        assert isinstance(out, FullField)
+        assert not isinstance(out, TimedFullField)
         assert isinstance(out.bulk, AngularSourceSink)
         assert out.bulk.mesh is sn_mesh
-        assert out.history_depth == state.history_depth
-        assert out._history == ()
 
     def test_implicit_zero_boundary(self, solver_2g_p0):
         """Scattering is volumetric — boundary member is all zeros."""
@@ -518,13 +520,22 @@ class TestCompositeInvariants:
         np.testing.assert_array_equal(out.bulk.values, 0.0)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
 
-    def test_history_depth_preserved(self, solver_2g_p0):
-        """Composite return preserves input ``history_depth`` capacity."""
+    def test_output_is_timeless_full_field(self, solver_2g_p0):
+        """#257 S8a — the matvec leaf is a base arrow ``FullField -> FullField``.
+
+        The output is the TIMELESS FullField (history-free) regardless of the
+        input iterate's ``history_depth`` (was: the old convention stamped
+        ``history_depth`` onto the output — re-pointed).
+        """
+        from orpheus.transport.full_field import FullField
+        from orpheus.transport.timed_full_field import TimedFullField
+
         sn_mesh = solver_2g_p0.sn_mesh
         for depth in (0, 1, 2, 4):
             state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=depth)
             out = solver_2g_p0.scattering_op.apply(state)
-            assert out.history_depth == depth
+            assert isinstance(out, FullField)
+            assert not isinstance(out, TimedFullField)
 
 
 # ──────────────────────────────────────────────────────────────────────

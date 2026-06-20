@@ -391,7 +391,17 @@ def test_removal_form_matvec_sweep_roundtrip(case):
 
     # Direction 2: solve ∘ apply = identity on an arbitrary ψ (with its trace).
     psi0 = _random_state(sn, seed=sum(map(ord, case)) + 3)
-    Lpsi = op.apply(psi0)
+    # #257 S8a — the matvec leaf is a base arrow: ``op.apply`` returns a
+    # timeless FullField source.  ``solve`` consumes the driver's timed rhs, so
+    # wrap the source back into a TimedFullField (what the SI / Krylov driver
+    # does — it carries the comonad; the operator does not).  Byte-identical.
+    Lpsi_source = op.apply(psi0)
+    Lpsi = TimedFullField(
+        bulk=Lpsi_source.bulk,
+        boundary=Lpsi_source.boundary,
+        _history=(),
+        history_depth=psi0.history_depth,
+    )
     psi_back = op.solve(Lpsi)
     np.testing.assert_allclose(
         psi_back.bulk.values, psi0.bulk.values, rtol=1e-10, atol=1e-12,

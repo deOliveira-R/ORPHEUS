@@ -22,6 +22,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
 
 pytestmark = pytest.mark.foundation
@@ -284,11 +285,12 @@ class TestCompositeInvariants:
 
         out = solver_2g.fission_op.apply(state)
 
-        assert isinstance(out, TimedFullField)
+        # #257 S8a — the matvec leaf is a base arrow ``FullField -> FullField``,
+        # so the output is the TIMELESS FullField (history-free).
+        assert isinstance(out, FullField)
+        assert not isinstance(out, TimedFullField)
         assert isinstance(out.bulk, AngularSourceSink)
         assert out.bulk.mesh is sn_mesh
-        assert out.history_depth == state.history_depth
-        assert out._history == ()
 
     def test_implicit_zero_boundary(self, solver_2g):
         """Fission has no boundary action — boundary member is all zeros."""
@@ -314,18 +316,20 @@ class TestCompositeInvariants:
         np.testing.assert_array_equal(out.bulk.values, 0.0)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
 
-    def test_history_depth_preserved(self, solver_2g):
-        """Composite return preserves input history_depth (algebra invariant).
+    def test_output_is_timeless_full_field(self, solver_2g):
+        """#257 S8a — the matvec leaf is a base arrow ``FullField -> FullField``.
 
-        Algebra drops ``_history`` (iteration metadata) but the
-        ``history_depth`` capacity flows through unchanged — same
-        contract as :meth:`TimedFullField.__add__`.
+        The output is the TIMELESS FullField (history-free) regardless of the
+        input iterate's ``history_depth``: the comonad lives on the iteration
+        driver, not the operator (was: the old convention stamped
+        ``history_depth`` onto the output — re-pointed).
         """
         sn_mesh = solver_2g.sn_mesh
         for depth in (0, 1, 2, 4):
             state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=depth)
             out = solver_2g.fission_op.apply(state)
-            assert out.history_depth == depth
+            assert isinstance(out, FullField)
+            assert not isinstance(out, TimedFullField)
 
 
 # ──────────────────────────────────────────────────────────────────────

@@ -346,7 +346,10 @@ class TestSolve:
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
         L = StreamingOperator(sn, sigma_t)
         psi_bare = np.zeros(10)
-        with pytest.raises(TypeError, match="expected TimedFullField"):
+        # #257 S8a — the matvec input contract widened from TimedFullField to
+        # the timeless FullField (the leaf is a base arrow ``FullField ->
+        # FullField``); a bare ndarray is still rejected at the entry guard.
+        with pytest.raises(TypeError, match="expected FullField"):
             L.apply(psi_bare)
 
     def test_solve_rejects_mismatched_mesh(self) -> None:
@@ -860,7 +863,18 @@ class TestInvertibleSolveBridgeRegression:
             psi_known,
             bulk=replace(psi_known.bulk, values=np.ones((N, ng, *sn_mesh.spatial_shape))),
         )
-        LC_psi = LC.apply(psi_known)
+        # #257 S8a — the matvec leaf is a base arrow: ``LC.apply`` returns a
+        # timeless FullField source.  ``InvertibleOperator.solve`` consumes the
+        # driver's timed rhs, so wrap the source back into a TimedFullField
+        # (exactly what the production SI / Krylov driver does — it carries the
+        # comonad; the operator does not).  Byte-identical source values.
+        LC_psi_source = LC.apply(psi_known)
+        LC_psi = TimedFullField(
+            bulk=LC_psi_source.bulk,
+            boundary=LC_psi_source.boundary,
+            _history=(),
+            history_depth=psi_known.history_depth,
+        )
 
         # Iterate until stabilises (slab converges in 1-2 iterates).
         psi_recovered: TimedFullField | None = None
