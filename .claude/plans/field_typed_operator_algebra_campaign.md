@@ -3,6 +3,11 @@
 **STATUS: RE-SCOPED into #257 (2026-06-19). Steps 1+3 are the FOUNDATION; the
 rest folds into the larger CoefficientField/operator-as-promotion thread.**
 
+**CURRENT (2026-06-19): #257 S1/S2/S3a DONE + committed (`505e1b7`/`1ce727a`/`c1da42d`);
+resume at S3b. The AUTHORITATIVE anchor is now
+`.claude/plans/issue_257_coefficient_field_promotion.md` (its ⭐ CURRENT STATUS block) +
+`gh issue view 257` — read those to resume, not this campaign file.**
+
 ⭐⭐ **RE-SCOPE (user architecture review):** the user pushed back that the bare
 `Generic[V]` is unexplanatory ("if type hinting doesn't help, it's compliance
 theatrics") and that cross-sections should be fields. This surfaced that the

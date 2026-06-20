@@ -6,12 +6,133 @@
 > 3. Frame memo: `.claude/agent-memory/cross-domain-attacker/coefficient_field_promotion_frames.md`
 >    (the 4 structural frames + the multiplier-algebra law-suite).
 > 4. The campaign anchor `.claude/plans/field_typed_operator_algebra_campaign.md` (the #256→#257 re-scope + the baseline reds).
-> 5. Then the code, in the order the stages touch it.
+> 5. **Carrier design + layering verdict** (behind S4.5):
+>    `.claude/agent-memory/cross-domain-attacker/issue_257_carrier_typing_layering_frames.md`
+>    (the `Vector`-Protocol-is-irreducible forgetful-functor finding + the cofree-comonad
+>    `TimedFullField = Cofree(FullField, d)` split). The DESIGN REVISION block below summarizes it.
+> 6. Then the code, in the order the stages touch it.
 >
-> **Branch** `feature/field-typed-operator-algebra` (off `main`, NOT pushed). Foundation already
-> committed: #256 step 1 (`Vector` Protocol, `cfb651b`) + step 3 (`apply(x:V)->V`, `41a92cb`).
-> **On implementation start, FIRST copy this plan to `.claude/plans/issue_257_coefficient_field_promotion.md`
-> (repo-durable; `~/.claude` is host-ephemeral) and commit it.**
+> **Branch** `feature/field-typed-operator-algebra` (off `main`, NOT pushed; local `main` @ `05fa1ef`).
+> The plan is committed (`99f108f`); implementation is UNDERWAY through **S7 (`1991d46`)** — see the
+> ⭐ CURRENT STATUS block immediately below (RESUME AT S8).
+
+## ⭐ CURRENT STATUS (2026-06-20 — RESUME AT S8: StreamingOperator → pure L, BEHAVIORAL)
+
+**DONE + committed** on `feature/field-typed-operator-algebra` (NOT pushed):
+- Foundation: `cfb651b` (`Vector` Protocol) + `41a92cb` (`apply(x:V)->V`); `e3f90d5`/`99f108f` (re-scope + this plan).
+- **S1** `505e1b7` — `CrossSectionField` (1/cm cone) + `CoefficientRole` + `CROSS_SECTION_UNITS`. ⚠ `SpectrumField` DROPPED (see S1 entry); χ-simplex → S10.
+- **S2** `1ce727a` — `MaterialXSField.{total_cross_section,absorption_cross_section,fission_production}_field` typed accessors (zero-copy: `.values IS` the raw cached array).
+- **S3a** `c1da42d` — `DiagonalOperator` generalized → N-D broadcast ENGINE: `DiagonalOperator(coefficient, broadcast_axes=None, *, axis=0)`; 1-D mode byte-identical; the σ_t case `broadcast_axes=(0,)` on a `(N,ng,*spatial)` carrier ≡ `sigma[None]*carrier`. `weights` now a property (raises in broadcast mode). `from_measure`/self-adjoint/`CAP_SOLVE`-iff-nonzero preserved.
+- **S3b** `4ebade6` — the §5.7 promotion `C = M[σ_t]`. `orpheus/transport/multiplication_operator.py` (FIRST operator in `transport/`): `MultiplicationOperator(CrossSectionField)`, the multiplier-algebra embedding `M:L^∞→B(L²)`; delegates the multiply to a STORED S3a engine (built once over the immutable coefficient — elegance store-once nit), typed codomain (apply→AngularSourceSink, solve→AngularFlux, `M.H=M`). `CollisionOperator` → thin SUBCLASS (keeps name + `(sn_mesh, sigma:ndarray|CrossSectionField)` back-compat ctor + `.sigma`/`.sn_mesh` + `L+C→InvertibleOperator` `+`-dispatch; duplicated apply/solve bodies DELETED — inherited). `solver.py:217/925/1000` source σ from `total_cross_section_field`. ⭐ **Behavioral strengthening**: `CAP_SOLVE iff min|σ|>0` (Pattern 4, inherited from engine; legacy was always-on→silent NaN; AUDITED safe — no prod `.solve` on C, σ_r path is #200/#215 not live). Gate = principled-equivalence: broadcast oracle 0 ULP (2-D nx≠ny ng=2), law-suite ≥2G-asym-het, k_∞ + streaming-equilibrium refs green (Mode-11 sentinel-confirmed route σ through promoted C). elegance PASS (2 nits fixed: dead CAP imports + store-once engine), qa SUPPORTED. Sphinx §5.7 STUB added (`:label:multiplication-operator-promotion`, `.. todo::` for the archivist).
+- **S4** `93aa016` — `TransportState(Vector, Protocol)` (`orpheus/transport/state.py`), the §5.5 honest generic dissolving the opaque `Generic[V]`: refines numerics `Vector` with read-only `@property` members `bulk: BulkField`/`boundary: BoundaryField`/`history_depth: int` (the #208 composite accessors; read-only because a writable Protocol attr is invariant → rejects the frozen `TimedFullField`). `runtime_checkable`; discriminating test (`test_transport_state.py`, foundation): `TimedFullField` IS, `np.ndarray`+bare `AngularFlux` are `Vector` but NOT `TransportState` (strictly stronger). **PURE ADDITION** — numerics stays `Generic[V: Vector]`; NO operator re-pointed (see ⚠ OPERATOR RE-POINT below). pyright 2295=baseline NO offset; qa SUPPORTED (mutation-verified teeth). ⚠ **SUPERSEDED by S4.5** (the `TransportState` Protocol was retired).
+- **S4.5** `b404ae1` (**closes #217**, SUPERSEDES S4) — extracted the timeless concrete `FullField` base (`orpheus/transport/full_field.py`) out of `TimedFullField` (cofree split `TimedFullField=Cofree(FullField,d)`): the 6 vector dunders + `from_flat`/`copy` live ONCE on `FullField`, routed through a polymorphic `_recombine(self:T,*,bulk,boundary)->T` hook; `TimedFullField(FullField)` overrides `_recombine` (empty history + preserved depth) + adds `_history`/`advance`/`at_lag`; `zeros` delegates to `FullField.zeros`; `from_flat` generic-over-template routed through `_recombine`; `_check_partner` widened to `isinstance(other,FullField)` (the `at_lag(0)-at_lag(1)` timed−timeless stencil). **S4's `TransportState` Protocol RETIRED** (`state.py` deleted; discriminating test now NOMINAL in `test_full_field.py`). Operators stay `["TimedFullField"]` (IS-A FullField); the `apply(x:FullField)` re-point folds into S8. BIT-IDENTICAL (dedicated TimedFullField suite byte-unchanged + green; `_recombine` two-way mutation teeth); pyright 2295=baseline 0 net-new + **0 net-new `type: ignore`** (trial `from_flat` override-ignore removed structurally; `zeros` ignores de-duped to original 2). elegance PASS (3 doc nits applied), qa SUPPORTED.
+
+- **S5** `e9e0121` (+ matrix chore `7b463bb`) — the §5.6 `Functional` category. `orpheus/numerics/functional.py` (L1): `Functional(Protocol[V_contra, R_co])`, `@runtime_checkable`, one method `evaluate(x)->R`; the co-vector companion of `Vector`, a SIBLING of `LinearOperator` (NOT a subclass — carries NONE of `apply`/`capabilities`; the disjoint surface IS the category's defining property). Contravariant input / covariant UNBOUNDED result (a `float | V` union would mistype the per-cell scalar-field). `orpheus/transport/production_rate_functional.py` (L2 — shared SN/CP/MoC, NOT sn/): `ProductionRateFunctional(nu_sigma_f: CrossSectionField)`, `evaluate(phi)->(1,*spatial)` density `p(r)=Σ_g νΣf_g φ_g` (group-collapsed, keepdims=True, NO volume measure) — byte-identical to the anonymous `inner` in `RankOneOperator.apply`, so S6's `F=M_χ∘ProductionRate∘M_νΣf` inherits bit-identity. **Additive + bit-identical**: `RankOneOperator`/`FissionOperator` NOT rewired (S6). Estimators stay bare `(L,S,F,ψ)` callables (they consume the operator TRIPLE, not a lone field → not `Functional[V,R]`; the category just NAMES their field→scalar core). Gate: intrinsic-property (Functional≠LinearOperator both directions + discriminator foils, Mode-8 clean, teeth mutation-verified — axis-flip reds 6, ×1.5 measure-fold reds 5); `evaluate` vs a STRUCTURALLY-INDEPENDENT hand-derived double-loop (L11) + pinned 0-ULP LITERAL-RANK byte-identity vs the legacy `inner` (B.2 tightened post-qa — was squeeze-agnostic). pyright 0 net-new + 0 net-new `type: ignore`. elegance PASS-WITH-NITS (NIT-1 rationale-only: the `isinstance(phi,Field)` idiom's real precedent is `scattering.py:618/665`, NOT `MultiplicationOperator`; NIT-3 declined), qa SUPPORTED. Sphinx §5.6 STUB + `:label:production-rate-functional`/`functional-category` (full narrative DEFERRED to post-S6 archivist). ⚠ **Filed #259**: the production-rate `Σ_g νΣf_g φ_g` is coded 3× (SN `solver.py:1086` vol-weighted group-last+n2n / CP `solver.py:674` / numerics `iteration.py:269`) + the `KEigenvalue` estimator-injection seam is DEAD in production (SN/CP bypass via `power_iteration(self)`) — unify after the campaign reaches S6.
+
+- **S6** `f509e74` (+ matrix chore `9ccfec7`) — the §5.6 **`IntegralKernelOperator`** category (completes Operator/Kernel/Functional). `orpheus/transport/integral_kernel_operator.py` (L2): `@runtime_checkable IntegralKernelOperator(LinearOperator[V], Protocol[V])` requiring a `kernel` property; a REFINEMENT of `LinearOperator` (still apply/caps + adds kernel — strict: a local `MultiplicationOperator`/`IdentityOperator` is NOT a Kernel), contrasted with the disjoint S5 `Functional`. **User scope (Q1/Q2 2026-06-20): keep the bit-identical matvecs (composition=semantic reading + cross-check); create base + reframe BOTH fission & scattering IN PLACE in sn/.** `FissionOperator` (additive): adds `production_rate`→S5 `ProductionRateFunctional` (the §5.6 middle factor of `F=M_χ∘ProductionRate∘M_νΣf`); `kernel`=fused RankOne χ⊗νΣf kept (Pattern 5). `ScatteringOperator` (additive): adds `kernel`=`OperatorProduct(R,Λ,M)` reproducing `_aniso_source_from_moment_values(M·ψ)` byte-for-byte; the kernel is the nonlocal ℓ≥1 aniso redistribution (P0 iso/n2n/1-W are the local components — a STRICT sub-component, pinned). 5 dispatch arms UNTOUCHED. ⚠ findings: `M_χ` is rank-CHANGING (not S3b's `MultiplicationOperator`) → literal composition rejected; scattering's R/M are rank-changing einsums (forbidden as TP factors) → `SumOfTensorProductsOperator` kernel rejected as a re-derivation. **3 `cast(LinearOperator,...)` bridge the unparametrised-`LinearOperatorMixin` generic gap (NOT `type:ignore`; #226 scope).** Gate: intrinsic-property (both ARE Kernels, both-directions + discriminator + direct kernel-attr-absence for the runtime_checkable loophole — qa-confirmed); two 0-ULP cross-checks (fission vs hand-loop+RankOne; scattering vs existing aniso path); the aniso-only-sub-component gate (qa-flagged misread guard); matvec byte-identical (pre-T3 snapshots + aniso MMS). pyright **2307=S5 baseline, 0 net-new** (helper-typing cleaned the 4 skeleton errors too), 0 net-new `type:ignore`. elegance PASS-WITH-NITS (N1+N2 docstring fixes applied), qa SUPPORTED. Sphinx §5.6 Kernel STUB + `:label:integral-kernel-category`. ⚠ **Filed #260** (un-orphan `SumOfTensorProductsOperator`) + **#261** (relocate shared C/F/S cores to transport/ + CP/MoC carrier unification — the DEFERRED relocation). ⚠ qa crossed L28 (git stash to measure baseline) but restored cleanly — tree verified intact.
+
+- **S7** `1991d46` (+ matrix chore `f00d482`) — **scipy single-source** (bit-identical plumbing). The live ORPHEUS↔scipy Krylov boundary was TWO inline `spla.LinearOperator` closures in `KrylovAcceleration.solve` (`A_scipy` system matvec + `M_scipy` preconditioner), each duplicating the ravel-wrap (`_ravel`/`_unravel_like`); plus the public zero-prod-caller `as_scipy_linop` (`operator.py`, flat-only twin). THREE construction sites for one concept. Consolidated to ONE module-private `_as_scipy_linop(carrier_matvec, template, n)` in `iteration.py` (forced home: `iteration.py→operator.py` is one-way, so the ravel-aware adapter can't live in `operator.py`; the flat L0 case is the degenerate case of the ravel-aware one → one subsumes both). System matvec extracted as a named `loss_minus_gains(psi)->V` (reads like the within-group operator, not buried under plumbing). **RETIRED** `as_scipy_linop` (def + docstring ¶ + orphaned `spla` import + `__all__` ×2 across operator.py+`numerics/__init__`) + its 5 bare-ndarray tests (the one unique guard — `MissingCapability` on missing `CAP_APPLY` — is covered strictly-stronger at composition time by `KrylovAcceleration.__init__`); 3 doc xrefs repointed to the internal adapter. ⚠ explorer audit FIRST (public-API-retirement proactive trigger) confirmed zero prod callers (Nexus `callers`+`impact`+grep) + the layering verdict + the gate-test set. Gate = bit-identical: matvec computation character-identical (same `L.apply(psi)` then `for g: out-g.apply(psi)`, same order); A↔`solution_template` (flux space), M↔`q_ext` (source space) — qa **sentinel-confirmed BOTH branches fire** on the typed `TimedFullField` carrier (A built2/fired160, M built2/fired161), NO template swap (the Mode-2 hazard). pyright **2307→2297** (−10 from deleted pre-existing-noise lines, **0 net-new**; **−1 `# type: ignore`**); Krylov+round-trip gates 139 green; broad regression at the exact 7 baseline reds; Sphinx -W clean. elegance **PASS** ("cleanest carve in the S-series"; 2 optional doc/comment nits applied), qa **SUPPORTED**. ⚠ **archivist rich-narrative DEFERRED** into the consolidated S3b/S5/S6 pass (method-implementer's mechanical doc edits already keep -W green + factually correct; S7 is plumbing, not taxonomy — no point fragmenting the consolidated pass).
+
+**Health**: baseline reds = **7** (pre-existing #250 SPHERE ×5 + #232 mu_y ×2 — NOT ours; every stage must keep exactly these). ⚠ **pyright baseline corrected to 2307 errors / 19 warnings** (the host-tree `b404ae1` count; the "2295" recorded through S4.5 was a stale S4.5-WORKTREE figure — re-measured this session, S5 files individually clean ⇒ no masked offset). Sphinx clean. Filed **#258** (units.py pint `Unit`/`PlainUnit` stub debt) + **#259** (production-rate fragmentation). Regression subset:
+`.venv/bin/python -O -m pytest -q tests/sn/operators tests/sn/spatial tests/sn/sweep/core tests/sn/solve tests/numerics tests/transport --deselect tests/sn/solve/test_keff_slab.py::test_heterogeneous_absolute_keff`
+
+## ⭐⭐ DESIGN REVISION (2026-06-19 — `TransportState` → `FullField`; explorer + cross-domain-attacker)
+
+User flagged `TransportState` as mis-named ("not everything is a state") + asked to fold in **#217** (a
+timeless `FullField` base, no history) + asked whether the `numerics ↛ transport` barrier is a
+folder-hierarchy artifact. Dispatched **explorer** (layering/import map) + **cross-domain-attacker**
+(structural frames). Both CONVERGED:
+
+- **The layering is sound; the `Vector` Protocol is IRREDUCIBLE — not a hierarchy artifact.** `Vector`
+  is the object-image of the forgetful functor `U: C_carrier → C_vec`; `numerics` lives in `cod(U)` so
+  it structurally cannot name the carrier. The barrier is the *shadow of the layer DAG*; the only lever
+  that removes it is moving the whole algebra+drivers to L2 (abandon method-agnosticism — rejected).
+  The user's "bad-hierarchy" hypothesis is **disconfirmed**.
+- **#217 split is structurally FORCED (cofree comonad).** `TimedFullField = Cofree(FullField, depth=d)`;
+  operators are base arrows `FullField → FullField`; only the iteration drivers see the comonad. Typing
+  an operator OUTPUT (`Cψ`=source, `b−Ax`=residual) as `TimedFullField` hands it an unused history tail
+  ("a type error of altitude"). So the timeless **`FullField`** (bulk⊕boundary + Vector algebra, NO
+  `history_depth`) is the correct operator-algebra carrier — confirming the user's "drop history_depth".
+- **`Field`-in-numerics is genuinely a smell** (module-over-ring: `Field` is overloaded as flux-module
+  base AND coefficient-ring set; zero numerics consumers; `numerics/__init__` re-export tell) — BUT
+  relocating it is ORTHOGONAL to `Vector` (won't dissolve the barrier). → **deferred to end-of-plan**
+  (user: "why should Field go to L2? push to the end with detail, review at the end"). See S11 below.
+- **Fibration finding (act on in S6/S8):** `ScatteringOperator` (`scattering.py:286/618/665`) +
+  `FissionOperator` (`@singledispatchmethod` over TFF/ScalarFlux/ndarray) branch on carrier type → the
+  single-`V` typing is a partial lie for those two; resolve when they're re-typed.
+
+**LOCKED (user, 2026-06-19):** `FullField` = a CONCRETE base class (close #217), `TimedFullField(FullField)`
+inherits. Retire the S4 `TransportState` Protocol. Keep the `TimedFullField` name (strong grep-signal;
+document as `Cofree(FullField, d)`).
+
+**S4.5 ✅ DONE (`b404ae1`, closes #217, SUPERSEDES S4) — the record of what landed (was the realized
+design):** Behavioral-NEUTRAL for `TimedFullField` (internal extraction):
+- `orpheus/transport/full_field.py` (NEW): `@dataclass(frozen=True, kw_only=True) FullField` — the
+  timeless carrier. Lift OUT of `TimedFullField` (DRY, the algebra lives ONCE): `bulk: BulkField`,
+  `boundary: BoundaryField`, the vector-space dunders (`__add__/__sub__/__neg__/__mul__/__rmul__/
+  __truediv__`), `to_flat`/`from_flat`, the `_check_partner` mesh/class guards, `zeros`, `copy`, the
+  shared `__post_init__` validation. NO history.
+- `TimedFullField(FullField)`: adds `_history`/`history_depth`/`advance`/`at_lag`/`history_length` + the
+  history-aware `__post_init__` extension. ⚠ the lifted dunders must still return `TimedFullField`
+  (empty history, preserved `history_depth`) for a `TimedFullField` operand — use a polymorphic
+  recombine hook (base builds via `type(self)`-aware constructor, or TimedFullField overrides the 6
+  dunders). #217: "algebra results carry empty history."
+- Retire `transport/state.py`; `transport/__init__` exports `FullField` + `TimedFullField` (drop
+  `TransportState`). Migrate `test_transport_state.py` → `test_full_field.py`: nominal discriminating
+  checks (np.ndarray NOT a `FullField`; bare `AngularFlux` NOT a `FullField`; `TimedFullField` IS a
+  `FullField`; `FullField` IS a `Vector`) + the timeless-vs-timed distinction.
+- Operators STAY `LinearOperatorMixin["TimedFullField"]` for now (TimedFullField IS-A FullField →
+  consistent). The operator re-point + codomain-timeless folds into S8 (below).
+- Gate: BIT-IDENTICAL `TimedFullField` behavior + algebra results (the extraction is internal); the
+  full TimedFullField suite stays green; pyright 0 net-new; the FullField discriminating test. Standard
+  cycle (method-implementer → elegance + qa → L12 → commit).
+
+**NEXT = S8** (restore `StreamingOperator` to pure L; loss rep = L+C — **BEHAVIORAL**, **dispatch
+test-architect FIRST**, the operator-composition-seam proactive trigger). Drop the `(L+C)−C` fold in
+`StreamingOperator.apply` (`operator.py:417-418`): StreamingOperator computes pure streaming (σ-free);
+`C` is the shared `MultiplicationOperator` (S3b); the model-specific loss representation is `L+C` (the
+sweep, which keeps σ in its cell discretization). ⭐ S8 ABSORBS (from S4/S4.5): (a) re-point ALL operator
+leaves to `apply(x: FullField) -> FullField` (timeless codomain — drop `history_depth=psi.history_depth`;
+the driver `advance`s the timeless result into the timed state, the cofree decouple); (b) widen the
+threaded helpers — `_require_typed_composite` (1 helper/4 sites) + the **14** `loss_action`/`_transpose`
+defs + **15** `psi:"TimedFullField"` param sites in `loss_representation.py` (the `LinearOperator[V]`
+invariance seam at `operator.py:641/794` RESOLVES once both ends read `FullField`); (c) resolve the
+Scattering/Fission fibration finding (`@singledispatchmethod` over carrier type). Gate: SI rhs / Krylov
+matvec value-equal (the composition graph changes — verify the field-level `L+C−S−B`); `InvertibleOperator`
+σ single-source consistent; zero net-new pyright (the seam errors RESOLVE, not offset). **THEN S9
+(BoundaryMomentField, BEHAVIORAL, test-architect FIRST), S10 (χ at source, DEFERRED end-of-plan),
+S11 (Field→L2, under review).**
+
+⚠ **S7 closeout note:** the scipy boundary is now internal to `KrylovAcceleration`; there is NO public
+operator→scipy adapter anymore (was `as_scipy_linop`, retired). If a future caller needs to expose a
+standalone `LinearOperator` to scipy (e.g. a DSA preconditioner built as an operator, #2), the move is to
+generalize `_as_scipy_linop` (accept an `op.apply` callable + optional `rmatvec`) — NOT to resurrect the
+flat twin. The ravel helpers `_is_ravellable`/`_ravel`/`_unravel_like`/`_zeros_like`/`_l2_norm` are
+white-box-imported by `tests/transport/test_timed_full_field.py:515-524` — keep those names stable.
+
+⚠ **S6 archivist DEFERRED (consolidated pass):** three clean Sphinx STUBS now await the archivist — S3b
+`:label:multiplication-operator-promotion`, S5 `:label:functional-category`/`production-rate-functional`,
+S6 `:label:integral-kernel-category` (each + a `.. todo::`). The §5.5–5.7 taxonomy (Operator/Kernel/Functional)
+is now COMPLETE + stable (S7 is plumbing; S8 reshapes streaming, not these), so the consolidated
+multiplier-algebra + suffix-law narrative can land post-S6 (per the campaign schedule) OR fold into the
+post-S9 pass. Not an orphan — tracked here + on #257.
+
+⚠ **S8 ABSORBS the operator re-point — now to `FullField` (timeless codomain).** S8 restructures
+`StreamingOperator`→pure L + the loss representation anyway, so it also: (a) binds ALL operator leaves
+`LinearOperatorMixin["FullField"]` (incl. the S3b `MultiplicationOperator`); (b) makes operator OUTPUTS
+timeless `FullField` (drop `history_depth=psi.history_depth`; the driver `advance`s the timeless result
+into the timed state — the cofree decouple); (c) widens the threaded helpers — `_require_typed_composite`
+(1 helper, 4 sites) + **14** `loss_action`/`_transpose` defs + **15** `psi:"TimedFullField"` param sites
+in `loss_representation.py` (the `LinearOperator[V]`-invariance seam at `operator.py:641/794` RESOLVES
+once both ends read `FullField`); (d) resolves the fibration finding for `ScatteringOperator`/
+`FissionOperator`. The S4 re-point trial was reverted (masked +2/−2 pyright offset) — S8 does it
+coherently against the concrete `FullField`.
+
+⚠ **Archivist DEFERRED (not an orphan):** S3b shipped a clean Sphinx STUB
+(`:label:multiplication-operator-promotion` + `.. todo::`); the FULL multiplier-algebra narrative is
+scheduled for the post-S6/S9 archivist pass (per the Verification section below + the campaign plan),
+to avoid doc churn while S6 (FissionOperator composition) + S8 (StreamingOperator → pure L) reshape the
+surrounding algebra. Tracked here + on #257.
 
 ## Context
 
@@ -82,21 +203,49 @@ LinearOperator
 
 ## Staged implementation (each stage = one reviewed [elegance + qa] + gated commit)
 
-**S1 — `CrossSectionField` + `SpectrumField` + `1/cm` unit + `CoefficientRole`.** Pure addition.
-`units.py` 5th signature; `transport/fields/` `CoefficientRole` (base plain-vector-space algebra, NO
-affine gate), `CrossSectionField(CoefficientRole, ScalarField)` (cone), `SpectrumField` (simplex Σχ=1,
-`.mix` convex blend). **Tests of intrinsic properties (mandatory, per user):** the cone closure
-(σ+σ ✓, λσ≥0 ✓, σ=0 origin), the simplex invariant (Σχ=1 enforced at construction + a failing-input
-negative test), the role algebra differs from `FluxRole` (no `flux+flux→TypeError`-style gate).
+**S1 — `CrossSectionField` + `1/cm` unit + `CoefficientRole`. ✅ DONE (`0565a24`, amended).**
+Pure addition. `units.py` 5th signature `CROSS_SECTION_UNITS`; `transport/fields/` `CoefficientRole`
+(base plain-vector-space algebra, NO affine gate), `CrossSectionField(CoefficientRole, ScalarField)`
+(cone). Intrinsic-property tests: the cone closure (σ+σ ✓, λσ≥0 ✓, σ=0 origin), the role algebra
+differs from `FluxRole` (no `flux+flux→TypeError`-style gate).
+
+⚠ **`SpectrumField` DROPPED (user decision, 2026-06-19) — do NOT reintroduce in S1.** The per-cell
+`emission_spectrum` view stores χ=0 in non-fissile cells (`mixture.py:192`), so a strict per-cell
+simplex field is wrong; and a `SpectrumField` would have NO native downstream behaviour beyond the
+simplex invariant. **The simplex (Σ_g χ_g=1, χ≥0) is a property of the SOURCE** (`Mixture.chi`, the
+per-fissile-material spectrum that generates the broadcast) and is **enforced there** — deferred to
+S10 (end-of-plan, decide-with-hindsight). `DIMENSIONLESS_UNITS` also dropped (no consumer). χ stays
+the raw per-cell broadcast through S6 (its simplex guaranteed upstream).
 
 **S2 — `MaterialXSField` typed accessors.** Bit-identical. Typed field accessors alongside the raw
 ndarray views; `.values` bit-equal; existing consumers untouched this stage.
 
-**S3 — `MultiplicationOperator` (transport/) + promote `CollisionOperator`.** Expect bit-identical.
-`apply` = coeff broadcast-multiply on the matching subspace (einsum on `.values`, wrap once); `.solve`
-= divide; `.H = self` (real coeff). Rewire `solver.py:217,925,1000`. **Law-suite tests (the math
-concept's intrinsic properties):** `M_f@M_g=M_{fg}`, `M_1=I`, `M_0=ZeroOperator`, `M_{af+bg}=aM_f+bM_g`,
-`M.H=M`, `spec=ess-range` (invertible iff min|f|>0). Gate vs old `CollisionOperator` (see §verification).
+**S3 — `MultiplicationOperator` (transport/) + promote `CollisionOperator`. FOLD DiagonalOperator
+(user decision 2026-06-19).** Two layers (the numerics↛transport boundary forbids a single class):
+- **numerics**: generalize the (dead, zero-prod-caller) `DiagonalOperator` from "1-D weights on one
+  axis" → an N-D coefficient on a *sub-product* of axes, broadcast over the complement
+  (`np.expand_dims(coeff, broadcast_axes) * carrier`) — the shared broadcast ENGINE. Subsumes the 1-D
+  case. Migrate its TEST callers (L20; production callers = 0). NO speculative axis modes — exactly
+  the sub-product σ_t needs.
+- **transport** (`transport/`, the first operator there): `MultiplicationOperator(CrossSectionField)`,
+  the §5.7 promotion, DELEGATES the raw broadcast to the numerics engine on `ψ.bulk.values` and does
+  the typed codomain (flux→`AngularSourceSink`; `solve`=`/`→`AngularFlux`; `apply_transpose=apply`,
+  self-adjoint). `CollisionOperator` becomes one (or a thin subclass keeping its `+`-dispatch).
+
+Rewire `solver.py:217/925/1000` to `MultiplicationOperator(mat_xs.total_cross_section_field)` (the S2
+accessor). `L + M[σ]` MUST still assemble `InvertibleOperator` (the `+`-dispatch). **Law-suite tests
+(the math concept's intrinsic properties):** `M_1=I`, `M_0=ZeroOperator`, `M_{af+bg}=aM_f+bM_g`,
+`M.H=M`, `spec=ess-range` (invertible iff min|f|>0), and the homomorphism `M_f∘M_g=M_{f·g}` tested at
+the VALUES level (σ·σ has units cm⁻² — the units-grading that deferred field·field `*`).
+
+⚠ **GATE = principled-equivalence, NOT forced bit-identity (user, 2026-06-19).** The generalized
+`expand_dims(coeff, axes)·x` reduces to `sigma[None]·ψ` for σ_t (likely bit-identical), but the gate
+is the vv 3-criteria (named principled intermediate + STRUCTURALLY-INDEPENDENT reference [the
+multiplier laws, `k_∞=νΣf/Σa`, the streaming-equilibrium analytic] + FP-bounded drift) — ACCEPT a
+non-bit-identical result that arises from the more principled construction; do not force-fit 0 ULP.
+**Dispatch test-architect FIRST** (operator-algebra carve crossing numerics↔transport — the MUST
+proactive trigger): the values-level broadcast oracle, the law-suite, the `L+M[σ]≡InvertibleOperator`
+assembly check, and the legacy-vs-new convention crosswalk.
 
 **S4 — `TransportState(Protocol)` (transport/, refines `Vector`).** Bit-identical annotations. Names
 `.bulk`/`.boundary`; re-points the transport/SN operator-leaf annotations to read like the domain;
@@ -122,10 +271,58 @@ Retire σ from `StreamingOperator`'s surface; σ stays in the loss-rep sweep. **
 FIRST** (operator-composition seam). Gate: SI rhs / Krylov matvec value-equal (the composition graph
 changes — verify the field-level `L + C − S − B`); `InvertibleOperator` σ single-source consistent.
 
+⭐ **FOLD IN here (from S4): the `apply(x: TransportState)` operator re-point.** Since S8 already
+restructures `StreamingOperator` + the loss representation, re-point ALL operator leaves to read the S4
+`TransportState` Protocol atomically as part of this stage: `LinearOperatorMixin["TransportState"]` on
+`StreamingOperator`/`MultiplicationOperator`/`InvertibleOperator` + override params/returns
+`"TimedFullField"`→`"TransportState"`, and WIDEN the threaded helpers — `_require_typed_composite(field)`
+(1 helper, 4 call sites) + the **14** `loss_action`/`_transpose` defs + **15** `psi:"TimedFullField"`
+param sites in `loss_representation.py` (the invariance seam at `operator.py:641/794` closes once both
+ends read `TransportState`). This is why S4 left the operators on `TimedFullField` (a `TransportState`-
+bound `C` against a `TimedFullField`-bound `OperatorSum` is an invariant-mismatch pyright error). Gate
+includes: zero net-new pyright (the seam errors RESOLVE, not offset); `apply(x: TransportState)` reads
+like the domain.
+
 **S9 — `BoundaryMomentField` + close the moment-state boundary drop. BEHAVIORAL.** #256-step-6, fork
 #1 = general moment-tail (the #251 `boundary_face_layout` lever). The `(moment_buf, None)` drop is in
 `apply_windowed`, not public `solve_moments`. **Dispatch test-architect FIRST** (scalar↔angular↔moment).
 Gate: moment tensor byte-identical; new boundary block provably == old `None`.
+
+**S10 — χ probability-simplex enforcement at the SOURCE (`Mixture.chi`). DEFERRED to end-of-plan
+(user decision 2026-06-19); decide with hindsight when we reach it.** The simplex (Σ_g χ_g=1, χ≥0)
+is a per-FISSILE-MATERIAL invariant on `Mixture.chi` (the `(ng,)` source that generates the per-cell
+broadcast), NOT a per-cell field property — non-fissile materials store χ=0 (`mixture.py:192`).
+Enforce it where χ is born (`data/macro_xs/mixture.py`), with the intrinsic-property test living
+there. ⚠ This adds an invariant to EXISTING data → needs an upstream dependency audit (L20): every
+existing fissile `Mixture` / test fixture must already normalise or it surfaces (correctly) as a
+violation. At pickup, re-decide whether to enforce in `Mixture`, in `assemble_cell_xs`, or as a
+standalone validator — with the benefit of having seen S3/S6 (where χ is actually consumed). This is
+the home the dropped S1 `SpectrumField` was wrongly trying to be.
+
+**S11 — relocate `Field` (data storage) out of `numerics/` (L1) to `transport/` (L2) or a new `fields`
+layer. DEFERRED to end-of-plan + UNDER REVIEW (user, 2026-06-19: "why should Field go to L2? push to
+the end with detail, review at the end").** Surfaced by the S4 layering investigation; decide with
+hindsight. This is HYGIENE, ORTHOGONAL to everything else (it does NOT change `Vector`, the operator
+promotion, or any solver) — so it is genuinely optional. The case, both sides, for the end-of-plan
+review:
+- **FOR:** (a) `Field` has ZERO numerics consumers — nothing in `numerics/` constructs or annotates it;
+  it is ONLY ever subclassed from above (the L2 `transport` leaves). The `numerics/__init__.py` re-export
+  of `Field` is the visible tell that it faces upward. (b) Module-over-ring frame: `Field` is OVERLOADED
+  — simultaneously the additive base of the flux-MODULE and (via `CrossSectionField`) the underlying set
+  of the coefficient-RING; co-locating it with its users + the #257 coefficient algebra clarifies both.
+  (c) Co-locates a type with its only subclasses.
+- **AGAINST:** (a) It does NOT dissolve the `Vector` barrier (the explorer + the forgetful-functor frame
+  proved the barrier is forced by the carrier-generic ALGEBRA+DRIVERS staying in L1, NOT by `Field`'s
+  location) — so the headline motivation (the user's original "is the hierarchy the root cause?") does
+  NOT apply. (b) The documented L1/L2 principle ("L1 = knows-no-neutrons pure math; L2 = method-agnostic
+  transport") is DEFENSIBLE for `Field`: it is "values + space + algebra", depends only on the
+  unambiguously-L1 `FunctionSpace`, and "knows no neutrons". (c) `Field` is foundational — the move
+  touches `tests/test_layer_imports.py` + every leaf's import path (mechanical but wide blast radius).
+- **DECISION RULE at review:** relocate ONLY if, with hindsight from S1–S10, the module-over-ring
+  overload (FOR-b) is judged a real clarity win that outweighs the churn; otherwise CLOSE as
+  "principled-as-is" and keep `Field` in numerics. Check (L20) for any NEW numerics→Field coupling
+  introduced by S5–S10 before moving. No cycle hazard found today (numerics drivers never construct a
+  `Field`; `Field`→`FunctionSpace` is a valid downward L1 dep that survives the move).
 
 ## Verification (Cardinal Rule 1)
 
