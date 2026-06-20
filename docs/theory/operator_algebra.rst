@@ -223,12 +223,6 @@ Key Facts
   :class:`~orpheus.numerics.operator.MissingCapability` at composition
   time, NEVER at call time.
 
-- :func:`~orpheus.numerics.operator.as_scipy_linop` adapts any
-  :class:`LinearOperator` to scipy's Krylov solvers (BiCGSTAB, GMRES)
-  via :class:`scipy.sparse.linalg.LinearOperator` — preserving the
-  capability set as the gate that decides whether ``rmatvec`` is
-  exposed.
-
 
 Definitions
 ===========
@@ -388,10 +382,12 @@ Today the existing
 :func:`build_transport_linear_operator <orpheus.sn.operator.build_transport_linear_operator>`
 functions in :mod:`orpheus.sn.operator` continue to wrap their matvec
 in :class:`scipy.sparse.linalg.LinearOperator` directly, untouched by
-this module. The :func:`as_scipy_linop` adapter exists so that when
-those call sites migrate to the ORPHEUS protocol (Issue 15), the
-scipy interop continues to work without rewriting BiCGSTAB / GMRES
-inner loops.
+this module. The ORPHEUS↔scipy boundary for the Krylov accelerator is
+now internal to :class:`~orpheus.numerics.iteration.KrylovAcceleration`
+— a single ravel-aware adapter lifts the flat scipy vector to the typed
+carrier, runs the carrier-space matvec, and ravels the result back — so
+both the system matvec and the preconditioner route through one site
+(single source of truth).
 
 
 .. _diagonal-operator:

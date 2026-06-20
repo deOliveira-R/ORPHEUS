@@ -42,12 +42,6 @@ projects onto the fission spectrum). Forcing those classes to provide
 ``solve`` stubs that raise ``NotImplementedError`` is harmful — the
 contract should be "I can do *these* things" not "I can do everything
 or fail." See :ref:`operator-algebra` for the full design rationale.
-
-The :func:`as_scipy_linop` adapter exposes any
-:class:`LinearOperator` to scipy's Krylov solvers (BiCGSTAB, GMRES) so
-the existing iterative-solver call sites in
-:mod:`orpheus.sn.operator` and :mod:`orpheus.diffusion` can consume
-operators built from this module without rewriting their inner loops.
 """
 
 from __future__ import annotations
@@ -64,7 +58,6 @@ from typing import (
 )
 
 import numpy as np
-import scipy.sparse.linalg as spla
 
 from orpheus.numerics.vector import V
 
@@ -92,7 +85,6 @@ __all__ = [
     "RankOneOperator",
     "TensorProductOperator",
     "SumOfTensorProductsOperator",
-    "as_scipy_linop",
     "CAP_APPLY",
     "CAP_SOLVE",
     "CAP_APPLY_TRANSPOSE",
@@ -1776,60 +1768,3 @@ class RankOneOperator(LinearOperatorMixin):
         inner = (self.right * x_arr).sum(axis=self.axis, keepdims=True)
         return self.left * inner
 
-
-# ───────────────────────────────────────────────────────────────────────
-# scipy interop
-# ───────────────────────────────────────────────────────────────────────
-
-
-def as_scipy_linop(
-    op: LinearOperator,
-    shape: tuple[int, int],
-    dtype: type | np.dtype = float,
-) -> spla.LinearOperator:
-    r"""Wrap an ORPHEUS :class:`LinearOperator` for scipy Krylov solvers.
-
-    scipy's BiCGSTAB / GMRES / etc. consume
-    :class:`scipy.sparse.linalg.LinearOperator` and call ``matvec``
-    (and optionally ``rmatvec``). This adapter delegates to
-    :meth:`LinearOperator.apply` (and :meth:`apply_transpose` if the
-    capability is advertised), keeping the capability set as the
-    single source of truth.
-
-    Parameters
-    ----------
-    op
-        Source operator. Must advertise :pydata:`CAP_APPLY`.
-    shape
-        ``(n_rows, n_cols)`` of the equivalent dense matrix. scipy
-        requires a static shape; the ORPHEUS protocol does not.
-        Picking the wrong shape here is an error scipy will detect at
-        first ``matvec``.
-    dtype
-        scipy LinearOperator dtype — passed through unchanged.
-
-    Returns
-    -------
-    scipy.sparse.linalg.LinearOperator
-        Wrapper whose ``matvec`` is ``op.apply`` and (when available)
-        ``rmatvec`` is ``op.apply_transpose``.
-
-    Raises
-    ------
-    MissingCapability
-        If ``op`` does not advertise :pydata:`CAP_APPLY`.
-    """
-    if not _has(op, CAP_APPLY):
-        raise MissingCapability(
-            f"as_scipy_linop requires {CAP_APPLY!r}; "
-            f"{type(op).__name__} advertises "
-            f"{getattr(op, 'capabilities', frozenset())}."
-        )
-
-    matvec = op.apply
-    rmatvec = (
-        op.apply_transpose  # type: ignore[attr-defined]
-        if _has(op, CAP_APPLY_TRANSPOSE)
-        else None
-    )
-    return spla.LinearOperator(shape, matvec=matvec, rmatvec=rmatvec, dtype=dtype)

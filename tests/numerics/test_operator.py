@@ -27,7 +27,6 @@ from orpheus.numerics.operator import (
     OperatorSum,
     ScaledOperator,
     ZeroOperator,
-    as_scipy_linop,
 )
 
 pytestmark = pytest.mark.foundation
@@ -410,54 +409,6 @@ def test_transport_eigenvalue_algebra_smoke(matrix_full, matrix_apply_only):
     x = np.ones(L.matrix.shape[0])
     expected = L.matrix @ x - S.matrix @ x - F.matrix @ x
     np.testing.assert_allclose(op.apply(x), expected, rtol=1e-12)
-
-
-# ───────────────────────────────────────────────────────────────────────
-# scipy interop
-# ───────────────────────────────────────────────────────────────────────
-
-
-def test_as_scipy_linop_matvec_matches_apply(matrix_full, vector):
-    n = matrix_full.matrix.shape[0]
-    sp = as_scipy_linop(matrix_full, shape=(n, n))
-    np.testing.assert_allclose(
-        sp.matvec(vector), matrix_full.apply(vector), rtol=1e-12
-    )
-
-
-def test_as_scipy_linop_rmatvec_when_transpose_capable(matrix_full, vector):
-    n = matrix_full.matrix.shape[0]
-    sp = as_scipy_linop(matrix_full, shape=(n, n))
-    np.testing.assert_allclose(
-        sp.rmatvec(vector), matrix_full.apply_transpose(vector), rtol=1e-12
-    )
-
-
-def test_as_scipy_linop_no_rmatvec_when_not_transpose_capable(
-    matrix_apply_only, vector
-):
-    n = matrix_apply_only.matrix.shape[0]
-    sp = as_scipy_linop(matrix_apply_only, shape=(n, n))
-    # scipy raises when rmatvec is not provided. We don't pin scipy's
-    # exact exception type — only that calling rmatvec fails.
-    with pytest.raises(Exception):  # noqa: BLE001 - scipy version-dependent
-        sp.rmatvec(vector)
-
-
-def test_as_scipy_linop_rejects_missing_apply():
-    bad = NoApplyOperator()
-    with pytest.raises(MissingCapability, match="apply"):
-        as_scipy_linop(bad, shape=(3, 3))
-
-
-def test_as_scipy_linop_works_with_composite(matrix_full, matrix_apply_only):
-    """End-to-end: build (L - S) via algebra, hand to scipy."""
-    composite = matrix_full - matrix_apply_only
-    n = matrix_full.matrix.shape[0]
-    sp = as_scipy_linop(composite, shape=(n, n))
-    x = np.ones(n)
-    expected = matrix_full.matrix @ x - matrix_apply_only.matrix @ x
-    np.testing.assert_allclose(sp.matvec(x), expected, rtol=1e-12)
 
 
 # ═══════════════════════════════════════════════════════════════════════

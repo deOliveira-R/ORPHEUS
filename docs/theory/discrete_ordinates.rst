@@ -11682,10 +11682,13 @@ Wave-E reconciliation of ERR-026.
   closure-bias-driven self-consistent fixed point on curvilinear
   meshes that is **not** the fine-mesh-limit transport solution
   (ERR-026).
-* ``inverter = lambda q: gmres(as_scipy_linop(L), q, M=...)``:
+* ``inverter = lambda q: KrylovAcceleration(L, ...).solve(q)[0]``:
   Krylov-on-:meth:`apply` (the symmetric closure of
   :class:`~orpheus.sn.operator.InvertibleOperator`), with the
-  sweep injected as a preconditioner :math:`M`.  This is the
+  sweep injected as a preconditioner :math:`M`.  The ORPHEUS↔scipy
+  boundary is internal to
+  :class:`~orpheus.numerics.iteration.KrylovAcceleration` (a single
+  ravel-aware adapter wraps :meth:`apply` for scipy's GMRES).  This is the
   Wave E Round 2 reconciliation that closes ERR-026 for
   curvilinear SN: the converged solution comes from the symmetric
   :meth:`apply` closure (the one that agrees with analytical

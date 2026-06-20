@@ -28,7 +28,6 @@ from .operator import (
     SumOfTensorProductsOperator,
     TensorProductOperator,
     ZeroOperator,
-    as_scipy_linop,
 )
 from orpheus.numerics.quadrature import gauss_legendre_on_mu, lebedev_sphere, level_symmetric_sn, product_mu_phi
 from .basis.spherical_harmonic_basis import SphericalHarmonicBasis
@@ -84,7 +83,6 @@ __all__ = [
     "V_contra",
     "Vector",
     "ZeroOperator",
-    "as_scipy_linop",
     "equispaced",
     "gauss_chebyshev",
     "gauss_legendre",

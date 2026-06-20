@@ -207,6 +207,27 @@ def _unravel_like(template, flat: np.ndarray):
     return flat.reshape(template.shape)
 
 
+def _as_scipy_linop(carrier_matvec, template, n: int) -> spla.LinearOperator:
+    """The single ORPHEUS↔scipy Krylov boundary.
+
+    Wrap a carrier-space matvec ``carrier_matvec: V -> V`` as a flat
+    ``scipy.sparse.linalg.LinearOperator`` of shape ``(n, n)``.  The flat
+    vector scipy hands in is lifted to the typed carrier via ``template``
+    (the ravellable protocol, :func:`_unravel_like`), the carrier-space
+    matvec runs, and the result is ravelled back to 1-D (:func:`_ravel`).
+    For a bare-ndarray ``template`` the lift/ravel reduce to a reshape, so
+    the L0 path is unchanged.
+
+    This is the SOLE site that constructs a scipy ``LinearOperator`` for the
+    Krylov accelerator; both the system matvec and the preconditioner route
+    through it (single source of truth, Cardinal Rule 2).
+    """
+    def _flat_matvec(flat: np.ndarray) -> np.ndarray:
+        return _ravel(carrier_matvec(_unravel_like(template, flat)))
+
+    return spla.LinearOperator((n, n), matvec=_flat_matvec, dtype=float)
+
+
 def _zeros_like(template):
     """Zero typed flux or bare ndarray matching ``template``'s shape/mesh."""
     if _is_ravellable(template):
@@ -741,33 +762,23 @@ class KrylovAcceleration(Generic[V]):
             else q_ext
         )
 
-        def A_matvec(psi_flat: np.ndarray) -> np.ndarray:
-            # Lift back to the typed (or shaped) carrier, compose
-            # (L − Σ gᵢ)·ψ, ravel.  Operator arithmetic propagates via
-            # dunders to ``.boundary`` (AngularFlux) or just the ndarray
-            # (bare).  For SN within-group the gains are S and B, so this
-            # IS the honest (L+C − S − B)·ψ matvec.
-            psi = _unravel_like(solution_template, psi_flat)
+        def loss_minus_gains(psi: V) -> V:
+            # The honest within-group system matvec (L+C − S − B)·ψ:
+            # pure-loss/streaming minus the in-scatter + boundary gains.
+            # Operator arithmetic propagates via dunders to ``.boundary``
+            # (typed AngularFlux) or just the ndarray (bare).
             out = self.L.apply(psi)
             for g in self.gains:
                 out = out - g.apply(psi)
-            return _ravel(out)
+            return out
 
-        A_scipy = spla.LinearOperator((n, n), matvec=A_matvec, dtype=float)
+        A_scipy = _as_scipy_linop(loss_minus_gains, solution_template, n)
 
-        if self._preconditioner is not None:
-            precond_fn = self._preconditioner
-
-            def M_matvec(q_flat: np.ndarray) -> np.ndarray:
-                q = _unravel_like(q_ext, q_flat)
-                out = precond_fn(q)
-                return _ravel(out)
-
-            M_scipy: spla.LinearOperator | None = spla.LinearOperator(
-                (n, n), matvec=M_matvec, dtype=float,
-            )
-        else:
-            M_scipy = None
+        M_scipy: spla.LinearOperator | None = (
+            _as_scipy_linop(self._preconditioner, q_ext, n)
+            if self._preconditioner is not None
+            else None
+        )
 
         x0 = (
             _ravel(initial_guess)
@@ -800,8 +811,10 @@ class KrylovAcceleration(Generic[V]):
             # Older scipy (<1.14) used ``tol`` instead of ``rtol`` and may not
             # honour ``callback_type`` — fall back ONLY for a genuine SCIPY
             # SIGNATURE mismatch ("unexpected keyword argument ...").  A
-            # TypeError raised from INSIDE ``A_matvec`` / ``M_matvec`` / the
-            # callback (e.g. a cross-class typed-field op) MUST NOT be masked
+            # TypeError raised from INSIDE the wrapped carrier matvec
+            # (``loss_minus_gains`` / the preconditioner, via
+            # :func:`_as_scipy_linop`) or the callback (e.g. a cross-class
+            # typed-field op) MUST NOT be masked
             # as a scipy-version issue — re-raise it so the real error
             # surfaces.  (This exact over-broad ``except`` masked a B.5.2
             # matvec cross-class regression as a misleading "tol" error.)
