@@ -48,12 +48,14 @@ from orpheus.transport.fields import (
     ScalarFlux,
 )
 from orpheus.transport.full_field import FullField
+from orpheus.transport.integral_kernel_operator import IntegralKernelOperator
 from orpheus.transport.timed_full_field import TimedFullField
 
 __all__ = [
     "CrossSectionField",
     "FullField",
     "HarmonicMomentField",
+    "IntegralKernelOperator",
     "ScalarFlux",
     "TimedFullField",
 ]

@@ -108,20 +108,56 @@ Capability advertisement
 prevents efficient inversion); no ``apply_transpose`` (would require an
 adjoint Pℓ transposition that the current ORPHEUS solver does not
 need; can be added in a future wave).
+
+The §5.6 Kernel reading — scattering as an integral kernel
+==========================================================
+
+In the grand-report §5.6 suffix law (see
+:mod:`orpheus.transport.integral_kernel_operator`) scattering is a
+**Kernel**: a *nonlocal* operator whose anisotropic action integrates
+the flux against a measure on the angular axis (the :math:`P_\ell`
+source at ordinate :math:`\hat\Omega_n` reads the flux at *every*
+ordinate, via projection-then-reconstruction). #257 S6 makes this a
+type-level fact — :class:`ScatteringOperator` exposes the integral
+structure through a :attr:`~ScatteringOperator.kernel` property, the
+typed :class:`~orpheus.numerics.operator.OperatorProduct`
+
+.. math::
+
+    \mathrm{kernel} \;=\; R \;\circ\; \Lambda_{\ell\ge 1} \;\circ\; M ,
+
+so the operator satisfies the
+:class:`~orpheus.transport.integral_kernel_operator.IntegralKernelOperator`
+Protocol. The :attr:`~ScatteringOperator.kernel` exposes the
+anisotropic Legendre redistribution (the genuinely-nonlocal-in-angle
+part); the isotropic :math:`\ell=0` :math:`P_0` in-scatter fast path
+and the :math:`(n,2n)` doubling are the LOCAL / separate components of
+the full :meth:`~ScatteringOperator.apply`. The ``kernel`` is the §5.6
+*semantic reading* of the existing :math:`R\Lambda M` aniso path
+(:meth:`~ScatteringOperator.build_aniso_source` /
+:meth:`~ScatteringOperator._aniso_source_from_moment_values`); the 5
+:meth:`~ScatteringOperator.apply` dispatch arms are UNCHANGED in S6
+(additive, bit-identical), and the two compose the same numpy chain
+(pinned at 0 ULP by
+``tests/sn/operators/test_scattering_kernel_crosscheck.py``). The
+producer-side :math:`1/W` normalisation (lesson L18) lives OUTSIDE the
+kernel, at the :meth:`~ScatteringOperator.apply` boundary.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import singledispatchmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
 from orpheus.numerics.operator import (
     BlockRole,
     CAP_APPLY,
+    LinearOperator,
     LinearOperatorMixin,
+    OperatorProduct,
 )
 from orpheus.numerics.projection import (
     MomentProjection,
@@ -466,6 +502,15 @@ class ScatteringOperator(LinearOperatorMixin):
           :math:`\phi`, so :math:`M` is already done and only this
           :math:`R\,\Lambda` map remains.
 
+        The §5.6 :attr:`kernel` property (#257 S6) is the typed
+        :class:`~orpheus.numerics.operator.OperatorProduct` assembly of
+        the SAME :math:`R`, :math:`\Lambda_{\ell\ge 1}` factors composed
+        with :math:`M` — ``kernel.apply(psi.values)`` reproduces this map
+        (on ``M.apply(psi.values)``) byte-for-byte, pinned at 0 ULP by
+        ``tests/sn/operators/test_scattering_kernel_crosscheck.py``. Any
+        edit to this reconstruction MUST keep that gate green (the
+        property and this method must not diverge).
+
         It supersedes the per-:math:`\ell`
         ``_PerLegendreOrderScattering`` kernel (retired), which
         recomputed :math:`M\,\psi` independently for every Legendre
@@ -493,6 +538,129 @@ class ScatteringOperator(LinearOperatorMixin):
         )
         reconstruct = HarmonicMomentReconstruction.from_Y(self.Y)
         return reconstruct.apply(scatter.apply(moment_values))
+
+    @property
+    def kernel(self) -> LinearOperator:
+        r"""#257 S6 — the §5.6 integral kernel :math:`R \circ \Lambda \circ M`.
+
+        Returns the anisotropic Legendre redistribution as a typed
+        :class:`~orpheus.numerics.operator.OperatorProduct`
+
+        .. math::
+
+            \mathrm{kernel} \;=\; R \;\circ\; \Lambda_{\ell\ge 1}
+                \;\circ\; M ,
+
+        the genuinely-nonlocal-in-angle part of :math:`S`: it projects
+        the per-ordinate flux onto harmonic moments (:math:`M`), applies
+        the per-ℓ group-transfer cross sections on moment space
+        (:math:`\Lambda_{\ell\ge 1}`, ``skip_l0=True``), and reconstructs
+        the per-ordinate source via the addition theorem (:math:`R`). The
+        factors are EXACTLY those of the existing path:
+
+        * :math:`M` =
+          :class:`~orpheus.numerics.projection.MomentProjection`
+          ``(weights=self.weights, Y=self.Y, L=self.scattering_order)``;
+        * :math:`\Lambda_{\ell\ge 1}` = :class:`LegendreMomentScattering`
+          ``(mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=True)``;
+        * :math:`R` =
+          :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`
+          ``.from_Y(self.Y)``;
+
+        the SAME :math:`\Lambda` and :math:`R`
+        :meth:`_aniso_source_from_moment_values` builds, composed with
+        the SAME :math:`M`
+        :meth:`build_aniso_source` projects with. The nesting
+        ``OperatorProduct(R, OperatorProduct(Λ, M))`` (whose
+        :meth:`~orpheus.numerics.operator.OperatorProduct.apply` is
+        ``a.apply(b.apply(x))``) gives
+        :math:`\mathrm{kernel.apply}(\psi.\mathrm{values}) =
+        R(\Lambda(M\,\psi))` — **byte-identical** to the existing chain
+        ``_aniso_source_from_moment_values(M·ψ)``, same einsums, same
+        order.
+
+        With this property :class:`ScatteringOperator` satisfies the
+        §5.6
+        :class:`~orpheus.transport.integral_kernel_operator.IntegralKernelOperator`
+        Protocol: scattering IS a nonlocal integral kernel (the ``R∘Λ∘M``
+        angular redistribution), while the isotropic
+        :math:`\ell=0` :math:`P_0` in-scatter fast path
+        (:meth:`add_iso_source`) and the :math:`(n,2n)` doubling
+        (:meth:`add_n2n_source`) are the LOCAL / separate components of
+        the full :meth:`apply`.
+
+        Semantic, not a rewiring (Cardinal Rule 2)
+        -------------------------------------------
+
+        ``kernel`` is the §5.6 *semantic reading* of the aniso path; the
+        5 :meth:`apply` dispatch arms are UNCHANGED (the
+        :math:`R \Lambda M` evaluation they run via
+        :meth:`build_aniso_source` /
+        :meth:`_aniso_source_from_moment_values` stays the production
+        realization). The two compose the same numpy chain — pinned at
+        0 ULP by
+        ``tests/sn/operators/test_scattering_kernel_crosscheck.py``. The
+        producer-side :math:`1/W` normalisation (lesson L18) lives
+        OUTSIDE this kernel, at the :meth:`apply` boundary
+        (:meth:`build_aniso_source` divides by ``sum_w`` after calling
+        the map), so :math:`\mathrm{kernel.apply}` returns the
+        per-ordinate :math:`\ell\ge 1` source **pre**-:math:`1/W`.
+
+        Built fresh on each access (the factors are cheap reference
+        bindings) to honor the :attr:`mat_xs` / :attr:`Y` read-through.
+
+        Raises
+        ------
+        ValueError
+            If ``scattering_order == 0`` — an isotropic operator has no
+            anisotropic integral kernel (the :math:`\ell\ge 1`
+            redistribution is empty; :attr:`Y` is ``None``). The §5.6
+            Kernel surface is meaningful only for anisotropic scattering;
+            the P0 in-scatter is the LOCAL component handled by
+            :meth:`add_iso_source`.
+
+        Returns
+        -------
+        LinearOperator
+            ``OperatorProduct(R, OperatorProduct(Λ, M))`` — the typed
+            ``R∘Λ∘M`` anisotropic redistribution.
+        """
+        Y = self.Y
+        if Y is None:
+            raise ValueError(
+                "ScatteringOperator.kernel requires scattering_order >= 1: "
+                "an isotropic (P0-only) operator has no anisotropic integral "
+                "kernel (the R∘Λ∘M angular redistribution is empty). The P0 "
+                "in-scatter is the LOCAL component, handled by add_iso_source."
+            )
+        # The three factors ARE LinearOperators at runtime (they carry
+        # apply / capabilities / domain / codomain — the kernel cross-check
+        # asserts ``isinstance(kernel, LinearOperator)``), but the
+        # numerics.projection primitives subclass the UNPARAMETRISED
+        # ``LinearOperatorMixin`` with a concrete ``apply(x: ndarray)``, so
+        # pyright cannot unify the generic ``V`` of ``OperatorProduct[V]``
+        # from them. ``cast`` is the PEP-484 bridge for a known-correct
+        # runtime interface the static analyser cannot infer (NOT a
+        # ``# type: ignore`` suppression) — the established convention in
+        # this codebase (orpheus.data.micro_xs). The projection-operator
+        # generic gap is #226 scope.
+        moment_projection = cast(
+            LinearOperator,
+            MomentProjection(weights=self.weights, Y=Y, L=self.scattering_order),
+        )
+        legendre_scattering = cast(
+            LinearOperator,
+            LegendreMomentScattering(
+                mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=True,
+            ),
+        )
+        reconstruct = cast(
+            LinearOperator, HarmonicMomentReconstruction.from_Y(Y),
+        )
+        # R ∘ Λ ∘ M as a nested OperatorProduct (apply = a.apply(b.apply(x))).
+        return OperatorProduct(
+            reconstruct, OperatorProduct(legendre_scattering, moment_projection),
+        )
 
     def _assemble_per_ordinate_source(
         self,

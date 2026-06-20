@@ -614,6 +614,105 @@ the composition.
      ``.claude/agent-memory/method-implementer/issue_257_s5_functional_category_closeout.md``.
 
 
+.. _integral-kernel-category:
+
+The integral-kernel category (the §5.6 Kernel suffix)
+=====================================================
+
+The §5.6 suffix law's middle term is the **Kernel**: a
+:class:`~orpheus.numerics.operator.LinearOperator` whose action is
+**nonlocal** — it integrates the carrier field against a measure on one
+or more axes — distinct from a LOCAL / diagonal
+:class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`
+(:eq:`multiplication-operator-action`, the §5.7 Operator) and from a
+field→scalar :class:`~orpheus.numerics.functional.Functional`
+(:eq:`production-rate-functional`). The single discriminator is
+**locality** (Frame 3): a multiplication operator's output at a point is
+a pointwise function of the input *there*, while a Kernel's output reads
+the input across an integrated axis. #257 S6 names this category as the
+:class:`orpheus.transport.integral_kernel_operator.IntegralKernelOperator`
+Protocol — a **refinement of** LinearOperator (it still has ``apply`` +
+``capabilities``, UNLIKE the disjoint Functional) that adds a single
+``kernel`` member exposing the integral structure as a
+:class:`~orpheus.numerics.operator.LinearOperator`:
+
+.. math::
+   :label: integral-kernel-category
+
+   (A\,\psi)(x) \;=\; \int K(x, x')\,\psi(x')\,d\mu(x') ,
+   \qquad K \;=\; A.\mathrm{kernel}.
+
+The two named transport instances are the Boltzmann emission kernels.
+**Fission** exposes the rank-1 :math:`\chi \otimes \nu\Sigma_f` kernel
+(a :class:`~orpheus.numerics.operator.TensorProductOperator`) and is the
+§5.6 composition :math:`F = M_\chi \circ \mathrm{ProductionRate} \circ
+M_{\nu\Sigma_f}` whose middle factor is the S5
+:eq:`production-rate-functional`; the realization stays the fused
+``RankOneOperator`` (the semantic decomposition and the realization are
+bit-identical by construction). **Scattering** exposes the anisotropic
+Legendre redistribution :math:`R \circ \Lambda \circ M` (an
+:class:`~orpheus.numerics.operator.OperatorProduct`, the
+genuinely-nonlocal-in-angle part of
+:eq:`scattering-as-tensor-product-sum`); the isotropic :math:`P_0`
+in-scatter and the :math:`(n,2n)` doubling are the local / separate
+components of the full scattering ``apply``. The matvec arms of both
+operators are UNCHANGED in S6 (additive, bit-identical).
+
+.. vv-status: integral-kernel-category documented
+
+.. todo:: Archivist expansion needed (#257 S6).
+
+   The full §5.6 Kernel-category narrative — the Operator / Kernel /
+   Functional partition completed (the Kernel as a *refinement* of
+   LinearOperator, asymmetric to the *disjoint* Functional), the
+   locality criterion (Frame 3) separating the nonlocal integral
+   kernels from the local multiplication operator, the two named kernel
+   shapes (fission's rank-1 ``χ ⊗ νΣf`` ``TensorProductOperator`` and
+   scattering's ``R ∘ Λ ∘ M`` ``OperatorProduct``) and why their union
+   is just ``LinearOperator``, the bit-identity of each kernel to its
+   matvec realization, and the deferred follow-ups (un-orphaning
+   ``SumOfTensorProductsOperator`` for the full :math:`\sum_\ell P_\ell
+   \otimes \Sigma_{s,\ell}` scattering form; relocating the
+   carrier-agnostic cores to ``transport/``) — belongs here. Sources
+   for the expansion:
+
+   * Code: :class:`orpheus.transport.integral_kernel_operator.IntegralKernelOperator`
+     (the §5.6 Kernel Protocol, L2 — the
+     :class:`~orpheus.numerics.operator.LinearOperator` refinement
+     exposing ``kernel``).
+   * Named kernels:
+     :attr:`orpheus.sn.fission.FissionOperator.kernel` (the rank-1
+     ``χ ⊗ νΣf`` :class:`~orpheus.numerics.operator.TensorProductOperator`,
+     present since Wave T) +
+     :attr:`orpheus.sn.fission.FissionOperator.production_rate` (the S6
+     §5.6 middle factor, an
+     :class:`~orpheus.transport.production_rate_functional.ProductionRateFunctional`);
+     :attr:`orpheus.sn.scattering.ScatteringOperator.kernel` (the
+     ``R ∘ Λ ∘ M`` :class:`~orpheus.numerics.operator.OperatorProduct`).
+   * Factors: :class:`~orpheus.numerics.projection.MomentProjection`
+     (:math:`M`), :class:`orpheus.sn.scattering.LegendreMomentScattering`
+     (:math:`\Lambda`),
+     :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`
+     (:math:`R`).
+   * Tests: ``tests/transport/test_integral_kernel_category.py`` (the
+     category-refinement intrinsic gate — Kernel still a LinearOperator,
+     kernel-less LinearOperator / Functional are NOT Kernels),
+     ``tests/sn/operators/test_fission_kernel_crosscheck.py`` (the
+     hand-derived fission correctness reference + the
+     ``χ · production_rate ≡ F.apply`` 0-ULP de-risk),
+     ``tests/sn/operators/test_scattering_kernel_crosscheck.py`` (the
+     ``S.kernel.apply ≡ R∘Λ∘M`` 0-ULP equivalence — the physics L1
+     backing is the existing aniso MMS gate
+     ``tests/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py``).
+   * Plan: ``.claude/plans/issue_257_coefficient_field_promotion.md`` (S6).
+   * Frame memo:
+     ``.claude/agent-memory/cross-domain-attacker/coefficient_field_promotion_frames.md``
+     — Frame 3 (the locality criterion separating the multiplication
+     operator from the integral kernels).
+   * Closeout memo:
+     ``.claude/agent-memory/method-implementer/issue_257_s6_integral_kernel_category_closeout.md``.
+
+
 .. _tensorial-framing:
 
 Tensor product algebra
