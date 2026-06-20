@@ -47,11 +47,13 @@ from orpheus.transport.fields import (
     HarmonicMomentField,
     ScalarFlux,
 )
-from orpheus.transport.state import TransportState
+from orpheus.transport.full_field import FullField
+from orpheus.transport.timed_full_field import TimedFullField
 
 __all__ = [
     "CrossSectionField",
+    "FullField",
     "HarmonicMomentField",
     "ScalarFlux",
-    "TransportState",
+    "TimedFullField",
 ]

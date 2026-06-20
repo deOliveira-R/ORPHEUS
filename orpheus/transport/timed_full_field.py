@@ -1,9 +1,38 @@
-r"""Cross-method generic container: bulk field + boundary field + time history.
+r"""Cross-method generic container: the timed (history-bearing) full field.
 
-L2 (transport, method-agnostic). Holds the composite transport state
-that an SN / CP / MoC / diffusion solver iterates over — a **bulk**
-field paired with its **boundary** field partner, plus a rotating
-history buffer for time-derivative stencils.
+L2 (transport, method-agnostic). :class:`TimedFullField` is the
+**cofree comonad** ``Cofree(FullField, depth=d)`` over the timeless
+:class:`~orpheus.transport.full_field.FullField` carrier — it pairs the
+*current* timeless ``bulk ⊕ boundary`` frame with a rotating history
+buffer of prior timeless frames. This is the composite transport state
+an SN / CP / MoC / diffusion solver **iterates** over.
+
+The split (the #217 deliverable)
+================================
+
+The timeless algebra — the ``bulk ⊕ boundary`` pair, the six
+vector-space dunders, the flat-vector protocol (``to_flat`` /
+``from_flat``), ``copy``, ``zeros``, and the bulk/boundary/mesh
+construction validation — lives ONCE in the base
+:class:`~orpheus.transport.full_field.FullField` (DRY). This class ADDS
+only the time-aware part:
+
+* ``_history`` / ``history_depth`` — the rotating shift-register.
+* :meth:`advance` / :meth:`at_lag` / :meth:`history_length` — the
+  shift-register verbs (the only time-aware behaviour; only the drivers
+  use them).
+* The ``history_depth >= 0`` validation (extends the base's
+  bulk/boundary/mesh checks).
+* The :meth:`_recombine` override that carries ``history_depth`` and an
+  EMPTY history into algebra results, plus the ``zeros`` / ``from_flat``
+  classmethod specialisations that thread ``history_depth``.
+
+Only the iteration / time-stepping drivers see the comonad (the
+history); the operator algebra reads a timeless
+:class:`~orpheus.transport.full_field.FullField` frame in and writes one
+out (it is blind to the history). That is the structural reason the
+split is forced — see :mod:`orpheus.transport.full_field` for the full
+rationale.
 
 Why the bulk + boundary + history split is the right L2 abstraction
 ====================================================================
@@ -20,17 +49,19 @@ THREE concepts on a single class:
    and by Anderson-acceleration / Krylov inner-product reductions.
 
 Per Cardinal Rule 2 (shared concepts → shared abstraction), this
-split is NOT SN-specific. Every transport method has the same
+split is NOT SN-specific. Concepts (1)+(2) are the timeless
+:class:`~orpheus.transport.full_field.FullField`; concept (3) is the
+history buffer this class adds. Every transport method has the same
 trio:
 
-* **SN**: bulk = :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
-  on ``(N, ng, nx, ny)``; boundary =
+* **SN**: bulk =
+  :class:`~orpheus.transport.fields.angular_flux.AngularFlux` on
+  ``(N, ng, nx, ny)``; boundary =
   :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux` on the
   flat face-trace layout.
 * **CP** (future): bulk =
   :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` on
-  ``(ng, nx, ny)``; boundary = region-interface current (TBD when CP
-  field migration lands in Phase 3.4+).
+  ``(ng, nx, ny)``; boundary = region-interface current (TBD).
 * **MoC** (future): bulk = ``RayField`` on ``(track, segment, ng)``;
   boundary = ``RayEndpointField`` per-track-family phase angles. See
   ``[[project_moc_structure]]`` for the fiber-bundle framing.
@@ -38,23 +69,12 @@ trio:
   :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`; boundary
   = surface-current ``J = -D ∇φ`` on :math:`\partial\Omega`.
 
-:class:`TimedFullField` is the cross-method generic container that
-holds this trio. The container is **field-like** (composes via Field-
-inherited dunders propagated to both members) but is NOT a
-:class:`~orpheus.numerics.field.Field` subclass at the typed-class
-level — its natural backing space is a
-:class:`~orpheus.numerics.space.DirectSumSpace` (the direct sum of
-bulk and boundary spaces), and :class:`DirectSumSpace` is DEFERRED
-to Phase 3.6 per the ``[[feedback_unify_after_two_instances]]`` rule
-(unify once kinetics' ``flux ⊕ precursors`` ships the second use
-case). When 3.6 lands, :class:`TimedFullField` may promote to a
-``Field(values=DirectSumStorage, space=DirectSumSpace(...))`` form —
-non-breaking, the public API stays the same.
-
 Algebra contract
 ================
 
-Same-class arithmetic propagates to both bulk and boundary members:
+Same-class arithmetic propagates to both bulk and boundary members and
+carries an empty history (history is iteration metadata, NOT algebraic
+state):
 
 .. code-block:: python
 
@@ -63,16 +83,18 @@ Same-class arithmetic propagates to both bulk and boundary members:
                            _history=(),  # algebra drops iteration metadata
                            history_depth=a.history_depth)
 
-History is iteration metadata, NOT algebraic state — algebra results
-carry empty history. The ``advance(new_bulk, new_boundary)`` method is
-the canonical state-step verb that rotates the history shift-register;
-:meth:`at_lag` reads historical states for time-derivative stencils.
+This is realised via the inherited dunders routed through the
+overridden :meth:`_recombine`, so the algebra is written once on
+:class:`~orpheus.transport.full_field.FullField`. The
+``advance(new_bulk, new_boundary)`` method is the canonical state-step
+verb that rotates the history shift-register; :meth:`at_lag` reads
+historical states for time-derivative stencils.
 
 Cross-class arithmetic is rejected by an isinstance-and-bulk-type-
-identity check in :meth:`_check_partner`: an SN ``TimedFullField``
-cannot add to a CP ``TimedFullField`` even though both are
-``TimedFullField`` instances, because their bulk types differ
-(``AngularFlux`` vs ``ScalarFlux``).
+identity check in :meth:`~orpheus.transport.full_field.FullField._check_partner`:
+an SN ``TimedFullField`` cannot add to a CP ``TimedFullField`` even
+though both are ``TimedFullField`` instances, because their bulk types
+differ (``AngularFlux`` vs ``ScalarFlux``).
 
 Grep signal
 ===========
@@ -82,8 +104,8 @@ three load-bearing tokens with no false-positive matches in the
 codebase:
 
 * **Timed** — has history-aware time-derivative capability via
-  :meth:`at_lag` / :meth:`advance`. Distinguishes from a stateless
-  flux.
+  :meth:`at_lag` / :meth:`advance`. Distinguishes from the timeless
+  :class:`~orpheus.transport.full_field.FullField` base.
 * **Full** — covers the full domain (bulk + boundary). Distinguishes
   from a bulk-only :class:`~orpheus.transport.fields.angular_flux.AngularFlux`.
 * **Field** — algebraic composition object with dunder arithmetic.
@@ -92,76 +114,67 @@ codebase:
 References
 ==========
 
+* GH **issue #217** — the timeless-``FullField`` extraction (the base
+  this class now inherits).
+* :mod:`orpheus.transport.full_field` — the timeless base (carries the
+  algebra + the cofree-comonad rationale).
 * Depth B plan §3.8 (Container architecture). Located at
   ``.claude/plans/depth_b_field_on_function_space.md``.
-* Grand Report v3 §5.5 (Field hierarchy), §5.3 (Space hierarchy
-  including ``DirectSumSpace``), §6.1 (Space dunders).
-* ``coding-elegance`` Pattern 5 (build the right primitive) — the
-  cross-method container IS the right primitive; SN/CP/MoC/diffusion
-  consumers all share it.
 * ``[[project_transport_state_container]]`` — the original
   architectural decision memo (named ``TransportState`` pre-final-
   naming; renamed to ``TimedFullField`` 2026-05-28 per the user's
-  grep-signal preference).
+  grep-signal preference). A SEPARATE, later ``TransportState`` —
+  the #257 S4 structural Protocol — was also retired (by #257 S4.5,
+  superseded by the concrete :class:`~orpheus.transport.full_field.FullField`
+  base); the name ``TransportState`` is now unused in the codebase.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field as dc_field, replace
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
 
 from orpheus.transport.fields._bases import BoundaryField, BulkField
-
-if TYPE_CHECKING:
-    from numpy.typing import NDArray
-
+from orpheus.transport.full_field import FullField
 
 __all__ = ["TimedFullField"]
 
 
 @dataclass(frozen=True, kw_only=True)
-class TimedFullField:
-    r"""Cross-method generic container: bulk field + boundary field + history.
+class TimedFullField(FullField):
+    r"""Cofree comonad over :class:`~orpheus.transport.full_field.FullField`.
+
+    The history-bearing composite — a current timeless ``bulk ⊕
+    boundary`` frame plus a rotating history of prior frames. The
+    iterating flux state of every transport solve.
 
     Parameters
     ----------
     bulk : BulkField
-        The volumetric / bulk field. Any
-        :class:`~orpheus.transport.fields._bases.BulkField` subclass —
-        typically :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
-        for SN, :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
-        for CP / diffusion, ``RayField`` for MoC.
+        The volumetric / bulk field (inherited from
+        :class:`~orpheus.transport.full_field.FullField`). Any
+        :class:`~orpheus.transport.fields._bases.BulkField` subclass.
     boundary : BoundaryField
-        The boundary partner field on the trace of ``bulk``'s domain.
-        Typically :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
-        for SN; method-specific for other methods.
-    _history : tuple[TimedFullField, ...], optional
-        Rotating history of prior states, most recent first.
-        Default ``()`` (no history). Updated via :meth:`advance`.
+        The boundary partner field on the trace of ``bulk``'s domain
+        (inherited).
+    _history : tuple[FullField, ...], optional
+        Rotating history of prior frames, most recent first. Default
+        ``()`` (no history). Updated via :meth:`advance`. The elements
+        are timeless :class:`~orpheus.transport.full_field.FullField`
+        snapshots (a historical frame is itself timeless).
     history_depth : int, optional
-        Maximum number of historical states to retain. Default ``2``
-        (current + one lag = enough for first-order time derivative).
-        Bump for higher-order BDF stencils.
+        Maximum number of historical frames to retain. Default ``2``
+        (current + two lags). Bump for higher-order BDF stencils.
 
     Notes
     -----
-    NOT a :class:`Field` subclass at the typed-class level — its
-    natural backing is a :class:`DirectSumSpace` Field, which is
-    deferred to Phase 3.6. Ships as a structured composite with
-    delegate-style dunders that propagate to bulk + boundary; future
-    P3.6 promotion is non-breaking.
-
-    Algebra
-    -------
-
-    * Same-class ``+``, ``-``: propagate to bulk + boundary members.
-      Algebra results have empty history (history is iteration
-      metadata, not algebraic state).
-    * Scalar ``*``, ``/``, unary ``-``: propagate to bulk + boundary.
-    * Cross-class arithmetic is REJECTED: ``_check_partner`` enforces
-      identical TimedFullField wrapping AND identical bulk/boundary
-      class identity (catches SN-vs-CP cross-method composition even
-      though both wrap as ``TimedFullField``).
+    The algebra (the six vector-space dunders, ``to_flat`` /
+    ``from_flat``, ``copy``, ``zeros``, the bulk/boundary/mesh
+    validation) lives on the
+    :class:`~orpheus.transport.full_field.FullField` base. This class
+    overrides :meth:`_recombine` so algebra results are
+    ``TimedFullField`` with empty history + preserved ``history_depth``
+    (#217), and specialises :meth:`zeros` / :meth:`from_flat` to thread
+    ``history_depth``.
 
     History
     -------
@@ -173,9 +186,7 @@ class TimedFullField:
       ``dpsi_dt ≈ (state.at_lag(0).bulk - state.at_lag(1).bulk) / dt``.
     """
 
-    bulk: BulkField
-    boundary: BoundaryField
-    _history: tuple["TimedFullField", ...] = ()
+    _history: tuple["FullField", ...] = ()
     history_depth: int = 2
 
     # ── Construction ─────────────────────────────────────────────────
@@ -191,33 +202,37 @@ class TimedFullField:
     ) -> "TimedFullField":
         r"""Allocate a zero composite from the bulk + boundary leaf TYPES (B.5.A).
 
-        Generic over the method's leaf types: the caller passes the bulk and
-        boundary :class:`~orpheus.numerics.field.Field` *subclasses* (SN passes
-        :class:`~orpheus.transport.fields.angular_flux.AngularFlux` /
-        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`; CP / MoC
-        will pass their own), and each is zero-allocated on ``mesh`` via its own
-        :meth:`zeros_on`. This keeps the cross-method-generic container free of
-        any hard-wired leaf type — the SN-specific ``(AngularFlux, BoundaryFlux)``
-        composition lives at the SN call site, not here. Replaces the retired
-        ``SNMesh.zeros_timed_full_field`` (the mesh no longer carries transport
-        factories; it provides shape data only).
+        Specialises
+        :meth:`~orpheus.transport.full_field.FullField.zeros` by threading
+        ``history_depth`` (the timeless base has no such concept). The
+        bulk / boundary leaf CLASSES are zero-allocated on ``mesh`` via
+        their own :meth:`zeros_on` — the SN-specific ``(AngularFlux,
+        BoundaryFlux)`` composition lives at the SN call site, not here.
+        Replaces the retired ``SNMesh.zeros_timed_full_field``.
 
         Parameters
         ----------
         bulk : type[BulkField]
-            The bulk leaf CLASS to instantiate (must expose ``zeros_on(mesh)``).
+            The bulk leaf CLASS to instantiate (must expose
+            ``zeros_on(mesh)``).
         boundary : type[BoundaryField]
             The boundary leaf CLASS to instantiate (must expose
             ``zeros_on(mesh)``).
         mesh : object
             The phase-space carrier passed through to each leaf's
-            ``zeros_on`` (duck-typed — no transport→mesh hard dependency).
+            ``zeros_on`` (duck-typed — no transport→mesh hard
+            dependency).
         history_depth : int, optional
             History buffer depth (default 2; see the class docstring).
         """
+        # Delegate leaf zero-allocation to the timeless base (the SINGLE
+        # source of the duck-typed ``zeros_on`` calls), then re-wrap with
+        # the history metadata — so the only ``zeros_on`` access lives on
+        # FullField, not duplicated here.
+        base = FullField.zeros(bulk=bulk, boundary=boundary, mesh=mesh)
         return cls(
-            bulk=bulk.zeros_on(mesh),  # type: ignore[attr-defined]
-            boundary=boundary.zeros_on(mesh),  # type: ignore[attr-defined]
+            bulk=base.bulk,
+            boundary=base.boundary,
             _history=(),
             history_depth=history_depth,
         )
@@ -225,101 +240,31 @@ class TimedFullField:
     # ── Construction validation ──────────────────────────────────────
 
     def __post_init__(self) -> None:
-        if not isinstance(self.bulk, BulkField):
-            raise TypeError(
-                f"TimedFullField: bulk must be a BulkField; got "
-                f"{type(self.bulk).__name__}"
-            )
-        if not isinstance(self.boundary, BoundaryField):
-            raise TypeError(
-                f"TimedFullField: boundary must be a BoundaryField; got "
-                f"{type(self.boundary).__name__}"
-            )
-        # Mesh-identity check (where both members carry a ``mesh``
-        # attribute — the cross-method generic contract). For SN both
-        # AngularFlux and BoundaryFlux carry ``mesh: SNMesh``; other
-        # methods follow the same convention.
-        bulk_mesh = getattr(self.bulk, "mesh", None)
-        boundary_mesh = getattr(self.boundary, "mesh", None)
-        if bulk_mesh is not None and boundary_mesh is not None:
-            if bulk_mesh is not boundary_mesh:
-                raise ValueError(
-                    "TimedFullField: bulk and boundary must share mesh "
-                    "identity (both bound to the same mesh instance); "
-                    f"got bulk.mesh={bulk_mesh!r}, "
-                    f"boundary.mesh={boundary_mesh!r}"
-                )
+        super().__post_init__()
         if self.history_depth < 0:
             raise ValueError(
                 f"TimedFullField: history_depth must be non-negative; "
                 f"got {self.history_depth}"
             )
 
-    # ── Algebra (propagates to bulk + boundary; history dropped) ─────
+    # ── Polymorphic recombine hook (carries history metadata) ────────
 
-    def _check_partner(self, other: object) -> None:
-        r"""Reject a non-:class:`TimedFullField` partner.
+    def _recombine(
+        self, *, bulk: BulkField, boundary: BoundaryField,
+    ) -> "TimedFullField":
+        r"""Rebuild a ``TimedFullField`` with empty history + preserved depth.
 
-        Layer 1 at the CONTAINER level only. The bulk / boundary member-level
-        algebra (including the affine gate ``flux + flux → TypeError``, the
-        torsor ``flux + displacement → flux``, the displacement mint ``flux −
-        flux → displacement``, and cross-class rejection ``flux ± source``) is
-        the SINGLE SOURCE OF TRUTH on the leaves — ``__add__`` / ``__sub__``
-        delegate to ``self.bulk ± other.bulk`` and ``self.boundary ±
-        other.boundary``, where the leaf dunders enforce role-correctness (a
-        bulk-type mismatch like ``AngularFlux`` vs ``AngularSourceSink`` is
-        caught there by :meth:`Field._check_partner`; a flux+displacement
-        torsor is honoured there; #208). Pre-checking member types here would
-        BLOCK the legitimate composite torsor (``flux`` bulk + ``displacement``
-        bulk) — so the redundant member pre-checks are intentionally absent.
+        Overrides
+        :meth:`~orpheus.transport.full_field.FullField._recombine` so the
+        inherited vector-space dunders (defined ONCE on the base) return
+        a :class:`TimedFullField` for a ``TimedFullField`` operand —
+        carrying ``history_depth`` and an EMPTY history (#217: algebra
+        results carry empty history; history is iteration metadata, not
+        algebraic state).
         """
-        if type(other) is not TimedFullField:
-            raise TypeError(
-                f"TimedFullField arithmetic requires a same-class "
-                f"partner; got {type(other).__name__}."
-            )
-
-    def __add__(self, other: "TimedFullField") -> "TimedFullField":
-        self._check_partner(other)
         return TimedFullField(
-            bulk=self.bulk + other.bulk,
-            boundary=self.boundary + other.boundary,
-            _history=(),
-            history_depth=self.history_depth,
-        )
-
-    def __sub__(self, other: "TimedFullField") -> "TimedFullField":
-        self._check_partner(other)
-        return TimedFullField(
-            bulk=self.bulk - other.bulk,
-            boundary=self.boundary - other.boundary,
-            _history=(),
-            history_depth=self.history_depth,
-        )
-
-    def __neg__(self) -> "TimedFullField":
-        return TimedFullField(
-            bulk=-self.bulk,
-            boundary=-self.boundary,
-            _history=(),
-            history_depth=self.history_depth,
-        )
-
-    def __mul__(self, scalar: float) -> "TimedFullField":
-        return TimedFullField(
-            bulk=self.bulk * float(scalar),
-            boundary=self.boundary * float(scalar),
-            _history=(),
-            history_depth=self.history_depth,
-        )
-
-    def __rmul__(self, scalar: float) -> "TimedFullField":
-        return self.__mul__(scalar)
-
-    def __truediv__(self, scalar: float) -> "TimedFullField":
-        return TimedFullField(
-            bulk=self.bulk / float(scalar),
-            boundary=self.boundary / float(scalar),
+            bulk=bulk,
+            boundary=boundary,
             _history=(),
             history_depth=self.history_depth,
         )
@@ -337,12 +282,13 @@ class TimedFullField:
 
         * ``bulk = new_bulk``, ``boundary = new_boundary`` (current frame)
         * ``_history = (current_snapshot, *self._history)[: history_depth]``
-          where ``current_snapshot`` is the pre-advance state with
-          empty inner history.
+          where ``current_snapshot`` is the pre-advance timeless frame.
 
         The history-of-history is trimmed to ``history_depth`` (current
         frame is NOT counted in the depth — depth=2 means current +
-        2 lags).
+        2 lags). A historical frame is a timeless
+        :class:`~orpheus.transport.full_field.FullField` snapshot of the
+        bulk + boundary at that step.
 
         Parameters
         ----------
@@ -369,11 +315,9 @@ class TimedFullField:
                 f"{type(new_boundary).__name__} does not match current "
                 f"boundary type {type(self.boundary).__name__}."
             )
-        current_snapshot = TimedFullField(
+        current_snapshot = FullField(
             bulk=self.bulk,
             boundary=self.boundary,
-            _history=(),
-            history_depth=self.history_depth,
         )
         new_history = (current_snapshot, *self._history)[: self.history_depth]
         return TimedFullField(
@@ -383,11 +327,12 @@ class TimedFullField:
             history_depth=self.history_depth,
         )
 
-    def at_lag(self, lag: int) -> "TimedFullField":
-        r"""Read the state at iteration lag.
+    def at_lag(self, lag: int) -> "FullField":
+        r"""Read the frame at iteration lag.
 
         ``lag=0`` returns ``self`` (the current frame); ``lag=1``
-        returns the most recently advanced-from frame; etc.
+        returns the most recently advanced-from frame (a timeless
+        :class:`~orpheus.transport.full_field.FullField` snapshot); etc.
 
         Parameters
         ----------
@@ -396,8 +341,9 @@ class TimedFullField:
 
         Returns
         -------
-        TimedFullField
-            The state at the requested lag.
+        FullField
+            The frame at the requested lag (``self`` at lag 0, a timeless
+            ``FullField`` snapshot otherwise).
 
         Raises
         ------
@@ -426,94 +372,9 @@ class TimedFullField:
         r"""Number of historical states currently retained."""
         return len(self._history)
 
-    # ── Flat-vector protocol (Krylov / scipy.gmres adapter) ──────────
-    #
-    # Direct-sum flat representation: ``concat(bulk.values.ravel(),
-    # boundary.values)``. The boundary values are already a flat 1-D
-    # ndarray (per :class:`BoundaryFlux`'s flat-backing storage); the
-    # bulk values are reshaped via :meth:`ndarray.ravel`. The Krylov
-    # adapter at :mod:`orpheus.numerics.iteration` consumes this flat
-    # representation as the GMRES iterate vector; round-trip exactness
-    # is the load-bearing invariant.
-
-    def to_flat(self) -> "NDArray":
-        r"""Pack the current frame ``(bulk, boundary)`` into a flat 1-D vector.
-
-        The packed layout is ``[bulk.values.ravel(), boundary.values]``
-        — the direct-sum representation of the composite. The history
-        is NOT packed (algebra results carry empty history; Krylov
-        operates on the current frame only).
-
-        Returns
-        -------
-        np.ndarray
-            1-D ``float64`` ndarray of size
-            ``bulk.values.size + boundary.values.size``.
-        """
-        import numpy as np
-
-        return np.concatenate([
-            self.bulk.values.ravel(),
-            self.boundary.values,  # already 1-D (BoundaryFlux flat storage)
-        ])
-
-    @classmethod
-    def from_flat(
-        cls, flat: "NDArray", template: "TimedFullField",
-    ) -> "TimedFullField":
-        r"""Reconstruct a :class:`TimedFullField` from a flat 1-D vector + template.
-
-        The ``template`` provides the shapes and types: ``bulk`` is
-        reshaped to ``template.bulk.values.shape`` and constructed with
-        the same ``space`` / ``mesh`` as the template; ``boundary``
-        likewise. History is empty (Krylov iterates carry no
-        iteration history).
-
-        Parameters
-        ----------
-        flat : np.ndarray
-            1-D vector matching ``template.to_flat()`` in size.
-        template : TimedFullField
-            Source of structural metadata (shapes, spaces, meshes,
-            history_depth).
-
-        Returns
-        -------
-        TimedFullField
-            Reconstructed composite, empty history.
-        """
-        n_bulk = template.bulk.values.size
-        n_boundary = template.boundary.values.size
-        expected_total = n_bulk + n_boundary
-        if flat.size != expected_total:
-            raise ValueError(
-                f"TimedFullField.from_flat: flat.size = {flat.size} "
-                f"does not match template total size "
-                f"{n_bulk} + {n_boundary} = {expected_total}"
-            )
-        bulk_values = flat[:n_bulk].reshape(template.bulk.values.shape)
-        boundary_values = flat[n_bulk:]
-        new_bulk = replace(template.bulk, values=bulk_values)
-        new_boundary = replace(template.boundary, values=boundary_values)
-        return cls(
-            bulk=new_bulk,
-            boundary=new_boundary,
-            _history=(),
-            history_depth=template.history_depth,
-        )
-
-    # ── Diagnostics ──────────────────────────────────────────────────
-
-    def copy(self) -> "TimedFullField":
-        r"""Return a deep copy of the current frame (history dropped).
-
-        Snapshots the current ``(bulk, boundary)`` with owned ndarrays
-        and empty history. Used by callers that need a stable iterate
-        without the history-rotation aliasing.
-        """
-        return TimedFullField(
-            bulk=self.bulk.copy(),
-            boundary=self.boundary.copy(),
-            _history=(),
-            history_depth=self.history_depth,
-        )
+    # ``from_flat`` is INHERITED from
+    # :meth:`~orpheus.transport.full_field.FullField.from_flat`: the base
+    # is generic over the template type and routes reconstruction through
+    # :meth:`_recombine`, so ``TimedFullField.from_flat`` already returns a
+    # ``TimedFullField`` with the template's ``history_depth`` + empty
+    # history. No override needed (and no Liskov param-narrowing ignore).
