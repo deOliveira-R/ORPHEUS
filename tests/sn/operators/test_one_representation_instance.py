@@ -74,7 +74,7 @@ def test_apply_and_solve_share_one_representation_instance(monkeypatch):
 
     sn = cart2d_2g_nonsquare()
     sig_t, psi = het_operands(sn)
-    L = StreamingOperator(sn, sig_t)
+    L = StreamingOperator(sn)
     C = CollisionOperator(sn, sig_t)
     A = L + C
 
@@ -136,7 +136,7 @@ def test_gauss_seidel_resolvent_runs_the_operators_instance(monkeypatch):
 
     sn = cart2d_2g_nonsquare()
     sig_t, psi = het_operands(sn)
-    L = StreamingOperator(sn, sig_t)
+    L = StreamingOperator(sn)
     C = CollisionOperator(sn, sig_t)
     A = L + C
     resolvent = _GaussSeidelResolvent(

@@ -231,45 +231,46 @@ class StreamingOperator(LinearOperatorMixin["FullField"]):
     leaf. The split lets the within-group operator be pure algebra
     (``L + C - S.foldable_part()``); no ``WithinGroupOperator`` wrapper.
 
-    Resolution A — subtractive ``apply``
-    ------------------------------------
+    Pure σ-free streaming ``apply`` (#257 S8b)
+    ------------------------------------------
 
     .. math::
 
-        L.{\rm apply}(\psi) \;:=\; M(\psi;\;\sigma_t) \;-\;
-                                  \sigma_t \odot \psi_{\rm packed}
+        L.{\rm apply}(\psi) \;:=\; \Omega\cdot\nabla\psi \;=\;
+            \text{streaming\_action}(\psi)
 
-    The matvec primitive is called at the user's σ_t (constructor-stored),
-    then the cell-collision term :math:`\sigma_t \odot \psi` is
-    subtracted at the packed-vector level. Combined with
-    :math:`C.{\rm apply}(\psi) = \sigma_t \odot \psi`, this gives
-    :math:`(L + C).{\rm apply}(\psi) = M(\psi;\;\sigma_t)` bit-exact.
-
-    Why σ_t is a CONSTRUCTOR parameter (Pattern 4)
-    ----------------------------------------------
-
-    The discrete curvilinear matvec is RATIONAL in σ_t through the
-    Carlson coupled-pole seed (Hébert §3.9.4 Eqs. 3.432-3.435):
+    :math:`L` computes pure streaming **directly, with no
+    :math:`\sigma`**: :meth:`apply` calls the
+    :attr:`loss_representation`'s named σ-free
+    :meth:`~orpheus.sn.loss_representation.LossRepresentation.streaming_action`
+    leaf (the ONE streaming discretization, single-sourced through
+    ``loss_action`` at :math:`\sigma = 0`).  The collision diagonal
+    :math:`C = M[\sigma_t]` is the separate shared
+    :class:`CollisionOperator` leaf, and the composition
 
     .. math::
 
-        \bar\phi_i \;=\; \frac{\Delta r_i\,\bar Q_i + 2\,\bar\phi_{i+1/2}}
-                              {\Delta r_i\,\Sigma_t(i) + 2}
+        (L + C).{\rm apply}(\psi) \;=\; \text{streaming\_action}(\psi)
+            \;+\; \sigma_t \odot \psi \;=\; M(\psi;\;\sigma_t)
 
-    where :math:`\bar Q_i = \Sigma_t(i)\,\phi_0(i) / W` at ℓ=0. The
-    discrete L (with M-M angular closure) is therefore intrinsically
-    σ_t-coupled — analogous to the DD coefficient :math:`\alpha_{DD}
-    (\sigma_t\,\Delta x)` in characteristic-line methods, or the
-    exponential characteristic :math:`\exp(-\sigma_t\,s)` in MoC/CP.
-    Discrete streaming operators routinely carry σ_t through their
-    closure choices.
+    recovers the full within-group loss (the WDD matvec is affine in
+    :math:`\sigma` in the forward direction — see
+    :meth:`~orpheus.sn.loss_representation.LossRepresentation.streaming_action`).
 
-    The CONTINUOUS L (:math:`\Omega\cdot\nabla\psi + (1-\mu^2)/r\,
-    \partial\psi/\partial\mu`) is σ_t-independent. The DISCRETE L's
-    σ_t parametrisation is a property of the discretisation. Pattern 4
-    (illegal states unrepresentable) — ``StreamingOperator(sn_mesh)``
-    without σ_t is not a meaningful object for curvilinear SN; the
-    constructor refusing to construct without σ_t encodes that fact.
+    Why :math:`L` carries NO σ (Pattern 4 — #257 S8b)
+    -------------------------------------------------
+
+    The DISCRETE curvilinear matvec threads :math:`\sigma_t` through the
+    Carlson coupled-pole seed (Hébert §3.9.4 Eqs. 3.432-3.435), but that
+    :math:`\sigma`-dependence is *exactly the collision diagonal* the seed
+    injects — it cancels into the :math:`\sigma\cdot\psi` term and belongs
+    to :math:`C`, not :math:`L`.  Probe-confirmed σ-freedom: ``streaming\_action``
+    is byte-stable (to ≤ a few ULP) across wildly different :math:`\sigma`
+    fields (#257 S8b).  The CONTINUOUS :math:`L`
+    (:math:`\Omega\cdot\nabla\psi + (1-\mu^2)/r\,\partial\psi/\partial\mu`)
+    is σ-independent, and so now is the discrete leaf.  Pattern 4 (illegal
+    states unrepresentable): ``StreamingOperator(sn_mesh)`` takes ONLY the
+    mesh — a σ on :math:`L` would be a parameter the leaf never reads.
 
     Capability set
     --------------
@@ -295,11 +296,8 @@ class StreamingOperator(LinearOperatorMixin["FullField"]):
         The augmented geometry carrying quadrature, BCs (the
         face-name-keyed ``sn_mesh.bc`` dict), pole closure, and (for
         curvilinear) the precomputed connection coefficients — no
-        ``boundary`` constructor parameter.
-    sigma_t : np.ndarray
-        Total cross-section, shape ``(ng, nx, ny)`` (Issue #196 PR-INDEX-3).
-        Carried at constructor time per Resolution A's subtractive
-        definition.
+        ``boundary`` constructor parameter.  The SOLE parameter: pure
+        :math:`L` reads no :math:`\sigma` (#257 S8b).
 
     Notes
     -----
@@ -314,7 +312,6 @@ class StreamingOperator(LinearOperatorMixin["FullField"]):
     """
 
     sn_mesh: "SNMesh"
-    sigma_t: np.ndarray
 
     capabilities: frozenset[str] = field(
         default_factory=lambda: frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
@@ -367,26 +364,19 @@ class StreamingOperator(LinearOperatorMixin["FullField"]):
         return self.sn_mesh.full_field_space
 
     def apply(self, psi: "FullField") -> "FullField":
-        r"""Subtractive forward action :math:`L\,\psi = M(\psi;\sigma_t)
-        - \sigma_t \odot \psi.bulk`.
+        r"""Pure σ-free forward streaming :math:`L\,\psi = \Omega\cdot\nabla\psi`.
 
-        The within-group loss action :math:`(L+C)\psi` is the
-        :attr:`loss_representation`'s walk (the matvec twin of the forward
-        sweep; S6.3 moved it OFF this operator) — the selection fact lives
-        on that property, single-sourced.  This leaf then applies the ONLY
-        algebra glue — the Resolution-A collision subtraction below.
-
-        Resolution A — :math:`(L + C).{\rm apply}(\psi) \equiv
-        M(\psi;\sigma_t)` bit-exact: the per-cell σ_t·ψ cancellation
-        lives at the algebra layer; this leaf returns the subtractive
-        :math:`L`-only action on the typed direct-sum carrier.
-
-        D-I.3d (2026-05-29) collapsed the bare-ndarray packed-vector
-        adapter; D-J (2026-05-30) retired the supporting codec family.
-        Producer-side normalisation (Pattern 7) — the operator
-        consumes / emits ONLY
-        :class:`~orpheus.transport.timed_full_field.TimedFullField`;
-        the typed↔packed boundary collapses at the producer site.
+        Computes pure streaming DIRECTLY via the :attr:`loss_representation`'s
+        named σ-free
+        :meth:`~orpheus.sn.loss_representation.LossRepresentation.streaming_action`
+        leaf (#257 S8b — the ``(L+C)−C`` fold is retired).  The streaming
+        discretization is single-sourced through ``loss_action`` at
+        :math:`\sigma = 0` (the WDD matvec is affine in :math:`\sigma`);
+        :math:`L` reads NO :math:`\sigma`.  The collision diagonal
+        :math:`C = M[\sigma_t]` is the separate shared
+        :class:`CollisionOperator` leaf; the composition
+        :math:`(L + C).{\rm apply}(\psi) = \text{streaming\_action}(\psi)
+        + \sigma_t\odot\psi = M(\psi;\sigma_t)` recovers the full loss.
 
         ``L`` is the ONLY operator that emits a non-zero face
         residual on its output ``.boundary`` —
@@ -397,7 +387,7 @@ class StreamingOperator(LinearOperatorMixin["FullField"]):
 
         Parameters
         ----------
-        psi : TimedFullField
+        psi : FullField
             Composite carrier with bulk
             (:class:`~orpheus.transport.fields.angular_flux.AngularFlux`)
             and boundary
@@ -408,44 +398,29 @@ class StreamingOperator(LinearOperatorMixin["FullField"]):
         Returns
         -------
         FullField
-            ``L·ψ`` as a timeless composite — bulk carries the cell
-            action, boundary carries the face residual at the
-            layout-assigned trace slots (non-zero at outer face for
+            ``L·ψ`` as a timeless composite — bulk carries the pure
+            streaming cell action, boundary carries the face residual at
+            the layout-assigned trace slots (non-zero at outer face for
             curvilinear; non-zero at outer + inner faces for slab).
             History-free (#257 S8a — the matvec leaf is a base arrow
             ``FullField -> FullField``; the comonad lives on the driver).
         """
-        from orpheus.transport.full_field import FullField
-        from orpheus.transport.source_sinks import AngularSourceSink
-
         _require_typed_composite("StreamingOperator.apply", self.sn_mesh, psi)
-
-        # L = (L+C) − C (Resolution A): the representation returns the FULL
-        # within-group loss (L+C)ψ (its walk — L21: matvec and sweep are two
-        # actions of the SAME (L+C) operator; S6.3 moved the walk OFF this
-        # operator INTO the representation). The operator's ONLY remaining glue
-        # is the collision-diagonal subtraction C = σ_t⊙, applied ONCE here (it
-        # was 5× duplicated across the retired _apply_*). C has no boundary
-        # action, so the (L+C)ψ boundary residual passes through unchanged.
-        lpc = self.loss_representation.loss_action(self.sigma_t, psi)
-        out_bulk = lpc.bulk.values - self.sigma_t[None] * psi.bulk.values
-        return FullField(
-            bulk=AngularSourceSink.from_mesh(out_bulk, self.sn_mesh),
-            boundary=lpc.boundary,
-        )
+        return self.loss_representation.streaming_action(psi)
 
     def apply_transpose(self, phi: "FullField") -> "FullField":
         r"""Hilbert transpose :math:`L^{\mathsf T}\,\phi` (Wave O / O.2b, #208).
 
-        Resolution A: :math:`L = (L + C) - C` with :math:`C = \sigma_t\odot`
-        a self-adjoint diagonal, so :math:`L^{\mathsf T} = (L+C)^{\mathsf T} - C`.
-        The :math:`(L+C)^{\mathsf T}` core is the representation's
-        ``loss_action_transpose``
-        (:meth:`~orpheus.sn.loss_representation._OneDimScanWalk.loss_action_transpose`,
-        the reverse-mode adjoint of the forward sweep; #206 Phase C moved it off
-        this operator); the :math:`-\sigma_t\odot\phi.bulk` subtraction mirrors
-        :meth:`apply`'s Resolution-A factoring (``C`` has no boundary action, so
-        the transpose's boundary block is :math:`(L+C)^{\mathsf T}`'s).
+        The σ-free adjoint streaming leaf (#257 S8b): :math:`L^{\mathsf T}\phi`
+        via the :attr:`loss_representation`'s named
+        :meth:`~orpheus.sn.loss_representation.LossRepresentation.streaming_action_transpose`
+        (single-sourced through ``loss_action_transpose`` at :math:`\sigma = 0`;
+        the curvilinear reverse walk carries the angular second triangular
+        factor, the multi-D Cartesian adjoint stays a deferral raise — never a
+        silent wrong answer).  Since :math:`C = \sigma_t\odot` is a self-adjoint
+        diagonal, the full adjoint loss factors as
+        :math:`(L + C)^{\mathsf T} = L^{\mathsf T} + C` — the
+        :class:`CollisionOperator` transpose is the same multiplier.
 
         This returns the **plain Euclidean transpose** :math:`L^{\mathsf T}`.
         The metric conjugation :math:`G^{-1}\!\cdot^{\mathsf T}\!\cdot G` of the
@@ -458,23 +433,10 @@ class StreamingOperator(LinearOperatorMixin["FullField"]):
         ``test_g_adjoint_reciprocity`` (slab / sphere / cylinder, -O-firing) +
         its L11 wrong-trace-metric negative control.
         """
-        from orpheus.transport.full_field import FullField
-        from orpheus.transport.source_sinks import AngularSourceSink
-
         _require_typed_composite(
             "StreamingOperator.apply_transpose", self.sn_mesh, phi,
         )
-        # Lᵀ = (L+C)ᵀ − C (Resolution A; C = σ_t⊙ is a self-adjoint diagonal).
-        # The representation returns (L+C)ᵀφ (its reverse walk — CumprodScan
-        # carries the curvilinear angular second triangular factor; the multi-D
-        # Cartesian adjoint stays a deferral raise, never a silent wrong
-        # answer). The operator subtracts C here, ONCE, mirroring :meth:`apply`.
-        lpct = self.loss_representation.loss_action_transpose(self.sigma_t, phi)
-        out_bulk = lpct.bulk.values - self.sigma_t[None] * phi.bulk.values
-        return FullField(
-            bulk=AngularSourceSink.from_mesh(out_bulk, self.sn_mesh),
-            boundary=lpct.boundary,
-        )
+        return self.loss_representation.streaming_action_transpose(phi)
 
     # ── LossRepresentation carve (S2) — the polymorphic matvec dispatch ─────
 

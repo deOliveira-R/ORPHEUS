@@ -149,7 +149,7 @@ def _krylov_power_iteration_kinf(
         max_inner=300, inner_tol=1e-12, inner_solver="krylov",
     )
 
-    L_leaf = StreamingOperator(sn_mesh, solver.mat_xs.total_cross_section)
+    L_leaf = StreamingOperator(sn_mesh)
     C_t = CollisionOperator(sn_mesh, solver.mat_xs.total_cross_section)
     LC = L_leaf + C_t
 

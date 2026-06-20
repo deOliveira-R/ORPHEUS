@@ -313,7 +313,7 @@ def legacy_proxy_matvec(
         _history=(),
         history_depth=2,
     )
-    L_op = StreamingOperator(sn_mesh, sigma_t)
+    L_op = StreamingOperator(sn_mesh)
     C_op = CollisionOperator(sn_mesh, sigma_t)
     result = (L_op + C_op).apply(composite)
     return result.bulk.values
@@ -339,7 +339,7 @@ def _LC_matvec(
     """
     from orpheus.sn.operator import CollisionOperator, StreamingOperator
     sn_mesh = psi.bulk.mesh
-    L = StreamingOperator(sn_mesh, sigma_t)
+    L = StreamingOperator(sn_mesh)
     C = CollisionOperator(sn_mesh, sigma_t)
     return (L + C).apply(psi)
 

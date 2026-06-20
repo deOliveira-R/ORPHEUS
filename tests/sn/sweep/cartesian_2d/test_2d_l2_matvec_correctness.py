@@ -206,7 +206,7 @@ def test_apply_vs_sweep_2d_residual_cancellation() -> None:
         ]
     )
 
-    L = StreamingOperator(mesh, sigma_t)
+    L = StreamingOperator(mesh)
     C = CollisionOperator(mesh, sigma_t)
     A = L + C
 
@@ -306,7 +306,7 @@ def test_2d_matvec_linearity_random_state() -> None:
         ]
     )
 
-    L = StreamingOperator(mesh, sigma_t)
+    L = StreamingOperator(mesh)
     C = CollisionOperator(mesh, sigma_t)
     A = L + C
 

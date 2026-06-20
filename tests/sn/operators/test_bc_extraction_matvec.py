@@ -238,7 +238,7 @@ def _LpC_apply(sn_mesh: SNMesh, state: TimedFullField, sigma_t: np.ndarray) -> "
     #257 S8a — the matvec leaf is a base arrow, so ``(L + C).apply`` returns a
     timeless :class:`~orpheus.transport.full_field.FullField` source.
     """
-    L = StreamingOperator(sn_mesh, sigma_t)
+    L = StreamingOperator(sn_mesh)
     C = CollisionOperator(sn_mesh, sigma_t)
     return (L + C).apply(state)
 

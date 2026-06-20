@@ -311,7 +311,7 @@ class TestAffineCarveMatvecBaseline:
         # bulk AND boundary trace (every term activated).  A reflective
         # outer BC drives the boundary trace into the matvec (vs vacuum).
         sig_t, psi = het_operands(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         C = CollisionOperator(sn_mesh, sig_t)
         out = (L + C).apply(psi)
 

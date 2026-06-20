@@ -103,7 +103,7 @@ class TestFullLeaves:
     def test_streaming_is_full(self) -> None:
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        L = StreamingOperator(sn, sigma_t)
+        L = StreamingOperator(sn)
         assert L.block_role is BlockRole.FULL
         assert isinstance(L, FullOperator)
         assert not isinstance(L, BulkOperator)
@@ -111,7 +111,7 @@ class TestFullLeaves:
     def test_invertible_L_plus_C_is_full(self) -> None:
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        composite = StreamingOperator(sn, sigma_t) + CollisionOperator(sn, sigma_t)
+        composite = StreamingOperator(sn) + CollisionOperator(sn, sigma_t)
         assert isinstance(composite, InvertibleOperator)
         assert composite.block_role is BlockRole.FULL
         assert isinstance(composite, FullOperator)
@@ -208,7 +208,7 @@ class TestComposerRoleDerivation:
     def _ops(sn):
         sig = np.ones((sn.ng, *sn.spatial_shape))
         return (
-            StreamingOperator(sn, sig),
+            StreamingOperator(sn),
             CollisionOperator(sn, sig),
             SNBoundaryOperator(sn),
         )

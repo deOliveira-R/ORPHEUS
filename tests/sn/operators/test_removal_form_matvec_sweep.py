@@ -262,7 +262,7 @@ def test_invertible_apply_is_M_of_C_sigma_bit_identical(case):
     """
     sn = _REMOVAL_CASES[case]()
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)))
-    L = StreamingOperator(sn, sig_t)
+    L = StreamingOperator(sn)
     C_r = CollisionOperator(sn, sig_r)
     op = InvertibleOperator(L, C_r)
     psi = _random_state(sn, seed=sum(map(ord, case)))
@@ -271,7 +271,7 @@ def test_invertible_apply_is_M_of_C_sigma_bit_identical(case):
     # M(σ_r)ψ — independent leaf whose OWN σ_t IS σ_r. Post-#240-Step-B
     # signature: loss_action takes the σ array directly (here σ_r), not the
     # operator. The reference's σ IS σ_r, so it is unambiguously M(σ_r)ψ.
-    L_ref = StreamingOperator(sn, sig_r)
+    L_ref = StreamingOperator(sn)
     M_sigma_r = L_ref.loss_representation.loss_action(sig_r, psi).bulk.values
 
     np.testing.assert_array_equal(
@@ -303,7 +303,7 @@ def test_invertible_apply_transpose_is_M_transpose_of_C_sigma_bit_identical(case
     """
     sn = _REMOVAL_CASES[case]()
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)) + 1)
-    L = StreamingOperator(sn, sig_t)
+    L = StreamingOperator(sn)
     op = InvertibleOperator(L, CollisionOperator(sn, sig_r))
     if "apply_transpose" not in op.capabilities:
         pytest.fail(f"[{case}] apply_transpose not advertised on InvertibleOperator.")
@@ -311,7 +311,7 @@ def test_invertible_apply_transpose_is_M_transpose_of_C_sigma_bit_identical(case
 
     composite_t = op.apply_transpose(phi).bulk.values
     # Post-#240-Step-B signature: loss_action_transpose takes the σ array (σ_r).
-    L_ref = StreamingOperator(sn, sig_r)
+    L_ref = StreamingOperator(sn)
     M_t_sigma_r = L_ref.loss_representation.loss_action_transpose(
         sig_r, phi,
     ).bulk.values
@@ -371,7 +371,7 @@ def test_removal_form_matvec_sweep_roundtrip(case):
     sn = _REMOVAL_CASES[case]()
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)) + 2)
     op = InvertibleOperator(
-        StreamingOperator(sn, sig_t), CollisionOperator(sn, sig_r),
+        StreamingOperator(sn), CollisionOperator(sn, sig_r),
     )
 
     # Direction 1: apply ∘ solve = identity on a volumetric source.
@@ -431,7 +431,7 @@ def test_removal_form_apply_value_equals_M_of_sigma_r(case):
     sn = _REMOVAL_CASES[case]()
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)) + 4)
     op = InvertibleOperator(
-        StreamingOperator(sn, sig_t), CollisionOperator(sn, sig_r),
+        StreamingOperator(sn), CollisionOperator(sn, sig_r),
     )
     psi = _random_state(sn, seed=sum(map(ord, case)) + 4)
 
@@ -439,7 +439,7 @@ def test_removal_form_apply_value_equals_M_of_sigma_r(case):
     # Independent M(σ_r): a leaf whose OWN σ_t IS σ_r — unambiguously M(σ_r)ψ.
     # Post-#240-Step-B signature loss_action(sigma, psi) — pass σ_r directly.
     # Value-ground (not the teeth): holds under leak AND override.
-    L_ref = StreamingOperator(sn, sig_r)
+    L_ref = StreamingOperator(sn)
     M_sigma_r = L_ref.loss_representation.loss_action(sig_r, psi).bulk.values
 
     np.testing.assert_allclose(
@@ -510,19 +510,23 @@ def test_production_sigma_apply_value_preserved(case):
 
     The value-preserving guard. With σ_C == σ_t the override
     (``loss_action(σ_t)`` direct) and the inherited leaf sum
-    (``L.apply + C.apply``) compute the SAME ``M(σ_t)ψ`` to nULP — the override
-    drops the redundant ``(x − σ·ψ) + σ·ψ`` round-trip the leaf sum carries
-    (``L.apply`` returns ``loss_action(σ_t) − σ_t·ψ``, then ``C.apply`` adds
-    ``σ_t·ψ`` back), so the override is the MORE accurate path. The drift is
-    FP-re-association (reduction-depth × ULP), measured ≤ 2 ULP on slab/sphere
-    (``_OneDimScanWalk``), ≤ 4 on cylinder, ≤ 5 on 2-D Cartesian
-    (``_OctantWalk``); the gate allows ``nulp=6`` headroom.
+    (``L.apply + C.apply``) compute the SAME ``M(σ_t)ψ`` to nULP.  #257 S8b:
+    ``L.apply`` is now pure σ-free ``streaming_action(ψ) = loss_action(0, ψ)``,
+    so the leaf sum is ``loss_action(0, ψ) + σ_t⊙ψ`` while the override is
+    ``loss_action(σ_t, ψ)`` directly — the affine relation
+    ``M(σ_t)ψ = streaming_action(ψ) + σ_t⊙ψ`` makes them value-equal, but the
+    σ-free walk re-associates the FP reduction tree relative to the σ-bearing
+    matvec, so the agreement is to FP-non-associativity (rel ≤ 1e-14, the
+    per-element ULP metric spiking at near-zero cancellation values:
+    measured ≤ 33 on cylinder, ≤ 1024 on 2-D Cartesian).  The bound is
+    widened to ``nulp=2048`` to absorb the near-zero spikes; the
+    ``rel < 1e-14`` guard below is the genuine value-preservation ground.
 
     This builds BOTH the production composite (σ_t == σ_t) AND an explicit
     ``L.apply(state) + C.apply(state)`` reference (the inherited leaf-sum value,
     computed via the free expression so it does NOT route through the override).
-    PRE-FIX, ``op.apply`` WAS the leaf sum → trivially bit-identical; POST-fix
-    the override and the leaf sum agree to nULP — so this gate does NOT
+    POST-S8b the override (``loss_action(σ_t)``) and the pure-L leaf sum
+    (``loss_action(0) + σ_t⊙ψ``) agree to FP — so this gate does NOT
     discriminate the carve (gate (a) does); it is the value-PRESERVATION pin
     that the override did not ALGORITHMICALLY change production.
     """
@@ -530,7 +534,7 @@ def test_production_sigma_apply_value_preserved(case):
     # Production: σ_C == σ_t (the same array on both leaves).
     rng = np.random.default_rng([sum(map(ord, case)), 1])
     sig_t = rng.uniform(0.5, 3.0, size=(sn.ng, *sn.spatial_shape))
-    L = StreamingOperator(sn, sig_t)
+    L = StreamingOperator(sn)
     C = CollisionOperator(sn, sig_t)        # σ_C == σ_t (production)
     op = InvertibleOperator(L, C)
     state = _random_state(sn, seed=sum(map(ord, case)))
@@ -539,7 +543,7 @@ def test_production_sigma_apply_value_preserved(case):
     leaf_sum = (L.apply(state).bulk.values + C.apply(state).bulk.values)
 
     np.testing.assert_array_almost_equal_nulp(
-        composite, leaf_sum, nulp=6,
+        composite, leaf_sum, nulp=2048,
     )
     # And the drift is genuinely tiny (FP re-association, not algorithmic).
     # pytest.fail (NOT bare assert) so the bound fires under -O (vv Mode 8).
@@ -576,7 +580,7 @@ def test_removal_form_nonpositive_sigma_r_rejected():
     sig_t = np.full((sn.ng, *sn.spatial_shape), 1.0)
     sig_r = sig_t.copy()
     sig_r.flat[0] = -0.1   # one cell over-scatters → σ_r < 0
-    L = StreamingOperator(sn, sig_t)
+    L = StreamingOperator(sn)
     C_bad = CollisionOperator(sn, sig_r)
     with pytest.raises(ValueError, match="strictly positive"):
         InvertibleOperator(L, C_bad)

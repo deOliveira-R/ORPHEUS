@@ -99,7 +99,7 @@ def test_loss_action_is_full_loss_LpC_flat_reflective(case):
     sn = _CASES[case]()
     # Uniform σ_t so the flat-reflective fundamental is exact (L·ψ_flat = 0).
     sig_t = np.full((sn.ng, *sn.spatial_shape), 0.7)
-    L = StreamingOperator(sn, sig_t)
+    L = StreamingOperator(sn)        # pure σ-free streaming (#257 S8b)
     rep = L.loss_representation
 
     psi = _zeros_state(sn)
@@ -127,18 +127,26 @@ def test_loss_action_is_full_loss_LpC_flat_reflective(case):
 
 
 @pytest.mark.parametrize("case", list(_CASES))
-def test_apply_equals_loss_action_minus_independent_collision_het(case):
-    r"""[L0] the −C glue: apply(ψ) = loss_action(σ_t,ψ) − C·ψ, C INDEPENDENT (≥2G het).
+def test_pure_L_plus_C_recovers_loss_action_het(case):
+    r"""[L0] the +C glue: (L_pure + C).apply == loss_action(σ_t), C INDEPENDENT (≥2G het).
 
-    Resolution A ``L = (L+C) − C`` with ``C = σ_t⊙``, cross-checked against a
-    SEPARATELY-built :class:`CollisionOperator` so the subtrahend is verified to
-    be exactly ``σ_t·ψ`` (the same σ_t), applied ONCE.  Also pins
-    ``loss_action − apply == C·ψ`` (``loss_action`` is ``(L+C)ψ``, not ``L·ψ``).
+    #257 S8b — the ``−C`` glue MOVED from inside ``L.apply`` to the
+    ``OperatorSum`` (pure ``L`` + ``C``).  Two assertions pin the new
+    composition:
+
+    * ``(L + C).apply == loss_action(σ_t)`` BYTE-EXACT — the composite
+      ``InvertibleOperator.apply`` IS ``loss_action(σ_t)`` (the full loss).
+    * ``L.apply ≈ loss_action(σ_t) − C·ψ`` to FP ULP — the affine relation
+      ``streaming_action(ψ) = M(σ_t)ψ − σ_t⊙ψ``, with ``C`` a SEPARATELY
+      built :class:`CollisionOperator` so the subtrahend is the verified
+      ``σ_t·ψ`` (same σ_t), applied ONCE.  pure ``L`` re-associates the FP
+      reduction tree vs subtracting ``C·ψ`` off the σ-bearing matvec, so
+      the agreement is to a few ULP, not bit-exact.
     """
     sn = _CASES[case]()
     rng = np.random.default_rng([sum(map(ord, case)), 2026])
     sig_t = rng.uniform(0.3, 3.0, size=(sn.ng, *sn.spatial_shape))   # heterogeneous
-    L = StreamingOperator(sn, sig_t)
+    L = StreamingOperator(sn)               # pure σ-free streaming (#257 S8b)
     C = CollisionOperator(sn, sig_t)        # INDEPENDENT collision operator
     rep = L.loss_representation
 
@@ -151,24 +159,28 @@ def test_apply_equals_loss_action_minus_independent_collision_het(case):
     lpc = rep.loss_action(sig_t, psi)
     lpsi = L.apply(psi)
     cpsi = C.apply(psi)
+    composite = (L + C).apply(psi)          # InvertibleOperator.apply
 
     # non-vacuous guard: C·ψ must be non-trivial (else the pin is degenerate).
     if float(np.max(np.abs(cpsi.bulk.values))) < 1e-6:
         pytest.fail(f"[{case}] C·ψ ≈ 0 — the het/non-flat config degenerated.")
 
-    np.testing.assert_allclose(
-        lpsi.bulk.values, lpc.bulk.values - cpsi.bulk.values,
-        rtol=1e-13, atol=1e-13,
+    # (1) the +C glue recovers the full loss BYTE-EXACT (the composite IS
+    #     loss_action(σ_t)).
+    np.testing.assert_array_equal(
+        composite.bulk.values, lpc.bulk.values,
         err_msg=(
-            f"[{case}] apply != loss_action − C·ψ — the −C Resolution-A glue "
-            "drifted from an independent CollisionOperator."
+            f"[{case}] (L+C).apply != loss_action(σ_t) — the composite must "
+            "recover the full within-group loss bit-exactly."
         ),
     )
-    diff = lpc.bulk.values - lpsi.bulk.values
+    # (2) pure L.apply == loss_action(σ_t) − C·ψ to FP ULP (the affine
+    #     relation streaming_action = M(σ_t) − σ_t⊙ψ).
     np.testing.assert_allclose(
-        diff, cpsi.bulk.values, rtol=1e-13, atol=1e-13,
+        lpsi.bulk.values, lpc.bulk.values - cpsi.bulk.values,
+        rtol=1e-12, atol=1e-12,
         err_msg=(
-            f"[{case}] loss_action − apply != C·ψ — loss_action is NOT (L+C)ψ "
-            "(it returned the bare L·ψ, re-coupling C into the walk)."
+            f"[{case}] pure L.apply != loss_action − C·ψ — the affine "
+            "streaming_action relation drifted beyond FP."
         ),
     )

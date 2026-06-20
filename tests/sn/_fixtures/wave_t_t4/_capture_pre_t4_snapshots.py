@@ -231,7 +231,7 @@ def _make_sigma_t(sn_mesh: SNMesh) -> np.ndarray:
 def _build_L_C(sn_mesh: SNMesh) -> tuple[StreamingOperator, CollisionOperator]:
     """Build the leaf L (StreamingOperator) and C (CollisionOperator)."""
     sigma_t = _make_sigma_t(sn_mesh)
-    L = StreamingOperator(sn_mesh, sigma_t)
+    L = StreamingOperator(sn_mesh)          # pure σ-free streaming (#257 S8b)
     C = CollisionOperator(sn_mesh, sigma_t)
     return L, C
 

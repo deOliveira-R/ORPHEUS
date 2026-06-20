@@ -154,20 +154,25 @@ class TestVacuum2DBitIdentity:
 
     @pytest.mark.parametrize("seed", [0, 1, 2])
     def test_vacuum_bulk_bit_identical(self, seed, request):
-        """[foundation] Bare 2-D vacuum bulk matvec == committed snapshot, bit-exact.
+        """[foundation] Bare 2-D vacuum pure-L bulk matvec == committed snapshot, bit-exact.
 
         Build a vacuum 2-D mesh, seed ``psi.bulk`` with fixed-seed random
         values and a ZERO inflow trace, apply the bare ``StreamingOperator``,
         and assert ``L.apply(psi).bulk.values`` is ``np.array_equal`` to the
-        committed baseline (the **post-#240-D5a** frozen value — see the class
-        docstring for the ~1-ULP coefficient-model re-baseline).  For vacuum the
-        inflow trace is zero, so the bare path reads exactly the zero edge the
-        bulk stencil produces — the bulk must not move a single bit vs the
-        frozen reference.
+        committed baseline.  The baseline was **re-captured at #257 S8b**:
+        ``L.apply`` is now pure σ-free ``streaming_action(ψ) = loss_action(0,
+        ψ)`` (the ``(L+C)−C`` fold is retired), which re-associates the FP
+        reduction tree vs the old subtractive form.  The new frozen value is
+        the genuine pure streaming — verified ``== (L+C).apply.bulk − σ_t⊙ψ``
+        to ≤64 ULP (the affine relation) with the BYTE-IDENTICAL ``(L+C)``
+        composite as the structural ground (NOT old-vs-new proximity).  The
+        bit-exact ``array_equal`` gate is RESTORED against this re-baselined
+        reference: the pure-L bulk must not move a single bit vs the frozen
+        value for any future refactor.
         """
         sn_mesh = _vacuum_2d(nx=4, ny=4)
         sig_t = _sigt_2g(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
 
         rng = np.random.default_rng(20260603 + seed)
         state = TimedFullField.zeros(
@@ -186,6 +191,26 @@ class TestVacuum2DBitIdentity:
         key = f"vacuum_bulk_2d_seed{seed}"
         path = _BASELINE_DIR / f"{key}.npy"
         if _capturing(request):
+            # Gate the capture on the STRUCTURALLY-INDEPENDENT ground so a
+            # re-capture can never launder a streaming bug into the snapshot:
+            # pure-L must equal the byte-identical (L+C) composite minus the
+            # collision diagonal (the affine relation (L+C)ψ = streaming(ψ) +
+            # σ_t⊙ψ; #257 S8b).  A laundered sign/factor error in
+            # streaming_action is O(1)-relative and trips this assert long
+            # before the bytes are frozen — the re-baseline is NOT
+            # self-referential ("freeze whatever pure-L emits") by construction.
+            composite = (L + CollisionOperator(sn_mesh, sig_t)).apply(state)
+            structural_ground = (
+                composite.bulk.values - sig_t[None] * state.bulk.values
+            )
+            np.testing.assert_allclose(
+                out.bulk.values, structural_ground, rtol=1e-11, atol=0.0,
+                err_msg=(
+                    "capture-time structural guard: pure-L streaming_action does "
+                    "NOT match (L+C) − σ_t⊙ψ — refusing to freeze a possibly-"
+                    "laundered snapshot."
+                ),
+            )
             _BASELINE_DIR.mkdir(parents=True, exist_ok=True)
             np.save(path, out.bulk.values)
             pytest.skip(f"captured baseline {key}")
@@ -285,7 +310,7 @@ class TestStreamingEquilibrium2D:
 
         state = self._build_flat_state(sn_mesh, phi, W)
 
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         C = CollisionOperator(sn_mesh, sig_t)
         B = SNBoundaryOperator(sn_mesh)
 
@@ -331,7 +356,7 @@ class TestStreamingEquilibrium2D:
         phi = Q_scalar / np.array([0.5, 1.0])
 
         state = self._build_flat_state(sn_mesh, phi, W)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         C = CollisionOperator(sn_mesh, sig_t)
         B = SNBoundaryOperator(sn_mesh)
 
@@ -501,7 +526,7 @@ class TestBoundaryResidual2DResponds:
         """
         sn_mesh = _homogeneous_reflective_2d(nx=4, ny=4)
         sig_t = _sigt_2g(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         trace = sn_mesh.trace
 
         base = self._perturbable_state(sn_mesh, seed=7)
@@ -549,7 +574,7 @@ class TestBoundaryResidual2DResponds:
         """
         sn_mesh = _homogeneous_reflective_2d(nx=4, ny=4)
         sig_t = _sigt_2g(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         trace = sn_mesh.trace
 
         base = self._perturbable_state(sn_mesh, seed=7)

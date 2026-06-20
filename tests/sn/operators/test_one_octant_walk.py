@@ -55,7 +55,7 @@ def test_sweep_and_loss_action_hit_one_octant_walk(monkeypatch):
 
     sn = cart2d_2g_nonsquare()
     sig_t, psi = het_operands(sn)
-    L = StreamingOperator(sn, sig_t)
+    L = StreamingOperator(sn)
     C = CollisionOperator(sn, sig_t)
     A = L + C
 

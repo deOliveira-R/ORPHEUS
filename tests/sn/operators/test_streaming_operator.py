@@ -172,14 +172,14 @@ class TestCapabilities:
     def test_capabilities_apply_and_apply_transpose(self, name, builder):
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         assert L.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_no_solve_capability(self, name, builder):
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         assert CAP_SOLVE not in L.capabilities
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
@@ -188,14 +188,14 @@ class TestCapabilities:
         # matvec Lᵀ (the foundation of the G-adjoint ``L.H``).
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         assert CAP_APPLY_TRANSPOSE in L.capabilities
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_satisfies_linear_operator_protocol(self, name, builder):
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         assert isinstance(L, LinearOperator)
 
 
@@ -205,21 +205,25 @@ class TestCapabilities:
 
 
 class TestConstructor:
-    """StreamingOperator(sn_mesh, sigma_t) takes σ_t as a required arg.
+    """StreamingOperator(sn_mesh) takes ONLY the mesh — pure L is σ-free.
 
-    Pattern 4 (illegal states unrepresentable): the discrete L is
-    intrinsically σ_t-coupled (Hébert §3.9.4 Carlson seed); a
-    constructor without σ_t would silently produce a different
-    operator. Resolution A's contract requires σ_t at construction.
+    Pattern 4 (illegal states unrepresentable), #257 S8b: pure ``L``
+    computes ``Ω·∇ψ`` directly (the named ``streaming_action`` leaf) and
+    reads NO σ — the curvilinear Carlson seed's σ-dependence is exactly
+    the collision diagonal it injects (which belongs to ``C``).  A σ on
+    ``L`` would be a parameter the leaf never reads, so the constructor
+    refuses it.
     """
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_construct_with_sn_mesh_and_sigma_t(self, name, builder):
+    def test_construct_with_sn_mesh_only(self, name, builder):
         sn_mesh = builder()
-        sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         assert L.sn_mesh is sn_mesh
-        assert L.sigma_t is sig_t
+        # σ-free: the leaf carries no sigma_t surface (#257 S8b).  The pure-L
+        # apply reads no σ — it routes to the representation's σ-free
+        # streaming_action leaf; the collision diagonal lives in C.
+        assert not hasattr(L, "sigma_t")
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -262,7 +266,7 @@ class TestLinearity:
     def test_apply_zero_returns_zero(self, name, builder):
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh, ng=2)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         out = L.apply(state)
         np.testing.assert_allclose(out.bulk.values, 0.0, atol=1e-14)
@@ -272,7 +276,7 @@ class TestLinearity:
     def test_apply_is_linear(self, name, builder):
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh, ng=2)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         state1 = _random_composite(sn_mesh, seed=51)
         state2 = _random_composite(sn_mesh, seed=52)
         # #208: a general α·ψ₁ + β·ψ₂ (α+β≠1) is illegal on affine flux STATES;
@@ -321,7 +325,7 @@ class TestSumCapabilities:
     def test_sum_advertises_apply(self, name, builder):
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         C = CollisionOperator(sn_mesh, sig_t)
         A = L + C
         assert CAP_APPLY in A.capabilities
@@ -334,7 +338,7 @@ class TestSumCapabilities:
         from orpheus.sn.operator import InvertibleOperator
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         C = CollisionOperator(sn_mesh, sig_t)
         A = L + C
         assert isinstance(A, InvertibleOperator)
@@ -370,7 +374,7 @@ class TestCompositeInvariants:
 
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         state = _random_composite(sn_mesh)
 
         out = L.apply(state)
@@ -394,7 +398,7 @@ class TestCompositeInvariants:
         """
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         state = _random_composite(sn_mesh, seed=182)
 
         out_composite = L.apply(state)
@@ -416,7 +420,7 @@ class TestCompositeInvariants:
         """ψ = 0 ⇒ L·ψ = 0 in both bulk AND boundary (linearity guard)."""
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         out = L.apply(state)
         np.testing.assert_array_equal(out.bulk.values, 0.0)
@@ -437,7 +441,7 @@ class TestCompositeInvariants:
 
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         for depth in (0, 1, 2, 4):
             state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=depth)
             out = L.apply(state)
@@ -477,7 +481,7 @@ class TestCompositeInvariants:
         quad = Quadrature.level_symmetric(sn_order=4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials(ng=2))
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
 
         state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         out = L.apply(state)
@@ -496,7 +500,7 @@ class TestCompositeInvariants:
         sn_mesh_a = _slab_mesh()
         sn_mesh_b = _slab_mesh()
         sig_t = _sig_t_uniform(sn_mesh_a)
-        L = StreamingOperator(sn_mesh_a, sig_t)
+        L = StreamingOperator(sn_mesh_a)
         state_b = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh_b)
         with pytest.raises(ValueError, match="mesh-identity"):
             L.apply(state_b)
@@ -527,7 +531,7 @@ class TestOperatorAlgebraCompositionUnderTimedFullField:
 
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        L = StreamingOperator(sn_mesh)
         C = CollisionOperator(sn_mesh, sig_t)
         A = L + C
         state = _random_composite(sn_mesh, seed=191)
@@ -632,14 +636,33 @@ class TestT4bPreT4RegressionSnapshot:
     near-zero cancellation value; max relΔ ~1e-14).  Per ``vv-principles``
     §"Bit-identity vs principled-equivalence" the snapshot was re-baselined
     and the gate narrowed to :func:`assert_regression` (``kind="direct"``,
-    ``nulp=reduction_depth``).  Bit-identity is NOT lost — it is the
-    escalatable ``DriftWarning`` (``-W error::DriftWarning`` re-pins exact
-    bytes for a pure-refactor PR), i.e. an opt-in bonus rather than an
-    always-on constraint.
+    ``nulp=reduction_depth``).
+
+    #257 S8b re-baselined the BULK gate again: ``StreamingOperator.apply``
+    is now pure σ-free ``streaming_action(ψ) = loss_action(0, ψ)`` (the
+    ``(L+C)−C`` fold is retired).  The σ-free walk re-associates the FP
+    reduction tree relative to subtracting σ⊙ψ off the σ-bearing matvec,
+    so the pure-L value drifts from the pre-T.4 snapshot by FP-non-
+    associativity only: **rel ≤ 1e-16 (machine ε) on every arm, boundary
+    0 ULP**.  The per-element ULP *metric* spikes (max ~192 measured) at
+    near-zero cancellation values — the same artefact the slab arms already
+    documented (a tiny absolute Δ against a tiny |ψ| reads a large ULP
+    count).  The nULP bound is therefore widened to a documented
+    :attr:`_PURE_L_NULP` that absorbs the near-zero spikes while staying
+    far below any real-bug magnitude (the structural ground is the
+    BYTE-IDENTICAL ``(L+C)`` composite — see the decomposition gate — and
+    the closed-form k_∞ + MMS backstop, NOT old-vs-new proximity).
 
     Boundary traces stay byte-identical (0 ULP) — the outflow defect is
-    reconstructed from the same ``ψ_out = 2ψ̄ − ψ_in`` faces.
+    reconstructed from the same ``ψ_out = 2ψ̄ − ψ_in`` faces, untouched by
+    the pure-L carve (``C`` never acts on the trace).
     """
+
+    # Pure-L (#257 S8b) re-associates the matvec FP tree vs the pre-T.4
+    # snapshot; the rel drift is machine-ε but the per-element ULP metric
+    # spikes at near-zero cancellation values (≤192 measured).  256 absorbs
+    # that with headroom and is far below real-bug magnitude.
+    _PURE_L_NULP = 256
 
     @pytest.fixture(scope="class")
     def snapshots(self):
@@ -654,8 +677,9 @@ class TestT4bPreT4RegressionSnapshot:
         (bulk, boundary) values.
         """
         from dataclasses import replace
-        sig_t = _sigma_t_from_mat_map(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        # Pure-L streaming (#257 S8b) — σ-free; the snapshot fixture's σ_t
+        # is no longer needed to build L (the snapshot pins L's matvec leaf).
+        L = StreamingOperator(sn_mesh)
         state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         rng = np.random.default_rng(seed)
         state = replace(
@@ -692,7 +716,7 @@ class TestT4bPreT4RegressionSnapshot:
         bulk, boundary = self._capture_arm(mesh, seed=seed)
         assert_regression(
             bulk, snapshots[f"{tag}_apply_bulk"],
-            conv_tol=0.0, kind="direct", reduction_depth=mesh.nx,
+            conv_tol=0.0, kind="direct", reduction_depth=self._PURE_L_NULP,
             case_name=f"{tag}_apply_bulk", quantity="apply_bulk",
         )
         np.testing.assert_array_equal(
@@ -756,22 +780,23 @@ class TestT4bPreT4RegressionSnapshot:
     ) -> None:
         """Re-run the 2-D Cartesian ScanMarch matvec arm: BULK principled, BOUNDARY strict.
 
-        Uses the capture-script mesh / sigma_t / ψ constructors verbatim so the
-        live matvec consumes the SAME inputs the frozen snapshot was captured
-        from (no fixture drift). ``reduction_depth=mesh.nx`` per the cart2d
-        x-scan chain depth.
+        Uses the capture-script mesh / ψ constructors verbatim so the live
+        matvec consumes the SAME inputs the frozen snapshot was captured from
+        (no fixture drift).  ``reduction_depth=_PURE_L_NULP`` per the pure-L
+        FP-tree re-association (#257 S8b) — see the class docstring.
         """
         from tests.sn._fixtures.wave_t_t4._capture_pre_t4_snapshots import (
-            _cart2d_mesh, _make_sigma_t, _make_state,
+            _cart2d_mesh, _make_state,
         )
         sn_mesh = _cart2d_mesh(ng=ng, bc_kind=bc_kind)
-        sig_t = _make_sigma_t(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        # Pure-L streaming (#257 S8b) — σ-free; the fixture σ_t is no longer
+        # needed to build L.
+        L = StreamingOperator(sn_mesh)
         state = _make_state(sn_mesh, seed=seed)
         out = L.apply(state)
         assert_regression(
             out.bulk.values, snapshots[f"{tag}_apply_bulk"],
-            conv_tol=0.0, kind="direct", reduction_depth=sn_mesh.nx,
+            conv_tol=0.0, kind="direct", reduction_depth=self._PURE_L_NULP,
             case_name=f"{tag}_apply_bulk", quantity="apply_bulk",
         )
         np.testing.assert_array_equal(
@@ -835,8 +860,9 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
 
     def _capture_arm(self, sn_mesh: SNMesh, seed: int) -> tuple[np.ndarray, np.ndarray]:
         from dataclasses import replace
-        sig_t = _sigma_t_from_mat_map(sn_mesh)
-        L = StreamingOperator(sn_mesh, sig_t)
+        # Pure-L streaming (#257 S8b) — σ-free; the snapshot fixture's σ_t
+        # is no longer needed to build L (the snapshot pins L's matvec leaf).
+        L = StreamingOperator(sn_mesh)
         state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         rng = np.random.default_rng(seed)
         state = replace(

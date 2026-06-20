@@ -270,6 +270,27 @@ class LossRepresentation(Protocol):
         """
         ...
 
+    def streaming_action(self, psi: "FullField") -> "FullField":
+        r"""The pure σ-free streaming action :math:`L\,\psi = \Omega\cdot\nabla\psi`.
+
+        The genuine pure-:math:`L` leaf — the spatial streaming + curvilinear
+        angular redistribution discretization with NO collision diagonal.  The
+        within-group WDD matvec is AFFINE in :math:`\sigma` in the forward
+        direction (:math:`(L+C)\psi = \text{streaming\_action}(\psi) +
+        \sigma\cdot\psi`; the curvilinear Carlson coupled-pole seed's
+        :math:`\sigma`-dependence is exactly the collision diagonal it injects,
+        so it cancels into :math:`\sigma\cdot\psi`).  This method names that
+        σ-free primitive (``coding-elegance`` Pattern 3) and single-sources the
+        ONE streaming discretization through :meth:`loss_action` at
+        :math:`\sigma = 0` (Pattern 2 — the streaming walk lives ONCE in
+        ``loss_action``; there is no twin σ-free discretization).
+        :meth:`~orpheus.sn.operator.StreamingOperator.apply` calls this directly
+        (#257 S8b) so :math:`L` reads no :math:`\sigma`: the collision diagonal
+        :math:`C = M[\sigma_t]` is the separate shared multiplier leaf, and the
+        composition :math:`L + C` recovers the full loss.
+        """
+        ...
+
     def loss_action_transpose(
         self, sigma: "np.ndarray", phi: "FullField",
     ) -> "FullField":
@@ -282,6 +303,18 @@ class LossRepresentation(Protocol):
         (the multi-D Cartesian reverse sweep — O.2b lands the 1-D reverse sweep
         first).  Never a silent wrong answer.  ``sigma`` is the ``(ng, ...)``
         diagonal coefficient, passed EXPLICITLY (#240 Phase 2 Step B).
+        """
+        ...
+
+    def streaming_action_transpose(self, phi: "FullField") -> "FullField":
+        r"""The pure σ-free adjoint streaming action :math:`L^{\mathsf T}\,\phi`.
+
+        The transpose sibling of :meth:`streaming_action` (#257 S8b): the σ-free
+        :math:`L^{\mathsf T}` leaf, single-sourced through
+        :meth:`loss_action_transpose` at :math:`\sigma = 0`.  Used by
+        :meth:`~orpheus.sn.operator.StreamingOperator.apply_transpose`.  Inherits
+        the deferral contract (multi-D Cartesian raises, never a silent wrong
+        answer).
         """
         ...
 
@@ -313,6 +346,57 @@ class _LossRepresentation:
         raise NotImplementedError(
             f"{cls.__name__} must implement supports()"
         )
+
+    # ── pure-L streaming primitive (#257 S8b) ────────────────────────────
+    # The σ-free streaming leaf, single-sourced through loss_action at σ = 0.
+    # The within-group WDD matvec is affine in σ (the curvilinear Carlson
+    # coupled-pole seed's σ-dependence is exactly the collision diagonal it
+    # injects, so it cancels into σ·ψ), hence loss_action(0, ψ) == Ω·∇ψ.  The
+    # streaming discretization lives ONCE in loss_action; there is no twin
+    # σ-free walk (coding-elegance Pattern 2).  These concrete defaults work
+    # for every strategy because each subclass overrides loss_action /
+    # loss_action_transpose, and Python method resolution dispatches the
+    # self.loss_action call to the right walk.
+
+    if TYPE_CHECKING:
+        # Abstract signatures for the type checker only — every concrete
+        # strategy implements these (the base is never instantiated directly).
+        # Declared under TYPE_CHECKING so they do NOT create a runtime method
+        # that the subclass overrides would "obscure" (reportRedeclaration);
+        # at runtime ``streaming_action``'s ``self.loss_action`` resolves to the
+        # concrete subclass via normal MRO.
+        def loss_action(
+            self, sigma: "np.ndarray", psi: "FullField",
+        ) -> "FullField": ...
+
+        def loss_action_transpose(
+            self, sigma: "np.ndarray", phi: "FullField",
+        ) -> "FullField": ...
+
+    def streaming_action(self, psi: "FullField") -> "FullField":
+        r"""Pure σ-free forward streaming :math:`L\,\psi = \Omega\cdot\nabla\psi`.
+
+        See the :meth:`LossRepresentation.streaming_action` protocol docstring.
+        """
+        return self.loss_action(self._zero_sigma_for(psi), psi)
+
+    def streaming_action_transpose(self, phi: "FullField") -> "FullField":
+        r"""Pure σ-free adjoint streaming :math:`L^{\mathsf T}\,\phi`.
+
+        See :meth:`LossRepresentation.streaming_action_transpose`.  Inherits the
+        deferral contract of :meth:`loss_action_transpose`.
+        """
+        return self.loss_action_transpose(self._zero_sigma_for(phi), phi)
+
+    def _zero_sigma_for(self, field: "FullField") -> "np.ndarray":
+        r"""The zero diagonal coefficient :math:`\sigma = 0` matching ``field``'s
+        ``(ng, *spatial)`` shape — the σ-free streaming probe.
+
+        The group count is read off the carrier (``field.bulk.values`` is the
+        ``(N, ng, *spatial)`` angular flux); the spatial shape is the mesh's.
+        """
+        ng = int(field.bulk.values.shape[1])
+        return np.zeros((ng, *self.mesh.spatial_shape))
 
     @property
     def _n_face_moments(self) -> int:

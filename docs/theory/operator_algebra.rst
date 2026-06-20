@@ -278,6 +278,69 @@ without an efficient ``solve`` simply do not advertise that
 capability, and downstream code declines them at composition time.
 
 
+Pure-L streaming + the affine collision split
+==============================================
+
+The streaming leaf :math:`L` (:class:`~orpheus.sn.operator.StreamingOperator`)
+computes **pure** :math:`\sigma`-free streaming directly: its ``apply``
+is the named :math:`\sigma`-free
+:meth:`~orpheus.sn.loss_representation.LossRepresentation.streaming_action`
+leaf, the spatial streaming :math:`\Omega\cdot\nabla\psi` plus the
+curvilinear angular redistribution, with NO collision diagonal.  The
+collision diagonal :math:`C = M[\sigma_t]`
+(:class:`~orpheus.sn.operator.CollisionOperator`, the §5.7 multiplier
+promotion) is the separate shared leaf, and the composition
+:math:`L + C` recovers the full within-group loss.
+
+The discrete within-group WDD matvec is **affine in** :math:`\sigma` in
+the forward direction:
+
+.. (vv-status rationale) #257 S8b — the σ-free streaming primitive. The
+   intrinsic σ-freedom of pure L (its apply reads no σ) is a SOFTWARE
+   invariant pinned by the foundation catcher C1
+   (``tests/sn/operators/test_pure_L_sigma_free.py``, with a Mode-11
+   σ-leak mutation that reddens C1); the affine relation
+   ``M(σ)ψ = streaming_action(ψ) + σ⊙ψ`` and the byte-identical (L+C)
+   recovery are pinned by ``test_streaming_operator_decomposition.py``
+   and ``test_loss_action_convention.py``. The streaming discretization
+   is single-sourced through ``loss_action`` at σ = 0.
+.. vv-status: streaming-action-pure-l documented
+
+.. math::
+   :label: streaming-action-pure-l
+
+   M(\sigma)\,\psi \;=\; \underbrace{\text{streaming\_action}(\psi)}_{L\,\psi,
+       \;\sigma\text{-free}} \;+\; \sigma_t \odot \psi
+   \qquad\Longleftrightarrow\qquad
+   \text{streaming\_action}(\psi) \;=\; \texttt{loss\_action}(0, \psi)
+
+so :math:`L` reads no :math:`\sigma`: the curvilinear Carlson
+coupled-pole seed's :math:`\sigma`-dependence is exactly the collision
+diagonal it injects, which cancels into :math:`\sigma_t\odot\psi` and
+belongs to :math:`C` (ERR-058 / #195 made the seed σ-independent, which
+is what licenses the carve).  The streaming discretization lives ONCE in
+``loss_action``; ``streaming_action`` is single-sourced from it at
+:math:`\sigma = 0` (``coding-elegance`` Pattern 2), so there is no twin
+σ-free walk.
+
+.. todo:: Archivist expansion needed (#257 S8b).
+
+   Narrate the pure-L carve: WHY the discrete WDD matvec is affine in
+   :math:`\sigma` (the cell-balance ``collision_denom_term = σ_t·V``
+   enters the diagonal purely additively; the Carlson seed's σ enters
+   the angular closure but nets to the collision diagonal — show the
+   cancellation), the ERR-058 seed-σ-independence that licenses it, the
+   probe evidence (``streaming_action`` byte-stable across wildly
+   different σ to ≤ a few ULP), and the measured drift of the pure-L
+   matvec leaf vs the retired ``(L+C)−C`` fold (slab/sphere/cyl ≤ 16
+   ULP, boundary strict 0). Cross-reference the σ-free
+   :meth:`~orpheus.sn.loss_representation.LossRepresentation.streaming_action`
+   primitive in :mod:`orpheus.sn.loss_representation` and the catcher
+   :func:`tests.sn.operators.test_pure_L_sigma_free.test_c1_pure_L_apply_is_sigma_free`.
+   Closeout memo:
+   ``.claude/agent-memory/method-implementer/issue_257_s8b_pure_L_closeout.md``.
+
+
 Capability set semantics
 ========================
 

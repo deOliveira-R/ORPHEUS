@@ -513,7 +513,7 @@ class TestTypeContract:
         sn_mesh = _slab_mesh()
         sigma_t = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0)
         psi_bare = np.zeros((sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape))
-        L_op = StreamingOperator(sn_mesh, sigma_t)
+        L_op = StreamingOperator(sn_mesh)
         C_op = CollisionOperator(sn_mesh, sigma_t)
         with pytest.raises(TypeError, match="TimedFullField"):
             (L_op + C_op).apply(psi_bare)

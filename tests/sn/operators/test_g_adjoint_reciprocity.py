@@ -183,7 +183,7 @@ def _random_composite(sn: SNMesh, rng: np.random.Generator) -> TimedFullField:
 
 def _loss_operator(sn: SNMesh, sig_t: np.ndarray):
     r"""The within-group loss ``A = L + C - B`` (the boundary sibling ``-B`` live)."""
-    L = StreamingOperator(sn, sig_t)
+    L = StreamingOperator(sn)
     C = CollisionOperator(sn, sig_t)
     B = SNBoundaryOperator(sn)
     return L + C - B

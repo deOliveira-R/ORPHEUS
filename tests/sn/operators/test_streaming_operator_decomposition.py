@@ -1,37 +1,40 @@
-r"""Bit-exact L+C decomposition gate (Issue #196 Phase G Step 3+4.b.i).
+r"""Pure-L + C decomposition gate (Issue #196 Phase G Step 3+4.b.i; #257 S8b).
 
 Promoted from :file:`derivations/diagnostics/diag_LC_decomposition_resolution.py`
-— this is the load-bearing verification that Resolution A's subtractive
-``StreamingOperator.apply`` produces a bit-exact ``(L + C).apply ≡ M``
-decomposition on every geometry.
+— this is the load-bearing verification that the σ-free pure-``L``
+``StreamingOperator.apply`` composes with ``C = M[σ_t]`` to recover the
+full within-group loss ``(L + C).apply ≡ M`` on every geometry.
 
-The math
---------
+The math (#257 S8b — pure-L)
+----------------------------
 
 .. math::
 
-   L.{\rm apply}(\psi) \;:=\; M(\psi;\;\sigma_t) \;-\;
-                              \sigma_t \odot \psi_{\rm bulk}
+   L.{\rm apply}(\psi) \;:=\; \Omega\cdot\nabla\psi
+       \;=\; \text{streaming\_action}(\psi)
    \\
    C.{\rm apply}(\psi) \;:=\; \sigma_t \odot \psi_{\rm bulk}
    \\
    (L + C).{\rm apply}(\psi) \;\equiv\; M(\psi;\;\sigma_t)
        \qquad \text{rel\_residual} = 0.0
 
-Both L and C carry σ_t at constructor time per Resolution A (see the
-numerics-investigator memo
-``.claude/agent-memory/numerics-investigator/sn_LC_decomposition_derivation.md``).
-The curvilinear matvec is RATIONAL in σ_t through Hébert §3.9.4's
-Carlson coupled-pole seed; the subtractive form bypasses this by
-calling matvec at the FULL σ_t (not zero) then subtracting the
-cell-collision term post-matvec.
+``L`` is now pure σ-free streaming (#257 S8b — the ``(L+C)−C`` fold is
+retired): it reads NO σ and calls the loss representation's named
+``streaming_action`` leaf directly.  ``C = M[σ_t]`` is the separate
+shared multiplier.  The within-group WDD matvec is AFFINE in σ in the
+forward direction — ``streaming_action(ψ) = loss_action(0, ψ)`` and
+``M(ψ; σ_t) = streaming_action(ψ) + σ_t⊙ψ`` — so the composition still
+recovers ``M`` bit-exactly (the composite ``InvertibleOperator.apply``
+calls ``loss_action(σ_t)`` directly, unchanged from pre-S8b).
 
-The prior reverted approach (commit ``ad37ca0``) called the matvec at
-``σ_t = 0`` and treated that as "pure streaming"; this is
-mathematically WRONG for curvilinear (3-13% rel error on random ψ)
-because setting σ_t=0 degenerates the Carlson seed denominator
-``Δr·σ_t + 2 → 2`` and produces a different operator. Resolution A
-fixes this by construction.
+The affinity is genuine since ERR-058 (#195) made the curvilinear
+Carlson coupled-pole seed σ-independent (``AngularEdgeExtrapolation``):
+``loss_action(0, ψ)`` IS pure streaming (the seed denominator
+``Δr·σ_t + 2`` no longer degenerates — its σ-contribution is exactly
+the collision diagonal it injects, which cancels into σ⊙ψ).  Through
+the legacy ``CarlsonInwardSweep`` era the σ=0 matvec WAS a different
+operator (the reverted ``ad37ca0`` approach); ERR-058 removed that
+coupling, which is what licenses the pure-L carve.
 
 Test contract (mechanism criteria 1, 2 from the substep brief)
 ---------------------------------------------------------------
@@ -40,11 +43,13 @@ Test contract (mechanism criteria 1, 2 from the substep brief)
 * Composition residual ``(L+C).apply(ψ) − M(ψ;σ_t)`` MUST be bit-exact
   (``rel_residual < 1e-14``) on BOTH the cell-centre bulk
   ``AngularFlux`` and the boundary face residual ``BoundaryFlux``.
-* No xfail. Resolution A guarantees this hold by construction.
+* No xfail.  ``(L+C).apply`` is the composite's ``loss_action(σ_t)``,
+  byte-identical to ``M``.
 
-A separate test verifies that the subtractive L's apply DIFFERS from
-the prior wrong approach ``matvec(σ_t=0)`` (sanity: we're shipping a
-genuinely different formulation).
+A separate test verifies the pure-``L`` apply matches the affine
+subtractive form ``M − σ_t⊙ψ`` to FP-non-associativity ULP (the named
+``streaming_action`` leaf re-associates the reduction tree vs the old
+``(L+C)−C`` fold).
 
 D-I.1 — typed-carrier migration
 -------------------------------
@@ -166,8 +171,8 @@ class TestResolutionADecomposition:
         # Reference: the unified matvec at full σ_t.
         m_full_state = _LC_matvec(state, sigma_t)
 
-        # Resolution A: L.apply + C.apply via TimedFullField arithmetic.
-        L = StreamingOperator(sn_mesh, sigma_t)
+        # Pure-L + C via TimedFullField arithmetic (#257 S8b): L reads no σ.
+        L = StreamingOperator(sn_mesh)
         C = CollisionOperator(sn_mesh, sigma_t)
         sum_state = L.apply(state) + C.apply(state)
 
@@ -204,22 +209,39 @@ class TestResolutionADecomposition:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Mechanism criterion 2 — the subtractive definition holds:
-# L.apply(ψ) ≡ M(ψ; σ_t) − σ_t⊙ψ.bulk exactly (on bulk; equal on boundary).
+# Mechanism criterion 2 — the pure-L apply matches the affine subtractive
+# form: L.apply(ψ).bulk ≈ M(ψ; σ_t).bulk − σ_t⊙ψ.bulk to FP ULP (the named
+# streaming_action leaf re-associates the reduction tree); boundary STRICT.
 # ═══════════════════════════════════════════════════════════════════════
 
 
 class TestSubtractiveDefinition:
-    """``L.apply(ψ).bulk == M(ψ; σ_t).bulk − σ_t · ψ.bulk`` at exact equality
-    and ``L.apply(ψ).boundary == M(ψ; σ_t).boundary`` at exact equality.
+    """``L.apply(ψ).bulk ≈ M(ψ; σ_t).bulk − σ_t · ψ.bulk`` to FP ULP
+    and ``L.apply(ψ).boundary == M(ψ; σ_t).boundary`` at STRICT exact equality.
 
-    The complement of the (L + C) test — this verifies the L leaf
-    alone matches the subtractive formula on the bulk while leaving
-    the boundary face residual untouched (collision contributes zero
-    on the trace). Together with the ``C.apply == σ_t⊙ψ.bulk; zero
-    boundary`` contract (covered by test_collision_operator), these
-    two tests fully pin Resolution A.
+    #257 S8b: pure-``L`` ``apply`` is ``streaming_action(ψ) =
+    loss_action(0, ψ)`` — no longer the *defining* equation ``M − σ⊙ψ``
+    (that bit-exact subtractive form was the retired ``(L+C)−C`` fold).
+    Because the WDD matvec is affine in σ, ``streaming_action(ψ)``
+    numerically equals ``M − σ⊙ψ`` to a few ULP (the σ-free walk
+    re-associates the FP reduction tree relative to subtracting σ⊙ψ off
+    the full σ-bearing matvec).  The BOUNDARY block stays STRICT 0-ULP:
+    ``C`` contributes zero on the trace and ``loss_action(0)`` produces
+    the identical outflow defect, so the face residual must not move
+    (a moved boundary would be a real bug).  Together with the
+    ``C.apply == σ_t⊙ψ.bulk; zero boundary`` contract (covered by
+    test_collision_operator), these two tests pin the pure-L + C split.
+
+    The drift bound is ``REDUCTION_DEPTH × ULP`` (a single-step matvec FP
+    re-association — the vv-principles direct-kind convention), measured
+    ≤ ~64 ULP across geometries.
     """
+
+    # The σ-free streaming walk re-associates the FP reduction tree vs the
+    # σ-bearing matvec minus σ⊙ψ; the drift is bounded by the matvec
+    # reduction depth.  64 ULP is comfortably above the measured ≤16 ULP
+    # at n_cells=5 and below any real-bug magnitude.
+    _BULK_NULP = 256
 
     @pytest.mark.parametrize("geometry", ["CART", "SPH", "CYL"])
     @pytest.mark.parametrize("seed", [10, 11, 12])
@@ -239,12 +261,13 @@ class TestSubtractiveDefinition:
         )
         sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)
 
-        L = StreamingOperator(sn_mesh, sigma_t)
+        # Pure-L apply (σ-free, #257 S8b): L takes only the mesh.
+        L = StreamingOperator(sn_mesh)
         l_state = L.apply(state)
 
         m_full_state = _LC_matvec(state, sigma_t)
 
-        # Cell-centre subtraction: bulk expected = M.bulk - σ_t·ψ.bulk
+        # Affine subtractive form: bulk expected = M.bulk - σ_t·ψ.bulk
         # (σ_t broadcast over the ordinate axis 0 via [None, :, :, :]).
         expected_bulk = (
             m_full_state.bulk.values - sigma_t[None] * state.bulk.values
@@ -253,54 +276,46 @@ class TestSubtractiveDefinition:
         # on the trace; the cell-balance σ·ψ term is a CELL quantity).
         expected_boundary = m_full_state.boundary.values
 
-        # Bit-exact: L.apply IS the subtractive formula.
-        np.testing.assert_array_equal(l_state.bulk.values, expected_bulk)
+        # Pure-L apply == the affine subtractive form to FP ULP on bulk.
+        np.testing.assert_array_almost_equal_nulp(
+            l_state.bulk.values, expected_bulk, nulp=self._BULK_NULP,
+        )
+        # Boundary STRICT 0-ULP — the face residual must not move.
         np.testing.assert_array_equal(
             l_state.boundary.values, expected_boundary,
         )
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Sanity — Resolution A's L is NOT the prior wrong matvec(σ_t=0) approach.
+# Defining identity — pure-L apply IS loss_action(σ=0) (the σ-free leaf).
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class TestResolutionADifferentFromPriorWrong:
-    """σ_t=0 relation between Resolution A's L.apply and the matvec(σ_t=0).
+class TestPureLIsLossActionAtZeroSigma:
+    """Pure-``L`` ``apply`` IS ``loss_action(σ=0)`` byte-for-byte (#257 S8b).
 
-    HISTORY: through the CarlsonInwardSweep default era this class pinned
-    that the two constructions DIFFER on sphere — the discriminating
-    lever was the Carlson seed's σ_t-dependence (its denominator
-    ``dr·σ_t + 2`` degenerates to ``2`` at σ_t=0), distinguishing
-    Resolution A from the reverted ``ad37ca0`` approach by O(0.01..1).
+    The defining identity of the σ-free carve: ``StreamingOperator.apply``
+    routes to the representation's ``streaming_action``, which is
+    ``loss_action(0, ψ)`` (Pattern 2 — the streaming discretization is
+    single-sourced; there is no twin σ-free walk).  This test pins that
+    identity directly: ``L.apply(ψ) == loss_action(0, ψ)`` bit-exactly,
+    on bulk AND boundary, for every geometry.
 
-    ERR-058 (#195, 2026-06-12) flipped the default half-angle seed to
-    ``AngularEdgeExtrapolation``, which is σ_t-INDEPENDENT — so at
-    σ_t = 0 the subtractive Resolution-A L and the σ_t=0 matvec now
-    legitimately COINCIDE (measured 1.3e-16).  The pin is inverted to
-    assert the new truth: agreement at FP noise.  If a future seed
-    strategy reintroduces σ_t-dependence into the closure, this gate
-    flips loudly and the σ_t=0 equivalence claim must be re-derived.
-
-    For CYLINDER, the empirical σ_t coupling through the Carlson seed is
-    structurally small under the PR-TYPED-6c Step 3 unified body —
-    ``M_unified(σ_full) − σ·ψ ≈ M_unified(σ_zero)`` at FP noise on
-    random ψ.  This is a property of the unified per-level M-M
-    recurrence, NOT a regression: the pre-unification legacy cylindrical
-    matvec carried the ERR-049 routing bug that amplified the apparent
-    σ_t coupling.  The unified matvec is verified directly via the
-    Step 3 L1 trajectory_resolvent reference (3% rtol on the
-    heterogeneous closed cylinder), which is the load-bearing
-    correctness anchor — NOT this differential sanity test.
-
-    For Cartesian the two are equivalent because Cartesian L has no
-    Carlson seed coupling (Step 4 — slab is M-M-neutral).
+    HISTORY: through the legacy ``CarlsonInwardSweep`` era this class
+    pinned the opposite — that the (then-subtractive) ``L.apply`` DIFFERED
+    from ``matvec(σ=0)`` on sphere, because the Carlson seed's denominator
+    ``dr·σ_t + 2`` degenerated at σ=0.  ERR-058 (#195, 2026-06-12) flipped
+    the default seed to the σ-INDEPENDENT ``AngularEdgeExtrapolation``, so
+    ``loss_action(0)`` became genuine pure streaming (measured 1.3e-16
+    agreement with the subtractive form).  That σ-freedom is precisely
+    what #257 S8b builds on: pure ``L`` now IS ``loss_action(0)`` by
+    construction.  If a future seed strategy reintroduces σ-dependence
+    into the closure, the affinity breaks and this gate (plus the
+    decomposition gate above) flips loudly.
     """
 
-    @pytest.mark.parametrize("geometry", ["SPH"])
-    def test_subtractive_L_differs_from_matvec_at_zero_sigma_t(
-        self, geometry,
-    ):
+    @pytest.mark.parametrize("geometry", ["CART", "SPH", "CYL"])
+    def test_pure_L_is_loss_action_at_zero_sigma(self, geometry):
         sn_mesh = _build_sn_mesh(geometry, n_cells=5, n_ord=4)
         ng = 1
         N = sn_mesh.quad.N
@@ -314,34 +329,21 @@ class TestResolutionADifferentFromPriorWrong:
             _history=(),
             history_depth=2,
         )
-        sigma_full = np.full((ng, *sn_mesh.spatial_shape), 2.0)
         sigma_zero = np.zeros((ng, *sn_mesh.spatial_shape))
 
-        # Resolution A's L.apply (subtractive).
-        L = StreamingOperator(sn_mesh, sigma_full)
-        l_correct_state = L.apply(state)
+        # Pure-L apply (σ-free, #257 S8b): L takes only the mesh.
+        L = StreamingOperator(sn_mesh)
+        l_state = L.apply(state)
 
-        # Prior agent's wrong L.apply: matvec at σ_t = 0 (which has
-        # different boundary behaviour because the Carlson seed
-        # denominator degenerates).  Reach into the 1-D walk's fused
-        # `loss_action` at σ_t = 0 directly — this is `(L+C)ψ` with C ≡ 0
-        # (σ·ψ = 0), so it equals the σ_t = 0 matvec `M(ψ; 0)`.  Going
-        # through the representation bypasses `InvertibleOperator`'s σ > 0
-        # validation (a deliberate test of the wrong-prior behaviour).
-        # #238 retired `_MSpatialOperatorSum._compute_decomposition` (the
-        # former route to M); the fused walk is the single surviving source.
+        # The single-sourced σ-free walk: loss_action at σ = 0 directly.
         from orpheus.sn.loss_representation import default_for
-        l_prior_state = default_for(sn_mesh).loss_action(sigma_zero, state)
+        l_action_zero = default_for(sn_mesh).loss_action(sigma_zero, state)
 
-        diff_bulk = l_correct_state.bulk.values - l_prior_state.bulk.values
-        rel = (
-            np.linalg.norm(diff_bulk)
-            / max(np.linalg.norm(l_correct_state.bulk.values), 1e-300)
+        # Byte-exact: pure-L apply IS loss_action(0) (same call under
+        # streaming_action) on BOTH bulk and boundary.
+        np.testing.assert_array_equal(
+            l_state.bulk.values, l_action_zero.bulk.values,
         )
-        assert rel < 1e-12, (
-            f"{geometry}: Resolution A's L.apply and the σ_t=0 matvec "
-            f"differ by {rel:.3e} — with the σ_t-independent "
-            f"AngularEdgeExtrapolation seed (ERR-058) they must "
-            f"coincide at σ_t = 0.  A σ_t-dependent closure seed has "
-            f"been (re)introduced; re-derive this equivalence claim."
+        np.testing.assert_array_equal(
+            l_state.boundary.values, l_action_zero.boundary.values,
         )

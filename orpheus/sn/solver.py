@@ -213,7 +213,9 @@ def _within_group_triple(solver: "SNSolver") -> tuple:
     from .boundary_operator import SNBoundaryOperator
 
     sn_mesh = solver.sn_mesh
-    L = StreamingOperator(sn_mesh, solver.mat_xs.total_cross_section)
+    # L = pure σ-free streaming (#257 S8b): the streaming leaf reads no σ;
+    # the collision diagonal lives entirely in C = M[σ_t].
+    L = StreamingOperator(sn_mesh)
     # C = M[σ_t] (#257 S3b promotion): construct from the typed
     # CrossSectionField accessor (the field side of the operator
     # promotion), not the raw ndarray view.
@@ -924,7 +926,7 @@ class SNSolver:
         # :meth:`InvertibleOperator.solve` consumes ``initial_guess`` for
         # the Carlson seed (R-1 Phase 1.2 unification).
         self.L = (
-            StreamingOperator(sn_mesh, self.mat_xs.total_cross_section)
+            StreamingOperator(sn_mesh)
             + CollisionOperator(sn_mesh, self.mat_xs.total_cross_section_field)
         )
         self.S = self.scattering_op
@@ -997,9 +999,11 @@ class SNSolver:
         # (sig_a, sig_p, chi) match the rebind contract.
         _ = self.mat_xs.absorption_cross_section
         self.mat_xs._sig_t_cell = new_sig_t
-        # Mirror onto the L operator so its apply path stays consistent.
+        # Rebuild the composite so the rebound σ_t flows into the collision
+        # diagonal C (the streaming leaf L is σ-free since #257 S8b — only C
+        # carries σ; the composite single-sources it from C.sigma).
         self.L = (
-            StreamingOperator(self.sn_mesh, self.mat_xs.total_cross_section)
+            StreamingOperator(self.sn_mesh)
             + CollisionOperator(self.sn_mesh, self.mat_xs.total_cross_section_field)
         )
         if self.geom_cache is not None:
