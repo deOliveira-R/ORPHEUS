@@ -526,6 +526,94 @@ The multiplication operator — a coefficient field promoted (§5.7)
 .. vv-status: multiplication-operator-action documented
 
 
+.. _functional-category:
+
+The functional category (the §5.6 suffix law)
+=============================================
+
+The grand report §5.6 *suffix law* partitions the maps of the algebra
+by what they return: an **Operator** maps a field to a field
+(:eq:`operator-apply`), a **Kernel** integrates a field against a
+measure (:eq:`scattering-as-tensor-product-sum`), and a **Functional**
+maps a field to a **scalar** — or, fiberwise over space, to a
+scalar-*field*. The functional surface is the single method
+``evaluate(x) -> R``; it deliberately carries **none** of the
+:class:`~orpheus.numerics.operator.LinearOperator` surface (no
+``apply``, no ``capabilities``), and that disjointness is the
+category's defining property (#257 S5,
+:class:`orpheus.numerics.functional.Functional`).
+
+The canonical transport instance is the per-cell fission emission
+**density**, contracting the production cross section against the flux
+over the source groups:
+
+.. math::
+   :label: production-rate-functional
+
+   p(\vec r) \;=\; \sum_{g'} \nu\Sigma_{f,g'}(\vec r)\,\phi_{g'}(\vec r),
+
+with the group axis collapsed and **no** volume measure folded in (it
+is the density, not the integral :math:`\int p\,dV`). This is exactly
+the anonymous ``inner`` reduction inside
+:meth:`orpheus.numerics.operator.RankOneOperator.apply`
+(``(right * x).sum(axis=0, keepdims=True)``, ``right = νΣf``) — naming
+it turns the most physically central diagnostic in criticality into a
+typed, inspectable Functional. It is the **middle** of the fission
+composition :math:`F = M_\chi \circ \mathrm{ProductionRate} \circ
+M_{\nu\Sigma_f}` (Frame 3 of the coefficient-promotion analysis); S5
+creates and cross-checks the functional, and S6 (not yet landed) wires
+the composition.
+
+.. vv-status: functional-category documented
+.. vv-status: production-rate-functional documented
+
+.. todo:: Archivist expansion needed (#257 S5).
+
+   The full §5.6 suffix-law narrative — the Operator / Kernel /
+   Functional partition as a structural fact the type system enforces,
+   why the production rate is a Functional (field → scalar-field) and
+   not an operator, the fission composition
+   :math:`F = M_\chi \circ \mathrm{ProductionRate} \circ M_{\nu\Sigma_f}`
+   with the bit-identity to the legacy rank-1 ``inner``, and the
+   relationship to the §5.6 Projection / Reconstruction adjoint pair —
+   belongs here. Sources for the expansion:
+
+   * Code: :class:`orpheus.numerics.functional.Functional`
+     (the §5.6 functional Protocol, L1 — the co-vector companion of
+     :class:`~orpheus.numerics.vector.Vector`) and
+     :class:`orpheus.transport.production_rate_functional.ProductionRateFunctional`
+     (the concrete §5.6 production-rate functional, L2 — the shared
+     SN/CP/MoC leaf).
+   * Coefficient side: :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
+     (#257 S1) carrying :math:`\nu\Sigma_f` via
+     :meth:`~orpheus.sn.material_xs_field.MaterialXSField.fission_production_field`
+     (#257 S2).
+   * Bit-identity reference:
+     :meth:`orpheus.numerics.operator.RankOneOperator.apply`
+     (the ``inner`` group contraction the functional reproduces
+     byte-for-byte, de-risking the S6 composition).
+   * Estimators-as-functionals: the keff / production-rate estimators
+     :func:`orpheus.numerics.iteration._default_keff_estimator` and
+     :func:`orpheus.numerics.iteration._default_production_estimator`
+     (kept as bare ``(L,S,F,ψ)`` callables — NOT
+     ``Functional`` objects, since they consume the operator triple,
+     not a lone field; the category simply now *names* what their
+     field→scalar core is).
+   * Tests: ``tests/transport/test_functional_category.py`` (the
+     category-distinctness intrinsic gate),
+     ``tests/transport/test_production_rate_functional.py`` (the
+     hand-derived correctness reference + the RankOne equivalence
+     de-risk), ``tests/numerics/test_estimators_as_functionals.py``
+     (the estimator bit-identity + category-honesty).
+   * Plan: ``.claude/plans/issue_257_coefficient_field_promotion.md`` (S5).
+   * Frame memo:
+     ``.claude/agent-memory/cross-domain-attacker/coefficient_field_promotion_frames.md``
+     — Frame 3 (the production rate as a Functional; the locality
+     criterion separating it from the scattering / fission kernels).
+   * Closeout memo:
+     ``.claude/agent-memory/method-implementer/issue_257_s5_functional_category_closeout.md``.
+
+
 .. _tensorial-framing:
 
 Tensor product algebra

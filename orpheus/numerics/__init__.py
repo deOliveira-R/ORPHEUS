@@ -2,6 +2,7 @@
 
 from .eigenvalue import EigenvalueSolver, ProductionRateSolver, power_iteration
 from .field import Field
+from .functional import Functional, R_co, V_contra
 from .iteration import KEigenvalue, SourceIteration
 from .measure import (
     BundleMeasure,
@@ -54,6 +55,7 @@ __all__ = [
     "DualSpace",
     "EigenvalueSolver",
     "Field",
+    "Functional",
     "FunctionSpace",
     "GalerkinProjection",
     "HarmonicMomentReconstruction",
@@ -69,6 +71,7 @@ __all__ = [
     "PetrovGalerkinProjection",
     "ProductionRateSolver",
     "ProjectionOperator",
+    "R_co",
     "RankOneOperator",
     "ScaledOperator",
     "SourceIteration",
@@ -78,6 +81,7 @@ __all__ = [
     "TensorProductOperator",
     "TensorProductSpace",
     "V",
+    "V_contra",
     "Vector",
     "ZeroOperator",
     "as_scipy_linop",
