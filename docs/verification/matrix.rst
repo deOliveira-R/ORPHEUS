@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5478**
+Total tests collected: **5489**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1162, 21.2%
+   L0, 1164, 21.2%
    L1, 988, 18.0%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3282, 59.9%
+   foundation, 3291, 60.0%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5389
+   explicit, 5400
    verify, 0
    class-name, 46
    func-name, 0
@@ -304,6 +304,7 @@ Module × level grid
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
    operators/test_operator_block_role, 0, 0, 0, 0, 20, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 16, 0
+   operators/test_pure_L_sigma_free, 0, 0, 0, 0, 9, 0
    operators/test_removal_form_matvec_sweep, 0, 0, 0, 0, 20, 0
    operators/test_scattering_kernel_crosscheck, 0, 0, 0, 0, 4, 0
    operators/test_scattering_operator, 1, 0, 0, 0, 66, 0
@@ -312,7 +313,7 @@ Module × level grid
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
    operators/test_streaming_operator, 0, 0, 0, 0, 54, 0
-   operators/test_streaming_operator_decomposition, 19, 0, 0, 0, 0, 0
+   operators/test_streaming_operator_decomposition, 21, 0, 0, 0, 0, 0
    operators/test_typed_residual_evaluation, 1, 0, 0, 0, 3, 0
    primitives/test_axis_native_construction, 0, 0, 0, 0, 15, 0
    primitives/test_axis_primitive, 0, 0, 0, 0, 23, 0
@@ -744,7 +745,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **223** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **224** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -944,6 +945,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sood-eq29-kinf-2g-no-upscatter``
 - ``sood-eq32-phi-ratio``
 - ``sood-eq76-kinf-mg``
+- ``streaming-action-pure-l``
 - ``streaming-as-tensor-product-sum``
 - ``streaming-inverse-direct-sum``
 - ``subgroup-of-o3-containment``
