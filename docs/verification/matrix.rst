@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5361**
+Total tests collected: **5446**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1160, 21.6%
-   L1, 988, 18.4%
+   L0, 1162, 21.3%
+   L1, 988, 18.1%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3167, 59.1%
+   foundation, 3250, 59.7%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5272
+   explicit, 5357
    verify, 0
    class-name, 46
    func-name, 0
@@ -219,6 +219,7 @@ Module × level grid
    fields/test_angular_flux, 0, 0, 0, 0, 24, 0
    fields/test_boundary_flux, 0, 0, 0, 0, 36, 0
    fields/test_boundary_source_sink_residual, 0, 0, 0, 0, 30, 0
+   fields/test_coefficient_fields, 0, 0, 0, 0, 9, 0
    geometry/test_bc_equivalence_snapshot, 0, 8, 0, 0, 0, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 30, 0, 0, 11, 0
@@ -257,7 +258,8 @@ Module × level grid
    moc/test_ray_tracing, 22, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
    numerics/test_affine_flux_algebra, 0, 0, 0, 0, 34, 0
-   numerics/test_diagonal_operator, 17, 0, 0, 0, 0, 0
+   numerics/test_diagonal_operator, 19, 0, 0, 0, 3, 0
+   numerics/test_estimators_as_functionals, 0, 0, 0, 0, 5, 0
    numerics/test_face_layout, 0, 0, 0, 0, 15, 0
    numerics/test_field, 0, 0, 0, 0, 22, 0
    numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
@@ -284,6 +286,7 @@ Module × level grid
    numerics/test_symmetry, 0, 0, 0, 0, 71, 0
    numerics/test_tensor_product_operator, 27, 0, 0, 0, 0, 0
    numerics/test_trace_space, 10, 5, 0, 0, 12, 0
+   numerics/test_vector_protocol, 0, 0, 0, 0, 8, 0
    operators/test_angular_average_operator, 12, 4, 0, 0, 0, 0
    operators/test_bc_extraction_2d, 2, 3, 0, 0, 3, 0
    operators/test_bc_extraction_matvec, 3, 0, 0, 0, 30, 0
@@ -327,6 +330,7 @@ Module × level grid
    residuals/test_typed_residuals, 0, 0, 0, 0, 33, 0
    slab/test_dd_recurrence, 1, 0, 0, 0, 0, 0
    slab/test_unified_matvec_slab, 2, 2, 0, 0, 0, 0
+   sn/test_material_xs_field_typed, 0, 0, 0, 0, 10, 0
    solve/test_2d_anisotropic_windowing, 0, 4, 0, 0, 0, 0
    solve/test_affine_carve_bit_identity, 0, 0, 0, 0, 3, 0
    solve/test_b1pp_verification, 6, 3, 0, 0, 0, 0
@@ -349,11 +353,15 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 274, 0
+   test_layer_imports, 0, 0, 0, 0, 281, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
    transport/test_field_units, 0, 0, 0, 0, 43, 0
+   transport/test_full_field, 0, 0, 0, 0, 13, 0
+   transport/test_functional_category, 0, 0, 0, 0, 11, 0
+   transport/test_multiplication_operator, 0, 0, 0, 0, 11, 0
+   transport/test_production_rate_functional, 0, 0, 0, 0, 6, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0
 
 Equation coverage
@@ -732,7 +740,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **220** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **222** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -802,6 +810,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``mode-conservation-target``
 - ``moment-projection-transpose-T``
 - ``morel-montry-clamp``
+- ``multiplication-operator-action``
 - ``nm1980-eq16-tau-zero``
 - ``octant-direct-sum-tensor-product``
 - ``octant-sign-predicate``
@@ -904,6 +913,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``pi-r-equals-4pi-i``
 - ``power-equation``
 - ``precursor-equation``
+- ``production-rate-functional``
 - ``quadrature-selection-criterion``
 - ``real-sh-addition-theorem``
 - ``real-sh-discrete-orthogonality``
