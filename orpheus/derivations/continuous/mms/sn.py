@@ -1156,21 +1156,32 @@ to the slope-source sign (an O(h²)-small forcing), so the teeth are STRUCTURAL
 (the lift threads the projection through unchanged at machine precision; the
 consumed flip moves the answer O(1) above tol), NOT a converged-value band.
 
-The BOUNDARY transverse-face-slope (**Leg B**) remains DEFERRED — tracked in
-**#251**.  The boundary trace ``mesh.trace`` carries one SCALAR value per face
-per ordinate per group (no :math:`2^{d-1}` transverse-moment axis);
-``_inflow_to_moments`` seeds the scalar onto the face-AVERAGE moment and zeros
-the transverse face-slope (the loss-rep docstring flags this as "the #240 D5b-S4
-boundary widening").  Leg B needs a moment-resolved boundary trace
-(a ``TraceSpace`` widening + ``_inflow_to_moments``) — a DIFFERENT production
-path than the bulk lift Leg A landed.
+The BOUNDARY transverse-face-slope (**Leg B**, **#251**) is now CARRIED end to
+end: the boundary trace ``mesh.trace`` carries the :math:`2^{d-1}`
+transverse-moment axis (LD), ``_inflow_to_moments`` threads the projected
+transverse face-slope onto slot-1, and — since **#257 S9** — this case's
+:meth:`~SN2DCartesianLDStressMMSCase.prescribed_inflow` itself EMITS the
+moment-resolved slot (``_project_inflow_to_face_moments`` projects the
+manufactured inflow trace onto the bare transverse Legendre moments
+``[bar, slope]``; DD/Step keeps the byte-identical scalar trace).
+
+**S9 verdict (vv Mode-10, the boundary sub-case where the companion-isolating
+value gate is UNAVAILABLE):** the transverse face-slope is GENUINELY consumed (a
+flip moves the near-boundary flux ≫ tol) and threaded at machine precision, but
+its converged-flux contribution is SUB-FLOOR — the cell-AVERAGE moment already
+delivers O(h²) AT the boundary (the coherent promise: LD is 2nd-order everywhere
+incl. the boundary, no asterisk).  The slope is an inflow-representation
+refinement (O(h)→O(h²) on the face trace), NOT a deficiency repair; no
+value/order gate is keyed on it (it would falsely RED a correct term).  Locked by
+``tests/sn/verification/mms/test_ld_2d_boundary_promise.py`` (the coherent-promise
+gate + the sub-floor verdict pins + the Mode-11 toggle sentinel).
 
 CONSEQUENCE: this MMS now verifies the multi-D slope-UNKNOWN sign + the
-slope-SOURCE sign (Leg A) + the AVERAGE-moment boundary closure.  The transverse
-face-slope inflow moment (Leg B, #251) is still deferred.  The manufactured
-:math:`\hat Q` IS derived here (Branch 1 is slope-source-READY) and now CONSUMED
-(Leg A).  Per Frame 2 §232: the LM-1989 trap's bulk half is closed by Leg A;
-the boundary half awaits #251.
+slope-SOURCE sign (Leg A, #247) + the AVERAGE-moment boundary closure + the
+transverse face-slope threading/consumption (Leg B, #251) + the boundary
+coherent promise (S9, #257).  Per Frame 2 §232: the LM-1989 trap's bulk half is
+closed by Leg A; the boundary half by Leg B + S9.  The reflective-BC
+transverse-slope SIGN remains a vacuum-BC-blind follow-up (#252).
 
 .. seealso::
 
@@ -1350,10 +1361,13 @@ class SN2DCartesianLDStressMMSCase:
     (**Leg A, #247**): the public entry accepts a moment-resolved external
     source and the lift threads the projected slope rows through (pinned by the
     per-moment structural gate + mutation controls in
-    ``tests/sn/verification/mms/test_mms_ld_2d.py``).  Only the BOUNDARY
-    transverse-face-slope (**Leg B, #251**) remains deferred — it needs a
-    moment-resolved boundary trace (the production still consumes a face-average
-    boundary trace).
+    ``tests/sn/verification/mms/test_mms_ld_2d.py``).  The BOUNDARY
+    transverse-face-slope (**Leg B, #251**) is now CARRIED end to end (the trace
+    is moment-resolved, the cochain consumes slot-1) and — since **#257 S9** —
+    :meth:`prescribed_inflow` EMITS the projected transverse face-slope (its
+    converged-flux contribution is SUB-FLOOR; the AVERAGE moment delivers O(h²)
+    at the boundary — the coherent promise, locked by
+    ``test_ld_2d_boundary_promise.py``).
 
     Cross sections are **callables** :math:`\Sigma(x,y,g)` evaluated at cell
     centres (one :class:`Mixture` per cell); reuses
@@ -1469,10 +1483,11 @@ class SN2DCartesianLDStressMMSCase:
 
     def external_source(self, mesh: Mesh2D) -> np.ndarray:
         r"""Per-ordinate, per-cell, per-group external source — shape
-        ``(N_ord, ng, nx, ny)`` (the FLAT per-ordinate density the production
-        consumes; the spatial moments of this source are PROJECTED at solve
-        time, but the production lifts only the AVERAGE moment — see the module
-        docstring HONEST SCOPE).
+        ``(N_ord, ng, nx, ny)`` (the FLAT per-ordinate density; the widened
+        public solve lifts this onto slot-0 with zero slope rows, the honest
+        flat default).  The moment-resolved bulk slope source (Leg A, #247) is
+        the test-side projection of this density fed to the widened lift — see
+        the module docstring HONEST SCOPE.
 
         The manufactured source is the PDE residual
 
@@ -1547,19 +1562,33 @@ class SN2DCartesianLDStressMMSCase:
         carry :math:`\gamma_-\psi = \psi_{n,g}(x_{\rm face}, \mu_n)/W`, the
         face-trace of the manufactured angular flux.  Because :math:`a_0>0` the
         trace is NON-zero on all four edges — the boundary closure is stressed
-        at the FACE-AVERAGE moment (the production widens the scalar trace onto
-        the average moment; the transverse face-SLOPE moment is DROPPED — the
-        deferred S4 boundary widening, see the module docstring HONEST SCOPE).
+        at the FACE-AVERAGE moment.
+
+        **Moment honesty (#257 S9).**  When the mesh is moment-resolved (the
+        bilinear UBLD Linear-Discontinuous closure, ``face_moment_count > 1``),
+        the inflow trace varies transversely ALONG each face, so this builds the
+        FULL transverse moment slot ``(N, ng, n_t, face_moment_count)`` — slot 0
+        the transverse cell AVERAGE, slot 1 the bare transverse :math:`P_1`
+        slope — and feeds it to the producer's full-slot branch
+        (:meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`).
+        The slope is genuinely consumed by the LD boundary closure (its
+        converged-flux contribution is sub-floor — a representation refinement,
+        not a deficiency repair; see the theory page).  When the mesh is a
+        cell-average closure (DD/Step, ``face_moment_count == 1``) it builds the
+        SCALAR per-face trace ``(N, ng, n_t)`` exactly as before — byte-identical
+        (the producer's scalar branch seeds slot 0, no moment axis exists).
 
         Materialised via the ergonomic
         :meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
-        generator (full ``(N, ng, n_face)`` per face; the generator keeps only
-        the inflow ordinates).  The per-face value at transverse coordinate
-        :math:`t` along the face is :math:`\psi_{n,g}` evaluated at the face's
-        cell-centre transverse positions.
+        generator (full ``(N, ng, n_face[, face_moment_count])`` per face; the
+        generator keeps only the inflow ordinates).
         """
+        from orpheus.numerics.moment_layout import face_moment_count
         from orpheus.transport.source_sinks import BoundarySourceSink
 
+        n_face_moments = face_moment_count(
+            sn_mesh.scheme.spatial_basis_per_axis, sn_mesh.ndim,
+        )
         W = float(self.quadrature.weights.sum())
         mu_x = self.quadrature.mu_x
         mu_y = self.quadrature.mu_y
@@ -1567,35 +1596,131 @@ class SN2DCartesianLDStressMMSCase:
         mesh = sn_mesh.mesh
         cx = mesh.centers_x
         cy = mesh.centers_y
+        ex = mesh.edges_x
+        ey = mesh.edges_y
         Lx, Ly = self.length_x, self.length_y
 
-        # Each face's transverse cell-centre coordinates: the x-faces vary in y,
-        # the y-faces vary in x.  ψ_{n,g}(x_face, y_t) = (A + μ_x B + μ_y C)/W.
-        face_coords = {
-            "xmin": (np.array([0.0]), cy),
-            "xmax": (np.array([Lx]), cy),
-            "ymin": (cx, np.array([0.0])),
-            "ymax": (cx, np.array([Ly])),
+        # Each face's transverse direction: x-faces vary in y (transverse edges
+        # ey, transverse centres cy), y-faces vary in x (ex, cx).  The constant
+        # axis carries the fixed face coordinate.  ``const_axis`` selects which
+        # of (x, y) is fixed so ``_project_inflow_to_face_moments`` can evaluate
+        # ψ_{n,g}(face, t) = (A + μ_x B + μ_y C)/W at transverse positions t.
+        face_specs = {
+            "xmin": ("x", 0.0, ey, cy),
+            "xmax": ("x", Lx, ey, cy),
+            "ymin": ("y", 0.0, ex, cx),
+            "ymax": ("y", Ly, ex, cx),
         }
         face_values: dict[str, np.ndarray] = {}
-        for face, (xf, yf) in face_coords.items():
-            n_t = max(len(xf), len(yf))            # transverse cell count
-            vals = np.empty((len(mu_x), ng, n_t))
-            for g in range(ng):
-                A, _, _, B, _, _, C, _, _ = self._drivers(xf, yf, g)
-                # A/B/C are (len(xf), len(yf)); one of the two is length-1 →
-                # squeeze to the transverse axis (n_t,).
-                A_t = A.reshape(n_t)
-                B_t = B.reshape(n_t)
-                C_t = C.reshape(n_t)
-                # ψ_{n,g}(face, t) / W per ordinate, per transverse cell.
-                vals[:, g, :] = (
-                    A_t[None, :]
-                    + mu_x[:, None] * B_t[None, :]
-                    + mu_y[:, None] * C_t[None, :]
-                ) / W
-            face_values[face] = vals
+        for face, (const_axis, const_val, t_edges, t_centres) in face_specs.items():
+            n_t = len(t_centres)               # transverse cell count
+            if n_face_moments == 1:
+                # DD/Step — scalar per-face trace (cell-CENTRE eval), the
+                # byte-identical path (the producer seeds slot 0).
+                vals = np.empty((len(mu_x), ng, n_t))
+                for g in range(ng):
+                    if const_axis == "x":
+                        A, _, _, B, _, _, C, _, _ = self._drivers(
+                            np.array([const_val]), t_centres, g)
+                    else:
+                        A, _, _, B, _, _, C, _, _ = self._drivers(
+                            t_centres, np.array([const_val]), g)
+                    A_t, B_t, C_t = A.reshape(n_t), B.reshape(n_t), C.reshape(n_t)
+                    vals[:, g, :] = (
+                        A_t[None, :]
+                        + mu_x[:, None] * B_t[None, :]
+                        + mu_y[:, None] * C_t[None, :]
+                    ) / W
+                face_values[face] = vals
+            else:
+                # LD (moment-resolved) — full transverse moment slot
+                # (N, ng, n_t, face_moment_count): slot 0 the transverse cell
+                # AVERAGE, slot 1 the bare transverse P₁ slope.
+                face_values[face] = self._project_inflow_to_face_moments(
+                    const_axis, const_val, t_edges, n_face_moments,
+                )
         return BoundarySourceSink.prescribed_inflow(sn_mesh, face_values)
+
+    def _project_inflow_to_face_moments(
+        self, const_axis, const_val, t_edges, n_face_moments,
+    ) -> np.ndarray:
+        r"""Project the manufactured inflow trace :math:`\psi_{n,g}(\text{face},t)/W`
+        onto the per-transverse-cell BARE Legendre moments — shape
+        ``(N, ng, n_t, n_face_moments)``.
+
+        Per transverse cell :math:`[t_L, t_R]` (mapped to :math:`\xi\in[-1,1]`),
+        slot 0 is the cell AVERAGE :math:`\langle\psi,P_0\rangle/\langle P_0,P_0
+        \rangle` and slot 1 the BARE transverse slope :math:`\langle\psi,P_1
+        \rangle/\langle P_1,P_1\rangle`.  NO :math:`\theta`/:math:`h_t` weighting
+        — the cochain's transverse mass ``diag(h_t, θ·h_t)`` applies them
+        downstream (a θ- or h_t-weighted slope would double-apply the mass, a
+        TRUE bug; #251 §1 / #257 S9 GATE C).
+
+        **L11 structural independence:** descends ONLY from ``self._drivers``
+        (the manufactured angular-flux harmonics) + ``numpy.polynomial.legendre.
+        leggauss`` (the transparent trusted-library quadrature) — NEVER
+        ``_inflow_to_moments``, ``_ubld``, any LD operator, or the test-side
+        projectors.  The leggauss rule integrates the linear-in-:math:`t`
+        :math:`P_0`/:math:`P_1` projections of the (smooth, non-polynomial) trace
+        to quadrature-converged accuracy; ``n_face_moments == 2`` (d=2 LD) uses
+        the ``[bar, slope]`` slots.
+
+        **Collapse trigger (bounding the L11 twin):** this projector and the
+        test-side ``_face_transverse_legendre`` are deliberately kept INDEPENDENT
+        (GATE C pins their agreement; a shared import would make GATE C
+        tautological and let a double-applied transverse-mass slip through).  The
+        only thing that would force them to merge is a 3-D face
+        (``n_face_moments = per_axis**(d-1) > 2``), which needs a genuine
+        tensor-Legendre lift on BOTH sides — the rule-of-two→three trigger that
+        folds into the #263 collocation seam.  Until then the parallel-but-
+        independent split is correct, not duplication.
+        """
+        from numpy.polynomial.legendre import leggauss
+
+        from orpheus.numerics.moment_layout import AVERAGE_MOMENT
+
+        W = float(self.quadrature.weights.sum())
+        mu_x = self.quadrature.mu_x
+        mu_y = self.quadrature.mu_y
+        ng = self.n_groups
+        N = len(mu_x)
+        n_t = len(t_edges) - 1
+
+        # Transverse Gauss-Legendre rule on [-1, 1] (the BARE Legendre frame —
+        # the same ξ∈[-1,1] basis {1, ξ} the cochain's transverse mass keys on).
+        xi, wq = leggauss(6)
+        W2 = float(wq.sum())
+        mean_p1sq = float((wq * xi * xi).sum() / W2)   # mean(P₁²) = 1/3
+
+        slot = np.zeros((N, ng, n_t, n_face_moments))
+        for g in range(ng):
+            for j in range(n_t):
+                tL, tR = t_edges[j], t_edges[j + 1]
+                tq = (tL + tR) / 2 + (tR - tL) / 2 * xi
+                # ψ_{n,g}(face, t_q)/W per ordinate at the transverse nodes.
+                if const_axis == "x":
+                    A, _, _, B, _, _, C, _, _ = self._drivers(
+                        np.array([const_val]), tq, g)
+                else:
+                    A, _, _, B, _, _, C, _, _ = self._drivers(
+                        tq, np.array([const_val]), g)
+                A_q, B_q, C_q = A.reshape(-1), B.reshape(-1), C.reshape(-1)
+                # (N, q): per-ordinate trace at each transverse quadrature node.
+                psi = (
+                    A_q[None, :]
+                    + mu_x[:, None] * B_q[None, :]
+                    + mu_y[:, None] * C_q[None, :]
+                ) / W
+                # Slot 0 — transverse cell AVERAGE ⟨ψ,P₀⟩/⟨P₀,P₀⟩ (the slot-0
+                # convention single-sourced via AVERAGE_MOMENT).
+                slot[:, g, j, AVERAGE_MOMENT] = (wq[None, :] * psi).sum(axis=1) / W2
+                # Slot 1 — bare transverse slope ⟨ψ,P₁⟩/⟨P₁,P₁⟩.
+                if n_face_moments > 1:
+                    slot[:, g, j, 1] = (
+                        (wq[None, :] * xi[None, :] * psi).sum(axis=1)
+                        / (W2 * mean_p1sq)
+                    )
+        return slot
 
 
 def build_2d_cartesian_ld_stress_mms_case(

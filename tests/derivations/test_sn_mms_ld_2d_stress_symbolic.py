@@ -275,8 +275,10 @@ def test_ld2d_stress_branch2_matches_branch1_source():
 @pytest.mark.foundation
 def test_ld2d_stress_prescribed_inflow_is_nonvanishing():
     r"""The prescribed-inflow trace is NON-zero on the domain edges (:math:`a_0
-    > 0`) — the boundary-closure stress (the AVERAGE-moment half; the transverse
-    face-slope moment is the deferred S4 widening, see the case docstring)."""
+    > 0`) — the boundary-closure stress.  Since #257 S9 the trace is
+    moment-resolved on an LD mesh (slot-0 = transverse cell average, slot-1 =
+    bare transverse face-slope); ``max|trace|`` is dominated by the non-vanishing
+    average, so the non-vanishing assertion holds shape-agnostically."""
     from orpheus.sn.geometry import SNMesh
     from orpheus.sn.spatial import LinearDiscontinuous
 
