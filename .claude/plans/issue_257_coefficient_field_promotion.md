@@ -14,25 +14,43 @@
 >
 > **Branch** `feature/field-typed-operator-algebra` (off `main`, NOT pushed; local `main` @ `05fa1ef`).
 > The plan is committed (`99f108f`); implementation is UNDERWAY through **S8c (`35f5612`) — S8 COMPLETE** —
-> see the ⭐ CURRENT STATUS block immediately below (RESUME AT S9 — BoundaryMomentField).
+> see the ⭐ CURRENT STATUS block immediately below (S9 DONE; campaign behavioral work S1–S9 COMPLETE).
 
-## ⭐ CURRENT STATUS (2026-06-20 — S8 COMPLETE (S8a+S8b+S8c); RESUME AT S9: BoundaryMomentField)
+## ⭐ CURRENT STATUS (2026-06-21 — S9 COMPLETE; CAMPAIGN BEHAVIORAL WORK DONE (S1–S9); only deferred S10/S11 tails remain)
 
-> **⭐ S9 KICKOFF (post-compaction first moves — read this, then the full §"S9" entry below):**
-> S9 = `BoundaryMomentField` + close the moment-state boundary drop (BEHAVIORAL, #256-step-6, fork #1 =
-> general moment-tail / the #251 `boundary_face_layout` lever). It is an operator-algebra carve crossing
-> **scalar↔angular↔moment** carriers, so the proactive trigger fires: **the FIRST action on resume is to
-> dispatch `test-architect`** for the gate spec (what pins the moment tensor byte-identical + proves the
-> new boundary block provably `== ` the old `None`), THEN the standard S1–S8 cycle (method-implementer →
-> elegance + qa parallel → L12 re-run → per-stage `refactor(...)`+`chore(docs)` commit, push needs an
-> explicit ask). The SEAM: the moment-output path returns `(moment_buf, None)` in `apply_windowed` (the
-> Phase-5c moment projection in the SN sweep) — that `None` is the dropped boundary; the public
-> `solve_moments` resolvent surface is downstream. Explore the moment-windowing path first
-> (`apply_windowed`/`solve_moments`, `HarmonicMomentField`) — dispatch **explorer** if context is thin.
-> ⚠ Carry forward from S8c: the dispatch-spelling decision (singledispatch+Pattern M vs `@overload`+`match`)
-> is parked on **#261** (settle WITH the C/F/S relocation, not standalone); **#262** tracks the
-> bulk-accessor under-typing (`FullField.bulk:BulkField` + `integrate_angular()→object`) that forces the
-> 3 S8c casts. Neither blocks S9.
+> **✅ S9 DONE + committed** (`7180f72` test(sn) + `bc1ebec` docs(sn) + `aee60d4` chore matrix), branch
+> `feature/field-typed-operator-algebra`, **NOT pushed**. The original premise was CORRECTED TWICE this
+> session: (a) there is **no `(moment_buf, None)` boundary drop** — that sentinel is a BULK scalar; the
+> moment path already returns a complete `TimedFullField(bulk=HarmonicMomentField, boundary=BoundaryFlux)`;
+> (b) the user named **fork #1 = TRANSVERSE-SPATIAL** (the LD within-cell slope), motivation = make the
+> **MMS boundary source** moment-valued so the LD slope is properly verifiable.
+> **Verification verdict (double-confirmed: test-architect + numerics-investigator, across optical depth +
+> transverse frequency + amplitude):** the boundary transverse-slope moment is **SUB-FLOOR** for the
+> converged flux in every regime → **NO value/order gate keyed on the slope** (vv **Mode-10**,
+> companion-isolating gate unavailable — the **4th** such instance: #240 D5b-S4 → #247 → #251 → S9). The
+> coherent promise ("LD 2nd-order EVERYWHERE incl. boundary") is **already TRUE** — delivered by the
+> AVERAGE moment; S9 LOCKS it, does not fix it.
+> **Shipped:** production `SN2DCartesianLDStressMMSCase.prescribed_inflow` now emits the moment slot for
+> LD (DD/Step BYTE-IDENTICAL — gated on `face_moment_count`) via an L11 `leggauss` `_project_inflow_to_face_moments`
+> (closes the #251 producer-blindness); the coherent-promise gate `test_first_cell_row_already_second_order`
+> + the sub-floor verdict pins + the Mode-11 sentinel (promoted to `tests/sn/verification/mms/test_ld_2d_boundary_promise.py`);
+> GATE-B/C re-targeted onto the production producer; `_solve_with_boundary_slope` re-baselined (flat leg
+> decoupled from the now-honest producer). Sphinx narrative landed (`discrete_ordinates.rst` coherent-promise
+> subsection + `operator_algebra.rst` #263 criterion). Gates: 35 + 590 + GATE-D 520 baseline; pyright 2282
+> = baseline, 0 net-new. elegance PASS-WITH-NITS (applied), qa SUPPORTED. **NO `BoundaryMomentField`/new type**
+> (the boundary moment is a PROPERTY), **NO new ERR** (closed a producer-blindness — the slope was UNVERIFIED,
+> not wrong).
+> **⭐ #263 FILED** — the type-vs-property criterion: a moment earns a first-class TYPE only when a
+> NON-CANONICAL dual coexists (the integrating QUADRATURE is what makes the angular ordinate↔harmonic pair
+> a type → `HarmonicMomentField`); spatial order is modal-only → a PROPERTY (`AngularFlux.spatial_moments`);
+> the first-class `SpatialMomentField` is DEFERRED to the **collocation trigger** (nodal-DG / Lagrange-FEM —
+> NOT NEM/ANM, which are modal). **#256 fork #1 RESOLVED + the `BoundaryMomentField`-as-subclass decision
+> REVISED** (comment posted). Carry-forwards unchanged: **#261** (C/F/S relocation + the dispatch-spelling
+> decision), **#262** (bulk-accessor under-typing).
+> **NEXT:** only **S10** (χ-simplex at `Mixture.chi`, DEFERRED end-of-plan) + **S11** (`Field`→L2, DEFERRED /
+> UNDER REVIEW) remain — both deferred tails; the campaign's behavioral work is COMPLETE. The owed
+> CONSOLIDATED archivist pass (S3b/S5/S6/S7/S8b/S8c stubs + the Pattern-M idiom; S9 + #263 already landed)
+> is the remaining doc debt (separate, tracked).
 
 > ✅ **DOC NUANCE LANDED (2026-06-20, `8d98714` + matrix `23b8eb0`).** The user-requested
 > **apply-linear / solve-nonlinear asymmetry** subsection (`:label: apply-solve-asymmetry`,
@@ -124,7 +142,7 @@ design):** Behavioral-NEUTRAL for `TimedFullField` (internal extraction):
 
 - **S8c ✅ DONE** (`35f5612` + matrix `08d0fd0`) — honest `@overload` typing of the `Fission`/`Scattering` `apply` fibration; **S8 COMPLETE**. The two operators are HETEROMORPHIC multi-carrier (`@singledispatchmethod`: ScalarFlux→ScalarSourceSink, AngularFlux→AngularSourceSink, TimedFullField→FullField, ndarray→ndarray, HarmonicMomentField→AngularSourceSink), but inherited the mixin's nominal `apply(x:V)->V` endomorphism AND the dispatcher base raises → `singledispatchmethod[NoReturn]`: callers saw `NoReturn` (poison) + the override + every `@apply.register` arm errored (fission 8, scattering 9 baseline dispatch errors). **Pattern M (the fix, RUNTIME BYTE-IDENTICAL):** rename dispatcher `apply`→`_apply_impl` (`-> Any` base so `.register` accepts real-typed arms), keep arms+bodies at natural indentation, append `if TYPE_CHECKING: @overload def apply(...)-><Out> ...` (one/carrier) `else: apply = _apply_impl` (public `apply` IS the SAME singledispatchmethod object, aliased — `__dict__['apply'] is ['_apply_impl']`→True). ⭐ **Pattern M chosen over the TYPE_CHECKING/else-split (Pattern C)**: master standard "reveals intention" (Beck rule 2) > "fewest elements" (rule 4) — C buries ~150/215 lines of source-assembly math in `else:`; M extends the mixin's EXISTING `if TYPE_CHECKING: def apply(self,x:V)->V` idiom (internally-consistent precedent; FIRST `@overload` in `orpheus/` → document the idiom in the archivist pass). Corrected stale dispatcher docstrings (fission's nonexistent AngularFlux arm; scattering's nonexistent ndarray arm + missing HarmonicMomentField; both →TimedFullField outputs now →FullField per S8a). Gate **C6**: `_c6_static_typing_pins` (pyright-only `assert_type`/carrier, MUTATION-VERIFIED teeth — breaking an overload reds the pin) + `test_c6_apply_dispatch_parity` (runtime, Mode-11 sentinel-confirmed on the aliased public `apply`, Mode-8 `pytest.fail`). 3 honest `cast()` (1 prod scattering `psi.bulk`→`AngularFlux|HarmonicMomentField`, 2 test) over the **#262** root gap; **0 net-new `type:ignore`**. pyright **2297→2282 (NET −15)**: removed the 16 NoReturn-poison errors; removing the mask UNMASKED **3 pre-existing latent errors in a NON-COLLECTED one-shot capture script** (`_fixtures/wave_t_t3/_capture_pre_t3_snapshots.py:191/204` — the bulk-accessor under-typing root, NOT regressions, NO runtime defect) → **filed #262** (`FullField.bulk:BulkField` too broad + `AngularFlux.integrate_angular()→object` + `build_aniso_source` return union; retires the 3 casts on fix). Runtime BIT-IDENTICAL: operator+C6 111P, §D MMS/k_inf/SI-rate 77P+2xfail(#195/#252). elegance **PASS-WITH-NITS** (decisively endorses M; nits: document "Pattern M" [owed→archivist pass] + #262 [filed]; optional C6-runtime HarmonicMomentField case skipped — windowing tests cover it), qa **SUPPORTED** (runtime bit-id + the −15 reconciliation + C6 mutation teeth, all independently re-verified; reconstructed baseline via `git show HEAD:` NOT stash). archivist rich-narrative + "Pattern M" doc DEFERRED into the consolidated S3b/S5/S6/S8b/S8c pass.
 
-- **NEXT = S9 (BoundaryMomentField — BEHAVIORAL; dispatch test-architect FIRST per the operator-algebra-carve proactive trigger).** Then S10 (χ-simplex at `Mixture.chi`, DEFERRED end-of-plan); S11 (`Field`→L2, UNDER REVIEW). See the S9/S10/S11 entries below.
+- **S9 ✅ DONE** (`7180f72`/`bc1ebec`/`aee60d4`, NOT pushed; premise corrected — boundary slope sub-floor, no value gate; LD 2nd-order-at-boundary LOCKED; #263 filed; #256 fork #1 resolved) — see the ⭐ CURRENT STATUS block. **NEXT = only deferred tails: S10** (χ-simplex at `Mixture.chi`, DEFERRED end-of-plan); **S11** (`Field`→L2, UNDER REVIEW). See the S10/S11 entries below.
 
 (historical S8 detail follows.) Drop the `(L+C)−C` fold in
 `StreamingOperator.apply` (`operator.py:417-418`): StreamingOperator computes pure streaming (σ-free);
