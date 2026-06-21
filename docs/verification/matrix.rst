@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5502**
+Total tests collected: **5534**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1164, 21.2%
-   L1, 998, 18.1%
+   L0, 1164, 21.0%
+   L1, 1001, 18.1%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3294, 59.9%
+   foundation, 3323, 60.0%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5413
+   explicit, 5445
    verify, 0
    class-name, 46
    func-name, 0
@@ -108,7 +108,9 @@ Module × level grid
    curvilinear/test_unified_matvec_cylinder, 29, 2, 0, 0, 0, 0
    curvilinear/test_unified_matvec_sphere, 2, 0, 0, 0, 0, 0
    curvilinear/test_w1_clamp_silent_on_flat, 0, 2, 0, 0, 2, 0
+   data/test_chi_invariant_enforcement, 0, 0, 0, 0, 13, 0
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
+   data/test_emission_spectrum, 0, 0, 0, 0, 15, 0
    data/test_mixture, 4, 0, 0, 0, 0, 0
    data/test_mixture_scattering_ratio, 0, 0, 0, 0, 3, 0
    derivations/test_atkinson_product_nystrom, 0, 5, 0, 0, 3, 3
@@ -153,6 +155,7 @@ Module × level grid
    derivations/test_peierls_cylinder_multi_region, 7, 0, 0, 0, 3, 0
    derivations/test_peierls_cylinder_prefactor, 4, 0, 0, 0, 0, 0
    derivations/test_peierls_cylinder_white_bc, 4, 3, 0, 0, 4, 0
+   derivations/test_peierls_fission_source_indexing, 0, 3, 0, 0, 0, 0
    derivations/test_peierls_geometry, 0, 0, 0, 0, 32, 0
    derivations/test_peierls_greens_function_annulus_solver, 0, 13, 0, 0, 0, 0
    derivations/test_peierls_greens_function_annulus_symbolic, 0, 0, 0, 0, 22, 0
@@ -358,7 +361,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 282, 0
+   test_layer_imports, 0, 0, 0, 0, 283, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -560,6 +563,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``moc-wigner-seitz``, 3
    ``number-density``, 3
    ``peierls-greens-cylinder-mr-quadrature-convergence``, 3
+   ``peierls-mg-operator``, 3
    ``peierls-vacuum-bc-cylinder``, 3
    ``peierls-vacuum-bc-sphere``, 3
    ``sigma-zero``, 3
@@ -643,7 +647,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **105** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **108** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -665,6 +669,9 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``eigen-alpha-derivation``
 - ``eigen-k-posing``
 - ``eigen-resolvent``
+- ``emission-spectrum-chi-mix``
+- ``emission-spectrum-fission-source``
+- ``emission-spectrum-simplex``
 - ``fn-method-moment-space-AB-defs``
 - ``fn-method-moment-space-bc-vacuum``
 - ``fn-method-moment-space-fn-ansatz``
@@ -754,7 +761,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **228** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **229** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -893,6 +900,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``peierls-integral-form``
 - ``peierls-kernel-decomposition``
 - ``peierls-ki1-derivation``
+- ``peierls-mg-fission-source-local``
 - ``peierls-mg-operator``
 - ``peierls-operator-factorisation``
 - ``peierls-operator-form``
@@ -1056,6 +1064,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-060``, 2
    ``ERR-061``, 3
    ``ERR-062``, 1
+   ``ERR-063``, 3
 
 Unmarked tests
 --------------
