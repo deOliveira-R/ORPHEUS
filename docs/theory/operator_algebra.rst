@@ -323,23 +323,439 @@ is what licenses the carve).  The streaming discretization lives ONCE in
 :math:`\sigma = 0` (``coding-elegance`` Pattern 2), so there is no twin
 σ-free walk.
 
-.. todo:: Archivist expansion needed (#257 S8b).
+Why the matvec is affine in :math:`\sigma`
+------------------------------------------
 
-   Narrate the pure-L carve: WHY the discrete WDD matvec is affine in
-   :math:`\sigma` (the cell-balance ``collision_denom_term = σ_t·V``
-   enters the diagonal purely additively; the Carlson seed's σ enters
-   the angular closure but nets to the collision diagonal — show the
-   cancellation), the ERR-058 seed-σ-independence that licenses it, the
-   probe evidence (``streaming_action`` byte-stable across wildly
-   different σ to ≤ a few ULP), and the measured drift of the pure-L
-   matvec leaf vs the retired ``(L+C)−C`` fold (slab/sphere/cyl ≤ 16
-   ULP, boundary strict 0). Cross-reference the σ-free
-   :meth:`~orpheus.sn.loss_representation.LossRepresentation.streaming_action`
-   primitive in :mod:`orpheus.sn.loss_representation` and the catcher
-   :func:`tests.sn.operators.test_pure_L_sigma_free.test_c1_pure_L_apply_is_sigma_free`.
-   Closeout memo:
-   ``.claude/agent-memory/method-implementer/issue_257_s8b_pure_L_closeout.md``.
+The discrete within-group cell balance is the single source of the
+affine structure. In the geometry-agnostic 1-D scan
+(:meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.affine_scan_coefficients`)
+and in the curvilinear cell update
+(:func:`~orpheus.sn.spatial.diamond.cell_balance_for_streaming`) the
+WDD cell-average solves
 
+.. math::
+   :label: streaming-action-cell-balance
+
+   S\,\bar\psi \;=\; \underbrace{Q\,V \;+\; \text{(upstream-face inflow)}}_{\text{source} + \text{streaming numerator}},
+   \qquad
+   S \;=\; \underbrace{S_{\rm stream}}_{\text{geometric}}
+       \;+\; \underbrace{\sigma_t\,V}_{\text{collision}},
+
+where the cell-balance diagonal :math:`S` is the **sum** of a purely
+geometric streaming term :math:`S_{\rm stream}` and the collision
+volume term :math:`\sigma_t\,V`. In the production code
+(:func:`~orpheus.sn.spatial.diamond.DiamondDifference._cartesian_streaming_diagonal`)
+the Cartesian scan denominator is literally
+``denom = reaction_xs + Σ_axes (2 g_axis)`` with ``reaction_xs`` the
+collision term and ``2 g_axis = 2|μ_axis|/Δ_axis`` the geometric
+streaming term; the curvilinear form
+(:func:`~orpheus.sn.spatial.diamond.DiamondDifference.affine_scan_coefficients`)
+is ``denom = geometric_streaming_term + collision_volume_term`` with
+``geometric_streaming_term = 2|μ|·A_down + (ΔA/w)·c_out``. The
+collision cross section enters the diagonal **purely additively** —
+:math:`S` is affine in :math:`\sigma_t` with unit slope :math:`V`. That
+is exactly :eq:`streaming-action-pure-l`: the forward matvec
+:math:`M(\sigma)\psi` is the *application* of this diagonal (not its
+inverse), so the collision contribution is the clean additive term
+:math:`\sigma_t\odot\psi` that the pure-L leaf simply does not carry.
+
+The subtle part is the **curvilinear angular closure**. For sphere /
+cylinder the Carlson coupled-pole seed
+(``precompute_psi_state``) builds a half-angle starting flux from the
+flat moment :math:`\bar\phi_0` via a recursion whose coefficients —
+:math:`\bar Q = \sigma_t\,\bar\phi_0` and a per-pole denominator
+:math:`\Delta r\,\sigma_t + 2` — are themselves :math:`\sigma_t`-bearing.
+At face value this looks like a :math:`\sigma_t`-dependence that lives
+in the *streaming* (angular-redistribution) term, which would break the
+clean additive split. It does not. The seed's :math:`\sigma_t`-dependence
+is **exactly the collision diagonal it injects** into the half-angle
+balance; when the cell update assembles
+:math:`m_{\rm full} = (S\,\bar\psi - \text{numerator})/V`, that injected
+collision exactly cancels the seed's :math:`\sigma_t`-bearing
+contribution, leaving the redistribution term :math:`(1-\mu^2)/r\,
+\partial\psi/\partial\mu` (the genuine angular streaming) **independent of
+:math:`\sigma_t`**. The net :math:`\sigma_t` that survives is the single
+:math:`\sigma_t\,V` collision term in :math:`S` — and nothing else.
+
+ERR-058 / #195 is what *licenses* writing this down as a software
+invariant. Before that fix, the curvilinear Carlson seed used a
+:math:`\sigma_t`-coupled angular-edge extrapolation that left a residual
+:math:`\sigma_t`-dependence in the redistribution; the decomposition
+test's top docstring still carried the now-stale claim that
+``matvec(σ=0)`` was "3–13 % wrong for curvilinear". ERR-058 replaced the
+seed with a :math:`\sigma_t`-independent :class:`AngularEdgeExtrapolation`,
+which made the curvilinear matvec genuinely affine in :math:`\sigma_t` —
+and that is the precondition the pure-L carve depends on. The lesson
+catalogued in :mod:`orpheus.sn.loss_representation` is to probe the live
+behaviour rather than trust the prose: the affinity is an *empirical*
+fact that must be re-verified, not a transcribed claim.
+
+Probe evidence and the retired fold
+------------------------------------
+
+The carve does **not** duplicate the ~400-line discretization walk to
+produce a separate :math:`\sigma`-free streaming kernel. ``loss_action``
+is monolithic in :math:`\sigma` (the cross section is threaded into the
+Cartesian ``residual_kernel_batch``, the curvilinear
+``cell_balance_for_streaming``, *and* the Carlson seed
+``precompute_psi_state``), so a hand-separated streaming walk would be a
+twin path (Cardinal Rule 2 violation). Instead
+:meth:`~orpheus.sn.loss_representation.LossRepresentation.streaming_action`
+is **single-sourced** from the same walk at :math:`\sigma = 0`
+(``coding-elegance`` Pattern 2 — name the primitive, do not clone the
+algebra). Two in-process probes establish that this is value-correct,
+not merely convenient:
+
+.. list-table:: Pure-L σ-freedom — measured drift (#257 S8b)
+   :header-rows: 1
+   :widths: 46 18 18 18
+
+   * - Probe
+     - slab / Cartesian
+     - sphere
+     - cylinder
+   * - Affine relation
+       :math:`\texttt{loss\_action}(0,\psi) = \texttt{loss\_action}(\sigma,\psi)-\sigma\odot\psi`
+       (bulk; boundary strict 0 ULP)
+     - ≤ 32 ULP
+     - ≤ 2 ULP
+     - ≤ 72 ULP
+   * - σ-leak test
+       :math:`\texttt{streaming\_action}(\,\cdot\,;\,\sigma_a) = \texttt{streaming\_action}(\,\cdot\,;\,\sigma_b)`
+       for two **wildly different** :math:`\sigma` fields
+     - .. centered:: ≤ 64 ULP (rel ~1e-16), all geometries
+     -
+     -
+   * - Pure-L leaf vs retired ``(L+C)−C`` fold
+       (the matvec :math:`L\psi` the carve replaced)
+     - ≤ 16 ULP
+     - ≤ 16 ULP
+     - ≤ 16 ULP
+
+The σ-leak test is the decisive one: applying the streaming leaf to the
+same flux under two completely different cross-section fields produces
+byte-stable results (relative drift at the floating-point floor), so the
+leaf demonstrably reads no :math:`\sigma`. The first row is the
+quantitative form of the cancellation argument above — the difference
+between the full loss and the pure stream is *exactly*
+:math:`\sigma\odot\psi` to the floating-point floor, with the curvilinear
+geometries (where the cancellation runs through the angular closure) the
+tightest of all (sphere ≤ 2 ULP). The third row records that the carve
+re-associates the floating-point reduction tree relative to the retired
+``(L+C)−C`` fold (the old way of obtaining :math:`L\psi`: build the full
+loss, subtract the collision diagonal) — the values agree to ≤ 16 ULP,
+well inside the dimensionally-explainable single-step bound (per
+``vv-principles`` § "Bit-identity vs principled-equivalence", criterion 3).
+
+The carve is therefore **principled-equivalent, not bit-identical**, on
+the *streaming-leaf* matvec — and **byte-identical** on the
+:math:`(L+C)` composite matvec and the WDD sweep, which were not touched
+(:meth:`~orpheus.sn.operator.InvertibleOperator.apply` still computes
+:math:`M(\sigma_t)\psi` through the same ``loss_action`` call). The
+software invariant "pure :math:`L` reads no :math:`\sigma`" is pinned by
+the foundation catcher
+:func:`tests.sn.operators.test_pure_L_sigma_free.test_c1_pure_L_apply_is_sigma_free`,
+which carries a Mode-11 σ-leak mutation (monkeypatch a σ-leaking
+``streaming_action`` stub) that reddens the gate — so the gate is
+verified to be *able* to see a regression, not merely green. The affine
+relation and the byte-identical :math:`(L+C)` recovery are pinned by
+``test_streaming_operator_decomposition.py`` and
+``test_loss_action_convention.py``.
+
+This affine structure is the algebraic foundation of the next subsection:
+because the *forward* application is affine in :math:`\sigma` (additive,
+distributive), the leaves compose additively — but the *inverse* is not,
+which is precisely why ``solve`` cannot live on the leaves.
+
+
+.. _apply-solve-asymmetry:
+
+apply is linear in the operator; solve is not
+=============================================
+
+The single most important structural fact about the
+:math:`L+C` algebra is an **asymmetry between the two primitive actions**
+of :ref:`Definitions <operator-algebra>`: forward application
+(:eq:`operator-apply`) is *linear in the operator*, but inversion
+(:eq:`operator-solve`) is *not*. This is why ``apply`` and ``solve`` are
+**two faithful views of the same operator only for the bundled**
+:class:`~orpheus.sn.operator.InvertibleOperator` (:math:`= L+C`), and
+**never** for the individual streaming / collision leaves. It is the
+mathematical content behind the :ref:`capability-set design
+<capability-set-semantics>`: ``apply`` lives on the leaves; ``solve``
+lives on the bundle.
+
+The asymmetry
+-------------
+
+Forward application **distributes over the operator sum**, because
+applying a sum of linear maps is the sum of the applications:
+
+.. math::
+   :label: apply-distributes
+
+   (L + C)\,\psi \;=\; L\,\psi \;+\; C\,\psi.
+
+Inversion does **not** distribute:
+
+.. math::
+   :label: solve-does-not-distribute
+
+   (L + C)^{-1} \;\neq\; L^{-1} \;+\; C^{-1}.
+
+The inverse is a :math:`1/x`-shaped functional of the operator, and
+:math:`1/x` does not distribute over :math:`+`. The crispest sanity
+anchor is the scalar case: :math:`(3+5)^{-1} = 1/8 = 0.125`, whereas
+:math:`3^{-1} + 5^{-1} = 0.533`. The two are not equal, not even close.
+``L.solve(q) + C.solve(q)`` would be the operator version of
+:math:`q/L + q/C`, which is emphatically **not** :math:`q/(L+C)`. This is
+the same fact that the :ref:`composition algebra
+<composition-algebra>` table encodes as "``OperatorSum`` does not
+propagate ``solve``": no general algorithm exists for :math:`(A+B)^{-1}`
+from :math:`A^{-1}` and :math:`B^{-1}` (Sherman–Morrison–Woodbury applies
+only under low-rank structure, which the dense collision diagonal is not).
+
+What each separate inverse would mean physically
+------------------------------------------------
+
+The within-group transport balance is the operator equation
+:math:`(L+C)\,\psi = q`, i.e.
+
+.. math::
+   :label: apply-solve-within-group-balance
+
+   \Omega\cdot\nabla\psi \;+\; \Sigt{}\,\psi \;=\; q,
+
+with :math:`L = \Omega\cdot\nabla` the streaming (advection) operator and
+:math:`C = M[\Sigt{}]` the collision diagonal. Each *separate* inverse
+solves a *different, decoupled* problem:
+
+.. list-table:: The three inverses solve three different problems
+   :header-rows: 1
+   :widths: 16 30 54
+
+   * - Inverse
+     - Equation it solves
+     - Physical meaning
+   * - :math:`L^{-1}`
+     - :math:`\Omega\cdot\nabla\psi = q`
+     - **Pure advection, no absorption** — the flux if neutrons streamed
+       freely and never collided. A formal inverse only: pure streaming
+       is rank-deficient (see below).
+   * - :math:`C^{-1}`
+     - :math:`\Sigt{}\,\psi = q \;\Rightarrow\; \psi = q/\Sigt{}`
+     - **Infinite-medium / no-leakage flux** — purely local, the flux at
+       a point set entirely by the local collision rate, with no spatial
+       coupling whatsoever.
+   * - :math:`(L+C)^{-1}`
+     - :math:`\Omega\cdot\nabla\psi + \Sigt{}\,\psi = q`
+     - **The coupled balance** — the flux that satisfies *both* loss
+       mechanisms simultaneously, everywhere. This is the true transport
+       solution, and it is **not** the sum of the two decoupled problems.
+
+The true solution :math:`(L+C)^{-1}q` is genuinely coupled: streaming
+moves a neutron from cell to cell while collision removes it, and the
+two compete at every point. Solving them separately and adding throws
+away the competition. That is *why* a Neumann-style series is the only
+honest way to express the coupled inverse through the parts (below).
+
+.. note::
+
+   ``L.solve`` is **not a live call** in ORPHEUS. The streaming leaf
+   :class:`~orpheus.sn.operator.StreamingOperator` advertises only
+   ``frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})`` — **no**
+   ``CAP_SOLVE`` — precisely because pure streaming is rank-deficient
+   (without a collision term the within-group cell balance is singular;
+   :eq:`streaming-action-cell-balance` has :math:`\sigma_t\,V = 0`, so
+   :math:`S` degenerates to the geometric streaming term alone, which has
+   a zero-mode the inflow boundary condition cannot pin in general). The
+   :math:`L^{-1}` row above is therefore the **mathematical** advection
+   inverse — "even if :math:`L` alone were inverted, it would solve pure
+   advection" — not a method you can invoke. The collision leaf
+   :class:`~orpheus.sn.operator.CollisionOperator` *does* advertise
+   ``CAP_SOLVE``, but **only** when :math:`\min|\sigma| > 0` (the
+   multiplier spectrum law :math:`\mathrm{spec}(M[\sigma]) =
+   \mathrm{ess\,range}(\sigma)`); when it does, ``C.solve(q) = q/\sigma``
+   is the infinite-medium flux of the :math:`C^{-1}` row, computed as an
+   element-wise division.
+
+The crispest proof — the WDD cell denominator
+---------------------------------------------
+
+The non-separability is visible inside a **single cell**, before any
+global coupling enters. The diamond-difference cell update solves the
+balance :eq:`streaming-action-cell-balance` for the cell-average flux:
+
+.. math::
+   :label: apply-solve-cell-resolvent
+
+   \bar\psi
+   \;=\;
+   \frac{Q\,V \;+\; \text{(upstream-face inflow)}}{S},
+   \qquad
+   S \;=\; S_{\rm stream} \;+\; \sigma_t\,V,
+
+so the resolvent (the per-cell ``solve``) **divides by the SUM**
+:math:`S = S_{\rm stream} + \sigma_t\,V`. In the production code this is
+literally ``inverse_denom = 1.0 / denom`` with ``denom = streaming_term
++ collision_term``
+(:func:`~orpheus.sn.spatial.diamond.DiamondDifference.affine_scan_coefficients`,
+:func:`~orpheus.sn.spatial.diamond.DiamondDifference.cartesian_scan_coefficients`).
+Now compare the three inverses on this single cell:
+
+- :math:`L^{-1}` would divide by :math:`S_{\rm stream}` **alone**
+  (set :math:`\sigma_t = 0`) — the pure-streaming denominator.
+- :math:`C^{-1}` would divide by :math:`\sigma_t\,V` **alone** (no
+  upstream-face coupling at all) — the local denominator.
+- The coupled resolvent divides by :math:`S_{\rm stream} + \sigma_t\,V`,
+  and
+
+  .. math::
+     :label: apply-solve-denominator-inequality
+
+     \frac{1}{S_{\rm stream} + \sigma_t\,V}
+     \;\neq\;
+     \frac{1}{S_{\rm stream}} \;+\; \frac{1}{\sigma_t\,V}.
+
+The two losses are **added before the division** (the additive structure
+of :eq:`streaming-action-pure-l`); you must invert the *sum*. This is the
+single-cell shadow of the global inequality
+:eq:`solve-does-not-distribute`. The forward matvec, by contrast,
+*multiplies* by the cell-balance diagonal :math:`S` — and multiplication
+by a sum distributes (:eq:`apply-distributes`), which is exactly why
+``apply`` survives on the leaves while ``solve`` does not.
+
+The Neumann series — the only honest way through the parts
+----------------------------------------------------------
+
+If one insists on expressing :math:`(L+C)^{-1}` through the individual
+inverses, the only correct expression is an **infinite operator-splitting
+(Neumann) series**, not a finite sum. Splitting around the collision
+diagonal :math:`C` (which is the cheap-to-invert leaf, ``C.solve(q) =
+q/\sigma``):
+
+.. math::
+   :label: apply-solve-neumann-series
+
+   (L+C)^{-1}
+   \;=\;
+   \bigl[C\,(I + C^{-1}L)\bigr]^{-1}
+   \;=\;
+   (I + C^{-1}L)^{-1}\,C^{-1}
+   \;=\;
+   \sum_{k=0}^{\infty} (-1)^{k}\,(C^{-1}L)^{k}\,C^{-1},
+
+i.e.
+
+.. math::
+   :label: apply-solve-neumann-expansion
+
+   (L+C)^{-1}
+   \;=\;
+   C^{-1} \;-\; C^{-1}L\,C^{-1} \;+\; C^{-1}L\,C^{-1}L\,C^{-1} \;-\;\cdots,
+
+which converges when the spectral radius
+:math:`\rho(C^{-1}L) < 1`. The leading term :math:`C^{-1}` is the
+infinite-medium flux; every subsequent term is a streaming correction.
+A *finite* truncation — and in particular the one-term sum
+:math:`L^{-1} + C^{-1}` — is **never** the coupled inverse. The closest
+clean closed form involving both inverses is the **parallel** (resistors
+-in-parallel) identity
+
+.. math::
+   :label: apply-solve-parallel-identity
+
+   \bigl(L^{-1} + C^{-1}\bigr)^{-1}
+   \;=\;
+   L\,(L+C)^{-1}\,C,
+
+which is still **not** :math:`(L+C)^{-1}` — it is the harmonic
+combination, related to but distinct from the coupled inverse.
+
+This is more than an algebraic curiosity: the transport-native Neumann
+series is the **source-iteration / collision-number expansion** itself.
+The full within-group-plus-scattering problem
+:math:`(L+C-S)\psi = q` is solved by splitting off the scattering source
+:math:`S` and summing the series
+
+.. math::
+   :label: apply-solve-source-iteration-series
+
+   \psi
+   \;=\;
+   \sum_{k=0}^{\infty}
+     \bigl[(L+C)^{-1}S\bigr]^{k}\,(L+C)^{-1}\,q,
+
+where the **sweep** :math:`(L+C)^{-1}` is the per-term inverter and the
+outer source iteration sums the series. This is the Peierls
+collision-number expansion (each term :math:`k` is the flux of neutrons
+that have scattered exactly :math:`k` times). The series converges with
+spectral radius :math:`\rho\bigl[(L+C)^{-1}S\bigr] \le \max_g
+\Sigma_{s,g}/\Sigma_{t,g} = c` (the scattering ratio;
+:ref:`affine-typed-field-algebra` documents the matching contraction
+:math:`M = L^{-1}(S+B)` carried as a typed diagnostic on the SI
+iterate). The sweep :math:`(L+C)^{-1}` being a *single bundled* inverse —
+not :math:`L^{-1} + C^{-1}` — is exactly the point: it is the WDD
+forward-substitution on :eq:`apply-solve-cell-resolvent`, dividing by the
+summed denominator cell-by-cell in inflow-to-outflow order. See Lewis &
+Miller, *Computational Methods of Neutron Transport* ([LewisMiller1984]_,
+§3.2 for the sweep as the discrete-ordinates resolvent and §4 for the
+source-iteration / Neumann scattering series), and Adams & Larsen 2002
+([AdamsLarsen2002]_, §II for the spectral radius :math:`\rho = c`).
+
+Why this is the right architecture, not a limitation
+----------------------------------------------------
+
+Invertibility is a property of the **sum**, not of the parts. That is
+exactly why :math:`L + C` is packaged as one
+:class:`~orpheus.sn.operator.InvertibleOperator`: the
+:class:`~orpheus.numerics.operator.OperatorSum` that *carries* the
+WDD sweep as its ``.solve``. The asymmetry maps cleanly onto the two
+sides of the algebra:
+
+- **apply lives on the faithful separate leaves.** Pure streaming
+  :math:`L` (:class:`~orpheus.sn.operator.StreamingOperator`, the
+  :math:`\sigma`-free :eq:`streaming-action-pure-l` leaf) and collision
+  :math:`C = M[\sigma_t]`
+  (:class:`~orpheus.sn.operator.CollisionOperator`) each advertise
+  ``CAP_APPLY``, and their applications compose additively
+  (:eq:`apply-distributes`). The forward direction is affine in
+  :math:`\sigma` (the previous subsection), so the leaf decomposition is
+  *faithful*: :math:`(L+C)\psi = L\psi + C\psi` holds exactly.
+- **solve belongs to the bundled unit.** Only
+  :class:`~orpheus.sn.operator.InvertibleOperator` advertises
+  ``CAP_SOLVE``; the leaves do not (streaming has no ``solve`` at all;
+  collision's ``solve`` is the *local* :math:`q/\sigma`, which is the
+  :math:`C^{-1}` of a *different* problem, never the coupled inverse).
+  The :class:`~orpheus.numerics.operator.OperatorSum` deliberately
+  **does not propagate** ``solve`` (:ref:`composition-algebra`); the
+  :class:`~orpheus.sn.operator.InvertibleOperator` *adds it back* via the
+  SN-specific algebraic identity "WDD sweep :math:`\approx (L+C)^{-1}`"
+  ([LewisMiller1984]_ §3.2). The composite owns ``apply``, ``solve``, and
+  ``apply_transpose`` as three actions of **one** operator on a single
+  shared
+  :class:`~orpheus.sn.loss_representation.LossRepresentation` (L21 —
+  "matvec ≡ sweep"); :meth:`InvertibleOperator.apply` and
+  :meth:`InvertibleOperator.solve` single-source :math:`\sigma` from the
+  collision diagonal, so they cannot disagree on which loss they invert.
+
+The :ref:`capability-set design <capability-set-semantics>` is what makes
+this architecture *enforced* rather than merely *intended*: a downstream
+Krylov consumer that asks for ``solve`` on a bare
+:class:`~orpheus.sn.operator.StreamingOperator`, or on a sum that has not
+been promoted to :class:`~orpheus.sn.operator.InvertibleOperator`, is
+vetoed at composition time with
+:class:`~orpheus.numerics.operator.MissingCapability` — never silently
+handed :math:`L^{-1} + C^{-1}` (a meaningless answer to a problem nobody
+posed). The asymmetry between :eq:`apply-distributes` and
+:eq:`solve-does-not-distribute` is, in this sense, the *reason the
+capability set is a set and not a class hierarchy*.
+
+.. vv-status: apply-distributes documented
+.. vv-status: solve-does-not-distribute documented
+
+
+.. _capability-set-semantics:
 
 Capability set semantics
 ========================
@@ -371,6 +787,8 @@ method-specific capability tags (e.g. a custom preconditioner could
 add ``"jacobi-preconditioned"``); composers ignore tags they do not
 understand, propagating only the three primitive ones.
 
+
+.. _composition-algebra:
 
 Composition algebra
 ===================
