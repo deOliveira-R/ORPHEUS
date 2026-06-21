@@ -1113,7 +1113,7 @@ is
          \sum_{g_{\rm in}}\!\Biggl[\,
            \Sigma_{s,\,g_{\rm in} \to g_{\rm out}}(r_j)\,
            \varphi_{g_{\rm in}}(r_j)
-           + \frac{1}{k}\,\chi_{g_{\rm out}}(r_i)\,
+           + \frac{1}{k}\,\chi_{g_{\rm out}}(r_j)\,
              \nu\Sigma_{f,g_{\rm in}}(r_j)\,
              \varphi_{g_{\rm in}}(r_j)
          \,\Biggr],
@@ -1131,7 +1131,7 @@ recast as the generalised eigenvalue problem
      &\;=\;\Sigma_{t,g_{\rm out}}(r_i)\,\delta_{ij}\,\delta_{g_{\rm out},g_{\rm in}}
            \;-\;K^{(g_{\rm out})}_{ij}\,\Sigma_{s,\,g_{\rm in} \to g_{\rm out}}(r_j), \\[4pt]
    \tilde B_{i,g_{\rm out};\,j,g_{\rm in}}
-     &\;=\;K^{(g_{\rm out})}_{ij}\,\chi_{g_{\rm out}}(r_i)\,
+     &\;=\;K^{(g_{\rm out})}_{ij}\,\chi_{g_{\rm out}}(r_j)\,
            \nu\Sigma_{f,g_{\rm in}}(r_j).
 
 Row indexing is **node-major**: the flattened index is
@@ -1141,6 +1141,104 @@ Row indexing is **node-major**: the flattened index is
 pattern). The solve uses the same fission-source power iteration
 as the 1G path, acting on a vector of dimension :math:`N \cdot n_g`
 instead of :math:`N`.
+
+.. _peierls-chi-source-indexed:
+
+The fission spectrum is source-indexed (χ shares the fission node)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Read the fission term of :eq:`peierls-mg-operator` (and the
+:math:`\tilde B` block above it) with care: the emission spectrum
+:math:`\chi_{g_{\rm out}}` is evaluated at the **source / fission
+node** :math:`r_j` — the *same* spatial argument carried by
+:math:`\nu\Sigma_{f,g_{\rm in}}` and :math:`\varphi_{g_{\rm in}}`. The
+kernel :math:`K^{(g_{\rm out})}_{ij}` is the **sole** carrier of the
+spatial coupling between the sink :math:`r_i` and the source
+:math:`r_j`; :math:`\chi` never touches the sink index.
+
+**Why source-indexed (the physics).** The fission emission density is
+a single *local* birth quantity evaluated at the point where fission
+occurs:
+
+.. math::
+   :label: peierls-mg-fission-source-local
+
+   Q^{\rm fiss}_{g_{\rm out}}(r_j)
+     \;=\;\chi_{g_{\rm out}}(r_j)\,\frac{1}{k}
+          \sum_{g_{\rm in}}\nu\Sigma_{f,g_{\rm in}}(r_j)\,
+          \varphi_{g_{\rm in}}(r_j).
+
+.. (vv-status rationale) Structural/representational identity: the
+.. fission birth source is a local product at the fission node. Not a
+.. solver claim — the verifiable content is the source-indexing of χ,
+.. pinned by the intrinsic-property gate named below.
+.. vv-status: peierls-mg-fission-source-local documented
+
+The spectrum :math:`\chi_{g_{\rm out}}(r_j)` is the probability that a
+neutron *born* by fission in the material occupying :math:`r_j`
+emerges in group :math:`g_{\rm out}`. It is a property of the
+**fissioning material at the fission point**, fixed at birth, before
+the neutron has streamed anywhere. The neutron then transports from
+:math:`r_j` to the observation point :math:`r_i` through the kernel
+:math:`K^{(g_{\rm out})}_{ij}` *in its already-chosen birth group*
+:math:`g_{\rm out}`. A neutron's birth spectrum cannot depend on where
+it is later observed, so a sink-indexed
+:math:`\chi_{g_{\rm out}}(r_i)` is causally meaningless. This is the
+convention of Hébert (2009) *Applied Reactor Physics* Ch. 3,
+Eq. 3.57/3.58 [Hebert2009]_, where the fission source
+:math:`Q^{\rm fiss}(r) = \chi(r)\sum_{g'}\nu\Sigma_{f,g'}(r)\,\varphi_{g'}(r)`
+is written as one product at a single argument :math:`r`.
+
+.. warning::
+
+   **Historical sink-indexed bug (ERR-063 / Issue #264).** Earlier
+   revisions of this page — and the corresponding production code —
+   wrote :math:`\chi_{g_{\rm out}}(r_i)` with the **sink** index, i.e.
+   the fission operator was assembled as
+   :math:`\tilde B_{i,g_{\rm out};\,j,g_{\rm in}} =
+   K^{(g_{\rm out})}_{ij}\,\chi_{g_{\rm out}}(r_i)\,
+   \nu\Sigma_{f,g_{\rm in}}(r_j)`. This is the **wrong** convention
+   (a Mode-2 variable-swap: sink index :math:`i` substituted for
+   source index :math:`j`). It hid for a long time because every
+   region in the regression fixtures carried an **identical** χ
+   vector, so :math:`\chi(r_i) \equiv \chi(r_j)` everywhere and the
+   two assemblies were byte-identical (:math:`\Delta = 0`). The bug
+   surfaced only when a heterogeneous fixture gave a *non-fissile*
+   region a distinct (non-zero placeholder) χ: zeroing that region's
+   χ then moved :math:`k_{\rm eff}` by :math:`O(1)` — a neutron *born*
+   in a fissile region but *observed* in the non-fissile region was
+   being weighted by the non-fissile region's spectrum. Do **not**
+   re-introduce the sink index.
+
+**Independent structural witness.** The sibling Variant-α
+:doc:`trajectory-resolvent / Green's-function <trajectory_resolvent>`
+solver family already source-indexes χ correctly (the per-node spectrum
+:math:`\chi` multiplies the *local* fission rate at each node before
+the trajectory kernel is applied). That a structurally distinct kernel
+— bouncing characteristics rather than a Nyström matrix — arrives at
+the same source-indexed product is independent confirmation that
+source-indexing is the correct convention, not an artefact of the
+Nyström assembly.
+
+**Verification gate.** The source-indexing is pinned by the promoted
+intrinsic-property test *"a non-fissile region's* χ *must not affect*
+:math:`k_{\rm eff}`*"* (``@pytest.mark.l1``,
+``@pytest.mark.catches("ERR-063")``, in ``tests/derivations/``,
+promoted from
+``derivations/diagnostics/diag_err063_probe_e_intrinsic_property.py``).
+Its cylinder and sphere negative legs assert that flipping a
+non-fissile region's χ leaves :math:`k_{\rm eff}` unchanged; a
+positive non-degeneracy leg guards against the test passing
+vacuously. The teeth are mutation-verified: reverting
+:math:`\chi(r_j)\to\chi(r_i)` reddens both negative legs (a 4.7 %
+:math:`k_{\rm eff}` move on a non-fissile-χ flip). The root-cause fix
+landed in
+:func:`orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_mg`
+(``geometry.py``) and the native slab assembly
+:func:`orpheus.derivations.continuous.peierls_nystrom.slab._build_system_matrices`
+(``slab.py``, interior and white-BC re-entry loops) — all three sites
+were corrected ``chi[i] → chi[j]``, byte-identical on the uniform-χ
+fixtures (no re-baseline).
 
 .. _peierls-scattering-convention:
 

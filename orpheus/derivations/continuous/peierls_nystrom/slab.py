@@ -306,7 +306,11 @@ def _build_system_matrices(
                         row = i * ng + ge
                         col = j * ng + gs
                         K_scatter[row, col] += kij * sig_s_at_node[j][gs][ge]
-                        K_fission[row, col] += kij * chi_at_node[i][ge] * nusigf_at_node[j][gs]
+                        # χ is source-indexed (node j): the fission emission
+                        # spectrum is a birth property of the fissioning
+                        # material at the source point (Hébert 2009 Eq. 3.57/
+                        # 3.58); it shares the source index j with νΣ_f. ERR-063.
+                        K_fission[row, col] += kij * chi_at_node[j][ge] * nusigf_at_node[j][gs]
 
         # White-BC: add separable re-entry kernel
         if boundary == "white":
@@ -360,7 +364,8 @@ def _build_system_matrices(
                             row = i * ng + g
                             col = j * ng + gs
                             K_scatter[row, col] += bc * sig_s_at_node[j][gs][g]
-                            K_fission[row, col] += bc * chi_at_node[i][g] * nusigf_at_node[j][gs]
+                            # χ source-indexed (node j) — see interior loop / ERR-063.
+                            K_fission[row, col] += bc * chi_at_node[j][g] * nusigf_at_node[j][gs]
 
         # A = I - K_scatter (identity, not Σ_t diagonal)
         A = mpmath.matrix(dim, dim)

@@ -6270,7 +6270,7 @@ def solve_peierls_mg(
          \sum_j K^{(g)}_{ij}\!\!
          \sum_{g'}\!\bigl(
            \Sigma_{s,g'\to g}(r_j)\,\varphi_{g'}(r_j)
-           + \tfrac{1}{k}\,\chi_g(r_i)\,\nu\Sigma_{f,g'}(r_j)\,\varphi_{g'}(r_j)
+           + \tfrac{1}{k}\,\chi_g(r_j)\,\nu\Sigma_{f,g'}(r_j)\,\varphi_{g'}(r_j)
          \bigr),
 
     assembled into a block :math:`(N \cdot n_g)` × :math:`(N \cdot n_g)`
@@ -6409,20 +6409,25 @@ def solve_peierls_mg(
     # Off-diagonal scatter / fission operators. Σ_t-LHS convention
     # (matches solve_peierls_1g): A = diag(Σ_t) − K·Σ_s, B = K·χ·νΣ_f.
     # Access sig_s_n[j, gs, ge] as "scatter gs → ge at node j" per the
-    # slab reference pattern.
+    # slab reference pattern. The fission emission spectrum χ is a BIRTH
+    # property of the fissioning material at the SOURCE node j (Hébert
+    # 2009 Eq. 3.57/3.58: the fission emission density χ·νΣ_f·φ is a
+    # single local quantity at the fission point r_j; the kernel K(r_i,r_j)
+    # is the sole carrier of spatial coupling). χ therefore shares the
+    # source index j with νΣ_f and φ — NOT the sink index i. See ERR-063.
     for ge in range(ng):
         Kg = K_per_group[ge]
         for i in range(N):
-            chi_ie = chi_n[i, ge]
             row = i * ng + ge
             for j in range(N):
                 kij = Kg[i, j]
                 if kij == 0.0:
                     continue
+                chi_je = chi_n[j, ge]
                 for gs in range(ng):
                     col = j * ng + gs
                     A[row, col] -= kij * sig_s_n[j, gs, ge]
-                    B[row, col] += kij * chi_ie * nu_f_n[j, gs]
+                    B[row, col] += kij * chi_je * nu_f_n[j, gs]
 
     # Fission-source power iteration — bit-identical structure to the
     # 1G path (just acts on a dim-wide vector instead of N-wide).
