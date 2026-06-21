@@ -642,10 +642,17 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **97** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **105** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
+- ``apply-solve-cell-resolvent``
+- ``apply-solve-denominator-inequality``
+- ``apply-solve-neumann-expansion``
+- ``apply-solve-neumann-series``
+- ``apply-solve-parallel-identity``
+- ``apply-solve-source-iteration-series``
+- ``apply-solve-within-group-balance``
 - ``bc-rank-n-tensor-decomposition``
 - ``bc-tensor-decomposition``
 - ``billiard-rank2-S``
@@ -735,6 +742,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``spectrum-full-decomposition``
 - ``spectrum-transport-equation``
 - ``spectrum-x-function``
+- ``streaming-action-cell-balance``
 - ``trace-sign-predicate``
 - ``two-moment-angular``
 - ``two-moment-carrier-space``
@@ -745,7 +753,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **224** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **226** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -753,6 +761,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``affine-typed-residual-eq``
 - ``angular-windowing-aniso-factoring``
 - ``angular-windowing-moment-iterate``
+- ``apply-distributes``
 - ``bailey-dome-recursion``
 - ``bc-extraction-block-matrix``
 - ``bc-extraction-direct-sum-state``
@@ -938,6 +947,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-err-058-proxy-source``
 - ``sn-mms-nonvacuum-psi``
 - ``sn-mms-nonvacuum-sph-psi``
+- ``solve-does-not-distribute``
 - ``sood-eq18-1g-balance``
 - ``sood-eq19-kinf-1g``
 - ``sood-eq20-kinf-1g-c-form``
