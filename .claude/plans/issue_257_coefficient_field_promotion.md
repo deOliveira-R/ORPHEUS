@@ -18,6 +18,22 @@
 
 ## ⭐ CURRENT STATUS (2026-06-20 — S8 COMPLETE (S8a+S8b+S8c); RESUME AT S9: BoundaryMomentField)
 
+> **⭐ S9 KICKOFF (post-compaction first moves — read this, then the full §"S9" entry below):**
+> S9 = `BoundaryMomentField` + close the moment-state boundary drop (BEHAVIORAL, #256-step-6, fork #1 =
+> general moment-tail / the #251 `boundary_face_layout` lever). It is an operator-algebra carve crossing
+> **scalar↔angular↔moment** carriers, so the proactive trigger fires: **the FIRST action on resume is to
+> dispatch `test-architect`** for the gate spec (what pins the moment tensor byte-identical + proves the
+> new boundary block provably `== ` the old `None`), THEN the standard S1–S8 cycle (method-implementer →
+> elegance + qa parallel → L12 re-run → per-stage `refactor(...)`+`chore(docs)` commit, push needs an
+> explicit ask). The SEAM: the moment-output path returns `(moment_buf, None)` in `apply_windowed` (the
+> Phase-5c moment projection in the SN sweep) — that `None` is the dropped boundary; the public
+> `solve_moments` resolvent surface is downstream. Explore the moment-windowing path first
+> (`apply_windowed`/`solve_moments`, `HarmonicMomentField`) — dispatch **explorer** if context is thin.
+> ⚠ Carry forward from S8c: the dispatch-spelling decision (singledispatch+Pattern M vs `@overload`+`match`)
+> is parked on **#261** (settle WITH the C/F/S relocation, not standalone); **#262** tracks the
+> bulk-accessor under-typing (`FullField.bulk:BulkField` + `integrate_angular()→object`) that forces the
+> 3 S8c casts. Neither blocks S9.
+
 > ✅ **DOC NUANCE LANDED (2026-06-20, `8d98714` + matrix `23b8eb0`).** The user-requested
 > **apply-linear / solve-nonlinear asymmetry** subsection (`:label: apply-solve-asymmetry`,
 > `operator_algebra.rst`) is committed: `(L+C)ψ = Lψ+Cψ` but `(L+C)⁻¹ ≠ L⁻¹+C⁻¹`; "apply & solve are
