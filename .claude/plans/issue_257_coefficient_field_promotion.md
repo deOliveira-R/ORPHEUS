@@ -18,17 +18,17 @@
 
 ## ⭐ CURRENT STATUS (2026-06-20 — RESUME AT S8c: Scattering/Fission fibration resolve, the last S8 sub-stage)
 
-> ⚠ **IN-FLIGHT AT COMPACTION (2026-06-20) — read before resuming.** A BACKGROUND **archivist**
-> (agentId `adff39fc66a7d899f`) is writing a doc subsection into `docs/theory/operator_algebra.rst`:
-> the **apply-linear / solve-nonlinear asymmetry** (user-requested nuance) — `(L+C)ψ = Lψ+Cψ` but
-> `(L+C)⁻¹ ≠ L⁻¹+C⁻¹`; "apply & solve are two views of the same operator" holds for the bundled
-> `InvertibleOperator` (= L+C), NOT the leaves; the WDD cell-denominator proof `1/(k_stream+σ)`; the
-> operator-splitting **Neumann series** `(L+C)⁻¹ = C⁻¹(I+LC⁻¹)⁻¹ = C⁻¹−C⁻¹LC⁻¹+…`; + EXPANDING the S8b
-> `streaming-action-pure-l` stub. **These edits land UNCOMMITTED in `operator_algebra.rst` (+ maybe its
-> own `:label:`).** ON RESUME: (1) check the archivist completion notification / `git diff docs/theory/operator_algebra.rst`;
-> (2) review + `git commit` the doc as a `docs(theory)` commit BEFORE starting S8c (keep the diff clean);
-> (3) DO NOT edit `operator_algebra.rst` until that doc is committed. Working tree is otherwise CLEAN
-> (S1–S8b all committed through `3e4fccb`). Then proceed to S8c (the NEXT bullet below).
+> ✅ **DOC NUANCE LANDED (2026-06-20, `8d98714` + matrix `23b8eb0`).** The user-requested
+> **apply-linear / solve-nonlinear asymmetry** subsection (`:label: apply-solve-asymmetry`,
+> `operator_algebra.rst`) is committed: `(L+C)ψ = Lψ+Cψ` but `(L+C)⁻¹ ≠ L⁻¹+C⁻¹`; "apply & solve are
+> two views of the same operator" holds for the bundled `InvertibleOperator` (= L+C, advertises
+> `CAP_SOLVE` = the sweep), NOT the leaves (`StreamingOperator` = `{CAP_APPLY, CAP_APPLY_TRANSPOSE}`,
+> verified); the WDD cell-denominator proof `1/(k_stream+σ)`; the operator-splitting **Neumann series**
+> `(L+C)⁻¹ = C⁻¹(I+LC⁻¹)⁻¹ = …` + the parallel/resistor identity + the transport-native source-iteration
+> series; + the EXPANDED S8b `streaming-action-pure-l` stub. archivist-verified against the code;
+> incremental `sphinx -W` clean. **Working tree FULLY CLEAN (S1–S8b + the doc, all committed). RESUME
+> DIRECTLY AT S8c — no doc cleanup pending.** (NOTE: the 3 deferred S3b/S5/S6 stubs remain owed for the
+> consolidated archivist pass; that is separate, not S8c-blocking.)
 
 **DONE + committed** on `feature/field-typed-operator-algebra` (NOT pushed):
 - Foundation: `cfb651b` (`Vector` Protocol) + `41a92cb` (`apply(x:V)->V`); `e3f90d5`/`99f108f` (re-scope + this plan).
