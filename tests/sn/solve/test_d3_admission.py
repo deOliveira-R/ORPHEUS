@@ -140,7 +140,7 @@ def test_d3_pure_absorber_per_ordinate_psi_exact() -> None:
         sig_c=np.array([0.8, 1.6]),       # pure absorber: Σ_c = Σ_t
         sig_f=np.array([0.0, 0.0]),
         nu=np.array([0.0, 0.0]),
-        chi=np.array([1.0, 0.0]),
+        chi=np.zeros(2),  # non-fissile ⇒ null spectrum (S10a __post_init__ guard)
         sig_s=np.zeros((2, 2)),
     )
     Q_g = np.array([1.0, 0.5])

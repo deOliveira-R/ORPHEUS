@@ -12,6 +12,7 @@ from typing import Optional
 import numpy as np
 from scipy.sparse import csr_matrix
 
+from orpheus.data.emission_spectrum import enforce_emission_spectrum
 from orpheus.data.micro_xs.isotope import NG, Isotope
 from .interpolation import interp_sig_s, interp_xs_field
 from .sigma_zeros import solve_sigma_zeros
@@ -58,6 +59,25 @@ class Mixture:
     Sig2: csr_matrix
     chi: np.ndarray
     eg: np.ndarray | None = None
+
+    def __post_init__(self) -> None:
+        # Coerce chi to the validated value-object and enforce the simplex
+        # / null law at the data source (mirrors Isotope.__post_init__). χ
+        # is consumed only as a fission SOURCE (χ·νΣ_f·φ), so the law keys
+        # on PRODUCTION (SigP = νΣ_f > 0): a producing mixture's spectrum is
+        # a probability simplex; a non-producing mixture emits no fission
+        # neutrons, so its spectrum is null.
+        self.chi = enforce_emission_spectrum(self.chi, is_producing=self.is_producing)
+
+    @property
+    def is_producing(self) -> bool:
+        r"""``True`` iff the mixture emits fission neutrons (:math:`\nu\Sigma_f > 0`).
+
+        Keys on the production XS :attr:`SigP` (= :math:`\nu\Sigma_f`), the
+        quantity that actually drives the fission source ``χ·SigP·φ``. This
+        is the predicate the χ emission-spectrum law keys on.
+        """
+        return bool(np.any(self.SigP > 0))
 
     @property
     def ng(self) -> int:

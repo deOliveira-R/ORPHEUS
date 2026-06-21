@@ -212,7 +212,7 @@ def test_gs_d3_schedule_from_real_mesh():
     mix = make_mixture(
         sig_t=np.array([1.0]), sig_c=np.array([0.5]),
         sig_f=np.array([0.0]), nu=np.array([0.0]),
-        chi=np.array([1.0]), sig_s=np.array([[0.5]]),
+        chi=np.zeros(1), sig_s=np.array([[0.5]]),  # non-fissile ⇒ null χ (S10a guard)
     )
     mesh = SNMesh.from_axes(
         (

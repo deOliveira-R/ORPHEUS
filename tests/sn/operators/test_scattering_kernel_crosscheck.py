@@ -99,7 +99,7 @@ def solver_p1_het():
             sig_c=np.array([0.01, 0.02]),
             sig_f=np.array([0.0, 0.0]),
             nu=np.array([0.0, 0.0]),
-            chi=np.array([1.0, 0.0]),
+            chi=np.zeros(2),  # non-fissile ⇒ null spectrum (S10a __post_init__ guard)
             sig_s=p0,
         )
         m.SigS = [csr_matrix(p0), csr_matrix(p1)]

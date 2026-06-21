@@ -586,7 +586,7 @@ class TestP0AlgebraicIdentities:
             sig_c=np.array([0.01, 0.02]),
             sig_f=np.array([0.0, 0.0]),  # no fission
             nu=np.array([0.0, 0.0]),
-            chi=np.array([1.0, 0.0]),
+            chi=np.zeros(2),  # non-fissile ⇒ null spectrum (S10a __post_init__ guard)
             sig_s=np.array([[0.0, 0.0], [0.0, 0.0]]),  # zero P0
         )
         # Inject a non-zero (n,2n) matrix manually after construction.
@@ -931,7 +931,7 @@ class TestAlgebraicIdentity:
             sig_c=np.array([0.01, 0.02]),
             sig_f=np.array([0.0, 0.0]),
             nu=np.array([0.0, 0.0]),
-            chi=np.array([1.0, 0.0]),
+            chi=np.zeros(2),  # non-fissile ⇒ null spectrum (S10a __post_init__ guard)
             sig_s=np.diag([0.3, 0.8]),
         )
         mix.Sig2 = csr_matrix(np.zeros((2, 2)))

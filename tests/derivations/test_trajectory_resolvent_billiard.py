@@ -92,6 +92,14 @@ def _mixture_from_xs(
     ng = sig_t_arr.size
     # Synthetic XS for trajectory-resolvent billiard test (Phase E):
     # no physical energy grid.
+    #
+    # This is a PRODUCING (multiplying) medium: ``SigP = νΣ_f > 0`` drives a
+    # fission source through ``chi`` (the billiard solver reads ``SigP`` and
+    # ``chi``, never ``SigF``). The χ guard keys on PRODUCTION (``SigP > 0``),
+    # so ``is_producing`` is True and its χ — the default simplex
+    # ``[1, 0, ...]`` — is correctly required to be a probability simplex.
+    # ``SigF`` is the fission cross-section, a distinct quantity the billiard
+    # path never reads; it stays zero (no SigF stand-in needed).
     return Mixture(
         SigC=np.zeros(ng),
         SigL=np.zeros(ng),

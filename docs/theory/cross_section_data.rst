@@ -728,6 +728,423 @@ Per-component validation for U-235 at 294K (10 sigma-zeros):
      - Exact
 
 
+.. _emission-spectrum-simplex-law:
+
+The Fission Emission Spectrum as a Validated Value-Object
+==========================================================
+
+The fission emission spectrum :math:`\chi_g` — the probability that a
+neutron born in fission appears in energy group :math:`g` — carries a
+**probability-simplex law** for a fissile material, and is identically
+zero (the **null spectrum**) for a non-fissile material:
+
+.. math::
+   :label: emission-spectrum-simplex
+
+   \text{producing }(\nu\Sigma_f>0):\quad \sum_g \chi_g = 1,\ \ \chi_g \ge 0\ \forall g;
+   \qquad
+   \text{non-producing:}\quad \chi_g \equiv 0\ \forall g.
+
+ORPHEUS encodes this law in
+:class:`~orpheus.data.emission_spectrum.EmissionSpectrum`, a
+:class:`numpy.ndarray` subclass that carries the law as inspectable
+methods (``assert_normalized`` / ``is_emitting`` / ``assert_null``) — so
+``mixture.chi.assert_normalized()`` reads like a law the data carries.
+Both :class:`~orpheus.data.micro_xs.isotope.Isotope` and
+:class:`~orpheus.data.macro_xs.mixture.Mixture` coerce ``chi`` to this
+type at construction (``__post_init__``) via the single-source helper
+:func:`~orpheus.data.emission_spectrum.enforce_emission_spectrum`, which
+cross-checks the law conditionally on ``is_producing`` — keyed on
+PRODUCTION (:math:`\nu\Sigma_f > 0`), because :math:`\chi` is consumed
+only as a fission *source* :math:`\chi\,\nu\Sigma_f\,\varphi`, so a valid
+simplex is required exactly where production is nonzero. Enforced ONCE,
+at the data source, NEVER per-cell (a non-fissile cell legitimately holds
+:math:`\chi = 0` under per-cell broadcast). The value-object is
+deliberately NOT a member of the flux/operator algebra: it is a validated
+newtype, not a per-cell field type.
+
+Why the law is enforced at the source (and never per-cell)
+----------------------------------------------------------
+
+The simplex / null law of :eq:`emission-spectrum-simplex` is a property
+of a **material**, not of a **cell**. ORPHEUS therefore enforces it
+exactly once — at the point where a material's cross sections become a
+data object — and never again downstream.
+
+There are exactly two places where a material is born:
+:meth:`~orpheus.data.micro_xs.isotope.Isotope.__post_init__` (a single
+isotope from a GENDF library) and
+:meth:`~orpheus.data.macro_xs.mixture.Mixture.__post_init__` (a
+homogenized mixture). Both route ``self.chi`` through the same
+single-source law
+:func:`~orpheus.data.emission_spectrum.enforce_emission_spectrum`, which
+coerces the bare array to an
+:class:`~orpheus.data.emission_spectrum.EmissionSpectrum` and runs the
+conditional cross-check:
+
+.. code-block:: python
+
+   def enforce_emission_spectrum(chi, *, is_producing):
+       chi = EmissionSpectrum(chi)
+       chi.assert_normalized() if is_producing else chi.assert_null()
+       return chi
+
+The two ``__post_init__`` bodies were duplicated before S10a; collapsing
+them into one helper (single source of truth) is what guarantees the
+isotope guard and the mixture guard can never drift apart — they are
+literally the same three lines.
+
+**Why not per-cell?** Every transport solver eventually broadcasts the
+material spectrum across the spatial mesh — ``chi[None, :]`` in the
+fission-source assembly, where the leading axis is the cell index. In a
+heterogeneous geometry, the cells that fall in a non-fissile region
+legitimately carry :math:`\chi = 0`. A per-cell validator would have to
+permit :math:`\chi = 0` *everywhere*, which makes the simplex clause
+vacuous — it could no longer distinguish a genuine null spectrum (a
+non-producing material) from a malformed one (a producing material whose
+spectrum was accidentally zeroed). The discriminating information lives
+upstream, at the material: only there do we know whether *this*
+material is supposed to emit. Validating at the broadcast site discards
+exactly the predicate (``is_producing``) that makes the law meaningful.
+
+This is the conceptual boundary between
+:class:`~orpheus.data.emission_spectrum.EmissionSpectrum` and the
+(#263-deferred) per-cell ``SpectrumField``. ``EmissionSpectrum`` is a
+**validated value-object**: a thin :class:`numpy.ndarray` subclass that
+carries the material-level law as inspectable methods, with no membership
+in the flux/operator algebra (no ``__add__`` gate, no cross-mesh partner
+check, no change-of-basis morphism). It validates the values *and lets
+them ride unchanged* through every existing call site, because an
+``EmissionSpectrum`` *is* an ndarray — ``chi[None, :]``, ``chi.sum()``,
+``chi.copy()``, and einsum-feeding the fission source all keep working
+with zero ripple. A per-cell ``SpectrumField``, by contrast, *would*
+live in the field-typed algebra, and its broadcast of :math:`\chi`
+across non-fissile cells is precisely where the simplex law stops
+applying. The law belongs to the material; the field would belong to
+the mesh.
+
+
+The tolerance rationale: atol = 1e-12 over a real FP residual
+-------------------------------------------------------------
+
+:meth:`~orpheus.data.emission_spectrum.EmissionSpectrum.assert_normalized`
+checks the sum clause with
+``np.isclose(self.sum(), 1.0, atol=1e-12, rtol=0)``. The absolute
+tolerance is set by a measurement, not a guess.
+
+Real GENDF data is not exactly normalized in IEEE-754. Probing the
+shipped library directly:
+
+.. code-block:: python
+
+   >>> from orpheus.data.micro_xs import load_isotope
+   >>> iso = load_isotope("U_235", 294)
+   >>> iso.chi.sum()
+   1.0000000000000002          # FP residual ≈ 2.22e-16 (1 ULP at 1.0)
+
+The summed spectrum lands one ULP above unity — a residual of
+:math:`\approx 2.22\times10^{-16}`. The tolerance must clear this FP
+noise comfortably while still failing on a *physical* normalization
+error (a transcription bug, a wrong group count, a renormalization that
+forgot a group). The band is chosen as:
+
+.. list-table:: Choosing the normalization tolerance
+   :header-rows: 1
+   :widths: 32 22 22
+
+   * - Scale
+     - Magnitude
+     - Verdict
+   * - Real GENDF FP residual (U-235)
+     - :math:`\approx 2.2\times10^{-16}`
+     - MUST pass
+   * - ``atol = 1e-12`` (chosen)
+     - :math:`10^{-12}`
+     - the threshold
+   * - A :math:`10^{-6}`-scale physical error
+     - :math:`10^{-6}`
+     - MUST fail
+
+The chosen ``atol`` sits roughly four orders of magnitude above the
+observed FP residual and six orders below a realistic physical error,
+so it is robust at both ends. The ``rtol=0`` choice is deliberate: at
+:math:`\sum_g \chi_g \approx 1`, an absolute tolerance is the natural
+metric (the target value is exactly 1.0, so relative and absolute
+coincide to leading order; pinning ``rtol=0`` removes any ambiguity).
+Both ends of this band are pinned by foundation tests
+(``test_one_ulp_residual_passes`` mirrors the 2.22e-16 residual and must
+NOT raise; ``test_off_by_1e6_raises`` injects the :math:`10^{-6}` error
+and must raise) in ``tests/data/test_emission_spectrum.py``.
+
+The **null** spectrum is held to a stricter standard.
+:meth:`~orpheus.data.emission_spectrum.EmissionSpectrum.assert_null`
+checks ``np.all(self == 0)`` — *exact* zero, no tolerance. A null
+spectrum is never the result of a summation that might accumulate FP
+error; it is a *constructed* zero (``np.zeros(ng)``). There is no
+physical residual to absorb, so demanding exact zero catches any
+accidental nonzero entry (even a :math:`10^{-9}` leak) that a tolerant
+check would silently pass.
+
+The two clauses of ``assert_normalized`` — the sum clause and the
+non-negativity clause — are checked **independently**. A spectrum like
+``[1.2, -0.2]`` sums to exactly 1.0 yet is not a valid probability
+distribution; checking only the sum would pass it. The independent
+``np.all(self >= 0)`` clause catches it on the negativity test, with a
+distinct error message naming the negative entries. (Foundation leg
+``test_negative_entry_raises_even_when_sum_is_one``.)
+
+
+.. _emission-spectrum-production-keying:
+
+Why the law keys on production, not fissionability
+--------------------------------------------------
+
+The conditional in ``enforce_emission_spectrum`` branches on
+``is_producing`` (:math:`\nu\Sigma_f > 0`), **not** on fissionability
+(:math:`\Sigma_f > 0`). This is the load-bearing design decision of
+S10a, and it follows directly from *how* :math:`\chi` is consumed.
+
+The emission spectrum appears in the transport equation only inside the
+fission **source** — the rate at which fission neutrons are born into
+group :math:`g`:
+
+.. math::
+   :label: emission-spectrum-fission-source
+
+   q^{\mathrm{fiss}}_g(\mathbf{r}) \;=\; \chi_g \sum_{g'} \nu\Sigma_{f,g'}\,\varphi_{g'}(\mathbf{r}).
+
+:math:`\chi` is never used on its own; it is always multiplied by the
+**production** cross section :math:`\nu\Sigma_f`. Therefore the only
+quantity that determines whether :math:`\chi` matters is precisely
+:math:`\nu\Sigma_f`: where :math:`\nu\Sigma_f > 0`, the spectrum must be
+a genuine probability distribution (the birth density must integrate to
+the production rate); where :math:`\nu\Sigma_f = 0`, the product
+:math:`\chi\,\nu\Sigma_f` vanishes regardless of :math:`\chi`, so the
+law that has teeth is precisely the null spectrum. **A valid emission
+spectrum is required exactly where production is nonzero** — which is
+the statement of :eq:`emission-spectrum-simplex` with the
+``is_producing`` predicate as its keying.
+
+Fissionability is a *different* question. A material is fissile
+(:math:`\Sigma_f > 0`) if it *can* undergo fission; it is producing
+(:math:`\nu\Sigma_f > 0`) if it *emits* neutrons when it does. ORPHEUS
+keeps both predicates, with distinct roles:
+
+.. list-table:: The two fission predicates
+   :header-rows: 1
+   :widths: 22 26 30
+
+   * - Predicate
+     - Definition
+     - Role
+   * - ``is_fissile``
+     - :math:`\Sigma_f > 0` (``np.any(sigF > 0)``)
+     - "Can it fission?" — consumed by
+       :func:`~orpheus.data.macro_xs.mixture.compute_macro_xs` to
+       auto-detect ``fissile_indices`` (which isotopes contribute to the
+       homogenized production XS).
+   * - ``is_producing``
+     - :math:`\nu\Sigma_f > 0` (``np.any(nubar * sigF > 0)`` /
+       ``np.any(SigP > 0)``)
+     - "Does it emit fission neutrons?" — the predicate the
+       :math:`\chi` simplex/null law keys on.
+
+For **real** nuclear data flowing through
+:func:`~orpheus.data.macro_xs.mixture.compute_macro_xs`, the two
+predicates coincide: the production XS is computed as
+:math:`\Sigma_P = \overline{\nu}\,\Sigma_f` with
+:math:`\overline{\nu} > 0` for every fissile nuclide, so
+:math:`\nu\Sigma_f > 0 \;\Leftrightarrow\; \Sigma_f > 0`. On the real
+GENDF path, keying on either predicate gives the same answer. This is
+proven on shipped data by ``TestRealGendfConstructs`` in
+``tests/data/test_chi_invariant_enforcement.py``: U-235 reports
+``is_producing`` and its 2.22e-16-residual spectrum passes the simplex
+clause; O-016 and H-001 report *not* ``is_producing`` and their
+genuinely-zero spectra pass the null clause.
+
+The two predicates **diverge** for a synthetic fixture that sets the
+production XS directly while leaving the fission XS at zero — a
+*production-bearing but non-fissile* material. The canonical instance is
+the trajectory-resolvent billiard reference solver
+(``tests/derivations/test_trajectory_resolvent_billiard.py``), which
+builds a multiplying medium by setting ``SigP = νΣ_f > 0`` and
+``SigF = 0`` (the billiard solver reads ``SigP`` and ``chi`` to build
+the fission source; it never reads ``SigF``). For this fixture:
+
+- ``is_fissile`` (keyed on ``SigF``) would return **False**, demanding a
+  null spectrum — yet :math:`\chi` is genuinely consumed via
+  :math:`\chi\cdot\mathtt{SigP}`, so zeroing it would corrupt the
+  multi-group billiard result. Keying the guard on fissionability would
+  force a *behavior-changing* edit to a verification reference.
+- ``is_producing`` (keyed on ``SigP``) returns **True**, correctly
+  requiring the simplex law. The fixture's default simplex passes the
+  guard with no special handling.
+
+Production-keying classifies the production-bearing fixture correctly
+**with no stand-in**. An earlier draft of S10a keyed the guard on
+``is_fissile`` and worked around this divergence by patching the billiard
+fixture to carry a synthetic ``SigF`` (a stand-in for the untracked true
+:math:`\Sigma_f = \mathtt{SigP}/\nu`). Re-keying on production *retired*
+that hack: the fixture now sets ``SigF = 0`` honestly, and the
+divergence that looked like an irreducible design seam dissolves. The
+isolation is pinned directly by ``test_non_producing_nonzero_raises``,
+which builds an isotope with ``sigF > 0`` but ``nubar = 0`` (fissile, yet
+non-producing) and asserts its spectrum must be null — a leg that
+*requires* ``is_producing`` to differ from ``is_fissile``.
+
+The lesson generalizes beyond :math:`\chi`: a guard-at-the-source should
+key on the predicate that matches **why the guarded value exists**. The
+emission spectrum exists to be a fission source, so production is the
+right key. Fissionability — which the macro-XS pipeline still needs for
+``fissile_indices`` — is the wrong key for the :math:`\chi` law, and
+choosing it manufactures a seam where there is none.
+
+
+The behavior-neutral precursor: zeroing dead non-fissile χ
+----------------------------------------------------------
+
+Turning on a strict source-level guard is only safe if every existing
+call site already satisfies it. An audit before S10a found that the
+:ref:`synthetic verification cross-section library <synthetic-xs-library>`
+(regions A/B/C/D) carried **dead** nonzero spectra: the non-fissile
+regions B, C, and D held placeholder spectra such as ``chi=[1.0]``,
+``chi=[1, 0]``, and ``chi=[0.6, 0.35, 0.05, 0]`` — left over from an
+era when every region was given a spectrum by default. With the
+production-keyed guard active, these non-producing regions
+(:math:`\nu\Sigma_f = 0`) would demand the *null* spectrum and the guard
+would reject them on construction, reddening the SN / CP / MoC suites en
+masse.
+
+The precursor zeroed every such dead spectrum (region A, the only
+producing region, is untouched). This change is **behavior-neutral by
+construction**: a non-producing material has :math:`\nu\Sigma_f \equiv 0`,
+so its contribution to the fission source
+:eq:`emission-spectrum-fission-source` is
+:math:`\chi\,\nu\Sigma_f\,\varphi \equiv 0` *no matter what* :math:`\chi`
+holds. The spectrum of a non-producing region is multiplied by zero
+everywhere it is consumed; zeroing :math:`\chi` itself merely makes the
+dead value explicit. Nothing observable depends on it.
+
+This inertness is not asserted — it is **proven** by the byte-identical
+diamond-difference regression in
+``tests/sn/regression/test_dd_regression.py``. That gate pins the SN
+flux/eigenvalue snapshots with an exact-equality contract. After zeroing
+the non-fissile spectra, every snapshot reproduces bit-for-bit (no
+snapshot moved). A moved snapshot would have meant :math:`\chi` was *not*
+inert — that some non-producing region's spectrum was leaking into a
+result — and the precursor would have been wrong. None moved, so the
+zeroing is empirically confirmed behavior-neutral, exactly the standard
+of evidence the bit-identity-vs-principled-equivalence discipline
+demands: a regression contract is the right gate when the change is
+supposed to alter *nothing*.
+
+The audit also taught a scope lesson worth recording: a
+guard-at-the-data-source has a blast radius equal to **every direct
+constructor** of the guarded type, not just the factory path. Regions
+reached through ``get_mixture("B"/"C"/"D")`` were fixed transitively by
+zeroing the library, but a further set of test fixtures called
+``Mixture(...)`` / ``make_mixture(...)`` *directly* with inline
+placeholder spectra — invisible to a factory-path audit. A deterministic
+static scan of every constructor call (classifying the production-keying
+field against the guarded :math:`\chi` field) found them all in one pass,
+where running the suite would have leaked them one failure at a time.
+
+
+The S10b seam: production-weighted multi-fissile χ_mix
+------------------------------------------------------
+
+S10a installs the type and the source-level guard but changes **no**
+:math:`\chi` value. In particular,
+:func:`~orpheus.data.macro_xs.mixture.compute_macro_xs` still homogenizes
+a multi-isotope mixture by taking the spectrum of the **first** fissile
+isotope verbatim:
+
+.. code-block:: python
+
+   # Fission spectrum — use first fissile isotope's chi (simplification)
+   chi = np.zeros(NG)
+   if fissile_indices:
+       chi = isotopes[fissile_indices[0]].chi.copy()
+
+This is correct for a single-fissile mixture but a known simplification
+when two or more fissile isotopes coexist (e.g. a U-235 / Pu-239 fuel),
+since each has a distinct birth spectrum. The physically correct mixture
+spectrum is the **production-weighted average** of the per-isotope
+spectra:
+
+.. math::
+   :label: emission-spectrum-chi-mix
+
+   \chi^{\mathrm{mix}}_g
+   \;=\;
+   \frac{\displaystyle\sum_{i\in\text{producing}} \chi^{(i)}_g \sum_{g'} N_i\,\nu\sigma^{(i)}_{f,g'}\,\varphi_{g'}}
+        {\displaystyle\sum_{i\in\text{producing}} \sum_{g'} N_i\,\nu\sigma^{(i)}_{f,g'}\,\varphi_{g'}},
+
+a convex combination of the per-isotope spectra with weights equal to
+each isotope's share of the total production rate. (In practice the
+spectrum is condensed against a representative flux or assumed
+group-independent in weight; the structure is a convex combination
+regardless.)
+
+S10a is the deliberate seam at which S10b will attach. The decisive
+property is that **a convex combination of probability simplices is
+itself a probability simplex**: if each :math:`\chi^{(i)}` satisfies
+:math:`\sum_g \chi^{(i)}_g = 1` with :math:`\chi^{(i)}_g \ge 0`, and the
+weights :math:`w_i \ge 0` sum to 1, then
+:math:`\sum_g \sum_i w_i \chi^{(i)}_g = \sum_i w_i = 1` and every entry
+is a non-negative sum of non-negative terms. Therefore
+:math:`\chi^{\mathrm{mix}}` will pass
+:meth:`~orpheus.data.emission_spectrum.EmissionSpectrum.assert_normalized`
+**verbatim** — the simplex validator written for S10a is already the
+correctness floor for the S10b weighting, with no new law required. The
+value-object was designed so that the harder multi-fissile computation
+inherits its invariant for free; S10b implements the weighting and
+trusts the same guard to catch a mis-weighted result (one whose weights
+do not sum to 1, or that admits a negative entry).
+
+
+.. _emission-spectrum-verification:
+
+Verification chain
+------------------
+
+The simplex / null law is a software invariant — a property of a
+probability distribution, not a theory-page equation about a solver —
+so the gates are ``@pytest.mark.foundation`` and carry no
+``verifies(...)`` edge (there is no flux or eigenvalue claim to pin).
+
+.. list-table:: Foundation gates for the emission-spectrum law
+   :header-rows: 1
+   :widths: 38 40
+
+   * - Gate
+     - What it pins
+   * - ``tests/data/test_emission_spectrum.py``
+     - The **intrinsic** simplex / null law on the value-object itself
+       (vv anti-pattern #11, both legs): each validator gets a positive
+       leg (correct instance MUST NOT raise) and a negative leg (broken
+       instance MUST raise), with simplex / non-simplex arrays built by
+       hand (L11 structural independence — never via the production
+       builder the guard protects). Includes the tolerance-band legs
+       and the ndarray-subclass zero-ripple legs.
+   * - ``tests/data/test_chi_invariant_enforcement.py``
+     - The **container** cross-check: for each of ``Mixture`` and
+       ``Isotope``, both branches (producing → simplex, non-producing →
+       null) and both legs, plus ``test_non_producing_nonzero_raises``
+       (the ``is_producing`` ≠ ``is_fissile`` isolation leg) and the
+       real-GENDF ``TestRealGendfConstructs`` no-red proof on U-235 /
+       O-016 / H-001.
+
+Both gates run under the canonical ``python -O`` invocation. Every
+assertion routes through ``pytest.raises`` / ``np.testing.*`` (or the
+``_require`` helper that wraps ``pytest.fail``) rather than a bare
+``assert`` — so no leg is silently stripped under ``-O`` (vv failure
+mode 8, the compiled-out assertion). The byte-identical DD regression
+(``tests/sn/regression/test_dd_regression.py``) is the third leg: it
+proves the precursor zeroing of dead non-fissile :math:`\chi` changed no
+solver output.
+
+
 .. seealso::
 
    - :ref:`theory-homogeneous` — first consumer of the XS pipeline;

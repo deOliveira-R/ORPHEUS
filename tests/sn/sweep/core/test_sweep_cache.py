@@ -284,7 +284,7 @@ def test_geometry_coefficients_invariance_under_sigma_t_change() -> None:
         SigP=np.array([0.0]),
         SigS=[csr_matrix(np.array([[0.5]]))],
         Sig2=csr_matrix(np.array([[0.0]])),
-        chi=np.array([1.0]),
+        chi=np.zeros(1),  # non-fissile ⇒ null spectrum (S10a __post_init__ guard)
     )
     materials = {0: mix}
     mesh = Mesh1D(
@@ -595,7 +595,7 @@ def test_l0_streaming_equilibrium_preserved_after_2_5c() -> None:
         SigP=np.array([0.0]),
         SigS=[csr_matrix(np.array([[0.0]]))],
         Sig2=csr_matrix(np.array([[0.0]])),
-        chi=np.array([1.0]),
+        chi=np.zeros(1),  # non-fissile ⇒ null spectrum (S10a __post_init__ guard)
     )
     materials = {0: mix}
     mesh = Mesh1D(

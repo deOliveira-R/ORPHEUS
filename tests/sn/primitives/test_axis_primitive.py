@@ -55,7 +55,7 @@ def _one_group_mixture():
         sig_c=np.array([0.5]),
         sig_f=np.array([0.0]),
         nu=np.array([0.0]),
-        chi=np.array([1.0]),
+        chi=np.zeros(1),  # non-fissile ⇒ null spectrum (S10a __post_init__ guard)
         sig_s=np.array([[0.5]]),
     )
 

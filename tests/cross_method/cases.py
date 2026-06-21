@@ -362,24 +362,24 @@ def _make_unit_sigma_t_one_group_mixture(c: float):
     if c <= 0.0:
         raise ValueError(f"_make_unit_sigma_t_one_group_mixture: c must be > 0; got {c!r}")
     sig_t = np.array([1.0])
-    chi = np.array([1.0])
     if c >= 1.0:
-        # Pure-multiplying: Σ_s = 0, ν=c, Σ_f = 1, Σ_c = 0.
+        # Pure-multiplying: Σ_s = 0, ν=c, Σ_f = 1, Σ_c = 0. Fissile ⇒ simplex χ.
         return make_mixture(
             sig_t=sig_t,
             sig_c=np.array([0.0]),
             sig_f=np.array([1.0]),
             nu=np.array([c]),
-            chi=chi,
+            chi=np.array([1.0]),
             sig_s=np.array([[0.0]]),
         )
-    # Pure-scattering: Σ_s = c, ν=0, Σ_f = 0, Σ_c = 1 - c.
+    # Pure-scattering: Σ_s = c, ν=0, Σ_f = 0, Σ_c = 1 - c. Non-fissile ⇒ null χ
+    # (S10a __post_init__ guard; χ·νΣf ≡ 0 here regardless of χ).
     return make_mixture(
         sig_t=sig_t,
         sig_c=np.array([1.0 - c]),
         sig_f=np.array([0.0]),
         nu=np.array([0.0]),
-        chi=chi,
+        chi=np.zeros(1),
         sig_s=np.array([[c]]),
     )
 

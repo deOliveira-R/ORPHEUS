@@ -118,7 +118,7 @@ _B_1G = dict(
     sig_c=np.array([0.1]),
     sig_f=np.array([0.0]),
     nu=np.array([0.0]),
-    chi=np.array([1.0]),
+    chi=np.zeros(1),  # non-fissile ⇒ null spectrum (chi·νΣf ≡ 0 regardless)
     sig_s=np.array([[1.9]]),
     sig_s1=np.array([[1.9 * _MU_BAR["B"]]]),
 )
@@ -128,7 +128,7 @@ _B_2G = dict(
     sig_c=np.array([0.02, 0.05]),
     sig_f=np.array([0.00, 0.00]),
     nu=np.array([0.00, 0.00]),
-    chi=np.array([1.00, 0.00]),
+    chi=np.zeros(2),  # non-fissile ⇒ null spectrum
     sig_s=np.array([[0.40, 0.18], [0.00, 1.95]]),
     sig_s1=np.array([[0.40, 0.18], [0.00, 1.95]]) * _MU_BAR["B"],
 )
@@ -137,7 +137,7 @@ _B_4G = dict(
     sig_c=np.array([0.02, 0.03, 0.04, 0.06]),
     sig_f=np.array([0.00, 0.00, 0.00, 0.00]),
     nu=np.array([0.00, 0.00, 0.00, 0.00]),
-    chi=np.array([0.60, 0.35, 0.05, 0.00]),
+    chi=np.zeros(4),  # non-fissile ⇒ null spectrum
     sig_s=np.array([
         [0.50, 0.15, 0.04, 0.01],
         [0.00, 0.70, 0.20, 0.08],
@@ -158,7 +158,7 @@ _C_1G = dict(
     sig_c=np.array([0.15]),
     sig_f=np.array([0.0]),
     nu=np.array([0.0]),
-    chi=np.array([1.0]),
+    chi=np.zeros(1),  # non-fissile ⇒ null spectrum
     sig_s=np.array([[1.35]]),
     sig_s1=np.array([[1.35 * _MU_BAR["C"]]]),
 )
@@ -168,7 +168,7 @@ _C_2G = dict(
     sig_c=np.array([0.02, 0.08]),
     sig_f=np.array([0.00, 0.00]),
     nu=np.array([0.00, 0.00]),
-    chi=np.array([1.00, 0.00]),
+    chi=np.zeros(2),  # non-fissile ⇒ null spectrum
     sig_s=np.array([[0.38, 0.15], [0.00, 1.42]]),
     sig_s1=np.array([[0.38, 0.15], [0.00, 1.42]]) * _MU_BAR["C"],
 )
@@ -177,7 +177,7 @@ _C_4G = dict(
     sig_c=np.array([0.03, 0.04, 0.06, 0.10]),
     sig_f=np.array([0.00, 0.00, 0.00, 0.00]),
     nu=np.array([0.00, 0.00, 0.00, 0.00]),
-    chi=np.array([0.60, 0.35, 0.05, 0.00]),
+    chi=np.zeros(4),  # non-fissile ⇒ null spectrum
     sig_s=np.array([
         [0.35, 0.10, 0.03, 0.008],
         [0.00, 0.50, 0.15, 0.06],
@@ -198,7 +198,7 @@ _D_1G = dict(
     sig_c=np.array([0.005]),
     sig_f=np.array([0.0]),
     nu=np.array([0.0]),
-    chi=np.array([1.0]),
+    chi=np.zeros(1),  # non-fissile ⇒ null spectrum
     sig_s=np.array([[0.045]]),
     sig_s1=np.array([[0.045 * _MU_BAR["D"]]]),
 )
@@ -208,7 +208,7 @@ _D_2G = dict(
     sig_c=np.array([0.003, 0.005]),
     sig_f=np.array([0.00, 0.00]),
     nu=np.array([0.00, 0.00]),
-    chi=np.array([1.00, 0.00]),
+    chi=np.zeros(2),  # non-fissile ⇒ null spectrum
     sig_s=np.array([[0.030, 0.007], [0.000, 0.055]]),
     sig_s1=np.array([[0.030, 0.007], [0.000, 0.055]]) * _MU_BAR["D"],
 )
@@ -217,7 +217,7 @@ _D_4G = dict(
     sig_c=np.array([0.002, 0.003, 0.004, 0.006]),
     sig_f=np.array([0.00, 0.00, 0.00, 0.00]),
     nu=np.array([0.00, 0.00, 0.00, 0.00]),
-    chi=np.array([0.60, 0.35, 0.05, 0.00]),
+    chi=np.zeros(4),  # non-fissile ⇒ null spectrum
     sig_s=np.array([
         [0.030, 0.008, 0.002, 0.001],
         [0.000, 0.040, 0.010, 0.005],
