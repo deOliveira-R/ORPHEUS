@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5490**
+Total tests collected: **5502**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1164, 21.2%
-   L1, 988, 18.0%
+   L1, 998, 18.1%
    L2, 36, 0.7%
    L3, 0, 0.0%
-   foundation, 3292, 60.0%
+   foundation, 3294, 59.9%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5401
+   explicit, 5413
    verify, 0
    class-name, 46
    func-name, 0
@@ -243,12 +243,13 @@ Module × level grid
    mms/test_curvilinear_aniso_scattering_p1, 2, 0, 0, 0, 0, 0
    mms/test_curvilinear_operator_admits_mms, 0, 2, 0, 0, 0, 0
    mms/test_curvilinear_pole_cell_characterization, 0, 4, 0, 0, 0, 0
+   mms/test_ld_2d_boundary_promise, 0, 10, 0, 0, 1, 0
    mms/test_mms, 0, 2, 0, 0, 0, 0
    mms/test_mms_2d, 0, 3, 0, 0, 0, 0
    mms/test_mms_aniso, 0, 2, 0, 0, 0, 0
    mms/test_mms_curvilinear, 0, 2, 0, 0, 0, 0
    mms/test_mms_heterogeneous, 0, 4, 0, 0, 0, 0
-   mms/test_mms_ld_2d, 0, 11, 0, 0, 11, 1
+   mms/test_mms_ld_2d, 0, 11, 0, 0, 12, 1
    mms/test_mms_ld_slab, 0, 5, 0, 0, 2, 0
    moc/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    moc/test_mms, 0, 3, 0, 0, 0, 0
@@ -469,11 +470,11 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``complementarity``, 12
    ``kinf-1g``, 12
    ``kinf-mg``, 12
+   ``ld-cartesian-2d``, 12
    ``periodic-bc``, 12
    ``reciprocity``, 12
    ``ws-pitch``, 12
    ``inf-hom-balance``, 11
-   ``ld-cartesian-2d``, 11
    ``loss-rep-scanmarch``, 11
    ``loss-rep-scanmarch-apply``, 11
    ``loss-rep-scanmarch-solve``, 11
