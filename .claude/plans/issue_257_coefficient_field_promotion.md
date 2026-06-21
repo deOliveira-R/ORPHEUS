@@ -49,8 +49,15 @@
 > decision), **#262** (bulk-accessor under-typing).
 > **NEXT:** only **S10** (χ-simplex at `Mixture.chi`, DEFERRED end-of-plan) + **S11** (`Field`→L2, DEFERRED /
 > UNDER REVIEW) remain — both deferred tails; the campaign's behavioral work is COMPLETE. The owed
-> CONSOLIDATED archivist pass (S3b/S5/S6/S7/S8b/S8c stubs + the Pattern-M idiom; S9 + #263 already landed)
-> is the remaining doc debt (separate, tracked).
+> CONSOLIDATED archivist pass ✅ **DONE** (`64d98fc` docs + `c9f5af5` matrix, 2026-06-21): the 3 `.. todo::`
+> stubs (S3b `multiplication-operator-promotion`, S5 `functional-category`, S6 `integral-kernel-category`)
+> expanded to full §5.5–5.7 narratives + the S8c **Pattern-M idiom** (`heteromorphic-apply-typing`) + a brief
+> S7 scipy note; 2 new definitional eq-labels; build clean (paramref baseline only). **Campaign doc debt CLOSED.**
+> ⭐ **COMPACTION LANDING POINT:** behavioral work S1–S9 DONE + doc debt closed, all committed on
+> `feature/field-typed-operator-algebra` (HEAD `c9f5af5`), **NOT pushed** (whole campaign branch unpushed).
+> **NEXT = DISCUSS S10 + S11 with the user** (per user, deferred to post-compaction) — do NOT implement them
+> unprompted; both are end-of-plan, decide-with-hindsight (S10 = χ-simplex at `Mixture.chi`, needs an L20
+> upstream-fixture audit; S11 = `Field`→L2, the decision-rule + for/against are in the S11 entry below).
 
 > ✅ **DOC NUANCE LANDED (2026-06-20, `8d98714` + matrix `23b8eb0`).** The user-requested
 > **apply-linear / solve-nonlinear asymmetry** subsection (`:label: apply-solve-asymmetry`,
