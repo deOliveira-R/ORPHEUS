@@ -3283,6 +3283,18 @@ see the honest-scope note below.
    and the reflective-BC sign follow-up (#252) — is the subsection
    :ref:`ld-cartesian-2d-legB`.
 
+   **S9 (#257)** completes the boundary half: the MMS case
+   ``prescribed_inflow`` now itself EMITS the moment-resolved slot (it no longer
+   drops the slope at the producer), and the **coherent promise** — *LD is
+   second-order at the boundary with no asterisk* — is LOCKED by a dedicated
+   first-cell-row convergence gate.  The promise is delivered by the AVERAGE
+   moment alone; the transverse slope is a sub-floor inflow-representation
+   refinement (the fourth vv Mode-10 companion-unavailable instance).  S9 also
+   establishes that the transverse boundary moment is a PROPERTY, not a new
+   field type (#263).  The full S9 narrative — the coherent-promise evidence,
+   the producer-honesty carve, and the property-vs-type seam — is the subsection
+   :ref:`ld-cartesian-2d-coherent-promise`.
+
 .. _ld-cartesian-2d-legA:
 
 Leg A — the external slope-moment source :math:`\hat Q` (#247)
@@ -4131,6 +4143,287 @@ negative pin), with the face-projection foundation sub-gates
 ``test_face_projection_slot0_is_transverse_cell_average``.  All #251 gates are
 ``-O``-safe (``np.testing.*`` / ``pytest.fail`` / ``pytest.raises`` only, no bare
 ``assert`` that ``python -O`` would strip — vv Mode 8).
+
+.. _ld-cartesian-2d-coherent-promise:
+
+S9 — the coherent boundary promise and the property-vs-type seam (#257)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Leg B (:ref:`ld-cartesian-2d-legB`, #251) landed the boundary CONSUMPTION
+path: the trace ``mesh.trace`` carries the transverse moment axis end to end,
+``_inflow_to_moments`` threads slot 1, and the sweep outflow stores the
+:math:`2^{d-1}` transverse face-moments instead of collapsing them.  But the
+MMS *producer* — the case's
+:meth:`~orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase.prescribed_inflow`
+— still built a SCALAR per-face trace, so it hit the producer's scalar branch
+and the slope it could have carried was zeroed by the case, not by the closure.
+S9 (Issue #257) closes that producer-blindness — the case now EMITS the
+moment-resolved slot — and, in doing so, LOCKS the **coherent promise** the
+whole LD-on-the-boundary effort is about with a dedicated convergence gate.
+
+This subsection records three things a future session must not re-derive: (1)
+WHY the coherent promise is already TRUE and what delivers it (the average
+moment, not the slope); (2) the producer-honesty carve and why it is
+byte-identical for DD/Step; and (3) the **property-vs-type** seam (#263) — why
+the transverse boundary moment is a PROPERTY of the boundary field and NOT a
+new first-class field type, the durable design invariant that bounds the S9
+scope.
+
+The coherent promise: LD is second-order at the boundary, no asterisk
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The motivating claim — *"LD gives second-order accuracy EVERYWHERE, including
+the boundary, with no 'but not at the boundary' asterisk"* — is **TRUE and
+already DELIVERED**.  The subtle and load-bearing point is WHAT delivers it.
+
+It is delivered by the **AVERAGE moment alone**, not by the transverse
+boundary-slope moment.  The prescribed inflow is exact at the face cells (the
+manufactured trace is evaluated there), and the bulk LD closure
+(:eq:`ld-cartesian-2d`) carries that boundary data inward at :math:`O(h^2)`.
+The cell that directly consumes the inflow integrates it against the cell's
+own linear basis, and the cell-AVERAGE transverse moment is exactly what that
+integral needs to :math:`O(h^2)`.  So the boundary cell is second-order
+*from the average moment*, before any transverse-slope refinement enters.
+
+This reframes the S9 motivation.  There was never an :math:`O(h)` deficiency in
+the converged flux at the boundary to "recover" — the order is already
+:math:`O(h^2)` there.  What the transverse boundary-slope moment improves is the
+*inflow representation*: it lifts the face trace from :math:`O(h)`-accurate
+(bar-only) to :math:`O(h^2)`-accurate (bar + slope), a genuine refinement that
+the LD closure genuinely consumes (Leg B's structural teeth prove this).  But a
+second-order correction to an already-second-order face balance cannot move the
+converged flux above the bulk :math:`O(h^2)` floor.  S9 therefore does NOT
+remove an asterisk on the convergence order (there was none); it makes the
+producer honest about the moment it could always have carried, and it LOCKS the
+no-asterisk promise so a future change to the boundary closure cannot silently
+break it.
+
+First-cell-row evidence: the boundary cell is already O(h²)
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The decisive scaling argument is the convergence order of the FIRST CELL ROW —
+the cells (:math:`i=0`) that directly consume the ``xmin`` inflow.  If the
+average-only inflow were :math:`O(h)`-deficient at the boundary cell, the slope
+COULD repair it and the coherent promise would carry an asterisk.  It is in
+fact :math:`O(h^2)`, for BOTH the average-only (``flat``) and the
+moment-resolved (``mom``) inflow:
+
+.. list-table:: First-cell-row (:math:`i=0`) :math:`L^2` order — already
+   :math:`O(h^2)` from the average moment (pure-absorber streaming,
+   :math:`\Sigma_t L = 0.1`, the regime most favourable to a boundary-confined
+   inflow error)
+   :header-rows: 1
+   :widths: 24 38 38
+
+   * - inflow treatment
+     - first-cell-row :math:`L^2` (``nc`` = 16, 32, 64, 128)
+     - observed order
+   * - ``flat`` (average only)
+     - sequence decays at the design rate
+     - :math:`1.993,\ 2.004,\ 2.001`
+   * - ``mom`` (average + transverse slope)
+     - sequence decays at the design rate
+     - :math:`1.998,\ 2.005,\ 2.003`
+
+The orders are indistinguishable: the slope is a sub-floor refinement, not a
+deficiency repair.  This is the
+:func:`~tests.sn.verification.mms.test_ld_2d_boundary_promise.test_first_cell_row_already_second_order`
+gate (``@l1``, ``@verifies("ld-cartesian-2d")`` — the label is REUSED, S9
+mints none): it fails iff the first-cell-row flat order drops below
+:math:`1.85`, which would mean the average inflow is :math:`O(h)`-deficient at
+the boundary cell and the verdict must flip.
+
+This holds across the full optical-depth axis, NOT only at the cheap
+:math:`\Sigma_t L = 0.1` headline.  Probed across
+:math:`\Sigma_t L \in \{0.1, 0.5, 1.0, 2.0\}` (streaming → thick) and
+:math:`c \in \{0, 0.5\}`, ``flat``, ``mom``, and ``flip`` all converge in the
+second-order band globally, and the magnitudes track within a documented
+sub-floor band (:math:`<20\%`, with a :math:`30\%` guard).  Even in the
+streaming limit (where the inflow propagates ballistically and an
+inflow-representation error is LEAST boundary-confined) the LD cell balance
+integrates the inflow against its own linear basis, so the average moment is
+:math:`O(h^2)`-adequate.  Amplifying the :math:`\mu`-dependent (slope-carrying)
+drivers up to :math:`20\times` — the user's strongest "make the boundary slope
+non-trivial" hypothesis — makes the converged flux MONOTONICALLY WORSE
+(:math:`+17\%` at :math:`20\times`, still :math:`O(h^2)`), never better.  The
+sub-floor wall is FUNDAMENTAL to a boundary-trace moment, not an artefact of
+the cheap regime; these are the
+:func:`~tests.sn.verification.mms.test_ld_2d_boundary_promise.test_optical_sweep_slope_never_beats_floor`
+and
+:func:`~tests.sn.verification.mms.test_ld_2d_boundary_promise.test_amplified_boundary_slope_still_subfloor`
+verdict pins (``@slow`` ``@l1``).
+
+Producer honesty: the MMS case emits the moment slot
+''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+The S9 production change is a single completion of the existing case (no new
+ansatz, no sibling case).
+:meth:`~orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase.prescribed_inflow`
+now gates on
+:func:`~orpheus.numerics.moment_layout.face_moment_count` — the SAME
+single-source primitive
+:attr:`~orpheus.sn.geometry.SNMesh.boundary_face_layout` keys the slot width on:
+
+* When ``face_moment_count == 1`` (DD/Step) it builds the SCALAR per-face trace
+  ``(N, ng, n_t)`` by cell-CENTRE evaluation of :math:`(A + \mu_x B + \mu_y
+  C)/W`, hits the producer's scalar branch, and is **byte-identical** to the
+  pre-S9 build (proven: ``np.array_equal`` against the legacy ``face_coords``
+  construction holds — DD/Step has no moment axis, the slots are bit-for-bit
+  the old build).
+* When ``face_moment_count > 1`` (LD) it builds the FULL moment slot
+  ``(N, ng, n_t, face_moment_count)`` via a new case-owned
+  :meth:`~orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase._project_inflow_to_face_moments`
+  and hits the producer's full-slot branch.
+
+The projector descends ONLY from the case's manufactured harmonics
+(``_drivers``) and :func:`numpy.polynomial.legendre.leggauss` — NEVER
+``_inflow_to_moments``, ``_ubld``, any LD operator, or the test-side
+projectors (the L11 structural-independence discipline of the
+:doc:`algebra-of-record </theory/reference_solvers>` pillar).  Per transverse
+cell :math:`[t_L, t_R]` mapped to :math:`\xi \in [-1, 1]`, it projects onto the
+BARE per-cell Legendre coefficients
+
+.. math::
+
+   \text{slot}_0 \;=\; \frac{\langle \psi, P_0\rangle}{\langle P_0, P_0\rangle}
+   \quad(\text{transverse cell AVERAGE}),
+   \qquad
+   \text{slot}_1 \;=\; \frac{\langle \psi, P_1\rangle}{\langle P_1, P_1\rangle}
+   \quad(\text{BARE transverse slope}).
+
+This reuses the exact normalization Leg B locked
+(Eq. :eq:`ld-cartesian-2d-face-projection-coeff`): NO :math:`\theta`/:math:`h_t`
+weighting, because the cochain's transverse mass :math:`\mathrm{diag}(h_t,
+\theta h_t)` applies them downstream — a :math:`\theta`- or :math:`h_t`-weighted
+slope would double-apply the mass, a TRUE bug.  Because the case projector and
+the test-side ``_face_transverse_legendre`` are deliberately INDEPENDENT
+implementations of the same projection, their machine-precision agreement is a
+single-source check (Cardinal Rule 2), pinned by the new foundation gate
+:func:`~tests.sn.verification.mms.test_mms_ld_2d.test_case_projector_agrees_with_test_face_projector`;
+a shared import would make that check tautological and let a double-applied mass
+slip through.  The threading is then pinned end to end by the GATE-B leg added
+to ``test_ld_2d_boundary_slope_threaded_through_inflow_to_moments`` (the
+production producer's slot 1 equals the ``leggauss`` reference at machine
+precision — closing the Mode-11 producer-blindness the #251 surrogate had, which
+pinned only the consumer).
+
+.. note:: **The second-order interaction the producer honesty introduces.**
+
+   A diagnostic helper whose "average-only" baseline routed through the (now
+   slope-honest) production ``prescribed_inflow`` would SILENTLY inherit the new
+   slope, collapsing the controlled ``flat``/``mom``/``flip`` toggle and breaking
+   the byte-identity no-op control.  The fix is structural: the controlled
+   average-only baseline is built TEST-SIDE (the toggle belongs to the test;
+   the honesty belongs to production).  This is a general lesson — when a
+   refactor makes a production path honest about a quantity a test was
+   controlling externally, the test's controlled toggle MUST NOT inherit the
+   production change it is meant to be orthogonal to.
+
+The fourth Mode-10 instance — and why no value gate is added
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+S9 is the FOURTH consecutive vv **Mode 10** close-out in the
+slope-moment family — #240 D5b-S4 (the bulk slope-source) →
+:ref:`ld-cartesian-2d-legA` (#247, the external :math:`\hat Q`) →
+:ref:`ld-cartesian-2d-legB` (#251, the boundary transverse slope) → S9 — and it
+sits squarely in the **companion-unavailable branch** Leg B opened.  The
+transverse boundary-slope moment is *activated-but-unconstrained*: its code path
+is genuinely exercised (projected, threaded, stored, reframed per octant,
+consumed by the cell update — the Mode-11 sentinel
+:func:`~tests.sn.verification.mms.test_ld_2d_boundary_promise.test_slope_toggle_reaches_inflow_to_moments`
+confirms slot 1 reaches the production consumer and the converged flux differs,
+so the toggle is non-vacuous), yet its contribution to the converged flux is
+sub-floor for ANY value claim.
+
+The canonical Mode-10 resolution says: *add a companion gate that isolates the
+term so its error is :math:`O(1)` in the measured quantity (a problem where the
+term is the dominant forcing)*.  **For a boundary-trace slope that companion is
+genuinely UNAVAILABLE.**  The boundary is codimension-1 — measure-zero in the
+refinement limit — so a localized :math:`O(h)`-small along-face perturbation has
+NO regime in which it becomes the dominant forcing of the converged flux; the
+optical-depth and amplitude sweeps above are the empirical proof that no such
+regime exists.  In that case the structural pair is the COMPLETE resolution, and
+manufacturing a value-improvement leg would be dishonest — it would falsely RED a
+correctly-consumed term (probed: seeding the TRUE slope makes the near-boundary
+error slightly WORSE, the flipped slope slightly BETTER; both sub-floor).  So
+S9 keeps Leg B's structural teeth (machine-precision threading + consumed-flip
+:math:`\gg` tolerance + the byte-identical scalar no-op control) and adds NO
+value or order gate keyed on the slope.
+
+.. warning::
+
+   Do NOT write "S9 recovers second-order accuracy at the boundary" or
+   "the boundary-slope moment makes LD second-order at the boundary".  Both are
+   false: the boundary cell is :math:`O(h^2)` from the AVERAGE moment alone, and
+   the slope is a sub-floor inflow-representation refinement.  The verifiable
+   content of S9 is STRUCTURAL (producer threading + consumption + the
+   coherent-promise lock), per the vv Mode-10 companion-unavailable branch — not
+   a converged-value claim.
+
+The property-vs-type seam (#263): a boundary moment is a PROPERTY
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+S9 raised a natural design question: if the angular moment representation
+(:class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`)
+is a first-class FIELD TYPE, should the transverse boundary moment be one too —
+a ``BoundaryMomentField``?  The answer, tracked in **#263**, is **NO today**:
+the transverse boundary moment is a PROPERTY of the boundary field (an untyped
+trailing moment axis on the flat face buffer), exactly as the bulk carries its
+spatial moments as a property (``spatial_moments`` on the field, rather than a
+distinct field type).  The criterion and its trigger live in the
+:ref:`field-type-vs-property-criterion` section of the operator-algebra page;
+the short version, specialised to the boundary moment:
+
+A representation earns a distinct first-class **type** only when a
+**non-canonical dual** coexists with it — two bases that are NOT canonically
+isomorphic, connected by a change-of-basis morphism that is itself modelled and
+applied (carries truncation error, has an adjoint, participates in the operator
+algebra).  Angular order PASSES: the ordinate basis (``AngularFlux``) and the
+harmonic-modal basis (``HarmonicMomentField``) are non-canonically isomorphic
+(the iso depends on the quadrature :math:`Y_\ell^m(\hat\Omega_n)`), bridged by
+the applied :math:`M`/:math:`R` projection/reconstruction pair with truncation
+content and adjoints.  The transverse SPATIAL moment FAILS: there is ONE
+within-cell basis (the tensor-Legendre tower), no non-canonical dual, so the
+only change-of-basis would be the identity.  A ``BoundaryMomentField`` leaf
+whose ``_check_partner`` adds nothing beyond class identity would be a vacuous
+naming leaf — type-theatrics by the project's own "if the type hint does not
+prevent a bug by construction it is theatrics" standard.  So the moment rides as
+a PROPERTY (the flat face buffer already holds the moment tail via
+:attr:`~orpheus.sn.geometry.SNMesh.boundary_face_layout`), and the first-class
+:class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace` field
+type is DEFERRED to the collocation trigger (nodal-DG / Lagrange-FEM, where a
+nodal point-value basis coexists with the modal coefficients and a Vandermonde
+morphism bridges them) — the durable design invariant #263 records.
+
+Sources and gates
+'''''''''''''''''
+
+The production change is one file:
+:meth:`~orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase.prescribed_inflow`
+gated scalar-vs-moment build plus the new case-owned ``leggauss`` projector
+:meth:`~orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase._project_inflow_to_face_moments`
+(the boundary cochain, the trace, the consumer ``_inflow_to_moments``, and
+DD/Step are all UNCHANGED — Leg B already landed the consumption path).  The
+coherent-promise gate and the verdict pins live in
+:mod:`tests.sn.verification.mms.test_ld_2d_boundary_promise`:
+``test_first_cell_row_already_second_order`` (``@l1``
+``@verifies("ld-cartesian-2d")`` — the coherent-promise lock),
+``test_optical_sweep_slope_never_beats_floor`` and
+``test_amplified_boundary_slope_still_subfloor`` (``@slow`` ``@l1`` — the
+sub-floor verdict pins guarding the no-value-gate conclusion across optical
+depth and amplitude), and ``test_slope_toggle_reaches_inflow_to_moments``
+(``@foundation`` — the Mode-11 sentinel proving the toggle is non-vacuous).  The
+producer-stamp leg lives in
+:mod:`tests.sn.verification.mms.test_mms_ld_2d`:
+``test_ld_2d_boundary_slope_threaded_through_inflow_to_moments`` (GATE B — the
+production producer's slot 1 equals the ``leggauss`` reference) and
+``test_case_projector_agrees_with_test_face_projector`` (GATE C — the
+single-source projector agreement).  All gates are ``-O``-safe
+(``np.testing.*`` / ``pytest.fail`` only, no bare ``assert`` that ``python -O``
+would strip — vv Mode 8).  No ERR entry was minted: like Leg A and Leg B, S9 is
+a proactive-gap close (a producer-blindness — the slope was UNVERIFIED at the
+producer, not WRONG — the #251 consumer already threaded it correctly), not a
+caught production bug.
 
 .. _sweep-wavefront:
 

@@ -1432,6 +1432,112 @@ loop over the ordinate axis (which is **internal** to every
 product structure).
 
 
+.. _field-type-vs-property-criterion:
+
+When a moment representation earns a type (#263)
+================================================
+
+The tensor-product algebra above raises a recurring design question whenever
+a new moment representation appears: should it be a first-class **field type**
+(a sibling of
+:class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`),
+or merely a **property** — a moment axis riding on an existing field?  The
+question surfaced sharpest in the SN linear-discontinuous (LD) boundary work
+(:ref:`ld-cartesian-2d-coherent-promise`, Issue #257 S9), which had to decide
+whether the transverse boundary moment deserved a ``BoundaryMomentField`` type.
+This section records the criterion that answers it, because the answer is a
+durable design invariant, not a one-off call.
+
+The criterion: a non-canonical dual must coexist
+------------------------------------------------
+
+   A representation earns a distinct first-class **type** if and only if there
+   exist **two bases that are NOT canonically isomorphic** (the isomorphism
+   depends on a quadrature or node choice), connected by a **change-of-basis
+   operator that is itself modelled and applied** — it carries truncation
+   error, has an adjoint, and participates in the operator algebra.
+
+All three clauses must hold.  This is the sharp form of "a dual must coexist
+and not mix", and it is decidable by inspection: count the within-axis
+representations and count the applied, non-identity morphisms between them.  If
+there is one representation, or the only morphism is the identity, the
+representation is a **property**; a type would add no behaviour beyond class
+identity — type-theatrics by the project's own standard (a type hint that does
+not prevent a bug by construction earns nothing).
+
+The criterion is the field-type analogue of the tensor-product algebra's own
+discipline (a typed operator is justified when it carries an ``axis`` attribute,
+a capability set, and algebraic laws checked at composition — not merely a name):
+a typed field is justified when it carries a *dual* whose mixing must be
+forbidden, not merely a name.
+
+Angular order PASSES; spatial order FAILS (today)
+-------------------------------------------------
+
+**Angular order is correctly TWO types.** The ordinate basis
+(:class:`~orpheus.transport.fields.angular_flux.AngularFlux`, :math:`N`
+collocation directions on :math:`S^2`) and the harmonic-modal basis
+(:class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`,
+:math:`(L+1)(2L+1)` real-spherical-harmonic coefficients) are NOT canonically
+isomorphic — the isomorphism depends on the quadrature
+:math:`Y_\ell^m(\hat\Omega_n)`.  They are bridged by the APPLIED
+projection / reconstruction pair :math:`M` / :math:`R`
+(:eq:`harmonic-moment-projection` and its reconstruction inverse), which carry
+truncation content and have adjoints and live in the operator algebra.  All
+three clauses hold, so the two field types are load-bearing: a ``flux +
+moments`` addition is type-rejected by construction (the field-layer partner
+gate), exactly as it should be — the ordinate and modal representations must
+not silently mix.
+
+**Spatial order is correctly a PROPERTY (today).** There is ONE within-cell
+spatial basis — the tensor-Legendre DG tower
+(:class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`,
+``per_axis**ndim`` coefficients).  The only change-of-basis within it is the
+identity (and ``truncate`` / inclusion, which stay within the same family and
+return the same tower).  Clause 1 fails: no non-canonical dual coexists.  So
+the spatial moment rides as a property — a ``spatial_moments`` axis composed
+onto BOTH angular field types (``_compose_spatial_moments`` in the bulk; the
+flat face-buffer moment tail minted by
+:attr:`~orpheus.sn.geometry.SNMesh.boundary_face_layout` on the boundary) —
+rather than as its own field type.  A ``BoundaryMomentField`` leaf whose
+partner-check added nothing beyond class identity would be the vacuous naming
+leaf the criterion warns against; the transverse boundary moment is therefore a
+PROPERTY of the boundary field, the call S9 made.
+
+The defer-with-trigger decision (#263)
+--------------------------------------
+
+The first-class spatial ``SpatialMomentField`` type is DEFERRED, with an
+explicit trigger, under Issue #263.  The trigger is the arrival of a
+**non-canonical spatial dual**: a nodal / point-value within-cell (or
+face-current) representation enters production AND a modelled, applied
+nodal↔modal morphism is written between it and the existing
+:class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`.  Two
+concrete arrivals would supply it:
+
+* **Nodal discontinuous Galerkin SN** — nodal Lagrange point-values coexist
+  with the modal Legendre coefficients, bridged by the applied Vandermonde
+  matrix (truncation content, adjoint, in the algebra).  The
+  Hesthaven–Warburton nodal-DG construction is the canonical instance.
+* **Nodal diffusion (NEM / SANM / ANM)** — transverse-Legendre moments coexist
+  with face partial currents, bridged by the coupling coefficients (a modelled
+  morphism).  This is the strongest spatial for-case, though it is not on the
+  current roadmap.
+
+Until such a dual exists, every order-expansion in the codebase is a
+PARAMETER within one tower (the ``per_axis = 2 → 3`` widening for higher-order
+SN, hierarchical-Legendre / hp-FEM degree :math:`p`, p-multigrid — all single
+hierarchical towers where prolong is inclusion and restrict is its adjoint,
+WITHIN one representation), not a new type.  When the dual arrives, the right
+move is to lift ``SpatialMomentField`` and its nodal dual into the
+:class:`~orpheus.transport.fields._bases.MomentField` family ABC, mirroring the
+:math:`M` / :math:`R` pair — the ABC already exists as a thin family marker
+anticipating exactly this second instance.  p-adaptivity that needs modelled
+``prolong`` / ``restrict`` operators flips toward typed OPERATORS within one
+family (like ``truncate``), not a new field type, because those morphisms are
+canonical within one Legendre tower.
+
+
 .. _bc-tensor-primitives:
 
 Boundary conditions as Wave-0 / Wave-1 primitives
