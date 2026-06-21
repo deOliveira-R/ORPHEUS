@@ -111,7 +111,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import singledispatchmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, overload
 
 import numpy as np
 
@@ -326,66 +326,55 @@ class FissionOperator(LinearOperatorMixin):
         return ProductionRateFunctional(self.mat_xs.fission_production_field)
 
     @singledispatchmethod
-    def apply(self, phi):
-        r"""Apply :math:`F\,\phi`: emission rate × spectrum, no :math:`1/k`.
+    def _apply_impl(self, phi) -> "Any":
+        r"""Runtime dispatch for :meth:`apply` — see the typed overloads.
+
+        Applies :math:`F\,\phi`: emission rate × spectrum, no :math:`1/k`.
 
         .. math::
 
             (F\,\phi)_g(\vec r) = \chi_g(\vec r)\,
               \sum_{g'} \nu\Sigma_{f,g'}(\vec r)\,\phi_{g'}(\vec r)
 
-        Dispatched on input type via
-        :func:`functools.singledispatchmethod`:
+        Dispatched on the input *carrier* type via
+        :func:`functools.singledispatchmethod`.  The public :meth:`apply`
+        name aliases this dispatcher at runtime and carries the honest
+        per-carrier ``@overload`` typing surface (#257 S8c), so callers
+        statically see the exact output type for each input carrier:
 
-        * :class:`~orpheus.sn.angular_flux.AngularFlux` (legacy) →
-          :class:`AngularFlux` — fission emission in **per-ordinate
-          magnitude** (the trailing :math:`1/W` projection lives at the
-          producer boundary; R-1 Step 4 A1).  Consumers are SN
-          sweep / GMRES / source-iteration loops operating on legacy
-          per-ordinate angular flux.  Retires in D-H.1c alongside the
-          legacy ``AngularFlux``.
         * :class:`~orpheus.transport.timed_full_field.TimedFullField`
-          → :class:`TimedFullField` — composite bulk + boundary
-          variant for the D-H.1+ migration path.  Bulk follows the
-          same per-ordinate :math:`1/W` projection as the legacy
-          branch; boundary is the implicit-zero
-          :class:`BoundaryFlux` (Option β3 — fission has no boundary
-          action; Wave O Issue #208 will encode bulk-only nature in
-          the type).
-        * :class:`~orpheus.sn.scalar_flux.ScalarFlux` →
-          :class:`~orpheus.sn.sources.ScalarSourceSink` — fission
-          emission in **iso scalar magnitude**.  For consumers in
-          scalar-flux equations (eigenvalue outer / depletion /
-          diffusion) that do not project to per-ordinate.
-          Symmetric with :meth:`ScatteringOperator.apply`'s
-          :class:`ScalarFlux` variant.
-        * :class:`numpy.ndarray` — legacy bare-ndarray path,
-          ``(ng, nx, ny)`` iso scalar fission source.  Preserved for
-          ``KEigenvalue`` / depletion / diffusion consumers that
-          still feed bare ``(ng, nx, ny)`` arrays at outer-iteration
+          → :class:`~orpheus.transport.full_field.FullField` — composite
+          bulk + boundary variant.  The bulk is the iso fission source
+          projected to per-ordinate magnitude; the boundary is the
+          implicit-zero :class:`~orpheus.transport.source_sinks.BoundarySourceSink`
+          (Option β3 — fission has no boundary action; Wave O #208 will
+          encode the bulk-only nature in the type).  #257 S8a made the
+          codomain the timeless :class:`FullField` (the matvec leaf is a
+          base arrow; the iteration driver reattaches the timed type).
+        * :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
+          → :class:`~orpheus.transport.source_sinks.ScalarSourceSink` —
+          fission emission in **iso scalar magnitude**, for consumers in
+          scalar-flux equations (eigenvalue outer / depletion / diffusion)
+          that do not project to per-ordinate.  Symmetric with
+          :meth:`ScatteringOperator.apply`'s :class:`ScalarFlux` variant.
+        * :class:`numpy.ndarray` — bare ``(ng, *spatial)`` iso scalar
+          fission source.  Preserved for ``KEigenvalue`` / depletion /
+          diffusion consumers that feed bare arrays at outer-iteration
           boundaries.
 
-        See ``coding-elegance`` SKILL.md §"Convention crosswalk template"
-        and lesson L18 for the Pattern 7 producer-side normalisation
-        discipline.  Fission has no :math:`P_\ell` aniso component
-        (the emission spectrum is isotropic by construction); the
-        :math:`1/W` projection in the :class:`AngularFlux` variant is
-        the only producer-side normalisation.
-
-        Notes
-        -----
-        R-1 Step 3a introduced the :class:`AngularFlux` overload for
-        the operator algebra ``(L + C - S - F).apply(ψ)``.  R-1 Step 4
-        A1 added the producer-side :math:`1/W` projection.
+        Fission has no :math:`P_\ell` aniso component (the emission
+        spectrum is isotropic by construction); see ``coding-elegance``
+        SKILL.md §"Convention crosswalk template" and lesson L18 for the
+        Pattern 7 producer-side normalisation discipline.
         """
         raise TypeError(
             f"FissionOperator.apply: unsupported input type "
-            f"{type(phi).__name__}; expected AngularFlux, ScalarFlux, "
+            f"{type(phi).__name__}; expected TimedFullField, ScalarFlux, "
             f"or numpy.ndarray.  Dispatch table is registered via "
             f"@singledispatchmethod."
         )
 
-    @apply.register
+    @_apply_impl.register
     def _(self, psi: TimedFullField) -> "FullField":
         r"""Composite :class:`TimedFullField` variant — bulk-only fission emission.
 
@@ -431,7 +420,7 @@ class FissionOperator(LinearOperatorMixin):
             boundary=BoundarySourceSink.zeros_on(psi.bulk.mesh),
         )
 
-    @apply.register
+    @_apply_impl.register
     def _(self, phi: ScalarFlux) -> "ScalarSourceSink":
         r"""Typed ScalarFlux variant — iso scalar magnitude output.
 
@@ -458,7 +447,7 @@ class FissionOperator(LinearOperatorMixin):
         out = self.kernel.apply(phi.values)
         return ScalarSourceSink.from_mesh(out, phi.mesh)
 
-    @apply.register
+    @_apply_impl.register
     def _(self, phi_arr: np.ndarray) -> np.ndarray:
         r"""Bare-ndarray legacy variant — iso scalar fission source.
 
@@ -473,3 +462,21 @@ class FissionOperator(LinearOperatorMixin):
         for the rank-1 outer-product math.
         """
         return self.kernel.apply(phi_arr)
+
+    if TYPE_CHECKING:
+        # Honest per-carrier typing surface (#257 S8c).  ``FissionOperator``
+        # is NOT an endomorphism ``V -> V`` (the mixin's nominal contract):
+        # it maps each input carrier to a DISTINCT output carrier.  These
+        # ``@overload`` stubs exist only for the type checker; the public
+        # ``apply`` IS the runtime dispatcher (``apply = _apply_impl``
+        # below), so callers statically see e.g. ``F.apply(ScalarFlux) ->
+        # ScalarSourceSink`` instead of the dispatcher's untyped fallback.
+        @overload
+        def apply(self, phi: TimedFullField, /) -> "FullField": ...
+        @overload
+        def apply(self, phi: ScalarFlux, /) -> "ScalarSourceSink": ...
+        @overload
+        def apply(self, phi: np.ndarray, /) -> np.ndarray: ...
+        def apply(self, phi: Any, /) -> Any: ...
+    else:
+        apply = _apply_impl

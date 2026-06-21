@@ -32,6 +32,7 @@ composite).
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import assert_type, cast
 
 import numpy as np
 import pytest
@@ -42,7 +43,8 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import CollisionOperator, StreamingOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.source_sinks import AngularSourceSink
+from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
+from orpheus.transport.source_sinks import AngularSourceSink, ScalarSourceSink
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
@@ -132,8 +134,14 @@ def test_F_typed_lift_equivalent_to_scalar(name, builder) -> None:
 
     # Composite path: F(state) — TimedFullField
     Fpsi_typed = F.apply(state)
-    # Scalar path: F(integrate_angular(state.bulk)) — ScalarFlux, then broadcast
-    phi = state.bulk.integrate_angular()
+    # Scalar path: F(integrate_angular(state.bulk)) — ScalarFlux, then broadcast.
+    # ``state.bulk`` is statically the broad ``BulkField`` (``_random_state``
+    # builds it as the concrete ``AngularFlux``), and ``integrate_angular`` is
+    # itself under-typed (returns ``object``); the casts name both runtime
+    # truths so the typed ``F.apply`` overload resolves.
+    phi = cast(
+        ScalarFlux, cast(AngularFlux, state.bulk).integrate_angular(),
+    )
     F_phi = F.apply(phi)
     expected_values = np.broadcast_to(
         F_phi.values[None], Fpsi_typed.bulk.values.shape,
@@ -319,3 +327,80 @@ def test_full_algebra_linearity(name, builder) -> None:
         lhs.boundary.values, rhs.boundary.values,
         rtol=1e-12, atol=1e-13,
     )
+
+
+# ───────────────────────────────────────────────────────────────────────
+# C6 — #257 S8c: the @singledispatchmethod fibration is honestly typed.
+#
+# ``FissionOperator`` / ``ScatteringOperator`` are NOT endomorphisms ``V -> V``
+# (the ``LinearOperatorMixin`` nominal contract): their ``apply`` maps each
+# input *carrier* to a DISTINCT output carrier.  S8c made that honest with an
+# ``@overload`` surface over the runtime ``@singledispatchmethod`` (the public
+# ``apply`` is an alias of the private ``_apply_impl`` dispatcher).  Two halves:
+#   * STATIC  — ``_c6_static_typing_pins`` below (pyright-checked, never run):
+#     reddens if the overload surface regresses to the dispatcher's untyped
+#     ``Any``/``NoReturn`` fallback.
+#   * RUNTIME — ``test_c6_apply_dispatch_parity`` (Mode-11): exercises the
+#     aliased PUBLIC ``apply`` and pins each arm's output TYPE.
+# ───────────────────────────────────────────────────────────────────────
+
+
+def _c6_static_typing_pins(
+    F: FissionOperator,
+    S: ScatteringOperator,
+    state: TimedFullField,
+    phi: ScalarFlux,
+    psi: AngularFlux,
+    moments: HarmonicMomentField,
+    arr: np.ndarray,
+) -> None:
+    """Static typing pins for the ``apply`` fibration (pyright-only, never run).
+
+    ``assert_type`` is the STATIC half of gate C6 — each call forces pyright to
+    confirm the per-carrier ``@overload`` resolves to the right output type.
+    No ``test_`` prefix → pytest never collects this; only the type checker
+    reads it.
+    """
+    assert_type(F.apply(state), FullField)
+    assert_type(F.apply(phi), ScalarSourceSink)
+    assert_type(F.apply(arr), np.ndarray)
+    assert_type(S.apply(state), FullField)
+    assert_type(S.apply(phi), ScalarSourceSink)
+    assert_type(S.apply(psi), AngularSourceSink)
+    assert_type(S.apply(moments), AngularSourceSink)
+
+
+def test_c6_apply_dispatch_parity() -> None:
+    """#257 S8c: the aliased public ``apply`` dispatches each carrier to its arm.
+
+    Runtime half of gate C6.  Mode-11: calls the PUBLIC ``apply`` (the
+    ``apply = _apply_impl`` alias), exercising the runtime dispatcher — not
+    ``_apply_impl`` directly.  Mode-8: ``pytest.fail`` (a function call), not a
+    bare ``assert`` (which ``-O`` strips).  Value-level bit-identity of each arm
+    lives in ``test_fission_operator.py`` / ``test_scattering_operator.py``;
+    here we pin the carrier → output-TYPE dispatch contract.
+    """
+    sn = _slab_mesh()
+    state = _random_state(sn, seed=57)
+    F = FissionOperator.from_solver_data(mat_xs=sn.material_xs_field())
+    S = ScatteringOperator.from_solver_data(
+        mat_xs=sn.material_xs_field(), quadrature=sn.quad, scattering_order=0,
+    )
+    # Carriers built directly (independent of the under-typed integrate_angular).
+    psi = cast(AngularFlux, state.bulk)
+    phi = ScalarFlux.from_mesh(np.ones((sn.ng, *sn.spatial_shape)), sn)
+
+    cases = [
+        ("F(TimedFullField)", F.apply(state), FullField),
+        ("F(ScalarFlux)", F.apply(phi), ScalarSourceSink),
+        ("F(ndarray)", F.apply(phi.values), np.ndarray),
+        ("S(TimedFullField)", S.apply(state), FullField),
+        ("S(ScalarFlux)", S.apply(phi), ScalarSourceSink),
+        ("S(AngularFlux)", S.apply(psi), AngularSourceSink),
+    ]
+    for label, out, expected in cases:
+        if not isinstance(out, expected):
+            pytest.fail(
+                f"{label}: dispatch returned {type(out).__name__}, "
+                f"expected {expected.__name__}"
+            )

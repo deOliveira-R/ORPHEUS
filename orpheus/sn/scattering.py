@@ -148,7 +148,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import singledispatchmethod
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 
@@ -1128,62 +1128,49 @@ class ScatteringOperator(LinearOperatorMixin):
     # ── LinearOperator surface ─────────────────────────────────────────
 
     @singledispatchmethod
-    def apply(self, psi):
-        r"""Apply the full scattering source operator :math:`S\,\psi`.
+    def _apply_impl(self, psi) -> "Any":
+        r"""Runtime dispatch for :meth:`apply` — see the typed overloads.
 
-        Dispatched on input type via
-        :func:`functools.singledispatchmethod`:
+        Applies the full scattering source operator :math:`S\,\psi`.
+        Dispatched on the input *carrier* type via
+        :func:`functools.singledispatchmethod`.  The public :meth:`apply`
+        name aliases this dispatcher at runtime and carries the honest
+        per-carrier ``@overload`` typing surface (#257 S8c), so callers
+        statically see the exact output type for each input carrier:
 
-        * :class:`~orpheus.sn.angular_flux.AngularFlux` (legacy) →
-          :class:`AngularFlux` — full :math:`P_\ell` Galerkin
-          reconstruction in **per-ordinate magnitude** (the trailing
-          :math:`1/W` projection lives at this producer boundary;
-          R-1 Step 4 A1).  Consumers are SN sweep / GMRES / source-
-          iteration loops operating on legacy per-ordinate angular
-          flux.  Retires in D-H.1c alongside the legacy ``AngularFlux``.
         * :class:`~orpheus.transport.timed_full_field.TimedFullField`
-          → :class:`TimedFullField` — composite bulk + boundary
-          variant for the D-H.1+ migration path.  Bulk follows the
-          same full :math:`P_\ell` Galerkin path; boundary is the
-          implicit-zero :class:`BoundaryFlux` (Option β3 —
-          scattering is volumetric; Wave O Issue #208 will encode the
-          bulk-only nature in the type via :class:`BulkOperator`).
-        * :class:`~orpheus.sn.scalar_flux.ScalarFlux` →
-          :class:`~orpheus.sn.sources.ScalarSourceSink` — :math:`P_0`
-          in-scatter + :math:`(n,2n)` doubling only, in **iso scalar
-          magnitude**.  No :math:`P_\ell` (scalar flux has no angular
-          info); no :math:`1/W` (scalar consumers — diffusion, CP,
+          → :class:`~orpheus.transport.full_field.FullField` — composite
+          bulk + boundary variant.  Bulk follows the full :math:`P_\ell`
+          Galerkin path; boundary is the implicit-zero
+          :class:`~orpheus.transport.source_sinks.BoundarySourceSink`
+          (Option β3 — scattering is volumetric; Wave O #208 will encode
+          the bulk-only nature in the type).  #257 S8a made the codomain
+          the timeless :class:`FullField` (the matvec leaf is a base
+          arrow; the iteration driver reattaches the timed type).
+        * :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
+          → :class:`~orpheus.transport.source_sinks.ScalarSourceSink` —
+          :math:`P_0` in-scatter + :math:`(n,2n)` doubling only, in **iso
+          scalar magnitude**.  No :math:`P_\ell` (scalar flux has no
+          angular info); no :math:`1/W` (scalar consumers — diffusion, CP,
           kinetics — do not project to per-ordinate).
-        * :class:`numpy.ndarray` — legacy bare-ndarray path,
-          ``(N, ng, nx, ny)`` per-ordinate magnitude (consistent with
-          the typed :class:`AngularFlux` variant post-A1).  Preserved
-          for FD-matvec / probe-test call sites that bypass the type
-          layer.
+        * :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
+          → :class:`~orpheus.transport.source_sinks.AngularSourceSink` —
+          full :math:`P_\ell` Galerkin reconstruction in **per-ordinate
+          magnitude** (the trailing :math:`1/W` projection lives at this
+          producer boundary; Pattern 7).
+        * :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+          → :class:`~orpheus.transport.source_sinks.AngularSourceSink` —
+          the Phase 5a angular-windowing path: :math:`S` consumes flux
+          MOMENTS (the moments ARE :math:`M\psi`, so the :math:`M`
+          projection is skipped), bit-identical to the
+          :class:`AngularFlux` arm for :math:`\phi = M\psi`.
 
-        The single :class:`ScatteringOperator` instance now serves
-        every consumer kind via type-directed dispatch — Pattern 1
-        (read-as-the-math via dunder) + Pattern 7 (producer-side
-        normalisation, the :math:`1/W` lives at the apply boundary,
-        decided by consumer type).  See ``coding-elegance`` SKILL.md
-        §"Convention crosswalk template" and lesson L18.
-
-        Parameters
-        ----------
-        psi : AngularFlux or ScalarFlux or np.ndarray
-            Flux argument.  Dispatch on runtime type.
-
-        Returns
-        -------
-        AngularFlux or ScalarSourceSink or np.ndarray
-            Scattering source in the convention appropriate to the
-            consumer:
-
-            * AngularFlux input → AngularFlux output, per-ordinate
-              magnitude, full P_ℓ.
-            * ScalarFlux input → ScalarSourceSink output, iso scalar
-              magnitude, P_0 + (n,2n) only.
-            * np.ndarray input → np.ndarray output ``(N, ng, nx, ny)``,
-              per-ordinate magnitude.
+        The single :class:`ScatteringOperator` instance serves every
+        consumer kind via type-directed dispatch — Pattern 1 (read-as-the-
+        math) + Pattern 7 (producer-side normalisation, the :math:`1/W`
+        lives at the apply boundary, decided by consumer type).  See
+        ``coding-elegance`` SKILL.md §"Convention crosswalk template" and
+        lesson L18.
 
         Notes
         -----
@@ -1191,7 +1178,7 @@ class ScatteringOperator(LinearOperatorMixin):
         and :meth:`build_aniso_source` remain available for callers
         that need the iso / aniso pieces separately.
         :meth:`build_aniso_source` returns **per-ordinate magnitude**
-        post-A1 (the :math:`1/W` is applied there); the per-ordinate
+        (the :math:`1/W` is applied there); the per-ordinate
         :class:`AngularFlux` variant of :meth:`apply` combines the iso
         piece (in iso magnitude, projected by :math:`1/W` at the
         boundary) with the aniso piece (already per-ordinate) into a
@@ -1199,12 +1186,12 @@ class ScatteringOperator(LinearOperatorMixin):
         """
         raise TypeError(
             f"ScatteringOperator.apply: unsupported input type "
-            f"{type(psi).__name__}; expected AngularFlux, ScalarFlux, "
-            f"or numpy.ndarray.  Dispatch table is registered via "
-            f"@singledispatchmethod."
+            f"{type(psi).__name__}; expected TimedFullField, ScalarFlux, "
+            f"AngularFlux, or HarmonicMomentField.  Dispatch table is "
+            f"registered via @singledispatchmethod."
         )
 
-    @apply.register
+    @_apply_impl.register
     def _(self, psi: TimedFullField) -> "FullField":
         r"""Composite :class:`TimedFullField` variant — bulk-only scattering source.
 
@@ -1243,7 +1230,11 @@ class ScatteringOperator(LinearOperatorMixin):
         # B.5.2: the operator output IS a source (Sψ rate density).  The
         # boundary is the implicit-zero :class:`BoundarySourceSink` —
         # scattering is volumetric (Option β3 / Wave O #208).
-        combined = self.apply(psi.bulk)
+        # #257 S8c: ``psi.bulk`` is statically the broad ``BulkField``; the
+        # cast names the runtime truth documented above (AngularFlux OR
+        # HarmonicMomentField — both dispatch arms return AngularSourceSink)
+        # so the typed ``apply`` overloads resolve.
+        combined = self.apply(cast("AngularFlux | HarmonicMomentField", psi.bulk))
         # #257 S8a: history-free (the matvec leaf is a base arrow
         # ``FullField -> FullField``; the comonad lives on the driver, which
         # reattaches the timed type when this source is added to the timed rhs).
@@ -1252,7 +1243,7 @@ class ScatteringOperator(LinearOperatorMixin):
             boundary=BoundarySourceSink.zeros_on(psi.bulk.mesh),
         )
 
-    @apply.register
+    @_apply_impl.register
     def _(self, phi: ScalarFlux) -> "ScalarSourceSink":
         r"""Typed ScalarFlux variant — iso scalar magnitude output (P0 + n2n only).
 
@@ -1270,7 +1261,7 @@ class ScatteringOperator(LinearOperatorMixin):
         iso = self.add_n2n_source(iso, phi)
         return iso
 
-    @apply.register
+    @_apply_impl.register
     def _(self, psi: AngularFlux) -> "AngularSourceSink":
         r"""Typed :class:`AngularFlux` variant — per-ordinate magnitude output.
 
@@ -1296,7 +1287,7 @@ class ScatteringOperator(LinearOperatorMixin):
             psi.integrate_angular(), self.build_aniso_source(psi), psi.mesh,
         )
 
-    @apply.register
+    @_apply_impl.register
     def _(self, phi_moments: HarmonicMomentField) -> "AngularSourceSink":
         r"""Windowed moment-iterate variant — :math:`S` consumes flux MOMENTS.
 
@@ -1343,3 +1334,25 @@ class ScatteringOperator(LinearOperatorMixin):
         return self._assemble_per_ordinate_source(
             phi_moments.scalar_flux(), aniso, mesh,
         )
+
+    if TYPE_CHECKING:
+        # Honest per-carrier typing surface (#257 S8c).  ``ScatteringOperator``
+        # is NOT an endomorphism ``V -> V`` (the mixin's nominal contract):
+        # it maps each input carrier to a DISTINCT output carrier.  These
+        # ``@overload`` stubs exist only for the type checker; the public
+        # ``apply`` IS the runtime dispatcher (``apply = _apply_impl`` below),
+        # so callers statically see e.g. ``S.apply(ScalarFlux) ->
+        # ScalarSourceSink`` instead of the dispatcher's untyped fallback.
+        @overload
+        def apply(self, psi: TimedFullField, /) -> "FullField": ...
+        @overload
+        def apply(self, phi: ScalarFlux, /) -> "ScalarSourceSink": ...
+        @overload
+        def apply(self, psi: AngularFlux, /) -> "AngularSourceSink": ...
+        @overload
+        def apply(
+            self, phi_moments: HarmonicMomentField, /,
+        ) -> "AngularSourceSink": ...
+        def apply(self, x: Any, /) -> Any: ...
+    else:
+        apply = _apply_impl
