@@ -278,6 +278,121 @@ without an efficient ``solve`` simply do not advertise that
 capability, and downstream code declines them at composition time.
 
 
+.. _heteromorphic-apply-typing:
+
+Typing the heteromorphic ``apply`` — Pattern M
+----------------------------------------------
+
+The :eq:`operator-apply` contract is nominally an **endomorphism**
+``apply(x: V) -> V`` — flux in, flux of the same type out. That is the
+honest signature for the streaming, collision, and boundary leaves. But
+two operators are **heteromorphic multi-carrier**: their ``apply``
+maps *each input carrier to a distinct output carrier*. The fission and
+scattering operators (:ref:`integral-kernel-category`) dispatch on the
+*input* carrier type via :func:`functools.singledispatchmethod` and map,
+for example,
+:class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` to
+:class:`~orpheus.transport.source_sinks.ScalarSourceSink`,
+:class:`~orpheus.transport.timed_full_field.TimedFullField` to the
+timeless :class:`~orpheus.transport.full_field.FullField`, and
+(scattering)
+:class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+to :class:`~orpheus.transport.source_sinks.AngularSourceSink`. The output
+type is **not** ``V`` — it is a function of the input carrier (the §B.5.2
+truth that an operator output is a *source/sink*, not a flux). Naming
+these maps honestly to the type checker is the first use of
+:func:`typing.overload` anywhere in ``orpheus/`` (#257 S8c), and it
+required a small idiom worth documenting because it will recur.
+
+Why the obvious spellings fail
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Python has no native multiple dispatch, and the two stdlib tools each
+fall short alone:
+
+* **A raising endomorphism base poisons the type.** The natural
+  ``@singledispatchmethod`` shape has a *base* method that raises
+  :class:`TypeError` for unregistered carriers. If that base is named
+  ``apply`` and inherits the mixin's nominal ``apply(x: V) -> V``, the
+  raising body makes pyright infer ``singledispatchmethod[NoReturn]`` —
+  so every caller of ``apply`` statically sees ``NoReturn`` (a poison
+  type that contaminates downstream inference), and every
+  ``@apply.register`` arm errors against the inherited endomorphism
+  signature.
+
+* **An** :func:`~typing.overload` **stub cannot carry the body.**
+  ``@overload`` is a type-checker fiction erased at runtime: an overload
+  signature is *only* a signature, so it can never hold the
+  source-assembly math (≈150 lines for scattering). And
+  ``@singledispatchmethod`` *does* carry per-carrier bodies with
+  automatic routing — its only failing is the homomorphic
+  ``singledispatchmethod[_T]`` typing.
+
+Pattern M — the overload surface over the renamed dispatcher
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The fix (**Pattern M**) keeps ``@singledispatchmethod`` for its routing
+and bodies, and bolts a typed surface on top:
+
+1. **Rename the dispatcher** ``apply`` → ``_apply_impl`` with a
+   ``-> Any`` base, so each ``@_apply_impl.register`` arm is a bodied,
+   *real-typed* function (e.g. ``def _(self, phi: ScalarFlux) ->
+   ScalarSourceSink``) that ``.register`` accepts at its natural
+   indentation.
+
+2. **Add the typed surface only for the type checker:**
+
+   .. code-block:: python
+
+      if TYPE_CHECKING:
+          @overload
+          def apply(self, phi: ScalarFlux, /) -> ScalarSourceSink: ...
+          @overload
+          def apply(self, psi: TimedFullField, /) -> FullField: ...
+          # ... one overload per carrier ...
+          def apply(self, x: Any, /) -> Any: ...
+      else:
+          apply = _apply_impl
+
+   At runtime the ``else`` branch makes the public ``apply`` the **same
+   object** as the dispatcher — ``Type.__dict__['apply'] is
+   Type.__dict__['_apply_impl']`` is ``True``. The public ``apply`` *is*
+   the ``singledispatchmethod``, merely aliased: **runtime is
+   byte-identical** to the untyped version, while pyright sees the
+   per-carrier overloads and reports the exact output type for each
+   input.
+
+Why Pattern M over the alternatives
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Pattern M was chosen over a ``TYPE_CHECKING`` / ``else`` *split* of the
+whole method (call it Pattern C — defining a fully-typed ``apply`` under
+``if TYPE_CHECKING`` and the dispatcher under ``else``). The decision is
+the master-standard rule ordering: "code reveals intention" (Beck rule 2)
+outranks "fewest elements" (rule 4). Pattern C buries the bulk of the
+source-assembly math inside an ``else:`` block (a visual demotion of the
+operator's actual work); Pattern M extends the mixin's *existing*
+``if TYPE_CHECKING: def apply(self, x: V) -> V`` idiom (an
+internally-consistent precedent), keeping the dispatch arms and their
+bodies at natural indentation where a reader expects to find them.
+
+The deeper *spelling* question — Pattern M (``@singledispatchmethod`` +
+overload alias) versus a thin ``@overload`` + :keyword:`match` router
+over shared primitives — is deliberately **parked on #261**, to be
+settled *together* with the C / F / S core relocation
+(:ref:`integral-kernel-category`). Once the iso / :math:`(n,2n)`
+group-transfer, the :math:`R\circ\Lambda\circ M` reconstruction, and the
+rank-1 production core move to shared ``transport/`` primitives, the
+natural shape becomes a thin typed router over named single-sourced
+primitives, and the ``match``-based form reads best (it also narrows away
+the ``psi.bulk`` cast that #262 tracks). Deciding the spelling before the
+cores move would be premature; the sharing should dictate the form. Until
+then, Pattern M is correct, runtime-untouched, and pinned by the C6 gate
+(``tests/sn/operators/test_operators_apply_typed.py`` — static
+``assert_type`` pins with mutation-verified teeth, plus a runtime
+dispatch-parity check on the aliased public ``apply``).
+
+
 Pure-L streaming + the affine collision split
 ==============================================
 
@@ -868,7 +983,20 @@ now internal to :class:`~orpheus.numerics.iteration.KrylovAcceleration`
 — a single ravel-aware adapter lifts the flat scipy vector to the typed
 carrier, runs the carrier-space matvec, and ravels the result back — so
 both the system matvec and the preconditioner route through one site
-(single source of truth).
+(single source of truth, #257 S7). Concretely, the within-group system
+matvec is the named carrier-space closure ``loss_minus_gains(psi) =
+L.apply(psi) - Σ_gains g.apply(psi)`` (it reads like the within-group
+operator instead of being buried under ravel plumbing), and *both* it
+and the preconditioner are wrapped by the **one** module-private
+``_as_scipy_linop(carrier_matvec, template, n)`` adapter, whose
+``template`` argument carries the typed carrier so ``from_flat`` /
+``to_flat`` round-trip the scipy vector. The flat-only public twin
+``as_scipy_linop`` (a zero-production-caller adapter, the degenerate flat
+case of the ravel-aware one) was retired in the consolidation; a future
+caller needing a standalone operator→scipy adapter (e.g. a DSA
+preconditioner built as an operator, #2) should *generalise*
+``_as_scipy_linop`` to accept an ``op.apply`` callable, not resurrect the
+flat twin.
 
 
 .. _diagonal-operator:
@@ -952,55 +1080,201 @@ does NOT need a :math:`(10^7, 10^7)` materialised diagonal.
 The multiplication operator — a coefficient field promoted (§5.7)
 =================================================================
 
-.. todo:: Archivist expansion needed (#257 S3b).
+The grand report §5.7 closes a loop that the rest of the operator
+algebra leaves open. Throughout this page, an operator is a
+:class:`~orpheus.numerics.operator.LinearOperator` — an opaque
+``Generic[V]`` whose ``apply`` carries a flux to a flux, with nothing in
+its type that says *what physics it carries*. For the collision
+operator that opacity is a missed opportunity: the collision term
+:math:`C\psi = \Sigma_t\,\psi` is **nothing but a cross section acting
+by pointwise multiplication**. The cross section is not an input to the
+operator; the cross section **is** the operator. §5.7 makes that
+identity literal: a :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
+:math:`f` is *promoted* to the multiplication operator :math:`M[f]`, and
+:math:`C = M[\sigma_t]` becomes a named instance of that promotion
+rather than an anonymous broadcast-multiply buried in
+:meth:`CollisionOperator.apply <orpheus.sn.operator.CollisionOperator.apply>`.
 
-   The full multiplier-algebra narrative — the embedding
-   :math:`M : L^\infty \to B(L^2)` as a faithful unital
-   ``*``-homomorphism onto the diagonal subalgebra, the spectrum law
-   :math:`\mathrm{spec}(M[f]) = \mathrm{ess\,range}(f)`, why the
-   promotion makes "a cross section IS a diagonal operator" literally
-   true, and the worked law-suite derivations — belongs here. Sources
-   for the expansion:
+The multiplier-algebra embedding
+--------------------------------
 
-   * Code: :mod:`orpheus.transport.multiplication_operator`
-     (the §5.7 promotion ``M[f]``) and
-     :class:`~orpheus.sn.operator.CollisionOperator`
-     (the named leaf ``C = M[σ_t]``, a thin subclass).
-   * Field side: :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
-     (#257 S1) and
-     :meth:`~orpheus.sn.material_xs_field.MaterialXSField.total_cross_section_field`
-     (#257 S2).
-   * Broadcast engine: :class:`~orpheus.numerics.operator.DiagonalOperator`
-     (#257 S3a, the N-D engine this operator delegates to).
-   * Tests: ``tests/transport/test_multiplication_operator.py``
-     (the broadcast oracle + the multiplier-algebra law-suite).
-   * Plan: ``.claude/plans/issue_257_coefficient_field_promotion.md`` (S3b).
-   * Frame memo:
-     ``.claude/agent-memory/cross-domain-attacker/coefficient_field_promotion_frames.md``.
+The promotion is the **multiplier-algebra embedding** of measure theory:
+for the Hilbert space :math:`L^2` of square-integrable flux distributions
+over phase space, every bounded measurable coefficient
+:math:`f \in L^\infty` defines a bounded operator on :math:`L^2` by
+pointwise multiplication,
 
-   Brief: the grand report §5.5–5.7 promotion takes a
-   :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
-   :math:`f` (the *symbol*) to the diagonal operator
-   :math:`M[f]` (multiplication by :math:`f`). For the leading-ordinate
-   broadcast on a per-ordinate carrier :math:`\psi(\hat\Omega_n, g, \vec r)`:
+.. (vv-status rationale) Structural / definitional identity — the
+   multiplier-algebra embedding M: L^∞ → B(L²). Not a solver claim; the
+   verifiable content is the multiplier-algebra law-suite
+   (``tests/transport/test_multiplication_operator.py``) which pins the
+   discrete realization :eq:`multiplication-operator-action`.
+.. vv-status: multiplication-operator-embedding documented
 
-   .. math::
-      :label: multiplication-operator-action
+.. math::
+   :label: multiplication-operator-embedding
 
-      (M[f]\,\psi)_{n,g,\vec r} \;=\; f_{g,\vec r}\,\psi_{n,g,\vec r},
+   M \;:\; L^\infty \;\longrightarrow\; B(L^2),
+   \qquad
+   (M[f]\,\psi)(\xi) \;=\; f(\xi)\,\psi(\xi),
 
-   delegated to the N-D :eq:`diagonal-operator-action` broadcast engine
-   (``DiagonalOperator(f.values, broadcast_axes=(0,))``). The promotion
-   satisfies :math:`M[1]=I`, :math:`M[0]=0` (codomain-aware: collision's
-   zero is a *source*), linearity :math:`M[af+bg]=aM[f]+bM[g]`, the
-   homomorphism :math:`M[f]M[g]=M[f g]`, self-adjointness
-   :math:`M[f]^*=M[f]` for real :math:`f`, and the honest spectrum gate
-   ``CAP_SOLVE`` **iff** :math:`\min|f|>0` (the legacy
-   :class:`~orpheus.sn.operator.CollisionOperator` advertised
-   ``CAP_SOLVE`` unconditionally and produced silent IEEE NaN on
-   :math:`\sigma=0`; the promotion adds the gate it lacked).
+where :math:`\xi = (\hat\Omega, g, \vec r)` ranges over the discrete
+phase space (ordinate, group, cell). The map :math:`M` is the canonical
+faithful unital ``*``-homomorphism of :math:`L^\infty` *onto the
+diagonal subalgebra* of :math:`B(L^2)` — "diagonal" because
+multiplication by :math:`f` couples no two phase-space points: the
+output at :math:`\xi` reads the input only *there*. This is the algebraic
+content of the §5.6 *locality* criterion that separates the §5.7
+multiplication operator from the nonlocal integral kernels
+(:ref:`integral-kernel-category`): :math:`M[f]` is the diagonal
+sub-algebra, the kernels are everything off-diagonal.
 
+For the leading-ordinate broadcast on the SN per-ordinate carrier
+:math:`\psi(\hat\Omega_n, g, \vec r)`, the discrete embedding is the
+group-and-space-indexed broadcast over the ordinate axis:
+
+.. (vv-status rationale) #257 S3b — the §5.7 multiplier promotion. The
+   broadcast action is verified at the VALUES level against the legacy
+   ``σ[None]·ψ`` (0 ULP, ``assert_array_equal`` — the generalized engine
+   reduces to the same broadcast-multiply) and the multiplier-algebra
+   laws are verified as intrinsic properties (``tests/transport/
+   test_multiplication_operator.py``). The structurally-independent
+   physics backing is the k_∞ = νΣf/Σa analytical limit and the
+   streaming-equilibrium ψ = Q/σ_t reference, both of which route σ_t
+   through the promoted C.
 .. vv-status: multiplication-operator-action documented
+
+.. math::
+   :label: multiplication-operator-action
+
+   (M[f]\,\psi)_{n,g,\vec r} \;=\; f_{g,\vec r}\,\psi_{n,g,\vec r}.
+
+The action is delegated to the N-D
+:class:`~orpheus.numerics.operator.DiagonalOperator` broadcast engine
+(:eq:`diagonal-operator-action`, #257 S3a) as
+``DiagonalOperator(f.values, broadcast_axes=(0,))``: the coefficient is
+an :math:`(n_g, *\text{spatial})` field, broadcast over the leading
+ordinate axis. The transport-level
+:class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`
+does **not** re-derive the broadcast — it *builds the engine once* over
+its immutable coefficient and forwards (``coding-elegance`` Pattern 2,
+single source of truth), so the transport operator and the numerics
+engine agree by construction rather than by a copied predicate.
+
+The cross section IS the operator
+---------------------------------
+
+The promotion is the moment the opaque ``Generic[V]`` becomes an honest
+*carrier*. Before §5.7, the collision operator stored a raw
+:math:`\sigma_t` array (an ``ndarray`` with no type-level meaning) and
+re-implemented the broadcast in its ``apply`` body — the type
+``CollisionOperator`` said nothing, and the meaning lived in a comment.
+After §5.7,
+:class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`
+stores **only** a :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
+(the cone-typed coefficient of #257 S1), sourced through the typed
+:meth:`~orpheus.sn.material_xs_field.MaterialXSField.total_cross_section_field`
+accessor (#257 S2). The operator's *identity* is its coefficient field;
+the action follows from the embedding. The named SN leaf
+:class:`~orpheus.sn.operator.CollisionOperator` is now a **thin
+subclass** of the transport operator (``C = M[σ_t]``): it inherits the
+``apply`` / ``solve`` / ``apply_transpose`` bodies (the multiply lives
+once), and adds only the back-compatible ``(sn_mesh, σ)`` constructor,
+the ``.sigma`` property (reading ``coefficient.values`` — no duplicate
+storage), and the ``__add__`` dispatch that assembles the bundled
+:class:`~orpheus.sn.operator.InvertibleOperator` from ``L + C`` (the
+``L+C`` dispatch is SN-model-specific and stays in ``sn/``; the generic
+multiplier ``__add__`` stays on the transport base because the
+``numerics ↛ transport ↛ sn`` layer order forbids the base from naming
+``InvertibleOperator``).
+
+The multiplier-algebra laws
+---------------------------
+
+That :math:`M` is a faithful unital ``*``-homomorphism is not decoration
+— it is the set of *intrinsic properties* the promotion must satisfy, and
+each is pinned as a law-suite test (the user directive: every
+math-bearing type ships a test of its defining laws). The laws, verified
+in ``tests/transport/test_multiplication_operator.py`` on a discriminating
+``nx=5 ≠ ny=3, ng=2`` carrier with asymmetric heterogeneous coefficients:
+
+.. list-table:: Multiplier-algebra laws (faithful unital ``*``-homomorphism)
+   :header-rows: 1
+   :widths: 26 30 44
+
+   * - Law
+     - Statement
+     - Meaning / verification
+   * - **Unit**
+     - :math:`M[1] = I`
+     - The constant-one coefficient is the identity operator (the
+       embedding is *unital*).
+   * - **Zero (codomain-aware)**
+     - :math:`M[0] = 0`
+     - The zero coefficient is the zero operator — but its codomain is a
+       **source**, not a flux: collision turns flux into a reaction rate,
+       so ``M[0].apply`` emits a zeroed
+       :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`.
+   * - **Linearity**
+     - :math:`M[af + bg] = a\,M[f] + b\,M[g]`
+     - :math:`M` is linear in the coefficient (the embedding is a vector-
+       space map). Tested on ≥2-group asymmetric heterogeneous fields.
+   * - **Homomorphism**
+     - :math:`M[f]\,M[g] = M[f g]`
+     - Composing two multiplications multiplies the coefficients. Tested
+       at the VALUES level on the raw :math:`\sigma\cdot\sigma'` product
+       (which has units :math:`\mathrm{cm}^{-2}` — the units grading is
+       exactly why coefficient-field ``*`` is deferred to the values
+       layer rather than the typed field layer).
+   * - **Self-adjointness**
+     - :math:`M[f]^* = M[f]` for real :math:`f`
+     - A real-valued multiplication is self-adjoint;
+       ``apply_transpose`` is the same code path as ``apply``.
+   * - **Spectrum**
+     - :math:`\mathrm{spec}(M[f]) = \mathrm{ess\,range}(f)`
+     - :math:`M[f]` is invertible **iff** :math:`f` is bounded away from
+       zero; the inverse is :math:`M[1/f]`. This is the honest
+       ``CAP_SOLVE`` gate (below).
+
+The spectrum law and the honest CAP_SOLVE gate
+----------------------------------------------
+
+The spectrum of a multiplication operator is the essential range of its
+coefficient: :math:`M[f]` has a bounded inverse iff
+:math:`\mathrm{ess\,inf}\,|f| > 0`, in which case
+:math:`M[f]^{-1} = M[1/f]`. The promotion enforces this **at construction
+time** — :math:`M[f]` advertises ``CAP_SOLVE`` in its capability set
+**iff** :math:`\min|f| > 0`, and the gate is single-sourced from the
+broadcast engine (the operator inherits the engine's capability set, so
+the transport operator and the numerics engine agree by construction).
+
+This is a **behavioral strengthening**, an illegal-states-unrepresentable
+hardening (``coding-elegance`` Pattern 4). The legacy
+:class:`~orpheus.sn.operator.CollisionOperator` advertised ``CAP_SOLVE``
+*unconditionally*; on a :math:`\sigma = 0` entry its ``solve`` divided
+:math:`q/\sigma` and produced a **silent IEEE NaN** that propagated into
+the iterate. The promotion refuses the inverse it does not have: a zero
+coefficient has no inverse, so the operator simply drops ``CAP_SOLVE``
+from its capability set, and a downstream Krylov consumer that needs the
+inverse is declined at *composition* time (with a
+:class:`~orpheus.numerics.operator.MissingCapability`) rather than
+producing a NaN at *call* time. Construction still succeeds (the gate
+revokes ``solve``, never blocks the object); ``apply`` is unaffected.
+
+.. note::
+
+   The gate change is purely additive honesty — an audit (#257 S3b)
+   confirmed **no production path** relies on a :math:`\sigma=0` collision
+   ``solve``: all three production sites (the within-group operator
+   builder
+   :func:`_within_group_triple <orpheus.sn.solver._within_group_triple>`,
+   the solver ``__init__`` ``L = Streaming + Collision``, and
+   ``rebind_sigma_t``) source :math:`\sigma_t > 0` (total cross sections
+   are bounded away from zero), and the removal cross section
+   :math:`\sigma_r` ``solve`` appears only in a docstring, with no live
+   caller. The bundled :class:`~orpheus.sn.operator.InvertibleOperator`
+   has its own stricter construction-time ``min σ > 0`` guard, consistent
+   with the new gate.
 
 
 .. _functional-category:
@@ -1044,51 +1318,147 @@ the composition.
 .. vv-status: functional-category documented
 .. vv-status: production-rate-functional documented
 
-.. todo:: Archivist expansion needed (#257 S5).
+The §5.6 suffix law as a type-system fact
+-----------------------------------------
 
-   The full §5.6 suffix-law narrative — the Operator / Kernel /
-   Functional partition as a structural fact the type system enforces,
-   why the production rate is a Functional (field → scalar-field) and
-   not an operator, the fission composition
-   :math:`F = M_\chi \circ \mathrm{ProductionRate} \circ M_{\nu\Sigma_f}`
-   with the bit-identity to the legacy rank-1 ``inner``, and the
-   relationship to the §5.6 Projection / Reconstruction adjoint pair —
-   belongs here. Sources for the expansion:
+The §5.6 *suffix law* is not a taxonomy imposed on the prose — it is a
+structural fact the type system enforces by what each category's surface
+*is*. Three categories partition the maps of the algebra by their
+codomain:
 
-   * Code: :class:`orpheus.numerics.functional.Functional`
-     (the §5.6 functional Protocol, L1 — the co-vector companion of
-     :class:`~orpheus.numerics.vector.Vector`) and
-     :class:`orpheus.transport.production_rate_functional.ProductionRateFunctional`
-     (the concrete §5.6 production-rate functional, L2 — the shared
-     SN/CP/MoC leaf).
-   * Coefficient side: :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
-     (#257 S1) carrying :math:`\nu\Sigma_f` via
-     :meth:`~orpheus.sn.material_xs_field.MaterialXSField.fission_production_field`
-     (#257 S2).
-   * Bit-identity reference:
-     :meth:`orpheus.numerics.operator.RankOneOperator.apply`
-     (the ``inner`` group contraction the functional reproduces
-     byte-for-byte, de-risking the S6 composition).
-   * Estimators-as-functionals: the keff / production-rate estimators
-     :func:`orpheus.numerics.iteration._default_keff_estimator` and
-     :func:`orpheus.numerics.iteration._default_production_estimator`
-     (kept as bare ``(L,S,F,ψ)`` callables — NOT
-     ``Functional`` objects, since they consume the operator triple,
-     not a lone field; the category simply now *names* what their
-     field→scalar core is).
-   * Tests: ``tests/transport/test_functional_category.py`` (the
-     category-distinctness intrinsic gate),
-     ``tests/transport/test_production_rate_functional.py`` (the
-     hand-derived correctness reference + the RankOne equivalence
-     de-risk), ``tests/numerics/test_estimators_as_functionals.py``
-     (the estimator bit-identity + category-honesty).
-   * Plan: ``.claude/plans/issue_257_coefficient_field_promotion.md`` (S5).
-   * Frame memo:
-     ``.claude/agent-memory/cross-domain-attacker/coefficient_field_promotion_frames.md``
-     — Frame 3 (the production rate as a Functional; the locality
-     criterion separating it from the scattering / fission kernels).
-   * Closeout memo:
-     ``.claude/agent-memory/method-implementer/issue_257_s5_functional_category_closeout.md``.
+.. list-table:: The §5.6 suffix law (the codomain partition)
+   :header-rows: 1
+   :widths: 18 24 24 34
+
+   * - Category
+     - Signature
+     - Type relationship
+     - ORPHEUS realization
+   * - **Operator**
+     - field :math:`\to` field
+     - the base —
+       :class:`~orpheus.numerics.operator.LinearOperator`
+     - streaming :math:`L`, collision :math:`C = M[\sigma_t]`
+       (:eq:`multiplication-operator-action`)
+   * - **Kernel**
+     - field :math:`\to` field, *nonlocal*
+     - a **refinement** of Operator (adds ``kernel``)
+     - scattering :math:`S`, fission :math:`F`
+       (:ref:`integral-kernel-category`)
+   * - **Functional**
+     - field :math:`\to` scalar
+     - a **disjoint sibling** of Operator (shares no member)
+     - the production-rate density :math:`p(\vec r)`
+       (:eq:`production-rate-functional`)
+
+The asymmetry between the two non-Operator categories is the point. A
+**Kernel** *is* a :class:`~orpheus.numerics.operator.LinearOperator` (it
+still maps a field to a field, it still has ``apply`` and
+``capabilities``) and merely *adds* the ``kernel`` member — so it is a
+strict refinement (:ref:`integral-kernel-category`). A **Functional** is
+*not* a :class:`~orpheus.numerics.operator.LinearOperator` at all: its
+sole surface is ``evaluate(x) -> R``, and it deliberately carries
+**none** of the operator surface — no ``apply``, no ``capabilities``, no
+``solve``, no ``apply_transpose``, no ``.H``, no ``domain`` / ``codomain``.
+That *disjointness* is the category's defining property, not an
+omission, and it is checkable: ``isinstance(p, Functional)`` is true while
+``isinstance(p, LinearOperator)`` is false, and the discriminator foils
+both directions (a bare operator is not a Functional; the production-rate
+functional is not an operator). The category is the
+:class:`orpheus.numerics.functional.Functional` Protocol (#257 S5, the L1
+numerics floor — the **co-vector companion of**
+:class:`~orpheus.numerics.vector.Vector`: a ``Vector`` is what an
+operator acts *on*, a ``Functional`` is what acts *on* a vector to
+produce a scalar).
+
+Variance: a Functional is contravariant in, covariant out
+---------------------------------------------------------
+
+The Functional's typevars carry a *different* variance profile than the
+operator's, and the difference is structural. An operator's
+``apply(x: V) -> V`` uses :math:`V` **both ways** (it consumes a flux and
+produces a flux), so :math:`V` is *invariant by dual use* — and pyright
+emits no variance warning. A functional's ``evaluate(x: V_contra) ->
+R_co`` uses its input **only** as a consumer (contravariant) and its
+result **only** as a producer (covariant). Declaring the Functional over
+the operator's invariant :math:`V` would be a type error of variance;
+the correct declaration is a contravariant input typevar and a
+covariant, *unbounded* result typevar (the result is unbounded because
+the production rate's "scalar" is fiberwise a scalar-**field** over space,
+not a Python :class:`float` — a ``float | V`` union would mistype it).
+This is the co-vector mirror of the invariant :math:`V` and is the
+load-bearing typing lesson of S5: the variance is not cosmetic, it is the
+formal statement that a functional is a co-vector.
+
+The production rate is a density, not an integral
+-------------------------------------------------
+
+The canonical transport functional is the per-cell fission emission
+**density** :math:`p(\vec r)` of :eq:`production-rate-functional` — the
+production cross section contracted against the flux over the source
+groups, group axis collapsed, **no volume measure folded in**
+(:class:`~orpheus.transport.production_rate_functional.ProductionRateFunctional`,
+the L2 leaf shared across SN / CP / MoC). The "no measure" choice is a
+deliberate Mode-3 (missing-factor) guard turned into a *named contract*:
+:math:`p` is the density :math:`\nu\Sigma_f\,\phi`, not the integral
+:math:`\int p\,dV`. A consumer that needs the integrated production rate
+applies the volume measure explicitly; folding it into :math:`p` would
+silently double-count it the moment a second consumer integrated again.
+The coefficient side is the cone-typed
+:class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
+(#257 S1) carrying :math:`\nu\Sigma_f` through the typed
+:meth:`~orpheus.sn.material_xs_field.MaterialXSField.fission_production_field`
+accessor (#257 S2).
+
+Byte-identity to the rank-1 ``inner`` (the S6 de-risk)
+------------------------------------------------------
+
+:eq:`production-rate-functional` is **exactly** the anonymous ``inner``
+reduction already living inside
+:meth:`orpheus.numerics.operator.RankOneOperator.apply`
+(``(right * x).sum(axis=0, keepdims=True)`` with ``right = νΣf``). Naming
+it as a Functional does not change the arithmetic — it is verified
+byte-for-byte (0 ULP) against that ``inner`` line, and *separately*
+against a structurally-independent hand-derived double-loop (an explicit
+Python accumulation with no NumPy reduction, the L11 structural-
+independence reference). The byte-identity is the **de-risk for S6**: the
+functional *is* the middle factor of the fission composition
+:math:`F = M_\chi \circ \mathrm{ProductionRate} \circ M_{\nu\Sigma_f}`
+(:ref:`integral-kernel-category`), so once S6 reads the fission emission
+through ``production_rate``, the composition inherits the bit-identity
+for free — there is no reduction-tree drift to absorb.
+
+Why the estimators are NOT Functionals
+---------------------------------------
+
+The criticality eigenvalue and production-rate **estimators**
+(:func:`orpheus.numerics.iteration._default_keff_estimator` and
+:func:`orpheus.numerics.iteration._default_production_estimator`) are the
+obvious candidates to wrap as ``Functional`` objects — and they are
+deliberately **not**. An estimator consumes the *operator triple*
+:math:`(L, S, F)` together with the iterate :math:`\psi`, not a lone
+field; its signature is ``(L, S, F, ψ)``, which is not the
+``evaluate(x) -> R`` shape of a co-vector acting on a single vector. The
+category simply now *names* what their field-to-scalar **core** is (the
+production-rate contraction), without forcing them into a wrapper that
+would misrepresent their arity. They stay bare callables, bit-identical
+(pinned by ``tests/numerics/test_estimators_as_functionals.py``), and the
+honesty of *not* wrapping them is itself a category-correctness claim.
+
+.. note::
+
+   **Source map.** Category Protocol:
+   :class:`orpheus.numerics.functional.Functional` (L1). Concrete leaf:
+   :class:`orpheus.transport.production_rate_functional.ProductionRateFunctional`
+   (L2). Intrinsic-category gate:
+   ``tests/transport/test_functional_category.py`` (Functional ≠
+   LinearOperator, both directions + discriminator foils). Correctness +
+   equivalence: ``tests/transport/test_production_rate_functional.py``
+   (the hand-derived double-loop reference + the RankOne ``inner``
+   0-ULP de-risk + the no-measure guard). Estimator honesty:
+   ``tests/numerics/test_estimators_as_functionals.py``. The
+   field-to-scalar contraction is coded in three places today
+   (SN / CP / numerics) — unifying that fragmentation is tracked on #259.
 
 
 .. _integral-kernel-category:
@@ -1137,57 +1507,188 @@ operators are UNCHANGED in S6 (additive, bit-identical).
 
 .. vv-status: integral-kernel-category documented
 
-.. todo:: Archivist expansion needed (#257 S6).
+The locality criterion completes the partition
+-----------------------------------------------
 
-   The full §5.6 Kernel-category narrative — the Operator / Kernel /
-   Functional partition completed (the Kernel as a *refinement* of
-   LinearOperator, asymmetric to the *disjoint* Functional), the
-   locality criterion (Frame 3) separating the nonlocal integral
-   kernels from the local multiplication operator, the two named kernel
-   shapes (fission's rank-1 ``χ ⊗ νΣf`` ``TensorProductOperator`` and
-   scattering's ``R ∘ Λ ∘ M`` ``OperatorProduct``) and why their union
-   is just ``LinearOperator``, the bit-identity of each kernel to its
-   matvec realization, and the deferred follow-ups (un-orphaning
-   ``SumOfTensorProductsOperator`` for the full :math:`\sum_\ell P_\ell
-   \otimes \Sigma_{s,\ell}` scattering form; relocating the
-   carrier-agnostic cores to ``transport/``) — belongs here. Sources
-   for the expansion:
+With the Kernel category named, the §5.6 suffix-law partition is
+**complete and exhaustive**: every map in the transport algebra is an
+Operator, a Kernel, or a Functional, and the boundary between Operator
+and Kernel is a single mathematical criterion — **locality**. A
+multiplication operator (:eq:`multiplication-operator-action`) is the
+**diagonal** sub-algebra: its output at a phase-space point reads the
+input only *there*. An integral kernel is everything **off-diagonal**:
+its output at :math:`x` integrates the input across an axis,
+:math:`(A\psi)(x) = \int K(x,x')\,\psi(x')\,d\mu(x')`. The Kernel's
+``kernel`` member is exactly that integrating object :math:`K`, exposed
+as a :class:`~orpheus.numerics.operator.LinearOperator` in its own right.
 
-   * Code: :class:`orpheus.transport.integral_kernel_operator.IntegralKernelOperator`
-     (the §5.6 Kernel Protocol, L2 — the
-     :class:`~orpheus.numerics.operator.LinearOperator` refinement
-     exposing ``kernel``).
-   * Named kernels:
-     :attr:`orpheus.sn.fission.FissionOperator.kernel` (the rank-1
-     ``χ ⊗ νΣf`` :class:`~orpheus.numerics.operator.TensorProductOperator`,
-     present since Wave T) +
-     :attr:`orpheus.sn.fission.FissionOperator.production_rate` (the S6
-     §5.6 middle factor, an
-     :class:`~orpheus.transport.production_rate_functional.ProductionRateFunctional`);
-     :attr:`orpheus.sn.scattering.ScatteringOperator.kernel` (the
-     ``R ∘ Λ ∘ M`` :class:`~orpheus.numerics.operator.OperatorProduct`).
-   * Factors: :class:`~orpheus.numerics.projection.MomentProjection`
-     (:math:`M`), :class:`orpheus.sn.scattering.LegendreMomentScattering`
-     (:math:`\Lambda`),
-     :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`
-     (:math:`R`).
-   * Tests: ``tests/transport/test_integral_kernel_category.py`` (the
-     category-refinement intrinsic gate — Kernel still a LinearOperator,
-     kernel-less LinearOperator / Functional are NOT Kernels),
-     ``tests/sn/operators/test_fission_kernel_crosscheck.py`` (the
-     hand-derived fission correctness reference + the
-     ``χ · production_rate ≡ F.apply`` 0-ULP de-risk),
-     ``tests/sn/operators/test_scattering_kernel_crosscheck.py`` (the
-     ``S.kernel.apply ≡ R∘Λ∘M`` 0-ULP equivalence — the physics L1
-     backing is the existing aniso MMS gate
-     ``tests/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py``).
-   * Plan: ``.claude/plans/issue_257_coefficient_field_promotion.md`` (S6).
-   * Frame memo:
-     ``.claude/agent-memory/cross-domain-attacker/coefficient_field_promotion_frames.md``
-     — Frame 3 (the locality criterion separating the multiplication
-     operator from the integral kernels).
-   * Closeout memo:
-     ``.claude/agent-memory/method-implementer/issue_257_s6_integral_kernel_category_closeout.md``.
+This is why the category is a **refinement** of
+:class:`~orpheus.numerics.operator.LinearOperator` and not a disjoint
+sibling like the Functional. The Protocol is written
+``IntegralKernelOperator(LinearOperator[V], Protocol[V])`` — a Kernel
+*is-a* LinearOperator (it keeps ``apply`` + ``capabilities`` +
+``domain`` + ``codomain``) and merely *adds* the ``kernel`` property, so
+the ``@runtime_checkable`` ``isinstance`` checks all five members. The
+refinement is **strict**, which the intrinsic gate verifies in both
+directions: a kernel-less LinearOperator
+(:class:`~orpheus.numerics.operator.IdentityOperator`, the local
+:class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`)
+is **not** a Kernel, and a :class:`~orpheus.numerics.functional.Functional`
+(no ``apply``, no ``kernel``) is **not** a Kernel either. Variance is
+inherited verbatim from LinearOperator — a Kernel's ``apply(x: V) -> V``
+is invariant by dual use (no variance warning), *unlike* the co-vector
+Functional that needed contravariant input + covariant output.
+
+The two emission kernels: fission and scattering
+------------------------------------------------
+
+The two named transport instances are the Boltzmann **emission**
+kernels. Both are reframed **in place** in ``sn/`` (#257 S6, additive):
+each gains the ``kernel`` member that satisfies the Protocol while every
+matvec arm stays byte-for-byte unchanged — the composition is the
+*semantic reading* of the operator and a *cross-check*, not a rewrite.
+
+.. list-table:: The two §5.6 emission kernels
+   :header-rows: 1
+   :widths: 16 38 46
+
+   * - Operator
+     - ``kernel`` shape
+     - Why this shape
+   * - **Fission** :math:`F`
+     - rank-1
+       :math:`\chi \otimes \nu\Sigma_f`
+       (:class:`~orpheus.numerics.operator.TensorProductOperator`
+       wrapping :class:`~orpheus.numerics.operator.RankOneOperator`)
+     - Fission emits an isotropic source whose group spectrum
+       :math:`\chi` is the same everywhere fission occurs — a rank-1
+       outer product of the emission spectrum with the production rate.
+   * - **Scattering** :math:`S`
+     - :math:`R \circ \Lambda \circ M`
+       (an :class:`~orpheus.numerics.operator.OperatorProduct`)
+     - The anisotropic :math:`\ell \ge 1` Legendre redistribution: project
+       the angular flux onto moments (:math:`M`), apply the per-:math:`\ell`
+       group-to-group transfer (:math:`\Lambda`), reconstruct to
+       ordinates (:math:`R`). Genuinely nonlocal in angle.
+
+Fission as a §5.6 composition
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Fission is the §5.6 composition
+
+.. (vv-status rationale) Structural / semantic decomposition of the
+   fission operator — the §5.6 composition reading. Not a solver claim;
+   the verifiable content is the 0-ULP bit-identity of the fused rank-1
+   realization to χ · production_rate
+   (``tests/sn/operators/test_fission_kernel_crosscheck.py``).
+.. vv-status: fission-as-composition documented
+
+.. math::
+   :label: fission-as-composition
+
+   F \;=\; M_\chi \;\circ\; \mathrm{ProductionRate} \;\circ\; M_{\nu\Sigma_f},
+
+read right-to-left: multiply the flux by the production cross section
+(:math:`M_{\nu\Sigma_f}`, an :eq:`multiplication-operator-action`
+operator), contract over groups to the scalar emission **density**
+(:math:`\mathrm{ProductionRate}`, the S5
+:eq:`production-rate-functional` Functional, exposed as
+:attr:`FissionOperator.production_rate <orpheus.sn.fission.FissionOperator.production_rate>`),
+then re-broadcast through the emission spectrum (:math:`M_\chi`). This
+decomposition is the *meaning* of fission; the **realization** stays the
+fused rank-1 :attr:`FissionOperator.kernel <orpheus.sn.fission.FissionOperator.kernel>`
+(``coding-elegance`` Pattern 5 — build the *right primitive*, not the
+unfolded product). The middle Functional is byte-identical to the rank-1
+``inner`` (the S5 de-risk), so :math:`\chi \cdot \mathrm{production\_rate}
+\equiv F.\mathrm{apply}` to 0 ULP.
+
+.. note::
+
+   The literal three-factor composition was **considered and rejected**
+   as the realization. The reason is *rank*: :math:`M_\chi` is
+   rank-**changing**, not a diagonal
+   :class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`
+   — it takes a single scalar density per cell and broadcasts it across
+   the :math:`n_g` emission groups, expanding the rank rather than
+   scaling pointwise. A literal ``OperatorProduct`` of the three factors
+   would carry intermediate shapes the fused rank-1 form computes in one
+   step; the rank-1 :class:`~orpheus.numerics.operator.TensorProductOperator`
+   is the principled primitive that *is* the composition's effect without
+   materialising its middle stages.
+
+Scattering as the nonlocal-in-angle kernel
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The scattering :attr:`kernel <orpheus.sn.scattering.ScatteringOperator.kernel>`
+is the :class:`~orpheus.numerics.operator.OperatorProduct`
+:math:`R \circ \Lambda \circ M` built from
+:class:`~orpheus.numerics.projection.MomentProjection` (:math:`M`),
+:class:`~orpheus.sn.scattering.LegendreMomentScattering` (:math:`\Lambda`),
+and :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`
+(:math:`R`). It is the strictly-anisotropic :math:`\ell \ge 1` part of the
+full scattering ``apply``: the isotropic :math:`P_0` in-scatter, the
+:math:`(n,2n)` doubling, and the per-ordinate :math:`1/W` normalisation
+are the **local / separate** components that live *outside* the kernel
+(a strict sub-component, pinned). The kernel reproduces the existing
+anisotropic moment path :math:`R(\Lambda(M\psi))` byte-for-byte (0 ULP);
+its physics L1 backing is the existing anisotropic MMS gate
+``tests/sn/verification/mms/test_curvilinear_aniso_scattering_p1.py``,
+not a new reference.
+
+.. note::
+
+   The full Pℓ form :math:`S = \sum_\ell P_\ell \otimes \Sigma_{s,\ell}`
+   (:eq:`scattering-as-tensor-product-sum`) was **considered and
+   rejected** as the kernel shape. A
+   :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator` would
+   require :math:`R` and :math:`M` to be tensor-product *factors* on
+   independent axes, but they are rank-changing einsums that mix the
+   ordinate and harmonic-coefficient axes — they are *not* valid
+   tensor-product factors. Expressing the kernel as a
+   ``SumOfTensorProductsOperator`` would be a re-derivation of the
+   moment redistribution, not a re-presentation of the existing one;
+   that path is tracked as the un-orphaning of
+   :class:`~orpheus.numerics.operator.SumOfTensorProductsOperator` on
+   #260. The :math:`1/W` per-ordinate normalisation lives *outside* the
+   kernel (the kernel is the redistribution, not the quadrature
+   weighting).
+
+Deferred relocation
+-------------------
+
+The fission and scattering operators are reframed *in place* in ``sn/``;
+their carrier-agnostic, cross-section-only **cores** (the rank-1
+production core, the :math:`\Lambda` group-transfer, the iso / :math:`(n,2n)`
+fast paths) are the natural residents of the shared ``transport/`` layer
+(L2), with only the quadrature-coupled per-ordinate angular adapters
+staying in ``sn/`` (L3). That relocation — together with the CP / MoC
+carrier unification that would let those solvers *consume* the shared
+cores instead of reimplementing C / F / S inline on bare scalar arrays —
+is tracked on #261. The dispatch-spelling decision for the heteromorphic
+``apply`` (Pattern M vs an ``@overload`` + ``match`` router over the
+relocated primitives, see :ref:`heteromorphic-apply-typing`) is parked on
+the same issue, to be settled *with* the relocation, because the
+router-over-shared-primitives shape falls out of the sharing.
+
+.. note::
+
+   **Source map.** Category Protocol:
+   :class:`orpheus.transport.integral_kernel_operator.IntegralKernelOperator`
+   (L2). Named kernels:
+   :attr:`orpheus.sn.fission.FissionOperator.kernel` +
+   :attr:`orpheus.sn.fission.FissionOperator.production_rate`;
+   :attr:`orpheus.sn.scattering.ScatteringOperator.kernel`.
+   Category-refinement gate:
+   ``tests/transport/test_integral_kernel_category.py``. Fission
+   cross-check: ``tests/sn/operators/test_fission_kernel_crosscheck.py``
+   (hand-derived correctness reference + the
+   :math:`\chi \cdot \mathrm{production\_rate} \equiv F.\mathrm{apply}`
+   0-ULP de-risk). Scattering cross-check:
+   ``tests/sn/operators/test_scattering_kernel_crosscheck.py`` (the
+   :math:`S.\mathrm{kernel}.\mathrm{apply} \equiv R\circ\Lambda\circ M`
+   0-ULP equivalence). Deferred follow-ups: #260
+   (:class:`~orpheus.numerics.operator.SumOfTensorProductsOperator`
+   un-orphaning), #261 (core relocation + CP / MoC carrier unification).
 
 
 .. _tensorial-framing:
