@@ -1,0 +1,101 @@
+# Pyright signal cleanup (#226) — "only signal, not noise"
+
+**Goal (user, 2026-06-21):** make pyright give the agent *only real, actionable
+signal* — (1) **kill the noise**: the streamed `<new-diagnostics>` LSP avalanche
+of phantom `reportMissingImports` / "not defined" that floods every turn must
+stop or match the CLI; (2) **drive real errors toward zero** so a genuine pyright
+hit is always a real bug, never background hum.
+
+**Oracle:** `npx pyright` (CLI). The streamed LSP `<new-diagnostics>` is advisory
+and currently NOISY (microsoft/pyright#10498 dual-identity). **Constraint (hard,
+user):** NO `# type: ignore`, NO blanket suppression — fixes are principled
+(declare dynamically-set attrs statically [runtime-inert]; fix the real type;
+correctly parametrise a Protocol). Per-cluster commit + **re-measure** (counts are
+coupled — one `Unknown`-typed root cascades into argtype+attribute at every call
+site, so raw counts overstate the independent-edit count).
+
+**Branch:** fresh off `main` @ `7aebab3` (e.g. `refactor/pyright-signal-2`; note
+an older `refactor/pyright-signal` branch predates the #257 campaign — do NOT
+reuse it without rebasing onto current main). ff-merge per cluster-batch.
+
+---
+
+## Current state (triage, 2026-06-21, `npx pyright` 1.1.410)
+
+Full repo = **2353 errors / 19 warnings**, 774 files. By directory:
+
+| dir | errors | nature |
+|---|---|---|
+| `tests/` | 1403 | test-stub / `**kwargs`-splat / loose-fixture idioms |
+| `orpheus/` | **502** | production — the real target (260 non-derivation + 242 SymPy) |
+| `derivations/` (repo-root) | 267 | SymPy-fighting |
+| `scratch/` | 129 | throwaway |
+| `student_resources/` | 37 | teaching |
+| `examples/` | 12 | demos |
+| `tools/` | 3 | |
+
+**No regression** — the #257 branch *reduced* `orpheus/` 538→502 (−36, all `orpheus/sn`). The 2353 is full-repo scope; historical "538" was always `orpheus/`-only (`pyrightconfig.json` has no `include`/`exclude` → bare `npx pyright` walks the whole root).
+
+Production (`orpheus/`) rule histogram: reportArgumentType 224 · reportAttributeAccessIssue 98 · reportOptionalSubscript 38 · reportReturnType 25 · reportOperatorIssue 19 · reportAssignmentType 15 · reportCallIssue 14 · reportOptionalMemberAccess 14 · reportUndefinedVariable 11 · …
+
+---
+
+## Workstream A — NOISE elimination (do FIRST; it's the "not noise" half)
+
+The streamed `<new-diagnostics>` reportMissingImports avalanche ("Import 'orpheus.transport.full_field' could not be resolved", ".spatial.scheme", etc.) is **0-real in the CLI for `orpheus/`** — it's the langserver dual-identity artifact (the worktree/exec-env rooting + microsoft/pyright#10498). The fix lives in `.claude/hooks/regen-pyrightconfig.sh` (the per-worktree `executionEnvironment` design) — the two `.claude/worktrees/*` checkouts already contribute 0 errors via that mechanism.
+
+**A1. Diagnose the residual LSP noise.** Why does the LSP still stream phantom import errors when the CLI is clean? Confirm whether the in-editor/agent langserver is using the regenerated `pyrightconfig.json`, whether stale worktree exec-envs or a missing root mapping cause the dual-identity, and whether microsoft/pyright#10498 has a config-level mitigation. Dispatch explorer + read the hook + reference_pyright_lsp_rooting memory.
+**A2. Make the LSP agree with the CLI.** Extend/repair `regen-pyrightconfig.sh` (or the langserver invocation) so the streamed diagnostics match `npx pyright orpheus/` — phantom imports gone. This is the single biggest agent-UX win (every turn is currently polluted). **This file is in `.claude/hooks/` (commit-protected) — propose the change to the user, do not self-commit it.**
+**A3. Pin the scope.** Decide + document the canonical analysis scope: should bare `npx pyright` analyze the whole repo, or should `pyrightconfig.json`/`pyproject.toml [tool.pyright]` set `include = ["orpheus"]` (production) with tests/derivations/scratch under separate, relaxed exec-envs? Pinning scope makes "the count" stable and meaningful (no more 2353-vs-538 confusion).
+
+---
+
+## Workstream B — real-error reduction (the "only signal" half)
+
+Attack order = highest signal-cleared-per-unit-effort, re-measuring between big clusters. Each cluster: explorer/enumerate → fix → tests green + count drops + 0 net-new ignores → commit.
+
+**B1. Cluster D + undefined-vars (~17, trivial, zero-risk) — warm-up.** `numpy.bool_`/`csr_array` vs annotated return → `bool(...)`/correct annotation (~6). The 11 `reportUndefinedVariable` = missing `import sympy as sp` (7×), `Quadrature1D`/`TimedFullField` TYPE_CHECKING forward-refs (4×). Mechanical, runtime-inert.
+
+**B2. Cluster C — Protocol/ABC missing concrete attrs (~12, low-risk).** `PoleAngularClosure` missing `level_indices`/`precompute_psi_state`/`cell_contribution` (8×); `AngularMeasure`, `MOCMesh` (rest). Declare the members on the ABC/Protocol. ⚠ VERIFY against the #248 `PoleAngularClosure`-Protocol retirement first (some accesses may be on a stale name).
+
+**B3. Cluster A — Optional/None not narrowed (~104, the biggest single bucket).** reportOptionalSubscript 38 + OptionalMemberAccess 14 + OptionalOperand 5 + the `... | None` argtype/operator errors. **Two files hold ~77:** `orpheus/sn/loss_representation.py` (43) + `orpheus/sn/spatial/pole_angular_closure.py` (34). Root: lazily-populated `Optional`/`= None` fields (`_alpha_per_level`, `_tau_per_level`, `_dAw_per_level`, `psi_half_seed`) subscripted after an invariant guarantees they're set; + `float | None` params used in arithmetic. Fix per-site (judgement): declare the real non-Optional type + init in `__post_init__`/builder, OR `assert x is not None` at the invariant-established point, OR make the param non-Optional. ⚠ Respect the lazy-init contract — don't force eager allocation where the None sentinel is load-bearing. **Re-measure after** — narrowing one lazy field clears cascading downstream argtype/operator errors.
+
+**B4. Cluster B — `LinearOperator[V]` under-parametrised generic (~24+, architecturally coupled).** `LinearOperator[Unknown]` loses `.solve`/`.apply_transpose`; `block_role` "cannot assign"; `TensorProductOperator`/`IncomingSourceOperator` not assignable (7×). Concentrated in `boundary_realizer.py` (9), `operator.py` (3), `iteration.py` (3), `solver.py` (3). Fix = ONE coherent hierarchy edit per `.claude/agent-memory/explorer/issue_226_operator_generics_map.md` (unbounded `V=TypeVar("V")`): parametrise the `LinearOperator`/`Mixin`/`OperatorSum` family `Generic[V]`; declare `block_role` as a settable field on the composers; surface `.solve` via the resolvent type / a Protocol. Type-level, runtime-inert; re-measure (likely clears uncounted downstream argtype collapse).
+
+**B5. Cluster E — stringly/union dispatch (~10, ergonomics).** `str|SubgroupOfO3|int|dict` arg in `numerics/quadrature/registry.py` (8×); `Mesh1D|Mesh2D|tuple[Axis1D,...]` mesh arg (2×); `Quadrature→AngularQuadrature` (3×). Tighten signatures / overload / narrow with `isinstance`.
+
+**B6. Cluster F — `orpheus/derivations` SymPy backlog (242, ISOLATE, last).** Unchanged from main; SymPy `Expr`/`Float`/`Rational` fight pyright. Fix the genuinely-real ones, then a **SCOPED per-directory `executionEnvironment`** relaxation for `orpheus/derivations/**` (NOT global) — the triage doc's recommended handling. Lowest production value.
+
+---
+
+## Workstream C — the non-production trees (1403 tests + 267 root-derivations + 129 scratch + …)
+
+Lower value, larger count. Decide policy rather than grind every one:
+- **`tests/`**: many are test-stub idioms (`_StubQuad` not a `Quadrature`, `**kwargs`-splat into typed factories, `BC.vacuum` enum access, `float`→`int` arg looseness). Triage: fix the cheap structural ones (the `solve_*(geometry, **dict)` splat collapses pyright cleanly into a typed helper — see the S10a peierls-test refactor precedent); for the rest, consider a relaxed test-tree exec-env (tests are not shipped product). DO NOT let test-stub noise gate production signal.
+- **`derivations/` (repo-root), `scratch/`, `student_resources/`, `examples/`**: scratch/teaching — strong candidates for scoped exec-env relaxation or `exclude`, NOT line-by-line fixes.
+
+The principle: production (`orpheus/`, ex-derivations) → **zero real errors**; the SymPy/test/scratch trees → **scoped relaxation** so they don't drown the signal, with the genuinely-real ones fixed.
+
+---
+
+## Sequencing
+1. **A1–A3 noise-rooting FIRST** (kill the streamed avalanche — makes all subsequent work legible; the hook change goes to the user since `.claude/hooks/` is protected).
+2. **B1 → B2** (zero/low-risk warm-up, ~29 cleared).
+3. **B3** (the 104 Optional/None bucket; re-measure).
+4. **B4** (the LinearOperator-Generic coherent edit; re-measure).
+5. **B5**, then **B6** (derivations scoped relaxation).
+6. **Workstream C** policy (scope/relax the non-production trees).
+
+## Verification (every batch)
+- `npx pyright orpheus/` count strictly drops; report before/after.
+- 0 net-new `# type: ignore` (grep the diff).
+- The relevant test suites stay green under `-O` (route around the documented baseline reds #250/#232/#212).
+- After A2: the streamed `<new-diagnostics>` for an `orpheus/` edit matches the CLI (no phantom imports).
+
+## Open investigations (dispatch at execution)
+- explorer: the LSP dual-identity root cause + whether `regen-pyrightconfig.sh` fully resolves it (A1).
+- explorer: confirm the #248 `PoleAngularClosure` retirement status before B2.
+- the `issue_226_operator_generics_map.md` memo is the B4 design input — re-read it.
+
+## Relations
+#226 (the pyright-signal effort), the prior `.claude/plans/pyright_cluster_triage.md` (superseded counts: 691→502 orpheus, undefined-var 67→11, missing-imports 0), `reference_pyright_lsp_rooting.md`, `issue_226_operator_generics_map.md`. #258 (units.py pint-stub debt) + #254/#255 feed here.
