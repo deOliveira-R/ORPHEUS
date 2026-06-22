@@ -555,6 +555,7 @@ class TestCylindricalDegenerate:
             alpha_in=st_real.alpha_in,
             alpha_out=st_real.alpha_out,
             tau_mm=st_real.tau_mm,
+            mu_start=st_real.mu_start,
             volume=st_real.volume,
             abs_mu=1e-16,
         )
@@ -639,6 +640,7 @@ class TestCylindricalDegenerate:
             alpha_in=st_real.alpha_in,
             alpha_out=st_real.alpha_out,
             tau_mm=st_real.tau_mm,
+            mu_start=st_real.mu_start,
             volume=st_real.volume,
             abs_mu=1e-16,
         )
@@ -943,6 +945,7 @@ def _cylinder_degenerate_visit_inputs(
         alpha_in=st_real.alpha_in,
         alpha_out=st_real.alpha_out,
         tau_mm=st_real.tau_mm,
+        mu_start=st_real.mu_start,
         volume=st_real.volume,
         abs_mu=1e-16,
     )

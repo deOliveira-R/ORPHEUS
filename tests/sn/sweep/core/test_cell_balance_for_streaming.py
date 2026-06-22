@@ -71,6 +71,7 @@ def _curvilinear_streaming_terms() -> StreamingTerms:
         alpha_in=0.1,
         alpha_out=0.15,
         tau_mm=0.75,
+        mu_start=-1.0,
         volume=0.6,
         abs_mu=0.3,
     )
@@ -87,6 +88,7 @@ def _slab_streaming_terms() -> StreamingTerms:
         alpha_in=0.0,
         alpha_out=0.0,
         tau_mm=1.0,
+        mu_start=-1.0,
         volume=0.5,
         abs_mu=0.3,
     )

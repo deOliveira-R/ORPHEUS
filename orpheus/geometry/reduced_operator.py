@@ -253,15 +253,19 @@ class StreamingTerms:
     **all three factories** so that a downstream
     :class:`~orpheus.sn.spatial.scheme.DiscretizationScheme` strategy
     receives a self-contained per-cell, per-direction packet and need
-    not reach back into ``SNMesh`` or the ``AngularQuadrature``.  The
-    ``alpha_in is None`` test discriminates slab from curvilinear
-    geometry inside cell-update strategies.
+    not reach back into ``SNMesh`` or the ``AngularQuadrature``.  Every
+    curvature field is populated for **every** geometry (Step 2.5; slab
+    carries neutral values), so cell-update strategies consume the same
+    packet regardless of chart — geometry is **data, not control-flow**.
+    There is no ``alpha_in is None`` slab-vs-curvilinear branch; the
+    type makes the all-populated invariant unrepresentable-otherwise
+    (every field is a required ``float``, Pattern 4).
     """
 
     chord_length: float
     """Cell radial width (slab/sphere/cylinder all use ``mesh.widths[i]``)."""
 
-    mu: float | None = None
+    mu: float
     """Signed primary direction cosine for this ordinate.
 
     :math:`\\mu` for slab and sphere (axial); :math:`\\eta` for
@@ -274,7 +278,7 @@ class StreamingTerms:
     ``abs_mu`` instead.
     """
 
-    face_area_inner: float | None = None
+    face_area_inner: float
     """:math:`A_{i-1/2}` — area of the **inner** radial face
     (closer to :math:`r=0`).
 
@@ -282,7 +286,7 @@ class StreamingTerms:
     docstring "Geometric, not direction-resolved".
     """
 
-    face_area_outer: float | None = None
+    face_area_outer: float
     """:math:`A_{i+1/2}` — area of the **outer** radial face
     (farther from :math:`r=0`).
 
@@ -290,10 +294,10 @@ class StreamingTerms:
     docstring "Geometric, not direction-resolved".
     """
 
-    delta_A_over_w: float | None = None
+    delta_A_over_w: float
     """:math:`\\Delta A_i / w_n` — the geometry-redistribution factor."""
 
-    alpha_in: float | None = None
+    alpha_in: float
     """:math:`\\alpha_{n-1/2}` — incoming half-angle redistribution.
 
     Step 2.5 (Issue #196 Phase G): always populated.  Slab carries
@@ -302,13 +306,13 @@ class StreamingTerms:
     retired in favour of geometry-as-data via the neutral values.
     """
 
-    alpha_out: float | None = None
+    alpha_out: float
     """:math:`\\alpha_{n+1/2}` — outgoing half-angle redistribution."""
 
-    tau_mm: float | None = None
+    tau_mm: float
     """Morel--Montry angular closure weight on this ordinate."""
 
-    mu_start: float | None = None
+    mu_start: float
     """Starting-direction angular edge of this ordinate's M-M level.
 
     The direction the half-angle thread's seed flux lives at:
@@ -319,7 +323,7 @@ class StreamingTerms:
     via :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonSweepContext`.
     """
 
-    volume: float | None = None
+    volume: float
     """Cell volume :math:`V_i`.
 
     Populated by all three factories from
@@ -334,7 +338,7 @@ class StreamingTerms:
     the underlying ``SNMesh``.
     """
 
-    abs_mu: float | None = None
+    abs_mu: float
     """Absolute primary direction cosine.
 
     :math:`|\\mu|` for slab and sphere (axial direction cosine);

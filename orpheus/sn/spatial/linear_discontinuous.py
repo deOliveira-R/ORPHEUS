@@ -338,15 +338,9 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         ng = total_xs.size
         s_bar, s_hat = _ld_source_moments(source, ng)
 
-        # Slab factories always populate abs_mu / volume; narrow explicitly
-        # (-O-safe, not ``assert``) so a malformed StreamingTerms fails loudly
-        # rather than tripping an opaque ``float·None`` arithmetic error.
-        if st.abs_mu is None or st.volume is None:
-            raise ValueError(
-                "LinearDiscontinuous requires populated abs_mu and volume on "
-                f"the slab StreamingTerms; got abs_mu={st.abs_mu}, "
-                f"volume={st.volume}."
-            )
+        # Step 2.5: every StreamingTerms field is a required ``float`` (all
+        # three factories populate them for every geometry), so abs_mu /
+        # volume need no None-narrowing — the type guarantees they are set.
         mu: float = st.abs_mu               # |μ|, sweep-pre-resolved (slab A=1)
         h: float = st.volume                # slab cell width (V = Δx)
         theta = self.theta
