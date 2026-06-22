@@ -710,20 +710,29 @@ def select_quadrature(
         n_nodes = spec.expected_node_count(params)
         candidates.append((spec, params, n_nodes))
 
-    log_template = dict(
-        geometry=geometry,
-        geometry_group=geom_group,
-        target_degree=target_degree,
-        requested_flags=requested_flags,
-    )
+    def _selection_log(
+        chosen_spec: QuadratureSpec | None,
+        chosen_parameters: dict[str, Any] | None,
+    ) -> SelectionLog:
+        """Build the SelectionLog with the shared selection context.
+
+        One typed construction site for the two outcomes (no-match raise vs
+        success): the four context fields are passed with their precise
+        types instead of splatting a union-valued ``dict`` — which pyright
+        cannot match against the dataclass's distinct field types.
+        """
+        return SelectionLog(
+            chosen_spec=chosen_spec,
+            chosen_parameters=chosen_parameters,
+            rejected=rejected,
+            geometry=geometry,
+            geometry_group=geom_group,
+            target_degree=target_degree,
+            requested_flags=requested_flags,
+        )
 
     if not candidates:
-        log = SelectionLog(
-            chosen_spec=None,
-            chosen_parameters=None,
-            rejected=rejected,
-            **log_template,
-        )
+        log = _selection_log(chosen_spec=None, chosen_parameters=None)
         raise QuadratureSelectionError(
             f"no registered quadrature satisfies geometry={geometry!r}, "
             f"target_degree={target_degree}, flags={requested_flags}. "
@@ -746,11 +755,8 @@ def select_quadrature(
     else:
         measure = result
 
-    log = SelectionLog(
-        chosen_spec=chosen_spec,
-        chosen_parameters=chosen_params,
-        rejected=rejected,
-        **log_template,
+    log = _selection_log(
+        chosen_spec=chosen_spec, chosen_parameters=chosen_params,
     )
     return measure, log
 
