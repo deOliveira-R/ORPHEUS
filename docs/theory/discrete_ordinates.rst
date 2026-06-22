@@ -15333,6 +15333,178 @@ pseudo-2D artifacts, well-conditioned angular quadrature, fully
 converged inner solve.
 
 
+.. _sn-development-history:
+
+Development history
+===================
+
+S\ :sub:`N` is ORPHEUS's **architectural prototype**: the typed-field
+algebra and the composable operator form :math:`(L + C - S - F/k)\psi = q`
+were developed here *first*, and are the standard the other solvers (CP,
+MoC, MC, diffusion) inherit as they are built — which is why this page
+carries far more development history than any other theory chapter.
+
+This is a reverse-chronological (latest first) changelog of the major
+**architectural** milestones. Iteration-rate work, gate counts, and
+intermediate replans are deliberately omitted — see the GitHub issues
+and the per-phase plan files for that granularity. Each entry names the
+architectural change, its issue, and the commit/merge where the work
+lives. Entries marked *(in development)* live on an unmerged feature
+branch and have no landed hash yet.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 8 52 12 28
+
+   * - When
+     - Architectural milestone
+     - Issue
+     - Where
+   * - in dev
+     - **Spatial ⊗ angular product** — τ becomes closure-owned
+       (``morel_montry_tau_per_level``); the geometry-τ producers and
+       the ``StreamingTerms`` τ/α fields are deleted, and a separability
+       MMS gate pins Cartesian-separates / curvilinear-couples. The
+       space-angle tensor structure made explicit.
+     - #236
+     - *(in development)*
+       ``feature/sn-spatial-angular-product``
+   * - 2026-06
+     - **Field-typed operator algebra + data XS layer** — cross sections
+       become ``CoefficientField`` leaves; operators become *promotions*
+       (``C = M[\sigma_t]``); the carrier is the timeless ``FullField``;
+       the §5.6 Operator / Kernel / Functional taxonomy and the
+       ``@overload`` "Pattern M" apply-fibration. Closes the typed-field
+       campaign and pushes the data layer down to validated invariants
+       (χ-simplex, production-weighted χ\ :sub:`mix`, XS-balance).
+     - #257
+     - ``505e1b7`` → ``f62b895``
+   * - 2026-06
+     - **Linear-Discontinuous on the DAG + principled polymorphism** —
+       LD lands as a polymorphic discretization protocol (the
+       coefficient model), the ``matvec_via_kernel`` favoritism is
+       reverted, σ is single-sourced from the ``InvertibleOperator``'s
+       ``C``, and the unified all-d LD moment matvec + diffusion-limit
+       closure ships.
+     - #240 / #158
+     - ``fde76ac`` → ``e74eafb``
+   * - 2026-06
+     - **Sweep / matvec re-layering — one walk** — the sweep strategy
+       is carved into a first-class ``LossRepresentation``; the
+       ScanMarch row-march twin makes *matvec ≡ sweep* literally one
+       ``_OctantWalk`` traversal rather than two parallel paths.
+     - #222
+     - ``8913229`` → ``1b4b0c0``
+   * - 2026-06
+     - **3-D Cartesian admission** — axis-native ``from_axes`` admits
+       *d = 3* end-to-end with no ``Mesh3D``; the constructor data-flow
+       inverts so axes are primary, and windowing / G-S gates key on
+       genuine dimensionality rather than the reduced-proxy.
+     - #225
+     - ``1da1e2f``
+   * - 2026-06
+     - **Foundation-cleanup cluster** — break the numerics→SN import
+       cycle (moment-layout policy homed in numerics), retire the
+       ``M_spatial`` / ``M_angular_redist`` operator-leaf split (the
+       fused ``loss_action`` is the only path), and key the moment-frame
+       involution on intent rather than coincidental shape.
+     - #243 / #245 / #246 / #238
+     - ``66b1bbd`` → ``dd4f542``
+   * - 2026-06
+     - **LD boundary slope source + transverse face-slope trace** — the
+       fixed-source solver consumes a moment-resolved external slope
+       source (Leg A) and the boundary trace carries the transverse
+       face-slope moment (Leg B); both close the LM-1989 trap as
+       structural-teeth vv Mode-10 cases.
+     - #247 / #251
+     - ``d9396a2`` / ``e5f2b1c``
+   * - 2026-06
+     - **Wave-O affine-typed operator algebra** — ``FluxDisplacement``
+       gives the affine difference space :math:`V`; ``flux + flux``
+       becomes a ``TypeError`` while ``flux − flux`` and the typed
+       residual ``from_balance`` stay legal, so :math:`(L+C-S-F)\psi = q`
+       types coherently and the residual is a typed defect.
+     - #208 / #201
+     - ``8c2f355`` / ``04e2859``
+   * - 2026-06
+     - **G-adjoint, reciprocity, and operator role-typing** — the
+       analytic reverse-sweep ``StreamingOperator.apply_transpose``; the
+       Hilbert-adjoint metric is owned by the ``FunctionSpace``
+       (``apply_metric``); composite block-roles are *derived* from the
+       operands, retiring the ``InvertibleOperator`` FULL stamp.
+     - #20
+     - ``0efd233`` → ``7ccc14a``
+   * - 2026-06
+     - **Angular + face windowing** — the held SI iterate becomes
+       ``HarmonicMomentField`` moments (angular window), the interior
+       face cochain becomes a rolling ``_MovingFrontier`` (face window),
+       and moments are accumulated in-sweep — eliminating the
+       full-angular per-sweep transient (a measured ~3× peak-memory win).
+       Full-field sweep/matvec oracles retained for the equivalence gate.
+     - #205 / #218
+     - ``b97d4f9`` → ``c7be111``
+   * - 2026-06
+     - **Honest variadic L+C−S−B driver** — the transitional ``S+B``
+       fold is retired and boundary reflection ``B`` becomes a
+       first-class coupling gain, so the within-group drivers generalize
+       over a variadic operator list instead of a hard-coded fold.
+     - #18
+     - ``8563f4b`` → ``83a4ae6``
+   * - 2026-06
+     - **Source-iteration boundary Gauss-Seidel** — a polymorphic
+       ``SweepSchedule`` (Jacobi / octant-group G-S) plus the
+       ``_GaussSeidelResolvent`` and ``inner_schedule`` selector; a
+       modest reflective-SI accelerator (the dominant scattering c-mode
+       stays Krylov / DSA territory). Surfaced ERR-056 (diagonal-cubature
+       shared-face fan-in).
+     - #19
+     - ``514ae21`` → ``a39905a``
+   * - 2026-06
+     - **1-D forward + transpose matvec carve** — the 1-D SN matvec is
+       relocated off the operator into ``_OneDimScanWalk``, making
+       *matvec ≡ sweep* a single-sourced code fact for the 1-D path.
+     - #206
+     - ``eaafbe1`` / ``7300f3e``
+   * - 2026-06
+     - **Curvilinear closure-seed fix (ERR-058) and eigenvalue
+       verification** — coupled-pole spatial + half-angle angular
+       closure seeds restore :math:`O(h^2)` for curvilinear sweeps, and
+       the SI ≡ Krylov eigenvalue equivalence is pinned, closing the
+       last ERR-026 manifestation.
+     - #195 / #196
+     - ``3b088ee`` → ``8609282``
+   * - 2026-06
+     - **2-D matvec through the DD closure** — the 2-D forward matvec is
+       routed through the diamond-difference cell closure and the legacy
+       FD stencil is retired, so the operator and the sweep share one
+       discretization.
+     - #208 (O.4b)
+     - ``2288ea4``
+   * - 2026-05
+     - **Four-operator typed apply + typed-field foundation** — the
+       ``F → S → C → L`` apply overload on ``AngularFlux``, founded on
+       the typed ``AngularFlux`` / ``ScalarFlux`` / ``BoundaryFlux``
+       fields (``psi_bc`` retired). The birth of the typed-field
+       architecture this whole history builds on.
+     - #197
+     - ``d8ddb03`` → ``eeac45f``
+   * - 2026-05
+     - **Depth-B field factoring** — ``ScalarFlux`` migrates to a pure
+       ``Field`` subtype and the bare-``ndarray`` operator arms are
+       retired (D-I / D-J), so typed-field dispatch becomes the *only*
+       apply path through the operators.
+     - #197 (Depth B)
+     - ``c97897d`` → ``4a53737``
+
+.. note::
+
+   The four ``Phase N`` milestones (#18, #19, #20, #205) carry internal
+   phase labels in their commit subjects rather than GitHub-issue
+   trailers; the issue mapping above is from the SN development-sequence
+   campaign record. Issue #236 is the only entry not yet on ``main`` — it
+   lives on ``feature/sn-spatial-angular-product`` pending merge.
+
+
 References
 ==========
 
