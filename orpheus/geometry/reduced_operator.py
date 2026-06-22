@@ -164,28 +164,47 @@ class AngularMeasure(Protocol):
     so the geometry layer remains free of SN-specific imports.
     """
 
-    mu_x: np.ndarray
-    """(N,) primary direction cosine — :math:`\\mu` for sphere,
-    :math:`\\eta` (radial) for cylindrical product quadrature."""
+    # Read-only properties (not plain attributes): this module only READS
+    # the angular measure, and concrete implementers (``Quadrature``) expose
+    # these as ``@property``. A mutable attribute in the Protocol is invariant
+    # and rejects a read-only ``@property`` ("property is not assignable to
+    # ndarray"); a read-only Protocol member accepts both a property and a
+    # plain attribute, matching the actual usage (covariant read contract).
 
-    weights: np.ndarray
-    """(N,) quadrature weights."""
+    @property
+    def mu_x(self) -> np.ndarray:
+        """(N,) primary direction cosine — :math:`\\mu` for sphere,
+        :math:`\\eta` (radial) for cylindrical product quadrature."""
+        ...
 
-    N: int
-    """Number of ordinates."""
+    @property
+    def weights(self) -> np.ndarray:
+        """(N,) quadrature weights."""
+        ...
 
-    eta: np.ndarray
-    r"""(N,) cylindrical-frame radial direction cosine
-    :math:`\eta = \Omega \cdot \hat{r}` (read by the curvilinear
-    connection-coefficient recursion only)."""
+    @property
+    def N(self) -> int:
+        """Number of ordinates."""
+        ...
 
-    mu_z: np.ndarray
-    """(N,) axial direction cosine (curvilinear / level-structure side)."""
+    @property
+    def eta(self) -> np.ndarray:
+        r"""(N,) cylindrical-frame radial direction cosine
+        :math:`\eta = \Omega \cdot \hat{r}` (read by the curvilinear
+        connection-coefficient recursion only)."""
+        ...
 
-    level_indices: list[np.ndarray]
-    """Per-:math:`\\mu`-level ordinate-index partition: ``[arange(N)]`` for
-    a slab quadrature (single level), one index array per level for
-    cylindrical-compatible cubatures."""
+    @property
+    def mu_z(self) -> np.ndarray:
+        """(N,) axial direction cosine (curvilinear / level-structure side)."""
+        ...
+
+    @property
+    def level_indices(self) -> list[np.ndarray]:
+        """Per-:math:`\\mu`-level ordinate-index partition: ``[arange(N)]`` for
+        a slab quadrature (single level), one index array per level for
+        cylindrical-compatible cubatures."""
+        ...
 
 
 # ═══════════════════════════════════════════════════════════════════════
