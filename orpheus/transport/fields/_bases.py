@@ -662,6 +662,13 @@ class BoundaryField(Field):
                 f"boundary field cannot be built without a boundary trace."
             )
         layout = space.layout
+        if layout is None:
+            raise ValueError(
+                f"{cls.__name__}.from_face_arrays: mesh.trace carries no "
+                f"FaceLayout (a bare-constructor TraceSpace, not "
+                f"TraceSpace.from_quadrature_and_layout). A boundary field "
+                f"cannot be packed without a face layout."
+            )
         provided = set(face_arrays.keys())
         expected = set(layout.faces.keys())
         if provided != expected:
