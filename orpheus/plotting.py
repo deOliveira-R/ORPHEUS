@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Circle, Patch, Rectangle
 
 if TYPE_CHECKING:
     from orpheus.homogeneous.solver import HomogeneousResult
@@ -119,34 +119,43 @@ def plot_moc_rays(
     output_dir: Path | str = ".",
     filename: str = "MOC_01_tracks.pdf",
 ) -> None:
-    """Plot the 8-direction ray tracks."""
+    """Plot the characteristic ray tracks across the pin cell.
+
+    Each track is the straight chord from its entry point to its exit
+    point on the equal-area square boundary (``pitch = R_outer * sqrt(pi)``,
+    the inverse Wigner-Seitz transform), coloured by azimuthal angle.  The
+    concentric material rings (``geom.radii``) are overlaid for context.
+    """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    n, delta = geom.n_cells, geom.delta
-    xmin, xmax = 0.0, delta * (n - 1)
+
+    pitch = geom.pitch
+    cx, cy = pitch / 2.0, pitch / 2.0
 
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.set_aspect("equal")
-    ax.set_xlim(xmin, xmax)
-    ax.set_ylim(-xmax, xmin)
-    ax.set_xlabel("Distance from the cell centre (cm)")
-    ax.set_ylabel("Distance from the cell centre (cm)")
-    ax.set_title("Rays used to track neutrons")
+    ax.set_xlim(0.0, pitch)
+    ax.set_ylim(0.0, pitch)
+    ax.set_xlabel("x (cm)")
+    ax.set_ylabel("y (cm)")
+    ax.set_title("Characteristic ray tracks")
 
-    for i in range(n):
-        y = -i * delta
-        ax.plot([xmin, xmax], [y, y], "k-", linewidth=0.5)
-    for i in range(n):
-        x = i * delta
-        ax.plot([x, x], [-xmax, xmin], "k-", linewidth=0.5)
-    for i in range(2 * n):
-        x0, x1 = xmin, xmin + (i + 1) * delta
-        y0, y1 = -(i + 1) * delta, xmin
-        ax.plot([x0, x1], [y0, y1], "k-", linewidth=0.5)
-    for i in range(2 * n):
-        x0, x1 = xmin, xmin + (i + 1) * delta
-        y0, y1 = -xmax + (i + 1) * delta, -xmax
-        ax.plot([x0, x1], [y0, y1], "k-", linewidth=0.5)
+    cmap = plt.get_cmap("hsv")
+    n_azi = max(1, geom.quad.n_azi)
+    for track in geom.tracks:
+        (x0, y0), (x1, y1) = track.entry_point, track.exit_point
+        ax.plot(
+            [x0, x1], [y0, y1],
+            color=cmap(track.azi_index / n_azi),
+            linewidth=0.4, alpha=0.6,
+        )
+
+    # Material-ring + cell-boundary overlay (outline only).
+    for r in geom.radii:
+        ax.add_patch(Circle((cx, cy), float(r), fill=False,
+                            edgecolor="black", linewidth=0.6))
+    ax.add_patch(Rectangle((0.0, 0.0), pitch, pitch, fill=False,
+                          edgecolor="black"))
 
     fig.tight_layout()
     fig.savefig(output_dir / filename)
@@ -158,12 +167,52 @@ def plot_moc_mesh(
     output_dir: Path | str = ".",
     filename: str = "MOC_02_mesh.pdf",
 ) -> None:
-    """Plot the material map for MoC geometry."""
+    """Plot the pin-cell material map.
+
+    The cylindrical Wigner-Seitz pin cell is a set of concentric material
+    rings (``geom.radii``) inside the equal-area square outer boundary; the
+    outermost region (moderator) fills the square corners.  Regions are
+    painted largest-radius first (painter's algorithm) and coloured by
+    material id.
+    """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    plot_2d_field(geom.n_cells, geom.n_cells, geom.delta,
-                  geom.mat_map.astype(float), "Materials",
-                  output_dir / filename)
+
+    pitch = geom.pitch
+    cx, cy = pitch / 2.0, pitch / 2.0
+    mat_ids = geom.region_mat_ids
+
+    unique_mats = sorted({int(m) for m in mat_ids})
+    cmap = plt.get_cmap("tab10")
+    color_of = {m: cmap(i % 10) for i, m in enumerate(unique_mats)}
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.set_aspect("equal")
+    ax.set_xlim(0.0, pitch)
+    ax.set_ylim(0.0, pitch)
+    ax.set_xlabel("x (cm)")
+    ax.set_ylabel("y (cm)")
+    ax.set_title("Pin-cell material map")
+
+    # Outermost region fills the equal-area square; inner rings paint on
+    # top, largest radius first, leaving each annulus its own colour.
+    ax.add_patch(Rectangle((0.0, 0.0), pitch, pitch,
+                          facecolor=color_of[int(mat_ids[-1])],
+                          edgecolor="black"))
+    for k in range(geom.n_regions - 2, -1, -1):
+        ax.add_patch(Circle((cx, cy), float(geom.radii[k]),
+                            facecolor=color_of[int(mat_ids[k])],
+                            edgecolor="black", linewidth=0.5))
+
+    handles = [
+        Patch(facecolor=color_of[m], edgecolor="black", label=f"material {m}")
+        for m in unique_mats
+    ]
+    ax.legend(handles=handles, loc="upper right", fontsize=8)
+
+    fig.tight_layout()
+    fig.savefig(output_dir / filename)
+    plt.close(fig)
 
 
 def plot_moc_convergence(
