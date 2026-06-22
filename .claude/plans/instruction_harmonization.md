@@ -29,14 +29,23 @@ Favor by **dimension**, not by file:
 4. `119422d` — SessionStart environment-health gate (session-health.sh + settings.json wiring + session-start.txt protocol).
 5. (this commit) — durable plans: this record + the deferred pyright/operator-generics plans.
 
-## Deferred — Session 2 (post-compact MEMORY.md deep-clean)
+## Session 2 — DONE (2026-06-22)
 
-The user's Session-2 task: deep-clean the main-agent `MEMORY.md` (27.2 KB > 24.4 KB
-limit) — harvest durable content into skills/rules, clean prose, bias toward recent
-sessions, cut context noise. While there, also resolve these **flagged findings**:
+Deep-cleaned the WHOLE memory substrate (not just main MEMORY.md). 17 commits,
+ff-merged to main. The 3 flagged findings, all RESOLVED:
 - ~~**Pre-existing dangling "Cardinal Rule 6"** ref in vv-principles/SKILL.md + error_catalog.md (CLAUDE.md has only Rules 1–5). Decide the correct target (the ≥2G / 1-group-degeneracy directive) or drop the citation.~~ **RESOLVED (Session 2, user chose "retire the shorthand"):** "Cardinal Rule 6" never existed in CLAUDE.md (`git log -S` empty) — it was a long-dead shorthand for the 1-group-degeneracy rule, whose canonical home is now `vv-principles` SKILL.md §"1-group degeneracy — canonical statement" (anti-pattern #3 = operational form). Retired the shorthand across **21 files / 29 refs** (production tests, `docs/theory/*.rst`, `orpheus/derivations/`, agent-memory, archived plans) → "the 1-group-degeneracy rule". vv-principles anchor reworded to record the retirement + drop its false self-citation; one misattribution fixed (`discrete_ordinates.rst` "V&V harness wiring" was never the degeneracy rule). Sphinx clean; grep=0.
-- **6 per-agent `AGENT.md` `## CRITICAL: Tool Freedom Override` sections** now overlap `rules/nexus-tools.md`. Retiring them needs the fact: *do `.claude/rules/` auto-load into sub-agent contexts?* If yes, the per-agent copies are redundant (twin-path, anti-pattern #1) → retire; if no, keep them as the sub-agent delivery mechanism.
-- **Agent-index bloat**: method-implementer/MEMORY.md (+others) entries run far past the ~200-char one-line convention; qa/lessons.md has duplicate `L-NNN` heading numbers; numerics-investigator MEMORY.md lessons-pointer says `L1..L7` (now L8). The owning agents (or the clean pass) renumber/trim.
+- ~~**6 per-agent `AGENT.md` Tool-Freedom-Override sections**~~ **RESOLVED:** verified `.claude/rules/` auto-load into sub-agent contexts (inlined in the same project-instructions block as CLAUDE.md) → the sections were triple-redundant (rule + preloaded nexus skills + this) AND stale (their "default to Grep" framing is false since Grep/Glob were removed). Retired in all 6; agent-specific behavioral directives preserved under a slim `## Nexus`.
+- ~~**Agent-index bloat**~~ **RESOLVED:** all 9 agents distilled — per-agent slim MEMORY.md index + behavioral `lessons.md` (indexes ~452 KB → ~64 KB; per-dispatch context tax eliminated). **git-authoritative throughout** (corrected ~7 SN campaigns mislabeled "in-flight"; only #236 open). qa/lessons deduped (L-034/039/040 + reorder); numerics L6-reorder + L8-pointer fixed.
+
+**Also done this session (beyond the 3 findings):**
+- **Main MEMORY.md** 27.2 KB → 4.5 KB, git-reconciled; 8 merged-campaign archaeology project memories retired.
+- **4 meta-lessons graduated to `.claude/rules/`**: git-authoritative-merge-status, retirement-audit-completeness, mutation-test-hygiene, type-vs-property.
+- **5 ceiling skills enriched**: coding-elegance (#19/#20 + Pattern-4/6), vv-principles (#12 + Mode-11 + Mode-10-doc-layer + offline-error), numerical-bug-signatures (Sig 8/9/10), cross-domain-frames (Smell #16 + A.2 + A.5), research (phantom-citation + catalogue≠method).
+- **SN "Development history" changelog** seeded in `docs/theory/discrete_ordinates.rst` (17 git-verified milestones — the home for merged-campaign architectural history; #231 will distribute per-page slices).
+
+**⚠ Topic-file retirement ATTEMPTED then REVERTED.** The finale `git rm`'d 333 merged-campaign closeouts — but they are NODES in the unified Nexus knowledge graph: **98+ are referenced from in-repo `plans/`+`docs/`** (incl. the SN theory page and the active pyright #226 keystone `issue_226_operator_generics_map.md`). The deletion was therefore NOT lossless — it violated the very **retirement-audit rule just graduated** (blast radius includes `docs/`+`plans/`, which `-W` won't warn on). Reverted (`git revert 0161129`): the closeouts are back as **COLD STORAGE** — referenced by the graph, NOT indexed by the slim MEMORY.md → **zero per-dispatch cost**. The per-dispatch win is the INDEX slim, NEVER file deletion. To delete them for real later: first clean their 98+ references (a separate careful sweep), or keep them as cold archive (recommended — they cost nothing loaded).
+
+### (original flagged-findings text, now resolved, kept for the record)
 
 ## Deferred — Session 3+ (pyright #226, unchanged)
 
