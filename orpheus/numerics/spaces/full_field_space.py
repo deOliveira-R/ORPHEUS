@@ -177,14 +177,15 @@ class FullFieldSpace(FunctionSpace):
     # Direct-sum metric dispatch (per-block, on a composite field)
     # ------------------------------------------------------------------
 
-    def _require_blocks(self) -> None:
-        r"""Guard the bare-constructor footgun (parity with ``TraceSpace._face_row``).
+    def _require_blocks(self) -> tuple[FunctionSpace, TraceSpace]:
+        r"""Return the ``(bulk_space, trace_space)`` pair, guarding the bare-constructor footgun.
 
         The ``bulk_space`` / ``trace_space`` fields default to ``None`` (the
         ``compare=False`` dataclass-field convention), so a composite built via
         the bare constructor instead of :meth:`from_blocks` would
         ``AttributeError`` deep inside the adjoint path. Fail at the boundary
-        with intent instead (parse-don't-validate).
+        with intent instead (parse-don't-validate), and return the narrowed
+        non-``None`` pair so callers bind locals that type cleanly.
         """
         if self.bulk_space is None or self.trace_space is None:
             raise RuntimeError(
@@ -192,6 +193,7 @@ class FullFieldSpace(FunctionSpace):
                 "FullFieldSpace.from_blocks(bulk_space, trace_space) (or "
                 "SNMesh.full_field_space), not the bare dataclass constructor."
             )
+        return self.bulk_space, self.trace_space
 
     @staticmethod
     def _rebuild(x, bulk_values: np.ndarray, boundary_values: np.ndarray):
@@ -224,11 +226,11 @@ class FullFieldSpace(FunctionSpace):
         ``G_bulk = V·w_n`` and the trace block by ``G_trace = |Ω·n|·w_n``,
         each delegated to the matching leaf space.
         """
-        self._require_blocks()
+        bulk_space, trace_space = self._require_blocks()
         return self._rebuild(
             x,
-            self.bulk_space.apply_metric(x.bulk.values),
-            self.trace_space.apply_metric(x.boundary.values),
+            bulk_space.apply_metric(x.bulk.values),
+            trace_space.apply_metric(x.boundary.values),
         )
 
     def apply_inverse_metric(self, x):
@@ -238,21 +240,21 @@ class FullFieldSpace(FunctionSpace):
         Moore–Penrose masked inverse on the trace block (zero on the
         tangential null space ``|Ω·n| = 0``). Delegated per block.
         """
-        self._require_blocks()
+        bulk_space, trace_space = self._require_blocks()
         return self._rebuild(
             x,
-            self.bulk_space.apply_inverse_metric(x.bulk.values),
-            self.trace_space.apply_inverse_metric(x.boundary.values),
+            bulk_space.apply_inverse_metric(x.bulk.values),
+            trace_space.apply_inverse_metric(x.boundary.values),
         )
 
     def inner_product(self, a, b) -> float:
         r"""Return the direct-sum inner product
         :math:`\langle a, b\rangle_G = \langle a_{\rm bulk}, b_{\rm bulk}\rangle_{G_{\rm bulk}}
         + \langle a_{\rm trace}, b_{\rm trace}\rangle_{G_{\rm trace}}`."""
-        self._require_blocks()
+        bulk_space, trace_space = self._require_blocks()
         return (
-            self.bulk_space.inner_product(a.bulk.values, b.bulk.values)
-            + self.trace_space.inner_product(
+            bulk_space.inner_product(a.bulk.values, b.bulk.values)
+            + trace_space.inner_product(
                 a.boundary.values, b.boundary.values
             )
         )
