@@ -16,7 +16,70 @@
 > The plan is committed (`99f108f`); implementation is UNDERWAY through **S8c (`35f5612`) — S8 COMPLETE** —
 > see the ⭐ CURRENT STATUS block immediately below (S9 DONE; campaign behavioral work S1–S9 COMPLETE).
 
-## ⭐ CURRENT STATUS (2026-06-21 — S9 COMPLETE; CAMPAIGN BEHAVIORAL WORK DONE (S1–S9); only deferred S10/S11 tails remain)
+## ⭐ CURRENT STATUS (2026-06-21 — CAMPAIGN COMPLETE: S1–S12 done + peierls #264 fixed; S11 closed-as-reviewed)
+
+> **✅ S10a/S10b/S10c ALL DONE + committed** (branch `feature/field-typed-operator-algebra`, **NOT pushed**;
+> 5 commits this session): `0aabde4 fix(cp)` peierls #264 χ source-index → `2b57083 feat(data)` S10a
+> EmissionSpectrum + production-keyed χ-guard → `1d4df67 chore(docs)` matrix → `50aa862 feat(data)` S10b
+> production-weighted χ_mix → `de2faa9 feat(data)` S10c Mixture XS-balance invariant. Each verified
+> (independent L12 re-runs green; pyright 2353=baseline 0 net-new throughout; the per-stage gate suites green;
+> #264 byte-identical on benchmarks). Tree clean except protected `.claude` (agent-memory/skills/hooks/
+> settings/plans) + the uncommitted `error_catalog.md` (ERR-063). **#264 CLOSED-on-commit.** S10 was the
+> user's "fix UO2 χ now" + the promoted invariant-survey work, all tackled in-session.
+> **S11 CLOSED** (reviewed — do NOT relocate). `Field` is a CROSS-DOMAIN FOUNDATIONAL concept: a future
+> thermal-hydraulics module would need it too, so `transport/` is the WRONG home and `numerics/` (the shared,
+> neutron-agnostic floor) is correct. The "faces-upward → move to transport" premise was a misread — a concept
+> shared by multiple prospective DOMAINS belongs in their COMMON ANCESTOR, never one domain (Cardinal Rule 2).
+> **NEXT = S12** (retire the OVERDUE deprecated `orpheus/sn/scalar_flux.py` re-export shim — "Depth B step D-K"
+> deletion that never happened; `ScalarFlux` canonically lives at `transport/fields/scalar_flux.py`). ⭐ Nexus
+> importer audit: ZERO Python code importers of the shim (no `imports` edges in — already DEAD); the ONLY inbound
+> reference is a Sphinx `documents` edge from `theory/index_convention`. So S12 = delete the shim + repoint that
+> one doc ref. ✅ **S12 DONE** (`9d94ab0` shim retired + `f62b895` matrix): grep cross-check confirmed ZERO
+> importers; shim deleted, 5 Sphinx refs repointed to `transport.fields.scalar_flux`, suite collects (5616
+> tests), sphinx-build clean. **CAMPAIGN COMPLETE — S1–S12 + peierls #264 all committed, branch UNPUSHED.**
+> Optional follow-ups only (invariant-survey candidates, not scheduled): Quadrature laws, albedo `α∈[0,1]`
+> wiring, `eg` monotonicity, HarmonicMomentField realizability. The campaign's
+> behavioral + invariant work is otherwise COMPLETE. Remaining invariant-survey candidates (not yet scheduled):
+> Quadrature laws, albedo `α∈[0,1]` wiring (validators exist), `eg` monotonicity, HarmonicMomentField
+> realizability — all `module:*` improvement candidates if/when the user wants them.
+
+> **(prior status header — superseded) — S10a DONE + a peierls bug (#264) found/fixed**
+
+> **✅ S10a DONE + committed** (3 commits on `feature/field-typed-operator-algebra`, **NOT pushed**):
+> `0aabde4 fix(cp)` (peierls #264) → `2b57083 feat(data)` (S10a) → `1d4df67 chore(docs)` (matrix). χ is now a
+> self-validating `EmissionSpectrum(np.ndarray)` (`orpheus/data/emission_spectrum.py`: `assert_normalized`/
+> `is_emitting`/`assert_null`) enforced once at the SOURCE via `enforce_emission_spectrum(chi, *, is_producing)`
+> in `Mixture.__post_init__` + `Isotope.__post_init__`, NEVER per-cell. **Guard keys on PRODUCTION**
+> (`is_producing`, νΣf>0), NOT fissionability (σf>0) — χ is consumed only as a fission source χ·νΣf·φ
+> (elegance-decisive; retired the billiard `SigF` stand-in hack; `Isotope.is_fissile`=σf>0 kept for
+> `compute_macro_xs`). A source-level VALIDATED NEWTYPE, deliberately outside the flux algebra (cf. #263
+> `SpectrumField`). **Behavior-neutral**: zero χ-value changes; dead non-fissile χ zeroed in `xs_library`
+> B/C/D + ~10 placeholder fixtures (inert: χ·νΣf≡0; DD regression byte-identical). atol=1e-12 (real GENDF
+> residual ~2.2e-16). Gates: intrinsic simplex/null (vv #11 both legs) + container cross-check + real-GENDF
+> no-red proof; L12 re-run 72 passed; pyright 2353=baseline 0 net-new; Sphinx `-W` clean (rich narrative in
+> `cross_section_data.rst`). Helper extracted (Pattern 2). ⚠ uncommitted (protected): `error_catalog.md`
+> (ERR-063), agent-memory.
+> **⭐ #264 FILED+FIXED+CLOSED-on-commit** — a LATENT peierls bug surfaced by S10a's strict guard: the MG
+> Peierls–Nyström fission operator indexed χ by the SINK node i (`chi[i]`) not the SOURCE node j, masked
+> because every benchmark region carried an IDENTICAL χ. The strict zeroing of non-fissile χ broke that
+> equality and exposed it (ERR-063). Fixed `chi[i]→chi[j]` at `geometry.py:6426` + `slab.py:313/368`
+> (sphere/cyl delegate; 1g inert); BYTE-IDENTICAL on the original equal-χ benchmarks (k=0.293248… exact,
+> NO Hébert re-baseline); ground = Hébert 2009 Eq 3.57/3.58 + the `trajectory_resolvent` witness (project
+> docs were ALSO contaminated → corrected). New gate `tests/derivations/test_peierls_fission_source_indexing.py`
+> (`catches("ERR-063")`, mutation-verified teeth). numerics-investigator confirmed; archivist corrected docs.
+> **NEXT = S10b** (the multi-fissile χ_mix fix the user committed to: "fix UO2 χ now"): `compute_macro_xs`
+> (`mixture.py:191-194`) uses ONLY the first fissile isotope's χ; replace with the PRODUCTION-WEIGHTED convex
+> average `χ_mix = Σ_i w_i χ_i`, `w_i = a_i Σ_g ν̄_{i,g}σf_{i,g} / Σ_j(…)` (flat-flux weighting, documented;
+> still a simplex → reuses `assert_normalized`). BEHAVIORAL (changes UO2/PWR k_eff — principled re-baseline);
+> single-fissile reduces to identity (byte-identical). Needs test-architect (2-fissile hand-reference + the
+> convex-simplex property + k_eff sensitivity). THEN **S10c** (Mixture XS-balance value-object — promoted
+> from the invariant-survey to in-session work per user) THEN **S11** (`Field`→L2, UNDER REVIEW — entry below).
+> **Survey for the next "thin invariant value-object" (user asked):** ranked candidates = (1) `Mixture`
+> XS-balance `Σt==Σc+ΣL+Σf+Σs+Σ2n` (most insidious — synthetic XS bypass, no k_eff tripwire), (2) `Quadrature`
+> weight-sum/unit-ordinate/moment-exactness, (3) albedo `α∈[0,1]` (validators EXIST, unwired), (4) `eg`
+> monotonicity, (5) `HarmonicMomentField` realizability (already first-class). All χ-template validated-props.
+
+> **(prior status — S9) — S9 COMPLETE; CAMPAIGN BEHAVIORAL WORK DONE (S1–S9)**
 
 > **✅ S9 DONE + committed** (`7180f72` test(sn) + `bc1ebec` docs(sn) + `aee60d4` chore matrix), branch
 > `feature/field-typed-operator-algebra`, **NOT pushed**. The original premise was CORRECTED TWICE this
@@ -360,7 +423,39 @@ there. ⚠ This adds an invariant to EXISTING data → needs an upstream depende
 existing fissile `Mixture` / test fixture must already normalise or it surfaces (correctly) as a
 violation. At pickup, re-decide whether to enforce in `Mixture`, in `assemble_cell_xs`, or as a
 standalone validator — with the benefit of having seen S3/S6 (where χ is actually consumed). This is
-the home the dropped S1 `SpectrumField` was wrongly trying to be.
+the home the dropped S1 `SpectrumField` was wrongly trying to be. **✅ S10a DONE (`2b57083`), production-keyed.**
+
+**S10b — multi-fissile χ_mix production-weighted average (`compute_macro_xs`). IN PROGRESS (2026-06-21).**
+`mixture.py:191-194` uses ONLY `isotopes[fissile_indices[0]].chi` — wrong for multi-fissile fuel (UO2 =
+U235+U238, both fissile in GENDF; U238's spectrum ignored). Replace with the production-weighted convex
+average `χ_mix = Σ_i w_i χ_i`, `w_i = aDen_i·Σ_g(ν̄_{i,g}·σf_{i,g}) / Σ_j(…)` (flat-flux representative
+weighting — the standard data-prep choice; the truly-correct χ_mix is FLUX-weighted, recorded as a
+documented caveat in code/Sphinx, NOT a separate issue per user "don't file, fix now"). A convex combination
+of simplices is a simplex → reuses `EmissionSpectrum.assert_normalized` verbatim. BEHAVIORAL: UO2/PWR k_eff
+shifts (principled re-baseline per [[feedback-principled-over-bit-identical]]); single-fissile reduces to
+identity (byte-identical). test-architect FIRST: 2-fissile hand-reference (L11, hand formula ≠ code), the
+convex-simplex intrinsic property, single-fissile byte-identity, the k_eff-pin re-baseline enumeration.
+
+**S10c — `Mixture` XS-balance invariant `assert_xs_balanced()`. QUEUED (promoted from the invariant-survey,
+in-session per user).** The conservation law `Σt == Σc+ΣL+Σf+Σs,row+Σ2n,row` (the exact line that DERIVES
+SigT in the ENDF path, `mixture.py:206`) is UNCHECKED for every synthetic/MMS/Sood path (which pass SigT
+independently). A typo shifts removal → a plausible wrong k_eff with NO tripwire — the most insidious
+unguarded data-layer invariant. Add `Mixture.assert_xs_balanced()` (a METHOD on the dataclass — the five
+fields are spread, NO ndarray subclass; reuses `total_scattering_xs`/`absorption_xs`) called in
+`__post_init__`. Needs an L20 audit (real ENDF balances by construction; do all synthetic Mixtures?) + an
+FP tolerance. explorer (L20 audit) + test-architect FIRST. **✅ S10b DONE (`50aa862`).**
+**⭐ L20 AUDIT VERDICT (2026-06-21): balance MUST be SCOPED, NOT unconditional `__post_init__`.** 62 factory
+entries balance to FP; the ONLY violators are all INTENTIONAL + test-only: 7 Atalay (`atalay1997.py:58`,
+νΣf=(c−1)Σt for c>1 — documented criticality encoding), 4 structural scaffolds (`placeholder_materials`
+etc.), billiard SigP-carrier. **MMS BALANCES** (manufactures the SOURCE not the XS — hypothesis refuted).
+Nothing production-reachable violates (only `compute_macro_xs` is prod-reachable, derives SigT → balances).
+**SCOPED DESIGN (decided, no boolean flag — that's an anti-pattern):** `Mixture.assert_balanced(atol)` +
+`balance_residual` property (law on the TYPE, queryable); CALLED in `compute_macro_xs` (free real-path
+regression guard) + a physical-table SWEEP test (`get_mixture`×all / Sood / homogeneous — the typo-catcher,
+where the insidious value is); NO `__post_init__` enforcement; manufactured exceptions (Atalay/scaffolds)
+simply not asserted on (exemption = "don't call it", not a flag). Single-source the EXISTING partial
+`xs_library.validate_all()` balance gate through `assert_balanced` (elegance). atol ~1e-9 (balancing
+residuals ≤4.4e-16; violators O(0.1–1), well-separated).
 
 **S11 — relocate `Field` (data storage) out of `numerics/` (L1) to `transport/` (L2) or a new `fields`
 layer. DEFERRED to end-of-plan + UNDER REVIEW (user, 2026-06-19: "why should Field go to L2? push to
