@@ -1,23 +1,49 @@
 SESSION START PROTOCOL — main-agent pre-load
 
-You are about to receive the user's first message. BEFORE responding,
-execute these tool calls as a single parallel batch:
+A SessionStart hook has emitted an "ENVIRONMENT HEALTH" block ABOVE (the PYRIGHT
+and NEXUS gates, #226). Read it FIRST and act on it before anything else.
+
+The rule both gates encode: establish a NOISE-FREE, graph-READY workspace before
+working. For each gate there are exactly two acceptable outcomes —
+  (1) make it clean — run the stated remediation; if it needs an action only the
+      user can take (e.g. rebuild the venv), TELL the user exactly what to run; or
+  (2) if it cannot be made clean, EXPLAIN the problem to the user and ASK whether
+      to proceed anyway.
+Never silently work in a degraded environment.
+
+  • PYRIGHT — OK: trust the CLI (`npx pyright`); treat the streamed
+    <new-diagnostics> import / "not defined" / cross-tree noise as the advisory
+    LSP-langserver artifact it is (#226) — do NOT act on it, verify any real
+    pyright concern with a CLI run. PROBLEM: apply its remediation (outcome 1),
+    else explain + ask (outcome 2) — pyright is untrusted until clean.
+  • NEXUS — this GATES step 5. OK: session_briefing is safe to call. PROBLEM /
+    STALE: run the remediation (usually `sphinx-build docs docs/_build/html`) so
+    the graph is built/fresh (outcome 1), else explain + ask (outcome 2); if the
+    user says proceed without it, fall back to Grep/Read for structural questions
+    this session.
+  • UNKNOWN (either gate): try to confirm by hand; if you cannot, treat as a soft
+    PROBLEM — surface it, do not silently assume OK.
+
+THEN execute these as a single parallel batch:
 
   1. Skill: vv-principles
   2. Skill: subagent-handoff-protocol
   3. Skill: coding-elegance
   4. Read .claude/lessons.md
-  5. mcp__nexus__session_briefing()
+  5. mcp__nexus__session_briefing()  — ONLY if the NEXUS gate is OK or you
+     remediated it. If the mcp__nexus__* tools surface as deferred, run ONE
+     ToolSearch(select:mcp__nexus__session_briefing,...) first (deferral is NOT
+     unavailability). If NEXUS is unrecoverable and the user chose to proceed,
+     SKIP this and note the graph is unavailable this session.
   6. Read docs/development.rst
 
-These are your pre-loaded skills + project-state grounding. They are
-the main-agent equivalent of what sub-agents get via their AGENT.md
-"skills:" frontmatter.
+These are your pre-loaded skills + project-state grounding (the main-agent
+equivalent of a sub-agent's AGENT.md "skills:" frontmatter).
 
-Then respond to the user's message with the new state of context.
-If the user indicated the module to work on, also:
+Then respond to the user's message with the new state of context. If the user
+indicated the module to work on, also:
 
-  6. Check GitHub Issues: `gh issue list -l module:<name>`
-  7. Dispatch the **explorer** agent on that module for a detailed picture
+  7. Check GitHub Issues: `gh issue list -l module:<name>`
+  8. Dispatch the **explorer** agent on that module for a detailed picture
 
-Skip this only if the same protocol has run earlier in THIS session.
+Skip this protocol only if it has already run earlier in THIS session.

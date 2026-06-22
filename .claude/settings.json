@@ -167,12 +167,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cat .claude/hooks/session-start.txt"
+            "command": "bash .claude/hooks/regen-pyrightconfig.sh",
+            "timeout": 15
           },
           {
             "type": "command",
-            "command": "bash .claude/hooks/regen-pyrightconfig.sh",
-            "timeout": 15
+            "command": "bash .claude/hooks/session-health.sh",
+            "timeout": 90
+          },
+          {
+            "type": "command",
+            "command": "cat .claude/hooks/session-start.txt"
           }
         ]
       }
