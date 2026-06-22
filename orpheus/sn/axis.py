@@ -180,8 +180,17 @@ class Axis1D(Protocol):
     consumer to handle a "BC that is not a BC", violating Pattern 4.
     """
 
-    edges: np.ndarray
-    coord: AxisCoord
+    # Read-only properties (not mutable attributes): implementers are frozen
+    # dataclasses / expose ``coord`` as a ``@property``. A mutable Protocol
+    # attribute is invariant and rejects a frozen field / read-only property
+    # ("edges is not read-only in protocol"; "coord property not assignable");
+    # a read-only Protocol member accepts both. Matches ``n``/``endpoints``/
+    # ``bc`` below (already read-only) — this is a pure read contract.
+    @property
+    def edges(self) -> np.ndarray: ...
+
+    @property
+    def coord(self) -> AxisCoord: ...
 
     @property
     def n(self) -> int: ...
