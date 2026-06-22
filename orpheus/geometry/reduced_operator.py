@@ -174,6 +174,19 @@ class AngularMeasure(Protocol):
     N: int
     """Number of ordinates."""
 
+    eta: np.ndarray
+    r"""(N,) cylindrical-frame radial direction cosine
+    :math:`\eta = \Omega \cdot \hat{r}` (read by the curvilinear
+    connection-coefficient recursion only)."""
+
+    mu_z: np.ndarray
+    """(N,) axial direction cosine (curvilinear / level-structure side)."""
+
+    level_indices: list[np.ndarray]
+    """Per-:math:`\\mu`-level ordinate-index partition: ``[arange(N)]`` for
+    a slab quadrature (single level), one index array per level for
+    cylindrical-compatible cubatures."""
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # StreamingTerms — geometry-dependent shape per (cell, direction)
@@ -537,7 +550,7 @@ class ReducedStreamingOperator:
             # index; the global ordinate is read through
             # ``level_indices``.  ``mu_x[global_n]`` carries η (the
             # radial direction cosine).
-            level_indices = self._quadrature.level_indices  # type: ignore[attr-defined]
+            level_indices = self._quadrature.level_indices
             global_n = int(level_indices[mu_level_idx][direction_idx])
             eta_n = float(self._quadrature.eta[global_n])
             alpha_lv = self.alpha_per_level[mu_level_idx]
@@ -792,7 +805,7 @@ def cylindrical_streaming(
     #
     # (See SNMesh._setup_cylindrical for the same construction;
     # GitHub Issue #3 tracks the φ-based edge refinement.)
-    mu_z = angular_measure.mu_z  # type: ignore[attr-defined]
+    mu_z = angular_measure.mu_z
     tau_mm_per_level: list[np.ndarray] = []
     mu_start_per_level: list[float] = []
     for level_idx in angular_measure.level_indices:
