@@ -17,28 +17,19 @@ files — do NOT inline it here.
 
 ## 2. Active / in-flight state
 
-- **`feature/field-typed-operator-algebra` (#257 S-series, NOT committed
-  — main agent commits after review):** the field-typed operator-algebra
-  refactor (numerics §5.6/§5.7 category layer). Shipped through S10b:
-  `Functional`/`IntegralKernelOperator` categories, `MultiplicationOperator`
-  (`C=M[σ_t]`), pure σ-free `StreamingOperator`, `EmissionSpectrum`
-  value-object + production-weighted `chi_mix`, ERR-063 (χ source/sink swap)
-  promoted. Latest closeouts: `issue_257_s10b_*`, `issue_257_s10a_*`,
-  `issue_257_s9_*`. Each S-stage closeout carries its own STATUS block.
-- **`feature/sn-space-angle-tier2` (#240/#38/#37 D5b-S3, NOT committed):**
-  the LD spatial-moment iterate fold. IN-FLIGHT BLOCKER = typed-`Field`
-  space-shape widening to hold the φ̂ moment axis across `(L+C)−S` (the
-  Pattern-4 shape gate the crosswalk under-scoped). DONE: `SpatialMomentSpace`
-  factor minted, Σ_s⊗I scattering-lift bridge (byte-id at per_axis==1),
-  d=1 CumprodScan moment-source fix (ERR-061 sweep-side analog), pure-z
-  matvec guard (ERR-062). Resume = `issue_240_d5b_s3_a_inc_c_closeout.md`
-  §BLOCKER + the campaign plan `.claude/plans/issue_240_phase2_*`.
-- **`refactor/sn-foundation-cleanup` (#247/#251, may be merged — verify):**
-  bulk + boundary moment-source consumption (Mode-10 closures). Closeouts
-  `issue_247_legA_*`, `issue_251_legB_*`.
+**None.** The campaigns this agent contributed to — #257 (field-typed
+operator algebra), #240/#158 (LD-on-the-DAG), #247/#251 (foundation
+cleanup), #208/#20 (Wave-O / role-typing) — are **all merged to main**
+(git-verified 2026-06-21). Their landed milestones + commit refs live in
+the SN theory page's **"Development history"** section
+(`docs/theory/discrete_ordinates.rst`); their behavioral lessons are in
+`lessons.md`. The only open SN branch is **#236**
+(`feature/sn-spatial-angular-product`), which this agent has no work on.
 
-> Before resuming any of these: `git log main..<branch>` to confirm what
-> actually landed — these notes freeze at write time.
+> Merge-status in memory goes STALE — notes freeze mid-flight and the work
+> merges in a later session. ALWAYS reconcile a "resume X" against
+> `git merge-base --is-ancestor <hash> HEAD` before acting; never trust a
+> frozen "NOT committed". (Main-agent memory: `git-authoritative-merge-status`.)
 
 ## 3. Durable reference (reusable design)
 
