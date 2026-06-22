@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5534**
+Total tests collected: **5616**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1164, 21.0%
-   L1, 1001, 18.1%
-   L2, 36, 0.7%
+   L0, 1164, 20.7%
+   L1, 1001, 17.8%
+   L2, 36, 0.6%
    L3, 0, 0.0%
-   foundation, 3323, 60.0%
+   foundation, 3405, 60.6%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5445
+   explicit, 5527
    verify, 0
    class-name, 46
    func-name, 0
@@ -109,10 +109,12 @@ Module × level grid
    curvilinear/test_unified_matvec_sphere, 2, 0, 0, 0, 0, 0
    curvilinear/test_w1_clamp_silent_on_flat, 0, 2, 0, 0, 2, 0
    data/test_chi_invariant_enforcement, 0, 0, 0, 0, 13, 0
+   data/test_chi_mix_production_weighting, 0, 0, 0, 0, 8, 0
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_emission_spectrum, 0, 0, 0, 0, 15, 0
    data/test_mixture, 4, 0, 0, 0, 0, 0
    data/test_mixture_scattering_ratio, 0, 0, 0, 0, 3, 0
+   data/test_mixture_xs_balance, 0, 0, 0, 0, 75, 0
    derivations/test_atkinson_product_nystrom, 0, 5, 0, 0, 3, 3
    derivations/test_capability_matrices, 0, 0, 0, 0, 3, 0
    derivations/test_carlvik_galerkin_slab, 0, 18, 0, 0, 0, 0
@@ -361,7 +363,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 283, 0
+   test_layer_imports, 0, 0, 0, 0, 282, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
