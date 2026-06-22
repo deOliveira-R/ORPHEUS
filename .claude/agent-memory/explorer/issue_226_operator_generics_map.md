@@ -7,20 +7,38 @@ metadata:
 
 # Issue #226 — `LinearOperator` algebra `Generic[V]` design map (read-only investigation)
 
-Point-in-time `file:line` are current at 2026-06-18 on `main`. The SHAPE
-(buckets, mixed-sum verdict, TypeVar bound) is the durable part.
+> **TWO passes in this file.** §0–§7 below were the broad "make the whole algebra
+> `Generic[V]`" design map (2026-06-18 on `main`). **§8 is the FOCUSED #226 "B4"
+> cluster re-derivation (2026-06-22, HEAD `7aebab3`)** — the variance break +
+> `_as_boundary` `block_role` mutation, with live pyright errors grounded. **Read
+> §8 FIRST for the B4 carve; §0–§7 is the wider context.** Line numbers in §0–§7
+> are 2026-06-18 and HAVE DRIFTED — re-derive via Nexus. The SHAPE (buckets,
+> mixed-sum verdict) is the durable part.
+>
+> ⚠ **STALE-PREMISE CORRECTION (verified against the current tree):** §0/§5 below
+> recommended `V = TypeVar("V")` UNBOUNDED with "a structural `Vector` protocol …
+> is a larger design; not required." **That `Vector` protocol has SINCE BEEN
+> MINTED and the bound APPLIED.** The current tree
+> (`orpheus/numerics/vector.py:151`) is `V = TypeVar("V", bound=Vector)`, where
+> `Vector` is a structural Protocol (`__add__`/`__sub__`/`__rmul__`/`__truediv__`)
+> satisfied by `np.ndarray`, every `Field` leaf, and `TimedFullField`. So the
+> §0/§5 "unbounded" headline is OBSOLETE — the bounded-Vector design landed, and
+> it is exactly the structural bound §5 said "would be needed if a bound is
+> wanted." Do not re-recommend unbounded V.
 
-## 0. Headline verdict (for the design)
+## 0. Headline verdict (for the design) — 2026-06-18, SUPERSEDED on the V-bound
 
 - A single `Generic[V]` parameterization of `LinearOperator` / `LinearOperatorMixin` /
   `OperatorSum` (+ the composer family) is **CLEAN**. **No production `OperatorSum`
   ever mixes an ndarray-operator with a field-operator.** All real sums are homogeneous.
-- `V` must be **UNBOUNDED** (`V = TypeVar("V")`), NOT `TypeVar("V", bound=Field)`.
-  Two reasons: (1) `np.ndarray` is a legal V and is not a `Field`; (2) the dominant SN
-  field carrier `TimedFullField` is deliberately **NOT a `Field` subclass**
-  (`orpheus/transport/timed_full_field.py:148` — "NOT a Field subclass at the typed-class
-  level"). A `Field` bound would exclude both. If a bound is wanted at all, it would have
-  to be a structural `Vector` protocol (`__add__`/`__sub__`/scalar `__mul__`), not `Field`.
+  (Still true at HEAD.)
+- ~~`V` must be UNBOUNDED~~ — **SUPERSEDED.** The current tree binds
+  `V = TypeVar("V", bound=Vector)` to the structural `Vector` Protocol — the very
+  abstraction this section deferred. `np.ndarray`, every `Field` leaf, and
+  `TimedFullField` all satisfy `Vector` structurally (no inheritance), so the
+  bound EXCLUDES nothing while documenting the contract. The old reasoning that a
+  `Field` bound would exclude `np.ndarray`/`TimedFullField` remains correct — the
+  resolution was a `Vector` bound, not no bound.
 - Making these classes `Generic[V]` is a **pure typing change** — `Generic`/`Protocol` are
   runtime-inert here. The one machinery to respect is `RegistryMixin.__init_subclass__`
   (`key=` kwarg), but **no production class combines `LinearOperatorMixin` with
@@ -265,3 +283,159 @@ MRO (from `orpheus/transport/fields/_bases.py` + `orpheus/numerics/field.py`):
 - singledispatch operators (`ScatteringOperator`, `FissionOperator`): annotate the base
   `@singledispatchmethod` `apply` to the within-group V (TimedFullField); registered arms keep
   concrete annotations. Do NOT force one TypeVar over the whole union.
+
+---
+
+# §8. FOCUSED #226 "B4" cluster — variance break + block_role mutation (2026-06-22, HEAD `7aebab3`)
+
+> The narrower, CURRENT-tree re-derivation for the B4 type-only carve. Line
+> numbers here are HEAD `7aebab3`; re-derive via Nexus if drifted. **No runtime
+> change is required for any B4 fix (flagged in §8.6).**
+
+## 8.0 The premise is LIVE (grounded — `npx pyright orpheus/sn/boundary_realizer.py`)
+
+The B4 cluster reproduces at HEAD:
+- `boundary_realizer.py:125:8` — `Cannot assign to attribute "block_role" for
+  class "LinearOperator[Unknown]"` (the `_as_boundary` mutation site).
+- `boundary_realizer.py:176, 206, 207, 223, 224, 240, …` — `Argument of type
+  "TensorProductOperator" cannot be assigned to parameter "op" of type
+  "LinearOperator[Unknown]"` … `"LinearOperator[V@…]" is not assignable to
+  "TensorProductOperator"`.
+
+Both are ONE root cause: `LinearOperator(Protocol[V])` is **invariant in V** (V in
+both `apply`'s param AND return), and `TensorProductOperator(LinearOperatorMixin)`
+is **bare** (no `[V]`), so its inherited typevar materializes as `Unknown` while
+its own `apply` is `np.ndarray`-typed → cannot unify under invariance.
+
+## 8.1 Which leaves are bare-`LinearOperatorMixin` (→ Unknown) vs parametrized — CURRENT
+
+`V = TypeVar("V", bound=Vector)` (`vector.py:151`). Parametrized today:
+`_AdjointOperator`/`OperatorSum`/`OperatorProduct`/`ScaledOperator`/`IdentityOperator`/
+`ZeroOperator` (all `LinearOperatorMixin[V]`), `StreamingOperator` /
+`InvertibleOperator` (`["FullField"]` — a forward-ref STRING proxy for the real
+runtime carrier `TimedFullField`; layering forbids the import).
+
+**BARE (→ Unknown), the B4 surface** — these need `[np.ndarray]` (their `apply` is
+already `np.ndarray`): `PermutationOperator` (~972), `IncomingOrdinateMaskTensor`
+(~1076), `PeriodicWrapOperator` (~1166), `TensorProductOperator` (~1214 — the
+direct B4 trigger), `SumOfTensorProductsOperator` (~1335), `DiagonalOperator`
+(~1428), `RankOneOperator` (~1651), `MultiplicationOperator` (transport),
+`CollisionOperator` (via `MultiplicationOperator`), `ScatteringOperator`,
+`LegendreMomentScattering`, `FissionOperator`, `SNBoundaryOperator`,
+`AngularAverageOperator`, `IncomingSourceOperator`, `_BoundBoundaryOperator`.
+
+## 8.2 `block_role` — declaration / assignment / read (the :125 site)
+
+- **Declared:** `LinearOperatorMixin.block_role: ClassVar[Optional[BlockRole]] = None`
+  (operator.py:398) — `ClassVar` annotation is DOCUMENTARY (mixin is not a dataclass);
+  leaves override with a PLAIN unannotated `block_role = BlockRole.X` (the :392
+  comment: avoid the dataclass-field mis-detection under `from __future__ import
+  annotations`).
+- **Class-attr on leaves:** `Streaming`=FULL (op.py:325), `Scattering`=BULK
+  (scattering.py:380), `Fission`=BULK (fission.py:179), `SNBoundary`=BOUNDARY
+  (boundary_operator.py:115), `MultiplicationOperator`=BULK (→ `Collision`).
+- **Per-instance assign in composers:** `_AdjointOperator` :623 (inner's role),
+  `OperatorSum` :736 (`_join_block_roles` — DERIVED, the "role by construction"
+  heart; `InvertibleOperator` relies on it), `ScaledOperator` :867.
+- **POST-CONSTRUCTION MUTATION (the :125 error):** `_as_boundary(op)` does
+  `op.block_role = BlockRole.BOUNDARY` (boundary_realizer.py:125) — stamps the
+  realized BC (a generic `TensorProductOperator`/`ScaledOperator`) at the single
+  producer site. ONLY post-construction mutation of `block_role` in the codebase.
+- **`@property` forward:** `_BoundBoundaryOperator.block_role` (_bound_compat.py:113).
+- **Reads:** load-bearing reader is `_BlockRoleMeta.__instancecheck__`
+  (operator.py:200) → instance-level `getattr`. BUT tests read TYPE-LEVEL:
+  `ScatteringOperator.block_role`, `FissionOperator.block_role`
+  (test_operator_block_role.py:94/98). So `block_role` is GENUINELY both
+  class-readable AND per-instance-mutated → **cannot collapse to pure ClassVar
+  (mutation forbids) NOR pure instance field (class read forbids).** The mixin's
+  current `ClassVar`-default + plain-attr-override shape is CORRECT; the :125 error
+  is NOT a `block_role` modeling bug — `op` is typed `LinearOperator[Unknown]`
+  (the Protocol, which has no `block_role` member), so the attribute is "unknown"
+  only because the class is `Unknown`. **Fixing the variance fixes :125.**
+
+## 8.3 `capabilities` — three override kinds, ONE mutation
+
+Mixin declares `capabilities: frozenset[str]` (op.py:378) — plain instance attr.
+Override kinds: (1) class-level `frozenset({...})` constant
+(Identity/Mask/PeriodicWrap/RankOne/Permutation/projection); (2) dataclass
+`field(default_factory=…)` (Streaming/Scattering/Fission/LegendreMoment/
+Multiplication); (3) `@property` DERIVED (`SNBoundaryOperator.capabilities`
+boundary_operator.py:137 — computed from per-face laws, NOT constant;
+`_BoundBoundaryOperator` forwards; `_GaussSeidelResolvent`/`_MomentWindowedResolvent`
+in solver.py:367/551). Composers set it in `__init__`.
+**ONE mutation:** `InvertibleOperator.__init__` (sn/operator.py:766) rebinds
+`self.capabilities = self.capabilities | frozenset({CAP_SOLVE})` after
+`super().__init__` (the frozenset is immutable; the ATTRIBUTE is rebound).
+**Verdict:** mixin MUST keep plain instance-attr `frozenset[str]` (a `ClassVar`
+would make the composer assignments type-errors; `SNBoundaryOperator` NEEDS the
+property; `InvertibleOperator` NEEDS the rebind). **B4 does NOT require touching
+`capabilities` typing.**
+
+## 8.4 `.solve` / capability-gating — how `iteration.py` reaches it
+
+`solve` defined by: `Identity` :903, `OperatorProduct` :821 (iff both), `Scaled`
+:880, `TensorProduct` :1323, `Diagonal` (all-nonzero), `InvertibleOperator` (the
+WDD sweep), `_GaussSeidelResolvent`/`_MomentWindowedResolvent` (solver.py:377/559).
+S/F/B/bare-L do NOT (rank-deficient). `SourceIteration.__init__(L: LinearOperator[V],
+*gains: LinearOperator[V])` (iteration.py:413) gates at construction via
+`_has(L, CAP_SOLVE)` → raises `MissingCapability(TypeError)` (iteration.py:435–443);
+the call is `self.L.solve(rhs[, initial_guess=…])` (iteration.py:467/468), dispatched
+on a runtime `inspect.signature` probe (:458).
+**Type-system gap:** `LinearOperator(Protocol[V])` does NOT declare `solve` at all
+(op.py:256 docstring: "advertised through the capability set rather than the type
+system"). So `self.L.solve(...)` is an attribute access pyright cannot verify on a
+`LinearOperator[V]`-typed value. The capability lattice is a deliberate RUNTIME
+value-partition invisible to the static type — this is the §8.6(c) gap a
+`SolvableOperator` sub-Protocol would close (but at large blast radius — defer).
+
+## 8.5 The exact variance break
+
+`apply(self, x: V, /) -> V` puts V in BOTH param (contravariant) and return
+(covariant) ⇒ pyright infers V **INVARIANT**. `TensorProductOperator` is bare ⇒ its
+inherited typevar is `Unknown`, but its OWN `apply` is `(x: ndarray) -> ndarray`
+(op.py:1304). Consumer `_as_boundary(op: LinearOperator)` (param = implicit
+`LinearOperator[Unknown]`) demands `(x: Unknown) -> Unknown`. Under invariance the
+`ndarray`↔`Unknown` mismatch fails the reverse-direction check → `"LinearOperator[V@…]"
+is not assignable to "TensorProductOperator"`. Same for `ScaledOperator.__init__(op:
+LinearOperator[V])` at :207/:224/:240 (the `ScaledOperator(albedo, base)` wrap).
+
+## 8.6 Candidate re-typings (ranked) + RUNTIME-TOUCH flags
+
+- **(a) ⭐ Parametrize the bare axis-primitives `LinearOperatorMixin[np.ndarray]`**
+  (`TensorProduct`/`Permutation`/`Mask`/`PeriodicWrap`/`Diagonal`/`RankOne`/
+  `SumOfTensorProducts` + the SN-angular ones). Their `apply` ALREADY says
+  `np.ndarray` → V = `np.ndarray` is exact, NO runtime change, override signatures
+  already match. Fixes every `TensorProductOperator`-not-assignable error.
+  Blast radius ~12 type-only lines.
+- **(b) Widen consumers to `LinearOperator[Any]`** — smallest (~3 lines) but a
+  SUPPRESSION, erases V at every composition boundary, does NOT fix :125. LOW
+  QUALITY (Cardinal Rule 1/2) — REJECT.
+- **(c) Split `SolvableOperator(LinearOperator[V], Protocol)` / `TransposableOperator`**
+  — the RIGHT fix for the §8.4 "has solve iff CAP_SOLVE" gap, but LARGE cross-cutting
+  blast radius (every solve-defining class + composer propagation + iteration gate).
+  **Defer to a dedicated issue; do NOT fold into B4** (~3–4× scope blowup).
+- **(d1) Retype `_as_boundary`'s param to `LinearOperatorMixin`** (which DOES declare
+  `block_role`) instead of the bare `LinearOperator` Protocol — type-honest (all
+  realized ops are mixin subclasses), cheap, fixes :125. (d2 = add `block_role` to
+  the Protocol — REJECT, pollutes the minimal universal protocol with an SN concept.)
+
+### ⭐ RECOMMENDATION (min blast radius, preserves `(L + C − S − F/k) @ psi`, zero runtime touch)
+**(a) + (d1).** Parametrize the bare numerics + SN-angular primitives as
+`LinearOperatorMixin[np.ndarray]`; retype `_as_boundary`'s param/return as
+`LinearOperatorMixin`. **Total ~12–15 type-only lines, all class headers / param
+annotations in `operator.py`, `sn/angular_operator.py`, `multiplication_operator.py`,
+`sn/boundary_realizer.py`. NO call site, NO runtime line.** Defer (c). Do NOT touch
+`block_role`/`capabilities` runtime declarations (§8.2/§8.3 — current shape is
+load-bearing).
+
+### ⚠ RUNTIME-TOUCH FLAGS (a B4 proposal should NOT cross these)
+- `StreamingOperator`/`InvertibleOperator` `["FullField"]` is a forward-ref STRING
+  proxy for `TimedFullField` (layering forbids the import). Tightening to the true
+  type forces a runtime import / `TYPE_CHECKING` alias — leave as-is for B4; note
+  for a future numerics↔transport layering pass.
+- `ProjectionOperator`/`ReconstructionOperator` are NON-endomorphic (V_in ≠ V_out:
+  flux↔moments). The single-V `apply(x: V) -> V` does NOT fit them; they live
+  OUTSIDE the `(L+C−S−F−B)` algebra. If the carve touches them it has left B4 scope.
+- `ScatteringOperator`/`FissionOperator` `apply` are `singledispatchmethod` over a
+  small union (per §2) — annotate the dispatch BASE to the within-group V, keep
+  registered arms concrete; do NOT force one TypeVar over the whole union.
