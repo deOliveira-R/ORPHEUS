@@ -136,6 +136,43 @@ Three durable methodology points:
    pieces (the sweep↔global frame at the seam), not in either piece.
 See [[issue-240-d5b-s3-diffusion-limit]].
 
+## L8: The project's own theory page can be the contaminated reference — trace to literature + an independent kernel
+
+ERR-063 (#257 S10a, Peierls MG fission χ sink/source swap, 2026-06-21). The
+suspect line read χ at the SINK node `i` (`B[i·ng+ge,j·ng+gs] += K·chi[i,ge]·νΣf[j,gs]`)
+where the SOURCE node `j` belongs (χ must share the source index with νΣf — the
+fission emission density is a single LOCAL birth quantity at the fission point).
+The trap: `docs/theory/peierls_nystrom.rst` Eq. `peierls-mg-operator` AND the
+`solve_peierls_mg` docstring math BOTH documented the SAME wrong `χ_g(r_i)` — so
+the theory page is NOT a structurally-independent ground (vv §6 reference
+contamination). Confirming the code against its own doc would have confirmed the
+bug. Two structurally-independent grounds settled it: (1) Hébert 2009 Eq. 3.57/3.58
+(textbook integral-transport, χ shares the source argument; via literature-researcher);
+(2) the sibling Variant-α `trajectory_resolvent` solver — a DIFFERENT kernel family —
+already source-indexes χ (`chi_nodes=chi[region_at_node]`, local `chi_nodes·F_r`).
+
+Durable methodology:
+1. **A masked O(1) bug needs a spatially-VARYING field to surface.** χ_i≡χ_j on
+   HEAD's library (every region same χ) hid the swap; the swap is visible ONLY when
+   the field varies across regions. This is H2 (homogeneity nulls the term) applied
+   to a material field, not a flux field. The discriminating probe MUTATES a
+   non-fissile region's χ and asserts k_eff invariance — a region with νΣf=0 emits
+   zero fission neutrons, so its χ is causally meaningless; only sink-indexing leaks
+   it (measured 4.7% k_eff move under the bug, 0 under the fix).
+2. **Byte-identity on the original data is the "no re-baseline" proof.** Stash-vs-fix
+   on the uniform-χ HEAD library gave Δ=0.000e+00 — the fix changes nothing where χ
+   is uniform, so the Hébert Class-B benchmark pins need no re-baseline. Always prove
+   a "fixes-the-bug-without-moving-the-references" claim with a DIRECT old-vs-new
+   value comparison on uniform-field data, not by inspection.
+3. **Twin-path sweep (Cardinal Rule 2) extends to sibling MODULES, not just sites.**
+   The fission-assembly pattern lived at 3 sites in `peierls_nystrom` (geometry.py +
+   slab.py interior + slab.py white-BC) — all fixed. The sibling `trajectory_resolvent`
+   module uses a DIFFERENT assembly (per-node local product, not a K·χ·νΣf matrix) and
+   was already correct — which made it the independent witness. Grep ALL assembly
+   modules, classify each as same-bug / different-structure-correct; the correct
+   sibling is often the structural ground you need.
+See [[issue_257_s10a_peierls_chi_source_swap]] (if logged) + ERR-063.
+
 ## L6: A curvilinear matvec is verified only against a NON-FLAT per-ordinate hand reference
 
 Flat ψ makes every redistribution/routing bug in a curvilinear SN matvec
