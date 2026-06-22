@@ -8483,7 +8483,7 @@ The new Gate 1.6 test
 :func:`tests.sn.test_phase_c_gates.test_sweep_curvilinear_per_ordinate_flat_flux_residual`
 already carries
 ``@pytest.mark.verifies("dd-curvilinear-scalar")`` and
-``@pytest.mark.catches("ERR-026")``.  Per Cardinal Rule 6's
+``@pytest.mark.catches("ERR-026")``.  Per the project's
 V&V harness wiring, the test SHOULD additionally declare:
 
 * ``@pytest.mark.verifies("phase-f-carlson-seed-source-driven")``
@@ -10044,7 +10044,7 @@ Both agree at machine precision (rel. :math:`4.7\mathrm{e}{-15}` sphere /
 hand-ref match).  **1-group is legitimate here**: this is a
 flux-shape / OPERATOR claim (the per-ordinate :math:`P_1` source reads
 :math:`\phi_1`, flux-shape-dependent by construction), NOT an eigenvalue
-claim — the Cardinal-Rule 1-group bar applies only to *eigenvalue*
+claim — the 1-group-degeneracy rule applies only to *eigenvalue*
 verification.
 
 L1 — the directional eigenvalue
@@ -13933,7 +13933,7 @@ The in-scatter sum uses the ORPHEUS scattering convention
 T2 uses a 2-group **asymmetric downscatter-only** :math:`\Sigma_s`
 (:math:`\Sigma_s[0,1]\neq 0`, :math:`\Sigma_s[1,0]=0`) so a transposed
 scattering matrix would produce a detectably wrong group ratio
-(Cardinal Rule 6 — multi-group with asymmetric :math:`\Sigma_s` is
+(the 1-group-degeneracy rule — multi-group with asymmetric :math:`\Sigma_s` is
 mandatory, ``vv-principles`` anti-pattern #3 and failure-mode #6). The
 1-group T1 path is the degenerate :math:`c_{\text{groups}} = (1.0,)`
 reduction of the same dataclass.

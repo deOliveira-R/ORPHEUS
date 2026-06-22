@@ -59,7 +59,7 @@ claim.** The §"Equivalence gate" rows that compare native-matvec
 output to legacy packed-face-slot output are SANITY checks; their
 backing L0/L1 anchors are named explicitly on each row.
 
-**1-group degeneracy guard** (Cardinal Rule 6): every k_inf /
+**1-group degeneracy guard** (the 1-group-degeneracy rule): every k_inf /
 eigenvalue gate here uses ≥2 groups (2eg or 4eg). 1G appears ONLY in
 the existing snapshot suite (e.g. `cyl_1g_homogeneous_LS4_dd_n20`)
 where 1G is the regression — not the verification claim.

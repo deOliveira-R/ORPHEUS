@@ -206,7 +206,7 @@ cylinder = no leakage = k_∞.
 
 **Configuration.**
 
-- 2G case (Cardinal Rule 6: 1G is degenerate for eigenvalue claims):
+- 2G case (the 1-group-degeneracy rule: 1G is degenerate for eigenvalue claims):
   use `analytical.derive_2g` Mixture A 2G XS or build a custom 2G
   matrix with asymmetric SigS (so SigS ≠ SigS^T — guards against
   Mode #6 convention drift). Suggested asymmetric 2G:
@@ -239,7 +239,7 @@ catalog entry warns that symmetric scattering matrices make
 applies here: a 2G symmetric SigS in Gate 3 would hide an MR-only
 broadcast that flips `SigS[k, :, :]` orientation.
 
-**Why 2G not 1G.** Mandatory by Cardinal Rule 6 / `vv-principles`
+**Why 2G not 1G.** Mandatory by the `vv-principles` 1-group-degeneracy rule
 § "1-group degeneracy". 1G's k_∞ = νΣ_f/Σ_a is shape-independent;
 any errors in the spatial / angular discretization or in the
 per-region tensor broadcast are invisible.

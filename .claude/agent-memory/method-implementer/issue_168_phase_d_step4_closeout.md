@@ -138,7 +138,7 @@ require an update in both files (intentional, blast-radius-controlled).
 * **Quadrature-family insensitivity**: snapshots 4 and 5 store
   k=1.5 identically (1.5 vs 1.5000000000000002 — the difference is
   a single ULP, irrelevant). k_∞ is flux-shape independent on
-  uniform reflective by Cardinal Rule 6's canonical statement.
+  uniform reflective by the `vv-principles` 1-group-degeneracy canonical statement.
 
 ### Snapshot 6 — `cyl_2g_3reg_LS4_dd_n40` (rtol target 1e-6 per plan, RELAXED to 1.0e-1)
 

@@ -22,7 +22,7 @@ the verification reference, not a production replacement.
 - **A1-A2** (2026-05-02) — vacuum BC parametrisation + PS-1982 Eq. (21)
   L1 cross-check (structurally-independent kernel reference).
 - **A3** (2026-05-02) — multi-group extension (general G, full G×G
-  scattering matrix, χ-spectrum). Closes 1G Cardinal-Rule-6 gap.
+  scattering matrix, χ-spectrum). Closes 1G-degeneracy gap.
 - **Plan-(b) Options 1+2** (2026-05-02) — multi-region extension
   (k-eigenvalue + fixed-source); Issue #132 reproducer; Garcia 2021
   flux-shape L1 cross-check.
@@ -152,7 +152,7 @@ machine-precision data point for the cross-verification matrix). The
 
 ## What's NOT in scope for Phase B (deferred to future plans)
 
-0. ~~**1-group Cardinal-Rule-6 violation**.~~ **CLOSED IN A3 follow-on
+0. ~~**1-group-degeneracy-rule violation**.~~ **CLOSED IN A3 follow-on
    (2026-05-02).** Prototype extended to multi-group via
    `solve_greens_function_sphere_mg(R, sigma_t, sigma_s, nu_sigma_f, chi)`
    with arbitrary G groups, full G×G scattering matrix (downscatter +

@@ -27,7 +27,7 @@ axes that the #206 carve actually touches:
    (sweep).  Flat ψ telescopes per-ordinate balance by construction
    (vv §H3) and nulls redistribution (vv §H2); the random non-flat field
    is the discriminating stressor.  1-group is degenerate for eigenvalue
-   claims (Cardinal Rule 6) — here the claim is a raw single-application
+   claims (the 1-group-degeneracy rule) — here the claim is a raw single-application
    bit-identity, but ≥2G is kept regardless because group coupling is one
    of the convention axes the carve crosses (L17 crosswalk).
 
@@ -113,7 +113,7 @@ pytestmark = [pytest.mark.regression, pytest.mark.foundation]
 
 _BASELINE_DIR = SN_TESTS_ROOT / "_data" / "affine_carve_baseline"
 
-# ≥2 groups (Cardinal Rule 6: 1G is degenerate). The matvec/sweep
+# ≥2 groups (the 1-group-degeneracy rule: 1G is degenerate). The matvec/sweep
 # bit-identity is size-independent; small N keeps each run sub-second.
 _NG = 2
 _N_CELLS = 8

@@ -3408,8 +3408,8 @@ def _make_2g_asymmetric_mixture(
     sigma_t_g: np.ndarray, sigma_s_matrix: np.ndarray,
 ) -> "Mixture":
     r"""Build a homogeneous 2g non-fissile mixture with a DOWNSCATTER-only
-    asymmetric :math:`\Sigma_s` (Cardinal Rule 6 — 2g is mandatory; the
-    asymmetry keeps the ERR-002 ``SigSᵀ`` transpose hazard live).
+    asymmetric :math:`\Sigma_s` (the 1-group-degeneracy rule — 2g is
+    mandatory; the asymmetry keeps the ERR-002 ``SigSᵀ`` transpose hazard live).
 
     ``sigma_s_matrix[g_from, g_to]`` (ORPHEUS convention).  Absorption
     :math:`\Sigma_{a,g} = \Sigma_{t,g} - \sum_{g'}\Sigma_s[g, g']`
@@ -3450,7 +3450,7 @@ def build_slab_2g_nonvacuum_mms_case(
 
     DOWNSCATTER-only asymmetric :math:`\Sigma_s` (g0→g1 ≠ g1→g0=0) so
     the cross-group transfer is non-trivial and the ERR-002 transpose
-    hazard is live (Cardinal Rule 6 — the MANDATORY ≥2g row).
+    hazard is live (the 1-group-degeneracy rule — the MANDATORY ≥2g row).
     Per-group amplitudes :math:`\mathbf c = (1.0, 0.4)` make the
     group-coupling discriminating: the manufactured source for group 1
     carries a :math:`\Sigma_s[0,1] A_0` in-scatter term feeding from

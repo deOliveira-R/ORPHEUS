@@ -329,7 +329,7 @@ telescopes by construction — vv §H3). Gates that MUST run on stressing config
 - **Anisotropic (P1) scattering** (group-coupling + ℓ≥1 moments):
   `test_affine_carve_bit_identity::si_slab_2g_het` is P1; sphere needs an
   aniso companion — `test_curvilinear_aniso_convergence` (if 1-D-reachable) or
-  the curvilinear MMS rows. ≥2G mandatory (Cardinal Rule 6 — 1G eigenvalue
+  the curvilinear MMS rows. ≥2G mandatory (the 1-group-degeneracy rule — 1G eigenvalue
   degenerate).
 - **NON-flat ψ, per-ordinate (L27), NOT weight-summed:** the adjoint
   reciprocity inner is per-ordinate; the pole-spike gate is per-cell-per-ordinate

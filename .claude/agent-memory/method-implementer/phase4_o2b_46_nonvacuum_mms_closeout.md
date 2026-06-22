@@ -71,7 +71,7 @@ source-driven); NO adjoint.
   amplitude vector `c_groups`, `sigma_t_g`, `sigma_s_matrix` (ORPHEUS
   `SigS[g_from,g_to]`; in-scatter = `SigSᵀ φ`). 1g = `c_groups=(1.0,)`. 2g =
   `(1.0, 0.4)` with DOWNSCATTER-only asymmetric Σs (ERR-002 transpose hazard live,
-  Cardinal Rule 6 mandatory ≥2g). `_make_2g_asymmetric_mixture` helper.
+  the 1-group-degeneracy rule mandatory ≥2g). `_make_2g_asymmetric_mixture` helper.
 - `SNSphericalNonVacuumMMSCase` (+ `build_sphere_nonvacuum_mms_case`) — `k=π/(2R)`
   so A(R)=0.75, B(R)=0.3 (matching the baked SymPy coefficients → L1 cross-check
   holds). r=0 symmetry BC (not a face); inflow only at r=R (`xmax`).

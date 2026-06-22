@@ -1246,11 +1246,11 @@ Multi-group extension (Plan-2 follow-on A3)
 
 The B-phase prototype was 1G — fuel-A-like XS at
 :math:`\Sigt{} = 0.5`, :math:`\Sigs{} = 0.38`, :math:`\nSigf{} =
-0.025`. By Cardinal Rule 6, 1G eigenvalue tests are degenerate:
-:math:`k = \nSigf{}/\Siga{}` is flux-shape independent and computable
-without solving the transport equation. The A3 follow-on
+0.025`. 1G eigenvalue tests are degenerate (the 1-group-degeneracy
+rule): :math:`k = \nSigf{}/\Siga{}` is flux-shape independent and
+computable without solving the transport equation. The A3 follow-on
 (2026-05-02) extends to :math:`\ge 2G` with arbitrary scattering
-matrix and arbitrary fission spectrum, closing the 1G Cardinal-Rule-6
+matrix and arbitrary fission spectrum, closing the 1G-degeneracy
 gap.
 
 Multi-group operator action
@@ -2377,7 +2377,7 @@ while introducing piecewise-:math:`\Sigma_t` accumulators on top.
      :math:`1/\sqrt{1-\mu_{\rm axial}^{2}}` factors out of the
      per-segment τ sum (proved symbolically, see V_α1_cyl_mr.b
      identity below).
-   - **Cardinal Rule 6 (≥2G mandatory) is enforced by Gate 3**: an
+   - **The 1-group-degeneracy rule (≥2G mandatory) is enforced by Gate 3**: an
      asymmetric 2G :math:`\Sigma_s` is required to expose the
      ERR-002 Mode-#6 (convention drift) attack surface; a symmetric
      :math:`\Sigma_s` would hide a per-region transpose bug.
@@ -2974,7 +2974,7 @@ orientation and produce identical numerical output. The
 asymmetric :math:`\Sigma_{s,01}=0.3,\,\Sigma_{s,10}=0.1` (downscatter
 3× upscatter) is the load-bearing anti-Mode-#6 probe.
 
-**Cardinal Rule 6 (≥2G mandatory).** Per
+**The 1-group-degeneracy rule (≥2G mandatory).** Per
 :doc:`/development` § "1-group degeneracy", a 1G eigenvalue test
 is flux-shape independent (:math:`k_\infty = \nu\Sigma_f/\Sigma_a`
 is computable from XS alone, with no transport equation). 1G
@@ -2994,7 +2994,7 @@ verification claim.
      - :math:`k_\infty` (analytical)
      - :math:`k_{\rm eff}^{\rm MR}` vs analytical
      - Achieved
-   * - 1G fuel-A sanity (Cardinal Rule 6 reference: degenerate, not the L1 claim)
+   * - 1G fuel-A sanity (1-group-degeneracy reference: degenerate, not the L1 claim)
      - :math:`\nu\Sigma_f/\Sigma_a` = ``xs["A","1g"]`` ratio
      - rtol
      - :math:`\sim 3\!\times\!10^{-15}`

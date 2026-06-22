@@ -126,7 +126,7 @@ operator (gate 3, the genuine Mode-9).
 
 # 1. GATE LIST (PRIMARY correctness gates clearly separated from the FP-invariance gate)
 
-Config discipline applied throughout (vv Cardinal Rule 6 + H1/H2):
+Config discipline applied throughout (the `vv-principles` 1-group-degeneracy rule + H1/H2):
 ≥2G + heterogeneous + non-flat for every scattering claim; NON-SQUARE
 2-D (x↔y swap defence); `level_symmetric` quad in 2-D (genuine `mu_y`,
 #214-safe); Mode-8 `-O`-safe (`np.testing.assert_*` / `pytest.fail` /
@@ -185,7 +185,7 @@ Two acceptable reference realizations (pick per leg):
   strict-xpass that you then have to remember to un-strict is churn;
   if Inc C makes it pass, it is a PASS, full stop.
   ⚠ **1G CAVEAT:** this test is 1-GROUP (`_make_1g_mixture`). Per
-  Cardinal Rule 6, a 1G test is degenerate for *eigenvalue* claims —
+  the 1-group-degeneracy rule, a 1G test is degenerate for *eigenvalue* claims —
   but this is a FIXED-SOURCE flux-SHAPE claim (the diffusion-limit
   flux profile), and the diffusion limit is a real flux-shape
   phenomenon visible in 1G (the slope-scattering source `Σ_s·φ̂` is
@@ -412,7 +412,7 @@ strict DriftWarning gate stays at the S2 baseline.
 
 ### GATE 5 — 1-group degeneracy guard
 
-**Claim (vv Cardinal Rule 6 / H1):** every scattering/limit claim in
+**Claim (the `vv-principles` 1-group-degeneracy rule / H1):** every scattering/limit claim in
 gates 1+3 uses a 2G-ASYMMETRIC heterogeneous config (in ADDITION to
 any 1G smoke). The slope-scattering source `Σ_s·φ̂` has a group-coupled
 convention (`Σ_s^T` on the slope rows — Mode #6 convention drift in the
@@ -631,7 +631,7 @@ a physics-completion. For now: documented here.
 - vv-principles: Mode 9 (the mis-application is §0/§4); hierarchical
   taxonomy (gate 1 = flux-shape/value claim, NOT eigenvalue — MMS
   can't prove eigenvalues, and the diffusion limit is the structurally-
-  independent value reference); Cardinal Rule 6 / H1 (gate 5);
+  independent value reference); the 1-group-degeneracy rule / H1 (gate 5);
   bit-identity-vs-principled (gate 4 = the negative-control bit-id).
 - Literature: Adams-2001 (the multi-D thick-diffusion verdict, the
   basis-discrimination), BLA-1992 (2-D LD asymptotic), LMM-1987 (the

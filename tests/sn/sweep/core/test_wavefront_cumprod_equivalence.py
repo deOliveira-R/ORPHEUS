@@ -49,8 +49,8 @@ C-phases landed; the legacy reduced-mesh phantom-y axis is gone). The source
 ``AngularSourceSink.from_isotropic`` projects to the SAME ``(N, ng, nx)`` both
 strategies read, so they are directly comparable (no layout bridge).
 
-Cardinal Rule 6 + vv anti-patterns #3/#4 / Mode 9 — what this STRESSES
-=====================================================================
+The 1-group-degeneracy rule + vv anti-patterns #3/#4 / Mode 9 — what this STRESSES
+=================================================================================
 A 1-group flat-flux 1-D test proves NOTHING (H1 1-group + H2 flat
 degeneracies). The equivalence test therefore uses ≥2 GROUPS (mixture A 2g,
 asymmetric downscatter), a heterogeneous per-cell Σ_t, a non-uniform source,

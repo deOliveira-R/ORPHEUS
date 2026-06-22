@@ -783,8 +783,8 @@ def _case_7_closed_form_anchor() -> _ClosedFormAnchorInputs:
     anchor's role: prove the bare sweep + external reflect converges to
     a structurally-independent reference, not gate single-ULP drift.
 
-    NOTE: 1G homogeneous would be degenerate (vv-principles
-    Cardinal Rule 6).  We use 2G to avoid the degeneracy AND to
+    NOTE: 1G homogeneous would be degenerate (the `vv-principles`
+    1-group-degeneracy rule).  We use 2G to avoid the degeneracy AND to
     confirm the anchor holds in the multi-group case.  The
     streaming-equilibrium identity is per-group, so the analytical
     reference for 2G is φ_g = Q_g / (Σ_t,g - Σ_s,g→g - Σ_s,g'→g·R)

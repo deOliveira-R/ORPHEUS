@@ -1,6 +1,6 @@
 r"""Plan-2 follow-on A3 — Multi-group Variant α extension test gate.
 
-Closes the 1G Cardinal-Rule-6 gap from the V&V audit. The Plan 2
+Closes the 1G-degeneracy gap from the V&V audit. The Plan 2
 Part B prototype was verified only at 1G, where k = νΣ_f/Σ_a is
 flux-shape independent — angular, scattering-matrix, and group-coupling
 errors are invisible. A3 Option A extends to ≥2G with arbitrary
@@ -209,7 +209,7 @@ def test_a3_mg_2g_closed_sphere_equals_k_inf_downscatter(
     k_inf. The transfer-matrix k_inf is the dominant eigenvalue of
     A^{-1}·F where A = diag(σ_t) - σ_s.T and F = outer(χ, νσ_f).
 
-    Cardinal-Rule-6 closure: this test exercises non-trivial
+    1-group-degeneracy closure: this test exercises non-trivial
     multi-group coupling (downscatter, fission spectrum) which 1G
     cannot detect.
     """

@@ -3698,7 +3698,7 @@ power-iteration's group-source mixing is accounted for.
 
 - **Slab-1eg-SI passed by accident.**  One-group problems are
   flux-shape independent (``k_inf = νΣ_f/Σ_a`` doesn't depend on
-  ``φ`` shape per ``vv-principles`` Cardinal Rule 6).  The
+  ``φ`` shape per the ``vv-principles`` 1-group-degeneracy rule).  The
   convention drift left the relative shape of ``φ`` unchanged on
   homogeneous-1g; the keff ratio between corrected and drifted
   paths cancels.  Multi-group eigenvalue is where the bug surfaces.

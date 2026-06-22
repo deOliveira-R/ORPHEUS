@@ -26,7 +26,7 @@ peak memory is well under 100 MB including pytest/numpy overhead.
 Catches: any sign-flip / variable-swap / convention-drift bug that
 disturbs ``A^{-1}F`` assembly or its dominant eigenvector — including
 the eigenvector-flip class invisible to a 1G k_inf test (which is
-flux-shape independent per Cardinal Rule 6).
+flux-shape independent per the 1-group-degeneracy rule).
 """
 from __future__ import annotations
 

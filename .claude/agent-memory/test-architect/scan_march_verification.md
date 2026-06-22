@@ -391,7 +391,7 @@ default. Either way they MUST stay green.
   `tests/sn/eigenvalue/test_keff_2d.py::test_si_krylov_heterogeneous_2g_nonflat_flux`
   (8×4 fuel|mod, LS-4, 2G, non-flat guarded) — the scan-march inner must reproduce
   SI≡Krylov flux SHAPE agreement + k_inf. **NEVER a 1-group test** (L2: k is
-  flux-shape-independent at 1G — the cardinal-rule-6 bar). The k_inf anchor
+  flux-shape-independent at 1G — the 1-group-degeneracy bar). The k_inf anchor
   (`test_default_entry_hits_kinf`, `test_2g_eigenvector`) supplies the
   structurally-independent eigenvalue ground.
 - **G6.b — eigenvalue (`test_keff_2d`).** The full `test_keff_2d` class

@@ -294,7 +294,7 @@ def test_ld_thick_diffusive_limit_2g() -> None:
     see a ``Σ_s^T`` transpose / convention bug on the slope rows (1G Σ_s is
     scalar).  This drives a 2-group asymmetric-downscatter thick slab and asserts
     LD ≈ DD at the coarse mesh in BOTH groups — the non-degenerate companion to
-    the 1G gate (vv Cardinal Rule 6 / H1; #240 D5b-S3 GATE 5).
+    the 1G gate (the `vv-principles` 1-group-degeneracy rule / H1; #240 D5b-S3 GATE 5).
     """
     from orpheus.derivations.continuous.mms.sn import _make_2g_asymmetric_mixture
     from orpheus.geometry import BC, CoordSystem, Mesh1D

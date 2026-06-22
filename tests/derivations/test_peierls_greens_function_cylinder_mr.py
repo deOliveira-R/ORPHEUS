@@ -350,7 +350,7 @@ def test_mr_single_region_kinf_1g_fuelA(fuelA_2g_uniform_K3):
     Companion check at 1G: a simpler config to verify the V_α1_cyl
     invariance survives at K=1 for any standard XS. This is NOT a
     substitute for the 2G asymmetric test (1G is degenerate per
-    Cardinal Rule 6); it's an additional safety net.
+    the 1-group-degeneracy rule); it's an additional safety net.
     """
     xs = get_xs("A", "1g")
     # 1G XS from get_xs("A", "1g"): sig_t (1,), sig_s (1, 1), nu*sig_f (1,)

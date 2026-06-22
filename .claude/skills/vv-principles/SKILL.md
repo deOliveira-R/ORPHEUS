@@ -398,9 +398,12 @@ principled chain `mu(M).sum()` and accepting the FP order it produces.
 test cannot detect any error in the spatial, angular, or scattering
 operators — the result is a material-property ratio, computable
 without solving the transport equation. **Multi-group (≥2G) is MUST
-for any verification claim.** This statement is the canonical
-reference cited by `CLAUDE.md` Cardinal Rule 6, `qa/AGENT.md`, and
-`test-architect/AGENT.md`.
+for any verification claim.** This section is the **canonical home**
+of the 1-group-degeneracy rule — historically shorthanded "Cardinal
+Rule 6" across the codebase, a citation retired 2026-06-21 (CLAUDE.md
+has only Cardinal Rules 1–5; this rule lives here, in `vv-principles`,
+with anti-pattern #3 as its operational form). `qa/AGENT.md` and
+`test-architect/AGENT.md` cite this section.
 
 ---
 

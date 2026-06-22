@@ -52,7 +52,7 @@ gotchas, and numerical evidence. Method-implementer ships stubs (per
 
 3. **Key Facts admonition at the top** mirrors the sphere MR / Peierls
    pattern: 5-7 bullets that frontload the load-bearing claims (phase-
-   space, segmentation strategy, Cardinal Rule 6 enforcement,
+   space, segmentation strategy, 1-group-degeneracy rule enforcement,
    structural-independence anchor, V&V limitations).
 
 4. **Gate-results table at the section head** (per Cardinal Rule 3
