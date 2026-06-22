@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
-from scipy.sparse import coo_matrix, csr_matrix
+from scipy.sparse import csr_matrix
 
 from orpheus.data.micro_xs.isotope import NG, Isotope
 
@@ -85,4 +85,4 @@ def interp_sig_s(
     for i in range(n_nz):
         interp_vals[i] = np.interp(log_target[ifrom[i]], xp, val_table_rev[:, i])
 
-    return coo_matrix((interp_vals, (ifrom, ito)), shape=(NG, NG)).tocsr()
+    return csr_matrix((interp_vals, (ifrom, ito)), shape=(NG, NG))

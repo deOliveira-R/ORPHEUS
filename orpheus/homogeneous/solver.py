@@ -106,7 +106,7 @@ class HomogeneousSolver:
     def solve_fixed_source(
         self, fission_source: np.ndarray, flux_distribution: np.ndarray,
     ) -> np.ndarray:
-        return spsolve(self._A.tocsc(), fission_source)
+        return np.asarray(spsolve(self._A.tocsc(), fission_source))
 
     def compute_keff(self, flux_distribution: np.ndarray) -> float:
         prod = (self.mix.SigP + 2.0 * self.sig2_colsum) @ flux_distribution

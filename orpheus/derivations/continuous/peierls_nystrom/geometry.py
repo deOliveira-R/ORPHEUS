@@ -61,6 +61,7 @@ from ...common.kernels import (  # noqa: F401
     ki_n_mp,
 )
 from ...common.quadrature import (
+    Quadrature1D,
     adaptive_mpmath,
     composite_gauss_legendre,
     gauss_legendre,

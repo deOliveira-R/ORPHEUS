@@ -57,7 +57,7 @@ inflow-flux bookkeeping is required by the caller.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 from scipy.sparse import csr_matrix
@@ -73,6 +73,16 @@ from ...common.continuous_reference import (
     ProblemSpec,
     Provenance,
 )
+
+if TYPE_CHECKING:
+    # ``sympy`` is imported lazily inside each symbolic builder (keeps the
+    # heavy symbolic dependency off the module-load path); this type-only
+    # alias makes the ``"sp.Expr"`` signature annotations resolvable without
+    # eagerly importing it. ``TimedFullField`` is likewise a return-type-only
+    # reference (constructed via its own lazy import at the call site).
+    import sympy as sp
+
+    from orpheus.transport.timed_full_field import TimedFullField
 
 
 @dataclass(frozen=True)

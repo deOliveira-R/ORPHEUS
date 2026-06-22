@@ -324,7 +324,7 @@ class DiffusionSolver:
             f"  keff = {keff:9.6f}  #outer = {iteration:3d}"
             f"  rel_change = {rel_change:.2e}"
         )
-        return rel_change < self.outer_tol
+        return bool(rel_change < self.outer_tol)
 
 
 def solve_diffusion_1d(

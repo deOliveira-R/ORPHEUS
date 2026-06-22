@@ -237,4 +237,4 @@ class MOCSolver:
         dphi = np.linalg.norm(flux_distribution - flux_old) / max(
             np.linalg.norm(flux_distribution), 1e-30
         )
-        return dk < self.keff_tol and dphi < self.flux_tol
+        return bool(dk < self.keff_tol and dphi < self.flux_tol)

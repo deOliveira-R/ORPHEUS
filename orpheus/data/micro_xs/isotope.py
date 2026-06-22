@@ -74,7 +74,7 @@ class Isotope:
         emission question ("does it emit fission neutrons?", ``νΣ_f > 0``)
         that the χ simplex/null law keys on.
         """
-        return np.any(self.sigF > 0)
+        return bool(np.any(self.sigF > 0))
 
     @property
     def is_producing(self) -> bool:
