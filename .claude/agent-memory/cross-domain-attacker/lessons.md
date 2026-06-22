@@ -82,8 +82,10 @@ metric, the un-transposed nested recurrence).
 ## L-003 -- Smell #16 (distinct paths/reps to one operator) is the dominant transport tell — fire all four shapes
 
 The single most-recurring native-frame-not-found signal in this project's
-SN/transport work. It is in the AGENT.md promoted kernel; the LESSON is the
-detection discipline. Four shapes, recognise all four BEFORE the fix:
+SN/transport work. NOW PROMOTED into the skill (reference.md Part C, Smell #16,
+2026-06-22) — the four-shape CATALOG is in the skill so every agent fires it; it
+also remains in the AGENT.md promoted kernel. The LESSON here is the detection
+discipline, NOT the catalog. Four shapes, recognise all four BEFORE the fix:
 
 1. Two code paths claiming to be the same discrete operator over different
    storage conventions (cells vs faces; typed field vs raw ndarray). Fix: both
@@ -173,8 +175,15 @@ one slot whose NAME over-commits to one of N consumers).
 How to apply: when assessing a name on a multi-consumer interface, ask "what does
 the SECOND consumer call this?" The decisive first test is a second consumer that
 reads the property with NO first consumer in scope — if it can't, the name is
-strategy-entangled. Candidate for skill Part C as a numbered smell once it has a
-second independent sighting beyond cross-section naming + the scan-march trait.
+strategy-entangled. SKILL-PROMOTION STATUS (re-checked 2026-06-22): HELD for a
+THIRD sighting. Current count = TWO independent (`total_xs` on an
+advection–reaction closure a diffusion solver also consumes; `is_scan_march_compatible`
+= a SCHEME property named after the ScanMarch STRATEGY, the #240 D5 trait). The
+project floor already covers the GENERIC vice via `coding-elegance` ("frame-leak
+parameter naming"); a Part C SMELL earns its slot only when the cross-domain
+detection angle (a 2nd-consumer-with-no-1st-in-scope first test) has a third
+sighting distinct from the two naming cases. Until then, fire it inline, do not
+promote.
 
 ---
 

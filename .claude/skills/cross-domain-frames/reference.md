@@ -33,6 +33,8 @@ rejected. Each subsection covers one branch of mathematics.
 | **Clebsch-Gordan / spherical harmonics algebra** | Scattering kernel decomposition; anisotropic scattering                                                              | Addition theorem, rotation matrices, 3j-symbols                    | Legendre expansion of the scattering kernel is a Clebsch-Gordan decomposition. Truncation error has spectral meaning.                                                                                                                                               |
 | **Tensor networks / tensor-train**               | High-dimensional problems (space × angle × energy); compositional boundary structure; cross-section data compression | MPS / TT, Tucker, CP decomposition, hierarchical Tucker            | Boundary conditions as tensor networks (validated in ORPHEUS). Also: TT-format angular flux for very high-N quadrature. Active research area (Peng, Dektor, Einkemmer).                                                                                             |
 | **Category theory**                              | Method / functor composition across geometries; lifting constructions                                                | Functors, natural transformations, monads                          | LOW-CONFIDENCE for reactor physics. Abstract-nonsense payoff in PDEs is usually small. Possible exception: unified software architecture where the same solver object works across geometries via functorial lifting. Mark low-signal until a concrete win appears. |
+| **Forgetful functor / free-forgetful adjunction** | An abstract algebra at layer N acts on carriers DEFINED at layer N+1, bridged by a structural contract (a Protocol / typeclass / `TypeVar` bound); a layering barrier `N ↛ N+1` someone suspects is a folder-hierarchy artifact | Forgetful functor `U: C_carrier → C_vec` (forgets units/mesh/space-identity, keeps the vector ops), free-forgetful adjunction, the U-image | The structural contract IS the object-image of `U`: a bounded `V = TypeVar(bound=Vector)` means "natural in the U-image of any carrier." This PROMOTES "the barrier is irreducible" from assertion to theorem — `U` has no nameable inverse from inside its codomain, so the algebra cannot reach back up to the concrete carrier; the only lever to dissolve the Protocol is to move the algebra UP a layer (abandon method-agnosticism). ORPHEUS #257: `Vector` is the shadow of the `numerics ↛ transport` DAG, not an independent design choice. First test: build a carrier satisfying the Protocol that is NONE of the known leaves (a moment-only iterate, a tuple-of-fields); if the algebra + drivers consume it unchanged, the U-image is confirmed. |
+| **Cofree comonad / stream comonad**              | A history-bearing / windowed iterate `Xⁿ, Xⁿ⁻¹, …, Xⁿ⁻ᵈ` (a rolling buffer, a Krylov stencil, a time lag); operators that act on ONE timeless slice but are stored on the windowed type | Cofree comonad `Cofree(X, d) = X × Xᵈ`, `extract = at_lag(0)`, comonadic `extend`, the rotating-buffer tail | `Windowed = Cofree(Base, depth=d)`; a comonad acts on the category of TIMELESS objects, so operators are base arrows `Base → Base` lifted through the comonad ONLY by the iteration drivers — the operator algebra NEVER needs the history. FORCES the split of the timeless base out of the windowed type: an operator OUTPUT (a source `Cψ`, a residual `b − Ax`) typed with the windowed type carries a vestigial tail = a type error of ALTITUDE (Smell #16 Shape 3 at one remove). ORPHEUS #257/#217: `TimedFullField = Cofree(FullField, d)`; `FullField` is the comonad's base. First test: zero production sites read `.at_lag(k>0)` on an operator RETURN value (all history consumers are drivers, never the algebra). |
 
 ### A.3 — Analysis (functional, spectral, harmonic)
 
@@ -64,6 +66,7 @@ rejected. Each subsection covers one branch of mathematics.
 | **Dynamical systems theory**            | Fixed-point iterations; convergence / divergence diagnosis; bifurcation near critical | Contraction mapping, Lyapunov functions, center manifold theorem      | Source iteration near criticality has a center manifold — that's why convergence degrades. Explains DSA necessity.                                                                 |
 | **Control theory / adjoint calculus**   | Sensitivity analysis; perturbation of any parameter; uncertainty quantification       | Pontryagin's principle, costate equations, adjoint sensitivity        | Keff sensitivity coefficients are adjoint flux weighted with perturbations — identical to costate in optimal control. Full sensitivity-adjoint framework for free.                 |
 | **Krylov subspace theory**              | Linear system solves; eigenvalue iteration; operator-based methods                    | GMRES, Arnoldi, Lanczos, CG, JFNK                                     | Transport with Krylov acceleration (Warsa, Guthrie, Adams) beats classical source iteration by orders of magnitude. JFNK treats transport + TH coupling without explicit Jacobian. |
+| **Closed-form adjoint of an operator resolvent** | An explicit resolvent formula `T = (I − αK)⁻¹` with a scalar parameter α (a single-collision / single-bounce probability, an albedo, an optical-depth factor); a sensitivity / gradient wanted w.r.t. α | Resolvent-derivative identity `∂T/∂α = T · (∂/∂α)(I − αK) · T = T·K·T = T²·K` (when `K` is α-independent); chain rule for `dk/dα`, adjoint-weighted contraction | Closed-form `∂T/∂α = T²·K` opens ALL adjoint α-sensitivity WITHOUT an AD pass — the gradient is two extra resolvent applications, not a differentiated solver. ORPHEUS Variant α: `compute_resolvent_T_grad_alpha` lifts alongside `compute_resolvent_T`, directly enabling `dk/dα` in closed form. The frame names "differentiate the solver" as "apply the resolvent twice." |
 
 ### A.6 — Asymptotic and multiscale
 
@@ -161,6 +164,43 @@ more smells fire, the cross-domain-attacker should probe.
 10. **Explicit bookkeeping of which-path / which-history** in a
     Monte Carlo or iterative method. Often has a
     measure-theoretic / Girsanov reformulation.
+16. **Structurally distinct paths / representations claiming to be
+    ONE operator or quantity.** The dominant native-frame-not-found
+    tell in transport / SN work (7+ ORPHEUS sightings). Every shape
+    resolves to the SAME elegance move: collapse the distinct paths
+    onto ONE primary object, which turns a correctness COINCIDENCE
+    into a theorem and usually deletes a marshalling shim. Recognise
+    all four shapes — the fix differs per shape; name which one fired:
+    - **Shape 1 — two code paths for one discrete operator** over
+      different storage conventions (cell-centres vs faces; typed
+      field vs raw ndarray; 1-D seed/reflect vs 2-D cell-fill). Risk:
+      the `L`/`L⁻¹` or apply/solve correctness claim is unverified and
+      often silently asymmetric (one path drops a term). Fix: both
+      paths consume the same primary representation (usually the
+      FACES; cell-averages are diamond-difference derivatives of
+      faces).
+    - **Shape 2 — one physical quantity in two incompatible
+      representations** bridged by hand-written index copies (a
+      seed/absorb marshalling; a `sigma: np.ndarray` threaded
+      positionally alongside a typed XS-field view). The bridge IS the
+      missing trace / restriction / multiplication operator un-named.
+      Fix: name and mint that operator (the bridge becomes `ι*`, `M_f`,
+      etc.).
+    - **Shape 3 — an iterate increment `Δx = xⁿ − xⁿ⁻¹` typed as the
+      STATE type x.** Tell: admits illegal `state + state` AND strands
+      the contraction data (ρ, Aitken, a-posteriori bound) with no
+      home. Fix: a difference-space / torsor displacement type (A.1
+      affine-geometry row). Fires one remove out too — an operator
+      OUTPUT typed with the iterating-state's decoration (a
+      history-bearing field returned where a timeless base belongs).
+    - **Shape 4 — a third hand-rolled path ABOUT to be written** (e.g.
+      a backward adjoint sweep) for a per-cell operator already shared
+      by two callers. The smell fires BEFORE the code exists. Fix:
+      re-apply the shared primitive, do not twin it.
+    Cross-link: A.1 affine-geometry row (Shape 3 = the
+    `FluxDisplacement` increment-vs-state distinction); the SN
+    face-flux match (Shape 1/2 — the seed/absorb bridge IS the
+    discrete trace `ι*`, cells are diamond-derivatives of faces).
 
 ### Semantic smells
 
@@ -252,3 +292,27 @@ rationale).
   - New precedent file:
     `scripts/validated_hilbert_schmidt_separable.md` (M1/M2/M4
     verification triad).
+
+- 2026-06-22:
+  - Added Smell #16 (structurally distinct paths/representations
+    to one operator/quantity, four shapes) to Part C structural
+    smells. Justification: 7+ validated ORPHEUS sightings (SN
+    sweep-vs-apply, face-flux boundary-vs-interior storage,
+    Δψ-typed-as-state, twin-BC operator paths, streaming-transpose
+    third path); promoted from the cross-domain-attacker AGENT.md
+    kernel so every agent fires it. Each shape ties to a concrete
+    elegance move (collapse onto one primary object).
+  - Added A.2 rows "Forgetful functor / free-forgetful adjunction"
+    and "Cofree comonad / stream comonad". Justification: validated
+    payoff on the #257 carrier-typing + #217 timeless-base-split
+    design — both produced concrete fail-able first tests (build a
+    non-leaf carrier satisfying `Vector`; zero operator returns read
+    `.at_lag(k>0)`). The forgetful functor promotes "the layer
+    barrier is irreducible" from assertion to theorem; the Cofree
+    comonad forces the timeless-base split and links to Smell #16
+    Shape 3 (operator output typed with the iterate's decoration).
+  - Added A.5 row "Closed-form adjoint of an operator resolvent".
+    Justification: validated payoff on Variant α — the closed form
+    `∂T/∂α = T²·K` (`compute_resolvent_T_grad_alpha` alongside
+    `compute_resolvent_T`) gives gradient-free α-sensitivity / `dk/dα`
+    with no AD pass.

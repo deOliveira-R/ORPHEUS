@@ -70,6 +70,20 @@ any other review work.
     the wrong assertion succeed at raising. The
     structural-independence requirement (L11) applies to ALL test
     design, not just numerical cross-checks.
+12. **NEVER** credit a "behavior-neutral field-zeroing / relabel /
+    no-op retype" claim on the basis of a fast proxy (snapshots didn't
+    move, no guard errors raised, type-check passes) — **instead**
+    re-prove neutrality for EVERY consumer with a direct old-vs-new
+    VALUE comparison (`np.array_equal` / `assert_array_almost_equal_nulp`
+    on the consumer's actual output). A neutrality claim holds only for
+    the ONE fission/emission/operator contract it was proven against;
+    proxies are blind to a per-consumer divergence whose precondition
+    the zeroing itself breaks. ERR-063: "zeroing χ on non-fissile
+    regions is inert" was TRUE for the SN/`compute_macro_xs` contract
+    (χ gated by the SAME region's νΣf) and FALSE for `solve_peierls_mg`
+    (source-region νΣf weighted by SINK-region χ) — the same-χ snapshots
+    masked it because χ_i ≡ χ_j everywhere until the zeroing broke that
+    equality. A green snapshot pinned the masked regime, not the claim.
 
 ---
 
@@ -107,7 +121,7 @@ a different defense (test review, not L0 verification).
 | 8   | Compiled-out assertion (runtime-mode strip) | A test asserts via a bare `assert` statement, but the suite runs under `python -O`, which strips `assert` to a NO-OP. The test collects, passes, and reports green — while asserting **nothing**. Bites hardest for always-on canary/sentinel gates: a tripwire that cannot trip is a *false green* worse than no gate. (ORPHEUS canonical invocation is `-O`; the SN sentinel set mixed bare `assert` with `np.testing.assert_*` — the bare-assert sentinels were inert under `-O`.) | Per gate, decide the runtime mode **explicitly**. A bare-`assert`-bearing gate MUST run **without `-O`** (or be rewritten to use `np.testing.assert_*` / `pytest.fail`, which are function calls and fire under `-O`). Review: grep the gate's tests for `^\s*assert ` and confirm the invocation does not pass `-O`. **NEVER** assume an assert fired just because the test passed under an unknown optimisation level. |
 | 9   | Splitting / acceleration verified only in a degenerate (FP-coincident) regime | An iteration-only change — a splitting (Gauss-Seidel, σ_r-removal), a synthetic accelerator (DSA), a preconditioner — MUST NOT change the converged fixed point, only the rate. But the FP-invariance is often verified ONLY on a regime where the wrong formulation is *accidentally exact*, so the gate is blind to the real bug. Two ORPHEUS instances: (a) the σ_r-fold (#215) — `A_wg.solve(S_residual)` with a σ_r-sweep equals the true solve only for ISOTROPIC flux (`Σ_s0·I` vs `Σ_s0·P_iso`); exact on a fully-reflective uniform box, **46–56 % wrong** on vacuum / heterogeneous. (b) the octant-group G-S shared-face bug (ERR-056) — correct on an AXIS-ALIGNED quadrature (each face one octant), **wrong fixed point** on a diagonal/spherical cubature (shared faces). Both pass the degenerate gate and ship silent errors. | The FP-invariance gate MUST run on a config that BREAKS the degenerate coincidence: an ANISOTROPIC flux (vacuum / heterogeneous / streaming — not the fully-reflective isotropic box) AND, for angular-schedule changes, a DIAGONAL cubature (`lebedev` / `level_symmetric` — not an axis-aligned `product`). Assert the converged flux equals the UN-accelerated (Jacobi / plain-SI) fixed point to solver tolerance, separately from the rate claim. A synthetic accelerator is correctness-safe BY CONSTRUCTION only if its correction → 0 at convergence (DSA); a *splitting* is correct only if every consistent split shares ψ\* — verify it, don't assume it. **NEVER** gate a splitting/acceleration FP-invariance on the isotropic-reflective box or an axis-aligned quad alone. |
 | 10  | Activated-but-unconstrained term (the term runs but the MMS is blind to its sign) | An MMS ansatz's Mode-7 declaration marks a term **activated** (its code path IS exercised — the rows are populated and consumed) — yet the test is still blind to a sign/magnitude error in that term, because the term enters the measured quantity as a HIGHER-ORDER-small forcing that gets absorbed below the convergence floor. Mechanically distinct from Mode 7: Mode 7 is *nulled* (the term cancels by ansatz design, code path NOT run); Mode 10 is *run-but-not-constrained* (the code path executes, but flipping its sign does not move the converged value above the O(hᵖ) floor / value band). ORPHEUS instance (#240 D5b-S4): the 2-D LD stress MMS feeds a non-zero slope-moment SCATTERING source `Σ_s·φ̂` through the LD slope-source rows (instrumented: slope moments 0.26/0.13/0.07, scattered `Σ_s⊗I` and consumed) — so the slope-source code path is genuinely exercised, BUT a sign flip on those rows (and even a 3× magnitude error) leaves the convergence order at ~1.97 and the value band passing, because `Σ_s·φ̂` is an O(h)-small DG-internal forcing whose error enters above O(h²). The "activated" declaration was true; the term was still unverified for its sign. | The Mode-7 activated/nulled declaration is NECESSARY but NOT SUFFICIENT — for every term the declaration marks **activated** AND that carries a sign/convention trap (a slope-row sign, a transpose, a recursion direction), MUTATION-verify the term is also **constrained**: re-introduce the exact sign/factor error and confirm the gate goes RED. If the mutation passes (order/value-band unmoved), the term is *exercised-but-unconstrained* — declare it so in the honest-scope note (NOT "verified", NOT "nulled" — a third state) and, if the trap matters, add a companion gate that isolates the term so its error is O(1) in the measured quantity (e.g. a fixed-source problem where that term is the DOMINANT forcing, not a higher-order perturbation). **When no such isolating regime EXISTS** — the term is localized and never the dominant forcing in ANY configuration (#251 Leg B: a boundary-trace transverse-slope sits below the bulk O(h²) discretization floor everywhere, so there is no "dominant-forcing" regime and an *improves-on-flat* leg is unachievable — a correctly-consumed slope can even make the converged value slightly WORSE) — the companion gate is UNAVAILABLE, and the complete resolution is the STRUCTURAL pair alone: (a) assert the producer threads the projected moment through at MACHINE PRECISION (the stamp/threading proof, with a leggauss-only / structurally-independent reference), AND (b) mutation-verify a CONSUMED sign flip moves the converged value O(1) above the solver tolerance (≫ a named `_CONSUMPTION_TOL`, NOT the sub-floor value band), paired with the no-op control leg (a scalar / zeroed input → byte-identical) that pins the asymmetry. There is then NO value-improvement leg to add — do not manufacture one (it would falsely RED a correctly-consumed term). **NEVER** read "the code path runs" or "the ansatz activates the term" as "a sign error in the term is caught" — only a red mutation proves that. |
-| 11  | Gate-never-executes-the-rewired-path (the named "twin" is green AND its asserts fire, but it never calls the changed production code) | A refactor moves logic onto a NEW production reader (a helper, an accessor, a data field on a packet) and a closeout names an EXISTING gate — typically a slow apply/matvec/round-trip twin — as the bit-identity evidence for the new path. The gate is green and its assertions DO fire (not Mode 8), and the term it would test IS reachable in some configuration (not Mode 10) — but the gate's actual execution path NEVER calls the rewired reader, because the production consumer routes around it (reads the source array directly, uses a batched kernel, or the per-element method has zero non-docstring callers). Distinct from Mode 8 (assertion compiled out) and Mode 10 (path runs but error is sub-floor): here the rewired production line is simply *not on the gate's call graph at all*. The gate's green proves the UNCHANGED siblings are unchanged, not that the new path is correct. ORPHEUS instance (#236 Phase 2 B2): the c-fold moved `c_out=α_out/τ` onto `CellVisit.c_in/c_out` (stamped by new `SNMesh._make_cell_visit`), read ONLY by `DiamondDifference.residual` (diamond.py:308-309). The closeout named the 640s matvec-twin as proof the global-ordinate mapping is byte-correct — but a file-write sentinel in `DD.residual` proved it was **never called** across the entire twin (curvilinear matvec reads `closure.cell_contribution`→`_c_per_level` directly; the per-visit `DD.residual` has ZERO production callers — its lone `scheme.py` "caller" is a docstring). A c_in↔c_out swap in the stamp left the twin AND the full `sweep/core` suite green; only an in-process probe walking real `dag_walk` visits caught it. | For any gate named as evidence that a NEW production line/reader is correct, SENTINEL-INSTRUMENT that exact line (a file-write or counter — **NOT** a bare `assert`, which `-O` strips, and NOT a print that scrolls past) and confirm the gate's run actually EXECUTES it before crediting the gate. If the sentinel never fires, the gate is vacuous FOR THAT CLAIM regardless of its green/assert-firing status — find (or write) a gate whose call graph reaches the new reader, and mutation-verify it reddens. Separately, when the only catchers are tests that build the input packet DIRECTLY with a surrogate that recomputes the production formula, those tests pin the CONSUMER's threading (which field → which slot — mutate the consumer, they red) but are structurally blind to the PRODUCER/stamp (mutate the stamp, they stay green — the surrogate carries the same wrong value on both sides). **NEVER** read "the named twin is green" as "the named twin exercises the rewired code" — only a fired sentinel + a red stamp-mutation proves the new path has a committed catcher. |
+| 11  | Gate-never-executes-the-rewired-path (the named "twin" is green AND its asserts fire, but it never calls the changed production code) | A refactor moves logic onto a NEW production reader (a helper, an accessor, a data field on a packet) and a closeout names an EXISTING gate — typically a slow apply/matvec/round-trip twin — as the bit-identity evidence for the new path. The gate is green and its assertions DO fire (not Mode 8), and the term it would test IS reachable in some configuration (not Mode 10) — but the gate's actual execution path NEVER calls the rewired reader, because the production consumer routes around it (reads the source array directly, uses a batched kernel, or the per-element method has zero non-docstring callers). Distinct from Mode 8 (assertion compiled out) and Mode 10 (path runs but error is sub-floor): here the rewired production line is simply *not on the gate's call graph at all*. The gate's green proves the UNCHANGED siblings are unchanged, not that the new path is correct. ORPHEUS instance (#236 Phase 2 B2): the c-fold moved `c_out=α_out/τ` onto `CellVisit.c_in/c_out` (stamped by new `SNMesh._make_cell_visit`), read ONLY by `DiamondDifference.residual` (diamond.py:308-309). The closeout named the 640s matvec-twin as proof the global-ordinate mapping is byte-correct — but a file-write sentinel in `DD.residual` proved it was **never called** across the entire twin (curvilinear matvec reads `closure.cell_contribution`→`_c_per_level` directly; the per-visit `DD.residual` has ZERO production callers — its lone `scheme.py` "caller" is a docstring). A c_in↔c_out swap in the stamp left the twin AND the full `sweep/core` suite green; only an in-process probe walking real `dag_walk` visits caught it. | For any gate named as evidence that a NEW production line/reader is correct, SENTINEL-INSTRUMENT that exact line (a file-write or counter — **NOT** a bare `assert`, which `-O` strips, and NOT a print that scrolls past) and confirm the gate's run actually EXECUTES it before crediting the gate. If the sentinel never fires, the gate is vacuous FOR THAT CLAIM regardless of its green/assert-firing status — find (or write) a gate whose call graph reaches the new reader, and mutation-verify it reddens. Separately, when the only catchers are tests that build the input packet DIRECTLY with a surrogate that recomputes the production formula, those tests pin the CONSUMER's threading (which field → which slot — mutate the consumer, they red) but are structurally blind to the PRODUCER/stamp (mutate the stamp, they stay green — the surrogate carries the same wrong value on both sides). **NEVER** read "the named twin is green" as "the named twin exercises the rewired code" — only a fired sentinel + a red stamp-mutation proves the new path has a committed catcher. **Sharpening (NEW private adapter/reader):** when the rewired line is a fresh private helper/accessor with no public surface, the gold-standard "the gate executes the rewired line" proof is a **pytest-plugin sentinel that WRAPS the internal call** (an in-process autouse fixture / `monkeypatch` that increments a counter or appends to a list each time the production reader is entered), asserting the counter > 0 at gate end. This is strictly stronger than a file-write probe: it runs IN the test process on the SAME object the production path constructs, so a green twin that routes around the new line (batched kernel, direct source read, zero-caller per-element method) leaves the counter at 0 and reddens the gate — the routed-around path cannot fake the wrap. |
 
 **The mechanism is non-tokenizer.** Modes 1–6 are observable signatures
 of sub-word tokenizer co-location (see `reference.md` §2). Mode 8 is a
@@ -132,6 +146,22 @@ This mode does not get its own ERR-NNN entry until a real solver bug
 is shown to have hidden behind an MMS ansatz in production. The
 abstract risk is documented here (skill table); a concrete instance
 becomes an ERR entry per the "Log every caught bug" directive below.
+
+**Documentation-layer companion to the Mode-10 sub-floor defense.**
+When a term is *exercised-but-unconstrained* (Mode 10 — no isolating
+regime exists, so the verification is a STRUCTURAL pair, not a
+value-improvement leg), the honest-scope note has a second home beyond
+the test: a prophylactic `.. warning::` block IN the theory/RST page
+itself, pre-empting the future over-claim a fresh reader would
+naturally make from the code (e.g. "do NOT read this as 'recovers 2nd
+order at the boundary' — the boundary face-slope sits below the bulk
+O(h²) floor and is verified only structurally, NOT by an
+error-improvement leg"). The warning is a doc-authoring move, not a
+test: it inoculates the *next* session's claim taxonomy at the exact
+page where the over-claim would otherwise be minted. **Always** pair
+the Mode-10 honest-scope note (test side) with a prophylactic
+`.. warning::` (doc side) when the verification is structural-only —
+the test pins the math, the warning pins the language.
 
 ---
 
@@ -389,6 +419,33 @@ verb that exists because `mu(M).sum()` doesn't bit-match
 historical choice; encoding it in the API is reverse-engineering the
 abstraction to fit the implementation. Prefer composing the
 principled chain `mu(M).sum()` and accepting the FP order it produces.
+
+**Anti-pattern to flag — an OFFLINE-isolated error is NOT
+automatically "the floor."** An error measured in isolation (a
+component's residual, a per-kernel discrepancy, a matvec
+self-consistency round-trip ≈ 0, an offline reconstruction's
+truncation) does NOT, by that fact alone, earn the label "dominant
+error floor" OR "the improvement this change buys." Internal
+self-consistency is necessary but **NEVER** sufficient — a
+matvec≡sweep round-trip at 1e-16 proves SI and Krylov solve the SAME
+operator, NOT that the operator's fixed point is correct (ERR-061:
+every component individually correct, the bug was the FRAME-CONSISTENCY
+between two correct components — "O(h²) to the wrong limit is still
+O(h²)"). Before crediting an isolated error as the floor or as an
+improvement, it MUST survive THREE end-to-end checks: (1) an
+**end-to-end swap** — wire the isolated piece into the full solver and
+confirm the claimed effect persists in the converged answer (not just
+the offline residual); (2) a **term-silent control** — zero / scalar-
+ize the term and confirm the converged answer is byte-identical where
+the term should not matter (pins the asymmetry); (3) **amplification —
+the sharpest disproof** — grow the term (3×, 10×) and confirm the
+converged answer gets strictly WORSE against a structurally-independent
+reference. If amplifying the term does NOT degrade the end-to-end
+result, the term is not the floor and the "improvement" is offline-only
+— the claim is REJECTED. AMPLIFY is the strongest single test because a
+genuinely-dominant error term cannot be scaled up without the
+converged value moving; a sub-floor / inert / compensated term stays
+silent under amplification, exposing the false credit.
 
 ---
 

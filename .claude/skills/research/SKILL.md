@@ -508,3 +508,6 @@ All clients enforce throttling automatically.
 - **Prefer open-access** when multiple sources cover the same content
 - **Verify equations against multiple sources** when possible
 - **Map notation** to ORPHEUS conventions when reporting equations
+- **Phantom-citation guard**: a reference whose ONLY provenance is a prior note/memory is UNVERIFIED — resolve its DOI against a real database (CrossRef/OpenAlex/the journal) before relying on it; AI-suggested citations hallucinate
+- **Catalogue ≠ method-source**: a benchmark/catalogue paper that TABULATES results is not the source of the METHOD — trace the method to its original derivation paper, and classify a method by READING its derivation, not by which catalogue cites it
+- **Check the local literature folder FIRST** before any online search — see `.claude/rules/delegation.md` (`scratch/literature/`)

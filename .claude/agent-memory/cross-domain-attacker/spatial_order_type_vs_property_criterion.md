@@ -115,3 +115,15 @@ with a grep-decidable count). The criterion is a PROMOTION CANDIDATE to skill
 Part C as an elegance smell: "expanded-order modeled as a TYPE when only one
 basis exists (the change-of-basis is identity)" = type-theatrics; mirror of the
 existing #16 shapes. Promote after a second independent sighting.
+
+SKILL-PROMOTION STATUS (re-checked 2026-06-22): HELD for a second sighting AND
+because the negative case is already covered at the FLOOR. The decision RULE now
+lives in two non-skill homes: `.claude/rules/coding-standards.md` §"Type vs
+property — before minting a type" (project floor: "if the only change of basis is
+identity → property; worked example = the expanded-order spatial moment") and
+lessons L-004 (the decidable ≥2-non-iso-bases + applied-morphism criterion). A
+Part C SMELL would duplicate the floor rule unless the cross-domain DETECTION
+angle adds something the floor lacks — wait for a second, non-spatial-order
+sighting where the type-theatrics is caught by frame detection rather than by the
+mint-a-type checklist. Cross-reference target confirmed to exist
+(coding-standards.md:25-38).

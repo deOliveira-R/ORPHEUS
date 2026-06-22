@@ -383,6 +383,182 @@ the offending factor.
 
 ---
 
+## Signature 8: Diverges-with-refinement masquerade (unconverged inner solve)
+
+- **Symptom:** The observable (k_eff, flux) *diverges* (or drifts
+  monotonically) as the mesh is refined `h → 0` (or as the angular
+  order is raised), with the textbook fingerprint of an inconsistent
+  discretization — error GROWING under refinement. But the
+  fixed-source / homogeneous sanity cases are clean, and the per-
+  ordinate flat-flux residual (Signature 1's probe) passes. The
+  discretization looks correct yet the answer worsens with `nx`.
+- **Mechanism:** The error is NOT in the discrete operator — it is an
+  **unconverged inner solve** masquerading as a discretization
+  inconsistency. A library convergence flag was discarded (scipy
+  `gmres`/`bicgstab` return `(x, info)`; `info > 0` means "did not
+  converge in `maxiter`" and is silently dropped), OR a hardcoded
+  Krylov `restart` / `maxiter` cap truncates the inner iteration
+  below convergence. Refining the mesh raises the inner system's
+  condition number, so the *same* iteration cap delivers a
+  *progressively less-converged* inner solve — the outer observable
+  drifts because each refinement level is solved to a different
+  (degrading) inner residual, not because the discrete operator is
+  inconsistent. The "diverges with `h`" curve is an artefact of the
+  cap, not the stencil.
+- **Discriminator (rules it out vs Signature 1):**
+  - **Tighten `inner_tol`: the fixed point does NOT move.** If the
+    converged answer is insensitive to `inner_tol` across decades,
+    the inner solve was already converged → it IS a discretization
+    bug (Signature 1). If the answer *moves* when `inner_tol`
+    tightens, the inner solve was the culprit (Signature 8).
+  - **Sweep `restart` (and `maxiter`): the answer SNAPS to the exact
+    value** once the cap clears the iteration count the system
+    actually needs. A discretization bug ignores `restart` entirely;
+    Signature 8 is gated by it.
+  - **Capture and assert the discarded `info` flag.** `info > 0` on
+    any refinement level is the smoking gun — the level "converged"
+    to `maxiter`, not to tolerance.
+- **Diagnostic probe:** At the finest failing mesh, (a) re-solve at
+  `inner_tol ∈ {1e-6, 1e-9, 1e-12}` and tabulate the observable —
+  drift across the column confirms Signature 8; (b) sweep
+  `restart ∈ {30, 100, 300}` (and lift `maxiter`) and watch the
+  observable snap to a stable value; (c) instrument the scipy call
+  to `assert info == 0` per level.
+- **Catching test:** speculative — no dedicated regression test yet.
+  The structural fix is to **never discard the `info` flag**: route
+  every scipy iterative-solver return through a checked wrapper that
+  raises on `info != 0`, and pin it with a deliberately under-`maxiter`
+  case that MUST raise. (When promoted, file the ERR-NNN and link the
+  test path here.)
+- **Catalog entry:** Uncatalogued — pattern only (numerics-investigator
+  lessons L10/L9: "diverges with refinement + a discarded library
+  info-flag = an unconverged inner solve, not a discretization bug";
+  bound the solver cost before declaring a hang).
+- **Why it hides:** It wears Signature 1's costume exactly — error
+  growing under refinement is the canonical "inconsistent
+  discretization" tell, so the investigator anchors on the stencil
+  and never checks the inner residual. The fixed-source and per-
+  ordinate probes pass (the operator IS consistent), which
+  *reinforces* the wrong hypothesis ("the operator is fine, so the
+  bug must be subtle"). The discarded `info` flag is invisible
+  unless you instrument the solver call.
+
+---
+
+## Signature 9: ρ-blind stopping (increment understates the true error)
+
+- **Symptom:** An iterative solver "reports converged" (its stopping
+  test is satisfied, residual prints look small) but the answer is
+  wrong by a factor that **GROWS as the scattering ratio `c → 1`**
+  (or as the dominance ratio `ρ → 1` — near-critical, highly-
+  scattering, optically-thick reflective). At `c = 0.5` the answer is
+  fine; at `c = 0.99` it is visibly off; the error tracks `1/(1−c)`.
+- **Mechanism:** The stopping test measures the **iterate increment**
+  `‖Δψ‖ = ‖ψⁿ − ψⁿ⁻¹‖` and declares convergence when it drops below
+  `tol`. But for a linear fixed-point iteration with spectral radius
+  `ρ`, the true error relates to the increment by
+  `‖ψⁿ − ψ*‖ ≈ ‖Δψ‖ / (1 − ρ)`. As `ρ → 1` (which happens precisely
+  as `c → 1` for source iteration), the increment **understates** the
+  true error by the factor `1/(1−ρ)`, which diverges. The solver
+  stops with a small increment while still far from the fixed point —
+  a *false* convergence, undetectable by the increment-based test.
+- **Discriminator:**
+  - **The error scales as `1/(1−c)` (or `1/(1−ρ)`)**, not as a fixed
+    offset — sweep `c ∈ {0.5, 0.9, 0.99, 0.999}` and the relative
+    error climbs in lock-step with `1/(1−c)`.
+  - **Measure the RESIDUAL `r = Aψ − q`, not the increment.** A
+    residual-based stop is `ρ`-honest: `‖r‖` does NOT carry the
+    `1/(1−ρ)` amplification, so it reports the true distance to the
+    fixed point. If switching the stop from `‖Δψ‖` to `‖r‖` moves the
+    converged answer (and the move grows with `c`), Signature 9 is
+    confirmed.
+- **Diagnostic probe:** Re-run the near-critical case with the
+  residual `r = Aψ − q` computed and asserted below `tol` (NOT the
+  increment). Tabulate converged-`ψ` vs `c ∈ {0.9, 0.99, 0.999}`
+  under both stops; the increment-stop answer drifts with `c`, the
+  residual-stop answer is stable. (See the FluxDisplacement /
+  AngularResidual diagnostic catalogue — the increment lives on the
+  displacement, the residual is the rate-density `r = Aψ − q`.)
+- **Catching test:** speculative — no dedicated regression test yet.
+  The structural fix is `‖Aψ − q‖`-based stopping (or the a-posteriori
+  correction `‖Δψ‖ / (1 − ρ̂)` with an estimated `ρ̂`); pin it with a
+  high-`c` (`c ≥ 0.99`) fixed-source case whose exact answer is known
+  (`φ = Q/Σ_a` for an infinite homogeneous absorber), asserting the
+  converged value to tolerance. ORPHEUS precedent: #208's
+  `FluxDisplacement` carries the `‖Δψ‖/(1−ρ)` a-posteriori true-error
+  estimate for exactly this fix.
+- **Catalog entry:** Uncatalogued — pattern only (numerics-investigator
+  lesson L11: "measure the residual `r = Aψ − q` for a ρ-honest stop,
+  not the increment `‖Δψ‖`").
+- **Why it hides:** The stopping test is *self-consistent* — the
+  increment really did get small, so every printed diagnostic looks
+  healthy. The error is invisible at the moderate-`c` configs that
+  dominate the test suite (`c ≤ 0.9` keeps `1/(1−ρ)` modest); only
+  the near-critical / thick-reflective corner activates the
+  amplification. Without an external truth value at high `c`, the
+  false-converged answer looks plausible.
+
+---
+
+## Signature 10: Stale-snapshot huge-ULP red on ONE geometry (live-correct / frozen-stale)
+
+- **Symptom:** A regression / golden-snapshot test reddens with an
+  **enormous ULP distance** (thousands to millions of ULP, not the
+  handful expected from an FP-reduction-tree change) on a **single
+  geometry** (e.g. SPHERE), while the **sibling geometries** (slab,
+  cylinder, Cartesian) using the same code path pass clean. The
+  failure is localized to one `.npy` baseline, not spread across the
+  suite.
+- **Mechanism:** The PRODUCTION code is **live-correct**; the
+  **SNAPSHOT is stale**. A legitimate, verified change to the
+  production path (a new closure, a re-baselined reduction, a fixed
+  bug) updated the live value, but the frozen `.npy` baseline for that
+  one geometry was never regenerated — so the test compares today's
+  correct output against yesterday's superseded one. The single-
+  geometry locality is the tell: a real new bug in a shared code path
+  would redden the siblings too; a stale baseline reddens only the one
+  snapshot that was missed during re-baselining.
+- **Discriminator:**
+  - **Sibling geometries on the same code path PASS.** A genuine bug
+    in shared logic cannot be that selective — if slab/cylinder are
+    green and only sphere is red, suspect the baseline, not the code.
+  - **Blob-hash the `.npy`** and `git log` the commit that last wrote
+    it; check whether a later, verified production change (the
+    "diverging apply-commit") post-dates the baseline. If the code
+    moved after the snapshot froze, the snapshot is stale.
+  - **The ULP magnitude is wrong for an FP-noise story** — a
+    reduction-tree change drifts by `O(reduction-depth × ULP)` (tens
+    to a few thousand ULP, bounded per `vv-principles` §bit-identity
+    criterion 3). Millions of ULP means the *values genuinely differ*,
+    which is a stale baseline (or a real bug — the sibling-pass test
+    discriminates).
+- **Diagnostic probe:** (a) Run the failing snapshot's siblings — if
+  they pass, Signature 10 is likely. (b) Re-baseline the failing
+  `.npy` against a **structurally-independent** reference (closed-form
+  `k_∞ = νΣ_f/Σ_a`, MMS, or higher-precision recompute) — **NEVER**
+  old-vs-new ULP, which only proves "differs from the stale value,"
+  not "is correct." (c) If the independent reference agrees with the
+  live value, the snapshot was stale → regenerate it.
+- **Catching test:** speculative — this is a *triage* signature, not
+  a single regression gate. The defense is process: re-baseline every
+  geometry's snapshot in the same commit that changes the shared path,
+  and pin the live value against a structurally-independent reference
+  (not the prior snapshot) so a stale baseline cannot masquerade as a
+  bug. (When a concrete instance is catalogued, file the ERR-NNN.)
+- **Catalog entry:** Uncatalogued — pattern only (qa finding; cf.
+  the SPHERE stale-snapshot cluster — multiple frozen baselines went
+  main-baseline-red while production stayed live-correct).
+- **Why it hides:** A red regression test reflexively reads as "you
+  broke something" — the investigator chases the production code
+  instead of the baseline. The huge ULP distance *amplifies* the
+  alarm (looks catastrophic). The fix is to invert the default
+  reaction for a single-geometry huge-ULP red: check the siblings and
+  the baseline's provenance FIRST, and re-baseline against a
+  structurally-independent reference — old-vs-new ULP can never tell
+  you which side is wrong.
+
+---
+
 ## Cross-cutting hygiene rules
 
 These rules are invariants implied by the signatures above. The QA
@@ -481,3 +657,6 @@ canon; signatures here are a derived view.
 | 5         | (uncatalogued) | —            | `tests/sn/test_quadrature.py::TestAlphaRedistribution::test_alpha_dome_non_negative`                 |
 | 6         | ERR-036        | #3 + #4      | `tests/derivations/test_path_ai_legacy_plain_gl_signature.py` + `test_atkinson_product_nystrom.py`   |
 | 7         | ERR-037        | #4           | `tests/derivations/test_case_method_z0.py::test_atalay_z0_table1_isotropic`                          |
+| 8         | (uncatalogued) | —            | speculative — checked-`info` wrapper raising on `info != 0` + under-`maxiter` case that MUST raise   |
+| 9         | (uncatalogued) | —            | speculative — `‖Aψ − q‖`-based stop pinned by high-`c` (`c ≥ 0.99`) fixed-source vs `φ = Q/Σ_a`      |
+| 10        | (uncatalogued) | —            | speculative (triage) — sibling-pass discriminator + re-baseline vs structurally-independent reference|

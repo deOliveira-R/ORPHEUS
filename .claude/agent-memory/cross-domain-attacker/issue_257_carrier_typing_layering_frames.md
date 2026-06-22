@@ -141,6 +141,12 @@ biproduct already captures it, sheaf adds nothing).
 ## Memory-discipline note
 F1 (forgetful-functor → structural-Protocol-is-irreducible) and F4
 (Cofree comonad → timeless-base-split forced + Smell-16-shape-3-at-one-
-remove for history-decorated operator output) are the strong promotion
-candidates for skill Part A.2 at next revision. F2's `isinstance` leak
-test is the one CODE action to carry to plan-mode.
+remove for history-decorated operator output) were the strong promotion
+candidates for skill Part A.2 — both PROMOTED 2026-06-22 (reference.md
+A.2 rows "Forgetful functor / free-forgetful adjunction" and "Cofree
+comonad / stream comonad", each carrying its fail-able first test). F2's
+`isinstance` leak test is the one CODE action to carry to plan-mode (NOT
+promoted — it is a code probe, not a trigger row). F3 (module/multiplier
+algebra) and the biproduct/subtyping frames already had homes
+([[coefficient-field-promotion-frames]] + the existing A.2 tensor-network
+/ operator.py biproduct).
