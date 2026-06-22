@@ -28,9 +28,9 @@ carry DIFFERENT convergence information; related by one preconditioned step
   equation, independent of the iteration scheme; does NOT shrink artificially as
   ρ→1. Cost: +1 matvec/iter (or reuse Krylov's). Needs `‖r‖/‖q‖` (relative) to be
   tolerance-portable (its magnitude scales with Σ_t·V).
-- **Cross-family:** SAME amplification mechanism as
-  [[kinf_homogeneous_curv_mg_inner_tol_amplification]] (ρ/(1−ρ) × inner_tol) and
-  [[krylov_restart_truncation_bug]] (info-flag discard). When a "converged" answer
+- **Cross-family:** SAME amplification mechanism as the k_inf homogeneous
+  curvilinear MG inner-tol amplification (ρ/(1−ρ) × inner_tol) and the Krylov
+  restart-truncation info-flag discard. When a "converged" answer
   is wrong, suspect ρ-blind stopping before suspecting the operator.
 
 ## SIGNATURE 2 — diagnostic method catalogue by typed role (which question each answers)
@@ -44,7 +44,7 @@ algebra. Use as a menu when building convergence/balance diagnostics.
   ρ-blind `‖Δψ‖` honest). LANDED as SI `contraction_ratios`.
 - `true_error_estimate = ‖Δψ‖/(1−ρ)` → catches Signature-1 false-convergence.
 - `where_largest` / per-cell-group-ordinate convergence MAP → localised
-  non-convergence: pole-cell resonance ([[ordinate_scan_pole_cell_resonance]] NaN
+  non-convergence: pole-cell resonance (the ordinate-scan pole-cell-resonance NaN
   family), material-interface slow modes, one group lagging.
 - sign-oscillation detector → iteration-scheme bug (BC-ordering, G-S reflect-order
   ERR-056) vs discrete-operator bug (the sign-mixed-oscillating fingerprint,
@@ -55,10 +55,10 @@ algebra. Use as a menu when building convergence/balance diagnostics.
   Signature-1 per-ordinate flat-flux residual probe.** Exposes per-ordinate balance
   failure that conservation (telescoping) HIDES (vv-principles H3): e.g. the
   curvilinear pole 22%-error SI gives while global balance holds
-  ([[issue_196_phase_g_step2_diagnostic]]).
+  (the #196 Phase G Step 2 pole-error diagnostic).
 - `boundary_vs_interior_split` (FREE from the typed `TimedFullField(bulk, boundary)`
   composite) → discriminates BC-realiser bugs from interior-streaming bugs — the
-  diagnostic the open [[vacuum_bc_eigenvalue_divergence]] investigation needed.
+  diagnostic the open vacuum-BC eigenvalue-divergence investigation needed.
 - `relative_to(source) = ‖r‖/‖q‖` → tolerance-portable honest stopping test.
 - `reduction_ratio(prev)` → ρ-INDEPENDENT convergence health (honest as c→1, unlike
   FluxDisplacement's contraction ratio) — distinguishes "converging slowly" from

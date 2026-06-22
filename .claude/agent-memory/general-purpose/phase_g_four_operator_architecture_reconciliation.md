@@ -1041,12 +1041,11 @@ elegance standard is reachable in 5 migration steps.
   - `orpheus/numerics/eigenvalue.py` — `PowerIteration` etc. home
     (per §21, §29.2)
 
-- **Linked memories**:
-  - `[[issue-168-phase-f-closeout]]` — the twin-bug that triggered
-    the audit
-  - `[[c188-curvilinear-realizer-unify]]` — the BC-realiser
-    unification across slab + curvilinear
-  - `[[wave_5_boundary_realizer]]` — the §16A pattern landing
+- **Related (retired) campaign notes** (closeouts retired in the 2026-06
+  memory distillation; their behavioral lessons live in the agents'
+  `lessons.md`): the #168 Phase-F twin-bug that triggered the audit, the
+  c188 BC-realiser unification across slab + curvilinear, and the §16A
+  boundary-realizer pattern landing.
 
 ## Headline summary
 

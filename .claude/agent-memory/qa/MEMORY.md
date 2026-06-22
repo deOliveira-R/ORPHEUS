@@ -59,9 +59,9 @@ re-verify before acting on any "in-flight" claim.
 - [phase1_moment_space_review.md](phase1_moment_space_review.md) — the
   ERR-039 moment-space P1.1–P1.7 verification-of-record; cited as the
   verification artifact by 3 plan/agent files — **durable**.
-- [issue_247_legA_review.md](issue_247_legA_review.md) — full #247 Leg A
-  (slope-source) review; distilled into L-037. **Retire candidate** (merged
-  campaign; the reusable behavior is in the lesson).
-- [issue_251_legB_review.md](issue_251_legB_review.md) — full #251 Leg B
-  (boundary face-slope) review; distilled into L-038. **Retire candidate**
-  (merged campaign; the reusable behavior is in the lesson).
+- #247 Leg A (slope-source) review — distilled into
+  [L-037](lessons.md) (the full review file was retired with the merged
+  campaign; the reusable behavior lives in the lesson).
+- #251 Leg B (boundary face-slope) review — distilled into
+  [L-038](lessons.md) (the full review file was retired with the merged
+  campaign; the reusable behavior lives in the lesson).

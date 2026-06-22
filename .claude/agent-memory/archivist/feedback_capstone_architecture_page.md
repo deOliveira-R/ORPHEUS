@@ -7,10 +7,9 @@ metadata:
 
 Writing the S5.5 capstone for the SN loss-representation architecture
 (issue #222 sweep-strategy carve + S6 re-layering, COMPLETE). NEW page
-`docs/theory/loss_representations.rst`. Sibling of
-[[feedback_post_wave_cleanup_docs]] (close-out arc) but distinct: this
-is a CAPSTONE for a FINISHED multi-phase campaign, not a single
-follow-up close-out.
+`docs/theory/loss_representations.rst`. Distinct from a single
+follow-up close-out arc: this is a CAPSTONE for a FINISHED multi-phase
+campaign.
 
 **Rule: a capstone documents the LAYER, not the methods.** The page sits
 ABOVE existing per-method pages. discrete_ordinates already owned the

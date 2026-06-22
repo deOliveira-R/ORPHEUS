@@ -69,9 +69,7 @@ bare-critical). Their breadcrumb files are in section 3.
   issues in §2): [direction_n_quadrature_baseline.md](direction_n_quadrature_baseline.md)
   (#123) · [frame_5_qmc_quadrature.md](frame_5_qmc_quadrature.md) (#128) ·
   [issue_100_class_b_mr_mg.md](issue_100_class_b_mr_mg.md) +
-  [issue_132_augmented_nystrom.md](issue_132_augmented_nystrom.md) +
-  [issue_132_cylinder_hebert.md](issue_132_cylinder_hebert.md) (#132/#100) ·
+  [issue_132_augmented_nystrom.md](issue_132_augmented_nystrom.md) (#132/#100) ·
   [issue_129_planar_limit.md](issue_129_planar_limit.md) (#129) ·
-  [peierls_greens_variant_alpha_decision.md](peierls_greens_variant_alpha_decision.md)
-  + [peierls_greens_phase1_closeout.md](peierls_greens_phase1_closeout.md)
+  [peierls_greens_phase1_closeout.md](peierls_greens_phase1_closeout.md)
   (the Variant-α reference-solver chain).

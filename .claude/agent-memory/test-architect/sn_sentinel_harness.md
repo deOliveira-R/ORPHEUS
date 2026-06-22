@@ -29,7 +29,7 @@ the skill's failure-mode table; the skill is the canonical home.
 
 ## Mutation tool (S0 verdict)
 cosmic-ray 8.4.6 over mutmut on Py3.14.3. `local` distributor (NO xdist
-— deadlocks per [[sn-taxonomy-reorg-mapping]]). Scope ONE module via
+— it deadlocks). Scope ONE module via
 `module-path`; ~1 s/mutant; `dump` carries `definition_name` →
 capability node. Does NOT mutate strings. diamond.py FULL per-tier
 score = 99.7 % (373/374; lone survivor `-`→`//` in residual() = minor
