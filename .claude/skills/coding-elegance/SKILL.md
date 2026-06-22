@@ -135,6 +135,8 @@ This is a function named `solve_adjoint`. Adding F (fission) requires a new func
 
 **Anti-pattern signature**: two functions with parallel structure, both doing per-cell WDD recurrence, both seeded with a half-angle face flux, both applying BC at boundary edge — but on different vector layouts. The signature is "I just had to apply this fix in two places."
 
+**Allowed exception — same-role subspace injection.** Strict single-source composition still permits one implicit move: a *same-role* broadcast injection across storages, where a smaller space embeds in a larger one of the **same physical role** (`A ⊂ B`), may be left implicit rather than spelled as a named composition — the embedding is unambiguous and carries no convention to drift. Cross-*role* combinations stay explicitly named. (Narrow carve-out; it exists so an over-zealous reviewer does not reject a legitimate broadcast injection.)
+
 ### Pattern 3 — Named intermediates with domain semantics
 
 **What**: every value that crosses a function boundary, lives across iterations, or appears in a return type gets a name that means something in the domain. Flat reductions over anonymous dimensions are anti-patterns.
@@ -224,11 +226,15 @@ You can call `streaming_op.solve(q, include_collision=False)` and get garbage. T
 
 **What**: don't unify two implementations until you have ≥2 working concrete instances. The pattern shape only becomes visible from the third instance; abstracting from one or two leads to wrong abstractions that calcify into pain.
 
-**Why**: an abstraction extracted from one instance is the instance with extra ceremony. An abstraction extracted from two instances may capture only the accidental commonalities. The Beck/Metz rule of three; the project's amendment is "unify after two instances" (`feedback_unify_after_two_instances.md`) — the project has higher correctness stakes than typical software, so wait until a second working instance exists, then extract the pattern.
+**Why**: an abstraction extracted from one instance is the instance with extra ceremony. An abstraction extracted from two instances may capture only the accidental commonalities. The Beck/Metz rule of three; the project's amendment is "unify after two instances" — the project has higher correctness stakes than typical software, so wait until a second working instance exists, then extract the pattern.
 
 **Trigger**: you are about to write a generic abstraction in advance of any concrete user. The trigger fires the moment you reach for `Protocol`, `ABC`, or generic types and the second concrete consumer does not yet exist.
 
 **Example**: ORPHEUS's `LinearOperator` Protocol was extracted from `SNStreamingOperator` + `SourceIteration` + Peierls' Nyström kernel — three instances, not two. The Carlson seed primitive was extracted from `CarlsonInwardSweep.__call__` (apply-path) AND the sweep-path's need for source-driven form — two instances triggered the helper factoring.
+
+**The concept-count test (forward design check).** Before committing to an abstraction, count the *concepts* the codebase carries before and after it. The right abstraction **shrinks** the count (many shapes collapse into one); the wrong abstraction **multiplies** it (a new generic layer added *on top of* the instances it failed to unify). This is the operational form of Patterns 2 + 5: if a proposed unification does not reduce the concept count, it is not yet the right abstraction — keep the instances. (Phase G's generator-fold collapsed three sweep bodies + the 1-D/2-D iteration + `(L+C).solve`/`L.apply` into one shape: the count went down, so it was right.)
+
+**When one consumer is enough (the don't-over-defer guardrail).** "Wait for ≥2 instances" blocks *no-benefit* abstraction; it does NOT block a genuine **primitive** whose benefit is already *established* — it makes an illegal state unrepresentable, it carries inherent methods the alternative type cannot, or independent expert frames agree it is the right type. Build those at the first consumer. Defer only the *speculative* abstraction (the one whose shape you are still guessing). This is the boundary that reconciles this pattern with anti-pattern #18 (mint a displacement type): #208's `FluxDisplacement` was built fully at one consumer because its benefit was established, not speculative.
 
 ### Pattern 7 — Normalise at the definition site, not at every consumer
 
@@ -286,9 +292,39 @@ Cross-reference: `[[lessons-L17]]` (the durable version of this lesson), `[[less
 
 ---
 
+## CRITICAL: A repeated conditional is a missing type — discriminate once, at the boundary
+
+This is the unifying lens behind several items above and below: anti-patterns #3 (boolean flags), #4 (stringly-typed dispatch), #7 (special-casing the boundary cell), and Patterns 1 (algebra-via-types) and 4 (illegal-states-unrepresentable) are all instances of it. Stated once here; the rest are its corollaries.
+
+**The concept.** The smell is not the *number* of branches — it is **repeated, interior, tag-based discrimination**: the same distinction (`if geometry == "spherical"`, `inner == "krylov"`, `kind="legacy"`) re-asked at many sites, deep in the call tree. Each such conditional is a **type that was never made**. The distinction is real; resolve it *once*, at the boundary, into a value/type — after which the core runs decision-free, because the object it holds already encodes the choice. The domain does not say "if spherical then…"; it says "the spherical operator." Code that reads like the domain (the master standard) carries the geometry in the *object*, not in an `if` repeated at every site.
+
+**The discriminator — essential vs accidental.** Ask: *does adding the next case force me to edit existing branches?*
+- **YES → accidental.** A missing type / an Open–Closed violation. A new geometry must not require editing the sweep AND the matvec AND the BC AND the source. Resolve it to a type; dispatch once.
+- **NO → essential.** A *single, local, one-off* branch — a guard clause, an early return, an exhaustive `match` over a closed sum type — is the honest expression of a genuine split. Keep it explicit; do not "eliminate" it.
+
+So the goal is **not branchless code.** Guard clauses are branches that *reduce* complexity by flattening nesting; an exhaustive `match` is branches the type-checker completeness-checks. The goal is: each distinction decided **once**, as **early** as possible, **recoverable as a type**.
+
+**Why (the same bug-prevention argument as Pattern 2).** Repeated discrimination is a *divergence habitat*: fix one `if geometry ==` site and the three twins survive — a real bug, by construction. A single typed dispatch makes that class unspellable, gives Open–Closed (a new case is new code, not surgery across N sites), and gives **exhaustiveness** (a Protocol or a sum-type `match` lets the type system flag the *missing* case; a scattered `if/elif` with no `else` silently does nothing). The advantage is not "fewer paths" — it is *the distinction cannot drift and cannot be half-handled.*
+
+**Polymorphism is not automatically the fix — know the axis (the expression problem).** "Replace conditional with polymorphism" silently assumes your *cases* grow faster than your *operations*. Polymorphism makes a new *case* cheap (new subclass) and a new *operation* expensive (touch every subclass); a closed sum-type + exhaustive `match` is the exact dual. Pick the structure that makes the axis that varies *most* cheap to extend:
+- cases grow, operations stable → **polymorphism / Protocol family**
+- operations grow, cases stable → **closed sum type + exhaustive `match`** (yes, branches)
+
+In ORPHEUS, geometries/methods are comparatively stable while operations (sweep, matvec, adjoint, moment-projection, DSA, …) keep growing — so polymorphism is usually right *here*, for that reason, not by dogma. Where a subsystem has the opposite shape, the explicit match is the elegant choice.
+
+**The positive forms.**
+- **Resolve at the boundary.** Decide once at construction (`StreamingOperator` already *is* spherical) and pass the typed object down; the core never re-asks. ("Parse, don't validate"; functional-core / imperative-shell; Pattern 7.) This is exactly the *geometry-agnostic via protocol* corollary: if the sweep dispatches geometry through a protocol, the matvec must too — no `if geometry ==` survives in either.
+- **Data-driven dispatch.** Replace a `switch` with a `dict`/registry mapping tag → behaviour: the branch becomes one extensible *data structure*, not control flow scattered across functions (the BC registry; the quadrature factory).
+
+**Trigger.** You are about to write `if <tag> == …` / `elif kind == …`, or add a `mode=` / `is_x=` parameter — OR you notice the *same* such conditional already living elsewhere. STOP: is an existing type/dispatch already carrying this distinction (extend it), or is this a genuine one-off local split (keep the explicit branch)?
+
+**On cyclomatic complexity.** McCabe's CC is a useful *tripwire* ("CC spiked here — go look") but a poor *target*: it is Goodhart-prone (you can shrink the count by *relocating* a branch, not removing it) and essential-blind (it cannot tell a legitimate tokenizer from an accidental geometry re-discrimination). Use it to *find* candidates; use this concept to *judge* them.
+
+---
+
 ## CRITICAL: Anti-patterns to flag
 
-Each line below is a redirect: **NEVER** do X — **instead** do Y. Flag these whenever they appear in code under review. Items 1-12 are the construction-level discipline; items 13-17 are the densest empirical bug clusters from the project's 47-entry catalog (cross-cited evidence at the line endings).
+Each line below is a redirect: **NEVER** do X — **instead** do Y. Flag these whenever they appear in code under review. Items 1-12 are the construction-level discipline; items 13-17 are the densest empirical bug clusters from the project's 47-entry catalog (cross-cited evidence at the line endings). Items #3, #4, and #7 are instances of the unifying concept above (*a repeated conditional is a missing type*).
 
 1. **NEVER** write two implementations of the same mathematical quantity — **instead** factor the common math into a primitive and have both consumers call it. The "twin path" architectural smell is the load-bearing failure mode (Phase F ERR-026 manifestation #6; Phase G the resolution).
 
@@ -325,6 +361,8 @@ Each line below is a redirect: **NEVER** do X — **instead** do Y. Flag these w
 17. **NEVER** loosen a test tolerance to paper over a known approximation gap — **instead** document the gap in the docstring AND the test, pin the gap with a structurally-independent reference proving the residual is genuine approximation (not bug), and file a follow-up issue for closure. ERR-036 and ERR-038 both shipped `tol=5e-2` because "singularity-aware integrator is out of scope"; without the explicit pin, future regressions get swallowed into the same loose tolerance. The tolerance is a CONTRACT; loose contracts must be defended.
 
 18. **NEVER** type an iterative method's increment `Δx = xⁿ − xⁿ⁻¹` as the STATE type `x` — **instead** mint a distinct displacement (difference-space) type. The increment is an element of the difference / tangent vector space `V`, not a state in the affine solution space `A`; typing it as a state both admits the meaningless `state + state` (an affine-axiom violation — the solution set has no natural origin) AND strands the convergence data (contraction ratio `ρ`, the a-posteriori true error `‖Δx‖/(1−ρ)`, Aitken Δ²) with no home, because a state cannot carry "previous"/"step". Tell: the affine / torsor frame was not applied (`cross-domain-frames` A.1 "Affine geometry / torsors"). ORPHEUS precedent: #208 `FluxDisplacement` — the SN source-iteration increment is the difference vector, distinct from `AngularFlux`; `flux+flux` becomes unrepresentable by construction and the c→1 false-convergence fix `‖Δψ‖/(1−ρ)` lives on the displacement. (A construction-level discipline like items 1-12; landed empirically via #208, no ERR-NNN yet.)
+
+> **Floor vs ceiling (de-dup note):** anti-patterns #11 (no untracked "temporary" code) and #12 (clean before merging) are the *diagnostic* framing — how bad code manifests — of the minimum-standard rules now stated *prescriptively* in `.claude/rules/coding-standards.md` (clean-before-extend; retire-as-you-go, incl. the fuller-view-oracle exception). The rule is the **floor** every contributor obeys by default; this skill is the **ceiling**. Keep these anti-patterns here as recognition signals, not as a second copy of the rule.
 
 ---
 
@@ -465,6 +503,8 @@ If the mathematics has a symmetry (the apply-matvec and the sweep are both appli
 
 Phase G's `A_loss.H.solve(response)` exploits the forward/adjoint symmetry: `.H` propagates through `OperatorSum`, no separate adjoint solver exists. Phase F's twin-bug (ERR-026 manifestation #6) was the apply-sweep symmetry broken in code; restoring it dissolves manifestation #7.
 
+**Corollary (geometry-agnostic via protocol).** If the sweep works for a geometry through a discretization *protocol*, the matvec must work too — they are the same algebra applied to the same operator. No per-geometry helper functions survive in the final state: a `transport_operator_matvec_spherical` separate from the generic `transport_operator_matvec` is the symmetry-broken form. The protocol is the single seam both the sweep and the matvec flow through.
+
 ### Bugs cluster at corners, not in the interior
 
 The bug-rich region of a parameter space is the **boundary between regimes**, not the bulk. Homogeneous problems have one regime (the bulk); heterogeneous problems have at least one boundary; the bugs live at the boundary. Slab problems have boundary; sphere/cylinder problems have boundary + pole; the pole is a second corner. Multi-group adds a group-coupling corner. Anisotropic scattering adds an angular-coupling corner. Each corner is where a new term comes alive AND where conventions drift AND where round-off accumulates.
@@ -493,6 +533,14 @@ For ORPHEUS specifically, the project doesn't yet use a units library like `pint
 - When two quantities of different units are about to be combined, the operator (`*`, `/`, `@`) is the visible point where the units update — and the result IS a quantity with a name.
 
 Future Wave: consider promoting physical quantities to `NewType` or to a `pint`-style units-aware wrapper. The 13-bug bare-numpy cluster (ERR-002, ERR-009, ERR-011, ERR-022, ERR-031, ERR-034, ERR-040..ERR-047) would have been caught by units alone — each of those bugs is a quantity passed to a function expecting a quantity of different units / different convention.
+
+### Refactors extend forward, not to fit legacy
+
+A refactor is an architectural opportunity, not a minimal patch. When a change adds a dimension or case (N+1), reach for the **N-dimensional** generalisation instead of bolting on the single new arm — derive the general form, then let every existing case fall out as a specialisation. Retire the legacy shape **as you extend** (the positive retirement *rule* lives in `.claude/rules/coding-standards.md`; the point *here* is the forward-design ambition). The cost is paid once; the alternative grows an arm per case forever. This is the "Ultraplan" framing the user uses for such refactors.
+
+### Deciding whether an unused argument is dead weight
+
+When an argument is currently unused and you are weighing "keep for the future" vs "drop as dead weight", check the **math layering across all solver families** (SN, CP, MoC, diffusion, MC). If the quantity belongs at an *outer* layer for every family, it is dead weight at the inner layer — drop it from the inner signatures and carry it only at the outer layer. Keep it inner only if some family genuinely needs it inner. (The cross-family form of "fewest elements" / "build the right primitive".)
 
 ---
 

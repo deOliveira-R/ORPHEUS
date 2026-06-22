@@ -3,7 +3,7 @@
 Full tool, resource, and schema reference for the Nexus knowledge graph.
 This file is shared across all nexus-* skills.
 
-## Tools (21)
+## Tools (29)
 
 ### Exploration
 | Tool | What it answers | Key args |
@@ -28,6 +28,15 @@ This file is shared across all nexus-* skills.
 | `detect_changes` | Git diff → graph mapping | `scope` |
 | `retest` | Minimum test set after changes | `scope` |
 | `rename` | Safe multi-file rename | `old_name`, `new_name`, `dry_run` |
+
+### Architecture Smells (missing-abstraction family)
+| Tool | What it answers | Key args |
+|------|----------------|----------|
+| `native_place` | Functions that may belong inside a class (Feature-Envy) | `min_callers`, `exclude`, `limit` |
+| `twin_paths` | Independent implementations of the same computation (Type-2/3 clones) | `min_similarity`, `min_tokens`, `exclude`, `limit` |
+| `discriminations` | Tags discriminated at many sites (candidate missing types) | `min_sites`, `exclude`, `limit` |
+| `dead_functions` | Functions/methods with no static callers (dead-code candidates) | `exclude`, `limit` |
+| `protocol_conformers` | Classes satisfying a Protocol's method-set without declaring it | `min_methods`, `exclude`, `limit` |
 
 ### Code+Doc Fusion
 | Tool | What it answers | Key args |
@@ -63,12 +72,13 @@ py:function:orpheus.sn.solver.solve_sn
 py:class:orpheus.cp.solver.CPMesh
 py:method:orpheus.cp.solver.CPMesh.compute_pinf_group
 py:module:orpheus.sn.solver
+py:tag:geometry
 math:equation:alpha-recursion
 doc:theory/discrete_ordinates
 std:label:theory-collision-probability
 ```
 
-## Edge Types (12)
+## Edge Types (13)
 
 | Edge | Meaning | Source |
 |------|---------|--------|
@@ -84,6 +94,7 @@ std:label:theory-collision-probability
 | `type_uses` | Function → type (from annotations) | AST |
 | `tests` | Test function → tested function | AST |
 | `derives` | Derivation → equation | AST |
+| `discriminates_on` | Function → tag it branches on (`if x == "..."`, `match`) | AST |
 
 ## graph_query Pattern Syntax
 

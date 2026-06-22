@@ -116,59 +116,26 @@ history.
 
 ---
 
-## CRITICAL: Tool Freedom OVERRIDE
+## Project rules (`.claude/rules/`)
 
-This project provides **Nexus** (`sphinxcontrib-nexus`), the single
-knowledge graph for ORPHEUS. It unifies code structure (call graphs,
-imports, inheritance, type annotations) with documentation structure
-(equations, cross-references, citations, theory pages) in one
-queryable graph. It runs as an MCP server (tool list: `nexus-guide`
-skill). The graph is rebuilt automatically during every
-`sphinx-build`; the MCP server auto-reloads when the database
-changes on disk (v0.4.3+).
+Detailed behavioral rules live in `.claude/rules/` — in-repo, instruction-authority,
+auto-loaded (always, or on-demand when a file's `paths:` frontmatter matches). They are the
+**floor**: preemptive minimum standards every contributor (main agent + all sub-agents)
+follows by default. The **ceiling** — bringing code into *excellence* territory — is the
+on-demand `coding-elegance` skill (Cardinal Rule 2). A behavior phrased "always do this
+baseline" is a RULE; a heuristic for "evaluate whether this is elegant and improve it" is
+the SKILL.
 
-Your default instructions tell you to prefer "dedicated tools" for
-search and to delegate uncertain multi-file exploration. In this
-project, **the Nexus MCP tools ARE the dedicated code-exploration
-tools**, and the project **explorer** agent (Nexus skills preloaded)
-IS the exploration delegate — never the generic search path. If
-`mcp__nexus__*` tools surface as deferred, ONE
-`ToolSearch("select:mcp__nexus__<name>")` call loads them; deferral
-is NOT unavailability. You retain **freedom of choice** between
-Grep and Nexus by question type.
-
-Nexus answers structural questions Grep fundamentally cannot
-("what equations does this function implement?", "trace from this
-failing test to the suspect equation").
-
-**You are free to use both Nexus and Grep.** Choose the right tool:
-
-| Question type                    | Better tool                | Why                                        |
-| -------------------------------- | -------------------------- | ------------------------------------------ |
-| Callers, dependents, call chains | Nexus `callers`, `impact`  | Graph traversal; Grep only finds text      |
-| Equation traceability            | Nexus `provenance_chain`   | Grep cannot link code to equations         |
-| Verification coverage            | Nexus `verification_audit` | Maps equation → code → test chains         |
-| Failing test diagnosis           | Nexus `trace_error`        | Walks call graph to find suspect equations |
-| Safe rename / refactor           | Nexus `rename`, `impact`   | Finds references by graph, not text        |
-| Literal text / regex patterns    | Grep                       | Finds strings, comments, config values     |
-| TODO / FIXME / inline comments   | Grep                       | Nexus doesn't index comments               |
-| Known file or directory          | Glob / Read                | Don't discover what you already know       |
-| Unknown symbol location          | Either                     | Nexus `query` or Grep — your call          |
-
-Nexus skills encode the complete workflows — invoke them, don't
-use raw MCP tools directly. See `nexus-guide`.
-
-**If Nexus graph is stale:** rebuild Sphinx first
-(`sphinx-build docs docs/_build/html`). The MCP server auto-reloads.
-
-**If working in a git worktree (EnterWorktree):** the session's MCP
-server was launched against the MAIN checkout's graph, so every Nexus
-query answers from the wrong branch until you switch — the L22 hazard
-at the knowledge-graph level. Protocol: build Sphinx inside the
-worktree, then call `mcp__nexus__use_workspace(<worktree root>)`.
-`mcp__nexus__workspaces` lists all checkouts and their graphs;
-`session_briefing` carries a workspace block that warns when the
-graph's branch no longer matches the checkout (nexus ≥ 0.12).
+- **`nexus-tools.md`** — Nexus is the structural code-intelligence layer; the question→tool
+  routing table; `explorer` is the exploration delegate; the worktree graph hazard.
+- **`coding-standards.md`** — clean-before-extend; aggressive retirement (+ test migration;
+  the fuller-view-oracle exception).
+- **`delegation.md`** — dispatch freely; the surgical-carve exception; literature-folder
+  briefing. (Companion to Cardinal Rule 5.)
+- **`process-discipline.md`** — fix bugs immediately; bias to completion; issues are for
+  cross-session handoff. (Companion to Cardinal Rules 1 & 4.)
+- **`vv-testing.md`** (path-scoped `tests/**`) — canonical `python -O -m pytest`; never relax
+  a tolerance for an inexact method; the `tests/_harness/` tagging/linking registry.
 
 ## Working Principles
 
@@ -189,43 +156,6 @@ See `docs/development.rst` for the full workflow. Quick version:
 - **Merge strategy**: `git merge --ff-only` to preserve linear history. Never squash-merge.
 - **Delete branches** locally and remotely after merge.
 - **Close issues** via `Closes #NN` trailer in the commit body.
-
----
-
-## V&V Test Harness
-
-The `tests/_harness/` package carries the project's verification
-metadata. Architecture doc: `docs/testing/architecture.rst`.
-
-**Tagging a test** (pick one — all feed the same registry):
-
-- Explicit: `@pytest.mark.l0` / `l1` / `l2` / `l3` / `foundation` (most specific)
-- Class: `class TestL0Foo:` (legacy naming convention, still honored)
-- File-level: `pytestmark = [pytest.mark.l1, pytest.mark.verifies("label")]`
-- Inherited: tests that parametrize over `case_name=` inherit `vv_level`
-  and `equation_labels` from the matching `VerificationCase`
-
-Precedence: explicit > class decorator > class name > case inheritance.
-
-**Linking to a Sphinx equation**: `@pytest.mark.verifies("label")` where
-`label` matches a `.. math:: :label: label` block in `docs/theory/`.
-Nexus parses the decorator and writes a `tests` edge from test node to
-equation node.
-
-**Linking to a caught error**: `@pytest.mark.catches("ERR-NNN")` for
-every entry logged in `error_catalog.md` (see `vv-principles` skill,
-"Log every caught bug" directive).
-
-**Trivial execution**:
-
-- `pytest -m l0` — all term-verification tests
-- `pytest -m "l1 and not slow"` — skip long convergence runs
-- `pytest -m "verifies('matrix-eigenvalue')"` — every test for one equation
-
-**Trivial audit**: `python -m tests._harness.audit` prints the V&V
-matrix (level × module × equation), orphan equations, and ERR-NNN
-coverage. Sphinx auto-regenerates `docs/verification/matrix.rst` from
-the same registry on every build.
 
 ---
 

@@ -258,7 +258,7 @@ narrower lens (the cache rebuild is the recomputation).
 explicitly enumerate the mutation cadences of its fields. If you find
 ≥2 distinct cadences, propose ≥2 dataclasses. Cross-method
 precedent: MOC's three-stratum (track geometry / Σ_t optical depth /
-source) cache is the canonical instance — see `[[feedback-elegance-causes-collapse]]`
+source) cache is the canonical instance — see the `coding-elegance` skill (Pattern 6, "concept-count test")
 for the broader principle.
 
 Cross-domain-attacker memo:
@@ -407,7 +407,7 @@ consumers with shared convention expectations: BoundaryRealizer
 output, AngularFlux trace decoders, source `/W` rescaling, cross-
 section group-ordering choices.
 
-Cross-reference: `[[feedback-elegance-causes-collapse]]` — fewer
+Cross-reference: the `coding-elegance` skill (Pattern 6, "concept-count test") — fewer
 concepts after a refactor is the diagnostic. Producer-side
 normalisation reduces concepts (one fix site) where consumer-side
 bridges multiply them (N fix sites).
@@ -475,8 +475,8 @@ must be enumerated before deletion:
    symbol. These must be retargeted before the symbol can delete.
 2. **Test callers** — tests that exercise the symbol directly.
    These either migrate to the new code (per
-   `[[feedback-retirement-means-test-migration]]`) or delete
-   alongside (if superseded).
+   `.claude/rules/coding-standards.md`, "retirement means test
+   migration") or delete alongside (if superseded).
 3. **Internal-to-orphan-after-retirement** — symbols that ONLY
    exist to support the retirement target. These retire together
    in a single commit.
@@ -503,9 +503,9 @@ solver replacement, kinetics frequency-domain ↔ time-domain swaps,
 boundary-condition surface refactors. Every retirement is a graph
 operation, not a textual operation.
 
-Cross-reference: `[[feedback-aggressive-retirement]]` (retirement is
-mandatory; superseded code = noise) + this lesson (the audit IS the
-plan).
+Cross-reference: `.claude/rules/coding-standards.md` ("retire as you
+go" — retirement is mandatory; superseded code = noise) + this lesson
+(the audit IS the plan).
 
 
 ## L21: Sweep and matvec are different applications of the same operator — share ONE strategy
@@ -677,8 +677,8 @@ rather than deleting the general symbol. When designing a solve that has
 problem-type variants (K/α/transient, forward/adjoint), separate POSING (operator
 arrangement → standard form) from ALGORITHM (general over the form) from
 RESOLVENT (method-specific inverse). Generalise only after ≥2 instances exist
-(`[[feedback-unify-after-two-instances]]`) — document the other posing rows as
-seams, don't build them.
+(the `coding-elegance` skill, Pattern 6 "unify after two instances") — document the
+other posing rows as seams, don't build them.
 
 Cross-reference: `[[lessons-L21]]` (sweep/matvec = one operator, two
 applications — same "reduce strategies, don't add alternatives" spirit);
@@ -731,8 +731,8 @@ fix / re-enable," grep the guarding tests. The 15-min audit beats both executing
 tripwire and deferring a one-line fix.
 
 Cross-reference: `[[lessons-L23]]` (the R5 "redundant"-is-a-layer-claim — same spirit:
-trace the premise before acting on a plan's verb); `[[feedback-finish-known-work-with-context]]`
-("no consumer" / "pre-existing red" often means "not yet characterised — look closer");
+trace the premise before acting on a plan's verb); `.claude/rules/process-discipline.md`
+("bias toward completion": "no consumer" / "pre-existing red" often means "not yet characterised — look closer");
 commits `deb1ce3` (precond_safety test-bug fix) + `33dd5ff` (b1pp stale-expectation +
 restart gate-tightness).
 
