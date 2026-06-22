@@ -22,15 +22,19 @@ deprecated ``geometry.boundary.BoundaryOperator`` alias was retired
 """
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from orpheus.numerics.operator import (
     BlockRole,
     BoundaryOperator,
     BulkOperator,
+    DiagonalOperator,
     FullOperator,
     IdentityOperator,
     OperatorSum,
+    SumOfTensorProductsOperator,
+    TensorProductOperator,
     ZeroOperator,
 )
 
@@ -125,3 +129,33 @@ class TestGenericOperatorsAreUnclassified:
         assert not isinstance(s, BulkOperator)
         assert not isinstance(s, FullOperator)
         assert not isinstance(s, BoundaryOperator)
+
+    # GAP-1 (B4 carve safety net) — the bare-mixin tensor operators carry NO
+    # default block_role. The BOUNDARY role is an INSTANCE stamp applied by
+    # ``SNBoundaryRealizer._as_boundary`` (Wave O); an un-stamped tensor
+    # operator must classify as ``None`` so ``_join_block_roles`` over it
+    # cannot silently mis-join. Nothing pinned this before the carve, so a
+    # re-typing of ``TensorProductOperator(LinearOperatorMixin)`` →
+    # ``LinearOperatorMixin[D, C]`` that accidentally introduced a non-None
+    # class default would have gone undetected. (See
+    # ``.claude/plans/issue_226_b4_operator_generics_verification.md`` GAP-1.)
+
+    def test_tensor_product_operator_is_unclassified_by_default(self) -> None:
+        d0 = DiagonalOperator(np.ones(3), axis=0)
+        d1 = DiagonalOperator(np.ones(4), axis=1)
+        tp = TensorProductOperator((d0, d1))
+        assert tp.block_role is None
+        assert not isinstance(tp, BulkOperator)
+        assert not isinstance(tp, FullOperator)
+        assert not isinstance(tp, BoundaryOperator)
+
+    def test_sum_of_tensor_products_is_unclassified_by_default(self) -> None:
+        d0 = DiagonalOperator(np.ones(3), axis=0)
+        d1 = DiagonalOperator(np.ones(4), axis=1)
+        tp_a = TensorProductOperator((d0, d1))
+        tp_b = TensorProductOperator((d0, d1))
+        sotp = SumOfTensorProductsOperator((tp_a, tp_b))
+        assert sotp.block_role is None
+        assert not isinstance(sotp, BulkOperator)
+        assert not isinstance(sotp, FullOperator)
+        assert not isinstance(sotp, BoundaryOperator)

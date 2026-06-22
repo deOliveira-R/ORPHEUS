@@ -15,6 +15,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.numerics.iteration import SourceIteration
 from orpheus.numerics.operator import (
     CAP_APPLY,
     CAP_APPLY_TRANSPOSE,
@@ -210,6 +211,23 @@ def test_zero_lacks_solve():
     assert CAP_SOLVE not in cap
     assert CAP_APPLY in cap
     assert CAP_APPLY_TRANSPOSE in cap
+
+
+def test_apply_only_operator_is_not_solvable(matrix_apply_only):
+    """GAP-3 (B4 carve safety net) — capabilities is the single source of
+    truth for invertibility, NOT the mere presence of a ``solve`` surface.
+
+    The inverse-as-operator carve will give the base operator a ``solve`` /
+    ``inverse`` surface; this pin guards that an apply-only leaf does NOT
+    thereby become solvable. ``CAP_SOLVE`` stays absent, and a
+    :class:`SourceIteration` built on it still raises
+    :class:`MissingCapability` at construction (the iteration step is
+    ``psi_(n+1) = L.solve(...)`` and L has no inverse action). See
+    ``.claude/plans/issue_226_b4_operator_generics_verification.md`` GAP-3.
+    """
+    assert CAP_SOLVE not in matrix_apply_only.capabilities
+    with pytest.raises(MissingCapability):
+        SourceIteration(matrix_apply_only)
 
 
 # ───────────────────────────────────────────────────────────────────────
