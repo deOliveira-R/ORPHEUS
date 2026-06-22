@@ -943,7 +943,7 @@ both problem kinds.
 Solution holds:
 
 - :class:`~orpheus.sn.angular_flux.AngularFlux` +
-  :class:`~orpheus.sn.scalar_flux.ScalarFlux` +
+  :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` +
   :class:`~orpheus.sn.boundary_flux.BoundaryFlux` typed fields (NOT
   bare ndarrays);
 - :class:`~orpheus.sn.solution.IterationHistory` carrying tuple-based
@@ -1201,7 +1201,7 @@ fail at construction time (Pattern 4 — illegal states unrepresentable).
    ``algebra-of-record``'s Sphinx stub vs rich narrative discipline.
 
    Source modules: :mod:`orpheus.sn.angular_flux`,
-   :mod:`orpheus.sn.scalar_flux`, :mod:`orpheus.sn.boundary_flux`.
+   :mod:`orpheus.transport.fields.scalar_flux`, :mod:`orpheus.sn.boundary_flux`.
    Foundation tests:
    :file:`tests/sn/test_typed_fields.py` (22 cases, all green).
    Closeout memo:
@@ -1222,7 +1222,7 @@ The three types
      - :math:`\psi(\vec r, \hat\Omega_n, g)`.  ``psi.integrate_angular()``
        returns the :class:`ScalarFlux` (the canonical ``Σ_n w_n ψ_n``
        reduction).
-   * - :class:`~orpheus.sn.scalar_flux.ScalarFlux`
+   * - :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
      - ``(ng, nx, ny)``
      - :math:`\phi_g(\vec r) = \int_{4\pi} \psi\,d\Omega`.  Dunder
        arithmetic: ``a + b``, ``α · phi``, ``phi.at_group(g)``.
@@ -1357,7 +1357,7 @@ Cross-type ``__add__`` table
      - :class:`PerOrdinateSource`
      - :class:`PerOrdinateSource` (within type)
 
-The cross-type with :class:`~orpheus.sn.scalar_flux.ScalarFlux` /
+The cross-type with :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` /
 :class:`~orpheus.sn.angular_flux.AngularFlux` is **not** defined.
 Source density and flux carry the same numpy storage shape but are
 different physical quantities — keeping the types distinct enforces

@@ -1706,7 +1706,7 @@ def solve_sn(
     Solution
         Typed return carrying eigenvalue, typed
         :class:`~orpheus.sn.angular_flux.AngularFlux` +
-        :class:`~orpheus.sn.scalar_flux.ScalarFlux` +
+        :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` +
         :class:`~orpheus.sn.boundary_flux.BoundaryFlux` fields plus an
         :class:`~orpheus.sn.solution.IterationHistory` carrying the
         eigenvalue trajectory.  Issue #197 PR-TYPED-5 — the legacy
