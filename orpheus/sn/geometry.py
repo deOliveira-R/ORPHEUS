@@ -1172,14 +1172,12 @@ class SNMesh:
                 "use anti-diagonal scheduling, not per-cell visits."
             )
         coord = self.reduced.coord
-        if coord is CoordSystem.CYLINDRICAL and mu_level_idx is None:
-            raise ValueError(
-                "cylindrical dag_walk requires mu_level_idx."
-            )
 
-        # Direction-keyed branch: resolve a non-degenerate
-        # representative ordinate, then delegate to the
-        # ordinate-keyed branch (single source of truth — Pattern 2).
+        # Direction-keyed branch: resolve a non-degenerate representative
+        # ordinate, then delegate to the ordinate-keyed branch (single source
+        # of truth — Pattern 2). Cylindrical ``mu_level_idx`` is required by
+        # both ``_representative_ordinate`` and the cylindrical visit iterator,
+        # each via ``_require_mu_level`` (fail-loud at point of use).
         if direction_sign is not None:
             if direction_sign not in (+1, -1):
                 raise ValueError(
@@ -1188,6 +1186,13 @@ class SNMesh:
                 )
             ordinate_idx = self._representative_ordinate(
                 direction_sign, mu_level_idx,
+            )
+        # Exactly one of ordinate_idx / direction_sign was supplied (the XOR
+        # guard above); the direction-keyed arm resolved it, so the ordinate
+        # is now concrete — narrow for the type checker.
+        if ordinate_idx is None:  # pragma: no cover — unreachable per XOR guard
+            raise ValueError(
+                "dag_walk: ordinate_idx unresolved after mode dispatch."
             )
 
         # Ordinate-keyed branch.
@@ -1199,7 +1204,7 @@ class SNMesh:
             return
         if coord is CoordSystem.CYLINDRICAL:
             yield from self._iter_cylindrical_visits(
-                ordinate_idx, mu_level_idx,
+                ordinate_idx, self._require_mu_level(mu_level_idx),
             )
             return
         raise ValueError(  # pragma: no cover — exhaustive match above
@@ -1239,22 +1244,21 @@ class SNMesh:
                 "or cylindrical)."
             )
         coord = self.reduced.coord
-        if coord is CoordSystem.CYLINDRICAL and mu_level_idx is None:
-            raise ValueError(
-                "cylindrical dag_walk_cell_indices requires mu_level_idx."
-            )
         if direction_sign not in (+1, -1):
             raise ValueError(
                 f"direction_sign must be +1 or -1; got {direction_sign}"
             )
 
         # Resolve the representative ordinate's signed primary cosine.
+        # (Cylindrical mu_level_idx is required by _representative_ordinate
+        # and the global-ordinate lookup below, each via _require_mu_level.)
         ordinate_idx = self._representative_ordinate(
             direction_sign, mu_level_idx,
         )
         if coord is CoordSystem.CYLINDRICAL:
+            mu_level = self._require_mu_level(mu_level_idx)
             level_indices = self.quad.level_indices  # type: ignore[attr-defined]
-            global_n = int(level_indices[mu_level_idx][ordinate_idx])
+            global_n = int(level_indices[mu_level][ordinate_idx])
             mu_n = float(self.quad.mu_x[global_n])
         else:
             mu_n = float(self.quad.mu_x[ordinate_idx])
@@ -1271,6 +1275,23 @@ class SNMesh:
             yield from range(self.nx)
         else:
             yield from range(self.nx - 1, -1, -1)
+
+    def _require_mu_level(self, mu_level_idx: int | None) -> int:
+        """Narrow ``mu_level_idx`` to ``int`` for a cylindrical sweep.
+
+        Cylindrical 1-D radial sweeps are organised by μ-level (a subset of
+        azimuthal ordinates at one polar cosine), so every cylindrical
+        traversal needs ``mu_level_idx``; slab/sphere pass ``None``. Single
+        source of truth for the "cylindrical requires mu_level_idx" contract
+        (Pattern 2) — fails loudly (``-O``-safe, not ``assert``) and returns
+        the narrowed ``int`` so callers index ``level_indices`` cleanly.
+        """
+        if mu_level_idx is None:
+            raise ValueError(
+                "cylindrical sweep requires mu_level_idx (which μ-level the "
+                "ordinate subset belongs to); slab/sphere pass None."
+            )
+        return mu_level_idx
 
     def _representative_ordinate(
         self,
@@ -1291,8 +1312,9 @@ class SNMesh:
         coord = self.reduced.coord
         eps = self._DEGENERATE_ABS_ETA_THRESHOLD
         if coord is CoordSystem.CYLINDRICAL:
+            mu_level = self._require_mu_level(mu_level_idx)
             level_indices = self.quad.level_indices  # type: ignore[attr-defined]
-            level_ords = np.asarray(level_indices[mu_level_idx])
+            level_ords = np.asarray(level_indices[mu_level])
             eta_at_level = self.quad.eta[level_ords]
             if direction_sign == +1:
                 cand = np.where(eta_at_level > +eps)[0]
@@ -1301,7 +1323,7 @@ class SNMesh:
             if cand.size == 0:
                 raise ValueError(
                     f"No non-degenerate ordinate in cylindrical level "
-                    f"{mu_level_idx} satisfies "
+                    f"{mu_level} satisfies "
                     f"direction_sign={direction_sign}."
                 )
             return int(cand[0])
