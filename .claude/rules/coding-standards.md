@@ -22,6 +22,21 @@ structural debt.
   needed a new arm in the converter, constructor, AND trace gate — until the cleanup
   inversion let 3-D flow through the one generic body.)
 
+## Type vs property — before minting a type
+
+A representation earns its own **type** only when it is genuinely a different object, not the
+same object wearing a label. The decidable (grep-checkable) criterion: mint a type **iff**
+(a) there are **≥2 non-isomorphic bases/realizations** of the concept, AND (b) a
+**non-identity morphism** is actually applied to it. Otherwise the concept is a **property**
+— a field or flag on an existing type.
+
+- If the only "change of basis" is the identity (one realization, no transform), a separate
+  "type" is theatrics: it adds ceremony and a conversion seam without making any illegal
+  state unrepresentable. Make it a property.
+- This is the *type-minting* corollary of the `coding-elegance` "defer abstraction until ≥2
+  instances" rule. Worked: an expanded-order spatial moment with a single basis and an
+  identity change-of-basis is a `property`, not a `SpatialOrder` type.
+
 ## Retire as you go (aggressive retirement)
 
 Superseded code is **noise that obscures signal** — it makes the codebase harder to read,
@@ -39,6 +54,15 @@ path. Retirement is a first-class deliverable, not optional cleanup.
   → rewire to the new API; API-smoke test (symbol exists) → delete; characterization test
   (e.g. FD-vs-WDD delta) → keep under `tests/<module>/characterization/`. Pure delete-only
   retirement is incomplete — it loses coverage. Inventory with `grep -rn "<symbol>" tests/`.
+- **The retirement audit's blast radius is THREE searches, not one** (4–5 agents converged on
+  this independently): (1) **graph callers** (`nexus impact`/`callers`) — necessary but NOT
+  sufficient; the call graph misses property-reached leaves (`callers()==0` but live via a
+  `cached_property`), class-name *bypass* consumers, and direct constructors of a guarded
+  type; (2) **text-grep the symbol across code, tests, AND `docs/`** — an unresolved
+  `:func:`/`:class:`/`:ref:` cross-reference renders as plain text with **no `-W` warning**,
+  so the Sphinx build gate does NOT catch a retirement's doc blast radius; (3) **direct
+  constructors** of any guarded type (a guard-at-source change reaches every `T(...)` caller,
+  not just the factory path). Run all three, then retire.
 
 ### Exception — keep a relinquished *fuller view* as a verification oracle
 

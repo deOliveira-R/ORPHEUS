@@ -33,6 +33,37 @@ punting finishable work.
   correctness-critical carve (wire it in — gate with test-architect/elegance review, still
   in-session if context allows).
 
+## Trust git for merge-status — never a frozen memory claim
+
+A memory or plan note that says a campaign is "NOT pushed / in-flight / on branch X / not
+merged" is a **point-in-time snapshot**, not a standing fact. It is written mid-flight (often
+in surgical-carve sessions) when it is true; the work merges in a later session and the note
+is never updated — so the snapshot lies forward.
+
+- **Before resuming, citing, or acting on** any "unmerged/in-flight" claim, reconcile against
+  git: `git merge-base --is-ancestor <hash> HEAD` (ancestor ⇒ merged ⇒ it is done, not
+  active). NEVER trust the frozen claim over git.
+- **Update at merge-time:** a campaign note's terminal state is "merged @ `<hash>`", the same
+  way a `Closes #NN` trailer closes an issue. After that it is archaeology — its lesson goes
+  to `lessons.md`, its architectural milestone to the relevant theory page's Development-
+  history changelog, and the note retires.
+- Why it matters: "resuming" merged work, or re-deriving a landed decision, is wasted effort,
+  and a stale "in-flight" claim makes a clean tree look unfinished. (2026-06-21: ≈7 SN
+  campaigns were mislabeled in-flight across the memory substrate; only one branch was
+  genuinely open — multiple sub-agents rediscovered this independently.)
+
+## Mutation-testing an uncommitted file — never `git checkout` to revert
+
+To prove a gate's teeth bite you mutate production code, run the gate (expect RED), then
+revert. If the file has **uncommitted edits**, `git checkout -- <file>` / `git restore` /
+`git stash` reverts to **HEAD — destroying your uncommitted work**, not to your pre-mutation
+state.
+
+- Revert a mutation by **monkeypatching in-process** (cleanest), or copy the file to a tmp
+  path and mutate the copy. Reserve `git checkout`/`restore` for files you have **not** touched.
+- Same data-loss family as the `.claude/*` checkout hazard (lessons L28): a `git checkout` on
+  any path carrying uncommitted state is irrecoverable.
+
 ## Don't file issues for what you'll fix this session
 
 GitHub issues are the cross-session/device handoff medium (Cardinal Rule 4). A finding that

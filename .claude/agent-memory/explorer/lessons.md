@@ -111,8 +111,8 @@ re-deriving landed work or, worse, treats merged code as still-pending.
 How to apply: NEVER trust a memory's merge-status. Reconcile every "resume X /
 in-flight X" against `git merge-base --is-ancestor <hash> HEAD` (or
 `... <branch> main`) before acting. Active-state in MEMORY.md should say only
-what git confirms; when in doubt, the answer is "check git." (Mirrors the
-fleet-wide `git-authoritative-merge-status` discipline.)
+what git confirms; when in doubt, the answer is "check git." (Now an always-on
+rule: `.claude/rules/process-discipline.md` §"Trust git for merge-status".)
 
 ---
 

@@ -29,7 +29,8 @@ the SN theory page's **"Development history"** section
 > Merge-status in memory goes STALE — notes freeze mid-flight and the work
 > merges in a later session. ALWAYS reconcile a "resume X" against
 > `git merge-base --is-ancestor <hash> HEAD` before acting; never trust a
-> frozen "NOT committed". (Main-agent memory: `git-authoritative-merge-status`.)
+> frozen "NOT committed". (Always-on rule: `.claude/rules/process-discipline.md`
+> §"Trust git for merge-status".)
 
 ## 3. Durable reference (reusable design)
 
