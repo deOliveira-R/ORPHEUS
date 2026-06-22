@@ -114,8 +114,8 @@ limit. Krylov-on-apply then converges to a self-consistent fixed point of
 the buggy operator — physically acceptable, still linear+conservative — so
 nothing looks wrong. Two distinct cylinder matvec bugs (ERR-049 bool-mask
 scatter ordering; the decoder "analytical extension" O(h) twin-path
-divergence) BOTH hid for months behind flat-ψ-only coverage (#197/#206).
-The gate: every curvilinear
+divergence) BOTH hid for months behind flat-ψ-only coverage; see
+[[cyl-matvec-twin-path-signatures]] (#197/#206). The gate: every curvilinear
 matvec needs a per-ordinate hand-reference test on NON-FLAT ψ (the sphere
 had `test_apply_face_fluxes_match_sweep_recurrence_spherical`; cylinder
 lacked the analog until ERR-049). This is L2 sharpened into a test-design
@@ -153,6 +153,7 @@ Three durable methodology points:
    production. When the literature says the scheme IS consistent but your
    faithful implementation isn't, the bug is a CONVENTION between two correct
    pieces (the sweep↔global frame at the seam), not in either piece.
+See [[issue-240-d5b-s3-diffusion-limit]].
 
 ## L8: The project's own theory page can be the contaminated reference — trace to literature + an independent kernel
 
@@ -207,7 +208,7 @@ in the FIXTURE; do NOT bisect the solver (Step-3 fixed-source isolation already
 exonerates it). Reproduce the slow path on a fast proxy
 (`timeout 60 python -c "continuous_get('<name>')"`) and bisect on THAT, not the
 test. Generalises: separate fixture-cost from solver-cost before attributing a
-timeout to numerics.
+timeout to numerics. See [[sn-keff-hang-was-eager-registry]].
 
 ## L10: "Error grows with refinement" + a discarded library info-flag = an unconverged inner solve, not a discretization bug
 
@@ -230,6 +231,7 @@ Two durable points:
    used n=10, where restart=50 GMRES happens to project onto the true eigenmode; the
    bug only declared itself at n=20. A single-mesh anchor is not coverage (vv H5) —
    always pair the analytical anchor with a mesh-refinement leg.
+See [[krylov-restart-truncation-bug]].
 
 ## L11: For a ρ-honest stopping/diagnostic, measure the residual r=Aψ−q — NOT the iterate increment ‖Δψ‖
 
@@ -273,4 +275,4 @@ The three durable probes:
 This is L7's "matvec self-consistency ≠ correct fixed point" generalized to any
 offline-isolated quantity, and pairs with vv Mode-10 (activated-but-unconstrained):
 the resolution is structural teeth + a no-op control, never a tightened value band.
-See [[curvilinear-tau-clamp-vs-pole-floor]].
+See [[curvilinear-tau-clamp-vs-pole-floor]], [[issue-257-s9-ld-boundary-slope-optical-verdict]].

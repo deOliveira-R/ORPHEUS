@@ -288,4 +288,4 @@ None. The reclassification held throughout: no hedging on trigger matches, no ba
 
 3. **Promotion candidate Smell #16**: "Per-cell scalar accumulator threaded through an inner loop with no associativity argument named." Specifically catches Issue #196 Phase G Step 2.5 where the unified fold body inadvertently retired the cumprod fast path because the monoid structure of the affine recurrence was not named. The smell fires when an inner `for` loop with `psi_in = result.outgoing_spatial_flux` lacks a docstring or skill anchor naming the scan structure.
 
-4. **Cross-link**: this memo relates to the Issue #196 Phase G Step 2.5 work — the closeout that documented the cumprod regression, and the "further collapse" pass that arrived at the same Q1 unification path without naming the monoid (both closeout files since retired with the merged campaign).
+4. **Cross-link**: this memo links to `[[issue-196-phase-g-step2-5-closeout]]` (which documents the cumprod regression) and `[[issue-196-phase-g-step2-5-further-collapse]]` (which arrived at the same Q1 unification path without naming the monoid).

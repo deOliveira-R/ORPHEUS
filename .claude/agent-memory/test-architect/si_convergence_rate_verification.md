@@ -39,8 +39,8 @@ self-sufficient and robust to FP-reassociation drift in the baseline — DEFER
 tightening to 0.55 (the literature-researcher Adams-Larsen pull) until needed.
 PAIR the rate gate with independent VALUE guards: G-1 k_inf=1.875 rtol 1e-10,
 G-2 SI≡Krylov rel-Linf<1e-8, G-3 foundation flat-balance limit, G-4 explicit
-vacuum=128±2 (with `BC.vacuum` set on the MESH, not a kwarg — a recurring G-4
-dud where the BC silently no-ops when passed as a kwarg).
+vacuum=128±2 (with `BC.vacuum` set on the MESH, not a kwarg — same G-4 dud as
+[[phase4-46-nonvacuum-mms-ansatz]]).
 
 **4. The 1G-OK EXCEPTION (rate claims, unlike eigenvalue claims).** A rate
 claim ρ=c is FLUX-SHAPE-INDEPENDENT BY DESIGN — it is a property of the

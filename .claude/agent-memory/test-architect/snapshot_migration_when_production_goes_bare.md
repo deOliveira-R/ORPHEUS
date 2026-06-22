@@ -63,4 +63,6 @@ Bare + external-reflect converges SLOWER (the migration's rate cost), so the SI
 driver needs a deeper inner budget (`max_inner`, lower `inner_tol`) to reach
 the same `rtol` — the converged VALUE is invariant; only the count grows.
 
-See [[regression-tolerance-design]] (nulp vs SAFETY×conv_tol).
+See [[regression-tolerance-design]] (nulp vs SAFETY×conv_tol),
+[[issue-208-wave-o-carve-lessons]] (the bare-flip's parent carve),
+[[wavefront-flux-carve-lessons]] (the storage-B carve that reuses this harness).

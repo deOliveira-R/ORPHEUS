@@ -45,3 +45,5 @@ types living in ONE place (`SphericalHarmonicBasis` + `SphericalHarmonicSpace`)
 so the conflation cannot recur. `HarmonicMomentField` is the first typed-Field
 consumer of that space; it is the natural windowed-SI iterate type (the moment
 tensor the scattering `M` already produces).
+
+Relates [[typed_field_contracts_for_phase_g]].
