@@ -58,6 +58,19 @@ created 5 self-inflicted orphans.
 
 ---
 
+## L-004 -- vv-status rationale comments must NOT use [brackets]
+
+The `:vv-status: documented` directive lives in the same RST file as
+the labelled equation, conventionally as a top-level RST comment
+(`.. vv-status: <label> documented`). When attaching a rationale
+comment block with `..    [category] description` formatting,
+docutils parses each [xxx] as a citation reference, producing
+"duplicate citation" warnings under `-W`. Use (parens) instead of
+[brackets] in rationale comments, and prefer a single-line `..`
+comment over a multi-line `..  / .. / ..` continuation block.
+
+---
+
 ## L-005 -- Locating slow/timeout tests in tests/derivations
 
 The whole `tests/derivations` suite CANNOT be run in one bounded
@@ -182,6 +195,23 @@ confirm it stays XFAIL (no strict-XPASS suite break). Same bug class as
 the rank-d-carve fallout (`Q_numerical[:,0,:,0]->[:,0,:]`); `(ng,nx)`
 1-group MMS is ALWAYS `[0,:]` for the radial profile, `[:,0]` is cell-0.
 
+---
+
+## L-009 -- "floor scales with quadrature" is a falsifiable gate, not a tautology
+
+When a fix is claimed to clean a convergence RATE but NOT remove a floor,
+the honest gate (vv anti-pattern #5/#17) pins the floor as a verified
+quadrature-SCALING quantity rather than asserting "floor removed". The W1
+`test_w1_aniso_sphere_floor_scales_with_quadrature` asserts
+`err(S32,nx=160) < err(S16,nx=160)/2.0`. This is FALSIFIABLE: a fixed
+closure-bug floor would be quadrature-independent -> ratio ~1.0 -> gate
+FAILS. Only a #229-style interpolation floor (the half-angle thread is
+interpolated, scales with angular order) passes (measured ratio 3.42).
+A "floor scales" gate is a CLAIM about floor character, distinct from
+both the rate gate and a (false) removal gate -- accept it.
+
+---
+
 ## L-010 -- Mode-8 (-O) does NOT apply to bare asserts in collected tests/ modules
 
 A bare `assert` in a test file UNDER `tests/` IS rewritten by pytest's
@@ -196,6 +226,8 @@ probe (run once if unsure): a collected `test_x(): assert 1==2` under
 Do NOT raise a Mode-8 flag for bare asserts in `tests/` — reserve Mode-8 for
 bare asserts in `orpheus/` production paths (L-006 recipe).
 
+---
+
 ## L-011 -- Replicate the test's OWN solve helper before judging a "value" claim
 
 A prescribed-inflow / non-vacuum-BC MMS value-claim depends on `q.boundary`
@@ -207,6 +239,8 @@ test module's internal `_solve(case, nc)` to reproduce a value claim; a
 divergent hand-replication usually means YOU dropped the BC, not the test.
 (Caught 2026-06-13 W3 prescribed_inflow review: test's `_solve` gave max-rel
 2.637e-3 at nx=160, matching the docstring exactly.)
+
+---
 
 ## L-012 -- "BC X is load-bearing because k=k_inf" holds ONLY for homogeneous
 
@@ -222,18 +256,7 @@ if it is heterogeneous, the justification is wrong even though the test's
 assertions (on the vacuum config) still hold — a Cardinal-Rule-3 (WHY must be
 right) doc-correctness flag, not a test-validity failure.
 
-## L-009 -- "floor scales with quadrature" is a falsifiable gate, not a tautology
-
-When a fix is claimed to clean a convergence RATE but NOT remove a floor,
-the honest gate (vv anti-pattern #5/#17) pins the floor as a verified
-quadrature-SCALING quantity rather than asserting "floor removed". The W1
-`test_w1_aniso_sphere_floor_scales_with_quadrature` asserts
-`err(S32,nx=160) < err(S16,nx=160)/2.0`. This is FALSIFIABLE: a fixed
-closure-bug floor would be quadrature-independent -> ratio ~1.0 -> gate
-FAILS. Only a #229-style interpolation floor (the half-angle thread is
-interpolated, scales with angular order) passes (measured ratio 3.42).
-A "floor scales" gate is a CLAIM about floor character, distinct from
-both the rate gate and a (false) removal gate -- accept it.
+---
 
 ## L-013 -- Verbatim-relocation claims: prove by NORMALIZED ast-diff, not by re-running gates alone
 
@@ -250,6 +273,8 @@ gate, because the gate may admit drift (see L-014) or have a coverage hole
 `_apply_walk` move + `_compute_LpC_transpose`→`loss_action_transpose` move
 both reduced to signature-only diffs (transpose: ZERO body lines changed).
 
+---
+
 ## L-014 -- A regression gate's HARD floor and its STRICT (bit-identity) floor are different gates
 
 A `kind="direct"` regression assert (`assert_array_almost_equal_nulp(
@@ -261,6 +286,8 @@ LIVE (not a false gate): perturb the committed baseline `.npy` by 1 ULP
 (`np.nextafter`), run with `-W error::DriftWarning` → MUST fail; without it
 → passes with a DriftWarning. Restore via `git checkout --` (np.save appends
 `.npy` to a manual `.bak` name — don't hand-roll the backup).
+
+---
 
 ## L-015 -- conftest filterwarnings overrides are SESSION-GLOBAL but do NOT cross-leak to sibling dirs (verify, don't assume)
 
@@ -277,6 +304,8 @@ the conftest `addinivalue_line` for items OUTSIDE regression/). So a "the
 override leaks" worry is testable, not theoretical — perturb-and-run before
 flagging it as a blind gate.
 
+---
+
 ## L-016 -- "branch fires under quadrature Q" claims need a degeneracy probe, not faith
 
 #206 claim 5 asserted the cylinder pure-azimuthal degenerate-ordinate branch
@@ -287,6 +316,8 @@ LS cubature and is exercised by NO current test. Probe in 3 lines
 (`np.count_nonzero(np.abs(q.mu_x)<1e-15)`) before accepting a branch-
 coverage claim. (Not a regression — the branch was a verbatim relocation,
 proven by L-013 — but the EVIDENCE for it is vacuous; flag the coverage gap.)
+
+---
 
 ## L-017 -- Diffusion-limit silent-error: probe the THICK-CELL regime, not just refined mesh
 
@@ -318,6 +349,8 @@ the diffusion limit requires the moment source -- a staging note in a plan
 file is NOT enough when the public entry (solve_sn_fixed_source cell_update=)
 accepts the scheme NOW.
 
+---
+
 ## L-018 -- "matvec path tested" needs an instrumented call-count, not a round-trip
 
 A batched residual_kernel_batch round-trip test (residual(cell_kernel_batch(q))≈0)
@@ -330,6 +363,8 @@ matvec runs ONLY under inner_solver='krylov'. Probe it: LD-via-Krylov gave the
 SAME flux as LD-via-SI to 4.1e-14 (matvec IS correct + matvec≡sweep holds) --
 but NO committed test drives it, so the claim "matvec works" is true-but-
 unverified (NEEDS-EVIDENCE: a 1-line inner_solver='krylov' MMS sibling closes it).
+
+---
 
 ## L-019 -- A stress-ansatz flagged by the test-architect is a binding contract, not advice
 
@@ -346,6 +381,8 @@ structurally independent and non-tautological (sign-flip breaks it by 1.88 vs
 1e-12 tol -- verified), so LD is not unverified -- but the L1 MMS leg ran on
 the weak ansatz. Cross-check the shipped test's case-builder against the
 test-architect's ansatz spec; a mismatch is a flag even when all tests pass.
+
+---
 
 ## L-020 -- "w=½ generic ops are byte-identical to DD's factored form" is TRUE (verify the IEEE micro-fact, not the docstring)
 
@@ -372,6 +409,8 @@ trusting its green -- monkeypatch the touched op to inject `np.nextafter(out,
 inf)` (+1 ULP) and confirm the hash flips. Verified the slab psi-sha flips
 under a 1-ULP perturbation of `source_emission`, so the green is real.
 
+---
+
 ## L-021 -- Increment B closed the L-018 matvec-coverage gap for LD
 
 L-018 flagged (Inc A) that LD's matvec was correct-but-UNVERIFIED (no committed
@@ -382,6 +421,8 @@ which an instrumented call-count proves drives `residual_kernel_batch=640`,
 AND pinned ≡ the SI sweep. When re-reviewing a follow-up increment, re-check
 whether it closes a prior increment's NEEDS-EVIDENCE item (the call-count probe
 is the verification, not the round-trip self-consistency test).
+
+---
 
 ## L-022 -- re-baseline masking-check: re-run the CONVERTED gate, prove the pre-existing red STILL hard-fails ≫ nulp; characterize drift via git-show OLD-vs-NEW .npy
 
@@ -415,6 +456,8 @@ boundary gate is `assert_regression` not strict, but is exactly as strict as
 `assert_array_equal` under the canonical `-W error::DriftWarning` -- prove it by
 running the snapshot class under that flag: #240 = 18 passed / 0 escalations).
 
+---
+
 ## L-023 -- convention-relocation re-baseline: scan the WHOLE tree for the OLD-convention literal, not just the diff's touched tests
 
 When a kernel's input contract changes convention (#240: `SNMesh.streaming` /
@@ -442,6 +485,8 @@ the kernel is CORRECT (not buggy) by feeding the NEW literal locally and
 confirming the cross-check passes — isolates "stale test input" from "code bug".
 Prove the breaks are NEW (not pre-existing) by stash-pop: the 2 broke ONLY with
 the diff applied; on clean HEAD they pass. (Caught 2026-06-15 #240 Step A.)
+
+---
 
 ## L-024 -- affine-in-σ "value-correct leaf sum" carve: prove teeth bite by DISABLING the override
 
@@ -480,6 +525,8 @@ wrong value ever shipped). Verification consequences I confirmed:
    Passes but brittle; acceptable because the teeth gate owns the structural
    distinction and 1 ULP is FP noise. (Reviewed 2026-06-15 #240 Step B.)
 
+---
+
 ## L-025 -- "no missed site" for a dedup-carve: grep WHOLE tree + cross-ref the PLAN, not the closeout
 
 A "route N inlined duplicates through one op" carve's missed-site check is NOT
@@ -507,6 +554,85 @@ Verdict rule: a residual OLD-literal hit is a DEFECT only if (a) it is a direct
 routed, AND (c) in the carve's DECLARED scope per the plan. Fail any of the
 three → documented follow-up, not a blocker. (#240 D1, 2026-06-16: exactly ONE
 residual direct DD recon tree-wide = line 2117, in-(c)-fail = deferred OK.)
+
+---
+
+## L-026 -- "scattering exercises the slope-source path" does NOT mean the MMS constrains its SIGN (Mode-10 honest-scope)
+
+D5b-S4 = a vv-Mode-7 strengthened 2-D Cartesian LD MMS `ψ=[A+μ_x·B+μ_y·C]/W`
+verifying the multi-D bilinear UBLD slope rows landed in S3. VERDICT SUPPORTED-WITH-
+CONCERNS; numerics SOUND, no false-green, no blocker.
+
+1. **L11 structural independence GENUINE.** The SymPy source is from the
+   CONTINUOUS PDE (no `_LDCellTerms`/`_schur_terms`/`_ubld`). The FD-residual
+   cross-check IS a genuine 2nd structural path PROVEN: corrupt `Q_closed`'s
+   `μ_x·∂_xA` streaming sign → FD residual 0.047 ≫ 1e-7 tol (FD uses numpy
+   central-diff of ψ, RHS embeds SymPy `diff` → a diff sign error breaks the
+   equality). Branch2==Branch1 source ≤1e-13. Single-source `_LD2D_STRESS_COEFFS`
+   `(num,den)` pairs (Rational∥float) = amplitudes can't drift.
+2. **⭐ THE HONEST-SCOPE FINDING (sharpen point 2).** The closeout/docs say the
+   slope-SOURCE half is "DEFERRED" because the EXTERNAL Q̂ is zeroed
+   (`_lift_external_source_to_moments` → `lifted[...,AVERAGE_MOMENT]`, slopes=0,
+   confirmed). BUT the SCATTERING source `Σ_s·φ̂` IS a genuine `(N,ng,nx,2^d)`
+   moment source consumed through the SAME `Q_cells` slot as an external Q̂ would
+   be (loss_rep:2814-2825 lifts BOTH into the same `Q_per_ord`→`QV_per_ord`; the
+   slope-row sign code path `_reframe`+UBLD is source-AGNOSTIC). INSTRUMENTED the
+   solve: iterate scalar-flux moments fed to `apply_p0_in_scatter` carry NON-ZERO
+   slope rows (avg=1.31, x-slope=0.257, y-slope=0.129, xy=0.067), scattered
+   `Σ_s⊗I_spatial` (`fg,fc...->gc...`) → the slope-source rows ARE populated +
+   consumed. SO the slope-source CODE PATH is exercised. BUT — DECISIVE MUTATIONS
+   on the slope-source rows (`_CellSolve.cell` Q_cells[...,1:]): SIGN-FLIP → order
+   stays 1.97, finest in-band → NOT caught; ZERO the rows → order 1.99 NOT caught;
+   ×3 magnitude → order 2.02 NOT caught. The scattering-slope source is an
+   O(h)-small DG-internal forcing (slopes ~5× < average, c≤1.0) whose sign/
+   magnitude affects the converged flux ABOVE O(h²) → absorbed in the floor. So
+   the PRECISE honest claim is NEITHER of the brief's two options: it is
+   "slope-source code path EXERCISED via scattering but the MMS is BLIND to a
+   slope-source SIGN error (a sign flip is not caught) — genuinely UNVERIFIED for
+   the sign convention; external-Q̂ plumbing also deferred." The docs' "DEFERRED"
+   is substantively CORRECT (sign unverified) but the parenthetical "the only
+   moment-valued source consumed is Σ_s·φ̂" UNDER-states that this consumed source
+   does NOT verify the sign → CR3 doc-sharpen (follow-up, not blocker): the note
+   should say the scattering channel exercises-but-does-not-constrain the
+   slope-source sign.
+3. **VALUE band REAL + tight (Mode-5 not rate-only).** Reproduced: errs
+   [1.42e-2,3.54e-3,8.81e-4], orders [2.00,2.01], maxrelerr 1.78e-2→1.2e-3 (4×/
+   halving), flux range matches ref. Band (1e-9,1e-2): upper 1e-2 is BELOW the
+   coarsest error 1.42e-2 → a wrong-limit/non-converged flux WOULD exit the band.
+   Genuine value gate.
+4. **Mutation conclusion SOUND + I isolated what the closeout couldn't.** The
+   slope-UNKNOWN half: sign-flip `_GRAD_1D[1,0]:-2→+2` → NaN (caught); a FINITE
+   x↔y-symmetric 10% error (`_GRAD_1D` ×0.9) → order −0.06, finest 0.072 ≫ band
+   (CAUGHT, NOT divergent — the missing subtle-finite discriminator). So the
+   strengthening is non-vacuous + load-bearing for the slope-UNKNOWN half (catches
+   both catastrophic AND finite). The strengthening's SPECIFIC x↔y-asymmetry value
+   targets the slope-SOURCE same-sign trap — which (per finding 2) this MMS cannot
+   reach AT ALL → the x↔y strengthening is defensive-correct-but-currently-
+   untestable (ship per spec; its payoff arrives with the moment-source increment).
+5. **Gate/marker integrity.** `ld-cartesian-2d` minted (1 unique `:label:`),
+   audit `ld-cartesian-2d → 4 tests` exit 0, all verifies targets resolve
+   (transport-cartesian-2d/multigroup/mg-balance exist). Quadrature exactness
+   CONFIRMED: LS S4 `<μ_x²>=<μ_y²>=1/3`, `<μ_xμ_y>=<μ_x>=<μ_x³>=0`, ZERO pure-z →
+   `φ=A` exact. Mode-8 clean (0 bare asserts new files + 0 in S4 prod additions).
+   Mode-7 declaration present. ⚠ L-007 NIT: `test_v_ld2d_stress_substitution_
+   identity` stacks `@foundation @verifies("ld-cartesian-2d")` = the conflation
+   L-007 warns of — BUT (a) established convention (anisotropic_symbolic.py:69-70/
+   147-148 do the same for algebra-of-record substitution gates), (b) the label is
+   NOT solely foundation-backed (3 genuine L1 verifiers) → the L-007 tell ("ONLY
+   coverage is foundation") does NOT bite → minor consistency nit, not blocker.
+6. **Modes 1-6 defenses ALL present.** 2G, het (176 unique cell materials,
+   spatially-varying σ_t), STRICTLY-asymmetric downscatter (SigS[0→1]=0.233,
+   [1→0]=0.000 — pure downscatter, transpose-sensitive), non-square mesh 16×11 +
+   domain 1.3×0.9.
+
+VERDICT 2026-06-17 SUPPORTED-WITH-CONCERNS: 1 CR3 doc-sharpen (the scattering
+channel exercises-but-doesn't-constrain the slope-source sign — the honest note
+under-states this) + 1 L-007 marker nit (convention, non-biting) — both
+follow-ups. The shipped scope (slope-UNKNOWN sign verified + average-moment
+boundary + matvec twin + two-paths, mutation-verified non-vacuous) is honest. No
+false-green, no blocker.
+
+---
 
 ## L-027 -- prove a routing-predicate fix's negative-test teeth by REVERTING ONLY production
 
@@ -541,16 +667,7 @@ regression. A file that contributes ZERO CLI diagnostics standalone means the
 user's "import-unresolved" / "not accessed" items are IDE/cross-tree config
 artifacts, not blockers.
 
-## L-004 -- vv-status rationale comments must NOT use [brackets]
-
-The `:vv-status: documented` directive lives in the same RST file as
-the labelled equation, conventionally as a top-level RST comment
-(`.. vv-status: <label> documented`). When attaching a rationale
-comment block with `..    [category] description` formatting,
-docutils parses each [xxx] as a citation reference, producing
-"duplicate citation" warnings under `-W`. Use (parens) instead of
-[brackets] in rationale comments, and prefer a single-line `..`
-comment over a multi-line `..  / .. / ..` continuation block.
+---
 
 ## L-028 -- the ÷D vs ×(1/D) re-baseline: a "byte-identical" coefficient-model premise fails where the consumer still divides; verify the ORDERING before trusting a snapshot regen
 
@@ -608,11 +725,13 @@ says "the oracle pins analytical k_inf=1.875" is LOOSE — the oracle is
 transitively pinned; the direct anchor lives in a different file. Confirm the
 anchor file is GREEN before crediting the oracle with analytical grounding.
 
+---
+
 ## L-029 -- a re-encoded closed form is NOT L11-circular when compared against an INDEPENDENTLY-ASSEMBLED primitive (the d=1-reduction-to-production oracle)
 
-L-026 said a token-for-token copy of a production formula is circular as a VALUE
-check (a sign-flip in prod propagates into the test, stays green). The DISTINCT
-case here (#240 D5b-S1, the SymPy UBLD): the test's RIGHT side re-encodes the
+The circularity principle: a token-for-token copy of a production formula is
+circular as a VALUE check (a sign-flip in prod propagates into the test, stays
+green). The DISTINCT case here (the SymPy UBLD): the test's RIGHT side re-encodes the
 production `_schur_terms` S/eff_source/.slope (test lines 346-351, verbatim of
 `linear_discontinuous.py:332-335,258-259`) — BUT the LEFT side is the symbolic
 primitive's d=1 reduction obtained by `A⁻¹R` of a SEPARATELY-built Kronecker
@@ -622,7 +741,7 @@ the independently-assembled 2×2 solve" — one side is genuinely structurally
 independent. A sign-flip in `_schur_terms` would NOT propagate into the Kronecker
 assembly → the oracle WOULD catch it. The circularity test is: **does the bug
 live on BOTH sides of the diff?** Re-encoded-formula-vs-re-encoded-formula =
-circular (L-026); re-encoded-formula-vs-independent-construction = legitimate.
+circular; re-encoded-formula-vs-independent-construction = legitimate.
 
 The genuinely-independent anchor in the same gate is `test_d1_symbolic_primitive_
 matches_production_update`: evaluates the symbolic d=1 ψ̄/ψ_out at concrete 2-group
@@ -656,7 +775,41 @@ ALWAYS revert the mutation (both return branches here) + re-run green (6 passed)
 before closing. (Reviewed 2026-06-16 #240 D5b-S1 Branch 1 — VERDICT: all 6 claims
 SUPPORTED.)
 
-## L-031 -- #240 D5b-S2 (d≥2 UBLD LD wiring): a self-consistency round-trip + an A==A pin can BOTH be blind to the bug their docstring/marker claims; the genuine catcher is the continuous-PDE exact-on-bilinear oracle; and "matvec twin verified" ≠ end-to-end Krylov
+---
+
+## L-030 -- Intrinsic-property gates: a PER-CELL invariant tested only with a SPATIALLY-UNIFORM fixture is untested for its per-cell-ness
+
+`SpectrumField.__post_init__` enforces the simplex PER CELL (`values.sum(axis=0)` then
+`np.allclose(col_sums,1)`), but every test fixture (`_chi` helper) builds a per-cell-UNIFORM
+χ — so "per-cell sum==1" and "global mean==1" are INDISTINGUISHABLE in the suite. The code
+is correct (probed: a χ summing to 1 in cell0 / 1.2 in cell1 IS rejected) but the per-cell
+distinction is uncovered. **Rule**: when a validator's invariant is keyed on a specific AXIS
+(per-cell, per-group, per-ordinate), at least one negative fixture MUST VARY along the
+non-reduced axis so a global-collapse mis-implementation (`values.sum()` vs `.sum(axis=0)`)
+would be caught. Uniform fixtures are blind to axis-collapse bugs — the spatial analogue of
+the 1-group degeneracy (H1).
+
+**Validator Mode-11 recipe for a `__post_init__`/`replace`-revalidating type** (verified live
+on #257): (a) the `+`-routes-through-revalidation claim — a leaf that does NOT mix in `FluxRole`
+inherits `Field.__add__` → `replace()` → re-runs `__post_init__`; PROVE by tracing
+`__post_init__` call-count during `χ+χ` (fires ≥1, then raises simplex). (b) a negative test
+that pins ONE branch in isolation (neg-entry with col_sum==1.0 exactly) genuinely isolates it
+ONLY IF the OTHER branch (sum) would PASS that fixture AND runs SECOND — read `__post_init__`
+ordering (neg-check before sum-check) + confirm the raised message names the intended branch,
+not the masking one. (c) `mix`/convex-blend re-validation rides the same `replace` path.
+
+**Doc-attribution drift (CR3, no phantom edge)**: `spectrum_field.py:32` frames a χ-drift /
+depletion-feedback bug as "the ERR-039 normalization-bug class" — but ERR-039 is the moment-
+projection `apply_transpose` (2ℓ+1) addition-theorem factor (nothing to do with χ or depletion).
+`units.py:100` "ERR-039 normalization class" for a missing-`/4π` is a looser-but-OK framing
+(ERR-039 IS an angular-norm factor). No `catches("ERR-039")` marker exists on these tests, so
+no phantom coverage edge is written (contrast L-007) — pure stale-doc, flag don't block.
+RULE: a prose "the ERR-NNN class" citation in a NEW docstring still warrants a 30-sec catalog
+read; mis-citation in prose is a nit, but the same string in a `catches()` marker is a defect.
+
+---
+
+## L-031 -- a self-consistency round-trip + an A==A pin can BOTH be blind to the bug their docstring/marker claims; the genuine catcher is the continuous-PDE exact-on-bilinear oracle; and "matvec twin verified" ≠ end-to-end Krylov
 
 D5b-S2 wires the d≥2 bilinear LD kernel onto the wavefront (`cell_kernel_batch`/
 `residual_kernel_batch` route `len(s_axes)≥2` → `_ubld_system`+`per_cell_solve`;
@@ -693,7 +846,7 @@ non-square). d=1 closed form `==` dense `per_cell_solve` reduction (L29 anchor h
    SAME-system + the matvec-twin face reconstruction (both axes, x↔y-asymmetric
    replay: residual ~2e-16, out_x==rout_x/out_y==rout_y, matvec non-trivial at a
    different probe). But the VALUE-correctness of the multi-D kernel rests on
-   `test_d2_exact_on_bilinear` (the L11/L26-clean continuous-PDE oracle: source
+   `test_d2_exact_on_bilinear` (the L11/L-029-clean continuous-PDE oracle: source
    `Q=Ω·∇ψ+Σ_tψ` from a known bilinear ψ via SymPy, asserts solved moments == exact
    Legendre projections, cross-moment xy active d=0.9 — a kernel sign-flip would NOT
    propagate into the SymPy projections) + the MMS smoke. Sound: the indep oracle IS
@@ -735,6 +888,8 @@ non-square). d=1 closed form `==` dense `per_cell_solve` reduction (L29 anchor h
    VERDICT 2026-06-16: SUPPORTED-WITH-CONCERNS — all numerics sound; 1 marker
    misattribution (follow-up) + 1 pyright nit (follow-up) + spec-vs-shipped scope
    wording on D5b.4 (honest as shipped). NO false-green, NO blocker.
+
+---
 
 ## L-032 -- "construct-general-only" capability-addition: the byte-id gate needs teeth on BOTH the auto-select AND the phantom-length-1-axis mistake
 
@@ -790,7 +945,7 @@ construct-general / select-narrow capability addition:
    field or `φ⊖φ` raises TypeError. Verify the affine round-trip (`φ⊖φ→disp`,
    `φ+disp→φ` array_equal) at BOTH default AND widened. (#240: both exact.)
 
-6. **Pyright net-new = 0** proven apples-to-apples (L-027/L-030): run the SAME
+6. **Pyright net-new = 0** proven apples-to-apples (L-027): run the SAME
    5 touched files PRE (stash prod + hold the new untracked file) and POST,
    path+line-strip, `comm -23`. All 8 errors pre-existing (`DualSpace.of`
    return, `MaterialXSField` Optional, `from_face_arrays` Optional layout,
@@ -800,7 +955,9 @@ construct-general / select-narrow capability addition:
    mis-attribution: :521 is `DualSpace.of`, pre-existing. (VERDICT 2026-06-16:
    SUPPORTED, no blocker, no follow-up.)
 
-## L-033 -- #240 D5b-S3 (LD diffusion-limit completion, ERR-061) VERDICT SUPPORTED-WITH-CONCERNS: the structural-independence ground is GENUINE (L11 clean) but the d≥2 matvec ships a LATENT pure_z twin-path crash no committed gate drives
+---
+
+## L-033 -- a GENUINE structural-independence ground (L11 clean) can still ship a LATENT twin-path crash no committed gate drives (the d≥2 matvec pure_z gap)
 
 D5b-S3 = the unified all-d LD moment matvec + ERR-061 frame fix (slope ψ̂_n
 stored in per-ordinate SWEEP frame, summed by consumer as GLOBAL → backward
@@ -878,81 +1035,6 @@ markers honest. The d≥2 matvec pure_z crash is a real latent defect (loud, nar
 commit blockers (the SHIPPED scope is SI-verified d≥2 + matvec-verified d=1; no
 false-green). No false-green found anywhere.
 
-## L-034 -- #240 D5b-S4 (2-D LD stress MMS) VERDICT SUPPORTED-WITH-CONCERNS: the honest-scope claim must be SHARPENED -- the scattering channel EXERCISES the slope-source code path but the MMS is empirically BLIND to a sign error there
-
-D5b-S4 = a vv-Mode-7 strengthened 2-D Cartesian LD MMS `ψ=[A+μ_x·B+μ_y·C]/W`
-verifying the multi-D bilinear UBLD slope rows landed in S3. VERDICT SUPPORTED-WITH-
-CONCERNS; numerics SOUND, no false-green, no blocker.
-
-1. **L11 structural independence GENUINE.** The SymPy source is from the
-   CONTINUOUS PDE (no `_LDCellTerms`/`_schur_terms`/`_ubld`). The FD-residual
-   cross-check IS a genuine 2nd structural path PROVEN: corrupt `Q_closed`'s
-   `μ_x·∂_xA` streaming sign → FD residual 0.047 ≫ 1e-7 tol (FD uses numpy
-   central-diff of ψ, RHS embeds SymPy `diff` → a diff sign error breaks the
-   equality). Branch2==Branch1 source ≤1e-13. Single-source `_LD2D_STRESS_COEFFS`
-   `(num,den)` pairs (Rational∥float) = amplitudes can't drift.
-2. **⭐ THE HONEST-SCOPE FINDING (sharpen point 2).** The closeout/docs say the
-   slope-SOURCE half is "DEFERRED" because the EXTERNAL Q̂ is zeroed
-   (`_lift_external_source_to_moments` → `lifted[...,AVERAGE_MOMENT]`, slopes=0,
-   confirmed). BUT the SCATTERING source `Σ_s·φ̂` IS a genuine `(N,ng,nx,2^d)`
-   moment source consumed through the SAME `Q_cells` slot as an external Q̂ would
-   be (loss_rep:2814-2825 lifts BOTH into the same `Q_per_ord`→`QV_per_ord`; the
-   slope-row sign code path `_reframe`+UBLD is source-AGNOSTIC). INSTRUMENTED the
-   solve: iterate scalar-flux moments fed to `apply_p0_in_scatter` carry NON-ZERO
-   slope rows (avg=1.31, x-slope=0.257, y-slope=0.129, xy=0.067), scattered
-   `Σ_s⊗I_spatial` (`fg,fc...->gc...`) → the slope-source rows ARE populated +
-   consumed. SO the slope-source CODE PATH is exercised. BUT — DECISIVE MUTATIONS
-   on the slope-source rows (`_CellSolve.cell` Q_cells[...,1:]): SIGN-FLIP → order
-   stays 1.97, finest in-band → NOT caught; ZERO the rows → order 1.99 NOT caught;
-   ×3 magnitude → order 2.02 NOT caught. The scattering-slope source is an
-   O(h)-small DG-internal forcing (slopes ~5× < average, c≤1.0) whose sign/
-   magnitude affects the converged flux ABOVE O(h²) → absorbed in the floor. So
-   the PRECISE honest claim is NEITHER of the brief's two options: it is
-   "slope-source code path EXERCISED via scattering but the MMS is BLIND to a
-   slope-source SIGN error (a sign flip is not caught) — genuinely UNVERIFIED for
-   the sign convention; external-Q̂ plumbing also deferred." The docs' "DEFERRED"
-   is substantively CORRECT (sign unverified) but the parenthetical "the only
-   moment-valued source consumed is Σ_s·φ̂" UNDER-states that this consumed source
-   does NOT verify the sign → CR3 doc-sharpen (follow-up, not blocker): the note
-   should say the scattering channel exercises-but-does-not-constrain the
-   slope-source sign.
-3. **VALUE band REAL + tight (Mode-5 not rate-only).** Reproduced: errs
-   [1.42e-2,3.54e-3,8.81e-4], orders [2.00,2.01], maxrelerr 1.78e-2→1.2e-3 (4×/
-   halving), flux range matches ref. Band (1e-9,1e-2): upper 1e-2 is BELOW the
-   coarsest error 1.42e-2 → a wrong-limit/non-converged flux WOULD exit the band.
-   Genuine value gate.
-4. **Mutation conclusion SOUND + I isolated what the closeout couldn't.** The
-   slope-UNKNOWN half: sign-flip `_GRAD_1D[1,0]:-2→+2` → NaN (caught); a FINITE
-   x↔y-symmetric 10% error (`_GRAD_1D` ×0.9) → order −0.06, finest 0.072 ≫ band
-   (CAUGHT, NOT divergent — the missing subtle-finite discriminator). So the
-   strengthening is non-vacuous + load-bearing for the slope-UNKNOWN half (catches
-   both catastrophic AND finite). The strengthening's SPECIFIC x↔y-asymmetry value
-   targets the slope-SOURCE same-sign trap — which (per finding 2) this MMS cannot
-   reach AT ALL → the x↔y strengthening is defensive-correct-but-currently-
-   untestable (ship per spec; its payoff arrives with the moment-source increment).
-5. **Gate/marker integrity.** `ld-cartesian-2d` minted (1 unique `:label:`),
-   audit `ld-cartesian-2d → 4 tests` exit 0, all verifies targets resolve
-   (transport-cartesian-2d/multigroup/mg-balance exist). Quadrature exactness
-   CONFIRMED: LS S4 `<μ_x²>=<μ_y²>=1/3`, `<μ_xμ_y>=<μ_x>=<μ_x³>=0`, ZERO pure-z →
-   `φ=A` exact. Mode-8 clean (0 bare asserts new files + 0 in S4 prod additions).
-   Mode-7 declaration present. ⚠ L-007 NIT: `test_v_ld2d_stress_substitution_
-   identity` stacks `@foundation @verifies("ld-cartesian-2d")` = the conflation
-   L-007 warns of — BUT (a) established convention (anisotropic_symbolic.py:69-70/
-   147-148 do the same for algebra-of-record substitution gates), (b) the label is
-   NOT solely foundation-backed (3 genuine L1 verifiers) → the L-007 tell ("ONLY
-   coverage is foundation") does NOT bite → minor consistency nit, not blocker.
-6. **Modes 1-6 defenses ALL present.** 2G, het (176 unique cell materials,
-   spatially-varying σ_t), STRICTLY-asymmetric downscatter (SigS[0→1]=0.233,
-   [1→0]=0.000 — pure downscatter, transpose-sensitive), non-square mesh 16×11 +
-   domain 1.3×0.9.
-
-VERDICT 2026-06-17 SUPPORTED-WITH-CONCERNS: 1 CR3 doc-sharpen (the scattering
-channel exercises-but-doesn't-constrain the slope-source sign — the honest note
-under-states this) + 1 L-007 marker nit (convention, non-biting) — both
-follow-ups. The shipped scope (slope-UNKNOWN sign verified + average-moment
-boundary + matvec twin + two-paths, mutation-verified non-vacuous) is honest. No
-false-green, no blocker.
-
 ---
 
 ## L-034 -- Stale-snapshot triage: a HUGE-ULP bit-identity red is "live correct, frozen stale" until you find the apply-changing commit that did NOT re-capture
@@ -1008,7 +1090,7 @@ docstring's cited issue number.
 
 ---
 
-## L-035 -- "byte-identical EXCEPT a LATENT collision" claim: instrument BOTH branches on the gate suite + classify each divergent site as reached/correct (#246 _reframe intent-fix)
+## L-035 -- "byte-identical EXCEPT a LATENT collision" claim: instrument BOTH branches on the gate suite + classify each divergent site as reached/correct
 
 When a refactor claims "byte-identical to all paths EXCEPT one latent S4-style
 collision," do NOT trust the latency claim — PROBE it. Patch the touched primitive
@@ -1056,8 +1138,9 @@ short-circuit on `frame_signs is None`; the 13 within-tol DriftWarnings PRE-EXIS
 not escalated under `-W error`). 1-D scan + LD-kernel suites: 0 divergences (those
 sites only ever reframe genuine moment arrays where size-probe≡intent agree).
 
+---
 
-## L-036 -- "MMS covers the retired term" claim: mutation-verify, but the deleted code may be a SWEEP↔MATVEC twin (mutate the SHARED coefficient source, not the deleted-apply method) (#238 M_spatial/M_angular_redist retirement)
+## L-036 -- "MMS covers the retired term" claim: mutation-verify, but the deleted code may be a SWEEP↔MATVEC twin (mutate the SHARED coefficient source, not the deleted-apply method)
 
 A retirement that deletes "verification machinery" (here the `M_spatial`/`M_angular_redist`
 separately-applicable operator-leaf split + `loss_action_decomposed` + the `emit_angular`
@@ -1108,7 +1191,7 @@ not the 1-ULP FP drift a real regression would show.
 
 ---
 
-## L-037 — Mode-10 closeout verification recipe (the activated-but-unconstrained slope source)
+## L-037 -- Mode-10 closeout verification recipe (the activated-but-unconstrained slope source)
 
 #247 Leg A closed the slope-SOURCE half of the LM-1989 trap for 2-D Cartesian LD
 (the vv Mode-10 gap: a term genuinely CONSUMED yet a sign flip leaves the
@@ -1160,7 +1243,9 @@ call the lift); a d=2 cell-unknown prose label can transpose x↔y vs the
 canonical [bar,y,x,xy] (axis0=x OUTER) — prose only, slots come from
 moment_layout, no code path. Both CR3/stale-doc (L-020/L-028), no ERR.
 
-## L-038 — #251 Leg B (BOUNDARY transverse face-slope) VERDICT SUPPORTED: prove an xfail→live FLIP is non-vacuous TWO ways + Mode-10 with NO dominant regime
+---
+
+## L-038 -- prove an xfail→live FLIP is non-vacuous TWO ways + Mode-10 with NO dominant regime (boundary transverse face-slope)
 
 #251 widened the 2-D Cartesian LD boundary trace to CARRY the `2^{d-1}` transverse
 face-slope (boundary twin of #247 Leg A's bulk slope). The boundary slot grows a
@@ -1229,83 +1314,78 @@ only tests LD wrong-width. Correct by construction; flag for the spec author onl
 
 ---
 
-## L-039 — runtime_checkable Protocol gate (#256 step 1 Vector): mutation-by-DROPPING-a-required-dunder + IEEE rmul micro-fact + family-not-leaf independence
+## L-039 -- runtime_checkable Protocol gate: prove teeth by DROPPING/adding a member, not by a vacuous isinstance pass
 
-Validating a `@runtime_checkable` structural Protocol as a REAL coverage gate (vs vacuous
-isinstance pass). VERDICT REAL-GATE (no blocker). Recipe:
+Validating a `@runtime_checkable` structural Protocol as a REAL coverage gate
+(vs a vacuous isinstance pass). VERDICT REAL-GATE. The recipe, consolidated
+from two reviews (a `Vector` carrier Protocol and a `TransportState` state
+Protocol):
 
-(1) **Mode-8 cleared by the mutation itself, not by inspection** — bare asserts in a
-collected TEST module ARE rewritten by pytest and DO fire under `-O` (the
-`PytestConfigWarning` refers to NON-test modules; reaffirms L-010). Proof: a Protocol
-mutation made the asserts raise real `AssertionError: assert not True` under `-O`. A
-Mode-8-inert assert would have stayed green.
+(1) **Mode-8 is cleared by the mutation, not by inspection** -- bare asserts
+in a COLLECTED test module ARE rewritten by pytest and DO fire under `-O`
+(the `PytestConfigWarning` refers to NON-test modules; reaffirms L-010).
+Proof: a Protocol mutation made the asserts raise a real `AssertionError`
+under `-O`; `pytest.fail` likewise raises `Failed` under `-O` (a print after
+it never runs).
 
-(2) **Mutate the PRODUCTION Protocol by DROPPING a required dunder, not the test object** —
-two mutations triangulate which negative test owns which dunder: (A) drop only `__rmul__`
-→ ONLY `test_no_scalar_mul_rejected` reds while `test_string_is_not_vector` STAYS GREEN
-(str still lacks `__sub__`) = the asymmetry proves the rmul test specifically owns rmul;
-(B) reduce Protocol to `__add__`-only → ALL three negatives red (str/add-only/add+sub),
-4 positives + typevar stay green. RED message `isinstance(<obj>, Vector)==True` names the
-wrongly-accepted object. Revert by RE-EDITING (untracked `??` files → `git diff` empty is
-vacuous; the real revert proof is gate-green-again + grep zero MUTATION markers + dunder
-count/line-numbers match original).
+(2) **Mutate the PRODUCTION Protocol, not the test object.** Two complementary
+moves:
+   - **Drop a required member** -- DROP only `__rmul__` -> ONLY
+     `test_no_scalar_mul_rejected` reds while `test_string_is_not_vector` STAYS
+     GREEN (str still lacks `__sub__`); the asymmetry proves each negative test
+     OWNS a specific dunder. Reduce the Protocol to `__add__`-only -> ALL
+     negatives red, positives stay green.
+   - **Build an in-memory MUTANT Protocol and monkeypatch it in** -- a
+     drop-all `class M(Vector, Protocol): ...` flips `np.ndarray` AND the leaf
+     type to `isinstance==True`; run the REAL test fn with the production
+     name monkeypatched to the mutant (patch BOTH the defining module's name
+     AND the test module's import binding) -> the discriminating negative
+     (`test_ndarray_..._not_a_transport_state`) fires with the exact message.
+   The RED message names the wrongly-accepted object. Revert by RE-EDITING
+   (untracked `??` files make `git diff` empty -> vacuous; the real revert
+   proof is gate-green-again + grep zero MUTATION markers + dunder/line-count
+   match).
 
-(3) **`scalar * vector` = `__rmul__` NOT `__mul__` — prove with the IEEE/Python micro-fact,
-not the docstring** (L-020 discipline): `ScaledOperator.apply` does `self.scalar*op.apply(x)`
-and `ZeroOperator.apply` does `0.0*x` (scalar on LEFT). Empirically `0.0*OnlyRmul()` fires
-`__rmul__`; `0.0*OnlyMul()` raises TypeError (float.__mul__ returns NotImplemented → Python
-falls back to RHS `__rmul__`). So a carrier with `__mul__`-but-no-`__rmul__` genuinely breaks
-inside Zero/ScaledOperator. The `_NoScalarMul` (neither) negative targets exactly this.
-WATCH: other `*` sites in operator.py (DiagonalOperator `_reshape()*x_arr`, RankOne
-`right*x_arr`) are ndarray×ndarray elementwise on the flat axis-primitive path — NOT
-scalar×vector, don't bear on the contract.
+(3) **`scalar * vector` is `__rmul__` NOT `__mul__` -- prove with the
+Python micro-fact, not the docstring** (L-020 discipline): `0.0*OnlyRmul()`
+fires `__rmul__`; `0.0*OnlyMul()` raises TypeError (`float.__mul__` returns
+NotImplemented -> Python falls back to RHS `__rmul__`). So a carrier with
+`__mul__`-but-no-`__rmul__` genuinely breaks inside `ScaledOperator`/
+`ZeroOperator` (both do `scalar*op`). WATCH: ndarray*ndarray elementwise sites
+(`DiagonalOperator`, `RankOne`) are NOT scalar*vector and don't bear on the
+contract.
 
-(4) **Coverage-honesty: "every Field leaf satisfies Vector" is verified by ONE shared base,
-not N independent leaves** — AngularFlux/ScalarFlux/BoundaryFlux/HarmonicMomentField all
-inherit `__add__/__sub__/__rmul__` from the `Field` base (numerics/field.py:262-277). The
-genuinely-independent positives are the three FAMILIES (np.ndarray native / Field-base /
-TimedFullField delegate dunders) — the test correctly separates those, that's the
-load-bearing distinction; don't over-credit the 3 leaf cases as 3 independent proofs.
-DOCUMENTED-BUT-UNTESTED gap (L7-flavored): module+test docstrings name `HarmonicMomentField`
-as a covered carrier and #256 "cares about moment carriers," but no test exercises it
-(verified it WOULD pass at runtime). Recommend +1 line in test_field_leaves_are_vectors.
-Low severity (shares base dunders) but the docstring makes it a specific coverage claim.
+(4) **Coverage honesty: "every leaf satisfies the Protocol" is ONE shared
+base, not N independent leaves** -- AngularFlux/ScalarFlux/BoundaryFlux/
+HarmonicMomentField all inherit the dunders from the `Field` base. The
+genuinely-independent positives are the FAMILIES (np.ndarray native /
+Field-base / delegating subclass), not the leaf instances; don't over-credit
+3 leaf cases as 3 proofs. A docstring that names a specific carrier as covered
+when no test exercises it is a documented-but-untested gap (L-007-flavored) --
+recommend +1 line, flag don't block.
 
----
+(5) **runtime_checkable + @property data members**: `isinstance` checks
+PRESENCE of all members (`__protocol_attrs__`; `hasattr`-style, ignores
+property-vs-attr and the property's return type). Rule out "all-True/all-False
+by accident" with a Partial duck (missing one member -> False, so each member
+is individually load-bearing) + a complete Duck (all members, NO inheritance
+-> True, structural). An `_is_a(candidate: object, protocol)` helper whose body
+is literally `return isinstance(...)` does NOT mask: the `: object` annotation
+only launders the STATIC type so pyright skips its unsafe-overlap warning on a
+concrete literal -- which is the asserted FACT, not a hazard.
 
-## L-039 -- Intrinsic-property gates: a PER-CELL invariant tested only with a SPATIALLY-UNIFORM fixture is untested for its per-cell-ness (#257 S1)
-
-`SpectrumField.__post_init__` enforces the simplex PER CELL (`values.sum(axis=0)` then
-`np.allclose(col_sums,1)`), but every test fixture (`_chi` helper) builds a per-cell-UNIFORM
-χ — so "per-cell sum==1" and "global mean==1" are INDISTINGUISHABLE in the suite. The code
-is correct (probed: a χ summing to 1 in cell0 / 1.2 in cell1 IS rejected) but the per-cell
-distinction is uncovered. **Rule**: when a validator's invariant is keyed on a specific AXIS
-(per-cell, per-group, per-ordinate), at least one negative fixture MUST VARY along the
-non-reduced axis so a global-collapse mis-implementation (`values.sum()` vs `.sum(axis=0)`)
-would be caught. Uniform fixtures are blind to axis-collapse bugs — the spatial analogue of
-the 1-group degeneracy (H1).
-
-**Validator Mode-11 recipe for a `__post_init__`/`replace`-revalidating type** (verified live
-on #257): (a) the `+`-routes-through-revalidation claim — a leaf that does NOT mix in `FluxRole`
-inherits `Field.__add__` → `replace()` → re-runs `__post_init__`; PROVE by tracing
-`__post_init__` call-count during `χ+χ` (fires ≥1, then raises simplex). (b) a negative test
-that pins ONE branch in isolation (neg-entry with col_sum==1.0 exactly) genuinely isolates it
-ONLY IF the OTHER branch (sum) would PASS that fixture AND runs SECOND — read `__post_init__`
-ordering (neg-check before sum-check) + confirm the raised message names the intended branch,
-not the masking one. (c) `mix`/convex-blend re-validation rides the same `replace` path.
-
-**Doc-attribution drift (CR3, no phantom edge)**: `spectrum_field.py:32` frames a χ-drift /
-depletion-feedback bug as "the ERR-039 normalization-bug class" — but ERR-039 is the moment-
-projection `apply_transpose` (2ℓ+1) addition-theorem factor (nothing to do with χ or depletion).
-`units.py:100` "ERR-039 normalization class" for a missing-`/4π` is a looser-but-OK framing
-(ERR-039 IS an angular-norm factor). No `catches("ERR-039")` marker exists on these tests, so
-no phantom coverage edge is written (contrast L-007) — pure stale-doc, flag don't block.
-RULE: a prose "the ERR-NNN class" citation in a NEW docstring still warrants a 30-sec catalog
-read; mis-citation in prose is a nit, but the same string in a `catches()` marker is a defect.
+(6) **pyright "= baseline, NO offset" rooting** (the trap: a real +N masked by
+a coincidental -N). Airtight no-checkout proof = THREE facts together: (a)
+full-tree total EXACTLY the stated baseline; (b) the SUT file isolation 0/0;
+(c) the SEAM file (the one a reverted-risky-part touched) has an EMPTY `git
+diff --stat` + isolation 0/0. The masked-offset hazard REQUIRES a nonzero diff
+on the seam or a new error somewhere -> empty diff + unchanged total rules it
+out. Always demand the seam file's diff be empty when a closeout says "I
+reverted the risky part."
 
 ---
 
-## L-040 — algebra-law-suite and broadcast-oracle have DISJOINT coverage; the law-suite is swap-INVARIANT (#257 S3b, MultiplicationOperator C=M[σ_t]) VERDICT SUPPORTED
+## L-040 -- algebra-law-suite and broadcast-oracle have DISJOINT coverage; the law-suite is swap-INVARIANT (demand a separate nx≠ny oracle for the variable-swap mode)
 
 A multiplier-algebra law-suite (M_1=I, M_0=ZeroOp, linearity, self-adjoint, spectrum→CAP_SOLVE,
 homomorphism) on a DiagonalOperator broadcast engine **cannot catch a variable-swap mode #2
@@ -1344,49 +1424,7 @@ Mode-8 clean (0 bare asserts in new test+prod; all gates via `_require`/`pytest.
 
 ---
 
-## L-039 — runtime_checkable Protocol "discriminating type-check" teeth + "no offset" pyright rooting
-
-#257 S4 (VERDICT SUPPORTED): a pure-addition typed `@runtime_checkable class TransportState(Vector, Protocol)`
-with read-only `@property` members `bulk`/`boundary`/`history_depth` + the discriminating `@foundation` test.
-
-**Teeth for a Protocol-membership test = DROP a member, confirm the negative leg reds** (anti-pattern #11
-applied to `isinstance`-against-Protocol). The load-bearing legs are the NEGATIVE ones (`np.ndarray` IS a
-Vector but NOT a TransportState; bare `AngularFlux` likewise) — they pin `TransportState ⊋ Vector`. PROVE
-them non-vacuous WITHOUT touching prod: build an in-memory MUTANT `class M(Vector, Protocol): ...` (drop-all,
-no extra members) → `np.ndarray` AND `AngularFlux` both flip to `isinstance==True`; then run the REAL test
-fn with `TransportState` monkeypatched to the mutant (patch BOTH `state_mod.TransportState` AND the test
-module's import binding) → `test_ndarray_..._not_a_transport_state` fires `pytest.fail` with the exact
-discriminating-check message = RED. Decisive.
-
-**runtime_checkable + @property data members on Py 3.14**: `isinstance` checks PRESENCE of all members
-(`__protocol_attrs__` = the 4 Vector dunders + 3 S4 props; `hasattr`-style, ignores property-vs-attr and
-ignores the property's return type). Rule out "all-True/all-False by accident" by a Partial duck (has
-bulk+boundary, NO history_depth → False, so each member individually load-bearing) + a complete Duck (all
-members, NO inheritance → True, structural). Real Protocol: tff=True, arr=False, flux=False = genuine
-discrimination.
-
-**`_is_a(candidate: object, protocol)` helper does NOT mask**: body is literally `return isinstance(...)`;
-runtime semantics bit-identical to direct isinstance (verified direct==helper ∀ cases). The `: object`
-annotation ONLY launders the STATIC type so pyright skips its "unsafe overlap" warning on the concrete
-`np.ndarray`/`Vector` literal — which is the asserted FACT, not a hazard.
-
-**"pyright 2295 = baseline, NO offset" rooting** (the trap: a real +N masked by a coincidental −N — exactly
-what bit the reverted S4-draft operator re-pointing, +2 at the InvertibleOperator `LinearOperator[V]`
-invariance seam). Airtight no-checkout proof = THREE facts together: (a) full-tree total EXACTLY the stated
-baseline; (b) `state.py` isolation 0/0; (c) the seam file `multiplication_operator.py` has an EMPTY `git
-diff --stat` + isolation 0/0. The masked-offset hazard REQUIRES a nonzero diff on the seam file or a new
-error somewhere → empty diff + unchanged total rules it out. Always demand the seam file's diff be empty
-when a closeout says "I reverted the risky part."
-
-**Mode-8**: `pytest.fail` raises `Failed` under `-O` (proven: print after it never ran); bare `assert False`
-under `-O` returns past it (NO-OP, proven). The pytest collection WARNING ("assertions ... ignored ... python
--O?") under `-O` is itself confirmation `-O` is live. grep `^\s*assert ` → 0 load-bearing (only docstring/
-comment mentions). **S8 deferral intact**: grep `TransportState` in `orpheus/` outside state.py/__init__ → 1
-hit, a PROSE docstring in timed_full_field.py (not a code annotation) = not yet wired into any operator.
-
----
-
-## L-041 — cofree base-extraction "bit-identical carrier" claim (#257 S4.5 FullField out of TimedFullField) VERDICT SUPPORTED: prove the polymorphic `_recombine` hook bites TWO mutation ways + dedicated unit test must be byte-UNCHANGED vs HEAD
+## L-041 -- cofree base-extraction "bit-identical carrier" claim: prove the polymorphic `_recombine` hook bites TWO mutation ways + the dedicated unit test must be byte-UNCHANGED vs HEAD
 
 S4.5 extracts a TIMELESS `FullField` base (the 6 vector dunders + `to_flat`/`from_flat` + `copy`/`zeros` + validation, lifted ONCE) out of `TimedFullField`; the timed subclass keeps `_history`/`history_depth`/`advance`/`at_lag` and OVERRIDES `_recombine` (returns TimedFullField, empty history, preserved depth). The load-bearing claim is BIT-IDENTICAL `TimedFullField` behavior (pure carrier extraction, no math).
 
@@ -1405,7 +1443,7 @@ S4.5 extracts a TIMELESS `FullField` base (the 6 vector dunders + `to_flat`/`fro
 
 ---
 
-## L-042 — `Functional` §5.6 category + `ProductionRateFunctional` (#257 S5, additive bit-id stage) VERDICT SUPPORTED
+## L-042 -- additive-only SUT: prove the "baseline-invariant" claim by grepping for ANY importer (empty ⇒ cannot perturb), and the variable-swap teeth are the contraction AXIS not the operand order
 
 S5 = additive only: 2 new untracked SUT files (`orpheus/numerics/functional.py`
 runtime_checkable `Functional` Protocol; `orpheus/transport/production_rate_functional.py`)
@@ -1453,7 +1491,189 @@ this correctly). Mode-8 clean: 0 bare `assert` in any S5 test file; all route th
 
 ---
 
-## L-039 -- #257 S6 IntegralKernelOperator category + kernel/production_rate cross-checks (VERDICT SUPPORTED)
+## L-043 -- Mode-11 sentinel for a NEW PRIVATE adapter = install it as a PYTEST PLUGIN that wraps the internal call (prove scipy FIRED it, not just BUILT it)
+
+Bit-identical refactor: 2 inline scipy-LinearOperator closures (`A_matvec`/`M_matvec`)
+in `KrylovAcceleration.solve` → 1 named carrier `loss_minus_gains(psi)` + 2
+`_as_scipy_linop(carrier, template, n)` calls; retired public `as_scipy_linop` (0 callers)
++ orphaned `spla` import + 5 tests + 3 doc xrefs.
+
+**CLAIM-1 byte-id (Mode-2 A/M template-swap):** prove the non-swap TWO ways — (a) read the
+2 call sites (A→`solution_template`, M→`q_ext`), (b) RUNTIME binding sentinel: monkeypatch
+`_as_scipy_linop` + `KrylovAcceleration.solve` (stash `q_ext`/`solution_template` ids in
+solve, compare template id in the adapter) → reported `carrier=loss_minus_gains
+bind=solution_template` / `carrier=<lambda> bind=q_ext`. A swap would have inverted these.
+`loss_minus_gains` reduction order char-identical to old `A_matvec` (L.apply first, then
+`for g in self.gains: out=out-g.apply`); `(n,n)`/`dtype=float` preserved.
+
+**CLAIM-2 Mode-11 sentinel for a NEW PRIVATE adapter — sharper than L-031/L-033 in-process
+probes:** install the sentinel as a PYTEST PLUGIN (`-p <module>`, module must be on
+PYTHONPATH — `-p /tmp/x` fails "No module named", copy to cwd + `PYTHONPATH=$(pwd)`), patch in
+`pytest_configure`, restore + summarize in `pytest_unconfigure`. Wrap `linop._matvec` (the
+internal scipy calls, NOT `.matvec`) with a counter to prove scipy FIRED it, not just BUILT
+it. Tag A vs M by `carrier.__name__` (`loss_minus_gains` vs the precond lambda). Result on
+identity-precond[slab] (non-None `lambda q:q` → M built): A built=2/fired=160, M
+built=2/fired=161, both on TimedFullField → M-template wiring exercised on the REAL typed path.
+This is the gold-standard Mode-11 evidence WITHOUT mutating any tracked production file (L28).
+
+**CLAIM-3 retirement:** word-boundary grep (`[^_]as_scipy_linop`) = 0 hits in orpheus/tests/docs
+(the `_as_scipy_linop` private hits are noise). 5 deleted tests pinned a now-gone
+`LinearOperator`-taking public adapter; its only unique assertion (`MissingCapability` on
+missing `CAP_APPLY`) maps to a behavior the NEW bare-callable adapter does NOT have — the
+equivalent guard moved UP to `KrylovAcceleration.__init__:422` (composition-time, STRONGER),
+covered by 14 `MissingCapability` refs in test_iteration.py + 3 surviving `NoApplyOperator`
+negatives in test_operator.py. No non-redundant coverage lost.
+
+**pyright net-new=0 PROOF without mutating tree:** the 3 `reportCallIssue` at the new line 228
+(`spla.LinearOperator((n,n),matvec=...,dtype=float)`) are the scipy-stub false-positive that
+existed at HEAD across `grep spla.LinearOperator HEAD:iteration.py` = 2 sites (756,766) + a 3rd
+in the deleted public adapter → refactor CONSOLIDATED 3 sites → 1, which is why total dropped
+2307→2297 (−10). `# type: ignore` delta −1 (removed `op.apply_transpose`), 0 added. Gates:
+138 Krylov/round-trip pass (-O); broad regression 7 reds = EXACTLY #250 SPH×5 (huge-ULP ~1e15
+while SLB sibling 1-ULP DriftWarning-pass = L-034 stale-snap) + #232 mu_y×2, all in
+tests/sn/operators/ with 0 refs to the changed code (orthogonal). No ERR (no bug caught).
+
+---
+
+## L-044 -- "producer-now-emits-X, test-helper-decoupled" re-baseline integrity: prove the helper rebuilds the flat baseline TEST-SIDE or it silently inherits the new emission
+
+S9 makes `SN2DCartesianLDStressMMSCase.prescribed_inflow` EMIT the moment-resolved
+face slot (slot-0 transverse cell AVERAGE, slot-1 bare transverse P1 slope) via a
+case-owned leggauss-only `_project_inflow_to_face_moments`, gated on
+`face_moment_count>1` (DD/Step byte-identical). NO new field type, NO value gate
+(slope is sub-floor for converged flux — vv Mode-10 companion-unavailable, 3rd recurrence).
+
+**Re-baseline-integrity recipe for a "production-now-emits-X, test-helper-decoupled"
+change** (the HIGH-PRIORITY trap): when a producer (MMS `prescribed_inflow`) gains a
+new emission AND a test helper's "flat baseline" branch USED to route through that
+producer, the helper MUST rebuild the flat baseline TEST-SIDE or it silently inherits
+the new emission → toggle collapses. PROVE the decoupling kept teeth by probing the
+helper's 4 legs directly: `None==zero` byte-id (slope-free baseline + no-op control
+has teeth), `|mom−None|`/`|flip−None|`/`|mom−flip|` all ≫tol (slope consumed, sign
+matters), `None≠mom` (toggle not vacuous). #257 S9: None==zero byte-id, |mom−flip|≈2.19e-2.
+
+**Sign-mutation gate teeth proof (cheap, in-process, no prod edit):** monkeypatch the
+SLOPE SOURCE (`_face_transverse_buffers`) to zero the slope, re-run the mom-vs-flip
+comparison → `|mom−flip|/|φ|` goes 4.10e-3 (healthy, ~5.6 orders >1e-8 `_CONSUMPTION_TOL`)
+→ 0.000e+00 (bug) → gate reds. Confirms the consumed-flip is genuine, not a tautology.
+
+**Mode-11 producer-stamp NOT circular** (L-029 applied): GATE-B compares production
+`case.prescribed_inflow` slot-1 vs `_face_transverse_buffers` (test-side leggauss),
+NOT vs `case._project_inflow_to_face_moments` — two INDEPENDENT leggauss impls; GATE-C
+separately pins their agreement (array_equal, maxdiff 0.0). A sign error in the prod
+projector would NOT propagate into the test ref → GATE-B reds. Sentinel-instrument
+`LR._LossRepresentation._inflow_to_moments` (the genuine prod consumer, reached 688×/solve):
+flat/zero slot1==0, mom/flip slot1=1.9e-2, `|mom−flat|`phi_sum>1e-3 (consumed), zero==flat
+byte-id. Mode-11 closed: producer IS exercised, not a surrogate.
+
+**Verdict-pin teeth** = `improves`(mom<flat) check + `|mom−flat|/flat ≤ 0.30` band.
+At bc_scale=20× (strongest amplification), mom monotonically WORSE (improves all False,
+rel max 0.205 < 0.30, orders [1.7,2.4]) → sub-floor wall fundamental. Pin reds if slope
+ever becomes above-floor. Coherent-promise gate teeth = flat first-cell-row order ≥1.85
+(measured 1.99/2.00/2.00 — average alone delivers O(h²) at boundary, no asterisk).
+
+**DD byte-identity proven 3 ways:** (a) `np.array_equal(prod_DD.values, pre-S9 face_coords
+build)==True` (1344,); (b) GATE D strict `-W error::DriftWarning` 520/1/4 = baseline, NO
+DriftWarning fired; (c) no LD-stress consumer in tests/sn/sweep/core or solve (grep) → no
+value/snapshot pin could shift. Gates: G1 35pass / G2 590pass,1skip,4xfail / GATE-D 520/1/4
+/ pyright 2282 = baseline 0 net-new. Mode-8 clean (0 bare assert in new file or prod).
+NO blocker, NO false-green, NO ERR.
+
+---
+
+## L-045 -- a "behavior-neutral field-zeroing" claim is valid ONLY for the ONE fission/emission contract it was proven against; re-prove inertness for EVERY consumer (ERR-063)
+
+SUT = `EmissionSpectrum(np.ndarray)` value-object + `Mixture/Isotope.__post_init__`
+simplex/null χ guard (keyed `is_fissile = bool(np.any(SigF>0))`) + a "behavior-neutral"
+precursor zeroing non-fissile χ on shared `xs_library` regions B/C/D. The TYPE + guard +
+intrinsic-property gates are SOUND; the precursor is NOT behavior-neutral → BLOCK.
+
+**What's SOUND (mutation-/byte-verified):** (1) intrinsic gates vv#11 BOTH legs, hand-laid
+L11 refs; negativity clause INDEPENDENT of sum (mutate prod: drop `>=0` → ONLY
+`test_negative_entry_raises_even_when_sum_is_one` reds; drop sum → 2 sum legs red, negativity
+green; relax `assert_null` to atol=1e-6 → `test_any_nonzero_raises` reds, pinning STRICT
+exact-zero). (2) Mode-8 clean (0 bare asserts; all `_require`/`pytest.fail`/`np.testing`/
+`pytest.raises`; 28+13 pass under -O incl real-GENDF). (3) SN-path behavior-neutrality REAL:
+direct re-solve of het 3-region DD (fuel A + non-fissile mod B) with mod.chi=[1,0] vs [0,0]
+→ keff `1.2298233055738448` BYTE-identical + flux array_equal (max abs diff 0.0); confirmed
+SigP≡0 on B/C/D so SN `FissionOperator` χ·(νΣf·φ)≡0. (4) is_fissile/SigP seam (item 5):
+explorer audit + GENDF MF6/MT18-co-located-with-MF3/MT18 → NO real-data production path has
+nonzero-χ-∧-zero-SigF; only the synthetic billiard fixture (reads SigP/chi, never SigF —
+SigF=nu_sf injection inert, confirmed billiard.py:1031-1032 + tree-grep). DD reg 13pass / TA
+full 107pass,2xfail (matches closeout).
+
+**THE BLOCK (ERR-063):** "zeroing non-fissile χ is inert" assumed the SN/`compute_macro_xs`
+contract (χ gated by SAME region's νΣf). FALSE for `solve_peierls_mg`: its MG fission op
+`B[i,ge,j,gs] += K[i,j]·chi[i,ge]·nu_sf[j,gs]` weights SOURCE-region νΣf by SINK-region χ, so
+χ on non-fissile region B (the emission spectrum of fission BORN in A but emitted INTO B) is
+LOAD-BEARING. Direct probe: region-B χ [1,0]→[0,0] moves peierls k_eff `1.0985→0.5563` (1G/2R)
+/ `1.1008→0.3856` (2G/2R) — O(1), not ULP. 7 L1 tests in
+`tests/derivations/test_peierls_rank_n_class_b_mr_mg.py` (cylinder/sphere hebert overshoot +
+recovers_kinf[2G_2R]+RICH + mark_floor[cyl/sph]) FAIL under S10a, PASS at clean HEAD (proven
+via `git worktree add c6e21c0` + PYTHONPATH=worktree: 4+4 passed). Only RICH is @slow; other 6
+plain @l1. Closeout MISSED it — it relied on "0 EmissionSpectrum reds" (counts only guard
+ValueErrors, blind to silent accuracy regressions) + "DD snapshots didn't move" (DD = SN-only,
+the consumer where χ IS inert) + never ran the 494s peierls suite. Test authors had ALREADY
+flagged this χ-dependence (commit 76b11e8, Issue #132).
+
+**RULE (new):** a "behavior-neutral field-zeroing" claim is only valid for the ONE
+fission/emission contract it was proven against. When the field is a SHARED source feeding
+consumers with DIFFERENT contracts (same-region χ·νΣf vs sink-region-χ × source-νΣf), re-prove
+inertness for EVERY consumer with a DIRECT old-vs-new VALUE comparison (O(1) move = not neutral),
+NOT a fast proxy ("snapshots didn't move" / "no guard errors"). Run the slow accuracy-band suites
+that consume the edited field. L20 shared-source hazard + H5 (test count ≠ coverage). Recommended
+fix: do NOT zero the shared library χ — decouple peierls cases' χ from the guarded library, OR
+key the guard on production not SigF, OR restrict the guard off placeholder library regions.
+Worktree-baseline recipe (clean-HEAD confirm): `git worktree add /tmp/x <HEAD>` + run with
+`PYTHONPATH=/tmp/x` (editable .venv else imports MAIN tree — verify `orpheus.__file__`).
+
+---
+
+## L-046 -- for a WEIGHTED value-pin, L11-independence is not enough: the hand-ref must carry EVERY weight factor AND the fixture must make a factor-BLIND formula give a different answer
+
+SUT = NEW `production_weighted_chi(isotopes,sigF,aDen,fissile_indices)` helper
+(`χ_mix = weights @ fissile_spectra`, `w_i = aDen_i·Σ_g ν̄σf_i / Σ_j(…)`) replacing the
+first-fissile χ shortcut in `compute_macro_xs`. The S10b consumer that produces the
+multi-fissile χ_mix the [[L-045]] S10a guard validates for free (gate-1 interlock). ALL 7
+review points SUPPORTED; clean, no blocker.
+
+**⭐ THE #1 SCRUTINY — hand-ref structural-independence for a WEIGHTED value-pin.** When the
+only value-pin is a hand-laid convex average, L11-independence is NOT enough: the hand-ref
+must independently carry EVERY weight factor (here `aDen` AND the `Σ_g ν̄σf` production sum),
+AND the fixture must make a factor-BLIND formula give a DIFFERENT answer or the factor is
+untested (a vacuous pin). PROVE it two ways: (1) the fixture discriminates — gate 2 uses
+unequal `aden=[2,1]`, so aDen-aware w=[0.4545,0.5455] vs aDen-blind w=[0.2941,0.7059] → χ
+differs by 0.128 ≫ atol=1e-12 (compute by hand, don't eyeball); (2) MUTATE the production to
+be aDen-BLIND (drop the `aDen[i]` factor) → gate 2 reds, gate-1 simplex + gate-3 byte-id STAY
+green (blind formula is still a convex average of simplices = a simplex; single-fissile
+unaffected). Hand-ref here is genuinely independent: explicit scalar `p_i = aden[i]*nubar_i*sigf_i`
+term-by-term (single-nonzero-group fact), NOT `weights @ fissile_spectra` re-spelled. The
+aDen-blind variant IS the "shares the code's weight-derivation / forgets aDen the same way"
+failure the brief warned of — proven defeated.
+
+**Other teeth (all mutation-verified live, not trusted from closeout — L12):** legacy
+first-fissile shortcut → gate 2 + real-UO2 smoke red, gate1/gate3 green; unweighted mean →
+gate 2 red (sole catcher); non-convex `2·(weights@spectra)` → gate-1 S10a `assert_normalized`
+interlock fires (7 red) = the interlock is LIVE. Single-fissile collapse is EXACT byte-id
+(w=[1], max abs diff 0.0). Mode-7 honest-scope ("flat-flux representative, NOT flux-exactness")
+declared in helper docstring + gate file. Mode-8 clean (8/8 under -O, all `_require`/`np.testing`).
+
+**Byte-identity scoping (re-baseline list EMPTY, independently confirmed):** DD regression
+13pass (within-tol DriftWarnings pre-existing FP-noise); DD path never touches `compute_macro_xs`
+(grep empty — builds Mixture via `xs_library.make_mixture`). Multi-fissile `compute_macro_xs`
+callers = `uo2_fuel`/`pwr_like_mix` (`fissile_indices=[0,1]`); the ONLY pytest-collected
+consumer is `test_solver_components.py::test_profile_421g` = a TIMING test (prints ms, asserts
+NO k_eff/flux); `pwr_like_mix`/other `uo2_fuel` refs all in `examples/` (NOT in
+`testpaths=["tests"]`). So no committed test pins a converged value off a multi-fissile mixture
+→ the χ-value change rests entirely on gate 2's hand-ref. pyright net-new = 0 (mixture.py 3
+errors WITH==WITHOUT change via stash; all 3 pre-existing `SigP/Sig2/SigT = sum(...)` int-noise,
+#226; full project 2353==baseline). The closeout's `weights @ fissile_spectra` deviation (vs
+brief's `sum(generator)` which costs +1 `reportReturnType`) verified principled — a convex
+average IS a matvec.
+
+---
+
+## L-047 -- a runtime_checkable category Protocol's member-presence loophole is REAL; the direct `not hasattr(...)` negative gates are the defense (+ the partial-coverage `kernel ≠ full apply` caveat)
 
 S6 is ADDITIVE + bit-identical: a §5.6 `IntegralKernelOperator` Protocol
 (`orpheus/transport/integral_kernel_operator.py`, `@runtime_checkable`,
@@ -1533,51 +1753,9 @@ is NOT a Mode-8 gap; the test-architect's "S6 should fix it" is unnecessary
 (Mode-8 is a concern ONLY for bare asserts in `orpheus/` production, not in
 collected `tests/`).
 
-## L-043 — #257 S7 scipy single-source plumbing (`_as_scipy_linop` extraction) VERDICT SUPPORTED
-
-Bit-identical refactor: 2 inline scipy-LinearOperator closures (`A_matvec`/`M_matvec`)
-in `KrylovAcceleration.solve` → 1 named carrier `loss_minus_gains(psi)` + 2
-`_as_scipy_linop(carrier, template, n)` calls; retired public `as_scipy_linop` (0 callers)
-+ orphaned `spla` import + 5 tests + 3 doc xrefs.
-
-**CLAIM-1 byte-id (Mode-2 A/M template-swap):** prove the non-swap TWO ways — (a) read the
-2 call sites (A→`solution_template`, M→`q_ext`), (b) RUNTIME binding sentinel: monkeypatch
-`_as_scipy_linop` + `KrylovAcceleration.solve` (stash `q_ext`/`solution_template` ids in
-solve, compare template id in the adapter) → reported `carrier=loss_minus_gains
-bind=solution_template` / `carrier=<lambda> bind=q_ext`. A swap would have inverted these.
-`loss_minus_gains` reduction order char-identical to old `A_matvec` (L.apply first, then
-`for g in self.gains: out=out-g.apply`); `(n,n)`/`dtype=float` preserved.
-
-**CLAIM-2 Mode-11 sentinel for a NEW PRIVATE adapter — sharper than L-031/L-033 in-process
-probes:** install the sentinel as a PYTEST PLUGIN (`-p <module>`, module must be on
-PYTHONPATH — `-p /tmp/x` fails "No module named", copy to cwd + `PYTHONPATH=$(pwd)`), patch in
-`pytest_configure`, restore + summarize in `pytest_unconfigure`. Wrap `linop._matvec` (the
-internal scipy calls, NOT `.matvec`) with a counter to prove scipy FIRED it, not just BUILT
-it. Tag A vs M by `carrier.__name__` (`loss_minus_gains` vs the precond lambda). Result on
-identity-precond[slab] (non-None `lambda q:q` → M built): A built=2/fired=160, M
-built=2/fired=161, both on TimedFullField → M-template wiring exercised on the REAL typed path.
-This is the gold-standard Mode-11 evidence WITHOUT mutating any tracked production file (L28).
-
-**CLAIM-3 retirement:** word-boundary grep (`[^_]as_scipy_linop`) = 0 hits in orpheus/tests/docs
-(the `_as_scipy_linop` private hits are noise). 5 deleted tests pinned a now-gone
-`LinearOperator`-taking public adapter; its only unique assertion (`MissingCapability` on
-missing `CAP_APPLY`) maps to a behavior the NEW bare-callable adapter does NOT have — the
-equivalent guard moved UP to `KrylovAcceleration.__init__:422` (composition-time, STRONGER),
-covered by 14 `MissingCapability` refs in test_iteration.py + 3 surviving `NoApplyOperator`
-negatives in test_operator.py. No non-redundant coverage lost.
-
-**pyright net-new=0 PROOF without mutating tree:** the 3 `reportCallIssue` at the new line 228
-(`spla.LinearOperator((n,n),matvec=...,dtype=float)`) are the scipy-stub false-positive that
-existed at HEAD across `grep spla.LinearOperator HEAD:iteration.py` = 2 sites (756,766) + a 3rd
-in the deleted public adapter → refactor CONSOLIDATED 3 sites → 1, which is why total dropped
-2307→2297 (−10). `# type: ignore` delta −1 (removed `op.apply_transpose`), 0 added. Gates:
-138 Krylov/round-trip pass (-O); broad regression 7 reds = EXACTLY #250 SPH×5 (huge-ULP ~1e15
-while SLB sibling 1-ULP DriftWarning-pass = L-034 stale-snap) + #232 mu_y×2, all in
-tests/sn/operators/ with 0 refs to the changed code (orthogonal). No ERR (no bug caught).
-
 ---
 
-## L-039 — "behavioral-neutral codomain re-point" (TimedFullField→FullField output)
+## L-048 -- "behavioral-neutral codomain re-point" = TWO legs: identical failing-test IDs vs a read-only baseline worktree AND the dropped field has ZERO production `.advance(` callers
 
 #257 S8a: SN operator matvec leaves (`StreamingOperator/InvertibleOperator/
 MultiplicationOperator/SNBoundaryOperator.apply`, the `S`/`F` TimedFullField-input
@@ -1646,7 +1824,7 @@ before feeding `solve` — mirrors the driver; byte-identical source `.bulk`/
 
 ---
 
-## L-039 -- #257 S8b drop `(L+C)−C` → pure-L `streaming_action`=loss_action(0)
+## L-049 -- when a value-moving carve preserves the COMPOSITE not the leaf, prove byte-id on the composite directly; pin a re-baselined `.npy` to a STRUCTURALLY-INDEPENDENT reference, not "whatever the leaf emits"
 
 VERDICT SUPPORTED. The value-moving core of the streaming carve: production's
 within-group matvec uses the COMPOSITE `(L+C).apply`=`InvertibleOperator.apply`
@@ -1690,7 +1868,7 @@ makes `L.apply` σ-dependent → outputs DIFFER by O(1) maxdiff ~12 → C1's
 both confirmed all 3 geoms.
 
 **Gates.** pyright full-tree 2297/19 = baseline (the AUTHORITATIVE oracle; the
-baseline-WORKTREE pyright is L-030 mis-rooted — `numpy` unresolved → renders
+baseline-WORKTREE pyright is mis-rooted (L-027 cross-tree-config artifact) — `numpy` unresolved → renders
 the SAME #226 family with `Unknown` types, so the message-multiset diff is
 noise; confirm instead that NO live diagnostic references `streaming_action`/
 `_zero_sigma_for`/the new apply). 0 net-new `# type:ignore`. Broad regression
@@ -1704,7 +1882,9 @@ reconcile all 7 vs baseline = stronger). CLAIM-5: `scattering.py`/`fission.py`/
 (only `streaming_action`/`_transpose`/`_zero_sigma_for` ADDED);
 `InvertibleOperator.apply`/`.solve` NOT in diff. NO blocker, NO false-green.
 
-## L-040 — #257 S8c heteromorphic-apply Pattern-M (singledispatch `apply`→`_apply_impl`, `if TYPE_CHECKING: @overload … else: apply=_apply_impl`) VERDICT SUPPORTED
+---
+
+## L-050 -- a singledispatch alias rename (`apply`→`_apply_impl`, `else: apply=_apply_impl`): prove runtime bit-id via `Cls.__dict__['apply'] is Cls.__dict__['_apply_impl']`, and a removed `NoReturn`-poisoned return UNMASKS every latent downstream pyright error
 
 The change: `FissionOperator`/`ScatteringOperator.apply` dispatch on input CARRIER
 type → DISTINCT output carrier (heteromorphic, not endomorphism). S8c renamed the
@@ -1775,137 +1955,3 @@ verified live) + 2 test sites (under-typed `integrate_angular()→object` / `sta
 →BulkField`). NO blocker, NO false-green, NO ERR.
 
 ---
-
-## L-044 — #257 S9 LD boundary-moment production-source honesty (VERDICT SUPPORTED)
-
-S9 makes `SN2DCartesianLDStressMMSCase.prescribed_inflow` EMIT the moment-resolved
-face slot (slot-0 transverse cell AVERAGE, slot-1 bare transverse P1 slope) via a
-case-owned leggauss-only `_project_inflow_to_face_moments`, gated on
-`face_moment_count>1` (DD/Step byte-identical). NO new field type, NO value gate
-(slope is sub-floor for converged flux — vv Mode-10 companion-unavailable, 3rd recurrence).
-
-**Re-baseline-integrity recipe for a "production-now-emits-X, test-helper-decoupled"
-change** (the HIGH-PRIORITY trap): when a producer (MMS `prescribed_inflow`) gains a
-new emission AND a test helper's "flat baseline" branch USED to route through that
-producer, the helper MUST rebuild the flat baseline TEST-SIDE or it silently inherits
-the new emission → toggle collapses. PROVE the decoupling kept teeth by probing the
-helper's 4 legs directly: `None==zero` byte-id (slope-free baseline + no-op control
-has teeth), `|mom−None|`/`|flip−None|`/`|mom−flip|` all ≫tol (slope consumed, sign
-matters), `None≠mom` (toggle not vacuous). #257 S9: None==zero byte-id, |mom−flip|≈2.19e-2.
-
-**Sign-mutation gate teeth proof (cheap, in-process, no prod edit):** monkeypatch the
-SLOPE SOURCE (`_face_transverse_buffers`) to zero the slope, re-run the mom-vs-flip
-comparison → `|mom−flip|/|φ|` goes 4.10e-3 (healthy, ~5.6 orders >1e-8 `_CONSUMPTION_TOL`)
-→ 0.000e+00 (bug) → gate reds. Confirms the consumed-flip is genuine, not a tautology.
-
-**Mode-11 producer-stamp NOT circular** (L26 applied): GATE-B compares production
-`case.prescribed_inflow` slot-1 vs `_face_transverse_buffers` (test-side leggauss),
-NOT vs `case._project_inflow_to_face_moments` — two INDEPENDENT leggauss impls; GATE-C
-separately pins their agreement (array_equal, maxdiff 0.0). A sign error in the prod
-projector would NOT propagate into the test ref → GATE-B reds. Sentinel-instrument
-`LR._LossRepresentation._inflow_to_moments` (the genuine prod consumer, reached 688×/solve):
-flat/zero slot1==0, mom/flip slot1=1.9e-2, `|mom−flat|`phi_sum>1e-3 (consumed), zero==flat
-byte-id. Mode-11 closed: producer IS exercised, not a surrogate.
-
-**Verdict-pin teeth** = `improves`(mom<flat) check + `|mom−flat|/flat ≤ 0.30` band.
-At bc_scale=20× (strongest amplification), mom monotonically WORSE (improves all False,
-rel max 0.205 < 0.30, orders [1.7,2.4]) → sub-floor wall fundamental. Pin reds if slope
-ever becomes above-floor. Coherent-promise gate teeth = flat first-cell-row order ≥1.85
-(measured 1.99/2.00/2.00 — average alone delivers O(h²) at boundary, no asterisk).
-
-**DD byte-identity proven 3 ways:** (a) `np.array_equal(prod_DD.values, pre-S9 face_coords
-build)==True` (1344,); (b) GATE D strict `-W error::DriftWarning` 520/1/4 = baseline, NO
-DriftWarning fired; (c) no LD-stress consumer in tests/sn/sweep/core or solve (grep) → no
-value/snapshot pin could shift. Gates: G1 35pass / G2 590pass,1skip,4xfail / GATE-D 520/1/4
-/ pyright 2282 = baseline 0 net-new. Mode-8 clean (0 bare assert in new file or prod).
-NO blocker, NO false-green, NO ERR.
-
-## L-045 — #257 S10a EmissionSpectrum + χ-guard (VERDICT NOT-SUPPORTED; ERR-063, behavior-neutrality violation in peierls)
-
-SUT = `EmissionSpectrum(np.ndarray)` value-object + `Mixture/Isotope.__post_init__`
-simplex/null χ guard (keyed `is_fissile = bool(np.any(SigF>0))`) + a "behavior-neutral"
-precursor zeroing non-fissile χ on shared `xs_library` regions B/C/D. The TYPE + guard +
-intrinsic-property gates are SOUND; the precursor is NOT behavior-neutral → BLOCK.
-
-**What's SOUND (mutation-/byte-verified):** (1) intrinsic gates vv#11 BOTH legs, hand-laid
-L11 refs; negativity clause INDEPENDENT of sum (mutate prod: drop `>=0` → ONLY
-`test_negative_entry_raises_even_when_sum_is_one` reds; drop sum → 2 sum legs red, negativity
-green; relax `assert_null` to atol=1e-6 → `test_any_nonzero_raises` reds, pinning STRICT
-exact-zero). (2) Mode-8 clean (0 bare asserts; all `_require`/`pytest.fail`/`np.testing`/
-`pytest.raises`; 28+13 pass under -O incl real-GENDF). (3) SN-path behavior-neutrality REAL:
-direct re-solve of het 3-region DD (fuel A + non-fissile mod B) with mod.chi=[1,0] vs [0,0]
-→ keff `1.2298233055738448` BYTE-identical + flux array_equal (max abs diff 0.0); confirmed
-SigP≡0 on B/C/D so SN `FissionOperator` χ·(νΣf·φ)≡0. (4) is_fissile/SigP seam (item 5):
-explorer audit + GENDF MF6/MT18-co-located-with-MF3/MT18 → NO real-data production path has
-nonzero-χ-∧-zero-SigF; only the synthetic billiard fixture (reads SigP/chi, never SigF —
-SigF=nu_sf injection inert, confirmed billiard.py:1031-1032 + tree-grep). DD reg 13pass / TA
-full 107pass,2xfail (matches closeout).
-
-**THE BLOCK (ERR-063):** "zeroing non-fissile χ is inert" assumed the SN/`compute_macro_xs`
-contract (χ gated by SAME region's νΣf). FALSE for `solve_peierls_mg`: its MG fission op
-`B[i,ge,j,gs] += K[i,j]·chi[i,ge]·nu_sf[j,gs]` weights SOURCE-region νΣf by SINK-region χ, so
-χ on non-fissile region B (the emission spectrum of fission BORN in A but emitted INTO B) is
-LOAD-BEARING. Direct probe: region-B χ [1,0]→[0,0] moves peierls k_eff `1.0985→0.5563` (1G/2R)
-/ `1.1008→0.3856` (2G/2R) — O(1), not ULP. 7 L1 tests in
-`tests/derivations/test_peierls_rank_n_class_b_mr_mg.py` (cylinder/sphere hebert overshoot +
-recovers_kinf[2G_2R]+RICH + mark_floor[cyl/sph]) FAIL under S10a, PASS at clean HEAD (proven
-via `git worktree add c6e21c0` + PYTHONPATH=worktree: 4+4 passed). Only RICH is @slow; other 6
-plain @l1. Closeout MISSED it — it relied on "0 EmissionSpectrum reds" (counts only guard
-ValueErrors, blind to silent accuracy regressions) + "DD snapshots didn't move" (DD = SN-only,
-the consumer where χ IS inert) + never ran the 494s peierls suite. Test authors had ALREADY
-flagged this χ-dependence (commit 76b11e8, Issue #132).
-
-**RULE (new):** a "behavior-neutral field-zeroing" claim is only valid for the ONE
-fission/emission contract it was proven against. When the field is a SHARED source feeding
-consumers with DIFFERENT contracts (same-region χ·νΣf vs sink-region-χ × source-νΣf), re-prove
-inertness for EVERY consumer with a DIRECT old-vs-new VALUE comparison (O(1) move = not neutral),
-NOT a fast proxy ("snapshots didn't move" / "no guard errors"). Run the slow accuracy-band suites
-that consume the edited field. L20 shared-source hazard + H5 (test count ≠ coverage). Recommended
-fix: do NOT zero the shared library χ — decouple peierls cases' χ from the guarded library, OR
-key the guard on production not SigF, OR restrict the guard off placeholder library regions.
-Worktree-baseline recipe (clean-HEAD confirm): `git worktree add /tmp/x <HEAD>` + run with
-`PYTHONPATH=/tmp/x` (editable .venv else imports MAIN tree — verify `orpheus.__file__`).
-
----
-
-## L-046 — #257 S10b production-weighted χ_mix (VERDICT SUPPORTED; the hand-ref-discrimination probe)
-
-SUT = NEW `production_weighted_chi(isotopes,sigF,aDen,fissile_indices)` helper
-(`χ_mix = weights @ fissile_spectra`, `w_i = aDen_i·Σ_g ν̄σf_i / Σ_j(…)`) replacing the
-first-fissile χ shortcut in `compute_macro_xs`. The S10b consumer that produces the
-multi-fissile χ_mix the [[L-045]] S10a guard validates for free (gate-1 interlock). ALL 7
-review points SUPPORTED; clean, no blocker.
-
-**⭐ THE #1 SCRUTINY — hand-ref structural-independence for a WEIGHTED value-pin.** When the
-only value-pin is a hand-laid convex average, L11-independence is NOT enough: the hand-ref
-must independently carry EVERY weight factor (here `aDen` AND the `Σ_g ν̄σf` production sum),
-AND the fixture must make a factor-BLIND formula give a DIFFERENT answer or the factor is
-untested (a vacuous pin). PROVE it two ways: (1) the fixture discriminates — gate 2 uses
-unequal `aden=[2,1]`, so aDen-aware w=[0.4545,0.5455] vs aDen-blind w=[0.2941,0.7059] → χ
-differs by 0.128 ≫ atol=1e-12 (compute by hand, don't eyeball); (2) MUTATE the production to
-be aDen-BLIND (drop the `aDen[i]` factor) → gate 2 reds, gate-1 simplex + gate-3 byte-id STAY
-green (blind formula is still a convex average of simplices = a simplex; single-fissile
-unaffected). Hand-ref here is genuinely independent: explicit scalar `p_i = aden[i]*nubar_i*sigf_i`
-term-by-term (single-nonzero-group fact), NOT `weights @ fissile_spectra` re-spelled. The
-aDen-blind variant IS the "shares the code's weight-derivation / forgets aDen the same way"
-failure the brief warned of — proven defeated.
-
-**Other teeth (all mutation-verified live, not trusted from closeout — L12):** legacy
-first-fissile shortcut → gate 2 + real-UO2 smoke red, gate1/gate3 green; unweighted mean →
-gate 2 red (sole catcher); non-convex `2·(weights@spectra)` → gate-1 S10a `assert_normalized`
-interlock fires (7 red) = the interlock is LIVE. Single-fissile collapse is EXACT byte-id
-(w=[1], max abs diff 0.0). Mode-7 honest-scope ("flat-flux representative, NOT flux-exactness")
-declared in helper docstring + gate file. Mode-8 clean (8/8 under -O, all `_require`/`np.testing`).
-
-**Byte-identity scoping (re-baseline list EMPTY, independently confirmed):** DD regression
-13pass (within-tol DriftWarnings pre-existing FP-noise); DD path never touches `compute_macro_xs`
-(grep empty — builds Mixture via `xs_library.make_mixture`). Multi-fissile `compute_macro_xs`
-callers = `uo2_fuel`/`pwr_like_mix` (`fissile_indices=[0,1]`); the ONLY pytest-collected
-consumer is `test_solver_components.py::test_profile_421g` = a TIMING test (prints ms, asserts
-NO k_eff/flux); `pwr_like_mix`/other `uo2_fuel` refs all in `examples/` (NOT in
-`testpaths=["tests"]`). So no committed test pins a converged value off a multi-fissile mixture
-→ the χ-value change rests entirely on gate 2's hand-ref. pyright net-new = 0 (mixture.py 3
-errors WITH==WITHOUT change via stash; all 3 pre-existing `SigP/Sig2/SigT = sum(...)` int-noise,
-#226; full project 2353==baseline). The closeout's `weights @ fissile_spectra` deviation (vs
-brief's `sum(generator)` which costs +1 `reportReturnType`) verified principled — a convex
-average IS a matvec.
