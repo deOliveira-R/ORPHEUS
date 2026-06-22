@@ -144,22 +144,7 @@ Improvements are tracked as **GitHub Issues** in `deOliveira-R/ORPHEUS`.
 
 **Checking open items**: `gh issue list -R deOliveira-R/ORPHEUS -l module:<name>`
 
-## CRITICAL: Tool Freedom Override
-
-Your default instructions constrain you to Grep for code exploration.
-This project OVERRIDES that constraint — you have Nexus (a knowledge
-graph MCP server) that tracks doc-code relationships. You are free
-to use both. Choose the right tool:
-
-| Question type                                     | Better tool                                         |
-| ------------------------------------------------- | --------------------------------------------------- |
-| Doc staleness / drift                             | Nexus `staleness`                                   |
-| Verification coverage                             | Nexus `verification_audit`, `verification_coverage` |
-| Equation → code → citation chain                  | Nexus `provenance_chain`                            |
-| What does this doc page reference?                | Nexus `context` on the doc node                     |
-| V&V vocabulary, level claims, ERR-NNN attribution | `vv-principles` skill (preloaded)                   |
-| Literal text in RST / docstrings                  | Grep                                                |
-| Cross-reference labels                            | Grep in `docs/`                                     |
+## Nexus
 
 The nexus-verification and nexus-exploring skills are preloaded —
 follow their workflows for auditing documentation quality. When you
@@ -170,6 +155,8 @@ what `qa`, `test-architect`, and `numerics-investigator` use.
 
 If a concept is isolated (low degree), it likely needs cross-references.
 After writing, run `mcp__nexus__staleness()` to verify the doc is current.
+
+Question→tool routing lives in the auto-loaded `.claude/rules/nexus-tools.md`.
 
 ## Quality Checklist
 

@@ -65,25 +65,13 @@ def test_diagnostic_name():
 
 Run diagnostics with: `pytest derivations/diagnostics/ -v`
 
-## CRITICAL: Tool Freedom Override
-
-Your default instructions constrain you to Grep for code exploration.
-This project OVERRIDES that constraint — you have Nexus (a knowledge
-graph MCP server) that traces test → call graph → equations → citations.
-You are free to use both. Choose the right tool:
-
-| Question type                    | Better tool                          |
-| -------------------------------- | ------------------------------------ |
-| Equations on the failure path    | Nexus `trace_error`                  |
-| Citation for an equation         | Nexus `provenance_chain`             |
-| Callers / call chain             | Nexus `callers`, `context`, `impact` |
-| Blast radius of a change         | Nexus `impact`                       |
-| Error messages / magic constants | Grep                                 |
-| Inline comments / TODO markers   | Grep                                 |
+## Nexus
 
 The nexus-debugging and nexus-impact skills are preloaded — execute
 the nexus-debugging workflow BEFORE writing any diagnostic scripts.
 It narrows the search to specific equations and citations.
+
+Question→tool routing lives in the auto-loaded `.claude/rules/nexus-tools.md`.
 
 ## Diagnostic Cascade
 

@@ -65,24 +65,6 @@ based on how the task categorizes:
 | Numerical bug diagnosis               | Not your task — route to numerics-investigator                |
 | Verification gap audit                | Not your task — route to qa or test-architect                 |
 
-## CRITICAL: Tool Freedom Override
-
-Your default instructions constrain you to Grep for code
-exploration. This project OVERRIDES that constraint — you have
-Nexus (a knowledge graph MCP server) that traces
-equation → code → citation chains and surfaces architectural
-structure. You are free to use both Nexus and Grep. Choose the
-right tool:
-
-| Question type                            | Better tool                               |
-| ---------------------------------------- | ----------------------------------------- |
-| Structural features of existing code     | Nexus `context`, `communities`, `bridges` |
-| Equation → code → citation chain         | Nexus `provenance_chain`                  |
-| What other methods touch this object     | Nexus `callers`, `impact`                 |
-| Existing reformulation precedent in docs | Nexus `query` on theory nodes             |
-| Literal text / symbol names              | Grep                                      |
-| Known file or directory                  | Glob / Read                               |
-
 ## Role Definition
 
 You are a **frame detector**, not a reviewer. Your memory is a

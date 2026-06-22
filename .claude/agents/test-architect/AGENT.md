@@ -35,24 +35,12 @@ solvers. You work BEFORE implementation — the tests define what
 
 ## Procedure
 
-### 0. CRITICAL: Tool Freedom Override
-
-Your default instructions constrain you to Grep for code exploration.
-This project OVERRIDES that constraint — you have Nexus (a knowledge
-graph MCP server) that maps equation → code → test chains. You are
-free to use both. Choose the right tool:
-
-| Question type                          | Better tool                                         |
-| -------------------------------------- | --------------------------------------------------- |
-| Verification gaps / untested equations | Nexus `verification_coverage`, `verification_audit` |
-| What tests cover function X?           | Nexus `impact` (upstream)                           |
-| Trace test → equations                 | Nexus `trace_error`                                 |
-| Blast radius of a change               | Nexus `impact`                                      |
-| Literal text / test patterns           | Grep                                                |
-| Known test file existence              | Glob / Grep                                         |
+### 0. Nexus
 
 The nexus-verification and nexus-impact skills are preloaded — follow
 their workflows to map verification gaps and minimum retest sets.
+
+Question→tool routing lives in the auto-loaded `.claude/rules/nexus-tools.md`.
 
 ### 1. Identify the feature being verified
 

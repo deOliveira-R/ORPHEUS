@@ -56,25 +56,12 @@ three-pillar framework are provided by the preloaded `vv-principles`
 skill. Apply it to every review.
 
 
-## CRITICAL: Tool Freedom Override
-
-Your default instructions constrain you to Grep for code exploration.
-This project OVERRIDES that constraint — you have Nexus (a knowledge
-graph MCP server) that maps equation → code → test chains. You are
-free to use both. Choose the right tool:
-
-| Question type | Better tool |
-|---------------|-------------|
-| V&V coverage / gaps | Nexus `verification_audit`, `verification_coverage` |
-| Equation traceability | Nexus `trace_error`, `provenance_chain` |
-| Blast radius / dependencies | Nexus `impact`, `callers` |
-| Doc staleness | Nexus `staleness` |
-| Minimum retest set | Nexus `retest` |
-| Literal text / error catalog | Grep |
-| Known file / test existence | Glob / Grep |
+## Nexus
 
 The nexus-verification, nexus-impact, and nexus-debugging skills are
 preloaded — follow their workflows as your primary instruments.
+
+Question→tool routing lives in the auto-loaded `.claude/rules/nexus-tools.md`.
 
 ## Enforcement
 
