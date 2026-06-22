@@ -20,6 +20,28 @@ reuse it without rebasing onto current main). ff-merge per cluster-batch.
 
 ---
 
+## Progress log
+
+### Session 2026-06-22 — orpheus/ **502 → 470**, all merged + pushed to `main` (`5856160 → 11fa279`)
+
+Ratchet re-baselined 706 (stale) → taut, then per-cluster commits (each: tests green under `-O`, count drops, 0 net-new `# type: ignore`, ratchet re-tightened):
+
+- **Ratchet re-baseline** (`af13734`): the #257 + foundation merges had burned orpheus/ 706→502 without re-tightening — closed a 204-error regression hole. Baseline now tracks the live per-module floor (`tests/_harness/pyright_baseline.json`).
+- **B1 warm-up** (`fe90b77`, −16): the 11 `reportUndefinedVariable` were REAL missing-import annotations in `derivations/` (sympy stays lazy → a module-level `TYPE_CHECKING` block; `Quadrature1D` folded into the already-runtime `common.quadrature` import; `TimedFullField`) — fixed regardless of the B6 derivations exec-env decision. Cluster D = 6 `bool_`/`csr`/`csc` return narrowings (`bool(...)`, build `csr_matrix` from triplets directly, `np.asarray(spsolve(...))`).
+- **B2 §3 MoC plotters** (`3ed5fec`, −6): `plot_moc_rays`/`plot_moc_mesh` were a retired-Cartesian relic (`geom.n_cells`/`delta`/`mat_map`) that `AttributeError`'d **live** (demo_moc.py calls them). Rewritten against the actual reverse-Wigner-Seitz ring model (`pitch = R_outer·√π` equal-area square, concentric `radii`, real `Track.entry/exit` chords). User reviewed the rendered figures. **#266 filed** for the third plotter `plot_moc_spatial_flux` + the broadly-stale `demo_moc.py` (`default_pwr()` doesn't exist either) — a bigger rewrite + keff re-validation; it is the **last orpheus/(root) error**.
+- **B2 §2 AngularMeasure** (`aa93757`, −4): widened the deliberately-lean geometry `AngularMeasure` Protocol with the genuine curvilinear-contract members `eta`/`mu_z`/`level_indices` (types matching the concrete `Quadrature` properties); retired 2 pre-existing `# type: ignore`.
+- **B2 §1 PoleAngularClosure retirement — DEFERRED to #236** (user decision, 2026-06-22). The explorer's premise was WRONG, verified against main: the ABC `PoleAngularClosureBase` is `__call__`-only; the strategy methods (`precompute_psi_state`/`cell_contribution`/`angular_adjoint`/`level_indices`/`psi_half_seed`) are `MorelMontryAngularSweep`-specific; `IdentityAngularClosure` (cartesian) can't carry them as abstractmethods; #236's ABC-contract work (`6fdb0fe`) is **unmerged** (merge-status trap). Retiring the orphan would require narrowing consumers to the concrete (= B3 work on loss_representation.py) and would be superseded once #236 hoists the methods to the ABC — so keep the orphan Protocol until #236 lands. **#248 updated.** The independent half (AngularMeasure) shipped in `aa93757`.
+- **B3 full_field_space** (`11fa279`, −6): `_require_blocks()` now RETURNS the narrowed `(bulk_space, trace_space)` pair so the three callers bind non-None locals (it was `-> None`, which can't narrow `self.x`). Runtime-inert. The remaining `.bulk`/`.boundary`-on-`NDArray` + the `inner_product` override error in that file are one deeper mismatch — `FunctionSpace` is typed for `NDArray` while `FullFieldSpace` carries composite fields → **B4** generic-hierarchy. LESSON: matching an override param *name* to a base whose *type* is wrong only surfaces the type mismatch harder (the rename was reverted).
+
+### Resume here (next session)
+B3 continues on **#236-INDEPENDENT** files only (skip `pole_angular_closure.py` 17 + the loss_representation closure-access ~10 — both #236-territory, deferred):
+- `_bases.py` (3 — `TraceSpace.layout` is Optional; narrow in `from_face_arrays` after the existing space-not-None guard; first confirm layout is always set for a valid trace), `cell_balance.py` (3), `sweep_graph.py` (2), `diamond.py` (2), singletons (solver/geometry/boundary_operator/sweep_schedule/boundary_source_sink), + the ~9 non-closure `loss_representation.py` Optionals.
+- Then **B4** (`LinearOperator[V]` generic — the FunctionSpace/NDArray mismatch lands here), **B5** (union dispatch), **B6** + **Workstream C** (derivations ~228 + non-production trees), **Workstream A** (user-gated hook for LSP noise).
+
+Operating rules in force: `npx pyright` CLI is the oracle (the streamed `<new-diagnostics>` lags edits — never trust it over a CLI run); NO `# type: ignore`; re-tighten `pyright_baseline.json` after each cluster (`python -m tests._harness.pyright_ratchet --update`); per-cluster ff-merge + push (user authorized this cadence).
+
+---
+
 ## Current state (triage, 2026-06-21, `npx pyright` 1.1.410)
 
 Full repo = **2353 errors / 19 warnings**, 774 files. By directory:
