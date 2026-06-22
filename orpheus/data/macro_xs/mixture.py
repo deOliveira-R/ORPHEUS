@@ -105,6 +105,77 @@ class Mixture:
         return np.array(self.SigS[0].sum(axis=1)).ravel()
 
     @property
+    def n2n_out_xs(self) -> np.ndarray:
+        """(NG,) total (n,2n) out-scattering XS (Sig2 row sum).
+
+        Mirrors :attr:`total_scattering_xs` for the (n,2n) channel so the
+        balance identity reads like the conservation law it encodes (see
+        :meth:`balance_residual`).
+        """
+        return np.array(self.Sig2.sum(axis=1)).ravel()
+
+    @property
+    def balance_residual(self) -> np.ndarray:
+        r"""(NG,) per-group total-XS balance residual.
+
+        The total cross section is, by definition, the sum of every removal
+        channel:
+
+        .. math::
+
+           \Sigma_{t,g} = \Sigma_{c,g} + \Sigma_{L,g} + \Sigma_{f,g}
+                          + \sum_{g'}\Sigma_{s0,g\to g'}
+                          + \sum_{g'}\Sigma_{2n,g\to g'}
+
+        i.e. capture + (n,alpha) + fission + total P0 scatter-out + (n,2n)
+        out. This is VERBATIM the line that derives ``SigT`` in
+        :func:`compute_macro_xs`. The residual is the per-group absolute
+        defect :math:`|\Sigma_{t,g} - \text{(removal channels)}|`.
+
+        ``SigP`` (production = :math:`\nu\Sigma_f`) is a fission-SOURCE
+        multiplier, NOT a removal channel — it is deliberately absent.
+        """
+        derived = (
+            self.SigC
+            + self.SigL
+            + self.SigF
+            + self.total_scattering_xs
+            + self.n2n_out_xs
+        )
+        return np.abs(self.SigT - derived)
+
+    def assert_balanced(self, atol: float = 1e-9) -> None:
+        r"""Assert the definitional total-XS identity holds per group.
+
+        Raises :class:`ValueError` if the maximum per-group
+        :attr:`balance_residual` exceeds ``atol``, reporting the residual
+        and the offending group index.
+
+        This is the canonical whole-identity check
+        :math:`\Sigma_t = \Sigma_c + \Sigma_L + \Sigma_f
+        + \text{rowsum}(\Sigma_{s0}) + \text{rowsum}(\Sigma_{2n})`.
+
+        It is NOT enforced in ``__post_init__``: manufactured / synthetic
+        cross sections legitimately carry non-physical totals — the Atalay
+        1997 criticality encoding (``νΣ_f = (c-1)Σ_t`` with ``Σ_f = 0`` for
+        ``c > 1``), structural test scaffolds, and the billiard ``SigP``
+        carrier all build imbalanced ``Mixture`` instances on purpose. The
+        law is invoked by PHYSICAL builders only (e.g. :func:`compute_macro_xs`,
+        which derives ``SigT`` via the identity and therefore always balances —
+        the call there is a free regression guard against a future derivation
+        bug).
+        """
+        residual = self.balance_residual
+        max_residual = float(residual.max())
+        if max_residual > atol:
+            bad_group = int(np.argmax(residual))
+            raise ValueError(
+                f"Mixture XS imbalance: max |SigT - (SigC+SigL+SigF"
+                f"+rowsum(SigS0)+rowsum(Sig2))| = {max_residual:g} > atol={atol:g} "
+                f"in group {bad_group}"
+            )
+
+    @property
     def scattering_ratio(self) -> np.ndarray:
         r"""(NG,) Case–Zweifel secondaries-per-collision parameter.
 
@@ -282,7 +353,12 @@ def compute_macro_xs(
     if fissile_indices:
         chi = production_weighted_chi(isotopes, sigF, aDen, fissile_indices)
 
-    return Mixture(
+    mix = Mixture(
         SigC=SigC, SigL=SigL, SigF=SigF, SigP=SigP, SigT=SigT,
         SigS=SigS, Sig2=Sig2, chi=chi, eg=eg,
     )
+    # Real-path guard: SigT was just DERIVED via the balance identity, so a
+    # physical mixture always balances. This is a free regression guard
+    # against a future derivation bug (it catches, it does not break).
+    mix.assert_balanced()
+    return mix

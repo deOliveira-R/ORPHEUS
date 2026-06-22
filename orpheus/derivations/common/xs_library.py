@@ -302,20 +302,20 @@ def get_materials(n_regions: int, ng_key: str) -> dict[int, Mixture]:
 def validate_all() -> None:
     """Verify XS consistency for all regions and group counts.
 
-    Raises :class:`ValueError` (NOT ``assert``) so the gate fires under
-    the canonical ``python -O`` invocation too — a bare ``assert`` in a
+    Routes each ``(region, ng)`` through the canonical whole-identity gate
+    :meth:`~orpheus.data.macro_xs.mixture.Mixture.assert_balanced`
+    (single source of truth for the total-XS balance — incl. SigL and the
+    (n,2n) channel, not just the partial ``sig_c + sig_f + rowsum(sig_s)``
+    this used to inline). :meth:`Mixture.assert_balanced` raises
+    :class:`ValueError` (NOT ``assert``) so the gate fires under the
+    canonical ``python -O`` invocation too — a bare ``assert`` in a
     production module is stripped by ``-O`` (vv-principles Mode 8), and
     this import-time check is the ONLY consistency gate on the hardcoded
     verification XS tables (issue #228).
     """
     for region, groups in XS.items():
-        for ng_key, xs in groups.items():
-            sig_t_check = xs["sig_c"] + xs["sig_f"] + xs["sig_s"].sum(axis=1)
-            if not np.allclose(xs["sig_t"], sig_t_check):
-                raise ValueError(
-                    f"XS inconsistency in region {region}, {ng_key}: "
-                    f"sig_t={xs['sig_t']} ≠ sig_c+sig_f+sig_s={sig_t_check}"
-                )
+        for ng_key in groups:
+            get_mixture(region, ng_key).assert_balanced()
 
 
 # Validate on import
