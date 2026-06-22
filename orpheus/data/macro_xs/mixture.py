@@ -134,6 +134,72 @@ class Mixture:
         return (self.total_scattering_xs + self.SigP) / self.SigT
 
 
+def production_weighted_chi(
+    isotopes: list[Isotope],
+    sigF: np.ndarray,
+    aDen: np.ndarray,
+    fissile_indices: list[int],
+) -> np.ndarray:
+    r"""Mixture fission spectrum: the production-weighted convex average of
+    the fissile isotopes' emission spectra.
+
+    .. math:: \chi_{\rm mix} = \sum_i w_i\,\chi_i,\quad
+              w_i = \frac{a_i \sum_g \bar\nu_{i,g}\sigma_{f,i,g}}
+                         {\sum_j a_j \sum_g \bar\nu_{j,g}\sigma_{f,j,g}}
+
+    where the per-isotope production rate :math:`p_i = a_i \sum_g
+    \bar\nu_{i,g}\sigma_{f,i,g}` is the flat-flux representative fission
+    production density (the standard data-prep weighting, :math:`\phi_g
+    \equiv 1`).
+
+    HONEST SCOPE (vv Mode-7). The truly-correct mixture spectrum is
+    FLUX-weighted (:math:`w_i \propto \sum_g \nu\Sigma_{f,i,g}\,\phi_g`); a
+    static data-prep value cannot capture :math:`\phi`. This is a
+    DOCUMENTED approximation, NOT a separate issue — the flat-flux
+    production weighting is the conventional data-prep choice. A convex
+    combination of simplices is a simplex, so the result passes
+    :meth:`~orpheus.data.emission_spectrum.EmissionSpectrum.assert_normalized`
+    when the per-isotope :math:`\chi_i` are themselves simplices.
+
+    Parameters
+    ----------
+    isotopes : list[Isotope]
+        Microscopic cross-section data; ``isotopes[i].nubar`` (NG,) and
+        ``isotopes[i].chi`` (NG, simplex) are read.
+    sigF : (n_iso, NG) array
+        Per-isotope fission XS interpolated at the converged sigma-zeros
+        (the same array :func:`compute_macro_xs` builds).
+    aDen : (n_iso,) array
+        Number densities in 1/(barn*cm).
+    fissile_indices : list[int]
+        Indices of the fissile isotopes to average over (MUST be non-empty;
+        the caller guards the empty case).
+
+    Returns
+    -------
+    (NG,) array
+        The production-weighted convex average emission spectrum. Returned
+        as a plain ``np.ndarray``; the :class:`Mixture` constructor coerces
+        it to a validated :class:`EmissionSpectrum` in ``__post_init__``.
+    """
+    production = np.array(
+        [aDen[i] * float(np.sum(isotopes[i].nubar * sigF[i])) for i in fissile_indices]
+    )
+    total = production.sum()
+    # fissile_indices is selected by is_fissile (σf>0) and real isotopes
+    # carry ν̄>0 where σf>0, so total>0 in practice. Guard the degenerate
+    # ν̄≡0 (zero total production) case rather than dividing by zero.
+    if total > 0:
+        weights = production / total
+    else:
+        weights = np.full(len(fissile_indices), 1.0 / len(fissile_indices))
+    # The convex average χ_mix = Σ_i w_i χ_i as a weights·spectra contraction:
+    # stack the per-isotope simplices into (n_fissile, NG), then weights (1, n)
+    # @ spectra (n, NG) → (NG,). Reads like the math and types as an ndarray.
+    fissile_spectra = np.array([np.asarray(isotopes[i].chi) for i in fissile_indices])
+    return weights @ fissile_spectra
+
+
 def compute_macro_xs(
     isotopes: list[Isotope],
     number_densities: np.ndarray,
@@ -208,10 +274,13 @@ def compute_macro_xs(
     # Total XS
     SigT = SigC + SigL + SigF + np.array(SigS[0].sum(axis=1)).ravel() + np.array(Sig2.sum(axis=1)).ravel()
 
-    # Fission spectrum — use first fissile isotope's chi (simplification)
+    # Fission spectrum — production-weighted convex average over ALL fissile
+    # isotopes (flat-flux representative weighting; see
+    # `production_weighted_chi`). The Mixture constructor coerces this plain
+    # array to a validated EmissionSpectrum.
     chi = np.zeros(NG)
     if fissile_indices:
-        chi = isotopes[fissile_indices[0]].chi.copy()
+        chi = production_weighted_chi(isotopes, sigF, aDen, fissile_indices)
 
     return Mixture(
         SigC=SigC, SigL=SigL, SigF=SigF, SigP=SigP, SigT=SigT,
