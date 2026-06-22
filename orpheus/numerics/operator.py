@@ -393,9 +393,18 @@ class LinearOperatorMixin(Generic[V]):
     #: — NOT a ``ClassVar[...]`` annotation, which under ``from __future__
     #: import annotations`` is mis-detected by the ``@dataclass`` machinery
     #: as a field (it became a string and the ClassVar heuristic missed
-    #: it). The annotation HERE is documentary only — this mixin is not a
-    #: dataclass, so its annotation is never field-processed.
-    block_role: ClassVar[Optional[BlockRole]] = None
+    #: it). The annotation HERE is a **plain instance attribute** (NOT
+    #: ``ClassVar``) precisely because the composers
+    #: (:class:`OperatorSum` / :class:`ScaledOperator` /
+    #: :class:`_AdjointOperator`) and the
+    #: :func:`~orpheus.sn.boundary_realizer._as_boundary` stamp assign
+    #: ``self.block_role`` per-instance (the role is DERIVED from operands,
+    #: not fixed by the class). A ``ClassVar`` would (correctly) reject
+    #: that instance assignment. The mixin is not a ``@dataclass``, so this
+    #: annotation is never field-processed; the leaves' unannotated
+    #: class-attr override keeps the class-level read
+    #: (``ScatteringOperator.block_role``) working.
+    block_role: Optional[BlockRole] = None
 
     if TYPE_CHECKING:
         # Declared for the type checker ONLY (this block never executes at

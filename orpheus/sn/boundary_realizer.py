@@ -81,11 +81,9 @@ from orpheus.numerics.operator import (
     BlockRole,
     IdentityOperator,
     IncomingOrdinateMaskTensor,
-    LinearOperator,
+    LinearOperatorMixin,
     PeriodicWrapOperator,
     PermutationOperator,
-    ScaledOperator,
-    TensorProductOperator,
     ZeroOperator,
 )
 from orpheus.sn.angular_operator import (
@@ -107,7 +105,7 @@ if TYPE_CHECKING:
 __all__ = ["SNBoundaryRealizer", "SNMethodSpace"]
 
 
-def _as_boundary(op: LinearOperator) -> LinearOperator:
+def _as_boundary(op: LinearOperatorMixin) -> LinearOperatorMixin:
     r"""Stamp a realized boundary law with the :attr:`BlockRole.BOUNDARY` role.
 
     The realized law is a boundary-block leaf (``A_ss`` only) on the
@@ -147,8 +145,18 @@ class SNBoundaryRealizer:
         self,
         law: "BoundaryTraceLaw",
         method_space: SNMethodSpace,
-    ) -> LinearOperator:
-        """Realize ``law`` for SN as a 1-arg :class:`LinearOperator`."""
+    ) -> LinearOperatorMixin:
+        """Realize ``law`` for SN as a 1-arg :class:`LinearOperator`.
+
+        The concrete return is always a :class:`LinearOperatorMixin`
+        subclass (a generic numerics primitive —
+        :class:`TensorProductOperator` / :class:`ScaledOperator` /
+        :class:`IncomingSourceOperator` / …); the narrower mixin type
+        (vs the bare :class:`LinearOperator` Protocol) lets the
+        :func:`_as_boundary` ``block_role`` instance-stamp type-check and
+        keeps the realized-law primitives assignable nominally rather than
+        through the (invariant) Protocol.
+        """
         quad = method_space.quadrature
 
         if isinstance(law, VacuumInflow):
@@ -204,7 +212,7 @@ class SNBoundaryRealizer:
                 # ``IdentityOperator.apply(np.take(x, perm, axis=0))``
                 # reduces to ``np.take(x, perm, axis=0)`` — same bytes.
                 return _as_boundary(base)
-            return _as_boundary(ScaledOperator(float(law.albedo), base))
+            return _as_boundary(float(law.albedo) * base)
 
         if isinstance(law, WhiteBoundary):
             # Wave T step T.1 — white BC lift to 2-factor
@@ -221,7 +229,7 @@ class SNBoundaryRealizer:
             )
             if law.albedo == 1.0:
                 return _as_boundary(base)
-            return _as_boundary(ScaledOperator(float(law.albedo), base))
+            return _as_boundary(float(law.albedo) * base)
 
         if isinstance(law, AlbedoBoundary):
             if law.albedo == 0.0:
@@ -235,10 +243,9 @@ class SNBoundaryRealizer:
             # the apply level (both IdentityOperator factors return
             # ``x`` unchanged; the ``ScaledOperator`` wrapper supplies
             # the α multiplication).
-            return _as_boundary(ScaledOperator(
-                float(law.albedo),
-                IdentityOperator() & IdentityOperator(),
-            ))
+            return _as_boundary(
+                float(law.albedo) * (IdentityOperator() & IdentityOperator())
+            )
 
         if isinstance(law, PeriodicBoundary):
             # Wave T step T.1 — periodic BC lift to 2-factor
