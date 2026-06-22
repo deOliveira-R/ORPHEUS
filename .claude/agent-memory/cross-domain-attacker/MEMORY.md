@@ -1,24 +1,116 @@
-Durable library kernel (Smell #16 four-shape detector + transport-resolvent backbone) is PROMOTED into AGENT.md "Promoted Library Kernel" — fire it from there, do not re-derive.
+# Cross-Domain Attacker — Memory Index
 
-- [Spatial-order TYPE-vs-PROPERTY criterion](spatial_order_type_vs_property_criterion.md) — DESIGN MEMO (branch `feature/field-typed-operator-algebra`). CRITERION (sharpened user thesis): a rep earns a TYPE iff ≥2 NON-canonically-iso bases coexist connected by a MODELED, APPLIED change-of-basis morphism (carries truncation err + adjoint + in the operator algebra). Angular PASSES (ordinate↔harmonic, M/R = the Vandermonde) → 2 types correct. Spatial FAILS clause 1 (one tensor-Legendre basis, only morphism=id) → PROPERTY correct. VERDICT: AGAINST `SpatialMomentField` NOW, defer-with-trigger (Pattern 6). No method supplies the dual: MoC=flat-source, diffusion=FD point-value, nodal-diffusion NOT planned (grep-0), LS-MoC/FET=modal-only→share the SPACE not the type, QD=`per_axis` WIDENING=opposite of a type. Foreign frames CONVERGE: order=PARAMETER in hp-FEM/p-MG/hierarchical-Legendre/FET; TYPE only in nodal-DG/nodal-diffusion where a nodal point-value/face-current dual coexists (Vandermonde/coupling-coeff morphism). Project ALREADY legislated it: `MomentField` ABC (`_bases.py:460-472`) = thin marker awaiting 2nd instance per `feedback_unify_after_two_instances`. Unification `MomentField[Basis]` true (both L²-Galerkin) but premature — share at SPACE layer (`find_factor`, SH & spatial spaces ALREADY siblings), not FIELD. TRIGGER (decisive): a nodal within-cell/face-current rep + an APPLIED nodal↔modal morphism enters prod (nodal diffusion most likely) → lift `SpatialMomentField`+dual into MomentField ABC mirroring M/R. Diag utilities: slope-overshoot=REAL but space+method (no type); p-restrict/error-est=typed OPERATORS within one family not a field type. SMELL CANDIDATE for Part C: "expanded-order typed when only one basis exists (change-of-basis=id)" = type-theatrics; promote after 2nd sighting.
-- [CoefficientField → MultiplicationOperator promotion](coefficient_field_promotion_frames.md) — DESIGN MEMO (branch `feature/field-typed-operator-algebra`, §5.5–5.7 plan). 4 frames. F1: the promotion `f↦M_f` IS the multiplier-algebra embedding `M:L^∞→B(L²)`, a faithful unital *-homomorphism onto the maximal-abelian diagonal subalgebra; laws→tests `M_f@M_g=M_{fg}`/`M_1=I`/`M_0=ZeroOp(codomain_zero)`/`M_{af+bg}=aM_f+bM_g`/`M_f.H=M_f` real⇒self-adjoint/`spec=ess-range`. `DiagonalOperator` IS `M_f` on one axis (special-case constructor, NOT sibling); `MultiplicationOperator` = M_f varying on `(ng,*spatial)`, broadcast over angle. F2: `CoefficientField` MUST NOT inherit FluxRole — it is a COMMUTATIVE ALGEBRA+cone+module (keeps base plain-vec dunders, ADDS field-field `*`); it is SEVERAL roles not one — `CrossSectionField` (cone, `1/cm` — σ_t/νΣf, FIFTH unit sig absent from all leaves) vs `SpectrumField` (χ, simplex Σ=1, dimensionless — convex-blend `.mix` mirrors `affine_combination`); simplex/cone = coefficient-side mirror of flux/displacement. F3 locality criterion: diagonal-symbol⇒Coefficient⇒MultiplicationOperator; integrated-against-measure⇒Kernel⇒IntegralKernelOperator (`DiagonalOperator.from_measure` is the hinge: multiply-by vs integrate-against, same weights diff verb). Fission χ⊗νΣf = (b) `M_χ ∘ ProductionRateFunctional(=Σ_g, field→per-cell-scalar, the #226 ProductionRateSolver split) ∘ M_νΣf`; `RankOneOperator` = the SeparableKernel/LowRankKernel realisation backing it (stays L1 primitive); `FissionOperator` IS `IntegralKernelOperator` (nonlocal in g), rank-1 vs Σ_s's sum-of-low-rank is the separability discriminator. F4 honest generic: `V bound=Vector` correct in ARITY wrong in ALTITUDE — introduce `TransportState(Protocol)` in `orpheus/transport/` REFINING numerics `Vector` (keep Vector — np.ndarray satisfies it, numerics can't import transport); `apply(x:TransportState)->TransportState` at transport layer (block-role dispatch needs `.bulk`/`.boundary` ⇒ bound load-bearing); NOT a rename, a layered pair. ⚠ PLAN IMPRECISION: §5.7 `MultiplicationOperator` CLASS collides with §4158 `CriticalityEigenproblem.multiplication_operator()` (the `A_loss⁻¹@F` ITERATION op = resolvent backbone) — rename §4158 to `iteration_operator`. Smell-16 sightings: Σ_t in 2 reps (MaterialXSField view + `loss_action(sigma,…)` positional thread) + C realised twice (folded `L=(L+C)−C` vs standalone leaf). Cross-poll: TimeMassOperator=`M_{1/v}` falls out free; build C in `orpheus/transport/` so CP/MoC share it (resolvent backbone); CP region-avg=Projection adjoint Reconstruction (§4678).
-- [#257 carrier-typing + layering frames](issue_257_carrier_typing_layering_frames.md) — DESIGN MEMO, 6-frame attack CONFIRMING explorer ("Vector irreducible; Field-move orthogonal hygiene") + upgrading it to theorem. VERDICT (A): keep layering, rename to timeless `FullField`, history orthogonal. Ground truth verified: `Field` has 1 caller (an abstractness test), numerics refs transport only in docstrings, barrier=`FORBIDDEN_EDGES["numerics"]=L2|L3` test, biproduct ALREADY named+impl (`operator.py:109`, `FullFieldSpace`). STRONGEST: F1 forgetful-functor — `Vector` IS the object-image of `U:C_carrier→C_vec`; barrier = U has no nameable inverse from cod(U); Protocol is the SHADOW of the layer DAG (only dissolve lever = move algebra UP to L2 = abandon method-agnosticism); Field not on U's path. F2 fibration — `apply:V→V` is a CARTESIAN morphism (single-V correct BECAUSE fibre-preserving, vs rejected #226 per-op Generic[F]); ⚠ the ONE code action = first test "does any `apply` branch on isinstance(x)/type(x) rather than `.bulk`/`.boundary`?" (fibration leak, do before #217 hardens). F3 module-over-ring — `Field` OVERLOADED (flux-module additive base AND coefficient-RING set via CrossSectionField); Field-relocation + #257 coeff-algebra split = SAME hygiene from 2 angles, do together (aligns [[coefficient-field-promotion-frames]] F2). F4 Cofree comonad — `TimedFullField=Cofree(FullField,d)`; `advance`=extend, `at_lag(0)`=extract; operators are base arrows, ONLY drivers see W; typing operator output (Cψ/residual) as Timed = vestigial history tail = Smell-16 shape-3 at one remove; FORCES #217. NAMING: buffer serves time AND Krylov → rename `TimedFullField→IteratedFullField`/`FullFieldHistory` (or doc as `Cofree(FullField,d)`). Cross-poll: drive a `(ScalarFlux,TemperatureField)` product through `power_iteration` to validate Vector as universal carrier; Krylov+time stencil are one history-window (fold if 2 paths). Promotion candidates for A.2: F1 + F4.
-- [#226 container algebra design](issue_226_container_algebra_design.md) — DESIGN MEMO (not a frame attack): uniform container-typed operator algebra. Q1: structural `Vector` Protocol in numerics + `apply(x:V)->V` over `TypeVar V bound=Vector` (ndarray AND Field AND TimedFullField satisfy) — NOT per-op `Generic[F]` (can't express same-container-different-leaf). Q2: `(L+C−S−F−B)` IS endomorphism on TimedFullField; 3 exceptions = functionals V→scalar (keff/production, separate `Functional` Protocol), trace ι* (PRIVATE to L's FULL block, not public), projection (already covered=same container/diff leaf). Q3 SCOPE LINE: the 7 numerics primitives STAY flat ndarray axis-ops (composite-state⇒container; single-axis⇒ndarray); Identity/Zero span both (Zero's codomain_zero hook is the pattern in miniature). Q4: `BoundaryMomentField` = BoundaryField sibling of HarmonicMomentField (its absence is Smell-16 — moment state's boundary in 2 reps); `MomentFullField`=named FACTORY not subclass. Q5: `FullFieldSpace` ALREADY EXISTS (adjoint-only-wired); P3.6=install it as `.space` + promote to Field via structured-storage (5b not flat-5a); P3.6-FIRST makes retype trivial but Vector is structural so CAN be parallel; CHECK two-instance rule w/ user. Q6: merge `as_scipy_linop`+Krylov inline ravel into one typed adapter (Smell-16); scipy still sees flat (n,n). Q7: steps 1–5 bit-identical typing, step 6 (moment-state closure) sole behavioral — test-architect proactive there. Transport-resolvent backbone = the endomorphism algebra's why.
-- [DiscretizationScheme naming-signal](discretization_scheme_naming_signal.md) — VOCABULARY frame attack on `orpheus/sn/spatial/scheme.py` (advection–reaction spatial-closure, soon diffusion-consumed). RENAME: `total_xs`→`reaction_xs` (#1, becomes a lie under diffusion), `cell_average_weight`→`face_blend_weight` (κ-scheme axis; NOT `kappa`=precision-loss). KEEP frame-conflict: `streaming`/`s_axes` (SN-native, diffusion won't touch). NEW SMELL CANDIDATE: "frame-leak parameter naming" (name-after-one-consumer on a multi-consumer interface).
-- [D5 trait + multi-D LD MMS frames](d5_trait_and_mms_frames.md) — #240 Phase 2 D5. (1) The scan-march-admission discriminator is TRANSVERSE-COUPLING ORDER (DD/Step couple non-swept axes via a 0th-order face TRACE → separable d-D closure; LD via a 1st-order SLOPE moment → irreducible (1+d)-block, non-separable). `is_affine_scannable` is a 1-D statement misused as a d-D one (Smell-16-adjacent over-loaded trait). RECOMMEND a SCHEME-named trait `transverse_coupling_is_facewise`/`separable_cell_closure`, NOT strategy-named `is_scan_march_compatible` (frame leak — reusable by the diffusion-DSA/ADI consumer if scheme-named), NOT a basis-degree int (over/under-discriminates). (2) The MMS ansatz `[A+μx·B+μy·C]/W` DOES activate the bilinear per-axis spatial slope rows (verified vs the LD Schur kernel) IF B,C vary along their own axis — confirmed it does, DD≢LD. STRENGTHEN: add x↔y-broken cross-harmonic terms to the SLOPE drivers B,C (not only A) to defeat a same-sign slope-row bug that the separable drivers let cancel; slope-SOURCE (Q̂) half of the LM-1989 trap is GATED on D5b threading a 2-moment source in d≥2. Source L11-independent (PDE-derived). `a0>0` confirmed (no curvilinear pole constraint in Cartesian).
-- [Peierls rank-N white BC attack](peierls_rank_n_frame_attack.md) — Six frames attacked (Chandrasekhar H, Rayleigh-Ritz, surface Markov chain, connection-coefficient, QMC, group-theory); five high-priority first tests proposed.
-- [Phase 5 continuous-µ frame attack](phase5_continuous_mu_frames.md) — Six frames against the µ-resolved multi-bounce kernel; strong: Hilbert-Schmidt separable, generating-function bounce-resolved, multiplication-operator spectral theorem, Feynman-Kac surface chain. Refuted: Mittag-Leffler PF, Wiener-Hopf, basis switch. Promoted to skill 2026-04-30 (A.3 / A.7 sharpenings + M1/M2/M4 precedent).
-- [Elegance smell 15](elegance_smell_rank_non_monotone.md) — Rank-N non-monotone convergence (rank-2 worse than rank-1) is a structural tell that Galerkin is being done without a variational principle. Promoted to skill 2026-04-30 as Smell #15.
-- [Variant α 2-surface BIE frame](variant_alpha_2surface_bie_frame.md) — Extension to slab/annulus/hollow-sphere matches boundary-to-boundary scattering operator S; T = (I − S)^{-1} promotes scalar geometric-series shortcut to named resolvent. Rank-1 = sphere/cylinder, rank-2 = 2-surface. Refactor BEFORE extending. Promotion candidate to A.7 after slab SymPy proof ships.
-- [Variant α family hindsight](variant_alpha_family_hindsight.md) — 6-geometry × 2-orbit-space-class hindsight review (one-surface-compact + two-surface M/G — see Sphinx §`orbit-space-m-g-classification`). Top frame: fiber bundle (BaseAtlas, AngularFiber, ChordOracle). 3 ready-now refactors: ChordOracle shared with Nyström, unified power_iterate driver, single GreensResult. 2 wait-for-instance items.
-- [Trajectory resolvent foreign-frame attack](trajectory_resolvent_foreign_frames.md) — 11-frame detection on `trajectory_resolvent/` (Variant α 6-geometry × 2-orbit-space-class family). CONFIRMED: rank-N IS bond dimension of an open MPO (user-asked tensor-network match). High-priority free deliverables: PIMC xverif, mult-op A.3 doc consolidation, generating-function verification axis. Rejected: Wiener-Hopf (wrong solver family).
-- [Issue #168 Phase C sweep-frame matvec](issue_168_phase_c_sweep_frame.md) — Apply matvec restructured as per-ordinate batched sweep over cell-visit DAG; BC trace law owns boundary edge; retire `BoundaryFaceFlux` Protocol. Trigger candidate for A.7: two-paths-same-operator. First/oldest Smell-16 sighting (now promoted to AGENT.md).
-- [Issue #196 Phase G chain_dag_scan frame attack](issue_196_phase_g_chain_dag_scan_frame_attack.md) — Six-frame attack on the chain_dag_scan + affine_coefficients candidate. CONFIRMED: Blelloch §1.5 pair-monoid IS the right frame; slab + curvilinear collapse to ONE primitive `ordinate_scan`. REFUTED: triangular-solve, MPS (rank-1 degenerate), JAX (no second consumer). DEFERRED: segmented-scan for 2D. Smell-16 sighting: scalar-accumulator inner loop without monoid naming.
-- [Issue #196 Phase G Step 2.5c native expression](issue_196_phase_g_step2_5c_native_expression.md) — Seven-frame attack on the precomputed-coefficient-tensor cache for the sweep. CONFIRMED: cache MUST factor by immutability stratum (geometry / Σ_t / source) — Frame 5 (operator-splitting) hits all four elegance criteria. ADOPT: Frame 3 (`lax.scan` API), Frame 6 (Green's-function reading of cumprod/cumsum). REJECT: Frames 1/2/4. DEFER: Frame 7. Smell-16 sighting: cache shape mixing immutability strata.
-- [Issue #208 Wave O operator-algebra frames](issue_208_operator_algebra_frames.md) — MERGED (absorbed the degraded full-access re-run 2026-06-08). CONFIRMED most-native = dagger inverse biproduct category w/ a CO-EQUAL non-trivial boundary metric G (†=G⁻¹AᵀG); block matrices + adjoint-for-free are THEOREMS; solve is a partial-inverse morphism (solve∘apply=id oracle), not a tag; triangularity is an SN/MoC-only refinement mixin; transport-resolvent predicts the diffusion exception. REFUTED: operad/PROP, homology (B∘B≠0), spectral-on-typing. NEW smell candidate: metric-blindness.
-- [power_iteration vs KEigenvalue morphism](power_iteration_vs_keigenvalue_morphism.md) — Durable frame: a power-iteration loop and an operator-triple loop are the SAME fixed-point combinator at two layers; the Protocol-opaque-resolvent layer is STRICTLY more general (admits monolithic-matrix resolvents w/ no L/S/F split) → it is the engine, the triple loop adapts into it. Deprecation arrow pointed the wrong way. Regression-attribution heuristic: blame the lossy test adapter, not the shape-agnostic engine.
-- [Eigenvalue/posing layering frames](eigenvalue_posing_layering_frames.md) — Durable frame: the K/α/source/transient family is ONE generalized eigenproblem Aψ=λMψ, backbone = resolvent K=A_loss⁻¹M, layered leaves→posing→resolvent→algorithm. KEY correction: posing BIFURCATES into 2a (method-agnostic role assignment + μ-map) + 2b (method-specific A_loss realization). Transient/adjoint = sibling posings; metric on the LEAF layer.
-- [StreamingOperator apply_transpose frame](streaming_apply_transpose_frame.md) — Durable native frame for Lᵀ: triangular-transpose (Lᵀ=(I−Nᵀ)=reverse DAG walk + local coupling transposed + face roles swapped) + Lewis-Miller adjoint-ordinate (−Ω octant = reversed traversal FREE). THREE gotchas a spatial-only reverse silently violates: (1) the nested angular recurrence must transpose too, (2) pole/regularity seed → outer-face term, (3) trace block swaps inflow↔outflow. Generalizes to any sweep with a nested second recurrence.
-- [Phase 4 O.2b 4.6 MMS ansatz frame](phase4_o2b_4_6_mms_ansatz_frame.md) — Durable frame for anisotropic SN MMS design: (A+μB)/W IS the native truncated-P1 Legendre element; a LINEAR closure is FULLY probed by a μ-non-constant input (linear-in-μ fully activates redistribution — no P2 needed; enrich degree ONLY for quadrature-exactness). HAZARD: the curvilinear redistribution carries 1/r → B MUST vanish at the centre (B(0)=0); slab has no such constraint. Measure also enters the L2 error norm.
-- [Issue #208 Δψ affine/Banach/Krylov frames](issue_208_delta_psi_affine_frames.md) — Durable triad for typing any solver's two "→0" quantities: iterate increment Δx (affine difference-space element) vs equation residual r (dual-space defect); Δx=A⁻¹r̃ connects them. Affine-torsor (state⊖state→displacement; state+state illegal by construction) + Banach-contraction (displacement is the sole carrier of ρ/Aitken/a-posteriori bound) + Krylov-dual (‖Δx‖ primal, ‖r‖ dual). Affine/torsor frame + state-typed-increment anti-pattern PROMOTED TO SKILL (commit 9504146).
-- [Field-role-typing FaceFlux frames](field_role_typing_faceflux_frames.md) — Durable native frame = DEC/cochain: interior FaceFlux = angular-flux 1-cochain, boundary trace = its restriction ι* to the boundary 1-chain; "absorption = identity" IS ι_*∘ι*=id. VERDICT: per-face object REJECTED (vectorization + biproduct + boundary-field consistency); field-on-FaceLayout+views is native (C¹=C¹_int⊕C¹_∂). G-S/Jacobi = back-edge split of reflective R on the (octant×face) graph (ordering-respecting=GS-eligible, cycles=lagged); current bare-sweep+(−B) is pure-Jacobi by construction. Cross-poll: KBA scheduling, FEEC trace, scattering matrix S resolvent.
+Slim index. Behavioral/process lessons live in `lessons.md` (read FIRST each
+dispatch). The frame-trigger CATALOG lives in the `cross-domain-frames` skill
+(Part A/B/C) and the promoted library kernel (Smell #16 four-shape detector +
+transport-resolvent backbone) lives in AGENT.md — fire it from there, do NOT
+re-derive. This index holds only (1) the lessons pointer, (2) git-true active
+state, (3) durable design pointers (frame-matches that became real architecture).
+
+## 1. Lessons (read first)
+
+- [lessons.md](lessons.md) — 8 process lessons. Spine: a frame-attack's value is
+  a concrete reformulation with a FAIL-ABLE first test OR a crisply-reasoned
+  refutation, never a named-but-payoff-free frame. Refuted-frame reasons are
+  first-class (L1); first tests must DISCRIMINATE (L2); Smell #16 four shapes
+  (L3); property-vs-type is decidable by counting applied morphisms (L4); read
+  the worktree not Nexus on a branch (L5); frame-leak naming (L6); the
+  transport-resolvent backbone predicts cross-method layering (L7); "fully
+  probes" is about linearity not degree (L8).
+
+## 2. Active / in-flight state
+
+**None.** The campaigns these attacks fed — SN operator-algebra / role-typing /
+Wave-O, the eigenvalue-posing layering, the LD-on-the-DAG spatial closure, the
+Variant-α Green's-function family, the Δψ affine-typing — are landed work; their
+frame DESIGN VERDICTS are the durable pointers in §3 and the skill, not in-flight
+code state. The field-typed-operator-algebra DESIGN MEMOS (§3, carrier-typing /
+coefficient-promotion / property-vs-type) are GUIDANCE for the operator-algebra
+line, decoupled from any single branch's merge status.
+
+> Merge-status in memory goes STALE — a "branch X, NOT merged" note freezes
+> mid-flight and the work lands in a later session. A frame VERDICT does not
+> expire, but a code FACT it cites can; re-ground against the live worktree
+> (L5) before acting on a file:line. Only #236 (spatial⊗angular product) is a
+> known-open branch as of this curation.
+
+## 3. Durable design pointers (frame-matches that became, or should become, architecture)
+
+These are frame-attacks whose reformulation produced a real refactor or a
+load-bearing design verdict — keep them as pointers; the detection HABIT is in
+`lessons.md`, the structural CONTENT is here.
+
+### Operator algebra (the SN/transport algebra spine)
+- [issue_208_operator_algebra_frames.md](issue_208_operator_algebra_frames.md) —
+  the algebra IS a dagger inverse biproduct category with a CO-EQUAL non-trivial
+  boundary metric `G` (`†=G⁻¹AᵀG`): block matrices + adjoint-for-free are
+  THEOREMS, `solve` is a partial-inverse morphism (not a string tag),
+  triangularity is an SN/MoC-only refinement mixin. Smell candidate:
+  metric-blindness.
+- [issue_208_delta_psi_affine_frames.md](issue_208_delta_psi_affine_frames.md) —
+  the affine/torsor + Banach-contraction + Krylov-dual triad for typing a
+  solver's two "→0" quantities (increment Δx vs residual r). The affine frame +
+  state-typed-increment anti-pattern are PROMOTED TO THE SKILL.
+- [field_role_typing_faceflux_frames.md](field_role_typing_faceflux_frames.md) —
+  the SN face flux is a DEC 1-cochain; the boundary trace is its restriction `ι*`
+  ("absorption = identity" IS `ι_*∘ι*=id`); `C¹=C¹_int⊕C¹_∂` is the biproduct.
+  G-S/Jacobi = back-edge split of the reflective coupling on the (octant×face)
+  graph.
+- [streaming_apply_transpose_frame.md](streaming_apply_transpose_frame.md) — `Lᵀ`
+  = triangular-transpose (reverse DAG walk + transposed local coupling + face
+  roles swapped) + Lewis-Miller adjoint-ordinate. THREE gotchas a spatial-only
+  reverse silently violates (nested angular recurrence, pole seed→outer face,
+  trace inflow↔outflow swap).
+
+### Eigenvalue / iteration layering
+- [eigenvalue_posing_layering_frames.md](eigenvalue_posing_layering_frames.md) —
+  K/α/source/transient = ONE generalized eigenproblem `Aψ=λMψ`, backbone =
+  resolvent `A_loss⁻¹M`, layered leaves→posing→resolvent→algorithm; posing
+  bifurcates into method-agnostic role-assignment (2a) + method-specific
+  realization (2b).
+- [power_iteration_vs_keigenvalue_morphism.md](power_iteration_vs_keigenvalue_morphism.md)
+  — a power-iteration loop and an operator-triple loop are the SAME `fix(step)`
+  combinator at two layers; the Protocol-opaque-resolvent layer is STRICTLY more
+  general (admits monolithic-matrix resolvents) → it is the engine, the triple
+  loop adapts in. (Deprecation arrows point toward the opaque interface.)
+
+### Field-typed operator algebra DESIGN MEMOS (operator-algebra line guidance)
+- [issue_226_container_algebra_design.md](issue_226_container_algebra_design.md) —
+  uniform container-typed algebra: structural `Vector` Protocol +
+  `apply(x:V)->V` (NOT per-op `Generic[F]`); the `(L+C−S−F−B)` algebra is an
+  endomorphism on one carrier; 7 numerics primitives stay flat ndarray axis-ops
+  (composite-state⇒container, single-axis⇒ndarray); scipy = serialization
+  boundary.
+- [issue_257_carrier_typing_layering_frames.md](issue_257_carrier_typing_layering_frames.md)
+  — `Vector` is the forgetful-functor image (irreducible by the layer DAG, not a
+  bad-hierarchy artifact); `apply:V→V` is a fibration cartesian morphism;
+  `TimedFullField = Cofree(FullField, d)` forces the timeless-base split.
+  Strong promotion candidates: forgetful-functor + Cofree-comonad (skill A.2).
+- [coefficient_field_promotion_frames.md](coefficient_field_promotion_frames.md)
+  — `f↦M_f` IS the multiplier-algebra embedding `M:L^∞→B(L²)` (laws→tests);
+  `CoefficientField` is a commutative algebra+cone (NOT a flux torsor) splitting
+  into `CrossSectionField` (cone, 1/cm) vs `SpectrumField` (simplex, χ); locality
+  criterion = diagonal-symbol⇒MultiplicationOperator vs integrated-against-
+  measure⇒IntegralKernelOperator. ⚠ flags the `multiplication_operator` name
+  collision (rename the eigenvalue verb to `iteration_operator`).
+- [spatial_order_type_vs_property_criterion.md](spatial_order_type_vs_property_criterion.md)
+  — the DECIDABLE property-vs-type criterion (≥2 non-iso bases + an applied
+  change-of-basis morphism); spatial order = PROPERTY (one basis, morphism=id),
+  angular order = TYPE (the applied projection/reconstruction pair). The criterion
+  itself is the durable kernel (now distilled into lessons L4).
+
+### Variant-α Green's-function family + spatial closure
+- [variant_alpha_family_hindsight.md](variant_alpha_family_hindsight.md) +
+  [trajectory_resolvent_foreign_frames.md](trajectory_resolvent_foreign_frames.md)
+  — the 6-geometry × 2-orbit-class family: top frame = fiber bundle
+  (BaseAtlas/AngularFiber/ChordOracle); rank-N IS the bond dimension of an open
+  MPO (user-confirmed); ready-now refactors = shared ChordOracle (with Nyström),
+  unified `power_iterate` driver, single GreensResult; MPO/bundle wait for the
+  N≥3 / instance-N+1 tripwire.
+- [d5_trait_and_mms_frames.md](d5_trait_and_mms_frames.md) — the DD/Step-vs-LD
+  scan-march discriminator is TRANSVERSE-COUPLING ORDER (0th-order face trace ⇒
+  separable d-D closure vs 1st-order slope moment ⇒ irreducible (1+d)-block); name
+  the trait for the SCHEME property (`transverse_coupling_is_facewise`), not the
+  strategy. The multi-D LD MMS ansatz `[A+µx·B+µy·C]/W` activates the bilinear
+  slope rows IF the slope drivers vary along their own axis (add x↔y-broken cross
+  terms to defeat a same-sign slope-row bug).

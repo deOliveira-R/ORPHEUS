@@ -1,54 +1,47 @@
 # Explorer memory index
 
-The durable SHAPE of the SN operator-algebra subsystem now lives in
+Slim index. Behavioral lessons live in `lessons.md` (read FIRST each dispatch).
+This index holds only (2) git-true active-state and (3) durable reference. The
+per-campaign `file:line` carve/audit maps are archaeology — they go stale in days
+and are re-derivable in seconds via Nexus. Keep notes here DURABLE, not transient.
+
+## 1. Lessons (read first)
+
+- [lessons.md](lessons.md) — 6 exploration lessons. The spine: an answer is
+  not "I found the symbol" but "I found EVERY consumer the next action touches,
+  verified the premise against the CURRENT tree, and separated durable
+  subsystem-shape from drift-prone line numbers." Retirement blast radius =
+  graph+grep+constructors+doc-nodes (L1); the issue text is a stale premise,
+  verify it first (L2); durable-shape vs line-map (L3); carve verdicts name
+  both retire AND keep-as-anchor with the discriminator (L4); git is
+  authoritative for merge-status (L5); boolean-presence ≠ integer-width (L6).
+
+## 2. Active / in-flight state
+
+**None.** The durable SHAPE of the SN operator-algebra subsystem lives in
 `.claude/agents/explorer/AGENT.md` ("SN operator-algebra subsystem — durable
-shape"). The point-in-time `file:line` carve/surface maps for the #208 / Wave-O /
-Phase 2-5 / WavefrontFlux / g-adjoint work were DELETED during the 2026-06-08
-hygiene pass — that work is all merged to origin/main, so their line maps were
-stale and re-derivable in seconds via Nexus. Keep notes here durable, not transient.
+shape") — read that, not a frozen file-list here. Every SN campaign this agent
+audited — the operator-algebra unification, the Wave-O / role-typing / g-adjoint
+work, the matvec carve onto `_OneDimScanWalk`, LD-on-the-DAG, the foundation
+cleanup (moment-resolved source + trace widening + predicate scoping), and the
+field-typed algebra map — is **merged to main** (git-verified 2026-06-22:
+`refactor/sn-foundation-cleanup` has zero commits ahead of `main`). The only
+open SN branch is **#236** (`feature/sn-spatial-angular-product`).
 
-## Durable physics / convention context
+> Merge-status in memory goes STALE (lessons L5). ALWAYS reconcile any "resume X"
+> against `git merge-base --is-ancestor <hash> HEAD` before acting; never trust a
+> frozen "NOT pushed". Landed milestones live in the SN theory page's development
+> history (`docs/theory/discrete_ordinates.rst`), not here.
 
-- [HarmonicMomentField UNITS convention](harmonic_moment_field_units_convention.md) — why a stored SH moment carries SCALAR-flux units (no-prefactor SH, Y_0^0=1, weights sum to 4π → sr cancels); R≠M*; ERR-039/ERR-051 history.
-- [Phase 5 µ-resolved primitive inventory](phase5_mu_resolved_primitive_inventory.md) — µ-resolved vs µ-integrated primitives in peierls_geometry.py for the continuous-µ specular multibounce closure.
+## 3. Durable reference (survives code churn)
 
-## Typing / pyright audits
+These are convention/units facts that a line-number drift cannot invalidate —
+they pin WHY a quantity carries the units it does. Keep them; everything else
+in the old index was a frozen carve-map and is proposed for retirement.
 
-- [#226 operator-algebra Generic[V] map](issue_226_operator_generics_map.md) — make `LinearOperator`/`LinearOperatorMixin`/`OperatorSum` `Generic[V]` over vector/field type. VERDICT: unbounded `V=TypeVar("V")` (np.ndarray + TimedFullField are NOT `Field`); NO mixed ndarray/field `OperatorSum` in prod (within-group = resolvent `L+C` + variadic `S`,`B` gains; matvec composes at FIELD level not OperatorSum); pure typing change (no RegistryMixin+LinearOperatorMixin combo in prod — registry.py:31 is docstring-only); singledispatch S/F operators are the imperfect-fit arms.
-- [Field-typed operator-algebra campaign map](issue_226_field_typed_algebra_map.md) — BROADER campaign vs the Generic[V] memo: operator census by true (Vin,Vout) [(a)container-endo / (b)under-typed-field-map (Π/R) / (c)flat-primitive / (d)scipy-adapter]. ⭐VERDICTS: `DirectSumSpace` DOES NOT EXIST (docstring-only; P3.6=write+promote; `FullFieldSpace` is its seed); flat ndarray = SERIALIZATION boundary not a vector space (`as_scipy_linop` ZERO prod callers; live site = inline `spla.LinearOperator`@iteration.py:755 + ravellable `to_flat`/`from_flat`); NONE of the (c) primitives irreducibly flat (all act on ONE tagged axis=0-ordinate/group, already `& IdentityOperator`-folded); `BoundaryMomentField` GAP real+small (3 BoundaryField leaves all scalar-per-face; fork = angular-moment trace vs #251 transverse-spatial-moment); `q_ext:np.ndarray` only 2 stale prod sites (iteration.py:450/697). Builds on #208(CLOSED); feeds #2/#200; #226-Generic is the type-level prereq.
-
-## Active carve audits (in-flight worktree work)
-
-- [#247 moment-resolved external-source + boundary-trace consumption path](issue_247_moment_source_consumption_path.md) — ⭐ Leg A (BULK slope source) LANDED (uncommitted on `refactor/sn-foundation-cleanup`, 3 files: `solver.py` lift-widen + `mms/sn.py` + `test_mms_ld_2d.py`); Leg B (boundary transverse face-slope) DEFERRED → #251. QA-audited NO sign/magnitude bug (no ERR-063): external Q̂ + scattering Σ_s·φ̂ summed into ONE global-frame buffer by typed SI `+` (`iteration.py:503-505`, space-eq `field.py:256`) BEFORE the sweep, so they're indistinguishable array elements at the SINGLE rank-gated `_reframe` (`sweep_graph.py:931-936`, `is_moment_valued_by_rank`; involution `_ubld.py:106-158`) — no external-vs-scattering branch, no extra/missing/transposed flip. Producer supplies BARE per-volume Legendre coeff; kernel `R_source=M@S_moments` adds M=diag(h,θh) weighting (`linear_discontinuous.py:495-500`). d=2 Kronecker `[bar,y,x,xy]` x-slope=slot2 (axis0=x OUTER; `moment_layout.py:50-55`); producer slot-map `test_mms_ld_2d.py:505` matches. Sign teeth = M1-M3 external + M4 scattering mutation (`test_mms_ld_2d.py:872-969`, O(1)≫1e-8 tol; Mode-10). Consumer machinery (`sweep_graph`/`_ubld`/`linear_discontinuous`) UNCHANGED (pre-#240-D5b-S3). DOC-NIT only: `linear_discontinuous.py:304` slope labels transposed `{ψ̄,ψ̂_x,ψ̂_y,ψ̂_xy}` vs canonical (not a bug, prose only).
-- [#238 M_spatial/M_angular_redist leaf-split L20 audit](issue_238_mspatial_mangular_audit.md) — RETIRE-eligible: post-#206 hot path uses fused `loss_action`; the split's only callers are 3 standalone leaf `.apply` (zero production callers) + tests-only; #200/#2 (would-be consumers) are OPEN issues not code; NO dangling verifies/catches (module=foundation, no markers); rewire map (TestT4b/T4c/T5/standalone) + internal-to-orphan delete list; thin documented-KEEP defensible (named typed anchor for future #200).
-- [#239 2-D ScanMarch coeff-lift ALREADY LANDED](issue_239_scanmarch_coeff_lift.md) — on refactor/sn-foundation-cleanup (commit 66dbd9a, #240 D5a); inline-diamond premise STALE; #239 is a CLOSE-VERIFY not implement; LD-2-D = structural exclusion (bilinear≠facewise), not underived research; equiv gate already present.
-- [#251 TraceSpace widening (Leg B of #247)](issue_251_trace_space_widening.md) — boundary trace carries `2^{d-1}` transverse face-slope (2-D LD). ⭐ KEY FACT: trace is purely SCALAR-per-face today (NO moment axis, NO `face_moment_tail` hook); `TraceSpace.shape=(total_size,)` derives ENTIRELY from `FaceLayout`, which `geometry.py:boundary_face_layout` (1044-1050) builds scheme-blind from `face_shape(label)`. The ONE storage lever = append the scheme face-tail to the slot shape there (scheme reachable: set @271 before trace @517). `trace_space.py` UNCHANGED (metric@285-286 + selectors@407-423 broadcast over trailing axes → moment-ready). Inflow lift = `_inflow_to_moments` (357-378, zeros transverse@375-376, boundary twin of Leg A). Outflow store = DROP 4 collapse sites (1068/1140/1319/1387, all `if n>1` guarded). Producer `prescribed_inflow` (boundary_source_sink.py:274) needs `,:`→`[inflow]` (span all trailing). Boundary FIELDS validate total_size-only (`_bases.py:516`) → DD/Step `()` tail byte-identical. Leg B is 2-D-ONLY (1-D slab face has no along-face dir; `per_axis**(1-1)=1`). HAZARD: reflective `B` `PermutationOperator(axis=0)` passes moment axis through for storage but transverse-slope SIGN under reflection needs numerics/qa verify. SOLVE-vs-MATVEC site split + minimal "what changes where" in §9.
-- [#246 moment-axis typed predicate scoping](issue_246_moment_axis_predicate.md) — 4 value-based "carries the 2^d moment axis?" probes → 1 typed pred. CRUX: probes split Kind-A (boolean) vs Kind-B (width — KEEP `_n_face_moments`/`_spatial_moment_tail`); Site-4 `len(s_axes)>1` RETIRED; factor lives on FIELD but inner-walk sites see only ndarray+`mesh.scheme` → verdict (B) small plumbing; `frame_signs is None ⟺ DD/Step` already typed, only the `arr.shape[-1]` half is the S4 smell; pred home = `BulkField.has_spatial_moment_axis` (boundary) + `scheme.spatial_basis_per_axis>1` (inner); NO `mesh.spatial_moment_space()`.
-- [#158 per-cell sweep machinery (Increment A)](issue_158_per_cell_sweep_machinery.md) — exact slab SOLVE-walk for OneDimPerCellWalk: dag_walk(ordinate_idx=n, mu_level_idx=None) yields slab CellVisits in chain order (face_area_downstream=1.0); face_view (N,ng) inflow/outflow slots by sign(μ); psi_in=outgoing_spatial_flux chain; Q*V rank-agnostic; (2,ng) LD source via [...,i]; supports=is_1d AND NOT is_affine_scannable; __post_init__ guard CONFIRMED (gate-2 needs guard-free inner body); LD CellResult is (ng,) not (2,ng).
-- [Tier 2 space⊗angle live map (post-#206)](tier2_space_angle_live_map.md) — #236 Tier 2 grounding: spatial registry (DD-only, no Step/LD/EC) + per-cell dispatch seam in `_OneDimScanWalk` (degenerate-cyl loop @ loss_representation.py:2681); supports-gate on is_affine_scannable; #219 SNMethodSpace name-collision CONFIRMED; angular seam LIVE; #233/#229 verification gates; smallest-first-step + 1 user decision per #158/#235.
-- [C4 BC FaceLabel producer audit (#220)](c4_bc_facelabel_producer_audit.md) — producer-side-only TRUE (2 generic prod consumers); axis.bc[endpoint] EXISTS; missing FaceLabel→"xmin" crosswalk; 1-D bc_ymin/ymax placeholders + 2-D bc_left/right = orphans; _resolve_one "zmin"→"x" latent d3 bug.
-- [C3.6 dimensional-dispatch audit](c36_dimensional_dispatch_audit.md) — post-#222 is_1d/ndim survivors; 3 (b) sites (ScanMarch supports/kernel mismatch, _octant_sweep sign_z truncation, _OUT_FACE x/y hand-list); d=3 admission chain; quadrature NOT the blocker.
-- [SN phantom-axis rank-change audit](sn_phantom_axis_rank_change_audit.md) — dropping the phantom ny=1 (1-D → genuine (N,ng,nx)); the single-lever `_bases._shape_for_mesh`, the local(C/S/F survive)/structured(L+sweep) split, the latent to_flat vs n_unknowns_flat mismatch (orthogonal, not load-bearing).
-- [ScanMarch seam crosswalk (#222)](scan_march_seam_crosswalk.md) — DD-kernel↔scan-recurrence α=2s_x/D−1, β=2(Q+s_y·ψy_in)/D (verified at nulp); a_attenuation cache is 1-D-ONLY (2-D recomputes inline = #206); march/reflective-shed seam; supports=is_1d OR is_cartesian; anti-surprises (psi_avg=0.5(in+out) STILL holds 2-D; aniso/moment/multigroup OUTSIDE the recurrence; curvilinear is d=1-only).
-- [#206 Phase B 1-D-scan frame blast radius](issue_206_phase_b_frame_blast_radius.md) — shared 1-D SWEEP frame extraction; _OctantWalk template anatomy (kernel/emit OBJECT fork, no bool flag); _run_1d_sweep/_sweep_1d_unified/_ensure_*_cache ZERO external callers (clean relocation); CumprodScan≡ScanMarch-1D call identically; two-stratum cache mesh-stash contract; Carlson/initial_guess/boundary-face hazards; Phase-B forks on is_slab not solve/apply.
-- [#206 Phase C apply-kernel relocation design](issue_206_phase_c_apply_kernel.md) — move 1-D (L+C)ψ matvec OFF _compute_LpC/_transpose/_decomposition ONTO _OneDimScanWalk; VERDICT=ONE walk fork at cell-kernel+emit (apply=ψ̄ known→D·ψ̄−U; sweep=Q known→divide; same single-sourced denom/face primitives); _x_scan_faces ALREADY dual-serves α=−1/β=2ψ̄; decomposition twin collapses via cell_contribution-only m_ang (split STAYS on operator, full-(L+C) sources from walk); degenerate-cyl branch = per-cell A_down=0/zero-inflow (use geom.is_degenerate); DO-NOT (Carlson/angular-closure re-inline, return (L+C)ψ not Lψ, keep cell_balance_for_streaming multi-consumer, 2-D NIE guard); relocate-verbatim-bit-id THEN optional cache-fold principled-equiv; 5-step sequence + 3 _compute_decomposition consumers (op:269/1158/1276).
-
-## Committed pre-carve dependency audits (durable rationale; line maps may have drifted)
-
-- [D-I.3 dependency audit](D-I.3_dependency_audit.md) — retiring the bare-ndarray adapter arm of StreamingOperator.apply; production+test caller inventory + readiness verdict.
-- [A.5 BoundaryFlux→TraceSpace rehome audit](a5_boundary_flux_trace_space_rehome_audit.md) — re-homing BoundaryFlux onto the unified TraceSpace (FaceLayout field→space); consumer inventory + minimal-churn carve.
-- [D-G BoundaryFlux consumer audit](dg_boundary_flux_consumer_audit.md) — every BoundaryFlux consumer (prod+tests) with WRITE/mutability sites called out; source of truth for the BoundaryFlux→pure-Field carve.
-- [D-H.1b AngularFlux consumer audit](dh1b_angular_flux_consumer_audit.md) — legacy AngularFlux usage → new L2 AngularFlux + TimedFullField migration mapping; Phase-A overlap-risk ordering.
-- [FunctionSpace typed-field audit](function_space_typed_field_audit.md) — FunctionSpace as the L1 base for every typed transport field; usage inventory + dunder-algebra patterns + migration targets.
-
-## Architectural-rationale audits (subsystem shape; the WHY behind the typed algebra — mostly LANDED, kept for rationale)
-
-- [Issue #196 SN operator architecture audit](issue_196_sn_operator_architecture_audit.md) — diagnoses SI-vs-Krylov drift as twin procedural impls of the same primitives; proposes the operator-algebra unification that makes twin-path defects structurally impossible.
-- [Phase G typed field contracts](typed_field_contracts_for_phase_g.md) — canonical frozen-dataclass contracts for AngularFlux/ScalarFlux/Solution; the (L+C−S−F)ψ=q typed-leaf vocabulary; relationship to Issue #197.
-- [Issue #196 Phase G replan — SN structure](issue_196_phase_g_replan_sn_structure.md) — SNMesh IS the SN phase space (no wrapper); four-operator layer status; structure-carve anti-recommendations.
-- [Issue #196 Phase G replan — strategy Protocols](issue_196_phase_g_replan_sn_strategies.md) — CellUpdate / PsiHalfAngleSeed / PoleAngularClosure / BoundaryRealizer Protocols; residual math belongs on CellUpdate.residual.
-- [Issue #196 Phase G replan — algebra inventory](issue_196_phase_g_replan_algebra.md) — inventory of the LinearOperator/OperatorSum/Scattering(R·Λ·M)/Fission/SourceIteration/KEigenvalue algebra; most already shipped.
-- [Issue #196 Phase G Step 2.5 — DD polymorphism](issue_196_phase_g_step2_5_dd_polymorphism.md) — the three DiamondDifference branches (slab/curvilinear/cyl-degenerate); unified-update + clean (L+C)/closure split.
-- [Issue #196 Phase G Step 2.5 — DAG-walk topology](issue_196_phase_g_step2_5_dag_walk_topology.md) — iter_cells_by_direction IS the 1-D dag_walk; CellVisit immutable + UpstreamState accumulator; 2-D wavefront is a DIFFERENT (level-batched) shape by design.
-- [Issue #196 Phase G Step 2.5 — further-collapse feasibility](issue_196_phase_g_step2_5_further_collapse.md) — which sweep-body collapses are clean Pattern-2 wins vs principled Pattern-6 deferrals (fold-with-accumulator ≠ fold-with-parallel-reduce).
-- [Issue #196 Phase G Step 2.5c — immutability audit](issue_196_phase_g_step2_5c_immutability_audit.md) — layered immutable-quantity enumeration (geometry/quadrature/σ_t/per-*) + the σ_t-immutable SweepCoefficientCache proposal.
+- [HarmonicMomentField UNITS convention](harmonic_moment_field_units_convention.md)
+  — why a stored SH moment carries SCALAR-flux units (no-prefactor SH, Y₀⁰=1,
+  weights sum to 4π → sr cancels); R≠M*; the ERR-039/ERR-051 history behind it.
+- [Phase 5 µ-resolved primitive inventory](phase5_mu_resolved_primitive_inventory.md)
+  — µ-resolved vs µ-integrated primitives in `peierls_geometry.py` for the
+  continuous-µ specular multibounce closure.
