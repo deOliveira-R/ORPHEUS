@@ -12,11 +12,18 @@ The cross-cutting spine: **an exploration answer is not "I found the symbol"
 — it is "I found EVERY consumer the next action will touch, I verified the
 premise against the current tree (not the issue text, not a frozen memory),
 and I separated the durable subsystem-shape from the line numbers that will
-drift."**
+drift."** This spine is now codified as standing directives in `AGENT.md`
+Operating Principles 4–7 (blast-radius, premise-verification, git-merge-status,
+durable-vs-line). L-001/L-002/L-003/L-005 below are RETAINED for forensic
+value (the war-story behind each directive); the directive itself, not the
+incident, governs behaviour. L-004 and L-006 stay lesson-only — they fire on
+narrower question shapes (carve-verdict / probe-collapse), not every task.
 
 ---
 
 ## L-001 -- A retirement/rename blast radius = graph callers AND text grep AND direct constructors AND doc nodes
+
+→ **Now AGENT.md Operating Principle 4** (the four-search discipline). War-story kept below for the specific misses each search catches.
 
 `mcp__nexus__callers` / `impact` find the *graph* consumers, but a retirement
 audit that stops there under-scopes — and under-scoping a retirement forces a
@@ -46,6 +53,8 @@ L-004.)
 
 ## L-002 -- The issue text is a stale premise; verify it against the current tree FIRST
 
+→ **Now AGENT.md Operating Principle 5.** War-story kept below for the worked examples (diamond-coefficients / 2-D-matvec premises already landed).
+
 Repeatedly, an audit's first deliverable was "the premise the issue describes
 is STALE — that work already landed." An issue body is written at one moment
 and the natural trigger for its work (a related carve) often lands it early
@@ -63,6 +72,8 @@ prose, is ground truth.
 ---
 
 ## L-003 -- Separate the DURABLE subsystem-shape from the line numbers that will drift
+
+→ **Now AGENT.md Operating Principle 7.** War-story kept below for the home-placement detail (durable → AGENT.md durable-shape section; transient → topic file flagged with the HEAD it was current at).
 
 Every audit I wrote mixed two things with opposite shelf-lives: the durable
 STRUCTURE (what couples to what, which seam is polymorphic, which path is
@@ -102,6 +113,8 @@ retirement that turns on "will a future open issue consume this."
 ---
 
 ## L-005 -- Git is authoritative for merge-status; a memory's "in-flight / NOT pushed" freezes mid-flight
+
+→ **Now AGENT.md Operating Principle 6** (and the always-on `process-discipline.md` rule). War-story kept below for the SN-campaign pattern that motivated it.
 
 Memory notes captured a campaign as "uncommitted on branch X / NOT pushed," but
 nearly every SN campaign merged in a later session — the note froze the moment it

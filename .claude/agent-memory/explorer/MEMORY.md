@@ -7,14 +7,13 @@ and are re-derivable in seconds via Nexus. Keep notes here DURABLE, not transien
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — 6 exploration lessons. The spine: an answer is
-  not "I found the symbol" but "I found EVERY consumer the next action touches,
-  verified the premise against the CURRENT tree, and separated durable
-  subsystem-shape from drift-prone line numbers." Retirement blast radius =
-  graph+grep+constructors+doc-nodes (L1); the issue text is a stale premise,
-  verify it first (L2); durable-shape vs line-map (L3); carve verdicts name
-  both retire AND keep-as-anchor with the discriminator (L4); git is
-  authoritative for merge-status (L5); boolean-presence ≠ integer-width (L6).
+- [lessons.md](lessons.md) — exploration lessons. The spine (blast-radius =
+  graph+grep+constructors+doc-nodes; verify-premise-first; durable-shape vs
+  line-map; git-is-authoritative-for-merge-status) is now PROMOTED to AGENT.md
+  Operating Principles 4–7 — L1/L2/L3/L5 remain as forensic war-stories with
+  "→ now in AGENT.md" pointers. Lesson-only (narrower question shapes): carve
+  verdicts name both retire AND keep-as-anchor with the discriminator (L4);
+  boolean-presence ≠ integer-width before a typed probe-swap (L6).
 
 ## 2. Active / in-flight state
 

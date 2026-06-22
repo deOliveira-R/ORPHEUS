@@ -42,6 +42,60 @@ their workflows to map verification gaps and minimum retest sets.
 
 Question→tool routing lives in the auto-loaded `.claude/rules/nexus-tools.md`.
 
+### 0.5 Standing discipline — a plan is done only when every gate can RED
+
+A verification plan is NOT done when "the tests pass". It is done when,
+for EVERY gate:
+
+1. **The gate is provably ABLE to red.** A green gate that cannot
+   catch its bug is worse than no gate. Before crediting any gate as
+   evidence, name the mutation that reddens it and confirm that
+   mutation fires under the canonical `python -O` invocation. A bare
+   `assert` in a production/helper/always-on-sentinel module is a
+   NO-OP under `-O` (`vv` Mode 8) — use `np.testing.assert_*` /
+   `pytest.fail` / explicit `raise`. A `catches(ERR-NNN)` is a
+   COVERAGE CLAIM: re-introduce the EXACT documented bug and confirm
+   THIS test (not merely some test in the run) reddens; same-area is
+   NOT coverage. An xfail for a not-yet-landed feature is
+   `strict=False` + `reason=` so it flips to xpass when the feature
+   lands. Mutate in-process (monkeypatch); NEVER `git checkout` a
+   file you hold uncommitted edits in.
+2. **The reference is structurally INDEPENDENT of the SUT** (gated in
+   §1.5).
+3. **The test's regime ACTIVATES the term the bug lives in** (the
+   config-blindness discipline below).
+
+### 0.6 Standing discipline — the convenient config nulls the hardest term
+
+The recurring root failure: the convenient test config nulls the
+EXACT term the solver is most likely to get wrong. The blindnesses
+compound — know all of them and pick a config that breaks every one
+that matters. Do NOT rely on memory; check each against a concrete
+test row:
+
+- **Flat flux** nulls every redistribution / α-recursion /
+  weight-cancellation term (curvilinear closure, angular
+  redistribution). `vv §H2`.
+- **1-group** makes `k = νΣ_f/Σ_a` flux-shape-independent —
+  degenerate. Always ≥2G for an eigenvalue claim (Cardinal Rule
+  below; `vv §1-group`, anti-#3).
+- **Homogeneous** nulls redistribution AND spatial-distribution bugs.
+- **Slab geometry** is the degenerate curvilinear case (angular
+  redistribution is a ZeroOperator) — a slab-only closure /
+  separability test proves NOTHING about the coupled curvilinear
+  case.
+- **Isotropic-source snapshots** are blind to a dropped φ_ℓ≥1 — a
+  moment-reduction path passes an all-isotropic suite silently.
+  Before carving a moment-reduction path, AUDIT whether the existing
+  snapshots exercise the moments being reduced; if all isotropic,
+  manufacture an anisotropic case FIRST.
+
+Minimum catch for a curvilinear solver: heterogeneous
+spatial-convergence (keff differences shrink under refinement) PLUS
+fixed-source flat-flux `Q/Σ_t` (the single most powerful curvilinear
+diagnostic). For every gate, the regime MUST activate the term it
+claims to verify.
+
 ### 1. Identify the feature being verified
 
 Read the implementation (or specification) and enumerate:

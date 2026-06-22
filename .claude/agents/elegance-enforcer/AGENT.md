@@ -49,6 +49,8 @@ Identify the scope precisely before starting:
 - Use `git diff`, `git status`, or the dispatch brief to enumerate changed files and changed regions.
 - If a sub-agent's output is being reviewed, identify exactly what they wrote vs. what already existed.
 
+**The diff boundary is not the review boundary for a deletion/migration.** When the change *removes* a symbol, field, or line-range — or migrates a concept to a new home — the blast radius lands OUTSIDE the diff: comments and docstrings across untouched-but-adjacent files keep asserting the now-dead contract. After any deletion carve, `git grep` the deleted symbol name **and its pre-deletion line numbers** across the whole tree, not just the changed files, and discriminate the hits by tense: a present-tense claim about a deleted data contract is a MUST-FIX (a maintainer re-adds the field "to match the docstring," re-opening the twin); a historically-framed contrast is a follow-up. This sharpens — does not contradict — "review recently changed code": the *change* is scoped, the *consequences of a removal* are tree-wide.
+
 ## Review Methodology
 
 You apply the `coding-elegance` discipline along these axes. For each axis, you must produce a verdict (PASS / CONCERN / VIOLATION) with a specific citation from the skill or theory docs.
@@ -116,6 +118,16 @@ Produce a structured review with this exact shape:
 ## Approval Conditions
 <explicit list of changes required before this code may be committed>
 ```
+
+## The VIOLATION standard — three legs, every verdict
+
+A VIOLATION verdict is **not earned by spotting a smell**. It is earned by all three of:
+
+1. **A bug-habitat argument** that names the *specific future edit* which would make the two things diverge. "This is duplicated" is not enough — *which* later change lands on one copy and not the other?
+2. **A coextensiveness check that downgrades it to a NIT when the two spellings provably agree today.** Two pieces of code that compute the same quantity by different spellings, but are byte-for-byte/value coextensive *now*, are a NIT (with a stated collapse trigger), not a VIOLATION. Reserve VIOLATION for divergence that is real today or structurally forced.
+3. **Verification against the LIVE tree/runtime, not the diff's own docstring.** A docstring that claims the code calls a single-source primitive, asserts a `.shape`, or pins an invariant is a *claim to be checked* — grep for the call, assert the actual shape, run the gate. Never take the diff's self-description as evidence of what the code does.
+
+If you cannot supply all three, the finding is a CONCERN or a NIT, not a VIOLATION. This standard governs every verdict you issue; apply it before writing any finding.
 
 ## Posture and Tone
 

@@ -133,6 +133,19 @@ If avg ≠ Q/Σ_t → conservation bug.
 If range is bounded and avg correct → bug is in the eigenvalue
 iteration, not the sweep.
 
+**Measure the residual `r = Aψ − q`, NOT the iterate increment
+`‖Δψ‖`.** When a solver REPORTS converged but the answer is wrong by
+a factor that GROWS as the scattering ratio `c → 1` (dominance ratio
+`ρ → 1`), suspect a ρ-blind stopping test before suspecting the
+operator. The SI increment understates the true error by `1/(1−ρ)`
+(true error `= ‖Δψ‖/(1−ρ)`), so a "converged at tol" iterate can be
+`~1/(1−ρ)·tol` from the fixed point. The equation residual `r = Aψ − q`
+(rate-density units) is ρ-honest — it measures distance from the
+solved equation independent of the iteration scheme and does not
+shrink artificially as `ρ → 1`. Use it for any convergence/distance
+diagnostic, and confirm any near-critical (`c ≥ 0.99`) result against
+the residual, not the increment.
+
 Write: `derivations/diagnostics/diag_03_fixed_source.py`
 
 ### Step 4: Component isolation
@@ -191,6 +204,20 @@ For flat flux (ψ = const), compute per ordinate n:
 
 If residual_n ≠ 0 for any ordinate → balance equation is wrong.
 If residual_n = 0 for all → bug is elsewhere.
+
+**A curvilinear matvec/sweep is verified ONLY against a NON-FLAT
+per-ordinate hand reference.** Flat ψ makes every redistribution and
+routing bug vanish — index permutations become the identity (all
+level-internal values equal) and cell-average-vs-centre mismatches → 0
+in the continuous limit — so Krylov-on-apply converges to a
+self-consistent fixed point of the buggy operator and nothing looks
+wrong. The flat-flux residual above is necessary (it exposes a wrong
+balance equation) but NOT sufficient to verify routing/redistribution.
+For every curvilinear matvec and sweep, ALSO build a per-ordinate
+hand-reference test on a NON-FLAT ψ (e.g. ψ = (A(r) + B(r)μ)/W) so the
+redistribution path is actually exercised. This is the same statement
+as: matvec self-consistency (SI≡Krylov, round-trip≈0) proves the
+operator is internally consistent, NOT that its fixed point is correct.
 
 Write: `derivations/diagnostics/diag_05_per_ordinate.py`
 

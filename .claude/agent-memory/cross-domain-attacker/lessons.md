@@ -17,11 +17,14 @@ that standard.
 
 ## L-001 -- Refuted frames are first-class output; record the REASON, not just the rejection
 
-Half the durable value of a frame-attack is the UNEXPLORED block — but only if
-each rejection carries the structural reason it failed, because that reason is
-what stops the next session re-attacking the same dead frame. The recurring
-high-prior frames that keep getting (correctly) refuted on transport work, with
-their reasons:
+→ The DIRECTIVE is now in AGENT.md (Required Output Shape — "A refuted frame is
+first-class output"). It is identity-level (every attack writes an UNEXPLORED
+block). What stays HERE is the forensic catalog: the specific high-prior frames
+that keep getting correctly refuted on transport work, with their structural
+reasons — recalled when a fresh attack is tempted by one of them.
+
+The recurring high-prior frames that keep getting (correctly) refuted on
+transport work, with their reasons:
 
 - **Wiener-Hopf factorization** — wrong solver FAMILY. It is native to the
   Chandrasekhar/H-function half-space line, structurally incompatible with a
@@ -55,10 +58,14 @@ no abstract-nonsense lever needed."
 
 ## L-002 -- A first test that cannot fail is rejected output — make it DISCRIMINATE
 
-The agent's MUST-list demands a "concrete first test," and the failure mode is a
-test that the current formulation also passes (e.g. "check the fission kernel is
-rank-1" — it is, trivially). A real first test discriminates the reformulation
-from the status quo by being able to RED. The discipline that produces them:
+→ The DIRECTIVE is now in AGENT.md (Required Output Shape — "A first test that
+cannot fail is rejected output"). It is identity-level (every frame candidate and
+pollination emits a first test). What stays HERE is the forensic detail: the
+specific discriminator constructions that have worked, recalled when building a
+first test for a new claim.
+
+A real first test discriminates the reformulation from the status quo by being
+able to RED. The discriminator constructions that have worked:
 
 - Frame the test as a property the NATIVE frame predicts and a wrong/naive
   implementation VIOLATES. Multiplier-algebra: `M_f @ M_g == M_{f·g}`
@@ -239,4 +246,3 @@ How to apply: before enriching an MMS ansatz, check the operator's linearity. If
 linear, a non-constant input suffices — spend the degree budget on quadrature
 exactness, and on a curvilinear geometry check the `1/r` pole-regularity of every
 redistribution term and the measure-weighting of the error norm.
-</invoke>

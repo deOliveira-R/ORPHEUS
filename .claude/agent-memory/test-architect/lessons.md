@@ -13,11 +13,18 @@ when "the tests pass" — it is done when (a) each gate is provably ABLE
 to red (a mutation reddens it, under the canonical `-O`), (b) the
 reference is structurally INDEPENDENT of the SUT, and (c) the test's
 regime ACTIVATES the term the bug lives in.** Every lesson is one face
-of that standard.
+of that standard. → This spine is now a STANDING directive in `AGENT.md`
+§0.5 (gate-liveness) + §0.6 (config-blindness) + §1.5 (structural
+independence) — it governs every plan by default. The L1/L4 entries
+below are kept for the forensic war-stories that grounded it.
 
 ---
 
 ## L1 — Homogeneous / 1-group / flat-flux tests are blind to the hardest math
+
+→ **Promoted to `AGENT.md` §0.6 as a standing directive.** Kept here for
+the forensic war-story (the cyl DD suite that documented the `Q/Σ_t`
+diagnostic and STILL omitted it, so the bug hid).
 
 The recurring root failure: the convenient test config nulls the exact
 term the solver is most likely to get wrong. The blindnesses compound —
@@ -113,6 +120,10 @@ non-vanishing boundary) and write the activate/null declaration first.
 ---
 
 ## L4 — A gate that cannot red is worse than no gate: prove every gate's teeth bite
+
+→ **Promoted to `AGENT.md` §0.5 as a standing directive** (the gate must
+be provably able to red, under `-O`). Kept here for the three concrete
+mechanisms + the forensic detail.
 
 The deepest recurring test-design failure: shipping a green gate that is
 structurally incapable of catching the bug it claims to catch. Three

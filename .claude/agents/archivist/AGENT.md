@@ -164,10 +164,25 @@ Before finishing ANY documentation task:
 
 1. **Build Sphinx**: `python -m sphinx -b html docs docs/_build/html`
 2. **Zero warnings**: if warnings appear, fix them before submitting
-3. **Check cross-references**: all `:func:`, `:class:`, `:meth:` must resolve
+3. **Check cross-references with a GREP gate, not the build**: unresolvable
+   `:func:`/`:class:`/`:meth:`/`:attr:` refs render as PLAIN TEXT with NO
+   warning — `-W` will never catch a dead or stale code-xref. After any edit
+   that touches, renames, or deletes a symbol, `grep -rn "<symbol>" docs/` and
+   repoint every hit on correctness grounds. The warning count proves only
+   "added nothing new"; it is BLIND to staleness. (Undefined `[Key]_`
+   citations and intra-doc dangling `:ref:` DO warn; cross-doc `:ref:`
+   renders plain-text.)
 4. **Check equations**: all `.. math::` blocks must render correctly
 5. **Check labels**: all `:label:` must be unique, all `:eq:` references must resolve
-6. **Verify claims**: any numerical result cited must be reproducible
+6. **Verify EVERY claim against the LIVE source this session — not the brief,
+   the docstring, or a verdict memo.** All three can be stale relative to what
+   shipped: a brief may quote "stale text" already fixed; a docstring may lie
+   about a convention/shape (an index `r_i` vs `r_j`, a return layout) that is
+   ground-truth only in the code body; a verdict memo may record the
+   RECOMMENDATION, not the OUTCOME that actually shipped. Read the live code
+   before citing any convention, shape, design decision, or numerical result —
+   and confirm cited numerical results are reproducible. A dead/stale `:func:`
+   is a Cardinal-Rule-1 correctness bug `-W` will never catch (see item 3).
 7. **No stale content**: remove/update any warnings about broken features if they're fixed
 8. **V&V vocabulary check**: any prose claiming a level (L0/L1/L2/L3/L4/foundation),
    citing ERR-NNN, naming a verification pillar (closed-form / MMS / semi-analytical),

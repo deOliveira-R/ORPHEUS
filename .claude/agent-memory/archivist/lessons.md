@@ -20,6 +20,11 @@ the build's WARNING/ERROR/CRITICAL set is unchanged from the pre-edit
 
 ## L-001 — Verify every claim against the LIVE code, NOT the quoted/docstring prose
 
+→ **The standing directive now lives in AGENT.md Quality Checklist item 6**
+(read the live source before citing any convention/shape/decision/result;
+brief, docstring, and verdict memo can ALL be stale). The three war-story
+faces below are kept for forensic value — they show HOW each surface lies.
+
 The single most recurring trap. A task brief quotes "current stale
 text", or a docstring describes a return shape, or a verdict memo
 states a recommendation — and ALL THREE can be wrong relative to what
@@ -49,6 +54,11 @@ Cardinal-Rule-1 correctness bug `-W` will never catch — grep the symbol.
 ---
 
 ## L-002 — Unresolvable code-xrefs render as PLAIN TEXT with no warning; this repo is NOT nitpicky
+
+→ **The standing directive now lives in AGENT.md Quality Checklist item 3**
+(grep-gate cross-refs; `-W` is blind to a dead code-xref). The detail below —
+which ref classes DO warn, and the not-member-`automodule`'d page convention —
+is kept as the recall companion for when a cross-ref edit gets subtle.
 
 `-W` does NOT catch a dead `:func:`/`:class:`/`:meth:`/`:attr:` or a
 stale alias-xref — they silently render as plain text. The acceptance

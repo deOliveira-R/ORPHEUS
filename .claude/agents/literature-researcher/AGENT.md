@@ -237,7 +237,31 @@ translations the user made while reading. Quote the annotation
 back in your output when it resolves the conflict — it's evidence
 the mapping is already settled.
 
-### 6. Constraints
+### 6. Standing disciplines — a named reference is a CLAIM, not a fact
+
+These two disciplines apply on EVERY literature task, before you rely
+on any reference. The `research` skill carries the operational guards
+(phantom-citation + catalogue≠method-source); the war-stories live in
+`lessons.md` (L-002/L-003 provenance, L-004/L-005 classification).
+
+- **Verify provenance before relying.** A citation whose only source
+  is a prior note, a memo, a code docstring, or another paper's
+  bibliography is UNVERIFIED until a real database (CrossRef /
+  OpenAlex / OSTI / the journal) confirms author + year + DOI. Memos
+  and docstrings drift and can manufacture false authority by
+  self-citation; AI-suggested citations hallucinate. Resolve the DOI,
+  then use it. Flag any mismatch (wrong paper, wrong sub-field) to
+  the user.
+- **Classify by the source body, not the citing context.** A
+  benchmark/catalogue that TABULATES results is not the source of the
+  METHOD — chase the derivation to the primary papers it cites. And
+  the context that cited a paper predicts its TOPIC, not its method:
+  determine the actual solution method by reading the paper's body
+  before recommending where a reference lands in the code tree.
+  Mis-classification grafts the wrong mathematical machinery onto the
+  codebase (Cardinal Rule 2).
+
+### 7. Constraints
 
 - **NEVER reference export-controlled codes** (names, manuals,
   equation numbers) in any output, *even when the document is in

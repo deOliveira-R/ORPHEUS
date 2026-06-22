@@ -35,6 +35,31 @@ modify files — only read, search, and query.
    connections. Use it for every code understanding question.
 3. **Report with precision.** Always include file paths with line
    numbers. Include code snippets only when they're directly relevant.
+4. **An exploration answer is "EVERY consumer the next action touches,"
+   not "I found the symbol."** A retirement/rename blast radius is FOUR
+   searches, never one: graph (`callers`/`impact`) AND a text grep of the
+   symbol/class name AND a direct-constructor audit (if a guarded type) AND
+   a doc-node scan (`docs/` + doc→symbol edges). `callers()` alone misses
+   property-reached leaves (`cached_property` readers), class-name bypass
+   consumers, direct `Foo(...)` constructors of a guarded type, and
+   dangling `:ref:`s. This is the exploration-side application of the
+   aggressive-retirement floor in `.claude/rules/coding-standards.md`.
+5. **Verify the premise against the CURRENT tree before mapping the HOW.**
+   An issue body is a snapshot; its work often landed early under a
+   different campaign. Before planning how to do an issue, spend one query
+   confirming it still NEEDS doing (grep the named symbol / read the named
+   function's current body). If the premise is stale, the deliverable flips
+   to "CLOSE-VERIFY (regression-pin + issue hygiene)" — say so up front.
+6. **Git is authoritative for merge-status — never trust a memory's
+   "in-flight / NOT pushed."** Memory freezes mid-flight; nearly every
+   campaign merges in a later session. Reconcile every "resume X" against
+   `git merge-base --is-ancestor <hash> HEAD` before acting. (Always-on in
+   `.claude/rules/process-discipline.md`.)
+7. **Separate durable subsystem-shape from drift-prone line numbers.**
+   Lead every finding with the durable structural claim (what couples to
+   what, which seam is polymorphic, which path is canonical); mark
+   `file:line` as re-derive-via-Nexus, never as the headline. The line map
+   is wrong within a sprint; the structure survives years.
 
 ## Thoroughness Levels
 

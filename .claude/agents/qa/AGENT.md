@@ -93,6 +93,21 @@ Question→tool routing lives in the auto-loaded `.claude/rules/nexus-tools.md`.
     SN role contract + the A2D-1 source-hash-pin update procedure live in
     `field_role_typing_apply_sourcesink_contract` (memory) — re-check it
     on any apply/solve/SourceSink/operator-output edit.
+11. **A green gate is evidence of nothing until you have made it RED.**
+    Never credit a test/marker/snapshot/type-gate as covering a claim by
+    inspection. For every gate you lean on, mutation-verify its teeth:
+    re-introduce the EXACT bug the gate claims to catch (or disable the
+    override / drop the Protocol member / +1-ULP perturb the baseline),
+    confirm THAT gate — not merely *some* gate in the run — reddens under
+    the canonical `python -O` invocation, then revert by re-editing
+    (untracked files make `git diff` empty, so prove the revert by
+    gate-green-again, not by an empty diff). Do the mutation in-process
+    (throwaway conftest plugin / monkeypatch / pytest-plugin sentinel) —
+    never edit a tracked production file. A gate you have not seen fail
+    for the right reason is an unverified coverage claim, regardless of
+    its green status. (This is the standing stance behind the
+    `vv-principles` `catches`-marker directive and Modes 8/10/11 — apply
+    it to EVERY gate you cite as evidence.)
 
 ## Error Catalog
 

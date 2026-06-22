@@ -6,11 +6,13 @@ skills (`algebra-of-record`, `vv-principles`, `coding-elegance`,
 `numerical-bug-signatures`). Campaign play-by-play lives in the topic
 files this index points to — NEVER duplicate it here.
 
-The cross-cutting meta-pattern behind half of these: **the
-implementer's job is not done at "the value is right" — it is done at
-"the value is right AND the type-checker is clean by construction AND
-the retirement left no orphan AND a mutation reddens the gate."** Each
-lesson below is one face of that standard.
+The cross-cutting meta-pattern behind half of these — **not done at
+"value right" but at "value right AND type-checker clean by construction
+AND retirement left no orphan AND a mutation reddens the gate"** — is
+now a standing directive in AGENT.md ("Definition of done"). Each lesson
+below is one *forensic instance* of that standard: the specific trap, how
+it hid, and the principled fix. The generalized rule loads every session
+from AGENT.md; these stay as the recall catalogue.
 
 ---
 
@@ -119,6 +121,11 @@ the copy. Reserve `git checkout` for files you have NOT touched. (#257 S6.)
 ---
 
 ## L-006 -- Write the convention crosswalk BEFORE the carve — it is the teeth, not ceremony
+
+→ The GENERALIZED directive ("write the crosswalk before any
+convention-crossing carve") is now a standing step in AGENT.md
+(procedural workflow step 3b). The four forensic instances below stay
+here as the recall catalogue of *which seam shapes* bite.
 
 Every multi-convention carve I shipped had its load-bearing bug exactly
 at the convention seam, and the crosswalk row (had I written it first)

@@ -107,6 +107,10 @@ small shifts when the cancellation structure absorbs them.
 
 ## L6: A curvilinear matvec is verified only against a NON-FLAT per-ordinate hand reference
 
+> **→ The standing rule is now in AGENT.md Step 5 (per-ordinate
+> analysis).** Kept here for forensic value: the specific bug
+> codenames and the twin-path mechanism.
+
 Flat ψ makes every redistribution/routing bug in a curvilinear SN matvec
 vanish: index permutations become the identity (all level-internal values
 equal), and cell-average-vs-cell-centre mismatches → 0 in the continuous
@@ -234,6 +238,11 @@ Two durable points:
 See [[krylov-restart-truncation-bug]].
 
 ## L11: For a ρ-honest stopping/diagnostic, measure the residual r=Aψ−q — NOT the iterate increment ‖Δψ‖
+
+> **→ The standing rule is now in AGENT.md Step 3 (fixed-source
+> diagnostic).** Kept here for forensic value: the FluxDisplacement /
+> AngularResidual typed-diagnostic catalogue and the cross-family
+> ρ/(1−ρ) amplification links.
 
 The SI increment `Δψ = ψ⁽ⁱ⁾−ψ⁽ⁱ⁻¹⁾` UNDERSTATES the true error by `1/(1−ρ)`:
 `‖Δψ‖ ≈ ρ‖Δψ_prev‖`, true error `= Δψ/(1−ρ)`. At c=0.99 (ρ≈0.99) a "converged at

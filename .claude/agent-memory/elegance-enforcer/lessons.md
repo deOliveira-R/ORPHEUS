@@ -8,11 +8,11 @@ fuller-view-oracle exception, the recurring tells-to-grep) live in AGENT.md
 §"Institutional knowledge" — do NOT duplicate them; these lessons are HOW I
 verify a verdict, not WHAT the smells are.
 
-The spine behind most of these: **a VIOLATION verdict is not earned by spotting
-a smell — it is earned by (a) the bug-habitat argument naming the future edit
-that diverges, (b) proving the two things are coextensive TODAY so it is a NIT
-not a VIOLATION, and (c) verifying the claim against the live tree/runtime rather
-than the diff's own docstring.** Every lesson below is one face of that standard.
+The spine behind most of these — the three-leg VIOLATION standard (bug-habitat
+edit named / coextensive-today→NIT / verify-the-live-tree-not-the-docstring) — is
+**now a standing directive in AGENT.md** (§"The VIOLATION standard — three legs").
+It is no longer recalled-when-relevant; it governs every verdict by definition.
+Each lesson below is one face of that standard, kept for its forensic specifics.
 
 ---
 
@@ -78,25 +78,19 @@ coercion, it is a concept-merge — KEEP them separate and SAY why. (#236 Ph1b r
 
 ---
 
-## L-004 -- The stale-doc blast radius lands OUTSIDE the diff — grep the whole tree for refs to deleted symbols/line-ranges
+## L-004 -- The stale-doc blast radius lands OUTSIDE the diff
 
-The brief scopes a review to the changed files, but a migrate-then-delete of a field
-that is DEAD in production yet DESCRIBED by comments across the codebase leaves false
-claims in untouched-but-adjacent hot files. Cardinal Rule 2 + anti-#11 require
-grepping the WHOLE tree for refs to the deleted symbol AND its old line-ranges.
-Discriminate the hits by TENSE/CITE:
-- PRESENT-TENSE claim about a deleted data contract = MUST-FIX (a maintainer re-adds
-  the field "to match the docstring," re-opening the twin).
+→ **Now a standing directive in AGENT.md** (§"Scope of Review", the "diff boundary
+is not the review boundary for a deletion/migration" paragraph). The general rule
+(grep the whole tree for the deleted symbol AND its pre-deletion line numbers;
+discriminate hits by tense) is now identity-level. Forensic discriminator retained
+here for the line-cite case the directive compresses:
 - DELETED LINE-NUMBER cross-reference ("Replicates X (file.py:681-688) EXACTLY") =
   MUST-FIX (asserts a live twin that no longer exists; prefer symbol-refs to line-cites).
-- HISTORICALLY-framed contrast ("uses THIS τ instead of StreamingTerms.tau_mm") =
-  FOLLOW-UP (still true as history; only the contrast target is gone).
 
-How to apply: after a deletion carve, `git grep` the deleted symbol name AND its
-pre-deletion line numbers across the tree, not just the diff. Same blast-radius logic
-the method-implementer learned for ORACLE-READERS hiding outside the audit's named
-files — it applies to DOC refs too. (#236 Step C standing lesson; #222 S6.4(d) stale
-WavefrontFlux docstrings.)
+Same blast-radius logic the method-implementer learned for ORACLE-READERS hiding
+outside the audit's named files — it applies to DOC refs too. (#236 Step C standing
+lesson; #222 S6.4(d) stale WavefrontFlux docstrings.)
 
 ---
 
@@ -226,5 +220,3 @@ diff their guard clauses — a guard present in N-1 and absent in 1 is the laten
 populated" refuted by the same commit's heterogeneous-union `merge_runs`) — a false-
 invariant doc IS the bug habitat (anti-#11), and "it's just a docstring" makes it more
 insidious, not less, because it is the contract the next agent reads. (nexus #26 overlay.)
-</content>
-</invoke>

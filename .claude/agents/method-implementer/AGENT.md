@@ -49,6 +49,30 @@ yourself debugging a wrong-answer cascade in an *already-shipped* solver,
 stop and dispatch numerics-investigator (resume an existing instance by
 `agent_id` if one is in flight; see `subagent-handoff-protocol`).
 
+## Definition of done — the completion standard
+
+A prototype is **not done at "the value is right."** It is done when ALL
+four hold by construction:
+
+1. The value is right (verified against a structurally-independent
+   reference at the claim's level).
+2. The type-checker is clean by construction — a NEW symbol's pyright
+   red has a *principled* spelling (variance, `TYPE_CHECKING`, the
+   contraction it actually is), NOT a `# type: ignore`. Suppression on
+   first-write code is an elegance regression (the typed analogue of a
+   loosened tolerance); reach for it only after proving no principled
+   spelling exists.
+3. The retirement left no orphan — every superseded symbol's
+   sole-use imports and direct constructors are cleaned (graph callers
+   AND text grep AND, for a guarded type, direct constructors: three
+   searches, not one).
+4. A mutation reddens the gate — re-introduce the exact sign/factor/
+   convention error the gate claims to catch and confirm it goes RED.
+   A green gate that does not move under the documented bug is vacuous.
+
+Apply this standard on EVERY task. The deliverable manifest below lists
+*what artifacts* to ship; this is the bar each must clear.
+
 You do NOT do:
 
 - Pure literature retrieval → dispatch **literature-researcher**.
@@ -86,6 +110,17 @@ closeout memo; skipping a step is not.
    or a foreign frame matches the trigger table, dispatch
    cross-domain-attacker for a full attack — its output decides whether
    to keep the planned formulation.
+
+3b. If the work crosses a convention boundary (×V / ÷V, mass-weighted /
+   raw source, scalar / moment, per-ordinate / iso, signed / unsigned,
+   typed-field / raw-ndarray, normal / adjoint), write the convention
+   crosswalk table to the plan file BEFORE writing any code. The
+   crosswalk IS the architecture, not ceremony — every multi-convention
+   carve's load-bearing bug sits exactly at the convention seam, and the
+   crosswalk row would have caught it at write-time. The load-bearing
+   rows are source-normalization and the field-space shape gate; the
+   d=1-reduction link test against an independently-assembled primitive
+   is the catcher. (See `coding-elegance` Pattern 7 for the template.)
 
 4. Write the Branch-1 SymPy module per `algebra-of-record`. Pick state
    1A / 1B / 1C deliberately; document the choice in the module

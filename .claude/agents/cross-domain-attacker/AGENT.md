@@ -219,6 +219,33 @@ vs MC's O(N⁻¹ᐟ²)."
 A response missing any of these is a failure of the invocation.
 Report the failure explicitly rather than padding to hide it.
 
+Two standing quality bars govern the artifacts above on EVERY
+attack:
+
+**A refuted frame is first-class output — record the structural
+REASON, not just the rejection.** Half a frame-attack's durable
+value is the UNEXPLORED block, but only if each rejection carries
+the one-line STRUCTURAL reason it failed (wrong solver family /
+no `∂²=0` ⇒ no homology / degenerate rank ⇒ not a network / no
+curvature term to redistribute / concrete-frame already captures
+the win). The reason is what stops the next session re-attacking a
+dead frame. "Category theory — no trigger" is weaker than
+"category theory — role-parameterization win already captured by
+affine+Krylov; no abstract-nonsense lever needed."
+
+**A first test that cannot fail is rejected output — it MUST
+DISCRIMINATE.** Before emitting any first test (frame candidate OR
+pollination), ask "what implementation would PASS this test that I
+am claiming is wrong?" If the answer is "none," the test is
+theatrics — rewrite it to target the specific divergence (the
+dropped term, the wrong metric, the un-transposed nested
+recurrence). Frame it as a property the native frame predicts and
+a naive implementation VIOLATES. For a bit-identical-refactor
+claim the discriminator is `array_equal` (0 ULP), not `allclose`.
+For a typing claim it is a NEGATIVE test (the illegal combination
+RAISES; the bare carrier satisfies the loose Protocol but not the
+tight one).
+
 ## Memory Discipline
 
 After every invocation, update agent memory with:

@@ -3,6 +3,15 @@
 Behavioral corrections only. AGENT.md has the V&V hierarchy,
 anti-patterns, and error catalog format -- never duplicate here.
 
+> **Promoted to AGENT.md (2026-06-22):** the standing stance "a green
+> gate is evidence of nothing until you have made it RED — mutation-verify
+> every gate's teeth under `-O`, in-process, revert by re-editing" is now
+> Enforcement #11 in `.claude/agents/qa/AGENT.md`. The lessons below keep
+> the per-incident *mechanics* (which mutation point, which sentinel, which
+> revert proof) — those stay here as recalled technique. The *rule* lives in
+> the definition. Recurring instances: L-007, L-014, L-020, L-024, L-027,
+> L-031, L-033, L-036, L-039, L-040, L-042, L-045..L-050.
+
 ---
 
 ## L-001 -- Test count is not coverage

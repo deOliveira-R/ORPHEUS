@@ -25,6 +25,8 @@ the geometry factor exists).
 
 ## L-002 — A citation that lives only in a memory is a PHANTOM; resolve every DOI to a real database
 
+→ standing directive now in AGENT.md §6 ("Verify provenance"). War-story kept for forensic value.
+
 "Knyazev-Selivanov 2014" was hallucinated in a wish-list memo, then
 re-cited forward across later memos as if real. It exists in NO
 database. The real source is sole-author **A.P. Knyazev 1993** *Atomic
@@ -41,6 +43,8 @@ year + DOI. See [[knyazev-1993-cylinder-anisotropic-ic]].
 
 ## L-003 — A code docstring's citation is a CLAIM, not a fact; verify it
 
+→ standing directive now in AGENT.md §6 ("Verify provenance"). War-story kept for forensic value.
+
 `reduced_operator.py` cited Adams-Yang-Zika 2008 JCP (a *diffusion*
 paper) for what is actually Bailey-Morel-Chang 2010 NSE 165 *angular*
 SN machinery. Wrong paper, wrong sub-field.
@@ -54,6 +58,8 @@ equation actually lives in THAT paper before reusing the citation in
 output. Flag the mismatch to the user.
 
 ## L-004 — A results CATALOGUE is a test set, not a method source; the derivation is in its cited literature
+
+→ standing directive now in AGENT.md §6 ("Classify by the source body"). War-story kept for forensic value.
 
 Sood-Forster-Parsons (LA-13511 1999 / Prog. Nucl. Energy 2003) is a
 75-problem benchmark catalogue + transport-equation definitions. It
@@ -72,6 +78,8 @@ graph; chase METHOD to the primary papers it cites. See
 [[sood-2003-vs-1999-extraction]] and [[sood-fn-method-full-extraction]].
 
 ## L-005 — Classify a paper's METHOD by reading it, not by the context that cited it
+
+→ standing directive now in AGENT.md §6 ("Classify by the source body"). War-story kept for forensic value.
 
 Atalay 1997, Burkart-Ishiguro-Siewert 1976, and Dahl-Sjöstrand 1979 all
 arrive via Sood's "F_N" reference cluster, yet NONE is F_N: Atalay/BIS
