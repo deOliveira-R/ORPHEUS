@@ -147,11 +147,14 @@ kernel, at the :meth:`~ScatteringOperator.apply` boundary.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from functools import singledispatchmethod
+from functools import cached_property, singledispatchmethod
 from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 
+from orpheus.numerics.basis import SphericalHarmonicBasis
+from orpheus.numerics.frame import Frame
+from orpheus.numerics.measure import SPACE_SPHERE, DiscreteMeasure
 from orpheus.numerics.operator import (
     BlockRole,
     CAP_APPLY,
@@ -430,6 +433,38 @@ class ScatteringOperator(LinearOperatorMixin):
             )
         return self._Y_cached
 
+    @cached_property
+    def frame(self) -> Frame:
+        r"""The angular discrete frame — :class:`SphericalHarmonicBasis`
+        (order :math:`L=` :attr:`scattering_order`) bound to the quadrature's
+        :math:`S^2` measure.
+
+        The SINGLE source of the analysis (:math:`M`) and reconstruction
+        (:math:`R`) faces that realise the anisotropic Legendre
+        redistribution :math:`R\circ\Lambda\circ M` (:attr:`kernel`). Both
+        the §5.6 :attr:`kernel` and the angular-windowing in-sweep moment
+        accumulation read THIS frame, so the projection table is shared
+        term-for-term (no second evaluation, no risk of divergence —
+        ``coding-elegance`` Pattern 2).
+
+        ``frame.table`` is the :math:`Y_\ell^m(\hat\Omega_n)` tabulation,
+        **bit-identical** to the legacy :attr:`Y` (both route through
+        :meth:`SphericalHarmonicBasis.evaluate` on the same direction
+        cosines). The :math:`(N, 3)` :math:`S^2` embedding column-stacks the
+        per-axis cosines, sending a slab's polar cosine :math:`\mu` to
+        :math:`(\mu, 0, 0)` exactly as
+        :meth:`Quadrature.spherical_harmonics` does internally.
+        """
+        q = self.quadrature
+        s2_measure = DiscreteMeasure(
+            nodes=np.column_stack(
+                [q.axis_cosines(0), q.axis_cosines(1), q.axis_cosines(2)]
+            ),
+            weights=q.weights,
+            space=SPACE_SPHERE,
+        )
+        return Frame(SphericalHarmonicBasis(L=self.scattering_order), s2_measure)
+
     @property
     def sig_s(self) -> dict[int, list[np.ndarray]]:
         """TRANSIENT — per-material dense Legendre scattering dict.
@@ -537,8 +572,7 @@ class ScatteringOperator(LinearOperatorMixin):
         scatter = LegendreMomentScattering(
             mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=True,
         )
-        reconstruct = HarmonicMomentReconstruction.from_Y(self.Y)
-        return reconstruct.apply(scatter.apply(moment_values))
+        return self.frame.reconstruction.apply(scatter.apply(moment_values))
 
     @property
     def kernel(self) -> LinearOperator:
@@ -626,41 +660,34 @@ class ScatteringOperator(LinearOperatorMixin):
             ``OperatorProduct(R, OperatorProduct(Λ, M))`` — the typed
             ``R∘Λ∘M`` anisotropic redistribution.
         """
-        Y = self.Y
-        if Y is None:
+        if self.scattering_order == 0:
             raise ValueError(
                 "ScatteringOperator.kernel requires scattering_order >= 1: "
                 "an isotropic (P0-only) operator has no anisotropic integral "
                 "kernel (the R∘Λ∘M angular redistribution is empty). The P0 "
                 "in-scatter is the LOCAL component, handled by add_iso_source."
             )
-        # The three factors ARE LinearOperators at runtime (they carry
-        # apply / capabilities / domain / codomain — the kernel cross-check
-        # asserts ``isinstance(kernel, LinearOperator)``), but the
-        # numerics.projection primitives subclass the UNPARAMETRISED
-        # ``LinearOperatorMixin`` with a concrete ``apply(x: ndarray)``, so
-        # pyright cannot unify the generic ``V`` of ``OperatorProduct[V]``
-        # from them. ``cast`` is the PEP-484 bridge for a known-correct
-        # runtime interface the static analyser cannot infer (NOT a
-        # ``# type: ignore`` suppression) — the established convention in
-        # this codebase (orpheus.data.micro_xs). The projection-operator
-        # generic gap is #226 scope.
-        moment_projection = cast(
-            LinearOperator,
-            MomentProjection(weights=self.weights, Y=Y, L=self.scattering_order),
-        )
+        # M (analysis) and R (reconstruction) are the angular :attr:`frame`'s
+        # faces — typed LinearOperators carrying real domain/codomain spaces,
+        # so they compose through OperatorProduct WITHOUT a cast. Λ
+        # (LegendreMomentScattering) is still an unparametrised
+        # ``LinearOperatorMixin`` with ``None`` spaces, so pyright cannot unify
+        # the generic ``V`` of ``OperatorProduct[V]`` from it — the ``cast`` is
+        # the PEP-484 bridge for that known-correct runtime interface (NOT a
+        # ``# type: ignore`` suppression). Λ's ``None`` spaces also
+        # short-circuit the OperatorProduct composability guard, so the mixed
+        # real/None composition is admitted. The Λ generic gap is #226 scope.
+        frame = self.frame
         legendre_scattering = cast(
             LinearOperator,
             LegendreMomentScattering(
                 mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=True,
             ),
         )
-        reconstruct = cast(
-            LinearOperator, HarmonicMomentReconstruction.from_Y(Y),
-        )
         # R ∘ Λ ∘ M as a nested OperatorProduct (apply = a.apply(b.apply(x))).
         return OperatorProduct(
-            reconstruct, OperatorProduct(legendre_scattering, moment_projection),
+            frame.reconstruction,
+            OperatorProduct(legendre_scattering, frame.analysis),
         )
 
     def _assemble_per_ordinate_source(
@@ -946,9 +973,7 @@ class ScatteringOperator(LinearOperatorMixin):
         # normalisation lives HERE at the apply boundary, OUTSIDE the map
         # (R-1 Step 4 A1, lesson L18).  The SAME map serves the windowed
         # moment-iterate apply arm — one reconstruction (Pattern 2).
-        moment_values = MomentProjection(
-            weights=self.weights, Y=self.Y, L=self.scattering_order,
-        ).apply(angular_flux.values)
+        moment_values = self.frame.analysis.apply(angular_flux.values)
         sum_w = float(self.weights.sum())
         out_values = self._aniso_source_from_moment_values(moment_values) / sum_w
         # The R·Λ·M chain is spatial-moment-axis-agnostic (#240 D5b-S3); when the
