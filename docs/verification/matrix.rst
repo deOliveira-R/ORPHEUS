@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5621**
+Total tests collected: **5624**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1149, 20.4%
-   L1, 992, 17.6%
+   L1, 994, 17.7%
    L2, 36, 0.6%
    L3, 0, 0.0%
-   foundation, 3434, 61.1%
+   foundation, 3435, 61.1%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5532
+   explicit, 5535
    verify, 0
    class-name, 46
    func-name, 0
@@ -268,7 +268,7 @@ Module × level grid
    numerics/test_estimators_as_functionals, 0, 0, 0, 0, 5, 0
    numerics/test_face_layout, 0, 0, 0, 0, 15, 0
    numerics/test_field, 0, 0, 0, 0, 22, 0
-   numerics/test_frame, 0, 0, 0, 0, 7, 0
+   numerics/test_frame, 0, 0, 0, 0, 8, 0
    numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
    numerics/test_incoming_ordinate_mask_tensor, 13, 0, 0, 0, 0, 0
    numerics/test_iteration, 0, 1, 0, 0, 17, 0
@@ -289,7 +289,7 @@ Module × level grid
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
    numerics/test_spatial_moment_space, 0, 0, 0, 0, 22, 0
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 0, 0
-   numerics/test_spherical_harmonic_space, 0, 6, 0, 0, 6, 0
+   numerics/test_spherical_harmonic_space, 0, 8, 0, 0, 6, 0
    numerics/test_symmetry, 0, 0, 0, 0, 71, 0
    numerics/test_tensor_product_operator, 27, 0, 0, 0, 0, 0
    numerics/test_trace_space, 10, 5, 0, 0, 12, 0
@@ -1044,7 +1044,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-036``, 8
    ``ERR-037``, 11
    ``ERR-038``, 5
-   ``ERR-039``, 6
+   ``ERR-039``, 8
    ``ERR-040``, **0 (MISSING)**
    ``ERR-041``, **0 (MISSING)**
    ``ERR-042``, **0 (MISSING)**
