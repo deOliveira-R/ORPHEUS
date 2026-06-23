@@ -94,6 +94,8 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.special import lpmv
 
+from orpheus.numerics.basis.base import Basis
+
 if TYPE_CHECKING:
     from orpheus.numerics.measure import DiscreteMeasure
 
@@ -107,8 +109,15 @@ __all__ = ["SphericalHarmonicBasis"]
 
 
 @dataclass(frozen=True)
-class SphericalHarmonicBasis:
+class SphericalHarmonicBasis(Basis):
     r"""Real spherical harmonics on :math:`S^2`, truncated at order :math:`L`.
+
+    The first concrete :class:`~orpheus.numerics.basis.base.Basis` — the
+    synthesis (trial) side of the spherical-harmonic frame. Implements the
+    three fundamental basis operations (:meth:`evaluate`, :meth:`synthesize`,
+    :meth:`mass_matrix`) and carries the SH convention (the no-prefactor
+    normalisation, the addition-theorem factor :math:`2\ell+1`, the continuous
+    Gram diagonal :math:`4\pi/(2\ell+1)`).
 
     Parameters
     ----------

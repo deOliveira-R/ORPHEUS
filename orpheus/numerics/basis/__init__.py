@@ -12,24 +12,15 @@ basis types (real spherical harmonics, Chebyshev, Lagrange polynomials,
 finite-element shape functions, ...). This package houses them.
 :class:`SphericalHarmonicBasis` is the first member.
 
-A formal ``Basis`` ABC is deferred until a second concrete basis arrives
-— see the project's ``feedback_unify_after_two_instances`` rule. For
-now, every basis is expected to expose the methods below, but the
-contract is enforced by tests / consumers, not by an abstract base.
-
-Common method shape (informal)
-==============================
-
-.. code-block:: python
-
-    class SomeBasis:
-        # Tabulate basis functions at sampling points
-        def evaluate(self, points) -> NDArray: ...
-
-        # Discrete Gram matrix against a quadrature; approximates the
-        # theoretical metric when the quadrature integrates degree
-        # 2L exactly
-        def discrete_mass_matrix(self, measure) -> NDArray: ...
+The :class:`~orpheus.numerics.basis.base.Basis` ABC (formerly deferred
+"until a second concrete basis arrives") is now promoted — the forcing
+consumer, the generic :class:`~orpheus.numerics.frame.Frame`, binds an
+*abstract* basis to a measure, so it needs the interface rather than a
+second instance. The contract is the three fundamental operations
+:meth:`~orpheus.numerics.basis.base.Basis.evaluate` (tabulate),
+:meth:`~orpheus.numerics.basis.base.Basis.synthesize` (naked :math:`S_0`),
+and :meth:`~orpheus.numerics.basis.base.Basis.mass_matrix` (discrete Gram).
+See :mod:`orpheus.numerics.basis.base` for the rationale.
 
 References
 ----------
@@ -40,6 +31,7 @@ References
 
 from __future__ import annotations
 
+from orpheus.numerics.basis.base import Basis
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 
-__all__ = ["SphericalHarmonicBasis"]
+__all__ = ["Basis", "SphericalHarmonicBasis"]
