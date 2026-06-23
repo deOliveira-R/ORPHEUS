@@ -1,16 +1,31 @@
 # Build the `Frame` + `Basis` ABC; unify projection/reconstruction as a discrete frame
 
-## §0. STATUS & cold-pickup — read FIRST (updated 2026-06-23, mid-carve)
+## §0. STATUS & cold-pickup — read FIRST (Phase C COMPLETE, 2026-06-23)
 
-**Branch** `refactor/operator-inverse-algebra`. **Reconcile against git first** (`git log --oneline -5`). Surgical, main-agent-direct, NO `method-implementer`. Canonical tests
-`.venv/bin/python -O -m pytest`; CLI `npx --no-install pyright --outputjson orpheus/…` is the
+**Branch** `refactor/operator-inverse-algebra` (NOT yet merged to main). **Reconcile against git
+first** (`git log --oneline -8`). Surgical, main-agent-direct, NO `method-implementer`. Canonical
+tests `.venv/bin/python -O -m pytest`; CLI `npx --no-install pyright --outputjson orpheus/…` is the
 type oracle (the streamed `<new-diagnostics>` "could not resolve …" is #226 LSP lag — verify
 with the CLI). NO `# type: ignore`.
 
-**Landed (committed):**
+**Landed (committed): Phases A–C ALL DONE.**
 - `c65154a` **Phase A** — `Basis` ABC (`orpheus/numerics/basis/base.py`); `SphericalHarmonicBasis(Basis)`.
-- `4995d6a` **Phase B** — `orpheus/numerics/frame.py` + the basis weighted contractions. Additive;
-  M/R untouched.
+- `4995d6a` **Phase B** — `orpheus/numerics/frame.py` + the basis weighted contractions. Additive.
+- `92e8842` **Phase C1** — scattering kernel composes `frame.analysis`/`frame.reconstruction`; 2/3
+  casts retired (Λ keeps 1 = #226). Bit-identical (0-ULP canary).
+- `f926b0e` **Phase C2** — in-sweep moment carrier `moment_projection`→`moment_frame: Frame`;
+  `_MomentWindowedResolvent` holds `scattering_op.frame`; added **`Quadrature.angular_frame(L)`**
+  (single home of the S² embedding + SH-frame binding). Consumers read order off
+  `frame.table.shape`/`bulk_values.shape` (NOT `.basis.L` — sweep stays basis-agnostic + type-clean).
+- `501d443` **Phase C3** — DELETE `MomentProjection`+`HarmonicMomentReconstruction`+`two_l_plus_one`;
+  rename `ProjectionOperator`→`AnalysisOperator` (keep `ReconstructionOperator`/`GalerkinProjection`/
+  `PetrovGalerkinProjection`); all consumers + 7 doc pages (archivist) + tests rewired;
+  `test_projection_operators.py` retired (laws moved to `test_spherical_harmonic_space.py`).
+
+**OPEN follow-up flagged to user (NOT yet decided):** the 4 `projection.py` ABCs are now
+implementation-free (frame faces subclass `LinearOperatorMixin` directly). Either (a) make the frame
+faces subclass the role ABCs, or (b) retire `projection.py` entirely. Also `Quadrature.angular_frame`
+placement is open for review.
 
 **As-built interface (refines the Design below — this is the source of truth):**
 - **`Basis` ABC** (`basis/base.py`): `evaluate(points)→table` (the ONLY points-taking method);
@@ -40,30 +55,20 @@ spaces (no cast). 669 numerics + 129 sn eigenvalue/scattering green incl. the **
 `test_scattering_kernel_crosscheck`**. **Pre-existing unrelated failures (NOT ours, verified via
 stash):** 8 in `tests/sn/operators/` (2D-mesh `mu_y` cosines; sphere streaming snapshots).
 
-**NEXT = Phase C (consumer migration + retirement)** — see Migration §C below, sharpened:
-1. **Build the Frame in `ScatteringOperator`**: `Frame(SphericalHarmonicBasis(self.scattering_order),
-   DiscreteMeasure(nodes=<quadrature direction-cosines (N,3)>, weights=self.weights, space="S^2"))`.
-   Its `frame.table` MUST equal `self.Y` bit-identically (same nodes + basis) — assert it.
-2. **Kernel** (`scattering.py` ~629-664): `OperatorProduct(frame.reconstruction, OperatorProduct(Λ,
-   frame.analysis))`; **retire the 3 `cast(LinearOperator,…)`**. NUANCE: `Λ`
-   (`LegendreMomentScattering`) is still unparametrised `LinearOperatorMixin` with `None` spaces — it
-   may still need ONE cast or its own minimal typing; check the CLI pyright after, keep ≤1 cast only
-   if unavoidable (note #226 if so).
-3. **`build_aniso_source`** (~949-951): `frame.analysis.apply(angular_flux.values)`.
-   **`_aniso_source_from_moment_values`** (~537-541): `frame.reconstruction.apply(scatter.apply(...))`.
-4. **In-sweep walk** reads `M.L`/`M.Y` (`operator.py:1108`, `loss_representation.py:3428/3431`,
-   `solver.py` ~535-548): migrate the CONSUMER to read `frame.basis.L` / `frame.table` (adapt the
-   consumer; do NOT mimic `.L`/`.Y` on the generic face).
-5. **Retire** `MomentProjection` + `HarmonicMomentReconstruction` (+ the `two_l_plus_one` field) into
-   the basis/frame. Run the 3-search retirement audit (graph callers + grep code/tests/docs + direct
-   ctors). Test migration: behavioral→rewire to `frame`/`basis`; characterization (0-ULP crosscheck,
-   `Π R=4π I`, windowed≡flat)→keep+rewire. ~25 test refs + docs (`galerkin_projection.rst` etc.).
-   The ABCs `ProjectionOperator`→`AnalysisOperator` rename (keep `ReconstructionOperator`) folds in here.
-6. **Gate every step on the 0-ULP `test_scattering_kernel_crosscheck` canary** + sn/operators+solve+sweep.
+**NEXT = Phase D (#30)** — give `frame.reconstruction` (`_FrameReconstruction`) its
+`apply_transpose` + `CAP_APPLY_TRANSPOSE` so `R.H` falls out of the metric-aware `_AdjointOperator`
+(the analysis face already has this; reconstruction is `apply`-only today). Do NOT build
+`R.H.apply_transpose` (stub raises, zero consumers). Gate: numerics + sn/operators green; CLI
+pyright ≤ baseline. **Then #31 Phase E+F** — `ScalarFlux.flux_volume_measure()` solution-as-measure
+seam + record the principle, final docs polish, EXIT to #226.
 
-Tasks: #29 (Phase C, in_progress) → #30 (Phase D: reconstruction `apply_transpose`+`CAP_APPLY_TRANSPOSE`
-→ `R.H`) → #31 (E+F: solution-as-measure seam + docs + EXIT to #226). Memory:
-`[[project-frame-basis-carve]]`, `[[feedback-high-signal-names]]`.
+Gate discipline (every phase, held all of C): the **0-ULP `test_scattering_kernel_crosscheck`
+canary** + the windowed-moments oracle (`test_2d_anisotropic_windowing`) + the structural anchors
+(`test_spherical_harmonic_space`) + net-zero new CLI-pyright reds. Pre-existing unrelated reds (NOT
+ours, stash-verified): 7 `tests/sn/operators/` (2D `mu_y`/sphere snapshots).
+
+Tasks: #27/#28/#29 DONE → #30 (Phase D) → #31 (E+F). Memory: `[[project-frame-basis-carve]]`,
+`[[feedback-high-signal-names]]`.
 
 ---
 
