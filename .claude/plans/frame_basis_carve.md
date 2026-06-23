@@ -1,6 +1,6 @@
 # Build the `Frame` + `Basis` ABC; unify projection/reconstruction as a discrete frame
 
-## §0. STATUS & cold-pickup — read FIRST (Phase C + measure-completeness COMPLETE, 2026-06-23)
+## §0. STATUS & cold-pickup — read FIRST (Phases A–D + measure-completeness COMPLETE, 2026-06-23)
 
 **Branch** `refactor/operator-inverse-algebra` (NOT yet merged to main). **Reconcile against git
 first** (`git log --oneline -8`). Surgical, main-agent-direct, NO `method-implementer`. Canonical
@@ -8,7 +8,7 @@ tests `.venv/bin/python -O -m pytest`; CLI `npx --no-install pyright --outputjso
 type oracle (the streamed `<new-diagnostics>` "could not resolve …" is #226 LSP lag — verify
 with the CLI). NO `# type: ignore`.
 
-**Landed (committed): Phases A–C ALL DONE.**
+**Landed (committed): Phases A–D ALL DONE.**
 - `c65154a` **Phase A** — `Basis` ABC (`orpheus/numerics/basis/base.py`); `SphericalHarmonicBasis(Basis)`.
 - `4995d6a` **Phase B** — `orpheus/numerics/frame.py` + the basis weighted contractions. Additive.
 - `92e8842` **Phase C1** — scattering kernel composes `frame.analysis`/`frame.reconstruction`; 2/3
@@ -21,6 +21,16 @@ with the CLI). NO `# type: ignore`.
   rename `ProjectionOperator`→`AnalysisOperator` (keep `ReconstructionOperator`/`GalerkinProjection`/
   `PetrovGalerkinProjection`); all consumers + 7 doc pages (archivist) + tests rewired;
   `test_projection_operators.py` retired (laws moved to `test_spherical_harmonic_space.py`).
+- `1271490` **Phase D** — the reconstruction face earns `R.H` (adjoint-for-free, symmetric with
+  analysis). New `Basis.reconstruct_transpose` (the **measure-free** representation transpose
+  `R^⊤ = d_k·S_0^⊤` — NO `w_n`, asymmetric with `analyze_transpose` whose forward bakes weights in);
+  `SphericalHarmonicBasis` impl `(2ℓ+1)·Σ_n Y_ℓ^m v_n`; `_FrameReconstruction.apply_transpose` +
+  `CAP_APPLY_TRANSPOSE` → `R.H = (2ℓ+1)²/4π · Σ_n w_n Y_ℓ^m v_n` falls out of `_AdjointOperator`.
+  3 new tests (symmetric with the analysis-face trio): bit-identical per-term-fold + unit-vector pin,
+  both adjoint identities by the DEFINING inner-product law, R.H vs independent closed-form. qa SUPPORTED
+  (adjoint re-derived 3 ways, all gates mutation-confirmed to bite, Mode-11 cleared); 0-ULP canary holds;
+  prod pyright clean; Sphinx -W clean. (`743e954` = matrix regen.) **Did NOT build `R.H.apply_transpose`**
+  (the `_AdjointOperator` stub still raises — zero consumers, per plan).
 
 **Landed (committed): MEASURE-COMPLETENESS** (after Phase C; the user reviewed the Frame for naming +
 information-completeness, this is the agreed 4-phase result — plan `.claude/plans/reactive-moseying-cake.md`,
@@ -53,7 +63,7 @@ now COMPLETE). `df700aa..d35003e`, pushed.
   hierarchy (`AngularSupport`/`SpatialSupport`/`EnergySupport`); the energy measure + half-line support;
   `SPACE_*`→`SUPPORT_*` const rename; a `Frame.__post_init__` phase-mismatch guard (needs `Basis.phase` +
   a 2nd axis); the **Galerkin/PG discipline** field (mint at the 2nd genuinely-oblique frame — currently
-  `CAP_SOLVE`-decidable). These do NOT block Phase D.
+  `CAP_SOLVE`-decidable — mint at Phase E+F's first oblique frame). These do NOT block Phase E+F.
 
 **OPEN follow-up flagged to user (NOT yet decided):** the 4 `projection.py` ABCs are now
 implementation-free (frame faces subclass `LinearOperatorMixin` directly). Either (a) make the frame
@@ -64,7 +74,8 @@ placement is open for review.
 - **`Basis` ABC** (`basis/base.py`): `evaluate(points)→table` (the ONLY points-taking method);
   then **table-based contractions** (the Frame caches the table once, delegates — L16 perf guard):
   `synthesize(coefficients, table)` (naked `S₀`), `analyze(values, table, weights)` (M),
-  `analyze_transpose(coefficients, table, weights)` (Mᵀ), `reconstruct(coefficients, table)` (R);
+  `analyze_transpose(coefficients, table, weights)` (Mᵀ), `reconstruct(coefficients, table)` (R),
+  `reconstruct_transpose(values, table)` (Rᵀ = `d_k·S₀ᵀ`, **measure-free** — Phase D);
   plus `mass_matrix(measure)` (diagnostic, measure-based) and the property **`space`** (the
   coefficient `FunctionSpace`; NOT `coefficient_space`/`basis_space` — those are redundant on the
   basis). Abstract-method args are positional-only so concrete bases keep domain names.
@@ -75,8 +86,8 @@ placement is open for review.
   `basis_space` (codomain = `basis.space`), and the faces `frame.analysis` (`_FrameAnalysis`) /
   `frame.reconstruction` (`_FrameReconstruction`) — private frozen dataclasses subclassing
   `LinearOperatorMixin` (unparametrised), `capabilities` a plain unannotated class attr (the
-  `block_role` override pattern). analysis carries `apply`+`apply_transpose`+`CAP_APPLY_TRANSPOSE`
-  (→ `.H` free); reconstruction `apply`-only (Phase D adds its transpose).
+  `block_role` override pattern). BOTH faces now carry `apply`+`apply_transpose`+
+  `CAP_APPLY_TRANSPOSE` (→ `.H` free) — analysis since Phase B, reconstruction since Phase D.
 - **Naming decisions (durable, in memory):** faces `analysis`/`reconstruction` (NOT
   `analysis`/`synthesis` — "synthesis"=`T*`=`S₀` is the naked basis primitive, a DIFFERENT object;
   see `[[feedback-high-signal-names]]`). The shared `S₀` is conceptual only — production keeps
@@ -88,19 +99,22 @@ spaces (no cast). 669 numerics + 129 sn eigenvalue/scattering green incl. the **
 `test_scattering_kernel_crosscheck`**. **Pre-existing unrelated failures (NOT ours, verified via
 stash):** 8 in `tests/sn/operators/` (2D-mesh `mu_y` cosines; sphere streaming snapshots).
 
-**NEXT = Phase D (#30)** — give `frame.reconstruction` (`_FrameReconstruction`) its
-`apply_transpose` + `CAP_APPLY_TRANSPOSE` so `R.H` falls out of the metric-aware `_AdjointOperator`
-(the analysis face already has this; reconstruction is `apply`-only today). Do NOT build
-`R.H.apply_transpose` (stub raises, zero consumers). Gate: numerics + sn/operators green; CLI
-pyright ≤ baseline. **Then #31 Phase E+F** — `ScalarFlux.flux_volume_measure()` solution-as-measure
-seam + record the principle, final docs polish, EXIT to #226.
+**NEXT = Phase E+F (#31)** — the **solution-as-measure** seam: `ScalarFlux.flux_volume_measure()`
+(or equivalent) emits the flux·volume PG weighting as a `DiscreteMeasure` the SOLUTION produces
+(keystone ruling below: the PG weightings are `Measure`s the solution emits, unifying with the
+discretisation's geometric quadratures — `mesh.volume_measure` already emits one, flux·volume·Σ rates
+already route through it). This is where the first genuinely-oblique (Petrov-Galerkin) measure lands —
+and thus where the deferred **Galerkin/PG discipline** field is finally minted (the `support`/`phase`
+per-category machinery from measure-completeness is the substrate). Then final docs polish (archivist:
+a frame theory page + the reconstruction-adjoint equation labels the Phase-D tests deferred) and **EXIT
+to #226** (pyright burn-down). Gate: numerics + sn/operators green; 0-ULP canary; CLI pyright ≤ baseline.
 
 Gate discipline (every phase, held all of C): the **0-ULP `test_scattering_kernel_crosscheck`
 canary** + the windowed-moments oracle (`test_2d_anisotropic_windowing`) + the structural anchors
 (`test_spherical_harmonic_space`) + net-zero new CLI-pyright reds. Pre-existing unrelated reds (NOT
 ours, stash-verified): 7 `tests/sn/operators/` (2D `mu_y`/sphere snapshots).
 
-Tasks: #27/#28/#29 DONE → #30 (Phase D) → #31 (E+F). Memory: `[[project-frame-basis-carve]]`,
+Tasks: #27/#28/#29/#30 DONE → #31 (E+F). Memory: `[[project-frame-basis-carve]]`,
 `[[feedback-high-signal-names]]`.
 
 ---
