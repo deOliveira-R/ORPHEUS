@@ -152,9 +152,7 @@ from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 
-from orpheus.numerics.basis import SphericalHarmonicBasis
 from orpheus.numerics.frame import Frame
-from orpheus.numerics.measure import SPACE_SPHERE, DiscreteMeasure
 from orpheus.numerics.operator import (
     BlockRole,
     CAP_APPLY,
@@ -450,20 +448,10 @@ class ScatteringOperator(LinearOperatorMixin):
         ``frame.table`` is the :math:`Y_\ell^m(\hat\Omega_n)` tabulation,
         **bit-identical** to the legacy :attr:`Y` (both route through
         :meth:`SphericalHarmonicBasis.evaluate` on the same direction
-        cosines). The :math:`(N, 3)` :math:`S^2` embedding column-stacks the
-        per-axis cosines, sending a slab's polar cosine :math:`\mu` to
-        :math:`(\mu, 0, 0)` exactly as
-        :meth:`Quadrature.spherical_harmonics` does internally.
+        cosines). The :math:`S^2` embedding + binding lives once in
+        :meth:`~orpheus.numerics.quadrature.Quadrature.angular_frame`.
         """
-        q = self.quadrature
-        s2_measure = DiscreteMeasure(
-            nodes=np.column_stack(
-                [q.axis_cosines(0), q.axis_cosines(1), q.axis_cosines(2)]
-            ),
-            weights=q.weights,
-            space=SPACE_SPHERE,
-        )
-        return Frame(SphericalHarmonicBasis(L=self.scattering_order), s2_measure)
+        return self.quadrature.angular_frame(self.scattering_order)
 
     @property
     def sig_s(self) -> dict[int, list[np.ndarray]]:

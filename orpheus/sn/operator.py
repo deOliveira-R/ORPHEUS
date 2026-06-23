@@ -146,7 +146,7 @@ if TYPE_CHECKING:
     from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.numerics.space import FunctionSpace
     from .geometry import SNMesh
-    from orpheus.numerics.projection import MomentProjection
+    from orpheus.numerics.frame import Frame
     from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
     from .spatial.pole_angular_closure import PoleAngularClosure
     from .loss_representation import LossRepresentation
@@ -925,7 +925,7 @@ class InvertibleOperator(OperatorSum["FullField"]):
     def solve_moments(
         self,
         rhs: "TimedFullField",
-        projection: "MomentProjection",
+        frame: "Frame",
         *,
         initial_guess: "TimedFullField | None" = None,
     ) -> "TimedFullField":
@@ -939,21 +939,22 @@ class InvertibleOperator(OperatorSum["FullField"]):
         :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
         ``(L+1, 2L+1, ng, nx, ny)`` rather than an
         :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
-        ``(N, ng, nx, ny)``.  ``projection`` is the scattering operator's
-        :class:`~orpheus.numerics.projection.MomentProjection` (its harmonics +
-        weights), so the in-sweep moments equal ``S``'s internal projection
-        term-for-term; the cross-octant accumulation reorders the ordinate sum
-        vs the flat post-sweep projection ⇒ principled-equivalence, NOT
-        bit-identity.  2-D Cartesian ONLY (the windowed-SI path; the windowing
-        gate — the genuine ``is_cartesian and ndim == 2`` condition in
-        ``_maybe_window`` since C5.4 (#225), replacing the ``reduced is
-        None`` proxy that was ALSO true at d=3 Cartesian — guarantees it).
-        ``solve`` followed by the flat :meth:`MomentProjection.apply` is the
-        fuller-view verification oracle (``vv-principles``; the
-        aggressive-retirement "verification oracle" exception).
+        ``(N, ng, nx, ny)``.  ``frame`` is the scattering operator's angular
+        :class:`~orpheus.numerics.frame.Frame` (its basis + measure), whose
+        :attr:`~orpheus.numerics.frame.Frame.analysis` face is ``S``'s internal
+        projection — so the in-sweep moments equal it term-for-term; the
+        cross-octant accumulation reorders the ordinate sum vs the flat
+        post-sweep projection ⇒ principled-equivalence, NOT bit-identity.  2-D
+        Cartesian ONLY (the windowed-SI path; the windowing gate — the genuine
+        ``is_cartesian and ndim == 2`` condition in ``_maybe_window`` since
+        C5.4 (#225), replacing the ``reduced is None`` proxy that was ALSO true
+        at d=3 Cartesian — guarantees it).  ``solve`` followed by the flat
+        :meth:`~orpheus.numerics.frame.Frame.analysis` apply is the fuller-view
+        verification oracle (``vv-principles``; the aggressive-retirement
+        "verification oracle" exception).
         """
         return self._solve_timed_full_field(
-            rhs, initial_guess=initial_guess, moment_projection=projection,
+            rhs, initial_guess=initial_guess, moment_frame=frame,
         )
 
     def _solve_timed_full_field(
@@ -961,7 +962,7 @@ class InvertibleOperator(OperatorSum["FullField"]):
         rhs: "TimedFullField",
         *,
         initial_guess: "TimedFullField | None" = None,
-        moment_projection: "MomentProjection | None" = None,
+        moment_frame: "Frame | None" = None,
     ) -> "TimedFullField":
         r"""Composite :class:`TimedFullField` body of :meth:`solve` (D-H.1c stage 1).
 
@@ -1082,7 +1083,7 @@ class InvertibleOperator(OperatorSum["FullField"]):
         # container-agnostic :func:`_initial_guess_values` extractor.
         #
         # Phase 5c: ONE sweep for BOTH output modes — the moment
-        # projection rides as an optional kwarg (the 1-D representation
+        # frame rides as an optional kwarg (the 1-D representation
         # raises on it, since moment output is 2-D Cartesian only;
         # ``moment_*`` and ``initial_guess`` are mutually 2-D-vs-1-D, so
         # the 2-D branch harmlessly drops the unused seed).  Only the
@@ -1092,20 +1093,22 @@ class InvertibleOperator(OperatorSum["FullField"]):
             self.sigma,
             boundary_buf,
             initial_guess=initial_guess,
-            moment_projection=moment_projection,
+            moment_frame=moment_frame,
         )
         # The sweep output carries the trailing 2^d spatial-moment axis at a
         # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
         # selects the SpatialMomentSpace factor so the iterate is a legal typed
         # state.  DD/Step (per_axis == 1) → no factor, byte-identical.
         per_axis = sn_mesh.scheme.spatial_basis_per_axis
-        if moment_projection is None:
+        if moment_frame is None:
             bulk = AngularFlux.from_mesh(
                 bulk_values, sn_mesh, spatial_moments=per_axis,
             )
         else:
+            # In moment mode the sweep returns the (L+1, 2L+1, ...) moment
+            # tensor, so its own leading axis fixes L (no basis-specific read).
             bulk = HarmonicMomentField.from_mesh_and_L(
-                bulk_values, sn_mesh, moment_projection.L,
+                bulk_values, sn_mesh, bulk_values.shape[0] - 1,
                 spatial_moments=per_axis,
             )
 

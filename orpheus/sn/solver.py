@@ -381,24 +381,24 @@ class _GaussSeidelResolvent:
         """
         return self._solve_scheduled(rhs, initial_guess=initial_guess)
 
-    def solve_moments(self, rhs, projection, *, initial_guess=None):
+    def solve_moments(self, rhs, frame, *, initial_guess=None):
         r"""``(L+C−B_lower)⁻¹ rhs`` via the G-S sweep, returning the harmonic
         MOMENTS of ``ψ`` projected in-sweep (Phase 5c — the moment-emitting
         sibling of :meth:`solve`, satisfying the same windowed-resolvent contract
         as :meth:`InvertibleOperator.solve_moments`).
         """
         return self._solve_scheduled(
-            rhs, initial_guess=initial_guess, moment_projection=projection,
+            rhs, initial_guess=initial_guess, moment_frame=frame,
         )
 
-    def _solve_scheduled(self, rhs, *, initial_guess=None, moment_projection=None):
+    def _solve_scheduled(self, rhs, *, initial_guess=None, moment_frame=None):
         r"""Shared body: seed ``boundary_buf = rhs.boundary + B·ψₙ`` (the lagged
         whole-trace reflection of the previous iterate — the SAME seed the Jacobi
         path gets via the external ``B`` gain, only here ``B`` lives in the
         resolvent), then run :func:`_sweep_scheduled` with the G-S schedule
         and the face-restricted ``−B`` reflect between octant-group sweeps.
 
-        The output representation is selected by ``moment_projection`` (Phase
+        The output representation is selected by ``moment_frame`` (Phase
         5c): ``None`` → full angular (:meth:`solve`); given → harmonic moments
         accumulated in-sweep (:meth:`solve_moments`).  The boundary seed +
         schedule + reflect are IDENTICAL — only the bulk OUTPUT differs.
@@ -438,7 +438,7 @@ class _GaussSeidelResolvent:
             boundary_buf,
             schedule=self._schedule,
             reflect=_reflect,
-            moment_projection=moment_projection,
+            moment_frame=moment_frame,
             # S6.5 (#222): the schedule loop is kernel-parameterized; the
             # G-S resolvent runs on the OPERATOR's one representation
             # instance — the same object ``(L+C).apply`` and ``.solve``
@@ -450,13 +450,15 @@ class _GaussSeidelResolvent:
         # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
         # selects the SpatialMomentSpace factor.  DD/Step → no factor, byte-id.
         per_axis = sn_mesh.scheme.spatial_basis_per_axis
-        if moment_projection is None:
+        if moment_frame is None:
             bulk = AngularFlux.from_mesh(
                 bulk_values, sn_mesh, spatial_moments=per_axis,
             )
         else:
+            # The moment tensor's own leading axis (L+1) fixes L — no
+            # basis-specific read (the sweep stays basis-agnostic).
             bulk = HarmonicMomentField.from_mesh_and_L(
-                bulk_values, sn_mesh, moment_projection.L,
+                bulk_values, sn_mesh, bulk_values.shape[0] - 1,
                 spatial_moments=per_axis,
             )
         return TimedFullField(
@@ -487,13 +489,13 @@ class _MomentWindowedResolvent:
 
     **Phase 5a → 5c.**  5a reduced the iterate by POST-projecting the base's
     full-angular sweep output (``base.solve`` then a flat
-    :meth:`~orpheus.numerics.projection.MomentProjection.apply`) — the full
+    :attr:`~orpheus.numerics.frame.Frame.analysis` projection) — the full
     ``(N, ng, nx, ny)`` field was still materialized transiently every sweep.
     5c moved the projection INTO the sweep (``base.solve_moments``): the walk
     accumulates moments per anti-diagonal, so the full angular field is NEVER
     materialized (the ~3× linear peak-memory win).  This class is now a thin
-    adapter — it builds ``M`` and injects it; the projection arithmetic lives
-    in the sweep.
+    adapter — it holds the scattering operator's angular ``Frame`` and injects
+    it; the projection arithmetic lives in the sweep.
 
     **Geometry restriction (load-bearing).**  Valid ONLY where the sweep is
     a DIRECT solve with no per-ordinate-iterate seed — i.e. 2-D Cartesian
@@ -506,8 +508,8 @@ class _MomentWindowedResolvent:
     was ALSO true at d=3 Cartesian, where the in-sweep moment kernel does
     not exist).
 
-    **Principled-equivalence (5c), not bit-identity.**  ``M`` is built from the
-    SAME quadrature harmonics the scattering operator uses, so the per-cell
+    **Principled-equivalence (5c), not bit-identity.**  ``M`` is the scattering
+    operator's OWN ``frame.analysis`` (the SAME object), so the per-cell
     ``w·Y·ψ`` fold matches ``S``'s internal projection term-for-term.  But the
     in-sweep accumulation sums the ordinate contributions octant-by-octant
     (cross-octant ``+=``), reordering the sum vs the flat post-sweep reduce ⇒
@@ -519,7 +521,7 @@ class _MomentWindowedResolvent:
     criterion — scattering iterates the moments); the converged value agrees
     with the full-angular path within ``SAFETY × conv_tol`` (``vv-principles``
     §"Bit-identity vs principled-equivalence").  The pre-5c post-projection
-    (``base.solve`` + flat ``MomentProjection.apply``) is retained as the
+    (``base.solve`` + flat ``frame.analysis.apply``) is retained as the
     fuller-view verification ORACLE (``feedback_aggressive_retirement`` — the
     "verification oracle" exception; pinned by the windowed-moments
     equivalence test within the de-risk ULP bound).
@@ -531,21 +533,16 @@ class _MomentWindowedResolvent:
     harmlessly).
     """
 
-    def __init__(self, base, quadrature, moment_order: int) -> None:
-        from orpheus.numerics.projection import MomentProjection
-
+    def __init__(self, base, frame) -> None:
         self._base = base            # the un-windowed resolvent ((L+C) or G-S)
-        # M built ONCE from the scattering op's quadrature (NOT per solve); the
-        # harmonics/weights match S.apply's internal projection ⇒ the in-sweep
-        # moments equal what S would project (term-for-term).  ``base`` carries
-        # the mesh + the truncation order (``projection.L``); the windowed
-        # resolvent holds no mesh/order state of its own (Phase 5c — the post-
-        # sweep projection that needed them retired into the base sweep).
-        self._projection = MomentProjection(
-            weights=quadrature.weights,
-            Y=quadrature.spherical_harmonics(moment_order),
-            L=moment_order,
-        )
+        # The scattering operator's OWN angular Frame (NOT a fresh projection):
+        # ``frame.analysis`` IS ``S.apply``'s internal projection — the SAME
+        # object, single source — so the in-sweep moments equal what S would
+        # project term-for-term.  ``base`` carries the mesh + the truncation
+        # order (``frame.basis.L``); the windowed resolvent holds no mesh/order
+        # state of its own (Phase 5c — the post-sweep projection that needed
+        # them retired into the base sweep).
+        self._frame = frame
 
     @property
     def capabilities(self) -> frozenset[str]:
@@ -564,23 +561,25 @@ class _MomentWindowedResolvent:
         :meth:`~orpheus.sn.operator.InvertibleOperator.solve_moments`, which
         projects each anti-diagonal IN-SWEEP — the full per-ordinate angular
         field ``(N, ng, nx, ny)`` is NEVER materialized (the ~3× linear
-        peak-memory win).  The :class:`~orpheus.numerics.projection.MomentProjection`
-        (built once from the scattering quadrature) carries the harmonics +
-        weights, so the in-sweep moments equal ``S``'s internal projection
-        term-for-term; the cross-octant accumulation reorders the ordinate sum
-        ⇒ principled-equivalence, NOT bit-identity (``vv-principles``
+        peak-memory win).  The scattering operator's angular
+        :class:`~orpheus.numerics.frame.Frame` (the SAME object ``S.apply`` uses,
+        its :attr:`~orpheus.numerics.frame.Frame.analysis` face) carries the
+        harmonics + weights, so the in-sweep moments equal ``S``'s internal
+        projection term-for-term; the cross-octant accumulation reorders the
+        ordinate sum ⇒ principled-equivalence, NOT bit-identity (``vv-principles``
         §"Bit-identity vs principled-equivalence"; de-risk ≤ 4 ULP).  The
         boundary trace passes through verbatim (windowing is interior-only).
 
         Pre-5c this wrapped ``base.solve`` (full angular) then applied a flat
-        post-sweep :meth:`MomentProjection.apply`.  That fuller-view path remains
-        the verification oracle: the windowed-moments equivalence test pins THIS
-        in-sweep result against ``base.solve`` + ``MomentProjection.apply``
-        within the de-risk ULP bound (``feedback_aggressive_retirement`` —
-        the "verification oracle" exception to retirement).
+        post-sweep :attr:`~orpheus.numerics.frame.Frame.analysis` projection.
+        That fuller-view path remains the verification oracle: the
+        windowed-moments equivalence test pins THIS in-sweep result against
+        ``base.solve`` + ``frame.analysis.apply`` within the de-risk ULP bound
+        (``feedback_aggressive_retirement`` — the "verification oracle"
+        exception to retirement).
         """
         return self._base.solve_moments(
-            rhs, self._projection, initial_guess=initial_guess,
+            rhs, self._frame, initial_guess=initial_guess,
         )
 
 
@@ -606,11 +605,7 @@ def _maybe_window(base_resolvent, scattering_op, sn_mesh):
     """
     if sn_mesh.is_cartesian and sn_mesh.ndim == 2:
         return (
-            _MomentWindowedResolvent(
-                base_resolvent,
-                scattering_op.quadrature,
-                scattering_op.scattering_order,
-            ),
+            _MomentWindowedResolvent(base_resolvent, scattering_op.frame),
             True,
         )
     return base_resolvent, False

@@ -30,7 +30,6 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh2D
-from orpheus.numerics.projection import MomentProjection
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.loss_representation import (
@@ -142,17 +141,13 @@ def test_scanmarch_moment_equals_window(nx, ny, lvl, ng, bc):
     sn_mesh = _build_mesh(nx, ny, lvl, ng, bc)
     sig_t, Q, bf_sm = _random_inputs(rng, sn_mesh, ng, nx, ny)
     bf_win = BoundaryFlux.from_mesh(bf_sm.values.copy(), sn_mesh)
-    mp = MomentProjection(
-        weights=sn_mesh.quad.weights,
-        Y=sn_mesh.quad.spherical_harmonics(Lm),
-        L=Lm,
-    )
+    frame = sn_mesh.quad.angular_frame(Lm)
 
     mom_sm, second_sm = ScanMarch(sn_mesh).sweep(
-        Q, sig_t, bf_sm, moment_projection=mp,
+        Q, sig_t, bf_sm, moment_frame=frame,
     )
     mom_win, _ = MovingFrontierWindow(sn_mesh).sweep(
-        Q, sig_t, bf_win, moment_projection=mp,
+        Q, sig_t, bf_win, moment_frame=frame,
     )
 
     if second_sm is not None:

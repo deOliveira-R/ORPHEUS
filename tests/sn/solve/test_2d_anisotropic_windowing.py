@@ -52,7 +52,6 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC
 from orpheus.geometry.mesh import Mesh2D
-from orpheus.numerics.projection import MomentProjection
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.geometry import SNMesh
@@ -256,17 +255,17 @@ def test_2d_windowed_si_reflective_trace_is_nonzero():
 )
 def test_2d_windowed_moments_in_sweep_equal_post_projection():
     r"""Phase 5c: ``base.solve_moments`` (per-anti-diagonal in-sweep moment
-    accumulation) ≡ the flat post-sweep ``MomentProjection.apply`` of the SAME
-    full-angular sweep — the FULLER-VIEW VERIFICATION ORACLE.
+    accumulation) ≡ the flat post-sweep ``frame.analysis`` projection of the
+    SAME full-angular sweep — the FULLER-VIEW VERIFICATION ORACLE.
 
     5c moved the angular→moment projection INTO the windowed walk (cross-octant
     ``+=`` per anti-diagonal) so the full ``(N, ng, nx, ny)`` field is never
     materialized.  The pre-5c path — ``base.solve`` (full angular) then a flat
-    :meth:`~orpheus.numerics.projection.MomentProjection.apply` — is retained as
+    :attr:`~orpheus.numerics.frame.Frame.analysis` apply — is retained as
     the verification oracle (``feedback_aggressive_retirement`` "verification
     oracle" exception).  Both share the SAME cell kernel and the SAME
-    ``Y``/``weights``, so only the ordinate-sum reduction ORDER differs ⇒
-    ULP-level drift (principled-equivalence, ``vv-principles``).
+    ``frame`` (table + weights), so only the ordinate-sum reduction ORDER
+    differs ⇒ ULP-level drift (principled-equivalence, ``vv-principles``).
 
     This is a REPRESENTATION-equivalence pin, NOT a correctness claim — it is
     procedurally (NOT structurally) independent from the oracle (shared kernel).
@@ -301,14 +300,10 @@ def test_2d_windowed_moments_in_sweep_equal_post_projection():
     # operators the windowed SI driver consumes (single source of truth).
     LC, S, _B = _within_group_triple(solver)
     sn_mesh = solver.sn_mesh
-    # The moment basis sourced from the scattering operator's own quadrature +
-    # order — IDENTICAL to what `_MomentWindowedResolvent.__init__` builds (so
-    # the SUT below exercises the production projection, not a test-local one).
-    moment_projection = MomentProjection(
-        weights=S.quadrature.weights,
-        Y=S.quadrature.spherical_harmonics(S.scattering_order),
-        L=S.scattering_order,
-    )
+    # THE production angular frame — the SAME object `_MomentWindowedResolvent`
+    # injects (``S.frame``), so the SUT below exercises the production
+    # projection, not a test-local one. Its ``analysis`` face is the flat M.
+    frame = S.frame
 
     # A representative per-ordinate source (seeded random ⇒ strong, deterministic
     # ℓ≥1 content in the swept ψ; the projection-order equivalence is
@@ -321,11 +316,12 @@ def test_2d_windowed_moments_in_sweep_equal_post_projection():
 
     # SUT: the 5c per-anti-diagonal in-sweep accumulation.
     sut = np.asarray(
-        LC.solve_moments(rhs, moment_projection).bulk.values, dtype=np.float64,
+        LC.solve_moments(rhs, frame).bulk.values, dtype=np.float64,
     )
-    # ORACLE (the fuller view): flat post-projection of the full-angular sweep.
+    # ORACLE (the fuller view): flat post-projection (the frame's analysis
+    # face, M) of the full-angular sweep.
     oracle = np.asarray(
-        moment_projection.apply(LC.solve(rhs).bulk.values), dtype=np.float64,
+        frame.analysis.apply(LC.solve(rhs).bulk.values), dtype=np.float64,
     )
 
     # leg-2: ℓ≥1 carries signal (anti-degeneracy) — raise fires under -O.

@@ -183,7 +183,7 @@ def frame_signs_for(
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
 
-    from orpheus.numerics.projection import MomentProjection
+    from orpheus.numerics.frame import Frame
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from orpheus.transport.full_field import FullField
@@ -245,7 +245,7 @@ class LossRepresentation(Protocol):
         boundary_flux: "BoundaryFlux",
         *,
         initial_guess: "AngularFlux | TimedFullField | None" = None,
-        moment_projection: "MomentProjection | None" = None,
+        moment_frame: "Frame | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         """Perform one within-group transport sweep on this strategy's mesh."""
         ...
@@ -504,7 +504,7 @@ class _LossRepresentation:
         boundary_flux: "BoundaryFlux",
         *,
         initial_guess: "AngularFlux | TimedFullField | None" = None,
-        moment_projection: "MomentProjection | None" = None,
+        moment_frame: "Frame | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         """One within-group sweep — every concrete strategy implements it."""
         raise NotImplementedError(
@@ -997,14 +997,14 @@ class CumprodScan(_LossRepresentation):
         boundary_flux: "BoundaryFlux",
         *,
         initial_guess: "AngularFlux | TimedFullField | None" = None,
-        moment_projection: "MomentProjection | None" = None,
+        moment_frame: "Frame | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
-        if moment_projection is not None:
+        if moment_frame is not None:
             # Moment output is the 2-D windowed-SI peak-memory optimization;
             # 1-D / curvilinear meshes stay full-angular (the Morel–Montry
             # Carlson seed reads the per-ordinate iterate; lesson L21).
             raise ValueError(
-                "CumprodScan.sweep: moment output (moment_projection given) "
+                "CumprodScan.sweep: moment output (moment_frame given) "
                 "is 2-D Cartesian only — 1-D/curvilinear meshes stay "
                 "full-angular (the Morel–Montry Carlson seed reads the "
                 "per-ordinate iterate; lesson L21)."
@@ -1134,11 +1134,11 @@ class MovingFrontierWindow(_DAGWavefront):
         boundary_flux: "BoundaryFlux",
         *,
         initial_guess: "AngularFlux | TimedFullField | None" = None,
-        moment_projection: "MomentProjection | None" = None,
+        moment_frame: "Frame | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         return _sweep_jacobi(
             Q, sig_t, self.mesh, boundary_flux,
-            moment_projection=moment_projection,
+            moment_frame=moment_frame,
             interior=self._sweep_interior,
         )
 
@@ -1410,9 +1410,9 @@ class FullFieldWavefront(_DAGWavefront):
         boundary_flux: "BoundaryFlux",
         *,
         initial_guess: "AngularFlux | TimedFullField | None" = None,
-        moment_projection: "MomentProjection | None" = None,
+        moment_frame: "Frame | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
-        if moment_projection is not None:
+        if moment_frame is not None:
             raise ValueError(
                 "FullFieldWavefront.sweep: the full-field oracle does not "
                 "implement moment output — use MovingFrontierWindow for the "
@@ -1423,7 +1423,7 @@ class FullFieldWavefront(_DAGWavefront):
         # former private ``_sweep_full_field`` frame dissolved).
         return _sweep_jacobi(
             Q, sig_t, self.mesh, boundary_flux,
-            moment_projection=None,
+            moment_frame=None,
             interior=self._sweep_interior,
         )
 
@@ -1633,16 +1633,16 @@ class ScanMarch(_LossRepresentation):
         boundary_flux: "BoundaryFlux",
         *,
         initial_guess: "AngularFlux | TimedFullField | None" = None,
-        moment_projection: "MomentProjection | None" = None,
+        moment_frame: "Frame | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         if self.mesh.is_1d:
             # d=1 ⇒ ``scan(x)`` with no transverse march: the unified 1-D body
             # (slab + curvilinear via the two-stratum cache; the Morel–Montry
             # Carlson angular thread folds into the scan's affine source).  This
             # is the ``s_y = 0`` degeneration of the 2-D scan-march.
-            if moment_projection is not None:
+            if moment_frame is not None:
                 raise ValueError(
-                    "ScanMarch.sweep: moment output (moment_projection given) "
+                    "ScanMarch.sweep: moment output (moment_frame given) "
                     "is 2-D Cartesian only — 1-D/curvilinear meshes stay "
                     "full-angular (the Morel–Montry Carlson seed reads the "
                     "per-ordinate iterate; lesson L21)."
@@ -1657,7 +1657,7 @@ class ScanMarch(_LossRepresentation):
         # inter-group reflect being kernel-agnostic).
         return _sweep_jacobi(
             Q, sig_t, self.mesh, boundary_flux,
-            moment_projection=moment_projection,
+            moment_frame=moment_frame,
             interior=self._sweep_interior,
         )
 
@@ -1942,7 +1942,7 @@ def transport_sweep(
     boundary_flux: "BoundaryFlux",
     *,
     initial_guess: "AngularFlux | TimedFullField | None" = None,
-    moment_projection: "MomentProjection | None" = None,
+    moment_frame: "Frame | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Perform one full transport sweep.
 
@@ -2025,7 +2025,7 @@ def transport_sweep(
         (reads ``.bulk.values``) via D-H.1c stage 4's
         :func:`_initial_guess_values` extractor — the kernel reads
         only the per-ordinate bulk ndarray, container-agnostic.
-    moment_projection : MomentProjection or None, optional
+    moment_frame : Frame or None, optional
         Phase 5c moment OUTPUT mode (2-D Cartesian ONLY — raises on a 1-D
         mesh).  ``None`` (default) returns the full per-ordinate angular flux
         (every full-angular consumer).  When given (the windowed-SI path), the
@@ -2037,7 +2037,7 @@ def transport_sweep(
     Returns
     -------
     bulk
-        ``moment_projection is None`` → ``angular_flux`` ``(N, ng, nx, ny)``.
+        ``moment_frame is None`` → ``angular_flux`` ``(N, ng, nx, ny)``.
         Given → the harmonic moment tensor ``(L+1, 2L+1, ng, nx, ny)``.
     scalar_flux
         ``(ng, nx, ny)`` :math:`\\sum_n w_n \\psi_n` in angular mode; ``None`` in
@@ -2058,7 +2058,7 @@ def transport_sweep(
       window's sweep time at identical peak memory).
       ``MovingFrontierWindow`` (anti-diagonal scheduling) stays selectable.
 
-    The ``moment_projection`` guard (moment output is 2-D Cartesian only)
+    The ``moment_frame`` guard (moment output is 2-D Cartesian only)
     now lives in ``CumprodScan.sweep`` — the strategy that cannot produce it
     carries its own refusal.
 
@@ -2072,7 +2072,7 @@ def transport_sweep(
     return default_for(sn_mesh).sweep(
         Q, sig_t, boundary_flux,
         initial_guess=initial_guess,
-        moment_projection=moment_projection,
+        moment_frame=moment_frame,
     )
 
 
@@ -3330,7 +3330,7 @@ def _sweep_scheduled(
     *,
     schedule: "SweepSchedule",
     reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
-    moment_projection: "MomentProjection | None" = None,
+    moment_frame: "Frame | None" = None,
     interior: "Callable" ,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""Polymorphic schedule-driven 2-D sweep (Phase 3 sub-step 3c; S6.4(b)
@@ -3387,7 +3387,7 @@ def _sweep_scheduled(
     bit-identity verification oracle (see the ``window ≡ full-field``
     test); the converged solution is unchanged.
 
-    Phase 5c moment output: when ``moment_projection`` is given (the 2-D
+    Phase 5c moment output: when ``moment_frame`` is given (the 2-D
     Cartesian windowed-SI path), the walk accumulates the harmonic moment tensor
     ``(L+1, 2L+1, ng, nx, ny)`` per anti-diagonal directly — the full
     per-ordinate angular OUTPUT ``(N, ng, nx, ny)`` is never materialized (the
@@ -3397,8 +3397,8 @@ def _sweep_scheduled(
     separately (the angular-mode scalar is an independent array; ``None`` keeps
     the modes' second slot from being mistaken).  Principled-equivalence, NOT
     bit-identity: the cross-octant ``+=`` reorders the ordinate sum vs the
-    post-sweep flat :class:`~orpheus.numerics.projection.MomentProjection`
-    reduce (≤ 4 ULP de-risk).  ``moment_projection is None`` (every full-angular
+    post-sweep flat :attr:`~orpheus.numerics.frame.Frame.analysis` projection
+    reduce (≤ 4 ULP de-risk).  ``moment_frame is None`` (every full-angular
     consumer — reconstruction, Krylov, 1-D) returns ``(angular_flux,
     scalar_flux)`` exactly as before.
     """
@@ -3417,7 +3417,7 @@ def _sweep_scheduled(
     moment_tail = face_moment_tail(
         sn_mesh.scheme.spatial_basis_per_axis ** sn_mesh.ndim
     )
-    if moment_projection is None:
+    if moment_frame is None:
         angular_flux = np.zeros((N, ng, *spatial, *moment_tail))
         scalar_flux = np.zeros((ng, *spatial, *moment_tail))
         moment_buf = None
@@ -3425,10 +3425,15 @@ def _sweep_scheduled(
             weights=weights, angular_flux=angular_flux, scalar_flux=scalar_flux,
         )
     else:
-        L = moment_projection.L
-        moment_buf = np.zeros((L + 1, 2 * L + 1, ng, *spatial, *moment_tail))
+        # The moment buffer carries the frame table's (L+1, 2L+1) harmonic
+        # block (table shape (N, L+1, 2L+1)); size it from there so the buffer
+        # and the projection table agree by construction — and the sweep stays
+        # basis-agnostic (it reads the order off the table it already consumes,
+        # not a basis-specific attribute).
+        n_l, n_m = moment_frame.table.shape[1:3]
+        moment_buf = np.zeros((n_l, n_m, ng, *spatial, *moment_tail))
         emit = _SweepEmit(
-            weights=weights, moment_buf=moment_buf, Y=moment_projection.Y,
+            weights=weights, moment_buf=moment_buf, Y=moment_frame.table,
         )
 
     operands = _SolveOperands(
@@ -3452,7 +3457,7 @@ def _sweep_scheduled(
             # reads the fresh current-iterate reflected inflow off the trace.
             reflect(boundary_flux, group.reflect_faces)
 
-    if moment_projection is None:
+    if moment_frame is None:
         return angular_flux, scalar_flux
     # Moment mode: (moments, None).  The scalar IS φ_0^0 = ``moments[0, 0]``
     # (Y_0^0 = 1), read off the tensor by the caller — NOT returned separately
@@ -3468,7 +3473,7 @@ def _sweep_jacobi(
     sn_mesh: "SNMesh",
     boundary_flux: "BoundaryFlux",
     *,
-    moment_projection: "MomentProjection | None" = None,
+    moment_frame: "Frame | None" = None,
     interior: "Callable",
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""The bare multi-D sweep = the **Jacobi** octant schedule × one
@@ -3506,7 +3511,7 @@ def _sweep_jacobi(
         Q, sig_t, sn_mesh, boundary_flux,
         schedule=SweepSchedule.jacobi(sn_mesh),
         reflect=None,
-        moment_projection=moment_projection,
+        moment_frame=moment_frame,
         interior=interior,
     )
 

@@ -47,9 +47,10 @@ def _fake_mesh(*, is_cartesian: bool, ndim: int) -> SimpleNamespace:
 
 
 def _scattering_stub():
+    # _maybe_window reads ONLY scattering_op.frame (the angular Frame that
+    # _MomentWindowedResolvent injects); stub exactly that.
     return SimpleNamespace(
-        quadrature=Quadrature.level_symmetric(sn_order=4),
-        scattering_order=0,
+        frame=Quadrature.level_symmetric(sn_order=4).angular_frame(0),
     )
 
 

@@ -621,7 +621,7 @@ class TestSolveTimedFullField:
 
         def spy(
             self, Q, sigma, boundary_flux, *,
-            initial_guess=None, moment_projection=None,
+            initial_guess=None, moment_frame=None,
         ):
             # D-H.2-C2: L2 BoundaryFlux exposes per-face writable views
             # via face_view; copy them out at entry to snapshot the seed.
