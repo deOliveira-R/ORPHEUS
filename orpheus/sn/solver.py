@@ -1533,11 +1533,10 @@ class SNSolver:
 #
 # The cartesian variant carried an inline `(2*l+1)` literal at its
 # Pℓ-source build, duplicating the canonical addition-theorem factor
-# now sourced from
-# `SphericalHarmonicSpace.addition_theorem_factor` via
-# `HarmonicMomentReconstruction.from_spherical_harmonic_space`.  Per
-# the moment-space plan §P1.3 "exactly one place" claim, retiring
-# this dead duplicate is required.
+# now sourced from `SphericalHarmonicBasis.addition_theorem_factor`
+# (the frame's reconstruction face reads it live).  Per the moment-space
+# plan §P1.3 "exactly one place" claim, retiring this dead duplicate is
+# required.
 #
 # The spherical/cylindrical variants had no (2*l+1) duplicate (they
 # were P0-isotropic-only), but they share the same dead-code status

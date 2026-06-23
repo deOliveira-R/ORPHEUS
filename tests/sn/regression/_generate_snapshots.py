@@ -336,7 +336,7 @@ def _cartesian_2d_p1_aniso_het_si(ng: str) -> dict:
     angular→moment reduction inside ``ScatteringOperator`` only ever exercises
     the :math:`\ell=0` block (the scalar flux).  The ``2d_octant_equivalence_05``
     snapshot is anisotropic *source* (per-ordinate Q) which BYPASSES the
-    :class:`~orpheus.numerics.projection.MomentProjection` M-path entirely.
+    frame's analysis (M) path entirely.
     This case is the FIRST 2-D snapshot that drives the full
     :math:`\phi_\ell^m = \sum_n w_n Y_\ell^m \psi_n` projection (``\ell\ge 1``)
     through the 2-D wavefront SI iterate.

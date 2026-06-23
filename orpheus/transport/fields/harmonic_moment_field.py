@@ -148,8 +148,8 @@ class HarmonicMomentField(FluxRole, MomentField):
 
     Cross-class arithmetic with :class:`AngularFlux` / :class:`ScalarFlux`
     is forbidden by Field's Layer 1 gate (`coding-elegance` Pattern 4).
-    The legitimate route is through :class:`MomentProjection` /
-    :class:`HarmonicMomentReconstruction`.
+    The legitimate route is through the discrete
+    :class:`~orpheus.numerics.frame.Frame`'s analysis / reconstruction faces.
     """
 
     L: int
@@ -367,8 +367,9 @@ class HarmonicMomentField(FluxRole, MomentField):
         (where :math:`Y_0^0 = 1`), the addition-theorem moment
         :math:`\phi_0^0 = \sum_n w_n Y_0^0 \psi_n = \sum_n w_n \psi_n`
         IS the scalar flux directly — no :math:`1/Y_0^0` factor. This
-        identity is what makes ``MomentProjection(\psi).scalar_flux()``
-        agree with ``\psi.integrate_angular()`` bit-exactly.
+        identity is what makes the frame analysis face's
+        :math:`\phi_0^0` moment agree with ``\psi.integrate_angular()``
+        bit-exactly.
 
         Returns
         -------

@@ -276,8 +276,10 @@ The earlier waves that converged on the contract:
 
 * Phase 1 of moment-space-and-layering (2026-05) added the typed
   spherical-harmonic space at L1 and split the SN-specific
-  ``apply_traced`` into ``MomentProjection`` (L1) + a thin SN
-  consumer at L3.
+  ``apply_traced`` into a generic moment-projection primitive at L1
+  + a thin SN consumer at L3. The Frame/Basis carve later re-homed
+  that primitive as the :class:`~orpheus.numerics.frame.Frame`'s
+  ``analysis`` face.
 
 The Phase 3 refactor packages the convergence as an enforced contract;
 subsequent Phase 3 steps (P3.2 through P3.6) make further structural

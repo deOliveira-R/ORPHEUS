@@ -75,7 +75,7 @@ Structural independence of the hand-references
   This reuses ``quad.spherical_harmonics(1)`` (a verified primitive,
   below the trusted-library line — see ``algebra-of-record`` §structural
   independence) but assembles the moment sum by an INDEPENDENT explicit
-  Python loop, not the production ``MomentProjection`` /
+  Python loop, not the production frame analysis/reconstruction faces /
   ``LegendreMomentScattering`` einsums.
 
 Negative control (vv-principles anti-pattern #11): a dropped-P1
@@ -223,8 +223,8 @@ def test_cylindrical_p1_source_matches_hand_reference():
     in CYLINDRICAL geometry (a genuine 3-D quadrature, dim=3, so all
     three real :math:`Y_1^m` are active).  The hand-reference assembles
     the moment sum by an INDEPENDENT explicit loop over the
-    ``spherical_harmonics`` table, NOT the production ``MomentProjection``
-    / ``LegendreMomentScattering`` einsums — so a transposed or
+    ``spherical_harmonics`` table, NOT the production frame analysis/reconstruction
+    faces / ``LegendreMomentScattering`` einsums — so a transposed or
     mis-shaped einsum in the production path is detectable.
     """
     quad = build_cylindrical_mms_case().quadrature

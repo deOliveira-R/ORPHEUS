@@ -2134,10 +2134,11 @@ The angular moment is a **replacement representation** of the angular flux:
 a calculation holds EITHER the per-ordinate field
 :math:`\psi` of shape :math:`(N, ng, *\text{spatial})` OR its harmonic
 moments :math:`\phi_\ell^m` of shape
-:math:`(L{+}1, 2L{+}1, ng, *\text{spatial})`, bridged by the Galerkin pair
-:class:`~orpheus.numerics.projection.MomentProjection` (:math:`M`, the
-:math:`\psi \to \phi` reduction :eq:`two-moment-angular`) and
-:class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`
+:math:`(L{+}1, 2L{+}1, ng, *\text{spatial})`, bridged by the
+spherical-harmonic :class:`~orpheus.numerics.frame.Frame`'s two faces —
+its ``analysis`` face (:math:`M`, the
+:math:`\psi \to \phi` reduction :eq:`two-moment-angular`) and its
+``reconstruction`` face
 (:math:`R`, the :math:`\phi \to \psi` lift).  You never carry both;
 windowing the 2-D Cartesian iterate as :math:`\phi_\ell^m` instead of
 :math:`\psi` is the harmonic-moment-projection memory win
@@ -2426,11 +2427,11 @@ no consumer special-cases the axis.  Two properties follow by construction:
   No re-baseline of the DD/Step path; this is the negative-control
   bit-identity.
 
-* **The projection pair needed no change.**  The Galerkin projection
-  primitives :class:`~orpheus.numerics.projection.MomentProjection` and
-  :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction` already
-  carry ``...`` for their trailing axes, so :math:`M` and :math:`R` are
-  spatial-moment-agnostic out of the box.  The angular reduction
+* **The projection pair needed no change.**  The spherical-harmonic
+  :class:`~orpheus.numerics.frame.Frame`'s ``analysis`` and
+  ``reconstruction`` faces already carry ``...`` for their trailing
+  axes, so :math:`M` and :math:`R` are spatial-moment-agnostic out of
+  the box.  The angular reduction
   :eq:`two-moment-angular` and its inverse ride a spatial-moment axis as a
   spectator, which is the architectural payoff of the orthogonal-factor
   framing — the two moment axes never need to know about each other.
@@ -11010,25 +11011,26 @@ verification of the addition theorem lives at
 
 .. note::
 
-   The Pℓ Galerkin reconstruction has named primitives in
-   :mod:`orpheus.numerics.projection` (Wave 0 of the SN
-   performance plan):
-   :class:`~orpheus.numerics.projection.HarmonicMomentProjection`
-   (the :math:`\Pi = Y^* W` operator on the angular axis) and
-   :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`
-   (the addition-theorem reconstruction with the
-   :math:`(2\ell+1)` factor). The full-space projector is the
-   tensor product :math:`\Pi \otimes I_x \otimes I_y \otimes I_g`,
-   built via the ``&`` dunder of
+   The Pℓ Galerkin reconstruction is realised by the
+   spherical-harmonic :class:`~orpheus.numerics.frame.Frame`
+   (Frame/Basis carve), built on a quadrature via
+   :meth:`Quadrature.angular_frame(L)
+   <orpheus.numerics.quadrature.Quadrature.angular_frame>`. Its
+   ``analysis`` face is the :math:`\Pi = Y^* W` projection on the
+   angular axis; its ``reconstruction`` face is the addition-theorem
+   reconstruction with the :math:`(2\ell+1)` factor. The full-space
+   projector is the tensor product
+   :math:`\Pi \otimes I_x \otimes I_y \otimes I_g`, built via the
+   ``&`` dunder of
    :class:`~orpheus.numerics.operator.TensorProductOperator`. See
-   :ref:`galerkin-projection` for the cross-method consumer table
+   :ref:`galerkin-projection` for the discrete-frame narrative and
+   the cross-method consumer table
    (PN solver, energy condensation, MC adjoint moments) and
    :ref:`spherical-harmonics` for the convention and addition
    theorem. The :math:`Y_\ell^m` evaluator
-   :func:`~orpheus.numerics.spherical_harmonics.evaluate_real_sh`
-   is the canonical generic infrastructure consumed here; the
-   SN-side ``orpheus.sn.quadrature._build_spherical_harmonics``
-   is now a thin re-export.
+   :meth:`SphericalHarmonicBasis.evaluate
+   <orpheus.numerics.basis.SphericalHarmonicBasis.evaluate>`
+   is the canonical generic infrastructure consumed here.
 
    **Wave 1 (commit ff454f2)**:
    :meth:`~orpheus.sn.scattering.ScatteringOperator.build_aniso_source`

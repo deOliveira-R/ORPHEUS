@@ -237,32 +237,44 @@ Discrete measures and partition (Wave 0 of SN performance plan):
   :meth:`partition_by`. Carries label, indices into the parent,
   and the restricted measure.
 
-Galerkin / Petrov-Galerkin projection (Wave 0 of SN performance plan):
+Discrete frame, basis, and harmonic projection (Frame/Basis carve):
 
-* :class:`~orpheus.numerics.projection.ProjectionOperator` —
-  most-general projection ABC.
+* :class:`~orpheus.numerics.frame.Frame` — a discrete frame binding
+  a :class:`~orpheus.numerics.basis.Basis` to a
+  :class:`~orpheus.numerics.measure.DiscreteMeasure`; emits the
+  ``analysis`` (:math:`M = T`) and ``reconstruction`` (:math:`R`)
+  faces as :class:`~orpheus.numerics.operator.LinearOperator` views.
+  The spherical-harmonic case is a 4π-tight frame.
+* :class:`~orpheus.numerics.basis.Basis` — the synthesis (trial)
+  side ABC: tabulate, naked synthesis :math:`S_0`, the three
+  weighted contractions, and the discrete Gram.
+* :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` — the
+  first concrete basis: real spherical harmonics on :math:`S^2`,
+  carrying the no-:math:`4\pi/(2\ell+1)`-prefactor convention (the
+  addition theorem reads
+  :math:`\sum_m Y_\ell^m Y_\ell^m = P_\ell(\Omega \cdot \Omega')`),
+  the :attr:`~orpheus.numerics.basis.SphericalHarmonicBasis.addition_theorem_factor`
+  :math:`(2\ell+1)`, and the
+  :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.evaluate`
+  :math:`Y_\ell^m(\hat\Omega_n)` evaluator.
+
+The forward-looking projection discipline vocabulary
+(:mod:`orpheus.numerics.projection`):
+
+* :class:`~orpheus.numerics.projection.AnalysisOperator` —
+  most-general analysis (projection) ABC, :math:`\Pi = T`.
 * :class:`~orpheus.numerics.projection.GalerkinProjection` —
-  Galerkin discipline (test space = trial space) ABC.
+  Galerkin discipline (test space = trial space; canonical dual) ABC.
 * :class:`~orpheus.numerics.projection.PetrovGalerkinProjection`
-  — Petrov-Galerkin discipline (test space ≠ trial space)
-  ABC. Sibling of Galerkin; concrete subclasses land with energy
-  condensation (§17).
-* :class:`~orpheus.numerics.projection.HarmonicMomentProjection`
-  — concrete Galerkin projection on real spherical harmonics.
-* :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`
-  — paired reconstruction with the addition-theorem
-  :math:`(2\ell+1)` factor.
+  — Petrov-Galerkin discipline (test space ≠ trial space; oblique
+  dual) ABC. Sibling of Galerkin; concrete subclasses land with
+  energy condensation (§17).
+* :class:`~orpheus.numerics.projection.ReconstructionOperator` —
+  the reconstruction-side ABC :math:`R : W \to V`.
 
-See :ref:`galerkin-projection` for the discipline narrative,
-cross-method consumer table, and the naming-hierarchy rationale.
-
-Real spherical harmonics:
-
-* :func:`~orpheus.numerics.spherical_harmonics.evaluate_real_sh`
-  — :math:`Y_\ell^m(\hat\Omega_n)` evaluator; uses the
-  no-:math:`4\pi/(2\ell+1)`-prefactor convention so the addition
-  theorem reads :math:`\sum_m Y_\ell^m Y_\ell^m = P_\ell(\Omega
-  \cdot \Omega')`. See :ref:`spherical-harmonics`.
+See :ref:`galerkin-projection` for the discrete-frame narrative,
+cross-method consumer table, and the discipline-vocabulary rationale;
+:ref:`spherical-harmonics` for the SH convention and addition theorem.
 
 
 Field algebra (Depth B, step D-A)
@@ -370,11 +382,12 @@ API Reference
 The :class:`~orpheus.numerics.operator.LinearOperator` Protocol,
 its capability-set semantics, and the composition / tensor-product
 primitives are documented at :ref:`operator-algebra` (theory page).
-The Galerkin / Petrov-Galerkin projection ABCs and the concrete
-:class:`HarmonicMomentProjection` / :class:`HarmonicMomentReconstruction`
-pair are documented at :ref:`galerkin-projection`. The
-:math:`Y_\ell^m` evaluator and the no-:math:`4\pi/(2\ell+1)`-prefactor
-convention are documented at :ref:`spherical-harmonics`. The
+The discrete :class:`~orpheus.numerics.frame.Frame`, the
+:class:`~orpheus.numerics.basis.Basis` hierarchy, and the
+Galerkin / Petrov-Galerkin discipline ABCs are documented at
+:ref:`galerkin-projection`. The :math:`Y_\ell^m` evaluator and the
+no-:math:`4\pi/(2\ell+1)`-prefactor convention are documented at
+:ref:`spherical-harmonics`. The
 :meth:`partition_by` primitive on
 :class:`~orpheus.numerics.measure.DiscreteMeasure` is documented at
 :ref:`discrete-measure-partition`. The theory pages contain the full

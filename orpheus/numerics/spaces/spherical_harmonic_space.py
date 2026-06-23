@@ -1,28 +1,24 @@
 r"""Function space for spherical-harmonic moment coefficients.
 
 This module ships the typed home of the ERR-039 Gram matrix
-:math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))`. Pre-Wave-0 the SH Gram lived
-as a free literal on
-:class:`~orpheus.numerics.projection.HarmonicMomentReconstruction` (the
-``two_l_plus_one`` array, which is :math:`4\pi \cdot g_C^{-1}` wearing a
-disguise) and as a prose warning on
-:class:`~orpheus.numerics.projection.MomentProjection.apply_transpose`.
-Both move here: the space carries the metric as
-:attr:`inner_product_weights`, and the metric formula itself is sourced
-from :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` so the
+:math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))`. Pre-frame the SH Gram lived as
+a free literal (the ``two_l_plus_one`` array, which is
+:math:`4\pi \cdot g_C^{-1}` wearing a disguise) on the since-retired
+harmonic-reconstruction operator, and as a prose warning on the moment
+projection's representation transpose. It now lives here: the space carries
+the metric as :attr:`inner_product_weights`, and the metric formula itself is
+sourced from :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` so the
 :math:`(2\ell+1)` literal exists in exactly one place.
 
-What this enables (P1.4)
-========================
+What this enables
+=================
 
-Once :class:`~orpheus.numerics.projection.MomentProjection` exposes its
-:attr:`~orpheus.numerics.projection.MomentProjection.codomain` as
-``SphericalHarmonicSpace.from_L(L)`` (landed in P1.3), the generic
-``_AdjointOperator`` machinery in :mod:`orpheus.numerics.operator`
-computes ``M.H`` correctly as :math:`g_C \cdot S_0`, where
-:math:`S_0` is the naked synthesis. The two prose warnings in
-:mod:`orpheus.numerics.projection` and
-:mod:`orpheus.sn.scattering` collapse to a one-line signpost in P1.6.
+The discrete :class:`~orpheus.numerics.frame.Frame`'s analysis face exposes
+this space as its ``basis_space`` (codomain), so the generic
+``_AdjointOperator`` machinery in :mod:`orpheus.numerics.operator` computes
+``frame.analysis.H`` correctly as :math:`g_C \cdot S_0`, where :math:`S_0` is
+the naked synthesis — the W-weighted Hilbert adjoint falls out of the frame's
+swapped spaces with no bespoke code.
 
 ERR-039 in one sentence: the addition-theorem reconstruction
 :math:`R = (2\ell+1) S_0` and the Hilbert adjoint
@@ -218,9 +214,8 @@ class SphericalHarmonicSpace(FunctionSpace):
     def addition_theorem_factor(self) -> NDArray:
         r"""The :math:`(2\ell+1)` factor per :math:`\ell`, shape ``(L+1,)``.
 
-        Delegated to :attr:`SphericalHarmonicBasis.addition_theorem_factor`.
-        Used by
-        :meth:`~orpheus.numerics.projection.HarmonicMomentReconstruction.from_spherical_harmonic_space`
-        as the canonical source of the addition-theorem factor.
+        Delegated to :attr:`SphericalHarmonicBasis.addition_theorem_factor` —
+        the canonical source of the addition-theorem factor that the discrete
+        :class:`~orpheus.numerics.frame.Frame`'s reconstruction face reads.
         """
         return self.basis.addition_theorem_factor

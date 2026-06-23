@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5616**
+Total tests collected: **5610**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1164, 20.7%
-   L1, 1001, 17.8%
+   L0, 1149, 20.5%
+   L1, 992, 17.7%
    L2, 36, 0.6%
    L3, 0, 0.0%
-   foundation, 3405, 60.6%
+   foundation, 3423, 61.0%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5527
+   explicit, 5521
    verify, 0
    class-name, 46
    func-name, 0
@@ -268,16 +268,16 @@ Module × level grid
    numerics/test_estimators_as_functionals, 0, 0, 0, 0, 5, 0
    numerics/test_face_layout, 0, 0, 0, 0, 15, 0
    numerics/test_field, 0, 0, 0, 0, 22, 0
+   numerics/test_frame, 0, 0, 0, 0, 7, 0
    numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
    numerics/test_incoming_ordinate_mask_tensor, 13, 0, 0, 0, 0, 0
    numerics/test_iteration, 0, 1, 0, 0, 17, 0
    numerics/test_measure, 0, 16, 0, 0, 32, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
-   numerics/test_operator, 0, 0, 0, 0, 55, 0
-   numerics/test_operator_protocols, 0, 0, 0, 0, 12, 0
+   numerics/test_operator, 0, 0, 0, 0, 56, 0
+   numerics/test_operator_protocols, 0, 0, 0, 0, 14, 0
    numerics/test_periodic_wrap_operator, 5, 0, 0, 0, 0, 0
    numerics/test_permutation_operator, 9, 2, 0, 0, 0, 0
-   numerics/test_projection_operators, 15, 9, 0, 0, 0, 0
    numerics/test_quadrature_directional, 0, 0, 0, 0, 23, 0
    numerics/test_registry, 0, 0, 0, 0, 37, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
@@ -298,6 +298,7 @@ Module × level grid
    operators/test_bc_extraction_2d, 2, 3, 0, 0, 3, 0
    operators/test_bc_extraction_matvec, 3, 0, 0, 0, 30, 0
    operators/test_boundary_conditions, 0, 0, 0, 0, 11, 0
+   operators/test_capability_survival, 0, 0, 0, 0, 6, 0
    operators/test_collision_operator, 0, 0, 0, 0, 57, 0
    operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 4, 0
    operators/test_fission_operator, 0, 0, 0, 0, 18, 0
@@ -363,7 +364,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 282, 0
+   test_layer_imports, 0, 0, 0, 0, 284, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -1042,7 +1043,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-036``, 8
    ``ERR-037``, 11
    ``ERR-038``, 5
-   ``ERR-039``, 11
+   ``ERR-039``, 6
    ``ERR-040``, **0 (MISSING)**
    ``ERR-041``, **0 (MISSING)**
    ``ERR-042``, **0 (MISSING)**

@@ -2,9 +2,9 @@ r"""#257 S6 — Spec C: the scattering ``kernel`` reproduces the aniso ``R∘Λ�
 
 S6 adds a ``kernel`` property to :class:`ScatteringOperator` → a typed
 ``OperatorProduct(R, OperatorProduct(Λ, M))`` reproducing the EXISTING
-``_aniso_source_from_moment_values`` chain ``R(Λ(M·ψ))`` (R =
-``HarmonicMomentReconstruction``, Λ = ``LegendreMomentScattering``,
-M = ``MomentProjection``; ``OperatorProduct.apply(x) = a.apply(b.apply(x))``,
+``_aniso_source_from_moment_values`` chain ``R(Λ(M·ψ))`` (M = the
+:attr:`frame`'s analysis face, R = its reconstruction face, Λ =
+``LegendreMomentScattering``; ``OperatorProduct.apply(x) = a.apply(b.apply(x))``,
 ``operator.py:826``). With ``kernel`` the operator becomes an
 ``IntegralKernelOperator``. The 5 ``@singledispatchmethod`` arms are
 UNCHANGED.
@@ -15,7 +15,7 @@ same einsums, same order (``M`` then ``Λ`` then ``R``, the exact chain
 
     S.kernel.apply(ψ.values)  ==  _aniso_source_from_moment_values(M.apply(ψ.values))   (0 ULP)
 
-where ``M = MomentProjection(weights=S.weights, Y=S.Y, L=S.scattering_order)``
+where ``M = S.frame.analysis`` (the SAME analysis face the kernel composes)
 and ``_aniso_source_from_moment_values`` is the SHARED ``R∘Λ_{ℓ≥1}`` map
 (``skip_l0=True``).
 
@@ -36,7 +36,7 @@ non-degeneracy assert).
 
 vv Mode-11: the cross-check reads ``S.kernel`` OFF the live operator (the
 NEW property) and compares against the live ``_aniso_source_from_moment_values``
-+ ``MomentProjection`` chain — mutating the kernel property reddens the
++ ``S.frame.analysis`` chain — mutating the kernel property reddens the
 gate. It does NOT route around the new property.
 
 vv Mode-8: every gate uses ``np.testing.*`` / ``require`` (function
@@ -55,7 +55,6 @@ from scipy.sparse import csr_matrix
 
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import Mesh2D
-from orpheus.numerics.projection import MomentProjection
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.solver import SNSolver
@@ -149,10 +148,9 @@ class TestScatteringKernelReproducesAnisoPath:
         kernel = require_scattering_kernel_property(op)  # NEW S6 member
         via_kernel = kernel.apply(psi.values)
 
-        # The EXISTING chain: M projection then the shared R∘Λ_{ℓ≥1} map.
-        moments = MomentProjection(
-            weights=op.weights, Y=op.Y, L=op.scattering_order,
-        ).apply(psi.values)
+        # The EXISTING chain: M projection (the frame's analysis face — the
+        # SAME object the kernel composes) then the shared R∘Λ_{ℓ≥1} map.
+        moments = op.frame.analysis.apply(psi.values)
         via_existing = op._aniso_source_from_moment_values(moments)
 
         np.testing.assert_array_equal(
@@ -197,9 +195,7 @@ class TestScatteringKernelReproducesAnisoPath:
         """
         op = solver_p1_het.scattering_op
         psi = _aniso_psi(solver_p1_het)
-        moments = MomentProjection(
-            weights=op.weights, Y=op.Y, L=op.scattering_order,
-        ).apply(psi.values)
+        moments = op.frame.analysis.apply(psi.values)
         require(
             op.scattering_order >= 1,
             "Cross-check config must be ANISOTROPIC (scattering_order ≥ 1) "

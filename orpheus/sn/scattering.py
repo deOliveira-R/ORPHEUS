@@ -160,10 +160,6 @@ from orpheus.numerics.operator import (
     LinearOperatorMixin,
     OperatorProduct,
 )
-from orpheus.numerics.projection import (
-    MomentProjection,
-    HarmonicMomentReconstruction,
-)
 
 # Runtime imports of the flux / source types — required at module load
 # time because :func:`singledispatchmethod.register` dispatches on the
@@ -507,8 +503,8 @@ class ScatteringOperator(LinearOperatorMixin):
         where :math:`\Lambda_{\ell\ge 1}` is
         :class:`LegendreMomentScattering` (``skip_l0=True`` — the
         :math:`\ell=0` block is the P0 :meth:`add_iso_source` fast path)
-        and :math:`R` is
-        :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`.
+        and :math:`R` is the :attr:`frame`'s
+        :attr:`~orpheus.numerics.frame.Frame.reconstruction` face.
         The trailing :math:`1/W` is NOT applied here — that is the
         producer-side Pattern-7 normalisation at the :meth:`apply`
         boundary (lesson L18).
@@ -519,8 +515,8 @@ class ScatteringOperator(LinearOperatorMixin):
         place:
 
         * :meth:`build_aniso_source` — the full-angular path, which first
-          projects :math:`\phi = M\,\psi` (one :class:`MomentProjection`
-          for the whole tensor) and then calls this map.
+          projects :math:`\phi = M\,\psi` (the :attr:`frame`'s analysis face
+          on the whole tensor) and then calls this map.
         * the windowed moment-iterate :meth:`apply` arm (Phase 5a
           angular-windowing) — whose iterate bulk IS the moment tensor
           :math:`\phi`, so :math:`M` is already done and only this
@@ -581,14 +577,12 @@ class ScatteringOperator(LinearOperatorMixin):
         the per-ordinate source via the addition theorem (:math:`R`). The
         factors are EXACTLY those of the existing path:
 
-        * :math:`M` =
-          :class:`~orpheus.numerics.projection.MomentProjection`
-          ``(weights=self.weights, Y=self.Y, L=self.scattering_order)``;
+        * :math:`M` = ``frame.analysis`` (the :attr:`frame`'s
+          :attr:`~orpheus.numerics.frame.Frame.analysis` face);
         * :math:`\Lambda_{\ell\ge 1}` = :class:`LegendreMomentScattering`
           ``(mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=True)``;
-        * :math:`R` =
-          :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`
-          ``.from_Y(self.Y)``;
+        * :math:`R` = ``frame.reconstruction`` (the :attr:`frame`'s
+          :attr:`~orpheus.numerics.frame.Frame.reconstruction` face);
 
         the SAME :math:`\Lambda` and :math:`R`
         :meth:`_aniso_source_from_moment_values` builds, composed with
@@ -877,13 +871,15 @@ class ScatteringOperator(LinearOperatorMixin):
         :mod:`orpheus.numerics.projection` and
         :class:`LegendreMomentScattering` (Wave 1 / C1.1):
 
-        * :math:`M` :class:`~orpheus.numerics.projection.MomentProjection`:
+        * :math:`M` — the :attr:`frame`'s
+          :attr:`~orpheus.numerics.frame.Frame.analysis` face:
           :math:`\psi(N, \cdot) \mapsto \phi^{\ell m}(L+1, 2L+1, \cdot)`
           via :math:`\phi_\ell^m = \sum_n w_n Y_\ell^m(\Omega_n) \psi_n`.
         * :math:`\Lambda` :class:`LegendreMomentScattering`: per-ℓ
           block-diagonal cross-section action on moment space (skip ℓ=0,
           handled by P0 in-scatter).
-        * :math:`R` :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`:
+        * :math:`R` — the :attr:`frame`'s
+          :attr:`~orpheus.numerics.frame.Frame.reconstruction` face:
           :math:`\phi^{\ell m} \mapsto q_n` via the addition-theorem
           reconstruction :math:`q_n = \sum_\ell (2\ell+1) \sum_m
           Y_\ell^m(\Omega_n) \phi_\ell^m`.
@@ -937,10 +933,9 @@ class ScatteringOperator(LinearOperatorMixin):
 
         Notes
         -----
-        :class:`MomentProjection` and
-        :class:`HarmonicMomentReconstruction` are layout-agnostic in
-        their trailing axes — only the leading ordinate / harmonic axes
-        are consumed by the einsums.  Switching ψ from ``(N, nx, ny,
+        The :attr:`frame`'s analysis and reconstruction faces are
+        layout-agnostic in their trailing axes — only the leading ordinate /
+        harmonic axes are consumed by the einsums.  Switching ψ from ``(N, nx, ny,
         ng)`` to ``(N, ng, nx, ny)`` therefore transparently produces a
         moment field shape ``(L+1, 2L+1, ng, nx, ny)`` (instead of
         ``(L+1, 2L+1, nx, ny, ng)``), which is exactly what the

@@ -10,15 +10,18 @@ to reconstruct a per-ordinate scattering source from those moments.
 This page is the canonical home for the **convention**, the
 **addition-theorem identity** that the convention is engineered to
 make literal, and the cross-method use of the
-:func:`~orpheus.numerics.spherical_harmonics.evaluate_real_sh`
-evaluator.
+:meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.evaluate`
+evaluator on
+:class:`~orpheus.numerics.basis.SphericalHarmonicBasis`.
 
-The evaluator is **generic infrastructure** — it lives in
-:mod:`orpheus.numerics`, not :mod:`orpheus.sn`, because the same
+The basis is **generic infrastructure** — it lives in
+:mod:`orpheus.numerics.basis`, not :mod:`orpheus.sn`, because the same
 :math:`Y_\ell^m` table is consumed by SN aniso scattering, by the PN
 solver (when it lands; Grand Report v3 §10), and by MC adjoint moment
-estimators. Lifting it out of the SN package was Wave 0 step C0.1 of
-the SN performance plan (`.claude/plans/transient-giggling-cake.md`).
+estimators. It is the synthesis (trial) side of the spherical-harmonic
+:class:`~orpheus.numerics.frame.Frame` (see :ref:`galerkin-projection`);
+the analysis :math:`M` and reconstruction :math:`R` operators are the
+frame's two faces, NOT standalone operator classes.
 
 .. contents::
    :local:
@@ -120,14 +123,15 @@ constants.
    The SciPy function :func:`scipy.special.sph_harm` returns the
    **complex** spherical harmonics in the standard ANSI
    normalisation. ORPHEUS does NOT consume that function. The
-   :func:`~orpheus.numerics.spherical_harmonics.evaluate_real_sh`
-   evaluator builds real :math:`Y_\ell^m` from
+   :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.evaluate`
+   method builds real :math:`Y_\ell^m` from
    :func:`scipy.special.lpmv` (associated Legendre values
    :math:`P_\ell^m(\cos\theta)`) so the convention can be controlled
    directly. Mixing the two conventions in one codebase is the
    canonical way to introduce convention-drift bugs (failure mode 6
    in the V&V skill); the project's defense is "one evaluator, one
-   convention, in :mod:`orpheus.numerics.spherical_harmonics`".
+   convention, on
+   :class:`~orpheus.numerics.basis.SphericalHarmonicBasis`".
 
 
 Definitions
@@ -198,15 +202,16 @@ sufficiently-exact angular cubature:
 
    \Pi \, R \;=\; 4\pi \, I_{\text{coefficient space}},
 
-where :math:`\Pi` is :class:`HarmonicMomentProjection`, :math:`R` is
-:class:`HarmonicMomentReconstruction` (with the
+where :math:`\Pi` is the spherical-harmonic frame's **analysis
+face** (``frame.analysis``, :math:`M = Y^*W`), :math:`R` is its
+**reconstruction face** (``frame.reconstruction``, with the
 :math:`(2\ell+1)` factor), and the :math:`4\pi` factor comes from
 the no-prefactor convention summing the :math:`4\pi/(2\ell+1)`
-orthogonality with the :math:`(2\ell+1)` reconstruction weight. The
-identity is verified at :math:`L=2,\,3,\,4` against Lebedev
-quadratures of order :math:`7,\,13,\,17` by the L1 test
-``tests/numerics/test_projection_operators.py::
-TestGalerkinIdempotencyOnLebedev::test_pi_R_is_identity_on_band_limited``.
+orthogonality with the :math:`(2\ell+1)` reconstruction weight —
+i.e. the frame is **4π-tight** (frame operator :math:`S = T^*T =
+4\pi I`). The identity is verified at :math:`L=2,\,3,\,4` against
+Lebedev quadratures of order :math:`7,\,13,\,17` by the L1 test
+``tests/numerics/test_spherical_harmonic_space.py``.
 
 .. vv-status: pi-r-equals-4pi-i documented
 
@@ -220,12 +225,16 @@ the **naked synthesis** :math:`S_0(c)_n = \sum_{\ell, m}
 Y_\ell^m(\hat\Omega_n) c_\ell^m` post-multiplied by a diagonal that
 lives in exactly ONE place in the codebase:
 
-* :math:`S_0` itself — the bare synthesis, exposed by
+* :math:`S_0` itself — the bare synthesis (the frame-theory
+  synthesis operator :math:`T^*`), exposed by
   :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.synthesize`.
-* :math:`\Pi^\top = w_n \cdot S_0` — the representation transpose,
-  exposed by :meth:`MomentProjection.apply_transpose`. The
-  :math:`w_n` factor is the quadrature weight carried on
-  :attr:`MomentProjection.domain`'s ``inner_product_weights``.
+* :math:`\Pi^\top = w_n \cdot S_0` — the representation transpose of
+  the analysis face, exposed by
+  :meth:`frame.analysis.apply_transpose
+  <orpheus.numerics.basis.SphericalHarmonicBasis.analyze_transpose>`.
+  The :math:`w_n` factor is the quadrature weight carried on the
+  analysis face's domain (the frame's ``measure_space``)
+  ``inner_product_weights``.
 
 .. math::
    :label: moment-projection-transpose-T
@@ -235,11 +244,11 @@ lives in exactly ONE place in the codebase:
    \;=\; w_n \sum_{\ell, m} Y_\ell^m(\hat\Omega_n) c_\ell^m.
 
 * :math:`\Pi^* = g_C \cdot S_0` — the W-weighted Hilbert adjoint,
-  exposed by :attr:`MomentProjection.H` and computed generically by
+  exposed by ``frame.analysis.H`` and computed generically by
   the metric-aware ``_AdjointOperator`` wrapper. The
   :math:`g_C^{\ell} = 4\pi/(2\ell+1)` factor is the SH Gram-matrix
-  diagonal carried on :attr:`MomentProjection.codomain`'s
-  ``inner_product_weights`` (which IS the canonical
+  diagonal carried on the analysis face's codomain (the frame's
+  ``basis_space``) ``inner_product_weights`` (which IS the canonical
   :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace`).
 
 .. math::
@@ -250,10 +259,13 @@ lives in exactly ONE place in the codebase:
               Y_\ell^m(\hat\Omega_n) c_\ell^m.
 
 * :math:`R = (2\ell+1) \cdot S_0 = 4\pi \cdot g_C^{-1} \cdot S_0`
-  — the addition-theorem reconstruction, exposed by
-  :class:`HarmonicMomentReconstruction` (built canonically via
-  :meth:`~HarmonicMomentReconstruction.from_spherical_harmonic_space`
-  which sources :math:`(2\ell+1)` from
+  — the addition-theorem reconstruction, exposed by the frame's
+  **reconstruction face** (``frame.reconstruction``,
+  :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.reconstruct`),
+  which reads the :math:`(2\ell+1)` factor live from
+  :attr:`SphericalHarmonicBasis.addition_theorem_factor
+  <orpheus.numerics.basis.SphericalHarmonicBasis.addition_theorem_factor>`
+  (re-exposed on the coefficient space as
   :attr:`SphericalHarmonicSpace.addition_theorem_factor`).
 
 .. math::
@@ -284,16 +296,22 @@ These four identities are pinned by
 .. note::
 
    ERR-039's original confusion was the result of two missing
-   abstractions: the :math:`(2\ell+1)` literal lived inline on
-   :class:`HarmonicMomentReconstruction` with no typed home, and
-   :meth:`MomentProjection.apply_transpose` returned the bare
-   :math:`S_0` but its docstring labeled it the W-weighted Hilbert
-   adjoint. The endpoint fix gives each of the four operators a
-   distinct construction path with the metric / weight diagonals
-   carried by typed spaces. The composition :math:`\Pi R = 4\pi I`
+   abstractions: the :math:`(2\ell+1)` literal lived inline on the
+   reconstruction operator with no typed home, and the projection's
+   ``apply_transpose`` returned the bare :math:`S_0` but its
+   docstring labeled it the W-weighted Hilbert adjoint. The endpoint
+   fix gives each of the four operators a distinct construction path
+   with the metric / weight diagonals carried by typed spaces; the
+   Frame/Basis carve then re-homed the projection and reconstruction
+   as the :class:`~orpheus.numerics.frame.Frame`'s ``analysis`` /
+   ``reconstruction`` faces and moved the :math:`(2\ell+1)` factor
+   onto
+   :attr:`SphericalHarmonicBasis.addition_theorem_factor
+   <orpheus.numerics.basis.SphericalHarmonicBasis.addition_theorem_factor>`
+   (one home). The composition :math:`\Pi R = 4\pi I`
    (the addition-theorem composition, :eq:`pi-r-equals-4pi-i`)
    continues to hold on band-limited inputs and is the genuine
-   Galerkin-discipline identity for this SH basis.
+   Galerkin-discipline identity for this SH frame — its 4π-tightness.
 
 The numerical evidence:
 
@@ -331,38 +349,48 @@ floating-point limit; the agreement is at machine precision (≤
 Implementation map
 ==================
 
-The pure-Python reference implementation lives at
-:func:`orpheus.numerics.spherical_harmonics.evaluate_real_sh`. Its
-return value is the ``(N, L+1, 2L+1)`` table consumed by:
+The pure-Python reference implementation is
+:meth:`SphericalHarmonicBasis.evaluate
+<orpheus.numerics.basis.SphericalHarmonicBasis.evaluate>` (and its
+per-component sibling
+:meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.evaluate_from_components`).
+Its return value is the ``(N, L+1, 2L+1)`` **table** consumed by the
+spherical-harmonic :class:`~orpheus.numerics.frame.Frame`. The frame
+caches the table once (``frame.table``) and the two faces delegate:
 
-* :class:`~orpheus.numerics.projection.HarmonicMomentProjection` —
-  the Galerkin projection
-  :math:`\phi^{\ell m} = \sum_n w_n\,Y_\ell^m(\hat\Omega_n)\,\psi_n`.
-* :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`
-  — the addition-theorem reconstruction
+* the **analysis face** ``frame.analysis`` — the Galerkin projection
+  :math:`\phi^{\ell m} = \sum_n w_n\,Y_\ell^m(\hat\Omega_n)\,\psi_n`
+  (:meth:`SphericalHarmonicBasis.analyze
+  <orpheus.numerics.basis.SphericalHarmonicBasis.analyze>`).
+* the **reconstruction face** ``frame.reconstruction`` — the
+  addition-theorem reconstruction
   :math:`q_n = \sum_\ell (2\ell+1) \sum_m Y_\ell^m(\hat\Omega_n)\,
-  \phi^{\ell m}`.
-* The four
-  :class:`~orpheus.sn.quadrature.AngularQuadrature` adapters'
-  :meth:`spherical_harmonics(L)` method — delegates to
-  :func:`evaluate_real_sh` so PN can consume the same table without
-  importing from :mod:`orpheus.sn`.
+  \phi^{\ell m}`
+  (:meth:`SphericalHarmonicBasis.reconstruct
+  <orpheus.numerics.basis.SphericalHarmonicBasis.reconstruct>`).
+
+The single home of the :math:`S^2` embedding is
+:meth:`Quadrature.angular_frame(L)
+<orpheus.numerics.quadrature.Quadrature.angular_frame>`, which binds
+the SH basis to the quadrature's angular measure so PN, SN, and MC
+consume the same frame without importing from :mod:`orpheus.sn`.
 
 The complete data flow:
 
 .. code-block:: text
 
-   DiscreteMeasure (Lebedev / level-symmetric / Gauss-Legendre × φ)
-        │
-        │   .nodes  →  (N, 3) direction cosines (μ_x, μ_y, μ_z)
-        │   .weights → (N,)
+   Quadrature (Lebedev / level-symmetric / Gauss-Legendre × φ)
+        │   .angular_frame(L)
         ▼
-   evaluate_real_sh(L, μ_x, μ_y, μ_z) → Y[n, ℓ, ℓ+m]
+   Frame(SphericalHarmonicBasis(L), s2_measure)
         │
-        ├──────────────► HarmonicMomentProjection(weights, Y, L)
+        │   .table = basis.evaluate(measure.nodes) → Y[n, ℓ, ℓ+m]
+        │   (cached once; both faces delegate)
+        │
+        ├──────────────► frame.analysis        (M = Y* W)
         │                    Π : ψ_n  →  φ^{ℓm}
         │
-        └──────────────► HarmonicMomentReconstruction(Y, two_l_plus_one)
+        └──────────────► frame.reconstruction  (R = (2ℓ+1) S₀)
                              R : φ^{ℓm}  →  q_n
 
 
@@ -370,10 +398,10 @@ Cross-method consumers
 ======================
 
 The same :math:`Y_\ell^m` table is consumed by multiple solvers; this
-is the architectural reason the evaluator lives in
-:mod:`orpheus.numerics`, not :mod:`orpheus.sn`.
+is the architectural reason the basis lives in
+:mod:`orpheus.numerics.basis`, not :mod:`orpheus.sn`.
 
-.. list-table:: Cross-method consumption of evaluate_real_sh
+.. list-table:: Cross-method consumption of SphericalHarmonicBasis
    :header-rows: 1
    :widths: 22 38 40
 
@@ -382,15 +410,16 @@ is the architectural reason the evaluator lives in
      - Status
    * - SN aniso scattering
      - :math:`Q^{\ell\ge 1}_n = R \Lambda M\,\psi` builds the
-       per-ordinate Pℓ source. See
+       per-ordinate Pℓ source via the frame's analysis /
+       reconstruction faces. See
        :class:`~orpheus.sn.scattering.ScatteringOperator`.
-     - Live (Wave 0 of SN performance plan; legacy
-       ``_build_spherical_harmonics`` in
-       :mod:`orpheus.sn.quadrature` is now a thin re-export of
-       :func:`evaluate_real_sh`).
+     - Live (Frame/Basis carve; the SN scattering operator pulls its
+       frame from
+       :meth:`Quadrature.angular_frame(L)
+       <orpheus.numerics.quadrature.Quadrature.angular_frame>`).
    * - PN solver (§10)
      - Native moment-space basis on the streaming-coupling.
-     - Pending (PN solver not yet implemented; the evaluator is
+     - Pending (PN solver not yet implemented; the basis is
        ready when it lands).
    * - MC adjoint moments
      - Variance reduction with response moments built against
@@ -411,15 +440,20 @@ with a near-identical use, not a hypothetical one.
 Code references
 ===============
 
-* :func:`orpheus.numerics.spherical_harmonics.evaluate_real_sh` — the
-  evaluator.
-* :class:`orpheus.numerics.projection.HarmonicMomentProjection` — the
-  Galerkin projection that consumes the :math:`Y` table.
-* :class:`orpheus.numerics.projection.HarmonicMomentReconstruction`
-  — the paired reconstruction.
-* :class:`orpheus.sn.quadrature.AngularQuadrature` — the SN-side
-  adapter that delegates :meth:`spherical_harmonics` to
-  :func:`evaluate_real_sh`.
+* :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` — the
+  basis carrying the :math:`Y_\ell^m` evaluator
+  (:meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.evaluate`),
+  the no-prefactor convention, and the
+  :attr:`~orpheus.numerics.basis.SphericalHarmonicBasis.addition_theorem_factor`
+  :math:`(2\ell+1)`.
+* :class:`~orpheus.numerics.frame.Frame` — binds the basis to the
+  angular measure; its ``analysis`` face is the Galerkin projection
+  :math:`M` that consumes the :math:`Y` table, its ``reconstruction``
+  face the addition-theorem :math:`R`.
+* :meth:`Quadrature.angular_frame(L)
+  <orpheus.numerics.quadrature.Quadrature.angular_frame>` — the
+  single home of the :math:`S^2` embedding; builds the SH frame on
+  a quadrature.
 
 The pedagogical companion at
 ``student_resources/02_spherical_harmonics.py`` is a single-:math:`Y_\ell^m`

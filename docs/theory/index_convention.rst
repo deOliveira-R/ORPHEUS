@@ -766,8 +766,9 @@ axes :math:`(n_x, n_y)`.
      - :math:`\phi_{\ell m}(r, g)` --- Pℓ moment coefficients
      - 1/(cm²·s·sr·eV) [inherits from source field]
      - ``(L+1, 2L+1, ng, nx, ny)``
-     - :meth:`HarmonicMomentProjection.apply` output
-       (:mod:`orpheus.sn.scattering`); typed wrapper at
+     - ``frame.analysis.apply`` output (the SH
+       :class:`~orpheus.numerics.frame.Frame`'s analysis face;
+       :mod:`orpheus.sn.scattering`); typed wrapper at
        :class:`orpheus.sn.harmonic_moment_field.HarmonicMomentField`
        (Issue #197 PR-TYPED-4)
    * - ``TraceField``

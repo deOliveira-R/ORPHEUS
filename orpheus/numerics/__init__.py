@@ -30,13 +30,12 @@ from .operator import (
     ZeroOperator,
 )
 from orpheus.numerics.quadrature import gauss_legendre_on_mu, lebedev_sphere, level_symmetric_sn, product_mu_phi
-from .basis.spherical_harmonic_basis import SphericalHarmonicBasis
+from .basis import Basis, SphericalHarmonicBasis
+from .frame import Frame
 from .projection import (
+    AnalysisOperator,
     GalerkinProjection,
-    HarmonicMomentReconstruction,
-    MomentProjection,
     PetrovGalerkinProjection,
-    ProjectionOperator,
     ReconstructionOperator,
 )
 from .space import DualSpace, FunctionSpace, TensorProductSpace
@@ -44,6 +43,8 @@ from .symmetry import SubgroupOfO3
 from .vector import V, Vector
 
 __all__ = [
+    "AnalysisOperator",
+    "Basis",
     "BundleMeasure",
     "CAP_APPLY",
     "CAP_APPLY_TRANSPOSE",
@@ -54,11 +55,10 @@ __all__ = [
     "DualSpace",
     "EigenvalueSolver",
     "Field",
+    "Frame",
     "Functional",
     "FunctionSpace",
     "GalerkinProjection",
-    "HarmonicMomentReconstruction",
-    "MomentProjection",
     "ReconstructionOperator",
     "IdentityOperator",
     "KEigenvalue",
@@ -69,7 +69,6 @@ __all__ = [
     "OperatorSum",
     "PetrovGalerkinProjection",
     "ProductionRateSolver",
-    "ProjectionOperator",
     "R_co",
     "RankOneOperator",
     "ScaledOperator",

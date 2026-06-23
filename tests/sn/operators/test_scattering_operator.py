@@ -1206,7 +1206,6 @@ class TestAnisoMomentSourcePath:
         from orpheus.transport.fields.harmonic_moment_field import (
             HarmonicMomentField,
         )
-        from orpheus.numerics.projection import MomentProjection
 
         op = op_p1
         psi = self._reproduce_psi(solver_2g_p1_n2n, seed=7)
@@ -1214,10 +1213,9 @@ class TestAnisoMomentSourcePath:
         # The full-angular arm S consumes today.
         src_angular = op.apply(psi)
 
-        # The windowed path: project φ = Mψ, then the moment arm.
-        moments = MomentProjection(
-            weights=op.weights, Y=op.Y, L=op.scattering_order,
-        ).apply(psi.values)
+        # The windowed path: project φ = Mψ via the frame analysis face
+        # (the SAME frame the operator uses), then the moment arm.
+        moments = op.frame.analysis.apply(psi.values)
         phi_field = HarmonicMomentField.from_mesh_and_L(
             moments, psi.mesh, op.scattering_order,
         )
@@ -1393,15 +1391,12 @@ class TestAnisoMomentSourcePath:
         no FP reduction reorder; `np.array_equal` is the appropriate
         gate.
         """
-        from orpheus.numerics.projection import MomentProjection
         from orpheus.transport.fields.angular_flux import AngularFlux
 
         # Reproduce the snapshot script's psi (seed=20260530).
         psi_p1 = self._reproduce_psi(solver_2g_p1_n2n, seed=20260530)
         L = 1
-        Y = op_p1.Y
-        M = MomentProjection(weights=op_p1.weights, Y=Y, L=L)
-        moments_values = M.apply(psi_p1.values)
+        moments_values = op_p1.frame.analysis.apply(psi_p1.values)
 
         # apply_legendre_scattering_moments inline (mirror snapshot
         # capture script).  skip_l0=False → full block coverage.
@@ -1419,7 +1414,6 @@ class TestAnisoMomentSourcePath:
         `_capture_pre_t3_snapshots.py::build_p3_solver`) to reach the
         captured snapshot.
         """
-        from orpheus.numerics.projection import MomentProjection
         from orpheus.transport.fields.angular_flux import AngularFlux
         from scipy.sparse import csr_matrix
 
@@ -1449,9 +1443,7 @@ class TestAnisoMomentSourcePath:
             rng.uniform(0.05, 1.0, size=(quad.N, 2, nx, ny)), solver_p3.sn_mesh,
         )
         L = 3
-        Y = op_p3.Y
-        M = MomentProjection(weights=op_p3.weights, Y=Y, L=L)
-        moments_values = M.apply(psi_p3.values)
+        moments_values = op_p3.frame.analysis.apply(psi_p3.values)
         out = op_p3.mat_xs.apply_legendre_scattering_moments(
             moments_values, L=L, skip_l0=False,
         )

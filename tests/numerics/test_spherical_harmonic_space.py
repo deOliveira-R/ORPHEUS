@@ -33,10 +33,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.basis import SphericalHarmonicBasis
-from orpheus.numerics.projection import (
-    HarmonicMomentReconstruction,
-    MomentProjection,
-)
+from orpheus.numerics.frame import Frame
 from orpheus.numerics.quadrature import (
     lebedev_sphere,
     product_mu_phi,
@@ -161,16 +158,15 @@ def test_R_equals_2l_plus_1_times_S0(lebedev_L_pair):
     The addition-theorem reconstruction :math:`R` differs from the
     naked synthesis :math:`S_0` by the per-:math:`\ell` factor
     :math:`(2\ell+1)`. This pins the ERR-039 distinction at the
-    operator-construction level: ``R`` is built via the canonical
-    :meth:`~HarmonicMomentReconstruction.from_Y` factory which sources
-    :math:`(2\ell+1)` from
-    :attr:`SphericalHarmonicSpace.addition_theorem_factor` internally
-    (single canonical home for the literal).
+    operator-construction level: ``R`` is the frame's reconstruction face,
+    which reads :math:`(2\ell+1)` live from
+    :attr:`SphericalHarmonicBasis.addition_theorem_factor` (single canonical
+    home for the literal).
     """
     measure, L = lebedev_L_pair
     basis = SphericalHarmonicBasis(L=L)
     Y = basis.evaluate(measure.nodes)
-    R = HarmonicMomentReconstruction.from_Y(Y)
+    R = Frame(basis, measure).reconstruction
 
     rng = np.random.default_rng(seed=2026)
     c = _mask_non_existent_m(rng.standard_normal((L + 1, 2 * L + 1)), L)
@@ -206,19 +202,16 @@ def test_R_equals_2l_plus_1_times_S0(lebedev_L_pair):
 def test_pi_R_is_4pi_identity_on_band_limited(lebedev_L_pair):
     r""":math:`\Pi \cdot R = 4\pi \cdot I` on the band-limited coefficient space.
 
-    Sibling of
-    ``tests/numerics/test_projection_operators.py::TestGalerkinIdempotencyOnLebedev::test_pi_R_is_identity_on_band_limited``;
-    this version constructs the operators through the new
-    :class:`SphericalHarmonicSpace` API and pins the genuine
-    :math:`\Pi R = 4\pi I` identity (NOT the broken ``Π R == I`` that
-    the retired :meth:`assert_galerkin_idempotency` was checking — see
-    P1.6).
+    The canonical pin of the Galerkin idempotency law: constructs the
+    analysis (:math:`\Pi`) and reconstruction (:math:`R`) operators as the
+    discrete :class:`~orpheus.numerics.frame.Frame`'s faces and pins the
+    genuine :math:`\Pi R = 4\pi I` identity (NOT the broken ``Π R == I`` that
+    the retired :meth:`assert_galerkin_idempotency` was checking — see P1.6).
     """
     measure, L = lebedev_L_pair
-    basis = SphericalHarmonicBasis(L=L)
-    Y = basis.evaluate(measure.nodes)
-    M = MomentProjection.from_measure(measure, L, Y=Y)
-    R = HarmonicMomentReconstruction.from_Y(Y)
+    frame = Frame(SphericalHarmonicBasis(L=L), measure)
+    M = frame.analysis
+    R = frame.reconstruction
 
     rng = np.random.default_rng(seed=42)
     c = _mask_non_existent_m(rng.standard_normal((L + 1, 2 * L + 1)), L)
@@ -233,14 +226,13 @@ def test_pi_R_is_4pi_identity_on_band_limited(lebedev_L_pair):
 def test_H_equals_g_C_times_S0(lebedev_L_pair):
     r"""``M.H`` computed generically equals :math:`g_C \cdot S_0(c)`.
 
-    The :attr:`MomentProjection.H` property routes through the
+    The frame analysis face's ``.H`` property routes through the
     generic :class:`~orpheus.numerics.operator._AdjointOperator`
     wrapper, which composes :math:`(1/w_V) \cdot \Pi^\top(w_W \cdot c)`
-    using :attr:`MomentProjection.domain`'s quadrature weights as
-    :math:`w_V` and :attr:`MomentProjection.codomain`'s SH-Gram
-    diagonal as :math:`w_W`. The result is the metric-weighted naked
-    synthesis :math:`g_C \cdot S_0(c)` — the W-weighted Hilbert
-    adjoint :math:`\Pi^*`.
+    using the frame's ``measure_space`` quadrature weights as
+    :math:`w_V` and its ``basis_space`` SH-Gram diagonal as :math:`w_W`.
+    The result is the metric-weighted naked synthesis
+    :math:`g_C \cdot S_0(c)` — the W-weighted Hilbert adjoint :math:`\Pi^*`.
 
     This is the ERR-039 endpoint: the metric, the transpose, and the
     Hilbert adjoint are SEPARATELY TYPED and their composition falls
@@ -249,7 +241,7 @@ def test_H_equals_g_C_times_S0(lebedev_L_pair):
     measure, L = lebedev_L_pair
     basis = SphericalHarmonicBasis(L=L)
     Y = basis.evaluate(measure.nodes)
-    M = MomentProjection.from_measure(measure, L, Y=Y)
+    M = Frame(basis, measure).analysis
 
     rng = np.random.default_rng(seed=99)
     c = _mask_non_existent_m(rng.standard_normal((L + 1, 2 * L + 1)), L)
@@ -320,7 +312,7 @@ def test_mass_matrix_under_multiple_quadratures(quadrature_factory):
 
 @pytest.mark.foundation
 def test_moment_projection_codomain_is_spherical_harmonic_space():
-    r""":attr:`MomentProjection.codomain` returns a typed :class:`SphericalHarmonicSpace`.
+    r"""The frame analysis face's ``codomain`` is a typed :class:`SphericalHarmonicSpace`.
 
     Type-level guarantee (software invariant — tagged ``foundation``
     per ``vv-principles`` §"V&V level taxonomy") that ``M.H``
@@ -328,14 +320,14 @@ def test_moment_projection_codomain_is_spherical_harmonic_space():
     correctly. The equality convention is ``(name, shape)``: two
     SphericalHarmonicSpaces of matching :math:`L` compare equal.
 
-    Also confirms :attr:`MomentProjection.{domain, codomain, range}`
-    are cached (same object identity on repeat access) — the
-    `coding-elegance` Pattern 3 fix for the Krylov-inner-loop
+    Also confirms the face's ``domain``/``codomain`` are cached (same
+    object identity on repeat access — the frame caches its spaces) —
+    the `coding-elegance` Pattern 3 fix for the Krylov-inner-loop
     allocation issue QA flagged in the Phase 1 review.
     """
     measure = lebedev_sphere(7)
     L = 2
-    M = MomentProjection.from_measure(measure, L)
+    M = Frame(SphericalHarmonicBasis(L=L), measure).analysis
     cod = M.codomain
     assert isinstance(cod, SphericalHarmonicSpace)
     assert cod.L == L
@@ -369,9 +361,7 @@ def test_T_carries_w_n_and_H_carries_g_C(lebedev_L_pair):
         M.H.apply(c)          → g_C · S_0(c)      # Hilbert adjoint
     """
     measure, L = lebedev_L_pair
-    basis = SphericalHarmonicBasis(L=L)
-    Y = basis.evaluate(measure.nodes)
-    M = MomentProjection.from_measure(measure, L, Y=Y)
+    M = Frame(SphericalHarmonicBasis(L=L), measure).analysis
 
     rng = np.random.default_rng(seed=7)
     psi = rng.standard_normal(measure.n_points)

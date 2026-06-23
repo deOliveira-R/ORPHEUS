@@ -281,7 +281,6 @@ class TestHarmonicMomentFieldScalarFlux:
         identity makes the moment-space and ordinate-space scalar
         fluxes algebraically equivalent.
         """
-        from orpheus.numerics.projection import MomentProjection
         m = _slab_mesh()
         L = 1
         rng = np.random.default_rng(seed=5)
@@ -292,12 +291,8 @@ class TestHarmonicMomentFieldScalarFlux:
         # Direct angular reduction.
         sf_direct = psi.integrate_angular()
 
-        # Via moment projection + scalar_flux extraction.
-        Y = m.quad.spherical_harmonics(L)
-        M = MomentProjection(
-            weights=m.quad.weights, Y=Y, L=L,
-        )
-        moments_values = M.apply(psi.values)
+        # Via moment projection (frame analysis face) + scalar_flux extraction.
+        moments_values = m.quad.angular_frame(L).analysis.apply(psi.values)
         moments = HarmonicMomentField.from_mesh_and_L(moments_values, m, L)
         sf_via_moments = moments.scalar_flux()
 

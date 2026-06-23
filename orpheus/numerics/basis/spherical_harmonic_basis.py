@@ -1,13 +1,13 @@
 r"""Real spherical-harmonic basis on :math:`S^2` truncated at order :math:`L`.
 
 The canonical home of the :math:`Y_\ell^m` evaluator and of the Gram matrix
-:math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))` of ERR-039 fame. Pre-Wave-0 the
-evaluator lived as the free function
-:func:`orpheus.numerics.spherical_harmonics.evaluate_real_sh` and the Gram
-literal :math:`(2\ell+1)` was carried as a raw array on
-:class:`orpheus.numerics.projection.HarmonicMomentReconstruction`. Both move
-here under a single typed class — the SH convention, the addition-theorem
-factor, and the discrete Gram now have one home.
+:math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))` of ERR-039 fame. Pre-frame the
+evaluator lived as a free ``evaluate_real_sh`` function and the Gram literal
+:math:`(2\ell+1)` was carried as a raw array on the since-retired
+harmonic-reconstruction operator. Both move here under a single typed class —
+the SH convention, the addition-theorem factor, and the discrete Gram now have
+one home (the frame's reconstruction face reads the factor live from
+:attr:`addition_theorem_factor`).
 
 Convention
 ==========

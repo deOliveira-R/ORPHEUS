@@ -211,24 +211,13 @@ def _capture_legendre_moments(
     solver: SNSolver, psi: AngularFlux, L: int,
 ) -> np.ndarray:
     """Apply MaterialXSField.apply_legendre_scattering_moments at order L."""
-    from orpheus.numerics.projection import MomentProjection
     from orpheus.transport.fields.harmonic_moment_field import (
         HarmonicMomentField,
     )
     from orpheus.sn.scattering import LegendreMomentScattering
 
     quad = solver.quad
-    weights = quad.weights
-    Y = solver.scattering_op.Y if hasattr(solver.scattering_op, "Y") else None
-    # Build Y if scattering_op doesn't carry it (defensive).
-    if Y is None:
-        from orpheus.numerics.basis.spherical_harmonic_basis import (
-            SphericalHarmonicBasis,
-        )
-        Y = SphericalHarmonicBasis.from_quadrature(quad, L).values
-
-    M = MomentProjection(weights=weights, Y=Y, L=L)
-    moments_values = M.apply(psi.values)
+    moments_values = quad.angular_frame(L).analysis.apply(psi.values)
     moments = HarmonicMomentField.from_mesh_and_L(
         moments_values, solver.sn_mesh, L,
     )

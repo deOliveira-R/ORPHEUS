@@ -3,18 +3,17 @@ r"""Intrinsic-property tests for :class:`orpheus.numerics.frame.Frame`.
 The :class:`Frame` binds a :class:`Basis` to a :class:`DiscreteMeasure` and exposes
 the analysis / reconstruction faces. These tests pin:
 
-* **bit-identity** of the faces to the operators they retire
-  (:class:`MomentProjection` / :class:`HarmonicMomentReconstruction`) — the carve is
-  a re-homing, not a re-derivation, so ``np.array_equal`` is the contract (the
-  scattering kernel is pinned at 0 ULP);
 * the **adjoint-for-free** — ``frame.analysis.H`` falls out of the frame's swapped
-  spaces with no bespoke code;
+  spaces with no bespoke code (pinned against an INDEPENDENT :math:`g_C \cdot S_0`
+  einsum with the closed-form SH Gram diagonal);
 * the symmetric **space pairing** (basis → ``basis_space``; measure → ``measure_space``);
 * the faces **compose through ``OperatorProduct`` with real spaces** (no ``cast``) —
-  the enabler for the Phase-C cast retirement.
+  the enabler for the Phase-C cast retirement;
+* the structural Galerkin invariant :math:`\Pi R = 4\pi I` routed through the frame.
 
-The structural Galerkin invariant :math:`\Pi R = 4\pi I` itself lives in
-``test_spherical_harmonic_space.py`` (and is inherited here by bit-identity).
+The full SH-space law suite (:math:`\Pi R = 4\pi I`, :math:`\Pi^* = g_C S_0`,
+:math:`R = (2\ell+1) S_0`) lives in ``test_spherical_harmonic_space.py``,
+constructed on the same frame faces.
 """
 
 from __future__ import annotations
@@ -25,10 +24,6 @@ import pytest
 from orpheus.numerics.basis import SphericalHarmonicBasis
 from orpheus.numerics.frame import Frame
 from orpheus.numerics.operator import CAP_APPLY, CAP_APPLY_TRANSPOSE
-from orpheus.numerics.projection import (
-    HarmonicMomentReconstruction,
-    MomentProjection,
-)
 from orpheus.numerics.quadrature import lebedev_sphere
 from orpheus.numerics.spaces import SphericalHarmonicSpace
 
@@ -50,53 +45,25 @@ def _band_limited(rng, L, *trailing):
     return c
 
 
-# ── bit-identity of the faces to the operators they retire ────────────────
-
-@pytest.mark.foundation
-def test_analysis_face_is_bit_identical_to_moment_projection(sh_frame):
-    frame, L = sh_frame
-    rng = np.random.default_rng(11)
-    psi = rng.standard_normal((frame.measure.weights.shape[0], 4, 2))  # (N, cell, group)
-    M = MomentProjection(weights=frame.measure.weights, Y=frame.table, L=L)
-    np.testing.assert_array_equal(frame.analysis.apply(psi), M.apply(psi))
-
-
-@pytest.mark.foundation
-def test_reconstruction_face_is_bit_identical_to_harmonic_reconstruction(sh_frame):
-    frame, L = sh_frame
-    rng = np.random.default_rng(12)
-    c = _band_limited(rng, L, 4, 2)
-    R = HarmonicMomentReconstruction.from_Y(frame.table)
-    np.testing.assert_array_equal(frame.reconstruction.apply(c), R.apply(c))
-
-
-@pytest.mark.foundation
-def test_analysis_transpose_is_bit_identical_to_moment_projection(sh_frame):
-    frame, L = sh_frame
-    rng = np.random.default_rng(13)
-    c = _band_limited(rng, L, 4, 2)
-    M = MomentProjection(weights=frame.measure.weights, Y=frame.table, L=L)
-    np.testing.assert_array_equal(
-        frame.analysis.apply_transpose(c), M.apply_transpose(c),
-    )
-
-
 # ── the adjoint-for-free ──────────────────────────────────────────────────
 
 @pytest.mark.foundation
 def test_analysis_hilbert_adjoint_falls_out_of_the_frame_spaces(sh_frame):
-    """``frame.analysis.H`` (= g_C·S₀) matches ``MomentProjection.H`` bit-identically.
+    r"""``frame.analysis.H`` is the W-weighted Hilbert adjoint :math:`g_C \cdot S_0`.
 
-    No bespoke adjoint code — the frame's swapped (measure_space, basis_space)
-    metrics feed the generic ``_AdjointOperator`` exactly as the legacy operator's
-    domain/codomain did.
+    No bespoke adjoint code — the frame's swapped ``(measure_space, basis_space)``
+    metrics feed the generic ``_AdjointOperator``. Pinned against an INDEPENDENT
+    reference: the direct :math:`g_C \cdot S_0` einsum with the closed-form SH Gram
+    diagonal :math:`g_C^\ell = 4\pi/(2\ell+1)` (NOT the frame's own contraction —
+    a structurally distinct construction of the same adjoint).
     """
     frame, L = sh_frame
     rng = np.random.default_rng(14)
     c = _band_limited(rng, L, 4, 2)
-    M = MomentProjection.from_measure(frame.measure, L, Y=frame.table)
-    np.testing.assert_array_equal(
-        frame.analysis.H.apply(c), M.H.apply(c),
+    g_C = 4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0)  # closed-form SH Gram diag
+    expected = np.einsum("nlm,l,lm...->n...", frame.table, g_C, c)
+    np.testing.assert_allclose(
+        frame.analysis.H.apply(c), expected, rtol=1e-12, atol=1e-14,
     )
 
 
