@@ -3,9 +3,10 @@ r"""Intrinsic-property tests for :class:`orpheus.numerics.frame.Frame`.
 The :class:`Frame` binds a :class:`Basis` to a :class:`DiscreteMeasure` and exposes
 the analysis / reconstruction faces. These tests pin:
 
-* the **adjoint-for-free** — ``frame.analysis.H`` falls out of the frame's swapped
-  spaces with no bespoke code (pinned against an INDEPENDENT :math:`g_C \cdot S_0`
-  einsum with the closed-form SH Gram diagonal);
+* the **adjoint-for-free** — BOTH ``frame.analysis.H`` and ``frame.reconstruction.H``
+  fall out of the frame's swapped spaces with no bespoke code (each pinned against an
+  INDEPENDENT closed-form einsum: :math:`g_C \cdot S_0` for analysis,
+  :math:`\frac{(2\ell+1)^2}{4\pi} M` for reconstruction);
 * the symmetric **space pairing** (basis → ``basis_space``; measure → ``measure_space``);
 * the faces **compose through ``OperatorProduct`` with real spaces** (no ``cast``) —
   the enabler for the Phase-C cast retirement;
@@ -64,6 +65,30 @@ def test_analysis_hilbert_adjoint_falls_out_of_the_frame_spaces(sh_frame):
     expected = np.einsum("nlm,l,lm...->n...", frame.table, g_C, c)
     np.testing.assert_allclose(
         frame.analysis.H.apply(c), expected, rtol=1e-12, atol=1e-14,
+    )
+
+
+@pytest.mark.foundation
+def test_reconstruction_hilbert_adjoint_falls_out_of_the_frame_spaces(sh_frame):
+    r"""``frame.reconstruction.H`` is the W-weighted Hilbert adjoint of :math:`R`.
+
+    Symmetric with the analysis face: no bespoke adjoint code — the frame's swapped
+    ``(basis_space, measure_space)`` metrics feed the generic ``_AdjointOperator``,
+    giving :math:`(R^* v)_\ell^m = \frac{(2\ell+1)^2}{4\pi} \sum_n w_n
+    Y_\ell^m(\hat\Omega_n)\, v_n`. Pinned against that INDEPENDENT closed-form einsum
+    (NOT the frame's own contraction). ``R : \text{basis} \to \text{measure}``, so
+    ``R.H`` maps nodal values → coefficients.
+    """
+    frame, L = sh_frame
+    rng = np.random.default_rng(17)
+    n = frame.measure.weights.shape[0]
+    v = rng.standard_normal((n, 4, 2))
+    factor = (2.0 * np.arange(L + 1) + 1.0) ** 2 / (4.0 * np.pi)  # (2ℓ+1)²/4π
+    expected = np.einsum(
+        "n,nlm,l,n...->lm...", frame.measure.weights, frame.table, factor, v,
+    )
+    np.testing.assert_allclose(
+        frame.reconstruction.H.apply(v), expected, rtol=1e-12, atol=1e-14,
     )
 
 
@@ -139,5 +164,8 @@ def test_table_and_faces_are_cached(sh_frame):
 def test_face_capabilities(sh_frame):
     frame, _ = sh_frame
     assert frame.analysis.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
-    # reconstruction is apply-only in Phase B; apply_transpose (→ R.H) lands in Phase D
-    assert frame.reconstruction.capabilities == frozenset({CAP_APPLY})
+    # Phase D: reconstruction now advertises apply_transpose too (→ R.H falls out),
+    # symmetric with the analysis face.
+    assert frame.reconstruction.capabilities == frozenset(
+        {CAP_APPLY, CAP_APPLY_TRANSPOSE}
+    )

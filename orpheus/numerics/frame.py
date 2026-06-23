@@ -155,13 +155,17 @@ class _FrameReconstruction(LinearOperatorMixin):
     r"""The reconstruction face :math:`R`: ``basis_space → measure_space``.
 
     A frame-backed :class:`LinearOperator` view delegating to
-    :meth:`Basis.reconstruct` (the canonical-dual synthesis). Advertises
-    ``CAP_APPLY`` only in Phase B; the ``apply_transpose`` that earns ``R.H``
-    lands in Phase D.
+    :meth:`Basis.reconstruct` (the canonical-dual synthesis) and its representation
+    transpose :meth:`Basis.reconstruct_transpose`. Carries the swapped spaces and
+    ``CAP_APPLY_TRANSPOSE``, so the metric-aware ``_AdjointOperator`` gives ``R.H``
+    (the W-weighted Hilbert adjoint :math:`R^* = \frac{(2\ell+1)^2}{4\pi} M`) for
+    free — symmetric with the analysis face.
     """
 
     frame: Frame
-    capabilities = frozenset({CAP_APPLY})  # plain class attr (see _FrameAnalysis)
+    # Plain class attr (see _FrameAnalysis) — both faces now advertise the same
+    # surface: apply + apply_transpose, so .H falls out of _AdjointOperator.
+    capabilities = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
     @property
     def domain(self) -> FunctionSpace:
@@ -173,3 +177,6 @@ class _FrameReconstruction(LinearOperatorMixin):
 
     def apply(self, coefficients: NDArray, /) -> NDArray:
         return self.frame.basis.reconstruct(coefficients, self.frame.table)
+
+    def apply_transpose(self, values: NDArray, /) -> NDArray:
+        return self.frame.basis.reconstruct_transpose(values, self.frame.table)

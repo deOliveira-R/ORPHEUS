@@ -37,14 +37,20 @@ The shared naked synthesis :math:`S_0`
 --------------------------------------
 
 :meth:`synthesize` is the naked synthesis :math:`S_0(c) = \sum_k \phi_k\, c_k` (the
-frame-theory *synthesis operator* :math:`T^*` — NO weights, NO dual factor). The three
-weighted operations are each :math:`S_0` post-multiplied by ONE diagonal weight family:
+frame-theory *synthesis operator* :math:`T^*` — NO weights, NO dual factor). The four
+weighted operations are each :math:`S_0` (or its transpose) post-multiplied by ONE
+diagonal weight family:
 
 * :meth:`analyze` :math:`M = w_n \cdot (\text{analysis contraction})` — the analysis
   operator :math:`T`;
 * :meth:`analyze_transpose` :math:`M^\top = w_n \cdot S_0` — its representation transpose;
 * :meth:`reconstruct` :math:`R = d_k \cdot S_0` — the canonical-dual synthesis (for the
-  SH basis :math:`d_\ell = 2\ell+1`).
+  SH basis :math:`d_\ell = 2\ell+1`);
+* :meth:`reconstruct_transpose` :math:`R^\top = d_k \cdot S_0^\top` — its representation
+  transpose (measure-free, like :meth:`reconstruct`).
+
+The two analysis-side weightings bake in the quadrature weight :math:`w_n`; the two
+synthesis-side ones carry only the dual factor :math:`d_k` — synthesis is measure-free.
 
 They are kept as **fused contractions** (not ``weight ⊙ synthesize``) because FP
 non-associativity makes the factored form drift at the ULP level, and the scattering
@@ -147,6 +153,25 @@ class Basis(ABC):
         for spherical harmonics :math:`R = \sum_\ell (2\ell+1) \sum_m Y_\ell^m\,
         \phi_\ell^m` — the addition-theorem reconstruction). **Measure-free** (the
         dual factor needs no quadrature) — synthesis is the choice-free / trial side.
+        """
+        ...
+
+    @abstractmethod
+    def reconstruct_transpose(
+        self, values: NDArray, table: NDArray, /,
+    ) -> NDArray:
+        r"""Representation transpose :math:`R^\top = d_k \cdot S_0^\top`: values → coefficients.
+
+        The matrix transpose of :meth:`reconstruct` (NOT its Hilbert adjoint):
+        :math:`(R^\top v)_k = d_k \sum_n \phi_k(x_n)\, v_n`, the naked
+        analysis weighted by the canonical-dual factor :math:`d_k` (for spherical
+        harmonics :math:`d_\ell = 2\ell+1`). **Measure-free**, symmetric with
+        :meth:`reconstruct` — the quadrature weights are NOT baked in (unlike
+        :meth:`analyze_transpose`, whose forward :meth:`analyze` carries them). The
+        metric-aware ``_AdjointOperator`` combines this with the codomain/domain
+        Gram to form the W-weighted Hilbert adjoint :math:`R^*`, so the
+        :class:`Frame`'s reconstruction face gets ``.H`` for free — symmetric with
+        the analysis face.
         """
         ...
 

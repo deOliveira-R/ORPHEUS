@@ -337,6 +337,23 @@ class SphericalHarmonicBasis(Basis):
             "nlm,l,lm...->n...", table, self.addition_theorem_factor, coefficients,
         )
 
+    def reconstruct_transpose(self, values: NDArray, table: NDArray) -> NDArray:
+        r"""Representation transpose :math:`(R^\top v)_\ell^m = (2\ell+1) \sum_n Y_\ell^m(\hat\Omega_n)\, v_n`.
+
+        The matrix transpose of :meth:`reconstruct` (:math:`= 2\ell+1` times the
+        naked analysis :math:`S_0^\top`) — NOT the Hilbert adjoint, and **measure-free**:
+        no :math:`w_n` is baked in (symmetric with :meth:`reconstruct`, asymmetric
+        with :meth:`analyze_transpose`, whose forward bakes the weights in). The
+        metric-aware ``_AdjointOperator`` combines it with the codomain (measure
+        :math:`w_n`) and domain (basis :math:`g_C`) Gram to give the W-weighted
+        Hilbert adjoint :math:`(R^* v)_\ell^m = \frac{(2\ell+1)^2}{4\pi} \sum_n w_n
+        Y_\ell^m(\hat\Omega_n)\, v_n`, so the Frame's reconstruction face gets ``.H``
+        for free.
+        """
+        return np.einsum(
+            "nlm,l,n...->lm...", table, self.addition_theorem_factor, values,
+        )
+
     # ── Coefficient space ─────────────────────────────────────────────────
 
     @property

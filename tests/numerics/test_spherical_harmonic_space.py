@@ -387,6 +387,103 @@ def test_T_carries_w_n_and_H_carries_g_C(lebedev_L_pair):
 
 
 # ─────────────────────────────────────────────────────────────────────
+# B.1r — the reconstruction face's transpose / adjoint (symmetric with
+#        the analysis-face trio above; Frame carve Phase D)
+# ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.l1
+@pytest.mark.catches("ERR-039")
+def test_R_transpose_equals_2l_plus_1_times_S0_transpose(lebedev_L_pair):
+    r"""``R.apply_transpose(v) == (2\ell+1) \cdot S_0^\top(v)`` for random nodal v.
+
+    The reconstruction representation transpose :math:`R^\top` differs from the
+    naked analysis :math:`S_0^\top` by the SAME per-:math:`\ell` factor
+    :math:`(2\ell+1)` that :meth:`reconstruct` carries — and is **measure-free**
+    (no :math:`w_n`), symmetric with the forward. This is the transpose-side mirror
+    of :func:`test_R_equals_2l_plus_1_times_S0`; it pins the ERR-039 literal on the
+    transpose path too (a missing/extra :math:`(2\ell+1)`, or a baked-in :math:`w_n`,
+    reddens here).
+    """
+    measure, L = lebedev_L_pair
+    basis = SphericalHarmonicBasis(L=L)
+    Y = basis.evaluate(measure.nodes)
+    R = Frame(basis, measure).reconstruction
+
+    rng = np.random.default_rng(seed=2027)
+    v = rng.standard_normal(measure.n_points)
+
+    actual = R.apply_transpose(v)
+    # (2ℓ+1) · S_0^T(v): the dual factor enters PER-TERM (folded into the Y table),
+    # matching production's in-einsum factor placement — Σ_n (2ℓ+1)·Y·v — so the
+    # reference is BIT-IDENTICAL to production (asserted exactly below), yet still
+    # structurally independent (explicit broadcast × 2-operand einsum, NOT the
+    # 3-operand fused production call).  Post-scaling the OUTPUT instead (f·Σ vs
+    # Σ(f·)) drifts ~100 ULP by FP non-associativity — the summation then runs at
+    # the ×f-larger magnitude — which is why the per-term fold is the right reference.
+    Y_scaled = Y * basis.addition_theorem_factor[None, :, None]
+    expected = np.einsum("nlm,n->lm", Y_scaled, v)
+    np.testing.assert_array_equal(actual, expected)
+
+    # Structurally-independent cross-check on a nodal unit vector v = e_{n0}:
+    # (R^T e_{n0})_{ℓ,m} = (2ℓ+1) · Y[n0, ℓ, m] — a single multiplication per
+    # (ℓ, m) slot, no accumulation, so the (2ℓ+1) literal is read off
+    # bit-identically (no FP-non-associativity room — lessons-L11).
+    for n0 in range(measure.n_points):
+        e = np.zeros(measure.n_points)
+        e[n0] = 1.0
+        R_T_e = R.apply_transpose(e)
+        expected_e = basis.addition_theorem_factor[:, None] * Y[n0, :, :]
+        np.testing.assert_array_equal(
+            R_T_e, expected_e,
+            err_msg=f"R^T(e_{{n={n0}}}) should equal (2ℓ+1) · Y[n0, ℓ, m] "
+                    f"bit-identically",
+        )
+
+
+@pytest.mark.l1
+@pytest.mark.catches("ERR-039")
+def test_R_transpose_carries_d_ell_and_RH_carries_d_ell_squared(lebedev_L_pair):
+    r"""``R.apply_transpose`` is the Euclidean transpose; ``R.H`` the W-Hilbert adjoint.
+
+    The reconstruction-face mirror of :func:`test_T_carries_w_n_and_H_carries_g_C`,
+    pinning BOTH adjoint identities by their DEFINING inner-product law (independent
+    of how ``R.H`` is built):
+
+    .. code-block:: python
+
+        R.apply_transpose(v) → (2ℓ+1) · S_0^T(v)            # Euclidean transpose
+        R.H.apply(v)         → (2ℓ+1)²/4π · Σ_n w_n Y v      # W-Hilbert adjoint
+
+    via ``⟨R c, v⟩ = ⟨c, R^T v⟩`` (Euclidean, measure-free) and
+    ``⟨R c, v⟩_W = ⟨c, R^* v⟩_{g_C}`` (with the quadrature-weight metric on the
+    nodal side and the SH-Gram metric :math:`g_C^\ell = 4\pi/(2\ell+1)` on the
+    coefficient side).
+    """
+    measure, L = lebedev_L_pair
+    R = Frame(SphericalHarmonicBasis(L=L), measure).reconstruction
+
+    rng = np.random.default_rng(seed=11)
+    c = _mask_non_existent_m(rng.standard_normal((L + 1, 2 * L + 1)), L)
+    v = rng.standard_normal(measure.n_points)
+
+    Rc = R.apply(c)  # coefficients → nodal values
+
+    # ⟨R c, v⟩  — Euclidean on the nodal side; R^T already carries (2ℓ+1), no w_n
+    lhs_euclidean = float(np.sum(Rc * v))
+    rhs_T = float(np.sum(c * R.apply_transpose(v)))
+    np.testing.assert_allclose(lhs_euclidean, rhs_T, rtol=1e-12, atol=1e-14)
+
+    # ⟨R c, v⟩_W  — nodal inner product with the W (quadrature-weight) metric
+    lhs_metric = float(np.sum(measure.weights * Rc * v))
+    # ⟨c, R^* v⟩_{g_C}  — coefficient inner product with the g_C metric
+    g_C_per_ell = 4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0)
+    H_v = R.H.apply(v)
+    rhs_H = float(np.sum((c * g_C_per_ell[:, None]) * H_v))
+    np.testing.assert_allclose(lhs_metric, rhs_H, rtol=1e-12, atol=1e-14)
+
+
+# ─────────────────────────────────────────────────────────────────────
 # B.3 — forward-compatibility test that paves the way for Phase 2
 # ─────────────────────────────────────────────────────────────────────
 
