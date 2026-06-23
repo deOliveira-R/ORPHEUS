@@ -15,7 +15,7 @@ basis arrives" (``feedback_unify_after_two_instances``). It is promoted now — 
 :class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`
 still the only concrete member — because the **forcing consumer has arrived**: the
 generic :class:`~orpheus.numerics.frame.Frame` binds an *abstract* basis to a
-measure and applies a non-identity morphism (analysis / synthesis) across the
+measure and applies a non-identity morphism (analysis / reconstruction) across the
 interface. The Frame needs the interface, not a second basis; the interface itself
 is math-rigid (Grand Report v3 §5.4 lists the nine eventual bases — real spherical
 harmonics, Chebyshev, Lagrange, FE shape functions, ...) and every one of them
@@ -23,20 +23,33 @@ tabulates, reconstructs, and has a discrete Gram. Deferring the ABC would force 
 Frame to name a concrete basis, which is exactly the coupling the abstraction exists
 to break.
 
-The contract (three fundamental operations)
-===========================================
+The contract — tabulate, then contract a cached table
+=====================================================
 
-* :meth:`evaluate` — tabulate the basis functions at a set of sample points
-  (the :math:`\Phi(\text{point}, \text{mode})` table).
-* :meth:`synthesize` — the naked synthesis :math:`S_0(c) = \sum_k \phi_k\, c_k`
-  (NO measure weights, NO dual-frame factor) — the choice-free reconstruction.
-* :meth:`mass_matrix` — the discrete Gram :math:`\sum_n w_n\, \phi_j(x_n)\,
-  \phi_k(x_n)` against a quadrature; equals the continuous Gram when the rule is
-  exact to the basis's degree.
+:meth:`evaluate` is the only method that takes sample *points*; it produces the
+``Φ(point, mode)`` **table** (the layout-bearing object — ``(N, ℓ, m)`` for spherical
+harmonics, ``(N, K)`` for a flat-mode basis). Every other operation **consumes that
+table**, so the :class:`Frame` evaluates ONCE (``frame.table``) and the per-apply hot
+path never re-tabulates. The basis owns these contractions because the index layout is
+the basis's own; the :class:`Frame` stays layout-agnostic and merely delegates.
 
-The *weighted* operations — the analysis :math:`M = \sum_n w_n\,\phi_k(x_n)\,(\cdot)`
-and the canonical-dual reconstruction :math:`R` — bind the basis to a specific
-measure (the choice), so they live on the :class:`Frame`, not here.
+The shared naked synthesis :math:`S_0`
+--------------------------------------
+
+:meth:`synthesize` is the naked synthesis :math:`S_0(c) = \sum_k \phi_k\, c_k` (the
+frame-theory *synthesis operator* :math:`T^*` — NO weights, NO dual factor). The three
+weighted operations are each :math:`S_0` post-multiplied by ONE diagonal weight family:
+
+* :meth:`analyze` :math:`M = w_n \cdot (\text{analysis contraction})` — the analysis
+  operator :math:`T`;
+* :meth:`analyze_transpose` :math:`M^\top = w_n \cdot S_0` — its representation transpose;
+* :meth:`reconstruct` :math:`R = d_k \cdot S_0` — the canonical-dual synthesis (for the
+  SH basis :math:`d_\ell = 2\ell+1`).
+
+They are kept as **fused contractions** (not ``weight ⊙ synthesize``) because FP
+non-associativity makes the factored form drift at the ULP level, and the scattering
+kernel is pinned at 0 ULP. The shared :math:`S_0` is the *conceptual* unity, documented
+here; the implementation keeps the fused einsum.
 
 References
 ----------
@@ -55,6 +68,7 @@ from numpy.typing import NDArray
 
 if TYPE_CHECKING:
     from orpheus.numerics.measure import DiscreteMeasure
+    from orpheus.numerics.space import FunctionSpace
 
 
 __all__ = ["Basis"]
@@ -64,37 +78,79 @@ class Basis(ABC):
     r"""Abstract discrete spectral basis — the synthesis side of a :class:`Frame`.
 
     Concrete bases (real spherical harmonics today; Legendre, Chebyshev,
-    Lagrange/FE shape functions to come) implement the three operations below.
-    A basis is *choice-free*: it knows its functions and their convention, but
-    not which quadrature samples them — that choice is the
+    Lagrange/FE shape functions to come) implement the operations below. A basis
+    is *choice-free*: it knows its functions and their convention, but not which
+    quadrature samples them — that choice is the
     :class:`~orpheus.numerics.measure.DiscreteMeasure`, bound to the basis by a
     :class:`~orpheus.numerics.frame.Frame`.
+
+    The contraction methods take the ``table`` from :meth:`evaluate` (positional,
+    so concrete bases may name their arguments in their own domain vocabulary —
+    e.g. ``directions``), so the :class:`Frame` tabulates once and the per-apply
+    hot path never re-evaluates.
     """
 
+    # ── Tabulation (the only points-consuming method) ─────────────────────
     @abstractmethod
     def evaluate(self, points: NDArray, /) -> NDArray:
-        r"""Tabulate the basis functions at ``points``.
+        r"""Tabulate the basis functions at ``points`` → the ``Φ(point, mode)`` table.
 
-        Returns the :math:`\Phi(\text{point}, \text{mode})` table — for the
-        spherical-harmonic basis, :math:`Y[n, \ell, \ell+m] = Y_\ell^m(\hat\Omega_n)`
-        at the ``(N, 3)`` direction cosines; a flat-mode basis returns ``(N, K)``.
+        For the spherical-harmonic basis, ``Y[n, ℓ, ℓ+m] = Y_ℓ^m(Ω̂_n)`` at the
+        ``(N, 3)`` direction cosines; a flat-mode basis returns ``(N, K)``.
+        """
+        ...
 
-        (Positional-only: the interface is by-position, so concrete bases may
-        name the argument in their own domain vocabulary — e.g. ``directions``.)
+    # ── Table contractions (the Frame caches the table and delegates here) ──
+    @abstractmethod
+    def synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+        r"""Naked synthesis :math:`S_0(c) = \sum_k \phi_k\, c_k` against a cached ``table``.
+
+        The pure (frame-theory *synthesis operator* :math:`T^*`) reconstruction —
+        NO measure weights, NO dual-frame factor. The shared kernel the three
+        weighted contractions below are each one diagonal away from.
         """
         ...
 
     @abstractmethod
-    def synthesize(self, coefficients: NDArray, points: NDArray, /) -> NDArray:
-        r"""Naked synthesis :math:`S_0(c) = \sum_k \phi_k(x)\, c_k` at ``points``.
+    def analyze(
+        self, values: NDArray, table: NDArray, weights: NDArray, /,
+    ) -> NDArray:
+        r"""Analysis :math:`M = T`: sampled values → coefficients.
 
-        The pure (frame-theory *synthesis operator* :math:`T^*`) reconstruction
-        with NO measure weights and NO dual-frame factor. The canonical-dual
-        reconstruction :math:`R` (which DOES carry the dual factor) is a
-        :class:`Frame` face built on top of this.
+        :math:`(M f)_k = \sum_n w_n\, \phi_k(x_n)\, f(x_n)` — the W-weighted
+        projection onto the basis. For spherical harmonics
+        :math:`\phi_\ell^m = \sum_n w_n Y_\ell^m(\hat\Omega_n)\,\psi_n`. The
+        ``weights`` are the measure's (analysis is the *measured* / test side).
         """
         ...
 
+    @abstractmethod
+    def analyze_transpose(
+        self, coefficients: NDArray, table: NDArray, weights: NDArray, /,
+    ) -> NDArray:
+        r"""Representation transpose :math:`M^\top = w_n \cdot S_0`: coefficients → values.
+
+        The matrix transpose of :meth:`analyze` (NOT its Hilbert adjoint): the
+        naked synthesis weighted by the quadrature weight on each node. The
+        metric-aware ``_AdjointOperator`` machinery combines this with the
+        domain/codomain Gram to form the W-weighted Hilbert adjoint
+        :math:`M^* = g_C \cdot S_0`, so the :class:`Frame`'s analysis face gets
+        ``.H`` for free.
+        """
+        ...
+
+    @abstractmethod
+    def reconstruct(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+        r"""Reconstruction :math:`R`: coefficients → values (the dual-frame synthesis).
+
+        :math:`S_0` weighted by the canonical-dual factor (intrinsic to the basis;
+        for spherical harmonics :math:`R = \sum_\ell (2\ell+1) \sum_m Y_\ell^m\,
+        \phi_\ell^m` — the addition-theorem reconstruction). **Measure-free** (the
+        dual factor needs no quadrature) — synthesis is the choice-free / trial side.
+        """
+        ...
+
+    # ── The discrete Gram + the coefficient space ─────────────────────────
     @abstractmethod
     def mass_matrix(self, measure: "DiscreteMeasure", /) -> NDArray:
         r"""Discrete Gram :math:`\sum_n w_n\, \phi_j(x_n)\, \phi_k(x_n)` over ``measure``.
@@ -102,6 +158,21 @@ class Basis(ABC):
         The frame operator :math:`S = T^* T` in discrete form. Equals the
         continuous Gram (the basis's intrinsic metric) when the quadrature is
         exact to the basis's degree; the residual is a quadrature-exactness
-        diagnostic.
+        diagnostic. (A one-off diagnostic, so it is naturally measure-based and
+        evaluates its own table.)
+        """
+        ...
+
+    @property
+    @abstractmethod
+    def space(self) -> "FunctionSpace":
+        r"""The coefficient :class:`FunctionSpace` this basis spans.
+
+        Carries the basis's Gram as its ``inner_product_weights`` — the metric the
+        :class:`Frame`'s codomain (and the Hilbert-adjoint machinery) reads. The
+        basis owns exactly one space (the nodal/domain space comes from the
+        measure), so the unqualified name is unambiguous — matching the
+        ``Field.space`` convention. The :class:`Frame` re-exposes it provenance-
+        qualified as ``frame.basis_space`` (beside ``frame.measure_space``).
         """
         ...

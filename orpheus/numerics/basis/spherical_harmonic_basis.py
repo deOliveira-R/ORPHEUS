@@ -98,6 +98,9 @@ from orpheus.numerics.basis.base import Basis
 
 if TYPE_CHECKING:
     from orpheus.numerics.measure import DiscreteMeasure
+    from orpheus.numerics.spaces.spherical_harmonic_space import (
+        SphericalHarmonicSpace,
+    )
 
 
 __all__ = ["SphericalHarmonicBasis"]
@@ -269,49 +272,82 @@ class SphericalHarmonicBasis(Basis):
         Y = self.evaluate(measure.nodes)
         return np.einsum("n,nlm,nLM->lmLM", measure.weights, Y, Y)
 
-    # ── Naked synthesis ───────────────────────────────────────────────
+    # ── Table contractions (the Frame caches the table, delegates here) ───
 
-    def synthesize(
-        self,
-        coefficients: NDArray,
-        directions: NDArray,
-    ) -> NDArray:
+    def synthesize(self, coefficients: NDArray, table: NDArray) -> NDArray:
         r"""Naked synthesis :math:`S_0(c)_n = \sum_{\ell, m} Y_\ell^m(\hat\Omega_n)\, c_\ell^m`.
 
         The bare reconstruction with NO :math:`(2\ell+1)` factor and NO
-        :math:`w_n` weight — the pure synthesis :math:`S_0`. Pre-P1.4
-        this lived inside
-        :meth:`~orpheus.numerics.projection.MomentProjection.apply_transpose`
-        mislabeled as the W-weighted Hilbert adjoint (ERR-039); it now
-        has an explicit basis-method home.
-
-        Three related operators are :math:`S_0` post-multiplied by a
-        diagonal:
-
-        * :math:`\Pi^\top = w_n \cdot S_0` (representation transpose;
-          :meth:`MomentProjection.apply_transpose`).
-        * :math:`\Pi^* = g_C \cdot S_0` (Hilbert adjoint;
-          :attr:`MomentProjection.H`).
-        * :math:`R = (2\ell+1) \cdot S_0 = 4\pi \cdot g_C^{-1} \cdot S_0`
-          (addition-theorem reconstruction;
-          :class:`~orpheus.numerics.projection.HarmonicMomentReconstruction`).
+        :math:`w_n` weight — the pure synthesis :math:`S_0` (the frame-theory
+        synthesis operator :math:`T^*`). The three weighted contractions
+        (:meth:`analyze`, :meth:`analyze_transpose`, :meth:`reconstruct`) are each
+        this kernel post-multiplied by ONE diagonal, but kept as separate fused
+        einsums for 0-ULP bit-identity (FP non-associativity).
 
         Parameters
         ----------
         coefficients : NDArray, shape ``(L+1, 2L+1, ...)``
-            Moment-space input; entries outside :math:`|m| \le \ell` are
-            ignored (the einsum dots them with the corresponding Y
-            entries, which are zero by construction).
-        directions : NDArray, shape ``(N, 3)``
-            Direction cosines :math:`(\mu_x, \mu_y, \mu_z)` per ordinate.
+            Moment-space input; entries outside :math:`|m| \le \ell` are zero by
+            construction (dotted with zero ``table`` entries).
+        table : NDArray, shape ``(N, L+1, 2L+1)``
+            The :math:`Y_\ell^m(\hat\Omega_n)` table from :meth:`evaluate`.
 
         Returns
         -------
-        NDArray, shape ``(N, ...)``
-            :math:`S_0(c)` per ordinate.
+        NDArray, shape ``(N, ...)`` — :math:`S_0(c)` per ordinate.
         """
-        Y = self.evaluate(directions)
-        return np.einsum("nlm,lm...->n...", Y, coefficients)
+        return np.einsum("nlm,lm...->n...", table, coefficients)
+
+    def analyze(
+        self, values: NDArray, table: NDArray, weights: NDArray,
+    ) -> NDArray:
+        r"""Analysis :math:`(M\psi)_\ell^m = \sum_n w_n\, Y_\ell^m(\hat\Omega_n)\,\psi_n`.
+
+        The W-weighted Galerkin projection of a per-ordinate field onto harmonic
+        moments — the frame's *analysis operator* :math:`T`. ONE fused
+        :func:`numpy.einsum` over the ordinate axis; trailing axes broadcast.
+        """
+        return np.einsum("n,nlm,n...->lm...", weights, table, values)
+
+    def analyze_transpose(
+        self, coefficients: NDArray, table: NDArray, weights: NDArray,
+    ) -> NDArray:
+        r"""Representation transpose :math:`(M^\top c)_n = w_n \sum_{\ell m} Y_\ell^m(\hat\Omega_n)\, c_\ell^m`.
+
+        The matrix transpose of :meth:`analyze` (:math:`= w_n \cdot S_0`) — NOT the
+        Hilbert adjoint. The metric-aware ``_AdjointOperator`` combines it with the
+        domain/codomain Gram to give :math:`M^* = g_C \cdot S_0`, so the Frame's
+        analysis face gets ``.H`` for free.
+        """
+        return np.einsum("n,nlm,lm...->n...", weights, table, coefficients)
+
+    def reconstruct(self, coefficients: NDArray, table: NDArray) -> NDArray:
+        r"""Reconstruction :math:`(R\phi)_n = \sum_\ell (2\ell+1) \sum_m Y_\ell^m(\hat\Omega_n)\, \phi_\ell^m`.
+
+        The addition-theorem (canonical-dual) synthesis — :math:`S_0` weighted by
+        the dual factor :math:`2\ell+1 = 4\pi\, g_C^{-1}`, read live from
+        :attr:`addition_theorem_factor` (no stored copy). Measure-free.
+        """
+        return np.einsum(
+            "nlm,l,lm...->n...", table, self.addition_theorem_factor, coefficients,
+        )
+
+    # ── Coefficient space ─────────────────────────────────────────────────
+
+    @property
+    def space(self) -> "SphericalHarmonicSpace":
+        r"""The :class:`SphericalHarmonicSpace` of order :math:`L` this basis spans.
+
+        Its Gram :math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))` (carried as
+        ``inner_product_weights``) is the codomain metric the
+        :class:`~orpheus.numerics.frame.Frame` and the Hilbert-adjoint machinery
+        read. Lazy import: ``SphericalHarmonicSpace`` imports this basis, so a
+        top-level import would cycle.
+        """
+        from orpheus.numerics.spaces.spherical_harmonic_space import (
+            SphericalHarmonicSpace,
+        )
+        return SphericalHarmonicSpace.from_L(self.L)
 
 
 # ─────────────────────────────────────────────────────────────────────

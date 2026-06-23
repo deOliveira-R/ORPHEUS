@@ -177,9 +177,7 @@ def test_R_equals_2l_plus_1_times_S0(lebedev_L_pair):
 
     actual = R.apply(c)
     # (2ℓ+1) · S_0(c) per the addition-theorem formula.
-    expected = (
-        basis.synthesize(c * basis.addition_theorem_factor[:, None], measure.nodes)
-    )
+    expected = basis.synthesize(c * basis.addition_theorem_factor[:, None], Y)
     np.testing.assert_allclose(actual, expected, rtol=1e-14)
 
     # Structurally-independent cross-check on unit vectors: for
@@ -260,7 +258,7 @@ def test_H_equals_g_C_times_S0(lebedev_L_pair):
     # Expected: g_C · S_0(c) with g_C^ℓ = 4π/(2ℓ+1).
     g_C_per_ell = 4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0)
     c_scaled = c * g_C_per_ell[:, None]
-    expected = basis.synthesize(c_scaled, measure.nodes)
+    expected = basis.synthesize(c_scaled, Y)
     np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-14)
 
 
