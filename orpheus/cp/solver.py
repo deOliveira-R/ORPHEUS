@@ -655,7 +655,7 @@ class CPSolver:
         return DiscreteMeasure(
             nodes=np.arange(self.N, dtype=np.float64),
             weights=self.volumes,
-            space="cells",
+            support="cells",
         )
 
     def compute_group_production_rate(

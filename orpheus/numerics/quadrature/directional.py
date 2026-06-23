@@ -452,7 +452,7 @@ class Quadrature:
                 [self.axis_cosines(0), self.axis_cosines(1), self.axis_cosines(2)]
             ),
             weights=self.weights,
-            space=SPACE_SPHERE,
+            support=SPACE_SPHERE,
         )
         return Frame(SphericalHarmonicBasis(L=L), s2_measure)
 

@@ -84,6 +84,7 @@ if TYPE_CHECKING:
     # import would cycle. The field stores a ``SubgroupOfO3`` object (passed
     # by the angular quadrature factories, which already import it).
     from orpheus.numerics.symmetry import SubgroupOfO3
+    from orpheus.numerics.space import FunctionSpace
 
 # ---------------------------------------------------------------------------
 # Space tags
@@ -136,12 +137,14 @@ class DiscreteMeasure:
         Array of weights, shape ``(N,)``. Weights MAY be negative
         (e.g. signed quadratures) but most rules in this codebase
         produce non-negative weights.
-    space : Space
-        Opaque string tag for the measurable space. Used for sanity
-        checks (direct sum requires equal tags), composition
-        bookkeeping (tensor product concatenates tags), and
-        documentation. No runtime semantics beyond equality and
-        formatting.
+    support : Space
+        Opaque string tag for the **measurable support** — the σ-algebra /
+        ambient space the nodes live on (``"S^2"``, ``"[-1,1]"``,
+        ``"spatial_R1"``, …). Used for sanity checks (direct sum requires
+        equal tags) and composition bookkeeping (tensor product concatenates
+        tags). NOTE: this is the *continuous support*, distinct from the
+        induced *discrete function space* :attr:`space` (the operator-algebra
+        domain) and from the physical :attr:`phase` (angular/spatial/energy).
     invariance_group : SubgroupOfO3 | None, optional
         The maximal subgroup of :math:`O(3)` under which the measure is
         invariant (its nodes permute among themselves with weights
@@ -172,9 +175,9 @@ class DiscreteMeasure:
     propagation table):
 
     - ``μ * ν`` — tensor product, returns a measure on
-      ``f"{μ.space} × {ν.space}"``.
+      ``f"{μ.support} × {ν.support}"``.
     - ``μ + ν`` — direct sum on a shared space; raises ``ValueError``
-      if ``μ.space != ν.space``.
+      if ``μ.support != ν.support``.
     - ``μ.pushforward(φ)`` — image measure under ``φ``. Weights are
       preserved; nodes become ``φ(nodes)``. The Jacobian of ``φ`` is
       the **caller's responsibility**: this is the φ-image semantics,
@@ -185,7 +188,7 @@ class DiscreteMeasure:
 
     nodes: np.ndarray
     weights: np.ndarray
-    space: Space
+    support: Space
     invariance_group: "SubgroupOfO3 | None" = None
     degree_of_exactness: int | None = None
 
@@ -225,6 +228,34 @@ class DiscreteMeasure:
         if self.nodes.ndim == 1:
             return 1
         return int(self.nodes.shape[1])
+
+    @property
+    def space(self) -> "FunctionSpace":
+        r"""The induced discrete-:math:`L^2` :class:`FunctionSpace` — the domain.
+
+        A discrete measure :math:`\mu = \sum_n w_n \delta_{x_n}` induces an
+        :math:`L^2(\mu)` space of sampled values: per-node arrays of shape
+        ``(N,)`` under the inner product
+        :math:`\langle f, g\rangle_\mu = \sum_n w_n f_n g_n` (the weights ARE
+        the metric). This is the operator-algebra **domain** a
+        :class:`~orpheus.numerics.frame.Frame` reads — mirroring the way a
+        :class:`~orpheus.numerics.basis.Basis` owns its coefficient
+        :attr:`~orpheus.numerics.basis.Basis.space` (the codomain): the measure
+        owns its sampled-value space, so the ``(domain, codomain)`` pair is
+        symmetric and neither is fabricated ad-hoc by the binder.
+
+        Distinct from :attr:`support` (the *continuous* measurable space the
+        nodes live on, a string tag) — this is the *discrete* function space.
+        Lazy import (``FunctionSpace`` is a higher-level construct; mirrors
+        :attr:`SphericalHarmonicBasis.space`'s lazy import).
+        """
+        from orpheus.numerics.space import FunctionSpace
+
+        return FunctionSpace(
+            name=f"L2[{self.support}]",
+            shape=(self.n_points,),
+            inner_product_weights=self.weights,
+        )
 
     # ------------------------------------------------------------------
     # Lebesgue integral against the discrete measure
@@ -303,11 +334,11 @@ class DiscreteMeasure:
     def __repr__(self) -> str:
         if self.invariance_group is None:
             return (
-                f"DiscreteMeasure(space={self.space!r}, "
+                f"DiscreteMeasure(support={self.support!r}, "
                 f"n_points={self.n_points})"
             )
         return (
-            f"DiscreteMeasure(space={self.space!r}, "
+            f"DiscreteMeasure(support={self.support!r}, "
             f"n_points={self.n_points}, "
             f"invariance_group={self.invariance_group!r})"
         )
@@ -341,7 +372,7 @@ class DiscreteMeasure:
         Metadata propagation (see :ref:`discrete-measures` for the
         full table):
 
-        - ``space`` becomes ``f"{μ.space} × {ν.space}"``.
+        - ``space`` becomes ``f"{μ.support} × {ν.support}"``.
         - ``invariance_group`` becomes ``None`` unless both factors
           carry compatible groups (Issue 3 will refine this).
         - ``degree_of_exactness`` becomes ``min(p_μ, p_ν)`` if both
@@ -367,7 +398,7 @@ class DiscreteMeasure:
         new_weights = np.outer(self.weights, other.weights).reshape(-1)
 
         # Metadata propagation.
-        new_space = f"{self.space} × {other.space}"
+        new_space = f"{self.support} × {other.support}"
         if (
             self.degree_of_exactness is not None
             and other.degree_of_exactness is not None
@@ -379,7 +410,7 @@ class DiscreteMeasure:
         return DiscreteMeasure(
             nodes=new_nodes,
             weights=new_weights,
-            space=new_space,
+            support=new_space,
             invariance_group=None,
             degree_of_exactness=new_dx,
         )
@@ -395,7 +426,7 @@ class DiscreteMeasure:
         each piece carries its own quadrature rule (e.g. composite
         Simpson, panelled Gauss-Legendre).
 
-        Requires ``self.space == other.space`` and matching node
+        Requires ``self.support == other.support`` and matching node
         dimensionality (``self.dim == other.dim``). Node arrays are
         concatenated along axis 0; weights are concatenated.
 
@@ -415,10 +446,10 @@ class DiscreteMeasure:
             If the two measures live on different spaces or have
             different node dimensionality.
         """
-        if self.space != other.space:
+        if self.support != other.support:
             raise ValueError(
                 f"direct sum requires equal spaces, got "
-                f"{self.space!r} and {other.space!r}"
+                f"{self.support!r} and {other.support!r}"
             )
         if self.dim != other.dim:
             raise ValueError(
@@ -440,7 +471,7 @@ class DiscreteMeasure:
         return DiscreteMeasure(
             nodes=new_nodes,
             weights=new_weights,
-            space=self.space,
+            support=self.support,
             invariance_group=None,
             degree_of_exactness=new_dx,
         )
@@ -489,7 +520,7 @@ class DiscreteMeasure:
             an array of shape ``(N,)`` or ``(N, d')``.
         new_space : Space, optional
             Tag for the target space :math:`\mathcal{Y}`. Defaults
-            to ``f"φ_*({self.space})"`` if not provided — set this
+            to ``f"φ_*({self.support})"`` if not provided — set this
             explicitly when the target has a known canonical name
             (e.g. ``"[0,1]"`` after a linear remap).
 
@@ -511,13 +542,13 @@ class DiscreteMeasure:
             )
 
         target_space = (
-            new_space if new_space is not None else f"φ_*({self.space})"
+            new_space if new_space is not None else f"φ_*({self.support})"
         )
 
         return DiscreteMeasure(
             nodes=new_nodes,
             weights=self.weights.copy(),
-            space=target_space,
+            support=target_space,
             invariance_group=None,
             degree_of_exactness=None,
         )
@@ -567,7 +598,7 @@ class DiscreteMeasure:
         return DiscreteMeasure(
             nodes=self.nodes[mask],
             weights=self.weights[mask],
-            space=self.space,
+            support=self.support,
             invariance_group=None,
             degree_of_exactness=None,
         )
@@ -686,7 +717,7 @@ class DiscreteMeasure:
             measure = DiscreteMeasure(
                 nodes=self.nodes[indices],
                 weights=self.weights[indices],
-                space=self.space,
+                support=self.support,
                 invariance_group=None,
                 degree_of_exactness=None,
             )
@@ -914,7 +945,7 @@ def gauss_legendre(n: int) -> DiscreteMeasure:
     Returns
     -------
     DiscreteMeasure
-        On ``space="[-1,1]"`` with ``degree_of_exactness=2n-1``.
+        On ``support="[-1,1]"`` with ``degree_of_exactness=2n-1``.
 
     See Also
     --------
@@ -928,7 +959,7 @@ def gauss_legendre(n: int) -> DiscreteMeasure:
     return DiscreteMeasure(
         nodes=nodes,
         weights=weights,
-        space=SPACE_INTERVAL_M11,
+        support=SPACE_INTERVAL_M11,
         degree_of_exactness=2 * n - 1,
     )
 
@@ -971,7 +1002,7 @@ def gauss_chebyshev(n: int) -> DiscreteMeasure:
     Returns
     -------
     DiscreteMeasure
-        On ``space="[-1,1]"`` with ``degree_of_exactness=2n-1``
+        On ``support="[-1,1]"`` with ``degree_of_exactness=2n-1``
         (with respect to the weighted integral).
     """
     if n < 1:
@@ -982,7 +1013,7 @@ def gauss_chebyshev(n: int) -> DiscreteMeasure:
     return DiscreteMeasure(
         nodes=nodes,
         weights=weights,
-        space=SPACE_INTERVAL_M11,
+        support=SPACE_INTERVAL_M11,
         degree_of_exactness=2 * n - 1,
     )
 
@@ -1021,7 +1052,7 @@ def equispaced(a: float, b: float, n: int) -> DiscreteMeasure:
     Returns
     -------
     DiscreteMeasure
-        On ``space=f"[{a},{b}]"`` with ``degree_of_exactness=1``.
+        On ``support=f"[{a},{b}]"`` with ``degree_of_exactness=1``.
     """
     if n < 1:
         raise ValueError(f"equispaced requires n >= 1, got n={n}")
@@ -1033,7 +1064,7 @@ def equispaced(a: float, b: float, n: int) -> DiscreteMeasure:
     return DiscreteMeasure(
         nodes=nodes,
         weights=weights,
-        space=f"[{a},{b}]",
+        support=f"[{a},{b}]",
         degree_of_exactness=1,
     )
 

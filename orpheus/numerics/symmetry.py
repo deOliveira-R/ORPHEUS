@@ -555,7 +555,7 @@ def _check_invariance(tag, measure: DiscreteMeasure, atol: float) -> bool:
     # measures the rotation/reflection axis story is degenerate and
     # most groups are trivially invariant; for S^2 (or any 3-D node
     # array) the check is non-trivial.
-    is_1d = measure.dim == 1 or measure.space in (
+    is_1d = measure.dim == 1 or measure.support in (
         SPACE_INTERVAL_M11,
         "[0,1]",
         "R",

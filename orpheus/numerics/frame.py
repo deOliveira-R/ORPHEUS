@@ -90,12 +90,14 @@ class Frame:
 
     @cached_property
     def measure_space(self) -> FunctionSpace:
-        r"""The domain — per-node values with the quadrature weights as the metric."""
-        return FunctionSpace(
-            name=f"measure_space[{self.measure.space}]",
-            shape=(self.measure.weights.shape[0],),
-            inner_product_weights=self.measure.weights,
-        )
+        r"""The domain — the measure's induced discrete-:math:`L^2` space.
+
+        Read straight off :attr:`DiscreteMeasure.space` (per-node values with
+        the quadrature weights as the metric): the measure OWNS its domain
+        space, symmetric with the basis owning its codomain
+        (:attr:`basis_space` ``= basis.space``) — neither is fabricated here.
+        """
+        return self.measure.space
 
     @cached_property
     def basis_space(self) -> FunctionSpace:

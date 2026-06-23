@@ -143,7 +143,7 @@ def product_mu_phi(
     measure = DiscreteMeasure(
         nodes=nodes,
         weights=weights,
-        space=SPACE_SPHERE,
+        support=SPACE_SPHERE,
         invariance_group=SubgroupOfO3.SO2,
         degree_of_exactness=min(2 * n_mu - 1, n_phi - 1),
     )

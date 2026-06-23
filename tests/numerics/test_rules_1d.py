@@ -38,7 +38,7 @@ def test_gauss_legendre_returns_discrete_measure(n: int) -> None:
     assert m.n_points == n
     assert m.nodes.shape == (n,)
     assert m.weights.shape == (n,)
-    assert m.space == SPACE_INTERVAL_M11
+    assert m.support == SPACE_INTERVAL_M11
     assert m.invariance_group == SubgroupOfO3.SO2
     assert m.degree_of_exactness == 2 * n - 1
 

@@ -34,7 +34,7 @@ def test_lebedev_returns_discrete_measure(order: int) -> None:
     assert m.nodes.ndim == 2
     assert m.nodes.shape[1] == 3  # (N, 3)
     assert m.weights.shape == (m.n_points,)
-    assert m.space == SPACE_SPHERE
+    assert m.support == SPACE_SPHERE
     assert m.invariance_group == SubgroupOfO3.OctahedralOh
     assert m.degree_of_exactness == order
 
@@ -106,7 +106,7 @@ def test_level_symmetric_returns_measure_and_structure(sn_order: int) -> None:
     assert isinstance(m, DiscreteMeasure)
     assert m.nodes.ndim == 2
     assert m.nodes.shape[1] == 3
-    assert m.space == SPACE_SPHERE
+    assert m.support == SPACE_SPHERE
     assert m.invariance_group == SubgroupOfO3.OctahedralOh
     assert m.degree_of_exactness == sn_order - 1
 

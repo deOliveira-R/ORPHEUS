@@ -35,7 +35,7 @@ def test_product_returns_measure_and_structure(n_mu: int, n_phi: int) -> None:
     assert m.nodes.ndim == 2
     assert m.nodes.shape == (n_mu * n_phi, 3)
     assert m.weights.shape == (n_mu * n_phi,)
-    assert m.space == SPACE_SPHERE
+    assert m.support == SPACE_SPHERE
     assert m.invariance_group == SubgroupOfO3.SO2
     assert m.degree_of_exactness == min(2 * n_mu - 1, n_phi - 1)
 

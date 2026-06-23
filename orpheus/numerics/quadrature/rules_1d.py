@@ -80,7 +80,7 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
     return DiscreteMeasure(
         nodes=nodes,
         weights=weights,
-        space=SPACE_INTERVAL_M11,
+        support=SPACE_INTERVAL_M11,
         invariance_group=SubgroupOfO3.SO2,
         degree_of_exactness=2 * n - 1,
     )

@@ -348,7 +348,7 @@ class Mesh1D:
         return DiscreteMeasure(
             nodes=self.centers,
             weights=self.volumes,
-            space="spatial_R1",
+            support="spatial_R1",
         )
 
     # ─────────────────────────────────────────────────────────────────
@@ -620,7 +620,7 @@ class Mesh2D:
         return DiscreteMeasure(
             nodes=nodes,
             weights=weights,
-            space="spatial_R2",
+            support="spatial_R2",
         )
 
     @property

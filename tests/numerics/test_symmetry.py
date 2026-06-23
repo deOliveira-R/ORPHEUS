@@ -47,13 +47,13 @@ def _measure_from_sphere_quad(q) -> DiscreteMeasure:
     formalise; tests can use it today without depending on Issue 4.
     """
     nodes = np.column_stack([q.mu_x, q.mu_y, q.mu_z])
-    return DiscreteMeasure(nodes=nodes, weights=q.weights, space="S^2")
+    return DiscreteMeasure(nodes=nodes, weights=q.weights, support="S^2")
 
 
 def _measure_from_1d_quad(q) -> DiscreteMeasure:
     """Build a 1-D DiscreteMeasure on :math:`[-1, 1]` from a 1-D quadrature."""
     return DiscreteMeasure(
-        nodes=q.mu_x, weights=q.weights, space="[-1,1]",
+        nodes=q.mu_x, weights=q.weights, support="[-1,1]",
     )
 
 
@@ -335,7 +335,7 @@ def test_trivial_invariance_is_universal() -> None:
     # An asymmetric, non-symmetric, non-axisymmetric measure.
     nodes = np.array([[0.5, 0.3, 0.1], [0.7, -0.2, 0.4]])
     weights = np.array([1.0, 2.0])
-    mu = DiscreteMeasure(nodes=nodes, weights=weights, space="S^2")
+    mu = DiscreteMeasure(nodes=nodes, weights=weights, support="S^2")
     assert SubgroupOfO3.Trivial.is_invariant(mu)
 
 
@@ -352,7 +352,7 @@ def test_asymmetric_measure_not_octahedral_invariant() -> None:
     p2 = np.array([0.7, 0.5, 0.5]) / np.linalg.norm([0.7, 0.5, 0.5])
     nodes = np.vstack([p1, p2])
     weights = np.array([1.0, 2.0])
-    mu = DiscreteMeasure(nodes=nodes, weights=weights, space="S^2")
+    mu = DiscreteMeasure(nodes=nodes, weights=weights, support="S^2")
     assert not SubgroupOfO3.OctahedralOh.is_invariant(mu)
 
 

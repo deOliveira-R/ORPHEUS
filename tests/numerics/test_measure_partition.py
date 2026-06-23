@@ -40,7 +40,7 @@ class TestPartitionByScalarLabel:
     def test_two_partitions_by_sign(self):
         nodes = np.array([-2.0, -1.0, 0.5, 3.0])
         weights = np.array([0.1, 0.2, 0.3, 0.4])
-        mu = DiscreteMeasure(nodes=nodes, weights=weights, space="R")
+        mu = DiscreteMeasure(nodes=nodes, weights=weights, support="R")
         parts = mu.partition_by(lambda x: np.sign(x).astype(int))
         # Three labels: -1, 0, 1 (but no zero in our nodes), so:
         labels = sorted(p.label for p in parts)
@@ -49,7 +49,7 @@ class TestPartitionByScalarLabel:
     def test_label_is_tuple_even_for_scalar_predicate(self):
         nodes = np.array([1.0, 2.0])
         weights = np.array([0.5, 0.5])
-        mu = DiscreteMeasure(nodes=nodes, weights=weights, space="R")
+        mu = DiscreteMeasure(nodes=nodes, weights=weights, support="R")
         parts = mu.partition_by(lambda x: np.zeros(len(x), dtype=int))
         assert len(parts) == 1
         # Label must be a tuple, even though the predicate returned 1-D
@@ -59,7 +59,7 @@ class TestPartitionByScalarLabel:
     def test_indices_correctly_recover_nodes(self):
         nodes = np.array([10.0, 20.0, 30.0, 40.0])
         weights = np.array([1.0, 1.0, 1.0, 1.0])
-        mu = DiscreteMeasure(nodes=nodes, weights=weights, space="R")
+        mu = DiscreteMeasure(nodes=nodes, weights=weights, support="R")
         parts = mu.partition_by(lambda x: (x % 20 == 0).astype(int))
         for p in parts:
             np.testing.assert_array_equal(
@@ -79,7 +79,7 @@ class TestPartitionByCompoundLabel:
             [0, 0, 1], [0, 0, -1],
         ], dtype=float)
         weights = np.full(6, 1.0)
-        mu = DiscreteMeasure(nodes=nodes, weights=weights, space="S^2")
+        mu = DiscreteMeasure(nodes=nodes, weights=weights, support="S^2")
         # Compound label = (sign(x), sign(y), sign(z))
         parts = mu.partition_by(lambda nodes: np.sign(nodes).astype(int))
         # Six unique labels, one per axis-aligned direction.
@@ -194,7 +194,7 @@ class TestPartitionEntryFields:
     def test_partition_entry_is_frozen_dataclass(self):
         nodes = np.array([1.0, 2.0])
         weights = np.array([0.5, 0.5])
-        mu = DiscreteMeasure(nodes=nodes, weights=weights, space="R")
+        mu = DiscreteMeasure(nodes=nodes, weights=weights, support="R")
         parts = mu.partition_by(lambda x: np.zeros(len(x), dtype=int))
         p = parts[0]
         assert isinstance(p, DiscreteMeasurePartition)
@@ -207,7 +207,7 @@ class TestPartitionEntryFields:
         differently — use Python types."""
         nodes = np.array([1.0, -1.0])
         weights = np.array([0.5, 0.5])
-        mu = DiscreteMeasure(nodes=nodes, weights=weights, space="R")
+        mu = DiscreteMeasure(nodes=nodes, weights=weights, support="R")
         parts = mu.partition_by(lambda x: np.sign(x).astype(int))
         for p in parts:
             for v in p.label:
@@ -216,7 +216,7 @@ class TestPartitionEntryFields:
     def test_predicate_must_match_node_count(self):
         nodes = np.array([1.0, 2.0, 3.0])
         weights = np.array([1.0, 1.0, 1.0])
-        mu = DiscreteMeasure(nodes=nodes, weights=weights, space="R")
+        mu = DiscreteMeasure(nodes=nodes, weights=weights, support="R")
         with pytest.raises(ValueError, match="all 3 nodes"):
             mu.partition_by(lambda x: np.array([0]))
 

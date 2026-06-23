@@ -678,7 +678,7 @@ class SNMesh:
         return DiscreteMeasure(
             nodes=nodes,
             weights=self.volumes.ravel(),
-            space=f"spatial_R{self.ndim}",
+            support=f"spatial_R{self.ndim}",
         )
 
     @property

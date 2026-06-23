@@ -97,7 +97,7 @@ def lebedev_sphere(order: int) -> DiscreteMeasure:
     return DiscreteMeasure(
         nodes=nodes,
         weights=w,
-        space=SPACE_SPHERE,
+        support=SPACE_SPHERE,
         invariance_group=SubgroupOfO3.OctahedralOh,
         degree_of_exactness=order,
     )
@@ -273,7 +273,7 @@ def level_symmetric_sn(
     measure = DiscreteMeasure(
         nodes=nodes,
         weights=w,
-        space=SPACE_SPHERE,
+        support=SPACE_SPHERE,
         invariance_group=SubgroupOfO3.OctahedralOh,
         degree_of_exactness=sn_order - 1,
     )

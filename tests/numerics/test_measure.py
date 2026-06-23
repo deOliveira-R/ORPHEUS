@@ -215,7 +215,7 @@ def test_tensor_product_metadata_propagation() -> None:
     a = gauss_legendre(3)  # dx = 5
     b = gauss_legendre(4)  # dx = 7
     p = a * b
-    assert p.space == "[-1,1] × [-1,1]"
+    assert p.support == "[-1,1] × [-1,1]"
     assert p.degree_of_exactness == 5
     assert p.invariance_group is None
 
@@ -227,7 +227,7 @@ def test_direct_sum_concatenates_on_shared_space() -> None:
     b = equispaced(0.0, 0.5, 6)
     s = a + b
     assert s.n_points == 10
-    assert s.space == a.space
+    assert s.support == a.support
     assert np.allclose(s.weights[:4], a.weights)
     assert np.allclose(s.weights[4:], b.weights)
 
@@ -261,7 +261,7 @@ def test_direct_sum_composite_quadrature() -> None:
     base_left = DiscreteMeasure(
         nodes=base_left.nodes,
         weights=base_left.weights * 0.5,
-        space=base_left.space,
+        support=base_left.support,
     )
     base_right = gauss_legendre(4).pushforward(
         lambda x: 0.5 * (x + 1.0), new_space=SPACE_INTERVAL_M11,
@@ -269,7 +269,7 @@ def test_direct_sum_composite_quadrature() -> None:
     base_right = DiscreteMeasure(
         nodes=base_right.nodes,
         weights=base_right.weights * 0.5,
-        space=base_right.space,
+        support=base_right.support,
     )
     composite = base_left + base_right
 
@@ -324,7 +324,7 @@ def test_pushforward_default_space_tag() -> None:
     ``f"φ_*({source.space})"``."""
     base = gauss_legendre(3)
     pushed = base.pushforward(lambda x: x + 1.0)
-    assert pushed.space == "φ_*([-1,1])"
+    assert pushed.support == "φ_*([-1,1])"
 
 
 @pytest.mark.foundation
@@ -364,19 +364,19 @@ def test_construction_invariants() -> None:
         DiscreteMeasure(
             nodes=np.array([1.0, 2.0]),
             weights=np.array([[1.0], [1.0]]),
-            space="R",
+            support="R",
         )
     with pytest.raises(ValueError, match="disagree on N"):
         DiscreteMeasure(
             nodes=np.array([1.0, 2.0, 3.0]),
             weights=np.array([1.0, 1.0]),
-            space="R",
+            support="R",
         )
     with pytest.raises(ValueError, match="nodes must be 1-D"):
         DiscreteMeasure(
             nodes=np.zeros((2, 2, 2)),
             weights=np.array([1.0, 1.0]),
-            space="R",
+            support="R",
         )
 
 
