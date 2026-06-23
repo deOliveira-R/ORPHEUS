@@ -382,7 +382,7 @@ class Mesh1D:
           volumes.
 
         Edges are accumulated across regions starting from
-        :paramref:`origin` (default 0). The first region starts at
+        ``origin`` (default 0). The first region starts at
         ``origin``; the last region ends at ``origin +
         geometry.domain_extent_cm``.
 
