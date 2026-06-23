@@ -188,7 +188,7 @@ def test_select_slab_returns_gauss_legendre() -> None:
     assert log.chosen_parameters == {"n": 8}
     assert measure.n_points == 8
     assert measure.degree_of_exactness == 15
-    assert measure.invariance_group == "SO2"
+    assert measure.invariance_group == SubgroupOfO3.SO2
     # Lebedev and LS_N must have been rejected at the G stage.
     rejected_names = {name for name, _ in log.rejected}
     assert "LebedevSphere" in rejected_names
@@ -445,4 +445,4 @@ def test_registry_override_success_path() -> None:
     )
     assert log.chosen_spec is not None
     assert log.chosen_spec.name == "LebedevSphere"
-    assert measure.invariance_group == "Oh"
+    assert measure.invariance_group == SubgroupOfO3.OctahedralOh

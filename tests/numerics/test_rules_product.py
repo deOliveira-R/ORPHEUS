@@ -16,6 +16,7 @@ from orpheus.numerics.measure import SPACE_SPHERE, DiscreteMeasure
 from orpheus.numerics.quadrature import product_mu_phi
 from orpheus.numerics.quadrature.rules_sphere import LevelStructure
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.numerics.symmetry import SubgroupOfO3
 
 
 # ---------------------------------------------------------------------------
@@ -35,7 +36,7 @@ def test_product_returns_measure_and_structure(n_mu: int, n_phi: int) -> None:
     assert m.nodes.shape == (n_mu * n_phi, 3)
     assert m.weights.shape == (n_mu * n_phi,)
     assert m.space == SPACE_SPHERE
-    assert m.invariance_group == "SO2"
+    assert m.invariance_group == SubgroupOfO3.SO2
     assert m.degree_of_exactness == min(2 * n_mu - 1, n_phi - 1)
 
     assert isinstance(s, LevelStructure)

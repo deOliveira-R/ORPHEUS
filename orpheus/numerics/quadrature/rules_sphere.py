@@ -12,7 +12,7 @@ Two families:
   Miller §4.2). Returned by :func:`level_symmetric_sn`.
 
 Both families are :math:`O_h`-invariant, so the returned measures
-carry ``invariance_group="Oh"``.
+carry ``invariance_group=SubgroupOfO3.OctahedralOh``.
 
 The level-symmetric rule additionally carries per-level metadata
 inside the ``levels`` field of the result (a small adjacent
@@ -79,7 +79,7 @@ def lebedev_sphere(order: int) -> DiscreteMeasure:
     -------
     DiscreteMeasure
         Nodes shape ``(N, 3)``, weights shape ``(N,)``, on
-        ``space="S^2"``, with ``invariance_group="Oh"`` and
+        ``space="S^2"``, with ``invariance_group=SubgroupOfO3.OctahedralOh`` and
         ``degree_of_exactness=order``.
 
     See Also
@@ -98,7 +98,7 @@ def lebedev_sphere(order: int) -> DiscreteMeasure:
         nodes=nodes,
         weights=w,
         space=SPACE_SPHERE,
-        invariance_group=SubgroupOfO3.OctahedralOh.name,
+        invariance_group=SubgroupOfO3.OctahedralOh,
         degree_of_exactness=order,
     )
 
@@ -256,7 +256,7 @@ def level_symmetric_sn(
     -------
     DiscreteMeasure
         Nodes shape ``(N_total, 3)``, weights shape ``(N_total,)``.
-        ``invariance_group="Oh"``,
+        ``invariance_group=SubgroupOfO3.OctahedralOh``,
         ``degree_of_exactness=sn_order-1``.
     LevelStructure
         Per-level indexing metadata.
@@ -274,7 +274,7 @@ def level_symmetric_sn(
         nodes=nodes,
         weights=w,
         space=SPACE_SPHERE,
-        invariance_group=SubgroupOfO3.OctahedralOh.name,
+        invariance_group=SubgroupOfO3.OctahedralOh,
         degree_of_exactness=sn_order - 1,
     )
     structure = LevelStructure(

@@ -75,9 +75,15 @@ metadata-propagation table, structural connections to
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import Callable, Literal, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Callable, Literal, Protocol, runtime_checkable
 
 import numpy as np
+
+if TYPE_CHECKING:
+    # Forward-ref only: ``symmetry`` imports FROM this module, so a runtime
+    # import would cycle. The field stores a ``SubgroupOfO3`` object (passed
+    # by the angular quadrature factories, which already import it).
+    from orpheus.numerics.symmetry import SubgroupOfO3
 
 # ---------------------------------------------------------------------------
 # Space tags
@@ -136,12 +142,17 @@ class DiscreteMeasure:
         bookkeeping (tensor product concatenates tags), and
         documentation. No runtime semantics beyond equality and
         formatting.
-    invariance_group : str | None, optional
-        Reserved for Issue 3. Tag for the symmetry group under which
-        the measure is invariant (e.g. ``"O(3)"``, ``"D_4"``,
-        ``"S_n"``). ``None`` means "unspecified, do not assume any
-        invariance." Issue 3 will populate this field for the
-        symmetric quadrature families.
+    invariance_group : SubgroupOfO3 | None, optional
+        The maximal subgroup of :math:`O(3)` under which the measure is
+        invariant (its nodes permute among themselves with weights
+        preserved), as a typed
+        :class:`~orpheus.numerics.symmetry.SubgroupOfO3` — e.g.
+        ``SubgroupOfO3.OctahedralOh`` for a Lebedev cubature,
+        ``SubgroupOfO3.SO2`` for an azimuthally-symmetric product/slab rule.
+        ``None`` means "unspecified". This symmetry is the structural
+        signature of the **angular** phase-space factor: a measure carrying
+        an :math:`O(3)`-subgroup invariance lives on :math:`S^2` (Erlangen —
+        the group fixes the homogeneous space), which :attr:`phase` reads.
     degree_of_exactness : int | None, optional
         For polynomial-exact rules, the maximum degree :math:`p` such
         that :math:`\int_\mathcal{X} q \, d\mu = \int_\mathcal{X} q \,
@@ -175,7 +186,7 @@ class DiscreteMeasure:
     nodes: np.ndarray
     weights: np.ndarray
     space: Space
-    invariance_group: str | None = None
+    invariance_group: "SubgroupOfO3 | None" = None
     degree_of_exactness: int | None = None
 
     def __post_init__(self) -> None:  # pragma: no cover - guard
@@ -693,7 +704,7 @@ class DiscreteMeasure:
     def with_metadata(
         self,
         *,
-        invariance_group: str | None = None,
+        invariance_group: "SubgroupOfO3 | None" = None,
         degree_of_exactness: int | None = None,
     ) -> DiscreteMeasure:
         """Return a copy with optional metadata fields populated.

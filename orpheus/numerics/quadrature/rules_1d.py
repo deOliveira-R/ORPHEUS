@@ -65,7 +65,7 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
     DiscreteMeasure
         Nodes shape ``(n,)``, weights shape ``(n,)``, on
         ``space="[-1,1]"``, with
-        ``invariance_group=SO(2)`` and
+        ``invariance_group=SubgroupOfO3.SO2`` and
         ``degree_of_exactness=2n-1``.
 
     See Also
@@ -81,7 +81,7 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
         nodes=nodes,
         weights=weights,
         space=SPACE_INTERVAL_M11,
-        invariance_group=SubgroupOfO3.SO2.name,
+        invariance_group=SubgroupOfO3.SO2,
         degree_of_exactness=2 * n - 1,
     )
 

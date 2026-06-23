@@ -91,7 +91,7 @@ def product_mu_phi(
     DiscreteMeasure
         Nodes shape ``(n_mu * n_phi, 3)``, weights shape
         ``(n_mu * n_phi,)``, on ``space="S^2"``.
-        ``invariance_group="SO2"``,
+        ``invariance_group=SubgroupOfO3.SO2``,
         ``degree_of_exactness=min(2*n_mu-1, n_phi-1)``.
     LevelStructure
         Per-:math:`\mu`-level indexing metadata used by the
@@ -144,7 +144,7 @@ def product_mu_phi(
         nodes=nodes,
         weights=weights,
         space=SPACE_SPHERE,
-        invariance_group=SubgroupOfO3.SO2.name,
+        invariance_group=SubgroupOfO3.SO2,
         degree_of_exactness=min(2 * n_mu - 1, n_phi - 1),
     )
     structure = LevelStructure(

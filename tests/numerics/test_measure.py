@@ -29,6 +29,7 @@ from orpheus.numerics.measure import (
     gauss_chebyshev,
     gauss_legendre,
 )
+from orpheus.numerics.symmetry import SubgroupOfO3
 
 
 # ============================================================================
@@ -309,8 +310,8 @@ def test_pushforward_invertible_map_change_of_variables() -> None:
 def test_pushforward_drops_metadata() -> None:
     """Pushforward drops ``invariance_group`` and
     ``degree_of_exactness`` (φ may not preserve either)."""
-    base = gauss_legendre(5).with_metadata(invariance_group="O(1)")
-    assert base.invariance_group == "O(1)"
+    base = gauss_legendre(5).with_metadata(invariance_group=SubgroupOfO3.O3)
+    assert base.invariance_group == SubgroupOfO3.O3
     assert base.degree_of_exactness == 9
     pushed = base.pushforward(lambda x: x ** 3, new_space="img")
     assert pushed.invariance_group is None
@@ -342,7 +343,7 @@ def test_restrict_drops_metadata() -> None:
     """Restriction drops ``invariance_group`` and
     ``degree_of_exactness`` (the restricted rule is not a Gauss
     rule on the cut domain)."""
-    rule = gauss_legendre(8).with_metadata(invariance_group="O(1)")
+    rule = gauss_legendre(8).with_metadata(invariance_group=SubgroupOfO3.O3)
     half = rule.restrict(lambda x: x >= 0)
     assert half.invariance_group is None
     assert half.degree_of_exactness is None
@@ -384,8 +385,8 @@ def test_with_metadata_returns_new_instance() -> None:
     """``with_metadata`` returns a new frozen instance with selected
     fields updated; the original is unchanged."""
     base = gauss_legendre(3)
-    tagged = base.with_metadata(invariance_group="O(1)")
-    assert tagged.invariance_group == "O(1)"
+    tagged = base.with_metadata(invariance_group=SubgroupOfO3.O3)
+    assert tagged.invariance_group == SubgroupOfO3.O3
     assert base.invariance_group is None
     assert tagged is not base
 
@@ -592,7 +593,7 @@ def test_repr_smoke() -> None:
 @pytest.mark.foundation
 def test_repr_with_invariance_group() -> None:
     """repr surfaces invariance_group when set."""
-    rule = gauss_legendre(8).with_metadata(invariance_group="Z2")
+    rule = gauss_legendre(8).with_metadata(invariance_group=SubgroupOfO3.Z2)
     r = repr(rule)
     assert "invariance_group" in r
-    assert "'Z2'" in r
+    assert "SubgroupOfO3.Z2" in r  # the typed group's repr, not the old 'Z2' string

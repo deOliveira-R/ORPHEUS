@@ -17,6 +17,7 @@ from orpheus.numerics.measure import SPACE_SPHERE, DiscreteMeasure
 from orpheus.numerics.quadrature import lebedev_sphere, level_symmetric_sn
 from orpheus.numerics.quadrature.rules_sphere import LevelStructure
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.numerics.symmetry import SubgroupOfO3
 
 
 # ---------------------------------------------------------------------------
@@ -34,7 +35,7 @@ def test_lebedev_returns_discrete_measure(order: int) -> None:
     assert m.nodes.shape[1] == 3  # (N, 3)
     assert m.weights.shape == (m.n_points,)
     assert m.space == SPACE_SPHERE
-    assert m.invariance_group == "Oh"
+    assert m.invariance_group == SubgroupOfO3.OctahedralOh
     assert m.degree_of_exactness == order
 
 
@@ -106,7 +107,7 @@ def test_level_symmetric_returns_measure_and_structure(sn_order: int) -> None:
     assert m.nodes.ndim == 2
     assert m.nodes.shape[1] == 3
     assert m.space == SPACE_SPHERE
-    assert m.invariance_group == "Oh"
+    assert m.invariance_group == SubgroupOfO3.OctahedralOh
     assert m.degree_of_exactness == sn_order - 1
 
     assert isinstance(s, LevelStructure)

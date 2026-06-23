@@ -30,6 +30,7 @@ import pytest
 
 from orpheus.numerics.measure import DiscreteMeasure, DiscreteMeasurePartition
 from orpheus.numerics.quadrature import lebedev_sphere
+from orpheus.numerics.symmetry import SubgroupOfO3
 
 
 @pytest.mark.l0
@@ -231,8 +232,8 @@ class TestPartitionDropsMetadata:
     """
 
     def test_metadata_dropped(self):
-        measure = lebedev_sphere(7).with_metadata(invariance_group="O_h")
-        assert measure.invariance_group == "O_h"
+        measure = lebedev_sphere(7).with_metadata(invariance_group=SubgroupOfO3.OctahedralOh)
+        assert measure.invariance_group == SubgroupOfO3.OctahedralOh
         assert measure.degree_of_exactness is not None
         parts = measure.partition_by(
             lambda nodes: np.sign(nodes).astype(int)
