@@ -1,6 +1,6 @@
 # Build the `Frame` + `Basis` ABC; unify projection/reconstruction as a discrete frame
 
-## §0. STATUS & cold-pickup — read FIRST (Phase C COMPLETE, 2026-06-23)
+## §0. STATUS & cold-pickup — read FIRST (Phase C + measure-completeness COMPLETE, 2026-06-23)
 
 **Branch** `refactor/operator-inverse-algebra` (NOT yet merged to main). **Reconcile against git
 first** (`git log --oneline -8`). Surgical, main-agent-direct, NO `method-implementer`. Canonical
@@ -21,6 +21,39 @@ with the CLI). NO `# type: ignore`.
   rename `ProjectionOperator`→`AnalysisOperator` (keep `ReconstructionOperator`/`GalerkinProjection`/
   `PetrovGalerkinProjection`); all consumers + 7 doc pages (archivist) + tests rewired;
   `test_projection_operators.py` retired (laws moved to `test_spherical_harmonic_space.py`).
+
+**Landed (committed): MEASURE-COMPLETENESS** (after Phase C; the user reviewed the Frame for naming +
+information-completeness, this is the agreed 4-phase result — plan `.claude/plans/reactive-moseying-cake.md`,
+now COMPLETE). `df700aa..d35003e`, pushed.
+- `b2ed887` **SH naming** — prose `order`→`degree` (Y_ℓ^m: ℓ=degree, m=order; ~8 docstrings were a
+  latent convention bug). **Param `L` kept** (highest-signal in both `ℓ≤L` and `P_L`). `angular_frame`
+  docstring tripwire: it names the permanent **axis**, so a 2nd angular basis is an `angular_frame(basis=…)`
+  *signature* change, NOT a rename.
+- `163b236` **typed `invariance_group`** — `DiscreteMeasure.invariance_group: SubgroupOfO3 | None`
+  (was `str|None`, set inconsistently); angular factories pass the typed singleton (`OctahedralOh`/`SO2`).
+  TYPE_CHECKING forward-ref (symmetry imports FROM measure → runtime import would cycle).
+- `fee5ff8` **the measure OWNS its space (symmetric domain/codomain)** — field `space`(str)→**`support`**
+  (the continuous σ-algebra tag: `"S^2"`/`"[-1,1]"`/`"spatial_R1"`/`"cells"`). New **`measure.space` →
+  `FunctionSpace`** (the induced discrete-L² DOMAIN, `(N,)`+weights metric), mirroring `basis.space`
+  (codomain). `Frame.measure_space` is now just `return self.measure.space` (ad-hoc fabrication gone).
+  Bit-identical (metric VALUE unchanged; only its source/name). ~37 `space=`→`support=` sites migrated.
+- `de11437` **`measure.phase` derived** — `Literal["angular","spatial","energy"]`, a phase-space FACTOR
+  (position×direction×energy), NOT a literal: **angular** iff `invariance_group is not None` (the
+  O(3)-subgroup symmetry IS the signature — Erlangen); **spatial** iff a `"spatial…"`/`"cells"` support;
+  else **raises** (energy + bare generic rules undetermined — a slab μ∈[-1,1] is geometrically
+  indistinguishable from a spatial interval, so the physical identity must be supplied). New
+  `tests/numerics/test_measure_phase.py` (11 foundation tests) pins the derivation + the per-category seam.
+- `d35003e` — pre-existing `:paramref:` Sphinx error in `mesh.py` (surfaced when the measure work
+  invalidated the doc cache) → plain ``origin`` literal. Sphinx `-W` clean.
+- **DURABLE RULING (user):** the three factors (angular/spatial/energy) are GENUINELY DIFFERENT objects
+  (compact O(3)-sphere vs unbounded energy half-line vs bounded mesh domain). The asymmetry IS the signal
+  to type them **per-category, minted as each is first Frame-bound** — NOT a premature uniform abstraction.
+  Angular is the worked instance (symmetry-derived); spatial/energy stay support-tag-recognised until bound.
+- **DEFERRED** (per type-vs-property / #263 / "mint per-category as bound"): typed per-category support
+  hierarchy (`AngularSupport`/`SpatialSupport`/`EnergySupport`); the energy measure + half-line support;
+  `SPACE_*`→`SUPPORT_*` const rename; a `Frame.__post_init__` phase-mismatch guard (needs `Basis.phase` +
+  a 2nd axis); the **Galerkin/PG discipline** field (mint at the 2nd genuinely-oblique frame — currently
+  `CAP_SOLVE`-decidable). These do NOT block Phase D.
 
 **OPEN follow-up flagged to user (NOT yet decided):** the 4 `projection.py` ABCs are now
 implementation-free (frame faces subclass `LinearOperatorMixin` directly). Either (a) make the frame
