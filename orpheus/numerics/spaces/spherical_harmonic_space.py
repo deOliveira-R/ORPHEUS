@@ -74,7 +74,7 @@ def _padded_metric_tensor(L: int, metric_per_ell: NDArray) -> NDArray:
     Parameters
     ----------
     L : int
-        Maximum harmonic order.
+        Maximum harmonic degree.
     metric_per_ell : NDArray, shape ``(L+1,)``
         The :math:`4\pi/(2\ell+1)` diagonal per :math:`\ell`. Sourced
         from :attr:`SphericalHarmonicBasis.metric_per_ell` so the formula
@@ -99,7 +99,7 @@ def _padded_metric_tensor(L: int, metric_per_ell: NDArray) -> NDArray:
 
 @dataclass(frozen=True)
 class SphericalHarmonicSpace(FunctionSpace):
-    r"""Function space of real-spherical-harmonic moment coefficients up to order :math:`L`.
+    r"""Function space of real-spherical-harmonic moment coefficients up to degree :math:`L`.
 
     Parameters
     ----------
@@ -115,7 +115,7 @@ class SphericalHarmonicSpace(FunctionSpace):
         the :math:`2\ell+1` valid slots, zero in the padding. Use
         :meth:`from_L` to construct this automatically.
     L : int, default 0
-        Maximum harmonic order retained. Must satisfy
+        Maximum harmonic degree retained. Must satisfy
         ``shape == (L + 1, 2 * L + 1)``.
 
     Notes
@@ -164,7 +164,7 @@ class SphericalHarmonicSpace(FunctionSpace):
 
     @classmethod
     def from_L(cls, L: int) -> "SphericalHarmonicSpace":
-        r"""Construct the canonical SH space for truncation order :math:`L`.
+        r"""Construct the canonical SH space for truncation degree :math:`L`.
 
         Builds the metric tensor from :class:`SphericalHarmonicBasis` so
         the :math:`(2\ell+1)` / :math:`4\pi/(2\ell+1)` formulas live in
@@ -173,7 +173,7 @@ class SphericalHarmonicSpace(FunctionSpace):
         Parameters
         ----------
         L : int
-            Maximum harmonic order. Must be non-negative.
+            Maximum harmonic degree. Must be non-negative.
 
         Returns
         -------

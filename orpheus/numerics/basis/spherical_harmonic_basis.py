@@ -1,4 +1,9 @@
-r"""Real spherical-harmonic basis on :math:`S^2` truncated at order :math:`L`.
+r"""Real spherical-harmonic basis on :math:`S^2` truncated at degree :math:`L`.
+
+Naming: for :math:`Y_\ell^m`, :math:`\ell` is the **degree** and :math:`m` the
+**order** — so the truncation parameter :math:`L` is the maximum *degree*, not
+the order. (The transport idiom "P_L scattering order" is a separate concept —
+there "order" qualifies the Legendre expansion, not the SH azimuthal index.)
 
 The canonical home of the :math:`Y_\ell^m` evaluator and of the Gram matrix
 :math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))` of ERR-039 fame. Pre-frame the
@@ -113,7 +118,7 @@ __all__ = ["SphericalHarmonicBasis"]
 
 @dataclass(frozen=True)
 class SphericalHarmonicBasis(Basis):
-    r"""Real spherical harmonics on :math:`S^2`, truncated at order :math:`L`.
+    r"""Real spherical harmonics on :math:`S^2`, truncated at degree :math:`L`.
 
     The first concrete :class:`~orpheus.numerics.basis.base.Basis` — the
     synthesis (trial) side of the spherical-harmonic frame. Implements the
@@ -125,13 +130,13 @@ class SphericalHarmonicBasis(Basis):
     Parameters
     ----------
     L : int
-        Maximum harmonic order retained. ``L == 0`` returns the :math:`P_0`
+        Maximum harmonic degree retained. ``L == 0`` returns the :math:`P_0`
         table only. Negative ``L`` is rejected.
 
     Notes
     -----
     Frozen dataclass — equality and hashing are by ``L`` alone (the basis
-    IS its truncation order; two ``SphericalHarmonicBasis(L=2)`` instances
+    IS its truncation degree; two ``SphericalHarmonicBasis(L=2)`` instances
     are the same basis).
 
     The basis carries the convention (the no-prefactor normalisation
@@ -336,7 +341,7 @@ class SphericalHarmonicBasis(Basis):
 
     @property
     def space(self) -> "SphericalHarmonicSpace":
-        r"""The :class:`SphericalHarmonicSpace` of order :math:`L` this basis spans.
+        r"""The :class:`SphericalHarmonicSpace` of degree :math:`L` this basis spans.
 
         Its Gram :math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))` (carried as
         ``inner_product_weights``) is the codomain metric the

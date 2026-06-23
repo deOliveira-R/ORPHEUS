@@ -415,9 +415,9 @@ class Quadrature:
         )
 
     def angular_frame(self, L: int) -> "Frame":
-        r"""The order-:math:`L` spherical-harmonic :class:`~orpheus.numerics.frame.Frame` on this quadrature.
+        r"""The degree-:math:`L` spherical-harmonic :class:`~orpheus.numerics.frame.Frame` on this quadrature.
 
-        Binds :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` (order
+        Binds :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` (degree
         :math:`L`) to this quadrature's :math:`S^2` measure: the ``(N, 3)``
         direction cosines (a slab's polar :math:`\mu` embeds as
         :math:`(\mu, 0, 0)` — the SAME column-stacked embedding
@@ -434,6 +434,16 @@ class Quadrature:
         :class:`~orpheus.sn.scattering.ScatteringOperator` — its §5.6 kernel
         AND the in-sweep moment accumulation share THIS object, so the
         projection table is never re-evaluated or allowed to diverge.
+
+        Naming tripwire: ``angular_frame`` names the quadrature's permanent
+        physical **axis** (the :math:`S^2` directions), NOT the contingent
+        spherical-harmonic basis — preserving the greppable
+        ``angular_frame``/``spatial_frame``/``energy_frame`` family. The
+        :class:`SphericalHarmonicBasis` hardcode is honest while the angular
+        axis has exactly one basis; a *second* angular basis (a Fourier /
+        Slepian angular expansion) parametrises the basis —
+        ``angular_frame(basis=...)``, a SIGNATURE change — and must NOT rename
+        the method.
         """
         from orpheus.numerics.frame import Frame
 
