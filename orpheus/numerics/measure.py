@@ -106,6 +106,15 @@ SPACE_INTERVAL_01 = "[0,1]"
 SPACE_CIRCLE = "[0,2π)"
 SPACE_SPHERE = "S^2"
 
+# The physical FACTOR of transport phase space (position × direction × energy)
+# a measure discretises. A closed enumeration — there are exactly these factors
+# (steady-state transport) — so :attr:`DiscreteMeasure.phase` is a derived
+# *category*, NOT an arbitrary string. The three factors are genuinely
+# different objects (a compact O(3)-sphere vs an unbounded energy half-line vs
+# a bounded mesh domain); each earns its own typed support as it is first
+# Frame-bound (the angular factor is the worked instance — see :attr:`phase`).
+Phase = Literal["angular", "spatial", "energy"]
+
 
 # ---------------------------------------------------------------------------
 # Core primitive
@@ -255,6 +264,52 @@ class DiscreteMeasure:
             name=f"L2[{self.support}]",
             shape=(self.n_points,),
             inner_product_weights=self.weights,
+        )
+
+    @property
+    def phase(self) -> Phase:
+        r"""Which factor of transport phase space this measure discretises.
+
+        Transport lives on phase space = position × direction × energy. A
+        measure always discretises exactly one factor; :attr:`phase` is *which*
+        — a derived **category**, read from the measure's structure rather than
+        a hand-set label (see :data:`Phase`).
+
+        Derivation, by category (symmetry-derived where the symmetry exists):
+
+        * **angular** — iff :attr:`invariance_group` is set. An angular
+          quadrature IS the measure invariant under a subgroup of :math:`O(3)`
+          (octahedral :math:`O_h` for Lebedev, axial :math:`SO(2)` for a
+          product/slab rule); that symmetry is *why* it integrates spherical
+          harmonics and *why* it is angular (Erlangen — the group fixes the
+          homogeneous space :math:`S^2`). This is the principled, worked
+          instance.
+        * **spatial** — iff :attr:`support` is a spatial tag
+          (``"spatial_…"`` / ``"cells"``). Spatial measures carry no
+          :math:`O(3)` symmetry (a mesh is not rotation-invariant); they are a
+          *different category* and will earn a typed spatial support when
+          spatial homogenisation first Frame-binds one.
+
+        Anything else raises — the **energy** factor (an unbounded positive
+        half-line, structurally unlike the compact angular sphere) and any
+        untagged generic rule have no determined phase yet. The asymmetry IS
+        the signal: each factor gets its own typed machinery as it is bound,
+        not a premature uniform abstraction (the user's design ruling). The
+        phase cannot be read off the bare nodes — a slab's :math:`\mu\in[-1,1]`
+        is geometrically indistinguishable from a 1-D spatial interval; the
+        physical identity is exactly what the symmetry group / support tag
+        supplies.
+        """
+        if self.invariance_group is not None:
+            return "angular"
+        if self.support.startswith("spatial") or self.support == "cells":
+            return "spatial"
+        raise NotImplementedError(
+            f"phase is undetermined for support {self.support!r}: only the "
+            f"angular factor (O(3)-symmetric, via invariance_group) and "
+            f"spatial measures (a 'spatial…'/'cells' support) carry a derived "
+            f"phase today. The energy factor and other generic rules get their "
+            f"typed per-category machinery when first Frame-bound."
         )
 
     # ------------------------------------------------------------------
