@@ -1,5 +1,11 @@
 # Typed-carrier operator carve — complete the (angular ⊗ moment) × (flux ⊗ source) grid
 
+> **⚠️ SUPERSEDED (2026-06-23) by `.claude/plans/frame_basis_carve.md`.** A deep
+> architecture discussion reframed this: the grid's friction was a *symptom* of the
+> numerics/transport partition + a missing `Frame` abstraction. The active carve builds a
+> generic `Frame` + `Basis` ABC (the discrete-frame `analysis`/`reconstruction` pair).
+> Retained for history only — do NOT execute this plan.
+
 > **APPROVED PLAN (user-approved 2026-06-22).** Cold-pickup-ready: a fresh
 > post-compaction session runs this end-to-end. Read §0 first, then the body.
 
