@@ -1,5 +1,15 @@
 # Operator-algebra carve — *inverse-as-operator* (grand-report alignment)
 
+> **⚠ SUPERSEDED IN PART (2026-06-22).** Phase 1 (the domain/codomain two-param
+> split) is now **Phase A of `.claude/plans/typed_carrier_grid_carve.md`**, where it
+> finally has a real consumer (the non-endomorphic projection/reconstruction edges of
+> the typed-carrier grid) — it is no longer speculative. The **foundation** (RC1
+> `block_role` + RC3 `_as_boundary`, originally implied here) **landed as `272caa9`**.
+> This plan's **Phases 2–5 (inverse-as-operator: `.inverse()` returns an operator,
+> `.solve`→`.inverse().apply`, retire `CAP_SOLVE`/`MissingCapability`) REMAIN the
+> follow-on**, built on the grid carve's Phase A. Do the grid carve FIRST, then resume
+> here from Phase 2.
+
 **A DETOUR from the #226 pyright burndown.** This is a deliberate architectural
 carve, motivated by elegance — NOT a compliance pass. The #226 B4 "reds" are the
 *symptom*; this plan fixes the *cause* and the reds clear as a consequence. There
