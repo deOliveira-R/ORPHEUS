@@ -182,8 +182,9 @@ coarse_xs = PetrovGalerkinFrame(EnergyGrid(coarse_groups).indicator_basis(),
   `fission.py:466` — Python's weak spot); (2) carrier-types the kernel end-to-end (`kernel.apply(AngularFlux)->
   AngularSourceSink` directly), **dissolving the P4 option-2 fused/explicit asymmetry** (both arms uniformly
   typed); (3) unifies S/F/L under one `Operator[Flux,SourceSink]` contract (the affine-map linear-part structure;
-  fission = rank-1 degenerate of scattering's `R∘Λ∘M` frame). Gating decision FIRST: PEP-696 defaults need Py≥3.13
-  or `typing_extensions` (floor is 3.11) — AskUserQuestion. Sub-phases a(numerics split foundation)/b(S/F/L honest
+  fission = rank-1 degenerate of scattering's `R∘Λ∘M` frame). Gating decision RESOLVED (user 2026-06-24): **raise
+  the floor to Py≥3.13** (`requires-python>=3.13` + pin pyright `pythonVersion=3.13`; native PEP-696, NO
+  `typing_extensions`). Sub-phases a(numerics split foundation)/b(S/F/L honest
   types + retire confessions)/c(carrier-typed kernel)/d(projection ABCs)/e(docs). pyright net DOWN is the
   DELIVERABLE (this IS the deferred #226 generic-Protocol cleanup). Runtime-zero (typing + carrier wraps);
   0-ULP canary the load-bearing gate. Proactive test-architect before b/c.

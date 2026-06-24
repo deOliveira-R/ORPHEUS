@@ -60,10 +60,12 @@ only in **Python ≥3.13**. Current state (explorer Map 0):
 - **(B) Add a `typing_extensions` dependency**, `from typing_extensions import TypeVar` (the back-port supports
   `default=` down to 3.11). Keeps the 3.11 floor; adds one dep. Lower-commitment, reversible.
 
-**RECOMMENDATION: (A) if the user is willing to commit ORPHEUS to Python ≥3.13** (the runtime is already 3.14,
-3.11/3.12 are near EOL for new scientific code, and native typing avoids a dep + an import-shim seam). Fall back
-to (B) if the 3.11 floor must hold. **This is the first AskUserQuestion of the implementation session** — it
-gates everything. Pin `pythonVersion` in `[tool.pyright]` either way so the CLI oracle matches the chosen floor.
+**DECISION — (A) RESOLVED 2026-06-24 (user): raise the floor to Python ≥3.13.** Native `typing.TypeVar(default=…)`,
+no `typing_extensions` dependency, no import shim. First implementation actions: set `pyproject.toml`
+`requires-python = ">=3.13"` AND pin `[tool.pyright] pythonVersion = "3.13"` (so the CLI oracle matches the new
+floor), in the SAME commit as the typevar additions (P4.5a). The runtime is already 3.14; this commits ORPHEUS to
+dropping 3.11/3.12 support — note it in the changelog / a `CHANGES` line if one exists. (Option B / `typing_extensions`
+is retired — do not use it.)
 
 (Aside: PEP-696 defaults also enable `W = TypeVar("W", default=V)` for the Mixin's codomain. Same gate.)
 
