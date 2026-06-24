@@ -6,7 +6,7 @@
 > discipline-as-property conclusion in `[[project-homogenization-condensation]]` / `[[project-frame-basis-carve]]`).
 >
 > **STATUS (2026-06-24): P1 LANDED `00f9b76` (Closes #268); P2 LANDED `cc6d022` (Refs #226);
-> P3 LANDED `79e2ac8` (Refs #226). NEXT = P4 (#49).**
+> P3 LANDED `79e2ac8` (Refs #226); P4 LANDED `74378d5`+`ed1e14d`+`83aaa8a` (Refs #226). NEXT = P5 (#50).**
 > The pyright ratchet is a GUIDE, not a gate, DURING the campaign — the faces/Λ `ndarray`-vs-`Vector`
 > generic-Protocol gap (the cast retirement exposed it; pre-existing) is #226, deferred to ONE
 > post-campaign pyright pass (user, 2026-06-24).
@@ -143,10 +143,31 @@ coarse_xs = PetrovGalerkinFrame(EnergyGrid(coarse_groups).indicator_basis(),
   baseline +51 passes; pyright +0; Sphinx -W clean (`discrete_ordinates.rst` homogenization section
   rewritten Galerkin→PG by archivist; retired wrong `sn-homogenization-galerkin-equals-petrov` label,
   preserved `sn-homogenization-rate-preservation`).
-- **P4 — typed-carrier-aware faces + carrier-grid completion.** `analyze`/`reconstruct`/`conjugate`
-  consume/emit typed `Field`s (no `.values` unwrap at call sites); mint the missing grid leaf
-  `HarmonicMomentSourceSink` + the `HarmonicMomentField → HarmonicMomentFlux` rename (typed_carrier_grid
-  B1). Gate: scattering 0-ULP; carrier-arithmetic Field gates green.
+- **P4 ✓ LANDED `74378d5`+`ed1e14d`+`83aaa8a` — carrier-grid completion + HarmonicFrame typed seam.**
+  Commit 1 (`74378d5`, P4a/b/c): renamed `HarmonicMomentField → HarmonicMomentFlux` (module too) +
+  retired the `orpheus.sn` shim (0 importers); minted **`HarmonicMomentSourceSink(MomentField)`** (bare
+  MomentField, no FluxRole — `source+source` CLOSED, `SCALAR_RATE_UNITS`); **lifted** the shared
+  moment-space machinery (`L`/`spatial_moments`, `_phase_space_shape`, `from_mesh_and_L`/`zeros_*`/
+  `from_ndarray`, `_check_partner`) onto `MomentField` (clean-before-extending, the 2nd-leaf trigger);
+  built **`HarmonicFrame(GalerkinFrame)`** in `orpheus/transport/frames/` — the typed seam (the casting
+  MUST be transport-side: carriers share `Field` in numerics but castability=`mesh`+`from_mesh` lives in
+  transport `BulkField`, numerics can't import carriers). Role-polymorphic `analyse`/`reconstruct`
+  (singledispatchmethod): AngularFlux↔HarmonicMomentFlux, AngularSourceSink↔HarmonicMomentSourceSink.
+  Generic numerics faces UNTOUCHED. Commit 2 (`ed1e14d`, option-2, USER-STEERED "explicit>implicit,
+  principled>bit-identical"): `scattering.frame`→HarmonicFrame; `Λ.apply(HarmonicMomentFlux)` is now the
+  explicit **role-changing edge** → returns `HarmonicMomentSourceSink` (the ndarray endomorphic arm — the
+  `R∘Λ∘M` kernel `OperatorProduct` view — unchanged; both route the single
+  `apply_legendre_scattering_moments` kernel); the windowed in-scatter arm = `frame.reconstruct(Λ.apply(φ))/W`
+  (explicit typed Λ-then-R, replacing fused `reconstruct_after(Λ)`) — gives the new leaf +
+  `HarmonicFrame.reconstruct` their FIRST production consumer. The hot `kernel = conjugate(Λ)` (full-angular
+  `build_aniso_source`) STAYS the fused composed op (P2's 0-ULP canary); `_aniso_source_from_moment_values`
+  (= `reconstruct_after(Λ)`) UNTOUCHED as the canary oracle. Commit 3 (`83aaa8a`, P4f docs, Archivist):
+  `operator_algebra.rst` carrier-grid diagram + HarmonicFrame layering rationale + explicit-vs-fused note.
+  GATES: 0-ULP crosscheck green; Phase-5a guard (windowed==AngularFlux arm) bit-identical; Λ test rewired
+  to source role; **Mode-11 sentinel** (windowed arm constructs HarmonicMomentSourceSink → typed edge
+  executes, no bypass); 178 scattering-unit + 782 solve/sweep/eigenvalue (incl 2G-het keff) + new-leaf
+  intrinsic + HarmonicFrame tests, 7-and-only-7 baseline; Sphinx -W clean; pyright deferred (#226).
+  **Two-param operator split NOT done (orthogonal, not needed) — confirmed.**
 - **P5 — energy condensation (greenfield).** Mint `EnergyGrid` + its `indicator_basis(coarse_groups)`
   (same `IndicatorBasis` class, energy axis) + the energy base-measure (bin-width/lethargy) +
   `EnergyGroupSpace`; `Solution.condense(grid) -> dict[int, Mixture]` as a `PetrovGalerkinFrame`
