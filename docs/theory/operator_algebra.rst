@@ -1653,6 +1653,225 @@ not a new reference.
    kernel (the kernel is the redistribution, not the quadrature
    weighting).
 
+.. _scattering-carrier-grid:
+
+The completed carrier grid — the four leaves and the three edges
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The :math:`R \circ \Lambda \circ M` kernel above reads cleanly as an
+:class:`~orpheus.numerics.operator.OperatorProduct` of three ``np.ndarray``
+maps, but each factor crosses between two **typed transport carriers** —
+the per-ordinate flux and its harmonic moments, in their flux and
+source/sink roles. The Frame campaign's P4 phase closed those carriers
+into a complete :math:`(\text{angular} \otimes \text{moment}) \times
+(\text{flux} \otimes \text{source})` grid: four leaf types and the three
+edges that map between them.
+
+.. math::
+   :label: scattering-carrier-grid
+
+   \begin{array}{ccc}
+     \texttt{AngularFlux}
+       & \xrightarrow{\;\;M\;\;}
+       & \texttt{HarmonicMomentFlux} \\[2pt]
+     & & \big\downarrow{\scriptstyle\;\Lambda} \\[2pt]
+     \texttt{AngularSourceSink}
+       & \xleftarrow{\;\;R\;\;}
+       & \texttt{HarmonicMomentSourceSink}
+   \end{array}
+
+.. (vv-status rationale) The carrier-grid layout: a named-field-typing
+   identity (which carrier type sits at each node, and the role/axis
+   semantics of each edge). Not a solver claim; the verifiable content is
+   the role/class-identity algebra of the four leaves (the foundation
+   tests ``tests/sn/primitives/test_typed_source_sinks.py`` ::
+   ``TestHarmonicMomentSourceSink`` and ``tests/transport/frames/
+   test_harmonic_frame.py``) and the 0-ULP equivalence of the typed and
+   ndarray scattering arms (``test_scattering_kernel_crosscheck.py``).
+.. vv-status: scattering-carrier-grid documented
+
+The **two vertical axes** of the grid are the representation (angular ↔
+moment) and the role (flux ↔ source). The four leaves and three edges:
+
+.. list-table:: The four carriers and the three edges of the scattering grid
+   :header-rows: 1
+   :widths: 22 30 48
+
+   * - Carrier / edge
+     - Type
+     - What it is
+   * - top-left leaf
+     - :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
+       (``FluxRole``)
+     - The per-ordinate flux :math:`\psi_n(\vec r, g)` — an affine flux
+       *state* (a point, not a vector; ``flux + flux`` is gated by the
+       :class:`~orpheus.transport.fields._flux_role.FluxRole` torsor).
+   * - top-right leaf
+     - :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
+       (``FluxRole``)
+     - The flux moments :math:`\phi_\ell^m(\vec r, g)` — the same flux
+       state in moment space (``(L+1, 2L+1, ng, *spatial)``). A
+       ``(FluxRole, MomentField)`` carrier; ``flux units`` =
+       :data:`~orpheus.numerics.units.SCALAR_FLUX_UNITS` (a moment is
+       angle-integrated, so the :math:`\ell=0` block **is** the scalar
+       flux exactly).
+   * - bottom-right leaf
+     - :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
+       (bare ``MomentField``)
+     - The **scattered in-scatter source** moments — the output of
+       :math:`\Lambda`. A *rate density*, so it adds vectorially
+       (``source + source`` is CLOSED, no affine gate);
+       :data:`~orpheus.numerics.units.SCALAR_RATE_UNITS`. The P4 leaf that
+       gave the flux→source role change a *home* (before it, the role
+       change leaked to the scattering consumer as a raw ``np.ndarray``).
+   * - bottom-left leaf
+     - :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+       (bare)
+     - The per-ordinate in-scatter source :math:`Q_n(\vec r, g)` the
+       sweep consumes — the bottom of the chain.
+   * - :math:`M` (left edge)
+     - :meth:`HarmonicFrame.analyse <orpheus.transport.frames.harmonic_frame.HarmonicFrame.analyse>`
+     - **Role-preserving, axis-changing.** Projects per-ordinate →
+       moment, flux→flux *and* source→source (the analysis face of the
+       Galerkin frame, the canonical pure-Galerkin :math:`\Pi`).
+   * - :math:`\Lambda` (right edge)
+     - :meth:`LegendreMomentScattering.apply <orpheus.sn.scattering.LegendreMomentScattering.apply>`
+     - **Role-changing, axis-preserving.** The *sole* role-changing edge:
+       the per-:math:`\ell` group-transfer :math:`\Sigma_{s,\ell}` maps a
+       :class:`HarmonicMomentFlux` to the
+       :class:`HarmonicMomentSourceSink` it emits — flux → source, both in
+       moment space.
+   * - :math:`R` (bottom edge)
+     - :meth:`HarmonicFrame.reconstruct <orpheus.transport.frames.harmonic_frame.HarmonicFrame.reconstruct>`
+     - **Role-preserving, axis-changing.** Reconstructs moment →
+       per-ordinate, flux→flux *and* source→source (the reconstruction
+       face; the addition-theorem :math:`R`, not the W-weighted adjoint of
+       :math:`M`).
+
+The kernel of the previous subsection is the composite of these three
+edges plus the producer-side normalisation,
+
+.. math::
+
+   S_{\rm aniso} \;=\; \tfrac{1}{W}\,(R \circ \Lambda \circ M)
+   \;:\; \texttt{AngularFlux} \longrightarrow \texttt{AngularSourceSink},
+
+a flux at the top-left mapped all the way round the grid to the source
+at the bottom-left. The role only ever changes **once**, at :math:`\Lambda`
+— that is the physical content of "scattering turns flux into source", now
+visible in the type signatures rather than buried inside an ndarray chain.
+The frame verbs are role-polymorphic by
+:func:`~functools.singledispatchmethod`, so the *same* :math:`M` and
+:math:`R` carry both the flux leg (top edge / bottom edge, flux side) and
+the source leg used by the windowed in-scatter migration below.
+
+The HarmonicFrame typed seam — and why it lives in transport, not numerics
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The casting between the generic ``np.ndarray`` frame faces and the typed
+:class:`Field` carriers is the load-bearing design decision of P4, and it
+is forced to live **one layer up from the frame itself**. The argument is
+a layering constraint, not a preference:
+
+* The generic angular spherical-harmonic frame is the numerics
+  :class:`~orpheus.numerics.frame.GalerkinFrame` built by
+  :meth:`~orpheus.numerics.quadrature.Quadrature.angular_frame` — its
+  :attr:`~orpheus.numerics.frame.FrameBase.analysis` /
+  :attr:`~orpheus.numerics.frame.FrameBase.reconstruction` faces are
+  **carrier-agnostic** ``np.ndarray → np.ndarray`` maps. This is by
+  design: the same generic faces are shared with the P3
+  indicator-homogenisation frame, and keeping them ndarray-valued is what
+  makes that sharing 0-ULP-safe.
+* The two carriers the angular frame maps between
+  (:class:`AngularFlux` ↔ :class:`HarmonicMomentFlux`, and their
+  source/sink siblings) share their *deepest* primitive,
+  :class:`~orpheus.numerics.field.Field`, in **numerics**.
+* But the part that makes them **castable** — the ``mesh`` binding plus
+  the ``from_mesh`` / ``from_mesh_and_L`` factories that build the typed
+  carrier from a raw array — lives in the transport
+  :class:`~orpheus.transport.fields._bases.BulkField` base, **above**
+  numerics. And :meth:`Quadrature.angular_frame <orpheus.numerics.quadrature.Quadrature.angular_frame>`
+  is in numerics, which *cannot* import the transport carriers without
+  inverting the layer order.
+
+So a generic numerics face **cannot** return a typed
+:class:`HarmonicMomentFlux`: the cast needs the transport-layer factories,
+and numerics is below transport. The clean home for the casting is
+therefore the transport layer, in
+:class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`:
+
+.. math::
+
+   \texttt{HarmonicFrame} \;\text{IS-A}\; \texttt{GalerkinFrame}
+   \qquad(\text{Liskov — the angular SH projection is the canonical
+   pure-Galerkin frame}),
+
+constructed from the generic frame's basis + measure via
+:meth:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame.from_galerkin`
+(``cls(frame.basis, frame.measure)`` — **zero** rebuild of the basis /
+measure / projection table, so the inherited ndarray faces and the §5.6
+:attr:`kernel <orpheus.sn.scattering.ScatteringOperator.kernel>` stay
+bit-identical), adding **only** the typed verbs
+:meth:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame.analyse`
+(:math:`M`) and
+:meth:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame.reconstruct`
+(:math:`R`). The generic numerics faces are untouched. This is the
+"shared primitive is :class:`Field` in numerics, but castability is
+:class:`BulkField` in transport, so the typed seam lives in transport"
+layering — the same reason a typed wrapper, not the generic frame, owns
+the carrier verbs.
+
+.. note::
+
+   The role-changing edge :math:`\Lambda` is deliberately **not** a frame
+   verb. A frame's faces are role-*preserving* changes of representation
+   (flux↔flux, source↔source); the flux→source role change is *physics*
+   (scattering emits a source), so it lives on the scattering operator
+   (:meth:`LegendreMomentScattering.apply <orpheus.sn.scattering.LegendreMomentScattering.apply>`),
+   where the cross sections are. Putting :math:`\Lambda` on the frame would
+   conflate "change of basis" with "change of physical kind".
+
+Explicit typed path vs the fused composed kernel — the windowed arm
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+P4 deliberately keeps **two** realisations of the same :math:`R\Lambda M`
+math, each chosen for what its consumer needs to see:
+
+* The hot **full-angular** path (:ref:`sn-angular-windowing-factoring`,
+  :meth:`~orpheus.sn.scattering.ScatteringOperator.build_aniso_source`)
+  consumes the §5.6 :attr:`kernel <orpheus.sn.scattering.ScatteringOperator.kernel>`
+  ``= frame.conjugate(Λ)`` — the **single composed** ``np.ndarray``
+  operator. This is P2's win and the 0-ULP canary: one composition, one
+  reduction tree, pinned bit-for-bit by
+  ``tests/sn/operators/test_scattering_kernel_crosscheck.py``. The role
+  change is *implicit* inside the ndarray chain; that is correct here,
+  because the consumer is a tight numerical loop that never names the
+  intermediate moment source.
+* The **windowed** in-scatter arm (the
+  :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
+  arm of
+  :meth:`ScatteringOperator.apply <orpheus.sn.scattering.ScatteringOperator.apply>`)
+  takes the **explicit typed** edges: :math:`\Lambda` scatters the flux
+  moments to a typed :class:`HarmonicMomentSourceSink` (the role-changing
+  edge made visible in the signature), then
+  :meth:`frame.reconstruct <orpheus.transport.frames.harmonic_frame.HarmonicFrame.reconstruct>`
+  reconstructs the per-ordinate :class:`AngularSourceSink`, then the
+  producer-side :math:`1/W`. The realisation is
+  ``frame.reconstruct(Λ.apply(φ)) / W`` — the explicit, role-typed
+  counterpart of the fused kernel.
+
+Both arms route through the *same* :math:`\Lambda` kernel and the *same*
+frame :math:`R` face, so they agree numerically. The choice is one of
+**legibility at the call site**, not of math: the windowed consumer holds
+the moments as a typed iterate and the explicit edges make the
+flux→source→angular role flow read off the signatures; the hot consumer
+holds a raw ndarray and the fused operator keeps the reduction tree single
+and the 0-ULP canary meaningful. The ndarray ``reconstruct_after(Λ)``
+reference
+(:meth:`~orpheus.sn.scattering.ScatteringOperator._aniso_source_from_moment_values`)
+is retained as the crosscheck's oracle — the structurally-independent
+``np.ndarray`` evaluation the typed arm is pinned against.
+
 Deferred relocation
 -------------------
 
@@ -6008,19 +6227,37 @@ where (reading right to left):
 
 The associativity :math:`(R\,\Lambda)\,M` is the whole trick. The
 **full-angular** path evaluates the composition as written —
-:math:`R\cdot\Lambda\cdot M(\psi)`: project, scatter, reconstruct. The
+:math:`R\cdot\Lambda\cdot M(\psi)`: project, scatter, reconstruct,
+consuming the §5.6 :attr:`kernel <orpheus.sn.scattering.ScatteringOperator.kernel>`
+``= frame.conjugate(Λ)`` as a single composed ``np.ndarray`` operator. The
 **windowed** path's iterate bulk **is** the moments :math:`\phi = M\psi`,
-so :math:`M` is *already done* and only the shared **moment → source**
-map :math:`R\,\Lambda` remains:
-:math:`R\cdot\Lambda(\phi)`. Both arms call the single
-:meth:`~orpheus.sn.scattering.ScatteringOperator._aniso_source_from_moment_values`
-primitive (``coding-elegance`` Pattern 2 — one reconstruction, one
-source of truth). The dispatch is on the iterate type: the
+so :math:`M` is *already done* and only the **moment → source** map
+:math:`R\,\Lambda` remains: :math:`R\cdot\Lambda(\phi)`. The dispatch is on
+the iterate type: the
 :class:`~orpheus.transport.fields.angular_flux.AngularFlux` arm of
 :meth:`ScatteringOperator.apply <orpheus.sn.scattering.ScatteringOperator.apply>`
 does the :math:`M` projection first; the
 :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
 arm skips it.
+
+.. note::
+
+   **P4 — the windowed arm now takes the explicit typed edges.** Earlier
+   the two arms shared the single ``np.ndarray`` primitive
+   :meth:`~orpheus.sn.scattering.ScatteringOperator._aniso_source_from_moment_values`
+   (``frame.reconstruct_after(Λ)``). The Frame campaign's P4 phase
+   re-expressed the windowed arm's :math:`R\,\Lambda` as the **explicit
+   typed** carrier path
+   ``frame.reconstruct(Λ.apply(φ)) / W`` — :math:`\Lambda` materialises a
+   typed :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
+   (the role-changing edge of the carrier grid,
+   :ref:`scattering-carrier-grid`), which the frame's :math:`R` face then
+   reconstructs to an :class:`AngularSourceSink`. It threads the *same*
+   :math:`\Lambda` kernel and the *same* frame :math:`R` face as the fused
+   path, so the two agree numerically; the ndarray
+   ``reconstruct_after(Λ)`` primitive is **retained as the 0-ULP
+   crosscheck oracle** the typed arm is pinned against, not deleted. See
+   :ref:`scattering-carrier-grid` for the explicit-vs-fused design choice.
 
 This factoring **retired** the per-:math:`\ell`
 ``_PerLegendreOrderScattering`` kernel, which recomputed :math:`M\psi`

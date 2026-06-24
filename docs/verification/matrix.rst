@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5713**
+Total tests collected: **5714**
 
 V&V level distribution
 ----------------------
@@ -20,7 +20,7 @@ V&V level distribution
    L1, 994, 17.4%
    L2, 36, 0.6%
    L3, 0, 0.0%
-   foundation, 3512, 61.5%
+   foundation, 3513, 61.5%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5624
+   explicit, 5625
    verify, 0
    class-name, 46
    func-name, 0
@@ -319,7 +319,7 @@ Module × level grid
    operators/test_pure_L_sigma_free, 0, 0, 0, 0, 9, 0
    operators/test_removal_form_matvec_sweep, 0, 0, 0, 0, 20, 0
    operators/test_scattering_kernel_crosscheck, 0, 0, 0, 0, 4, 0
-   operators/test_scattering_operator, 1, 0, 0, 0, 66, 0
+   operators/test_scattering_operator, 1, 0, 0, 0, 67, 0
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 21, 0
    operators/test_sn_boundary_realizer, 0, 20, 0, 0, 0, 0
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
@@ -772,7 +772,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **244** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **245** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -958,6 +958,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``real-sh-l1``
 - ``real-sh-l2plus``
 - ``scattering-as-tensor-product-sum``
+- ``scattering-carrier-grid``
 - ``sh-addition-theorem-reconstruction``
 - ``sh-space-metric``
 - ``si-within-group-fixed-point``
