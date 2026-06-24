@@ -1,0 +1,344 @@
+r"""Spatial homogenization gate — ``Solution.homogenize`` preserves rates.
+
+Homogenization collapses a fine SN solution's per-cell cross sections onto
+a coarse mesh by the flux·volume-weighted average
+
+.. math::
+
+    \Sigma_{R,g} = \frac{\sum_{i\in R} V_i\phi_{i,g}\Sigma_{i,g}}
+                        {\sum_{i\in R} V_i\phi_{i,g}},
+
+whose defining property is **reaction-rate preservation**:
+:math:`\Sigma_{R,g}\,\Phi_{R,g} = \sum_{i\in R} V_i\Sigma_{i,g}\phi_{i,g}`
+with :math:`\Phi_{R,g} = \sum_{i\in R} V_i\phi_{i,g}`.
+
+THE gate (L0 term verification) checks this identity against a
+**structurally-independent** reference: an explicit per-region Python loop
+over the fine cells (``vv-principles`` L11 — NOT a re-call of the
+production ``membership @ …`` matmul).  The matrix channels
+(:math:`\Sigma_{s,\ell}`, :math:`\Sigma_{2n}`, indexed ``[g_from, g_to]``)
+weight by the **source** group; a ``g_from``↔``g_to`` swap (vv Mode 2) is
+caught because the reference loop weights by ``g_from`` explicitly.
+Companion checks: every homogenized ``Mixture`` balances and its χ is a
+simplex; the effective Σ is bracketed by the region's fine extremes; and
+the identity / single-material controls pin the degenerate limits.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+import pytest
+
+from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.numerics.quadrature import Quadrature
+from orpheus.sn.solver import solve_sn
+
+pytestmark = [pytest.mark.l0, pytest.mark.cap("solve")]
+
+NG = 2
+_FINE_EDGES = np.linspace(0.0, 4.0, 9)            # 8 fine cells
+_MAT_IDS = np.array([0, 0, 0, 1, 1, 0, 1, 1])     # heterogeneous, interleaved
+
+
+def _balanced_fissile(sig_c, sig_f, nu, chi, sig_s, sig_s1=None):
+    """A balanced fissile Mixture: SigT = SigC + SigF + rowsum(SigS0)."""
+    sig_c = np.asarray(sig_c, float); sig_f = np.asarray(sig_f, float)
+    sig_s = np.asarray(sig_s, float)
+    sig_t = sig_c + sig_f + sig_s.sum(axis=1)
+    return make_mixture(
+        sig_t, sig_c, sig_f, np.asarray(nu, float), np.asarray(chi, float),
+        sig_s, sig_s1=None if sig_s1 is None else np.asarray(sig_s1, float),
+    )
+
+
+@pytest.fixture(scope="module")
+def materials():
+    m0 = _balanced_fissile(
+        [0.20, 0.30], [0.10, 0.20], [2.4, 2.4], [1.0, 0.0],
+        [[0.60, 0.10], [0.0, 0.90]], sig_s1=[[0.05, 0.0], [0.0, 0.08]],
+    )
+    m1 = _balanced_fissile(
+        [0.30, 0.40], [0.15, 0.25], [2.4, 2.4], [1.0, 0.0],
+        [[0.50, 0.05], [0.0, 0.85]], sig_s1=[[0.03, 0.0], [0.0, 0.06]],
+    )
+    m0.assert_balanced(); m1.assert_balanced()
+    return {0: m0, 1: m1}
+
+
+@pytest.fixture(scope="module")
+def solution(materials):
+    fine = Mesh1D(
+        edges=_FINE_EDGES, mat_ids=_MAT_IDS, coord=CoordSystem.CARTESIAN,
+        bc_left=BC("reflective"), bc_right=BC("reflective"),
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
+    return solve_sn(materials, fine, quad, scattering_order=0)
+
+
+def _coarse_two_region():
+    """Two coarse cells [0,2],[2,4], each mixing materials 0 and 1."""
+    return Mesh1D(
+        edges=np.array([0.0, 2.0, 4.0]), mat_ids=np.array([0, 1]),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("reflective"), bc_right=BC("reflective"),
+    )
+
+
+def _fine_region_indices(coarse_edges):
+    centers = 0.5 * (_FINE_EDGES[:-1] + _FINE_EDGES[1:])
+    cof = np.clip(
+        np.searchsorted(coarse_edges, centers, side="right") - 1,
+        0, coarse_edges.size - 2,
+    )
+    return [np.where(cof == R)[0] for R in range(coarse_edges.size - 1)]
+
+
+# ── THE gate: reaction-rate preservation ──────────────────────────────
+
+@pytest.mark.verifies("sn-homogenization-rate-preservation")
+def test_rate_preservation_vector_channels(solution, materials):
+    """Σ_{R,g}·Φ_{R,g} == Σ_{i∈R} V_i Σ_{i,g} φ_{i,g} for every vector channel."""
+    coarse = _coarse_two_region()
+    mm = solution.homogenize(coarse)
+    phi = solution.scalar_flux.values            # (ng, n_fine)
+    V = np.asarray(solution.mesh.volumes)        # (n_fine,)
+    regions = _fine_region_indices(coarse.edges)
+
+    for channel in ("SigT", "SigC", "SigL", "SigF", "SigP"):
+        for R, sel in enumerate(regions):
+            sig_eff = getattr(mm.materials[R], channel)       # (ng,)
+            for g in range(NG):
+                phi_R = float((V[sel] * phi[g, sel]).sum())    # region flux integral
+                rate_homog = sig_eff[g] * phi_R
+                rate_ref = float(sum(
+                    V[i] * phi[g, i] * getattr(materials[_MAT_IDS[i]], channel)[g]
+                    for i in sel
+                ))
+                assert rate_homog == pytest.approx(rate_ref, abs=1e-12, rel=1e-12), (
+                    f"{channel} rate not preserved in coarse {R}, group {g}"
+                )
+
+
+@pytest.mark.verifies("sn-homogenization-rate-preservation")
+def test_rate_preservation_scattering_and_n2n(solution, materials):
+    """Σ_{s,ℓ,R}[g',g]·Φ_{R,g'} == Σ_{i∈R} V_iφ_{i,g'} Σ_{s,ℓ,i}[g',g] (source-group
+    weighted) for every Legendre order AND the (n,2n) matrix — catches a
+    g_from↔g_to swap (vv Mode 2)."""
+    coarse = _coarse_two_region()
+    mm = solution.homogenize(coarse)
+    phi = solution.scalar_flux.values
+    V = np.asarray(solution.mesh.volumes)
+    regions = _fine_region_indices(coarse.edges)
+    n_leg = len(materials[0].SigS)
+
+    def fine_mat(i, order):
+        sig_s = materials[_MAT_IDS[i]].SigS
+        return np.asarray(sig_s[order].todense()) if order < len(sig_s) \
+            else np.zeros((NG, NG))
+
+    for order in range(n_leg):
+        for R, sel in enumerate(regions):
+            sig_eff = np.asarray(mm.materials[R].SigS[order].todense())  # (ng,ng)
+            for gf in range(NG):           # source group
+                phi_R = float((V[sel] * phi[gf, sel]).sum())
+                for gt in range(NG):       # sink group
+                    rate_homog = sig_eff[gf, gt] * phi_R
+                    rate_ref = float(sum(
+                        V[i] * phi[gf, i] * fine_mat(i, order)[gf, gt] for i in sel
+                    ))
+                    assert rate_homog == pytest.approx(rate_ref, abs=1e-12, rel=1e-12), (
+                        f"SigS[{order}][{gf},{gt}] rate not preserved in coarse {R}"
+                    )
+
+    # (n,2n) channel (all zero here, but the path + weighting must hold).
+    for R, sel in enumerate(regions):
+        sig2 = np.asarray(mm.materials[R].Sig2.todense())
+        np.testing.assert_allclose(sig2, 0.0, atol=1e-14)
+
+
+# ── Companion invariants ──────────────────────────────────────────────
+
+def test_homogenized_materials_balance(solution):
+    """Balance survives the collapse — every removal channel shares the weight."""
+    mm = solution.homogenize(_coarse_two_region())
+    for mix in mm.materials.values():
+        mix.assert_balanced(atol=1e-9)
+
+
+def test_homogenized_chi_is_simplex(solution):
+    """χ_R is a probability simplex (convex avg of producing simplices)."""
+    mm = solution.homogenize(_coarse_two_region())
+    for mix in mm.materials.values():
+        # producing region → sums to 1; the Mixture __post_init__ already
+        # enforced the simplex/null law, so a positive check suffices here.
+        assert mix.chi.sum() == pytest.approx(1.0, abs=1e-12)
+        assert np.all(mix.chi >= -1e-15)
+
+
+def test_effective_xs_bracketed_by_fine_extremes(solution, materials):
+    """Homogenized Σ_t is a flux·volume average → bracketed by the region's
+    fine-cell extremes (a physical sanity check independent of the rate gate)."""
+    coarse = _coarse_two_region()
+    mm = solution.homogenize(coarse)
+    for R, sel in enumerate(_fine_region_indices(coarse.edges)):
+        fine_sigt = np.array([materials[_MAT_IDS[i]].SigT for i in sel])  # (n_i, ng)
+        lo, hi = fine_sigt.min(axis=0), fine_sigt.max(axis=0)
+        eff = mm.materials[R].SigT
+        assert np.all(eff >= lo - 1e-12) and np.all(eff <= hi + 1e-12)
+
+
+# ── Degenerate-limit controls ─────────────────────────────────────────
+
+def test_identity_homogenization_recovers_per_cell_materials(solution, materials):
+    """Homogenize onto the SAME fine mesh → each coarse cell is one fine cell,
+    so the effective material equals that cell's original (avg over one cell)."""
+    same = Mesh1D(
+        edges=_FINE_EDGES, mat_ids=_MAT_IDS, coord=CoordSystem.CARTESIAN,
+        bc_left=BC("reflective"), bc_right=BC("reflective"),
+    )
+    mm = solution.homogenize(same)
+    for i in range(len(_MAT_IDS)):
+        orig = materials[_MAT_IDS[i]]
+        np.testing.assert_allclose(mm.materials[i].SigT, orig.SigT, atol=1e-12)
+        np.testing.assert_allclose(
+            np.asarray(mm.materials[i].SigS[0].todense()),
+            np.asarray(orig.SigS[0].todense()), atol=1e-12,
+        )
+
+
+def test_single_material_region_recovers_material(materials):
+    """A coarse cell containing only material m homogenizes to m (flux cancels)."""
+    # Uniform single-material fine mesh → any coarse partition gives m back.
+    fine = Mesh1D(
+        edges=np.linspace(0.0, 3.0, 7), mat_ids=np.zeros(6, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("reflective"), bc_right=BC("reflective"),
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
+    sol = solve_sn({0: materials[0]}, fine, quad, scattering_order=0)
+    mm = sol.homogenize(Mesh1D(
+        edges=np.array([0.0, 1.5, 3.0]), mat_ids=np.array([0, 1]),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("reflective"), bc_right=BC("reflective"),
+    ))
+    for mix in mm.materials.values():
+        np.testing.assert_allclose(mix.SigT, materials[0].SigT, atol=1e-12)
+
+
+# ── Guard ─────────────────────────────────────────────────────────────
+
+def test_outer_boundary_mismatch_raises(solution):
+    bad = Mesh1D(
+        edges=np.array([0.0, 2.0, 3.5]),  # outer 3.5 ≠ fine outer 4.0
+        mat_ids=np.array([0, 1]), coord=CoordSystem.CARTESIAN,
+        bc_left=BC("reflective"), bc_right=BC("reflective"),
+    )
+    with pytest.raises(ValueError, match="outer boundary"):
+        solution.homogenize(bad)
+
+
+# ── Derived-measure discriminator: φV-weighted, NOT dV (volume-only) ───
+
+def test_homogenization_is_flux_weighted_not_volume_weighted(materials):
+    """DISTINGUISH the φV measure from a dV (volume-only) average — the
+    load-bearing guard on the L²(φV) derivation.  A coarse region spanning a
+    strong flux gradient (vacuum→reflective) over two materials of different
+    Σ_t makes the φV-weighted effective Σ_t and the dV-weighted one numerically
+    distinct; production MUST equal the φV one.  Reds a regression that drops φ
+    from the weight (volume-only averaging)."""
+    fine = Mesh1D(
+        edges=np.linspace(0.0, 2.0, 5), mat_ids=np.array([0, 0, 1, 1]),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"), bc_right=BC("reflective"),   # strong flux tilt
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
+    sol = solve_sn(materials, fine, quad, scattering_order=0)
+    coarse = Mesh1D(
+        edges=np.array([0.0, 2.0]), mat_ids=np.array([0]),   # ONE region
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"), bc_right=BC("reflective"),
+    )
+    mm = sol.homogenize(coarse)
+
+    phi = sol.scalar_flux.values                 # (ng, n_fine)
+    V = np.asarray(sol.mesh.volumes)
+    sigt_fine = np.array([materials[m].SigT for m in fine.mat_ids])  # (n_fine, ng)
+
+    discriminated = False
+    for g in range(NG):
+        w_fluxvol = V * phi[g]
+        sig_phi = (w_fluxvol * sigt_fine[:, g]).sum() / w_fluxvol.sum()  # φV
+        sig_vol = (V * sigt_fine[:, g]).sum() / V.sum()                  # dV (WRONG)
+        eff = mm.materials[0].SigT[g]
+        np.testing.assert_allclose(
+            eff, sig_phi, rtol=1e-12,
+            err_msg=f"g={g}: eff={eff} != φV-weighted {sig_phi}",
+        )
+        if abs(sig_phi - sig_vol) > 1e-3:        # this group discriminates
+            discriminated = True
+            assert abs(eff - sig_vol) > 1e-4, (
+                f"g={g}: production matched the dV (volume-only) average!"
+            )
+    assert discriminated, (
+        "fixture too flat: φ does not vary enough within the region to "
+        "distinguish φV- from dV-weighting"
+    )
+
+
+def test_chi_is_production_weighted(solution, materials):
+    """χ_R is the PRODUCTION-weighted convex average (weight
+    p_i = Σ_g νΣ_{f,i,g} φ_{i,g} V_i), not flux- or volume-weighted —
+    ``test_homogenized_chi_is_simplex`` is blind to the weight (any convex
+    weight sums to 1)."""
+    coarse = _coarse_two_region()
+    mm = solution.homogenize(coarse)
+    phi = solution.scalar_flux.values
+    V = np.asarray(solution.mesh.volumes)
+    for R, sel in enumerate(_fine_region_indices(coarse.edges)):
+        production = np.array([
+            float((materials[_MAT_IDS[i]].SigP * phi[:, i]).sum() * V[i])
+            for i in sel
+        ])
+        chi_fine = np.array([materials[_MAT_IDS[i]].chi for i in sel])
+        chi_ref = (production[:, None] * chi_fine).sum(axis=0) / production.sum()
+        np.testing.assert_allclose(mm.materials[R].chi, chi_ref, rtol=1e-12)
+
+
+# ── Mode-11: the new readers are actually on the gate's call graph ────
+
+def test_homogenize_routes_through_the_indicator_frame(solution, monkeypatch):
+    """Mode-11 sentinel: confirm ``homogenize`` ACTUALLY calls
+    ``IndicatorBasis.evaluate`` + ``.analyze`` and
+    ``FunctionSpace.apply_inverse_metric``.  A green rate gate is vacuous for
+    the Frame-carve's claim unless these new production readers are on its
+    call graph (a buggy refactor could recompute membership inline)."""
+    from orpheus.numerics.basis.indicator_basis import IndicatorBasis
+    from orpheus.numerics.space import FunctionSpace
+
+    counts = {"evaluate": 0, "analyze": 0, "inverse_metric": 0}
+
+    def _counting(name, fn):
+        def wrapped(*args, **kwargs):
+            counts[name] += 1
+            return fn(*args, **kwargs)
+        return wrapped
+
+    monkeypatch.setattr(
+        IndicatorBasis, "evaluate", _counting("evaluate", IndicatorBasis.evaluate),
+    )
+    monkeypatch.setattr(
+        IndicatorBasis, "analyze", _counting("analyze", IndicatorBasis.analyze),
+    )
+    monkeypatch.setattr(
+        FunctionSpace, "apply_inverse_metric",
+        _counting("inverse_metric", FunctionSpace.apply_inverse_metric),
+    )
+
+    solution.homogenize(_coarse_two_region())
+
+    assert counts["evaluate"] > 0, "homogenize did NOT call IndicatorBasis.evaluate"
+    assert counts["analyze"] > 0, "homogenize did NOT route through the analysis face"
+    assert counts["inverse_metric"] > 0, (
+        "homogenize did NOT normalise via apply_inverse_metric"
+    )

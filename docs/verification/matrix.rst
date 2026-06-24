@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5624**
+Total tests collected: **5657**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1149, 20.4%
-   L1, 994, 17.7%
+   L0, 1160, 20.5%
+   L1, 994, 17.6%
    L2, 36, 0.6%
    L3, 0, 0.0%
-   foundation, 3435, 61.1%
+   foundation, 3457, 61.1%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5535
+   explicit, 5568
    verify, 0
    class-name, 46
    func-name, 0
@@ -271,6 +271,7 @@ Module × level grid
    numerics/test_frame, 0, 0, 0, 0, 8, 0
    numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
    numerics/test_incoming_ordinate_mask_tensor, 13, 0, 0, 0, 0, 0
+   numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_iteration, 0, 1, 0, 0, 17, 0
    numerics/test_measure, 0, 16, 0, 0, 32, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
@@ -342,6 +343,7 @@ Module × level grid
    residuals/test_typed_residuals, 0, 0, 0, 0, 33, 0
    slab/test_dd_recurrence, 1, 0, 0, 0, 0, 0
    slab/test_unified_matvec_slab, 2, 2, 0, 0, 0, 0
+   sn/test_homogenization, 11, 0, 0, 0, 0, 0
    sn/test_material_xs_field_typed, 0, 0, 0, 0, 10, 0
    solve/test_2d_anisotropic_windowing, 0, 4, 0, 0, 0, 0
    solve/test_affine_carve_bit_identity, 0, 0, 0, 0, 3, 0
@@ -365,7 +367,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 284, 0
+   test_layer_imports, 0, 0, 0, 0, 287, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -373,6 +375,7 @@ Module × level grid
    transport/test_full_field, 0, 0, 0, 0, 13, 0
    transport/test_functional_category, 0, 0, 0, 0, 11, 0
    transport/test_integral_kernel_category, 0, 0, 0, 0, 13, 0
+   transport/test_material_mesh, 0, 0, 0, 0, 8, 0
    transport/test_multiplication_operator, 0, 0, 0, 0, 11, 0
    transport/test_production_rate_functional, 0, 0, 0, 0, 6, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0
@@ -589,6 +592,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-case-real-basis``, 2
    ``sn-case-slope-matrix``, 2
    ``sn-case-spatial-modes``, 2
+   ``sn-homogenization-rate-preservation``, 2
    ``sn-mms-2d-2g-psi``, 2
    ``sn-mms-cylindrical-aniso-psi``, 2
    ``sn-mms-cylindrical-aniso-qext``, 2
@@ -765,7 +769,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **229** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **242** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -960,6 +964,19 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-err-058-coupled-pole-continuity``
 - ``sn-err-058-edge-extrapolation``
 - ``sn-err-058-proxy-source``
+- ``sn-homogenization-balance``
+- ``sn-homogenization-chi-collapse``
+- ``sn-homogenization-coarse-space``
+- ``sn-homogenization-fine-rate``
+- ``sn-homogenization-frame-projector``
+- ``sn-homogenization-galerkin-equals-petrov``
+- ``sn-homogenization-matrix-collapse``
+- ``sn-homogenization-normal-equations``
+- ``sn-homogenization-production-weight``
+- ``sn-homogenization-radon-nikodym``
+- ``sn-homogenization-region-flux``
+- ``sn-homogenization-scatter-rate``
+- ``sn-homogenization-vector-collapse``
 - ``sn-mms-nonvacuum-psi``
 - ``sn-mms-nonvacuum-sph-psi``
 - ``solve-does-not-distribute``

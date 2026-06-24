@@ -39,6 +39,38 @@ reconstruction operator class per method.
    :depth: 2
 
 
+.. warning:: **Superseded framing (2026-06-23, Issue #268).** This page
+   names spatial homogenisation and energy condensation as the future
+   **Petrov-Galerkin** instances (the consumer table, the
+   "Petrov-Galerkin pairs" table, and
+   ``class EnergyCondensation(PetrovGalerkinProjection)``). The spatial-
+   homogenisation carve (``refactor/operator-inverse-algebra``) **derived
+   that both are Galerkin in their natural weighted metric**, not
+   Petrov-Galerkin: homogenisation is the :math:`L^2(\phi V)`-orthogonal
+   projection and condensation is the :math:`L^2(\text{spectrum})`-
+   orthogonal projection. The "oblique-dual / Petrov-Galerkin" reading is
+   an artifact of insisting on the *unweighted* :math:`\mu_V` metric — in
+   the native flux·volume (resp. spectrum) metric the test and trial
+   spaces are the **same** indicator span and the projection is
+   orthogonal. The two readings are the same map (the flux multiplier can
+   live in the test function *or* in the measure); the discrete
+   :class:`~orpheus.numerics.frame.Frame` reads the weighting off the
+   **measure**, so it sees the Galerkin case.
+
+   Consequence:
+   :class:`~orpheus.numerics.projection.PetrovGalerkinProjection` has
+   **no concrete instance**, and the Galerkin/Petrov-Galerkin *type*
+   distinction collapses to a derived **property** of the frame
+   (``measure == basis.canonical_measure``), not a class hierarchy. See
+   the worked derivation in :ref:`sn-homogenization-galerkin-frame`
+   (the first concrete instance proving spatial homogenisation is
+   :math:`L^2(\phi V)`-Galerkin). The full reframe of this page plus the
+   retirement of the ``GalerkinProjection`` / ``PetrovGalerkinProjection``
+   ABCs is tracked under **Issue #268** — this note flags the page's own
+   staleness; the prose below is **not yet rewritten** and should be read
+   through this correction.
+
+
 Key Facts
 =========
 
