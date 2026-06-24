@@ -5,7 +5,8 @@
 > `[[project-frame-projection-machinery]]` (the load-bearing rulings — read it FIRST; it OVERRIDES the
 > discipline-as-property conclusion in `[[project-homogenization-condensation]]` / `[[project-frame-basis-carve]]`).
 >
-> **STATUS (2026-06-24): P1 LANDED `00f9b76` (Closes #268); P2 LANDED `cc6d022` (Refs #226). NEXT = P3 (#48).**
+> **STATUS (2026-06-24): P1 LANDED `00f9b76` (Closes #268); P2 LANDED `cc6d022` (Refs #226);
+> P3 LANDED `79e2ac8` (Refs #226). NEXT = P4 (#49).**
 > The pyright ratchet is a GUIDE, not a gate, DURING the campaign — the faces/Λ `ndarray`-vs-`Vector`
 > generic-Protocol gap (the cast retirement exposed it; pre-existing) is #226, deferred to ONE
 > post-campaign pyright pass (user, 2026-06-24).
@@ -121,12 +122,27 @@ coarse_xs = PetrovGalerkinFrame(EnergyGrid(coarse_groups).indicator_basis(),
   call the conjugation (retire `build_aniso_source`/`_aniso_source_from_moment_values` hand-chains; the
   windowed arm uses `reconstruct_after`). The 0-ULP `test_scattering_kernel_crosscheck` flips from
   twin-guard to **definition**. Gate: 0-ULP canary; sn/operators+solve+sweep green.
-- **P3 — `project` verb + re-frame homogenization as PG (honest test side).** Build `frame.project`;
-  add `MaterialXSField.project_through(frame)` (project the XS field as ONE object — retire the
-  per-channel gather/reassemble). Re-express `Solution.homogenize` as a `PetrovGalerkinFrame` with
-  `test = flux·indicator` (flux OUT of the metric, INTO the test) — **bit-identical numbers** to the
-  landed forward impl, honest framing. Make it **n-D** (drop the 1-D guard; the IndicatorBasis +
-  volume_measure are already n-D). Gate: the existing rate-preservation gate + mutation probes UNCHANGED.
+- **P3 ✓ LANDED `79e2ac8` — `project` verb + re-frame homogenization as PG (honest test side).**
+  `FrameBase.project(f)=G⁻¹Mf` + cached `frame.gram` (diagonal cross-Gram `G_R=(M∘R)(𝟙)=∫_R w dV` on the
+  coefficient space; `apply_inverse_metric` Moore–Penrose zeroes empty regions). Minted
+  `WeightedIndicatorBasis` (the PG test side: wraps trial indicator + nodal weight, folds it into
+  `analyze` via a **leading-aligned broadcast** → source-group weighting for matrices; `evaluate`→plain
+  membership; synthesis side RAISES = test-only, never half-consistent).
+  `MaterialXSField.project_through(sigma_frame, emission_frame)` projects the XS field as ONE object —
+  the field owns the channel→weighting taxonomy, routing Σ (reaction rate) → `sigma_frame`, χ (emission
+  rate, production-weighted `p=Σ_g νΣ_f φ_g`) → `emission_frame`. **TWO conserved functionals ⟹ TWO PG
+  frames** (the user-chosen design; flux-vs-emission); inline `_gather_*`/`_collapse_*` retired.
+  `Solution.homogenize` re-expressed + made **n-D** (1-D guard dropped): `Mesh1D`/`Mesh2D` each gained
+  polymorphic `indicator_basis()` + `with_distinct_cell_ids()` (no Mesh1D/Mesh2D reconstruction
+  dispatch — the user-preferred clean primitive over isinstance). GATES: 1-D **bit-identical**
+  (homogenization gate 11/11 unchanged numbers); 2-D rate preservation **2.8e-17** through a real
+  `solve_sn`; **Mode-11 sentinel re-pointed** to `WeightedIndicatorBasis.analyze`+`FrameBase.project`
+  (teeth CONFIRMED — the old Galerkin metric-fold gives identical numbers yet never constructs the
+  weighted test ⟹ value gates blind, only the sentinel reds); new project-verb cross-Gram + Π*≠R
+  discriminator + `test_weighted_indicator_basis.py` intrinsic tests; broad numerics+sn 7-and-only-7
+  baseline +51 passes; pyright +0; Sphinx -W clean (`discrete_ordinates.rst` homogenization section
+  rewritten Galerkin→PG by archivist; retired wrong `sn-homogenization-galerkin-equals-petrov` label,
+  preserved `sn-homogenization-rate-preservation`).
 - **P4 — typed-carrier-aware faces + carrier-grid completion.** `analyze`/`reconstruct`/`conjugate`
   consume/emit typed `Field`s (no `.values` unwrap at call sites); mint the missing grid leaf
   `HarmonicMomentSourceSink` + the `HarmonicMomentField → HarmonicMomentFlux` rename (typed_carrier_grid
