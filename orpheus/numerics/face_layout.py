@@ -57,12 +57,12 @@ __all__ = ["AXIS_NAMES", "FaceSlot", "FaceLayout"]
 #: space, :attr:`SNMesh.bc <orpheus.sn.geometry.SNMesh.bc>`, and the
 #: sweep schedule all key on. No consumer hand-lists ``("x", ...),
 #: ("y", ...)`` pairs — every face-name derivation
-#: (:attr:`FaceLabel.face_name <orpheus.sn.axis.FaceLabel.face_name>`,
+#: (:attr:`FaceLabel.face_name <orpheus.transport.mesh.axis.FaceLabel.face_name>`,
 #: the walk's in/outflow faces, the schedule's outgoing faces, the
 #: trace's outward-normal table) renders through this tuple. Lives
 #: here, at the bottom of the dependency graph next to
 #: :class:`FaceLayout` (the keeper of the face-name string world);
-#: :mod:`orpheus.sn.axis` imports it upward (moved from there in C5.3,
+#: :mod:`orpheus.transport.mesh.axis` imports it upward (moved from there in C5.3,
 #: #225, so the geometry-blind trace space could share it without an
 #: sn-ward import).
 AXIS_NAMES = ("x", "y", "z")

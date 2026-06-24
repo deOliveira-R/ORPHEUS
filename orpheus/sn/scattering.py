@@ -184,7 +184,7 @@ from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
 
 if TYPE_CHECKING:
     from .geometry import SNMesh
-    from .material_xs_field import MaterialXSField
+    from orpheus.transport.mesh.material_xs_field import MaterialXSField
     from orpheus.numerics.quadrature import Quadrature
 
 

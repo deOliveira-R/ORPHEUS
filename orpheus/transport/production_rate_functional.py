@@ -111,7 +111,7 @@ class ProductionRateFunctional:
         The production cross section :math:`\nu\Sigma_f` (units ``1/cm``),
         a per-group per-cell coefficient field. Obtain it from the typed
         accessor
-        :meth:`orpheus.sn.material_xs_field.MaterialXSField.fission_production_field`.
+        :meth:`orpheus.transport.mesh.material_xs_field.MaterialXSField.fission_production_field`.
         Its ``.values`` is the ``(ng, *spatial)`` array contracted against
         the flux over the leading (group) axis.
     """

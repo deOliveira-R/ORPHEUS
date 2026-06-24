@@ -94,7 +94,16 @@ from orpheus.transport.fields.cross_section_field import CrossSectionField
 
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
-    from .geometry import SNMesh
+    # The ``mesh`` field is typed against ``SNMesh`` under TYPE_CHECKING
+    # only (an L2-field / L3-mesh annotation, layer-legal — the runtime
+    # never imports sn). MaterialXSField in fact reads only
+    # ``MaterialMesh`` data (``materials`` / ``mat_map`` / ``ng`` /
+    # ``spatial_shape``); retyping the whole typed-field hierarchy's
+    # ``mesh`` annotation from ``SNMesh`` to ``MaterialMesh`` (splitting
+    # the bulk-data ``ScalarField`` branch from the quad/trace-dependent
+    # ``AngularField`` / ``BoundaryField`` branches) is a separate L2
+    # follow-up — see issue #267.
+    from orpheus.sn.geometry import SNMesh
 
 
 __all__ = ["MaterialXSField"]
@@ -174,9 +183,12 @@ class MaterialXSField:
         """Build the XS field directly from the mesh's authoritative materials.
 
         Standard constructor — the materials dict already lives on the
-        mesh (Issue #197 PR-TYPED-0).  This factory exists so callers
-        can write ``MaterialXSField.from_mesh(sn_mesh)`` without having
-        to re-name ``sn_mesh.materials``.
+        mesh (Issue #197 PR-TYPED-0).  Reads only
+        :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` data
+        (``mesh.materials`` / ``mesh.mat_map`` / ``mesh.ng`` /
+        ``mesh.spatial_shape``), so it accepts any ``MaterialMesh`` or
+        subclass (``SNMesh``); the parameter is typed ``SNMesh`` only
+        pending the typed-field ``mesh`` retype (see module note).
         """
         return cls(materials=mesh.materials, mesh=mesh)
 

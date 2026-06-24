@@ -1173,7 +1173,7 @@ After §5.7,
 :class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`
 stores **only** a :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
 (the cone-typed coefficient of #257 S1), sourced through the typed
-:meth:`~orpheus.sn.material_xs_field.MaterialXSField.total_cross_section_field`
+:meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.total_cross_section_field`
 accessor (#257 S2). The operator's *identity* is its coefficient field;
 the action follows from the embedding. The named SN leaf
 :class:`~orpheus.sn.operator.CollisionOperator` is now a **thin
@@ -1407,7 +1407,7 @@ silently double-count it the moment a second consumer integrated again.
 The coefficient side is the cone-typed
 :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
 (#257 S1) carrying :math:`\nu\Sigma_f` through the typed
-:meth:`~orpheus.sn.material_xs_field.MaterialXSField.fission_production_field`
+:meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.fission_production_field`
 accessor (#257 S2).
 
 Byte-identity to the rank-1 ``inner`` (the S6 de-risk)

@@ -53,7 +53,7 @@ from .operator import (
 )
 from orpheus.numerics.quadrature import Quadrature
 from .scattering import ScatteringOperator
-from .axis import Axis1D
+from orpheus.transport.mesh.axis import Axis1D
 from .loss_representation import transport_sweep
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -72,8 +72,8 @@ def _apply_default_bcs(
     C5.5 (#225): handles BOTH entry-surface geometry declarations — a
     legacy :class:`Mesh1D` / :class:`Mesh2D` (per-face dataclass
     fields) and an axis tuple (per-endpoint ``bc`` slots on each
-    :class:`~orpheus.sn.axis.AxisMesh` /
-    :class:`~orpheus.sn.axis.RadialAxisMesh`). The all-or-nothing
+    :class:`~orpheus.transport.mesh.axis.AxisMesh` /
+    :class:`~orpheus.transport.mesh.axis.RadialAxisMesh`). The all-or-nothing
     semantics are identical on both representations.
     """
     bc = BC(boundary_condition)
@@ -89,7 +89,7 @@ def _apply_default_bcs(
     axes = tuple(geometry)
     if any(b is not None for ax in axes for b in ax.bc.values()):
         return axes
-    from .axis import RadialAxisMesh
+    from orpheus.transport.mesh.axis import RadialAxisMesh
     return tuple(
         replace(ax, bc_outer=bc) if isinstance(ax, RadialAxisMesh)
         else replace(ax, bc_low=bc, bc_high=bc)

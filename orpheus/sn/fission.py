@@ -138,7 +138,7 @@ from orpheus.transport.source_sinks import ScalarSourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 
 if TYPE_CHECKING:
-    from .material_xs_field import MaterialXSField
+    from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 
 __all__ = ["FissionOperator"]
@@ -272,7 +272,7 @@ class FissionOperator(LinearOperatorMixin):
         :class:`~orpheus.transport.production_rate_functional.ProductionRateFunctional`
         over this operator's production cross section
         :math:`\nu\Sigma_f` (read through the S2 typed accessor
-        :meth:`~orpheus.sn.material_xs_field.MaterialXSField.fission_production_field`).
+        :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.fission_production_field`).
         It contracts the group axis of a flux to the per-cell fission
         emission density
 

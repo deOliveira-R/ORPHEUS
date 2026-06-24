@@ -2315,7 +2315,7 @@ the same ``(axis, endpoint) → "{axis}{min|max}"`` knowledge, and a
 fourth hand-list mapped a face name back to a reflection axis. C4
 (part of the N-D layout campaign, Issue #220) collapses all four to
 **one crosswalk function and one dict-comprehension loop**, keyed by
-the same :class:`~orpheus.sn.axis.FaceLabel` inventory the trace
+the same :class:`~orpheus.transport.mesh.axis.FaceLabel` inventory the trace
 layout already derives from.
 
 This is the storage-layer counterpart of the realizer unification
@@ -2389,24 +2389,24 @@ single-sourced rendering on the structural face key:
                raise ValueError(...)
            return f"{AXIS_NAMES[self.axis_index]}{suffix}"
 
-:attr:`FaceLabel.face_name <orpheus.sn.axis.FaceLabel.face_name>`
+:attr:`FaceLabel.face_name <orpheus.transport.mesh.axis.FaceLabel.face_name>`
 is THE rendering of the structural identity ``(axis_index,
 endpoint)`` into the ``"{axis}{min|max}"`` string world. Both
 producers — :attr:`SNMesh.boundary_face_layout` and
 :meth:`SNMesh._resolve_bcs` — call it, so a key drift between the
 face layout and the BC dict is **unrepresentable by construction**:
 they cannot disagree because they read the same function over the
-same :func:`~orpheus.sn.axis.face_labels` inventory.
+same :func:`~orpheus.transport.mesh.axis.face_labels` inventory.
 
 .. note::
 
    ``AXIS_NAMES`` moved **down** from
-   :mod:`orpheus.sn.sweep_graph` to :mod:`orpheus.sn.axis` in C4 —
+   :mod:`orpheus.sn.sweep_graph` to :mod:`orpheus.transport.mesh.axis` in C4 —
    to the bottom of the SN dependency graph, next to the axis
    primitives it names. ``sweep_graph`` re-exported it only outward;
    ``sweep_schedule`` and ``loss_representation`` now import it
    downward. This puts the single source of the axis↔name crosswalk
-   in the same module as :class:`~orpheus.sn.axis.FaceLabel`, the
+   in the same module as :class:`~orpheus.transport.mesh.axis.FaceLabel`, the
    walk's in/outflow-face derivation, and the schedule's
    outgoing-face derivation — no consumer hand-lists
    ``("x", ...), ("y", ...)`` pairs any longer.
@@ -2414,7 +2414,7 @@ same :func:`~orpheus.sn.axis.face_labels` inventory.
 The ``"outer" → "max"`` convention and fail-loud
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A solid sphere or cylinder is a :class:`~orpheus.sn.axis.RadialAxisMesh`
+A solid sphere or cylinder is a :class:`~orpheus.transport.mesh.axis.RadialAxisMesh`
 with a single ``"outer"`` endpoint (the pole at :math:`r=0` is
 **not** an endpoint — see :ref:`bc-pole-structural-absence`). The
 crosswalk renders ``"outer"`` as the ``max`` face of its axis, so a
@@ -2426,7 +2426,7 @@ trace face name, and sweep schedule already keys the outer radius on
 
 Any endpoint label that is **not** one of the three canonical
 strings (``"min"`` / ``"max"`` / ``"outer"``) raises
-:class:`ValueError`. An :class:`~orpheus.sn.axis.AxisMesh` exposes
+:class:`ValueError`. An :class:`~orpheus.transport.mesh.axis.AxisMesh` exposes
 user-overridable ``label_low`` / ``label_high`` fields (a slab user
 may rename them ``"left"`` / ``"right"`` for convention); such a
 renamed endpoint has **no face name** and must fail loud rather than
@@ -2511,7 +2511,7 @@ which is exactly the order the hand-lists used. The affine
 The pole is structurally absent, not null (Pattern 4 sharpened)
 ---------------------------------------------------------------
 
-A :class:`~orpheus.sn.axis.RadialAxisMesh` has
+A :class:`~orpheus.transport.mesh.axis.RadialAxisMesh` has
 ``endpoints = ("outer",)`` — exactly one BC-bearing endpoint. A
 solid sphere or cylinder therefore has a ``bc`` dict with **exactly
 one entry** (``"xmax"``) and **no pole entry**. The geometric pole
@@ -2551,7 +2551,7 @@ not a ``None`` that a consumer might forget to guard:
 
 This is the illegal-states-unrepresentable principle (Pattern 4)
 applied to the dict: a pole-BC is not "a BC that is ``None``", it is
-"not a face at all". The :func:`~orpheus.sn.axis.face_labels`
+"not a face at all". The :func:`~orpheus.transport.mesh.axis.face_labels`
 inventory simply does not emit a label for the pole, so neither
 producer writes a slot or entry for it.
 
@@ -2618,7 +2618,7 @@ and index the BC by that string. A ``FaceLabel``-keyed dict would
 force a reverse ``name → label`` lookup at *every* consumer, re-deriving
 the very crosswalk C4 single-sources.
 
-:class:`~orpheus.sn.axis.FaceLabel` remains the **structural source**
+:class:`~orpheus.transport.mesh.axis.FaceLabel` remains the **structural source**
 — it is the load-bearing key for the dim-agnostic face inventory,
 the outflow-ordinate mask cache, and the sweep DAG's face-trace
 state. ``face_name`` is its *single rendering* into the string world
@@ -2661,7 +2661,7 @@ very desync the carve removes):
   consumer — exactly the kind of dead realized state the
   face-labels-derived dict makes unrepresentable: a slab has no
   y-axis in its :attr:`~SNMesh.axes` tuple, so
-  :func:`~orpheus.sn.axis.face_labels` emits no y-label, so
+  :func:`~orpheus.transport.mesh.axis.face_labels` emits no y-label, so
   :attr:`bc` has no y-entry, so ``slab.bc["ymin"]`` is a
   :class:`KeyError`. (Pre-C4 design rationale for *why the
   placeholders were once safe* is preserved in the
@@ -2804,7 +2804,7 @@ then admits the first 3-axis Cartesian :class:`SNMesh` — *without* a
 ``Mesh3D`` dataclass. The design fork (resolved by the user,
 2026-06-11) is **axis-native**: a 3-D problem enters ORPHEUS only
 through :meth:`SNMesh.from_axes` with a 3-tuple of
-:class:`~orpheus.sn.axis.AxisMesh`. :class:`~orpheus.geometry.mesh.Mesh1D`
+:class:`~orpheus.transport.mesh.axis.AxisMesh`. :class:`~orpheus.geometry.mesh.Mesh1D`
 and :class:`~orpheus.geometry.mesh.Mesh2D` stay the :math:`d \le 2`
 user-facing surface, bit-identical to before
 (``sha256`` affine goldens unchanged, no regeneration). A ``Mesh3D``
@@ -2847,12 +2847,12 @@ its existence was the structural reason d=3 appeared to need a "third
 construction arm":
 
 1. **Custom endpoint labels were silently reset.** An
-   :class:`~orpheus.sn.axis.AxisMesh` carries user-overridable
+   :class:`~orpheus.transport.mesh.axis.AxisMesh` carries user-overridable
    ``label_low`` / ``label_high`` fields (a slab user may name them
    ``"left"`` / ``"right"``). The legacy mesh has no slot for those
    labels, so the round-trip dropped them and the re-derived axes came
    back with default labels — a silent desync of exactly the kind C4's
-   :attr:`FaceLabel.face_name <orpheus.sn.axis.FaceLabel.face_name>`
+   :attr:`FaceLabel.face_name <orpheus.transport.mesh.axis.FaceLabel.face_name>`
    crosswalk relies on never happening.
 2. **d=3 had nowhere to round-trip *through*.** A 3-axis tuple cannot
    synthesize a ``Mesh1D`` or ``Mesh2D``, so the inverted flow
@@ -2906,7 +2906,7 @@ replaces — :attr:`Mesh1D.widths <orpheus.geometry.mesh.Mesh1D>`,
 ``:567`` / ``:572``), so the carve produces the same floating-point
 bytes. The whole-mesh coordinate system is likewise derived from the
 per-axis coordinates by a new pure primitive
-:func:`~orpheus.sn.axis.coord_system` (a multi-axis mesh must be
+:func:`~orpheus.transport.mesh.axis.coord_system` (a multi-axis mesh must be
 all-Cartesian); the constructor's reduced-operator dispatch and the
 pole-closure default now read the **axis-derived** :attr:`SNMesh.coord`,
 not ``mesh.coord``.
@@ -2926,7 +2926,7 @@ Custom endpoint labels now fail loud (C4 doctrine)
 
 With the axes stored verbatim, a custom endpoint label survives
 construction — and therefore reaches the
-:attr:`FaceLabel.face_name <orpheus.sn.axis.FaceLabel.face_name>`
+:attr:`FaceLabel.face_name <orpheus.transport.mesh.axis.FaceLabel.face_name>`
 crosswalk. A label that is **not** one of the canonical strings
 (``"min"`` / ``"max"`` / ``"outer"``) now raises :class:`ValueError`
 **at construction** (the crosswalk's fail-loud — see
@@ -2991,7 +2991,7 @@ rank-generic :attr:`spatial_shape <SNMesh.spatial_shape>`:
   ``(nx, ny)``-keyed field read **silently truncates** a 3-D tensor to
   its first two axes (a ``vv-principles`` Mode-2 / Mode-5 class
   index error that the degenerate :math:`d \le 2` test never reaches).
-* :class:`~orpheus.sn.material_xs_field.MaterialXSField` and
+* :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField` and
   :class:`~orpheus.sn.scattering.ScatteringOperator` collapse their
   ``nx`` / ``ny`` reads to **one** rank-generic
   :attr:`spatial_shape <SNMesh.spatial_shape>` read-through each.
@@ -3028,7 +3028,7 @@ To share the ``"{axis}{min|max}"`` crosswalk without an ``sn``-ward
 import from the ``numerics`` layer, ``AXIS_NAMES`` **moved down** to
 :mod:`orpheus.numerics.face_layout` — the home of
 :class:`~orpheus.numerics.face_layout.FaceLayout`, keeper of the face
-string-name world. :mod:`orpheus.sn.axis` re-exports it, so SN consumers
+string-name world. :mod:`orpheus.transport.mesh.axis` re-exports it, so SN consumers
 are unchanged; the trace space (a ``numerics`` leaf) now reads it
 without depending on ``sn``.
 

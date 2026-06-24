@@ -22,7 +22,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.units import CROSS_SECTION_UNITS
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.material_xs_field import MaterialXSField
+from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 
 from tests.sn._test_helpers import placeholder_materials

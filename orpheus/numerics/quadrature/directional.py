@@ -278,7 +278,7 @@ class Quadrature:
         multi-dim cubatures, returns ``nodes[:, axis_index]`` with
         a zero fallback for axes beyond the measure's intrinsic
         dimensionality (the dim-agnostic shape primitive in
-        :mod:`orpheus.sn.axis` interprets "no quadrature data on
+        :mod:`orpheus.transport.mesh.axis` interprets "no quadrature data on
         this axis" as "no ordinate is outflowing on it").
 
         This is the **canonical** per-axis accessor for new

@@ -558,7 +558,7 @@ class CollisionOperator(MultiplicationOperator):
         :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
         on ``sn_mesh``; a :class:`CrossSectionField` (the rewired
         production sites, reading
-        :attr:`~orpheus.sn.material_xs_field.MaterialXSField.total_cross_section_field`)
+        :attr:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.total_cross_section_field`)
         is passed straight to the base. May be σ_t (full collision) or
         σ_r (removal — within-group self-scatter folded); the operator's
         action is identical.

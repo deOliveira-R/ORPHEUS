@@ -27,7 +27,7 @@ from orpheus.numerics.operator import (
     CAP_APPLY_TRANSPOSE,
     CAP_SOLVE,
 )
-from orpheus.sn.material_xs_field import MaterialXSField
+from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.sn.scattering import LegendreMomentScattering
 
 

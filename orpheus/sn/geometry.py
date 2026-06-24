@@ -1,7 +1,7 @@
 r"""Augmented geometry for S\ :sub:`N` discrete ordinates transport.
 
 :class:`SNMesh` is axis-primary (C5.1, #225): its canonical spatial
-representation is a tuple of :class:`~orpheus.sn.axis.Axis1D`, and it
+representation is a tuple of :class:`~orpheus.transport.mesh.axis.Axis1D`, and it
 precomputes the coordinate-specific streaming stencil used by the
 transport sweep. Two construction surfaces funnel into one body — the
 axis-native :meth:`SNMesh.from_axes`, and the legacy
@@ -16,10 +16,9 @@ redistribution coefficients (:math:`\alpha`), the geometry factor
 
 from __future__ import annotations
 
-import itertools
 import warnings
 from functools import cached_property
-from typing import ClassVar, Iterator, Optional, TYPE_CHECKING
+from typing import ClassVar, Iterator, TYPE_CHECKING
 
 import numpy as np
 
@@ -36,21 +35,20 @@ from orpheus.geometry.reduced_operator import (
     slab_streaming,
     spherical_streaming,
 )
-from .axis import (
+from orpheus.transport.mesh.axis import (
     AXIS_NAMES,
     Axis1D,
-    AxisCoord,
-    AxisMesh,
     FaceLabel,
-    RadialAxisMesh,
     axes_from_legacy_mesh,
-    coord_system as _axis_coord_system,
     face_labels as _axis_face_labels,
     face_outflow_ordinates as _axis_face_outflow_ordinates,
     face_shape as _axis_face_shape,
     legacy_mesh_from_axes,
     n_unknowns_flat as _axis_n_unknowns_flat,
-    spatial_shape as _axis_spatial_shape,
+)
+from orpheus.transport.mesh.material_mesh import (
+    InconsistentMaterialsError,
+    MaterialMesh,
 )
 from .boundary_realizer import SNBoundaryRealizer
 from .method_space import SNMethodSpace
@@ -67,7 +65,6 @@ from .spatial.pole_angular_closure import (
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.numerics.face_layout import FaceLayout
-    from .material_xs_field import MaterialXSField
     from orpheus.numerics.spaces.trace_space import TraceSpace
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     # NOTE (B.5.A): the transport-field TYPE_CHECKING imports retired with the
@@ -79,27 +76,22 @@ if TYPE_CHECKING:
     # cross-references (Sphinx resolves them by full path, no import needed).
 
 
-class InconsistentMaterialsError(ValueError):
-    """Raised when a materials dict has inconsistent metadata.
-
-    Currently triggered when materials disagree on ``ng`` (number of
-    energy groups).  :class:`SNMesh` requires a uniform group structure
-    across all materials in its ``mat_map`` because every operator that
-    consumes ``sn_mesh`` (L, C, S, F) assumes one ``ng``.  A
-    homogenization step must precede SNMesh construction if the input
-    materials carry different group structures.
-    """
+# ``InconsistentMaterialsError`` moved to
+# :mod:`orpheus.transport.mesh.material_mesh` (it is raised by
+# ``MaterialMesh.ng``, the method-agnostic group-consistency check) and is
+# re-exported here for the SN-side consumers / tests that import it from
+# ``orpheus.sn.geometry``.
 
 
 # ═══════════════════════════════════════════════════════════════════════
 # SNMesh
 # ═══════════════════════════════════════════════════════════════════════
 
-class SNMesh:
+class SNMesh(MaterialMesh):
     """Augmented geometry for the discrete ordinates method.
 
     Axis-primary (C5.1, #225): the canonical spatial representation is
-    :attr:`axes` — a tuple of :class:`~orpheus.sn.axis.Axis1D` — from
+    :attr:`axes` — a tuple of :class:`~orpheus.transport.mesh.axis.Axis1D` — from
     which all shape metadata derives. Constructed either axis-natively
     via :meth:`from_axes` or from a legacy
     :class:`~geometry.mesh.Mesh1D` / :class:`~geometry.mesh.Mesh2D`
@@ -157,7 +149,7 @@ class SNMesh:
         name — the SAME keys as :attr:`boundary_face_layout` /
         ``trace.layout.faces``, both derived from :attr:`face_labels`
         through the single-sourced
-        :attr:`~orpheus.sn.axis.FaceLabel.face_name` crosswalk (C4,
+        :attr:`~orpheus.transport.mesh.axis.FaceLabel.face_name` crosswalk (C4,
         #220). Each value is a :class:`_BoundBoundaryOperator` shim
         wrapping the realized 1-arg :class:`LinearOperator` and
         carrying a ``kind`` tag so ``sn_mesh.bc["xmin"] == "vacuum"``
@@ -236,30 +228,28 @@ class SNMesh:
     ) -> None:
         # The ONE construction body both surfaces funnel into (C5.1).
         #
-        # Issue #197 PR-TYPED-0: ``materials`` is a REQUIRED parameter.
+        # ── Method-agnostic DATA block → MaterialMesh base ──
+        # The axes / materials / mat_map / volumes / coord /
+        # ng-consistency block formerly inlined here now lives in
+        # :meth:`MaterialMesh._init_data` (the data/behavior split). The
+        # call is bit-identical to the lines it replaced — it sets
+        # ``self.mesh`` / ``self.materials`` / ``self.axes`` /
+        # ``self.axis_widths`` / ``self.mat_map`` / ``self._volumes`` /
+        # ``self._areas`` / ``self.nx`` / ``self.coord`` and runs the
+        # materials-consistency validation. ``materials`` is REQUIRED:
         # SNMesh IS the SN phase space (mesh × quadrature × material
-        # group structure); constructing it without materials would
-        # leave ``.ng`` undefined and downstream operators with no
-        # cross-section keying.  The single source of truth for the
-        # material dict moves from SNSolver to SNMesh: every operator
-        # that consumes ``sn_mesh`` (L, C, S, F) reads materials and
-        # ``ng`` from here, not from a parallel argument.  See
-        # coding-elegance Pattern 4 (illegal states unrepresentable)
-        # and Pattern 7 (normalize at definition site).
-        self.mesh = mesh
+        # group structure); without materials ``.ng`` is undefined
+        # (coding-elegance Pattern 4 — illegal states unrepresentable).
+        MaterialMesh._init_data(
+            self,
+            axes=axes,
+            mesh=mesh,
+            mat_map=mat_map,
+            materials=materials,
+        )
+
+        # ── SN method layer (BEHAVIOR atop the MaterialMesh data) ──
         self.quad = quadrature
-        self.materials: "dict[int, Mixture]" = materials
-        # The axis tuple is the PRIMARY representation (C5.1): stored
-        # verbatim — never round-tripped through a legacy mesh and
-        # re-derived — it is the canonical dim-agnostic ground truth
-        # for spatial_shape / face_labels / face_shape /
-        # face_outflow_ordinates / n_unknowns_flat / coord /
-        # axis_widths (the properties and metadata below); legacy
-        # ``nx``/``ny``/``dx``/``dy`` survive this layer as deprecated
-        # shims and retire in C5.2. Every dim-agnostic operator reads
-        # its shape from :attr:`SNMesh.axes`, NOT from ``mesh.coord``
-        # / ``mesh.edges_x`` / ``mesh.bc_xmin``.
-        self.axes: tuple[Axis1D, ...] = tuple(axes)
         # Cell-update strategy (Wave D Round 2 Issue #161). Defaults to
         # :class:`DiamondDifference`, which reproduces the existing
         # inlined sweep math bit-identically — every regression snapshot
@@ -319,62 +309,11 @@ class SNMesh:
         # below.
         self._user_supplied_closure = pole_angular_closure
 
-        # Per-cell arrays follow the (N, ng, *spatial) convention: the
-        # spatial tail has rank == ndim (1-D → (nx,), no phantom ny=1).
-        # ``mat_map`` / ``_volumes`` are spatial_shape-shaped.
-        #
-        # C5.1: ALL shape metadata derives from the axes — the pre-C5.1
-        # per-dataclass isinstance branch is dissolved. ``np.diff(edges)``
-        # is bitwise identical to the legacy spellings it replaces
-        # (``Mesh1D.widths`` / ``Mesh2D.dx`` / ``Mesh2D.dy`` are exactly
-        # ``np.diff`` of the same edge arrays — mesh.py:287, :567, :572).
-        # ``axis_widths`` is THE single spelling of per-axis cell widths,
-        # positional-by-axis — the d-generic source for the streaming
-        # stencil iterates and the 1-D ``dr`` consumers (NO phantom
-        # second axis). C5.2 retired the ``dx``/``dy``/``ny`` duplicates:
-        # ``dy``/``ny`` LIED at d=1 (phantom ``[1.0]``/``1`` — the #214
-        # bug class) and underspecified at d≥3; ``dx`` was a duplicate
-        # spelling of ``axis_widths[0]``. ``nx`` survives as documented
-        # ``spatial_shape[0]`` sugar (honest at any d; broad legitimate
-        # 1-D consumer base).
-        self.axis_widths: tuple[np.ndarray, ...] = tuple(
-            np.diff(ax.edges) for ax in self.axes
-        )
-        # Material assignment: the one construction payload the axes do
-        # not carry. ``None`` (axis-native default) → single material
-        # with id 0; shape MUST match spatial_shape (parse, don't
-        # validate downstream).
-        if mat_map is None:
-            mat_map = np.zeros(self.spatial_shape, dtype=int)
-        else:
-            mat_map = np.asarray(mat_map, dtype=int)
-            if mat_map.shape != self.spatial_shape:
-                raise ValueError(
-                    f"SNMesh: mat_map shape {mat_map.shape} must match "
-                    f"spatial_shape={self.spatial_shape}"
-                )
-        self.mat_map: np.ndarray = mat_map
-        # Cell volumes / radial face areas stay dataclass-owned while
-        # the adapter is present (preserves the Mesh1D curvilinear
-        # formulas + the ``precomputed_volumes`` ULP escape hatch
-        # bit-identically). Axis-native (mesh-less, d≥3 — all-Cartesian
-        # by construction, ``_axis_coord_system`` refuses mixed): the
-        # cell volume is the tensor-product cell measure, the iterated
-        # outer product of the per-axis widths ``V[i,j,k] =
-        # Δx_i·Δy_j·Δz_k``. 2-D per-face areas have a different shape
-        # and feed no matvec caller — None.
-        if mesh is not None:
-            self._volumes: np.ndarray = mesh.volumes
-            self._areas: np.ndarray | None = (
-                mesh.areas if self.ndim == 1 else None
-            )
-        else:
-            from functools import reduce
-            self._volumes = reduce(np.multiply.outer, self.axis_widths)
-            self._areas = None
-        # ``nx`` = spatial_shape[0] sugar (see the axis_widths comment
-        # above for why ny/dx/dy are gone — C5.2 phantom retirement).
-        self.nx: int = self.spatial_shape[0]
+        # (``self.axes`` / ``self.axis_widths`` / ``self.mat_map`` /
+        # ``self._volumes`` / ``self._areas`` / ``self.nx`` /
+        # ``self.coord`` and the materials-consistency validation are all
+        # set by the ``MaterialMesh._init_data`` call above — the
+        # method-agnostic data block.)
 
         # Dispatch stencil setup by coordinate system.
         #
@@ -393,14 +332,12 @@ class SNMesh:
         # (sweep.py + solver.py) to read through it.  Until then, the
         # backward-compat ``@property`` accessors below preserve the
         # legacy attribute names with a ``DeprecationWarning``.
-        # C5.1: the whole-mesh coordinate system derives from the axes
-        # (:func:`orpheus.sn.axis.coord_system` — multi-axis tuples are
-        # all-Cartesian by construction), NOT from ``mesh.coord``. The
-        # 1-D arms still hand the legacy ``Mesh1D`` to the reduced
-        # streaming constructors (the genuine remaining Mesh1D
-        # consumers — shared with MoC/CP via
-        # :mod:`orpheus.geometry.reduced_operator`).
-        self.coord: CoordSystem = _axis_coord_system(self.axes)
+        # ``self.coord`` was derived from the axes by
+        # ``MaterialMesh._init_data`` (the whole-mesh coordinate system;
+        # multi-axis tuples are all-Cartesian by construction). The 1-D
+        # arms hand the legacy ``Mesh1D`` to the reduced streaming
+        # constructors (the genuine remaining Mesh1D consumers — shared
+        # with MoC/CP via :mod:`orpheus.geometry.reduced_operator`).
         match self.coord:
             case CoordSystem.CARTESIAN:
                 self._setup_cartesian()
@@ -431,24 +368,10 @@ class SNMesh:
         # Resolve boundary conditions from the per-axis declarations
         self._resolve_bcs()
 
-        # ── Materials consistency validation (Issue #197 PR-TYPED-0) ──
-        # Two checks at construction time:
-        #
-        #   (1) every material id used in ``mat_map`` must have an
-        #       entry in ``materials`` — otherwise downstream code
-        #       would key into an undefined material.
-        #   (2) all materials must agree on ``ng`` — SN requires one
-        #       uniform group structure; heterogeneous ``ng`` is a
-        #       homogenization-step concern that must precede SNMesh
-        #       construction, not a silent runtime issue.
-        #
-        # Both checks surface at SNMesh construction, NOT lazily —
-        # the failure mode (operators built on a bad SNMesh) is
-        # action-at-a-distance otherwise.
-        self._validate_materials()
-        # Trigger ``ng`` property's consistency check eagerly so
-        # mismatched-ng materials raise at construction time.
-        _ = self.ng
+        # (Materials-consistency validation — every ``mat_map`` id has a
+        # ``materials`` entry, and all materials agree on ``ng`` — plus
+        # the eager ``ng`` trigger run inside ``MaterialMesh._init_data``
+        # above, so a bad materials dict raises at construction time.)
 
         # ── Pole-angular closure binding (PR-TYPED-6.5 Phase 2.9) ──
         # All upstream state needed by the closure constructors is now
@@ -480,7 +403,7 @@ class SNMesh:
         per-axis inventory :attr:`face_labels` derives the labels
         from), is realized by :meth:`_resolve_one`, and lands in the
         :attr:`bc` dict under the label's
-        :attr:`~orpheus.sn.axis.FaceLabel.face_name`. The face
+        :attr:`~orpheus.transport.mesh.axis.FaceLabel.face_name`. The face
         inventory IS the BC inventory by construction: a face that
         exists has exactly one entry; a face that doesn't (the
         curvilinear pole r=0 — a regularity condition handled by the
@@ -577,131 +500,15 @@ class SNMesh:
         realized = SNBoundaryRealizer().realize(law, method_space)
         return _BoundBoundaryOperator(realized, kind=bc.kind)
 
-    # ── Materials validation ──────────────────────────────────────────
-
-    def _validate_materials(self) -> None:
-        """Validate the materials dict against the mat_map.
-
-        Every material id referenced in ``self.mat_map`` MUST appear
-        as a key in ``self.materials``.  Failure surfaces here at
-        construction time, not lazily inside a solver step.
-
-        Raises
-        ------
-        ValueError
-            If any ``mat_map`` id is missing from ``materials``; the
-            error message shows both sets so the user can see the gap.
-        """
-        if not self.materials:
-            raise ValueError(
-                "SNMesh requires a non-empty materials dict; got "
-                f"materials={self.materials!r}."
-            )
-        used_ids = set(int(x) for x in np.unique(self.mat_map))
-        available_ids = set(self.materials.keys())
-        missing = used_ids - available_ids
-        if missing:
-            raise ValueError(
-                f"SNMesh.mat_map references material ids "
-                f"{sorted(missing)} that are NOT in materials "
-                f"(available ids: {sorted(available_ids)}; used ids: "
-                f"{sorted(used_ids)})."
-            )
-
     # ── Properties ────────────────────────────────────────────────────
-
-    @property
-    def ng(self) -> int:
-        """Number of energy groups; uniform across all materials.
-
-        Derived from ``self.materials``; the single source of truth
-        for the group count.  All materials must agree on ``ng`` —
-        SN requires one uniform group structure across the mesh.
-
-        Raises
-        ------
-        InconsistentMaterialsError
-            If materials disagree on ``ng``.  A homogenization step
-            must precede SNMesh construction in that case.
-        ValueError
-            If ``self.materials`` is empty (caught at construction
-            time by ``_validate_materials``).
-        """
-        if not self.materials:
-            raise ValueError(
-                "SNMesh.ng undefined — no materials.  Construct "
-                "SNMesh(mesh, quadrature, materials) with a non-empty "
-                "materials dict."
-            )
-        ngs = {m.ng for m in self.materials.values()}
-        if len(ngs) != 1:
-            raise InconsistentMaterialsError(
-                f"SNMesh requires uniform ng across all materials; got "
-                f"ng values {sorted(ngs)} in materials dict with keys "
-                f"{sorted(self.materials.keys())}.  Homogenize to a "
-                f"common group structure before SNMesh construction."
-            )
-        return ngs.pop()
-
-    @property
-    def volumes(self) -> np.ndarray:
-        """Cell volumes, shape ``spatial_shape`` (rank ``ndim``)."""
-        return self._volumes
-
-    @property
-    def volume_measure(self):
-        r"""Cell-volume :class:`~orpheus.numerics.measure.DiscreteMeasure`.
-
-        The natural integration measure :math:`\mu_V = \sum_i V_i\,
-        \delta_{c_i}` for volume-integrated rates (keff
-        production/absorption — the canonical consumers in
-        :mod:`orpheus.sn.solver`). C5.2 (#225): SN-side consumers read
-        THIS property, not ``sn_mesh.mesh.volume_measure`` — the mesh
-        adapter is a construction provenance detail, not a data path.
-
-        Delegates to the legacy dataclass's measure while the adapter
-        is present (bit-identity: same atoms, same construction —
-        including the ``precomputed_volumes`` escape hatch and the
-        curvilinear volume formulas the dataclass owns). Axis-native
-        (``self.mesh is None``, d≥3 — C5.5, #225): the rank-d analogue
-        of :attr:`Mesh2D.volume_measure` — atoms are the cell-centre
-        tuples ordered with ``np.meshgrid(..., indexing='ij')`` (the
-        same layout ``volumes.ravel()`` exposes), weights the flattened
-        cell volumes.
-        """
-        if self.mesh is not None:
-            return self.mesh.volume_measure
-        from orpheus.numerics.measure import DiscreteMeasure
-        centers = [0.5 * (ax.edges[:-1] + ax.edges[1:]) for ax in self.axes]
-        grids = np.meshgrid(*centers, indexing="ij")
-        nodes = np.stack([g.ravel() for g in grids], axis=-1)
-        return DiscreteMeasure(
-            nodes=nodes,
-            weights=self.volumes.ravel(),
-            support=f"spatial_R{self.ndim}",
-        )
-
-    @property
-    def areas(self) -> np.ndarray:
-        """Face areas at each radial edge, shape (nx+1,) (1-D meshes).
-
-        Sourced from :attr:`Mesh1D.areas` (computed eagerly at mesh
-        construction via :func:`orpheus.geometry.coord.compute_areas_1d`).
-        Cartesian slab returns an array of ones; cylinder returns
-        :math:`2\\pi r`; sphere returns :math:`4\\pi r^2`.
-
-        Raises
-        ------
-        AttributeError
-            If accessed on a 2-D mesh (face areas have a different shape
-            and are not consumed by today's matvec callers).
-        """
-        if self._areas is None:
-            raise AttributeError(
-                "SNMesh.areas is not defined for 2-D meshes; "
-                "face-area data lives in the underlying Mesh2D directly."
-            )
-        return self._areas
+    #
+    # ``_validate_materials`` and the data properties ``ng`` / ``volumes``
+    # / ``volume_measure`` / ``areas`` / ``ndim`` / ``spatial_shape`` —
+    # plus the ``material_xs_field()`` builder — are inherited from
+    # :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` (the
+    # method-agnostic data carrier).  SNMesh adds only the SN-method
+    # behavior (quadrature / streaming stencil / boundary trace / closures)
+    # on top.
 
     @property
     def is_1d(self) -> bool:
@@ -768,36 +575,20 @@ class SNMesh:
         return self._streaming_axes[axis]
 
     # ── Dim-agnostic geometry primitives (R-1 Phase A C1) ─────────────
-
-    @property
-    def ndim(self) -> int:
-        """Number of spatial dimensions; equals ``len(self.axes)``."""
-        return len(self.axes)
-
-    @property
-    def spatial_shape(self) -> tuple[int, ...]:
-        r"""Per-axis cell counts ``(n_0, n_1, ...)``.
-
-        The canonical dim-agnostic shape descriptor. For 1-D meshes
-        returns ``(nx,)``; for 2-D Cartesian returns ``(nx, ny)``;
-        for 3-D (followup) would return ``(nx, ny, nz)``.
-
-        Every dim-agnostic shape reader (typed-field factories, pack
-        convention, sweep DAG) reads from here. ``self.nx`` is sugar
-        for ``spatial_shape[0]``; the phantom-bearing ``ny``/``dx``/
-        ``dy`` shims were retired in C5.2 (#225).
-        """
-        return _axis_spatial_shape(self.axes)
+    #
+    # ``ndim`` / ``spatial_shape`` are inherited from
+    # :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` (the
+    # method-agnostic data carrier).
 
     @property
     def face_labels(self) -> tuple[FaceLabel, ...]:
         r"""Canonical boundary-face inventory.
 
-        Each :class:`~orpheus.sn.axis.FaceLabel` carries an
+        Each :class:`~orpheus.transport.mesh.axis.FaceLabel` carries an
         ``axis_index`` and an ``endpoint`` label, derived from the
         per-axis endpoints. Cartesian 1-D returns 2 labels; spherical
         / cylindrical 1-D returns 1 label (the pole is NOT a face —
-        see :class:`~orpheus.sn.axis.Axis1D` docstring); 2-D Cartesian
+        see :class:`~orpheus.transport.mesh.axis.Axis1D` docstring); 2-D Cartesian
         returns 4 labels; synthetic 3-D Cartesian would return 6.
 
         The iteration order is the canonical concatenation order for
@@ -867,14 +658,14 @@ class SNMesh:
 
         Endpoint labels must be canonical (``min``/``max``/``outer``):
         the :attr:`bc` dict is keyed by
-        :attr:`~orpheus.sn.axis.FaceLabel.face_name`, which fails loud
+        :attr:`~orpheus.transport.mesh.axis.FaceLabel.face_name`, which fails loud
         on a custom label (C4 doctrine — overridable labels cannot
         silently desync the face-name crosswalk). Custom labels are for
         standalone axis use, not SNMesh construction.
 
         Parameters
         ----------
-        axes : tuple of :class:`~orpheus.sn.axis.Axis1D`
+        axes : tuple of :class:`~orpheus.transport.mesh.axis.Axis1D`
             Per-axis 1-D mesh descriptors. Length 1 → 1-D mesh;
             length 2 → 2-D Cartesian mesh; length ≥3 → d-D Cartesian
             (C5.5, #225 — all-Cartesian required, mesh-adapter-free
@@ -918,21 +709,55 @@ class SNMesh:
         )
         return obj
 
-    def material_xs_field(self) -> "MaterialXSField":
-        """Build the macroscopic XS field from this mesh's materials.
+    @classmethod
+    def from_material_mesh(
+        cls,
+        material_mesh: MaterialMesh,
+        quadrature: "Quadrature",
+        *,
+        scheme: DiscretizationSchemeBase | None = None,
+        pole_angular_closure: PoleAngularClosure | None = None,
+    ) -> "SNMesh":
+        r"""Promote a :class:`MaterialMesh` to a solvable SN phase space.
 
-        Issue #197 PR-TYPED-1.  Returns a :class:`MaterialXSField`
-        wrapping the per-material :class:`Mixture` data plus this
-        mesh's ``mat_map`` — the single source of truth for both
-        per-cell and per-material XS access used by every SN operator
-        (L, C, S, F).
+        The data/behavior join: a :class:`MaterialMesh` carries the
+        method-agnostic data (axes + materials + mat_map + volumes); this
+        classmethod adds the SN method layer (angular quadrature + sweep
+        stencil + boundary trace + closures) to make it solvable.
 
-        Lazy import of :mod:`.material_xs_field` to avoid a circular
-        dependency (the module imports :class:`SNMesh` via
-        ``TYPE_CHECKING``).
+        It is the natural consumer of cross-section homogenization: a
+        homogenized :class:`MaterialMesh` (from
+        :meth:`~orpheus.sn.solution.Solution.homogenize`) is promoted
+        here to re-solve the coarsened problem on the same outer geometry
+        (the "re-solve the homogenized problem" path).  The
+        material-mesh's axes / mesh / mat_map / materials are passed
+        through verbatim — ``_init_core`` re-derives the data block
+        bit-identically from them.
+
+        Parameters
+        ----------
+        material_mesh : MaterialMesh
+            The mesh+materials carrier to promote.
+        quadrature : Quadrature
+            Angular quadrature for the SN method.
+        scheme : DiscretizationSchemeBase or None
+            Cell-update strategy.  Defaults to :class:`DiamondDifference`.
+        pole_angular_closure : PoleAngularClosure or None
+            Override the default pole-angular closure
+            (curvilinear → :class:`MorelMontryAngularSweep`,
+            Cartesian → :class:`IdentityAngularClosure`).
         """
-        from .material_xs_field import MaterialXSField
-        return MaterialXSField.from_mesh(self)
+        obj = cls.__new__(cls)
+        obj._init_core(
+            axes=material_mesh.axes,
+            mesh=material_mesh.mesh,
+            mat_map=material_mesh.mat_map,
+            quadrature=quadrature,
+            materials=material_mesh.materials,
+            scheme=scheme,
+            pole_angular_closure=pole_angular_closure,
+        )
+        return obj
 
     @property
     def trace(self) -> "TraceSpace":

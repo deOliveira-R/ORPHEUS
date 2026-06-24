@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.sn.axis import FaceLabel
+from orpheus.transport.mesh.axis import FaceLabel
 
 pytestmark = [pytest.mark.foundation]
 

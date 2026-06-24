@@ -26,7 +26,7 @@ from orpheus.geometry import Mesh2D
 from orpheus.numerics.operator import CAP_APPLY, LinearOperator
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.material_xs_field import MaterialXSField
+from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.sn.scattering import ScatteringOperator
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux

@@ -20,7 +20,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC
-from orpheus.sn.axis import (
+from orpheus.transport.mesh.axis import (
     AxisCoord,
     AxisMesh,
     FaceLabel,
@@ -288,7 +288,7 @@ def test_f0_6_face_outflow_ordinates_radial() -> None:
 def test_f0_7_synthetic_3d_admission_six_face_labels() -> None:
     """Synthetic 3-D axis tuple admits the dim-agnostic shape primitives.
 
-    C1 ships the pure shape functions in ``orpheus.sn.axis``; no
+    C1 ships the pure shape functions in ``orpheus.transport.mesh.axis``; no
     ``Mesh3D`` dataclass exists yet (D9 of the ultraplan). The 3-D
     admission gate exercises these functions on a synthetic axis tuple
     without instantiating an :class:`SNMesh` — that lands in a

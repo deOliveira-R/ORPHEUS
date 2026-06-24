@@ -291,7 +291,7 @@ class TestD3SupportsMatrix:
         import numpy as np
         from orpheus.derivations.common.xs_library import make_mixture
         from orpheus.numerics.quadrature import Quadrature
-        from orpheus.sn.axis import AxisMesh
+        from orpheus.transport.mesh.axis import AxisMesh
         from orpheus.sn.geometry import SNMesh
         from orpheus.sn.loss_representation import (
             FullFieldWavefront,
