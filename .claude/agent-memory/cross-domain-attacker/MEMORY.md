@@ -133,6 +133,21 @@ load-bearing design verdict — keep them as pointers; the detection HABIT is in
   weighted) MEASURE, not a method — and the §17+§18 second oblique instance that
   justifies the path. Extends the M/R pair's verdict 3.2.
 
+### Unified Frame API (the projection/reconstruction machinery design)
+- [unified_frame_api_design.md](unified_frame_api_design.md) — LIFTS the two derivation
+  memos (projection-discipline + homogenization-measure) into 3 API verbs. THE DEEP OP =
+  Christensen canonical-dual coefficient map. (1) `project_weighted(f,w)=G_w⁻¹·M(w⊙f)`
+  (homogenize/condense; the `/Φ_R` IS `G_w⁻¹`; diagonal Gram ⇒ reciprocal not solve);
+  (2) `conjugate(A)=R∘A∘M` typed face (+`reconstruct_after` sub-op for the windowed arm;
+  needs NO 2-param Din/Cout split — just type Λ's spaces=basis_space, delete the
+  `scattering.py:663` cast); (3) `analyze`=bare M keep. Q2 = Option-B per-basis Gram split
+  (keep SH's measure-free reconstruct, 0-ULP). Q4 = `Frame(basis,measure,*,test:Basis|None)`,
+  `is_galerkin=(test is basis)` PROPERTY, RETIRE the 2 PG ABCs (#268), build the SEAM not
+  the PG cross-Gram path, `canonical_measure` NOT needed. Q5 LS = flag-and-defer (`test=A·K`
+  non-diagonal Gram ⇒ CAP_SOLVE coeff space). flux-as-MULTIPLIER is durable (retires
+  `flux_volume_measure` consumption seam, DiscreteMeasure stays 1-D); condensation = same
+  verb + `EnergyGrid.indicator_basis` greenfield leaf.
+
 ### Variant-α Green's-function family + spatial closure
 - [variant_alpha_family_hindsight.md](variant_alpha_family_hindsight.md) +
   [trajectory_resolvent_foreign_frames.md](trajectory_resolvent_foreign_frames.md)
