@@ -94,6 +94,7 @@ from orpheus.transport.fields.cross_section_field import CrossSectionField
 
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
+    from orpheus.numerics.frame import FrameBase
     # The ``mesh`` field is typed against ``SNMesh`` under TYPE_CHECKING
     # only (an L2-field / L3-mesh annotation, layer-legal — the runtime
     # never imports sn). MaterialXSField in fact reads only
@@ -322,6 +323,102 @@ class MaterialXSField:
         sibling._sig_s_dense = sig_s_dense
         sibling._n2n_dense = n2n_dense
         return sibling
+
+    # ── Homogenisation: project the whole field through coarse frames ──
+
+    def project_through(
+        self, sigma_frame: "FrameBase", emission_frame: "FrameBase", /,
+    ) -> dict[int, "Mixture"]:
+        r"""Homogenise the whole cross-section field through two coarse frames.
+
+        Collapse every per-fine-cell channel onto the coarse cells of the frames'
+        shared trial (cell-indicator) basis, returning one effective
+        :class:`~orpheus.data.macro_xs.mixture.Mixture` per coarse cell. The field
+        owns the **channel → weighting taxonomy** and routes accordingly:
+
+        * the **rate-bearing** channels — :math:`\Sigma_t,\Sigma_c,\Sigma_L,
+          \Sigma_f,\nu\Sigma_f` (vectors) and :math:`\Sigma_{s,\ell},\Sigma_{2n}`
+          (``[g_from, g_to]`` matrices) — collapse through ``sigma_frame``, whose
+          flux-weighted test basis makes :meth:`~orpheus.numerics.frame.FrameBase.project`
+          the reaction-rate-preserving average :math:`\Sigma_R = \int_R\varphi\Sigma\,
+          \mathrm{d}V/\int_R\varphi\,\mathrm{d}V` (matrices weight by the **source**
+          group, the leading axis the test weight aligns to);
+        * the **emission spectrum** :math:`\chi` collapses through ``emission_frame``,
+          whose production-weighted test (:math:`p=\sum_g\nu\Sigma_{f,g}\varphi_g`)
+          gives the production-weighted convex average :math:`\chi_R = \int_R p\chi\,
+          \mathrm{d}V/\int_R p\,\mathrm{d}V` (a convex combination of simplices, hence
+          a simplex).
+
+        Two frames because the two collapses preserve two *different* conserved
+        functionals (reaction rate vs emission rate) — the campaign's "one frame
+        carries one test weighting" ruling. Both frames share the trial basis +
+        geometric measure; the caller (which owns the flux) builds their test
+        weightings.
+
+        Parameters
+        ----------
+        sigma_frame : FrameBase
+            The flux-weighted homogenisation frame for the rate-bearing channels.
+        emission_frame : FrameBase
+            The production-weighted frame for :math:`\chi`.
+
+        Returns
+        -------
+        dict[int, Mixture]
+            One effective :class:`Mixture` per coarse cell, keyed by coarse-cell
+            index ``0 .. n_coarse-1``. A group with zero region weight collapses to a
+            zero effective cross section there (the frame's Moore–Penrose Gram
+            pseudo-inverse — no reaction rate to preserve).
+        """
+        from scipy.sparse import csr_matrix
+
+        from orpheus.data.macro_xs.mixture import Mixture
+
+        materials = self.materials
+        ng = self.ng
+        mat_of_fine = np.asarray(self.mesh.mat_map, dtype=int).ravel()
+
+        def _gather_vector(attr: str) -> np.ndarray:
+            """Per-fine-cell view of a ``(ng,)`` Mixture channel — ``(n_fine, ng)``."""
+            return np.array([getattr(materials[m], attr) for m in mat_of_fine])
+
+        n_legendre = max(len(materials[m].SigS) for m in materials)
+
+        def _gather_legendre(order: int) -> np.ndarray:
+            """Per-fine-cell dense ``Σ_{s,ℓ}`` — ``(n_fine, ng, ng)``; zero-pad short lists."""
+            return np.array([
+                np.asarray(materials[m].SigS[order].todense())
+                if order < len(materials[m].SigS) else np.zeros((ng, ng))
+                for m in mat_of_fine
+            ])
+
+        # Rate-bearing channels → the flux-weighted frame. ``project`` IS the
+        # rate-preserving collapse G⁻¹M (the per-channel inline gather/collapse the
+        # method body used to carry now lives here, projected as ONE field).
+        sig_t = sigma_frame.project(_gather_vector("SigT"))
+        sig_c = sigma_frame.project(_gather_vector("SigC"))
+        sig_l = sigma_frame.project(_gather_vector("SigL"))
+        sig_f = sigma_frame.project(_gather_vector("SigF"))
+        sig_p = sigma_frame.project(_gather_vector("SigP"))
+        sig_s = [sigma_frame.project(_gather_legendre(l)) for l in range(n_legendre)]
+        sig2 = sigma_frame.project(
+            np.array([np.asarray(materials[m].Sig2.todense()) for m in mat_of_fine])
+        )
+
+        # χ → the production-weighted frame (a different conserved rate).
+        chi = emission_frame.project(_gather_vector("chi"))
+
+        eg = next(iter(materials.values())).eg
+        n_coarse = sig_t.shape[0]
+        return {
+            region: Mixture(
+                SigC=sig_c[region], SigL=sig_l[region], SigF=sig_f[region],
+                SigP=sig_p[region], SigT=sig_t[region],
+                SigS=[csr_matrix(sig_s[l][region]) for l in range(n_legendre)],
+                Sig2=csr_matrix(sig2[region]), chi=chi[region], eg=eg,
+            )
+            for region in range(n_coarse)
+        }
 
     # ── Per-cell views (lazy, cached) ─────────────────────────────────
 

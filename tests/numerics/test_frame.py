@@ -22,8 +22,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.basis import SphericalHarmonicBasis
+from orpheus.numerics.basis import (
+    IndicatorBasis,
+    SphericalHarmonicBasis,
+    WeightedIndicatorBasis,
+)
 from orpheus.numerics.frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame
+from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.operator import CAP_APPLY, CAP_APPLY_TRANSPOSE
 from orpheus.numerics.quadrature import lebedev_sphere
 from orpheus.numerics.spaces import SphericalHarmonicSpace
@@ -237,4 +242,123 @@ def test_petrov_galerkin_degenerate_equals_galerkin_bit_identically(sh_frame):
     c = _band_limited(rng, L)
     np.testing.assert_array_equal(
         pg.reconstruction.apply(c), galerkin.reconstruction.apply(c),
+    )
+
+
+# ── the project verb: G⁻¹ M (homogenise / condense) — P3 ────────────────────
+
+def _indicator_frame(edges, centres, weights, test_weight=None):
+    """A small hand-built indicator frame on an explicit measure.
+
+    ``test_weight=None`` → :class:`GalerkinFrame` (test=trial=plain indicator);
+    an array → :class:`PetrovGalerkinFrame` with a flux-weighted indicator test.
+    """
+    trial = IndicatorBasis((np.asarray(edges, dtype=float),))
+    measure = DiscreteMeasure(
+        nodes=np.asarray(centres, dtype=float),
+        weights=np.asarray(weights, dtype=float),
+        support="spatial_R1",
+    )
+    if test_weight is None:
+        return GalerkinFrame(trial, measure)
+    return PetrovGalerkinFrame(
+        trial, measure, WeightedIndicatorBasis(trial, np.asarray(test_weight, float)),
+    )
+
+
+@pytest.mark.foundation
+def test_project_is_gram_inverse_times_analysis():
+    r"""``frame.project(f) = G⁻¹ M f`` on a hand-known diagonal-Gram frame.
+
+    Galerkin indicator frame (test=trial), 4 fine nodes / non-uniform volumes, 3
+    coarse cells the LAST of which is EMPTY (no fine node). The diagonal Gram is the
+    region volume :math:`m_R = \sum_{i\in R} V_i`; ``project`` is the volume-weighted
+    average :math:`(\sum_R V_i f_i)/m_R`. The empty region (``m_R = 0``) must project
+    to ``0`` (the Moore–Penrose pseudo-inverse), NOT ``nan``/``inf`` — the verb-level
+    pin of the zero-flux-region law.
+    """
+    centres = [0.5, 1.5, 2.5, 3.5]
+    V = [1.0, 1.0, 2.0, 1.0]
+    f = np.array([10.0, 20.0, 30.0, 40.0])
+    frame = _indicator_frame([0.0, 2.0, 4.0, 5.0], centres, V)  # R2=[4,5] empty
+    out = frame.project(f)
+    expected = np.array([
+        (1.0 * 10 + 1.0 * 20) / (1.0 + 1.0),    # R0: nodes 0,1
+        (2.0 * 30 + 1.0 * 40) / (2.0 + 1.0),    # R1: nodes 2,3
+        0.0,                                     # R2: empty → 0 (pseudo-inverse)
+    ])
+    np.testing.assert_allclose(out, expected, rtol=1e-14)
+    assert np.isfinite(out).all(), "empty region produced nan/inf, not 0"
+
+
+@pytest.mark.foundation
+def test_petrov_galerkin_project_is_cross_gram_extraction():
+    r"""``PetrovGalerkinFrame.project`` extracts coefficients against the CROSS Gram.
+
+    A genuine ``test ≠ trial`` frame (test = a flux-weighted indicator ``w·1_R``,
+    trial = ``1_R``): the diagonal cross Gram is :math:`G_R = \langle\chi_R,
+    \mathbf 1_R\rangle_W = \sum_{i\in R} w_i V_i` and :math:`(M f)_R = \sum_{i\in R}
+    w_i V_i f_i`, so ``project = M f / G``. Pinned against the independent hand
+    arithmetic (NOT a re-call of the production einsum).
+    """
+    centres = [0.5, 1.5, 2.5, 3.5]
+    V = np.array([0.5, 1.5, 1.0, 1.0])
+    w = np.array([2.0, 3.0, 5.0, 7.0])
+    f = np.array([10.0, 20.0, 30.0, 40.0])
+    frame = _indicator_frame([0.0, 2.0, 4.0], centres, V, test_weight=w)  # 2 cells
+    regions = [[0, 1], [2, 3]]
+    expected = np.array([
+        sum(w[i] * V[i] * f[i] for i in sel) / sum(w[i] * V[i] for i in sel)
+        for sel in regions
+    ])
+    np.testing.assert_allclose(frame.project(f), expected, rtol=1e-13)
+
+
+@pytest.mark.foundation
+def test_petrov_galerkin_degenerate_project_equals_galerkin_project(sh_frame):
+    r"""``PetrovGalerkinFrame(b, m, test=b).project ≡ GalerkinFrame(b, m).project``.
+
+    The ``project``-verb analogue of the face-level degenerate test: when ``test is
+    trial`` the general PG ``project`` (which reads the TEST Gram) must reduce to the
+    SAME numpy chain BIT-IDENTICALLY (``array_equal``, the 0-ULP discipline).
+    """
+    galerkin, _ = sh_frame
+    pg = PetrovGalerkinFrame(galerkin.basis, galerkin.measure, galerkin.basis)
+    rng = np.random.default_rng(31)
+    psi = rng.standard_normal((galerkin.measure.weights.shape[0], 4, 2))
+    np.testing.assert_array_equal(pg.project(psi), galerkin.project(psi))
+
+
+@pytest.mark.foundation
+def test_petrov_galerkin_project_differs_from_galerkin_when_test_neq_trial():
+    r"""The PG type is LOAD-BEARING: ``test ≠ trial`` gives a DIFFERENT answer.
+
+    The same geometry projected (a) flux-weighted (the PG test ``w·1_R``) and (b)
+    plain Galerkin (test=trial=``1_R``, the volume average) gives materially distinct
+    coefficients — the type carries real information, it is not ceremony. Both match
+    their respective independent hand references; the discrimination is asserted to
+    have actually fired (no silent same-answer pass).
+    """
+    centres = [0.5, 1.5, 2.5, 3.5]
+    V = np.array([0.5, 1.5, 1.0, 1.0])
+    w = np.array([2.0, 3.0, 5.0, 7.0])
+    f = np.array([10.0, 20.0, 30.0, 40.0])
+    edges = [0.0, 2.0, 4.0]
+    regions = [[0, 1], [2, 3]]
+
+    pg = _indicator_frame(edges, centres, V, test_weight=w).project(f)
+    galerkin = _indicator_frame(edges, centres, V).project(f)
+
+    pg_ref = np.array([
+        sum(w[i] * V[i] * f[i] for i in sel) / sum(w[i] * V[i] for i in sel)
+        for sel in regions
+    ])
+    gal_ref = np.array([
+        sum(V[i] * f[i] for i in sel) / sum(V[i] for i in sel) for sel in regions
+    ])
+    np.testing.assert_allclose(pg, pg_ref, rtol=1e-13)
+    np.testing.assert_allclose(galerkin, gal_ref, rtol=1e-13)
+    assert not np.allclose(pg, galerkin, rtol=1e-6), (
+        "PG (flux-weighted) and Galerkin (volume) projections coincided — the test "
+        "weight does not discriminate; the PG type would be ceremony here"
     )

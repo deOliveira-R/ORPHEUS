@@ -50,7 +50,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from .geometry import SNMesh
-    from orpheus.geometry import Mesh1D
+    from orpheus.geometry import Mesh1D, Mesh2D
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.mesh.material_mesh import MaterialMesh
@@ -314,7 +314,7 @@ class Solution:
 
     # ── Spatial homogenization (a domain operation on the solution) ──
 
-    def homogenize(self, coarse: "Mesh1D") -> "MaterialMesh":
+    def homogenize(self, coarse: "Mesh1D | Mesh2D") -> "MaterialMesh":
         r"""Flux·volume-weighted spatial homogenization onto a coarse mesh.
 
         Collapse this (fine) solution's per-cell cross sections onto the
@@ -353,12 +353,13 @@ class Solution:
 
         Parameters
         ----------
-        coarse : Mesh1D
-            The coarse target mesh.  Must share this solution's outer
-            boundary; its internal cell edges must align with fine-cell
-            edges (each coarse cell is a contiguous union of fine cells).
-            Its own ``mat_ids`` are ignored — homogenization assigns one
-            fresh effective material per coarse cell.
+        coarse : Mesh1D or Mesh2D
+            The coarse target mesh (any dimension matching the fine mesh).
+            Must share this solution's outer boundary on every axis; its
+            internal cell edges must align with fine-cell edges (each coarse
+            cell is a contiguous union of fine cells).  Its own ``mat_ids`` /
+            ``mat_map`` are ignored — homogenization assigns one fresh
+            effective material per coarse cell.
 
         Returns
         -------
@@ -370,149 +371,82 @@ class Solution:
 
         Notes
         -----
-        1-D only in this slice (the SN side, no vectorization loss — the
-        group axis rides the integrand).  A group with zero region flux
-        (:math:`\Phi_{R,g} = 0`) yields a zero effective XS for that
-        (R, g) — there is no reaction rate to preserve there.
+        Dimension-agnostic: the coarse cell-indicator basis and the fine
+        volume measure are n-D (the membership table and the group axis ride
+        the frame's contractions), so 1-D and 2-D meshes flow through the
+        same body.  A group with zero region flux (:math:`\Phi_{R,g} = 0`)
+        yields a zero effective XS for that (R, g) — there is no reaction
+        rate to preserve there (the frame's Moore–Penrose Gram pseudo-inverse).
         """
-        import dataclasses
-
-        from scipy.sparse import csr_matrix
-
-        from orpheus.geometry import Mesh1D
-        from orpheus.data.macro_xs.mixture import Mixture
-        from orpheus.numerics.frame import GalerkinFrame
+        from orpheus.numerics.basis import WeightedIndicatorBasis
+        from orpheus.numerics.frame import PetrovGalerkinFrame
         from orpheus.transport.mesh.material_mesh import MaterialMesh
+        from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
         fine = self.mesh
-        if fine.ndim != 1:
-            raise NotImplementedError(
-                "Solution.homogenize is 1-D in this slice; got ndim="
-                f"{fine.ndim}."
-            )
-
-        fine_edges = np.asarray(fine.axes[0].edges, dtype=float)
-        coarse_edges = np.asarray(coarse.edges, dtype=float)
-        if not (
-            np.isclose(coarse_edges[0], fine_edges[0])
-            and np.isclose(coarse_edges[-1], fine_edges[-1])
-        ):
+        trial = coarse.indicator_basis()       # coarse cell-indicator trial basis (n-D)
+        if trial.ndim != fine.ndim:
             raise ValueError(
-                "Solution.homogenize: coarse mesh must share the fine "
-                f"mesh's outer boundary [{fine_edges[0]}, {fine_edges[-1]}]; "
-                f"got [{coarse_edges[0]}, {coarse_edges[-1]}]."
+                f"Solution.homogenize: coarse mesh dimension {trial.ndim} must "
+                f"match the fine mesh dimension {fine.ndim}."
             )
-        n_coarse = coarse_edges.size - 1
-        ng = fine.ng
 
-        # Homogenisation is the L²(φV)-orthogonal (Galerkin) projection of the
-        # fine cross-section field onto the coarse cells — routed through the
-        # discrete Frame, NOT hand-rolled.  K (trial) = the coarse mesh's
-        # cell-indicator basis (which the mesh YIELDS); L (measure) = the fine
-        # mesh's geometric volume measure.  The flux is NOT a measure weight:
-        # by Radon–Nikodym (μ_φV = φ·μ_V) it is an integrand MULTIPLIER, so the
-        # per-group flux rides a trailing tensor axis through ONE group-
-        # independent frame.  ``analysis`` is the region integral ∫_R (·) dV;
-        # the /Φ_R normalisation is the coarse Gram-inverse the coefficient
-        # space carries as its metric (``apply_inverse_metric``, whose
-        # Moore–Penrose pseudo-inverse zeroes empty / zero-flux regions).
-        frame = GalerkinFrame(coarse.indicator_basis(), fine.volume_measure)
-        analysis = frame.analysis
-        phi = np.asarray(self.scalar_flux.values, dtype=float).T       # (n_fine, ng)
-        region_flux_integral = analysis.apply(phi)                     # Φ_{R,g}
-        flux_space = dataclasses.replace(
-            frame.basis_space, inner_product_weights=region_flux_integral,
+        # Each coarse cell is a contiguous union of fine cells, so the coarse mesh
+        # must share the fine mesh's outer boundary on every axis.
+        for axis in range(fine.ndim):
+            fine_edges = np.asarray(fine.axes[axis].edges, dtype=float)
+            coarse_edges = np.asarray(trial.edges_per_axis[axis], dtype=float)
+            if not (
+                np.isclose(coarse_edges[0], fine_edges[0])
+                and np.isclose(coarse_edges[-1], fine_edges[-1])
+            ):
+                raise ValueError(
+                    "Solution.homogenize: coarse mesh must share the fine mesh's "
+                    f"outer boundary on axis {axis} "
+                    f"[{fine_edges[0]}, {fine_edges[-1]}]; got "
+                    f"[{coarse_edges[0]}, {coarse_edges[-1]}]."
+                )
+
+        # The two Petrov-Galerkin homogenisation frames. Trial = the coarse cell
+        # indicators (the mesh YIELDS them); measure = the fine geometric volume
+        # measure dV. The solution-weighting rides the TEST side (the frame TYPE),
+        # NEVER folded into the measure: the measure carries the axis + the fixed L²
+        # metric, the flux is a test-weighting the solution emits. The two collapses
+        # preserve two different conserved rates — Σ preserves the reaction rate
+        # (flux-weighted test φ·1_R), χ preserves the emission rate (production-
+        # weighted test p·1_R) — so each is its own frame. Both are the Galerkin
+        # degenerate (φ*=φ) of the eigenvalue-consistent adjoint-weighted (φ*≠φ)
+        # homogenisation; ``project`` is G⁻¹M with a diagonal (disjoint-indicator)
+        # Gram, whose Moore–Penrose pseudo-inverse zeroes empty / zero-flux regions.
+        measure = fine.volume_measure
+        ng = fine.ng
+        # (ng, *spatial) → (n_fine, ng) in the "ij"/C flat-cell order the measure
+        # nodes and ``mat_map.ravel()`` share (1-D: a plain transpose; n-D: the
+        # spatial axes collapse to one fine-cell axis).
+        phi = np.asarray(self.scalar_flux.values, dtype=float).reshape(ng, -1).T
+        sigma_frame = PetrovGalerkinFrame(
+            trial, measure, WeightedIndicatorBasis(trial, phi),
         )
 
         mat_of_fine = np.asarray(fine.mat_map, dtype=int).ravel()      # (n_fine,)
-        materials = fine.materials
-
-        def _gather_vector(attr: str) -> np.ndarray:
-            """Per-fine-cell view of a ``(ng,)`` Mixture channel — (n_fine, ng)."""
-            return np.array([getattr(materials[m], attr) for m in mat_of_fine])
-
-        def _collapse_vector(channel_fine: np.ndarray) -> np.ndarray:
-            """Flux·volume-weighted collapse of a vector channel — (n_coarse, ng).
-
-            The region reaction rate ``∫_R φΣ dV`` (``analysis`` of the
-            flux-weighted integrand) over the region flux integral ``Φ_R`` (the
-            coarse Gram-inverse, via the coefficient space's metric).
-            """
-            rate = analysis.apply(phi * channel_fine)
-            return flux_space.apply_inverse_metric(rate)
-
-        def _collapse_matrix(channel_fine: np.ndarray) -> np.ndarray:
-            """Collapse a ``[g_from, g_to]`` channel, weighting by SOURCE group.
-
-            ``channel_fine`` is ``(n_fine, ng, ng)``; the out-scatter from
-            source group ``g_from`` scales with that group's flux, so the weight
-            rides the ``g_from`` (first matrix) axis.  ``apply_inverse_metric``
-            broadcasts the ``Φ_R[:, g_from]`` metric over the trailing ``g_to``
-            axis (its trailing-axis metric-broadcast), so the source-group
-            normalisation falls out for free.
-            """
-            weighted = phi[:, :, None] * channel_fine
-            rate = analysis.apply(weighted)
-            return flux_space.apply_inverse_metric(rate)
-
-        sig_t = _collapse_vector(_gather_vector("SigT"))
-        sig_c = _collapse_vector(_gather_vector("SigC"))
-        sig_l = _collapse_vector(_gather_vector("SigL"))
-        sig_f = _collapse_vector(_gather_vector("SigF"))
-        sig_p = _collapse_vector(_gather_vector("SigP"))
-
-        n_legendre = max(len(materials[m].SigS) for m in materials)
-
-        def _gather_legendre(order: int) -> np.ndarray:
-            """Per-fine-cell dense ``Σ_{s,ℓ}`` — (n_fine, ng, ng); zero-pad short lists."""
-            return np.array([
-                np.asarray(materials[m].SigS[order].todense())
-                if order < len(materials[m].SigS) else np.zeros((ng, ng))
-                for m in mat_of_fine
-            ])
-
-        sig_s = [_collapse_matrix(_gather_legendre(l)) for l in range(n_legendre)]
-        sig2 = _collapse_matrix(
-            np.array([np.asarray(materials[m].Sig2.todense()) for m in mat_of_fine])
+        nu_sigma_f = np.array(
+            [fine.materials[m].SigP for m in mat_of_fine]              # (n_fine, ng)
+        )
+        production = (nu_sigma_f * phi).sum(axis=1)                    # p_i, (n_fine,)
+        emission_frame = PetrovGalerkinFrame(
+            trial, measure, WeightedIndicatorBasis(trial, production),
         )
 
-        # χ: production-weighted convex average (a convex combination of
-        # simplices → a simplex).  Same projection, a different multiplier — the
-        # production density p_i = Σ_g νΣ_{f,i,g} φ_{i,g}; routed through the
-        # SAME ``analysis`` (which supplies the volume V_i) it gives the region
-        # production Σ_{i∈R} V_i p_i, the Gram of the χ-collapse coarse space.
-        chi_fine = _gather_vector("chi")
-        prod_density = (_gather_vector("SigP") * phi).sum(axis=1)       # (n_fine,)
-        region_production = analysis.apply(prod_density)               # (n_coarse,)
-        prod_space = dataclasses.replace(
-            frame.basis_space, inner_product_weights=region_production,
-        )
-        chi = prod_space.apply_inverse_metric(
-            analysis.apply(prod_density[:, None] * chi_fine)
+        # Project the WHOLE cross-section field as one object: the field owns the
+        # channel → weighting taxonomy and routes Σ → sigma_frame, χ → emission_frame.
+        homogenized = MaterialXSField.from_mesh(fine).project_through(
+            sigma_frame, emission_frame,
         )
 
-        eg = next(iter(materials.values())).eg
-        homogenized = {
-            region: Mixture(
-                SigC=sig_c[region], SigL=sig_l[region], SigF=sig_f[region],
-                SigP=sig_p[region], SigT=sig_t[region],
-                SigS=[csr_matrix(sig_s[l][region]) for l in range(n_legendre)],
-                Sig2=csr_matrix(sig2[region]), chi=chi[region], eg=eg,
-            )
-            for region in range(n_coarse)
-        }
-
-        # One fresh effective material per coarse cell (mat_ids = 0..n-1);
-        # the coarse geometry (edges / coord / BC) carries through, volumes
-        # re-derived from the coarse edges.
-        coarse_mesh = Mesh1D(
-            edges=coarse_edges,
-            mat_ids=np.arange(n_coarse, dtype=int),
-            coord=coarse.coord,
-            bc_left=coarse.bc_left,
-            bc_right=coarse.bc_right,
-        )
-        return MaterialMesh(coarse_mesh, homogenized)
+        # The coarse geometry with each cell relabelled to its own material id
+        # (dimension-agnostic — no Mesh1D/Mesh2D reconstruction branch), carrying the
+        # one fresh effective material per coarse cell.
+        return MaterialMesh(coarse.with_distinct_cell_ids(), homogenized)
 
     # ── Comparison ──────────────────────────────────────────────────
 

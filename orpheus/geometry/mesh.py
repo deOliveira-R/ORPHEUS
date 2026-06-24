@@ -21,7 +21,7 @@ about cell counts.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Literal
 
 import numpy as np
@@ -376,6 +376,21 @@ class Mesh1D:
         from orpheus.numerics.basis.indicator_basis import IndicatorBasis
         return IndicatorBasis(edges_per_axis=(np.asarray(self.edges, dtype=float),))
 
+    def with_distinct_cell_ids(self) -> "Mesh1D":
+        r"""A geometry-identical copy whose every cell is its **own** material id.
+
+        Returns this mesh with ``mat_ids = (0, 1, …, N-1)`` — one distinct id per
+        cell, in cell order — the geometry the **homogenisation** result needs: a
+        coarse :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` carries one
+        fresh effective :class:`~orpheus.data.macro_xs.mixture.Mixture` per cell, so
+        the cell-indexed homogenised materials key 1:1 into the cells. Polymorphic
+        with :meth:`Mesh2D.with_distinct_cell_ids` (which relabels the 2-D
+        ``mat_map``), so ``Solution.homogenize`` stays dimension-agnostic — no
+        ``Mesh1D``/``Mesh2D`` reconstruction branch. The geometry (edges, coord, BCs,
+        any precomputed volumes) carries through unchanged.
+        """
+        return replace(self, mat_ids=np.arange(self.N, dtype=int))
+
     # ─────────────────────────────────────────────────────────────────
     # Construction from StructuredGeometry — the canonical entry point
     # ─────────────────────────────────────────────────────────────────
@@ -655,3 +670,32 @@ class Mesh2D:
         Compatible with :func:`data.macro_xs.cell_xs.assemble_cell_xs`.
         """
         return self.mat_map.ravel()
+
+    def indicator_basis(self):
+        r"""The mesh's cells AS a 2-D :class:`~orpheus.numerics.basis.IndicatorBasis`.
+
+        The 2-D analogue of :meth:`Mesh1D.indicator_basis` — the **trial (synthesis)
+        side** of a homogenisation :class:`~orpheus.numerics.frame.FrameBase`. The
+        indicator basis holds both axes' edges (``edges_per_axis = (edges_x,
+        edges_y)``), so its membership table is built per axis and flattened in the
+        ``"ij"`` / C order that matches this mesh's :attr:`volume_measure` nodes (and
+        ``mat_map.ravel()``) — the same flat-cell ordering in any dimension.
+        """
+        from orpheus.numerics.basis.indicator_basis import IndicatorBasis
+        return IndicatorBasis(edges_per_axis=(
+            np.asarray(self.edges_x, dtype=float),
+            np.asarray(self.edges_y, dtype=float),
+        ))
+
+    def with_distinct_cell_ids(self) -> "Mesh2D":
+        r"""A geometry-identical copy whose every cell is its **own** material id.
+
+        Returns this mesh with ``mat_map = arange(Nx*Ny).reshape(Nx, Ny)`` — one
+        distinct id per cell in ``"ij"`` / C order, matching the
+        :meth:`indicator_basis` cell ordering — so the cell-indexed homogenised
+        materials key 1:1 into the cells. Polymorphic with
+        :meth:`Mesh1D.with_distinct_cell_ids`, so ``Solution.homogenize`` stays
+        dimension-agnostic. The geometry (edges, coord, BCs) carries through.
+        """
+        mat_map = np.arange(self.nx * self.ny, dtype=int).reshape(self.nx, self.ny)
+        return replace(self, mat_map=mat_map)

@@ -30,7 +30,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import make_mixture
-from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
@@ -305,18 +305,34 @@ def test_chi_is_production_weighted(solution, materials):
         np.testing.assert_allclose(mm.materials[R].chi, chi_ref, rtol=1e-12)
 
 
-# ── Mode-11: the new readers are actually on the gate's call graph ────
+# ── Mode-11: the φ-weighting is actually on the TEST side, on the call graph ──
 
-def test_homogenize_routes_through_the_indicator_frame(solution, monkeypatch):
-    """Mode-11 sentinel: confirm ``homogenize`` ACTUALLY calls
-    ``IndicatorBasis.evaluate`` + ``.analyze`` and
-    ``FunctionSpace.apply_inverse_metric``.  A green rate gate is vacuous for
-    the Frame-carve's claim unless these new production readers are on its
-    call graph (a buggy refactor could recompute membership inline)."""
+def test_homogenize_routes_through_the_petrov_galerkin_frame(solution, monkeypatch):
+    """Mode-11 sentinel: ``homogenize`` routes the φ-weighting through the TEST side.
+
+    The PG re-frame's load-bearing claim is that φ moved OUT of the metric INTO the
+    test basis.  A green rate gate is **vacuous** for that claim unless the new
+    production readers are on the call graph: a bit-identity-preserving regression
+    that kept the OLD Galerkin metric-fold (folding φ into the coefficient-space
+    metric, test = plain trial indicator) would produce IDENTICAL numbers yet NEVER
+    construct the weighted test basis.  So the sentinel monkeypatch-counts:
+
+    * ``IndicatorBasis.evaluate`` — the TRIAL membership table (still a reader);
+    * ``WeightedIndicatorBasis.analyze`` — the **TEST-side** reader (the load-bearing
+      re-point: φ now lives on the test basis, not folded into the metric);
+    * ``FrameBase.project`` — the NEW coefficient-extraction verb G⁻¹M;
+    * ``FunctionSpace.apply_inverse_metric`` — the diagonal-Gram fast path inside it.
+
+    A φ-never-moved mutation (keep ``GalerkinFrame`` + the metric-fold) leaves
+    ``test_analyze`` at 0 → RED, while the rate gate stays green — the exact
+    structural-vs-value split Mode-11 exists to catch.
+    """
     from orpheus.numerics.basis.indicator_basis import IndicatorBasis
+    from orpheus.numerics.basis.weighted_indicator_basis import WeightedIndicatorBasis
+    from orpheus.numerics.frame import FrameBase
     from orpheus.numerics.space import FunctionSpace
 
-    counts = {"evaluate": 0, "analyze": 0, "inverse_metric": 0}
+    counts = {"evaluate": 0, "test_analyze": 0, "project": 0, "inverse_metric": 0}
 
     def _counting(name, fn):
         def wrapped(*args, **kwargs):
@@ -328,7 +344,11 @@ def test_homogenize_routes_through_the_indicator_frame(solution, monkeypatch):
         IndicatorBasis, "evaluate", _counting("evaluate", IndicatorBasis.evaluate),
     )
     monkeypatch.setattr(
-        IndicatorBasis, "analyze", _counting("analyze", IndicatorBasis.analyze),
+        WeightedIndicatorBasis, "analyze",
+        _counting("test_analyze", WeightedIndicatorBasis.analyze),
+    )
+    monkeypatch.setattr(
+        FrameBase, "project", _counting("project", FrameBase.project),
     )
     monkeypatch.setattr(
         FunctionSpace, "apply_inverse_metric",
@@ -337,8 +357,72 @@ def test_homogenize_routes_through_the_indicator_frame(solution, monkeypatch):
 
     solution.homogenize(_coarse_two_region())
 
-    assert counts["evaluate"] > 0, "homogenize did NOT call IndicatorBasis.evaluate"
-    assert counts["analyze"] > 0, "homogenize did NOT route through the analysis face"
+    assert counts["evaluate"] > 0, "homogenize did NOT tabulate the trial membership"
+    assert counts["test_analyze"] > 0, (
+        "homogenize did NOT route the analysis through the WEIGHTED test basis — "
+        "the flux is not on the test side (it may still be folded into the metric)"
+    )
+    assert counts["project"] > 0, "homogenize did NOT use the FrameBase.project verb"
     assert counts["inverse_metric"] > 0, (
         "homogenize did NOT normalise via apply_inverse_metric"
     )
+
+
+# ── n-D activation: 2-D rate preservation (the dropped-guard capability) ──
+
+@pytest.mark.verifies("sn-homogenization-rate-preservation")
+def test_homogenize_2d_rate_preservation(materials):
+    """2-D homogenize preserves reaction rates — the n-D path the dropped guard opens.
+
+    P3 drops the ``ndim != 1`` guard; this exercises the n-D membership
+    (``ravel_multi_index`` ``"ij"``) and the ``(ng, nx, ny) → (n_fine, ng)`` flatten
+    end-to-end through a REAL 2-D ``solve_sn``, checked against a structurally-
+    independent per-region Python loop (``vv-principles`` L11).  A flux tilt
+    (vacuum-x / reflective elsewhere) keeps φ non-flat so the φ-weighting is genuinely
+    activated.
+    """
+    mat_map = np.array(
+        [[0, 0, 1, 1], [0, 0, 1, 1], [1, 1, 0, 0], [1, 1, 0, 0]], dtype=int,
+    )
+    fine = Mesh2D(
+        edges_x=np.linspace(0.0, 4.0, 5), edges_y=np.linspace(0.0, 4.0, 5),
+        mat_map=mat_map, coord=CoordSystem.CARTESIAN,
+        bc_xmin=BC("vacuum"), bc_xmax=BC("reflective"),
+        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+    )
+    quad = Quadrature.level_symmetric(sn_order=4)
+    sol = solve_sn(materials, fine, quad, scattering_order=0)
+
+    coarse = Mesh2D(
+        edges_x=np.array([0.0, 2.0, 4.0]), edges_y=np.array([0.0, 2.0, 4.0]),
+        mat_map=np.zeros((2, 2), dtype=int), coord=CoordSystem.CARTESIAN,
+        bc_xmin=BC("vacuum"), bc_xmax=BC("reflective"),
+        bc_ymin=BC("reflective"), bc_ymax=BC("reflective"),
+    )
+    mm = sol.homogenize(coarse)
+    assert mm.ndim == 2 and len(mm.materials) == 4
+
+    phi = sol.scalar_flux.values                  # (ng, nx, ny)
+    ng, nx, ny = phi.shape
+    V = np.asarray(sol.mesh.volumes).ravel()      # (n_fine,) "ij"
+    phi_flat = phi.reshape(ng, -1)                # (ng, n_fine) "ij"
+    mat_flat = fine.mat_map.ravel()
+    fx, fy = np.meshgrid(np.arange(nx), np.arange(ny), indexing="ij")
+    # Coarse cell flat index of each fine cell — the IndicatorBasis "ij" raveling.
+    coarse_of_fine = ((fx // 2) * 2 + (fy // 2)).ravel()
+
+    for channel in ("SigT", "SigC", "SigF"):
+        for R in range(4):
+            sel = np.where(coarse_of_fine == R)[0]
+            sig_eff = getattr(mm.materials[R], channel)
+            for g in range(ng):
+                phi_R = float((V[sel] * phi_flat[g, sel]).sum())
+                rate_homog = sig_eff[g] * phi_R
+                rate_ref = float(sum(
+                    V[i] * phi_flat[g, i]
+                    * getattr(materials[mat_flat[i]], channel)[g]
+                    for i in sel
+                ))
+                assert rate_homog == pytest.approx(rate_ref, abs=1e-12, rel=1e-12), (
+                    f"2-D {channel} rate not preserved in coarse {R}, group {g}"
+                )

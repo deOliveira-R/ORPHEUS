@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5672**
+Total tests collected: **5687**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1160, 20.5%
+   L0, 1161, 20.4%
    L1, 994, 17.5%
    L2, 36, 0.6%
    L3, 0, 0.0%
-   foundation, 3472, 61.2%
+   foundation, 3486, 61.3%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5583
+   explicit, 5598
    verify, 0
    class-name, 46
    func-name, 0
@@ -268,7 +268,7 @@ Module × level grid
    numerics/test_estimators_as_functionals, 0, 0, 0, 0, 5, 0
    numerics/test_face_layout, 0, 0, 0, 0, 15, 0
    numerics/test_field, 0, 0, 0, 0, 22, 0
-   numerics/test_frame, 0, 0, 0, 0, 12, 0
+   numerics/test_frame, 0, 0, 0, 0, 16, 0
    numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
    numerics/test_incoming_ordinate_mask_tensor, 13, 0, 0, 0, 0, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
@@ -295,6 +295,7 @@ Module × level grid
    numerics/test_tensor_product_operator, 27, 0, 0, 0, 0, 0
    numerics/test_trace_space, 10, 5, 0, 0, 12, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 8, 0
+   numerics/test_weighted_indicator_basis, 0, 0, 0, 0, 9, 0
    operators/test_angular_average_operator, 12, 4, 0, 0, 0, 0
    operators/test_apply_full_field_codomain, 0, 0, 0, 0, 15, 0
    operators/test_bc_extraction_2d, 2, 3, 0, 0, 3, 0
@@ -344,7 +345,7 @@ Module × level grid
    residuals/test_typed_residuals, 0, 0, 0, 0, 33, 0
    slab/test_dd_recurrence, 1, 0, 0, 0, 0, 0
    slab/test_unified_matvec_slab, 2, 2, 0, 0, 0, 0
-   sn/test_homogenization, 11, 0, 0, 0, 0, 0
+   sn/test_homogenization, 12, 0, 0, 0, 0, 0
    sn/test_material_xs_field_typed, 0, 0, 0, 0, 10, 0
    solve/test_2d_anisotropic_windowing, 0, 4, 0, 0, 0, 0
    solve/test_affine_carve_bit_identity, 0, 0, 0, 0, 3, 0
@@ -368,7 +369,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 287, 0
+   test_layer_imports, 0, 0, 0, 0, 288, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -575,6 +576,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-vacuum-bc-cylinder``, 3
    ``peierls-vacuum-bc-sphere``, 3
    ``sigma-zero``, 3
+   ``sn-homogenization-rate-preservation``, 3
    ``sn-mms-nonvacuum-psi``, 3
    ``sn-mms-nonvacuum-qext``, 3
    ``cp-second-difference-operator``, 2
@@ -593,7 +595,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-case-real-basis``, 2
    ``sn-case-slope-matrix``, 2
    ``sn-case-spatial-modes``, 2
-   ``sn-homogenization-rate-preservation``, 2
    ``sn-mms-2d-2g-psi``, 2
    ``sn-mms-cylindrical-aniso-psi``, 2
    ``sn-mms-cylindrical-aniso-qext``, 2
@@ -770,7 +771,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **242** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **244** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -966,17 +967,19 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``sn-err-058-edge-extrapolation``
 - ``sn-err-058-proxy-source``
 - ``sn-homogenization-balance``
+- ``sn-homogenization-bilinear``
 - ``sn-homogenization-chi-collapse``
 - ``sn-homogenization-coarse-space``
 - ``sn-homogenization-fine-rate``
 - ``sn-homogenization-frame-projector``
-- ``sn-homogenization-galerkin-equals-petrov``
 - ``sn-homogenization-matrix-collapse``
+- ``sn-homogenization-metric-fold``
 - ``sn-homogenization-normal-equations``
 - ``sn-homogenization-production-weight``
 - ``sn-homogenization-radon-nikodym``
 - ``sn-homogenization-region-flux``
 - ``sn-homogenization-scatter-rate``
+- ``sn-homogenization-test-functions``
 - ``sn-homogenization-vector-collapse``
 - ``sn-mms-nonvacuum-psi``
 - ``sn-mms-nonvacuum-sph-psi``

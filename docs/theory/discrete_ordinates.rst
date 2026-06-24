@@ -15350,8 +15350,9 @@ have resolved into effective constants for a coarser calculation" move
 (Hébert, *Applied Reactor Physics*, §13 for space, §6.2 for energy).
 
 In ORPHEUS it lives as :meth:`Solution.homogenize
-<orpheus.sn.solution.Solution.homogenize>`, which takes a coarse
-:class:`~orpheus.geometry.mesh.Mesh1D` and returns a
+<orpheus.sn.solution.Solution.homogenize>`, which takes a coarse mesh
+(:class:`~orpheus.geometry.mesh.Mesh1D` or
+:class:`~orpheus.geometry.mesh.Mesh2D`) and returns a
 :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` — the
 coarse geometry already carrying one freshly-homogenized effective
 :class:`~orpheus.data.macro_xs.mixture.Mixture` per coarse cell. That
@@ -15362,11 +15363,15 @@ solve → homogenize → re-solve loop.
 
 .. note::
 
-   This is the **space-only, 1-D** slice. Energy is *not* condensed —
-   the group structure (:math:`eg`) carries through unchanged — and the
-   coarse mesh must share the fine mesh's outer boundary with internal
-   coarse edges aligned to fine-cell edges (each coarse cell is a
-   contiguous union of fine cells). The asymmetry between
+   This is the **space-only** slice (the spatial sibling of energy
+   condensation). It is **dimension-agnostic** — 1-D and 2-D fine meshes
+   flow through the one frame body, because the coarse cell-indicator
+   basis and the fine volume measure are n-D (see
+   :ref:`sn-homogenization-petrov-galerkin-frame`). Energy is *not*
+   condensed — the group structure (:math:`eg`) carries through unchanged
+   — and the coarse mesh must share the fine mesh's outer boundary with
+   internal coarse edges aligned to fine-cell edges (each coarse cell is
+   a contiguous union of fine cells). The asymmetry between
    homogenization and condensation, and *why* they return different
    types, is the subject of :ref:`sn-condense-homogenize-asymmetry`.
 
@@ -15462,14 +15467,14 @@ This is *not* a separate design choice — it falls straight out of
 interfaces, which is exactly the regime homogenization exists to handle.
 
 The flux·volume weight :math:`w_{i,g}` is the operation's whole signal,
-and it is *not* a free parameter: it is the
-:math:`L^2(\phi V)`-Radon–Nikodym density that rate preservation forces.
-That is what the next subsection makes precise — homogenization is the
-:math:`L^2(\phi V)`-orthogonal **Galerkin** projection of the fine
-cross-section field onto the coarse cells, and ORPHEUS realises it by
+and it is *not* a free parameter: it is the **test weighting** that rate
+preservation forces. That is what the next subsection makes precise —
+homogenization is the coefficient extraction of a **Petrov-Galerkin**
+frame whose *test* basis is the flux-weighted cell indicator and whose
+*trial* basis is the plain cell indicator, and ORPHEUS realises it by
 routing through the one discrete
-:class:`~orpheus.numerics.frame.FrameBase`, not a bespoke membership matmul
-(see :ref:`sn-homogenization-galerkin-frame`).
+:class:`~orpheus.numerics.frame.PetrovGalerkinFrame`, not a bespoke
+membership matmul (see :ref:`sn-homogenization-petrov-galerkin-frame`).
 
 The vector channels — total, capture, leakage-loss
 (:math:`\Sigma_L`), fission, and production
@@ -15534,18 +15539,26 @@ effective matrix entry be weighted by the source-group flux·volume:
 .. vv-status: sn-homogenization-matrix-collapse documented
 
 so the weight :math:`w_{i,g'} = V_i\,\phi_{i,g'}` rides the **first**
-(``g_from``) matrix axis. In the code this is the ``g_from``-axis
-multiplier inside ``_collapse_matrix``: the fine flux is broadcast onto
-the ``g_from`` index (``phi[:, :, None] * channel_fine``) *before* the
-region integral, and the :math:`1/\Phi_{R,g'}` normalisation rides the
-``g_from`` axis of the coefficient-space metric, broadcasting over the
-trailing ``g_to`` axis (:meth:`FunctionSpace.apply_inverse_metric
-<orpheus.numerics.space.FunctionSpace.apply_inverse_metric>`'s
-trailing-axis metric-broadcast). The :math:`(n,2n)` channel collapses
-identically — same source-group weighting on its ``[g_from, g_to]``
-layout. The mechanism that carries this — the discrete
-:class:`~orpheus.numerics.frame.FrameBase` — is derived in
-:ref:`sn-homogenization-galerkin-frame`.
+(``g_from``) matrix axis. In the code this falls out of the *test side*
+for free: the :class:`~orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis`
+carries the per-group flux :math:`\phi` as its test weight, and its
+**leading-aligned broadcast** aligns that weight's group axis to the
+*first* trailing (``g_from``) axis of whatever field it analyses — a
+vector channel weights elementwise, a ``[g_from, g_to]`` matrix channel
+weights by its source group — *before* the region integral. The
+:math:`1/\Phi_{R,g'}` normalisation is the frame's diagonal Gram
+(:meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`'s
+:meth:`FunctionSpace.apply_inverse_metric
+<orpheus.numerics.space.FunctionSpace.apply_inverse_metric>`), whose
+:math:`\Phi_{R,g'}` rides the ``g_from`` axis and broadcasts over the
+trailing ``g_to`` axis. The :math:`(n,2n)` channel collapses identically
+— same source-group weighting on its ``[g_from, g_to]`` layout. Both ride
+the *same* ``sigma_frame`` because
+:meth:`MaterialXSField.project_through
+<orpheus.transport.mesh.material_xs_field.MaterialXSField.project_through>`
+routes every rate-bearing channel through it. The mechanism that carries
+this — the discrete :class:`~orpheus.numerics.frame.PetrovGalerkinFrame`
+— is derived in :ref:`sn-homogenization-petrov-galerkin-frame`.
 
 .. warning::
 
@@ -15673,10 +15686,10 @@ weights, the balance would break — which is another way of seeing why
 the source-group weighting of :eq:`sn-homogenization-matrix-collapse`
 is forced, not chosen.)
 
-.. _sn-homogenization-galerkin-frame:
+.. _sn-homogenization-petrov-galerkin-frame:
 
-Homogenization is the :math:`L^2(\phi V)`-Galerkin projection
--------------------------------------------------------------
+Homogenization is a Petrov-Galerkin projection
+----------------------------------------------
 
 Everything above derives the flux·volume average from rate
 preservation. This subsection takes the second view — the one that
@@ -15684,9 +15697,11 @@ fixes *what kind of operator* homogenization is, and therefore *how it
 is implemented*. The answer is a single sentence that the rest of the
 subsection unpacks:
 
-  Homogenization is the :math:`L^2(\phi V)`-orthogonal **Galerkin**
-  projection of the fine cross-section field onto the space of functions
-  piecewise-constant on the coarse cells.
+  Homogenization is the coefficient extraction :math:`G^{-1} M` of a
+  **Petrov-Galerkin** frame: the *trial* basis is the plain coarse-cell
+  indicator :math:`\mathbf{1}_R`, the *test* basis is the
+  flux-weighted indicator :math:`\chi_R = \phi\,\mathbf{1}_R`, and the
+  measure is the bare geometric volume measure :math:`\mu_V`.
 
 This is not decoration. It is the reason the production code routes
 :meth:`Solution.homogenize <orpheus.sn.solution.Solution.homogenize>`
@@ -15694,18 +15709,39 @@ through the *same* discrete :class:`~orpheus.numerics.frame.FrameBase`
 abstraction that carries SN anisotropic-scattering moment projection —
 one mechanism for every fine→coarse change of representation (Cardinal
 Rule 2, single source of truth), instead of a bespoke membership
-matmul per method. And it settles a question the discrete-frame theory
-page left open: spatial homogenization is **Galerkin in its natural
-weighted metric**, *not* Petrov-Galerkin (see the correction in
-:ref:`galerkin-projection`, Issue #268).
+matmul per method. It is the consumer the discrete-frame theory page
+points at as the headline **Petrov-Galerkin** instance
+(:ref:`galerkin-projection`, Issue #268); the test functions differ
+from the trial functions (:math:`\chi_R = \phi\,\mathbf{1}_R \ne
+\mathbf{1}_R`), so the discipline is genuinely Petrov-Galerkin, carried
+by the frame **type**
+(:class:`~orpheus.numerics.frame.PetrovGalerkinFrame`).
 
-The projection and its normal equations
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. warning::
+
+   **This corrects an earlier draft of this section.** A previous
+   version argued homogenization was the ":math:`L^2(\phi V)`-orthogonal
+   **Galerkin** projection" — that the flux multiplier could be folded
+   into the *measure* (read :math:`\langle\Sigma,\phi\,\mathbf{1}_R
+   \rangle_{\mathrm{d}V} = \langle\Sigma,\mathbf{1}_R\rangle_{\phi V}`),
+   making test and trial the *same* span in a flux-weighted metric. That
+   reading is **forward-flux, reaction-rate-only**, and it
+   structurally breaks for the eigenvalue-consistent homogenization
+   reactor physics actually requires (see
+   :ref:`sn-homogenization-why-petrov-galerkin` below). Folding the
+   solution into the metric is precisely the mistake the #268 ruling
+   forbids: *the measure carries the axis and the fixed* :math:`L^2`
+   *metric, never the discipline.* The flux is a **test-weighting the
+   solution emits**, living on the test side — the frame type — not on
+   the geometry's measure.
+
+The trial space, the test space, and the cross-Gram
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Let :math:`\Sigma(x)` be the fine cross-section field — a function on
 the spatial domain, piecewise-constant on the *fine* cells. The coarse
-model can only carry one value per coarse cell :math:`R`, so it must
-live in
+model can only carry one value per coarse cell :math:`R`, so the
+**trial** space — where the answer lives — is
 
 .. math::
    :label: sn-homogenization-coarse-space
@@ -15724,149 +15760,241 @@ live in
 .. vv-status: sn-homogenization-coarse-space documented
 
 the span of the **coarse-cell indicators** (the piecewise-constant /
-P0 / box space; Brenner & Scott 2008 §3.4). The best coarse
-approximation :math:`\Sigma_W \in W` is the one whose **residual is
-orthogonal to every test function** in :math:`W` — the Galerkin normal
-equations. The only remaining choice is *which inner product* the
-orthogonality is taken in, and rate preservation forces it. Take the
-weighted :math:`L^2` inner product with measure :math:`\mu_{\phi V}`,
-i.e. weight :math:`\phi V`:
+P0 / box space; Brenner & Scott 2008 §3.4). A Galerkin projection would
+*test* the residual against these same trial functions. Homogenization
+does not: rate preservation forces the residual to be tested against the
+**flux-weighted** indicators
+
+.. math::
+   :label: sn-homogenization-test-functions
+
+   \chi_R(x) \;=\; \phi(x)\,\mathbf{1}_R(x),
+
+.. (vv-status rationale) Structural/representational identity: names the
+   Petrov-Galerkin TEST functions as the flux-weighted coarse-cell
+   indicators χ_R = φ·1_R. The implementing object is
+   :class:`~orpheus.numerics.basis.WeightedIndicatorBasis`; the verifiable
+   content is the weighted-analysis bit-identity gated by
+   ``tests.numerics.test_weighted_indicator_basis`` and the Mode-11
+   routing sentinel, not a solver claim.
+.. vv-status: sn-homogenization-test-functions documented
+
+— a genuinely different basis from the trial :math:`\mathbf{1}_R`. With
+test :math:`\ne` trial, the projection is **Petrov-Galerkin**: the
+coarse coefficients are the solution of the Petrov-Galerkin normal
+equations (test the residual against every test function, in the bare
+geometric metric :math:`\mu_V` = weight :math:`V`),
 
 .. math::
    :label: sn-homogenization-normal-equations
 
-   \big\langle \Sigma - \Sigma_W,\; \mathbf{1}_R \big\rangle_{\phi V}
+   \big\langle \chi_R,\; \Sigma - \Sigma_W \big\rangle_{V}
    \;=\; 0
    \quad \forall R
    \;\;\Longleftrightarrow\;\;
    c_R \;=\;
-   \frac{\langle \Sigma,\, \mathbf{1}_R \rangle_{\phi V}}
-        {\langle \mathbf{1}_R,\, \mathbf{1}_R \rangle_{\phi V}}
+   \frac{\langle \chi_R,\, \Sigma \rangle_{V}}
+        {\langle \chi_R,\, \mathbf{1}_R \rangle_{V}}
    \;=\;
    \frac{\sum_{i\in R} V_i\,\phi_{i,g}\,\Sigma_{i,g}}
         {\sum_{i\in R} V_i\,\phi_{i,g}},
 
-.. (vv-status rationale) Derivation-decomposition step: the Galerkin
-   normal equations for the P0 projection in the L²(φV) metric, whose
-   solution IS the flux·volume collapse
+.. (vv-status rationale) Derivation-decomposition step: the
+   Petrov-Galerkin normal equations for the P0 projection with a
+   flux-weighted test basis, whose solution IS the flux·volume collapse
    (:eq:`sn-homogenization-vector-collapse`). The verifiable content is
    the L0 rate-preservation gate plus the φV-vs-dV discriminator
    (``test_homogenization_is_flux_weighted_not_volume_weighted``); this
    is the projection-theoretic reading, not a separate claim.
 .. vv-status: sn-homogenization-normal-equations documented
 
-because the indicators have **disjoint support** — the Gram matrix
-:math:`\langle \mathbf{1}_R, \mathbf{1}_S\rangle_{\phi V} =
-\delta_{RS}\,\Phi_{R,g}` is **diagonal**, so the normal equations
-decouple cell-by-cell and each coefficient is exactly the flux·volume
-average :eq:`sn-homogenization-vector-collapse`. The denominator is the
-region mass :math:`m_R = \langle \mathbf{1}_R, \mathbf{1}_R\rangle_{\phi
-V} = \Phi_{R,g}` — the region flux integral
-:eq:`sn-homogenization-region-flux` *is* the Gram diagonal of the
-:math:`L^2(\phi V)` projection.
+where :math:`\langle \chi_R, f\rangle_V = \int_R \phi\,f\,\mathrm{d}V`
+is the flux-weighted region integral the test functions induce. Because
+the indicators (trial *and* test) have **disjoint support**, the
+**cross-Gram**
 
-**The measure is derived, not chosen.** Had the orthogonality been taken
-in the *unweighted* geometric metric :math:`\mu_V` (weight :math:`V`
-alone) the projection would have been the **volume average**
+.. math::
+
+   G_{RS} \;=\; \langle \chi_R,\, \mathbf{1}_S \rangle_{V}
+   \;=\; \delta_{RS}\,\sum_{i\in R} V_i\,\phi_{i,g}
+   \;=\; \delta_{RS}\,\Phi_{R,g}
+
+is **diagonal**, so the normal equations decouple cell-by-cell and each
+coefficient is exactly the flux·volume average
+:eq:`sn-homogenization-vector-collapse`. The denominator is the region
+mass :math:`m_R = G_{RR} = \Phi_{R,g}` — the region flux integral
+:eq:`sn-homogenization-region-flux` *is* the diagonal of the
+cross-Gram. (Contrast the spherical-harmonic
+:class:`~orpheus.numerics.frame.GalerkinFrame`, whose Gram is the
+*symmetric* :math:`\langle Y_k, Y_j\rangle = \delta_{kj}/(2\ell+1)`
+because there test :math:`=` trial; here the two factors of the Gram are
+*different* bases, but disjoint support still diagonalizes it.)
+
+**The test weighting is derived, not chosen.** Had the residual been
+tested against the *plain* indicators :math:`\mathbf{1}_R` (the Galerkin
+choice, test :math:`=` trial in the bare :math:`\mu_V` metric) the
+projection would have been the **volume average**
 :math:`\sum_i V_i \Sigma_i / \sum_i V_i`, which does *not* preserve the
 reaction rate across a flux gradient. Matching rate preservation
-:eq:`sn-homogenization-rate-preservation` is what *forces* the measure to
-be :math:`\phi V` rather than :math:`V`. This is the load-bearing
+:eq:`sn-homogenization-rate-preservation` is what *forces* the test
+functions to be flux-weighted (:math:`\chi_R = \phi\,\mathbf{1}_R`)
+rather than the plain :math:`\mathbf{1}_R`. This is the load-bearing
 discriminator the regression gate
 ``test_homogenization_is_flux_weighted_not_volume_weighted`` pins: a
 coarse region spanning a vacuum→reflective flux tilt over two materials
-makes the :math:`\phi V`- and :math:`V`-weighted effective
-:math:`\Sigma_t` numerically distinct, and production *must* match the
-:math:`\phi V` one.
+makes the flux-weighted and volume-only effective :math:`\Sigma_t`
+numerically distinct, and production *must* match the flux-weighted one.
 
-Galerkin, not Petrov-Galerkin
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. _sn-homogenization-why-petrov-galerkin:
 
-A reader of an earlier draft of the frame theory (:ref:`galerkin-projection`)
-would expect homogenization to be **Petrov-Galerkin** — test space
-(the flux·volume-weighted indicators) different from trial space (the
-plain indicators). That framing is an **artifact of insisting on the
-unweighted** :math:`\mu_V` **metric**. Read in the *native*
-:math:`L^2(\phi V)` metric, the test and trial spaces are the *same*
-span :math:`\{\mathbf{1}_R\}` and the projection is **orthogonal** — the
-canonical-dual (Galerkin) case. The two readings are the **same map**:
+Why Petrov-Galerkin and not Galerkin
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The flux-weighted projection *can* be written as a Galerkin projection
+in a flux-weighted metric — fold :math:`\phi` from the test function
+into the measure,
 
 .. math::
-   :label: sn-homogenization-galerkin-equals-petrov
+   :label: sn-homogenization-metric-fold
 
-   \big\langle \Sigma,\; \phi\,\mathbf{1}_R \big\rangle_{\mathrm{d}V}
+   \big\langle \phi\,\mathbf{1}_R,\; \Sigma \big\rangle_{V}
    \;=\;
-   \big\langle \Sigma,\; \mathbf{1}_R \big\rangle_{\phi\,\mathrm{d}V}
-   \;=\;
-   \big\langle \Sigma,\; \mathbf{1}_R \big\rangle_{\phi V},
+   \big\langle \mathbf{1}_R,\; \Sigma \big\rangle_{\phi V},
 
-.. (vv-status rationale) Structural identity: the same projection map
-   read two ways — an oblique (Petrov-Galerkin) weighting in the dV
-   metric equals an orthogonal (Galerkin) weighting in the φV metric,
-   because the flux multiplier can be absorbed into either the test
-   function or the measure. Reframes the operator type; the numerical
-   content is the same rate-preservation gate, not a new solver claim.
-.. vv-status: sn-homogenization-galerkin-equals-petrov documented
+.. (vv-status rationale) Structural identity: the metric-fold that
+   re-expresses the forward (φ*=φ) Petrov-Galerkin projection as a
+   Galerkin projection in the L²(φV) metric. It is exact for the
+   forward-flux case ONLY and is the convenience the #268 ruling rejects
+   as the general framing (it folds the solution into the metric).
+   Reframes the operator type; the numerical content is the same
+   rate-preservation gate, not a new solver claim.
+.. vv-status: sn-homogenization-metric-fold documented
 
-the flux multiplier :math:`\phi` can be absorbed into the test function
-(the "oblique-dual" Petrov-Galerkin reading) *or* into the measure (the
-orthogonal Galerkin reading) — it is the same integral. The discrete
-:class:`~orpheus.numerics.frame.FrameBase` reads the weighting off the
-**measure**, so it sees the Galerkin case. Spatial homogenization is the
-**first concrete instance** proving that the
-:math:`\{\Sigma_t, \Sigma_s, \dots\}`-homogenization the literature
-writes as "flux-weighted" is, structurally, an :math:`L^2(\phi V)`
-orthogonal projection — and the same argument lifts to energy
-condensation in :math:`L^2(\text{spectrum})`. (This corrected the
-forward-looking Petrov-Galerkin-instance framing on the frame theory
-page; see the retraction note in :ref:`galerkin-projection`, Issue
-#268.)
+making test and trial the *same* span :math:`\{\mathbf{1}_R\}` in the
+:math:`L^2(\phi V)` metric. **This is a forward-only convenience, not
+the structure.** It works here only because the test weight equals the
+trial-side solution (:math:`\phi^* = \phi`) — the *forward* degenerate.
+The homogenization reactor physics actually requires is
+**eigenvalue-consistent**: the effective cross sections must keep the
+multiplication factor :math:`\keff` stationary, and by first-order
+perturbation theory :math:`\keff` is stationary with respect to the
+**adjoint-weighted** residual. The functional that must be preserved is
+therefore the **bilinear** form
 
-The Radon–Nikodym split — measure vs multiplier
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. math::
+   :label: sn-homogenization-bilinear
 
-The implementation key is that :math:`\mu_{\phi V}` is **not** carried as
-a single per-group measure. By the Radon–Nikodym theorem the
-flux·volume measure factors as
+   \big\langle \varphi^*,\, \Sigma\,\varphi \big\rangle,
+   \qquad
+   \Sigma_R \;=\;
+   \frac{\int_R \varphi^*\,\Sigma\,\varphi\;\mathrm{d}V}
+        {\int_R \varphi^*\,\varphi\;\mathrm{d}V},
+
+.. (vv-status rationale) Literature-transcribed definition: the
+   eigenvalue-consistent (adjoint-weighted) effective cross section, the
+   bilinear ⟨φ*, Σφ⟩ that keeps k_eff stationary by first-order
+   perturbation theory (Hébert §6; the generalized-equivalence /
+   adjoint-weighting principle). The non-degenerate (φ*≠φ)
+   Petrov-Galerkin case; built in a later phase (P6). Not yet an SN
+   solver claim on this branch — documents the structure the forward
+   case degenerates from.
+.. vv-status: sn-homogenization-bilinear documented
+
+with **test** functions :math:`\varphi^*\cdot\mathbf{1}_R` and
+**trial** functions :math:`\varphi\cdot\mathbf{1}_R` that are now
+genuinely distinct (:math:`\varphi^* \ne \varphi` away from a
+self-adjoint problem). There is **no metric in which test equals
+trial** — the map is irreducibly Petrov-Galerkin, :math:`M^* \ne R`.
+The forward homogenization this slice ships is the **Galerkin
+degenerate** of that map (:math:`\varphi^* = \varphi`, the flux is its
+own adjoint weighting): it is a *legal* Galerkin reading because of the
+coincidence :math:`\varphi^* = \varphi`, but the coincidence is *not*
+the structure, so the honest framing — the one that survives the lift to
+:math:`\varphi^* \ne \varphi` — is Petrov-Galerkin. ORPHEUS therefore
+builds it as a :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` with
+an explicit flux-weighted test basis, *not* a
+:class:`~orpheus.numerics.frame.GalerkinFrame` with a flux-weighted
+measure. The adjoint-weighted (:math:`\varphi^* \ne \varphi`) case
+:eq:`sn-homogenization-bilinear` is built in a later phase of the
+unified Frame-projection campaign (P6); this section sets it up as the
+non-degenerate sibling the forward case descends from.
+
+.. note::
+
+   The distinction is invisible numerically on *this* branch — forward
+   homogenization with :math:`\varphi^* = \varphi` produces the same
+   numbers either way (the metric-fold :eq:`sn-homogenization-metric-fold`
+   is an exact identity for :math:`\varphi^* = \varphi`). It is an
+   **architecture** distinction: writing the discipline on the *type*
+   (an explicit test basis) rather than on the *measure* (a flux-folded
+   metric) is what lets the adjoint-weighted case land as a no-op change
+   of the test basis (:math:`\varphi \to \varphi^*`) rather than a
+   re-derivation. The Mode-11 routing sentinel below pins that the flux
+   genuinely lives on the test side, so a regression that silently
+   re-folded it into the metric would be caught even though it would
+   not move a single number.
+
+The measure carries the axis, never the discipline
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The implementation key is that the flux weight rides the **test basis**,
+and the :class:`~orpheus.numerics.measure.DiscreteMeasure` carries only
+the bare geometric volume :math:`\mu_V`. The frame factors the test
+functional into a geometric measure and a solution multiplier,
 
 .. math::
    :label: sn-homogenization-radon-nikodym
 
-   \mu_{\phi V} \;=\; \phi \cdot \mu_V,
+   \langle \chi_R, f\rangle_V \;=\; \int_R \phi\,f\;\mathrm{d}\mu_V,
    \qquad
-   \phi \;=\; \frac{\mathrm{d}\mu_{\phi V}}{\mathrm{d}\mu_V},
+   \chi_R \;=\; \phi\cdot\mathbf{1}_R,
 
-.. (vv-status rationale) Structural identity: the Radon–Nikodym
-   factorisation of the flux·volume measure into the geometric base
-   measure and the flux density. It is the design rationale for carrying
-   φ as an integrand multiplier rather than as ng separate measures; the
-   verifiable content is the measure / frame bit-identity gates, not a
-   solver claim.
+.. (vv-status rationale) Structural identity: the test functional splits
+   into the geometric base measure μ_V and the flux density φ carried on
+   the test basis. It is the design rationale for carrying φ as the test
+   weight (an integrand multiplier) rather than as ng separate measures
+   or as a metric on the measure; the verifiable content is the measure /
+   weighted-basis bit-identity gates and the Mode-11 routing sentinel,
+   not a solver claim.
 .. vv-status: sn-homogenization-radon-nikodym documented
 
 i.e. the **geometric base measure** :math:`\mu_V` (group-independent,
 the coarse/fine mesh's :attr:`volume_measure
 <orpheus.transport.mesh.material_mesh.MaterialMesh.volume_measure>` — a
-:class:`~orpheus.numerics.measure.DiscreteMeasure`) times the flux
-:math:`\phi` as the **density**. The code carries exactly this split:
-the :class:`~orpheus.numerics.frame.FrameBase` binds the
-:class:`~orpheus.numerics.basis.IndicatorBasis` to the *single*
-group-independent :math:`\mu_V`, and the per-group flux enters as an
-**integrand multiplier** on a trailing tensor axis —
-``analysis.apply(phi * channel_fine)`` — so the whole group structure
+:class:`~orpheus.numerics.measure.DiscreteMeasure`) is multiplied at
+integration time by the flux :math:`\phi` *carried on the test basis*.
+The code carries exactly this split: the
+:class:`~orpheus.numerics.frame.PetrovGalerkinFrame` binds the trial
+:class:`~orpheus.numerics.basis.IndicatorBasis` and the *bare*
+group-independent :math:`\mu_V`, and the flux enters through the
+**test basis**
+:class:`~orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis`,
+whose :meth:`analyze
+<orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis.analyze>`
+folds the per-group flux into the integrand on a trailing tensor axis —
+``test.analyze(phi * channel_fine, …)`` — so the whole group structure
 rides one frame.
 
-This is *why* :class:`~orpheus.numerics.measure.DiscreteMeasure`'s
-``weights`` array stays **1-D** even though the homogenization weight is
-per-group. A measure assigns **one mass per atom**; a genuinely
-per-group measure would be :math:`n_g` distinct measures (one
-:math:`\mu_{\phi V}` per group), which the 1-D ``weights`` contract
-forbids by construction. The 1-D guard is therefore not a limitation to
-work around — it *forces* the correct reading: :math:`\phi` is a
-density multiplier on the state, not a property of the geometry. The
-geometry (the mesh) owns one measure :math:`\mu_V`; the solution owns
-the flux :math:`\phi`; homogenization multiplies them at integration
-time.
+This is *why* the test weight is **not** smuggled onto the measure.
+:class:`~orpheus.numerics.measure.DiscreteMeasure`'s ``weights`` array
+stays **1-D** (one mass per atom) and group-independent; a per-group
+:math:`\mu_{\phi V}` would be :math:`n_g` distinct measures, and — worse
+— a *measure*-borne flux weight is exactly the metric-fold the #268
+ruling forbids as the general framing: it works for forward homogenization
+and breaks under :math:`\varphi^* \ne \varphi`. Keeping :math:`\phi` on
+the test basis instead of the measure forces the correct reading:
+:math:`\phi` is a test-weighting the *solution* emits, not a property of
+the geometry. The geometry (the mesh) owns one measure :math:`\mu_V`; the
+solution owns the flux :math:`\phi`; the *frame type* (Petrov-Galerkin,
+with its explicit test basis) carries the discipline. The
+:class:`~orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis`
+is **test-only** by construction — its :meth:`evaluate
+<orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis.evaluate>`
+is the *weight-free* geometric membership (the weight is an *analysis*
+weight, not a tabulation), and its synthesis-side operations *raise*
+(the Petrov-Galerkin reconstruction is purely trial-side; building a
+weighted synthesis before a consumer exists would make a half-consistent
+basis).
 
 The mesh yields the basis; it does not inherit it
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -15886,14 +16014,15 @@ The mesh is **not** a :class:`~orpheus.numerics.basis.Basis` subclass,
 and the reason is a clean role separation: a
 :class:`~orpheus.numerics.basis.Basis` is the **measure-free** half of a
 frame, while a mesh **carries the volume measure**. A mesh that *were* a
-basis would conflate the two roles of the frame pair (the disciplineless
-trial side and the measured test side) into one object. So the mesh
-yields *both* views — its measure-free indicator basis and its
-volume measure — and the :class:`~orpheus.numerics.frame.FrameBase` binds
-them. The yielded :class:`~orpheus.numerics.basis.IndicatorBasis` is
-**geometry-free**: it holds only the per-axis edge arrays, so
-:mod:`orpheus.numerics` carries no dependency on
-:mod:`orpheus.geometry`. Its
+basis would conflate the two roles of the frame pair (the
+discipline-free trial side and the measured test side) into one object.
+So the mesh yields *both* views — its measure-free indicator basis and
+its volume measure — and the
+:class:`~orpheus.numerics.frame.PetrovGalerkinFrame` binds them together
+with the flux-weighted test basis. The yielded
+:class:`~orpheus.numerics.basis.IndicatorBasis` is **geometry-free**: it
+holds only the per-axis edge arrays, so :mod:`orpheus.numerics` carries
+no dependency on :mod:`orpheus.geometry`. Its
 :meth:`evaluate <orpheus.numerics.basis.IndicatorBasis.evaluate>` builds
 the :math:`(n_{\rm fine} \times n_{\rm coarse})` one-hot **membership
 table** :math:`T[i,R] = \mathbf{1}_R(x_i)` by a per-axis
@@ -15901,114 +16030,178 @@ table** :math:`T[i,R] = \mathbf{1}_R(x_i)` by a per-axis
 order — the *same* flat-cell ordering the volume measure uses for its
 nodes, so the table column index and the measure node index agree by
 construction in any dimension (no 1-D special case in the membership
-machinery).
+machinery). This is what makes homogenization **dimension-agnostic**:
+:meth:`Solution.homogenize <orpheus.sn.solution.Solution.homogenize>`
+flattens its ``(ng, *spatial)`` flux to ``(n_fine, ng)`` in the same
+``"ij"`` order and a 1-D or 2-D mesh flows through the one frame body
+(pinned end-to-end by ``test_homogenize_2d_rate_preservation``).
 
-The normalisation lives in the space metric
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The coefficient-extraction verb and its normalisation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The full coarse projector is the composite
+The homogenization map is the frame's **coefficient-extraction verb**
+:meth:`frame.project <orpheus.numerics.frame.FrameBase.project>`
+= :math:`G^{-1} M`:
 
 .. math::
    :label: sn-homogenization-frame-projector
 
-   \Sigma_R \;=\; \big(R \circ G^{-1} \circ M\big)\,(\phi\,\Sigma),
+   \Sigma_R \;=\; \big(G^{-1} \circ M\big)\,\Sigma,
    \qquad
-   M = \text{analysis} \;(\textstyle\int_R \cdot\;\mathrm{d}V),\;\;
-   G^{-1} = \operatorname{diag}(1/\Phi_R),\;\;
-   R = \text{broadcast},
+   M = \text{analysis} \;\big(\textstyle\int_R \phi\,\cdot\;\mathrm{d}V\big),\;\;
+   G^{-1} = \operatorname{diag}(1/\Phi_R),
 
 .. (vv-status rationale) Structural/representational identity: the
-   homogenization projector as the composite reconstruction ∘
-   inverse-Gram ∘ analysis of the discrete Frame. Each factor is a Frame
-   primitive whose bit-identity is gated by
+   homogenization map as the inverse-Gram ∘ analysis coefficient
+   extraction (``FrameBase.project``) of the Petrov-Galerkin frame.
+   Each factor is a Frame primitive whose bit-identity is gated by
    ``tests.numerics.test_indicator_basis`` /
+   ``tests.numerics.test_weighted_indicator_basis`` /
    ``tests.numerics.test_frame``; the Mode-11 sentinel
-   ``test_homogenize_routes_through_the_indicator_frame`` pins that
+   ``test_homogenize_routes_through_the_petrov_galerkin_frame`` pins that
    ``homogenize`` actually calls them. Not a separate solver claim.
 .. vv-status: sn-homogenization-frame-projector documented
 
 read right-to-left:
 
-#. **analysis** :math:`M` = ``frame.analysis.apply``: the W-weighted
-   region integral :math:`(Mf)_R = \sum_{i\in R} V_i\,f_i =
-   \int_R f\,\mathrm{d}V`. Applied to :math:`\phi\,\Sigma` it is the
-   region reaction rate :math:`\sum_{i\in R} V_i\,\phi_i\,\Sigma_i`;
-   applied to :math:`\phi` alone it is the region flux integral
-   :math:`\Phi_R` — the Gram diagonal.
+#. **analysis** :math:`M` = ``frame.analysis.apply``, which delegates to
+   the *test* basis's weighted analysis: the flux-weighted region
+   integral :math:`(M\Sigma)_R = \sum_{i\in R} V_i\,\phi_i\,\Sigma_i =
+   \int_R \phi\,\Sigma\,\mathrm{d}V` — the region reaction rate. The
+   diagonal of the cross-Gram is recovered by the *same* face applied to
+   the constant field, :math:`(M\,\mathbf 1)_R = \sum_{i\in R}
+   V_i\,\phi_i = \Phi_R` (a single ``analysis ∘ reconstruction`` probe
+   of the all-ones coefficient vector; the off-diagonals are
+   structurally zero, so the row-sum IS the diagonal — see
+   :meth:`frame.gram <orpheus.numerics.frame.FrameBase.gram>`).
 #. **inverse Gram** :math:`G^{-1} = \operatorname{diag}(1/\Phi_R)` =
    :meth:`FunctionSpace.apply_inverse_metric
    <orpheus.numerics.space.FunctionSpace.apply_inverse_metric>` on a
-   coarse coefficient space whose installed metric is
-   :math:`\Phi_R = M\phi`. Crucially, for the indicator basis the
-   canonical-dual factor :math:`1/m_R` is **measure-dependent** (the
-   region mass changes with the measure), *unlike* the spherical-harmonic
-   :math:`2\ell+1` factor which is analytic and measure-free. A
-   measure-dependent factor **cannot** live on the measure-free
-   :class:`~orpheus.numerics.basis.Basis`, so
-   :meth:`reconstruct <orpheus.numerics.basis.IndicatorBasis.reconstruct>`
-   stays the plain (identity-dual) broadcast and the :math:`1/\Phi_R`
-   normalisation is applied **separately** by the coefficient space's
-   metric. The metric is a **Moore–Penrose pseudo-inverse**: a coarse
-   cell with zero region flux (:math:`\Phi_R = 0`) is in the metric's
-   null space and gets effective :math:`\Sigma_R = 0` — the :math:`0/0`
-   branch of :eq:`sn-homogenization-vector-collapse` resolved for free,
-   with no special-casing in :meth:`Solution.homogenize`.
-#. **reconstruction** :math:`R` = ``frame.reconstruction.apply``: the
-   plain broadcast of each coarse coefficient back onto the cell it owns
-   (here a no-op for the data path, since the homogenized values are
-   already coarse coefficients).
+   coarse coefficient space whose installed metric is the diagonal Gram
+   :math:`\Phi_R = M\,\mathbf 1`. The normalisation :math:`1/\Phi_R` is
+   **measure-dependent** (the region mass changes with the flux weight),
+   *unlike* the spherical-harmonic :math:`2\ell+1` factor which is
+   analytic and measure-free. A measure-dependent factor **cannot** live
+   on the measure-free :class:`~orpheus.numerics.basis.Basis`, so the
+   trial :meth:`reconstruct
+   <orpheus.numerics.basis.IndicatorBasis.reconstruct>` stays the plain
+   (identity-dual) broadcast and the :math:`1/\Phi_R` normalisation is
+   applied **separately** by the coefficient space's metric. The metric
+   is a **Moore–Penrose pseudo-inverse**: a coarse cell with zero region
+   flux (:math:`\Phi_R = 0`) is in the metric's null space and gets
+   effective :math:`\Sigma_R = 0` — the :math:`0/0` branch of
+   :eq:`sn-homogenization-vector-collapse` resolved for free, with no
+   special-casing in :meth:`Solution.homogenize`.
 
-For the **matrix channels** the same composite runs with the source-group
-flux as the multiplier: :math:`\phi_{g'}` rides the ``g_from`` axis, and
-``apply_inverse_metric`` broadcasts the per-region Gram
-:math:`\Phi_R[:, g_{\rm from}]` over the trailing ``g_to`` axis — so the
-source-group normalisation of :eq:`sn-homogenization-matrix-collapse`
-falls out of the **trailing-axis metric-broadcast** rather than needing
-its own code path. The :math:`\chi` channel reuses the *identical*
-machinery with a *different* multiplier — the per-cell production density
-:math:`p_i = \sum_g \nu\Sigma_{f,i,g}\,\phi_{i,g}\,V_i`
+For the **matrix channels** the same verb runs with the source-group
+flux as the test weight: :math:`\phi_{g'}` rides the ``g_from`` axis (the
+leading axis the test weight aligns to — see
+:meth:`WeightedIndicatorBasis._weighted
+<orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis>`'s
+leading-aligned broadcast), and ``apply_inverse_metric`` broadcasts the
+per-region Gram :math:`\Phi_R[:, g_{\rm from}]` over the trailing
+``g_to`` axis — so the source-group normalisation of
+:eq:`sn-homogenization-matrix-collapse` falls out of the
+**trailing-axis metric-broadcast** rather than needing its own code
+path. The :math:`\chi` channel uses the *identical* machinery in a
+*separate* frame with a *different* test weight — the per-cell production
+density :math:`p_i = \sum_g \nu\Sigma_{f,i,g}\,\phi_{i,g}\,V_i`
 (:eq:`sn-homogenization-production-weight`) — so its Gram becomes the
 region production :math:`\sum_{i\in R} V_i\,p_i` and the projection is the
 production-weighted convex average :eq:`sn-homogenization-chi-collapse`.
+
+Two test weightings, two frames — one conserved rate each
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The vector and matrix :math:`\Sigma` channels and the emission spectrum
+:math:`\chi` do **not** share a frame, because they preserve **two
+different conserved rates**, and a Petrov-Galerkin frame carries exactly
+one test weighting:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 30 26 22
+
+   * - Frame
+     - Channels
+     - Conserved rate
+     - Test weight :math:`w`
+   * - ``sigma_frame``
+     - :math:`\Sigma_t,\Sigma_c,\Sigma_L,\Sigma_f,\nu\Sigma_f` (vectors);
+       :math:`\Sigma_{s,\ell},\Sigma_{2n}` (``[g_from, g_to]`` matrices)
+     - **reaction rate** :math:`\sum_i V_i\phi_{i,g}\Sigma_{i,g}`
+     - per-group flux :math:`\varphi` (matrices weight by the
+       **source** group)
+   * - ``emission_frame``
+     - :math:`\chi` (emission spectrum)
+     - **emission rate** :math:`\sum_i p_i\chi_{i,g}`
+     - production density :math:`p=\sum_g\nu\Sigma_{f,g}\varphi_g`
+
+Both frames bind the **same** trial
+:class:`~orpheus.numerics.basis.IndicatorBasis` and the **same**
+geometric measure :math:`\mu_V`; they differ *only* in the test basis
+they carry. :meth:`Solution.homogenize` builds both and hands them to
+:meth:`MaterialXSField.project_through
+<orpheus.transport.mesh.material_xs_field.MaterialXSField.project_through>`,
+which owns the **channel → frame** taxonomy: it routes every rate-bearing
+:math:`\Sigma` channel through ``sigma_frame`` and :math:`\chi` through
+``emission_frame``, projecting the *whole* cross-section field as one
+object and returning one effective
+:class:`~orpheus.data.macro_xs.mixture.Mixture` per coarse cell. The
+caller owns the flux, so the caller builds the test weightings; the field
+owns *which* weighting each channel needs.
 
 .. note::
 
    That homogenization actually *executes* through these Frame readers —
    :meth:`IndicatorBasis.evaluate
-   <orpheus.numerics.basis.IndicatorBasis.evaluate>`,
-   ``frame.analysis.apply``, and
+   <orpheus.numerics.basis.IndicatorBasis.evaluate>` (the trial
+   membership), :meth:`WeightedIndicatorBasis.analyze
+   <orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis.analyze>`
+   (the **test-side** flux-weighted reader),
+   :meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`
+   (the :math:`G^{-1}M` verb), and
    :meth:`FunctionSpace.apply_inverse_metric
    <orpheus.numerics.space.FunctionSpace.apply_inverse_metric>` — rather
    than a green rate gate riding a buggy refactor that recomputes
-   membership inline, is pinned by the **Mode-11 sentinel**
-   ``test_homogenize_routes_through_the_indicator_frame`` (vv-principles
-   **Mode 11**, gate-never-executes-the-rewired-path): it wraps each new
-   reader and asserts the call counter is positive after a
-   ``homogenize`` run. The rate-preservation identity
-   :eq:`sn-homogenization-rate-preservation` remains THE correctness
-   claim (the L0 gate); the sentinel makes that claim load-bearing for
-   *this* implementation.
+   membership inline or quietly re-folds :math:`\phi` into the metric, is
+   pinned by the **Mode-11 sentinel**
+   ``test_homogenize_routes_through_the_petrov_galerkin_frame``
+   (vv-principles **Mode 11**, gate-never-executes-the-rewired-path): it
+   monkeypatch-counts each reader and asserts the counter is positive
+   after a ``homogenize`` run. The load-bearing count is
+   ``WeightedIndicatorBasis.analyze`` — a bit-identity-preserving
+   regression that kept the *old* Galerkin metric-fold (folding
+   :math:`\phi` into the coefficient-space metric, test = plain trial
+   indicator) would produce **identical numbers** yet never construct the
+   weighted test basis, leaving that counter at zero. The
+   rate-preservation identity :eq:`sn-homogenization-rate-preservation`
+   remains THE correctness claim (the L0 gate); the sentinel makes the
+   *Petrov-Galerkin structure* load-bearing for *this* implementation.
 
 Why route through the Frame at all
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The membership-matmul the prior slice shipped was correct; the carve to
-the :class:`~orpheus.numerics.frame.FrameBase` is an **architecture** move,
-not a correctness fix (Cardinal Rule 2). Three payoffs justify it:
+the :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` is an
+**architecture** move, not a correctness fix (Cardinal Rule 2). Three
+payoffs justify it:
 
 * **One mechanism, not one per method.** The angular-flux →
-  spherical-harmonic-moment projection of SN anisotropic scattering and
-  the fine → coarse cross-section projection of homogenization are the
-  *same* operation — a discrete frame's analysis/reconstruction pair —
-  differing only in *which* :class:`~orpheus.numerics.basis.Basis` is
-  bound (:class:`~orpheus.numerics.basis.SphericalHarmonicBasis` vs
-  :class:`~orpheus.numerics.basis.IndicatorBasis`). Routing both through
-  :class:`~orpheus.numerics.frame.FrameBase` collapses a twin path
-  (coding-elegance anti-pattern 1) into one body.
+  spherical-harmonic-moment projection of SN anisotropic scattering (a
+  :class:`~orpheus.numerics.frame.GalerkinFrame`) and the fine → coarse
+  cross-section projection of homogenization (a
+  :class:`~orpheus.numerics.frame.PetrovGalerkinFrame`) are the *same*
+  mechanism — a discrete frame's analysis/reconstruction pair —
+  differing only in *which* :class:`~orpheus.numerics.basis.Basis` pair
+  (trial / test) is bound and *which discipline type* carries them.
+  Routing both through the :class:`~orpheus.numerics.frame.FrameBase`
+  hierarchy collapses a twin path (coding-elegance anti-pattern 1) into
+  one body.
 * **Energy condensation becomes the same shape.** The deferred
-  ``.condense`` sibling is the identical frame with the spatial
-  :class:`~orpheus.numerics.basis.IndicatorBasis` replaced by a *spectral*
-  group-indicator basis and the measure replaced by
+  ``.condense`` sibling is the identical Petrov-Galerkin frame with the
+  spatial :class:`~orpheus.numerics.basis.IndicatorBasis` replaced by a
+  *spectral* group-indicator basis and the measure replaced by
   :math:`L^2(\text{spectrum})`. Establishing the frame routing here means
   condensation lands as a no-op extension through the same body, not a
   third arm.
@@ -16066,10 +16259,10 @@ attached to *any* geometry. Its natural product is a portable
 ``dict[int, Mixture]`` keyed by material id, with no geometry attached.
 
 The asymmetry has a clean **frame-theoretic** reading once
-homogenization is seen as the :math:`L^2`-Galerkin projection of
-:ref:`sn-homogenization-galerkin-frame`. Both operations are the *same*
-frame mechanism — analysis ∘ inverse-Gram ∘ reconstruction — and differ
-*only* in their trial basis :math:`K` (the
+homogenization is seen as the Petrov-Galerkin frame projection of
+:ref:`sn-homogenization-petrov-galerkin-frame`. Both operations are the
+*same* frame mechanism — analysis ∘ inverse-Gram — and differ *only* in
+their trial basis :math:`K` (the
 :class:`~orpheus.numerics.basis.Basis` bound into the frame):
 
 * **homogenize** binds a **geometric** :math:`K` — the spatial
@@ -16116,6 +16309,13 @@ identity :eq:`sn-homogenization-rate-preservation` directly:
   reference loop weighting by the **source** group ``g_from``
   *explicitly* — which is what makes it catch a ``g_from``↔``g_to``
   swap (vv-principles **Mode 2**).
+* **n-D** (``test_homogenize_2d_rate_preservation``) — the same
+  rate-preservation identity end-to-end through a *real* 2-D
+  ``solve_sn``, exercising the n-D membership
+  (:func:`numpy.ravel_multi_index` ``"ij"``) and the
+  ``(ng, nx, ny) → (n_fine, ng)`` flatten the dropped 1-D guard opens, a
+  flux tilt keeping :math:`\phi` non-flat so the flux-weighting is
+  genuinely activated.
 
 The reference these are checked against is a **structurally-independent**
 explicit per-region Python loop over the fine cells — *not* a re-call of
@@ -16143,21 +16343,29 @@ the contract:
        volume-weight — the simplex test is blind to *which* convex weight,
        so this pins the weight choice directly.
    * - ``test_homogenization_is_flux_weighted_not_volume_weighted``
-     - The load-bearing :math:`L^2(\phi V)`-derivation guard: over a
-       vacuum→reflective flux tilt the :math:`\phi V`- and
-       :math:`V`-weighted effective :math:`\Sigma_t` are numerically
-       distinct, and production MUST match the :math:`\phi V` one
+     - The load-bearing **flux-weighted-test** guard: over a
+       vacuum→reflective flux tilt the flux-weighted and volume-only
+       effective :math:`\Sigma_t` are numerically distinct, and
+       production MUST match the flux-weighted one
        (:eq:`sn-homogenization-normal-equations`) — reds a regression
-       that drops :math:`\phi` (volume-only averaging).
-   * - ``test_homogenize_routes_through_the_indicator_frame``
+       that drops :math:`\phi` from the test weight (Galerkin /
+       volume-only averaging).
+   * - ``test_homogenize_routes_through_the_petrov_galerkin_frame``
      - **Mode-11 sentinel**: ``homogenize`` actually calls
        :meth:`IndicatorBasis.evaluate
-       <orpheus.numerics.basis.IndicatorBasis.evaluate>`,
-       ``frame.analysis.apply``, and
+       <orpheus.numerics.basis.IndicatorBasis.evaluate>` (trial
+       membership), :meth:`WeightedIndicatorBasis.analyze
+       <orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis.analyze>`
+       (the **test-side** flux-weighted reader),
+       :meth:`FrameBase.project
+       <orpheus.numerics.frame.FrameBase.project>`, and
        :meth:`FunctionSpace.apply_inverse_metric
-       <orpheus.numerics.space.FunctionSpace.apply_inverse_metric>` —
-       the Frame routing (:eq:`sn-homogenization-frame-projector`) is on
-       the gate's call graph, not bypassed by an inline recompute.
+       <orpheus.numerics.space.FunctionSpace.apply_inverse_metric>` — the
+       Petrov-Galerkin routing
+       (:eq:`sn-homogenization-frame-projector`) is on the gate's call
+       graph, not bypassed by an inline recompute *or a silent re-fold of*
+       :math:`\phi` *into the metric* (which would keep the numbers and
+       leave ``WeightedIndicatorBasis.analyze`` at zero calls).
    * - ``test_effective_xs_bracketed_by_fine_extremes``
      - :math:`\Sigma_{t,R}` is bracketed by the region's fine-cell
        extremes — a physical sanity check independent of the rate gate.
@@ -16206,6 +16414,32 @@ branch and have no landed hash yet.
      - Architectural milestone
      - Issue
      - Where
+   * - in dev
+       (2026-06-24)
+     - **Homogenization re-framed as Petrov-Galerkin** (unified
+       Frame-projection campaign, P3) — the spatial-homogenization theory
+       and production code are corrected from the forward-only
+       ":math:`L^2(\phi V)`-Galerkin" reading to the honest
+       **Petrov-Galerkin** framing: the flux is a *test-weighting the
+       solution emits* (carried on an explicit
+       :class:`~orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis`
+       test side), **never folded into the measure**, which carries only
+       the geometric volume + fixed :math:`L^2` metric. Homogenization
+       becomes the coefficient extraction :math:`G^{-1}M`
+       (:meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`)
+       of a :class:`~orpheus.numerics.frame.PetrovGalerkinFrame`; the
+       forward (:math:`\varphi^*=\varphi`) case is the *Galerkin
+       degenerate* of the eigenvalue-consistent adjoint-weighted
+       (:math:`\varphi^*\ne\varphi`) homogenization (P6). The whole XS
+       field projects as one object
+       (:meth:`MaterialXSField.project_through
+       <orpheus.transport.mesh.material_xs_field.MaterialXSField.project_through>`)
+       through *two* frames — reaction-rate-preserving :math:`\Sigma` and
+       emission-rate-preserving :math:`\chi`. The 1-D guard is dropped
+       (now n-D). See :ref:`sn-homogenization-petrov-galerkin-frame`.
+     - #268
+     - *(in development)*
+       ``refactor/operator-inverse-algebra``
    * - in dev
      - **Mesh + materials data/behavior split (``MaterialMesh``) + L2
        promotion** — the method-agnostic *mesh + materials* carrier

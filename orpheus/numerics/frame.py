@@ -90,9 +90,10 @@ References
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import cached_property
 
+import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.numerics.basis.base import Basis
@@ -235,6 +236,47 @@ class FrameBase(ABC):
         double-projection).
         """
         return OperatorProduct(self.reconstruction, operator)
+
+    # ── the coefficient-extraction verb (homogenise / condense) ──────────
+    @cached_property
+    def gram(self) -> FunctionSpace:
+        r"""The coefficient space carrying the diagonal frame Gram :math:`G_R = \langle\chi_R, \phi_R\rangle_W`.
+
+        The cross Gram :math:`G_{kj} = \langle\chi_k, \phi_j\rangle_W = (M R)_{kj}` of
+        the analysis :math:`M` and reconstruction :math:`R`. For a disjoint-support
+        trial (cell / group indicators) it is **diagonal**, so the full operator
+        collapses to its diagonal :math:`G_R = (M R\,\mathbf 1)_R = \int_R w\,
+        \mathrm{d}V` (:math:`w` the test weight) — a single
+        ``analysis ∘ reconstruction`` probe of the all-ones coefficient vector
+        (off-diagonals are structurally zero, so the row sum IS the diagonal). The
+        diagonal acquires the test weight's trailing (group, …) shape from the
+        analysis face, and is installed as the coefficient space's metric so
+        :meth:`project`'s normalisation is the reciprocal
+        :meth:`~orpheus.numerics.space.FunctionSpace.apply_inverse_metric` (whose
+        Moore–Penrose pseudo-inverse zeroes empty / zero-weight regions for free).
+        """
+        ones = np.ones(self.basis_space.shape)
+        diagonal = self.analysis.apply(self.reconstruction.apply(ones))
+        return replace(self.test_space, inner_product_weights=diagonal)
+
+    def project(self, field: NDArray, /) -> NDArray:
+        r"""Extract coefficients: :math:`G^{-1} M f` — the homogenise / condense verb.
+
+        The Petrov-Galerkin coefficient extraction: analyse the field against the
+        test functions (:math:`(M f)_k = \langle\chi_k, f\rangle_W`), then normalise
+        by the cross :attr:`gram` :math:`G`. For flux-weighted spatial homogenisation
+        (``test`` :math:`= \varphi\cdot\mathbf 1_R`, ``trial`` :math:`= \mathbf 1_R`)
+        this is the rate-preserving effective cross section :math:`\Sigma_R = \int_R
+        \varphi\Sigma\,\mathrm{d}V / \int_R\varphi\,\mathrm{d}V`; for a
+        :class:`GalerkinFrame` (``test = trial``) it is the orthogonal projection onto
+        the coarse space. The Gram is diagonal for every real consumer (disjoint
+        indicators / orthogonal harmonics), so the normalisation is a reciprocal —
+        the dense solve is the (unbuilt) least-squares seam only. Trailing (group, …)
+        axes ride the analysis and broadcast against the diagonal Gram (so a vector
+        channel divides by :math:`\Phi_{R,g}` and a ``[g_from, g_to]`` matrix channel
+        by its source-group :math:`\Phi_{R,g_{\mathrm{from}}}`).
+        """
+        return self.gram.apply_inverse_metric(self.analysis.apply(field))
 
 
 @dataclass(frozen=True)

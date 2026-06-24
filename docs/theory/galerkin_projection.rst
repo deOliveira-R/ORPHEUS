@@ -75,11 +75,14 @@ operator class per method.
       axis and the fixed** :math:`L^2` **metric, never the
       discipline**.
 
-   The stale "Galerkin in :math:`L^2(\phi V)`" derivation still lives
-   in :ref:`sn-homogenization-galerkin-frame`
-   (:doc:`discrete_ordinates`); that section is flagged for the same
-   reversal under Issue #268 and should be read through this
-   correction until it is rewritten.
+   The homogenization derivation — the headline Petrov-Galerkin
+   consumer of this hierarchy — lives in
+   :ref:`sn-homogenization-petrov-galerkin-frame`
+   (:doc:`discrete_ordinates`); it was rewritten to this same
+   Petrov-Galerkin framing under Issue #268 (the earlier
+   ":math:`L^2(\phi V)`-Galerkin" reading is retired there, with the
+   forward-flux metric-fold shown to be the Galerkin *degenerate* of the
+   eigenvalue-consistent adjoint-weighted case).
 
 
 Key Facts
