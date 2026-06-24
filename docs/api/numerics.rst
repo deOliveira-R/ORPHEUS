@@ -237,14 +237,27 @@ Discrete measures and partition (Wave 0 of SN performance plan):
   :meth:`partition_by`. Carries label, indices into the parent,
   and the restricted measure.
 
-Discrete frame, basis, and harmonic projection (Frame/Basis carve):
+Discrete frame, basis, and harmonic projection (Frame/Basis carve;
+discipline-type hierarchy, GitHub #268):
 
-* :class:`~orpheus.numerics.frame.Frame` — a discrete frame binding
-  a :class:`~orpheus.numerics.basis.Basis` to a
-  :class:`~orpheus.numerics.measure.DiscreteMeasure`; emits the
+* :class:`~orpheus.numerics.frame.FrameBase` — the abstract discrete
+  frame: binds a :class:`~orpheus.numerics.basis.Basis` to a
+  :class:`~orpheus.numerics.measure.DiscreteMeasure` and emits the
   ``analysis`` (:math:`M = T`) and ``reconstruction`` (:math:`R`)
   faces as :class:`~orpheus.numerics.operator.LinearOperator` views.
-  The spherical-harmonic case is a 4π-tight frame.
+  Carries the **discipline-free** mechanics — the trial table, the two
+  spaces, the reconstruction face, the analysis-face wiring; the single
+  abstract hook is the test basis.
+* :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` — the general
+  discipline: an explicit ``test_basis`` distinct from the trial basis
+  (test ≠ trial), so :math:`M^* \ne R`. Flux-weighted spatial
+  homogenisation and spectrum-weighted energy condensation are the
+  headline consumers.
+* :class:`~orpheus.numerics.frame.GalerkinFrame` — the Galerkin
+  specialisation (``test is trial``), which *strengthens* the base
+  promise to :math:`\Pi^* = R`. The angular spherical-harmonic
+  projection (``quadrature.angular_frame(L)``) is the canonical
+  pure-Galerkin frame; its SH case is a 4π-tight frame.
 * :class:`~orpheus.numerics.basis.Basis` — the synthesis (trial)
   side ABC: tabulate, naked synthesis :math:`S_0`, the three
   weighted contractions, and the discrete Gram.
@@ -258,22 +271,21 @@ Discrete frame, basis, and harmonic projection (Frame/Basis carve):
   :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.evaluate`
   :math:`Y_\ell^m(\hat\Omega_n)` evaluator.
 
-The forward-looking projection discipline vocabulary
-(:mod:`orpheus.numerics.projection`):
+The abstract analysis / reconstruction operator **roles**
+(:mod:`orpheus.numerics.projection`). These carry the operator role
+only; the **discipline** (Galerkin vs Petrov-Galerkin) is the frame's
+TYPE, never a marker on the role (GitHub #268 retired the
+``GalerkinProjection`` / ``PetrovGalerkinProjection`` marker ABCs):
 
-* :class:`~orpheus.numerics.projection.AnalysisOperator` —
-  most-general analysis (projection) ABC, :math:`\Pi = T`.
-* :class:`~orpheus.numerics.projection.GalerkinProjection` —
-  Galerkin discipline (test space = trial space; canonical dual) ABC.
-* :class:`~orpheus.numerics.projection.PetrovGalerkinProjection`
-  — Petrov-Galerkin discipline (test space ≠ trial space; oblique
-  dual) ABC. Sibling of Galerkin; concrete subclasses land with
-  energy condensation (§17).
+* :class:`~orpheus.numerics.projection.AnalysisOperator` — the abstract
+  fine→coarse (measured) role :math:`M : V \to W`. The concrete
+  realisation is a frame's ``analysis`` face.
 * :class:`~orpheus.numerics.projection.ReconstructionOperator` —
-  the reconstruction-side ABC :math:`R : W \to V`.
+  the abstract coarse→fine role :math:`R : W \to V`. The concrete
+  realisation is a frame's ``reconstruction`` face.
 
 See :ref:`galerkin-projection` for the discrete-frame narrative,
-cross-method consumer table, and the discipline-vocabulary rationale;
+the discipline-type hierarchy, and the cross-method consumer table;
 :ref:`spherical-harmonics` for the SH convention and addition theorem.
 
 
@@ -382,9 +394,11 @@ API Reference
 The :class:`~orpheus.numerics.operator.LinearOperator` Protocol,
 its capability-set semantics, and the composition / tensor-product
 primitives are documented at :ref:`operator-algebra` (theory page).
-The discrete :class:`~orpheus.numerics.frame.Frame`, the
+The discrete :class:`~orpheus.numerics.frame.FrameBase` hierarchy
+(:class:`~orpheus.numerics.frame.PetrovGalerkinFrame` →
+:class:`~orpheus.numerics.frame.GalerkinFrame`), the
 :class:`~orpheus.numerics.basis.Basis` hierarchy, and the
-Galerkin / Petrov-Galerkin discipline ABCs are documented at
+discipline-as-type rationale are documented at
 :ref:`galerkin-projection`. The :math:`Y_\ell^m` evaluator and the
 no-:math:`4\pi/(2\ell+1)`-prefactor convention are documented at
 :ref:`spherical-harmonics`. The

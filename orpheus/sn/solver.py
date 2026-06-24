@@ -489,7 +489,7 @@ class _MomentWindowedResolvent:
 
     **Phase 5a → 5c.**  5a reduced the iterate by POST-projecting the base's
     full-angular sweep output (``base.solve`` then a flat
-    :attr:`~orpheus.numerics.frame.Frame.analysis` projection) — the full
+    :attr:`~orpheus.numerics.frame.FrameBase.analysis` projection) — the full
     ``(N, ng, nx, ny)`` field was still materialized transiently every sweep.
     5c moved the projection INTO the sweep (``base.solve_moments``): the walk
     accumulates moments per anti-diagonal, so the full angular field is NEVER
@@ -561,9 +561,9 @@ class _MomentWindowedResolvent:
         :meth:`~orpheus.sn.operator.InvertibleOperator.solve_moments`, which
         projects each anti-diagonal IN-SWEEP — the full per-ordinate angular
         field ``(N, ng, nx, ny)`` is NEVER materialized (the ~3× linear
-        peak-memory win).  The scattering operator's angular
-        :class:`~orpheus.numerics.frame.Frame` (the SAME object ``S.apply`` uses,
-        its :attr:`~orpheus.numerics.frame.Frame.analysis` face) carries the
+        peak-memory win).  The scattering operator's angular spherical-harmonic
+        :class:`~orpheus.numerics.frame.GalerkinFrame` (the SAME object ``S.apply``
+        uses, its :attr:`~orpheus.numerics.frame.FrameBase.analysis` face) carries the
         harmonics + weights, so the in-sweep moments equal ``S``'s internal
         projection term-for-term; the cross-octant accumulation reorders the
         ordinate sum ⇒ principled-equivalence, NOT bit-identity (``vv-principles``
@@ -571,7 +571,7 @@ class _MomentWindowedResolvent:
         boundary trace passes through verbatim (windowing is interior-only).
 
         Pre-5c this wrapped ``base.solve`` (full angular) then applied a flat
-        post-sweep :attr:`~orpheus.numerics.frame.Frame.analysis` projection.
+        post-sweep :attr:`~orpheus.numerics.frame.FrameBase.analysis` projection.
         That fuller-view path remains the verification oracle: the
         windowed-moments equivalence test pins THIS in-sweep result against
         ``base.solve`` + ``frame.analysis.apply`` within the de-risk ULP bound

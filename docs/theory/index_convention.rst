@@ -767,7 +767,7 @@ axes :math:`(n_x, n_y)`.
      - 1/(cm²·s·sr·eV) [inherits from source field]
      - ``(L+1, 2L+1, ng, nx, ny)``
      - ``frame.analysis.apply`` output (the SH
-       :class:`~orpheus.numerics.frame.Frame`'s analysis face;
+       :class:`~orpheus.numerics.frame.GalerkinFrame`'s analysis face;
        :mod:`orpheus.sn.scattering`); typed wrapper at
        :class:`orpheus.sn.harmonic_moment_field.HarmonicMomentField`
        (Issue #197 PR-TYPED-4)

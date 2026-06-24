@@ -148,8 +148,8 @@ class HarmonicMomentField(FluxRole, MomentField):
 
     Cross-class arithmetic with :class:`AngularFlux` / :class:`ScalarFlux`
     is forbidden by Field's Layer 1 gate (`coding-elegance` Pattern 4).
-    The legitimate route is through the discrete
-    :class:`~orpheus.numerics.frame.Frame`'s analysis / reconstruction faces.
+    The legitimate route is through the discrete spherical-harmonic
+    :class:`~orpheus.numerics.frame.GalerkinFrame`'s analysis / reconstruction faces.
     """
 
     L: int

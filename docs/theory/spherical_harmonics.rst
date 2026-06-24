@@ -19,7 +19,7 @@ The basis is **generic infrastructure** — it lives in
 :math:`Y_\ell^m` table is consumed by SN aniso scattering, by the PN
 solver (when it lands; Grand Report v3 §10), and by MC adjoint moment
 estimators. It is the synthesis (trial) side of the spherical-harmonic
-:class:`~orpheus.numerics.frame.Frame` (see :ref:`galerkin-projection`);
+:class:`~orpheus.numerics.frame.GalerkinFrame` (see :ref:`galerkin-projection`);
 the analysis :math:`M` and reconstruction :math:`R` operators are the
 frame's two faces, NOT standalone operator classes.
 
@@ -303,7 +303,7 @@ These four identities are pinned by
    fix gives each of the four operators a distinct construction path
    with the metric / weight diagonals carried by typed spaces; the
    Frame/Basis carve then re-homed the projection and reconstruction
-   as the :class:`~orpheus.numerics.frame.Frame`'s ``analysis`` /
+   as the :class:`~orpheus.numerics.frame.GalerkinFrame`'s ``analysis`` /
    ``reconstruction`` faces and moved the :math:`(2\ell+1)` factor
    onto
    :attr:`SphericalHarmonicBasis.addition_theorem_factor
@@ -355,7 +355,7 @@ The pure-Python reference implementation is
 per-component sibling
 :meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.evaluate_from_components`).
 Its return value is the ``(N, L+1, 2L+1)`` **table** consumed by the
-spherical-harmonic :class:`~orpheus.numerics.frame.Frame`. The frame
+spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame`. The frame
 caches the table once (``frame.table``) and the two faces delegate:
 
 * the **analysis face** ``frame.analysis`` — the Galerkin projection
@@ -446,7 +446,7 @@ Code references
   the no-prefactor convention, and the
   :attr:`~orpheus.numerics.basis.SphericalHarmonicBasis.addition_theorem_factor`
   :math:`(2\ell+1)`.
-* :class:`~orpheus.numerics.frame.Frame` — binds the basis to the
+* :class:`~orpheus.numerics.frame.GalerkinFrame` — binds the basis to the
   angular measure; its ``analysis`` face is the Galerkin projection
   :math:`M` that consumes the :math:`Y` table, its ``reconstruction``
   face the addition-theorem :math:`R`.

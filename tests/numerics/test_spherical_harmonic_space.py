@@ -33,7 +33,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.basis import SphericalHarmonicBasis
-from orpheus.numerics.frame import Frame
+from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.quadrature import (
     lebedev_sphere,
     product_mu_phi,
@@ -166,7 +166,7 @@ def test_R_equals_2l_plus_1_times_S0(lebedev_L_pair):
     measure, L = lebedev_L_pair
     basis = SphericalHarmonicBasis(L=L)
     Y = basis.evaluate(measure.nodes)
-    R = Frame(basis, measure).reconstruction
+    R = GalerkinFrame(basis, measure).reconstruction
 
     rng = np.random.default_rng(seed=2026)
     c = _mask_non_existent_m(rng.standard_normal((L + 1, 2 * L + 1)), L)
@@ -204,12 +204,12 @@ def test_pi_R_is_4pi_identity_on_band_limited(lebedev_L_pair):
 
     The canonical pin of the Galerkin idempotency law: constructs the
     analysis (:math:`\Pi`) and reconstruction (:math:`R`) operators as the
-    discrete :class:`~orpheus.numerics.frame.Frame`'s faces and pins the
+    discrete :class:`~orpheus.numerics.frame.GalerkinFrame`'s faces and pins the
     genuine :math:`\Pi R = 4\pi I` identity (NOT the broken ``Π R == I`` that
     the retired :meth:`assert_galerkin_idempotency` was checking — see P1.6).
     """
     measure, L = lebedev_L_pair
-    frame = Frame(SphericalHarmonicBasis(L=L), measure)
+    frame = GalerkinFrame(SphericalHarmonicBasis(L=L), measure)
     M = frame.analysis
     R = frame.reconstruction
 
@@ -241,7 +241,7 @@ def test_H_equals_g_C_times_S0(lebedev_L_pair):
     measure, L = lebedev_L_pair
     basis = SphericalHarmonicBasis(L=L)
     Y = basis.evaluate(measure.nodes)
-    M = Frame(basis, measure).analysis
+    M = GalerkinFrame(basis, measure).analysis
 
     rng = np.random.default_rng(seed=99)
     c = _mask_non_existent_m(rng.standard_normal((L + 1, 2 * L + 1)), L)
@@ -327,7 +327,7 @@ def test_moment_projection_codomain_is_spherical_harmonic_space():
     """
     measure = lebedev_sphere(7)
     L = 2
-    M = Frame(SphericalHarmonicBasis(L=L), measure).analysis
+    M = GalerkinFrame(SphericalHarmonicBasis(L=L), measure).analysis
     cod = M.codomain
     assert isinstance(cod, SphericalHarmonicSpace)
     assert cod.L == L
@@ -361,7 +361,7 @@ def test_T_carries_w_n_and_H_carries_g_C(lebedev_L_pair):
         M.H.apply(c)          → g_C · S_0(c)      # Hilbert adjoint
     """
     measure, L = lebedev_L_pair
-    M = Frame(SphericalHarmonicBasis(L=L), measure).analysis
+    M = GalerkinFrame(SphericalHarmonicBasis(L=L), measure).analysis
 
     rng = np.random.default_rng(seed=7)
     psi = rng.standard_normal(measure.n_points)
@@ -408,7 +408,7 @@ def test_R_transpose_equals_2l_plus_1_times_S0_transpose(lebedev_L_pair):
     measure, L = lebedev_L_pair
     basis = SphericalHarmonicBasis(L=L)
     Y = basis.evaluate(measure.nodes)
-    R = Frame(basis, measure).reconstruction
+    R = GalerkinFrame(basis, measure).reconstruction
 
     rng = np.random.default_rng(seed=2027)
     v = rng.standard_normal(measure.n_points)
@@ -461,7 +461,7 @@ def test_R_transpose_carries_d_ell_and_RH_carries_d_ell_squared(lebedev_L_pair):
     coefficient side).
     """
     measure, L = lebedev_L_pair
-    R = Frame(SphericalHarmonicBasis(L=L), measure).reconstruction
+    R = GalerkinFrame(SphericalHarmonicBasis(L=L), measure).reconstruction
 
     rng = np.random.default_rng(seed=11)
     c = _mask_non_existent_m(rng.standard_normal((L + 1, 2 * L + 1)), L)

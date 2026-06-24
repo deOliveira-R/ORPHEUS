@@ -146,7 +146,7 @@ if TYPE_CHECKING:
     from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.numerics.space import FunctionSpace
     from .geometry import SNMesh
-    from orpheus.numerics.frame import Frame
+    from orpheus.numerics.frame import FrameBase
     from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
     from .spatial.pole_angular_closure import PoleAngularClosure
     from .loss_representation import LossRepresentation
@@ -925,7 +925,7 @@ class InvertibleOperator(OperatorSum["FullField"]):
     def solve_moments(
         self,
         rhs: "TimedFullField",
-        frame: "Frame",
+        frame: "FrameBase",
         *,
         initial_guess: "TimedFullField | None" = None,
     ) -> "TimedFullField":
@@ -940,8 +940,9 @@ class InvertibleOperator(OperatorSum["FullField"]):
         ``(L+1, 2L+1, ng, nx, ny)`` rather than an
         :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
         ``(N, ng, nx, ny)``.  ``frame`` is the scattering operator's angular
-        :class:`~orpheus.numerics.frame.Frame` (its basis + measure), whose
-        :attr:`~orpheus.numerics.frame.Frame.analysis` face is ``S``'s internal
+        spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame` (its
+        basis + measure), whose
+        :attr:`~orpheus.numerics.frame.FrameBase.analysis` face is ``S``'s internal
         projection — so the in-sweep moments equal it term-for-term; the
         cross-octant accumulation reorders the ordinate sum vs the flat
         post-sweep projection ⇒ principled-equivalence, NOT bit-identity.  2-D
@@ -949,7 +950,7 @@ class InvertibleOperator(OperatorSum["FullField"]):
         ``is_cartesian and ndim == 2`` condition in ``_maybe_window`` since
         C5.4 (#225), replacing the ``reduced is None`` proxy that was ALSO true
         at d=3 Cartesian — guarantees it).  ``solve`` followed by the flat
-        :meth:`~orpheus.numerics.frame.Frame.analysis` apply is the fuller-view
+        :attr:`~orpheus.numerics.frame.FrameBase.analysis` apply is the fuller-view
         verification oracle (``vv-principles``; the aggressive-retirement
         "verification oracle" exception).
         """
@@ -962,7 +963,7 @@ class InvertibleOperator(OperatorSum["FullField"]):
         rhs: "TimedFullField",
         *,
         initial_guess: "TimedFullField | None" = None,
-        moment_frame: "Frame | None" = None,
+        moment_frame: "FrameBase | None" = None,
     ) -> "TimedFullField":
         r"""Composite :class:`TimedFullField` body of :meth:`solve` (D-H.1c stage 1).
 

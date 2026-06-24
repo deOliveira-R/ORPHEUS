@@ -82,7 +82,7 @@ from orpheus.numerics.measure import (
 )
 
 if TYPE_CHECKING:
-    from orpheus.numerics.frame import Frame
+    from orpheus.numerics.frame import GalerkinFrame
 
 from .rules_1d import gauss_legendre_on_mu
 from .rules_product import product_mu_phi
@@ -414,18 +414,19 @@ class Quadrature:
             self.axis_cosines(2),
         )
 
-    def angular_frame(self, L: int) -> "Frame":
-        r"""The degree-:math:`L` spherical-harmonic :class:`~orpheus.numerics.frame.Frame` on this quadrature.
+    def angular_frame(self, L: int) -> "GalerkinFrame":
+        r"""The degree-:math:`L` spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame` on this quadrature.
 
         Binds :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` (degree
         :math:`L`) to this quadrature's :math:`S^2` measure: the ``(N, 3)``
         direction cosines (a slab's polar :math:`\mu` embeds as
         :math:`(\mu, 0, 0)` — the SAME column-stacked embedding
         :meth:`spherical_harmonics` uses internally) carrying the quadrature
-        weights as the analysis metric. The frame's
-        :attr:`~orpheus.numerics.frame.Frame.analysis` face is the
+        weights as the analysis metric. The frame is a pure-Galerkin frame
+        (test IS trial — the SH basis is its own test basis); its
+        :attr:`~orpheus.numerics.frame.FrameBase.analysis` face is the
         :math:`Y^* W` moment projection :math:`M` and its
-        :attr:`~orpheus.numerics.frame.Frame.reconstruction` face the
+        :attr:`~orpheus.numerics.frame.FrameBase.reconstruction` face the
         addition-theorem synthesis :math:`R`; ``frame.table`` equals
         :meth:`spherical_harmonics` ``(L)`` bit-identically (both route
         through :meth:`SphericalHarmonicBasis.evaluate` on these cosines).
@@ -445,7 +446,7 @@ class Quadrature:
         ``angular_frame(basis=...)``, a SIGNATURE change — and must NOT rename
         the method.
         """
-        from orpheus.numerics.frame import Frame
+        from orpheus.numerics.frame import GalerkinFrame
 
         s2_measure = DiscreteMeasure(
             nodes=np.column_stack(
@@ -454,7 +455,7 @@ class Quadrature:
             weights=self.weights,
             support=SPACE_SPHERE,
         )
-        return Frame(SphericalHarmonicBasis(L=L), s2_measure)
+        return GalerkinFrame(SphericalHarmonicBasis(L=L), s2_measure)
 
     # ────────────────────────────────────────────────────────────
     # Octants (cached partition by sign-of-direction)

@@ -1,7 +1,7 @@
-r"""Intrinsic-property tests for :class:`orpheus.numerics.frame.Frame`.
+r"""Intrinsic-property tests for the frame faces + the discipline-type hierarchy.
 
-The :class:`Frame` binds a :class:`Basis` to a :class:`DiscreteMeasure` and exposes
-the analysis / reconstruction faces. These tests pin:
+The angular :class:`~orpheus.numerics.frame.GalerkinFrame` binds a :class:`Basis` to a
+:class:`DiscreteMeasure` and exposes the analysis / reconstruction faces. These tests pin:
 
 * the **adjoint-for-free** — BOTH ``frame.analysis.H`` and ``frame.reconstruction.H``
   fall out of the frame's swapped spaces with no bespoke code (each pinned against an
@@ -23,7 +23,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.basis import SphericalHarmonicBasis
-from orpheus.numerics.frame import Frame
+from orpheus.numerics.frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame
 from orpheus.numerics.operator import CAP_APPLY, CAP_APPLY_TRANSPOSE
 from orpheus.numerics.quadrature import lebedev_sphere
 from orpheus.numerics.spaces import SphericalHarmonicSpace
@@ -35,7 +35,7 @@ def sh_frame():
     measure = lebedev_sphere(13)
     L = 3
     basis = SphericalHarmonicBasis(L=L)
-    return Frame(basis, measure), L
+    return GalerkinFrame(basis, measure), L
 
 
 def _band_limited(rng, L, *trailing):
@@ -168,4 +168,73 @@ def test_face_capabilities(sh_frame):
     # symmetric with the analysis face.
     assert frame.reconstruction.capabilities == frozenset(
         {CAP_APPLY, CAP_APPLY_TRANSPOSE}
+    )
+
+
+# ── the discipline-type hierarchy (P1) ─────────────────────────────────────
+
+@pytest.mark.foundation
+def test_galerkin_is_a_petrov_galerkin_is_a_frame_base(sh_frame):
+    """``GalerkinFrame ⊂ PetrovGalerkinFrame ⊂ FrameBase`` — discipline is the TYPE.
+
+    Liskov-correct: a Galerkin frame IS-A Petrov-Galerkin frame (with ``test is
+    trial``), strengthening — never weakening — the base promises.
+    """
+    frame, _ = sh_frame
+    assert isinstance(frame, GalerkinFrame)
+    assert isinstance(frame, PetrovGalerkinFrame)
+    assert isinstance(frame, FrameBase)
+
+
+@pytest.mark.foundation
+def test_galerkin_frame_test_is_the_trial_basis(sh_frame):
+    """The Galerkin specialisation fixes ``test = trial`` and reuses the trial caches.
+
+    Reusing :attr:`table`/:attr:`basis_space` (not re-evaluating) is what keeps the
+    Galerkin analysis 0-ULP-identical to the single-discipline frame this hierarchy
+    replaced, and preserves the analysis-codomain ``is`` identity.
+    """
+    frame, _ = sh_frame
+    assert frame.test is frame.basis
+    assert frame.test_table is frame.table
+    assert frame.test_space is frame.basis_space
+    assert frame.analysis.codomain is frame.basis_space
+
+
+@pytest.mark.foundation
+def test_galerkin_frame_takes_no_test_basis():
+    """``GalerkinFrame`` binds test=trial; its constructor takes no ``test_basis``.
+
+    The ``test ≠ trial`` freedom is exactly what a :class:`PetrovGalerkinFrame` is for,
+    so a distinct test basis is forbidden on a :class:`GalerkinFrame` by the constructor
+    SIGNATURE itself (a ``TypeError`` on the extra argument), not a runtime guard.
+    """
+    measure = lebedev_sphere(13)
+    # ``*args`` so the arity violation is a runtime TypeError, not a static type error.
+    args = [SphericalHarmonicBasis(L=3), measure, SphericalHarmonicBasis(L=2)]
+    with pytest.raises(TypeError):
+        GalerkinFrame(*args)
+
+
+@pytest.mark.foundation
+def test_petrov_galerkin_degenerate_equals_galerkin_bit_identically(sh_frame):
+    """A ``PetrovGalerkinFrame`` with ``test_basis = trial`` is the Galerkin degenerate.
+
+    Passing the trial basis itself as the test basis resolves test→trial, so the GENERAL
+    Petrov-Galerkin analysis (which reads the TEST table) must reduce BIT-IDENTICALLY to
+    the Galerkin analysis. This pins the PG analysis machinery in the degenerate case
+    here; the genuine ``test ≠ trial`` instance (flux-weighted homogenisation) lands
+    with its consumer in a later phase.
+    """
+    galerkin, L = sh_frame
+    pg = PetrovGalerkinFrame(galerkin.basis, galerkin.measure, galerkin.basis)
+    assert pg.test is pg.basis
+    rng = np.random.default_rng(24)
+    psi = rng.standard_normal((galerkin.measure.weights.shape[0], 4, 2))
+    np.testing.assert_array_equal(
+        pg.analysis.apply(psi), galerkin.analysis.apply(psi),
+    )
+    c = _band_limited(rng, L)
+    np.testing.assert_array_equal(
+        pg.reconstruction.apply(c), galerkin.reconstruction.apply(c),
     )

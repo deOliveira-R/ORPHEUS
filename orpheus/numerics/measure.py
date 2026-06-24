@@ -247,7 +247,7 @@ class DiscreteMeasure:
         ``(N,)`` under the inner product
         :math:`\langle f, g\rangle_\mu = \sum_n w_n f_n g_n` (the weights ARE
         the metric). This is the operator-algebra **domain** a
-        :class:`~orpheus.numerics.frame.Frame` reads — mirroring the way a
+        :class:`~orpheus.numerics.frame.FrameBase` reads — mirroring the way a
         :class:`~orpheus.numerics.basis.Basis` owns its coefficient
         :attr:`~orpheus.numerics.basis.Basis.space` (the codomain): the measure
         owns its sampled-value space, so the ``(domain, codomain)`` pair is

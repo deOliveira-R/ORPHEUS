@@ -361,10 +361,10 @@ class SphericalHarmonicBasis(Basis):
         r"""The :class:`SphericalHarmonicSpace` of degree :math:`L` this basis spans.
 
         Its Gram :math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))` (carried as
-        ``inner_product_weights``) is the codomain metric the
-        :class:`~orpheus.numerics.frame.Frame` and the Hilbert-adjoint machinery
-        read. Lazy import: ``SphericalHarmonicSpace`` imports this basis, so a
-        top-level import would cycle.
+        ``inner_product_weights``) is the codomain metric the spherical-harmonic
+        :class:`~orpheus.numerics.frame.GalerkinFrame` and the Hilbert-adjoint
+        machinery read. Lazy import: ``SphericalHarmonicSpace`` imports this basis,
+        so a top-level import would cycle.
         """
         from orpheus.numerics.spaces.spherical_harmonic_space import (
             SphericalHarmonicSpace,

@@ -15,8 +15,10 @@ homogenisation Frame**, exactly as
 :class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`
 is the trial side of the angular Frame.  Binding it to a
 :class:`~orpheus.numerics.measure.DiscreteMeasure` (a coarse mesh's
-``volume_measure``) in a :class:`~orpheus.numerics.frame.Frame` makes the
-fine→coarse projection that homogenises cross sections — see
+``volume_measure``) in a :class:`~orpheus.numerics.frame.FrameBase` makes the
+fine→coarse projection that homogenises cross sections — flux-weighted
+homogenisation is the Petrov-Galerkin case
+(:class:`~orpheus.numerics.frame.PetrovGalerkinFrame`); see
 :meth:`orpheus.sn.solution.Solution.homogenize`.
 
 Why a basis at all (and why the *mesh* yields it)

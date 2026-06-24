@@ -13,8 +13,8 @@ sourced from :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` so the
 What this enables
 =================
 
-The discrete :class:`~orpheus.numerics.frame.Frame`'s analysis face exposes
-this space as its ``basis_space`` (codomain), so the generic
+The discrete spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame`'s
+analysis face exposes this space as its ``basis_space`` (codomain), so the generic
 ``_AdjointOperator`` machinery in :mod:`orpheus.numerics.operator` computes
 ``frame.analysis.H`` correctly as :math:`g_C \cdot S_0`, where :math:`S_0` is
 the naked synthesis — the W-weighted Hilbert adjoint falls out of the frame's
@@ -216,6 +216,7 @@ class SphericalHarmonicSpace(FunctionSpace):
 
         Delegated to :attr:`SphericalHarmonicBasis.addition_theorem_factor` —
         the canonical source of the addition-theorem factor that the discrete
-        :class:`~orpheus.numerics.frame.Frame`'s reconstruction face reads.
+        spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame`'s
+        reconstruction face reads.
         """
         return self.basis.addition_theorem_factor

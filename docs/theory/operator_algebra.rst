@@ -6288,8 +6288,8 @@ Cross-references: the moment math :eq:`flux-moments` / :eq:`pn-scatter`
 and the :math:`Y_\ell^m` convention live in :ref:`pn-scattering`
 (:doc:`discrete_ordinates`); the projection :math:`M`
 (equation :math:`\phi_\ell^m = \sum_n w_n Y_\ell^m \psi_n`) and the
-addition-theorem reconstruction :math:`R` are the
-:class:`~orpheus.numerics.frame.Frame`'s ``analysis`` /
+addition-theorem reconstruction :math:`R` are the spherical-harmonic
+:class:`~orpheus.numerics.frame.GalerkinFrame`'s ``analysis`` /
 ``reconstruction`` faces (:ref:`galerkin-projection`); the interior-face
 cochain Phase 5a is orthogonal to is :ref:`wavefront-flux-cochain`; the
 SI fixed point it reorganizes is the within-group inner of

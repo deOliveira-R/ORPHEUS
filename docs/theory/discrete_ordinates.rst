@@ -2135,7 +2135,7 @@ a calculation holds EITHER the per-ordinate field
 :math:`\psi` of shape :math:`(N, ng, *\text{spatial})` OR its harmonic
 moments :math:`\phi_\ell^m` of shape
 :math:`(L{+}1, 2L{+}1, ng, *\text{spatial})`, bridged by the
-spherical-harmonic :class:`~orpheus.numerics.frame.Frame`'s two faces —
+spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame`'s two faces —
 its ``analysis`` face (:math:`M`, the
 :math:`\psi \to \phi` reduction :eq:`two-moment-angular`) and its
 ``reconstruction`` face
@@ -2428,7 +2428,7 @@ no consumer special-cases the axis.  Two properties follow by construction:
   bit-identity.
 
 * **The projection pair needed no change.**  The spherical-harmonic
-  :class:`~orpheus.numerics.frame.Frame`'s ``analysis`` and
+  :class:`~orpheus.numerics.frame.GalerkinFrame`'s ``analysis`` and
   ``reconstruction`` faces already carry ``...`` for their trailing
   axes, so :math:`M` and :math:`R` are spatial-moment-agnostic out of
   the box.  The angular reduction
@@ -11012,7 +11012,7 @@ verification of the addition theorem lives at
 .. note::
 
    The Pℓ Galerkin reconstruction is realised by the
-   spherical-harmonic :class:`~orpheus.numerics.frame.Frame`
+   spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame`
    (Frame/Basis carve), built on a quadrature via
    :meth:`Quadrature.angular_frame(L)
    <orpheus.numerics.quadrature.Quadrature.angular_frame>`. Its
@@ -15468,7 +15468,7 @@ That is what the next subsection makes precise — homogenization is the
 :math:`L^2(\phi V)`-orthogonal **Galerkin** projection of the fine
 cross-section field onto the coarse cells, and ORPHEUS realises it by
 routing through the one discrete
-:class:`~orpheus.numerics.frame.Frame`, not a bespoke membership matmul
+:class:`~orpheus.numerics.frame.FrameBase`, not a bespoke membership matmul
 (see :ref:`sn-homogenization-galerkin-frame`).
 
 The vector channels — total, capture, leakage-loss
@@ -15544,7 +15544,7 @@ trailing ``g_to`` axis (:meth:`FunctionSpace.apply_inverse_metric
 trailing-axis metric-broadcast). The :math:`(n,2n)` channel collapses
 identically — same source-group weighting on its ``[g_from, g_to]``
 layout. The mechanism that carries this — the discrete
-:class:`~orpheus.numerics.frame.Frame` — is derived in
+:class:`~orpheus.numerics.frame.FrameBase` — is derived in
 :ref:`sn-homogenization-galerkin-frame`.
 
 .. warning::
@@ -15690,7 +15690,7 @@ subsection unpacks:
 
 This is not decoration. It is the reason the production code routes
 :meth:`Solution.homogenize <orpheus.sn.solution.Solution.homogenize>`
-through the *same* discrete :class:`~orpheus.numerics.frame.Frame`
+through the *same* discrete :class:`~orpheus.numerics.frame.FrameBase`
 abstraction that carries SN anisotropic-scattering moment projection —
 one mechanism for every fine→coarse change of representation (Cardinal
 Rule 2, single source of truth), instead of a bespoke membership
@@ -15811,7 +15811,7 @@ canonical-dual (Galerkin) case. The two readings are the **same map**:
 the flux multiplier :math:`\phi` can be absorbed into the test function
 (the "oblique-dual" Petrov-Galerkin reading) *or* into the measure (the
 orthogonal Galerkin reading) — it is the same integral. The discrete
-:class:`~orpheus.numerics.frame.Frame` reads the weighting off the
+:class:`~orpheus.numerics.frame.FrameBase` reads the weighting off the
 **measure**, so it sees the Galerkin case. Spatial homogenization is the
 **first concrete instance** proving that the
 :math:`\{\Sigma_t, \Sigma_s, \dots\}`-homogenization the literature
@@ -15849,7 +15849,7 @@ the coarse/fine mesh's :attr:`volume_measure
 <orpheus.transport.mesh.material_mesh.MaterialMesh.volume_measure>` — a
 :class:`~orpheus.numerics.measure.DiscreteMeasure`) times the flux
 :math:`\phi` as the **density**. The code carries exactly this split:
-the :class:`~orpheus.numerics.frame.Frame` binds the
+the :class:`~orpheus.numerics.frame.FrameBase` binds the
 :class:`~orpheus.numerics.basis.IndicatorBasis` to the *single*
 group-independent :math:`\mu_V`, and the per-group flux enters as an
 **integrand multiplier** on a trailing tensor axis —
@@ -15889,7 +15889,7 @@ frame, while a mesh **carries the volume measure**. A mesh that *were* a
 basis would conflate the two roles of the frame pair (the disciplineless
 trial side and the measured test side) into one object. So the mesh
 yields *both* views — its measure-free indicator basis and its
-volume measure — and the :class:`~orpheus.numerics.frame.Frame` binds
+volume measure — and the :class:`~orpheus.numerics.frame.FrameBase` binds
 them. The yielded :class:`~orpheus.numerics.basis.IndicatorBasis` is
 **geometry-free**: it holds only the per-axis edge arrays, so
 :mod:`orpheus.numerics` carries no dependency on
@@ -15993,7 +15993,7 @@ Why route through the Frame at all
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The membership-matmul the prior slice shipped was correct; the carve to
-the :class:`~orpheus.numerics.frame.Frame` is an **architecture** move,
+the :class:`~orpheus.numerics.frame.FrameBase` is an **architecture** move,
 not a correctness fix (Cardinal Rule 2). Three payoffs justify it:
 
 * **One mechanism, not one per method.** The angular-flux →
@@ -16003,7 +16003,7 @@ not a correctness fix (Cardinal Rule 2). Three payoffs justify it:
   differing only in *which* :class:`~orpheus.numerics.basis.Basis` is
   bound (:class:`~orpheus.numerics.basis.SphericalHarmonicBasis` vs
   :class:`~orpheus.numerics.basis.IndicatorBasis`). Routing both through
-  :class:`~orpheus.numerics.frame.Frame` collapses a twin path
+  :class:`~orpheus.numerics.frame.FrameBase` collapses a twin path
   (coding-elegance anti-pattern 1) into one body.
 * **Energy condensation becomes the same shape.** The deferred
   ``.condense`` sibling is the identical frame with the spatial

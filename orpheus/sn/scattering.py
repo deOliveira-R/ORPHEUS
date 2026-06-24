@@ -152,7 +152,7 @@ from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 
-from orpheus.numerics.frame import Frame
+from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.operator import (
     BlockRole,
     CAP_APPLY,
@@ -428,7 +428,7 @@ class ScatteringOperator(LinearOperatorMixin):
         return self._Y_cached
 
     @cached_property
-    def frame(self) -> Frame:
+    def frame(self) -> GalerkinFrame:
         r"""The angular discrete frame — :class:`SphericalHarmonicBasis`
         (order :math:`L=` :attr:`scattering_order`) bound to the quadrature's
         :math:`S^2` measure.
@@ -504,7 +504,7 @@ class ScatteringOperator(LinearOperatorMixin):
         :class:`LegendreMomentScattering` (``skip_l0=True`` — the
         :math:`\ell=0` block is the P0 :meth:`add_iso_source` fast path)
         and :math:`R` is the :attr:`frame`'s
-        :attr:`~orpheus.numerics.frame.Frame.reconstruction` face.
+        :attr:`~orpheus.numerics.frame.FrameBase.reconstruction` face.
         The trailing :math:`1/W` is NOT applied here — that is the
         producer-side Pattern-7 normalisation at the :meth:`apply`
         boundary (lesson L18).
@@ -578,11 +578,11 @@ class ScatteringOperator(LinearOperatorMixin):
         factors are EXACTLY those of the existing path:
 
         * :math:`M` = ``frame.analysis`` (the :attr:`frame`'s
-          :attr:`~orpheus.numerics.frame.Frame.analysis` face);
+          :attr:`~orpheus.numerics.frame.FrameBase.analysis` face);
         * :math:`\Lambda_{\ell\ge 1}` = :class:`LegendreMomentScattering`
           ``(mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=True)``;
         * :math:`R` = ``frame.reconstruction`` (the :attr:`frame`'s
-          :attr:`~orpheus.numerics.frame.Frame.reconstruction` face);
+          :attr:`~orpheus.numerics.frame.FrameBase.reconstruction` face);
 
         the SAME :math:`\Lambda` and :math:`R`
         :meth:`_aniso_source_from_moment_values` builds, composed with
@@ -872,14 +872,14 @@ class ScatteringOperator(LinearOperatorMixin):
         :class:`LegendreMomentScattering` (Wave 1 / C1.1):
 
         * :math:`M` — the :attr:`frame`'s
-          :attr:`~orpheus.numerics.frame.Frame.analysis` face:
+          :attr:`~orpheus.numerics.frame.FrameBase.analysis` face:
           :math:`\psi(N, \cdot) \mapsto \phi^{\ell m}(L+1, 2L+1, \cdot)`
           via :math:`\phi_\ell^m = \sum_n w_n Y_\ell^m(\Omega_n) \psi_n`.
         * :math:`\Lambda` :class:`LegendreMomentScattering`: per-ℓ
           block-diagonal cross-section action on moment space (skip ℓ=0,
           handled by P0 in-scatter).
         * :math:`R` — the :attr:`frame`'s
-          :attr:`~orpheus.numerics.frame.Frame.reconstruction` face:
+          :attr:`~orpheus.numerics.frame.FrameBase.reconstruction` face:
           :math:`\phi^{\ell m} \mapsto q_n` via the addition-theorem
           reconstruction :math:`q_n = \sum_\ell (2\ell+1) \sum_m
           Y_\ell^m(\Omega_n) \phi_\ell^m`.

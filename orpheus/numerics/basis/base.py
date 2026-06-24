@@ -1,11 +1,11 @@
 r"""The :class:`Basis` ABC — a discrete spectral basis on a measure space.
 
 A *basis* is the **synthesis (trial) side** of a discrete frame
-(:class:`orpheus.numerics.frame.Frame`): a collection of functions that can be
+(:class:`orpheus.numerics.frame.FrameBase`): a collection of functions that can be
 tabulated at sample points, reconstructed from coefficients, and weighed against
 a quadrature to form a discrete Gram. It is the choice-free, measure-free half of
 the analysis/synthesis pair — the :class:`~orpheus.numerics.measure.DiscreteMeasure`
-supplies the analysis (test) side, and the :class:`Frame` binds the two.
+supplies the analysis (test) side, and the :class:`FrameBase` binds the two.
 
 Why the ABC is un-deferred on a single concrete basis
 =====================================================
@@ -14,7 +14,7 @@ The package previously deferred a formal ``Basis`` ABC "until a second concrete
 basis arrives" (``feedback_unify_after_two_instances``). It is promoted now — with
 :class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`
 still the only concrete member — because the **forcing consumer has arrived**: the
-generic :class:`~orpheus.numerics.frame.Frame` binds an *abstract* basis to a
+generic :class:`~orpheus.numerics.frame.FrameBase` binds an *abstract* basis to a
 measure and applies a non-identity morphism (analysis / reconstruction) across the
 interface. The Frame needs the interface, not a second basis; the interface itself
 is math-rigid (Grand Report v3 §5.4 lists the nine eventual bases — real spherical
@@ -29,9 +29,9 @@ The contract — tabulate, then contract a cached table
 :meth:`evaluate` is the only method that takes sample *points*; it produces the
 ``Φ(point, mode)`` **table** (the layout-bearing object — ``(N, ℓ, m)`` for spherical
 harmonics, ``(N, K)`` for a flat-mode basis). Every other operation **consumes that
-table**, so the :class:`Frame` evaluates ONCE (``frame.table``) and the per-apply hot
+table**, so the :class:`FrameBase` evaluates ONCE (``frame.table``) and the per-apply hot
 path never re-tabulates. The basis owns these contractions because the index layout is
-the basis's own; the :class:`Frame` stays layout-agnostic and merely delegates.
+the basis's own; the :class:`FrameBase` stays layout-agnostic and merely delegates.
 
 The shared naked synthesis :math:`S_0`
 --------------------------------------
@@ -81,18 +81,18 @@ __all__ = ["Basis"]
 
 
 class Basis(ABC):
-    r"""Abstract discrete spectral basis — the synthesis side of a :class:`Frame`.
+    r"""Abstract discrete spectral basis — the synthesis side of a :class:`FrameBase`.
 
     Concrete bases (real spherical harmonics today; Legendre, Chebyshev,
     Lagrange/FE shape functions to come) implement the operations below. A basis
     is *choice-free*: it knows its functions and their convention, but not which
     quadrature samples them — that choice is the
     :class:`~orpheus.numerics.measure.DiscreteMeasure`, bound to the basis by a
-    :class:`~orpheus.numerics.frame.Frame`.
+    :class:`~orpheus.numerics.frame.FrameBase`.
 
     The contraction methods take the ``table`` from :meth:`evaluate` (positional,
     so concrete bases may name their arguments in their own domain vocabulary —
-    e.g. ``directions``), so the :class:`Frame` tabulates once and the per-apply
+    e.g. ``directions``), so the :class:`FrameBase` tabulates once and the per-apply
     hot path never re-evaluates.
     """
 
@@ -140,7 +140,7 @@ class Basis(ABC):
         naked synthesis weighted by the quadrature weight on each node. The
         metric-aware ``_AdjointOperator`` machinery combines this with the
         domain/codomain Gram to form the W-weighted Hilbert adjoint
-        :math:`M^* = g_C \cdot S_0`, so the :class:`Frame`'s analysis face gets
+        :math:`M^* = g_C \cdot S_0`, so the :class:`FrameBase`'s analysis face gets
         ``.H`` for free.
         """
         ...
@@ -170,7 +170,7 @@ class Basis(ABC):
         :meth:`analyze_transpose`, whose forward :meth:`analyze` carries them). The
         metric-aware ``_AdjointOperator`` combines this with the codomain/domain
         Gram to form the W-weighted Hilbert adjoint :math:`R^*`, so the
-        :class:`Frame`'s reconstruction face gets ``.H`` for free — symmetric with
+        :class:`FrameBase`'s reconstruction face gets ``.H`` for free — symmetric with
         the analysis face.
         """
         ...
@@ -194,10 +194,10 @@ class Basis(ABC):
         r"""The coefficient :class:`FunctionSpace` this basis spans.
 
         Carries the basis's Gram as its ``inner_product_weights`` — the metric the
-        :class:`Frame`'s codomain (and the Hilbert-adjoint machinery) reads. The
+        :class:`FrameBase`'s codomain (and the Hilbert-adjoint machinery) reads. The
         basis owns exactly one space (the nodal/domain space comes from the
         measure), so the unqualified name is unambiguous — matching the
-        ``Field.space`` convention. The :class:`Frame` re-exposes it provenance-
+        ``Field.space`` convention. The :class:`FrameBase` re-exposes it provenance-
         qualified as ``frame.basis_space`` (beside ``frame.measure_space``).
         """
         ...

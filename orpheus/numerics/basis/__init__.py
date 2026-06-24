@@ -17,7 +17,7 @@ spatial / energy homogenisation Frame.
 
 The :class:`~orpheus.numerics.basis.base.Basis` ABC (formerly deferred
 "until a second concrete basis arrives") is now promoted — the forcing
-consumer, the generic :class:`~orpheus.numerics.frame.Frame`, binds an
+consumer, the generic :class:`~orpheus.numerics.frame.FrameBase`, binds an
 *abstract* basis to a measure, so it needs the interface rather than a
 second instance. The contract is the three fundamental operations
 :meth:`~orpheus.numerics.basis.base.Basis.evaluate` (tabulate),

@@ -355,8 +355,9 @@ class Mesh1D:
         r"""The mesh's cells AS a piecewise-constant :class:`~orpheus.numerics.basis.IndicatorBasis`.
 
         The **trial (synthesis) side** of a homogenisation / condensation
-        :class:`~orpheus.numerics.frame.Frame` — the span of the cell
-        indicators :math:`\{\mathbf{1}_R\}` is exactly the space of
+        :class:`~orpheus.numerics.frame.FrameBase` (the flux-weighted case is a
+        :class:`~orpheus.numerics.frame.PetrovGalerkinFrame`) — the span of the
+        cell indicators :math:`\{\mathbf{1}_R\}` is exactly the space of
         functions piecewise-constant on this mesh's cells, the coarse
         target of the flux-weighted projection (see
         :meth:`orpheus.sn.solution.Solution.homogenize`).

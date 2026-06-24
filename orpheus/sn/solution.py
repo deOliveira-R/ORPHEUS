@@ -381,7 +381,7 @@ class Solution:
 
         from orpheus.geometry import Mesh1D
         from orpheus.data.macro_xs.mixture import Mixture
-        from orpheus.numerics.frame import Frame
+        from orpheus.numerics.frame import GalerkinFrame
         from orpheus.transport.mesh.material_mesh import MaterialMesh
 
         fine = self.mesh
@@ -416,7 +416,7 @@ class Solution:
         # the /Φ_R normalisation is the coarse Gram-inverse the coefficient
         # space carries as its metric (``apply_inverse_metric``, whose
         # Moore–Penrose pseudo-inverse zeroes empty / zero-flux regions).
-        frame = Frame(coarse.indicator_basis(), fine.volume_measure)
+        frame = GalerkinFrame(coarse.indicator_basis(), fine.volume_measure)
         analysis = frame.analysis
         phi = np.asarray(self.scalar_flux.values, dtype=float).T       # (n_fine, ng)
         region_flux_integral = analysis.apply(phi)                     # Φ_{R,g}
