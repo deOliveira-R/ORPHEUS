@@ -4,6 +4,11 @@
 > user-steered; NO `method-implementer`. Tasks **#46–#52** (P1–P7); P1 (#46) unblocks all. Memory:
 > `[[project-frame-projection-machinery]]` (the load-bearing rulings — read it FIRST; it OVERRIDES the
 > discipline-as-property conclusion in `[[project-homogenization-condensation]]` / `[[project-frame-basis-carve]]`).
+>
+> **STATUS (2026-06-24): P1 LANDED `00f9b76` (Closes #268); P2 LANDED `cc6d022` (Refs #226). NEXT = P3 (#48).**
+> The pyright ratchet is a GUIDE, not a gate, DURING the campaign — the faces/Λ `ndarray`-vs-`Vector`
+> generic-Protocol gap (the cast retirement exposed it; pre-existing) is #226, deferred to ONE
+> post-campaign pyright pass (user, 2026-06-24).
 > Reconcile against git before resuming.
 
 ## Context — why this campaign exists
@@ -104,13 +109,13 @@ coarse_xs = PetrovGalerkinFrame(EnergyGrid(coarse_groups).indicator_basis(),
 
 ## Phases (each: green + CLI-pyright ≤ baseline + ff-merge; surgical, main-agent-direct)
 
-- **P1 — the discipline-type hierarchy + projection.py reconciliation.** Mint `FrameBase`,
+- **P1 ✓ LANDED `00f9b76` — the discipline-type hierarchy + projection.py reconciliation.** Mint `FrameBase`,
   `PetrovGalerkinFrame`, `GalerkinFrame`; make the current `Frame(basis, measure)` callers construct a
   `GalerkinFrame` (test=trial — behaviour-identical, the realised discipline today). Wire the faces to
   the `AnalysisOperator`/`ReconstructionOperator` operator roles (the open frame_basis_carve §0 follow-up).
   **Retire `GalerkinProjection`/`PetrovGalerkinProjection`** (discipline now a Frame type, #268) + rewrite
   `galerkin_projection.rst` to the PG-base architecture. Gate: 0-ULP scattering canary; all numerics+sn green.
-- **P2 — `conjugate` + scattering composed-operator-as-production.** Build `frame.conjugate(A)` /
+- **P2 ✓ LANDED `cc6d022` — `conjugate` + scattering composed-operator-as-production.** Build `frame.conjugate(A)` /
   `reconstruct_after(A)` (typed `OperatorProduct`); give `LegendreMomentScattering` real
   `domain=codomain=basis_space` (additive leaf ⟹ **retire the `cast`**); make scattering's `apply` arms
   call the conjugation (retire `build_aniso_source`/`_aniso_source_from_moment_values` hand-chains; the
