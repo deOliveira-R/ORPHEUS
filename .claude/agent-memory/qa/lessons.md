@@ -1964,3 +1964,89 @@ verified live) + 2 test sites (under-typed `integrate_angular()→object` / `sta
 →BulkField`). NO blocker, NO false-green, NO ERR.
 
 ---
+
+## L-051 -- a mechanical API-migration rewire (deleted class → new face) is bit-id-VERIFIABLE not bit-id-ASSUMED: recompute the OLD einsum on a structurally-independent table; and brief-named symbols/files are CLAIMS (two phantoms here)
+
+Task: `MomentProjection`/`HarmonicMomentReconstruction` (orpheus/numerics/projection.py)
+DELETED; rewire tests to `quad.angular_frame(L).analysis.apply` / `.reconstruction.apply`
+(or `op.frame.analysis` where a `ScatteringOperator` is in scope). The new faces delegate
+to `SphericalHarmonicBasis.analyze`/`reconstruct`; brief CLAIMED 0-ULP bit-id.
+
+**Don't ASSUME the brief's bit-id claim — PROVE it before trusting the unchanged asserts.**
+The 3 `test_scattering_operator.py` sites carry `np.testing.assert_array_equal` against a
+FROZEN `.npz` snapshot captured by the OLD `MomentProjection`. For those to pass unchanged,
+`op.frame.analysis.apply == old M.apply` must be BYTE-identical, not just close. Verified
+in-process (10-line script): `frame.table == quad.spherical_harmonics(L)` (np.array_equal),
+`frame.analysis.apply(psi) == np.einsum("n,nlm,n...->lm...", w, Y, psi)`, and
+`frame.reconstruction.apply(c) == np.einsum("nlm,l,lm...->n...", Y, 2l+1, c)` — all True.
+The recomputed einsum is the STRUCTURALLY-INDEPENDENT reference (hand-written contraction,
+not the production face) — this is the bit-id leg, NOT old-vs-new ULP. Frozen snapshot needs
+NO regen: the value is byte-identical (L-049 inverse — here byte-id IS preserved, so the
+re-baseline question doesn't arise).
+
+**Two PHANTOMS in the brief — confirm every named symbol/file before editing.** (a)
+`SphericalHarmonicBasis.from_quadrature(quad, L).values` (in the snapshot generator's
+defensive block) does NOT exist — the brief flagged it; replaced with `quad.angular_frame
+(L).analysis.apply`. (b) brief item 6 said "find `_s6_stub_plugin.py` (grep for it)" — it
+does NOT exist anywhere (`find` + text-grep for the name both empty); the user's original
+grep had conflated it with the `from ...projection import` matches. NOT every brief-named
+artifact is real — a `find`/grep confirmation is one cheap call and prevents a fabricated edit.
+
+**Scope discipline on a concurrent-edit task.** User was editing 4 sibling test files
+(test_frame/test_spherical_harmonic_space/test_scattering_kernel_crosscheck/
+test_projection_operators) — touched NONE. After rewiring, byte-compiled both no-test
+generator SCRIPTS (`py_compile`) and exercised the rewired `_capture_legendre_moments`
+helper end-to-end (shape `(L+1,2L+1,ng,nx,ny)`) since scripts aren't pytest-collected — a
+broken script import is a latent breakage no test run would surface. 100 tests PASS under
+`-O`. Pure mechanical rewire, no claim-pushback → no vv-principles/ERR update fires.
+
+---
+
+## L-052 -- a Hilbert-adjoint-via-metric-composition (`A.H = G_dom⁻¹·Aᵀ·G_cod`) is VERIFIABLE by a dense-matrix transpose + the DEFINING inner-product law; the "weight-free transpose" choice is provable, not faith
+
+Frame carve Phase D added `R.H` (reconstruction Hilbert adjoint) to the discrete `Frame`
+via a new `reconstruct_transpose` (`einsum("nlm,l,n...->lm...")`, weight-free) + a capability
+flip so the generic `_AdjointOperator` composes `R.H = G_basis⁻¹·Rᵀ·G_measure`. VERDICT
+SUPPORTED, math correct, all gates have teeth. The reusable adversarial recipe for a
+normal↔adjoint operator-algebra change:
+
+1. **Re-derive the adjoint identity by hand FIRST, then numerically prove it.** `R[n,(ℓm)]
+   =(2ℓ+1)Yₗᵐ`; the matrix transpose `Rᵀ[(ℓm),n]=(2ℓ+1)Yₗᵐ` is weight-free BY DEFINITION
+   (a representation transpose carries NO metric). Compose with metrics: `R* = g_C⁻¹·Rᵀ·w`
+   `= ((2ℓ+1)/4π)·(2ℓ+1)·Σ_n w_n Yₗᵐ v_n = (2ℓ+1)²/4π·Σ w_n Y v`. The "weight-free
+   reconstruct_transpose" choice is CORRECT, not a missing-factor bug: it is ASYMMETRIC with
+   `analyze_transpose` (which DOES carry `w_n`) precisely because each transpose mirrors its
+   OWN forward — `analyze` bakes `w_n` in, `reconstruct` does not. A spurious `w_n` in
+   `reconstruct_transpose` would give `R*` a `w_n²` and break `⟨Rc,v⟩_W = ⟨c,R*v⟩_{g_C}`.
+2. **The structurally-independent reference is a DENSE matrix built by LOOPS, transposed
+   directly, composed with metrics by hand** — shares zero code with production's fused
+   einsums. `R^T` agreed at 0 ULP, `R.H` at 0 ULP, the closed-form `(2ℓ+1)²/4π·Σw_n Y v`
+   target at ~3e-15 (FP non-assoc on the reduction). The DEFINING law `⟨Rc,v⟩_W=⟨c,R*v⟩_{g_C}`
+   (Riesz) is the strongest pin — calls `R.apply`/`R.H` on both sides but asserts their
+   ALGEBRAIC consistency, NOT circular (it's the adjoint definition itself).
+3. **Teeth: 4 mutations, all RED via in-process monkeypatch under `-O`.** drop `(2ℓ+1)` /
+   bake a per-node factor / reverse the factor array (`[::-1]`) → all 3 new tests RED;
+   wrong GRAM POWER (`metric_per_ell` squared, build a FRESH frame so it flows into the
+   space) → both reconstruction-adjoint tests + the analysis `R.H` test RED. Restore → green.
+4. **Mode-11 cleared by a sentinel that COUNTS entries into the rewired readers:**
+   `R.H.apply(v)` calls `_FrameReconstruction.apply_transpose` ×1 → `basis.reconstruct_transpose`
+   ×1 (the new path IS on the gate's call graph); reverting the capability to `{CAP_APPLY}`
+   makes `R.H` raise `MissingCapability` (the cap flip is the load-bearing enabler). The
+   capability-assert test has teeth: under pytest it REDs with "Extra items in the right set:
+   'apply_transpose'" when the face is reverted to APPLY-only (inject the class-attr mutation
+   via a `PYTHONPATH=/tmp` pytest-plugin `pytest_configure`, NOT a standalone script).
+5. **⚠ METHODOLOGY TRAP I hit (L-010 self-application): a bare `assert` in MY OWN `python -O`
+   probe SCRIPT is STRIPPED** — my throwaway `assert rec.capabilities == ...` printed "PASSED"
+   while the values were visibly unequal (Mode-8 in the PROBE, not the test). A capability/value
+   teeth-check MUST run through PYTEST (assertion-rewriter active in `tests/`) or use
+   `np.testing.assert_*` / explicit `if x!=y: raise` in the script — NEVER a bare `assert`
+   under `-O`. The test itself was fine; my probe lied.
+6. **The bit-faithful-reference choice (rtol=1e-14 per-term fold) is PRINCIPLED, provable.**
+   The test's `einsum("nlm,n->lm", Y*f, v)` (2-operand, pre-scaled table) is BIT-IDENTICAL to
+   production's 3-operand `einsum("nlm,l,n...->lm...")` (0 ULP, `array_equal` True — rtol=1e-14
+   is generous). The REJECTED post-scaled form `f·(S0ᵀv)` drifts 112 ULP (docstring said ~2;
+   direction right, magnitude under-stated) because the Σ then runs at ×f-larger magnitude. A
+   third independent dense matmul also agrees 0 ULP → the value is right, not just close to one
+   reference. Choosing the per-term fold over post-scaling is a bit-FAITHFULNESS choice, NOT a
+   tolerance relaxation. Cross-ref [[lessons-L011]] (per-term-fold = structural independence),
+   [[lessons-L051]] (recompute the einsum on a structurally-independent table for bit-id).

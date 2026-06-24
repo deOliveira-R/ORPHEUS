@@ -2,17 +2,19 @@
 
 ## 1. Lessons (the behavioral spine)
 
-[lessons.md](lessons.md) — 50 behavioral lessons (`## L-NNN -- title`,
-ascending, contiguous L-001..L-050). "What mistake did I make, what did I
+[lessons.md](lessons.md) — 52 behavioral lessons (`## L-NNN -- title`,
+ascending, contiguous L-001..L-052). "What mistake did I make, what did I
 learn that improved my review behaviour." Consult before every review;
 sharpen in place after every task. The recurring spine:
 
 - **Coverage ≠ count** (L-001, L-005, L-030) — demand a heterogeneous /
   multi-group / mesh-refinement gate; a per-axis invariant needs a fixture
   that VARIES along the non-reduced axis.
-- **Mode-8 (-O strip)** (L-006, L-010, L-039) — bare asserts fire in
-  collected `tests/` (rewriter), die only in `orpheus/`; prove a gate fired
-  by mutating it, not by inspection.
+- **Mode-8 (-O strip)** (L-006, L-010, L-039, L-052) — bare asserts fire in
+  collected `tests/` (rewriter), die only in `orpheus/` AND in your own probe
+  SCRIPTS (L-052: a bare assert in a `python -O` throwaway prints PASSED while
+  unequal — teeth-check through pytest or `np.testing.assert_*`, never a bare
+  script assert); prove a gate fired by mutating it, not by inspection.
 - **catches/verifies markers** (L-007) — a marker is a coverage CLAIM;
   mutation-verify the EXACT documented bug reddens THIS test or drop it.
 - **Re-baseline integrity** (L-022, L-023, L-024, L-028, L-044, L-049) —
@@ -29,6 +31,19 @@ sharpen in place after every task. The recurring spine:
 - **Bit-id micro-facts** (L-013, L-014, L-020) — resolve byte-id disputes
   with the IEEE/Python fact + git `.npy` status + a +1-ULP perturb, not a
   docstring.
+- **API-migration rewire bit-id + phantom-symbol discipline** (L-051) — a
+  "deleted class → new face" rewire's bit-id is VERIFIABLE (recompute the OLD
+  einsum on a structurally-independent table, `np.array_equal`), never ASSUMED
+  from the brief; confirm every brief-named symbol/file with find/grep (two
+  phantoms caught) and byte-compile no-test generator scripts.
+- **Adjoint-via-metric-composition** (L-052) — `A.H = G_dom⁻¹·Aᵀ·G_cod` is
+  VERIFIABLE: re-derive the inner-product identity by hand, then prove it with a
+  DENSE matrix built by loops + transposed directly + composed with metrics
+  (zero shared code with the fused einsums); the "weight-free transpose" choice
+  is provable (each transpose mirrors its OWN forward — asymmetric w/ a
+  weight-baking sibling is correct, not a missing factor); teeth = drop-factor /
+  bake-weight / reverse-factor / wrong-Gram-power, all RED via monkeypatch;
+  per-term fold beats post-scale for a bit-faithful ref (0 vs 112 ULP).
 - **Stale-snapshot triage** (L-034) — a HUGE-ULP red on ONE geometry while
   siblings pass = live-correct / frozen-stale; find the apply-changing
   commit that didn't re-capture.

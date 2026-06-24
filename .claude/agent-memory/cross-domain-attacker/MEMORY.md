@@ -98,6 +98,40 @@ load-bearing design verdict — keep them as pointers; the detection HABIT is in
   change-of-basis morphism); spatial order = PROPERTY (one basis, morphism=id),
   angular order = TYPE (the applied projection/reconstruction pair). The criterion
   itself is the durable kernel (now distilled into lessons L4).
+- [projection_reconstruction_frame_pair.md](projection_reconstruction_frame_pair.md)
+  — the M/R asymmetry (M generic-by-codomain, R specific-by-name+carrier) is a
+  HALF-APPLIED P1.3 refactor; cleanest frame = analysis/synthesis pair of a
+  `4π`-TIGHT FRAME on S² (one `SphericalHarmonicFrame` owning Y,W,L + space-pair);
+  the three weight families are ONE convention datum with `(2ℓ+1)=4π·g_C⁻¹`
+  DERIVED. Symmetric fix: rename R→`MomentReconstruction`, give it `.domain`,
+  read `(2ℓ+1)` from it. Smell #16 shapes 1+2 (metric ‖ its inverse stored
+  independently; `S0` realised 3×). Unify-NOW gate = the §10 PN second instance.
+- [homogenization_measure_derivation_frames.md](homogenization_measure_derivation_frames.md)
+  — DERIVES (normal equations) that spatial XS homogenization is the WEIGHTED-L²(φV)
+  GALERKIN projection onto the coarse P0/indicator basis: the measure φV is FORCED
+  (not chosen), the `/Φ_R` denominator IS the inverse coarse Gram = the reconstruction
+  dual factor (exact analogue of SH `(2ℓ+1)=4π·g_C⁻¹`). CORRECTS the prior "first
+  oblique consumer" slip: in L²(φV) it is ORTHOGONAL (L=K), obliqueness was a dV-metric
+  artifact → no oblique adjoint path. Mesh is NOT a Basis — it YIELDS an indicator
+  basis-view + the existing measure-view (symmetric); membership = per-axis searchsorted
+  on coarse faces (n-D-clean) = `partition_by`/`pushforward`. Group axis rides the
+  TRAILING tensor axis through ONE frame (φ as `M_φ` multiplier, NOT a measure) →
+  DiscreteMeasure 1-D + Basis ABC blast radius ZERO. Energy condensation = SAME shape
+  (K on EnergyGrid); asymmetry explained by K's mesh-coupling; numerator = region-
+  resolved ReactionRateFunctional (share it).
+- [projection_discipline_hierarchy_frames.md](projection_discipline_hierarchy_frames.md)
+  — the projection-DISCIPLINE hierarchy (one level UP from M/R): (a) "projector"
+  is RESERVED for the idempotent `R∘Π`; Π=analysis operator (Christensen)/
+  projection (FEM), NOT a projector; (b) Galerkin/PG are SIBLINGS not
+  `Galerkin(PG)` (Liskov: Galerkin STRENGTHENS `Π*=R`), but NEITHER earns a
+  class; (c) ONE generalizing object = Saad's `(K,L)` trial/test pair = ORPHEUS
+  `(basis,measure)`; collocation=Dirac measure, LSQ=`A*K` (the frame's
+  expressivity boundary — needs `A`); (d) discipline = a PROPERTY decidable as
+  `measure==basis.canonical_measure` → RETIRE both ABCs (type-theatrics, morphism
+  =id, zero subclasses), matches `frame.py:27-35` CAP_SOLVE iso/non-iso ruling;
+  (e) condensation/homogenization PG-ness IS a non-canonical (spectrum/flux-
+  weighted) MEASURE, not a method — and the §17+§18 second oblique instance that
+  justifies the path. Extends the M/R pair's verdict 3.2.
 
 ### Variant-α Green's-function family + spatial closure
 - [variant_alpha_family_hindsight.md](variant_alpha_family_hindsight.md) +

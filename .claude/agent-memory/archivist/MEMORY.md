@@ -63,11 +63,43 @@ These hold a reusable doc-design RECIPE, not a campaign log:
   per-method pages (cross-ref-not-duplicate; measurement+decision
   section; verbatim user-decision admonition). Instance:
   `loss_representations.rst`.
+- [operator-classes→frame-faces re-homing](feedback_operator_classes_to_frame_faces_rehoming.md)
+  — doc-sweep recipe when a refactor retires standalone projection M +
+  reconstruction R operator classes into the two FACES of one discrete
+  `Frame` (`frame.analysis`/`frame.reconstruction`): re-home onto the
+  abstraction + add the frame-theory framing (T/T*/S/tight-frame), don't
+  find-replace; KEEP documented-only eq-labels by name; the
+  concurrent-code-carve-vindicates-re-verify-live lesson; the
+  co-located-separate-retirement scoping discipline. Instance:
+  Frame/Basis carve (#263, `refactor/operator-inverse-algebra`).
 - [algebra-of-record stub→narrative](feedback_stub_to_rich_narrative_expansion.md)
   — the SymPy-module-as-canonical-source discipline; per-geometry
   6-subsection shape; the method-implementer-stubs / archivist-expands
   separation. (Generalised in `lessons.md` L5 + the `algebra-of-record`
   skill.)
+- [Galerkin-natural-metric reframe](feedback_galerkin_natural_metric_reframe.md)
+  — doc-recipe when a carve proves a "flux-weighted average" is the
+  L²(weighted-metric) ORTHOGONAL (Galerkin) projection, NOT
+  Petrov-Galerkin (the PG reading is the unweighted-dV-metric artifact;
+  flux multiplier lives in test-fn OR measure = same map; Frame reads it
+  off the measure → Galerkin). 8-piece derivation order (P0 trial space →
+  normal eqns → measure-is-DERIVED-not-chosen → two-readings-same-map →
+  Radon–Nikodym μ_φV=φ·μ_V & why DiscreteMeasure stays 1-D → mesh-YIELDS-
+  IndicatorBasis → R∘G⁻¹∘M with 1/Φ_R in the space metric → Mode-11
+  sentinel); + the sibling-page staleness TOMBSTONE (L-007); + asymmetry-
+  law gains a frame reading (geometric-K=mesh-coupled vs spectral-K=
+  decoupled). φV-vs-dV discriminator is the load-bearing guard. Instance:
+  `Solution.homogenize` (#268, `refactor/operator-inverse-algebra`).
+- [domain-op + L2-promotion + asymmetry-law](feedback_domain_op_l2_promotion_asymmetry_law.md)
+  — 6-part section shape for a domain OPERATION (transform on a
+  `Solution`, not a solver step) born from an L2 module promotion +
+  data/behavior type split: lead with THE preservation identity as the
+  verifies-target (the rest are vv-status:documented decomposition
+  steps), derive each weight forced-not-chosen, `.. warning::` the
+  source-group variable-swap trap (vv Mode 2), special-case the simplex
+  χ channel, one-line balance argument, asymmetry-law `.. list-table::`
+  contracting the deferred sibling (mesh-COUPLED vs DECOUPLED → different
+  return types). Instance: `Solution.homogenize`+`MaterialMesh` (#267).
 - [orbit-space terminology sweep](feedback_orbit_space_terminology.md) —
   add-aside-then-bridge-then-sweep pattern for introducing a precise
   math term to replace a loose one entrenched as a code-name.
