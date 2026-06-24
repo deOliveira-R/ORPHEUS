@@ -6,7 +6,13 @@
 > discipline-as-property conclusion in `[[project-homogenization-condensation]]` / `[[project-frame-basis-carve]]`).
 >
 > **STATUS (2026-06-24): P1 LANDED `00f9b76` (Closes #268); P2 LANDED `cc6d022` (Refs #226);
-> P3 LANDED `79e2ac8` (Refs #226); P4 LANDED `74378d5`+`ed1e14d`+`83aaa8a` (Refs #226). NEXT = P5 (#50).**
+> P3 LANDED `79e2ac8` (Refs #226); P4 LANDED `74378d5`+`ed1e14d`+`83aaa8a` (Refs #226).
+> NEXT = P4.5 — the two-param `Operator[Domain,Codomain]` split (detailed spec:
+> `.claude/plans/p4_5_two_param_operator_split.md`), then P5 (#50).**
+> P4.5 is INSERTED before P5/P6 by user directive (2026-06-24): polish the operator algebra so the later
+> phases don't build on a type that must further change. It is the keystone the post-P4 review surfaced —
+> the uniform `Operator[Flux,SourceSink]` contract — and the genuine fix for the #226 generic-Protocol
+> `@overload`/`None`-space confessions (pyright net DOWN becomes the deliverable, not a deferral).
 > The pyright ratchet is a GUIDE, not a gate, DURING the campaign — the faces/Λ `ndarray`-vs-`Vector`
 > generic-Protocol gap (the cast retirement exposed it; pre-existing) is #226, deferred to ONE
 > post-campaign pyright pass (user, 2026-06-24).
@@ -168,6 +174,19 @@ coarse_xs = PetrovGalerkinFrame(EnergyGrid(coarse_groups).indicator_basis(),
   executes, no bypass); 178 scattering-unit + 782 solve/sweep/eigenvalue (incl 2G-het keff) + new-leaf
   intrinsic + HarmonicFrame tests, 7-and-only-7 baseline; Sphinx -W clean; pyright deferred (#226).
   **Two-param operator split NOT done (orthogonal, not needed) — confirmed.**
+- **P4.5 — the two-param `LinearOperator[Domain, Codomain]` split (the keystone).** FULL SPEC:
+  `.claude/plans/p4_5_two_param_operator_split.md` (cold-pickup-ready). Generalize the operator algebra from
+  single-param endomorphic `LinearOperator[V]` (`apply(x:V)->V`) to two-param `LinearOperator[Din, Cout]`
+  (`apply(x:Din)->Cout`), so the non-endomorphic transport operators (S/F/L mapping **Flux → SourceSink**) are
+  honestly typed. This (1) RETIRES the `@overload` "not-an-endomorphism" confession stacks (`scattering.py:1388`,
+  `fission.py:466` — Python's weak spot); (2) carrier-types the kernel end-to-end (`kernel.apply(AngularFlux)->
+  AngularSourceSink` directly), **dissolving the P4 option-2 fused/explicit asymmetry** (both arms uniformly
+  typed); (3) unifies S/F/L under one `Operator[Flux,SourceSink]` contract (the affine-map linear-part structure;
+  fission = rank-1 degenerate of scattering's `R∘Λ∘M` frame). Gating decision FIRST: PEP-696 defaults need Py≥3.13
+  or `typing_extensions` (floor is 3.11) — AskUserQuestion. Sub-phases a(numerics split foundation)/b(S/F/L honest
+  types + retire confessions)/c(carrier-typed kernel)/d(projection ABCs)/e(docs). pyright net DOWN is the
+  DELIVERABLE (this IS the deferred #226 generic-Protocol cleanup). Runtime-zero (typing + carrier wraps);
+  0-ULP canary the load-bearing gate. Proactive test-architect before b/c.
 - **P5 — energy condensation (greenfield).** Mint `EnergyGrid` + its `indicator_basis(coarse_groups)`
   (same `IndicatorBasis` class, energy axis) + the energy base-measure (bin-width/lethargy) +
   `EnergyGroupSpace`; `Solution.condense(grid) -> dict[int, Mixture]` as a `PetrovGalerkinFrame`
