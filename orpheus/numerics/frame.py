@@ -97,7 +97,12 @@ from numpy.typing import NDArray
 
 from orpheus.numerics.basis.base import Basis
 from orpheus.numerics.measure import DiscreteMeasure
-from orpheus.numerics.operator import CAP_APPLY, CAP_APPLY_TRANSPOSE
+from orpheus.numerics.operator import (
+    CAP_APPLY,
+    CAP_APPLY_TRANSPOSE,
+    LinearOperator,
+    OperatorProduct,
+)
 from orpheus.numerics.projection import AnalysisOperator, ReconstructionOperator
 from orpheus.numerics.space import FunctionSpace
 
@@ -195,6 +200,41 @@ class FrameBase(ABC):
     def reconstruction(self) -> "_FrameReconstruction":
         r"""The reconstruction face :math:`R` (``basis_space → measure_space``)."""
         return _FrameReconstruction(self)
+
+    # ── composed operators (the "define Frame, compose, done" production path) ──
+    def conjugate(self, operator: LinearOperator, /) -> LinearOperator:
+        r"""Frame-conjugate a coefficient-space operator: :math:`R \circ A \circ M`.
+
+        THE production composition for a method whose action is "project to
+        coefficients, act there, reconstruct" — e.g. SN anisotropic scattering
+        :math:`S_{\ell\ge 1} = R\,\Lambda\,M` (the per-ordinate redistribution). Returns
+        the typed :class:`~orpheus.numerics.operator.OperatorProduct`
+        ``OperatorProduct(R, OperatorProduct(A, M))``, whose
+        :meth:`~orpheus.numerics.operator.OperatorProduct.apply` is ``R(A(M·x))`` — the
+        SAME numpy chain a hand-rolled ``reconstruction.apply(A.apply(analysis.apply(x)))``
+        runs, now ONE named operator (Cardinal Rule 2: the composition IS the production
+        path, not a parallel "semantic" reading of it).
+
+        ``operator`` must compose between the faces — its ``domain`` is the analysis
+        codomain (:attr:`test_space`) and its ``codomain`` the reconstruction domain
+        (:attr:`basis_space`); the :class:`OperatorProduct` space-compatibility guard
+        enforces it (an endomorphism on the coefficient space when ``test == trial``).
+        """
+        return OperatorProduct(
+            self.reconstruction, OperatorProduct(operator, self.analysis),
+        )
+
+    def reconstruct_after(self, operator: LinearOperator, /) -> LinearOperator:
+        r"""Reconstruct after a coefficient-space operator: :math:`R \circ A`.
+
+        The :meth:`conjugate` sub-operator for inputs ALREADY in coefficient space (the
+        analysis :math:`M` already applied) — e.g. the angular-windowed SN moment
+        iterate, whose bulk IS :math:`M\psi`, so only :math:`R\,\Lambda` remains.
+        Returns ``OperatorProduct(R, A)`` (``apply`` = ``R(A·c)``). Wiring a windowed
+        consumer to :meth:`conjugate` instead would erroneously re-apply :math:`M` (a
+        double-projection).
+        """
+        return OperatorProduct(self.reconstruction, operator)
 
 
 @dataclass(frozen=True)

@@ -186,6 +186,7 @@ if TYPE_CHECKING:
     from .geometry import SNMesh
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
     from orpheus.numerics.quadrature import Quadrature
+    from orpheus.numerics.space import FunctionSpace
 
 
 __all__ = ["LegendreMomentScattering", "ScatteringOperator"]
@@ -277,7 +278,7 @@ class LegendreMomentScattering(LinearOperatorMixin):
     mat_xs: "MaterialXSField"
     L: int
     skip_l0: bool = True
-    capabilities: frozenset = field(
+    capabilities: frozenset[str] = field(
         default_factory=lambda: frozenset({CAP_APPLY})
     )
 
@@ -325,6 +326,27 @@ class LegendreMomentScattering(LinearOperatorMixin):
         return self.mat_xs.apply_legendre_scattering_moments(
             moments, L=self.L, skip_l0=self.skip_l0,
         )
+
+    @property
+    def domain(self) -> "FunctionSpace":
+        r"""The spherical-harmonic coefficient space — :math:`\Lambda` is endomorphic.
+
+        :math:`\Lambda` acts block-diagonally per :math:`\ell` ON moment space, so its
+        domain and codomain are BOTH the SH coefficient space
+        :class:`~orpheus.numerics.spaces.SphericalHarmonicSpace` of order :attr:`L`
+        (``== frame.basis_space``). Carrying real spaces lets
+        :class:`~orpheus.numerics.operator.OperatorProduct` admit the ``R∘Λ∘M``
+        composition NATIVELY — the ``cast`` that papered over the former ``None``
+        spaces (and short-circuited the composability guard) retires.
+        """
+        from orpheus.numerics.spaces import SphericalHarmonicSpace
+
+        return SphericalHarmonicSpace.from_L(self.L)
+
+    @property
+    def codomain(self) -> "FunctionSpace":
+        r"""Endomorphic on the SH coefficient space — codomain ``==`` :attr:`domain`."""
+        return self.domain
 
 
 @dataclass
@@ -509,27 +531,17 @@ class ScatteringOperator(LinearOperatorMixin):
         producer-side Pattern-7 normalisation at the :meth:`apply`
         boundary (lesson L18).
 
-        This is the **single source of truth** for the moment→source
-        reconstruction (``coding-elegance`` Pattern 2).  Two callers share
-        it, so the :math:`\ell\ge 1` reconstruction lives in exactly one
-        place:
-
-        * :meth:`build_aniso_source` — the full-angular path, which first
-          projects :math:`\phi = M\,\psi` (the :attr:`frame`'s analysis face
-          on the whole tensor) and then calls this map.
-        * the windowed moment-iterate :meth:`apply` arm (Phase 5a
-          angular-windowing) — whose iterate bulk IS the moment tensor
-          :math:`\phi`, so :math:`M` is already done and only this
-          :math:`R\,\Lambda` map remains.
-
-        The §5.6 :attr:`kernel` property (#257 S6) is the typed
-        :class:`~orpheus.numerics.operator.OperatorProduct` assembly of
-        the SAME :math:`R`, :math:`\Lambda_{\ell\ge 1}` factors composed
-        with :math:`M` — ``kernel.apply(psi.values)`` reproduces this map
-        (on ``M.apply(psi.values)``) byte-for-byte, pinned at 0 ULP by
-        ``tests/sn/operators/test_scattering_kernel_crosscheck.py``. Any
-        edit to this reconstruction MUST keep that gate green (the
-        property and this method must not diverge).
+        It builds the :math:`R\,\Lambda` map as ``frame.reconstruct_after(Λ)`` —
+        the §5.6 :attr:`kernel` sub-operator for inputs ALREADY in moment space
+        (``coding-elegance`` Pattern 2: the composition IS the map). Its sole caller
+        is the **windowed moment-iterate** :meth:`apply` arm (Phase 5a
+        angular-windowing), whose iterate bulk IS the moment tensor :math:`\phi`, so
+        :math:`M` is already done and only this :math:`R\,\Lambda` remains. The
+        full-angular path (:meth:`build_aniso_source`) instead consumes the whole
+        :math:`R\,\Lambda\,M` :attr:`kernel` (``= frame.conjugate(Λ)``); both share
+        the frame's :math:`R` and :math:`\Lambda`, and the 0-ULP
+        ``tests/sn/operators/test_scattering_kernel_crosscheck.py`` pins the
+        ``kernel`` to that composition.
 
         It supersedes the per-:math:`\ell`
         ``_PerLegendreOrderScattering`` kernel (retired), which
@@ -556,7 +568,8 @@ class ScatteringOperator(LinearOperatorMixin):
         scatter = LegendreMomentScattering(
             mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=True,
         )
-        return self.frame.reconstruction.apply(scatter.apply(moment_values))
+        # R∘Λ as ONE typed operator (M already applied — the moments ARE M·ψ).
+        return self.frame.reconstruct_after(scatter).apply(moment_values)
 
     @property
     def kernel(self) -> LinearOperator:
@@ -575,7 +588,7 @@ class ScatteringOperator(LinearOperatorMixin):
         the per-ℓ group-transfer cross sections on moment space
         (:math:`\Lambda_{\ell\ge 1}`, ``skip_l0=True``), and reconstructs
         the per-ordinate source via the addition theorem (:math:`R`). The
-        factors are EXACTLY those of the existing path:
+        factors are the frame faces and the moment-space scattering:
 
         * :math:`M` = ``frame.analysis`` (the :attr:`frame`'s
           :attr:`~orpheus.numerics.frame.FrameBase.analysis` face);
@@ -584,17 +597,15 @@ class ScatteringOperator(LinearOperatorMixin):
         * :math:`R` = ``frame.reconstruction`` (the :attr:`frame`'s
           :attr:`~orpheus.numerics.frame.FrameBase.reconstruction` face);
 
-        the SAME :math:`\Lambda` and :math:`R`
-        :meth:`_aniso_source_from_moment_values` builds, composed with
-        the SAME :math:`M`
-        :meth:`build_aniso_source` projects with. The nesting
+        composed via ``frame.conjugate(Λ)`` into
         ``OperatorProduct(R, OperatorProduct(Λ, M))`` (whose
         :meth:`~orpheus.numerics.operator.OperatorProduct.apply` is
-        ``a.apply(b.apply(x))``) gives
+        ``a.apply(b.apply(x))``), giving
         :math:`\mathrm{kernel.apply}(\psi.\mathrm{values}) =
-        R(\Lambda(M\,\psi))` — **byte-identical** to the existing chain
-        ``_aniso_source_from_moment_values(M·ψ)``, same einsums, same
-        order.
+        R(\Lambda(M\,\psi))`. The production aniso paths CONSUME this operator:
+        :meth:`build_aniso_source` is ``(1/W)·kernel``; the windowed
+        moment-iterate arm consumes the sub-operator
+        ``frame.reconstruct_after(Λ)`` (:math:`R\,\Lambda`).
 
         With this property :class:`ScatteringOperator` satisfies the
         §5.6
@@ -606,41 +617,38 @@ class ScatteringOperator(LinearOperatorMixin):
         (:meth:`add_n2n_source`) are the LOCAL / separate components of
         the full :meth:`apply`.
 
-        Semantic, not a rewiring (Cardinal Rule 2)
-        -------------------------------------------
+        The production path (Cardinal Rule 2 — the composition IS the realization)
+        --------------------------------------------------------------------------
 
-        ``kernel`` is the §5.6 *semantic reading* of the aniso path; the
-        5 :meth:`apply` dispatch arms are UNCHANGED (the
-        :math:`R \Lambda M` evaluation they run via
-        :meth:`build_aniso_source` /
-        :meth:`_aniso_source_from_moment_values` stays the production
-        realization). The two compose the same numpy chain — pinned at
-        0 ULP by
-        ``tests/sn/operators/test_scattering_kernel_crosscheck.py``. The
-        producer-side :math:`1/W` normalisation (lesson L18) lives
-        OUTSIDE this kernel, at the :meth:`apply` boundary
-        (:meth:`build_aniso_source` divides by ``sum_w`` after calling
-        the map), so :math:`\mathrm{kernel.apply}` returns the
-        per-ordinate :math:`\ell\ge 1` source **pre**-:math:`1/W`.
+        ``kernel`` is the production :math:`\ell\ge 1` map, NOT a parallel
+        "semantic" reading of a hand-chain. :meth:`build_aniso_source` IS
+        ``(1/W)·kernel`` (it calls ``self.kernel.apply(ψ)``, then the producer-side
+        :math:`1/W`), and the windowed moment-iterate :meth:`apply` arm calls the
+        sub-operator ``frame.reconstruct_after(Λ)`` (:math:`R\,\Lambda` — :math:`M`
+        already done). There is ONE composition now; the 0-ULP
+        ``tests/sn/operators/test_scattering_kernel_crosscheck.py`` is its
+        DEFINITIONAL identity (it was a twin-guard between two parallel chains).
+        The producer-side :math:`1/W` normalisation (lesson L18) lives OUTSIDE this
+        kernel, at the :meth:`apply` boundary, so :math:`\mathrm{kernel.apply}`
+        returns the per-ordinate :math:`\ell\ge 1` source **pre**-:math:`1/W`.
 
-        Built fresh on each access (the factors are cheap reference
-        bindings) to honor the :attr:`mat_xs` / :attr:`Y` read-through.
+        Built fresh on each access (the factors are cheap reference bindings) to
+        honor the :attr:`mat_xs` / :attr:`Y` read-through.
 
         Raises
         ------
         ValueError
             If ``scattering_order == 0`` — an isotropic operator has no
-            anisotropic integral kernel (the :math:`\ell\ge 1`
-            redistribution is empty; :attr:`Y` is ``None``). The §5.6
-            Kernel surface is meaningful only for anisotropic scattering;
-            the P0 in-scatter is the LOCAL component handled by
-            :meth:`add_iso_source`.
+            anisotropic integral kernel (the :math:`\ell\ge 1` redistribution is
+            empty; :attr:`Y` is ``None``). The §5.6 Kernel surface is meaningful
+            only for anisotropic scattering; the P0 in-scatter is the LOCAL
+            component handled by :meth:`add_iso_source`.
 
         Returns
         -------
         LinearOperator
-            ``OperatorProduct(R, OperatorProduct(Λ, M))`` — the typed
-            ``R∘Λ∘M`` anisotropic redistribution.
+            ``frame.conjugate(Λ)`` ``= OperatorProduct(R, OperatorProduct(Λ, M))``
+            — the typed ``R∘Λ∘M`` anisotropic redistribution.
         """
         if self.scattering_order == 0:
             raise ValueError(
@@ -649,27 +657,14 @@ class ScatteringOperator(LinearOperatorMixin):
                 "kernel (the R∘Λ∘M angular redistribution is empty). The P0 "
                 "in-scatter is the LOCAL component, handled by add_iso_source."
             )
-        # M (analysis) and R (reconstruction) are the angular :attr:`frame`'s
-        # faces — typed LinearOperators carrying real domain/codomain spaces,
-        # so they compose through OperatorProduct WITHOUT a cast. Λ
-        # (LegendreMomentScattering) is still an unparametrised
-        # ``LinearOperatorMixin`` with ``None`` spaces, so pyright cannot unify
-        # the generic ``V`` of ``OperatorProduct[V]`` from it — the ``cast`` is
-        # the PEP-484 bridge for that known-correct runtime interface (NOT a
-        # ``# type: ignore`` suppression). Λ's ``None`` spaces also
-        # short-circuit the OperatorProduct composability guard, so the mixed
-        # real/None composition is admitted. The Λ generic gap is #226 scope.
-        frame = self.frame
-        legendre_scattering = cast(
-            LinearOperator,
+        # R ∘ Λ ∘ M as ONE typed operator: the frame conjugates Λ (per-ℓ
+        # moment-space scattering) between its analysis (M) and reconstruction (R)
+        # faces. Λ now carries real spaces (== frame.basis_space), so the
+        # OperatorProduct composability guard validates R∘Λ∘M natively — NO cast.
+        return self.frame.conjugate(
             LegendreMomentScattering(
                 mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=True,
-            ),
-        )
-        # R ∘ Λ ∘ M as a nested OperatorProduct (apply = a.apply(b.apply(x))).
-        return OperatorProduct(
-            frame.reconstruction,
-            OperatorProduct(legendre_scattering, frame.analysis),
+            )
         )
 
     def _assemble_per_ordinate_source(
@@ -950,15 +945,13 @@ class ScatteringOperator(LinearOperatorMixin):
         # leaf carries the mesh, which is required to construct the
         # output :class:`AngularSourceSink`.
         mesh = angular_flux.mesh
-        # S_aniso = (1/W) R Λ M ψ.  Project ψ → moments ONCE (M), then the
-        # shared moment→source map :meth:`_aniso_source_from_moment_values`
-        # (R Λ_{ℓ≥1}).  The :math:`/sum_w` Pattern 7 producer-side
-        # normalisation lives HERE at the apply boundary, OUTSIDE the map
-        # (R-1 Step 4 A1, lesson L18).  The SAME map serves the windowed
-        # moment-iterate apply arm — one reconstruction (Pattern 2).
-        moment_values = self.frame.analysis.apply(angular_flux.values)
+        # S_aniso = (1/W)·kernel.  The §5.6 :attr:`kernel` (= ``frame.conjugate(Λ)``,
+        # the typed R∘Λ∘M redistribution) is THE production composition; this arm
+        # adds only the producer-side :math:`/sum_w` (Pattern 7 / lesson L18, which
+        # lives OUTSIDE the kernel).  The windowed moment-iterate arm consumes the
+        # sub-operator ``frame.reconstruct_after(Λ)`` (M already done) — same R, Λ.
         sum_w = float(self.weights.sum())
-        out_values = self._aniso_source_from_moment_values(moment_values) / sum_w
+        out_values = self.kernel.apply(angular_flux.values) / sum_w
         # The R·Λ·M chain is spatial-moment-axis-agnostic (#240 D5b-S3); when the
         # angular iterate carries φ̂, the aniso source does too — the typed wrap
         # selects the SpatialMomentSpace factor (read off the iterate's space).
