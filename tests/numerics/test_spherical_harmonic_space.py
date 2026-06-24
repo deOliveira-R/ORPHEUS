@@ -86,7 +86,7 @@ def test_space_inner_product_weights_equal_4pi_over_2l_plus_1():
 
     The Gram-matrix diagonal :math:`g_C` lives in exactly one place —
     on the space — and the padded ``(L+1, 2L+1)`` layout matches the
-    :class:`~orpheus.sn.harmonic_moment_field.HarmonicMomentField`
+    :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
     storage convention (row :math:`\ell` carries
     :math:`4\pi/(2\ell+1)` in the :math:`2\ell+1` valid slots, zero in
     the :math:`|m|>\ell` padding).

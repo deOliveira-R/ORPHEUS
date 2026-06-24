@@ -57,7 +57,7 @@ Key Facts
   (Wave O step O.2 close-out, Issue #208/#201, 2026-06-08). The flux
   states :class:`~orpheus.transport.fields.angular_flux.AngularFlux` /
   :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` /
-  :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+  :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
   / :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux` are an
   **affine space** :math:`A` over a distinct **difference vector space**
   :math:`V`. The source-iteration increment
@@ -100,7 +100,7 @@ Key Facts
   :math:`\psi_{k+1} = (L{+}C)^{-1}(S\psi_k + B\psi_k + q)` consumes
   :math:`\psi` only through its flux moments :math:`\phi_\ell^m =
   (M\psi)_\ell^m`, so the *persistent* iterate is held as the moment
-  tensor :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+  tensor :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
   (:math:`N \to (L{+}1)(2L{+}1)`, measured **18.3×** shrink at
   :math:`N=110`, :math:`L=1`) rather than the full per-ordinate
   :class:`~orpheus.transport.fields.angular_flux.AngularFlux`. The
@@ -296,7 +296,7 @@ for example,
 :class:`~orpheus.transport.timed_full_field.TimedFullField` to the
 timeless :class:`~orpheus.transport.full_field.FullField`, and
 (scattering)
-:class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+:class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
 to :class:`~orpheus.transport.source_sinks.AngularSourceSink`. The output
 type is **not** ``V`` — it is a function of the input carrier (the §B.5.2
 truth that an operator output is a *source/sink*, not a flux). Naming
@@ -1940,7 +1940,7 @@ When a moment representation earns a type (#263)
 The tensor-product algebra above raises a recurring design question whenever
 a new moment representation appears: should it be a first-class **field type**
 (a sibling of
-:class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`),
+:class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`),
 or merely a **property** — a moment axis riding on an existing field?  The
 question surfaced sharpest in the SN linear-discontinuous (LD) boundary work
 (:ref:`ld-cartesian-2d-coherent-promise`, Issue #257 S9), which had to decide
@@ -1977,7 +1977,7 @@ Angular order PASSES; spatial order FAILS (today)
 **Angular order is correctly TWO types.** The ordinate basis
 (:class:`~orpheus.transport.fields.angular_flux.AngularFlux`, :math:`N`
 collocation directions on :math:`S^2`) and the harmonic-modal basis
-(:class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`,
+(:class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`,
 :math:`(L+1)(2L+1)` real-spherical-harmonic coefficients) are NOT canonically
 isomorphic — the isomorphism depends on the quadrature
 :math:`Y_\ell^m(\hat\Omega_n)`.  They are bridged by the APPLIED
@@ -4469,7 +4469,7 @@ The affine algebra is defined ONCE on the
 into the four flux-STATE leaves
 (:class:`~orpheus.transport.fields.angular_flux.AngularFlux`,
 :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`,
-:class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`,
+:class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`,
 :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`) — so
 every flux leaf gets a displacement sibling for free, mirroring how the
 operator block-roles are *derived* not re-declared. The mint copies the
@@ -4513,7 +4513,7 @@ is the affine completion):
      - ``ScalarResidual``
      - :class:`~orpheus.transport.displacements.scalar_displacement.ScalarDisplacement`
    * - **Moment**
-     - :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+     - :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
      - —
      - —
      - :class:`~orpheus.transport.displacements.moment_displacement.MomentDisplacement`
@@ -5843,7 +5843,7 @@ the **persistent** iterate the source iteration carries *between* sweeps
 does not need all :math:`N` ordinates — it needs only the
 spherical-harmonic moments the scattering operator consumes. The
 held iterate's angular dimension drops :math:`N \to (L+1)(2L+1)`, and
-the iterate becomes :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+the iterate becomes :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
 instead of :class:`~orpheus.transport.fields.angular_flux.AngularFlux`.
 
 .. admonition:: Key Facts (angular windowing)
@@ -5956,7 +5956,7 @@ the moment tensor
    :label: angular-windowing-moment-iterate
 
    \phi \;\in\; \mathbb{R}^{(L+1)\times(2L+1)\times n_g \times n_x \times n_y}
-   \quad(\texttt{HarmonicMomentField}),
+   \quad(\texttt{HarmonicMomentFlux}),
    \qquad\text{not}\qquad
    \psi \;\in\; \mathbb{R}^{N \times n_g \times n_x \times n_y}
    \quad(\texttt{AngularFlux}).
@@ -6019,7 +6019,7 @@ source of truth). The dispatch is on the iterate type: the
 :class:`~orpheus.transport.fields.angular_flux.AngularFlux` arm of
 :meth:`ScatteringOperator.apply <orpheus.sn.scattering.ScatteringOperator.apply>`
 does the :math:`M` projection first; the
-:class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+:class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
 arm skips it.
 
 This factoring **retired** the per-:math:`\ell`
@@ -6215,7 +6215,7 @@ Honest scope — a persistent-iterate + typed-state win, NOT yet a peak win
      shrinks by :math:`N / (L{+}1)(2L{+}1)` — measured **18.3×** at
      :math:`N = 110`, :math:`L = 1`. The iterate **type** also becomes
      honest: the SI state *is* the moments
-     (:class:`HarmonicMomentField`), so the representation no longer
+     (:class:`HarmonicMomentFlux`), so the representation no longer
      over-claims an angular resolution the iteration never uses.
    * **Why the peak win is modest.** The **per-sweep transient**
      full-angular machinery still dominates the peak: the resolvent's
@@ -6721,7 +6721,7 @@ resolvent surface the two modes are **named methods**, ``solve`` vs
   ``loss_representation.sweep`` — the same instance the matvec
   consumes); only the bulk **wrap** differs
   (:class:`~orpheus.transport.fields.angular_flux.AngularFlux` vs
-  :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`).
+  :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`).
 * :meth:`_MomentWindowedResolvent.solve
   <orpheus.sn.solver._MomentWindowedResolvent.solve>` — collapses to
   forwarding ``base.solve_moments(...)``; the post-sweep flat projection

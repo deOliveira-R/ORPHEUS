@@ -18,7 +18,12 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
+from orpheus.transport.source_sinks import (
+    ScalarSourceSink,
+    AngularSourceSink,
+    HarmonicMomentSourceSink,
+)
+from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 
 from tests.sn._test_helpers import placeholder_materials
 
@@ -360,3 +365,177 @@ class Test2DTypedSources:
         combined = iso + aniso
         expected = iso.values[None] + aniso.values
         np.testing.assert_array_equal(combined.values, expected)
+
+
+# ════════════════════════════════════════════════════════════════════
+# HarmonicMomentSourceSink — the moment-space source/sink leaf (P4).
+#
+# Intrinsic-property test (feedback_test_intrinsic_properties): the
+# leaf's DEFINING law is the bare-MomentField *vector-space* algebra —
+# `source ± source` is CLOSED (a rate density adds vectorially), in
+# deliberate contrast to its FluxRole sibling HarmonicMomentFlux, whose
+# `flux + flux` is forbidden (affine, no origin) and `flux − flux` mints
+# a displacement. Positive AND negative cases (vv-principles L11 / Mode
+# 11 — never negative-only): the positives pin the closed algebra, the
+# negatives pin the class-identity / L / mesh gates.
+# ════════════════════════════════════════════════════════════════════
+
+
+def _moment_shape(m: SNMesh, L: int) -> tuple[int, ...]:
+    """The ``(L+1, 2L+1, ng, *spatial)`` moment layout for mesh ``m``."""
+    return (L + 1, 2 * L + 1, m.ng, *m.spatial_shape)
+
+
+class TestHarmonicMomentSourceSink:
+    def test_construct_from_factory(self) -> None:
+        m = _slab_mesh()
+        q = HarmonicMomentSourceSink.zeros_for_mesh_and_L(m, L=2)
+        assert q.values.shape == _moment_shape(m, 2)
+        assert np.all(q.values == 0.0)
+        assert isinstance(q, HarmonicMomentSourceSink)
+        assert q.mesh is m
+        assert q.L == 2
+
+    def test_shape_validation_rejects_wrong_shape(self) -> None:
+        m = _slab_mesh()
+        bad = np.zeros((2 + 1, 2 * 2 + 1, m.ng + 1, *m.spatial_shape))
+        with pytest.raises(
+            ValueError, match="HarmonicMomentSourceSink.*does not match",
+        ):
+            HarmonicMomentSourceSink.from_mesh_and_L(bad, m, L=2)
+
+    def test_space_is_tensor_product_distinct_from_flux(self) -> None:
+        """The source/sink space carries the distinct cell-group identity,
+        so it is NOT ``==`` the flux leaf's space (defensive — the class
+        gate is the real guard, this keeps the two spaces non-equal)."""
+        m = _slab_mesh()
+        q = HarmonicMomentSourceSink.zeros_for_mesh_and_L(m, L=2)
+        phi = HarmonicMomentFlux.zeros_for_mesh_and_L(m, L=2)
+        assert q.values.shape == phi.values.shape  # same layout
+        assert q.space != phi.space  # distinct identity
+
+    # ── The DEFINING law: closed vector-space algebra (positive) ─────
+
+    def test_within_class_add_is_closed(self) -> None:
+        """``source + source → source`` — CLOSED (a rate density adds
+        vectorially). The load-bearing contrast with the flux leaf."""
+        m = _slab_mesh()
+        shape = _moment_shape(m, 2)
+        a = HarmonicMomentSourceSink.from_mesh_and_L(np.ones(shape), m, L=2)
+        b = HarmonicMomentSourceSink.from_mesh_and_L(2.0 * np.ones(shape), m, L=2)
+        c = a + b
+        assert isinstance(c, HarmonicMomentSourceSink)
+        assert np.all(c.values == 3.0)
+        # frozen — operands untouched
+        assert np.all(a.values == 1.0)
+
+    def test_within_class_sub_is_closed_not_a_displacement(self) -> None:
+        """``source − source → source`` — a plain vector difference, NOT
+        the displacement mint the FluxRole sibling performs."""
+        m = _slab_mesh()
+        shape = _moment_shape(m, 2)
+        a = HarmonicMomentSourceSink.from_mesh_and_L(3.0 * np.ones(shape), m, L=2)
+        b = HarmonicMomentSourceSink.from_mesh_and_L(np.ones(shape), m, L=2)
+        c = a - b
+        assert isinstance(c, HarmonicMomentSourceSink)
+        assert np.all(c.values == 2.0)
+
+    def test_scalar_mul_left_and_right(self) -> None:
+        m = _slab_mesh()
+        shape = _moment_shape(m, 1)
+        a = HarmonicMomentSourceSink.from_mesh_and_L(np.ones(shape), m, L=1)
+        left, right = 3.0 * a, a * 3.0
+        assert isinstance(left, HarmonicMomentSourceSink)
+        np.testing.assert_array_equal(left.values, right.values)
+        assert np.all(left.values == 3.0)
+
+    def test_flux_vs_source_role_contrast(self) -> None:
+        """The role split is real and load-bearing: the FluxRole sibling
+        FORBIDS ``flux + flux`` (affine, no origin), while this bare
+        source/sink leaf ALLOWS ``source + source`` (vector). Same
+        storage family, opposite additive algebra."""
+        m = _slab_mesh()
+        shape = _moment_shape(m, 2)
+        phi_a = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), m, L=2)
+        phi_b = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), m, L=2)
+        with pytest.raises(TypeError, match="affine space with no origin"):
+            _ = phi_a + phi_b
+        # the source/sink sibling adds freely
+        q_a = HarmonicMomentSourceSink.from_mesh_and_L(np.ones(shape), m, L=2)
+        q_b = HarmonicMomentSourceSink.from_mesh_and_L(np.ones(shape), m, L=2)
+        assert isinstance(q_a + q_b, HarmonicMomentSourceSink)
+
+    # ── The gates: class identity, L-match, mesh-binding (negative) ──
+
+    def test_cross_class_with_flux_rejected(self) -> None:
+        """``source + flux`` (same shape, different role) → TypeError via
+        Field's Layer-1 class-identity gate."""
+        m = _slab_mesh()
+        shape = _moment_shape(m, 2)
+        q = HarmonicMomentSourceSink.from_mesh_and_L(np.ones(shape), m, L=2)
+        phi = HarmonicMomentFlux.from_mesh_and_L(np.ones(shape), m, L=2)
+        with pytest.raises(TypeError, match="same-class partner"):
+            _ = q + phi
+
+    def test_cross_class_with_angular_source_rejected(self) -> None:
+        """``source + AngularSourceSink`` (different storage family) →
+        TypeError; there is no containment injection for the moment leaf."""
+        m = _slab_mesh()
+        q = HarmonicMomentSourceSink.from_mesh_and_L(
+            np.ones(_moment_shape(m, 2)), m, L=2,
+        )
+        ang = AngularSourceSink.from_mesh(
+            np.ones((m.quad.N, m.ng, *m.spatial_shape)), m,
+        )
+        with pytest.raises(TypeError, match="same-class partner"):
+            _ = q + ang
+
+    def test_cross_class_with_scalar_source_rejected(self) -> None:
+        """``source + ScalarSourceSink`` → TypeError — unlike the
+        Scalar↔Angular pair, the moment leaf carries no subspace-
+        containment dunder (no consumer yet; build-the-seam-not-spec)."""
+        m = _slab_mesh()
+        q = HarmonicMomentSourceSink.from_mesh_and_L(
+            np.ones(_moment_shape(m, 2)), m, L=2,
+        )
+        sca = ScalarSourceSink.from_mesh(np.ones((m.ng, *m.spatial_shape)), m)
+        with pytest.raises(TypeError, match="same-class partner"):
+            _ = q + sca
+
+    def test_L_mismatch_rejected(self) -> None:
+        """``source(L=1) + source(L=2)`` → ValueError.
+
+        Different ``L`` produces different ``SphericalHarmonicSpace`` shapes,
+        so Field's space-equality check fires first with the more-general
+        "requires equal space" message (the explicit L-match in
+        ``MomentField._check_partner`` is the documented belt-and-suspenders
+        secondary gate — same as the flux leaf, see
+        ``test_harmonic_moment_flux.py``). Both gate the same invariant.
+        """
+        m = _slab_mesh()
+        a = HarmonicMomentSourceSink.from_mesh_and_L(
+            np.ones(_moment_shape(m, 1)), m, L=1,
+        )
+        b = HarmonicMomentSourceSink.from_mesh_and_L(
+            np.ones(_moment_shape(m, 2)), m, L=2,
+        )
+        with pytest.raises(ValueError, match="equal space"):
+            _ = a + b
+
+    def test_mesh_binding_rejected(self) -> None:
+        """Two source/sinks on distinct SNMesh instances are non-additive."""
+        m1, m2 = _slab_mesh(), _slab_mesh()  # distinct instances, same shape
+        a = HarmonicMomentSourceSink.from_mesh_and_L(
+            np.ones(_moment_shape(m1, 2)), m1, L=2,
+        )
+        b = HarmonicMomentSourceSink.from_mesh_and_L(
+            np.ones(_moment_shape(m2, 2)), m2, L=2,
+        )
+        with pytest.raises(ValueError, match="distinct SNMesh"):
+            _ = a + b
+
+    def test_2d_construction(self) -> None:
+        m = _2d_mesh()
+        q = HarmonicMomentSourceSink.zeros_for_mesh_and_L(m, L=2)
+        assert q.values.shape == _moment_shape(m, 2)
+        assert isinstance(q, HarmonicMomentSourceSink)

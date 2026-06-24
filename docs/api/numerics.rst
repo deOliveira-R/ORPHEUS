@@ -309,7 +309,7 @@ Subclasses add domain-specific fields (``mesh``, ``boundary``,
 ``history``) on top of the ``(values, space)`` base; the algebra is
 inherited verbatim via :func:`dataclasses.replace`. The same
 hand-coded dunder skeleton that previously lived in six separate
-classes (``AngularFlux``, ``ScalarFlux``, ``HarmonicMomentField``,
+classes (``AngularFlux``, ``ScalarFlux``, ``HarmonicMomentFlux``,
 ``BoundaryFlux``, ``IsotropicSource``, ``PerOrdinateSource``) is
 consolidated here — Cardinal Rule 2 (single source of truth).
 

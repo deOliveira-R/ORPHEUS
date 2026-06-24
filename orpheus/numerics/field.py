@@ -12,7 +12,7 @@ Why this lives at L1
 ====================
 
 The Grand Report v3 (§5.5, §32.5) prescribes that every typed
-transport field — ``AngularFlux``, ``ScalarFlux``, ``HarmonicMomentField``,
+transport field — ``AngularFlux``, ``ScalarFlux``, ``HarmonicMomentFlux``,
 ``BoundaryFlux``, ``ScalarSourceSink``, ``AngularSourceSink``,
 ``ScalarResidual``, ``AngularResidual`` — share a single algebraic
 base. The pre-Depth-B codebase had six concrete classes each carrying

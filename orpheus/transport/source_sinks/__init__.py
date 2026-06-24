@@ -29,8 +29,11 @@ ad-hoc cross-class dunder.
 Role grid (field vocabulary, issues #205 / #201): this package supplies
 the **source/sink** column —
 
-* bulk: :class:`ScalarSourceSink`, :class:`AngularSourceSink`
-  (``orpheus.transport.source_sinks``);
+* bulk: :class:`ScalarSourceSink`, :class:`AngularSourceSink`,
+  :class:`HarmonicMomentSourceSink` (the moment-space source/sink — the
+  output of :math:`\Lambda` in the anisotropic in-scatter
+  :math:`R\,\Lambda\,M`, completing the moment row of the
+  ``(angular ⊗ moment) × (flux ⊗ source)`` carrier grid);
 * boundary: :class:`BoundarySourceSink`
   (the prescribed-inflow :math:`q` of the affine boundary law,
   materialised as a stored field on the trace — distinct from the
@@ -43,5 +46,13 @@ from __future__ import annotations
 from orpheus.transport.source_sinks.scalar_source_sink import ScalarSourceSink
 from orpheus.transport.source_sinks.angular_source_sink import AngularSourceSink
 from orpheus.transport.source_sinks.boundary_source_sink import BoundarySourceSink
+from orpheus.transport.source_sinks.harmonic_moment_source_sink import (
+    HarmonicMomentSourceSink,
+)
 
-__all__ = ["ScalarSourceSink", "AngularSourceSink", "BoundarySourceSink"]
+__all__ = [
+    "ScalarSourceSink",
+    "AngularSourceSink",
+    "BoundarySourceSink",
+    "HarmonicMomentSourceSink",
+]

@@ -27,7 +27,7 @@ trace) × **role** (flux / source / residual). This module provides the
      │   │   ├─ ScalarFlux            role leaf  (flux)
      │   │   └─ ScalarSourceSink       role leaf  (source; renamed from IsotropicSource in B.2)
      │   └─ MomentField (ABC)     family marker; the moment shape is leaf-specific
-     │       └─ HarmonicMomentField   role leaf  (flux-only for now)
+     │       └─ HarmonicMomentFlux   role leaf  (flux-only for now)
      └─ BoundaryField (ABC)       mesh + mesh-binding + TraceSpace contract + layout/face_view + factories
          ├─ BoundaryFlux              role leaf  (flux)
          ├─ BoundarySourceSink            role leaf  (source; B.3 — orpheus.transport.source_sinks)
@@ -71,6 +71,9 @@ from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces.spatial_moment_space import (
     SpatialMomentSpace,
     spatial_moment_tail,
+)
+from orpheus.numerics.spaces.spherical_harmonic_space import (
+    SphericalHarmonicSpace,
 )
 from orpheus.numerics.spaces.trace_space import TraceSpace
 
@@ -120,7 +123,7 @@ class BulkField(Field):
 
         Implemented per storage family (``AngularField`` →
         ``(N, ng, nx, ny)``; ``ScalarField`` → ``(ng, nx, ny)``;
-        ``HarmonicMomentField`` → ``(L+1, 2L+1, ng, nx, ny)``). The
+        ``HarmonicMomentFlux`` → ``(L+1, 2L+1, ng, nx, ny)``). The
         single source of truth for the shape contract.
         """
         raise NotImplementedError
@@ -164,7 +167,7 @@ class BulkField(Field):
         :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
         factor (the within-cell tensor-Legendre DG basis #240 D5b-S3) onto
         ``space`` via the tensor-product ``*`` — EXACTLY as
-        :meth:`HarmonicMomentField.from_mesh_and_L` composes the
+        :meth:`HarmonicMomentFlux.from_mesh_and_L` composes the
         angular-moment :class:`SphericalHarmonicSpace`. The factor is the
         Linear-Discontinuous closure's spatial-slope carrier that travels
         between source-iteration sweeps (the diffusion-limit-consistent
@@ -212,7 +215,7 @@ class BulkField(Field):
         the expected widened shape from here rather than re-threading the
         factory's ``spatial_moments`` parameter into a stored field
         (Angular/Scalar leaves carry no such field — only the windowed
-        :class:`HarmonicMomentField` does, because its ``L`` field already
+        :class:`HarmonicMomentFlux` does, because its ``L`` field already
         breaks the uniform-signature contract).
 
         Returns ``()`` for a non-composed / DD-default space (no factor →
@@ -238,7 +241,7 @@ class BulkField(Field):
         width, #240 D5b-S3-A0).  Returns ``1`` for a non-composed / DD-default
         space.  Producers that derive a moment-carrying child field (e.g.
         :meth:`AngularFlux.integrate_angular`,
-        :meth:`HarmonicMomentField.scalar_flux`) pass this as the child's
+        :meth:`HarmonicMomentFlux.scalar_flux`) pass this as the child's
         ``spatial_moments`` so the moment axis is propagated as a TYPED factor,
         not an opaque widened ndarray."""
         from orpheus.numerics.spaces.spatial_moment_space import SpatialMomentSpace
@@ -459,17 +462,175 @@ class ScalarField(BulkField):
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class MomentField(BulkField):
-    r"""Moment-space bulk family (ABC — see ``HarmonicMomentField``).
+    r"""Real-spherical-harmonic moment-space bulk family (storage base).
 
-    A thin family marker under :class:`BulkField`: the moment indexing
-    and shape are leaf-specific (a real-spherical-harmonic moment field
-    carries the ``(L+1, 2L+1, ng, nx, ny)`` layout keyed on a truncation
-    order ``L``), so :meth:`BulkField._phase_space_shape` stays abstract
-    here and is implemented on the leaf. The marker exists so the
-    ``bulk: BulkField`` typing and the storage×role×locus grid are
-    complete; a second moment representation would lift its shared
-    machinery here (``feedback_unify_after_two_instances``).
+    The storage base for the moment role leaves —
+    :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
+    (the ``(FluxRole, MomentField)`` flux state) and
+    :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
+    (the bare source/sink). It carries the construction machinery the two
+    share: the ``L`` truncation-order + ``spatial_moments`` fields, the
+    ``(L+1, 2L+1, ng, *spatial[, …])`` :meth:`_phase_space_shape`, the
+    ``L``-match :meth:`_check_partner`, and the
+    :class:`~orpheus.numerics.space.TensorProductSpace`-building
+    :meth:`from_mesh_and_L` / :meth:`zeros_for_mesh_and_L` /
+    :meth:`from_ndarray` factories.
+
+    A moment field is **method-agnostic** (a moment field on the
+    spherical-harmonic ⊗ cell-group phase space, keyed on the truncation
+    order ``L``), so this base — unlike the Angular/Scalar families — does
+    NOT use a single ``_SPACE_NAME`` (its space is a TensorProductSpace).
+    Instead the per-leaf cell-group factor name is the
+    :attr:`_CELL_GROUP_NAME` :class:`~typing.ClassVar`, so the two role
+    leaves carry distinct space identities (matching the
+    ``AngularFlux``/``AngularSourceSink`` precedent). Abstract — instantiate
+    a concrete role leaf.
+
+    This lift happened when the second moment representation arrived
+    (``feedback_unify_after_two_instances``): the machinery used to live on
+    the lone ``HarmonicMomentField`` leaf; the Frame-campaign P4
+    source/sink sibling triggered the "clean before extending" pass.
     """
+
+    #: Maximum harmonic order retained. Determines the leading two axes'
+    #: sizes: ``values.shape[:2] == (L+1, 2L+1)``. Encoded in ``space.shape``
+    #: AND kept as a top-level field for ergonomic hot-path read access
+    #: (avoids a per-read composition-tree traversal of
+    #: ``space.find_factor(SphericalHarmonicSpace).L``).
+    L: int
+
+    #: Optional within-cell spatial-moment basis size per axis (#240
+    #: D5b-S3-A0). Default ``1`` — the cell-average closure, byte-identical
+    #: to the pre-S3 ``(L+1, 2L+1, ng, *spatial)`` shape. At ``> 1`` (the
+    #: LD windowed iterate) a trailing ``spatial_moments ** ndim`` axis rides
+    #: on every moment so the in-sweep ``moment_buf`` can carry the
+    #: within-cell slopes the diffusion-limit-consistent scattering source
+    #: needs between sweeps. Single-sourced "append iff > 1" via
+    #: :func:`~orpheus.numerics.spaces.spatial_moment_space.spatial_moment_tail`.
+    spatial_moments: int = 1
+
+    #: The :class:`FunctionSpace` ``name`` of the cell-group factor in this
+    #: leaf's ``SphericalHarmonicSpace(L) ⊗ CellGroup`` space — distinguishes
+    #: the flux leaf (``"cell_group"``, preserving its pre-P4 identity) from
+    #: the source/sink leaf (``"cell_group_source_sink"``). The SH factor and
+    #: shape are identical across leaves; the class-identity gate is the
+    #: arithmetic guard, this name keeps the two spaces non-``==``.
+    _CELL_GROUP_NAME: ClassVar[str] = "cell_group"
+
+    # ── Construction validation ──────────────────────────────────────
+
+    def _phase_space_shape(self) -> tuple[int, ...]:
+        r"""The ``(L+1, 2L+1, ng, *spatial[, spatial_moments**ndim])`` moment shape.
+
+        Implements :meth:`BulkField._phase_space_shape`; the shared
+        :meth:`BulkField.__post_init__` validator consumes it. The leading
+        two axes encode the harmonic truncation order ``L``; the spatial
+        tail is rank-``d`` via ``mesh.spatial_shape`` (no phantom ``ny``).
+        At :attr:`spatial_moments` ``> 1`` a trailing within-cell
+        spatial-moment axis of length ``spatial_moments ** ndim`` is appended
+        (#240 D5b-S3-A0; "append iff > 1" single-sourced from
+        :func:`~orpheus.numerics.spaces.spatial_moment_space.spatial_moment_tail`,
+        so the default ``1`` leaves the shape byte-identical and AGREES with
+        the factor :meth:`from_mesh_and_L` composes).
+        """
+        n_moments = self.spatial_moments ** self.mesh.ndim
+        return (
+            self.L + 1, 2 * self.L + 1,
+            self.mesh.ng, *self.mesh.spatial_shape,
+            *spatial_moment_tail(n_moments),
+        )
+
+    # ── Algebra extension (over BulkField) ───────────────────────────
+
+    def _check_partner(self, other: object) -> None:
+        r"""Add the ``L``-match on top of BulkField's class/space/mesh gate.
+
+        :meth:`BulkField._check_partner` already rejects on class identity,
+        space equality, AND mesh identity (mesh-bound). This override adds an
+        explicit ``L`` match for a clearer error message at the
+        truncation-mismatch site (the space check also catches it via shape
+        mismatch, but the message is less specific).
+        """
+        super()._check_partner(other)
+        if self.L != other.L:  # type: ignore[attr-defined]
+            raise ValueError(
+                f"{type(self).__name__} arithmetic requires matching L; "
+                f"got self.L={self.L}, other.L={other.L}."
+            )
+
+    # ── Construction factories ───────────────────────────────────────
+
+    @classmethod
+    def from_mesh_and_L(
+        cls, values: NDArray, mesh: "SNMesh", L: int, *, spatial_moments: int = 1,
+    ):
+        r"""Construct from raw values + mesh + L, deriving the
+        :class:`TensorProductSpace`.
+
+        Builds the space as ``SphericalHarmonicSpace.from_L(L) * CellGroup``
+        where ``CellGroup`` is a plain :class:`FunctionSpace` named
+        :attr:`_CELL_GROUP_NAME` with the mesh's ``(ng, *spatial)`` shape —
+        the moment-axis structure is type-visible through the composition
+        tree (queryable via ``space.find_factor(SphericalHarmonicSpace).L``
+        per Issue #207).
+
+        ``spatial_moments`` (default ``1``, byte-identical #240 D5b-S3-A0)
+        optionally composes a within-cell
+        :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
+        factor on AFTER the cell-group space — EXACTLY the same ``*``
+        composition that adds the angular ``SphericalHarmonicSpace`` ("append
+        iff > 1", single-sourced, matching :meth:`_phase_space_shape`).
+        """
+        sh_space = SphericalHarmonicSpace.from_L(L)
+        cell_group_space = FunctionSpace(
+            name=cls._CELL_GROUP_NAME,
+            shape=(mesh.ng, *mesh.spatial_shape),
+        )
+        space = cls._compose_spatial_moments(
+            sh_space * cell_group_space, mesh, spatial_moments,
+        )
+        return cls(
+            values=values, space=space, mesh=mesh, L=L,
+            spatial_moments=spatial_moments,
+        )
+
+    @classmethod
+    def zeros_for_mesh_and_L(
+        cls, mesh: "SNMesh", L: int, *, spatial_moments: int = 1,
+    ):
+        r"""Construct a zero moment field at order ``L`` sized to ``mesh`` (B.5.A).
+
+        The moment-space parallel of the bulk leaves' :meth:`zeros_on`,
+        mirroring :meth:`from_mesh_and_L` with a zero buffer. The extra ``L``
+        makes the signature non-uniform, so this is deliberately NOT named
+        ``zeros_on`` — a moment field is never a
+        :class:`~orpheus.transport.timed_full_field.TimedFullField` composite
+        slot, so it does not need the uniform allocator interface.
+
+        ``spatial_moments`` (default ``1``, byte-identical #240 D5b-S3-A0)
+        sizes the optional within-cell spatial-moment axis to match
+        :meth:`from_mesh_and_L`.
+        """
+        n_moments = spatial_moments ** mesh.ndim
+        values = np.zeros(
+            (L + 1, 2 * L + 1, mesh.ng, *mesh.spatial_shape,
+             *spatial_moment_tail(n_moments)),
+        )
+        return cls.from_mesh_and_L(
+            values, mesh, L, spatial_moments=spatial_moments,
+        )
+
+    @classmethod
+    def from_ndarray(cls, arr: NDArray, mesh: "SNMesh", L: int):
+        r"""Test-ergonomic alias for :meth:`from_mesh_and_L`.
+
+        Per Depth B plan §3.7, every typed field exposes
+        ``from_ndarray(arr, ...)`` as the migration path from the retired
+        ``apply(np.ndarray)`` singledispatch handlers (D-I). For the moment
+        family the second argument is the mesh and the third the truncation
+        order ``L``.
+        """
+        return cls.from_mesh_and_L(arr, mesh, L)
 
 
 # ═══════════════════════════════════════════════════════════════════════

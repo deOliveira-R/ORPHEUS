@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5687**
+Total tests collected: **5713**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1161, 20.4%
-   L1, 994, 17.5%
+   L0, 1161, 20.3%
+   L1, 994, 17.4%
    L2, 36, 0.6%
    L3, 0, 0.0%
-   foundation, 3486, 61.3%
+   foundation, 3512, 61.5%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5598
+   explicit, 5624
    verify, 0
    class-name, 46
    func-name, 0
@@ -225,6 +225,7 @@ Module × level grid
    fields/test_boundary_flux, 0, 0, 0, 0, 36, 0
    fields/test_boundary_source_sink_residual, 0, 0, 0, 0, 30, 0
    fields/test_coefficient_fields, 0, 0, 0, 0, 9, 0
+   frames/test_harmonic_frame, 0, 0, 0, 0, 11, 0
    geometry/test_bc_equivalence_snapshot, 0, 8, 0, 0, 0, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 30, 0, 0, 11, 0
@@ -332,7 +333,7 @@ Module × level grid
    primitives/test_cell_flattening_invariant, 0, 0, 0, 0, 3, 0
    primitives/test_dag_ownership, 0, 0, 0, 0, 18, 0
    primitives/test_face_name_crosswalk, 0, 0, 0, 0, 4, 0
-   primitives/test_harmonic_moment_field, 0, 0, 0, 0, 31, 0
+   primitives/test_harmonic_moment_flux, 0, 0, 0, 0, 31, 0
    primitives/test_method_space, 6, 0, 0, 0, 0, 0
    primitives/test_octants_property, 60, 0, 0, 0, 0, 0
    primitives/test_properties, 4, 0, 0, 0, 0, 0
@@ -340,7 +341,7 @@ Module × level grid
    primitives/test_snmesh_consumes_reduced, 0, 0, 0, 0, 16, 0
    primitives/test_snmesh_materials_pr_typed_0, 0, 0, 0, 0, 7, 0
    primitives/test_solution, 0, 0, 0, 0, 31, 0
-   primitives/test_typed_source_sinks, 0, 0, 0, 0, 24, 0
+   primitives/test_typed_source_sinks, 0, 0, 0, 0, 37, 0
    regression/test_dd_regression, 0, 0, 0, 0, 13, 0
    residuals/test_typed_residuals, 0, 0, 0, 0, 33, 0
    slab/test_dd_recurrence, 1, 0, 0, 0, 0, 0
@@ -369,7 +370,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 288, 0
+   test_layer_imports, 0, 0, 0, 0, 290, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0

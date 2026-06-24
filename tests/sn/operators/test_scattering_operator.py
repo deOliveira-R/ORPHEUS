@@ -1188,13 +1188,13 @@ class TestAnisoMomentSourcePath:
     def test_moment_apply_arm_bit_identical_to_angular_arm(
         self, op_p1, solver_2g_p1_n2n,
     ):
-        """Phase 5a load-bearing guard: ``S.apply(HarmonicMomentField)``
+        """Phase 5a load-bearing guard: ``S.apply(HarmonicMomentFlux)``
         reproduces ``S.apply(AngularFlux)`` BIT-FOR-BIT when the moments
         are ``φ = Mψ``.
 
         This is the angular-windowing carve's correctness core —
         windowing the within-group SI iterate from a full per-ordinate
-        :class:`AngularFlux` down to :class:`HarmonicMomentField` moments
+        :class:`AngularFlux` down to :class:`HarmonicMomentFlux` moments
         loses NO scattering-source information (``S`` is a pure function
         of the moments).  The P1 asymmetric-``SigS`` + (n,2n) fixture
         activates the ℓ=0 (iso + cross-group + n2n) AND ℓ≥1 (aniso)
@@ -1203,8 +1203,8 @@ class TestAnisoMomentSourcePath:
         anisotropic, asymmetric scatter — Modes 2/6 + the dropped-moment
         trap).
         """
-        from orpheus.transport.fields.harmonic_moment_field import (
-            HarmonicMomentField,
+        from orpheus.transport.fields.harmonic_moment_flux import (
+            HarmonicMomentFlux,
         )
 
         op = op_p1
@@ -1216,7 +1216,7 @@ class TestAnisoMomentSourcePath:
         # The windowed path: project φ = Mψ via the frame analysis face
         # (the SAME frame the operator uses), then the moment arm.
         moments = op.frame.analysis.apply(psi.values)
-        phi_field = HarmonicMomentField.from_mesh_and_L(
+        phi_field = HarmonicMomentFlux.from_mesh_and_L(
             moments, psi.mesh, op.scattering_order,
         )
         src_moments = op.apply(phi_field)

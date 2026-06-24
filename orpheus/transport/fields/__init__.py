@@ -10,7 +10,7 @@ diagnostics tailored to their physical role.
 Migration sequence (Depth B plan §6, with the as-built outcome):
 
 * D-D — :class:`ScalarFlux` (simplest case).
-* D-E — :class:`HarmonicMomentField` (cleanest gap).
+* D-E — :class:`HarmonicMomentFlux` (cleanest gap).
 * D-F — :class:`AngularSourceSink` / :class:`BoundarySourceSink`
   (the source/sink role leaves; see ``orpheus.transport.source_sinks``).
 * D-G — :class:`BoundaryFlux` (the boundary trace cochain
@@ -47,11 +47,11 @@ job. See the theory page ``operator_algebra.rst``
 from __future__ import annotations
 
 from orpheus.transport.fields.cross_section_field import CrossSectionField
-from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
+from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 __all__ = [
     "CrossSectionField",
-    "HarmonicMomentField",
+    "HarmonicMomentFlux",
     "ScalarFlux",
 ]

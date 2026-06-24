@@ -405,8 +405,8 @@ class _GaussSeidelResolvent:
         """
         from orpheus.transport.fields.angular_flux import AngularFlux
         from orpheus.transport.fields.boundary_flux import BoundaryFlux
-        from orpheus.transport.fields.harmonic_moment_field import (
-            HarmonicMomentField,
+        from orpheus.transport.fields.harmonic_moment_flux import (
+            HarmonicMomentFlux,
         )
         from orpheus.transport.timed_full_field import TimedFullField
         from .loss_representation import _sweep_scheduled
@@ -457,7 +457,7 @@ class _GaussSeidelResolvent:
         else:
             # The moment tensor's own leading axis (L+1) fixes L — no
             # basis-specific read (the sweep stays basis-agnostic).
-            bulk = HarmonicMomentField.from_mesh_and_L(
+            bulk = HarmonicMomentFlux.from_mesh_and_L(
                 bulk_values, sn_mesh, bulk_values.shape[0] - 1,
                 spatial_moments=per_axis,
             )
@@ -484,7 +484,7 @@ class _MomentWindowedResolvent:
     directly (:meth:`~orpheus.sn.operator.InvertibleOperator.solve_moments`) —
     the angular dimension of the *persistent* iterate drops ``N → (L+1)²``.
     The scattering gain then consumes the moments directly
-    (``S.apply(HarmonicMomentField)``), so the per-sweep re-projection is
+    (``S.apply(HarmonicMomentFlux)``), so the per-sweep re-projection is
     elided too.
 
     **Phase 5a → 5c.**  5a reduced the iterate by POST-projecting the base's
@@ -555,7 +555,7 @@ class _MomentWindowedResolvent:
 
     def solve(self, rhs, *, initial_guess=None):
         r"""Solve the within-group system, returning :math:`\psi`'s harmonic
-        MOMENTS ``TimedFullField(bulk=HarmonicMomentField, boundary=trace)``.
+        MOMENTS ``TimedFullField(bulk=HarmonicMomentFlux, boundary=trace)``.
 
         Phase 5c: delegates to the base resolvent's moment-emitting
         :meth:`~orpheus.sn.operator.InvertibleOperator.solve_moments`, which
@@ -619,13 +619,13 @@ def _windowed_cold_start(scattering_op, sn_mesh, *, history_depth):
     drivers (``coding-elegance`` Pattern 2).
     """
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
-    from orpheus.transport.fields.harmonic_moment_field import (
-        HarmonicMomentField,
+    from orpheus.transport.fields.harmonic_moment_flux import (
+        HarmonicMomentFlux,
     )
     from orpheus.transport.timed_full_field import TimedFullField
 
     return TimedFullField(
-        bulk=HarmonicMomentField.zeros_for_mesh_and_L(
+        bulk=HarmonicMomentFlux.zeros_for_mesh_and_L(
             sn_mesh, scattering_op.scattering_order,
             spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
         ),
@@ -1309,7 +1309,7 @@ class SNSolver:
         if initial_guess is None:
             # B.5.2: cold-start iterate is an all-zeros FLUX composite,
             # decoupled from q_ext's AngularSourceSink type.  Phase 5a: when
-            # windowed the bulk is a zero HarmonicMomentField (single-sourced
+            # windowed the bulk is a zero HarmonicMomentFlux (single-sourced
             # in :func:`_windowed_cold_start`); else a zero AngularFlux.
             if windowed:
                 initial_guess = _windowed_cold_start(

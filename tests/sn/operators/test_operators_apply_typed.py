@@ -43,7 +43,7 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import CollisionOperator, StreamingOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
+from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.source_sinks import AngularSourceSink, ScalarSourceSink
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
@@ -351,7 +351,7 @@ def _c6_static_typing_pins(
     state: TimedFullField,
     phi: ScalarFlux,
     psi: AngularFlux,
-    moments: HarmonicMomentField,
+    moments: HarmonicMomentFlux,
     arr: np.ndarray,
 ) -> None:
     """Static typing pins for the ``apply`` fibration (pyright-only, never run).

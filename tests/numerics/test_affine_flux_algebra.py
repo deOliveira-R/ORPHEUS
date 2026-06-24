@@ -3,7 +3,7 @@ r"""Foundation tests for the #208/#201 affine flux algebra.
 Flux states form an **affine space** :math:`A` over a distinct **difference
 vector space** :math:`V` (the displacements). This module pins the torsor
 algebra across all four flux-state leaves (``AngularFlux``, ``ScalarFlux``,
-``HarmonicMomentField``, ``BoundaryFlux``):
+``HarmonicMomentFlux``, ``BoundaryFlux``):
 
 * :math:`\psi_2 \ominus \psi_1 \to \Delta\psi \in V` (the mint),
 * :math:`\psi \oplus \Delta\psi \to \psi' \in A` (the torsor action),
@@ -32,7 +32,7 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.transport.displacements import Displacement
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
-from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
+from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from tests.sn._test_helpers import placeholder_materials
 
@@ -75,10 +75,10 @@ def _make_flux(leaf: str, m: SNMesh, rng: np.random.Generator):
     if leaf == "scalar":
         return ScalarFlux.from_mesh(rng.standard_normal((m.ng, *m.spatial_shape)), m)
     if leaf == "moment":
-        # HarmonicMomentField is rank-d like the other leaves: its space is
+        # HarmonicMomentFlux is rank-d like the other leaves: its space is
         # (L+1, 2L+1, ng, *spatial) — rank-1 (nx,) on a 1-D mesh, no phantom ny.
         shape = (_MOMENT_L + 1, 2 * _MOMENT_L + 1, m.ng, *m.spatial_shape)
-        return HarmonicMomentField.from_mesh_and_L(
+        return HarmonicMomentFlux.from_mesh_and_L(
             rng.standard_normal(shape), m, _MOMENT_L,
         )
     if leaf == "boundary":

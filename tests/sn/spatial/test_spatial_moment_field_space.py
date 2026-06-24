@@ -1,7 +1,7 @@
 r"""Foundation suite for the optional spatial-moment field-space factor (#240 D5b-S3-A0).
 
 The field-space factories (``AngularField`` / ``ScalarField`` un-windowed
-carriers + ``HarmonicMomentField`` windowed carrier) gained an OPTIONAL
+carriers + ``HarmonicMomentFlux`` windowed carrier) gained an OPTIONAL
 ``spatial_moments`` parameter that composes a
 :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace`
 factor onto the field space — gated "append iff > 1" so the default leaves
@@ -31,7 +31,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import SpatialMomentSpace, SphericalHarmonicSpace
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.spatial import DiamondDifference, LinearDiscontinuous
-from orpheus.transport.fields import HarmonicMomentField
+from orpheus.transport.fields import HarmonicMomentFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 
@@ -137,8 +137,8 @@ def test_scalar_flux_default_byte_identical_all_schemes(scheme_name, dd_2d, ld_2
 
 @pytest.mark.foundation
 @pytest.mark.parametrize("scheme_name", ["dd", "ld"])
-def test_harmonic_moment_field_default_byte_identical(scheme_name, dd_2d, ld_2d):
-    r"""``HarmonicMomentField.zeros_for_mesh_and_L`` default == pre-S3 shape.
+def test_harmonic_moment_flux_default_byte_identical(scheme_name, dd_2d, ld_2d):
+    r"""``HarmonicMomentFlux.zeros_for_mesh_and_L`` default == pre-S3 shape.
 
     The windowed iterate carrier. Default ``spatial_moments=1`` →
     ``(L+1, 2L+1, ng, *spatial)`` with NO trailing spatial-moment axis, AND
@@ -147,7 +147,7 @@ def test_harmonic_moment_field_default_byte_identical(scheme_name, dd_2d, ld_2d)
     """
     mesh = {"dd": dd_2d, "ld": ld_2d}[scheme_name]
     L = 1
-    field = HarmonicMomentField.zeros_for_mesh_and_L(mesh, L)
+    field = HarmonicMomentFlux.zeros_for_mesh_and_L(mesh, L)
     expected = (L + 1, 2 * L + 1, mesh.ng, *mesh.spatial_shape)
     np.testing.assert_equal(field.space.shape, expected)
     np.testing.assert_equal(field.values.shape, expected)
@@ -208,7 +208,7 @@ def test_angular_flux_widened_1d_shape(ld_1d):
 
 
 @pytest.mark.foundation
-def test_harmonic_moment_field_widened_2d_shape(ld_2d):
+def test_harmonic_moment_flux_widened_2d_shape(ld_2d):
     r"""A widened windowed iterate gets a trailing ``per_axis ** ndim`` axis.
 
     ``spatial_moments=2`` on a 2-D mesh → ``(L+1, 2L+1, ng, *spatial, 4)``;
@@ -217,7 +217,7 @@ def test_harmonic_moment_field_widened_2d_shape(ld_2d):
     """
     mesh = ld_2d
     L = 1
-    field = HarmonicMomentField.zeros_for_mesh_and_L(mesh, L, spatial_moments=2)
+    field = HarmonicMomentFlux.zeros_for_mesh_and_L(mesh, L, spatial_moments=2)
     expected = (L + 1, 2 * L + 1, mesh.ng, *mesh.spatial_shape, 2 ** mesh.ndim)
     np.testing.assert_equal(field.space.shape, expected)
     np.testing.assert_equal(field.values.shape, expected)

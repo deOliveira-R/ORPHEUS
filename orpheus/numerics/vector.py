@@ -46,7 +46,7 @@ could share an inheritance ancestor:
   the flat axis-primitives (``DiagonalOperator``, ``PermutationOperator``,
   …) that act on one tagged axis of a field's ``.values``.
 * every :class:`~orpheus.numerics.field.Field` leaf — ``AngularFlux``,
-  ``ScalarFlux``, ``HarmonicMomentField``, the boundary leaves — via the
+  ``ScalarFlux``, ``HarmonicMomentFlux``, the boundary leaves — via the
   dunders gated by ``Field._check_partner`` (class-identity-is-units,
   same-space, the #208 affine torsor gate).
 * :class:`~orpheus.transport.timed_full_field.TimedFullField` — the

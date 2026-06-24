@@ -180,7 +180,7 @@ from orpheus.transport.timed_full_field import TimedFullField
 # concrete class at class-definition time.  Circular-import-safe (the
 # transport field types do not import scattering.py; same as ScalarFlux /
 # AngularFlux above).
-from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
+from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 
 if TYPE_CHECKING:
     from .geometry import SNMesh
@@ -283,13 +283,13 @@ class LegendreMomentScattering(LinearOperatorMixin):
     )
 
     def apply(
-        self, moments: "np.ndarray | HarmonicMomentField",
-    ) -> "np.ndarray | HarmonicMomentField":
+        self, moments: "np.ndarray | HarmonicMomentFlux",
+    ) -> "np.ndarray | HarmonicMomentFlux":
         r"""Apply :math:`\Lambda` to a moment field.
 
         Parameters
         ----------
-        moments : np.ndarray or HarmonicMomentField
+        moments : np.ndarray or HarmonicMomentFlux
             Moment field of shape ``(L+1, 2L+1, ng, nx, ny)`` (Issue
             #196 PR-INDEX-4 — principled).  The :math:`m`-axis is the
             addition-theorem-shifted index where slot ``l + m`` holds
@@ -297,14 +297,14 @@ class LegendreMomentScattering(LinearOperatorMixin):
             :math:`|m| \le \ell` are conventionally zero.
 
             Issue #197 PR-TYPED-4 — typed
-            :class:`~orpheus.sn.harmonic_moment_field.HarmonicMomentField`
+            :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
             is accepted; when supplied, the return is a typed field
             with matching ``L`` and ``mesh``.  Bare ndarray is still
             accepted for legacy probe / test callers.
 
         Returns
         -------
-        np.ndarray or HarmonicMomentField
+        np.ndarray or HarmonicMomentFlux
             Same shape as ``moments``.  The :math:`\ell = 0` block is
             zero when ``skip_l0`` is ``True``; otherwise the P0
             in-scatter contribution is included.  Type matches the
@@ -317,12 +317,12 @@ class LegendreMomentScattering(LinearOperatorMixin):
         Issue #197 PR-TYPED-1 collapses the ``for mid, (ix, iy) in
         cells_by_mat.items()`` loop into a typed verb.
         """
-        from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
-        if isinstance(moments, HarmonicMomentField):
+        from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
+        if isinstance(moments, HarmonicMomentFlux):
             out_values = self.mat_xs.apply_legendre_scattering_moments(
                 moments.values, L=self.L, skip_l0=self.skip_l0,
             )
-            return HarmonicMomentField.from_mesh_and_L(out_values, moments.mesh, moments.L)
+            return HarmonicMomentFlux.from_mesh_and_L(out_values, moments.mesh, moments.L)
         return self.mat_xs.apply_legendre_scattering_moments(
             moments, L=self.L, skip_l0=self.skip_l0,
         )
@@ -556,7 +556,7 @@ class ScatteringOperator(LinearOperatorMixin):
         moment_values : np.ndarray
             Flux-moment tensor ``(L+1, 2L+1, ng, nx, ny)`` — typically
             ``M.apply(psi)`` or the windowed iterate's
-            :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+            :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
             ``.values``.
 
         Returns
@@ -683,7 +683,7 @@ class ScatteringOperator(LinearOperatorMixin):
         every ``apply`` arm that emits a per-ordinate
         :class:`~orpheus.transport.source_sinks.AngularSourceSink` — the
         full-angular :class:`AngularFlux` arm and the windowed
-        :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+        :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
         arm.  Both reduce to "compute :math:`\phi` and the pre-:math:`/W`
         aniso, then assemble"; the :math:`/W` convention lives HERE, once.
 
@@ -1159,7 +1159,7 @@ class ScatteringOperator(LinearOperatorMixin):
           full :math:`P_\ell` Galerkin reconstruction in **per-ordinate
           magnitude** (the trailing :math:`1/W` projection lives at this
           producer boundary; Pattern 7).
-        * :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+        * :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
           → :class:`~orpheus.transport.source_sinks.AngularSourceSink` —
           the Phase 5a angular-windowing path: :math:`S` consumes flux
           MOMENTS (the moments ARE :math:`M\psi`, so the :math:`M`
@@ -1188,7 +1188,7 @@ class ScatteringOperator(LinearOperatorMixin):
         raise TypeError(
             f"ScatteringOperator.apply: unsupported input type "
             f"{type(psi).__name__}; expected TimedFullField, ScalarFlux, "
-            f"AngularFlux, or HarmonicMomentField.  Dispatch table is "
+            f"AngularFlux, or HarmonicMomentFlux.  Dispatch table is "
             f"registered via @singledispatchmethod."
         )
 
@@ -1224,7 +1224,7 @@ class ScatteringOperator(LinearOperatorMixin):
         # with the implicit-zero boundary.  ``psi.bulk`` is either the
         # full-angular :class:`AngularFlux` (1-D / curvilinear / un-windowed
         # 2-D) OR — Phase 5a angular-windowing — the reduced-moment
-        # :class:`HarmonicMomentField` (the 2-D Cartesian windowed SI
+        # :class:`HarmonicMomentFlux` (the 2-D Cartesian windowed SI
         # iterate); both bulk arms return the same per-ordinate
         # :class:`AngularSourceSink`, so this composite arm is one
         # delegation (Pattern 2 — no duplicated iso/n2n/aniso assembly).
@@ -1233,9 +1233,9 @@ class ScatteringOperator(LinearOperatorMixin):
         # scattering is volumetric (Option β3 / Wave O #208).
         # #257 S8c: ``psi.bulk`` is statically the broad ``BulkField``; the
         # cast names the runtime truth documented above (AngularFlux OR
-        # HarmonicMomentField — both dispatch arms return AngularSourceSink)
+        # HarmonicMomentFlux — both dispatch arms return AngularSourceSink)
         # so the typed ``apply`` overloads resolve.
-        combined = self.apply(cast("AngularFlux | HarmonicMomentField", psi.bulk))
+        combined = self.apply(cast("AngularFlux | HarmonicMomentFlux", psi.bulk))
         # #257 S8a: history-free (the matvec leaf is a base arrow
         # ``FullField -> FullField``; the comonad lives on the driver, which
         # reattaches the timed type when this source is added to the timed rhs).
@@ -1289,7 +1289,7 @@ class ScatteringOperator(LinearOperatorMixin):
         )
 
     @_apply_impl.register
-    def _(self, phi_moments: HarmonicMomentField) -> "AngularSourceSink":
+    def _(self, phi_moments: HarmonicMomentFlux) -> "AngularSourceSink":
         r"""Windowed moment-iterate variant — :math:`S` consumes flux MOMENTS.
 
         The Phase 5a angular-windowing path.  When the within-group SI
@@ -1304,7 +1304,7 @@ class ScatteringOperator(LinearOperatorMixin):
 
         * the :math:`\ell=0` block IS the scalar flux — ORPHEUS uses
           unnormalized real harmonics (:math:`Y_0^0 = 1`), so
-          :meth:`HarmonicMomentField.scalar_flux` equals
+          :meth:`HarmonicMomentFlux.scalar_flux` equals
           :meth:`AngularFlux.integrate_angular` term-for-term (the typed
           accessor single-sources that convention); it feeds the identical
           P0 + (n,2n) fast path;
@@ -1352,7 +1352,7 @@ class ScatteringOperator(LinearOperatorMixin):
         def apply(self, psi: AngularFlux, /) -> "AngularSourceSink": ...
         @overload
         def apply(
-            self, phi_moments: HarmonicMomentField, /,
+            self, phi_moments: HarmonicMomentFlux, /,
         ) -> "AngularSourceSink": ...
         def apply(self, x: Any, /) -> Any: ...
     else:

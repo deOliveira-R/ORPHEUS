@@ -40,7 +40,7 @@ Constant                      Unit               Leaves
 ============================  =================  =====================================
 :data:`ANGULAR_FLUX_UNITS`    ``1/(cm²·s·sr)``   AngularFlux, BoundaryFlux,
                                                  BoundarySourceSink, BoundaryResidual
-:data:`SCALAR_FLUX_UNITS`     ``1/(cm²·s)``      ScalarFlux, HarmonicMomentField
+:data:`SCALAR_FLUX_UNITS`     ``1/(cm²·s)``      ScalarFlux, HarmonicMomentFlux
 :data:`ANGULAR_RATE_UNITS`    ``1/(cm³·s·sr)``   AngularSourceSink, AngularResidual
 :data:`SCALAR_RATE_UNITS`     ``1/(cm³·s)``      ScalarSourceSink, ScalarResidual
 ============================  =================  =====================================

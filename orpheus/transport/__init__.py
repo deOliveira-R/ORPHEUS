@@ -21,7 +21,7 @@ Today's contents:
 * :mod:`orpheus.transport.fields` — typed flux / source / residual
   fields, each inheriting from :class:`~orpheus.numerics.field.Field`.
   Currently houses :class:`ScalarFlux` (Depth B step D-D). Later
-  steps add HarmonicMomentField (D-E), Sources (D-F), BoundaryFlux
+  steps add HarmonicMomentFlux (D-E), Sources (D-F), BoundaryFlux
   (D-G), AngularFlux (D-H).
 
 Future contents (deferred to later Depth B / parent-plan steps):
@@ -44,7 +44,7 @@ from __future__ import annotations
 
 from orpheus.transport.fields import (
     CrossSectionField,
-    HarmonicMomentField,
+    HarmonicMomentFlux,
     ScalarFlux,
 )
 from orpheus.transport.full_field import FullField
@@ -54,7 +54,7 @@ from orpheus.transport.timed_full_field import TimedFullField
 __all__ = [
     "CrossSectionField",
     "FullField",
-    "HarmonicMomentField",
+    "HarmonicMomentFlux",
     "IntegralKernelOperator",
     "ScalarFlux",
     "TimedFullField",

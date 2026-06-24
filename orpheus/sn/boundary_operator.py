@@ -250,7 +250,7 @@ class SNBoundaryOperator(LinearOperatorMixin):
             # Zero bulk source, sized from the MESH — not ``zeros_like(psi.bulk)``
             # — so the carrier is correct whatever representation the input bulk
             # carries (full-angular :class:`AngularFlux` OR the Phase-5a windowed
-            # :class:`HarmonicMomentField`).  ``B`` is the boundary block ``A_ss``:
+            # :class:`HarmonicMomentFlux`).  ``B`` is the boundary block ``A_ss``:
             # it reads the trace and emits zero bulk regardless.  The zero bulk
             # carries the input's spatial-moment width (#240 D5b-S3) so it
             # composes element-wise with the moment-carrying ``(L+C)ψ`` in the

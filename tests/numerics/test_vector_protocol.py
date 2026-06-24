@@ -28,7 +28,7 @@ from orpheus.numerics.vector import V, Vector
 from orpheus.sn.geometry import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
-from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
+from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
@@ -63,14 +63,14 @@ def test_field_leaves_are_vectors() -> None:
     """Every Field leaf (bulk + boundary, flux + moment) satisfies Vector.
 
     Covers all three storage families: angular (``AngularFlux``), scalar
-    (``ScalarFlux``), moment (``HarmonicMomentField`` — the carrier #256
+    (``ScalarFlux``), moment (``HarmonicMomentFlux`` — the carrier #256
     closes the moment-state path around), and the boundary locus
     (``BoundaryFlux``).
     """
     m = _slab_mesh()
     assert isinstance(AngularFlux.zeros_on(m), Vector)
     assert isinstance(ScalarFlux.zeros_on(m), Vector)
-    assert isinstance(HarmonicMomentField.zeros_for_mesh_and_L(m, 1), Vector)
+    assert isinstance(HarmonicMomentFlux.zeros_for_mesh_and_L(m, 1), Vector)
     assert isinstance(BoundaryFlux.zeros_on(m), Vector)
 
 

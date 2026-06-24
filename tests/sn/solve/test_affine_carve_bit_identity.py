@@ -31,7 +31,7 @@ Coverage (Cardinal-6 ≥2G + heterogeneous; vv-principles §H1/H2)
 
 * ``si_2d_p1_aniso_het`` — 2-D Cartesian, 2G, fuel|moderator, P1-anisotropic,
   source-iteration: the **windowed SI** path whose iterate ``bulk`` is a
-  :class:`HarmonicMomentField` (so ``psi-psi_prev`` becomes a
+  :class:`HarmonicMomentFlux` (so ``psi-psi_prev`` becomes a
   ``MomentDisplacement``). The mirror of the frozen snapshot config.
 * ``krylov_2d_p1_aniso_het`` — same config, full-angular Krylov (scipy's flat
   ``b-Ax`` — exercises the typing without the SI displacement path).

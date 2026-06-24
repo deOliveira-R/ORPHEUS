@@ -47,7 +47,7 @@ from orpheus.numerics.units import (
 from orpheus.sn.geometry import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
-from orpheus.transport.fields.harmonic_moment_field import HarmonicMomentField
+from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.residuals import (
     AngularResidual,
@@ -69,7 +69,7 @@ LEAF_UNITS = [
     (BoundarySourceSink, ANGULAR_FLUX_UNITS),
     (BoundaryResidual, ANGULAR_FLUX_UNITS),
     (ScalarFlux, SCALAR_FLUX_UNITS),
-    (HarmonicMomentField, SCALAR_FLUX_UNITS),
+    (HarmonicMomentFlux, SCALAR_FLUX_UNITS),
     (AngularSourceSink, ANGULAR_RATE_UNITS),
     (AngularResidual, ANGULAR_RATE_UNITS),
     (ScalarSourceSink, SCALAR_RATE_UNITS),
@@ -167,7 +167,7 @@ class TestSameUnitsDifferentRole:
             (AngularFlux, BoundaryFlux),        # flux density, Ω
             (BoundaryFlux, BoundarySourceSink),     # boundary all-flux
             (BoundarySourceSink, BoundaryResidual),
-            (ScalarFlux, HarmonicMomentField),  # areal scalar (ℓ=0 IS φ)
+            (ScalarFlux, HarmonicMomentFlux),  # areal scalar (ℓ=0 IS φ)
         ],
     )
     def test_same_units_but_distinct_class(self, a, b) -> None:

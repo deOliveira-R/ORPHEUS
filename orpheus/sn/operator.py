@@ -936,7 +936,7 @@ class InvertibleOperator(OperatorSum["FullField"]):
         The Phase 5c moment-emitting sibling of :meth:`solve`: the SAME WDD
         sweep + boundary handling, but the bulk of the returned
         :class:`TimedFullField` is a
-        :class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+        :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
         ``(L+1, 2L+1, ng, nx, ny)`` rather than an
         :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
         ``(N, ng, nx, ny)``.  ``frame`` is the scattering operator's angular
@@ -1004,8 +1004,8 @@ class InvertibleOperator(OperatorSum["FullField"]):
         from orpheus.transport.fields.boundary_flux import (
             BoundaryFlux,
         )
-        from orpheus.transport.fields.harmonic_moment_field import (
-            HarmonicMomentField,
+        from orpheus.transport.fields.harmonic_moment_flux import (
+            HarmonicMomentFlux,
         )
         from orpheus.transport.timed_full_field import TimedFullField
 
@@ -1108,7 +1108,7 @@ class InvertibleOperator(OperatorSum["FullField"]):
         else:
             # In moment mode the sweep returns the (L+1, 2L+1, ...) moment
             # tensor, so its own leading axis fixes L (no basis-specific read).
-            bulk = HarmonicMomentField.from_mesh_and_L(
+            bulk = HarmonicMomentFlux.from_mesh_and_L(
                 bulk_values, sn_mesh, bulk_values.shape[0] - 1,
                 spatial_moments=per_axis,
             )

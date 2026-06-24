@@ -2127,7 +2127,7 @@ direction.*  Projecting the per-ordinate angular flux
    \sum_{n=1}^{N} w_n\, Y_\ell^m(\Omega_n)\, \psi_n(\vec r, g),
 
 the typed home of which is
-:class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`
+:class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
 on the space
 :math:`\mathrm{SphericalHarmonicSpace}(L) \otimes \mathrm{CellGroupSpace}`.
 The angular moment is a **replacement representation** of the angular flux:
@@ -2515,7 +2515,7 @@ EXACTLY as the angular factor does, and is recovered by type via
 field-space factories
 (:meth:`~orpheus.transport.fields._bases.AngularField.from_mesh`,
 :meth:`~orpheus.transport.fields._bases.ScalarField.from_mesh`,
-:meth:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField.from_mesh_and_L`)
+:meth:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux.from_mesh_and_L`)
 gained an OPTIONAL ``spatial_moments`` parameter (default ``1``) that
 appends the factor **iff the within-cell count exceeds 1** — the
 "append iff > 1" gate single-sourced from
@@ -2586,7 +2586,7 @@ literally how the carrier space is built (:eq:`two-moment-carrier-space`).
 
    Closing #207 as a side effect.  The
    ``space.find_factor(SphericalHarmonicSpace).L`` query was DOCUMENTED in the
-   :class:`HarmonicMomentField` docstrings (issue #207) but had never been
+   :class:`HarmonicMomentFlux` docstrings (issue #207) but had never been
    IMPLEMENTED — three docstrings referenced a method that did not exist.  The
    spatial-moment work needed exactly this composition-tree query, so
    :meth:`~orpheus.numerics.space.TensorProductSpace.find_factor` was minted
@@ -2705,7 +2705,7 @@ assertion), in two test modules:
 * ``tests/sn/spatial/test_spatial_moment_field_space.py`` — the factory
   widening: the **byte-identity-at-default negative control** for DD AND LD on
   all three carriers (:class:`AngularField`, :class:`ScalarField`,
-  :class:`HarmonicMomentField`), the widened :math:`d{=}1` / :math:`d{=}2`
+  :class:`HarmonicMomentFlux`), the widened :math:`d{=}1` / :math:`d{=}2`
   shapes, the both-moment-factors-coexist case, and the wrong-shape rejection.
   The mutation check — auto-reading the scheme turns the LD byte-identity
   cases red — is what proves the construct-general gate has teeth.
@@ -4365,7 +4365,7 @@ The property-vs-type seam (#263): a boundary moment is a PROPERTY
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 S9 raised a natural design question: if the angular moment representation
-(:class:`~orpheus.transport.fields.harmonic_moment_field.HarmonicMomentField`)
+(:class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`)
 is a first-class FIELD TYPE, should the transverse boundary moment be one too —
 a ``BoundaryMomentField``?  The answer, tracked in **#263**, is **NO today**:
 the transverse boundary moment is a PROPERTY of the boundary field (an untyped
@@ -4380,7 +4380,7 @@ A representation earns a distinct first-class **type** only when a
 isomorphic, connected by a change-of-basis morphism that is itself modelled and
 applied (carries truncation error, has an adjoint, participates in the operator
 algebra).  Angular order PASSES: the ordinate basis (``AngularFlux``) and the
-harmonic-modal basis (``HarmonicMomentField``) are non-canonically isomorphic
+harmonic-modal basis (``HarmonicMomentFlux``) are non-canonically isomorphic
 (the iso depends on the quadrature :math:`Y_\ell^m(\hat\Omega_n)`), bridged by
 the applied :math:`M`/:math:`R` projection/reconstruction pair with truncation
 content and adjoints.  The transverse SPATIAL moment FAILS: there is ONE
@@ -16538,7 +16538,7 @@ branch and have no landed hash yet.
      - ``0efd233`` → ``7ccc14a``
    * - 2026-06
      - **Angular + face windowing** — the held SI iterate becomes
-       ``HarmonicMomentField`` moments (angular window), the interior
+       ``HarmonicMomentFlux`` moments (angular window), the interior
        face cochain becomes a rolling ``_MovingFrontier`` (face window),
        and moments are accumulated in-sweep — eliminating the
        full-angular per-sweep transient (a measured ~3× peak-memory win).

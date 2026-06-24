@@ -62,7 +62,7 @@ __all__ = ["SphericalHarmonicSpace"]
 def _padded_metric_tensor(L: int, metric_per_ell: NDArray) -> NDArray:
     r"""Broadcast the per-:math:`\ell` metric to the padded ``(L+1, 2L+1)`` storage layout.
 
-    The :class:`~orpheus.sn.harmonic_moment_field.HarmonicMomentField`
+    The :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
     storage convention is to allocate ``(L+1, 2L+1)`` slots with the
     addition-theorem-shifted :math:`m`-index ``[l + m]`` — entries
     outside :math:`|m| \le \ell` are zero by construction. The
