@@ -10,7 +10,10 @@ constructed from the basis + a measure and live in
 The Basis family will grow — §5.4 of the architecture report lists nine
 basis types (real spherical harmonics, Chebyshev, Lagrange polynomials,
 finite-element shape functions, ...). This package houses them.
-:class:`SphericalHarmonicBasis` is the first member.
+:class:`SphericalHarmonicBasis` (angular, on :math:`S^2`) is the first
+member; :class:`IndicatorBasis` (piecewise-constant / P0, on a
+tensor-product cell partition) is the second — the trial side of the
+spatial / energy homogenisation Frame.
 
 The :class:`~orpheus.numerics.basis.base.Basis` ABC (formerly deferred
 "until a second concrete basis arrives") is now promoted — the forcing
@@ -32,6 +35,7 @@ References
 from __future__ import annotations
 
 from orpheus.numerics.basis.base import Basis
+from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 
-__all__ = ["Basis", "SphericalHarmonicBasis"]
+__all__ = ["Basis", "IndicatorBasis", "SphericalHarmonicBasis"]

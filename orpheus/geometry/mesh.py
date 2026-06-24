@@ -351,6 +351,30 @@ class Mesh1D:
             support="spatial_R1",
         )
 
+    def indicator_basis(self):
+        r"""The mesh's cells AS a piecewise-constant :class:`~orpheus.numerics.basis.IndicatorBasis`.
+
+        The **trial (synthesis) side** of a homogenisation / condensation
+        :class:`~orpheus.numerics.frame.Frame` — the span of the cell
+        indicators :math:`\{\mathbf{1}_R\}` is exactly the space of
+        functions piecewise-constant on this mesh's cells, the coarse
+        target of the flux-weighted projection (see
+        :meth:`orpheus.sn.solution.Solution.homogenize`).
+
+        Symmetric with :attr:`volume_measure`: the mesh **yields** its
+        basis view, exactly as it yields its measure view. The mesh does
+        **not** inherit :class:`~orpheus.numerics.basis.base.Basis` — a
+        basis is the measure-*free* half of a frame, while the mesh
+        carries the volume measure, so inheriting would conflate the two
+        roles. The yielded :class:`IndicatorBasis` is geometry-free (it
+        holds only this mesh's edge array), keeping
+        :mod:`orpheus.numerics` free of any geometry dependency.
+        """
+        # Local import — same circular-dependency avoidance as
+        # :attr:`volume_measure` (numerics does not import geometry).
+        from orpheus.numerics.basis.indicator_basis import IndicatorBasis
+        return IndicatorBasis(edges_per_axis=(np.asarray(self.edges, dtype=float),))
+
     # ─────────────────────────────────────────────────────────────────
     # Construction from StructuredGeometry — the canonical entry point
     # ─────────────────────────────────────────────────────────────────
