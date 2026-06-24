@@ -153,6 +153,7 @@ from typing import TYPE_CHECKING, Any, cast, overload
 import numpy as np
 
 from orpheus.numerics.frame import GalerkinFrame
+from orpheus.transport.frames import HarmonicFrame
 from orpheus.numerics.operator import (
     BlockRole,
     CAP_APPLY,
@@ -172,6 +173,7 @@ from orpheus.transport.source_sinks import (
     ScalarSourceSink,
     AngularSourceSink,
     BoundarySourceSink,
+    HarmonicMomentSourceSink,
 )
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
@@ -284,45 +286,62 @@ class LegendreMomentScattering(LinearOperatorMixin):
 
     def apply(
         self, moments: "np.ndarray | HarmonicMomentFlux",
-    ) -> "np.ndarray | HarmonicMomentFlux":
-        r"""Apply :math:`\Lambda` to a moment field.
+    ) -> "np.ndarray | HarmonicMomentSourceSink":
+        r"""Apply :math:`\Lambda` to a moment field — the **role-changing** edge.
+
+        :math:`\Lambda` (the per-:math:`\ell` group-transfer cross sections
+        :math:`\Sigma_{s,\ell}`) maps a flux moment to the in-scatter **source**
+        moment it emits: it is the sole role-changing edge of the
+        ``(angular ⊗ moment) × (flux ⊗ source)`` carrier grid (axis-preserving,
+        role flux → source). The typed arm makes that role change EXPLICIT in
+        the signature.
 
         Parameters
         ----------
         moments : np.ndarray or HarmonicMomentFlux
-            Moment field of shape ``(L+1, 2L+1, ng, nx, ny)`` (Issue
+            Flux moment field of shape ``(L+1, 2L+1, ng, *spatial)`` (Issue
             #196 PR-INDEX-4 — principled).  The :math:`m`-axis is the
             addition-theorem-shifted index where slot ``l + m`` holds
             the :math:`(\ell, m)` entry; entries outside
             :math:`|m| \le \ell` are conventionally zero.
 
-            Issue #197 PR-TYPED-4 — typed
+            Typed
             :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
-            is accepted; when supplied, the return is a typed field
-            with matching ``L`` and ``mesh``.  Bare ndarray is still
-            accepted for legacy probe / test callers.
+            is accepted; when supplied, the return is a typed
+            :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
+            (the scattered moment SOURCE) with matching ``L`` / ``mesh`` /
+            spatial-moment width.  Bare ndarray is still accepted (the
+            endomorphic moment-space view the :math:`R\circ\Lambda\circ M`
+            :attr:`~ScatteringOperator.kernel` ``OperatorProduct`` composes on);
+            its return is ndarray (same coefficient space, role implicit).
 
         Returns
         -------
-        np.ndarray or HarmonicMomentFlux
-            Same shape as ``moments``.  The :math:`\ell = 0` block is
-            zero when ``skip_l0`` is ``True``; otherwise the P0
-            in-scatter contribution is included.  Type matches the
-            input.
+        np.ndarray or HarmonicMomentSourceSink
+            The scattered moment source, same shape as ``moments``.  The
+            :math:`\ell = 0` block is zero when ``skip_l0`` is ``True``;
+            otherwise the P0 in-scatter contribution is included.  Typed in →
+            typed source out; ndarray in → ndarray out.
 
         Notes
         -----
         Per-material dispatch is encapsulated by
         :meth:`MaterialXSField.apply_legendre_scattering_moments` —
         Issue #197 PR-TYPED-1 collapses the ``for mid, (ix, iy) in
-        cells_by_mat.items()`` loop into a typed verb.
+        cells_by_mat.items()`` loop into a typed verb. Both the typed and
+        ndarray arms route through that SINGLE kernel (Pattern 2); they differ
+        only in the carrier wrap.
         """
         from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
         if isinstance(moments, HarmonicMomentFlux):
             out_values = self.mat_xs.apply_legendre_scattering_moments(
                 moments.values, L=self.L, skip_l0=self.skip_l0,
             )
-            return HarmonicMomentFlux.from_mesh_and_L(out_values, moments.mesh, moments.L)
+            # flux moment → source moment: the explicit role change.
+            return HarmonicMomentSourceSink.from_mesh_and_L(
+                out_values, moments.mesh, moments.L,
+                spatial_moments=moments.spatial_moments,
+            )
         return self.mat_xs.apply_legendre_scattering_moments(
             moments, L=self.L, skip_l0=self.skip_l0,
         )
@@ -450,7 +469,7 @@ class ScatteringOperator(LinearOperatorMixin):
         return self._Y_cached
 
     @cached_property
-    def frame(self) -> GalerkinFrame:
+    def frame(self) -> HarmonicFrame:
         r"""The angular discrete frame — :class:`SphericalHarmonicBasis`
         (order :math:`L=` :attr:`scattering_order`) bound to the quadrature's
         :math:`S^2` measure.
@@ -463,13 +482,30 @@ class ScatteringOperator(LinearOperatorMixin):
         term-for-term (no second evaluation, no risk of divergence —
         ``coding-elegance`` Pattern 2).
 
+        A :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame` — the
+        carrier-typed specialization of the generic
+        :class:`~orpheus.numerics.frame.GalerkinFrame`
+        ``quadrature.angular_frame(L)`` (``from_galerkin`` reuses its basis +
+        measure, so the inherited ndarray faces / :meth:`kernel` /
+        :meth:`reconstruct_after` are bit-identical). The wrapper ADDS the typed
+        verbs :meth:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame.analyse`
+        (:math:`M`) and
+        :meth:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame.reconstruct`
+        (:math:`R`) that the windowed in-scatter arm uses to reconstruct the
+        per-ordinate source from the scattered moment SOURCE
+        (:class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`)
+        — the explicit, role-typed counterpart of the kernel's ndarray
+        composition.
+
         ``frame.table`` is the :math:`Y_\ell^m(\hat\Omega_n)` tabulation,
         **bit-identical** to the legacy :attr:`Y` (both route through
         :meth:`SphericalHarmonicBasis.evaluate` on the same direction
         cosines). The :math:`S^2` embedding + binding lives once in
         :meth:`~orpheus.numerics.quadrature.Quadrature.angular_frame`.
         """
-        return self.quadrature.angular_frame(self.scattering_order)
+        return HarmonicFrame.from_galerkin(
+            self.quadrature.angular_frame(self.scattering_order),
+        )
 
     @property
     def sig_s(self) -> dict[int, list[np.ndarray]]:
@@ -1308,9 +1344,18 @@ class ScatteringOperator(LinearOperatorMixin):
           :meth:`AngularFlux.integrate_angular` term-for-term (the typed
           accessor single-sources that convention); it feeds the identical
           P0 + (n,2n) fast path;
-        * the :math:`\ell\ge 1` aniso reuses the SAME
-          :meth:`_aniso_source_from_moment_values` (:math:`R\,\Lambda`) map
-          the full-angular path calls after its own :math:`M`.
+        * the :math:`\ell\ge 1` aniso takes the EXPLICIT typed grid path:
+          :math:`\Lambda` scatters the flux moments to the in-scatter source
+          moments (``HarmonicMomentFlux → HarmonicMomentSourceSink`` — the
+          role-changing edge), then the frame's :math:`R`
+          (:meth:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame.reconstruct`)
+          reconstructs the per-ordinate :class:`AngularSourceSink`. This equals
+          the full-angular path's :math:`R\,\Lambda` after its own :math:`M`,
+          and the kernel's ndarray ``reconstruct_after(Λ)`` reference
+          (:meth:`_aniso_source_from_moment_values`, the 0-ULP crosscheck's
+          oracle) — same :math:`\Lambda` kernel + :math:`R` face — but with the
+          scattered moment source materialized as a TYPED carrier, so the
+          flux → source → angular role flow reads off the signatures.
 
         Output convention matches the :class:`AngularFlux` arm exactly: both
         end at the shared :meth:`_assemble_per_ordinate_source` (per-ordinate
@@ -1320,16 +1365,20 @@ class ScatteringOperator(LinearOperatorMixin):
         if self.scattering_order == 0:
             aniso = None
         else:
-            # The R·Λ reconstruction is spatial-moment-axis-agnostic (every
-            # einsum carries a trailing ``...`` spectator, #240 D5b-S3-A0), so
-            # the aniso source carries φ̂'s trailing axis when the moment iterate
-            # does; the typed wrap selects the SpatialMomentSpace factor.
-            out_values = self._aniso_source_from_moment_values(
-                phi_moments.values,
-            ) / float(self.weights.sum())
-            aniso = AngularSourceSink.from_mesh(
-                out_values, mesh, spatial_moments=phi_moments.spatial_moments,
-            )
+            # The explicit typed grid path: Λ scatters the flux moments to the
+            # in-scatter SOURCE moments (HarmonicMomentFlux → HarmonicMomentSourceSink
+            # — the role-changing edge), then the frame's R reconstructs the
+            # per-ordinate AngularSourceSink (HarmonicMomentSourceSink → AngularSourceSink
+            # — role-preserving), then the producer-side 1/W (Pattern 7). The
+            # scattered moment source is materialized as a TYPED carrier, so the
+            # flux→source→angular role flow reads off the signatures rather than
+            # an opaque ndarray. Numerically equals the kernel's ndarray
+            # reconstruct_after(Λ) reference (same Λ kernel + R face); the
+            # spatial-moment φ̂ axis threads through the carriers automatically.
+            scattered = LegendreMomentScattering(
+                mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=True,
+            ).apply(phi_moments)
+            aniso = self.frame.reconstruct(scattered) / float(self.weights.sum())
         # ℓ=0 moment IS the scalar flux (Y_0^0 = 1) — the typed accessor
         # carries that convention (== integrate_angular bit-exactly).
         return self._assemble_per_ordinate_source(

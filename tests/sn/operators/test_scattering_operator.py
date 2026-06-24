@@ -1157,22 +1157,28 @@ class TestAnisoMomentSourcePath:
 
     Phase 5a (angular-windowing) retired the per-ℓ
     ``_PerLegendreOrderScattering`` kernel — which recomputed ``M`` for
-    every Legendre order — in favour of ONE shared reconstruction,
-    :meth:`ScatteringOperator._aniso_source_from_moment_values`.  Two
-    callers share it (``coding-elegance`` Pattern 2 — single source of
-    truth):
+    every Legendre order — in favour of the shared ``R·Λ`` reconstruction.
+    The two aniso paths are:
 
-    * :meth:`ScatteringOperator.build_aniso_source` — projects
-      ``φ = Mψ`` once, then applies the map (the full-angular path);
+    * :meth:`ScatteringOperator.build_aniso_source` — the full-angular path,
+      ``(1/W)·kernel`` where ``kernel = frame.conjugate(Λ) = R∘Λ∘M``;
     * the windowed moment-iterate ``apply`` arm — whose iterate bulk IS
-      ``φ`` (the 2-D Cartesian angular-windowing SI iterate), so ``M``
-      is already done and only the map remains.
+      ``φ`` (the 2-D Cartesian angular-windowing SI iterate), so ``M`` is
+      already done; the P4 carve made it the EXPLICIT typed grid path
+      ``Λ : HarmonicMomentFlux → HarmonicMomentSourceSink`` then
+      ``frame.reconstruct : HarmonicMomentSourceSink → AngularSourceSink``
+      (the role-changing edge materialised as a typed carrier).
 
-    ``build_aniso_source``'s numerical correctness is pinned by the
+    The ndarray ``R∘Λ`` reference
+    :meth:`ScatteringOperator._aniso_source_from_moment_values`
+    (= ``frame.reconstruct_after(Λ)``) remains the 0-ULP scattering-kernel
+    crosscheck's oracle — same ``Λ`` kernel + ``R`` face as both production
+    paths. ``build_aniso_source``'s numerical correctness is pinned by the
     pre-T.3 bit-identical snapshot below (a structurally-independent
     reference captured BEFORE the kernel ever existed).  This class adds
     the load-bearing Phase-5a guard: the moment ``apply`` arm reproduces
-    the full-angular arm bit-for-bit.
+    the full-angular arm bit-for-bit, plus a sentinel that the windowed arm
+    actually executes the typed ``frame.reconstruct``.
     """
 
     @pytest.fixture
@@ -1228,6 +1234,53 @@ class TestAnisoMomentSourcePath:
         # arm collapses to the P0-only arm and the guard is vacuous).
         assert op.scattering_order >= 1
         assert np.any(moments[1:] != 0.0)
+
+    def test_windowed_arm_executes_typed_role_changing_edge(
+        self, op_p1, solver_2g_p1_n2n, monkeypatch,
+    ):
+        """Mode-11 sentinel (vv-principles): the windowed
+        ``apply(HarmonicMomentFlux)`` arm actually executes the EXPLICIT typed
+        grid path — ``Λ`` constructs a
+        :class:`HarmonicMomentSourceSink` (the role-changing edge) which the
+        frame's ``R`` then reconstructs. The Phase-5a value guard above proves
+        the NUMBERS are right but cannot tell whether the rewired typed line
+        ran or a bypass produced the same value; this counter-spy proves it.
+
+        Spy point: ``HarmonicMomentSourceSink.from_mesh_and_L`` is constructed
+        ONLY by ``Λ``'s typed (flux → source) arm. If the windowed apply
+        bypassed the typed grid (e.g. fell back to the ndarray
+        ``reconstruct_after`` reference) this counter would stay at zero.
+        """
+        from orpheus.transport.fields.harmonic_moment_flux import (
+            HarmonicMomentFlux,
+        )
+        from orpheus.transport.source_sinks import HarmonicMomentSourceSink
+
+        calls = {"n": 0}
+        original = HarmonicMomentSourceSink.from_mesh_and_L.__func__
+
+        def counting(cls, *args, **kwargs):
+            calls["n"] += 1
+            return original(cls, *args, **kwargs)
+
+        monkeypatch.setattr(
+            HarmonicMomentSourceSink, "from_mesh_and_L", classmethod(counting),
+        )
+
+        op = op_p1
+        psi = self._reproduce_psi(solver_2g_p1_n2n, seed=7)
+        moments = op.frame.analysis.apply(psi.values)
+        phi_field = HarmonicMomentFlux.from_mesh_and_L(
+            moments, psi.mesh, op.scattering_order,
+        )
+        _ = op.apply(phi_field)
+
+        assert op.scattering_order >= 1
+        assert calls["n"] >= 1, (
+            "windowed apply(HarmonicMomentFlux) did not construct a "
+            "HarmonicMomentSourceSink — the explicit typed role-changing "
+            "edge (Λ: flux → source) was bypassed."
+        )
 
     def _load_snapshot(self):
         from tests.sn._test_helpers import SN_TESTS_ROOT

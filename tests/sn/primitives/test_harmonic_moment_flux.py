@@ -505,14 +505,16 @@ class TestRLambdaMRoundTrip:
         assert out.values.shape == (N, mix.ng, nx, ny)
         np.testing.assert_allclose(out.values, 0.0, atol=1e-12)
 
-    def test_lambda_apply_typed_in_typed_out(self) -> None:
-        """``LegendreMomentScattering.apply(HarmonicMomentFlux)``
-        returns ``HarmonicMomentFlux`` with matching mesh + L."""
+    def test_lambda_apply_flux_in_source_out(self) -> None:
+        """``LegendreMomentScattering.apply(HarmonicMomentFlux)`` is the
+        **role-changing** edge of the carrier grid: a flux moment scatters
+        into the in-scatter SOURCE moment it emits, so the typed return is a
+        :class:`HarmonicMomentSourceSink` (NOT a flux) with matching mesh + L.
+        """
         from orpheus.derivations.common.xs_library import get_mixture
-        from orpheus.sn.scattering import (
-            LegendreMomentScattering, ScatteringOperator,
-        )
+        from orpheus.sn.scattering import LegendreMomentScattering
         from orpheus.sn.solver import SNSolver
+        from orpheus.transport.source_sinks import HarmonicMomentSourceSink
         mix = get_mixture("A", "2g")
         if len(mix.SigS) < 2:
             pytest.skip("No P1 data in test mixture")
@@ -539,10 +541,16 @@ class TestRLambdaMRoundTrip:
             mat_xs=op.mat_xs, L=L, skip_l0=True,
         )
         out = Lam.apply(moments)
-        assert isinstance(out, HarmonicMomentFlux)
+        # flux moment IN → source moment OUT (the explicit role change).
+        assert isinstance(out, HarmonicMomentSourceSink)
+        assert not isinstance(out, HarmonicMomentFlux)
         assert out.mesh is sn_mesh
         assert out.L == L
         assert out.values.shape == moments.values.shape
+        # the numbers are the bare-ndarray Λ kernel (typed arm only re-wraps).
+        np.testing.assert_array_equal(
+            out.values, Lam.apply(moments_values),
+        )
 
     def test_lambda_bare_in_bare_out_legacy_path(self) -> None:
         """Bare-ndarray path is preserved for legacy probe tests."""
