@@ -183,14 +183,35 @@ carriers (`AnalysisOperator[AngularFlux, HarmonicMomentFlux]`), NEVER ndarray.**
 projection+frame 0 errors, full `orpheus/` **414 (Δ0, pyright-neutral)**, tests/numerics 684✓. Runtime-zero
 (subscript erased; faces unchanged). NEXT = W-C / W-D.
 
-### W-C — `TimedFullField → FullField` boundary confinement (D1; transport+sn).
-Retype operator `apply`/`solve`/`matvec`/`rhs`/`q_ext`/`initial_guess` boundaries from `TimedFullField` →
-`FullField`; keep `TimedFullField` at the driver iterate + cold-starts + `Solution` + the future `TimeOperator`.
-Loosen `isinstance(rhs, TimedFullField)` (`operator.py:1016`) → `FullField` (the timed iterate still passes via
-inheritance). `FullField` is fully ravellable on its own ⟹ driver pays nothing. **Single source of truth =
-`_within_group_triple` (solver.py:175)** ⟹ small blast radius. Fix the stale dangling doc refs
-(`operator.py:978-980` names `to_legacy_angular_flux`/`_copy_boundary_face_state` — neither exists; archivist).
-Gate: solve/sweep/eigenvalue bit-identical (runtime-zero — same composite, just the boundary TYPE relaxes).
+### W-C — `TimedFullField → FullField` boundary confinement. ✅ **LANDED 2026-06-25 (`34f8eaa`).**
+The SN operator **solve/residual INPUT boundaries** speak `FullField`; `TimedFullField` confined to the driver
+iterate. `InvertibleOperator.solve`/`solve_moments`/`_solve_timed_full_field` `rhs`/`initial_guess` → `FullField | None`
+(dead `AngularFlux` arm dropped); iterate OUTPUT stays `TimedFullField`. The 2 `isinstance` guards (operator.py)
+relax `TimedFullField → FullField` (timed iterate passes via inheritance; bare ndarray/`AngularFlux` still
+rejected). `evaluate_residual` now returns bare `FullField` (residual = a depth-0 timed field = the FullField
+degenerate); `boundary_vs_interior_split` takes `FullField`. The 2 dead doc-refs fixed + the dead-AngularFlux
+narrative pruned (archivist). Gate: pyright `orpheus/` **414→412 (Δ−2, zero regressions)**; SN 1414 + the 7
+pre-existing reds; 0-ULP canary green; tests/numerics 684; Sphinx -W clean.
+**LEARNINGS (load-bearing):**
+- **`history_depth=0` IS the `FullField` degenerate** (user insight): a `TimedFullField` with depth 0 has
+  permanently-empty `_history` (`advance` trims to `[:0]`), so `at_lag(k≥1)` raises — only the current frame,
+  identical content to `FullField`. The history_depth echo on a bare-`FullField` input is principled `else 0`.
+  `evaluate_residual` already constructed `history_depth=0` ⟹ it was always "effectively FullField".
+- **Blast radius was NOT funnelled through `_within_group_triple`** (that is the OPERATOR triple, no
+  `TimedFullField` in it) — the field-type retype spread across **operator.py solve-family + solver.py
+  residual/source-builders + loss_representation.py's 7 `sweep` strategies** (9 `initial_guess` annotations).
+  ~13 signature edits, not a one-line funnel. (The explorer's "single source of truth" claim was about
+  operators, not the field carrier.)
+- **scattering/fission `@singledispatch` register-key + `@overload` → DEFERRED to W-F.** A `FullField`-first
+  `@overload` SHADOWS the bulk-field arms (`ScalarFlux`/`AngularFlux`/`ndarray`) — pyright's overlap detection
+  treats the composite BASE `FullField` as ⊇ those (whereas the narrow subclass `TimedFullField` did not), so the
+  ScalarFlux/ndarray overloads become "never used" and `S.apply(scalar)` resolves to `Unknown`
+  (`reportOverlappingOverload`). The fix is to RESTRUCTURE the overload stack (W-F's job), not swap one key. The
+  scattering/fission `apply` isn't needed for W-C's solve-boundary goal (the matvec still passes the timed iterate).
+- **Pre-existing doc debt the archivist FLAGGED (future sweep, NOT W-C):** 4 dead `:class:`~orpheus.sn.angular_flux.AngularFlux``
+  refs in `solver.py:1188/1366/1711/2366` (canonical = `orpheus.transport.fields.angular_flux`); `operator.py:304-305`
+  "apply accepts ONLY TimedFullField" is stale vs the live `FullField` matvec guard (#257 S8a).
+NEXT = W-D (cross-method recognition — needs proactive `test-architect`).
 
 ### W-D — cross-method recognition + §3.1 composition-guard close (D5).
 Today C/S/F carry `None` domain/codomain ⟹ the `(L+C−S−B)` guard SILENTLY SKIPS them (bites only L↔B). Give
