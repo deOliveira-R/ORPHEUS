@@ -135,8 +135,8 @@ class TestGenericOperatorsAreUnclassified:
     # ``SNBoundaryRealizer._as_boundary`` (Wave O); an un-stamped tensor
     # operator must classify as ``None`` so ``_join_block_roles`` over it
     # cannot silently mis-join. Nothing pinned this before the carve, so a
-    # re-typing of ``TensorProductOperator(LinearOperatorMixin)`` →
-    # ``LinearOperatorMixin[D, C]`` that accidentally introduced a non-None
+    # re-typing of ``TensorProductOperator(LinearOperator)`` →
+    # ``LinearOperator[D, C]`` that accidentally introduced a non-None
     # class default would have gone undetected. (See
     # ``.claude/plans/issue_226_b4_operator_generics_verification.md`` GAP-1.)
 

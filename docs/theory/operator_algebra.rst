@@ -75,6 +75,38 @@ Key Facts
   the previously-unconsumed ``from_balance`` mint). See
   :ref:`affine-typed-field-algebra`.
 
+- **The carriers form a** :math:`(\text{Representation} \times
+  \text{Role})` **double category, and the operator algebra traverses
+  it** (Frame-projection campaign P4.5, branch
+  ``refactor/operator-inverse-algebra``, 2026-06-25). A carrier is a cell
+  :math:`(\text{Representation}, \text{Role})`: **Representation**
+  :math:`\in \{\text{Angular}, \text{Moment}, \text{Scalar},
+  \text{Trace}\}` sets the array shape and carries the change-of-basis
+  (the Frame); **Role** :math:`\in \{\text{Flux}, \text{Source},
+  \text{Residual}, \text{Displacement}\}` sets the arithmetic interface
+  (the #208 affine torsor). The **horizontal** 1-morphisms are the
+  representation-changing frame faces :math:`M`/:math:`R` (role-generic —
+  a base change that fixes the fiber); the **vertical** 1-morphisms are
+  the role-changing cross sections :math:`C`/:math:`\Lambda`/:math:`F`
+  (representation-generic — the role change *is* the cross-section
+  physics); **scattering** :math:`S = \tfrac{1}{W}(R\circ\Lambda\circ M)
+  = \texttt{frame.conjugate}(\Lambda)` is the **2-cell**, the vertical
+  :math:`\Lambda` conjugated by the horizontal adjoint pair, and the
+  bit-identical windowed-vs-full crosscheck is its **interchange-law
+  coherence witness**. **A grid cell IS an operator's** ``(Domain,
+  Codomain)``:
+  :class:`~orpheus.numerics.operator.LinearOperator` ``[Domain,
+  Codomain]`` is the typed grid traversal — the parametrization belongs
+  on the *operator*, not the carrier, because a fully-typed
+  ``Carrier[Representation, Role]`` is **structurally impossible** (Role
+  changes ``__add__`` ⟹ Role must be a class; Representation changes
+  shape ⟹ Representation must be a class; a parameterized carrier would
+  break the runtime units gate via generic erasure). The flat
+  multiple-inheritance leaves ``AngularFlux(FluxRole, AngularField)`` are
+  therefore the **unique principled normal form**, not a compromise. See
+  :ref:`carrier-grid-double-category` and
+  :ref:`carrier-grid-flat-leaf-normal-form`.
+
 - **The interior cell-face angular fluxes are a 1-cochain**
   :math:`C^1_{\rm int}` (Wave O step #205 Phase 5, Issue #208,
   2026-06-04): the 2-D wavefront sweep and matvec no
@@ -1765,6 +1797,270 @@ The frame verbs are role-polymorphic by
 :math:`R` carry both the flux leg (top edge / bottom edge, flux side) and
 the source leg used by the windowed in-scatter migration below.
 
+This 2×2 scattering square is one face of a larger structure. The next
+three subsections lift it to the full :math:`(\text{Representation} \times
+\text{Role})` carrier grid, identify that grid as a **double category**
+whose 2-cell IS :math:`\texttt{frame.conjugate}(\Lambda)`, and then derive
+the load-bearing architectural consequence: why the flat
+multiple-inheritance leaves the grid is built from are not a workaround but
+the **unique principled normal form**, and why the genericity the grid
+expresses belongs on the *operator* (:math:`[\textsf{Domain},
+\textsf{Codomain}]`), never on the carrier.
+
+
+.. _carrier-grid-double-category:
+
+The carrier grid is a double category — two kinds of morphism, one 2-cell
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The scattering square above is not a special diagram — it is one cell of a
+grid that every transport carrier and every transport operator inhabits.
+A carrier is a pair
+
+.. math::
+   :label: carrier-grid-cell
+
+   \texttt{Carrier} \;=\; (\,\text{Representation},\ \text{Role}\,),
+
+and the two coordinates are **independent and orthogonal**, each governing
+a different facet of the object:
+
+* **Representation** :math:`\in \{\text{Angular},\ \text{Moment},\
+  \text{Scalar},\ \text{Trace}\}` sets the **array shape** and carries the
+  change-of-basis. Angular is the per-ordinate :math:`(N, n_g, *\text{spatial})`
+  layout; Moment is the harmonic-coefficient
+  :math:`(L{+}1, 2L{+}1, n_g, *\text{spatial})` layout; Scalar is the
+  angle-integrated :math:`(n_g, *\text{spatial})` layout; Trace is the
+  boundary face-cochain (the flat :math:`(\,\text{layout.total\_size}\,)`
+  buffer on the :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`).
+  Changing representation is a change of basis between two *realisations of
+  the same physical quantity* — the addition theorem :math:`M`/:math:`R`
+  between per-ordinate and moment angular space, the angular integral
+  between Angular and Scalar. This axis is the storage-family ABC layer of
+  :mod:`orpheus.transport.fields._bases`
+  (:class:`~orpheus.transport.fields._bases.AngularField` /
+  :class:`~orpheus.transport.fields._bases.MomentField` /
+  :class:`~orpheus.transport.fields._bases.ScalarField` /
+  :class:`~orpheus.transport.fields._bases.BoundaryField`).
+
+* **Role** :math:`\in \{\text{Flux},\ \text{Source},\ \text{Residual},\
+  \text{Displacement}\}` sets the **arithmetic interface** — the #208
+  affine torsor of :ref:`affine-typed-field-algebra`. Flux is an affine
+  *point* (``flux − flux → Displacement``, ``flux ⊕ Displacement → flux``,
+  and ``flux + flux`` is a :class:`TypeError` — :eq:`affine-torsor-algebra`);
+  Source, Residual, and Displacement are *vectors* in the associated
+  difference space (``source + source`` is closed, ``residual + residual``
+  is closed). The role is what the object's ``__add__`` *means*. This axis
+  is the role-mixin layer
+  (:class:`~orpheus.transport.fields._flux_role.FluxRole` for the flux
+  states; the bare storage base, i.e. *no* role mixin, for the Source and
+  Residual leaves; :class:`~orpheus.transport.displacements._displacement.Displacement`
+  for the increment leaves).
+
+The two axes are genuinely orthogonal: a representation change preserves
+role (the addition theorem maps a flux to a flux and a source to a source
+— it never turns a flux into a source), and a role change preserves
+representation (scattering a moment flux to a moment source stays in
+moment space). That orthogonality is exactly the structure of a **double
+category**, and naming it that way is not decoration — it tells you which
+generic each morphism is, and it identifies a coherence theorem the code
+already pins to 0 ULP.
+
+.. list-table:: The carrier grid as a double category
+   :header-rows: 1
+   :widths: 24 30 46
+
+   * - Categorical part
+     - In the carrier grid
+     - Consequence for the code
+   * - **Objects** (0-cells)
+     - The grid cells :math:`(\text{Representation}, \text{Role})` — the
+       :math:`\approx 4 \times 4` leaf types
+       (:class:`~orpheus.transport.fields.angular_flux.AngularFlux`,
+       :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`,
+       …), each a 2-line MI binding ``Leaf(RoleMixin, RepBase)``.
+     - There is **no cell-by-cell duplication** — each leaf is the
+       intersection of one role mixin and one representation base. The
+       grid is already its own normal form (see
+       :ref:`carrier-grid-flat-leaf-normal-form`).
+   * - **Horizontal 1-morphisms**
+     - **Representation-changes** — the frame faces :math:`M` (analysis)
+       and :math:`R` (reconstruction), built from the
+       :math:`(\text{basis}, \text{measure})` pair that *is* the Frame
+       (:ref:`scattering-carrier-grid`). A horizontal arrow fixes the
+       Role coordinate.
+     - A base change that **fixes the fiber** ⟹ :math:`M`/:math:`R` are
+       **role-generic**: the *same* analysis face projects a flux to a
+       flux and a source to a source. This is why the frame verbs are
+       role-polymorphic, and why the role-changing edge is deliberately
+       **not** a frame verb.
+   * - **Vertical 1-morphisms**
+     - **Role-changes** — the cross sections :math:`C = \sigma_t`
+       (collision), :math:`\Lambda = \Sigma_{s,\ell}` (the per-:math:`\ell`
+       group transfer), :math:`F = \chi \otimes \nu\Sigma_f` (fission). A
+       vertical arrow fixes the Representation coordinate.
+     - A fiber morphism **identical over every base** ⟹ the cross sections
+       are **representation-generic**: the role change *is* the
+       cross-section physics (flux → emitted source), and it carries the
+       same meaning whether applied in angular, moment, or scalar
+       representation. "Scattering turns flux into source" is a vertical
+       arrow.
+   * - **The 2-cell**
+     - **Scattering** :math:`S_{\rm aniso} = \tfrac{1}{W}\,(R \circ
+       \Lambda \circ M)` — the vertical 1-morphism :math:`\Lambda`
+       **conjugated by the horizontal adjoint pair** :math:`M`/:math:`R`.
+       Realised as :meth:`frame.conjugate(Λ) <orpheus.numerics.frame.FrameBase.conjugate>`
+       :math:`=` ``OperatorProduct(R, OperatorProduct(Λ, M))``.
+     - The 2-cell fills the square: it is the canonical conjugation of a
+       vertical morphism by the horizontal frame. The role change stays
+       **localized at** :math:`\Lambda` (:math:`M`/:math:`R` preserve
+       role), so :math:`S` is honestly an operator from the
+       :math:`(\text{Angular}, \text{Flux})` cell to the
+       :math:`(\text{Angular}, \text{Source})` cell.
+
+.. (vv-status rationale) The double-category reading of the carrier grid:
+   a structural / categorical identity naming which morphism class each
+   operator belongs to (horizontal = representation-change, vertical =
+   role-change, scattering = the 2-cell). Not a solver claim; the
+   verifiable content is the 0-ULP interchange-coherence identity
+   (``tests/sn/operators/test_frame_conjugate_carve.py`` ::
+   ``TestFrameConjugateEqualsRLambdaM`` +
+   ``test_kernel_property_is_frame_conjugate_of_lambda``) plus the
+   role/class-identity algebra of the leaves (the foundation tests cited
+   at :eq:`scattering-carrier-grid`).
+.. vv-status: carrier-grid-cell documented
+
+The interchange law is a theorem the code already pins
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A double category's **interchange law** states that the 2-cell may be
+read either way round the square and the two readings agree. For the
+scattering 2-cell this is the statement that the *single composed*
+operator :math:`R \circ \Lambda \circ M` and the *step-by-step* typed
+evaluation (project with :math:`M`, scatter with :math:`\Lambda`,
+reconstruct with :math:`R`) compute the **same** per-ordinate source —
+not approximately, but to the last bit. That is exactly what
+``tests/sn/operators/test_scattering_kernel_crosscheck.py`` and
+``tests/sn/operators/test_frame_conjugate_carve.py`` assert with
+``np.array_equal`` (0 ULP, **not** ``allclose``):
+
+.. math::
+   :label: carrier-grid-interchange-witness
+
+   \underbrace{\big(\texttt{frame.conjugate}(\Lambda)\big).\texttt{apply}(\psi)}_{\text{single composed 2-cell}}
+   \;\;\equiv\;\;
+   \underbrace{R\big(\Lambda\,(M\,\psi)\big)}_{\text{step-by-step horizontal·vertical·horizontal}}
+   \qquad(0\ \text{ULP}).
+
+.. (vv-status rationale) The interchange-coherence identity: the composed
+   2-cell equals the step-by-step horizontal/vertical/horizontal reading
+   bit-for-bit. The verifiable content is the 0-ULP ``np.array_equal``
+   crosscheck (``test_scattering_kernel_crosscheck.py``, the definitional
+   identity of :attr:`ScatteringOperator.kernel`, and
+   ``test_frame_conjugate_carve.py`` ::
+   ``test_conjugate_equals_manual_R_A_M_nesting``). Not a solver claim —
+   a structural equivalence between two evaluations of one operator.
+.. vv-status: carrier-grid-interchange-witness documented
+
+The bit-identity is the point. The two sides of
+:eq:`carrier-grid-interchange-witness` share the *same* :math:`\Lambda`
+kernel and the *same* frame :math:`R` face, so their agreement is a
+**coherence theorem of the double category** — it holds by construction,
+not by numerical coincidence — and the 0-ULP gate is its
+**interchange-law coherence witness**. This is why the crosscheck is a
+``np.array_equal`` *definitional* identity rather than an ``allclose``
+*regression* tolerance: a tolerance would admit two genuinely different
+reduction trees agreeing only to round-off, which would mean the square
+does not actually commute. The 0 ULP says it commutes exactly — the mark
+of a real 2-cell.
+
+.. note::
+
+   **An equivalent reading: a category fibered over Representation.** The
+   same structure can be stated as a *fibered category* (a Grothendieck
+   fibration) :math:`p : E \to B` with base :math:`B =` Representation and
+   the **Role as the fiber coordinate**, carrying a **torsor on the Flux
+   fiber** (:ref:`affine-typed-field-algebra`). In this reading a
+   role-change (:math:`\Lambda`, :math:`C`, :math:`F`) is a *cartesian
+   morphism within a fiber* (fixed representation), and a
+   representation-change (:math:`M`, :math:`R`) is a *base change* lifting
+   to the total space. :math:`M` is role-generic **because a base change
+   fixes the fiber coordinate and lifts uniformly**; :math:`\Lambda` is
+   representation-generic **because the fiber morphism is the same over
+   every base point**. The double-category and fibration pictures describe
+   the same code; the double category makes the 2-cell (scattering)
+   explicit, the fibration makes the role-preservation a *theorem* (base
+   change fixes the fiber) rather than a per-operator assertion.
+
+
+.. _carrier-grid-domain-codomain-identity:
+
+The key identity — a grid cell IS an operator's ``(Domain, Codomain)``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The grid has two coordinates on the *carrier*; an operator has two
+coordinates too — its **domain** and its **codomain**. These are the same
+two coordinates. An operator is an arrow from one grid cell to another,
+and naming its endpoints names the morphism completely:
+
+.. math::
+   :label: carrier-grid-operator-typing
+
+   \texttt{LinearOperator[Domain, Codomain]}
+   \;\;\text{IS the typed traversal of the grid:}\quad
+   \begin{aligned}
+     M &: \texttt{LinearOperator[AngularFlux,\ HarmonicMomentFlux]}
+        &&\text{(horizontal)}\\
+     \Lambda &: \texttt{LinearOperator[HarmonicMomentFlux,\ HarmonicMomentSourceSink]}
+        &&\text{(vertical)}\\
+     S &: \texttt{LinearOperator[AngularFlux,\ AngularSourceSink]}
+        &&\text{(the 2-cell)}.
+   \end{aligned}
+
+.. (vv-status rationale) The operator-typing identity: an operator's two
+   type parameters ARE the two grid cells it maps between. A
+   representational/structural statement about where the parametrization
+   lives (on the operator, not the carrier). The verifiable content is the
+   static ``assert_type`` pins on the heteromorphic ``apply``
+   (``tests/sn/operators/test_operators_apply_typed.py``) and the
+   composition-guard tests; not a solver claim.
+.. vv-status: carrier-grid-operator-typing documented
+
+The two-parameter operator type
+:class:`~orpheus.numerics.operator.LinearOperator` (``Protocol[Domain,
+Codomain]``, :ref:`heteromorphic-apply-typing`) is therefore the **right
+and complete machinery for traversing the grid**. Its ``apply`` maps an
+input carrier :data:`~orpheus.numerics.operator.Domain` to a
+(possibly distinct) output carrier
+:data:`~orpheus.numerics.operator.Codomain` — exactly an arrow
+:math:`(\text{Rep}_{\rm in}, \text{Role}_{\rm in}) \to (\text{Rep}_{\rm
+out}, \text{Role}_{\rm out})`. The endomorphic majority (collision
+:math:`C`, identity, the ``np.ndarray`` serialization boundary) is the
+special case :math:`\textsf{Codomain} = \textsf{Domain}`, recovered for
+free by the PEP-696 default ``Codomain = TypeVar("Codomain",
+default=Domain)`` so that ``LinearOperator[V]`` :math:`\equiv`
+``LinearOperator[V, V]`` and the endomorphic call sites need no change.
+
+The names are spelled in full — :data:`~orpheus.numerics.operator.Domain`
+and :data:`~orpheus.numerics.operator.Codomain`, not abbreviations —
+because ``Domain`` already reads as "the input" and ``Codomain`` as "the
+output"; the morphism vocabulary is the domain vocabulary here.
+
+.. important::
+
+   **The parametrization belongs on the operator, NOT on the carrier.**
+   This is the load-bearing architectural decision the grid forces. One
+   could imagine pushing the :math:`(\text{Representation}, \text{Role})`
+   pair *onto the carrier* as type parameters —
+   ``Carrier[Representation, Role]`` — and writing operators generic in
+   both axes. That design is **structurally impossible in Python** and
+   would break a runtime safety gate even where it type-checks; the next
+   subsection is the full argument. The realised design puts the two
+   coordinates where they are expressible and where they belong: on the
+   **operator's** ``[Domain, Codomain]``, with the carriers as the flat
+   intersection leaves the grid cells already are.
+
+
 The HarmonicFrame typed seam — and why it lives in transport, not numerics
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1871,6 +2167,266 @@ reference
 (:meth:`~orpheus.sn.scattering.ScatteringOperator._aniso_source_from_moment_values`)
 is retained as the crosscheck's oracle — the structurally-independent
 ``np.ndarray`` evaluation the typed arm is pinned against.
+
+
+.. _carrier-grid-census:
+
+The full (Representation × Role) census — and its two principled holes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The scattering square uses four cells of the grid; the whole grid is the
+:math:`4 \times 4` product of the four representations against the four
+roles. Most cells are realised as a concrete leaf; two are *deliberately*
+empty, for reasons that are themselves part of the architecture (an empty
+cell that is principled tells a future session "do not mint this", which is
+as load-bearing as a populated one). The census below is the live state of
+:mod:`orpheus.transport.fields`,
+:mod:`orpheus.transport.source_sinks`,
+:mod:`orpheus.transport.residuals`, and
+:mod:`orpheus.transport.displacements`.
+
+.. list-table:: The (Representation × Role) carrier grid — leaf census
+   :header-rows: 1
+   :stub-columns: 1
+   :widths: 18 21 21 21 19
+
+   * -
+     - **Flux** (``FluxRole``)
+     - **Source** (bare)
+     - **Residual** (bare)
+     - **Displacement**
+   * - **Angular**
+     - :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
+     - :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
+     - :class:`~orpheus.transport.residuals.angular_residual.AngularResidual`
+     - :class:`~orpheus.transport.displacements.angular_displacement.AngularDisplacement`
+   * - **Moment**
+     - :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
+     - :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
+     - — *(principled hole, below)*
+     - :class:`~orpheus.transport.displacements.moment_displacement.MomentDisplacement`
+   * - **Scalar**
+     - :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
+     - :class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
+     - :class:`~orpheus.transport.residuals.scalar_residual.ScalarResidual`
+     - :class:`~orpheus.transport.displacements.scalar_displacement.ScalarDisplacement`
+   * - **Trace**
+     - :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+     - :class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`
+     - :class:`~orpheus.transport.residuals.boundary_residual.BoundaryResidual`
+     - :class:`~orpheus.transport.displacements.boundary_displacement.BoundaryDisplacement`
+
+Reading the columns confirms the two-axis structure of
+:ref:`affine-typed-field-algebra`: the **Flux** column carries the
+:class:`~orpheus.transport.fields._flux_role.FluxRole` torsor mixin (an
+affine point); the **Source** and **Residual** columns are *bare* storage
+leaves (plain vector algebra — ``source + source`` and ``residual +
+residual`` are closed, no affine gate); the **Displacement** column carries
+the :class:`~orpheus.transport.displacements._displacement.Displacement`
+mixin (the iterate-increment vector, home of the contraction diagnostics).
+The Trace (boundary) row mirrors the bulk rows exactly — the four-column
+parallel the boundary role grid completes at
+:ref:`bc-extraction-operator-output-typing`.
+
+The role-axis "asymmetry" is the type-vs-property rule, not a defect
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A first glance at the columns sees an asymmetry: Flux and Displacement are
+**mixins** (they add behaviour — the torsor algebra, the contraction
+diagnostics), while Source and Residual carry **no mixin** (they are bare
+representation leaves). This is **correct**, and it is the project's
+type-vs-property rule (CLAUDE.md Cardinal Rule 2; the
+``coding-elegance`` "build the primitive" pattern) applied exactly: mint a
+distinct **role object** only where a **non-identity morphism** lives on
+that role.
+
+* **Flux** earns a class because it has special arithmetic — the torsor
+  (``flux + flux`` must *raise*, ``flux − flux`` must mint a
+  *Displacement*). That behaviour is unrepresentable without a class to
+  carry the overridden ``__add__`` / ``__sub__``.
+
+* **Displacement** earns a class because it carries diagnostics a flux
+  state structurally cannot (``contraction_ratio``, the Aitken / true-error
+  estimate — :ref:`affine-typed-field-algebra`).
+
+* **Source** and **Residual** are *plain vector roles* — their arithmetic
+  is the inherited :class:`~orpheus.numerics.field.Field` vector algebra,
+  with **no** special dunder. There is no non-identity morphism to host, so
+  by the rule they **correctly carry nothing** beyond their representation
+  base. The role distinction between a Source and a Residual is still real
+  — they are different *classes* (a residual is born only from a
+  :meth:`~orpheus.numerics.field.Field._from_balance`, a source from an
+  operator ``apply``; the class identity gates cross-role addition even
+  though they share rate-density units), but the distinction needs no
+  *behaviour*, so neither gets a mixin.
+
+Uniformising the role axis — giving Source and Residual an empty marker
+mixin "for symmetry" — would be **ceremony**: it would add a class with no
+behaviour, exactly the kind of theatrics the type-vs-property rule forbids.
+The asymmetry is the rule working.
+
+The two principled holes
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Two cells are deliberately empty, and both absences are designed.
+
+* **(Moment, Residual) —** :class:`!HarmonicMomentResidual` **is absent.**
+  A residual is born only from a balance equation
+  (:meth:`~orpheus.numerics.field.Field._from_balance`), and **moment space
+  is never the subject of a balance**. The transport balances are the
+  bulk-angular :math:`(L + C - S - F)\psi - q` and the boundary consistency
+  :math:`\psi.\text{inflow} - B\,\psi.\text{outflow} - q.\text{inflow}`
+  (:ref:`bc-extraction`); neither is posed in moment coordinates, so there
+  is no ``from_balance`` consumer that would produce a moment residual.
+  Minting :class:`!HarmonicMomentResidual` would create a leaf no producer
+  fills — an illegal state by the "build the primitive only when it has a
+  consumer" rule. The hole is the rule, not an oversight. (Contrast
+  **(Moment, Displacement)**, which *is* populated:
+  :class:`~orpheus.transport.displacements.moment_displacement.MomentDisplacement`
+  exists because the angular-windowed SI iterate *does* hold its state as a
+  moment flux and *does* difference it — :ref:`sn-angular-windowing` — so
+  the moment displacement has a genuine consumer.)
+
+* **The** ``iso + aniso → AngularSourceSink`` **source injection is a
+  hand-rolled Representation traversal inside a dunder, and it is
+  endorsed.** :meth:`AngularSourceSink.__add__ <orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.__add__>`
+  accepts a :class:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink`
+  partner and applies the **canonical subspace-containment injection**: a
+  scalar (isotropic) source lives in the subspace of the per-ordinate
+  (angular) source where every ordinate carries the same value, and the
+  injection :math:`\text{iso} \to \mathbf 1 \otimes \text{iso}` (broadcast
+  across the :math:`\Omega` axis) maps it in before the add. This is a
+  *Representation* change (Scalar → Angular) performed inside a *Role*
+  operation (source + source), so it sits slightly outside the clean
+  "horizontal morphisms are frame faces" story — it is a one-off
+  representation embedding baked into a leaf's arithmetic. It is kept
+  because the embedding is the genuine mathematical relation between an
+  isotropic and an anisotropic source (the :math:`\ell=0` block *is* the
+  isotropic part), it is single-sourced through
+  :meth:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic`,
+  and it was **endorsed at creation** as the right home for the iso/aniso
+  combine. It is documented here as a recognised, deliberate exception so a
+  future reader does not "tidy it away".
+
+
+.. _carrier-grid-flat-leaf-normal-form:
+
+Why a fully-typed ``Carrier[Representation, Role]`` is impossible
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The grid *invites* an obvious design: make the carrier itself generic in
+both axes — ``Carrier[Representation, Role]`` — and write operators that
+are generic in both, so that the whole grid is one parametrized type and
+the leaf zoo collapses. This is the design the architecture **explored and
+rejected**, because it is structurally impossible in Python and would break
+a runtime safety gate even in the fragments where it type-checks. Recording
+*why* it cannot work is the point of this subsection: it stops a future
+session from re-attempting the "obvious" collapse and discovering the wall
+the hard way. The flat multiple-inheritance leaves are not a compromise
+forced by a weak type system — they are the **unique principled normal
+form**, and the genericity the grid expresses has a correct home (the
+operator's ``[Domain, Codomain]``) that the carrier does not.
+
+The argument is five obstructions, each fatal on its own.
+
+.. list-table:: Why ``Carrier[Representation, Role]`` cannot be built
+   :header-rows: 1
+   :widths: 8 30 62
+
+   * - #
+     - Obstruction
+     - Why it is fatal
+   * - **(a)**
+     - **Role changes the arithmetic interface ⟹ Role MUST be a class.**
+     - A phantom type parameter (``Generic[Role]``) is **erased at
+       runtime**, so it cannot specialize a dunder. But the role *is* the
+       ``__add__`` semantics: the Flux role must make ``flux + flux``
+       **raise** (the torsor, :eq:`affine-torsor-algebra`) while the Source
+       role must make ``source + source`` **succeed**. A single
+       ``__add__`` body shared across ``Carrier[Rep, Flux]`` and
+       ``Carrier[Rep, Source]`` under one phantom ``Role`` **cannot** make
+       one raise and the other succeed — the parameter that would select
+       between them does not exist at the moment ``__add__`` runs. This
+       hard-refutes the phantom-``Role`` encodings (``Field[Rep, Role]``
+       and the representation-outer ``Angular[Role]``). A *runtime*
+       ``role`` field that ``__add__`` branches on is the stringly-typed
+       anti-pattern (an illegal state is representable —
+       ``replace(f, role=Source)`` would bypass the torsor gate), so that
+       escape is closed too.
+   * - **(b)**
+     - **Representation changes the array shape ⟹ Representation MUST be a
+       class.**
+     - The representation sets the ``values`` / ``space`` shape
+       (:math:`(N, n_g, *\text{spatial})` vs
+       :math:`(L{+}1, 2L{+}1, n_g, *\text{spatial})` vs the flat trace
+       buffer) and the shape-validation hook
+       (:meth:`~orpheus.transport.fields._bases.BulkField._phase_space_shape`).
+       A phantom ``Representation`` parameter, erased, carries none of that
+       — the shape check has nothing to read. This refutes the role-outer
+       phantom ``Flux[Rep]`` (the one encoding the torsor obstacle would
+       have spared — Role is the outer class there — but the shape
+       obstacle kills it instead).
+   * - **(c)**
+     - **The only both-classes form with role-arithmetic-once and
+       rep-shape-once is the flat MI leaf — which already exists.**
+     - (a) forces Role to be a class; (b) forces Representation to be a
+       class. The form that has *both* as classes, with the role algebra
+       written once (per role mixin) and the representation shape written
+       once (per storage base), and no per-cell duplication, is the
+       multiple-inheritance intersection ``AngularFlux(FluxRole,
+       AngularField)`` the grid is **already** built from. There is no
+       novel encoding to discover; the normal form is the current code.
+   * - **(d)**
+     - **A parameterized carrier would break the runtime units gate via
+       erasure.**
+     - The field algebra enforces units/meaning at runtime with a
+       **class-identity** check — ``type(self) is type(other)`` in
+       :meth:`~orpheus.numerics.field.Field._check_partner` (extended by
+       :meth:`BulkField._check_partner <orpheus.transport.fields._bases.BulkField._check_partner>`
+       for the mesh binding). Under a generic ``Carrier[Rep, Role]`` the
+       runtime class is the *erased* ``Carrier`` for **every** cell, so the
+       identity check would read all cells as the same type and **admit**
+       cross-representation, cross-role addition that is physically
+       meaningless (adding a moment flux to an angular source). The generic
+       carrier does not merely fail to *help* — it actively **disables** a
+       working safety gate. The flat leaves keep one concrete class per
+       cell, so the identity check stays sharp.
+   * - **(e)**
+     - **Both-axes-generic operators would need higher-kinded types, which
+       Python lacks.**
+     - Even granting a generic carrier, an operator generic in *both* axes
+       — "for any Representation :math:`X` and any Role :math:`Y`,
+       :math:`\Lambda` maps ``Carrier[X, Flux]`` to ``Carrier[X,
+       Source]``" — quantifies over a *type constructor* applied to a
+       parameter, i.e. a higher-kinded type. Python's type system has no
+       higher-kinded type variables, so this signature is unspellable.
+
+**Conclusion.** The flat multiple-inheritance leaves are the **unique,
+principled normal form** — not a workaround the language imposes, but the
+one design that (i) keeps the torsor's ``flux + flux`` ban expressible,
+(ii) keeps the per-representation shape check expressible, (iii) keeps the
+runtime units gate sharp, and (iv) avoids per-cell duplication. The
+genericity the grid genuinely has — "an operator maps one cell to another"
+— lives where Python *can* express it and where it belongs: on the
+**operator's** :math:`[\textsf{Domain}, \textsf{Codomain}]`
+(:eq:`carrier-grid-operator-typing`), as the typed traversal of the grid.
+The carrier stays a flat leaf; the operator carries the two coordinates.
+
+.. note::
+
+   **This is a closed exploration, recorded so it is not re-opened.** The
+   four candidate carrier encodings — a phantom ``Field[Representation,
+   Role]``, a role-outer ``Flux[Representation]``, a representation-outer
+   ``Angular[Role]``, and the current flat MI leaves — were weighed against
+   the obstructions above. Only the flat MI leaves survive: the
+   phantom-``Role`` forms die on (a), the role-outer form dies on (b), and
+   any parameterized carrier dies on (d). The full structural verdict (the
+   double-category / fibration / torsor frame attack that produced this
+   conclusion) is recorded in
+   ``.claude/agent-memory/cross-domain-attacker/rep_role_grid_double_category_frames.md``.
+   A future session reaching for ``Carrier[Rep, Role]`` should read this
+   subsection first.
+
 
 Deferred relocation
 -------------------
@@ -2277,7 +2833,7 @@ same algebra dunders.
    #186 / B3 + β2 (2026-05-11), the
    :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` ABC is a
    **pure descriptor** carrying no :meth:`apply` method (the
-   :class:`LinearOperatorMixin` inheritance was dropped). The
+   :class:`LinearOperator` inheritance was dropped). The
    table below lists the **realised** output produced by
    :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` — that
    output IS a Wave-0 :class:`LinearOperator`. The law-to-operator
@@ -2411,7 +2967,7 @@ converged on this design:
   needed per-face inflow indices that the bare-law container
   could not deliver.
 * **β1 interim** (Issue #186 / B3, pre-cleanup) kept
-  :class:`LinearOperatorMixin` on :class:`BoundaryTraceLaw`, so
+  :class:`LinearOperator` on :class:`BoundaryTraceLaw`, so
   ``0.3 * spec + 0.7 * white`` produced an :class:`OperatorSum`
   with raw-law leaves. β1 was algebraically equivalent to β2 but
   conflated the two type families — the type checker could not
@@ -3731,7 +4287,7 @@ Two structural reasons forbid the old fold:
 
 The old fold type-checked **only because**
 :attr:`ScatteringOperator.domain` is ``None`` (it inherits the
-:class:`~orpheus.numerics.operator.LinearOperatorMixin` default; bulk
+:class:`~orpheus.numerics.operator.LinearOperator` default; bulk
 operators type via ``block_role``, not a bulk function space). The
 :class:`~orpheus.numerics.operator.OperatorSum` domain-compatibility
 check fires only when both operands declare non-``None`` domains that
@@ -7583,4 +8139,81 @@ the closed-form algebra-of-record
 (:math:`k = \lambda_{\max}(\mathbf{A}^{-1}\mathbf{F})`) for the
 homogeneous reflective limit — a structurally-independent closed-form
 pillar, not a code-to-code comparison.
+
+
+Development history
+===================
+
+This is a reverse-chronological (latest first) changelog of the major
+**architectural** milestones in the operator algebra. Iteration-rate
+work, gate counts, and intermediate replans are deliberately omitted —
+see the GitHub issues and the per-phase plan files for that granularity.
+Entries marked *(in development)* live on an unmerged feature branch and
+have no landed merge-to-``main`` hash yet; trust ``git`` over this table
+for merge status.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 10 50 12 28
+
+   * - When
+     - Architectural milestone
+     - Issue
+     - Where
+   * - in dev
+       (2026-06-25)
+     - **The carrier grid recognised as a double category, and the
+       operator type made two-parameter** (Frame-projection campaign,
+       P4.5). The transport carriers are identified as the cells of a
+       :math:`(\text{Representation} \times \text{Role})` **double
+       category** — horizontal 1-morphisms are the representation-changing
+       frame faces :math:`M`/:math:`R` (role-generic), vertical
+       1-morphisms are the role-changing cross sections :math:`C`,
+       :math:`\Lambda`, :math:`F` (representation-generic), and scattering
+       :math:`S = \tfrac{1}{W}(R\circ\Lambda\circ M) =
+       \texttt{frame.conjugate}(\Lambda)` is the **2-cell**, with the
+       existing 0-ULP windowed-vs-full crosscheck recognised as its
+       interchange-law coherence witness (:ref:`carrier-grid-double-category`).
+       The operator Protocol is widened to the honest two-parameter
+       :class:`~orpheus.numerics.operator.LinearOperator` ``Protocol[Domain,
+       Codomain]`` (``apply(x: Domain) -> Codomain``; the PEP-696 default
+       ``Codomain = Domain`` keeps ``[V] ≡ [V, V]`` for the endomorphic
+       majority; requires-python raised to ``>=3.13``) — **a grid cell IS an
+       operator's** ``(Domain, Codomain)`` (:eq:`carrier-grid-operator-typing`).
+       The accompanying structural finding — that a fully-typed
+       ``Carrier[Representation, Role]`` is impossible (Role-arithmetic and
+       Representation-shape each force a class; a parameterized carrier
+       breaks the runtime units gate via erasure), so the flat MI leaves
+       are the unique normal form — is documented at
+       :ref:`carrier-grid-flat-leaf-normal-form`. **Realisation status:**
+       the two-parameter operator type and the double-category framing have
+       **landed on the branch**; the per-operator retirement of the
+       heteromorphic-``apply`` ``@overload`` confessions
+       (:ref:`heteromorphic-apply-typing`) for scattering/fission is **not
+       yet done** — it is workstream W-F of the P4.5 campaign (#65). The
+       deeper *secondary-carrier-arm* collapse (the ``ScalarFlux`` and bare-
+       ``ndarray`` arms) couples to the C/F/S core relocation and CP / MoC
+       carrier unification (#261).
+     - #65 / #268 / #261
+     - *(in development)*
+       ``refactor/operator-inverse-algebra``
+   * - 2026-06-08
+     - **Flux states typed as an affine space; the iterate increment is a
+       typed displacement.** ``flux − flux`` mints a
+       :class:`~orpheus.transport.displacements._displacement.Displacement`,
+       ``flux ⊕ displacement`` is the torsor update, and ``flux + flux`` is
+       a :class:`TypeError` — the #201 dimensional gate becomes a *type*
+       consequence (:ref:`affine-typed-field-algebra`). The Role axis of
+       the carrier grid.
+     - #208 / #201
+     - ``main`` (Wave O step O.2)
+   * - 2026-06-03
+     - **The boundary law** :math:`B` **becomes a first-class sibling
+       operator** and every operator's ``.apply`` output is typed as a
+       *source/sink* (the bulk → :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`,
+       the boundary → :class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`),
+       completing the operator-output role typing
+       (:ref:`bc-extraction-operator-output-typing`).
+     - #208
+     - ``main`` (Wave O steps O.4a.2 / B.5.2)
 

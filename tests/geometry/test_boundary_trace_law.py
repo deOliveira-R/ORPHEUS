@@ -3,7 +3,7 @@ r"""Foundation tests for the :class:`BoundaryTraceLaw` ABC.
 This file pins the Issue-#186 (B3 + β2) descriptor-model contract:
 
 * :class:`BoundaryTraceLaw` is a **pure descriptor** — no
-  ``apply`` method, no :class:`LinearOperatorMixin` inheritance.
+  ``apply`` method, no :class:`LinearOperator` inheritance.
 * Concrete subclasses MAY add their own ``apply`` for unit-test
   convenience, but the canonical realisation path is via
   :class:`SNBoundaryRealizer.realize`.
@@ -68,7 +68,7 @@ class _StubLaw(BoundaryTraceLaw, key="_stub_for_test"):
 
 @pytest.mark.foundation
 def test_descriptor_has_no_apply_method() -> None:
-    """The ABC ships no ``apply`` and no :class:`LinearOperatorMixin`.
+    """The ABC ships no ``apply`` and no :class:`LinearOperator`.
 
     Issue #186 / B3 + β2: descriptors are not callable operators.
     Realisation is the sole bridge — route through
@@ -131,7 +131,7 @@ def test_descriptor_has_no_capabilities_attribute() -> None:
 
 @pytest.mark.foundation
 def test_descriptor_has_no_domain_or_codomain() -> None:
-    """``domain`` / ``codomain`` are :class:`LinearOperatorMixin`
+    """``domain`` / ``codomain`` are :class:`LinearOperator`
     attributes; descriptors drop the mixin in B3 + β2."""
     law = _StubLaw()
     assert not hasattr(law, "domain")

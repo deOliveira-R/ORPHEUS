@@ -22,7 +22,7 @@ from orpheus.numerics.operator import (
     CAP_SOLVE,
     IdentityOperator,
     LinearOperator,
-    LinearOperatorMixin,
+    LinearOperator,
     MissingCapability,
     OperatorProduct,
     OperatorSum,
@@ -38,13 +38,13 @@ pytestmark = pytest.mark.foundation
 # ───────────────────────────────────────────────────────────────────────
 
 
-class MatrixOperator(LinearOperatorMixin):
+class MatrixOperator(LinearOperator):
     """Test operator backed by a dense numpy matrix.
 
     Advertises capabilities according to constructor flags. Used to
     drive composition + capability tests with a fully analytic ground
     truth (the matrix is stored, so any test can compare against
-    direct ``M @ x``). Inherits :class:`LinearOperatorMixin` so that
+    direct ``M @ x``). Inherits :class:`LinearOperator` so that
     ``+`` / ``-`` / ``*`` / ``@`` invoke the composers.
     """
 
@@ -506,7 +506,7 @@ def test_adjoint_euclidean_identity(matrix_full, rng, n_dim):
     assert np.isclose(lhs, rhs, rtol=1e-12)
 
 
-class _SpacedMatrixOperator(LinearOperatorMixin):
+class _SpacedMatrixOperator(LinearOperator):
     """MatrixOperator carrying explicit domain / codomain function spaces.
 
     Used for the weight-aware Hilbert-adjoint identity tests, where the

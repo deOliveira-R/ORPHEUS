@@ -131,7 +131,7 @@ from orpheus.numerics.operator import (
     CAP_APPLY,
     CAP_APPLY_TRANSPOSE,
     CAP_SOLVE,
-    LinearOperatorMixin,
+    LinearOperator,
     OperatorSum,
 )
 
@@ -220,7 +220,7 @@ def _require_typed_composite(
 
 
 @dataclass
-class StreamingOperator(LinearOperatorMixin["FullField"]):
+class StreamingOperator(LinearOperator["FullField"]):
     r"""Pure streaming + angular-redistribution operator :math:`L` as a
     :class:`~orpheus.numerics.operator.LinearOperator` leaf.
 

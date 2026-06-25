@@ -81,7 +81,7 @@ from orpheus.numerics.operator import (
     BlockRole,
     IdentityOperator,
     IncomingOrdinateMaskTensor,
-    LinearOperatorMixin,
+    LinearOperator,
     PeriodicWrapOperator,
     PermutationOperator,
     ZeroOperator,
@@ -105,7 +105,7 @@ if TYPE_CHECKING:
 __all__ = ["SNBoundaryRealizer", "SNMethodSpace"]
 
 
-def _as_boundary(op: LinearOperatorMixin) -> LinearOperatorMixin:
+def _as_boundary(op: LinearOperator) -> LinearOperator:
     r"""Stamp a realized boundary law with the :attr:`BlockRole.BOUNDARY` role.
 
     The realized law is a boundary-block leaf (``A_ss`` only) on the
@@ -145,10 +145,10 @@ class SNBoundaryRealizer:
         self,
         law: "BoundaryTraceLaw",
         method_space: SNMethodSpace,
-    ) -> LinearOperatorMixin:
+    ) -> LinearOperator:
         """Realize ``law`` for SN as a 1-arg :class:`LinearOperator`.
 
-        The concrete return is always a :class:`LinearOperatorMixin`
+        The concrete return is always a :class:`LinearOperator`
         subclass (a generic numerics primitive —
         :class:`TensorProductOperator` / :class:`ScaledOperator` /
         :class:`IncomingSourceOperator` / …); the narrower mixin type

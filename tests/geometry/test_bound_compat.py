@@ -103,7 +103,7 @@ def test_capabilities_delegate_to_inner():
 
 def test_composes_with_operator_algebra():
     """The shim is a first-class :class:`LinearOperator` — it inherits
-    the algebra dunders from :class:`LinearOperatorMixin`. ``shim + shim``
+    the algebra dunders from :class:`LinearOperator`. ``shim + shim``
     builds an :class:`OperatorSum`; ``2.0 * shim`` builds a
     :class:`ScaledOperator`.
     """

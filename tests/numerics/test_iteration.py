@@ -40,7 +40,7 @@ from orpheus.numerics.operator import (
     CAP_APPLY,
     CAP_APPLY_TRANSPOSE,
     CAP_SOLVE,
-    LinearOperatorMixin,
+    LinearOperator,
     MissingCapability,
     ZeroOperator,
 )
@@ -52,7 +52,7 @@ from orpheus.transport.fields.boundary_flux import BoundaryFlux
 # ───────────────────────────────────────────────────────────────────────
 
 
-class MatrixOperator(LinearOperatorMixin):
+class MatrixOperator(LinearOperator):
     """Test operator backed by a dense numpy matrix.
 
     Same shape as the fixture in ``test_operator.py`` — kept independent
@@ -596,7 +596,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     # Issue #197 PR-TYPED-2 — typed BoundaryFlux replaces psi_bc: dict.
     boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
 
-    class L_inv_adapter(LinearOperatorMixin):
+    class L_inv_adapter(LinearOperator):
         """Adapter: rhs (ng, nx, ny) → phi via the unified sweep.
 
         Issue #196 PR-INDEX-5: principled layout throughout.  Returns
@@ -628,7 +628,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
             )
             return scalar
 
-    class S_scalar_adapter(LinearOperatorMixin):
+    class S_scalar_adapter(LinearOperator):
         """Adapter: phi (ng, nx, ny) → P0 scattering source (ng, nx, ny).
 
         Issue #196 PR-INDEX-5: principled end-to-end.
@@ -641,7 +641,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
             S.add_n2n_source(Q, phi)
             return Q
 
-    class F_scalar_adapter(LinearOperatorMixin):
+    class F_scalar_adapter(LinearOperator):
         """Adapter: phi (ng, nx, ny) → fission source (ng, nx, ny).
 
         Issue #196 PR-INDEX-5: principled end-to-end.

@@ -104,7 +104,7 @@ The same reasoning that makes
 :class:`~orpheus.numerics.functional.Functional` structural Protocols
 applies here. The two named Kernels (``FissionOperator`` /
 ``ScatteringOperator``) are
-:class:`~orpheus.numerics.operator.LinearOperatorMixin` subclasses built
+:class:`~orpheus.numerics.operator.LinearOperator` subclasses built
 with :func:`functools.singledispatchmethod` dispatch arms and
 ``@dataclass`` ; a nominal ABC base would collide with that MRO and
 force a redundant inheritance edge. A structural Protocol lets each

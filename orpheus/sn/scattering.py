@@ -158,7 +158,6 @@ from orpheus.numerics.operator import (
     BlockRole,
     CAP_APPLY,
     LinearOperator,
-    LinearOperatorMixin,
     OperatorProduct,
 )
 
@@ -208,7 +207,7 @@ def _spatial_moments_of(phi: "np.ndarray | ScalarFlux") -> int:
 
 
 @dataclass(frozen=True)
-class LegendreMomentScattering(LinearOperatorMixin):
+class LegendreMomentScattering(LinearOperator):
     r"""Per-ℓ block-diagonal scattering on harmonic-moment space.
 
     The §15.2 / §10 sum-of-tensor-products form
@@ -369,7 +368,7 @@ class LegendreMomentScattering(LinearOperatorMixin):
 
 
 @dataclass
-class ScatteringOperator(LinearOperatorMixin):
+class ScatteringOperator(LinearOperator):
     r"""Scattering source operator :math:`S` (P0 + Pℓ + (n,2n)).
 
     Holds the precomputed per-material Legendre scattering matrices

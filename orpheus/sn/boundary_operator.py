@@ -53,7 +53,7 @@ from orpheus.numerics.operator import (
     CAP_APPLY,
     CAP_APPLY_TRANSPOSE,
     BlockRole,
-    LinearOperatorMixin,
+    LinearOperator,
 )
 
 if TYPE_CHECKING:
@@ -69,7 +69,7 @@ if TYPE_CHECKING:
 __all__ = ["SNBoundaryOperator"]
 
 
-class SNBoundaryOperator(LinearOperatorMixin):
+class SNBoundaryOperator(LinearOperator):
     r"""Whole-trace boundary law ``B`` — the ``A_ss`` block of the SN algebra.
 
     Block-diagonal over the mesh's true boundary faces: ``B.apply(ψ)`` returns a

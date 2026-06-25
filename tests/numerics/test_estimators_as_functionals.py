@@ -56,7 +56,7 @@ from orpheus.numerics.iteration import (
 from orpheus.numerics.operator import (
     CAP_APPLY,
     CAP_SOLVE,
-    LinearOperatorMixin,
+    LinearOperator,
     ZeroOperator,
 )
 
@@ -75,7 +75,7 @@ def _require(condition: bool, message: str) -> None:
 # ───────────────────────────────────────────────────────────────────────
 
 
-class _MatrixOperator(LinearOperatorMixin):
+class _MatrixOperator(LinearOperator):
     """Dense-matrix test operator with an explicit capability set."""
 
     def __init__(self, matrix: np.ndarray, *, can_solve: bool = False) -> None:

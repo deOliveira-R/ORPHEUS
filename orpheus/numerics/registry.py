@@ -28,7 +28,7 @@ A registry root inherits :class:`RegistryMixin` and overrides
 :meth:`_registry_base` to return itself; concrete subclasses pass
 ``key=...`` in their class statement::
 
-    class BoundaryOperator(LinearOperatorMixin, RegistryMixin, ABC):
+    class BoundaryOperator(LinearOperator, RegistryMixin, ABC):
         registry: ClassVar[dict[str, type["BoundaryOperator"]]] = {}
 
         @classmethod

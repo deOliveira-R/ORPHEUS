@@ -370,7 +370,7 @@ class _FrameAnalysis(AnalysisOperator):
     frame: FrameBase
     # Plain unannotated class attr (NOT a dataclass field, NOT ClassVar) —
     # overrides the role ABC's annotated ``capabilities`` the same way the
-    # leaves override ``block_role`` (see LinearOperatorMixin).
+    # leaves override ``block_role`` (see LinearOperator).
     capabilities = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
     @property

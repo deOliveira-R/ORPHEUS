@@ -24,7 +24,7 @@ import numpy as np
 
 from orpheus.numerics.operator import (
     CAP_APPLY,
-    LinearOperatorMixin,
+    LinearOperator,
 )
 
 if TYPE_CHECKING:
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 __all__ = ["AngularAverageOperator", "IncomingSourceOperator"]
 
 
-class AngularAverageOperator(LinearOperatorMixin):
+class AngularAverageOperator(LinearOperator):
     r"""Cosine-weighted Lambertian average over an outgoing hemisphere.
 
     Realizes the geometric projection :math:`G_{\text{diff}}` in the
@@ -227,7 +227,7 @@ class AngularAverageOperator(LinearOperatorMixin):
         ).copy()
 
 
-class IncomingSourceOperator(LinearOperatorMixin):
+class IncomingSourceOperator(LinearOperator):
     r"""Prescribed inflow source — returns the source value, ignores input.
 
     Realises the :math:`q` term in the §16A.1 affine BC form

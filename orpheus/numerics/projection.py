@@ -72,7 +72,7 @@ import numpy as np
 from orpheus.numerics.operator import (
     CAP_APPLY,
     CAP_APPLY_TRANSPOSE,
-    LinearOperatorMixin,
+    LinearOperator,
 )
 
 
@@ -87,7 +87,7 @@ __all__ = [
 # ─────────────────────────────────────────────────────────────────────
 
 
-class AnalysisOperator(LinearOperatorMixin, ABC):
+class AnalysisOperator(LinearOperator, ABC):
     r"""Abstract :math:`M : V \to W` — the fine→coarse (measured) side of a frame.
 
     The ABC carries no implementation — the concrete realisation is the
@@ -117,7 +117,7 @@ class AnalysisOperator(LinearOperatorMixin, ABC):
         ...
 
 
-class ReconstructionOperator(LinearOperatorMixin, ABC):
+class ReconstructionOperator(LinearOperator, ABC):
     r"""Abstract :math:`R : W \to V`. Sibling of :class:`AnalysisOperator`.
 
     A reconstruction operator lifts coefficients from a coarse space :math:`W` back

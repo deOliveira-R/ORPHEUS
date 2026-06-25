@@ -54,19 +54,48 @@ from typing import (
     Generic,
     Optional,
     Protocol,
+    TypeVar,
+    cast,
     runtime_checkable,
 )
 
 import numpy as np
 
-from orpheus.numerics.vector import V
+from orpheus.numerics.vector import Vector
 
 if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
 
+
+# ── Two-parameter operator typevars (#65 / P4.5) ──────────────────────
+# The honest operator type is ``LinearOperator[Domain, Codomain]``:
+# ``apply`` maps an input carrier ``Domain`` to a (possibly distinct)
+# output carrier ``Codomain`` — the carrier's ``(Representation, Role)``
+# grid cell IS the operator's ``(Domain, Codomain)`` (the double-category
+# 1-morphism between cells; see :ref:`operator-algebra`). The names are
+# spelled in full (NOT ``Din``/``Cout``) because ``Domain`` already reads
+# as "in" and ``Codomain`` as "out" — the abbreviation said nothing.
+#
+# ONE invariant pair (W-A collapse, #65): :class:`LinearOperator` is now a
+# SINGLE base — a ``@runtime_checkable`` Protocol that ALSO carries the
+# algebra dunders as default-method bodies — so there is no longer a
+# separate variant read-Protocol and an invariant impl-Mixin to reconcile.
+# ``Domain``/``Codomain`` are therefore **invariant**: the variance the old
+# split needed never reached the leaves (every leaf inherits the one base
+# and the static carrier collapses to ``Vector`` at the numerics layer, so
+# co/contra-variance bought nothing — and a contravariant TypeVar cannot be
+# passed to the invariant composer bases). PEP-696 default
+# ``Codomain = Domain`` makes ``LinearOperator[V] ≡ LinearOperator[V, V]``,
+# so the endomorphic majority — and every existing single-parameter
+# subscript site — keeps one parameter. The native
+# ``typing.TypeVar(default=…)`` requires-python ``>=3.13``.
+Domain = TypeVar("Domain", bound=Vector)  # operator input carrier
+Codomain = TypeVar("Codomain", bound=Vector, default=Domain)  # operator output carrier
+Cmid = TypeVar("Cmid", bound=Vector)  # OperatorProduct intermediate carrier
+D2 = TypeVar("D2", bound=Vector)  # __matmul__ other-operand domain
+
 __all__ = [
     "LinearOperator",
-    "LinearOperatorMixin",
     "BlockRole",
     "BulkOperator",
     "FullOperator",
@@ -112,7 +141,7 @@ CAP_APPLY_TRANSPOSE: str = "apply_transpose"
 # the single fact :meth:`OperatorSum.apply` dispatches on (Wave O step O.2)
 # and the adjoint composition routes by. The classification is a partition
 # (each leaf is exactly one role), and it lives on the INSTANCE (via the
-# :attr:`LinearOperatorMixin.block_role` attribute), NOT the class, because
+# :attr:`LinearOperator.block_role` attribute), NOT the class, because
 # the same generic operator class can play different roles in different
 # contexts — e.g. :class:`IdentityOperator` is the bulk identity in one
 # composition and a realized vacuum boundary law in another.
@@ -183,7 +212,7 @@ class _BlockRoleMeta(type):
     :class:`BoundaryOperator`) are never instantiated and carry no
     state. They exist so the block-role classification reads like the
     domain (``isinstance(L, FullOperator)``) while the single source of
-    truth stays the :attr:`~LinearOperatorMixin.block_role` enum on the
+    truth stays the :attr:`~LinearOperator.block_role` enum on the
     operator instance. Exclusivity is automatic: an operator carries one
     ``block_role`` and therefore satisfies at most one marker.
 
@@ -249,7 +278,7 @@ class IncompatibleOperatorComposition(ValueError):
 
 
 @runtime_checkable
-class LinearOperator(Protocol[V]):
+class LinearOperator(Protocol[Domain, Codomain]):
     r"""Contract for a matrix-free linear operator on a flux vector.
 
     Any object exposing :meth:`apply` and a :pydata:`capabilities`
@@ -288,95 +317,6 @@ class LinearOperator(Protocol[V]):
 
     capabilities: frozenset[str]
 
-    @property
-    def domain(self) -> Optional["FunctionSpace"]:
-        """The function space this operator consumes, or ``None``.
-
-        Operators that pre-date Issue 9.6 (and any operator that has
-        no canonical function-space tagging) return ``None``. When
-        either operand of a composition has ``None`` for ``domain``
-        or ``codomain``, the composability check is skipped — preserving
-        the legacy duck-typed behaviour for code paths that do not
-        track spaces.
-        """
-        ...
-
-    @property
-    def codomain(self) -> Optional["FunctionSpace"]:
-        """The function space this operator produces, or ``None``.
-
-        See :attr:`domain` for the ``None`` semantics.
-        """
-        ...
-
-    def apply(self, x: V, /) -> V:
-        r"""Return :math:`L\,x`.
-
-        Mandatory. Every :class:`LinearOperator` must implement this.
-        The :pydata:`capabilities` set MUST include
-        :pydata:`CAP_APPLY` whenever this method is functional.
-
-        The :data:`~orpheus.numerics.vector.V` type variable expresses
-        the endomorphism honestly: ``apply`` returns the same
-        :class:`~orpheus.numerics.vector.Vector` carrier it consumes
-        (flux, scalar, moment state, or the flat ``np.ndarray`` of the
-        scipy serialization boundary).
-        """
-        ...
-
-
-def _has(op: object, cap: str) -> bool:
-    """Return True iff ``op`` advertises capability ``cap``.
-
-    Bare protocol-check that tolerates objects without the attribute
-    (returns False). Used by composers to decide which capabilities
-    propagate.
-    """
-    caps = getattr(op, "capabilities", None)
-    return bool(caps) and cap in caps
-
-
-# ───────────────────────────────────────────────────────────────────────
-# Composition primitives
-# ───────────────────────────────────────────────────────────────────────
-
-
-class LinearOperatorMixin(Generic[V]):
-    """Mixin installing operator-algebra dunders on a :class:`LinearOperator`.
-
-    Inherit this on any user-defined operator class to gain the natural
-    Python algebra (``+``, ``-``, ``*`` for scalar multiplication, ``@``
-    for operator composition). The composers (:class:`OperatorSum`,
-    :class:`OperatorProduct`, :class:`ScaledOperator`,
-    :class:`IdentityOperator`, :class:`ZeroOperator`) already inherit
-    it, so the algebra is closed under further composition without any
-    extra effort from user code.
-
-    The mixin defines no state; it relies on the user class providing
-    an :pydata:`apply` method and a :pydata:`capabilities` attribute to
-    satisfy the :class:`LinearOperator` Protocol. The ``+``/``-``/``*``/
-    ``@`` dunders simply delegate to the composer constructors, which
-    enforce the capability closure laws.
-
-    Issue 9.6 additions:
-
-    * :meth:`__call__` — alias for :meth:`apply`, matching :math:`A(x)`
-      math notation.
-    * :meth:`__pow__` — repeated composition for non-negative integer
-      powers (``A**0`` is the identity, ``A**n`` for ``n>=1`` is
-      ``A @ A @ ... @ A``).
-    * :meth:`adjoint` — weight-aware Hilbert adjoint for operators
-      whose domain and codomain carry inner products.
-    * :attr:`H` — property alias for ``adjoint()`` matching the Grand
-      Report v3 §6.3 vocabulary.
-    * Default :attr:`domain` / :attr:`codomain` return ``None`` —
-      backward-compatible with operators predating Issue 9.6.
-    * :meth:`__repr__` — uniform default reporting class name,
-      domain/codomain, and capabilities.
-    """
-
-    capabilities: frozenset[str]
-
     #: Block-role classification (Issue #208 / Wave O) — see
     #: :class:`BlockRole`. A single enum value, NOT a capability tag: the
     #: role is a *partition* (an operator is exactly one of
@@ -400,59 +340,92 @@ class LinearOperatorMixin(Generic[V]):
     #: :func:`~orpheus.sn.boundary_realizer._as_boundary` stamp assign
     #: ``self.block_role`` per-instance (the role is DERIVED from operands,
     #: not fixed by the class). A ``ClassVar`` would (correctly) reject
-    #: that instance assignment. The mixin is not a ``@dataclass``, so this
+    #: that instance assignment. This base is not a ``@dataclass``, so the
     #: annotation is never field-processed; the leaves' unannotated
     #: class-attr override keeps the class-level read
     #: (``ScatteringOperator.block_role``) working.
     block_role: Optional[BlockRole] = None
 
-    if TYPE_CHECKING:
-        # Declared for the type checker ONLY (this block never executes at
-        # runtime): it lets ``self`` satisfy the :class:`LinearOperator`
-        # ``[V]`` Protocol inside the algebra dunders below, so ``A + B`` /
-        # ``A @ B`` / ``α * A`` compose without an ``# type: ignore``. The
-        # mixin still defines NO runtime ``apply`` — every concrete operator
-        # supplies its own (the mixin "defines no state"); this stub only
-        # names the endomorphism contract the concrete classes honour.
-        def apply(self, x: V, /) -> V: ...
-
-    # ------------------------------------------------------------------
-    # Function-space tagging (defaults — concrete operators may override)
-    # ------------------------------------------------------------------
-
     @property
     def domain(self) -> Optional["FunctionSpace"]:
+        """The function space this operator consumes, or ``None``.
+
+        Operators that pre-date Issue 9.6 (and any operator that has
+        no canonical function-space tagging) return ``None`` — the
+        default supplied by this base. When either operand of a
+        composition has ``None`` for ``domain`` or ``codomain``, the
+        composability check is skipped — preserving the legacy
+        duck-typed behaviour for code paths that do not track spaces.
+        """
         return None
 
     @property
     def codomain(self) -> Optional["FunctionSpace"]:
+        """The function space this operator produces, or ``None``.
+
+        See :attr:`domain` for the ``None`` semantics.
+        """
         return None
 
+    def apply(self, x: Domain, /) -> Codomain:
+        r"""Return :math:`L\,x`.
+
+        Mandatory. Every concrete :class:`LinearOperator` must implement
+        this (the body here is the Protocol contract stub). The
+        :pydata:`capabilities` set MUST include :pydata:`CAP_APPLY`
+        whenever this method is functional.
+
+        The two type variables express the operator honestly: ``apply``
+        maps an input carrier :data:`Domain` to a (possibly distinct)
+        output carrier :data:`Codomain`. The endomorphic majority (``C``,
+        the loss solve, the flat ``np.ndarray`` of the scipy
+        serialization boundary) is the special case ``Codomain == Domain``,
+        spelled with a single parameter via the PEP-696 default
+        (``LinearOperator[V] ≡ LinearOperator[V, V]``); the
+        source-producing operators ``S``/``F`` are the genuine
+        ``Codomain ≠ Domain`` case (flux carrier → source/sink carrier).
+        """
+        ...
+
     # ------------------------------------------------------------------
-    # Algebra dunders
+    # Algebra dunders — default-method bodies (W-A collapse, #65)
+    #
+    # These carry real bodies ON this Protocol, so an explicit subclass
+    # ``class Foo(LinearOperator[A, B])`` inherits BOTH the ``apply``
+    # contract AND the natural Python algebra (``+``, ``-``, ``*`` scalar,
+    # ``@`` composition) with no separate mixin. The dunders delegate to
+    # the composer constructors, which enforce the capability-closure laws.
     # ------------------------------------------------------------------
 
-    def __add__(self, other: "LinearOperator[V]") -> "OperatorSum[V]":
+    def __add__(
+        self, other: "LinearOperator[Domain, Codomain]",
+    ) -> "OperatorSum[Domain, Codomain]":
         return OperatorSum(self, other)
 
-    def __radd__(self, other: "LinearOperator[V]") -> "OperatorSum[V]":
+    def __radd__(
+        self, other: "LinearOperator[Domain, Codomain]",
+    ) -> "OperatorSum[Domain, Codomain]":
         return OperatorSum(other, self)
 
-    def __sub__(self, other: "LinearOperator[V]") -> "OperatorSum[V]":
+    def __sub__(
+        self, other: "LinearOperator[Domain, Codomain]",
+    ) -> "OperatorSum[Domain, Codomain]":
         return OperatorSum(self, ScaledOperator(-1.0, other))
 
-    def __rsub__(self, other: "LinearOperator[V]") -> "OperatorSum[V]":
+    def __rsub__(
+        self, other: "LinearOperator[Domain, Codomain]",
+    ) -> "OperatorSum[Domain, Codomain]":
         return OperatorSum(other, ScaledOperator(-1.0, self))
 
-    def __mul__(self, other: float) -> "ScaledOperator[V]":
+    def __mul__(self, other: float) -> "ScaledOperator[Domain, Codomain]":
         if not isinstance(other, (int, float, np.floating, np.integer)):
             return NotImplemented
         return ScaledOperator(float(other), self)
 
-    def __rmul__(self, other: float) -> "ScaledOperator[V]":
+    def __rmul__(self, other: float) -> "ScaledOperator[Domain, Codomain]":
         return self.__mul__(other)
 
-    def __neg__(self) -> "ScaledOperator[V]":
+    def __neg__(self) -> "ScaledOperator[Domain, Codomain]":
         r"""Unary minus: return :math:`-A` as ``ScaledOperator(-1.0, A)``.
 
         Pythonic completion of the ``__sub__`` family — when ``A - B``
@@ -467,7 +440,7 @@ class LinearOperatorMixin(Generic[V]):
         """
         return ScaledOperator(-1.0, self)
 
-    def __truediv__(self, scalar: float) -> "ScaledOperator[V]":
+    def __truediv__(self, scalar: float) -> "ScaledOperator[Domain, Codomain]":
         r"""Scalar division: ``A / α`` is ``(1/α) * A``.
 
         Used for normalisation in eigenvalue / Krylov iterations
@@ -484,10 +457,16 @@ class LinearOperatorMixin(Generic[V]):
             return NotImplemented
         return ScaledOperator(1.0 / float(scalar), self)
 
-    def __matmul__(self, other: "LinearOperator[V]") -> "OperatorProduct[V]":
+    def __matmul__(
+        self, other: "LinearOperator[D2, Domain]",
+    ) -> "OperatorProduct[D2, Codomain]":
+        # ``self`` (Domain → Codomain) ∘ ``other`` (D2 → Domain): the
+        # intermediate carrier is ``self``'s domain ``Domain`` =
+        # ``other``'s codomain — captured as ``OperatorProduct``'s
+        # ``Cmid``, giving the honest ``D2 → Codomain``.
         return OperatorProduct(self, other)
 
-    def __and__(self, other: "LinearOperator[V]") -> "TensorProductOperator":
+    def __and__(self, other: "LinearOperator[Domain]") -> "TensorProductOperator":
         r"""Return :math:`A \otimes B` — the per-axis tensor-product operator.
 
         Per Grand Report v3 §6.3 line 721 and §15.1 line 2044. For two
@@ -501,7 +480,7 @@ class LinearOperatorMixin(Generic[V]):
         """
         return TensorProductOperator._build(self, other)
 
-    def __rand__(self, other: "LinearOperator[V]") -> "TensorProductOperator":
+    def __rand__(self, other: "LinearOperator[Domain]") -> "TensorProductOperator":
         return TensorProductOperator._build(other, self)
 
     def __call__(self, *args, **kwargs):
@@ -515,10 +494,15 @@ class LinearOperatorMixin(Generic[V]):
         1-arg :class:`LinearOperator`), but the generic forwarding is
         retained for future multi-argument operators.
         """
-        return self.apply(*args, **kwargs)  # type: ignore[attr-defined]
+        return self.apply(*args, **kwargs)
 
-    def __pow__(self, n: int) -> "LinearOperator[V]":
+    def __pow__(self, n: int) -> "LinearOperator[Domain, Domain]":
         r"""Return :math:`A^n` for non-negative integer ``n``.
+
+        Only an *endomorphic* operator is powerable (``A @ A`` requires
+        ``A``'s codomain to equal its domain), so the return is the
+        single-carrier ``[Domain, Domain]`` — a flux→source ``S`` has no
+        ``S**2``.
 
         ``n == 0`` returns :class:`IdentityOperator`. ``n == 1``
         returns ``self`` unchanged. ``n >= 2`` builds the composition
@@ -538,18 +522,29 @@ class LinearOperatorMixin(Generic[V]):
         if n == 0:
             return IdentityOperator()
         if n == 1:
-            return self  # type: ignore[return-value]
-        result: "LinearOperator[V]" = self  # type: ignore[assignment]
+            return cast("LinearOperator[Domain, Domain]", self)
+        # __pow__ is only valid for an endomorphic operator (``A @ A``
+        # needs codomain == domain); cast ``self`` to its
+        # ``[Domain, Domain]`` view to express the precondition the
+        # general ``[Domain, Codomain]`` method cannot carry in its
+        # own signature.
+        endo = cast("LinearOperator[Domain, Domain]", self)
+        result: "LinearOperator[Domain, Domain]" = endo
         for _ in range(n - 1):
-            result = result @ self
+            result = result @ endo
         return result
 
     # ------------------------------------------------------------------
     # Adjoint
     # ------------------------------------------------------------------
 
-    def adjoint(self) -> "LinearOperator[V]":
+    def adjoint(self) -> "LinearOperator[Codomain, Domain]":
         r"""Return the Hilbert adjoint :math:`A^*`.
+
+        The adjoint SWAPS the carriers: for ``A : Domain → Codomain`` the
+        adjoint is ``A^* : Codomain → Domain`` (it maps the codomain back
+        to the domain), so the return type is the swapped
+        ``[Codomain, Domain]``.
 
         For an operator :math:`A : V \to W` with diagonal inner-product
         weights :math:`w_V` (on the domain) and :math:`w_W` (on the
@@ -570,12 +565,14 @@ class LinearOperatorMixin(Generic[V]):
         underlying operator advertises :pydata:`CAP_APPLY_TRANSPOSE`;
         otherwise the call to :meth:`apply` will raise at call time.
         """
-        return _AdjointOperator(self)  # type: ignore[arg-type]
+        return _AdjointOperator(self)
 
     @property
-    def H(self) -> "LinearOperator[V]":
+    def H(self) -> "LinearOperator[Codomain, Domain]":
         """Alias for :meth:`adjoint`. Matches the Grand Report v3 §6.3
-        Hilbert-adjoint vocabulary (``A.H`` reads as "A dagger")."""
+        Hilbert-adjoint vocabulary (``A.H`` reads as "A dagger"). Swaps
+        the carriers ``[Domain, Codomain] → [Codomain, Domain]`` (see
+        :meth:`adjoint`)."""
         return self.adjoint()
 
     # ------------------------------------------------------------------
@@ -592,15 +589,41 @@ class LinearOperatorMixin(Generic[V]):
         return f"<{cls} domain={d_name} codomain={c_name} caps={caps}>"
 
 
+def _has(op: object, cap: str) -> bool:
+    """Return True iff ``op`` advertises capability ``cap``.
+
+    Bare protocol-check that tolerates objects without the attribute
+    (returns False). Used by composers to decide which capabilities
+    propagate.
+    """
+    caps = getattr(op, "capabilities", None)
+    return bool(caps) and cap in caps
+
+
+# ───────────────────────────────────────────────────────────────────────
+# Composition primitives
+# ───────────────────────────────────────────────────────────────────────
+
+
 # ---------------------------------------------------------------------------
 # Adjoint wrapper
 # ---------------------------------------------------------------------------
 
 
-class _AdjointOperator(LinearOperatorMixin[V]):
+class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomain]):
     """Hilbert-adjoint wrapper around a :class:`LinearOperator`.
 
-    Constructed by :meth:`LinearOperatorMixin.adjoint` (and its alias
+    Presents the SWAPPED carriers: an inner ``A : Domain → Codomain``
+    becomes ``A^* : Codomain → Domain``. The explicit
+    ``Generic[Domain, Codomain]`` pins the class's type-parameter order to
+    ``[Domain, Codomain]`` (the non-defaulted ``Domain`` first) even though
+    the base is the swapped ``LinearOperator[Codomain, Domain]`` — without
+    it ``Codomain`` (which carries ``default=Domain``) would land before
+    the non-defaulted ``Domain`` in the inferred parameter list, which
+    PEP-696 forbids. This is the ONLY composer with ``[Codomain, Domain]``
+    order.
+
+    Constructed by :meth:`LinearOperator.adjoint` (and its alias
     ``A.H``). Domain/codomain are swapped relative to the inner operator;
     :meth:`apply` performs the weight-aware adjoint action.
 
@@ -614,7 +637,7 @@ class _AdjointOperator(LinearOperatorMixin[V]):
     until a consumer demands it.
     """
 
-    def __init__(self, inner: "LinearOperator[V]") -> None:
+    def __init__(self, inner: "LinearOperator[Domain, Codomain]") -> None:
         self.inner = inner
         # Capability swap: adjoint can apply iff inner can apply_transpose.
         caps: set[str] = set()
@@ -640,7 +663,7 @@ class _AdjointOperator(LinearOperatorMixin[V]):
     def codomain(self) -> Optional["FunctionSpace"]:
         return getattr(self.inner, "domain", None)
 
-    def apply(self, y: V) -> V:
+    def apply(self, y: Codomain) -> Domain:
         if not _has(self.inner, CAP_APPLY_TRANSPOSE):
             raise MissingCapability(
                 f"adjoint application requires {CAP_APPLY_TRANSPOSE!r} on "
@@ -669,7 +692,7 @@ class _AdjointOperator(LinearOperatorMixin[V]):
             result = inner_domain.apply_inverse_metric(result)
         return result
 
-    def apply_transpose(self, x: V) -> V:
+    def apply_transpose(self, x: Domain) -> Codomain:
         raise NotImplementedError(
             "apply_transpose on an _AdjointOperator wrapper is not "
             "supported in 9.6; if a consumer needs it, take the adjoint "
@@ -677,7 +700,7 @@ class _AdjointOperator(LinearOperatorMixin[V]):
         )
 
 
-class OperatorSum(LinearOperatorMixin[V]):
+class OperatorSum(LinearOperator[Domain, Codomain]):
     r"""Sum of two linear operators: :math:`(A + B)\,x = A\,x + B\,x`.
 
     Capability closure laws:
@@ -700,7 +723,7 @@ class OperatorSum(LinearOperatorMixin[V]):
         mid-iteration.
     """
 
-    def __init__(self, a: LinearOperator[V], b: LinearOperator[V]) -> None:
+    def __init__(self, a: LinearOperator[Domain, Codomain], b: LinearOperator[Domain, Codomain]) -> None:
         if not _has(a, CAP_APPLY):
             raise MissingCapability(
                 f"OperatorSum requires apply on both operands; left "
@@ -756,14 +779,14 @@ class OperatorSum(LinearOperatorMixin[V]):
         a_cod = getattr(self.a, "codomain", None)
         return a_cod if a_cod is not None else getattr(self.b, "codomain", None)
 
-    def apply(self, x: V, /) -> V:
+    def apply(self, x: Domain, /) -> Codomain:
         return self.a.apply(x) + self.b.apply(x)
 
-    def apply_transpose(self, x: V, /) -> V:
+    def apply_transpose(self, x: Codomain, /) -> Domain:
         return self.a.apply_transpose(x) + self.b.apply_transpose(x)  # type: ignore[attr-defined]
 
 
-class OperatorProduct(LinearOperatorMixin[V]):
+class OperatorProduct(LinearOperator[Domain, Codomain]):
     r"""Composition of two linear operators: :math:`(A\,B)\,x = A(B\,x)`.
 
     Capability closure laws:
@@ -782,7 +805,10 @@ class OperatorProduct(LinearOperatorMixin[V]):
         If either operand lacks :pydata:`CAP_APPLY` at construction.
     """
 
-    def __init__(self, a: LinearOperator[V], b: LinearOperator[V]) -> None:
+    def __init__(self, a: LinearOperator[Cmid, Codomain], b: LinearOperator[Domain, Cmid]) -> None:
+        # ``A @ B``: ``B`` maps the input ``V`` to the intermediate
+        # ``Cmid``, ``A`` maps ``Cmid`` to the output ``W`` — so the
+        # product is honestly ``V → W`` with ``Cmid`` captured here.
         if not _has(a, CAP_APPLY):
             raise MissingCapability(
                 f"OperatorProduct requires apply on both operands; "
@@ -824,19 +850,19 @@ class OperatorProduct(LinearOperatorMixin[V]):
         # A @ B: output space is A.codomain.
         return getattr(self.a, "codomain", None)
 
-    def apply(self, x: V, /) -> V:
+    def apply(self, x: Domain, /) -> Codomain:
         return self.a.apply(self.b.apply(x))
 
-    def solve(self, b_vec: V) -> V:
-        # (AB)^{-1} = B^{-1} A^{-1}
+    def solve(self, b_vec: Codomain) -> Domain:
+        # (AB)^{-1} = B^{-1} A^{-1} — maps the codomain W back to the domain V.
         return self.b.solve(self.a.solve(b_vec))  # type: ignore[attr-defined]
 
-    def apply_transpose(self, x: V, /) -> V:
-        # (AB)^T = B^T A^T
+    def apply_transpose(self, x: Codomain, /) -> Domain:
+        # (AB)^T = B^T A^T — maps the codomain W back to the domain V.
         return self.b.apply_transpose(self.a.apply_transpose(x))  # type: ignore[attr-defined]
 
 
-class ScaledOperator(LinearOperatorMixin[V]):
+class ScaledOperator(LinearOperator[Domain, Codomain]):
     r"""Scalar multiple of a linear operator: :math:`(\alpha L)\,x = \alpha\,(L\,x)`.
 
     Scalar multiplication is a unitary operation on the capability
@@ -846,7 +872,7 @@ class ScaledOperator(LinearOperatorMixin[V]):
     at composition time).
     """
 
-    def __init__(self, scalar: float, op: LinearOperator[V]) -> None:
+    def __init__(self, scalar: float, op: LinearOperator[Domain, Codomain]) -> None:
         if not _has(op, CAP_APPLY):
             raise MissingCapability(
                 f"ScaledOperator requires apply on its operand; "
@@ -883,18 +909,18 @@ class ScaledOperator(LinearOperatorMixin[V]):
     def codomain(self) -> Optional["FunctionSpace"]:
         return getattr(self.op, "codomain", None)
 
-    def apply(self, x: V, /, *extra, **kwextra) -> V:
+    def apply(self, x: Domain, /, *extra, **kwextra) -> Codomain:
         return self.scalar * self.op.apply(x, *extra, **kwextra)
 
-    def solve(self, b_vec: V) -> V:
-        # (αL)^{-1} = (1/α) L^{-1}
+    def solve(self, b_vec: Codomain) -> Domain:
+        # (αL)^{-1} = (1/α) L^{-1} — maps the codomain W back to the domain V.
         return (1.0 / self.scalar) * self.op.solve(b_vec)  # type: ignore[attr-defined]
 
-    def apply_transpose(self, x: V, /, *extra, **kwextra) -> V:
+    def apply_transpose(self, x: Codomain, /, *extra, **kwextra) -> Domain:
         return self.scalar * self.op.apply_transpose(x, *extra, **kwextra)  # type: ignore[attr-defined]
 
 
-class IdentityOperator(LinearOperatorMixin[V]):
+class IdentityOperator(LinearOperator[Domain]):
     r"""The identity operator :math:`I\,x = x`.
 
     All three primitive capabilities are trivially supported:
@@ -906,17 +932,17 @@ class IdentityOperator(LinearOperatorMixin[V]):
         {CAP_APPLY, CAP_SOLVE, CAP_APPLY_TRANSPOSE}
     )
 
-    def apply(self, x: V, /) -> V:
+    def apply(self, x: Domain, /) -> Domain:
         return x
 
-    def solve(self, b_vec: V) -> V:
+    def solve(self, b_vec: Domain) -> Domain:
         return b_vec
 
-    def apply_transpose(self, x: V, /) -> V:
+    def apply_transpose(self, x: Domain, /) -> Domain:
         return x
 
 
-class ZeroOperator(LinearOperatorMixin[V]):
+class ZeroOperator(LinearOperator[Domain, Codomain]):
     r"""The zero operator :math:`0\,x = 0`.
 
     Has ``apply`` (returns the zero of its CODOMAIN) and
@@ -965,20 +991,28 @@ class ZeroOperator(LinearOperatorMixin[V]):
     capabilities: frozenset[str] = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
     def __init__(
-        self, codomain_zero: "Callable[[V], V] | None" = None,
+        self, codomain_zero: "Callable[[Domain], Codomain] | None" = None,
     ) -> None:
         self._codomain_zero = codomain_zero
 
-    def apply(self, x: V, /) -> V:
+    def apply(self, x: Domain, /) -> Codomain:
         if self._codomain_zero is not None:
             return self._codomain_zero(x)
+        # Endomorphic default (domain == codomain ⟹ ``W`` is ``V``): the
+        # zero of the codomain IS ``0.0 * x``. ``cast`` is the PEP-484
+        # bridge for the one genuinely-untypeable spot — this branch is
+        # reached ONLY when no ``codomain_zero`` was supplied, i.e. when
+        # the operator is endomorphic and ``W == V``.
+        return cast("Codomain", 0.0 * x)
+
+    def apply_transpose(self, x: Domain, /) -> Domain:
+        # The transpose's codomain is the domain (V); a zero map's
+        # transpose is the zero echo. Not exercised for the non-endo
+        # (codomain_zero) case pre-#208.
         return 0.0 * x
 
-    def apply_transpose(self, x: V, /) -> V:
-        return 0.0 * x
 
-
-class PermutationOperator(LinearOperatorMixin):
+class PermutationOperator(LinearOperator):
     r"""Index permutation along a configurable axis: :math:`(P x)_i = x_{\pi(i)}`.
 
     For a permutation :math:`\pi : \{0, \ldots, N-1\} \to \{0, \ldots, N-1\}`
@@ -1082,7 +1116,7 @@ class PermutationOperator(LinearOperatorMixin):
         return np.take(b, self.inverse_perm, axis=self.axis)
 
 
-class IncomingOrdinateMaskTensor(LinearOperatorMixin):
+class IncomingOrdinateMaskTensor(LinearOperator):
     r"""Sparse inflow-ordinate mask: zeroes selected entries along an axis.
 
     For SN vacuum BCs at face :math:`f`, the inflow ordinate set is
@@ -1172,7 +1206,7 @@ class IncomingOrdinateMaskTensor(LinearOperatorMixin):
         return self.apply(x)
 
 
-class PeriodicWrapOperator(LinearOperatorMixin):
+class PeriodicWrapOperator(LinearOperator):
     r"""Spatial-pushforward operator for periodic boundaries.
 
     Represents the angular trace map that connects opposite faces of
@@ -1220,7 +1254,7 @@ class PeriodicWrapOperator(LinearOperatorMixin):
         return np.asarray(x).copy()
 
 
-class TensorProductOperator(LinearOperatorMixin):
+class TensorProductOperator(LinearOperator):
     r"""Per-axis tensor product :math:`A \otimes B \otimes \cdots`.
 
     Given a tuple of linear operators :math:`A_1, A_2, \ldots, A_k`
@@ -1341,7 +1375,7 @@ class TensorProductOperator(LinearOperatorMixin):
         return out
 
 
-class SumOfTensorProductsOperator(LinearOperatorMixin):
+class SumOfTensorProductsOperator(LinearOperator):
     r"""Sum of tensor products :math:`\sum_k A_k \otimes B_k \otimes \cdots`.
 
     The §15.2 / §15A.2 canonical form for scattering and streaming in
@@ -1434,7 +1468,7 @@ class SumOfTensorProductsOperator(LinearOperatorMixin):
                 )
 
 
-class DiagonalOperator(LinearOperatorMixin):
+class DiagonalOperator(LinearOperator):
     r"""Diagonal (pointwise) multiplication by a coefficient field.
 
     The operator multiplies a carrier tensor :math:`x` by a coefficient
@@ -1657,7 +1691,7 @@ class DiagonalOperator(LinearOperatorMixin):
         return b_arr / self._broadcast(b_arr.ndim)
 
 
-class RankOneOperator(LinearOperatorMixin):
+class RankOneOperator(LinearOperator):
     r"""Rank-1 outer-product on a tagged axis: :math:`|\ell\rangle\langle r|`.
 
     For two arrays :math:`\ell, r \in \mathbb{R}^{N \times P}` whose

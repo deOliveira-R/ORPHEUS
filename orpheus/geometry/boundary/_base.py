@@ -16,7 +16,7 @@ algebra (``+``, ``-``, ``*``, ``/``, ``-``) that returns
 :class:`~orpheus.geometry.boundary._composition.LawSum` /
 :class:`~orpheus.geometry.boundary._composition.LawScaled` nodes.
 It is **NOT** a callable operator — there is no ``apply`` method
-and no :class:`~orpheus.numerics.operator.LinearOperatorMixin`
+and no :class:`~orpheus.numerics.operator.LinearOperator`
 inheritance. The realizer is the **sole** bridge from descriptor to
 operator (see
 :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`).
@@ -101,7 +101,7 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
     :meth:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`),
     and Issue #186 cleanup (B3 + β2) makes this a type-level
     constraint: there is no abstract ``apply`` method to satisfy,
-    nor :class:`LinearOperatorMixin` inheritance to inherit one
+    nor :class:`LinearOperator` inheritance to inherit one
     from. Calling ``law.apply(psi)`` raises ``AttributeError`` at
     runtime; type checkers flag it statically.
 

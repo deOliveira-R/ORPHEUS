@@ -10500,7 +10500,7 @@ tree to a Wave-0 operator tree.
 
 The abstract base :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`
 is a **pure descriptor** post Issue #186 / B3 + β2 (2026-05-11)
-— it has **no** :meth:`apply` method. The :class:`LinearOperatorMixin`
+— it has **no** :meth:`apply` method. The :class:`LinearOperator`
 inheritance that historically supplied ``apply`` was removed; the
 concrete laws likewise carry no ``apply`` / ``apply_transpose``
 methods. The §16A.3 three-layer architecture (descriptor /

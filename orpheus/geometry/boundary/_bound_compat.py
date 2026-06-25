@@ -56,20 +56,15 @@ References
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import numpy as np
 
-from orpheus.numerics.operator import LinearOperatorMixin
-
-if TYPE_CHECKING:
-    from orpheus.numerics.operator import LinearOperator
+from orpheus.numerics.operator import LinearOperator
 
 
 __all__ = ["_BoundBoundaryOperator"]
 
 
-class _BoundBoundaryOperator(LinearOperatorMixin):
+class _BoundBoundaryOperator(LinearOperator):
     r"""Strict 1-arg passthrough wrapping a realized BC operator with a kind tag.
 
     The wrapped :attr:`inner` is a 1-arg realized
@@ -81,7 +76,7 @@ class _BoundBoundaryOperator(LinearOperatorMixin):
     being silently swallowed.
 
     Capabilities, ``apply_transpose``, and the
-    :class:`LinearOperatorMixin` dunders delegate to :attr:`inner`.
+    :class:`LinearOperator` dunders delegate to :attr:`inner`.
     The optional :attr:`kind` tag carries the originating
     :class:`~orpheus.geometry.mesh.BC` kind string and is the basis
     for the ``sn_mesh.bc["xmin"] == "reflective"`` style comparisons that

@@ -210,7 +210,7 @@ Two retired predecessors converged on this design:
   broke down once vacuum needed per-face inflow indices that the
   bare-law container had no access to.
 * **β1** (the Issue #186 / B3 interim that kept
-  :class:`LinearOperatorMixin` on :class:`BoundaryTraceLaw`):
+  :class:`LinearOperator` on :class:`BoundaryTraceLaw`):
   ``0.3 * spec + 0.7 * white`` produced an :class:`OperatorSum`
   with raw-law leaves whose realisation was deferred to
   apply-time. β1 was algebraically equivalent to β2 but conflated
@@ -306,7 +306,7 @@ Package layout (Wave 4 source-layout split, post-#186 descriptor cleanup)
 
 * :mod:`_base` -- :class:`BoundaryTraceLaw` ABC (Wave 3 / Wave 7
   ABC merge; Issue #186 / B3 + β2 dropped
-  :class:`~orpheus.numerics.operator.LinearOperatorMixin`
+  :class:`~orpheus.numerics.operator.LinearOperator`
   inheritance and the abstract ``apply``).
 * :mod:`_composition` -- :class:`LawSum` /
   :class:`LawScaled` / :data:`LawNode` descriptor-tree composition

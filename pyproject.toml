@@ -6,7 +6,13 @@ build-backend = "setuptools.build_meta"
 name = "orpheus"
 version = "0.1.0"
 description = "Open Reactor Physics Educational University System"
-requires-python = ">=3.11"
+# Floor raised 3.11 → 3.13 for native PEP-696 TypeVar defaults (the
+# two-param ``LinearOperator[Din, Cout]`` split, #65 / P4.5): the
+# ``Cout = TypeVar("Cout", default=Din)`` that keeps the ~7 single-param
+# ``LinearOperator[V]`` subscript sites meaning ``[V, V]`` needs native
+# ``typing.TypeVar(default=…)`` (3.13+), avoiding a ``typing_extensions``
+# dependency. Runtime is already 3.14; this drops 3.11/3.12 support.
+requires-python = ">=3.13"
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.14",
@@ -93,3 +99,8 @@ include = ["orpheus*"]
 # works locally and in the cloud once the setup creates ``.venv``.
 venvPath = "."
 venv = ".venv"
+# Pin the analysis target to the new floor (requires-python ">=3.13") so the
+# CLI oracle (#226) evaluates PEP-696 TypeVar defaults natively — without a
+# pin pyright infers 3.13 from requires-python's lower bound, but pinning
+# makes the two-param-split (#65) target explicit and stable.
+pythonVersion = "3.13"

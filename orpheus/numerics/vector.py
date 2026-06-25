@@ -30,10 +30,17 @@ scalar (the eigenvalue renormalisations ``F ψ / k`` and ``ψ / p``):
 
     \psi_{n+1} \;=\; L^{-1}\!\Bigl(\textstyle\sum_i g_i\,\psi_n + q\Bigr) .
 
-Everything that gets added in that loop (``g_i ψ``, ``q``, ``ψ``) must
-be the same vector type, which is why the algebra is an *endomorphism*
-algebra on one carrier (see :ref:`operator-algebra`). :class:`Vector`
-is that carrier's type.
+Everything *summed at a given stage* of that loop shares one carrier
+type — the closed source/sink algebra adds sources to sources (the
+``g_i ψ`` terms and ``q``), the flux space adds fluxes to fluxes (the
+``ψ`` iterates). :class:`Vector` is the structural type of *a* carrier;
+it does NOT assert that an operator maps a carrier to the *same*
+carrier. The operators are honestly
+:class:`~orpheus.numerics.operator.LinearOperator`\ ``[Din, Cout]`` —
+``S`` and ``F`` map a flux carrier to a *distinct* source/sink carrier,
+and ``L`` maps a flux composite to a source composite (see
+:ref:`operator-algebra`). The endomorphic majority (``C``, the loss
+solve) is the special case ``Din == Cout``.
 
 Why a *structural* (duck-typed) Protocol, not an ABC
 ----------------------------------------------------
@@ -67,9 +74,13 @@ Layering note
 Protocol cannot name ``TimedFullField`` directly. The structural
 :class:`Vector` is precisely how a transport-level carrier conforms to a
 numerics-level abstraction without ``numerics`` importing ``transport``.
-The :data:`V` type variable lets :meth:`LinearOperator.apply` be typed
-``apply(self, x: V) -> V`` — honest about the endomorphism, agnostic to
-which concrete carrier (flux, scalar, or moment state) flows through.
+The :data:`V` type variable is the structural carrier placeholder; the
+:class:`~orpheus.numerics.operator.LinearOperator` Protocol is
+parameterised over a *pair* ``[Din, Cout]`` so :meth:`apply` is typed
+``apply(self, x: Din) -> Cout`` — honest that an operator may map one
+carrier (flux) to a *distinct* carrier (source/sink), while ``[V] ≡
+[V, V]`` (a PEP-696 ``Cout = Din`` default) keeps the endomorphic
+majority spelled with a single parameter.
 """
 
 from __future__ import annotations
@@ -141,11 +152,16 @@ class Vector(Protocol):
         ...
 
 
-#: Type variable bound to :class:`Vector`, used to type the endomorphism
-#: signature ``apply(self, x: V) -> V`` on
-#: :class:`~orpheus.numerics.operator.LinearOperator`. A single ``V``
-#: (not a per-operator generic) is honest because every operator in the
-#: ``(L + C - S - F - B)`` algebra maps a carrier to a same-typed
-#: carrier; the inner leaf may change role (flux → source) at runtime,
-#: but the vector type does not.
+#: Type variable bound to :class:`Vector` — the structural carrier
+#: placeholder. It is the *invariant* parameter the operator-algebra
+#: composers (:class:`~orpheus.numerics.operator.OperatorSum`,
+#: :class:`~orpheus.numerics.operator.OperatorProduct`, …) are generic
+#: over, and the input side of the honest two-parameter
+#: :class:`~orpheus.numerics.operator.LinearOperator`\ ``[Din, Cout]``
+#: Protocol (whose ``Cout`` defaults to the input, so the endomorphic
+#: majority — ``C``, the loss solve — is still spelled ``[V]``).
+#: The single ``V`` is NOT an endomorphism claim: ``S``/``F`` genuinely
+#: map a flux carrier to a *distinct* source/sink carrier
+#: (``apply(x: Din) -> Cout`` with ``Cout ≠ Din``). #208 made that role
+#: change a typed fact; P4.5 (#65) made it the operator's *type*.
 V = TypeVar("V", bound=Vector)

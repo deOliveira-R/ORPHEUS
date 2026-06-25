@@ -100,7 +100,7 @@ from typing import TYPE_CHECKING
 from orpheus.numerics.operator import (
     BlockRole,
     DiagonalOperator,
-    LinearOperatorMixin,
+    LinearOperator,
 )
 
 if TYPE_CHECKING:
@@ -112,7 +112,7 @@ __all__ = ["MultiplicationOperator"]
 
 
 @dataclass(eq=False)
-class MultiplicationOperator(LinearOperatorMixin["FullField"]):
+class MultiplicationOperator(LinearOperator["FullField"]):
     r"""The promotion :math:`M[f]` of a coefficient field to a diagonal operator.
 
     Stores ONLY the coefficient; the mesh is read off the carrier at

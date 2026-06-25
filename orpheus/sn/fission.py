@@ -119,7 +119,7 @@ from orpheus.numerics.operator import (
     BlockRole,
     CAP_APPLY,
     IdentityOperator,
-    LinearOperatorMixin,
+    LinearOperator,
     RankOneOperator,
     TensorProductOperator,
 )
@@ -145,7 +145,7 @@ __all__ = ["FissionOperator"]
 
 
 @dataclass
-class FissionOperator(LinearOperatorMixin):
+class FissionOperator(LinearOperator):
     r"""Fission source operator :math:`F = \chi\,\otimes\,\nu\Sigma_f`.
 
     Reads :math:`\chi(\vec r)` and :math:`\nu\Sigma_{f,g}(\vec r)`

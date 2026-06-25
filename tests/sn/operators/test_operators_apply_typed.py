@@ -249,7 +249,7 @@ def test_full_algebra_returns_timed_full_field(name, builder) -> None:
 
     ``L + C`` dispatches to :class:`InvertibleOperator` (subclass of
     OperatorSum); subsequent ``-S - F`` chain through the generic
-    LinearOperatorMixin's ``__sub__`` → ``OperatorSum(self,
+    LinearOperator's ``__sub__`` → ``OperatorSum(self,
     ScaledOperator(other, -1))``.  The ``-1`` scaling propagates via
     :meth:`TimedFullField.__mul__` (which propagates to bulk +
     boundary members).  All four leaves carry their TimedFullField
@@ -333,7 +333,7 @@ def test_full_algebra_linearity(name, builder) -> None:
 # C6 — #257 S8c: the @singledispatchmethod fibration is honestly typed.
 #
 # ``FissionOperator`` / ``ScatteringOperator`` are NOT endomorphisms ``V -> V``
-# (the ``LinearOperatorMixin`` nominal contract): their ``apply`` maps each
+# (the ``LinearOperator`` nominal contract): their ``apply`` maps each
 # input *carrier* to a DISTINCT output carrier.  S8c made that honest with an
 # ``@overload`` surface over the runtime ``@singledispatchmethod`` (the public
 # ``apply`` is an alias of the private ``_apply_impl`` dispatcher).  Two halves:

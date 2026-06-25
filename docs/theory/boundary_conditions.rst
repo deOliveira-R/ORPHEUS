@@ -439,7 +439,7 @@ Boundary law (``BoundaryTraceLaw`` ABC + concretes)
 
 The base class :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`
 is an ``abc.ABC`` that combines
-:class:`~orpheus.numerics.operator.LinearOperatorMixin` (for
+:class:`~orpheus.numerics.operator.LinearOperator` (for
 operator-algebra dunders like ``+``, ``*``, ``@``) and
 :class:`~orpheus.numerics.registry.RegistryMixin` (so each concrete
 subclass self-registers under its ``key=`` class-creation kwarg).
@@ -462,7 +462,7 @@ The ABC ships:
    2026-05-11). The descriptor model that survived the C176.3
    Option A interim was retired in favour of a pure-descriptor
    contract: :class:`BoundaryTraceLaw` is no longer a
-   :class:`~orpheus.numerics.operator.LinearOperatorMixin` subclass,
+   :class:`~orpheus.numerics.operator.LinearOperator` subclass,
    no concrete law carries ``apply`` / ``apply_transpose``
    methods, and no ``capabilities`` ``ClassVar`` is defined.
    The §16A.3 three-layer split (descriptor / realizer / operator)
@@ -1397,7 +1397,7 @@ no access to.
 
 **β1 interim landing (Issue #186 / B3, ~2026-04)** — every
 :class:`BoundaryTraceLaw` inherited the Wave-0 operator-algebra
-dunders from :class:`~orpheus.numerics.operator.LinearOperatorMixin`,
+dunders from :class:`~orpheus.numerics.operator.LinearOperator`,
 so writing ``0.3 * spec + 0.7 * white`` directly produced an
 :class:`OperatorSum` of :class:`ScaledOperator`-wrapped raw
 :class:`BoundaryTraceLaw` leaves (NOT realized). The
@@ -1723,7 +1723,7 @@ remaining 2-arg ``apply`` affordance from the Wave-8/9 era into a
 **pure-descriptor** contract:
 
 * :class:`BoundaryTraceLaw` no longer inherits
-  :class:`~orpheus.numerics.operator.LinearOperatorMixin`.
+  :class:`~orpheus.numerics.operator.LinearOperator`.
 * The abstract :meth:`apply` method that the mixin used to provide
   is gone. So is ``apply_transpose``. So is the
   ``capabilities: ClassVar[frozenset[str]]`` advertisement.
@@ -1816,7 +1816,7 @@ C-B3.12) and deleted the ``apply`` methods.
 
 **β1 interim** (sub-option within Issue #186 B3, considered but
 not landed as a final state). Keep
-:class:`LinearOperatorMixin` inheritance on
+:class:`LinearOperator` inheritance on
 :class:`BoundaryTraceLaw` and drop only the abstract
 :meth:`apply`. Rank-N composition would then build an
 :class:`OperatorSum` of :class:`ScaledOperator`-wrapped *unrealized*
@@ -2757,7 +2757,7 @@ by the curvilinear-realizer-unification arc
 * **Issue #186 (B3 + β2)** — pure-descriptor cleanup (commits
   ``f71a32c`` + ``da414eb`` + ``89d09a4`` + ``633cc69`` +
   ``bb674da`` + the test-migration trail). Retired the Option-A
-  ``apply`` methods, dropped :class:`LinearOperatorMixin`
+  ``apply`` methods, dropped :class:`LinearOperator`
   inheritance from :class:`BoundaryTraceLaw`, and formalised the
   descriptor-tree composition algebra via the new
   :class:`LawSum` / :class:`LawScaled` types. The architectural
