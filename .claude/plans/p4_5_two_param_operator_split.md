@@ -12,18 +12,22 @@
 ## ⚑ SCOPE EXPANSION + STATUS (2026-06-24) — read FIRST
 
 > **✦✦ SESSION 2026-06-25 — COLD-PICKUP MARKER (read this first; supersedes the P4.5a-uncommitted note below).**
-> **W-A, W-B, W-C are LANDED + COMMITTED** on `refactor/operator-inverse-algebra` (NOT uncommitted — reconcile
+> **W-A, W-B, W-C, W-D are LANDED + COMMITTED** on `refactor/operator-inverse-algebra` (NOT uncommitted — reconcile
 > against git, not the P4.5a paragraph below which is now archaeology):
 > - `70d5d78` **W-A** base collapse (one invariant `LinearOperator(Protocol[Domain,Codomain])`, Mixin retired) + `53e54c6` plan.
 > - `f55bdad` **W-B** projection ABCs generic `[Domain,Codomain]` + `b88ceec` plan.
 > - `34f8eaa` **W-C** TimedFullField→FullField solve/residual boundary + `bf3adf0` plan.
 > - `61e8ddd` **W-C follow-on** scattering/fission runtime register keys → `FullField` (the `@overload` STUBS stay
 >   `TimedFullField` for W-F — see the W-F HEAD START note).
-> **Net: pyright `orpheus/` 419 → 412 (Δ−7), ZERO regressions; all gates green** (SN 1414 + the 7-and-only-7
-> pre-existing reds, 0-ULP scattering canary, tests/numerics 684, tests/transport 286, Sphinx -W clean).
-> **NEXT = W-D** (cross-method recognition — give C/F/S real composite full-field spaces, activate the
-> `(L+C−S−F)` composition guard; §3.1 critical risk; **REQUIRES a proactive `test-architect` dispatch FIRST**).
-> Then W-E → W-F (the overload restructure, register signatures already done) → W-G; W-H independent.
+> - `0610b39` **W-D** cross-method recognition: C/S/F gain real composite `domain`/`codomain`; the `(L+C)−S` guard
+>   is LIVE; de-SN-ified `sn_full_field` → `full_field`. (See the W-D section below for the 1-site/C-activator learnings.)
+> **Net: pyright `orpheus/` 419 → 412 (Δ−7 cumulative; W-D Δ0), ZERO regressions; all gates green** (SN 1414 + the
+> 7-and-only-7 pre-existing reds, 0-ULP scattering canary, tests/numerics 684, solve+eigenvalue 110, verification
+> L0/L1 88, Sphinx -W clean).
+> **NEXT = W-E** (promote the angular Frame to phase-space/quadrature ownership + typed face-operators; the
+> resolvent-borrow smell; `frame.conjugate(Λ)` = the double-category 2-cell). **REQUIRES a proactive `test-architect`
+> dispatch FIRST** (0-ULP-adjacent — the kernel crosscheck is the interchange-law witness). Then W-F (overload
+> restructure, register signatures already done) → W-G; W-H independent.
 
 **P4.5a (the numerics typevar foundation) is BUILT + VERIFIED (uncommitted, lands WITH 4.5b):** `operator.py`
 two-param `LinearOperator[Domain, Codomain]` / Mixin `Generic[V, W]` / composers threaded / `_AdjointOperator`
@@ -230,15 +234,34 @@ pre-existing reds; 0-ULP canary green; tests/numerics 684; Sphinx -W clean.
   "apply accepts ONLY TimedFullField" is stale vs the live `FullField` matvec guard (#257 S8a).
 NEXT = W-D (cross-method recognition — needs proactive `test-architect`).
 
-### W-D — cross-method recognition + §3.1 composition-guard close (D5).
-Today C/S/F carry `None` domain/codomain ⟹ the `(L+C−S−B)` guard SILENTLY SKIPS them (bites only L↔B). Give
-C/S/F a `domain`/`codomain` returning the COMPOSITE full-field space (the SAME instance L/B advertise) ⟹ the
-guard fully validates, `IncompatibleOperatorComposition` reachable on a mis-spaced operand. **Per D5 the space
-is TRANSPORT-level, not `sn_full_field`** — de-SN-ify the name OR coordinate the rename with #261. This makes
-C/F/S/B relocation-ready (the honest two-param + composite-space tagging is the cross-method shape #261 wants);
-the actual file-move stays #261 (core/adapter split). `LegendreMomentScattering` is the worked precedent (gained
-real SH spaces, retired its `cast`). Gate: the balance matvec/SI/Krylov/eigenvalue green; a NEW negative test
-(mis-spaced compose raises) per vv-principles L11; 0-ULP canary green.
+### W-D — cross-method recognition + §3.1 composition-guard close (D5). ✅ **LANDED 2026-06-25 (`0610b39`).**
+`ScatteringOperator`/`FissionOperator`/`CollisionOperator` gained real `domain`/`codomain` returning the composite
+full-field space; the `(L+C)−S` guard is LIVE and `IncompatibleOperatorComposition` is reachable on a mis-spaced
+operand. De-SN-ified `sn_full_field` → `full_field` (user-approved 2026-06-25 — the operators that advertise it
+are cross-method). **S/F thread the `FullFieldSpace` via `from_solver_data`** (a numerics `FunctionSpace`, NOT an
+SN mesh — D5-honest, relocation-ready for #261); **C** uses its existing `self.sn_mesh.full_field_space`.
+**LEARNINGS (load-bearing; test-architect re-validated its 2026-06-24 memo against HEAD):**
+- **ONE production `OperatorSum` site, not two.** `evaluate_residual` (`solver.py`) has ZERO production callers
+  (test-only); the SOLE production OperatorSum is `InvertibleOperator(L,C)` (`_within_group_triple`, built on every
+  within-group solve). SI/Krylov/eigenvalue realise the matvec as `L.apply − Σgᵢ.apply` (no OperatorSum) ⟹ the
+  guard never fires on the converging path — only at the `L+C` build.
+- **Role split:** **C is the production gate-activator** (mis-naming C reds the `L+C` build ⟹ every solve); **S is
+  the residual-test vehicle** (mis-naming S reds the test-built `(L+C)−S−B`); **F NEVER composes** into a production
+  OperatorSum (always `F.apply` separately) ⟹ its space is the honest cross-method tag, gated at construction-level
+  only. Minimal gate-activating set = {C, S}; F rides along (bias-to-completion).
+- **Adjoint-unreachability of `(L+C−S−F−B).H` is preserved by the CAPABILITY lattice** (S/F advertise no
+  `apply_transpose`), NOT by `None` spaces — W-D's spaces don't touch it. The stale `StreamingOperator.domain`
+  "C/S/F report None" docstring + the `full_field_space`/`operator_algebra.rst` guard-claim prose were updated.
+- **`LegendreMomentScattering` precedent** already landed (P2/#47): it carries real `frame.basis_space` (MOMENT
+  space — NOT the composite; don't conflate) and retired its `cast`.
+- **The de-SN-ify was scoped to the COMPOSITE name only.** The leaf names `sn_bulk` (`geometry.py`) / `sn_trace`
+  (`trace_space.py`) stay (they are `compare=False` block metadata, out of the guard's `(name,shape)` identity, and
+  belong to #261's relocation). The 3 remaining `sn_full_field` mentions in source are historical prose ("de-SN-ified
+  from …"), not functional literals.
+Gate MET: pyright `orpheus/` **412 (Δ0)**; 7-and-only-7 pre-existing reds; 0-ULP scattering canary; tests/numerics
+684; solve+eigenvalue 110; verification L0/L1 88; Sphinx -W clean. Tests: T4.5 positive / negative-S (+Mode-11
+`co_qualname` anchor to `OperatorSum.__init__`) / production-teeth-C in `test_typed_residual_evaluation.py`.
+NEXT = W-E.
 
 ### W-E — promote the angular Frame + its typed face-operators (the horizontal-morphism factory).
 **REFRAMED by the categorical foundation (2026-06-25): the "four edges vs singledispatch" FORK is RESOLVED —
