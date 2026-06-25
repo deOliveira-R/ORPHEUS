@@ -690,23 +690,31 @@ class InvertibleOperator(OperatorSum["FullField"]):
     The ``.solve`` API
     ==================
 
-    The ``rhs`` parameter is a typed
-    :class:`~orpheus.sn.angular_flux.AngularFlux` carrying:
+    The ``rhs`` parameter is the timeless composite
+    :class:`~orpheus.transport.full_field.FullField` (W-C, P4.5).  The
+    history-bearing :class:`~orpheus.transport.timed_full_field.TimedFullField`
+    iterate passes through by inheritance (it IS a ``FullField``), and a
+    bare ``FullField`` is admitted as the ``history_depth = 0``
+    degenerate.  ``rhs`` carries:
 
-    * ``rhs.values`` — per-ordinate source ``(N, ng, nx, ny)``.  This
-      is treated as the per-ordinate anisotropic source
+    * ``rhs.bulk.values`` — per-ordinate source ``(N, ng, nx, ny)``.
+      This is treated as the per-ordinate anisotropic source
       :math:`Q^{\rm aniso}` that the sweep consumes (the isotropic
       source is zero).
     * ``rhs.boundary`` — face source / BC inflow trace.  Typically
       zero for volumetric SI/Krylov sources (which carry no face
       contribution); the persistent reflective-BC state lives on the
-      :class:`SNMesh` and is handled inside the sweep.
-    * ``rhs(1)`` (the lag-1 frame, when ``rhs.history_depth >= 2``) —
-      the previous iterate that GENERATED this source.  Threaded as
-      :pydata:`initial_guess` to ``loss_representation.sweep`` so the
-      curvilinear sweep can read the Carlson coupled-pole seed from
-      it.  ``None`` (cold start) → the sweep falls back to its
-      in-iteration-source default.
+      :class:`SNMesh` and is handled inside the sweep.  It seeds the
+      sweep's mutable boundary buffer (per-face copy) and falls back
+      as the inflow seed when no ``initial_guess`` is supplied.
+
+    The previous iterate :math:`\psi^{(k-1)}` is passed via the explicit
+    ``initial_guess`` keyword (NOT piggy-backed on a lag-1 frame of
+    ``rhs``).  The curvilinear sweep reads the Carlson coupled-pole seed
+    from its ``.bulk.values`` (container-agnostically — see
+    :func:`~orpheus.sn.loss_representation._initial_guess_values`).
+    ``None`` (cold start) → the sweep falls back to its
+    in-iteration-source default.
 
     Parameters
     ----------
@@ -856,10 +864,10 @@ class InvertibleOperator(OperatorSum["FullField"]):
 
     def solve(
         self,
-        rhs: "AngularFlux | TimedFullField",
+        rhs: "FullField",
         *,
-        initial_guess: "AngularFlux | TimedFullField | None" = None,
-    ) -> "AngularFlux | TimedFullField":
+        initial_guess: "FullField | None" = None,
+    ) -> "TimedFullField":
         r"""Invert :math:`(L + C)\,\psi = \text{rhs}` via the WDD sweep.
 
         The cell-balance equation
@@ -870,39 +878,33 @@ class InvertibleOperator(OperatorSum["FullField"]):
 
         Parameters
         ----------
-        rhs : AngularFlux or TimedFullField
-            Legacy :class:`AngularFlux` or composite
-            :class:`TimedFullField` carrying:
+        rhs : FullField
+            The timeless composite source (W-C, P4.5).  The
+            history-bearing :class:`TimedFullField` iterate passes
+            through by inheritance (it IS a ``FullField``), and a bare
+            :class:`~orpheus.transport.full_field.FullField` is admitted
+            as the ``history_depth = 0`` degenerate.  Carries:
 
-            * ``values`` / ``bulk.values`` — per-ordinate source
+            * ``bulk.values`` — per-ordinate source
               :math:`Q^{\rm aniso}`, shape ``(N, ng, nx, ny)``.
-            * ``boundary`` / ``bulk.boundary`` — BC inflow trace
-              (typically zero for SI/Krylov volumetric sources;
-              falls back as the seed when no ``initial_guess`` is
-              supplied).
+            * ``boundary`` — BC inflow trace (typically zero for
+              SI/Krylov volumetric sources; falls back as the seed when
+              no ``initial_guess`` is supplied).
 
-            Both branches dispatch via runtime isinstance; the
-            composite branch (D-H.1c stage 1) bridges through the
-            legacy sweep path internally and returns
-            :class:`TimedFullField`.  Output type matches input type.
-        initial_guess : AngularFlux, TimedFullField, or None, optional
+            The legacy :class:`AngularFlux` arm is retired (it is NOT a
+            ``FullField``, so the guard rejects it).
+        initial_guess : FullField or None, optional
             Previous iterate :math:`\psi^{(k-1)}` for the curvilinear
-            Carlson coupled-pole seed (M-M reads it as the level's
-            angular flux to derive :math:`\bar Q` at :math:`\mu = -1`).
-            Its ``.boundary`` also seeds the reflective-BC partner-flux
-            trace when present (the previous outflow IS the partner-
-            ordinate inflow).  ``None`` (default) → cold start: M-M's
+            Carlson coupled-pole seed (M-M reads its ``.bulk.values`` as
+            the level's angular flux to derive :math:`\bar Q` at
+            :math:`\mu = -1`).  ``None`` (default) → cold start: M-M's
             Carlson seed degenerates to the zero-input result (same
-            as ``ZeroSeed`` ablation); BC trace falls back to
-            ``rhs.boundary``.
-
-            Type must match ``rhs`` (both legacy or both composite);
-            mixed inputs raise :class:`TypeError`.
+            as ``ZeroSeed`` ablation).
 
             Explicit kwarg (post-Phase-1.2) — the seed is no longer
-            piggy-backed on ``rhs(1)`` (the AngularFlux lag-1 history
-            is reserved for time-derivative tracking, an unrelated
-            concern).  Outer iterators (:class:`SourceIteration`,
+            piggy-backed on a lag-1 frame of ``rhs`` (history threading
+            is the driver iterate's concern, an unrelated matter).
+            Outer iterators (:class:`SourceIteration`,
             :class:`KEigenvalue`) pass the previous iterate
             explicitly; GMRES residual calls pass ``None`` so the
             preconditioner doesn't silently route through stateful
@@ -911,12 +913,15 @@ class InvertibleOperator(OperatorSum["FullField"]):
 
         Returns
         -------
-        AngularFlux or TimedFullField
+        TimedFullField
             The angular flux satisfying :math:`(L + C)\,\psi =
             \text{rhs}`, with the sweep's outflow face state in
-            ``.boundary`` and ``history_depth`` inherited from
-            ``rhs.history_depth``.  Return type matches ``rhs`` input
-            type.
+            ``.boundary``.  The WDD sweep emits a
+            :class:`TimedFullField` iterate (the genuine driver-side
+            comonad carrier); its ``history_depth`` matches
+            ``rhs.history_depth`` (0 when ``rhs`` is a bare
+            ``FullField``), and ``_history`` is empty — the outer
+            SI / Krylov loop owns history threading.
         """
         return self._solve_timed_full_field(
             rhs, initial_guess=initial_guess,
@@ -924,10 +929,10 @@ class InvertibleOperator(OperatorSum["FullField"]):
 
     def solve_moments(
         self,
-        rhs: "TimedFullField",
+        rhs: "FullField",
         frame: "FrameBase",
         *,
-        initial_guess: "TimedFullField | None" = None,
+        initial_guess: "FullField | None" = None,
     ) -> "TimedFullField":
         r"""Invert :math:`(L + C)\,\psi = \text{rhs}` and return the harmonic
         MOMENTS of :math:`\psi`, projected IN-SWEEP per anti-diagonal — the full
@@ -960,9 +965,9 @@ class InvertibleOperator(OperatorSum["FullField"]):
 
     def _solve_timed_full_field(
         self,
-        rhs: "TimedFullField",
+        rhs: "FullField",
         *,
-        initial_guess: "TimedFullField | None" = None,
+        initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
     ) -> "TimedFullField":
         r"""Composite :class:`TimedFullField` body of :meth:`solve` (D-H.1c stage 1).
@@ -973,21 +978,25 @@ class InvertibleOperator(OperatorSum["FullField"]):
         instance (S6.5, #222) — and handles the L2 field plumbing at
         the public-entry boundary.
 
-        The boundary plumbing for the reflective-BC partner-flux state
-        is preserved: ``initial_guess.boundary`` (composite) → legacy
-        BoundaryFlux via :meth:`TimedFullField.to_legacy_angular_flux`
-        → ``boundary_buf`` (the sweep's mutable write-through buffer)
-        via :func:`_copy_boundary_face_state`.  The sweep mutates
-        ``boundary_buf`` in place; the result is re-wrapped as an L2
-        composite at the end.
+        The boundary plumbing seeds the sweep's mutable write-through
+        buffer from the source trace: ``boundary_buf =
+        BoundaryFlux.zeros_on(sn_mesh)`` is filled per-face from
+        ``rhs.boundary`` via the L2 ``face_view`` copy
+        (``boundary_buf.face_view(face_name)[:] =
+        seed_boundary.face_view(face_name)`` for each shared face —
+        works for slab, curvilinear, and 2-D Cartesian).  The sweep
+        mutates ``boundary_buf`` in place; the result is re-wrapped as
+        an L2 composite at the end.
 
         Parameters
         ----------
-        rhs : TimedFullField
-            Per-ordinate source on the composite carrier.
-        initial_guess : TimedFullField or None
-            Previous iterate (carries the partner-flux trace and
-            curvilinear Carlson seed).  ``None`` → cold start.
+        rhs : FullField
+            Per-ordinate source on the composite carrier (the timed
+            iterate passes via inheritance; a bare ``FullField`` is the
+            ``history_depth = 0`` degenerate).
+        initial_guess : FullField or None
+            Previous iterate (carries the curvilinear Carlson seed via
+            its ``.bulk.values``).  ``None`` → cold start.
 
         Returns
         -------
@@ -1007,37 +1016,41 @@ class InvertibleOperator(OperatorSum["FullField"]):
         from orpheus.transport.fields.harmonic_moment_flux import (
             HarmonicMomentFlux,
         )
+        from orpheus.transport.full_field import FullField
         from orpheus.transport.timed_full_field import TimedFullField
 
-        # D-H.2-C3: only the :class:`TimedFullField` composite branch remains;
-        # legacy :class:`AngularFlux` retired.  ``rhs`` and ``initial_guess``
-        # MUST be :class:`TimedFullField` (or ``None`` for ``initial_guess``).
-        # Single guard site for both :meth:`solve` and :meth:`solve_moments`.
-        if not isinstance(rhs, TimedFullField):
+        # W-C (P4.5): the operator boundary speaks the timeless
+        # :class:`FullField` composite; the timed iterate passes via
+        # inheritance (``TimedFullField`` IS a ``FullField``), and a bare
+        # ``FullField`` is admitted as the ``history_depth=0`` degenerate.
+        # Legacy :class:`AngularFlux` stays retired — it is NOT a
+        # ``FullField``, so the guard still rejects it.  Single guard site
+        # for both :meth:`solve` and :meth:`solve_moments`.
+        if not isinstance(rhs, FullField):
             raise TypeError(
-                f"InvertibleOperator: 'rhs' must be TimedFullField; "
+                f"InvertibleOperator: 'rhs' must be FullField; "
                 f"got {type(rhs).__name__}.  Legacy AngularFlux retired "
                 f"in D-H.2-C3."
             )
         if initial_guess is not None and not isinstance(
-            initial_guess, TimedFullField,
+            initial_guess, FullField,
         ):
             raise TypeError(
                 f"InvertibleOperator: 'initial_guess' must be "
-                f"TimedFullField or None; got "
+                f"FullField or None; got "
                 f"{type(initial_guess).__name__}."
             )
 
         sn_mesh = self.sn_mesh
         if rhs.bulk.mesh is not sn_mesh:
             raise ValueError(
-                "InvertibleOperator.solve(TimedFullField): rhs and "
+                "InvertibleOperator.solve(FullField): rhs and "
                 "operator must share the same SNMesh instance "
                 "(mesh-identity invariant)."
             )
         if initial_guess is not None and initial_guess.bulk.mesh is not sn_mesh:
             raise ValueError(
-                "InvertibleOperator.solve(TimedFullField): initial_guess "
+                "InvertibleOperator.solve(FullField): initial_guess "
                 "and operator must share the same SNMesh instance "
                 "(mesh-identity invariant)."
             )
@@ -1118,5 +1131,7 @@ class InvertibleOperator(OperatorSum["FullField"]):
             bulk=bulk,
             boundary=boundary_buf,
             _history=(),
-            history_depth=rhs.history_depth,
+            history_depth=(
+                rhs.history_depth if isinstance(rhs, TimedFullField) else 0
+            ),
         )

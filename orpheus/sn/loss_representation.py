@@ -244,7 +244,7 @@ class LossRepresentation(Protocol):
         sig_t: "np.ndarray",
         boundary_flux: "BoundaryFlux",
         *,
-        initial_guess: "AngularFlux | TimedFullField | None" = None,
+        initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         """Perform one within-group transport sweep on this strategy's mesh."""
@@ -503,7 +503,7 @@ class _LossRepresentation:
         sig_t: "np.ndarray",
         boundary_flux: "BoundaryFlux",
         *,
-        initial_guess: "AngularFlux | TimedFullField | None" = None,
+        initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         """One within-group sweep — every concrete strategy implements it."""
@@ -996,7 +996,7 @@ class CumprodScan(_LossRepresentation):
         sig_t: "np.ndarray",
         boundary_flux: "BoundaryFlux",
         *,
-        initial_guess: "AngularFlux | TimedFullField | None" = None,
+        initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         if moment_frame is not None:
@@ -1133,7 +1133,7 @@ class MovingFrontierWindow(_DAGWavefront):
         sig_t: "np.ndarray",
         boundary_flux: "BoundaryFlux",
         *,
-        initial_guess: "AngularFlux | TimedFullField | None" = None,
+        initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         return _sweep_jacobi(
@@ -1409,7 +1409,7 @@ class FullFieldWavefront(_DAGWavefront):
         sig_t: "np.ndarray",
         boundary_flux: "BoundaryFlux",
         *,
-        initial_guess: "AngularFlux | TimedFullField | None" = None,
+        initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         if moment_frame is not None:
@@ -1632,7 +1632,7 @@ class ScanMarch(_LossRepresentation):
         sig_t: "np.ndarray",
         boundary_flux: "BoundaryFlux",
         *,
-        initial_guess: "AngularFlux | TimedFullField | None" = None,
+        initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         if self.mesh.is_1d:
@@ -1941,7 +1941,7 @@ def transport_sweep(
     sn_mesh: "SNMesh",
     boundary_flux: "BoundaryFlux",
     *,
-    initial_guess: "AngularFlux | TimedFullField | None" = None,
+    initial_guess: "FullField | None" = None,
     moment_frame: "FrameBase | None" = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Perform one full transport sweep.
@@ -2012,19 +2012,20 @@ def transport_sweep(
     boundary_flux : BoundaryFlux
         Persistent :class:`BoundaryFlux` (mutated in place).  Build a
         zero-initialised instance via ``BoundaryFlux.zeros_on(sn_mesh)``.
-    initial_guess : AngularFlux, TimedFullField, or None, optional
+    initial_guess : FullField or None, optional
         Previous-iteration angular flux estimate, used for the
         curvilinear Carlson coupled-pole seed and the per-ordinate
         spatial-upstream inflow at the pole cell.  Ignored on slab.
         ``None`` (default) selects the in-iteration fallback seed.
 
-        Accepts both the legacy
-        :class:`~orpheus.sn.angular_flux.AngularFlux` (reads
-        ``.values``) and the composite
+        The timeless
+        :class:`~orpheus.transport.full_field.FullField` composite (the
+        history-bearing
         :class:`~orpheus.transport.timed_full_field.TimedFullField`
-        (reads ``.bulk.values``) via D-H.1c stage 4's
-        :func:`_initial_guess_values` extractor — the kernel reads
-        only the per-ordinate bulk ndarray, container-agnostic.
+        iterate passes via inheritance).  The kernel reads only the
+        per-ordinate bulk ndarray ``.bulk.values`` via the
+        container-agnostic :func:`_initial_guess_values` extractor — it
+        is history-blind.
     moment_frame : FrameBase or None, optional
         Phase 5c moment OUTPUT mode (2-D Cartesian ONLY — raises on a 1-D
         mesh).  ``None`` (default) returns the full per-ordinate angular flux
@@ -2095,7 +2096,7 @@ def _unwrap_source(source: "AngularSourceSink") -> np.ndarray:
 
 
 def _initial_guess_values(
-    initial_guess: "AngularFlux | TimedFullField | None",
+    initial_guess: "FullField | None",
 ) -> "np.ndarray | None":
     """Extract the per-ordinate bulk ndarray from either container type.
 
@@ -2104,15 +2105,15 @@ def _initial_guess_values(
     coupled-pole seed (transposed slice at level p) and the pole-cell
     spatial-upstream inflow (single-cell slice at ordinate global_n).
 
-    Both legacy :class:`~orpheus.sn.angular_flux.AngularFlux` and
-    composite :class:`~orpheus.transport.timed_full_field.TimedFullField`
-    carry the same ndarray under different attribute paths.  This
-    helper centralises the access so the kernel stays
-    container-agnostic.
+    The :class:`~orpheus.transport.full_field.FullField` composite (and
+    its :class:`~orpheus.transport.timed_full_field.TimedFullField`
+    subclass) exposes the ndarray under ``.bulk.values``.  This helper
+    centralises the access so the kernel stays container-agnostic and
+    history-blind.
 
     Parameters
     ----------
-    initial_guess : AngularFlux, TimedFullField, or None
+    initial_guess : FullField or None
         Container carrying the previous iterate, OR ``None`` for
         cold-start.
 
@@ -2162,7 +2163,7 @@ class _OneDimScanWalk:
         sig_t: np.ndarray,
         boundary_flux: "BoundaryFlux",
         *,
-        initial_guess: "AngularFlux | TimedFullField | None" = None,
+        initial_guess: "FullField | None" = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         r"""Geometry-blind 1-D SN sweep — three numpy tensor ops per ordinate.
 
@@ -2820,7 +2821,7 @@ class _OneDimScanWalk:
         geom: GeometryCoefficients,
         coll: CollisionCache,
         *,
-        initial_guess: "AngularFlux | TimedFullField | None" = None,
+        initial_guess: "FullField | None" = None,
     ) -> tuple[np.ndarray, np.ndarray]:
         """Inner body of the unified 1-D sweep.
 
@@ -3155,9 +3156,9 @@ class _OneDimScanWalk:
             # start) and emits the cell-centred half-angle face flux
             # ``φ̄_{1/2,i,g}`` per Hébert §3.9.4 Eqs. (3.432)-(3.435).
             closure = self.mesh.pole_angular_closure
-            # D-H.1c stage 4 — container-agnostic bulk extraction (works for
-            # legacy AngularFlux ``.values`` and composite TimedFullField
-            # ``.bulk.values`` identically).
+            # D-H.1c stage 4 — container-agnostic bulk extraction: the
+            # FullField composite (and its TimedFullField subclass) exposes
+            # the per-ordinate iterate under ``.bulk.values``; history-blind.
             ig_values = _initial_guess_values(initial_guess)
             if ig_values is not None:
                 # (N, ng, nx) → (ng, N, nx)

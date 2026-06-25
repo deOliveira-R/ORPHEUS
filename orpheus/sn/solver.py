@@ -56,6 +56,7 @@ from .scattering import ScatteringOperator
 from orpheus.transport.mesh.axis import Axis1D
 from .loss_representation import transport_sweep
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
 
 
@@ -227,7 +228,7 @@ def _within_group_triple(solver: "SNSolver") -> tuple:
     )
 
 
-def evaluate_residual(loss_op, psi, q_ext: "TimedFullField") -> "TimedFullField":
+def evaluate_residual(loss_op, psi, q_ext: "FullField") -> "FullField":
     r"""The typed equation residual :math:`r = A\,\psi - q` as a composite.
 
     Evaluates the within-group balance defect
@@ -239,7 +240,11 @@ def evaluate_residual(loss_op, psi, q_ext: "TimedFullField") -> "TimedFullField"
     via the named composition :meth:`AngularResidual.from_balance` /
     :meth:`BoundaryResidual.from_balance` (NOT a bare cross-class ``−``, which
     would mis-type the defect as a source), returning the typed composite
-    ``TimedFullField(bulk=AngularResidual, boundary=BoundaryResidual)``.
+    ``FullField(bulk=AngularResidual, boundary=BoundaryResidual)``.  A residual
+    is a one-shot balance defect — it carries no iteration history, so it is the
+    timeless :class:`~orpheus.transport.full_field.FullField` (the
+    ``history_depth = 0`` degenerate; W-C confines the timed type to the driver
+    iterate).
 
     This is the **#208 box-7 consumer** of the residual mint — the first
     production-reachable site that types the equation residual (the mint was
@@ -254,29 +259,33 @@ def evaluate_residual(loss_op, psi, q_ext: "TimedFullField") -> "TimedFullField"
     loss_op : LinearOperator
         The within-group loss operator ``L + C - S - B`` (compose it from
         :func:`_within_group_triple` as ``(L+C) - S - B``). ``loss_op.apply(psi)``
-        must return a ``TimedFullField`` of source-role members.
+        returns a ``FullField`` of source-role members (the matvec leaves are
+        timeless ``FullField -> FullField`` arrows).
     psi : TimedFullField
         The FULL-angular flux (``bulk`` an ``AngularFlux``; for a windowed 2-D
         solve pass the reconstructed ``Solution.angular_flux``, NOT the moment
         iterate — the operators consume per-ordinate flux).
-    q_ext : TimedFullField
-        The external source composite (``bulk`` / ``boundary`` source-role).
+    q_ext : FullField
+        The external source composite (``bulk`` / ``boundary`` source-role).  The
+        timeless ``FullField`` — a one-shot source carries no iteration history
+        (the timed iterate would pass via inheritance, but the residual output is
+        history-free regardless).
     """
     from orpheus.transport.residuals import AngularResidual, BoundaryResidual
 
     lhs = loss_op.apply(psi)  # (L+C−S−B)·ψ — a source-role composite
-    return TimedFullField(
+    # A residual is a one-shot balance defect, not an iterate — it carries no
+    # history, so it is the timeless FullField (the history_depth=0 degenerate
+    # of TimedFullField; W-C confines the timed type to the driver iterate).
+    return FullField(
         bulk=AngularResidual.from_balance(lhs=lhs.bulk, rhs=q_ext.bulk),
         boundary=BoundaryResidual.from_balance(
             lhs=lhs.boundary, rhs=q_ext.boundary,
         ),
-        # A residual is a one-shot balance defect, not an iterate — no history.
-        _history=(),
-        history_depth=0,
     )
 
 
-def boundary_vs_interior_split(residual: "TimedFullField") -> tuple[float, float]:
+def boundary_vs_interior_split(residual: "FullField") -> tuple[float, float]:
     r"""Split a typed residual composite into ``(boundary, interior)`` L2 norms.
 
     Returns the flat-L2 norm of the boundary residual and of the interior (bulk)
@@ -284,7 +293,7 @@ def boundary_vs_interior_split(residual: "TimedFullField") -> tuple[float, float
     norm — the same metric the SI stopping test uses). Discriminates a
     BC-realizer / reflective-trace defect (large ``boundary``) from an
     interior-streaming defect (large ``interior``) — free from the typed
-    composite ``TimedFullField(bulk=AngularResidual, boundary=BoundaryResidual)``.
+    composite ``FullField(bulk=AngularResidual, boundary=BoundaryResidual)``.
     """
     interior = float(np.linalg.norm(np.asarray(residual.bulk.values).ravel()))
     boundary = float(np.linalg.norm(np.asarray(residual.boundary.values).ravel()))
