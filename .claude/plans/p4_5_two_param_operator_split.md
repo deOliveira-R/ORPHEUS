@@ -170,10 +170,18 @@ explorer's "Protocols can't carry impls" was FALSE (spike-disproved); the cross-
   functional test gets MORE robust). Gate: pyright ≤419; `tests/numerics`+operator/iteration green; the 14
   isinstance sites pass.
 
-### W-B — `projection.py` honest faces (lowest-risk demonstrator; do FIRST after W-A).
-`AnalysisOperator`/`ReconstructionOperator` (`projection.py:90/120`): one-line `apply(self, x: Domain) -> Codomain`
-(ndarray/`Vector`-bound — layering: numerics, no transport carriers). The confession-shape WITHOUT overloads;
-proves the `[Domain,Codomain]` pattern at near-zero risk. Gate: frame/numerics green; pyright ≤419.
+### W-B — `projection.py` honest faces. ✅ **LANDED 2026-06-25 (uncommitted).**
+`AnalysisOperator`/`ReconstructionOperator` are now generic `LinearOperator[Domain, Codomain]` with
+`apply(self, x: Domain) -> Codomain` (the role IS `M : V → W` — two-typed by definition, not speculation);
+dropped the now-unused `import numpy as np`. **LEARNING (load-bearing for W-E):** the numerics frame faces
+(`_FrameAnalysis`/`_FrameReconstruction`) STAY BARE (un-subscripted) — `np.ndarray`/`NDArray` does NOT satisfy
+the `Vector` bound (numpy's `__add__` stubs don't return `Self`), so `AnalysisOperator[NDArray, NDArray]` is
+REJECTED by pyright (`reportInvalidTypeArguments`) and cascades to the `frame.conjugate` `OperatorProduct`
+composition. This confirms §2.5: ndarray-level numerics primitives stay bare; the V/W distinction lives in the
+runtime `domain`/`codomain` FunctionSpaces. **⟹ W-E's transport wrappers MUST subscript with real `Field`
+carriers (`AnalysisOperator[AngularFlux, HarmonicMomentFlux]`), NEVER ndarray.** Gate MET: pyright
+projection+frame 0 errors, full `orpheus/` **414 (Δ0, pyright-neutral)**, tests/numerics 684✓. Runtime-zero
+(subscript erased; faces unchanged). NEXT = W-C / W-D.
 
 ### W-C — `TimedFullField → FullField` boundary confinement (D1; transport+sn).
 Retype operator `apply`/`solve`/`matvec`/`rhs`/`q_ext`/`initial_guess` boundaries from `TimedFullField` →
