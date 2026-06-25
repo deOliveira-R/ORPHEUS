@@ -11,6 +11,20 @@
 
 ## ⚑ SCOPE EXPANSION + STATUS (2026-06-24) — read FIRST
 
+> **✦✦ SESSION 2026-06-25 — COLD-PICKUP MARKER (read this first; supersedes the P4.5a-uncommitted note below).**
+> **W-A, W-B, W-C are LANDED + COMMITTED** on `refactor/operator-inverse-algebra` (NOT uncommitted — reconcile
+> against git, not the P4.5a paragraph below which is now archaeology):
+> - `70d5d78` **W-A** base collapse (one invariant `LinearOperator(Protocol[Domain,Codomain])`, Mixin retired) + `53e54c6` plan.
+> - `f55bdad` **W-B** projection ABCs generic `[Domain,Codomain]` + `b88ceec` plan.
+> - `34f8eaa` **W-C** TimedFullField→FullField solve/residual boundary + `bf3adf0` plan.
+> - `61e8ddd` **W-C follow-on** scattering/fission runtime register keys → `FullField` (the `@overload` STUBS stay
+>   `TimedFullField` for W-F — see the W-F HEAD START note).
+> **Net: pyright `orpheus/` 419 → 412 (Δ−7), ZERO regressions; all gates green** (SN 1414 + the 7-and-only-7
+> pre-existing reds, 0-ULP scattering canary, tests/numerics 684, tests/transport 286, Sphinx -W clean).
+> **NEXT = W-D** (cross-method recognition — give C/F/S real composite full-field spaces, activate the
+> `(L+C−S−F)` composition guard; §3.1 critical risk; **REQUIRES a proactive `test-architect` dispatch FIRST**).
+> Then W-E → W-F (the overload restructure, register signatures already done) → W-G; W-H independent.
+
 **P4.5a (the numerics typevar foundation) is BUILT + VERIFIED (uncommitted, lands WITH 4.5b):** `operator.py`
 two-param `LinearOperator[Domain, Codomain]` / Mixin `Generic[V, W]` / composers threaded / `_AdjointOperator`
 `Generic[V, W]` / `ZeroOperator` `cast` bridge; `vector.py` prose corrected; `pyproject` floor → 3.13 +
@@ -202,12 +216,15 @@ pre-existing reds; 0-ULP canary green; tests/numerics 684; Sphinx -W clean.
   residual/source-builders + loss_representation.py's 7 `sweep` strategies** (9 `initial_guess` annotations).
   ~13 signature edits, not a one-line funnel. (The explorer's "single source of truth" claim was about
   operators, not the field carrier.)
-- **scattering/fission `@singledispatch` register-key + `@overload` → DEFERRED to W-F.** A `FullField`-first
-  `@overload` SHADOWS the bulk-field arms (`ScalarFlux`/`AngularFlux`/`ndarray`) — pyright's overlap detection
-  treats the composite BASE `FullField` as ⊇ those (whereas the narrow subclass `TimedFullField` did not), so the
-  ScalarFlux/ndarray overloads become "never used" and `S.apply(scalar)` resolves to `Unknown`
-  (`reportOverlappingOverload`). The fix is to RESTRUCTURE the overload stack (W-F's job), not swap one key. The
-  scattering/fission `apply` isn't needed for W-C's solve-boundary goal (the matvec still passes the timed iterate).
+- **scattering/fission `@singledispatch` RUNTIME register-key → DONE (W-C follow-on, `61e8ddd`); `@overload`
+  stubs → DEFERRED to W-F** (user directive 2026-06-25: change the runtime signatures now so W-F focuses on the
+  overloads with the signatures already done). The register `def _(self, psi: FullField)` is runtime-safe (the
+  `FullField` arm catches the `TimedFullField` iterate via MRO — verified: 86 scattering/fission tests + the 0-ULP
+  crosscheck canary green). The `@overload` STUBS stay `TimedFullField` because a `FullField`-first `@overload`
+  SHADOWS the bulk-field arms (`ScalarFlux`/`AngularFlux`/`ndarray`) — pyright's overlap detection treats the
+  composite BASE `FullField` as ⊇ those (the narrow subclass `TimedFullField` did not), so they become "never used"
+  and `S.apply(scalar)` → `Unknown` (`reportOverlappingOverload`). ⟹ W-F RESTRUCTURES the overload stack, not a key
+  swap. (register/overload now intentionally disagree — the transient W-F closes.)
 - **Pre-existing doc debt the archivist FLAGGED (future sweep, NOT W-C):** 4 dead `:class:`~orpheus.sn.angular_flux.AngularFlux``
   refs in `solver.py:1188/1366/1711/2366` (canonical = `orpheus.transport.fields.angular_flux`); `operator.py:304-305`
   "apply accepts ONLY TimedFullField" is stale vs the live `FullField` matvec guard (#257 S8a).
@@ -253,6 +270,16 @@ executes the new typed faces (not a bypass); the resolvent consumes the phase-sp
 borrow remains).
 
 ### W-F — `@overload` retirement + the shared `Operator[Flux, SourceSink]` emission abstraction (the DEEP one).
+**HEAD START (W-C follow-on, `61e8ddd`):** the RUNTIME `@singledispatch` register keys for the composite
+scattering/fission `apply` arm are ALREADY `FullField` (`def _(self, psi: FullField)`) — W-F starts with the
+runtime signatures done and FOCUSES on the `@overload` static stubs. **CAVEAT (load-bearing, why this is the deep
+one):** a naive `@overload def apply(self, psi: FullField)` as overload-1 SHADOWS the bulk-field arms
+(`ScalarFlux`/`AngularFlux`/`ndarray`) — pyright treats the composite BASE `FullField` as ⊇ those (the narrow
+subclass `TimedFullField` did NOT shadow them), so the bulk overloads become "never used" and `S.apply(scalar)` →
+`Unknown` (`reportOverlappingOverload`). ⟹ W-F must RESTRUCTURE the overload stack (reorder broad-last, or
+collapse to the typed-kernel `apply`), NOT swap the overload key. The register/overload now disagree
+(register=`FullField`, overload stubs=`TimedFullField`) — an intentional transient W-F closes.
+
 S and F ALREADY share the abstraction: both are a typed `kernel` (`OperatorProduct` `R∘Λ∘M` / `TensorProduct`
 rank-1) satisfying `IntegralKernelOperator`; **F is the rank-1 degenerate** `M_χ ∘ ProductionRate ∘ M_νΣf` of
 S's frame. Make C/F/S declare the honest leaf base `Operator[<Flux>, <SourceSink>]`, route `apply` through the
