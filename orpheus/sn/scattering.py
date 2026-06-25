@@ -1228,8 +1228,15 @@ class ScatteringOperator(LinearOperator):
         )
 
     @_apply_impl.register
-    def _(self, psi: TimedFullField) -> "FullField":
-        r"""Composite :class:`TimedFullField` variant — bulk-only scattering source.
+    def _(self, psi: FullField) -> "FullField":
+        r"""Composite :class:`FullField` variant — bulk-only scattering source.
+
+        Registered on the timeless :class:`FullField` (W-C): a
+        :class:`TimedFullField` iterate dispatches here via MRO (it IS a
+        ``FullField``), so the runtime is behaviour-preserving, and a bare
+        ``FullField`` now dispatches correctly. Reads only ``psi.bulk``
+        (history-blind). The ``@overload`` static stubs still name
+        ``TimedFullField`` — restructuring them is W-F (the overload retire).
 
         Math: identical to the :class:`AngularFlux` branch above —
         reduce ``psi.bulk`` angular → scalar, build iso :math:`P_0 +

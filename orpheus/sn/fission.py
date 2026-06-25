@@ -375,8 +375,15 @@ class FissionOperator(LinearOperator):
         )
 
     @_apply_impl.register
-    def _(self, psi: TimedFullField) -> "FullField":
-        r"""Composite :class:`TimedFullField` variant — bulk-only fission emission.
+    def _(self, psi: FullField) -> "FullField":
+        r"""Composite :class:`FullField` variant — bulk-only fission emission.
+
+        Registered on the timeless :class:`FullField` (W-C): a
+        :class:`TimedFullField` iterate dispatches here via MRO (it IS a
+        ``FullField``), so the runtime is behaviour-preserving, and a bare
+        ``FullField`` now dispatches correctly. Reads only ``psi.bulk``
+        (history-blind). The ``@overload`` static stubs still name
+        ``TimedFullField`` — restructuring them is W-F (the overload retire).
 
         Math: identical to the :class:`AngularFlux` branch above —
         reduce bulk angular → scalar via :math:`\phi = \sum_n w_n
