@@ -5760,11 +5760,15 @@ ndarray; rebuilt via :func:`dataclasses.replace`) so that the
 ``numerics`` layer never imports the ``transport`` layer — an
 architectural firewall that keeps the operator-algebra primitives
 domain-agnostic. The identity is the inherited ``(name, shape)`` tuple
-(``name = "sn_full_field"``, ``shape = (n_bulk + n_trace,)``), with the
+(``name = "full_field"``, ``shape = (n_bulk + n_trace,)``), with the
 block spaces as ``compare=False`` leaf metadata — so two composites over
 meshes of the same total dimension compare equal and the
 :class:`~orpheus.numerics.operator.OperatorSum` composition guard
-accepts ``L + C - B`` (every operand reports the same composite domain).
+accepts the full within-group loss ``L + C - S - B`` (every operand —
+:math:`L`, :math:`C`, :math:`S`, and :math:`B` — reports the same
+composite domain; P4.5 W-D gave the previously ``None``-spaced
+:math:`C`/:math:`S`/:math:`F` real spaces and de-SN-ified the name from
+``"sn_full_field"``).
 The mesh exposes it as the cached property
 :meth:`SNMesh.full_field_space <orpheus.sn.geometry.SNMesh.full_field_space>`.
 

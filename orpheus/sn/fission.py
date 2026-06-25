@@ -139,6 +139,8 @@ from orpheus.transport.timed_full_field import TimedFullField
 
 if TYPE_CHECKING:
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
+    from orpheus.numerics.space import FunctionSpace
+    from orpheus.numerics.spaces import FullFieldSpace
 
 
 __all__ = ["FissionOperator"]
@@ -172,6 +174,20 @@ class FissionOperator(LinearOperator):
     capabilities: frozenset[str] = field(
         default_factory=lambda: frozenset({CAP_APPLY})
     )
+
+    #: The composite full-field space (P4.5 W-D) — threaded from the solver's
+    #: ``sn_mesh.full_field_space`` via :meth:`from_solver_data`. ``F`` NEVER
+    #: enters a production :class:`~orpheus.numerics.operator.OperatorSum`
+    #: (it is always applied separately as ``F.apply(ψ)`` — the fission source
+    #: ``Fψ/k``), so this is the honest cross-method tag, NOT a guard-activator:
+    #: it keeps ``F`` uniform with ``C``/``S`` and ready for a future
+    #: ``(L+C-S-F-B)`` posing / DSA composition. ``None`` ⟹ ``domain``/
+    #: ``codomain`` report ``None`` (guard skips; backward-compatible). ``F``
+    #: depends on this numerics ``FunctionSpace``, NOT an SN mesh (D5).
+    full_field_space: "FullFieldSpace | None" = field(
+        default=None, repr=False, compare=False,
+    )
+
     # Fission is a BULK operator — `χ · νΣ_f · ⟨1, ψ⟩` reads and writes
     # the bulk flux only (A_bb), no boundary action. Issue #208 / Wave O.
     # Class-level constant (unannotated so the dataclass does not treat
@@ -196,18 +212,45 @@ class FissionOperator(LinearOperator):
         """
         return self.mat_xs.fission_production
 
+    # ── Operator-algebra space metadata (P4.5 W-D) ───────────────────
+    @property
+    def domain(self) -> "FunctionSpace | None":
+        r"""The composite full-field space (P4.5 W-D), or ``None`` if unthreaded.
+
+        :math:`F` advertises the SAME
+        :attr:`~orpheus.sn.geometry.SNMesh.full_field_space` instance
+        ``L``/``C``/``S``/``B`` carry (threaded via :meth:`from_solver_data`).
+        Unlike :math:`C`/:math:`S`, :math:`F` never enters a production
+        :class:`~orpheus.numerics.operator.OperatorSum` (the fission source is
+        applied as ``F.apply(ψ)`` and divided by ``k`` at the eigenvalue
+        layer), so this space activates no production guard today — it is the
+        honest cross-method tag that makes a future ``(L+C-S-F-B)`` posing or
+        DSA composition type-checkable. :math:`F` reads the bulk block only;
+        domain == codomain on the composite.
+        """
+        return self.full_field_space
+
+    @property
+    def codomain(self) -> "FunctionSpace | None":
+        # Endomorphic on the composite full-field space (see :meth:`domain`).
+        return self.full_field_space
+
     @classmethod
     def from_solver_data(
         cls, *, mat_xs: "MaterialXSField",
+        full_field_space: "FullFieldSpace | None" = None,
     ) -> "FissionOperator":
         """Construct from a :class:`MaterialXSField`.
 
         Issue #197 PR-TYPED-1 — the constructor surface collapses the
         ``(chi, sig_p)`` ndarray pair into one :class:`MaterialXSField`
         handle that carries both views consistently with the rest of
-        the four-operator algebra.
+        the four-operator algebra. ``full_field_space`` (P4.5 W-D) is the
+        composite space the solver threads so ``F.domain``/``codomain`` match
+        the rest of the algebra (the honest cross-method tag; ``F`` never
+        composes in production, so ``None`` is harmless for direct callers).
         """
-        return cls(mat_xs=mat_xs)
+        return cls(mat_xs=mat_xs, full_field_space=full_field_space)
 
     @property
     def kernel(self) -> "TensorProductOperator":

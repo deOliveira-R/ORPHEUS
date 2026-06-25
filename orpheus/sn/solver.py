@@ -918,9 +918,11 @@ class SNSolver:
             mat_xs=self.mat_xs,
             quadrature=sn_mesh.quad,
             scattering_order=self.scattering_order,
+            full_field_space=sn_mesh.full_field_space,
         )
         self.fission_op = FissionOperator.from_solver_data(
             mat_xs=self.mat_xs,
+            full_field_space=sn_mesh.full_field_space,
         )
         # The full transport operator :math:`L = \Omega\cdot\nabla + \Sigma_t`
         # as the algebraic sum :class:`StreamingOperator` +

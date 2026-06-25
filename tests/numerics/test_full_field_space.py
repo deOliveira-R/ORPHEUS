@@ -37,7 +37,7 @@ def _trace(n=8, weights=True) -> FunctionSpace:
 @pytest.mark.foundation
 def test_from_blocks_shape_is_flat_direct_sum():
     space = FullFieldSpace.from_blocks(_bulk((4, 2, 3, 1)), _trace(8))
-    assert space.name == "sn_full_field"
+    assert space.name == "full_field"
     assert space.shape == (4 * 2 * 3 * 1 + 8,)
     assert space.bulk_space.shape == (4, 2, 3, 1)
     assert space.trace_space.shape == (8,)
@@ -73,7 +73,7 @@ def test_repr_names_the_space_and_shape():
     space = FullFieldSpace.from_blocks(_bulk((4, 2, 3, 1)), _trace(8))
     r = repr(space)
     assert "FullFieldSpace" in r
-    assert "sn_full_field" in r
+    assert "full_field" in r
     assert str(space.shape) in r
 
 

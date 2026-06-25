@@ -342,14 +342,21 @@ class StreamingOperator(LinearOperator["FullField"]):
         without it the adjoint silently reduces to the metric-blind Euclidean
         transpose (Issue #208 risk R5).
 
-        ``C`` / ``S`` / ``F`` report ``None`` (skipped by the composition
-        guard), so ``L``'s composite domain propagates through ``OperatorSum``
-        to the **transpose-closed** sub-sums whose ``.H`` is actually reachable
-        — ``(L + C)`` and ``(L + C - B)`` — and every bulk leaf in those is
-        G-conjugated for free by the op-level :math:`G^{-1}(\sum \text{leaf}^{\mathsf T})G`.
-        The full prompt loss ``(L + C - S - F - B).H`` is **intentionally
-        unreachable**: ``S`` / ``F`` advertise no ``apply_transpose``, so
-        ``OperatorSum`` does not propagate ``CAP_APPLY_TRANSPOSE`` and
+        Since P4.5 W-D, ``C`` / ``S`` / ``F`` advertise the SAME composite
+        domain (the cross-method composition-guard close — see
+        :attr:`CollisionOperator.domain`), so the within-group
+        ``(L + C) - S - B`` :class:`~orpheus.numerics.operator.OperatorSum`
+        guard VALIDATES the build rather than silently skipping the formerly
+        ``None``-spaced summands. ``L``'s composite domain therefore agrees
+        with every summand, and the **transpose-closed** sub-sums whose ``.H``
+        is actually reachable — ``(L + C)`` and ``(L + C - B)`` — G-conjugate
+        every bulk leaf for free via the op-level
+        :math:`G^{-1}(\sum \text{leaf}^{\mathsf T})G`. The full prompt loss
+        ``(L + C - S - F - B).H`` stays **intentionally unreachable**, and W-D
+        does NOT change that — the unreachability is enforced by the CAPABILITY
+        lattice, not by ``None`` spaces: ``S`` / ``F`` advertise no
+        ``apply_transpose``, so ``OperatorSum`` does not propagate
+        ``CAP_APPLY_TRANSPOSE`` and
         :class:`~orpheus.numerics.operator._AdjointOperator` raises
         :class:`MissingCapability` (fails loud, never silently Euclidean —
         the capability lattice makes the metric-blind state unrepresentable).
@@ -604,6 +611,31 @@ class CollisionOperator(MultiplicationOperator):
         at construction.
         """
         return self.coefficient.values
+
+    # ── Operator-algebra space metadata (P4.5 W-D) ───────────────────
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        r"""The composite carrier :math:`V_{\rm bulk}\oplus V_{\rm trace}` (P4.5 W-D).
+
+        :math:`C` is a BULK multiplier (the boundary block is inert — a
+        multiplier has no face-trace action), but it advertises the SAME
+        composite :attr:`~orpheus.sn.geometry.SNMesh.full_field_space` that
+        :math:`L` carries (the identical ``@cached_property`` instance — the
+        :class:`InvertibleOperator` mesh-identity invariant guarantees
+        ``streaming.sn_mesh is diagonal.sn_mesh``). Carrying the real space is
+        what lets the production ``L + C``
+        :class:`~orpheus.numerics.operator.OperatorSum` composition guard
+        VALIDATE the build (equal domains AND codomains) on every within-group
+        solve, instead of silently skipping the formerly-``None``-spaced
+        operand. The composite domain == codomain (collision is endomorphic on
+        the full-field structure — flux block → source block, same shape).
+        """
+        return self.sn_mesh.full_field_space
+
+    @property
+    def codomain(self) -> Optional["FunctionSpace"]:
+        # Endomorphic on the composite full-field space (see :meth:`domain`).
+        return self.sn_mesh.full_field_space
 
     # ── Algebra dispatch — sweep-invertible composite (R-1 Step C) ────
 

@@ -20,13 +20,18 @@ Marks: ``foundation`` for the mint-guard + split + relative_to invariants;
 """
 from __future__ import annotations
 
+from unittest import mock
+
 import numpy as np
 import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh1D
+from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.numerics.spaces import FullFieldSpace
 from orpheus.sn.geometry import SNMesh
+from orpheus.sn.operator import CollisionOperator, StreamingOperator
 from orpheus.sn.solver import (
     SNSolver,
     _within_group_si,
@@ -173,3 +178,120 @@ def test_relative_to_source_is_norm_ratio():
     np.testing.assert_allclose(
         r.bulk.relative_to(q_ext.bulk), r.bulk.l2 / q_ext.bulk.l2, rtol=1e-12,
     )
+
+
+# ── T4.5 — P4.5 W-D: the composition-guard close (C/S/F carry the composite
+# full-field space; the guard fires on the real SN operators) ───────────────
+
+
+def _slab_2g_het_triple(nx: int = 12, n_ord: int = 8):
+    """Build a 2G het (fuel|moderator) P1 slab solver + the within-group
+    ``(LC, S, B)`` triple WITHOUT converging — the space-metadata gate needs
+    only construction, not the SI fixed point."""
+    fuel = get_mixture("A", "2g")
+    mod = get_mixture("B", "2g")
+    mat_ids = np.zeros(nx, dtype=int)
+    mat_ids[: nx // 2] = 2  # fuel | moderator split
+    mesh = Mesh1D(
+        edges=np.linspace(0.0, 4.0, nx + 1), mat_ids=mat_ids,
+        bc_left=BC("vacuum"), bc_right=BC("vacuum"),
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
+    sn_mesh = SNMesh(mesh, quad, {2: fuel, 0: mod})
+    solver = SNSolver(
+        sn_mesh, inner_solver="source_iteration", scattering_order=1,
+    )
+    LC, S, B = _within_group_triple(solver)
+    return solver, LC, S, B
+
+
+@pytest.mark.foundation
+def test_within_group_operands_share_the_composite_space():
+    r"""[P4.5 W-D, L11 POSITIVE] After W-D, ``L+C`` / ``S`` / ``F`` / ``B`` all
+    advertise the SAME composite ``full_field`` space, so the within-group
+    ``(L+C) - S - B`` :class:`~orpheus.numerics.operator.OperatorSum` guard
+    VALIDATES the build (equal domains AND codomains) instead of silently
+    skipping the formerly ``None``-spaced ``C`` / ``S`` / ``F``. Also pins the
+    D5 de-SN-ified name (``"full_field"``, not ``"sn_full_field"``)."""
+    solver, LC, S, B = _slab_2g_het_triple()
+    ffs = solver.sn_mesh.full_field_space
+    # D5: the cross-method composite-space name is method-agnostic.
+    if ffs.name != "full_field":
+        raise AssertionError(f"composite space not de-SN-ified: {ffs.name!r}")
+    # Every within-group operand reports the ONE composite space. ``solver.L``
+    # IS the production ``InvertibleOperator(L, C)`` — its very existence proves
+    # the ``L + C`` guard PASSED at construction with ``C``'s real space (a
+    # mismatch would have raised there).
+    for op, nm in [
+        (solver.L, "L+C"), (S, "S"), (B, "B"), (solver.fission_op, "F"),
+    ]:
+        if op.domain != ffs or op.codomain != ffs:
+            raise AssertionError(
+                f"{nm}.domain/codomain != full_field after W-D: "
+                f"{op.domain!r} / {op.codomain!r}"
+            )
+    # The guard is now ACTIVE (not skipped) and PASSES on the green path.
+    loss = LC - S - B  # MUST NOT raise
+    if loss.domain != ffs:
+        raise AssertionError(f"composed loss domain {loss.domain!r} != {ffs!r}")
+
+
+@pytest.mark.foundation
+def test_mis_spaced_scattering_reds_the_residual_composition():
+    r"""[P4.5 W-D, L11 NEGATIVE] A scattering operator advertising a MIS-NAMED
+    composite space makes ``(L+C) - S`` raise
+    :class:`~orpheus.numerics.operator.IncompatibleOperatorComposition` at
+    COMPOSITION time — the guard catches a convention-drift mis-composition the
+    matvec path (``L.apply - Σ gᵢ.apply``, no
+    :class:`~orpheus.numerics.operator.OperatorSum`) is structurally blind to.
+
+    Mode-11 (vv-principles): the raise must come FROM the
+    :meth:`OperatorSum.__init__` guard, pinned by BOTH the message text
+    (``"equal domains"`` — unique to that guard) AND the traceback's innermost
+    frame — not incidentally elsewhere."""
+    solver, LC, S, B = _slab_2g_het_triple()
+    ffs = solver.sn_mesh.full_field_space
+    # Right shape, WRONG name — the discriminating mis-composition. Patch the
+    # CLASS property in-process (auto-reverts; never a real edit / git checkout).
+    wrong = FullFieldSpace(name="full_field_TYPO", shape=ffs.shape)
+    with mock.patch.object(type(S), "domain", property(lambda self: wrong)), \
+         mock.patch.object(type(S), "codomain", property(lambda self: wrong)):
+        with pytest.raises(
+            IncompatibleOperatorComposition, match="equal domains",
+        ) as ei:
+            _ = LC - S - B
+    # Mode-11 provenance: the innermost frame IS the OperatorSum guard.
+    innermost = ei.traceback[-1].frame.code
+    if innermost.raw.co_qualname != "OperatorSum.__init__":
+        raise AssertionError(
+            f"raise came from {innermost.raw.co_qualname}, not "
+            "OperatorSum.__init__ — the named gate is not the catcher"
+        )
+    if not str(innermost.path).endswith("numerics/operator.py"):
+        raise AssertionError(
+            f"raise not from numerics/operator.py: {innermost.path}"
+        )
+
+
+@pytest.mark.foundation
+def test_mis_spaced_collision_reds_the_production_loss_build():
+    r"""[P4.5 W-D, production teeth] ``C`` is the production gate-activator: the
+    SOLE production :class:`~orpheus.numerics.operator.OperatorSum` is
+    ``InvertibleOperator(L, C)`` (the ``L + C`` build, run on EVERY within-group
+    solve — SI / Krylov / eigenvalue). Giving ``C`` a real space flips that
+    guard from silently-skipped to live; mis-naming ``C``'s space reds the
+    ``L + C`` build itself — the teeth on the converging path, which the
+    test-only residual composition (the ``- S`` arm) cannot reach."""
+    solver, _LC, _S, _B = _slab_2g_het_triple()
+    sn_mesh = solver.sn_mesh
+    ffs = sn_mesh.full_field_space
+    wrong = FullFieldSpace(name="full_field_TYPO", shape=ffs.shape)
+    L = StreamingOperator(sn_mesh)
+    C = CollisionOperator(sn_mesh, solver.mat_xs.total_cross_section_field)
+    _ = L + C  # POSITIVE control — correctly-spaced L + C composes
+    with mock.patch.object(type(C), "domain", property(lambda self: wrong)), \
+         mock.patch.object(type(C), "codomain", property(lambda self: wrong)):
+        with pytest.raises(
+            IncompatibleOperatorComposition, match="equal domains",
+        ):
+            _ = L + C

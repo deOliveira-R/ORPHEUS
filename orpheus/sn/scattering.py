@@ -188,6 +188,7 @@ if TYPE_CHECKING:
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.numerics.space import FunctionSpace
+    from orpheus.numerics.spaces import FullFieldSpace
 
 
 __all__ = ["LegendreMomentScattering", "ScatteringOperator"]
@@ -422,6 +423,44 @@ class ScatteringOperator(LinearOperator):
     _Y_cached: np.ndarray | None = field(
         default=None, init=False, repr=False,
     )
+
+    #: The composite full-field space this operator acts on (P4.5 W-D).
+    #: Threaded from the solver's ``sn_mesh.full_field_space`` via
+    #: :meth:`from_solver_data`; ``None`` for the bare/test constructor (then
+    #: ``domain``/``codomain`` report ``None`` and the composition guard skips
+    #: — backward-compatible). When present it is the SAME ``(name, shape)``
+    #: instance ``L``/``C``/``B`` carry, so the within-group ``(L+C) - S``
+    #: :class:`~orpheus.numerics.operator.OperatorSum` guard validates the
+    #: ``- S`` arm natively. ``S`` depends on this numerics ``FunctionSpace``,
+    #: NOT on an SN mesh — the D5 cross-method-honest handle (relocation-ready
+    #: for #261; ``S`` scatters in every method, not just SN).
+    full_field_space: "FullFieldSpace | None" = field(
+        default=None, repr=False, compare=False,
+    )
+
+    # ── Operator-algebra space metadata (P4.5 W-D) ───────────────────
+    @property
+    def domain(self) -> "FunctionSpace | None":
+        r"""The composite full-field space (P4.5 W-D), or ``None`` if unthreaded.
+
+        :math:`S` is a BULK 2-cell (the conjugation :math:`R\circ\Lambda\circ M`)
+        but composes into the within-group loss ``(L+C) - S`` as a
+        composite-field operator, so it advertises the SAME
+        :attr:`~orpheus.sn.geometry.SNMesh.full_field_space` instance
+        ``L``/``C``/``B`` carry (threaded via :meth:`from_solver_data`). Carrying
+        the real space lets the residual
+        :class:`~orpheus.numerics.operator.OperatorSum` guard VALIDATE the ``- S``
+        arm instead of silently skipping it (the ``None``-spaced default
+        pre-dates P4.5 W-D and keeps bare/test construction backward-compatible).
+        :math:`S` reads and writes the bulk block only; the boundary block is
+        inert, so domain == codomain on the composite.
+        """
+        return self.full_field_space
+
+    @property
+    def codomain(self) -> "FunctionSpace | None":
+        # Endomorphic on the composite full-field space (see :meth:`domain`).
+        return self.full_field_space
 
     # ── Convenience read-throughs (the legacy n_ordinates / nx / ny
     # / ng / weights / Y / cells_by_mat / sig_s / sig2 / sig_s0
@@ -759,8 +798,16 @@ class ScatteringOperator(LinearOperator):
         mat_xs: "MaterialXSField",
         quadrature: "Quadrature",
         scattering_order: int,
+        full_field_space: "FullFieldSpace | None" = None,
     ) -> "ScatteringOperator":
         """Construct from a :class:`MaterialXSField` + quadrature.
+
+        ``full_field_space`` (P4.5 W-D) is the composite
+        :attr:`~orpheus.sn.geometry.SNMesh.full_field_space` the solver
+        threads so ``S``'s ``domain``/``codomain`` match ``L``/``C``/``B``
+        and the within-group ``(L+C) - S`` composition guard validates the
+        ``- S`` arm. ``None`` (the default) leaves ``S`` space-less — the
+        guard skips it, preserving the legacy contract for direct callers.
 
         Issue #197 PR-TYPED-1 — the constructor surface collapses the
         eight separate per-material handles (``sig_s``, ``sig2``,
@@ -774,6 +821,7 @@ class ScatteringOperator(LinearOperator):
             mat_xs=mat_xs,
             quadrature=quadrature,
             scattering_order=scattering_order,
+            full_field_space=full_field_space,
         )
 
     # ── In-place helpers (preserve bit-identity vs SNSolver pre-Wave-D) ─
@@ -1083,6 +1131,7 @@ class ScatteringOperator(LinearOperator):
             mat_xs=derived_mat_xs,
             quadrature=self.quadrature,
             scattering_order=0,
+            full_field_space=self.full_field_space,
         )
 
     def residual_part(self) -> "ScatteringOperator":
@@ -1124,6 +1173,7 @@ class ScatteringOperator(LinearOperator):
             mat_xs=derived_mat_xs,
             quadrature=self.quadrature,
             scattering_order=self.scattering_order,
+            full_field_space=self.full_field_space,
         )
 
     def is_foldable_into_sigma_r(self) -> bool:

@@ -68,11 +68,18 @@ Identity
 ========
 
 Identity is the inherited ``(name, shape)`` tuple, with ``name =
-"sn_full_field"`` and ``shape = (n_bulk + n_trace,)`` (the flat direct-sum
-dimension). The block spaces are ``compare=False`` leaf metadata — two
-composites over meshes of the same total dimension compare equal, so the
-:class:`~orpheus.numerics.operator.OperatorSum` composition guard accepts
-``L + C - B`` (every operand reports the same composite domain).
+"full_field"`` and ``shape = (n_bulk + n_trace,)`` (the flat direct-sum
+dimension). The name is method-agnostic (P4.5 W-D de-SN-ified it from the
+former ``"sn_full_field"``: the operators that advertise it — :math:`C`,
+:math:`S`, :math:`F` — are cross-method, not SN-specific). The block spaces
+are ``compare=False`` leaf metadata — two composites over meshes of the same
+total dimension compare equal, so the
+:class:`~orpheus.numerics.operator.OperatorSum` composition guard accepts the
+full within-group loss ``L + C - S - B``: every bulk operand (:math:`L`,
+:math:`C`, :math:`S`) and the boundary :math:`B` reports the SAME composite
+domain. (P4.5 W-D gave :math:`C`/:math:`S`/:math:`F` real spaces; before that
+only :math:`L`/:math:`B` did, and the guard silently skipped the
+``None``-spaced summands.)
 
 References
 ----------
@@ -111,7 +118,7 @@ class FullFieldSpace(FunctionSpace):
     ----------
     name, shape, inner_product_weights
         Inherited from :class:`~orpheus.numerics.space.FunctionSpace`.
-        ``name`` is ``"sn_full_field"`` and ``shape`` is the flat
+        ``name`` is ``"full_field"`` and ``shape`` is the flat
         direct-sum dimension ``(n_bulk + n_trace,)``. The composite's own
         ``inner_product_weights`` stays ``None`` — the metric is carried
         per block by :attr:`bulk_space` / :attr:`trace_space`, and the
@@ -167,7 +174,7 @@ class FullFieldSpace(FunctionSpace):
         n_bulk = int(np.prod(bulk_space.shape))
         n_trace = int(np.prod(trace_space.shape))
         return cls(
-            name="sn_full_field",
+            name="full_field",
             shape=(n_bulk + n_trace,),
             bulk_space=bulk_space,
             trace_space=trace_space,
