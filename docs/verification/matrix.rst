@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5714**
+Total tests collected: **5733**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1161, 20.3%
-   L1, 994, 17.4%
+   L0, 1167, 20.4%
+   L1, 994, 17.3%
    L2, 36, 0.6%
    L3, 0, 0.0%
-   foundation, 3513, 61.5%
+   foundation, 3526, 61.5%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5625
+   explicit, 5644
    verify, 0
    class-name, 46
    func-name, 0
@@ -273,12 +273,14 @@ Module × level grid
    numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
    numerics/test_incoming_ordinate_mask_tensor, 13, 0, 0, 0, 0, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
+   numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
    numerics/test_iteration, 0, 1, 0, 0, 17, 0
    numerics/test_measure, 0, 16, 0, 0, 32, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_measure_phase, 0, 0, 0, 0, 11, 0
    numerics/test_operator, 0, 0, 0, 0, 56, 0
    numerics/test_operator_protocols, 0, 0, 0, 0, 14, 0
+   numerics/test_outer_dyad, 5, 0, 0, 0, 0, 0
    numerics/test_periodic_wrap_operator, 5, 0, 0, 0, 0, 0
    numerics/test_permutation_operator, 9, 2, 0, 0, 0, 0
    numerics/test_quadrature_directional, 0, 0, 0, 0, 23, 0
@@ -293,7 +295,7 @@ Module × level grid
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 0, 0
    numerics/test_spherical_harmonic_space, 0, 8, 0, 0, 6, 0
    numerics/test_symmetry, 0, 0, 0, 0, 71, 0
-   numerics/test_tensor_product_operator, 27, 0, 0, 0, 0, 0
+   numerics/test_tensor_product_operator, 24, 0, 0, 0, 0, 0
    numerics/test_trace_space, 10, 5, 0, 0, 12, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 8, 0
    numerics/test_weighted_indicator_basis, 0, 0, 0, 0, 9, 0
@@ -303,12 +305,12 @@ Module × level grid
    operators/test_bc_extraction_matvec, 3, 0, 0, 0, 30, 0
    operators/test_boundary_conditions, 0, 0, 0, 0, 11, 0
    operators/test_capability_survival, 0, 0, 0, 0, 6, 0
-   operators/test_collision_operator, 0, 0, 0, 0, 57, 0
-   operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 4, 0
+   operators/test_collision_operator, 0, 0, 0, 0, 54, 0
+   operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 5, 0
    operators/test_fission_operator, 0, 0, 0, 0, 18, 0
    operators/test_frame_conjugate_carve, 0, 0, 0, 0, 11, 0
    operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 12, 0
-   operators/test_invertible_operator, 1, 10, 0, 0, 23, 0
+   operators/test_invertible_operator, 1, 10, 0, 0, 22, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
@@ -326,7 +328,7 @@ Module × level grid
    operators/test_solver_components, 27, 0, 0, 0, 0, 0
    operators/test_streaming_operator, 0, 0, 0, 0, 54, 0
    operators/test_streaming_operator_decomposition, 21, 0, 0, 0, 0, 0
-   operators/test_typed_residual_evaluation, 1, 0, 0, 0, 3, 0
+   operators/test_typed_residual_evaluation, 1, 0, 0, 0, 6, 0
    primitives/test_axis_native_construction, 0, 0, 0, 0, 15, 0
    primitives/test_axis_primitive, 0, 0, 0, 0, 23, 0
    primitives/test_boundary_face_layout, 0, 0, 0, 0, 5, 0
@@ -370,7 +372,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 290, 0
+   test_layer_imports, 0, 0, 0, 0, 291, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -378,9 +380,10 @@ Module × level grid
    transport/test_full_field, 0, 0, 0, 0, 13, 0
    transport/test_functional_category, 0, 0, 0, 0, 11, 0
    transport/test_integral_kernel_category, 0, 0, 0, 0, 13, 0
+   transport/test_integrated_reaction_rate, 0, 0, 0, 0, 6, 0
    transport/test_material_mesh, 0, 0, 0, 0, 8, 0
-   transport/test_multiplication_operator, 0, 0, 0, 0, 11, 0
-   transport/test_production_rate_functional, 0, 0, 0, 0, 6, 0
+   transport/test_multiplication_operator, 0, 0, 0, 0, 16, 0
+   transport/test_reaction_rate_functional, 0, 0, 0, 0, 7, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0
 
 Equation coverage
@@ -658,7 +661,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **108** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **109** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -738,6 +741,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``phase-f-q-1d-decomposition``
 - ``phase-f-source-eq-sigt-phi0``
 - ``pole-mm-recurrence``
+- ``scattering-spectral-theorem``
 - ``si-jacobi-fixed-point``
 - ``si-sigma-r-fold-mismatch``
 - ``si-within-group-operator-eq``
@@ -772,7 +776,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **245** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **253** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -796,6 +800,9 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``bundle-measure-disintegration``
 - ``burst-criterion``
 - ``c-in-remapping``
+- ``carrier-grid-cell``
+- ``carrier-grid-interchange-witness``
+- ``carrier-grid-operator-typing``
 - ``case-dispersion-function``
 - ``clad-heat``
 - ``conservative-form``
@@ -817,7 +824,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``fb-fuel-heat``
 - ``fb-fuel-strain``
 - ``fb-swelling``
-- ``fission-as-composition``
+- ``fission-as-dyad``
 - ``fn-Fk-closed-forms``
 - ``fn-Fk-integration-by-parts``
 - ``fn-product-simpson-weights``
@@ -827,6 +834,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``fn-x-function``
 - ``fuel-heat``
 - ``fuel-rate``
+- ``funk-hecke-eigenvalue``
 - ``g-adjoint-definition``
 - ``galerkin-construction``
 - ``galerkin-pair``
@@ -838,6 +846,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``group-xs``
 - ``hilbert-adjoint-equals-metric-times-S0``
 - ``integral-kernel-category``
+- ``keff-as-integrated-rates``
 - ``kll-1974-slab-phi``
 - ``kll-1974-sphere-phi``
 - ``maxwellian``
@@ -952,6 +961,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``precursor-equation``
 - ``production-rate-functional``
 - ``quadrature-selection-criterion``
+- ``reaction-rate-kinf-oracle``
 - ``real-sh-addition-theorem``
 - ``real-sh-discrete-orthogonality``
 - ``real-sh-l0``
@@ -959,6 +969,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``real-sh-l2plus``
 - ``scattering-as-tensor-product-sum``
 - ``scattering-carrier-grid``
+- ``scattering-zonal-kernel``
 - ``sh-addition-theorem-reconstruction``
 - ``sh-space-metric``
 - ``si-within-group-fixed-point``
@@ -996,6 +1007,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``streaming-action-pure-l``
 - ``streaming-as-tensor-product-sum``
 - ``streaming-inverse-direct-sum``
+- ``streaming-pn-recurrence``
 - ``subgroup-of-o3-containment``
 - ``sum-of-tensor-products``
 - ``tensor-product-action``

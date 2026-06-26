@@ -243,7 +243,7 @@ Key Facts
   multiplier :math:`C = M[\sigma_t]`
   (:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
   :class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
-  :class:`~orpheus.sn.fission.FissionOperator`): the
+  :class:`~orpheus.transport.operators.fission.FissionOperator`): the
   ``apply(psi) -> psi'`` contract consumes and returns
   ``psi.shape == (N, ng, nx, ny)`` for angular flux,
   ``phi.shape == (ng, nx, ny)`` for scalar flux.  The canonical
@@ -1336,26 +1336,57 @@ scalar-*field*. The functional surface is the single method
 category's defining property (#257 S5,
 :class:`orpheus.numerics.functional.Functional`).
 
-The canonical transport instance is the per-cell fission emission
-**density**, contracting the production cross section against the flux
-over the source groups:
+The category is seated at **both layers**. The generic numerics floor is
+:class:`~orpheus.numerics.functional.InnerProductFunctional`\ ``(weight,
+axis)`` — the co-vector :math:`\langle w, \cdot\rangle` whose ``evaluate``
+is the single primitive ``(w * x).sum(axis, keepdims=True)``. The
+transport leaf
+:class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
+**specialises** it (carrying the weight as a domain-typed
+:class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`,
+which brings ``.mesh`` and the ``1/cm`` units), exactly as
+:class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame` specialises
+:class:`~orpheus.numerics.frame.GalerkinFrame`. The canonical instance is
+the per-cell reaction-rate **density**, contracting a reaction cross
+section against the flux over the source groups:
 
 .. math::
    :label: production-rate-functional
 
-   p(\vec r) \;=\; \sum_{g'} \nu\Sigma_{f,g'}(\vec r)\,\phi_{g'}(\vec r),
+   r_x(\vec r) \;=\; \langle \Sigma_x, \phi\rangle
+   \;=\; \sum_{g'} \Sigma_{x,g'}(\vec r)\,\phi_{g'}(\vec r),
 
 with the group axis collapsed and **no** volume measure folded in (it
-is the density, not the integral :math:`\int p\,dV`). This is exactly
-the anonymous ``inner`` reduction inside
-:meth:`orpheus.numerics.operator.RankOneOperator.apply`
-(``(right * x).sum(axis=0, keepdims=True)``, ``right = νΣf``) — naming
-it turns the most physically central diagnostic in criticality into a
-typed, inspectable Functional. It is the **middle** of the fission
-composition :math:`F = M_\chi \circ \mathrm{ProductionRate} \circ
-M_{\nu\Sigma_f}` (Frame 3 of the coefficient-promotion analysis); S5
-creates and cross-checks the functional, and S6 (not yet landed) wires
-the composition.
+is the density, not the integral :math:`\int r_x\,dV`). The two named
+instances are the **production rate** (:math:`\Sigma_x = \nu\Sigma_f`)
+and the **absorption rate** (:math:`\Sigma_x = \Sigma_a`); the
+Rayleigh-quotient eigenvalue is their ratio
+:math:`k = \langle\nu\Sigma_f,\phi\rangle / \langle\Sigma_a,\phi\rangle`.
+
+This functional is not a parallel *description* of a contraction the
+operator algebra performs elsewhere — it **is** the contraction. It is
+the row-factor :math:`\langle\nu\Sigma_f|` of the fission rank-1 dyad
+:math:`F = |\chi\rangle\langle\nu\Sigma_f|`
+(:ref:`fission-as-dyad`): :meth:`RankOneOperator.apply
+<orpheus.numerics.operator.RankOneOperator.apply>` routes the fission
+matvec *through* ``functional.evaluate``, so there is no separate "fused"
+realization to drift from the named factor (the procedural twin the
+earlier S5 design carried is **dissolved** — :ref:`fission-as-dyad`
+records the upgrade). Naming the contraction turns the most physically
+central diagnostic in criticality into a typed, inspectable Functional.
+
+The volume-integrated companion
+:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+returns the **scalar** :math:`R_x = \int_V \langle\Sigma_x,\phi\rangle\,dV`
+— the per-cell density above, integrated against the mesh's canonical
+``volume_measure`` (single source: it reuses
+:eq:`production-rate-functional`'s density, no independent re-derivation
+of either reduction). It is the typed object behind the
+:math:`k`-eigenvalue numerator and denominator
+(:ref:`integrated-reaction-rate-keff`), and the :math:`\phi^\dagger=1`
+degenerate of the homogenisation Petrov–Galerkin campaign's
+adjoint-weighted bilinear :math:`\langle\phi^\dagger, M[\Sigma_x]\,\phi\rangle`
+(a future adjoint flux replaces the implicit :math:`\phi^\dagger = 1`).
 
 .. vv-status: functional-category documented
 .. vv-status: production-rate-functional documented
@@ -1390,7 +1421,7 @@ codomain:
    * - **Functional**
      - field :math:`\to` scalar
      - a **disjoint sibling** of Operator (shares no member)
-     - the production-rate density :math:`p(\vec r)`
+     - the reaction-rate density :math:`r_x(\vec r)`
        (:eq:`production-rate-functional`)
 
 The asymmetry between the two non-Operator categories is the point. A
@@ -1432,43 +1463,144 @@ This is the co-vector mirror of the invariant :math:`V` and is the
 load-bearing typing lesson of S5: the variance is not cosmetic, it is the
 formal statement that a functional is a co-vector.
 
-The production rate is a density, not an integral
--------------------------------------------------
+The reaction rate is a density, not an integral
+-----------------------------------------------
 
-The canonical transport functional is the per-cell fission emission
-**density** :math:`p(\vec r)` of :eq:`production-rate-functional` — the
-production cross section contracted against the flux over the source
-groups, group axis collapsed, **no volume measure folded in**
-(:class:`~orpheus.transport.production_rate_functional.ProductionRateFunctional`,
-the L2 leaf shared across SN / CP / MoC). The "no measure" choice is a
-deliberate Mode-3 (missing-factor) guard turned into a *named contract*:
-:math:`p` is the density :math:`\nu\Sigma_f\,\phi`, not the integral
-:math:`\int p\,dV`. A consumer that needs the integrated production rate
-applies the volume measure explicitly; folding it into :math:`p` would
-silently double-count it the moment a second consumer integrated again.
+The :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
+of :eq:`production-rate-functional` returns the per-cell reaction-rate
+**density** :math:`r_x(\vec r)` — the cross section contracted against the
+flux over the source groups, group axis collapsed, **no volume measure
+folded in**. The "no measure" choice is a deliberate Mode-3
+(missing-factor) guard turned into a *named contract*: :math:`r_x` is the
+density :math:`\Sigma_x\,\phi`, not the integral :math:`\int r_x\,dV`. A
+consumer that needs the *integrated* rate uses the dedicated
+:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+(which applies the mesh ``volume_measure`` to this exact density); folding
+the measure into :math:`r_x` itself would silently double-count it the
+moment a second consumer integrated again. The split is the structural
+division between the two functionals — the density carries the group
+contraction, the integrated rate adds the spatial measure on top of it.
 The coefficient side is the cone-typed
 :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
-(#257 S1) carrying :math:`\nu\Sigma_f` through the typed
+(#257 S1) carrying :math:`\Sigma_x` through the typed
 :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.fission_production_field`
-accessor (#257 S2).
+accessor (#257 S2) for production, or the absorption accessor for
+:math:`\Sigma_a`.
 
-Byte-identity to the rank-1 ``inner`` (the S6 de-risk)
-------------------------------------------------------
+.. _integrated-reaction-rate-keff:
 
-:eq:`production-rate-functional` is **exactly** the anonymous ``inner``
-reduction already living inside
-:meth:`orpheus.numerics.operator.RankOneOperator.apply`
-(``(right * x).sum(axis=0, keepdims=True)`` with ``right = νΣf``). Naming
-it as a Functional does not change the arithmetic — it is verified
-byte-for-byte (0 ULP) against that ``inner`` line, and *separately*
-against a structurally-independent hand-derived double-loop (an explicit
-Python accumulation with no NumPy reduction, the L11 structural-
-independence reference). The byte-identity is the **de-risk for S6**: the
-functional *is* the middle factor of the fission composition
-:math:`F = M_\chi \circ \mathrm{ProductionRate} \circ M_{\nu\Sigma_f}`
-(:ref:`integral-kernel-category`), so once S6 reads the fission emission
-through ``production_rate``, the composition inherits the bit-identity
-for free — there is no reduction-tree drift to absorb.
+The eigenvalue numerator and denominator are integrated reaction rates
+----------------------------------------------------------------------
+
+The SN :math:`k`-eigenvalue is routed through
+:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+directly:
+
+.. math::
+   :label: keff-as-integrated-rates
+
+   k \;=\; \frac{\displaystyle\int_V \langle\nu\Sigma_f,\phi\rangle\,dV
+                  \;+\; (n,2n)}
+                {\displaystyle\int_V \langle\Sigma_a,\phi\rangle\,dV} ,
+
+with both the numerator's fission term and the denominator the
+volume-integrated reaction rate :math:`R_x = \int_V\langle\Sigma_x,\phi
+\rangle\,dV` of :eq:`production-rate-functional`
+(:meth:`SNSolver.compute_keff <orpheus.sn.solver.SNSolver.compute_keff>`
+over :meth:`~orpheus.sn.solver.SNSolver.compute_production_rate`). The
+:math:`(n,2n)` channel is an **explicit additive term** — a second
+neutron-multiplying reaction, *not* a :math:`\langle\Sigma_x,\phi\rangle`
+rate, so it is added on top rather than folded into a cross section — and
+is exactly zero on a no-:math:`(n,2n)` mixture. Reusing
+:class:`IntegratedReactionRate
+<orpheus.transport.reaction_rate_functional.IntegratedReactionRate>` for
+both production and absorption gives the eigenvalue numerator and
+denominator a single typed source for the :math:`\langle\Sigma_x,\phi
+\rangle` contraction and its volume integral, the
+:math:`\phi^\dagger\!=\!1` degenerate of the homogenisation
+Petrov–Galerkin bilinear :math:`\langle\phi^\dagger, M[\Sigma_x]\,\phi
+\rangle`.
+
+.. note::
+
+   **Scope.** Only the SN :math:`k`-eigenvalue is routed through
+   :class:`IntegratedReactionRate
+   <orpheus.transport.reaction_rate_functional.IntegratedReactionRate>`
+   today. The CP, MoC, and diffusion eigenvalues are **not yet** routed
+   (deferred); the homogeneous 0-D case has no spatial integral to fold,
+   so it does not participate. Do not read this section as a claim that
+   every solver's :math:`k` flows through the typed functional — it is the
+   SN path, with the others a documented follow-on.
+
+.. (vv-status rationale) Structural / decomposition label: the SN
+   eigenvalue expressed as a ratio of integrated reaction rates. Not a new
+   solver claim (the SN keff value is verified by the existing eigenvalue
+   gates); the verifiable content of the *routing* is the closed-form
+   k∞-as-ratio gate ``tests/transport/test_integrated_reaction_rate.py``.
+.. vv-status: keff-as-integrated-rates documented
+
+.. _reaction-rate-kinf-oracle-section:
+
+Verification: the closed-form :math:`k_\infty` oracle, not a procedural twin
+----------------------------------------------------------------------------
+
+The earlier S5 design verified the functional **byte-for-byte (0 ULP)
+against the rank-1 ``inner`` reduction** :math:`\chi\cdot\mathrm{evaluate}
+\equiv F.\mathrm{apply}`. That cross-check was *procedurally* independent
+(two code paths) but **not** *structurally* independent (both sides ran
+the same NumPy ``(w * x).sum(axis, keepdims)`` primitive on the same
+arrays) — by ``vv-principles`` L11 a procedural twin proves the two
+spellings agree, not that either is **correct**. With the matvec now
+routed *through* ``functional.evaluate`` (:ref:`fission-as-dyad`) the twin
+no longer even exists to compare against: there is one contraction, not
+two.
+
+The correctness floor is therefore re-anchored on a **structurally
+independent closed-form ground** — the infinite-medium decomposition
+
+.. math::
+   :label: reaction-rate-kinf-oracle
+
+   k_\infty \;=\; \lambda_{\max}\!\bigl(A^{-1}F\bigr),
+   \qquad A = \mathrm{diag}(\Sigma_a) - \Sigma_{s}, \quad
+   F = |\chi\rangle\langle\nu\Sigma_f| ,
+
+whose dominant eigenpair :math:`(k_\infty, \phi^*)` comes from a
+:func:`numpy.linalg.eig` of the transfer matrix — a path that shares **no
+primitive** with the rank-1 functional. The
+:class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
+is pinned by evaluating production **and** absorption *independently* at
+the converged spectrum :math:`\phi^*` and checking
+:math:`\langle\nu\Sigma_f,\phi^*\rangle / \langle\Sigma_a,\phi^*\rangle =
+k_\infty` (``tests/transport/test_reaction_rate_functional.py``). Pinning
+the two functionals *separately* (not just their ratio) is what gives the
+gate teeth a ratio test lacks: a shared-factor error that scales both the
+numerator and the denominator — a mis-scaled accessor, a spurious volume
+fold on both — cancels in :math:`k` but is caught term-by-term.
+
+This is a legal **eigenvalue claim** paired with the **closed-form**
+pillar (``vv-principles``: eigenvalue claims need a closed-form or
+semi-analytical reference, never MMS). It carries genuine **flux-shape
+teeth** because the test uses a **4-group** mixture whose converged
+:math:`\phi^*` is genuinely non-flat — the 2-group case is degenerate (its
+:math:`\phi^*` is coincidentally flat ``[0.707, 0.707]``, so its flat-flux
+ratio equals :math:`k_\infty` and is flux-shape-blind), so the 4-group leg
+is **mandatory** (``vv-principles`` anti-pattern #3: a 1-group, or any
+flat-spectrum, eigenvalue test cannot detect a flux-shape error). A
+second leg pins the per-cell density against an explicit Python
+double-loop (``hand_derived_production_density`` — an accumulation with no
+NumPy reduction, the L11 structurally-independent reference), and a third
+asserts the **no-volume-measure** contract (Mode-3). Together they replace
+the retired procedural twin with a reference at the right level for each
+claim.
+
+.. (vv-status rationale) Structural / decomposition label: the closed-form
+   k∞ = λ_max(A⁻¹F) identity that grounds the reaction-rate functional's
+   correctness. Not itself a solver claim; the verifiable content is the
+   eigenvalue/closed-form gate ``tests/transport/test_reaction_rate_functional.py``
+   (production AND absorption pinned independently at φ*) and the
+   ``tests/transport/test_integrated_reaction_rate.py`` k∞-as-ratio gate.
+.. vv-status: reaction-rate-kinf-oracle documented
 
 Why the estimators are NOT Functionals
 ---------------------------------------
@@ -1490,14 +1622,24 @@ honesty of *not* wrapping them is itself a category-correctness claim.
 .. note::
 
    **Source map.** Category Protocol:
-   :class:`orpheus.numerics.functional.Functional` (L1). Concrete leaf:
-   :class:`orpheus.transport.production_rate_functional.ProductionRateFunctional`
-   (L2). Intrinsic-category gate:
+   :class:`orpheus.numerics.functional.Functional` (L1). Generic numerics
+   leaf: :class:`~orpheus.numerics.functional.InnerProductFunctional`
+   ``⟨w, ·⟩`` (L1). Transport leaves:
+   :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
+   (the per-cell density, specialising ``InnerProductFunctional``) and
+   :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+   (the volume-integrated scalar) (L2). Rank-1 constructor:
+   :func:`~orpheus.numerics.operator.outer`. Intrinsic-category gate:
    ``tests/transport/test_functional_category.py`` (Functional ≠
-   LinearOperator, both directions + discriminator foils). Correctness +
-   equivalence: ``tests/transport/test_production_rate_functional.py``
-   (the hand-derived double-loop reference + the RankOne ``inner``
-   0-ULP de-risk + the no-measure guard). Estimator honesty:
+   LinearOperator, both directions + discriminator foils). Correctness:
+   ``tests/transport/test_reaction_rate_functional.py`` (the closed-form
+   :math:`k_\infty = \lambda_{\max}(A^{-1}F)` per-term oracle —
+   production AND absorption pinned independently — + the hand-derived
+   double-loop density reference + the no-measure guard);
+   ``tests/transport/test_integrated_reaction_rate.py``
+   (:math:`k_\infty` as the ratio of integrated rates, incl. the
+   ``(n,2n)`` term). Dyad laws: ``tests/numerics/test_outer_dyad.py``
+   (action / rank-1 / capability / linearity). Estimator honesty:
    ``tests/numerics/test_estimators_as_functionals.py``. The
    field-to-scalar contraction is coded in three places today
    (SN / CP / numerics) — unifying that fragmentation is tracked on #259.
@@ -1532,20 +1674,24 @@ Protocol — a **refinement of** LinearOperator (it still has ``apply`` +
    \qquad K \;=\; A.\mathrm{kernel}.
 
 The two named transport instances are the Boltzmann emission kernels.
-**Fission** exposes the rank-1 :math:`\chi \otimes \nu\Sigma_f` kernel
-(a :class:`~orpheus.numerics.operator.TensorProductOperator`) and is the
-§5.6 composition :math:`F = M_\chi \circ \mathrm{ProductionRate} \circ
-M_{\nu\Sigma_f}` whose middle factor is the S5
-:eq:`production-rate-functional`; the realization stays the fused
-``RankOneOperator`` (the semantic decomposition and the realization are
-bit-identical by construction). **Scattering** exposes the anisotropic
-Legendre redistribution :math:`R \circ \Lambda \circ M` (an
-:class:`~orpheus.numerics.operator.OperatorProduct`, the
+**Fission** exposes the rank-1 **dyad** :math:`F = |\chi\rangle\langle
+\nu\Sigma_f| = \texttt{outer}(\chi,\,\mathrm{ReactionRateFunctional}(\nu
+\Sigma_f))` (a :class:`~orpheus.numerics.operator.RankOneOperator`, lifted
+to a :class:`~orpheus.numerics.operator.TensorProductOperator` only to
+advertise the spatial-axis broadcast). Its row co-vector
+:math:`\langle\nu\Sigma_f|` is the S5 :eq:`production-rate-functional`
+density, and the matvec routes *through* that functional's ``evaluate``
+(:ref:`fission-as-dyad`) — there is no fused procedural twin. **Scattering**
+exposes the anisotropic Legendre redistribution :math:`R \circ \Lambda
+\circ M` (an :class:`~orpheus.numerics.operator.OperatorProduct`, the
 genuinely-nonlocal-in-angle part of
 :eq:`scattering-as-tensor-product-sum`); the isotropic :math:`P_0`
 in-scatter and the :math:`(n,2n)` doubling are the local / separate
-components of the full scattering ``apply``. The matvec arms of both
-operators are UNCHANGED in S6 (additive, bit-identical).
+components of the full scattering ``apply``. Fission is the **rank-1
+(single-mode) degenerate** of scattering's multi-mode spectral sum — the
+polyadic/block-term view of :ref:`emission-kernels-btd` makes the
+relationship precise. The matvec arms of both operators are UNCHANGED in
+S6 (additive, bit-identical).
 
 The scattering kernel :math:`R\circ\Lambda\circ M` is not an arbitrary
 nonlocal operator: it is the **spectral theorem** :math:`A = U\Sigma U^*`
@@ -1615,10 +1761,17 @@ The two emission kernels: fission and scattering
 ------------------------------------------------
 
 The two named transport instances are the Boltzmann **emission**
-kernels. Both are reframed **in place** in ``sn/`` (#257 S6, additive):
-each gains the ``kernel`` member that satisfies the Protocol while every
-matvec arm stays byte-for-byte unchanged — the composition is the
-*semantic reading* of the operator and a *cross-check*, not a rewrite.
+kernels, living in :mod:`orpheus.transport.operators`. Each gains a
+``kernel`` member that satisfies the Protocol. **Scattering** is reframed
+*in place* and additively: its ``kernel`` is the semantic reading of an
+existing matvec that stays byte-for-byte unchanged, a cross-check rather
+than a rewrite. **Fission**, by contrast, was genuinely *re-realized* as
+the dyad :math:`|\chi\rangle\langle\nu\Sigma_f|` whose ``apply`` routes
+through the production-rate functional (:ref:`fission-as-dyad`) — the
+earlier "fused realization vs. semantic decomposition" split is gone,
+because the dyad *is* the realization. The matvec **value** is unchanged
+(0 ULP, :ref:`reaction-rate-kinf-oracle-section`); the realization is no
+longer a procedural twin of a separately-named decomposition.
 
 .. list-table:: The two §5.6 emission kernels
    :header-rows: 1
@@ -1628,13 +1781,16 @@ matvec arm stays byte-for-byte unchanged — the composition is the
      - ``kernel`` shape
      - Why this shape
    * - **Fission** :math:`F`
-     - rank-1
-       :math:`\chi \otimes \nu\Sigma_f`
-       (:class:`~orpheus.numerics.operator.TensorProductOperator`
-       wrapping :class:`~orpheus.numerics.operator.RankOneOperator`)
+     - rank-1 dyad
+       :math:`|\chi\rangle\langle\nu\Sigma_f|`
+       (:class:`~orpheus.numerics.operator.RankOneOperator` via
+       :func:`~orpheus.numerics.operator.outer`, lifted to a
+       :class:`~orpheus.numerics.operator.TensorProductOperator` for the
+       spatial-axis broadcast)
      - Fission emits an isotropic source whose group spectrum
        :math:`\chi` is the same everywhere fission occurs — a rank-1
-       outer product of the emission spectrum with the production rate.
+       outer product of the emission-spectrum column with the
+       production-rate row co-vector.
    * - **Scattering** :math:`S`
      - :math:`R \circ \Lambda \circ M`
        (an :class:`~orpheus.numerics.operator.OperatorProduct`)
@@ -1643,50 +1799,72 @@ matvec arm stays byte-for-byte unchanged — the composition is the
        group-to-group transfer (:math:`\Lambda`), reconstruct to
        ordinates (:math:`R`). Genuinely nonlocal in angle.
 
-Fission as a §5.6 composition
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. _fission-as-dyad:
 
-Fission is the §5.6 composition
+Fission as the rank-1 dyad :math:`|\chi\rangle\langle\nu\Sigma_f|`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. (vv-status rationale) Structural / semantic decomposition of the
-   fission operator — the §5.6 composition reading. Not a solver claim;
-   the verifiable content is the 0-ULP bit-identity of the fused rank-1
-   realization to χ · production_rate
+Fission is the rank-1 dyad — a reconstruction **column** :math:`|\chi\rangle`
+(the emission spectrum) tensored with a functional **row**
+:math:`\langle\nu\Sigma_f|` (the production-rate co-vector):
+
+.. (vv-status rationale) Structural / decomposition of the fission
+   operator — the rank-1 dyad reading. Not a solver claim; the verifiable
+   content is the closed-form k∞ = λ_max(A⁻¹F) correctness of the row
+   co-vector (``tests/transport/test_reaction_rate_functional.py``) and the
+   0-ULP equivalence of the dyad apply to the matvec arm
    (``tests/sn/operators/test_fission_kernel_crosscheck.py``).
-.. vv-status: fission-as-composition documented
+.. vv-status: fission-as-dyad documented
 
 .. math::
-   :label: fission-as-composition
+   :label: fission-as-dyad
 
-   F \;=\; M_\chi \;\circ\; \mathrm{ProductionRate} \;\circ\; M_{\nu\Sigma_f},
+   F \;=\; |\chi\rangle\langle\nu\Sigma_f|
+     \;=\; \texttt{outer}\bigl(\chi,\;
+           \mathrm{ReactionRateFunctional}(\nu\Sigma_f)\bigr),
 
-read right-to-left: multiply the flux by the production cross section
-(:math:`M_{\nu\Sigma_f}`, an :eq:`multiplication-operator-action`
-operator), contract over groups to the scalar emission **density**
-(:math:`\mathrm{ProductionRate}`, the S5
-:eq:`production-rate-functional` Functional, exposed as
-:attr:`FissionOperator.production_rate <orpheus.sn.fission.FissionOperator.production_rate>`),
-then re-broadcast through the emission spectrum (:math:`M_\chi`). This
-decomposition is the *meaning* of fission; the **realization** stays the
-fused rank-1 :attr:`FissionOperator.kernel <orpheus.sn.fission.FissionOperator.kernel>`
-(``coding-elegance`` Pattern 5 — build the *right primitive*, not the
-unfolded product). The middle Functional is byte-identical to the rank-1
-``inner`` (the S5 de-risk), so :math:`\chi \cdot \mathrm{production\_rate}
-\equiv F.\mathrm{apply}` to 0 ULP.
+read right-to-left as the dyad action :math:`F\,\phi = \chi \cdot
+\langle\nu\Sigma_f,\phi\rangle`: the row co-vector
+:math:`\langle\nu\Sigma_f|` contracts the flux over groups to the scalar
+emission **density** (the S5 :eq:`production-rate-functional`, exposed as
+:attr:`FissionOperator.production_rate <orpheus.transport.operators.fission.FissionOperator.production_rate>`),
+and the column :math:`\chi` broadcasts it back across the emission groups.
+The realization is literally that dyad — ``outer(self.chi,
+self.production_rate) & IdentityOperator()`` — and the matvec **routes
+through** the row's ``evaluate`` (``coding-elegance`` Pattern 5: build the
+*right primitive*; here the right primitive *is* the contraction, not a
+parallel description of one). Because there is one contraction and not
+two, the "fused vs. unfolded" distinction the earlier S5 design carried
+**no longer exists** — :ref:`the verification section <reaction-rate-kinf-oracle-section>`
+records the resulting upgrade from the dissolved procedural twin to the
+closed-form :math:`k_\infty = \lambda_{\max}(A^{-1}F)` oracle.
 
 .. note::
 
-   The literal three-factor composition was **considered and rejected**
-   as the realization. The reason is *rank*: :math:`M_\chi` is
-   rank-**changing**, not a diagonal
-   :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
-   — it takes a single scalar density per cell and broadcasts it across
-   the :math:`n_g` emission groups, expanding the rank rather than
-   scaling pointwise. A literal ``OperatorProduct`` of the three factors
-   would carry intermediate shapes the fused rank-1 form computes in one
-   step; the rank-1 :class:`~orpheus.numerics.operator.TensorProductOperator`
-   is the principled primitive that *is* the composition's effect without
-   materialising its middle stages.
+   **What was tried and rejected — the three-factor composition** :math:`F
+   = M_\chi \circ \mathrm{ProductionRate} \circ M_{\nu\Sigma_f}`. An
+   earlier reading framed fission as a literal three-operator product:
+   multiply by :math:`\nu\Sigma_f`, contract to the density, re-broadcast
+   through :math:`\chi`. It was abandoned for two reasons. First, it is
+   **dimensionally inconsistent as a composition of operators**: the
+   middle factor :math:`\mathrm{ProductionRate}` is a *Functional* (field
+   :math:`\to` scalar-field), not a field-:math:`\to`-field operator, so
+   the three pieces do not chain as a clean
+   :class:`~orpheus.numerics.operator.OperatorProduct` of
+   :class:`~orpheus.numerics.operator.LinearOperator`\ s — the
+   "composition" silently changed category mid-chain. Second,
+   :math:`M_\chi` is **rank-changing** (it takes one scalar density per
+   cell and expands it across the :math:`n_g` emission groups), not a
+   diagonal
+   :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`,
+   so even reading it generously it is not the multiplication operator the
+   :math:`M_\bullet` notation implies. The honest form is the **two-factor
+   dyad** :math:`|\chi\rangle\langle\nu\Sigma_f|`: the column and the row
+   are the only two objects, and the rank-1
+   :class:`~orpheus.numerics.operator.RankOneOperator` is the principled
+   primitive that *is* the dyad's effect — its ``apply`` routes the matvec
+   through the row functional, with no intermediate operator stages to
+   materialise.
 
 Scattering as the nonlocal-in-angle kernel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1724,6 +1902,86 @@ not a new reference.
    #260. The :math:`1/W` per-ordinate normalisation lives *outside* the
    kernel (the kernel is the redistribution, not the quadrature
    weighting).
+
+.. _emission-kernels-btd:
+
+The two emission kernels as a tensor decomposition (a lens, not a type)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Seen through the vocabulary of tensor decompositions, fission and
+scattering are the **same object at two ranks**, and naming the relationship
+sharpens why fission is the simpler one. This subsection is a *reading* —
+a lens that organises the two kernels — **not** a new type to build. The
+right-grained primitives already exist (the dyad
+:func:`~orpheus.numerics.operator.outer`, the
+:class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`, and the
+``⊗`` / :class:`~orpheus.numerics.operator.TensorProductOperator`); the
+decomposition vocabulary names what they already *are*.
+
+.. list-table:: The emission kernels in tensor-decomposition vocabulary
+   :header-rows: 1
+   :widths: 18 30 52
+
+   * - Kernel
+     - Decomposition
+     - Reading
+   * - **Fission** :math:`F`
+     - rank-1 (CP atom)
+       :math:`|\chi\rangle\langle\nu\Sigma_f|`
+     - A single canonical-polyadic term: one emission column
+       :math:`\chi` against one production row :math:`\nu\Sigma_f`. The
+       *rank-1 degenerate* of the scattering sum below — fission is the
+       :math:`\ell=0`, one-mode case.
+   * - **Scattering** :math:`S_{\rm aniso}`
+     - orthogonal-CP / spectral sum
+       :math:`\sum_\ell |Y_\ell\rangle\,\sigma_\ell\,\langle Y_\ell|`
+     - A *sum* of rank-1 dyads in the spherical-harmonic eigenbasis
+       (Funk–Hecke): the modes :math:`|Y_\ell\rangle` are orthogonal and
+       the weights :math:`\sigma_\ell = \Sigma_{s,\ell}` are the Legendre
+       moments — the spectral theorem :math:`U\Sigma U^*`, managed by the
+       Frame (:math:`R\circ\Lambda\circ M`).
+   * - **Full scattering** :math:`S`
+     - block-term decomposition (BTD)
+     - rank-1 in **angle** :math:`\otimes` a *full-rank* **energy**
+       transfer :math:`\otimes` diagonal in **space**. The energy block
+       is genuinely dense (group-to-group transfer is not low-rank);
+       fission is its CP-rank-1 degenerate (one energy mode, one angle
+       mode).
+
+The collision operator :math:`C = M[\sigma_t]` completes the picture as
+the **diagonal** term (:eq:`multiplication-operator-action`, the §5.7
+multiplication operator): no decomposition, pointwise in every axis. So
+the transport algebra's emission/loss structure reads as one ladder —
+diagonal (collision) :math:`\to` rank-1 CP atom (fission) :math:`\to`
+orthogonal-CP spectral sum (anisotropic scattering) :math:`\to` block-term
+decomposition (full scattering).
+
+.. warning::
+
+   **The decomposition is a lens; the guardrails are load-bearing.** This
+   framing must NOT be turned into machinery:
+
+   * **Keep the energy block dense.** The group-to-group transfer is
+     genuinely full-rank; do not attempt a low-rank energy factorisation.
+   * **Do not import general-CP / tensor-fitting.** ALS / CP-decomposition
+     *fitting* (the numerical recovery of unknown factors) is foreign to
+     this algebra — the factors here are *known by physics* (:math:`\chi`,
+     :math:`\nu\Sigma_f`, the :math:`Y_\ell` eigenbasis), not fitted.
+   * **Do not mint a ``CPOperator`` or a polyadic umbrella type.** The dyad
+     :func:`~orpheus.numerics.operator.outer`, the
+     :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`, and
+     ``⊗`` are already the right-grained primitives; an umbrella type would
+     add ceremony and a conversion seam without making any illegal state
+     unrepresentable (``coding-elegance`` type-vs-property: a separate type
+     earns its existence only with :math:`\ge 2` non-isomorphic realisations
+     under a non-identity morphism — the dyad and the Frame already *are*
+     those two realisations, named honestly).
+
+.. (vv-status rationale) Conceptual lens organising the two emission
+   kernels in tensor-decomposition vocabulary; not a type and not a solver
+   claim. The verifiable content is the fission dyad's closed-form k∞ gate
+   and the scattering kernel's anisotropic MMS gate, both cited above.
+.. vv-status: emission-kernels-btd documented
 
 .. _scattering-carrier-grid:
 
@@ -2490,8 +2748,8 @@ router-over-shared-primitives shape falls out of the sharing.
    **Source map.** Category Protocol:
    :class:`orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator`
    (L2). Named kernels:
-   :attr:`orpheus.sn.fission.FissionOperator.kernel` +
-   :attr:`orpheus.sn.fission.FissionOperator.production_rate`;
+   :attr:`orpheus.transport.operators.fission.FissionOperator.kernel` +
+   :attr:`orpheus.transport.operators.fission.FissionOperator.production_rate`;
    :attr:`orpheus.transport.operators.scattering.ScatteringOperator.kernel`.
    Category-refinement gate:
    ``tests/transport/test_integral_kernel_category.py``. Fission
@@ -3155,12 +3413,12 @@ shape choice.
        :class:`IdentityOperator`.
    * - Fission (:math:`F`)
      - :class:`TensorProductOperator`
-       (single rank-1 TP)
-     - ``RankOneOperator(χ, νΣ_f, axis=0) &
+       (single rank-1 dyad)
+     - ``outer(χ, ReactionRateFunctional(νΣ_f)) &
        IdentityOperator()``
        (:attr:`FissionOperator.kernel`)
      - Per Grand Report v3 §15 line 2008
-       :math:`F = \chi \otimes \nu\Sigma_f`. The
+       :math:`F = |\chi\rangle\langle\nu\Sigma_f|`. The
        group-axis contraction-then-broadcast is
        exactly :class:`RankOneOperator`; spatial
        axes broadcast.
@@ -3953,8 +4211,8 @@ Cross-references
     :class:`orpheus.numerics.operator.ZeroOperator`.
   - :class:`orpheus.sn.boundary_realizer.SNBoundaryRealizer` —
     the BC realizer dispatching the T.1 lifts.
-  - :class:`orpheus.sn.fission.FissionOperator` and its
-    :attr:`~orpheus.sn.fission.FissionOperator.kernel` property.
+  - :class:`orpheus.transport.operators.fission.FissionOperator` and its
+    :attr:`~orpheus.transport.operators.fission.FissionOperator.kernel` property.
   - :class:`orpheus.transport.operators.scattering.ScatteringOperator` and its
     :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.kernel` /
     :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.kernel_summands`
@@ -4088,7 +4346,7 @@ off the block structure directly:
        (the collision multiplier :math:`C = M[\sigma_t]`
        — :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`,
        :class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
-       :class:`~orpheus.sn.fission.FissionOperator`)
+       :class:`~orpheus.transport.operators.fission.FissionOperator`)
      - ``BULK``
      - Bulk → bulk only.
      - :math:`A_{bb}` only; the boundary block is zero.
@@ -4929,8 +5187,8 @@ Thirteen sites (operator outputs + ``q_ext`` sources) flipped from
    * - :mod:`orpheus.transport.operators.scattering`
      - :meth:`ScatteringOperator.apply <orpheus.transport.operators.scattering.ScatteringOperator>`
      - boundary zero
-   * - :mod:`orpheus.sn.fission`
-     - :meth:`FissionOperator.apply <orpheus.sn.fission.FissionOperator>`
+   * - :mod:`orpheus.transport.operators.fission`
+     - :meth:`FissionOperator.apply <orpheus.transport.operators.fission.FissionOperator>`
      - boundary zero
    * - :mod:`orpheus.sn.boundary_operator`
      - :meth:`SNBoundaryOperator._apply_faces <orpheus.sn.boundary_operator.SNBoundaryOperator>`
@@ -5852,7 +6110,7 @@ advertise the composite ``domain`` / ``codomain``. The bulk leaves —
 the collision multiplier :math:`C = M[\sigma_t]`
 (:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator` (``S``), and
-:class:`~orpheus.sn.fission.FissionOperator` (``F``) — are **left at**
+:class:`~orpheus.transport.operators.fission.FissionOperator` (``F``) — are **left at**
 ``domain = None``. A first reading suggests this is a latent trap — a
 metric-blind leaf that would corrupt the adjoint. It is the opposite:
 it is correct *and* the metric-blind state is made **unrepresentable**.

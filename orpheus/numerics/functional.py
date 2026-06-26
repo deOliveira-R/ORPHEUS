@@ -72,7 +72,7 @@ Why a *structural* (duck-typed) Protocol, not an ABC
 
 The same reasoning that makes :class:`~orpheus.numerics.vector.Vector` a
 structural Protocol applies here. A transport-level concrete functional
-(``ProductionRateFunctional`` in :mod:`orpheus.transport`) conforms to
+(``ReactionRateFunctional`` in :mod:`orpheus.transport`) conforms to
 this numerics-level abstraction *without inheritance* — it simply
 exposes ``evaluate``. A nominal ABC would force every concrete functional
 to inherit from a numerics base, which would either pull a transport
@@ -91,7 +91,7 @@ Protocol names no transport type — it speaks only of the
 :class:`~orpheus.numerics.vector.Vector` carrier (the input) and an
 unbounded result :math:`R`. The structural :class:`Functional` is
 precisely how a transport-level concrete functional (the §5.6
-``ProductionRateFunctional``, which carries :math:`\nu\Sigma_f` as a
+``ReactionRateFunctional``, which carries :math:`\Sigma_x` as a
 :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`)
 conforms to a numerics-level abstraction without ``numerics`` importing
 ``transport``.
@@ -109,11 +109,17 @@ References
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
+import numpy as np
+from numpy.typing import NDArray
+
 from typing import Protocol, TypeVar, runtime_checkable
 
+from orpheus.numerics.field import Field
 from orpheus.numerics.vector import Vector
 
-__all__ = ["Functional", "V_contra", "R_co"]
+__all__ = ["Functional", "InnerProductFunctional", "V_contra", "R_co"]
 
 #: Input carrier type variable for :class:`Functional`, bound to
 #: :class:`~orpheus.numerics.vector.Vector` (the same carrier the operator
@@ -154,9 +160,10 @@ class Functional(Protocol[V_contra, R_co]):
 
     Satisfied — without inheritance — by any object exposing
     ``evaluate``; the canonical transport instance is
-    ``orpheus.transport.production_rate_functional.ProductionRateFunctional``,
-    which carries :math:`\nu\Sigma_f` and computes the per-cell fission
-    emission density :math:`p(\vec r) = \sum_{g'} \nu\Sigma_{f,g'}\,\phi_{g'}`.
+    :class:`orpheus.transport.reaction_rate_functional.ReactionRateFunctional`,
+    which carries :math:`\Sigma_x` and computes the per-cell reaction-rate
+    density :math:`r_x(\vec r) = \sum_{g'} \Sigma_{x,g'}\,\phi_{g'}` (the
+    production rate for :math:`\Sigma_x = \nu\Sigma_f`).
     """
 
     def evaluate(self, x: V_contra, /) -> R_co:
@@ -170,3 +177,76 @@ class Functional(Protocol[V_contra, R_co]):
         category from the operator category.
         """
         ...
+
+
+@dataclass(frozen=True, eq=False)
+class InnerProductFunctional:
+    r"""The generic co-vector :math:`\langle w, \cdot\rangle` — the canonical §5.6 Functional.
+
+    Contracts a carrier against a fixed **weight** :math:`w` over one axis:
+
+    .. math::
+
+        \langle w, x\rangle_j \;=\; \sum_{k} w_k\, x_k
+        \qquad\text{(sum over }\texttt{axis}\text{)} .
+
+    This is the concrete, numerics-level realisation of the structural
+    :class:`Functional` Protocol — a co-vector (a *row*), the dual companion
+    of a :class:`~orpheus.numerics.vector.Vector` (a *column*). Its defining
+    role in the operator algebra is as the **row-factor of a rank-1 operator**:
+    the dyad :math:`|v\rangle\langle w|` is built by
+    :func:`~orpheus.numerics.operator.outer`\ ``(reconstruction, functional)``
+    and applies as ``reconstruction * functional.evaluate(x)`` — the functional
+    *is* the contraction, not a parallel description of one. The transport-level
+    :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
+    **specialises** this type, carrying the weight as a domain-typed
+    :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
+    (production = ``⟨νΣf,·⟩``, absorption = ``⟨Σa,·⟩``) — exactly as
+    :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame` specialises
+    :class:`~orpheus.numerics.frame.GalerkinFrame`.
+
+    The contracted axis is kept as length-1 (``keepdims=True``) so the output
+    ``(1, *complement)`` broadcasts cleanly against the rank-1 reconstruction
+    (the dyad's column) — the leading-1 axis is load-bearing for that
+    broadcast, not incidental.
+
+    Parameters
+    ----------
+    weight : NDArray
+        The co-vector weight :math:`w`. Shape must align with the carrier on
+        the contracted ``axis`` (and broadcast on the complement). A
+        :class:`~orpheus.numerics.field.Field` weight is accepted (its
+        ``.values`` is read).
+    axis : int, default 0
+        The contraction axis. For the multigroup reaction rate this is the
+        leading **group** axis (0); the spatial axes are the surviving fiber.
+
+    Notes
+    -----
+    ``eq=False`` (identity equality / hash): the ``weight`` is an
+    :class:`numpy.ndarray`, for which value-equality is element-wise (not a
+    ``bool``) and hashing is undefined — the functional is identified by
+    object identity, like :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`.
+    """
+
+    weight: NDArray
+    axis: int = 0
+
+    def evaluate(self, x: "Field | NDArray", /) -> np.ndarray:
+        r"""Return :math:`\langle w, x\rangle` contracted over :attr:`axis`.
+
+        .. math::
+
+            \langle w, x\rangle \;=\; \sum_{k} w_k\, x_k
+            \qquad\text{(over }\texttt{axis}\text{, }\texttt{keepdims=True}\text{)} .
+
+        Accepts a typed :class:`~orpheus.numerics.field.Field` carrier (its
+        ``.values`` is read) or a raw :class:`numpy.ndarray`. The reduction is
+        the single numpy primitive ``(w * x).sum(axis, keepdims=True)`` — the
+        same one the legacy ``RankOneOperator.apply`` performed inline, so a
+        dyad built ``outer(v, InnerProductFunctional(w, axis))`` reproduces the
+        old rank-1 action bit-for-bit.
+        """
+        w_arr = self.weight.values if isinstance(self.weight, Field) else np.asarray(self.weight)
+        x_arr = x.values if isinstance(x, Field) else np.asarray(x)
+        return (w_arr * x_arr).sum(axis=self.axis, keepdims=True)

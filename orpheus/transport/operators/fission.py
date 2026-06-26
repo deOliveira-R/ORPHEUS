@@ -32,48 +32,41 @@ why power iteration converges geometrically in a critical reactor
 :math:`O(N_{\rm cells})` per group, but only one **per cell** in
 energy because :math:`\chi` is a rank-1 spectrum.
 
-The §5.6 Kernel reading — fission as an integral kernel
-=======================================================
+The §5.6 Kernel reading — fission as a rank-1 integral kernel
+============================================================
 
 In the grand-report §5.6 suffix law (see
 :mod:`orpheus.transport.operators.integral_kernel_operator`) fission is a
 **Kernel**: a *nonlocal* operator whose action integrates the flux
 against a measure on the group axis (the emission at :math:`(\vec r, g)`
-reads the flux at *every* group :math:`g'`). #257 S6 makes this a
-type-level fact — :class:`FissionOperator` exposes both the integral
-structure :attr:`~FissionOperator.kernel` (the rank-1 ``χ ⊗ νΣf``
-:class:`~orpheus.numerics.operator.TensorProductOperator`, present since
-Wave T) and the §5.6 middle factor :attr:`~FissionOperator.production_rate`
-(the S5 :class:`~orpheus.transport.production_rate_functional.ProductionRateFunctional`),
-and therefore satisfies the
+reads the flux at *every* group :math:`g'`). :class:`FissionOperator`
+exposes that integral structure as :attr:`~FissionOperator.kernel` and
+therefore satisfies the
 :class:`~orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator`
 Protocol.
 
-The **semantic** decomposition (Frame 3 of the cross-domain-attacker
-memo) is the composition
+Fission is the **rank-1 dyad** :math:`F = |\chi\rangle\langle\nu\Sigma_f|`:
 
 .. math::
 
-    F \;=\; M_\chi \;\circ\; \mathrm{ProductionRate} \;\circ\;
-        M_{\nu\Sigma_f} ,
+    F \;=\; \texttt{outer}\bigl(\chi,\
+        \mathrm{ReactionRateFunctional}(\nu\Sigma_f)\bigr) ,
 
-where :math:`M_{\nu\Sigma_f}` multiplies the flux by the production
-cross section, :math:`\mathrm{ProductionRate}` (the
-:attr:`~FissionOperator.production_rate` functional) contracts the group
-axis to the per-cell density :math:`p(\vec r)`, and :math:`M_\chi`
-re-broadcasts that density across groups weighted by :math:`\chi`. This
-is the *reading*, NOT the realization: the fused
-:class:`~orpheus.numerics.operator.RankOneOperator`-backed
-:attr:`~FissionOperator.kernel` is the efficient evaluation
-(``coding-elegance`` Pattern 5 — the right primitive, not the unfolded
-product). The two agree byte-for-byte
-(:math:`\chi \cdot \mathrm{production\_rate.evaluate}(\phi) \equiv
-F.\mathrm{apply}(\phi)` at 0 ULP) because
-:meth:`~orpheus.transport.production_rate_functional.ProductionRateFunctional.evaluate`
-reproduces the rank-1 ``inner`` reduction — a fact **pinned** by
-``tests/sn/operators/test_fission_kernel_crosscheck.py`` (B.2), not
-merely asserted here. The matvec arms are UNCHANGED in S6 (additive,
-bit-identical).
+a reconstruction column :math:`\chi` (the emission spectrum) tensored
+with the production-rate row co-vector :math:`\langle\nu\Sigma_f| =
+\mathrm{ReactionRateFunctional}(\nu\Sigma_f)`. The matvec **routes
+through** the functional: :meth:`apply` is :math:`\chi \cdot
+\mathrm{production\_rate.evaluate}(\phi) = \chi \cdot \langle\nu\Sigma_f,
+\phi\rangle`, so the production-rate co-vector IS the contraction the
+kernel performs — there is no separate "fused" realization to drift from
+the named factor (the procedural twin the earlier S5 design carried is
+**dissolved**). This is the rank-1 (single-mode, :math:`\ell=0`)
+degenerate of the multi-mode scattering kernel :math:`R\circ\Lambda\circ
+M`; a :class:`~orpheus.numerics.frame.FrameBase` manages the analogous
+*stack* of dyads. The 0-ULP equivalence with the matvec arm is pinned by
+``tests/sn/operators/test_fission_kernel_crosscheck.py`` (B.2), the
+per-term closed-form correctness by
+``tests/transport/test_reaction_rate_functional.py``.
 
 Per Cardinal Rule 2 (architecture) this lifts the
 ``SNSolver.compute_fission_source`` math out of the solver and into a
@@ -120,8 +113,8 @@ from orpheus.numerics.operator import (
     CAP_APPLY,
     IdentityOperator,
     LinearOperator,
-    RankOneOperator,
     TensorProductOperator,
+    outer,
 )
 
 # Runtime imports for :func:`singledispatchmethod.register` — see
@@ -132,7 +125,7 @@ from orpheus.numerics.operator import (
 # which still rides on the operator-algebra path until D-H.1c.
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.production_rate_functional import ProductionRateFunctional
+from orpheus.transport.reaction_rate_functional import ReactionRateFunctional
 from orpheus.transport.full_field import FullField
 from orpheus.transport.source_sinks import ScalarSourceSink
 from orpheus.transport.timed_full_field import TimedFullField
@@ -260,16 +253,19 @@ class FissionOperator(LinearOperator):
 
         .. math::
 
-            \mathrm{RankOneOperator}(\chi,\,\nu\Sigma_f,\,\mathrm{axis}=0)
+            \texttt{outer}\bigl(\chi,\;
+                \mathrm{ReactionRateFunctional}(\nu\Sigma_f)\bigr)
             \;\&\; \mathrm{IdentityOperator}()
 
-        which composes :math:`F = \chi \otimes \nu\Sigma_f` (Grand
-        Report v3 §15 line 2008) as a type-visible separable form
-        per §16A.10's ``B = G_patch \otimes K_omega \otimes K_g``
-        decomposition.  The first factor encodes the rank-1
-        group-axis outer product (with spatial parameters carried
-        in the ``(ng, nx, ny)``-shaped ``left`` and ``right``); the
-        second factor advertises the spatial-axis broadcast.
+        which composes the rank-1 dyad :math:`F = |\chi\rangle\langle
+        \nu\Sigma_f|` (Grand Report v3 §15 line 2008) as a type-visible
+        separable form per §16A.10's ``B = G_patch \otimes K_omega
+        \otimes K_g`` decomposition.  The first factor is the rank-1
+        dyad — its reconstruction column is :math:`\chi` and its row
+        co-vector is :attr:`production_rate` (the
+        :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
+        over :math:`\nu\Sigma_f`); the second factor advertises the
+        spatial-axis broadcast.
 
         Built fresh on each access to honor the read-through semantics
         for :attr:`mat_xs`: depletion or thermal-feedback updates that
@@ -290,9 +286,10 @@ class FissionOperator(LinearOperator):
         Returns
         -------
         TensorProductOperator
-            The 2-factor TP whose first element is a
-            :class:`RankOneOperator(self.chi, self.sig_p, axis=0)`
-            and whose second element is an :class:`IdentityOperator`.
+            The 2-factor TP whose first element is the rank-1 dyad
+            ``outer(self.chi, self.production_rate)`` (a
+            :class:`RankOneOperator`) and whose second element is an
+            :class:`IdentityOperator`.
 
         Notes
         -----
@@ -300,73 +297,59 @@ class FissionOperator(LinearOperator):
         property — the type signature change from the legacy
         opaque-einsum body to a typed :class:`TensorProductOperator`
         is the deliverable.  See
-        ``tests/sn/test_fission_operator.py::TestRankOneTensorProductKernel``.
+        ``tests/sn/operators/test_fission_operator.py::TestRankOneTensorProductKernel``.
         """
-        return (
-            RankOneOperator(self.chi, self.sig_p, axis=0)
-            & IdentityOperator()
-        )
+        return outer(self.chi, self.production_rate) & IdentityOperator()
 
     @property
-    def production_rate(self) -> ProductionRateFunctional:
-        r"""#257 S6 — the §5.6 middle factor :math:`\mathrm{ProductionRate}`.
+    def production_rate(self) -> ReactionRateFunctional:
+        r"""The §5.6 production-rate co-vector — fission's rank-1 ROW-FACTOR.
 
-        Returns the S5
-        :class:`~orpheus.transport.production_rate_functional.ProductionRateFunctional`
-        over this operator's production cross section
-        :math:`\nu\Sigma_f` (read through the S2 typed accessor
+        Returns the
+        :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
+        over this operator's production cross section :math:`\nu\Sigma_f` (read
+        through the typed accessor
         :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.fission_production_field`).
-        It contracts the group axis of a flux to the per-cell fission
-        emission density
+        It contracts the group axis of a flux to the per-cell fission emission
+        density
 
         .. math::
 
-            p(\vec r) \;=\; \sum_{g'} \nu\Sigma_{f,g'}(\vec r)\,
-                \phi_{g'}(\vec r) ,
+            p(\vec r) \;=\; \langle \nu\Sigma_f, \phi\rangle
+                       \;=\; \sum_{g'} \nu\Sigma_{f,g'}(\vec r)\,\phi_{g'}(\vec r) .
 
-        the **middle** factor of the §5.6 semantic decomposition
-        :math:`F = M_\chi \circ \mathrm{ProductionRate} \circ
-        M_{\nu\Sigma_f}` (Frame 3 of the cross-domain-attacker memo
-        ``coefficient_field_promotion_frames.md``). Naming the
-        contraction turns the most physically central diagnostic in
-        criticality — the per-cell fission rate — from an anonymous
-        einsum into a typed, inspectable
-        :class:`~orpheus.numerics.functional.Functional`
-        (``coding-elegance`` Pattern 3).
-
-        Together with :attr:`kernel` (present since Wave T) this property
-        makes :class:`FissionOperator` satisfy the §5.6
+        This is the **row-factor of fission's rank-1 dyad**: :attr:`kernel` is
+        literally ``outer(self.chi, self.production_rate) & IdentityOperator()``,
+        so :meth:`apply` **routes through** this functional's
+        :meth:`~orpheus.numerics.functional.InnerProductFunctional.evaluate` —
+        the matvec's contraction IS this co-vector, not a parallel description
+        of one (the procedural twin is dissolved). Together with :attr:`kernel`
+        it makes :class:`FissionOperator` satisfy the §5.6
         :class:`~orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator`
-        Protocol — it carries the operator surface (``apply`` /
-        ``capabilities``) AND the integral-kernel structure.
+        Protocol, and exposes the most physically central diagnostic in
+        criticality — the per-cell fission source density — as a typed,
+        inspectable :class:`~orpheus.numerics.functional.Functional`
+        (``coding-elegance`` Pattern 3). The SAME type with the absorption cross
+        section is the absorption rate :math:`\langle\Sigma_a,\phi\rangle`; the
+        Rayleigh-quotient eigenvalue ``k = production / absorption`` is their
+        ratio.
 
-        Bit-identity (the realization is the fused
-        :class:`~orpheus.numerics.operator.RankOneOperator`)
-        --------------------------------------------------------
-
-        ``production_rate`` NAMES the §5.6 *semantic* middle factor; it
-        does NOT replace the matvec. The realization stays the fused
-        :attr:`kernel` (a
-        :class:`~orpheus.numerics.operator.RankOneOperator`-backed
-        :class:`~orpheus.numerics.operator.TensorProductOperator`), per
-        ``coding-elegance`` Pattern 5 (the right primitive, not the
-        unfolded product). The two AGREE byte-for-byte by construction:
-        :meth:`ProductionRateFunctional.evaluate` reproduces the
-        ``inner = (νΣf · φ).sum(axis=0, keepdims=True)`` reduction inside
-        :meth:`~orpheus.numerics.operator.RankOneOperator.apply` (same
-        numpy primitive, same axis, same ``keepdims``), and the χ
-        re-broadcast reproduces ``RankOneOperator``'s ``left * inner`` —
-        so :math:`\chi \cdot \mathrm{production\_rate.evaluate}(\phi)
-        \equiv F.\mathrm{apply}(\phi)` at 0 ULP. This is pinned by
-        ``tests/sn/operators/test_fission_kernel_crosscheck.py`` (B.2).
-
+        Fission is the rank-1 (single-mode) degenerate of the multi-mode
+        scattering kernel ``R∘Λ∘M``: the production-rate co-vector is the
+        :math:`\ell=0` analysis row and :math:`\chi` the reconstruction column.
         Built fresh on each access (O(1) — one
         :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
-        wrap) to honor the :attr:`mat_xs` read-through: a depletion /
-        thermal-feedback update to :math:`\nu\Sigma_f` shows up
-        immediately in the next access.
+        wrap) to honour the :attr:`mat_xs` read-through: a depletion /
+        thermal-feedback update to :math:`\nu\Sigma_f` shows up immediately in
+        the next :meth:`apply`.
+
+        Correctness is pinned structurally against the closed-form
+        :math:`k_\infty = \lambda_{\max}(A^{-1}F)` in
+        ``tests/transport/test_reaction_rate_functional.py`` (production and
+        absorption each, independently); the 0-ULP equivalence with the matvec
+        arm is ``tests/sn/operators/test_fission_kernel_crosscheck.py`` (B.2).
         """
-        return ProductionRateFunctional(self.mat_xs.fission_production_field)
+        return ReactionRateFunctional(self.mat_xs.fission_production_field)
 
     @singledispatchmethod
     def _apply_impl(self, phi) -> "Any":

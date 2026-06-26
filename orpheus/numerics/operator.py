@@ -64,6 +64,7 @@ import numpy as np
 from orpheus.numerics.vector import Vector
 
 if TYPE_CHECKING:
+    from orpheus.numerics.functional import Functional
     from orpheus.numerics.space import FunctionSpace
 
 
@@ -112,6 +113,7 @@ __all__ = [
     "PeriodicWrapOperator",
     "DiagonalOperator",
     "RankOneOperator",
+    "outer",
     "TensorProductOperator",
     "SumOfTensorProductsOperator",
     "CAP_APPLY",
@@ -1692,122 +1694,142 @@ class DiagonalOperator(LinearOperator):
 
 
 class RankOneOperator(LinearOperator):
-    r"""Rank-1 outer-product on a tagged axis: :math:`|\ell\rangle\langle r|`.
+    r"""The rank-1 dyad :math:`|v\rangle\langle w|` — a reconstruction column ⊗ a functional row.
 
-    For two arrays :math:`\ell, r \in \mathbb{R}^{N \times P}` whose
-    leading axis (``axis``) is the rank-1 axis and whose trailing
-    axes :math:`P` parametrize spatial / energy / etc. structure, the
-    action on a same-shape array :math:`x` is the per-position rank-1
-    contraction:
+    A :class:`RankOneOperator` is the outer product of a **reconstruction**
+    vector :math:`v` (the column, an output direction) and a
+    :class:`~orpheus.numerics.functional.Functional` :math:`\langle w|` (the
+    row, the contraction). Its action on a carrier :math:`x` is
 
     .. math::
 
-        (R\,x)_{i,\mathbf{p}} \;=\;
-        \ell_{i,\mathbf{p}} \,
-        \sum_{j} r_{j,\mathbf{p}} \, x_{j,\mathbf{p}}.
+        (\,|v\rangle\langle w|\,)\,x \;=\; v \,\cdot\, \langle w, x\rangle ,
+
+    i.e. ``reconstruction * functional.evaluate(x)``: the functional contracts
+    :math:`x` to the inner product :math:`\langle w, x\rangle` (with
+    ``keepdims`` on the contracted axis), and the reconstruction broadcasts back
+    over that length-1 axis. The functional OWNS the contraction (its weight and
+    axis); the operator only broadcasts — so the matvec routes THROUGH
+    ``functional.evaluate`` and there is no parallel inline reduction to drift
+    from it.
+
+    Build instances with :func:`outer` (the readable verb,
+    ``outer(reconstruction, functional)``). A genuine ``M × K`` rank-1 operator
+    (``v ∈ ℝ^M``, ``w ∈ ℝ^K``, ``M ≠ K``) is legal — there is no same-shape
+    constraint between the column and the row (the old ``left.shape ==
+    right.shape`` check was an artifact of the square-only legacy form).
 
     Native to the multigroup fission emission
-    :math:`F = \chi \otimes \nu\Sigma_f` (Grand Report v3 §15 line
-    2008): the per-cell production rate
-    :math:`\sum_{g'} \nu\Sigma_{f,g'}\phi_{g'}` is the contraction
-    along the group axis, and the emission spectrum :math:`\chi_g`
-    re-fills the group axis as a rank-1 outer product.  The two
-    "vectors" are :math:`\ell = \chi`, :math:`r = \nu\Sigma_f`, the
-    rank-1 axis is the group axis, and the spatial axes parametrize.
+    :math:`F = |\chi\rangle\langle\nu\Sigma_f| =
+    \texttt{outer}(\chi,\ \mathrm{ReactionRateFunctional}(\nu\Sigma_f))`
+    (Grand Report v3 §15): the production-rate co-vector
+    :math:`\langle\nu\Sigma_f, \phi\rangle = \sum_{g'}\nu\Sigma_{f,g'}\phi_{g'}`
+    is the
+    :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
+    row, and the emission spectrum :math:`\chi` is the reconstruction column.
+    Fission is the **rank-1 (single-mode) degenerate** of the multi-mode
+    scattering kernel ``R∘Λ∘M`` (a :class:`~orpheus.numerics.frame.FrameBase`
+    manages the analogous *stack* of dyads); see
+    :mod:`orpheus.transport.operators.integral_kernel_operator`.
 
     Relation to :class:`TensorProductOperator`
     -------------------------------------------
 
-    A :class:`RankOneOperator` satisfies the TP-factor contract — it
-    acts on the tagged ``axis`` and broadcasts on the other axes —
-    even though its action on ``axis`` is rank-deficient (it projects
-    onto the 1-D subspace spanned by :math:`\ell`).  Use as a TP
-    factor when the operator-algebra view wants the type-visible
-    separable form:
+    A :class:`RankOneOperator` satisfies the TP-factor contract (it acts on the
+    functional's contracted axis and broadcasts on the others), so it composes
+    as a TP factor when the algebra wants the type-visible separable form:
 
     .. code-block:: python
 
-        F_kernel = RankOneOperator(chi, nu_sigma_f, axis=0) & IdentityOperator()
+        F_kernel = outer(chi, InnerProductFunctional(nu_sigma_f, axis=0)) & IdentityOperator()
 
-    The :class:`IdentityOperator` factor advertises the spatial-axis
-    broadcast; the TP fold reduces to :meth:`RankOneOperator.apply`
-    bit-identically (``IdentityOperator.apply`` returns ``x``).
+    The :class:`IdentityOperator` factor advertises the spatial-axis broadcast;
+    the TP fold reduces to :meth:`RankOneOperator.apply` bit-identically
+    (``IdentityOperator.apply`` returns ``x``).
 
-    Capability set: ``{CAP_APPLY}``.  Rank-1 operators are
-    non-invertible by construction (kernel is the orthogonal
-    complement of :math:`\ell` along ``axis``).  ``apply_transpose``
-    is the dual rank-1 form :math:`|r\rangle\langle\ell|` — structurally
-    distinct (it sums over the **left** "vector" and emits with the
-    **right** one).  Not advertised here because the current consumer
-    (multigroup fission) does not need it.  When the adjoint
-    transport machinery lands and a consumer surfaces, the dual
-    form can be added — see :ref:`operator-algebra-adjoint`.
+    Capability set: ``{CAP_APPLY}``. Rank-1 operators are non-invertible by
+    construction (the kernel is the orthogonal complement of the row along the
+    contracted axis). ``apply_transpose`` is the dual dyad
+    :math:`|w\rangle\langle v|` (swap the column and the row) — not advertised
+    here because the current consumer (multigroup fission) does not need it;
+    when the adjoint transport machinery lands it falls out by swapping the two
+    factors. See :ref:`operator-algebra-adjoint`.
 
     Parameters
     ----------
-    left : numpy.ndarray
-        Output-side "vector" :math:`\ell`.  Shape
-        ``(N_axis, *spatial)``: leading axis is the rank-1 axis
-        (``axis``); trailing axes parametrize per-position dependence.
-    right : numpy.ndarray
-        Input-side "vector" :math:`r`.  Same shape as ``left``.
-        Symmetry of ``left.shape == right.shape`` is enforced because
-        the contraction
-        :math:`\sum_j r_{j,\mathbf{p}}\,x_{j,\mathbf{p}}` requires
-        ``right`` to align with the input on all axes.
-    axis : int, default 0
-        The rank-1 axis.  Contraction sums along this axis;
-        broadcast re-fills it with :math:`\ell`.
+    reconstruction : Vector | numpy.ndarray
+        The column :math:`v` — the output direction the inner product is
+        broadcast against. Aligns with the carrier on the complement of the
+        functional's contracted axis; its size on that axis is the output
+        dimension ``M``.
+    functional : Functional
+        The row co-vector :math:`\langle w|` — contracts the carrier to
+        :math:`\langle w, x\rangle` over its own axis (typically the leading
+        group axis for the multigroup reaction rate). Usually an
+        :class:`~orpheus.numerics.functional.InnerProductFunctional` (generic)
+        or a
+        :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
+        (the domain-typed reaction rate).
 
     Notes
     -----
-    Bit-identity with the legacy two-step formulation
-    ``np.einsum("g...,g...->...", right, x) → (...,) * left[None, ...]``:
-    both reductions sum along the same axis with the same numpy
-    primitive (``np.einsum`` vs ``.sum(axis=axis)``), and the
-    subsequent broadcast multiplication is elementwise.  IEEE-754
-    pairwise-reduction order is preserved.
+    Bit-identity with the legacy ``(right * x).sum(axis, keepdims) * left``
+    formulation is preserved because
+    :meth:`~orpheus.numerics.functional.InnerProductFunctional.evaluate` performs
+    that exact ``(w * x).sum(axis, keepdims=True)`` reduction — the same numpy
+    primitive, the same axis, the same order — and the reconstruction broadcast
+    is elementwise. IEEE-754 pairwise-reduction order is preserved.
     """
 
     capabilities: frozenset[str] = frozenset({CAP_APPLY})
 
     def __init__(
         self,
-        left: np.ndarray,
-        right: np.ndarray,
-        axis: int = 0,
+        reconstruction: "Vector | np.ndarray",
+        functional: "Functional",
     ) -> None:
-        left_arr = np.asarray(left)
-        right_arr = np.asarray(right)
-        if left_arr.shape != right_arr.shape:
-            raise ValueError(
-                f"RankOneOperator left and right must have matching "
-                f"shapes; got left.shape={left_arr.shape} vs "
-                f"right.shape={right_arr.shape}."
-            )
-        if left_arr.ndim == 0:
-            raise ValueError(
-                "RankOneOperator requires at least 1-D left/right; "
-                "got scalars (use ScaledOperator instead)."
-            )
-        if not (-left_arr.ndim <= axis < left_arr.ndim):
-            raise ValueError(
-                f"RankOneOperator axis={axis} out of range for "
-                f"ndim={left_arr.ndim}."
-            )
-        self.left = left_arr
-        self.right = right_arr
-        self.axis = int(axis) % left_arr.ndim
+        # The dyad |v⟩⟨w|: ``reconstruction`` is the column (output) vector v;
+        # ``functional`` is the row co-vector ⟨w| that OWNS the contraction (its
+        # weight and axis). NO same-shape guard — a genuine M×K rank-1 operator
+        # (M ≠ K) is legal; the functional validates its own contraction against
+        # the carrier at apply time (the old left.shape == right.shape check was
+        # an artifact of the square-only legacy form, not a real constraint).
+        self.reconstruction = reconstruction
+        self.functional = functional
 
     def apply(self, x: np.ndarray) -> np.ndarray:
-        x_arr = np.asarray(x)
-        if x_arr.shape != self.left.shape:
-            raise ValueError(
-                f"RankOneOperator.apply: x.shape={x_arr.shape}, "
-                f"expected {self.left.shape} (matching left/right)."
-            )
-        # Contract along ``axis`` with ``right`` as the inner-product
-        # vector; broadcast back along ``axis`` weighted by ``left``.
-        inner = (self.right * x_arr).sum(axis=self.axis, keepdims=True)
-        return self.left * inner
+        # |v⟩⟨w| x = v · ⟨w, x⟩. The functional IS the contraction — it returns
+        # the inner product ⟨w, x⟩ with ``keepdims`` on the contracted axis, and
+        # the reconstruction broadcasts back over that length-1 axis. Routing the
+        # matvec THROUGH ``functional.evaluate`` is what makes the row-factor a
+        # first-class object (no parallel inline reduction to drift from it).
+        recon = np.asarray(getattr(self.reconstruction, "values", self.reconstruction))
+        return recon * self.functional.evaluate(x)
+
+
+def outer(
+    reconstruction: "Vector | np.ndarray",
+    functional: "Functional",
+) -> RankOneOperator:
+    r"""Build the rank-1 dyad :math:`|v\rangle\langle w|` from a column and a co-vector.
+
+    The universal constructor for a rank-1 :class:`LinearOperator`: a
+    :class:`~orpheus.numerics.vector.Vector` (or ``ndarray``) ``reconstruction``
+    :math:`v` (the column, the output direction) tensored with a
+    :class:`~orpheus.numerics.functional.Functional` ``functional`` :math:`\langle w|`
+    (the row, the contraction). The action is
+
+    .. math::
+
+        (\,|v\rangle\langle w|\,)\,x \;=\; v \,\cdot\, \langle w, x\rangle ,
+
+    i.e. ``reconstruction * functional.evaluate(x)``. Every separable rank-1
+    operator in the algebra is one of these; the multi-mode generalisation is a
+    sum of dyads managed by a :class:`~orpheus.numerics.frame.FrameBase` (the
+    spectral / block-term decomposition). The canonical transport instance is
+    the fission emission kernel
+    :math:`F = \texttt{outer}(\chi,\ \mathrm{ReactionRateFunctional}(\nu\Sigma_f))`
+    (see :class:`~orpheus.transport.operators.fission.FissionOperator`).
+    """
+    return RankOneOperator(reconstruction, functional)
 

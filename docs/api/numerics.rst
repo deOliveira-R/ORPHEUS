@@ -126,11 +126,26 @@ consumers landed May 2026):
   status (T.3 scattering kernel; the T.4 per-direction streaming split
   was retired in #238 — the fused matvec walks both directions in one
   pass); see :ref:`wave-t-shape-table`.
-* :class:`~orpheus.numerics.operator.RankOneOperator` — rank-1
-  outer product :math:`|\ell\rangle\langle r|` on a tagged axis;
-  native to the multigroup fission emission
-  :math:`F = \chi \otimes \nu\Sigma_f` (Wave T T.2,
-  :attr:`FissionOperator.kernel`).
+* :class:`~orpheus.numerics.operator.RankOneOperator` — the rank-1 dyad
+  :math:`|v\rangle\langle w|`: a reconstruction **column** ``v`` and a
+  :class:`~orpheus.numerics.functional.Functional` **row** ``⟨w|``, with
+  ``apply(x) = v * functional.evaluate(x)`` (the matvec routes *through*
+  the functional, not a parallel reduction). Built by the free function
+  :func:`~orpheus.numerics.operator.outer`\ ``(reconstruction,
+  functional)``; native to the multigroup fission emission
+  :math:`F = |\chi\rangle\langle\nu\Sigma_f|` (:attr:`FissionOperator.kernel`).
+  A genuine :math:`M\times K` rank-1 operator is legal (no same-shape
+  constraint between column and row).
+* :func:`~orpheus.numerics.operator.outer` — the universal rank-1
+  constructor ``outer(reconstruction, functional)``, the readable verb
+  for :math:`|v\rangle\langle w|`. Exported from
+  :mod:`orpheus.numerics`.
+* :class:`~orpheus.numerics.functional.InnerProductFunctional` — the
+  generic co-vector :math:`\langle w, \cdot\rangle` (``evaluate(x) = (w *
+  x).sum(axis, keepdims=True)``), the row-factor of a rank-1 operator.
+  The transport
+  :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
+  specialises it. Exported from :mod:`orpheus.numerics`.
 
 
 Consumer matrix for tensor-product primitives (post Wave T)
@@ -156,8 +171,8 @@ master condition that decides between :class:`TensorProductOperator`,
      - 5 BC realizers (vacuum / specular / white / albedo / periodic
        via Wave T T.1 ``& IdentityOperator()`` wrap); fission kernel
        (Wave T T.2,
-       :attr:`FissionOperator.kernel = RankOneOperator(χ, νΣ_f,
-       axis=0) & IdentityOperator()`)
+       :attr:`FissionOperator.kernel = outer(χ,
+       ReactionRateFunctional(νΣ_f)) & IdentityOperator()`)
      - Six clean-TP production instances. The MA-Q1 master condition
        is satisfied: each consumer factors as disjoint per-axis
        operations.
@@ -184,10 +199,14 @@ master condition that decides between :class:`TensorProductOperator`,
      - 1
      - Wave T T.2 fission kernel
        (:attr:`FissionOperator.kernel` first factor of the
-       :class:`TensorProductOperator`)
-     - Encodes the group-axis contraction-then-broadcast
+       :class:`TensorProductOperator`); built via
+       :func:`~orpheus.numerics.operator.outer`
+     - The dyad :math:`|\chi\rangle\langle\nu\Sigma_f|`: encodes the
+       group-axis contraction-then-broadcast
        :math:`(F\,\phi)_g = \chi_g\,\sum_{g'}\nu\Sigma_{f,g'}\,\phi_{g'}`
-       as a typed primitive.
+       as a typed primitive, with the contraction owned by the
+       :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
+       row-factor.
 
 **New SN-side bespoke leaves shipped in Wave T** (private to
 :mod:`orpheus.sn`, accessed via public properties; documented for
@@ -391,9 +410,20 @@ API Reference
    :undoc-members:
    :show-inheritance:
 
+.. automodule:: orpheus.numerics.functional
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 The :class:`~orpheus.numerics.operator.LinearOperator` Protocol,
 its capability-set semantics, and the composition / tensor-product
 primitives are documented at :ref:`operator-algebra` (theory page).
+The :class:`~orpheus.numerics.functional.Functional` Protocol (the §5.6
+suffix-law co-vector), its concrete
+:class:`~orpheus.numerics.functional.InnerProductFunctional`, and the
+rank-1 dyad constructor :func:`~orpheus.numerics.operator.outer`
+(:math:`|v\rangle\langle w|`) are documented at
+:ref:`functional-category`.
 The discrete :class:`~orpheus.numerics.frame.FrameBase` hierarchy
 (:class:`~orpheus.numerics.frame.PetrovGalerkinFrame` →
 :class:`~orpheus.numerics.frame.GalerkinFrame`), the

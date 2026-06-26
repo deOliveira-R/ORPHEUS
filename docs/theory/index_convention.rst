@@ -40,7 +40,7 @@ this page, this page is correct.
   the collision multiplier :math:`C = M[\sigma_t]`
   (:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
   :class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
-  :class:`~orpheus.sn.fission.FissionOperator`).
+  :class:`~orpheus.transport.operators.fission.FissionOperator`).
 - **Historical note (resolved 2026-05)**: a legacy FD-matvec
   packed-vector helper ``solution_to_angular_flux`` returned
   ``(ng, N, nx, ny)`` internally with a Krylov-side
@@ -1006,7 +1006,7 @@ scale through the same algebra.
        :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.foldable_part`
        absorbs into :math:`\Sigma_r`
    * - :math:`F`
-     - :class:`~orpheus.sn.fission.FissionOperator`
+     - :class:`~orpheus.transport.operators.fission.FissionOperator`
      - Fission :math:`\chi_g \sum_{g'} \nu\Sigma_{f,g'}\,\phi_{g'}`;
        rank-1 in energy, rank-0 in angle (internal
        ``to_scalar`` + broadcast-back)
@@ -1141,7 +1141,7 @@ lives in scattered docstrings.
      - :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.apply`
    * - :class:`FissionOperator`.\ ``apply`` in/out
      - ``(ng, nx, ny)``
-     - :meth:`~orpheus.sn.fission.FissionOperator.apply`
+     - :meth:`~orpheus.transport.operators.fission.FissionOperator.apply`
    * - :class:`StreamingOperator`.\ ``apply`` in/out (Resolution A)
      - ``(N, ng, nx, ny)``
      - :class:`~orpheus.sn.operator.StreamingOperator`

@@ -31,6 +31,7 @@ ORPHEUS — Open Reactor Physics Educational University System
    :caption: API Reference
 
    api/numerics
+   api/transport
    api/data
    api/geometry
    api/homogeneous

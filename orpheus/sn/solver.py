@@ -44,6 +44,7 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, Mesh1D, Mesh2D
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.transport.operators.fission import FissionOperator
+from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from .geometry import SNMesh
 from .spatial.scheme import DiscretizationSchemeBase
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
@@ -1141,31 +1142,43 @@ class SNSolver:
     def compute_production_rate(self, flux_distribution: np.ndarray) -> float:
         r"""Total volume-integrated neutron production rate (scalar).
 
-        :math:`P(\phi) = \sum_g r_g = \sum_g \int_V \nu \Sigma_{f,g} \phi_g\,dV
-        + 2 \sum_g \int_V \sum_{g'} \Sigma_{2,g'\to g} \phi_{g'} \,dV`,
-        i.e. ``.sum()`` of :meth:`compute_group_production_rate`.
+        :math:`P(\phi) = \int_V \sum_g \nu \Sigma_{f,g} \phi_g\,dV
+        + 2 \int_V \sum_g \sum_{g'} \Sigma_{2,g'\to g} \phi_{g'} \,dV`.
+
+        The fission term is the typed volume-integrated reaction rate
+        :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+        over :math:`\nu\Sigma_f` — ``∫_V ⟨νΣf, φ⟩ dV`` — the single source of the
+        ``Σx·φ`` contraction and its volume integral. The :math:`(n,2n)` channel
+        is an **explicit additive term** (a second neutron-multiplying reaction,
+        NOT a ``⟨Σx,φ⟩`` rate); it reuses the single ``add_n2n_to_group_rate``
+        machinery and is exactly zero on a no-(n,2n) mixture.
 
         This is the canonical scale anchor for the SN eigenmode:
         :func:`orpheus.numerics.eigenvalue.power_iteration` renormalises
-        :math:`\phi` to unit production rate at each outer step
-        (ERR-052), which gives callers a stable physical handle —
-        scaling to an absolute flux at a target reactor power becomes a
-        single multiplication by :math:`P_{\text{target}} / \kappa`
-        where :math:`\kappa` is the energy released per fission.
+        :math:`\phi` to unit production rate at each outer step (ERR-052).
         """
-        return float(self.compute_group_production_rate(flux_distribution).sum())
+        fission = IntegratedReactionRate(
+            self.mat_xs.fission_production_field
+        ).evaluate(flux_distribution)
+        n2n_rate = np.zeros(self.ng)
+        self.mat_xs.add_n2n_to_group_rate(n2n_rate, flux_distribution, self.volume)
+        return float(fission + n2n_rate.sum())
 
     def compute_keff(self, flux_distribution: np.ndarray) -> float:
-        """k = production / absorption (volume-weighted).
+        r"""k = production / absorption (volume-weighted).
 
-        Composed from the per-group production and absorption rate
-        vectors so the intermediates are individually meaningful and
-        reusable (e.g. spectral diagnostics).  See
-        :meth:`compute_group_production_rate` and
-        :meth:`compute_group_absorption_rate`.
+        Both rates are the typed volume-integrated reaction rate
+        :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+        — ``k = (∫_V ⟨νΣf,φ⟩ dV + (n,2n)) / ∫_V ⟨Σa,φ⟩ dV`` — the
+        :math:`\phi^\dagger\!=\!1` degenerate of the homogenization PG bilinear
+        ``⟨φ†, M[Σx]φ⟩``. The per-group
+        :meth:`compute_group_production_rate` / :meth:`compute_group_absorption_rate`
+        remain available as spectral diagnostics (not on the keff path).
         """
         production = self.compute_production_rate(flux_distribution)
-        absorption = float(self.compute_group_absorption_rate(flux_distribution).sum())
+        absorption = IntegratedReactionRate(
+            self.mat_xs.absorption_cross_section_field
+        ).evaluate(flux_distribution)
         return production / absorption
 
     def converged(

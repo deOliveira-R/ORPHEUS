@@ -75,33 +75,29 @@ def require_functional():
 
 
 def require_production_rate_functional():
-    """The concrete ``ProductionRateFunctional`` (S5) — skip if not landed.
+    """The concrete production-rate functional — now ``ReactionRateFunctional``.
 
-    The brief sketched ``sn/`` (carries νΣf as a CrossSectionField), but
-    the method-implementer landed it in ``transport/`` — it imports only
-    transport types (CrossSectionField + the flux carrier), nothing
-    SN-specific, so it is the shared SN/CP/MoC leaf. The transport home is
-    therefore the FIRST probe; the original ``sn/`` candidates remain as
-    fallbacks. The exact module path is the method-implementer's latitude
-    — probe the likely homes; skip with a clear reason otherwise.
+    The original ``ProductionRateFunctional`` (S5) was RETIRED:
+    :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
+    generalises it (production = ``ReactionRateFunctional(νΣf)``, absorption =
+    ``ReactionRateFunctional(Σa)``). The surviving foil consumers
+    (``test_functional_category`` / ``test_integral_kernel_category``) only
+    need a concrete ``Functional`` carrying ``νΣf`` to foil against; the
+    reaction-rate functional IS that object, so this probe now resolves the
+    successor. The ``importorskip`` shape is kept (it always resolves on a
+    landed tree) so the structural surface of these helpers is unchanged.
     """
-    for path in (
-        "orpheus.transport.production_rate_functional",
-        "orpheus.sn.production_rate_functional",
-        "orpheus.sn.fission",
-        "orpheus.sn.functional",
-    ):
-        try:
-            mod = __import__(path, fromlist=["ProductionRateFunctional"])
-        except ImportError:
-            continue
-        cls = getattr(mod, "ProductionRateFunctional", None)
-        if cls is not None:
-            return cls
-    pytest.skip(
-        "#257 S5 PRE-IMPL: ProductionRateFunctional not yet written "
-        "(probed sn.production_rate_functional / sn.fission / sn.functional)."
+    mod = pytest.importorskip(
+        "orpheus.transport.reaction_rate_functional",
+        reason="orpheus.transport.reaction_rate_functional.ReactionRateFunctional "
+        "not importable.",
     )
+    cls = getattr(mod, "ReactionRateFunctional", None)
+    if cls is None:
+        pytest.skip(
+            "module exists but `ReactionRateFunctional` symbol not defined."
+        )
+    return cls
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -192,16 +188,17 @@ def cross_section_field(values: np.ndarray, sn_mesh: SNMesh) -> CrossSectionFiel
 
 
 def build_production_rate_functional(nu_sigma_f_field: CrossSectionField):
-    """Construct the SUT.
+    """Construct the production-rate functional foil.
 
-    THE single construction assumption for the whole S5 suite — keyword
-    constructor ``ProductionRateFunctional(nu_sigma_f=<CrossSectionField>)``.
-    If the method-implementer chooses a different surface (positional, a
-    ``from_mat_xs`` classmethod, a different keyword name), change this
-    ONE function, not the four spec files.
+    THE single construction assumption for the surviving foil consumers —
+    the positional constructor
+    ``ReactionRateFunctional(<CrossSectionField>)`` (the retired
+    ``ProductionRateFunctional(nu_sigma_f=...)`` is superseded). If the
+    construction surface changes, change this ONE function, not the spec
+    files.
     """
     cls = require_production_rate_functional()
-    return cls(nu_sigma_f=nu_sigma_f_field)
+    return cls(nu_sigma_f_field)
 
 
 # ───────────────────────────────────────────────────────────────────────

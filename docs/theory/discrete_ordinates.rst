@@ -10967,7 +10967,7 @@ the scattering source operator, and :math:`F` is the fission source
 operator. Wave D Issue 13 lifts :math:`S` and :math:`F` out of
 :class:`~orpheus.sn.solver.SNSolver` and into
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator` and
-:class:`~orpheus.sn.fission.FissionOperator` respectively. The math is
+:class:`~orpheus.transport.operators.fission.FissionOperator` respectively. The math is
 **moved verbatim** --- the regression contract on the 11 frozen
 snapshots at ``tests/sn/regression/snapshots/`` gates the extraction.
 
@@ -10992,7 +10992,7 @@ Both operators advertise a single capability: ``{"apply"}`` only.
   per-cell rate. This rank-1 structure forbids a useful inverse on
   the energy axis (the rate has lost direction information). The
   :math:`1/k` eigenvalue division stays at the **solver** level ---
-  :meth:`~orpheus.sn.fission.FissionOperator.apply` returns
+  :meth:`~orpheus.transport.operators.fission.FissionOperator.apply` returns
   :math:`F\,\phi`; the EigenvalueSolver Protocol's
   ``compute_fission_source`` divides by :math:`k`. This separation
   preserves linearity of the operator (Wave A Protocol contract: an
@@ -11442,7 +11442,7 @@ collision operator (see :ref:`sn-streaming-operator`),
 :math:`S` is the scattering source operator
 (see :class:`~orpheus.transport.operators.scattering.ScatteringOperator`),
 :math:`F = \chi\otimes\nu\Sigma_f` is the rank-1-in-energy fission
-emission operator (see :class:`~orpheus.sn.fission.FissionOperator`),
+emission operator (see :class:`~orpheus.transport.operators.fission.FissionOperator`),
 and :math:`q_{\rm ext}` is an external source.
 
 SourceIteration: discrete fixed-point realisation
@@ -12042,7 +12042,7 @@ Cross-references
   See :ref:`sn-streaming-operator` for the design rationale.
 * :class:`~orpheus.transport.operators.scattering.ScatteringOperator` — the
   :math:`S` operand carrying P\ :sub:`ℓ` scattering plus (n,2n).
-* :class:`~orpheus.sn.fission.FissionOperator` — the rank-1-in-
+* :class:`~orpheus.transport.operators.fission.FissionOperator` — the rank-1-in-
   energy :math:`F` operand.  Returns :math:`F\,\phi` without the
   :math:`1/k` division (the eigenvalue scaling stays at the outer
   level, see the FissionOperator module docstring for the
@@ -12146,7 +12146,7 @@ SNSolver as an operator-algebra coordinator
 * :attr:`SNSolver.S` — :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
   carrying the P0 + (n,2n) + Pℓ Galerkin reconstruction (Wave D
   Issue 13).
-* :attr:`SNSolver.F` — :class:`~orpheus.sn.fission.FissionOperator`
+* :attr:`SNSolver.F` — :class:`~orpheus.transport.operators.fission.FissionOperator`
   carrying the rank-1-in-energy fission emission (Wave D Issue 13).
 
 Each of these is a :class:`~orpheus.numerics.operator.LinearOperator`

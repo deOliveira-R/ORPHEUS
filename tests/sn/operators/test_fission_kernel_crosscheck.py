@@ -1,10 +1,12 @@
 r"""#257 S6 — Spec B: the fission ``production_rate`` reproduces ``F.apply`` bit-identically.
 
 S6 adds a ``production_rate`` property to :class:`FissionOperator` →
-the S5 :class:`ProductionRateFunctional` over ``νΣf`` (the S2 accessor
-``mat_xs.fission_production_field``). With ``kernel`` (already present
-since Wave T) the operator becomes an ``IntegralKernelOperator``. The
-matvec arms are UNCHANGED.
+the :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
+over ``νΣf`` (the S2 accessor ``mat_xs.fission_production_field``; the
+original S5 ``ProductionRateFunctional`` was retired — the reaction-rate
+functional generalises it). With ``kernel`` (already present since Wave T)
+the operator becomes an ``IntegralKernelOperator``. The matvec arms are
+UNCHANGED.
 
 This is Frame 3's "first test" — the *semantic composition* equals the
 *fused realization*. The Frame-3 decomposition is
@@ -241,12 +243,56 @@ class TestProductionRateReproducesApply:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# B.3 — the existing Wave T kernel gate MUST stay green unchanged. (Stated
-# here as a pointer; the gate itself lives in test_fission_operator.py.)
+# B.4 — Mode-11 sentinel: F.apply ROUTES THROUGH the functional's evaluate.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestFissionApplyRoutesThroughFunctional:
+    """The matvec ENTERS ``ReactionRateFunctional.evaluate`` — not a green twin.
+
+    B.2's value-equivalence (``χ·pr.evaluate == F.apply``) holds even if the
+    matvec computed its OWN inline reduction and never touched the functional —
+    both sides equal ``χ·(νΣf·φ).sum``. This sentinel closes that Mode-11 gap:
+    it wraps ``ReactionRateFunctional.evaluate`` in-process and asserts the
+    counter advanced after ``F.apply``, proving the production-rate co-vector
+    IS the contraction the kernel performs (the dyad's row-factor), not a
+    parallel description. An inline-reduction regression leaves the counter at
+    0 and reddens this gate (the strictly-stronger Mode-11 proof over B.2).
+    """
+
+    def test_apply_enters_reaction_rate_functional_evaluate(self, solver_4g, monkeypatch):
+        from orpheus.transport.reaction_rate_functional import ReactionRateFunctional
+
+        calls = {"n": 0}
+        real_evaluate = ReactionRateFunctional.evaluate
+
+        def counting_evaluate(self, x, /):
+            calls["n"] += 1
+            return real_evaluate(self, x)
+
+        monkeypatch.setattr(ReactionRateFunctional, "evaluate", counting_evaluate)
+
+        op = solver_4g.fission_op
+        ng = solver_4g.ng
+        nx, ny = solver_4g.sn_mesh.spatial_shape
+        op.apply(_asymmetric_phi(ng, nx, ny))
+
+        require(
+            calls["n"] > 0,
+            "F.apply did NOT route through ReactionRateFunctional.evaluate — "
+            "the fission matvec computed an inline reduction instead of calling "
+            "the dyad's row-factor (Mode-11: a green twin routing around the "
+            "rewired reader).",
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# B.3 — the existing kernel gate MUST stay green unchanged. (Stated here as
+# a pointer; the gate itself lives in test_fission_operator.py.)
 # ═══════════════════════════════════════════════════════════════════════
 #
 # ``tests/sn/operators/test_fission_operator.py::TestRankOneTensorProductKernel``
-# pins ``kernel.left is emission_spectrum`` (reference identity) and
-# ``kernel.apply ≡ apply`` (single source of truth). S6 must NOT perturb
-# it — the Wave T kernel is the OTHER half of the IntegralKernelOperator
-# surface and is already green. It is listed in the spec's Part-D gate set.
+# pins ``kernel.ops[0].reconstruction is emission_spectrum`` (reference
+# identity) and ``kernel.apply ≡ apply`` (single source of truth). This carve
+# must NOT perturb it — the kernel is the OTHER half of the
+# IntegralKernelOperator surface and is already green.

@@ -17,6 +17,7 @@ from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.geometry import Mesh2D
 from orpheus.numerics.operator import CAP_APPLY, LinearOperator
 from orpheus.transport.operators.fission import FissionOperator
+from orpheus.transport.reaction_rate_functional import ReactionRateFunctional
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver
@@ -90,7 +91,7 @@ class TestBitIdenticalExtraction:
 
         1. **Principled at every step** — the new path routes through
            the typed 2-factor :class:`TensorProductOperator` kernel
-           (``RankOneOperator(chi, νΣ_f, axis=0) & IdentityOperator()``);
+           (``outer(chi, ReactionRateFunctional(νΣf)) & IdentityOperator()``);
            every intermediate is a named physical quantity (per-cell
            production rate, emission spectrum × rate).
         2. **Structurally-independent reference** — the homogeneous-
@@ -337,7 +338,7 @@ class TestCompositeInvariants:
 #
 # T.2 lifts the inlined ``np.einsum("gxy,gxy->xy", sig_p, phi) *
 # chi[None, :, :]`` body into the typed 2-factor TP kernel
-# ``RankOneOperator(chi, νΣ_f, axis=0) & IdentityOperator()``.  The
+# ``outer(chi, ReactionRateFunctional(νΣf)) & IdentityOperator()``.  The
 # `kernel` property is the type-visible §16A.10 ``B = G_patch ⊗ K_omega
 # ⊗ K_g`` decomposition for fission.  This class pins the kernel
 # structure so future refactors don't silently undo the T.2 lift.
@@ -371,15 +372,27 @@ class TestRankOneTensorProductKernel:
         assert isinstance(kernel.ops[0], RankOneOperator)
         assert isinstance(kernel.ops[1], IdentityOperator)
 
-    def test_kernel_left_is_chi_right_is_nu_sigma_f(self, solver_2g):
-        """The RankOneOperator's left = χ, right = νΣ_f, axis=0 (group)."""
+    def test_kernel_reconstruction_is_chi_functional_is_production_rate(self, solver_2g):
+        """The RankOneOperator dyad: reconstruction = χ, functional = ⟨νΣ_f| (axis 0).
+
+        Post-refactor the rank-1 op is the dyad ``outer(χ, ReactionRateFunctional(νΣf))``:
+        its ``reconstruction`` column is the emission spectrum χ (bound by
+        REFERENCE — ``mat_xs`` shares the same numpy buffer across calls, so
+        ``is`` holds), and its ``functional`` row co-vector is the
+        production-rate ``ReactionRateFunctional`` (the §5.6 contraction,
+        ``axis=0`` over groups, ``weight == νΣ_f``).
+        """
         kernel = solver_2g.fission_op.kernel
         rank_one = kernel.ops[0]
-        # ``mat_xs`` shares the same numpy buffers across calls; the
-        # kernel binds REFERENCES (not copies), so ``is`` holds.
-        assert rank_one.left is solver_2g.mat_xs.emission_spectrum
-        assert rank_one.right is solver_2g.mat_xs.fission_production
-        assert rank_one.axis == 0
+        # ``reconstruction`` binds the χ buffer by reference (not a copy).
+        assert rank_one.reconstruction is solver_2g.mat_xs.emission_spectrum
+        # The row co-vector is the production-rate reaction-rate functional.
+        assert isinstance(rank_one.functional, ReactionRateFunctional)
+        assert rank_one.functional.axis == 0
+        np.testing.assert_array_equal(
+            np.asarray(rank_one.functional.weight),
+            solver_2g.mat_xs.fission_production,
+        )
 
     def test_kernel_apply_matches_apply_dispatch(self, solver_2g):
         """``kernel.apply(phi.values)`` equals ``fission_op.apply(phi).values``

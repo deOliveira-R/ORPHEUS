@@ -142,7 +142,13 @@ def scattering_op():
 
 @pytest.fixture
 def production_rate_functional():
-    """A bare S5 ``ProductionRateFunctional`` foil (field→scalar, no kernel)."""
+    """A bare ``ReactionRateFunctional`` foil (field→scalar, no kernel).
+
+    The retired ``ProductionRateFunctional`` is superseded by the
+    production-rate :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`;
+    it is still a bare ``Functional`` (no ``kernel``, no ``apply``), so it
+    foils the ``IntegralKernelOperator`` negative gates identically.
+    """
     from tests.transport._functional_helpers import (
         build_production_rate_functional,
     )

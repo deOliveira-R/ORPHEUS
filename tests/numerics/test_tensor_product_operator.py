@@ -20,6 +20,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.numerics.functional import InnerProductFunctional
 from orpheus.numerics.operator import (
     CAP_APPLY,
     CAP_APPLY_TRANSPOSE,
@@ -31,6 +32,7 @@ from orpheus.numerics.operator import (
     SumOfTensorProductsOperator,
     TensorProductOperator,
     ZeroOperator,
+    outer,
 )
 
 
@@ -243,7 +245,7 @@ class TestRankOneOperator:
         ell = np.array([1.0, 2.0, 3.0])
         r = np.array([4.0, 5.0, 6.0])
         x = np.array([0.5, -0.25, 0.75])
-        R = RankOneOperator(ell, r, axis=0)
+        R = RankOneOperator(ell, InnerProductFunctional(r, axis=0))
         inner = float(r @ x)  # = 4·0.5 + 5·(-0.25) + 6·0.75 = 5.25
         expected = ell * inner
         np.testing.assert_array_equal(R.apply(x), expected)
@@ -264,7 +266,7 @@ class TestRankOneOperator:
         nu_sigma_f = rng.uniform(0.01, 0.5, size=(ng, nx, ny))
         phi = rng.uniform(0.1, 2.0, size=(ng, nx, ny))
 
-        R = RankOneOperator(chi, nu_sigma_f, axis=0)
+        R = RankOneOperator(chi, InnerProductFunctional(nu_sigma_f, axis=0))
         out = R.apply(phi)
 
         # Hand-computed per-cell rank-1 action.
@@ -275,32 +277,39 @@ class TestRankOneOperator:
     def test_capabilities_apply_only(self):
         """Rank-1 ops advertise CAP_APPLY only (non-invertible by
         construction; ``apply_transpose`` not yet a consumer)."""
-        R = RankOneOperator(np.ones(3), np.ones(3))
+        R = RankOneOperator(np.ones(3), InnerProductFunctional(np.ones(3)))
         assert R.capabilities == frozenset({CAP_APPLY})
 
-    def test_constructor_rejects_shape_mismatch(self):
-        with pytest.raises(ValueError, match="matching shapes"):
-            RankOneOperator(np.ones((3,)), np.ones((4,)))
-
-    def test_constructor_rejects_scalar(self):
-        with pytest.raises(ValueError, match="ScaledOperator"):
-            RankOneOperator(np.array(1.0), np.array(2.0))
-
-    def test_constructor_rejects_axis_out_of_range(self):
-        with pytest.raises(ValueError, match="axis=5 out of range"):
-            RankOneOperator(np.ones(3), np.ones(3), axis=5)
-
     def test_apply_rejects_shape_mismatch(self):
-        R = RankOneOperator(np.ones(3), np.ones(3))
-        with pytest.raises(ValueError, match="expected"):
+        """A carrier that doesn't align with the row co-vector raises.
+
+        Post-refactor the contraction is owned by the functional, so a
+        mismatched carrier surfaces as numpy's broadcast error inside
+        ``InnerProductFunctional.evaluate`` (``(weight * x).sum(...)``) —
+        the behaviour (a mismatched apply raises) is preserved; the error
+        is now numpy's, since the functional owns the contraction.
+        """
+        R = RankOneOperator(np.ones(3), InnerProductFunctional(np.ones(3)))
+        with pytest.raises(ValueError, match="broadcast"):
             R.apply(np.ones(5))
 
-    def test_negative_axis_normalised(self):
-        """``axis=-1`` on a 3-D op resolves to ``axis=2``."""
+    def test_apply_negative_axis_contracts_last_axis(self):
+        """``axis=-1`` on a 3-D row co-vector contracts the trailing axis.
+
+        Post-refactor there is no ``RankOneOperator.axis`` attribute — the
+        contraction axis lives on the functional, and numpy resolves
+        ``axis=-1`` natively in ``InnerProductFunctional.evaluate``. This
+        behavioural row pins that ``apply`` contracts the LAST axis (the
+        old test asserted the normalised ``R.axis == 2``; the equivalent
+        post-refactor claim is the trailing-axis action).
+        """
         ell = np.ones((2, 3, 4))
-        r = np.ones((2, 3, 4))
-        R = RankOneOperator(ell, r, axis=-1)
-        assert R.axis == 2
+        r = np.arange(2 * 3 * 4, dtype=float).reshape(2, 3, 4)
+        x = np.ones((2, 3, 4))
+        R = RankOneOperator(ell, InnerProductFunctional(r, axis=-1))
+        # ⟨r, x⟩ over the last axis, keepdims → (2, 3, 1); broadcast by ell.
+        inner = (r * x).sum(axis=-1, keepdims=True)
+        np.testing.assert_array_equal(R.apply(x), ell * inner)
 
     def test_compose_with_identity_via_tensor_product(self):
         """``RankOneOperator & IdentityOperator`` is a valid 2-factor
@@ -312,8 +321,8 @@ class TestRankOneOperator:
         r = rng.uniform(0.1, 1.0, size=(ng, nx, ny))
         phi = rng.uniform(0.1, 2.0, size=(ng, nx, ny))
 
-        bare = RankOneOperator(ell, r, axis=0)
-        wrapped = RankOneOperator(ell, r, axis=0) & IdentityOperator()
+        bare = outer(ell, InnerProductFunctional(r, axis=0))
+        wrapped = outer(ell, InnerProductFunctional(r, axis=0)) & IdentityOperator()
 
         assert isinstance(wrapped, TensorProductOperator)
         assert wrapped.capabilities == frozenset({CAP_APPLY})

@@ -122,8 +122,8 @@ the Boltzmann equation), shared across SN / CP / MoC, so it lives in
 :mod:`orpheus.transport` (L2) alongside
 :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
 (S3b, the local Operator) and
-:class:`~orpheus.transport.production_rate_functional.ProductionRateFunctional`
-(S5, the Functional). The named Kernels
+:class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
+(the Functional). The named Kernels
 (:class:`~orpheus.transport.operators.fission.FissionOperator` /
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator`) ALSO live in
 :mod:`orpheus.transport` (L2) and satisfy this Protocol from the same

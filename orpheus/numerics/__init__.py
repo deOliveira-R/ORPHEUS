@@ -2,7 +2,7 @@
 
 from .eigenvalue import EigenvalueSolver, ProductionRateSolver, power_iteration
 from .field import Field
-from .functional import Functional, R_co, V_contra
+from .functional import Functional, InnerProductFunctional, R_co, V_contra
 from .iteration import KEigenvalue, SourceIteration
 from .measure import (
     BundleMeasure,
@@ -27,6 +27,7 @@ from .operator import (
     SumOfTensorProductsOperator,
     TensorProductOperator,
     ZeroOperator,
+    outer,
 )
 from orpheus.numerics.quadrature import gauss_legendre_on_mu, lebedev_sphere, level_symmetric_sn, product_mu_phi
 from .basis import Basis, SphericalHarmonicBasis
@@ -52,6 +53,7 @@ __all__ = [
     "FrameBase",
     "Functional",
     "FunctionSpace",
+    "InnerProductFunctional",
     "GalerkinFrame",
     "ReconstructionOperator",
     "IdentityOperator",
@@ -81,6 +83,7 @@ __all__ = [
     "gauss_legendre_on_mu",
     "lebedev_sphere",
     "level_symmetric_sn",
+    "outer",
     "power_iteration",
     "product_mu_phi",
 ]
