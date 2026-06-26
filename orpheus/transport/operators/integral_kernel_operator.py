@@ -6,7 +6,7 @@ algebra by **what they produce and how they reach across the domain**:
 * an **Operator** maps a field to a field **locally** — its action at a
   point depends only on the field at that point. The canonical instance
   is the §5.7 multiplication operator
-  :class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`
+  :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
   (``M[f]`` = ``C = M[σ_t]``): pointwise multiply, **diagonal** in
   ``(cell, group, ordinate)``, no integration against a measure.
 * a **Kernel** maps a field to a field **nonlocally** — its action
@@ -30,7 +30,7 @@ The single discriminator between an **Operator** and a **Kernel** is
 **locality**, in the sense of the cross-domain-attacker memo's Frame 3
 (``coefficient_field_promotion_frames.md``):
 
-* a :class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`
+* a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
   is **local / diagonal** — :math:`(M[f]\,\psi)(\vec r,\hat\Omega,g)
   = f(\vec r, g)\,\psi(\vec r,\hat\Omega,g)`; the output at a point is a
   pointwise function of the input at that *same* point, so the operator
@@ -56,7 +56,7 @@ asymmetry the type partition encodes:
 * a Kernel **is** a LinearOperator (it has the full operator surface)
   AND **adds** the :attr:`kernel` member;
 * but only **some** LinearOperators are Kernels — a local operator
-  (:class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`,
+  (:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`,
   :class:`~orpheus.numerics.operator.IdentityOperator`) is a clean
   LinearOperator with **no** ``kernel`` and is therefore NOT an
   :class:`IntegralKernelOperator`.
@@ -120,14 +120,16 @@ Layering note
 The §5.6 *Kernel* is **transport** vocabulary (the integral kernels of
 the Boltzmann equation), shared across SN / CP / MoC, so it lives in
 :mod:`orpheus.transport` (L2) alongside
-:class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`
+:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
 (S3b, the local Operator) and
 :class:`~orpheus.transport.production_rate_functional.ProductionRateFunctional`
-(S5, the Functional). The named Kernels (``FissionOperator`` /
-``ScatteringOperator``) live in the L3 ``sn`` package and import this
-L2 base (an allowed L3 → L2 import); a future relocated carrier-agnostic
-scattering / fission core (deferred per the S6 plan) would satisfy the
-same Protocol from L2.
+(S5, the Functional). The named Kernels
+(:class:`~orpheus.transport.operators.fission.FissionOperator` /
+:class:`~orpheus.transport.operators.scattering.ScatteringOperator`) ALSO live in
+:mod:`orpheus.transport` (L2) and satisfy this Protocol from the same
+layer — #261 relocated them out of the ``sn`` package (they are
+cross-method reaction operators — every method scatters / fissions —
+not SN-specific), realising the S6 carrier-agnostic-core plan.
 
 References
 ----------
@@ -175,7 +177,7 @@ class IntegralKernelOperator(LinearOperator[V], Protocol[V]):
     ``codomain`` and adds ``kernel``), NOT disjoint from it — unlike the
     S5 :class:`~orpheus.numerics.functional.Functional`, which shares no
     member with LinearOperator. A LOCAL / diagonal operator (the §5.7
-    :class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`,
+    :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`,
     or :class:`~orpheus.numerics.operator.IdentityOperator`) is a clean
     LinearOperator with no ``kernel``, and so is NOT an
     :class:`IntegralKernelOperator` — the refinement is strict.
@@ -183,9 +185,9 @@ class IntegralKernelOperator(LinearOperator[V], Protocol[V]):
     Satisfied — without inheritance — by any object that carries the
     LinearOperator surface AND a ``kernel`` member. The canonical
     transport instances are
-    :class:`orpheus.sn.fission.FissionOperator` (kernel =
+    :class:`orpheus.transport.operators.fission.FissionOperator` (kernel =
     ``χ ⊗ νΣf`` rank-1 TensorProductOperator) and
-    :class:`orpheus.sn.scattering.ScatteringOperator` (kernel =
+    :class:`orpheus.transport.operators.scattering.ScatteringOperator` (kernel =
     ``R ∘ Λ ∘ M`` OperatorProduct).
     """
 
@@ -197,7 +199,7 @@ class IntegralKernelOperator(LinearOperator[V], Protocol[V]):
         integral kernel :math:`K` such that
         :math:`(A\,\psi)(x) = \int K(x, x')\,\psi(x')\,d\mu(x')`. It is
         the member that distinguishes a Kernel from a local
-        :class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`
+        :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
         (which has no integral structure to expose). Returned as the
         common :class:`~orpheus.numerics.operator.LinearOperator`
         supertype — a

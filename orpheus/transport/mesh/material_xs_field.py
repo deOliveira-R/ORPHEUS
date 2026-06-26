@@ -1,11 +1,11 @@
 r"""Macroscopic cross-section field over an SN domain.
 
 Issue #197 PR-TYPED-1 — the typed wrapper that closes the 8 leaked
-per-material dispatch loops scattered across :mod:`orpheus.sn.scattering`
+per-material dispatch loops scattered across :mod:`orpheus.transport.operators.scattering`
 and :mod:`orpheus.sn.solver`.  Before this PR the per-material structure
 of the cross-section data leaked through every consumer:
 
-* :class:`~orpheus.sn.scattering.ScatteringOperator` carried a
+* :class:`~orpheus.transport.operators.scattering.ScatteringOperator` carried a
   ``cells_by_mat: dict[int, (ix, iy)]`` constructor parameter and
   iterated it explicitly in :meth:`~ScatteringOperator.add_iso_source`,
   :meth:`~ScatteringOperator.add_n2n_source`,
@@ -13,7 +13,7 @@ of the cross-section data leaked through every consumer:
   :meth:`~ScatteringOperator.residual_part`,
   :meth:`~ScatteringOperator.is_foldable_into_sigma_r`,
   :meth:`~ScatteringOperator.foldable_sigma`, and
-  :class:`~orpheus.sn.scattering.LegendreMomentScattering.apply`.
+  :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering.apply`.
 * :class:`~orpheus.sn.solver.SNSolver` carried a parallel
   ``_cells_by_mat`` and seven separate XS attributes
   (``sig_t``, ``sig_a``, ``sig_p``, ``chi``, ``sig_s``, ``sig2``,

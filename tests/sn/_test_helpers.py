@@ -287,9 +287,9 @@ def legacy_proxy_matvec(
     )
     from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.sn.operator import (
-        CollisionOperator,
         StreamingOperator,
     )
+    from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 
     # Wave T T.5 close-out (matvec retirement): route through the
     # public operator-algebra path `(L + C).apply`.  The legacy
@@ -314,7 +314,7 @@ def legacy_proxy_matvec(
         history_depth=2,
     )
     L_op = StreamingOperator(sn_mesh)
-    C_op = CollisionOperator(sn_mesh, sigma_t)
+    C_op = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
     result = (L_op + C_op).apply(composite)
     return result.bulk.values
 
@@ -337,10 +337,11 @@ def _LC_matvec(
     for default ``bc_outer`` / ``pole_angular_closure`` (the only call
     convention any test actually exercised).
     """
-    from orpheus.sn.operator import CollisionOperator, StreamingOperator
+    from orpheus.sn.operator import StreamingOperator
+    from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
     sn_mesh = psi.bulk.mesh
     L = StreamingOperator(sn_mesh)
-    C = CollisionOperator(sn_mesh, sigma_t)
+    C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
     return (L + C).apply(psi)
 
 

@@ -59,7 +59,8 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.boundary_operator import SNBoundaryOperator
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import CollisionOperator, StreamingOperator
+from orpheus.sn.operator import StreamingOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
@@ -184,7 +185,7 @@ def _random_composite(sn: SNMesh, rng: np.random.Generator) -> TimedFullField:
 def _loss_operator(sn: SNMesh, sig_t: np.ndarray):
     r"""The within-group loss ``A = L + C - B`` (the boundary sibling ``-B`` live)."""
     L = StreamingOperator(sn)
-    C = CollisionOperator(sn, sig_t)
+    C = MultiplicationOperator.from_mesh(sig_t, sn)
     B = SNBoundaryOperator(sn)
     return L + C - B
 

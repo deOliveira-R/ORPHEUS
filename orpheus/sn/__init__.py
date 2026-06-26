@@ -1,5 +1,3 @@
-from .fission import FissionOperator
-from .scattering import ScatteringOperator
 from .solution import IterationHistory, Solution, SolutionDiff
 from .solver import (
     SNSolver,

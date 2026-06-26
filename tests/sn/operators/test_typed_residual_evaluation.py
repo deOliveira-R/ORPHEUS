@@ -31,7 +31,8 @@ from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import FullFieldSpace
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import CollisionOperator, StreamingOperator
+from orpheus.sn.operator import StreamingOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.sn.solver import (
     SNSolver,
     _within_group_si,
@@ -287,7 +288,7 @@ def test_mis_spaced_collision_reds_the_production_loss_build():
     ffs = sn_mesh.full_field_space
     wrong = FullFieldSpace(name="full_field_TYPO", shape=ffs.shape)
     L = StreamingOperator(sn_mesh)
-    C = CollisionOperator(sn_mesh, solver.mat_xs.total_cross_section_field)
+    C = MultiplicationOperator.from_mesh(solver.mat_xs.total_cross_section_field, sn_mesh)
     _ = L + C  # POSITIVE control — correctly-spaced L + C composes
     with mock.patch.object(type(C), "domain", property(lambda self: wrong)), \
          mock.patch.object(type(C), "codomain", property(lambda self: wrong)):

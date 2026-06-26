@@ -57,9 +57,11 @@ D-I.1 — typed-carrier migration
 This file was originally written against the legacy packed-vector
 contract (bare-``np.ndarray`` through
 :func:`_transport_operator_matvec_unified` via the
-:class:`EquationMap` B1'' adapter).  D-I.1 retires
-:meth:`CollisionOperator.apply(bare_ndarray)` /
-:meth:`CollisionOperator.solve(bare_ndarray)` along with the
+:class:`EquationMap` B1'' adapter).  D-I.1 retires the collision
+multiplier's legacy bare-``np.ndarray`` ``apply`` / ``solve`` contract
+(the multiplier is now a
+:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`,
+``C = M[σ_t]``) along with the
 supporting ``_ensure_eq_map`` / ``_sigma_at_unknowns`` / ``_eq_map``
 fields; the test file migrates first so its assertions land directly
 on the typed :class:`TimedFullField` carrier (the D-H wave's
@@ -77,9 +79,9 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import (
-    CollisionOperator,
     StreamingOperator,
     )
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from tests.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -173,7 +175,7 @@ class TestResolutionADecomposition:
 
         # Pure-L + C via TimedFullField arithmetic (#257 S8b): L reads no σ.
         L = StreamingOperator(sn_mesh)
-        C = CollisionOperator(sn_mesh, sigma_t)
+        C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
         sum_state = L.apply(state) + C.apply(state)
 
         # Bulk residual — (N, ng, nx, ny) ndarray.

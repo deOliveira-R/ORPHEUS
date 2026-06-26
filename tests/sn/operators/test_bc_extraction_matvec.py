@@ -125,7 +125,8 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import CollisionOperator, StreamingOperator
+from orpheus.sn.operator import StreamingOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.full_field import FullField
@@ -239,7 +240,7 @@ def _LpC_apply(sn_mesh: SNMesh, state: TimedFullField, sigma_t: np.ndarray) -> "
     timeless :class:`~orpheus.transport.full_field.FullField` source.
     """
     L = StreamingOperator(sn_mesh)
-    C = CollisionOperator(sn_mesh, sigma_t)
+    C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
     return (L + C).apply(state)
 
 

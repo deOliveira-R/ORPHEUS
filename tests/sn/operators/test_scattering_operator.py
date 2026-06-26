@@ -1,4 +1,4 @@
-"""Foundation tests for :class:`orpheus.sn.scattering.ScatteringOperator`.
+"""Foundation tests for :class:`orpheus.transport.operators.scattering.ScatteringOperator`.
 
 Round 1.2 of Wave D of the SN reshape campaign (Issue #162). The
 operator carries the same math :class:`SNSolver` used to expose under
@@ -27,7 +27,7 @@ from orpheus.numerics.operator import CAP_APPLY, LinearOperator
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
-from orpheus.sn.scattering import ScatteringOperator
+from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.source_sinks import AngularSourceSink

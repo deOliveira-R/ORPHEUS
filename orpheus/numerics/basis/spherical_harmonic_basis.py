@@ -68,7 +68,7 @@ Cross-method consumers
 This module is generic infrastructure: every method that integrates an
 angular field against the spherical-harmonic basis consumes it.
 
-* **SN scattering** (:mod:`orpheus.sn.scattering`) — the
+* **SN scattering** (:mod:`orpheus.transport.operators.scattering`) — the
   :math:`Y^* W` projection that builds the per-ordinate :math:`P_\ell`
   source.
 * **PN solver** (future, §10 of the architecture report) —

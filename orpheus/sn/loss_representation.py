@@ -1969,9 +1969,9 @@ def transport_sweep(
     :meth:`~orpheus.sn.sources.AngularSourceSink.from_isotropic`.
     Scattering-generated sources project at the producer boundary
     via the singledispatched
-    :meth:`~orpheus.sn.scattering.ScatteringOperator.apply`.  Fission-
+    :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.apply`.  Fission-
     generated sources project at the producer boundary via
-    :meth:`~orpheus.sn.fission.FissionOperator.apply`.
+    :meth:`~orpheus.transport.operators.fission.FissionOperator.apply`.
 
     The legacy two-parameter convention (``iso_source: ScalarSourceSink``
     + ``aniso_source: AngularSourceSink | None`` with sweep-internal

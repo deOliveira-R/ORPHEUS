@@ -43,16 +43,14 @@ from orpheus.data.macro_xs.cell_xs import assemble_cell_xs
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import BC, Mesh1D, Mesh2D
 from orpheus.numerics.eigenvalue import power_iteration
-from .fission import FissionOperator
+from orpheus.transport.operators.fission import FissionOperator
 from .geometry import SNMesh
 from .spatial.scheme import DiscretizationSchemeBase
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
-from .operator import (
-    CollisionOperator,
-    StreamingOperator,
-)
+from .operator import StreamingOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.quadrature import Quadrature
-from .scattering import ScatteringOperator
+from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.mesh.axis import Axis1D
 from .loss_representation import transport_sweep
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
@@ -194,7 +192,7 @@ def _within_group_triple(solver: "SNSolver") -> tuple:
 
     * ``L + C`` is the :class:`~orpheus.sn.operator.InvertibleOperator`
       (``.apply`` = matvec, ``.solve`` = the WDD sweep) — the resolvent.
-    * ``S`` (:class:`~orpheus.sn.scattering.ScatteringOperator`) is the BULK
+    * ``S`` (:class:`~orpheus.transport.operators.scattering.ScatteringOperator`) is the BULK
       scattering coupling.  Producer-side ``/W`` normalisation (R-1 Step 4 A1)
       lives inside :meth:`ScatteringOperator.apply`; no consumer-side rescale.
     * ``B`` (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`) is the
@@ -210,17 +208,23 @@ def _within_group_triple(solver: "SNSolver") -> tuple:
     Within-group fission is zero (it enters as ``q_ext`` per the eigenvalue
     outer / within-group decomposition), so there is no fission gain here.
     """
-    from .operator import CollisionOperator, StreamingOperator
+    from .operator import StreamingOperator
     from .boundary_operator import SNBoundaryOperator
 
     sn_mesh = solver.sn_mesh
     # L = pure σ-free streaming (#257 S8b): the streaming leaf reads no σ;
     # the collision diagonal lives entirely in C = M[σ_t].
     L = StreamingOperator(sn_mesh)
-    # C = M[σ_t] (#257 S3b promotion): construct from the typed
-    # CrossSectionField accessor (the field side of the operator
-    # promotion), not the raw ndarray view.
-    C = CollisionOperator(sn_mesh, solver.mat_xs.total_cross_section_field)
+    # C = M[σ_t] (#257 S3b promotion / #261 collapse): construct the
+    # diagonal multiplier from the typed CrossSectionField accessor (the
+    # field side of the operator promotion), not the raw ndarray view. The
+    # composite ``full_field_space`` lets the ``L + C`` OperatorSum guard
+    # VALIDATE the build (W-D); the mesh-identity invariant reads it back off
+    # ``C.coefficient.mesh``.
+    C = MultiplicationOperator(
+        coefficient=solver.mat_xs.total_cross_section_field,
+        space=sn_mesh.full_field_space,
+    )
     return (
         L + C,
         solver.scattering_op,
@@ -925,15 +929,18 @@ class SNSolver:
             full_field_space=sn_mesh.full_field_space,
         )
         # The full transport operator :math:`L = \Omega\cdot\nabla + \Sigma_t`
-        # as the algebraic sum :class:`StreamingOperator` +
-        # :class:`CollisionOperator` = :class:`InvertibleOperator`.
+        # as the algebraic sum streaming + the collision multiplier
+        # ``M[σ_t]`` = :class:`InvertibleOperator`.
         # :meth:`InvertibleOperator.apply` returns ``(L_stream + C)·ψ`` in
         # :class:`TimedFullField` form (the typed direct-sum carrier);
         # :meth:`InvertibleOperator.solve` consumes ``initial_guess`` for
         # the Carlson seed (R-1 Phase 1.2 unification).
         self.L = (
             StreamingOperator(sn_mesh)
-            + CollisionOperator(sn_mesh, self.mat_xs.total_cross_section_field)
+            + MultiplicationOperator(
+                coefficient=self.mat_xs.total_cross_section_field,
+                space=sn_mesh.full_field_space,
+            )
         )
         self.S = self.scattering_op
         self.F = self.fission_op
@@ -1010,7 +1017,10 @@ class SNSolver:
         # carries σ; the composite single-sources it from C.sigma).
         self.L = (
             StreamingOperator(self.sn_mesh)
-            + CollisionOperator(self.sn_mesh, self.mat_xs.total_cross_section_field)
+            + MultiplicationOperator(
+                coefficient=self.mat_xs.total_cross_section_field,
+                space=self.sn_mesh.full_field_space,
+            )
         )
         if self.geom_cache is not None:
             sig_t_1d = self.mat_xs.total_cross_section
@@ -1213,7 +1223,8 @@ class SNSolver:
         eigenvalue SI inner is geometry-agnostic: it is the structural
         twin of :meth:`_solve_krylov` (the live 2-D eigenvalue path) —
         identical composite RHS, identical loss decomposition
-        (``LC = StreamingOperator + CollisionOperator`` plus the
+        (``LC = StreamingOperator + MultiplicationOperator`` — the collision
+        multiplier ``C = M[σ_t]`` — plus the
         scattering ``S`` and boundary ``B`` coupling gains —
         :func:`_within_group_triple`, zero within-group fission), identical
         ``psi_typed.bulk.integrate_angular()`` reduction — differing
@@ -2394,7 +2405,8 @@ def _solve_fixed_source_krylov(
     * ``_make_sweep_preconditioner`` — **RETIRED** pre-D-J.
     * ``SNStreamingOperator`` — **RETIRED** in D-K (commit
       ``dadf4e8``).  ``self.L`` now binds to the algebraic
-      composition ``StreamingOperator + CollisionOperator``
+      composition ``StreamingOperator + MultiplicationOperator`` (the
+      collision multiplier ``C = M[σ_t]``)
       (= :class:`InvertibleOperator`).
 
     Scope

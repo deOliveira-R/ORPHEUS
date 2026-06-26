@@ -14,7 +14,7 @@ operator-algebra view of the Boltzmann transport equation,
     \qquad\text{(eigenvalue)}
 
 where :math:`L` is the streaming + collision operator, :math:`S` is
-the scattering operator (see :mod:`orpheus.sn.scattering`), and
+the scattering operator (see :mod:`orpheus.transport.operators.scattering`), and
 :math:`F` is the **fission emission operator**
 
 .. math::
@@ -36,7 +36,7 @@ The §5.6 Kernel reading — fission as an integral kernel
 =======================================================
 
 In the grand-report §5.6 suffix law (see
-:mod:`orpheus.transport.integral_kernel_operator`) fission is a
+:mod:`orpheus.transport.operators.integral_kernel_operator`) fission is a
 **Kernel**: a *nonlocal* operator whose action integrates the flux
 against a measure on the group axis (the emission at :math:`(\vec r, g)`
 reads the flux at *every* group :math:`g'`). #257 S6 makes this a
@@ -46,7 +46,7 @@ structure :attr:`~FissionOperator.kernel` (the rank-1 ``χ ⊗ νΣf``
 Wave T) and the §5.6 middle factor :attr:`~FissionOperator.production_rate`
 (the S5 :class:`~orpheus.transport.production_rate_functional.ProductionRateFunctional`),
 and therefore satisfies the
-:class:`~orpheus.transport.integral_kernel_operator.IntegralKernelOperator`
+:class:`~orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator`
 Protocol.
 
 The **semantic** decomposition (Frame 3 of the cross-domain-attacker
@@ -336,7 +336,7 @@ class FissionOperator(LinearOperator):
 
         Together with :attr:`kernel` (present since Wave T) this property
         makes :class:`FissionOperator` satisfy the §5.6
-        :class:`~orpheus.transport.integral_kernel_operator.IntegralKernelOperator`
+        :class:`~orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator`
         Protocol — it carries the operator surface (``apply`` /
         ``capabilities``) AND the integral-kernel structure.
 

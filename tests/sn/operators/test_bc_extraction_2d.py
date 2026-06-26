@@ -59,7 +59,8 @@ from orpheus.geometry import BC, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.boundary_operator import SNBoundaryOperator
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import CollisionOperator, StreamingOperator
+from orpheus.sn.operator import StreamingOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.source_sinks import BoundarySourceSink
@@ -199,7 +200,7 @@ class TestVacuum2DBitIdentity:
             # streaming_action is O(1)-relative and trips this assert long
             # before the bytes are frozen — the re-baseline is NOT
             # self-referential ("freeze whatever pure-L emits") by construction.
-            composite = (L + CollisionOperator(sn_mesh, sig_t)).apply(state)
+            composite = (L + MultiplicationOperator.from_mesh(sig_t, sn_mesh)).apply(state)
             structural_ground = (
                 composite.bulk.values - sig_t[None] * state.bulk.values
             )
@@ -311,7 +312,7 @@ class TestStreamingEquilibrium2D:
         state = self._build_flat_state(sn_mesh, phi, W)
 
         L = StreamingOperator(sn_mesh)
-        C = CollisionOperator(sn_mesh, sig_t)
+        C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
         B = SNBoundaryOperator(sn_mesh)
 
         l_bulk = L.apply(state).bulk.values
@@ -357,7 +358,7 @@ class TestStreamingEquilibrium2D:
 
         state = self._build_flat_state(sn_mesh, phi, W)
         L = StreamingOperator(sn_mesh)
-        C = CollisionOperator(sn_mesh, sig_t)
+        C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
         B = SNBoundaryOperator(sn_mesh)
 
         Qn = (Q_scalar / W)[None, :, None, None] * np.ones((N, ng, nx, ny))

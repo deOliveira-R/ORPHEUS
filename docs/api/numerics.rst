@@ -193,7 +193,7 @@ master condition that decides between :class:`TensorProductOperator`,
 :mod:`orpheus.sn`, accessed via public properties; documented for
 forward-reference by Wave O typing work):
 
-* :class:`orpheus.sn.scattering._PerLegendreOrderScattering` — per-ℓ
+* :class:`orpheus.transport.operators.scattering._PerLegendreOrderScattering` — per-ℓ
   summand of :attr:`ScatteringOperator.kernel`. Public access via
   :attr:`ScatteringOperator.kernel_summands`. Implements
   :math:`R_\ell \circ \Lambda_\ell \circ M_\ell` for one Legendre
@@ -215,8 +215,8 @@ forward-reference by Wave O typing work):
    (:ref:`sn-mms-curvilinear-aniso-verification`).
 
 The leading-underscore primitives are intentionally private (the
-public surface is via the :attr:`~orpheus.sn.scattering.ScatteringOperator.kernel`
-/ :attr:`~orpheus.sn.scattering.ScatteringOperator.kernel_summands`
+public surface is via the :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.kernel`
+/ :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.kernel_summands`
 properties on the operator classes). Wave O (`Issue #208
 <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_) will introduce
 ``BulkOperator`` / ``FullOperator`` / ``BoundaryOperator`` Protocols

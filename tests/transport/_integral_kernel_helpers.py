@@ -4,7 +4,7 @@ r"""Shared fixtures + not-yet-written-SUT import guards for the #257 S6
 S6 is PRE-IMPLEMENTATION when these specs are written. The
 system-under-test does NOT yet exist on the tree:
 
-* the Protocol ``orpheus.transport.integral_kernel_operator.IntegralKernelOperator``;
+* the Protocol ``orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator``;
 * the new ``FissionOperator.production_rate`` property (the S5 functional);
 * the new ``ScatteringOperator.kernel`` property (the typed ``R∘Λ∘M``).
 
@@ -94,13 +94,13 @@ def require(condition: bool, message: str) -> None:
 def require_integral_kernel_operator():
     """The ``IntegralKernelOperator`` Protocol (S6) — skip if not yet landed.
 
-    The brief sketches ``orpheus.transport.integral_kernel_operator`` (the
+    The brief sketches ``orpheus.transport.operators.integral_kernel_operator`` (the
     numerics/transport-floor home alongside the S5 ``Functional``). The
     exact module path is the method-implementer's latitude; probe the
     likely homes and skip with a clear reason otherwise.
     """
     for path in (
-        "orpheus.transport.integral_kernel_operator",
+        "orpheus.transport.operators.integral_kernel_operator",
         "orpheus.numerics.integral_kernel_operator",
         "orpheus.transport.kernel_operator",
     ):

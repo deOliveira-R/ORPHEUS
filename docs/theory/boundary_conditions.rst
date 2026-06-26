@@ -2992,7 +2992,7 @@ rank-generic :attr:`spatial_shape <SNMesh.spatial_shape>`:
   its first two axes (a ``vv-principles`` Mode-2 / Mode-5 class
   index error that the degenerate :math:`d \le 2` test never reaches).
 * :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField` and
-  :class:`~orpheus.sn.scattering.ScatteringOperator` collapse their
+  :class:`~orpheus.transport.operators.scattering.ScatteringOperator` collapse their
   ``nx`` / ``ny`` reads to **one** rank-generic
   :attr:`spatial_shape <SNMesh.spatial_shape>` read-through each.
 

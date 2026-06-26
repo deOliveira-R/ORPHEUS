@@ -137,7 +137,7 @@ Key Facts
   :math:`N=110`, :math:`L=1`) rather than the full per-ordinate
   :class:`~orpheus.transport.fields.angular_flux.AngularFlux`. The
   source is **bit-identical** (the moment arm of
-  :meth:`ScatteringOperator.apply <orpheus.sn.scattering.ScatteringOperator.apply>`
+  :meth:`ScatteringOperator.apply <orpheus.transport.operators.scattering.ScatteringOperator.apply>`
   shares the :math:`R\,\Lambda` reconstruction with the full-angular
   arm); only the SI convergence test moves to the moment :math:`L^2`
   (principled-equivalence). 2-D Cartesian only (curvilinear's
@@ -239,9 +239,10 @@ Key Facts
   methods (``solve``, ``apply_transpose``) are functional.
 
 - **SN array-storage convention** for every operator leaf
-  (:class:`~orpheus.sn.operator.StreamingOperator`,
-  :class:`~orpheus.sn.operator.CollisionOperator`,
-  :class:`~orpheus.sn.scattering.ScatteringOperator`,
+  (:class:`~orpheus.sn.operator.StreamingOperator`, the collision
+  multiplier :math:`C = M[\sigma_t]`
+  (:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
+  :class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
   :class:`~orpheus.sn.fission.FissionOperator`): the
   ``apply(psi) -> psi'`` contract consumes and returns
   ``psi.shape == (N, ng, nx, ny)`` for angular flux,
@@ -435,8 +436,9 @@ is the named :math:`\sigma`-free
 leaf, the spatial streaming :math:`\Omega\cdot\nabla\psi` plus the
 curvilinear angular redistribution, with NO collision diagonal.  The
 collision diagonal :math:`C = M[\sigma_t]`
-(:class:`~orpheus.sn.operator.CollisionOperator`, the §5.7 multiplier
-promotion) is the separate shared leaf, and the composition
+(a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`,
+the §5.7 multiplier promotion — now literally :math:`C = M[\sigma_t]`) is
+the separate shared leaf, and the composition
 :math:`L + C` recovers the full within-group loss.
 
 The discrete within-group WDD matvec is **affine in** :math:`\sigma` in
@@ -719,7 +721,9 @@ honest way to express the coupled inverse through the parts (below).
    :math:`L^{-1}` row above is therefore the **mathematical** advection
    inverse — "even if :math:`L` alone were inverted, it would solve pure
    advection" — not a method you can invoke. The collision leaf
-   :class:`~orpheus.sn.operator.CollisionOperator` *does* advertise
+   :math:`C = M[\sigma_t]`
+   (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
+   *does* advertise
    ``CAP_SOLVE``, but **only** when :math:`\min|\sigma| > 0` (the
    multiplier spectrum law :math:`\mathrm{spec}(M[\sigma]) =
    \mathrm{ess\,range}(\sigma)`); when it does, ``C.solve(q) = q/\sigma``
@@ -864,7 +868,8 @@ sides of the algebra:
   :math:`L` (:class:`~orpheus.sn.operator.StreamingOperator`, the
   :math:`\sigma`-free :eq:`streaming-action-pure-l` leaf) and collision
   :math:`C = M[\sigma_t]`
-  (:class:`~orpheus.sn.operator.CollisionOperator`) each advertise
+  (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
+  each advertise
   ``CAP_APPLY``, and their applications compose additively
   (:eq:`apply-distributes`). The forward direction is affine in
   :math:`\sigma` (the previous subsection), so the leaf decomposition is
@@ -1124,8 +1129,9 @@ operator; the cross section **is** the operator. §5.7 makes that
 identity literal: a :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
 :math:`f` is *promoted* to the multiplication operator :math:`M[f]`, and
 :math:`C = M[\sigma_t]` becomes a named instance of that promotion
-rather than an anonymous broadcast-multiply buried in
-:meth:`CollisionOperator.apply <orpheus.sn.operator.CollisionOperator.apply>`.
+rather than an anonymous broadcast-multiply buried in the operator's
+``apply`` body (the action now lives once, in
+:meth:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator.apply`).
 
 The multiplier-algebra embedding
 --------------------------------
@@ -1187,7 +1193,7 @@ The action is delegated to the N-D
 ``DiagonalOperator(f.values, broadcast_axes=(0,))``: the coefficient is
 an :math:`(n_g, *\text{spatial})` field, broadcast over the leading
 ordinate axis. The transport-level
-:class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`
+:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
 does **not** re-derive the broadcast — it *builds the engine once* over
 its immutable coefficient and forwards (``coding-elegance`` Pattern 2,
 single source of truth), so the transport operator and the numerics
@@ -1202,23 +1208,27 @@ The promotion is the moment the opaque ``Generic[V]`` becomes an honest
 re-implemented the broadcast in its ``apply`` body — the type
 ``CollisionOperator`` said nothing, and the meaning lived in a comment.
 After §5.7,
-:class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`
+:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
 stores **only** a :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
 (the cone-typed coefficient of #257 S1), sourced through the typed
 :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.total_cross_section_field`
 accessor (#257 S2). The operator's *identity* is its coefficient field;
-the action follows from the embedding. The named SN leaf
-:class:`~orpheus.sn.operator.CollisionOperator` is now a **thin
-subclass** of the transport operator (``C = M[σ_t]``): it inherits the
-``apply`` / ``solve`` / ``apply_transpose`` bodies (the multiply lives
-once), and adds only the back-compatible ``(sn_mesh, σ)`` constructor,
-the ``.sigma`` property (reading ``coefficient.values`` — no duplicate
-storage), and the ``__add__`` dispatch that assembles the bundled
-:class:`~orpheus.sn.operator.InvertibleOperator` from ``L + C`` (the
-``L+C`` dispatch is SN-model-specific and stays in ``sn/``; the generic
-multiplier ``__add__`` stays on the transport base because the
-``numerics ↛ transport ↛ sn`` layer order forbids the base from naming
-``InvertibleOperator``).
+the action follows from the embedding. The collision leaf is now a
+**plain** :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+carrying :math:`\sigma_t` as its coefficient — :math:`C = M[\sigma_t]` is
+literally true, with no SN-specific subtype at all. #261 retired the
+former ``CollisionOperator`` thin subclass: once the transport base gained
+the optional :attr:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator.space`
+(for the W-D composition guard) and the bare-array
+:meth:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator.from_mesh`
+constructor, the subclass added nothing the base lacked. The ``L + C``
+dispatch that assembles the bundled
+:class:`~orpheus.sn.operator.InvertibleOperator` lives **one-directionally**
+on :meth:`~orpheus.sn.operator.StreamingOperator.__add__` (keyed on the
+``MultiplicationOperator`` base type): ``L + C`` is the canonical (and
+only) ordering, because the ``numerics ↛ transport ↛ sn`` layer order
+forbids a transport-level multiplier from dispatching back onto an ``sn``
+operator (that would be a ``transport → sn`` upward import).
 
 The multiplier-algebra laws
 ---------------------------
@@ -1281,8 +1291,8 @@ broadcast engine (the operator inherits the engine's capability set, so
 the transport operator and the numerics engine agree by construction).
 
 This is a **behavioral strengthening**, an illegal-states-unrepresentable
-hardening (``coding-elegance`` Pattern 4). The legacy
-:class:`~orpheus.sn.operator.CollisionOperator` advertised ``CAP_SOLVE``
+hardening (``coding-elegance`` Pattern 4). The legacy ``CollisionOperator``
+advertised ``CAP_SOLVE``
 *unconditionally*; on a :math:`\sigma = 0` entry its ``solve`` divided
 :math:`q/\sigma` and produced a **silent IEEE NaN** that propagated into
 the iterate. The promotion refuses the inverse it does not have: a zero
@@ -1502,14 +1512,14 @@ The §5.6 suffix law's middle term is the **Kernel**: a
 :class:`~orpheus.numerics.operator.LinearOperator` whose action is
 **nonlocal** — it integrates the carrier field against a measure on one
 or more axes — distinct from a LOCAL / diagonal
-:class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`
+:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
 (:eq:`multiplication-operator-action`, the §5.7 Operator) and from a
 field→scalar :class:`~orpheus.numerics.functional.Functional`
 (:eq:`production-rate-functional`). The single discriminator is
 **locality** (Frame 3): a multiplication operator's output at a point is
 a pointwise function of the input *there*, while a Kernel's output reads
 the input across an integrated axis. #257 S6 names this category as the
-:class:`orpheus.transport.integral_kernel_operator.IntegralKernelOperator`
+:class:`orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator`
 Protocol — a **refinement of** LinearOperator (it still has ``apply`` +
 ``capabilities``, UNLIKE the disjoint Functional) that adds a single
 ``kernel`` member exposing the integral structure as a
@@ -1545,7 +1555,7 @@ direction cosine — a *zonal* kernel — so by the Funk–Hecke theorem the
 spherical harmonics are its eigenfunctions, with eigenvalues the
 Legendre moments :math:`\Sigma_{s,\ell}` (the diagonal of
 :math:`\Lambda` =
-:class:`~orpheus.sn.scattering.LegendreMomentScattering`). Reading
+:class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`). Reading
 :math:`M` = :math:`U^*` (change of basis *into* the eigenbasis),
 :math:`\Lambda` = :math:`\Sigma` (the diagonal spectrum), and
 :math:`R` = :math:`U` (synthesis *out of* it) is what makes the
@@ -1594,7 +1604,7 @@ the ``@runtime_checkable`` ``isinstance`` checks all five members. The
 refinement is **strict**, which the intrinsic gate verifies in both
 directions: a kernel-less LinearOperator
 (:class:`~orpheus.numerics.operator.IdentityOperator`, the local
-:class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`)
+:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
 is **not** a Kernel, and a :class:`~orpheus.numerics.functional.Functional`
 (no ``apply``, no ``kernel``) is **not** a Kernel either. Variance is
 inherited verbatim from LinearOperator — a Kernel's ``apply(x: V) -> V``
@@ -1669,7 +1679,7 @@ unfolded product). The middle Functional is byte-identical to the rank-1
    The literal three-factor composition was **considered and rejected**
    as the realization. The reason is *rank*: :math:`M_\chi` is
    rank-**changing**, not a diagonal
-   :class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`
+   :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
    — it takes a single scalar density per cell and broadcasts it across
    the :math:`n_g` emission groups, expanding the rank rather than
    scaling pointwise. A literal ``OperatorProduct`` of the three factors
@@ -1681,11 +1691,11 @@ unfolded product). The middle Functional is byte-identical to the rank-1
 Scattering as the nonlocal-in-angle kernel
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The scattering :attr:`kernel <orpheus.sn.scattering.ScatteringOperator.kernel>`
+The scattering :attr:`kernel <orpheus.transport.operators.scattering.ScatteringOperator.kernel>`
 is the :class:`~orpheus.numerics.operator.OperatorProduct`
 :math:`R \circ \Lambda \circ M` built from the SH frame's analysis
 face ``frame.analysis`` (:math:`M`),
-:class:`~orpheus.sn.scattering.LegendreMomentScattering` (:math:`\Lambda`),
+:class:`~orpheus.transport.operators.scattering.LegendreMomentScattering` (:math:`\Lambda`),
 and the frame's reconstruction face ``frame.reconstruction``
 (:math:`R`). It is the strictly-anisotropic :math:`\ell \ge 1` part of the
 full scattering ``apply``: the isotropic :math:`P_0` in-scatter, the
@@ -1797,7 +1807,7 @@ moment) and the role (flux ↔ source). The four leaves and three edges:
        moment, flux→flux *and* source→source (the analysis face of the
        Galerkin frame, the canonical pure-Galerkin :math:`\Pi`).
    * - :math:`\Lambda` (right edge)
-     - :meth:`LegendreMomentScattering.apply <orpheus.sn.scattering.LegendreMomentScattering.apply>`
+     - :meth:`LegendreMomentScattering.apply <orpheus.transport.operators.scattering.LegendreMomentScattering.apply>`
      - **Role-changing, axis-preserving.** The *sole* role-changing edge:
        the per-:math:`\ell` group-transfer :math:`\Sigma_{s,\ell}` maps a
        :class:`HarmonicMomentFlux` to the
@@ -2136,7 +2146,7 @@ constructed from the generic frame's basis + measure via
 :meth:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame.from_galerkin`
 (``cls(frame.basis, frame.measure)`` — **zero** rebuild of the basis /
 measure / projection table, so the inherited ndarray faces and the §5.6
-:attr:`kernel <orpheus.sn.scattering.ScatteringOperator.kernel>` stay
+:attr:`kernel <orpheus.transport.operators.scattering.ScatteringOperator.kernel>` stay
 bit-identical), adding **only** the typed verbs
 :meth:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame.analyse`
 (:math:`M`) and
@@ -2153,7 +2163,7 @@ the carrier verbs.
    verb. A frame's faces are role-*preserving* changes of representation
    (flux↔flux, source↔source); the flux→source role change is *physics*
    (scattering emits a source), so it lives on the scattering operator
-   (:meth:`LegendreMomentScattering.apply <orpheus.sn.scattering.LegendreMomentScattering.apply>`),
+   (:meth:`LegendreMomentScattering.apply <orpheus.transport.operators.scattering.LegendreMomentScattering.apply>`),
    where the cross sections are. Putting :math:`\Lambda` on the frame would
    conflate "change of basis" with "change of physical kind".
 
@@ -2164,8 +2174,8 @@ P4 deliberately keeps **two** realisations of the same :math:`R\Lambda M`
 math, each chosen for what its consumer needs to see:
 
 * The hot **full-angular** path (:ref:`sn-angular-windowing-factoring`,
-  :meth:`~orpheus.sn.scattering.ScatteringOperator.build_aniso_source`)
-  consumes the §5.6 :attr:`kernel <orpheus.sn.scattering.ScatteringOperator.kernel>`
+  :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.build_aniso_source`)
+  consumes the §5.6 :attr:`kernel <orpheus.transport.operators.scattering.ScatteringOperator.kernel>`
   ``= frame.conjugate(Λ)`` — the **single composed** ``np.ndarray``
   operator. This is P2's win and the 0-ULP canary: one composition, one
   reduction tree, pinned bit-for-bit by
@@ -2176,7 +2186,7 @@ math, each chosen for what its consumer needs to see:
 * The **windowed** in-scatter arm (the
   :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
   arm of
-  :meth:`ScatteringOperator.apply <orpheus.sn.scattering.ScatteringOperator.apply>`)
+  :meth:`ScatteringOperator.apply <orpheus.transport.operators.scattering.ScatteringOperator.apply>`)
   takes the **explicit typed** edges: :math:`\Lambda` scatters the flux
   moments to a typed :class:`HarmonicMomentSourceSink` (the role-changing
   edge made visible in the signature), then
@@ -2194,7 +2204,7 @@ flux→source→angular role flow read off the signatures; the hot consumer
 holds a raw ndarray and the fused operator keeps the reduction tree single
 and the 0-ULP canary meaningful. The ndarray ``reconstruct_after(Λ)``
 reference
-(:meth:`~orpheus.sn.scattering.ScatteringOperator._aniso_source_from_moment_values`)
+(:meth:`~orpheus.transport.operators.scattering.ScatteringOperator._aniso_source_from_moment_values`)
 is retained as the crosscheck's oracle — the structurally-independent
 ``np.ndarray`` evaluation the typed arm is pinned against.
 
@@ -2478,11 +2488,11 @@ router-over-shared-primitives shape falls out of the sharing.
 .. note::
 
    **Source map.** Category Protocol:
-   :class:`orpheus.transport.integral_kernel_operator.IntegralKernelOperator`
+   :class:`orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator`
    (L2). Named kernels:
    :attr:`orpheus.sn.fission.FissionOperator.kernel` +
    :attr:`orpheus.sn.fission.FissionOperator.production_rate`;
-   :attr:`orpheus.sn.scattering.ScatteringOperator.kernel`.
+   :attr:`orpheus.transport.operators.scattering.ScatteringOperator.kernel`.
    Category-refinement gate:
    ``tests/transport/test_integral_kernel_category.py``. Fission
    cross-check: ``tests/sn/operators/test_fission_kernel_crosscheck.py``
@@ -3945,11 +3955,11 @@ Cross-references
     the BC realizer dispatching the T.1 lifts.
   - :class:`orpheus.sn.fission.FissionOperator` and its
     :attr:`~orpheus.sn.fission.FissionOperator.kernel` property.
-  - :class:`orpheus.sn.scattering.ScatteringOperator` and its
-    :attr:`~orpheus.sn.scattering.ScatteringOperator.kernel` /
-    :attr:`~orpheus.sn.scattering.ScatteringOperator.kernel_summands`
+  - :class:`orpheus.transport.operators.scattering.ScatteringOperator` and its
+    :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.kernel` /
+    :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.kernel_summands`
     properties; the bespoke
-    :class:`orpheus.sn.scattering._PerLegendreOrderScattering` leaf.
+    :class:`orpheus.transport.operators.scattering._PerLegendreOrderScattering` leaf.
   - :class:`orpheus.sn.operator.StreamingOperator` and its
     :meth:`~orpheus.sn.operator.StreamingOperator.apply` /
     :meth:`~orpheus.sn.operator.StreamingOperator.apply_transpose`
@@ -4075,8 +4085,9 @@ off the block structure directly:
        row carries the identity** :math:`I\cdot\psi.\text{inflow}`.
        **No BC logic.**
    * - :math:`C, S, F`
-       (:class:`~orpheus.sn.operator.CollisionOperator`,
-       :class:`~orpheus.sn.scattering.ScatteringOperator`,
+       (the collision multiplier :math:`C = M[\sigma_t]`
+       — :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`,
+       :class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
        :class:`~orpheus.sn.fission.FissionOperator`)
      - ``BULK``
      - Bulk → bulk only.
@@ -4267,7 +4278,7 @@ assembled once by the single-source-of-truth helper
 which returns ``(L+C, S, B)`` — the invertible resolvent
 (:class:`~orpheus.sn.operator.InvertibleOperator`, ``.solve`` = the WDD
 sweep), the bulk scattering gain
-(:class:`~orpheus.sn.scattering.ScatteringOperator`,
+(:class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
 :attr:`block_role <orpheus.numerics.operator.BlockRole>` ``BULK``), and
 the boundary reflection gain
 (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`,
@@ -4490,7 +4501,7 @@ Deferred typing-completion seam — :attr:`ScatteringOperator.domain`
 One Wave-O typing-completion remains a documented seam, not a feature:
 minting a non-``None`` bulk
 :class:`~orpheus.numerics.operator.FunctionSpace` domain for
-:class:`~orpheus.sn.scattering.ScatteringOperator` (and the other bulk
+:class:`~orpheus.transport.operators.scattering.ScatteringOperator` (and the other bulk
 leaves). Today bulk operators type via ``block_role``, not a domain
 space, so :attr:`ScatteringOperator.domain` is ``None``. Giving it a
 bulk :math:`V_{\rm bulk}` domain would let
@@ -4535,8 +4546,10 @@ bulk + :meth:`BoundarySourceSink.zeros_on <orpheus.transport.fields._bases.Bound
 boundary inside a
 :class:`~orpheus.transport.timed_full_field.TimedFullField`), the same
 loss decomposition (the resolvent :math:`L + C` from
-:class:`~orpheus.sn.operator.StreamingOperator` +
-:class:`~orpheus.sn.operator.CollisionOperator`, plus the scattering
+:class:`~orpheus.sn.operator.StreamingOperator` + the collision
+multiplier :math:`C = M[\sigma_t]`
+(:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
+plus the scattering
 gain :math:`S` and the boundary reflection gain :math:`B` from
 :func:`_within_group_triple <orpheus.sn.solver._within_group_triple>`;
 zero within-group fission), and the
@@ -4878,7 +4891,8 @@ lives only inside one ``op.apply`` call; the moment the result is
 raveled and handed to scipy, the class is gone, and the iterate scipy
 hands back is reconstructed as the flux type. The solve/iterate/trace
 sites are therefore correctly **kept** :class:`BoundaryFlux`:
-:meth:`CollisionOperator.solve <orpheus.sn.operator.CollisionOperator>`,
+:meth:`MultiplicationOperator.solve <orpheus.transport.operators.multiplication_operator.MultiplicationOperator.solve>`
+(the collision multiplier :math:`C = M[\sigma_t]`),
 the boundary buffer of
 :meth:`InvertibleOperator._solve_timed_full_field <orpheus.sn.operator.InvertibleOperator._solve_timed_full_field>`,
 the cold-start ``initial_guess`` iterates
@@ -4908,11 +4922,12 @@ Thirteen sites (operator outputs + ``q_ext`` sources) flipped from
    * - :mod:`orpheus.sn.operator`
      - :meth:`StreamingOperator._apply_2d_cartesian <orpheus.sn.operator.StreamingOperator>`
      - 2-D boundary block
-   * - :mod:`orpheus.sn.operator`
-     - :meth:`CollisionOperator.apply <orpheus.sn.operator.CollisionOperator>`
+   * - :mod:`orpheus.transport.operators.multiplication_operator`
+     - :meth:`MultiplicationOperator.apply <orpheus.transport.operators.multiplication_operator.MultiplicationOperator.apply>`
+       (the collision multiplier :math:`C = M[\sigma_t]`)
      - bulk → bulk; boundary zero
-   * - :mod:`orpheus.sn.scattering`
-     - :meth:`ScatteringOperator.apply <orpheus.sn.scattering.ScatteringOperator>`
+   * - :mod:`orpheus.transport.operators.scattering`
+     - :meth:`ScatteringOperator.apply <orpheus.transport.operators.scattering.ScatteringOperator>`
      - boundary zero
    * - :mod:`orpheus.sn.fission`
      - :meth:`FissionOperator.apply <orpheus.sn.fission.FissionOperator>`
@@ -5833,10 +5848,11 @@ Why C / S / F stay at ``domain = None`` — the capability lattice
 The subtle architectural point of R5 is what it **deliberately does
 not** do: only :class:`~orpheus.sn.operator.StreamingOperator` (``L``)
 and :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` (``B``)
-advertise the composite ``domain`` / ``codomain``. The bulk leaves
-:class:`~orpheus.sn.operator.CollisionOperator` (``C``),
-:class:`~orpheus.sn.scattering.ScatteringOperator` (``S``), and
-:class:`~orpheus.sn.fission.FissionOperator` (``F``) are **left at**
+advertise the composite ``domain`` / ``codomain``. The bulk leaves —
+the collision multiplier :math:`C = M[\sigma_t]`
+(:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
+:class:`~orpheus.transport.operators.scattering.ScatteringOperator` (``S``), and
+:class:`~orpheus.sn.fission.FissionOperator` (``F``) — are **left at**
 ``domain = None``. A first reading suggests this is a latent trap — a
 metric-blind leaf that would corrupt the adjoint. It is the opposite:
 it is correct *and* the metric-blind state is made **unrepresentable**.
@@ -6785,7 +6801,7 @@ Phase 5a's commit 1 (``93807aa``) makes the factoring *structural* so
 that the windowed and full-angular paths share one source of truth. The
 anisotropic in-scatter is the §9 operator composition (the §15.2
 sum-of-tensor-products form,
-:meth:`~orpheus.sn.scattering.ScatteringOperator.build_aniso_source`)
+:meth:`~orpheus.transport.operators.scattering.ScatteringOperator.build_aniso_source`)
 
 .. (vv-status rationale) The R·Λ·M anisotropic-scattering factoring.
    A structural identity (associativity of the three-operator
@@ -6808,24 +6824,24 @@ where (reading right to left):
   (the SH frame's analysis face ``frame.analysis``);
 * :math:`\Lambda` is the per-:math:`\ell` block-diagonal scattering on
   moment space :math:`\Lambda = \sum_\ell P_\ell \otimes \Sigma_{s,\ell}`
-  (:class:`~orpheus.sn.scattering.LegendreMomentScattering`);
+  (:class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`);
 * :math:`R` is the addition-theorem **reconstruction** with the
   :math:`(2\ell+1)` factor
   (the SH frame's reconstruction face ``frame.reconstruction``);
 * :math:`1/W` is the producer-side normalization applied at the
-  :meth:`~orpheus.sn.scattering.ScatteringOperator.apply` boundary.
+  :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.apply` boundary.
 
 The associativity :math:`(R\,\Lambda)\,M` is the whole trick. The
 **full-angular** path evaluates the composition as written —
 :math:`R\cdot\Lambda\cdot M(\psi)`: project, scatter, reconstruct,
-consuming the §5.6 :attr:`kernel <orpheus.sn.scattering.ScatteringOperator.kernel>`
+consuming the §5.6 :attr:`kernel <orpheus.transport.operators.scattering.ScatteringOperator.kernel>`
 ``= frame.conjugate(Λ)`` as a single composed ``np.ndarray`` operator. The
 **windowed** path's iterate bulk **is** the moments :math:`\phi = M\psi`,
 so :math:`M` is *already done* and only the **moment → source** map
 :math:`R\,\Lambda` remains: :math:`R\cdot\Lambda(\phi)`. The dispatch is on
 the iterate type: the
 :class:`~orpheus.transport.fields.angular_flux.AngularFlux` arm of
-:meth:`ScatteringOperator.apply <orpheus.sn.scattering.ScatteringOperator.apply>`
+:meth:`ScatteringOperator.apply <orpheus.transport.operators.scattering.ScatteringOperator.apply>`
 does the :math:`M` projection first; the
 :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
 arm skips it.
@@ -6834,7 +6850,7 @@ arm skips it.
 
    **P4 — the windowed arm now takes the explicit typed edges.** Earlier
    the two arms shared the single ``np.ndarray`` primitive
-   :meth:`~orpheus.sn.scattering.ScatteringOperator._aniso_source_from_moment_values`
+   :meth:`~orpheus.transport.operators.scattering.ScatteringOperator._aniso_source_from_moment_values`
    (``frame.reconstruct_after(Λ)``). The Frame campaign's P4 phase
    re-expressed the windowed arm's :math:`R\,\Lambda` as the **explicit
    typed** carrier path
@@ -8068,7 +8084,7 @@ homogeneous all drive the same loop directly via the Protocol; the
    framing: :class:`~orpheus.numerics.iteration.SourceIteration` is
    type-agnostic and **angular-capable** — it routes the RHS through
    the ravellable protocol, so a typed
-   :class:`~orpheus.sn.scattering.ScatteringOperator` acting on a
+   :class:`~orpheus.transport.operators.scattering.ScatteringOperator` acting on a
    :class:`~orpheus.transport.timed_full_field.TimedFullField` carries
    :math:`P_\ell` correctly. The observed regression was a property of
    an L1 *test adapter* that collapsed angular flux to scalar between

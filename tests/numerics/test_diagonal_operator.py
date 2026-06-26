@@ -238,7 +238,7 @@ class TestDiagonalBroadcastOracle:
         psi = rng.standard_normal((n_ord, ng, nx, ny))
 
         D = DiagonalOperator(sigma, broadcast_axes=(0,))
-        # The exact form the promoted CollisionOperator/MultiplicationOperator
+        # The exact form the promoted MultiplicationOperator
         # must reproduce.
         np.testing.assert_array_equal(D.apply(psi), sigma[None] * psi)
 

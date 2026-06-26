@@ -507,13 +507,13 @@ class TestTypeContract:
         (post-D-I.3d).  Wave T post-T.5 (matvec retirement) routes
         the check through the public operator-algebra surface."""
         from orpheus.sn.operator import (
-            CollisionOperator,
             StreamingOperator,
         )
+        from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
         sn_mesh = _slab_mesh()
         sigma_t = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0)
         psi_bare = np.zeros((sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape))
         L_op = StreamingOperator(sn_mesh)
-        C_op = CollisionOperator(sn_mesh, sigma_t)
+        C_op = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
         with pytest.raises(TypeError, match="TimedFullField"):
             (L_op + C_op).apply(psi_bare)

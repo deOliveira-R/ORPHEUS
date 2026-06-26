@@ -57,14 +57,14 @@ from orpheus.numerics.operator import (
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.boundary_realizer import SNBoundaryRealizer, SNMethodSpace
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.fission import FissionOperator
+from orpheus.transport.operators.fission import FissionOperator
 from orpheus.sn.boundary_operator import SNBoundaryOperator
 from orpheus.sn.operator import (
-    CollisionOperator,
     InvertibleOperator,
     StreamingOperator,
 )
-from orpheus.sn.scattering import ScatteringOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
+from orpheus.transport.operators.scattering import ScatteringOperator
 from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = [pytest.mark.foundation]
@@ -85,7 +85,7 @@ class TestBulkLeaves:
     def test_collision_is_bulk(self) -> None:
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        C = CollisionOperator(sn, sigma_t)
+        C = MultiplicationOperator.from_mesh(sigma_t, sn)
         assert C.block_role is BlockRole.BULK
         assert isinstance(C, BulkOperator)
         assert not isinstance(C, FullOperator)
@@ -111,7 +111,7 @@ class TestFullLeaves:
     def test_invertible_L_plus_C_is_full(self) -> None:
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
-        composite = StreamingOperator(sn) + CollisionOperator(sn, sigma_t)
+        composite = StreamingOperator(sn) + MultiplicationOperator.from_mesh(sigma_t, sn)
         assert isinstance(composite, InvertibleOperator)
         assert composite.block_role is BlockRole.FULL
         assert isinstance(composite, FullOperator)
@@ -209,7 +209,7 @@ class TestComposerRoleDerivation:
         sig = np.ones((sn.ng, *sn.spatial_shape))
         return (
             StreamingOperator(sn),
-            CollisionOperator(sn, sig),
+            MultiplicationOperator.from_mesh(sig, sn),
             SNBoundaryOperator(sn),
         )
 

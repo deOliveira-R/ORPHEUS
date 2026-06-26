@@ -38,7 +38,8 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import CollisionOperator, StreamingOperator
+from orpheus.sn.operator import StreamingOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -131,8 +132,8 @@ def test_c1_pure_L_apply_is_sigma_free(geometry: str) -> None:
     # Two very different collision diagonals (the σ that USED to live on L).
     sigma_a = _het_sigma(sn_mesh, base=1.0)
     sigma_b = _het_sigma(sn_mesh, base=7.0)
-    _C_a = CollisionOperator(sn_mesh, sigma_a)
-    _C_b = CollisionOperator(sn_mesh, sigma_b)
+    _C_a = MultiplicationOperator.from_mesh(sigma_a, sn_mesh)
+    _C_b = MultiplicationOperator.from_mesh(sigma_b, sn_mesh)
 
     out_a = L.apply(state)
     out_b = L.apply(state)

@@ -39,7 +39,7 @@ from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.solver import SNSolver
 from orpheus.sn.operator import InvertibleOperator
-from orpheus.sn.scattering import ScatteringOperator
+from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.sn.boundary_operator import SNBoundaryOperator
 from orpheus.numerics import iteration as _iteration
 from orpheus.numerics.quadrature import Quadrature

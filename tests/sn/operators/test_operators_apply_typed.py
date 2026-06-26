@@ -14,7 +14,7 @@ Per-operator boundary semantics pinned here:
   the appropriate face slots of ``result.boundary``.
 * :class:`~orpheus.sn.operator.CollisionOperator` (``C``) — volumetric;
   ``result.boundary`` is the implicit-zero L2 BoundaryFlux.
-* :class:`~orpheus.sn.scattering.ScatteringOperator` (``S``) —
+* :class:`~orpheus.transport.operators.scattering.ScatteringOperator` (``S``) —
   volumetric secondary-emission; ``result.boundary`` is zero.
 * :class:`~orpheus.sn.fission.FissionOperator` (``F``) — volumetric
   rank-1 emission; ``result.boundary`` is zero.
@@ -38,9 +38,10 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
-from orpheus.sn.fission import FissionOperator
+from orpheus.transport.operators.fission import FissionOperator
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import CollisionOperator, StreamingOperator
+from orpheus.sn.operator import StreamingOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
@@ -48,7 +49,7 @@ from orpheus.transport.source_sinks import AngularSourceSink, ScalarSourceSink
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
-from orpheus.sn.scattering import ScatteringOperator
+from orpheus.transport.operators.scattering import ScatteringOperator
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 
@@ -186,7 +187,7 @@ def test_C_apply_timed_full_field_zero_boundary(name, builder) -> None:
     sn = builder()
     state = _random_state(sn, seed=5)
     sigma = np.ones((sn.ng, *sn.spatial_shape)) * 0.7
-    C = CollisionOperator(sn, sigma)
+    C = MultiplicationOperator.from_mesh(sigma, sn)
 
     Cpsi = C.apply(state)
     assert isinstance(Cpsi, FullField)  # #257 S8a: timeless codomain (base arrow)
@@ -202,7 +203,7 @@ def test_C_diagonal_action(name, builder) -> None:
     state = _random_state(sn, seed=6)
     rng = np.random.default_rng(7)
     sigma = 0.3 + 0.5 * rng.random((sn.ng, *sn.spatial_shape))
-    C = CollisionOperator(sn, sigma)
+    C = MultiplicationOperator.from_mesh(sigma, sn)
 
     Cpsi = C.apply(state)
     expected = sigma[None] * state.bulk.values
@@ -259,7 +260,7 @@ def test_full_algebra_returns_timed_full_field(name, builder) -> None:
     state = _random_state(sn, seed=24)
     sigma_t = np.full((sn.ng, *sn.spatial_shape), 0.7)
     L = StreamingOperator(sn)
-    C = CollisionOperator(sn, sigma_t * 0.5)
+    C = MultiplicationOperator.from_mesh(sigma_t * 0.5, sn)
     S = ScatteringOperator.from_solver_data(
         mat_xs=sn.material_xs_field(),
         quadrature=sn.quad,
@@ -294,7 +295,7 @@ def test_full_algebra_linearity(name, builder) -> None:
     state2 = _random_state(sn, seed=28)
     sigma_t = np.full((sn.ng, *sn.spatial_shape), 0.7)
     L = StreamingOperator(sn)
-    C = CollisionOperator(sn, sigma_t * 0.5)
+    C = MultiplicationOperator.from_mesh(sigma_t * 0.5, sn)
     S = ScatteringOperator.from_solver_data(
         mat_xs=sn.material_xs_field(),
         quadrature=sn.quad,

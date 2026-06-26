@@ -38,7 +38,8 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.angular_operator import IncomingSourceOperator
 from orpheus.sn.boundary_operator import SNBoundaryOperator
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import CollisionOperator, InvertibleOperator, StreamingOperator
+from orpheus.sn.operator import InvertibleOperator, StreamingOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = [pytest.mark.foundation]
@@ -113,7 +114,7 @@ class TestLossMinusBoundaryCompositeCapabilities:
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
         L = StreamingOperator(sn)
-        C = CollisionOperator(sn, sigma_t)
+        C = MultiplicationOperator.from_mesh(sigma_t, sn)
         B = SNBoundaryOperator(sn)
         return L, C, B, L + C - B
 

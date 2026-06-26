@@ -107,10 +107,10 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.boundary_operator import SNBoundaryOperator
 from orpheus.sn.operator import (
-    CollisionOperator,
     InvertibleOperator,
     StreamingOperator,
 )
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -263,7 +263,7 @@ def test_invertible_apply_is_M_of_C_sigma_bit_identical(case):
     sn = _REMOVAL_CASES[case]()
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)))
     L = StreamingOperator(sn)
-    C_r = CollisionOperator(sn, sig_r)
+    C_r = MultiplicationOperator.from_mesh(sig_r, sn)
     op = InvertibleOperator(L, C_r)
     psi = _random_state(sn, seed=sum(map(ord, case)))
 
@@ -304,7 +304,7 @@ def test_invertible_apply_transpose_is_M_transpose_of_C_sigma_bit_identical(case
     sn = _REMOVAL_CASES[case]()
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)) + 1)
     L = StreamingOperator(sn)
-    op = InvertibleOperator(L, CollisionOperator(sn, sig_r))
+    op = InvertibleOperator(L, MultiplicationOperator.from_mesh(sig_r, sn))
     if "apply_transpose" not in op.capabilities:
         pytest.fail(f"[{case}] apply_transpose not advertised on InvertibleOperator.")
     phi = _random_state(sn, seed=sum(map(ord, case)) + 1)
@@ -371,7 +371,7 @@ def test_removal_form_matvec_sweep_roundtrip(case):
     sn = _REMOVAL_CASES[case]()
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)) + 2)
     op = InvertibleOperator(
-        StreamingOperator(sn), CollisionOperator(sn, sig_r),
+        StreamingOperator(sn), MultiplicationOperator.from_mesh(sig_r, sn),
     )
 
     # Direction 1: apply ∘ solve = identity on a volumetric source.
@@ -431,7 +431,7 @@ def test_removal_form_apply_value_equals_M_of_sigma_r(case):
     sn = _REMOVAL_CASES[case]()
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)) + 4)
     op = InvertibleOperator(
-        StreamingOperator(sn), CollisionOperator(sn, sig_r),
+        StreamingOperator(sn), MultiplicationOperator.from_mesh(sig_r, sn),
     )
     psi = _random_state(sn, seed=sum(map(ord, case)) + 4)
 
@@ -535,7 +535,7 @@ def test_production_sigma_apply_value_preserved(case):
     rng = np.random.default_rng([sum(map(ord, case)), 1])
     sig_t = rng.uniform(0.5, 3.0, size=(sn.ng, *sn.spatial_shape))
     L = StreamingOperator(sn)
-    C = CollisionOperator(sn, sig_t)        # σ_C == σ_t (production)
+    C = MultiplicationOperator.from_mesh(sig_t, sn)        # σ_C == σ_t (production)
     op = InvertibleOperator(L, C)
     state = _random_state(sn, seed=sum(map(ord, case)))
 
@@ -581,6 +581,6 @@ def test_removal_form_nonpositive_sigma_r_rejected():
     sig_r = sig_t.copy()
     sig_r.flat[0] = -0.1   # one cell over-scatters → σ_r < 0
     L = StreamingOperator(sn)
-    C_bad = CollisionOperator(sn, sig_r)
+    C_bad = MultiplicationOperator.from_mesh(sig_r, sn)
     with pytest.raises(ValueError, match="strictly positive"):
         InvertibleOperator(L, C_bad)

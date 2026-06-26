@@ -66,7 +66,9 @@ from orpheus.numerics.operator import (
     CAP_SOLVE,
     DiagonalOperator,
     IdentityOperator,
+    IncompatibleOperatorComposition,
     MissingCapability,
+    OperatorSum,
     ZeroOperator,
 )
 from orpheus.numerics.quadrature import Quadrature
@@ -74,7 +76,7 @@ from orpheus.sn.geometry import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.fields.cross_section_field import CrossSectionField
-from orpheus.transport.multiplication_operator import MultiplicationOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.source_sinks import AngularSourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
@@ -448,3 +450,89 @@ class TestStreamingEquilibriumValuesLeg:
         np.testing.assert_array_equal(
             psi.bulk.values, Q.bulk.values / sigma_t[None],
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 3. #261 — the composition-guard space metadata.
+#
+# The gap the collapse of ``CollisionOperator`` folded UP into the base:
+# a multiplier may carry the optional composite ``FunctionSpace`` and so
+# JOIN the W-D ``OperatorSum`` composition guard (``L + C``). The retired
+# subclass added NOTHING the base lacked once the base gained ``space`` —
+# these gates pin that the base now does the job (the collapse's premise).
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestSpaceMetadataAndGuardJoin:
+    """``space`` → ``domain``/``codomain`` → the multiplier joins the guard."""
+
+    def test_space_anonymous_by_default(self):
+        """No ``space`` → ``domain``/``codomain`` are ``None`` (the mesh-free
+        default — the guard SKIPS a ``None``-spaced operand, the pre-W-D
+        behaviour preserved for non-composite multipliers)."""
+        sn = _slab_mesh()
+        M = _multiplier(sn, _positive_sigma(sn))
+        _require(M.domain is None, "default domain must be None (space-anonymous)")
+        _require(M.codomain is None, "default codomain must be None")
+
+    def test_space_threads_to_domain_and_codomain(self):
+        """A supplied ``space`` is reported as BOTH ``domain`` AND ``codomain``
+        — the multiplier is space-endomorphic (flux block → source block, same
+        shape), so ``codomain == domain``."""
+        sn = _slab_mesh()
+        space = sn.full_field_space
+        M = MultiplicationOperator(
+            coefficient=CrossSectionField.from_mesh(_positive_sigma(sn), sn),
+            space=space,
+        )
+        _require(M.domain is space, "domain must be the supplied space")
+        _require(M.codomain is space, "codomain must equal domain (endomorphic)")
+
+    def test_from_mesh_defaults_space_from_mesh(self):
+        """``from_mesh(σ, sn_mesh)`` defaults ``space`` to the mesh's
+        ``full_field_space`` — the faithful drop-in for the retired
+        ``CollisionOperator(sn_mesh, σ)``, which reached the same composite
+        space through ``sn_mesh.full_field_space`` (#261)."""
+        sn = _slab_mesh()
+        M = MultiplicationOperator.from_mesh(_positive_sigma(sn), sn)
+        _require(
+            M.space is sn.full_field_space,
+            "from_mesh must default space to mesh.full_field_space",
+        )
+
+    def test_matching_spaces_compose(self):
+        """Two multipliers on the SAME space compose into an ``OperatorSum``
+        (the guard VALIDATES — equal domains AND codomains)."""
+        sn = _slab_mesh()
+        space = sn.full_field_space
+        a = MultiplicationOperator(
+            coefficient=CrossSectionField.from_mesh(_positive_sigma(sn, seed=1), sn),
+            space=space,
+        )
+        b = MultiplicationOperator(
+            coefficient=CrossSectionField.from_mesh(_positive_sigma(sn, seed=2), sn),
+            space=space,
+        )
+        _require(
+            isinstance(a + b, OperatorSum),
+            "matching-space multipliers must compose into an OperatorSum",
+        )
+
+    def test_mismatched_spaces_red_the_guard(self):
+        """Two multipliers on DIFFERENT spaces RED the ``OperatorSum``
+        composition guard — the gap-fill's whole purpose. A formerly
+        ``None``-spaced ``CollisionOperator`` skipped this check; the
+        space-carrying ``MultiplicationOperator`` no longer can mis-compose
+        silently."""
+        sn_a = _slab_mesh(nx=4)
+        sn_b = _slab_mesh(nx=6)  # distinct spatial shape → distinct full_field_space
+        a = MultiplicationOperator(
+            coefficient=CrossSectionField.from_mesh(_positive_sigma(sn_a), sn_a),
+            space=sn_a.full_field_space,
+        )
+        b = MultiplicationOperator(
+            coefficient=CrossSectionField.from_mesh(_positive_sigma(sn_b), sn_b),
+            space=sn_b.full_field_space,
+        )
+        with pytest.raises(IncompatibleOperatorComposition):
+            _ = a + b

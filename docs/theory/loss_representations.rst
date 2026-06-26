@@ -201,7 +201,8 @@ it imposes the **load-bearing contract** on every representation:
    :math:`L\psi_{\rm flat} = 0`, so :math:`(L+C)\psi = \sigma_t\psi` —
    proving the action is the *full* :math:`(L+C)` loss, not bare
    :math:`L`, and cross-checks the :math:`-C` glue against an
-   independent :class:`~orpheus.sn.operator.CollisionOperator`.
+   independent collision multiplier :math:`C = M[\sigma_t]`
+   (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`).
 
 .. _loss-rep-removal-form-matvec:
 
@@ -416,7 +417,8 @@ that single-sources :math:`\sigma_r` from ``C`` exactly as :meth:`solve` does.
 
 There is **no production caller of the removal form yet**: the consumer that
 would build :math:`\sigma_r` is the within-group self-scatter fold of issue
-#200, which is not wired. The :class:`~orpheus.sn.operator.CollisionOperator`
+#200, which is not wired. The collision multiplier :math:`C = M[\sigma]`
+(a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
 already accepts either :math:`\sigma_t` or :math:`\sigma_r` (it carries no
 interpretation flag — both are :math:`(\mathrm{ng}, \ldots)` arrays applied as
 :math:`\sigma\cdot\psi`), and a :math:`\sigma_r`-*sweep* is **not** a correct

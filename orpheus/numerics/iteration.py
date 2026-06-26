@@ -53,8 +53,8 @@ the operator triple acts linearly on it and that
 size.  The L0 synthetic tests use 4×4 dense matrices acting on
 ``(4,)`` flat vectors; the L1 SN gate uses
 :class:`~orpheus.sn.operator.InvertibleOperator` (composite ``L + C``),
-:class:`~orpheus.sn.scattering.ScatteringOperator`, and
-:class:`~orpheus.sn.fission.FissionOperator` acting on
+:class:`~orpheus.transport.operators.scattering.ScatteringOperator`, and
+:class:`~orpheus.transport.operators.fission.FissionOperator` acting on
 :class:`~orpheus.transport.timed_full_field.TimedFullField` composite
 carriers.
 

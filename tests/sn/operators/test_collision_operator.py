@@ -1,11 +1,14 @@
-"""Foundation tests for :class:`orpheus.sn.operator.CollisionOperator`.
+"""Foundation tests for the collision multiplier :math:`M[\\sigma_t]`
+(a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`).
 
 Phase G Step 3+4.b.i (Issue #196). The "C" of the four-operator
-algebra ``A_wg = L + C - S.foldable_part()``.
+algebra ``A_wg = L + C - S.foldable_part()``. #261 retired the former
+``CollisionOperator`` thin subclass — the collision instance is now a
+plain ``MultiplicationOperator`` carrying ``σ_t`` as its coefficient.
 
-``CollisionOperator`` is the simplest leaf: diagonal in position,
-group, and direction. ``apply`` is σ · ψ; ``solve`` is q / σ;
-``apply_transpose`` equals ``apply`` (self-adjoint). All three
+The collision multiplier ``C = M[σ_t]`` is the simplest leaf: diagonal
+in position, group, and direction. ``apply`` is σ · ψ; ``solve`` is
+q / σ; ``apply_transpose`` equals ``apply`` (self-adjoint). All three
 capabilities are analytic.
 
 Convention-agnostic σ: the same operator class accepts either the
@@ -36,7 +39,7 @@ from orpheus.numerics.operator import (
     LinearOperator,
 )
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import CollisionOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.full_field import FullField
@@ -96,8 +99,9 @@ def _random_state(
 
     D-H.2-C1: the composite carrier replaces the legacy
     :class:`orpheus.sn.angular_flux.AngularFlux` input.  Bulk values
-    are random; boundary is zero (CollisionOperator is bulk-only —
-    boundary is structurally implicit-zero per Option β3 / Issue #208).
+    are random; boundary is zero (the collision multiplier ``M[σ_t]`` is
+    bulk-only — boundary is structurally implicit-zero per Option β3 /
+    Issue #208).
     """
     rng = np.random.default_rng(seed)
     N = sn_mesh.quad.N
@@ -138,13 +142,13 @@ GEOMETRIES = [
 
 
 class TestCapabilities:
-    """CollisionOperator advertises apply + solve + apply_transpose."""
+    """The collision multiplier ``M[σ_t]`` advertises apply + solve + apply_transpose."""
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_all_three_capabilities(self, name, builder):
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
-        C = CollisionOperator(sn_mesh, sigma)
+        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         assert C.capabilities == frozenset(
             {CAP_APPLY, CAP_SOLVE, CAP_APPLY_TRANSPOSE}
         )
@@ -153,7 +157,7 @@ class TestCapabilities:
     def test_satisfies_linear_operator_protocol(self, name, builder):
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
-        C = CollisionOperator(sn_mesh, sigma)
+        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         assert isinstance(C, LinearOperator)
 
 
@@ -169,7 +173,7 @@ class TestApply:
     def test_apply_preserves_shape(self, name, builder):
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
-        C = CollisionOperator(sn_mesh, sigma)
+        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         psi = _random_state(sn_mesh)
         out = C.apply(psi)
         assert isinstance(out, FullField)  # #257 S8a: timeless codomain (base arrow)
@@ -180,7 +184,7 @@ class TestApply:
     def test_apply_zero_returns_zero(self, name, builder):
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
-        C = CollisionOperator(sn_mesh, sigma)
+        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         zero = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
         out = C.apply(zero)
         np.testing.assert_array_equal(out.bulk.values, 0.0)
@@ -191,7 +195,7 @@ class TestApply:
         sn_mesh = builder()
         c = 0.4
         sigma = c * np.ones((2, *sn_mesh.spatial_shape))  # PR-INDEX-3: (ng, *spatial)
-        C = CollisionOperator(sn_mesh, sigma)
+        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         psi = _random_state(sn_mesh, seed=99)
         out = C.apply(psi)
         np.testing.assert_allclose(
@@ -202,7 +206,7 @@ class TestApply:
     def test_apply_is_linear(self, name, builder):
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
-        C = CollisionOperator(sn_mesh, sigma)
+        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         psi1 = _random_state(sn_mesh, seed=51)
         psi2 = _random_state(sn_mesh, seed=52)
         # #208: a general α·ψ₁ + β·ψ₂ (α+β≠1) is illegal on affine flux STATES
@@ -237,7 +241,7 @@ class TestSolve:
         sn_mesh = builder()
         c = 0.4
         sigma = c * np.ones((2, *sn_mesh.spatial_shape))  # PR-INDEX-3: (ng, *spatial)
-        C = CollisionOperator(sn_mesh, sigma)
+        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         q = _random_state(sn_mesh, seed=88)
         out = C.solve(q)
         np.testing.assert_allclose(
@@ -248,7 +252,7 @@ class TestSolve:
     def test_solve_preserves_shape(self, name, builder):
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
-        C = CollisionOperator(sn_mesh, sigma)
+        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         q = _random_state(sn_mesh)
         out = C.solve(q)
         assert isinstance(out, FullField)  # #257 S8a: timeless codomain (base arrow)
@@ -260,7 +264,7 @@ class TestSolve:
         """solve(q) == q.bulk.values / sigma (broadcast over ordinates)."""
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
-        C = CollisionOperator(sn_mesh, sigma)
+        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         q = _random_state(sn_mesh, seed=200)
         out = C.solve(q)
         # σ has shape (ng, *spatial); broadcasts over the ordinate axis.
@@ -281,7 +285,7 @@ class TestApplySolveIdentity:
     def test_apply_inverts_solve(self, name, builder):
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
-        C = CollisionOperator(sn_mesh, sigma)
+        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         q = _random_state(sn_mesh, seed=77)
         round_trip = C.apply(C.solve(q))
         np.testing.assert_allclose(
@@ -292,7 +296,7 @@ class TestApplySolveIdentity:
     def test_solve_inverts_apply(self, name, builder):
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
-        C = CollisionOperator(sn_mesh, sigma)
+        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         psi = _random_state(sn_mesh, seed=78)
         round_trip = C.solve(C.apply(psi))
         np.testing.assert_allclose(
@@ -312,7 +316,7 @@ class TestApplyTranspose:
     def test_apply_transpose_equals_apply(self, name, builder):
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
-        C = CollisionOperator(sn_mesh, sigma)
+        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         psi = _random_state(sn_mesh, seed=4242)
         out_apply = C.apply(psi)
         out_transpose = C.apply_transpose(psi)
@@ -328,7 +332,7 @@ class TestApplyTranspose:
 
 
 class TestSigmaInterpretation:
-    """The same CollisionOperator works for σ_t AND σ_r without API change.
+    """The same collision multiplier ``M[σ_t]`` works for σ_t AND σ_r without API change.
 
     Pattern 4: the operator does not encode an interpretation of its
     σ — both are valid; the consumer decides which one to pass.
@@ -338,7 +342,7 @@ class TestSigmaInterpretation:
     def test_works_with_total_cross_section(self, name, builder):
         sn_mesh = builder()
         sigma_t = _sigma_total(sn_mesh)
-        C = CollisionOperator(sn_mesh, sigma_t)
+        C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
         psi = _random_state(sn_mesh, seed=10)
         out = C.apply(psi)
         assert np.any(np.abs(out.bulk.values) > 0)
@@ -347,25 +351,10 @@ class TestSigmaInterpretation:
     def test_works_with_removal_cross_section(self, name, builder):
         sn_mesh = builder()
         sigma_r = _sigma_removal(sn_mesh)
-        C = CollisionOperator(sn_mesh, sigma_r)
+        C = MultiplicationOperator.from_mesh(sigma_r, sn_mesh)
         psi = _random_state(sn_mesh, seed=10)
         out = C.apply(psi)
         assert np.any(np.abs(out.bulk.values) > 0)
-
-    @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_no_is_removal_kwarg(self, name, builder):
-        """CollisionOperator does not accept an is_removal kwarg.
-
-        Anti-recommendation 8 from the brief: the type does not encode
-        an interpretation it doesn't act on.
-        """
-        sn_mesh = builder()
-        sigma = _sigma_total(sn_mesh)
-        with pytest.raises(TypeError):
-            CollisionOperator(  # type: ignore[call-arg]
-                sn_mesh, sigma=sigma, is_removal=False,
-            )
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # 7. Sigma layout sanity — broadcast over the ordinate axis is correct.
@@ -387,7 +376,7 @@ class TestSigmaLayout:
         ix_target = nx // 2
         sigma = np.zeros((ng, *sn_mesh.spatial_shape))  # PR-INDEX-3: (ng, *spatial)
         sigma[:, ix_target] = 1.0
-        C = CollisionOperator(sn_mesh, sigma)
+        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         psi = _random_state(sn_mesh, ng=ng, seed=33)
         out = C.apply(psi)
         # Build a mask shaped (*spatial,) selecting only the target cell.
@@ -426,7 +415,7 @@ class TestCompositeInvariants:
         """Collision is bulk-only — boundary member is all zeros."""
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
-        C = CollisionOperator(sn_mesh, sigma)
+        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         state = _random_state(sn_mesh, seed=172)
 
         out = C.apply(state)
@@ -438,7 +427,7 @@ class TestCompositeInvariants:
         """Pseudoinverse leaves the rank-deficient face block zero."""
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
-        C = CollisionOperator(sn_mesh, sigma)
+        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         state = _random_state(sn_mesh, seed=175)
 
         out = C.solve(state)
@@ -457,7 +446,7 @@ class TestCompositeInvariants:
         """
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
-        C = CollisionOperator(sn_mesh, sigma)
+        C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         for depth in (0, 1, 2, 4):
             state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=depth)
             out_apply = C.apply(state)

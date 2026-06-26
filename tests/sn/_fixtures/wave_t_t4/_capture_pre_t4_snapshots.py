@@ -68,10 +68,10 @@ from orpheus.geometry.mesh import BC
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import (
-    CollisionOperator,
     InvertibleOperator,
     StreamingOperator,
 )
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
@@ -228,11 +228,11 @@ def _make_sigma_t(sn_mesh: SNMesh) -> np.ndarray:
     return sig_t
 
 
-def _build_L_C(sn_mesh: SNMesh) -> tuple[StreamingOperator, CollisionOperator]:
-    """Build the leaf L (StreamingOperator) and C (CollisionOperator)."""
+def _build_L_C(sn_mesh: SNMesh) -> tuple[StreamingOperator, MultiplicationOperator]:
+    """Build the leaf L (StreamingOperator) and C (MultiplicationOperator)."""
     sigma_t = _make_sigma_t(sn_mesh)
     L = StreamingOperator(sn_mesh)          # pure σ-free streaming (#257 S8b)
-    C = CollisionOperator(sn_mesh, sigma_t)
+    C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
     return L, C
 
 

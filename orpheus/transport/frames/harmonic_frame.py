@@ -47,7 +47,7 @@ dispatching on the input carrier type
 
 The **role-changing** edge :math:`\Lambda` (scatter,
 ``HarmonicMomentFlux → HarmonicMomentSourceSink``) is NOT a frame verb — it is the
-scattering operator's job (:class:`~orpheus.sn.scattering.LegendreMomentScattering`),
+scattering operator's job (:class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`),
 where the physics puts the role change. The hot anisotropic-scatter kernel
 :math:`S = (1/W)\,R\,\Lambda\,M` stays the single composed
 :meth:`~orpheus.numerics.frame.FrameBase.conjugate` operator (one ``np.ndarray``

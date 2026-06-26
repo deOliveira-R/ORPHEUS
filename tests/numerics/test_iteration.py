@@ -542,10 +542,10 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
 
-        from orpheus.sn.fission import FissionOperator
+        from orpheus.transport.operators.fission import FissionOperator
         from orpheus.sn.geometry import SNMesh
         from orpheus.numerics.quadrature import Quadrature
-        from orpheus.sn.scattering import ScatteringOperator
+        from orpheus.transport.operators.scattering import ScatteringOperator
         from orpheus.sn.solver import SNSolver, solve_sn
         from orpheus.sn.loss_representation import transport_sweep
 

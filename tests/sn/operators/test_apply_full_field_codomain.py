@@ -56,7 +56,8 @@ from orpheus.geometry import (
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.boundary_operator import SNBoundaryOperator
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import CollisionOperator, StreamingOperator
+from orpheus.sn.operator import StreamingOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.sn.solver import SNSolver, solve_sn
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
@@ -142,7 +143,7 @@ def test_c5a_matvec_leaves_emit_timeless_full_field(coord: str) -> None:
     sn_mesh = solver.sn_mesh
 
     L = StreamingOperator(sn_mesh)
-    C = CollisionOperator(sn_mesh, solver.mat_xs.total_cross_section_field)
+    C = MultiplicationOperator.from_mesh(solver.mat_xs.total_cross_section_field, sn_mesh)
     S = solver.scattering_op
     F = solver.fission_op
     B = SNBoundaryOperator(sn_mesh)
@@ -173,7 +174,7 @@ def test_c5a_apply_transpose_emits_timeless_full_field(coord: str) -> None:
     sn_mesh = solver.sn_mesh
 
     L = StreamingOperator(sn_mesh)
-    C = CollisionOperator(sn_mesh, solver.mat_xs.total_cross_section_field)
+    C = MultiplicationOperator.from_mesh(solver.mat_xs.total_cross_section_field, sn_mesh)
     B = SNBoundaryOperator(sn_mesh)
 
     state = _timed_random_state(sn_mesh, history_depth=3, seed=23)

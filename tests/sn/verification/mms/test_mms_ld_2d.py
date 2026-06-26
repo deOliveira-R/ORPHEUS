@@ -930,7 +930,7 @@ def test_ld_2d_scattering_slope_source_sign_mutation_reddens():
     :math:`\hat Q`) to negate the iso slope rows (slots 1:), reverted in
     ``finally``.  TEETH = the consumption proof (probed |Δφ|/|φ| ≈ 2.6e-3 at
     nc=24, ≫ ``_CONSUMPTION_TOL``).  ``-O``-safe."""
-    import orpheus.sn.scattering as scat_mod
+    import orpheus.transport.operators.scattering as scat_mod
 
     case = build_2d_cartesian_ld_stress_mms_case()
     nc = 24

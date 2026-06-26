@@ -175,7 +175,7 @@ and those eigenvalues are exactly the **Legendre moments of the
 differential scattering cross section** —
 :math:`\Sigma_{s,\ell}` — which are the per-:math:`\ell` block of the
 diagonal scattering operator :math:`\Lambda` =
-:class:`~orpheus.sn.scattering.LegendreMomentScattering`. The
+:class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`. The
 :math:`m`-independence of the eigenvalue is forced by **Schur's
 lemma**: the scattering operator commutes with every rotation, so on
 each :math:`SO(3)`-irreducible block
@@ -497,7 +497,7 @@ is the architectural reason the basis lives in
      - :math:`Q^{\ell\ge 1}_n = R \Lambda M\,\psi` builds the
        per-ordinate Pℓ source via the frame's analysis /
        reconstruction faces. See
-       :class:`~orpheus.sn.scattering.ScatteringOperator`.
+       :class:`~orpheus.transport.operators.scattering.ScatteringOperator`.
      - Live (Frame/Basis carve; the SN scattering operator pulls its
        frame from
        :meth:`Quadrature.angular_frame(L)

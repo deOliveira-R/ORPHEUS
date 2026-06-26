@@ -432,7 +432,7 @@ class Quadrature:
         through :meth:`SphericalHarmonicBasis.evaluate` on these cosines).
 
         The single source of the angular frame consumed by
-        :class:`~orpheus.sn.scattering.ScatteringOperator` — its §5.6 kernel
+        :class:`~orpheus.transport.operators.scattering.ScatteringOperator` — its §5.6 kernel
         AND the in-sweep moment accumulation share THIS object, so the
         projection table is never re-evaluated or allowed to diverge.
 

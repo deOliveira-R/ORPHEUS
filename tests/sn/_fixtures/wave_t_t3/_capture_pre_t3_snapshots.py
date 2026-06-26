@@ -214,7 +214,7 @@ def _capture_legendre_moments(
     from orpheus.transport.fields.harmonic_moment_flux import (
         HarmonicMomentFlux,
     )
-    from orpheus.sn.scattering import LegendreMomentScattering
+    from orpheus.transport.operators.scattering import LegendreMomentScattering
 
     quad = solver.quad
     moments_values = quad.angular_frame(L).analysis.apply(psi.values)

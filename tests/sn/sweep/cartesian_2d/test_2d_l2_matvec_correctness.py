@@ -189,7 +189,8 @@ def test_apply_vs_sweep_2d_residual_cancellation() -> None:
     (``test_invertible_apply_is_M_of_C_sigma_bit_identical``).  This is the 2-D
     analog of ``test_apply_vs_sweep_consistency``'s 1-D tripwire.
     """
-    from orpheus.sn.operator import CollisionOperator, StreamingOperator
+    from orpheus.sn.operator import StreamingOperator
+    from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 
     mesh = _vacuum_xy_2d_with_scatter()
     rng = np.random.default_rng(seed=20260528)
@@ -207,7 +208,7 @@ def test_apply_vs_sweep_2d_residual_cancellation() -> None:
     )
 
     L = StreamingOperator(mesh)
-    C = CollisionOperator(mesh, sigma_t)
+    C = MultiplicationOperator.from_mesh(sigma_t, mesh)
     A = L + C
 
     sum_out = A.apply(state)
@@ -295,7 +296,8 @@ def test_2d_matvec_linearity_random_state() -> None:
     (and the /W-projection / bulk-boundary convention-drift catch)
     without an illegal affine-space ``flux + flux``.
     """
-    from orpheus.sn.operator import CollisionOperator, StreamingOperator
+    from orpheus.sn.operator import StreamingOperator
+    from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 
     mesh = _vacuum_xy_2d_with_scatter()
     sigma_t = np.array(
@@ -307,7 +309,7 @@ def test_2d_matvec_linearity_random_state() -> None:
     )
 
     L = StreamingOperator(mesh)
-    C = CollisionOperator(mesh, sigma_t)
+    C = MultiplicationOperator.from_mesh(sigma_t, mesh)
     A = L + C
 
     rng = np.random.default_rng(seed=20260528)

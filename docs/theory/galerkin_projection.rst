@@ -532,7 +532,7 @@ f(\hat\Omega')\,d\hat\Omega'`, with an eigenvalue that depends on
    §"Funk-Hecke"); transcribed here as the structural ground for the
    ownership ruling. The eigenvalues realised in code (the per-ℓ
    Legendre moments Σ_{s,ℓ}) are the diagonal of
-   :class:`~orpheus.sn.scattering.LegendreMomentScattering` Λ.
+   :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering` Λ.
 
 Applied to the scattering kernel
 :math:`k = \Sigma_s(\hat\Omega\cdot\hat\Omega')`, the eigenvalues are
@@ -540,7 +540,7 @@ exactly the **Legendre moments of the differential scattering cross
 section**, :math:`\lambda_\ell = \Sigma_{s,\ell}` — which are
 precisely the per-:math:`\ell` block entries of the diagonal operator
 :math:`\Lambda` =
-:class:`~orpheus.sn.scattering.LegendreMomentScattering`
+:class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`
 (:eq:`scattering-as-tensor-product-sum`, :doc:`operator_algebra`). The
 spherical harmonics are therefore not *a* convenient basis for
 scattering — they are *the* eigenbasis, forced by the rotational
@@ -568,7 +568,7 @@ with
   :math:`U^*` — the change of basis *into* the eigenbasis (project the
   flux onto its harmonic moments :math:`\phi_\ell^m`);
 * :math:`\Lambda` (=
-  :class:`~orpheus.sn.scattering.LegendreMomentScattering`) =
+  :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`) =
   :math:`\Sigma` — the diagonal multiply by the spectrum
   :math:`\Sigma_{s,\ell}`, one scalar per :math:`\ell`-block;
 * :math:`R` (the frame's **reconstruction** face,
@@ -678,7 +678,7 @@ The ownership conclusion is then forced:
 Because the spherical harmonics are the eigenbasis of *scattering* and
 nothing else in the transport operator, the frame is owned by the
 scattering operator. In ORPHEUS this ownership is a concrete fact:
-:class:`~orpheus.sn.scattering.ScatteringOperator` holds the frame as
+:class:`~orpheus.transport.operators.scattering.ScatteringOperator` holds the frame as
 a cached property and binds its order to the scattering order,
 ``quadrature.angular_frame(self.scattering_order)`` (the canonical
 constructor + the :math:`L`-binding). The frame *object* lives in the
@@ -817,7 +817,7 @@ The relocation tripwire — when scattering stops owning the constructor
 the *only* consumer of the spherical-harmonic frame whose truncation
 order :math:`L` is physically meaningful. The constructor ownership
 :meth:`ScatteringOperator.frame
-<orpheus.sn.scattering.ScatteringOperator.frame>` binds the frame
+<orpheus.transport.operators.scattering.ScatteringOperator.frame>` binds the frame
 order to ``self.scattering_order``. This binding **relocates** to the
 discipline-neutral factory
 :meth:`Quadrature.angular_frame(L)
@@ -847,7 +847,7 @@ operator, because scattering is the operator whose eigenbasis the
 frame *is*.
 
 A second, structurally distinct trigger is **cross-method use of**
-:class:`~orpheus.sn.scattering.ScatteringOperator` (`#261`). The
+:class:`~orpheus.transport.operators.scattering.ScatteringOperator` (`#261`). The
 operator is method-agnostic in principle — every transport method
 scatters — but a
 :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame` needs an
@@ -861,7 +861,7 @@ operator. Two resolutions are open (deferred to `#261`; user,
 lives (the
 :meth:`~orpheus.numerics.quadrature.Quadrature.angular_frame` factory —
 the original W-E idea), or **(b) specialize**
-:class:`~orpheus.sn.scattering.ScatteringOperator` per method — an SN
+:class:`~orpheus.transport.operators.scattering.ScatteringOperator` per method — an SN
 subclass that holds the frame (it carries the :math:`S^2` measure) over
 a measure-free cross-method base. Where the independent-:math:`L`
 triggers above make the *order* foreign, this one makes the *measure*

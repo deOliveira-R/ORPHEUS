@@ -113,7 +113,7 @@ The §5.6 Kernel reading — scattering as an integral kernel
 ==========================================================
 
 In the grand-report §5.6 suffix law (see
-:mod:`orpheus.transport.integral_kernel_operator`) scattering is a
+:mod:`orpheus.transport.operators.integral_kernel_operator`) scattering is a
 **Kernel**: a *nonlocal* operator whose anisotropic action integrates
 the flux against a measure on the angular axis (the :math:`P_\ell`
 source at ordinate :math:`\hat\Omega_n` reads the flux at *every*
@@ -127,7 +127,7 @@ typed :class:`~orpheus.numerics.operator.OperatorProduct`
     \mathrm{kernel} \;=\; R \;\circ\; \Lambda_{\ell\ge 1} \;\circ\; M ,
 
 so the operator satisfies the
-:class:`~orpheus.transport.integral_kernel_operator.IntegralKernelOperator`
+:class:`~orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator`
 Protocol. The :attr:`~ScatteringOperator.kernel` exposes the
 anisotropic Legendre redistribution (the genuinely-nonlocal-in-angle
 part); the isotropic :math:`\ell=0` :math:`P_0` in-scatter fast path
@@ -184,7 +184,7 @@ from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 
 if TYPE_CHECKING:
-    from .geometry import SNMesh
+    from orpheus.sn.geometry import SNMesh
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.numerics.space import FunctionSpace
@@ -683,7 +683,7 @@ class ScatteringOperator(LinearOperator):
 
         With this property :class:`ScatteringOperator` satisfies the
         §5.6
-        :class:`~orpheus.transport.integral_kernel_operator.IntegralKernelOperator`
+        :class:`~orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator`
         Protocol: scattering IS a nonlocal integral kernel (the ``R∘Λ∘M``
         angular redistribution), while the isotropic
         :math:`\ell=0` :math:`P_0` in-scatter fast path
@@ -788,7 +788,7 @@ class ScatteringOperator(LinearOperator):
             if aniso_or_none is not None
             else AngularSourceSink.zeros_on(mesh, spatial_moments=spatial_moments)
         )
-        sum_w = float(mesh.quad.weights.sum())
+        sum_w = float(self.quadrature.weights.sum())
         return (iso / sum_w) + aniso
 
     @classmethod

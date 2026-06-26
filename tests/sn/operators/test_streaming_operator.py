@@ -38,9 +38,9 @@ from orpheus.numerics.operator import (
 )
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import (
-    CollisionOperator,
     StreamingOperator,
 )
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from tests.sn.regression._regression_assert import assert_regression
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
@@ -326,7 +326,7 @@ class TestSumCapabilities:
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
-        C = CollisionOperator(sn_mesh, sig_t)
+        C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
         A = L + C
         assert CAP_APPLY in A.capabilities
 
@@ -339,7 +339,7 @@ class TestSumCapabilities:
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
-        C = CollisionOperator(sn_mesh, sig_t)
+        C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
         A = L + C
         assert isinstance(A, InvertibleOperator)
         assert CAP_SOLVE in A.capabilities
@@ -532,7 +532,7 @@ class TestOperatorAlgebraCompositionUnderTimedFullField:
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
-        C = CollisionOperator(sn_mesh, sig_t)
+        C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
         A = L + C
         state = _random_composite(sn_mesh, seed=191)
 

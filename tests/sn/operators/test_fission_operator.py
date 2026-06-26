@@ -16,7 +16,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.geometry import Mesh2D
 from orpheus.numerics.operator import CAP_APPLY, LinearOperator
-from orpheus.sn.fission import FissionOperator
+from orpheus.transport.operators.fission import FissionOperator
 from orpheus.sn.geometry import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver

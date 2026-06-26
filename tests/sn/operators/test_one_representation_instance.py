@@ -36,7 +36,8 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.sn.operator import CollisionOperator, StreamingOperator
+from orpheus.sn.operator import StreamingOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from tests.sn._test_helpers import cart2d_2g_nonsquare, het_operands
 
 pytestmark = pytest.mark.foundation
@@ -75,7 +76,7 @@ def test_apply_and_solve_share_one_representation_instance(monkeypatch):
     sn = cart2d_2g_nonsquare()
     sig_t, psi = het_operands(sn)
     L = StreamingOperator(sn)
-    C = CollisionOperator(sn, sig_t)
+    C = MultiplicationOperator.from_mesh(sig_t, sn)
     A = L + C
 
     _ = L.apply(psi)
@@ -137,7 +138,7 @@ def test_gauss_seidel_resolvent_runs_the_operators_instance(monkeypatch):
     sn = cart2d_2g_nonsquare()
     sig_t, psi = het_operands(sn)
     L = StreamingOperator(sn)
-    C = CollisionOperator(sn, sig_t)
+    C = MultiplicationOperator.from_mesh(sig_t, sn)
     A = L + C
     resolvent = _GaussSeidelResolvent(
         A, SNBoundaryOperator(sn), SweepSchedule.gauss_seidel(sn),

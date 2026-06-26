@@ -130,7 +130,8 @@ def _krylov_power_iteration_kinf(
     from orpheus.numerics.iteration import KrylovAcceleration
     from orpheus.sn.boundary_operator import SNBoundaryOperator
     from orpheus.sn.geometry import SNMesh
-    from orpheus.sn.operator import CollisionOperator, StreamingOperator
+    from orpheus.sn.operator import StreamingOperator
+    from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
     from orpheus.sn.solver import SNSolver
     from orpheus.transport.full_field import FullField
     from orpheus.transport.source_sinks import AngularSourceSink
@@ -150,7 +151,7 @@ def _krylov_power_iteration_kinf(
     )
 
     L_leaf = StreamingOperator(sn_mesh)
-    C_t = CollisionOperator(sn_mesh, solver.mat_xs.total_cross_section)
+    C_t = MultiplicationOperator.from_mesh(solver.mat_xs.total_cross_section, sn_mesh)
     LC = L_leaf + C_t
 
     if preconditioner_kind == "default_sweep":

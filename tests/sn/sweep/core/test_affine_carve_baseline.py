@@ -88,7 +88,8 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.loss_representation import transport_sweep
-from orpheus.sn.operator import CollisionOperator, StreamingOperator
+from orpheus.sn.operator import StreamingOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.source_sinks import AngularSourceSink
 from tests.sn._test_helpers import (
@@ -312,7 +313,7 @@ class TestAffineCarveMatvecBaseline:
         # outer BC drives the boundary trace into the matvec (vs vacuum).
         sig_t, psi = het_operands(sn_mesh)
         L = StreamingOperator(sn_mesh)
-        C = CollisionOperator(sn_mesh, sig_t)
+        C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
         out = (L + C).apply(psi)
 
         captured = _capture_or_assert(

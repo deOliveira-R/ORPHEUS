@@ -6,8 +6,10 @@ equation :math:`A_{\\rm wg} = L + C - S_{\\rm foldable}`:
 * :class:`StreamingOperator` — :math:`L = \\Omega\\cdot\\nabla
   + \\text{angular redistribution}` (the curvilinear pole term lives
   here for sphere / cylinder).
-* :class:`CollisionOperator` — :math:`C = \\sigma\\cdot` (diagonal
-  in position, group, and direction).
+* the collision multiplier :math:`C = M[\\sigma_t]` (a plain
+  :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+  — diagonal in position, group, and direction; #261 retired the former
+  ``CollisionOperator`` thin subclass).
 * :class:`InvertibleOperator` — the sweep-invertible specialisation
   :math:`(L + C)` returned by ``L + C``; advertises ``CAP_SOLVE``
   via the WDD sweep.
@@ -120,7 +122,7 @@ History
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 import numpy as np
 
@@ -136,7 +138,7 @@ from orpheus.numerics.operator import (
 )
 
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.transport.multiplication_operator import MultiplicationOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 
 if TYPE_CHECKING:
     from orpheus.transport.fields.angular_flux import AngularFlux
@@ -153,7 +155,6 @@ if TYPE_CHECKING:
 
 __all__ = [
     "StreamingOperator",
-    "CollisionOperator",
 ]
 # #206 Phase C / #238: the 1-D matvec walk lives in `_OneDimScanWalk`
 # (orpheus.sn.loss_representation) — the fused `(L+C)ψ` (`loss_action`)
@@ -227,8 +228,10 @@ class StreamingOperator(LinearOperator["FullField"]):
     The "L" of the Phase G four-operator algebra
     :math:`A_{\rm wg} = L + C - S_{\rm foldable}`. Carries the spatial
     streaming math plus the curvilinear angular redistribution — the
-    cell-collision term lives in the separate :class:`CollisionOperator`
-    leaf. The split lets the within-group operator be pure algebra
+    cell-collision term lives in the separate collision multiplier
+    :math:`C = M[\sigma_t]` (a
+    :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`).
+    The split lets the within-group operator be pure algebra
     (``L + C - S.foldable_part()``); no ``WithinGroupOperator`` wrapper.
 
     Pure σ-free streaming ``apply`` (#257 S8b)
@@ -245,8 +248,9 @@ class StreamingOperator(LinearOperator["FullField"]):
     :meth:`~orpheus.sn.loss_representation.LossRepresentation.streaming_action`
     leaf (the ONE streaming discretization, single-sourced through
     ``loss_action`` at :math:`\sigma = 0`).  The collision diagonal
-    :math:`C = M[\sigma_t]` is the separate shared
-    :class:`CollisionOperator` leaf, and the composition
+    :math:`C = M[\sigma_t]` is the separate shared collision multiplier
+    (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
+    and the composition
 
     .. math::
 
@@ -344,7 +348,8 @@ class StreamingOperator(LinearOperator["FullField"]):
 
         Since P4.5 W-D, ``C`` / ``S`` / ``F`` advertise the SAME composite
         domain (the cross-method composition-guard close — see
-        :attr:`CollisionOperator.domain`), so the within-group
+        :attr:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator.domain`),
+        so the within-group
         ``(L + C) - S - B`` :class:`~orpheus.numerics.operator.OperatorSum`
         guard VALIDATES the build rather than silently skipping the formerly
         ``None``-spaced summands. ``L``'s composite domain therefore agrees
@@ -380,16 +385,18 @@ class StreamingOperator(LinearOperator["FullField"]):
         discretization is single-sourced through ``loss_action`` at
         :math:`\sigma = 0` (the WDD matvec is affine in :math:`\sigma`);
         :math:`L` reads NO :math:`\sigma`.  The collision diagonal
-        :math:`C = M[\sigma_t]` is the separate shared
-        :class:`CollisionOperator` leaf; the composition
+        :math:`C = M[\sigma_t]` is the separate shared collision multiplier
+        (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`);
+        the composition
         :math:`(L + C).{\rm apply}(\psi) = \text{streaming\_action}(\psi)
         + \sigma_t\odot\psi = M(\psi;\sigma_t)` recovers the full loss.
 
         ``L`` is the ONLY operator that emits a non-zero face
-        residual on its output ``.boundary`` —
-        :class:`CollisionOperator`,
-        :class:`~orpheus.sn.scattering.ScatteringOperator`, and
-        :class:`~orpheus.sn.fission.FissionOperator` all leave the
+        residual on its output ``.boundary`` — the collision multiplier
+        :math:`C = M[\sigma_t]`
+        (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
+        :class:`~orpheus.transport.operators.scattering.ScatteringOperator`, and
+        :class:`~orpheus.transport.operators.fission.FissionOperator` all leave the
         output boundary at the auto-allocated zero.
 
         Parameters
@@ -426,8 +433,10 @@ class StreamingOperator(LinearOperator["FullField"]):
         factor, the multi-D Cartesian adjoint stays a deferral raise — never a
         silent wrong answer).  Since :math:`C = \sigma_t\odot` is a self-adjoint
         diagonal, the full adjoint loss factors as
-        :math:`(L + C)^{\mathsf T} = L^{\mathsf T} + C` — the
-        :class:`CollisionOperator` transpose is the same multiplier.
+        :math:`(L + C)^{\mathsf T} = L^{\mathsf T} + C` — the collision
+        multiplier :math:`C = M[\sigma_t]`
+        (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
+        is self-adjoint, so its transpose is the same multiplier.
 
         This returns the **plain Euclidean transpose** :math:`L^{\mathsf T}`.
         The metric conjugation :math:`G^{-1}\!\cdot^{\mathsf T}\!\cdot G` of the
@@ -474,184 +483,21 @@ class StreamingOperator(LinearOperator["FullField"]):
     def __add__(self, other):
         r"""Compose :math:`L + X`.
 
-        When ``X`` is a :class:`CollisionOperator`, returns the
+        When ``X`` is a
+        :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+        (the collision diagonal :math:`C = M[\sigma_t]`), returns the
         sweep-invertible specialisation :class:`InvertibleOperator`
         carrying the algebraic identity :math:`(L + C)^{-1} \approx
         \text{WDD sweep}`.  Otherwise falls through to the generic
         :class:`OperatorSum` via the mixin.
+
+        #261: ``L + C`` is the canonical (and only) ordering — the dispatch
+        lives here on the SN-specific streaming leaf, because the
+        transport-level multiplier cannot dispatch back onto ``StreamingOperator``
+        (that would be a ``transport → sn`` upward import).
         """
-        if isinstance(other, CollisionOperator):
+        if isinstance(other, MultiplicationOperator):
             return InvertibleOperator(self, other)
-        return super().__add__(other)
-
-
-class CollisionOperator(MultiplicationOperator):
-    r"""The §5.7 named leaf :math:`C = M[\sigma_t]` — collision as a multiplier.
-
-    The "C" of the Phase G four-operator algebra
-    :math:`A_{\rm wg} = L + C - S_{\rm foldable}`. Collision IS a
-    :class:`~orpheus.transport.multiplication_operator.MultiplicationOperator`
-    — the promotion of the total cross-section field
-    :math:`\sigma_t` to the diagonal multiplier
-    :math:`(C\psi)_{n,i,j,g} = \sigma_t(i,j,g)\,\psi_{n,i,j,g}` (the
-    grand report §5.7 promotion ``C = M[σ_t]``). The base class owns
-    :meth:`~MultiplicationOperator.apply` / :meth:`~MultiplicationOperator.solve`
-    / :meth:`~MultiplicationOperator.apply_transpose` (single-sourced —
-    the multiply lives once, in the numerics broadcast engine,
-    ``coding-elegance`` Pattern 2); this subclass adds ONLY the
-    SN-specific name, the back-compat ``(sn_mesh, sigma)`` constructor,
-    and the ``L + C → InvertibleOperator`` algebra dispatch.
-
-    The supplied ``sigma`` is per-cell per-group only — the operator
-    broadcasts identically across every ordinate ``n`` because the
-    collision cross-section is direction-independent.
-
-    Convention-agnostic σ
-    ---------------------
-
-    The same operator class supports the full total cross-section
-    :math:`\sigma_t` AND the within-group removal cross-section
-    :math:`\sigma_r = \sigma_t - \Sigma_{s,0}^{g\to g}`. The operator
-    does NOT carry an interpretation flag — both quantities are
-    ``(ng, nx, ny)`` arrays applied as :math:`\sigma\cdot\psi` (see
-    :ref:`theory-sn-index-convention` for the canonical layout). The
-    fusion hook (substep 3+4.b.ii) builds a lazy :math:`\sigma_r`
-    :class:`CollisionOperator` from
-    :meth:`~orpheus.sn.scattering.ScatteringOperator.foldable_sigma` at
-    the moment it detects ``L + C - S.foldable_part()`` in an
-    :class:`~orpheus.numerics.operator.OperatorSum`. (Pattern 4 —
-    illegal states unrepresentable via the type, not a runtime flag
-    the operator never inspects.)
-
-    ⚠ A :math:`\sigma_r`-sweep is NOT a correct within-group self-scatter
-    accelerator for anisotropic flux — it inverts the *diagonal-in-angle*
-    removal :math:`\sigma_r\cdot I`, whereas the foldable self-scatter is the
-    *isotropic-projection* operator :math:`\Sigma_{s,0}\,P_{\rm iso}`; the two
-    agree only for isotropic ψ. Wiring ``A_wg.solve(S_residual)`` with this
-    sweep ships 46–56 % errors on vacuum / heterogeneous problems (issue
-    #215). The stable+correct fold is consistent DSA (#2) or Krylov. See the
-    foldable/residual split note in :mod:`orpheus.sn.scattering`.
-
-    Capability set
-    --------------
-
-    ``{CAP_APPLY, CAP_APPLY_TRANSPOSE}`` always; ``CAP_SOLVE`` is added
-    **iff** :math:`\min|\sigma| > 0` — the multiplier spectrum law
-    :math:`\mathrm{spec}(M[\sigma]) = \mathrm{ess\,range}(\sigma)`
-    inherited from the base class (#257 S3b). ``solve(q) = q/σ`` is
-    element-wise division; ``apply_transpose == apply`` because the
-    operator is self-adjoint (a real diagonal). This is a deliberate
-    *behavioural strengthening* over the pre-S3b operator, which
-    advertised ``CAP_SOLVE`` unconditionally and produced silent IEEE
-    NaN on ``σ == 0``: collision now revokes ``CAP_SOLVE`` on a zero
-    entry (Pattern 4 — an operator that cannot invert never advertises
-    it; the production σ_t is bounded away from 0, so the three live
-    construction sites are unaffected). The
-    :class:`InvertibleOperator` resolvent has its own stricter
-    construction-time ``σ > 0`` check — unchanged.
-
-    Parameters
-    ----------
-    sn_mesh : SNMesh
-        The augmented geometry — carries mesh + quadrature + boundary
-        operators (same as :class:`StreamingOperator`). Stored as
-        :attr:`sn_mesh`; the :class:`InvertibleOperator` mesh-identity
-        invariant asserts ``streaming.sn_mesh is diagonal.sn_mesh``, so
-        the SAME object passed to both ``L`` and ``C`` is preserved.
-    sigma : np.ndarray or CrossSectionField
-        Per-cell per-group cross-section, shape ``(ng, *spatial)``
-        (Issue #196 PR-INDEX-3). An ``np.ndarray`` (the legacy /
-        test-caller path) is wrapped into a
-        :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
-        on ``sn_mesh``; a :class:`CrossSectionField` (the rewired
-        production sites, reading
-        :attr:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.total_cross_section_field`)
-        is passed straight to the base. May be σ_t (full collision) or
-        σ_r (removal — within-group self-scatter folded); the operator's
-        action is identical.
-    """
-
-    # Inherit ``block_role = BlockRole.BULK`` and the
-    # apply/solve/apply_transpose multiplier action from
-    # :class:`MultiplicationOperator`. This subclass is NOT a dataclass
-    # (the base's ``coefficient`` field is set explicitly here, after the
-    # ndarray↔CrossSectionField back-compat conversion).
-
-    def __init__(
-        self, sn_mesh: "SNMesh", sigma: "np.ndarray | CrossSectionField",
-    ) -> None:
-        from orpheus.transport.fields.cross_section_field import CrossSectionField
-
-        if isinstance(sigma, CrossSectionField):
-            coefficient = sigma
-        else:
-            # Legacy / test-caller path: wrap the bare ``(ng, *spatial)``
-            # ndarray into the typed coefficient on this mesh — the SAME
-            # ``from_mesh`` factory the production
-            # ``mat_xs.total_cross_section_field`` accessor uses, so the
-            # two construction paths produce structurally identical
-            # coefficients.
-            coefficient = CrossSectionField.from_mesh(np.asarray(sigma), sn_mesh)
-        # Store the SN mesh as the SAME object the caller passed — the
-        # InvertibleOperator mesh-identity invariant (``streaming.sn_mesh
-        # is diagonal.sn_mesh``) depends on it. Then run the base
-        # dataclass init (sets ``coefficient`` + computes ``capabilities``
-        # from the spectrum gate).
-        self.sn_mesh = sn_mesh
-        super().__init__(coefficient=coefficient)
-
-    @property
-    def sigma(self) -> np.ndarray:
-        r"""The per-cell per-group cross-section ``(ng, *spatial)`` (σ_t or σ_r).
-
-        Single source of truth: the raw values OF the coefficient field
-        (``coding-elegance`` Pattern 2 — no duplicate ndarray storage).
-        :class:`InvertibleOperator` reads ``self.diagonal.sigma`` to
-        thread σ into the WDD sweep and validates ``np.all(sigma > 0)``
-        at construction.
-        """
-        return self.coefficient.values
-
-    # ── Operator-algebra space metadata (P4.5 W-D) ───────────────────
-    @property
-    def domain(self) -> Optional["FunctionSpace"]:
-        r"""The composite carrier :math:`V_{\rm bulk}\oplus V_{\rm trace}` (P4.5 W-D).
-
-        :math:`C` is a BULK multiplier (the boundary block is inert — a
-        multiplier has no face-trace action), but it advertises the SAME
-        composite :attr:`~orpheus.sn.geometry.SNMesh.full_field_space` that
-        :math:`L` carries (the identical ``@cached_property`` instance — the
-        :class:`InvertibleOperator` mesh-identity invariant guarantees
-        ``streaming.sn_mesh is diagonal.sn_mesh``). Carrying the real space is
-        what lets the production ``L + C``
-        :class:`~orpheus.numerics.operator.OperatorSum` composition guard
-        VALIDATE the build (equal domains AND codomains) on every within-group
-        solve, instead of silently skipping the formerly-``None``-spaced
-        operand. The composite domain == codomain (collision is endomorphic on
-        the full-field structure — flux block → source block, same shape).
-        """
-        return self.sn_mesh.full_field_space
-
-    @property
-    def codomain(self) -> Optional["FunctionSpace"]:
-        # Endomorphic on the composite full-field space (see :meth:`domain`).
-        return self.sn_mesh.full_field_space
-
-    # ── Algebra dispatch — sweep-invertible composite (R-1 Step C) ────
-
-    def __add__(self, other):
-        r"""Compose :math:`C + X`.
-
-        When ``X`` is a :class:`StreamingOperator`, returns the
-        sweep-invertible specialisation :class:`InvertibleOperator`
-        with the streaming operator placed first (the canonical
-        ``L + C`` ordering for the algebraic identity).  Otherwise
-        falls through to the generic :class:`OperatorSum` via the
-        :class:`MultiplicationOperator` / mixin ``__add__`` — the ONLY
-        operator-algebra method this leaf adds over the multiplier base.
-        """
-        if isinstance(other, StreamingOperator):
-            return InvertibleOperator(other, self)
         return super().__add__(other)
 
 
@@ -693,13 +539,18 @@ class InvertibleOperator(OperatorSum["FullField"]):
     Two equivalent paths:
 
     * **Operator algebra dispatch** — ``L + C`` where ``L`` is a
-      :class:`StreamingOperator` and ``C`` is a
-      :class:`CollisionOperator` returns this class automatically (see
-      :meth:`StreamingOperator.__add__` and
-      :meth:`CollisionOperator.__add__`).  The composite reads as math.
+      :class:`StreamingOperator` and ``C`` is the collision multiplier
+      :math:`M[\sigma_t]`
+      (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
+      returns this class automatically.  ``L + C`` is the canonical (and
+      only) ordering: the dispatch lives one-directionally on
+      :meth:`StreamingOperator.__add__`, because a transport-level
+      multiplier cannot dispatch back onto an ``sn`` operator (#261).  The
+      composite reads as math.
     * **Explicit construction** — ``InvertibleOperator(L, C)``.  Useful
       when composing variants such as
-      ``InvertibleOperator(L_leaf, CollisionOperator(σ_r))`` where
+      ``InvertibleOperator(L_leaf, MultiplicationOperator.from_mesh(σ_r, mesh))``
+      where
       ``σ_r = σ_t - Σ_{s,0}^{g→g}`` is the removal cross-section that
       lets one fold the within-group self-scatter into the diagonal
       collision term (Adams & Larsen 2002 §III; tracked by issue
@@ -754,8 +605,8 @@ class InvertibleOperator(OperatorSum["FullField"]):
         :math:`L = \Omega\cdot\nabla + \text{angular redistribution}`.
         Resolution A subtractive form:
         ``L.apply(ψ) = M(ψ; σ_t) - σ_t ⊙ ψ_cell``.
-    diagonal : CollisionOperator
-        :math:`C = \sigma\cdot`.  Its ``.sigma`` attribute is the
+    diagonal : MultiplicationOperator
+        :math:`C = M[\sigma]`.  Its ``.coefficient.values`` is the
         per-cell per-group coefficient used by the sweep (canonically
         ``σ_t``; can be ``σ_r`` for the foldable variant).
 
@@ -772,26 +623,34 @@ class InvertibleOperator(OperatorSum["FullField"]):
     def __init__(
         self,
         streaming: "StreamingOperator",
-        diagonal: "CollisionOperator",
+        diagonal: "MultiplicationOperator",
     ) -> None:
         if not isinstance(streaming, StreamingOperator):
             raise TypeError(
                 f"InvertibleOperator: 'streaming' must be a "
                 f"StreamingOperator; got {type(streaming).__name__}."
             )
-        if not isinstance(diagonal, CollisionOperator):
+        if not isinstance(diagonal, MultiplicationOperator):
             raise TypeError(
                 f"InvertibleOperator: 'diagonal' must be a "
-                f"CollisionOperator; got {type(diagonal).__name__}."
+                f"MultiplicationOperator; got {type(diagonal).__name__}."
             )
-        if streaming.sn_mesh is not diagonal.sn_mesh:
+        # Mesh-identity invariant (#261 re-anchor): the WDD sweep threads the
+        # diagonal's σ against the STREAMING geometry, so the two must act on
+        # the SAME mesh object — geometric consistency, strictly stronger than
+        # the (name, shape) shape-equality the OperatorSum composition guard
+        # checks. The diagonal multiplier is mesh-free; its mesh is carried by
+        # its CrossSectionField coefficient.
+        if streaming.sn_mesh is not diagonal.coefficient.mesh:
             raise ValueError(
-                "InvertibleOperator: streaming and diagonal operators "
-                "must share the same SNMesh instance "
-                "(mesh-identity invariant)."
+                "InvertibleOperator: the streaming operator and the diagonal "
+                "multiplier must act on the same mesh instance — the "
+                "mesh-identity invariant (streaming.sn_mesh is "
+                "diagonal.coefficient.mesh): the WDD sweep pairs the "
+                "diagonal's σ with the streaming geometry."
             )
-        if not np.all(diagonal.sigma > 0):
-            min_sigma = float(np.min(diagonal.sigma))
+        if not np.all(diagonal.coefficient.values > 0):
+            min_sigma = float(np.min(diagonal.coefficient.values))
             raise ValueError(
                 f"InvertibleOperator: diagonal coefficient must be "
                 f"strictly positive everywhere for the WDD sweep to be "
@@ -813,12 +672,12 @@ class InvertibleOperator(OperatorSum["FullField"]):
     @property
     def streaming(self) -> "StreamingOperator":
         """The streaming operand (alias for ``self.a``)."""
-        return self.a  # type: ignore[return-value]
+        return cast("StreamingOperator", self.a)
 
     @property
-    def diagonal(self) -> "CollisionOperator":
-        """The diagonal-collision operand (alias for ``self.b``)."""
-        return self.b  # type: ignore[return-value]
+    def diagonal(self) -> "MultiplicationOperator":
+        """The diagonal-multiplier operand :math:`C = M[\\sigma]` (alias for ``self.b``)."""
+        return cast("MultiplicationOperator", self.b)
 
     @property
     def loss_representation(self) -> "LossRepresentation":
@@ -840,8 +699,13 @@ class InvertibleOperator(OperatorSum["FullField"]):
 
     @property
     def sigma(self) -> np.ndarray:
-        r"""The diagonal coefficient used by ``solve`` (σ_t or σ_r)."""
-        return self.diagonal.sigma
+        r"""The diagonal coefficient used by ``solve`` (σ_t or σ_r).
+
+        Single-sources :math:`\sigma` off the diagonal multiplier's
+        :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
+        coefficient (``coding-elegance`` Pattern 2 — no duplicate storage).
+        """
+        return self.diagonal.coefficient.values
 
     # ── apply / apply_transpose: the composite's OWN matvec (#240 Step B) ──
 

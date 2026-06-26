@@ -37,8 +37,9 @@ this page, this page is correct.
 - **The four-operator algebra** :math:`(L + C - S - F/k)\psi = q`
   consumes and returns :math:`\psi` shaped as ``(N, ng, nx, ny)`` at
   every leaf (:class:`~orpheus.sn.operator.StreamingOperator`,
-  :class:`~orpheus.sn.operator.CollisionOperator`,
-  :class:`~orpheus.sn.scattering.ScatteringOperator`,
+  the collision multiplier :math:`C = M[\sigma_t]`
+  (:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
+  :class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
   :class:`~orpheus.sn.fission.FissionOperator`).
 - **Historical note (resolved 2026-05)**: a legacy FD-matvec
   packed-vector helper ``solution_to_angular_flux`` returned
@@ -768,7 +769,7 @@ axes :math:`(n_x, n_y)`.
      - ``(L+1, 2L+1, ng, nx, ny)``
      - ``frame.analysis.apply`` output (the SH
        :class:`~orpheus.numerics.frame.GalerkinFrame`'s analysis face;
-       :mod:`orpheus.sn.scattering`); typed wrapper at
+       :mod:`orpheus.transport.operators.scattering`); typed wrapper at
        :class:`orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
        (Issue #197 PR-TYPED-4)
    * - ``TraceField``
@@ -799,7 +800,7 @@ direction-independent (``IsotropicSource``) and per-ordinate
 (``PerOrdinateSource``) contributions — the sweep at
 :func:`~orpheus.sn.loss_representation.transport_sweep` consumes both, and the
 internal P₀ + (n,2n) accumulation in
-:class:`~orpheus.sn.scattering.ScatteringOperator` emits the first
+:class:`~orpheus.transport.operators.scattering.ScatteringOperator` emits the first
 while the P\ :sub:`ℓ≥1` accumulation emits the second.
 
 .. list-table:: Source / RHS field types
@@ -817,7 +818,7 @@ while the P\ :sub:`ℓ≥1` accumulation emits the second.
      - ``(ng, nx, ny)``
      - ``Q`` arg of :func:`~orpheus.sn.loss_representation.transport_sweep`;
        ``Q_iso`` in
-       :meth:`~orpheus.sn.scattering.ScatteringOperator.apply`
+       :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.apply`
    * - ``PerOrdinateSource``
      - :math:`q_n(r, g)` --- per-ordinate (P\ :sub:`ℓ≥1` /
        boundary) source
@@ -826,7 +827,7 @@ while the P\ :sub:`ℓ≥1` accumulation emits the second.
      - ``Q_aniso`` arg of
        :func:`~orpheus.sn.loss_representation.transport_sweep`;
        output of
-       :meth:`~orpheus.sn.scattering.ScatteringOperator.build_aniso_source`
+       :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.build_aniso_source`
    * - ``ResidualSource``
      - :math:`r = q - A\psi_D` for hybrid corrections (Grand
        Report v3 §25.1)
@@ -994,14 +995,15 @@ scale through the same algebra.
        sweep over :func:`~orpheus.sn.geometry.SNMesh.dag_walk`,
        fold over :meth:`DiscretizationScheme.residual`
    * - :math:`C`
-     - :class:`~orpheus.sn.operator.CollisionOperator`
+     - :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+       (the collision multiplier :math:`C = M[\Sigma_t]`)
      - Collision :math:`\Sigma_t \psi`; one broadcast multiply
        ``sigma[None, :, :, :] * psi.values``
    * - :math:`S`
-     - :class:`~orpheus.sn.scattering.ScatteringOperator`
+     - :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
      - Full Legendre scattering :math:`\sum_\ell \Sigma_{s,\ell}\,
        P_\ell\,\phi_{\ell m}`; foldable P₀ within-group part
-       :meth:`~orpheus.sn.scattering.ScatteringOperator.foldable_part`
+       :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.foldable_part`
        absorbs into :math:`\Sigma_r`
    * - :math:`F`
      - :class:`~orpheus.sn.fission.FissionOperator`
@@ -1136,19 +1138,20 @@ lives in scattered docstrings.
        (1-D; collapses ``ny=1``)
    * - :class:`ScatteringOperator`.\ ``apply`` in/out
      - ``(N, ng, nx, ny)``
-     - :meth:`~orpheus.sn.scattering.ScatteringOperator.apply`
+     - :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.apply`
    * - :class:`FissionOperator`.\ ``apply`` in/out
      - ``(ng, nx, ny)``
      - :meth:`~orpheus.sn.fission.FissionOperator.apply`
    * - :class:`StreamingOperator`.\ ``apply`` in/out (Resolution A)
      - ``(N, ng, nx, ny)``
      - :class:`~orpheus.sn.operator.StreamingOperator`
-   * - :class:`CollisionOperator`.\ ``apply`` in/out (Resolution A)
+   * - :class:`MultiplicationOperator`.\ ``apply`` in/out (Resolution A;
+       the collision multiplier :math:`C = M[\Sigma_t]`)
      - ``(N, ng, nx, ny)``
-     - :class:`~orpheus.sn.operator.CollisionOperator`
+     - :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
    * - ``LegendreMomentScattering`` moment field
      - ``(L+1, 2L+1, ng, nx, ny)``
-     - :mod:`orpheus.sn.scattering`
+     - :mod:`orpheus.transport.operators.scattering`
    * - FD-matvec internal ``fi`` (deferred to PR-INDEX-7)
      - ``(ng, N, nx, ny)``
      - :func:`~orpheus.sn.operator.solution_to_angular_flux`
@@ -1296,7 +1299,7 @@ that wrap the right-hand side of the transport equation
    * How the typed dunder dissolves the procedural
      ``np.broadcast_to(Q_iso[None, :, :, :], psi.shape).copy(); Q +=
      Q_aniso`` pattern that historically lived inside
-     :meth:`~orpheus.sn.scattering.ScatteringOperator.apply`.
+     :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.apply`.
    * Why source and flux types stay distinct (same storage shape;
      different algebraic role; cross-type addition undefined).
    * The decision to keep ``sig_t`` as bare ndarray (static-parameter
@@ -1382,20 +1385,22 @@ inputs are unwrapped at the entry boundary.
 ScatteringOperator typed action
 -------------------------------
 
-:meth:`~orpheus.sn.scattering.ScatteringOperator.add_iso_source` and
-:meth:`~orpheus.sn.scattering.ScatteringOperator.add_n2n_source` gain
+:meth:`~orpheus.transport.operators.scattering.ScatteringOperator.add_iso_source` and
+:meth:`~orpheus.transport.operators.scattering.ScatteringOperator.add_n2n_source` gain
 return-new semantics under typed input:
 
 * Raw ``np.ndarray`` in → mutates in place, returns ``None`` (legacy
   contract preserved).
-* :class:`IsotropicSource` in → returns a fresh :class:`IsotropicSource`
+* :class:`~orpheus.transport.source_sinks.ScalarSourceSink` in → returns
+  a fresh :class:`~orpheus.transport.source_sinks.ScalarSourceSink`
   (Pattern 4 — frozen typed inputs stay immutable; the caller spells
   the algebra as ``Q = scattering.add_iso_source(Q, phi)``).
 
-:meth:`~orpheus.sn.scattering.ScatteringOperator.build_aniso_source`
-returns :class:`PerOrdinateSource` when its angular-flux input is
-:class:`~orpheus.sn.angular_flux.AngularFlux`, preserving the type
-chain through the scattering composition.
+:meth:`~orpheus.transport.operators.scattering.ScatteringOperator.build_aniso_source`
+returns :class:`~orpheus.transport.source_sinks.AngularSourceSink` when
+its angular-flux input is
+:class:`~orpheus.transport.fields.angular_flux.AngularFlux`, preserving
+the type chain through the scattering composition.
 
 Cross-references
 ----------------

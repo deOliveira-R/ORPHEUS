@@ -475,7 +475,7 @@ class TestRLambdaMRoundTrip:
         a :class:`AngularSourceSink` matching that algebraic claim.
         """
         from orpheus.derivations.common.xs_library import get_mixture
-        from orpheus.sn.scattering import ScatteringOperator
+        from orpheus.transport.operators.scattering import ScatteringOperator
         from orpheus.sn.solver import SNSolver
         from orpheus.transport.source_sinks import AngularSourceSink
         mix = get_mixture("A", "2g")
@@ -512,7 +512,7 @@ class TestRLambdaMRoundTrip:
         :class:`HarmonicMomentSourceSink` (NOT a flux) with matching mesh + L.
         """
         from orpheus.derivations.common.xs_library import get_mixture
-        from orpheus.sn.scattering import LegendreMomentScattering
+        from orpheus.transport.operators.scattering import LegendreMomentScattering
         from orpheus.sn.solver import SNSolver
         from orpheus.transport.source_sinks import HarmonicMomentSourceSink
         mix = get_mixture("A", "2g")
@@ -555,7 +555,7 @@ class TestRLambdaMRoundTrip:
     def test_lambda_bare_in_bare_out_legacy_path(self) -> None:
         """Bare-ndarray path is preserved for legacy probe tests."""
         from orpheus.derivations.common.xs_library import get_mixture
-        from orpheus.sn.scattering import LegendreMomentScattering
+        from orpheus.transport.operators.scattering import LegendreMomentScattering
         from orpheus.sn.solver import SNSolver
         mix = get_mixture("A", "2g")
         if len(mix.SigS) < 2:

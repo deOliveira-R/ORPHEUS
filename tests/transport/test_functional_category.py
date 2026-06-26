@@ -56,7 +56,7 @@ from orpheus.numerics.operator import (
     RankOneOperator,
 )
 from orpheus.numerics.vector import Vector
-from orpheus.transport.multiplication_operator import MultiplicationOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 
 from tests.transport._functional_helpers import (
     asymmetric_nu_sigma_f,

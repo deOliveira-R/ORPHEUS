@@ -1,8 +1,10 @@
 r"""PR-TYPED-6.5 Phase 5 — B1'' face-state verification gates.
 
 This module verifies the correctness of the B1'' face-state architecture
-landed by PR-TYPED-6.5 Phase 3b on :class:`StreamingOperator` +
-:class:`CollisionOperator` (the Resolution A leaves).
+landed by PR-TYPED-6.5 Phase 3b on :class:`StreamingOperator` + the
+collision multiplier ``C = M[σ_t]``
+(:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`,
+the Resolution A leaves).
 
 Why this lives alongside ``test_l1_standoff_slab_cylinder.py``
 =============================================================
@@ -15,7 +17,8 @@ leg used a cell-centre proxy at the Carlson seed (the bug B1'' fixes)
 and stayed ``xfail strict`` on the twin-path and refinement gates.
 
 THIS module verifies B1'' directly on the operator leaves
-(``StreamingOperator + CollisionOperator``).  GMRES on
+(``StreamingOperator + MultiplicationOperator`` — the collision
+multiplier ``C = M[σ_t]``).  GMRES on
 ``(L + C) ψ = q`` through the operator algebra is the direct
 verification path the bug fix gates against.
 """
@@ -30,9 +33,9 @@ from scipy.sparse.linalg import gmres
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.operator import (
-    CollisionOperator,
     StreamingOperator,
 )
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
@@ -110,7 +113,9 @@ _GEOMETRIES = [
 def test_b1pp_lplusc_is_full_rank(name, builder):
     r"""(L + C) under B1'' is full-rank + well-conditioned on a small case.
 
-    Builds (L + C) via :class:`StreamingOperator` + :class:`CollisionOperator`
+    Builds (L + C) via :class:`StreamingOperator` + the collision
+    multiplier ``C = M[σ_t]``
+    (:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
     on a 5-cell homogeneous 1G case.  Materialises the dense matrix by
     probing with unit basis vectors; checks rank and condition number.
 
@@ -127,7 +132,7 @@ def test_b1pp_lplusc_is_full_rank(name, builder):
     ng = 1
     sigma_t = np.full((ng, sn_mesh.nx), 0.4)
     L = StreamingOperator(sn_mesh)
-    C = CollisionOperator(sn_mesh, sigma_t)
+    C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
 
     template = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
     n_flat = template.to_flat().size
@@ -215,7 +220,7 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     sigma_t_val = 0.4
     sigma_t = np.full((ng, sn_mesh.nx), sigma_t_val)
     L = StreamingOperator(sn_mesh)
-    C = CollisionOperator(sn_mesh, sigma_t)
+    C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
 
     # Build flat-ψ TimedFullField: bulk = 1 everywhere AND boundary
     # face_view = 1 at every face slot (the "ψ = const at every B1''
@@ -302,7 +307,7 @@ def test_b1pp_lplusc_gmres_converges_fp_noise(name, builder):
     ng = 1
     sigma_t = np.full((ng, sn_mesh.nx), 0.4)
     L = StreamingOperator(sn_mesh)
-    C = CollisionOperator(sn_mesh, sigma_t)
+    C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
 
     template = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
     n_flat = template.to_flat().size

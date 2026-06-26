@@ -56,7 +56,7 @@ from orpheus.numerics.operator import (
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.scattering import LegendreMomentScattering
+from orpheus.transport.operators.scattering import LegendreMomentScattering
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
 

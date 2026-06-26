@@ -10966,7 +10966,7 @@ where :math:`L` is the streaming + collision operator, :math:`S` is
 the scattering source operator, and :math:`F` is the fission source
 operator. Wave D Issue 13 lifts :math:`S` and :math:`F` out of
 :class:`~orpheus.sn.solver.SNSolver` and into
-:class:`~orpheus.sn.scattering.ScatteringOperator` and
+:class:`~orpheus.transport.operators.scattering.ScatteringOperator` and
 :class:`~orpheus.sn.fission.FissionOperator` respectively. The math is
 **moved verbatim** --- the regression contract on the 11 frozen
 snapshots at ``tests/sn/regression/snapshots/`` gates the extraction.
@@ -11033,14 +11033,14 @@ verification of the addition theorem lives at
    is the canonical generic infrastructure consumed here.
 
    **Wave 1 (commit ff454f2)**:
-   :meth:`~orpheus.sn.scattering.ScatteringOperator.build_aniso_source`
+   :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.build_aniso_source`
    is now the literal §9 line 1230 operator-algebra composition
 
    .. math::
 
       Q^{\rm aniso}_n(\vec r) \;=\; R\,\Lambda\,M\,\psi
 
-   where :math:`\Lambda` is :class:`~orpheus.sn.scattering.LegendreMomentScattering`
+   where :math:`\Lambda` is :class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`
    --- the per-ℓ block-diagonal scattering on moment space (the §15.2
    sum-of-tensor-products form
    :math:`\Lambda = \sum_\ell P_\ell \otimes \Sigma_{s,\ell}`).
@@ -11440,7 +11440,7 @@ Bau 1997 §3.2 frame the matrix-free Krylov view):
 where :math:`L = \Omega\cdot\nabla + \Sigma_t` is the streaming-
 collision operator (see :ref:`sn-streaming-operator`),
 :math:`S` is the scattering source operator
-(see :class:`~orpheus.sn.scattering.ScatteringOperator`),
+(see :class:`~orpheus.transport.operators.scattering.ScatteringOperator`),
 :math:`F = \chi\otimes\nu\Sigma_f` is the rank-1-in-energy fission
 emission operator (see :class:`~orpheus.sn.fission.FissionOperator`),
 and :math:`q_{\rm ext}` is an external source.
@@ -11548,7 +11548,7 @@ where
   :math:`\phi = \int\psi\,d\Omega`, so :math:`P_{\rm iso}\psi =
   \phi/\!\sum_n\mathcal{W}_n` is the isotropic-projection (rank-1
   in angle) operator (the convention used by
-  :class:`~orpheus.sn.scattering.ScatteringOperator`; higher
+  :class:`~orpheus.transport.operators.scattering.ScatteringOperator`; higher
   Legendre orders add the :math:`P_\ell` blocks);
 * :math:`B` is the **boundary reflection** gain — trace-only,
   realised by :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`,
@@ -11775,8 +11775,8 @@ operator**: the correct synthetic acceleration of the
 isotropic-projection self-scatter is a diffusion solve whose removal
 matches the transport operator's low-order limit, not a directional
 sweep with a doctored denominator.  The
-:meth:`ScatteringOperator.foldable_part <orpheus.sn.scattering.ScatteringOperator.foldable_part>`
-/ :meth:`residual_part <orpheus.sn.scattering.ScatteringOperator.residual_part>`
+:meth:`ScatteringOperator.foldable_part <orpheus.transport.operators.scattering.ScatteringOperator.foldable_part>`
+/ :meth:`residual_part <orpheus.transport.operators.scattering.ScatteringOperator.residual_part>`
 split (the data API landed under Issue #197 PR-TYPED-1) produces
 :math:`\Sigma_{s,0}^{g\to g}` precisely as the input a DSA
 preconditioner consumes (the diffusion removal coefficient) — it is
@@ -12040,7 +12040,7 @@ Cross-references
   :math:`L` operand the SN solver ships, with both ``apply``
   (symmetric closure) and ``solve`` (WDD asymmetric closure).
   See :ref:`sn-streaming-operator` for the design rationale.
-* :class:`~orpheus.sn.scattering.ScatteringOperator` — the
+* :class:`~orpheus.transport.operators.scattering.ScatteringOperator` — the
   :math:`S` operand carrying P\ :sub:`ℓ` scattering plus (n,2n).
 * :class:`~orpheus.sn.fission.FissionOperator` — the rank-1-in-
   energy :math:`F` operand.  Returns :math:`F\,\phi` without the
@@ -12143,7 +12143,7 @@ SNSolver as an operator-algebra coordinator
 
 * :attr:`SNSolver.L` — :class:`InvertibleOperator` carrying the
   symmetric-closure streaming-collision operator.
-* :attr:`SNSolver.S` — :class:`~orpheus.sn.scattering.ScatteringOperator`
+* :attr:`SNSolver.S` — :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
   carrying the P0 + (n,2n) + Pℓ Galerkin reconstruction (Wave D
   Issue 13).
 * :attr:`SNSolver.F` — :class:`~orpheus.sn.fission.FissionOperator`

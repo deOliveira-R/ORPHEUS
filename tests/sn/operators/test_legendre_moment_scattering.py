@@ -28,7 +28,7 @@ from orpheus.numerics.operator import (
     CAP_SOLVE,
 )
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
-from orpheus.sn.scattering import LegendreMomentScattering
+from orpheus.transport.operators.scattering import LegendreMomentScattering
 
 
 def _make_simple_lambda(

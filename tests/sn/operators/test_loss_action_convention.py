@@ -41,7 +41,8 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import CollisionOperator, StreamingOperator
+from orpheus.sn.operator import StreamingOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -147,7 +148,7 @@ def test_pure_L_plus_C_recovers_loss_action_het(case):
     rng = np.random.default_rng([sum(map(ord, case)), 2026])
     sig_t = rng.uniform(0.3, 3.0, size=(sn.ng, *sn.spatial_shape))   # heterogeneous
     L = StreamingOperator(sn)               # pure σ-free streaming (#257 S8b)
-    C = CollisionOperator(sn, sig_t)        # INDEPENDENT collision operator
+    C = MultiplicationOperator.from_mesh(sig_t, sn)        # INDEPENDENT collision operator
     rep = L.loss_representation
 
     psi = _zeros_state(sn)

@@ -67,7 +67,7 @@ from orpheus.numerics.operator import (
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.solver import SNSolver
-from orpheus.transport.multiplication_operator import MultiplicationOperator
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 
 from tests.transport._integral_kernel_helpers import (
     require,
