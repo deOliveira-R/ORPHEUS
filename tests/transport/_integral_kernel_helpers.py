@@ -27,7 +27,7 @@ S3b) and from a :class:`Functional` (field → scalar, S5). The sole
 required member is a ``kernel`` property returning a :class:`LinearOperator`.
 
 * ``FissionOperator`` gains a ``production_rate`` property → the S5
-  :class:`ProductionRateFunctional` over ``νΣf`` — and so satisfies the
+  :class:`ReactionRateFunctional` over ``νΣf`` — and so satisfies the
   Protocol (it already exposes ``kernel`` since Wave T). The matvec arms
   are UNCHANGED.
 * ``ScatteringOperator`` gains a ``kernel`` property → the typed
@@ -157,7 +157,7 @@ def require_scattering_kernel_property(scattering_op) -> "LinearOperator":
 # The STRUCTURALLY-INDEPENDENT reference for the FISSION kernel cross-check
 # (Part B). χ · (νΣf · φ contracted over groups), by an EXPLICIT Python
 # double-loop — shares NO numpy reduction primitive with the production
-# ``RankOneOperator.apply`` / ``ProductionRateFunctional.evaluate`` path.
+# ``RankOneOperator.apply`` / ``ReactionRateFunctional.evaluate`` path.
 # ───────────────────────────────────────────────────────────────────────
 
 
@@ -177,7 +177,7 @@ def hand_derived_fission_emission(
     structurally-independent reference for the fission cross-check: it
     shares NO reduction primitive with the production
     ``inner = (right * x).sum(axis=0, keepdims=True)`` extraction inside
-    :meth:`RankOneOperator.apply` / :meth:`ProductionRateFunctional.evaluate`
+    :meth:`RankOneOperator.apply` / :meth:`ReactionRateFunctional.evaluate`
     and NONE of the ORPHEUS operator algebra. A νΣf↔φ swap, a wrong-axis
     contraction, or a dropped χ broadcast in the production code disagrees
     with this loop.

@@ -228,9 +228,12 @@ Key Facts
   (partial-current surface measure, pseudo-inverted on the singular
   tangential ordinates). The carrier is
   :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`;
-  ``C``/``S``/``F`` stay ``domain = None`` and the **capability lattice**
-  makes the metric-blind adjoint unrepresentable (the unreachable
-  full-loss ``.H`` *raises*, never silently goes Euclidean). See
+  ``L``/``C``/``S``/``F``/``B`` all carry it (P4.5 W-D) so the
+  within-group :class:`~orpheus.numerics.operator.OperatorSum` guard
+  VALIDATES the composition, and the **capability lattice** — NOT the
+  domain — makes the metric-blind adjoint unrepresentable (``S``/``F``
+  advertise no ``apply_transpose``, so the unreachable full-loss ``.H``
+  *raises*, never silently goes Euclidean). See
   :ref:`bc-extraction-g-adjoint`.
 
 - The :class:`~orpheus.numerics.operator.LinearOperator` Protocol
@@ -4584,20 +4587,25 @@ Two structural reasons forbid the old fold:
    SI step and the Krylov preconditioner depend on. :math:`B` must stay
    a *gain* (lagged, applied) — never a summand of the resolvent.
 
-The old fold type-checked **only because**
-:attr:`ScatteringOperator.domain` is ``None`` (it inherits the
-:class:`~orpheus.numerics.operator.LinearOperator` default; bulk
-operators type via ``block_role``, not a bulk function space). The
+The old fold type-checked at the time **only because**
+:attr:`ScatteringOperator.domain` *was* ``None`` (the pre-W-D bulk
+operators inherited the
+:class:`~orpheus.numerics.operator.LinearOperator` default). The
 :class:`~orpheus.numerics.operator.OperatorSum` domain-compatibility
 check fires only when both operands declare non-``None`` domains that
 differ; with :math:`S` untagged the check skipped, so the
-trace-typed :math:`B` summed silently with the bulk :math:`S`. Giving
-:math:`S` a non-``None`` bulk :class:`~orpheus.numerics.operator.FunctionSpace`
-domain — a defensive Pattern-4 typing-completion seam — would make
-``OperatorSum`` *reject* a re-introduced :math:`S + B` fold at
-construction. That tripwire is **not load-bearing now** (the fold is
-gone; nothing sums :math:`S` with :math:`B` again), so the seam is
-deferred (see :ref:`bc-extraction-scope-future`).
+trace-typed :math:`B` summed silently with the bulk :math:`S`. The
+structural reason the fold stays gone is the **variadic-driver
+redesign** below — :math:`B` is a lagged *gain*, never a resolvent
+summand — not a typing tripwire: P4.5 W-D gave :math:`S` the
+**composite** :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+(the *same* instance :math:`L`/:math:`C`/:math:`B` carry, so the
+within-group ``(L+C) - S`` guard *validates* the ``- S`` arm), NOT a
+bulk-only :math:`V_{\rm bulk}` domain, so an ``OperatorSum`` of the
+composite-typed :math:`S` and the composite-typed :math:`B` would
+still compose — the once-envisioned "bulk-S ≠ trace-B" rejection seam
+(see :ref:`bc-extraction-scope-future`) was **not** the shape W-D
+landed.
 
 .. note::
 
@@ -4753,28 +4761,43 @@ DAG), **not** a bare-vs-bc-in-sweep distinction.
 
 .. _bc-extraction-scope-future:
 
-Deferred typing-completion seam — :attr:`ScatteringOperator.domain`
--------------------------------------------------------------------
+Closed typing-completion seam — :attr:`ScatteringOperator.domain` (P4.5 W-D)
+----------------------------------------------------------------------------
 
-One Wave-O typing-completion remains a documented seam, not a feature:
-minting a non-``None`` bulk
-:class:`~orpheus.numerics.operator.FunctionSpace` domain for
-:class:`~orpheus.transport.operators.scattering.ScatteringOperator` (and the other bulk
-leaves). Today bulk operators type via ``block_role``, not a domain
-space, so :attr:`ScatteringOperator.domain` is ``None``. Giving it a
-bulk :math:`V_{\rm bulk}` domain would let
-:class:`~orpheus.numerics.operator.OperatorSum` **reject** any attempt
-to re-introduce the :math:`S + B` fold — the domain-compatibility check
-would throw ``IncompatibleOperatorComposition`` because :math:`S`
-(bulk space) and :math:`B` (trace space) live on different function
-spaces (a defensive Pattern-4 illegal-states-unrepresentable typing).
+This Wave-O typing-completion **landed in P4.5 W-D** (commit
+``0610b39``); it is recorded here because it was a documented seam at
+the time of Wave O's close-out. The Wave-O framing envisioned giving
+:class:`~orpheus.transport.operators.scattering.ScatteringOperator`
+(and the other bulk leaves) a **bulk** :math:`V_{\rm bulk}` domain so
+that :class:`~orpheus.numerics.operator.OperatorSum` would **reject** a
+re-introduced :math:`S + B` fold (the domain-compatibility check
+throwing ``IncompatibleOperatorComposition`` on a bulk :math:`S`
+summed with a trace :math:`B`).
 
-This is **not load-bearing now**: with the variadic driver
-(:ref:`bc-extraction-variadic-driver`) the fold is gone and nothing
-sums :math:`S` with :math:`B` again, so there is nothing for the
-tripwire to catch. The seam is recorded so a future typing wave lands
-it as a pure addition rather than discovering the need under a
-regression.
+W-D closed the seam, but with a **different and stronger** choice: the
+bulk leaves :math:`C`/:math:`S`/:math:`F` carry the **composite**
+:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` — the
+*same* instance :math:`L`/:math:`B` advertise — not a bulk-only
+:math:`V_{\rm bulk}` space. The motivation shifted from the negative
+"reject :math:`S + B`" tripwire to the positive **within-group
+composition guard**: every operand of the within-group loss
+:math:`(L + C) - S` now reports the same composite domain, so the
+:class:`~orpheus.numerics.operator.OperatorSum` guard **validates** the
+build (equal domains AND codomains) on every solve instead of silently
+skipping a ``None``-spaced summand (W-D — see
+:ref:`bc-extraction-g-adjoint`). A consequence is that the original
+"bulk-:math:`S` ≠ trace-:math:`B`" rejection no longer applies: a
+composite-typed :math:`S` and a composite-typed :math:`B` speak the
+same space, so an ``OperatorSum`` of the two would compose. The reason
+the :math:`S + B` fold stays gone is the **variadic-driver redesign**
+(:ref:`bc-extraction-variadic-driver`) — :math:`B` is a lagged gain,
+never a resolvent summand — not a typing rejection.
+
+The space-anonymous ``domain = None`` survives only for the **bare /
+test constructor** (a :class:`ScatteringOperator` built without
+``from_solver_data``'s ``full_field_space=`` thread): then the guard
+skips that operand, preserving the legacy backward-compatible contract
+for direct callers.
 
 
 .. _bc-extraction-2d-si-krylov-twin:
@@ -5251,9 +5274,10 @@ The direct-helper
 :func:`_reflect_outflow_into_inflow <orpheus.sn.solver._reflect_outflow_into_inflow>`
 also survives O.2a (the driver no longer routes through it, but the
 final eigenvalue reconstruction sweep and the Gauss-Seidel variant
-still do — :ref:`bc-extraction-two-routes`); the optional
-:attr:`ScatteringOperator.domain` typing-completion tripwire remains a
-documented seam (:ref:`bc-extraction-scope-future`).
+still do — :ref:`bc-extraction-two-routes`); the
+:attr:`ScatteringOperator.domain` typing completion that was once a
+documented seam **landed in P4.5 W-D** — :math:`S` now carries the
+composite full-field space (:ref:`bc-extraction-scope-future`).
 
 The residual column is now wired: :class:`BoundaryResidual` and
 :class:`~orpheus.transport.residuals.angular_residual.AngularResidual`
@@ -5861,14 +5885,19 @@ wrapper**.
    - **The carrier is** :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
      — a direct sum that dispatches the metric **per block** to its
      leaf spaces (a pure composition, no new metric arithmetic).
-   - **C / S / F stay at** ``domain = None`` **by design.** ``L`` (in
-     every reachable loss composite) carries the metric and propagates
-     it through :class:`~orpheus.numerics.operator.OperatorSum` by
-     first-non-``None``; the **capability lattice** makes the
-     metric-blind adjoint *unrepresentable* (``S`` / ``F`` advertise no
+   - **The metric-blind adjoint is unrepresentable via the capability
+     lattice, NOT the domain.** Since P4.5 W-D, ``C`` / ``S`` / ``F``
+     carry the SAME composite ``full_field_space`` as ``L`` / ``B`` (so
+     the within-group :class:`~orpheus.numerics.operator.OperatorSum`
+     guard *validates* the loss composition); the metric still applies
+     **once at the op level** because the
+     :class:`~orpheus.numerics.operator._AdjointOperator` wrapper reads
+     it off the *composite* ``domain`` / ``codomain`` of the summed
+     operator, never per-leaf. The guard against a metric-blind adjoint
+     is purely capability-based: ``S`` / ``F`` advertise no
      ``apply_transpose``, so the full prompt-loss adjoint **raises**
-     :class:`~orpheus.numerics.operator.MissingCapability` — it never
-     silently goes Euclidean).
+     :class:`~orpheus.numerics.operator.MissingCapability` at
+     composition — it never silently goes Euclidean.
    - **The trace metric is singular** on tangential ordinates
      (:math:`|\Omega\cdot\hat n| = 0`), so :math:`G^{-1}` is the
      **Moore–Penrose pseudo-inverse** (zero on the null space). This is
@@ -6100,30 +6129,38 @@ logic — the cleanest possible realization of the
 :ref:`metric-lives-at-the-leaf <eigenvalue-posing>` principle.
 
 
-Why C / S / F stay at ``domain = None`` — the capability lattice
-----------------------------------------------------------------
+The G-adjoint applies the metric once at the op level — the capability lattice
+------------------------------------------------------------------------------
 
-The subtle architectural point of R5 is what it **deliberately does
-not** do: only :class:`~orpheus.sn.operator.StreamingOperator` (``L``)
-and :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` (``B``)
-advertise the composite ``domain`` / ``codomain``. The bulk leaves —
-the collision multiplier :math:`C = M[\sigma_t]`
+The subtle architectural point of R5 is **where** the metric lives in
+the adjoint, and it survives the P4.5 W-D change to the bulk leaves'
+domains. Since W-D, all five operators — :math:`L`
+(:class:`~orpheus.sn.operator.StreamingOperator`), the collision
+multiplier :math:`C = M[\sigma_t]`
 (:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
-:class:`~orpheus.transport.operators.scattering.ScatteringOperator` (``S``), and
-:class:`~orpheus.transport.operators.fission.FissionOperator` (``F``) — are **left at**
-``domain = None``. A first reading suggests this is a latent trap — a
-metric-blind leaf that would corrupt the adjoint. It is the opposite:
-it is correct *and* the metric-blind state is made **unrepresentable**.
-Two independent mechanisms guarantee it.
+:class:`~orpheus.transport.operators.scattering.ScatteringOperator` (``S``),
+:class:`~orpheus.transport.operators.fission.FissionOperator` (``F``), and
+:math:`B` (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`) —
+carry the **same** composite ``full_field_space`` (threaded through
+``from_solver_data`` / ``sn_mesh.full_field_space``), so the
+within-group :class:`~orpheus.numerics.operator.OperatorSum` guard
+*validates* the loss composition (``domain = None`` survives only on
+the bare / test constructor). The architecturally interesting fact is
+that this domain plumbing does **not** change where the metric is
+applied in the adjoint, and that the metric-blind adjoint is made
+**unrepresentable by the capability lattice, not by any leaf's
+domain**. Two mechanisms.
 
-**(1) The composite domain propagates from** ``L`` **— C is
-G-conjugated for free.** :math:`L` is present in every loss operator
-(there is no SN loss without streaming). The
-:class:`~orpheus.numerics.operator.OperatorSum` domain is the
-**first-non-**\ ``None`` of its operands' domains (operator.py,
-``OperatorSum.domain``), so ``(L + C - B).domain`` resolves to
-``L``'s composite ``full_field_space``. The adjoint of the *sum*
-therefore applies the metric **once at the op level**:
+**(1) The metric applies ONCE at the op level — never per leaf.** The
+:class:`~orpheus.numerics.operator._AdjointOperator` wrapper realizes
+``op.H`` as :math:`G_V^{+}\odot(\cdot)^{\mathsf T}\!\bigl(G_W\odot(\cdot)\bigr)`,
+reading :math:`G` off the **wrapped operator's** ``domain`` /
+``codomain``. When the wrapped operator is the *sum* :math:`(L+C-B)`,
+that is the sum's composite ``full_field_space`` (the
+:class:`~orpheus.numerics.operator.OperatorSum` ``domain`` is the
+first-non-``None`` of its operands — now redundant, since all operands
+agree on the same composite). The adjoint therefore applies the metric
+**once on the composite**:
 
 .. math::
    :label: g-adjoint-sum-conjugation
@@ -6137,14 +6174,17 @@ therefore applies the metric **once at the op level**:
    - G^{-1} B^{\mathsf T} G ,
 
 distributing the **same** :math:`G^{-1}(\cdot)^{\mathsf T} G`
-conjugation across every leaf in the sum — including the metric-blind
-:math:`C`. The op-level fold :math:`G^{-1}(\sum_{\rm leaf}{\rm
-leaf}^{\mathsf T})G` G-conjugates :math:`C` correctly **even though
-**``C``** itself never carries the metric**; it would be redundant (and a
-double-application bug risk) for :math:`C` to carry it too. The bulk
-leaves are pure :math:`(N,ng,nx,ny)\to(N,ng,nx,ny)` endomorphisms whose
-transpose is well-defined Euclidean-wise; the metric weighting belongs
-to the *space*, applied once where the composite enters and leaves.
+conjugation across every leaf in the sum. Although each leaf now
+*advertises* the composite domain, the
+:class:`~orpheus.numerics.operator._AdjointOperator` applies :math:`G`
+at the **sum** level, never re-applying it per summand — the metric
+weighting belongs to the *space*, applied once where the composite
+enters and leaves, so a leaf carrying the composite domain is **not** a
+double-application risk (the leaves' own ``apply_transpose``, where
+defined, is the metric-blind Euclidean transpose; the metric is layered
+on once by the sum's adjoint wrapper). The bulk leaves are pure
+:math:`(N,ng,nx,ny)\to(N,ng,nx,ny)` endomorphisms whose transpose is
+well-defined Euclidean-wise.
 
 **(2) The capability lattice makes the metric-blind state
 unrepresentable.** The only thing that could go wrong is an adjoint
@@ -6179,8 +6219,9 @@ The full prompt-loss adjoint :math:`(L + C - S - F - B)^{\dagger}` is
 Euclidean. The only composites whose ``.H`` is reachable —
 :math:`(L+C)` and :math:`(L+C-B)` — all contain :math:`L`, hence all
 carry the metric. This is **illegal-states-unrepresentable** (Cardinal
-Rule 2) realized through the **capability lattice** rather than through
-domain plumbing on every leaf. The foldable scattering / fission
+Rule 2) realized through the **capability lattice** — orthogonal to the
+W-D domain plumbing, which serves the *forward* within-group
+composition guard, not the adjoint. The foldable scattering / fission
 contributions to the adjoint are handled at the eigenvalue / DSA outer
 layer (where the adjoint posing row daggers :math:`M = F` as
 :math:`M^{\dagger}`; see :ref:`eigenvalue-posing`), not via this
@@ -8366,14 +8407,22 @@ the per-block ``inner_product_weights``, and the ``.H`` adjoint reads
 them via the unchanged
 :class:`~orpheus.numerics.operator._AdjointOperator` wrapper. It is
 **NOT a posing-layer concern**: posing *arranges* leaves; the leaves
-already *know* their metric. The bulk leaves :math:`C, S, F` stay
-metric-blind (``domain = None``) on purpose — the composite metric
-propagates from :math:`L` through the sum and the op-level
-:math:`G^{-1}(\cdot)^{\mathsf T} G` conjugation covers every leaf
-(:ref:`bc-extraction-g-adjoint`). Consequently the adjoint posing row
-gets the correct :math:`G`-weighted transpose for free — the dagger
-functor applied to a composite that already carries the metric — which
-is precisely why the adjoint row adds no new machinery.
+already *know* their metric through their composite space. The
+:math:`G`-weighting is applied **once at the op level** — the
+:class:`~orpheus.numerics.operator._AdjointOperator` wrapper reads
+:math:`G` off the composite ``domain`` / ``codomain`` of the *summed*
+operator and conjugates the whole sum
+:math:`G^{-1}(\cdot)^{\mathsf T} G`, never re-applying it per leaf
+(:ref:`bc-extraction-g-adjoint`). Since P4.5 W-D the bulk leaves
+:math:`C, S, F` advertise the same composite ``full_field_space`` as
+:math:`L` / :math:`B` (so the *forward* within-group guard validates),
+but their own ``apply_transpose``, where defined, is the metric-blind
+Euclidean transpose — the metric is layered on once by the sum's
+adjoint wrapper, so a leaf carrying the composite domain is no
+double-application risk. Consequently the adjoint posing row gets the
+correct :math:`G`-weighted transpose for free — the dagger functor
+applied to a composite that already carries the metric — which is
+precisely why the adjoint row adds no new machinery.
 
 
 Honest scope — what is agnostic today, and what is not
