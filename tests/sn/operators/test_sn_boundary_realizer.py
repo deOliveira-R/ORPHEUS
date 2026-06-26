@@ -47,7 +47,8 @@ from orpheus.numerics.operator import (
     ZeroOperator,
 )
 from orpheus.sn.angular_operator import AngularAverageOperator
-from orpheus.sn.boundary_realizer import SNBoundaryRealizer, SNMethodSpace
+from orpheus.sn.boundary_realizer import SNBoundaryRealizer
+from orpheus.sn.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
 
 

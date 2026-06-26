@@ -165,7 +165,7 @@ tree (Issue #186 / B3 + β2, 2026-05-11):
         ReflectiveBoundary, WhiteBoundary,
     )
     from orpheus.sn.boundary_realize import realize_recursively
-    from orpheus.sn.boundary_realizer import SNMethodSpace
+    from orpheus.sn.method_space import SNMethodSpace
 
     # Build the descriptor tree (no realisation yet).
     spec = ReflectiveBoundary(axis="x", albedo=1.0)

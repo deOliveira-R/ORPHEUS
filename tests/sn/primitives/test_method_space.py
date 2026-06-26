@@ -68,16 +68,6 @@ def test_minimal_factory_carries_only_quadrature():
     assert space.trace is None
 
 
-def test_realizer_module_reexports_same_class():
-    """``from orpheus.sn.boundary_realizer import SNMethodSpace`` resolves
-    to the same class object as the canonical module — Wave 5 import
-    sites stay working unchanged.
-    """
-    from orpheus.sn.boundary_realizer import SNMethodSpace as ReexportedClass
-
-    assert ReexportedClass is SNMethodSpace
-
-
 def test_legacy_constructor_with_explicit_inflow_indices():
     """The original Wave-5 construction path
     ``SNMethodSpace(quadrature=q, face='xmin', inflow_indices=idx)``

@@ -91,18 +91,12 @@ from orpheus.sn.angular_operator import (
     IncomingSourceOperator,
 )
 
-# Wave 8 (C8.1): SNMethodSpace moved to its own dedicated module
-# (orpheus.sn.method_space) so it can carry mesh + trace metadata
-# without cluttering the realizer file. Re-export here so existing
-# consumers ``from orpheus.sn.boundary_realizer import SNMethodSpace``
-# keep working unchanged.
-from orpheus.sn.method_space import SNMethodSpace
-
 if TYPE_CHECKING:
     from orpheus.geometry.boundary import BoundaryTraceLaw
+    from orpheus.sn.method_space import SNMethodSpace
 
 
-__all__ = ["SNBoundaryRealizer", "SNMethodSpace"]
+__all__ = ["SNBoundaryRealizer"]
 
 
 def _as_boundary(op: LinearOperator) -> LinearOperator:
