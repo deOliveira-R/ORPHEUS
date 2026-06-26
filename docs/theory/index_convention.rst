@@ -723,7 +723,7 @@ durable, build-versioned reference.
 
 The hierarchy is grouped by epistemic role, *not* by storage shape:
 two arrays may share the same numpy shape but play different
-roles in the operator algebra (``ScalarFlux`` vs ``IsotropicSource``,
+roles in the operator algebra (``ScalarFlux`` vs ``ScalarSourceSink``,
 for instance).  The role distinction is what makes the type-system
 discipline of Issue #197 productive — a bare ``np.ndarray`` cannot
 distinguish them.
@@ -796,8 +796,8 @@ Source / RHS vocabulary
 
 The four-operator algebra :math:`(L + C - S - F/k)\psi = q` has a
 typed RHS.  The "source" :math:`q` is a deliberate split into
-direction-independent (``IsotropicSource``) and per-ordinate
-(``PerOrdinateSource``) contributions — the sweep at
+direction-independent (``ScalarSourceSink``) and per-ordinate
+(``AngularSourceSink``) contributions — the sweep at
 :func:`~orpheus.sn.loss_representation.transport_sweep` consumes both, and the
 internal P₀ + (n,2n) accumulation in
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator` emits the first
@@ -812,14 +812,14 @@ while the P\ :sub:`ℓ≥1` accumulation emits the second.
      - Units
      - Shape
      - Existing counterpart
-   * - ``IsotropicSource``
+   * - ``ScalarSourceSink``
      - :math:`q(r, g)` --- direction-independent external source
      - 1/(cm³·s·sr)
      - ``(ng, nx, ny)``
      - ``Q`` arg of :func:`~orpheus.sn.loss_representation.transport_sweep`;
        ``Q_iso`` in
        :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.apply`
-   * - ``PerOrdinateSource``
+   * - ``AngularSourceSink``
      - :math:`q_n(r, g)` --- per-ordinate (P\ :sub:`ℓ≥1` /
        boundary) source
      - 1/(cm³·s·sr)
@@ -1281,11 +1281,11 @@ Issue #197 PR-TYPED-3 introduces two typed source-density carriers
 that wrap the right-hand side of the transport equation
 :math:`(L + C - S - F/k)\,\psi = q`:
 
-* :class:`~orpheus.sn.sources.IsotropicSource` — the isotropic
+* :class:`~orpheus.transport.source_sinks.ScalarSourceSink` — the isotropic
   volumetric source :math:`Q(\vec r, g)`, shape ``(ng, nx, ny)``.
   Aggregates per-group P0 in-scatter, (n,2n), and fission
   contributions that every ordinate sees identically.
-* :class:`~orpheus.sn.sources.PerOrdinateSource` — the per-ordinate
+* :class:`~orpheus.transport.source_sinks.AngularSourceSink` — the per-ordinate
   source :math:`Q^{\rm aniso}(\vec r, \hat\Omega_n, g)`, shape
   ``(N, ng, nx, ny)``.  Carries the :math:`P_\ell \ge 1` Galerkin
   reconstruction contribution plus any MMS-style external source.
@@ -1305,17 +1305,19 @@ that wrap the right-hand side of the transport equation
    * The decision to keep ``sig_t`` as bare ndarray (static-parameter
      quantities don't need typed wrappers — Issue #197 plan).
 
-   Source module: :mod:`orpheus.sn.sources`.
+   Source module: :mod:`orpheus.transport.source_sinks`.
    Foundation tests:
-   :file:`tests/sn/test_typed_sources.py` (22 cases).
+   :file:`tests/sn/primitives/test_typed_source_sinks.py` (37 cases).
    Closeout memo:
    :file:`.claude/agent-memory/method-implementer/issue_197_pr_typed_3_closeout.md`.
 
 The load-bearing dunder
 -----------------------
 
-The cross-type :meth:`~orpheus.sn.sources.IsotropicSource.__add__`
-accepting a :class:`~orpheus.sn.sources.PerOrdinateSource` partner is
+The cross-type
+:meth:`~orpheus.transport.source_sinks.scalar_source_sink.ScalarSourceSink.__add__`
+accepting an
+:class:`~orpheus.transport.source_sinks.AngularSourceSink` partner is
 the load-bearing pattern of PR-TYPED-3.  It replaces the procedural
 broadcast-and-copy pattern with a single algebraic line::
 
@@ -1324,18 +1326,29 @@ broadcast-and-copy pattern with a single algebraic line::
     Q += Q_aniso
 
     # After PR-TYPED-3:
-    combined: PerOrdinateSource = iso_source + aniso_source
+    combined: AngularSourceSink = iso_source + aniso_source
 
 The new path reads as the math: the iso → per-ordinate broadcast is
-internal to the dunder; the caller spells the algebra.  Bit-identity
-to the legacy pattern is pinned by
-:func:`tests.sn.test_typed_sources.TestCrossTypeDunder.test_bit_identity_with_legacy_broadcast_pattern`.
+internal to the dunder (the canonical subspace-containment injection
+``iso → 1 ⊗ iso`` — :class:`ScalarSourceSink` lives in the subspace of
+:class:`AngularSourceSink` where every ordinate carries the same
+value); the caller spells the algebra.  The cross-class dunder is
+**preserved** under the refined Issue #207 principle (cross-class
+arithmetic is permitted when there is a canonical subspace-containment
+relation between the operands' spaces) — see the
+:mod:`orpheus.transport.source_sinks` module docstrings.
 
-Factory methods (:class:`SNMesh`)
----------------------------------
+Zero-field factories
+--------------------
 
-* :meth:`SNMesh.zeros_isotropic_source` → ``(ng, nx, ny)`` zeros.
-* :meth:`SNMesh.zeros_per_ordinate_source` → ``(N, ng, nx, ny)`` zeros.
+* :meth:`ScalarSourceSink.zeros_on(mesh) <orpheus.transport.fields._bases.ScalarField.zeros_on>`
+  → ``(ng, nx, ny)`` zeros.
+* :meth:`AngularSourceSink.zeros_on(mesh) <orpheus.transport.fields._bases.AngularField.zeros_on>`
+  → ``(N, ng, nx, ny)`` zeros.
+
+(These leaf-side ``zeros_on`` allocators replaced the retired
+``SNMesh.zeros_*`` mesh-side factories — see
+:meth:`~orpheus.transport.fields._bases.BulkField.zeros_on`.)
 
 Cross-type ``__add__`` table
 ----------------------------
@@ -1347,19 +1360,19 @@ Cross-type ``__add__`` table
    * - Left operand
      - Right operand
      - Result type
-   * - :class:`IsotropicSource`
-     - :class:`IsotropicSource`
-     - :class:`IsotropicSource` (within type)
-   * - :class:`IsotropicSource`
-     - :class:`PerOrdinateSource`
-     - :class:`PerOrdinateSource` (broadcast across N)
-   * - :class:`PerOrdinateSource`
-     - :class:`IsotropicSource`
-     - :class:`PerOrdinateSource` (commutative — delegates to the
-       :class:`IsotropicSource` side)
-   * - :class:`PerOrdinateSource`
-     - :class:`PerOrdinateSource`
-     - :class:`PerOrdinateSource` (within type)
+   * - :class:`ScalarSourceSink`
+     - :class:`ScalarSourceSink`
+     - :class:`ScalarSourceSink` (within type)
+   * - :class:`ScalarSourceSink`
+     - :class:`AngularSourceSink`
+     - :class:`AngularSourceSink` (broadcast across N)
+   * - :class:`AngularSourceSink`
+     - :class:`ScalarSourceSink`
+     - :class:`AngularSourceSink` (commutative — delegates to the
+       :class:`ScalarSourceSink` side)
+   * - :class:`AngularSourceSink`
+     - :class:`AngularSourceSink`
+     - :class:`AngularSourceSink` (within type)
 
 The cross-type with :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` /
 :class:`~orpheus.sn.angular_flux.AngularFlux` is **not** defined.

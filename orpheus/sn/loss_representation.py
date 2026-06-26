@@ -1966,7 +1966,7 @@ def transport_sweep(
     External iso scalar sources :math:`Q(\\vec r, g)` (e.g. user-
     supplied fixed-source problems) project to per-ordinate at
     construction time via
-    :meth:`~orpheus.sn.sources.AngularSourceSink.from_isotropic`.
+    :meth:`~orpheus.transport.source_sinks.AngularSourceSink.from_isotropic`.
     Scattering-generated sources project at the producer boundary
     via the singledispatched
     :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.apply`.  Fission-
