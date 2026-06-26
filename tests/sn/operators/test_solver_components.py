@@ -58,6 +58,40 @@ def solver_2g():
     return solver, materials, sn_mesh, quad
 
 
+@pytest.fixture
+def solver_2g_n2n():
+    """Like :func:`solver_2g` but the fuel carries a NON-ZERO (n,2n) matrix.
+
+    #269 (Mode-10 cure): every ``xs_library`` mixture has ``Sig2 = 0``, so
+    an (n,2n)-term test built on :func:`solver_2g` runs the (n,2n) code
+    path but the ``2·Σ_2n`` term contributes exactly 0 — a sign/factor
+    error in it does not move the measured value (vacuous green).  This
+    fixture injects an asymmetric ``Sig2`` into the fuel (the asymmetry
+    catches a ``g_from↔g_to`` swap) and bumps ``SigT`` to keep the
+    mixture balanced, so the term is genuinely activated AND constrained.
+    """
+    from scipy.sparse import csr_matrix
+
+    fuel = get_mixture("A", "2g")
+    mod = get_mixture("B", "2g")
+    sig2 = np.array([[0.0, 0.03], [0.01, 0.0]])
+    fuel.Sig2 = csr_matrix(sig2)
+    fuel.SigT = np.asarray(fuel.SigT) + sig2.sum(axis=1)
+    materials = {2: fuel, 0: mod}
+
+    nx, ny = 6, 4
+    delta = 0.2
+    mat = np.zeros((nx, ny), dtype=int)
+    mat[:3, :] = 2
+    mat[3:, :] = 0
+
+    mesh = _uniform_2d(nx, ny, delta, mat)
+    quad = Quadrature.lebedev(order=17)
+    sn_mesh = SNMesh(mesh, quad, materials)
+    solver = SNSolver(sn_mesh)
+    return solver, materials, sn_mesh, quad
+
+
 # ── Reference implementations (per-cell loops, known correct) ─────────
 #
 # Issue #196 PR-INDEX-5: every reference helper consumes / returns
@@ -130,8 +164,14 @@ class TestAddScatteringSource:
 
 
 class TestAddN2NSource:
-    def test_matches_reference(self, solver_2g):
-        solver, *_ = solver_2g
+    def test_matches_reference(self, solver_2g_n2n):
+        """#269 (Mode-10 cure): rides ``solver_2g_n2n`` (NON-zero ``Sig2``)
+        rather than the library ``solver_2g`` (``Sig2 = 0``), so the
+        ``2·Σ_2n`` term is genuinely constrained — a sign/factor mutation
+        in ``_add_n2n_source`` reddens this test.  The reference
+        :func:`_ref_add_n2n` is a structurally-independent per-cell loop
+        (explicit ``2·Σ_2nᵀ@φ``), not the SUT's reduction."""
+        solver, *_ = solver_2g_n2n
         np.random.seed(123)
         phi = np.random.rand(solver.ng, *solver.sn_mesh.spatial_shape) + 0.1
         Q = np.random.rand(solver.ng, *solver.sn_mesh.spatial_shape)

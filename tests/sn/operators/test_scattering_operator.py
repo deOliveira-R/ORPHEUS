@@ -85,6 +85,42 @@ def solver_2g_p0():
     return solver
 
 
+@pytest.fixture
+def solver_2g_p0_n2n():
+    """SNSolver fixture, 2-group, P0 only, with a NON-ZERO (n,2n) matrix.
+
+    #269 (Mode-10 cure): the (n,2n)-term tests below must NOT ride a
+    library mixture, whose ``Sig2`` is all-zero — that nulls the exact
+    term they verify (``2·Σ_2n``), so a sign/factor mutation in the
+    (n,2n) path cannot move the measured value (vacuous green).  This
+    fixture builds the SAME 2-group, P0-only, fuel/moderator geometry as
+    :func:`solver_2g_p0` but injects an asymmetric ``Sig2`` into the fuel
+    material so the term is genuinely activated AND constrained.  ``Sig2``
+    is cross-group only (the asymmetry catches a ``g_from↔g_to`` swap).
+    """
+    from scipy.sparse import csr_matrix
+
+    fuel = get_mixture("A", "2g")
+    mod = get_mixture("B", "2g")
+    # Inject a non-zero, asymmetric (n,2n) matrix into the fuel mixture.
+    # SigT must absorb the (n,2n) reaction XS so the mixture stays balanced.
+    sig2 = np.array([[0.0, 0.03], [0.01, 0.0]])
+    fuel.Sig2 = csr_matrix(sig2)
+    fuel.SigT = np.asarray(fuel.SigT) + sig2.sum(axis=1)
+    materials = {2: fuel, 0: mod}
+
+    nx, ny = 6, 4
+    delta = 0.2
+    mat = np.zeros((nx, ny), dtype=int)
+    mat[:3, :] = 2
+    mat[3:, :] = 0
+
+    mesh = _uniform_2d(nx, ny, delta, mat)
+    quad = Quadrature.lebedev(order=17)
+    sn_mesh = SNMesh(mesh, quad, materials)
+    return SNSolver(sn_mesh)
+
+
 # ── Reference implementations (per-cell loops, known correct) ─────────
 
 
@@ -174,17 +210,28 @@ class TestBitIdenticalExtractionP0:
 
         np.testing.assert_allclose(Q_actual, expected, rtol=1e-13)
 
-    def test_add_n2n_source_matches_reference(self, solver_2g_p0):
-        """ScatteringOperator.add_n2n_source = the per-cell reference."""
+    def test_add_n2n_source_matches_reference(self, solver_2g_p0_n2n):
+        """ScatteringOperator.add_n2n_source = the per-cell reference.
+
+        #269 (Mode-10 cure): rides ``solver_2g_p0_n2n`` (NON-zero,
+        asymmetric ``Sig2`` in the fuel) rather than the library
+        ``solver_2g_p0`` (``Sig2 = 0``), so the ``2·Σ_2n`` term is
+        genuinely constrained — a sign/factor mutation in
+        ``add_n2n_source`` reddens this test (see the in-process
+        monkeypatch proof in #269 closeout).  The reference
+        :func:`_ref_n2n_inplace` is a structurally-independent per-cell
+        loop (explicit ``2·Σ_2nᵀ@φ``), not the SUT's reduction.
+        """
+        solver = solver_2g_p0_n2n
         np.random.seed(123)
-        (nx, ny), ng = solver_2g_p0.sn_mesh.spatial_shape, solver_2g_p0.ng
+        (nx, ny), ng = solver.sn_mesh.spatial_shape, solver.ng
         phi = np.random.rand(ng, nx, ny) + 0.1
         Q = np.random.rand(ng, nx, ny)
 
-        expected = _ref_n2n_inplace(solver_2g_p0, Q, phi)
+        expected = _ref_n2n_inplace(solver, Q, phi)
 
         Q_actual = Q.copy()
-        solver_2g_p0.scattering_op.add_n2n_source(Q_actual, phi)
+        solver.scattering_op.add_n2n_source(Q_actual, phi)
 
         np.testing.assert_allclose(Q_actual, expected, rtol=1e-13)
 
@@ -216,21 +263,27 @@ class TestBitIdenticalExtractionP0:
 
         np.testing.assert_array_equal(Q_via_delegator, Q_via_operator)
 
-    def test_delegator_n2n_matches_operator_directly(self, solver_2g_p0):
+    def test_delegator_n2n_matches_operator_directly(self, solver_2g_p0_n2n):
         """SNSolver._add_n2n_source delegates to op.add_n2n_source bit-identically.
 
         Issue #196 PR-INDEX-5: principled ``(ng, nx, ny)`` end-to-end.
+        #269 (Mode-10 cure): rides the NON-zero ``Sig2`` fixture so the
+        delegated quantity is a genuinely non-trivial (n,2n) source — a
+        delegator that dropped/altered the (n,2n) term would now diverge
+        from the operator's output (library ``Sig2=0`` made both sides
+        the un-mutated input, hiding any term drift).
         """
+        solver = solver_2g_p0_n2n
         np.random.seed(11)
-        (nx, ny), ng = solver_2g_p0.sn_mesh.spatial_shape, solver_2g_p0.ng
+        (nx, ny), ng = solver.sn_mesh.spatial_shape, solver.ng
         phi = np.random.rand(ng, nx, ny) + 0.1
         Q_init = np.random.rand(ng, nx, ny)
 
         Q_via_delegator = Q_init.copy()
-        solver_2g_p0._add_n2n_source(Q_via_delegator, phi)
+        solver._add_n2n_source(Q_via_delegator, phi)
 
         Q_via_operator = Q_init.copy()
-        solver_2g_p0.scattering_op.add_n2n_source(Q_via_operator, phi)
+        solver.scattering_op.add_n2n_source(Q_via_operator, phi)
 
         np.testing.assert_array_equal(Q_via_delegator, Q_via_operator)
 
