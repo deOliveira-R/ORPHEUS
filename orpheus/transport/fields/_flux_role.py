@@ -29,13 +29,16 @@ normalisation (``ψ / k``), :math:`\omega\cdot\Delta\psi`, etc. all survive. The
 gate forbids ONLY the binary ``flux + flux``; ``__sub__`` is RETYPED (→
 displacement) and the cross-class / cross-mesh guards are inherited unchanged.
 
-Each leaf sets the :class:`~typing.ClassVar` ``_DISPLACEMENT_CLS`` to its sibling
-displacement type. The mint copies the flux's dataclass init-fields (``values``
-/ ``space`` / ``mesh``, plus ``L`` for the moment family) into that class,
-swapping ``values`` — uniform across families and handling the moment leaf's
-``L`` that a ``cls.from_mesh(...)`` engine could not. The displacement SHARES the
-flux's :class:`~orpheus.numerics.space.FunctionSpace` (the tangent vector lives
-in the flux's own function space); the CLASS identity is the role gate.
+The sibling displacement class is DERIVED from the shared Rep (W-H): a flux
+``XFlux(FluxRole, XField)`` and its displacement ``XDisplacement(Displacement,
+XField)`` are two roles over the SAME ``XField`` Rep, so ``_DISPLACEMENT_CLS`` is
+looked up by that Rep (:meth:`Displacement.sibling_of`), not hand-set on each
+leaf. The mint copies the flux's dataclass init-fields (``values`` / ``space`` /
+``mesh``, plus ``L`` for the moment family) into that class, swapping ``values``
+— uniform across families and handling the moment leaf's ``L`` that a
+``cls.from_mesh(...)`` engine could not. The displacement SHARES the flux's
+:class:`~orpheus.numerics.space.FunctionSpace` (the tangent vector lives in the
+flux's own function space); the CLASS identity is the role gate.
 
 References
 ----------
@@ -50,7 +53,7 @@ References
 from __future__ import annotations
 
 from dataclasses import fields as _dataclass_fields, replace
-from typing import ClassVar, Sequence
+from typing import Sequence
 
 
 class FluxRole:
@@ -63,10 +66,20 @@ class FluxRole:
     come from the storage base / :class:`Field`.
     """
 
-    #: The sibling displacement class minted by ``flux ⊖ flux``. Set on each
-    #: concrete flux leaf (e.g. ``AngularFlux._DISPLACEMENT_CLS =
-    #: AngularDisplacement``).
-    _DISPLACEMENT_CLS: ClassVar[type]
+    @property
+    def _DISPLACEMENT_CLS(self) -> type:
+        r"""The sibling displacement class, DERIVED from the shared Rep (W-H).
+
+        A flux and its displacement are two role-classes over the SAME
+        Field-family Rep (``ScalarFlux`` / ``ScalarDisplacement`` both over
+        ``ScalarField``), so the pairing is structural — looked up via
+        :meth:`Displacement.sibling_of` keyed by this flux's Rep, NOT hand-set on
+        each leaf. Handles the ``HarmonicMomentFlux`` ↔ ``MomentDisplacement``
+        name asymmetry a name-mangling derive could not.
+        """
+        from orpheus.transport.displacements._displacement import Displacement
+
+        return Displacement.sibling_of(type(self))
 
     # ── The affine algebra ──────────────────────────────────────────────
 

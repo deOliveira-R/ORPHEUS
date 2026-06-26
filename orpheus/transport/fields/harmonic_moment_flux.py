@@ -106,7 +106,6 @@ import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.numerics.units import SCALAR_FLUX_UNITS, Unit
-from orpheus.transport.displacements.moment_displacement import MomentDisplacement
 from orpheus.transport.fields._bases import MomentField
 from orpheus.transport.fields._flux_role import FluxRole
 
@@ -160,12 +159,6 @@ class HarmonicMomentFlux(FluxRole, MomentField):
     The legitimate route is through the discrete spherical-harmonic
     :class:`~orpheus.numerics.frame.GalerkinFrame`'s analysis / reconstruction faces.
     """
-
-    #: The affine difference-space sibling minted by ``φ_ℓᵐ ⊖ φ_ℓᵐ`` (#208) — the
-    #: tangent vector :class:`MomentDisplacement` (the windowed-SI iterate
-    #: increment; carries the same ``L`` + tensor-product space). See
-    #: :class:`~orpheus.transport.fields._flux_role.FluxRole`.
-    _DISPLACEMENT_CLS: ClassVar[type] = MomentDisplacement
 
     #: Dimensional identity (View-G, B.4): a moment is angle-integrated, so
     #: ``1/(cm²·s)`` — :data:`~orpheus.numerics.units.SCALAR_FLUX_UNITS`,

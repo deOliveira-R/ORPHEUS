@@ -40,6 +40,8 @@ References
 """
 from __future__ import annotations
 
+from typing import ClassVar
+
 import numpy as np
 
 
@@ -63,6 +65,29 @@ class Displacement:
     ``np.linalg.norm(to_flat())`` for bit-identity; switching it to ``.l2``
     would re-interpret ``conv_tol``.
     """
+
+    #: Registry ``Rep → Displacement`` populated by :meth:`__init_subclass__` as
+    #: each displacement leaf is defined. The ``displacements`` package
+    #: ``__init__`` imports every leaf eagerly, so the registry is complete once
+    #: that package is imported (W-H: the flux↔displacement pairing is DERIVED
+    #: from the shared Rep, not hand-set on each flux leaf).
+    _BY_REP: ClassVar[dict[type, type["Displacement"]]] = {}
+
+    def __init_subclass__(cls, **kwargs) -> None:
+        super().__init_subclass__(**kwargs)
+        Displacement._BY_REP[_carrier_rep(cls)] = cls
+
+    @classmethod
+    def sibling_of(cls, carrier_cls: type) -> type["Displacement"]:
+        r"""The displacement role-class sharing ``carrier_cls``'s Rep.
+
+        A flux and its displacement are two role-classes over the SAME
+        Field-family Rep (``ScalarFlux`` / ``ScalarDisplacement`` both over
+        ``ScalarField``); the lookup is keyed by that shared Rep, so the pairing
+        is STRUCTURAL, not nominal — it handles the ``HarmonicMomentFlux`` ↔
+        ``MomentDisplacement`` name asymmetry a name-mangling derive could not.
+        """
+        return Displacement._BY_REP[_carrier_rep(carrier_cls)]
 
     def contraction_ratio(self, previous: "Displacement") -> float:
         r"""The Banach contraction factor :math:`\rho \approx
@@ -141,3 +166,30 @@ class Displacement:
         top = top[np.argsort(flat[top])[::-1]]  # largest first
         shape = np.asarray(self.values).shape  # type: ignore[attr-defined]
         return [tuple(int(i) for i in np.unravel_index(j, shape)) for j in top]
+
+
+def _carrier_rep(cls: type) -> type:
+    r"""The Field-family Rep of a flux / displacement role-leaf.
+
+    Both ``XFlux(FluxRole, XField)`` and ``XDisplacement(Displacement, XField)``
+    carry exactly one :class:`~orpheus.numerics.field.Field`-family base — the
+    storage representation ``XField`` they share. The role mixin ``FluxRole`` and
+    the ``Displacement`` marker are not ``Field`` subclasses, so they are
+    excluded; that shared Rep is the key the flux↔displacement pairing is derived
+    from (W-H).
+    """
+    from orpheus.numerics.field import Field
+
+    reps = [
+        base
+        for base in cls.__bases__
+        if isinstance(base, type)
+        and issubclass(base, Field)
+        and not issubclass(base, Displacement)
+    ]
+    if len(reps) != 1:
+        raise TypeError(
+            f"{cls.__name__}: a flux/displacement role-leaf must derive from "
+            f"exactly one Field-family Rep; found {[r.__name__ for r in reps]}."
+        )
+    return reps[0]

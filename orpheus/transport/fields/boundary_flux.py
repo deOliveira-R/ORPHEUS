@@ -73,7 +73,6 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
-from orpheus.transport.displacements.boundary_displacement import BoundaryDisplacement
 from orpheus.transport.fields._bases import BoundaryField
 from orpheus.transport.fields._flux_role import FluxRole
 
@@ -111,12 +110,6 @@ class BoundaryFlux(FluxRole, BoundaryField):
     via :meth:`~orpheus.transport.fields._bases.BoundaryField.zeros_on`
     / :meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`.
     """
-
-    #: The affine difference-space sibling minted by ``ψ|∂ ⊖ ψ|∂`` (#208) — the
-    #: tangent vector :class:`BoundaryDisplacement` (the SI iterate's boundary
-    #: increment; shares the ``mesh.trace`` space). See
-    #: :class:`~orpheus.transport.fields._flux_role.FluxRole`.
-    _DISPLACEMENT_CLS: ClassVar[type] = BoundaryDisplacement
 
     #: Dimensional identity (View-G, B.4): the boundary trace stores flux
     #: values, so ``1/(cm²·s·sr)`` —

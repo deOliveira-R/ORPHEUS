@@ -92,7 +92,6 @@ from typing import TYPE_CHECKING, ClassVar
 from numpy.typing import NDArray
 
 from orpheus.numerics.units import SCALAR_FLUX_UNITS, Unit
-from orpheus.transport.displacements.scalar_displacement import ScalarDisplacement
 from orpheus.transport.fields._bases import ScalarField
 from orpheus.transport.fields._flux_role import FluxRole
 
@@ -143,11 +142,6 @@ class ScalarFlux(FluxRole, ScalarField):
     #: pre-B.1 space identity). All mesh/shape/algebra/factory machinery
     #: is inherited from :class:`ScalarField` / :class:`BulkField`.
     _SPACE_NAME: ClassVar[str] = "scalar_flux"
-
-    #: The affine difference-space sibling minted by ``φ ⊖ φ`` (#208) — the
-    #: tangent vector :class:`ScalarDisplacement`. See
-    #: :class:`~orpheus.transport.fields._flux_role.FluxRole`.
-    _DISPLACEMENT_CLS: ClassVar[type] = ScalarDisplacement
 
     #: Dimensional identity (View-G, B.4): areal angle-integrated flux
     #: ``1/(cm²·s)`` (eV-free — see module docstring). Metadata, not the
