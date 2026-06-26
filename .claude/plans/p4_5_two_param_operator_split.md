@@ -12,7 +12,7 @@
 ## ⚑ SCOPE EXPANSION + STATUS (2026-06-24) — read FIRST
 
 > **✦✦ SESSION 2026-06-25 — COLD-PICKUP MARKER (read this first; supersedes the P4.5a-uncommitted note below).**
-> **W-A, W-B, W-C, W-D are LANDED + COMMITTED** on `refactor/operator-inverse-algebra` (NOT uncommitted — reconcile
+> **W-A, W-B, W-C, W-D LANDED + W-E RESOLVED (docs)** on `refactor/operator-inverse-algebra` (NOT uncommitted — reconcile
 > against git, not the P4.5a paragraph below which is now archaeology):
 > - `70d5d78` **W-A** base collapse (one invariant `LinearOperator(Protocol[Domain,Codomain])`, Mixin retired) + `53e54c6` plan.
 > - `f55bdad` **W-B** projection ABCs generic `[Domain,Codomain]` + `b88ceec` plan.
@@ -21,6 +21,9 @@
 >   `TimedFullField` for W-F — see the W-F HEAD START note).
 > - `0610b39` **W-D** cross-method recognition: C/S/F gain real composite `domain`/`codomain`; the `(L+C)−S` guard
 >   is LIVE; de-SN-ified `sn_full_field` → `full_field`. (See the W-D section below for the 1-site/C-activator learnings.)
+> - `d30d4a6` **W-E** resolution — docs/theory ONLY (no scattering/solver code): the phase-space-promotion premise was
+>   REFUTED (the angular Frame is scattering's EIGENBASIS, Funk–Hecke; `S=R∘Λ∘M`=spectral theorem); the ruling + the two
+>   relocation tripwires (independent-L consumer; cross-method-measure → #261) are archived. See the W-E CLOSED note below.
 > **Net: pyright `orpheus/` 419 → 412 (Δ−7 cumulative; W-D Δ0), ZERO regressions; all gates green** (SN 1414 + the
 > 7-and-only-7 pre-existing reds, 0-ULP scattering canary, tests/numerics 684, solve+eigenvalue 110, verification
 > L0/L1 88, Sphinx -W clean).
