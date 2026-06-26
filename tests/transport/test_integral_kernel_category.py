@@ -24,7 +24,7 @@ avoid the L11 self-referential trap):
   ``LinearOperator`` s (refinement, not disjoint).
 * NEGATIVE both directions — a ``MultiplicationOperator`` (S3b,
   local/diagonal) is NOT an ``IntegralKernelOperator`` (no ``kernel``);
-  a ``Functional`` / ``ProductionRateFunctional`` (S5, field→scalar) is
+  a ``Functional`` / ``ReactionRateFunctional`` (S5, field→scalar) is
   NOT (no ``kernel``, no ``apply``). The Functional NEGATIVE is the
   sharpest: it confirms the new category did NOT accidentally admit the
   field→scalar maps.
@@ -315,7 +315,7 @@ class TestFunctionalIsNotIntegralKernel:
         IKO = require_integral_kernel_operator()
         require(
             not isinstance(production_rate_functional, IKO),
-            "ProductionRateFunctional (a Functional, field→scalar) must NOT "
+            "ReactionRateFunctional (a Functional, field→scalar) must NOT "
             "satisfy IntegralKernelOperator — it has no `kernel` and no "
             "`apply`. isinstance returned True: the Kernel category leaked "
             "into the Functional category.",

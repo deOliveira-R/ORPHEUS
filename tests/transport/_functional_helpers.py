@@ -1,23 +1,24 @@
-r"""Shared fixtures + the not-yet-written-SUT import guard for the #257 S5
-``Functional`` category verification suite.
+r"""Shared fixtures + the SUT import guard for the #257 S5 ``Functional``
+category verification suite.
 
-S5 is PRE-IMPLEMENTATION at the time these specs were written — the
+S5 was PRE-IMPLEMENTATION at the time these specs were written — the
 system-under-test (``orpheus.numerics.functional.Functional`` and the
-concrete ``ProductionRateFunctional``) does not yet exist on the tree.
-Every S5 test file routes its SUT import through :func:`require_functional`
-/ :func:`require_production_rate_functional` so the files **collect**
-(green test session, no ``ImportError`` at collection time) and **skip**
-with a clear reason until the method-implementer lands the production
-code. Once landed, the skips become real assertions automatically — no
-edit to the test files is required.
+concrete production-rate functional, now
+:class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`)
+did not yet exist on the tree. Every S5 test file routes its SUT import
+through :func:`require_functional` / :func:`require_production_rate_functional`
+so the files **collect** (green test session, no ``ImportError`` at
+collection time) and **skip** with a clear reason if the production code
+is absent. Now that it has landed, the skips resolve to real assertions
+automatically — no edit to the test files is required.
 
 The SUT-coupling is deliberately minimal (the test-architect brief
 leaves the exact class layout to the method-implementer): the specs
 probe the SUT's *structural surface* (does it satisfy the ``Functional``
 Protocol? does it NOT satisfy ``LinearOperator``? does ``evaluate``
 return the hand-derived value?) rather than its concrete construction
-internals. The ONE construction assumption — a keyword constructor
-``ProductionRateFunctional(nu_sigma_f=<CrossSectionField>)`` — is isolated
+internals. The ONE construction assumption — the positional constructor
+``ReactionRateFunctional(<CrossSectionField>)`` — is isolated
 in :func:`build_production_rate_functional` so a different chosen layout
 is a single-line change here, not a sweep across four files.
 

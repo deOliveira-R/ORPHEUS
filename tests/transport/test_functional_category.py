@@ -12,7 +12,7 @@ A Functional maps a field → scalar (or field → scalar-field) via
 Teeth (anti-pattern #11 — positive AND negative, and avoid the L11
 self-referential trap):
 
-* POSITIVE — a ``ProductionRateFunctional`` (and an estimator wrapper)
+* POSITIVE — a ``ReactionRateFunctional`` (and an estimator wrapper)
   IS a ``Functional``: runtime ``isinstance`` + it has ``evaluate``.
 * NEGATIVE — a ``Functional`` is NOT a ``LinearOperator``
   (no ``apply`` / ``capabilities``); CONVERSELY a ``LinearOperator``
@@ -74,7 +74,7 @@ pytestmark = pytest.mark.foundation
 
 
 def _make_functional_and_operators():
-    """Build one ProductionRateFunctional + two LinearOperators on one mesh."""
+    """Build one ReactionRateFunctional + two LinearOperators on one mesh."""
     sn = cartesian_2d_mesh(nx=5, ny=3, ng=2)
     nu_sf = asymmetric_nu_sigma_f(ng=2, spatial_shape=sn.spatial_shape)
     func = build_production_rate_functional(cross_section_field(nu_sf, sn))
@@ -93,12 +93,12 @@ def _make_functional_and_operators():
 
 class TestFunctionalPositive:
     def test_production_rate_functional_is_a_functional(self):
-        """``ProductionRateFunctional`` satisfies the ``Functional`` Protocol."""
+        """``ReactionRateFunctional`` satisfies the ``Functional`` Protocol."""
         Functional = require_functional()
         func, _, _, _ = _make_functional_and_operators()
         require(
             isinstance(func, Functional),
-            f"ProductionRateFunctional must satisfy the Functional Protocol; "
+            f"ReactionRateFunctional must satisfy the Functional Protocol; "
             f"isinstance returned False for {type(func).__name__}.",
         )
 
@@ -107,7 +107,7 @@ class TestFunctionalPositive:
         func, _, _, _ = _make_functional_and_operators()
         require(
             callable(getattr(func, "evaluate", None)),
-            "ProductionRateFunctional must expose a callable `evaluate` "
+            "ReactionRateFunctional must expose a callable `evaluate` "
             "(the §5.6 suffix law field→scalar/scalar-field map).",
         )
 
@@ -131,7 +131,7 @@ class TestFunctionalIsNotLinearOperator:
         func, _, _, _ = _make_functional_and_operators()
         require(
             not isinstance(func, LinearOperator),
-            "ProductionRateFunctional must NOT satisfy the LinearOperator "
+            "ReactionRateFunctional must NOT satisfy the LinearOperator "
             "Protocol (a Functional has `evaluate`, not `apply`+`capabilities`). "
             "isinstance returned True — the category leaked into LinearOperator.",
         )
@@ -142,7 +142,7 @@ class TestFunctionalIsNotLinearOperator:
         require(
             not hasattr(func, "apply"),
             "A Functional must NOT carry `apply` (that is the operator "
-            "surface). Found `apply` on ProductionRateFunctional.",
+            "surface). Found `apply` on ReactionRateFunctional.",
         )
 
     def test_functional_lacks_capabilities(self):
