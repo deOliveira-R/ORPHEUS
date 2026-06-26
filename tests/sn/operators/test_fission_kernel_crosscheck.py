@@ -296,3 +296,102 @@ class TestFissionApplyRoutesThroughFunctional:
 # identity) and ``kernel.apply ≡ apply`` (single source of truth). This carve
 # must NOT perturb it — the kernel is the OTHER half of the
 # IntegralKernelOperator surface and is already green.
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# W-F live-arm sentinel — Mode-11: the K-eigenvalue loop EXECUTES the
+# fission bare-``np.ndarray`` dispatch arm. Pins the load-bearing arm so
+# the W-F dead-arm retirement cannot delete it.
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestFissionNdarrayArmIsKEigenvalueLive:
+    r"""The bare-``np.ndarray`` fission ``apply`` arm is on the K-loop call graph.
+
+    W-E resolution (``d30d4a6``): the K-eigenvalue outer loop
+    :func:`orpheus.numerics.eigenvalue.power_iteration` feeds a bare
+    :class:`numpy.ndarray` flux to
+    :meth:`~orpheus.sn.solver.SNSolver.compute_fission_source`, which calls
+    ``self.fission_op.apply(flux_distribution) / keff`` (``sn/solver.py``).
+    So the bare-ndarray dispatch arm (``fission.py`` —
+    ``@_apply_impl.register def _(self, phi_arr: np.ndarray)``) is the LIVE
+    arm at the outer-iteration boundary, NOT dead weight.
+
+    This sentinel is the W-F safety net: it proves — by a real keff solve
+    with an in-process counter on the *registered ndarray implementation
+    function itself* — that the arm is genuinely executed, so the W-F
+    dead-arm retirement keeps it (and a future regression that routes the
+    K-loop around it reddens here).
+
+    vv Mode-11 (the strictly-stronger proof): a green keff value alone does
+    NOT prove the ndarray arm ran — a refactor could route fission through a
+    typed carrier and still converge. The sentinel WRAPS the production
+    reader (the ndarray arm) in-process and asserts the counter advanced —
+    the routed-around path cannot fake the wrap (``vv-principles`` Mode-11
+    "pytest-plugin sentinel that WRAPS the internal call").
+
+    vv Mode-8: the gate uses ``require`` (a ``pytest.fail`` call) — fires
+    under ``python -O``; NEVER a bare ``assert``.
+
+    Why wrap the *registry* function and not ``F.apply``: wrapping the outer
+    :func:`functools.singledispatchmethod` callable DEFEATS type-based
+    dispatch (the wrapper's ``__class__`` is seen, the input falls to the
+    base ``TypeError`` arm) — the exact Mode-11 hazard in miniature. The
+    counter must wrap the ``np.ndarray``-registered leaf, reached via the
+    descriptor's ``dispatcher.registry``.
+    """
+
+    @pytest.mark.sentinel
+    def test_keff_solve_executes_fission_ndarray_arm(self, solver_4g):
+        from orpheus.numerics.eigenvalue import power_iteration
+        from orpheus.transport.operators.fission import FissionOperator
+
+        # Reach the np.ndarray-registered implementation leaf (NOT the
+        # dispatcher) and wrap it with a counter. The descriptor lives on the
+        # class __dict__; `.dispatcher` is the underlying functools
+        # singledispatch carrying the read-only `.registry` mappingproxy.
+        descriptor = FissionOperator.__dict__["_apply_impl"]
+        registry = descriptor.dispatcher.registry
+        require(
+            np.ndarray in registry,
+            "FissionOperator._apply_impl has NO np.ndarray-registered arm — "
+            "either the arm was already retired (the K-loop will TypeError) "
+            "or the dispatch handle moved; W-F must keep this arm.",
+        )
+        ndarray_impl = registry[np.ndarray]
+
+        calls = {"n": 0}
+
+        def counting_ndarray_arm(self, phi_arr):
+            calls["n"] += 1
+            return ndarray_impl(self, phi_arr)
+
+        # The registry is a read-only mappingproxy — the ONLY supported
+        # mutation is `singledispatchmethod.register`. Re-register the
+        # counting wrapper for np.ndarray, run the solve, then restore the
+        # original leaf in `finally` (manual revert because the registry is
+        # class-global and there is no monkeypatch hook for it; NEVER leave
+        # the live dispatch table mutated — Mode-11 probe hygiene).
+        descriptor.register(np.ndarray, counting_ndarray_arm)
+        try:
+            keff, history, _flux = power_iteration(solver_4g, max_iter=60)
+        finally:
+            descriptor.register(np.ndarray, ndarray_impl)
+
+        require(
+            calls["n"] > 0,
+            "The K-eigenvalue loop did NOT execute the fission bare-ndarray "
+            "apply arm — power_iteration converged WITHOUT routing fission "
+            "through `F.apply(np.ndarray)`. Either the live arm was deleted "
+            "(W-F over-retirement) or the K-loop now feeds a typed carrier. "
+            "The ndarray arm is the load-bearing outer-iteration boundary "
+            "(W-E `d30d4a6`); W-F must not retire it (Mode-11).",
+        )
+        # Corroborating sanity: the solve actually ran (so the counter result
+        # is meaningful, not a zero-iteration vacuum).
+        require(
+            len(history) > 0 and np.isfinite(keff),
+            f"power_iteration returned no usable trajectory "
+            f"(keff={keff}, n_outer={len(history)}) — the sentinel's "
+            f"counter reading is not anchored to a real solve.",
+        )

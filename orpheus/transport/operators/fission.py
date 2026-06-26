@@ -408,8 +408,8 @@ class FissionOperator(LinearOperator):
         :class:`TimedFullField` iterate dispatches here via MRO (it IS a
         ``FullField``), so the runtime is behaviour-preserving, and a bare
         ``FullField`` now dispatches correctly. Reads only ``psi.bulk``
-        (history-blind). The ``@overload`` static stubs still name
-        ``TimedFullField`` — restructuring them is W-F (the overload retire).
+        (history-blind). The ``@overload`` static stubs name ``FullField``
+        too (W-F), matching this runtime registration.
 
         Math: identical to the :class:`AngularFlux` branch above —
         reduce bulk angular → scalar via :math:`\phi = \sum_n w_n
@@ -505,7 +505,7 @@ class FissionOperator(LinearOperator):
         # below), so callers statically see e.g. ``F.apply(ScalarFlux) ->
         # ScalarSourceSink`` instead of the dispatcher's untyped fallback.
         @overload
-        def apply(self, phi: TimedFullField, /) -> "FullField": ...
+        def apply(self, phi: FullField, /) -> "FullField": ...
         @overload
         def apply(self, phi: ScalarFlux, /) -> "ScalarSourceSink": ...
         @overload

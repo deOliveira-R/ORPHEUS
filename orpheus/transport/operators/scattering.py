@@ -1285,8 +1285,8 @@ class ScatteringOperator(LinearOperator):
         :class:`TimedFullField` iterate dispatches here via MRO (it IS a
         ``FullField``), so the runtime is behaviour-preserving, and a bare
         ``FullField`` now dispatches correctly. Reads only ``psi.bulk``
-        (history-blind). The ``@overload`` static stubs still name
-        ``TimedFullField`` — restructuring them is W-F (the overload retire).
+        (history-blind). The ``@overload`` static stubs name ``FullField``
+        too (W-F), matching this runtime registration.
 
         Math: identical to the :class:`AngularFlux` branch above —
         reduce ``psi.bulk`` angular → scalar, build iso :math:`P_0 +
@@ -1347,6 +1347,21 @@ class ScatteringOperator(LinearOperator):
         for the Galerkin reconstruction); no :math:`1/W` (consumers in
         scalar-flux equations — diffusion, CP, kinetics outer — do not
         project to per-ordinate).
+
+        **Deliberately retained (W-F, 2026-06-26) — a named-future-consumer
+        surface, NOT dead weight.**  This arm has no current production
+        caller: the within-group SI/Krylov path feeds the composite
+        :class:`FullField` / per-ordinate :class:`AngularFlux` /
+        :class:`HarmonicMomentFlux` arms, never a bare :class:`ScalarFlux`,
+        and (unlike fission's internally-reached :class:`ScalarFlux` arm) no
+        sibling arm delegates here — it is orphan at both ends today.  It is
+        kept as the typed entry-point for the scalar-carrier cross-method
+        consumers (diffusion / CP / kinetics outer) that the cross-method
+        field architecture (`#205
+        <https://github.com/deOliveira-R/ORPHEUS/issues/205>`_) will wire.
+        Per the coding-standards retirement audit this keep-vs-retire call is
+        recorded EXPLICITLY rather than left a silent orphan (user steered
+        keep, 2026-06-26).
         """
         mesh = phi.mesh
         iso: ScalarSourceSink = ScalarSourceSink.zeros_on(mesh)
@@ -1450,7 +1465,7 @@ class ScatteringOperator(LinearOperator):
         # so callers statically see e.g. ``S.apply(ScalarFlux) ->
         # ScalarSourceSink`` instead of the dispatcher's untyped fallback.
         @overload
-        def apply(self, psi: TimedFullField, /) -> "FullField": ...
+        def apply(self, psi: FullField, /) -> "FullField": ...
         @overload
         def apply(self, phi: ScalarFlux, /) -> "ScalarSourceSink": ...
         @overload
