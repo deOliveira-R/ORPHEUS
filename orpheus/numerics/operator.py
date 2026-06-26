@@ -682,7 +682,7 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
         # spherical-harmonic ``(L+1, 2L+1)`` leading-axis metric — bit-identical
         # to the former in-line leading-axis-broadcast multiply, now
         # :meth:`FunctionSpace._broadcast_metric`) AND a
-        # composite bulk ⊕ trace metric on a structured ``TimedFullField`` (the
+        # composite bulk ⊕ trace metric on a structured ``FullField`` (the
         # direct-sum space applies a per-block metric, with a pseudo-inverse on
         # the singular partial-current trace). The space owns the metric; the
         # adjoint wrapper is metric-representation-agnostic.

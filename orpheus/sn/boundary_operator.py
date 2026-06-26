@@ -73,11 +73,11 @@ class SNBoundaryOperator(LinearOperator):
     r"""Whole-trace boundary law ``B`` — the ``A_ss`` block of the SN algebra.
 
     Block-diagonal over the mesh's true boundary faces: ``B.apply(ψ)`` returns a
-    :class:`~orpheus.transport.timed_full_field.TimedFullField` with **zero bulk**
+    :class:`~orpheus.transport.full_field.FullField` with **zero bulk**
     and, on each face, ``bc[<face>].apply(ψ.boundary.face_view(<face>))`` — the
     per-face realized boundary law applied to that face's trace slot. It composes
     as ``−B`` in ``(L_full + C − S − F − B)`` (acting on the same
-    :class:`TimedFullField` carrier as ``L``/``C``/``S``/``F``).
+    :class:`~orpheus.transport.full_field.FullField` carrier as ``L``/``C``/``S``/``F``).
 
     The role is :attr:`BlockRole.BOUNDARY`; the domain and codomain are the
     mesh's composite carrier
@@ -91,7 +91,7 @@ class SNBoundaryOperator(LinearOperator):
     correct partial-current adjoint — the one channel by which the white-BC
     adjoint becomes available. (Before O.2b R5 ``B`` advertised the bare
     ``sn_mesh.trace`` here, inconsistent with :meth:`apply` already consuming /
-    emitting a full :class:`TimedFullField`.)
+    emitting a full :class:`~orpheus.transport.full_field.FullField`.)
 
     Capabilities
     ------------
@@ -146,7 +146,7 @@ class SNBoundaryOperator(LinearOperator):
     @property
     def domain(self) -> Optional["FunctionSpace"]:
         # The composite carrier (NOT the bare trace): ``B.apply`` consumes /
-        # emits a full TimedFullField (zero bulk + reflected trace), so the
+        # emits a full FullField (zero bulk + reflected trace), so the
         # advertised space must be the bulk ⊕ trace composite — matching the
         # ``L``/``C``/``S``/``F`` siblings for the OperatorSum composition
         # guard, and carrying the block-diagonal G-adjoint metric ``B.H``
