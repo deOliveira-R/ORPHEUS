@@ -24,10 +24,14 @@
 > **Net: pyright `orpheus/` 419 → 412 (Δ−7 cumulative; W-D Δ0), ZERO regressions; all gates green** (SN 1414 + the
 > 7-and-only-7 pre-existing reds, 0-ULP scattering canary, tests/numerics 684, solve+eigenvalue 110, verification
 > L0/L1 88, Sphinx -W clean).
-> **NEXT = W-E** (promote the angular Frame to phase-space/quadrature ownership + typed face-operators; the
-> resolvent-borrow smell; `frame.conjugate(Λ)` = the double-category 2-cell). **REQUIRES a proactive `test-architect`
-> dispatch FIRST** (0-ULP-adjacent — the kernel crosscheck is the interchange-law witness). Then W-F (overload
-> restructure, register signatures already done) → W-G; W-H independent.
+> **W-E CLOSED — refuted + resolved (2026-06-25).** The phase-space-promotion premise was FALSIFIED: the angular
+> Frame is the scattering operator's EIGENBASIS (Funk–Hecke; `S=R∘Λ∘M` = the spectral theorem `UΣU*`), so it is
+> ALREADY correctly scattering-owned. Move 1 (promote → `SNMesh`) is DEAD; the resolvent borrow is NOT a smell; the
+> typed M/R faces DEFER to P6 (their `S.H = M.H∘Λ.H∘R.H` consumer). The unifying ruling (operator-symmetry → frame
+> ownership; Galerkin-angular vs PG-energy/spatial) is archived in the theory pages + the `frame.conjugate` 2-cell
+> docstring. See the rewritten W-E section below. **NEXT = W-F** (the `@overload` retirement — register sigs already
+> done in W-C; restructure the overload stack) OR **W-H** (independent `_DISPLACEMENT_CLS` derive, quick) → W-G
+> (docs — the W-E eigenbasis ruling already landed there).
 
 **P4.5a (the numerics typevar foundation) is BUILT + VERIFIED (uncommitted, lands WITH 4.5b):** `operator.py`
 two-param `LinearOperator[Domain, Codomain]` / Mixin `Generic[V, W]` / composers threaded / `_AdjointOperator`
@@ -263,34 +267,47 @@ Gate MET: pyright `orpheus/` **412 (Δ0)**; 7-and-only-7 pre-existing reds; 0-UL
 `co_qualname` anchor to `OperatorSum.__init__`) / production-teeth-C in `test_typed_residual_evaluation.py`.
 NEXT = W-E.
 
-### W-E — promote the angular Frame + its typed face-operators (the horizontal-morphism factory).
-**REFRAMED by the categorical foundation (2026-06-25): the "four edges vs singledispatch" FORK is RESOLVED —
-it was the wrong question.** The moment-architecture dig found the load-bearing smell: the angular Frame is
-`ScatteringOperator.frame` (a `cached_property`, scattering-private) but has a SECOND consumer — the windowed
-resolvent `_MomentWindowedResolvent` BORROWS `scattering_op.frame` (`solver.py:608`, `operator.py:942`), so an
-L/C concern depends on scattering just to reach the angular frame. The frame is ALREADY `Quadrature.angular_frame(L)`
-(basis+measure in numerics; only the truncation `L=scattering_order` couples it to scattering). The moves:
-1. **Promote the Frame to phase-space / quadrature ownership** — passed to BOTH scattering and the resolvent;
-   neither steals it. (Fission correctly stays OUT — its frame is the ENERGY-axis rank-1, not the angular one;
-   the shared abstraction is `FrameBase`, each axis instantiates it independently.)
-2. **The Frame is the horizontal-morphism (M/R) factory.** M/R share a role-AGNOSTIC ndarray core (the numerics
-   `AnalysisOperator`/`ReconstructionOperator`) and are **adjoint-paired** (`R = M.H` up to the measure — the
-   horizontal adjunction ⟹ `S.H` free for P6). Expose the typed faces as composable
-   `LinearOperator[Domain, Codomain]` objects in `transport/frames/` (layering: the typed wrappers live in
-   transport; the ndarray core in numerics) — but build ONLY the grid edges a consumer actually uses (the
-   diagonal `M=analysis_flux:[AngularFlux,HarmonicMomentFlux]`, `R=reconstruct_source:[HarmonicMomentSourceSink,
-   AngularSourceSink]` the kernel needs; audit for any off-diagonal live edge — seam, not speculation). There is
-   NO role-polymorphic face and NO `@singledispatch`/`@overload` on the faces: each face names ONE `(Domain,
-   Codomain)` grid edge (build-primitives-not-products).
-3. **`S = (1/W)·R @ Λ @ M` is the honest `OperatorProduct[AngularFlux, AngularSourceSink]`** (the `Cmid`
-   intermediates captured by `OperatorProduct.__init__`); windowed arm = the `R @ Λ` sub-product. Dissolves the
-   P4 option-2 asymmetry. **NAME `frame.conjugate(Λ)` as the double-category 2-cell**, and the 0-ULP
-   `test_scattering_kernel_crosscheck` as its INTERCHANGE-LAW coherence witness (docstring + the existing
-   `array_equal` test). The `_aniso_source_from_moment_values` ndarray oracle stays as the structurally-
-   independent reference (bit-identical).
-Gate: 0-ULP crosscheck bit-identical to the oracle; Phase-5a guard; a NEW Mode-11 sentinel proving production
-executes the new typed faces (not a bypass); the resolvent consumes the phase-space frame (no `scattering_op.frame`
-borrow remains).
+### W-E — angular Frame ownership. ✅ **CLOSED — REFUTED + RESOLVED (2026-06-25). The frame is already correctly placed.**
+**The phase-space-promotion premise (the whole original W-E) is FALSIFIED.** A literature + structural investigation
+(literature-researcher + cross-domain-attacker, 2026-06-25) tested the user's claim *"every method that needs the
+HarmonicFrame needs it BECAUSE of scattering"* and CONFIRMED it on two independent legs:
+- **Structural (Funk–Hecke — a theorem, not an analogy):** the scattering kernel `Σ_s(Ω·Ω')` is a zonal kernel on
+  S² ⟹ the spherical harmonics are its EIGENFUNCTIONS, eigenvalues = the Legendre moments `Σ_{s,ℓ}` = the diagonal
+  of `LegendreMomentScattering` Λ. So **`S = R∘Λ∘M` IS the spectral theorem `A = UΣU*`** (M=U analysis into the
+  eigenbasis, Λ=Σ spectrum, R=U* synthesis). Streaming `Ω·∇` is the ℓ=1 tensor operator — does NOT commute with
+  SO(3), couples ℓ↔ℓ±1 (the PN recurrence), is NOT diagonalized ⟹ the basis exists to diagonalize SCATTERING;
+  streaming merely tolerates it.
+- **Literature (no falsifier across SN/MoC/CP/PN/FCS/random-ray):** every documented flux→SH-moment projection is
+  anisotropic-scattering-rooted (Hébert §3.3 Eq. 3.55 M used ONLY in Eq. 3.54 scattering source; the integral form
+  wants isotropic sources Eq. 3.42; Brockmann Eq. 47; Ahrens LDO REMOVES M by reformulating the scattering source).
+  The only structurally-independent falsifier — an output detector functional of order `L_d > L_scatter` — is
+  ABSENT from ORPHEUS (the sole output functional is the ℓ=0 scalar flux, computed off-frame).
+**⟹ THE FRAME BELONGS ON SCATTERING (its eigenbasis), NOT the phase-space. Move 1 (promote → `SNMesh`) is DEAD.**
+The placement is ALREADY correct: generic machinery in `transport/frames`+`numerics` (shared with the homogenization
+PG frame), `ScatteringOperator` holds the constructor at `L=scattering_order`, Λ on scattering, M/R on the frame.
+The resolvent "borrow" (`_maybe_window` reads `scattering_op.frame`, `solver.py:617`) is **NOT a smell** — the
+windowed resolvent's in-sweep M IS the scattering projection (reduces the iterate to moments BECAUSE scattering
+consumes moments), same frame, same L. Nothing to de-borrow; no code change to scattering/solver.
+**THE UNIFYING PRINCIPLE (the campaign prize):** *an operator owns its frame IFF the frame is its eigenbasis.*
+Angular scattering = SO(3) symmetry → SH eigenbasis → **Galerkin, scattering-owned**; energy condensation / spatial
+homogenization = NO symmetry → no eigenbasis → **Petrov-Galerkin, solution-weighted, owned by no operator** (the
+projection verb / the test side). ONE structural cause for the campaign's Galerkin-vs-PG split (re-confirms fission
+owns no angular frame — energy has no eigenbasis).
+**RELOCATION TRIPWIRE (record, don't act):** the constructor relocates from `ScatteringOperator.frame` to the
+neutral `Quadrature.angular_frame(L)` (already exists, with an anticipating naming tripwire at
+`directional.py:439-447`) ONLY when a 2nd consumer with an L INDEPENDENT of scattering_order arrives (a detector
+functional, or PN/SPN with `L_flux > L_scatter`). None today. **SECOND trigger (user 2026-06-25 → #261):**
+cross-method use of `ScatteringOperator` — a `HarmonicFrame` needs an angular MEASURE (`Quadrature`) that CP/MoC
+LACK, so the frame can't live as a field on the shared operator; resolve by (a) relocate to `Quadrature.angular_frame`
+OR (b) specialize `ScatteringOperator` per method (SN subclass holds the frame; measure-free cross-method base carries
+only Λ). Recorded on #261 + the theory anchor `frame-eigenbasis-relocation-tripwire`.
+**LANDED close-out:** the ruling is archived in `docs/theory/galerkin_projection.rst` (capstone, anchor
+`frame-eigenbasis-ownership`) + `spherical_harmonics.rst` + `operator_algebra.rst` (archivist, Sphinx -W exit 0);
+`frame.conjugate(Λ)` docstring NAMES the double-category 2-cell + the spectral-theorem reading (`frame.py:206`);
+memos `harmonic_frame_ownership_funk_hecke.md` (+ lesson L-009) + `sh_flux_moment_projection_root_cause.md` +
+`feedback_defer_only_when_architecture_vague.md` + `feedback_mesh_owns_machinery_not_storage_init.md`.
+**The typed composable M/R faces + adjoints (the original move 2) DEFER to P6** — they are P6's `S.H = M.H∘Λ.H∘R.H`
+tooling, built WHERE the adjoint-homogenization consumer exercises them (user decision 2026-06-25).
 
 ### W-F — `@overload` retirement + the shared `Operator[Flux, SourceSink]` emission abstraction (the DEEP one).
 **HEAD START (W-C follow-on, `61e8ddd`):** the RUNTIME `@singledispatch` register keys for the composite

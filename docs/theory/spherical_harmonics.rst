@@ -134,6 +134,91 @@ constants.
    :class:`~orpheus.numerics.basis.SphericalHarmonicBasis`".
 
 
+.. _spherical-harmonics-eigenbasis:
+
+Why spherical harmonics — the eigenbasis of the scattering kernel
+=================================================================
+
+The convention above answers *which* normalisation; this section
+answers the prior question — *why these functions at all*. The
+spherical harmonics are not merely a convenient orthogonal basis on
+the sphere: they are the **eigenbasis of the anisotropic scattering
+operator**, forced by the rotational symmetry of the scattering
+kernel. This is a theorem, not an analogy, and it is the reason the
+spherical-harmonic frame is a
+:class:`~orpheus.numerics.frame.GalerkinFrame` *owned by the
+scattering operator*.
+
+The anisotropic scattering source is the integral operator
+
+.. math::
+
+   (S_{\rm aniso}\,\psi)(\hat\Omega)
+   \;=\; \int_{4\pi}
+         \Sigma_s(\hat\Omega \cdot \hat\Omega')\,\psi(\hat\Omega')\,
+         d\hat\Omega',
+
+whose kernel depends on the directions only through the cosine
+:math:`\hat\Omega\cdot\hat\Omega'` — a **zonal** kernel on
+:math:`S^2`. By the **Funk–Hecke theorem**, the spherical harmonics
+are the eigenfunctions of any zonal kernel, with an eigenvalue that
+depends on :math:`\ell` only:
+
+.. math::
+
+   S_{\rm aniso}\,Y_\ell^m \;=\; \Sigma_{s,\ell}\,Y_\ell^m,
+   \qquad
+   \Sigma_{s,\ell} \;=\; 2\pi\!\int_{-1}^{+1}
+         \Sigma_s(t)\,P_\ell(t)\,dt,
+
+and those eigenvalues are exactly the **Legendre moments of the
+differential scattering cross section** —
+:math:`\Sigma_{s,\ell}` — which are the per-:math:`\ell` block of the
+diagonal scattering operator :math:`\Lambda` =
+:class:`~orpheus.sn.scattering.LegendreMomentScattering`. The
+:math:`m`-independence of the eigenvalue is forced by **Schur's
+lemma**: the scattering operator commutes with every rotation, so on
+each :math:`SO(3)`-irreducible block
+:math:`V_\ell = \mathrm{span}\{Y_\ell^m\}` (dimension :math:`2\ell+1`)
+it must act as a scalar. The block dimension :math:`2\ell+1` is the
+origin of the :math:`(2\ell+1)` reconstruction factor
+(:eq:`sh-addition-theorem-reconstruction`); the addition theorem
+:eq:`real-sh-addition-theorem` is the *spectral resolution* of the
+zonal kernel — the rank-:math:`(2\ell+1)` projector onto the
+degree-:math:`\ell` eigenspace.
+
+Consequently the Pℓ scattering kernel
+:math:`Q^{(\ell\ge1)} = R\,\Lambda\,M` is the **spectral theorem**
+:math:`A = U\Sigma U^*` written out: :math:`M` (analysis) is the
+change of basis into the eigenbasis :math:`U^*`, :math:`\Lambda` is
+the diagonal spectrum :math:`\Sigma`, and :math:`R` (reconstruction)
+is the synthesis :math:`U`. The streaming operator
+:math:`\hat\Omega\cdot\nabla`, by contrast, carries the
+:math:`\ell=1` direction irrep and does **not** commute with rotations
+— it couples :math:`Y_\ell^m` to :math:`Y_{\ell\pm1}^m` (the
+block-tridiagonal Pℓ recurrence), so it is *not* diagonalised by this
+basis. The harmonics are chosen to diagonalise collision; streaming is
+merely tolerated. That asymmetry is what assigns the frame's ownership
+to the scattering operator.
+
+.. note::
+
+   The full derivation — Funk–Hecke + Schur, the
+   :math:`U\Sigma U^*` reading of :math:`R\,\Lambda\,M`, the
+   streaming Clebsch–Gordan asymmetry, the literature corroboration,
+   and the **unifying principle** *"an operator owns its frame iff
+   the frame is its eigenbasis"* that explains why angular scattering
+   is Galerkin while energy condensation and spatial homogenisation
+   are Petrov-Galerkin — lives in
+   :ref:`frame-eigenbasis-ownership` (:doc:`galerkin_projection`).
+   The relocation tripwire (when a second consumer with an
+   :math:`L` independent of ``scattering_order`` moves the
+   constructor ownership off the scattering operator onto the neutral
+   :meth:`Quadrature.angular_frame(L)
+   <orpheus.numerics.quadrature.Quadrature.angular_frame>` factory)
+   is documented at :ref:`frame-eigenbasis-relocation-tripwire`.
+
+
 Definitions
 ===========
 

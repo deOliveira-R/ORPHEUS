@@ -216,6 +216,19 @@ class FrameBase(ABC):
         runs, now ONE named operator (Cardinal Rule 2: the composition IS the production
         path, not a parallel "semantic" reading of it).
 
+        **The double-category 2-cell — and, for an eigenbasis frame, the spectral
+        theorem.** :meth:`conjugate` is the 2-cell of the (Representation × Role)
+        carrier grid: a vertical Role-morphism ``A`` (e.g. scattering's :math:`\Lambda`,
+        the diagonal :math:`\Sigma_{s,\ell}` multiply) conjugated by the horizontal
+        Representation-adjoint pair :math:`(M, R)`. When the Frame is an operator's
+        EIGENBASIS — the SH angular frame is the scattering kernel's, by Funk–Hecke —
+        :math:`R\circ\Lambda\circ M` IS the spectral theorem :math:`A = U\Sigma U^{*}`
+        written out (:math:`M=U` analysis into the eigenbasis, :math:`\Lambda=\Sigma`
+        the spectrum :math:`\Sigma_{s,\ell}`, :math:`R=U^{*}` synthesis). The frame is
+        then OWNED by that operator (scattering owns its angular frame), not by the
+        phase space — see :ref:`frame-eigenbasis-ownership`. The 0-ULP
+        ``test_scattering_kernel_crosscheck`` is this 2-cell's interchange-law witness.
+
         ``operator`` must compose between the faces — its ``domain`` is the analysis
         codomain (:attr:`test_space`) and its ``codomain`` the reconstruction domain
         (:attr:`basis_space`); the :class:`OperatorProduct` space-compatibility guard

@@ -1537,6 +1537,36 @@ in-scatter and the :math:`(n,2n)` doubling are the local / separate
 components of the full scattering ``apply``. The matvec arms of both
 operators are UNCHANGED in S6 (additive, bit-identical).
 
+The scattering kernel :math:`R\circ\Lambda\circ M` is not an arbitrary
+nonlocal operator: it is the **spectral theorem** :math:`A = U\Sigma U^*`
+of a rotationally-invariant kernel. The scattering kernel
+:math:`\Sigma_s(\hat\Omega\cdot\hat\Omega')` depends only on the
+direction cosine — a *zonal* kernel — so by the Funk–Hecke theorem the
+spherical harmonics are its eigenfunctions, with eigenvalues the
+Legendre moments :math:`\Sigma_{s,\ell}` (the diagonal of
+:math:`\Lambda` =
+:class:`~orpheus.sn.scattering.LegendreMomentScattering`). Reading
+:math:`M` = :math:`U^*` (change of basis *into* the eigenbasis),
+:math:`\Lambda` = :math:`\Sigma` (the diagonal spectrum), and
+:math:`R` = :math:`U` (synthesis *out of* it) is what makes the
+conjugation
+:math:`S = \tfrac{1}{W}\,\texttt{frame.conjugate}(\Lambda)` — the
+scattering **2-cell** of the carrier-grid double category
+(:ref:`carrier-grid-double-category`) — a *spectral* statement: the
+horizontal adjoint pair :math:`(M, R)` is the unitary diagonalising the
+vertical :math:`\Lambda`. This is also why the frame is **owned by**
+the scattering operator (its constructor binds the frame order to
+``scattering_order``): the spherical harmonics are *scattering's*
+eigenbasis, and the streaming operator — the :math:`\ell=1` direction
+irrep — is the one transport operator the basis does **not**
+diagonalise (it couples :math:`\ell\!\leftrightarrow\!\ell\pm1`, the Pℓ
+recurrence). The full Funk–Hecke / Schur derivation, the literature
+corroboration, and the unifying principle *"an operator owns its frame
+iff the frame is its eigenbasis"* (which also explains why energy
+condensation and spatial homogenisation are Petrov-Galerkin, not
+Galerkin) are in :ref:`frame-eigenbasis-ownership`
+(:doc:`galerkin_projection`).
+
 .. vv-status: integral-kernel-category documented
 
 The locality criterion completes the partition

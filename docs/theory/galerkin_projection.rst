@@ -424,6 +424,8 @@ importance of the fine-space slot from the solver's perspective — so
 that the coarse coefficients faithfully preserve reaction rates /
 flux-volume integrals / variance moments.
 
+.. _petrov-galerkin-not-weighted-metric:
+
 .. note:: **Why this is Petrov-Galerkin and not "Galerkin in a
    weighted metric".** It is tempting to absorb the test weight
    (:math:`\phi`, :math:`\varphi^*`) into the *measure* and call the
@@ -449,6 +451,423 @@ No concrete Petrov-Galerkin frame ships in the P1 carve; the
 so the first concrete instance — eigenvalue-consistent spatial
 homogenisation — lands as a ``test_basis`` choice, not a new
 mechanism.
+
+
+.. _frame-eigenbasis-ownership:
+
+Why the discipline splits — an operator owns its frame iff the frame is its eigenbasis
+======================================================================================
+
+The page so far has *asserted* the discipline of each consumer
+axis-by-axis: the angular spherical-harmonic frame is Galerkin
+(:eq:`galerkin-pair`), energy condensation and spatial homogenisation
+are Petrov-Galerkin (the consumer table). This section supplies the
+**root cause** that decides which axis lands in which discipline, and
+with it the deeper architectural fact behind the whole Frame campaign:
+
+  **An operator owns its frame if and only if the frame is its
+  eigenbasis — i.e. the basis that diagonalises the operator by a
+  symmetry of the phase space.**
+
+For the angular axis the symmetry is the rotation group :math:`SO(3)`,
+the eigenbasis is the spherical harmonics, the diagonalisation is a
+*theorem* (Funk–Hecke + Schur), and the owner is the **scattering
+operator** — hence a :class:`~orpheus.numerics.frame.GalerkinFrame`
+(orthogonal eigenbasis, ``test is trial``). For the energy and spatial
+axes there is **no such symmetry**, no eigenbasis, and therefore no
+operator that owns the frame: the projection is solution-*weighted*
+and lives on the test side — hence a
+:class:`~orpheus.numerics.frame.PetrovGalerkinFrame`. The two
+disciplines are *one* structural cause read at two axes, not two
+independent conventions.
+
+The structural leg — Funk–Hecke makes the spherical harmonics scattering's eigenbasis
+-------------------------------------------------------------------------------------
+
+The anisotropic scattering source operator is an angular **integral
+kernel** (:ref:`integral-kernel-category`, :doc:`operator_algebra`):
+the source at ordinate :math:`\hat\Omega` reads the flux at *every*
+ordinate, weighted by the scattering kernel
+
+.. math::
+   :label: scattering-zonal-kernel
+
+   (S_{\rm aniso}\,\psi)(\hat\Omega)
+   \;=\; \int_{4\pi}
+         \Sigma_s(\hat\Omega \cdot \hat\Omega')\,
+         \psi(\hat\Omega')\;d\hat\Omega',
+
+where the kernel depends on the incoming and outgoing directions
+**only through their cosine** :math:`\hat\Omega \cdot \hat\Omega'`. A
+kernel of this form is called a **zonal** kernel on the sphere
+:math:`S^2` (it is invariant under a simultaneous rotation of both
+arguments). Two classical theorems pin its spectrum.
+
+.. vv-status: scattering-zonal-kernel documented
+   The zonal-kernel form of the anisotropic scattering source is the
+   literature-standard transport definition (Bell & Glasstone 1970
+   §1.6; Lewis & Miller 1993 §4.7); it is a transcription, not a
+   solver claim. The implementing kernel R∘Λ∘M is pinned by the
+   0-ULP windowed-vs-full crosscheck
+   ``tests/sn/operators/test_scattering_kernel_crosscheck.py`` and the
+   addition-theorem identity :eq:`real-sh-addition-theorem`.
+
+**Funk–Hecke theorem.** For any zonal kernel
+:math:`k(\hat\Omega \cdot \hat\Omega')` on :math:`S^2`, the spherical
+harmonics are eigenfunctions of the integral operator
+:math:`(T_k f)(\hat\Omega) = \int_{S^2} k(\hat\Omega\cdot\hat\Omega')\,
+f(\hat\Omega')\,d\hat\Omega'`, with an eigenvalue that depends on
+:math:`\ell` **only** (not on :math:`m`):
+
+.. math::
+   :label: funk-hecke-eigenvalue
+
+   T_k\,Y_\ell^m \;=\; \lambda_\ell\,Y_\ell^m,
+   \qquad
+   \lambda_\ell \;=\; 2\pi \int_{-1}^{+1} k(t)\,P_\ell(t)\,dt.
+
+.. vv-status: funk-hecke-eigenvalue documented
+   The Funk–Hecke eigenvalue formula is a classical result (Müller
+   1966, *Spherical Harmonics*, Lecture Notes in Mathematics 17,
+   §"Funk-Hecke"); transcribed here as the structural ground for the
+   ownership ruling. The eigenvalues realised in code (the per-ℓ
+   Legendre moments Σ_{s,ℓ}) are the diagonal of
+   :class:`~orpheus.sn.scattering.LegendreMomentScattering` Λ.
+
+Applied to the scattering kernel
+:math:`k = \Sigma_s(\hat\Omega\cdot\hat\Omega')`, the eigenvalues are
+exactly the **Legendre moments of the differential scattering cross
+section**, :math:`\lambda_\ell = \Sigma_{s,\ell}` — which are
+precisely the per-:math:`\ell` block entries of the diagonal operator
+:math:`\Lambda` =
+:class:`~orpheus.sn.scattering.LegendreMomentScattering`
+(:eq:`scattering-as-tensor-product-sum`, :doc:`operator_algebra`). The
+spherical harmonics are therefore not *a* convenient basis for
+scattering — they are *the* eigenbasis, forced by the rotational
+invariance of the kernel.
+
+**The kernel factorisation is the spectral theorem written out.** A
+self-adjoint operator :math:`A` on a finite-dimensional space has the
+spectral decomposition :math:`A = U\,\Sigma\,U^*`, with :math:`U` the
+unitary whose columns are the eigenvectors and :math:`\Sigma` the
+diagonal of eigenvalues. The discrete ORPHEUS scattering kernel is
+*literally* this decomposition:
+
+.. math::
+   :label: scattering-spectral-theorem
+
+   S_{\rm aniso}
+   \;=\;
+   \underbrace{R}_{=\,U}\;\circ\;
+   \underbrace{\Lambda}_{=\,\Sigma}\;\circ\;
+   \underbrace{M}_{=\,U^*},
+
+with
+
+* :math:`M` (the frame's **analysis** face, ``frame.analysis``) =
+  :math:`U^*` — the change of basis *into* the eigenbasis (project the
+  flux onto its harmonic moments :math:`\phi_\ell^m`);
+* :math:`\Lambda` (=
+  :class:`~orpheus.sn.scattering.LegendreMomentScattering`) =
+  :math:`\Sigma` — the diagonal multiply by the spectrum
+  :math:`\Sigma_{s,\ell}`, one scalar per :math:`\ell`-block;
+* :math:`R` (the frame's **reconstruction** face,
+  ``frame.reconstruction``) = :math:`U` — the synthesis *out of* the
+  eigenbasis (rebuild the per-ordinate source).
+
+The **addition theorem** :eq:`real-sh-addition-theorem` —
+:math:`\sum_m Y_\ell^m(\hat\Omega)\,Y_\ell^m(\hat\Omega') =
+P_\ell(\hat\Omega\cdot\hat\Omega')` — is exactly the *spectral
+resolution* of the zonal kernel: it expresses the rank-:math:`(2\ell+1)`
+projector onto the degree-:math:`\ell` eigenspace as an outer product
+of harmonics. Reading :math:`S = R\circ\Lambda\circ M` as
+:math:`U\Sigma U^*` is what makes the conjugation
+:math:`S = \texttt{frame.conjugate}(\Lambda)` (the scattering **2-cell**
+of the operator-algebra double category, :doc:`operator_algebra`) a
+*spectral* statement and not merely a convenient bracketing.
+
+**Schur's lemma fixes the block structure and the weights.** The
+function space :math:`L^2(S^2)` decomposes into the
+:math:`SO(3)`-irreducible subspaces
+:math:`L^2(S^2) = \bigoplus_\ell V_\ell`, where
+:math:`V_\ell = \mathrm{span}\{Y_\ell^m\}_{m=-\ell}^{\ell}` is the
+degree-:math:`\ell` eigenspace of dimension :math:`2\ell+1`. The
+scattering source operator commutes with every rotation (it is built
+from a zonal kernel), so it lies in the :math:`SO(3)`-**commutant**.
+By **Schur's lemma**, any operator in the commutant acts as a *scalar*
+on each irreducible block — which is the :math:`m`-independence of the
+Funk–Hecke eigenvalue, now derived from symmetry rather than computed
+from an integral. The block dimensions :math:`\dim V_\ell = 2\ell+1`
+are the origin of:
+
+* the :math:`(2\ell+1)` reconstruction factor on the frame's
+  reconstruction face (:eq:`sh-addition-theorem-reconstruction`,
+  :ref:`spherical-harmonics`) — the irrep dimension; and
+* the Gram diagonal :math:`g_C = \mathrm{diag}(4\pi/(2\ell+1))`
+  (:eq:`sh-space-metric`) — the :math:`SO(3)` Plancherel weight on
+  each block.
+
+So the entire numerical apparatus of the spherical-harmonic frame —
+the per-:math:`\ell` block structure, the :math:`(2\ell+1)` factor,
+the :math:`4\pi`-tightness — is the representation theory of
+:math:`SO(3)` acting on a rotationally-invariant kernel. The frame is
+Galerkin **because** the eigenbasis of a self-adjoint (here
+:math:`SO(3)`-invariant) operator is orthogonal: ``test is trial`` is
+forced by symmetry, not chosen.
+
+The asymmetry that fixes ownership — streaming does not diagonalise
+-------------------------------------------------------------------
+
+If both transport operators were diagonalised by the spherical
+harmonics, "scattering owns the frame" would be a coin toss. They are
+not, and the asymmetry is what assigns ownership.
+
+The **streaming** operator :math:`\hat\Omega\cdot\nabla` carries the
+direction :math:`\hat\Omega`, which is itself the :math:`\ell = 1`
+vector irrep of :math:`SO(3)`. It does **not** commute with rotations
+(rotating the frame rotates the gradient direction), so it is **not**
+in the commutant and **not** diagonalised by the harmonics. By the
+Clebsch–Gordan rule
+:math:`V_1 \otimes V_\ell = V_{\ell-1}\oplus V_\ell\oplus V_{\ell+1}`,
+multiplication by a component of :math:`\hat\Omega` couples
+:math:`V_\ell` to :math:`V_{\ell\pm 1}`:
+
+.. math::
+   :label: streaming-pn-recurrence
+
+   \mu\,Y_\ell^m
+   \;=\;
+   \frac{\ell+1}{2\ell+1}\,Y_{\ell+1}^{m}
+   \;+\;
+   \frac{\ell}{2\ell+1}\,Y_{\ell-1}^{m}
+
+— the **Pℓ moment recurrence**, the block-**tridiagonal** coupling that
+makes the PN coefficient matrix tridiagonal in :math:`\ell` rather
+than diagonal (Fletcher 1983, Eq. 5; Hébert 2009, §3.6–3.7). Streaming
+in the harmonic basis is *tolerated*, not *diagonalised*: the basis is
+chosen to make collision diagonal, and streaming is then expressed
+(awkwardly, tridiagonally) in those same coordinates.
+
+.. vv-status: streaming-pn-recurrence documented
+   The μ·Y_ℓ recurrence is the standard Legendre/spherical-harmonic
+   recurrence (Fletcher 1983 NSE 84:33 Eq. 5; Hébert 2009 §3.6); a
+   transcribed structural identity, not a solver claim. ORPHEUS does
+   not yet ship a PN solver — the recurrence is documented here as the
+   asymmetry that fixes frame ownership, not as a verified code path.
+
+The ownership conclusion is then forced:
+
+.. list-table:: Which operator the spherical-harmonic basis diagonalises
+   :header-rows: 1
+   :widths: 26 26 28 20
+
+   * - Operator
+     - Symmetry of the kernel
+     - Action in the SH basis
+     - Diagonalised?
+   * - Scattering :math:`\Sigma_s(\hat\Omega\cdot\hat\Omega')`
+     - :math:`SO(3)`-invariant (zonal)
+     - **diagonal** per :math:`\ell`-block (Funk–Hecke + Schur)
+     - **yes** — its eigenbasis
+   * - Streaming :math:`\hat\Omega\cdot\nabla`
+     - :math:`\ell=1` tensor; **not** invariant
+     - block-**tridiagonal** :math:`\ell\!\leftrightarrow\!\ell\pm 1`
+       (Clebsch–Gordan)
+     - no — merely tolerated
+
+Because the spherical harmonics are the eigenbasis of *scattering* and
+nothing else in the transport operator, the frame is owned by the
+scattering operator. In ORPHEUS this ownership is a concrete fact:
+:class:`~orpheus.sn.scattering.ScatteringOperator` holds the frame as
+a cached property and binds its order to the scattering order,
+``quadrature.angular_frame(self.scattering_order)`` (the canonical
+constructor + the :math:`L`-binding). The frame *object* lives in the
+method-agnostic :class:`~orpheus.numerics.frame.GalerkinFrame`
+hierarchy; the *constructor ownership* sits on scattering.
+
+Literature corroboration — no falsifier across six transport families
+---------------------------------------------------------------------
+
+The structural argument is corroborated by every documented transport
+method: in SN, MoC, CP, PN, first-collision-source/ray-effect, and
+random-ray, the flux→spherical-harmonic-moment projection
+:math:`M = \int Y_\ell^m\,\psi\,d\hat\Omega` is invoked **solely** to
+evaluate the anisotropic scattering source. A falsifier would be a
+documented, structurally-independent *non-scattering* use of the flux
+moment projection; none exists.
+
+.. list-table:: Literature: the flux→SH-moment projection is anisotropic-scattering-rooted
+   :header-rows: 1
+   :widths: 22 30 48
+
+   * - Reference
+     - Equation / section
+     - What it establishes
+   * - Hébert 2009, *Applied Reactor Physics*
+     - §3.3, Eq. (3.55) [the projection :math:`M`]; Eq. (3.54)
+       [its sole use]; Eq. (3.42); Eq. (3.57)
+     - :math:`M` (Eq. 3.55) is used **only** in the scattering source
+       (Eq. 3.54). The integral / characteristic form natively wants
+       **isotropic** sources (Eq. 3.42); fission is isotropic
+       (Eq. 3.57). Only anisotropic scattering forces the moments.
+   * - Brockmann 1981, NSE **77** (4), 377
+     - Eq. (47) [the Legendre flux moment]
+     - Introduces :math:`\Phi_\ell(x,E) = 2\pi\int P_\ell(\mu)\,\Phi\,d\mu`
+       expressly "considering the problem of anisotropic neutron
+       scattering"; the *same* projection is reused across SN, FEM,
+       and orders-of-scattering.
+   * - Fletcher 1983, NSE **84**, 33
+     - Eq. (7) [moment equation]; Eq. (5) [streaming recurrence]
+     - The moment equation is **diagonal** in :math:`\ell` "because of
+       the orthogonality of spherical harmonics" (scattering); the
+       streaming term produces the :math:`\ell\!\leftrightarrow\!\ell\pm1`
+       **tridiagonal** coupling. PN's moments exist because the basis
+       diagonalises scattering.
+   * - Ahrens 2014, *Lagrange Discrete Ordinates*, arXiv:1405.3968
+     - Eq. (7); abstract
+     - The **negative-space proof**: LDO *removes* :math:`M` —
+       "no spherical harmonic moments are needed" — precisely by
+       reformulating the scattering source. An authority stating the
+       only reason standard SN computes :math:`M` is the scattering
+       source.
+   * - External / boundary sources (Hébert 2009, Eq. 3.30/3.168)
+     - —
+     - An anisotropic external source is **specified** in spherical
+       harmonics as input data :math:`Q_\ell^m`; it is never
+       *projected* from the flux. Not a flux→moment projection.
+   * - Anisotropic BCs (albedo / white / specular)
+     - Hébert 2009, Eqs. 3.43–3.47
+     - Handled in **ordinate (direction) space**, not via moments.
+       Only PN expresses BCs in moments — because moments are PN's
+       native unknowns, which exist to diagonalise scattering.
+
+The single recurring exception, PN, is the method that makes the
+moments the unknowns *in order to* diagonalise scattering — so even
+there the root cause is scattering. The convergence of five
+independent references on the same conclusion, plus Ahrens' explicit
+removal of :math:`M`, leaves the claim "the spherical-harmonic angular
+projection is intrinsically a scattering concern" with **zero
+cross-validation against any non-scattering flux-moment use**.
+
+The unifying principle — symmetry decides Galerkin vs Petrov-Galerkin
+---------------------------------------------------------------------
+
+The eigenbasis criterion is the *single structural cause* of the
+discipline split this page documents. Reading it across all three
+reduction axes:
+
+.. list-table:: Symmetry decides the discipline
+   :header-rows: 1
+   :widths: 22 24 28 26
+
+   * - Reduction axis
+     - Phase-space symmetry
+     - Eigenbasis?
+     - Discipline (frame type)
+   * - **Angular scattering**
+     - :math:`SO(3)` rotational (zonal kernel)
+     - **yes** — spherical harmonics, *orthogonal* (Funk–Hecke + Schur)
+     - **Galerkin**, owned by the scattering operator
+   * - **Energy condensation**
+     - none (general :math:`G\times G` group-transfer matrix)
+     - no — no Funk–Hecke, no clean spectrum
+     - **Petrov-Galerkin**, solution-weighted, owned by no operator
+   * - **Spatial homogenisation**
+     - none (arbitrary heterogeneous geometry)
+     - no
+     - **Petrov-Galerkin**, solution-weighted, owned by no operator
+
+When a symmetry of the phase space diagonalises the operator, the
+eigenbasis is *forced* — and because the eigenbasis of a self-adjoint
+operator is orthogonal, the projection is **Galerkin** (``test is
+trial``, :math:`M^* = R`) and the operator **owns** the frame (the
+frame's order is the operator's order). When there is no symmetry —
+the energy group-transfer matrix and the spatial homogenisation kernel
+have no rotational or other structure to exploit — there is no
+eigenbasis, no operator that naturally owns the basis, and the
+coarse-graining must instead **weight** the projection by the solution
+(the within-group spectrum :math:`\phi_g`, the region flux
+:math:`\phi`, or the adjoint :math:`\varphi^*`). That weighting is a
+*test* basis distinct from the trial basis, so the projection is
+**Petrov-Galerkin** (:math:`M^* \ne R`) and lives on the test side,
+owned by the *projection verb*, never by an operator. This is also why
+**fission does not own an angular frame**: fission's concern is the
+energy axis (the :math:`\chi\nu\Sigma_f` group-transfer), which has no
+eigenbasis — its angular emission is isotropic
+(:math:`\ell = 0`-only), so there is no harmonic structure for it to
+own.
+
+The architectural payoff is that the Galerkin-vs-Petrov-Galerkin
+type split (:class:`~orpheus.numerics.frame.GalerkinFrame` vs
+:class:`~orpheus.numerics.frame.PetrovGalerkinFrame`) is *derived*
+from a single physical question — *does a symmetry diagonalise the
+operator?* — rather than asserted axis-by-axis. The
+:ref:`homogenisation note above <petrov-galerkin-not-weighted-metric>`
+(why folding the solution into the metric breaks for the
+eigenvalue-consistent case) is the *converse* of the same principle:
+absent an eigenbasis, the solution-weighting cannot be hidden in a
+fixed :math:`L^2` metric — it is irreducibly a distinct test space.
+
+.. _frame-eigenbasis-relocation-tripwire:
+
+The relocation tripwire — when scattering stops owning the constructor
+----------------------------------------------------------------------
+
+"Scattering owns the frame" is true **today** because scattering is
+the *only* consumer of the spherical-harmonic frame whose truncation
+order :math:`L` is physically meaningful. The constructor ownership
+:meth:`ScatteringOperator.frame
+<orpheus.sn.scattering.ScatteringOperator.frame>` binds the frame
+order to ``self.scattering_order``. This binding **relocates** to the
+discipline-neutral factory
+:meth:`Quadrature.angular_frame(L)
+<orpheus.numerics.quadrature.Quadrature.angular_frame>` the moment a
+**second** consumer arrives with an :math:`L` *independent of*
+``scattering_order``:
+
+* an **output detector / response functional** of anisotropic order
+  :math:`L_d > L_{\rm scatter}` — a flux moment projection whose
+  truncation is set by the *detector*, not the scattering kernel
+  (structurally independent); or
+* a **PN / SPN flux** expansion of order
+  :math:`L_{\rm flux} > L_{\rm scatter}` — needing
+  :math:`\max(L_{\rm flux}, L_{\rm scatter})`, not ``scattering_order``.
+
+No such consumer exists today: the only output functional ORPHEUS
+computes is the :math:`\ell = 0` scalar flux (via the
+:class:`~orpheus.sn.solver.SNSolver`'s angular integration), which does
+**not** use the frame. The factory
+:meth:`~orpheus.numerics.quadrature.Quadrature.angular_frame` already
+exists and already anticipates this relocation — its naming tripwire
+names the permanent *angular axis*, not the contingent
+spherical-harmonic basis, so a second consumer is a signature change
+(``angular_frame(basis=...)``), not a rename. Until that second
+consumer lands, the canonical constructor home is the scattering
+operator, because scattering is the operator whose eigenbasis the
+frame *is*.
+
+A second, structurally distinct trigger is **cross-method use of**
+:class:`~orpheus.sn.scattering.ScatteringOperator` (`#261`). The
+operator is method-agnostic in principle — every transport method
+scatters — but a
+:class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame` needs an
+angular **measure** (a :class:`~orpheus.numerics.quadrature.Quadrature`)
+to exist at all, and CP / MoC carry none (CP integrates angle away into
+collision probabilities; MoC uses a track quadrature, not an
+:math:`S^2` ordinate set). So the moment scattering is consumed by a
+measure-free method, the frame cannot live *as a field on* the shared
+operator. Two resolutions are open (deferred to `#261`; user,
+2026-06-25): **(a) relocate** the frame to where the angular measure
+lives (the
+:meth:`~orpheus.numerics.quadrature.Quadrature.angular_frame` factory —
+the original W-E idea), or **(b) specialize**
+:class:`~orpheus.sn.scattering.ScatteringOperator` per method — an SN
+subclass that holds the frame (it carries the :math:`S^2` measure) over
+a measure-free cross-method base. Where the independent-:math:`L`
+triggers above make the *order* foreign, this one makes the *measure*
+absent. The eigenbasis ruling still holds — scattering owns the frame
+*wherever an angular measure exists to build it* — it merely stops being
+expressible as a field on a single method-agnostic operator.
 
 
 Cross-method consumer table
@@ -739,9 +1158,37 @@ References
 * Lewis, E. E. and Miller, W. F. Jr. (1993). *Computational Methods
   of Neutron Transport*. ANS. §4.7 (Pℓ Galerkin reconstruction with
   the :math:`(2\ell+1)` factor).
-* Hébert, A. (2009). *Applied Reactor Physics*. Polytechnique. §6.2
-  (energy condensation as a Petrov-Galerkin projection), §13
+* Müller, C. (1966). *Spherical Harmonics*. Lecture Notes in
+  Mathematics **17**, Springer. (The Funk–Hecke theorem: spherical
+  harmonics are the eigenfunctions of any zonal kernel on
+  :math:`S^2`, with eigenvalue
+  :math:`\lambda_\ell = 2\pi\int_{-1}^{1} k(t) P_\ell(t)\,dt` — the
+  structural ground for "the SH frame is scattering's eigenbasis".)
+* Hébert, A. (2009). *Applied Reactor Physics*. Polytechnique. §3.3
+  (the flux→SH-moment projection :math:`M`, Eq. 3.55, used **only**
+  in the scattering source Eq. 3.54; fission isotropic Eq. 3.57;
+  integral form natively isotropic Eq. 3.42), §3.6–3.7 (the streaming
+  :math:`\ell\!\leftrightarrow\!\ell\pm1` recurrence), §6.2 (energy
+  condensation as a Petrov-Galerkin projection), §13
   (eigenvalue-consistent / adjoint-weighted spatial homogenisation).
+* Brockmann, H. (1981). *Treatment of anisotropic scattering in
+  numerical neutron transport theory*. Nucl. Sci. Eng. **77** (4),
+  377–414. Eq. (47) — the Legendre flux moment
+  :math:`\Phi_\ell = 2\pi\int P_\ell(\mu)\Phi\,d\mu` is introduced
+  expressly for the anisotropic-scattering source and reused across
+  SN / FEM / orders-of-scattering.
+* Fletcher, J. K. (1983). *The solution of the multigroup neutron
+  transport equation using spherical harmonics*. Nucl. Sci. Eng.
+  **84**, 33–46. Eq. (7) — the moment equation is diagonal in
+  :math:`\ell` "because of the orthogonality of spherical harmonics"
+  (scattering); Eq. (5) — the streaming term produces the
+  block-tridiagonal :math:`\ell\!\leftrightarrow\!\ell\pm1` coupling.
+* Ahrens, C. D. (2014). *Lagrange Discrete Ordinates: a new angular
+  discretization for the three-dimensional transport equation*.
+  arXiv:1405.3968. Eq. (7) and abstract — the negative-space proof:
+  LDO **removes** the SH moment projection ("no spherical harmonic
+  moments are needed") precisely by reformulating the scattering
+  source.
 * Cacuci, D. G. (2003). *Sensitivity and Uncertainty Analysis,
   Volume I*. CRC Press. (Adjoint flux moments and the Galerkin
   pair on the adjoint side.)
