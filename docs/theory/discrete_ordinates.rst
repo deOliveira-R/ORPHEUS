@@ -12189,10 +12189,12 @@ The primitive is **type-agnostic and angular-capable**: it operates on
 the typed :class:`~orpheus.transport.timed_full_field.TimedFullField`
 composite, which carries the full angular flux on its bulk.  Pℓ
 anisotropic scattering therefore rides the angular bulk with no special
-plumbing — :meth:`ScatteringOperator.apply` on a ``TimedFullField``
-reads the angular moments off the composite and builds the anisotropic
-source via :meth:`ScatteringOperator.build_aniso_source`, all inside
-the primitive's normal RHS path.  There is **no scalar-flux
+plumbing — :meth:`ScatteringOperator.apply` on the timeless
+:class:`~orpheus.transport.full_field.FullField` operator carrier (the
+driver's :class:`~orpheus.transport.timed_full_field.TimedFullField` iterate
+reaches it via MRO) reads the angular moments off the composite and builds
+the anisotropic source via :meth:`ScatteringOperator.build_aniso_source`,
+all inside the primitive's normal RHS path.  There is **no scalar-flux
 limitation** and **no pending "Approach A" cleanup**: the earlier
 framing — that :class:`SourceIteration` carried only scalar flux and SN
 had to replicate the loop verbatim until the angular state could be

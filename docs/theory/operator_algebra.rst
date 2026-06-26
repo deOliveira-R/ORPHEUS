@@ -328,12 +328,17 @@ scattering operators (:ref:`integral-kernel-category`) dispatch on the
 *input* carrier type via :func:`functools.singledispatchmethod` and map,
 for example,
 :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` to
-:class:`~orpheus.transport.source_sinks.ScalarSourceSink`,
-:class:`~orpheus.transport.timed_full_field.TimedFullField` to the
-timeless :class:`~orpheus.transport.full_field.FullField`, and
+:class:`~orpheus.transport.source_sinks.ScalarSourceSink`, the timeless
+composite :class:`~orpheus.transport.full_field.FullField` to a
+(source-role) :class:`~orpheus.transport.full_field.FullField`, and
 (scattering)
 :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
-to :class:`~orpheus.transport.source_sinks.AngularSourceSink`. The output
+to :class:`~orpheus.transport.source_sinks.AngularSourceSink`. The
+composite arm registers on (and the ``@overload`` surface names) the
+**timeless** :class:`~orpheus.transport.full_field.FullField` — the
+history-blind operator carrier (P4.5 W-C/W-F); a driver's history-bearing
+:class:`~orpheus.transport.timed_full_field.TimedFullField` iterate reaches
+it via MRO (it *is* a ``FullField``). The output
 type is **not** ``V`` — it is a function of the input carrier (the §B.5.2
 truth that an operator output is a *source/sink*, not a flux). Naming
 these maps honestly to the type checker is the first use of
@@ -384,7 +389,7 @@ and bodies, and bolts a typed surface on top:
           @overload
           def apply(self, phi: ScalarFlux, /) -> ScalarSourceSink: ...
           @overload
-          def apply(self, psi: TimedFullField, /) -> FullField: ...
+          def apply(self, psi: FullField, /) -> FullField: ...
           # ... one overload per carrier ...
           def apply(self, x: Any, /) -> Any: ...
       else:
@@ -4696,9 +4701,11 @@ and the new trace-only leaf
 route through it (Wave O step O.2a, commit ``8563f4b``).
 
 The leaf exists because the direct helper does not need a full field.
-:meth:`B.apply` operates on a :class:`~orpheus.transport.timed_full_field.TimedFullField`
-(zero bulk, trace populated) — the bulk is only a carrier to reach the
-:math:`A_{ss}` boundary block. The pre-extraction direct helper
+:meth:`B.apply` operates on a :class:`~orpheus.transport.full_field.FullField`
+(zero bulk, trace populated) — the timeless, history-blind operator carrier
+(:meth:`SNBoundaryOperator.apply <orpheus.sn.boundary_operator.SNBoundaryOperator.apply>`
+is the base arrow ``FullField -> FullField``; the comonad lives on the
+driver), the bulk only a carrier to reach the :math:`A_{ss}` boundary block. The pre-extraction direct helper
 fabricated a throwaway zero-bulk field purely to call ``B.apply`` and
 then discarded the (zero) bulk output.
 :meth:`reflect_into_inflow <orpheus.sn.boundary_operator.SNBoundaryOperator.reflect_into_inflow>`
@@ -5251,7 +5258,10 @@ in the O.2 close-out** (:ref:`affine-typed-residual`):
   now have their first production-reachable consumer:
   :func:`~orpheus.sn.solver.evaluate_residual` types the within-group
   balance defect :math:`r = (L+C-S-B)\psi - q` as the composite
-  ``TimedFullField(bulk=AngularResidual, boundary=BoundaryResidual)``
+  ``FullField(bulk=AngularResidual, boundary=BoundaryResidual)`` — the
+  **timeless** carrier, because a residual is a one-shot balance defect
+  carrying no iteration history (the ``history_depth = 0`` degenerate;
+  P4.5 W-C confines the timed type to the driver iterate)
   (see :ref:`affine-typed-residual`). The honest variadic driver still
   emits each gain's output as a :class:`BoundarySourceSink` and the
   GMRES defect is still the *flat* :math:`b - A\psi` on the raveled
@@ -5733,7 +5743,9 @@ consumer**. It evaluates the within-group balance defect
 .. vv-status: affine-typed-residual-eq documented
 
 as the typed composite
-``TimedFullField(bulk=AngularResidual, boundary=BoundaryResidual)``,
+``FullField(bulk=AngularResidual, boundary=BoundaryResidual)`` — the
+**timeless** carrier (a residual is a one-shot balance defect, history-free;
+P4.5 W-C confines the timed type to the driver iterate) —
 minted via the named composition
 :meth:`AngularResidual.from_balance <orpheus.transport.residuals.angular_residual.AngularResidual.from_balance>`
 /
@@ -5858,8 +5870,11 @@ second open item of :ref:`bc-extraction-operator-output-o2`: it makes
 
    A^{\dagger} \;=\; G^{-1}\,A^{\mathsf T}\,G ,
 
-acting on a composite ``bulk ⊕ boundary`` field (a
-:class:`~orpheus.transport.timed_full_field.TimedFullField`). Before
+acting on a composite ``bulk ⊕ boundary`` field (the timeless operator
+carrier :class:`~orpheus.transport.full_field.FullField`; a driver's
+history-bearing
+:class:`~orpheus.transport.timed_full_field.TimedFullField` iterate reaches
+``op.H`` via MRO, as in the reciprocity gate). Before
 R5, ``op.H`` silently reduced to the plain **Euclidean** transpose
 :math:`A^{\mathsf T}` because the SN operators advertised no
 metric-bearing ``domain`` / ``codomain``; the wrapper had no metric to
@@ -8384,8 +8399,11 @@ homogeneous all drive the same loop directly via the Protocol; the
    type-agnostic and **angular-capable** — it routes the RHS through
    the ravellable protocol, so a typed
    :class:`~orpheus.transport.operators.scattering.ScatteringOperator` acting on a
-   :class:`~orpheus.transport.timed_full_field.TimedFullField` carries
-   :math:`P_\ell` correctly. The observed regression was a property of
+   :class:`~orpheus.transport.full_field.FullField` (the history-blind
+   operator carrier; the driver feeds its
+   :class:`~orpheus.transport.timed_full_field.TimedFullField` iterate, which
+   reaches the arm via MRO and carries the full angular flux on its bulk)
+   carries :math:`P_\ell` correctly. The observed regression was a property of
    an L1 *test adapter* that collapsed angular flux to scalar between
    outer iterations (dropping the angular moments), not of
    ``KEigenvalue``. The decisive — and sufficient — reason
@@ -8544,13 +8562,24 @@ for merge status.
        are the unique normal form — is documented at
        :ref:`carrier-grid-flat-leaf-normal-form`. **Realisation status:**
        the two-parameter operator type and the double-category framing have
-       **landed on the branch**; the per-operator retirement of the
-       heteromorphic-``apply`` ``@overload`` confessions
-       (:ref:`heteromorphic-apply-typing`) for scattering/fission is **not
-       yet done** — it is workstream W-F of the P4.5 campaign (#65). The
-       deeper *secondary-carrier-arm* collapse (the ``ScalarFlux`` and bare-
-       ``ndarray`` arms) couples to the C/F/S core relocation and CP / MoC
-       carrier unification (#261).
+       **landed on the branch**, and W-C/W-F have **confined the composite
+       operator carrier to the timeless** :class:`~orpheus.transport.full_field.FullField`:
+       the ``apply`` dispatch arms register on ``FullField`` (a driver's
+       :class:`~orpheus.transport.timed_full_field.TimedFullField` iterate
+       reaches them via MRO), and W-F realigned the
+       heteromorphic-``apply`` ``@overload`` stubs
+       (:ref:`heteromorphic-apply-typing`) for scattering/fission from
+       ``TimedFullField`` to ``FullField`` to match that registration
+       (typing-only; runtime byte-identical). The ``@overload`` confessions
+       themselves are **kept** — they are the honest per-carrier surface, not
+       a wart to retire; their deeper *dissolution* into a thin ``match``
+       router over single-sourced primitives is parked on #261 (the
+       Pattern M-vs-``match`` spelling question, :ref:`heteromorphic-apply-typing`).
+       The secondary-carrier ``ScalarFlux`` arm is likewise **kept** as the
+       typed entry-point for the #205 cross-method scalar consumers; the bare-
+       ``ndarray`` arm is K-eigenvalue-live. The deeper *secondary-carrier-arm*
+       collapse couples to the C/F/S core relocation and CP / MoC carrier
+       unification (#261).
      - #65 / #268 / #261
      - *(in development)*
        ``refactor/operator-inverse-algebra``
