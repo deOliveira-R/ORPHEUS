@@ -43,11 +43,14 @@ def test_inconsistent_sig_t_raises(monkeypatch):
                 "sig_t": np.array([1.0, 2.0]),
                 "sig_c": np.array([0.1, 0.2]),
                 "sig_f": np.array([0.0, 0.0]),
+                # Non-fissile: nu/chi are zero (make_mixture requires them).
+                "nu": np.array([0.0, 0.0]),
+                "chi": np.array([0.0, 0.0]),
                 # Row sums 0.5 / 0.5 → sig_t should be 0.6 / 0.7, not 1 / 2.
                 "sig_s": np.array([[0.3, 0.2], [0.1, 0.4]]),
             },
         },
     }
     monkeypatch.setattr(xs_library, "XS", {**xs_library.XS, **broken})
-    with pytest.raises(ValueError, match="XS inconsistency"):
+    with pytest.raises(ValueError, match="XS imbalance"):
         xs_library.validate_all()
