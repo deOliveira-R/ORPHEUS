@@ -199,7 +199,7 @@ def test_slab_nonvacuum_numerical_qext_matches_sympy():
         sigma_t=1.0, sigma_s=0.5, slab_length=5.0, n_ordinates=8,
     )
     mesh = case.build_mesh(n_cells=12)
-    Q_numerical = case.external_source(mesh)         # (N, ng=1, nx, 1)
+    Q_numerical = case.external_source(mesh)         # (N, ng=1, nx)
 
     # Branch 1: lambdify the SymPy closed form over (x, mu) + parameters.
     # The symbolic Q_closed uses Σ_t, Σ_s directly (1g, c=1); the case's
@@ -220,10 +220,10 @@ def test_slab_nonvacuum_numerical_qext_matches_sympy():
     )    # (N, nx)
 
     # Branch 2 emits per-ord density (raw SymPy / sum_w at the producer).
-    # external_source layout is (N, ng, nx, ny); slice g=0, ny=0 → (N, nx).
+    # external_source layout is (N, ng, nx); slice g=0 → (N, nx).
     sum_w = float(case.quadrature.weights.sum())
     np.testing.assert_allclose(
-        Q_numerical[:, 0, :, 0], Q_sympy_grid / sum_w,
+        Q_numerical[:, 0, :], Q_sympy_grid / sum_w,
         atol=1e-13, rtol=1e-13,
     )
 
@@ -261,7 +261,7 @@ def test_sphere_nonvacuum_numerical_qext_matches_sympy():
 
     sum_w = float(case.quadrature.weights.sum())
     np.testing.assert_allclose(
-        Q_numerical[:, 0, :, 0], Q_sympy_grid / sum_w,
+        Q_numerical[:, 0, :], Q_sympy_grid / sum_w,
         atol=1e-13, rtol=1e-13,
     )
 
