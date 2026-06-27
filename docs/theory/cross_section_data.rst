@@ -15,6 +15,10 @@ Key Facts
 **Read this before modifying the cross-section pipeline.**
 
 - 421-group microscopic XS from GENDF (GXS) files → HDF5 via ``data/micro_xs/``
+- **Canonical energy-group convention**: group index ``0`` = **fastest**
+  (highest energy), ``eg`` strictly **descending**, ``SigS[g_from, g_to]``
+  downscatter in the **upper triangle**. Enforced once at the GENDF ingest
+  (NJOY is the opposite); see :ref:`canonical-group-convention`.
 - ``Isotope`` dataclass: sig_t, sig_c, sig_f, sig_el, sig_inel, nu, chi (421 groups)
 - Sigma-zero iteration: ``data/macro_xs/sigma_zeros.py`` — self-shielding
 - ``Mixture`` dataclass: macroscopic XS with ``SigS[l][g_from, g_to]`` convention
@@ -102,6 +106,198 @@ The 12 nuclides in the library are:
      - ``ZR096.GXS``
      - 294, 600, 900, 1200
      - 4
+
+
+.. _canonical-group-convention:
+
+The Canonical Energy-Group Convention
+=====================================
+
+.. note::
+
+   **This section is the single source of truth for energy-group
+   ordering in ORPHEUS.** Every page, solver, and data array obeys it;
+   where another page restates it, that page defers here.
+
+ORPHEUS uses **one** energy-group convention everywhere. State it once,
+precisely:
+
+- **Group index** :math:`g = 0` is the **fastest** group (highest
+  energy); :math:`g = G-1` is the **slowest** (thermal). Equivalently,
+  groups are ordered fast → thermal as the index increases.
+- **The group-boundary array** :attr:`Isotope.eg <orpheus.data.micro_xs.isotope.Isotope>`
+  (length :math:`G+1`) is strictly **descending**:
+  :math:`\mathrm{eg}[0] > \mathrm{eg}[1] > \cdots > \mathrm{eg}[G]`, so
+  :math:`\mathrm{eg}[0]` is the highest energy bound and
+  :math:`\mathrm{eg}[G]` the lowest. Group :math:`g` spans the interval
+  :math:`[\mathrm{eg}[g+1],\, \mathrm{eg}[g]]`.
+- **The scattering matrix** :math:`\Sigma_{\mathrm{s},\ell}[g_{\text{from}},
+  g_{\text{to}}]` therefore carries **downscatter** (a neutron losing
+  energy: :math:`g_{\text{to}} > g_{\text{from}}`) in the **upper
+  triangle**. **Upscatter** (energy gain: :math:`g_{\text{to}} <
+  g_{\text{from}}`, the lower triangle) is physically possible only among
+  the **thermal groups**, where neutrons are in near-equilibrium with the
+  thermal motion of the medium.
+
+.. important::
+
+   This is the ``[g_from, g_to]`` row-source convention shared with the
+   rest of the codebase: ``SigS[l]`` stores
+   :math:`\Sigma_{\mathrm{s},\ell}[g_{\text{from}}, g_{\text{to}}]`, so
+   the in-scatter source contracts the **transpose**,
+   :math:`q_{\mathrm{s}} = \Sigma_{\mathrm{s}}^{\mathsf T}\phi`. This
+   energy-index convention is **orthogonal** to the *array storage
+   layout* :math:`(N, n_g, n_x, n_y)` (the *axis ordering* within each
+   array, documented in :ref:`the SN index-convention page
+   <theory-sn-index-convention>`) — this section fixes *which physical
+   group each index labels*, not *which array axis the group sits on*.
+
+Enforcement: one normalisation at the data-ingest boundary
+----------------------------------------------------------
+
+The convention is enforced **exactly once**, at the boundary where the
+foreign NJOY/GENDF data enters ORPHEUS. The IAEA GENDF files store the
+**opposite** order — group 0 = thermal, energies **ascending** — a
+historical NJOY artefact. The single normalisation
+:func:`_to_canonical_group_order <orpheus.data.micro_xs.gendf>`
+(with :func:`_reverse_groups_2d <orpheus.data.micro_xs.gendf>` for the
+two-axis :math:`[g_{\text{from}}, g_{\text{to}}]` matrix channels)
+reverses every group-indexed array of an :class:`~orpheus.data.micro_xs.isotope.Isotope`
+**once on ingest**, inside :func:`convert_gxs <orpheus.data.micro_xs.gendf>`:
+
+- the vector cross sections (:math:`\sigma_t, \sigma_c, \sigma_f,
+  \sigma_L`) are reversed along their group axis;
+- :math:`\bar\nu` and :math:`\chi` are reversed;
+- the scattering matrices ``sigS`` and the :math:`(n,2n)` matrix
+  ``sig2`` are reversed along **both** group axes (moving downscatter
+  from the lower to the upper triangle);
+- :math:`\sigma_0` — a *background* cross section, **not** energy-indexed
+  — is left untouched;
+- ``eg`` is reversed to descending.
+
+After this single flip, **every downstream consumer is order-transparent**:
+:class:`~orpheus.data.macro_xs.mixture.Mixture`,
+:func:`~orpheus.data.macro_xs.mixture.compute_macro_xs`, and every solver
+read the canonical fast-first arrays directly and never re-order. The
+``.h5`` caches are written **after** the flip, so cached data is
+fast-first as well.
+
+.. warning::
+
+   The thermal-cutoff constant ``_IG_THRESH = 95`` in
+   ``orpheus/data/micro_xs/gendf.py`` indexes the **native NJOY
+   (ascending)** order, because it is applied during *extraction*
+   (:func:`_init_scattering <orpheus.data.micro_xs.gendf>`,
+   ``thermal_mask = ifrom <= _IG_THRESH``), **before**
+   :func:`_to_canonical_group_order` runs. In the *stored* canonical
+   arrays the same thermal boundary lives at a **high** index (near
+   :math:`G - 95 \approx 326`), not at index 95. See
+   :ref:`thermal-group-boundary` for the full extraction-vs-storage
+   distinction.
+
+Why the fast-first convention (rationale)
+-----------------------------------------
+
+Three reasons, in order of weight:
+
+1. **It converges the codebase onto one convention.** Before the flip
+   the GENDF pipeline was the *lone* group-0-thermal outlier. The
+   synthetic verification cross sections
+   (:mod:`~orpheus.derivations.common.xs_library`), the Sood benchmark
+   registry (:doc:`sood_registry`), the :mod:`~orpheus.diffusion`
+   solver, the test fixtures, and **every theory page** were already
+   group-0-fast. Reversing the GENDF data on ingest makes the production
+   nuclear data agree with all of them for the first time, removing a
+   per-source "which way does this array run?" hazard.
+
+2. **It is physics-identical — the multigroup solve is order-agnostic.**
+   ORPHEUS does **not** run an energy-group Gauss–Seidel sweep (a
+   downscatter cascade that *would* depend on the spectral ordering — and
+   which does not exist in any ORPHEUS solver; see
+   :ref:`group-vs-octant-terminology`). The in-scatter source is the
+   **full contraction** over all source groups,
+
+   .. math::
+      :label: in-scatter-full-contraction
+
+      q_{\mathrm{s},g} = \sum_{g'} \Sigma_{\mathrm{s},\, g' \to g}\, \phi_{g'},
+
+   which is invariant under any permutation of the group index applied
+   consistently to :math:`\Sigma_{\mathrm{s}}`, :math:`\phi`, and
+   :math:`\chi`. A permutation-invariance gate confirms this: under a
+   group reversal the eigenvalue :math:`\keff` is invariant and the flux
+   simply reverses with the index. The flip is therefore a relabelling,
+   not a change of the solved problem.
+
+3. **Fast-first gives the natural downscatter sweep direction.** With
+   :math:`g` increasing from fast to thermal, slowing-down flows in the
+   direction of increasing index, so the downscatter source matrix is
+   upper-triangular and the spectrum is read top-to-bottom fast → thermal
+   — the way reactor-physics texts present the slowing-down equation.
+
+.. vv-status: in-scatter-full-contraction documented
+.. (vv-status rationale) representational: this is the group-coupling
+.. definition that makes the order-agnosticism argument, not a solver
+.. claim. The order-invariance it asserts is pinned by the permutation
+.. gate referenced above (keff invariant, flux reversed); the equation
+.. itself transcribes the standard multigroup in-scatter source.
+
+
+.. _group-vs-octant-terminology:
+
+Terminology: "group" — energy group vs. octant group
+====================================================
+
+The word **"group"** is overloaded in transport, and the two meanings
+live on **orthogonal axes**. The canonical convention above is entirely
+about the *energy* axis; do **not** conflate it with the *angular* sense
+the SN sweep uses.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 18 41 41
+
+   * - Axis
+     - "group" means …
+     - Where it appears
+   * - **Energy**
+     - One of the :math:`G` energy bins of the multigroup spectrum
+       (:ref:`canonical-group-convention`). Index 0 = fastest.
+     - ``eg``, ``SigS[g_from, g_to]``, :math:`\phi_g`, every cross
+       section. **This** is what the canonical convention orders.
+   * - **Angular (SN sweep)**
+     - An **octant group**: a set of ordinate directions that share a
+       sweep direction (a wavefront sweeps the spatial mesh once per
+       octant group).
+     - The ``inner_schedule="gauss_seidel"`` sweep schedule
+       (:class:`SweepSchedule <orpheus.sn.loss_representation.sweep_schedule.SweepSchedule>`).
+
+In the SN solver, selecting ``inner_schedule="gauss_seidel"`` (see
+:func:`_select_si_resolvent <orpheus.sn.solver>` and
+:class:`_GaussSeidelResolvent <orpheus.sn.solver>`) builds an
+**octant-group / boundary** Gauss–Seidel: it folds the reflective
+boundary operator :math:`B` **into** a multi-dimensional wavefront sweep,
+re-reflecting each octant group's outgoing reflective faces between octant
+sweeps so a later octant reads the fresh current-iterate inflow. This is a
+purely **angular** acceleration of the within-group source iteration; its
+converged fixed point is **identical** to the plain (Jacobi) sweep — only
+the iteration rate changes (it is splitting-invariant in the sense of
+``vv-principles`` Mode 9). It does **not** touch the energy index, and it
+does **not** cascade across the spectrum.
+
+.. note::
+
+   **An *energy-group* Gauss–Seidel — a downscatter cascade that solves
+   group** :math:`g` **using the already-updated fluxes of the faster
+   groups** :math:`g' < g` **— does NOT exist in ORPHEUS today.** Every
+   solver treats the in-scatter source as the full contraction
+   :eq:`in-scatter-full-contraction` over *all* source groups (lagged
+   from the previous outer iterate), with **no** sweep ordering imposed
+   on the energy axis. This is exactly *why* the energy-group ordering is
+   free to be a pure relabelling (rationale point 2 above): there is no
+   energy-sweep whose direction the convention could change. A reader
+   must therefore never read the octant ``gauss_seidel`` schedule as a
+   spectral sweep — the two are unrelated.
 
 
 The GENDF Format
@@ -294,13 +490,31 @@ is assembled from three separate GENDF sections.  This is one of the
 most delicate parts of the pipeline.
 
 
+.. _thermal-group-boundary:
+
 Thermal-Group Boundary
 -----------------------
 
-The energy group structure uses a thermal cutoff at group index 95
-(corresponding to :math:`E \approx 4` eV).  Below this energy, the
-free-atom elastic scattering model breaks down because the target atoms
-are bound in a lattice or molecule (thermal motion affects scattering).
+The free-atom elastic scattering model breaks down below
+:math:`E \approx 4` eV, where the target atoms are bound in a lattice or
+molecule (thermal motion affects scattering), so the assembly zeroes the
+elastic kernel in the thermal range and replaces it with a bound-atom
+thermal kernel.
+
+.. important::
+
+   **This boundary is expressed in the NATIVE NJOY group index, not the
+   ORPHEUS canonical one.** All of the scattering assembly below runs on
+   the raw GENDF arrays *before* the ingest flip
+   (:func:`_to_canonical_group_order <orpheus.data.micro_xs.gendf>`,
+   :ref:`canonical-group-convention`), where group 0 = thermal and the
+   index increases with energy. In that native order the thermal cutoff
+   is the constant ``_IG_THRESH = 95``: native groups :math:`g \le 95`
+   (:math:`E \lesssim 4` eV) are the thermal range. After the flip, the
+   thermal groups occupy the **high-index** end of the canonical arrays
+   (near :math:`G - 95 \approx 326`), consistent with group 0 = fastest.
+   Read every ``g \le 95`` / ``g > 95`` reference in this section as
+   *native-order* indices.
 
 The GENDF file provides two models:
 
@@ -316,10 +530,11 @@ Assembly Algorithm
 The scattering matrix is built in four stages:
 
 1. **Elastic (MT=2)**: Extract the elastic scattering transfer matrix.
-   **Zero out** all entries where the source group :math:`g \le 95`
-   (the thermal range), because thermal scattering replaces elastic in
-   that range.  Add :math:`10^{-30}` to all values (matching the MATLAB
-   convention to avoid exact zeros in sparse matrices).
+   **Zero out** all entries where the source group :math:`g \le 95` (the
+   thermal range, **native NJOY index**), because thermal scattering
+   replaces elastic in that range.  Add :math:`10^{-30}` to all values
+   (matching the MATLAB convention to avoid exact zeros in sparse
+   matrices).
 
    .. code-block:: python
 
@@ -344,9 +559,9 @@ The scattering matrix is built in four stages:
 .. important::
 
    The elastic scattering data for groups :math:`g > 95` (epithermal
-   and fast) **does** depend on sigma-zero.  Each sigma-zero variant
-   has different elastic values at these groups.  For groups
-   :math:`g \le 95`, the elastic is zeroed and replaced by the
+   and fast, **native NJOY index**) **does** depend on sigma-zero.  Each
+   sigma-zero variant has different elastic values at these groups.  For
+   groups :math:`g \le 95`, the elastic is zeroed and replaced by the
    sigma-zero-independent thermal kernel.
 
 

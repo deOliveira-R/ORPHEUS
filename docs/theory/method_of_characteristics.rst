@@ -833,8 +833,9 @@ Cross sections flow through two paths:
 
 **Indexing:** ``sig_t[i, g]`` is the total cross section in FSR
 :math:`i`, group :math:`g`.  Group 0 = fastest; group :math:`G-1` =
-thermal.  Region 0 = innermost annulus; region :math:`N-1` = square
-border.
+thermal (the :ref:`canonical fast-first convention
+<canonical-group-convention>`).  Region 0 = innermost annulus; region
+:math:`N-1` = square border.
 
 **Scattering convention:** ``SigS[g_from, g_to]``.  The in-scatter
 source uses the transpose: ``Q += SigS.T @ phi`` (same as CP, SN, MC).

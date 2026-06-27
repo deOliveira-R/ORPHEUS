@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5736**
+Total tests collected: **5753**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1166, 20.3%
-   L1, 996, 17.4%
-   L2, 36, 0.6%
+   L1, 996, 17.3%
+   L2, 46, 0.8%
    L3, 0, 0.0%
-   foundation, 3528, 61.5%
+   foundation, 3535, 61.4%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5647
+   explicit, 5664
    verify, 0
    class-name, 46
    func-name, 0
@@ -112,6 +112,8 @@ Module × level grid
    data/test_chi_mix_production_weighting, 0, 0, 0, 0, 8, 0
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_emission_spectrum, 0, 0, 0, 0, 15, 0
+   data/test_gendf_canonical_order, 0, 0, 0, 0, 6, 0
+   data/test_group_permutation_invariance, 0, 0, 10, 0, 0, 0
    data/test_mixture, 4, 0, 0, 0, 0, 0
    data/test_mixture_scattering_ratio, 0, 0, 0, 0, 3, 0
    data/test_mixture_xs_balance, 0, 0, 0, 0, 75, 0
@@ -373,7 +375,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 292, 0
+   test_layer_imports, 0, 0, 0, 0, 293, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -777,7 +779,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **253** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **254** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -846,6 +848,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``group-flux``
 - ``group-xs``
 - ``hilbert-adjoint-equals-metric-times-S0``
+- ``in-scatter-full-contraction``
 - ``integral-kernel-category``
 - ``keff-as-integrated-rates``
 - ``kll-1974-slab-phi``

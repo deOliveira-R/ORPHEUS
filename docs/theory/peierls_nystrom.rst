@@ -1245,6 +1245,10 @@ fixtures (no re-baseline).
 Canonical ``sig_s`` convention (project-wide single source of truth)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+The project-wide energy-group ordering is stated once in
+:ref:`canonical-group-convention`; this subsection restates the
+``sig_s`` index layout for the Peierls drivers, which obey it.
+
 ``sig_s[r, g_src, g_dst]`` = scatter rate **from** ``g_src`` **into**
 ``g_dst`` at region ``r``. First index = source group, second =
 destination. Downscatter (fast → thermal with group 0 = fast) sits

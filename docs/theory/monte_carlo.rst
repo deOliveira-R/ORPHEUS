@@ -969,11 +969,22 @@ spectrum output, not keff.
 .. note::
 
    A separate sign-of-:math:`\Delta u` bug used to flip every
-   ``flux_per_lethargy`` entry through :math:`y = 0` (because
-   nuclear-data group grids are descending, so
-   :math:`\Delta u_g = \ln(E_{g+1}/E_g) < 0`).  That bug is documented
-   as **ERR-022** and was fixed by taking :math:`|\Delta u|` at the
-   definition site.  The regression test
+   ``flux_per_lethargy`` entry through :math:`y = 0`. ORPHEUS orders
+   energy groups **fastest-first**, so the group-boundary array ``eg`` is
+   strictly **descending** (:ref:`canonical-group-convention`):
+   :math:`\mathrm{eg}[g+1] < \mathrm{eg}[g]`. The lethargy width per
+   group is therefore negative,
+
+   .. math::
+
+      \Delta u_g = \ln\!\frac{E_{g+1}}{E_g}
+                 = \ln\frac{\mathrm{eg}[g+1]}{\mathrm{eg}[g]} < 0,
+
+   so dividing the group tally by a raw (signed) :math:`\Delta u` flipped
+   the spectrum below zero. The bug is documented as **ERR-022** and was
+   fixed by taking :math:`|\Delta u_g|` at the definition site (the code
+   computes ``flux_per_lethargy = tally / np.abs(xs.du)``). The
+   regression test
    ``tests/mc/test_gaps.py::test_flux_per_lethargy_nonnegative`` pins
    the invariant.  The spectral shape is now additionally pinned by
    ``test_2g_flux_ratio_homogeneous`` which compares the MC spectrum

@@ -291,7 +291,8 @@ ORPHEUS vs Sood group convention
 
 Sood numbers groups :math:`g=N` (fast) → :math:`g=1` (slow), the
 reverse of typical nuclear-engineering convention. ORPHEUS uses the
-standard convention :math:`g=0` (fast) → :math:`g=N-1` (slow). The
+:ref:`canonical fast-first convention <canonical-group-convention>`
+:math:`g=0` (fast) → :math:`g=N-1` (slow). The
 :mod:`sood_registry.la13511` module does the conversion at
 construction time so consumers see XS arrays in **ORPHEUS
 convention** directly.

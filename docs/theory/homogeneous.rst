@@ -132,12 +132,16 @@ Group-Averaged Cross Sections
 ------------------------------
 
 The continuous energy variable is discretised into :math:`G` groups.
-Group 1 carries the highest energies (fast neutrons), group :math:`G`
-the lowest (thermal neutrons).  The energy boundaries
-:math:`E_0 > E_1 > \cdots > E_G` define the grid stored in
+The fastest group carries the highest energies, the last group the
+lowest (thermal neutrons): the descending boundary array
+:math:`E_0 > E_1 > \cdots > E_G` defines the grid stored in
 :attr:`Mixture.eg` for production cases (XS computed from ENDF
 :class:`~orpheus.data.micro_xs.isotope.Isotope` data via
-:func:`compute_macro_xs`). For synthetic verification cases (Sood-style
+:func:`compute_macro_xs`). This is the :ref:`canonical fast-first
+energy-group convention <canonical-group-convention>`; the code index
+runs :math:`g = 0` (fastest) to :math:`g = G-1` (thermal), while the
+1-based labels used in the equations below (group 1 = fastest) are a
+presentation choice for the slowing-down algebra. For synthetic verification cases (Sood-style
 abstract XS, MMS test mixtures), :attr:`Mixture.eg` is ``None`` —
 there is no real grid, only a discrete set of group cross-sections.
 Per-energy diagnostics (lethargy widths, flux-per-energy plots,

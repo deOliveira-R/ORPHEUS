@@ -1852,8 +1852,10 @@ Cross sections flow through two layers:
 
 **Indexing:** ``xs.sig_t[i, g]`` is the total macroscopic cross section
 in spatial cell :math:`i` and energy group :math:`g`.  Group 0 = fastest
-(highest energy); group :math:`G-1` = slowest (thermal).  Cell 0 =
-innermost; cell :math:`N-1` = outermost.
+(highest energy); group :math:`G-1` = slowest (thermal) --- the
+:ref:`canonical fast-first energy-group convention
+<canonical-group-convention>`.  Cell 0 = innermost; cell :math:`N-1` =
+outermost.
 
 **Scattering convention:** ``SigS[g_from, g_to]``.  The in-scatter source
 uses the transpose: ``Q += SigS.T @ phi`` (applied per-cell)::
