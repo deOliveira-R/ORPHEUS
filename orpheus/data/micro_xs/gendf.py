@@ -16,6 +16,7 @@ e.g. ``1.001000+3`` means ``1.001E+3``.
 from __future__ import annotations
 
 import re
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
@@ -233,7 +234,9 @@ def convert_gxs(name: str) -> list[Isotope]:
     isotopes = []
     for i_temp, temp in enumerate(temps, start=1):
         iso = _build_isotope(name, temp, i_temp, m, aw, eg, sig0, n_sig0)
-        isotopes.append(iso)
+        # Normalise NJOY thermal-first → ORPHEUS canonical fast-first at the
+        # ingest boundary (see _to_canonical_group_order).
+        isotopes.append(_to_canonical_group_order(iso))
 
     return isotopes
 
@@ -334,6 +337,50 @@ def _build_isotope(
         sig2=sig2,
     )
 
+
+# NJOY/GENDF stores group 0 = THERMAL (energies ASCENDING); the ORPHEUS canonical
+# convention is group 0 = FASTEST (highest E), ``eg`` DESCENDING, and
+# ``SigS[g_from, g_to]`` downscatter in the UPPER triangle. We normalise the
+# foreign NJOY order ONCE here, at the data-ingest boundary, so every downstream
+# consumer (Mixture, cell_xs, every solver) is order-transparent.
+# See docs/theory/cross_section_data.rst (canonical group convention).
+
+
+def _reverse_groups_2d(m: csr_matrix) -> csr_matrix:
+    """Reverse BOTH group axes of a square ``[g_from, g_to]`` matrix (sparse-preserving).
+
+    Reversing both axes keeps the matrix self-consistent (row = from-group,
+    col = to-group) while moving downscatter from the lower to the upper
+    triangle — the canonical fast-first structure.
+    """
+    n = cast("tuple[int, ...]", m.shape)[0]
+    perm = np.arange(n - 1, -1, -1)
+    return cast(csr_matrix, m[perm][:, perm])
+
+
+def _to_canonical_group_order(iso: Isotope) -> Isotope:
+    """Reverse the energy-group axis: NJOY thermal-first → ORPHEUS fast-first.
+
+    The single foreign-input normalisation at the GENDF ingest boundary. Reverses
+    every group-indexed array — ``eg`` (→ descending), the ``(n_sig0, NG)`` vector
+    cross sections along their group axis, ``nubar`` / ``chi``, and ``sigS`` /
+    ``sig2`` along BOTH group axes — leaving ``sig0`` (a background cross section,
+    NOT energy-indexed) untouched. After this the isotope obeys the canonical
+    convention: group 0 = fastest, ``eg`` descending, downscatter upper-triangular.
+    """
+    rev = slice(None, None, -1)
+    return replace(
+        iso,
+        eg=np.ascontiguousarray(iso.eg[rev]),
+        sigC=np.ascontiguousarray(iso.sigC[:, rev]),
+        sigL=np.ascontiguousarray(iso.sigL[:, rev]),
+        sigF=np.ascontiguousarray(iso.sigF[:, rev]),
+        sigT=np.ascontiguousarray(iso.sigT[:, rev]),
+        nubar=np.ascontiguousarray(np.asarray(iso.nubar)[rev]),
+        chi=np.ascontiguousarray(np.asarray(iso.chi)[rev]),
+        sigS=[[_reverse_groups_2d(s) for s in order] for order in iso.sigS],
+        sig2=_reverse_groups_2d(iso.sig2),
+    )
 
 
 def _extract_chi(i_temp: int, m: np.ndarray) -> np.ndarray:
