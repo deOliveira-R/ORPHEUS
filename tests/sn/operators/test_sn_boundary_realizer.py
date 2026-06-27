@@ -424,7 +424,7 @@ class TestRealizePeriodic:
 # realizer no longer dispatches on a "mixed" type.  Rank-N compositions
 # are now built via Wave-0 ``OperatorSum``/``ScaledOperator`` algebra
 # over already-realised leaves; the tree-walking helper
-# :func:`orpheus.sn.boundary_realize.realize_recursively` realises a
+# :func:`orpheus.sn.boundary_realizer.realize_recursively` realises a
 # ``BoundaryTraceLaw``-rooted expression by recursing through the
 # Wave-0 composers (its tests live in
 # ``tests/sn/test_boundary_realize.py``).

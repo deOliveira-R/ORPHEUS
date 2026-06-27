@@ -48,7 +48,7 @@ Key Facts
   :class:`~orpheus.geometry.boundary.LawScaled` nodes — a closed
   algebra over ``BoundaryTraceLaw | LawSum | LawScaled``. The tree is
   a **pure descriptor** with no ``apply`` method; the
-  :func:`~orpheus.sn.boundary_realize.realize_recursively` type
+  :func:`~orpheus.sn.boundary_realizer.realize_recursively` type
   transformer walks it once per face and emits an operator tree of
   :class:`~orpheus.numerics.operator.OperatorSum` /
   :class:`~orpheus.numerics.operator.ScaledOperator` composers around
@@ -533,7 +533,7 @@ and Marshak / partial-current boundaries are rank-N via the
 **descriptor-tree algebra** on the unrealised laws (:class:`LawSum`
 / :class:`LawScaled` over :class:`BoundaryTraceLaw` leaves) —
 realised once per face by
-:func:`~orpheus.sn.boundary_realize.realize_recursively`. See
+:func:`~orpheus.sn.boundary_realizer.realize_recursively`. See
 :ref:`bc-rank-n-algebra` below.
 
 
@@ -1287,7 +1287,7 @@ The :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` algebra
 dunders (``+``, ``-``, ``*``, ``/``, unary ``-``) return
 :class:`~orpheus.geometry.boundary.LawSum` /
 :class:`~orpheus.geometry.boundary.LawScaled` instances, never
-operators. The :func:`~orpheus.sn.boundary_realize.realize_recursively`
+operators. The :func:`~orpheus.sn.boundary_realizer.realize_recursively`
 type transformer is the **sole** path from descriptor tree to
 operator tree.
 
@@ -1315,8 +1315,8 @@ white reflection (weight :math:`c_2`) — is:
        LawScaled, LawSum,
        ReflectiveBoundary, WhiteBoundary,
    )
-   from orpheus.sn.boundary_realize import realize_recursively
-   from orpheus.sn.boundary_realizer import SNMethodSpace
+   from orpheus.sn.boundary_realizer import realize_recursively
+   from orpheus.sn.method_space import SNMethodSpace
 
    # Build the descriptor tree — no realization yet.
    spec = ReflectiveBoundary(axis="x", albedo=1.0)
@@ -1440,7 +1440,7 @@ algebraically identical.
 The ``realize_recursively`` walker — a descriptor → operator type transformer
 =============================================================================
 
-:func:`~orpheus.sn.boundary_realize.realize_recursively` is the
+:func:`~orpheus.sn.boundary_realizer.realize_recursively` is the
 **type transformer** from the descriptor-tree algebra
 (``BoundaryTraceLaw | LawSum | LawScaled``) to the operator-tree
 algebra (``LinearOperator`` with
@@ -1481,7 +1481,7 @@ Usage on the descriptor tree:
    from orpheus.geometry.boundary import (
        ReflectiveBoundary, WhiteBoundary,
    )
-   from orpheus.sn.boundary_realize import realize_recursively
+   from orpheus.sn.boundary_realizer import realize_recursively
 
    # Build the descriptor tree.
    law = (
@@ -1535,15 +1535,61 @@ the in-tree Wave-0 algebra. Removing them clarified the walker's
 role: it is **exactly** the type transformer between the two
 algebras, nothing more.
 
-Per the "Unify after two instances" architectural rule, the walker
-currently lives at :mod:`orpheus.sn.boundary_realize` —
-SN-specific. When a second functional realizer ships, the walker
-will move to ``orpheus.geometry.boundary.realize`` and become
-method-agnostic via
-:meth:`BoundaryRealizerRegistry.get(method_name)` lookup. The leaf
-dispatch (:class:`BoundaryTraceLaw` → realized op) changes; the
-composer dispatch (:class:`LawSum` / :class:`LawScaled` → operator
-composers) is method-agnostic and stays as-is.
+Placement and the deferred cross-method generalization
+------------------------------------------------------
+
+The walker lives in :mod:`orpheus.sn.boundary_realizer`,
+**co-located with the** :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`
+it dispatches to at every leaf. (It previously sat in a separate
+``boundary_realize`` module — the near-twin filename next to
+``boundary_realizer`` was a standing legibility hazard; merging the
+two retired it.)
+
+The walker is **honestly SN-specific today**: it threads an
+:class:`~orpheus.sn.method_space.SNMethodSpace` and hardcodes
+:class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` at the
+leaf. It is *not* on the production single-BC path — production
+realizes one BC directly
+(:meth:`SNMesh._resolve_one <orpheus.sn.geometry.SNMesh._resolve_one>`
+→ ``SNBoundaryRealizer().realize``). This walker is the **rank-N
+composition entry point**: the only thing that realizes a
+*descriptor tree* (the Marshak ``0.3 * Reflective + 0.7 * White``
+partial-current BC of :eq:`affine-bc-form`) rather than a single
+leaf law. Production does not yet wire a rank-N BC, so the walker
+runs only from the rank-N tests.
+
+The method-agnostic generalization — a walker that resolves its
+leaf realizer through :class:`~orpheus.geometry.boundary.BoundaryRealizerRegistry`
+and threads a ``MethodSpace`` Protocol instead of a concrete
+:class:`~orpheus.sn.method_space.SNMethodSpace`, living next to the
+registry in ``geometry/boundary/`` — is **deferred until the second
+functional realizer ships**. MoC, MC, CP, and diffusion are
+``NotImplementedError`` stubs today, so the registry has **zero
+production consumers** (only tests call
+:meth:`BoundaryRealizerRegistry.get`); generalizing now would mint a
+method-agnostic seam with exactly one method behind it, against the
+defer-until-two-instances rule (see :ref:`bc-rank-n-algebra`). Only
+the **leaf** dispatch (:class:`BoundaryTraceLaw` → realized op) is
+SN-bound; the **composer** dispatch (:class:`LawSum` /
+:class:`LawScaled` → operator composers) is already method-agnostic
+and would survive the move unchanged.
+
+The architectural insight worth recording is *why* this deferral
+trigger is not local to boundary realization. The exact event that
+unblocks the generalization here — a second transport method
+arriving — is the **same** event that mints the future
+``TransportMethod`` Protocol flagged in
+:mod:`orpheus.transport.mesh.material_mesh` (the typed *behavior*
+half of the mesh + materials split, currently a bare comment because
+SN is the only method). The **boundary-realizer seam** (this walker's
+``method_space`` and hardcoded leaf) and the **homogenization
+method-layer** (the missing ``TransportMethod`` behind ``MaterialMesh``)
+are **two independent witnesses to one missing type**. They should
+therefore be typed *together* at method #2 — when the registry gains
+its first production consumer, this walker moves to
+``geometry/boundary/``, and ``method_space`` becomes a typed
+``TransportMethod`` Protocol — not as three separate, string-keyed
+half-steps that each re-discover the same abstraction.
 
 
 .. _bc-vacuum-semantic-correction:
@@ -1888,7 +1934,7 @@ For descriptor-tree composition:
 
 .. code-block:: python
 
-   from orpheus.sn.boundary_realize import realize_recursively
+   from orpheus.sn.boundary_realizer import realize_recursively
 
    tree = 0.3 * ReflectiveBoundary(axis="x") + 0.7 * WhiteBoundary(
        axis="x", outward_sign=+1,

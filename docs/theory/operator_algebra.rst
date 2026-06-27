@@ -3248,7 +3248,7 @@ tree. Two distinct algebras are layered:
      - Realiser code at face-resolution time
 
 The user writes ``0.3 * spec + 0.7 * white`` — a descriptor tree.
-:func:`~orpheus.sn.boundary_realize.realize_recursively` walks the
+:func:`~orpheus.sn.boundary_realizer.realize_recursively` walks the
 tree, realises each leaf via
 :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`, and
 re-assembles the result through the matching Wave-0 composers

@@ -10330,7 +10330,7 @@ descriptor** with no callable interface. Rank-N composition uses
 the descriptor-tree algebra
 (:class:`~orpheus.geometry.boundary.LawSum` /
 :class:`~orpheus.geometry.boundary.LawScaled`) with
-:func:`~orpheus.sn.boundary_realize.realize_recursively` as the
+:func:`~orpheus.sn.boundary_realizer.realize_recursively` as the
 sole descriptor→operator type transformer. See
 :ref:`bc-trace-law-descriptor-model` for the design rationale.
 
@@ -16416,6 +16416,23 @@ branch and have no landed hash yet.
      - Architectural milestone
      - Issue
      - Where
+   * - in dev
+       (2026-06-26)
+     - **Rank-N boundary walker co-located** — ``realize_recursively``
+       (the descriptor-tree → operator-tree walker) merged into
+       :mod:`orpheus.sn.boundary_realizer` next to the
+       :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` it
+       dispatches to; the near-twin ``boundary_realize`` module retired.
+       It stays honestly SN-specific; the method-agnostic generalization
+       (registry-resolved leaf + ``MethodSpace`` Protocol, walker moves to
+       ``geometry/boundary/``) is deferred to the second functional
+       realizer — the **same** trigger that mints the ``TransportMethod``
+       Protocol behind :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`
+       (two witnesses to one missing type). See
+       :ref:`bc-rank-n-algebra`.
+     - —
+     - *(in development)*
+       ``refactor/operator-inverse-algebra``
    * - in dev
        (2026-06-24)
      - **Homogenization re-framed as Petrov-Galerkin** (unified

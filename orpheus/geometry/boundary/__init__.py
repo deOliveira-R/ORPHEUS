@@ -155,7 +155,7 @@ Rank-N (Marshak, partial-current) boundary conditions are
 :class:`~orpheus.geometry.boundary._composition.LawSum` /
 :class:`~orpheus.geometry.boundary._composition.LawScaled` nodes —
 pure descriptor structures with **no** ``apply`` method. The
-:func:`~orpheus.sn.boundary_realize.realize_recursively` walker is
+:func:`~orpheus.sn.boundary_realizer.realize_recursively` walker is
 the **sole** type transformer from descriptor tree to operator
 tree (Issue #186 / B3 + β2, 2026-05-11):
 
@@ -164,7 +164,7 @@ tree (Issue #186 / B3 + β2, 2026-05-11):
     from orpheus.geometry.boundary import (
         ReflectiveBoundary, WhiteBoundary,
     )
-    from orpheus.sn.boundary_realize import realize_recursively
+    from orpheus.sn.boundary_realizer import realize_recursively
     from orpheus.sn.method_space import SNMethodSpace
 
     # Build the descriptor tree (no realisation yet).
@@ -374,7 +374,7 @@ Cross-references
 * :mod:`orpheus.sn.boundary_realizer` —
   :class:`SNBoundaryRealizer` (functional realizer dispatching by
   ``isinstance``; the leaf descriptor → operator transformer).
-* :mod:`orpheus.sn.boundary_realize` —
+* :mod:`orpheus.sn.boundary_realizer` —
   :func:`realize_recursively` walker, the **type transformer**
   from a descriptor tree
   (``BoundaryTraceLaw | LawSum | LawScaled``) to an operator tree
@@ -421,7 +421,7 @@ from ._base import BoundaryTraceLaw
 # form a closed algebra over BoundaryTraceLaw | LawSum | LawScaled, used
 # for rank-N boundary composition (e.g. ``0.3 * spec + 0.7 * white``).
 # Realised to a Wave-0 operator tree via
-# :func:`orpheus.sn.boundary_realize.realize_recursively`.
+# :func:`orpheus.sn.boundary_realizer.realize_recursively`.
 # ---------------------------------------------------------------------------
 
 from ._composition import LawNode, LawScaled, LawSum
