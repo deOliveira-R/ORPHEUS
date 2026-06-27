@@ -110,9 +110,8 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
     .. code-block:: python
 
         from orpheus.geometry.boundary import ReflectiveBoundary
-        from orpheus.sn.boundary_realizer import (
-            SNBoundaryRealizer, SNMethodSpace,
-        )
+        from orpheus.sn.boundary_realizer import SNBoundaryRealizer
+        from orpheus.sn.method_space import SNMethodSpace
 
         law = ReflectiveBoundary(axis="x", albedo=0.5)
         ms = SNMethodSpace.minimal(quad)
@@ -279,9 +278,8 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
 
         .. code-block:: python
 
-            from orpheus.sn.boundary_realizer import (
-                SNBoundaryRealizer, SNMethodSpace,
-            )
+            from orpheus.sn.boundary_realizer import SNBoundaryRealizer
+            from orpheus.sn.method_space import SNMethodSpace
             op = SNBoundaryRealizer().realize(law, SNMethodSpace.minimal(quad))
             psi_in = op.apply(psi_out)   # 1-arg LinearOperator
 

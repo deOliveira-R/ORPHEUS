@@ -32,9 +32,8 @@ class VacuumInflow(BoundaryTraceLaw, key="vacuum"):
 
     .. code-block:: python
 
-        from orpheus.sn.boundary_realizer import (
-            SNBoundaryRealizer, SNMethodSpace,
-        )
+        from orpheus.sn.boundary_realizer import SNBoundaryRealizer
+        from orpheus.sn.method_space import SNMethodSpace
         op = SNBoundaryRealizer().realize(
             VacuumInflow(),
             SNMethodSpace(

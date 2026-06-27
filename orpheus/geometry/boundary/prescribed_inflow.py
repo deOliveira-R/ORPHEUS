@@ -58,9 +58,8 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
 
     .. code-block:: python
 
-        from orpheus.sn.boundary_realizer import (
-            SNBoundaryRealizer, SNMethodSpace,
-        )
+        from orpheus.sn.boundary_realizer import SNBoundaryRealizer
+        from orpheus.sn.method_space import SNMethodSpace
         law = PrescribedInflow(source=ConstantInflowSource(2.5))
         op = SNBoundaryRealizer().realize(law, SNMethodSpace.minimal(quad))
         psi_in = op.apply(psi_out)   # ignores psi_out; returns source

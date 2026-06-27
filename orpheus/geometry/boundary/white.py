@@ -49,9 +49,8 @@ class WhiteBoundary(BoundaryTraceLaw, key="white"):
 
     .. code-block:: python
 
-        from orpheus.sn.boundary_realizer import (
-            SNBoundaryRealizer, SNMethodSpace,
-        )
+        from orpheus.sn.boundary_realizer import SNBoundaryRealizer
+        from orpheus.sn.method_space import SNMethodSpace
         law = WhiteBoundary(axis="x", outward_sign=+1, albedo=0.8)
         op = SNBoundaryRealizer().realize(law, SNMethodSpace.minimal(quad))
         psi_in = op.apply(psi_out)
