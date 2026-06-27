@@ -478,7 +478,10 @@ class TestTwoDCartesianRaises:
             bc_xmin=BC("vacuum"), bc_xmax=BC("vacuum"),
             bc_ymin=BC("vacuum"), bc_ymax=BC("vacuum"),
         )
-        quad = Quadrature.gauss_legendre(n_ordinates=4)
+        # A genuine-2-D quadrature is required: the y-faces need ordinates
+        # with non-zero mu_y. The 1-D gauss_legendre set has mu_y=0 for
+        # every ordinate, which the trace-space guard correctly rejects.
+        quad = Quadrature.level_symmetric(sn_order=4)
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         sigma_t = np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0)
         psi = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)

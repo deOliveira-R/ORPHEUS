@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5731**
+Total tests collected: **5733**
 
 V&V level distribution
 ----------------------
@@ -17,7 +17,7 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1166, 20.3%
-   L1, 994, 17.3%
+   L1, 996, 17.4%
    L2, 36, 0.6%
    L3, 0, 0.0%
    foundation, 3525, 61.5%
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5642
+   explicit, 5644
    verify, 0
    class-name, 46
    func-name, 0
@@ -247,6 +247,7 @@ Module × level grid
    mc/test_properties, 24, 0, 0, 0, 0, 0
    mms/test_curvilinear_aniso_convergence, 0, 7, 0, 0, 0, 0
    mms/test_curvilinear_aniso_scattering_p1, 2, 0, 0, 0, 0, 0
+   mms/test_curvilinear_operator_admits_anisotropic_mms, 0, 2, 0, 0, 0, 0
    mms/test_curvilinear_operator_admits_mms, 0, 2, 0, 0, 0, 0
    mms/test_curvilinear_pole_cell_characterization, 0, 4, 0, 0, 0, 0
    mms/test_ld_2d_boundary_promise, 0, 10, 0, 0, 1, 0
@@ -1066,7 +1067,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-023``, 1
    ``ERR-024``, 1
    ``ERR-025``, 5
-   ``ERR-026``, 94
+   ``ERR-026``, 96
    ``ERR-027``, 5
    ``ERR-028``, 1
    ``ERR-029``, 6
@@ -1098,7 +1099,7 @@ Every ``ERR-NNN`` entry in ``.claude/skills/vv-principles/error_catalog.md`` and
    ``ERR-055``, **0 (MISSING)**
    ``ERR-056``, 7
    ``ERR-057``, 1
-   ``ERR-058``, 4
+   ``ERR-058``, 5
    ``ERR-059``, 4
    ``ERR-060``, 2
    ``ERR-061``, 3

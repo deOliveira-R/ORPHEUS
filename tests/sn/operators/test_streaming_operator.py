@@ -835,7 +835,7 @@ class TestT4bPreT4RegressionSnapshot:
 
 
 class TestT4cPreT4RegressionSnapshotCurvilinear:
-    """L4-2 / L4-3 — sphere + cylinder principled-equivalence vs pre-T.4 snapshot.
+    """L4-2 / L4-3 — sphere + cylinder curvilinear matvec regression snapshots.
 
     Wave T post-T.5 matvec retirement: ``StreamingOperator.apply``
     curvilinear branch now goes through the dual-emission
@@ -848,6 +848,21 @@ class TestT4cPreT4RegressionSnapshotCurvilinear:
     the test relaxes from strict bit-identity to ``rtol=1e-13,
     atol=1e-14`` accordingly.  L1 closed-form k_∞ + L1 MMS gates
     remain the structural-independence ground.
+
+    **Sphere arms re-baselined 2026-06-26 (closes #250).**  The CYLINDER
+    arms remain frozen at their last refresh (current ≡ frozen to
+    ``rtol=1e-13``), so they still witness the operator-algebra campaign's
+    numerical inertness.  The SPHERE snapshot, however, went stale across a
+    real closure change: ``b2d8a6d`` (Bailey Eq. 43, Refs #229) unclamped
+    the spherical Morel–Montry WDD weight τ AFTER this store's last refresh
+    but updated only its own targeted snapshot (#240 later re-captured
+    SLB/CYL/cart2d here, deferring SPH — lesson L-034).  The sphere arms
+    were re-captured to current production (sphere-only, via the canonical
+    capture builders; the cyl / slab / cart2d keys stayed frozen).
+    Correctness of the current sphere matvec was verified vs L0 streaming-
+    equilibrium (per-ordinate), L1 isotropic + anisotropic MMS, and the
+    L1 trajectory-resolvent before re-capture — never green-by-fiat
+    (``vv-principles`` L11/L14/L27).
     """
 
     @pytest.fixture(scope="class")

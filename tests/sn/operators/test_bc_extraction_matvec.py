@@ -270,11 +270,20 @@ class TestVacuumMatvecBitIdentity:
     boundary-slot gate stays strict byte-identity (it did not move — the
     outflow defect reconstructs from the same ``ψ_out = 2ψ̄ − ψ_in`` faces).
 
-    Curvilinear (SPH) baselines carry a SEPARATE pre-existing STRUCTURAL
-    red (#195/#209) — the curvilinear matvec evolved since the 92be67a
-    capture; the nULP gate hard-fails it (drift ~1e15 ULP), correctly
-    keeping it flagged rather than masked.  Re-baselining the curvilinear
-    arms is deferred to the curvilinear snapshot cleanup (NOT this carve).
+    Curvilinear (SPH) baselines were RE-CAPTURED 2026-06-26, closing #250
+    (the curvilinear snapshot cleanup).  They had carried a long-standing
+    red because the spherical apply legitimately evolved after this store's
+    last refresh: ``b2d8a6d`` (Bailey Eq. 43, Refs #229) unclamped the
+    spherical Morel–Montry WDD weight τ in ``spherical_streaming`` but
+    refreshed only its own targeted snapshot, silently leaving the SPH arms
+    stale (the SLB/CYL arms were later re-captured at #240; SPH was
+    deferred — lesson L-034).  The frozen SPH values were completely
+    different numbers from the live output, so the nULP gate hard-failed
+    (drift ~1e15 ULP).  Before re-capturing, the CURRENT SPH matvec was
+    verified correct vs structurally-independent references (L0 streaming-
+    equilibrium per-ordinate, L1 isotropic + anisotropic MMS to O(h²),
+    L1 trajectory-resolvent) — never green-by-fiat (``vv-principles``
+    L11/L14/L27).
     """
 
     @pytest.mark.parametrize("geometry", _GEOMS_1D)
@@ -296,8 +305,10 @@ class TestVacuumMatvecBitIdentity:
         CYL baselines were RE-CAPTURED under the override (principled re-baseline,
         ``vv-principles`` 3-criteria: named ``loss_action`` intermediate /
         verified by the teeth gate in ``test_removal_form_matvec_sweep.py`` /
-        drift = reduction-depth × ULP).  SPH carries a pre-existing structural
-        red (#195/#209) the gate still catches (NOT re-captured).
+        drift = reduction-depth × ULP).  SPH was RE-CAPTURED 2026-06-26
+        (closes #250) after ``b2d8a6d`` (Bailey Eq. 43, Refs #229) evolved
+        the spherical apply without refreshing this store (verified correct
+        vs L0/L1 references first — not green-by-fiat).
         """
         sn_mesh = _build_sn_mesh(geometry, bc="vacuum")
         state = _random_state(sn_mesh, seed, zero_boundary=True)
@@ -324,11 +335,12 @@ class TestVacuumMatvecBitIdentity:
         # is the opt-in ``-W error::DriftWarning`` bonus).  The SLB baselines
         # were regenerated at #240; the CYL baselines were RE-CAPTURED at #240
         # Phase 2 Step B (the apply override drops the ``−σ_t·ψ + σ_t·ψ`` round-
-        # trip → ~46 ULP / rel ~4e-17 re-association — principled).  SPH carries
-        # a separate pre-existing STRUCTURAL red (#195/#209, the post-92be67a
-        # curvilinear matvec evolution) which this nULP gate still hard-fails
-        # (drift ~1e15 ULP ≫ nx), correctly keeping it flagged rather than
-        # masked — so SPH baselines were NOT re-captured.
+        # trip → ~46 ULP / rel ~4e-17 re-association — principled).  The SPH
+        # baselines were RE-CAPTURED 2026-06-26 (closes #250) after b2d8a6d
+        # (Bailey Eq. 43, Refs #229) unclamped the spherical M-M τ weight and
+        # refreshed only its own snapshot, leaving this store stale (#240
+        # re-captured SLB/CYL; SPH was deferred) — current SPH matvec
+        # verified vs L0/L1 references first.
         assert_regression(
             out.bulk.values, expected,
             conv_tol=0.0, kind="direct", reduction_depth=sn_mesh.nx,

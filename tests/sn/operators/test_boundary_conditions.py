@@ -101,7 +101,13 @@ class TestSNBCResolution:
         with pytest.raises(ValueError, match="'reflective'.*'vacuum'"):
             SNMesh(mesh, quad, placeholder_materials())
 
-    def test_2d_mesh_resolution(self, quad):
+    def test_2d_mesh_resolution(self):
+        """2-D Cartesian BC resolution. Needs a genuine-2-D quadrature:
+        the y-faces require ordinates with non-zero mu_y, which the shared
+        1-D ``gauss_legendre`` fixture lacks (the trace-space guard at
+        ``trace_space.py`` correctly rejects it). ``level_symmetric``
+        carries genuine mu_y."""
+        quad = Quadrature.level_symmetric(sn_order=4)
         mesh = Mesh2D(
             edges_x=np.linspace(0, 2, 3),
             edges_y=np.linspace(0, 2, 3),
