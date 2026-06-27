@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.operator import CAP_APPLY
-from orpheus.sn.angular_operator import AngularAverageOperator
+from orpheus.sn.boundary.angular import AngularAverageOperator
 from orpheus.numerics.quadrature import Quadrature
 
 

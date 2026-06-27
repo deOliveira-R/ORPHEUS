@@ -18,7 +18,7 @@ This module declares the per-axis primitive used to build that product:
 The dim-agnostic shape primitives are exposed as **pure functions on
 axis tuples** — :func:`spatial_shape`, :func:`face_labels`,
 :func:`face_shape`, :func:`face_outflow_ordinates`,
-:func:`n_unknowns_flat`. The :class:`~orpheus.sn.geometry.SNMesh` class
+:func:`n_unknowns_flat`. The :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` class
 delegates to these so 3-D admission gates can exercise the shape
 algebra on a synthetic axis tuple without instantiating a full SN
 phase space (no ``Mesh3D`` exists today — D9 of
@@ -470,7 +470,7 @@ def axes_from_legacy_mesh(mesh) -> tuple[Axis1D, ...]:
 
     Wraps the legacy mesh's per-axis edge arrays + BC declarations in
     :class:`AxisMesh` / :class:`RadialAxisMesh` so the
-    :class:`~orpheus.sn.geometry.SNMesh` constructor can expose
+    :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` constructor can expose
     :attr:`SNMesh.axes` regardless of which constructor surface the
     caller used.
 
@@ -565,7 +565,7 @@ def legacy_mesh_from_axes(
     r"""Build the legacy :class:`Mesh1D` / :class:`Mesh2D` ADAPTER for an axis tuple.
 
     C5.1 (#225): this is NO LONGER a round-trip source — the axes an
-    :class:`~orpheus.sn.geometry.SNMesh` carries are the caller's
+    :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` carries are the caller's
     objects verbatim. :meth:`SNMesh.from_axes` calls this builder only
     to synthesize the d≤2 ``SNMesh.mesh`` adapter for the consumers
     still reading through it (1-D reduced streaming construction,

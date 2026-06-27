@@ -46,9 +46,9 @@ from orpheus.numerics.operator import (
     TensorProductOperator,
     ZeroOperator,
 )
-from orpheus.sn.angular_operator import AngularAverageOperator
-from orpheus.sn.boundary_realizer import SNBoundaryRealizer
-from orpheus.sn.method_space import SNMethodSpace
+from orpheus.sn.boundary.angular import AngularAverageOperator
+from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
 
 
@@ -424,7 +424,7 @@ class TestRealizePeriodic:
 # realizer no longer dispatches on a "mixed" type.  Rank-N compositions
 # are now built via Wave-0 ``OperatorSum``/``ScaledOperator`` algebra
 # over already-realised leaves; the tree-walking helper
-# :func:`orpheus.sn.boundary_realizer.realize_recursively` realises a
+# :func:`orpheus.sn.boundary.realizer.realize_recursively` realises a
 # ``BoundaryTraceLaw``-rooted expression by recursing through the
 # Wave-0 composers (its tests live in
 # ``tests/sn/test_boundary_realize.py``).
@@ -441,7 +441,7 @@ class TestRegistryLookup:
     """The SN realizer self-registers under ``method_name="SN"``."""
 
     def test_get_sn_returns_sn_realizer(self):
-        # Import side-effect: importing ``orpheus.sn.boundary_realizer``
+        # Import side-effect: importing ``orpheus.sn.boundary.realizer``
         # already triggered the @register decorator at module load.
         assert BoundaryRealizerRegistry.get("SN") is SNBoundaryRealizer
 

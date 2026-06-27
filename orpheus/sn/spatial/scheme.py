@@ -191,7 +191,7 @@ class CellVisit:
     inner/outer view.
 
     SN-specific by design.  Produced by
-    :meth:`orpheus.sn.geometry.SNMesh.dag_walk`.  MoC will
+    :meth:`orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk`.  MoC will
     define its own analog (per-ray traversal) — different DAG shape,
     different mathematical structure (fiber bundles + solution
     sheaves rather than a topological sort over a cell graph).
@@ -830,11 +830,11 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
 
     The boolean ``per_axis > 1`` is the GATE on every multi-moment wiring site
     (#240 D5b): the interior face-cochain trailing moment axis
-    (:class:`~orpheus.sn.sweep_graph._MovingFrontier` /
+    (:class:`~orpheus.sn.loss_representation.sweep_graph._MovingFrontier` /
     :meth:`~orpheus.sn.loss_representation.FullFieldWavefront._octant_face_cochain`)
     and the moment-reducing scalar/moment emit
-    (:class:`~orpheus.sn.sweep_graph._CellSolve` /
-    :class:`~orpheus.sn.sweep_graph._CellResidual`).  DD/Step at
+    (:class:`~orpheus.sn.loss_representation.sweep_graph._CellSolve` /
+    :class:`~orpheus.sn.loss_representation.sweep_graph._CellResidual`).  DD/Step at
     ``per_axis == 1`` keep the rank-:math:`r` scalar face and rank-3 ``psi_avg``
     EXACTLY — no trailing length-1 axis is appended (a uniform length-1 axis
     would re-associate DD's emit einsum and break bit-identity), the
@@ -926,8 +926,8 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
 
         STORAGE-FREE by contract (S6.4(e)): gathering the inputs from and
         scattering ``psi_out`` back into the face cochain is the WALK's job
-        (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full` /
-        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`
+        (:meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full` /
+        :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`
         via the ``_CellSolve`` level operation) — a strategy supplies ONLY
         its cell algebra.  Default raises :exc:`NotImplementedError`;
         :class:`DiamondDifference` overrides; future closures (Step / LD /

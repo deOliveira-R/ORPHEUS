@@ -31,8 +31,8 @@ from scipy.sparse.linalg import LinearOperator as SciLinearOperator
 from scipy.sparse.linalg import gmres
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import (
+from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.operators.streaming import (
     StreamingOperator,
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator

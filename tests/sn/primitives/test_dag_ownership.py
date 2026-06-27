@@ -27,14 +27,14 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.loss_representation import (
     CumprodScan,
     FullFieldWavefront,
     MovingFrontierWindow,
     ScanMarch,
 )
-from orpheus.sn.sweep_graph import OctantLabel, SweepDependencyGraph
+from orpheus.sn.loss_representation.sweep_graph import OctantLabel, SweepDependencyGraph
 from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = pytest.mark.foundation
@@ -97,8 +97,9 @@ class TestDagOwnership:
                 "the illegal-state smell S6.4(c) closed)."
             )
 
-    def test_geometry_module_is_dag_free(self):
-        """[L0 structural] geometry.py no longer mentions the DAG substrate.
+    def test_augmented_mesh_module_is_dag_free(self):
+        """[L0 structural] the SN augmented-mesh module (``augmented_mesh.py``,
+        formerly ``geometry.py``) no longer mentions the DAG substrate.
 
         Catches both the curvilinear ``= None`` slots and the Cartesian
         build site — any surviving mention means the ownership move is
@@ -106,11 +107,11 @@ class TestDagOwnership:
         """
         import inspect
 
-        from orpheus.sn import geometry
+        from orpheus.sn.mesh import augmented_mesh
 
-        if "sweep_graphs" in inspect.getsource(geometry):
+        if "sweep_graphs" in inspect.getsource(augmented_mesh):
             pytest.fail(
-                "geometry.py still mentions `sweep_graphs` — the DAG is "
+                "augmented_mesh.py still mentions `sweep_graphs` — the DAG is "
                 "owned by _DAGWavefront via SweepDependencyGraph.for_shape; "
                 "the mesh must stay pure geometry."
             )

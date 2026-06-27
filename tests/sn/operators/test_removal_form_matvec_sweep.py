@@ -104,9 +104,9 @@ from orpheus.geometry import (
     BC, CoordSystem, Mesh1D, Mesh2D, Region, RegionMesh, StructuredGeometry,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
-from orpheus.sn.boundary_operator import SNBoundaryOperator
-from orpheus.sn.operator import (
+from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.operators.boundary import SNBoundaryOperator
+from orpheus.sn.operators.streaming import (
     InvertibleOperator,
     StreamingOperator,
 )

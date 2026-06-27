@@ -24,7 +24,7 @@ flat buffer in ONE numpy call regardless of face count — O(1) Python
 overhead per arithmetic operation.
 
 The descriptor is geometry-agnostic. SN's
-:meth:`~orpheus.sn.geometry.SNMesh.boundary_face_layout` returns the
+:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout` returns the
 Cartesian-face layout (1-4 faces). A future MoC mesh would return a
 per-track-family layout (thousands of faces). The same flat-buffer
 arithmetic works for both.
@@ -54,7 +54,7 @@ __all__ = ["AXIS_NAMES", "FaceSlot", "FaceLayout"]
 #: Spatial axis names, positional-by-axis — the single source of the
 #: axis↔name crosswalk for the ``"{axis}min"`` / ``"{axis}max"``
 #: boundary-face naming convention that :class:`FaceLayout`, the trace
-#: space, :attr:`SNMesh.bc <orpheus.sn.geometry.SNMesh.bc>`, and the
+#: space, :attr:`SNMesh.bc <orpheus.sn.mesh.augmented_mesh.SNMesh.bc>`, and the
 #: sweep schedule all key on. No consumer hand-lists ``("x", ...),
 #: ("y", ...)`` pairs — every face-name derivation
 #: (:attr:`FaceLabel.face_name <orpheus.transport.mesh.axis.FaceLabel.face_name>`,

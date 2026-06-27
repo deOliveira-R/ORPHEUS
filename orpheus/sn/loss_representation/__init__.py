@@ -134,15 +134,15 @@ from orpheus.numerics.moment_layout import (
     is_moment_valued_by_rank,
 )
 
-from .spatial._ubld import (
+from ..spatial._ubld import (
     AVERAGE_MOMENT,
     face_moment_tail,
     octant_moment_frame_signs,
 )
-from .spatial.scheme import UpstreamState
-from .spatial.psi_half_angle_seed import CarlsonSweepContext
-from .spatial.scan import _scanmarch_row, _x_scan_faces, ordinate_scan
-from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
+from ..spatial.scheme import UpstreamState
+from ..spatial.psi_half_angle_seed import CarlsonSweepContext
+from ..spatial.scan import _scanmarch_row, _x_scan_faces, ordinate_scan
+from ..spatial.sweep_cache import CollisionCache, GeometryCoefficients
 from orpheus.transport.mesh.axis import AXIS_NAMES
 from .sweep_graph import (
     OctantLabel,
@@ -190,9 +190,9 @@ if TYPE_CHECKING:
     from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
-    from .geometry import SNMesh
-    from .operator import StreamingOperator
-    from .spatial.scheme import DiscretizationSchemeBase
+    from ..mesh.augmented_mesh import SNMesh
+    from ..operators.streaming import StreamingOperator
+    from ..spatial.scheme import DiscretizationSchemeBase
     from .sweep_schedule import OctantSweep, OctantSweepGroup
 
 
@@ -259,7 +259,7 @@ class LossRepresentation(Protocol):
         applications of the SAME operator): the sweep solves
         :math:`(L+C)^{-1} q`, this APPLIES :math:`(L+C)`.  **Return the FULL loss
         :math:`(L+C)\psi`, NOT :math:`L\psi`** — the operator
-        (:meth:`~orpheus.sn.operator.StreamingOperator.apply`) subtracts the
+        (:meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply`) subtracts the
         collision diagonal :math:`C = \sigma\odot` exactly ONCE (Resolution A
         :math:`L = (L+C) - C`).  A leaf that returned :math:`L\psi` would make the
         operator subtract :math:`C` a SECOND time (a double-counted collision
@@ -284,7 +284,7 @@ class LossRepresentation(Protocol):
         ONE streaming discretization through :meth:`loss_action` at
         :math:`\sigma = 0` (Pattern 2 — the streaming walk lives ONCE in
         ``loss_action``; there is no twin σ-free discretization).
-        :meth:`~orpheus.sn.operator.StreamingOperator.apply` calls this directly
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` calls this directly
         (#257 S8b) so :math:`L` reads no :math:`\sigma`: the collision diagonal
         :math:`C = M[\sigma_t]` is the separate shared multiplier leaf, and the
         composition :math:`L + C` recovers the full loss.
@@ -298,7 +298,7 @@ class LossRepresentation(Protocol):
 
         Return the FULL adjoint loss :math:`(L+C)^{\mathsf T}\phi` (the operator
         subtracts the self-adjoint diagonal :math:`C` in
-        :meth:`~orpheus.sn.operator.StreamingOperator.apply_transpose`).  Raises
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`).  Raises
         :class:`NotImplementedError` for representations whose adjoint is deferred
         (the multi-D Cartesian reverse sweep — O.2b lands the 1-D reverse sweep
         first).  Never a silent wrong answer.  ``sigma`` is the ``(ng, ...)``
@@ -312,7 +312,7 @@ class LossRepresentation(Protocol):
         The transpose sibling of :meth:`streaming_action` (#257 S8b): the σ-free
         :math:`L^{\mathsf T}` leaf, single-sourced through
         :meth:`loss_action_transpose` at :math:`\sigma = 0`.  Used by
-        :meth:`~orpheus.sn.operator.StreamingOperator.apply_transpose`.  Inherits
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`.  Inherits
         the deferral contract (multi-D Cartesian raises, never a silent wrong
         answer).
         """
@@ -408,7 +408,7 @@ class _LossRepresentation:
         bilinear UBLD Linear-Discontinuous closure (#240 D5b — d=2: 2).  Reads
         the multi-moment face-cochain width from the single-source
         :func:`~orpheus.numerics.moment_layout.face_moment_count` (shared with the
-        trace producer :meth:`~orpheus.sn.geometry.SNMesh.boundary_face_layout`)."""
+        trace producer :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout`)."""
         return face_moment_count(self.mesh.scheme.spatial_basis_per_axis, self.mesh.ndim)
 
     def _moment_frame_signs(
@@ -882,7 +882,7 @@ class _OctantWalk:
         ``streamed − given``; INFLOW slots → identity ``given``.
 
         Returns the FULL loss :math:`(L+C)\bar\psi` (NOT :math:`L\bar\psi`);
-        :meth:`~orpheus.sn.operator.StreamingOperator.apply` subtracts
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` subtracts
         :math:`\Sigma_t\,\bar\psi` exactly once (Resolution A).
         """
         from orpheus.transport.full_field import FullField
@@ -1153,7 +1153,7 @@ class MovingFrontierWindow(_DAGWavefront):
         r"""Rolling-frontier interior kernel, SOLVE direction, one octant.
 
         Drives
-        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`
+        :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`
         with the ``_CellSolve`` level operation (the windowed walk of the
         solve cell kernel
         :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.cell_kernel_batch`)
@@ -1215,11 +1215,11 @@ class MovingFrontierWindow(_DAGWavefront):
         apply frame (the ONE octant traversal — octant projection, pure-z
         branch, boundary I/O, the O.4b boundary residual), supplying only the
         rolling-frontier interior kernel :meth:`_loss_action_interior`
-        (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`
+        (:meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`
         × ``_CellResidual`` — the apply-direction walk of the SAME per-octant
         wavefront DAG and the SAME diamond-difference closure the 2-D sweep
         uses; matvec ≡ sweep, ONE discretization, L21).  Returns ``(L+C)ψ̄``;
-        :meth:`~orpheus.sn.operator.StreamingOperator.apply` subtracts
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` subtracts
         ``σ·ψ̄`` (the collision diagonal ``C``) to recover the
         bare-streaming ``Lψ̄``.
         """
@@ -1237,7 +1237,7 @@ class MovingFrontierWindow(_DAGWavefront):
         r"""Rolling-frontier interior kernel, APPLY direction, one octant.
 
         Drives
-        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`
+        :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`
         with the ``_CellResidual`` level operation (the windowed walk of the
         apply cell kernel
         :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`)
@@ -1437,7 +1437,7 @@ class FullFieldWavefront(_DAGWavefront):
     ) -> tuple["np.ndarray", ...]:
         r"""Full-cochain interior kernel, SOLVE direction, one octant.
 
-        Drives :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full`
+        Drives :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full`
         with the ``_CellSolve`` level operation over the octant's
         complete per-axis face cochain — the fuller view the window replaces
         with a rolling frontier (the ``window ≡ full`` bit-identity anchor).
@@ -1485,12 +1485,12 @@ class FullFieldWavefront(_DAGWavefront):
         S6.4(d): routes through the shared :class:`_OctantWalk` apply frame,
         supplying the full-cochain interior kernel
         :meth:`_loss_action_interior`
-        (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full` ×
+        (:meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full` ×
         ``_CellResidual`` — the full-field walk sharing the SAME cell kernel
         as the windowed walk,
         so the MATH cannot drift from
         :meth:`MovingFrontierWindow.loss_action` — only storage).  Returns
-        ``(L+C)ψ̄``; :meth:`~orpheus.sn.operator.StreamingOperator.apply`
+        ``(L+C)ψ̄``; :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply`
         subtracts ``σ·ψ̄``.  Sole purpose: verification (production is the
         window / the 1-D scan).
         """
@@ -1507,7 +1507,7 @@ class FullFieldWavefront(_DAGWavefront):
     ) -> tuple["np.ndarray", tuple["np.ndarray", ...]]:
         r"""Full-cochain interior kernel, APPLY direction, one octant.
 
-        Drives :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full`
+        Drives :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full`
         with the ``_CellResidual`` level operation (the full-field walk of
         the apply cell kernel
         :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.residual_kernel_batch`)
@@ -1760,7 +1760,7 @@ class ScanMarch(_LossRepresentation):
         ``α = −1``, ``β = 2 ψ̄`` (a pure-reflection scan: since ψ̄ is known the WDD
         closure ``out_x = 2ψ̄ − in_x`` IS a first-order recurrence).  The per-cell
         residual is ``(Σ_t + s_x + s_y)·ψ̄ − s_x·in_x − s_y·in_y`` (``= (L+C)ψ̄`` at
-        zero source); :meth:`~orpheus.sn.operator.StreamingOperator.apply`
+        zero source); :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply`
         subtracts ``Σ_t·ψ̄`` → ``Lψ̄``.
 
         Principled-equivalent (NOT bit-identical) to
@@ -2227,7 +2227,7 @@ class _OneDimScanWalk:
         #206 Phase C: ``(L+C)ψ`` via the shared :meth:`_apply_walk` (the
         apply-direction twin of :meth:`sweep` — L21 "matvec ≡ sweep"). Returns
         the FULL ``(L+C)ψ``;
-        :meth:`~orpheus.sn.operator.StreamingOperator.apply` subtracts ``σ·ψ``
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` subtracts ``σ·ψ``
         ONCE to recover ``Lψ`` (Resolution A).  ``sigma`` is the diagonal
         coefficient, passed explicitly (#240 Step B); :meth:`_apply_walk` already
         took a plain ``sigma_t`` array, so the change is signature-only here.
@@ -2298,8 +2298,8 @@ class _OneDimScanWalk:
         handle.
         """
         from orpheus.transport.source_sinks import BoundarySourceSink
-        from .spatial.cell_balance import cell_balance_for_streaming
-        from .spatial.pole_angular_closure import MorelMontryAngularSweep
+        from ..spatial.cell_balance import cell_balance_for_streaming
+        from ..spatial.pole_angular_closure import MorelMontryAngularSweep
 
         sn_mesh = self.mesh
         psi_view = psi.bulk.values
@@ -2626,7 +2626,7 @@ class _OneDimScanWalk:
         recomputed through the SAME ``cell_balance_for_streaming`` /
         ``cell_contribution`` the forward uses (Pattern 2 — no twin algebra).
         Returns ``(L+C)ᵀφ``;
-        :meth:`~orpheus.sn.operator.StreamingOperator.apply_transpose`
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`
         subtracts ``σ_t·φ`` ONCE (Resolution A, ``C`` a self-adjoint diagonal).
         Pinned by the G-adjoint reciprocity gate ``test_g_adjoint_reciprocity``
         (slab / sphere / cylinder, -O-firing) + its L11 wrong-trace-metric
@@ -2634,7 +2634,7 @@ class _OneDimScanWalk:
         """
         from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
-        from .spatial.cell_balance import cell_balance_for_streaming
+        from ..spatial.cell_balance import cell_balance_for_streaming
 
         sn_mesh = self.mesh
         quad = sn_mesh.quad

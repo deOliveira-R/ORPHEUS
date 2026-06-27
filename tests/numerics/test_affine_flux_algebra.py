@@ -28,7 +28,7 @@ import pytest
 
 from orpheus.geometry import BC, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.displacements import Displacement
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux

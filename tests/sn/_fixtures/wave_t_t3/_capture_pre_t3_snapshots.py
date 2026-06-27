@@ -62,7 +62,7 @@ sys.path.insert(0, str(_REPO_ROOT))
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux

@@ -23,7 +23,7 @@ different** linear operators in each transport method:
 The :class:`BoundaryRealizer` Protocol lives in this module; the
 concrete realizers ship in per-method subpackages:
 
-* :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` —
+* :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` —
   functional realizer for SN (dispatches by ``isinstance(law, ...)``
   to the Wave-0 / Wave-1 primitives).
 * :class:`~orpheus.moc.boundary_realizer.MoCBoundaryRealizer`,
@@ -85,7 +85,7 @@ class BoundaryRealizer(Protocol):
     r"""Method-specific realisation of a boundary law.
 
     Implementors live in per-method subpackages
-    (``orpheus.sn.boundary_realizer``, etc.) and self-register via
+    (``orpheus.sn.boundary.realizer``, etc.) and self-register via
     :meth:`BoundaryRealizerRegistry.register` at import time.
 
     The :meth:`realize` method takes a method-agnostic boundary law

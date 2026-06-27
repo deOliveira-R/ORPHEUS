@@ -36,11 +36,11 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import SNSolver
-from orpheus.sn.operator import InvertibleOperator
+from orpheus.sn.operators.streaming import InvertibleOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
-from orpheus.sn.boundary_operator import SNBoundaryOperator
+from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.numerics import iteration as _iteration
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.source_sinks import AngularSourceSink

@@ -359,7 +359,7 @@ class TraceSpace(FunctionSpace):
             ``mu_z`` (when applicable).
         layout : FaceLayout
             The boundary face layout (canonically
-            :attr:`~orpheus.sn.geometry.SNMesh.boundary_face_layout` —
+            :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout` —
             the single source of truth for which faces exist and their
             flat packing). Its ordered faces drive the
             :attr:`omega_dot_n` rows; its ``total_size`` sets the space

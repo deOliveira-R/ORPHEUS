@@ -1,5 +1,5 @@
 r"""Foundation contract pins for the path-forward
-:func:`~orpheus.sn.operator._transport_operator_matvec_unified`.
+:func:`~orpheus.sn.operators.streaming._transport_operator_matvec_unified`.
 
 R-1 Step 4 Step G0 (2026-05-22) — the unified matvec switched to a
 native :class:`AngularFlux` ↔ :class:`AngularFlux` signature.  The
@@ -43,7 +43,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from tests.sn._test_helpers import _LC_matvec
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
@@ -509,7 +509,7 @@ class TestTypeContract:
         via `StreamingOperator.apply`'s TimedFullField type check
         (post-D-I.3d).  Wave T post-T.5 (matvec retirement) routes
         the check through the public operator-algebra surface."""
-        from orpheus.sn.operator import (
+        from orpheus.sn.operators.streaming import (
             StreamingOperator,
         )
         from orpheus.transport.operators.multiplication_operator import MultiplicationOperator

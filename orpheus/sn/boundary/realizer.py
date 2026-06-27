@@ -42,7 +42,7 @@ The realisation map (law concrete → Wave-0 / Wave-1 primitive)
 * :class:`~orpheus.geometry.boundary.periodic.PeriodicBoundary` →
   :class:`~orpheus.numerics.operator.PeriodicWrapOperator`.
 * :class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow(source)` →
-  :class:`~orpheus.sn.angular_operator.IncomingSourceOperator(source)`
+  :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator(source)`
   — apply returns ``source.evaluate(psi_out.shape)``, ignoring the
   outgoing flux. The rank-0 affine BC (Wave 7 / C7.5).
 
@@ -91,14 +91,14 @@ from orpheus.numerics.operator import (
     ScaledOperator,
     ZeroOperator,
 )
-from orpheus.sn.angular_operator import (
+from .angular import (
     AngularAverageOperator,
     IncomingSourceOperator,
 )
 
 if TYPE_CHECKING:
     from orpheus.geometry.boundary import LawNode
-    from orpheus.sn.method_space import SNMethodSpace
+    from orpheus.sn.mesh.method_space import SNMethodSpace
 
 
 __all__ = ["SNBoundaryRealizer", "realize_recursively"]
@@ -274,7 +274,7 @@ class SNBoundaryRealizer:
             f"PrescribedInflow. For rank-N compositions built via "
             f"Wave-0 OperatorSum/ScaledOperator algebra over "
             f"BoundaryTraceLaw leaves, use "
-            f"orpheus.sn.boundary_realizer.realize_recursively.",
+            f"orpheus.sn.boundary.realizer.realize_recursively.",
             law=type(law).__name__,
         )
 
@@ -360,8 +360,8 @@ def realize_recursively(
     Realise a scaled-leaf descriptor::
 
         >>> from orpheus.geometry.boundary import ReflectiveBoundary
-        >>> from orpheus.sn.boundary_realizer import realize_recursively
-        >>> from orpheus.sn.method_space import SNMethodSpace
+        >>> from orpheus.sn.boundary.realizer import realize_recursively
+        >>> from orpheus.sn.mesh.method_space import SNMethodSpace
         >>> from orpheus.numerics.quadrature import Quadrature
         >>> ms = SNMethodSpace.minimal(Quadrature.gauss_legendre(4))
         >>> law = 0.5 * ReflectiveBoundary(axis="x")

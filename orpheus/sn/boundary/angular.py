@@ -4,7 +4,7 @@ Hosts angular primitives that are SN-specific (i.e. depend on the
 :class:`~orpheus.numerics.quadrature.Quadrature` direction-cosine /
 weight arrays) but are independent of any single boundary condition.
 They are consumed by the Wave-5
-:class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` to realize
+:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` to realize
 :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` instances as
 single-arg :class:`~orpheus.numerics.operator.LinearOperator` objects.
 
@@ -280,7 +280,7 @@ class IncomingSourceOperator(LinearOperator):
         The source is asked to fill an array of the incoming-face
         shape. Sources that need richer trace metadata (face-tagged
         inflow injection, per-ordinate masks) require Wave 8's full
-        :class:`~orpheus.sn.method_space.SNMethodSpace` wiring; the
+        :class:`~orpheus.sn.mesh.method_space.SNMethodSpace` wiring; the
         Wave-7 ship-state covers the
         :class:`~orpheus.geometry.boundary._source.NoSource` /
         :class:`~orpheus.geometry.boundary._source.ConstantInflowSource`

@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.sn.operator import StreamingOperator
+from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from tests.sn._test_helpers import cart2d_2g_nonsquare, het_operands
 

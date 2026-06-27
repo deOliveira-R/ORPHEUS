@@ -161,7 +161,7 @@ Key Facts
   **only** in the iteration driver. The reflective coupling rides the **bare** 2-D
   sweep via the sibling :math:`-B` on the natively four-face
   (``xmin`` / ``xmax`` / ``ymin`` / ``ymax``)
-  :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` — the same
+  :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` — the same
   operator the 2-D Krylov path uses. The legacy "B1'' face block"
   (never a code symbol; a 1-D boundary-closure *name*) is retired. See
   :ref:`bc-extraction-2d-si-krylov-twin`.
@@ -242,7 +242,7 @@ Key Facts
   methods (``solve``, ``apply_transpose``) are functional.
 
 - **SN array-storage convention** for every operator leaf
-  (:class:`~orpheus.sn.operator.StreamingOperator`, the collision
+  (:class:`~orpheus.sn.operators.streaming.StreamingOperator`, the collision
   multiplier :math:`C = M[\sigma_t]`
   (:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
   :class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
@@ -437,7 +437,7 @@ dispatch-parity check on the aliased public ``apply``).
 Pure-L streaming + the affine collision split
 ==============================================
 
-The streaming leaf :math:`L` (:class:`~orpheus.sn.operator.StreamingOperator`)
+The streaming leaf :math:`L` (:class:`~orpheus.sn.operators.streaming.StreamingOperator`)
 computes **pure** :math:`\sigma`-free streaming directly: its ``apply``
 is the named :math:`\sigma`-free
 :meth:`~orpheus.sn.loss_representation.LossRepresentation.streaming_action`
@@ -607,7 +607,7 @@ well inside the dimensionally-explainable single-step bound (per
 The carve is therefore **principled-equivalent, not bit-identical**, on
 the *streaming-leaf* matvec — and **byte-identical** on the
 :math:`(L+C)` composite matvec and the WDD sweep, which were not touched
-(:meth:`~orpheus.sn.operator.InvertibleOperator.apply` still computes
+(:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` still computes
 :math:`M(\sigma_t)\psi` through the same ``loss_action`` call). The
 software invariant "pure :math:`L` reads no :math:`\sigma`" is pinned by
 the foundation catcher
@@ -636,7 +636,7 @@ of :ref:`Definitions <operator-algebra>`: forward application
 (:eq:`operator-apply`) is *linear in the operator*, but inversion
 (:eq:`operator-solve`) is *not*. This is why ``apply`` and ``solve`` are
 **two faithful views of the same operator only for the bundled**
-:class:`~orpheus.sn.operator.InvertibleOperator` (:math:`= L+C`), and
+:class:`~orpheus.sn.operators.streaming.InvertibleOperator` (:math:`= L+C`), and
 **never** for the individual streaming / collision leaves. It is the
 mathematical content behind the :ref:`capability-set design
 <capability-set-semantics>`: ``apply`` lives on the leaves; ``solve``
@@ -719,7 +719,7 @@ honest way to express the coupled inverse through the parts (below).
 .. note::
 
    ``L.solve`` is **not a live call** in ORPHEUS. The streaming leaf
-   :class:`~orpheus.sn.operator.StreamingOperator` advertises only
+   :class:`~orpheus.sn.operators.streaming.StreamingOperator` advertises only
    ``frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})`` — **no**
    ``CAP_SOLVE`` — precisely because pure streaming is rank-deficient
    (without a collision term the within-group cell balance is singular;
@@ -867,13 +867,13 @@ Why this is the right architecture, not a limitation
 
 Invertibility is a property of the **sum**, not of the parts. That is
 exactly why :math:`L + C` is packaged as one
-:class:`~orpheus.sn.operator.InvertibleOperator`: the
+:class:`~orpheus.sn.operators.streaming.InvertibleOperator`: the
 :class:`~orpheus.numerics.operator.OperatorSum` that *carries* the
 WDD sweep as its ``.solve``. The asymmetry maps cleanly onto the two
 sides of the algebra:
 
 - **apply lives on the faithful separate leaves.** Pure streaming
-  :math:`L` (:class:`~orpheus.sn.operator.StreamingOperator`, the
+  :math:`L` (:class:`~orpheus.sn.operators.streaming.StreamingOperator`, the
   :math:`\sigma`-free :eq:`streaming-action-pure-l` leaf) and collision
   :math:`C = M[\sigma_t]`
   (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
@@ -883,13 +883,13 @@ sides of the algebra:
   :math:`\sigma` (the previous subsection), so the leaf decomposition is
   *faithful*: :math:`(L+C)\psi = L\psi + C\psi` holds exactly.
 - **solve belongs to the bundled unit.** Only
-  :class:`~orpheus.sn.operator.InvertibleOperator` advertises
+  :class:`~orpheus.sn.operators.streaming.InvertibleOperator` advertises
   ``CAP_SOLVE``; the leaves do not (streaming has no ``solve`` at all;
   collision's ``solve`` is the *local* :math:`q/\sigma`, which is the
   :math:`C^{-1}` of a *different* problem, never the coupled inverse).
   The :class:`~orpheus.numerics.operator.OperatorSum` deliberately
   **does not propagate** ``solve`` (:ref:`composition-algebra`); the
-  :class:`~orpheus.sn.operator.InvertibleOperator` *adds it back* via the
+  :class:`~orpheus.sn.operators.streaming.InvertibleOperator` *adds it back* via the
   SN-specific algebraic identity "WDD sweep :math:`\approx (L+C)^{-1}`"
   ([LewisMiller1984]_ §3.2). The composite owns ``apply``, ``solve``, and
   ``apply_transpose`` as three actions of **one** operator on a single
@@ -902,8 +902,8 @@ sides of the algebra:
 The :ref:`capability-set design <capability-set-semantics>` is what makes
 this architecture *enforced* rather than merely *intended*: a downstream
 Krylov consumer that asks for ``solve`` on a bare
-:class:`~orpheus.sn.operator.StreamingOperator`, or on a sum that has not
-been promoted to :class:`~orpheus.sn.operator.InvertibleOperator`, is
+:class:`~orpheus.sn.operators.streaming.StreamingOperator`, or on a sum that has not
+been promoted to :class:`~orpheus.sn.operators.streaming.InvertibleOperator`, is
 vetoed at composition time with
 :class:`~orpheus.numerics.operator.MissingCapability` — never silently
 handed :math:`L^{-1} + C^{-1}` (a meaningless answer to a problem nobody
@@ -1020,8 +1020,8 @@ refactor (Issue 14). The Phase 0 module ships the algebra; subsequent
 phases mount the producers and the consumer onto it.
 
 Today the existing
-:func:`build_transport_linear_operator <orpheus.sn.operator.build_transport_linear_operator>`
-functions in :mod:`orpheus.sn.operator` continue to wrap their matvec
+:func:`build_transport_linear_operator <orpheus.sn.operators.streaming.build_transport_linear_operator>`
+functions in :mod:`orpheus.sn.operators.streaming` continue to wrap their matvec
 in :class:`scipy.sparse.linalg.LinearOperator` directly, untouched by
 this module. The ORPHEUS↔scipy boundary for the Krylov accelerator is
 now internal to :class:`~orpheus.numerics.iteration.KrylovAcceleration`
@@ -1231,8 +1231,8 @@ the optional :attr:`~orpheus.transport.operators.multiplication_operator.Multipl
 :meth:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator.from_mesh`
 constructor, the subclass added nothing the base lacked. The ``L + C``
 dispatch that assembles the bundled
-:class:`~orpheus.sn.operator.InvertibleOperator` lives **one-directionally**
-on :meth:`~orpheus.sn.operator.StreamingOperator.__add__` (keyed on the
+:class:`~orpheus.sn.operators.streaming.InvertibleOperator` lives **one-directionally**
+on :meth:`~orpheus.sn.operators.streaming.StreamingOperator.__add__` (keyed on the
 ``MultiplicationOperator`` base type): ``L + C`` is the canonical (and
 only) ordering, because the ``numerics ↛ transport ↛ sn`` layer order
 forbids a transport-level multiplier from dispatching back onto an ``sn``
@@ -1322,7 +1322,7 @@ revokes ``solve``, never blocks the object); ``apply`` is unaffected.
    ``rebind_sigma_t``) source :math:`\sigma_t > 0` (total cross sections
    are bounded away from zero), and the removal cross section
    :math:`\sigma_r` ``solve`` appears only in a docstring, with no live
-   caller. The bundled :class:`~orpheus.sn.operator.InvertibleOperator`
+   caller. The bundled :class:`~orpheus.sn.operators.streaming.InvertibleOperator`
    has its own stricter construction-time ``min σ > 0`` guard, consistent
    with the new gate.
 
@@ -3079,7 +3079,7 @@ return the same tower).  Clause 1 fails: no non-canonical dual coexists.  So
 the spatial moment rides as a property — a ``spatial_moments`` axis composed
 onto BOTH angular field types (``_compose_spatial_moments`` in the bulk; the
 flat face-buffer moment tail minted by
-:attr:`~orpheus.sn.geometry.SNMesh.boundary_face_layout` on the boundary) —
+:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout` on the boundary) —
 rather than as its own field type.  A ``BoundaryMomentField`` leaf whose
 partner-check added nothing beyond class identity would be the vacuous naming
 leaf the criterion warns against; the transverse boundary moment is therefore a
@@ -3141,7 +3141,7 @@ same algebra dunders.
    **pure descriptor** carrying no :meth:`apply` method (the
    :class:`LinearOperator` inheritance was dropped). The
    table below lists the **realised** output produced by
-   :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` — that
+   :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` — that
    output IS a Wave-0 :class:`LinearOperator`. The law-to-operator
    transition is the §16A.3 three-layer architecture's realiser
    bridge, enforced statically by the type system rather than by
@@ -3150,7 +3150,7 @@ same algebra dunders.
 
 Three new primitives in :mod:`orpheus.numerics.operator`
 (Wave 0 of the BC refactor) plus one SN-specific primitive in
-:mod:`orpheus.sn.angular_operator` (Wave 1) form the realisation
+:mod:`orpheus.sn.boundary.angular` (Wave 1) form the realisation
 target set:
 
 .. list-table:: BC realization primitives — the §15.2 G_α geometric operators
@@ -3177,13 +3177,13 @@ target set:
        :class:`~orpheus.geometry.boundary.PeriodicBoundary`).
        Reserved for future spatial-pushforward extension.
      - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
-   * - :class:`~orpheus.sn.angular_operator.AngularAverageOperator`
+   * - :class:`~orpheus.sn.boundary.angular.AngularAverageOperator`
      - Cosine-weighted Lambertian average over an outgoing
        hemisphere: scalar-broadcasts to all inflow ordinates.
        SN-specific (depends on
        :class:`~orpheus.numerics.quadrature.Quadrature`).
      - :class:`~orpheus.geometry.boundary.WhiteBoundary`
-   * - :class:`~orpheus.sn.angular_operator.IncomingSourceOperator`
+   * - :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`
      - Ignores the outgoing flux; returns the prescribed source
        value via :meth:`InflowSourceSpec.evaluate`.
      - :class:`~orpheus.geometry.boundary.PrescribedInflow`
@@ -3248,9 +3248,9 @@ tree. Two distinct algebras are layered:
      - Realiser code at face-resolution time
 
 The user writes ``0.3 * spec + 0.7 * white`` — a descriptor tree.
-:func:`~orpheus.sn.boundary_realizer.realize_recursively` walks the
+:func:`~orpheus.sn.boundary.realizer.realize_recursively` walks the
 tree, realises each leaf via
-:class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`, and
+:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`, and
 re-assembles the result through the matching Wave-0 composers
 (:class:`OperatorSum` ↔ :class:`LawSum`,
 :class:`ScaledOperator` ↔ :class:`LawScaled`). The output is the
@@ -4133,7 +4133,7 @@ Wave T's verification chain combines three independent grounds:
      verifying the WDD sweep procedural inverse was NOT touched
      (the :class:`InvertibleOperator.solve` body runs the procedural
      algorithm on the operator's own
-     :attr:`~orpheus.sn.operator.InvertibleOperator.loss_representation`
+     :attr:`~orpheus.sn.operators.streaming.InvertibleOperator.loss_representation`
      since S6.5 — at Wave T it was the free function ``transport_sweep``).
 
 5. **Performance regression gate**. The 1-D slab Krylov benchmark
@@ -4217,7 +4217,7 @@ Cross-references
     :class:`orpheus.numerics.operator.RankOneOperator`,
     :class:`orpheus.numerics.operator.IdentityOperator`,
     :class:`orpheus.numerics.operator.ZeroOperator`.
-  - :class:`orpheus.sn.boundary_realizer.SNBoundaryRealizer` —
+  - :class:`orpheus.sn.boundary.realizer.SNBoundaryRealizer` —
     the BC realizer dispatching the T.1 lifts.
   - :class:`orpheus.transport.operators.fission.FissionOperator` and its
     :attr:`~orpheus.transport.operators.fission.FissionOperator.kernel` property.
@@ -4226,9 +4226,9 @@ Cross-references
     :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.kernel_summands`
     properties; the bespoke
     :class:`orpheus.transport.operators.scattering._PerLegendreOrderScattering` leaf.
-  - :class:`orpheus.sn.operator.StreamingOperator` and its
-    :meth:`~orpheus.sn.operator.StreamingOperator.apply` /
-    :meth:`~orpheus.sn.operator.StreamingOperator.apply_transpose`
+  - :class:`orpheus.sn.operators.streaming.StreamingOperator` and its
+    :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` /
+    :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`
     public matvec surface. (#238 retired the per-direction
     ``M_spatial`` / ``M_angular_redist`` typed-leaf split — the
     ``_SpatialSweepDirection`` / ``_MSpatialOperatorSum`` /
@@ -4295,7 +4295,7 @@ single source of truth — see :ref:`trace-spaces-doc`).
 
 This is the realisation, for the boundary block, of the Wave T
 prediction (:ref:`wave-t-tensor-network`): "Wave O typing must accept
-non-SOTP summands." :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`
+non-SOTP summands." :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`
 is the :math:`A_{ss}` leaf — a bespoke
 :class:`~orpheus.numerics.operator.LinearOperator` carrying
 :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY`, NOT a
@@ -4338,8 +4338,8 @@ off the block structure directly:
      - Reads / writes
      - Block content
    * - :math:`L_{\rm full}`
-       (:class:`~orpheus.sn.operator.StreamingOperator`,
-       via :class:`~orpheus.sn.operator.InvertibleOperator` ``L+C``)
+       (:class:`~orpheus.sn.operators.streaming.StreamingOperator`,
+       via :class:`~orpheus.sn.operators.streaming.InvertibleOperator` ``L+C``)
      - ``FULL``
      - Reads :math:`\psi.\text{bulk}` **and** the *given*
        :math:`\psi.\text{inflow}` trace; writes :math:`\psi.\text{bulk}`
@@ -4359,7 +4359,7 @@ off the block structure directly:
      - Bulk → bulk only.
      - :math:`A_{bb}` only; the boundary block is zero.
    * - :math:`B`
-       (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`)
+       (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`)
      - ``BOUNDARY``
      - Maps :math:`V_{\rm outflow} \to V_{\rm inflow}` via the
        realized per-face law :math:`\psi.\text{inflow} =
@@ -4461,7 +4461,7 @@ definition with no source).
 **2.** :math:`B` **must project to the inflow row.**
 The realized per-face law is a **full-face operator**: a specular
 :class:`~orpheus.numerics.operator.PermutationOperator` for reflective,
-an :class:`~orpheus.sn.angular_operator.AngularAverageOperator` for
+an :class:`~orpheus.sn.boundary.angular.AngularAverageOperator` for
 white. Its permutation maps the input's *inflow* slots onto the
 *output's outflow* slots (a spurious :math:`R\cdot\psi.\text{inflow}`),
 because the permutation is defined on the whole face, not just the
@@ -4472,7 +4472,7 @@ But as a sibling :math:`-B` on the direct-sum state, a non-zero
 outflow emission would corrupt the outflow-definition residual
 :math:`r_{\rm outflow}` (which must carry **no** :math:`B` term). The
 fix:
-:meth:`SNBoundaryOperator._apply_faces <orpheus.sn.boundary_operator.SNBoundaryOperator>`
+:meth:`SNBoundaryOperator._apply_faces <orpheus.sn.operators.boundary.SNBoundaryOperator>`
 **projects** the emission onto the codomain row — ``apply`` writes the
 ``inflow_indices_for_face`` slots; ``apply_transpose`` writes the
 ``outflow_indices_for_face`` slots. *Empirically confirmed before the
@@ -4483,7 +4483,7 @@ fix*: the outflow slots carried nonzero :math:`R\cdot\psi.\text{inflow}`.
 Under the extraction the WDD sweep ``(L+C).solve`` is **bare** (see
 :ref:`bare-sweep-extraction` in :doc:`discrete_ordinates`): it reads
 the seeded inflow trace directly instead of re-applying ``bc``.
-:meth:`InvertibleOperator._solve_timed_full_field <orpheus.sn.operator.InvertibleOperator._solve_timed_full_field>`
+:meth:`InvertibleOperator._solve_timed_full_field <orpheus.sn.operators.streaming.InvertibleOperator._solve_timed_full_field>`
 must therefore seed the sweep's boundary buffer from
 :math:`\text{rhs.boundary}` — the *boundary source*
 :math:`q.\text{boundary} + B\,\psi.\text{outflow}` — **not** from the
@@ -4542,12 +4542,12 @@ loss decomposition is the honest
 assembled once by the single-source-of-truth helper
 :func:`_within_group_triple <orpheus.sn.solver._within_group_triple>`,
 which returns ``(L+C, S, B)`` — the invertible resolvent
-(:class:`~orpheus.sn.operator.InvertibleOperator`, ``.solve`` = the WDD
+(:class:`~orpheus.sn.operators.streaming.InvertibleOperator`, ``.solve`` = the WDD
 sweep), the bulk scattering gain
 (:class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
 :attr:`block_role <orpheus.numerics.operator.BlockRole>` ``BULK``), and
 the boundary reflection gain
-(:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`,
+(:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`,
 ``block_role`` ``BOUNDARY``). The :math:`B\,\psi.\text{outflow}` term
 lands on :math:`\text{rhs.boundary}`, which the bare ``(L+C).solve``
 sweep reads as the inflow seed (:ref:`bare-sweep-extraction` in
@@ -4578,7 +4578,7 @@ addition rather than a new named slot. Existing positional
 Two structural reasons forbid the old fold:
 
 #. **The adjoint metric lives on the trace.** :math:`B` lives on the
-   boundary trace (:attr:`domain <orpheus.sn.boundary_operator.SNBoundaryOperator.domain>`
+   boundary trace (:attr:`domain <orpheus.sn.operators.boundary.SNBoundaryOperator.domain>`
    ``= sn_mesh.trace``), and the cosine-weighted
    :math:`|\Omega\cdot\hat n|\,w` adjoint metric (Wave O step O.2 — the
    codomain inner product of :math:`L`'s boundary-trace block) lives on
@@ -4632,7 +4632,7 @@ The two :math:`-B` delivery routes
 
 The same :math:`-B` coupling reaches the sweep two ways, both calling
 the **identical**
-:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` (single
+:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` (single
 source of truth, Cardinal Rule 2):
 
 .. list-table:: The two delivery routes for :math:`-B`
@@ -4676,7 +4676,7 @@ The direct helper is **not** a fold of :math:`B` into :math:`S`: it is
 the trace-only :math:`A_{ss}` action of the *same* :math:`B`, expressed
 on the boundary trace alone. Both routes therefore deliver the
 identical :math:`-B` coupling, and cannot drift, because both descend
-from :meth:`SNBoundaryOperator._reflect_trace <orpheus.sn.boundary_operator.SNBoundaryOperator>`
+from :meth:`SNBoundaryOperator._reflect_trace <orpheus.sn.operators.boundary.SNBoundaryOperator>`
 (:ref:`bc-extraction-reflect-trace`).
 
 
@@ -4690,25 +4690,25 @@ V_{\rm inflow}`: it maps the *outflow* trace to the *inflow* trace.
 Both delivery routes ultimately need the same per-face action — apply
 each face's realized law (the specular
 :class:`~orpheus.numerics.operator.PermutationOperator` for reflective,
-:class:`~orpheus.sn.angular_operator.AngularAverageOperator` for
+:class:`~orpheus.sn.boundary.angular.AngularAverageOperator` for
 white, zero for vacuum) and project onto the inflow row. To guarantee
 they cannot drift, that action is the single
-:meth:`SNBoundaryOperator._reflect_trace <orpheus.sn.boundary_operator.SNBoundaryOperator>`
+:meth:`SNBoundaryOperator._reflect_trace <orpheus.sn.operators.boundary.SNBoundaryOperator>`
 core, and both the full-field forward action
-:meth:`B.apply <orpheus.sn.boundary_operator.SNBoundaryOperator.apply>`
+:meth:`B.apply <orpheus.sn.operators.boundary.SNBoundaryOperator.apply>`
 and the new trace-only leaf
-:meth:`B.reflect_into_inflow <orpheus.sn.boundary_operator.SNBoundaryOperator.reflect_into_inflow>`
+:meth:`B.reflect_into_inflow <orpheus.sn.operators.boundary.SNBoundaryOperator.reflect_into_inflow>`
 route through it (Wave O step O.2a, commit ``8563f4b``).
 
 The leaf exists because the direct helper does not need a full field.
 :meth:`B.apply` operates on a :class:`~orpheus.transport.full_field.FullField`
 (zero bulk, trace populated) — the timeless, history-blind operator carrier
-(:meth:`SNBoundaryOperator.apply <orpheus.sn.boundary_operator.SNBoundaryOperator.apply>`
+(:meth:`SNBoundaryOperator.apply <orpheus.sn.operators.boundary.SNBoundaryOperator.apply>`
 is the base arrow ``FullField -> FullField``; the comonad lives on the
 driver), the bulk only a carrier to reach the :math:`A_{ss}` boundary block. The pre-extraction direct helper
 fabricated a throwaway zero-bulk field purely to call ``B.apply`` and
 then discarded the (zero) bulk output.
-:meth:`reflect_into_inflow <orpheus.sn.boundary_operator.SNBoundaryOperator.reflect_into_inflow>`
+:meth:`reflect_into_inflow <orpheus.sn.operators.boundary.SNBoundaryOperator.reflect_into_inflow>`
 takes a bare :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
 trace and returns the boundary-only
 :class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`
@@ -4723,7 +4723,7 @@ sibling :math:`-B` reading the *whole* boundary block, a non-zero
 outflow emission would corrupt the outflow-definition residual
 :math:`r_{\rm outflow}` (which must carry **no** :math:`B` term —
 :ref:`bc-extraction-design-corrections`). So
-:meth:`_reflect_trace <orpheus.sn.boundary_operator.SNBoundaryOperator>`
+:meth:`_reflect_trace <orpheus.sn.operators.boundary.SNBoundaryOperator>`
 projects the forward action onto ``inflow_indices_for_face`` and the
 Euclidean transpose onto ``outflow_indices_for_face``.
 
@@ -4736,12 +4736,12 @@ Scope — both 1-D and 2-D are now bare (O.4b complete)
 O.4a.2 made the **1-D** sweep bare (slab / sphere / cylinder). Step
 **O.4b** then made the **2-D Cartesian wavefront sweep bare as well**
 (both :func:`~orpheus.sn.loss_representation._sweep_jacobi` and the 2-D matvec
-:meth:`StreamingOperator._apply_2d_cartesian <orpheus.sn.operator.StreamingOperator>`):
+:meth:`StreamingOperator._apply_2d_cartesian <orpheus.sn.operators.streaming.StreamingOperator>`):
 the intra-sweep ``bc.apply`` is **gone** for every geometry. The
 octant-incoming face edge is seeded from the *given* inflow trace and
 the reflective coupling :math:`\psi.\text{inflow} = B\,\psi.\text{outflow}`
 is delivered by the sibling :math:`-B`
-(:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`) for the
+(:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`) for the
 2-D trace exactly as for the 1-D trace. The 2-D matvec emits the
 boundary block as an active-trace residual (outflow slots carry the
 self-consistency defect ``streamed − ψ.outflow``; inflow slots carry
@@ -4834,7 +4834,7 @@ bulk + :meth:`BoundarySourceSink.zeros_on <orpheus.transport.fields._bases.Bound
 boundary inside a
 :class:`~orpheus.transport.timed_full_field.TimedFullField`), the same
 loss decomposition (the resolvent :math:`L + C` from
-:class:`~orpheus.sn.operator.StreamingOperator` + the collision
+:class:`~orpheus.sn.operators.streaming.StreamingOperator` + the collision
 multiplier :math:`C = M[\sigma_t]`
 (:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
 plus the scattering
@@ -4847,7 +4847,7 @@ angular reduction. Neither driver carries any geometry dependence.
 The reflective coupling reaches both drivers on the **bare** 2-D
 wavefront sweep through the sibling :math:`-B` (the **variadic-gain**
 route of :ref:`bc-extraction-two-routes`), never through an in-sweep
-``bc.apply``. The :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`
+``bc.apply``. The :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`
 is natively **four-face** (``xmin`` / ``xmax`` / ``ymin`` / ``ymax``)
 and is the *same* operator the 2-D Krylov path uses — there is no
 separate per-geometry boundary closure.
@@ -4862,7 +4862,7 @@ separate per-geometry boundary closure.
    1-D boundary-closure *name* in docstrings and comments, fully
    superseded by the L2
    :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux` +
-   :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`
+   :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`
    bare-boundary architecture (O.4a.2 / O.4b above), which realises the
    boundary handling for *all* geometries. The 2-D path never required
    a separate 1-D-only block. Because
@@ -5094,7 +5094,7 @@ matvec output boundary as :class:`BoundaryResidual`. That choice was
 
 2. **It creates a "two-hat" tension that the class gate cannot
    satisfy.** The realized boundary law
-   :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` (:math:`B`)
+   :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` (:math:`B`)
    emits :math:`B\,\psi.\text{outflow}`, and that **same** emission is
    consumed two ways:
 
@@ -5182,7 +5182,7 @@ sites are therefore correctly **kept** :class:`BoundaryFlux`:
 :meth:`MultiplicationOperator.solve <orpheus.transport.operators.multiplication_operator.MultiplicationOperator.solve>`
 (the collision multiplier :math:`C = M[\sigma_t]`),
 the boundary buffer of
-:meth:`InvertibleOperator._solve_timed_full_field <orpheus.sn.operator.InvertibleOperator._solve_timed_full_field>`,
+:meth:`InvertibleOperator._solve_timed_full_field <orpheus.sn.operators.streaming.InvertibleOperator._solve_timed_full_field>`,
 the cold-start ``initial_guess`` iterates
 (``TimedFullField.zeros(..., boundary=BoundaryFlux, ...)``), the
 converged traces, and the sweep's persistent boundary buffer.
@@ -5207,8 +5207,8 @@ Thirteen sites (operator outputs + ``q_ext`` sources) flipped from
        ``_compute_LpC`` / ``_compute_decomposition`` /
        ``_SpatialSweepDirection`` sites into this single walk
      - :math:`L+C` boundary block
-   * - :mod:`orpheus.sn.operator`
-     - :meth:`StreamingOperator._apply_2d_cartesian <orpheus.sn.operator.StreamingOperator>`
+   * - :mod:`orpheus.sn.operators.streaming`
+     - :meth:`StreamingOperator._apply_2d_cartesian <orpheus.sn.operators.streaming.StreamingOperator>`
      - 2-D boundary block
    * - :mod:`orpheus.transport.operators.multiplication_operator`
      - :meth:`MultiplicationOperator.apply <orpheus.transport.operators.multiplication_operator.MultiplicationOperator.apply>`
@@ -5220,8 +5220,8 @@ Thirteen sites (operator outputs + ``q_ext`` sources) flipped from
    * - :mod:`orpheus.transport.operators.fission`
      - :meth:`FissionOperator.apply <orpheus.transport.operators.fission.FissionOperator>`
      - boundary zero
-   * - :mod:`orpheus.sn.boundary_operator`
-     - :meth:`SNBoundaryOperator._apply_faces <orpheus.sn.boundary_operator.SNBoundaryOperator>`
+   * - :mod:`orpheus.sn.operators.boundary`
+     - :meth:`SNBoundaryOperator._apply_faces <orpheus.sn.operators.boundary.SNBoundaryOperator>`
        (``apply`` **and** ``apply_transpose``)
      - :math:`B\,\psi.\text{outflow}` on the inflow slots
    * - :mod:`orpheus.sn.solver`
@@ -6014,7 +6014,7 @@ discretizes :math:`\mathrm dV` and the **angular quadrature weight**
 :math:`w_n` discretizes :math:`\mathrm d\Omega`. The product
 :math:`V_i\,w_n` is therefore the diagonal phase-space measure
 :math:`\mathrm dV\,\mathrm d\Omega`. In code
-(:meth:`SNMesh.full_field_space <orpheus.sn.geometry.SNMesh.full_field_space>`)
+(:meth:`SNMesh.full_field_space <orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space>`)
 it is built as
 
 .. code-block:: python
@@ -6117,7 +6117,7 @@ composite domain; P4.5 W-D gave the previously ``None``-spaced
 :math:`C`/:math:`S`/:math:`F` real spaces and de-SN-ified the name from
 ``"sn_full_field"``).
 The mesh exposes it as the cached property
-:meth:`SNMesh.full_field_space <orpheus.sn.geometry.SNMesh.full_field_space>`.
+:meth:`SNMesh.full_field_space <orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space>`.
 
 **The wrapper is unchanged.** The whole apparatus plugs into the
 **pre-existing** :class:`~orpheus.numerics.operator._AdjointOperator`,
@@ -6150,12 +6150,12 @@ The G-adjoint applies the metric once at the op level — the capability lattice
 The subtle architectural point of R5 is **where** the metric lives in
 the adjoint, and it survives the P4.5 W-D change to the bulk leaves'
 domains. Since W-D, all five operators — :math:`L`
-(:class:`~orpheus.sn.operator.StreamingOperator`), the collision
+(:class:`~orpheus.sn.operators.streaming.StreamingOperator`), the collision
 multiplier :math:`C = M[\sigma_t]`
 (:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator` (``S``),
 :class:`~orpheus.transport.operators.fission.FissionOperator` (``F``), and
-:math:`B` (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`) —
+:math:`B` (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`) —
 carry the **same** composite ``full_field_space`` (threaded through
 ``from_solver_data`` / ``sn_mesh.full_field_space``), so the
 within-group :class:`~orpheus.numerics.operator.OperatorSum` guard
@@ -6453,7 +6453,7 @@ The interior face-flux cochain — :math:`C^1_{\rm int}`
    truer to a different facet of what the type held:
 
    * **The values AT the moving wavefront** —
-     ``orpheus.sn.sweep_graph._MovingFrontier``, the rolling
+     ``orpheus.sn.loss_representation.sweep_graph._MovingFrontier``, the rolling
      :math:`(d{-}1)`-frontier (per-level ``seed`` /
      ``shed``). Arguably the *truer* realization: the retired type
      held the wavefront's complete **history**; the frontier holds the
@@ -7479,7 +7479,7 @@ field is **never materialized** in the windowed iterate. The
 ``base.solve`` → flat-``apply`` post-projection **leaves production**;
 :meth:`_MomentWindowedResolvent.solve <orpheus.sn.solver._MomentWindowedResolvent.solve>`
 collapses to forwarding
-:meth:`~orpheus.sn.operator.InvertibleOperator.solve_moments`.
+:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_moments`.
 
 .. admonition:: Key Facts (in-sweep moment accumulation)
    :class: tip
@@ -7545,9 +7545,9 @@ which is :eq:`angular-windowing-moment-projection` again, evaluated once.
 Stage (1)'s full-angular array is the transient that dominates the peak.
 
 Phase 5c fuses the two stages. The :class:`_MovingFrontier
-<orpheus.sn.sweep_graph._MovingFrontier>` walk
+<orpheus.sn.loss_representation.sweep_graph._MovingFrontier>` walk
 (:meth:`SweepDependencyGraph.walk_windowed
-<orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed>` — at 5c the
+<orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed>` — at 5c the
 solve-direction ``apply_windowed``, collapsed into the level-op walk at
 S6.4(e)) already
 visited every cell exactly once, anti-diagonal by anti-diagonal, with the
@@ -7702,7 +7702,7 @@ The pre-5c "full-angular ``base.solve`` then flat
 that fuller view: it is *not* deleted, and the permanent gate
 ``test_2d_windowed_moments_in_sweep_equal_post_projection``
 asserts the in-sweep :meth:`solve_moments
-<orpheus.sn.operator.InvertibleOperator.solve_moments>` result equals
+<orpheus.sn.operators.streaming.InvertibleOperator.solve_moments>` result equals
 ``base.solve`` + ``frame.analysis.apply`` of the same swept
 :math:`\psi`, within the de-risk bound, over the **full moment tensor —
 including the** :math:`\ell\ge 1` **block**.
@@ -7851,7 +7851,7 @@ resolvent surface the two modes are **named methods**, ``solve`` vs
 
 * the solve-direction windowed walk (at 5c ``apply_windowed``; since
   S6.4(e) :meth:`SweepDependencyGraph.walk_windowed
-  <orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed>` × the
+  <orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed>` × the
   ``_CellSolve`` level operation) — the single two-way branch at the
   per-level output site (angular write vs the
   :eq:`harmonic-moment-projection` ``moment_buf`` ``+=``). The
@@ -7867,12 +7867,12 @@ resolvent surface the two modes are **named methods**, ``solve`` vs
   raises on a 1-D mesh). Moment mode skips the per-octant angular
   allocation and ``_sweep_2d_scheduled`` returns ``(moment_buf, None)``.
 * :meth:`InvertibleOperator.solve_moments
-  <orpheus.sn.operator.InvertibleOperator.solve_moments>` and
+  <orpheus.sn.operators.streaming.InvertibleOperator.solve_moments>` and
   :meth:`_GaussSeidelResolvent.solve_moments
   <orpheus.sn.solver._GaussSeidelResolvent.solve_moments>` — the named
   moment-emitting siblings of ``solve``, sharing a parameterized body
   (the type guards single-sourced into :meth:`_solve_timed_full_field
-  <orpheus.sn.operator.InvertibleOperator._solve_timed_full_field>` /
+  <orpheus.sn.operators.streaming.InvertibleOperator._solve_timed_full_field>` /
   ``_solve_scheduled``). ONE representation-sweep call per body for both
   output modes (since S6.5 the operator's own
   ``loss_representation.sweep`` — the same instance the matvec

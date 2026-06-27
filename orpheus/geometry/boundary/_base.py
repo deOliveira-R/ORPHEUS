@@ -19,7 +19,7 @@ It is **NOT** a callable operator — there is no ``apply`` method
 and no :class:`~orpheus.numerics.operator.LinearOperator`
 inheritance. The realizer is the **sole** bridge from descriptor to
 operator (see
-:class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`).
+:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer.realize`).
 
 This is the post-Issue-#186 (Scope B3 + β2) architecture: the §16A.3
 three-layer split (descriptor / realizer / operator) is enforced by
@@ -98,7 +98,7 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
     Descriptors are **not** callable. The §16A.3 three-layer
     architecture demands that operatorhood live in a separate layer
     (realized via
-    :meth:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`),
+    :meth:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer.realize`),
     and Issue #186 cleanup (B3 + β2) makes this a type-level
     constraint: there is no abstract ``apply`` method to satisfy,
     nor :class:`LinearOperator` inheritance to inherit one
@@ -110,8 +110,8 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
     .. code-block:: python
 
         from orpheus.geometry.boundary import ReflectiveBoundary
-        from orpheus.sn.boundary_realizer import SNBoundaryRealizer
-        from orpheus.sn.method_space import SNMethodSpace
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+        from orpheus.sn.mesh.method_space import SNMethodSpace
 
         law = ReflectiveBoundary(axis="x", albedo=0.5)
         ms = SNMethodSpace.minimal(quad)
@@ -278,8 +278,8 @@ class BoundaryTraceLaw(RegistryMixin, ABC):
 
         .. code-block:: python
 
-            from orpheus.sn.boundary_realizer import SNBoundaryRealizer
-            from orpheus.sn.method_space import SNMethodSpace
+            from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+            from orpheus.sn.mesh.method_space import SNMethodSpace
             op = SNBoundaryRealizer().realize(law, SNMethodSpace.minimal(quad))
             psi_in = op.apply(psi_out)   # 1-arg LinearOperator
 

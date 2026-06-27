@@ -72,7 +72,7 @@ from orpheus.numerics.operator import (
     ZeroOperator,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.fields.cross_section_field import CrossSectionField

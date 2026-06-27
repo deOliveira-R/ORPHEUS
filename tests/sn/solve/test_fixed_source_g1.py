@@ -26,7 +26,7 @@ What this file pins
 5. **No legacy eq_map machinery exists** (D-J 2026-05-30: the
    ``build_equation_map_*`` / ``solution_to_angular_flux_*`` /
    ``pack_with_traces`` family was deleted from
-   :mod:`orpheus.sn.operator`; ``_build_rhs_*`` and
+   :mod:`orpheus.sn.operators.streaming`; ``_build_rhs_*`` and
    ``_make_sweep_preconditioner`` were already retired pre-D-J).
    The impossibility-of-call contract is enforced by the symbols
    not existing — runtime spy is unnecessary.
@@ -55,7 +55,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.source_sinks import AngularSourceSink
 from tests.sn._test_helpers import placeholder_materials
@@ -290,7 +290,7 @@ class TestReturnTypeContract:
 #
 # The legacy ``build_equation_map_*`` / ``solution_to_angular_flux_*`` /
 # ``pack_with_traces`` codec family was deleted from
-# :mod:`orpheus.sn.operator` in D-J (alongside the bare-ndarray
+# :mod:`orpheus.sn.operators.streaming` in D-J (alongside the bare-ndarray
 # packed-vector contract).  ``_build_rhs_{cartesian,spherical,cylindrical}``
 # were already deleted in P1.7.  ``_make_sweep_preconditioner`` retired
 # pre-D-J.  The runtime-spy ``TestNoLegacyMachineryInCallPath`` test

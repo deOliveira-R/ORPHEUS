@@ -79,7 +79,7 @@ from orpheus.numerics.spaces.trace_space import TraceSpace
 
 if TYPE_CHECKING:
     from orpheus.numerics.face_layout import FaceLayout
-    from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 
 __all__ = [
@@ -101,7 +101,7 @@ class BulkField(Field):
     r"""Bulk-locus storage base — a mesh-bound :class:`Field` on the grid.
 
     Carries the machinery shared by every bulk transport field: the
-    :class:`~orpheus.sn.geometry.SNMesh` binding, the
+    :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` binding, the
     cross-mesh-arithmetic guard (Layer-1.5: even same-class same-space
     fields on *distinct* meshes are non-additive), and the ``ng/nx/ny``
     read-throughs. The per-family phase-space shape is the single

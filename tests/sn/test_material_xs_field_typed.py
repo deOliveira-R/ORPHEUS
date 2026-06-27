@@ -21,7 +21,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.units import CROSS_SECTION_UNITS
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 

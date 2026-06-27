@@ -31,7 +31,7 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 if TYPE_CHECKING:
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
-    from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 
@@ -217,7 +217,7 @@ def cart2d_2g_nonsquare(nx: int = 5, ny: int = 7) -> "SNMesh":
     """
     from orpheus.geometry import BC, CoordSystem, Mesh2D
     from orpheus.numerics.quadrature import Quadrature
-    from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
 
     mesh = Mesh2D(
         edges_x=np.linspace(0.0, 2.0, nx + 1),
@@ -286,7 +286,7 @@ def legacy_proxy_matvec(
         BoundaryFlux,
     )
     from orpheus.transport.timed_full_field import TimedFullField
-    from orpheus.sn.operator import (
+    from orpheus.sn.operators.streaming import (
         StreamingOperator,
     )
     from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -337,7 +337,7 @@ def _LC_matvec(
     for default ``bc_outer`` / ``pole_angular_closure`` (the only call
     convention any test actually exercised).
     """
-    from orpheus.sn.operator import StreamingOperator
+    from orpheus.sn.operators.streaming import StreamingOperator
     from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
     sn_mesh = psi.bulk.mesh
     L = StreamingOperator(sn_mesh)

@@ -1,7 +1,7 @@
 r"""SN method-space carrying mesh + quadrature + trace metadata.
 
 The :class:`SNMethodSpace` is the SN-specific argument to
-:meth:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`. It
+:meth:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer.realize`. It
 carries everything an SN realizer needs to turn a
 :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` into a 1-arg
 :class:`~orpheus.numerics.operator.LinearOperator`:
@@ -38,9 +38,9 @@ realization (which requires inflow_indices) will fail loudly on a
 minimal method space -- that's the right error.
 
 The Wave-5 ``SNMethodSpace`` lived at
-:mod:`orpheus.sn.boundary_realizer`; Wave 8 moves it to this
+:mod:`orpheus.sn.boundary.realizer`; Wave 8 moves it to this
 dedicated module and re-exports the same name from
-:mod:`~orpheus.sn.boundary_realizer` for backward compat.
+:mod:`~orpheus.sn.boundary.realizer` for backward compat.
 
 References
 ----------

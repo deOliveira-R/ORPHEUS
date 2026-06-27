@@ -1,5 +1,5 @@
 r"""Wave O (Issue #208) step O.4a.2 Commit 1 — the whole-trace boundary
-operator ``B`` (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`).
+operator ``B`` (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`).
 
 ``B`` is the ``A_ss`` block of the SN algebra ``(L_full + C − S − F − B)``: a
 BOUNDARY-block leaf on the :class:`TimedFullField` carrier that applies each
@@ -34,8 +34,8 @@ from orpheus.numerics.operator import (
     FullOperator,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.boundary_operator import SNBoundaryOperator
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.operators.boundary import SNBoundaryOperator
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.source_sinks import BoundarySourceSink

@@ -7,12 +7,12 @@ expose a typed apply surface so the algebra reads as the math:
 
 Per-operator boundary semantics pinned here:
 
-* :class:`~orpheus.sn.operator.StreamingOperator` (``L``) — the ONLY
+* :class:`~orpheus.sn.operators.streaming.StreamingOperator` (``L``) — the ONLY
   operator that emits a non-zero face residual into
   ``result.boundary``.  The B1'' face equation
   :math:`(WDD\text{-propagated face}) − \psi_{\rm face}` lives in
   the appropriate face slots of ``result.boundary``.
-* :class:`~orpheus.sn.operator.CollisionOperator` (``C``) — volumetric;
+* :class:`~orpheus.sn.operators.streaming.CollisionOperator` (``C``) — volumetric;
   ``result.boundary`` is the implicit-zero L2 BoundaryFlux.
 * :class:`~orpheus.transport.operators.scattering.ScatteringOperator` (``S``) —
   volumetric secondary-emission; ``result.boundary`` is zero.
@@ -39,8 +39,8 @@ import pytest
 
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.transport.operators.fission import FissionOperator
-from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import StreamingOperator
+from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux

@@ -1,7 +1,7 @@
 r"""Comparison tests — unified cylinder matvec (PR-TYPED-6c Step 3).
 
 Issue #197 PR-TYPED-6c Step 3 verifies the cylindrical branch of
-:func:`~orpheus.sn.operator._transport_operator_matvec_unified`.
+:func:`~orpheus.sn.operators.streaming._transport_operator_matvec_unified`.
 
 Two levels of evidence (per L14 in ``.claude/lessons.md`` — solver
 correctness is a 4-way standoff):
@@ -22,7 +22,7 @@ correctness is a 4-way standoff):
   (Variant α at α=1) at the same tolerance as the production Gate 4.2
   cross-check (3% — set by Variant α's quadrature error budget).
 
-The legacy :func:`~orpheus.sn.operator.transport_operator_matvec_cylindrical`
+The legacy :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_cylindrical`
 has a per-ordinate routing bug (ERR-049 — ascending-global ``ks``
 indices vs level-internal μ-sorted column order in
 ``streaming + redistribution + collision``). It is **NOT** a valid
@@ -40,9 +40,9 @@ from orpheus.derivations.continuous.trajectory_resolvent.greens_function_cylinde
     solve_greens_function_cylinder_mr,
 )
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.sn import operator as sn_op
+from orpheus.sn.operators import streaming as sn_op
 from orpheus.sn import solve_sn
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from tests.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.spatial.pole_angular_closure import MorelMontryAngularSweep

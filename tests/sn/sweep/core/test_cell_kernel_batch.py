@@ -301,11 +301,19 @@ class TestKernelSourceOfRecord:
     # so the FP reduction tree is bit-for-bit PRESERVED; every numerical
     # byte-identity anchor (window≡full oracle, affine-carve golden, DD strict
     # regression snapshot) stays green (verified before re-hashing).
+    # Re-hashed sn-package-layout reorg (Phase 2): the ``orpheus.sn.sweep_graph``
+    # cross-references in BOTH kernel docstrings were repointed to
+    # ``orpheus.sn.loss_representation.sweep_graph`` (the module moved INTO the
+    # ``loss_representation`` package).  A DOCSTRING-only change — no operand,
+    # operation, or fold order touched, so the FP reduction tree is bit-for-bit
+    # PRESERVED; every numerical byte-identity anchor (window≡full oracle,
+    # affine-carve golden, T4b cart2d/slab snapshot) stays green (the Phase-2
+    # behavioral subset confirmed it before re-hashing).
     EXPECTED: ClassVar[dict[str, str]] = {
         "cell_kernel_batch":
-            "0e3195534ec7fa4257c5ad6ae294b6d531fb9282997ef0e348153c85e5cef03c",
+            "25ab0123f1597ffae3d3dbf9198423154d888f3169b6af2049e9fe9532307320",
         "residual_kernel_batch":
-            "96f5a7d8fff90f153fb9f83a63f0a05592e7d84be1e6197df72a318c9adc5d7b",
+            "b77f615a8c67523184eee16b83957d3a032ad3b862b18920940bf39229c4445c",
     }
 
     @pytest.mark.parametrize("kernel", ["cell_kernel_batch", "residual_kernel_batch"])
@@ -335,7 +343,7 @@ def test_graph_exposes_two_walks_not_four():
     """[L0 structural] The direction×storage product is retired: the graph
     carries the TWO storage walks (``walk_full`` / ``walk_windowed``), and
     none of the four retired direction-specific methods survives."""
-    from orpheus.sn.sweep_graph import SweepDependencyGraph
+    from orpheus.sn.loss_representation.sweep_graph import SweepDependencyGraph
 
     for retired in ("apply", "residual", "apply_windowed", "residual_windowed"):
         if hasattr(SweepDependencyGraph, retired):

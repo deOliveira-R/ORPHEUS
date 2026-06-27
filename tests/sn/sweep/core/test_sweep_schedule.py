@@ -29,9 +29,9 @@ from orpheus.geometry import (
     StructuredGeometry,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
-from orpheus.sn.sweep_graph import OctantLabel
-from orpheus.sn.sweep_schedule import SweepSchedule
+from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.loss_representation.sweep_graph import OctantLabel
+from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
 from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = [pytest.mark.foundation]

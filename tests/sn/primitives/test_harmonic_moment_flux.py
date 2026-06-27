@@ -19,7 +19,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.numerics.quadrature import Quadrature

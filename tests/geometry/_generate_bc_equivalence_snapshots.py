@@ -76,8 +76,8 @@ from orpheus.geometry.boundary import (
     VacuumInflow,
     WhiteBoundary,
 )
-from orpheus.sn.boundary_realizer import SNBoundaryRealizer
-from orpheus.sn.method_space import SNMethodSpace
+from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
 
 
@@ -286,7 +286,7 @@ def _build_mixed_realized_apply(
     The realizer's pre-Wave-11 internal mixed-BC path also composed
     via ``OperatorSum`` of ``ScaledOperator`` (see the deleted
     ``isinstance(law, MixedBoundaryOperator)`` branch in
-    ``orpheus.sn.boundary_realizer``), so on the current ship-state
+    ``orpheus.sn.boundary.realizer``), so on the current ship-state
     the two reduction trees agree bit-exactly.
     """
     spec_realized = SNBoundaryRealizer().realize(

@@ -122,8 +122,8 @@ Both strategies are LINEAR in the input ``psi_cells`` (verified by
 :attr:`is_linear` ClassVar = True).  This is the load-bearing
 property: the apply matvec must be a linear operator, otherwise
 the operator-algebra capabilities of
-:class:`~orpheus.sn.operator.StreamingOperator` /
-:class:`~orpheus.sn.operator.InvertibleOperator` (apply,
+:class:`~orpheus.sn.operators.streaming.StreamingOperator` /
+:class:`~orpheus.sn.operators.streaming.InvertibleOperator` (apply,
 apply_transpose, dense matrix probing) break.  The
 :class:`CarlsonInwardSweep` is linear because:
 
@@ -216,7 +216,7 @@ class CarlsonSweepContext:
     Notes
     -----
     The context is constructed once per matvec at the call site
-    (:func:`~orpheus.sn.operator.transport_operator_matvec_spherical`
+    (:func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`
     and ``_cylindrical``) and passed through to the M-M closure.
     Carrying the context as a dataclass keeps the call-signature
     expansion local: only one new kwarg on the pole-angular-closure
@@ -561,7 +561,7 @@ class CarlsonInwardSweep(
     require additional moments :math:`\phi_\ell` and the full
     moment-folded sum :math:`\bar Q = \Sigma_\ell (2\ell+1)/2 \cdot
     \Sigma_t \cdot \phi_\ell \cdot (-1)^\ell`.  Since the
-    :class:`~orpheus.sn.operator.StreamingOperator` apply matvec
+    :class:`~orpheus.sn.operators.streaming.StreamingOperator` apply matvec
     carries only the isotropic collision term (the per-cell
     :math:`\Sigma_t \psi` cancellation in Resolution A), the L = 0
     truncation is consistent with the operator's structure.

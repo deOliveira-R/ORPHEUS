@@ -32,7 +32,7 @@ Construction
 ============
 
 The per-face boundary laws already live on the
-:class:`~orpheus.sn.geometry.SNMesh` in the face-name-keyed ``bc`` dict
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` in the face-name-keyed ``bc`` dict
 (each entry a :class:`~orpheus.geometry.boundary._bound_compat._BoundBoundaryOperator`
 wrapping a realized law that carries :attr:`BlockRole.BOUNDARY`). The whole-trace
 ``B`` is the block-diagonal composition over the mesh's true boundary faces: for
@@ -60,7 +60,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from orpheus.numerics.space import FunctionSpace
-    from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from orpheus.transport.full_field import FullField
     from orpheus.transport.source_sinks import BoundarySourceSink
@@ -109,7 +109,7 @@ class SNBoundaryOperator(LinearOperator):
         The augmented geometry — carries the per-face boundary laws
         (the face-name-keyed ``bc`` dict) and the unified trace space (same instance the
         composite carrier is bound to; the mesh-identity invariant of
-        :class:`~orpheus.sn.operator.StreamingOperator` applies here too).
+        :class:`~orpheus.sn.operators.streaming.StreamingOperator` applies here too).
     """
 
     block_role = BlockRole.BOUNDARY
@@ -178,7 +178,7 @@ class SNBoundaryOperator(LinearOperator):
         ``L`` in ``(L_full + C − S − F − B)`` reads the WHOLE boundary block, and
         a non-zero outflow emission would corrupt the outflow-definition residual
         ``ψ.outflow − streamed`` (it is supposed to carry no ``B`` term — see the
-        block matrix in :mod:`orpheus.sn.boundary_operator`). So the forward
+        block matrix in :mod:`orpheus.sn.operators.boundary`). So the forward
         action is projected onto ``inflow_indices_for_face`` (the consistency
         row); the Euclidean transpose ``Bᵀ: V_inflow → V_outflow`` is projected
         onto ``outflow_indices_for_face`` accordingly. (The metric-correct Hilbert

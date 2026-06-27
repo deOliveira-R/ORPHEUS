@@ -66,8 +66,8 @@ from orpheus.geometry import Mesh1D, Mesh2D
 from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.mesh import BC
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import (
+from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.operators.streaming import (
     InvertibleOperator,
     StreamingOperator,
 )

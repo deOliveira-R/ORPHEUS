@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, Mesh1D, Mesh2D, CoordSystem
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 

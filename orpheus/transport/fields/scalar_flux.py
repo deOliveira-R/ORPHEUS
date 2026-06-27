@@ -31,7 +31,7 @@ hand-coded dunder skeleton. The migration:
   Field ABC contract).
 * Keeps ``mesh: SNMesh`` as an additive field, but now annotated
   under ``TYPE_CHECKING`` because :class:`ScalarFlux` lives at L2
-  while :class:`SNMesh` lives at L3 (``orpheus.sn.geometry``).
+  while :class:`SNMesh` lives at L3 (``orpheus.sn.mesh.augmented_mesh``).
   Runtime-wise the ``mesh`` field is duck-typed; the import-linter's
   TYPE_CHECKING exemption keeps the layer contract clean.
 * Preserves the existing strict semantics: arithmetic across two
@@ -96,7 +96,7 @@ from orpheus.transport.fields._bases import ScalarField
 from orpheus.transport.fields._flux_role import FluxRole
 
 if TYPE_CHECKING:
-    from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 
 __all__ = ["ScalarFlux"]

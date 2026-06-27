@@ -52,7 +52,7 @@ the operator triple acts linearly on it and that
 :func:`numpy.linalg.norm` returns a scalar that orders by relative
 size.  The L0 synthetic tests use 4×4 dense matrices acting on
 ``(4,)`` flat vectors; the L1 SN gate uses
-:class:`~orpheus.sn.operator.InvertibleOperator` (composite ``L + C``),
+:class:`~orpheus.sn.operators.streaming.InvertibleOperator` (composite ``L + C``),
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator`, and
 :class:`~orpheus.transport.operators.fission.FissionOperator` acting on
 :class:`~orpheus.transport.timed_full_field.TimedFullField` composite
@@ -68,7 +68,7 @@ the operator:
 * :class:`SourceIteration` calls ``L.solve(rhs)`` directly each step.
   The caller controls the inverse step by passing an ``L`` whose
   ``.solve`` realises the desired action — typically a composite
-  :class:`~orpheus.sn.operator.InvertibleOperator` whose ``.solve`` IS
+  :class:`~orpheus.sn.operators.streaming.InvertibleOperator` whose ``.solve`` IS
   the WDD sweep (R-1 Step C).  ``L`` MUST advertise
   :pydata:`CAP_SOLVE`; if it cannot be inverted, the caller is asking
   the wrong primitive.
@@ -351,7 +351,7 @@ class SourceIteration(Generic[V]):
     caller controls the inverse step by constructing ``L`` with the
     desired ``.solve`` behaviour — for SN within-group inner solves
     this is typically
-    :class:`~orpheus.sn.operator.InvertibleOperator` whose ``.solve``
+    :class:`~orpheus.sn.operators.streaming.InvertibleOperator` whose ``.solve``
     IS the WDD sweep.
 
     Convergence test (matching :class:`SNSolver` for bit-identical

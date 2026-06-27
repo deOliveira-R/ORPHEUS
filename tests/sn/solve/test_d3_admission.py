@@ -53,7 +53,7 @@ from orpheus.sn.solver import (
     solve_sn,
     solve_sn_fixed_source,
 )
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 
 def _d3_axes(extents=(1.0, 2.0, 3.0), cells=(3, 4, 5), bcs=None):

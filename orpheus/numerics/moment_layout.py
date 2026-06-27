@@ -70,7 +70,7 @@ def face_moment_count(per_axis: int, ndim: int) -> int:
     UBLD Linear-Discontinuous closure (d=2: ``2`` — ``[face-bar, face-slope]``).
     Single source of the "face is codimension-1" policy (the ``d-1`` exponent)
     shared by the trace producer
-    (:meth:`orpheus.sn.geometry.SNMesh.boundary_face_layout`) and the interior
+    (:meth:`orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout`) and the interior
     face cochain (``orpheus.sn.loss_representation._LossRepresentation._n_face_moments``),
     which MUST agree on the face width or the capture↔shed seam mis-shapes (#251).
     The CELL count is the sibling ``per_axis ** ndim`` (no ``-1``).
@@ -130,6 +130,6 @@ def is_moment_valued_by_rank(array: "np.ndarray", reference: "np.ndarray") -> bo
     ordinate axis), the single rank core. The single source for the matvec
     moment-broadcast
     (:func:`orpheus.sn.loss_representation._moment_broadcast_sigma`) and the
-    cell-solve source-reframe gate (``orpheus.sn.sweep_graph._CellSolve``).
+    cell-solve source-reframe gate (``orpheus.sn.loss_representation.sweep_graph._CellSolve``).
     """
     return is_moment_valued_by_flat_rank(array, reference.ndim + 1)

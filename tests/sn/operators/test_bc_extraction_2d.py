@@ -8,7 +8,7 @@ and the scheduled sweep are **bare** — they read
 ``psi.boundary.inflow`` as the GIVEN incoming edge and emit the active
 boundary-block residual (OUTFLOW ordinate slots: ``streamed − psi.outflow``;
 INFLOW ordinate slots: identity ``psi.inflow``).  The reflective coupling is
-the sibling ``−B`` (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`),
+the sibling ``−B`` (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`),
 folded into the 2-D Krylov composed matvec.  The 2-D eigenvalue path is Krylov
 (``solve_sn(..., inner_solver="krylov")``); 2-D source-iteration AND 2-D
 fixed-source Krylov are both ``NotImplementedError`` (deferred to a later phase).
@@ -57,9 +57,9 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.boundary_operator import SNBoundaryOperator
-from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import StreamingOperator
+from orpheus.sn.operators.boundary import SNBoundaryOperator
+from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
@@ -407,7 +407,7 @@ class TestBoundaryResidual2DDrivesToZero:
     The boundary-balance defect ``ψ.boundary.inflow − (R·G·ψ.boundary.outflow
     + q_inflow)`` must be < 10× solver_tol at convergence (q_inflow = 0 for
     reflective).  ``R·G·ψ.outflow`` is computed via the canonical
-    :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` (single source of
+    :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` (single source of
     truth) — ``B.apply(ψ)`` emits the reflective coupling on the inflow slots
     (the ``A_ss`` block ``V_outflow → V_inflow``).
     """

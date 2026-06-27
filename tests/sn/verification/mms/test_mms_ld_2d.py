@@ -48,7 +48,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh2D
 from orpheus.numerics.moment_layout import AVERAGE_MOMENT
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.loss_representation import (
     FullFieldWavefront,
     MovingFrontierWindow,

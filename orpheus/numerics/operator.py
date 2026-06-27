@@ -162,7 +162,7 @@ class BlockRole(Enum):
     * :attr:`BOUNDARY` — only ``A_ss`` (boundary → boundary). A realized
       boundary law ``B`` (vacuum / reflective / albedo / white / periodic):
       it maps the outflow trace to the inflow trace, with no bulk action.
-      The :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` stamps
+      The :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` stamps
       this role on its realized outputs (Wave O step O.4a.1-γ). ``B``
       becomes a first-class algebra leaf — a sibling of ``L`` in
       ``(L_full + C − S − F − B)`` — when the boundary conditions are
@@ -247,7 +247,7 @@ class BoundaryOperator(metaclass=_BlockRoleMeta):
     r"""``isinstance`` marker for a :attr:`BlockRole.BOUNDARY` operator (``A_ss`` only).
 
     The realized boundary laws produced by
-    :meth:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`
+    :meth:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer.realize`
     (vacuum / reflective / white / albedo / periodic) carry
     :attr:`BlockRole.BOUNDARY`; the rank-0 affine ``PrescribedInflow``
     source does NOT — it is the boundary *source* ``q.boundary``, not a
@@ -339,7 +339,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
     #: ``ClassVar``) precisely because the composers
     #: (:class:`OperatorSum` / :class:`ScaledOperator` /
     #: :class:`_AdjointOperator`) and the
-    #: :func:`~orpheus.sn.boundary_realizer._as_boundary` stamp assign
+    #: :func:`~orpheus.sn.boundary.realizer._as_boundary` stamp assign
     #: ``self.block_role`` per-instance (the role is DERIVED from operands,
     #: not fixed by the class). A ``ClassVar`` would (correctly) reject
     #: that instance assignment. This base is not a ``@dataclass``, so the

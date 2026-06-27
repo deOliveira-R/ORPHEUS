@@ -47,7 +47,7 @@ from orpheus.geometry import (
     StructuredGeometry,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -189,7 +189,7 @@ def test_apply_vs_sweep_2d_residual_cancellation() -> None:
     (``test_invertible_apply_is_M_of_C_sigma_bit_identical``).  This is the 2-D
     analog of ``test_apply_vs_sweep_consistency``'s 1-D tripwire.
     """
-    from orpheus.sn.operator import StreamingOperator
+    from orpheus.sn.operators.streaming import StreamingOperator
     from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 
     mesh = _vacuum_xy_2d_with_scatter()
@@ -296,7 +296,7 @@ def test_2d_matvec_linearity_random_state() -> None:
     (and the /W-projection / bulk-boundary convention-drift catch)
     without an illegal affine-space ``flux + flux``.
     """
-    from orpheus.sn.operator import StreamingOperator
+    from orpheus.sn.operators.streaming import StreamingOperator
     from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 
     mesh = _vacuum_xy_2d_with_scatter()

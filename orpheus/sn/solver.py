@@ -18,7 +18,7 @@ Inner solver dispatch
   the 11 frozen regression snapshots stay green.
 * ``inner_solver="krylov"``.  GMRES on the symmetric closure carried
   by the algebraic composition
-  :class:`~orpheus.sn.operator.InvertibleOperator` (= ``L + C``).
+  :class:`~orpheus.sn.operators.streaming.InvertibleOperator` (= ``L + C``).
   This is the Wave E reconciliation that makes the curvilinear
   ``solve_sn_fixed_source`` path discretization-correct (closes
   ERR-026).  On Cartesian meshes it is bit-identical math to the
@@ -45,10 +45,10 @@ from orpheus.geometry import BC, Mesh1D, Mesh2D
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
-from .geometry import SNMesh
+from .mesh.augmented_mesh import SNMesh
 from .spatial.scheme import DiscretizationSchemeBase
 from .spatial.sweep_cache import CollisionCache, GeometryCoefficients
-from .operator import StreamingOperator
+from .operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.operators.scattering import ScatteringOperator
@@ -191,12 +191,12 @@ def _within_group_triple(solver: "SNSolver") -> tuple:
     ``(L + C).apply − S.apply − B.apply`` ≡ ``(L + C − S − B)·ψ`` and the SI
     rhs is ``q_ext + S.apply(ψ) + B.apply(ψ)``.
 
-    * ``L + C`` is the :class:`~orpheus.sn.operator.InvertibleOperator`
+    * ``L + C`` is the :class:`~orpheus.sn.operators.streaming.InvertibleOperator`
       (``.apply`` = matvec, ``.solve`` = the WDD sweep) — the resolvent.
     * ``S`` (:class:`~orpheus.transport.operators.scattering.ScatteringOperator`) is the BULK
       scattering coupling.  Producer-side ``/W`` normalisation (R-1 Step 4 A1)
       lives inside :meth:`ScatteringOperator.apply`; no consumer-side rescale.
-    * ``B`` (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`) is the
+    * ``B`` (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`) is the
       BOUNDARY reflective coupling, delivered as a SEPARATE first-class gain
       (Wave O #208 O.2a — the transitional ``S + B`` fold is RETIRED).  Its
       ``B·ψ.outflow`` lands on ``rhs.boundary``, which the bare
@@ -209,8 +209,8 @@ def _within_group_triple(solver: "SNSolver") -> tuple:
     Within-group fission is zero (it enters as ``q_ext`` per the eigenvalue
     outer / within-group decomposition), so there is no fission gain here.
     """
-    from .operator import StreamingOperator
-    from .boundary_operator import SNBoundaryOperator
+    from .operators.streaming import StreamingOperator
+    from .operators.boundary import SNBoundaryOperator
 
     sn_mesh = solver.sn_mesh
     # L = pure σ-free streaming (#257 S8b): the streaming leaf reads no σ;
@@ -495,7 +495,7 @@ class _MomentWindowedResolvent:
     ``φ_ℓ^m = M ψ`` (``S`` re-projects the iterate every sweep), so the
     iterate carries strictly more than the iteration needs.  This wrapper
     asks the base resolvent for the moment tensor ``(L+1, 2L+1, ng, nx, ny)``
-    directly (:meth:`~orpheus.sn.operator.InvertibleOperator.solve_moments`) —
+    directly (:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_moments`) —
     the angular dimension of the *persistent* iterate drops ``N → (L+1)²``.
     The scattering gain then consumes the moments directly
     (``S.apply(HarmonicMomentFlux)``), so the per-sweep re-projection is
@@ -572,7 +572,7 @@ class _MomentWindowedResolvent:
         MOMENTS ``TimedFullField(bulk=HarmonicMomentFlux, boundary=trace)``.
 
         Phase 5c: delegates to the base resolvent's moment-emitting
-        :meth:`~orpheus.sn.operator.InvertibleOperator.solve_moments`, which
+        :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_moments`, which
         projects each anti-diagonal IN-SWEEP — the full per-ordinate angular
         field ``(N, ng, nx, ny)`` is NEVER materialized (the ~3× linear
         peak-memory win).  The scattering operator's angular spherical-harmonic
@@ -707,7 +707,7 @@ def _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule: str):
         and sn_mesh.is_cartesian
         and not sn_mesh.is_1d
     ):
-        from .sweep_schedule import SweepSchedule
+        from .loss_representation.sweep_schedule import SweepSchedule
 
         schedule = SweepSchedule.gauss_seidel(sn_mesh)
         return _GaussSeidelResolvent(LC, B, schedule), (S,)
@@ -778,7 +778,7 @@ class SNSolver:
       iteration (WDD asymmetric closure; ERR-026-affected for
       curvilinear).  Bit-identical to the Wave A-D path.
     * ``"krylov"`` — GMRES on
-      :class:`~orpheus.sn.operator.InvertibleOperator` (the algebraic
+      :class:`~orpheus.sn.operators.streaming.InvertibleOperator` (the algebraic
       composition ``L + C``; symmetric closure) with the sweep as
       preconditioner.  Closes ERR-026 on curvilinear; bit-identical
       math to the legacy BiCGSTAB FD path on Cartesian.
@@ -1220,7 +1220,7 @@ class SNSolver:
                                                 + q_{\rm ext}\bigr)
 
         where ``(L + C).solve`` IS the WDD sweep
-        (:class:`~orpheus.sn.operator.InvertibleOperator` from R-1
+        (:class:`~orpheus.sn.operators.streaming.InvertibleOperator` from R-1
         Step C).  Phase 1.2 — the previous iterate :math:`\psi_n`
         travels into the sweep via the explicit ``initial_guess``
         kwarg on :meth:`InvertibleOperator.solve`; the M-M closure's
@@ -1391,7 +1391,7 @@ class SNSolver:
 
         on typed :class:`~orpheus.sn.angular_flux.AngularFlux`.  The
         composite ``L + C`` returns an
-        :class:`~orpheus.sn.operator.InvertibleOperator` (R-1 Step C);
+        :class:`~orpheus.sn.operators.streaming.InvertibleOperator` (R-1 Step C);
         its ``.solve`` IS the WDD sweep but R-1 ships GMRES
         UNPRECONDITIONED (``preconditioner=None``) per user direction
         ("consolidating the foundational architecture; the block-inverse
@@ -1605,7 +1605,7 @@ def _reflect_outflow_into_inflow(
     (:func:`_solve_fixed_source_si`) and the final eigenvalue reconstruction
     sweep (:func:`solve_sn`) do not route through that driver — they call this
     helper to set ``ψ.inflow = B·ψ.outflow`` on the buffer before each sweep,
-    via the canonical whole-trace :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`
+    via the canonical whole-trace :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`
     (single source of truth — the same ``B`` the matvec / SI driver consume).
 
     For vacuum ``B = 0`` so the inflow slots stay zero (bit-identical to the
@@ -1615,7 +1615,7 @@ def _reflect_outflow_into_inflow(
 
     This is the TWIN of the driver route: the within-group SI/Krylov drivers
     deliver the SAME ``−B`` coupling via the SAME
-    :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`, as a first-class
+    :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`, as a first-class
     coupling gain (Wave O O.2a — :func:`_within_group_triple` returns
     ``(L+C, S, B)``).  The two differ only in plumbing: this helper writes the
     buffer's inflow slots directly; the driver's ``B`` gain rides
@@ -1634,7 +1634,7 @@ def _reflect_outflow_into_inflow(
     current-iterate inflow. ``B`` is block-diagonal over faces ⟹ exact
     restriction.
     """
-    from orpheus.sn.boundary_operator import SNBoundaryOperator
+    from orpheus.sn.operators.boundary import SNBoundaryOperator
 
     # Trace-only ``A_ss`` action — no zero-bulk probe (the bulk was only ever a
     # carrier to reach ``B``'s boundary block). ``reflect_into_inflow`` is the
@@ -2249,7 +2249,7 @@ def _solve_fixed_source_si(
     :meth:`ScatteringOperator.apply` (the ``TimedFullField`` branch)
     recomputes the IDENTICAL ``(P0 in-scatter + (n,2n))/W + Pℓ`` bulk source,
     and the boundary gain ``B``
-    (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`, a first-class
+    (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`, a first-class
     coupling in :func:`_within_group_triple`) delivers the reflective
     ``B·ψ.outflow`` through ``rhs.boundary`` which the bare ``(L + C).solve``
     sweep reads as the inflow seed (single source of truth — Cardinal Rule 2).  The whole-trace
@@ -2391,7 +2391,7 @@ def _solve_fixed_source_krylov(
 
     on typed :class:`~orpheus.sn.angular_flux.AngularFlux`.  The
     composite ``L + C`` returns an
-    :class:`~orpheus.sn.operator.InvertibleOperator`; its ``.solve``
+    :class:`~orpheus.sn.operators.streaming.InvertibleOperator`; its ``.solve``
     IS the WDD sweep, but R-1 ships GMRES UNPRECONDITIONED
     (explicit identity) — issue #200 tracks the block-inverse face
     preconditioner re-enablement.

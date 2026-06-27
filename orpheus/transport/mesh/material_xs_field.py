@@ -104,7 +104,7 @@ if TYPE_CHECKING:
     # the bulk-data ``ScalarField`` branch from the quad/trace-dependent
     # ``AngularField`` / ``BoundaryField`` branches) is a separate L2
     # follow-up — see issue #267.
-    from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 
 __all__ = ["MaterialXSField"]

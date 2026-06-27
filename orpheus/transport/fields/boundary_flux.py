@@ -34,7 +34,7 @@ Post-D-G this class:
   **on the** :class:`TraceSpace` **(A.5)**, not as a separate field
   attribute. ``mesh.trace`` is the cached source; the underlying
   per-geometry descriptor is still
-  :attr:`~orpheus.sn.geometry.SNMesh.boundary_face_layout` (1-D slab:
+  :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout` (1-D slab:
   ``xmin``, ``xmax``; 1-D curvilinear: ``xmax``; 2-D: ``xmin``,
   ``xmax``, ``ymin``, ``ymax``). The :attr:`layout` read-through
   property preserves the ``boundary.layout`` access surface.
@@ -95,7 +95,7 @@ class BoundaryFlux(FluxRole, BoundaryField):
         L1 space anchor (Euclidean inner product) that also carries the
         per-geometry :class:`~orpheus.numerics.face_layout.FaceLayout`.
         Canonically the mesh's cached
-        :attr:`~orpheus.sn.geometry.SNMesh.trace`.
+        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.trace`.
     mesh : SNMesh
         The SN phase-space carrier (the cross-mesh-arithmetic guard).
 

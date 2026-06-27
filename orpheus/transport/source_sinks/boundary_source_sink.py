@@ -133,7 +133,7 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray
 
-    from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 
 __all__ = ["BoundarySourceSink"]

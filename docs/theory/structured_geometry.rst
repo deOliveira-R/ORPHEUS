@@ -369,7 +369,7 @@ Sweep-direction resolution lives in the SN module:
 SN-specific per-visit packet that composes the geometric
 :class:`StreamingTerms` together with the sweep-resolved
 ``face_area_downstream``.  The SN sweep iterates
-:meth:`~orpheus.sn.geometry.SNMesh.dag_walk`, which encodes
+:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk`, which encodes
 the inward / outward branching, the cylindrical per-level
 traversal, and the pure-azimuthal degenerate handling — yielding
 one :class:`CellVisit` per cell in DAG-topological order.  The
@@ -389,8 +389,8 @@ Bit-identical contract
 
 The factories produce arrays bit-identical to the historical inline
 implementations on
-:class:`~orpheus.sn.geometry.SNMesh._setup_spherical` and
-:class:`~orpheus.sn.geometry.SNMesh._setup_cylindrical`.  Hash
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh._setup_spherical` and
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh._setup_cylindrical`.  Hash
 equality is enforced at test time
 (``tests/geometry/test_reduced_operator.py``,
 ``foundation``-tagged) using :func:`numpy.array_equal` (not
@@ -445,9 +445,9 @@ SN reshape campaign (``.claude/plans/sn_reshape.md``):
   :class:`ReducedStreamingOperator` via the dispatch ladder above.
   The connection-coefficient math no longer lives in :class:`SNMesh`.
 * **SN operator algebra (Depth B, 2026-05)** —
-  :class:`~orpheus.sn.operator.StreamingOperator` /
-  :class:`~orpheus.sn.operator.InvertibleOperator` consume the
-  primitive through :func:`~orpheus.sn.operator.transport_operator_matvec_unified`.
+  :class:`~orpheus.sn.operators.streaming.StreamingOperator` /
+  :class:`~orpheus.sn.operators.streaming.InvertibleOperator` consume the
+  primitive through :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_unified`.
 * **MoC and CP campaigns (post-Wave-1)** reuse the same primitive
   with their own consumption patterns (track-segment chord march
   for MoC; ray-traced chord-length integrals for CP).

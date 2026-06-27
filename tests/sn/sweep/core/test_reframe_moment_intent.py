@@ -50,7 +50,7 @@ from orpheus.sn.spatial._ubld import octant_moment_frame_signs
 
 # NOTE: import the production helper once the signature is settled. Until then
 # this import pins the symbol under test.
-from orpheus.sn.sweep_graph import _reframe
+from orpheus.sn.loss_representation.sweep_graph import _reframe
 
 
 def _backward_d2_frame_signs() -> np.ndarray:

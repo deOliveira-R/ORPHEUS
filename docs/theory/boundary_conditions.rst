@@ -36,7 +36,7 @@ Key Facts
   | 2     | Boundary law          | :mod:`orpheus.geometry.boundary` (ABC +     |
   |       | (method-agnostic)     | 6 concrete laws, dual-registry: kind-keyed) |
   +-------+-----------------------+---------------------------------------------+
-  | 3     | Method realizer       | :mod:`orpheus.sn.boundary_realizer`         |
+  | 3     | Method realizer       | :mod:`orpheus.sn.boundary.realizer`         |
   |       | (per-method strategy) | (SN functional) + 4 method stubs            |
   +-------+-----------------------+---------------------------------------------+
 
@@ -48,7 +48,7 @@ Key Facts
   :class:`~orpheus.geometry.boundary.LawScaled` nodes — a closed
   algebra over ``BoundaryTraceLaw | LawSum | LawScaled``. The tree is
   a **pure descriptor** with no ``apply`` method; the
-  :func:`~orpheus.sn.boundary_realizer.realize_recursively` type
+  :func:`~orpheus.sn.boundary.realizer.realize_recursively` type
   transformer walks it once per face and emits an operator tree of
   :class:`~orpheus.numerics.operator.OperatorSum` /
   :class:`~orpheus.numerics.operator.ScaledOperator` composers around
@@ -56,7 +56,7 @@ Key Facts
   :ref:`bc-rank-n-algebra`. There is no dedicated
   ``MixedBoundaryOperator`` class (retired Wave 11); there is also no
   ``apply`` method on the raw law (retired Issue #186, B3 + β2).
-- The :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` is the
+- The :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` is the
   **only** functional realizer today. ``MoCBoundaryRealizer``,
   ``MCBoundaryRealizer``, ``CPBoundaryRealizer``, and
   ``DiffusionBoundaryRealizer`` are stubs that self-register at
@@ -100,7 +100,7 @@ Key Facts
   #208).** For **every** SN geometry (1-D slab / sphere / cylinder and
   2-D Cartesian), the realized per-face law is assembled into the
   whole-trace
-  :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` — the
+  :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` — the
   :math:`A_{ss}` boundary block of the canonical loss operator
   :math:`(L_{\rm full} + C - S - F - B)`. The reflection
   :math:`\psi.\text{inflow} = B\,\psi.\text{outflow}` is **no longer
@@ -229,7 +229,7 @@ Three remarks make this form load-bearing:
 
    **SN apply matvec honours the affine BC contract (Issue #168
    Phase C, 2026-05-12).** The
-   :func:`~orpheus.sn.operator.transport_operator_matvec_spherical`
+   :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`
    and ``_cylindrical`` matvecs were rewritten as one sweep
    iteration semantically: the BC trace law is applied **at least
    once** per matvec at the boundary edge on the WDD-propagated
@@ -280,7 +280,7 @@ exposes inflow / outflow as two directional **selectors** over it:
    :ref:`bc-trace-structure`).
 
 The signed-projection table is what the
-:class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` reads to build
+:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` reads to build
 the sparse vacuum-mask operator
 (:class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`) that
 zeros precisely the inflow ordinates at one face.
@@ -394,7 +394,7 @@ the load-bearing primitive that downstream consumers need:
 * The SN curvilinear sweep (1-D spherical / cylindrical) consumes
   the same realizer-routed mask as the Cartesian path — Issue #188
   (C188.1+C188.2 in :mod:`orpheus.numerics.spaces.trace_space`, C188.3 in
-  :mod:`orpheus.sn.geometry`) lifted the curvilinear deferral and
+  :mod:`orpheus.sn.mesh.augmented_mesh`) lifted the curvilinear deferral and
   Issue #176 then dropped the legacy 2-arg shim that existed only
   to bridge that deferral.
 
@@ -412,7 +412,7 @@ will be populated later (or never).
 **Geometry-blind, layout-driven (post Issue #225 / C5.3).** The factory
 is **geometry-blind**: it takes only the angular quadrature and a
 :class:`~orpheus.numerics.face_layout.FaceLayout` (canonically
-:attr:`SNMesh.boundary_face_layout <orpheus.sn.geometry.SNMesh>`), and
+:attr:`SNMesh.boundary_face_layout <orpheus.sn.mesh.augmented_mesh.SNMesh>`), and
 reads every datum from those two — the layout's ``"{axis}{min|max}"``
 face names imply axis-aligned outward normals, so the
 :math:`\Omega\cdot\hat n` row for an axis-:math:`a` face is
@@ -469,7 +469,7 @@ The ABC ships:
    is now enforced by the **type system**, not by convention —
    ``law.apply(psi)`` on a raw law is an ``AttributeError`` at
    runtime and a static-type error at the linter level. The
-   :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` is the
+   :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` is the
    sole bridge from descriptor to callable; see
    :ref:`bc-trace-law-descriptor-model` for the design rationale
    and the predecessor approaches that were tried and rejected.
@@ -533,7 +533,7 @@ and Marshak / partial-current boundaries are rank-N via the
 **descriptor-tree algebra** on the unrealised laws (:class:`LawSum`
 / :class:`LawScaled` over :class:`BoundaryTraceLaw` leaves) —
 realised once per face by
-:func:`~orpheus.sn.boundary_realizer.realize_recursively`. See
+:func:`~orpheus.sn.boundary.realizer.realize_recursively`. See
 :ref:`bc-rank-n-algebra` below.
 
 
@@ -680,7 +680,7 @@ The Wave 5 SN dispatch table is the documented standard:
      - ``ScaledOperator(α, PermutationOperator(...))``
    * - :class:`WhiteBoundary(axis, outward_sign, α)`
      - bare
-       :class:`~orpheus.sn.angular_operator.AngularAverageOperator.from_quadrature(quad, axis, outward_sign)`
+       :class:`~orpheus.sn.boundary.angular.AngularAverageOperator.from_quadrature(quad, axis, outward_sign)`
      - ``ScaledOperator(α, AngularAverageOperator(...))``
    * - :class:`AlbedoBoundary(α)` with α=0
      - :class:`~orpheus.numerics.operator.ZeroOperator`
@@ -698,7 +698,7 @@ The Wave 5 SN dispatch table is the documented standard:
        implementation" follow-up, ``module:sn``)
      - n/a (periodic has no α parameter)
    * - :class:`PrescribedInflow(source)`
-     - :class:`~orpheus.sn.angular_operator.IncomingSourceOperator(source)`
+     - :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator(source)`
        — :meth:`apply` ignores the outgoing flux and returns
        ``source.evaluate(probe_inflow_trace)``
      - n/a
@@ -712,22 +712,22 @@ one ULP under the realizer relative to its pre-refactor
 ``np.take(psi_out, reflection_index, axis=0)`` body — see the
 Wave 6 snapshot harness for the bit-equivalence pin.
 
-The :class:`~orpheus.sn.method_space.SNMethodSpace` dataclass is the
+The :class:`~orpheus.sn.mesh.method_space.SNMethodSpace` dataclass is the
 realizer's second argument. It carries:
 
-* :attr:`~orpheus.sn.method_space.SNMethodSpace.quadrature` — the
+* :attr:`~orpheus.sn.mesh.method_space.SNMethodSpace.quadrature` — the
   angular quadrature (mandatory).
-* :attr:`~orpheus.sn.method_space.SNMethodSpace.face` — the
+* :attr:`~orpheus.sn.mesh.method_space.SNMethodSpace.face` — the
   face-name label (``"xmin"`` … ``"zmax"``) so the vacuum branch can
   look up the right inflow indices. (The pre-C4 ``"left"`` / ``"right"``
   spellings were aliases of ``"xmin"`` / ``"xmax"``; since the C4
   face-name carve — :ref:`bc-face-name-carve` — every face is keyed by
   its canonical ``"{axis}{min|max}"`` name.)
-* :attr:`~orpheus.sn.method_space.SNMethodSpace.inflow_indices` —
+* :attr:`~orpheus.sn.mesh.method_space.SNMethodSpace.inflow_indices` —
   the per-face inflow ordinate indices for the vacuum branch
   (derived from the held trace at :meth:`for_face` time).
-* :attr:`~orpheus.sn.method_space.SNMethodSpace.mesh`,
-  :attr:`~orpheus.sn.method_space.SNMethodSpace.trace` — the
+* :attr:`~orpheus.sn.mesh.method_space.SNMethodSpace.mesh`,
+  :attr:`~orpheus.sn.mesh.method_space.SNMethodSpace.trace` — the
   (optional) spatial mesh and the single unified
   :class:`~orpheus.numerics.spaces.trace_space.TraceSpace` for any
   realizer branch that needs more than the per-face index list. Since
@@ -741,7 +741,7 @@ realizer's second argument. It carries:
 
 The :meth:`SNMethodSpace.for_face` factory is the standard
 construction site at
-:meth:`orpheus.sn.geometry.SNMesh._resolve_bcs` time; the
+:meth:`orpheus.sn.mesh.augmented_mesh.SNMesh._resolve_bcs` time; the
 :meth:`SNMethodSpace.minimal` factory returns a quadrature-only
 method space for unit tests that don't need mesh + face metadata.
 
@@ -768,7 +768,7 @@ Two registries serve two independent lookup keys:
 
    Lookup is :meth:`BoundaryTraceLaw.create("vacuum")` or direct
    dictionary access ``BoundaryTraceLaw.registry["vacuum"]``.
-   :meth:`orpheus.sn.geometry.SNMesh._resolve_one` uses the
+   :meth:`orpheus.sn.mesh.augmented_mesh.SNMesh._resolve_one` uses the
    second form to recover the law class from a mesh-declared
    :class:`~orpheus.geometry.mesh.BC`.
 
@@ -814,7 +814,7 @@ Cross-method realizer stubs
 
    The cross-method realizers are **scaffolding for future
    modernization**, not a mature shared abstraction. The
-   :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` is the
+   :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` is the
    single functional realizer today. ``MoCBoundaryRealizer``,
    ``MCBoundaryRealizer``, ``CPBoundaryRealizer``, and
    ``DiffusionBoundaryRealizer`` are stubs that hold the dispatch
@@ -853,7 +853,7 @@ submodule unconditionally so plain ``import orpheus.<method>``
 auto-registers the stub. The SN realizer is **not**
 auto-imported by ``orpheus.sn.__init__`` (it's a heavy module
 that every SN consumer pays for); the
-:class:`~orpheus.sn.geometry.SNMesh` constructor imports it
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` constructor imports it
 explicitly when it needs it.
 
 
@@ -865,7 +865,7 @@ Worked example — end to end
 The following walks the
 ``BC("vacuum") → VacuumInflow → SNBoundaryRealizer.realize →
 IncomingOrdinateMaskTensor`` chain that
-:meth:`orpheus.sn.geometry.SNMesh._resolve_bcs` performs at SNMesh
+:meth:`orpheus.sn.mesh.augmented_mesh.SNMesh._resolve_bcs` performs at SNMesh
 construction time. The example uses a 1-D Cartesian slab; the same
 chain runs on Mesh2D with face labels ``xmin`` / ``xmax`` /
 ``ymin`` / ``ymax``.
@@ -894,7 +894,7 @@ mesh is method-agnostic.
 Step 2 — law resolution (in ``SNMesh.__init__``)
 ------------------------------------------------
 
-When :class:`~orpheus.sn.geometry.SNMesh` is constructed against the
+When :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` is constructed against the
 mesh, its :meth:`_resolve_bcs` method walks the four (1-D: two)
 faces:
 
@@ -922,7 +922,7 @@ mesh, once, and stores it on ``self._trace``. The factory is the
 geometry-blind :meth:`TraceSpace.from_quadrature_and_layout
 <orpheus.numerics.spaces.trace_space.TraceSpace.from_quadrature_and_layout>`
 — it takes the angular quadrature and the mesh's
-:attr:`~orpheus.sn.geometry.SNMesh.boundary_face_layout` (a
+:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout` (a
 :class:`~orpheus.numerics.face_layout.FaceLayout`, the single source of
 truth for which faces exist and how they pack into one flat buffer), and
 nothing else:
@@ -953,7 +953,7 @@ inflow indices for the requested face:
 
 .. code-block:: python
 
-   from orpheus.sn.method_space import SNMethodSpace
+   from orpheus.sn.mesh.method_space import SNMethodSpace
 
    method_space = SNMethodSpace.for_face(
        mesh=self.mesh,           # optional metadata; None at d≥3
@@ -1287,7 +1287,7 @@ The :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` algebra
 dunders (``+``, ``-``, ``*``, ``/``, unary ``-``) return
 :class:`~orpheus.geometry.boundary.LawSum` /
 :class:`~orpheus.geometry.boundary.LawScaled` instances, never
-operators. The :func:`~orpheus.sn.boundary_realizer.realize_recursively`
+operators. The :func:`~orpheus.sn.boundary.realizer.realize_recursively`
 type transformer is the **sole** path from descriptor tree to
 operator tree.
 
@@ -1315,8 +1315,8 @@ white reflection (weight :math:`c_2`) — is:
        LawScaled, LawSum,
        ReflectiveBoundary, WhiteBoundary,
    )
-   from orpheus.sn.boundary_realizer import realize_recursively
-   from orpheus.sn.method_space import SNMethodSpace
+   from orpheus.sn.boundary.realizer import realize_recursively
+   from orpheus.sn.mesh.method_space import SNMethodSpace
 
    # Build the descriptor tree — no realization yet.
    spec = ReflectiveBoundary(axis="x", albedo=1.0)
@@ -1440,7 +1440,7 @@ algebraically identical.
 The ``realize_recursively`` walker — a descriptor → operator type transformer
 =============================================================================
 
-:func:`~orpheus.sn.boundary_realizer.realize_recursively` is the
+:func:`~orpheus.sn.boundary.realizer.realize_recursively` is the
 **type transformer** from the descriptor-tree algebra
 (``BoundaryTraceLaw | LawSum | LawScaled``) to the operator-tree
 algebra (``LinearOperator`` with
@@ -1481,7 +1481,7 @@ Usage on the descriptor tree:
    from orpheus.geometry.boundary import (
        ReflectiveBoundary, WhiteBoundary,
    )
-   from orpheus.sn.boundary_realizer import realize_recursively
+   from orpheus.sn.boundary.realizer import realize_recursively
 
    # Build the descriptor tree.
    law = (
@@ -1538,19 +1538,19 @@ algebras, nothing more.
 Placement and the deferred cross-method generalization
 ------------------------------------------------------
 
-The walker lives in :mod:`orpheus.sn.boundary_realizer`,
-**co-located with the** :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`
+The walker lives in :mod:`orpheus.sn.boundary.realizer`,
+**co-located with the** :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`
 it dispatches to at every leaf. (It previously sat in a separate
 ``boundary_realize`` module — the near-twin filename next to
 ``boundary_realizer`` was a standing legibility hazard; merging the
 two retired it.)
 
 The walker is **honestly SN-specific today**: it threads an
-:class:`~orpheus.sn.method_space.SNMethodSpace` and hardcodes
-:class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` at the
+:class:`~orpheus.sn.mesh.method_space.SNMethodSpace` and hardcodes
+:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` at the
 leaf. It is *not* on the production single-BC path — production
 realizes one BC directly
-(:meth:`SNMesh._resolve_one <orpheus.sn.geometry.SNMesh._resolve_one>`
+(:meth:`SNMesh._resolve_one <orpheus.sn.mesh.augmented_mesh.SNMesh._resolve_one>`
 → ``SNBoundaryRealizer().realize``). This walker is the **rank-N
 composition entry point**: the only thing that realizes a
 *descriptor tree* (the Marshak ``0.3 * Reflective + 0.7 * White``
@@ -1561,7 +1561,7 @@ runs only from the rank-N tests.
 The method-agnostic generalization — a walker that resolves its
 leaf realizer through :class:`~orpheus.geometry.boundary.BoundaryRealizerRegistry`
 and threads a ``MethodSpace`` Protocol instead of a concrete
-:class:`~orpheus.sn.method_space.SNMethodSpace`, living next to the
+:class:`~orpheus.sn.mesh.method_space.SNMethodSpace`, living next to the
 registry in ``geometry/boundary/`` — is **deferred until the second
 functional realizer ships**. MoC, MC, CP, and diffusion are
 ``NotImplementedError`` stubs today, so the registry has **zero
@@ -1680,7 +1680,7 @@ The §16A.5 production-relevant subset is **the inflow rows**.
 Every SN sweep call site reads :math:`\psi_{\text{in}}[n]` only for
 :math:`n \in I_f` — outflow rows are never consumed downstream.
 The Wave 8 close-out audited all 13 ``bc.apply(...)`` sites in
-``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``) and :mod:`orpheus.sn.operator`:
+``orpheus.sn.loss_representation`` (the dissolved ``sweep.py``) and :mod:`orpheus.sn.operators.streaming`:
 
 * ``sweep.py:334,351`` (1-D slab) read
   ``psi_face_left_in[n_half + n]`` for positive-μ ordinates
@@ -1787,7 +1787,7 @@ remaining 2-arg ``apply`` affordance from the Wave-8/9 era into a
   :ref:`bc-rank-n-algebra`. The dunders are: ``+``, ``-``, ``*``,
   ``/``, unary ``-``, plus their reflected variants. Each returns
   a new descriptor-tree node; none returns an operator.
-* :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` is the
+* :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` is the
   **sole** bridge from descriptor to callable. There is no
   alternative path. Calling ``law.apply(psi)`` raises
   :class:`AttributeError` at runtime; a static type checker flags
@@ -1921,7 +1921,7 @@ There is **one** way to call a boundary law's ``apply``:
 .. code-block:: python
 
    from orpheus.geometry.boundary import ReflectiveBoundary
-   from orpheus.sn.boundary_realizer import (
+   from orpheus.sn.boundary.realizer import (
        SNBoundaryRealizer, SNMethodSpace,
    )
 
@@ -1934,7 +1934,7 @@ For descriptor-tree composition:
 
 .. code-block:: python
 
-   from orpheus.sn.boundary_realizer import realize_recursively
+   from orpheus.sn.boundary.realizer import realize_recursively
 
    tree = 0.3 * ReflectiveBoundary(axis="x") + 0.7 * WhiteBoundary(
        axis="x", outward_sign=+1,
@@ -2056,7 +2056,7 @@ post-Phase-D code path:
      - Output use
    * - **#1**
      - Phase D Carlson context build
-       (:func:`~orpheus.sn.operator.transport_operator_matvec_spherical`
+       (:func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`
        / ``_cylindrical`` early in the call)
      - ``(N, ng)`` — outer-cell cell-centred :math:`\psi` (NOT the
        face trace; a first-order proxy used only to construct the
@@ -2160,8 +2160,8 @@ Phase F extension — BC applies in the SI sweep path
 Phase D (Issue #168 Phase D, :ref:`bc-phase-d-two-bc-applies-per-matvec`
 above) instituted the *two BC apply calls per curvilinear matvec*
 contract on the apply-matvec path (the within-group operator,
-:class:`~orpheus.sn.operator.InvertibleOperator` post-Depth-B; the
-matvec lives at :func:`~orpheus.sn.operator.transport_operator_matvec_unified`).  Phase F
+:class:`~orpheus.sn.operators.streaming.InvertibleOperator` post-Depth-B; the
+matvec lives at :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_unified`).  Phase F
 (Issue #168 Phase F, 2026-05-12, also landed on
 ``refactor/sn-operator-algebra``) propagates the same pattern to the
 **SI/sweep path** (:func:`~orpheus.sn.loss_representation.transport_sweep` →
@@ -2447,7 +2447,7 @@ same :func:`~orpheus.transport.mesh.axis.face_labels` inventory.
 .. note::
 
    ``AXIS_NAMES`` moved **down** from
-   :mod:`orpheus.sn.sweep_graph` to :mod:`orpheus.transport.mesh.axis` in C4 —
+   :mod:`orpheus.sn.loss_representation.sweep_graph` to :mod:`orpheus.transport.mesh.axis` in C4 —
    to the bottom of the SN dependency graph, next to the axis
    primitives it names. ``sweep_graph`` re-exported it only outward;
    ``sweep_schedule`` and ``loss_representation`` now import it
@@ -3097,7 +3097,7 @@ With the gate gone, :meth:`SNMesh._resolve_bcs` builds the trace
 **unconditionally** (the pre-C5.3 ``isinstance`` gate excluded only the
 unconstructible 2-D cylindrical mesh), and :attr:`SNMesh.trace` is typed
 and documented as **always non-None**.
-:meth:`SNMethodSpace.for_face <orpheus.sn.method_space.SNMethodSpace.for_face>`'s
+:meth:`SNMethodSpace.for_face <orpheus.sn.mesh.method_space.SNMethodSpace.for_face>`'s
 ``mesh`` parameter becomes **optional metadata** — nothing in the
 realizer chain reads it, and an axis-native :class:`SNMesh` passes
 ``None``.
@@ -3163,7 +3163,7 @@ C5.4 retargets both gates to the **genuine** dimensionality predicate:
 
 The G-S resolvent's old ``"2-D Cartesian ONLY"`` docstring was **stale
 Phase-3 narration**: :attr:`SweepSchedule.gauss_seidel
-<orpheus.sn.sweep_schedule>` and the scheduled sweep
+<orpheus.sn.loss_representation.sweep_schedule>` and the scheduled sweep
 (``_sweep_scheduled``) have been **d-generic since C3**, so the
 resolvent is constructible at :math:`d = 3`. The narration is corrected
 in C5.4; the actual :math:`d = 3` boundary-G-S *fixed-point invariance*

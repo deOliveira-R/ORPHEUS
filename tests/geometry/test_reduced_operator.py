@@ -4,7 +4,7 @@ The load-bearing contract: arrays produced by the geometry-layer
 factories (:func:`slab_streaming`, :func:`spherical_streaming`,
 :func:`cylindrical_streaming`) MUST be **bit-identical** to those
 produced by the legacy in-line setup methods on
-:class:`~orpheus.sn.geometry.SNMesh`.
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`.
 
 These tests are tagged ``@pytest.mark.foundation`` — they verify
 software invariants (hash-equality of array bit patterns, property
@@ -30,7 +30,7 @@ from orpheus.geometry import (
     slab_streaming,
     spherical_streaming,
 )
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import placeholder_materials
 

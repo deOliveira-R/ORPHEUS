@@ -35,10 +35,10 @@ from orpheus.numerics.operator import (
     FullOperator,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.angular_operator import IncomingSourceOperator
-from orpheus.sn.boundary_operator import SNBoundaryOperator
-from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import InvertibleOperator, StreamingOperator
+from orpheus.sn.boundary.angular import IncomingSourceOperator
+from orpheus.sn.operators.boundary import SNBoundaryOperator
+from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.operators.streaming import InvertibleOperator, StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from tests.sn._test_helpers import placeholder_materials
 

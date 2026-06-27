@@ -11,7 +11,7 @@ quadrature and geometry layer:
   at S6.4(f)) — the default path used by
   :class:`~orpheus.sn.solver.SNSolver`.
 * **Krylov** via an explicit transport operator
-  (:mod:`~orpheus.sn.operator`) — forms ``T: ψ → T·ψ`` as a
+  (:mod:`~orpheus.sn.operators.streaming`) — forms ``T: ψ → T·ψ`` as a
   :class:`scipy.sparse.linalg.LinearOperator` so scipy's BiCGSTAB / GMRES
   can drive the inner solve directly.
 
@@ -31,7 +31,7 @@ Solver
 Geometry
 --------
 
-.. automodule:: orpheus.sn.geometry
+.. automodule:: orpheus.sn.mesh.augmented_mesh
    :members:
    :undoc-members:
    :show-inheritance:
@@ -88,14 +88,14 @@ Transport Sweep — the loss representations
 Direct Transport Operator
 -------------------------
 
-The :mod:`~orpheus.sn.operator` module forms the transport operator
+The :mod:`~orpheus.sn.operators.streaming` module forms the transport operator
 ``T`` explicitly for the Krylov inner solver. The
-:class:`~orpheus.sn.operator.EquationMap` dataclass indexes which
+:class:`~orpheus.sn.operators.streaming.EquationMap` dataclass indexes which
 ``(ordinate, cell)`` pairs are unknowns — ordinates below the equator
 and incoming faces at reflective boundaries are excluded and restored
 by reflection.
 
-.. automodule:: orpheus.sn.operator
+.. automodule:: orpheus.sn.operators.streaming
    :members:
    :undoc-members:
    :show-inheritance:
@@ -105,15 +105,15 @@ by reflection.
 Realized Boundary Law Operator (``B``)
 --------------------------------------
 
-The :mod:`~orpheus.sn.boundary_operator` module assembles the realized
+The :mod:`~orpheus.sn.operators.boundary` module assembles the realized
 per-face boundary laws into the whole-trace operator
-:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` — the
+:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` — the
 :math:`A_{ss}` boundary block of the canonical SN loss
 :math:`(L_{\rm full} + C - S - F - B)`. It is the first-class sibling
 :math:`-B` introduced by Wave O step O.4a.2 (Issue #208). See
 :ref:`bc-extraction` for the block-matrix derivation and design
 rationale.
 
-.. automodule:: orpheus.sn.boundary_operator
+.. automodule:: orpheus.sn.operators.boundary
    :members:
    :show-inheritance:

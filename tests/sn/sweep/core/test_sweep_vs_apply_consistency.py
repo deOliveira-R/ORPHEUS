@@ -1,7 +1,7 @@
 r"""Phase F apply-vs-sweep consistency invariants (Issue #168).
 
 Phase D fixed the apply-matvec path's Carlson coupled-pole seed
-(:func:`~orpheus.sn.operator.transport_operator_matvec_spherical`).
+(:func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`).
 Phase F backports the same fix to the SI/sweep path
 (``_sweep_1d_spherical`` (the dissolved ``sweep.py``),
 ``_sweep_1d_cylindrical`` (the dissolved ``sweep.py``)) via

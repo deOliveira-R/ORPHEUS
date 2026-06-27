@@ -1,7 +1,7 @@
 r"""Comparison tests — unified slab matvec (PR-TYPED-6c Step 4).
 
 Issue #197 PR-TYPED-6c Step 4 verifies the 1-D Cartesian (slab) branch
-of :func:`~orpheus.sn.operator._transport_operator_matvec_unified`.
+of :func:`~orpheus.sn.operators.streaming._transport_operator_matvec_unified`.
 
 Slab is the M-M-neutral 1-level case of the per-level body that
 sphere and cylinder also flow through:
@@ -21,7 +21,7 @@ at x=0) where curvilinear uses ``ψ_view[:, :, 0, 0]`` directly
 uses ``bc_right.apply(ψ_view[:, :, -1, 0])`` symmetrically.
 
 Important: the unified Cartesian matvec is WDD-based; the legacy
-:func:`~orpheus.sn.operator.transport_operator_matvec` is FD-based.
+:func:`~orpheus.sn.operators.streaming.transport_operator_matvec` is FD-based.
 These are DIFFERENT discretisations — they converge to the same
 continuous solution under refinement but DIFFER by O(h) at any fixed
 mesh.  The L1 verification here uses analytical k_∞ (shape-invariant,
@@ -44,9 +44,9 @@ import pytest
 from orpheus.derivations.common.eigenvalue import kinf_homogeneous
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.sn import operator as sn_op
+from orpheus.sn.operators import streaming as sn_op
 from orpheus.sn import solve_sn
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from tests.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
 from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials

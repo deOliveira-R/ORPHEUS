@@ -38,15 +38,15 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
 
     This is a **pure descriptor** (Issue #186 / B3 + β2) — it carries
     no ``apply`` / ``apply_transpose`` methods. Realise via
-    :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` to obtain
+    :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` to obtain
     the 1-arg :class:`~orpheus.numerics.operator.PermutationOperator`
     (α=1 fast path) or ``ScaledOperator(α, PermutationOperator)``
     (α ≠ 1):
 
     .. code-block:: python
 
-        from orpheus.sn.boundary_realizer import SNBoundaryRealizer
-        from orpheus.sn.method_space import SNMethodSpace
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+        from orpheus.sn.mesh.method_space import SNMethodSpace
         law = ReflectiveBoundary(axis="x", albedo=0.7)
         op = SNBoundaryRealizer().realize(
             law, SNMethodSpace.minimal(quad),

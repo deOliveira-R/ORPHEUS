@@ -54,9 +54,9 @@ from orpheus.geometry import (
     StructuredGeometry,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.boundary_operator import SNBoundaryOperator
-from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import StreamingOperator
+from orpheus.sn.operators.boundary import SNBoundaryOperator
+from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.sn.solver import SNSolver, solve_sn
 from orpheus.transport.fields.angular_flux import AngularFlux

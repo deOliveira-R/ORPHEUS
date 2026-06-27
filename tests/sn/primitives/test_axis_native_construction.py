@@ -30,7 +30,7 @@ from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.mesh.axis import AxisCoord, AxisMesh, RadialAxisMesh, coord_system
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 pytestmark = [pytest.mark.foundation]
 

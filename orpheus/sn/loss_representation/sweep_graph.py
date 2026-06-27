@@ -133,7 +133,7 @@ class OctantLabel:
     (``(±1,)``), 2-D (``(±1, ±1)``), or 3-D (``(±1, ±1, ±1)``) octant.
     Ordinate-label signs beyond the mesh's spatial ``ndim`` (e.g. the
     ``sign_z`` of an ``S²`` ordinate over a 2-D mesh) are projected out
-    by the schedule (:func:`orpheus.sn.sweep_schedule._octant_sweep` —
+    by the schedule (:func:`orpheus.sn.loss_representation.sweep_schedule._octant_sweep` —
     the SOLE in-plane projection site; the in-plane sweep is invariant
     under the out-of-plane signs); multiple ordinates that project to
     the same in-plane ``signs`` share a single

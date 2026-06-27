@@ -51,8 +51,8 @@ from orpheus.geometry.boundary import (
     ReflectiveBoundary,
     VacuumInflow,
 )
-from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import (
+from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.operators.streaming import (
     StreamingOperator,
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -347,7 +347,7 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
     over the FULL bulk⊕trace composite (Euclidean), to round-off.
 
     Wave O / O.2b (#208): :class:`StreamingOperator` now carries the analytic
-    reverse-direction adjoint matvec :meth:`~orpheus.sn.operator.StreamingOperator.apply_transpose`,
+    reverse-direction adjoint matvec :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`,
     so the composite ``(L + C)`` advertises ``CAP_APPLY_TRANSPOSE`` and this
     reciprocity is the standing pin that ``apply_transpose`` IS the true
     Euclidean transpose of ``apply`` — over BOTH blocks (the bulk residual AND
@@ -638,7 +638,7 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
     the keystone re-apply).  Wave O O.4a.2 deletes the keystone and reads
     ``ψ.boundary.inflow`` as a given, so the matvec calls ``bc_outer.apply``
     ZERO times — the reflective coupling moved to the sibling ``−B``
-    (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`).
+    (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`).
 
     The §16A.3 substance is preserved, decomposed across the new algebra:
 

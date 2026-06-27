@@ -26,7 +26,7 @@ prescribed-inflow law is the smallest concrete BC that exercises
 this slot.
 
 The realizer dispatch maps an instance to
-:class:`~orpheus.sn.angular_operator.IncomingSourceOperator`, whose
+:class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`, whose
 :meth:`apply` ignores the outgoing flux and returns the source
 evaluation.
 """
@@ -53,13 +53,13 @@ class PrescribedInflow(BoundaryTraceLaw, key="prescribed_inflow"):
 
     This is a **pure descriptor** (Issue #186 / B3 + β2) — it carries
     no ``apply`` method. The SN realisation is
-    :class:`~orpheus.sn.angular_operator.IncomingSourceOperator(source)`.
+    :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator(source)`.
     Realise via:
 
     .. code-block:: python
 
-        from orpheus.sn.boundary_realizer import SNBoundaryRealizer
-        from orpheus.sn.method_space import SNMethodSpace
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+        from orpheus.sn.mesh.method_space import SNMethodSpace
         law = PrescribedInflow(source=ConstantInflowSource(2.5))
         op = SNBoundaryRealizer().realize(law, SNMethodSpace.minimal(quad))
         psi_in = op.apply(psi_out)   # ignores psi_out; returns source

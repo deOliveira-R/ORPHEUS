@@ -50,12 +50,12 @@ from orpheus.transport.mesh.material_mesh import (
     InconsistentMaterialsError,
     MaterialMesh,
 )
-from .boundary_realizer import SNBoundaryRealizer
+from ..boundary.realizer import SNBoundaryRealizer
 from .method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
-from .spatial.scheme import DiscretizationSchemeBase, CellVisit
-from .spatial.diamond import DiamondDifference
-from .spatial.pole_angular_closure import (
+from ..spatial.scheme import DiscretizationSchemeBase, CellVisit
+from ..spatial.diamond import DiamondDifference
+from ..spatial.pole_angular_closure import (
     IdentityAngularClosure,
     MorelMontryAngularSweep,
     PoleAngularClosure,
@@ -80,7 +80,7 @@ if TYPE_CHECKING:
 # :mod:`orpheus.transport.mesh.material_mesh` (it is raised by
 # ``MaterialMesh.ng``, the method-agnostic group-consistency check) and is
 # re-exported here for the SN-side consumers / tests that import it from
-# ``orpheus.sn.geometry``.
+# ``orpheus.sn.mesh.augmented_mesh``.
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -785,7 +785,7 @@ class SNMesh(MaterialMesh):
         r"""The composite carrier :math:`V_{\rm bulk} \oplus V_{\rm trace}` (Wave O / O.2b).
 
         The function space of the FULL streaming operator
-        (:class:`~orpheus.sn.operator.StreamingOperator`) and every bulk
+        (:class:`~orpheus.sn.operators.streaming.StreamingOperator`) and every bulk
         :math:`\oplus` boundary composite — the domain/codomain under which
         ``L.H`` and ``(L + C - B).H`` are the **metric-correct G-adjoint**
         :math:`A^\dagger = G^{-1} A^{\mathsf T} G` (Issue #208). The

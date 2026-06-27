@@ -40,7 +40,7 @@ import pytest
 
 from orpheus.derivations.continuous.mms.sn import build_1d_slab_mms_case
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.loss_representation import (
     CumprodScan,
     FullFieldWavefront,

@@ -86,9 +86,9 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.loss_representation import transport_sweep
-from orpheus.sn.operator import StreamingOperator
+from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.source_sinks import AngularSourceSink

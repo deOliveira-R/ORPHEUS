@@ -24,7 +24,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.geometry import Mesh2D
 from orpheus.numerics.operator import CAP_APPLY, LinearOperator
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.transport.operators.scattering import ScatteringOperator

@@ -38,7 +38,7 @@ class AlbedoBoundary(BoundaryTraceLaw, key="albedo"):
     :class:`~orpheus.numerics.operator.ZeroOperator` (α=0),
     :class:`~orpheus.numerics.operator.IdentityOperator` (α=1), or
     ``ScaledOperator(α, IdentityOperator)`` (α ∉ {0, 1}). Realise via
-    :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`.
+    :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`.
 
     Rename history
     --------------

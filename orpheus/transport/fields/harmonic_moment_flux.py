@@ -110,7 +110,7 @@ from orpheus.transport.fields._bases import MomentField
 from orpheus.transport.fields._flux_role import FluxRole
 
 if TYPE_CHECKING:
-    from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 

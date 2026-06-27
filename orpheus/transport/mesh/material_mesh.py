@@ -5,7 +5,7 @@ was missing.  Between the geometry :class:`~orpheus.geometry.mesh.Mesh1D`
 / :class:`~orpheus.geometry.mesh.Mesh2D` (which carry material *ids* but
 no :class:`~orpheus.data.macro_xs.mixture.Mixture` cross sections) and a
 method-specific phase space such as
-:class:`~orpheus.sn.geometry.SNMesh` (mesh + materials + *quadrature* +
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (mesh + materials + *quadrature* +
 sweep machinery) there was no carrier for *just* mesh + materials.
 
 The abstraction axis is **data vs behavior**:

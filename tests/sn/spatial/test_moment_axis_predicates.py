@@ -38,7 +38,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.spatial import DiamondDifference, LinearDiscontinuous
 from orpheus.transport.fields.angular_flux import AngularFlux
 

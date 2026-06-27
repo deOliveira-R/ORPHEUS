@@ -13,8 +13,8 @@ weights :math:`\tau_{mm}`.
 
 Per Cardinal Rule 2 (architecture), this primitive **MUST NOT** be
 duplicated across solvers.  The historical home was
-:class:`orpheus.sn.geometry.SNMesh._setup_spherical` and
-:class:`~orpheus.sn.geometry.SNMesh._setup_cylindrical`; this module is
+:class:`orpheus.sn.mesh.augmented_mesh.SNMesh._setup_spherical` and
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh._setup_cylindrical`; this module is
 the geometry-layer parallel implementation that those consumers will
 migrate to in Wave G of the SN reshape campaign (Issue 10).
 
@@ -129,10 +129,10 @@ References
 See also
 ========
 
-* :class:`orpheus.sn.geometry.SNMesh` — consumes this primitive
+* :class:`orpheus.sn.mesh.augmented_mesh.SNMesh` — consumes this primitive
   via the curvilinear connection-coefficients path.
-  :class:`~orpheus.sn.operator.StreamingOperator` consumes it through
-  :func:`~orpheus.sn.operator.transport_operator_matvec_unified`.
+  :class:`~orpheus.sn.operators.streaming.StreamingOperator` consumes it through
+  :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_unified`.
   MoC and CP campaigns (post-Wave-1) reuse this primitive with their
   own consumption patterns.
 * :doc:`/theory/structured_geometry` — the architecture page;

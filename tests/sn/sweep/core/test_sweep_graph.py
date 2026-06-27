@@ -1,4 +1,4 @@
-r"""Tests for :mod:`orpheus.sn.sweep_graph` (Wave 2 / C2.3).
+r"""Tests for :mod:`orpheus.sn.loss_representation.sweep_graph` (Wave 2 / C2.3).
 
 The §15A.2 "upwind trace complex / causal transport DAG / direction
 sweep ordering" primitive (Grand Report v3 lines 2137-2171). This
@@ -24,7 +24,7 @@ import numpy as np
 import pytest
 
 from orpheus.sn.spatial.diamond import DiamondDifference
-from orpheus.sn.sweep_graph import (
+from orpheus.sn.loss_representation.sweep_graph import (
     OctantLabel,
     SweepDependencyGraph,
     _CellResidual,

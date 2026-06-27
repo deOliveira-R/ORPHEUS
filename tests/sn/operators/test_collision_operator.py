@@ -38,7 +38,7 @@ from orpheus.numerics.operator import (
     CAP_SOLVE,
     LinearOperator,
 )
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux

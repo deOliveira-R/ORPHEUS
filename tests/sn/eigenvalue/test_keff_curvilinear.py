@@ -19,7 +19,7 @@ from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import SNSolver, solve_sn
 from tests.sn._test_helpers import (
     curvilinear_homogeneous_mesh as _homogeneous_mesh,

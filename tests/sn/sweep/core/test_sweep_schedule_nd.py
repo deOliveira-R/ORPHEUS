@@ -1,6 +1,6 @@
 r"""C3.6 synthetic d≠2 schedule pins — the honest in-plane projection.
 
-The schedule (:func:`~orpheus.sn.sweep_schedule._octant_sweep`) is the SOLE
+The schedule (:func:`~orpheus.sn.loss_representation.sweep_schedule._octant_sweep`) is the SOLE
 in-plane projection site: it keeps the mesh's first ``ndim`` quadrature
 signs and zero-pads missing axes.  Before C3.6 it truncated EVERY label to a
 2-tuple and ``_outgoing_faces`` hand-listed x/y faces — at d=3 a +z octant
@@ -31,8 +31,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from orpheus.sn.sweep_graph import OctantLabel
-from orpheus.sn.sweep_schedule import (
+from orpheus.sn.loss_representation.sweep_graph import OctantLabel
+from orpheus.sn.loss_representation.sweep_schedule import (
     SweepSchedule,
     _octant_sweep,
     _outgoing_faces,
@@ -206,7 +206,7 @@ def test_gs_d3_schedule_from_real_mesh():
     from orpheus.geometry import BC
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.transport.mesh.axis import AxisMesh
-    from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
 
     refl, vac = BC("reflective"), BC("vacuum")
     mix = make_mixture(

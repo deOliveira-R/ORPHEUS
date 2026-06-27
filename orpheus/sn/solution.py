@@ -49,7 +49,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 if TYPE_CHECKING:
-    from .geometry import SNMesh
+    from .mesh.augmented_mesh import SNMesh
     from orpheus.geometry import Mesh1D, Mesh2D
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from orpheus.transport.fields.scalar_flux import ScalarFlux
@@ -367,7 +367,7 @@ class Solution:
             The coarse mesh carrying the homogenized materials (one
             :class:`Mixture` per coarse cell, keyed by coarse-cell index).
             Promote to a solvable SN phase space with
-            :meth:`~orpheus.sn.geometry.SNMesh.from_material_mesh`.
+            :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.from_material_mesh`.
 
         Notes
         -----

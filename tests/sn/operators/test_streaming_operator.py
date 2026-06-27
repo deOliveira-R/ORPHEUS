@@ -1,4 +1,4 @@
-r"""Foundation tests for :class:`orpheus.sn.operator.StreamingOperator`.
+r"""Foundation tests for :class:`orpheus.sn.operators.streaming.StreamingOperator`.
 
 The "L" of the four-operator algebra
 ``A_wg = L + C - S.foldable_part()`` (Issue #196, Resolution A).
@@ -36,8 +36,8 @@ from orpheus.numerics.operator import (
     CAP_SOLVE,
     LinearOperator,
 )
-from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import (
+from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.operators.streaming import (
     StreamingOperator,
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -316,7 +316,7 @@ class TestSumCapabilities:
     R-1 Step C encodes that identity at the type level by overriding
     :meth:`StreamingOperator.__add__` and
     :meth:`CollisionOperator.__add__` to return
-    :class:`~orpheus.sn.operator.InvertibleOperator`, a specialisation
+    :class:`~orpheus.sn.operators.streaming.InvertibleOperator`, a specialisation
     of :class:`OperatorSum` that adds ``solve`` via
     :func:`~orpheus.sn.loss_representation.transport_sweep`.
     """
@@ -335,7 +335,7 @@ class TestSumCapabilities:
         self, name, builder,
     ):
         r"""``L + C`` dispatches to InvertibleOperator and advertises solve."""
-        from orpheus.sn.operator import InvertibleOperator
+        from orpheus.sn.operators.streaming import InvertibleOperator
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)

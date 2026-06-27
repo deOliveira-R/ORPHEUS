@@ -48,7 +48,7 @@ The §16A.3 decomposition splits this map into three concrete layers:
 3. **Method realisation** —
    :class:`~orpheus.geometry.boundary.BoundaryRealizer` Protocol +
    one functional implementation
-   (:class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`) plus
+   (:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`) plus
    four stubs (``MoCBoundaryRealizer``, ``MCBoundaryRealizer``,
    ``CPBoundaryRealizer``, ``DiffusionBoundaryRealizer``) holding
    the dispatch architecture in place for future modernisation of
@@ -83,7 +83,7 @@ Concrete laws (Wave 7 vocabulary, post-#186 descriptor model)
 Each of the six concrete :class:`BoundaryTraceLaw` subclasses is a
 **frozen dataclass descriptor** — instantiate it to declare the
 law's parameters; realise it (via
-:class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`) to
+:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`) to
 obtain a 1-arg callable :class:`LinearOperator`. None of the
 concrete laws has an :meth:`apply` method; the realiser is the
 sole bridge. The canonical SN-realised representation per law:
@@ -114,7 +114,7 @@ sole bridge. The canonical SN-realised representation per law:
   :math:`R = G_{\text{diff}} \cdot \alpha` with the geometric
   operator the cosine-weighted Lambertian average over the outgoing
   hemisphere. SN realises to
-  :class:`~orpheus.sn.angular_operator.AngularAverageOperator` (α=1
+  :class:`~orpheus.sn.boundary.angular.AngularAverageOperator` (α=1
   fast path) or scaled.
   :attr:`creates_sweep_cycle` = ``False``.
 * :class:`PeriodicBoundary` (registry key ``"periodic"``, deprecated
@@ -135,7 +135,7 @@ sole bridge. The canonical SN-realised representation per law:
 * :class:`PrescribedInflow(source)` (registry key
   ``"prescribed_inflow"``, Wave 7 addition) — the rank-0 affine BC
   :math:`R = G = 0`, :math:`q \neq 0`. SN realises to
-  :class:`~orpheus.sn.angular_operator.IncomingSourceOperator(source)`
+  :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator(source)`
   whose :meth:`apply` ignores the outgoing flux and returns
   ``source.evaluate(psi_out.shape)``. Consumes a
   :class:`InflowSourceSpec` (typically :class:`NoSource` for the
@@ -155,7 +155,7 @@ Rank-N (Marshak, partial-current) boundary conditions are
 :class:`~orpheus.geometry.boundary._composition.LawSum` /
 :class:`~orpheus.geometry.boundary._composition.LawScaled` nodes —
 pure descriptor structures with **no** ``apply`` method. The
-:func:`~orpheus.sn.boundary_realizer.realize_recursively` walker is
+:func:`~orpheus.sn.boundary.realizer.realize_recursively` walker is
 the **sole** type transformer from descriptor tree to operator
 tree (Issue #186 / B3 + β2, 2026-05-11):
 
@@ -164,8 +164,8 @@ tree (Issue #186 / B3 + β2, 2026-05-11):
     from orpheus.geometry.boundary import (
         ReflectiveBoundary, WhiteBoundary,
     )
-    from orpheus.sn.boundary_realizer import realize_recursively
-    from orpheus.sn.method_space import SNMethodSpace
+    from orpheus.sn.boundary.realizer import realize_recursively
+    from orpheus.sn.mesh.method_space import SNMethodSpace
 
     # Build the descriptor tree (no realisation yet).
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
@@ -287,7 +287,7 @@ Cross-method realizer stubs
 
 The :class:`BoundaryRealizer` Protocol has one functional
 implementation today —
-:class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`. Four
+:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`. Four
 stub realizers in :mod:`orpheus.moc.boundary_realizer`,
 :mod:`orpheus.mc.boundary_realizer`,
 :mod:`orpheus.cp.boundary_realizer`, and
@@ -371,10 +371,10 @@ Cross-references
 * :mod:`._base` — :class:`BoundaryTraceLaw` ABC: pure descriptor
   with no ``apply``; carries the minimal algebra dunders that
   build descriptor-tree nodes.
-* :mod:`orpheus.sn.boundary_realizer` —
+* :mod:`orpheus.sn.boundary.realizer` —
   :class:`SNBoundaryRealizer` (functional realizer dispatching by
   ``isinstance``; the leaf descriptor → operator transformer).
-* :mod:`orpheus.sn.boundary_realizer` —
+* :mod:`orpheus.sn.boundary.realizer` —
   :func:`realize_recursively` walker, the **type transformer**
   from a descriptor tree
   (``BoundaryTraceLaw | LawSum | LawScaled``) to an operator tree
@@ -421,7 +421,7 @@ from ._base import BoundaryTraceLaw
 # form a closed algebra over BoundaryTraceLaw | LawSum | LawScaled, used
 # for rank-N boundary composition (e.g. ``0.3 * spec + 0.7 * white``).
 # Realised to a Wave-0 operator tree via
-# :func:`orpheus.sn.boundary_realizer.realize_recursively`.
+# :func:`orpheus.sn.boundary.realizer.realize_recursively`.
 # ---------------------------------------------------------------------------
 
 from ._composition import LawNode, LawScaled, LawSum

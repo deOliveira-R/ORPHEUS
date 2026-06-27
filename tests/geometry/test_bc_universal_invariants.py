@@ -327,8 +327,8 @@ class TestPrescribedInflowApply:
 
     Issue #186 (B3 + β2): descriptors are no longer callable.
     Realisation through
-    :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` produces
-    an :class:`~orpheus.sn.angular_operator.IncomingSourceOperator`
+    :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` produces
+    an :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`
     whose :meth:`apply` carries the rank-0 contract: input is ignored,
     output depends only on the source.
     """
@@ -336,8 +336,8 @@ class TestPrescribedInflowApply:
     def test_realized_apply_with_no_source_returns_zeros(self) -> None:
         """Default ``NoSource``: realized ``apply`` returns zeros."""
         from orpheus.geometry.boundary import PrescribedInflow
-        from orpheus.sn.boundary_realizer import SNBoundaryRealizer
-        from orpheus.sn.method_space import SNMethodSpace
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+        from orpheus.sn.mesh.method_space import SNMethodSpace
 
         bc = PrescribedInflow()
         quad = Quadrature.lebedev(17)
@@ -353,8 +353,8 @@ class TestPrescribedInflowApply:
             ConstantInflowSource,
             PrescribedInflow,
         )
-        from orpheus.sn.boundary_realizer import SNBoundaryRealizer
-        from orpheus.sn.method_space import SNMethodSpace
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+        from orpheus.sn.mesh.method_space import SNMethodSpace
 
         bc = PrescribedInflow(source=ConstantInflowSource(value=3.7))
         quad = Quadrature.lebedev(17)
@@ -370,8 +370,8 @@ class TestPrescribedInflowApply:
             ConstantInflowSource,
             PrescribedInflow,
         )
-        from orpheus.sn.boundary_realizer import SNBoundaryRealizer
-        from orpheus.sn.method_space import SNMethodSpace
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+        from orpheus.sn.mesh.method_space import SNMethodSpace
 
         bc = PrescribedInflow(source=ConstantInflowSource(value=1.0))
         quad = Quadrature.lebedev(17)
@@ -392,7 +392,7 @@ class TestIncomingSourceOperator:
 
     def test_apply_returns_source_evaluation(self) -> None:
         from orpheus.geometry.boundary import ConstantInflowSource
-        from orpheus.sn.angular_operator import IncomingSourceOperator
+        from orpheus.sn.boundary.angular import IncomingSourceOperator
 
         op = IncomingSourceOperator(ConstantInflowSource(value=2.5))
         psi_out = np.zeros((8, 3))
@@ -402,7 +402,7 @@ class TestIncomingSourceOperator:
 
     def test_apply_ignores_input(self) -> None:
         from orpheus.geometry.boundary import ConstantInflowSource
-        from orpheus.sn.angular_operator import IncomingSourceOperator
+        from orpheus.sn.boundary.angular import IncomingSourceOperator
 
         op = IncomingSourceOperator(ConstantInflowSource(value=1.0))
         result_a = op.apply(np.zeros((6, 2)))
@@ -411,7 +411,7 @@ class TestIncomingSourceOperator:
 
     def test_capabilities_are_apply_only(self) -> None:
         from orpheus.geometry.boundary import NoSource
-        from orpheus.sn.angular_operator import IncomingSourceOperator
+        from orpheus.sn.boundary.angular import IncomingSourceOperator
 
         op = IncomingSourceOperator(NoSource())
         assert "apply" in op.capabilities
@@ -430,9 +430,9 @@ class TestSNRealizerPrescribedInflowDispatch:
             ConstantInflowSource,
             PrescribedInflow,
         )
-        from orpheus.sn.angular_operator import IncomingSourceOperator
-        from orpheus.sn.boundary_realizer import SNBoundaryRealizer
-        from orpheus.sn.method_space import SNMethodSpace
+        from orpheus.sn.boundary.angular import IncomingSourceOperator
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+        from orpheus.sn.mesh.method_space import SNMethodSpace
 
         bc = PrescribedInflow(source=ConstantInflowSource(value=1.5))
         quad = Quadrature.lebedev(17)
@@ -443,9 +443,9 @@ class TestSNRealizerPrescribedInflowDispatch:
 
     def test_realize_with_default_no_source(self) -> None:
         from orpheus.geometry.boundary import NoSource, PrescribedInflow
-        from orpheus.sn.angular_operator import IncomingSourceOperator
-        from orpheus.sn.boundary_realizer import SNBoundaryRealizer
-        from orpheus.sn.method_space import SNMethodSpace
+        from orpheus.sn.boundary.angular import IncomingSourceOperator
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+        from orpheus.sn.mesh.method_space import SNMethodSpace
 
         bc = PrescribedInflow()
         quad = Quadrature.lebedev(17)

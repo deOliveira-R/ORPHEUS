@@ -37,13 +37,13 @@ Key Facts
   :ref:`sn-curvilinear-aniso-norm-reconciliation`.
 - Verification uses :ref:`synthetic cross sections <synthetic-xs-library>`, not real nuclear data
 - 2-D wavefront sweep (Wave 2): per-octant batched dispatch via
-  :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph`; mesh-time
+  :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`; mesh-time
   precompute of the per-octant DAG; BC apply once per octant per axis
   (the L7-trap fix). **Since S6.4(e)** the graph exposes TWO storage
   walks —
-  :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full`
+  :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full`
   (full-cochain oracle) and
-  :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`
+  :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`
   (rolling-frontier production) — each parameterised by a LEVEL
   OPERATION object (``_CellSolve`` | ``_CellResidual``); the cell math
   is the discretization's storage-free kernel pair
@@ -74,7 +74,7 @@ Key Facts
   :class:`~orpheus.numerics.iteration.KrylovAcceleration`). The
   reflective coupling rides the bare 2-D sweep via the sibling
   :math:`-B` on the natively four-face
-  :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`. The legacy
+  :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`. The legacy
   "B1'' face block" (never a code symbol) is retired. Verified
   SI ≡ Krylov ≡ closed-form :math:`k_\infty` (1g → 1.5, 2g → 1.875,
   4g → 1.4878); heterogeneous non-flat 2-D flux shape agrees SI-vs-Krylov
@@ -90,7 +90,7 @@ Key Facts
   S6.4; it was **retired at S6.4(f)** (#222) when the walk re-layering
   moved the seed/absorb verbs into the shared octant frame, and the
   cochain now lives in the rolling front
-  (``_MovingFrontier``, ``orpheus.sn.sweep_graph``) and the
+  (``_MovingFrontier``, ``orpheus.sn.loss_representation.sweep_graph``) and the
   full-cochain oracle history (``_octant_face_cochain``,
   ``orpheus.sn.loss_representation``).
   See :ref:`wavefront-flux-cochain` in :doc:`operator_algebra` for the
@@ -1146,7 +1146,7 @@ The :class:`CellVisit` composes:
 The :class:`CellVisit` packets are produced by
 :meth:`SNMesh.dag_walk(*, ordinate_idx=..., direction_sign=...,
 mu_level_idx=None)
-<orpheus.sn.geometry.SNMesh.dag_walk>` — a generator that
+<orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk>` — a generator that
 yields cells in DAG-topological order.  The method takes EXACTLY ONE
 of ``ordinate_idx`` (single-ordinate visits, used by the sweep
 driver) or ``direction_sign`` (direction-keyed visits, used by the
@@ -1227,7 +1227,7 @@ The numerical threshold is ``streaming_terms.abs_mu < 1e-15``, with
 :doc:`structured_geometry`, "Connection coefficients (reduced
 streaming operator)").  In this case
 :meth:`SNMesh.dag_walk
-<orpheus.sn.geometry.SNMesh.dag_walk>` yields visits with
+<orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk>` yields visits with
 ``face_area_downstream = 0.0`` to signal "no spatial flow" to the
 strategy (Issue #196 Step 2.5 retired the ``None`` sentinel — the
 slab carries ``1.0`` and degenerate cylindrical carries ``0.0`` so
@@ -2050,7 +2050,7 @@ The DD bit-identity backward-compat invariant
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 All three contract widenings — the dense kernel arm, the multi-moment
-face-cochain trailing axis (:mod:`orpheus.sn.sweep_graph` ``_MovingFrontier``;
+face-cochain trailing axis (:mod:`orpheus.sn.loss_representation.sweep_graph` ``_MovingFrontier``;
 the ``_CellSolve`` / ``_CellResidual`` moment-reducing emit), and the window
 zero-pad (:mod:`orpheus.sn.loss_representation`
 ``FullFieldWavefront._octant_face_cochain``, the ``_inflow_to_moments`` pad) —
@@ -2728,7 +2728,7 @@ of the thick-cell diffusion limit, which hinges on a single
 frame-consistency identity (ERR-061) that the rest of this subsection derives.
 The source files are :mod:`orpheus.sn.spatial.linear_discontinuous`
 (``cell_kernel_batch`` / ``residual_kernel_batch`` — now ONE :math:`d`-generic
-moment path), :mod:`orpheus.sn.sweep_graph` (``_CellSolve`` / ``_CellResidual``
+moment path), :mod:`orpheus.sn.loss_representation.sweep_graph` (``_CellSolve`` / ``_CellResidual``
 — the ``len(s_axes) > 1`` moment gate retired), and
 :mod:`orpheus.sn.loss_representation` (the ``_spatial_moment_tail`` buffer
 widening); the closeout is
@@ -3237,7 +3237,7 @@ see the honest-scope note below.
      (**#251**).  The boundary trace ``mesh.trace`` carries the
      :math:`2^{d-1}` transverse face-moments per face per ordinate per group
      (a moment-resolved slot ``(N, ng, *face_shape, 2^{d-1})`` minted by
-     :attr:`orpheus.sn.geometry.SNMesh.boundary_face_layout`, appending the
+     :attr:`orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout`, appending the
      single-source :func:`orpheus.numerics.moment_layout.face_moment_tail`),
      so a moment-resolved prescribed inflow can carry the along-face
      (transverse) Legendre slope, the sweep outflow STORES the
@@ -3276,7 +3276,7 @@ see the honest-scope note below.
    typed-union bulk widening, the Mode-10 structural-teeth design, and the
    M1–M4 mutation table — is the subsection :ref:`ld-cartesian-2d-legA`
    immediately below.  The full Leg B narrative — the
-   :attr:`~orpheus.sn.geometry.SNMesh.boundary_face_layout` moment-tail
+   :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout` moment-tail
    storage lever, the ``_inflow_to_moments`` rank-discriminated pass-through,
    the four outflow capture-collapse DROP sites, the
    ``prescribed_inflow`` scalar-or-moment producer, the transverse
@@ -3382,7 +3382,7 @@ which.
 coefficients of :math:`q(x,y)` live in the global :math:`x`/:math:`y` frame; the
 per-octant sweep frame (where a downwind axis runs the other way) is *not* the
 projection's concern.  Production reframes the source global→sweep per octant in
-:meth:`~orpheus.sn.sweep_graph._CellSolve.cell` via the slope-sign involution
+:meth:`~orpheus.sn.loss_representation.sweep_graph._CellSolve.cell` via the slope-sign involution
 :math:`\mathrm{octant\_moment\_frame\_signs}`
 (Eq. :eq:`ld-ubld-octant-moment-frame-signs`,
 :func:`orpheus.sn.spatial._ubld.octant_moment_frame_signs`), exactly as it
@@ -3703,7 +3703,7 @@ single attribute on the mesh.
 The trace's per-face slot shape is owned not by the
 :class:`~orpheus.numerics.spaces.trace_space.TraceSpace` itself but by the
 :class:`~orpheus.numerics.face_layout.FaceLayout` it is built from, and that
-layout is minted by :attr:`~orpheus.sn.geometry.SNMesh.boundary_face_layout`.
+layout is minted by :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout`.
 The widening is therefore ONE site: append the scheme's per-face transverse
 moment tail to each slot,
 
@@ -4112,7 +4112,7 @@ production bug surfaces; none did.
    (axis 0), which broadcasts UNCHANGED over the new trailing moment axis — no
    hard-coded trailing-axis assumption, so the widening introduces NO latent
    storage bug (read at
-   :meth:`orpheus.sn.boundary_operator.SNBoundaryOperator._reflect_trace`, and
+   :meth:`orpheus.sn.operators.boundary.SNBoundaryOperator._reflect_trace`, and
    confirmed empirically on a reflective-xmin LD-2-D mesh with a seeded slot 1).
    The SIGN, however, is UNVERIFIED.  Physics: a normal-flip reflection across a
    face preserves the tangent-plane (transverse) coordinate, so the transverse
@@ -4125,7 +4125,7 @@ Sources and gates
 '''''''''''''''''
 
 The production change spans three files: the storage lever in
-:attr:`orpheus.sn.geometry.SNMesh.boundary_face_layout` (appending
+:attr:`orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout` (appending
 :func:`~orpheus.numerics.moment_layout.face_moment_tail`); the inflow lift
 :meth:`_LossRepresentation._inflow_to_moments`, the oracle seed
 :meth:`FullFieldWavefront._octant_face_cochain`, and the four outflow
@@ -4263,7 +4263,7 @@ ansatz, no sibling case).
 now gates on
 :func:`~orpheus.numerics.moment_layout.face_moment_count` — the SAME
 single-source primitive
-:attr:`~orpheus.sn.geometry.SNMesh.boundary_face_layout` keys the slot width on:
+:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout` keys the slot width on:
 
 * When ``face_moment_count == 1`` (DD/Step) it builds the SCALAR per-face trace
   ``(N, ng, n_t)`` by cell-CENTRE evaluation of :math:`(A + \mu_x B + \mu_y
@@ -4390,7 +4390,7 @@ whose ``_check_partner`` adds nothing beyond class identity would be a vacuous
 naming leaf — type-theatrics by the project's own "if the type hint does not
 prevent a bug by construction it is theatrics" standard.  So the moment rides as
 a PROPERTY (the flat face buffer already holds the moment tail via
-:attr:`~orpheus.sn.geometry.SNMesh.boundary_face_layout`), and the first-class
+:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout`), and the first-class
 :class:`~orpheus.numerics.spaces.spatial_moment_space.SpatialMomentSpace` field
 type is DEFERRED to the collocation trigger (nodal-DG / Lagrange-FEM, where a
 nodal point-value basis coexists with the modal coefficients and a Vandermonde
@@ -4441,8 +4441,8 @@ The wavefront sweep is implemented as a **per-octant batched
 forward-substitution** over a precomputed causal cell DAG (Wave 2 of
 the SN performance plan, closing Issue #4).  This subsection states
 the algebraic framing; the primitives that realise it
-(:class:`~orpheus.sn.sweep_graph.OctantLabel`,
-:class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` and its two
+(:class:`~orpheus.sn.loss_representation.sweep_graph.OctantLabel`,
+:class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph` and its two
 storage walks, the level-operation pair ``_CellSolve`` /
 ``_CellResidual``, and the discretization's kernel pair
 :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch`
@@ -4552,7 +4552,7 @@ see :ref:`sweep-octant-dependency-graph-l7-trap` for the rationale.
 
 Implemented in :func:`~orpheus.sn.loss_representation._sweep_jacobi`, which
 is a thin orchestrator over the
-:class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` primitives
+:class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph` primitives
 described next.
 
 .. _sweep-octant-dependency-graph:
@@ -4562,7 +4562,7 @@ Cartesian 2D: Octant Dependency Graph (Wave 2)
 
 This section documents the **§15A.2 "upwind trace complex / causal
 transport DAG / direction sweep ordering" primitive** as it lives in
-:mod:`orpheus.sn.sweep_graph` after Wave 2 of the SN performance plan
+:mod:`orpheus.sn.loss_representation.sweep_graph` after Wave 2 of the SN performance plan
 (branch ``feature/sn-octant-sweep-graph``, closes Issue #4).  The
 shipped architecture replaces the legacy per-ordinate ``for n in
 range(N)`` loop in :func:`~orpheus.sn.loss_representation._sweep_jacobi` with
@@ -4582,8 +4582,8 @@ that LD / EC / Step closures can override later.
    on the strategy (full-field) plus their ``apply_windowed`` /
    ``residual_windowed`` siblings on the graph.  S6.4(e) **collapsed
    that surface**: the four walk methods became TWO storage walks
-   (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full`,
-   :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`)
+   (:meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full`,
+   :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`)
    each parameterised by a level-operation OBJECT (``_CellSolve`` for
    the solve direction, ``_CellResidual`` for the apply direction —
    direction is never a boolean flag); the per-level ``SweepCellSlice``
@@ -4609,43 +4609,43 @@ primitives plus a mesh-time precompute step.
    * - Primitive
      - Lives in
      - Role
-   * - :class:`~orpheus.sn.sweep_graph.OctantLabel`
-     - :mod:`orpheus.sn.sweep_graph`
+   * - :class:`~orpheus.sn.loss_representation.sweep_graph.OctantLabel`
+     - :mod:`orpheus.sn.loss_representation.sweep_graph`
      - Frozen + slotted dataclass carrying one direction sign per
        spatial axis (``signs[axis] ∈ {-1, 0, +1}``) — a single type
        labels a 1-D (``(±1,)``), 2-D (``(±1, ±1)``), or 3-D octant.
        Hashable; used as the key in the per-shape graph family
-       :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.for_shape`
+       :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.for_shape`
        (owned by the ``_DAGWavefront`` representation family since
        S6.4(c) — historically a mesh attribute).  An all-zero
        signature denotes the pure-:math:`z` degenerate octant — no
        graph is built for it
-       (:attr:`~orpheus.sn.sweep_graph.OctantLabel.streams` is
+       (:attr:`~orpheus.sn.loss_representation.sweep_graph.OctantLabel.streams` is
        ``False``).  The 3-D ``sign_z`` is dropped by the 2-D Cartesian
        orchestration: the in-plane sweep is invariant under the
        out-of-plane axis, so multiple ordinates with the same in-plane
        ``signs`` but different ``sign_z`` share a single graph instance.
-   * - :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` (+ its
+   * - :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph` (+ its
        two storage walks)
-     - :mod:`orpheus.sn.sweep_graph`
+     - :mod:`orpheus.sn.loss_representation.sweep_graph`
      - Frozen dataclass holding the per-octant topological levels
        (anti-diagonals) and the per-axis face-index offsets.  Built
        once per ``(shape, octant)`` pair in the
-       :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.for_shape`
+       :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.for_shape`
        cache (S6.4(c); historically at mesh construction); reused
        across every source iteration / Krylov matvec / outer
        iteration.  Exposes TWO storage walks (S6.4(e)):
-       :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full`
+       :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full`
        carries the COMPLETE per-axis interior face cochain (the
        verification-oracle policy);
-       :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`
+       :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`
        advances a rolling :math:`(d{-}1)`-frontier window (the
        production policy, ``O(N·n_g·∏ n_a)`` shrunk to
        ``O(N·n_g·∏_{a<d−1} n_a)`` backing).  The walk owns the level
        loop, the storage, and the per-level operand extraction; it
        dispatches the cell algebra to a level operation (next two rows).
    * - The level-operation pair ``_CellSolve`` / ``_CellResidual``
-     - :mod:`orpheus.sn.sweep_graph`
+     - :mod:`orpheus.sn.loss_representation.sweep_graph`
      - The **direction fork, as OBJECTS** (S6.4(e); direction is never
        a boolean flag).  Exactly ONE is constructed per octant walk; the
        storage walk calls ``level_op.cell(...)`` per topological level.
@@ -4685,7 +4685,7 @@ The dependency graph is a **derived object** — the
 and the octant sign convention; it does **not** depend on fluxes,
 sources, BCs, quadrature, cross sections, or iteration state.  So the
 graph build is paid once **per spatial shape** in the cached accessor
-:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.for_shape`, owned
+:meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.for_shape`, owned
 by the DAG-consuming ``_DAGWavefront`` representation family:
 
 .. code-block:: python
@@ -4715,10 +4715,10 @@ by the DAG-consuming ``_DAGWavefront`` representation family:
    (``CumprodScan``, ``ScanMarch``) and curvilinear meshes simply
    never touch the accessor; curvilinear sweeps walk the cell graph
    differently (per-ordinate march; see
-   :meth:`~orpheus.sn.geometry.SNMesh.dag_walk`).
+   :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk`).
 
 The closed-form precompute lives in
-:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.from_cartesian`
+:meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.from_cartesian`
 and never appears in the sweep loop.  This is structural, not
 hand-rolled — the "library version" (a generic topological-sort over
 an explicit DAG) would be over-engineering for a regular pattern that
@@ -4770,9 +4770,9 @@ scheduler and the closure**.  Three layers stack from storage outward
 to algebra (S6.4(e)):
 
 #. **The storage walk** —
-   :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full` (full
+   :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full` (full
    cochain) or
-   :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`
+   :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`
    (rolling frontier).  Owns the topological-level loop and the
    per-axis face gather/scatter (full cochain) or the frontier
    seed/incoming/emit/shed cochain trace algebra (window).  Storage is
@@ -5069,7 +5069,7 @@ level-only (~ 60 calls / sweep) rather than ``levels × octants``
 (~ 240 calls / sweep), eliminating the per-octant copy round-trip.
 The subsequent Phase 5 / S6.4 work took a different route to the
 same end: the rolling-frontier window
-(:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`)
+(:meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`)
 holds the interior cochain on a contiguous :math:`(d{-}1)`-frontier
 slab, turning the per-level gather into a basic-slice zero-copy view
 (a measured ``~0.77×`` contiguity speedup AND a ``~3×`` peak-memory
@@ -5166,9 +5166,9 @@ References and pointers
   the bit-identity contract (pure cell algebra — the ONLY
   direction-aware math in the SN spatial stack since S6.4(e) lifted
   storage to the walk layer).
-* :mod:`orpheus.sn.sweep_graph` — the two storage walks
-  (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full`,
-  :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`)
+* :mod:`orpheus.sn.loss_representation.sweep_graph` — the two storage walks
+  (:meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full`,
+  :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`)
   and the ``_CellSolve`` / ``_CellResidual`` level operations.
 * C2.5 TESTS-FIRST harness:
   ``tests/sn/test_2d_octant_sweep_equivalence.py``.
@@ -5277,7 +5277,7 @@ The curvilinear sweep dispatches per-cell to
        psi_angle[cell_idx] = result.outgoing_angular_state
 
 The cell-update strategy lives on
-:attr:`~orpheus.sn.geometry.SNMesh.scheme` (introduced in
+:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.scheme` (introduced in
 this round as a constructor argument with default
 :class:`~orpheus.sn.spatial.diamond.DiamondDifference`).  The
 default reproduces the inlined sweep math bit-identically — every
@@ -5293,7 +5293,7 @@ and :class:`ExponentialCharacteristic` as positivity-preserving /
 higher-order alternatives; the unified dispatch infrastructure is
 in place to receive them — users will pass
 ``scheme=LinearDiscontinuous()`` etc. at
-:class:`~orpheus.sn.geometry.SNMesh` construction.
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` construction.
 
 The 1-D cumprod fast path (DD-only)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -5320,7 +5320,7 @@ through the storage-free kernel pair
 :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch`
 / :meth:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`
 on the strategy attached to the
-:class:`~orpheus.sn.geometry.SNMesh` (Wave 2 of the SN
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (Wave 2 of the SN
 performance plan; closes Issue #4 — see
 :ref:`sweep-octant-dependency-graph` for the full architecture and
 :ref:`sweep-dispatch-relayering` for the S6.4(e) re-layering).
@@ -5385,10 +5385,10 @@ took two passes at the closure:
   to round-off where the sweep does not.
 * **Wave E Round 3** (Issue #98 follow-up) closed the BC-faithfulness
   gap that Round 2 identified: the FD operator's
-  :func:`~orpheus.sn.operator.solution_to_angular_flux*` and the
+  :func:`~orpheus.sn.operators.streaming.solution_to_angular_flux*` and the
   matvec helpers now consume the
   :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` instances on
-  the :class:`~orpheus.sn.geometry.SNMesh` (Wave B Issue 7
+  the :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (Wave B Issue 7
   tensor-decomposed BC algebra), dispatching boundary fills via the
   realiser-routed 1-arg :meth:`apply` on the resolved
   :class:`~orpheus.numerics.operator.LinearOperator`. Vacuum,
@@ -5456,7 +5456,7 @@ one-sided second-order DD diamond extrapolation
 :math:`\psi^{\text{face}}_{N-1/2} = \tfrac{3}{2}\,\psi_{N-1} -
 \tfrac{1}{2}\,\psi_{N-2}` plus a structural decoupling of
 cell-centre storage from BC face-value storage in
-:func:`~orpheus.sn.operator.solution_to_angular_flux_spherical`
+:func:`~orpheus.sn.operators.streaming.solution_to_angular_flux_spherical`
 (returning a ``(fi, boundary_face_flux)`` tuple where ``fi`` was
 pure cell-centre storage and the BC face flux lived in its own
 companion array).
@@ -5472,7 +5472,7 @@ The retired symbols are:
 * ``orpheus.sn.spatial.boundary_face_flux.CellCenter`` (ablation)
 * ``orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFluxBase`` (ABC)
 * The ``boundary_face_flux`` field on
-  :class:`~orpheus.sn.geometry.SNMesh`
+  :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`
 * The 21 foundation tests at
   :file:`tests/sn/spatial/test_boundary_face_flux.py`
 
@@ -5614,7 +5614,7 @@ Half-angle grid exposure (Issue #197 PR-TYPED-6b)
    exposing the M-M recurrence's half-angle grid
    :math:`\phi_{m\pm 1/2,i,g}` for one level.  The method is the
    intermediate exposure that lets the unified SN matvec
-   (:class:`~orpheus.sn.operator.StreamingOperator`) consume
+   (:class:`~orpheus.sn.operators.streaming.StreamingOperator`) consume
    :math:`\phi_{m\pm 1/2}` as
    :func:`~orpheus.sn.spatial.cell_balance.cell_balance_for_streaming`'s
    ``psi_angular_upstream`` argument — closing the apply-vs-sweep
@@ -5646,7 +5646,7 @@ Sweep-frame apply matvec (Issue #168 Phase C)
    :class: important
 
    * Phase C (commits ``eae6f05`` → ``d445a8f``, 2026-05-12) rewrites
-     :func:`~orpheus.sn.operator.transport_operator_matvec_spherical`
+     :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`
      and ``_cylindrical`` as **one sweep iteration semantically**.
      The WDD diamond closure
      :math:`\psi^{\text{face}}_{\text{out}} = 2\,\psi^{\text{cell}}
@@ -5779,7 +5779,7 @@ WDD recurrence walks the face flux along the DAG:
    \psi^{\text{face}}_{\text{out}}(i),
 
 evaluated cell-by-cell across the direction's DAG order yielded by
-:meth:`~orpheus.sn.geometry.SNMesh.dag_walk` invoked with
+:meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk` invoked with
 ``direction_sign``. The
 per-cell streaming term consumes both the inflow and outflow face
 values along with the cell volume and face areas (Hébert §3.9.4
@@ -5861,7 +5861,7 @@ The new APIs
 
 Two new APIs surface what the existing infrastructure already knew:
 
-* :meth:`~orpheus.sn.geometry.SNMesh.dag_walk(*, ordinate_idx=...,
+* :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk(*, ordinate_idx=...,
   direction_sign=..., mu_level_idx=None)` — Issue #196 Phase G
   Step 2.6 (Q3) canonicalised this as the **single iteration
   primitive** for 1-D sweeps, replacing the legacy pair of
@@ -5881,7 +5881,7 @@ Two new APIs surface what the existing infrastructure already knew:
   ``mu_level_idx`` is required (the within-level DAG topology
   differs per level).
 
-* :meth:`~orpheus.sn.operator.EquationMap.unknowns_at_cell_for_mask(cell_idx, ordinate_mask)`
+* :meth:`~orpheus.sn.operators.streaming.EquationMap.unknowns_at_cell_for_mask(cell_idx, ordinate_mask)`
   — a precomputed inverse lookup ``(cell, ordinate) → k``. Lazily
   builds an ``(nx, N) int`` table with :math:`-1` sentinels for
   absent ``(ordinate, cell)`` slots; subsequent calls are O(1) per
@@ -5896,7 +5896,7 @@ What retires
 Phase A's
 :class:`~orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`
 Protocol — five symbols, the
-:class:`~orpheus.sn.geometry.SNMesh` field, and the 21 foundation
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` field, and the 21 foundation
 tests — retires entirely. The architectural reasoning is "two paths
 to the same operator → unify after the second instance" (per the
 :doc:`/development` agent memory ``Unify after two instances``
@@ -5912,16 +5912,16 @@ algebraic extrapolation of cell centres. The retired symbols are:
 * ``orpheus.sn.spatial.boundary_face_flux.DDExtrapolation`` (default strategy)
 * ``orpheus.sn.spatial.boundary_face_flux.CellCenter`` (ablation strategy)
 * The ``boundary_face_flux`` constructor field +
-  :class:`~orpheus.sn.geometry.SNMesh` attribute
+  :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` attribute
 * The ``boundary_face_flux_closure`` keyword argument from
-  :func:`~orpheus.sn.operator.transport_operator_matvec_spherical`
+  :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`
   and ``_cylindrical``
 * :file:`tests/sn/spatial/test_boundary_face_flux.py` (232 LOC,
   21 foundation tests)
 
 Three additional simplifications ship with the rewrite:
 
-* :func:`~orpheus.sn.operator.solution_to_angular_flux_spherical`
+* :func:`~orpheus.sn.operators.streaming.solution_to_angular_flux_spherical`
   (and its cylindrical alias) returns a single ``fi`` array
   ``(ng, N, nx, 1)`` instead of the Phase A
   ``(fi, boundary_face_flux)`` tuple. Inward-at-boundary cell-centre
@@ -5931,10 +5931,10 @@ Three additional simplifications ship with the rewrite:
   determines them), but the WDD recurrence on flat :math:`\psi`
   requires the cell-centre to be consistent so the per-ordinate
   flat-flux invariant holds.
-* :class:`~orpheus.sn.geometry.SNMesh` no longer accepts the
+* :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` no longer accepts the
   ``boundary_face_flux=`` keyword (a regression test pins the
   field retirement).
-* :class:`~orpheus.sn.operator.InvertibleOperator.apply` dispatch
+* :class:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` dispatch
   drops the ``boundary_face_flux_closure`` plumbing.
 
 What stays
@@ -5947,14 +5947,14 @@ What stays
   so the three-strategy Phase B Protocol is the right shape; only
   the **default** is under question, and that is the Phase D
   decision point.
-* The :meth:`~orpheus.sn.operator.InvertibleOperator.apply_transpose`
+* The :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply_transpose`
   machinery via dense-probe construction stays. Linearity of the
-  rewritten :meth:`~orpheus.sn.operator.InvertibleOperator.apply`
+  rewritten :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply`
   (Gate 1.4, pinned to ``rtol=1e-13``) guarantees the transpose is
   correctly tracked.
 * The
-  :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` +
-  :class:`~orpheus.sn.boundary_realizer.SNMethodSpace` +
+  :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` +
+  :class:`~orpheus.sn.boundary.realizer.SNMethodSpace` +
   :class:`~orpheus.numerics.operator.LinearOperator`-1-arg
   ``apply`` substrate (Issues #186 + #176 + #188, Waves 0–12) — the
   BC trace law's realised 1-arg ``apply(outflow) → inflow``
@@ -6066,7 +6066,7 @@ three primitives**:
 
 #. The WDD diamond closure :eq:`phase-c-wdd-recurrence` per cell.
 #. The direction-keyed cell-visit DAG via
-   :meth:`~orpheus.sn.geometry.SNMesh.dag_walk` invoked with
+   :meth:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk` invoked with
    ``direction_sign=±1``.
 #. The BC trace law applied **once** at the boundary edge per
    :ref:`affine-bc-form`.
@@ -6176,7 +6176,7 @@ cell centres. The boundary-edge sequence is:
        # ... walk ...
 
 The :class:`~orpheus.numerics.operator.LinearOperator` returned by
-:meth:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer.realize`
+:meth:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer.realize`
 internally consumes its
 :class:`~orpheus.numerics.spaces.trace_space.OutflowTraceSpace` mask
 (the ordinate slots with :math:`\mu \cdot \hat n > 0` at the face)
@@ -6238,7 +6238,7 @@ path:
   :math:`q.\text{boundary} + B\,\psi.\text{outflow}`), delivered by
   :math:`B` as a separate coupling gain to the variadic driver (Wave O
   step O.2a; see :ref:`bc-extraction-variadic-driver`). The bare sweep's
-  :meth:`InvertibleOperator._solve_timed_full_field <orpheus.sn.operator.InvertibleOperator._solve_timed_full_field>`
+  :meth:`InvertibleOperator._solve_timed_full_field <orpheus.sn.operators.streaming.InvertibleOperator._solve_timed_full_field>`
   seeds its boundary buffer from :math:`\text{rhs.boundary}`, **not**
   from the iterate ``initial_guess.boundary`` (the retired
   partner-flux carrier).
@@ -6247,10 +6247,10 @@ path:
   :func:`~orpheus.sn.solver._reflect_outflow_into_inflow` fills the
   inflow slots with :math:`B\,\psi.\text{outflow}` in place before the
   sweep, via the canonical
-  :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`.
+  :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`.
 
 Both routes call the **identical**
-:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator` — :math:`B`
+:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` — :math:`B`
 is single-sourced. For vacuum :math:`B = 0`, so the bare sweep reads a
 zero inflow seed and the result is **bit-identical** to the
 pre-extraction ``bc.apply`` of a vacuum law.
@@ -6265,7 +6265,7 @@ operator algebra.
 Step **O.4b** extended the bare sweep to the **2-D Cartesian
 wavefront** path (both :func:`~orpheus.sn.loss_representation._sweep_jacobi`
 and the 2-D matvec
-:meth:`StreamingOperator._apply_2d_cartesian <orpheus.sn.operator.StreamingOperator>`):
+:meth:`StreamingOperator._apply_2d_cartesian <orpheus.sn.operators.streaming.StreamingOperator>`):
 the intra-octant ``bc.apply`` is gone there too, and the
 octant-incoming edge is seeded from the given inflow trace. The
 ``sn_mesh.reduced is not None`` predicate that guards the dispatch now
@@ -7089,7 +7089,7 @@ where the canonical inward-sweep output is injected.  The Phase D
 plan (and the literature memo's §7 implementation note) routed
 the inward-sweep result :math:`\bar\phi_i` into the **WDD
 spatial pole-face initial condition** at
-:func:`~orpheus.sn.operator.transport_operator_matvec_spherical`'s
+:func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`'s
 ``psi_face_in`` initialisation — the very same site the
 :ref:`sn-curvilinear-trajectory-resolvent-crosscheck-section` discussion
 identified as the Phase C Carlson seed location.
@@ -7308,7 +7308,7 @@ architectures were considered:
 
 * **Option B (sibling Protocol on SNMesh, rejected)** — the seed
   would be a separate Protocol attribute on
-  :class:`~orpheus.sn.geometry.SNMesh`, applied by the matvec
+  :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh`, applied by the matvec
   before calling the pole closure.  This would force every
   consumer (Legacy / BFF / M-M) to handle a Protocol that is a
   **no-op** for the non-M-M strategies, violating the
@@ -7335,7 +7335,7 @@ Both seed strategies — :class:`ZeroSeed` and
 by foundation tests).  Linearity is the load-bearing property:
 the apply matvec must be a linear operator, otherwise the
 operator-algebra capabilities of
-:class:`~orpheus.sn.operator.InvertibleOperator`
+:class:`~orpheus.sn.operators.streaming.InvertibleOperator`
 (apply, apply_transpose, dense matrix probing) break.  The
 :class:`CarlsonInwardSweep` is linear because:
 
@@ -7371,7 +7371,7 @@ evaluates only the :math:`\ell = 0` (isotropic) Legendre moment
 when building the moment-folded source in
 :eq:`hebert-3-432-source`.  This is **consistent with the apply
 matvec's structure**: the
-:class:`~orpheus.sn.operator.InvertibleOperator` apply matvec
+:class:`~orpheus.sn.operators.streaming.InvertibleOperator` apply matvec
 carries only an isotropic collision term :math:`\Sigma_t \psi`;
 anisotropic scattering (P\ :sub:`1`\ +) is composed externally via
 a separate scattering operator, not included in :math:`L`.
@@ -7409,7 +7409,7 @@ Phase D ships **two default flips** that activate the full
 canonical curvilinear closure path:
 
 #. :attr:`SNMesh.pole_angular_closure
-   <orpheus.sn.geometry.SNMesh.pole_angular_closure>` default
+   <orpheus.sn.mesh.augmented_mesh.SNMesh.pole_angular_closure>` default
    flipped from
    :class:`~orpheus.sn.spatial.pole_angular_closure.LegacyTauSymmetricInterpolation`
    to
@@ -7428,7 +7428,7 @@ canonical curvilinear closure path:
    stays at ``"source_iteration"``.  The rationale: the Phase D
    fix lives in the apply matvec, and the Krylov path is the one
    that uses
-   :meth:`~orpheus.sn.operator.InvertibleOperator.apply`.  The
+   :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply`.  The
    sweep path (``"source_iteration"``) uses the spatial WDD
    recurrence and is unaffected by the Phase D fix — leaving its
    ERR-026-affected curvilinear behaviour in place would be wrong
@@ -7677,11 +7677,11 @@ The full Phase D footprint (per the closeout memo at
   ignore it).
 * :mod:`orpheus.sn.spatial` ``__init__`` re-exports the new
   symbols.
-* :mod:`orpheus.sn.operator` — spherical + cylindrical matvecs
+* :mod:`orpheus.sn.operators.streaming` — spherical + cylindrical matvecs
   build the
   :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonSweepContext`
   before calling ``pole_angular_closure``.
-* :mod:`orpheus.sn.geometry` — :class:`SNMesh` default flipped to
+* :mod:`orpheus.sn.mesh.augmented_mesh` — :class:`SNMesh` default flipped to
   :class:`MorelMontryAngularSweep`.
 * :mod:`orpheus.sn.solver` — curvilinear default ``inner_solver``
   flipped to ``"krylov"``.
@@ -7724,7 +7724,7 @@ Phase F Carlson seed sweep-path backport (Issue #168 Phase F)
      backports the Phase D Carlson coupled-pole seed
      (:class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonInwardSweep`,
      Hébert §3.9.4 Eqs. (3.432)–(3.435)) from the apply-matvec path
-     (:func:`~orpheus.sn.operator.transport_operator_matvec_spherical`
+     (:func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`
      / ``_cylindrical``, fixed in Phase D Step 3) into the SI/sweep
      path
      (``_sweep_1d_spherical`` (the dissolved ``sweep.py``) and
@@ -7776,7 +7776,7 @@ The twin-path bug Phase D left open
 
 Phase D's fix lived entirely in the **apply-matvec path**.  The
 Phase D Carlson seed is invoked by
-:meth:`~orpheus.sn.operator.InvertibleOperator.apply` via the
+:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` via the
 :attr:`MorelMontryAngularSweep.psi_half_seed` composition; that
 covers every Krylov-driven call.  But ORPHEUS's curvilinear
 production default is **source iteration**, which dispatches
@@ -10195,7 +10195,7 @@ Operator equation
 -----------------
 
 The streaming-collision operator :math:`L` is formed explicitly via
-:class:`~orpheus.sn.operator.InvertibleOperator`:
+:class:`~orpheus.sn.operators.streaming.InvertibleOperator`:
 
 .. math::
 
@@ -10247,7 +10247,7 @@ curvilinear meshes in
 :func:`~orpheus.sn.solver.solve_sn_fixed_source` that would silently
 close ERR-026 on the curvilinear vacuum-BC MMS cases.
 Implementation surfaced an unforeseen coupling: the
-:func:`~orpheus.sn.operator.build_equation_map_spherical` /
+:func:`~orpheus.sn.operators.streaming.build_equation_map_spherical` /
 ``build_equation_map_cylindrical`` packed-vector layout that
 :meth:`InvertibleOperator.apply` reuses was designed for the
 **reflective** outer-boundary BC only — it has no slot for a vacuum-
@@ -10305,7 +10305,7 @@ The registry values are the law classes themselves, not factory
 functions. The pre-refactor ``_sn_vacuum_boundary_operator`` /
 ``_sn_reflective_boundary_operator`` factories were retired; their
 job is now done by :meth:`SNMesh._resolve_one`, which dispatches
-through :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`
+through :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`
 **uniformly** for every supported mesh (1-D Cartesian, 1-D
 spherical, 1-D cylindrical, 2-D Cartesian) — see
 :ref:`bc-sn-resolution-table` below. Issue #188 (curvilinear support
@@ -10330,7 +10330,7 @@ descriptor** with no callable interface. Rank-N composition uses
 the descriptor-tree algebra
 (:class:`~orpheus.geometry.boundary.LawSum` /
 :class:`~orpheus.geometry.boundary.LawScaled`) with
-:func:`~orpheus.sn.boundary_realizer.realize_recursively` as the
+:func:`~orpheus.sn.boundary.realizer.realize_recursively` as the
 sole descriptor→operator type transformer. See
 :ref:`bc-trace-law-descriptor-model` for the design rationale.
 
@@ -10562,7 +10562,7 @@ Issue #188 + #176.
      - **``True``**
    * - ``"white"``
      - :class:`~orpheus.geometry.boundary.WhiteBoundary`
-     - :class:`~orpheus.sn.angular_operator.AngularAverageOperator`
+     - :class:`~orpheus.sn.boundary.angular.AngularAverageOperator`
      - 1 (fast path)
      - ``False``
    * - ``"white"``
@@ -10592,7 +10592,7 @@ Issue #188 + #176.
      - ``False``
    * - ``"prescribed_inflow"``
      - :class:`~orpheus.geometry.boundary.PrescribedInflow`
-     - :class:`~orpheus.sn.angular_operator.IncomingSourceOperator`
+     - :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator`
        (source.evaluate; ignores outgoing flux)
      - —
      - ``False``
@@ -11133,7 +11133,7 @@ InvertibleOperator: the streaming-collision operator algebra
 ==============================================================
 
 Wave D Round 3 (Issue #160) installs
-:class:`~orpheus.sn.operator.InvertibleOperator` as the unified
+:class:`~orpheus.sn.operators.streaming.InvertibleOperator` as the unified
 :class:`~orpheus.numerics.operator.LinearOperator` for the
 streaming-collision operator
 :math:`L = \Omega\cdot\nabla + \Sigma_t`.  This is the Wave D
@@ -11165,21 +11165,21 @@ Three capabilities
 :class:`InvertibleOperator` advertises ``{"apply", "solve",
 "apply_transpose"}`` — every member of the Wave A capability set:
 
-* :meth:`~orpheus.sn.operator.InvertibleOperator.apply` —
+* :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` —
   matrix-free forward action :math:`L\,\psi`.  Reuses the
   symmetric closure math from the existing
-  :func:`~orpheus.sn.operator.transport_operator_matvec`,
-  :func:`~orpheus.sn.operator.transport_operator_matvec_spherical`,
-  :func:`~orpheus.sn.operator.transport_operator_matvec_cylindrical`
+  :func:`~orpheus.sn.operators.streaming.transport_operator_matvec`,
+  :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`,
+  :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_cylindrical`
   functions (the historical BiCGSTAB FD operator).  The math is
   **extracted verbatim**; the new class is a thin Protocol wrapper.
 
-* :meth:`~orpheus.sn.operator.InvertibleOperator.solve` —
+* :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` —
   inverse action :math:`L^{-1}\,q` via the Wave D Round 2 unified
   sweep (:func:`~orpheus.sn.loss_representation.transport_sweep`).  Bit-identical
   to a direct :func:`transport_sweep` call on the same arguments.
 
-* :meth:`~orpheus.sn.operator.InvertibleOperator.apply_transpose` —
+* :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply_transpose` —
   adjoint action :math:`L^*\,\psi`.  Implemented via the explicit
   transpose of the dense matrix assembled by probing
   :meth:`apply` with each unit basis vector.  The construction is
@@ -11201,13 +11201,13 @@ for different consumers:
 
 * The **finite-difference operator**
   (:func:`transport_operator_matvec_*` in
-  :mod:`orpheus.sn.operator`) was built for the BiCGSTAB inner
+  :mod:`orpheus.sn.operators.streaming`) was built for the BiCGSTAB inner
   solver path (:meth:`SNSolver._solve_bicgstab_*`).  It uses
   upwind cell-center FD on Cartesian and arithmetic face averages
   with **τ-symmetric Morel-Montry angular interpolation** on
   curvilinear (see the "Explicit Transport Operator" subsection of
   the BiCGSTAB Alternative above and the warning at the head of
-  :mod:`orpheus.sn.operator`).
+  :mod:`orpheus.sn.operators.streaming`).
 
 * The **sweep operator**
   (:func:`~orpheus.sn.loss_representation.transport_sweep`, dispatching through
@@ -11225,7 +11225,7 @@ continuous operator.  On coarse meshes they differ:
 * For Cartesian the difference is :math:`O(h)` (upwind FD has
   the same first-order consistency as DD on uniform meshes;
   divergence appears on non-uniform meshes — see the warning at
-  the head of :mod:`orpheus.sn.operator`).
+  the head of :mod:`orpheus.sn.operators.streaming`).
 * For curvilinear the WDD asymmetric closure has a closure-bias-
   driven self-consistent fixed point that is **not** the
   fine-mesh-limit transport solution (ERR-026).
@@ -11308,7 +11308,7 @@ Vector layouts (``apply`` vs ``solve``)
 
 :meth:`apply` and :meth:`apply_transpose` operate on the **packed
 1-D solution vector** used by the legacy BiCGSTAB FD operator
-path: an :class:`~orpheus.sn.operator.EquationMap` selects which
+path: an :class:`~orpheus.sn.operators.streaming.EquationMap` selects which
 ``(ordinate, cell)`` combinations are unknowns (the rest are
 determined by reflective BCs and the z-hemisphere reduction); the
 vector is laid out group-major in Fortran order.  This is the
@@ -11490,7 +11490,7 @@ it accelerates, what it does **not** (the load-bearing honest
 scope), the failed σ\ :sub:`r`-fold that motivated it (GitHub
 issue #215), and the diagonal-cubature shared-face correctness rule
 (ERR-056).  The polymorphic schedule lives in
-:mod:`orpheus.sn.sweep_schedule`; the SI resolvent that consumes it
+:mod:`orpheus.sn.loss_representation.sweep_schedule`; the SI resolvent that consumes it
 is :class:`~orpheus.sn.solver._GaussSeidelResolvent`; the public
 entry is :func:`~orpheus.sn.solver.solve_sn_fixed_source` via the
 ``inner_schedule`` keyword.
@@ -11551,7 +11551,7 @@ where
   :class:`~orpheus.transport.operators.scattering.ScatteringOperator`; higher
   Legendre orders add the :math:`P_\ell` blocks);
 * :math:`B` is the **boundary reflection** gain — trace-only,
-  realised by :class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`,
+  realised by :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`,
   delivering :math:`\psi.\text{inflow} = B\,\psi.\text{outflow}` on
   specular faces (see :ref:`bc-extraction` in
   :doc:`operator_algebra`);
@@ -11640,7 +11640,7 @@ buffer mid-sweep (intra-sweep Gauss-Seidel), whereas the bare sweep
 with a fully-lagged external :math:`B` is **inter-sweep Jacobi** —
 same converged fixed point, slower SI rate.  Phase 3 recovers the
 intra-sweep reflective coupling through a polymorphic, mesh-time
-:class:`~orpheus.sn.sweep_schedule.SweepSchedule` without
+:class:`~orpheus.sn.loss_representation.sweep_schedule.SweepSchedule` without
 re-entangling the bare sweep with the BC.  Jacobi and Gauss-Seidel
 are the **same** uniform sweep-and-reflect loop — there is *no*
 ``if jacobi/gs`` branch in the iteration; the splitting is selected
@@ -11662,7 +11662,7 @@ are the **same** uniform sweep-and-reflect loop — there is *no*
    * - **Gauss-Seidel**
        (``"gauss_seidel"``, default)
      - One group per in-plane octant
-       (:class:`~orpheus.sn.sweep_graph.OctantLabel`), in quadrature
+       (:class:`~orpheus.sn.loss_representation.sweep_graph.OctantLabel`), in quadrature
        sweep order.
      - After each group, its reflective **outgoing** faces are
        re-reflected (the face-restricted :math:`-B`,
@@ -11679,7 +11679,7 @@ schedule is a **mesh-time derived object** — it depends only on the
 quadrature's octant partition and the mesh's reflective-face set,
 not on fluxes, sources, or iteration state — so it is built once and
 reused across every SI iterate (the same lifetime contract as
-:class:`~orpheus.sn.sweep_graph.SweepDependencyGraph`).
+:class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`).
 
 The selection lives in :func:`~orpheus.sn.solver._select_si_resolvent`:
 ``"gauss_seidel"`` on a 2-D Cartesian mesh returns
@@ -11979,7 +11979,7 @@ Wave-E reconciliation of ERR-026.
   (ERR-026).
 * ``inverter = lambda q: KrylovAcceleration(L, ...).solve(q)[0]``:
   Krylov-on-:meth:`apply` (the symmetric closure of
-  :class:`~orpheus.sn.operator.InvertibleOperator`), with the
+  :class:`~orpheus.sn.operators.streaming.InvertibleOperator`), with the
   sweep injected as a preconditioner :math:`M`.  The ORPHEUS↔scipy
   boundary is internal to
   :class:`~orpheus.numerics.iteration.KrylovAcceleration` (a single
@@ -12036,7 +12036,7 @@ construction time.
 Cross-references
 ----------------
 
-* :class:`~orpheus.sn.operator.InvertibleOperator` — the
+* :class:`~orpheus.sn.operators.streaming.InvertibleOperator` — the
   :math:`L` operand the SN solver ships, with both ``apply``
   (symmetric closure) and ``solve`` (WDD asymmetric closure).
   See :ref:`sn-streaming-operator` for the design rationale.
@@ -13444,7 +13444,7 @@ single helper :func:`~orpheus.sn.solver._build_fixed_source_rhs`:
 .. code-block:: python
 
    from orpheus.sn import solve_sn_fixed_source
-   from orpheus.sn.geometry import SNMesh
+   from orpheus.sn.mesh.augmented_mesh import SNMesh
    from orpheus.transport.source_sinks import (
        AngularSourceSink, BoundarySourceSink,
    )
@@ -15360,7 +15360,7 @@ coarse geometry already carrying one freshly-homogenized effective
 :class:`~orpheus.data.macro_xs.mixture.Mixture` per coarse cell. That
 ``MaterialMesh`` is re-promoted to a solvable phase space by
 :meth:`SNMesh.from_material_mesh
-<orpheus.sn.geometry.SNMesh.from_material_mesh>`, closing the
+<orpheus.sn.mesh.augmented_mesh.SNMesh.from_material_mesh>`, closing the
 solve → homogenize → re-solve loop.
 
 .. note::
@@ -16253,7 +16253,7 @@ why ``MaterialMesh`` exists as the middle type between a bare
 homogenized model is *materials-and-geometry-together but not yet
 method-specific* — it has no quadrature until
 :meth:`SNMesh.from_material_mesh
-<orpheus.sn.geometry.SNMesh.from_material_mesh>` promotes it.)
+<orpheus.sn.mesh.augmented_mesh.SNMesh.from_material_mesh>` promotes it.)
 
 Energy condensation is **mesh-decoupled**: a condensed cross-section set
 is just a coarser :class:`Mixture` — group-structure data that can be
@@ -16420,8 +16420,8 @@ branch and have no landed hash yet.
        (2026-06-26)
      - **Rank-N boundary walker co-located** — ``realize_recursively``
        (the descriptor-tree → operator-tree walker) merged into
-       :mod:`orpheus.sn.boundary_realizer` next to the
-       :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` it
+       :mod:`orpheus.sn.boundary.realizer` next to the
+       :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` it
        dispatches to; the near-twin ``boundary_realize`` module retired.
        It stays honestly SN-specific; the method-agnostic generalization
        (registry-resolved leaf + ``MethodSpace`` Protocol, walker moves to

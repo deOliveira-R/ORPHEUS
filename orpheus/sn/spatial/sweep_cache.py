@@ -105,7 +105,7 @@ from typing import TYPE_CHECKING, ClassVar
 import numpy as np
 
 if TYPE_CHECKING:  # pragma: no cover
-    from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.sn.spatial.scheme import DiscretizationSchemeBase
 
 

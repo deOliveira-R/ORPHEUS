@@ -18,7 +18,7 @@ These tests pin:
     invariant).
 
 * **L1 / realisation** —
-  :func:`~orpheus.sn.boundary_realizer.realize_recursively`
+  :func:`~orpheus.sn.boundary.realizer.realize_recursively`
   transforms a descriptor tree into an operator tree:
   - The output type family matches the input (LawSum → OperatorSum,
     LawScaled → ScaledOperator, leaf → realized 1-arg LinearOperator).
@@ -47,8 +47,8 @@ from orpheus.geometry.boundary import (
     WhiteBoundary,
 )
 from orpheus.numerics.operator import OperatorSum, ScaledOperator
-from orpheus.sn.boundary_realizer import SNBoundaryRealizer, realize_recursively
-from orpheus.sn.method_space import SNMethodSpace
+from orpheus.sn.boundary.realizer import SNBoundaryRealizer, realize_recursively
+from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
 
 

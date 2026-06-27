@@ -54,7 +54,7 @@ from orpheus.derivations.continuous.mms.sn import (
     build_sphere_nonvacuum_mms_case,
 )
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 
 # ── shared solve helper (the PUBLIC composite-source API) ────────────

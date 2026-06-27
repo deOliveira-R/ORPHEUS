@@ -14,7 +14,7 @@ Tests in this file:
   :class:`MissingCapability` when their argument operators lack the
   required Protocol surface.
 * **L1 (SN integration gate):** build an actual SN operator triple
-  (:class:`~orpheus.sn.operator.InvertibleOperator` (= ``L + C``) /
+  (:class:`~orpheus.sn.operators.streaming.InvertibleOperator` (= ``L + C``) /
   :class:`ScatteringOperator` / :class:`FissionOperator`) for a
   2-group homogeneous slab and assert that :class:`KEigenvalue`
   recovers the same :math:`k_{\\rm eff}` as :func:`solve_sn`.  This
@@ -543,7 +543,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
         warnings.simplefilter("ignore", DeprecationWarning)
 
         from orpheus.transport.operators.fission import FissionOperator
-        from orpheus.sn.geometry import SNMesh
+        from orpheus.sn.mesh.augmented_mesh import SNMesh
         from orpheus.numerics.quadrature import Quadrature
         from orpheus.transport.operators.scattering import ScatteringOperator
         from orpheus.sn.solver import SNSolver, solve_sn

@@ -48,7 +48,7 @@ import numpy as np
 import pytest
 
 from orpheus.sn.spatial.diamond import DiamondDifference
-from orpheus.sn.sweep_graph import (
+from orpheus.sn.loss_representation.sweep_graph import (
     OctantLabel,
     SweepDependencyGraph,
     _CellResidual,

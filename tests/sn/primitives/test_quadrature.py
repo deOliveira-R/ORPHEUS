@@ -204,7 +204,7 @@ class TestAlphaRedistribution:
     def test_alpha_dome_non_negative(self, factory, kwargs):
         """α values must form a non-negative dome on each level."""
         from orpheus.geometry import CoordSystem, Mesh1D
-        from orpheus.sn.geometry import SNMesh
+        from orpheus.sn.mesh.augmented_mesh import SNMesh
 
         quad = factory(**kwargs)
         mesh = Mesh1D(
@@ -225,7 +225,7 @@ class TestAlphaRedistribution:
     def test_alpha_boundary_zero(self, factory, kwargs):
         """α must be zero at both dome boundaries (conservation)."""
         from orpheus.geometry import CoordSystem, Mesh1D
-        from orpheus.sn.geometry import SNMesh
+        from orpheus.sn.mesh.augmented_mesh import SNMesh
 
         quad = factory(**kwargs)
         mesh = Mesh1D(
@@ -244,7 +244,7 @@ class TestAlphaRedistribution:
     def test_spherical_alpha_dome_non_negative(self):
         """Spherical α (cumsum(−w·μ)) must be non-negative for GL quadrature."""
         from orpheus.geometry import CoordSystem, Mesh1D
-        from orpheus.sn.geometry import SNMesh
+        from orpheus.sn.mesh.augmented_mesh import SNMesh
 
         quad = Quadrature.gauss_legendre(8)
         mesh = Mesh1D(
@@ -285,7 +285,7 @@ class TestL0TermVerification:
             RegionMesh,
             StructuredGeometry,
         )
-        from orpheus.sn.geometry import SNMesh
+        from orpheus.sn.mesh.augmented_mesh import SNMesh
 
         if coord == CoordSystem.SPHERICAL:
             quad = Quadrature.gauss_legendre(8)
@@ -345,7 +345,7 @@ class TestL0TermVerification:
             RegionMesh,
             StructuredGeometry,
         )
-        from orpheus.sn.geometry import SNMesh
+        from orpheus.sn.mesh.augmented_mesh import SNMesh
 
         tag = {
             CoordSystem.SPHERICAL: "SPH",

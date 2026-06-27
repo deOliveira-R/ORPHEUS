@@ -71,7 +71,7 @@ import pytest
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -134,7 +134,7 @@ def test_unit_at_face_produces_nonzero_matvec(face: str) -> None:
     any face, the BC apply for that face is broken (Pattern 7
     convention drift catches this).
     """
-    from orpheus.sn.operator import StreamingOperator
+    from orpheus.sn.operators.streaming import StreamingOperator
 
     mesh = _pure_streamer_2d_mesh()
     sigma_t = np.ones((1, *mesh.spatial_shape))
@@ -159,7 +159,7 @@ def test_four_faces_produce_distinct_outputs() -> None:
     regression where, e.g., the convention crosswalk fuses xmin+ymin
     into one slot.
     """
-    from orpheus.sn.operator import StreamingOperator
+    from orpheus.sn.operators.streaming import StreamingOperator
 
     mesh = _pure_streamer_2d_mesh()
     sigma_t = np.ones((1, *mesh.spatial_shape))

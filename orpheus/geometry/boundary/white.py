@@ -43,14 +43,14 @@ class WhiteBoundary(BoundaryTraceLaw, key="white"):
 
     This is a **pure descriptor** (Issue #186 / B3 + β2) — it carries
     no ``apply`` method. The SN realisation is
-    :class:`~orpheus.sn.angular_operator.AngularAverageOperator`
+    :class:`~orpheus.sn.boundary.angular.AngularAverageOperator`
     (α=1 fast path) or ``ScaledOperator(α, AngularAverageOperator)``
     (α ≠ 1). Realise via:
 
     .. code-block:: python
 
-        from orpheus.sn.boundary_realizer import SNBoundaryRealizer
-        from orpheus.sn.method_space import SNMethodSpace
+        from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+        from orpheus.sn.mesh.method_space import SNMethodSpace
         law = WhiteBoundary(axis="x", outward_sign=+1, albedo=0.8)
         op = SNBoundaryRealizer().realize(law, SNMethodSpace.minimal(quad))
         psi_in = op.apply(psi_out)

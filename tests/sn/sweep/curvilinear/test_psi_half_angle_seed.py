@@ -356,7 +356,7 @@ class TestSeedLinearity:
     Required by the operator algebra: the M-M closure is linear, and
     a non-linear seed would propagate non-linearity into the apply
     matvec.  Linearity is a pre-condition for
-    :meth:`~orpheus.sn.operator.InvertibleOperator.apply_transpose`
+    :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply_transpose`
     correctness (dense-matrix probing assumes linearity).
     """
 

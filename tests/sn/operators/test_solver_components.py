@@ -18,7 +18,7 @@ import time
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import Mesh1D, Mesh2D
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver, solve_sn, _reflect_outflow_into_inflow
 from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink

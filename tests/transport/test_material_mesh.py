@@ -32,7 +32,7 @@ from orpheus.transport.mesh import (
     MaterialMesh,
     MaterialXSField,
 )
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 pytestmark = pytest.mark.foundation
 

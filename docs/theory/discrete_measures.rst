@@ -302,7 +302,7 @@ discrete labelling predicate (per :ref:`tensorial-framing`):
      - Wave 2 of SN performance plan (closed Issue #4); the SN
        sweep then iterates octants and dispatches each octant to a
        per-octant
-       :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` —
+       :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph` —
        see :ref:`sweep-octant-dependency-graph` for the full
        architecture.
    * - **MoC track-bundle direction grouping**

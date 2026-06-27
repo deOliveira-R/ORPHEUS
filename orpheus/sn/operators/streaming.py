@@ -92,7 +92,7 @@ History
    trace row, and adds the inflow identity ``I·psi.inflow`` on the
    inflow row — with NO ``bc.apply``.  The reflective coupling
    ``psi.inflow = B·psi.outflow`` is delivered by the sibling ``-B``
-   (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`), and the
+   (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`), and the
    outer Krylov / SI loop drives the boundary consistency residual
    ``psi.inflow - B·psi.outflow - q.inflow → 0``.  See
    :ref:`bc-extraction` for the full block-matrix derivation, the three
@@ -105,7 +105,7 @@ History
    Phase E landed): it seeds the octant-incoming face slots from the
    GIVEN ``psi.boundary.inflow`` via the typed ``wavefront.seed`` (ι_*)
    with NO ``bc.apply``, walks the same per-octant
-   :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` (the apply-direction
+   :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph` (the apply-direction
    level operation → the diamond-difference ``DiscretizationScheme`` closure) the multi-D *sweep*
    ``_sweep_jacobi`` uses — so matvec ≡ sweep in 2-D by
    construction (L21, one discretization) — and emits the boundary
@@ -147,11 +147,11 @@ if TYPE_CHECKING:
     from orpheus.transport.full_field import FullField
     from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.numerics.space import FunctionSpace
-    from .geometry import SNMesh
+    from ..mesh.augmented_mesh import SNMesh
     from orpheus.numerics.frame import FrameBase
     from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
-    from .spatial.pole_angular_closure import PoleAngularClosure
-    from .loss_representation import LossRepresentation
+    from ..spatial.pole_angular_closure import PoleAngularClosure
+    from ..loss_representation import LossRepresentation
 
 __all__ = [
     "StreamingOperator",
@@ -339,7 +339,7 @@ class StreamingOperator(LinearOperator["FullField"]):
 
         :math:`L` is the sole FULL operator — it couples bulk :math:`\leftrightarrow`
         boundary (seeds the sweep from the inflow trace, emits the outflow
-        trace). Advertising :attr:`~orpheus.sn.geometry.SNMesh.full_field_space`
+        trace). Advertising :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space`
         is what lets :class:`~orpheus.numerics.operator._AdjointOperator`
         read the **block-diagonal G-adjoint metric** (bulk :math:`V\,w_n`
         :math:`\oplus` trace :math:`|\Omega\cdot\hat n|\,w_n`) for ``L.H`` —
@@ -407,7 +407,7 @@ class StreamingOperator(LinearOperator["FullField"]):
             and boundary
             (:class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`).
             Operator and ``psi.bulk.mesh`` MUST be the same
-            :class:`~orpheus.sn.geometry.SNMesh` instance.
+            :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` instance.
 
         Returns
         -------
@@ -474,7 +474,7 @@ class StreamingOperator(LinearOperator["FullField"]):
         lifetime; the lazy import breaks the operator ↔ loss_representation
         module cycle.
         """
-        from .loss_representation import default_for
+        from ..loss_representation import default_for
 
         return default_for(self.sn_mesh)
 

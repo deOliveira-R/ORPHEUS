@@ -55,12 +55,12 @@ from orpheus.numerics.operator import (
     FullOperator,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.boundary_realizer import SNBoundaryRealizer
-from orpheus.sn.method_space import SNMethodSpace
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+from orpheus.sn.mesh.method_space import SNMethodSpace
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.operators.fission import FissionOperator
-from orpheus.sn.boundary_operator import SNBoundaryOperator
-from orpheus.sn.operator import (
+from orpheus.sn.operators.boundary import SNBoundaryOperator
+from orpheus.sn.operators.streaming import (
     InvertibleOperator,
     StreamingOperator,
 )

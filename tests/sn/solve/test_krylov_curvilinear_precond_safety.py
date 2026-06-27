@@ -10,7 +10,7 @@ test for the silent stateful-inverse bug class (issue #203,
 lesson :ref:`L19 <lessons-l19>`):
 :class:`~orpheus.numerics.iteration.KrylovAcceleration` with
 ``preconditioner=None`` silently routed through
-:meth:`~orpheus.sn.operator.InvertibleOperator.solve`, which (pre-
+:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve`, which (pre-
 Phase-1.2) read the lag-1 frame ``rhs(1)`` to seed the curvilinear
 Carlson coupled-pole closure.  GMRES feeds residual VECTORS into the
 preconditioner — those residuals have no history — so the sweep
@@ -128,9 +128,9 @@ def _krylov_power_iteration_kinf(
     from dataclasses import replace
 
     from orpheus.numerics.iteration import KrylovAcceleration
-    from orpheus.sn.boundary_operator import SNBoundaryOperator
-    from orpheus.sn.geometry import SNMesh
-    from orpheus.sn.operator import StreamingOperator
+    from orpheus.sn.operators.boundary import SNBoundaryOperator
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.sn.operators.streaming import StreamingOperator
     from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
     from orpheus.sn.solver import SNSolver
     from orpheus.transport.full_field import FullField

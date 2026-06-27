@@ -66,8 +66,8 @@ from orpheus.geometry.boundary import (
     VacuumInflow,
     WhiteBoundary,
 )
-from orpheus.sn.boundary_realizer import SNBoundaryRealizer
-from orpheus.sn.method_space import SNMethodSpace
+from orpheus.sn.boundary.realizer import SNBoundaryRealizer
+from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
 
 

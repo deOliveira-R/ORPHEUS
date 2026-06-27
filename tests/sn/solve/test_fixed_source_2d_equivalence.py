@@ -43,7 +43,7 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem
 from orpheus.geometry.mesh import Mesh2D
 from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.source_sinks import AngularSourceSink
 from tests.sn._test_helpers import placeholder_materials

@@ -17,7 +17,7 @@ splitting is selected ONCE, by choosing the schedule):
 * **Gauss-Seidel** — one group per in-plane octant (:class:`OctantLabel`), in
   quadrature sweep order; after each group its reflective OUTGOING faces are
   re-reflected (the face-restricted
-  :meth:`~orpheus.sn.boundary_operator.SNBoundaryOperator.reflect_into_inflow`),
+  :meth:`~orpheus.sn.operators.boundary.SNBoundaryOperator.reflect_into_inflow`),
   so a LATER group reads the fresh current-iterate reflection. Octants swept
   before their specular partner keep the lagged seed (the cyclic ``B_upper``
   back-edges — e.g. a both-faces-reflective axis is a 2-cycle ⟹ only PARTIAL
@@ -28,7 +28,7 @@ The schedule is a **mesh-time derived object** — it depends only on the
 quadrature's octant partition + the mesh's reflective-face set, not on fluxes /
 sources / iteration state — so it is built once and reused across every SI
 iterate (the same lifetime contract as
-:class:`~orpheus.sn.sweep_graph.SweepDependencyGraph`).
+:class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`).
 
 The fixed point is INVARIANT under the schedule: any consistent splitting of
 ``(L+C−S−B)ψ=q`` shares the dominant solution ψ\* (at convergence the seed and
@@ -39,7 +39,7 @@ Krylov is splitting-invariant and ignores the schedule entirely.
 See also
 ========
 
-* :mod:`orpheus.sn.sweep_graph` — :class:`OctantLabel` + the per-octant
+* :mod:`orpheus.sn.loss_representation.sweep_graph` — :class:`OctantLabel` + the per-octant
   :class:`SweepDependencyGraph` (the cell DAG the schedule's groups are swept
   through; a distinct concept — cell causality vs octant ordering).
 * ``.claude/agent-memory/explorer/si_gs_substep3_carve_substrate.md`` — the
@@ -51,10 +51,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from orpheus.transport.mesh.axis import AXIS_NAMES
-from orpheus.sn.sweep_graph import OctantLabel
+from .sweep_graph import OctantLabel
 
 if TYPE_CHECKING:
-    from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 
 __all__ = ["OctantSweep", "OctantSweepGroup", "SweepSchedule"]
@@ -63,7 +63,7 @@ __all__ = ["OctantSweep", "OctantSweepGroup", "SweepSchedule"]
 @dataclass(frozen=True, slots=True)
 class OctantSweep:
     """One octant's sweep unit: its in-plane :class:`OctantLabel` (selects the
-    per-octant :class:`~orpheus.sn.sweep_graph.SweepDependencyGraph`) + the
+    per-octant :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`) + the
     ordinate indices into the ``(N, …)`` angular axis it sweeps."""
 
     label: OctantLabel

@@ -36,7 +36,7 @@ the typed ``WavefrontFlux`` (ephemeral, flux-only; with
 :class:`BoundaryFlux` ``C^1_∂`` it biproduct-decomposed the full face
 cochain ``C^1 = C^1_int ⊕ C^1_∂``). RETIRED at S6.4(f): the concept
 lives on in its two native realizations — the rolling front
-(``orpheus.sn.sweep_graph._MovingFrontier``, the values AT the moving
+(``orpheus.sn.loss_representation.sweep_graph._MovingFrontier``, the values AT the moving
 wavefront, per-level ι_*-seeded / ι*-shed) and the per-octant full
 cochain history (``FullFieldWavefront._octant_face_cochain``); the
 whole-trace boundary exchange is the shared ``_OctantWalk`` frame's

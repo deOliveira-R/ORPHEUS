@@ -599,8 +599,8 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         STORAGE-FREE by contract: the WALK gathers ``psi_in`` (per-axis
         ``2^{d-1}``-moment faces; a scalar at d=1) and scatters the outgoing
         faces.  The SOLVE arm of the ``_CellSolve`` level operation consumed by
-        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full` /
-        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`.
+        :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full` /
+        :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`.
         """
         d = len(s_axes)
         assembled, R_source = self._ubld_system(s_axes, reaction_xs, Q_cells)

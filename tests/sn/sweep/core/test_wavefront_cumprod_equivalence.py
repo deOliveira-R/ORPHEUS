@@ -76,7 +76,7 @@ from orpheus.derivations.common.eigenvalue import kinf_and_spectrum_homogeneous
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import solve_sn
 from orpheus.sn.loss_representation import CumprodScan, FullFieldWavefront
 from orpheus.transport.fields.boundary_flux import BoundaryFlux

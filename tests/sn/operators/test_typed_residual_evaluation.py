@@ -30,8 +30,8 @@ from orpheus.geometry import BC, Mesh1D
 from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import FullFieldSpace
-from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import StreamingOperator
+from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.sn.solver import (
     SNSolver,

@@ -30,7 +30,7 @@ from orpheus.derivations import get
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import SNSolver, solve_sn
 
 pytestmark = pytest.mark.l0  # SN 2-D eigenvalue component checks

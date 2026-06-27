@@ -67,7 +67,7 @@ from orpheus.numerics.units import ANGULAR_RATE_UNITS, Unit
 from orpheus.transport.fields._bases import AngularField
 
 if TYPE_CHECKING:
-    from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 
 __all__ = ["AngularSourceSink"]

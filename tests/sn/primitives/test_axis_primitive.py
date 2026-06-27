@@ -31,7 +31,7 @@ from orpheus.transport.mesh.axis import (
     n_unknowns_flat,
     spatial_shape,
 )
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 
 

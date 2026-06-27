@@ -124,8 +124,8 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import StreamingOperator
+from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
@@ -418,7 +418,7 @@ class TestVacuumMatvecBitIdentity:
         # project exposes it.  If the 1-D Mesh1D cannot carry ny>1, the
         # implementer wires the 2-D builder here (the 2-D MMS fixtures in
         # tests/sn/sweep/cartesian_2d/ are the construction reference).
-        pytest.importorskip("orpheus.sn.geometry")
+        pytest.importorskip("orpheus.sn.mesh.augmented_mesh")
         quad = Quadrature.level_symmetric(sn_order=4)
         try:
             sn_mesh = SNMesh(mesh, quad, placeholder_materials())
@@ -561,7 +561,7 @@ class TestStreamingEquilibriumValue:
 
 # NOTE (O.4a.2 reconciliation): the former 3(a) ``TestWholeTraceBOperator``
 # + its ``_realized_B_for_face`` helper are RETIRED here.  The whole-trace
-# ``B`` (:class:`~orpheus.sn.boundary_operator.SNBoundaryOperator`) is
+# ``B`` (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`) is
 # canonically pinned in ``tests/sn/operators/test_sn_boundary_operator.py``
 # (role / domain / per-face wiring / block-diagonal / apply_transpose).  That
 # suite ALSO pins the design (a) correction this file's docstring describes:

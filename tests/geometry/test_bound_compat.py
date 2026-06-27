@@ -2,7 +2,7 @@ r"""Tests for the post-Issue-#186 strict-1-arg shim.
 
 The :class:`_BoundBoundaryOperator` shim wraps a realized 1-arg
 :class:`LinearOperator` produced by
-:class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` and adds
+:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` and adds
 two thin surfaces:
 
 * :meth:`apply(psi)` and :meth:`apply_transpose(psi)` — strict 1-arg
@@ -210,7 +210,7 @@ class Test188WiringContracts:
             IncomingOrdinateMaskTensor,
             TensorProductOperator,
         )
-        from orpheus.sn.geometry import SNMesh
+        from orpheus.sn.mesh.augmented_mesh import SNMesh
         from orpheus.numerics.quadrature import Quadrature
 
         mesh = Mesh1D(
@@ -267,7 +267,7 @@ class Test188WiringContracts:
         """
         from orpheus.geometry import BC, CoordSystem, Mesh1D
         from orpheus.numerics.operator import TensorProductOperator
-        from orpheus.sn.geometry import SNMesh
+        from orpheus.sn.mesh.augmented_mesh import SNMesh
         from orpheus.numerics.quadrature import Quadrature
 
         mesh = Mesh1D(

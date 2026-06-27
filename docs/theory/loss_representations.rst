@@ -174,7 +174,7 @@ Resolution A — the operator's only glue
 
 The representation returns the **full** within-group loss action
 :math:`(L+C)\psi`. The operator
-(:meth:`~orpheus.sn.operator.StreamingOperator.apply`,
+(:meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply`,
 :eq:`operator-apply`) then applies the *only* remaining algebra glue,
 
 .. math::
@@ -210,10 +210,10 @@ The composite owns its matvec — the removal form :math:`C(\sigma_r)`
 ------------------------------------------------------------------------
 
 So far the matvec :math:`(L+C)\psi` has been described as the matvec twin of
-the sweep, applied by :meth:`~orpheus.sn.operator.StreamingOperator.apply`
+the sweep, applied by :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply`
 (:eq:`loss-rep-resolution-a`). But the *composite* operator
-:class:`~orpheus.sn.operator.InvertibleOperator` — the :math:`A = (L+C)`
-object whose :meth:`~orpheus.sn.operator.InvertibleOperator.solve` *is* the
+:class:`~orpheus.sn.operators.streaming.InvertibleOperator` — the :math:`A = (L+C)`
+object whose :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` *is* the
 sweep — has its own matvec too, and getting that matvec to single-source its
 diagonal :math:`\sigma` from the *same* place :meth:`solve` does is the
 substance of issue #240 Phase 2 Step B. This subsection records that carve: a
@@ -236,12 +236,12 @@ argument (``loss_action(sigma, psi)``), exactly symmetric with the sweep door
 its caller, decided which :math:`\sigma` the matvec realised. After the carve
 the **caller single-sources** :math:`\sigma`:
 
-* :meth:`~orpheus.sn.operator.StreamingOperator.apply` passes its own
+* :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` passes its own
   ``sigma_t`` (and subtracts it back via Resolution A, :eq:`loss-rep-resolution-a`);
-* the **new** :meth:`~orpheus.sn.operator.InvertibleOperator.apply` /
-  :meth:`~orpheus.sn.operator.InvertibleOperator.apply_transpose` overrides pass
+* the **new** :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` /
+  :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply_transpose` overrides pass
   the composite's *own* diagonal ``self.sigma`` — the SAME array
-  :meth:`~orpheus.sn.operator.InvertibleOperator.solve` threads into the WDD
+  :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` threads into the WDD
   sweep — and realise :math:`M(\sigma)\psi` *directly*, via
   ``self.loss_representation.loss_action(self.sigma, psi)``, instead of inheriting
   the :meth:`~orpheus.numerics.operator.OperatorSum.apply` leaf sum.
@@ -364,10 +364,10 @@ action, re-deriving the streaming part through :math:`\sigma_t` only to cancel
 it.
 
 The override (#240 Step B) collapses the twin-source. Both
-:meth:`~orpheus.sn.operator.InvertibleOperator.apply` and
-:meth:`~orpheus.sn.operator.InvertibleOperator.apply_transpose` now read the
+:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` and
+:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply_transpose` now read the
 composite's **own** ``self.sigma`` — the SAME array
-:meth:`~orpheus.sn.operator.InvertibleOperator.solve` threads into the sweep —
+:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` threads into the sweep —
 and call ``loss_action(self.sigma, psi)`` directly:
 
 .. code-block:: python
@@ -451,7 +451,7 @@ convention is the same :eq:`loss-rep-resolution-a` glue, now single-sourcing
     sibling, slab/sphere/cyl) demand
     :math:`(L+C).\mathrm{apply}(\psi) = M(\sigma_r)\psi`
     **bit-identically** (``array_equal``, 0 ULP) against a structurally
-    *independent* reference: a SEPARATE :class:`~orpheus.sn.operator.StreamingOperator`
+    *independent* reference: a SEPARATE :class:`~orpheus.sn.operators.streaming.StreamingOperator`
     whose **own** :math:`\sigma_t` *is* :math:`\sigma_r`, so its
     ``loss_action(σ_r, ψ)`` is unambiguously :math:`M(\sigma_r)\psi` (no
     removal/leak ambiguity — the leaf reads its own diagonal). Under the
@@ -542,7 +542,7 @@ The four representations — four schedules of one operator
 
 A :class:`~orpheus.sn.loss_representation.LossRepresentation` is a
 stateless frozen dataclass (its only field is the
-:class:`~orpheus.sn.geometry.SNMesh` it was selected for). Each is a
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` it was selected for). Each is a
 distinct **schedule** over the same lower-triangular
 :math:`(L+C)` — a different topological linearisation of the identical
 cell dependencies. They are *algorithms*, not operators.
@@ -985,11 +985,11 @@ MovingFrontierWindow — the rolling-frontier wavefront
 
 :class:`~orpheus.sn.loss_representation.MovingFrontierWindow` is the
 anti-diagonal (level-scheduled) wavefront over the per-octant
-:class:`~orpheus.sn.sweep_graph.SweepDependencyGraph` derived at
+:class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph` derived at
 :ref:`sweep-wavefront`. It carries only a **rolling**
 :math:`(d{-}1)`-frontier of interior face fluxes (a 2-diagonal at d=2),
 advanced anti-hyperplane by anti-hyperplane via
-:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`. The
+:meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`. The
 frontier is the moving realisation of the interior face cochain
 :math:`C^1_{\rm int}` — its theory and the post-``WavefrontFlux``
 succession are at :ref:`wavefront-flux-cochain`. Its historical claim
@@ -1088,9 +1088,9 @@ answers one classmethod:
            return Compatibility(mesh.is_cartesian, "requires Cartesian geometry")
 
 The compatibility signal is the *genuine* criterion — the coordinate
-system (:attr:`~orpheus.sn.geometry.SNMesh.is_cartesian`, i.e.
+system (:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.is_cartesian`, i.e.
 ``curvature is None``), the dimensionality
-(:attr:`~orpheus.sn.geometry.SNMesh.ndim`), **and the cell-update
+(:attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.ndim`), **and the cell-update
 scheme's capability traits** — **not** the ``sweep_graphs is None``
 substrate proxy that the pre-carve code keyed on. The two scan
 representations read a *scheme* trait, not just geometry:
@@ -1561,7 +1561,7 @@ The discriminating test
 ``A.solve`` on a 2-D Cartesian mesh exercise it. The three-layer stack
 beneath the walk (storage walk / level operation / pure kernel pair) is
 documented at :ref:`sweep-dispatch-relayering`; the graph layer
-(:class:`~orpheus.sn.sweep_graph.SweepDependencyGraph.for_shape`,
+(:class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.for_shape`,
 per-shape ``lru_cache`` of immutable ``MappingProxyType`` octant→DAG
 maps) is family-owned, so the mesh stays pure geometry.
 
@@ -1570,15 +1570,15 @@ One instance (S6.5)
 
 The operator holds **one** representation instance —
 :attr:`StreamingOperator.loss_representation
-<orpheus.sn.operator.StreamingOperator.loss_representation>` (a
+<orpheus.sn.operators.streaming.StreamingOperator.loss_representation>` (a
 ``cached_property`` = ``default_for(mesh)``) — consumed by:
 
-* :meth:`~orpheus.sn.operator.StreamingOperator.apply` (the matvec
+* :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply` (the matvec
   :math:`(L+C)\psi`);
-* :meth:`~orpheus.sn.operator.InvertibleOperator.solve` (the forward
+* :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` (the forward
   substitution :math:`(L+C)^{-1}q`), via the delegating
   :attr:`InvertibleOperator.loss_representation
-  <orpheus.sn.operator.InvertibleOperator.loss_representation>`
+  <orpheus.sn.operators.streaming.InvertibleOperator.loss_representation>`
   property; and
 * the boundary Gauss–Seidel resolvent.
 

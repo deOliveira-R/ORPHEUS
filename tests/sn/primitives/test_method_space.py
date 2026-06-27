@@ -5,8 +5,8 @@ quadrature + trace metadata that an SN realizer needs to turn a
 :class:`BoundaryTraceLaw` into a 1-arg :class:`LinearOperator`.
 
 Wave 5 introduced a minimal placeholder (quadrature only) embedded
-in :mod:`orpheus.sn.boundary_realizer`. Wave 8 moves it to its own
-dedicated module :mod:`orpheus.sn.method_space` and extends it with
+in :mod:`orpheus.sn.boundary.realizer`. Wave 8 moves it to its own
+dedicated module :mod:`orpheus.sn.mesh.method_space` and extends it with
 ``mesh`` + ``trace`` fields plus a :meth:`for_face` factory that
 consumes the unified :class:`TraceSpace` to derive per-face inflow
 indices.
@@ -14,7 +14,7 @@ indices.
 These tests pin:
 
 * Wave 5 backward compat (``.minimal(quad)`` still works).
-* The Wave 5 re-export from ``orpheus.sn.boundary_realizer`` resolves
+* The Wave 5 re-export from ``orpheus.sn.boundary.realizer`` resolves
   to the same class object.
 * :meth:`for_face` derives ``inflow_indices`` from the provided
   ``trace`` correctly.
@@ -30,7 +30,7 @@ from orpheus.geometry import BC, CoordSystem
 from orpheus.geometry.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.spaces.trace_space import TraceSpace
-from orpheus.sn.method_space import SNMethodSpace
+from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
 
 

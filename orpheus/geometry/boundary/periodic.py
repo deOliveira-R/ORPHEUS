@@ -42,7 +42,7 @@ class PeriodicBoundary(BoundaryTraceLaw, key="periodic"):
     This is a **pure descriptor** (Issue #186 / B3 + β2) — it carries
     no ``apply`` method. The two-face plumbing is handled by whoever
     instantiates :class:`PeriodicBoundary` and orchestrates the sweep.
-    Realise via :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`.
+    Realise via :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`.
 
     Rename history
     --------------

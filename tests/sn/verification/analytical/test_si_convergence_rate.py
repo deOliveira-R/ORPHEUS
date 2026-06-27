@@ -69,7 +69,7 @@ from orpheus.geometry import (
     StructuredGeometry,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
 from orpheus.transport.source_sinks import AngularSourceSink
 

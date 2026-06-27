@@ -1,8 +1,8 @@
 r"""Strict 1-arg passthrough wrapping a realized BC operator with a kind tag.
 
 After Issue #188 (curvilinear trace support) every
-:class:`~orpheus.sn.geometry.SNMesh` BC routes through
-:class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer` to a 1-arg
+:class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` BC routes through
+:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` to a 1-arg
 :class:`~orpheus.numerics.operator.LinearOperator`. After Issue #186
 (B3 + β2) the descriptor model removed the last 2-arg call sites
 in tests, so this shim is now strict 1-arg. Its purpose is to add
@@ -69,7 +69,7 @@ class _BoundBoundaryOperator(LinearOperator):
 
     The wrapped :attr:`inner` is a 1-arg realized
     :class:`~orpheus.numerics.operator.LinearOperator` produced by
-    :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`. The
+    :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`. The
     shim's :meth:`apply` and :meth:`apply_transpose` forward ``psi``
     to the inner operator. Issue #186 (B3 + β2) cleanup: extra
     positional / keyword args raise :class:`TypeError` rather than

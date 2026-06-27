@@ -30,7 +30,7 @@ from orpheus.geometry import (
     RegionMesh,
     StructuredGeometry,
 )
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 
 def _homogeneous_slab_mesh(n_cells: int, total_width: float, mat_id: int = 0) -> Mesh1D:

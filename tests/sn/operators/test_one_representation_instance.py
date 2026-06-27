@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.sn.operator import StreamingOperator
+from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from tests.sn._test_helpers import cart2d_2g_nonsquare, het_operands
 
@@ -121,10 +121,10 @@ def test_gauss_seidel_resolvent_runs_the_operators_instance(monkeypatch):
     The spy captures the ``self`` of every ``_sweep_interior`` execution
     during a G-S solve and demands it IS ``A.loss_representation``.
     """
-    from orpheus.sn.boundary_operator import SNBoundaryOperator
+    from orpheus.sn.operators.boundary import SNBoundaryOperator
     from orpheus.sn.loss_representation import ScanMarch
     from orpheus.sn.solver import _GaussSeidelResolvent
-    from orpheus.sn.sweep_schedule import SweepSchedule
+    from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
 
     captured: list[object] = []
     real = ScanMarch._sweep_interior

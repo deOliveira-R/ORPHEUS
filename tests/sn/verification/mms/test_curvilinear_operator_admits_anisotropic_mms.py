@@ -54,8 +54,8 @@ import pytest
 from orpheus.derivations.continuous.mms.sn import (
     build_spherical_anisotropic_mms_case,
 )
-from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import StreamingOperator
+from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.operators.multiplication_operator import (

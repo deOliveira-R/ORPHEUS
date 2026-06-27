@@ -36,7 +36,7 @@ this page, this page is correct.
   at :class:`~orpheus.sn.solver.SNSolver` construction.
 - **The four-operator algebra** :math:`(L + C - S - F/k)\psi = q`
   consumes and returns :math:`\psi` shaped as ``(N, ng, nx, ny)`` at
-  every leaf (:class:`~orpheus.sn.operator.StreamingOperator`,
+  every leaf (:class:`~orpheus.sn.operators.streaming.StreamingOperator`,
   the collision multiplier :math:`C = M[\sigma_t]`
   (:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
   :class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
@@ -62,7 +62,7 @@ this page, this page is correct.
    Energy-first / spatial-last and ordinate-first hold at every rank;
    only the **length** of the spatial tail changes.  Every field /
    cross-section / scattering read since C5.2 keys on the rank-generic
-   :attr:`~orpheus.sn.geometry.SNMesh.spatial_shape`, **not** on a
+   :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.spatial_shape`, **not** on a
    hard-coded ``(nx, ny)`` pair (an ``(nx, ny)``-keyed read silently
    truncates a 3-D tensor — the live :math:`d = 3` landmine C5.2
    retired; see :ref:`sn-c5-phantom-retirement`).  The :math:`d \le 2`
@@ -485,8 +485,8 @@ What stayed deliberately legacy: the FD-matvec internal contract
 ----------------------------------------------------------------
 
 The FD-matvec internal helpers
-:func:`~orpheus.sn.operator.solution_to_angular_flux` and
-:func:`~orpheus.sn.operator.transport_operator_matvec_cylindrical`
+:func:`~orpheus.sn.operators.streaming.solution_to_angular_flux` and
+:func:`~orpheus.sn.operators.streaming.transport_operator_matvec_cylindrical`
 (plus Cartesian / spherical analogues) carry a separate internal
 packed-vector convention: the flat layout
 :math:`\texttt{flux}[g + n_g \cdot k_{\text{eq}}]` where
@@ -498,7 +498,7 @@ both the legacy ``(N, nx, ny, ng)`` and the principled
 ``(N, ng, nx, ny)``.
 
 Flipping the FD-matvec internal layout would touch 200+ lines of code
-across :mod:`orpheus.sn.operator` (30+ ``fi[:, n, i, j]`` indexing
+across :mod:`orpheus.sn.operators.streaming` (30+ ``fi[:, n, i, j]`` indexing
 sites) plus the two ``np.transpose`` axis-swap adapters at
 ``solver.py:1361`` and ``solver.py:1408``.  The migration plan
 defers this to **PR-INDEX-7** for two reasons:
@@ -990,9 +990,9 @@ scale through the same algebra.
      - Code class
      - Mathematical role
    * - :math:`L`
-     - :class:`~orpheus.sn.operator.StreamingOperator`
+     - :class:`~orpheus.sn.operators.streaming.StreamingOperator`
      - Streaming :math:`\Omega \cdot \nabla\psi`; per-ordinate
-       sweep over :func:`~orpheus.sn.geometry.SNMesh.dag_walk`,
+       sweep over :func:`~orpheus.sn.mesh.augmented_mesh.SNMesh.dag_walk`,
        fold over :meth:`DiscretizationScheme.residual`
    * - :math:`C`
      - :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
@@ -1043,7 +1043,7 @@ Boundary handling has its own type vocabulary
      - The discrete BC's algebraic action
        :math:`\psi^+_\Gamma = T(\psi^-_\Gamma)`
    * - ``BoundaryRealizer``
-     - :class:`~orpheus.sn.boundary_realizer.SNBoundaryRealizer`
+     - :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`
      - SN-side discretisation of the trace law
    * - ``InflowTraceSpace`` /
        ``OutflowTraceSpace``
@@ -1144,7 +1144,7 @@ lives in scattered docstrings.
      - :meth:`~orpheus.transport.operators.fission.FissionOperator.apply`
    * - :class:`StreamingOperator`.\ ``apply`` in/out (Resolution A)
      - ``(N, ng, nx, ny)``
-     - :class:`~orpheus.sn.operator.StreamingOperator`
+     - :class:`~orpheus.sn.operators.streaming.StreamingOperator`
    * - :class:`MultiplicationOperator`.\ ``apply`` in/out (Resolution A;
        the collision multiplier :math:`C = M[\Sigma_t]`)
      - ``(N, ng, nx, ny)``
@@ -1154,7 +1154,7 @@ lives in scattered docstrings.
      - :mod:`orpheus.transport.operators.scattering`
    * - FD-matvec internal ``fi`` (deferred to PR-INDEX-7)
      - ``(ng, N, nx, ny)``
-     - :func:`~orpheus.sn.operator.solution_to_angular_flux`
+     - :func:`~orpheus.sn.operators.streaming.solution_to_angular_flux`
 
 Two arrays do **not** follow the priority order:
 
@@ -1499,7 +1499,7 @@ PR-INDEX-7 --- EquationMap packed-vector traversal flip
 -------------------------------------------------------
 
 The FD-matvec internal helpers
-(:func:`~orpheus.sn.operator.solution_to_angular_flux` and the
+(:func:`~orpheus.sn.operators.streaming.solution_to_angular_flux` and the
 ``transport_operator_matvec_*`` family) carry a
 Fortran-flatten layout for the packed vector
 :math:`\texttt{solution}[g + n_g \cdot k_{\text{eq}}]` with

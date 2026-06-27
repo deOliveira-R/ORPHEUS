@@ -78,7 +78,7 @@ from orpheus.numerics.units import SCALAR_RATE_UNITS, Unit
 from orpheus.transport.fields._bases import ScalarField
 
 if TYPE_CHECKING:
-    from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.source_sinks.angular_source_sink import AngularSourceSink
 
 

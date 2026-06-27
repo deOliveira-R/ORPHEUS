@@ -45,8 +45,8 @@ from orpheus.numerics.operator import (
     CAP_SOLVE,
     OperatorSum,
 )
-from orpheus.sn.geometry import SNMesh
-from orpheus.sn.operator import (
+from orpheus.sn.mesh.augmented_mesh import SNMesh
+from orpheus.sn.operators.streaming import (
     InvertibleOperator,
     StreamingOperator,
 )
@@ -745,7 +745,7 @@ class TestInvertibleSolveBridgeRegression:
         from test_kinf_homogeneous import (  # type: ignore[import-not-found]
             _get_continuous_case, _homogeneous_mesh, _quadrature_for,
         )
-        from orpheus.sn.geometry import SNMesh
+        from orpheus.sn.mesh.augmented_mesh import SNMesh
         from orpheus.sn.solver import SNSolver
 
         case = _get_continuous_case(ng_key)
@@ -912,7 +912,7 @@ class TestInvertibleSolveBridgeRegression:
         property end-to-end on the composite path.
         """
         from dataclasses import replace
-        from orpheus.sn.boundary_operator import SNBoundaryOperator
+        from orpheus.sn.operators.boundary import SNBoundaryOperator
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
         )

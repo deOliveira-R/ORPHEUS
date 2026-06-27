@@ -19,7 +19,7 @@ sub-domain (Hébert Eq. 3.420).  The :math:`\phi_{n\pm 1/2,i}` are
 they are NOT cell-centre values and they are NOT computable from
 cell-centres without a closure.
 
-The pre-Phase-B :func:`~orpheus.sn.operator.transport_operator_matvec_spherical`
+The pre-Phase-B :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`
 matvec evaluated the half-angle face fluxes via Morel--Montry
 :math:`\tau`-weighted **symmetric interpolation**
 
@@ -180,7 +180,7 @@ from .psi_half_angle_seed import (
 )
 
 if TYPE_CHECKING:  # pragma: no cover
-    from ..geometry import SNMesh
+    from ..mesh.augmented_mesh import SNMesh
 
 
 # ═══════════════════════════════════════════════════════════════════════

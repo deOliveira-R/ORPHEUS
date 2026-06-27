@@ -211,7 +211,7 @@ class FissionOperator(LinearOperator):
         r"""The composite full-field space (P4.5 W-D), or ``None`` if unthreaded.
 
         :math:`F` advertises the SAME
-        :attr:`~orpheus.sn.geometry.SNMesh.full_field_space` instance
+        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space` instance
         ``L``/``C``/``S``/``B`` carry (threaded via :meth:`from_solver_data`).
         Unlike :math:`C`/:math:`S`, :math:`F` never enters a production
         :class:`~orpheus.numerics.operator.OperatorSum` (the fission source is

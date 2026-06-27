@@ -39,7 +39,7 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.geometry import SNMesh
+from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 from tests.sn._test_helpers import placeholder_materials
 

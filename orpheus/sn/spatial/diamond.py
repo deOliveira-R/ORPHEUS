@@ -400,9 +400,9 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         axis). This is the **single source of the DD cell math** (Cardinal
         Rule 2 / Pattern 2): the SOLVE arm of the ``_CellSolve`` level
         operation, consumed by BOTH storage walks — the full-cochain
-        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full` (the
+        :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full` (the
         VERIFICATION ORACLE policy) AND the rolling moving-frontier
-        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`
+        :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`
         (the storage-B PRODUCTION policy).  The two differ ONLY in how the
         incoming faces are gathered and the outgoing faces scattered — the
         cell algebra is identical, so the window walk and the oracle cannot
@@ -413,8 +413,8 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
 
         Element ``a`` of every per-axis tuple (``psi_in``, ``s_axes``, and the
         returned ``psi_out``) is spatial axis ``a`` — the SAME axis order as
-        :attr:`~orpheus.sn.sweep_graph.OctantLabel.signs` and
-        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.from_cartesian`'s
+        :attr:`~orpheus.sn.loss_representation.sweep_graph.OctantLabel.signs` and
+        :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.from_cartesian`'s
         ``shape``. The tuples are positional-by-axis; the caller MUST build
         and unpack them in axis order (``[0]`` = x, ``[1]`` = y, ``[2]`` = z).
 
@@ -476,8 +476,8 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         faces. Single source of the matvec cell math — the APPLY arm of the
         ``_CellResidual`` level operation, shared by the same two storage
         walks as :meth:`cell_kernel_batch`
-        (:meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_full` /
-        :meth:`~orpheus.sn.sweep_graph.SweepDependencyGraph.walk_windowed`).
+        (:meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_full` /
+        :meth:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph.walk_windowed`).
         Same explicit-left-fold operation-order discipline as
         :meth:`cell_kernel_batch`, via the shared
         :meth:`_cartesian_streaming_diagonal` (``2·g_a`` equals the former

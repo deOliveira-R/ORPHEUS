@@ -184,7 +184,7 @@ from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 
 if TYPE_CHECKING:
-    from orpheus.sn.geometry import SNMesh
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.numerics.space import FunctionSpace
@@ -446,7 +446,7 @@ class ScatteringOperator(LinearOperator):
         :math:`S` is a BULK 2-cell (the conjugation :math:`R\circ\Lambda\circ M`)
         but composes into the within-group loss ``(L+C) - S`` as a
         composite-field operator, so it advertises the SAME
-        :attr:`~orpheus.sn.geometry.SNMesh.full_field_space` instance
+        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space` instance
         ``L``/``C``/``B`` carry (threaded via :meth:`from_solver_data`). Carrying
         the real space lets the residual
         :class:`~orpheus.numerics.operator.OperatorSum` guard VALIDATE the ``- S``
@@ -803,7 +803,7 @@ class ScatteringOperator(LinearOperator):
         """Construct from a :class:`MaterialXSField` + quadrature.
 
         ``full_field_space`` (P4.5 W-D) is the composite
-        :attr:`~orpheus.sn.geometry.SNMesh.full_field_space` the solver
+        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.full_field_space` the solver
         threads so ``S``'s ``domain``/``codomain`` match ``L``/``C``/``B``
         and the within-group ``(L+C) - S`` composition guard validates the
         ``- S`` arm. ``None`` (the default) leaves ``S`` space-less — the
