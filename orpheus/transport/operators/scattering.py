@@ -882,6 +882,41 @@ class ScatteringOperator(LinearOperator):
             + N2NMomentOperator(mat_xs=self.mat_xs, L=self.scattering_order)
         )
 
+    @cached_property
+    def isotropic_kernel(self) -> LinearOperator:
+        r"""The model-shared isotropic in-scatter energy operator
+        :math:`\Sigma_{s,0} + 2\,\Sigma_{2n}` on the scalar flux.
+
+        The :math:`\ell=0` energy source — P0 in-scatter plus the :math:`(n,2n)`
+        doubling — as the cross-model
+        :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+        ``+``
+        :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+        :class:`~orpheus.numerics.operator.OperatorSum`.  This is the SAME
+        per-material ``mat_xs`` dispatch the inline :meth:`add_iso_source` /
+        :meth:`add_n2n_source` verbs used, so
+        :meth:`_assemble_per_ordinate_source` routes the SN forward isotropic
+        source through it **bit-identically** (campaign #276 P2): the
+        :class:`~orpheus.numerics.operator.OperatorSum`'s
+        ``a.apply(φ) + b.apply(φ)`` equals the in-place ``add_iso`` then
+        ``add_n2n`` accumulation (pinned 0-ULP by
+        ``test_isotropic_scattering.py::test_sum_equals_inplace_iso_then_n2n``).
+
+        The same energy operation lives — re-implemented — in every transport
+        model (CP / MoC / diffusion / homogeneous / MC); these operators are the
+        model-independent extraction (``coding-elegance`` Pattern 2 over the six
+        solver families).  Space-anonymous (``space=None``): the bulk
+        scalar-flux energy action carries no composition-guard space at this
+        producer-side use.  Cached: the kernel reads the XS *through*
+        :attr:`mat_xs` at ``apply`` time, so depletion / thermal-feedback updates
+        to the same field show up immediately (the operator snapshots no values).
+        """
+        from orpheus.transport.operators.isotropic_scattering import (
+            IsotropicN2N,
+            IsotropicScattering,
+        )
+        return IsotropicScattering(self.mat_xs) + IsotropicN2N(self.mat_xs)
+
     def _assemble_per_ordinate_source(
         self,
         phi: "np.ndarray | ScalarFlux",
@@ -913,17 +948,19 @@ class ScatteringOperator(LinearOperator):
         mesh : SNMesh
             Phase-space carrier (sizes the zero accumulators + ``sum_w``).
         """
-        # The iso accumulator carries the trailing spatial-moment axis when the
+        # The iso source carries the trailing spatial-moment axis when the
         # driving flux does (the φ̂ iterate, #240 D5b-S3 — the Σ_s ⊗ I lift
-        # scatters every spatial moment, so the in-place ``+=`` needs the same
-        # width or it broadcast-fails).  Read the width OFF the ScalarFlux's
+        # scatters every spatial moment).  Read the width OFF the ScalarFlux's
         # space (the single source of truth); a bare-ndarray φ stays scalar.
         spatial_moments = _spatial_moments_of(phi)
-        iso: ScalarSourceSink = ScalarSourceSink.zeros_on(
-            mesh, spatial_moments=spatial_moments,
+        # Route the isotropic (P0 + (n,2n)) energy source through the
+        # model-shared K_iso operators (#276 P2): IsotropicScattering = Σ_s0,
+        # IsotropicN2N = 2Σ_2n, summed.  SAME per-material ``mat_xs`` dispatch as
+        # the legacy add_iso/add_n2n verbs ⇒ bit-identical (OperatorSum.apply ≡
+        # the in-place accumulation, pinned 0-ULP by test_isotropic_scattering).
+        iso: ScalarSourceSink = ScalarSourceSink.from_mesh(
+            self.isotropic_kernel.apply(phi), mesh, spatial_moments=spatial_moments,
         )
-        iso = self.add_iso_source(iso, phi)
-        iso = self.add_n2n_source(iso, phi)
         aniso = (
             aniso_or_none
             if aniso_or_none is not None

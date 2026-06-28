@@ -235,6 +235,47 @@ class TestBitIdenticalExtractionP0:
 
         np.testing.assert_allclose(Q_actual, expected, rtol=1e-13)
 
+    @pytest.mark.sentinel
+    @pytest.mark.parametrize("trailing", [(), (4,)], ids=["scalar", "LD-2^d=4"])
+    def test_isotropic_kernel_bit_identical_to_legacy_verbs(
+        self, solver_2g_p0_n2n, trailing,
+    ):
+        r"""#276 P2 — the production ``isotropic_kernel`` (:math:`\Sigma_{s,0} +
+        2\Sigma_{2n}`, the :class:`~orpheus.numerics.operator.OperatorSum` that
+        :meth:`~orpheus.transport.operators.scattering.ScatteringOperator._assemble_per_ordinate_source`
+        now routes the SN forward isotropic source through) is **bit-identical**
+        (0-ULP) to the legacy ``add_iso_source`` then ``add_n2n_source`` in-place
+        accumulation.
+
+        Both reach the SAME per-material ``mat_xs`` verbs, so the K_iso routing
+        introduces zero numerical change — this is the 0-ULP-inheritance anchor
+        for the #276 P2 forward re-expression (the structural CORRECTNESS of the
+        verbs themselves is pinned independently by
+        :meth:`test_add_iso_source_matches_reference` /
+        :meth:`test_add_n2n_source_matches_reference` against the per-cell
+        reference loops).  Non-zero (n,2n) fixture (#269) + scalar AND LD
+        (trailing :math:`2^d` spectator axis, #240 D5b-S3).  ``-O``-safe
+        (``np.testing``).
+        """
+        op = solver_2g_p0_n2n.scattering_op
+        rng = np.random.default_rng(0)
+        (nx, ny), ng = solver_2g_p0_n2n.sn_mesh.spatial_shape, op.ng
+        phi = rng.uniform(0.1, 1.0, size=(ng, nx, ny, *trailing))
+
+        # Production path: the cached OperatorSum the forward now uses.
+        got = op.isotropic_kernel.apply(phi)
+
+        # Legacy path: zeros → add_iso_source → add_n2n_source (raw-in, in place).
+        ref = np.zeros_like(phi)
+        op.add_iso_source(ref, phi)
+        op.add_n2n_source(ref, phi)
+
+        np.testing.assert_array_equal(
+            got, ref,
+            err_msg="isotropic_kernel.apply (#276 P2 production iso path) must "
+            "equal the legacy add_iso_source + add_n2n_source accumulation (0-ULP).",
+        )
+
     def test_zero_flux_zero_addition(self, solver_2g_p0):
         """φ = 0 => ScatteringOperator adds zero (linearity guard)."""
         (nx, ny), ng = solver_2g_p0.sn_mesh.spatial_shape, solver_2g_p0.ng
