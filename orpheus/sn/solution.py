@@ -50,6 +50,8 @@ import numpy as np
 
 if TYPE_CHECKING:
     from .mesh.augmented_mesh import SNMesh
+    from orpheus.data.energy_grid import EnergyGrid
+    from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.geometry import Mesh1D, Mesh2D
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from orpheus.transport.fields.scalar_flux import ScalarFlux
@@ -447,6 +449,83 @@ class Solution:
         # (dimension-agnostic — no Mesh1D/Mesh2D reconstruction branch), carrying the
         # one fresh effective material per coarse cell.
         return MaterialMesh(coarse.with_distinct_cell_ids(), homogenized)
+
+    # ── Energy condensation (the energy-axis transpose of homogenize) ──
+
+    def condense(self, coarse: "EnergyGrid") -> dict[int, "Mixture"]:
+        r"""Spectrum-weighted energy condensation onto a coarse group structure.
+
+        Collapse this solution's per-material cross sections from the fine
+        (solved) group structure onto a coarser :class:`~orpheus.data.energy_grid.EnergyGrid`,
+        preserving every reaction rate.  Each material is condensed with its own
+        **representative spectrum** — the flux·volume-weighted flux over the cells
+        where the material appears:
+
+        .. math::
+
+            \varphi^{(m)}_g \;=\; \sum_{i:\,\mathrm{mat}(i)=m} V_i\,\phi_{i,g}
+
+        used as the test weight in
+        :meth:`orpheus.data.macro_xs.mixture.Mixture.condense` (which preserves the
+        per-coarse-group reaction rate).  This is the **energy-only**,
+        **mesh-DECOUPLED** half of the condense/homogenize asymmetry law: the
+        result is **portable** few-group cross sections
+        (``dict[material_id, Mixture]``), NOT bound to any mesh — geometry is
+        untouched.  (Contrast :meth:`homogenize`, which collapses space and returns
+        a mesh-COUPLED :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`.)
+
+        Parameters
+        ----------
+        coarse : EnergyGrid
+            The coarse target group structure (descending boundaries; no more
+            groups than the fine structure — condensation only downsamples, see
+            the upscaling guard in
+            :class:`~orpheus.data.energy_grid.GroupCondensation`).
+
+        Returns
+        -------
+        dict[int, Mixture]
+            One condensed :class:`~orpheus.data.macro_xs.mixture.Mixture` per
+            material id, carrying the coarse ``eg`` — portable few-group XS (e.g.
+            to compare against a WIMS few-group library, or seed a coarse solve).
+
+        Notes
+        -----
+        The fine→coarse :class:`~orpheus.data.energy_grid.GroupCondensation` is
+        built per material from its ``eg`` (the partition is identical across a
+        uniform-grid mesh; only the spectrum differs).  A material with no flux in
+        a fine group contributes zero weight there; the condense frame's
+        Moore–Penrose Gram handles any empty coarse group.
+
+        Raises
+        ------
+        ValueError
+            If a material carries no energy grid (``eg is None`` — a synthetic
+            mixture); condensation needs the fine library grid.
+        """
+        from orpheus.data.energy_grid import EnergyGrid
+
+        fine = self.mesh
+        ng = fine.ng
+        # (ng, *spatial) → (n_fine_cells, ng) in the "ij"/C flat-cell order the
+        # volume measure and ``mat_map.ravel()`` share (same convention as homogenize).
+        phi = np.asarray(self.scalar_flux.values, dtype=float).reshape(ng, -1).T
+        volume = np.asarray(fine.volume_measure.weights, dtype=float)   # (n_cells,)
+        mat_of_cell = np.asarray(fine.mat_map, dtype=int).ravel()       # (n_cells,)
+
+        condensed: dict[int, "Mixture"] = {}
+        for mat_id, material in fine.materials.items():
+            if material.eg is None:
+                raise ValueError(
+                    f"Solution.condense: material {mat_id} has no energy grid "
+                    f"(eg is None); condensation needs the fine library grid."
+                )
+            cells = mat_of_cell == mat_id
+            # representative spectrum: flux·volume-weighted over the material's cells
+            spectrum = (volume[cells, None] * phi[cells]).sum(axis=0)   # (ng,)
+            condensation = EnergyGrid(material.eg).condense_to(coarse)
+            condensed[mat_id] = material.condense(condensation, spectrum)
+        return condensed
 
     # ── Comparison ──────────────────────────────────────────────────
 

@@ -1,0 +1,469 @@
+r"""Energy-condensation gate — ``Solution.condense`` end-to-end.
+
+P5.0 (GitHub #274). ``Solution.condense(coarse: EnergyGrid) -> dict[int,
+Mixture]`` collapses a fine SN solution's per-material cross sections onto a
+coarse group structure, spectrum-weighted, returning **portable** few-group
+XS (mesh-DECOUPLED — the asymmetry law vs ``Solution.homogenize``, which is
+mesh-COUPLED). The per-material spectrum is the region-integrated scalar
+flux the solve emits.
+
+Mirrors ``tests/sn/test_homogenization.py`` (the spatial sibling). THE gate
+(rate preservation) checks the condensed reaction rate against a
+**structurally-independent** per-fine-group Python hand-sum (``vv L11`` —
+NOT a re-call of ``frame.project``). Companion checks: the result is a
+portable ``dict[int, Mixture]`` (no mesh), every condensed Mixture balances,
+χ stays a fast-peaked simplex, and the real EGB421→WIMS-69 structure
+integrates end-to-end.
+
+vv Mode-8: every assertion is ``np.testing.*`` / ``pytest.raises`` /
+``pytest.fail`` (the suite runs ``-O``; bare ``assert`` is stripped).
+
+PRE-IMPLEMENTATION: ``Solution.condense`` / ``EnergyGrid`` do not exist
+yet. SUT-exercising gates carry ``@_needs`` (``pytest.mark.skipif``) so this
+file collects clean and does NOT false-green. Remove the guards when the SUT
+lands.
+"""
+
+from __future__ import annotations
+
+import numpy as np
+import pytest
+
+from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.numerics.quadrature import Quadrature
+from orpheus.sn.solver import solve_sn
+
+pytestmark = [pytest.mark.l1, pytest.mark.cap("solve")]
+
+
+# ── Flip-to-live guards ────────────────────────────────────────────────
+from orpheus.sn.solution import Solution  # noqa: E402
+
+_HAS_CONDENSE = hasattr(Solution, "condense")
+try:
+    from orpheus.data.energy_grid import EnergyGrid  # type: ignore
+
+    _HAS_GRID = True
+except Exception:  # pragma: no cover - import guard
+    EnergyGrid = None  # type: ignore
+    _HAS_GRID = False
+
+_needs = pytest.mark.skipif(
+    not (_HAS_CONDENSE and _HAS_GRID),
+    reason="P5.0: Solution.condense / EnergyGrid not yet implemented",
+)
+
+
+# ── A 4-fine-group, 2-coarse-group setup, fast-first (descending eg) ────
+_NG_FINE = 4
+_GROUPS = (np.array([0, 1]), np.array([2, 3]))      # fast-first coarse partition
+_NG_COARSE = len(_GROUPS)
+_EG_FINE = np.array([1.0e7, 1.0e5, 1.0e2, 1.0e0, 1.0e-2])   # 5 edges → 4 groups
+_EG_COARSE = np.array([1.0e7, 1.0e2, 1.0e-2])               # 3 edges → 2 coarse
+
+
+def _balanced_fissile_4g(eg: np.ndarray) -> "object":
+    # NOTE: make_mixture hardcodes SigL = 0, so SigT must NOT include a SigL
+    # term here (SigT = SigC + SigF + rowsum(SigS0)); the SigL-bearing balance
+    # leg lives in tests/data/test_mixture_condense.py (hand-built fixture).
+    sig_c = np.array([0.02, 0.05, 0.10, 0.30])
+    sig_f = np.array([0.01, 0.02, 0.08, 0.20])
+    nu = np.array([2.6, 2.5, 2.45, 2.43])
+    chi = np.array([0.7, 0.25, 0.05, 0.0])
+    sig_s0 = np.array([
+        [0.30, 0.10, 0.05, 0.02],
+        [0.00, 0.40, 0.15, 0.03],
+        [0.00, 0.00, 0.55, 0.20],
+        [0.00, 0.00, 0.00, 0.90],
+    ])
+    sig_t = sig_c + sig_f + sig_s0.sum(axis=1)
+    mix = make_mixture(sig_t, sig_c, sig_f, nu, chi, sig_s0, eg=eg)
+    mix.assert_balanced()
+    return mix
+
+
+@pytest.fixture(scope="module")
+def materials():
+    """Single fissile material on the fine grid (condensation is per-material)."""
+    return {0: _balanced_fissile_4g(_EG_FINE)}
+
+
+@pytest.fixture(scope="module")
+def solution(materials):
+    """A real fine-group SN solve. A vacuum→reflective tilt keeps the spectrum
+    spatially non-flat, and the within-fine-group spectral spread is the
+    condensation's load-bearing weight."""
+    fine = Mesh1D(
+        edges=np.linspace(0.0, 4.0, 9), mat_ids=np.zeros(8, dtype=int),
+        coord=CoordSystem.CARTESIAN,
+        bc_left=BC("vacuum"), bc_right=BC("reflective"),
+    )
+    quad = Quadrature.gauss_legendre(n_ordinates=8)
+    return solve_sn(materials, fine, quad, scattering_order=0)
+
+
+def _region_spectrum(solution, mat_id: int = 0) -> np.ndarray:
+    """The per-material spectrum φ_g = Σ_i V_i φ_{i,g} over the cells of ``mat_id``.
+
+    The region-integrated scalar flux — the structurally-independent weight
+    the condensation uses. Computed here by an explicit volume-weighted sum
+    (NOT via the frame), so it is a clean oracle input.
+    """
+    phi = np.asarray(solution.scalar_flux.values, dtype=float)  # (ng, n_fine)
+    V = np.asarray(solution.mesh.volumes, dtype=float)          # (n_fine,)
+    mat = np.asarray(solution.mesh.mat_map, dtype=int).ravel()
+    sel = mat == mat_id
+    return (phi[:, sel] * V[sel]).sum(axis=1)                   # (ng,)
+
+
+def _condense(solution):
+    if not (_HAS_CONDENSE and _HAS_GRID):
+        pytest.skip("SUT absent")
+    return solution.condense(EnergyGrid(_EG_COARSE))
+
+
+# ══════════════════════════════════════════════════════════════════════
+# THE gate — rate preservation against a per-material hand-sum (vv L11)
+# ══════════════════════════════════════════════════════════════════════
+
+
+@_needs
+@pytest.mark.verifies("energy-condensation-rate-preservation")
+def test_solution_condense_rate_preservation(solution, materials):
+    """Σ_G·Φ_G == Σ_{g∈G} φ_g Σ_g per vector channel, per material.
+
+    Φ_G = Σ_{g∈G} φ_g is the coarse region-spectrum; φ_g is the region-
+    integrated fine flux. The oracle is an explicit fine-group Python sum.
+    """
+    condensed = _condense(solution)          # dict[int, Mixture]
+    phi = _region_spectrum(solution, 0)      # (ng_fine,)
+    coarse_mix = condensed[0]
+    for channel in ("SigT", "SigC", "SigL", "SigF", "SigP"):
+        sig_fine = np.asarray(getattr(materials[0], channel), dtype=float)
+        sig_eff = np.asarray(getattr(coarse_mix, channel), dtype=float)
+        for G in range(_NG_COARSE):
+            phi_R = float(phi[_GROUPS[G]].sum())
+            rate_coarse = sig_eff[G] * phi_R
+            rate_ref = float((phi[_GROUPS[G]] * sig_fine[_GROUPS[G]]).sum())
+            np.testing.assert_allclose(
+                rate_coarse, rate_ref, rtol=1e-10, atol=1e-12,
+                err_msg=f"{channel} rate not preserved in coarse {G}",
+            )
+
+
+@_needs
+@pytest.mark.verifies("energy-condensation-scattering-collapse")
+def test_solution_condense_scattering_rate(solution, materials):
+    """In-scatter RATE preserved (source-group weighted) — catches g_from↔g_to."""
+    condensed = _condense(solution)
+    phi = _region_spectrum(solution, 0)
+    coarse_mix = condensed[0]
+    for order in range(len(coarse_mix.SigS)):
+        sig_s_fine = np.asarray(materials[0].SigS[order].todense(), dtype=float)
+        sig_s_coarse = np.asarray(coarse_mix.SigS[order].todense(), dtype=float)
+        for Gi in range(_NG_COARSE):
+            phi_R = float(phi[_GROUPS[Gi]].sum())
+            for Gj in range(_NG_COARSE):
+                rate_coarse = sig_s_coarse[Gi, Gj] * phi_R
+                rate_ref = float(sum(
+                    phi[g] * sig_s_fine[g, gp]
+                    for g in _GROUPS[Gi] for gp in _GROUPS[Gj]
+                ))
+                np.testing.assert_allclose(
+                    rate_coarse, rate_ref, rtol=1e-10, atol=1e-12,
+                    err_msg=f"SigS[{order}][{Gi},{Gj}] in-scatter rate not preserved",
+                )
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Portability — the asymmetry law (condense is mesh-DECOUPLED)
+# ══════════════════════════════════════════════════════════════════════
+
+
+@_needs
+def test_condense_returns_portable_dict_no_mesh(solution):
+    """``condense`` returns ``dict[int, Mixture]`` — portable, NO mesh.
+
+    The condense/homogenize asymmetry: condense yields mesh-DECOUPLED
+    portable few-group XS (a plain dict of Mixtures), unlike homogenize which
+    returns a mesh-COUPLED MaterialMesh. Pin the return TYPE + that the
+    Mixtures carry no mesh attribute.
+    """
+    from orpheus.data.macro_xs.mixture import Mixture
+
+    condensed = _condense(solution)
+    np.testing.assert_array_equal(
+        isinstance(condensed, dict), True,
+        err_msg="condense must return a dict[int, Mixture] (portable)",
+    )
+    for key, mix in condensed.items():
+        np.testing.assert_array_equal(
+            isinstance(mix, Mixture), True,
+            err_msg=f"condense value for {key} must be a Mixture",
+        )
+        # Portability: a Mixture has no mesh / spatial binding.
+        np.testing.assert_array_equal(
+            hasattr(mix, "mesh"), False,
+            err_msg="condensed Mixture must NOT carry a mesh (mesh-decoupled)",
+        )
+
+
+@_needs
+def test_condensed_group_count_dropped(solution):
+    """Condensed Mixtures live on the COARSE group structure (ng → n_coarse)."""
+    condensed = _condense(solution)
+    for mix in condensed.values():
+        np.testing.assert_array_equal(
+            mix.ng, _NG_COARSE,
+            err_msg="condensed Mixture must have the coarse group count",
+        )
+        np.testing.assert_array_equal(
+            np.asarray(mix.eg).shape, (_NG_COARSE + 1,),
+            err_msg="condensed eg must be the coarse boundary array (n_coarse+1)",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Companion invariants — balance + simplex χ survive the collapse
+# ══════════════════════════════════════════════════════════════════════
+
+
+@_needs
+def test_condensed_materials_balance(solution):
+    """Balance survives the collapse — every removal channel shares the weight."""
+    condensed = _condense(solution)
+    for mix in condensed.values():
+        mix.assert_balanced(atol=1e-9)
+
+
+@_needs
+def test_condensed_chi_is_fast_peaked_simplex(solution):
+    """χ_R is a fast-peaked probability simplex (birth-group sum)."""
+    condensed = _condense(solution)
+    for mix in condensed.values():
+        chi = np.asarray(mix.chi)
+        np.testing.assert_allclose(
+            float(chi.sum()), 1.0, atol=1e-12,
+            err_msg="condensed χ must remain a simplex (Σχ=1)",
+        )
+        np.testing.assert_array_less(
+            -1e-15, chi, err_msg="condensed χ must be non-negative"
+        )
+        # Fine χ = [0.7,0.25,0.05,0] → coarse 0 (fast) holds the bulk.
+        np.testing.assert_array_less(
+            chi[1], chi[0],
+            err_msg="condensed χ must remain fast-peaked (coarse 0 > coarse 1)",
+        )
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Degenerate control — identity condensation recovers the fine material
+# ══════════════════════════════════════════════════════════════════════
+
+
+@_needs
+def test_identity_condensation_recovers_fine_material(solution, materials):
+    """Condense onto the SAME fine grid → each coarse group is one fine group,
+    so the effective material equals the original (the rate-average over a
+    singleton group is the identity)."""
+    condensed = solution.condense(EnergyGrid(_EG_FINE))
+    np.testing.assert_allclose(
+        np.asarray(condensed[0].SigT), np.asarray(materials[0].SigT),
+        atol=1e-12,
+        err_msg="identity condensation must recover the fine SigT",
+    )
+    np.testing.assert_allclose(
+        np.asarray(condensed[0].SigS[0].todense()),
+        np.asarray(materials[0].SigS[0].todense()), atol=1e-12,
+        err_msg="identity condensation must recover the fine SigS[0]",
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════
+# F7 (#274) — real 421-group library → WIMS-69 NON-NESTED condensation
+# ══════════════════════════════════════════════════════════════════════
+#
+# Real production data exists (P5.0 memo FLAG 3 CORRECTED 2026-06-27):
+# ``pwr_like_mix()`` / ``uo2_fuel()`` are real 421-group balanced Mixtures
+# (``ng=421``, ``eg`` descending), and ``WIMS_69`` / ``WIMS_172`` are the real
+# targets. The 421→WIMS-69 map is NON-NESTED (WIMS boundaries don't align with
+# the 421 spacing, and WIMS is locally finer in narrow resonance/thermal
+# bands), so a one-hot containing-interval leaves EMPTY coarse groups (the bug
+# the fractional re-binning fixes). This leg replaces the old
+# synthesize-and-skip placeholder: NO synthesis, NO skipif — it is the L2
+# real-structure integration leg, and it SUCCEEDS only once fractional
+# re-binning is live (guarded by ``_needs_fractional`` so it collects clean
+# pre-implementation).
+
+from pathlib import Path  # noqa: E402
+
+_EGB421 = Path(__file__).resolve().parents[2] / "orpheus" / "data" / "EGB421.txt"
+_HAS_EGB421 = _EGB421.exists()
+
+# Fractional-API guard (#274): the 421→WIMS-69 leg needs fractional re-binning
+# (the map is non-nested). Probe the within_group field by signature.
+import inspect as _inspect  # noqa: E402
+
+try:
+    from orpheus.data.energy_grid import (  # type: ignore
+        GroupCondensation as _GC,
+        InverseEnergySpectrum as _IES,
+    )
+
+    _HAS_FRACTIONAL = bool(
+        "within_group" in _inspect.signature(_GC).parameters
+    )
+except Exception:  # pragma: no cover - import guard
+    _GC = None  # type: ignore
+    _IES = None  # type: ignore
+    _HAS_FRACTIONAL = False
+
+# Real 421-group XS recipes (the production library; *.h5 caches present
+# locally). Guard the import so the file collects if a cache is missing.
+try:
+    from orpheus.data.macro_xs.recipes import pwr_like_mix  # type: ignore
+
+    _HAS_RECIPES = True
+except Exception:  # pragma: no cover - import guard
+    pwr_like_mix = None  # type: ignore
+    _HAS_RECIPES = False
+
+_needs_real_421 = pytest.mark.skipif(
+    not (_HAS_CONDENSE and _HAS_FRACTIONAL and _HAS_RECIPES),
+    reason="P5.0/#274: real 421→WIMS-69 needs fractional Mixture.condense + recipes",
+)
+
+
+def _load_egb421_descending() -> np.ndarray:
+    """Parse EGB421.txt → the canonical DESCENDING boundary array (422 edges)."""
+    import re
+
+    toks: list[str] = []
+    for ln in _EGB421.read_text().splitlines():
+        s = ln.strip()
+        if s.startswith("--") or s == "421" or not s:
+            continue
+        toks += s.split()
+
+    def _njoy(tok: str) -> float:
+        m = re.match(r"([0-9.]+)([-+][0-9]+)", tok)
+        return float(f"{m.group(1)}e{m.group(2)}")
+
+    ascending = np.array([_njoy(t) for t in toks])     # 422 ascending boundaries
+    return ascending[::-1]                              # canonical descending
+
+
+@pytest.mark.skipif(not _HAS_EGB421, reason="EGB421.txt grid absent")
+def test_egb421_grid_is_well_formed():
+    """The real ORNL 421-group grid: 422 strictly-descending positive edges.
+
+    Runs without the SUT — validates the production grid shape the F7
+    condensation consumes (and that EnergyGrid will wrap).
+    """
+    eg = _load_egb421_descending()
+    np.testing.assert_array_equal(
+        eg.shape, (422,),
+        err_msg="EGB421 must yield 422 boundaries (421 groups)",
+    )
+    np.testing.assert_array_less(
+        eg[1:], eg[:-1],
+        err_msg="canonical EGB421 grid must be strictly DESCENDING (fast-first)",
+    )
+    np.testing.assert_array_less(
+        0.0, eg, err_msg="all EGB421 energies must be positive"
+    )
+
+
+@_needs_real_421
+@pytest.mark.slow
+def test_real_pwr_421_to_wims69_condensation_succeeds():
+    """Condense the REAL 421-group ``pwr_like_mix()`` → WIMS-69 end-to-end.
+
+    The L2 real-structure integration leg (NON-NESTED 421→69). Asserts:
+      * condensation does NOT raise (the empty-group bug is gone);
+      * the condensed Mixture has ng == 69;
+      * NO zero columns — every coarse group is populated (was 3 empty under
+        one-hot for →69);
+      * ``assert_balanced()`` passes on the real-data collapse;
+      * χ stays a fast-peaked simplex (bulk in the fast HALF, NOT literally
+        argmax==0 — the real fission χ peaks ≈1 MeV → a low-but-nonzero coarse
+        index, so the assertion is the physically-correct cumulative mass, not
+        a brittle argmax);
+      * ``locally_interpolated`` is reported (non-empty — the resonance/thermal
+        coarse groups that leaned on w(E)).
+    """
+    from orpheus.data.energy_grid import EnergyGrid, GroupCondensation  # type: ignore
+    from orpheus.data.wims_d_iaea_group_structures import WIMS_69  # type: ignore
+
+    fine_mix = pwr_like_mix()                            # real 421-group, balanced
+    np.testing.assert_array_equal(
+        fine_mix.ng, 421, err_msg="pwr_like_mix must be the 421-group library"
+    )
+    fine_mix.assert_balanced()                           # the real fine data balances
+
+    fine_grid = EnergyGrid(np.asarray(fine_mix.eg, dtype=float))
+    # NON-NESTED: WIMS-69 boundaries do not align with the 421 grid.
+    cond = (
+        GroupCondensation.from_grids(fine_grid, WIMS_69, within_group=_IES())
+        if hasattr(GroupCondensation, "from_grids")
+        else GroupCondensation(fine_grid, WIMS_69, within_group=_IES())
+    )
+
+    # The per-material spectrum (the real fine flux is not on the Mixture; use a
+    # 1/E-ish slowing-down weight as the condensing spectrum — the within-group
+    # MODEL handles the sub-fine split, this φ_g is the between-group weight).
+    reps = fine_grid.representative_energy                # (421,) descending eV
+    phi = 1.0 / reps                                      # 1/E slowing-down weight
+    coarse_mix = fine_mix.condense(cond, phi)             # MUST NOT raise
+
+    # ng == 69, shapes coarse.
+    np.testing.assert_array_equal(
+        coarse_mix.ng, 69, err_msg="condensed Mixture must live on WIMS-69 (ng=69)"
+    )
+    np.testing.assert_array_equal(
+        np.asarray(coarse_mix.SigT).shape, (69,),
+        err_msg="condensed vectors must be (69,)",
+    )
+    np.testing.assert_array_equal(
+        np.asarray(coarse_mix.SigS[0].todense()).shape, (69, 69),
+        err_msg="condensed scattering must be (69, 69)",
+    )
+
+    # NO zero columns — every coarse group populated (the empty-group bug gone).
+    # SigT > 0 in every coarse group (a populated group has a positive total XS).
+    np.testing.assert_array_less(
+        0.0, np.asarray(coarse_mix.SigT, dtype=float),
+        err_msg="every WIMS-69 coarse group must be populated (SigT>0) — the "
+        "empty-group bug (3 empty under one-hot →69) must be gone",
+    )
+
+    # Balance survives the real-data NON-NESTED collapse.
+    coarse_mix.assert_balanced(atol=1e-9)
+
+    # χ stays a fast-peaked simplex. "Fast-peaked" = bulk of the emission mass
+    # in the fast half of the 69-group structure (group 0 = fastest). NOT
+    # argmax==0: the real fission χ peaks ≈1 MeV, a low-but-nonzero coarse
+    # index, so a cumulative-mass property is the physically-correct gate.
+    chi_c = np.asarray(coarse_mix.chi, dtype=float)
+    np.testing.assert_allclose(
+        float(chi_c.sum()), 1.0, atol=1e-9,
+        err_msg="condensed χ must remain a probability simplex",
+    )
+    np.testing.assert_array_less(
+        -1e-15, chi_c, err_msg="condensed χ must be non-negative"
+    )
+    fast_half = float(chi_c[: 69 // 2].sum())
+    np.testing.assert_array_less(
+        0.5, fast_half,
+        err_msg=f"condensed χ must stay fast-peaked (fast-half mass={fast_half:.3f} "
+        "must exceed 0.5) — the bulk of fission emission is fast",
+    )
+
+    # locally_interpolated reported (non-empty — the non-nested straddle groups).
+    li = np.asarray(cond.locally_interpolated, dtype=int).ravel()
+    np.testing.assert_array_less(
+        0, li.size,
+        err_msg="421→WIMS-69 is NON-NESTED → locally_interpolated must be "
+        "non-empty (the resonance/thermal coarse groups that leaned on w(E))",
+    )
