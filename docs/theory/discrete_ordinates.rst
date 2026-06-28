@@ -16413,11 +16413,17 @@ orchestration) and :meth:`MaterialXSField.project_through
 
 * :meth:`Mixture.condense
   <orpheus.data.macro_xs.mixture.Mixture.condense>` — the per-material
-  channel collapse (the data layer). Given a fine
-  :class:`~orpheus.data.macro_xs.mixture.Mixture`, a fine→coarse
-  :class:`~orpheus.data.energy_grid.GroupCondensation`, and a
-  representative spectrum, it returns the condensed (coarse-group)
-  ``Mixture``.
+  channel collapse (the data layer). Given a coarse target
+  :class:`~orpheus.data.energy_grid.EnergyGrid` and a representative
+  spectrum, ``mix.condense(target, spectrum)`` builds the fine→coarse
+  fractional-overlap trial internally
+  (:meth:`mix.energy_grid.overlap_to(target)
+  <orpheus.data.energy_grid.EnergyGrid.overlap_to>`) and returns the
+  condensed (coarse-group)
+  :class:`~orpheus.data.macro_xs.mixture.Mixture`. It is **data-native** —
+  every object it touches (the grid, the overlap factory, the
+  Petrov-Galerkin frame) lives in ``data`` / ``numerics``, with **no**
+  transport dependency.
 * :meth:`Solution.condense <orpheus.sn.solution.Solution.condense>` —
   the orchestration (the SN layer). It derives each material's
   representative spectrum from the solved flux and returns a
@@ -17148,13 +17154,14 @@ the input is only the fine-group *averages*. The asymmetry is encoded in
 three places:
 
 * **A global upscaling guard.**
-  :class:`~orpheus.data.energy_grid.GroupCondensation` **refuses** a
-  coarse target with *more* groups than the source — :math:`n_{\rm
-  coarse} > n_{\rm fine}` raises ``ValueError`` ("condensation only
-  DOWNSAMPLES; a finer target would fabricate sub-group structure the
-  data does not contain"). Reconstructing a finer structure from
-  group-integrated data is fabrication; the guard makes it
-  unrepresentable.
+  :meth:`EnergyGrid.overlap_to
+  <orpheus.data.energy_grid.EnergyGrid.overlap_to>` (the binary
+  mismatch factory) **refuses** a coarse target with *more* groups than
+  the source — :math:`n_{\rm coarse} > n_{\rm fine}` raises
+  ``ValueError`` ("condensation only DOWNSAMPLES; a finer target would
+  fabricate sub-group structure the data does not contain"). Reconstructing
+  a finer structure from group-integrated data is fabrication; the guard
+  makes it unrepresentable.
 * **The within-group model is the *explicit* assumption.** Where the
   coarse grid is *locally* finer than the fine grid (the resonance /
   thermal bands), the unavoidable *local* interpolation is done by the
@@ -17162,15 +17169,21 @@ three places:
   (:eq:`energy-condensation-overlap-fraction`) — a bounded, named,
   selectable assumption, not a silent invention.
 * **The provenance report.**
-  :attr:`GroupCondensation.locally_interpolated
-  <orpheus.data.energy_grid.GroupCondensation.locally_interpolated>`
-  returns the coarse-group indices whose data leaned on :math:`w(E)`
+  :attr:`OverlapBasis.fractional_columns
+  <orpheus.numerics.basis.overlap_basis.OverlapBasis.fractional_columns>`
+  (carried on the trial basis :meth:`overlap_to
+  <orpheus.data.energy_grid.EnergyGrid.overlap_to>` returns)
+  lists the coarse-group indices whose data leaned on :math:`w(E)`
   (the columns that received a *fractional* — strictly between 0 and 1 —
   contribution). It is **empty** for a nested condensation (pure
   rate-preserving collapse, no assumption) and non-empty exactly where
   the coarse grid is locally finer than the fine grid. This is the
   data-vs-assumption provenance: a caller can see precisely which coarse
-  groups are pure collapse and which lean on the spectral model.
+  groups are pure collapse and which lean on the spectral model. (The
+  companion :attr:`OverlapBasis.dominant_column
+  <orpheus.numerics.basis.overlap_basis.OverlapBasis.dominant_column>` —
+  the ``argmax`` containing-coarse map — is the former
+  ``GroupCondensation.coarse_of_fine``.)
 
 .. warning::
 
@@ -17183,6 +17196,133 @@ three places:
    *only* to apportion a straddling fine group's already-known rate, not
    to invent new spectral structure. Honest upscaling is a future
    capability (`GitHub #275 <https://github.com/deOliveira-R/ORPHEUS/issues/275>`_).
+
+.. _sn-condensation-grid-frame-axis:
+
+The grid is a frame axis: dual measure / basis views
+----------------------------------------------------
+
+An :class:`~orpheus.data.energy_grid.EnergyGrid` is the energy analogue
+of a coarse :class:`~orpheus.geometry.mesh.Mesh1D`, and — exactly like a
+mesh — it is a **frame axis** that yields *both* halves of a discrete
+frame, the two roles an axis plays in a projection:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 30 26 22
+
+   * - View
+     - Method
+     - Role
+     - Spatial twin
+   * - **measure** :math:`\mu`
+     - :meth:`EnergyGrid.as_measure
+       <orpheus.data.energy_grid.EnergyGrid.as_measure>`
+     - the **source** — the axis you project *from* (a counting
+       :class:`~orpheus.numerics.measure.DiscreteMeasure`, :math:`w_g=1`,
+       ``support="energy"``)
+     - :meth:`Mesh1D.volume_measure
+       <orpheus.geometry.mesh.Mesh1D.volume_measure>`
+   * - **basis** :math:`\mathbf{1}`
+     - :meth:`EnergyGrid.as_basis
+       <orpheus.data.energy_grid.EnergyGrid.as_basis>`
+     - the **target** — the axis you project *to* (the group-indicator
+       :class:`~orpheus.numerics.basis.IndicatorBasis`, one-hot)
+     - :meth:`Mesh1D.indicator_basis
+       <orpheus.geometry.mesh.Mesh1D.indicator_basis>`
+
+So a *nested* condensation is just ``fine.as_measure()`` →
+``coarse.as_basis()`` — the two unary views suffice. The non-nested
+production case needs **one more thing**, and it is irreducibly
+**binary**: the fractional membership table reads *both* grids' edges at
+once (a fine group straddles a *coarse* boundary — neither grid alone
+knows the straddle), so it cannot be a unary view of either. That is
+:meth:`EnergyGrid.overlap_to
+<orpheus.data.energy_grid.EnergyGrid.overlap_to>`, the
+``(fine, coarse) → OverlapBasis`` factory, with the containment
+
+.. math::
+   :label: energy-condensation-nested-subset
+
+   \texttt{coarse.as\_basis()}\ \text{(nested, one-hot)}
+   \ \subset\
+   \texttt{fine.overlap\_to(coarse)}\ \text{(non-nested, fractional)}.
+
+.. (vv-status rationale) Structural identity: the nested one-hot target
+   view (``as_basis``) is the degenerate of the binary fractional
+   ``overlap_to`` — the same containment the partition-of-unity table
+   collapses to when every straddle fraction is 0 or 1. A
+   representational relationship between the two views, gated by the
+   ``TestF3NestedDegeneracy`` bit-identity (a nested ``overlap_to`` table
+   equals the ``searchsorted`` one-hot); not a solver claim.
+.. vv-status: energy-condensation-nested-subset documented
+
+The returned trial is an :class:`~orpheus.numerics.basis.OverlapBasis`,
+which **IS-A** :class:`~orpheus.numerics.basis.IndicatorBasis` carrying
+the fractional table — so the nested one-hot view and the non-nested
+fractional view are the *same type* of object, the degenerate and the
+general case, never two code paths.
+
+.. _sn-condensation-no-frame-subclass:
+
+Why no ``CondensationFrame`` — the data-native shape
+----------------------------------------------------
+
+Two design decisions shape where this machinery lives, and both are the
+kind of "what was tried and rejected" a future session needs spelled
+out so it does not re-litigate them.
+
+**Condensation is data-native (no transport dependency).** An earlier
+plan put a ``CondensationFrame`` in :mod:`orpheus.transport` (a
+``transport/frames/`` package, symmetric with the angular
+:class:`~orpheus.numerics.frame.GalerkinFrame`). That was **overturned**.
+Condensation's carrier is the :class:`~orpheus.data.macro_xs.mixture.Mixture`
+— a *data* type — and every object the collapse touches (the
+:class:`~orpheus.data.energy_grid.EnergyGrid`, the
+:meth:`overlap_to <orpheus.data.energy_grid.EnergyGrid.overlap_to>`
+factory, and the :class:`~orpheus.numerics.frame.PetrovGalerkinFrame`)
+lives in ``data`` / ``numerics``. The layering forbids the move (``data``
+must **not** depend on ``transport``), and nothing in the operation needs
+transport: it is a pure cross-section *re-binning*. So the collapse verb
+is :meth:`Mixture.condense
+<orpheus.data.macro_xs.mixture.Mixture.condense>` (data), reaching the
+frame through the permitted ``data → numerics`` edge; only the SN-layer
+*orchestration* (deriving the per-material spectrum from a solved flux)
+lives above, in :meth:`Solution.condense
+<orpheus.sn.solution.Solution.condense>`.
+
+**There is no frame subclass at all** — no ``CondensationFrame``, no
+``HomogenizationFrame``. The frame is a plain
+:class:`~orpheus.numerics.frame.PetrovGalerkinFrame`; the "condensation"
+identity is **not** a new kind of frame, it lives in *two* ordinary
+places:
+
+#. the **binary overlap factory** :meth:`EnergyGrid.overlap_to
+   <orpheus.data.energy_grid.EnergyGrid.overlap_to>` (which builds the
+   energy-specific fractional trial), and
+#. the **collapse verb** :meth:`Mixture.condense
+   <orpheus.data.macro_xs.mixture.Mixture.condense>`, which shares its
+   channel-assembly assembler :meth:`Mixture.from_dense_channels
+   <orpheus.data.macro_xs.mixture.Mixture.from_dense_channels>` with
+   spatial homogenization's :meth:`MaterialXSField.project_through
+   <orpheus.transport.mesh.material_xs_field.MaterialXSField.project_through>`
+   — one home for "assemble a ``Mixture`` from coarsened dense channels",
+   not one per verb (Cardinal Rule 2).
+
+Minting a ``CondensationFrame`` would be wrong on two counts. First it is
+**false symmetry** with homogenization: homogenization is intrinsically a
+*two-frame* operation (a flux-weighted frame for the rate channels **and**
+a production-weighted frame for :math:`\chi` — :meth:`project_through
+<orpheus.transport.mesh.material_xs_field.MaterialXSField.project_through>`
+takes both), so even there a single "HomogenizationFrame" is the wrong
+shape. Second it is **unjustified type-minting** (the project's
+type-vs-property rule): a new frame *type* is earned only by a new frame
+*morphism*, and condensation introduces none — its analysis,
+reconstruction, Gram, and :meth:`project
+<orpheus.numerics.frame.FrameBase.project>` are the *unchanged*
+Petrov-Galerkin operations. The only genuinely new surface is the
+fractional trial *basis* (:class:`~orpheus.numerics.basis.OverlapBasis`),
+which is exactly where the novelty belongs — a basis, not a frame.
 
 The orchestration: per-material representative spectra
 ------------------------------------------------------
@@ -17309,8 +17449,8 @@ The discriminator and the companion invariants:
        downsampling-only guard), with a positive control that a valid
        downsample succeeds.
    * - ``TestF6LocalInterpolationReport``
-     - :attr:`GroupCondensation.locally_interpolated
-       <orpheus.data.energy_grid.GroupCondensation.locally_interpolated>`
+     - :attr:`OverlapBasis.fractional_columns
+       <orpheus.numerics.basis.overlap_basis.OverlapBasis.fractional_columns>`
        is empty for a nested condensation and lists the straddle columns
        for a non-nested one (the data-vs-assumption provenance).
    * - ``TestG4BalanceRegression`` (positive + negative)
@@ -17342,12 +17482,14 @@ The discriminator and the companion invariants:
 The intrinsic-property tests pin the new value objects' defining laws:
 :class:`~orpheus.data.energy_grid.EnergyGrid` (strictly **descending**
 boundaries — the #265 monotonicity slice — all-positive energies,
-partition completeness, with positive *and* negative legs), and
-:class:`~orpheus.data.energy_grid.GroupCondensation` (the
-containing-interval law: every fine group → exactly one *dominant*
-coarse group, contiguous, **fast-first** ordering — the orientation pin
-that catches the silent descending-edge column-reversal trap, vv Mode
-6).
+partition completeness, with positive *and* negative legs), and the
+fractional-overlap trial
+:class:`~orpheus.numerics.basis.OverlapBasis` (the partition-of-unity
+law, ``rows.sum == 1``; and the containing-interval law on its
+:attr:`~orpheus.numerics.basis.overlap_basis.OverlapBasis.dominant_column`:
+every fine group → exactly one *dominant* coarse group, contiguous,
+**fast-first** ordering — the orientation pin that catches the silent
+descending-edge column-reversal trap, vv Mode 6).
 
 ≥2 groups throughout (69-, 172-, and 421-group cases — never the
 degenerate 1-group case). Every sentinel / negative leg uses

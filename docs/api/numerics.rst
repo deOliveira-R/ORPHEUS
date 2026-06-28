@@ -266,7 +266,15 @@ discipline-type hierarchy, GitHub #268):
   faces as :class:`~orpheus.numerics.operator.LinearOperator` views.
   Carries the **discipline-free** mechanics — the trial table, the two
   spaces, the reconstruction face, the analysis-face wiring; the single
-  abstract hook is the test basis.
+  abstract hook is the test basis. The coefficient-extraction verb
+  :meth:`~orpheus.numerics.frame.FrameBase.project` (:math:`G^{-1}M`, the
+  homogenise / condense verb) normalises by a **row-sum** Gram probe,
+  valid only for a row-sum-collapsible trial; it **refuses**
+  (:class:`~orpheus.numerics.operator.MissingCapability`) a trial whose
+  :attr:`~orpheus.numerics.basis.base.Basis.gram_structure` is
+  :attr:`~orpheus.numerics.basis.base.GramStructure.DENSE` (the dense
+  :math:`(MR)^{-1}M` least-squares solve is unbuilt — `GitHub #275
+  <https://github.com/deOliveira-R/ORPHEUS/issues/275>`_).
 * :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` — the general
   discipline: an explicit ``test_basis`` distinct from the trial basis
   (test ≠ trial), so :math:`M^* \ne R`. Flux-weighted spatial
@@ -279,11 +287,29 @@ discipline-type hierarchy, GitHub #268):
   pure-Galerkin frame; its SH case is a 4π-tight frame.
 * :class:`~orpheus.numerics.basis.Basis` — the synthesis (trial)
   side ABC: tabulate, naked synthesis :math:`S_0`, the three
-  weighted contractions, and the discrete Gram.
+  weighted contractions, the discrete Gram, and the
+  :attr:`~orpheus.numerics.basis.Basis.gram_structure` declaration
+  (below). Defaults to
+  :attr:`~orpheus.numerics.basis.base.GramStructure.DENSE` — the safe
+  refusal (a new basis must consciously declare it row-sum-collapsible).
+* :class:`~orpheus.numerics.basis.GramStructure` — the trial basis's
+  **projection-validity declaration** (the precondition
+  :meth:`~orpheus.numerics.frame.FrameBase.project`'s row-sum probe needs,
+  carried by the *type* not a docstring):
+  :attr:`~orpheus.numerics.basis.base.GramStructure.DIAGONAL`
+  (disjoint-support — orthogonal harmonics, nested indicators),
+  :attr:`~orpheus.numerics.basis.base.GramStructure.PARTITION_OF_UNITY`
+  (overlapping rows summing to 1 — the fractional
+  :class:`~orpheus.numerics.basis.OverlapBasis`; ``MR`` not diagonal but
+  :math:`R\mathbf 1=\mathbf 1` still collapses the probe), or
+  :attr:`~orpheus.numerics.basis.base.GramStructure.DENSE` (neither — the
+  row-sum probe is wrong; ``project`` refuses it).
 * :class:`~orpheus.numerics.basis.IndicatorBasis` — the
   piecewise-constant (P0) cell/group-indicator basis: a one-hot
-  membership table built by ``searchsorted``. The trial side of spatial
-  homogenisation and the *nested* energy-condensation degenerate.
+  membership table built by ``searchsorted`` (declares
+  :attr:`~orpheus.numerics.basis.base.GramStructure.DIAGONAL`). The trial
+  side of spatial homogenisation and the *nested* energy-condensation
+  degenerate.
 * :class:`~orpheus.numerics.basis.OverlapBasis` — the
   partition-of-unity **fractional**-membership generalisation of
   :class:`~orpheus.numerics.basis.IndicatorBasis` (a straddling fine cell
@@ -293,7 +319,14 @@ discipline-type hierarchy, GitHub #268):
   :class:`~orpheus.numerics.basis.IndicatorBasis` is its nested
   degenerate. Overrides exactly one method (``evaluate``, returning the
   precomputed overlap table) — a no-op extension through the inherited
-  contractions.
+  contractions — and declares
+  :attr:`~orpheus.numerics.basis.base.GramStructure.PARTITION_OF_UNITY`.
+  Two table diagnostics carry the re-binning provenance:
+  :attr:`~orpheus.numerics.basis.overlap_basis.OverlapBasis.dominant_column`
+  (the ``argmax`` containing-coarse map) and
+  :attr:`~orpheus.numerics.basis.overlap_basis.OverlapBasis.fractional_columns`
+  (the coarse columns that received a strictly-fractional contribution —
+  empty for a nested table).
 * :class:`~orpheus.numerics.basis.WeightedIndicatorBasis` — the
   Petrov-Galerkin **test**-side basis: a weight (flux / spectrum /
   production) carried as an *analysis* weight on the cell/group
