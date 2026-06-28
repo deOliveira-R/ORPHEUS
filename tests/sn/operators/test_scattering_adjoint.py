@@ -240,9 +240,11 @@ class TestN2NMomentOperator:
 
 class TestFullScatterKernel:
     def _full_kernel(self, op):
-        lam = LegendreMomentScattering(mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=False)
-        n2n = N2NMomentOperator(mat_xs=op.mat_xs, L=op.scattering_order)
-        return op.frame.conjugate(lam + n2n)  # OperatorSum via '+', then R∘(·)∘M
+        # The production property: frame.conjugate(Λ_{ℓ≥0} + N2N) — R∘(Λ+N2N)∘M.
+        # The forward apply does NOT use this (it keeps the fast-path for perf,
+        # campaign #276 A2a finding); it is the validated frame form for the
+        # adjoint transpose (A2b) + the Option-2 forward-unification reference.
+        return op.full_scatter_kernel
 
     def test_reproduces_forward_scattering_source(self, solver_p1_het):
         r"""``(1/W)·frame.conjugate(Λ_{ℓ≥0}+N2N).apply(ψ) == S.apply(ψ)`` (principled-equiv).

@@ -448,11 +448,17 @@ class N2NMomentOperator(LinearOperator):
     )
 
     def apply(self, moments: np.ndarray) -> np.ndarray:
-        r""":math:`2\,\Sigma_{2n}` applied to the :math:`\ell=0` moment (ℓ≥1 zero)."""
+        r""":math:`2\,\Sigma_{2n}` applied to the :math:`\ell=0` moment (ℓ≥1 zero).
+
+        Bare ndarray (the endomorphic moment-space view the ``frame.conjugate``
+        ``OperatorProduct`` chain composes on — both for the forward
+        :attr:`~ScatteringOperator.full_scatter_kernel` and its
+        :meth:`apply_transpose`).
+        """
         return self.mat_xs.apply_n2n_moments(moments)
 
     def apply_transpose(self, moments: np.ndarray) -> np.ndarray:
-        r"""The :math:`\ell=0` group-transpose :math:`(2\,\Sigma_{2n})^{T}`."""
+        r"""The :math:`\ell=0` group-transpose :math:`(2\,\Sigma_{2n})^{T}` (bare ndarray)."""
         return self.mat_xs.apply_n2n_moments_transpose(moments)
 
     @property
@@ -839,6 +845,41 @@ class ScatteringOperator(LinearOperator):
             LegendreMomentScattering(
                 mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=True,
             )
+        )
+
+    @property
+    def full_scatter_kernel(self) -> LinearOperator:
+        r"""The FULL in-scatter source kernel :math:`R\circ(\Lambda_{\ell\ge 0} + N_{2n})\circ M`.
+
+        The modernized production scattering source (campaign #276 A2a): the
+        COMPLETE P0 + anisotropic + (n,2n) in-scatter as ONE frame-conjugated
+        operator. The isotropic ℓ=0 scattering (:math:`\Lambda_{\ell=0}`), the
+        anisotropic ℓ≥1 redistribution (:math:`\Lambda_{\ell\ge 1}`), and the
+        (n,2n) multiplication (the DISTINCT :class:`N2NMomentOperator`) are summed
+        in moment space (an :class:`~orpheus.numerics.operator.OperatorSum`) and
+        conjugated by the angular frame TOGETHER — one analysis :math:`M`, one
+        reconstruction :math:`R`. The per-ordinate scattering source is
+        ``(1/W)·full_scatter_kernel.apply(ψ)`` (this is what :meth:`apply`
+        computes); its transpose is ``(1/W)·full_scatter_kernel.apply_transpose(ψ*)``
+        (the adjoint scattering :math:`S^{T}`, campaign #276 A2b).
+
+        This is the iso path "made nice like aniso": the isotropic in-scatter now
+        rides the SAME frame conjugation as the anisotropic redistribution, so the
+        whole operator's transpose falls out of
+        :meth:`~orpheus.numerics.operator.OperatorProduct.apply_transpose` for free
+        (the M/R face transposes + :math:`\Lambda^{T}` + :math:`N_{2n}^{T}`).
+
+        Distinct from :attr:`kernel` (the §5.6 ℓ≥1 ANISOTROPIC subcomponent — the
+        :class:`~orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator`
+        protocol surface + the 0-ULP crosscheck oracle): this is the FULL
+        ℓ≥0 + (n,2n) source. Built fresh per access (read-through to :attr:`mat_xs`,
+        so depletion / thermal-feedback updates show up immediately).
+        """
+        return self.frame.conjugate(
+            LegendreMomentScattering(
+                mat_xs=self.mat_xs, L=self.scattering_order, skip_l0=False,
+            )
+            + N2NMomentOperator(mat_xs=self.mat_xs, L=self.scattering_order)
         )
 
     def _assemble_per_ordinate_source(
@@ -1490,7 +1531,12 @@ class ScatteringOperator(LinearOperator):
         :class:`TimedFullField` wrap.
         """
         # φ = ∫ψ dΩ (scalar), aniso = (1/W) R Λ M ψ (per-ordinate), then the
-        # shared producer-side assembly.
+        # shared producer-side assembly. The iso (P0 + n2n) keeps the cheap
+        # reaction-rate fast path (NO moment tensor) — it is a load-bearing
+        # PERF optimisation on the SI-sweep hot path; routing it through the
+        # frame regresses LD/P0 badly (campaign #276 A2a finding). The frame
+        # form lives on as :attr:`full_scatter_kernel` for the (non-hot-path)
+        # adjoint transpose only (A2b).
         return self._assemble_per_ordinate_source(
             psi.integrate_angular(), self.build_aniso_source(psi), psi.mesh,
         )

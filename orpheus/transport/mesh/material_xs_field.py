@@ -733,7 +733,7 @@ class MaterialXSField:
         l_start = 1 if skip_l0 else 0
         for mid, idx in self.cells_by_material.items():
             sig_s_mid = self.sig_s_legendre(mid)
-            cells = (Ellipsis, *idx)
+            cells = (slice(None), slice(None), *idx)
             for l in range(l_start, L + 1):
                 n_m = 2 * l + 1
                 # Trailing-contiguous indexing pattern (see notes in
@@ -792,7 +792,7 @@ class MaterialXSField:
         l_start = 1 if skip_l0 else 0
         for mid, idx in self.cells_by_material.items():
             sig_s_mid = self.sig_s_legendre(mid)
-            cells = (Ellipsis, *idx)
+            cells = (slice(None), slice(None), *idx)
             for l in range(l_start, L + 1):
                 n_m = 2 * l + 1
                 moments_view = moments[l, :n_m][cells]
@@ -830,7 +830,7 @@ class MaterialXSField:
         out = np.zeros_like(moments)
         for mid, idx in self.cells_by_material.items():
             sig2 = self.n2n_matrix(mid)
-            cells = (Ellipsis, *idx)
+            cells = (slice(None), slice(None), *idx)
             mv = moments[0, :1][cells]  # (1, ng, *spatial) — the ℓ=0 moment
             out[0, :1][cells] = (
                 2.0 * np.einsum("mfc...,fg->mgc...", mv, sig2) + out[0, :1][cells]
@@ -846,7 +846,7 @@ class MaterialXSField:
         out = np.zeros_like(moments)
         for mid, idx in self.cells_by_material.items():
             sig2 = self.n2n_matrix(mid)
-            cells = (Ellipsis, *idx)
+            cells = (slice(None), slice(None), *idx)
             mv = moments[0, :1][cells]
             out[0, :1][cells] = (
                 2.0 * np.einsum("mfc...,gf->mgc...", mv, sig2) + out[0, :1][cells]

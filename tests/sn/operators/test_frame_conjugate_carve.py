@@ -51,6 +51,7 @@ from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import Mesh2D
 from orpheus.numerics.operator import (
     CAP_APPLY,
+    CAP_APPLY_TRANSPOSE,
     LinearOperator,
     OperatorProduct,
 )
@@ -166,16 +167,23 @@ class TestLegendreMomentScatteringHasRealSpaces:
             f"codomain={lam.codomain!r}.",
         )
 
-    def test_lambda_still_apply_only(self, solver_p1_het):
-        """Real spaces must NOT change Λ's capability set (apply-only)."""
+    def test_lambda_apply_and_transpose_not_solve(self, solver_p1_het):
+        """Λ advertises apply + apply_transpose (Λᵀ, campaign #276), never solve.
+
+        The P2 real-spaces (cast retirement) did not change the no-``solve``
+        property (the ℓ=0 block is rank-deficient by design); campaign #276 added
+        ``apply_transpose`` — the per-ℓ group-transpose Λᵀ, the only group-
+        asymmetric factor of the frame-conjugated kernel ``R∘Λ∘M`` (so
+        ``(R∘Λ∘M)ᵀ`` falls out for free).
+        """
         op = solver_p1_het.scattering_op
         lam = LegendreMomentScattering(
             mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=True,
         )
         require(
-            lam.capabilities == frozenset({CAP_APPLY}),
-            f"P2: Λ stays apply-only (no efficient solve / transpose); got "
-            f"{sorted(lam.capabilities)}.",
+            lam.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE}),
+            f"Λ must advertise apply + apply_transpose (campaign #276), NOT solve; "
+            f"got {sorted(lam.capabilities)}.",
         )
 
     def test_inner_lambda_product_carries_real_spaces(self, solver_p1_het):
