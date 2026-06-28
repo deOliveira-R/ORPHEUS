@@ -280,6 +280,25 @@ discipline-type hierarchy, GitHub #268):
 * :class:`~orpheus.numerics.basis.Basis` — the synthesis (trial)
   side ABC: tabulate, naked synthesis :math:`S_0`, the three
   weighted contractions, and the discrete Gram.
+* :class:`~orpheus.numerics.basis.IndicatorBasis` — the
+  piecewise-constant (P0) cell/group-indicator basis: a one-hot
+  membership table built by ``searchsorted``. The trial side of spatial
+  homogenisation and the *nested* energy-condensation degenerate.
+* :class:`~orpheus.numerics.basis.OverlapBasis` — the
+  partition-of-unity **fractional**-membership generalisation of
+  :class:`~orpheus.numerics.basis.IndicatorBasis` (a straddling fine cell
+  belongs *fractionally* to each coarse cell it overlaps). The trial
+  side of *non-nested* energy condensation
+  (:ref:`sn-condensation-fractional-overlap`); the one-hot
+  :class:`~orpheus.numerics.basis.IndicatorBasis` is its nested
+  degenerate. Overrides exactly one method (``evaluate``, returning the
+  precomputed overlap table) — a no-op extension through the inherited
+  contractions.
+* :class:`~orpheus.numerics.basis.WeightedIndicatorBasis` — the
+  Petrov-Galerkin **test**-side basis: a weight (flux / spectrum /
+  production) carried as an *analysis* weight on the cell/group
+  indicator. The flux-weighted test side of homogenisation and the
+  spectrum-weighted test side of condensation.
 * :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` — the
   first concrete basis: real spherical harmonics on :math:`S^2`,
   carrying the no-:math:`4\pi/(2\ell+1)`-prefactor convention (the

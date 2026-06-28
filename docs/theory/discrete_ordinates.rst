@@ -16284,10 +16284,12 @@ The return-type asymmetry is therefore not incidental: it is the
 showing through. A geometric trial basis births geometry; a spectral
 trial basis births portable group data.
 
-The condensation half is **deferred** (this slice ships homogenization
-only); it is the mesh-decoupled sibling and will return the portable
-``dict[int, Mixture]`` rather than a ``MaterialMesh``. The asymmetry-law
-table above is the contract it must satisfy when it lands.
+The condensation half is realised by :meth:`Solution.condense
+<orpheus.sn.solution.Solution.condense>`; its theory — the per-material
+rate-preserving collapse, the fractional-overlap re-binning that lifts
+the nesting requirement, and the same Petrov-Galerkin discipline — is
+:ref:`sn-energy-condensation` below, the energy-axis transpose of this
+section.
 
 .. _sn-homogenization-verification:
 
@@ -16389,6 +16391,970 @@ matches a standalone ``MaterialMesh``) — is gated separately by
 :mod:`tests.transport.test_material_mesh`.
 
 
+.. _sn-energy-condensation:
+
+Energy condensation
+===================
+
+Spatial homogenization (:ref:`sn-spatial-homogenization`) collapses the
+*space* axis; **energy condensation** is its **energy-axis transpose** —
+it collapses a fine-group cross-section set onto a coarser group
+structure, **spectrum-weighted**, so that each coarse group reproduces
+the fine reaction rate. The two are the classical pair of "smear the
+detail you have resolved into effective constants for a coarser
+calculation" moves (Hébert, *Applied Reactor Physics* [Hebert2009]_,
+§13 for space, §3.5 for energy).
+
+In ORPHEUS condensation lives at two layers, mirroring how
+homogenization splits between :meth:`Solution.homogenize` (the
+orchestration) and :meth:`MaterialXSField.project_through
+<orpheus.transport.mesh.material_xs_field.MaterialXSField.project_through>`
+(the per-channel collapse):
+
+* :meth:`Mixture.condense
+  <orpheus.data.macro_xs.mixture.Mixture.condense>` — the per-material
+  channel collapse (the data layer). Given a fine
+  :class:`~orpheus.data.macro_xs.mixture.Mixture`, a fine→coarse
+  :class:`~orpheus.data.energy_grid.GroupCondensation`, and a
+  representative spectrum, it returns the condensed (coarse-group)
+  ``Mixture``.
+* :meth:`Solution.condense <orpheus.sn.solution.Solution.condense>` —
+  the orchestration (the SN layer). It derives each material's
+  representative spectrum from the solved flux and returns a
+  **portable** ``dict[int, Mixture]`` keyed by material id.
+
+.. note::
+
+   This is the **energy-only** slice (the energy sibling of spatial
+   homogenization). Geometry is **not** touched — the result is portable
+   few-group cross sections, not a mesh. The asymmetry between the two
+   operations, and *why* they return different types
+   (``dict[int, Mixture]`` vs
+   :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`), is
+   :ref:`sn-condense-homogenize-asymmetry` above. Energies obey the
+   canonical fast-first convention (group ``0`` = fastest, descending
+   boundaries; :ref:`canonical-group-convention`).
+
+The defining property: reaction-rate preservation
+-------------------------------------------------
+
+Condensation, like homogenization, is defined by *what it must
+preserve*, not by an averaging recipe. The quantity a transport
+calculation consumes is the **reaction rate** in each group, and the
+group-collapse cross section is *defined* so as to preserve it (Hébert
+[Hebert2009]_ Eq. 3.103; Stamm'ler & Abbate, *Methods of Steady-State
+Reactor Physics in Simplified Geometry* (1983), Eq. VI(6b) — two
+independent authoritative textbooks state it identically). Fix a coarse
+group :math:`G`, made up of fine groups :math:`g \in G`. The fine-group
+reaction rate of any vector channel is
+
+.. math::
+   :label: energy-condensation-fine-rate
+
+   r_G \;=\; \sum_{g \in G} \varphi_g\,\Sigma_g,
+
+.. (vv-status rationale) Definitional identity: the fine-group reaction
+   rate, a plain group sum because ORPHEUS φ_g is already
+   group-integrated (the bin width is inside φ_g; see
+   :eq:`energy-condensation-counting-measure`). A
+   derivation-decomposition premise of the rate-preservation claim
+   (:eq:`energy-condensation-rate-preservation`), which is the verifiable
+   claim (L1 gate ``tests.data.test_mixture_condense``).
+.. vv-status: energy-condensation-fine-rate documented
+
+with :math:`\varphi_g` the per-material representative flux (the test
+weight, fixed below) and :math:`\Sigma_g` the fine cross section for
+whatever channel (total, capture, fission, …) is in question. The sum
+has **no** :math:`\mathrm{d}E` or lethargy width because ORPHEUS's
+:math:`\varphi_g` is already the group-integrated flux
+:math:`\int_g \phi\,\mathrm{d}E` — the bin width is baked into the flux
+(:eq:`energy-condensation-counting-measure`). The coarse model carries
+one effective cross section :math:`\Sigma_G` and one coarse-group flux
+:math:`\Phi_G` per group; for it to reproduce the fine rate it must
+satisfy
+
+.. math::
+   :label: energy-condensation-rate-preservation
+
+   \Sigma_G\,\Phi_G
+   \;=\;
+   \sum_{g \in G} \varphi_g\,\Sigma_g,
+
+This is the **only** constraint condensation imposes on the vector
+channels; everything below is derived from it. It is the energy-axis
+copy of :eq:`sn-homogenization-rate-preservation` (with the fine-cell
+volume·flux weight :math:`V_i\phi_{i,g}` replaced by the fine-group flux
+:math:`\varphi_g`, and the spatial region :math:`R` replaced by the
+energy group :math:`G`). The coarse-group flux is fixed first, by the
+production-free inventory match — the coarse flux is the fine flux
+summed over the group,
+
+.. math::
+   :label: energy-condensation-coarse-flux
+
+   \Phi_G \;=\; \sum_{g \in G} \varphi_g.
+
+.. (vv-status rationale) Representational identity: the coarse-group flux
+   is the fine flux summed over the group (the diagonal Gram Φ_G of the
+   PG frame). A definition consumed by the rate-preservation claim
+   (:eq:`energy-condensation-rate-preservation`), not an independent
+   solver claim.
+.. vv-status: energy-condensation-coarse-flux documented
+
+Substituting :eq:`energy-condensation-coarse-flux` into
+:eq:`energy-condensation-rate-preservation` and solving for the
+effective cross section gives the **spectrum-weighted average**
+
+.. math::
+   :label: energy-condensation-vector-collapse
+
+   \Sigma_G
+   \;=\;
+   \frac{\sum_{g \in G} \varphi_g\,\Sigma_g}
+        {\sum_{g \in G} \varphi_g},
+
+.. (vv-status rationale) Derivation-decomposition step: the
+   spectrum-weighted collapse obtained by solving the rate-preservation
+   identity (:eq:`energy-condensation-rate-preservation`) for the
+   effective cross section — Hébert Eq. 3.103. The verifiable content is
+   the L1 rate-preservation gate; this is the algebraic rearrangement,
+   not a separate claim.
+.. vv-status: energy-condensation-vector-collapse documented
+
+the flux-weighted reaction-rate-preserving average (Hébert
+[Hebert2009]_ Eq. 3.103 ≡ Stamm'ler VI(6b)). Because the weight
+:math:`\varphi_g` appears in both the numerator (rate) and denominator
+(flux), :math:`\Sigma_G` is a genuine convex combination of the fine
+values: it is bracketed by the group's fine extremes
+:math:`\min_{g\in G}\Sigma_g \le \Sigma_G \le \max_{g\in G}\Sigma_g`.
+This is *not* a separate design choice — it falls straight out of
+:eq:`energy-condensation-rate-preservation`. Choosing any other weight
+(width-only, unweighted) would break rate preservation wherever the
+spectrum varies across the coarse group, which is exactly the regime
+condensation exists to handle. The vector channels — total, capture,
+leakage-loss (:math:`\Sigma_L`), fission, and production
+(:math:`\nu\Sigma_f`) — each collapse through
+:eq:`energy-condensation-vector-collapse` with the *same* weight; a
+coarse group with zero flux (:math:`\Phi_G = 0`) has no reaction rate to
+preserve, so its effective cross section is zero — the :math:`0/0`
+resolved by the only physically meaningful value (the frame's
+Moore–Penrose Gram, below).
+
+The counting measure: why the weight is :math:`\varphi_g`, not :math:`\Delta u_g\,\varphi_g`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A subtle but load-bearing point distinguishes the energy axis from the
+spatial axis. In Hébert's continuous formulation the flux-weighted
+average of a *distribution* (a reaction rate) is a plain lethargy
+integral (Eq. 3.96, :math:`\langle X\rangle_g = \int_g X\,\mathrm{d}u`)
+while the average of a *function* (the flux) carries a :math:`1/\Delta
+u_g` lethargy-width normalisation (Eq. 3.97). The discrete weight that
+preserves the rate is therefore
+
+.. math::
+   :label: energy-condensation-counting-measure
+
+   w_g \;=\; 1
+   \qquad\text{(counting), not}\qquad
+   w_g \;=\; \Delta u_g \;=\; \ln(E_{g}^{\rm upper}/E_{g}^{\rm lower}),
+
+.. (vv-status rationale) Structural identity: the energy-axis measure is
+   COUNTING (w=1), because ORPHEUS φ_g is already group-integrated, so
+   the discrete rate is a plain group sum. Design rationale for the
+   measure choice; the verifiable content is the rate-preservation gate
+   (a Δu weight breaks it) plus the
+   :class:`~orpheus.numerics.measure.DiscreteMeasure` bit-identity, not a
+   solver claim.
+.. vv-status: energy-condensation-counting-measure documented
+
+because ORPHEUS stores :math:`\varphi_g = \int_g \phi\,\mathrm{d}E`
+already integrated over the bin ("eV-free"). The discrete rate is then a
+plain group **sum** :math:`r_G = \sum_{g\in G}\varphi_g\Sigma_g`
+(:eq:`energy-condensation-fine-rate`) — the bin width is already inside
+:math:`\varphi_g`. Verified against the frame algebra:
+:math:`\Sigma_G\cdot\Phi_G = \sum_g w_g\,\varphi_g\Sigma_g` equals the
+physical rate **iff** :math:`w_g = 1`; introducing a :math:`\Delta u_g`
+weight would double-count the width and break rate preservation. This is
+the energy-axis analogue of the spatial case, where :math:`\phi_i` *is*
+a density and therefore *does* need the geometric volume measure
+:math:`V_i` (:eq:`sn-homogenization-fine-rate`); here the measure is
+:math:`w_g = 1` because the integration is already done. Lethargy is the
+node *coordinate*, never the *weight* (it reappears below as the
+within-group flux model, :eq:`energy-condensation-overlap-fraction`,
+which sets a fine group's *split* across coarse groups — a basis datum —
+not the measure). The
+:class:`~orpheus.numerics.measure.DiscreteMeasure` the condensation
+frame binds is therefore a **counting** measure
+(:attr:`weights = ones <orpheus.numerics.measure.DiscreteMeasure>`,
+``support="energy"``).
+
+The matrix channels: a two-axis collapse (sink summed, source averaged)
+-----------------------------------------------------------------------
+
+The scattering matrices :math:`\Sigma_{s,\ell}[g',g]` (one per Legendre
+order :math:`\ell`) and the :math:`(n,2n)` matrix
+:math:`\Sigma_{2n}[g',g]` carry **two** group indices, stored
+``[g_from, g_to]`` (the ORPHEUS scattering convention — see
+:ref:`theory-cross-section-data`). They collapse by a **two-axis** rule
+that has *no spatial precedent* and is the energy-condensation analogue
+that most differs from homogenization. The in-scatter rate from coarse
+group :math:`G` into coarse group :math:`G'` that must be preserved is
+
+.. math::
+   :label: energy-condensation-scattering-collapse
+
+   \Phi_G\,\Sigma_{s,\ell,G\to G'}
+   \;=\;
+   \sum_{g \in G}\sum_{g' \in G'}
+   \varphi_g\,\Sigma_{s,\ell}[g, g'],
+
+.. (vv-status rationale) Definitional identity: the in-scatter rate of a
+   matrix channel that the 2-axis collapse must preserve — the SINK axis
+   g' summed (every fine scatter into any fine group of G' is a scatter
+   into G'), the SOURCE axis g flux-averaged. Hébert Eq. 3.104,
+   Stamm'ler VI(6c). The verifiable claim is the L1 scattering-collapse
+   gate (which catches a g_from↔g_to swap, vv Mode 2).
+.. vv-status: energy-condensation-scattering-collapse implemented
+
+driven by the population of the **source** group :math:`G` (the group
+whose flux scatters *out* — the number of :math:`G\to G'` events scales
+with how many particles are *in* :math:`G`). Decompose the collapse into
+its two axes:
+
+#. **Sink axis** :math:`g'` (the destination group) is **summed**: any
+   scatter into *any* fine group :math:`g'` of coarse :math:`G'` is a
+   scatter into :math:`G'`. The destination has no rate to average — it
+   is an accumulation. In matrix form the sink-sum is a right-multiply
+   by the membership table :math:`T` (below):
+   :math:`\Sigma^{\rm sink}[g, G'] = \sum_{g'} \Sigma_{s,\ell}[g, g']\,T[g', G'] = (\Sigma_{s,\ell}\,T)[g, G']`.
+#. **Source axis** :math:`g` (the origin group) is **flux-averaged**, by
+   the *same* :eq:`energy-condensation-vector-collapse` rule applied to
+   the sink-summed matrix:
+   :math:`\Sigma_{s,\ell,G\to G'} = \big(\text{project}\,(\Sigma_{s,\ell}\,T)\big)[G, G']`.
+
+So the matrix collapse is
+
+.. math::
+   :label: energy-condensation-matrix-collapse
+
+   \Sigma_{s,\ell,G\to G'}
+   \;=\;
+   \frac{\sum_{g \in G} \varphi_g
+         \big(\sum_{g'\in G'} \Sigma_{s,\ell}[g, g']\big)}
+        {\sum_{g \in G} \varphi_g}
+   \;=\;
+   \operatorname{project}\!\big(\Sigma_{s,\ell}\,T\big),
+
+.. (vv-status rationale) Derivation-decomposition step: the two-axis
+   matrix collapse — sink summed (@T), source flux-averaged (project) —
+   the matrix-channel form of :eq:`energy-condensation-scattering-collapse`.
+   The verifiable content is the L1 scattering-collapse gate plus its
+   three mutation probes (swap axes / sum both / project both); this is
+   the algebraic form, not a separate claim.
+.. vv-status: energy-condensation-matrix-collapse documented
+
+with :math:`\operatorname{project}` the source-group flux average
+(:meth:`frame.project <orpheus.numerics.frame.FrameBase.project>`) and
+:math:`T` the fine→coarse membership table. The :math:`(n,2n)` channel
+collapses identically. In the code
+(:meth:`Mixture.condense
+<orpheus.data.macro_xs.mixture.Mixture.condense>`) this reads exactly
+``frame.project(mat @ T)`` per matrix channel.
+
+.. warning::
+
+   The sink-sum / source-average asymmetry is the subtle point of the
+   whole operation, and it is **the structural difference from spatial
+   homogenization**, which flux-weights *both* matrix axes
+   (:eq:`sn-homogenization-matrix-collapse` runs ``project`` on a single
+   axis with the source weight, but the spatial collapse never
+   *sums* a sink axis — there is no spatial sink-summation because
+   homogenization keeps the group structure). Three wrong collapses each
+   produce a numerically distinct — and rate-breaking — coarse matrix,
+   and each is a textbook variable-swap / missing-factor trap
+   (vv-principles failure **Mode 2** and **Mode 3**):
+
+   * **swap the axes** (flux-weight the *sink*, sum the *source*,
+     ``project(SigS.T @ T)``-style) — wrong source/sink roles;
+   * **sum both axes** (``T.T @ SigS @ T``) — drops the source
+     flux-weight entirely;
+   * **project both axes** (flux-weight the sink too) — this is exactly
+     the ``homogenize`` behaviour, which is *wrong* for condensation
+     (it would guard against "the implementer copied ``homogenize``
+     verbatim").
+
+   The regression gate
+   ``tests.data.test_mixture_condense::TestG3ScatteringTwoAxisCollapse``
+   reds on all three because its in-scatter-rate reference loop sums the
+   sink and flux-averages the source *explicitly* (a hand-coded double
+   ``for`` over fine groups — structurally independent of the production
+   ``project``).
+
+The fission spectrum is a pure birth-group sum
+----------------------------------------------
+
+The emission spectrum :math:`\chi_g` is **not** a reaction rate — it is
+a probability distribution (a simplex, :math:`\sum_g \chi_g = 1`; see
+:eq:`emission-spectrum-simplex` in :ref:`theory-cross-section-data`).
+Flux-weighting it would not preserve anything physical and could leave
+the simplex. The rate-preserving choice is the **pure birth-group sum**
+
+.. math::
+   :label: energy-condensation-chi-collapse
+
+   \chi_G \;=\; \sum_{g \in G} \chi_g
+   \;=\; \chi \,@\, T,
+
+.. (vv-status rationale) Representational identity: the χ collapse is a
+   pure birth-group sum (the @T contraction = the table's birth-group-sum
+   role), NOT flux-weighted — χ is a probability mass, so the coarse
+   probability is the sum of the fine masses landing in G (Hébert
+   Eq. 3.112, Stamm'ler VI(6a)). The simplex/null law it must satisfy is
+   the data-layer ``Mixture`` invariant; this label is the collapse
+   formula, not a separate solver claim.
+.. vv-status: energy-condensation-chi-collapse documented
+
+— the probability mass of the fine birth groups landing in coarse group
+:math:`G`, summed (Hébert [Hebert2009]_ Eq. 3.112; Stamm'ler VI(6a)).
+This **differs from spatial homogenization**, whose :math:`\chi`
+collapse is a *production-weighted convex average across cells*
+(:eq:`sn-homogenization-chi-collapse`): there are many fine cells
+contributing different spectra to one coarse cell, so they must be
+*mixed*; here there is one material whose birth groups are merely
+*re-binned*, so the coarse spectrum is the partial sum of the fine
+probability mass. The sum **preserves the simplex**:
+
+.. math::
+
+   \sum_G \chi_G
+   \;=\;
+   \sum_G \sum_{g\in G} \chi_g
+   \;=\;
+   \sum_g \chi_g
+   \;=\; 1,
+
+because the partition is a partition of unity over coarse groups (every
+fine group's mass is counted exactly once;
+:eq:`energy-condensation-partition-of-unity`). A flux-weighted
+projection would give :math:`\sum_G\chi_G \ne 1`, destroying the
+simplex — which is why :math:`\chi` is routed through the *table*
+contraction ``χ @ T``, **not** through :meth:`frame.project
+<orpheus.numerics.frame.FrameBase.project>`. The simplex / null law is
+re-validated when the condensed
+:class:`~orpheus.data.macro_xs.mixture.Mixture` is constructed
+(:meth:`Mixture.__post_init__
+<orpheus.data.macro_xs.mixture.Mixture.__post_init__>`).
+
+.. note::
+
+   Post fast-first flip (:ref:`canonical-group-convention`), coarse
+   group ``0`` is the fastest, so a fission spectrum — which peaks in the
+   fast range — is **fast-peaked**: the bulk of :math:`\chi_G` sits in
+   the low coarse-group indices. (On the production 421-group grid the
+   χ peak energy ≈ 1.15 MeV lands a few coarse groups in, not at index
+   0, because the 20-MeV grid ceiling puts a small high-energy tail
+   above the fission peak — so the physically-correct invariant the
+   real-data gate pins is *cumulative* fast-half mass
+   :math:`\sum_{G<G_{\max}/2}\chi_G > 0.5`, not ``argmax == 0``.)
+
+Balance is preserved group-by-group
+-----------------------------------
+
+The definitional total-XS balance every
+:class:`~orpheus.data.macro_xs.mixture.Mixture` carries (the same
+identity :eq:`sigT-computed` / :eq:`sn-homogenization-balance`),
+
+.. math::
+   :label: energy-condensation-balance
+
+   \Sigma_t
+   \;=\;
+   \Sigma_c + \Sigma_L + \Sigma_f
+   + \operatorname{rowsum}(\Sigma_{s0})
+   + \operatorname{rowsum}(\Sigma_{2n}),
+
+.. (vv-status rationale) Literature-transcribed definition: the total-XS
+   balance identity every Mixture carries. Its preservation under
+   condensation is the energy-axis copy of the homogenization argument —
+   every removal channel collapses with the SAME per-coarse-group flux
+   weight Φ_G. Gated by ``Mixture.assert_balanced`` on the condensed
+   mixture (foundation invariant); not an SN solver claim.
+.. vv-status: energy-condensation-balance documented
+
+survives the collapse **group-by-group** when the fine material
+balances, by the *same* one-line argument as homogenization. Fix a
+coarse group :math:`G`. Every *removal* channel —
+:math:`\Sigma_t,\ \Sigma_c,\ \Sigma_L,\ \Sigma_f`, and the row-sums
+:math:`\sum_{g'}\Sigma_{s0}[g,g']`, :math:`\sum_{g'}\Sigma_{2n}[g,g']` —
+is a *removal from group* :math:`g`, so each collapses with the **same**
+source-group weight :math:`\varphi_g`. Crucially the matrix row-sum
+:math:`\sum_{G'}\Sigma_{s0,G\to G'}` equals the *source-flux-average of
+the fine row-sum*: the sink-sum :math:`\Sigma_{s0}\,T` then a row-sum
+over coarse :math:`G'` telescopes (partition of unity) back to the fine
+total out-scatter
+:math:`\sum_{g'}\Sigma_{s0}[g,g']`, which then source-averages by the
+same :math:`\varphi_g` as the vector channels. Because every term shares
+the one weight :math:`\varphi_g`, the condensed balance is the *same
+flux-weighted average* of the fine balances:
+
+.. math::
+
+   \Sigma_{t,G}
+   - \Big(\Sigma_{c,G} + \Sigma_{L,G} + \Sigma_{f,G}
+   + \operatorname{rowsum}(\Sigma_{s0,G})
+   + \operatorname{rowsum}(\Sigma_{2n,G})\Big)
+   \;=\;
+   \frac{\sum_{g\in G} \varphi_g\,\big(\text{fine balance residual}_g\big)}
+        {\sum_{g\in G} \varphi_g}
+   \;=\; 0,
+
+since each fine residual is zero. No "rebalance the condensed total"
+step is needed — preservation is automatic, and the condensed
+``Mixture`` passes :meth:`Mixture.assert_balanced
+<orpheus.data.macro_xs.mixture.Mixture.assert_balanced>` whenever the
+fine one does. This is the operation's correctness **oracle**: the
+balance identity is a free, structurally-independent regression guard on
+every condense. (Had the vector channels and the matrix row-sums
+collapsed with *different* weights — e.g. had the matrix been projected
+on both axes — the balance would break, another way of seeing why the
+sink-sum / source-average asymmetry of
+:eq:`energy-condensation-matrix-collapse` is *forced*, not chosen.)
+
+.. _sn-condensation-fractional-overlap:
+
+The non-nested problem: fractional-overlap re-binning
+-----------------------------------------------------
+
+Everything above assumed a fine→coarse membership table :math:`T[g,G]`.
+For a **nested** coarse structure — coarse boundaries a subset of the
+fine boundaries — that table is one-hot (:math:`T[g,G]\in\{0,1\}`, each
+fine group wholly inside one coarse group) and the collapse reduces to
+the exact group-sum of :eq:`energy-condensation-vector-collapse`. But the
+production case is **not nested**, and the table must generalise.
+
+Why one-hot containing-interval fails
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ORPHEUS condenses a **421-group** library onto the WIMS-D 69- and
+172-group structures ([WIMSD]_). These structures were defined
+*independently* of the 421-group grid, so their boundaries do **not**
+align with the fine grid (the draft boundary-mismatch report flags 19
+non-coincident boundaries for 172→69 alone), and — the harder part —
+**the coarse grid is locally finer than the fine grid** in narrow
+resonance and thermal bands. A naïve "assign each fine group wholly to
+the coarse group its representative energy falls in" (a one-hot
+``searchsorted`` containing-interval rule) then leaves **empty coarse
+groups**: 3 empty for 421→69, 22 empty for 421→172 — a coarse group
+narrower than the fine spacing receives no fine group's representative
+energy at all. An empty coarse group has zero total cross section, which
+is unphysical and breaks a downstream solve.
+
+This is a well-known stage distinction in reactor-physics data
+processing. There are **two** group-averaging stages, and only the
+second has the nesting constraint:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 26 40 34
+
+   * - Stage
+     - What it averages
+     - Boundary constraint
+   * - **pointwise → multigroup**
+       (NJOY/GROUPR, OpenMC ``mgxs``, MC²-3)
+     - the *continuous-energy* :math:`\sigma(E)\phi(E)` directly over any
+       boundaries
+     - **none** — the actual cross-section shape inside each group is the
+       truth, so any structure is trivially integrable
+   * - **multigroup → fewer-group**
+       (AMPX/MALOCS — *the stage ORPHEUS is in*)
+     - *already-discretised* fine groups via a fine→coarse map
+     - **nesting** — a fine group cannot be split, because the input
+       carries only the fine-group *average*, not the within-group shape
+
+The collapse-stage codes (AMPX's MALOCS module) **require** the coarse
+boundaries to be a subset of the fine boundaries: their input is a
+fine→coarse *correspondence array* (e.g. "the first 4 fine groups → broad
+group 1"), which structurally cannot express a fine group straddling a
+broad boundary. ORPHEUS deliberately goes **beyond** MALOCS — it lifts
+the nesting requirement with conservative fractional re-binning, a
+capability the production deterministic-library codes mostly lack (they
+sidestep it by re-integrating the continuum, which ORPHEUS cannot do from
+a pre-grouped 421-library).
+
+The fix: a fractional partition of unity
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A fine group :math:`g` that *straddles* a coarse boundary apportions a
+**fraction** of its rate to each coarse group it overlaps. The membership
+table becomes **fractional**,
+
+.. math::
+   :label: energy-condensation-overlap-fraction
+
+   T[g,G] \;=\; f_{g,G}
+   \;=\; \frac{\int_{g \cap G} w(E)\,\mathrm{d}E}
+              {\int_g w(E)\,\mathrm{d}E},
+
+.. (vv-status rationale) Literature-transcribed definition: the
+   flux-weighted overlap fraction of a straddling fine group — the
+   fraction of its within-group flux falling in coarse group G (the
+   standard reactor-physics conservative re-binning, Q2 of the P5
+   literature pull). The verifiable content is the partition-of-unity
+   bit-identity (:eq:`energy-condensation-partition-of-unity`) and the
+   1/E lethargy-ratio gate (``TestF4WithinGroupModelOracle``); a
+   definition, not a solver claim.
+.. vv-status: energy-condensation-overlap-fraction documented
+
+the fraction of fine group :math:`g`'s
+(:math:`w`-weighted) interval lying in coarse group :math:`G`, with
+:math:`w(E)` an assumed **within-group flux model**. By the integral's
+additivity the table is a **partition of unity**:
+
+.. math::
+   :label: energy-condensation-partition-of-unity
+
+   \sum_G T[g,G] \;=\;
+   \frac{\int_g w(E)\,\mathrm{d}E}{\int_g w(E)\,\mathrm{d}E} \;=\; 1
+   \qquad \forall g.
+
+.. (vv-status rationale) Structural identity: the membership table's rows
+   sum to 1 (every fine group's rate is partitioned, not duplicated or
+   dropped) — the property that makes the collapse conservative and the χ
+   sum simplex-preserving. Gated by ``TestF2PartitionOfUnity``
+   (``table.sum(axis=1) == 1``); a representational invariant, not a
+   solver claim.
+.. vv-status: energy-condensation-partition-of-unity documented
+
+so each fine group's rate is *partitioned* (counted once), never
+duplicated or dropped — the collapse stays conservative, and the χ-sum
+stays a simplex. The general fractional collapse
+
+.. math::
+
+   \Sigma_G
+   \;=\;
+   \frac{\sum_g f_{g,G}\,\varphi_g\,\Sigma_g}
+        {\sum_g f_{g,G}\,\varphi_g}
+
+reduces **exactly** to the one-hot group-sum
+:eq:`energy-condensation-vector-collapse` when the structure is nested
+(:math:`f_{g,G}\in\{0,1\}`) — so the nested case is the *regression-safe
+degenerate*, not a separate code path.
+
+The within-group flux model :math:`w(E)` is **selectable**
+(:class:`~orpheus.data.energy_grid.WithinGroupSpectrum`, a strategy
+Protocol). The default — built first — is **1/E (flat in lethargy)**,
+:class:`~orpheus.data.energy_grid.InverseEnergySpectrum`:
+
+.. math::
+   :label: energy-condensation-lethargy-overlap
+
+   \int_{lo}^{hi} \frac{\mathrm{d}E}{E} \;=\; \ln\!\frac{hi}{lo},
+   \qquad
+   f_{g,G} \;=\;
+   \frac{\ln(hi_{g\cap G}/lo_{g\cap G})}{\ln(hi_g/lo_g)},
+
+.. (vv-status rationale) Literature-transcribed definition: the 1/E
+   (flat-in-lethargy) overlap fraction is a lethargy ratio — the
+   asymptotic slowing-down spectrum, NJOY IWT=3, the standard first
+   choice for condensation. The verifiable content is the
+   ``InverseEnergySpectrum.integrated_weight`` = ln(hi/lo) bit-identity
+   and the ``TestF4`` 1/E-vs-flat-energy discriminator; a definition, not
+   a solver claim.
+.. vv-status: energy-condensation-lethargy-overlap documented
+
+the lethargy-overlap ratio (the asymptotic slowing-down spectrum; the
+standard first choice for condensation, NJOY ``IWT=3``). Flat-in-energy
+(NJOY ``IWT=2``) and the library weighting spectrum (fission + 1/E +
+Maxwellian, NJOY ``IWT=4``) are future options on the same strategy
+seam. The model is the **only new numerics surface** the non-nested case
+adds — everything else (the Petrov-Galerkin frame, :meth:`frame.project
+<orpheus.numerics.frame.FrameBase.project>`, the diagonal Gram, rate
+preservation) is unchanged.
+
+.. _sn-condensation-petrov-galerkin-frame:
+
+Condensation is a Petrov-Galerkin projection
+--------------------------------------------
+
+Like homogenization (:ref:`sn-homogenization-petrov-galerkin-frame`),
+condensation is the coefficient extraction :math:`G^{-1}M` of a
+**Petrov-Galerkin** frame — the *energy-axis instance* of the *same*
+mechanism, which is exactly why the numerics core is reused verbatim:
+
+  Condensation is :meth:`frame.project
+  <orpheus.numerics.frame.FrameBase.project>` of a
+  :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` whose *trial*
+  basis is the fractional group-overlap indicator
+  :math:`\mathbf{1}_G` (carried by
+  :class:`~orpheus.numerics.basis.OverlapBasis`), whose *test* basis is
+  the spectrum-weighted indicator :math:`\varphi\,\mathbf{1}_G` (carried
+  by :class:`~orpheus.numerics.basis.WeightedIndicatorBasis`), and whose
+  measure is the **counting** measure :math:`\mu` (weight 1).
+
+This is not decoration: it is why :meth:`Mixture.condense
+<orpheus.data.macro_xs.mixture.Mixture.condense>` routes through the
+*same* discrete :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` that
+carries SN anisotropic-scattering moment projection and spatial
+homogenization — one mechanism for every fine→coarse change of
+representation (Cardinal Rule 2, single source of truth), not a bespoke
+membership matmul per axis. The frame projection machinery
+(:class:`~orpheus.numerics.frame.PetrovGalerkinFrame`,
+:class:`~orpheus.numerics.basis.OverlapBasis`,
+:class:`~orpheus.numerics.basis.WeightedIndicatorBasis`,
+:meth:`FunctionSpace.apply_inverse_metric
+<orpheus.numerics.space.FunctionSpace.apply_inverse_metric>`) was built
+for homogenization anticipating energy as the second consumer; the data
+layer reaches it because ``data → numerics`` is a permitted layer edge.
+
+The trial / test / measure separation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Three distinct objects carry the three roles, cleanly separated — the
+campaign's three-way split (:ref:`galerkin-projection`) holding verbatim
+on the energy axis:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 30 28 22
+
+   * - Role
+     - Object
+     - Carries
+     - On the energy axis
+   * - **trial** :math:`K`
+     - :class:`~orpheus.numerics.basis.OverlapBasis`
+     - the fractional membership :math:`T[g,G]` (partition geometry +
+       within-group split)
+     - the *only* new surface — the fractional table
+   * - **test** :math:`M^*`
+     - :class:`~orpheus.numerics.basis.WeightedIndicatorBasis`
+     - the spectrum :math:`\varphi_g` as an analysis weight
+     - the flux is the test weight, **never** the measure
+   * - **measure** :math:`\mu`
+     - :class:`~orpheus.numerics.measure.DiscreteMeasure`
+     - the counting metric (:math:`w_g=1`), group-independent
+     - fixed :math:`L^2`, **never** the discipline
+
+The test functions :math:`\varphi_g\,\mathbf{1}_G` differ from the trial
+functions :math:`\mathbf{1}_G` (:math:`\varphi_g\,\mathbf{1}_G \ne
+\mathbf{1}_G`), so the projection is genuinely **Petrov-Galerkin**,
+carried by the frame **type**
+(:class:`~orpheus.numerics.frame.PetrovGalerkinFrame`). With trial and
+test indicators of (fractional) partition-of-unity support, the
+**cross-Gram** is **diagonal** — the all-ones probe through the frame
+gives :math:`(M\,\mathbf 1)_G = \sum_g \varphi_g\,T[g,G] = \Phi_G`, the
+coarse-group flux :eq:`energy-condensation-coarse-flux`, which *is* the
+diagonal of the Gram — so the normal equations decouple group-by-group
+and :meth:`frame.project <orpheus.numerics.frame.FrameBase.project>`
+returns the spectrum-weighted average
+:eq:`energy-condensation-vector-collapse` with a per-group
+**reciprocal**, not a linear solve.
+
+.. note::
+
+   For a *fractional* (straddling) table two coarse columns share a fine
+   row, so the **off-diagonal** cross-Gram
+   :math:`G_{GG'} = \sum_g \varphi_g\,T[g,G]\,T[g,G']` is **not**
+   structurally zero. This is correct and harmless:
+   :meth:`frame.project <orpheus.numerics.frame.FrameBase.project>` uses
+   only the **diagonal** :math:`G_{GG} = \Phi_G` (each coarse group's
+   rate is its *own* functional — one DOF per group, the P0 / rank-0
+   space), so it ignores the off-diagonals by construction. The
+   :meth:`OverlapBasis.mass_matrix
+   <orpheus.numerics.basis.indicator_basis.IndicatorBasis.mass_matrix>`
+   inherits a docstring claiming a *diagonal* Gram (true for the one-hot
+   parent, false for a fractional table) — that claim is **latent**: no
+   consumer calls ``mass_matrix``, and the frame's row-sum probe never
+   forms the full Gram. A *future* least-squares consumer needing the
+   dense Gram (a non-indicator, richer coarse basis — which cross
+   sections never want, a P1 coarse XS is not rate-meaningful) must
+   compute it for the fractional case, not trust the inherited diagonal
+   claim. See :ref:`galerkin-projection` for why this is **not** a
+   :class:`LeastSquaresFrame` (its trigger — test = :math:`A`·trial, a
+   dense SPD Gram needing a real solve — is absent here).
+
+Why the spectrum is the test weight, not a measure
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The natural-seeming alternative — "treat the spectrum as a measure and
+project the cross section onto a coarse basis in the
+:math:`L^2(\text{spectrum})` metric" — is the energy-axis form of the
+metric-fold (:eq:`sn-homogenization-metric-fold`), and it is **refused**
+for the *same* reason it is refused for homogenization
+(:ref:`sn-homogenization-why-petrov-galerkin`, the #268 ruling: *the
+measure carries the axis and the fixed* :math:`L^2` *metric, never the
+discipline*). Three structural grounds, identical to the spatial case:
+
+#. **For a P0 (indicator) coarse basis the least-squares fit
+   *coincides* with the flux-weighted average** — with disjoint /
+   fractional partition-of-unity indicators the normal-equations Gram is
+   diagonal and the least-squares solution is
+   :math:`\Sigma_G = \sum_g w_g\Sigma_g / \sum_g w_g`, the flux-weighted
+   average verbatim when :math:`w=\varphi`. So "least-squares" does not
+   select a *new* frame — it re-derives the same Petrov-Galerkin average
+   under a different name.
+#. **Folding :math:`\varphi` into the measure breaks under
+   adjoint-weighting.** The eigenvalue-consistent condensation reactor
+   physics ultimately requires preserves the **bilinear**
+   :math:`\langle\varphi^*,\Sigma\varphi\rangle` with
+   :math:`\varphi^*\ne\varphi` (the same
+   :eq:`sn-homogenization-bilinear` structure on the energy axis), where
+   test :math:`= \varphi^*\mathbf{1}_G \ne` trial :math:`=
+   \varphi\,\mathbf{1}_G` and **no single metric** reproduces the
+   two-sided weighting. Forward-flux reaction-rate-only condensation is
+   the degenerate :math:`\varphi^*=\varphi` case where the fold happens
+   to work; the *type* (an explicit test basis) encodes the general
+   case, so the adjoint-weighted lift (a later phase of the unified
+   Frame-projection campaign, P6) lands as a no-op change of the test
+   weight (:math:`\varphi \to \varphi^*`), not a re-derivation.
+#. **The discipline is a property the** *type* **carries, never the
+   measure.** Keeping :math:`\varphi` on the
+   :class:`~orpheus.numerics.basis.WeightedIndicatorBasis` test side
+   forces the correct reading: :math:`\varphi` is a test-weighting the
+   *solution* emits, not a property of the energy axis. The energy axis
+   (the grid) owns one counting measure; the solution owns the spectrum
+   :math:`\varphi`; the frame *type* (Petrov-Galerkin, with its explicit
+   test basis) carries the discipline.
+
+The flux-weighted average is the **rank-0 moment** of **Generalized
+Energy Condensation** (Rahnema, Douglass & Forget 2008 [Rahnema2008]_):
+GEC expands the within-coarse-group flux in orthogonal functions
+:math:`\varphi(E)\approx\sum_n\varphi_{n,G}P_n(E)`, and the zeroth
+moment (the constant / piecewise-constant basis function on :math:`G`)
+*recovers the standard flux-weighted multigroup average exactly* — "the
+zeroth moment generates the standard few-group equation". The higher
+moments (:math:`n\ge1`) add the within-coarse-group spectral detail the
+simple average discards; that is faithful within-group reconstruction
+(honest upscaling), and it is **deferred** — it would be a richer trial
+basis on the *same* frame (`GitHub #275
+<https://github.com/deOliveira-R/ORPHEUS/issues/275>`_), no architectural
+change.
+
+.. _sn-condensation-downsampling:
+
+Downsampling only: condensation loses information
+-------------------------------------------------
+
+The load-bearing semantic — a design ruling, not an implementation
+detail — is that **condensation is a one-way, lossy, downsampling
+operation.** Collapsing fine groups into coarse groups *discards* the
+within-coarse-group spectral structure (that is the rank-:math:`>0` GEC
+content above). The continuous-projection view *could* fabricate detail
+(a "64 → 200 group" upscaling would invent sub-group structure the data
+never carried), but the group-collapse stage ORPHEUS is in **cannot**:
+the input is only the fine-group *averages*. The asymmetry is encoded in
+three places:
+
+* **A global upscaling guard.**
+  :class:`~orpheus.data.energy_grid.GroupCondensation` **refuses** a
+  coarse target with *more* groups than the source — :math:`n_{\rm
+  coarse} > n_{\rm fine}` raises ``ValueError`` ("condensation only
+  DOWNSAMPLES; a finer target would fabricate sub-group structure the
+  data does not contain"). Reconstructing a finer structure from
+  group-integrated data is fabrication; the guard makes it
+  unrepresentable.
+* **The within-group model is the *explicit* assumption.** Where the
+  coarse grid is *locally* finer than the fine grid (the resonance /
+  thermal bands), the unavoidable *local* interpolation is done by the
+  within-group flux model :math:`w(E)`
+  (:eq:`energy-condensation-overlap-fraction`) — a bounded, named,
+  selectable assumption, not a silent invention.
+* **The provenance report.**
+  :attr:`GroupCondensation.locally_interpolated
+  <orpheus.data.energy_grid.GroupCondensation.locally_interpolated>`
+  returns the coarse-group indices whose data leaned on :math:`w(E)`
+  (the columns that received a *fractional* — strictly between 0 and 1 —
+  contribution). It is **empty** for a nested condensation (pure
+  rate-preserving collapse, no assumption) and non-empty exactly where
+  the coarse grid is locally finer than the fine grid. This is the
+  data-vs-assumption provenance: a caller can see precisely which coarse
+  groups are pure collapse and which lean on the spectral model.
+
+.. warning::
+
+   Faithful reconstruction / honest *upscaling* (recovering
+   within-coarse-group detail via the rank-:math:`>0` GEC moments) is
+   **not** what this slice ships, and the upscaling guard deliberately
+   prevents accidentally posing it as a fine-target ``condense``. Do
+   **not** read the within-group model :math:`w(E)` as faithful
+   reconstruction — it is a bounded local-interpolation assumption used
+   *only* to apportion a straddling fine group's already-known rate, not
+   to invent new spectral structure. Honest upscaling is a future
+   capability (`GitHub #275 <https://github.com/deOliveira-R/ORPHEUS/issues/275>`_).
+
+The orchestration: per-material representative spectra
+------------------------------------------------------
+
+:meth:`Solution.condense <orpheus.sn.solution.Solution.condense>` is the
+SN-layer orchestration. It condenses **each material with its own
+representative spectrum** — the flux·volume-weighted flux over the cells
+where the material appears:
+
+.. math::
+   :label: energy-condensation-representative-spectrum
+
+   \varphi^{(m)}_g \;=\;
+   \sum_{i:\,\mathrm{mat}(i)=m} V_i\,\phi_{i,g},
+
+.. (vv-status rationale) Representational identity: the per-material
+   representative spectrum used as the condense test weight — the
+   flux·volume-weighted flux over the material's cells (mirrors how
+   ``homogenize`` derives its flux weight). A definition consumed by
+   :meth:`Mixture.condense`; the end-to-end rate preservation it feeds is
+   the L1 gate, not a separate claim.
+.. vv-status: energy-condensation-representative-spectrum documented
+
+used as the test weight in :meth:`Mixture.condense
+<orpheus.data.macro_xs.mixture.Mixture.condense>` (mirroring how
+:meth:`Solution.homogenize` derives the flux weight from the same
+solved flux). The result is a **portable** ``dict[int, Mixture]`` keyed
+by material id — few-group cross sections carrying the coarse ``eg``,
+not bound to any mesh (the mesh-DECOUPLED half of the asymmetry law,
+:ref:`sn-condense-homogenize-asymmetry`). A material with no flux in a
+fine group contributes zero weight there; the condense frame's
+Moore–Penrose Gram handles any empty coarse group.
+
+.. _sn-condensation-verification:
+
+Verification
+------------
+
+The gates are :mod:`tests.data.test_energy_grid`,
+:mod:`tests.data.test_mixture_condense`, and
+:mod:`tests.sn.test_condensation`. The two solver-facing claims carry
+``@pytest.mark.verifies`` markers tying them to the equations above:
+
+* ``energy-condensation-rate-preservation``
+  (:eq:`energy-condensation-rate-preservation`) — the vector-channel
+  rate-preservation identity, asserted for every channel
+  (:math:`\Sigma_t,\ \Sigma_c,\ \Sigma_L,\ \Sigma_f,\ \nu\Sigma_f`) and
+  every coarse group: :math:`\Sigma_G\,\Phi_G = \sum_{g\in G}
+  \varphi_g\,\Sigma_g` to one ULP.
+* ``energy-condensation-scattering-collapse``
+  (:eq:`energy-condensation-scattering-collapse`) — the two-axis matrix
+  collapse, asserted as the preserved in-scatter rate :math:`\Phi_G\,
+  \Sigma_{s,\ell,G\to G'} = \sum_{g\in G}\sum_{g'\in G'}\varphi_g\,
+  \Sigma_s[g,g']` for every Legendre order and the :math:`(n,2n)` matrix.
+
+These are **L1** (equation) claims against a **closed-form** reference,
+*not* eigenvalue claims — condensation is a data-reduction operation, not
+a solve, so there is no :math:`k` to verify; the pillar question is "does
+the reduction preserve the rate functional", answered by closed-form
+hand-summation. The correctness oracle is a **structurally-independent**
+explicit per-group Python loop over the fine groups — *not* a re-call of
+the production :meth:`frame.project
+<orpheus.numerics.frame.FrameBase.project>` (vv-principles **L11**: a
+cross-check must be structurally independent, not merely procedurally
+independent; a frame-vs-frame comparison would share any reduction bug).
+The scattering rate is one ULP, not bit-identical, because the
+``@ T`` matmul reduction tree differs from the explicit group-by-group
+sum — FP-non-associativity, principled-equivalent per the `vv-principles`
+bit-identity-vs-principled-equivalence criteria (drift = reduction-depth
+× ULP); the gate uses ``np.testing.assert_allclose(rtol=1e-12)``, never
+exact ``==``.
+
+The discriminator and the companion invariants:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 48 52
+
+   * - Test
+     - What it pins
+   * - ``TestG1RatePreservationVectors`` /
+       ``TestF1StraddleRatePreservation``
+     - The **rate-preservation anchor**
+       (:eq:`energy-condensation-rate-preservation`, the
+       ``energy-condensation-rate-preservation`` verifies-target):
+       :math:`\Sigma_G\,\Phi_G = \sum_{g\in G}\varphi_g\,\Sigma_g` for
+       every vector channel and every coarse group, against the hand-sum
+       oracle — nested (G1) and straddling-fractional (F1).
+   * - ``TestG2WithinGroupVaryingDiscriminator`` /
+       ``TestF4ModelDiscriminatorSUT``
+     - The load-bearing **flux-weighting discriminator** (vv Mode 7): a
+       fine spectrum that *varies within* each coarse group (e.g.
+       :math:`\varphi=[1,4,2,0.5]`) makes the flux-weighted and
+       arithmetic-average collapses numerically distinct, and rate
+       preservation MUST match the flux-weighted one — reds a regression
+       that drops :math:`\varphi`. A *flat* spectrum would null the
+       weighting (the Mode-7 trap), so the fixture is asserted
+       within-group-varying.
+   * - ``TestG3ScatteringTwoAxisCollapse`` (three mutations)
+     - The sink-sum / source-average asymmetry
+       (:eq:`energy-condensation-matrix-collapse`) — each of swap-axes /
+       sum-both / project-both produces a *numerically different* coarse
+       matrix → each reds (vv Mode 2 / Mode 3; the project-both mutation
+       guards against copying ``homogenize`` verbatim).
+   * - ``TestChiBirthGroupSum`` (χ sum-vs-project guard)
+     - :math:`\chi_G = \chi\,@\,T` preserves :math:`\sum\chi=1`
+       (:eq:`energy-condensation-chi-collapse`); a flux-*projected* χ
+       sums to :math:`\ne 1`, destroying the simplex — pinned separately
+       from the projected channels.
+   * - ``TestF2PartitionOfUnity`` / ``TestF3NestedDegeneracy``
+     - The table is a partition of unity
+       (:eq:`energy-condensation-partition-of-unity`,
+       ``rows.sum == 1``), and the fractional table reduces
+       **bit-identically** to the one-hot ``searchsorted`` table for a
+       nested structure (the regression-safe degenerate).
+   * - ``TestF4WithinGroupModelOracle``
+     - The 1/E overlap fraction is the lethargy ratio
+       :math:`\ln(hi_{\cap}/lo_{\cap})/\ln(hi_g/lo_g)`
+       (:eq:`energy-condensation-lethargy-overlap`), and 1/E ≠
+       flat-energy on a straddling group (the model is load-bearing, not
+       cosmetic).
+   * - ``TestF5UpscalingGuard``
+     - :math:`n_{\rm coarse} > n_{\rm fine}` raises ``ValueError`` (the
+       downsampling-only guard), with a positive control that a valid
+       downsample succeeds.
+   * - ``TestF6LocalInterpolationReport``
+     - :attr:`GroupCondensation.locally_interpolated
+       <orpheus.data.energy_grid.GroupCondensation.locally_interpolated>`
+       is empty for a nested condensation and lists the straddle columns
+       for a non-nested one (the data-vs-assumption provenance).
+   * - ``TestG4BalanceRegression`` (positive + negative)
+     - A condensed balanced ``Mixture`` passes
+       :meth:`Mixture.assert_balanced` (:eq:`energy-condensation-balance`);
+       a hand-built rate-broken condensed ``Mixture`` raises (vv #11:
+       the negative leg pins the *invariant*, not merely the raising).
+   * - ``TestG5WimsDerivationValidation`` (Table 11.3)
+     - The containing-interval partition derived by the rule reproduces
+       the published ``CONDENSE_172_TO_69`` ([WIMSD]_ Table 11.3) on the
+       coincident-boundary groups, collecting the known 19 non-coincident
+       boundaries as expected (failing only on a *new* mismatch).
+   * - ``test_real_pwr_421_to_wims69_condensation_succeeds``
+     - **L2 integration**: a *real* 421-group production mixture
+       (:func:`~orpheus.data.macro_xs.recipes.pwr_like_mix`) condenses to
+       WIMS-69 with **no empty coarse groups** (:math:`\Sigma_t>0` ∀
+       coarse — the one-hot empty-group bug *gone*), balance preserved,
+       χ fast-half-mass :math:`>0.5`, and a non-empty
+       ``locally_interpolated``.
+   * - Mode-11 routing sentinel
+     - ``Mixture.condense`` actually calls :meth:`frame.project
+       <orpheus.numerics.frame.FrameBase.project>` and
+       :meth:`WeightedIndicatorBasis.analyze
+       <orpheus.numerics.basis.weighted_indicator_basis.WeightedIndicatorBasis.analyze>`
+       (the **test-side** spectrum reader) — the Petrov-Galerkin routing
+       is on the gate's call graph, not bypassed by an inline matmul (vv
+       **Mode 11**).
+
+The intrinsic-property tests pin the new value objects' defining laws:
+:class:`~orpheus.data.energy_grid.EnergyGrid` (strictly **descending**
+boundaries — the #265 monotonicity slice — all-positive energies,
+partition completeness, with positive *and* negative legs), and
+:class:`~orpheus.data.energy_grid.GroupCondensation` (the
+containing-interval law: every fine group → exactly one *dominant*
+coarse group, contiguous, **fast-first** ordering — the orientation pin
+that catches the silent descending-edge column-reversal trap, vv Mode
+6).
+
+≥2 groups throughout (69-, 172-, and 421-group cases — never the
+degenerate 1-group case). Every sentinel / negative leg uses
+``np.testing.*`` / ``pytest.raises`` / ``pytest.fail``, never a bare
+``assert`` (vv **Mode 8**: ``-O`` strips bare asserts).
+
+
 .. _sn-development-history:
 
 Development history
@@ -16416,6 +17382,30 @@ branch and have no landed hash yet.
      - Architectural milestone
      - Issue
      - Where
+   * - in dev
+       (2026-06-27)
+     - **Energy condensation landed (the energy-axis transpose of
+       homogenization)** — :meth:`Solution.condense
+       <orpheus.sn.solution.Solution.condense>` collapses fine-group
+       cross sections onto a coarse :class:`~orpheus.data.energy_grid.EnergyGrid`,
+       spectrum-weighted, returning **portable** few-group XS
+       (``dict[int, Mixture]``, mesh-DECOUPLED — the asymmetry-law
+       counterpart of ``homogenize``'s mesh-COUPLED ``MaterialMesh``).
+       Reuses the *unchanged* Petrov-Galerkin frame
+       (:meth:`frame.project <orpheus.numerics.frame.FrameBase.project>`,
+       flux = test weight, counting measure). The production case
+       (421-group → WIMS-69/172) is **non-nested**, so the partition is a
+       fractional, partition-of-unity overlap table
+       (:class:`~orpheus.numerics.basis.OverlapBasis`) with a selectable
+       within-group flux model
+       (:class:`~orpheus.data.energy_grid.WithinGroupSpectrum`, 1/E
+       first) — the flux-weighted average is the rank-0 moment of
+       Generalized Energy Condensation ([Rahnema2008]_). Downsampling-only
+       (the upscaling guard refuses a finer target). See
+       :ref:`sn-energy-condensation`.
+     - #274
+     - *(in development)*
+       ``feature/sn-energy-condensation``
    * - in dev
        (2026-06-26)
      - **Rank-N boundary walker co-located** — ``realize_recursively``
@@ -16706,3 +17696,24 @@ References
    :ref:`sn-phase-d-pomraning-structural-singularity` as the deeper
    reason :math:`\mu = \pm 1` is the only admissible Carlson starting
    direction.
+
+.. [Rahnema2008] F. Rahnema, S. Douglass, and B. Forget,
+   "Generalized Energy Condensation Theory,"
+   *Nuclear Science and Engineering*, 160:41--58, 2008.
+   DOI `10.13182/NSE160-41 <https://doi.org/10.13182/NSE160-41>`_.
+   Expands the within-coarse-group flux in a set of orthogonal functions;
+   the **zeroth moment** (the piecewise-constant basis function on the
+   coarse group) recovers the standard flux-weighted multigroup average
+   exactly, and the higher moments add the within-group spectral detail.
+   Cited at :ref:`sn-condensation-petrov-galerkin-frame` as the rank-0
+   precedent for the spectrum-weighted collapse (rank-:math:`>0` faithful
+   reconstruction is deferred, `Issue #275
+   <https://github.com/deOliveira-R/ORPHEUS/issues/275>`_).
+
+.. [WIMSD] International Atomic Energy Agency,
+   *WIMS-D Library Update*, IAEA-TECDOC / STI/Pub/1264, IAEA, Vienna,
+   2007. Tables 11.1 (69-group) and 11.2 (172-group) energy-group
+   structures, and Table 11.3 (the 172→69 correspondence). The coarse
+   group structures ORPHEUS condenses onto; Table 11.3 is the
+   derivation-validation oracle for the containing-interval partition.
+   Cited at :ref:`sn-condensation-fractional-overlap`.

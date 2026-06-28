@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5753**
+Total tests collected: **5825**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1166, 20.3%
-   L1, 996, 17.3%
+   L0, 1166, 20.0%
+   L1, 1005, 17.3%
    L2, 46, 0.8%
    L3, 0, 0.0%
-   foundation, 3535, 61.4%
+   foundation, 3598, 61.8%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5664
+   explicit, 5736
    verify, 0
    class-name, 46
    func-name, 0
@@ -112,9 +112,11 @@ Module × level grid
    data/test_chi_mix_production_weighting, 0, 0, 0, 0, 8, 0
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_emission_spectrum, 0, 0, 0, 0, 15, 0
+   data/test_energy_grid, 0, 0, 0, 0, 23, 0
    data/test_gendf_canonical_order, 0, 0, 0, 0, 6, 0
    data/test_group_permutation_invariance, 0, 0, 10, 0, 0, 0
    data/test_mixture, 4, 0, 0, 0, 0, 0
+   data/test_mixture_condense, 0, 0, 0, 0, 38, 0
    data/test_mixture_scattering_ratio, 0, 0, 0, 0, 3, 0
    data/test_mixture_xs_balance, 0, 0, 0, 0, 75, 0
    derivations/test_atkinson_product_nystrom, 0, 5, 0, 0, 3, 3
@@ -351,6 +353,7 @@ Module × level grid
    residuals/test_typed_residuals, 0, 0, 0, 0, 33, 0
    slab/test_dd_recurrence, 1, 0, 0, 0, 0, 0
    slab/test_unified_matvec_slab, 2, 2, 0, 0, 0, 0
+   sn/test_condensation, 0, 9, 0, 0, 0, 0
    sn/test_homogenization, 12, 0, 0, 0, 0, 0
    sn/test_material_xs_field_typed, 0, 0, 0, 0, 10, 0
    solve/test_2d_anisotropic_windowing, 0, 4, 0, 0, 0, 0
@@ -375,7 +378,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 293, 0
+   test_layer_imports, 0, 0, 0, 0, 295, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -475,6 +478,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``kin-kernel-derivative``, 20
    ``peierls-rank-n-stability``, 20
    ``dd-cartesian-1d``, 19
+   ``energy-condensation-rate-preservation``, 17
    ``direction-sampling``, 16
    ``discrete-measure-integrate``, 16
    ``fission-weight``, 16
@@ -529,6 +533,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``diffusion-spurious-root-validation``, 8
    ``diffusion-transcendental``, 8
    ``diffusion-trigonometric-branch``, 8
+   ``energy-condensation-scattering-collapse``, 8
    ``dd-solve``, 7
    ``gauss-legendre-visibility-cone``, 7
    ``bar-psi``, 6
@@ -779,7 +784,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **254** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **265** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -822,6 +827,17 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``doppler-feedback``
 - ``e1-small-tau-expansion``
 - ``eigen-standard-form``
+- ``energy-condensation-balance``
+- ``energy-condensation-chi-collapse``
+- ``energy-condensation-coarse-flux``
+- ``energy-condensation-counting-measure``
+- ``energy-condensation-fine-rate``
+- ``energy-condensation-lethargy-overlap``
+- ``energy-condensation-matrix-collapse``
+- ``energy-condensation-overlap-fraction``
+- ``energy-condensation-partition-of-unity``
+- ``energy-condensation-representative-spectrum``
+- ``energy-condensation-vector-collapse``
 - ``fb-bc4-displacement``
 - ``fb-clad-strain``
 - ``fb-fuel-heat``
