@@ -36,12 +36,14 @@ from __future__ import annotations
 
 from orpheus.numerics.basis.base import Basis
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
+from orpheus.numerics.basis.overlap_basis import OverlapBasis
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.basis.weighted_indicator_basis import WeightedIndicatorBasis
 
 __all__ = [
     "Basis",
     "IndicatorBasis",
+    "OverlapBasis",
     "SphericalHarmonicBasis",
     "WeightedIndicatorBasis",
 ]

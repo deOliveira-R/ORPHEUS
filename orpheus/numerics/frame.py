@@ -253,20 +253,40 @@ class FrameBase(ABC):
     # ── the coefficient-extraction verb (homogenise / condense) ──────────
     @cached_property
     def gram(self) -> FunctionSpace:
-        r"""The coefficient space carrying the diagonal frame Gram :math:`G_R = \langle\chi_R, \phi_R\rangle_W`.
+        r"""The coefficient space carrying the frame-Gram diagonal :math:`G_R = \langle\chi_R, \phi_R\rangle_W`.
 
-        The cross Gram :math:`G_{kj} = \langle\chi_k, \phi_j\rangle_W = (M R)_{kj}` of
-        the analysis :math:`M` and reconstruction :math:`R`. For a disjoint-support
-        trial (cell / group indicators) it is **diagonal**, so the full operator
-        collapses to its diagonal :math:`G_R = (M R\,\mathbf 1)_R = \int_R w\,
-        \mathrm{d}V` (:math:`w` the test weight) — a single
-        ``analysis ∘ reconstruction`` probe of the all-ones coefficient vector
-        (off-diagonals are structurally zero, so the row sum IS the diagonal). The
-        diagonal acquires the test weight's trailing (group, …) shape from the
-        analysis face, and is installed as the coefficient space's metric so
-        :meth:`project`'s normalisation is the reciprocal
+        :meth:`project` normalises by the cross Gram :math:`G_{kj} = \langle\chi_k,
+        \phi_j\rangle_W = (M R)_{kj}` of the analysis :math:`M` and reconstruction
+        :math:`R`. This property takes a **single** ``analysis ∘ reconstruction``
+        probe of the all-ones coefficient vector — the **row sum** of :math:`M R` —
+        and installs it as the coefficient space's metric, so :meth:`project`'s
+        normalisation is the reciprocal
         :meth:`~orpheus.numerics.space.FunctionSpace.apply_inverse_metric` (whose
         Moore–Penrose pseudo-inverse zeroes empty / zero-weight regions for free).
+        The diagonal acquires the test weight's trailing (group, …) shape from the
+        analysis face.
+
+        The row-sum probe is the weight :meth:`project` needs under EITHER of two
+        sufficient conditions — distinguish them, because the second does NOT imply a
+        diagonal Gram:
+
+        * **disjoint-support trial** (orthogonal harmonics, nested cell / group
+          indicators): :math:`M R` is **diagonal**, off-diagonals structurally zero,
+          so the row sum simply IS the diagonal :math:`(M R\,\mathbf 1)_R = \int_R
+          w\,\mathrm{d}V` (:math:`w` the test weight).
+        * **partition-of-unity trial** (the fractional
+          :class:`~orpheus.numerics.basis.OverlapBasis`: a straddling fine cell lands
+          in ≥2 coarse columns, so :math:`M R` is **NOT** diagonal): here the rows of
+          the membership table sum to 1, i.e. :math:`R\,\mathbf 1 = \mathbf 1`, so the
+          probe collapses to :math:`(M\,\mathbf 1)_R = \sum_i T_{iR}\,w_i = \Phi_R` —
+          exactly the per-region weight, *even though the Gram is non-diagonal*. The
+          conservative re-binning is correct because of this PoU collapse, NOT because
+          the off-diagonals vanish.
+
+        **A future trial that is neither disjoint NOR a partition of unity** (a
+        tapered weight, a higher-rank GEC moment — #275) makes the row-sum probe ≠ the
+        true projection :math:`(M R)^{-1} M f`; such a basis needs the dense
+        cross-Gram solve (the unbuilt least-squares seam), not this diagonal probe.
         """
         ones = np.ones(self.basis_space.shape)
         diagonal = self.analysis.apply(self.reconstruction.apply(ones))
@@ -282,9 +302,12 @@ class FrameBase(ABC):
         this is the rate-preserving effective cross section :math:`\Sigma_R = \int_R
         \varphi\Sigma\,\mathrm{d}V / \int_R\varphi\,\mathrm{d}V`; for a
         :class:`GalerkinFrame` (``test = trial``) it is the orthogonal projection onto
-        the coarse space. The Gram is diagonal for every real consumer (disjoint
-        indicators / orthogonal harmonics), so the normalisation is a reciprocal —
-        the dense solve is the (unbuilt) least-squares seam only. Trailing (group, …)
+        the coarse space. The normalisation is a reciprocal (the diagonal :attr:`gram`
+        probe) for both the disjoint-indicator / orthogonal-harmonic consumers (Gram
+        genuinely diagonal) AND the partition-of-unity
+        :class:`~orpheus.numerics.basis.OverlapBasis` (non-diagonal Gram, but the
+        row-sum probe is still the right per-region weight — see :attr:`gram`); the
+        dense solve is the (unbuilt) least-squares seam only. Trailing (group, …)
         axes ride the analysis and broadcast against the diagonal Gram (so a vector
         channel divides by :math:`\Phi_{R,g}` and a ``[g_from, g_to]`` matrix channel
         by its source-group :math:`\Phi_{R,g_{\mathrm{from}}}`).

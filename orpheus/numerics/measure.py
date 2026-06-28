@@ -289,21 +289,29 @@ class DiscreteMeasure:
           :math:`O(3)` symmetry (a mesh is not rotation-invariant); they are a
           *different category* and will earn a typed spatial support when
           spatial homogenisation first Frame-binds one.
+        * **energy** — iff :attr:`support` is an energy tag (``"energy…"``). The
+          multigroup energy axis: a **counting** measure on the discrete group
+          index (``weights = 1``; ``φ_g`` is group-integrated), Frame-bound by
+          energy condensation
+          (:class:`~orpheus.data.energy_grid.GroupCondensation`). Like the
+          spatial factor it carries no :math:`O(3)` symmetry — the support tag
+          supplies its physical identity, not the bare integer nodes.
 
-        Anything else raises — the **energy** factor (an unbounded positive
-        half-line, structurally unlike the compact angular sphere) and any
-        untagged generic rule have no determined phase yet. The asymmetry IS
-        the signal: each factor gets its own typed machinery as it is bound,
-        not a premature uniform abstraction (the user's design ruling). The
-        phase cannot be read off the bare nodes — a slab's :math:`\mu\in[-1,1]`
-        is geometrically indistinguishable from a 1-D spatial interval; the
-        physical identity is exactly what the symmetry group / support tag
-        supplies.
+        Anything else raises — an untagged generic rule has no determined phase.
+        The asymmetry IS the signal: each factor gets its own typed machinery as
+        it is bound, not a premature uniform abstraction (the user's design
+        ruling). The phase cannot be read off the bare nodes — a slab's
+        :math:`\mu\in[-1,1]` is geometrically indistinguishable from a 1-D
+        spatial interval, and an energy group index from any integer-noded
+        counting rule; the physical identity is exactly what the symmetry group
+        / support tag supplies.
         """
         if self.invariance_group is not None:
             return "angular"
         if self.support.startswith("spatial") or self.support == "cells":
             return "spatial"
+        if self.support.startswith("energy"):
+            return "energy"
         raise NotImplementedError(
             f"phase is undetermined for support {self.support!r}: only the "
             f"angular factor (O(3)-symmetric, via invariance_group) and "
