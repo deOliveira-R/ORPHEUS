@@ -18,7 +18,7 @@ from .interpolation import interp_sig_s, interp_xs_field
 from .sigma_zeros import solve_sigma_zeros
 
 if TYPE_CHECKING:
-    from orpheus.data.energy_grid import GroupCondensation
+    from orpheus.data.energy_grid import EnergyGrid, WithinGroupSpectrum
 
 
 @dataclass
@@ -87,6 +87,23 @@ class Mixture:
     def ng(self) -> int:
         """Number of energy groups (inferred from data)."""
         return len(self.SigT)
+
+    @property
+    def energy_grid(self) -> "EnergyGrid":
+        r"""This mixture's source :class:`~orpheus.data.energy_grid.EnergyGrid` (from :attr:`eg`).
+
+        The XS carries its own energy structure, so it carries a measure (the SOURCE
+        view a condensation projects FROM — :meth:`EnergyGrid.as_measure`). Raises if
+        ``eg is None`` (a synthetic/Sood mixture has no physical grid to condense).
+        """
+        if self.eg is None:
+            raise ValueError(
+                "Mixture has no energy grid (eg is None — a synthetic/Sood mixture has "
+                "no physical grid); cannot view it as an EnergyGrid."
+            )
+        from orpheus.data.energy_grid import EnergyGrid
+
+        return EnergyGrid(self.eg)
 
     @property
     def absorption_xs(self) -> np.ndarray:
@@ -208,104 +225,132 @@ class Mixture:
         """
         return (self.total_scattering_xs + self.SigP) / self.SigT
 
+    @classmethod
+    def from_dense_channels(
+        cls,
+        *,
+        SigC: np.ndarray,
+        SigL: np.ndarray,
+        SigF: np.ndarray,
+        SigP: np.ndarray,
+        SigT: np.ndarray,
+        SigS: list[np.ndarray],
+        Sig2: np.ndarray,
+        chi: np.ndarray,
+        eg: np.ndarray | None,
+    ) -> "Mixture":
+        r"""Assemble a :class:`Mixture` from DENSE collapsed channels — the shared assembler.
+
+        The single home for "build a Mixture from coarsened dense channel arrays": wraps
+        the matrix channels (``SigS[ℓ]``, ``Sig2``) in :class:`~scipy.sparse.csr_matrix`
+        and threads ``eg``. BOTH coarsening verbs — :meth:`condense` (energy) and
+        :meth:`orpheus.transport.mesh.material_xs_field.MaterialXSField.project_through`
+        (space) — call this, so the channel-assembly taxonomy lives once (Cardinal Rule 2)
+        rather than duplicated per verb.
+        """
+        return cls(
+            SigC=SigC, SigL=SigL, SigF=SigF, SigP=SigP, SigT=SigT,
+            SigS=[csr_matrix(s) for s in SigS],
+            Sig2=csr_matrix(Sig2),
+            chi=chi, eg=eg,
+        )
+
     def condense(
-        self, condensation: "GroupCondensation", spectrum: np.ndarray
+        self,
+        target: "EnergyGrid",
+        spectrum: np.ndarray,
+        /,
+        within_group: "WithinGroupSpectrum | None" = None,
     ) -> "Mixture":
         r"""Collapse onto a coarse group structure, spectrum-weighted (rank-0).
 
-        The energy-axis transpose of spatial homogenization: every cross-section
-        channel is flux-weighted-averaged from this mixture's fine groups onto the
-        coarser ``condensation.coarse`` structure, preserving each coarse group's
-        reaction rate. Reuses the unchanged Petrov-Galerkin frame
-        (:meth:`orpheus.numerics.frame.FrameBase.project`) — the flux ``spectrum`` is
-        the TEST weight, the energy measure is counting — over the fractional-overlap
-        table :attr:`~orpheus.data.energy_grid.GroupCondensation.table` (a fine group
-        straddling a coarse boundary contributes a fraction of its rate to each side).
+        The energy-axis transpose of spatial homogenization, and **data-native** (no
+        transport dependency — :class:`~orpheus.data.energy_grid.EnergyGrid`, the overlap
+        factory, and the Petrov-Galerkin frame are all data/numerics). Every cross-section
+        channel is collapsed from this mixture's fine groups (:attr:`energy_grid`) onto the
+        coarser ``target`` structure, preserving each coarse group's reaction rate. The
+        fine→coarse fractional-overlap trial is :meth:`EnergyGrid.overlap_to`; the flux
+        ``spectrum`` is the TEST weight; the energy measure is counting
+        (:meth:`EnergyGrid.as_measure`).
 
-        Per channel:
+        The collapse has TWO morphisms (the marginalize-vs-average distinction):
 
-        * **vectors** (``SigT``/``SigC``/``SigL``/``SigF``/``SigP``):
-          :math:`\Sigma_G = (\sum_g T_{gG}\,\varphi_g\,\Sigma_g)
-          /(\sum_g T_{gG}\,\varphi_g)` = ``frame.project(Σ)``.
-        * **matrices** (``SigS[ℓ]``, ``Sig2``; ``[g_from, g_to]``): a 2-axis collapse
-          — the sink ``g_to`` is **summed** (``Σ @ T``), then the source ``g_from`` is
-          **flux-averaged** (``frame.project``). Both axes route through ``T``.
-        * **χ**: a pure birth-group **sum** ``χ @ T`` (a probability over birth
-          groups; preserves :math:`\sum\chi = 1`), NOT flux-weighted — there is no
-          spatial averaging here, unlike :meth:`orpheus.sn.solution.Solution.homogenize`.
+        * **average** :math:`G^{-1}M` (``frame.project``) — preserves a reaction RATE:
+          the vectors (``SigT``/``SigC``/``SigL``/``SigF``/``SigP``), :math:`\Sigma_G =
+          (\sum_g T_{gG}\varphi_g\Sigma_g)/(\sum_g T_{gG}\varphi_g)`; and the **source**
+          ``g_from`` axis of each matrix.
+        * **marginalize** :math:`@\,T` (the bare overlap table, NO normalisation) —
+          preserves MASS: the **sink** ``g_to`` axis of each matrix (``Σ @ T``), and
+          :math:`\chi_G = \chi @ T` (a probability over birth groups; preserves
+          :math:`\sum\chi=1`). Energy-χ is NOT the weight-1 degenerate of ``project``
+          (that would divide by the group count and break the simplex) — it is the
+          analysis face *without* the projection normalisation.
 
         Parameters
         ----------
-        condensation : GroupCondensation
-            The fine→coarse partition (its ``fine`` grid must match this mixture's
-            ``eg``). Carries the fractional-overlap table + the within-group flux
-            model.
+        target : EnergyGrid
+            The coarse target group structure (descending; no more groups than this
+            mixture's grid — :meth:`EnergyGrid.overlap_to` enforces the downsampling
+            guard).
         spectrum : (ng,) array
-            The per-fine-group representative flux :math:`\varphi_g` (the test
-            weight). For a real condensation this is the solved scalar flux over the
-            cells where the material appears (see
+            The per-fine-group representative flux :math:`\varphi_g` (the test weight) —
+            the solved scalar flux over the cells where the material appears (see
             :meth:`orpheus.sn.solution.Solution.condense`).
+        within_group : WithinGroupSpectrum, optional
+            The sub-fine-group flux model for straddle apportionment (default 1/E,
+            :class:`~orpheus.data.energy_grid.InverseEnergySpectrum`).
 
         Returns
         -------
         Mixture
-            The condensed (coarse-group) mixture. Passes :meth:`assert_balanced`
-            when this one does (every removal channel collapses with the same
-            per-coarse-group flux weight :math:`\Phi_G`).
+            The condensed (coarse-group) mixture. Passes :meth:`assert_balanced` when
+            this one does (every removal channel collapses with the same per-coarse-group
+            flux weight :math:`\Phi_G`).
 
         Raises
         ------
         ValueError
-            If this mixture has no energy grid (``eg is None``), or the
-            condensation's fine grid / the ``spectrum`` length does not match
-            :attr:`ng`.
+            If this mixture has no energy grid (``eg is None``), or the ``spectrum``
+            length does not match :attr:`ng` (the target/grid group-count mismatch is
+            caught by :meth:`EnergyGrid.overlap_to`).
         """
         from orpheus.numerics.basis import WeightedIndicatorBasis
         from orpheus.numerics.frame import PetrovGalerkinFrame
 
-        if self.eg is None:
-            raise ValueError(
-                "cannot condense a Mixture with no energy grid (eg is None — a "
-                "synthetic/Sood mixture has no physical grid to condense)."
-            )
-        if condensation.fine.n_groups != self.ng:
-            raise ValueError(
-                f"condensation fine grid has {condensation.fine.n_groups} groups but "
-                f"this Mixture has {self.ng}."
-            )
         phi = np.asarray(spectrum, dtype=float)
         if phi.shape != (self.ng,):
             raise ValueError(
                 f"spectrum must have shape ({self.ng},), got {phi.shape}."
             )
 
-        trial = condensation.indicator_basis()
+        source = self.energy_grid                          # raises if eg is None
+        trial = source.overlap_to(target, within_group)    # OverlapBasis (the mismatch table)
+        table = trial.overlap_table
         frame = PetrovGalerkinFrame(
-            trial, condensation.measure, WeightedIndicatorBasis(trial, phi)
+            trial, source.as_measure(), WeightedIndicatorBasis(trial, phi),
         )
-        table = condensation.table
 
-        def collapse_vector(sig: np.ndarray) -> np.ndarray:
+        def average(sig: np.ndarray) -> np.ndarray:
+            """Rate-preserving flux-average G⁻¹M over the source-group axis."""
             return frame.project(np.asarray(sig, dtype=float))
 
-        def collapse_matrix(mat: csr_matrix) -> csr_matrix:
-            # sink g_to SUMMED (@ T), then source g_from flux-AVERAGED (project).
+        def collapse_matrix(mat: csr_matrix) -> np.ndarray:
+            # sink g_to MARGINALIZED (@ T, mass), source g_from AVERAGED (project, rate).
             sink_summed = np.asarray(mat.todense(), dtype=float) @ table
-            return csr_matrix(frame.project(sink_summed))
+            return average(sink_summed)
 
-        return Mixture(
-            SigC=collapse_vector(self.SigC),
-            SigL=collapse_vector(self.SigL),
-            SigF=collapse_vector(self.SigF),
-            SigP=collapse_vector(self.SigP),
-            SigT=collapse_vector(self.SigT),
+        return Mixture.from_dense_channels(
+            SigC=average(self.SigC),
+            SigL=average(self.SigL),
+            SigF=average(self.SigF),
+            SigP=average(self.SigP),
+            SigT=average(self.SigT),
             SigS=[collapse_matrix(s) for s in self.SigS],
             Sig2=collapse_matrix(self.Sig2),
-            # χ → pure birth-group SUM: the SAME ``@ table`` primitive as the matrix
-            # sink axis in collapse_matrix (the table's birth-group-sum role), NOT a
-            # flux-average. Preserves Σχ via the table's partition-of-unity rows.
+            # χ → MARGINALIZE (bare @ table): a probability over birth groups, mass-
+            # preserving (Σχ=1 via the partition-of-unity rows), NOT a flux-average.
             chi=np.asarray(self.chi) @ table,
-            eg=condensation.coarse.edges,
+            eg=target.edges,
         )
 
 

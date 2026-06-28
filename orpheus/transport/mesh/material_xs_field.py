@@ -370,8 +370,6 @@ class MaterialXSField:
             zero effective cross section there (the frame's Moore–Penrose Gram
             pseudo-inverse — no reaction rate to preserve).
         """
-        from scipy.sparse import csr_matrix
-
         from orpheus.data.macro_xs.mixture import Mixture
 
         materials = self.materials
@@ -410,12 +408,15 @@ class MaterialXSField:
 
         eg = next(iter(materials.values())).eg
         n_coarse = sig_t.shape[0]
+        # Assemble through the shared Mixture assembler (the csr wrapping + eg threading
+        # lives once, in data — Cardinal Rule 2; the energy verb Mixture.condense calls
+        # the SAME assembler).
         return {
-            region: Mixture(
+            region: Mixture.from_dense_channels(
                 SigC=sig_c[region], SigL=sig_l[region], SigF=sig_f[region],
                 SigP=sig_p[region], SigT=sig_t[region],
-                SigS=[csr_matrix(sig_s[l][region]) for l in range(n_legendre)],
-                Sig2=csr_matrix(sig2[region]), chi=chi[region], eg=eg,
+                SigS=[sig_s[l][region] for l in range(n_legendre)],
+                Sig2=sig2[region], chi=chi[region], eg=eg,
             )
             for region in range(n_coarse)
         }

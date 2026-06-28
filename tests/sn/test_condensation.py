@@ -17,11 +17,6 @@ integrates end-to-end.
 
 vv Mode-8: every assertion is ``np.testing.*`` / ``pytest.raises`` /
 ``pytest.fail`` (the suite runs ``-O``; bare ``assert`` is stripped).
-
-PRE-IMPLEMENTATION: ``Solution.condense`` / ``EnergyGrid`` do not exist
-yet. SUT-exercising gates carry ``@_needs`` (``pytest.mark.skipif``) so this
-file collects clean and does NOT false-green. Remove the guards when the SUT
-lands.
 """
 
 from __future__ import annotations
@@ -29,30 +24,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.data.energy_grid import EnergyGrid
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import BC, CoordSystem, Mesh1D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import solve_sn
 
 pytestmark = [pytest.mark.l1, pytest.mark.cap("solve")]
-
-
-# ── Flip-to-live guards ────────────────────────────────────────────────
-from orpheus.sn.solution import Solution  # noqa: E402
-
-_HAS_CONDENSE = hasattr(Solution, "condense")
-try:
-    from orpheus.data.energy_grid import EnergyGrid  # type: ignore
-
-    _HAS_GRID = True
-except Exception:  # pragma: no cover - import guard
-    EnergyGrid = None  # type: ignore
-    _HAS_GRID = False
-
-_needs = pytest.mark.skipif(
-    not (_HAS_CONDENSE and _HAS_GRID),
-    reason="P5.0: Solution.condense / EnergyGrid not yet implemented",
-)
 
 
 # ── A 4-fine-group, 2-coarse-group setup, fast-first (descending eg) ────
@@ -118,8 +96,6 @@ def _region_spectrum(solution, mat_id: int = 0) -> np.ndarray:
 
 
 def _condense(solution):
-    if not (_HAS_CONDENSE and _HAS_GRID):
-        pytest.skip("SUT absent")
     return solution.condense(EnergyGrid(_EG_COARSE))
 
 
@@ -128,7 +104,6 @@ def _condense(solution):
 # ══════════════════════════════════════════════════════════════════════
 
 
-@_needs
 @pytest.mark.verifies("energy-condensation-rate-preservation")
 def test_solution_condense_rate_preservation(solution, materials):
     """Σ_G·Φ_G == Σ_{g∈G} φ_g Σ_g per vector channel, per material.
@@ -152,7 +127,6 @@ def test_solution_condense_rate_preservation(solution, materials):
             )
 
 
-@_needs
 @pytest.mark.verifies("energy-condensation-scattering-collapse")
 def test_solution_condense_scattering_rate(solution, materials):
     """In-scatter RATE preserved (source-group weighted) — catches g_from↔g_to."""
@@ -181,7 +155,6 @@ def test_solution_condense_scattering_rate(solution, materials):
 # ══════════════════════════════════════════════════════════════════════
 
 
-@_needs
 def test_condense_returns_portable_dict_no_mesh(solution):
     """``condense`` returns ``dict[int, Mixture]`` — portable, NO mesh.
 
@@ -209,7 +182,6 @@ def test_condense_returns_portable_dict_no_mesh(solution):
         )
 
 
-@_needs
 def test_condensed_group_count_dropped(solution):
     """Condensed Mixtures live on the COARSE group structure (ng → n_coarse)."""
     condensed = _condense(solution)
@@ -229,7 +201,6 @@ def test_condensed_group_count_dropped(solution):
 # ══════════════════════════════════════════════════════════════════════
 
 
-@_needs
 def test_condensed_materials_balance(solution):
     """Balance survives the collapse — every removal channel shares the weight."""
     condensed = _condense(solution)
@@ -237,7 +208,6 @@ def test_condensed_materials_balance(solution):
         mix.assert_balanced(atol=1e-9)
 
 
-@_needs
 def test_condensed_chi_is_fast_peaked_simplex(solution):
     """χ_R is a fast-peaked probability simplex (birth-group sum)."""
     condensed = _condense(solution)
@@ -262,7 +232,6 @@ def test_condensed_chi_is_fast_peaked_simplex(solution):
 # ══════════════════════════════════════════════════════════════════════
 
 
-@_needs
 def test_identity_condensation_recovers_fine_material(solution, materials):
     """Condense onto the SAME fine grid → each coarse group is one fine group,
     so the effective material equals the original (the rate-average over a
@@ -290,34 +259,12 @@ def test_identity_condensation_recovers_fine_material(solution, materials):
 # targets. The 421→WIMS-69 map is NON-NESTED (WIMS boundaries don't align with
 # the 421 spacing, and WIMS is locally finer in narrow resonance/thermal
 # bands), so a one-hot containing-interval leaves EMPTY coarse groups (the bug
-# the fractional re-binning fixes). This leg replaces the old
-# synthesize-and-skip placeholder: NO synthesis, NO skipif — it is the L2
-# real-structure integration leg, and it SUCCEEDS only once fractional
-# re-binning is live (guarded by ``_needs_fractional`` so it collects clean
-# pre-implementation).
+# the fractional re-binning fixes). NO synthesis, NO skipif on the SUT — it is
+# the L2 real-structure integration leg, guarded only by the real-data recipe
+# cache (``*.h5``) which may be absent locally.
 
-from pathlib import Path  # noqa: E402
-
-_EGB421 = Path(__file__).resolve().parents[2] / "orpheus" / "data" / "EGB421.txt"
-_HAS_EGB421 = _EGB421.exists()
-
-# Fractional-API guard (#274): the 421→WIMS-69 leg needs fractional re-binning
-# (the map is non-nested). Probe the within_group field by signature.
-import inspect as _inspect  # noqa: E402
-
-try:
-    from orpheus.data.energy_grid import (  # type: ignore
-        GroupCondensation as _GC,
-        InverseEnergySpectrum as _IES,
-    )
-
-    _HAS_FRACTIONAL = bool(
-        "within_group" in _inspect.signature(_GC).parameters
-    )
-except Exception:  # pragma: no cover - import guard
-    _GC = None  # type: ignore
-    _IES = None  # type: ignore
-    _HAS_FRACTIONAL = False
+from orpheus.data.energy_grid import InverseEnergySpectrum as _IES  # noqa: E402
+from orpheus.data.group_structures.ornl import ORNL_421  # noqa: E402
 
 # Real 421-group XS recipes (the production library; *.h5 caches present
 # locally). Guard the import so the file collects if a cache is missing.
@@ -330,48 +277,44 @@ except Exception:  # pragma: no cover - import guard
     _HAS_RECIPES = False
 
 _needs_real_421 = pytest.mark.skipif(
-    not (_HAS_CONDENSE and _HAS_FRACTIONAL and _HAS_RECIPES),
-    reason="P5.0/#274: real 421→WIMS-69 needs fractional Mixture.condense + recipes",
+    not _HAS_RECIPES,
+    reason="P5.0/#274: real 421→WIMS-69 needs the pwr_like_mix recipe (*.h5 cache)",
 )
 
 
-def _load_egb421_descending() -> np.ndarray:
-    """Parse EGB421.txt → the canonical DESCENDING boundary array (422 edges)."""
-    import re
+def test_ornl_421_grid_is_well_formed():
+    """The canonical ORNL 421-group grid: 422 strictly-descending positive edges.
 
-    toks: list[str] = []
-    for ln in _EGB421.read_text().splitlines():
-        s = ln.strip()
-        if s.startswith("--") or s == "421" or not s:
-            continue
-        toks += s.split()
-
-    def _njoy(tok: str) -> float:
-        m = re.match(r"([0-9.]+)([-+][0-9]+)", tok)
-        return float(f"{m.group(1)}e{m.group(2)}")
-
-    ascending = np.array([_njoy(t) for t in toks])     # 422 ascending boundaries
-    return ascending[::-1]                              # canonical descending
-
-
-@pytest.mark.skipif(not _HAS_EGB421, reason="EGB421.txt grid absent")
-def test_egb421_grid_is_well_formed():
-    """The real ORNL 421-group grid: 422 strictly-descending positive edges.
-
-    Runs without the SUT — validates the production grid shape the F7
-    condensation consumes (and that EnergyGrid will wrap).
+    Runs without the SUT/recipe — pins the production fine grid the F7 condensation
+    projects FROM. ``ORNL_421`` is an :class:`EnergyGrid`, so descending+positive is
+    enforced at construction; this also pins the expected 421-group count.
     """
-    eg = _load_egb421_descending()
     np.testing.assert_array_equal(
-        eg.shape, (422,),
-        err_msg="EGB421 must yield 422 boundaries (421 groups)",
+        ORNL_421.edges.shape, (422,),
+        err_msg="ORNL_421 must have 422 boundaries (421 groups)",
+    )
+    np.testing.assert_array_equal(ORNL_421.n_groups, 421)
+    np.testing.assert_array_less(
+        ORNL_421.edges[1:], ORNL_421.edges[:-1],
+        err_msg="canonical ORNL 421 grid must be strictly DESCENDING (fast-first)",
     )
     np.testing.assert_array_less(
-        eg[1:], eg[:-1],
-        err_msg="canonical EGB421 grid must be strictly DESCENDING (fast-first)",
+        0.0, ORNL_421.edges, err_msg="all ORNL_421 energies must be positive"
     )
-    np.testing.assert_array_less(
-        0.0, eg, err_msg="all EGB421 energies must be positive"
+
+
+@_needs_real_421
+def test_ornl_421_matches_live_library():
+    """``ORNL_421`` is the LIVE library grid (vv L4: generated, not hand-transcribed).
+
+    The boundary literal in ``ornl.py`` was emitted from ``pwr_like_mix().eg``; this
+    pins it to the library and reddens if the library grid ever drifts from the stored
+    literal (regenerate ``ornl.py`` then). The structurally-independent reference is the
+    real loaded data, not a second copy of the literal.
+    """
+    np.testing.assert_array_equal(
+        ORNL_421.edges, np.asarray(pwr_like_mix().eg, dtype=float),
+        err_msg="ORNL_421 literal drifted from the live library eg — regenerate ornl.py",
     )
 
 
@@ -390,11 +333,11 @@ def test_real_pwr_421_to_wims69_condensation_succeeds():
         argmax==0 — the real fission χ peaks ≈1 MeV → a low-but-nonzero coarse
         index, so the assertion is the physically-correct cumulative mass, not
         a brittle argmax);
-      * ``locally_interpolated`` is reported (non-empty — the resonance/thermal
+      * ``fractional_columns`` is reported (non-empty — the resonance/thermal
         coarse groups that leaned on w(E)).
     """
-    from orpheus.data.energy_grid import EnergyGrid, GroupCondensation  # type: ignore
-    from orpheus.data.wims_d_iaea_group_structures import WIMS_69  # type: ignore
+    from orpheus.data.energy_grid import EnergyGrid  # type: ignore
+    from orpheus.data.group_structures.wims import WIMS_69  # type: ignore
 
     fine_mix = pwr_like_mix()                            # real 421-group, balanced
     np.testing.assert_array_equal(
@@ -403,19 +346,16 @@ def test_real_pwr_421_to_wims69_condensation_succeeds():
     fine_mix.assert_balanced()                           # the real fine data balances
 
     fine_grid = EnergyGrid(np.asarray(fine_mix.eg, dtype=float))
-    # NON-NESTED: WIMS-69 boundaries do not align with the 421 grid.
-    cond = (
-        GroupCondensation.from_grids(fine_grid, WIMS_69, within_group=_IES())
-        if hasattr(GroupCondensation, "from_grids")
-        else GroupCondensation(fine_grid, WIMS_69, within_group=_IES())
-    )
+    # NON-NESTED: WIMS-69 boundaries do not align with the 421 grid. The overlap
+    # basis carries the fractional table + the locally-interpolated report.
+    overlap = fine_grid.overlap_to(WIMS_69, _IES())
 
     # The per-material spectrum (the real fine flux is not on the Mixture; use a
     # 1/E-ish slowing-down weight as the condensing spectrum — the within-group
     # MODEL handles the sub-fine split, this φ_g is the between-group weight).
     reps = fine_grid.representative_energy                # (421,) descending eV
     phi = 1.0 / reps                                      # 1/E slowing-down weight
-    coarse_mix = fine_mix.condense(cond, phi)             # MUST NOT raise
+    coarse_mix = fine_mix.condense(WIMS_69, phi, _IES())  # MUST NOT raise
 
     # ng == 69, shapes coarse.
     np.testing.assert_array_equal(
@@ -460,10 +400,10 @@ def test_real_pwr_421_to_wims69_condensation_succeeds():
         "must exceed 0.5) — the bulk of fission emission is fast",
     )
 
-    # locally_interpolated reported (non-empty — the non-nested straddle groups).
-    li = np.asarray(cond.locally_interpolated, dtype=int).ravel()
+    # fractional_columns reported (non-empty — the non-nested straddle groups).
+    li = np.asarray(overlap.fractional_columns, dtype=int).ravel()
     np.testing.assert_array_less(
         0, li.size,
-        err_msg="421→WIMS-69 is NON-NESTED → locally_interpolated must be "
+        err_msg="421→WIMS-69 is NON-NESTED → fractional_columns must be "
         "non-empty (the resonance/thermal coarse groups that leaned on w(E))",
     )

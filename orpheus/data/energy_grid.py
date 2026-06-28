@@ -1,20 +1,22 @@
-r"""Energy-group structure and condensation partition — the energy-axis value objects.
+r"""Energy-group structure — the energy-axis value object + its dual frame views.
 
-Energy condensation collapses fine-group cross sections onto a coarse group
-structure, spectrum-weighted (the energy-axis transpose of spatial homogenisation;
-see :meth:`orpheus.sn.solution.Solution.condense`). Two value objects carry its
-structure:
+:class:`EnergyGrid` is a multigroup energy structure: a strictly **DESCENDING**
+boundary array (the canonical fast-first convention, group ``0`` = fastest; see
+:ref:`canonical-group-convention`). ``N+1`` boundaries → ``N`` groups. It is the
+energy analogue of a coarse :class:`~orpheus.geometry.mesh.Mesh1D`, and — exactly like
+``Mesh1D`` — it yields **both** halves of a discrete frame:
 
-* :class:`EnergyGrid` — a multigroup energy structure: a strictly **DESCENDING**
-  boundary array (the canonical fast-first convention, group ``0`` = fastest; see
-  :ref:`canonical-group-convention`). ``N+1`` boundaries → ``N`` groups. The energy
-  analogue of a coarse :class:`~orpheus.geometry.mesh.Mesh1D`.
-* :class:`GroupCondensation` — the fine→coarse partition map. Built by
-  **conservative fractional re-binning**: a fine group straddling a coarse boundary
-  apportions a *fraction* of its rate to each coarse group it overlaps, so the
-  membership table :math:`T[g,G]\in[0,1]` is a **partition of unity** (rows sum to
-  1). A *nested* coarse grid (boundaries a subset of the fine grid) gives the one-hot
-  degenerate and the exact group-sum.
+* :meth:`EnergyGrid.as_measure` → a :class:`~orpheus.numerics.measure.DiscreteMeasure`,
+  the **source** view (the axis you project FROM), symmetric with ``Mesh1D.volume_measure``;
+* :meth:`EnergyGrid.as_basis` → an :class:`~orpheus.numerics.basis.IndicatorBasis`, the
+  **target** view (the axis you project TO), symmetric with ``Mesh1D.indicator_basis``.
+
+The group-structure **mismatch treatment** — when the source and target grids do not
+align — is the *binary* :meth:`EnergyGrid.overlap_to` (it reads BOTH grids' edges, so it
+cannot be a unary view): ``coarse.as_basis()`` (nested, one-hot) ⊂
+``fine.overlap_to(coarse)`` (non-nested, fractional). The collapse VERB that consumes
+these views is :meth:`orpheus.data.macro_xs.mixture.Mixture.condense`; this module owns
+only the grid + its frame views (data-native — no transport dependency).
 
 Why fractional overlap (the non-nested problem)
 ===============================================
@@ -35,19 +37,21 @@ flux–weighted) interval falling in each coarse group,
 
 with :math:`w(E)` a **selectable** within-group flux model
 (:class:`WithinGroupSpectrum`; 1/E is the default, :class:`InverseEnergySpectrum`).
+:meth:`overlap_to` returns the partition-of-unity table :math:`T[g,G]\in[0,1]` (rows
+summing to 1) carried by an :class:`~orpheus.numerics.basis.OverlapBasis`; a *nested*
+coarse grid gives the one-hot degenerate (the exact group-sum).
 
 Downsampling only
 -----------------
 
 Condensation **loses** information; it is well-posed fine→coarse only. Reconstructing
 a *finer* structure from group-integrated data fabricates sub-group detail the data
-never carried, so :class:`GroupCondensation` **refuses** a coarse target with more
-groups than the source (the upscaling guard). Where the coarse grid is *locally*
-finer than the fine grid, the within-group model performs a bounded, explicit
-interpolation — those coarse groups are reported by
-:attr:`~GroupCondensation.locally_interpolated` so the data-vs-assumption provenance
-is visible. (Faithful reconstruction / honest upscaling via rank>0 GEC moments is a
-future capability — GitHub #275.)
+never carried, so :meth:`overlap_to` **refuses** a coarse target with more groups than
+the source (the upscaling guard). Where the coarse grid is *locally* finer than the fine
+grid, the within-group model performs a bounded, explicit interpolation — those coarse
+groups are reported by :attr:`~orpheus.numerics.basis.OverlapBasis.fractional_columns`
+so the data-vs-assumption provenance is visible. (Faithful reconstruction / honest
+upscaling via rank>0 GEC moments is a future capability — GitHub #275.)
 
 The reuse — index-space membership, the existing PG frame
 =========================================================
@@ -56,8 +60,9 @@ The fractional table feeds the *unchanged* Petrov-Galerkin frame
 (:class:`~orpheus.numerics.frame.PetrovGalerkinFrame`,
 :class:`~orpheus.numerics.basis.OverlapBasis`,
 :class:`~orpheus.numerics.basis.WeightedIndicatorBasis`): the flux is the **test
-weight**, the energy measure is **counting** (``w_g = 1``; ORPHEUS ``φ_g`` is already
-group-integrated). Because the table is a partition of unity,
+weight**, the energy measure is **counting** (``w_g = 1`` — :meth:`as_measure`; ORPHEUS
+``φ_g`` is already group-integrated). Because the table is a partition of unity
+(:attr:`~orpheus.numerics.basis.base.GramStructure.PARTITION_OF_UNITY`),
 ``frame.project = G⁻¹ M`` yields the rate-preserving average with the diagonal Gram
 :math:`\Phi_G = \sum_g T[g,G]\,\varphi_g` — no new frame method, only the
 fractional-overlap basis.
@@ -75,19 +80,19 @@ References
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import cached_property
 from typing import Protocol, runtime_checkable
 
 import numpy as np
 from numpy.typing import NDArray
 
+from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 from orpheus.numerics.basis.overlap_basis import OverlapBasis
 from orpheus.numerics.measure import DiscreteMeasure
 
 __all__ = [
     "EnergyGrid",
-    "GroupCondensation",
     "InverseEnergySpectrum",
     "WithinGroupSpectrum",
 ]
@@ -161,17 +166,116 @@ class EnergyGrid:
         lower = self.edges[1:]
         return np.where(lower > 0.0, np.sqrt(upper * lower), 0.5 * upper)
 
-    def condense_to(
-        self, coarse: "EnergyGrid", /, within_group: "WithinGroupSpectrum | None" = None
-    ) -> "GroupCondensation":
-        """Derive the fine→coarse :class:`GroupCondensation` onto ``coarse``.
+    # ── The dual frame views (source = measure, target = basis) ───────────
+    def as_measure(self) -> DiscreteMeasure:
+        r"""The energy-axis **counting** measure — the SOURCE view (project FROM).
 
-        ``self`` is the fine grid. ``within_group`` selects the sub-fine-group flux
-        model for straddle apportionment (default 1/E, :class:`InverseEnergySpectrum`).
+        Nodes are the integer group indices ``0…n_groups-1``; weights are all ``1``
+        because ORPHEUS ``φ_g`` is already group-integrated, so the discrete reaction
+        rate is a plain group sum (a lethargy/Δu weight would break rate preservation —
+        the within-group ``w`` lives in the overlap fractions, not here).
+        ``support="energy"`` tags the physical phase-space factor
+        (:attr:`~orpheus.numerics.measure.DiscreteMeasure.phase` reads it). Symmetric
+        with :meth:`~orpheus.geometry.mesh.Mesh1D.volume_measure` on the spatial axis.
         """
-        if within_group is None:
-            return GroupCondensation(self, coarse)
-        return GroupCondensation(self, coarse, within_group)
+        n = self.n_groups
+        return DiscreteMeasure(
+            nodes=np.arange(n, dtype=float), weights=np.ones(n), support="energy",
+        )
+
+    def as_basis(self) -> IndicatorBasis:
+        r"""The group-indicator basis in index space — the TARGET view (project TO).
+
+        A plain :class:`~orpheus.numerics.basis.IndicatorBasis` over the group-index
+        partition (edges ``-0.5, 0.5, …, n-0.5``) — the **nested/one-hot** target view.
+        The non-nested fractional target is :meth:`overlap_to` (an
+        :class:`~orpheus.numerics.basis.OverlapBasis`, which IS-A ``IndicatorBasis``
+        carrying the mismatch table). Symmetric with
+        :meth:`~orpheus.geometry.mesh.Mesh1D.indicator_basis` on the spatial axis.
+        """
+        index_edges = np.arange(self.n_groups + 1, dtype=float) - 0.5
+        return IndicatorBasis(edges_per_axis=(index_edges,))
+
+    def overlap_to(
+        self, coarse: "EnergyGrid", /, within_group: "WithinGroupSpectrum | None" = None,
+    ) -> OverlapBasis:
+        r"""The fine→coarse fractional-overlap trial basis — the BINARY mismatch treatment.
+
+        ``self`` is the fine (source) grid, ``coarse`` the target. Returns the
+        :class:`~orpheus.numerics.basis.OverlapBasis` carrying the partition-of-unity
+        table :math:`T[g,G]\in[0,1]`: a fine group straddling a coarse boundary
+        apportions a fraction of its rate to each coarse group it overlaps, weighted by
+        ``within_group`` (1/E by default, :class:`InverseEnergySpectrum`). A *nested*
+        coarse grid gives the one-hot degenerate (``coarse.as_basis()`` carrying an
+        identity table).
+
+        This is the irreducibly **binary** ``(fine, coarse)`` step — it reads BOTH grids'
+        edges, so it cannot be a unary view: ``coarse.as_basis()`` (nested, one-hot) ⊂
+        ``fine.overlap_to(coarse)`` (non-nested, fractional). It is the data-level home
+        the retired ``GroupCondensation`` collapsed into.
+
+        Raises
+        ------
+        ValueError
+            If ``coarse``'s ceiling exceeds ``self``'s (the coarse structure claims
+            energy coverage the fine data lacks), or if ``coarse`` has MORE groups than
+            ``self`` (the upscaling guard — condensation only downsamples; faithful
+            reconstruction is GitHub #275).
+        """
+        w = within_group if within_group is not None else InverseEnergySpectrum()
+        if coarse.edges[0] > self.edges[0] * (1.0 + _SPAN_RTOL):
+            raise ValueError(
+                f"coarse ceiling {coarse.edges[0]:.4e} eV exceeds the fine ceiling "
+                f"{self.edges[0]:.4e} eV — ill-posed: the coarse structure claims energy "
+                f"coverage the fine data does not have."
+            )
+        if coarse.n_groups > self.n_groups:
+            raise ValueError(
+                f"upscaling refused: coarse has {coarse.n_groups} groups > fine "
+                f"{self.n_groups}. Condensation only DOWNSAMPLES; a finer target would "
+                f"fabricate sub-group structure the data does not contain (faithful "
+                f"reconstruction is GitHub #275)."
+            )
+        table = self._overlap_table(coarse, w)
+        if not bool(np.allclose(table.sum(axis=1), 1.0, atol=1e-9)):
+            raise ValueError(
+                "internal error: the fractional-overlap table is not a partition of "
+                "unity (every fine group's weight must sum to 1 across coarse groups)."
+            )
+        return OverlapBasis(
+            edges_per_axis=coarse.as_basis().edges_per_axis, overlap_table=table,
+        )
+
+    def _overlap_table(
+        self, coarse: "EnergyGrid", within_group: "WithinGroupSpectrum", /,
+    ) -> NDArray:
+        r"""The ``(n_fine, n_coarse)`` fractional membership table :math:`T[g,G]\in[0,1]`.
+
+        ``T[g,G]`` is the fraction of fine group ``g``'s (``within_group``-weighted)
+        interval lying in coarse group ``G``; rows sum to 1. The outer coarse edges are
+        clamped to the fine span so every fine group's full weight is captured
+        (over-ceiling fine mass → coarse 0; under-floor → last).
+        """
+        fe = self.edges
+        n_fine = self.n_groups
+        n_coarse = coarse.n_groups
+        ce = coarse.edges.astype(float).copy()
+        ce[0] = max(ce[0], fe[0])
+        ce[-1] = min(ce[-1], fe[-1])
+        coarse_hi = ce[:-1]
+        coarse_lo = ce[1:]
+        table = np.zeros((n_fine, n_coarse))
+        for g in range(n_fine):
+            g_hi = fe[g]
+            g_lo = fe[g + 1]
+            lo = np.maximum(g_lo, coarse_lo)
+            hi = np.minimum(g_hi, coarse_hi)
+            mask = hi > lo
+            if bool(np.any(mask)):
+                table[g, mask] = within_group.integrated_weight(
+                    lo[mask], hi[mask]
+                ) / within_group.integrated_weight(np.asarray(g_lo), np.asarray(g_hi))
+        return table
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -216,176 +320,3 @@ class InverseEnergySpectrum:
                 "thermal-cutoff or a different WithinGroupSpectrum)."
             )
         return np.log(hi_arr / lo_arr)
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# The fine→coarse partition (fractional overlap)
-# ──────────────────────────────────────────────────────────────────────────────
-
-
-@dataclass(frozen=True, eq=False)
-class GroupCondensation:
-    r"""The fine→coarse group partition: a fractional, partition-of-unity overlap map.
-
-    Built by conservative fractional re-binning — a fine group straddling a coarse
-    boundary apportions a fraction of its rate to each coarse group it overlaps
-    (weighted by ``within_group``). The membership :attr:`table` is a partition of
-    unity (rows sum to 1); a *nested* coarse grid gives the one-hot degenerate and
-    the exact group-sum.
-
-    Parameters
-    ----------
-    fine, coarse : EnergyGrid
-        The fine (source) and coarse (target) energy structures.
-    within_group : WithinGroupSpectrum, optional
-        The sub-fine-group flux model for straddle apportionment. Default 1/E
-        (:class:`InverseEnergySpectrum`); selectable.
-
-    Raises
-    ------
-    ValueError
-        If ``coarse``'s ceiling exceeds ``fine``'s (the coarse structure claims
-        coverage the data lacks), or if ``coarse`` has MORE groups than ``fine`` (the
-        upscaling guard — condensation only downsamples).
-
-    Notes
-    -----
-    Frozen, ``eq=False``. Over-ceiling / under-floor fine mass clamps into the first /
-    last coarse group, so the partition of unity holds for every fine group.
-    """
-
-    fine: EnergyGrid
-    coarse: EnergyGrid
-    within_group: WithinGroupSpectrum = field(default_factory=InverseEnergySpectrum)
-
-    def __post_init__(self) -> None:
-        if self.coarse.edges[0] > self.fine.edges[0] * (1.0 + _SPAN_RTOL):
-            raise ValueError(
-                f"coarse ceiling {self.coarse.edges[0]:.4e} eV exceeds the fine "
-                f"ceiling {self.fine.edges[0]:.4e} eV — ill-posed: the coarse "
-                f"structure claims energy coverage the fine data does not have."
-            )
-        if self.coarse.n_groups > self.fine.n_groups:
-            raise ValueError(
-                f"upscaling refused: coarse has {self.coarse.n_groups} groups > fine "
-                f"{self.fine.n_groups}. Condensation only DOWNSAMPLES; a finer target "
-                f"would fabricate sub-group structure the data does not contain "
-                f"(faithful reconstruction is GitHub #275)."
-            )
-        row_sums = self.table.sum(axis=1)  # triggers table + within-group validation
-        if not bool(np.allclose(row_sums, 1.0, atol=1e-9)):
-            raise ValueError(
-                "internal error: the fractional-overlap table is not a partition of "
-                "unity (every fine group's weight must sum to 1 across coarse groups)."
-            )
-
-    @cached_property
-    def table(self) -> NDArray:
-        r"""The fine→coarse fractional membership table :math:`T[g,G]\in[0,1]`.
-
-        ``(n_fine, n_coarse)``, rows summing to 1. ``T[g,G]`` is the fraction of fine
-        group ``g``'s (``within_group``-weighted) interval lying in coarse group
-        ``G``. The :math:`@T` contraction is the **sink-sum** half of the scattering
-        2-axis collapse and the pure birth-group sum for ``χ`` (``χ_G = χ @ T``);
-        ``frame.project`` against it does the source-axis flux-average. Equal to
-        ``self.indicator_basis().evaluate(self.measure.nodes)`` by construction.
-        """
-        fe = self.fine.edges
-        n_fine = self.fine.n_groups
-        n_coarse = self.coarse.n_groups
-        # Clamp the OUTER coarse edges to the fine span so every fine group's full
-        # weight is captured (over-ceiling fine mass → coarse 0; under-floor → last).
-        ce = self.coarse.edges.astype(float).copy()
-        ce[0] = max(ce[0], fe[0])
-        ce[-1] = min(ce[-1], fe[-1])
-        coarse_hi = ce[:-1]
-        coarse_lo = ce[1:]
-        w = self.within_group
-        table = np.zeros((n_fine, n_coarse))
-        for g in range(n_fine):
-            g_hi = fe[g]
-            g_lo = fe[g + 1]
-            lo = np.maximum(g_lo, coarse_lo)
-            hi = np.minimum(g_hi, coarse_hi)
-            mask = hi > lo
-            if bool(np.any(mask)):
-                table[g, mask] = w.integrated_weight(
-                    lo[mask], hi[mask]
-                ) / w.integrated_weight(np.asarray(g_lo), np.asarray(g_hi))
-        return table
-
-    @cached_property
-    def coarse_of_fine(self) -> NDArray:
-        r"""The DOMINANT coarse group of each fine group (``argmax`` of :attr:`table`).
-
-        For a nested condensation the table is one-hot, so this is the exact
-        containing-coarse-group map (and the partition is contiguous, fast-first).
-        For a straddling fine group it is the coarse group receiving the largest
-        fraction — a reporting/diagnostic view; the real apportionment is
-        :attr:`table`.
-        """
-        return self.table.argmax(axis=1).astype(int)
-
-    @cached_property
-    def locally_interpolated(self) -> NDArray:
-        r"""Coarse-group indices whose data leans on the within-group flux model.
-
-        The coarse groups that received a **fractional** (strictly between 0 and 1)
-        contribution from any fine group — i.e. where a fine group straddled the
-        boundary and ``within_group`` performed local interpolation. Empty for a
-        nested condensation (pure rate-preserving collapse, no assumption); non-empty
-        where the coarse grid is locally finer than the fine grid. The provenance
-        report of the downsampling/interpolation asymmetry.
-        """
-        frac = (self.table > 1e-12) & (self.table < 1.0 - 1e-12)
-        return np.nonzero(frac.any(axis=0))[0]
-
-    def indicator_basis(self) -> OverlapBasis:
-        r"""The coarse trial basis carrying the fractional :attr:`table`.
-
-        An :class:`~orpheus.numerics.basis.OverlapBasis` (the partition-of-unity
-        generalisation of :class:`~orpheus.numerics.basis.IndicatorBasis`); its
-        ``edges_per_axis`` is the coarse-group index partition (for the coarse cell
-        count + coefficient space) and its membership is the precomputed overlap
-        table. Feeds the unchanged ``frame.project``.
-        """
-        n_coarse = self.coarse.n_groups
-        coarse_index_edges = np.arange(n_coarse + 1, dtype=float) - 0.5
-        return OverlapBasis(
-            edges_per_axis=(coarse_index_edges,), overlap_table=self.table
-        )
-
-    @property
-    def measure(self) -> DiscreteMeasure:
-        r"""The fine energy-axis **counting** measure (``weights = 1``).
-
-        Nodes are the integer fine-group indices ``0…ng-1`` (the bucketing coordinate
-        for :meth:`indicator_basis`); weights are all ``1`` because ORPHEUS ``φ_g`` is
-        already group-integrated, so the discrete reaction rate is a plain group sum
-        (a lethargy/Δu weight would break rate preservation — the within-group ``w``
-        lives in the overlap fractions, not here). ``support="energy"`` tags the
-        physical phase-space factor (:attr:`DiscreteMeasure.phase` reads it).
-        """
-        n_fine = self.fine.n_groups
-        return DiscreteMeasure(
-            nodes=np.arange(n_fine, dtype=float),
-            weights=np.ones(n_fine),
-            support="energy",
-        )
-
-    @classmethod
-    def from_grids(
-        cls,
-        fine: EnergyGrid,
-        coarse: EnergyGrid,
-        /,
-        within_group: "WithinGroupSpectrum | None" = None,
-    ) -> "GroupCondensation":
-        """Build the condensation from fine and coarse :class:`EnergyGrid` instances.
-
-        The canonical call-site spelling; the fractional-overlap derivation +
-        well-posedness checks run in ``__post_init__``.
-        """
-        if within_group is None:
-            return cls(fine, coarse)
-        return cls(fine, coarse, within_group)

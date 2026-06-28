@@ -1,6 +1,6 @@
 r"""Energy-condensation gate — per-material ``Mixture.condense``.
 
-P5.0 (GitHub #274). ``Mixture.condense(condensation, spectrum) -> Mixture``
+P5.0 (GitHub #274). ``Mixture.condense(target, spectrum) -> Mixture``
 collapses fine-group cross sections onto a coarse group structure,
 spectrum-weighted. This file pins the per-material math:
 
@@ -27,12 +27,6 @@ math is verified against the live frame in the P5.0 memo
 
 vv Mode-8: every assertion is ``np.testing.*`` / ``pytest.raises`` /
 ``pytest.fail`` (the suite runs ``-O``; bare ``assert`` is stripped).
-
-PRE-IMPLEMENTATION: ``Mixture.condense`` / ``EnergyGrid`` /
-``GroupCondensation`` do not exist yet. SUT-exercising gates carry
-``@_needs`` (``pytest.mark.skipif``) so this file collects clean and does
-NOT false-green; the oracle helpers, the WIMS derivation leg, and the chi
-hand-sum run UNCONDITIONALLY. Remove the guards when the SUT lands.
 """
 
 from __future__ import annotations
@@ -41,47 +35,10 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
+from orpheus.data.energy_grid import EnergyGrid, InverseEnergySpectrum
 from orpheus.data.macro_xs.mixture import Mixture
 
 pytestmark = pytest.mark.foundation
-
-
-# ── Flip-to-live guards ────────────────────────────────────────────────
-_HAS_CONDENSE = hasattr(Mixture, "condense")
-try:
-    from orpheus.data.energy_grid import EnergyGrid, GroupCondensation  # type: ignore
-
-    _HAS_GRID = True
-except Exception:  # pragma: no cover - import guard
-    EnergyGrid = None  # type: ignore
-    GroupCondensation = None  # type: ignore
-    _HAS_GRID = False
-
-_needs = pytest.mark.skipif(
-    not (_HAS_CONDENSE and _HAS_GRID),
-    reason="P5.0: Mixture.condense / EnergyGrid not yet implemented",
-)
-
-# ── Fractional-overlap guards (#274 follow-up, F1/F4) ──────────────────
-import inspect as _inspect  # noqa: E402
-
-try:
-    from orpheus.data.energy_grid import InverseEnergySpectrum  # type: ignore
-
-    _HAS_WITHIN_GROUP = True
-except Exception:  # pragma: no cover - import guard
-    InverseEnergySpectrum = None  # type: ignore
-    _HAS_WITHIN_GROUP = False
-
-_HAS_FRACTIONAL = bool(
-    _HAS_GRID
-    and GroupCondensation is not None
-    and "within_group" in _inspect.signature(GroupCondensation).parameters
-)
-_needs_fractional = pytest.mark.skipif(
-    not (_HAS_CONDENSE and _HAS_FRACTIONAL and _HAS_WITHIN_GROUP),
-    reason="P5.0/#274: fractional Mixture.condense + InverseEnergySpectrum not yet implemented",
-)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -150,24 +107,13 @@ def fine_mix() -> Mixture:
 
 
 def _condense(mix: Mixture) -> Mixture:
-    """Run the SUT condense onto the fast-first 2-coarse-group structure.
+    """Run condense onto the fast-first 2-coarse-group structure.
 
-    The exact API is the implementer's choice. The brief specifies
-    ``Mixture.condense(condensation, spectrum) -> Mixture``. This helper
-    builds the ``GroupCondensation`` from the fine/coarse ``EnergyGrid``s
-    and passes the per-material spectrum φ; it tolerates a couple of
-    plausible constructor spellings so the file goes green on contact.
+    ``Mixture.condense(target, spectrum)`` reads the mixture's own fine grid
+    (``mix.energy_grid``) and the ``target`` coarse ``EnergyGrid``, projecting
+    with the per-material spectrum φ (within-group model defaults to 1/E).
     """
-    if not (_HAS_CONDENSE and _HAS_GRID):
-        pytest.skip("SUT absent")
-    fine = EnergyGrid(_EG_FINE)
-    coarse = EnergyGrid(_EG_COARSE)
-    cond = (
-        GroupCondensation.from_grids(fine, coarse)
-        if hasattr(GroupCondensation, "from_grids")
-        else GroupCondensation(fine, coarse)
-    )
-    return mix.condense(cond, _PHI)
+    return mix.condense(EnergyGrid(_EG_COARSE), _PHI)
 
 
 # ── Structurally-independent oracles (hand-sums; NEVER frame.project) ───
@@ -201,7 +147,6 @@ def _scatter_rate_oracle(sig_s_fine: np.ndarray) -> np.ndarray:
 # ══════════════════════════════════════════════════════════════════════
 
 
-@_needs
 @pytest.mark.verifies("energy-condensation-rate-preservation")
 class TestG1RatePreservationVectors:
     """Σ_G · Φ_G == Σ_{g∈G} φ_g Σ_g for every vector channel (vv L1, L11)."""
@@ -282,7 +227,6 @@ class TestG2WithinGroupVaryingDiscriminator:
                 "is blind (Mode-7). Sharpen φ or the per-group SigT spread."
             )
 
-    @_needs
     def test_condense_preserves_rate_and_rejects_arithmetic(
         self, fine_mix: Mixture
     ) -> None:
@@ -318,7 +262,6 @@ class TestG2WithinGroupVaryingDiscriminator:
 # ══════════════════════════════════════════════════════════════════════
 
 
-@_needs
 @pytest.mark.verifies("energy-condensation-scattering-collapse")
 class TestG3ScatteringTwoAxisCollapse:
     """In-scatter RATE preserved; the source/sink asymmetry is load-bearing.
@@ -486,7 +429,6 @@ class TestChiBirthGroupSum:
                 "the sum-vs-project distinction is not being tested"
             )
 
-    @_needs
     def test_condensed_chi_is_birth_group_sum(self, fine_mix: Mixture) -> None:
         """The condensed χ equals the pure birth-group sum (NOT projected)."""
         coarse_mix = _condense(fine_mix)
@@ -500,7 +442,6 @@ class TestChiBirthGroupSum:
             err_msg="condensed χ must be the pure birth-group sum χ @ T",
         )
 
-    @_needs
     def test_condensed_chi_is_simplex(self, fine_mix: Mixture) -> None:
         """The condensed χ sums to 1 (producing mixture) and is non-negative."""
         coarse_mix = _condense(fine_mix)
@@ -513,7 +454,6 @@ class TestChiBirthGroupSum:
             err_msg="condensed χ must be non-negative",
         )
 
-    @_needs
     def test_condensed_chi_fast_peaked(self, fine_mix: Mixture) -> None:
         """χ stays fast-peaked (bulk in the fast coarse group 0) post-condense."""
         coarse_mix = _condense(fine_mix)
@@ -530,7 +470,6 @@ class TestChiBirthGroupSum:
 # ══════════════════════════════════════════════════════════════════════
 
 
-@_needs
 class TestG4BalanceRegression:
     """The condensed Mixture balances iff the fine one does (vv #11)."""
 
@@ -577,7 +516,7 @@ class TestG4BalanceRegression:
 # present; guard the import so the file still collects if it is removed.
 
 try:
-    import orpheus.data.wims_d_iaea_group_structures as _wims  # type: ignore
+    import orpheus.data.group_structures.wims as _wims  # type: ignore
 
     _HAS_WIMS = True
 except Exception:  # pragma: no cover
@@ -667,7 +606,6 @@ class TestG5WimsDerivationValidation:
 # ══════════════════════════════════════════════════════════════════════
 
 
-@_needs
 def test_condense_routes_through_frame_project(fine_mix: Mixture, monkeypatch) -> None:
     """Mode-11: ``condense`` actually executes ``FrameBase.project`` AND the
     TEST-side ``WeightedIndicatorBasis.analyze`` on the new path.
@@ -753,7 +691,7 @@ def _fractional_table_oracle(fine_e, coarse_e, weight) -> np.ndarray:
     """Hand-built fractional T[g,G] from energy overlaps — SUT-independent.
 
     T[g,G] = (∫_{g∩G} w)/(∫_g w); the structurally-independent oracle for the
-    fractional rate-preservation check (NEVER ``cond.table`` re-read).
+    fractional rate-preservation check (NEVER ``overlap.overlap_table`` re-read).
     """
     ng_f = fine_e.size - 1
     ng_c = coarse_e.size - 1
@@ -806,27 +744,21 @@ def _straddle_mixture_4g() -> Mixture:
 
 
 def _condense_straddle(mix: Mixture, within_group=None) -> Mixture:
-    """Condense the straddle Mixture with the (fractional) condensation."""
-    if not (_HAS_CONDENSE and _HAS_FRACTIONAL):
-        pytest.skip("fractional Mixture.condense absent")
-    fine = EnergyGrid(_FINE_STRADDLE)
+    """Condense the straddle Mixture onto the coarse grid (fractional path).
+
+    ``Mixture.condense(target, spectrum, within_group)`` reads the mixture's
+    own fine grid and apportions the straddling fine group fractionally per
+    the ``within_group`` model.
+    """
     coarse = EnergyGrid(_COARSE_STRADDLE)
-    kw = {} if within_group is None else {"within_group": within_group}
-    try:
-        cond = (
-            GroupCondensation.from_grids(fine, coarse, **kw)
-            if hasattr(GroupCondensation, "from_grids")
-            else GroupCondensation(fine, coarse, **kw)
-        )
-    except TypeError:
-        cond = GroupCondensation(fine, coarse, **kw)
-    return mix.condense(cond, _PHI_S)
+    if within_group is None:
+        return mix.condense(coarse, _PHI_S)
+    return mix.condense(coarse, _PHI_S, within_group=within_group)
 
 
 # ── F1 — Straddle rate-preservation (THE fractional core) ──────────────
 
 
-@_needs_fractional
 @pytest.mark.verifies("energy-condensation-rate-preservation")
 class TestF1StraddleRatePreservation:
     """σ_G·Φ_G == Σ_g T[g,G] φ_g σ_g with a genuinely FRACTIONAL T (vv L1, L11).
@@ -924,7 +856,6 @@ class TestF1StraddleRatePreservation:
 # ── F4 (SUT side) — the within-group model is selectable + load-bearing ─
 
 
-@_needs_fractional
 class TestF4ModelDiscriminatorSUT:
     """The SUT's 1/E model reproduces the lethargy-ratio oracle (positive),
     and a DIFFERENT model gives a DIFFERENT condensed value (negative).

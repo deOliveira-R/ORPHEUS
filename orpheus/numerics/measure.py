@@ -293,7 +293,8 @@ class DiscreteMeasure:
           multigroup energy axis: a **counting** measure on the discrete group
           index (``weights = 1``; ``φ_g`` is group-integrated), Frame-bound by
           energy condensation
-          (:class:`~orpheus.data.energy_grid.GroupCondensation`). Like the
+          (:meth:`~orpheus.data.macro_xs.mixture.Mixture.condense`, via
+          :meth:`~orpheus.data.energy_grid.EnergyGrid.as_measure`). Like the
           spatial factor it carries no :math:`O(3)` symmetry — the support tag
           supplies its physical identity, not the bare integer nodes.
 

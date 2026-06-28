@@ -144,7 +144,7 @@ def edges(emax, lower):
 # edges() array they are ALREADY in the canonical ORPHEUS descending orientation
 # (eg[0] = highest E, group 0 = fastest), so no reversal is needed -- only the
 # 1-based WIMS label maps to the 0-based ORPHEUS group index.  CONDENSE_172_TO_69
-# (above) stays the derivation-validation oracle for fine.condense_to(coarse).
+# (above) stays the derivation-validation oracle for fine.overlap_to(coarse).
 WIMS_69 = EnergyGrid(np.asarray(edges(G69_EMAX, G69_LOWER)))
 WIMS_172 = EnergyGrid(np.asarray(edges(G172_EMAX, G172_LOWER)))
 

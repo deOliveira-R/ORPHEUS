@@ -1,19 +1,24 @@
 r"""Intrinsic-property gate for the energy-condensation value objects.
 
 P5.0 (GitHub #274). Energy condensation collapses fine-group cross
-sections onto a coarse group structure, spectrum-weighted. Two NEW value
-objects carry its structure:
+sections onto a coarse group structure, spectrum-weighted. The value
+objects that carry its structure:
 
 * ``EnergyGrid`` — the energy analogue of a coarse ``Mesh``: a strictly
   DESCENDING boundary array (the canonical fast-first convention — see
   ``tests/data/test_gendf_canonical_order.py`` and
-  ``docs/theory/cross_section_data.rst``). N+1 boundaries → N groups.
-* ``GroupCondensation`` — the fine→coarse partition map (containing-
-  interval rule): every fine group maps to exactly ONE coarse group, the
-  per-coarse fine-group sets are contiguous, and the coarse-group ORDER
-  is fast-first.
+  ``docs/theory/cross_section_data.rst``). N+1 boundaries → N groups. It
+  yields the binary fine→coarse mismatch treatment ``fine.overlap_to(
+  coarse)``.
+* ``OverlapBasis`` (returned by ``overlap_to``) — the fine→coarse trial
+  carrying the fractional membership table ``overlap_table`` (a partition
+  of unity, rows summing to 1; nested → one-hot). Its ``dominant_column``
+  is the per-fine-group dominant coarse index (the former
+  ``GroupCondensation.coarse_of_fine``), and ``fractional_columns`` reports
+  the coarse groups that leaned on the within-group model (the former
+  ``GroupCondensation.locally_interpolated``).
 
-This file pins the DEFINING LAWS of those two types (the user's standing
+This file pins the DEFINING LAWS of those types (the user's standing
 rule: every math-bearing type ships a test of its intrinsic properties).
 Foundation tests — software invariants, no theory ``:label:``.
 
@@ -25,7 +30,7 @@ DESCENDING. Feeding descending coarse edges to ``IndicatorBasis`` does
 NOT break the partition (row-sums stay 1, because searchsorted+clip
 always returns an in-range bin) — it silently REVERSES the coarse-group
 order (fast fine groups land in the thermal coarse column). So the
-``GroupCondensation`` law that MUST be pinned is the coarse-group ORDER
+``overlap_to`` law that MUST be pinned is the coarse-group ORDER
 (fast-first), not merely partition completeness. ``test_orientation_trap``
 *demonstrates* the reversal directly against the live ``IndicatorBasis``
 (it needs no SUT), so the implementer cannot ship a condensation whose
@@ -33,12 +38,6 @@ coarse groups are silently thermal-first.
 
 vv Mode-8: every assertion is ``np.testing.*`` / ``pytest.raises`` /
 ``pytest.fail`` (the suite runs ``-O``; bare ``assert`` is stripped).
-
-PRE-IMPLEMENTATION: ``EnergyGrid`` / ``GroupCondensation`` do not exist
-yet. SUT-exercising gates are guarded by ``_HAS_*`` + ``pytest.mark.skipif``
-so this file collects clean and does NOT false-green. The oracle math and
-the orientation-trap demonstration run UNCONDITIONALLY (they need no SUT).
-Remove the guards when the production types land.
 """
 
 from __future__ import annotations
@@ -46,68 +45,10 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.data.energy_grid import EnergyGrid, InverseEnergySpectrum
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 
 pytestmark = pytest.mark.foundation
-
-
-# ── Flip-to-live guards (the SUT does not exist pre-impl) ──────────────
-try:  # EnergyGrid — the descending-boundary energy structure
-    from orpheus.data.energy_grid import EnergyGrid  # type: ignore
-
-    _HAS_ENERGY_GRID = True
-except Exception:  # pragma: no cover - import guard
-    EnergyGrid = None  # type: ignore
-    _HAS_ENERGY_GRID = False
-
-try:  # GroupCondensation — the fine→coarse partition map
-    from orpheus.data.energy_grid import GroupCondensation  # type: ignore
-
-    _HAS_GROUP_CONDENSATION = True
-except Exception:  # pragma: no cover - import guard
-    GroupCondensation = None  # type: ignore
-    _HAS_GROUP_CONDENSATION = False
-
-_needs_grid = pytest.mark.skipif(
-    not _HAS_ENERGY_GRID, reason="P5.0: EnergyGrid not yet implemented"
-)
-_needs_cond = pytest.mark.skipif(
-    not _HAS_GROUP_CONDENSATION,
-    reason="P5.0: GroupCondensation not yet implemented",
-)
-
-# ── Fractional-overlap flip-to-live guards (#274 follow-up, F1–F7) ─────
-# The fractional API extends GroupCondensation with a selectable within-
-# group flux model and a FRACTIONAL membership table. These guards let the
-# fractional gates collect clean while the (nested-only) one-hot SUT is the
-# live one — they go live the moment the implementer lands the API.
-try:  # the selectable within-group sub-fine-group flux shape w(E)
-    from orpheus.data.energy_grid import InverseEnergySpectrum  # type: ignore
-
-    _HAS_WITHIN_GROUP = True
-except Exception:  # pragma: no cover - import guard
-    InverseEnergySpectrum = None  # type: ignore
-    _HAS_WITHIN_GROUP = False
-
-# A GroupCondensation has the FRACTIONAL table API iff it accepts a
-# ``within_group`` field (the column-split model) AND surfaces
-# ``locally_interpolated`` (the straddle report). Probe by signature so a
-# nested-only SUT (current ``main``) skips cleanly.
-import inspect as _inspect  # noqa: E402
-
-_HAS_FRACTIONAL = bool(
-    _HAS_GROUP_CONDENSATION
-    and "within_group" in _inspect.signature(GroupCondensation).parameters
-)
-
-_needs_within = pytest.mark.skipif(
-    not _HAS_WITHIN_GROUP,
-    reason="P5.0/#274: InverseEnergySpectrum (within-group model) not yet implemented",
-)
-_needs_fractional = pytest.mark.skipif(
-    not _HAS_FRACTIONAL,
-    reason="P5.0/#274: fractional-overlap GroupCondensation not yet implemented",
-)
 
 
 # A small DESCENDING energy grid: 4 groups, fast-first (group 0 fastest).
@@ -181,7 +122,6 @@ class TestOrientationTrap:
 # ══════════════════════════════════════════════════════════════════════
 
 
-@_needs_grid
 class TestEnergyGridIntrinsic:
     """The DEFINING laws of an EnergyGrid (the #265 invariant slice)."""
 
@@ -247,13 +187,19 @@ class TestEnergyGridIntrinsic:
 
 
 # ══════════════════════════════════════════════════════════════════════
-# GroupCondensation — intrinsic properties (containing-interval + fast-first)
+# overlap_to — intrinsic properties (containing-interval + fast-first)
 # ══════════════════════════════════════════════════════════════════════
 
 
-@_needs_cond
-class TestGroupCondensationIntrinsic:
-    """The DEFINING containing-interval law + the fast-first order pin."""
+class TestOverlapToIntrinsic:
+    """The DEFINING containing-interval law + the fast-first order pin.
+
+    ``EnergyGrid.overlap_to(coarse)`` returns the ``OverlapBasis`` carrying
+    the fine→coarse mismatch table; its ``dominant_column`` is the per-fine
+    dominant coarse index (the former ``GroupCondensation.coarse_of_fine``).
+    For a NESTED map every fine group maps wholly to one coarse group, so
+    ``dominant_column`` IS the exact containing-interval partition.
+    """
 
     @staticmethod
     def _fine_grid() -> np.ndarray:
@@ -266,39 +212,24 @@ class TestGroupCondensationIntrinsic:
         return np.array([1e7, 1e6, 1e0, 1e-3])  # 4 edges → 3 coarse groups
 
     def _build(self):
-        """Build a GroupCondensation from fine→coarse EnergyGrids.
-
-        The exact constructor signature is the implementer's choice; the
-        most likely shape is ``GroupCondensation(fine: EnergyGrid, coarse:
-        EnergyGrid)`` or ``GroupCondensation.from_grids(fine, coarse)``.
-        This helper tries both so the file is robust to the chosen form.
-        """
-        if not _HAS_ENERGY_GRID:
-            pytest.skip("EnergyGrid needed to build GroupCondensation")
+        """Build the OverlapBasis from fine→coarse EnergyGrids."""
         fine = EnergyGrid(self._fine_grid())
         coarse = EnergyGrid(self._coarse_grid())
-        if hasattr(GroupCondensation, "from_grids"):
-            return GroupCondensation.from_grids(fine, coarse)
-        return GroupCondensation(fine, coarse)
+        return fine.overlap_to(coarse)
 
     @staticmethod
-    def _coarse_of_fine(cond) -> np.ndarray:
-        """Recover the per-fine-group coarse index as a 1-D int array.
+    def _coarse_of_fine(overlap) -> np.ndarray:
+        """The per-fine-group dominant coarse index as a 1-D int array.
 
-        Tolerant of the SUT's accessor name: ``coarse_of_fine`` /
-        ``fine_to_coarse`` / a membership ``table`` (argmax over coarse).
+        ``OverlapBasis.dominant_column`` is the containing-interval map for a
+        nested grid (and the argmax-fraction for a straddle).
         """
-        for attr in ("coarse_of_fine", "fine_to_coarse", "mapping"):
-            if hasattr(cond, attr):
-                return np.asarray(getattr(cond, attr), dtype=int).ravel()
-        if hasattr(cond, "table"):
-            return np.asarray(cond.table).argmax(axis=1).astype(int)
-        pytest.skip("GroupCondensation exposes no recognizable fine→coarse map")
+        return np.asarray(overlap.dominant_column, dtype=int).ravel()
 
     def test_every_fine_maps_to_exactly_one_coarse(self) -> None:
         """Containing-interval: each fine group → exactly one coarse group."""
-        cond = self._build()
-        cof = self._coarse_of_fine(cond)
+        overlap = self._build()
+        cof = self._coarse_of_fine(overlap)
         np.testing.assert_array_equal(
             cof.shape, (8,), err_msg="one coarse index per fine group"
         )
@@ -312,8 +243,8 @@ class TestGroupCondensationIntrinsic:
 
     def test_partition_is_contiguous_no_gaps_overlaps(self) -> None:
         """Each coarse group's fine-group set is a contiguous run (no gaps)."""
-        cond = self._build()
-        cof = self._coarse_of_fine(cond)
+        overlap = self._build()
+        cof = self._coarse_of_fine(overlap)
         # The expected fast-first contiguous partition of 8 fine into 3 coarse.
         np.testing.assert_array_equal(
             cof, np.array([0, 0, 1, 1, 1, 2, 2, 2]),
@@ -336,8 +267,8 @@ class TestGroupCondensationIntrinsic:
         index / highest energy). A condensation built on raw descending
         edges would silently reverse this — coarse 0 would be thermal.
         """
-        cond = self._build()
-        cof = self._coarse_of_fine(cond)
+        overlap = self._build()
+        cof = self._coarse_of_fine(overlap)
         # Fine group 0 (fastest) MUST land in coarse group 0.
         np.testing.assert_array_equal(
             cof[0], 0,
@@ -353,18 +284,13 @@ class TestGroupCondensationIntrinsic:
         """A coarse grid not nested in the fine grid (non-coincident span) raises.
 
         The containing-interval rule requires the coarse boundaries to lie
-        within the fine span (and, for an exact map, coincide with fine
-        boundaries). A coarse ceiling above the fine ceiling is ill-posed.
+        within the fine span. A coarse ceiling above the fine ceiling is
+        ill-posed (``overlap_to`` raises the span guard).
         """
-        if not _HAS_ENERGY_GRID:
-            pytest.skip("EnergyGrid needed")
         fine = EnergyGrid(self._fine_grid())
         bad_coarse = EnergyGrid(np.array([2e7, 1e6, 1e-3]))  # ceiling 2e7 > fine 1e7
         with pytest.raises((ValueError, AssertionError)):
-            if hasattr(GroupCondensation, "from_grids"):
-                GroupCondensation.from_grids(fine, bad_coarse)
-            else:
-                GroupCondensation(fine, bad_coarse)
+            fine.overlap_to(bad_coarse)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -438,23 +364,16 @@ def _fractional_table_oracle(fine_e: np.ndarray, coarse_e: np.ndarray, weight) -
 
 
 def _build_fractional(fine_e: np.ndarray, coarse_e: np.ndarray, within_group=None):
-    """Build a fractional GroupCondensation onto the given grids.
+    """Build the fractional OverlapBasis onto the given grids.
 
-    Tolerant of the constructor spelling (``within_group`` kw, ``from_grids``
-    or direct). Skips if the fractional API is absent (nested-only SUT).
+    ``fine.overlap_to(coarse, within_group)`` IS the fractional mismatch
+    treatment — the within-group model defaults to 1/E when ``None``.
     """
-    if not _HAS_FRACTIONAL:
-        pytest.skip("fractional GroupCondensation absent")
     fine = EnergyGrid(fine_e)
     coarse = EnergyGrid(coarse_e)
-    kw = {} if within_group is None else {"within_group": within_group}
-    if hasattr(GroupCondensation, "from_grids"):
-        try:
-            return GroupCondensation.from_grids(fine, coarse, **kw)
-        except TypeError:
-            # from_grids may not forward within_group; fall back to the ctor.
-            return GroupCondensation(fine, coarse, **kw)
-    return GroupCondensation(fine, coarse, **kw)
+    if within_group is None:
+        return fine.overlap_to(coarse)
+    return fine.overlap_to(coarse, within_group)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -524,17 +443,16 @@ class TestF4WithinGroupModelOracle:
 # ══════════════════════════════════════════════════════════════════════
 
 
-@_needs_fractional
 class TestF2PartitionOfUnity:
     """table.sum(axis=1) == 1 (fractional straddle) AND {0,1} bit-exact (nested)."""
 
     def test_fractional_rows_sum_to_one(self) -> None:
         """The straddle table's rows sum to 1 (a genuinely fractional row exists)."""
-        cond = _build_fractional(
+        overlap = _build_fractional(
             _FINE_STRADDLE, _COARSE_STRADDLE,
             within_group=InverseEnergySpectrum(),
         )
-        T = np.asarray(cond.table, dtype=float)
+        T = np.asarray(overlap.overlap_table, dtype=float)
         np.testing.assert_array_equal(
             T.shape, (_NG_FINE_S, _NG_COARSE_S),
             err_msg="fractional table must be (n_fine, n_coarse)",
@@ -561,7 +479,7 @@ class TestF2PartitionOfUnity:
         """A NESTED partition gives a {0,1} table, bit-identical to the one-hot.
 
         ``array_equal`` against the explicit one-hot (built from the
-        containing-interval ``coarse_of_fine``): a fractional impl that ALWAYS
+        containing-interval ``dominant_column``): a fractional impl that ALWAYS
         splits (never snaps to {0,1} on alignment) would drift → RED. The
         nested grid puts every coarse boundary ON a fine boundary so no group
         straddles.
@@ -569,10 +487,10 @@ class TestF2PartitionOfUnity:
         # Nested: coarse edges are a SUBSET of the fine edges → no straddle.
         fine_e = _FINE_STRADDLE                                   # 4 fine groups
         coarse_e = np.array([1.0e6, 1.0e2, 1.0e-2])              # cut @1e2 (a fine edge)
-        cond = _build_fractional(fine_e, coarse_e, within_group=InverseEnergySpectrum())
-        T = np.asarray(cond.table, dtype=float)
+        overlap = _build_fractional(fine_e, coarse_e, within_group=InverseEnergySpectrum())
+        T = np.asarray(overlap.overlap_table, dtype=float)
         # Independent one-hot oracle from the containing-interval map.
-        cof = np.asarray(cond.coarse_of_fine, dtype=int).ravel()
+        cof = np.asarray(overlap.dominant_column, dtype=int).ravel()
         one_hot = np.zeros_like(T)
         one_hot[np.arange(T.shape[0]), cof] = 1.0
         np.testing.assert_array_equal(
@@ -592,14 +510,13 @@ class TestF2PartitionOfUnity:
 # ══════════════════════════════════════════════════════════════════════
 
 
-@_needs_fractional
 class TestF3NestedDegeneracy:
     """A nested fine→coarse fractional table reproduces the one-hot exactly.
 
     The 'no regression on the easy case' pin. The EXISTING nested intrinsic
-    gates (TestGroupCondensationIntrinsic G1–G6) still pass unchanged — this
-    adds the specific claim that the fractional ``table`` equals the one-hot
-    ``coarse_of_fine`` map for a coarse grid whose boundaries coincide with
+    gates (TestOverlapToIntrinsic) still pass unchanged — this adds the
+    specific claim that the fractional ``overlap_table`` equals the one-hot
+    ``dominant_column`` map for a coarse grid whose boundaries coincide with
     fine boundaries.
     """
 
@@ -607,8 +524,8 @@ class TestF3NestedDegeneracy:
         """8 fine → 3 coarse, all coarse edges ON fine edges → one-hot table."""
         fine_e = np.array([1e7, 5e6, 1e6, 1e3, 1e1, 1e0, 1e-1, 1e-2, 1e-3])  # 8 groups
         coarse_e = np.array([1e7, 1e6, 1e0, 1e-3])  # cuts at fine edges 1e6,1e0
-        cond = _build_fractional(fine_e, coarse_e, within_group=InverseEnergySpectrum())
-        T = np.asarray(cond.table, dtype=float)
+        overlap = _build_fractional(fine_e, coarse_e, within_group=InverseEnergySpectrum())
+        T = np.asarray(overlap.overlap_table, dtype=float)
         # Expected fast-first contiguous one-hot: {g0,g1}→0, {g2,g3,g4}→1, {g5,g6,g7}→2
         expected_cof = np.array([0, 0, 1, 1, 1, 2, 2, 2])
         one_hot = np.zeros((8, 3))
@@ -622,11 +539,11 @@ class TestF3NestedDegeneracy:
         """The dominant-coarse report (argmax of table) is the contiguous map."""
         fine_e = np.array([1e7, 5e6, 1e6, 1e3, 1e1, 1e0, 1e-1, 1e-2, 1e-3])
         coarse_e = np.array([1e7, 1e6, 1e0, 1e-3])
-        cond = _build_fractional(fine_e, coarse_e, within_group=InverseEnergySpectrum())
+        overlap = _build_fractional(fine_e, coarse_e, within_group=InverseEnergySpectrum())
         np.testing.assert_array_equal(
-            np.asarray(cond.coarse_of_fine, dtype=int).ravel(),
+            np.asarray(overlap.dominant_column, dtype=int).ravel(),
             np.array([0, 0, 1, 1, 1, 2, 2, 2]),
-            err_msg="nested coarse_of_fine must be the contiguous fast-first partition",
+            err_msg="nested dominant_column must be the contiguous fast-first partition",
         )
 
 
@@ -638,31 +555,23 @@ class TestF3NestedDegeneracy:
 class TestF5UpscalingGuard:
     """coarse.n_groups > fine.n_groups MUST raise — condensation cannot
     fabricate finer structure. Positive control: a valid coarser target does
-    NOT raise. The negative leg needs the SUT (it is a construction guard);
-    the positive control runs whenever GroupCondensation exists.
+    NOT raise. The guard lives in ``EnergyGrid.overlap_to``.
     """
 
-    @_needs_cond
     def test_upscaling_target_raises(self) -> None:
         """A coarse grid FINER than the fine grid (more groups) → ValueError.
 
         64 fine groups → a 200-group 'coarse' target is upscaling, which
         condensation forbids (the few-group structure must be coarser). The
-        guard belongs at construction (the orientation-/span-check site).
+        guard belongs at the ``overlap_to`` (orientation-/span-check) site.
         """
-        if not _HAS_ENERGY_GRID:
-            pytest.skip("EnergyGrid needed")
         # 64 fine groups (65 descending edges, log-spaced 1e7..1e-3).
         fine = EnergyGrid(np.logspace(7, -3, 65))
         # 200 'coarse' groups within the SAME span — strictly finer ⇒ upscaling.
         coarse = EnergyGrid(np.logspace(7, -3, 201))
         with pytest.raises((ValueError, AssertionError)):
-            if hasattr(GroupCondensation, "from_grids"):
-                GroupCondensation.from_grids(fine, coarse)
-            else:
-                GroupCondensation(fine, coarse)
+            fine.overlap_to(coarse)
 
-    @_needs_cond
     def test_valid_coarser_target_does_not_raise(self) -> None:
         """Positive control: a genuinely coarser target constructs cleanly.
 
@@ -670,18 +579,13 @@ class TestF5UpscalingGuard:
         of unequal group counts (vv #11 positive leg — the guard must not be
         a no-op-that-always-raises nor an always-passes).
         """
-        if not _HAS_ENERGY_GRID:
-            pytest.skip("EnergyGrid needed")
         fine = EnergyGrid(np.logspace(7, -3, 65))     # 64 fine
         coarse = EnergyGrid(np.logspace(7, -3, 9))    # 8 coarse, nested
-        cond = (
-            GroupCondensation.from_grids(fine, coarse)
-            if hasattr(GroupCondensation, "from_grids")
-            else GroupCondensation(fine, coarse)
-        )
-        # n_coarse < n_fine and it built — the downsampling direction is allowed.
+        # MUST NOT raise — the downsampling direction is allowed.
+        fine.overlap_to(coarse)
+        # n_coarse < n_fine — the downsampling direction is the valid one.
         np.testing.assert_array_less(
-            cond.coarse.n_groups, cond.fine.n_groups,
+            coarse.n_groups, fine.n_groups,
             err_msg="a coarser target must construct (downsampling is allowed)",
         )
 
@@ -691,9 +595,8 @@ class TestF5UpscalingGuard:
 # ══════════════════════════════════════════════════════════════════════
 
 
-@_needs_fractional
 class TestF6LocalInterpolationReport:
-    """``locally_interpolated`` is EMPTY for a nested map, NON-EMPTY for a
+    """``fractional_columns`` is EMPTY for a nested map, NON-EMPTY for a
     straddle (the coarse groups whose data leans on the within-group model).
     """
 
@@ -701,8 +604,8 @@ class TestF6LocalInterpolationReport:
         """A nested condensation interpolated nothing → empty report."""
         fine_e = np.array([1e7, 5e6, 1e6, 1e3, 1e1, 1e0, 1e-1, 1e-2, 1e-3])
         coarse_e = np.array([1e7, 1e6, 1e0, 1e-3])  # all cuts on fine edges
-        cond = _build_fractional(fine_e, coarse_e, within_group=InverseEnergySpectrum())
-        li = np.asarray(cond.locally_interpolated, dtype=int).ravel()
+        overlap = _build_fractional(fine_e, coarse_e, within_group=InverseEnergySpectrum())
+        li = np.asarray(overlap.fractional_columns, dtype=int).ravel()
         np.testing.assert_array_equal(
             li.size, 0,
             err_msg="nested condensation must report NO locally-interpolated groups",
@@ -714,17 +617,17 @@ class TestF6LocalInterpolationReport:
         g2 straddles the 1e1 cut, fanning fractionally into BOTH G0 and G1, so
         BOTH coarse groups received a fractional (straddle) contribution.
         """
-        cond = _build_fractional(
+        overlap = _build_fractional(
             _FINE_STRADDLE, _COARSE_STRADDLE,
             within_group=InverseEnergySpectrum(),
         )
-        li = set(np.asarray(cond.locally_interpolated, dtype=int).ravel().tolist())
+        li = set(np.asarray(overlap.fractional_columns, dtype=int).ravel().tolist())
         np.testing.assert_array_less(
             0, len(li),
             err_msg="a straddle must report ≥1 locally-interpolated coarse group",
         )
         # Both coarse groups that g2 fans into are interpolation-dependent.
-        T = np.asarray(cond.table, dtype=float)
+        T = np.asarray(overlap.overlap_table, dtype=float)
         fractional_cols = set(np.nonzero((T > 1e-12) & (T < 1.0 - 1e-12))[1].tolist())
         np.testing.assert_array_equal(
             fractional_cols.issubset(li), True,
