@@ -7,7 +7,7 @@ macroscopic cross sections used by reactor solvers.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 from scipy.sparse import csr_matrix
@@ -16,6 +16,9 @@ from orpheus.data.emission_spectrum import enforce_emission_spectrum
 from orpheus.data.micro_xs.isotope import NG, Isotope
 from .interpolation import interp_sig_s, interp_xs_field
 from .sigma_zeros import solve_sigma_zeros
+
+if TYPE_CHECKING:
+    from orpheus.data.energy_grid import GroupCondensation
 
 
 @dataclass
@@ -46,8 +49,9 @@ class Mixture:
         physical energy grid exists — *not* a placeholder to be filled in.
 
         ``eg``'s production use is spectrum-weighted energy condensation
-        (Galerkin projection from fine to coarse groups). That step
-        depends on the grid; it cannot run on synthetic mixtures.
+        (Petrov-Galerkin fractional-overlap projection from fine to coarse
+        groups; see :meth:`condense`). That step depends on the grid; it
+        cannot run on synthetic mixtures.
     """
 
     SigC: np.ndarray
@@ -203,6 +207,106 @@ class Mixture:
         the 1G analytical bridge and for diagnostic display.
         """
         return (self.total_scattering_xs + self.SigP) / self.SigT
+
+    def condense(
+        self, condensation: "GroupCondensation", spectrum: np.ndarray
+    ) -> "Mixture":
+        r"""Collapse onto a coarse group structure, spectrum-weighted (rank-0).
+
+        The energy-axis transpose of spatial homogenization: every cross-section
+        channel is flux-weighted-averaged from this mixture's fine groups onto the
+        coarser ``condensation.coarse`` structure, preserving each coarse group's
+        reaction rate. Reuses the unchanged Petrov-Galerkin frame
+        (:meth:`orpheus.numerics.frame.FrameBase.project`) — the flux ``spectrum`` is
+        the TEST weight, the energy measure is counting — over the fractional-overlap
+        table :attr:`~orpheus.data.energy_grid.GroupCondensation.table` (a fine group
+        straddling a coarse boundary contributes a fraction of its rate to each side).
+
+        Per channel:
+
+        * **vectors** (``SigT``/``SigC``/``SigL``/``SigF``/``SigP``):
+          :math:`\Sigma_G = (\sum_g T_{gG}\,\varphi_g\,\Sigma_g)
+          /(\sum_g T_{gG}\,\varphi_g)` = ``frame.project(Σ)``.
+        * **matrices** (``SigS[ℓ]``, ``Sig2``; ``[g_from, g_to]``): a 2-axis collapse
+          — the sink ``g_to`` is **summed** (``Σ @ T``), then the source ``g_from`` is
+          **flux-averaged** (``frame.project``). Both axes route through ``T``.
+        * **χ**: a pure birth-group **sum** ``χ @ T`` (a probability over birth
+          groups; preserves :math:`\sum\chi = 1`), NOT flux-weighted — there is no
+          spatial averaging here, unlike :meth:`orpheus.sn.solution.Solution.homogenize`.
+
+        Parameters
+        ----------
+        condensation : GroupCondensation
+            The fine→coarse partition (its ``fine`` grid must match this mixture's
+            ``eg``). Carries the fractional-overlap table + the within-group flux
+            model.
+        spectrum : (ng,) array
+            The per-fine-group representative flux :math:`\varphi_g` (the test
+            weight). For a real condensation this is the solved scalar flux over the
+            cells where the material appears (see
+            :meth:`orpheus.sn.solution.Solution.condense`).
+
+        Returns
+        -------
+        Mixture
+            The condensed (coarse-group) mixture. Passes :meth:`assert_balanced`
+            when this one does (every removal channel collapses with the same
+            per-coarse-group flux weight :math:`\Phi_G`).
+
+        Raises
+        ------
+        ValueError
+            If this mixture has no energy grid (``eg is None``), or the
+            condensation's fine grid / the ``spectrum`` length does not match
+            :attr:`ng`.
+        """
+        from orpheus.numerics.basis import WeightedIndicatorBasis
+        from orpheus.numerics.frame import PetrovGalerkinFrame
+
+        if self.eg is None:
+            raise ValueError(
+                "cannot condense a Mixture with no energy grid (eg is None — a "
+                "synthetic/Sood mixture has no physical grid to condense)."
+            )
+        if condensation.fine.n_groups != self.ng:
+            raise ValueError(
+                f"condensation fine grid has {condensation.fine.n_groups} groups but "
+                f"this Mixture has {self.ng}."
+            )
+        phi = np.asarray(spectrum, dtype=float)
+        if phi.shape != (self.ng,):
+            raise ValueError(
+                f"spectrum must have shape ({self.ng},), got {phi.shape}."
+            )
+
+        trial = condensation.indicator_basis()
+        frame = PetrovGalerkinFrame(
+            trial, condensation.measure, WeightedIndicatorBasis(trial, phi)
+        )
+        table = condensation.table
+
+        def collapse_vector(sig: np.ndarray) -> np.ndarray:
+            return frame.project(np.asarray(sig, dtype=float))
+
+        def collapse_matrix(mat: csr_matrix) -> csr_matrix:
+            # sink g_to SUMMED (@ T), then source g_from flux-AVERAGED (project).
+            sink_summed = np.asarray(mat.todense(), dtype=float) @ table
+            return csr_matrix(frame.project(sink_summed))
+
+        return Mixture(
+            SigC=collapse_vector(self.SigC),
+            SigL=collapse_vector(self.SigL),
+            SigF=collapse_vector(self.SigF),
+            SigP=collapse_vector(self.SigP),
+            SigT=collapse_vector(self.SigT),
+            SigS=[collapse_matrix(s) for s in self.SigS],
+            Sig2=collapse_matrix(self.Sig2),
+            # χ → pure birth-group SUM: the SAME ``@ table`` primitive as the matrix
+            # sink axis in collapse_matrix (the table's birth-group-sum role), NOT a
+            # flux-average. Preserves Σχ via the table's partition-of-unity rows.
+            chi=np.asarray(self.chi) @ table,
+            eg=condensation.coarse.edges,
+        )
 
 
 def production_weighted_chi(
