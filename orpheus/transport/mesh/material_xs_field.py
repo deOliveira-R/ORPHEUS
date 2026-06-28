@@ -804,6 +804,55 @@ class MaterialXSField:
                 )
         return out
 
+    def apply_n2n_moments(self, moments: np.ndarray) -> np.ndarray:
+        r"""Apply the (n,2n) isotropic ℓ=0 moment operator :math:`2\,\Sigma_{2n}`.
+
+        The (n,2n) reaction is isotropic — it scatters ONLY the :math:`\ell=0`
+        flux moment (the scalar flux) with twice the multiplicity transfer
+        :math:`2\,\Sigma_{2n}(g'\to g)`. This is the **moment-space twin** of
+        :meth:`apply_n2n` (which acts on the bare scalar flux): the in-frame form
+        that lets (n,2n) join the scattering kernel as a DISTINCT :math:`\ell=0`
+        operator summed with :math:`\Lambda` before one :math:`R\circ(\cdot)\circ M`
+        (campaign #276 A2 — physics-faithful: multiplication kept separate from
+        scattering). All :math:`\ell\ge 1` blocks are left zero.
+
+        Parameters
+        ----------
+        moments : np.ndarray
+            Moment field ``(L+1, 2L+1, ng, *spatial)``; only the ``[0, 0]``
+            (:math:`\ell=0`, :math:`m=0`) block is read/written.
+
+        Returns
+        -------
+        np.ndarray
+            Same shape as ``moments`` — ``ℓ≥1`` zero, ``ℓ=0`` = ``2·Σ_2nᵀ·(ℓ=0 moment)``.
+        """
+        out = np.zeros_like(moments)
+        for mid, idx in self.cells_by_material.items():
+            sig2 = self.n2n_matrix(mid)
+            cells = (Ellipsis, *idx)
+            mv = moments[0, :1][cells]  # (1, ng, *spatial) — the ℓ=0 moment
+            out[0, :1][cells] = (
+                2.0 * np.einsum("mfc...,fg->mgc...", mv, sig2) + out[0, :1][cells]
+            )
+        return out
+
+    def apply_n2n_moments_transpose(self, moments: np.ndarray) -> np.ndarray:
+        r"""Apply :math:`(2\,\Sigma_{2n})^{T}` — the ℓ=0 group-transpose twin of
+        :meth:`apply_n2n_moments` (``"mfc,fg→mgc"`` ⇒ ``"mfc,gf→mgc"``; the forward
+        bakes a ``.T`` so the transpose applies :math:`\Sigma_{2n}` un-transposed).
+        Campaign #276 A2 — the bare Euclidean transpose of the (n,2n) channel.
+        """
+        out = np.zeros_like(moments)
+        for mid, idx in self.cells_by_material.items():
+            sig2 = self.n2n_matrix(mid)
+            cells = (Ellipsis, *idx)
+            mv = moments[0, :1][cells]
+            out[0, :1][cells] = (
+                2.0 * np.einsum("mfc...,gf->mgc...", mv, sig2) + out[0, :1][cells]
+            )
+        return out
+
     def add_n2n_to_group_rate(
         self,
         rate: np.ndarray,

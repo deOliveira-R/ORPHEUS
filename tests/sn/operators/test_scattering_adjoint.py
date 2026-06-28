@@ -36,7 +36,11 @@ from orpheus.numerics.operator import CAP_APPLY_TRANSPOSE, CAP_SOLVE
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import SNSolver
-from orpheus.transport.operators.scattering import LegendreMomentScattering
+from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.operators.scattering import (
+    LegendreMomentScattering,
+    N2NMomentOperator,
+)
 
 pytestmark = pytest.mark.foundation
 
@@ -188,4 +192,94 @@ class TestKernelTranspose:
             lhs, rhs, rtol=1e-12,
             err_msg="kernel (R∘Λ∘M) Euclidean reciprocity violated — Mᵀ∘Λᵀ∘Rᵀ "
             "did not compose correctly through OperatorProduct.apply_transpose.",
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# N2N — the (n,2n) isotropic ℓ=0 moment operator (distinct, in-frame).
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestN2NMomentOperator:
+    def test_capability_apply_and_transpose(self, solver_p1_het):
+        n2n = N2NMomentOperator(mat_xs=solver_p1_het.scattering_op.mat_xs, L=1)
+        require(CAP_APPLY_TRANSPOSE in n2n.capabilities,
+                f"N2N must advertise apply_transpose; got {n2n.capabilities}.")
+        require(CAP_SOLVE not in n2n.capabilities, "N2N must NOT advertise solve.")
+
+    def test_acts_only_on_ell0(self, solver_p1_het):
+        r"""(n,2n) is isotropic — it touches ONLY the ℓ=0 block (ℓ≥1 stay zero)."""
+        op = solver_p1_het.scattering_op
+        nx, ny = op.mat_xs.spatial_shape
+        n2n = N2NMomentOperator(mat_xs=op.mat_xs, L=1)
+        m = _moment_field(op, nx, ny, 6)
+        out = n2n.apply(m)
+        np.testing.assert_array_equal(
+            out[1:], np.zeros_like(out[1:]),
+            err_msg="N2N wrote a non-zero ℓ≥1 block — it must be isotropic (ℓ=0 only).",
+        )
+
+    def test_moment_space_transpose_identity(self, solver_p1_het):
+        op = solver_p1_het.scattering_op
+        nx, ny = op.mat_xs.spatial_shape
+        n2n = N2NMomentOperator(mat_xs=op.mat_xs, L=1)
+        m = _moment_field(op, nx, ny, 7); c = _moment_field(op, nx, ny, 8)
+        lhs = float((n2n.apply(m) * c).sum())
+        rhs = float((m * n2n.apply_transpose(c)).sum())
+        np.testing.assert_allclose(
+            lhs, rhs, rtol=1e-12,
+            err_msg="N2N moment-space transpose identity ⟨N2N m,c⟩=⟨m,N2Nᵀc⟩ violated.",
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Full scatter kernel = frame.conjugate(Λ_{ℓ≥0} + N2N) — the A2a readiness gate:
+# the modernized R∘(Λ+N2N)∘M reproduces the CURRENT forward S (P0+aniso+n2n).
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestFullScatterKernel:
+    def _full_kernel(self, op):
+        lam = LegendreMomentScattering(mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=False)
+        n2n = N2NMomentOperator(mat_xs=op.mat_xs, L=op.scattering_order)
+        return op.frame.conjugate(lam + n2n)  # OperatorSum via '+', then R∘(·)∘M
+
+    def test_reproduces_forward_scattering_source(self, solver_p1_het):
+        r"""``(1/W)·frame.conjugate(Λ_{ℓ≥0}+N2N).apply(ψ) == S.apply(ψ)`` (principled-equiv).
+
+        The load-bearing A2a equivalence: the modernized iso+aniso+n2n frame path
+        reproduces the legacy fast-path forward (P0 via add_iso, aniso via kernel,
+        n2n via add_n2n) — principled-equiv (Y₀⁰=1; same math, reduction-order
+        differs ⟹ ~1e-14, NOT 0-ULP).
+        """
+        op = solver_p1_het.scattering_op
+        nx, ny = op.mat_xs.spatial_shape
+        W = float(op.weights.sum())
+        psi = AngularFlux.from_mesh(
+            np.random.default_rng(10).uniform(0.05, 1.0, size=(op.weights.shape[0], op.ng, nx, ny)),
+            solver_p1_het.sn_mesh,
+        )
+        candidate = self._full_kernel(op).apply(psi.values) / W
+        forward = op.apply(psi).values
+        np.testing.assert_allclose(
+            candidate, forward, rtol=1e-12, atol=0.0,
+            err_msg="frame.conjugate(Λ_{ℓ≥0}+N2N)/W does NOT reproduce the forward "
+            "scattering source — the iso-modernization is not equivalent to the "
+            "legacy fast-path.",
+        )
+
+    def test_full_kernel_euclidean_reciprocity(self, solver_p1_het):
+        r"""``⟨S ψ, c⟩ = ⟨ψ, Sᵀ c⟩`` for the full P0+aniso+n2n kernel (the A2b transpose)."""
+        op = solver_p1_het.scattering_op
+        nx, ny = op.mat_xs.spatial_shape
+        N = op.weights.shape[0]
+        fk = self._full_kernel(op)
+        rng = np.random.default_rng(11)
+        psi = rng.uniform(0.05, 1.0, size=(N, op.ng, nx, ny))
+        c = rng.uniform(0.05, 1.0, size=(N, op.ng, nx, ny))
+        lhs = float((fk.apply(psi) * c).sum())
+        rhs = float((psi * fk.apply_transpose(c)).sum())
+        np.testing.assert_allclose(
+            lhs, rhs, rtol=1e-12,
+            err_msg="full scatter kernel (P0+aniso+n2n) Euclidean reciprocity violated.",
         )

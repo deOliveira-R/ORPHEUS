@@ -418,6 +418,56 @@ class LegendreMomentScattering(LinearOperator):
         return self.domain
 
 
+@dataclass(frozen=True)
+class N2NMomentOperator(LinearOperator):
+    r"""The (n,2n) isotropic :math:`\ell=0` moment operator :math:`2\,\Sigma_{2n}`.
+
+    The (n,2n) reaction is a DISTINCT isotropic (:math:`\ell=0`) group transfer —
+    a *multiplication* channel (each event emits two neutrons), NOT scattering —
+    so it is its own named operator rather than folded into
+    :class:`LegendreMomentScattering`'s :math:`\ell=0` block. It is summed with
+    :math:`\Lambda` in moment space (an
+    :class:`~orpheus.numerics.operator.OperatorSum`) and the pair is
+    frame-conjugated together, so the full isotropic + anisotropic in-scatter
+    source is ONE :math:`R\circ(\Lambda + N_{2n})\circ M` (one analysis, one
+    reconstruction). Campaign #276 A2 — physics-faithful: the multiplication
+    reaction stays visible as a distinct operator with its own
+    :meth:`apply` / :meth:`apply_transpose`, NOT hidden inside the scattering
+    matmul.
+
+    Endomorphic on the spherical-harmonic coefficient space of order :attr:`L`
+    (it reads/writes ONLY the :math:`\ell=0` block, so it composes in an
+    ``OperatorSum`` with :math:`\Lambda` on the same space); per-material dispatch
+    lives in :meth:`MaterialXSField.apply_n2n_moments` (Pattern 2).
+    """
+
+    mat_xs: "MaterialXSField"
+    L: int
+    capabilities: frozenset[str] = field(
+        default_factory=lambda: frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
+    )
+
+    def apply(self, moments: np.ndarray) -> np.ndarray:
+        r""":math:`2\,\Sigma_{2n}` applied to the :math:`\ell=0` moment (ℓ≥1 zero)."""
+        return self.mat_xs.apply_n2n_moments(moments)
+
+    def apply_transpose(self, moments: np.ndarray) -> np.ndarray:
+        r"""The :math:`\ell=0` group-transpose :math:`(2\,\Sigma_{2n})^{T}`."""
+        return self.mat_xs.apply_n2n_moments_transpose(moments)
+
+    @property
+    def domain(self) -> "FunctionSpace":
+        r"""The SH coefficient space of order :attr:`L` — :math:`N_{2n}` is endomorphic."""
+        from orpheus.numerics.spaces import SphericalHarmonicSpace
+
+        return SphericalHarmonicSpace.from_L(self.L)
+
+    @property
+    def codomain(self) -> "FunctionSpace":
+        r"""Endomorphic — codomain ``==`` :attr:`domain`."""
+        return self.domain
+
+
 @dataclass
 class ScatteringOperator(LinearOperator):
     r"""Scattering source operator :math:`S` (P0 + Pℓ + (n,2n)).
