@@ -679,6 +679,59 @@ class MaterialXSField:
                 "fg,fc...->gc...", sig2, phi[cells],
             )
 
+    def apply_p0_in_scatter_transpose(self, Q: np.ndarray, chi: np.ndarray) -> None:
+        r"""Add the transpose P0 in-scatter source :math:`\Sigma_{s,0}\,\chi` to ``Q``.
+
+        The bare Euclidean transpose of :meth:`apply_p0_in_scatter`: the forward
+        contracts the SOURCE group of :math:`\Sigma_{s,0}(g'\to g)`
+        (``einsum("fg,fc...->gc...")``, output the SINK group :math:`g`); the
+        transpose contracts the SINK group instead (``einsum("fg,gc...->fc...")``),
+        i.e. :math:`(\Sigma_{s,0}^{T}\chi)_{g'} = \sum_g \Sigma_{s,0}(g'\to g)\,
+        \chi_g`. The scalar-flux twin of
+        :meth:`apply_legendre_scattering_moments_transpose` (no harmonic
+        :math:`m`-axis); the group-asymmetric factor of the adjoint isotropic
+        scattering source :math:`S^{T}` (campaign #276 — the model-independent
+        :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+        energy operator's ``apply_transpose`` routes through this single
+        per-material dispatch site, Pattern 2). The metric-correct Hilbert adjoint
+        is the :attr:`~orpheus.numerics.operator.LinearOperator.H` wrapper's job.
+
+        Spatial-moment-axis-agnostic (#240 D5b-S3): the trailing ``...`` rides an
+        LD ``2^d`` spectator axis through; byte-identical at the single-moment
+        closures (trailing axis absent).
+
+        Parameters
+        ----------
+        Q : np.ndarray
+            Source carrier, shape ``(ng, *spatial)`` (or ``(ng, *spatial, 2^d)``
+            at an LD multi-moment closure).  Modified in place.
+        chi : np.ndarray
+            Scalar field (the adjoint flux moment), same shape as ``Q``.
+        """
+        for mid, idx in self.cells_by_material.items():
+            sig_s0 = self.sig_s_legendre(mid)[0]  # (ng, ng) [g_from, g_to]
+            cells = (slice(None), *idx)
+            Q[cells] += np.einsum(
+                "fg,gc...->fc...", sig_s0, chi[cells],
+            )
+
+    def apply_n2n_transpose(self, Q: np.ndarray, chi: np.ndarray) -> None:
+        r"""Add the transpose (n,2n) source :math:`2\,\Sigma_{2n}\,\chi` to ``Q``.
+
+        The bare Euclidean transpose of :meth:`apply_n2n` (``"fg,fc...->gc..."``
+        ⇒ ``"fg,gc...->fc..."``; the forward bakes a ``.T`` so the transpose
+        applies :math:`\Sigma_{2n}` un-transposed). The scalar-flux twin of
+        :meth:`apply_n2n_moments_transpose`; the (n,2n) channel of the adjoint
+        isotropic scattering source (campaign #276). Spatial-moment-axis-agnostic
+        (the trailing ``...`` rides an LD ``2^d`` spectator axis through).
+        """
+        for mid, idx in self.cells_by_material.items():
+            sig2 = self.n2n_matrix(mid)
+            cells = (slice(None), *idx)
+            Q[cells] += 2.0 * np.einsum(
+                "fg,gc...->fc...", sig2, chi[cells],
+            )
+
     def apply_legendre_scattering_moments(
         self,
         moments: np.ndarray,
