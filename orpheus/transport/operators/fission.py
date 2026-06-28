@@ -91,13 +91,16 @@ delegator) divides by :math:`k`. Two reasons:
 Capability advertisement
 ========================
 
-:pydata:`capabilities = frozenset({CAP_APPLY})`. No ``solve``: the
-operator is **rank-1 in energy** per cell — its inverse does not exist.
-No ``apply_transpose``: the adjoint fission operator is
-:math:`F^T\,\phi^* = \nu\Sigma_f \cdot (\chi \cdot \phi^*)`, structurally
-distinct (it sums over the **adjoint** energy distribution); the
-current ORPHEUS solver does not consume :math:`F^T`. Both can be added
-in a future wave when the adjoint transport machinery lands.
+:pydata:`capabilities = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})`. No
+``solve``: the operator is **rank-1 in energy** per cell — its inverse does
+not exist. The adjoint fission operator :math:`F^\dagger\,\phi^* =
+\nu\Sigma_f \cdot (\chi \cdot \phi^*)` IS advertised (campaign #276): it is
+the **dual dyad** :math:`|\nu\Sigma_f\rangle\langle\chi|` — the χ↔νΣf role
+swap (emission becomes the adjoint weighting, production the adjoint
+spectrum). It falls out of :attr:`kernel`'s tensor-product transpose by
+swapping the rank-1 ``outer`` factors — no new kernel code; the transpose
+lives on the :class:`~orpheus.numerics.operator.RankOneOperator` primitive.
+See :meth:`apply_transpose`.
 """
 
 from __future__ import annotations
@@ -111,6 +114,7 @@ import numpy as np
 from orpheus.numerics.operator import (
     BlockRole,
     CAP_APPLY,
+    CAP_APPLY_TRANSPOSE,
     IdentityOperator,
     LinearOperator,
     TensorProductOperator,
@@ -158,14 +162,16 @@ class FissionOperator(LinearOperator):
         Macroscopic XS field carrying ``emission_spectrum`` (χ) and
         ``fission_production`` (νΣ_f) per-cell views.
     capabilities : frozenset[str]
-        ``{"apply"}`` — the rank-1 structure forbids a useful inverse,
-        and the adjoint surface is not yet a consumer.
+        ``{"apply", "apply_transpose"}`` — the rank-1 structure forbids a
+        useful inverse (no ``solve``), but the dyad HAS a transpose: the
+        adjoint fission :math:`F^\dagger = |\nu\Sigma_f\rangle\langle\chi|`
+        (campaign #276), the χ↔νΣf role swap.
     """
 
     mat_xs: "MaterialXSField"
 
     capabilities: frozenset[str] = field(
-        default_factory=lambda: frozenset({CAP_APPLY})
+        default_factory=lambda: frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
     )
 
     #: The composite full-field space (P4.5 W-D) — threaded from the solver's
@@ -350,6 +356,46 @@ class FissionOperator(LinearOperator):
         arm is ``tests/sn/operators/test_fission_kernel_crosscheck.py`` (B.2).
         """
         return ReactionRateFunctional(self.mat_xs.fission_production_field)
+
+    def apply_transpose(self, phi_star: np.ndarray) -> np.ndarray:
+        r"""Adjoint fission :math:`F^\dagger\psi^* = \nu\Sigma_f\,(\chi\cdot\psi^*)`.
+
+        The transpose of the rank-1 dyad
+        :math:`F = |\chi\rangle\langle\nu\Sigma_f|` is the **dual dyad**
+        :math:`F^\dagger = |\nu\Sigma_f\rangle\langle\chi|` — the χ↔νΣf **role
+        swap**: the emission spectrum :math:`\chi` becomes the contracted row
+        co-vector and the production cross section :math:`\nu\Sigma_f` becomes
+        the reconstruction column,
+
+        .. math::
+
+            (F^\dagger\psi^*)_g(\vec r) = \nu\Sigma_{f,g}(\vec r)\,
+                \sum_{g'} \chi_{g'}(\vec r)\,\psi^*_{g'}(\vec r).
+
+        Physically: a high adjoint flux (importance) in the emission groups
+        :math:`\chi` makes a cell a strong adjoint source weighted by its
+        production :math:`\nu\Sigma_f` — the adjoint of "fission in :math:`g'`
+        emits into the :math:`\chi` spectrum".
+
+        This is the Euclidean transpose :math:`F^{T}`; the metric-correct
+        Hilbert adjoint :math:`F^\dagger = G^{-1}F^{T}G` is the
+        :attr:`~orpheus.numerics.operator.LinearOperator.H` wrapper's job.
+        Routes through :attr:`kernel`'s
+        :meth:`~orpheus.numerics.operator.TensorProductOperator.apply_transpose`
+        — single source of truth: the SAME rank-1 ``outer`` primitive with its
+        column and row swapped
+        (:meth:`~orpheus.numerics.operator.RankOneOperator.apply_transpose`),
+        the :class:`~orpheus.numerics.operator.IdentityOperator` spatial factor
+        self-transposing.
+
+        Bare-``np.ndarray`` surface — the K-eigenvalue / adjoint outer-iteration
+        boundary, symmetric with the bare-ndarray :meth:`apply` arm. Accepts a
+        :class:`~orpheus.numerics.field.Field`-like carrier (its ``.values`` is
+        read); typed adjoint-flux carriers are threaded when the adjoint
+        transport machinery lands (campaign #276).
+        """
+        arr = np.asarray(getattr(phi_star, "values", phi_star))
+        return self.kernel.apply_transpose(arr)
 
     @singledispatchmethod
     def _apply_impl(self, phi) -> "Any":

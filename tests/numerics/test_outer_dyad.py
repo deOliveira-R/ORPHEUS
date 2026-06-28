@@ -25,7 +25,14 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.functional import InnerProductFunctional
-from orpheus.numerics.operator import CAP_APPLY, CAP_SOLVE, RankOneOperator, outer
+from orpheus.numerics.operator import (
+    CAP_APPLY,
+    CAP_APPLY_TRANSPOSE,
+    CAP_SOLVE,
+    MissingCapability,
+    RankOneOperator,
+    outer,
+)
 
 pytestmark = pytest.mark.l0
 
@@ -93,12 +100,78 @@ class TestOuterEqualsRankOneOperator:
 
 
 class TestCapability:
-    r"""Rank-1 advertises ``apply`` only — non-invertible by construction."""
+    r"""Rank-1 advertises ``apply`` + ``apply_transpose`` (the dual dyad), never ``solve``.
 
-    def test_capabilities_apply_only(self):
+    A dyad is **non-invertible** (no ``solve`` — its kernel is the row's
+    orthogonal complement along the contracted axis) but it HAS a **transpose**:
+    ``(|v⟩⟨w|)ᵀ = |w⟩⟨v|``. The transpose exists iff the row is a genuine
+    co-vector (:class:`InnerProductFunctional`) whose weight is the dual column;
+    an opaque / nonlinear functional has no dual column, so its dyad advertises
+    ``apply`` only (the honest refusal). Campaign #276 (adjoint transport) added
+    the transpose on the primitive — F† falls out of it.
+    """
+
+    def test_inner_product_dyad_advertises_apply_and_transpose_not_solve(self):
         op = outer(np.array([[1.0], [2.0]]), InnerProductFunctional(np.array([[3.0], [4.0]]), axis=0))
-        _require(op.capabilities == frozenset({CAP_APPLY}), f"expected {{CAP_APPLY}}; got {op.capabilities}.")
-        _require(CAP_SOLVE not in op.capabilities, "a rank-1 operator must NOT advertise solve.")
+        _require(CAP_APPLY in op.capabilities, "a rank-1 dyad must advertise apply.")
+        _require(
+            CAP_APPLY_TRANSPOSE in op.capabilities,
+            "a rank-1 dyad with an InnerProductFunctional row must advertise "
+            f"apply_transpose (the dual dyad |w⟩⟨v|); got {op.capabilities}.",
+        )
+        _require(CAP_SOLVE not in op.capabilities, "a rank-1 operator must NOT advertise solve (non-invertible).")
+        _require(
+            op.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE}),
+            f"expected exactly {{apply, apply_transpose}}; got {op.capabilities}.",
+        )
+
+    def test_opaque_functional_dyad_is_apply_only(self):
+        # A row with no dual column (NOT an InnerProductFunctional) yields an
+        # apply-only dyad — apply_transpose is honestly unavailable (it raises).
+        class _OpaqueFunctional:
+            def evaluate(self, x, /):
+                return np.asarray(x).sum(axis=0, keepdims=True)
+
+        op = outer(np.array([[1.0], [2.0]]), _OpaqueFunctional())
+        _require(op.capabilities == frozenset({CAP_APPLY}), f"expected {{apply}} only; got {op.capabilities}.")
+        _require(
+            CAP_APPLY_TRANSPOSE not in op.capabilities,
+            "an opaque-functional dyad has no dual column → must NOT advertise apply_transpose.",
+        )
+        with pytest.raises(MissingCapability):
+            op.apply_transpose(np.array([[1.0], [1.0]]))
+
+
+class TestDyadTranspose:
+    r"""``(|v⟩⟨w|)ᵀ = |w⟩⟨v|`` — the dual-dyad transpose law (campaign #276, A1)."""
+
+    def test_apply_transpose_is_dual_dyad(self):
+        # Forward |v⟩⟨w| x = v · ⟨w, x⟩; transpose |w⟩⟨v| y = w · ⟨v, y⟩, the
+        # column and the row swapped, contracting over the SAME axis.
+        v = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])  # (2, 3) column
+        w_arr = np.array([[0.5, 1.0, 2.0], [1.5, 0.0, 0.25]])  # (2, 3) row weight
+        op = outer(v, InnerProductFunctional(w_arr, axis=0))
+        y = np.array([[2.0, 1.0, 0.5], [3.0, 4.0, 8.0]])
+
+        got = op.apply_transpose(y)
+        # structurally-independent: w · (hand Python-loop dot of v with y).
+        ref = w_arr * _hand_dot_axis0(v, y)[None, :]
+        np.testing.assert_array_almost_equal_nulp(got, ref, nulp=8)
+        # the transpose IS the dual dyad outer(w, ⟨v|).apply — single source of truth.
+        dual = outer(w_arr, InnerProductFunctional(v, axis=0))
+        np.testing.assert_array_equal(got, dual.apply(y))
+
+    def test_transpose_defining_inner_product_identity(self):
+        # ⟨A x, y⟩ == ⟨x, Aᵀ y⟩ (full Euclidean) — the transpose-DEFINING identity.
+        rng = np.random.default_rng(20260628)
+        v = rng.uniform(size=(3, 4))
+        w_arr = rng.uniform(size=(3, 4))
+        op = outer(v, InnerProductFunctional(w_arr, axis=0))
+        x = rng.uniform(size=(3, 4))
+        y = rng.uniform(size=(3, 4))
+        lhs = float((op.apply(x) * y).sum())            # ⟨A x, y⟩
+        rhs = float((x * op.apply_transpose(y)).sum())  # ⟨x, Aᵀ y⟩
+        np.testing.assert_allclose(lhs, rhs, rtol=1e-12)
 
 
 class TestLinearity:

@@ -1747,13 +1747,23 @@ class RankOneOperator(LinearOperator):
     the TP fold reduces to :meth:`RankOneOperator.apply` bit-identically
     (``IdentityOperator.apply`` returns ``x``).
 
-    Capability set: ``{CAP_APPLY}``. Rank-1 operators are non-invertible by
-    construction (the kernel is the orthogonal complement of the row along the
-    contracted axis). ``apply_transpose`` is the dual dyad
-    :math:`|w\rangle\langle v|` (swap the column and the row) — not advertised
-    here because the current consumer (multigroup fission) does not need it;
-    when the adjoint transport machinery lands it falls out by swapping the two
-    factors. See :ref:`operator-algebra-adjoint`.
+    Capability set: ``{CAP_APPLY, CAP_APPLY_TRANSPOSE}`` when the row is an
+    :class:`~orpheus.numerics.functional.InnerProductFunctional` (the usual
+    case, including its
+    :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
+    specialisation), else ``{CAP_APPLY}`` alone. Rank-1 operators are
+    **non-invertible** by construction (``solve`` is NEVER advertised — the
+    kernel is the orthogonal complement of the row along the contracted axis),
+    but they DO have a **transpose**: :meth:`apply_transpose` is the dual dyad
+    :math:`|w\rangle\langle v|` — swap the column :math:`v` with the row's
+    weight :math:`w`, contracting :math:`\langle v,\cdot\rangle` over the same
+    axis. This is the Euclidean transpose :math:`A^{T}`; the metric-correct
+    Hilbert adjoint :math:`A^\dagger = G^{-1}A^{T}G` is the
+    :attr:`~LinearOperator.H` wrapper's job. The fission adjoint
+    :math:`F^\dagger\psi^* = \nu\Sigma_f\,(\chi\cdot\psi^*)` is exactly this
+    dyad-swap (campaign #276). A nonlinear / opaque functional has no dual
+    column, so such a dyad advertises ``apply`` only. See
+    :ref:`operator-algebra-adjoint`.
 
     Parameters
     ----------
@@ -1796,6 +1806,18 @@ class RankOneOperator(LinearOperator):
         # an artifact of the square-only legacy form, not a real constraint).
         self.reconstruction = reconstruction
         self.functional = functional
+        # Capabilities are per-INSTANCE: the dual dyad |w⟩⟨v| (apply_transpose)
+        # exists iff the row ⟨w| is a genuine co-vector whose weight IS the dual
+        # column — i.e. an InnerProductFunctional (the ReactionRateFunctional
+        # specialisation included). A nonlinear / opaque functional has no dual
+        # column, so its dyad advertises CAP_APPLY only. ``solve`` is NEVER
+        # advertised: rank-1 is non-invertible by construction.
+        from orpheus.numerics.functional import InnerProductFunctional
+
+        caps = {CAP_APPLY}
+        if isinstance(functional, InnerProductFunctional):
+            caps.add(CAP_APPLY_TRANSPOSE)
+        self.capabilities = frozenset(caps)
 
     def apply(self, x: np.ndarray) -> np.ndarray:
         # |v⟩⟨w| x = v · ⟨w, x⟩. The functional IS the contraction — it returns
@@ -1805,6 +1827,31 @@ class RankOneOperator(LinearOperator):
         # first-class object (no parallel inline reduction to drift from it).
         recon = np.asarray(getattr(self.reconstruction, "values", self.reconstruction))
         return recon * self.functional.evaluate(x)
+
+    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+        # The dual dyad: (|v⟩⟨w|)ᵀ = |w⟩⟨v|. The transpose swaps the column and
+        # the row — the new column is the old row's weight w (the dual column),
+        # the new row is ⟨v| (the old reconstruction as a co-vector on the SAME
+        # contracted axis). So Aᵀx = w · ⟨v, x⟩, the Euclidean transpose (the .H
+        # wrapper adds the metric). Reuses the InnerProductFunctional contraction
+        # primitive — single source of truth with the forward `apply` row-factor.
+        from orpheus.numerics.functional import InnerProductFunctional
+
+        if not isinstance(self.functional, InnerProductFunctional):
+            raise MissingCapability(
+                "RankOneOperator.apply_transpose requires the row functional to "
+                "be an InnerProductFunctional (a co-vector with a dual column); "
+                f"got {type(self.functional).__name__} — a nonlinear functional "
+                "has no dual column."
+            )
+        column = np.asarray(
+            getattr(self.functional.weight, "values", self.functional.weight)
+        )
+        dual_row = InnerProductFunctional(
+            np.asarray(getattr(self.reconstruction, "values", self.reconstruction)),
+            axis=self.functional.axis,
+        )
+        return column * dual_row.evaluate(x)
 
 
 def outer(

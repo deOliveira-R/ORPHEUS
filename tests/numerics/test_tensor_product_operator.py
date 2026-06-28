@@ -274,11 +274,14 @@ class TestRankOneOperator:
         expected = chi * inner[None, :, :]
         np.testing.assert_array_almost_equal_nulp(out, expected, nulp=4)
 
-    def test_capabilities_apply_only(self):
-        """Rank-1 ops advertise CAP_APPLY only (non-invertible by
-        construction; ``apply_transpose`` not yet a consumer)."""
+    def test_capabilities_apply_and_transpose_not_solve(self):
+        """Rank-1 ops advertise ``{apply, apply_transpose}`` — non-invertible by
+        construction (no ``solve``), but the dyad HAS a transpose: the dual dyad
+        ``|w⟩⟨v|`` (campaign #276), available when the row is an
+        ``InnerProductFunctional``."""
         R = RankOneOperator(np.ones(3), InnerProductFunctional(np.ones(3)))
-        assert R.capabilities == frozenset({CAP_APPLY})
+        assert R.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
+        assert CAP_SOLVE not in R.capabilities
 
     def test_apply_rejects_shape_mismatch(self):
         """A carrier that doesn't align with the row co-vector raises.
@@ -325,5 +328,8 @@ class TestRankOneOperator:
         wrapped = outer(ell, InnerProductFunctional(r, axis=0)) & IdentityOperator()
 
         assert isinstance(wrapped, TensorProductOperator)
-        assert wrapped.capabilities == frozenset({CAP_APPLY})
+        # The dyad (with an InnerProductFunctional row) has {apply, apply_transpose}
+        # and Identity has all three → the TP intersection keeps both, drops solve.
+        assert wrapped.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
+        assert CAP_SOLVE not in wrapped.capabilities
         np.testing.assert_array_equal(wrapped.apply(phi), bare.apply(phi))

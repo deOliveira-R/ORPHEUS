@@ -15,7 +15,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.geometry import Mesh2D
-from orpheus.numerics.operator import CAP_APPLY, LinearOperator
+from orpheus.numerics.operator import CAP_APPLY, CAP_APPLY_TRANSPOSE, LinearOperator
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.reaction_rate_functional import ReactionRateFunctional
 from orpheus.sn.mesh.augmented_mesh import SNMesh
@@ -66,10 +66,16 @@ class TestProtocolCompliance:
     def test_implements_linear_operator(self, solver_2g):
         assert isinstance(solver_2g.fission_op, LinearOperator)
 
-    def test_capability_set_apply_only(self, solver_2g):
-        """capabilities = {"apply"} — F is rank-1 in energy, no inverse."""
+    def test_capability_set_apply_and_transpose_not_solve(self, solver_2g):
+        """capabilities = {"apply", "apply_transpose"} — rank-1 in energy.
+
+        F is non-invertible (no ``solve`` — rank-1 in energy has no useful
+        inverse), but it HAS a transpose: the adjoint fission F† = |νΣf⟩⟨χ|
+        (campaign #276), the χ↔νΣf dyad swap. ``apply_transpose`` is therefore
+        advertised; ``solve`` is not.
+        """
         op = solver_2g.fission_op
-        assert op.capabilities == frozenset({CAP_APPLY})
+        assert op.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
         assert "solve" not in op.capabilities
 
 
@@ -413,16 +419,19 @@ class TestRankOneTensorProductKernel:
         # Same code path — bit-identical.
         np.testing.assert_array_equal(out_via_apply, out_via_kernel)
 
-    def test_kernel_capabilities_intersect_to_apply_only(self, solver_2g):
-        """Kernel advertises ``CAP_APPLY`` only — rank-1 is non-invertible.
+    def test_kernel_capabilities_intersect_to_apply_and_transpose(self, solver_2g):
+        """Kernel advertises ``{apply, apply_transpose}`` — non-invertible, has a transpose.
 
-        Capability intersection: :class:`RankOneOperator` has
-        ``{CAP_APPLY}``; :class:`IdentityOperator` has all three.
-        The TP intersection is ``{CAP_APPLY}`` — the inverse-bearing
-        capabilities are filtered out as documented by the §15
-        rank-1 fission structure (no useful inverse exists).
+        Capability intersection: :class:`RankOneOperator` (with the
+        :class:`ReactionRateFunctional` row, an ``InnerProductFunctional``) has
+        ``{CAP_APPLY, CAP_APPLY_TRANSPOSE}`` (campaign #276 — the dual dyad);
+        :class:`IdentityOperator` has all three. The TP intersection keeps
+        ``apply`` and ``apply_transpose`` (both factors have them) and filters
+        out ``solve`` (only Identity has it) — the §15 rank-1 fission structure
+        has no useful inverse, but it DOES transpose (F† = |νΣf⟩⟨χ|).
         """
-        from orpheus.numerics.operator import CAP_APPLY
+        from orpheus.numerics.operator import CAP_APPLY, CAP_SOLVE
 
         kernel = solver_2g.fission_op.kernel
-        assert kernel.capabilities == frozenset({CAP_APPLY})
+        assert kernel.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
+        assert CAP_SOLVE not in kernel.capabilities
