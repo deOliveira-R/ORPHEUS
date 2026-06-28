@@ -77,10 +77,14 @@ def _make_simple_lambda(
 
 @pytest.mark.l0
 class TestCapabilities:
-    def test_apply_only(self):
+    def test_apply_and_transpose_not_solve(self):
+        # Λ advertises apply + apply_transpose (the per-ℓ group-transpose Λᵀ,
+        # campaign #276) — but NOT solve (the ℓ=0 block is rank-deficient by
+        # design). The transpose is the bare Euclidean Λᵀ that the
+        # frame-conjugated kernel (R∘Λ∘M)ᵀ distributes onto.
         Lam, _, _ = _make_simple_lambda()
         assert CAP_APPLY in Lam.capabilities
-        assert CAP_APPLY_TRANSPOSE not in Lam.capabilities
+        assert CAP_APPLY_TRANSPOSE in Lam.capabilities
         assert CAP_SOLVE not in Lam.capabilities
 
 

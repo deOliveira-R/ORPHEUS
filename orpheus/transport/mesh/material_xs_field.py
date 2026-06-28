@@ -748,6 +748,62 @@ class MaterialXSField:
                 )
         return out
 
+    def apply_legendre_scattering_moments_transpose(
+        self,
+        moments: np.ndarray,
+        L: int,
+        skip_l0: bool,
+    ) -> np.ndarray:
+        r"""Apply :math:`\Lambda^{T}` — the per-ℓ group-axis transpose of
+        :meth:`apply_legendre_scattering_moments`.
+
+        The forward contracts the SOURCE group of :math:`\Sigma_{s,\ell}(g'\to g)`
+        (``einsum("mfc...,fg->mgc...")``, output the SINK group :math:`g`); the
+        transpose contracts the SINK group instead (``einsum("mfc...,gf->mgc...")``),
+        i.e. :math:`(\Lambda^{T}c)_\ell^m\big|_{g'} = \sum_g \Sigma_{s,\ell}(g'\to
+        g)\,c_\ell^m\big|_{g}`. This is the bare Euclidean transpose of the per-ℓ
+        block-diagonal group-transfer matmul — the ONLY group-asymmetric factor of
+        the frame-conjugated scattering kernel :math:`R\circ\Lambda\circ M` (the
+        angular :math:`M`/:math:`R` faces transpose via their own
+        ``apply_transpose``; campaign #276 A2). The metric-correct Hilbert adjoint
+        is the :attr:`~orpheus.numerics.operator.LinearOperator.H` wrapper's job.
+
+        Spatial-moment-axis-agnostic (the trailing ``...`` rides an LD ``2^d``
+        spectator axis through; #240 D5b-S3), identical in shape contract to the
+        forward verb.
+
+        Parameters
+        ----------
+        moments : np.ndarray
+            Moment field, shape ``(L+1, 2L+1, ng, *spatial)`` (the in-scatter
+            SOURCE moments, on whose group axis :math:`\Lambda^{T}` acts).
+        L : int
+            Maximum Legendre order retained.
+        skip_l0 : bool
+            When ``True``, leave the :math:`\ell = 0` block as zero (the ℓ≥1
+            anisotropic transpose); ``False`` includes the :math:`\ell = 0` block.
+
+        Returns
+        -------
+        np.ndarray
+            Same shape as ``moments``.
+        """
+        out = np.zeros_like(moments)
+        l_start = 1 if skip_l0 else 0
+        for mid, idx in self.cells_by_material.items():
+            sig_s_mid = self.sig_s_legendre(mid)
+            cells = (Ellipsis, *idx)
+            for l in range(l_start, L + 1):
+                n_m = 2 * l + 1
+                moments_view = moments[l, :n_m][cells]
+                out_block = np.einsum(
+                    "mfc...,gf->mgc...", moments_view, sig_s_mid[l],
+                )
+                out[l, :n_m][cells] = (
+                    out_block + out[l, :n_m][cells]
+                )
+        return out
+
     def add_n2n_to_group_rate(
         self,
         rate: np.ndarray,

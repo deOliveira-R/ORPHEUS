@@ -157,6 +157,7 @@ from orpheus.transport.frames import HarmonicFrame
 from orpheus.numerics.operator import (
     BlockRole,
     CAP_APPLY,
+    CAP_APPLY_TRANSPOSE,
     LinearOperator,
     OperatorProduct,
 )
@@ -257,10 +258,16 @@ class LegendreMomentScattering(LinearOperator):
     ordinates that *was* there is no longer needed because moment-space
     scattering does not couple ordinates.
 
-    Capability set: :pydata:`{"apply"}`. There is no efficient
-    :meth:`solve` (the moment-space scattering matrix is rank-deficient
-    on the :math:`\ell = 0` block by design); :meth:`apply_transpose`
-    is not currently consumed by any ORPHEUS solver and is deferred.
+    Capability set: :pydata:`{"apply", "apply_transpose"}`. There is no
+    efficient :meth:`solve` (the moment-space scattering matrix is
+    rank-deficient on the :math:`\ell = 0` block by design). :meth:`apply_transpose`
+    IS advertised (campaign #276): :math:`\Lambda^{T}` is the per-ℓ group-axis
+    transpose of the block-diagonal :math:`\Sigma_{s,\ell}` matmul — the ONLY
+    group-asymmetric factor of the frame-conjugated scattering kernel
+    :math:`R\circ\Lambda\circ M`, so :math:`(R\circ\Lambda\circ M)^{T} =
+    M^{T}\circ\Lambda^{T}\circ R^{T}` falls out of
+    :meth:`~orpheus.numerics.operator.OperatorProduct.apply_transpose` for free
+    (the :math:`M`/:math:`R` face transposes landed in the Frame carve).
 
     Parameters
     ----------
@@ -281,7 +288,7 @@ class LegendreMomentScattering(LinearOperator):
     L: int
     skip_l0: bool = True
     capabilities: frozenset[str] = field(
-        default_factory=lambda: frozenset({CAP_APPLY})
+        default_factory=lambda: frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
     )
 
     def apply(
@@ -343,6 +350,49 @@ class LegendreMomentScattering(LinearOperator):
                 spatial_moments=moments.spatial_moments,
             )
         return self.mat_xs.apply_legendre_scattering_moments(
+            moments, L=self.L, skip_l0=self.skip_l0,
+        )
+
+    def apply_transpose(
+        self, moments: "np.ndarray | HarmonicMomentSourceSink",
+    ) -> "np.ndarray | HarmonicMomentFlux":
+        r"""Apply :math:`\Lambda^{T}` — the per-ℓ group-transpose (the role-REVERSING edge).
+
+        The bare Euclidean transpose of :meth:`apply`: where :math:`\Lambda` maps a
+        flux moment to the in-scatter SOURCE moment it emits (flux → source),
+        :math:`\Lambda^{T}` maps a source moment back into the flux-moment space it
+        scattered from (source → flux), transposing the per-ℓ group-transfer
+        :math:`\Sigma_{s,\ell}(g'\to g) \mapsto (g\to g')`.  Routes through
+        :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.apply_legendre_scattering_moments_transpose`
+        — the SINGLE per-material dispatch site (Pattern 2), the transpose twin of
+        :meth:`apply`'s ``apply_legendre_scattering_moments``.
+
+        This is the bare Euclidean transpose; the metric-correct Hilbert adjoint
+        :math:`\Lambda^{\dagger} = G^{-1}\Lambda^{T}G` is the
+        :attr:`~orpheus.numerics.operator.LinearOperator.H` wrapper's job.  Because
+        :math:`\Lambda` is the ONLY group-asymmetric factor of the frame-conjugated
+        kernel :math:`R\circ\Lambda\circ M`, this method is what lets
+        :math:`(R\circ\Lambda\circ M)^{T} = M^{T}\circ\Lambda^{T}\circ R^{T}` fall
+        out of :meth:`~orpheus.numerics.operator.OperatorProduct.apply_transpose`
+        for free (campaign #276 A2).
+
+        Typed :class:`~orpheus.transport.source_sinks.harmonic_moment_source_sink.HarmonicMomentSourceSink`
+        in → :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
+        out (the explicit role reversal); bare ndarray in → ndarray out (the
+        endomorphic moment-space view the ``OperatorProduct.apply_transpose`` chain
+        composes on).
+        """
+        from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
+
+        if isinstance(moments, HarmonicMomentSourceSink):
+            out_values = self.mat_xs.apply_legendre_scattering_moments_transpose(
+                moments.values, L=self.L, skip_l0=self.skip_l0,
+            )
+            return HarmonicMomentFlux.from_mesh_and_L(
+                out_values, moments.mesh, moments.L,
+                spatial_moments=moments.spatial_moments,
+            )
+        return self.mat_xs.apply_legendre_scattering_moments_transpose(
             moments, L=self.L, skip_l0=self.skip_l0,
         )
 
