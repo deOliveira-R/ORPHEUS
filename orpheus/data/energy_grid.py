@@ -242,9 +242,9 @@ class EnergyGrid:
                 "internal error: the fractional-overlap table is not a partition of "
                 "unity (every fine group's weight must sum to 1 across coarse groups)."
             )
-        return OverlapBasis(
-            edges_per_axis=coarse.as_basis().edges_per_axis, overlap_table=table,
-        )
+        # The trial IS the coarse grid's basis-view (the target you project ONTO),
+        # decorated with the fractional overlap table (the mismatch treatment).
+        return OverlapBasis.from_indicator(coarse.as_basis(), table)
 
     def _overlap_table(
         self, coarse: "EnergyGrid", within_group: "WithinGroupSpectrum", /,
@@ -259,11 +259,11 @@ class EnergyGrid:
         fe = self.edges
         n_fine = self.n_groups
         n_coarse = coarse.n_groups
-        ce = coarse.edges.astype(float).copy()
-        ce[0] = max(ce[0], fe[0])
-        ce[-1] = min(ce[-1], fe[-1])
-        coarse_hi = ce[:-1]
-        coarse_lo = ce[1:]
+        clamped_edges = coarse.edges.astype(float).copy()
+        clamped_edges[0] = max(clamped_edges[0], fe[0])
+        clamped_edges[-1] = min(clamped_edges[-1], fe[-1])
+        coarse_hi = clamped_edges[:-1]
+        coarse_lo = clamped_edges[1:]
         table = np.zeros((n_fine, n_coarse))
         for g in range(n_fine):
             g_hi = fe[g]

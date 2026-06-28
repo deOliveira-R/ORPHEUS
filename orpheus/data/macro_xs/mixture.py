@@ -340,6 +340,7 @@ class Mixture:
             return average(sink_summed)
 
         return Mixture.from_dense_channels(
+            # vectors → AVERAGE (frame.project = G⁻¹M): rate-preserving flux-average.
             SigC=average(self.SigC),
             SigL=average(self.SigL),
             SigF=average(self.SigF),

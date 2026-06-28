@@ -73,6 +73,24 @@ class OverlapBasis(IndicatorBasis):
 
     overlap_table: NDArray
 
+    @classmethod
+    def from_indicator(
+        cls, indicator: IndicatorBasis, overlap_table: NDArray, /,
+    ) -> "OverlapBasis":
+        r"""Decorate a (nested) :class:`IndicatorBasis` with a fractional membership table.
+
+        The fractional trial **is** the target grid's basis-view (e.g.
+        :meth:`~orpheus.data.energy_grid.EnergyGrid.as_basis`) — the coarse-cell geometry
+        (:attr:`edges_per_axis` → :attr:`n_cells`, :attr:`space`) — carrying a precomputed
+        partition-of-unity ``overlap_table`` in place of the one-hot membership
+        :meth:`evaluate` would compute from those edges. A one-hot table recovers the plain
+        ``indicator`` (the nested degenerate). This is the canonical constructor — the
+        binary :meth:`~orpheus.data.energy_grid.EnergyGrid.overlap_to` calls it — so a call
+        site reads "the trial is the target basis-view, mismatch-corrected" rather than
+        reaching into the indicator's ``edges_per_axis``.
+        """
+        return cls(edges_per_axis=indicator.edges_per_axis, overlap_table=overlap_table)
+
     # ── Gram structure: a straddling row shares ≥2 columns ⟹ NOT diagonal ──
     @property
     def gram_structure(self) -> GramStructure:
