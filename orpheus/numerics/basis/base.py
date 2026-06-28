@@ -68,6 +68,7 @@ References
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import TYPE_CHECKING
 
 from numpy.typing import NDArray
@@ -77,7 +78,40 @@ if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
 
 
-__all__ = ["Basis"]
+__all__ = ["Basis", "GramStructure"]
+
+
+class GramStructure(Enum):
+    r"""The structure of a TRIAL basis's frame-Gram — the projection-validity declaration.
+
+    When a basis is the **trial** side of a :class:`~orpheus.numerics.frame.FrameBase`,
+    the coefficient extraction :meth:`~orpheus.numerics.frame.FrameBase.project`
+    (:math:`G^{-1}M`) normalises by the cross Gram :math:`G = MR`. The frame computes
+    :math:`G` with a single **row-sum probe** (``analysis(reconstruction(ones))``) — but
+    that probe equals the projection's required normalisation ONLY under one of two
+    structural conditions. This enum is the basis's declaration of which (if any) holds,
+    so the wrong combination cannot be spelled silently (a precondition the **type**
+    enforces, not a docstring):
+
+    * :attr:`DIAGONAL` — disjoint-support trial (orthogonal harmonics, nested cell /
+      group indicators): :math:`MR` is diagonal, the row sum IS the diagonal.
+    * :attr:`PARTITION_OF_UNITY` — overlapping trial whose membership rows sum to 1
+      (the fractional :class:`~orpheus.numerics.basis.overlap_basis.OverlapBasis`):
+      :math:`MR` is NOT diagonal, but :math:`R\mathbf 1 = \mathbf 1` collapses the probe
+      to the per-region weight anyway.
+    * :attr:`DENSE` — neither (a tapered weight, a higher-rank GEC moment — GitHub #275):
+      the row-sum probe is wrong; the true projection needs the dense :math:`(MR)^{-1}M`
+      solve, which is NOT built. :meth:`~orpheus.numerics.frame.FrameBase.project`
+      **refuses** a DENSE-Gram trial rather than return a silently-wrong coarsening.
+
+    The base :class:`Basis` defaults to :attr:`DENSE` — the safe refusal: a new basis
+    must consciously declare it is row-sum-collapsible (having checked its Gram) before
+    ``project`` will use the shortcut on it.
+    """
+
+    DIAGONAL = "diagonal"
+    PARTITION_OF_UNITY = "partition_of_unity"
+    DENSE = "dense"
 
 
 class Basis(ABC):
@@ -174,6 +208,21 @@ class Basis(ABC):
         the analysis face.
         """
         ...
+
+    # ── The Gram structure (the projection-validity declaration) ──────────
+    @property
+    def gram_structure(self) -> GramStructure:
+        r"""How this basis's frame-Gram is structured when it is the **trial** side.
+
+        Declares whether :meth:`~orpheus.numerics.frame.FrameBase.project`'s row-sum
+        probe is a valid coefficient normalisation for this basis (:class:`GramStructure`).
+        Defaults to :attr:`GramStructure.DENSE` — the safe refusal: a new basis must
+        consciously override this to :attr:`~GramStructure.DIAGONAL` or
+        :attr:`~GramStructure.PARTITION_OF_UNITY` (having verified its Gram) before
+        ``project`` will use the shortcut; a DENSE trial is refused rather than
+        silently mis-projected.
+        """
+        return GramStructure.DENSE
 
     # ── The discrete Gram + the coefficient space ─────────────────────────
     @abstractmethod

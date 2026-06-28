@@ -23,13 +23,19 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.basis import (
+    GramStructure,
     IndicatorBasis,
+    OverlapBasis,
     SphericalHarmonicBasis,
     WeightedIndicatorBasis,
 )
 from orpheus.numerics.frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
-from orpheus.numerics.operator import CAP_APPLY, CAP_APPLY_TRANSPOSE
+from orpheus.numerics.operator import (
+    CAP_APPLY,
+    CAP_APPLY_TRANSPOSE,
+    MissingCapability,
+)
 from orpheus.numerics.quadrature import lebedev_sphere
 from orpheus.numerics.spaces import SphericalHarmonicSpace
 
@@ -362,3 +368,67 @@ def test_petrov_galerkin_project_differs_from_galerkin_when_test_neq_trial():
         "PG (flux-weighted) and Galerkin (volume) projections coincided — the test "
         "weight does not discriminate; the PG type would be ceremony here"
     )
+
+
+# ── Gram-structure: the projection-validity declaration (P5.5a) ───────────
+
+
+@pytest.mark.foundation
+def test_basis_gram_structure_declarations():
+    r"""Each trial basis declares the Gram structure that makes ``project`` valid.
+
+    Intrinsic-property pin: ``IndicatorBasis`` (disjoint cells) and
+    ``SphericalHarmonicBasis`` (orthogonal) are DIAGONAL; ``OverlapBasis`` (fractional
+    rows summing to 1) is PARTITION_OF_UNITY — it MUST override the DIAGONAL it inherits
+    from ``IndicatorBasis`` (a straddling row shares ≥2 columns ⟹ non-diagonal Gram).
+    The base ``Basis`` default (here via the test-only ``WeightedIndicatorBasis``) is
+    DENSE — the safe refusal a new basis inherits until it consciously declares.
+    """
+    ib = IndicatorBasis((np.array([0.0, 1.0, 2.0]),))
+    ob = OverlapBasis(
+        edges_per_axis=(np.array([-0.5, 0.5, 1.5]),),
+        overlap_table=np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]]),
+    )
+    assert ib.gram_structure is GramStructure.DIAGONAL
+    assert SphericalHarmonicBasis(L=1).gram_structure is GramStructure.DIAGONAL
+    assert ob.gram_structure is GramStructure.PARTITION_OF_UNITY
+    # OverlapBasis IS-A IndicatorBasis but MUST NOT inherit its DIAGONAL claim.
+    assert ob.gram_structure is not ib.gram_structure
+    # The base default (a test-only basis never used as a trial) is the safe DENSE.
+    assert WeightedIndicatorBasis(ib, np.ones(2)).gram_structure is GramStructure.DENSE
+
+
+@pytest.mark.foundation
+def test_project_refuses_dense_gram_trial():
+    r"""``project`` / ``.gram`` REFUSE a DENSE-Gram trial — illegal state unrepresentable.
+
+    The row-sum probe is wrong for a trial that is neither disjoint nor a partition of
+    unity; rather than return a silently-wrong coarsening, the frame raises
+    :class:`MissingCapability` (the dense ``(MR)⁻¹M`` solve is unbuilt — #275). Mutation
+    gate: a trial declaring ``GramStructure.DENSE`` reddens BOTH ``.gram`` and
+    ``.project``, while the otherwise-identical DIAGONAL trial succeeds — proving the
+    refusal keys on the declaration, not on some unrelated failure.
+    """
+
+    class _DenseTrial(IndicatorBasis):
+        @property
+        def gram_structure(self) -> GramStructure:
+            return GramStructure.DENSE
+
+    edges = np.array([0.0, 1.0, 2.0])
+    measure = DiscreteMeasure(
+        nodes=np.array([0.5, 1.5]), weights=np.ones(2), support="spatial_R1",
+    )
+    dense = PetrovGalerkinFrame(
+        _DenseTrial((edges,)), measure, WeightedIndicatorBasis(IndicatorBasis((edges,)), np.ones(2)),
+    )
+    with pytest.raises(MissingCapability, match="DENSE"):
+        _ = dense.gram
+    with pytest.raises(MissingCapability, match="DENSE"):
+        dense.project(np.array([3.0, 5.0]))
+    # Control: the SAME geometry with the honest DIAGONAL trial projects fine.
+    ok = PetrovGalerkinFrame(
+        IndicatorBasis((edges,)), measure,
+        WeightedIndicatorBasis(IndicatorBasis((edges,)), np.ones(2)),
+    )
+    np.testing.assert_allclose(ok.project(np.array([3.0, 5.0])), [3.0, 5.0])

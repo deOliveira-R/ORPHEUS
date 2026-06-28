@@ -90,7 +90,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics.basis.base import Basis
+from orpheus.numerics.basis.base import Basis, GramStructure
 
 if TYPE_CHECKING:
     from orpheus.numerics.measure import DiscreteMeasure
@@ -121,6 +121,12 @@ class IndicatorBasis(Basis):
     """
 
     edges_per_axis: tuple[NDArray, ...]
+
+    # ── Gram structure: disjoint cells ⟹ diagonal Gram ────────────────────
+    @property
+    def gram_structure(self) -> GramStructure:
+        r"""DIAGONAL — the cell indicators have disjoint support (:meth:`mass_matrix`)."""
+        return GramStructure.DIAGONAL
 
     # ── Derived cell counts ───────────────────────────────────────────────
     @cached_property

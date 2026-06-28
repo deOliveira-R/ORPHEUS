@@ -96,12 +96,13 @@ from functools import cached_property
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics.basis.base import Basis
+from orpheus.numerics.basis.base import Basis, GramStructure
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.operator import (
     CAP_APPLY,
     CAP_APPLY_TRANSPOSE,
     LinearOperator,
+    MissingCapability,
     OperatorProduct,
 )
 from orpheus.numerics.projection import AnalysisOperator, ReconstructionOperator
@@ -283,11 +284,26 @@ class FrameBase(ABC):
           conservative re-binning is correct because of this PoU collapse, NOT because
           the off-diagonals vanish.
 
-        **A future trial that is neither disjoint NOR a partition of unity** (a
-        tapered weight, a higher-rank GEC moment — #275) makes the row-sum probe ≠ the
-        true projection :math:`(M R)^{-1} M f`; such a basis needs the dense
-        cross-Gram solve (the unbuilt least-squares seam), not this diagonal probe.
+        **A trial that is neither disjoint NOR a partition of unity** (a tapered
+        weight, a higher-rank GEC moment — #275) makes the row-sum probe ≠ the true
+        projection :math:`(M R)^{-1} M f`; such a basis needs the dense cross-Gram solve
+        (the unbuilt least-squares seam), not this diagonal probe. That precondition is
+        now carried by the **type**: the trial declares its
+        :attr:`~orpheus.numerics.basis.base.Basis.gram_structure`, and this property
+        **refuses** a :attr:`~orpheus.numerics.basis.base.GramStructure.DENSE` trial
+        (raising :class:`~orpheus.numerics.operator.MissingCapability`) rather than
+        return a silently-wrong probe.
         """
+        if self.basis.gram_structure is GramStructure.DENSE:
+            raise MissingCapability(
+                f"FrameBase.project / .gram needs a row-sum-collapsible trial Gram, but "
+                f"the trial {type(self.basis).__name__} declares GramStructure.DENSE: "
+                f"its cross Gram MR is neither diagonal nor a partition of unity, so the "
+                f"row-sum probe is NOT the projection normalisation G⁻¹. The dense "
+                f"(MR)⁻¹M least-squares solve is not built (GitHub #275 — higher-rank "
+                f"GEC moments / tapered weights); build it before projecting through "
+                f"this basis."
+            )
         ones = np.ones(self.basis_space.shape)
         diagonal = self.analysis.apply(self.reconstruction.apply(ones))
         return replace(self.test_space, inner_product_weights=diagonal)

@@ -99,7 +99,7 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.special import lpmv
 
-from orpheus.numerics.basis.base import Basis
+from orpheus.numerics.basis.base import Basis, GramStructure
 
 if TYPE_CHECKING:
     from orpheus.numerics.measure import DiscreteMeasure
@@ -353,6 +353,12 @@ class SphericalHarmonicBasis(Basis):
         return np.einsum(
             "nlm,l,n...->lm...", table, self.addition_theorem_factor, values,
         )
+
+    # ── Gram structure: orthogonal harmonics ⟹ diagonal Gram ──────────────
+    @property
+    def gram_structure(self) -> GramStructure:
+        r"""DIAGONAL — the real spherical harmonics are orthogonal (:math:`g_C` diagonal)."""
+        return GramStructure.DIAGONAL
 
     # ── Coefficient space ─────────────────────────────────────────────────
 

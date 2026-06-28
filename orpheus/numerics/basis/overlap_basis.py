@@ -6,7 +6,7 @@ point-sampled one-hot table of
 :class:`~orpheus.numerics.basis.indicator_basis.IndicatorBasis`. A fine cell that
 straddles a coarse boundary belongs *fractionally* to each coarse cell it overlaps —
 the conservative re-binning that a NON-nested condensation needs (see
-:class:`orpheus.data.energy_grid.GroupCondensation`). The one-hot
+:meth:`orpheus.data.energy_grid.EnergyGrid.overlap_to`). The one-hot
 :class:`IndicatorBasis` is the **nested degenerate** (no straddles → every
 :math:`T[g,G]\in\{0,1\}`).
 
@@ -29,10 +29,12 @@ table gives ``reconstruction(ones) = 1`` → the diagonal Gram :math:`\Phi_G =
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import cached_property
 
 import numpy as np
 from numpy.typing import NDArray
 
+from orpheus.numerics.basis.base import GramStructure
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
 
 __all__ = ["OverlapBasis"]
@@ -71,6 +73,19 @@ class OverlapBasis(IndicatorBasis):
 
     overlap_table: NDArray
 
+    # ── Gram structure: a straddling row shares ≥2 columns ⟹ NOT diagonal ──
+    @property
+    def gram_structure(self) -> GramStructure:
+        r"""PARTITION_OF_UNITY — fractional rows sum to 1, so :math:`R\mathbf 1=\mathbf 1`.
+
+        Overrides the inherited :attr:`IndicatorBasis.gram_structure` DIAGONAL: a fine
+        row straddling a coarse boundary populates ≥2 columns, so the cross Gram
+        :math:`MR` is non-diagonal. The :meth:`~orpheus.numerics.frame.FrameBase.project`
+        row-sum probe stays valid because the rows are a partition of unity (see
+        :attr:`~orpheus.numerics.frame.FrameBase.gram`), NOT because the Gram is diagonal.
+        """
+        return GramStructure.PARTITION_OF_UNITY
+
     def evaluate(self, points: NDArray, /) -> NDArray:
         r"""Return the precomputed ``(n_fine, n_coarse)`` partition-of-unity table.
 
@@ -88,3 +103,31 @@ class OverlapBasis(IndicatorBasis):
                 f"{pts.shape[0]} sample points."
             )
         return self.overlap_table
+
+    # ── Table diagnostics (the provenance of the non-nested re-binning) ────
+    @cached_property
+    def dominant_column(self) -> NDArray:
+        r"""The DOMINANT coarse column of each fine row — ``argmax`` of :attr:`overlap_table`.
+
+        ``(n_fine,)``. For a NESTED (one-hot) table this is the exact containing-coarse
+        map; for a straddling fine row it is the coarse cell receiving the largest
+        fraction (a reporting view — the real apportionment is the full table). For the
+        energy axis this is the dominant coarse group of each fine group (the former
+        ``GroupCondensation.coarse_of_fine``).
+        """
+        return self.overlap_table.argmax(axis=1).astype(int)
+
+    @cached_property
+    def fractional_columns(self) -> NDArray:
+        r"""Coarse columns that received a STRICTLY-FRACTIONAL contribution.
+
+        ``(k,)`` indices of coarse cells/groups where some fine row straddled the
+        boundary and contributed a weight strictly between 0 and 1 — i.e. where the
+        re-binning leaned on the within-group model rather than a clean (one-hot)
+        nesting. Empty for a nested table (pure rate-preserving collapse, no
+        assumption); non-empty where the coarse partition is locally finer than the fine
+        one. For the energy axis this is the former ``GroupCondensation.locally_interpolated``
+        — the data-vs-assumption provenance of the downsampling/interpolation asymmetry.
+        """
+        frac = (self.overlap_table > 1e-12) & (self.overlap_table < 1.0 - 1e-12)
+        return np.nonzero(frac.any(axis=0))[0]
