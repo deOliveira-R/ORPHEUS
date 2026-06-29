@@ -55,6 +55,7 @@ dispatched via :attr:`~orpheus.numerics.iteration.KEigenvalue.eigenvalue_method`
 
 from __future__ import annotations
 
+import warnings
 from typing import Protocol, runtime_checkable
 
 import numpy as np
@@ -347,4 +348,146 @@ def direct_eigenvalue(
     phi = np.real(eigvecs[:, dominant])
     if phi.sum() < 0.0:  # sign-normalise to a physical, non-negative spectrum
         phi = -phi
+    return k, phi
+
+
+def rayleigh_quotient_iteration(
+    A: np.ndarray,
+    F: np.ndarray,
+    *,
+    v0: np.ndarray | None = None,
+    tol: float = 1e-12,
+    max_iter: int = 50,
+) -> tuple[float, np.ndarray]:
+    r"""Refine an eigenvector estimate to the NEAREST eigenpair of :math:`A^{-1}F`
+    by bordered Rayleigh-Quotient Iteration — *superlinearly* convergent.
+
+    The **third realization** of the eigenvalue boundary, sitting between the
+    iterative :func:`power_iteration` (linear convergence, the dominant mode of
+    large sweep-only operators) and the exact dense :func:`direct_eigenvalue`
+    (one LAPACK shot, small operators).  RQI takes an eigenvector estimate
+    :math:`v`, forms the Rayleigh-quotient shift
+
+    .. math::
+
+        k \;=\; \frac{v^{T} F\,v}{v^{T} A\,v}
+
+    (the production/loss ratio — the eigenvector *as a row*), and refines the
+    pair :math:`(v, k)` by a Newton step on the eigenpair residual
+    :math:`[\,A^{-1}F v - k v;\; c^{T} v - 1\,]` written in the well-conditioned
+    **bordered** form, in which the previous-iterate eigenvector :math:`c = v`
+    enters as the normalisation **row**:
+
+    .. math::
+
+        \begin{bmatrix} F - kA & -Av \\ v^{T} & 0 \end{bmatrix}
+        \begin{bmatrix} \Delta v \\ \Delta k \end{bmatrix}
+        \;=\;
+        \begin{bmatrix} -(F - kA)\,v \\ 0 \end{bmatrix} .
+
+    The first block-row is the eigen-residual Newton equation premultiplied by
+    :math:`A` (so :math:`M = A^{-1}F` is never formed); the bottom row is the
+    normalisation constraint :math:`v^{T}\Delta v = 0` (the Newton update stays
+    tangent to the unit sphere).  The border keeps the
+    :math:`(n{+}1)\times(n{+}1)` system non-singular even as :math:`F - kA`
+    becomes singular at convergence — precisely where raw shifted inverse
+    iteration breaks down.  Convergence is locally **quadratic** for the
+    non-symmetric resolvent :math:`A^{-1}F` (cubic for symmetric / normal).
+
+    .. warning::
+
+        RQI converges to the eigenpair **nearest the initial Rayleigh
+        quotient**, NOT necessarily the dominant one.  For the dominant
+        (k-eigenvalue) mode, warm-start ``v0`` near it — a few
+        :func:`power_iteration` steps, or a prior outer iterate.  With the
+        default ``v0`` (all-ones) the result is whichever eigenvalue is nearest
+        :math:`(\mathbf{1}^{T} F \mathbf{1}) / (\mathbf{1}^{T} A \mathbf{1})`.
+
+    Parameters
+    ----------
+    A, F : np.ndarray
+        The generalized pair :math:`A\,\varphi = (1/k)\,F\,\varphi` (square,
+        equal shape).
+    v0 : np.ndarray, optional
+        Initial eigenvector estimate.  Default all-ones.  Determines WHICH
+        eigenpair is found (the one nearest its Rayleigh quotient).
+    tol : float, optional
+        Convergence tolerance on the Newton step :math:`\lVert\Delta v\rVert`.
+        Default ``1e-12``.
+    max_iter : int, optional
+        Maximum RQI steps.  Default ``50``; RQI converges in a handful of steps
+        from a warm start, so reaching this bound signals a poor ``v0`` or a
+        defective pair (a :class:`RuntimeWarning` is emitted and the best
+        iterate returned).
+
+    Returns
+    -------
+    k : float
+        The converged eigenvalue (real — the iteration is real arithmetic
+        throughout).
+    phi : np.ndarray
+        The converged eigenvector (real-dtype), sign-normalised so
+        ``phi.sum() >= 0``.
+
+    Raises
+    ------
+    ValueError
+        If ``A`` / ``F`` are not square matrices of equal shape.
+
+    See Also
+    --------
+    power_iteration : iterative, linear, dominant mode (large operators).
+    direct_eigenvalue : exact dense dominant eigenpair (small operators).
+    """
+    A = np.asarray(A, dtype=float)
+    F = np.asarray(F, dtype=float)
+    if A.ndim != 2 or A.shape[0] != A.shape[1]:
+        raise ValueError(
+            f"rayleigh_quotient_iteration: A must be a square 2-D matrix; "
+            f"got shape {A.shape}."
+        )
+    if F.shape != A.shape:
+        raise ValueError(
+            f"rayleigh_quotient_iteration: A and F must have the same shape; "
+            f"got A {A.shape}, F {F.shape}."
+        )
+    n = A.shape[0]
+
+    v = np.ones(n) if v0 is None else np.asarray(v0, dtype=float).ravel().copy()
+    v = v / np.linalg.norm(v)
+    # Initial Rayleigh-quotient shift k = vᵀMv (v unit) with M = A⁻¹F.
+    k = float(v @ np.linalg.solve(A, F @ v))
+
+    border = np.zeros((n + 1, n + 1))
+    rhs = np.zeros(n + 1)
+    converged = False
+    step_norm = float("inf")
+    for _ in range(max_iter):
+        shifted = F - k * A
+        border[:n, :n] = shifted
+        border[:n, n] = -(A @ v)
+        border[n, :n] = v
+        rhs[:n] = -(shifted @ v)
+        # rhs[n] = 0: with v unit, the normalisation residual vᵀv − 1 vanishes.
+        step = np.linalg.solve(border, rhs)
+        v = v + step[:n]
+        k = k + float(step[n])
+        v = v / np.linalg.norm(v)
+        step_norm = float(np.linalg.norm(step[:n]))
+        if step_norm <= tol:
+            converged = True
+            break
+
+    if not converged:
+        warnings.warn(
+            f"rayleigh_quotient_iteration: no convergence in max_iter="
+            f"{max_iter} (last ‖Δv‖={step_norm:.3e}, tol={tol:.1e}). "
+            f"RQI converges in a handful of steps from a warm start; a poor v0 "
+            f"(far from any eigenvector) or a defective pair can stall it. "
+            f"Returning the best iterate.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+
+    phi = v if v.sum() >= 0.0 else -v  # sign-normalise to a non-negative spectrum
     return k, phi

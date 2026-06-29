@@ -45,6 +45,7 @@ gate that claims to catch it — confirmed NOW, before the SUT lands.
 """
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 import numpy as np
@@ -588,3 +589,129 @@ class TestGatesHaveTeeth:
         phic = np.asarray(phic, float).ravel()
         resid = np.linalg.norm(F @ phic - float(np.real(kc)) * (A @ phic))
         _require(resid < 1e-8, f"clean ref failed residual law (resid={resid:.3e}).")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# RQI — bordered-matrix Rayleigh-Quotient Iteration (#276 P4-E, #277)
+#
+# The third eigenvalue engine, verified against the now-trusted
+# ``direct_eigenvalue`` oracle: RQI must converge to its EXACT eigenpair. The
+# references stay structurally independent — the oracle is verified above
+# against hand-derived closed forms, and the nearest-eigenvalue case uses
+# CONSTRUCTED eigenpairs (``M = V diag(λ) V⁻¹``), not an eig call. The
+# distinguishing teeth are the NEAREST-eigenvalue contract (not the dominant)
+# and the QUADRATIC convergence (vs power iteration's linear rate).
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def _rqi(A, F, **kw) -> tuple[float, np.ndarray]:
+    """Bind the RQI primitive (skips cleanly pre-impl)."""
+    fn = getattr(_eig, "rayleigh_quotient_iteration", None)
+    if fn is None:
+        pytest.skip(
+            "#276 P4-E PRE-IMPL: rayleigh_quotient_iteration not on "
+            "orpheus.numerics.eigenvalue yet."
+        )
+    return fn(A, F, **kw)
+
+
+class TestRayleighQuotientIteration:
+    r"""Bordered-RQI polishes an estimate to the nearest eigenpair, superlinearly."""
+
+    @staticmethod
+    def _generalized():
+        # A non-diagonal, F full-rank; A⁻¹F = M has the known spectrum {6, 3, 2}.
+        lam = np.array([6.0, 3.0, 2.0])
+        V = np.array([[1.0, 1.0, 0.0], [0.0, 1.0, 1.0], [1.0, 0.0, 1.0]])
+        M = V @ np.diag(lam) @ np.linalg.inv(V)
+        A = np.array([[2.0, 0.5, 0.0], [0.5, 3.0, 0.5], [0.0, 0.5, 4.0]])
+        F = A @ M
+        return A, F, V, lam
+
+    def test_polishes_to_dominant_matches_direct_eigenvalue(self):
+        """Warm-started near the dominant, RQI recovers ``direct_eigenvalue``'s
+        EXACT (k, φ) and satisfies the generalized-eigenpair law."""
+        A, F, _V, _lam = self._generalized()
+        k_dir, phi_dir = _solve(A, F)  # the verified oracle (dominant)
+        v0 = phi_dir + 0.1 * np.array([1.0, -0.5, 0.3])  # warm start, off-axis
+        k, phi = _rqi(A, F, v0=v0)
+        np.testing.assert_allclose(k, k_dir, rtol=1e-12, atol=0)
+        cos = abs(_unit(phi) @ _unit(phi_dir))
+        _require(cos > 1 - 1e-12, f"RQI eigenvector ≠ dominant: |cos|={cos:.14f}.")
+        _assert_generalized_eigenpair(A, F, k, phi)
+
+    def test_converges_to_nearest_eigenvalue_not_dominant(self):
+        """The DEFINING RQI contract: warm-started near a SUBDOMINANT eigenvector,
+        RQI converges to THAT eigenvalue (nearest the Rayleigh quotient), NOT the
+        dominant. The reference eigenpair is CONSTRUCTED (``V diag(λ) V⁻¹``),
+        independent of the eigensolver."""
+        A, F, V, _lam = self._generalized()  # spectrum {6, 3, 2}; subdominant 3 = V[:,1]
+        v0 = V[:, 1] + 0.05 * np.array([0.2, 0.1, -0.3])
+        k, phi = _rqi(A, F, v0=v0)
+        np.testing.assert_allclose(k, 3.0, rtol=1e-10, atol=0)  # the nearest, not 6
+        _assert_generalized_eigenpair(A, F, k, phi)
+
+    def test_residual_law_standard_problem(self):
+        """A = I: RQI on a plain non-symmetric matrix satisfies ``M φ = k φ``."""
+        lam = np.array([4.0, 2.0, 1.0])
+        V = np.array([[2.0, 1.0, 0.0], [1.0, -1.0, 1.0], [1.0, 0.0, -1.0]])
+        M = V @ np.diag(lam) @ np.linalg.inv(V)
+        _k_dir, phi_dir = _solve(np.eye(3), M)
+        k, phi = _rqi(np.eye(3), M, v0=phi_dir + 0.1 * np.array([0.3, -0.2, 0.5]))
+        np.testing.assert_allclose(k, 4.0, rtol=1e-12, atol=0)
+        _assert_generalized_eigenpair(np.eye(3), M, k, phi)
+
+    def test_quadratic_convergence(self):
+        """Superlinear teeth: from a moderate perturbation the error roughly SQUARES
+        each step (locally quadratic) and reaches machine precision in a handful of
+        steps — what distinguishes RQI from power iteration's linear rate.
+
+        Re-runs from the SAME ``v0`` with ``max_iter`` = 1, 2, 3 (deterministic)
+        and checks ``e_{n+1} ≤ C·e_n²`` with a generous ``C``, plus that 4 steps
+        reach < 1e-10 while 2 steps do NOT (genuinely iterating, not one-shot).
+        """
+        A, F, _V, _lam = self._generalized()
+        k_exact, phi_dir = _solve(A, F)
+        v0 = phi_dir + 0.2 * np.array([1.0, -1.0, 0.5])
+
+        with warnings.catch_warnings():  # low max_iter ⟹ expected non-converged warning
+            warnings.simplefilter("ignore", RuntimeWarning)
+            e = [abs(_rqi(A, F, v0=v0, max_iter=m)[0] - k_exact) for m in (1, 2, 3)]
+            k4 = _rqi(A, F, v0=v0, max_iter=4)[0]
+
+        C = 50.0  # generous quadratic constant
+        _require(
+            e[1] <= C * e[0] ** 2 + 1e-15,
+            f"not quadratic at step 2: e2={e[1]:.3e} > C·e1²={C * e[0] ** 2:.3e}.",
+        )
+        _require(
+            e[2] <= C * e[1] ** 2 + 1e-15,
+            f"not quadratic at step 3: e3={e[2]:.3e} > C·e2²={C * e[1] ** 2:.3e}.",
+        )
+        _require(
+            abs(k4 - k_exact) < 1e-10,
+            f"4 RQI steps did not reach 1e-10 (|Δk|={abs(k4 - k_exact):.3e}).",
+        )
+        _require(
+            e[1] > 1e-10,
+            f"2 steps already at machine precision (e2={e[1]:.3e}) — perturbation too "
+            f"small to demonstrate iteration; pick a larger v0 offset.",
+        )
+
+    def test_sign_normalised_output(self):
+        """φ.sum() ≥ 0 output convention (matches direct_eigenvalue). Non-vacuous:
+        warm-starting near ``−φ_dom`` makes RQI converge to the negative-sum
+        orientation, so the sign flip is load-bearing here."""
+        A, F, _V, _lam = self._generalized()
+        _k_dir, phi_dir = _solve(A, F)
+        v0 = -phi_dir + 0.1 * np.array([0.4, -0.3, 0.2])  # negative-sum hemisphere
+        _k, phi = _rqi(A, F, v0=v0)
+        s = float(np.asarray(phi).sum())
+        _require(s >= 0.0, f"φ.sum()={s:.3e} < 0 — the sign normalisation did not fire.")
+
+    def test_shape_validation_raises(self):
+        """Non-square / mismatched shapes raise ValueError (boundary guard)."""
+        with pytest.raises(ValueError):
+            _rqi(np.ones((2, 3)), np.eye(2))
+        with pytest.raises(ValueError):
+            _rqi(np.eye(2), np.eye(3))
