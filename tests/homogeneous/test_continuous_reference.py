@@ -60,6 +60,7 @@ pytestmark = [pytest.mark.l1, pytest.mark.verifies(
     ("homo_1eg", 1),
     ("homo_2eg", 2),
     ("homo_4eg", 4),
+    ("homo_2eg_n2n", 2),  # non-trivial (n,2n): de-vacuums the n2n-in-A path
 ])
 def test_solver_matches_continuous_reference_eigenvalue(case_name: str, ng: int):
     r"""The homogeneous solver must reproduce the reference :math:`k_\infty`
@@ -87,6 +88,7 @@ def test_solver_matches_continuous_reference_eigenvalue(case_name: str, ng: int)
 @pytest.mark.parametrize("case_name, ng", [
     ("homo_2eg", 2),
     ("homo_4eg", 4),
+    ("homo_2eg_n2n", 2),  # the n2n term moves the eigenVECTOR, not just k
 ])
 def test_solver_flux_spectrum_matches_reference(case_name: str, ng: int):
     r"""Multigroup flux spectrum must match the reference eigenvector.

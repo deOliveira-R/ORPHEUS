@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5830**
+Total tests collected: **5882**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1166, 20.0%
-   L1, 1006, 17.3%
+   L0, 1169, 19.9%
+   L1, 1009, 17.2%
    L2, 46, 0.8%
    L3, 0, 0.0%
-   foundation, 3602, 61.8%
+   foundation, 3648, 62.0%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5741
+   explicit, 5793
    verify, 0
    class-name, 46
    func-name, 0
@@ -241,8 +241,8 @@ Module × level grid
    geometry/test_mesh, 0, 0, 0, 0, 10, 0
    geometry/test_reduced_operator, 0, 0, 0, 0, 49, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 36, 0
-   homogeneous/test_continuous_reference, 0, 7, 0, 0, 0, 0
-   homogeneous/test_homogeneous, 0, 4, 0, 0, 0, 0
+   homogeneous/test_continuous_reference, 0, 9, 0, 0, 0, 0
+   homogeneous/test_homogeneous, 0, 5, 0, 0, 0, 0
    mc/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
    mc/test_cross_verification, 0, 0, 2, 0, 0, 0
@@ -285,7 +285,7 @@ Module × level grid
    numerics/test_measure_phase, 0, 0, 0, 0, 11, 0
    numerics/test_operator, 0, 0, 0, 0, 56, 0
    numerics/test_operator_protocols, 0, 0, 0, 0, 14, 0
-   numerics/test_outer_dyad, 5, 0, 0, 0, 0, 0
+   numerics/test_outer_dyad, 8, 0, 0, 0, 0, 0
    numerics/test_periodic_wrap_operator, 5, 0, 0, 0, 0, 0
    numerics/test_permutation_operator, 9, 2, 0, 0, 0, 0
    numerics/test_quadrature_directional, 0, 0, 0, 0, 23, 0
@@ -311,11 +311,13 @@ Module × level grid
    operators/test_boundary_conditions, 0, 0, 0, 0, 11, 0
    operators/test_capability_survival, 0, 0, 0, 0, 6, 0
    operators/test_collision_operator, 0, 0, 0, 0, 54, 0
+   operators/test_fission_adjoint, 0, 0, 0, 0, 8, 0
    operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 6, 0
    operators/test_fission_operator, 0, 0, 0, 0, 18, 0
    operators/test_frame_conjugate_carve, 0, 0, 0, 0, 11, 0
    operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 12, 0
    operators/test_invertible_operator, 1, 10, 0, 0, 22, 0
+   operators/test_isotropic_scattering, 0, 0, 0, 0, 16, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
@@ -325,8 +327,9 @@ Module × level grid
    operators/test_operators_apply_typed, 0, 0, 0, 0, 17, 0
    operators/test_pure_L_sigma_free, 0, 0, 0, 0, 9, 0
    operators/test_removal_form_matvec_sweep, 0, 0, 0, 0, 20, 0
+   operators/test_scattering_adjoint, 0, 0, 0, 0, 15, 0
    operators/test_scattering_kernel_crosscheck, 0, 0, 0, 0, 4, 0
-   operators/test_scattering_operator, 1, 0, 0, 0, 67, 0
+   operators/test_scattering_operator, 1, 0, 0, 0, 69, 0
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 21, 0
    operators/test_sn_boundary_realizer, 0, 20, 0, 0, 0, 0
    operators/test_snmesh_realizer_wiring, 0, 11, 0, 0, 0, 0
@@ -378,7 +381,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 297, 0
+   test_layer_imports, 0, 0, 0, 0, 298, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -387,7 +390,7 @@ Module × level grid
    transport/test_functional_category, 0, 0, 0, 0, 11, 0
    transport/test_integral_kernel_category, 0, 0, 0, 0, 13, 0
    transport/test_integrated_reaction_rate, 0, 0, 0, 0, 6, 0
-   transport/test_material_mesh, 0, 0, 0, 0, 8, 0
+   transport/test_material_mesh, 0, 0, 0, 0, 12, 0
    transport/test_multiplication_operator, 0, 0, 0, 0, 16, 0
    transport/test_reaction_rate_functional, 0, 0, 0, 0, 7, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0
@@ -401,10 +404,10 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    :header: Equation label, Tests
    :widths: 50, 10
 
-   ``matrix-eigenvalue``, 215
-   ``mg-balance``, 170
+   ``matrix-eigenvalue``, 218
+   ``mg-balance``, 173
    ``peierls-unified``, 158
-   ``one-group-kinf``, 134
+   ``one-group-kinf``, 137
    ``peierls-rank-n-bc-closure``, 124
    ``reflective-bc``, 112
    ``alpha-recursion``, 102
@@ -418,15 +421,15 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``e3-def``, 61
    ``blelloch-1990-eq-1-5``, 57
    ``self-slab``, 55
+   ``fission-matrix``, 54
    ``hebert-3-432``, 54
+   ``removal-matrix``, 54
    ``self-cyl``, 54
    ``balance-general``, 53
    ``p-inf``, 53
    ``self-sph``, 52
    ``chord-length``, 51
-   ``fission-matrix``, 51
    ``flux-moments``, 51
-   ``removal-matrix``, 51
    ``transport-cartesian``, 50
    ``wigner-seitz``, 49
    ``attenuation``, 48
@@ -488,7 +491,12 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``transport-cartesian-2d``, 16
    ``peierls-greens-hollow-sph-architecture``, 15
    ``second-diff-general``, 15
+   ``inf-hom-balance``, 14
    ``peierls-greens-annulus-architecture``, 14
+   ``two-group-A``, 14
+   ``two-group-Ainv``, 14
+   ``two-group-F``, 14
+   ``two-group-M``, 14
    ``peierls-greens-slab-asym-architecture``, 13
    ``complementarity``, 12
    ``kinf-1g``, 12
@@ -497,14 +505,9 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``periodic-bc``, 12
    ``reciprocity``, 12
    ``ws-pitch``, 12
-   ``inf-hom-balance``, 11
    ``loss-rep-scanmarch``, 11
    ``loss-rep-scanmarch-apply``, 11
    ``loss-rep-scanmarch-solve``, 11
-   ``two-group-A``, 11
-   ``two-group-Ainv``, 11
-   ``two-group-F``, 11
-   ``two-group-M``, 11
    ``kll-1974-slab-flux``, 10
    ``kll-1974-sphere-flux``, 10
    ``peierls-greens-cylinder-architecture``, 10
@@ -543,23 +546,25 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``ld-cartesian-1d``, 6
    ``peierls-greens-slab-T``, 6
    ``singular-eigenfunction-eq54``, 6
+   ``absorption-xs``, 5
    ``cp-outer-integral-antiderivative``, 5
    ``dd-cartesian-2d``, 5
    ``en-kernel-special-values``, 5
+   ``fission-source``, 5
+   ``fixed-source-solve``, 5
+   ``keff-update``, 5
    ``peierls-cyl-Gbc-3d-final``, 5
    ``peierls-greens-cylinder-T``, 5
    ``peierls-greens-cylinder-mr-homogeneous-reduction``, 5
    ``real-sh-discrete-orthogonality``, 5
    ``singular-eigenfunction-eq40``, 5
    ``streaming-equilibrium``, 5
+   ``two-group-charpoly``, 5
+   ``two-group-roots``, 5
    ``xs-interp``, 5
-   ``absorption-xs``, 4
    ``dd-slab-scalar``, 4
    ``en-kernel-integral``, 4
-   ``fission-source``, 4
-   ``fixed-source-solve``, 4
    ``hebert-3-323``, 4
-   ``keff-update``, 4
    ``ld-slab``, 4
    ``loss-rep-LpC``, 4
    ``macro-sum``, 4
@@ -571,8 +576,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``phase-f-q-bar-twin-forms``, 4
    ``sn-mms-hetero-psi``, 4
    ``sn-mms-hetero-qext``, 4
-   ``two-group-charpoly``, 4
-   ``two-group-roots``, 4
    ``cp-escape-from-p-cell``, 3
    ``dd-mm-closure-constants``, 3
    ``delta-psi``, 3
@@ -784,7 +787,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **266** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **265** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -814,7 +817,6 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``case-dispersion-function``
 - ``clad-heat``
 - ``conservative-form``
-- ``convergence-rate``
 - ``coolant-energy``
 - ``coolant-feedback``
 - ``coolant-rate``

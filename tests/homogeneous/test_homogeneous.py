@@ -50,9 +50,19 @@ pytestmark = [pytest.mark.l1, pytest.mark.verifies(
     "homo_1eg",
     "homo_2eg",
     "homo_4eg",
+    # Non-trivial, asymmetric (n,2n): de-vacuums the n2n-in-A convention.
+    # Every other case has Sig2=0, so the 2·Σ₂ᵀ loss term is never
+    # exercised; here it moves k_inf ~0.6 (a drop/double-count reds).
+    "homo_2eg_n2n",
 ])
 def test_kinf_exact(case_name):
-    """Eigenvalue must match analytical solution to machine precision."""
+    """Eigenvalue must match analytical solution to machine precision.
+
+    The refounded solver assembles A = C − K_iso from the transport
+    operators (a different FP reduction tree than the oracle's fused
+    ``(Σ_s + 2Σ_2)ᵀ``), so the tolerance is now principled-equivalence
+    (FP-non-associativity, ~1 ULP), not bit-identity — still ≪ 1e-12.
+    """
     case = get(case_name)
     mix = next(iter(case.materials.values()))
     result = solve_homogeneous_infinite(mix)
@@ -66,30 +76,31 @@ def test_kinf_exact(case_name):
 def test_post_solve_production_rate_is_100():
     """L1: post-convergence flux is normalised to 100 n/cm^3/s production.
 
-    After :func:`solve_homogeneous_infinite` converges, the flux is
-    rescaled so the total production rate
+    After :func:`solve_homogeneous_infinite` solves, the flux is rescaled
+    so the **fission** production rate
 
     .. math::
 
-       (\\Sigma_\\mathrm{p} + 2 \\cdot \\text{colsum}(\\Sigma_2))
-       \\cdot \\boldsymbol{\\phi} = 100
+       \\nu\\Sigma_f \\cdot \\boldsymbol{\\phi} = 100
 
-    (see Eq. ``normalisation`` in docs/theory/homogeneous.rst). This
-    test pins that invariant against the 2G and 4G cases — the 1G
-    case is a degenerate one-scalar normalisation that a bug could
-    accidentally satisfy.
+    (see Eq. ``normalisation`` in docs/theory/homogeneous.rst).
+    Production is :math:`\\nu\\Sigma_f` only — the (n,2n) reaction is a
+    loss-side transfer folded into the loss matrix as
+    :math:`2\\Sigma_2^T`, NOT a production channel (it does NOT enter
+    the numerator).  The ``homo_2eg_n2n`` case (non-zero, asymmetric
+    :math:`\\Sigma_2`) makes this non-vacuous: under the retired
+    ``(\\Sigma_p + 2\\cdot\\text{colsum}(\\Sigma_2))`` formula the
+    production would not equal 100.  The 1G case is a degenerate
+    one-scalar normalisation a bug could accidentally satisfy, so it is
+    excluded.
     """
-    import numpy as np
-
-    for case_name in ("homo_2eg", "homo_4eg"):
+    for case_name in ("homo_2eg", "homo_4eg", "homo_2eg_n2n"):
         case = get(case_name)
         mix = next(iter(case.materials.values()))
         result = solve_homogeneous_infinite(mix)
 
-        # Production = (SigP + 2 * colsum(Sig2)) @ phi
-        sig_p = mix.SigP
-        n2n_colsum = np.array(mix.Sig2.sum(axis=0)).ravel() if mix.Sig2 is not None else 0.0
-        production = (sig_p + 2.0 * n2n_colsum) @ result.flux
+        # Production = νΣ_f @ φ  (fission only; n2n lives in A, not F).
+        production = mix.SigP @ result.flux
 
         assert abs(production - 100.0) < 1e-9, (
             f"{case_name}: production rate = {production:.6e}, "

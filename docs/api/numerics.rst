@@ -90,8 +90,14 @@ glue):
 * :class:`orpheus.moc.solver.MOCSolver` — method of characteristics.
 * :class:`orpheus.diffusion.solver.DiffusionSolver` — 1-D two-group
   diffusion.
-* :class:`orpheus.homogeneous.solver.HomogeneousSolver` — infinite
-  homogeneous medium.
+
+The infinite **homogeneous** solver is the one deterministic solver
+that does **not** implement this protocol: with no spatial coupling
+its loss operator is a single :math:`G \times G` dense block, so
+:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite` takes
+the dominant eigenpair of :math:`\mathbf{A}^{-1}\mathbf{F}` directly
+(one :func:`numpy.linalg.solve` + one :func:`numpy.linalg.eig`, no
+power iteration). See :ref:`theory-homogeneous`.
 
 
 Operator Algebra (Wave A)

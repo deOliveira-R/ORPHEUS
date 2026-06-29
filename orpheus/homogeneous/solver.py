@@ -1,15 +1,28 @@
-"""Homogeneous infinite reactor eigenvalue solver.
+"""Homogeneous infinite-medium reactor eigenvalue solver.
 
 Solves for the neutron spectrum and k-infinity in an infinite homogeneous
-medium.  The transport equation reduces to:
+medium.  All spatial and angular dependence integrates out; the transport
+equation reduces to the pure energy-balance eigenvalue problem
 
-    (diag(Σ_t) − Σ_s0^T − 2·Σ₂^T) · φ = χ · P / k
+    A φ = (1/k) F φ,
+        A = diag(Σ_t) − Σ_s0ᵀ − 2·Σ₂ᵀ,
+        F = χ ⊗ νΣ_f,
 
-where P = (Σ_p + 2·colsum(Σ₂)) · φ is the total production rate.
+with k_inf = λ_max(A⁻¹F).
 
-The solver satisfies the ``EigenvalueSolver`` protocol from
-``numerics.eigenvalue`` and can be used with the generic
-``power_iteration`` function.
+The loss matrix A is assembled as the transport-operator composition
+``C − K_iso`` over a MESHLESS single-cell MaterialMesh
+(``MaterialMesh.from_materials``): the collision diagonal C = diag(Σ_t)
+minus the model-shared isotropic energy operators ``IsotropicScattering``
+(Σ_s0ᵀ) and ``IsotropicN2N`` (2·Σ₂ᵀ).  Streaming L is identically zero in
+an infinite medium and is dropped — so the whole infinite-medium spectrum
+runs through the SAME operator algebra the meshed SN solver uses, not a
+bespoke matrix (#276).
+
+(n,2n) convention: the (n,2n) reaction is a loss-side multiplicity-2
+transfer.  It lives ONLY in A (as 2·Σ₂ᵀ), NOT in the fission production
+F — the two emitted neutrons are redistributed by 2·Σ₂, they are not
+produced with the fission spectrum χ.  Production is νΣ_f only.
 
 .. seealso:: :ref:`theory-homogeneous` — Key Facts, eigenvalue equations, scattering convention.
 """
@@ -19,11 +32,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.sparse import diags
-from scipy.sparse.linalg import spsolve
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.numerics.eigenvalue import power_iteration
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.operators.isotropic_scattering import (
+    IsotropicN2N,
+    IsotropicScattering,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -73,92 +88,66 @@ class HomogeneousResult:
 
 
 # ---------------------------------------------------------------------------
-# Solver class (satisfies EigenvalueSolver protocol)
+# Solver — k∞ = λ_max(A⁻¹F) over the transport operator algebra
 # ---------------------------------------------------------------------------
 
-class HomogeneousSolver:
-    """Eigenvalue solver for an infinite homogeneous medium.
+def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
+    r"""Solve the infinite-medium eigenvalue problem for a homogeneous mixture.
 
-    The removal matrix A = diag(Σ_t) − Σ_s0^T − 2·Σ₂^T absorbs both
-    scattering and (n,2n) into the LHS, so ``solve_fixed_source`` is a
-    single sparse direct solve per iteration.
-    """
+    Assembles the loss matrix :math:`\mathbf{A} = C - K_\mathrm{iso} =
+    \operatorname{diag}(\Sigma_t) - \Sigma_{s0}^{T} - 2\Sigma_2^{T}` from
+    the model-shared transport operators over a meshless single-cell
+    :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`, and the
+    fission production dyad :math:`\mathbf{F} = \chi \otimes \nu\Sigma_f`,
+    then returns the dominant eigenpair of
+    :math:`\mathbf{A}^{-1}\mathbf{F}`: :math:`k_\infty = \lambda_{\max}`
+    and the flux spectrum :math:`\varphi` (the corresponding right
+    eigenvector), normalised so the fission production rate
+    :math:`\nu\Sigma_f \cdot \varphi = 100` n/cm³/s.
 
-    def __init__(self, mix: Mixture) -> None:
-        self.mix = mix
-        self.ng = mix.ng
-        self.sig2_colsum = np.array(mix.Sig2.sum(axis=1)).ravel()
-
-        # Pre-build the removal matrix (constant across iterations)
-        SigS0_T = mix.SigS[0].T.tocsr()
-        Sig2_T = mix.Sig2.T.tocsr()
-        self._A = diags(mix.SigT) - SigS0_T - 2.0 * Sig2_T
-
-    def initial_flux_distribution(self) -> np.ndarray:
-        return np.ones(self.ng)
-
-    def compute_fission_source(
-        self, flux_distribution: np.ndarray, keff: float,
-    ) -> np.ndarray:
-        prod_rate = (self.mix.SigP + 2.0 * self.sig2_colsum) @ flux_distribution
-        return self.mix.chi * prod_rate / keff
-
-    def solve_fixed_source(
-        self, fission_source: np.ndarray, flux_distribution: np.ndarray,
-    ) -> np.ndarray:
-        return np.asarray(spsolve(self._A.tocsc(), fission_source))
-
-    def compute_keff(self, flux_distribution: np.ndarray) -> float:
-        prod = (self.mix.SigP + 2.0 * self.sig2_colsum) @ flux_distribution
-        abso = self.mix.absorption_xs @ flux_distribution
-        return float(prod / abso)
-
-    def converged(
-        self, keff: float, keff_old: float,
-        flux_distribution: np.ndarray, flux_old: np.ndarray,
-        iteration: int,
-    ) -> bool:
-        if iteration < 3:
-            return False
-        return abs(keff - keff_old) < 1e-10
-
-
-# ---------------------------------------------------------------------------
-# Convenience wrapper (preserves existing call signature)
-# ---------------------------------------------------------------------------
-
-def solve_homogeneous_infinite(
-    mix: Mixture,
-    n_iter: int = 5,
-) -> HomogeneousResult:
-    """Solve the eigenvalue problem for an infinite homogeneous reactor.
+    (n,2n) enters ONLY through :math:`\mathbf{A}` (as :math:`2\Sigma_2^T`),
+    never the production :math:`\mathbf{F}` — see the module docstring.
 
     Parameters
     ----------
     mix : Mixture
         Macroscopic cross sections for the homogeneous medium.
-    n_iter : int
-        Number of power iterations (5 is typically sufficient).
 
     Returns
     -------
     HomogeneousResult
     """
-    solver = HomogeneousSolver(mix)
-    k_inf, keff_history, phi = power_iteration(solver, max_iter=n_iter)
+    # The meshless phase space: one cell, one region, no streaming.
+    mat_xs = MaterialMesh.from_materials({0: mix}).material_xs_field()
 
-    for k in keff_history:
-        print(f"    k_inf = {k:.5f}")
+    # Loss matrix A = C − K_iso, assembled from the transport operators:
+    #   C     = diag(Σ_t)        (collision)
+    #   K_iso = Σ_s0ᵀ + 2·Σ₂ᵀ    (isotropic energy transfer: scatter + n2n)
+    # Streaming L is identically zero in an infinite medium and is dropped.
+    sig_t = mat_xs.total_cross_section[:, 0]
+    iso = IsotropicScattering(mat_xs).dense_per_material()[0]
+    n2n = IsotropicN2N(mat_xs).dense_per_material()[0]
+    A = np.diag(sig_t) - iso - n2n
 
-    # Normalise flux so total production = 100 n/cm³/s
-    sig2_colsum = solver.sig2_colsum
-    prod_rate = (mix.SigP + 2.0 * sig2_colsum) @ phi
-    phi *= 100.0 / prod_rate
+    # Production dyad F = χ ⊗ νΣ_f  (the FissionOperator rank-1 form).
+    chi = mat_xs.emission_spectrum[:, 0]
+    nu_sig_f = mat_xs.fission_production[:, 0]
+    F = np.outer(chi, nu_sig_f)
 
-    # Post-processing
-    prod_rate = (mix.SigP + 2.0 * sig2_colsum) @ phi
-    abs_rate = mix.absorption_xs @ phi
-    total_flux = phi.sum()
+    # k∞ = λ_max(A⁻¹F); the flux spectrum is the dominant right eigenvector.
+    eigvals, eigvecs = np.linalg.eig(np.linalg.solve(A, F))
+    dominant = int(np.argmax(np.real(eigvals)))
+    k_inf = float(np.real(eigvals[dominant]))
+    phi = np.real(eigvecs[:, dominant])
+    if phi.sum() < 0:  # sign-normalise to a physical (non-negative) spectrum
+        phi = -phi
+
+    # Normalise the flux so the fission production rate νΣ_f·φ = 100 n/cm³/s.
+    phi = phi * (100.0 / float(nu_sig_f @ phi))
+
+    prod_rate = float(nu_sig_f @ phi)
+    abs_rate = float(mix.absorption_xs @ phi)
+    total_flux = float(phi.sum())
 
     ng = mix.ng
     if mix.eg is None:

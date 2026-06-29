@@ -60,19 +60,29 @@ def _make_mixture(
     nu: np.ndarray,
     chi: np.ndarray,
     sig_s: np.ndarray,
+    sig_2: np.ndarray | None = None,
 ) -> Mixture:
     """Build a Mixture from N-group arrays.
 
     The synthetic XS used by analytical-homogeneous derivations are
     abstract — no physical energy grid exists, so ``eg`` is left as
     ``None`` (Phase E of the architectural reset, 2026-05-04).
+
+    ``sig_2`` is the optional ``(ng, ng)`` (n,2n) transfer matrix
+    (``[g_from, g_to]``); it defaults to the zero matrix (no (n,2n)),
+    which keeps every existing ``derive_*`` call bit-identical. A
+    non-zero ``sig_2`` makes the (n,2n) channel — folded into the loss
+    matrix as :math:`2\\Sigma_2^T` — materially affect :math:`k_\\infty`,
+    de-vacuuming the n2n verification path. Mirrors the ``sig_2=``
+    parameter on the sibling :func:`orpheus.derivations.common.xs_library.make_mixture`.
     """
     ng = len(sig_t)
     return Mixture(
         SigC=sig_c.copy(), SigL=np.zeros(ng),
         SigF=sig_f.copy(), SigP=(nu * sig_f).copy(),
         SigT=sig_t.copy(), SigS=[csr_matrix(sig_s)],
-        Sig2=csr_matrix((ng, ng)), chi=chi.copy(),
+        Sig2=csr_matrix(sig_2) if sig_2 is not None else csr_matrix((ng, ng)),
+        chi=chi.copy(),
     )
 
 
@@ -338,9 +348,81 @@ def derive_4g() -> VerificationCase:
     )
 
 
+# ═══════════════════════════════════════════════════════════════════════
+# 2-group with (n,2n): de-vacuums the n2n-in-A convention
+# ═══════════════════════════════════════════════════════════════════════
+
+def derive_2g_n2n() -> VerificationCase:
+    r"""2-group infinite medium with a non-trivial (n,2n) channel.
+
+    The (n,2n) reaction is a **loss-side multiplicity-2 transfer**: it
+    enters the eigenvalue problem ONLY through the loss matrix
+    :math:`\mathbf{A} = \text{diag}(\Sigma_t) - (\Sigma_s + 2\Sigma_2)^T`,
+    NOT through the fission production :math:`\mathbf{F} = \chi \otimes
+    (\nu\Sigma_f)` — the two emitted neutrons are redistributed by
+    :math:`2\Sigma_2` in A, they are not produced with the fission
+    spectrum :math:`\chi`.
+
+    This case de-vacuums that convention.  Every other homogeneous
+    fixture carries :math:`\Sigma_2 = 0`, so the n2n term is invisible
+    (Mode-10 documented-but-unconstrained).  Here :math:`\Sigma_2` is
+    asymmetric and non-zero, moving :math:`k_\infty` from ``1.0377``
+    (n2n dropped) to ``1.6532`` (correct) — so dropping :math:`2\Sigma_2^T`
+    from A, or (the retired bespoke bug) double-counting it into the
+    production numerator, reddens the gate far above the FP floor.
+    """
+    xs = _derive_2g_n2n_inputs()
+    k_val, phi_spectrum = kinf_and_spectrum_homogeneous(
+        sig_t=xs["sig_t"], sig_s=xs["sig_s"],
+        nu_sig_f=xs["nu"] * xs["sig_f"], chi=xs["chi"], sig_2=xs["sig_2"],
+    )
+    latex = (
+        r"For a 2-group infinite medium with a non-trivial (n,2n) channel, "
+        r"the (n,2n) reaction folds into the loss matrix as a "
+        r"multiplicity-2 transfer (it is NOT a production channel):"
+        "\n\n"
+        r".. math::" "\n"
+        r"   \mathbf{A} = \text{diag}(\Sigma_t) - (\Sigma_s + 2\Sigma_2)^T, "
+        r"\quad \mathbf{F} = \chi \otimes (\nu\Sigma_f)"
+        "\n\n"
+        r"The eigenvalue is the dominant root of "
+        r":math:`\det(\mathbf{A}^{-1}\mathbf{F} - \lambda \mathbf{I}) = 0`:"
+        "\n\n"
+        r".. math::" "\n"
+        rf"   k_\infty = {k_val:.10f}"
+    )
+    mix = _make_mixture(
+        xs["sig_t"], xs["sig_c"], xs["sig_f"],
+        xs["nu"], xs["chi"], xs["sig_s"], sig_2=xs["sig_2"],
+    )
+    return VerificationCase(
+        name="homo_2eg_n2n",
+        k_inf=k_val,
+        method="homo",
+        geometry="--",
+        n_groups=2,
+        n_regions=1,
+        materials={0: mix},
+        geom_params={},
+        latex=latex,
+        description=(
+            "2-group infinite medium with non-trivial (n,2n) — "
+            "de-vacuums the n2n-in-A convention"
+        ),
+        tolerance="< 1e-12",
+        vv_level="L1",
+        equation_labels=(
+            "matrix-eigenvalue",
+            "removal-matrix",
+            "fission-matrix",
+            "mg-balance",
+        ),
+    )
+
+
 def all_cases() -> list[VerificationCase]:
     """Return all homogeneous legacy :class:`VerificationCase` objects."""
-    return [derive_1g(), derive_2g(), derive_4g()]
+    return [derive_1g(), derive_2g(), derive_4g(), derive_2g_n2n()]
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -375,6 +457,27 @@ def _derive_2g_inputs():
         nu=np.array([2.50, 2.50]),
         chi=np.array([1.00, 0.00]),
         sig_s=np.array([[0.38, 0.10], [0.00, 0.90]]),
+    )
+
+
+def _derive_2g_n2n_inputs():
+    """2-group homogeneous reference WITH a non-trivial (n,2n) channel.
+
+    Asymmetric ``sig_2`` (rowsum != colsum) so the (n,2n) convention is
+    fully exercised: the loss-matrix term :math:`2\\Sigma_2^T` AND the
+    rowsum-vs-colsum distinction both matter.  ``sig_t`` is balanced
+    (total = capture + fission + scatter-out + n2n-out, per row).
+    """
+    sig_c = np.array([0.03, 0.06])
+    sig_f = np.array([0.012, 0.10])
+    nu = np.array([2.50, 2.45])
+    chi = np.array([1.00, 0.00])
+    sig_s = np.array([[0.45, 0.10], [0.00, 0.82]])
+    sig_2 = np.array([[0.010, 0.020], [0.000, 0.005]])  # asymmetric
+    sig_t = sig_c + sig_f + sig_s.sum(axis=1) + sig_2.sum(axis=1)
+    return dict(
+        sig_t=sig_t, sig_c=sig_c, sig_f=sig_f,
+        nu=nu, chi=chi, sig_s=sig_s, sig_2=sig_2,
     )
 
 
@@ -541,10 +644,63 @@ def derive_4g_continuous() -> ContinuousReferenceSolution:
     )
 
 
+def derive_2g_n2n_continuous() -> ContinuousReferenceSolution:
+    r"""Phase-0 continuous reference for the 2-group (n,2n) homogeneous medium.
+
+    The de-vacuum companion to :func:`derive_2g_continuous`: the dominant
+    eigenvector (flux spectrum) of :math:`\mathbf{A}^{-1}\mathbf{F}` with
+    the (n,2n) term :math:`2\Sigma_2^T` active in A.  A transpose flip or
+    axis bug in the n2n term moves the eigenVECTOR (not just the
+    eigenvalue), so this case catches it on the spectrum.
+    """
+    xs = _derive_2g_n2n_inputs()
+    k_val, phi_spectrum = kinf_and_spectrum_homogeneous(
+        sig_t=xs["sig_t"], sig_s=xs["sig_s"],
+        nu_sig_f=xs["nu"] * xs["sig_f"], chi=xs["chi"], sig_2=xs["sig_2"],
+    )
+    mix = _make_mixture(
+        xs["sig_t"], xs["sig_c"], xs["sig_f"],
+        xs["nu"], xs["chi"], xs["sig_s"], sig_2=xs["sig_2"],
+    )
+    return _build_continuous_homogeneous(
+        name="homo_2eg_n2n",
+        description=(
+            "2-group infinite medium with non-trivial (n,2n). Phase-0 "
+            "continuous reference — de-vacuums the n2n-in-A convention."
+        ),
+        materials={0: mix},
+        k_val=k_val,
+        phi_spectrum=phi_spectrum,
+        provenance=Provenance(
+            citation=(
+                "Bell & Glasstone 1970, §7.4 + §1.5 "
+                "((n,2n) as a loss-side multiplicity transfer)"
+            ),
+            derivation_notes=(
+                "Two-group reflective infinite medium with a non-trivial "
+                "(n,2n) transfer. The (n,2n) reaction is a loss-side "
+                "multiplicity-2 channel: A = diag(Sigma_t) - (Sigma_s + "
+                "2·Sigma_2)^T, F = chi ⊗ (nu·Sigma_f). Production carries "
+                "NO (n,2n) term — the two emitted neutrons are redistributed "
+                "by 2·Sigma_2 in A, not produced with the fission spectrum. "
+                "Asymmetric Sigma_2 (rowsum != colsum) so a transpose or "
+                "axis bug is detectable on the eigenvector."
+            ),
+            sympy_expression=None,
+            precision_digits=None,
+        ),
+        equation_labels=(
+            "matrix-eigenvalue", "removal-matrix", "fission-matrix",
+            "mg-balance",
+        ),
+    )
+
+
 def continuous_cases() -> list[ContinuousReferenceSolution]:
     """Return all homogeneous Phase-0 continuous reference solutions."""
     return [
         derive_1g_continuous(),
         derive_2g_continuous(),
         derive_4g_continuous(),
+        derive_2g_n2n_continuous(),
     ]

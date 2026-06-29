@@ -6,10 +6,10 @@ eigenvalue problem in an infinite homogeneous medium — the
 simplest reactor physics configuration and the foundation for
 every spatial solver in ORPHEUS. Because the flux is uniform and
 all streaming terms vanish, the transport equation collapses to a
-single linear algebra problem per power iteration, with an exact
-analytical structure that makes it the go-to harness for L0 /
-L1 verification of cross-section libraries and scattering-matrix
-conventions.
+single :math:`G \times G` dense eigenvalue problem solved directly
+(no iteration), with an exact analytical structure that makes it the
+go-to harness for L0 / L1 verification of cross-section libraries and
+scattering-matrix conventions.
 
 .. contents::
    :local:
@@ -29,20 +29,26 @@ reduces to
 
 .. math::
 
-   \bigl(\operatorname{diag}(\Sigma_t)
+   \underbrace{\bigl(\operatorname{diag}(\Sigma_t)
    - \Sigma_{s0}^{\mathsf T}
-   - 2\,\Sigma_{2}^{\mathsf T}\bigr)\,\phi
-   \;=\; \frac{1}{k_\infty}\,\chi\,
-   \bigl(\Sigma_p + 2\,\operatorname{colsum}(\Sigma_2)\bigr)^{\mathsf T}\phi,
+   - 2\,\Sigma_{2}^{\mathsf T}\bigr)}_{\mathbf{A}}\,\phi
+   \;=\; \frac{1}{k_\infty}\,
+   \underbrace{\bigl(\chi \otimes \nu\Sigma_f\bigr)}_{\mathbf{F}}\,\phi,
 
 where :math:`\Sigma_{s0}` is the :math:`P_0` (isotropic) scattering
 matrix, :math:`\Sigma_2` is the (n,2n) cross-section matrix (stored
 separately because each collision produces two neutrons), and
-:math:`\chi` is the prompt fission spectrum. The
-:math:`2\,\Sigma_2^{\mathsf T}` term on the left moves the (n,2n)
-multiplication into the removal operator and the
-:math:`2\,\mathrm{colsum}(\Sigma_2)` term on the right adds it to
-the production rate.
+:math:`\chi` is the prompt fission spectrum. The :math:`(n,2n)`
+reaction is a **loss-side multiplicity-2 transfer**: the
+:math:`-2\,\Sigma_2^{\mathsf T}` term in the loss matrix
+:math:`\mathbf{A}` removes the incident neutron and redistributes the
+two emitted neutrons by the :math:`(n,2n)` transfer kernel. It does
+**not** enter the production matrix :math:`\mathbf{F}` — the two
+neutrons are not produced with the fission spectrum :math:`\chi`, so
+production is :math:`\nu\Sigma_f` only. (A retired bespoke formulation
+added :math:`2\,\mathrm{colsum}(\Sigma_2)` to the production numerator,
+double-counting the :math:`(n,2n)` neutrons; see
+:ref:`theory-homogeneous` for the de-vacuum case.)
 
 **Scattering convention.**
 :attr:`~orpheus.data.macro_xs.mixture.Mixture.SigS` stores matrices
@@ -58,40 +64,52 @@ tests on asymmetric scattering matrices.
 Implementation
 --------------
 
-:class:`~orpheus.homogeneous.solver.HomogeneousSolver` satisfies the
-:class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` protocol and
-plugs into the generic
-:func:`~orpheus.numerics.eigenvalue.power_iteration` loop:
+The solver is the single function
+:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`. It
+assembles the loss matrix from the **model-shared transport
+operators** over a meshless single-cell
+:class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` (campaign
+#276, Cardinal Rule 2 — the infinite-medium spectrum runs through the
+same operator algebra as the meshed SN solver, not a bespoke matrix),
+then takes the dominant eigenpair directly:
 
-* ``initial_flux_distribution`` — flat flux of ones, length
-  ``ng``.
-* ``compute_fission_source`` — evaluates
-  :math:`\chi\,(\Sigma_p + 2\,\mathrm{colsum}(\Sigma_2))\,\phi /
-  k`.
-* ``solve_fixed_source`` — one sparse direct solve
-  (:func:`scipy.sparse.linalg.spsolve`) of the pre-assembled
-  removal matrix :math:`A`. Because :math:`A` is constant across
-  iterations, it is factored once in ``__init__``.
-* ``compute_keff`` — Rayleigh quotient of production over
-  absorption.
-* ``converged`` — tolerance :math:`10^{-10}` on :math:`|\Delta k|`
-  after a three-iteration warm-up.
+* **Loss matrix** :math:`\mathbf{A} = C - K_\mathrm{iso} =
+  \operatorname{diag}(\Sigma_t) - \Sigma_{s0}^{\mathsf T} -
+  2\Sigma_2^{\mathsf T}`, with :math:`C = \operatorname{diag}(\Sigma_t)`
+  the collision diagonal and :math:`K_\mathrm{iso}` summed from
+  :meth:`IsotropicScattering.dense_per_material
+  <orpheus.transport.operators.isotropic_scattering.IsotropicScattering.dense_per_material>`
+  (:math:`\Sigma_{s0}^{\mathsf T}`) and
+  :meth:`IsotropicN2N.dense_per_material
+  <orpheus.transport.operators.isotropic_scattering.IsotropicN2N.dense_per_material>`
+  (:math:`2\Sigma_2^{\mathsf T}`). Streaming :math:`L \equiv 0` in an
+  infinite medium and is dropped.
+* **Production dyad** :math:`\mathbf{F} = \chi \otimes \nu\Sigma_f`,
+  the rank-1 form of
+  :class:`~orpheus.transport.operators.fission.FissionOperator`
+  (materialised densely via :func:`numpy.outer`).
+* **Eigenpair** :math:`k_\infty = \lambda_{\max}(\mathbf{A}^{-1}\mathbf{F})`
+  and the dominant right eigenvector, computed by one
+  :func:`numpy.linalg.solve` (to apply :math:`\mathbf{A}^{-1}`) plus
+  one :func:`numpy.linalg.eig`. There is **no inner or outer
+  iteration**.
 
-The convenience wrapper
-:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`
-runs power iteration, normalises the flux so that the total
-production rate equals :math:`100\ {\rm n/cm^3/s}`, computes the
-one-group collapsed production and absorption cross sections,
-and packages everything into a
+The function normalises the flux so that the **fission** production
+rate :math:`\nu\Sigma_f\cdot\phi` equals :math:`100\ {\rm n/cm^3/s}`
+(production is :math:`\nu\Sigma_f` only — :math:`(n,2n)` lives in
+:math:`\mathbf{A}`, not :math:`\mathbf{F}`), computes the one-group
+collapsed production and absorption cross sections, and packages
+everything into a
 :class:`~orpheus.homogeneous.solver.HomogeneousResult`.
 
-**Why five iterations is enough.**
+**Why no iteration is needed.**
 In an infinite homogeneous medium there is no spatial eigenmode
-spectrum to filter — the only mode is the fundamental spectral
-shape, and power iteration reaches it after a handful of sweeps
-regardless of the initial guess. Deterministic convergence on
-realistic PWR mixtures typically locks :math:`k_\infty` to
-:math:`10^{-10}` within five iterations.
+spectrum to filter and no spatial coupling to invert iteratively —
+the loss operator is a single :math:`G \times G` dense block, so the
+fundamental eigenpair is taken in closed form by the dense
+eigensolver. This makes the homogeneous solver the one deterministic
+solver in ORPHEUS with no iteration at all, and the instantaneous
+reference eigenvalue for every other solver on a homogeneous problem.
 
 
 API Reference

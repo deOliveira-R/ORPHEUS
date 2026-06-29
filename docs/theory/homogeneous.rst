@@ -14,12 +14,36 @@ Key Facts
 
 **Read this before modifying the homogeneous solver.**
 
-- Balance: :math:`\mathbf{A}\phi = \frac{1}{k}\mathbf{F}\phi` where :math:`\mathbf{A} = \text{diag}(\Sigma_t) - \Sigma_s^T`, :math:`\mathbf{F} = \chi \otimes (\nu\Sigma_f)`
+- Balance: :math:`\mathbf{A}\phi = \frac{1}{k}\mathbf{F}\phi` where the loss
+  matrix is :math:`\mathbf{A} = \text{diag}(\Sigma_t) - \Sigma_{s0}^T - 2\Sigma_2^T`
+  and the production dyad is :math:`\mathbf{F} = \chi \otimes (\nu\Sigma_f)`
+- **(n,2n) convention**: the :math:`(n,2n)` reaction is a **loss-side
+  multiplicity-2 transfer** — it lives ONLY in :math:`\mathbf{A}` (as
+  :math:`-2\Sigma_2^T`), NEVER in the production :math:`\mathbf{F}`. The two
+  emitted neutrons are redistributed by :math:`2\Sigma_2`; they are not
+  produced with the fission spectrum :math:`\chi`. Production is
+  :math:`\nu\Sigma_f` only. (Double-counting :math:`2\,\text{colsum}(\Sigma_2)`
+  into production — the retired bespoke bug — moves :math:`\kinf` by
+  :math:`\sim 0.43` on the asymmetric-:math:`\Sigma_2` ``homo_2eg_n2n`` case.)
 - 1-group: :math:`k = \nu\Sigma_f / \Sigma_a` (exact, no iteration)
-- Multi-group: :math:`k = \lambda_{\max}(\mathbf{A}^{-1}\mathbf{F})` via ``numpy.eigvals``
+- Multi-group: :math:`k = \lambda_{\max}(\mathbf{A}^{-1}\mathbf{F})` via a
+  **direct dense eig** (:func:`numpy.linalg.eig` on :math:`\mathbf{A}^{-1}\mathbf{F}`;
+  the loss matrix is solved out by :func:`numpy.linalg.solve`) — there is
+  **no power iteration**
+- **A is assembled from the transport operators**, not a bespoke matrix:
+  :math:`\mathbf{A} = C - K_\mathrm{iso}` over a *meshless* single-cell
+  :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`, with
+  :math:`C = \text{diag}(\Sigma_t)` and
+  :math:`K_\mathrm{iso} = \Sigma_{s0}^T + 2\Sigma_2^T` supplied by
+  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+  and :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`.
+  Streaming :math:`L` is identically zero in an infinite medium and is dropped,
+  so the whole spectrum runs through the SAME operator algebra the meshed SN
+  solver uses (cross-model single source, Cardinal Rule 2; campaign #276)
 - This is the reference eigenvalue for ALL solvers on homogeneous problems
 - Tolerance: < 1e-12 (limited only by FP arithmetic on small dense matrices)
-- **Gotcha**: this eigenvalue is flux-shape independent — it tests nothing about spatial or angular discretization
+- **Gotcha**: this eigenvalue is flux-shape independent — it tests nothing
+  about spatial or angular discretization
 
 
 Overview
@@ -36,8 +60,8 @@ Despite its simplicity, the homogeneous model is the foundation on which
 all other solvers build:
 
 - It is the **first module** students encounter in the ORPHEUS
-  curriculum, introducing the multi-group eigenvalue problem and the
-  power iteration algorithm.
+  curriculum, introducing the multi-group eigenvalue problem and its
+  direct dense solution.
 - The **cross-section preparation pipeline** — isotope loading,
   sigma-zero self-shielding, interpolation, macroscopic summation — is
   exercised here and reused unchanged by every subsequent solver (SN,
@@ -47,13 +71,15 @@ all other solvers build:
 
 This chapter derives the infinite-medium eigenvalue problem from first
 principles, describes the cross-section preparation pipeline, and
-presents the power iteration algorithm used to compute :math:`\kinf`
+presents the direct dense eigensolve used to compute :math:`\kinf`
 and :math:`\phi(E)`.
 
-The solver is implemented in :class:`HomogeneousSolver`, which satisfies
-the :class:`~numerics.eigenvalue.EigenvalueSolver` protocol.  The
-convenience wrapper :func:`solve_homogeneous_infinite` runs the full
-calculation and returns a :class:`HomogeneousResult`.
+The solver is the single function
+:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`, which
+assembles the loss matrix from the model-shared transport operators
+(see :ref:`direct-eigensolve`), takes the dominant eigenpair of
+:math:`\mathbf{A}^{-1}\mathbf{F}`, and returns a
+:class:`~orpheus.homogeneous.solver.HomogeneousResult`.
 
 
 From the Boltzmann Equation to the Infinite Medium
@@ -217,26 +243,61 @@ where the **removal matrix** and **fission matrix** are:
 .. math::
    :label: fission-matrix
 
-   \mathbf{F} = \boldsymbol{\chi} \otimes
-                \bigl(\nu\boldsymbol{\Sigma}_\mathrm{f}
-                      + 2 \, \text{colsum}(\boldsymbol{\Sigma}_2)\bigr)
+   \mathbf{F} = \boldsymbol{\chi} \otimes \nu\boldsymbol{\Sigma}_\mathrm{f}
 
 Here :math:`\boldsymbol{\Sigma}_{\mathrm{s}}` is the :math:`G \times G`
 scattering transfer matrix (:math:`P_0` component) and
-:math:`\boldsymbol{\Sigma}_2` is the :math:`(n,2n)` transfer matrix.
+:math:`\boldsymbol{\Sigma}_2` is the :math:`(n,2n)` transfer matrix. The
+production matrix :math:`\mathbf{F}` is the **rank-1 dyad**
+:math:`\boldsymbol{\chi} \otimes \nu\boldsymbol{\Sigma}_\mathrm{f}`
+embodied by :class:`~orpheus.transport.operators.fission.FissionOperator`
+— a group contraction onto the production rate followed by a broadcast
+across the emission spectrum :math:`\boldsymbol{\chi}`.
 
 .. note::
 
-   The :math:`(n,2n)` reaction appears in **both** matrices.  In the
-   removal matrix, :math:`-2\boldsymbol{\Sigma}_2^T` removes the
-   incident neutron and accounts for the two emitted neutrons entering
-   the scattering system.  In the fission matrix, the column-sum of
-   :math:`\boldsymbol{\Sigma}_2` adds the net production of one extra
-   neutron per :math:`(n,2n)` event.
+   **The** :math:`(n,2n)` **reaction appears ONLY in the loss matrix**
+   :math:`\mathbf{A}` (as :math:`-2\boldsymbol{\Sigma}_2^T`), never in
+   the production :math:`\mathbf{F}`.  The :math:`(n,2n)` event is a
+   **loss-side multiplicity-2 transfer**: one neutron of group
+   :math:`g'` is removed and **two** neutrons are deposited into the
+   scattering system with the :math:`(n,2n)` energy-transfer kernel
+   :math:`2\boldsymbol{\Sigma}_2(g' \!\to\! g)`.  The factor of two is
+   the emission multiplicity; the transpose puts the *source* group on
+   the row exactly as for :math:`\boldsymbol{\Sigma}_{\mathrm{s}}^T`
+   (see :ref:`scattering-matrix-convention`).
 
-   See :class:`HomogeneousSolver.__init__` for the construction of
-   :math:`\mathbf{A}` and :meth:`HomogeneousSolver.compute_fission_source`
-   for the production term.
+   The two emitted neutrons are **not** produced with the fission
+   spectrum :math:`\boldsymbol{\chi}` — they carry the :math:`(n,2n)`
+   transfer kernel, not :math:`\boldsymbol{\chi}`.  Production is
+   :math:`\nu\boldsymbol{\Sigma}_\mathrm{f}` only.  This matches the
+   analytical oracle
+   :func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`
+   (:math:`\mathbf{A} = \text{diag}(\Sigma_t) - (\Sigma_s + 2\Sigma_2)^T`,
+   :math:`\mathbf{F} = \chi \otimes \nu\Sigma_f`) and the collision-probability
+   oracle :func:`~orpheus.derivations.common.eigenvalue.kinf_from_cp`.
+
+   .. warning::
+
+      A retired bespoke formulation put :math:`(n,2n)` in **both**
+      matrices — :math:`+2\,\text{colsum}(\boldsymbol{\Sigma}_2)` in the
+      production numerator as well as :math:`-2\boldsymbol{\Sigma}_2^T`
+      in the loss.  That double-counts the :math:`(n,2n)` neutrons.  On
+      the asymmetric-:math:`\boldsymbol{\Sigma}_2` ``homo_2eg_n2n`` case
+      it moves :math:`\kinf` from the correct ``1.6532`` to ``2.08`` — a
+      :math:`\sim 0.43` error, far above the FP floor.  See the
+      :ref:`direct-eigensolve` section for the live assembly and the
+      ``homo_2eg_n2n`` de-vacuum case.
+
+   The loss matrix :math:`\mathbf{A} = C - K_\mathrm{iso}` is assembled
+   from the transport operators
+   :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+   (:math:`\Sigma_{s0}^T`) and
+   :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+   (:math:`2\Sigma_2^T`); the production dyad :math:`\mathbf{F}` is the
+   :class:`~orpheus.transport.operators.fission.FissionOperator` rank-1
+   form (materialised densely as :math:`\chi \otimes \nu\Sigma_f`).  See
+   :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`.
 
 The eigenvalue :math:`k = \kinf` is the largest eigenvalue of the
 generalised problem :eq:`matrix-eigenvalue`.  By the Perron–Frobenius
@@ -388,11 +449,18 @@ is:
      & \dfrac{\nu_2 \Sigf{2}}{\Sigma_{\mathrm{r},1}} \\[8pt]
      \dfrac{\Sigs{1 \to 2}\, \nu_1 \Sigf{1}}
            {\Sigma_{\mathrm{r},1}\,\Sigma_{\mathrm{r},2}}
-     + 0
      & \dfrac{\Sigs{1 \to 2}\, \nu_2 \Sigf{2}}
              {\Sigma_{\mathrm{r},1}\,\Sigma_{\mathrm{r},2}}
-       + \dfrac{\nu_2 \Sigf{2}}{\Sigma_{\mathrm{r},2}}
    \end{pmatrix}
+
+Because the fission source enters only group 1 (:math:`\chi = [1, 0]`,
+so the second row of :math:`\mathbf{F}` is zero), the term
+:math:`\nu_2\Sigf{2}/\Sigma_{\mathrm{r},2}` does **not** appear in
+:math:`M_{22}`: group 2 absorbs and down-scatters but produces no
+fission emission of its own.  Consequently the two rows of
+:math:`\mathbf{M}` are proportional — :math:`\mathbf{M}` is **rank 1**
+(as it must be, since :math:`\mathbf{F} = \boldsymbol{\chi}\otimes\nu\Sigf{}`
+is a rank-1 dyad) — and its only non-zero eigenvalue is its trace.
 
 The characteristic equation :math:`\det(\mathbf{M} - \lambda\mathbf{I}) = 0`
 gives a quadratic in :math:`\lambda`:
@@ -450,22 +518,29 @@ The eigenvalue matrix entries are:
 
    M_{11} &= \frac{2.50 \times 0.01}{0.12} = 0.208\overline{3} \\[4pt]
    M_{12} &= \frac{2.50 \times 0.08}{0.12} = 1.6\overline{6} \\[4pt]
-   M_{21} &= \frac{0.10 \times 2.50 \times 0.01}{0.12 \times 0.10} = 2.083\overline{3} \\[4pt]
-   M_{22} &= \frac{0.10 \times 2.50 \times 0.08}{0.12 \times 0.10}
-            + \frac{2.50 \times 0.08}{0.10} = 1.6\overline{6} + 2.0 = 3.6\overline{6}
+   M_{21} &= \frac{0.10 \times 2.50 \times 0.01}{0.12 \times 0.10} = 0.208\overline{3} \\[4pt]
+   M_{22} &= \frac{0.10 \times 2.50 \times 0.08}{0.12 \times 0.10} = 1.6\overline{6}
 
-Substituting into the quadratic formula :eq:`two-group-roots`:
+The two rows are identical (rank-1 :math:`\mathbf{M}`), so the
+characteristic polynomial :eq:`two-group-charpoly` factors as
+:math:`\lambda\,(\lambda - \operatorname{tr}\mathbf{M}) = 0` and the
+dominant root :eq:`two-group-roots` is simply the trace:
 
 .. math::
 
-   \kinf = \lambda_+ = 1.8750000000
+   \kinf = \lambda_+ = M_{11} + M_{22}
+         = 0.208\overline{3} + 1.6\overline{6} = 1.8750000000
 
-The second eigenvalue :math:`\lambda_- = 2.0833\overline{3}` is also
-positive but smaller.  The **dominance ratio** is
-:math:`|\lambda_-/\lambda_+| = 1.11`, which for this particular set of
-cross sections exceeds unity — indicating that the spectrum is
-initially far from the fundamental mode but converges rapidly because
-the power iteration eigenvalue still converges monotonically.
+The second eigenvalue is :math:`\lambda_- = 0`.  This is exact and
+structural, not a coincidence of these cross sections: the production
+matrix :math:`\mathbf{F} = \boldsymbol{\chi} \otimes \nu\Sigma_f` is a
+**rank-1 dyad** (fission emits with the single spectrum
+:math:`\boldsymbol{\chi}`), so :math:`\mathbf{M} = \mathbf{A}^{-1}\mathbf{F}`
+is also rank 1 — it has exactly one non-zero eigenvalue,
+:math:`\kinf`, regardless of the group count.  The direct dense
+eigensolve (see :ref:`direct-eigensolve`) returns this dominant
+eigenpair immediately; there is no iteration whose convergence rate
+would depend on a dominance ratio.
 
 .. note::
 
@@ -684,8 +759,10 @@ The following reaction types are assembled:
      - Fission spectrum
      - Taken from first fissile isotope (simplification)
 
-The **absorption cross section** used in the eigenvalue update
-:eq:`keff-update` is not stored directly but computed as a derived
+The **absorption cross section** — the diagnostic one-group balance
+ratio reported alongside :math:`\kinf` (and the denominator of the
+classical production/absorption form of the eigenvalue, Eq.
+:eq:`keff-update`) — is not stored directly but computed as a derived
 property (:attr:`~data.macro_xs.mixture.Mixture.absorption_xs`):
 
 .. math::
@@ -790,156 +867,203 @@ spectrum (4000 ppm B, suppressed thermal peak) in the
 
 
 .. _power-iteration-algorithm:
+.. _direct-eigensolve:
 
-The Power Iteration Algorithm
-==============================
+The Eigenvalue Solution
+=======================
 
-Algorithm
-----------
+The eigenvalue problem :eq:`matrix-eigenvalue`,
+:math:`\mathbf{A}\boldsymbol{\phi} = \tfrac{1}{k}\mathbf{F}\boldsymbol{\phi}`,
+asks for the dominant eigenpair :math:`(\kinf, \boldsymbol{\phi})`.  How
+it is solved depends on whether the problem couples space:
 
-The eigenvalue problem :eq:`matrix-eigenvalue` is solved by **power
-iteration** [Hebert2009]_, converging to the dominant eigenvalue
-:math:`\kinf` and the fundamental mode :math:`\boldsymbol{\phi}`.
-The algorithm implements the
-:class:`~numerics.eigenvalue.EigenvalueSolver` protocol:
+- **Spatially-coupled solvers** (SN, CP, MoC, diffusion) cannot afford a
+  dense inverse of the full loss operator, so they sweep/solve the loss
+  once per outer step and drive :math:`k` up the dominant mode by
+  **power iteration** on the fission source [Hebert2009]_.  Those
+  realisations live in the spatial theory pages (e.g.
+  :eq:`cp-keff-update`, :eq:`moc-keff-update`); this section is the
+  shared conceptual hub they cross-reference.
+- **The infinite homogeneous medium** has no spatial coupling — the loss
+  matrix :math:`\mathbf{A}` is a single :math:`G \times G` dense block —
+  so the eigenpair is taken **directly**, with no iteration, by
+  :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`.
 
-1. **Initialise**: :math:`\boldsymbol{\phi}^{(0)} = [1, 1, \ldots, 1]^T`,
-   :math:`k^{(0)} = 1.0`.
+The remainder of this section describes the direct dense eigensolve.
 
-2. **Fission source** (:meth:`HomogeneousSolver.compute_fission_source`):
+
+.. _direct-eigensolve-assembly:
+
+Assembling the loss matrix from the transport operators
+-------------------------------------------------------
+
+The defining design decision of campaign **#276** is that the
+infinite-medium loss matrix is **not** a bespoke energy matrix — it is
+the meshed SN solver's own loss operator
+:math:`\mathbf{A} = C - K_\mathrm{iso}` evaluated on a *meshless*
+single-cell phase space.  This is Cardinal Rule 2 (cross-model single
+source) applied to the simplest model in the curriculum: there is exactly
+one place in ORPHEUS where the isotropic in-scatter source
+:math:`\Sigma_{s0}^T\phi + 2\Sigma_2^T\phi` is assembled, and the
+homogeneous solver reuses it rather than re-implementing the same
+algebra.
+
+The construction proceeds in four steps inside
+:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`:
+
+1. **Build the meshless phase space.**  A single-cell, single-region
+   :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` is built
+   from the mixture via
+   :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.from_materials`,
+   and its
+   :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.material_xs_field`
+   exposes the per-cell macroscopic cross sections
+   (:math:`\Sigma_t`, :math:`\chi`, :math:`\nu\Sigma_f`, and the
+   per-material transfer matrices) as the
+   :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`
+   every transport operator consumes.
+
+2. **Collision diagonal** :math:`C = \mathrm{diag}(\Sigma_t)`, read from
+   :attr:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.total_cross_section`.
+
+3. **Isotropic energy transfer**
+   :math:`K_\mathrm{iso} = \Sigma_{s0}^T + 2\Sigma_2^T`, summed from the
+   two model-shared operators
 
    .. math::
       :label: fission-source
 
-      \mathbf{Q}_f^{(n)} = \frac{\boldsymbol{\chi}}{k^{(n-1)}}
-        \bigl(\boldsymbol{\Sigma}_\mathrm{p}
-              + 2 \, \text{colsum}(\boldsymbol{\Sigma}_2)\bigr)
-        \cdot \boldsymbol{\phi}^{(n-1)}
+      K_\mathrm{iso} \;=\;
+      \underbrace{\Sigma_{s0}^{T}}_{\substack{\text{\scriptsize :class:`IsotropicScattering`}\\\text{\scriptsize\ttfamily dense\_per\_material}}}
+      \;+\;
+      \underbrace{2\,\Sigma_2^{T}}_{\substack{\text{\scriptsize :class:`IsotropicN2N`}\\\text{\scriptsize\ttfamily dense\_per\_material}}}
 
-3. **Fixed-source solve** (:meth:`HomogeneousSolver.solve_fixed_source`):
+   where
+   :meth:`IsotropicScattering.dense_per_material <orpheus.transport.operators.isotropic_scattering.IsotropicScattering.dense_per_material>`
+   returns :math:`\Sigma_{s0}^T` (the in-scatter source matrix, equal to
+   the stored ``[g_from, g_to]`` matrix transposed) and
+   :meth:`IsotropicN2N.dense_per_material <orpheus.transport.operators.isotropic_scattering.IsotropicN2N.dense_per_material>`
+   returns :math:`2\Sigma_2^T` (the loss-side multiplicity-2 transfer).
 
-   .. math::
-      :label: fixed-source-solve
-
-      \mathbf{A} \, \boldsymbol{\phi}^{(n)} = \mathbf{Q}_f^{(n)}
-
-   This is a single sparse direct solve via
-   :func:`scipy.sparse.linalg.spsolve`.  The removal matrix
-   :math:`\mathbf{A}` is **constant** across iterations (pre-built in
-   :meth:`HomogeneousSolver.__init__`).
-
-4. **Eigenvalue update** (:meth:`HomogeneousSolver.compute_keff`):
-
-   .. math::
-      :label: keff-update
-
-      k^{(n)} = \frac{\text{production}}{\text{absorption}}
-      = \frac{\bigl(\boldsymbol{\Sigma}_\mathrm{p}
-              + 2 \, \text{colsum}(\boldsymbol{\Sigma}_2)\bigr)
-              \cdot \boldsymbol{\phi}^{(n)}}
-             {\boldsymbol{\Sigma}_\mathrm{a}
-              \cdot \boldsymbol{\phi}^{(n)}}
-
-   There is no leakage term in an infinite medium.
-
-5. **Convergence** (:meth:`HomogeneousSolver.converged`):
-   stop when :math:`|k^{(n)} - k^{(n-1)}| < 10^{-10}` after at least
-   3 iterations.
-
-The generic loop is implemented in
-:func:`~numerics.eigenvalue.power_iteration`.
+4. **Drop streaming.**  In an infinite medium the streaming operator
+   :math:`L` is identically zero (:math:`\nabla\psi = 0`), so it is
+   omitted from the sum.  What remains,
+   :math:`\mathbf{A} = C - K_\mathrm{iso} = \mathrm{diag}(\Sigma_t)
+   - \Sigma_{s0}^T - 2\Sigma_2^T`, is exactly the removal matrix
+   :eq:`removal-matrix`.
 
 .. note::
 
-   Unlike spatially-dependent solvers (SN, CP, diffusion), the
-   homogeneous solver has **no inner iteration**: the removal matrix
-   :math:`\mathbf{A}` is constant and inverted directly.  The only
-   iteration is the outer power iteration on :math:`k`.  This makes
-   the homogeneous solver extremely fast — convergence in 3--5
-   iterations is typical.
+   The label :eq:`fission-source` historically named the per-iteration
+   fission source of the retired power iteration,
+   :math:`\mathbf{Q}_f = (\boldsymbol{\chi}/k)\,\nu\Sigma_f\cdot\boldsymbol{\phi}`.
+   Under the direct method there is no iterate :math:`k^{(n)}` and no
+   reassembled source; the production source is the single application of
+   the dyad :math:`\mathbf{F}\boldsymbol{\phi}` (see
+   :ref:`direct-eigensolve-solve`).  The label is retained on the
+   isotropic-transfer assembly :math:`K_\mathrm{iso}` — the energy
+   redistribution that *was* the in-scatter half of the old source — so
+   the verification edge from the homogeneous test suite continues to pin
+   the operator algebra that produces the source.
 
 
-Convergence Properties
------------------------
+.. _direct-eigensolve-solve:
 
-Power iteration converges to the dominant eigenvalue at a rate governed
-by the **dominance ratio** :math:`\rho = |k_1 / k_0|`, where
-:math:`k_0` and :math:`k_1` are the two largest eigenvalues of
-:math:`\mathbf{A}^{-1}\mathbf{F}`.  After :math:`n` iterations, the
-eigenvalue error decays as:
+The fission dyad and the dense eigensolve
+-----------------------------------------
+
+The production matrix is the rank-1 dyad
+:math:`\mathbf{F} = \boldsymbol{\chi} \otimes \nu\Sigma_f`
+:eq:`fission-matrix`, assembled by
 
 .. math::
-   :label: convergence-rate
+   :label: fixed-source-solve
 
-   |k^{(n)} - k_0| \sim \rho^n
+   \mathbf{M} \;=\; \mathbf{A}^{-1}\mathbf{F}
+   \;=\; \mathbf{A}^{-1}\,\bigl(\boldsymbol{\chi}\otimes\nu\Sigma_f\bigr)
 
-.. vv-status: convergence-rate documented
+i.e. the loss matrix is **solved out** of the production once via
+:func:`numpy.linalg.solve` (rather than inverted explicitly), giving the
+:math:`G \times G` eigenvalue matrix :math:`\mathbf{M}`.  The eigenpair
+follows directly:
 
-For the 421-group industrial problems, the dominance ratio is very small
-(the spectrum is dominated by a single fundamental mode), so
-convergence is rapid.  The following table shows the iteration history
-for the aqueous uranium case:
+.. math::
+   :label: keff-update
 
-.. list-table::
-   :header-rows: 1
-   :widths: 15 25 25
+   \kinf \;=\; \lambda_{\max}(\mathbf{M}),
+   \qquad
+   \boldsymbol{\phi} \;=\; \text{the dominant right eigenvector of }\mathbf{M},
 
-   * - Iteration
-     - :math:`k^{(n)}`
-     - :math:`|k^{(n)} - k^{(n-1)}|`
-   * - 1
-     - 1.03596
-     - ---
-   * - 2
-     - 1.03596
-     - :math:`< 10^{-5}`
-   * - 3
-     - 1.03596
-     - :math:`< 10^{-10}`
+computed by :func:`numpy.linalg.eig` and selected as the eigenpair with
+the largest real eigenvalue.  By the Perron–Frobenius theorem
+[Hebert2009]_ this dominant eigenvector is the unique non-negative
+solution — the **fundamental mode** — so the spectrum is sign-normalised
+to non-negative components.
 
-The Perron–Frobenius theorem guarantees that the converged eigenvector
-is the unique non-negative solution.  This is critical for physical
-interpretability: the neutron flux must be non-negative everywhere in
-energy space, and the fundamental mode is the only eigenvector with
-this property.
+.. note::
 
-**Why homogeneous converges faster than spatially-dependent solvers:**
+   The labels :eq:`fixed-source-solve` and :eq:`keff-update` historically
+   named the per-iteration fixed-source solve
+   (:math:`\mathbf{A}\boldsymbol{\phi}^{(n)} = \mathbf{Q}_f^{(n)}`) and
+   the production/absorption eigenvalue ratio of the retired power
+   iteration.  They are retained on the **direct** analogues: the
+   loss-matrix solve :math:`\mathbf{M} = \mathbf{A}^{-1}\mathbf{F}` (the
+   single dense solve that replaces the per-iteration sequence) and the
+   eigenvalue extraction :math:`\kinf = \lambda_{\max}(\mathbf{M})` (the
+   converged limit the iteration ratio approached).  The classical
+   production/absorption form
+   :math:`k = (\nu\Sigma_f\cdot\phi)/(\Sigma_a\cdot\phi)` remains a valid
+   one-group balance identity — it is the per-group balance the
+   :class:`~data.macro_xs.mixture.Mixture.absorption_xs` property reports
+   alongside :math:`\kinf` — but it is no longer the computational path.
 
-In spatially-dependent problems (SN, diffusion), the dominance ratio
-approaches unity as the mesh is refined and the optical thickness
-increases, requiring hundreds of outer iterations.  The homogeneous
-problem has no spatial mesh — the only degrees of freedom are the
-:math:`G` energy groups — so the eigenvalue spectrum of
-:math:`\mathbf{A}^{-1}\mathbf{F}` is typically well-separated, giving
-:math:`\rho \ll 1`.
+.. note::
+
+   Because :math:`\mathbf{A}` is a single small dense block, the whole
+   solve is one :func:`numpy.linalg.solve` plus one
+   :func:`numpy.linalg.eig`.  There is **no inner iteration and no outer
+   iteration** — the homogeneous solver is the one deterministic solver
+   in ORPHEUS with no iteration at all.  This is what makes it the
+   instantaneous reference eigenvalue for every other solver on a
+   homogeneous problem.
 
 
 Flux Normalisation
 -------------------
 
 The eigenvector :math:`\boldsymbol{\phi}` is determined only up to a
-scalar multiple.  After convergence,
-:func:`solve_homogeneous_infinite` normalises the flux so that the
-total neutron production rate is 100 n/cm\ :sup:`3`/s:
+scalar multiple.  After the eigensolve,
+:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite` normalises
+the flux so that the **fission** production rate is 100 n/cm\ :sup:`3`/s:
 
 .. math::
    :label: normalisation
 
    \boldsymbol{\phi} \leftarrow \boldsymbol{\phi} \times
-   \frac{100}{\bigl(\boldsymbol{\Sigma}_\mathrm{p}
-         + 2\,\text{colsum}(\boldsymbol{\Sigma}_2)\bigr)
-         \cdot \boldsymbol{\phi}}
+   \frac{100}{\nu\boldsymbol{\Sigma}_\mathrm{f} \cdot \boldsymbol{\phi}}
+
+The normalisation denominator is the **fission** production rate
+:math:`\nu\Sigma_f\cdot\boldsymbol{\phi}` only — consistent with the
+production matrix :math:`\mathbf{F} = \boldsymbol{\chi}\otimes\nu\Sigma_f`.
+The :math:`(n,2n)` neutrons are **not** in this denominator: they are a
+loss-side transfer folded into :math:`\mathbf{A}` as
+:math:`2\Sigma_2^T`, not a production channel (see
+:ref:`scattering-matrix-convention` and the note under the production
+matrix :eq:`fission-matrix` above).
 
 Post-processing computes two spectral representations stored in
-:class:`HomogeneousResult`:
+:class:`~orpheus.homogeneous.solver.HomogeneousResult`:
 
 - **Flux per unit energy**: :math:`\phi_g / \Delta E_g`
-  (:attr:`HomogeneousResult.flux_per_energy`)
+  (:attr:`~orpheus.homogeneous.solver.HomogeneousResult.flux_per_energy`)
 - **Flux per unit lethargy**: :math:`\phi_g / \Delta u_g`
-  (:attr:`HomogeneousResult.flux_per_lethargy`)
+  (:attr:`~orpheus.homogeneous.solver.HomogeneousResult.flux_per_lethargy`)
 
 where :math:`\Delta E_g = E_{g-1} - E_g` and
-:math:`\Delta u_g = \ln(E_{g-1} / E_g)`.
+:math:`\Delta u_g = \ln(E_{g-1} / E_g)`.  For synthetic verification
+mixtures with no physical energy grid (:attr:`Mixture.eg` is ``None``)
+these per-energy diagnostics raise — :math:`\kinf` and the flux spectrum
+are still well-defined, only the per-energy plotting path is unavailable.
 
 
 .. _example-problems:
@@ -1164,7 +1288,7 @@ spatially-dependent solvers available in ORPHEUS:
      - Scattering source
      - None
    * - Typical convergence
-     - 3--5 outer
+     - Direct (no iteration)
      - 10--20 outer
      - 20--50 outer
      - 100+ outer
@@ -1174,7 +1298,7 @@ spatially-dependent solvers available in ORPHEUS:
      - :math:`\kinf` (lattice)
      - :math:`\keff` (core)
    * - Implementation
-     - :class:`HomogeneousSolver`
+     - :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`
      - :class:`CPSolver`
      - :class:`SNSolver`
      - :class:`DiffusionSolver`
