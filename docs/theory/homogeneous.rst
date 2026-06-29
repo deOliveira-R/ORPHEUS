@@ -26,10 +26,14 @@ Key Facts
   into production — the retired bespoke bug — moves :math:`\kinf` by
   :math:`\sim 0.43` on the asymmetric-:math:`\Sigma_2` ``homo_2eg_n2n`` case.)
 - 1-group: :math:`k = \nu\Sigma_f / \Sigma_a` (exact, no iteration)
-- Multi-group: :math:`k = \lambda_{\max}(\mathbf{A}^{-1}\mathbf{F})` via a
-  **direct dense eig** (:func:`numpy.linalg.eig` on :math:`\mathbf{A}^{-1}\mathbf{F}`;
-  the loss matrix is solved out by :func:`numpy.linalg.solve`) — there is
-  **no power iteration**
+- Multi-group: :math:`k = \lambda_{\max}(\mathbf{A}^{-1}\mathbf{F})` via the
+  **exact dense engine** :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`
+  (one :func:`numpy.linalg.solve` forms :math:`\mathbf{A}^{-1}\mathbf{F}`, one
+  :func:`numpy.linalg.eig` takes its dominant eigenpair) — there is **no power
+  iteration**. The 0-D spectrum is an *exact* eigenproblem, so the direct
+  (non-iterative) engine is used, not the iterative
+  :func:`~orpheus.numerics.eigenvalue.power_iteration` the spatially-coupled
+  solvers use (see :ref:`three-eigenvalue-engines`)
 - **A is assembled from the transport operators**, not a bespoke matrix:
   :math:`\mathbf{A} = C - K_\mathrm{iso}` over a *meshless* single-cell
   :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`, with
@@ -982,10 +986,9 @@ The production matrix is the rank-1 dyad
    \mathbf{M} \;=\; \mathbf{A}^{-1}\mathbf{F}
    \;=\; \mathbf{A}^{-1}\,\bigl(\boldsymbol{\chi}\otimes\nu\Sigma_f\bigr)
 
-i.e. the loss matrix is **solved out** of the production once via
-:func:`numpy.linalg.solve` (rather than inverted explicitly), giving the
-:math:`G \times G` eigenvalue matrix :math:`\mathbf{M}`.  The eigenpair
-follows directly:
+i.e. the loss matrix is **solved out** of the production once (rather than
+inverted explicitly), giving the :math:`G \times G` eigenvalue matrix
+:math:`\mathbf{M}`.  The eigenpair follows directly:
 
 .. math::
    :label: keff-update
@@ -994,11 +997,26 @@ follows directly:
    \qquad
    \boldsymbol{\phi} \;=\; \text{the dominant right eigenvector of }\mathbf{M},
 
-computed by :func:`numpy.linalg.eig` and selected as the eigenpair with
-the largest real eigenvalue.  By the Perron–Frobenius theorem
-[Hebert2009]_ this dominant eigenvector is the unique non-negative
-solution — the **fundamental mode** — so the spectrum is sign-normalised
-to non-negative components.
+selected as the eigenpair with the largest real eigenvalue.  By the
+Perron–Frobenius theorem [Hebert2009]_ this dominant eigenvector is the
+unique non-negative solution — the **fundamental mode** — so the spectrum
+is sign-normalised to non-negative components.
+
+Both steps are the single engine
+:func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`\ ``(A, F)``: one
+:func:`numpy.linalg.solve` forms the dense resolvent
+:math:`\mathbf{M} = \mathbf{A}^{-1}\mathbf{F}`, one :func:`numpy.linalg.eig`
+takes its spectrum, the dominant (largest-real) eigenpair is selected, and
+:math:`\boldsymbol{\phi}` is sign-normalised so its components sum to a
+non-negative value.  A **complex** dominant eigenvalue is *rejected*
+(:class:`ValueError`): the resolvent :math:`\mathbf{A}^{-1}\mathbf{F}` of a
+well-posed criticality problem has a real, positive dominant eigenvalue by
+Perron–Frobenius, so a complex one signals a malformed
+:math:`(\mathbf{A}, \mathbf{F})` and is failed loud rather than silently
+truncated (Cardinal Rule 1).  ``direct_eigenvalue`` is the exact, dense,
+non-iterative engine of :mod:`orpheus.numerics.eigenvalue` — the right tool
+for this 0-D problem precisely because the infinite-medium spectrum is
+*exactly* solvable (:ref:`three-eigenvalue-engines`).
 
 .. note::
 
@@ -1028,6 +1046,102 @@ to non-negative components.
    homogeneous problem.
 
 
+.. _three-eigenvalue-engines:
+
+Why a direct engine: the three eigenvalue realisations
+------------------------------------------------------
+
+The dominant eigenpair of :math:`\mathbf{A}^{-1}\mathbf{F}` is what *every*
+deterministic ORPHEUS solver ultimately wants; what differs is the
+**realisation**.  :mod:`orpheus.numerics.eigenvalue` ships three siblings of
+the same generalised eigenproblem
+:math:`\mathbf{A}\boldsymbol{\phi} = \tfrac{1}{k}\mathbf{F}\boldsymbol{\phi}`:
+
+.. list-table:: The three eigenvalue engines (:mod:`orpheus.numerics.eigenvalue`)
+   :header-rows: 1
+   :widths: 26 22 52
+
+   * - Engine
+     - Convergence
+     - When it is the right realisation
+   * - :func:`~orpheus.numerics.eigenvalue.power_iteration`
+     - iterative, **linear** (rate :math:`|k_1/k_0|`)
+     - Large, **sweep-only** loss operators that are never densely formed
+       (SN, CP, MoC, diffusion).  These only *apply* :math:`\mathbf{A}^{-1}`
+       — a sweep or Krylov inner solve — and drive :math:`k` up the dominant
+       mode through the
+       :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` Protocol, which
+       sees only a normalised-source fixed point, never a dense matrix.
+   * - :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`
+     - **exact** (one LAPACK shot)
+     - **Small, densifiable** operators — the 0-D infinite medium here,
+       few-group / few-region problems.  Forms the dense resolvent
+       :math:`\mathbf{A}^{-1}\mathbf{F}` and returns the EXACT dominant
+       eigenpair.  The direct (non-iterative) sibling of
+       ``power_iteration``.
+   * - :func:`~orpheus.numerics.eigenvalue.rayleigh_quotient_iteration`
+     - iterative, **superlinear** (locally quadratic)
+     - Polishing an eigenpair *estimate* to the eigenpair NEAREST its
+       Rayleigh quotient — **not** necessarily the dominant one (warm-start
+       near the mode you want).  The bordered / augmented-Newton form, in
+       which the previous iterate enters as the normalisation **row**.  Not
+       yet wired into a meshed solver — that integration, and its use as the
+       adjoint-:math:`\phi^*` vehicle, is
+       `#277 <https://github.com/deOliveira-R/ORPHEUS/issues/277>`_.
+
+The infinite-medium :math:`\kinf` uses
+:func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` because the 0-D loss
+matrix :math:`\mathbf{A}` is a single :math:`G \times G` block, so the
+spectrum of :math:`\mathbf{A}^{-1}\mathbf{F}` is **exactly solvable** — an
+iterative engine would only approximate, at a convergence tolerance, an
+answer the dense solve gives to machine precision in one shot.  That
+exactness matters here specifically: the homogeneous solver is verified
+against a :math:`10^{-12}` **closed-form** analytical eigenvalue (the
+``homo_1eg`` / ``homo_2eg`` / ``homo_4eg`` benchmarks below), and the cost
+an iterative engine pays to reach :math:`10^{-12}` is coupled to the
+dominance ratio :math:`|k_1/k_0|`, a dependence the direct engine does not
+have.
+
+.. note::
+
+   **The rank-1 subtlety.**  For the *pure* fission dyad
+   :math:`\mathbf{F} = \boldsymbol{\chi}\otimes\nu\Sigma_f` the resolvent
+   :math:`\mathbf{A}^{-1}\mathbf{F} = (\mathbf{A}^{-1}\boldsymbol{\chi})\,
+   (\nu\Sigma_f)^{\mathsf T}` is **rank-1**: it has a single nonzero
+   eigenvalue and :math:`G-1` exact zeros, so the dominance ratio is
+   :math:`0` and :func:`~orpheus.numerics.eigenvalue.power_iteration` would
+   in fact converge in *one* step on this problem.  That one-step property
+   is a fragile consequence of :math:`\mathbf{F}`'s rank-1 structure, not a
+   general guarantee — it does not survive a future multi-spectrum
+   production term.  :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`
+   is exact for **any** :math:`\mathbf{F}`, so it is the robust as well as
+   the exact choice.
+
+**The pure-math verification of the engines.**  All three engines are
+verified against a **transport-unrelated, hand-derived closed-form
+eigenproblem** — :math:`\mathbf{M} = V\operatorname{diag}(\lambda)V^{-1}`
+with chosen eigenpairs, and the rank-1 closed form
+:math:`k = v^{\mathsf T} A^{-1} u` — in the pure-math gate
+``tests/numerics/test_eigenvalue.py`` (24 closed-form gates + 6 RQI gates).
+This is a **closed-form** reference: V&V pillar 1, the *only* pillar that
+proves an eigenvalue (MMS is source-driven and cannot).  No reference value
+is produced by calling the same :func:`numpy.linalg.eig` the engine uses, so
+the cross-check is structurally independent by construction.
+
+Once an engine is pinned against domain-independent ground truth it is
+**trusted machinery**, and a production solver AND its verification oracle
+may BOTH call it without contamination.  The structural independence does
+NOT live in the eigensolver — it lives in how :math:`(\mathbf{A},
+\mathbf{F})` are *assembled*.  The homogeneous solver builds
+:math:`\mathbf{A} = C - K_\mathrm{iso}` through the transport operator
+algebra (:ref:`direct-eigensolve-assembly`); an oracle may build the same
+:math:`\mathbf{A} = \operatorname{diag}(\Sigma_t) - \Sigma_{s0}^{T} -
+2\Sigma_2^{T}` by the fused route.  Two different structural paths to the
+same matrix, cross-checked at the eigenvalue — the shared, pre-verified
+eigensolver is not a contamination because the independence was never asked
+of it.
+
+
 Flux Normalisation
 -------------------
 
@@ -1051,19 +1165,57 @@ loss-side transfer folded into :math:`\mathbf{A}` as
 :ref:`scattering-matrix-convention` and the note under the production
 matrix :eq:`fission-matrix` above).
 
-Post-processing computes two spectral representations stored in
+Post-processing reads three energy-grid diagnostics off the mixture's
+:class:`~orpheus.data.energy_grid.EnergyGrid` value object (campaign #276
+P4-F — the group geometry lives on the grid, not re-derived in the solver)
+and stores them on
 :class:`~orpheus.homogeneous.solver.HomogeneousResult`:
 
+- **Representative energy** — the plot abscissa:
+  :attr:`~orpheus.homogeneous.solver.HomogeneousResult.representative_energy`
+  :math:`= \bar E_g = \sqrt{E_g^{\mathrm{up}}\,E_g^{\mathrm{lo}}}`, the
+  **geometric** group centre.
 - **Flux per unit energy**: :math:`\phi_g / \Delta E_g`
-  (:attr:`~orpheus.homogeneous.solver.HomogeneousResult.flux_per_energy`)
+  (:attr:`~orpheus.homogeneous.solver.HomogeneousResult.flux_per_energy`),
+  with :math:`\Delta E_g = E_g^{\mathrm{up}} - E_g^{\mathrm{lo}}`.
 - **Flux per unit lethargy**: :math:`\phi_g / \Delta u_g`
-  (:attr:`~orpheus.homogeneous.solver.HomogeneousResult.flux_per_lethargy`)
+  (:attr:`~orpheus.homogeneous.solver.HomogeneousResult.flux_per_lethargy`),
+  with :math:`\Delta u_g = \ln\!\bigl(E_g^{\mathrm{up}} / E_g^{\mathrm{lo}}\bigr)`.
 
-where :math:`\Delta E_g = E_{g-1} - E_g` and
-:math:`\Delta u_g = \ln(E_{g-1} / E_g)`.  For synthetic verification
-mixtures with no physical energy grid (:attr:`Mixture.eg` is ``None``)
-these per-energy diagnostics raise — :math:`\kinf` and the flux spectrum
-are still well-defined, only the per-energy plotting path is unavailable.
+Here :math:`E_g^{\mathrm{up}} =` ``edges[g]`` and :math:`E_g^{\mathrm{lo}} =`
+``edges[g+1]`` are the upper / lower bounds of group :math:`g` under the
+**fast-first descending** convention (group :math:`0` is the highest-energy
+group, boundaries strictly decreasing; see
+:ref:`canonical-group-convention`).
+
+.. note::
+
+   **Why the geometric centre (the P4-F correction).**  The spectrum is
+   plotted as flux-per-lethargy on a **logarithmic** energy abscissa
+   (``semilogx``).  The natural centre of a group on a log axis is the
+   **geometric** mean :math:`\sqrt{E^{\mathrm{up}}E^{\mathrm{lo}}}`, which
+   sits at the midpoint of the group's *lethargy* interval — exactly where a
+   flux-per-lethargy value belongs.  The arithmetic midpoint
+   :math:`\tfrac{1}{2}(E^{\mathrm{up}} + E^{\mathrm{lo}})` is biased
+   **high** by the AM–GM inequality
+   (:math:`\tfrac{1}{2}(a+b) \ge \sqrt{ab}`, the gap widening as a group
+   spans more decades), so it plots each point to the right of the lethargy
+   centre.  Before P4-F the result carried the (wrong) arithmetic midpoint;
+   P4-F renamed the field ``eg_mid`` → ``representative_energy`` and moved it
+   to the geometric centre.  The change is **purely the abscissa** — the
+   flux *values* are unchanged, only the energy each group is plotted *at*
+   moved.  At a thermal floor (:math:`E_g^{\mathrm{lo}} = 0` eV) the
+   geometric mean degenerates;
+   :attr:`~orpheus.data.energy_grid.EnergyGrid.representative_energy` falls
+   back to half the upper edge there (still strictly inside the group), while
+   the lethargy width :math:`\Delta u_g \to +\infty` is genuinely unbounded.
+
+For synthetic verification mixtures with no physical energy grid
+(:attr:`Mixture.eg` is ``None``) all three diagnostics are ``None`` and the
+:attr:`~orpheus.homogeneous.solver.HomogeneousResult.flux_per_energy` /
+:attr:`~orpheus.homogeneous.solver.HomogeneousResult.flux_per_lethargy`
+properties raise — :math:`\kinf` and the flux spectrum are still
+well-defined, only the per-energy plotting path is unavailable.
 
 
 .. _example-problems:

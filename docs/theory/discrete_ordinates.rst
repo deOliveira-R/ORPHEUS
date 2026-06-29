@@ -11373,6 +11373,106 @@ matvec when production reciprocity becomes performance-critical
 (currently it is not — :meth:`apply_transpose` is only consumed
 by adjoint-flux post-processing in the Wave A operator algebra).
 
+
+.. _sn-scattering-adjoint:
+
+The scattering adjoint, free from the harmonic frame
+----------------------------------------------------------
+
+The streaming operator's analytic adjoint is hard (the subsection above):
+sign-flipping the upwind direction, transposing the M–M closure, re-deriving
+the per-level azimuthal redistribution — each an AI-failure-mode trap — so
+:math:`L^*` is taken by the dense-transpose fallback.  The **scattering**
+operator :math:`S` is the counterexample: campaign **#276 P3** (commit
+``15185e5``, closes
+`#118 <https://github.com/deOliveira-R/ORPHEUS/issues/118>`_) made
+:math:`S^{T}` fall out **for free**, because :math:`S` is already written as
+a harmonic-frame conjugation.
+
+The modernised in-scatter source is ONE frame-conjugated operator
+(:attr:`~orpheus.transport.operators.scattering.ScatteringOperator.full_scatter_kernel`):
+
+.. math::
+
+   \mathrm{full\_scatter\_kernel}
+   \;=\; R \circ (\Lambda_{\ell\ge 0} + N_{2n}) \circ M ,
+
+where :math:`M` / :math:`R` are the angular frame's analysis /
+reconstruction faces, :math:`\Lambda_{\ell\ge 0}` is the per-:math:`\ell`
+moment-space group transfer
+(:class:`~orpheus.transport.operators.scattering.LegendreMomentScattering`),
+and :math:`N_{2n}` is the distinct :math:`(n,2n)` multiplication channel
+(:class:`~orpheus.transport.operators.scattering.N2NMomentOperator`) —
+summed with :math:`\Lambda` in moment space and conjugated by the frame
+*together* (one analysis, one reconstruction) for the WHOLE
+P0 + :math:`\ell\ge1` + :math:`(n,2n)` source.  Its transpose is therefore
+the product transpose
+
+.. math::
+
+   \mathrm{full\_scatter\_kernel}^{T}
+   \;=\; M^{T} \circ (\Lambda + N_{2n})^{T} \circ R^{T},
+
+which :meth:`OperatorProduct.apply_transpose
+<orpheus.numerics.operator.OperatorProduct.apply_transpose>` assembles from
+the leaf transposes — the frame's :math:`M^{T}` / :math:`R^{T}` faces (landed
+in the Frame/Basis carve), the per-:math:`\ell` group transpose
+:math:`\Lambda^{T}`, and :math:`N_{2n}^{T}` — with **no per-geometry
+derivation to verify** (the trap the streaming adjoint above could not
+avoid).  The per-ordinate adjoint scattering source is then
+
+.. math::
+
+   S^{T}\chi \;=\; \tfrac{1}{W}\,\mathrm{full\_scatter\_kernel}^{T}\,\chi ,
+
+the producer-side :math:`1/W` transposing as the scalar it is
+(:math:`(A/W)^{T} = A^{T}/W`).
+:class:`~orpheus.transport.operators.scattering.ScatteringOperator` now
+advertises ``CAP_APPLY_TRANSPOSE``, and the old "no ``apply_transpose``"
+class-docstring confession is retired.
+
+**Forward fast-path, adjoint frame-path — and why the asymmetry is
+principled.**  The production FORWARD source keeps the scalar fast-path
+(:attr:`~orpheus.transport.operators.scattering.ScatteringOperator.isotropic_kernel`
+for P0 + :math:`(n,2n)`, and the per-:math:`\ell` ``build_aniso_source``)
+for SI-sweep performance; the **adjoint** — not the hot path — rides the
+validated frame form instead.  The two are thus structurally *different*
+representations of the same operator, which is exactly what makes the
+verification a genuine cross-check rather than a tautology: the per-group
+Euclidean reciprocity
+:math:`\langle S\psi, \chi\rangle = \langle\psi, S^{T}\chi\rangle`
+(``tests/sn/operators/test_scattering_adjoint.py``,
+``TestFullScatterKernel::test_S_euclidean_reciprocity``) pins the frame-form
+:math:`S^{T}` against the *independent* scalar fast-path :math:`S`, and the
+forward equivalence
+:math:`(1/W)\,\mathrm{full\_scatter\_kernel}.\mathrm{apply} \equiv
+S.\mathrm{apply}` holds to :math:`\sim 10^{-12}`.
+
+.. note::
+
+   This :math:`S^{T}` is the **Euclidean** transpose (the plain
+   group-and-angle matvec adjoint), NOT the metric Hilbert adjoint
+   :math:`S^{\dagger} = G^{-1}S^{T}G` — that angular-Gram weighting is the
+   :attr:`~orpheus.numerics.operator.LinearOperator.H` wrapper's job.  The
+   campaign and commit name it "S†" colloquially; the precise object the
+   operator computes is the transpose.
+
+This is the discrete scattering adjoint the SN adjoint chain builds on: the
+adjoint flux :math:`\psi^{*}` solving :math:`(L+C-S)^{T}\psi^{*} = q^{*}`,
+adjoint-weighted homogenisation, perturbation theory, and detector
+sensitivity all need :math:`S^{T}`.  Its companion forward step (campaign
+**#276 P2**, commit ``dcea43a``) routes the SN forward *isotropic* source
+through the same model-shared
+:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+(:math:`\Sigma_{s0}`) and
+:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+(:math:`2\Sigma_{2n}`) operators (0-ULP bit-identical), so the
+:math:`K_\mathrm{iso}` energy operator — which also assembles the
+infinite-medium loss matrix (:ref:`direct-eigensolve-assembly`) — is one
+cross-model source.  These model-shared operators live in
+:mod:`orpheus.transport.operators`.
+
+
 Wave E and beyond — landed and forward
 --------------------------------------
 
@@ -17525,7 +17625,31 @@ branch and have no landed hash yet.
      - Issue
      - Where
    * - in dev
-       (2026-06-27)
+       (2026-06-28)
+     - **SN scattering adjoint** :math:`S^{T}` **landed (#118 closed)** —
+       :meth:`ScatteringOperator.apply_transpose
+       <orpheus.transport.operators.scattering.ScatteringOperator.apply_transpose>`
+       is now LIVE as :math:`(1/W)\,\mathrm{full\_scatter\_kernel}^{T}`, the
+       harmonic-frame conjugation
+       :math:`R\circ(\Lambda_{\ell\ge0}+N_{2n})\circ M` whose transpose
+       :math:`M^{T}\circ(\Lambda+N_{2n})^{T}\circ R^{T}` falls out of
+       :meth:`OperatorProduct.apply_transpose
+       <orpheus.numerics.operator.OperatorProduct.apply_transpose>` for free;
+       the operator advertises ``CAP_APPLY_TRANSPOSE`` and the
+       "no ``apply_transpose``" confession is retired.  Because the forward
+       keeps the scalar fast-path, the frame-form :math:`S^{T}` is
+       Euclidean-reciprocity-pinned
+       (:math:`\langle S\psi,\chi\rangle=\langle\psi,S^{T}\chi\rangle`)
+       against the *independent* forward — a genuine cross-check.  This is
+       the discrete adjoint the :math:`\psi^{*}` chain (adjoint-weighted
+       homogenisation, perturbation theory) builds on; its forward companion
+       (P2) routes the SN isotropic source through the model-shared
+       :math:`K_\mathrm{iso}` operators (0-ULP bit-identical).  See
+       :ref:`sn-scattering-adjoint`.
+     - #118
+     - *(in development)*
+       ``feature/sn-adjoint-transport``
+   * - 2026-06-27
      - **Energy condensation landed (the energy-axis transpose of
        homogenization)** — :meth:`Solution.condense
        <orpheus.sn.solution.Solution.condense>` collapses fine-group
@@ -17546,10 +17670,8 @@ branch and have no landed hash yet.
        (the upscaling guard refuses a finer target). See
        :ref:`sn-energy-condensation`.
      - #274
-     - *(in development)*
-       ``feature/sn-energy-condensation``
-   * - in dev
-       (2026-06-26)
+     - ``e9a6a49`` → ``68ceb9a``
+   * - 2026-06-26
      - **Rank-N boundary walker co-located** — ``realize_recursively``
        (the descriptor-tree → operator-tree walker) merged into
        :mod:`orpheus.sn.boundary.realizer` next to the
@@ -17563,10 +17685,8 @@ branch and have no landed hash yet.
        (two witnesses to one missing type). See
        :ref:`bc-rank-n-algebra`.
      - —
-     - *(in development)*
-       ``refactor/operator-inverse-algebra``
-   * - in dev
-       (2026-06-24)
+     - ``b0e5ba1`` → ``932e769``
+   * - 2026-06-24
      - **Homogenization re-framed as Petrov-Galerkin** (unified
        Frame-projection campaign, P3) — the spatial-homogenization theory
        and production code are corrected from the forward-only
@@ -17589,9 +17709,8 @@ branch and have no landed hash yet.
        emission-rate-preserving :math:`\chi`. The 1-D guard is dropped
        (now n-D). See :ref:`sn-homogenization-petrov-galerkin-frame`.
      - #268
-     - *(in development)*
-       ``refactor/operator-inverse-algebra``
-   * - in dev
+     - ``7e8ca2a`` → ``932e769``
+   * - 2026-06
      - **Mesh + materials data/behavior split (``MaterialMesh``) + L2
        promotion** — the method-agnostic *mesh + materials* carrier
        :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` is
@@ -17611,8 +17730,7 @@ branch and have no landed hash yet.
        solvable phase space by :meth:`SNMesh.from_material_mesh`. See
        :ref:`sn-spatial-homogenization`.
      - #267
-     - *(in development)*
-       ``refactor/operator-inverse-algebra``
+     - ``5bcb1ce`` → ``932e769``
    * - in dev
      - **Spatial ⊗ angular product** — τ becomes closure-owned
        (``morel_montry_tau_per_level``); the geometry-τ producers and

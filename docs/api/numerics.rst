@@ -52,6 +52,21 @@ absolute flux (e.g. for power calibration, dose calculations) must
 post-normalise, typically by fixing the total integral fission
 source or the total power deposition.
 
+**Direct and Rayleigh-quotient siblings.**
+:func:`~orpheus.numerics.eigenvalue.power_iteration` is the iterative engine
+for large, sweep-only operators that are never densely formed.  Two siblings
+in :mod:`orpheus.numerics.eigenvalue` solve the same generalised
+eigenproblem by different realisations:
+:func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` forms the dense
+resolvent :math:`\mathbf{A}^{-1}\mathbf{F}` and returns the EXACT dominant
+eigenpair in one LAPACK call — the right tool for small, densifiable
+operators (the 0-D homogeneous medium) — and
+:func:`~orpheus.numerics.eigenvalue.rayleigh_quotient_iteration` polishes an
+eigenpair *estimate* to the NEAREST eigenpair superlinearly (bordered /
+augmented-Newton).  The full three-engine comparison, and the pure-math
+verification principle that lets a production solver and its oracle share an
+engine without contamination, is at :ref:`three-eigenvalue-engines`.
+
 
 The EigenvalueSolver Protocol
 -----------------------------
@@ -95,9 +110,12 @@ The infinite **homogeneous** solver is the one deterministic solver
 that does **not** implement this protocol: with no spatial coupling
 its loss operator is a single :math:`G \times G` dense block, so
 :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite` takes
-the dominant eigenpair of :math:`\mathbf{A}^{-1}\mathbf{F}` directly
-(one :func:`numpy.linalg.solve` + one :func:`numpy.linalg.eig`, no
-power iteration). See :ref:`theory-homogeneous`.
+the dominant eigenpair of :math:`\mathbf{A}^{-1}\mathbf{F}` **directly**
+via :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` (one
+:func:`numpy.linalg.solve` forms the dense resolvent, one
+:func:`numpy.linalg.eig` takes its dominant eigenpair — no power
+iteration). See :ref:`theory-homogeneous` and
+:ref:`three-eigenvalue-engines`.
 
 
 Operator Algebra (Wave A)
