@@ -76,6 +76,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.fields.cross_section_field import CrossSectionField
+from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.source_sinks import AngularSourceSink
 from orpheus.transport.timed_full_field import TimedFullField
@@ -536,3 +537,104 @@ class TestSpaceMetadataAndGuardJoin:
         )
         with pytest.raises(IncompatibleOperatorComposition):
             _ = a + b
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# 4. The meshless bare-ndarray apply arm (#276 — homogeneous C − K_iso).
+#
+# The singledispatch arm that lets ``M[σ]`` act on a bare ``(ng, *spatial)``
+# group block (NO ordinate axis, NO mesh), so the collision operator
+# composes on a mesh-free MaterialMesh and realizes as a dense matrix via
+# apply-to-basis-vectors. The load-bearing gate is CROSS-ARM CONSISTENCY:
+# the bare arm must agree with the validated FullField-engine arm per
+# ordinate (structurally independent — raw ``coeff*x`` vs the engine's
+# leading-axis broadcast). The single-cell homogeneous config is
+# axis-/group-blind, so these gates run on the discriminating 2-D nx≠ny
+# carrier (a wrong axis or a group-drop is observable here, NOT meshless).
+# ═══════════════════════════════════════════════════════════════════════
+
+
+class TestMeshlessBareArm:
+    """``M[σ].apply(bare (ng,*spatial))`` — the meshless diagonal multiply."""
+
+    @staticmethod
+    def _asym_sigma(ng: int, nx: int, ny: int) -> np.ndarray:
+        """Deterministic σ asymmetric across groups AND the two unequal
+        spatial axes — a group-drop or an x↔y swap is observable."""
+        return (
+            np.arange(1, 1 + ng * nx * ny, dtype=float).reshape(ng, nx, ny)
+        ) * 0.1
+
+    def test_bare_arm_is_sigma_times_x(self):
+        r""":math:`M[\sigma]\,\phi = \sigma \odot \phi` on a bare ``(ng,*spatial)``.
+
+        The explicit ``out.shape == sigma.shape`` is load-bearing:
+        ``assert_array_equal`` BROADCASTS, so a spurious leading axis (the
+        engine-style ``(1,ng,nx,ny)`` mutation) would pass the value compare
+        — only the shape gate reds it.
+        """
+        sn = _cartesian_2d_mesh(nx=5, ny=3, ng=2)
+        sigma = self._asym_sigma(2, 5, 3)
+        x = np.random.default_rng(0).uniform(0.1, 1.0, size=(2, 5, 3))
+        C = _multiplier(sn, sigma)
+
+        out = C.apply(x)
+        _require(
+            out.shape == sigma.shape,
+            f"bare apply must return (ng,*spatial)={sigma.shape}, got {out.shape}",
+        )
+        np.testing.assert_array_equal(out, sigma * x)
+
+    def test_cross_arm_consistency_bare_equals_fullfield_per_ordinate(self):
+        r"""The bare arm equals the FullField-engine arm on EVERY ordinate.
+
+        The load-bearing structurally-independent pin: feed the SAME block
+        ``x`` to the bare arm AND broadcast it across all N ordinates into a
+        :class:`FullField`; the bare result must equal the FullField bulk at
+        every ordinate. The two arms reach the value by DIFFERENT code paths
+        (raw ``coeff*x`` vs the ``DiagonalOperator`` leading-axis broadcast),
+        so a wrong axis / broadcast in the new arm reds against the validated
+        206-caller engine path.
+        """
+        sn = _cartesian_2d_mesh(nx=5, ny=3, ng=2)
+        sigma = self._asym_sigma(2, 5, 3)
+        x = np.random.default_rng(1).uniform(0.1, 1.0, size=(2, 5, 3))
+        C = _multiplier(sn, sigma)
+
+        N = sn.quad.N
+        bulk_vals = np.broadcast_to(x[None], (N, 2, 5, 3)).copy()
+        state = TimedFullField.zeros(
+            bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn,
+        )
+        psi_bcast = replace(state, bulk=replace(state.bulk, values=bulk_vals))
+
+        bare_out = C.apply(x)
+        ff_out = C.apply(psi_bcast).bulk.values
+        _require(
+            bare_out.shape == (2, 5, 3),
+            f"bare apply shape must be (ng,nx,ny)=(2,5,3), got {bare_out.shape}",
+        )
+        for n in range(N):
+            np.testing.assert_array_equal(bare_out, ff_out[n])
+
+    def test_bare_arm_is_self_adjoint(self):
+        r""":math:`M[\sigma]^* = M[\sigma]` on a bare block (real coefficient)."""
+        sn = _cartesian_2d_mesh(nx=5, ny=3, ng=2)
+        C = _multiplier(sn, self._asym_sigma(2, 5, 3))
+        x = np.random.default_rng(2).uniform(0.1, 1.0, size=(2, 5, 3))
+        np.testing.assert_array_equal(C.apply_transpose(x), C.apply(x))
+
+    def test_dispatch_raises_on_unsupported_type(self):
+        """ndarray-only scope: an unregistered carrier raises ``TypeError``.
+
+        Pins that the bare arm is ndarray-ONLY — a typed :class:`ScalarFlux`
+        is NOT silently accepted (false symmetry with ``FissionOperator``'s
+        ScalarFlux arm, deferred until a real scalar-flux collision consumer
+        exists; ``coding-elegance`` Pattern 6).
+        """
+        sn = _cartesian_2d_mesh(nx=5, ny=3, ng=2)
+        C = _multiplier(sn, self._asym_sigma(2, 5, 3))
+        with pytest.raises(TypeError):
+            C.apply(object())
+        with pytest.raises(TypeError):
+            C.apply(ScalarFlux.from_mesh(self._asym_sigma(2, 5, 3), sn))

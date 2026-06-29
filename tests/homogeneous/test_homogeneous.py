@@ -1,5 +1,6 @@
 """Verify the infinite-medium eigenvalue solver against SymPy analytical solutions."""
 
+import numpy as np
 import pytest
 
 from orpheus.derivations import get
@@ -106,3 +107,67 @@ def test_post_solve_production_rate_is_100():
             f"{case_name}: production rate = {production:.6e}, "
             f"expected 100.0 (normalisation constraint)"
         )
+
+
+# ── Operator-algebra assembly: A-level oracle + Mode-11 liveness (#276) ──
+
+
+@pytest.mark.verifies("removal-matrix")
+def test_assemble_loss_matrix_matches_fused_oracle():
+    """The operator-composed A = C − K_iso (apply-to-basis) matches the fused
+    ``diag(Σ_t) − (Σ_s0 + 2Σ_2)ᵀ`` on the non-trivial-(n,2n) case.
+
+    A SHARP procedural pin at the A level — it localises a sign/term/omission
+    bug in the operator assembly faster than the end-to-end eig. It shares
+    ``mat_xs`` data with the fused form (so it is NOT structurally
+    independent), and therefore PAIRS with the SymPy ``case.k_inf`` anchor
+    in :func:`test_kinf_exact` rather than replacing it.
+    """
+    from orpheus.homogeneous.solver import _assemble_loss_matrix
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
+
+    case = get("homo_2eg_n2n")
+    mix = next(iter(case.materials.values()))
+    mat_xs = MaterialMesh.from_materials({0: mix}).material_xs_field()
+
+    A = _assemble_loss_matrix(mat_xs)
+    sig_t = mat_xs.total_cross_section[:, 0]
+    sig_s0 = mat_xs.sig_s_legendre(0)[0]  # (ng, ng), [g_from, g_to]
+    sig_2 = mat_xs.n2n_matrix(0)
+    A_fused = np.diag(sig_t) - (sig_s0 + 2.0 * sig_2).T
+    np.testing.assert_allclose(A, A_fused, atol=1e-12, rtol=0)
+
+
+def test_kinf_gate_executes_the_bare_multiplication_arm(monkeypatch):
+    """Mode-11: the homogeneous k∞ gate actually EXECUTES the new
+    ``MultiplicationOperator`` bare-ndarray arm.
+
+    The apply-to-basis A-assembly routes the collision diagonal C = M[Σ_t]
+    through the bare arm. Perturbing ONLY that arm (×1.5 on ndarray input)
+    moves k_inf O(1) — proving the arm is on the gate's call graph and
+    load-bearing, not a vacuous green. (``-O``-safe: the monkeypatch is an
+    in-process attribute swap, reverted by the fixture; never a
+    ``git checkout``.)
+    """
+    from orpheus.transport.operators.multiplication_operator import (
+        MultiplicationOperator,
+    )
+
+    raw = MultiplicationOperator.__dict__["apply"]  # the singledispatchmethod
+
+    def perturbed(self, x):
+        out = raw.__get__(self, type(self))(x)
+        if isinstance(x, np.ndarray):  # corrupt ONLY the meshless collision arm
+            return out * 1.5
+        return out
+
+    monkeypatch.setattr(MultiplicationOperator, "apply", perturbed)
+
+    case = get("homo_2eg_n2n")
+    mix = next(iter(case.materials.values()))
+    result = solve_homogeneous_infinite(mix)
+    assert abs(result.k_inf - case.k_inf) > 1e-3, (
+        f"perturbing the bare M[Σ_t] arm left k_inf at {result.k_inf:.6f} "
+        f"(oracle {case.k_inf:.6f}) — the homogeneous gate does NOT execute "
+        f"the bare arm (Mode-11 vacuous-green)"
+    )

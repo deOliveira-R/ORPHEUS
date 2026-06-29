@@ -100,7 +100,8 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, cast
+from functools import singledispatchmethod
+from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 
@@ -109,12 +110,15 @@ from orpheus.numerics.operator import (
     DiagonalOperator,
     LinearOperator,
 )
+# Runtime import for ``singledispatchmethod.register`` (mirrors fission.py):
+# ``FullField`` is a leaf in the SN dependency graph (it imports no operators),
+# so this module-level import is cycle-free.
+from orpheus.transport.full_field import FullField
 
 if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.fields.cross_section_field import CrossSectionField
-    from orpheus.transport.full_field import FullField
 
 
 __all__ = ["MultiplicationOperator"]
@@ -264,9 +268,31 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         # Endomorphic on the composite space (see :meth:`domain`).
         return self.space
 
-    # ── The §5.7 promotion: f ↦ M[f] on the leading ordinate axis ────────
+    # ── The §5.7 promotion: f ↦ M[f], dispatched on the input carrier ────
+    #
+    # Mirrors :class:`~orpheus.transport.operators.fission.FissionOperator`:
+    # ``_apply_impl`` is the runtime ``singledispatchmethod``; the public
+    # ``apply`` name aliases it (below) with the per-carrier ``@overload``
+    # typing surface. Two arms, ONE multiply (``self.coefficient.values``):
+    #
+    # * :class:`FullField` — the SN per-ordinate carrier (the ~206-caller
+    #   path): the engine's leading-axis broadcast, repackaged as a source
+    #   composite (flux → collision-rate source).
+    # * bare :class:`numpy.ndarray` — the MESHLESS ``(ng, *spatial)`` scalar/
+    #   group block (the cross-model escape hatch: homogeneous / diffusion /
+    #   depletion outer loops feed bare arrays). The pointwise multiply needs
+    #   no mesh, so ``M[σ]`` composes on a mesh-free ``MaterialMesh`` (#276).
 
-    def apply(self, psi: "FullField") -> "FullField":
+    @singledispatchmethod
+    def _apply_impl(self, psi) -> "Any":
+        raise TypeError(
+            f"MultiplicationOperator.apply: unsupported input type "
+            f"{type(psi).__name__}; expected FullField or numpy.ndarray. "
+            f"Dispatch table is registered via @singledispatchmethod."
+        )
+
+    @_apply_impl.register
+    def _(self, psi: FullField) -> "FullField":
         r"""Forward action :math:`M[f]\,\psi = f \cdot \psi` on the composite.
 
         The pointwise multiply :math:`f\,\psi` is per-cell per-group,
@@ -281,7 +307,6 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         (a multiplier has no face-trace action — the cell-balance
         :math:`f\,\psi` term is a CELL quantity).
         """
-        from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import (
             AngularSourceSink,
             BoundarySourceSink,
@@ -297,6 +322,33 @@ class MultiplicationOperator(LinearOperator["FullField"]):
             boundary=BoundarySourceSink.zeros_on(mesh),
         )
 
+    @_apply_impl.register
+    def _(self, phi: np.ndarray) -> np.ndarray:
+        r"""Meshless bare-:class:`numpy.ndarray` arm — the pointwise multiply.
+
+        :math:`(M[f]\,\phi)_g(\vec r) = f_g(\vec r)\,\phi_g(\vec r)` on a bare
+        ``(ng, *spatial)`` scalar/group block — the diagonal action with NO
+        ordinate axis and NO mesh. This is the SAME per-block multiply the
+        :class:`FullField` arm broadcasts over ordinates (single source of
+        truth: ``self.coefficient.values``), so the two arms agree on every
+        ordinate (pinned by the cross-arm consistency gate). Preserved for the
+        cross-model outer-iteration consumers (homogeneous / diffusion /
+        depletion) that feed bare arrays.
+        """
+        return self.coefficient.values * np.asarray(phi)
+
+    if TYPE_CHECKING:
+        # Honest per-carrier typing surface (mirrors FissionOperator, #257 S8c):
+        # the public ``apply`` IS the runtime dispatcher (``apply = _apply_impl``
+        # below), so callers statically see the exact output type per carrier.
+        @overload
+        def apply(self, psi: FullField, /) -> "FullField": ...
+        @overload
+        def apply(self, phi: np.ndarray, /) -> np.ndarray: ...
+        def apply(self, psi: Any, /) -> Any: ...
+    else:
+        apply = _apply_impl
+
     def solve(self, q: "FullField") -> "FullField":
         r"""Inverse action :math:`M[f]^{-1}\,q = q / f = M[1/f]\,q`.
 
@@ -311,7 +363,6 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         """
         from orpheus.transport.fields.angular_flux import AngularFlux
         from orpheus.transport.fields.boundary_flux import BoundaryFlux
-        from orpheus.transport.full_field import FullField
 
         # SN arm (see :meth:`apply`): the inverse returns a flux on the SNMesh.
         mesh = cast("SNMesh", q.bulk.mesh)
@@ -321,11 +372,16 @@ class MultiplicationOperator(LinearOperator["FullField"]):
             boundary=BoundaryFlux.zeros_on(mesh),
         )
 
-    def apply_transpose(self, psi: "FullField") -> "FullField":
+    @overload
+    def apply_transpose(self, psi: FullField, /) -> "FullField": ...
+    @overload
+    def apply_transpose(self, phi: np.ndarray, /) -> np.ndarray: ...
+    def apply_transpose(self, psi: "Any") -> "Any":
         r"""Adjoint action :math:`M[f]^{*}\,\psi = M[\bar f]\,\psi = M[f]\,\psi`.
 
         Equal to :meth:`apply` — a real-valued multiplier is self-adjoint
         (:math:`M[f]^{*} = M[\bar f] = M[f]`), so ``M.H == M`` (the
-        metric-blind Euclidean transpose; domain ``None``).
+        metric-blind Euclidean transpose; domain ``None``). Dispatches on the
+        carrier exactly like :meth:`apply` (:class:`FullField` or bare ndarray).
         """
         return self.apply(psi)

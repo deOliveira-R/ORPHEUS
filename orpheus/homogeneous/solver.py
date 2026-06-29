@@ -30,15 +30,22 @@ produced with the fission spectrum χ.  Production is νΣ_f only.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.isotropic_scattering import (
     IsotropicN2N,
     IsotropicScattering,
 )
+from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
+
+if TYPE_CHECKING:
+    from orpheus.numerics.operator import LinearOperator
+    from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +98,49 @@ class HomogeneousResult:
 # Solver — k∞ = λ_max(A⁻¹F) over the transport operator algebra
 # ---------------------------------------------------------------------------
 
+def _as_dense(op: "LinearOperator", ng: int) -> np.ndarray:
+    r"""Realize a meshless group operator as a dense ``(ng, ng)`` matrix.
+
+    For the single-cell (0-D) infinite-medium phase space an energy operator
+    acts on the group vector as an ``ng × ng`` matrix; column ``i`` is the
+    operator applied to the ``i``-th group basis vector.  The basis columns
+    are shaped ``(ng, 1)`` — matching the operators' ``(ng, *spatial)`` bare-
+    ndarray contract — so a squeezed ``(ng,)`` column (which would broadcast
+    against a ``(ng, 1)`` coefficient into a spurious ``(ng, ng)``) cannot
+    occur.  Works on ANY meshless-safe operator, including the composition
+    ``C - K_iso`` (an :class:`~orpheus.numerics.operator.OperatorSum`).
+    """
+    cols = []
+    for i in range(ng):
+        e_i = np.zeros((ng, 1))
+        e_i[i, 0] = 1.0
+        cols.append(np.asarray(op.apply(e_i)).ravel())
+    return np.column_stack(cols)
+
+
+def _assemble_loss_matrix(mat_xs: "MaterialXSField") -> np.ndarray:
+    r"""The dense loss matrix :math:`A = C - K_\mathrm{iso}` for an infinite medium.
+
+    Composes the model-shared transport operators on the meshless single-cell
+    carrier — collision :math:`C = M[\Sigma_t]`
+    (:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
+    minus the isotropic energy transfer :math:`K_\mathrm{iso} = \Sigma_{s0}^T
+    + 2\Sigma_2^T`
+    (:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+    + :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`).
+    Streaming :math:`L` is identically zero in an infinite medium and dropped.
+    The operator algebra ``C - K_iso`` is an
+    :class:`~orpheus.numerics.operator.OperatorSum`, realized as a dense
+    ``(ng, ng)`` matrix via :func:`_as_dense`.
+    """
+    collision = MultiplicationOperator.from_mesh(
+        mat_xs.total_cross_section_field, mat_xs.mesh,
+    )
+    k_iso = IsotropicScattering(mat_xs) + IsotropicN2N(mat_xs)
+    loss = collision - k_iso
+    return _as_dense(loss, mat_xs.mesh.ng)
+
+
 def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     r"""Solve the infinite-medium eigenvalue problem for a homogeneous mixture.
 
@@ -119,20 +169,14 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     """
     # The meshless phase space: one cell, one region, no streaming.
     mat_xs = MaterialMesh.from_materials({0: mix}).material_xs_field()
+    ng = mix.ng
 
-    # Loss matrix A = C − K_iso, assembled from the transport operators:
-    #   C     = diag(Σ_t)        (collision)
-    #   K_iso = Σ_s0ᵀ + 2·Σ₂ᵀ    (isotropic energy transfer: scatter + n2n)
-    # Streaming L is identically zero in an infinite medium and is dropped.
-    sig_t = mat_xs.total_cross_section[:, 0]
-    iso = IsotropicScattering(mat_xs).dense_per_material()[0]
-    n2n = IsotropicN2N(mat_xs).dense_per_material()[0]
-    A = np.diag(sig_t) - iso - n2n
-
-    # Production dyad F = χ ⊗ νΣ_f  (the FissionOperator rank-1 form).
-    chi = mat_xs.emission_spectrum[:, 0]
-    nu_sig_f = mat_xs.fission_production[:, 0]
-    F = np.outer(chi, nu_sig_f)
+    # Loss matrix A = C − K_iso and production dyad F = χ ⊗ νΣ_f, both realized
+    # from the transport operators on the meshless single cell (the SAME
+    # operators the meshed SN solver uses; #276) — the dense (ng,ng) matrices
+    # come from apply-to-basis-vectors, NOT hand-rolled np.diag/np.outer.
+    A = _assemble_loss_matrix(mat_xs)
+    F = _as_dense(FissionOperator.from_solver_data(mat_xs=mat_xs), ng)
 
     # k∞ = λ_max(A⁻¹F); the flux spectrum is the dominant right eigenvector.
     eigvals, eigvecs = np.linalg.eig(np.linalg.solve(A, F))
@@ -143,13 +187,13 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
         phi = -phi
 
     # Normalise the flux so the fission production rate νΣ_f·φ = 100 n/cm³/s.
+    nu_sig_f = mat_xs.fission_production[:, 0]
     phi = phi * (100.0 / float(nu_sig_f @ phi))
 
     prod_rate = float(nu_sig_f @ phi)
     abs_rate = float(mix.absorption_xs @ phi)
     total_flux = float(phi.sum())
 
-    ng = mix.ng
     if mix.eg is None:
         # Synthetic XS — no physical energy grid, so lethargy / per-energy
         # diagnostics are not defined.  k_inf and the flux spectrum still
