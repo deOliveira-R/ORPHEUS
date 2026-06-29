@@ -8,14 +8,18 @@
 
 ## STATUS (2026-06-29 — read first; reconcile vs git, NOT this prose)
 
-Branch `feature/sn-adjoint-transport`, ahead of `main` @ `68ceb9a`. **NEXT = P4-E (#129) RQI mint +
-P4-F (#130) EnergyGrid diagnostics.** P4-D DONE @ `54b2781` (the last hand-rolling in
-`solve_homogeneous_infinite` retired — eigenvalue + rates now machinery).
+Branch `feature/sn-adjoint-transport`, ahead of `main` @ `68ceb9a`. **P4 (meshless homogeneous closeout)
+COMPLETE — P4-A…P4-F all committed (NOT pushed; user holds pushes).** NEXT = **P5 (#124)** docs/theory
+closeout (archivist) + file CP/MoC/diffusion/MC K_iso-migration issues, then a **MEMORY.md distillation**
+(retire the merged P5/P5.5/group-convention "Active work" entries — process-discipline merge-time rule).
 Campaign commits: `a8bb027` K_iso P1 · `dcea43a` P2 (SN fwd→K_iso) · `15185e5` P3 (S†, **closes #118**) ·
 `a799e92` P4-A (#267 bulk-field retype) · `8a4a094` P4-B (`MaterialMesh.from_materials`) ·
 `fe9d4c6` P4-C (homogeneous refound + n2n correction + de-vacuum + docs) ·
 `6611f58` P4-C′ (homogeneous A/F from the operators; `MultiplicationOperator` meshless arm) ·
-`54b2781` P4-D (`direct_eigenvalue` mint + homogeneous eig/rates rewire).
+`54b2781` P4-D (`direct_eigenvalue` mint + homogeneous eig/rates rewire) ·
+`79e12b4` P4-E (`rayleigh_quotient_iteration` — bordered RQI, #277) ·
+`29366b0` P4-F (EnergyGrid geometric diagnostics + homogeneous/MoC migration; MC twin → #278) ·
+`195e590` chore (V&V matrix regen).
 
 - **P1 DONE `a8bb027`.** `IsotropicScattering` (Σ_s0) + `IsotropicN2N` (2Σ_2n) — model-shared, sn-free.
 - **P2 DONE `dcea43a`.** SN forward iso source → `ScatteringOperator.isotropic_kernel`. 0-ULP.
@@ -63,22 +67,31 @@ Campaign commits: `a8bb027` K_iso P1 · `dcea43a` P2 (SN fwd→K_iso) · `15185e
   pins); broad sweep 1248; pyright 410; test files clean. `_as_dense`/`_assemble_loss_matrix` kept as the
   transport-layer operator→dense adapter.
 
-- **NEXT = P4-E (#129): mint the THIRD eigenvalue engine — Rayleigh-Quotient Iteration / bordered-matrix.**
-  User's idea (2026-06-29): "obtain the eigenvalue by having the eigenvector (of a previous iteration) in
-  the matrix as a row." The bordered/augmented-Newton form (the previous-iterate eigenvector enters as a
-  normalization ROW + column; Newton on `[Mφ−kφ; cᵀφ−1]`), superlinearly (locally-quadratic for the
-  non-symmetric resolvent A⁻¹F) convergent — the fast iterative cousin of `power_iteration`. Mint
-  `rayleigh_quotient_iteration(A, F, …)` in `numerics/eigenvalue.py` (dense pure-math scope, sibling of
-  `direct_eigenvalue`); **oracle = the now-verified `direct_eigenvalue`** (RQI must converge to its exact
-  answer) + the residual law + a superlinear-convergence gate (reuse the pure-math cases). The
-  meshed-operator integration (the real payoff — accelerate the SN power-iteration / adjoint φ* path, RQI
-  on the daggered operator) is the FOLLOW-ON, tracked in the filed issue, NOT P4-E. Surgical,
-  main-agent-direct.
-- **P4-F (#130): fold the energy-grid diagnostics onto `EnergyGrid`.** `solve_homogeneous_infinite`'s
-  `eg_mid`/`de`/`du` (mid-energy, bin-width, lethargy-width from `mix.eg` edges, `solver.py` tail) are
-  hand-rolled grid geometry — relocate to `EnergyGrid` properties (the P5 dual-view type), so the solver
-  consumes `eg.mid`/`eg.de`/`eg.du`. Bit-identical; test the EnergyGrid properties intrinsically.
-- **Then P5 (#124):** docs/theory closeout (archivist) + file CP/MoC/diffusion/MC K_iso-migration issues.
+- **P4-E DONE `79e12b4` (#129, issue #277).** Minted the THIRD eigenvalue engine —
+  **`numerics.eigenvalue.rayleigh_quotient_iteration(A, F, *, v0, tol, max_iter) → (k, φ)`** = bordered
+  Rayleigh-Quotient Iteration (the user's "eigenvector-of-a-previous-iteration as a row" = the
+  augmented-Newton system `[F−kA, −Av; vᵀ, 0]`). Polishes an estimate to the NEAREST eigenpair of A⁻¹F,
+  superlinearly (locally quadratic). Verified against the now-trusted `direct_eigenvalue` oracle: eigenpair
+  match + residual law + QUADRATIC-convergence teeth (error squares each step) + the NEAREST-eigenvalue
+  contract (subdominant warm-start → subdominant, documented `.. warning::`). The meshed-operator
+  integration (the real payoff) + adjoint φ* vehicle (RQI on the daggered operator) = **#277** (follow-on,
+  NOT P4-E). Gates: 30/30 (24 pure-math + 6 RQI); numerics 725; pyright 410.
+- **P4-F DONE `29366b0` (#130, issue #278).** Folded the homogeneous (+ MoC plot) energy-grid diagnostics
+  onto **`EnergyGrid`** — the arithmetic group midpoint was WRONG on a log axis. Added
+  `EnergyGrid.energy_widths` (ΔE) + `lethargy_widths` (Δu); `representative_energy` = GEOMETRIC
+  √(E_up·E_lo) already existed. Renamed `HomogeneousResult` fields `eg_mid`→`representative_energy` (now
+  geometric), `de`→`energy_widths`, `du`→`lethargy_widths`; solver reads `mix.energy_grid`. Migrated
+  `plot_spectrum` + `plot_moc_spectra` (the inline twin). PRINCIPLED change (plot abscissa → geometric
+  centre; flux unchanged), not bit-identical. Intrinsic geometry gate (geometric-not-arithmetic via AM-GM)
+  + homogeneous eg-block wiring/None tests (the eg-block was previously UNTESTED). MC twin (separate
+  `xs.eg_mid`/`xs.du` source) → **#278**. Gates: energy_grid+homogeneous 49; broad sweep 376; pyright 410;
+  Sphinx -W; V&V matrix regenerated `195e590`.
+- **NEXT = P5 (#124):** docs/theory closeout (archivist — the homogeneous theory page's eigenvalue story is
+  now 3 engines + the geometric-centre note; the SN adjoint S† changelog) + file the CP/MoC/diffusion/MC
+  K_iso-migration issues. **Then a MEMORY.md distillation** (over size limit; retire the merged
+  P5/P5.5/group-convention "Active work" entries per the process-discipline merge-time rule). Downstream:
+  the adjoint chain A3 (#114 solve_transpose + `.H` CAP_SOLVE) / A4 (#115 φ*) / A5 (#116 carrier) / A6
+  (#117 docs).
 
 > **NOTE:** the original P4 "migrate homogeneous onto `K_iso.as_dense()`" + its R1 `Mixture`-vs-
 > `MaterialXSField` FINDING (below) are SUPERSEDED by the reframe — the meshless `MaterialMesh`
