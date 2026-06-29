@@ -270,18 +270,81 @@ class TestFullScatterKernel:
             "legacy fast-path.",
         )
 
-    def test_full_kernel_euclidean_reciprocity(self, solver_p1_het):
-        r"""``⟨S ψ, c⟩ = ⟨ψ, Sᵀ c⟩`` for the full P0+aniso+n2n kernel (the A2b transpose)."""
+    @pytest.mark.parametrize("trailing", [(), (4,)], ids=["scalar", "LD-2^d=4"])
+    def test_full_kernel_euclidean_reciprocity(self, solver_p1_het, trailing):
+        r"""``⟨S ψ, c⟩ = ⟨ψ, Sᵀ c⟩`` for the full P0+aniso+n2n kernel (the A2b transpose).
+
+        Scalar AND LD (trailing :math:`2^d` spectator, #240 D5b-S3): the transpose
+        must thread the spatial-moment axis the same way the forward does (#276 P2).
+        """
         op = solver_p1_het.scattering_op
         nx, ny = op.mat_xs.spatial_shape
         N = op.weights.shape[0]
         fk = self._full_kernel(op)
         rng = np.random.default_rng(11)
-        psi = rng.uniform(0.05, 1.0, size=(N, op.ng, nx, ny))
-        c = rng.uniform(0.05, 1.0, size=(N, op.ng, nx, ny))
+        psi = rng.uniform(0.05, 1.0, size=(N, op.ng, nx, ny, *trailing))
+        c = rng.uniform(0.05, 1.0, size=(N, op.ng, nx, ny, *trailing))
         lhs = float((fk.apply(psi) * c).sum())
         rhs = float((psi * fk.apply_transpose(c)).sum())
         np.testing.assert_allclose(
             lhs, rhs, rtol=1e-12,
             err_msg="full scatter kernel (P0+aniso+n2n) Euclidean reciprocity violated.",
+        )
+
+    # ── The PRODUCTION operator S† (campaign #276 A2b, closes #118) ──────────
+
+    def test_S_advertises_apply_transpose(self, solver_p1_het):
+        r"""``ScatteringOperator`` advertises ``apply_transpose`` (the #118
+        capability flip) but still NOT ``solve`` (rank-deficient :math:`\ell=0`
+        block)."""
+        op = solver_p1_het.scattering_op
+        require(CAP_APPLY_TRANSPOSE in op.capabilities,
+                f"S must advertise apply_transpose (#276 A2b / #118); got {op.capabilities}.")
+        require(CAP_SOLVE not in op.capabilities,
+                "S must NOT advertise solve (the ℓ=0 group-transfer block is singular).")
+
+    def test_S_apply_transpose_is_kernel_transpose_over_W(self, solver_p1_het):
+        r"""WIRING (R4 near-tautology — the cheap catch for a missing ``1/W`` or a
+        ``.apply``-not-``.apply_transpose`` typo):
+        ``S.apply_transpose(χ) == (1/W)·full_scatter_kernel.apply_transpose(χ)``.
+        """
+        op = solver_p1_het.scattering_op
+        nx, ny = op.mat_xs.spatial_shape
+        N = op.weights.shape[0]
+        W = float(op.weights.sum())
+        chi = np.random.default_rng(13).uniform(0.05, 1.0, size=(N, op.ng, nx, ny))
+        np.testing.assert_allclose(
+            op.apply_transpose(chi), self._full_kernel(op).apply_transpose(chi) / W,
+            rtol=1e-12, atol=0.0,
+            err_msg="S.apply_transpose must route through (1/W)·full_scatter_kernel.apply_transpose.",
+        )
+
+    def test_S_euclidean_reciprocity(self, solver_p1_het):
+        r"""**[LOAD-BEARING]** ``⟨S ψ, χ⟩ = ⟨ψ, Sᵀ χ⟩`` — the production FORWARD
+        (scalar fast-path: ``isotropic_kernel`` + ``build_aniso_source``) vs the
+        production ADJOINT (frame form: ``full_scatter_kernelᵀ``).
+
+        Two structurally-DIFFERENT representations of the same operator (spec R4),
+        so reciprocity genuinely cross-checks the transpose against an INDEPENDENT
+        forward — unlike the self-equivalence wiring gate
+        (:meth:`test_S_apply_transpose_is_kernel_transpose_over_W`).  P0+P1, het,
+        asymmetric SigS + Sig2≠0 (``solver_p1_het``).  ``rtol=1e-12`` is the
+        fast-path↔frame-form forward-equivalence floor
+        (:meth:`test_reproduces_forward_scattering_source`); a group-flip / dropped
+        n2n / missing ``1/W`` in Sᵀ breaks it O(1).  ``-O``-safe.
+        """
+        op = solver_p1_het.scattering_op
+        nx, ny = op.mat_xs.spatial_shape
+        N = op.weights.shape[0]
+        rng = np.random.default_rng(12)
+        psi = AngularFlux.from_mesh(
+            rng.uniform(0.05, 1.0, size=(N, op.ng, nx, ny)), solver_p1_het.sn_mesh,
+        )
+        chi = rng.uniform(0.05, 1.0, size=(N, op.ng, nx, ny))
+        lhs = float((op.apply(psi).values * chi).sum())            # ⟨S ψ, χ⟩
+        rhs = float((psi.values * op.apply_transpose(chi)).sum())  # ⟨ψ, Sᵀ χ⟩
+        np.testing.assert_allclose(
+            lhs, rhs, rtol=1e-12,
+            err_msg="S Euclidean reciprocity ⟨Sψ,χ⟩=⟨ψ,Sᵀχ⟩ violated (production "
+            "forward fast-path vs adjoint frame form).",
         )

@@ -104,10 +104,17 @@ discretisation), it folds into the scattering side of the algebra:
 Capability advertisement
 ========================
 
-:pydata:`capabilities = frozenset({CAP_APPLY})`. No ``solve`` (rank
-prevents efficient inversion); no ``apply_transpose`` (would require an
-adjoint Pℓ transposition that the current ORPHEUS solver does not
-need; can be added in a future wave).
+:pydata:`capabilities = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})`. No
+``solve`` (rank-deficiency on the :math:`\ell=0` block prevents efficient
+inversion). The adjoint :math:`S^{T}` IS advertised (campaign #276 A2b /
+`#118 <https://github.com/deOliveira-R/ORPHEUS/issues/118>`_):
+:meth:`~ScatteringOperator.apply_transpose` rides the harmonic-frame
+:attr:`~ScatteringOperator.full_scatter_kernel`, whose transpose
+:math:`(R\circ(\Lambda+N_{2n})\circ M)^{T} = M^{T}\circ(\Lambda+N_{2n})^{T}
+\circ R^{T}` falls out of
+:meth:`~orpheus.numerics.operator.OperatorProduct.apply_transpose` for free
+— so the WHOLE source (iso :math:`\ell=0` + aniso :math:`\ell\ge1` +
+(n,2n)) transposes in one expression.
 
 The §5.6 Kernel reading — scattering as an integral kernel
 ==========================================================
@@ -506,8 +513,10 @@ class ScatteringOperator(LinearOperator):
     scattering_order : int
         Maximum Legendre order :math:`L` retained. ``0`` means P0 only.
     capabilities : frozenset[str]
-        ``{"apply"}`` — :math:`S` has no efficient inverse and the
-        current ORPHEUS algebra has no consumer for :math:`S^T`.
+        ``{"apply", "apply_transpose"}`` — :math:`S` has no efficient
+        inverse (``solve``), but the adjoint :math:`S^{T}` is free via
+        the harmonic-frame :attr:`full_scatter_kernel` (campaign #276
+        A2b / #118): see :meth:`apply_transpose`.
     """
 
     mat_xs: "MaterialXSField"
@@ -515,7 +524,7 @@ class ScatteringOperator(LinearOperator):
     scattering_order: int
 
     capabilities: frozenset[str] = field(
-        default_factory=lambda: frozenset({CAP_APPLY})
+        default_factory=lambda: frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
     )
     # Scattering is a BULK operator — the moment-folding `Σ_s · ⟨P_ℓ, ψ⟩`
     # reads and writes the bulk flux only (A_bb), no boundary action.
@@ -1660,3 +1669,51 @@ class ScatteringOperator(LinearOperator):
         def apply(self, x: Any, /) -> Any: ...
     else:
         apply = _apply_impl
+
+    def apply_transpose(self, chi: "np.ndarray | object") -> np.ndarray:
+        r"""The adjoint scattering source :math:`S^{T}\chi =
+        (1/W)\,\mathrm{full\_scatter\_kernel}^{T}\chi` (campaign #276 A2b, closes
+        `#118 <https://github.com/deOliveira-R/ORPHEUS/issues/118>`_).
+
+        :math:`S` maps a flux to the per-ordinate in-scatter source it emits;
+        :math:`S^{T}` is the group-and-angle transpose the adjoint transport
+        equation :math:`(L+C-S)^{T}\psi^{*}=q^{*}` needs.  Because the production
+        FORWARD keeps the scalar fast-path (:attr:`isotropic_kernel` +
+        :meth:`build_aniso_source`) for SI-sweep performance (the A2a regression),
+        the adjoint — NOT the hot path — rides the validated harmonic-frame form
+        instead: :attr:`full_scatter_kernel` :math:`= R\circ(\Lambda_{\ell\ge0}
+        + N_{2n})\circ M`, whose transpose :math:`M^{T}\circ(\Lambda+N_{2n})^{T}
+        \circ R^{T}` falls out of
+        :meth:`~orpheus.numerics.operator.OperatorProduct.apply_transpose` for
+        free (the Phase-D :math:`M/R` face transposes :math:`+\,\Lambda^{T}+
+        N_{2n}^{T}`).  ONE expression gives the COMPLETE transpose — iso
+        :math:`\ell=0` + aniso :math:`\ell\ge1` + (n,2n); the producer-side
+        :math:`1/W` (Pattern 7) transposes as the scalar it is
+        (:math:`(A/W)^{T}=A^{T}/W`).
+
+        This is the **Euclidean** transpose (the plain group-and-angle matvec
+        adjoint, L12) — NOT the metric Hilbert adjoint ``.H`` (which would carry
+        the angular Gram).  It is pinned by the reciprocity
+        :math:`\langle S\psi,\chi\rangle=\langle\psi,S^{T}\chi\rangle` against the
+        INDEPENDENT forward fast-path
+        (``test_scattering_adjoint.py::TestFullScatterKernel``): a genuine
+        cross-check, since :meth:`apply` (scalar fast-path) and
+        :meth:`apply_transpose` (frame form) are structurally different
+        representations of the same operator.  The forward/transpose asymmetry is
+        principled and oracle-pinned — the forward equivalence
+        :math:`(1/W)\,\mathrm{full\_scatter\_kernel}.\mathrm{apply}\equiv
+        S.\mathrm{apply}` holds to ~1e-12
+        (``test_reproduces_forward_scattering_source``).
+
+        Parameters
+        ----------
+        chi : np.ndarray or carrier
+            The daggered per-ordinate field :math:`\chi` of shape
+            ``(N, ng, *spatial)``; a typed carrier's ``.values`` are unwrapped.
+            Returns a bare ``ndarray`` — the typed adjoint-source carrier
+            (``AdjointFlux`` / ``Solution.adjoint``) arrives in #116 (A5).
+        """
+        chi_values = np.asarray(getattr(chi, "values", chi))
+        return self.full_scatter_kernel.apply_transpose(chi_values) / float(
+            self.weights.sum()
+        )
