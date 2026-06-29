@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5882**
+Total tests collected: **5928**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1169, 19.9%
-   L1, 1009, 17.2%
+   L0, 1169, 19.7%
+   L1, 1046, 17.6%
    L2, 46, 0.8%
    L3, 0, 0.0%
-   foundation, 3648, 62.0%
+   foundation, 3657, 61.7%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5793
+   explicit, 5839
    verify, 0
    class-name, 46
    func-name, 0
@@ -112,7 +112,7 @@ Module × level grid
    data/test_chi_mix_production_weighting, 0, 0, 0, 0, 8, 0
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_emission_spectrum, 0, 0, 0, 0, 15, 0
-   data/test_energy_grid, 0, 0, 0, 0, 23, 0
+   data/test_energy_grid, 0, 0, 0, 0, 28, 0
    data/test_gendf_canonical_order, 0, 0, 0, 0, 6, 0
    data/test_group_permutation_invariance, 0, 0, 10, 0, 0, 0
    data/test_mixture, 4, 0, 0, 0, 0, 0
@@ -242,7 +242,7 @@ Module × level grid
    geometry/test_reduced_operator, 0, 0, 0, 0, 49, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 36, 0
    homogeneous/test_continuous_reference, 0, 9, 0, 0, 0, 0
-   homogeneous/test_homogeneous, 0, 5, 0, 0, 0, 0
+   homogeneous/test_homogeneous, 0, 12, 0, 0, 0, 0
    mc/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
    mc/test_cross_verification, 0, 0, 2, 0, 0, 0
@@ -271,6 +271,7 @@ Module × level grid
    moc/test_verification, 27, 15, 6, 0, 0, 0
    numerics/test_affine_flux_algebra, 0, 0, 0, 0, 34, 0
    numerics/test_diagonal_operator, 19, 0, 0, 0, 3, 0
+   numerics/test_eigenvalue, 0, 30, 0, 0, 0, 0
    numerics/test_estimators_as_functionals, 0, 0, 0, 0, 5, 0
    numerics/test_face_layout, 0, 0, 0, 0, 15, 0
    numerics/test_field, 0, 0, 0, 0, 22, 0
@@ -391,7 +392,7 @@ Module × level grid
    transport/test_integral_kernel_category, 0, 0, 0, 0, 13, 0
    transport/test_integrated_reaction_rate, 0, 0, 0, 0, 6, 0
    transport/test_material_mesh, 0, 0, 0, 0, 12, 0
-   transport/test_multiplication_operator, 0, 0, 0, 0, 16, 0
+   transport/test_multiplication_operator, 0, 0, 0, 0, 20, 0
    transport/test_reaction_rate_functional, 0, 0, 0, 0, 7, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0
 
@@ -404,10 +405,10 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    :header: Equation label, Tests
    :widths: 50, 10
 
-   ``matrix-eigenvalue``, 218
-   ``mg-balance``, 173
+   ``matrix-eigenvalue``, 225
+   ``mg-balance``, 180
    ``peierls-unified``, 158
-   ``one-group-kinf``, 137
+   ``one-group-kinf``, 144
    ``peierls-rank-n-bc-closure``, 124
    ``reflective-bc``, 112
    ``alpha-recursion``, 102
@@ -419,11 +420,11 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``mm-weights``, 75
    ``ki3-def``, 64
    ``e3-def``, 61
+   ``fission-matrix``, 61
+   ``removal-matrix``, 61
    ``blelloch-1990-eq-1-5``, 57
    ``self-slab``, 55
-   ``fission-matrix``, 54
    ``hebert-3-432``, 54
-   ``removal-matrix``, 54
    ``self-cyl``, 54
    ``balance-general``, 53
    ``p-inf``, 53
@@ -474,8 +475,13 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-cyl-3d-mode-formula``, 22
    ``pitch-recovery``, 22
    ``ray-circle``, 22
+   ``inf-hom-balance``, 21
    ``pn-scatter``, 21
    ``singular-eigenfunction-eq46``, 21
+   ``two-group-A``, 21
+   ``two-group-Ainv``, 21
+   ``two-group-F``, 21
+   ``two-group-M``, 21
    ``dd-curvilinear-scalar``, 20
    ``en-kernel-derivative``, 20
    ``kin-kernel-derivative``, 20
@@ -491,19 +497,20 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``transport-cartesian-2d``, 16
    ``peierls-greens-hollow-sph-architecture``, 15
    ``second-diff-general``, 15
-   ``inf-hom-balance``, 14
    ``peierls-greens-annulus-architecture``, 14
-   ``two-group-A``, 14
-   ``two-group-Ainv``, 14
-   ``two-group-F``, 14
-   ``two-group-M``, 14
    ``peierls-greens-slab-asym-architecture``, 13
+   ``absorption-xs``, 12
    ``complementarity``, 12
+   ``fission-source``, 12
+   ``fixed-source-solve``, 12
+   ``keff-update``, 12
    ``kinf-1g``, 12
    ``kinf-mg``, 12
    ``ld-cartesian-2d``, 12
    ``periodic-bc``, 12
    ``reciprocity``, 12
+   ``two-group-charpoly``, 12
+   ``two-group-roots``, 12
    ``ws-pitch``, 12
    ``loss-rep-scanmarch``, 11
    ``loss-rep-scanmarch-apply``, 11
@@ -546,21 +553,15 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``ld-cartesian-1d``, 6
    ``peierls-greens-slab-T``, 6
    ``singular-eigenfunction-eq54``, 6
-   ``absorption-xs``, 5
    ``cp-outer-integral-antiderivative``, 5
    ``dd-cartesian-2d``, 5
    ``en-kernel-special-values``, 5
-   ``fission-source``, 5
-   ``fixed-source-solve``, 5
-   ``keff-update``, 5
    ``peierls-cyl-Gbc-3d-final``, 5
    ``peierls-greens-cylinder-T``, 5
    ``peierls-greens-cylinder-mr-homogeneous-reduction``, 5
    ``real-sh-discrete-orthogonality``, 5
    ``singular-eigenfunction-eq40``, 5
    ``streaming-equilibrium``, 5
-   ``two-group-charpoly``, 5
-   ``two-group-roots``, 5
    ``xs-interp``, 5
    ``dd-slab-scalar``, 4
    ``en-kernel-integral``, 4
