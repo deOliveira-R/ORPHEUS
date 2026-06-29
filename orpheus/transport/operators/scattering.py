@@ -1520,7 +1520,7 @@ class ScatteringOperator(LinearOperator):
         # reattaches the timed type when this source is added to the timed rhs).
         return FullField(
             bulk=combined,
-            boundary=BoundarySourceSink.zeros_on(psi.bulk.mesh),
+            boundary=BoundarySourceSink.zeros_on(cast("SNMesh", psi.bulk.mesh)),
         )
 
     @_apply_impl.register

@@ -100,7 +100,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
@@ -112,6 +112,7 @@ from orpheus.numerics.operator import (
 
 if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.fields.cross_section_field import CrossSectionField
     from orpheus.transport.full_field import FullField
 
@@ -286,7 +287,10 @@ class MultiplicationOperator(LinearOperator["FullField"]):
             BoundarySourceSink,
         )
 
-        mesh = psi.bulk.mesh
+        # SN arm: builds per-ordinate AngularSourceSink, so the FullField's bulk
+        # is angular ⟹ on an SNMesh (the static ``BulkField.mesh`` widened to
+        # MaterialMesh, #267).
+        mesh = cast("SNMesh", psi.bulk.mesh)
         out_bulk = self.engine.apply(psi.bulk.values)
         return FullField(
             bulk=AngularSourceSink.from_mesh(out_bulk, mesh),
@@ -309,7 +313,8 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         from orpheus.transport.fields.boundary_flux import BoundaryFlux
         from orpheus.transport.full_field import FullField
 
-        mesh = q.bulk.mesh
+        # SN arm (see :meth:`apply`): the inverse returns a flux on the SNMesh.
+        mesh = cast("SNMesh", q.bulk.mesh)
         out_bulk = self.engine.solve(q.bulk.values)
         return FullField(
             bulk=AngularFlux.from_mesh(out_bulk, mesh),

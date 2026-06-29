@@ -107,7 +107,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import singledispatchmethod
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 
@@ -138,6 +138,7 @@ if TYPE_CHECKING:
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
     from orpheus.numerics.space import FunctionSpace
     from orpheus.numerics.spaces import FullFieldSpace
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 
 __all__ = ["FissionOperator"]
@@ -486,8 +487,12 @@ class FissionOperator(LinearOperator):
             AngularSourceSink,
             BoundarySourceSink,
         )
+        # SN arm: emits a per-ordinate AngularSourceSink, so the input flux is
+        # angular ⟹ on an SNMesh (static ``BulkField.mesh`` widened to
+        # MaterialMesh, #267).
+        mesh = cast("SNMesh", psi.bulk.mesh)
         per_ord = AngularSourceSink.from_isotropic(
-            fission_iso.values, psi.bulk.mesh,
+            fission_iso.values, mesh,
         )
         return FullField(
             # B.5.2: the operator output IS a source (Fψ rate density) — emit
@@ -496,7 +501,7 @@ class FissionOperator(LinearOperator):
             # comonad lives on the driver, which reattaches the timed type when
             # this source is added to the timed rhs).
             bulk=per_ord,
-            boundary=BoundarySourceSink.zeros_on(psi.bulk.mesh),
+            boundary=BoundarySourceSink.zeros_on(mesh),
         )
 
     @_apply_impl.register

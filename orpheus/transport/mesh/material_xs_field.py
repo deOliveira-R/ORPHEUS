@@ -95,16 +95,17 @@ from orpheus.transport.fields.cross_section_field import CrossSectionField
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.numerics.frame import FrameBase
-    # The ``mesh`` field is typed against ``SNMesh`` under TYPE_CHECKING
-    # only (an L2-field / L3-mesh annotation, layer-legal — the runtime
-    # never imports sn). MaterialXSField in fact reads only
-    # ``MaterialMesh`` data (``materials`` / ``mat_map`` / ``ng`` /
-    # ``spatial_shape``); retyping the whole typed-field hierarchy's
-    # ``mesh`` annotation from ``SNMesh`` to ``MaterialMesh`` (splitting
-    # the bulk-data ``ScalarField`` branch from the quad/trace-dependent
-    # ``AngularField`` / ``BoundaryField`` branches) is a separate L2
-    # follow-up — see issue #267.
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
+    # ``mesh`` is typed against ``MaterialMesh`` (the method-agnostic
+    # mesh+materials carrier): MaterialXSField reads ONLY MaterialMesh data
+    # (``materials`` / ``mat_map`` / ``ng`` / ``spatial_shape``) — never the
+    # quadrature/trace an ``SNMesh`` adds. This is the #267 ``MaterialXSField``
+    # slice: the field is a STANDALONE dataclass (not a ``BulkField`` subclass),
+    # so it retypes independently of the full typed-field-hierarchy split (the
+    # bulk-data vs quad/trace-dependent ``AngularField``/``BoundaryField`` base
+    # split remains the #267 back-half). The MaterialMesh dependency admits a
+    # meshless (``mesh=None``, single-region) MaterialMesh — the 0-D homogeneous
+    # phase space (campaign #276).
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 
 __all__ = ["MaterialXSField"]
@@ -112,10 +113,10 @@ __all__ = ["MaterialXSField"]
 
 @dataclass
 class MaterialXSField:
-    r"""Macroscopic cross-section field over an SN phase space.
+    r"""Macroscopic cross-section field over a material mesh.
 
     Owns the per-material :class:`~orpheus.data.macro_xs.mixture.Mixture`
-    data plus the spatial distribution via the SN mesh's ``mat_map``.
+    data plus the spatial distribution via the mesh's ``mat_map``.
     Exposes BOTH per-material accessors (for operations that exploit
     per-material structure, e.g. group-coupling matmul on ``(ng, ng)``
     matrices) AND per-cell expanded views (for operations that need
@@ -130,11 +131,15 @@ class MaterialXSField:
     materials : dict[int, Mixture]
         Per-material macroscopic cross sections keyed by integer
         material id.  All materials must agree on ``ng`` (already
-        validated by :class:`SNMesh` at construction).
-    mesh : SNMesh
-        The SN phase-space carrier — supplies ``mat_map``, ``nx``,
-        ``ny``, ``ng``, plus the geometry/quadrature handles that
-        downstream consumers reach through ``mat_xs.mesh.*``.
+        validated by :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`
+        at construction).
+    mesh : MaterialMesh
+        The mesh+materials carrier — supplies ``materials``, ``mat_map``,
+        ``ng``, ``spatial_shape``.  A method-agnostic
+        :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` (NOT an
+        ``SNMesh``): this field reads no quadrature/trace, so it admits a
+        meshless single-region MaterialMesh for the 0-D homogeneous medium
+        (campaign #276).
 
     Attributes (cached)
     -------------------
@@ -157,7 +162,7 @@ class MaterialXSField:
     """
 
     materials: dict[int, "Mixture"]
-    mesh: "SNMesh"
+    mesh: "MaterialMesh"
 
     # Lazy per-cell views — populated on first access.
     _sig_t_cell: np.ndarray | None = field(default=None, init=False, repr=False)
@@ -180,16 +185,19 @@ class MaterialXSField:
     # ── Construction helpers ──────────────────────────────────────────
 
     @classmethod
-    def from_mesh(cls, mesh: "SNMesh") -> "MaterialXSField":
+    def from_mesh(cls, mesh: "MaterialMesh") -> "MaterialXSField":
         """Build the XS field directly from the mesh's authoritative materials.
 
         Standard constructor — the materials dict already lives on the
         mesh (Issue #197 PR-TYPED-0).  Reads only
         :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` data
         (``mesh.materials`` / ``mesh.mat_map`` / ``mesh.ng`` /
-        ``mesh.spatial_shape``), so it accepts any ``MaterialMesh`` or
-        subclass (``SNMesh``); the parameter is typed ``SNMesh`` only
-        pending the typed-field ``mesh`` retype (see module note).
+        ``mesh.spatial_shape``), so it accepts any
+        :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` — the
+        meshed SN :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` (a
+        ``MaterialMesh`` subclass) OR a meshless single-region MaterialMesh
+        (the 0-D homogeneous medium, campaign #276).  The parameter is now
+        honestly typed ``MaterialMesh`` (#267 slice).
         """
         return cls(materials=mesh.materials, mesh=mesh)
 

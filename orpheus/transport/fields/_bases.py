@@ -80,6 +80,7 @@ from orpheus.numerics.spaces.trace_space import TraceSpace
 if TYPE_CHECKING:
     from orpheus.numerics.face_layout import FaceLayout
     from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 
 __all__ = [
@@ -101,7 +102,7 @@ class BulkField(Field):
     r"""Bulk-locus storage base — a mesh-bound :class:`Field` on the grid.
 
     Carries the machinery shared by every bulk transport field: the
-    :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` binding, the
+    :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` binding, the
     cross-mesh-arithmetic guard (Layer-1.5: even same-class same-space
     fields on *distinct* meshes are non-additive), and the ``ng/nx/ny``
     read-throughs. The per-family phase-space shape is the single
@@ -109,11 +110,17 @@ class BulkField(Field):
     construction validator.
 
     Abstract — instantiate a concrete role leaf (``AngularFlux``,
-    ``ScalarFlux``, ...). The ``mesh`` field is annotated under
-    ``TYPE_CHECKING`` (L2 field, L3 mesh) and duck-typed at runtime.
+    ``ScalarFlux``, ...). The ``mesh`` field is annotated
+    :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` (the
+    method-agnostic mesh+materials carrier) under ``TYPE_CHECKING`` and
+    duck-typed at runtime — bulk fields read only ``ng``/``spatial_shape``/
+    ``ndim`` (all ``MaterialMesh`` data), so they live on any material mesh
+    including a meshless single-region one (#267 / #276). The SN-only
+    ``mesh.quad`` access is confined to :class:`AngularField`, which
+    ``cast``\ s to :class:`SNMesh` at the two instance reads.
     """
 
-    mesh: "SNMesh"
+    mesh: "MaterialMesh"
 
     # ── Construction validation ──────────────────────────────────────
 
@@ -159,7 +166,7 @@ class BulkField(Field):
 
     @staticmethod
     def _compose_spatial_moments(
-        space: FunctionSpace, mesh: "SNMesh", spatial_moments_per_axis: int,
+        space: FunctionSpace, mesh: "MaterialMesh", spatial_moments_per_axis: int,
     ) -> FunctionSpace:
         r"""Append the optional within-cell spatial-moment factor to ``space``.
 
@@ -279,6 +286,13 @@ class AngularField(BulkField):
     identity). Abstract — instantiate a concrete leaf.
     """
 
+    # Narrowed to ``SNMesh`` (covariant override of ``BulkField.mesh:
+    # MaterialMesh``, #267): an angular field is per-ORDINATE, so it is
+    # meaningless without a quadrature and ALWAYS lives on an ``SNMesh``. The
+    # narrowing keeps ``mesh.quad`` honest here (no cast) and lets the operators
+    # read ``angular_field.mesh`` as an ``SNMesh`` directly.
+    mesh: "SNMesh"
+
     #: The :class:`FunctionSpace` ``name`` for this leaf (e.g.
     #: ``"angular_flux"``). Set on each concrete role leaf; absent on
     #: this abstract base (``from_mesh`` would raise if called on it).
@@ -386,7 +400,7 @@ class ScalarField(BulkField):
     _SPACE_NAME: ClassVar[str]
 
     @classmethod
-    def _shape_for_mesh(cls, mesh: "SNMesh") -> tuple[int, ...]:
+    def _shape_for_mesh(cls, mesh: "MaterialMesh") -> tuple[int, ...]:
         r"""The ``(ng, *spatial)`` phase-space shape for ``mesh``.
 
         Spatial rank equals ``mesh.ndim`` — ``(ng, nx)`` for a 1-D mesh,
@@ -396,7 +410,7 @@ class ScalarField(BulkField):
 
     @classmethod
     def _space_for_mesh(
-        cls, mesh: "SNMesh", *, spatial_moments: int = 1,
+        cls, mesh: "MaterialMesh", *, spatial_moments: int = 1,
     ) -> FunctionSpace:
         r"""The leaf's :class:`FunctionSpace` for ``mesh`` (name + shape).
 
@@ -426,7 +440,7 @@ class ScalarField(BulkField):
         )
 
     @classmethod
-    def from_mesh(cls, values: NDArray, mesh: "SNMesh", *, spatial_moments: int = 1):
+    def from_mesh(cls, values: NDArray, mesh: "MaterialMesh", *, spatial_moments: int = 1):
         r"""Construct from raw values + mesh, deriving the space.
 
         ``spatial_moments`` (default ``1``, byte-identical) optionally
@@ -439,7 +453,7 @@ class ScalarField(BulkField):
         )
 
     @classmethod
-    def zeros_on(cls, mesh: "SNMesh", *, spatial_moments: int = 1):
+    def zeros_on(cls, mesh: "MaterialMesh", *, spatial_moments: int = 1):
         r"""Construct a zero field of this leaf sized to ``mesh`` (B.5.A).
 
         The bulk-locus zero factory: derives the space from ``mesh`` and
@@ -455,7 +469,7 @@ class ScalarField(BulkField):
         )
 
     @classmethod
-    def from_ndarray(cls, arr: NDArray, mesh: "SNMesh"):
+    def from_ndarray(cls, arr: NDArray, mesh: "MaterialMesh"):
         r"""Test-ergonomic alias for :meth:`from_mesh`."""
         return cls.from_mesh(arr, mesh)
 
@@ -508,6 +522,12 @@ class MomentField(BulkField):
     #: needs between sweeps. Single-sourced "append iff > 1" via
     #: :func:`~orpheus.numerics.spaces.spatial_moment_space.spatial_moment_tail`.
     spatial_moments: int = 1
+
+    # Narrowed to ``SNMesh`` (covariant override of ``BulkField.mesh:
+    # MaterialMesh``, #267): a moment field IS the angular flux's
+    # harmonic-moment iterate (φ_ℓ^m), an SN construct, so it always lives on
+    # an ``SNMesh`` — operators read ``moment_field.mesh`` as ``SNMesh`` directly.
+    mesh: "SNMesh"
 
     #: The :class:`FunctionSpace` ``name`` of the cell-group factor in this
     #: leaf's ``SphericalHarmonicSpace(L) ⊗ CellGroup`` space — distinguishes

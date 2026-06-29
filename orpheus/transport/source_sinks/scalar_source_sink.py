@@ -69,7 +69,7 @@ named factory is a Pattern 7 discipline concern, not a dunder concern.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -191,9 +191,13 @@ class ScalarSourceSink(ScalarField):
         from orpheus.transport.source_sinks.angular_source_sink import (
             AngularSourceSink,
         )
-        N = self.mesh.quad.N
+        # ``mesh.quad`` is SN-only; broadcasting a scalar source to per-ordinate
+        # is meaningful only with a quadrature, so this is only ever reached on
+        # an SNMesh (the field's static type widened to MaterialMesh, #267).
+        sn_mesh = cast("SNMesh", self.mesh)
+        N = sn_mesh.quad.N
         target_shape = (N, *self.values.shape)
         per_ord_values = np.broadcast_to(
             self.values[None], target_shape,
         ).copy()
-        return AngularSourceSink.from_mesh(per_ord_values, self.mesh)
+        return AngularSourceSink.from_mesh(per_ord_values, sn_mesh)
