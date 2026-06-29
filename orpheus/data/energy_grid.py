@@ -166,6 +166,29 @@ class EnergyGrid:
         lower = self.edges[1:]
         return np.where(lower > 0.0, np.sqrt(upper * lower), 0.5 * upper)
 
+    @cached_property
+    def energy_widths(self) -> NDArray:
+        r"""Per-group energy width :math:`\Delta E_g = E_g^{\mathrm{upper}} - E_g^{\mathrm{lower}}`.
+
+        Positive by construction (edges are descending). This is the denominator
+        of the **flux-per-unit-energy** spectrum :math:`\phi_g / \Delta E_g` — the
+        single source of the group widths the homogeneous / MoC diagnostics plot.
+        """
+        return self.edges[:-1] - self.edges[1:]
+
+    @cached_property
+    def lethargy_widths(self) -> NDArray:
+        r"""Per-group lethargy width :math:`\Delta u_g = \ln\!\bigl(E_g^{\mathrm{upper}} / E_g^{\mathrm{lower}}\bigr)`.
+
+        Positive by construction (edges are descending). The denominator of the
+        **flux-per-unit-lethargy** spectrum :math:`\phi_g / \Delta u_g`. A thermal
+        floor (``edges[-1] == 0``) gives :math:`+\infty` for the bottom group — its
+        lethargy width is genuinely unbounded (:math:`u \to \infty` as
+        :math:`E \to 0`), unlike the geometric :attr:`representative_energy`, which
+        degenerates there and falls back to half the upper edge.
+        """
+        return np.log(self.edges[:-1] / self.edges[1:])
+
     # ── The dual frame views (source = measure, target = basis) ───────────
     def as_measure(self) -> DiscreteMeasure:
         r"""The energy-axis **counting** measure — the SOURCE view (project FROM).

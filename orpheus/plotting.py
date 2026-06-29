@@ -74,11 +74,11 @@ def plot_spectrum(
     """Generate flux-per-energy and flux-per-lethargy plots.
 
     Skipped (with a warning) when the result has no physical energy
-    grid (``result.eg_mid is None``). Per-energy plotting is meaningless
-    for synthetic / Sood-style XS — consumers should plot only
+    grid (``result.representative_energy is None``). Per-energy plotting is
+    meaningless for synthetic / Sood-style XS — consumers should plot only
     ``result.flux`` directly in that case.
     """
-    if result.eg_mid is None:
+    if result.representative_energy is None:
         import warnings
         warnings.warn(
             "plot_spectrum: result has no energy grid (synthetic XS); "
@@ -90,7 +90,7 @@ def plot_spectrum(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.loglog(result.eg_mid, result.flux_per_energy)
+    ax.loglog(result.representative_energy, result.flux_per_energy)
     ax.set_xlabel("Energy (eV)")
     ax.set_ylabel(r"Neutron flux per unit energy (cm$^{-2}$s$^{-1}$eV$^{-1}$)")
     ax.set_title(f"{title} — Flux per unit energy" if title else "Flux per unit energy")
@@ -100,7 +100,7 @@ def plot_spectrum(
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.semilogx(result.eg_mid, result.flux_per_lethargy)
+    ax.semilogx(result.representative_energy, result.flux_per_lethargy)
     ax.set_xlabel("Energy (eV)")
     ax.set_ylabel(r"Neutron flux per unit lethargy (cm$^{-2}$s$^{-1}$)")
     ax.set_title(f"{title} — Flux per unit lethargy" if title else "Flux per unit lethargy")
@@ -254,9 +254,14 @@ def plot_moc_spectra(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    eg = result.eg
-    eg_mid = 0.5 * (eg[:-1] + eg[1:])
-    du = np.abs(np.log(eg[1:] / eg[:-1]))
+    # The group geometry is the EnergyGrid value object's own — the GEOMETRIC
+    # group centre (natural log-axis abscissa) and the lethargy widths — not
+    # re-rolled here (single source, shared with the homogeneous diagnostics).
+    from orpheus.data.energy_grid import EnergyGrid
+
+    grid = EnergyGrid(result.eg)
+    eg_mid = grid.representative_energy
+    du = grid.lethargy_widths
 
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.semilogx(eg_mid, result.flux_fuel / du, "-r", label="Fuel")

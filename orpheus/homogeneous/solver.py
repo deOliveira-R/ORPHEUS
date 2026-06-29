@@ -58,42 +58,48 @@ if TYPE_CHECKING:
 class HomogeneousResult:
     """Result of a homogeneous infinite reactor calculation.
 
-    The energy-grid fields (``eg_mid``, ``de``, ``du``) are ``None`` when
-    the underlying :class:`~orpheus.data.macro_xs.mixture.Mixture` has no
-    physical energy grid (synthetic / Sood-style XS, post-Phase-E). In
-    that case ``flux_per_energy`` / ``flux_per_lethargy`` raise — the
-    quantities are not defined without a grid.
+    The energy-grid diagnostics (``representative_energy``, ``energy_widths``,
+    ``lethargy_widths``) are ``None`` when the underlying
+    :class:`~orpheus.data.macro_xs.mixture.Mixture` has no physical energy grid
+    (synthetic / Sood-style XS, post-Phase-E). In that case ``flux_per_energy`` /
+    ``flux_per_lethargy`` raise — the quantities are not defined without a grid.
+
+    These three are the :class:`~orpheus.data.energy_grid.EnergyGrid` value
+    object's own properties — ``representative_energy`` is the **geometric** group
+    centre :math:`\\sqrt{E_{\\rm up}E_{\\rm lo}}` (the natural abscissa on the log
+    energy axis, NOT the arithmetic midpoint) — read from ``mixture.energy_grid``
+    rather than re-deriving the group geometry here.
     """
 
     k_inf: float
     flux: np.ndarray  # (NG,) — group fluxes normalised to 100 n/cm³/s production
-    eg_mid: np.ndarray | None  # (NG,) — mid-group energies (eV); None if no grid
-    de: np.ndarray | None  # (NG,) — energy bin widths (eV); None if no grid
-    du: np.ndarray | None  # (NG,) — lethargy bin widths; None if no grid
+    representative_energy: np.ndarray | None  # (NG,) — geometric group-centre energies (eV); None if no grid
+    energy_widths: np.ndarray | None  # (NG,) — ΔE group widths (eV); None if no grid
+    lethargy_widths: np.ndarray | None  # (NG,) — Δu lethargy widths; None if no grid
     sig_prod: float  # one-group production XS (1/cm)
     sig_abs: float  # one-group absorption XS (1/cm)
     mixture: Mixture
 
     @property
     def flux_per_energy(self) -> np.ndarray:
-        if self.de is None:
+        if self.energy_widths is None:
             raise ValueError(
                 "flux_per_energy is undefined for synthetic XS without an "
                 "energy grid (mixture.eg is None). Build the Mixture from "
                 "an Isotope library or pass an explicit eg= to make_mixture."
             )
-        return self.flux / self.de
+        return self.flux / self.energy_widths
 
     @property
     def flux_per_lethargy(self) -> np.ndarray:
-        if self.du is None:
+        if self.lethargy_widths is None:
             raise ValueError(
                 "flux_per_lethargy is undefined for synthetic XS without "
                 "an energy grid (mixture.eg is None). Build the Mixture "
                 "from an Isotope library or pass an explicit eg= to "
                 "make_mixture."
             )
-        return self.flux / self.du
+        return self.flux / self.lethargy_widths
 
 
 # ---------------------------------------------------------------------------
@@ -209,21 +215,25 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
         # diagnostics are not defined.  k_inf and the flux spectrum still
         # carry meaningful information; only the per-energy plotting path
         # is unavailable.
-        eg_mid = None
-        de = None
-        du = None
+        representative_energy = None
+        energy_widths = None
+        lethargy_widths = None
     else:
-        eg = mix.eg
-        eg_mid = 0.5 * (eg[:ng] + eg[1:ng + 1])
-        de = np.abs(eg[1:ng + 1] - eg[:ng])
-        du = np.abs(np.log(eg[1:ng + 1] / eg[:ng]))
+        # The group geometry is the EnergyGrid value object's own — the
+        # GEOMETRIC group centre (the natural log-axis abscissa) and the
+        # energy / lethargy widths — read off ``mixture.energy_grid``, NOT
+        # re-derived here (single source of the group structure).
+        eg = mix.energy_grid
+        representative_energy = eg.representative_energy
+        energy_widths = eg.energy_widths
+        lethargy_widths = eg.lethargy_widths
 
     return HomogeneousResult(
         k_inf=k_inf,
         flux=phi,
-        eg_mid=eg_mid,
-        de=de,
-        du=du,
+        representative_energy=representative_energy,
+        energy_widths=energy_widths,
+        lethargy_widths=lethargy_widths,
         sig_prod=prod_rate / total_flux,
         sig_abs=abs_rate / total_flux,
         mixture=mix,

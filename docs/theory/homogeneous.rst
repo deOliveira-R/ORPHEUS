@@ -1104,7 +1104,7 @@ See :func:`~data.macro_xs.recipes.aqueous_uranium`.
    result = solve_homogeneous_infinite(mix)
 
    fig, ax = plt.subplots()
-   ax.semilogx(result.eg_mid, result.flux_per_lethargy, 'b-', linewidth=1.2)
+   ax.semilogx(result.representative_energy, result.flux_per_lethargy, 'b-', linewidth=1.2)
    ax.set_xlabel('Energy (eV)')
    ax.set_ylabel(r'Flux per unit lethargy $\phi / \Delta u$')
    ax.set_title(
@@ -1163,7 +1163,7 @@ See :func:`~data.macro_xs.recipes.pwr_like_mix`.
    result = solve_homogeneous_infinite(mix)
 
    fig, ax = plt.subplots()
-   ax.semilogx(result.eg_mid, result.flux_per_lethargy, 'r-', linewidth=1.2)
+   ax.semilogx(result.representative_energy, result.flux_per_lethargy, 'r-', linewidth=1.2)
    ax.set_xlabel('Energy (eV)')
    ax.set_ylabel(r'Flux per unit lethargy $\phi / \Delta u$')
    ax.set_title(

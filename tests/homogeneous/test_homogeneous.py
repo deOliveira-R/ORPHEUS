@@ -1,5 +1,7 @@
 """Verify the infinite-medium eigenvalue solver against SymPy analytical solutions."""
 
+import dataclasses
+
 import numpy as np
 import pytest
 
@@ -325,3 +327,44 @@ def test_rates_via_integrated_reaction_rate_are_bit_identical():
             f"{case_name}: IntegratedReactionRate production {irr_prod!r} != "
             f"νΣf@φ {legacy_prod!r} — the rate rerouting is not bit-identical.",
         )
+
+
+# ── #276 P4-F: energy-grid diagnostics folded onto EnergyGrid ──
+
+
+def test_eg_block_wires_geometric_grid_diagnostics():
+    """L1: the eg-block diagnostics are the mixture's EnergyGrid properties — the
+    GEOMETRIC group centre + energy/lethargy widths — wired through, NOT
+    re-derived as an arithmetic midpoint. (The eg-block was previously untested;
+    #276 P4-F closes that gap and pins the geometric switch end-to-end.)
+    """
+    base = next(iter(get("homo_2eg").materials.values()))  # 2-group, eg=None
+    eg = np.array([1.0e7, 1.0e3, 1.0e-3])  # descending edges → 2 groups, each 4 decades
+    mix = dataclasses.replace(base, eg=eg)
+    result = solve_homogeneous_infinite(mix)
+    grid = mix.energy_grid
+    rep, ew, lw = result.representative_energy, result.energy_widths, result.lethargy_widths
+    assert rep is not None and ew is not None and lw is not None  # eg set ⟹ populated
+
+    # GEOMETRIC centre √(E_up·E_lo), NOT 0.5·(E_up+E_lo):
+    # √(1e7·1e3)=1e5, √(1e3·1e-3)=1 (the arithmetic midpoints would be ~5e6, ~500).
+    np.testing.assert_array_equal(rep, grid.representative_energy)
+    np.testing.assert_allclose(rep, [1.0e5, 1.0], rtol=1e-12)
+    np.testing.assert_array_equal(ew, grid.energy_widths)
+    np.testing.assert_array_equal(lw, grid.lethargy_widths)
+    # the flux densities divide by the EnergyGrid widths
+    np.testing.assert_allclose(result.flux_per_energy, result.flux / grid.energy_widths)
+    np.testing.assert_allclose(result.flux_per_lethargy, result.flux / grid.lethargy_widths)
+
+
+def test_synthetic_mixture_diagnostics_none_and_flux_densities_raise():
+    """L1: a synthetic mixture (eg=None) leaves the energy-grid diagnostics None;
+    flux_per_energy / flux_per_lethargy raise (undefined without a grid)."""
+    result = solve_homogeneous_infinite(next(iter(get("homo_2eg").materials.values())))
+    _require(result.representative_energy is None, "representative_energy must be None (eg=None)")
+    _require(result.energy_widths is None, "energy_widths must be None (eg=None)")
+    _require(result.lethargy_widths is None, "lethargy_widths must be None (eg=None)")
+    with pytest.raises(ValueError):
+        _ = result.flux_per_energy
+    with pytest.raises(ValueError):
+        _ = result.flux_per_lethargy

@@ -186,6 +186,58 @@ class TestEnergyGridIntrinsic:
         )
 
 
+class TestEnergyGridGeometry:
+    """The per-group geometry properties (#276 P4-F): representative energy,
+    energy widths, lethargy widths — the diagnostics the homogeneous / MoC
+    spectra read off the grid instead of re-deriving the group structure."""
+
+    # A small hand-computable descending grid: 2 groups over [1, 100] eV, each
+    # spanning exactly one decade.
+    _GRID = EnergyGrid(np.array([100.0, 10.0, 1.0]))
+
+    def test_energy_widths_are_upper_minus_lower(self) -> None:
+        r"""\Delta E_g = E_up - E_lo (hand-checked, positive)."""
+        np.testing.assert_allclose(self._GRID.energy_widths, [90.0, 9.0], rtol=1e-12)
+
+    def test_energy_widths_sum_to_total_span(self) -> None:
+        r"""Completeness in energy: \sum \Delta E_g = ceiling - floor."""
+        g = self._GRID
+        np.testing.assert_allclose(
+            g.energy_widths.sum(), g.edges[0] - g.edges[-1], rtol=1e-12,
+        )
+
+    def test_lethargy_widths_are_log_ratio(self) -> None:
+        r"""\Delta u_g = ln(E_up / E_lo) (hand-checked; each group spans a
+        decade so \Delta u = ln 10)."""
+        np.testing.assert_allclose(
+            self._GRID.lethargy_widths, [np.log(10.0), np.log(10.0)], rtol=1e-12,
+        )
+
+    def test_lethargy_widths_sum_to_total_lethargy(self) -> None:
+        r"""Completeness in lethargy: \sum \Delta u_g = ln(ceiling / floor)."""
+        g = self._GRID
+        np.testing.assert_allclose(
+            g.lethargy_widths.sum(), np.log(g.edges[0] / g.edges[-1]), rtol=1e-12,
+        )
+
+    def test_representative_energy_is_geometric_not_arithmetic(self) -> None:
+        r"""The group centre is the GEOMETRIC mean :math:`\sqrt{E_{up} E_{lo}}` —
+        the natural centre on the log energy axis — STRICTLY below the
+        arithmetic midpoint (AM-GM). This is the P4-F correctness property: the
+        homogeneous / MoC spectrum abscissa uses THIS, not the old
+        ``0.5*(E_up+E_lo)``; a regression to the arithmetic midpoint reddens here.
+        """
+        g = self._GRID
+        upper, lower = g.edges[:-1], g.edges[1:]
+        np.testing.assert_allclose(
+            g.representative_energy, np.sqrt(upper * lower), rtol=1e-12,
+        )
+        np.testing.assert_allclose(
+            g.representative_energy, [np.sqrt(1000.0), np.sqrt(10.0)], rtol=1e-12,
+        )
+        np.testing.assert_array_less(g.representative_energy, 0.5 * (upper + lower))
+
+
 # ══════════════════════════════════════════════════════════════════════
 # overlap_to — intrinsic properties (containing-interval + fast-first)
 # ══════════════════════════════════════════════════════════════════════
