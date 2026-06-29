@@ -35,6 +35,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
+from orpheus.numerics.eigenvalue import direct_eigenvalue
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.isotropic_scattering import (
@@ -42,6 +43,7 @@ from orpheus.transport.operators.isotropic_scattering import (
     IsotropicScattering,
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
+from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 
 if TYPE_CHECKING:
     from orpheus.numerics.operator import LinearOperator
@@ -178,20 +180,28 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     A = _assemble_loss_matrix(mat_xs)
     F = _as_dense(FissionOperator.from_solver_data(mat_xs=mat_xs), ng)
 
-    # k∞ = λ_max(A⁻¹F); the flux spectrum is the dominant right eigenvector.
-    eigvals, eigvecs = np.linalg.eig(np.linalg.solve(A, F))
-    dominant = int(np.argmax(np.real(eigvals)))
-    k_inf = float(np.real(eigvals[dominant]))
-    phi = np.real(eigvecs[:, dominant])
-    if phi.sum() < 0:  # sign-normalise to a physical (non-negative) spectrum
-        phi = -phi
+    # k∞ and the flux spectrum φ are the EXACT dominant eigenpair of the dense
+    # resolvent A⁻¹F — the direct (non-iterative) realization of the eigenvalue
+    # boundary (:func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`), the
+    # sibling of the meshed ``power_iteration``.  The 0-D infinite-medium
+    # spectrum is exactly solvable, so the dense engine is the right tool, not
+    # an iterative approximation.
+    k_inf, phi = direct_eigenvalue(A, F)
 
-    # Normalise the flux so the fission production rate νΣ_f·φ = 100 n/cm³/s.
-    nu_sig_f = mat_xs.fission_production[:, 0]
-    phi = phi * (100.0 / float(nu_sig_f @ phi))
+    # The reaction rates are the §5.6 reaction-rate functional ∫⟨Σx, φ⟩dV
+    # (:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`)
+    # on the meshless unit-volume cell — production (νΣf) and absorption (Σa),
+    # each the φ†=1 degenerate of the homogenization PG bilinear ⟨φ†, M[Σx]φ⟩.
+    # Production is νΣf ONLY: the (n,2n) reaction is a loss-side transfer folded
+    # into A as 2Σ₂ᵀ, never a production channel.
+    production = IntegratedReactionRate(mat_xs.fission_production_field)
+    absorption = IntegratedReactionRate(mat_xs.absorption_cross_section_field)
 
-    prod_rate = float(nu_sig_f @ phi)
-    abs_rate = float(mix.absorption_xs @ phi)
+    # Normalise the flux so the fission production rate νΣf·φ = 100 n/cm³/s.
+    phi = phi * (100.0 / production.evaluate(phi.reshape(ng, 1)))
+
+    prod_rate = production.evaluate(phi.reshape(ng, 1))
+    abs_rate = absorption.evaluate(phi.reshape(ng, 1))
     total_flux = float(phi.sum())
 
     if mix.eg is None:

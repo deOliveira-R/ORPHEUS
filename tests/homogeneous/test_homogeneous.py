@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+import orpheus.numerics.eigenvalue as _eig
 from orpheus.derivations import get
 from orpheus.homogeneous.solver import solve_homogeneous_infinite
 
@@ -171,3 +172,156 @@ def test_kinf_gate_executes_the_bare_multiplication_arm(monkeypatch):
         f"(oracle {case.k_inf:.6f}) — the homogeneous gate does NOT execute "
         f"the bare arm (Mode-11 vacuous-green)"
     )
+
+
+# ── #276 P4-D: solve_homogeneous_infinite rewired to DirectEigenvalue ──
+#
+# These gates pin the rewire of the inline eig (solver.py ~182-187) onto the
+# new DirectEigenvalue primitive and the rerouting of the reaction rates
+# through IntegratedReactionRate. Expected equivalence classes:
+#
+#   * k_inf  — BIT-IDENTICAL. The eig computation is structurally unchanged
+#     (same ``eig(solve(A, F))``, argmax, real(), sign flip), so routing it
+#     through the verified primitive must not move a single bit. The
+#     structurally-INDEPENDENT correctness anchor stays ``test_kinf_exact``
+#     (SymPy ``case.k_inf``, 1e-12) — DirectEigenvalue must NOT be wired into
+#     that oracle path.
+#   * rates / flux via IntegratedReactionRate — BIT-IDENTICAL on the shipped
+#     cases (ng ≤ 4): V_cell = 1 and the short Σ_g νΣf_g φ_g reduction matches
+#     ``νΣf @ φ`` exactly. (A larger group structure would relax this to ≤ few
+#     ULP — a reduction-tree change per vv-principles bit-identity criterion 3.)
+
+
+def _require(condition: bool, message: str) -> None:
+    """A ``-O``-firing assertion (NOT a bare assert) for the liveness sentinel."""
+    if not condition:
+        pytest.fail(message)
+
+
+def test_direct_eigenvalue_is_on_the_homogeneous_call_path(monkeypatch):
+    """Mode-11: after the rewire, ``solve_homogeneous_infinite`` actually CALLS
+    the direct-eigenvalue primitive — not a still-live inline ``eig``.
+
+    In-process WRAP sentinel (the gold-standard Mode-11 proof): spies the
+    direct-eigenvalue symbol in the SOLVER's own namespace (so a
+    ``from ... import DirectEigenvalue`` local binding is the thing wrapped) and
+    asserts the counter fires during the solve. A routed-around inline ``eig``
+    cannot bump it. SKIPS pre-impl (symbol not yet imported into the solver).
+    """
+    import orpheus.homogeneous.solver as hsolver
+
+    # The rewire SHOULD import the primitive at module level (top of solver.py)
+    # so the solver's own binding is wrappable here; ``hasattr(hsolver, ...)`` is
+    # the rewired-yet? proxy. We also wrap the definition site ``_eig`` to catch
+    # an in-function ``from ... import`` (belt-and-suspenders). SKIP only when
+    # the solver's namespace carries no such symbol (not yet rewired).
+    target = next(
+        (n for n in ("DirectEigenvalue", "direct_eigenvalue") if hasattr(hsolver, n)),
+        None,
+    )
+    if target is None:
+        pytest.skip(
+            "#276 P4-D PRE-IMPL: solve_homogeneous_infinite not yet rewired to "
+            "DirectEigenvalue (symbol absent from its namespace)."
+        )
+
+    calls: list[int] = []
+
+    def _wrap(ns: object, name: str) -> None:
+        original = getattr(ns, name)
+
+        def spy(*args, **kwargs):
+            calls.append(1)
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(ns, name, spy)
+
+    _wrap(hsolver, target)
+    if hasattr(_eig, target):  # also wrap the definition site (in-function import)
+        _wrap(_eig, target)
+
+    case = get("homo_2eg_n2n")
+    mix = next(iter(case.materials.values()))
+    result = solve_homogeneous_infinite(mix)
+    _require(
+        len(calls) >= 1,
+        "solve_homogeneous_infinite did NOT call the direct-eigenvalue primitive "
+        "— the rewire is claimed but the inline eig is still live (Mode-11 "
+        "vacuous green).",
+    )
+    np.testing.assert_allclose(result.k_inf, case.k_inf, atol=1e-12, rtol=0)
+
+
+def test_kinf_is_the_direct_eigenvalue_of_the_assembled_pair():
+    """Bit-identity: solver ``k_inf`` == the primitive's ``k`` on the SAME (A, F).
+
+    Builds A, F the way the solver does and asserts ``solve_homogeneous_infinite``'s
+    ``k_inf`` is BYTE-equal to ``DirectEigenvalue(A, F).solve()[0]`` — proving
+    (a) the rewired solver's k_inf IS the primitive's output (it routes THROUGH
+    it, no drift) and (b) the primitive reproduces the inline eig bit-for-bit.
+    PAIRS with ``test_kinf_exact`` (the structurally-independent SymPy anchor);
+    this pin localises a rewire regression to the primitive boundary. SKIPS
+    pre-impl.
+    """
+    DE = getattr(_eig, "DirectEigenvalue", None)
+    fn = getattr(_eig, "direct_eigenvalue", None)
+    if DE is None and fn is None:
+        pytest.skip(
+            "#276 P4-D PRE-IMPL: DirectEigenvalue / direct_eigenvalue not yet on "
+            "orpheus.numerics.eigenvalue."
+        )
+
+    from orpheus.homogeneous.solver import _as_dense, _assemble_loss_matrix
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
+    from orpheus.transport.operators.fission import FissionOperator
+
+    case = get("homo_2eg_n2n")
+    mix = next(iter(case.materials.values()))
+    mat_xs = MaterialMesh.from_materials({0: mix}).material_xs_field()
+    A = _assemble_loss_matrix(mat_xs)
+    F = _as_dense(FissionOperator.from_solver_data(mat_xs=mat_xs), mix.ng)
+    if DE is not None:
+        k_prim = DE(A, F).solve()[0]
+    else:
+        assert fn is not None  # guaranteed non-None by the pre-impl skip above
+        k_prim = fn(A, F)[0]
+
+    result = solve_homogeneous_infinite(mix)
+    _require(
+        result.k_inf == k_prim,
+        f"solver k_inf={result.k_inf!r} != primitive k={k_prim!r} — the rewire "
+        f"is not bit-identical (or the solver routes around the primitive).",
+    )
+
+
+def test_rates_via_integrated_reaction_rate_are_bit_identical():
+    r"""Bit-identity of the rate rerouting: ``IntegratedReactionRate(νΣf).evaluate(φ)``
+    == ``νΣf @ φ`` on the meshless unit-volume cell, for every shipped case.
+
+    ``V_cell = 1`` and the short ``Σ_g νΣf_g φ_g`` reduction matches the dot
+    bit-for-bit for ng ∈ {1, 2, 4}. Pins the production-rate rerouting
+    independently of the eig; runs green TODAY (both paths exist) and guards
+    the rewire. (No PRE-IMPL skip — it protects the rate-side claim regardless
+    of the eigenvalue-side rewire state.)
+    """
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
+    from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
+
+    for case_name in ("homo_1eg", "homo_2eg", "homo_4eg", "homo_2eg_n2n"):
+        case = get(case_name)
+        mix = next(iter(case.materials.values()))
+        mat_xs = MaterialMesh.from_materials({0: mix}).material_xs_field()
+        ng = mix.ng
+        phi = solve_homogeneous_infinite(mix).flux
+
+        legacy_prod = float(mat_xs.fission_production[:, 0] @ phi)
+        irr_prod = float(
+            IntegratedReactionRate(mat_xs.fission_production_field).evaluate(
+                phi.reshape(ng, 1)
+            )
+        )
+        _require(
+            legacy_prod == irr_prod,
+            f"{case_name}: IntegratedReactionRate production {irr_prod!r} != "
+            f"νΣf@φ {legacy_prod!r} — the rate rerouting is not bit-identical.",
+        )

@@ -231,3 +231,120 @@ def power_iteration(
             break
 
     return keff, keff_history, flux_distribution
+
+
+def direct_eigenvalue(
+    A: np.ndarray,
+    F: np.ndarray,
+    *,
+    imag_tol: float = 1e-9,
+) -> tuple[float, np.ndarray]:
+    r"""Exact dominant eigenpair of the generalized eigenproblem
+    :math:`A\,\varphi = \tfrac{1}{k}\,F\,\varphi`, via the dense resolvent.
+
+    The **direct (non-iterative) sibling of** :func:`power_iteration`.  Where
+    ``power_iteration`` converges to the dominant eigenpair at the
+    dominance-ratio rate (the realization for large, sparse, sweep-only loss
+    operators that can only be *applied*), ``direct_eigenvalue`` forms the dense
+    resolvent :math:`A^{-1}F` and returns the EXACT dominant eigenpair in one
+    LAPACK call:
+
+    .. math::
+
+        k \;=\; \lambda_{\max}\!\bigl(A^{-1}F\bigr), \qquad
+        A^{-1}F\,\varphi \;=\; k\,\varphi .
+
+    It is the right realization for **small, densifiable** operators — the 0-D
+    infinite-medium spectrum
+    (:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`), few-group /
+    few-region problems — where the iterative engine would only approximate (at
+    a dominance-ratio-dependent rate) an answer the dense solve gives exactly.
+    Both engines solve the SAME posed problem
+    :math:`(A_{\rm loss}, M) = (A, F)`; they differ only in exact-dense vs
+    iterative.
+
+    By Perron--Frobenius / Krein--Rutman the fundamental mode of a well-posed
+    criticality resolvent is the unique non-negative eigenvector and its
+    eigenvalue is **real and positive**; a complex dominant eigenvalue therefore
+    signals a malformed ``(A, F)`` and is rejected (Cardinal Rule 1 — fail loud,
+    never return a non-eigenvalue).
+
+    Parameters
+    ----------
+    A : np.ndarray
+        The loss matrix :math:`A` (square, ``(n, n)``).  Must be invertible — a
+        singular loss matrix is a malformed problem and the underlying
+        :func:`numpy.linalg.solve` raises :class:`numpy.linalg.LinAlgError`.
+    F : np.ndarray
+        The production matrix :math:`F` (same shape as ``A``).  For the
+        homogeneous problem this is the rank-1 fission dyad
+        :math:`\chi \otimes \nu\Sigma_f`.
+    imag_tol : float, optional
+        Tolerance on the dominant eigenvalue's imaginary part before it is
+        rejected as complex.  Default ``1e-9``.
+
+    Returns
+    -------
+    k : float
+        The dominant eigenvalue :math:`\lambda_{\max}(A^{-1}F)` (real).
+    phi : np.ndarray
+        The corresponding right eigenvector (real-dtype, ``(n,)``),
+        sign-normalised so ``phi.sum() >= 0`` (a physical, non-negative
+        spectrum); its absolute scale is arbitrary (rescale to a target
+        production rate / power downstream).
+
+    Raises
+    ------
+    ValueError
+        If ``A`` / ``F`` are not square matrices of equal shape, or the dominant
+        eigenvalue is complex (``|Im λ| > imag_tol``).
+    numpy.linalg.LinAlgError
+        If ``A`` is singular (propagated from :func:`numpy.linalg.solve`).
+
+    See Also
+    --------
+    power_iteration : the iterative sibling (large sweep-only operators).
+
+    Notes
+    -----
+    A third realization — **Rayleigh-Quotient Iteration** (the bordered /
+    augmented-matrix form, in which a previous-iterate eigenvector enters as a
+    normalisation row and the eigenvalue update falls out of one linear solve) —
+    sits between these two: iterative like ``power_iteration`` but
+    *superlinearly* convergent, for large operators where a fast eigenvalue
+    refinement from a flux estimate is wanted.  It is a documented future seam
+    (alongside the Arnoldi / FEAST hooks above), not yet built.
+    """
+    A = np.asarray(A, dtype=float)
+    F = np.asarray(F, dtype=float)
+    if A.ndim != 2 or A.shape[0] != A.shape[1]:
+        raise ValueError(
+            f"direct_eigenvalue: A must be a square 2-D matrix; got shape {A.shape}."
+        )
+    if F.shape != A.shape:
+        raise ValueError(
+            f"direct_eigenvalue: A and F must have the same shape; "
+            f"got A {A.shape}, F {F.shape}."
+        )
+
+    # The dense resolvent A⁻¹F.  np.linalg.solve raises LinAlgError on a
+    # singular A — a malformed loss matrix, left to fail loud.
+    resolvent = np.linalg.solve(A, F)
+    eigvals, eigvecs = np.linalg.eig(resolvent)
+
+    # The dominant (Perron–Frobenius) mode: the largest real part.
+    dominant = int(np.argmax(np.real(eigvals)))
+    lam = eigvals[dominant]
+    if abs(float(np.imag(lam))) > imag_tol:
+        raise ValueError(
+            f"direct_eigenvalue: the dominant eigenvalue is complex "
+            f"({lam:.6g}); the resolvent A⁻¹F of a well-posed criticality "
+            f"problem has a real dominant eigenvalue (Perron–Frobenius). "
+            f"A complex dominant signals a malformed (A, F)."
+        )
+    k = float(np.real(lam))
+
+    phi = np.real(eigvecs[:, dominant])
+    if phi.sum() < 0.0:  # sign-normalise to a physical, non-negative spectrum
+        phi = -phi
+    return k, phi
