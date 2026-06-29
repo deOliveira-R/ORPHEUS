@@ -48,6 +48,7 @@ import numpy as np
 from orpheus.geometry import Mesh1D, Mesh2D
 from orpheus.transport.mesh.axis import (
     Axis1D,
+    AxisMesh,
     axes_from_legacy_mesh,
     coord_system as _axis_coord_system,
     spatial_shape as _axis_spatial_shape,
@@ -223,13 +224,69 @@ class MaterialMesh:
         # mismatched-ng materials raise at construction time.
         _ = self.ng
 
-    # NOTE: an axis-native ``MaterialMesh.from_axes`` is intentionally NOT
-    # provided yet. ``SNMesh.from_axes`` already exists with a different
-    # (quadrature-bearing) signature; a base ``from_axes`` here would be an
-    # incompatible override, and nothing in the homogenization slice needs
-    # axis-native MaterialMesh construction (``.homogenize`` builds via the
-    # legacy ``MaterialMesh(coarse_mesh, materials)`` ctor). Defer until a
-    # real consumer exists (defer-abstraction-until-≥2-instances).
+    # ── Meshless construction (infinite homogeneous medium) ───────────
+
+    @classmethod
+    def from_materials(cls, materials: "dict[int, Mixture]") -> "MaterialMesh":
+        r"""Meshless single-cell carrier for an infinite homogeneous medium.
+
+        Builds the degenerate :class:`MaterialMesh` an *infinite-medium*
+        problem lives on: one Cartesian cell of unit width holding a
+        single material (id ``0``), with **no** legacy mesh adapter
+        (:attr:`mesh` is ``None``).  This is the phase space the
+        homogeneous :math:`k_\infty` solver assembles the transport
+        operators on — :math:`(C - K_\text{iso} - F/k)\,\varphi = 0` with
+        streaming :math:`L` dropped (zero in an infinite medium) — so the
+        whole infinite-medium spectrum is computed through the *same*
+        operator algebra the meshed S\ :sub:`N` solver uses, not a bespoke
+        matrix.
+
+        The lone cell carries material id ``0``, so ``materials`` MUST
+        contain key ``0`` (the canonical id for a one-region medium); any
+        additional entries are retained in the dict but unused by the
+        single cell.  The cell has unit volume, so :attr:`volume_measure`
+        weights it ``1.0`` — :math:`k_\infty` is a production/absorption
+        *ratio*, invariant to the cell volume, so the unit choice is
+        immaterial to the eigenvalue and keeps reaction rates equal to the
+        bare :math:`\langle\Sigma,\varphi\rangle` group contractions.
+
+        Parameters
+        ----------
+        materials : dict mapping material id to Mixture
+            Macroscopic cross sections; MUST contain key ``0``.  The
+            single source of truth for both the cross sections and the
+            group count :attr:`ng` (derived, never passed — no twin).
+
+        Returns
+        -------
+        MaterialMesh
+            A 1-cell, single-region, mesh-less carrier
+            (``spatial_shape == (1,)``, ``mat_map == [0]``,
+            ``mesh is None``).
+        """
+        obj = cls.__new__(cls)
+        # One Cartesian cell of unit width.  BCs default to None
+        # (mesh-level reflective — the physical infinite-medium closure)
+        # but are never read: the homogeneous solver drops the streaming
+        # operator, so no boundary trace is ever applied.  ``mat_map=None``
+        # → a single material with id 0 (``np.zeros((1,), int)``).
+        obj._init_data(
+            axes=(AxisMesh(edges=np.array([0.0, 1.0])),),
+            mesh=None,
+            mat_map=None,
+            materials=materials,
+        )
+        return obj
+
+    # NOTE: a GENERAL axis-native ``MaterialMesh.from_axes`` (arbitrary
+    # cell count / coordinate system) is still intentionally NOT provided.
+    # ``SNMesh.from_axes`` already exists with a different
+    # (quadrature-bearing) signature, so a base ``from_axes`` here would be
+    # an incompatible override; and the only axis-native consumer so far is
+    # the meshless 1-cell :meth:`from_materials` above (which manufactures
+    # its own trivial axis). ``.homogenize`` still builds via the legacy
+    # ``MaterialMesh(coarse_mesh, materials)`` ctor. Defer the general form
+    # until a real N-cell consumer exists (defer-until-≥2-instances).
 
     # ── Materials validation ──────────────────────────────────────────
 
