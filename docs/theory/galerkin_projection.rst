@@ -84,6 +84,24 @@ operator class per method.
    forward-flux metric-fold shown to be the Galerkin *degenerate* of the
    eigenvalue-consistent adjoint-weighted case).
 
+.. note:: **What shipped since (P3 / P5 / P7).** The
+   :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` base was empty of
+   concrete consumers at the P1 carve; the **forward** (reaction-rate,
+   :math:`\varphi^* = \varphi`) homogenisation (P3) and energy
+   condensation (P5) have since shipped as concrete instances
+   (:meth:`Solution.homogenize
+   <orpheus.sn.solution.Solution.homogenize>`,
+   :meth:`Solution.condense <orpheus.sn.solution.Solution.condense>`).
+   This page (P7) is the capstone that ties the discipline-type
+   hierarchy, the composed-operator verbs
+   (:ref:`frame-composed-verbs`), the three-way Gram-structure gate
+   (:ref:`frame-least-squares-discipline`), and the eigenbasis-ownership
+   ruling (:ref:`frame-eigenbasis-ownership`) into one narrative, and
+   reconciles its consumer table with the shipped frames. The one
+   remaining frame discipline that is **theory-documented but not built**
+   is the **eigenvalue-consistent** (adjoint-weighted) projection
+   (:ref:`frame-adjoint-weighted-seam`, phase P6).
+
 
 Key Facts
 =========
@@ -147,18 +165,55 @@ Key Facts
   (:math:`R : W \to V`), which the two frame faces subclass. The
   discipline is the frame's type, never a marker on these roles.
 
-- The single concrete frame shipping today is the
+- **Two families of concrete frame ship today.** The
   **spherical-harmonic frame**
   :meth:`Quadrature.angular_frame(L)
   <orpheus.numerics.quadrature.Quadrature.angular_frame>` — the
   :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` of order
-  :math:`L` bound to an :math:`S^2` cubature. It is a
+  :math:`L` bound to an :math:`S^2` cubature — is a
   :class:`~orpheus.numerics.frame.GalerkinFrame` (``test is trial``)
-  and a **4π-tight frame**. The headline future
-  :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` consumer is
-  **eigenvalue-consistent spatial homogenisation** (adjoint-weighted;
-  §18 of Grand Report v3); spectrum-weighted energy condensation
-  (§17) is the second.
+  and a **4π-tight frame**. The forward (reaction-rate)
+  **Petrov-Galerkin** consumers —
+  :meth:`Solution.homogenize <orpheus.sn.solution.Solution.homogenize>`
+  (space) and
+  :meth:`Solution.condense <orpheus.sn.solution.Solution.condense>`
+  (energy) — ship as concrete
+  :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` instances with an
+  explicit flux- / spectrum-weighted
+  :class:`~orpheus.numerics.basis.WeightedIndicatorBasis` test basis
+  (landed P3 / P5; full derivations in
+  :ref:`sn-homogenization-petrov-galerkin-frame` and
+  :ref:`sn-energy-condensation`, :doc:`discrete_ordinates`). The
+  **eigenvalue-consistent** (adjoint-weighted,
+  :math:`\varphi^* \ne \varphi`) case is the **documented-future seam**:
+  the theory is written (:eq:`sn-homogenization-bilinear`), the
+  implementation (P6) is blocked on the adjoint flux
+  :math:`\varphi^*` (:ref:`frame-adjoint-weighted-seam`).
+
+- **The frame is also the production COMPOSER, not only the two faces.**
+  Beyond ``analysis`` / ``reconstruction``, a
+  :class:`~orpheus.numerics.frame.FrameBase` emits the composed-operator
+  verbs a consumer uses directly — *define a frame, compose, done*:
+  :meth:`conjugate <orpheus.numerics.frame.FrameBase.conjugate>`
+  (:math:`R\circ A\circ M`, the scattering kernel) and
+  :meth:`project <orpheus.numerics.frame.FrameBase.project>`
+  (:math:`G^{-1}M`, the homogenise / condense verb). These are typed
+  operator products, not hand-rolled numpy chains
+  (:ref:`frame-composed-verbs`).
+
+- **Three disciplines, gated by the trial basis's Gram structure.** The
+  built frames cover the *row-sum-collapsible* Gram cases —
+  :class:`~orpheus.numerics.frame.GalerkinFrame` (diagonal Gram,
+  ``test is trial``) and the forward
+  :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` (diagonal *or*
+  partition-of-unity Gram). The third discipline — a least-squares
+  frame over a **dense** cross-Gram needing the real
+  :math:`(MR)^{-1}M` solve — is **designed but not built**:
+  :meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`
+  *refuses* a :class:`~orpheus.numerics.basis.GramStructure`
+  ``DENSE`` trial (raising
+  :class:`~orpheus.numerics.operator.MissingCapability`) rather than
+  return a silently-wrong coarsening (:ref:`frame-least-squares-discipline`).
 
 - Every concrete :class:`~orpheus.numerics.frame.GalerkinFrame`
   satisfies the **idempotency-on-coefficients** invariant on a
@@ -440,17 +495,179 @@ flux-volume integrals / variance moments.
    :math:`\langle \varphi^*, \Sigma\,\phi\rangle`. Folding either one
    into the metric would mis-weight the other. The discipline must
    therefore live on the **test side** (the frame type), and the
-   measure stays a fixed :math:`L^2` metric. The full adjoint-weighted
-   derivation lands with the concrete homogenisation frame (a later
-   phase of ``refactor/operator-inverse-algebra``); this page fixes
-   the *architecture* of where the weighting lives, not the numerical
-   derivation of the collapse.
+   measure stays a fixed :math:`L^2` metric. The forward-flux
+   derivation has since landed
+   (:ref:`sn-homogenization-petrov-galerkin-frame`,
+   :doc:`discrete_ordinates`); the adjoint-weighted bilinear derivation
+   is written as the **documented-future seam**
+   (:eq:`sn-homogenization-bilinear`,
+   :ref:`sn-homogenization-why-petrov-galerkin`), its implementation
+   (P6) blocked on the adjoint flux :math:`\varphi^*`
+   (:ref:`frame-adjoint-weighted-seam`). This page fixes the
+   *architecture* of where the weighting lives.
 
-No concrete Petrov-Galerkin frame ships in the P1 carve; the
-:class:`~orpheus.numerics.frame.PetrovGalerkinFrame` base is in place
-so the first concrete instance — eigenvalue-consistent spatial
-homogenisation — lands as a ``test_basis`` choice, not a new
-mechanism.
+The forward (Galerkin-degenerate) Petrov-Galerkin frames have since
+shipped (P3 / P5): :meth:`Solution.homogenize
+<orpheus.sn.solution.Solution.homogenize>` and
+:meth:`Solution.condense <orpheus.sn.solution.Solution.condense>` build
+a concrete :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` with an
+explicit flux- / spectrum-weighted
+:class:`~orpheus.numerics.basis.WeightedIndicatorBasis` test basis — the
+first concrete instances landing exactly as a ``test_basis`` choice on
+the existing mechanism, not a new mechanism. The non-degenerate
+(:math:`\varphi^* \ne \varphi`) eigenvalue-consistent case is the
+documented-future seam (:ref:`frame-adjoint-weighted-seam`).
+
+
+.. _frame-least-squares-discipline:
+
+The least-squares discipline — designed, not built
+--------------------------------------------------
+
+The discipline split is carried one level deeper than the
+Galerkin / Petrov-Galerkin *type* by the **trial basis's Gram
+structure** — the declaration
+:class:`~orpheus.numerics.basis.GramStructure` that decides whether the
+coefficient extraction :meth:`project
+<orpheus.numerics.frame.FrameBase.project>` can use a cheap row-sum
+probe or needs a full dense solve. ``project`` normalises by the
+cross-Gram :math:`G = MR`; the frame computes it with a single
+``analysis(reconstruction(ones))`` **row-sum probe**, but that probe
+equals the required normalisation only under one of two structural
+conditions:
+
+.. list-table:: The trial-basis Gram structure decides the projection machinery
+   :header-rows: 1
+   :widths: 22 30 26 22
+
+   * - ``GramStructure``
+     - Trial Gram :math:`MR`
+     - Projection normalisation
+     - Built?
+   * - ``DIAGONAL``
+     - diagonal (orthogonal harmonics; disjoint / nested cell / group
+       indicators)
+     - the row sum **is** the diagonal — a reciprocal
+     - **yes** (Galerkin SH; forward homogenisation)
+   * - ``PARTITION_OF_UNITY``
+     - not diagonal, but membership rows sum to 1
+       (:class:`~orpheus.numerics.basis.OverlapBasis`)
+     - :math:`R\mathbf 1 = \mathbf 1` collapses the probe to the
+       per-region weight — still a reciprocal
+     - **yes** (forward condensation)
+   * - ``DENSE``
+     - neither (a tapered weight, a higher-rank GEC moment)
+     - needs the real :math:`(MR)^{-1}M` least-squares solve
+     - **no** — :meth:`project` *refuses* (#275)
+
+The first two rows are the **built** frames: a
+:class:`~orpheus.numerics.frame.GalerkinFrame` (diagonal Gram,
+``test is trial``) and the forward
+:class:`~orpheus.numerics.frame.PetrovGalerkinFrame` (diagonal *or*
+partition-of-unity). For both, :attr:`FrameBase.gram
+<orpheus.numerics.frame.FrameBase.gram>` is a single row-sum probe and
+:meth:`project <orpheus.numerics.frame.FrameBase.project>` is a per-cell
+reciprocal (a Moore–Penrose pseudo-inverse, so an empty / zero-flux
+region maps to :math:`\Sigma_R = 0` for free), **not** a linear solve.
+
+The third row is the **third discipline** — a least-squares frame over a
+**dense** cross-Gram. It is the natural sibling of
+:class:`~orpheus.numerics.frame.GalerkinFrame` under the Petrov-Galerkin
+base (the designed hierarchy is ``FrameBase → PetrovGalerkinFrame →
+{GalerkinFrame, LeastSquaresFrame}``): its trigger is a trial basis
+whose :math:`MR` is genuinely dense — ``test`` :math:`= A\cdot`\ ``trial``
+for some non-identity :math:`A`, a dense SPD Gram needing a real solve —
+for which the row-sum probe is **wrong**. It is **designed but not
+built**: the base :class:`~orpheus.numerics.basis.Basis` defaults to
+``GramStructure.DENSE`` (the safe refusal), and
+:meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`
+raises :class:`~orpheus.numerics.operator.MissingCapability` on a
+``DENSE`` trial rather than return a silently-wrong coarsening. The
+known future consumer is **higher-rank Generalized Energy Condensation**
+(within-coarse-group spectral moments :math:`n \ge 1`; Rahnema,
+Douglass & Forget 2008) — a richer coarse basis than the rank-0 P0
+indicator — deferred to `GitHub #275
+<https://github.com/deOliveira-R/ORPHEUS/issues/275>`_. No
+``LeastSquaresFrame`` type exists today; the name marks the seam, not a
+shipped class.
+
+.. note::
+
+   Cross sections never need this dense seam at rank 0: a P0 (indicator)
+   coarse cross section is the only rate-meaningful one, and its
+   partition-of-unity Gram is row-sum-collapsible. The dense
+   :math:`(MR)^{-1}M` solve becomes load-bearing only for a
+   non-indicator coarse basis — exactly the GEC :math:`n \ge 1`
+   moments — so the refusal is a forward-looking guard, not a
+   present-day gap.
+
+
+.. _frame-composed-verbs:
+
+The frame's composed-operator verbs
+===================================
+
+A consumer does **not** hand-roll the analysis / reconstruction faces.
+The point of binding a basis to a measure through a
+:class:`~orpheus.numerics.frame.FrameBase` is that the frame then emits
+the **composed operators** the method actually applies — *define a
+frame, compose, done* (Cardinal Rule 2: the composition **is** the
+production path, not a parallel "semantic" reading layered over a
+hand-rolled numpy chain). Three composed verbs cover every consumer:
+
+.. list-table:: The frame's composed-operator verbs
+   :header-rows: 1
+   :widths: 30 20 50
+
+   * - Verb
+     - Composition
+     - Consumer
+   * - :meth:`conjugate(A) <orpheus.numerics.frame.FrameBase.conjugate>`
+     - :math:`R \circ A \circ M`
+     - SN anisotropic scattering
+       :math:`S_{\ell\ge 1} = R\,\Lambda\,M` (project to moments,
+       multiply by the spectrum :math:`\Sigma_{s,\ell}`, reconstruct
+       the per-ordinate source)
+   * - :meth:`reconstruct_after(A) <orpheus.numerics.frame.FrameBase.reconstruct_after>`
+     - :math:`R \circ A`
+     - inputs **already** in coefficient space — the angular-windowed
+       SN moment iterate, whose bulk is already :math:`M\psi`, so only
+       :math:`R\,\Lambda` remains (wiring it to ``conjugate`` would
+       double-project)
+   * - :meth:`project(f) <orpheus.numerics.frame.FrameBase.project>`
+     - :math:`G^{-1} M`
+     - the **homogenise / condense** coefficient extraction —
+       :meth:`Solution.homogenize
+       <orpheus.sn.solution.Solution.homogenize>`,
+       :meth:`Solution.condense <orpheus.sn.solution.Solution.condense>`
+
+Each returns a **typed**
+:class:`~orpheus.numerics.operator.OperatorProduct` (or, for
+``project``, the inverse-Gram ∘ analysis chain), whose ``apply`` runs
+exactly the numpy contraction a hand-rolled
+``reconstruction.apply(A.apply(analysis.apply(x)))`` would — now as
+**one named operator** with the
+:class:`~orpheus.numerics.operator.OperatorProduct` space-compatibility
+guard enforcing that :math:`A` composes between the faces (its
+``domain`` is the analysis codomain, its ``codomain`` the
+reconstruction domain).
+
+:meth:`conjugate <orpheus.numerics.frame.FrameBase.conjugate>` is the
+**2-cell** of the (Representation × Role) carrier double category
+(:ref:`operator-algebra`): a coefficient-space Role-morphism :math:`A`
+conjugated by the horizontal Representation-adjoint pair
+:math:`(M, R)`. When the frame is the operator's *eigenbasis* — the SH
+angular frame is the scattering kernel's, by Funk–Hecke —
+:math:`R\circ\Lambda\circ M` **is** the spectral theorem
+:math:`U\Sigma U^*` written out, and the frame is then *owned* by that
+operator (:ref:`frame-eigenbasis-ownership`). The
+coefficient-extraction verb :meth:`project
+<orpheus.numerics.frame.FrameBase.project>` is the Petrov-Galerkin
+:math:`G^{-1}M` derived term-by-term for the homogenisation consumer in
+:ref:`sn-homogenization-petrov-galerkin-frame`
+(:doc:`discrete_ordinates`); its diagonal-Gram normalisation
+:attr:`gram <orpheus.numerics.frame.FrameBase.gram>` is the row-sum
+probe of :ref:`frame-least-squares-discipline`.
 
 
 .. _frame-eigenbasis-ownership:
@@ -900,15 +1117,26 @@ the appropriate discipline type.
        on the moment-space side
      - Pending (PN solver not implemented)
      - §10 (lines 1299–1305)
-   * - Energy condensation
+   * - Spatial homogenisation (forward / reaction-rate)
      - PetrovGalerkinFrame
-     - Within-group-spectrum test basis, indicator trial basis
-     - Pending (concrete ``test_basis`` needed)
-     - §17 (line 3935); Hébert 2009 §6.2
-   * - Spatial homogenisation (eigenvalue-consistent)
+     - Flux-weighted test basis, indicator trial basis
+       (:meth:`Solution.homogenize
+       <orpheus.sn.solution.Solution.homogenize>`)
+     - **Live** (P3)
+     - :ref:`sn-homogenization-petrov-galerkin-frame`; Hébert 2009 §13
+   * - Energy condensation (forward / reaction-rate)
      - PetrovGalerkinFrame
-     - Adjoint-flux test basis, indicator trial basis
-     - Pending — the **headline** PG consumer
+     - Spectrum-weighted test basis, fractional-overlap trial basis
+       (:meth:`Solution.condense
+       <orpheus.sn.solution.Solution.condense>`)
+     - **Live** (P5)
+     - :ref:`sn-energy-condensation`; Hébert 2009 §6.2
+   * - Homogenisation / condensation (eigenvalue-consistent)
+     - PetrovGalerkinFrame
+     - **Adjoint**-flux test basis (:math:`\varphi^*`), indicator /
+       overlap trial basis
+     - Pending (P6) — blocked on :math:`\varphi^*`
+       (:ref:`frame-adjoint-weighted-seam`)
      - §18; Hébert 2009 §13
    * - Stochastic Galerkin
      - GalerkinFrame
@@ -940,9 +1168,81 @@ The two architectural payoffs:
 * **One V&V chain per discipline**. The Galerkin idempotency tests
   in :file:`tests/numerics/test_spherical_harmonic_space.py` cover
   every :class:`~orpheus.numerics.frame.GalerkinFrame` consumer, not
-  just SN. The Petrov-Galerkin frames will inherit the
-  cross-Gram / rate-preservation tests when their concrete
-  ``test_basis`` lands.
+  just SN. The forward Petrov-Galerkin frames now carry their own
+  rate-preservation **L0** gates (:mod:`tests.sn.test_homogenization` —
+  the per-channel rate identity, the φV-vs-dV discriminator, and the
+  Mode-11 routing sentinel; :ref:`sn-homogenization-verification`,
+  :doc:`discrete_ordinates`). The adjoint-weighted
+  (:math:`\varphi^* \ne \varphi`) cross-Gram gates land with P6.
+
+
+.. _frame-adjoint-weighted-seam:
+
+The adjoint-weighted seam — documented, not built
+=================================================
+
+The forward Petrov-Galerkin frames that ship today
+(:meth:`Solution.homogenize <orpheus.sn.solution.Solution.homogenize>`,
+:meth:`Solution.condense <orpheus.sn.solution.Solution.condense>`)
+weight the test functions by the **forward** flux
+:math:`\chi_R = \varphi\,\mathbf{1}_R`. That is the
+**Galerkin-degenerate** (:math:`\varphi^* = \varphi`) case of the
+projection reactor physics ultimately wants. The general,
+**eigenvalue-consistent** projection weights the test functions by the
+**adjoint** flux :math:`\varphi^*`, preserving the bilinear functional
+
+.. math::
+
+   \Sigma_R \;=\;
+   \frac{\int_R \varphi^*\,\Sigma\,\varphi\;\mathrm{d}V}
+        {\int_R \varphi^*\,\varphi\;\mathrm{d}V},
+
+so that the multiplication factor :math:`\keff` stays stationary under
+the homogenisation (by first-order perturbation theory :math:`\keff` is
+stationary with respect to the adjoint-weighted residual). The full
+derivation — why this is *irreducibly* Petrov-Galerkin
+(:math:`M^* \ne R`: there is **no** metric in which test
+:math:`= \varphi^*\mathbf{1}_R` equals trial
+:math:`= \varphi\,\mathbf{1}_R` when :math:`\varphi^* \ne \varphi`) — is
+:eq:`sn-homogenization-bilinear` in
+:ref:`sn-homogenization-why-petrov-galerkin` (:doc:`discrete_ordinates`),
+and it applies *verbatim* on the energy axis for condensation
+(:ref:`sn-energy-condensation`).
+
+**It generalises a degenerate that already ships.** The forward
+reaction-rate functional ORPHEUS already computes —
+:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`,
+:math:`\int_R \langle\Sigma_x, \varphi\rangle\;\mathrm{d}V` — is the
+:math:`\varphi^* = 1` degenerate of the bilinear
+:math:`\langle\varphi^*, \Sigma\varphi\rangle`. The eigenvalue-consistent
+lift is the **same** Petrov-Galerkin frame with the implicit
+:math:`\varphi^*` (which the forward frame takes to be the forward flux
+:math:`\varphi`) replaced by a *real* adjoint flux on the test basis — a
+no-op change of the ``test_basis`` (:math:`\varphi \to \varphi^*`),
+**not** a re-derivation. Writing the discipline on the frame **type** (an
+explicit test basis) rather than on the measure (a flux-folded metric) is
+precisely what buys this: the adjoint case is a one-line test-basis swap.
+
+.. important:: **Status — theory documented, implementation NOT built
+   (P6).** The adjoint-weighted projection is **documented theory only**.
+   No adjoint flux :math:`\varphi^*` is wired into
+   :meth:`Solution.homogenize <orpheus.sn.solution.Solution.homogenize>`
+   or :meth:`Solution.condense <orpheus.sn.solution.Solution.condense>`
+   today; both run the forward (:math:`\varphi^* = \varphi`) degenerate.
+   The implementation (campaign phase **P6**) is **blocked** on a
+   converged adjoint flux — the scalar moment :math:`\varphi^*` of the
+   adjoint angular flux :math:`\psi^*` solving
+   :math:`(L + C - S)^{\mathsf T}\psi^* = q^*` (the SN adjoint-transport
+   campaign, `#276`; the discrete scattering adjoint
+   :math:`S^{\mathsf T}` it builds on is :ref:`sn-scattering-adjoint`).
+   That campaign is in flight but has not yet delivered a
+   :math:`\varphi^*` field a homogenisation consumer can read. Until it
+   does, this section is the **specification** the P6 slice implements:
+   the bilinear identity :eq:`sn-homogenization-bilinear` carries
+   ``.. vv-status: documented`` — the structure the forward case
+   degenerates from, **not** a verified solver claim. Do **not** read the
+   forward homogenisation's green rate gates as evidence for the
+   adjoint-weighted case.
 
 
 Discipline as a type, not a property or an operator marker
@@ -1033,9 +1333,15 @@ The tests verify mathematical identities of the operator algebra
 (V&V level L1 — equation verification by analytical reference). The
 companion L0/foundation shape and capability tests verify software
 invariants (frame face spaces, capability sets) and are tagged
-accordingly. No Petrov-Galerkin numerical evidence ships yet — the
-cross-Gram / rate-preservation gates land with the first concrete
-``test_basis``.
+accordingly. The **forward** Petrov-Galerkin frames now ship their own
+**L0** numerical evidence — the per-channel rate-preservation identity,
+the φV-vs-dV (flux- vs volume-weighting) discriminator, the simplex /
+production-weight :math:`\chi` gates, and the Mode-11 routing sentinel —
+in :mod:`tests.sn.test_homogenization`
+(:ref:`sn-homogenization-verification`, :doc:`discrete_ordinates`),
+together with the condensation gates of :ref:`sn-energy-condensation`.
+The adjoint-weighted (:math:`\varphi^* \ne \varphi`) cross-Gram evidence
+lands with P6 (:ref:`frame-adjoint-weighted-seam`).
 
 
 Implementation map
@@ -1047,7 +1353,21 @@ Implementation map
   ``analysis`` (:math:`M = T`) and ``reconstruction`` (:math:`R`)
   faces. Carries the discipline-free mechanics (table, the two
   spaces, the reconstruction face, the analysis-face wiring); the
-  single mechanism for every choice-dependent change-of-basis.
+  single mechanism for every choice-dependent change-of-basis. Also
+  emits the **composed-operator verbs**
+  (:ref:`frame-composed-verbs`):
+  :meth:`conjugate <orpheus.numerics.frame.FrameBase.conjugate>`
+  (:math:`R\circ A\circ M`),
+  :meth:`reconstruct_after <orpheus.numerics.frame.FrameBase.reconstruct_after>`
+  (:math:`R\circ A`), and
+  :meth:`project <orpheus.numerics.frame.FrameBase.project>`
+  (:math:`G^{-1}M`) with its :attr:`gram
+  <orpheus.numerics.frame.FrameBase.gram>` cross-Gram probe.
+* :class:`~orpheus.numerics.basis.GramStructure` — the trial basis's
+  projection-validity declaration (``DIAGONAL`` / ``PARTITION_OF_UNITY``
+  / ``DENSE``) that decides whether :meth:`project
+  <orpheus.numerics.frame.FrameBase.project>` uses the row-sum probe or
+  refuses (:ref:`frame-least-squares-discipline`).
 * :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` — the general
   discipline: an explicit ``test_basis`` distinct from the trial
   basis, so :math:`M^* \ne R`. The base for homogenisation and

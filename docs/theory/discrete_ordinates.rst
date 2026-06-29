@@ -15997,7 +15997,8 @@ therefore the **bilinear** form
    bilinear ⟨φ*, Σφ⟩ that keeps k_eff stationary by first-order
    perturbation theory (Hébert §6; the generalized-equivalence /
    adjoint-weighting principle). The non-degenerate (φ*≠φ)
-   Petrov-Galerkin case; built in a later phase (P6). Not yet an SN
+   Petrov-Galerkin case; implementation deferred to P6, blocked on the
+   adjoint flux φ* (the #276 adjoint-transport campaign). Not yet an SN
    solver claim on this branch — documents the structure the forward
    case degenerates from.
 .. vv-status: sn-homogenization-bilinear documented
@@ -16017,8 +16018,11 @@ builds it as a :class:`~orpheus.numerics.frame.PetrovGalerkinFrame` with
 an explicit flux-weighted test basis, *not* a
 :class:`~orpheus.numerics.frame.GalerkinFrame` with a flux-weighted
 measure. The adjoint-weighted (:math:`\varphi^* \ne \varphi`) case
-:eq:`sn-homogenization-bilinear` is built in a later phase of the
-unified Frame-projection campaign (P6); this section sets it up as the
+:eq:`sn-homogenization-bilinear` is **documented theory only** — its
+implementation (phase P6 of the unified Frame-projection campaign) is
+deferred, **blocked** on a converged adjoint flux :math:`\varphi^*` (the
+#276 adjoint-transport campaign; see the capstone seam
+:ref:`frame-adjoint-weighted-seam`). This section sets it up as the
 non-degenerate sibling the forward case descends from.
 
 .. note::
@@ -17177,9 +17181,11 @@ returns the spectrum-weighted average
    dense Gram (a non-indicator, richer coarse basis — which cross
    sections never want, a P1 coarse XS is not rate-meaningful) must
    compute it for the fractional case, not trust the inherited diagonal
-   claim. See :ref:`galerkin-projection` for why this is **not** a
-   :class:`LeastSquaresFrame` (its trigger — test = :math:`A`·trial, a
-   dense SPD Gram needing a real solve — is absent here).
+   claim. See :ref:`frame-least-squares-discipline` for why this is
+   **not** a ``LeastSquaresFrame`` (its trigger — test = :math:`A`·trial,
+   a dense SPD Gram needing a real solve — is absent here; that
+   discipline is designed-but-not-built, gated by
+   :class:`~orpheus.numerics.basis.GramStructure` ``DENSE``).
 
 Why the spectrum is the test weight, not a measure
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
