@@ -7,6 +7,10 @@ the discrete-ordinates spatial sweep:
   (:class:`~orpheus.sn.operators.streaming.StreamingOperator`),
 * the within-group resolvent :math:`L+C` whose ``.solve`` *is* the sweep
   (:class:`~orpheus.sn.operators.streaming.InvertibleOperator`),
+* its inverse :math:`(L+C)^{-1}` in operator form — what ``(L+C).inverse()``
+  returns (:class:`~orpheus.sn.operators.sweep_operator.SweepOperator`); the
+  inverse-as-operator carve (#226) so ``K = A_loss.inverse() @ F`` reads like the
+  math,
 * the boundary leaf :math:`B`
   (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`).
 

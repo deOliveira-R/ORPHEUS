@@ -152,6 +152,9 @@ if TYPE_CHECKING:
     from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
     from ..spatial.pole_angular_closure import PoleAngularClosure
     from ..loss_representation import LossRepresentation
+    # Type-only (the runtime construction is a late import inside ``inverse`` to
+    # break the SweepOperator <-> InvertibleOperator import cycle).
+    from .sweep_operator import SweepOperator
 
 __all__ = [
     "StreamingOperator",
@@ -774,6 +777,22 @@ class InvertibleOperator(OperatorSum["FullField"]):
         return self.loss_representation.loss_action_transpose(self.sigma, phi)
 
     # ── solve: WDD sweep ─────────────────────────────────────────────
+
+    def inverse(self) -> "SweepOperator":
+        r"""Return the inverse OPERATOR :math:`(L+C)^{-1}` (the carve, #226).
+
+        ``A.inverse().apply(b)`` is the WDD forward-substitution sweep,
+        BIT-IDENTICAL to ``A.solve(b)`` — the returned
+        :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` delegates to
+        :meth:`solve`. This is the operator normal form
+        ``K = A_loss.inverse() @ F`` (Grand Report v3 §1): the forward view
+        :meth:`apply` and the inverse view ``inverse().apply`` are the two views
+        of ONE operator, the way ``A`` and ``A.H`` are. Coexists with
+        :meth:`solve` through Phase 2–3; ``solve`` retires at Phase 4.
+        """
+        from orpheus.sn.operators.sweep_operator import SweepOperator
+
+        return SweepOperator(self)
 
     def solve(
         self,
