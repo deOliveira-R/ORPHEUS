@@ -97,6 +97,8 @@ D2 = TypeVar("D2", bound=Vector)  # __matmul__ other-operand domain
 
 __all__ = [
     "LinearOperator",
+    "SupportsInverse",
+    "SupportsAdjoint",
     "BlockRole",
     "BulkOperator",
     "FullOperator",
@@ -369,6 +371,48 @@ class LinearOperator(Protocol[Domain, Codomain]):
         """
         return None
 
+    # ------------------------------------------------------------------
+    # Per-axis structural capability predicates (#226 inverse-as-operator
+    # carve) — the typed, instance-accurate successors to the stringly-
+    # typed ``capabilities`` frozenset. Each is the RUNTIME advertisement
+    # for one operator-returning method (:meth:`inverse` / :meth:`H`); the
+    # propagation LAW lives in the composer method bodies, and these
+    # predicates compute the matching "does it work?" answer recursively
+    # from the operands — NOT a cached string set that can drift. The
+    # STATIC contract is carried by the :class:`SupportsInverse` /
+    # :class:`SupportsAdjoint` Protocols.
+    # ------------------------------------------------------------------
+
+    @property
+    def is_invertible(self) -> bool:
+        r"""Whether this operator can produce its inverse OPERATOR (:meth:`inverse`).
+
+        The RUNTIME, instance-accurate successor to the ``CAP_SOLVE``
+        capability tag. Unlike ``isinstance(op, SupportsInverse)`` — which
+        sees only class-level method presence — this property reads the
+        operator's actual structure and values, so it correctly reports a
+        generic sum as non-invertible and a zero-coefficient
+        :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+        as singular (``min|f| = 0``). Composites derive it recursively from
+        their operands; the default is ``False`` — an operator is
+        invertible only by explicit override.
+        """
+        return False
+
+    @property
+    def is_adjointable(self) -> bool:
+        r"""Whether this operator exposes a Hilbert adjoint (:attr:`H` / transpose).
+
+        The RUNTIME successor to the ``CAP_APPLY_TRANSPOSE`` tag. The
+        transpose-of-a-sum law :math:`(A+B)^{\mathsf T} = A^{\mathsf T} +
+        B^{\mathsf T}` is realised in the composer method bodies; this
+        predicate is the matching *advertisement* —
+        ``(A+B).is_adjointable == A.is_adjointable and B.is_adjointable`` —
+        structurally computed rather than cached in a string set. Default
+        ``False``; an operator with a working ``apply_transpose`` overrides.
+        """
+        return False
+
     def apply(self, x: Domain, /) -> Codomain:
         r"""Return :math:`L\,x`.
 
@@ -591,6 +635,51 @@ class LinearOperator(Protocol[Domain, Codomain]):
         return f"<{cls} domain={d_name} codomain={c_name} caps={caps}>"
 
 
+# ───────────────────────────────────────────────────────────────────────
+# Static capability Protocols (#226 inverse-as-operator carve)
+# ───────────────────────────────────────────────────────────────────────
+#
+# These are STATIC contracts ONLY (pyright / annotation targets), the
+# successors to the ``CAP_SOLVE`` / ``CAP_APPLY_TRANSPOSE`` string tags.
+# They are deliberately NOT ``runtime_checkable``: an ``isinstance`` check
+# against them reads class-level method presence, which is class-uniform on
+# composites (every ``OperatorSum`` defines ``apply_transpose`` even when a
+# summand cannot transpose) and blind to value-dependent leaves (a
+# zero-coefficient multiplier still has an ``inverse`` method). Forbidding
+# ``isinstance`` at the type level steers every runtime query to the
+# instance-accurate :attr:`LinearOperator.is_invertible` /
+# :attr:`LinearOperator.is_adjointable` property — the single correct
+# mechanism (test-architect §1d.3).
+
+
+class SupportsInverse(Protocol):
+    r"""Static contract: an operator that exposes its inverse OPERATOR.
+
+    The pyright / annotation target (``def precondition(L: SupportsInverse)``)
+    for the invertibility axis. The RUNTIME, instance-accurate query is the
+    :attr:`LinearOperator.is_invertible` property — NOT ``isinstance`` (this
+    Protocol is intentionally not ``runtime_checkable``; see the module
+    comment above). Together they replace the ``CAP_SOLVE`` string tag:
+    Protocol = static contract, property = runtime truth.
+    """
+
+    def inverse(self) -> "LinearOperator": ...
+
+
+class SupportsAdjoint(Protocol):
+    r"""Static contract: an operator that exposes a Hilbert adjoint ``.H``.
+
+    The static counterpart of :attr:`LinearOperator.is_adjointable`, matching
+    the Grand Report v3 §3.1 ``Supports*`` family. As with
+    :class:`SupportsInverse`, the instance-accurate query is the
+    :attr:`~LinearOperator.is_adjointable` property, not ``isinstance``.
+    Replaces the ``CAP_APPLY_TRANSPOSE`` string tag at the static layer.
+    """
+
+    @property
+    def H(self) -> "LinearOperator": ...
+
+
 def _has(op: object, cap: str) -> bool:
     """Return True iff ``op`` advertises capability ``cap``.
 
@@ -787,6 +876,17 @@ class OperatorSum(LinearOperator[Domain, Codomain]):
     def apply_transpose(self, x: Codomain, /) -> Domain:
         return self.a.apply_transpose(x) + self.b.apply_transpose(x)  # type: ignore[attr-defined]
 
+    @property
+    def is_adjointable(self) -> bool:
+        # (A+B)^T = A^T + B^T (the law in :meth:`apply_transpose`) — the
+        # sum is adjointable iff BOTH summands are. Structural successor to
+        # the ``CAP_APPLY_TRANSPOSE`` closure computed in :meth:`__init__`.
+        return self.a.is_adjointable and self.b.is_adjointable
+
+    # is_invertible inherits the base ``False``: there is no general
+    # ``(A+B)^{-1}`` from the operand inverses (see the class docstring).
+    # The sweep-invertible ``InvertibleOperator`` subclass overrides it.
+
 
 class OperatorProduct(LinearOperator[Domain, Codomain]):
     r"""Composition of two linear operators: :math:`(A\,B)\,x = A(B\,x)`.
@@ -863,6 +963,19 @@ class OperatorProduct(LinearOperator[Domain, Codomain]):
         # (AB)^T = B^T A^T — maps the codomain W back to the domain V.
         return self.b.apply_transpose(self.a.apply_transpose(x))  # type: ignore[attr-defined]
 
+    @property
+    def is_invertible(self) -> bool:
+        # (AB)^{-1} = B^{-1} A^{-1} (the law in :meth:`solve`) — the product
+        # is invertible iff BOTH factors are. Structural successor to the
+        # ``CAP_SOLVE`` closure computed in :meth:`__init__`.
+        return self.a.is_invertible and self.b.is_invertible
+
+    @property
+    def is_adjointable(self) -> bool:
+        # (AB)^T = B^T A^T (the law in :meth:`apply_transpose`) — adjointable
+        # iff BOTH factors are. Successor to the ``CAP_APPLY_TRANSPOSE`` closure.
+        return self.a.is_adjointable and self.b.is_adjointable
+
 
 class ScaledOperator(LinearOperator[Domain, Codomain]):
     r"""Scalar multiple of a linear operator: :math:`(\alpha L)\,x = \alpha\,(L\,x)`.
@@ -921,6 +1034,17 @@ class ScaledOperator(LinearOperator[Domain, Codomain]):
     def apply_transpose(self, x: Codomain, /, *extra, **kwextra) -> Domain:
         return self.scalar * self.op.apply_transpose(x, *extra, **kwextra)  # type: ignore[attr-defined]
 
+    @property
+    def is_invertible(self) -> bool:
+        # (αL)^{-1} = (1/α) L^{-1} — α ≠ 0 is enforced at construction, so
+        # the scaled operator is invertible iff the operand is.
+        return self.op.is_invertible
+
+    @property
+    def is_adjointable(self) -> bool:
+        # (αL)^T = α L^T — scaling preserves adjointability.
+        return self.op.is_adjointable
+
 
 class IdentityOperator(LinearOperator[Domain]):
     r"""The identity operator :math:`I\,x = x`.
@@ -942,6 +1066,14 @@ class IdentityOperator(LinearOperator[Domain]):
 
     def apply_transpose(self, x: Domain, /) -> Domain:
         return x
+
+    @property
+    def is_invertible(self) -> bool:
+        return True  # I^{-1} = I
+
+    @property
+    def is_adjointable(self) -> bool:
+        return True  # I^T = I
 
 
 class ZeroOperator(LinearOperator[Domain, Codomain]):
@@ -1012,6 +1144,12 @@ class ZeroOperator(LinearOperator[Domain, Codomain]):
         # transpose is the zero echo. Not exercised for the non-endo
         # (codomain_zero) case pre-#208.
         return 0.0 * x
+
+    @property
+    def is_adjointable(self) -> bool:
+        return True  # 0^T = 0
+
+    # is_invertible inherits the base ``False`` — the zero map is singular.
 
 
 class PermutationOperator(LinearOperator):
@@ -1117,6 +1255,14 @@ class PermutationOperator(LinearOperator):
         """
         return np.take(b, self.inverse_perm, axis=self.axis)
 
+    @property
+    def is_invertible(self) -> bool:
+        return True  # P^{-1} = P^T — a permutation is always invertible
+
+    @property
+    def is_adjointable(self) -> bool:
+        return True
+
 
 class IncomingOrdinateMaskTensor(LinearOperator):
     r"""Sparse inflow-ordinate mask: zeroes selected entries along an axis.
@@ -1207,6 +1353,12 @@ class IncomingOrdinateMaskTensor(LinearOperator):
         # Self-adjoint: same code path.
         return self.apply(x)
 
+    @property
+    def is_adjointable(self) -> bool:
+        return True  # M = M^T (self-adjoint projection)
+
+    # is_invertible inherits the base ``False`` — the mask is rank-deficient.
+
 
 class PeriodicWrapOperator(LinearOperator):
     r"""Spatial-pushforward operator for periodic boundaries.
@@ -1254,6 +1406,10 @@ class PeriodicWrapOperator(LinearOperator):
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         return np.asarray(x).copy()
+
+    @property
+    def is_adjointable(self) -> bool:
+        return True  # identity body is self-adjoint
 
 
 class TensorProductOperator(LinearOperator):
@@ -1376,6 +1532,17 @@ class TensorProductOperator(LinearOperator):
             out = op.solve(out)  # type: ignore[attr-defined]
         return out
 
+    @property
+    def is_invertible(self) -> bool:
+        # (A⊗B)^{-1} = A^{-1}⊗B^{-1} — invertible iff every factor is
+        # (the ``CAP_SOLVE`` intersection in :meth:`__init__`).
+        return all(op.is_invertible for op in self.ops)
+
+    @property
+    def is_adjointable(self) -> bool:
+        # (A⊗B)^T = A^T⊗B^T — adjointable iff every factor is.
+        return all(op.is_adjointable for op in self.ops)
+
 
 class SumOfTensorProductsOperator(LinearOperator):
     r"""Sum of tensor products :math:`\sum_k A_k \otimes B_k \otimes \cdots`.
@@ -1468,6 +1635,13 @@ class SumOfTensorProductsOperator(LinearOperator):
                     f"SumOfTensorProductsOperator summand is not "
                     f"separable: {type(s).__name__}"
                 )
+
+    @property
+    def is_adjointable(self) -> bool:
+        # ∑ A_k⊗B_k transposes summand-wise — adjointable iff every summand
+        # is. (Solve does not propagate through sums, so is_invertible
+        # inherits the base ``False``.)
+        return all(s.is_adjointable for s in self.summands)
 
 
 class DiagonalOperator(LinearOperator):
@@ -1691,6 +1865,16 @@ class DiagonalOperator(LinearOperator):
         b_arr = np.asarray(b_vec)
         self._check_shape(b_arr)
         return b_arr / self._broadcast(b_arr.ndim)
+
+    @property
+    def is_invertible(self) -> bool:
+        # Invertible iff every coefficient entry is non-zero (D^{-1} = 1/c) —
+        # mirrors the eager ``CAP_SOLVE`` gate in :meth:`__init__`.
+        return bool(np.all(self.coefficient != 0.0))
+
+    @property
+    def is_adjointable(self) -> bool:
+        return True  # real diagonal is self-adjoint
 
 
 class RankOneOperator(LinearOperator):
