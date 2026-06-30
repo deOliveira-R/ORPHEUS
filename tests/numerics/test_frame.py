@@ -38,6 +38,7 @@ from orpheus.numerics.operator import (
 )
 from orpheus.numerics.quadrature import lebedev_sphere
 from orpheus.numerics.spaces import SphericalHarmonicSpace
+from tests._harness.predicates import assert_capability_faithful
 
 
 @pytest.fixture
@@ -47,6 +48,25 @@ def sh_frame():
     L = 3
     basis = SphericalHarmonicBasis(L=L)
     return GalerkinFrame(basis, measure), L
+
+
+@pytest.mark.foundation
+def test_frame_faces_predicates_faithful_to_caps(sh_frame):
+    r"""The carve keystone (#226) for the numerics frame faces.
+
+    Both faces advertise ``apply_transpose`` — so ``.H`` falls out of the
+    metric-aware ``_AdjointOperator`` — hence ``is_adjointable`` is True and
+    mirrors ``capabilities`` EXACTLY; neither face is invertible. The
+    reconstruction face's ``is_adjointable`` is the OVERRIDE that lifts it above
+    the bare :class:`~orpheus.numerics.projection.ReconstructionOperator`
+    default (caps ``{apply}`` → ``is_adjointable`` False); the analysis face
+    inherits ``True`` from :class:`~orpheus.numerics.projection.AnalysisOperator`.
+    """
+    frame, _ = sh_frame
+    for face in (frame.analysis, frame.reconstruction):
+        assert_capability_faithful(face)
+        assert face.is_adjointable is True
+        assert face.is_invertible is False
 
 
 def _band_limited(rng, L, *trailing):

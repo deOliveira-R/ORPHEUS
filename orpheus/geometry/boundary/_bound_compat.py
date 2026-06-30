@@ -105,6 +105,20 @@ class _BoundBoundaryOperator(LinearOperator):
         return self.inner.capabilities
 
     @property
+    def is_invertible(self) -> bool:
+        # Delegate the structural predicates to the realized inner law, exactly
+        # as :attr:`capabilities` does — the wrapper is a transparent typed
+        # handle, so ``B``'s per-face faithfulness (``is_X ≡ CAP_X∈caps``) rides
+        # on the inner op's own predicates, NOT the base ``LinearOperator``
+        # default ``False`` (which would silently break the boundary aggregator's
+        # ``all(law.is_adjointable …)`` rule).
+        return self.inner.is_invertible
+
+    @property
+    def is_adjointable(self) -> bool:
+        return self.inner.is_adjointable
+
+    @property
     def block_role(self):  # type: ignore[override]
         # Forward the realized law's block-role classification (Issue #208
         # / Wave O) so ``isinstance(sn_mesh.bc["xmin"], BoundaryOperator)``

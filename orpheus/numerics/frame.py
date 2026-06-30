@@ -462,6 +462,14 @@ class _FrameReconstruction(ReconstructionOperator):
     capabilities = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
     @property
+    def is_adjointable(self) -> bool:
+        # The frame's reconstruction FACE adds apply_transpose (caps ⊇
+        # CAP_APPLY_TRANSPOSE) on top of the bare ReconstructionOperator role
+        # (which advertises only CAP_APPLY), so ``R.H`` is free here. The
+        # override lives on the face, mirroring the caps override above.
+        return True
+
+    @property
     def domain(self) -> FunctionSpace:
         return self.frame.basis_space
 

@@ -125,6 +125,16 @@ class AnalysisOperator(LinearOperator[Domain, Codomain], ABC):
 
     capabilities: frozenset[str] = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
+    @property
+    def is_adjointable(self) -> bool:
+        # The analysis role advertises apply_transpose (caps ⊇
+        # CAP_APPLY_TRANSPOSE), so concrete frame faces get the metric-aware
+        # ``.H`` for free. A realisation that drops the cap (forfeiting the
+        # free adjoint) MUST also override this to False — the predicate and
+        # the capability move together. (ReconstructionOperator advertises
+        # only CAP_APPLY → its is_adjointable inherits the base False.)
+        return True
+
     @abstractmethod
     def apply(self, x: Domain, /) -> Codomain:
         ...

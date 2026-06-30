@@ -298,6 +298,13 @@ class LegendreMomentScattering(LinearOperator):
         default_factory=lambda: frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
     )
 
+    @property
+    def is_adjointable(self) -> bool:
+        # Λ exposes its group-transpose Σ_{s,ℓ}^T (apply_transpose), so the
+        # metric-aware .H is free; caps ⊇ CAP_APPLY_TRANSPOSE. is_invertible
+        # inherits base False — a per-ℓ source map is not invertible.
+        return True
+
     def apply(
         self, moments: "np.ndarray | HarmonicMomentFlux",
     ) -> "np.ndarray | HarmonicMomentSourceSink":
@@ -454,6 +461,12 @@ class N2NMomentOperator(LinearOperator):
         default_factory=lambda: frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
     )
 
+    @property
+    def is_adjointable(self) -> bool:
+        # 2Σ_{2n}^T (apply_transpose) is the ℓ=0 group-transpose; caps ⊇
+        # CAP_APPLY_TRANSPOSE. is_invertible inherits base False.
+        return True
+
     def apply(self, moments: np.ndarray) -> np.ndarray:
         r""":math:`2\,\Sigma_{2n}` applied to the :math:`\ell=0` moment (ℓ≥1 zero).
 
@@ -576,6 +589,14 @@ class ScatteringOperator(LinearOperator):
     def codomain(self) -> "FunctionSpace | None":
         # Endomorphic on the composite full-field space (see :meth:`domain`).
         return self.full_field_space
+
+    @property
+    def is_adjointable(self) -> bool:
+        # S = R∘(Λ+N2N)∘M exposes its Euclidean transpose S^T via
+        # :attr:`full_scatter_kernel` (the OperatorProduct adjoint chain);
+        # caps ⊇ CAP_APPLY_TRANSPOSE. is_invertible inherits base False —
+        # a scattering source operator is not invertible.
+        return True
 
     # ── Convenience read-throughs (the legacy n_ordinates / nx / ny
     # / ng / weights / Y / cells_by_mat / sig_s / sig2 / sig_s0

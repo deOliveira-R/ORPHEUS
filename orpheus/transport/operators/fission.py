@@ -194,6 +194,13 @@ class FissionOperator(LinearOperator):
     # it as a field).
     block_role = BlockRole.BULK
 
+    @property
+    def is_adjointable(self) -> bool:
+        # F = outer(χ, ⟨νΣ_f|) is a rank-1 dyad; F^T is the free dyad-swap
+        # (#112), so caps ⊇ CAP_APPLY_TRANSPOSE. is_invertible inherits base
+        # False — a rank-1 production operator is singular.
+        return True
+
     # ── Read-through properties for backwards compatibility ────────────
 
     @property

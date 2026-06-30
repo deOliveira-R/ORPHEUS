@@ -118,7 +118,7 @@ class SNBoundaryOperator(LinearOperator):
         self.sn_mesh = sn_mesh
 
     @property
-    def _face_laws(self) -> dict[str, object]:
+    def _face_laws(self) -> dict[str, LinearOperator]:
         """Map each true boundary face → its per-face realized law.
 
         Read from ``sn_mesh.bc`` for the faces the trace carries
@@ -142,6 +142,17 @@ class SNBoundaryOperator(LinearOperator):
         ):
             caps.add(CAP_APPLY_TRANSPOSE)
         return frozenset(caps)
+
+    @property
+    def is_adjointable(self) -> bool:
+        # B = ⊕ per-face laws; the composite adjoint exists iff EVERY face law
+        # is adjointable (reflective / vacuum / periodic / albedo are; white is
+        # NOT — self-adjoint only under |Ω·n|·w, routed via B.H). Mirrors the
+        # intersection rule in :attr:`capabilities` — predicate and capability
+        # move together. is_invertible inherits base False (a BC reflection map
+        # is not invertible).
+        laws = self._face_laws.values()
+        return bool(laws) and all(law.is_adjointable for law in laws)
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:

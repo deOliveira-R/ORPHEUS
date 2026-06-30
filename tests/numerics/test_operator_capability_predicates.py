@@ -28,8 +28,6 @@ import pytest
 
 from orpheus.numerics.operator import (
     CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
-    CAP_SOLVE,
     DiagonalOperator,
     IdentityOperator,
     IncomingOrdinateMaskTensor,
@@ -39,6 +37,7 @@ from orpheus.numerics.operator import (
     ScaledOperator,
     ZeroOperator,
 )
+from tests._harness.predicates import assert_capability_faithful as _assert_faithful
 
 pytestmark = pytest.mark.foundation
 
@@ -53,18 +52,6 @@ class _ApplyOnly(LinearOperator):
 
     def apply(self, x, /):
         return x
-
-
-def _assert_faithful(op: LinearOperator) -> None:
-    """``is_invertible ≡ CAP_SOLVE∈caps`` AND ``is_adjointable ≡ CAP_APPLY_TRANSPOSE∈caps``."""
-    assert op.is_invertible == (CAP_SOLVE in op.capabilities), (
-        f"{type(op).__name__}: is_invertible={op.is_invertible} but "
-        f"(CAP_SOLVE in caps)={CAP_SOLVE in op.capabilities}"
-    )
-    assert op.is_adjointable == (CAP_APPLY_TRANSPOSE in op.capabilities), (
-        f"{type(op).__name__}: is_adjointable={op.is_adjointable} but "
-        f"(CAP_APPLY_TRANSPOSE in caps)={CAP_APPLY_TRANSPOSE in op.capabilities}"
-    )
 
 
 _C = np.array([1.0, 2.0, 3.0])

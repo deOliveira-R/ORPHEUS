@@ -205,6 +205,20 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         )
         self.capabilities = self.engine.capabilities
 
+    @property
+    def is_invertible(self) -> bool:
+        # M[f] is invertible iff every coefficient entry is nonzero (the
+        # spectrum law min|f| > 0). DELEGATE to the broadcast engine (a
+        # DiagonalOperator) — the same single-source that already carries the
+        # capability set, so the predicate cannot drift from the spectrum.
+        return self.engine.is_invertible
+
+    @property
+    def is_adjointable(self) -> bool:
+        # Diagonal multiplication is its own structural transpose; delegate to
+        # the engine (always adjointable).
+        return self.engine.is_adjointable
+
     @classmethod
     def from_mesh(
         cls,

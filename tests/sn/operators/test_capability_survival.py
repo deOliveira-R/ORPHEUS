@@ -39,7 +39,19 @@ from orpheus.sn.boundary.angular import IncomingSourceOperator
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import InvertibleOperator, StreamingOperator
+from orpheus.transport.mesh.material_xs_field import MaterialXSField
+from orpheus.transport.operators.fission import FissionOperator
+from orpheus.transport.operators.isotropic_scattering import (
+    IsotropicN2N,
+    IsotropicScattering,
+)
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
+from orpheus.transport.operators.scattering import (
+    LegendreMomentScattering,
+    N2NMomentOperator,
+    ScatteringOperator,
+)
+from tests._harness.predicates import assert_capability_faithful
 from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = [pytest.mark.foundation]
@@ -145,3 +157,120 @@ class TestLossMinusBoundaryCompositeCapabilities:
             CAP_APPLY_TRANSPOSE in op.capabilities for op in (L + C, B)
         )
         assert (CAP_APPLY_TRANSPOSE in composite.capabilities) == both_have_transpose
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Predicate FAITHFULNESS — the carve keystone (verification spec §2.3)
+# ─────────────────────────────────────────────────────────────────────
+#
+# Phase 2b extends the capability-SURVIVAL net above with the per-operator
+# predicate-FAITHFULNESS invariant ``is_X ≡ CAP_X ∈ capabilities`` for the
+# transport + SN advertisers. This is the equivalence that licenses deleting
+# the frozenset in Phase 4: the numerics leaves/composers are pinned in
+# ``tests/numerics/test_operator_capability_predicates.py`` and the frame faces
+# in ``tests/numerics/test_frame.py``; THIS file closes the transport energy
+# operators + the SN streaming/boundary family. All three share the ONE
+# keystone assertion ``tests/_harness/predicates.assert_capability_faithful``.
+
+_SIGS0 = np.array([[0.20, 0.00], [0.05, 0.18]])   # P0 group-transfer (asymmetric)
+_SIGS1 = np.array([[0.02, 0.00], [0.01, 0.015]])  # P1 (small anisotropy)
+_SIG2 = np.array([[0.00, 0.03], [0.01, 0.00]])    # (n,2n)
+
+
+def _synthetic_mat_xs(nx: int = 4) -> MaterialXSField:
+    """Single-material 2G synthetic XS field (asymmetric SigS, nonzero Sig2)."""
+    cells = {0: (np.arange(nx), np.zeros(nx, dtype=int))}
+    return MaterialXSField._synthetic_for_tests(
+        sig_s={0: [_SIGS0, _SIGS1]}, sig2={0: _SIG2},
+        cells_by_mat=cells, ng=2, nx=nx, ny=1,
+    )
+
+
+class TestPredicateFaithfulness:
+    r"""``is_invertible ≡ CAP_SOLVE∈caps`` AND ``is_adjointable ≡
+    CAP_APPLY_TRANSPOSE∈caps`` for EVERY transport + SN advertiser — the
+    keystone (verification spec §2.3) that licenses Phase 4's frozenset
+    deletion. Spans the ``(invertible × adjointable)`` quadrants, including the
+    VALUE-dependent asymmetry leaf (``MultiplicationOperator(true-zero-coeff)``:
+    adjointable but NOT invertible) that breaks a buggy predicate which merely
+    mirrors the other axis (spec §0.6/§8)."""
+
+    def _sn_operators(self, sn):
+        spatial = (sn.ng, *sn.spatial_shape)
+        sigma_t = np.ones(spatial)
+        sigma_singular = sigma_t.copy()
+        sigma_singular[0, 0] = 0.0  # a TRUE zero → C is singular (min|f| = 0)
+        L = StreamingOperator(sn)
+        C = MultiplicationOperator.from_mesh(sigma_t, sn)
+        C_singular = MultiplicationOperator.from_mesh(sigma_singular, sn)
+        B = SNBoundaryOperator(sn)
+        ops = [L, C, C_singular, L + C, L + C - B, B]
+        # The realized per-face boundary-law wrappers (_BoundBoundaryOperator):
+        # their is_* MUST delegate to the inner law, not the base default.
+        ops += [sn.bc[face] for face in sn.trace.layout.faces]
+        return ops
+
+    def _transport_energy_operators(self):
+        mat = _synthetic_mat_xs()
+        return [
+            IsotropicScattering(mat),
+            IsotropicN2N(mat),
+            FissionOperator(mat_xs=mat),
+            LegendreMomentScattering(mat_xs=mat, L=1, skip_l0=True),
+            N2NMomentOperator(mat_xs=mat, L=1),
+            ScatteringOperator(
+                mat_xs=mat,
+                quadrature=Quadrature.gauss_legendre(n_ordinates=4),
+                scattering_order=0,
+            ),
+        ]
+
+    def test_sn_operators_are_faithful(self) -> None:
+        for op in self._sn_operators(_slab_mesh(ng=2)):
+            assert_capability_faithful(op)
+
+    def test_transport_energy_operators_are_faithful(self) -> None:
+        for op in self._transport_energy_operators():
+            assert_capability_faithful(op)
+
+    def test_axis_separation_is_value_dependent(self) -> None:
+        """The two axes must be INDEPENDENTLY correct. A singular
+        ``MultiplicationOperator`` is adjointable but NOT invertible; ``L`` is
+        the structural twin (adjointable, not invertible); ``(L+C)`` is both —
+        a predicate that merely returned the other axis fails on the singular C."""
+        sn = _slab_mesh(ng=2)
+        spatial = (sn.ng, *sn.spatial_shape)
+        sigma_singular = np.ones(spatial)
+        sigma_singular[0, 0] = 0.0
+        C_singular = MultiplicationOperator.from_mesh(sigma_singular, sn)
+        assert C_singular.is_adjointable is True
+        assert C_singular.is_invertible is False
+        L = StreamingOperator(sn)
+        assert L.is_adjointable is True and L.is_invertible is False
+        C_ok = MultiplicationOperator.from_mesh(np.ones(spatial), sn)
+        assert (L + C_ok).is_invertible is True
+        assert (L + C_ok).is_adjointable is True
+
+    def test_boundary_law_wrapper_delegates_predicates(self) -> None:
+        """The ``_BoundBoundaryOperator`` wrapper delegates ``is_*`` to its inner
+        realized law (mirroring its ``capabilities`` delegation), NOT the base
+        ``LinearOperator`` default. A non-delegating wrapper would report a
+        vacuum/reflective face law as ``is_adjointable=False`` and silently break
+        the ``B`` aggregator's ``all(law.is_adjointable …)`` rule."""
+        sn = _slab_mesh(ng=2)
+        for face in sn.trace.layout.faces:
+            law = sn.bc[face]
+            assert law.is_adjointable == (CAP_APPLY_TRANSPOSE in law.capabilities)
+            assert law.is_invertible == (CAP_SOLVE in law.capabilities)
+
+    def test_invertible_operator_is_the_sole_invertible_sum(self) -> None:
+        """``(L+C)`` is the ONE sweep-invertible OperatorSum; subtracting ``B``
+        (a generic OperatorSum) drops invertibility while keeping adjointability."""
+        sn = _slab_mesh(ng=2)
+        L = StreamingOperator(sn)
+        C = MultiplicationOperator.from_mesh(np.ones((sn.ng, *sn.spatial_shape)), sn)
+        lc = L + C
+        assert isinstance(lc, InvertibleOperator)
+        assert lc.is_invertible is True and lc.is_adjointable is True
+        composite = lc - SNBoundaryOperator(sn)
+        assert composite.is_invertible is False  # no general (A+B)⁻¹

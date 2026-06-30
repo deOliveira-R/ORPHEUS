@@ -334,6 +334,14 @@ class StreamingOperator(LinearOperator["FullField"]):
     # contract has no need for the legacy packed-vector slot map.
 
     @property
+    def is_adjointable(self) -> bool:
+        # The analytic reverse-direction adjoint matvec L^T landed (Wave O /
+        # O.2b — see :meth:`apply_transpose`); caps ⊇ CAP_APPLY_TRANSPOSE.
+        # is_invertible inherits base False — pure streaming L is not
+        # sweep-invertible; only the (L+C) InvertibleOperator is.
+        return True
+
+    @property
     def domain(self) -> Optional["FunctionSpace"]:
         r"""The composite carrier :math:`V_{\rm bulk}\oplus V_{\rm trace}` (Wave O / O.2b).
 
@@ -666,6 +674,15 @@ class InvertibleOperator(OperatorSum["FullField"]):
         # block_role is now DERIVED by OperatorSum.__init__ (Wave O / O.2b 4.5):
         # join(L=FULL, C=BULK) = FULL. The former hand-stamp here was the
         # twin-path retired in 4.5 — the role is carried by construction.
+
+    @property
+    def is_invertible(self) -> bool:
+        # (L+C) is sweep-invertible: the WDD forward-substitution sweep IS its
+        # inverse operator (caps ⊇ CAP_SOLVE, added unconditionally in
+        # __init__). This is the SOLE invertible OperatorSum — the base
+        # OperatorSum.is_invertible is False. is_adjointable inherits the
+        # OperatorSum a∧b law (both L and C advertise apply_transpose).
+        return True
 
     # ── Convenience accessors ─────────────────────────────────────────
 
