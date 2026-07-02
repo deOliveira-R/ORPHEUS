@@ -166,11 +166,18 @@ class SupportsSeededApply(Protocol[V]):
     signature probes.  Members with no use for a starting point accept and
     ignore the keyword, documented per type (an exact
     :class:`~orpheus.numerics.operator.InverseOperator`; the windowed
-    product, whose multi-D walk has no bulk-seed consumer).  The member
-    that NEEDS it is the curvilinear
+    product, whose multi-D walk has no bulk-seed consumer).  The members
+    that CONSUME it are the curvilinear
     :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`, whose
     Morel–Montry Carlson closure reads the previous iterate at
-    :math:`\mu = -1`.
+    :math:`\mu = -1`, and the
+    :class:`~orpheus.numerics.green_operator.GreenOperator`, which seeds
+    its splitting iteration's start.
+
+    Since taxonomy §12 step 4 the signature is STRUCTURAL on the
+    wrap-delegate family: the abstract
+    :meth:`~orpheus.numerics.operator.InverseWrapMixin.apply` declares it,
+    so a new inverse sibling cannot forget the keyword (#285).
 
     Like :class:`~orpheus.numerics.operator.SupportsInverse`, this is a
     STATIC contract only (an annotation target) — deliberately not
@@ -207,17 +214,18 @@ def _seeded_inverse(A: LinearOperator) -> "SupportsSeededApply[Any]":
     The static narrows are casts (the ``Supports*`` Protocols are
     deliberately not ``runtime_checkable`` — test-architect §1d.3); the
     runtime truth is the CALLER's ``is_invertible`` guard, which MUST
-    precede this call.  The seeded-apply conformance is asserted for the
-    inverses the posing layers here actually reach — the SN
-    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` and the
-    leaf :class:`~orpheus.numerics.operator.InverseOperator`, both of
-    which carry ``apply(rhs, *, initial_guess=None)`` — NOT for every
-    ``inverse()`` in the operator family (a composed
-    ``OperatorProduct.inverse()`` does not take the keyword today).
-    Whether seeded-apply becomes STRUCTURAL (a shared mixin over the
-    inverse family) or stays per-leaf convention is decided with the
-    §12 step-4/5 siblings (``GreenOperator`` / ``MatrixInverseOperator``
-    must join the contract when they land).
+    precede this call.  Seeded-apply conformance is STRUCTURAL on the
+    wrap-delegate family (#285, decided at taxonomy §12 step 4): the SN
+    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`, the leaf
+    :class:`~orpheus.numerics.operator.InverseOperator`, and the splitting
+    :class:`~orpheus.numerics.green_operator.GreenOperator` all inherit
+    the abstract signature from
+    :class:`~orpheus.numerics.operator.InverseWrapMixin`, so every
+    ``.inverse()`` a posing layer reaches through this helper carries the
+    keyword by construction.  The RESIDUE outside the family: a composed
+    ``OperatorProduct.inverse()`` (a composition, not a wrap-delegate
+    sibling) does not take the keyword today — closed with
+    ``MatrixInverseOperator`` at step 5 (#285's remaining scope).
     """
     return cast(
         "SupportsSeededApply[Any]", cast("SupportsInverse", A).inverse(),

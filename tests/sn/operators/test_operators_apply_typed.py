@@ -50,6 +50,10 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.transport.operators.scattering import ScatteringOperator
+from orpheus.numerics.green_operator import GreenOperator
+from orpheus.numerics.iteration import SupportsSeededApply
+from orpheus.numerics.operator import InverseOperator
+from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.sn.operators.windowing import BulkAnalysisOperator, WindowedSweep
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
@@ -426,3 +430,36 @@ def test_c6_apply_dispatch_parity() -> None:
                 f"{label}: dispatch returned {type(out).__name__}, "
                 f"expected {expected.__name__}"
             )
+
+
+# ───────────────────────────────────────────────────────────────────────
+# The inverse family's SEEDED-APPLY static contract (#285 → STRUCTURAL;
+# taxonomy §12 step 4, verification spec §19.2).  The abstract
+# ``InverseWrapMixin.apply(x, /, *, initial_guess=None)`` is what makes a
+# sibling UNABLE to forget the keyword: pyright rejects a kwarg-less
+# override (reportIncompatibleMethodOverride — M-MIXIN-KWARG teeth), and
+# these pins make the family's conformance a checked fact rather than a
+# docstring claim.  Pyright-only, never run (no ``test_`` prefix).
+# ───────────────────────────────────────────────────────────────────────
+
+
+def _inverse_family_seeded_apply_static_pins(
+    sweep: "SweepOperator",
+    exact: "InverseOperator",
+    green: "GreenOperator",
+    rhs: TimedFullField,
+    seed: TimedFullField,
+    arr: np.ndarray,
+) -> None:
+    """Every wrap-delegate sibling accepts the canonical seeded-apply
+    signature AND structurally satisfies the driver's
+    :class:`~orpheus.numerics.iteration.SupportsSeededApply` contract —
+    so ``SourceIteration`` can consume any of them with no per-type
+    probes (the step-3 design, now mixin-enforced)."""
+    assert_type(sweep.apply(rhs, initial_guess=seed), TimedFullField)
+    _ = exact.apply(arr, initial_guess=arr)
+    _ = green.apply(arr, initial_guess=arr)
+    a: SupportsSeededApply = sweep
+    b: SupportsSeededApply = exact
+    c: SupportsSeededApply = green
+    del a, b, c

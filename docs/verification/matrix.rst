@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5989**
+Total tests collected: **6007**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1169, 19.5%
-   L1, 1048, 17.5%
+   L1, 1048, 17.4%
    L2, 46, 0.8%
    L3, 0, 0.0%
-   foundation, 3716, 62.0%
+   foundation, 3734, 62.2%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5900
+   explicit, 5918
    verify, 0
    class-name, 46
    func-name, 0
@@ -277,10 +277,11 @@ Module × level grid
    numerics/test_field, 0, 0, 0, 0, 22, 0
    numerics/test_frame, 0, 0, 0, 0, 19, 0
    numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
+   numerics/test_green_operator, 0, 0, 0, 0, 11, 0
    numerics/test_incoming_ordinate_mask_tensor, 13, 0, 0, 0, 0, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
-   numerics/test_inverse_universal, 0, 0, 0, 0, 19, 0
+   numerics/test_inverse_universal, 0, 0, 0, 0, 20, 0
    numerics/test_iteration, 0, 1, 0, 0, 18, 0
    numerics/test_measure, 0, 16, 0, 0, 32, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
@@ -319,6 +320,7 @@ Module × level grid
    operators/test_fission_operator, 0, 0, 0, 0, 18, 0
    operators/test_frame_conjugate_carve, 0, 0, 0, 0, 11, 0
    operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 12, 0
+   operators/test_green_operator_sn, 0, 0, 0, 0, 5, 0
    operators/test_inverse_operator_equivalence, 0, 0, 0, 0, 7, 0
    operators/test_invertible_operator, 1, 10, 0, 0, 22, 0
    operators/test_isotropic_scattering, 0, 0, 0, 0, 16, 0
@@ -387,7 +389,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 301, 0
+   test_layer_imports, 0, 0, 0, 0, 302, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -794,7 +796,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **265** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **268** labels carry the directive. See ``docs/testing/architecture.rst``:ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-contraction-ratio``
 - ``affine-torsor-algebra``
@@ -871,6 +873,9 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``gap-closure-event``
 - ``gap-conductance``
 - ``gas-pressure``
+- ``green-neumann-series``
+- ``green-splitting-iteration``
+- ``green-true-residual``
 - ``group-flux``
 - ``group-xs``
 - ``hilbert-adjoint-equals-metric-times-S0``

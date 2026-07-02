@@ -4453,14 +4453,16 @@ are documented in detail at
 The §15A.2 sum-of-tensor-products framing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Following Grand Report v3 §15A.2 (lines 2137–2171), the streaming
-inverse :math:`L^{-1}` on the 2-D Cartesian SN field space decomposes
-as a **direct sum over angular octants**:
+Following Grand Report v3 §15A.2 (lines 2137–2171), the loss inverse
+(the sweep) :math:`A^{-1} = (L+C)^{-1}` on the 2-D Cartesian SN field
+space decomposes as a **direct sum over angular octants** — the block
+structure is streaming-induced, since each octant sweeps in a fixed
+direction:
 
 .. math::
    :label: streaming-inverse-direct-sum
 
-   L^{-1} \;=\; \bigoplus_{\sigma \in \mathcal{O}} L^{-1}_{\sigma},
+   A^{-1} \;=\; \bigoplus_{\sigma \in \mathcal{O}} A^{-1}_{\sigma},
    \qquad
    \mathcal{O} \;=\; \{\sigma = (\mathrm{sgn}\,\mu_x,\,
                                   \mathrm{sgn}\,\mu_y) :
@@ -4482,7 +4484,7 @@ entries realised by
 :doc:`discrete_measures` consumer table).
 
 For each non-degenerate octant :math:`\sigma`, the action of
-:math:`L^{-1}_\sigma` is a **forward substitution along a per-octant
+:math:`A^{-1}_\sigma` is a **forward substitution along a per-octant
 causal cell DAG** — the topological order is structural (anti-diagonal
 sweep on the Cartesian grid), the per-level cell update is one
 vectorised einsum.  The pure-:math:`z` degenerate octant
@@ -6049,7 +6051,7 @@ apply ↔ sweep structural equivalence
 
 Pre-Phase-C, the matvec's :meth:`apply` and the sweep's :meth:`solve`
 were structurally distinct paths to the **same** discrete operator
-:math:`L`: :meth:`apply` walked cell-centre storage with arithmetic
+:math:`A`: :meth:`apply` walked cell-centre storage with arithmetic
 face averages, :meth:`solve` walked face storage with WDD
 asymmetric propagation. The cross-domain-attacker frame analysis
 (Smell 16, ``.claude/agent-memory/cross-domain-attacker/issue_168_phase_c_sweep_frame.md``)
@@ -6077,19 +6079,19 @@ from ``apply`` (by inverting the cell-balance equation) recovers
 the same WDD recurrence the sweep walks. The structural-frame
 identity is the load-bearing acceptance criterion for
 preconditioned-Krylov stability — when ``apply`` is the operator
-:math:`L` and the sweep is :math:`L^{-1}` (approximately), they
-must agree on what :math:`L` **is**. Foundation tests in
+:math:`A` and the sweep is :math:`A^{-1}` (approximately), they
+must agree on what :math:`A` **is**. Foundation tests in
 :file:`tests/sn/test_phase_c_gates.py` pin this via
 ``np.array_equal`` on:
 
 * **Gate 1.2** (apply determinism) — repeat-call invariance
   ``apply(ψ) == apply(ψ)`` bit-identical across two invocations.
 * **Gate 1.3** (apply ↔ apply_transpose reciprocity)
-  :math:`\langle L\psi, \phi \rangle = \langle \psi, L^T\phi \rangle`
+  :math:`\langle A\psi, \phi \rangle = \langle \psi, A^T\phi \rangle`
   to ``rtol=1e-12, atol=1e-13``. Free if Gate 1.4 (linearity)
   passes.
-* **Gate 1.4** (apply linearity) :math:`L(\alpha\psi + \beta\phi)
-  = \alpha L\psi + \beta L\phi` to ``rtol=1e-13``.
+* **Gate 1.4** (apply linearity) :math:`A(\alpha\psi + \beta\phi)
+  = \alpha A\psi + \beta A\phi` to ``rtol=1e-13``.
   **Precondition** for Gates 1.2 + 1.3 + the dense-probe
   ``apply_transpose`` construction.
 
@@ -9328,7 +9330,7 @@ load-bearing:
   the curvilinear MMS ladders): SI :math:`\equiv` Krylov is
   **BIT-IDENTICAL**.  Post-unification the sweep and the matvec are ONE
   discrete operator on one quadrature; the within-group inner
-  (``L.solve`` vs Krylov-on-``apply``) realises the *same* :math:`L^{-1}`
+  (``A.solve`` vs Krylov-on-``apply``) realises the *same* :math:`A^{-1}`
   arithmetic, so the two paths return the same bits.
 * **Eigenvalue** (:func:`~orpheus.sn.solver.solve_sn` with
   ``inner_solver="source_iteration"`` vs ``"krylov"``): SI
@@ -10194,12 +10196,14 @@ the SAILOR / Larsen-Adams preconditioned-Krylov framework
 Operator equation
 -----------------
 
-The streaming-collision operator :math:`L` is formed explicitly via
+The invertible loss operator :math:`A = L + C` (streaming
+:math:`L = \mu_n\nabla` plus collision :math:`C = \Sigt{}`) is formed
+explicitly via
 :class:`~orpheus.sn.operators.streaming.InvertibleOperator`:
 
 .. math::
 
-   L\psi = \mu_n \nabla\psi + \Sigt{}\psi
+   A\psi = \mu_n \nabla\psi + \Sigt{}\psi
 
 For Cartesian geometry, this is a banded matrix with upwind cell-
 centre finite-difference gradients.  For curvilinear geometries, the
@@ -10210,7 +10214,7 @@ operator includes the :math:`\Delta A/w` geometry factor and the
 :math:`\psi_{n+1/2} = (\overline{\psi} - (1-\tau)\,\psi_{n-1/2})/\tau`
 used by the sweep.
 
-The system :math:`L\,\psi = b` is solved with
+The system :math:`A\,\psi = b` is solved with
 ``scipy.sparse.linalg.gmres`` (replacing the legacy BiCGSTAB), with
 the sweep wrapped as a scipy ``LinearOperator`` preconditioner ``M``.
 On uniform meshes the symmetric and WDD closures converge to the
@@ -10225,9 +10229,9 @@ Consistency with the Sweep
 Both the sweep and the Krylov path must use the **same** spatial
 discretisation to produce identical eigenvalues.  In practice:
 
-- The sweep uses diamond-difference (DD): :math:`L^{-1}` is applied
+- The sweep uses diamond-difference (DD): :math:`A^{-1}` is applied
   implicitly via forward substitution along sweep-direction visits.
-- The Krylov path forms :math:`L` explicitly via the symmetric-
+- The Krylov path forms :math:`A` explicitly via the symmetric-
   closure FD operator and inverts it via GMRES.
 
 On coarse meshes, DD and FD have different truncation error
@@ -10954,17 +10958,17 @@ problem written in operator form is
 
 .. math::
 
-    (L - S - F)\,\psi = q
+    (A - S - F)\,\psi = q
     \qquad\text{(fixed source)}
 
 .. math::
 
-    (L - S)\,\psi = \tfrac{1}{k}\,F\,\psi
+    (A - S)\,\psi = \tfrac{1}{k}\,F\,\psi
     \qquad\text{(eigenvalue)}
 
-where :math:`L` is the streaming + collision operator, :math:`S` is
-the scattering source operator, and :math:`F` is the fission source
-operator. Wave D Issue 13 lifts :math:`S` and :math:`F` out of
+where :math:`A = L + C` is the invertible loss (streaming + collision)
+operator, :math:`S` is the scattering source operator, and :math:`F` is
+the fission source operator. Wave D Issue 13 lifts :math:`S` and :math:`F` out of
 :class:`~orpheus.sn.solver.SNSolver` and into
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator` and
 :class:`~orpheus.transport.operators.fission.FissionOperator` respectively. The math is
@@ -11104,8 +11108,8 @@ Backward references — Wave E status
 ------------------------------------
 
 Wave E Round 2 (Issue #164) wired the operator algebra
-:math:`(L, S, F)` into :class:`SNSolver` and replaced the legacy
-BiCGSTAB inner-solver path with Krylov-on-:meth:`L.apply` (GMRES
+:math:`(A, S, F)` into :class:`SNSolver` and replaced the legacy
+BiCGSTAB inner-solver path with Krylov-on-:meth:`A.apply` (GMRES
 with the sweep as preconditioner).  The
 ``build_transport_linear_operator*`` and ``build_rhs*`` helpers
 were retired; the per-method delegators on
@@ -11134,21 +11138,21 @@ InvertibleOperator: the streaming-collision operator algebra
 
 Wave D Round 3 (Issue #160) installs
 :class:`~orpheus.sn.operators.streaming.InvertibleOperator` as the unified
-:class:`~orpheus.numerics.operator.LinearOperator` for the
-streaming-collision operator
-:math:`L = \Omega\cdot\nabla + \Sigma_t`.  This is the Wave D
-**capstone**: with :math:`L`, :math:`S`, and :math:`F` all carrying
+:class:`~orpheus.numerics.operator.LinearOperator` for the invertible
+loss operator
+:math:`A = L + C = \Omega\cdot\nabla + \Sigma_t`.  This is the Wave D
+**capstone**: with :math:`A`, :math:`S`, and :math:`F` all carrying
 the Wave A operator-algebra contract, the operator-form transport
 equation
 
 .. math::
 
-    (L - S - F)\,\psi = q
+    (A - S - F)\,\psi = q
     \qquad\text{(fixed source)}
 
 .. math::
 
-    (L - S)\,\psi = \tfrac{1}{k}\,F\,\psi
+    (A - S)\,\psi = \tfrac{1}{k}\,F\,\psi
     \qquad\text{(eigenvalue)}
 
 is now expressible in ORPHEUS as a single Python expression composed
@@ -11166,7 +11170,7 @@ Three capabilities
 "apply_transpose"}`` — every member of the Wave A capability set:
 
 * :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` —
-  matrix-free forward action :math:`L\,\psi`.  Reuses the
+  matrix-free forward action :math:`A\,\psi`.  Reuses the
   symmetric closure math from the existing
   :func:`~orpheus.sn.operators.streaming.transport_operator_matvec`,
   :func:`~orpheus.sn.operators.streaming.transport_operator_matvec_spherical`,
@@ -11175,17 +11179,17 @@ Three capabilities
   **extracted verbatim**; the new class is a thin Protocol wrapper.
 
 * :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve` —
-  inverse action :math:`L^{-1}\,q` via the Wave D Round 2 unified
+  inverse action :math:`A^{-1}\,q` via the Wave D Round 2 unified
   sweep (:func:`~orpheus.sn.loss_representation.transport_sweep`).  Bit-identical
   to a direct :func:`transport_sweep` call on the same arguments.
 
 * :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply_transpose` —
-  adjoint action :math:`L^*\,\psi`.  Implemented via the explicit
+  adjoint action :math:`A^*\,\psi`.  Implemented via the explicit
   transpose of the dense matrix assembled by probing
   :meth:`apply` with each unit basis vector.  The construction is
   exact by linear algebra and gates the reciprocity invariant
-  :math:`\langle L\,\psi,\,\varphi\rangle = \langle\psi,\,
-  L^*\,\varphi\rangle` (see "Reciprocity" subsection below).
+  :math:`\langle A\,\psi,\,\varphi\rangle = \langle\psi,\,
+  A^*\,\varphi\rangle` (see "Reciprocity" subsection below).
 
 Apply and solve use **different** closures by design
 ----------------------------------------------------
@@ -11196,7 +11200,7 @@ This is the load-bearing architectural fact about
 
 The historical SN dispatch in ORPHEUS ships **two distinct
 discretisations** of the same continuous operator
-:math:`L = \Omega\cdot\nabla + \Sigma_t`, built at different times
+:math:`A = \Omega\cdot\nabla + \Sigma_t`, built at different times
 for different consumers:
 
 * The **finite-difference operator**
@@ -11255,7 +11259,7 @@ Two reasons:
    capability set.
 
 2. **The composers (Wave A) need a uniform contract.**  When a
-   downstream agent composes :math:`(L - S - F)`, the composition's
+   downstream agent composes :math:`(A - S - F)`, the composition's
    capability set is derived from each operand's capabilities.  If
    :class:`InvertibleOperator` shipped only :meth:`apply`, the
    composition would lose ``solve`` and the Wave E Krylov-on-apply
@@ -11271,8 +11275,8 @@ transpose pairing under the discrete L\ :sup:`2` inner product:
 .. math::
     :label: sn-streaming-reciprocity
 
-    \langle L\,\psi,\,\varphi\rangle \;=\;
-    \langle\psi,\,L^*\,\varphi\rangle
+    \langle A\,\psi,\,\varphi\rangle \;=\;
+    \langle\psi,\,A^*\,\varphi\rangle
 
 for any pair :math:`(\psi, \varphi)` in the discrete unknown space
 (packed solution vectors of length ``n_unknowns``).  Per Lewis &
@@ -11340,8 +11344,8 @@ layout --- that work is deferred to PR-INDEX-7.
 Why not extract :meth:`apply_transpose` analytically?
 -----------------------------------------------------
 
-For a continuous operator :math:`L = \Omega\cdot\nabla + \Sigma_t`,
-the L\ :sup:`2`-adjoint is :math:`L^* = -\Omega\cdot\nabla +
+For a continuous operator :math:`A = \Omega\cdot\nabla + \Sigma_t`,
+the L\ :sup:`2`-adjoint is :math:`A^* = -\Omega\cdot\nabla +
 \Sigma_t` (the streaming term flips sign under integration by
 parts; the collision term is self-adjoint).  Discretising the
 adjoint analytically would require:
@@ -11382,7 +11386,7 @@ The scattering adjoint, free from the harmonic frame
 The streaming operator's analytic adjoint is hard (the subsection above):
 sign-flipping the upwind direction, transposing the M–M closure, re-deriving
 the per-level azimuthal redistribution — each an AI-failure-mode trap — so
-:math:`L^*` is taken by the dense-transpose fallback.  The **scattering**
+:math:`A^*` is taken by the dense-transpose fallback.  The **scattering**
 operator :math:`S` is the counterexample: campaign **#276 P3** (commit
 ``15185e5``, closes
 `#118 <https://github.com/deOliveira-R/ORPHEUS/issues/118>`_) made
@@ -11517,10 +11521,10 @@ Wave E Round 1 (Issue #163) lifts the iteration primitives out of
 :class:`~orpheus.sn.solver.SNSolver` into stand-alone operator-algebra
 consumers in :mod:`orpheus.numerics.iteration`.  They consume the
 Wave A :class:`~orpheus.numerics.operator.LinearOperator` Protocol
-triple :math:`(L, S, F)` directly — no transport-solver knowledge
+triple :math:`(A, S, F)` directly — no transport-solver knowledge
 beyond the operator contract.
 
-The :math:`(L - S - F)\,\psi = q_{\rm ext}` framing
+The :math:`(A - S - F)\,\psi = q_{\rm ext}` framing
 ----------------------------------------------------
 
 The Boltzmann transport equation in its operator-algebra form
@@ -11529,16 +11533,17 @@ Bau 1997 §3.2 frame the matrix-free Krylov view):
 
 .. math::
 
-    (L - S - F)\,\psi = q_{\rm ext}
+    (A - S - F)\,\psi = q_{\rm ext}
     \qquad\text{(within-group fixed source)}
 
 .. math::
 
-    (L - S)\,\psi = \tfrac{1}{k}\,F\,\psi
+    (A - S)\,\psi = \tfrac{1}{k}\,F\,\psi
     \qquad\text{(eigenvalue)}
 
-where :math:`L = \Omega\cdot\nabla + \Sigma_t` is the streaming-
-collision operator (see :ref:`sn-streaming-operator`),
+where :math:`A = L + C = \Omega\cdot\nabla + \Sigma_t` is the
+invertible loss (streaming-collision) operator (see
+:ref:`sn-streaming-operator`),
 :math:`S` is the scattering source operator
 (see :class:`~orpheus.transport.operators.scattering.ScatteringOperator`),
 :math:`F = \chi\otimes\nu\Sigma_f` is the rank-1-in-energy fission
@@ -11553,10 +11558,10 @@ fixed-source equation by classical fixed-point iteration:
 
 .. math::
 
-    \psi_{n+1} \;=\; L^{-1}\,(S\,\psi_n + F\,\psi_n + q_{\rm ext}).
+    \psi_{n+1} \;=\; A^{-1}\,(S\,\psi_n + F\,\psi_n + q_{\rm ext}).
 
 The convergence rate is bounded by the spectral radius
-:math:`\rho(L^{-1}(S+F))`.  For an SN sweep applied to a homogeneous
+:math:`\rho(A^{-1}(S+F))`.  For an SN sweep applied to a homogeneous
 infinite medium with isotropic scattering, this radius equals the
 scattering ratio :math:`c = \Sigma_s/\Sigma_t` — convergence is
 geometric at rate :math:`c` (Lewis & Miller §4.4).  The formal
@@ -12191,15 +12196,15 @@ fixed-source solve:
 
 .. math::
 
-    \psi_{n+1} \;=\; (L - S)^{-1}\,F\,\psi_n / k_n
+    \psi_{n+1} \;=\; (A - S)^{-1}\,F\,\psi_n / k_n
 
 .. math::
 
-    k_{n+1} \;=\; {\rm keff\_estimator}(L, S, F, \psi_{n+1})
+    k_{n+1} \;=\; {\rm keff\_estimator}(A, S, F, \psi_{n+1})
 
 The dominance ratio :math:`|k_1/k_0|` governs outer-loop
 convergence (Trefethen & Bau §27).  The inner solve uses
-:class:`SourceIteration` with operator triple :math:`(L, S, 0)` —
+:class:`SourceIteration` with operator triple :math:`(A, S, 0)` —
 the fission contribution at the inner level is the **external
 source** :math:`F\psi_n/k_n`, NOT a within-group fixed-point term.
 Every outer iteration warms up its inner :class:`SourceIteration`
@@ -12210,7 +12215,7 @@ The default ``keff_estimator`` is the generic Rayleigh quotient
 
 .. math::
 
-    k \;=\; \frac{\sum (F\,\psi)}{\sum (L\,\psi) - \sum (S\,\psi)}
+    k \;=\; \frac{\sum (F\,\psi)}{\sum (A\,\psi) - \sum (S\,\psi)}
 
 which holds for any operator triple where the action carries the
 volume measure.  SN consumers that need explicit volume weighting
@@ -12226,33 +12231,33 @@ The ``inverter`` parameter (the Wave-E ERR-026 reconciliation hook)
 
 .. note:: **Re-framed (2026-06-12, Issue #195).**
 
-   This section's motivating premise — that the WDD sweep ``L.solve``
+   This section's motivating premise — that the WDD sweep ``A.solve``
    has a *closure-bias-driven* fixed point distinct from the symmetric
    ``apply`` closure, so routing to Krylov-on-``apply`` is what "closes
    ERR-026" — was the *two-distinct-closures* picture.  ERR-058 (#195)
    showed the curvilinear wrong fixed point was the *closure-seed*
    family; once the seeds are fixed the sweep and the matvec are ONE
-   discrete system and SI ``L.solve`` :math:`\equiv` Krylov-on-``apply``
+   discrete system and SI ``A.solve`` :math:`\equiv` Krylov-on-``apply``
    bit-identical (see :ref:`sn-err-058-closure-seed-closeout`).  The
    ``inverter`` hook **remains a real, retained generality** — it lets
-   the iteration primitives swap :math:`L^{-1}` realisation (direct
+   the iteration primitives swap :math:`A^{-1}` realisation (direct
    solve, sweep, Krylov-on-apply with a preconditioner) without
    re-implementation — but it is no longer *required* to obtain the
    correct curvilinear fixed point.  Read the WDD-bias-vs-Krylov
    contrast below as Wave-E-era history.
 
 Both primitives accept an ``inverter: Callable[[ndarray], ndarray]``
-that supplies :math:`L^{-1}`.  When ``None``, the primitive routes
-through :meth:`L.solve`.  When supplied, the caller controls how
-:math:`L^{-1}` is realised — the load-bearing design choice in the
+that supplies :math:`A^{-1}`.  When ``None``, the primitive routes
+through :meth:`A.solve`.  When supplied, the caller controls how
+:math:`A^{-1}` is realised — the load-bearing design choice in the
 Wave-E reconciliation of ERR-026.
 
-* ``inverter = None`` (default):  :math:`L^{-1}\,q = L.solve(q)`.
+* ``inverter = None`` (default):  :math:`A^{-1}\,q = A.solve(q)`.
   For an SN sweep this is the WDD asymmetric closure — which has a
   closure-bias-driven self-consistent fixed point on curvilinear
   meshes that is **not** the fine-mesh-limit transport solution
   (ERR-026).
-* ``inverter = lambda q: KrylovAcceleration(L, ...).solve(q)[0]``:
+* ``inverter = lambda q: KrylovAcceleration(A, ...).solve(q)[0]``:
   Krylov-on-:meth:`apply` (the symmetric closure of
   :class:`~orpheus.sn.operators.streaming.InvertibleOperator`), with the
   sweep injected as a preconditioner :math:`M`.  The ORPHEUS↔scipy
@@ -12266,10 +12271,10 @@ Wave-E reconciliation of ERR-026.
   preconditioner only — its closure bias does not poison the
   converged solution.
 
-By making :math:`L^{-1}` a caller-supplied hook, the iteration
+By making :math:`A^{-1}` a caller-supplied hook, the iteration
 primitives do not need to be re-implemented when the inversion
 strategy changes.  The same :class:`SourceIteration` runs in the
-synthetic L0 case (where ``L`` is a plain dense matrix and
+synthetic L0 case (where ``A`` is a plain dense matrix and
 ``inverter`` defaults to a direct solve), in the L1 SN case (where
 ``inverter`` defaults to the WDD sweep), and in the Wave E
 Krylov-on-:meth:`apply` SN case (where ``inverter`` is supplied
@@ -12282,10 +12287,10 @@ The primitive constructors enforce the following at construction
 time, NEVER mid-iteration (the same Wave A philosophy that gates
 :class:`~orpheus.numerics.operator.OperatorSum` etc.):
 
-* ``L`` MUST advertise :py:data:`CAP_APPLY`.
-* ``L`` MUST advertise :py:data:`CAP_SOLVE` *or* the caller MUST
+* ``A`` MUST advertise :py:data:`CAP_APPLY`.
+* ``A`` MUST advertise :py:data:`CAP_SOLVE` *or* the caller MUST
   supply ``inverter``.  Without one of those, the iteration cannot
-  evaluate :math:`L^{-1}`.
+  evaluate :math:`A^{-1}`.
 * ``S`` MUST advertise :py:data:`CAP_APPLY`.  Pass
   :class:`~orpheus.numerics.operator.ZeroOperator` for the
   scattering-free case.
@@ -12341,9 +12346,9 @@ primitive.  It iterates over the method-agnostic
 :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` Protocol
 boundary (the *late-bound* resolvent layer), which is **strictly more
 general** than the operator-triple form: it admits both the
-:math:`(L, S, F)`-triple resolvent (SN, MoC) *and* the
+:math:`(A, S, F)`-triple resolvent (SN, MoC) *and* the
 **monolithic-matrix resolvent** (CP, diffusion, homogeneous) that has
-no separable :math:`(L-S)^{-1}` factor.  All five solver families are
+no separable :math:`(A-S)^{-1}` factor.  All five solver families are
 therefore **co-consumers of the same canonical boundary**, each
 supplying its own ``EigenvalueSolver``-Protocol realization of the
 Layer-3 resolvent.  There is no migration to a single ``KEigenvalue``
@@ -12362,7 +12367,7 @@ architecture and why the Protocol layer is canonical.
 * **CP** (collision-probability) — drives ``power_iteration`` through
   its own ``EigenvalueSolver``-Protocol implementation; its resolvent
   is **one BiCGSTAB on a monolithic collision-probability matrix**,
-  which has no :math:`(L, S, F)` split.  This is exactly the family
+  which has no :math:`(A, S, F)` split.  This is exactly the family
   the late-bound Protocol layer exists to admit.
 * **Diffusion** — drives ``power_iteration`` with a finite-difference
   resolvent; the BiCGSTAB inner loop *is* the
@@ -12377,7 +12382,7 @@ architecture and why the Protocol layer is canonical.
 
 The :class:`~orpheus.numerics.iteration.KEigenvalue` adapter is **one
 Layer-2b implementer** of this boundary, for callers who *have* a
-natural :math:`(L, S, F)` triple and want to skip writing a full
+natural :math:`(A, S, F)` triple and want to skip writing a full
 solver class; its :meth:`~orpheus.numerics.iteration.KEigenvalue.solve`
 delegates its loop to ``power_iteration`` (one engine — see the
 same-morphism analysis in :ref:`eigenvalue-posing`).  Making the
@@ -12414,7 +12419,7 @@ SNSolver as an operator-algebra coordinator
 ============================================
 
 :class:`~orpheus.sn.solver.SNSolver` consumes the operator triple
-:math:`(L, S, F)` directly.  At construction time, the solver builds:
+:math:`(A, S, F)` directly.  At construction time, the solver builds:
 
 * :attr:`SNSolver.L` — :class:`InvertibleOperator` carrying the
   symmetric-closure streaming-collision operator.
@@ -12482,20 +12487,20 @@ Branch-2 consumer of the shared primitive, not a parallel loop.
 The (L − S − F)·ψ = (1/k)·F·ψ framing at the solver level
 -----------------------------------------------------------
 
-Beyond driving the within-group inner solve, the :math:`(L, S, F)`
+Beyond driving the within-group inner solve, the :math:`(A, S, F)`
 framing organises the solver's outer API surface:
 
 * :meth:`SNSolver.compute_fission_source` returns
   :math:`F\,\phi/k` — a thin delegator to :meth:`F.apply` with the
   :math:`1/k` outer-loop scaling applied at the solver level.
 * :meth:`SNSolver.solve_fixed_source` solves
-  :math:`(L - S)\,\psi = q_{\rm ext}` (with :math:`q_{\rm ext}` the
+  :math:`(A - S)\,\psi = q_{\rm ext}` (with :math:`q_{\rm ext}` the
   fission source built by ``compute_fission_source``).  Two paths:
 
   * ``inner_solver="source_iteration"`` — sweep-driven fixed-point
-    iteration; :math:`L^{-1}` is the WDD asymmetric sweep.  ERR-026-
+    iteration; :math:`A^{-1}` is the WDD asymmetric sweep.  ERR-026-
     affected for curvilinear vacuum-BC cases.
-  * ``inner_solver="krylov"`` — GMRES on :meth:`L.apply` with the
+  * ``inner_solver="krylov"`` — GMRES on :meth:`A.apply` with the
     sweep as preconditioner.  Reflective-BC equation map only
     (Round 3 owns the vacuum-BC extension).
 
@@ -12536,12 +12541,12 @@ Two Inner Solvers
 
 **Krylov (direct operator):**
 
-- Operator: :math:`L = \mu \nabla + \Sigt{}` (finite-difference
+- Operator: :math:`A = \mu \nabla + \Sigt{}` (finite-difference
   gradients, symmetric closure carried by
   :meth:`InvertibleOperator.apply`)
 - Solution variable: angular flux :math:`\psi(x, y, n, g)` (much
   larger than scalar flux)
-- System: :math:`L\psi = b` where :math:`b` = fission + scattering
+- System: :math:`A\psi = b` where :math:`b` = fission + scattering
 - Convergence: GMRES with sweep preconditioner, typically ~100
   Krylov iterations at ``tol=1e-4`` (always converges)
 - Available for all geometries (Cartesian, spherical, cylindrical)
@@ -17809,6 +17814,58 @@ branch and have no landed hash yet.
      - Architectural milestone
      - Issue
      - Where
+   * - in dev
+       (2026-07-02)
+     - **Operator-inverse taxonomy step 4 — the Green operator (the first
+       *iterative* inverse) + the wrap-delegate mixin (#226)** — the generic
+       sum inverse.
+       :meth:`OperatorSum.inverse <orpheus.numerics.operator.OperatorSum.inverse>`
+       now returns a
+       :class:`~orpheus.numerics.green_operator.GreenOperator` — the
+       :math:`A`-preconditioned splitting :math:`(A-B)^{-1}=\sum_k
+       (A^{-1}B)^k A^{-1}` (the multiple-scattering Neumann series) wrapping
+       :class:`~orpheus.numerics.iteration.SourceIteration` (§11.2 — it
+       re-implements no iteration math; the left-spine head becomes the
+       preconditioner through its *own* structure-keyed ``.inverse()``, the
+       remaining terms ride as negated gains). It is the **first** family
+       member with **no legacy ``.solve`` to inherit** (the sum was not
+       invertible before step 4), so its correctness rests on
+       **structural-independence anchors only** (dense-LU + the G-Neumann
+       expansion) — no bit-identity twin, and (an iterative sum inverse
+       being neither an eigenvalue solver nor source-driven) **no
+       eigenvalue and no MMS claim**. The name is **earned** by G-Neumann
+       (the splitting a generic :math:`A^{-1}` cannot satisfy) + G-reciprocity
+       (the **Euclidean** transposed-operand Green, no ``.H`` — the metric
+       adjoint-inverse is the separate #280) + G-kernel (folded into the
+       :math:`\delta_j` anchor). The ``OperatorSum`` contract changed:
+       :attr:`is_invertible <orpheus.numerics.operator.OperatorSum.is_invertible>`
+       → ``self.a.is_invertible`` ("leading-term-preconditionable at this
+       spelling", spec §18.B) with lockstep ``CAP_SOLVE`` — flipping two
+       frozen ``is_invertible is False`` pins to ``True`` by design. The
+       **ordering ruling** landed with all four edges gated: ``L+C`` →
+       :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` (the MRO
+       shadow); ``(L+C)−S`` → Green, converges; ``C+L`` → Green constructs
+       then raises
+       :class:`~orpheus.numerics.green_operator.ConvergenceFailure` **loudly**
+       (never a silent wrong answer); ``(−S)+A`` → refused at construction
+       naming the canonical order. The wrap-delegate back-half extracted into
+       :class:`~orpheus.numerics.operator.InverseWrapMixin` at the **third**
+       sibling (``_SolveBackedLeaf`` → ``_InvertibleForward``), whose abstract
+       ``apply(x, /, *, initial_guess=None)`` **resolves #285 STRUCTURAL**
+       (pyright rejects a kwarg-less override, ``ABCMeta`` blocks a missing
+       one; residue = the composed ``OperatorProduct.inverse()`` at step 5).
+       ``ConvergenceFailure`` reads the **TRUE** relative residual (not the
+       driver's ρ-blind increment, Signature 9) and **drives** a refinement
+       loop to meet it — a check-only design would false-raise for every
+       :math:`\rho>1/2`. Gates:
+       ``tests/numerics/test_green_operator.py`` +
+       ``tests/sn/operators/test_green_operator_sn.py`` (het-2G vacuum slab
+       with a trace-consistent manufactured anchor resolving the #284 source
+       subspace); **14 mutations verified**. See :ref:`green-operator`
+       (:doc:`operator_algebra`).
+     - #226 / #285
+     - *(in development)*
+       ``refactor/inverse-as-operator``
    * - in dev
        (2026-07-01)
      - **Operator-inverse taxonomy step 3 — the solver builds the inverse,

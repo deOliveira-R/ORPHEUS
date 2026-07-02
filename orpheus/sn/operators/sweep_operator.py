@@ -7,11 +7,14 @@ OPERATOR) — so the forward view ``A.apply`` and the inverse view
 ``A.inverse().apply`` become the two views of ONE operator, exactly the way
 ``A`` and ``A.H`` are. ``(L+C).inverse()`` returns this :class:`SweepOperator`.
 
-Per the Grand Report v3 §5.7 operator taxonomy, a structured / triangular
-operator returns a DIRECT-substitution inverse (this — the WDD forward sweep);
-a general sum returns a Krylov ``GreenOperator`` (deferred — Pattern 6, no
-consumer yet). Sweep-vs-Krylov is simply *which kind* of inverse operator
-``.inverse()`` returns; the interface (``apply``) is the same.
+Per the taxonomy (§12 step 4, landed), a structured / triangular operator
+returns a DIRECT-substitution inverse (this — the WDD forward sweep); a
+general sum returns the preconditioned-splitting
+:class:`~orpheus.numerics.green_operator.GreenOperator`. Sweep-vs-Green is
+*which mathematical OBJECT* ``.inverse()`` returns, keyed by the operand's
+structure (the realization — direct substitution vs Richardson splitting —
+rides the object, never the name); the interface (the canonical seeded
+``apply``) is the same.
 
 **Operator vs application context (Grand Report §38).** The semantic object is
 "the inverse of :math:`(L+C)`"; the WDD sweep's per-cell coefficient cache is its
@@ -34,22 +37,25 @@ keystone ``is_invertible ≡ CAP_SOLVE`` honest here too.
 ``.H`` / ``is_adjointable`` inherit the base
 :class:`~orpheus.numerics.operator.LinearOperator` defaults until then.
 
-**Wrap-delegate back-half twin (collapse trigger).** The back-half here
-(``capabilities`` / domain↔codomain swap / ``solve→inner.apply`` /
-``is_invertible`` / ``inverse()→inner``) is deliberately byte-identical to
-:class:`~orpheus.numerics.operator.InverseOperator`'s — two witnesses, kept
-twinned per defer-until-≥2. TRIGGER: at the 3rd sibling
-(``GreenOperator`` / ``MatrixInverseOperator``, taxonomy §12 steps 4–5),
-extract a shared mechanism mixin; do not hand-re-derive it again.
+**Wrap-delegate back-half.** The back-half (``capabilities`` /
+domain↔codomain swap / ``solve→inner.apply`` / ``is_invertible`` /
+``inverse()→inner``) is inherited from
+:class:`~orpheus.numerics.operator.InverseWrapMixin` — the extraction this
+class and :class:`~orpheus.numerics.operator.InverseOperator` recorded as
+their collapse trigger, fired by the 3rd sibling
+(:class:`~orpheus.numerics.green_operator.GreenOperator`, taxonomy §12
+step 4). This class keeps only :meth:`~SweepOperator.apply` (the sweep
+delegation, threading the Carlson seed) and ``__repr__``; its ctor guard
+is the ``SweepInvertible`` TYPE itself (schedule-triangularity is what
+makes the forward sweep-invertible — no value check needed).
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Union
 
-from orpheus.numerics.operator import CAP_APPLY, CAP_SOLVE, LinearOperator
+from orpheus.numerics.operator import InverseWrapMixin, LinearOperator
 
 if TYPE_CHECKING:
-    from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.operators.scheduled_invertible import (
         ScheduledInvertibleOperator,
     )
@@ -63,7 +69,9 @@ if TYPE_CHECKING:
     SweepInvertible = Union[InvertibleOperator, ScheduledInvertibleOperator]
 
 
-class SweepOperator(LinearOperator["FullField"]):
+class SweepOperator(
+    InverseWrapMixin["SweepInvertible"], LinearOperator["FullField"],
+):
     r"""The inverse operator :math:`A^{-1}` of a schedule-triangular forward
     ``A`` — :class:`InvertibleOperator` ``(L+C)`` or
     :class:`ScheduledInvertibleOperator` ``M = (L+C−B_lower)`` (#226 step 2).
@@ -72,27 +80,14 @@ class SweepOperator(LinearOperator["FullField"]):
     ``inner.solve`` — BIT-IDENTICAL to ``inner.solve(rhs, initial_guess=...)``.
     Endomorphic on the composite ``FullField`` carrier (an inverse swaps
     domain/codomain, which are equal here because the forward is endomorphic).
+
+    The wrap-delegate back-half — ``capabilities`` (``apply`` inverts,
+    ``solve`` un-inverts; ``apply_transpose`` stays deferred, the
+    adjoint-inverse is #280), the domain↔codomain swap, ``solve`` = the
+    forward matvec, and the object-identity involution ``inverse() →
+    inner`` — is inherited from
+    :class:`~orpheus.numerics.operator.InverseWrapMixin`.
     """
-
-    #: ``apply`` inverts; ``solve`` un-inverts (the forward matvec, see
-    #: :meth:`solve`) — so ``CAP_SOLVE`` rides with ``is_invertible`` (the
-    #: faithfulness keystone). ``apply_transpose`` stays deferred (the
-    #: adjoint-inverse is #280). Plain class attr (NOT a field).
-    capabilities = frozenset({CAP_APPLY, CAP_SOLVE})
-
-    def __init__(self, inner: "SweepInvertible") -> None:
-        #: The schedule-triangular forward operator this is the inverse of.
-        self.inner = inner
-
-    @property
-    def domain(self) -> Optional["FunctionSpace"]:
-        # An inverse maps the inner operator's CODOMAIN back to its DOMAIN;
-        # InvertibleOperator is endomorphic, so both are the FullField space.
-        return self.inner.codomain
-
-    @property
-    def codomain(self) -> Optional["FunctionSpace"]:
-        return self.inner.domain
 
     def apply(
         self, rhs: "FullField", *, initial_guess: "FullField | None" = None,
@@ -105,28 +100,6 @@ class SweepOperator(LinearOperator["FullField"]):
         (the curvilinear Morel–Montry Carlson coupled-pole start) through.
         """
         return self.inner.solve(rhs, initial_guess=initial_guess)
-
-    def solve(self, b: "FullField", /) -> "FullField":
-        r"""Solve :math:`(L+C)^{-1}\,y = b`, i.e. return :math:`(L+C)\,b`.
-
-        The inverse of the inverse acts forward: this is the matvec
-        ``inner.apply``, delegated — the ``CAP_SOLVE`` face that keeps the
-        faithfulness keystone ``is_invertible ≡ CAP_SOLVE`` honest on this
-        object (taxonomy §13 I2 / step 1).
-        """
-        return self.inner.apply(b)
-
-    @property
-    def is_invertible(self) -> bool:
-        return True  # ((L+C)^{-1})^{-1} = (L+C) — the wrapped operator itself
-
-    def inverse(self) -> "SweepInvertible":
-        r"""Return :math:`(A^{-1})^{-1} = A` — the wrapped forward, by identity.
-
-        The involution law (taxonomy §13 I2) holds as an OBJECT-IDENTITY
-        fact: ``A.inverse().inverse() is A``.
-        """
-        return self.inner
 
     def __repr__(self) -> str:
         return f"SweepOperator({self.inner!r})"

@@ -26,6 +26,7 @@ import pytest
 
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.geometry.boundary import ConstantInflowSource, NoSource
+from orpheus.numerics.green_operator import GreenOperator
 from orpheus.numerics.operator import (
     CAP_APPLY,
     CAP_APPLY_TRANSPOSE,
@@ -33,12 +34,14 @@ from orpheus.numerics.operator import (
     BoundaryOperator,
     BulkOperator,
     FullOperator,
+    OperatorSum,
 )
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.boundary.angular import IncomingSourceOperator
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import InvertibleOperator, StreamingOperator
+from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.isotropic_scattering import (
@@ -114,13 +117,18 @@ class TestLossMinusBoundaryCompositeCapabilities:
     r"""The within-group loss with its boundary sibling, ``L + C − B``.
 
     ``L + C`` dispatches to :class:`InvertibleOperator` and advertises
-    ``solve``; subtracting the boundary operator ``B`` breaks that
-    dispatch, so the result is a generic :class:`OperatorSum` whose
-    closure law DROPS ``solve`` (no general ``(A + B)⁻¹`` from the
-    operands) while KEEPING ``apply``. This pin exercises the
-    ``@property``-backed :attr:`SNBoundaryOperator.capabilities` through a
-    composition — the existing ``(L + C)`` invertible test does not cover
-    the ``−B`` arm (verification plan GAP-2)."""
+    ``solve`` (the DIRECT sweep); subtracting the boundary operator ``B``
+    breaks that dispatch, so the result is a generic
+    :class:`OperatorSum` — which, since #226 taxonomy step 4, carries its
+    OWN ``solve``: the leading term (the fused ``L+C``) is invertible, so
+    the closure derives the preconditioned-splitting
+    :class:`~orpheus.numerics.green_operator.GreenOperator` inverse (the
+    boundary-Jacobi iteration, typed).  The pin is now WHICH inverse the
+    spelling selects — sweep for the fused composite, Green for the
+    generic sum — plus the ``apply`` survival.  It still exercises the
+    ``@property``-backed :attr:`SNBoundaryOperator.capabilities` through
+    a composition — the existing ``(L + C)`` invertible test does not
+    cover the ``−B`` arm (verification plan GAP-2)."""
 
     def _loss_minus_boundary(self):
         sn = _slab_mesh()
@@ -143,10 +151,16 @@ class TestLossMinusBoundaryCompositeCapabilities:
         assert isinstance(lc, InvertibleOperator)
         assert CAP_SOLVE in lc.capabilities
 
-    def test_composite_keeps_apply_drops_solve(self) -> None:
+    def test_composite_keeps_apply_and_carries_green_solve(self) -> None:
+        # MIGRATED (#226 step 4): pre-step-4 this pinned "CAP_SOLVE not in
+        # caps — no general (A+B)⁻¹".  The generic sum now HAS an inverse
+        # — the Green splitting keyed on its invertible leading term — so
+        # CAP_SOLVE survives the −B arm (faithfulness: is_invertible ≡
+        # CAP_SOLVE).
         *_, composite = self._loss_minus_boundary()
         assert CAP_APPLY in composite.capabilities
-        assert CAP_SOLVE not in composite.capabilities
+        assert CAP_SOLVE in composite.capabilities
+        assert composite.is_invertible is True
 
     def test_composite_transpose_follows_closure_law(self) -> None:
         # apply_transpose propagates iff every operand has it. This pins the
@@ -263,14 +277,30 @@ class TestPredicateFaithfulness:
             assert law.is_adjointable == (CAP_APPLY_TRANSPOSE in law.capabilities)
             assert law.is_invertible == (CAP_SOLVE in law.capabilities)
 
-    def test_invertible_operator_is_the_sole_invertible_sum(self) -> None:
-        """``(L+C)`` is the ONE sweep-invertible OperatorSum; subtracting ``B``
-        (a generic OperatorSum) drops invertibility while keeping adjointability."""
+    def test_sweep_vs_green_inverse_keyed_by_type(self) -> None:
+        """``(L+C)`` is the ONE sweep-invertible OperatorSum — its
+        ``.inverse()`` override (→ direct :class:`SweepOperator`) shadows
+        the generic sum's by MRO.  Subtracting ``B`` breaks the fused
+        dispatch: the composite is a PLAIN sum whose inverse is the
+        ITERATIVE :class:`GreenOperator` over the sweep-preconditioned
+        splitting (#226 step 4's ordering ruling — the operand spelling
+        selects the algorithm, and the fused type wins where it exists).
+
+        MIGRATED from ``test_invertible_operator_is_the_sole_invertible_
+        sum`` (pre-step-4: ``composite.is_invertible is False`` — "no
+        general (A+B)⁻¹").  The sum now HAS a general inverse; what
+        ``(L+C)`` remains sole owner of is the DIRECT sweep.
+        """
         sn = _slab_mesh(ng=2)
         L = StreamingOperator(sn)
         C = MultiplicationOperator.from_mesh(np.ones((sn.ng, *sn.spatial_shape)), sn)
         lc = L + C
         assert isinstance(lc, InvertibleOperator)
         assert lc.is_invertible is True and lc.is_adjointable is True
+        assert isinstance(lc.inverse(), SweepOperator)  # the MRO shadow
         composite = lc - SNBoundaryOperator(sn)
-        assert composite.is_invertible is False  # no general (A+B)⁻¹
+        assert type(composite) is OperatorSum  # the fused dispatch broke
+        assert composite.is_invertible is True  # leading term (L+C) invertible
+        green = composite.inverse()
+        assert isinstance(green, GreenOperator)  # the generic arm → Green
+        assert green.inverse() is composite  # object-identity involution

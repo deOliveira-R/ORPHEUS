@@ -532,12 +532,18 @@ class InvertibleOperator(OperatorSum["FullField"]):
         (L_{\rm streaming} + C_{\rm diagonal})^{-1} \;\approx\;
         \text{WDD sweep}
 
-    has no generic ``(A+B)^{-1}`` formula — :class:`OperatorSum` by
-    itself cannot ``solve``.  The WDD sweep IS the inverse algorithm
-    for this specific composite — that's the algebraic foundation of
-    the entire SN method (Lewis & Miller §3.2; Adams & Larsen 2002
-    §III).  :class:`InvertibleOperator` is the specialisation that
-    carries the identity at the type level: it OWNS its full action
+    has no generic ``(A+B)^{-1}`` formula — a plain
+    :class:`OperatorSum` can only invert ITERATIVELY (the
+    preconditioned-splitting
+    :class:`~orpheus.numerics.green_operator.GreenOperator` its generic
+    ``.inverse()`` returns, taxonomy §12 step 4).  The WDD sweep IS the
+    DIRECT inverse algorithm for this specific composite — that's the
+    algebraic foundation of the entire SN method (Lewis & Miller §3.2;
+    Adams & Larsen 2002 §III) — and this subclass's ``.inverse()``
+    override (→ :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`)
+    shadows the generic Green by MRO: the type IS the structure
+    (taxonomy §11.1).  :class:`InvertibleOperator` is the specialisation
+    that carries the identity at the type level: it OWNS its full action
     algebra.  :meth:`apply` / :meth:`apply_transpose` OVERRIDE the
     :class:`OperatorSum` leaf-sum to return the within-group loss
     :math:`(L+C)\psi = M(\sigma)\psi` (and its transpose) DIRECTLY via

@@ -6,8 +6,9 @@ Operator Algebra Architecture
 
 ORPHEUS' transport, eigenvalue, and Krylov solvers all act on a flux
 distribution by composing a small set of linear operators — the
-streaming + collision operator :math:`L`, the scattering operator
-:math:`S`, the fission operator :math:`F`. The
+invertible loss operator :math:`A = L + C` (streaming :math:`L =
+\Omega\cdot\nabla` plus collision :math:`C = \Sigma_t`), the scattering
+operator :math:`S`, the fission operator :math:`F`. The
 :mod:`orpheus.numerics.operator` module installs these as a uniform
 *matrix-free* algebra so that the eigenvalue, fixed-source, and
 preconditioned Krylov code can consume any solver method (SN / MoC /
@@ -172,19 +173,19 @@ Key Facts
   .. (vv-status rationale) Phase 0 stub label for the transport
      fixed-source operator-algebra form. The verifiable claim — that
      a Phase-1 SN/MoC/CP solver assembles its operator triple
-     (L, S, F) and lets ``op = L - S - F`` agree with the legacy
+     (A, S, F) and lets ``op = A - S - F`` agree with the legacy
      fixed-source path bit-for-bit — is queued for Issues 9-13.
   .. vv-status: operator-fixed-source documented
 
   .. math::
      :label: operator-fixed-source
 
-     (L - S - F)\,\psi \;=\; q
+     (A - S - F)\,\psi \;=\; q
      \qquad \text{(fixed source)}
 
   .. (vv-status rationale) Phase 0 stub label for the transport
      eigenvalue operator-algebra form. Verified by Issue 14's unified
-     iteration driver consuming (L - S, F) triples, and by the
+     iteration driver consuming (A - S, F) triples, and by the
      existing eigenvalue test suites once they are migrated to the
      new contract.
   .. vv-status: operator-eigenvalue documented
@@ -192,7 +193,7 @@ Key Facts
   .. math::
      :label: operator-eigenvalue
 
-     (L - S)\,\psi \;=\; \tfrac{1}{k}\,F\,\psi
+     (A - S)\,\psi \;=\; \tfrac{1}{k}\,F\,\psi
      \qquad \text{(eigenvalue)}
 
   Both are built from operator addition, scalar multiplication, and
@@ -212,7 +213,7 @@ Key Facts
   **canonical Layer-4 algorithm** (NOT deprecated — it is the *more
   general* layer, binding the resolvent late through the opaque
   :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` Protocol so it
-  admits monolithic-matrix resolvents that have no :math:`(L,S,F)`
+  admits monolithic-matrix resolvents that have no :math:`(A,S,F)`
   triple);
   :class:`~orpheus.numerics.iteration.KEigenvalue` is the
   operator-triple realization that *delegates* its loop to it (one
@@ -852,7 +853,7 @@ that have scattered exactly :math:`k` times). The series converges with
 spectral radius :math:`\rho\bigl[(L+C)^{-1}S\bigr] \le \max_g
 \Sigma_{s,g}/\Sigma_{t,g} = c` (the scattering ratio;
 :ref:`affine-typed-field-algebra` documents the matching contraction
-:math:`M = L^{-1}(S+B)` carried as a typed diagnostic on the SI
+:math:`M = (L+C)^{-1}(S+B)` carried as a typed diagnostic on the SI
 iterate). The sweep :math:`(L+C)^{-1}` being a *single bundled* inverse —
 not :math:`L^{-1} + C^{-1}` — is exactly the point: it is the WDD
 forward-substitution on :eq:`apply-solve-cell-resolvent`, dividing by the
@@ -1011,7 +1012,7 @@ Cross-solver consumption (forward reference)
 
 The Phase 0 algebra is the foundation for the cross-solver migration
 sequence: SN, MoC, CP, and diffusion will each expose their natural
-operator triple :math:`(L, S, F)` as
+operator triple :math:`(A, S, F)` as
 :class:`~orpheus.numerics.operator.LinearOperator` instances, and a
 unified iteration driver in :mod:`orpheus.numerics.iteration` will
 consume those triples without knowing which transport discretisation
@@ -1030,7 +1031,7 @@ carrier, runs the carrier-space matvec, and ravels the result back — so
 both the system matvec and the preconditioner route through one site
 (single source of truth, #257 S7). Concretely, the within-group system
 matvec is the named carrier-space closure ``loss_minus_gains(psi) =
-L.apply(psi) - Σ_gains g.apply(psi)`` (it reads like the within-group
+A.apply(psi) - Σ_gains g.apply(psi)`` (it reads like the within-group
 operator instead of being buried under ravel plumbing), and *both* it
 and the preconditioner are wrapped by the **one** module-private
 ``_as_scipy_linop(carrier_matvec, template, n)`` adapter, whose
@@ -1618,8 +1619,8 @@ The criticality eigenvalue and production-rate **estimators**
 :func:`orpheus.numerics.iteration._default_production_estimator`) are the
 obvious candidates to wrap as ``Functional`` objects — and they are
 deliberately **not**. An estimator consumes the *operator triple*
-:math:`(L, S, F)` together with the iterate :math:`\psi`, not a lone
-field; its signature is ``(L, S, F, ψ)``, which is not the
+:math:`(A, S, F)` together with the iterate :math:`\psi`, not a lone
+field; its signature is ``(A, S, F, ψ)``, which is not the
 ``evaluate(x) -> R`` shape of a co-vector acting on a single vector. The
 category simply now *names* what their field-to-scalar **core** is (the
 production-rate contraction), without forcing them into a wrapper that
@@ -2988,7 +2989,7 @@ predicate is the octant-sign label
 the partition recovers the eight octants of :math:`S^2` (or four
 in 2-D where :math:`\mu_z = 0` is a degenerate case).
 
-For per-octant operators (e.g. the SN sweep's :math:`L_{oct}^{-1}`
+For per-octant operators (e.g. the SN sweep's :math:`A_{oct}^{-1}`
 acting on
 :math:`(\text{octant\_ordinates} \times \text{cells} \times
 \text{groups})`), the **tensor product** factors the per-axis
@@ -2998,9 +2999,9 @@ octants into the global angular cubature:
 .. math::
    :label: octant-direct-sum-tensor-product
 
-   L^{-1} \;=\; \bigoplus_{\text{oct}}\,
-                L_{oct}^{-1}, \qquad
-   L_{oct}^{-1} \;=\; \text{(per-axis tensor product within an octant)}.
+   A^{-1} \;=\; \bigoplus_{\text{oct}}\,
+                A_{oct}^{-1}, \qquad
+   A_{oct}^{-1} \;=\; \text{(per-axis tensor product within an octant)}.
 
 .. vv-status: octant-direct-sum-tensor-product documented
 
@@ -4498,17 +4499,17 @@ The honest :math:`L+C-S-B` driver via variadic couplings (Wave O step O.2a)
 ---------------------------------------------------------------------------
 
 The within-group inner solve no longer hands the drivers a fixed
-:math:`(L, S, F)` operator *triple*. Wave O step O.2a generalised both
+:math:`(A, S, F)` operator *triple*. Wave O step O.2a generalised both
 :class:`~orpheus.numerics.iteration.SourceIteration` and
 :class:`~orpheus.numerics.iteration.KrylovAcceleration` to the
-**variadic** shape :math:`\text{Driver}(L_{\rm resolvent},\,*\text{gains})`:
-one invertible resolvent :math:`L` plus a homogeneous bag of lagged
+**variadic** shape :math:`\text{Driver}(A_{\rm resolvent},\,*\text{gains})`:
+one invertible resolvent :math:`A` plus a homogeneous bag of lagged
 coupling operators :math:`g_i`. The two consume the gains identically —
 
 .. math::
    :label: bc-extraction-variadic-matvec
 
-   \text{matvec} \;=\; L.\text{apply} \;-\; \sum_i g_i.\text{apply}
+   \text{matvec} \;=\; A.\text{apply} \;-\; \sum_i g_i.\text{apply}
    \,,\qquad
    \text{rhs} \;=\; q_{\rm ext} \;+\; \sum_i g_i.\text{apply}\,.
 
@@ -4570,7 +4571,7 @@ property. The honest composition keeps :math:`S` and :math:`B` as two
 **Why variadic — the fixed triple encoded a false posing distinction.**
 :math:`S`, :math:`F` and :math:`B` are *homogeneous* in the driver:
 each is subtracted in the matvec and summed in the rhs, exactly as
-:eq:`bc-extraction-variadic-matvec` shows. The fixed :math:`(L, S, F)`
+:eq:`bc-extraction-variadic-matvec` shows. The fixed :math:`(A, S, F)`
 triple gave :math:`S` and :math:`F` named slots the *resolvent layer*
 never uses — it was encoding a posing-layer role assignment (which
 operator is loss, which is the eigen-operator) at the iteration layer,
@@ -4579,7 +4580,7 @@ where it does not belong. Collapsing the triple to a homogeneous
 posing layer (its proper home) and lets a fourth gain (a future
 :math:`B`-trace term, an :math:`\alpha`-time term) slot in as a data
 addition rather than a new named slot. Existing positional
-:math:`(L, S, F)` callers stay source-compatible — ``gains = (S, F)``.
+:math:`(A, S, F)` callers stay source-compatible — ``gains = (S, F)``.
 
 **Why** :math:`B` **is a SEPARATE gain, not folded into** :math:`S`.
 Two structural reasons forbid the old fold:
@@ -4625,7 +4626,7 @@ landed.
    matvec :eq:`bc-extraction-variadic-matvec` and the
    :class:`~orpheus.numerics.iteration.SourceIteration` rhs are now the
    *honest* :math:`(L+C-S-B)\,\psi` and :math:`q_{\rm ext}+S\psi+B\psi`
-   — the reassociation :math:`L-(S+B)\to(L-S)-B` is documented as a
+   — the reassociation :math:`A-(S+B)\to(A-S)-B` is documented as a
    **principled-equivalence** change in
    :ref:`bc-extraction-numerical-evidence` (criterion 3 of the
    ``vv-principles`` bit-identity-vs-principled-equivalence gate), not
@@ -5355,10 +5356,10 @@ consumer.
      **residual** :math:`r = A\psi - q`
      (:math:`[1/(\mathrm{cm^3 \cdot s \cdot sr})]`, a rate-density
      defect).
-   - **Two dimensional universes connected by** :math:`L`. Flux and
-     rate-density are joined by the loss operator
-     (:math:`L`: apply, flux → rate-density;
-     :math:`L^{-1}`: solve, rate-density → flux). State and
+   - **Two dimensional universes connected by** the loss operator
+     :math:`A = L + C`. Flux and rate-density are joined by :math:`A`
+     (:math:`A`: apply, flux → rate-density;
+     :math:`A^{-1}`: solve, rate-density → flux — the sweep). State and
      displacement live in the **flux** universe; source and residual
      live in the **rate-density** universe.
    - **Flux states are an affine space** :math:`A` **over a difference
@@ -5391,9 +5392,9 @@ decision, Issues #205 / #207: units live on the field, not the
 :class:`~orpheus.numerics.space.FunctionSpace`; see
 :class:`~orpheus.numerics.field.Field`). The transport solve moves
 between exactly two dimensional universes, connected by the loss
-operator :math:`L`:
+operator :math:`A = L + C`:
 
-.. list-table:: The two universes connected by :math:`L` / :math:`L^{-1}`
+.. list-table:: The two universes connected by :math:`A` / :math:`A^{-1}`
    :header-rows: 1
    :widths: 22 26 26 26
 
@@ -5416,13 +5417,13 @@ operator :math:`L`:
        :class:`~orpheus.transport.residuals.angular_residual.AngularResidual`
        :math:`r`
 
-The map between them is dimensional: applying :math:`L` (which carries
+The map between them is dimensional: applying :math:`A` (which carries
 :math:`\hat\Omega\cdot\nabla + \Sigma_t`, both
-:math:`1/\mathrm{cm}`) sends a flux to a rate-density (``L.apply`` →
+:math:`1/\mathrm{cm}`) sends a flux to a rate-density (``A.apply`` →
 :class:`AngularSourceSink`, documented at
 :ref:`bc-extraction-operator-output-typing`); inverting it
-(``L⁻¹.solve``, the sweep) sends a rate-density back to a flux
-(``.solve`` → :class:`AngularFlux`). The source side (the B.5.2
+(``A.solve``, the sweep :math:`A^{-1} = (L+C)^{-1}`) sends a rate-density
+back to a flux (``.solve`` → :class:`AngularFlux`). The source side (the B.5.2
 operator-output typing) and the residual side are BOTH rate-density;
 the state side and the displacement side are BOTH flux. This is the
 load-bearing distinction the role grid encodes: *same universe* grants
@@ -5545,15 +5546,15 @@ history; the structural decision lives here, the full record in
        #201 gate is a type consequence, not a runtime check
    * - **Banach fixed-point / contraction**
      - :math:`\Delta\psi^{(i+1)} = M\,\Delta\psi^{(i)}`,
-       :math:`M = L^{-1}(S+B)` — an exact linear recurrence on the
+       :math:`M = A^{-1}(S+B)` — an exact linear recurrence on the
        increments
      - the displacement is the natural carrier of the contraction
        factor :math:`\rho`, the a-posteriori bound, the Aitken
        extrapolation — data a state has nowhere to put
    * - **Krylov / residual dual**
-     - :math:`\Delta\psi = L^{-1}\,\tilde r` — the increment and the
+     - :math:`\Delta\psi = A^{-1}\,\tilde r` — the increment and the
        residual are the SAME defect viewed in the two universes
-       connected by :math:`L`
+       connected by :math:`A`
      - the displacement (flux, primal, SI-native) and the residual
        (rate-density, dual, Krylov/DSA-native) are duals, not
        competitors; choosing a stopping criterion is a *frame* choice
@@ -5657,7 +5658,7 @@ The diagnostics live on the
 mixin (shared by all four displacement leaves). They are the payoff of
 the Banach frame: the SI iterate increment obeys
 :math:`\Delta\psi^{(i+1)} = M\,\Delta\psi^{(i)}` with
-:math:`M = L^{-1}(S+B)`, a contraction with spectral radius
+:math:`M = A^{-1}(S+B)`, a contraction with spectral radius
 :math:`\rho(M) \le \max_g \Sigma_{s,g}/\Sigma_{t,g} = c`
 ([AdamsLarsen2002]_).
 
@@ -8254,8 +8255,8 @@ Two further gates dissolved with it:
   adapter.
 
 
-The narrowing boundary and the open structural decision (#285)
---------------------------------------------------------------
+The narrowing boundary and the structural resolution (#285)
+-----------------------------------------------------------
 
 ``SupportsSeededApply`` and ``SupportsInverse`` are not
 ``runtime_checkable`` (an ``isinstance`` against a Protocol carrying only
@@ -8276,21 +8277,33 @@ Both :class:`~orpheus.numerics.iteration.KEigenvalue` (inner
 preconditioner) route through it, so the cast — and its runtime
 precondition, the caller's ``is_invertible`` guard — is single-sourced.
 
-The **conformance claim is scoped**, and this is the load-bearing
-honesty: ``_seeded_inverse`` narrows to the seeded-apply signature only
-for the inverses the posing layers here actually reach — the SN
-:class:`~orpheus.sn.operators.sweep_operator.SweepOperator` and the leaf
-:class:`~orpheus.numerics.operator.InverseOperator`, both of which carry
-``apply(rhs, *, initial_guess=None)``. It is **not** a claim that *every*
-``inverse()`` in the operator family takes the keyword — a composed
+When step 3 shipped, ``_seeded_inverse`` narrowed to the seeded-apply
+signature only for the inverses the posing layers here actually reach —
+the SN :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` and the
+leaf :class:`~orpheus.numerics.operator.InverseOperator`, both of which
+carried ``apply(rhs, *, initial_guess=None)`` by per-leaf convention. It
+was **not** a claim that *every* ``inverse()`` in the family took the
+keyword, and whether that conformance should become **structural** (a
+shared mixin, so the signature is *guaranteed* rather than
+asserted-per-leaf) or stay per-leaf convention was the open decision
+`#285 <https://github.com/deOliveira-R/ORPHEUS/issues/285>`_.
+
+**Step 4 resolved #285 STRUCTURAL.** The wrap-delegate back-half was
+extracted into :class:`~orpheus.numerics.operator.InverseWrapMixin`, whose
+**abstract** ``apply(x, /, *, initial_guess=None)`` every sibling
+inherits — so a new inverse *cannot* forget the keyword: pyright rejects a
+kwarg-less override (``reportIncompatibleMethodOverride``,
+mutation-verified) and ``ABCMeta`` blocks a sibling that omits ``apply``
+entirely. The narrowing ``_seeded_inverse`` performs is therefore now a
+cast over an *already-guaranteed* shape rather than a hoped-for one, and
+every ``.inverse()`` a posing layer reaches through it carries the seeded
+signature by construction. One residue stays outside the family until
+taxonomy step 5: a composed
 :meth:`OperatorProduct.inverse <orpheus.numerics.operator.OperatorProduct.inverse>`
-does not, today. Whether seeded-apply should become **structural** (a
-shared mixin over the whole inverse family, so the signature is
-*guaranteed* rather than asserted-per-leaf) or stay **per-leaf
-convention** is the open decision
-`#285 <https://github.com/deOliveira-R/ORPHEUS/issues/285>`_, folded into
-taxonomy steps 4–5 — it lands when the ``GreenOperator`` /
-``MatrixInverseOperator`` siblings do and must join the contract.
+is a *composition* (:math:`(AB)^{-1}=B^{-1}A^{-1}`), not a wrap-delegate
+sibling, and does not take the keyword today — it joins the contract with
+``MatrixInverseOperator`` (#285's remaining scope). The mixin and its
+enforcement are documented at :ref:`green-operator`.
 
 The two eigenvalue-outer consumers pose the inverse explicitly:
 
@@ -8301,10 +8314,10 @@ The two eigenvalue-outer consumers pose the inverse explicitly:
   inner :class:`~orpheus.numerics.iteration.SourceIteration` step via
   ``_seeded_inverse(A)``.
 * :class:`~orpheus.numerics.iteration.KrylovAcceleration` keeps the
-  **forward** :math:`L` (its GMRES matvec is
-  :math:`L\cdot - \sum_i g_i\cdot`) and rewired its default-preconditioner
+  **forward** :math:`A` (its GMRES matvec is
+  :math:`A\cdot - \sum_i g_i\cdot`) and rewired its default-preconditioner
   fallback from the old ``CAP_SOLVE`` probe (with a ``# type: ignore``) to
-  the honest ``L.is_invertible`` test + ``_seeded_inverse(L).apply`` — the
+  the honest ``A.is_invertible`` test + ``_seeded_inverse(A).apply`` — the
   transport-corrected sweep preconditioner (Adams & Larsen 2002 §III).
 
 
@@ -8357,6 +8370,392 @@ wavefront ignores the seed, so the fast net is the *path* spy, not a value
 gate. The full tier (SN + numerics + transport) is **2981 passing / 0
 real regressions**; the deleted probe also cleared a laundered typed union
 from the pyright ratchet (152 → 148).
+
+
+.. _green-operator:
+
+The Green operator — the preconditioned-splitting sum inverse (#226 step 4)
+===========================================================================
+
+Steps 1–3 delivered the *exact/direct* inverse family: the leaf
+:class:`~orpheus.numerics.operator.InverseOperator` (a pointwise division)
+and the schedule-triangular
+:class:`~orpheus.sn.operators.sweep_operator.SweepOperator` (the WDD sweep
+as :math:`(L+C)^{-1}`), both invertible in a single pass. **Step 4 adds the
+first *iterative* member** — the
+:class:`~orpheus.numerics.green_operator.GreenOperator`, returned by
+:meth:`OperatorSum.inverse <orpheus.numerics.operator.OperatorSum.inverse>`
+— and with it the ``OperatorSum`` invertibility contract that routes to it.
+It is the discrete Green's function of a general operator *sum*: the object
+whose columns are the flux responses to unit point sources.
+
+
+The convergent :math:`A`-preconditioned splitting
+-------------------------------------------------
+
+A general operator sum has **no operand-wise inverse**: :math:`(A+B)^{-1}`
+is not a function of :math:`A^{-1}` and :math:`B^{-1}`
+(Sherman–Morrison–Woodbury applies only under low-rank structure), and —
+unlike the schedule-triangular ``(L+C)`` — there is no substitution order
+that solves it in one pass. What a sum *does* have, when its **leading**
+term :math:`A` is invertible, is a convergent **splitting**. Write the sum
+as :math:`A - B` (gains carried with their signs) and precondition by
+:math:`A^{-1}`:
+
+.. math::
+   :label: green-neumann-series
+
+   (A - B)^{-1}\,q
+   \;=\; \bigl(I - A^{-1}B\bigr)^{-1} A^{-1}\,q
+   \;=\; \sum_{k=0}^{\infty} \bigl(A^{-1}B\bigr)^{k}\,A^{-1}\,q .
+
+.. vv-status: green-neumann-series documented
+
+The right-hand side is the **Neumann series** of the :math:`A`-preconditioned
+splitting. In transport it *is* the **multiple-scattering expansion**:
+:math:`A^{-1}q` is the uncollided flux, :math:`(A^{-1}S)\,A^{-1}q` the
+once-rescattered contribution, :math:`(A^{-1}S)^{k}A^{-1}q` the
+:math:`k`-times-rescattered contribution ([LewisMiller1984]_ §3.2;
+[AdamsLarsen2002]_ §II). Its partial sums are **exactly** the Richardson /
+source-iteration iterates started from zero,
+
+.. math::
+   :label: green-splitting-iteration
+
+   x_{n+1} \;=\; A^{-1}\bigl(q + B\,x_n\bigr),
+   \qquad x_0 = 0
+   \;\Longrightarrow\;
+   x_{n} = \sum_{k=0}^{n-1}\bigl(A^{-1}B\bigr)^{k}A^{-1}q ,
+
+.. vv-status: green-splitting-iteration documented
+
+which converge iff the iteration matrix is a contraction,
+:math:`\rho(A^{-1}B) < 1`. For the within-group transport loss
+:math:`A_{\rm loss} = (L+C) - S` this is the physical **scattering-ratio**
+bound
+
+.. math::
+
+   \rho\bigl((L+C)^{-1}S\bigr)
+   \;\le\; \max_{\rm cell}\ \frac{\Sigma_s}{\Sigma_t} \;=\; c \;<\; 1 ,
+
+guaranteed below unity for any absorbing (physical) medium
+([AdamsLarsen2002]_ §II: :math:`\rho = c`). The convergence is thus a
+material property, not a numerical accident — and it is precisely why the
+sum has an inverse *operator* at all.
+
+
+The name is earned — G-Neumann, G-reciprocity, G-kernel
+-------------------------------------------------------
+
+A subclass name in this family is a **promise backed by a test** (taxonomy
+§13): a distinguishing invariant a *bare*
+:class:`~orpheus.numerics.operator.InverseOperator` does not automatically
+have. Round-trip alone (:math:`A^{-1}(Ax)=x`) earns only the generic name;
+``GreenOperator`` must be *tested* to carry the Green's-function structure.
+
+.. list-table:: The three name-earning invariants of ``GreenOperator``
+   :header-rows: 1
+   :widths: 22 78
+
+   * - Invariant
+     - What it asserts (and why a generic :math:`A^{-1}` fails it)
+   * - **G-Neumann**
+     - The partial sums of :eq:`green-neumann-series` equal
+       ``green.apply(q)`` (the multiple-scattering expansion). A generic
+       :math:`A^{-1}` has **no splitting** to satisfy — this is the
+       *distinguishing* invariant. Pinned with the exact geometric decay of
+       the split (see :ref:`green-verification`).
+   * - **G-reciprocity**
+     - The Green's-function reciprocity theorem in the **Euclidean** inner
+       product, :math:`\langle\phi_2, G\phi_1\rangle = \langle
+       G^{\mathsf T}\phi_2, \phi_1\rangle`, where :math:`G^{\mathsf T}` is
+       the Green built over the **transposed operands** (:math:`A^{\mathsf T}
+       = A^{\mathsf T}_{\rm lead} - B^{\mathsf T}`). It is the *cheap* proof
+       (no second dense oracle) that the split derivation is correct for a
+       *different* operand configuration.
+   * - **G-kernel**
+     - ``green.apply(δ_j)`` is column :math:`j` of :math:`(A-B)^{-1}` — the
+       flux response to a unit point source at :math:`j`. Folded into the
+       anchor's input set (the :math:`\delta_j` basis) rather than gated
+       separately, since it *is* the forward anchor evaluated on unit
+       vectors.
+
+.. important::
+
+   **G-reciprocity uses the Euclidean transpose, not the metric adjoint.**
+   :math:`G^{\mathsf T}` here is the plain transpose under the :math:`L^2`
+   pairing, built manually from the transposed operands — **not** the
+   ``.H`` Hilbert adjoint :math:`G^{\dagger} = \mathcal G^{-1}
+   G^{\mathsf T}\mathcal G` carrying the angular Gram metric. The
+   adjoint-inverse axis (``G.H == (A-B).H.inverse()`` — free at the object
+   level on the iterative branch, but blocked on the SN preconditioner's
+   as-yet-unbuilt multi-D transpose sweep) is the separate
+   `#280 <https://github.com/deOliveira-R/ORPHEUS/issues/280>`_ family and
+   is deliberately *not* promised here.
+
+The family is keyed by **which mathematical object the inverse is, not by
+the algorithm that realizes it**. A Richardson-realized Green and a
+GMRES-realized Green are the *same* Green operator — which is why
+``KrylovInverseOperator`` was **rejected** as a sibling name: "Krylov"
+names the orthogonal *realization* axis, not the object.
+
+
+Green wraps the driver — it re-implements nothing
+-------------------------------------------------
+
+``GreenOperator`` is a thin wrapper over a driver, not a new solver
+(taxonomy §11.2, Pattern 5). Its application engine is
+:class:`~orpheus.numerics.iteration.SourceIteration` — the **same**
+Richardson driver the SN solver and
+:class:`~orpheus.numerics.iteration.KEigenvalue` consume directly. At
+construction it derives the splitting **once, from the sum's structure**:
+
+* the **left-spine head** becomes the preconditioner :math:`A^{-1}`,
+  through *its own* structure-keyed ``.inverse()`` — the WDD
+  :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` for an
+  ``(L+C)`` head, a leaf
+  :class:`~orpheus.numerics.operator.InverseOperator` for a value-bearing
+  head;
+* every remaining term becomes a **negated gain** of the driver (the
+  ``A - S`` spelling arrives as ``ScaledOperator(-1, S)``; the gain is
+  :math:`S` itself, un-wrapped so the driver holds the *named* operator).
+
+It then hands these to ``SourceIteration`` and re-implements no iteration
+math of its own. The left spine is flattened by walking **exact**
+``OperatorSum`` nodes only: the fused
+:class:`~orpheus.sn.operators.streaming.InvertibleOperator` is a structural
+*leaf* (its sum-ness is an MRO fact, its identity a fused operator with a
+direct inverse), so ``((L+C) - S)`` flattens to preconditioner ``(L+C)`` +
+gain ``[S]`` — never dissolving the ``(L+C)`` into its own summands. A
+GMRES-realized Green (with
+:class:`~orpheus.numerics.iteration.KrylovAcceleration` as the engine) is a
+future realization *strategy* of this same object, not a sibling type.
+
+
+The ordering ruling — four edges of one canonical order
+-------------------------------------------------------
+
+Operand **spelling** selects the algorithm — the #261 canonical-ordering
+rule, extended to the sum inverse. The four edges:
+
+.. list-table:: How a sum's spelling routes its inverse
+   :header-rows: 1
+   :widths: 20 26 54
+
+   * - Spelling
+     - ``.inverse()`` builds
+     - Behaviour
+   * - ``L + C``
+     - :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`
+     - The fusion dispatch on
+       :meth:`StreamingOperator.__add__ <orpheus.sn.operators.streaming.StreamingOperator.__add__>`
+       (streaming.py:510, "the canonical and only ordering") returns the
+       :class:`~orpheus.sn.operators.streaming.InvertibleOperator`
+       specialisation, whose ``.inverse()`` override (→ the direct sweep)
+       **shadows the generic Green by MRO** (type-as-structure, §11.1).
+   * - ``A_loss = (L+C) - S``
+     - :class:`~orpheus.numerics.green_operator.GreenOperator`
+     - Leading ``(L+C)`` invertible → the physical splitting: preconditioner
+       the sweep, gain :math:`S`. Converges (:math:`c<1`); does **not**
+       raise.
+   * - ``C + L``
+     - :class:`~orpheus.numerics.green_operator.GreenOperator`
+     - A *legal* spelling whose leading term ``C`` happens to be invertible,
+       so a Green **constructs** — the algebra cannot read
+       :math:`\rho(C^{-1}L) > 1`. Its collision-preconditioned Richardson
+       **diverges**, and ``apply`` raises
+       :class:`~orpheus.numerics.green_operator.ConvergenceFailure`
+       **loudly**. Same math as ``L + C``, different algorithm by spelling —
+       never a silent wrong answer (Cardinal Rule 1).
+   * - ``(-S) + A``
+     - *(refused)*
+     - The left-spine head :math:`-S` is not invertible; the factory raises
+       :class:`~orpheus.numerics.operator.MissingCapability` at
+       **construction**, naming the canonical ordering (spell the invertible
+       operator first, ``A - S``).
+
+The keying predicate is honest about its scope.
+:attr:`OperatorSum.is_invertible <orpheus.numerics.operator.OperatorSum.is_invertible>`
+returns ``self.a.is_invertible`` — the *leading* term — and therefore reads
+"**leading-term-preconditionable at this operand order**", **not**
+spelling-independent mathematical invertibility (verification spec §18.B).
+For ``(-S) + A`` the operator :math:`A - S` *is* mathematically invertible,
+yet the predicate reports ``False`` because :math:`-S` is spelled first.
+This is acceptable precisely because the #261 rule already makes operand
+order semantically load-bearing, no production consumer relies on the
+spelling-independent meaning, and the refusal is **loud**. ``CAP_SOLVE`` is
+added to the sum in lockstep with ``is_invertible`` (the same
+``self.a.is_invertible`` condition), keeping the faithfulness keystone
+``is_invertible ≡ CAP_SOLVE`` honest.
+
+
+The promise — the TRUE residual, driven not merely checked
+----------------------------------------------------------
+
+``GreenOperator`` promises the **converged** :math:`A^{-1}q` or a loud
+:class:`~orpheus.numerics.green_operator.ConvergenceFailure` — never a
+silent partial iterate. The subtlety is *which residual* defines
+"converged". :class:`~orpheus.numerics.iteration.SourceIteration` stops on
+the iterate **increment** :math:`\lVert\Delta\psi\rVert / \lVert\psi\rVert
+< {\rm tol}`, which **understates** the true equation error by the factor
+:math:`\rho/(1-\rho)` (numerical-bug-signatures Signature 9, ρ-blind
+stopping). As :math:`\rho \to 1` an increment-converged iterate can sit
+orders of magnitude off the equation. The promise is therefore read on the
+**true relative residual**:
+
+.. math::
+   :label: green-true-residual
+
+   \frac{\bigl\lVert (A - B)\,\psi - q \bigr\rVert}{\lVert q \rVert}
+   \;<\; {\rm tol} .
+
+.. vv-status: green-true-residual documented
+
+Crucially the promise is **driven, not merely checked**. A check-only design
+(raise whenever :eq:`green-true-residual` fails at increment-stop) would
+falsely raise for **every** split with :math:`\rho > 1/2` — i.e. most
+physical scattering ratios — because increment-stop delivers only
+:math:`\rho/(1-\rho)\cdot{\rm tol}` there.
+:meth:`GreenOperator.apply <orpheus.numerics.green_operator.GreenOperator.apply>`
+instead runs a **refinement loop**: after each increment-stopped driver
+call it measures :eq:`green-true-residual` and, if unmet with budget
+remaining, re-seeds the driver with its own iterate (steps accumulate
+against one total ``max_iter``). The driver stays the sole iteration engine;
+the loop is tolerance bookkeeping only, at one extra forward matvec per
+check.
+
+The refinement's terminal ``raise`` also has to be **NaN-safe**, because a
+hard-divergent split (the ``C + L`` trap) produces two distinct
+floating-point failure shapes — both found by the divergence tooth
+(2026-07-02):
+
+#. the iterate itself overflows, so the increment is ``nan``; and
+#. — sharper — the driver's stopping **denominator** :math:`\lVert\psi\rVert`
+   overflows to ``inf`` one step *before* the numerator, so the driver
+   "converges" at ``increment = finite/inf = 0.0`` onto a ~\ :math:`10^{154}`
+   garbage iterate.
+
+Both are caught because the promise test reads the true residual of the
+returned iterate (huge or non-finite in either shape), never the driver's
+increment. This is exactly the "what was tried and failed" material a naive
+increment-check would have shipped as a silent wrong answer.
+
+
+Green versus the k-eigenvalue inner — normal form versus inexact relaxation
+---------------------------------------------------------------------------
+
+``K = A_loss.inverse() @ F`` is the **normal form** of the k-eigenvalue
+problem: the eigen-operator whose dominant eigenvalue is :math:`k`. But
+production power iteration **deliberately does not** build this exact
+``GreenOperator`` — it keeps consuming
+:class:`~orpheus.numerics.iteration.SourceIteration` directly, as a
+**warm-started, budget-bounded inner relaxation**. That partial convergence
+is *by design* in nested iteration (classic inexact power iteration): the
+inner need only be converged enough that the *outer* dominant-eigenvector
+direction is accurate, and warm-starting from the previous outer iterate
+amortises the cost. This is a **different contract** from Green's
+converged-or-raise promise, and conflating them would either over-solve the
+inner (wasted matvecs) or import Green's hard raise into a loop that
+legitimately runs partial solves. So
+:class:`~orpheus.numerics.iteration.KEigenvalue` was examined and
+**deliberately not rewired** to ``A_loss.inverse() @ F``; the normal form is
+the *concept*, the inexact inner is its production *realization*.
+
+Green's consumers today are the invariant gates (see
+:ref:`green-verification`). Production consumers arrive later: the #200
+preconditioner algebra, a diffusion ``.inverse()`` realized as a
+CG-preconditioned Green (the taxonomy's *negative control* — an iterative
+inverse with no sweep), and future explicit normal-form spellings of the
+k-problem.
+
+
+The wrap-delegate mixin — extracted at the third sibling
+--------------------------------------------------------
+
+Every inverse in this family is a thin typed wrapper around its own forward
+operator :math:`A`: ``apply`` realizes :math:`A^{-1}` by the sibling's
+algorithm, and *everything else is delegation*. That back-half —
+``capabilities = {CAP_APPLY, CAP_SOLVE}``, the domain↔codomain swap
+(an inverse maps the forward's codomain back to its domain), ``solve`` = the
+forward matvec ``inner.apply`` (solving :math:`A^{-1}y = b` *is* applying
+:math:`A`), and the object-identity involution ``inverse() → inner``
+(:math:`(A^{-1})^{-1} = A`) — was carried byte-identically by
+:class:`~orpheus.numerics.operator.InverseOperator` and
+:class:`~orpheus.sn.operators.sweep_operator.SweepOperator` as documented
+twins. ``GreenOperator`` is the **third** sibling, and it fired the
+extraction trigger both twins recorded (defer-until-≥2, extract at 3): the
+shared mechanism lifted into
+:class:`~orpheus.numerics.operator.InverseWrapMixin`. The forward-operand
+Protocol was renamed ``_SolveBackedLeaf`` → ``_InvertibleForward`` to match
+its now-general role as the mixin's ``_ForwardT`` bound. Each sibling keeps
+exactly three things of its own: the constructor **guard** (what makes its
+``inner`` invertible — a value check, a type, a derivable splitting), the
+``apply`` **body** (the inversion algorithm), and ``__repr__``.
+
+The mixin also carries the **abstract** seeded-apply signature ``apply(x,
+/, *, initial_guess=None)`` — the structural resolution of #285 discussed at
+:ref:`inverse-application-driver`: a new sibling *cannot* forget the keyword
+(pyright rejects a kwarg-less override; ``ABCMeta`` blocks a missing one).
+The adjoint axis is **not** part of the back-half — ``is_adjointable`` /
+``.H`` stay at the base defaults, deferred to the #280 family.
+
+
+.. _green-verification:
+
+Verification
+------------
+
+``GreenOperator`` is the **first** inverse in the family with **no legacy
+``.solve`` to inherit from** — the sum was not invertible before step 4, so
+there is no bit-identity twin to ride. Its correctness therefore rests
+**entirely on structurally-independent anchors**, never on inheritance.
+Every Green value gate is a foundation / flux-shape claim against such an
+anchor: **no eigenvalue claim, no MMS reference** (an iterative sum inverse
+is not an eigenvalue solver, and MMS is source-driven — neither pillar
+applies here). The ``inverse().apply ≡ solve`` equivalence that anchored
+steps 1–3 is a **tautology** for the sum (``OperatorSum.solve`` is *defined*
+as ``self.inverse().apply``) and is deliberately excluded as evidence.
+
+.. list-table:: Step-4 verification gates (all ``@pytest.mark.foundation``)
+   :header-rows: 1
+   :widths: 42 58
+
+   * - Gate
+     - What it pins
+   * - ``test_green_operator.py`` (L0, dense split ``A = D − αP``)
+     - **G-I1** round-trip both ways at driver tol + the **dense-LU anchor**
+       (:func:`numpy.linalg.solve` of the materialized sum), including the
+       :math:`\delta_j` basis (the G-kernel fold). **G-Neumann** partial
+       sums converge to ``green.apply(q)`` with the **exact** 4-cycle decay
+       ratio :math:`\rho = \alpha/(\prod d_i)^{1/4}` (the permutation's
+       spectrum makes the pin exact, not a fuzzy band). **G-reciprocity**
+       via the transposed-operand Green (non-symmetric ``A``, so not
+       vacuous). Divergence + near-critical (:math:`\rho=0.99`) raises, each
+       with a convergent control.
+   * - ``test_green_operator_sn.py`` (L1, het 2G **vacuum** slab)
+     - **G-Neumann-L1** on the real operators: :math:`\sum_k ((L+C)^{-1}S)^k
+       (L+C)^{-1}q` → ``green.apply(q)`` with the geometric tail of the
+       physical scattering ratio. The anchor is a **trace-consistent
+       manufactured** pair (``x_tc = (L+C)⁻¹(random)``, ``q = A_loss·x_tc``),
+       which resolves the #284 source-subspace caveat — sweep inverses are
+       exact on the source subspace, so the exact solution *is* ``x_tc`` with
+       no dense-LU trace mismatch. Plus **driver bit-identity** vs the
+       hand-built ``SourceIteration(sweep, S)``, and the four ordering-ruling
+       edges end-to-end.
+
+The config discipline is Mode-9: the L1 slab is **heterogeneous, ≥2-group,
+vacuum** — a reflective isotropic box would null the
+streaming↔scattering redistribution the Neumann series expands, and 1-group
+is blind to a scattering-matrix transpose (Mode 6). The teeth are
+**14 mutations verified** (2026-07-02): 12 bite their named gates
+(sign/swap/flatten/tol/increment/seed/order/…), and 2 are designed-green
+controls — the always-wrap ``_negated`` no-op (proving the gain-unwrap is
+pure deforestation) and the **M-GRN-SEED blindness proof** (a dropped
+driver-start reddens Green's own Mode-11 seed spy while the landed step-3
+spy and every value gate stay green, proving the step-3 spy is structurally
+blind to Green's driver-start threading). The pyright ratchet held exactly
+at baseline; the Sphinx build stayed ``-W`` clean.
 
 
 .. _trace-spaces-doc:
@@ -8616,10 +9015,10 @@ invertible resolvent :math:`L + C` (the WDD sweep) plus the lagged
 coupling gains :math:`S` (bulk scattering) and :math:`B` (boundary
 reflection), handed to the **variadic** within-group driver as
 :math:`(L+C,\,S,\,B)` (:ref:`bc-extraction-variadic-driver`). CP has
-**no** :math:`(L, S, F)` split at all — its
+**no** :math:`(A, S, F)` split at all — its
 :meth:`solve_fixed_source <orpheus.numerics.eigenvalue.EigenvalueSolver.solve_fixed_source>`
 is one BiCGSTAB on a *monolithic* collision-probability matrix; the
-factor :math:`(L-S)^{-1}` does not exist as a separable object.
+factor :math:`(A-S)^{-1}` does not exist as a separable object.
 Splitting the posing into
 
 * **2a — role assignment + μ-map** (pure data: a posing-table row), and
@@ -8627,7 +9026,7 @@ Splitting the posing into
 
 lets :math:`2a \circ 2b \circ 3 \circ 4` compose cleanly across every
 family. The key consequence:
-:class:`~orpheus.numerics.iteration.KEigenvalue(L, S, F)` is the
+:class:`~orpheus.numerics.iteration.KEigenvalue(A, S, F)` is the
 operator-triple **2b realization** — NOT a problem-type layer. Treating
 the operator triple as a "problem type" was the conflation the
 bifurcation removes.
@@ -8637,12 +9036,12 @@ The Layer-3 SN resolvent
 (:class:`~orpheus.numerics.iteration.SourceIteration` /
 :class:`~orpheus.numerics.iteration.KrylovAcceleration`) is now
 **problem-type-agnostic**: it consumes
-:math:`\text{Driver}(L_{\rm resolvent},\,*\text{gains})` and never asks
+:math:`\text{Driver}(A_{\rm resolvent},\,*\text{gains})` and never asks
 which gain plays which posing role. *Which* leaves are gains is the
 2a decision — for the SN k-row the gains are exactly the
 :math:`A_{\rm loss}` couplings :math:`S` and :math:`B` (fission
 :math:`F` is the eigen-operator :math:`M`, not a within-group gain; it
-enters as :math:`q_{\rm ext}`). The retired fixed :math:`(L, S, F)`
+enters as :math:`q_{\rm ext}`). The retired fixed :math:`(A, S, F)`
 triple had baked a 2a role distinction into the Layer-3 resolvent,
 where it does not belong — the variadic generalisation pushes the
 distinction back up to the posing layer (:ref:`bc-extraction-variadic-driver`).
@@ -8798,16 +9197,16 @@ different layers:
   :meth:`EigenvalueSolver.solve_fixed_source <orpheus.numerics.eigenvalue.EigenvalueSolver.solve_fixed_source>`
   Protocol method — a morphism the solver owns.
 * :class:`~orpheus.numerics.iteration.KEigenvalue` binds the resolvent
-  **early**, building it as :math:`(L-S)^{-1}` from the operator triple
+  **early**, building it as :math:`(A-S)^{-1}` from the operator triple
   via an inner :class:`~orpheus.numerics.iteration.SourceIteration`.
 
 The late-bound layer is **strictly more general**: it admits *both* the
 operator-triple resolvent (SN, MoC) *and* the **monolithic-matrix
-resolvent** (CP, diffusion, homogeneous) that has no :math:`(L, S, F)`
+resolvent** (CP, diffusion, homogeneous) that has no :math:`(A, S, F)`
 factorization. The early-bound layer can only express methods whose
-resolvent factors as :math:`(L-S)^{-1}` from a triple — strictly
+resolvent factors as :math:`(A-S)^{-1}` from a triple — strictly
 narrower. The general layer cannot be expressed in terms of the narrow
-one without *manufacturing fictitious* :math:`L`, :math:`S` operators
+one without *manufacturing fictitious* :math:`A`, :math:`S` operators
 for CP/diffusion (which have no sweep). Therefore the **Protocol layer
 is canonical** and the **triple layer is a specialization that adapts
 into it**.
@@ -8824,10 +9223,10 @@ into it**.
      - 2b (operator-triple posing realization)
    * - Resolvent binding
      - **late** — opaque ``solve_fixed_source``
-     - **early** — :math:`(L-S)^{-1}` from the triple
+     - **early** — :math:`(A-S)^{-1}` from the triple
    * - Admits
      - SN, MoC, CP, diffusion, homogeneous (any Protocol implementer)
-     - SN / MoC only (needs an :math:`(L,S,F)` triple)
+     - SN / MoC only (needs an :math:`(A,S,F)` triple)
    * - The loop
      - **owns** the single power-iteration loop body
      - **delegates** to ``power_iteration``
@@ -8842,7 +9241,7 @@ After the fix, the loop body lives in **one place**
 triple — :meth:`compute_fission_source <orpheus.numerics.iteration.KEigenvalue.compute_fission_source>`
 :math:`= F\psi/k`,
 :meth:`solve_fixed_source <orpheus.numerics.iteration.KEigenvalue.solve_fixed_source>`
-:math:`= (L-S)^{-1} q` via the warm-started inner
+:math:`= (A-S)^{-1} q` via the warm-started inner
 :class:`~orpheus.numerics.iteration.SourceIteration`, the injected
 :math:`k`- and production-estimators, and the :math:`\ge 3`-iteration
 :math:`dk`/:math:`d\phi` convergence test — then
@@ -8851,7 +9250,7 @@ calls ``power_iteration(self, max_iter=self.max_outer)``. SN production
 (:func:`~orpheus.sn.solver.solve_sn`), CP, diffusion, MoC, and
 homogeneous all drive the same loop directly via the Protocol; the
 ``KEigenvalue`` adapter is for callers who *have* a natural
-:math:`(L,S,F)` triple and want to skip writing a full solver class.
+:math:`(A,S,F)` triple and want to skip writing a full solver class.
 
 .. note::
 

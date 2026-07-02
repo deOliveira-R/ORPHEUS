@@ -164,6 +164,19 @@ def test_inverse_operator_ctor_guards_singular_inner():
         InverseOperator(DiagonalOperator(np.array([1.0, 0.0])))
 
 
+def test_sum_inverse_dispatches_to_green():
+    """The step-4 factory arm (§24.4): a PLAIN sum with an invertible
+    leading term dispatches ``.inverse()`` to the preconditioned-splitting
+    ``GreenOperator`` — completing the structure-keyed factory table the
+    rows above pin for the leaves/composites (taxonomy §3)."""
+    from orpheus.numerics.green_operator import GreenOperator
+
+    s = DiagonalOperator(_C7) - ScaledOperator(0.25, PermutationOperator(_P7))
+    inv = s.inverse()
+    assert type(inv) is GreenOperator
+    assert inv.inverse() is s  # the involution, by object identity
+
+
 def test_bound_shim_forwards_inverse():
     """The NINTH advertiser: the shim forwards ``.inverse()`` (§12.5)."""
     inner = PermutationOperator(_P7)

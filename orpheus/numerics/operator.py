@@ -6,18 +6,21 @@ on a discrete flux distribution :math:`\psi`:
 
 .. math::
 
-    (L - S - F)\,\psi \;=\; q
+    (A - S - F)\,\psi \;=\; q
     \qquad \text{(fixed source)}
 
 .. math::
 
-    (L - S)\,\psi \;=\; \tfrac{1}{k}\,F\,\psi
+    (A - S)\,\psi \;=\; \tfrac{1}{k}\,F\,\psi
     \qquad \text{(eigenvalue)}
 
-where :math:`L` is the streaming + collision operator, :math:`S` is
-the scattering source operator, :math:`F` is the fission source
-operator, and :math:`q` is an external source (Trefethen & Bau 1997,
-§3.2 frame the matrix-free Krylov view). For an SN sweep, an MoC
+where :math:`A` is the INVERTIBLE loss operator — for SN the composite
+:math:`A = L + C`, streaming plus collision; the letter matters:
+project-wide, ``L`` names the STREAMING LEAF (alone not invertible)
+and invertible left-hand-side composites are the ``A`` family —
+:math:`S` is the scattering source operator, :math:`F` is the fission
+source operator, and :math:`q` is an external source (Trefethen & Bau
+1997, §3.2 frame the matrix-free Krylov view). For an SN sweep, an MoC
 ray-tracer, a CP collision-probability matrix, or a diffusion BiCGSTAB
 solve, the *outer* algebra is identical even though the *implementation*
 of each operator differs by orders of magnitude in cost and structure.
@@ -46,6 +49,7 @@ or fail." See :ref:`operator-algebra` for the full design rationale.
 
 from __future__ import annotations
 
+from abc import ABCMeta, abstractmethod
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
@@ -106,6 +110,7 @@ __all__ = [
     "BoundaryOperator",
     "MissingCapability",
     "IncompatibleOperatorComposition",
+    "InverseWrapMixin",
     "OperatorSum",
     "OperatorProduct",
     "ScaledOperator",
@@ -392,7 +397,8 @@ class LinearOperator(Protocol[Domain, Codomain]):
         capability tag. Unlike ``isinstance(op, SupportsInverse)`` — which
         sees only class-level method presence — this property reads the
         operator's actual structure and values, so it correctly reports a
-        generic sum as non-invertible and a zero-coefficient
+        sum with a non-invertible LEADING term as non-invertible and a
+        zero-coefficient
         :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
         as singular (``min|f| = 0``). Composites derive it recursively from
         their operands; the default is ``False`` — an operator is
@@ -799,10 +805,16 @@ class OperatorSum(LinearOperator[Domain, Codomain]):
 
     * ``apply`` propagates iff **both** operands have ``apply``
       (the action is well-defined only when both summands act).
-    * ``solve`` does **not** propagate. There is no general algorithm
-      for inverting a sum :math:`(A + B)^{-1}` from the inverses of
-      the operands — Sherman-Morrison-Woodbury applies only under
-      low-rank structure.
+    * ``solve``/invertibility does NOT propagate operand-wise: there is
+      no algorithm for :math:`(A + B)^{-1}` from :math:`A^{-1}` and
+      :math:`B^{-1}` alone — Sherman–Morrison–Woodbury applies only
+      under low-rank structure.  What a sum DOES have, when its LEADING
+      (left-spine head) term is invertible, is a
+      preconditioned-SPLITTING inverse: :meth:`inverse` returns a
+      :class:`~orpheus.numerics.green_operator.GreenOperator` iterating
+      :math:`x_{n+1} = A^{-1}(q - B\,x_n)` (taxonomy §12 step 4), and
+      ``solve`` delegates to it.  See :attr:`is_invertible` for the
+      canonical-ordering contract this keys on.
     * ``apply_transpose`` propagates iff **both** operands have it
       (transposition distributes over sums: :math:`(A + B)^T = A^T + B^T`).
 
@@ -851,7 +863,11 @@ class OperatorSum(LinearOperator[Domain, Codomain]):
         caps = {CAP_APPLY}
         if _has(a, CAP_APPLY_TRANSPOSE) and _has(b, CAP_APPLY_TRANSPOSE):
             caps.add(CAP_APPLY_TRANSPOSE)
-        # solve does NOT propagate — see docstring.
+        if getattr(a, "is_invertible", False):
+            # The Green splitting derives from the invertible leading
+            # term (see is_invertible) — CAP_SOLVE rides with it (the
+            # faithfulness keystone is_invertible ≡ CAP_SOLVE).
+            caps.add(CAP_SOLVE)
         self.capabilities = frozenset(caps)
         # Block role DERIVED from the operands (Wave O / O.2b 4.5): the sum
         # touches the union of the blocks its summands touch. Replaces the
@@ -884,9 +900,62 @@ class OperatorSum(LinearOperator[Domain, Codomain]):
         # the ``CAP_APPLY_TRANSPOSE`` closure computed in :meth:`__init__`.
         return self.a.is_adjointable and self.b.is_adjointable
 
-    # is_invertible inherits the base ``False``: there is no general
-    # ``(A+B)^{-1}`` from the operand inverses (see the class docstring).
-    # The sweep-invertible ``InvertibleOperator`` subclass overrides it.
+    @property
+    def is_invertible(self) -> bool:
+        r"""``True`` iff the LEADING (left-spine head) term is invertible.
+
+        There is no operand-wise law for a sum's inverse — but a sum
+        whose leading term :math:`A` is invertible CAN produce its
+        inverse OPERATOR: the preconditioned-splitting
+        :class:`~orpheus.numerics.green_operator.GreenOperator`
+        (:math:`x_{n+1} = A^{-1}(q - B\,x_n)`, taxonomy §12 step 4).
+        The recursion ``self.a.is_invertible`` designates the left-spine
+        head as the splitting's preconditioner — the CANONICAL-ORDERING
+        contract: spell the invertible operator FIRST (``A - S``,
+        mirroring the ``L + C`` fusion rule of
+        :meth:`~orpheus.sn.operators.streaming.StreamingOperator.__add__`,
+        #261).  Whether the splitting CONVERGES is a spectral
+        (value-level) property no construction-time predicate can read —
+        a divergent split raises
+        :class:`~orpheus.numerics.green_operator.ConvergenceFailure`
+        loudly at apply time, never a silent wrong answer.  (The
+        sweep-invertible
+        :class:`~orpheus.sn.operators.streaming.InvertibleOperator`
+        subclass shadows this by MRO with its own ``True`` +
+        direct-sweep :meth:`inverse` — the type-as-structure dispatch,
+        taxonomy §11.1.)
+        """
+        return getattr(self.a, "is_invertible", False)
+
+    def inverse(self) -> "LinearOperator[Codomain, Domain]":
+        r"""Return the preconditioned-splitting inverse — a
+        :class:`~orpheus.numerics.green_operator.GreenOperator`.
+
+        The annotation is the factory's honest STATIC face — "an inverse
+        operator on the swapped spaces" — because subclass overrides
+        return their own structure's inverse (the sweep-invertible
+        composite returns a ``SweepOperator``; type-as-structure,
+        taxonomy §11.1) and the family members are siblings, not a
+        hierarchy.
+
+        Late import: ``green_operator`` is a LEAF module wrapping the
+        iteration drivers, which import THIS module — the same one-way
+        late-import pattern as
+        :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.inverse`
+        → ``SweepOperator`` (taxonomy §17 W3).
+        """
+        from orpheus.numerics.green_operator import GreenOperator
+
+        return GreenOperator(self)
+
+    def solve(self, b_vec: Codomain, /) -> Domain:
+        r"""Solve :math:`(A+B)\,x = b` via the splitting inverse.
+
+        Delegates to :meth:`inverse` ``.apply`` — ONE realization (the
+        gated ``solve`` spelling is transitional and retires at carve
+        P4; the inverse OBJECT is the canonical form).
+        """
+        return self.inverse().apply(b_vec)
 
 
 class OperatorProduct(LinearOperator[Domain, Codomain]):
@@ -1195,16 +1264,24 @@ class ZeroOperator(LinearOperator[Domain, Codomain]):
     # is_invertible inherits the base ``False`` — the zero map is singular.
 
 
-class _SolveBackedLeaf(Protocol):
-    r"""Structural contract for :class:`InverseOperator`'s wrapped leaf.
+class _InvertibleForward(Protocol):
+    r"""Structural contract for a wrap-delegate inverse's wrapped FORWARD.
 
-    Coexistence-window plumbing for the #226 inverse-as-operator carve
-    (P2–P4): a leaf operator that realizes its inverse action as the gated
-    :meth:`solve` method — the spelling the carve retires at P4.
-    :class:`InverseOperator` delegates through this contract so the inverse
-    OBJECT and the legacy ``solve`` share ONE realization (``coding-elegance``
-    Pattern 2 — no reciprocal twin path that could drift by a rounding).
-    Retires together with the public ``solve`` surface (carve P4).
+    The forward operator :math:`A` an :class:`InverseWrapMixin` sibling
+    wraps: it advertises its invertibility (``is_invertible``), carries
+    the function-space metadata the inverse SWAPS, and realizes the two
+    actions the family delegates to — ``apply`` (the forward matvec,
+    consumed by the inverse's ``solve``) and the gated :meth:`solve`
+    (coexistence-window plumbing for the #226 carve; the ``solve``
+    spelling retires at P4, shrinking this contract with it).
+    :class:`InverseOperator` takes this Protocol directly (value-bearing
+    leaves); :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`
+    narrows to the schedule-triangular family;
+    :class:`~orpheus.numerics.green_operator.GreenOperator` narrows to
+    :class:`OperatorSum`.  Delegating through one contract keeps the
+    inverse OBJECT and the legacy ``solve`` on ONE realization
+    (``coding-elegance`` Pattern 2 — no reciprocal twin path that could
+    drift by a rounding).
     """
 
     @property
@@ -1221,7 +1298,109 @@ class _SolveBackedLeaf(Protocol):
     def solve(self, b: Any, /) -> Any: ...
 
 
-class InverseOperator(LinearOperator):
+_ForwardT = TypeVar("_ForwardT", bound=_InvertibleForward)
+
+
+class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
+    r"""The wrap-delegate back-half shared by every inverse-family sibling.
+
+    An inverse operator in this codebase is a thin typed wrapper around
+    its own FORWARD operator :math:`A` (:attr:`inner`): the wrapper's
+    :meth:`apply` realizes :math:`A^{-1}` by the sibling's algorithm, and
+    everything else is delegation — the byte-identical back-half that
+    :class:`InverseOperator` and
+    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` carried
+    as documented twins until the THIRD sibling
+    (:class:`~orpheus.numerics.green_operator.GreenOperator`, taxonomy
+    §12 step 4) fired the extraction trigger both twins recorded
+    (defer-until-≥2, extract at 3 — never hand-re-derive):
+
+    * ``capabilities = {apply, solve}`` — ``apply`` inverts, ``solve``
+      un-inverts, so ``CAP_SOLVE`` rides with ``is_invertible`` (the
+      faithfulness keystone) on every inverse object.
+    * :attr:`domain` / :attr:`codomain` — the SWAP of the forward's: an
+      inverse maps the forward's codomain back to its domain.
+    * :meth:`solve` — solving :math:`A^{-1}\,y = b` IS applying
+      :math:`A`: the forward matvec ``inner.apply``, delegated.
+    * ``is_invertible`` is ``True`` and :meth:`inverse` returns the
+      wrapped forward ITSELF — the involution :math:`(A^{-1})^{-1} = A`
+      (taxonomy §13 I2) holds by OBJECT IDENTITY, typed per sibling
+      through ``_ForwardT``.
+
+    **The canonical seeded-apply signature is part of the back-half**
+    (#285, resolved STRUCTURAL): the abstract :meth:`apply` declares
+    ``apply(x, /, *, initial_guess=None)`` — the
+    :class:`~orpheus.numerics.iteration.SupportsSeededApply` contract
+    the iteration drivers consume — so a new sibling CANNOT forget the
+    keyword: pyright rejects an override that drops it (LSP), and
+    ``ABCMeta`` blocks instantiating a sibling that fails to implement
+    it.  Members with no use for a start accept-and-ignore, documented
+    per type (an exact inverse has nothing to seed; the sweep threads it
+    into the curvilinear Carlson closure; the Green threads it as its
+    splitting iteration's start).
+
+    Siblings keep exactly three things of their own: the constructor
+    GUARD (what makes their ``inner`` invertible — a value check, a
+    type, a derivable splitting), the :meth:`apply` body (the inversion
+    algorithm), and ``__repr__``.
+
+    The ADJOINT axis is NOT part of the back-half: ``is_adjointable`` /
+    ``.H`` stay at the base defaults — the adjoint-inverse is the #280
+    family, deferred (free for the iterative branch, a reverse-DAG
+    ``sweep_transpose`` for the direct sweep).
+    """
+
+    #: ``apply`` inverts; ``solve`` un-inverts (the forward matvec) — the
+    #: pair that keeps the faithfulness keystone ``is_invertible ≡
+    #: CAP_SOLVE`` honest on every inverse object.
+    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY, CAP_SOLVE})
+
+    def __init__(self, inner: _ForwardT) -> None:
+        #: The forward operator :math:`A` this is the inverse of.
+        self.inner = inner
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        # An inverse maps the forward's CODOMAIN back to its DOMAIN.
+        return self.inner.codomain
+
+    @property
+    def codomain(self) -> Optional["FunctionSpace"]:
+        return self.inner.domain
+
+    @abstractmethod
+    def apply(self, x: Any, /, *, initial_guess: Any | None = None) -> Any:
+        r"""Return :math:`A^{-1}\,x` by this sibling's inversion algorithm.
+
+        ``initial_guess`` is the inverse family's canonical driver
+        signature (taxonomy §12 step 3): iterative drivers thread the
+        previous iterate uniformly, with no per-type signature probes.
+        """
+        ...
+
+    def solve(self, b: Any, /) -> Any:
+        r"""Solve :math:`A^{-1}\,y = b`, i.e. return :math:`A\,b` (the forward).
+
+        The ``CAP_SOLVE`` face that keeps the faithfulness keystone
+        ``is_invertible ≡ CAP_SOLVE`` honest on the inverse object
+        (taxonomy §13 I2 / step 1).
+        """
+        return self.inner.apply(b)
+
+    @property
+    def is_invertible(self) -> bool:
+        return True  # (A^{-1})^{-1} = A — the wrapped forward itself
+
+    def inverse(self) -> _ForwardT:
+        r"""Return :math:`(A^{-1})^{-1} = A` — the wrapped forward, by identity.
+
+        The involution law (taxonomy §13 I2) holds as an OBJECT-IDENTITY
+        fact: ``A.inverse().inverse() is A``.
+        """
+        return self.inner
+
+
+class InverseOperator(InverseWrapMixin[_InvertibleForward], LinearOperator):
     r"""The inverse operator :math:`A^{-1}` of a solve-backed leaf, in operator form.
 
     The GENERIC member of the #226 inverse family — the name is earned by
@@ -1232,7 +1411,9 @@ class InverseOperator(LinearOperator):
     G-Neumann, M-materialise) is promised. Structured inverses with a
     distinguishing invariant get their own named types
     (:class:`~orpheus.sn.operators.sweep_operator.SweepOperator` for the
-    triangular sweep; ``GreenOperator`` / ``MatrixInverseOperator`` per the
+    triangular sweep;
+    :class:`~orpheus.numerics.green_operator.GreenOperator` for the
+    preconditioned-splitting sum; ``MatrixInverseOperator`` per the
     taxonomy §13) — this class serves the value-bearing LEAVES
     (:class:`DiagonalOperator`,
     :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
@@ -1247,47 +1428,23 @@ class InverseOperator(LinearOperator):
     (:math:`1/\Sigma` is a mean free path, a DIFFERENT named quantity). The
     division realization carries the inverse semantics without either lie.
 
-    **Dagger/functoriality laws carried:** ``is_invertible`` is ``True`` and
-    :meth:`inverse` returns the wrapped leaf ITSELF — so the involution
-    :math:`(A^{-1})^{-1} = A` holds by OBJECT IDENTITY (taxonomy §13 I2), and
-    :meth:`solve` on the inverse is the leaf's forward :meth:`apply` (solving
-    :math:`A^{-1}\,y = b` IS applying :math:`A`), keeping the faithfulness
-    keystone ``is_invertible ≡ CAP_SOLVE`` honest on this object too. The
-    adjoint axis is NOT promised (``is_adjointable`` stays ``False``): the
-    adjoint-inverse is the #280 family, deferred exactly as on
-    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`.
-
-    **Wrap-delegate back-half twin (collapse trigger).** This class and
-    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` deliberately
-    share a byte-identical back-half (``capabilities`` /
-    ``domain↔codomain`` swap / ``solve→inner.apply`` / ``is_invertible`` /
-    ``inverse()→inner``), differing only in ``apply`` and the ctor guard —
-    two witnesses, kept twinned per the defer-until-≥2 rule. TRIGGER: when
-    ``GreenOperator`` / ``MatrixInverseOperator`` land (the 3rd/4th
-    wrap-delegate siblings, taxonomy §12 steps 4–5), extract the back-half
-    into a shared mechanism mixin (leaves override ``apply`` + ``__repr__``)
-    — do NOT hand-re-derive it a third time.
+    The wrap-delegate back-half (``capabilities`` / domain↔codomain swap /
+    ``solve→inner.apply`` / ``is_invertible`` / ``inverse()→inner``) is
+    inherited from :class:`InverseWrapMixin` — the extraction this class
+    and :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`
+    recorded as their collapse trigger, fired by the 3rd sibling
+    (``GreenOperator``, taxonomy §12 step 4). This class keeps only its
+    ctor guard (the leaf's own ``is_invertible`` value check),
+    :meth:`apply`, and ``__repr__``.
     """
 
-    capabilities: frozenset[str] = frozenset({CAP_APPLY, CAP_SOLVE})
-
-    def __init__(self, inner: _SolveBackedLeaf) -> None:
+    def __init__(self, inner: _InvertibleForward) -> None:
         if not inner.is_invertible:
             raise MissingCapability(
                 f"InverseOperator requires an invertible leaf; "
                 f"{type(inner).__name__}.is_invertible is False."
             )
-        #: The forward leaf :math:`A` this is the inverse of.
-        self.inner = inner
-
-    @property
-    def domain(self) -> Optional["FunctionSpace"]:
-        # An inverse maps the leaf's CODOMAIN back to its DOMAIN.
-        return self.inner.codomain
-
-    @property
-    def codomain(self) -> Optional["FunctionSpace"]:
-        return self.inner.domain
+        super().__init__(inner)
 
     def apply(self, x: Any, /, *, initial_guess: Any | None = None) -> Any:
         r"""Return :math:`A^{-1}\,x` — the leaf's own ``solve`` (bit-identical).
@@ -1302,18 +1459,6 @@ class InverseOperator(LinearOperator):
         """
         del initial_guess  # exact inverse — no iterative start to seed
         return self.inner.solve(x)
-
-    def solve(self, b: Any, /) -> Any:
-        r"""Solve :math:`A^{-1}\,y = b`, i.e. return :math:`A\,b` (the forward)."""
-        return self.inner.apply(b)
-
-    @property
-    def is_invertible(self) -> bool:
-        return True  # (A^{-1})^{-1} = A — the wrapped leaf itself
-
-    def inverse(self) -> LinearOperator:
-        r"""Return :math:`(A^{-1})^{-1} = A` — the wrapped leaf, by identity."""
-        return cast(LinearOperator, self.inner)
 
     def __repr__(self) -> str:
         return f"InverseOperator({self.inner!r})"

@@ -88,17 +88,33 @@ def test_asymmetry_fixtures_break_the_axis_coincidence():
 
 
 def test_sum_predicates_recursive_and_faithful():
-    """``(A+B)`` adjointable iff BOTH; never invertible (no general sum inverse)."""
+    """``(A+B)`` adjointable iff BOTH; invertible iff the LEADING term is.
+
+    The invertibility recursion is deliberately ORDER-SENSITIVE (#226
+    taxonomy §12 step 4): the left-spine head is the Green splitting's
+    designated preconditioner (canonical ordering — invertible term
+    first), so the SAME operand pair flips the predicate when reversed.
+    """
     ident = IdentityOperator()
     s_both = ident + DiagonalOperator(_C)
-    assert s_both.is_adjointable is True and s_both.is_invertible is False
+    # Leading Identity is invertible → the sum produces a GreenOperator
+    # inverse (step 4): is_invertible True, CAP_SOLVE rides along.
+    assert s_both.is_adjointable is True and s_both.is_invertible is True
     assert s_both.is_adjointable == (
         ident.is_adjointable and DiagonalOperator(_C).is_adjointable
     )
+    assert s_both.is_invertible == ident.is_invertible  # the leading-term rule
     _assert_faithful(s_both)
+
+    # The SAME summands reversed: leading _ApplyOnly is not invertible —
+    # the ordering contract refuses to designate a preconditioner.
+    s_reversed = _ApplyOnly() + ident
+    assert s_reversed.is_invertible is False
+    _assert_faithful(s_reversed)
 
     s_half = ident + _ApplyOnly()  # one summand non-adjointable
     assert s_half.is_adjointable is False
+    assert s_half.is_invertible is True  # adjoint axis ≠ inverse axis
     _assert_faithful(s_half)
 
 
@@ -140,3 +156,10 @@ def test_inverse_objects_are_faithful():
     _assert_faithful(OperatorProduct(D, PermutationOperator(np.roll(np.arange(3), 1))).inverse())
     _assert_faithful(ScaledOperator(2.0, D).inverse())
     assert D.inverse().inverse() is D  # (A⁻¹)⁻¹ — the leaf, by identity
+    # G-I3 (#226 step 4): the GreenOperator a Green-invertible SUM returns
+    # is faithful too — {APPLY, SOLVE} via the mixin back-half,
+    # is_invertible=True, adjoint axis honestly deferred (#280).
+    s = IdentityOperator() + DiagonalOperator(_C)
+    green = s.inverse()
+    _assert_faithful(green)
+    assert green.inverse() is s  # involution by object identity (mixin)
