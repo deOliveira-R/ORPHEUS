@@ -110,6 +110,7 @@ __all__ = [
     "BoundaryOperator",
     "MissingCapability",
     "IncompatibleOperatorComposition",
+    "MatrixTooLarge",
     "InverseWrapMixin",
     "OperatorSum",
     "OperatorProduct",
@@ -285,6 +286,55 @@ class IncompatibleOperatorComposition(ValueError):
     — backward-compatible with operators predating Issue 9.6 that
     carry no function-space metadata.
     """
+
+
+class MatrixTooLarge(RuntimeError):
+    r"""A :meth:`LinearOperator.as_matrix` materialization exceeds its size gate.
+
+    A **resource effect on a TOTAL functor** (taxonomy §17 A2): every
+    linear operator on a finite-dimensional space *has* a matrix — the
+    functor ``Op → Mat`` is total — but materializing it commits
+    :math:`O(n^2)` memory and :math:`n` applications, which this
+    environment may refuse. That is why this is a ``RuntimeError``
+    (a refused resource commitment), NOT a ``TypeError``/``ValueError``
+    (the request is neither ill-typed nor ill-valued), and why there is
+    deliberately NO ``is_materializable`` predicate alongside
+    :attr:`LinearOperator.is_invertible` / ``is_adjointable``: those are
+    *structural restriction* predicates (they read the operator's
+    structure and values), whereas the size gate is a pure resource
+    precheck that reads nothing but a dimension. Callers that want the
+    fallback pattern write ``try: A.as_matrix() except MatrixTooLarge:
+    <iterative path>`` — or raise the per-call ``max_dimension``.
+    """
+
+
+def _resolve_basis_shape(
+    op: "LinearOperator",
+    basis_shape: "tuple[int, ...] | None",
+) -> tuple[int, ...]:
+    r"""Resolve the basis shape a materialization iterates over.
+
+    The SINGLE SOURCE for the resolution rule shared by
+    :meth:`LinearOperator.as_matrix` and the eager
+    :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+    constructor (which must know the resolved shape to reshape solutions
+    back into carriers): an explicit ``basis_shape`` wins; otherwise the
+    operator's own :attr:`~LinearOperator.domain` supplies its ``shape``;
+    an operator with neither is un-materializable *as posed* and the
+    caller is told both remedies.
+    """
+    if basis_shape is not None:
+        return tuple(int(d) for d in basis_shape)
+    domain = op.domain
+    if domain is None:
+        raise ValueError(
+            f"as_matrix on {type(op).__name__}: the operator carries no "
+            f"domain FunctionSpace, so the basis shape cannot be derived. "
+            f"Either construct the operator with a space, or pass an "
+            f"explicit basis_shape= (the element shape apply consumes, "
+            f"e.g. (ng, 1) for a meshless single-cell group operator)."
+        )
+    return tuple(domain.shape)
 
 
 @runtime_checkable
@@ -627,6 +677,102 @@ class LinearOperator(Protocol[Domain, Codomain]):
         the carriers ``[Domain, Codomain] → [Codomain, Domain]`` (see
         :meth:`adjoint`)."""
         return self.adjoint()
+
+    # ------------------------------------------------------------------
+    # Materialization — the functor OUT of the operator category
+    # ------------------------------------------------------------------
+
+    def as_matrix(
+        self,
+        *,
+        basis_shape: tuple[int, ...] | None = None,
+        max_dimension: int = 4096,
+    ) -> np.ndarray:
+        r"""Materialize the explicit matrix :math:`[A]` of this operator.
+
+        Where :meth:`inverse` / :attr:`H` / composition are
+        *endofunctors* (``Op → Op``), ``as_matrix`` is the **functor OUT
+        of the operator category** (``Op → Mat``, taxonomy §2) — the
+        serialization boundary. Column :math:`j` is the operator applied
+        to the :math:`j`-th basis element:
+
+        .. math::
+
+            [A]_{:,j} \;=\; \operatorname{ravel}\bigl(A\,e_j\bigr),
+            \qquad e_j = \operatorname{unravel}(\delta_j),
+
+        with basis elements enumerated in **C-order** over
+        ``basis_shape`` and outputs raveled the same way — so for a
+        group-leading ``(ng, 1)`` carrier, column ``j`` is the response
+        to a unit source in group ``j``, and ``[A] @ x.ravel() ==
+        A.apply(x).ravel()`` exactly. The matrix is
+        ``(prod(output shape), prod(basis_shape))`` — RECTANGULAR when
+        the operator is not endomorphic; the output dimension emerges
+        from :meth:`apply` itself, never from declared metadata.
+
+        This default is the promoted apply-to-basis pattern (né
+        ``_as_dense``, ``homogeneous/solver.py``). Structured operators
+        MAY override with a direct assembly (the future per-octant
+        sparse-triangular streaming assembly noted at
+        ``sweep_graph.py:66`` — DEFERRED with its 3-D consumer;
+        :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+        overrides with one batched LU backsolve). Until a sparse
+        consumer exists, the return is a DENSE :class:`numpy.ndarray` —
+        the dense-vs-sparse return keying was decided at taxonomy §12
+        step 5: keyed by the operator's structural override, with dense
+        the only realization built (defer-until-consumer).
+
+        Parameters
+        ----------
+        basis_shape : tuple[int, ...], optional
+            The element shape :meth:`apply` consumes. Default: derived
+            from :attr:`domain` (``domain.shape``); REQUIRED explicitly
+            for operators carrying no space (e.g. the meshless
+            single-cell group operators, ``basis_shape=(ng, 1)``).
+        max_dimension : int, optional
+            The size gate: refuse (``MatrixTooLarge``) when
+            ``prod(basis_shape) > max_dimension``. Default ``4096`` —
+            a 4096² float64 is 134 MB and 4096 applications, generous
+            for every dense-by-construction consumer (0-D energy
+            spectra, CP ``[P]``) and prohibitive for none of them;
+            a meshed SN full-field operator is refused by design.
+            Per-call configurable — a RESOURCE knob, not structure
+            (§17 A2; see :class:`MatrixTooLarge`).
+
+        Raises
+        ------
+        ValueError
+            No ``basis_shape`` given and the operator carries no
+            :attr:`domain` to derive one from.
+        MatrixTooLarge
+            The resolved basis dimension exceeds ``max_dimension``.
+
+        Notes
+        -----
+        **Honest scope**: the default serves ndarray-carrier operators
+        (the energy/scattering blocks, small compositions, quadrature
+        maps). Typed-carrier operators (``FullField`` SN composites)
+        are not constructible from ndarray basis columns — and sit far
+        above any sane gate; they stay matrix-free.
+        """
+        shape = _resolve_basis_shape(self, basis_shape)
+        n = int(np.prod(shape)) if shape else 1
+        if n > max_dimension:
+            raise MatrixTooLarge(
+                f"as_matrix on {type(self).__name__}: basis dimension "
+                f"{n} (= prod{shape}) exceeds max_dimension="
+                f"{max_dimension}. Materializing would commit ~"
+                f"{8 * n * n / 1e6:.0f} MB and {n} operator "
+                f"applications. Raise max_dimension= if this size is "
+                f"intended, or keep the operator matrix-free."
+            )
+        columns = []
+        for j in range(n):
+            e_flat = np.zeros(n)
+            e_flat[j] = 1.0
+            column = self.apply(cast(Domain, e_flat.reshape(shape)))
+            columns.append(np.asarray(column).ravel())
+        return np.column_stack(columns)
 
     # ------------------------------------------------------------------
     # Repr
@@ -1040,25 +1186,41 @@ class OperatorProduct(LinearOperator[Domain, Codomain]):
         # ``CAP_SOLVE`` closure computed in :meth:`__init__`.
         return self.a.is_invertible and self.b.is_invertible
 
-    def inverse(self) -> "OperatorProduct":
-        r"""Return :math:`(AB)^{-1} = B^{-1} A^{-1}` — the reversed product of inverses.
+    def inverse(self) -> "InverseOperator":
+        r"""Return :math:`(AB)^{-1}` — the generic family member wrapping this product.
 
-        The functoriality law (taxonomy §13 I2), delivered as the natural
-        STRUCTURAL inverse: the inverse of a product IS a product. The
-        action is bit-identical to :meth:`solve` by induction — this
-        composite adds no arithmetic of its own, so
-        ``inverse().apply(q) == b.solve(a.solve(q))`` exactly, given the
-        factors' own ``inverse().apply ≡ solve`` identities.
+        The functoriality law :math:`(AB)^{-1} = B^{-1}A^{-1}` (taxonomy
+        §13 I2) holds BEHAVIORALLY through the wrapper:
+        ``inverse().apply(q)`` delegates to this product's own
+        :meth:`solve` ``= b.solve(a.solve(q))`` — bit-identical to the
+        reversed-product spelling this method returned before taxonomy
+        §12 step 5, which composed exactly the same two solves. What the
+        family wrapper adds is the CONTRACT (#285 closure): a raw
+        ``OperatorProduct`` of inverses carries no
+        ``initial_guess`` keyword, so a driver seeding it raised
+        ``TypeError`` at iteration time; :class:`InverseOperator`
+        carries the family's canonical seeded ``apply``
+        (accept-and-ignore — the solve path never threaded seeds either,
+        so behavior is unchanged) and every ``.inverse()`` in the system
+        now returns a seeded-apply conformer. The involution also
+        STRENGTHENS to object identity — ``(A@B).inverse().inverse() is
+        (A@B)`` via the mixin, where the reversed-product spelling
+        rebuilt fresh objects. The factors stay reachable as
+        ``.inner.a`` / ``.inner.b``.
+
+        (Contrast the ALGEBRA-CLOSED inverses — a
+        :class:`PermutationOperator`'s inverse IS a permutation, an
+        :class:`IdentityOperator` is self-inverse, a
+        :class:`ScaledOperator`'s is a scaled inverse: those inverses
+        are first-class FORWARD operators in their own closed structure,
+        the other kind of inverse, and stay unwrapped.)
         """
         if not self.is_invertible:
             raise MissingCapability(
                 "OperatorProduct.inverse requires both factors to be "
                 "invertible ((AB)^{-1} = B^{-1}A^{-1})."
             )
-        return OperatorProduct(
-            cast(SupportsInverse, self.b).inverse(),
-            cast(SupportsInverse, self.a).inverse(),
-        )
+        return InverseOperator(self)
 
     @property
     def is_adjointable(self) -> bool:
@@ -1264,28 +1426,30 @@ class ZeroOperator(LinearOperator[Domain, Codomain]):
     # is_invertible inherits the base ``False`` — the zero map is singular.
 
 
-class _InvertibleForward(Protocol):
-    r"""Structural contract for a wrap-delegate inverse's wrapped FORWARD.
+class _WrappedForward(Protocol):
+    r"""The MINIMAL structural contract the wrap-delegate back-half consumes.
 
-    The forward operator :math:`A` an :class:`InverseWrapMixin` sibling
-    wraps: it advertises its invertibility (``is_invertible``), carries
-    the function-space metadata the inverse SWAPS, and realizes the two
-    actions the family delegates to — ``apply`` (the forward matvec,
-    consumed by the inverse's ``solve``) and the gated :meth:`solve`
-    (coexistence-window plumbing for the #226 carve; the ``solve``
-    spelling retires at P4, shrinking this contract with it).
-    :class:`InverseOperator` takes this Protocol directly (value-bearing
-    leaves); :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`
-    narrows to the schedule-triangular family;
-    :class:`~orpheus.numerics.green_operator.GreenOperator` narrows to
-    :class:`OperatorSum`.  Delegating through one contract keeps the
-    inverse OBJECT and the legacy ``solve`` on ONE realization
-    (``coding-elegance`` Pattern 2 — no reciprocal twin path that could
-    drift by a rounding).
+    Exactly what :class:`InverseWrapMixin` itself reads of its wrapped
+    forward :math:`A`: the function-space pair the inverse SWAPS
+    (``domain``/``codomain``) and the forward matvec its ``solve``
+    un-inverts through (``apply``). Nothing more. The family bound was
+    incidentally tighter (:class:`_InvertibleForward`) while the first
+    three siblings all happened to wrap solve-backed forwards; the 4th
+    sibling
+    (:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`,
+    which inverts the MATERIALIZATION and never touches ``inner.solve``
+    or ``inner.is_invertible`` — the matrix realization reads values,
+    not structure) exposed the true minimum (taxonomy §12 step 5).
+
+    Each sibling NARROWS ``_ForwardT`` to what its own ctor guard and
+    algorithm need: :class:`InverseOperator` to
+    :class:`_InvertibleForward`;
+    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` to the
+    schedule-triangular union;
+    :class:`~orpheus.numerics.green_operator.GreenOperator` to
+    :class:`OperatorSum`; ``MatrixInverseOperator`` to
+    :class:`LinearOperator` (its guard needs :meth:`~LinearOperator.as_matrix`).
     """
-
-    @property
-    def is_invertible(self) -> bool: ...
 
     @property
     def domain(self) -> Optional["FunctionSpace"]: ...
@@ -1295,10 +1459,28 @@ class _InvertibleForward(Protocol):
 
     def apply(self, x: Any, /) -> Any: ...
 
+
+class _InvertibleForward(_WrappedForward, Protocol):
+    r"""A solve-backed invertible forward — :class:`InverseOperator`'s narrowing.
+
+    Extends the family-minimal :class:`_WrappedForward` with the two
+    members the GENERIC sibling consumes: ``is_invertible`` (its ctor
+    guard is the leaf's own value check) and the gated :meth:`solve`
+    (its ``apply`` delegates to the leaf's division — coexistence-window
+    plumbing for the #226 carve; the ``solve`` spelling retires at P4,
+    shrinking this contract with it). Delegating through one contract
+    keeps the inverse OBJECT and the legacy ``solve`` on ONE realization
+    (``coding-elegance`` Pattern 2 — no reciprocal twin path that could
+    drift by a rounding).
+    """
+
+    @property
+    def is_invertible(self) -> bool: ...
+
     def solve(self, b: Any, /) -> Any: ...
 
 
-_ForwardT = TypeVar("_ForwardT", bound=_InvertibleForward)
+_ForwardT = TypeVar("_ForwardT", bound=_WrappedForward)
 
 
 class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
@@ -1348,6 +1530,12 @@ class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
     ``.H`` stay at the base defaults — the adjoint-inverse is the #280
     family, deferred (free for the iterative branch, a reverse-DAG
     ``sweep_transpose`` for the direct sweep).
+
+    (This wrap-delegate family is ONE of two kinds of inverse in the
+    algebra: ALGEBRA-CLOSED structures invert into themselves — a
+    permutation's inverse IS a permutation, a scaled operator's a scaled
+    operator — and stay unwrapped as first-class forwards. The canonical
+    statement of the split lives on :meth:`OperatorProduct.inverse`.)
     """
 
     #: ``apply`` inverts; ``solve`` un-inverts (the forward matvec) — the
@@ -1406,27 +1594,34 @@ class InverseOperator(InverseWrapMixin[_InvertibleForward], LinearOperator):
     The GENERIC member of the #226 inverse family — the name is earned by
     exactly the universal contract and nothing more (taxonomy §13: "round-trip
     alone earns only *InverseOperator*"): :meth:`apply` inverts, the
-    round-trip :math:`A^{-1}(A\,x) = x` holds to the leaf's own ``solve``
+    round-trip :math:`A^{-1}(A\,x) = x` holds to the forward's own ``solve``
     precision, and no fancier invariant (S-direct seed-independence,
     G-Neumann, M-materialise) is promised. Structured inverses with a
     distinguishing invariant get their own named types
     (:class:`~orpheus.sn.operators.sweep_operator.SweepOperator` for the
     triangular sweep;
     :class:`~orpheus.numerics.green_operator.GreenOperator` for the
-    preconditioned-splitting sum; ``MatrixInverseOperator`` per the
-    taxonomy §13) — this class serves the value-bearing LEAVES
-    (:class:`DiagonalOperator`,
-    :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
-    whose inverse action is an exact pointwise division.
+    preconditioned-splitting sum;
+    :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+    for the dense direct factorization) — this class serves any
+    solve-backed forward with NO more specific named inverse: the
+    value-bearing LEAVES (:class:`DiagonalOperator`,
+    :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`),
+    whose inverse action is an exact pointwise division, AND the
+    invertible COMPOSITES — since taxonomy §12 step 5,
+    :meth:`OperatorProduct.inverse` returns ``InverseOperator(self)``
+    (the #285 closure), so the wrapped inverse action there is the
+    product's own ``solve``, :math:`B^{-1}(A^{-1}\,q)`, not a division.
 
     **One realization, not a reciprocal twin.** :meth:`apply` DELEGATES to
-    the leaf's own :meth:`solve` (division), bit-identical to today's gated
-    call — it does NOT materialize a reciprocal coefficient. A reciprocal
-    twin would (a) differ from ``solve`` by a rounding
-    (:math:`(1/c)\cdot b \neq b/c` in FP), and (b) for a cross-section
-    multiplier mint a units-dishonest "reciprocal cross-section" field
-    (:math:`1/\Sigma` is a mean free path, a DIFFERENT named quantity). The
-    division realization carries the inverse semantics without either lie.
+    the forward's own :meth:`solve`, bit-identical to today's gated call —
+    it does NOT re-derive the inverse action. For a value-bearing LEAF the
+    delegation matters doubly: a reciprocal twin would (a) differ from
+    ``solve`` by a rounding (:math:`(1/c)\cdot b \neq b/c` in FP), and
+    (b) for a cross-section multiplier mint a units-dishonest "reciprocal
+    cross-section" field (:math:`1/\Sigma` is a mean free path, a
+    DIFFERENT named quantity). The division realization carries the
+    inverse semantics without either lie.
 
     The wrap-delegate back-half (``capabilities`` / domain↔codomain swap /
     ``solve→inner.apply`` / ``is_invertible`` / ``inverse()→inner``) is

@@ -147,13 +147,24 @@ class IsotropicScattering(LinearOperator):
         return out
 
     def dense_per_material(self) -> dict[int, np.ndarray]:
-        r"""Per-material operator matrix :math:`\Sigma_{s,0}^{T}` (``[g_to, g_from]``).
+        r"""Per-material operator matrix :math:`\Sigma_{s,0}^{T}` (``[g_to, g_from]``)
+        — the STORAGE-SIDE oracle view, not a production consumption mode.
 
-        The ``as_dense`` consumption mode for the LHS-fold solvers (diffusion /
-        homogeneous build :math:`A = \mathrm{diag}(\Sigma_t) - \Sigma_{s,0}^{T} -
-        2\Sigma_{2n}^{T}`): returns ``{mid: M}`` with ``M @ φ_cell == apply(φ)_cell``,
-        i.e. ``M = sig_s0.T`` (``sig_s0`` is stored ``[g_from, g_to]``). Each entry
-        is a fresh copy.
+        Returns ``{mid: M}`` with ``M @ φ_cell == apply(φ)_cell``, i.e.
+        ``M = sig_s0.T`` (``sig_s0`` is stored ``[g_from, g_to]``), read
+        DIRECTLY off the stored cross sections — structurally independent
+        of the :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.apply_p0_in_scatter`
+        einsum that realizes :meth:`apply`.  That independence is this
+        method's job: the verification gates use it as the
+        transpose-convention oracle for ``apply``/``apply_transpose``
+        (`vv-principles` L11 — the two sides of an oracle pair must not
+        share a realization).  Production materialization — the LHS-fold
+        ``A = C − K_iso`` the homogeneous solver densifies — goes through
+        the operator's own
+        :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`
+        apply-to-basis instead (taxonomy §12 step 5, which retired this
+        docstring's earlier claim that the fold consumers read THIS
+        method — they never did).  Each entry is a fresh copy.
         """
         return {
             mid: np.ascontiguousarray(self.mat_xs.sig_s_legendre(mid)[0].T)
@@ -217,7 +228,13 @@ class IsotropicN2N(LinearOperator):
         return out
 
     def dense_per_material(self) -> dict[int, np.ndarray]:
-        r"""Per-material operator matrix :math:`2\Sigma_{2n}^{T}` — ``M @ φ == apply(φ)``."""
+        r"""Per-material operator matrix :math:`2\Sigma_{2n}^{T}` — ``M @ φ == apply(φ)``.
+
+        The storage-side oracle view, read directly off the stored
+        :math:`\Sigma_{2n}` — see
+        :meth:`IsotropicScattering.dense_per_material` for the oracle-pair
+        rationale (production materialization goes through ``as_matrix``).
+        """
         return {
             mid: np.ascontiguousarray(2.0 * self.mat_xs.n2n_matrix(mid).T)
             for mid in self.mat_xs.materials

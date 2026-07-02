@@ -931,23 +931,34 @@ The construction proceeds in four steps inside
    :attr:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.total_cross_section`.
 
 3. **Isotropic energy transfer**
-   :math:`K_\mathrm{iso} = \Sigma_{s0}^T + 2\Sigma_2^T`, summed from the
+   :math:`K_\mathrm{iso} = \Sigma_{s0}^T + 2\Sigma_2^T`, the action of the
    two model-shared operators
 
    .. math::
       :label: fission-source
 
       K_\mathrm{iso} \;=\;
-      \underbrace{\Sigma_{s0}^{T}}_{\substack{\text{\scriptsize :class:`IsotropicScattering`}\\\text{\scriptsize\ttfamily dense\_per\_material}}}
+      \underbrace{\Sigma_{s0}^{T}}_{\text{\scriptsize :class:`IsotropicScattering`}}
       \;+\;
-      \underbrace{2\,\Sigma_2^{T}}_{\substack{\text{\scriptsize :class:`IsotropicN2N`}\\\text{\scriptsize\ttfamily dense\_per\_material}}}
+      \underbrace{2\,\Sigma_2^{T}}_{\text{\scriptsize :class:`IsotropicN2N`}}
 
-   where
-   :meth:`IsotropicScattering.dense_per_material <orpheus.transport.operators.isotropic_scattering.IsotropicScattering.dense_per_material>`
-   returns :math:`\Sigma_{s0}^T` (the in-scatter source matrix, equal to
-   the stored ``[g_from, g_to]`` matrix transposed) and
-   :meth:`IsotropicN2N.dense_per_material <orpheus.transport.operators.isotropic_scattering.IsotropicN2N.dense_per_material>`
-   returns :math:`2\Sigma_2^T` (the loss-side multiplicity-2 transfer).
+   where :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
+   realises :math:`\Sigma_{s0}^T` (the in-scatter source matrix, the stored
+   ``[g_from, g_to]`` transfer transposed) and
+   :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+   realises :math:`2\Sigma_2^T` (the loss-side multiplicity-2 transfer).
+   The dense :math:`(n_g, n_g)` loss matrix is **not** assembled
+   term-by-term from per-material blocks: the composed operator
+   :math:`\mathbf A = C - K_\mathrm{iso}` (an
+   :class:`~orpheus.numerics.operator.OperatorSum`) is materialized by its
+   own
+   :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`
+   apply-to-basis (:ref:`matrix-inverse-operator`) on the meshless single
+   cell, ``basis_shape=(ng, 1)``. (The operators'
+   :meth:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering.dense_per_material`
+   accessor — the transpose read straight off the stored cross sections — is
+   a storage-side *oracle* used by the verification gates as a
+   structurally-independent cross-check, **not** a production assembly path.)
 
 4. **Drop streaming.**  In an infinite medium the streaming operator
    :math:`L` is identically zero (:math:`\nabla\psi = 0`), so it is

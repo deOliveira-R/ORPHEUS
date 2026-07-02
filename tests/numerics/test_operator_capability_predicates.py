@@ -163,3 +163,10 @@ def test_inverse_objects_are_faithful():
     green = s.inverse()
     _assert_faithful(green)
     assert green.inverse() is s  # involution by object identity (mixin)
+    # M-I3 (#226 step 5): the 4th sibling — DIRECT construction (the
+    # ``.inverse()`` factory routing is #138/CP; no dispatch pin here).
+    from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
+
+    minv = MatrixInverseOperator(D, basis_shape=(3,))
+    _assert_faithful(minv)
+    assert minv.inverse() is D  # the inner, by object identity (mixin)

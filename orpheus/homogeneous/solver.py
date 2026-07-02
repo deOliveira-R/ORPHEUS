@@ -46,7 +46,6 @@ from orpheus.transport.operators.multiplication_operator import MultiplicationOp
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 
 if TYPE_CHECKING:
-    from orpheus.numerics.operator import LinearOperator
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 
@@ -106,26 +105,6 @@ class HomogeneousResult:
 # Solver — k∞ = λ_max(A⁻¹F) over the transport operator algebra
 # ---------------------------------------------------------------------------
 
-def _as_dense(op: "LinearOperator", ng: int) -> np.ndarray:
-    r"""Realize a meshless group operator as a dense ``(ng, ng)`` matrix.
-
-    For the single-cell (0-D) infinite-medium phase space an energy operator
-    acts on the group vector as an ``ng × ng`` matrix; column ``i`` is the
-    operator applied to the ``i``-th group basis vector.  The basis columns
-    are shaped ``(ng, 1)`` — matching the operators' ``(ng, *spatial)`` bare-
-    ndarray contract — so a squeezed ``(ng,)`` column (which would broadcast
-    against a ``(ng, 1)`` coefficient into a spurious ``(ng, ng)``) cannot
-    occur.  Works on ANY meshless-safe operator, including the composition
-    ``C - K_iso`` (an :class:`~orpheus.numerics.operator.OperatorSum`).
-    """
-    cols = []
-    for i in range(ng):
-        e_i = np.zeros((ng, 1))
-        e_i[i, 0] = 1.0
-        cols.append(np.asarray(op.apply(e_i)).ravel())
-    return np.column_stack(cols)
-
-
 def _assemble_loss_matrix(mat_xs: "MaterialXSField") -> np.ndarray:
     r"""The dense loss matrix :math:`A = C - K_\mathrm{iso}` for an infinite medium.
 
@@ -139,14 +118,21 @@ def _assemble_loss_matrix(mat_xs: "MaterialXSField") -> np.ndarray:
     Streaming :math:`L` is identically zero in an infinite medium and dropped.
     The operator algebra ``C - K_iso`` is an
     :class:`~orpheus.numerics.operator.OperatorSum`, realized as a dense
-    ``(ng, ng)`` matrix via :func:`_as_dense`.
+    ``(ng, ng)`` matrix via the operator's own
+    :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix` — the
+    apply-to-basis materialization this module's retired ``_as_dense``
+    prototyped (promoted at taxonomy §12 step 5).  ``basis_shape=(ng, 1)``
+    is the operators' group-leading ``(ng, *spatial)`` bare-ndarray
+    contract on the meshless single cell — passed explicitly because the
+    meshless operators carry no :attr:`~orpheus.numerics.operator.LinearOperator.domain`
+    space to derive it from.
     """
     collision = MultiplicationOperator.from_mesh(
         mat_xs.total_cross_section_field, mat_xs.mesh,
     )
     k_iso = IsotropicScattering(mat_xs) + IsotropicN2N(mat_xs)
     loss = collision - k_iso
-    return _as_dense(loss, mat_xs.mesh.ng)
+    return loss.as_matrix(basis_shape=(mat_xs.mesh.ng, 1))
 
 
 def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
@@ -182,9 +168,12 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     # Loss matrix A = C − K_iso and production dyad F = χ ⊗ νΣ_f, both realized
     # from the transport operators on the meshless single cell (the SAME
     # operators the meshed SN solver uses; #276) — the dense (ng,ng) matrices
-    # come from apply-to-basis-vectors, NOT hand-rolled np.diag/np.outer.
+    # come from the operators' own as_matrix() apply-to-basis materialization,
+    # NOT hand-rolled np.diag/np.outer.
     A = _assemble_loss_matrix(mat_xs)
-    F = _as_dense(FissionOperator.from_solver_data(mat_xs=mat_xs), ng)
+    F = FissionOperator.from_solver_data(mat_xs=mat_xs).as_matrix(
+        basis_shape=(ng, 1),
+    )
 
     # k∞ and the flux spectrum φ are the EXACT dominant eigenpair of the dense
     # resolvent A⁻¹F — the direct (non-iterative) realization of the eigenvalue

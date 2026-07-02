@@ -273,7 +273,7 @@ def test_kinf_is_the_direct_eigenvalue_of_the_assembled_pair():
             "orpheus.numerics.eigenvalue."
         )
 
-    from orpheus.homogeneous.solver import _as_dense, _assemble_loss_matrix
+    from orpheus.homogeneous.solver import _assemble_loss_matrix
     from orpheus.transport.mesh.material_mesh import MaterialMesh
     from orpheus.transport.operators.fission import FissionOperator
 
@@ -281,7 +281,11 @@ def test_kinf_is_the_direct_eigenvalue_of_the_assembled_pair():
     mix = next(iter(case.materials.values()))
     mat_xs = MaterialMesh.from_materials({0: mix}).material_xs_field()
     A = _assemble_loss_matrix(mat_xs)
-    F = _as_dense(FissionOperator.from_solver_data(mat_xs=mat_xs), mix.ng)
+    # The F materialization the solver performs (as_matrix promoted from the
+    # retired _as_dense at taxonomy §12 step 5 — same basis columns, same order).
+    F = FissionOperator.from_solver_data(mat_xs=mat_xs).as_matrix(
+        basis_shape=(mix.ng, 1),
+    )
     if DE is not None:
         k_prim = DE(A, F).solve()[0]
     else:

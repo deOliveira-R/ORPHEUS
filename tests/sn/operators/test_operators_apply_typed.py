@@ -52,6 +52,7 @@ from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.numerics.green_operator import GreenOperator
 from orpheus.numerics.iteration import SupportsSeededApply
+from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.operator import InverseOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.sn.operators.windowing import BulkAnalysisOperator, WindowedSweep
@@ -447,6 +448,7 @@ def _inverse_family_seeded_apply_static_pins(
     sweep: "SweepOperator",
     exact: "InverseOperator",
     green: "GreenOperator",
+    matrix: "MatrixInverseOperator",
     rhs: TimedFullField,
     seed: TimedFullField,
     arr: np.ndarray,
@@ -455,11 +457,16 @@ def _inverse_family_seeded_apply_static_pins(
     signature AND structurally satisfies the driver's
     :class:`~orpheus.numerics.iteration.SupportsSeededApply` contract —
     so ``SourceIteration`` can consume any of them with no per-type
-    probes (the step-3 design, now mixin-enforced)."""
+    probes (the step-3 design, now mixin-enforced; the 4th sibling
+    ``MatrixInverseOperator`` joined at taxonomy §12 step 5 —
+    M-MINV-KWARG: dropping its kwarg is a pyright
+    reportIncompatibleMethodOverride vs the mixin abstract)."""
     assert_type(sweep.apply(rhs, initial_guess=seed), TimedFullField)
     _ = exact.apply(arr, initial_guess=arr)
     _ = green.apply(arr, initial_guess=arr)
+    _ = matrix.apply(arr, initial_guess=arr)
     a: SupportsSeededApply = sweep
     b: SupportsSeededApply = exact
     c: SupportsSeededApply = green
-    del a, b, c
+    d: SupportsSeededApply = matrix
+    del a, b, c, d

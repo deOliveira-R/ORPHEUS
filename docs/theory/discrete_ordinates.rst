@@ -17816,6 +17816,56 @@ branch and have no landed hash yet.
      - Where
    * - in dev
        (2026-07-02)
+     - **Operator-inverse taxonomy step 5 — the materialising functor and
+       the dense direct inverse; #285 closed for products (#226)** — adds the
+       *materialising* family. :meth:`LinearOperator.as_matrix <orpheus.numerics.operator.LinearOperator.as_matrix>`
+       is promoted to a **universal base method** — the functor **out** of
+       the operator category (:math:`\mathrm{Op}\to\mathrm{Mat}`, the
+       taxonomy §2 fourth arrow, NOT an endofunctor), realized as the
+       apply-to-basis loop lifted from the homogeneous solver's retired
+       ``_as_dense`` (C-order columns, rectangular-honest, dense
+       :class:`numpy.ndarray` return). Its size gate
+       :class:`~orpheus.numerics.operator.MatrixTooLarge` is a **RuntimeError**
+       — a *resource* effect on a **total** functor (§17 A2: every operator
+       HAS a matrix), hence **no** ``is_materializable`` predicate, and it is
+       class-distinct from the ``ValueError`` an un-derivable basis raises
+       (§27.C). :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+       is the **4th** :class:`~orpheus.numerics.operator.InverseWrapMixin`
+       sibling — the inverse of a **structureless small** operator (eager
+       ``lu_factor(inner.as_matrix())`` + per-``apply`` back-solve), direct
+       construction only (no ``.inverse()`` routes to it yet). Its **name is
+       earned** at the **precision grain** (spec §27.A, which **supersedes**
+       the §13 M-row parenthetical now that ``as_matrix`` is universal): an
+       iterative Green *also* satisfies :math:`[G][A]\approx I`, but only to
+       driver-tol — M-materialise + M-direct hold at **machine·cond**, with an
+       explicit Green contrast proving the invariant *distinguishing*. The
+       constructor reads **values, not structure** — it does **not** consult
+       ``inner.is_invertible``; the witness is :math:`(-S_{\rm ao})+D`, which
+       :class:`~orpheus.numerics.green_operator.GreenOperator` **refuses** at
+       construction (leading term non-invertible) yet materializes to an
+       invertible matrix that this class inverts (the §3 strategy-override
+       seam as explicit construction, ndarray analog of the ``FullField``
+       :math:`(-S)+(L+C)`, out of ``as_matrix``'s ndarray scope). **#285
+       closed for products**:
+       :meth:`OperatorProduct.inverse <orpheus.numerics.operator.OperatorProduct.inverse>`
+       now returns :class:`~orpheus.numerics.operator.InverseOperator`
+       (bit-identical action, canonical seeded ``apply``, object-identity
+       involution) — the **two-kinds** taxonomy (wrap-delegate family vs
+       algebra-closed Permutation/Identity/Scaled inverses that stay
+       unwrapped); the mixin ``_ForwardT`` bound relaxed
+       ``_InvertibleForward`` → ``_WrappedForward``. Homogeneous ``_as_dense``
+       **retired** → both call sites on ``as_matrix(basis_shape=(ng,1))``
+       (byte-identical :math:`k_\infty` / flux; the landed SymPy pins
+       untouched); ``dense_per_material`` re-documented as the storage-side
+       oracle (zero production consumers). Gates:
+       ``tests/numerics/test_matrix_inverse_operator.py`` + extensions;
+       **14 mutations verified**, pyright ratchet exactly 148. See
+       :ref:`matrix-inverse-operator` (:doc:`operator_algebra`).
+     - #226 / #285
+     - *(in development)*
+       ``refactor/inverse-as-operator``
+   * - in dev
+       (2026-07-02)
      - **Operator-inverse taxonomy step 4 — the Green operator (the first
        *iterative* inverse) + the wrap-delegate mixin (#226)** — the generic
        sum inverse.

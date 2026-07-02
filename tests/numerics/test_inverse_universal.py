@@ -177,6 +177,62 @@ def test_sum_inverse_dispatches_to_green():
     assert inv.inverse() is s  # the involution, by object identity
 
 
+def test_matrix_inverse_operator_universal_roundtrip():
+    """§30.10 (step 5): the 4th sibling joins the universal net as a
+    DIRECT-construction registry row — the ``.inverse()``-factory routing
+    (``type(A.inverse()) is MatrixInverseOperator``) lands with #138/CP;
+    a dispatch pin now would be a phantom."""
+    from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
+
+    A = DiagonalOperator(_C7)
+    minv = MatrixInverseOperator(A, basis_shape=(7,))
+    np.testing.assert_allclose(minv.apply(A.apply(_X7)), _X7, atol=1e-12)
+    np.testing.assert_allclose(minv.apply(_X7), _X7 / _C7, atol=1e-12)  # closed form
+    assert minv.inverse() is A  # involution, object identity (mixin)
+
+
+def test_product_inverse_accepts_seeded_apply():
+    """§31.2 PROD-285-REPRO — the #285 witness: a composed inverse now
+    carries the canonical seeded-apply kwarg (TypeError pre-#285: the raw
+    reversed product's ``apply(x, /)`` was positional-only; accepted post:
+    ``InverseOperator``'s mixin ``apply(x, /, *, initial_guess=None)``).
+    The equality is the designed-green accept-and-ignore proof — the seed
+    changes nothing, exactly like the exact leaves."""
+    D, P = DiagonalOperator(_C7), PermutationOperator(_P7)
+    inv = (D @ P).inverse()
+    q = _RNG.standard_normal(7)
+    out = inv.apply(q, initial_guess=q)  # <-- TypeError pre-#285
+    np.testing.assert_array_equal(out, inv.apply(q))
+
+
+def test_product_inverse_value_and_involution():
+    """§31.3: the family wrapper is BIT-identical to the composition path
+    ``b.solve(a.solve(q))`` (the value the raw reversed product realized),
+    and the involution STRENGTHENS to object identity (the raw product
+    rebuilt fresh objects). NON-commuting factors (§0.6) so the
+    M-PROD-FACTORORDER a/b swap reddens."""
+    D, P = DiagonalOperator(_C7), PermutationOperator(_P7)
+    prod = D @ P
+    inv = prod.inverse()
+    assert type(inv) is InverseOperator  # the generic member, not a raw product
+    q = _RNG.standard_normal(7)
+    np.testing.assert_array_equal(
+        inv.apply(q), P.solve(D.solve(q)),
+        err_msg="#285 product-inverse value ≠ b.solve(a.solve(q))",
+    )
+    assert inv.inverse() is prod  # strengthened involution
+
+
+def test_algebra_closed_inverses_unchanged():
+    """§31.4: the OTHER kind of inverse — algebra-closed structures whose
+    inverse is a first-class FORWARD in the same closed family (a perm's
+    inverse IS a perm). #285 does NOT route these through InverseOperator
+    (documented in ``OperatorProduct.inverse``; not gated for seed)."""
+    assert type(PermutationOperator(_P7).inverse()) is PermutationOperator
+    assert type(IdentityOperator().inverse()) is IdentityOperator
+    assert type(ScaledOperator(2.0, DiagonalOperator(_C7)).inverse()) is ScaledOperator
+
+
 def test_bound_shim_forwards_inverse():
     """The NINTH advertiser: the shim forwards ``.inverse()`` (§12.5)."""
     inner = PermutationOperator(_P7)

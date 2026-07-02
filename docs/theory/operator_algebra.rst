@@ -8297,13 +8297,64 @@ mutation-verified) and ``ABCMeta`` blocks a sibling that omits ``apply``
 entirely. The narrowing ``_seeded_inverse`` performs is therefore now a
 cast over an *already-guaranteed* shape rather than a hoped-for one, and
 every ``.inverse()`` a posing layer reaches through it carries the seeded
-signature by construction. One residue stays outside the family until
-taxonomy step 5: a composed
+signature by construction.
+
+**Step 5 closed the product residue.** One ``.inverse()`` stayed outside the
+family after step 4: a composed
 :meth:`OperatorProduct.inverse <orpheus.numerics.operator.OperatorProduct.inverse>`
 is a *composition* (:math:`(AB)^{-1}=B^{-1}A^{-1}`), not a wrap-delegate
-sibling, and does not take the keyword today — it joins the contract with
-``MatrixInverseOperator`` (#285's remaining scope). The mixin and its
-enforcement are documented at :ref:`green-operator`.
+sibling, and it returned a **raw reversed product** whose positional-only
+``apply(x, /)`` raised ``TypeError`` when a driver seeded it. It now returns
+:class:`~orpheus.numerics.operator.InverseOperator`\ ``(self)`` — the generic
+family member wrapping the product. The action is **bit-identical**
+(``apply`` delegates to the product's own ``solve`` = ``b.solve(a.solve(q))``,
+exactly the two solves the reversed product composed), but the wrapper adds
+the canonical seeded ``apply`` (the #285 ``TypeError`` repro flips to
+*accepted* — the solve path never threaded seeds either, so behavior is
+unchanged) and **strengthens the involution to object identity**
+(``(A@B).inverse().inverse() is (A@B)``, where the reversed-product spelling
+rebuilt fresh objects). The factors stay reachable as ``.inner.a`` /
+``.inner.b``.
+
+**Two kinds of inverse.** The closure exposes a clean split in what
+``.inverse()`` returns across the whole algebra:
+
+.. list-table:: Wrap-delegate vs algebra-closed inverses
+   :header-rows: 1
+   :widths: 26 34 40
+
+   * - Kind
+     - Members
+     - What ``.inverse()`` returns
+   * - **Wrap-delegate** (the #226 family)
+     - :class:`~orpheus.numerics.operator.InverseOperator`,
+       :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`,
+       :class:`~orpheus.numerics.green_operator.GreenOperator`,
+       :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`,
+       and now the composed :class:`~orpheus.numerics.operator.OperatorProduct`
+     - a thin typed wrapper around the *forward* :math:`A`, carrying the
+       canonical seeded ``apply`` — the object *represents* :math:`A^{-1}`
+       by inverting :math:`A` on demand.
+   * - **Algebra-closed** (first-class forwards)
+     - :class:`~orpheus.numerics.operator.PermutationOperator` (inverse *is*
+       a permutation), :class:`~orpheus.numerics.operator.IdentityOperator`
+       (self-inverse), :class:`~orpheus.numerics.operator.ScaledOperator`
+       (:math:`(\alpha L)^{-1}=\alpha^{-1}L^{-1}`)
+     - a first-class **forward** operator in the same closed structure — the
+       *other* kind of inverse, deliberately left **unwrapped** (a
+       permutation's inverse is nothing more exotic than a permutation, so
+       wrapping it would only hide its structure).
+
+The wrap-delegate mixin's ``_ForwardT`` bound was also relaxed from
+``_InvertibleForward`` to the new minimal ``_WrappedForward`` Protocol
+(``domain`` / ``codomain`` / ``apply`` — exactly what the back-half
+consumes), which the 4th sibling forced:
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+inverts the *materialization* and never touches ``inner.solve`` or
+``inner.is_invertible``, exposing the true minimum bound. The mixin and its
+enforcement are documented at :ref:`green-operator`; the materialising
+sibling, the ``as_matrix`` functor, and the two-error-class boundary at
+:ref:`matrix-inverse-operator`.
 
 The two eigenvalue-outer consumers pose the inverse explicitly:
 
@@ -8756,6 +8807,414 @@ driver-start reddens Green's own Mode-11 seed spy while the landed step-3
 spy and every value gate stay green, proving the step-3 spy is structurally
 blind to Green's driver-start threading). The pyright ratchet held exactly
 at baseline; the Sphinx build stayed ``-W`` clean.
+
+
+.. _matrix-inverse-operator:
+
+The materialising functor and the dense direct inverse (#226 step 5)
+====================================================================
+
+Steps 1–4 built the inverse *operators* — the exact leaf
+:class:`~orpheus.numerics.operator.InverseOperator`, the
+schedule-triangular
+:class:`~orpheus.sn.operators.sweep_operator.SweepOperator`, and the
+iterative :class:`~orpheus.numerics.green_operator.GreenOperator` — each a
+matrix-free wrapper that realizes :math:`A^{-1}` by *applying* it. **Step 5
+adds the** *materialising* **family**: the serialization boundary
+:meth:`~orpheus.numerics.operator.LinearOperator.as_matrix` promoted to a
+universal ``LinearOperator`` base method, and the fourth
+:class:`~orpheus.numerics.operator.InverseWrapMixin` sibling
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator` —
+the inverse of a **structureless small** operator, obtained by
+materializing :math:`[A]`, factoring it once (LU), and back-solving every
+:meth:`apply`. The step also **closes #285** for composed inverses (the product residue
+retired in the #285 structural-resolution section above) and retires the
+homogeneous solver's ``_as_dense`` prototype into the new base method.
+
+
+``as_matrix`` — the functor out of the operator category
+--------------------------------------------------------
+
+The inverse, adjoint, and composition maps of :ref:`operator-algebra` are
+all **endofunctors** :math:`\mathrm{Op}\to\mathrm{Op}`: each takes an
+operator to another operator. ``as_matrix`` is the **fourth arrow** of the
+taxonomy (§2) — the functor *out* of the operator category,
+:math:`\mathrm{Op}\to\mathrm{Mat}`, the serialization boundary that leaves
+the matrix-free world entirely. It is realized as the **apply-to-basis**
+loop: column :math:`j` is the operator applied to the :math:`j`-th basis
+element,
+
+.. math::
+   :label: matrix-functor-out
+
+   [A]_{:,j} \;=\; \operatorname{ravel}\bigl(A\,e_j\bigr),
+   \qquad
+   e_j \;=\; \operatorname{unravel}(\delta_j),
+   \qquad
+   j = 0,\dots,\textstyle\prod_k b_k - 1,
+
+.. vv-status: matrix-functor-out documented
+
+with basis elements enumerated in **C-order** over the carrier shape
+:math:`(b_0,\dots,b_{d-1})` and each output raveled the same way, so
+:math:`[A]\,x_{\rm flat} = (A\,x)_{\rm flat}` exactly and — for a
+group-leading :math:`(n_g,1)` carrier — column :math:`j` is the response to
+a unit source in group :math:`j`. The matrix is
+:math:`(\prod\text{out shape})\times(\prod_k b_k)`: **rectangular whenever
+the operator is not endomorphic**, because the output dimension emerges
+from :meth:`apply` itself, never from declared metadata (a coisometry
+materializes as a genuinely wider-than-tall block, :ref:`windowing-retyped`).
+
+This default body is the **promoted** ``_as_dense`` apply-to-basis loop
+that lived privately in ``homogeneous/solver.py`` until step 5. Its
+promotion to the base class is the Cardinal-Rule-2 move: the one place that
+turned an operator into a dense matrix becomes the method *every* operator
+inherits, and the homogeneous solver drops its private copy
+(:ref:`matrix-inverse-consumers`).
+
+
+The resolution rule and the two error classes
+---------------------------------------------
+
+Two questions must be answered before the loop runs: *what shape* are the
+basis elements, and *is the materialization affordable*. They raise **two
+deliberately distinct exception classes** (spec §27.C), because they are
+different kinds of failure.
+
+**Basis-shape resolution** is single-sourced in ``_resolve_basis_shape``
+(shared with the eager
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+constructor, which must know the resolved shape to reshape solutions back
+into carriers — one source, no reciprocal drift). The rule has three arms:
+
+#. an explicit ``basis_shape`` wins;
+#. else the operator's own
+   :attr:`~orpheus.numerics.operator.LinearOperator.domain` supplies
+   ``domain.shape``;
+#. else — **no domain and no explicit shape** — the request is *ill-posed*:
+   the basis cannot be derived at all, and the method raises ``ValueError``
+   naming both remedies (construct the operator with a space, or pass an
+   explicit ``basis_shape=(n_g, 1)``).
+
+**The size gate** is orthogonal. When the resolved dimension
+:math:`n=\prod_k b_k` exceeds ``max_dimension``, the method raises
+:class:`~orpheus.numerics.operator.MatrixTooLarge` — a *well-posed* request
+that this environment *refuses on resource grounds*.
+
+The two must never be caught with one loose ``except (ValueError,
+RuntimeError)``: a bug that collapsed the two would pass such a test. The
+boundary gates pin each separately, and their ``pytest.raises`` matches are
+class-discriminating — a Pattern-4 illegal-states check, "un-materializable
+*as posed*" :math:`\neq` "too big to materialize *here*".
+
+
+The size gate and the dense-vs-sparse ruling
+--------------------------------------------
+
+:class:`~orpheus.numerics.operator.MatrixTooLarge` is a **RuntimeError**,
+not a ``ValueError`` — and there is deliberately **no** ``is_materializable``
+predicate beside
+:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`. The reason
+is the taxonomy §17 A2 distinction: ``as_matrix`` is a **total functor**.
+*Every* finite-dimensional linear operator *has* a matrix; nothing about
+its structure or values can make it "un-materializable". What the gate
+guards is a **resource effect** — materializing commits :math:`O(n^2)`
+memory and :math:`n` applications — so the refusal is a runtime resource
+precheck (it reads nothing but a dimension), *not* a structural restriction
+(``is_invertible`` / ``is_adjointable`` read the operator's structure *and*
+values). The default budget is ``max_dimension = 4096`` — a :math:`4096^2`
+float64 is 134 MB and 4096 applications, generous for every
+dense-by-construction consumer (0-D energy spectra, CP :math:`[P]`) and
+prohibitive for a meshed SN full-field operator by design. It is a per-call
+knob: ``try: A.as_matrix() except MatrixTooLarge: <iterative path>``, or
+raise the budget for one call.
+
+**The return is a dense** :class:`numpy.ndarray`. The dense-vs-sparse
+return keying was the one open thread (W4) that taxonomy §11.4 explicitly
+**deferred to step 5**, and the ruling is: *keyed by the operator's
+structural override, with dense the only realization built until a sparse
+consumer exists*. A structured operator MAY override ``as_matrix`` with a
+direct assembly — the future per-octant sparse-triangular streaming
+assembly noted at ``sweep_graph.py:66`` is exactly such an override, and it
+is **deferred with its 3-D consumer** (there is no sparse consumer today,
+so building the sparse path now would be a primitive with no product —
+defer-until-consumer, Cardinal Rule 2).
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator` is
+the one override that ships in step 5, and it collapses to a single batched
+LU back-solve (below), not a sparse form.
+
+
+``MatrixInverseOperator`` — the dense direct inverse
+----------------------------------------------------
+
+``A.inverse()`` is a **structure-keyed factory** (taxonomy §13): the
+concrete subclass names the mathematical *object* the inverse is, never the
+algorithm. A schedule-triangular forward returns the direct-substitution
+:class:`~orpheus.sn.operators.sweep_operator.SweepOperator`; a general sum
+with an invertible leading term returns the preconditioned-splitting
+:class:`~orpheus.numerics.green_operator.GreenOperator`; a value-bearing
+leaf returns the pointwise
+:class:`~orpheus.numerics.operator.InverseOperator`.
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator` is
+the inverse of a **structureless small** operator — the 0-D energy
+spectrum, a CP collision-probability block, any composition whose only
+exploitable property is that it *fits*. Its algorithm is the honest
+consequence of "no structure to exploit, but small enough to hold":
+materialize :math:`[A]` once, ``lu_factor`` it once, and every
+:meth:`apply` is a direct ``lu_solve`` back-solve; its
+:meth:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator.as_matrix`
+override collapses the base loop to one **batched** ``lu_solve(lu, I)``
+against the same factors.
+
+It is the fourth
+:class:`~orpheus.numerics.operator.InverseWrapMixin` sibling, so its entire
+back-half — ``capabilities = {apply, solve}``, the domain↔codomain swap,
+``solve`` = the forward matvec ``inner.apply``, and the object-identity
+involution ``inverse() → inner`` — is inherited. It keeps only the family's
+three per-sibling pieces: its constructor guard, its ``apply`` body, and
+``__repr__``. Its home is a leaf module (the ``green_operator.py``
+placement precedent), and — *unlike* Green — nothing in ``operator.py``
+routes back to it: **no automatic** ``.inverse()`` **returns this type**,
+so there is no late-import seam at all, and (step 5 scope) it is **direct
+construction only**, never a factory-dispatch target. The
+``A.inverse() → MatrixInverseOperator`` routing and the normal-form
+spelling ``K = MatrixInverseOperator(loss) @ F`` land later (task #138 / CP).
+
+
+The name is earned — M-materialise and M-direct at the precision grain
+----------------------------------------------------------------------
+
+A subclass name in this family is a **promise backed by a test**
+(taxonomy §13): a distinguishing invariant a bare
+:class:`~orpheus.numerics.operator.InverseOperator` does not automatically
+have. For ``MatrixInverseOperator`` the promise is the **Matrix** invariant
+in two faces — M-materialise (the explicit inverse, both ways) and M-direct
+(the true residual):
+
+.. math::
+   :label: matrix-inverse-materialise
+
+   \bigl\lVert\,[A^{-1}]\,[A] - I\,\bigr\rVert
+   \;=\;
+   \bigl\lVert\,[A]\,[A^{-1}] - I\,\bigr\rVert
+   \;\le\; K\,\varepsilon_{\rm mach}\,\kappa(A)
+   \qquad\text{(M-materialise, both ways)} ,
+
+.. vv-status: matrix-inverse-materialise documented
+
+.. math::
+   :label: matrix-inverse-direct-residual
+
+   \frac{\bigl\lVert A\,(A^{-1}q) - q\bigr\rVert}{\lVert q\rVert}
+   \;\le\; K\,\varepsilon_{\rm mach}\,\kappa(A)
+   \qquad\text{(M-direct, seed-independent)} .
+
+.. vv-status: matrix-inverse-direct-residual documented
+
+**What earns the name is the precision GRAIN, not the existence of a
+matrix** — and this **supersedes the taxonomy §13 M-row parenthetical**
+("a matrix-free inverse *cannot* satisfy M-materialise, having no
+``as_matrix``"). That parenthetical is now **false**: step 5 made
+``as_matrix`` universal, so an *iterative*
+:class:`~orpheus.numerics.green_operator.GreenOperator` **also** satisfies
+:math:`[\,\text{green}\,]\,[A]\approx I` — each column ``green.apply(e_j)``
+:math:`\approx A^{-1}e_j`. "No ``as_matrix``" no longer distinguishes the
+direct inverse; the **grain of the approximation** does:
+
+.. list-table:: Why the grain is the name-earner (spec §27.A)
+   :header-rows: 1
+   :widths: 24 38 38
+
+   * - Face
+     - ``MatrixInverseOperator``
+     - an iterative Green over the same :math:`A`
+   * - :math:`[A^{-1}]\,[A]-I`
+     - one batched ``lu_solve`` on the identity against the SAME
+       factorization — **machine·cond**, no second realization, no
+       iteration floor
+     - :math:`n` iterative solves, each to **driver tolerance**
+       (:math:`\sim 10^{-8}`) — floors at its stopping tol
+   * - :math:`\lVert A(A^{-1}q)-q\rVert`
+     - a direct solve — **machine·cond** true residual
+     - floors at the driver tolerance, never machine grain
+
+So M-materialise and M-direct are gated at **machine·cond** grain
+(:math:`\text{atol}=K\,\varepsilon_{\rm mach}\,\kappa`), and the gate carries
+an explicit **contrast**: the *same* :math:`A`, wrapped as a
+:class:`~orpheus.numerics.green_operator.GreenOperator`, meets only
+driver-tol — proving the invariant *distinguishing*, not merely satisfied
+(the §21 discipline "a bare invariant a generic inverse also satisfies is
+not name-earning"). M-direct is also the **seed-independence** face: an
+exact direct inverse has nothing to seed, so the canonical
+``initial_guess`` keyword is accepted and *ignored*, and the result is
+bit-identical under any seed — contrast the sweep's Carlson closure and
+Green's splitting start, which *consume* it.
+
+
+Values, not structure — the guard difference and the witness
+------------------------------------------------------------
+
+The constructor deliberately **does not consult** ``inner.is_invertible``.
+That predicate is *structural* — it reads the operand tree, and for a sum it
+reports "leading-term-preconditionable at this spelling"
+(:ref:`green-operator`), a property of the *spelling*, not of the matrix.
+``MatrixInverseOperator`` reads **values**: it materializes :math:`[A]` and
+factors it, and a matrix is either numerically invertible or it is not,
+regardless of how the operator that produced it was spelled. The guards
+that remain are the honest value-level ones, all raised at **construction**
+(this module family's composition-time-not-call-time principle), never at
+apply time:
+
+.. list-table:: The three construction-time guards
+   :header-rows: 1
+   :widths: 22 78
+
+   * - Guard
+     - Behaviour
+   * - **Size**
+     - :class:`~orpheus.numerics.operator.MatrixTooLarge` propagates from
+       the eager materialization (the size gate above).
+   * - **Squareness**
+     - a rectangular materialization has no two-sided inverse — a
+       ``ValueError`` in domain language ("M-materialise is unsatisfiable").
+   * - **Exact singularity**
+     - a zero LU pivot raises :class:`numpy.linalg.LinAlgError`. scipy's
+       *own* singularity signal is only a ``LinAlgWarning`` (``getrf`` info
+       :math:`>0`), which would let a zero pivot flow into ``inf`` / ``nan``
+       back-solves — the constructor **silences that warning and raises the
+       loud error** from the U-diagonal instead (Cardinal Rule 1: fail at
+       construction, never return a non-inverse). **Near**-singularity is
+       *not* refused — it is priced into the M-direct :math:`\kappa(A)`
+       bound.
+
+**The witness.** The values-vs-structure difference is provable, and it is
+the taxonomy §3 ``strategy=`` override seam realized *honestly* — not a flag
+on ``.inverse()`` but an explicit construction by a consumer who knows the
+problem is small (**the type IS the strategy choice**). The witness is a sum
+whose **leading term is not invertible**: the canonical motivating form is
+the SN :math:`(-S)+(L+C)`, which
+:class:`~orpheus.numerics.green_operator.GreenOperator` **refuses at
+construction** (left-spine head :math:`-S` non-invertible, canonical-ordering
+:class:`~orpheus.numerics.operator.MissingCapability`) yet which materializes
+to a perfectly invertible matrix. Because the real :math:`(-S)+(L+C)` is a
+``FullField`` carrier — **out of ``as_matrix``'s ndarray scope** (the
+honest-scope note below) — the gate proves the identical refusal/inversion
+asymmetry on the realizable ndarray analog :math:`(-S_{\rm ao})+D` (an
+apply-only leaf :math:`S_{\rm ao}`, ``is_invertible = False``, plus a
+diagonal :math:`D`): ``.inverse()`` refuses it, while
+``MatrixInverseOperator`` materializes :math:`D-S_{\rm ao}` and inverts it,
+anchored against :math:`\mathrm{np.linalg.solve}(D-S_{\rm ao},\,q)`. The
+*structure* — a leading-non-invertible sum that is nonetheless an invertible
+matrix — is what the witness proves; the physics is incidental.
+
+.. note::
+
+   **Honest scope — ``as_matrix`` serves ndarray carriers only.** The
+   apply-to-basis loop builds bare-ndarray :math:`e_j`; a **typed-carrier**
+   (``FullField`` SN composite) operator's ``apply`` needs a ``FullField``
+   basis vector and sits far above any sane size gate, so it stays
+   matrix-free. Step 5 gates ndarray-carrier operators only (diagonal /
+   permutation / the model-shared energy leaves / small compositions /
+   dense test operators); the ``FullField`` :math:`(L+C)` and
+   :math:`(-S)+(L+C)` materialization is a future carve (its 3-D
+   sparse-triangular sibling is the deferred ``sweep_graph.py:66``
+   override). This is exactly why the witness above uses the ndarray analog.
+
+
+.. _matrix-inverse-consumers:
+
+The consumer ruling — the latent normal form
+--------------------------------------------
+
+Like :class:`~orpheus.numerics.green_operator.GreenOperator` at step 4,
+``MatrixInverseOperator`` ships **verified but not yet wired as the
+production spelling** — its value gates construct it directly, and the
+factory routing waits. The consumers, present and latent:
+
+* **The retired ``_as_dense``.** The homogeneous solver's private
+  apply-to-basis loop is retired into
+  :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`; both call
+  sites — the loss matrix :math:`\mathbf A = C - K_{\rm iso}` and the
+  fission dyad :math:`\mathbf F = \chi\otimes\nu\Sigma_f` — now read
+  ``op.as_matrix(basis_shape=(n_g, 1))``. The output is **byte-identical**
+  (same basis columns, same C-order, same eigen call); a ``HOMOG-EQUIV``
+  gate inlines the retired loop as a local oracle, and the landed SymPy
+  :math:`k_\infty` pins stayed green untouched. See :ref:`theory-homogeneous`.
+* **``direct_eigenvalue`` — the latent consumer.**
+  :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`'s dense
+  ``np.linalg.solve(A, F)`` **is** this operator's action written as free
+  functions — the latent consumer that made the promotion finishable
+  (taxonomy §5: "no current consumer" often means "consumer not yet
+  wired"). The engine itself stays **ndarray-pure** — its closed-form
+  verification is the point — so the full operator spelling
+  ``K = MatrixInverseOperator(loss) @ F`` is the follow-on (task #138), not
+  this step.
+* **CP :math:`[P]` — the production earner.** The collision-probability
+  matrix is dense **by construction** (:doc:`collision_probability`, §14b),
+  so a CP ``.inverse()`` realized as a ``MatrixInverseOperator`` is the
+  method that will earn the class in production.
+
+This is the **same consumer ruling** ``GreenOperator`` shipped under at step
+4: the type is correct and pinned now; the factory dispatch and the
+normal-form spellings arrive with their consumers.
+
+
+Verification
+------------
+
+``MatrixInverseOperator`` is a **direct** inverse, so — unlike the iterative
+:class:`~orpheus.numerics.green_operator.GreenOperator` — its correctness is
+asserted at **machine·cond** grain against a **closed-form** dense reference
+(hand-built ``Diagonal`` / ``Permutation`` matrices; the
+structurally-independent
+:meth:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering.dense_per_material`
+*storage* transpose for the energy leaves), never at a driver tolerance. It
+shares Green's honest framing in one respect: it is not an eigenvalue solver
+and is not source-driven, so **no gate here makes an eigenvalue claim on an
+MMS reference**; the homogeneous :math:`k_\infty` that rides through the
+retired-loop relocation is anchored on its landed **closed-form** SymPy
+value (``test_kinf_exact``, 1e-12), the analytical pillar.
+
+.. list-table:: Step-5 verification gates (all ``@pytest.mark.foundation``)
+   :header-rows: 1
+   :widths: 42 58
+
+   * - Gate file
+     - What it pins
+   * - ``tests/numerics/test_matrix_inverse_operator.py``
+     - The base ``as_matrix`` L0 (exact vs hand-built + the storage-oracle
+       cross-check; the **C-order column convention on a non-symmetric op**;
+       rectangular-honesty; :math:`\equiv` the retired ``_as_dense`` loop),
+       the ``ValueError`` / ``MatrixTooLarge`` boundary (class-discriminated,
+       with an **at-threshold** designed-green control), and the
+       ``MatrixInverseOperator`` invariants (M-materialise + M-direct at
+       machine·cond with the **Green driver-tol contrast**, seed
+       bit-identity, the back-half anchor, the non-square / singular /
+       too-large guards with a positive constructs-cleanly control, and the
+       :math:`(-S_{\rm ao})+D` **witness**).
+   * - ``test_inverse_universal.py`` /
+       ``test_operator_capability_predicates.py`` /
+       ``test_operators_apply_typed.py``
+     - The 4th sibling's participation in the universal family: the
+       direct-construction registry row, object faithfulness, and the static
+       ``assert_type`` / ``SupportsSeededApply`` conformance (a kwarg-less
+       ``apply`` override is a CLI-pyright
+       ``reportIncompatibleMethodOverride``).
+
+The config discipline follows the family: the column convention is pinned on
+a **non-symmetric** operator (a symmetric one is blind to a transpose,
+Mode 6), and every value gate anchors on the **hand-built** reference, not on
+``np.linalg.solve(A.as_matrix(), ·)`` alone (which would be self-referential).
+The teeth are a **14-mutation bank** verified under ``-O`` (2026-07-02): each
+mutation reddens a *named* gate — the ``as_matrix`` transpose / ravel /
+size-gate / resolve family, the ``MatrixInverseOperator`` LU-transpose /
+seed-consume / forward-``as_matrix`` / non-square-guard / kwarg-drop /
+structural-guard-added family, the two ``OperatorProduct``-closure mutations,
+and the homogeneous-relocation divergence — beside the designed-green
+controls (the at-threshold materialization, the positive constructor, the
+ignored seed). The pyright ratchet held exactly at 148; the homogeneous
+:math:`k_\infty` / flux stayed byte-identical; the Sphinx build stayed
+``-W`` clean.
 
 
 .. _trace-spaces-doc:

@@ -76,18 +76,21 @@ then takes the dominant eigenpair directly:
 * **Loss matrix** :math:`\mathbf{A} = C - K_\mathrm{iso} =
   \operatorname{diag}(\Sigma_t) - \Sigma_{s0}^{\mathsf T} -
   2\Sigma_2^{\mathsf T}`, with :math:`C = \operatorname{diag}(\Sigma_t)`
-  the collision diagonal and :math:`K_\mathrm{iso}` summed from
-  :meth:`IsotropicScattering.dense_per_material
-  <orpheus.transport.operators.isotropic_scattering.IsotropicScattering.dense_per_material>`
+  the collision diagonal and :math:`K_\mathrm{iso}` the sum of the
+  model-shared
+  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
   (:math:`\Sigma_{s0}^{\mathsf T}`) and
-  :meth:`IsotropicN2N.dense_per_material
-  <orpheus.transport.operators.isotropic_scattering.IsotropicN2N.dense_per_material>`
-  (:math:`2\Sigma_2^{\mathsf T}`). Streaming :math:`L \equiv 0` in an
-  infinite medium and is dropped.
+  :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
+  (:math:`2\Sigma_2^{\mathsf T}`) operators. The composed operator
+  :math:`C - K_\mathrm{iso}` is materialised densely via its own
+  :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`
+  apply-to-basis (``basis_shape=(ng, 1)``). Streaming :math:`L \equiv 0` in
+  an infinite medium and is dropped.
 * **Production dyad** :math:`\mathbf{F} = \chi \otimes \nu\Sigma_f`,
   the rank-1 form of
-  :class:`~orpheus.transport.operators.fission.FissionOperator`
-  (materialised densely via :func:`numpy.outer`).
+  :class:`~orpheus.transport.operators.fission.FissionOperator`, likewise
+  materialised densely via its own
+  :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`.
 * **Eigenpair** :math:`k_\infty = \lambda_{\max}(\mathbf{A}^{-1}\mathbf{F})`
   and the dominant right eigenvector, computed by one
   :func:`numpy.linalg.solve` (to apply :math:`\mathbf{A}^{-1}`) plus
