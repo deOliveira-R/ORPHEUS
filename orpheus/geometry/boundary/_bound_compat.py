@@ -56,9 +56,15 @@ References
 
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 
-from orpheus.numerics.operator import LinearOperator
+from orpheus.numerics.operator import (
+    LinearOperator,
+    MissingCapability,
+    SupportsInverse,
+)
 
 
 __all__ = ["_BoundBoundaryOperator"]
@@ -118,6 +124,24 @@ class _BoundBoundaryOperator(LinearOperator):
     def is_adjointable(self) -> bool:
         return self.inner.is_adjointable
 
+    def inverse(self) -> "LinearOperator":
+        r"""Forward :meth:`inverse` to the realized inner law (#226 step 1).
+
+        The shim is a transparent typed handle: whenever the inner law
+        advertises ``is_invertible`` (a reflective
+        :class:`~orpheus.numerics.operator.PermutationOperator` does), its
+        inverse OPERATOR must be reachable through the shim exactly as the
+        predicate is — otherwise the shim would advertise a promise
+        (``is_invertible=True``) it cannot deliver. Raises the inner law's
+        own guard on a non-invertible law (a vacuum mask projects).
+        """
+        if not self.inner.is_invertible:
+            raise MissingCapability(
+                f"_BoundBoundaryOperator.inverse: the realized "
+                f"{type(self.inner).__name__} law is not invertible."
+            )
+        return cast(SupportsInverse, self.inner).inverse()
+
     @property
     def block_role(self):  # type: ignore[override]
         # Forward the realized law's block-role classification (Issue #208
@@ -133,6 +157,20 @@ class _BoundBoundaryOperator(LinearOperator):
 
     def apply_transpose(self, psi: np.ndarray) -> np.ndarray:
         return self.inner.apply_transpose(psi)
+
+    def solve(self, b: np.ndarray) -> np.ndarray:
+        r"""Forward ``solve`` to the inner law (#226 step 1 review fix).
+
+        The shim forwards :attr:`capabilities` verbatim, so whenever the
+        inner law advertises ``CAP_SOLVE`` the shim advertises it too —
+        every forwarded capability must have a backing method, or the
+        standard ``if CAP_SOLVE in caps: op.solve(...)`` idiom would pass
+        the guard and then ``AttributeError``. Dies with the ``solve``
+        surface at carve P4.
+        """
+        from typing import Any, cast
+
+        return cast(Any, self.inner).solve(b)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, str):

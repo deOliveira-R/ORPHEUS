@@ -101,14 +101,21 @@ def test_inverse_threads_initial_guess_object_to_solve(monkeypatch):
     assert captured["seed"] is seed  # the EXACT object threaded through
 
 
-def test_inverse_returns_sweep_operator_apply_only():
-    """``(L+C).inverse()`` is a :class:`SweepOperator` wrapping the forward op; it
-    advertises ``apply`` only (solve/transpose deferred to #280) and the inverse
-    swaps domain/codomain (equal here — ``L+C`` is endomorphic)."""
+def test_inverse_returns_sweep_operator_surface():
+    """``(L+C).inverse()`` is a :class:`SweepOperator` wrapping the forward op.
+
+    Pins the taxonomy step-1 surface (supersedes the Phase-2 "apply-only"
+    deferral pin): the invertibility axis is now DELIVERED — ``is_invertible``
+    with a faithful ``CAP_SOLVE`` (``solve`` on the inverse is the forward
+    matvec), and the involution ``inverse().inverse() is A`` holds by OBJECT
+    IDENTITY (§13 I2). The ADJOINT axis stays honestly deferred (#280):
+    ``is_adjointable`` False. Domain/codomain swap (equal here — ``L+C`` is
+    endomorphic)."""
     _, A, _ = _build(_slab)
     inv = A.inverse()
     assert isinstance(inv, SweepOperator)
     assert inv.inner is A
-    assert inv.capabilities == frozenset({"apply"})
-    assert inv.is_invertible is False and inv.is_adjointable is False
+    assert inv.capabilities == frozenset({"apply", "solve"})
+    assert inv.is_invertible is True and inv.is_adjointable is False
+    assert inv.inverse() is A  # (A^{-1})^{-1} = A — by object identity
     assert inv.domain is A.codomain and inv.codomain is A.domain

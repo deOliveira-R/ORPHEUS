@@ -49,6 +49,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
+    Any,
     Callable,
     ClassVar,
     Generic,
@@ -970,6 +971,26 @@ class OperatorProduct(LinearOperator[Domain, Codomain]):
         # ``CAP_SOLVE`` closure computed in :meth:`__init__`.
         return self.a.is_invertible and self.b.is_invertible
 
+    def inverse(self) -> "OperatorProduct":
+        r"""Return :math:`(AB)^{-1} = B^{-1} A^{-1}` — the reversed product of inverses.
+
+        The functoriality law (taxonomy §13 I2), delivered as the natural
+        STRUCTURAL inverse: the inverse of a product IS a product. The
+        action is bit-identical to :meth:`solve` by induction — this
+        composite adds no arithmetic of its own, so
+        ``inverse().apply(q) == b.solve(a.solve(q))`` exactly, given the
+        factors' own ``inverse().apply ≡ solve`` identities.
+        """
+        if not self.is_invertible:
+            raise MissingCapability(
+                "OperatorProduct.inverse requires both factors to be "
+                "invertible ((AB)^{-1} = B^{-1}A^{-1})."
+            )
+        return OperatorProduct(
+            cast(SupportsInverse, self.b).inverse(),
+            cast(SupportsInverse, self.a).inverse(),
+        )
+
     @property
     def is_adjointable(self) -> bool:
         # (AB)^T = B^T A^T (the law in :meth:`apply_transpose`) — adjointable
@@ -1040,6 +1061,24 @@ class ScaledOperator(LinearOperator[Domain, Codomain]):
         # the scaled operator is invertible iff the operand is.
         return self.op.is_invertible
 
+    def inverse(self) -> "ScaledOperator":
+        r"""Return :math:`(\alpha L)^{-1} = (1/\alpha)\,L^{-1}` (taxonomy §13 I2).
+
+        The natural structural inverse: a scaled operator's inverse IS a
+        scaled operator. ``1/α`` is exact whenever ``α`` is a power of two
+        (the dominant −1.0 case); the action is bit-identical to
+        :meth:`solve` given the operand's own ``inverse().apply ≡ solve``
+        identity (both spell ``(1/α) * op_solve(b)``).
+        """
+        if not self.is_invertible:
+            raise MissingCapability(
+                "ScaledOperator.inverse requires an invertible operand "
+                "((αL)^{-1} = (1/α)L^{-1})."
+            )
+        return ScaledOperator(
+            1.0 / self.scalar, cast(SupportsInverse, self.op).inverse(),
+        )
+
     @property
     def is_adjointable(self) -> bool:
         # (αL)^T = α L^T — scaling preserves adjointability.
@@ -1070,6 +1109,10 @@ class IdentityOperator(LinearOperator[Domain]):
     @property
     def is_invertible(self) -> bool:
         return True  # I^{-1} = I
+
+    def inverse(self) -> "IdentityOperator[Domain]":
+        r"""Return :math:`I^{-1} = I` — this very instance (stateless)."""
+        return self
 
     @property
     def is_adjointable(self) -> bool:
@@ -1152,6 +1195,120 @@ class ZeroOperator(LinearOperator[Domain, Codomain]):
     # is_invertible inherits the base ``False`` — the zero map is singular.
 
 
+class _SolveBackedLeaf(Protocol):
+    r"""Structural contract for :class:`InverseOperator`'s wrapped leaf.
+
+    Coexistence-window plumbing for the #226 inverse-as-operator carve
+    (P2–P4): a leaf operator that realizes its inverse action as the gated
+    :meth:`solve` method — the spelling the carve retires at P4.
+    :class:`InverseOperator` delegates through this contract so the inverse
+    OBJECT and the legacy ``solve`` share ONE realization (``coding-elegance``
+    Pattern 2 — no reciprocal twin path that could drift by a rounding).
+    Retires together with the public ``solve`` surface (carve P4).
+    """
+
+    @property
+    def is_invertible(self) -> bool: ...
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]: ...
+
+    @property
+    def codomain(self) -> Optional["FunctionSpace"]: ...
+
+    def apply(self, x: Any, /) -> Any: ...
+
+    def solve(self, b: Any, /) -> Any: ...
+
+
+class InverseOperator(LinearOperator):
+    r"""The inverse operator :math:`A^{-1}` of a solve-backed leaf, in operator form.
+
+    The GENERIC member of the #226 inverse family — the name is earned by
+    exactly the universal contract and nothing more (taxonomy §13: "round-trip
+    alone earns only *InverseOperator*"): :meth:`apply` inverts, the
+    round-trip :math:`A^{-1}(A\,x) = x` holds to the leaf's own ``solve``
+    precision, and no fancier invariant (S-direct seed-independence,
+    G-Neumann, M-materialise) is promised. Structured inverses with a
+    distinguishing invariant get their own named types
+    (:class:`~orpheus.sn.operators.sweep_operator.SweepOperator` for the
+    triangular sweep; ``GreenOperator`` / ``MatrixInverseOperator`` per the
+    taxonomy §13) — this class serves the value-bearing LEAVES
+    (:class:`DiagonalOperator`,
+    :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
+    whose inverse action is an exact pointwise division.
+
+    **One realization, not a reciprocal twin.** :meth:`apply` DELEGATES to
+    the leaf's own :meth:`solve` (division), bit-identical to today's gated
+    call — it does NOT materialize a reciprocal coefficient. A reciprocal
+    twin would (a) differ from ``solve`` by a rounding
+    (:math:`(1/c)\cdot b \neq b/c` in FP), and (b) for a cross-section
+    multiplier mint a units-dishonest "reciprocal cross-section" field
+    (:math:`1/\Sigma` is a mean free path, a DIFFERENT named quantity). The
+    division realization carries the inverse semantics without either lie.
+
+    **Dagger/functoriality laws carried:** ``is_invertible`` is ``True`` and
+    :meth:`inverse` returns the wrapped leaf ITSELF — so the involution
+    :math:`(A^{-1})^{-1} = A` holds by OBJECT IDENTITY (taxonomy §13 I2), and
+    :meth:`solve` on the inverse is the leaf's forward :meth:`apply` (solving
+    :math:`A^{-1}\,y = b` IS applying :math:`A`), keeping the faithfulness
+    keystone ``is_invertible ≡ CAP_SOLVE`` honest on this object too. The
+    adjoint axis is NOT promised (``is_adjointable`` stays ``False``): the
+    adjoint-inverse is the #280 family, deferred exactly as on
+    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`.
+
+    **Wrap-delegate back-half twin (collapse trigger).** This class and
+    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` deliberately
+    share a byte-identical back-half (``capabilities`` /
+    ``domain↔codomain`` swap / ``solve→inner.apply`` / ``is_invertible`` /
+    ``inverse()→inner``), differing only in ``apply`` and the ctor guard —
+    two witnesses, kept twinned per the defer-until-≥2 rule. TRIGGER: when
+    ``GreenOperator`` / ``MatrixInverseOperator`` land (the 3rd/4th
+    wrap-delegate siblings, taxonomy §12 steps 4–5), extract the back-half
+    into a shared mechanism mixin (leaves override ``apply`` + ``__repr__``)
+    — do NOT hand-re-derive it a third time.
+    """
+
+    capabilities: frozenset[str] = frozenset({CAP_APPLY, CAP_SOLVE})
+
+    def __init__(self, inner: _SolveBackedLeaf) -> None:
+        if not inner.is_invertible:
+            raise MissingCapability(
+                f"InverseOperator requires an invertible leaf; "
+                f"{type(inner).__name__}.is_invertible is False."
+            )
+        #: The forward leaf :math:`A` this is the inverse of.
+        self.inner = inner
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        # An inverse maps the leaf's CODOMAIN back to its DOMAIN.
+        return self.inner.codomain
+
+    @property
+    def codomain(self) -> Optional["FunctionSpace"]:
+        return self.inner.domain
+
+    def apply(self, x: Any, /) -> Any:
+        r"""Return :math:`A^{-1}\,x` — the leaf's own ``solve`` (bit-identical)."""
+        return self.inner.solve(x)
+
+    def solve(self, b: Any, /) -> Any:
+        r"""Solve :math:`A^{-1}\,y = b`, i.e. return :math:`A\,b` (the forward)."""
+        return self.inner.apply(b)
+
+    @property
+    def is_invertible(self) -> bool:
+        return True  # (A^{-1})^{-1} = A — the wrapped leaf itself
+
+    def inverse(self) -> LinearOperator:
+        r"""Return :math:`(A^{-1})^{-1} = A` — the wrapped leaf, by identity."""
+        return cast(LinearOperator, self.inner)
+
+    def __repr__(self) -> str:
+        return f"InverseOperator({self.inner!r})"
+
+
 class PermutationOperator(LinearOperator):
     r"""Index permutation along a configurable axis: :math:`(P x)_i = x_{\pi(i)}`.
 
@@ -1174,11 +1331,12 @@ class PermutationOperator(LinearOperator):
     :func:`~orpheus.sn.quadrature.Quadrature.reflection_index` is an
     involution; periodic shifts and rotational reorderings are not.
 
-    Capability set: ``{CAP_APPLY, CAP_APPLY_TRANSPOSE}``. ``solve`` is
-    NOT advertised even though permutations are invertible — the
-    standard solve idiom is :meth:`apply_transpose` (since
-    :math:`P^{-1} = P^T` for permutations); a user who wants ``solve``
-    semantics should compose with the explicit inverse.
+    Capability set: ``{CAP_APPLY, CAP_APPLY_TRANSPOSE, CAP_SOLVE}`` — a
+    permutation is always invertible (:math:`P^{-1} = P^T`), so all three
+    surfaces are honest: :meth:`solve` and :meth:`apply_transpose` route
+    through the SAME ``np.take(·, inverse_perm)`` gather, and
+    :meth:`inverse` returns the inverse permutation as a first-class
+    :class:`PermutationOperator` (#226 taxonomy step 1).
 
     Parameters
     ----------
@@ -1258,6 +1416,17 @@ class PermutationOperator(LinearOperator):
     @property
     def is_invertible(self) -> bool:
         return True  # P^{-1} = P^T — a permutation is always invertible
+
+    def inverse(self) -> "PermutationOperator":
+        r"""Return :math:`P^{-1}` as a first-class :class:`PermutationOperator`.
+
+        Built on the precomputed :attr:`inverse_perm` — its :meth:`apply`
+        is the SAME integer gather as this operator's :meth:`solve` /
+        :meth:`apply_transpose` (bit-identical: no arithmetic at all), and
+        ``argsort`` of a permutation is exactly involutive in integer math,
+        so :math:`(P^{-1})^{-1}` reproduces :attr:`perm` EXACTLY (§13 I2).
+        """
+        return PermutationOperator(self.inverse_perm, axis=self.axis)
 
     @property
     def is_adjointable(self) -> bool:
@@ -1537,6 +1706,25 @@ class TensorProductOperator(LinearOperator):
         # (A⊗B)^{-1} = A^{-1}⊗B^{-1} — invertible iff every factor is
         # (the ``CAP_SOLVE`` intersection in :meth:`__init__`).
         return all(op.is_invertible for op in self.ops)
+
+    def inverse(self) -> "TensorProductOperator":
+        r"""Return :math:`(A \otimes B \otimes \cdots)^{-1} = A^{-1} \otimes B^{-1} \otimes \cdots`.
+
+        The factor-wise structural inverse (the docstring's "inverse on
+        every axis" law, taxonomy §13 I2). Factor ORDER is preserved —
+        the factors act on disjoint axes and commute, exactly as
+        :meth:`solve` applies them in stored order — so the action is
+        bit-identical to :meth:`solve` given each factor's own
+        ``inverse().apply ≡ solve`` identity.
+        """
+        if not self.is_invertible:
+            raise MissingCapability(
+                "TensorProductOperator.inverse requires every factor to "
+                "be invertible ((A⊗B)^{-1} = A^{-1}⊗B^{-1})."
+            )
+        return TensorProductOperator(
+            tuple(cast(SupportsInverse, op).inverse() for op in self.ops)
+        )
 
     @property
     def is_adjointable(self) -> bool:
@@ -1871,6 +2059,24 @@ class DiagonalOperator(LinearOperator):
         # Invertible iff every coefficient entry is non-zero (D^{-1} = 1/c) —
         # mirrors the eager ``CAP_SOLVE`` gate in :meth:`__init__`.
         return bool(np.all(self.coefficient != 0.0))
+
+    def inverse(self) -> "InverseOperator":
+        r"""Return :math:`D^{-1}` as an :class:`InverseOperator` over this leaf.
+
+        Delegation, NOT a reciprocal-coefficient twin: the returned
+        object's ``apply`` IS :meth:`solve` (the division ``b / c``),
+        bit-identical — whereas ``DiagonalOperator(1/c)`` would multiply
+        by a rounded reciprocal and drift by an ulp. The generic name is
+        the honest one (taxonomy §13: round-trip alone earns exactly
+        "InverseOperator"; a diagonal division carries no distinguishing
+        invariant beyond it).
+        """
+        if not self.is_invertible:
+            raise MissingCapability(
+                "DiagonalOperator.inverse requires non-zero coefficient "
+                "entries; this operator has at least one zero entry."
+            )
+        return InverseOperator(self)
 
     @property
     def is_adjointable(self) -> bool:

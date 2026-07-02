@@ -638,3 +638,38 @@ class TestMeshlessBareArm:
             C.apply(object())
         with pytest.raises(TypeError):
             C.apply(ScalarFlux.from_mesh(self._asym_sigma(2, 5, 3), sn))
+
+
+class TestInverseOperatorFace:
+    """#226 taxonomy step 1 (§12.1/§12.4): the typed ``.inverse()`` face."""
+
+    @pytest.mark.foundation
+    def test_inverse_apply_is_solve_bit_identical_and_involutive(self):
+        """``M.inverse().apply ≡ M.solve`` bit-id (delegation, not a
+        reciprocal-field twin) + I1 round-trip on the bulk values +
+        ``(M⁻¹)⁻¹ is M`` by object identity."""
+        mesh = _slab_mesh()
+        sigma = _positive_sigma(mesh)
+        M = _multiplier(mesh, sigma)
+        psi = _random_state(mesh)
+        q = M.apply(psi)  # a genuine source-typed rhs
+        inv = M.inverse()
+        np.testing.assert_array_equal(
+            inv.apply(q).bulk.values, M.solve(q).bulk.values,
+            err_msg="M.inverse().apply is not M.solve bit-identically",
+        )
+        np.testing.assert_array_almost_equal_nulp(  # I1: M⁻¹(M ψ) = ψ
+            inv.apply(q).bulk.values, np.asarray(psi.bulk.values), nulp=2
+        )
+        assert inv.inverse() is M  # (M⁻¹)⁻¹ — object identity
+
+    @pytest.mark.foundation
+    def test_singular_coefficient_inverse_raises(self):
+        """NEGATIVE (§12.4): a TRUE-zero entry (spectrum law) refuses."""
+        from orpheus.numerics.operator import MissingCapability
+
+        mesh = _slab_mesh()
+        sigma = _positive_sigma(mesh).copy()
+        sigma[0, 0] = 0.0
+        with pytest.raises(MissingCapability, match="zero"):
+            _multiplier(mesh, sigma).inverse()

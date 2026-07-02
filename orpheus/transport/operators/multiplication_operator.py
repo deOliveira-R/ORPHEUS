@@ -108,7 +108,9 @@ import numpy as np
 from orpheus.numerics.operator import (
     BlockRole,
     DiagonalOperator,
+    InverseOperator,
     LinearOperator,
+    MissingCapability,
 )
 # Runtime import for ``singledispatchmethod.register`` (mirrors fission.py):
 # ``FullField`` is a leaf in the SN dependency graph (it imports no operators),
@@ -212,6 +214,25 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         # DiagonalOperator) — the same single-source that already carries the
         # capability set, so the predicate cannot drift from the spectrum.
         return self.engine.is_invertible
+
+    def inverse(self) -> "InverseOperator":
+        r"""Return :math:`M[f]^{-1}` as an :class:`InverseOperator` over this leaf.
+
+        Delegation, NOT a reciprocal-field twin (#226 taxonomy step 1): the
+        returned object's ``apply`` IS :meth:`solve` — the typed division
+        :math:`q \mapsto q/f` with the flux-role codomain — bit-identical to
+        the gated call. Materializing :math:`M[1/f]` instead would mint a
+        units-dishonest "reciprocal cross-section" coefficient
+        (:math:`1/\Sigma` is a mean free path, a different named quantity)
+        and flip the flux/source carrier roles this class hard-binds; the
+        division realization carries the inverse semantics without either.
+        """
+        if not self.is_invertible:
+            raise MissingCapability(
+                "MultiplicationOperator.inverse requires min|f| > 0 (the "
+                "spectrum law); this coefficient has a zero entry."
+            )
+        return InverseOperator(self)
 
     @property
     def is_adjointable(self) -> bool:

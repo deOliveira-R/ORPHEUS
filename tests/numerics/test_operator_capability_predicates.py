@@ -32,6 +32,7 @@ from orpheus.numerics.operator import (
     IdentityOperator,
     IncomingOrdinateMaskTensor,
     LinearOperator,
+    OperatorProduct,
     PeriodicWrapOperator,
     PermutationOperator,
     ScaledOperator,
@@ -123,3 +124,19 @@ def test_scaled_and_adjoint_predicates_faithful():
     adj = DiagonalOperator(_C).H  # _AdjointOperator
     assert adj.is_invertible is False and adj.is_adjointable is False
     _assert_faithful(adj)
+
+
+def test_inverse_objects_are_faithful():
+    """I3 (#226 §12.3): the NEW inverse OBJECTS satisfy the keystone too.
+
+    ``is_invertible ≡ CAP_SOLVE`` / ``is_adjointable ≡ CAP_APPLY_TRANSPOSE``
+    must hold on what ``.inverse()`` RETURNS, not just on the advertisers:
+    an ``InverseOperator`` advertises ``{APPLY, SOLVE}`` with
+    ``is_invertible=True`` (its solve is the leaf's forward) and stays
+    honest on the adjoint axis (False until #280).
+    """
+    D = DiagonalOperator(_C)
+    _assert_faithful(D.inverse())
+    _assert_faithful(OperatorProduct(D, PermutationOperator(np.roll(np.arange(3), 1))).inverse())
+    _assert_faithful(ScaledOperator(2.0, D).inverse())
+    assert D.inverse().inverse() is D  # (A⁻¹)⁻¹ — the leaf, by identity
