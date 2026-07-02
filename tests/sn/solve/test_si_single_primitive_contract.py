@@ -39,6 +39,7 @@ from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import SNSolver
 from orpheus.sn.operators.streaming import InvertibleOperator
+from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.numerics import iteration as _iteration
@@ -148,10 +149,16 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
     L_fs, gains_fs = captured[-1]
 
     # ── Structural identity of the decomposition (no numerical tolerance) ──
-    # (1) L = (L + C): an InvertibleOperator, same concrete type both paths.
-    assert isinstance(L_eig, InvertibleOperator)
-    assert isinstance(L_fs, InvertibleOperator)
-    assert type(L_eig) is type(L_fs)
+    # (1) The step operator is the INVERSE of (L + C) — a SweepOperator
+    # whose ``inner`` is the InvertibleOperator forward, same concrete
+    # types both paths (#226 taxonomy step 3: the solver builds the
+    # inverse, SourceIteration applies it — the forward identity moved
+    # one level in, onto ``.inner``).
+    assert isinstance(L_eig, SweepOperator)
+    assert isinstance(L_fs, SweepOperator)
+    assert isinstance(L_eig.inner, InvertibleOperator)
+    assert isinstance(L_fs.inner, InvertibleOperator)
+    assert type(L_eig.inner) is type(L_fs.inner)
 
     # (2) Exactly two coupling gains, same structural pair both paths (Wave O
     # O.2a — the honest (L+C, S, B); the transitional S+B fold is RETIRED, so

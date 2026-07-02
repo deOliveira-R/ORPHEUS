@@ -205,7 +205,10 @@ class WindowedSweep(OperatorProduct["FullField", "TimedFullField"]):
         """The inverse factor ``A⁻¹`` (alias for ``self.b``)."""
         return cast("SweepOperator", self.b)
 
-    def apply(self, rhs: "FullField") -> "TimedFullField":
+    def apply(
+        self, rhs: "FullField", *,
+        initial_guess: "FullField | None" = None,
+    ) -> "TimedFullField":
         r"""``(P ∘ A⁻¹)·rhs`` via the substrate moment emit (fused).
 
         Routes to the forward operator's uniform private solve surface with
@@ -213,7 +216,17 @@ class WindowedSweep(OperatorProduct["FullField", "TimedFullField"]):
         ``solve_moments`` cross-reach retired here).  Principled-equivalent
         (≤ scale-relative ``4·N·eps``) to the inherited deforested body,
         which remains the verification oracle.
+
+        ``initial_guess`` is the inverse family's canonical driver
+        signature, accepted and unused here: the multi-D Cartesian
+        wavefront walk has no bulk-seed consumer (the Carlson coupled-pole
+        seed is 1-D curvilinear), and the previous iterate's boundary lag
+        rides the driver's ``B`` / ``B_upper`` gain — never this kwarg.
+        The windowed moment iterate could not seed the angular walk anyway
+        (wrong representation); accepting-and-ignoring is the honest
+        contract, stated here rather than behind an adapter.
         """
+        del initial_guess  # no bulk-seed consumer in the multi-D walk
         return self.sweep.inner._solve_timed_full_field(
             rhs, moment_frame=self.p.frame,
         )

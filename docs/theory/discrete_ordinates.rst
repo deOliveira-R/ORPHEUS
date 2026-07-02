@@ -17811,6 +17811,46 @@ branch and have no landed hash yet.
      - Where
    * - in dev
        (2026-07-01)
+     - **Operator-inverse taxonomy step 3 — the solver builds the inverse,
+       the driver applies it; the resolvent concept fully dissolved
+       (#226)** — completes the steps-1–3 arc.
+       :class:`~orpheus.numerics.iteration.SourceIteration` now consumes the
+       inverse-application **operator** directly (first parameter ``A_inv``,
+       the new static contract
+       :class:`~orpheus.numerics.iteration.SupportsSeededApply`
+       ``apply(rhs, *, initial_guess=None)``): the solver layer builds it
+       once (``base_resolvent.inverse()``, or the windowed product
+       ``P @ A.inverse()``) and the loop step is the unconditional
+       ``A_inv.apply(rhs, initial_guess=psi_prev)``. The former
+       ``inspect.signature`` seed-probe (``_solve_accepts_seed`` /
+       ``_solve_with_seed``) and the constructor ``CAP_SOLVE`` gate are
+       **deleted** — the invertibility obligation moved to the inverse
+       *builder* (``.inverse()`` on a non-invertible leaf raises), so the
+       driver checks ``CAP_APPLY`` only and an apply-only step operator (the
+       coisometry-factored windowed product) is accepted by design. The
+       transitional ``_MomentWindowedResolvent`` adapter dissolved;
+       :func:`_maybe_window <orpheus.sn.solver._maybe_window>` is now the
+       product factory. :class:`~orpheus.numerics.iteration.KEigenvalue`
+       guards ``A.is_invertible`` at construction and builds the inner step
+       via the single-source
+       :func:`_seeded_inverse <orpheus.numerics.iteration._seeded_inverse>`;
+       :class:`~orpheus.numerics.iteration.KrylovAcceleration` keeps the
+       forward ``A`` and rewires its default preconditioner from a
+       ``CAP_SOLVE`` probe to ``_seeded_inverse(A).apply``. Whether
+       seeded-apply becomes a structural mixin or stays per-leaf convention
+       is `#285 <https://github.com/deOliveira-R/ORPHEUS/issues/285>`_
+       (folded into steps 4–5). Gates:
+       ``tests/sn/solve/test_seed_threading_spy.py`` (Mode-11 path spy,
+       route-invariant across the rewire; M-SEED-DROP/ZERO/STALE + M-PROBE
+       teeth) and
+       ``test_2d_windowed_product_over_gauss_seidel_M_equals_post_projection``
+       (the windowed×G-S corner). See :ref:`inverse-application-driver`
+       (:doc:`operator_algebra`).
+     - #226
+     - *(in development)*
+       ``refactor/inverse-as-operator``
+   * - in dev
+       (2026-07-01)
      - **Operator-inverse taxonomy step 2 — the G-S resolvent reified,
        the windowed path retyped (#226)** — the duck-typed
        ``_GaussSeidelResolvent`` (which paired

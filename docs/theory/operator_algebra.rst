@@ -4514,11 +4514,18 @@ coupling operators :math:`g_i`. The two consume the gains identically —
 
 .. vv-status: bc-extraction-variadic-matvec documented
 
-The driver is now **problem-type-agnostic**: it sees only the
-invertible resolvent it must invert and a bag of operators it must lag.
-*Which* leaves are gains is a **posing-layer** decision, not an
-iteration-layer one (see :ref:`eigenvalue-posing`) — the gains are
-exactly the posing's coupling terms.
+The driver is now **problem-type-agnostic**: it sees only the resolvent
+operator and a bag of operators it must lag. (Since #226 taxonomy step 3,
+:class:`~orpheus.numerics.iteration.SourceIteration` receives that
+resolvent **already inverted** — the pre-built inverse operator it
+*applies* — while :class:`~orpheus.numerics.iteration.KrylovAcceleration`
+keeps the *forward* resolvent for its GMRES matvec; the
+:eq:`bc-extraction-variadic-matvec` form above is the Krylov matvec, and
+the rhs term is the shared source assembly. See
+:ref:`inverse-application-driver`.) *Which* leaves are gains is a
+**posing-layer** decision, not an iteration-layer one (see
+:ref:`eigenvalue-posing`) — the gains are exactly the posing's coupling
+terms.
 
 For the SN **k-eigenvalue** within-group inner the posing's couplings
 are the bulk scattering :math:`S` and the boundary reflection
@@ -7254,10 +7261,12 @@ would have silently moment-windowed a 3-D solve — vv Mode 9): the
 curvilinear meshes carry a non-``None`` ``reduced`` moment-reduction
 descriptor and are excluded, and so is 3-D Cartesian (the in-sweep
 moment emit is a 2-D kernel). The windowed product ``P @ A.inverse()``
-(retyped in :ref:`windowing-retyped` below), behind the
-:class:`~orpheus.sn.solver._MomentWindowedResolvent` driver adapter, is
-therefore **never even constructed** off that gate, so there is no
-illegal state to mistype.
+(retyped in :ref:`windowing-retyped` below) — which the SI driver now
+holds and applies **directly**, the ``_maybe_window`` factory returning
+the plain sweep off that gate (#226 taxonomy step 3,
+:ref:`inverse-application-driver`) — is therefore **never even
+constructed** off the 2-D-Cartesian gate, so there is no illegal state
+to mistype.
 
 The restriction is **interior-bulk-only** in a second sense: the
 interior-cochain biproduct :eq:`wavefront-cochain-biproduct`
@@ -7419,23 +7428,26 @@ persistent-storage win.
 Implementation map
 -------------------
 
-* :class:`~orpheus.sn.solver._MomentWindowedResolvent`
-  (:mod:`orpheus.sn.solver`) is a thin **driver adapter** that holds the
-  typed windowed composition ``P @ A.inverse()`` — the
+* The solver's :func:`_maybe_window <orpheus.sn.solver._maybe_window>`
+  builds the typed windowed composition ``P @ A.inverse()`` — the
   :class:`~orpheus.sn.operators.windowing.WindowedSweep` — over the
-  within-group forward :math:`A` (the Jacobi :math:`L+C`, or the reified
-  splitting matrix :math:`M`,
+  within-group forward :math:`A`'s inverse (the Jacobi
+  :math:`(L+C)^{-1}`, or the reified splitting matrix :math:`M^{-1}`,
   :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
-  — see :ref:`si-gauss-seidel-reification` in :doc:`discrete_ordinates`).
-  Its analysis factor :math:`P` is sourced from the scattering operator's
-  **own** frame, which is what makes the stored moments equal :math:`S`'s
-  internal projection term-for-term. Its ``solve`` maps to the product's
-  ``apply``; it mirrors the base resolvent's ``capabilities`` and accepts
-  the ``initial_guess`` kwarg (accepted for the driver contract and
-  dropped), so it satisfies the
-  :class:`~orpheus.numerics.iteration.SourceIteration` ``L`` contract. It
-  dissolves at taxonomy step 3 (the driver will hold the product
-  directly). Gated on ``sn_mesh.is_cartesian and sn_mesh.ndim == 2``.
+  — see :ref:`si-gauss-seidel-reification` in :doc:`discrete_ordinates`)
+  and hands it to the :class:`~orpheus.numerics.iteration.SourceIteration`
+  driver, which **applies** it directly (#226 taxonomy step 3 —
+  :ref:`inverse-application-driver`; the transitional
+  ``_MomentWindowedResolvent`` ``.solve`` adapter that once wrapped it is
+  gone). Its analysis factor :math:`P` is sourced from the scattering
+  operator's **own** frame, which is what makes the stored moments equal
+  :math:`S`'s internal projection term-for-term. The composite advertises
+  ``apply`` only — no ``CAP_SOLVE``, no round-trip promise (its :math:`P`
+  factor is a coisometry) — and accepts the driver's ``initial_guess``
+  kwarg accepted-and-ignored (:meth:`WindowedSweep.apply
+  <orpheus.sn.operators.windowing.WindowedSweep.apply>`; the multi-D walk
+  has no bulk-seed consumer). Gated on ``sn_mesh.is_cartesian and
+  sn_mesh.ndim == 2``.
 * The **eigenvalue** inner
   (:meth:`SNSolver._solve_source_iteration <orpheus.sn.solver.SNSolver._solve_source_iteration>`)
   is reconstruction-free: it returns the scalar flux read off the
@@ -7479,9 +7491,9 @@ moments (the 18.3× shrink) but still **materialized the full
 per-ordinate angular field** :math:`\psi \in (N, n_g, n_x, n_y)` inside
 *every* sweep, then projected it to moments **post-hoc** — a flat reduce
 :eq:`angular-windowing-moment-projection` applied once at the end of the
-sweep by the SH frame's analysis face ``frame.analysis.apply``
-(:meth:`_MomentWindowedResolvent.solve <orpheus.sn.solver._MomentWindowedResolvent.solve>`
-called ``base.solve`` then ``self._projection.apply(full.bulk.values)``).
+sweep by the SH frame's analysis face ``frame.analysis.apply`` (the then
+Phase-5a moment-windowed resolvent's ``solve`` called ``base.solve`` then
+``self._projection.apply(full.bulk.values)``).
 That transient full-angular array is the dominant peak-memory cost the
 5a warning named.
 
@@ -7489,12 +7501,14 @@ Phase 5c moves the projection **into** the windowed anti-diagonal walk:
 each topological level accumulates the harmonic moment tensor *directly*,
 octant-by-octant into one shared global buffer, so the full angular
 field is **never materialized** in the windowed iterate. The
-``base.solve`` → flat-``apply`` post-projection **leaves production**;
-:meth:`_MomentWindowedResolvent.solve <orpheus.sn.solver._MomentWindowedResolvent.solve>`
-collapses to forwarding the fused moment emit (at Phase 5c the base
-resolvent's ``solve_moments``; since #226 step 2 the typed product's
+``base.solve`` → flat-``apply`` post-projection **leaves production**; the
+fused moment emit is what survives — reached at Phase 5c through the
+resolvent's ``solve``, at #226 step 2 through the base resolvent's
+``solve_moments``, and since #226 step 3 through the typed product's
 :meth:`WindowedSweep.apply <orpheus.sn.operators.windowing.WindowedSweep.apply>`
-— :ref:`windowing-retyped`, below).
+that the :class:`~orpheus.numerics.iteration.SourceIteration` driver
+applies directly (:ref:`windowing-retyped` and
+:ref:`inverse-application-driver`, below).
 
 .. admonition:: Key Facts (in-sweep moment accumulation)
    :class: tip
@@ -7928,9 +7942,11 @@ dependency-injection idiom of :func:`_sweep_scheduled <orpheus.sn.loss_represent
   :class:`~orpheus.sn.operators.windowing.BulkAnalysisOperator` carries
   the SH frame (whose basis
   :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` ``L`` carries
-  the truncation order). The
-  :class:`~orpheus.sn.solver._MomentWindowedResolvent` driver adapter's
-  ``solve`` forwards to that fused ``apply``.
+  the truncation order). Since #226 step 3 the
+  :class:`~orpheus.numerics.iteration.SourceIteration` driver **applies**
+  that fused ``apply`` directly (:ref:`inverse-application-driver`); the
+  transitional ``_MomentWindowedResolvent`` ``.solve`` adapter that once
+  forwarded to it is gone.
 
 Cross-references: the post-hoc reduce 5c replaces is
 :eq:`angular-windowing-moment-projection`; the :math:`Y_0^0 = 1`
@@ -8061,14 +8077,17 @@ the SI ≡ Krylov-full scalar cross-check and the closed-form
    ``CAP_SOLVE`` is absent from the type, so a moment-proxy residual gate
    cannot even be written against ``WindowedSweep``.
 
-Only the driver still speaks ``.solve``: the
-:class:`~orpheus.sn.solver._MomentWindowedResolvent` adapter holds the
-product and maps its ``solve`` to the product's ``apply`` (the
-``initial_guess`` kwarg is accepted for the
+At #226 step 2 one transitional wrapper remained: the driver still spoke
+``.solve``, so a thin ``_MomentWindowedResolvent`` adapter held the
+product and mapped its ``solve`` to the product's ``apply`` (the
+``initial_guess`` kwarg accepted for the
 :class:`~orpheus.numerics.iteration.SourceIteration` contract and
-dropped). That adapter is transitional — taxonomy step 3 makes the driver
-apply inverse operators directly and deletes it, at which point the
-production SI holds ``P @ A.inverse()`` with no wrapper.
+dropped). **Taxonomy step 3 removed even that** — the SI driver now
+consumes inverse-application operators *directly*, so the production SI
+holds ``P @ A.inverse()`` with no wrapper. That driver-consumption model
+— how the solver builds the inverse and the driver applies it, why an
+apply-only step operator is legitimate, and why the adapter could finally
+dissolve — is :ref:`inverse-application-driver`.
 
 Cross-references: the reduction :math:`M_{\rm frame}` is
 :eq:`harmonic-moment-projection`; the frame's ``analysis`` /
@@ -8080,6 +8099,264 @@ windowed forward may wrap is :ref:`si-gauss-seidel-reification`
 (:doc:`discrete_ordinates`); the capability-closure and
 principled-equivalence framework is ``vv-principles`` § "Bit-identity vs
 principled-equivalence".
+
+
+.. _inverse-application-driver:
+
+The solver builds the inverse; the driver applies it (#226 taxonomy step 3)
+===========================================================================
+
+Steps 1–2 reified the inverse *operators* — the schedule-triangular
+:class:`~orpheus.sn.operators.sweep_operator.SweepOperator` (step 1, the
+WDD sweep as :math:`(L+C)^{-1}`), the reified splitting matrix
+:math:`M=(L+C)-B_{\rm lower}` (step 2, :ref:`si-gauss-seidel-reification`
+in :doc:`discrete_ordinates`), and the windowed composition
+:math:`P\circ A^{-1}` (step 2, :ref:`windowing-retyped` above). **Step 3
+retypes the driver–inverse boundary.** The solver (posing) layer builds
+the inverse *once*, and the iteration primitive
+(:class:`~orpheus.numerics.iteration.SourceIteration`) *applies* it:
+
+.. math::
+
+   \psi_{n+1} \;=\; A_{\rm inv}.\mathrm{apply}
+   \Bigl(q_{\rm ext} + \textstyle\sum_i g_i\,\psi_n,\;
+   \ \mathrm{initial\_guess}=\psi_n\Bigr),
+   \qquad
+   A_{\rm inv} \;=\; A^{-1}\ \text{(built by the solver)} .
+
+Concretely :func:`_within_group_si <orpheus.sn.solver._within_group_si>`
+does ``step, windowed = _maybe_window(base_resolvent.inverse(), S,
+sn_mesh)`` and hands ``step`` to the ``SourceIteration`` constructor as
+its **first argument** ``A_inv``. This closes the #226 steps-1–3 arc: the
+duck-typed "resolvent" — the object whose ``apply`` and ``solve`` inverted
+*different* operators — is **fully dissolved**. Nothing in the driver is a
+resolvent any more; there is a forward operator (built by the solver,
+invertible by contract) and its inverse (built by the solver, *applied* by
+the driver).
+
+This **refines the variadic-driver picture** of
+:ref:`bc-extraction-variadic-driver`: the driver's first argument, there
+described as "the resolvent it must invert", is — since step 3 — for
+:class:`~orpheus.numerics.iteration.SourceIteration` the pre-built inverse
+operator it *applies*, while
+:class:`~orpheus.numerics.iteration.KrylovAcceleration` keeps the
+*forward* :math:`A` for its GMRES matvec (and preconditions with
+:math:`A^{-1}`). The homogeneous ``*gains`` bag is unchanged in both.
+
+
+The seeded-apply family — who threads the start, who ignores it
+---------------------------------------------------------------
+
+The inverse family exposes ONE canonical apply signature — the static
+contract :class:`~orpheus.numerics.iteration.SupportsSeededApply`:
+
+.. math::
+
+   \mathrm{apply}(\text{rhs},\; *,\; \text{initial\_guess}=\text{None})
+   \ \longrightarrow\ \text{codomain} .
+
+The driver threads the previous iterate as ``initial_guess`` on **every**
+step, uniformly — the plumbing the curvilinear sweep needs, where the
+previous iterate *is* the Morel–Montry Carlson coupled-pole seed (the
+sweep reads the level's :math:`\psi(\mu=-1)` from it — the curvilinear
+seed obstruction, :ref:`sn-angular-windowing-geometry-restriction`). A
+dropped / zeroed / stale seed is a **wrong-fixed-point** bug there, not a
+rate change. Members with no use for a start accept the keyword and ignore
+it, each documented per type:
+
+.. list-table:: The seeded-apply contract across the inverse family
+   :header-rows: 1
+   :widths: 34 22 44
+
+   * - Inverse operator
+     - ``initial_guess``
+     - Why
+   * - :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`
+       (curvilinear 1-D)
+     - **threaded**
+     - The M–M Carlson closure seeds the :math:`\mu=-1`
+       starting-direction flux from the previous iterate's per-ordinate
+       :math:`\psi`; ``apply`` delegates to ``inner.solve(rhs,
+       initial_guess=...)`` which reads it.
+   * - :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`
+       (2-D Cartesian DD)
+     - accepted, ignored
+     - The diamond-difference wavefront is a direct forward substitution
+       down the upwind DAG — no interior-iterate seed. The kwarg threads
+       through harmlessly.
+   * - :class:`~orpheus.numerics.operator.InverseOperator`
+       (value-bearing leaf)
+     - accepted, ignored
+     - An **exact** pointwise inverse (a division) has no iterative start
+       to seed — ``del initial_guess``.
+   * - :class:`~orpheus.sn.operators.windowing.WindowedSweep`
+       (``P @ A.inverse()``)
+     - accepted, ignored
+     - The multi-D Cartesian walk has no bulk-seed consumer; a moment
+       iterate could not seed the *angular* walk anyway (wrong
+       representation). The reflective lag rides the driver's ``B`` /
+       ``B_upper`` gain, never this kwarg.
+
+The contract is **static only** (an annotation target), deliberately
+**not** ``runtime_checkable`` — mirroring
+:class:`~orpheus.numerics.operator.SupportsInverse`. The runtime truth is
+the :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`
+property; the Protocol pins the *shape* pyright checks. Threading the seed
+**unconditionally** (no per-call decision) is what lets the driver be
+shape-agnostic — pinned by the always-on Mode-11 spy
+``test_seed_threading_spy.py`` (call *k*'s ``initial_guess`` must equal
+call *(k−1)*'s return, by value).
+
+
+Retiring the signature probe — why it existed, why it could go
+--------------------------------------------------------------
+
+Before step 3 the driver could not assume a uniform seed signature,
+because it consumed **duck-typed resolvents** whose ``solve`` methods had
+heterogeneous signatures (some took ``initial_guess``, some did not). It
+therefore probed each one at runtime:
+
+.. code-block:: python
+
+   # RETIRED at #226 step 3
+   if _solve_accepts_seed(resolvent):        # inspect.signature(L.solve)
+       psi = resolvent.solve(rhs, initial_guess=psi_prev)   # _solve_with_seed
+   else:
+       psi = resolvent.solve(rhs)
+
+The ``inspect.signature`` probe (``_solve_accepts_seed`` /
+``_solve_with_seed``) was a **stringly-typed dispatch on shape** — exactly
+the anti-pattern the reification exists to remove. It could retire **only
+once the family signature was canonical**: with every inverse advertising
+the *same* ``apply(rhs, *, initial_guess=None)``
+(:class:`~orpheus.numerics.iteration.SupportsSeededApply`), the driver
+threads the keyword unconditionally and the probe has nothing to decide.
+Its post-rewire falsifier is the **M-PROBE** mutation (sever the
+``initial_guess`` thread at
+:meth:`SweepOperator.apply <orpheus.sn.operators.sweep_operator.SweepOperator.apply>`),
+which reddens the seed-threading spy in under a second.
+
+Two further gates dissolved with it:
+
+* **The constructor** ``CAP_SOLVE`` **gate is gone.** The driver's whole
+  contract is now ``CAP_APPLY`` — the step operator arrives *pre-inverted*,
+  so it never needs a ``solve``. The **invertibility obligation moved to
+  the inverse builder**: ``.inverse()`` on a non-invertible leaf *raises*
+  (:class:`~orpheus.numerics.operator.MissingCapability`), so "is this a
+  faithful inverse of the intended forward?" is discharged where the
+  operator is *built*, not re-checked where it is *applied*.
+* **An apply-only step operator is legitimate by design.** The windowed
+  product ``P @ A.inverse()`` advertises ``apply`` only (its :math:`P`
+  factor is a coisometry — no ``CAP_SOLVE``, :ref:`windowing-retyped`), and
+  that is exactly the shape the driver now expects. Gating on ``CAP_APPLY``
+  alone — not ``CAP_SOLVE`` — is what makes the apply-only windowed product
+  a first-class step operator rather than an illegal state needing an
+  adapter.
+
+
+The narrowing boundary and the open structural decision (#285)
+--------------------------------------------------------------
+
+``SupportsSeededApply`` and ``SupportsInverse`` are not
+``runtime_checkable`` (an ``isinstance`` against a Protocol carrying only
+a method member is a false-positive machine). The static narrow from "an
+invertible operator" to "a seeded-apply operator" therefore lives in
+**one** place,
+:func:`_seeded_inverse <orpheus.numerics.iteration._seeded_inverse>`:
+
+.. code-block:: python
+
+   def _seeded_inverse(A):                       # numerics/iteration.py
+       # runtime precondition: the CALLER's A.is_invertible guard
+       return cast(SupportsSeededApply, cast(SupportsInverse, A).inverse())
+
+Both :class:`~orpheus.numerics.iteration.KEigenvalue` (inner
+:class:`~orpheus.numerics.iteration.SourceIteration`) and
+:class:`~orpheus.numerics.iteration.KrylovAcceleration` (default
+preconditioner) route through it, so the cast — and its runtime
+precondition, the caller's ``is_invertible`` guard — is single-sourced.
+
+The **conformance claim is scoped**, and this is the load-bearing
+honesty: ``_seeded_inverse`` narrows to the seeded-apply signature only
+for the inverses the posing layers here actually reach — the SN
+:class:`~orpheus.sn.operators.sweep_operator.SweepOperator` and the leaf
+:class:`~orpheus.numerics.operator.InverseOperator`, both of which carry
+``apply(rhs, *, initial_guess=None)``. It is **not** a claim that *every*
+``inverse()`` in the operator family takes the keyword — a composed
+:meth:`OperatorProduct.inverse <orpheus.numerics.operator.OperatorProduct.inverse>`
+does not, today. Whether seeded-apply should become **structural** (a
+shared mixin over the whole inverse family, so the signature is
+*guaranteed* rather than asserted-per-leaf) or stay **per-leaf
+convention** is the open decision
+`#285 <https://github.com/deOliveira-R/ORPHEUS/issues/285>`_, folded into
+taxonomy steps 4–5 — it lands when the ``GreenOperator`` /
+``MatrixInverseOperator`` siblings do and must join the contract.
+
+The two eigenvalue-outer consumers pose the inverse explicitly:
+
+* :class:`~orpheus.numerics.iteration.KEigenvalue` guards
+  ``A.is_invertible`` **at construction** (a non-invertible :math:`A`
+  raises :class:`~orpheus.numerics.operator.MissingCapability` with a
+  domain message, not an ``AttributeError`` mid-iteration) and builds its
+  inner :class:`~orpheus.numerics.iteration.SourceIteration` step via
+  ``_seeded_inverse(A)``.
+* :class:`~orpheus.numerics.iteration.KrylovAcceleration` keeps the
+  **forward** :math:`L` (its GMRES matvec is
+  :math:`L\cdot - \sum_i g_i\cdot`) and rewired its default-preconditioner
+  fallback from the old ``CAP_SOLVE`` probe (with a ``# type: ignore``) to
+  the honest ``L.is_invertible`` test + ``_seeded_inverse(L).apply`` — the
+  transport-corrected sweep preconditioner (Adams & Larsen 2002 §III).
+
+
+Verification — the seed spy and the windowed×G-S corner
+-------------------------------------------------------
+
+The rewire is pinned by three structural gates (all ``-O``-proof —
+``pytest.fail`` / ``np.testing.assert_*``, never a bare ``assert``):
+
+.. list-table:: Step-3 regression gates
+   :header-rows: 1
+   :widths: 42 58
+
+   * - Gate
+     - What it pins
+   * - ``test_seed_threading_spy.py``
+       (foundation / sentinel; vv Mode 11)
+     - Every inner solve's ``initial_guess`` equals the previous iterate's
+       return, by value. **Route-invariant across the rewire**: it wraps
+       :meth:`InvertibleOperator.solve <orpheus.sn.operators.streaming.InvertibleOperator.solve>`
+       — the surface *both* driver generations route through (pre-step-3
+       ``resolvent.solve(...)``, post-step-3
+       ``SweepOperator.apply`` → ``inner.solve``) — so it was green before
+       the rewire and stayed green through it. Teeth: M-SEED-DROP / ZERO /
+       STALE (pre-rewire) and **M-PROBE** (post-rewire) all redden it.
+   * - ``test_2d_windowed_product_over_gauss_seidel_M_equals_post_projection``
+     - The **windowed×G-S corner**: production's 2-D Cartesian default
+       ``inner_schedule`` is ``gauss_seidel``, so the driver's *actual*
+       step operator is ``P @ M.inverse()`` with
+       :math:`M=(L+C)-B_{\rm lower}`. The fused scheduled-walk moment emit
+       ≡ the deforested scheduled solve + projection, within scale-relative
+       :math:`4N\varepsilon`, with a ``B_lower`` non-degeneracy guard.
+       Closes the gap where this corner was pinned only at the
+       :math:`\ell=0` / integration level.
+   * - ``test_si_single_primitive_contract.py``
+     - Both within-group SI paths (eigenvalue inner + fixed-source) build
+       the SAME step operator: a
+       :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` whose
+       ``.inner`` is the
+       :class:`~orpheus.sn.operators.streaming.InvertibleOperator` forward
+       — the forward identity moved *one level in*, onto ``.inner`` (the
+       solver builds the inverse; the driver applies it).
+
+The seed the spy guards is load-bearing **only on curvilinear** meshes: a
+simulated seed-drop on the het-2G sphere moves the eigenvalue by
+:math:`|\Delta k|\approx3.46\times10^{-2}` (the ``@slow`` value catcher
+``test_si_krylov_eigenvalue_equivalence_sphere``, marked
+``@catches("ERR-026", "M-SEED-DROP")``). On 2-D Cartesian the direct
+wavefront ignores the seed, so the fast net is the *path* spy, not a value
+gate. The full tier (SN + numerics + transport) is **2981 passing / 0
+real regressions**; the deleted probe also cleared a laundered typed union
+from the pyright ratchet (152 → 148).
 
 
 .. _trace-spaces-doc:

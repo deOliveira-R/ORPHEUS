@@ -658,13 +658,22 @@ def _assert_si_krylov_eigenvalue_equivalence(materials, mesh, quad) -> float:
 @_SPH_VERIFIES
 @pytest.mark.l1
 @pytest.mark.slow
-@pytest.mark.catches("ERR-026")
+@pytest.mark.catches("ERR-026", "M-SEED-DROP")
 def test_si_krylov_eigenvalue_equivalence_sphere():
     """Sphere: SI ≡ Krylov converged eigenpair on a heterogeneous 2G problem.
 
     Measured 2026-06-12 (post-ERR-058): |Δk|=1.9e-11, L∞ flux-shape
     diff=2.4e-10, radial max/min=3.34 (non-flat guard fires).  Bug-era
     (pre-ERR-058, n=40 sphere_2g_3reg): |Δk|~3.9e-3, shape ~30 %.
+
+    ALSO the value catcher for a dropped SI ``initial_guess`` seed
+    (M-SEED-DROP, #226 spec §17 F4): a simulated seed-drop moves SI's
+    eigenvalue by |Δk| ≈ 3.46e-2 while Krylov's is untouched, reddening
+    the equivalence 5 orders above ``_SI_KRYLOV_KEFF_TOL``.  Because this
+    gate is ``@slow`` (deselected by the canonical ``-m "not slow"`` run),
+    the FAST net for the same contract is the Mode-11 path-spy
+    ``tests/sn/solve/test_seed_threading_spy.py`` — value catcher here,
+    path catcher there.
     """
     materials = {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
     mesh = _two_region_mesh(

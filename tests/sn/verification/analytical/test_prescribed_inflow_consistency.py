@@ -206,9 +206,10 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
         "prescribed inflow slot is empty — q.boundary degenerated to vacuum",
     )
 
-    # SI-Jacobi: resolvent (L+C), gains (S, B).
+    # SI-Jacobi: forward (L+C), gains (S, B); the driver applies the
+    # INVERSE operator (#226 step 3).
     rJ, gJ = _select_si_resolvent(LC, S, B, sn, "jacobi")
-    psi_j, _ = SourceIteration(rJ, *gJ, max_iter=500, tol=1e-13).solve(
+    psi_j, _ = SourceIteration(rJ.inverse(), *gJ, max_iter=500, tol=1e-13).solve(
         q_ext, initial_guess=_flux_zero(sn),
     )
 
@@ -246,7 +247,9 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
         _require(B is not None, "B (SNBoundaryOperator) is None")
         _require(CAP_APPLY in B.capabilities, "B does not advertise CAP_APPLY")
 
-        psi_g, _ = SourceIteration(rG, *gG, max_iter=500, tol=1e-13).solve(
+        psi_g, _ = SourceIteration(
+            rG.inverse(), *gG, max_iter=500, tol=1e-13,
+        ).solve(
             q_ext, initial_guess=_flux_zero(sn),
         )
 

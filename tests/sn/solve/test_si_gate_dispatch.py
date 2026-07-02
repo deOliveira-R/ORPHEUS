@@ -34,17 +34,18 @@ import pytest
 
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.sn.operators.windowing import WindowedSweep
-from orpheus.sn.solver import _maybe_window, _MomentWindowedResolvent
+from orpheus.sn.solver import _maybe_window
 from orpheus.numerics.quadrature import Quadrature
 
 pytestmark = [pytest.mark.foundation]
 
 
 class _BaseResolvent:
-    """Minimal stand-in — ``_maybe_window`` wraps it (2-D) or passes it
-    through.  #226 step 2: the adapter now builds the typed product
-    ``P @ base.inverse()`` at construction, so the stub carries the two
-    surfaces that construction touches: an ``inverse()`` returning a real
+    """Minimal forward stand-in whose ``.inverse()`` is what the caller
+    hands to ``_maybe_window``.  #226 step 3: ``_maybe_window`` receives
+    the INVERSE (a real :class:`SweepOperator`) and either composes the
+    typed product ``P @ A.inverse()`` (2-D Cartesian) or passes it
+    through — so the stub carries an ``inverse()`` returning a real
     :class:`SweepOperator` and the shared ``sn_mesh`` handle (the
     ``WindowedSweep`` mesh-identity guard compares it to ``P``'s)."""
 
@@ -73,15 +74,19 @@ def _scattering_stub():
 
 def test_2d_cartesian_windows() -> None:
     mesh = _fake_mesh(is_cartesian=True, ndim=2)
-    base = _BaseResolvent(mesh)
-    wrapped, windowed = _maybe_window(base, _scattering_stub(), mesh)
+    sweep = _BaseResolvent(mesh).inverse()
+    step, windowed = _maybe_window(sweep, _scattering_stub(), mesh)
     np.testing.assert_equal(windowed, True)
-    if not isinstance(wrapped, _MomentWindowedResolvent):
-        pytest.fail("2-D Cartesian must moment-window the SI iterate")
-    if not isinstance(wrapped.product, WindowedSweep):
+    if not isinstance(step, WindowedSweep):
         pytest.fail(
-            "the windowed adapter must hold the FUSED typed product "
-            f"P @ base.inverse(); got {type(wrapped.product).__name__}"
+            "2-D Cartesian must return the FUSED typed product "
+            f"P @ A.inverse() directly (#226 step 3 — no adapter); "
+            f"got {type(step).__name__}"
+        )
+    if step.sweep is not sweep:
+        pytest.fail(
+            "the product's inverse factor must BE the sweep the caller "
+            "built (the composition, not a re-derivation)"
         )
 
 
@@ -97,11 +102,11 @@ def test_non_2d_passthrough(is_cartesian: bool, ndim: int, label: str) -> None:
     ``reduced is None`` proxy it would have windowed.
     """
     mesh = _fake_mesh(is_cartesian=is_cartesian, ndim=ndim)
-    base = _BaseResolvent(mesh)
-    wrapped, windowed = _maybe_window(base, _scattering_stub(), mesh)
+    sweep = _BaseResolvent(mesh).inverse()
+    step, windowed = _maybe_window(sweep, _scattering_stub(), mesh)
     np.testing.assert_equal(windowed, False)
-    if wrapped is not base:
+    if step is not sweep:
         pytest.fail(
-            f"{label}: _maybe_window must pass the resolvent through "
-            f"unwrapped (got {type(wrapped).__name__})"
+            f"{label}: _maybe_window must pass the inverse operator "
+            f"through unwrapped (got {type(step).__name__})"
         )

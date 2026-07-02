@@ -1,47 +1,54 @@
-r"""Iteration primitives for the operator-algebra :math:`(L - S - F)`.
+r"""Iteration primitives for the operator-algebra :math:`(A - S - F)`.
 
 The neutron transport equation, in its operator-algebra form, is
 
 .. math::
 
-    (L - S - F)\,\psi = q_{\rm ext}
+    (A - S - F)\,\psi = q_{\rm ext}
     \qquad\text{(fixed source)}
 
 .. math::
 
-    (L - S)\,\psi = \tfrac{1}{k}\,F\,\psi
+    (A - S)\,\psi = \tfrac{1}{k}\,F\,\psi
     \qquad\text{(eigenvalue)}
 
-where :math:`L` is the streaming-collision operator, :math:`S` is
-the scattering source operator, and :math:`F` is the fission source
-operator (Lewis & Miller §6.4 frame this decomposition; Trefethen &
-Bau 1997 §3.2 give the matrix-free Krylov view).
+where :math:`A` is the INVERTIBLE loss operator — the left-hand side
+whose inverse the iteration applies; for SN this is the composite
+:math:`A = L + C` (streaming :math:`L = \Omega\cdot\nabla` plus
+collision :math:`C = \Sigma_t\cdot`), but this layer never sees the
+leaves — :math:`S` is the scattering source operator, and :math:`F`
+is the fission source operator (Lewis & Miller §6.4 frame this
+decomposition; Trefethen & Bau 1997 §3.2 give the matrix-free Krylov
+view).  The letter matters: project-wide, ``L`` names the STREAMING
+LEAF (which alone is not invertible), and invertible left-hand-side
+composites are the ``A`` family (``A``, ``A_loss = A - S``) — this
+module follows that convention.
 
 This module installs the iteration primitives that consume the Wave A
 :class:`~orpheus.numerics.operator.LinearOperator` Protocol and operate on
-the operator triple :math:`(L, S, F)`:
+the operator triple :math:`(A, S, F)`:
 
 * :class:`SourceIteration` solves the within-group fixed-source
-  problem :math:`(L - S - F)\,\psi = q_{\rm ext}` by a fixed-point
+  problem :math:`(A - S - F)\,\psi = q_{\rm ext}` by a fixed-point
   iteration
 
   .. math::
 
-      \psi_{n+1} \;=\; L^{-1}\,(S\,\psi_n + F\,\psi_n + q_{\rm ext}).
+      \psi_{n+1} \;=\; A^{-1}\,(S\,\psi_n + F\,\psi_n + q_{\rm ext}).
 
   The convergence rate is bounded by the spectral radius
-  :math:`\rho(L^{-1}(S+F)) \le \max_{\rm cell}\,\Sigma_s/\Sigma_t`
+  :math:`\rho(A^{-1}(S+F)) \le \max_{\rm cell}\,\Sigma_s/\Sigma_t`
   for an SN sweep.  Trefethen & Bau §3.2.
 
 * :class:`KEigenvalue` poses the k-eigenvalue problem
-  :math:`(L - S)\,\psi = F\,\psi/k` from its operator triple and
+  :math:`(A - S)\,\psi = F\,\psi/k` from its operator triple and
   **delegates the outer loop** to the canonical
   :func:`~orpheus.numerics.eigenvalue.power_iteration` algorithm.  It
   realizes the method-agnostic
   :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` boundary
   (``compute_fission_source`` :math:`= F\psi/k`; ``solve_fixed_source``
-  = the inner :class:`SourceIteration` resolvent
-  :math:`(L - S)^{-1}`, warm-started; the keff / production
+  = the inner :class:`SourceIteration` realization of
+  :math:`(A - S)^{-1}`, warm-started; the keff / production
   estimators), so there is ONE power-iteration loop in the codebase
   (Cardinal Rule 2).  Convergence is governed by the dominance ratio
   :math:`|k_1/k_0|`.
@@ -52,45 +59,57 @@ the operator triple acts linearly on it and that
 :func:`numpy.linalg.norm` returns a scalar that orders by relative
 size.  The L0 synthetic tests use 4×4 dense matrices acting on
 ``(4,)`` flat vectors; the L1 SN gate uses
-:class:`~orpheus.sn.operators.streaming.InvertibleOperator` (composite ``L + C``),
+:class:`~orpheus.sn.operators.streaming.InvertibleOperator` (the
+composite ``A = L + C``),
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator`, and
 :class:`~orpheus.transport.operators.fission.FissionOperator` acting on
 :class:`~orpheus.transport.timed_full_field.TimedFullField` composite
 carriers.
 
-L⁻¹ comes from L, preconditioner is a different concept
-========================================================
+The driver APPLIES the inverse operator; a preconditioner is a different concept
+=================================================================================
 
-R-1 Step B (2026-05-19) — the legacy ``inverter`` Callable hook
-retires.  The two primitives now read the inverse action directly off
-the operator:
+#226 taxonomy step 3 (2026-07-01, superseding the R-1 Step B contract
+whose then-``L``-named operand carried a ``.solve`` surface) — the
+SOLVER layer builds the inverse operator once (``A.inverse()``: a
+:class:`~orpheus.sn.operators.sweep_operator.SweepOperator` for the
+schedule-triangular SN family, an
+:class:`~orpheus.numerics.operator.InverseOperator` for value-bearing
+leaves, or the windowed product ``P @ A.inverse()``), and the iteration
+primitives APPLY it:
 
-* :class:`SourceIteration` calls ``L.solve(rhs)`` directly each step.
-  The caller controls the inverse step by passing an ``L`` whose
-  ``.solve`` realises the desired action — typically a composite
-  :class:`~orpheus.sn.operators.streaming.InvertibleOperator` whose ``.solve`` IS
-  the WDD sweep (R-1 Step C).  ``L`` MUST advertise
-  :pydata:`CAP_SOLVE`; if it cannot be inverted, the caller is asking
-  the wrong primitive.
+* :class:`SourceIteration` receives the inverse-application operator
+  ``A_inv`` directly and calls ``A_inv.apply(rhs, initial_guess=psi_prev)``
+  each step — the inverse family's canonical seeded-apply signature
+  (:class:`SupportsSeededApply`).  There is NO per-type signature probe:
+  the former ``inspect.signature`` dispatch on the operand's ``solve``
+  retired with the duck-typed resolvents (every family member accepts
+  the keyword; members with no use for a start accept and ignore it,
+  documented per type).
 
 * :class:`KrylovAcceleration` takes an explicit ``preconditioner``
-  Callable hook (the previous ``inverter`` name was a category
-  mistake — it was a GMRES left preconditioner :math:`M \approx
-  A^{-1}`, never the inverse step).  Default behaviour preserves the
-  prior choice: if ``L`` advertises :pydata:`CAP_SOLVE`, use
-  ``L.solve`` as the preconditioner; otherwise run unpreconditioned.
+  Callable hook (a GMRES left preconditioner approximating the FULL
+  system inverse is a different concept from the inverse step — the
+  previous ``inverter`` name was a category mistake).  Default
+  behaviour: if ``A`` is invertible
+  (:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`), use
+  ``A.inverse().apply`` as the preconditioner; otherwise run
+  unpreconditioned.
 
-R-1 Step A integration — typed-flux Carlson seed threading
-==========================================================
+Carlson seed threading
+======================
 
-When :class:`SourceIteration` consumes a typed
-:class:`~orpheus.sn.angular_flux.AngularFlux` rhs, the previous
-iterate is threaded onto the rhs via
-:meth:`~orpheus.sn.angular_flux.AngularFlux.stash` so the sweep can
-read it back as ``rhs(1)``.  This is the load-bearing plumbing for
-curvilinear sweeps where the previous iterate IS the Carlson seed.
-Bare-ndarray rhs paths skip the stash (no protocol; the synthetic L0
-tests have no seed dependency).
+The previous iterate travels to the inverse application as the EXPLICIT
+``initial_guess`` keyword each step — the load-bearing plumbing for
+curvilinear sweeps, where the previous iterate IS the Morel–Montry
+Carlson coupled-pole seed (the sweep reads the level's :math:`\psi` at
+:math:`\mu = -1` from it; lesson L21).  A dropped / zeroed / stale seed
+is a WRONG-FIXED-POINT bug there, not a rate change.  The fast always-on
+catcher is the Mode-11 path-spy
+``tests/sn/solve/test_seed_threading_spy.py`` (route-invariant across the
+step-3 rewire); the value catcher is the ``@slow`` het-2G sphere
+SI≡Krylov equivalence gate.  Bare-ndarray rhs paths ignore the seed
+downstream (the synthetic L0 tests have no seed dependency).
 
 Forward references
 ==================
@@ -114,30 +133,54 @@ Forward references
 
 from __future__ import annotations
 
-import inspect
 import warnings
-from typing import Callable, Generic, Protocol
+from typing import Any, Callable, Generic, Protocol, cast
 
 import numpy as np
 import scipy.sparse.linalg as spla
 
 from .operator import (
     CAP_APPLY,
-    CAP_SOLVE,
     LinearOperator,
     MissingCapability,
+    SupportsInverse,
 )
 from .vector import V
 
 
 __all__ = [
     "SourceIteration",
+    "SupportsSeededApply",
     "KrylovAcceleration",
     "KEigenvalue",
 ]
 
 
-# Type alias for the L^{-1} hook: takes a right-hand-side, returns L^{-1}·rhs.
+class SupportsSeededApply(Protocol[V]):
+    r"""Static contract: the inverse-application operator an iterative
+    driver steps through — the inverse family's CANONICAL apply signature
+    (#226 taxonomy step 3).
+
+    ``apply(rhs, *, initial_guess=None)``: the driver threads the previous
+    iterate as ``initial_guess`` on EVERY step, uniformly — no per-type
+    signature probes.  Members with no use for a starting point accept and
+    ignore the keyword, documented per type (an exact
+    :class:`~orpheus.numerics.operator.InverseOperator`; the windowed
+    product, whose multi-D walk has no bulk-seed consumer).  The member
+    that NEEDS it is the curvilinear
+    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`, whose
+    Morel–Montry Carlson closure reads the previous iterate at
+    :math:`\mu = -1`.
+
+    Like :class:`~orpheus.numerics.operator.SupportsInverse`, this is a
+    STATIC contract only (an annotation target) — deliberately not
+    ``runtime_checkable``.
+    """
+
+    def apply(self, rhs: V, /, *, initial_guess: V | None = None) -> V: ...
+
+
+# Type alias for the GMRES left-preconditioner hook M ≈ A⁻¹.
 Preconditioner = Callable[[np.ndarray], np.ndarray]
 KeffEstimator = Callable[
     [LinearOperator, LinearOperator, LinearOperator, np.ndarray], float,
@@ -155,6 +198,30 @@ def _has(op: object, cap: str) -> bool:
     """Return ``True`` iff ``op`` advertises the capability ``cap``."""
     caps = getattr(op, "capabilities", None)
     return bool(caps) and cap in caps
+
+
+def _seeded_inverse(A: LinearOperator) -> "SupportsSeededApply[Any]":
+    r"""Build ``A.inverse()`` and narrow it to the driver's seeded-apply
+    contract — the ONE home of the not-runtime-checkable narrowing.
+
+    The static narrows are casts (the ``Supports*`` Protocols are
+    deliberately not ``runtime_checkable`` — test-architect §1d.3); the
+    runtime truth is the CALLER's ``is_invertible`` guard, which MUST
+    precede this call.  The seeded-apply conformance is asserted for the
+    inverses the posing layers here actually reach — the SN
+    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` and the
+    leaf :class:`~orpheus.numerics.operator.InverseOperator`, both of
+    which carry ``apply(rhs, *, initial_guess=None)`` — NOT for every
+    ``inverse()`` in the operator family (a composed
+    ``OperatorProduct.inverse()`` does not take the keyword today).
+    Whether seeded-apply becomes STRUCTURAL (a shared mixin over the
+    inverse family) or stays per-leaf convention is decided with the
+    §12 step-4/5 siblings (``GreenOperator`` / ``MatrixInverseOperator``
+    must join the contract when they land).
+    """
+    return cast(
+        "SupportsSeededApply[Any]", cast("SupportsInverse", A).inverse(),
+    )
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -270,7 +337,7 @@ def _flux_displacement_leaf(displacement):
 
 
 def _default_production_estimator(
-    L: LinearOperator,
+    A: LinearOperator,
     S: LinearOperator,
     F: LinearOperator,
     psi: np.ndarray,
@@ -291,7 +358,7 @@ def _default_production_estimator(
 
 
 def _default_keff_estimator(
-    L: LinearOperator,
+    A: LinearOperator,
     S: LinearOperator,
     F: LinearOperator,
     psi: np.ndarray,
@@ -302,7 +369,7 @@ def _default_keff_estimator(
 
     .. math::
 
-        k \;=\; \frac{\sum (F\,\psi)}{\sum (L\,\psi) - \sum (S\,\psi)}
+        k \;=\; \frac{\sum (F\,\psi)}{\sum (A\,\psi) - \sum (S\,\psi)}
 
     which is the operator-form analogue of the production/absorption
     ratio for the homogeneous infinite-medium balance.  Each term is
@@ -317,7 +384,7 @@ def _default_keff_estimator(
     the action already carries the volume measure.
     """
     num = np.sum(F.apply(psi))
-    den = np.sum(L.apply(psi)) - np.sum(S.apply(psi))
+    den = np.sum(A.apply(psi)) - np.sum(S.apply(psi))
     return float(num / den)
 
 
@@ -327,32 +394,37 @@ def _default_keff_estimator(
 
 
 class SourceIteration(Generic[V]):
-    r"""Fixed-point iteration for :math:`\bigl(L - \sum_i g_i\bigr)\,\psi =
+    r"""Fixed-point iteration for :math:`\bigl(A - \sum_i g_i\bigr)\,\psi =
     q_{\rm ext}`.
 
     Solves the loss equation in its operator-algebra form: the invertible
-    loss operator :math:`L` (the resolvent) minus a sum of lagged coupling
-    operators :math:`g_i`.  Each iteration applies :math:`L^{-1}` to a
+    loss operator :math:`A` minus a sum of lagged coupling operators
+    :math:`g_i`.  Each iteration applies :math:`A^{-1}` to a
     right-hand-side built from the current iterate's couplings plus the
     external source:
 
     .. math::
 
-        \psi_{n+1} \;=\; L^{-1}\Bigl(\sum_i g_i\,\psi_n + q_{\rm ext}\Bigr).
+        \psi_{n+1} \;=\; A^{-1}\Bigl(\sum_i g_i\,\psi_n + q_{\rm ext}\Bigr).
 
-    The driver is problem-type-AGNOSTIC — it sees only the resolvent and
-    a homogeneous bag of couplings.  WHICH operators are couplings is a
-    posing-layer decision (see :ref:`eigenvalue-posing`): SN within-group
-    passes the scattering ``S`` and the boundary reflection ``B`` (the
-    within-group fission is zero, entering via ``q_ext``); a scattering-
-    only synthetic problem passes a single gain.
+    The driver is problem-type-AGNOSTIC — it sees only the inverse
+    application and a homogeneous bag of couplings.  WHICH operators are
+    couplings is a posing-layer decision (see :ref:`eigenvalue-posing`):
+    SN within-group passes the scattering ``S`` and the boundary
+    reflection ``B`` (the within-group fission is zero, entering via
+    ``q_ext``); a scattering-only synthetic problem passes a single gain.
 
-    The :math:`L^{-1}` action is read off ``L.solve`` directly.  The
-    caller controls the inverse step by constructing ``L`` with the
-    desired ``.solve`` behaviour — for SN within-group inner solves
-    this is typically
-    :class:`~orpheus.sn.operators.streaming.InvertibleOperator` whose ``.solve``
-    IS the WDD sweep.
+    The :math:`A^{-1}` action arrives AS AN OPERATOR (#226 taxonomy
+    step 3): the solver layer builds it once — ``(L+C).inverse()`` /
+    ``M.inverse()`` (a
+    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` whose
+    ``apply`` IS the WDD sweep), the windowed product ``P @ A.inverse()``,
+    or a leaf :class:`~orpheus.numerics.operator.InverseOperator` — and
+    this driver only ever calls
+    ``A_inv.apply(rhs, initial_guess=psi_prev)``, the family's canonical
+    seeded-apply signature (:class:`SupportsSeededApply`).  The former
+    duck-typed resolvents (a ``solve`` that inverted a DIFFERENT operator
+    than ``apply`` applied) dissolved into these typed objects.
 
     Convergence test (matching :class:`SNSolver` for bit-identical
     Round 2 wiring):
@@ -366,21 +438,27 @@ class SourceIteration(Generic[V]):
 
     Parameters
     ----------
-    L : LinearOperator
-        Invertible loss operator (the resolvent).  Must advertise BOTH
-        :pydata:`CAP_APPLY` and :pydata:`CAP_SOLVE` — the iteration step
-        is :math:`\psi_{n+1} = L^{-1}\bigl(\sum_i g_i\,\psi_n +
-        q_{\rm ext}\bigr)`, so ``L.solve`` is non-negotiable.  For SN,
-        ``L = L_{\rm streaming} + C_{\rm collision}`` whose ``.solve``
-        IS the WDD sweep.
+    A_inv : SupportsSeededApply
+        The inverse-application operator :math:`A^{-1}` — must advertise
+        :pydata:`CAP_APPLY`; the iteration step is
+        ``psi = A_inv.apply(rhs, initial_guess=psi_prev)``.  For SN this
+        is ``(L+C).inverse()`` / ``M.inverse()``
+        (:class:`~orpheus.sn.operators.sweep_operator.SweepOperator`) or
+        the windowed product
+        :class:`~orpheus.sn.operators.windowing.WindowedSweep`; the L0
+        synthetic case passes ``MatrixOperator(...).inverse()``.  Note an
+        apply-only object is acceptable BY DESIGN — the windowed product
+        carries no round-trip promise (its ``P`` factor is a coisometry) —
+        so "is this a faithful inverse of the intended forward?" is the
+        CALLER's obligation, discharged where the operator is built.
     *gains : LinearOperator
         The lagged coupling operators :math:`g_i` — each must advertise
-        :pydata:`CAP_APPLY`.  They are applied to the current iterate,
-        summed with ``q_ext``, and inverted through ``L`` every step,
-        realising :math:`\bigl(L - \sum_i g_i\bigr)\psi = q_{\rm ext}`.
-        For SN within-group these are the scattering ``S`` and the
-        boundary reflection ``B``.  Zero gains solves ``L\,\psi =
-        q_{\rm ext}`` outright.
+        :pydata:`CAP_APPLY`.  They are applied to the current iterate and
+        summed with ``q_ext`` every step, realising
+        :math:`\bigl(A - \sum_i g_i\bigr)\psi = q_{\rm ext}`.  For SN
+        within-group these are the scattering ``S`` and the boundary
+        reflection ``B`` (Jacobi) or ``B_upper`` (boundary Gauss–Seidel).
+        Zero gains solves ``A\,\psi = q_{\rm ext}`` outright.
     max_iter : int, optional
         Maximum fixed-point iterations.  Default ``1000``.
     tol : float, optional
@@ -390,8 +468,8 @@ class SourceIteration(Generic[V]):
     Raises
     ------
     MissingCapability
-        At construction time if ``L`` lacks :pydata:`CAP_APPLY` or
-        :pydata:`CAP_SOLVE`, or if any gain lacks :pydata:`CAP_APPLY`.
+        At construction time if ``A_inv`` or any gain lacks
+        :pydata:`CAP_APPLY`.
 
     Notes
     -----
@@ -403,27 +481,31 @@ class SourceIteration(Generic[V]):
     handled by the same :func:`_l2_norm` call routed through the
     ravellable protocol.
 
-    R-1 Step A/B (2026-05-19) — when ``q_ext`` is a typed
-    :class:`~orpheus.sn.angular_flux.AngularFlux`, the previous
-    iterate ``psi`` is threaded onto the rhs as the lag-1 frame so
-    ``L.solve`` can read it via ``rhs(1)`` for Carlson-seed plumbing
-    on curvilinear sweeps.  See :func:`_attach_previous`.
+    The previous iterate travels to the inverse application as the
+    explicit ``initial_guess`` keyword — the Carlson-seed plumbing for
+    curvilinear sweeps (see the module-level "Carlson seed threading"
+    section; pinned by the seed-threading spy).
     """
 
     def __init__(
         self,
-        L: LinearOperator[V],
+        A_inv: SupportsSeededApply[V],
         *gains: LinearOperator[V],
         max_iter: int = 1000,
         tol: float = 1e-8,
     ) -> None:
         # Capability checks at construction so a downstream caller
         # never sees a stub failure mid-iteration (Wave A philosophy).
-        if not _has(L, CAP_APPLY):
+        # CAP_APPLY everywhere is the WHOLE contract now: the step
+        # operator arrives pre-inverted, so the former CAP_SOLVE gate
+        # (and its inspect.signature seed-probe) dissolved with the
+        # duck-typed resolvents (#226 taxonomy step 3).
+        if not _has(A_inv, CAP_APPLY):
             raise MissingCapability(
-                f"SourceIteration requires {CAP_APPLY!r} on L; "
-                f"{type(L).__name__} advertises "
-                f"{getattr(L, 'capabilities', frozenset())}."
+                f"SourceIteration requires {CAP_APPLY!r} on A_inv (the "
+                f"inverse-application operator — build it via "
+                f"A.inverse()); {type(A_inv).__name__} advertises "
+                f"{getattr(A_inv, 'capabilities', frozenset())}."
             )
         for i, g in enumerate(gains):
             if not _has(g, CAP_APPLY):
@@ -432,17 +514,8 @@ class SourceIteration(Generic[V]):
                     f"operator; gain {i} ({type(g).__name__}) advertises "
                     f"{getattr(g, 'capabilities', frozenset())}."
                 )
-        if not _has(L, CAP_SOLVE):
-            raise MissingCapability(
-                f"SourceIteration requires {CAP_SOLVE!r} on L — the "
-                f"iteration step is psi_(n+1) = L.solve(...); "
-                f"{type(L).__name__} advertises "
-                f"{getattr(L, 'capabilities', frozenset())}.  Pass an "
-                f"L whose .solve realises the desired inverse action "
-                f"(typically an InvertibleOperator)."
-            )
 
-        self.L = L
+        self.A_inv = A_inv
         self.gains = gains
         self.max_iter = int(max_iter)
         self.tol = float(tol)
@@ -450,22 +523,6 @@ class SourceIteration(Generic[V]):
         # here so a pre-solve read returns empty rather than ``AttributeError``.
         self.contraction_ratios: list[float] = []
         self.last_displacement = None
-        # Detect once whether ``L.solve`` accepts ``initial_guess`` —
-        # InvertibleOperator does (Phase 1.2, post Carlson-seed
-        # unification); MatrixOperator and other generic LinearOperators
-        # do not.  Avoids per-iteration introspection.
-        try:
-            self._solve_accepts_seed = (
-                "initial_guess" in inspect.signature(self.L.solve).parameters
-            )
-        except (TypeError, ValueError):
-            self._solve_accepts_seed = False
-
-    def _solve_with_seed(self, rhs, psi_prev):
-        """Dispatch ``L.solve`` with or without ``initial_guess`` per L's signature."""
-        if self._solve_accepts_seed:
-            return self.L.solve(rhs, initial_guess=psi_prev)
-        return self.L.solve(rhs)
 
     def solve(
         self,
@@ -504,7 +561,10 @@ class SourceIteration(Generic[V]):
         elif _is_ravellable(initial_guess):
             psi = initial_guess  # typed: trust frozen-arithmetic contract
         else:
-            psi = np.asarray(initial_guess).copy()
+            # The bare-ndarray L0 arm — the ravellable protocol blesses
+            # ndarrays through the same V slots (module intro); the cast
+            # states that here, where the union would otherwise leak.
+            psi = cast(V, np.asarray(initial_guess).copy())
         residual_history: list[float] = []
         # Convergence diagnostics (#208) derived from the typed iterate
         # increment Δψ = ψ⁽ⁱ⁾ ⊖ ψ⁽ⁱ⁻¹⁾ (a FluxDisplacement for typed SN
@@ -526,14 +586,14 @@ class SourceIteration(Generic[V]):
             for g in self.gains:
                 rhs = rhs + g.apply(psi)
 
-            # Apply L^{-1} directly.  Phase-1.2 — the curvilinear
-            # Carlson coupled-pole seed and the reflective-BC partner-
-            # flux trace travel through ``initial_guess`` explicitly
-            # (the M-M closure reads the level's ψ at μ = −1 from
-            # this argument).  For bare-ndarray rhs the kwarg is
-            # ignored downstream — the synthetic L0 tests have no
-            # seed dependency.
-            psi = self._solve_with_seed(rhs, psi_prev)
+            # Apply the inverse OPERATOR.  The curvilinear Carlson
+            # coupled-pole seed and the reflective-BC partner-flux trace
+            # travel through ``initial_guess`` explicitly (the M-M closure
+            # reads the level's ψ at μ = −1 from this argument) — the
+            # canonical seeded-apply signature, threaded UNCONDITIONALLY
+            # (pinned by the seed-threading spy).  Members with no seed
+            # consumer ignore the kwarg downstream.
+            psi = self.A_inv.apply(rhs, initial_guess=psi_prev)
 
             # The iterate increment Δψ — a typed FluxDisplacement (ψ ⊖ ψ_prev)
             # for SN, a bare ndarray for the synthetic case. The stopping test
@@ -574,17 +634,17 @@ class SourceIteration(Generic[V]):
 
 
 class KrylovAcceleration(Generic[V]):
-    r"""GMRES on :math:`\bigl(L - \sum_i g_i\bigr)\,\psi = q_{\rm ext}` —
+    r"""GMRES on :math:`\bigl(A - \sum_i g_i\bigr)\,\psi = q_{\rm ext}` —
     sibling of :class:`SourceIteration` for the same algebra.
 
     Both primitives solve the same loss equation; they differ in
     algorithm.  :class:`SourceIteration` lags :math:`\sum_i g_i\,\psi` as
-    the right-hand side and inverts :math:`L` at every step (geometric
-    convergence at rate :math:`\rho(L^{-1}\sum_i g_i) \le
+    the right-hand side and inverts :math:`A` at every step (geometric
+    convergence at rate :math:`\rho(A^{-1}\sum_i g_i) \le
     \max\Sigma_s/\Sigma_t`).  :class:`KrylovAcceleration` builds the
-    composed matvec :math:`\bigl(L - \sum_i g_i\bigr)\cdot` as a single
+    composed matvec :math:`\bigl(A - \sum_i g_i\bigr)\cdot` as a single
     linear operator and solves it with GMRES, optionally preconditioned
-    by :math:`L^{-1}` (the sweep).  When the scattering ratio :math:`c =
+    by :math:`A^{-1}` (the sweep).  When the scattering ratio :math:`c =
     \Sigma_s/\Sigma_t` approaches 1, GMRES converges in
     :math:`\mathcal{O}(\sqrt{\kappa})` matvecs vs source iteration's
     :math:`\mathcal{O}(1/(1-c))` — the standard transport-Krylov win
@@ -595,38 +655,39 @@ class KrylovAcceleration(Generic[V]):
 
     .. math::
 
-        \Bigl(L - \sum_i g_i\Bigr)\,\psi \;=\; q_{\rm ext}.
+        \Bigl(A - \sum_i g_i\Bigr)\,\psi \;=\; q_{\rm ext}.
 
-    The composed matvec is realised as ``L.apply(psi) - Σ gᵢ.apply(psi)``
+    The composed matvec is realised as ``A.apply(psi) - Σ gᵢ.apply(psi)``
     per call — no intermediate :class:`OperatorSum` allocation.  For SN
     within-group the gains are the scattering ``S`` and the boundary
-    reflection ``B``, so the matvec IS the honest ``(L+C − S − B)·ψ``.
-    The right-hand side is whatever shape the operators consume; scipy
-    GMRES requires a flat 1-D view internally, so the primitive ravels at
-    the boundary and reshapes the solution back to ``q_ext.shape`` on
-    return.
+    reflection ``B``, so the matvec IS the honest ``(L+C − S − B)·ψ``
+    (with ``A = L + C``).  The right-hand side is whatever shape the
+    operators consume; scipy GMRES requires a flat 1-D view internally,
+    so the primitive ravels at the boundary and reshapes the solution
+    back to ``q_ext.shape`` on return.
 
     The ``preconditioner`` parameter (R-1 Step B rename)
     =====================================================
 
-    The GMRES PRECONDITIONER :math:`M \approx A^{-1}` where :math:`A =
-    L - S - F`.  The natural choice for transport problems is :math:`M
-    = L^{-1}` (the sweep) — this is the "transport-corrected"
-    preconditioner from Adams & Larsen 2002 §III.  When :math:`c` is
-    small, the sweep is an excellent preconditioner; when :math:`c` is
-    near unity, the sweep is diffusion-like and GMRES needs more
-    iterations.
+    The GMRES PRECONDITIONER approximates the FULL within-group system
+    inverse, :math:`M \approx (A - S - F)^{-1}`.  The natural choice for
+    transport problems is :math:`M = A^{-1}` (the sweep) — this is the
+    "transport-corrected" preconditioner from Adams & Larsen 2002 §III.
+    When :math:`c` is small, the sweep is an excellent preconditioner;
+    when :math:`c` is near unity, the sweep is diffusion-like and GMRES
+    needs more iterations.
 
     Previously named ``inverter`` — but that was a category mistake:
     in :class:`SourceIteration` the ``inverter`` realised the
-    iteration's INVERSE step :math:`L^{-1}`, whereas here ``M`` is the
+    iteration's INVERSE step :math:`A^{-1}`, whereas here ``M`` is the
     GMRES left preconditioner (an approximation to the FULL inverse
-    :math:`A^{-1}`).  The rename surfaces the distinction and
+    :math:`(A - S - F)^{-1}`).  The rename surfaces the distinction and
     decouples the two surfaces (R-1 Step B, 2026-05-19).
 
-    * ``preconditioner = None`` (default): if ``L`` advertises
-      :pydata:`CAP_SOLVE`, use ``L.solve`` as the preconditioner;
-      otherwise, no preconditioner (identity ``M = I``).
+    * ``preconditioner = None`` (default): if ``A`` is invertible
+      (:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`),
+      use ``A.inverse().apply`` as the preconditioner; otherwise, no
+      preconditioner (identity ``M = I``).
     * ``preconditioner = lambda q: sweep_preconditioner(q)``:
       caller-supplied preconditioner.  Typically wraps a sweep that
       consumes the same packed/structured layout the operators
@@ -634,22 +695,23 @@ class KrylovAcceleration(Generic[V]):
 
     Parameters
     ----------
-    L : LinearOperator
-        Invertible loss operator (the resolvent).  Must advertise
-        :pydata:`CAP_APPLY`; if it also advertises :pydata:`CAP_SOLVE`
-        and no ``preconditioner`` is supplied, ``L.solve`` (the sweep)
-        becomes the default GMRES preconditioner.
+    A : LinearOperator
+        The FORWARD loss operator — the GMRES matvec applies it, so it
+        must advertise :pydata:`CAP_APPLY` (contrast
+        :class:`SourceIteration`, which consumes the pre-built INVERSE).
+        If ``A.is_invertible`` and no ``preconditioner`` is supplied,
+        ``A.inverse().apply`` (the sweep) becomes the default GMRES
+        preconditioner.
     *gains : LinearOperator
-        The coupling operators :math:`g_i` subtracted from ``L`` in the
+        The coupling operators :math:`g_i` subtracted from ``A`` in the
         matvec (each must advertise :pydata:`CAP_APPLY`).  For SN within-
         group these are the scattering ``S`` and the boundary reflection
         ``B`` (within-group fission is zero — it enters as the EXTERNAL
         :math:`q_{\rm ext}` per the eigenvalue outer / within-group
-        decomposition).  Zero gains solves ``L\,\psi = q_{\rm ext}``.
+        decomposition).  Zero gains solves ``A\,\psi = q_{\rm ext}``.
     preconditioner : callable or None, optional
         GMRES left preconditioner.  See above.  When ``None`` and
-        ``L`` has no :pydata:`CAP_SOLVE`, runs GMRES without
-        preconditioner.
+        ``A`` is not invertible, runs GMRES without preconditioner.
     max_iter : int, optional
         Maximum GMRES iterations (``maxiter`` in scipy).  Default
         ``1000``.
@@ -663,13 +725,13 @@ class KrylovAcceleration(Generic[V]):
     Raises
     ------
     MissingCapability
-        At construction time if ``L`` or any gain lacks
+        At construction time if ``A`` or any gain lacks
         :pydata:`CAP_APPLY`.
 
     Notes
     -----
     The primitive is shape-agnostic at the operator level — it only
-    requires that ``L`` and the gains all consume and return arrays of
+    requires that ``A`` and the gains all consume and return arrays of
     the same shape as ``q_ext``.  Internally it ravels to 1-D for
     scipy's GMRES requirement and reshapes the solution to
     ``q_ext.shape`` on return.
@@ -677,18 +739,18 @@ class KrylovAcceleration(Generic[V]):
 
     def __init__(
         self,
-        L: LinearOperator[V],
+        A: LinearOperator[V],
         *gains: LinearOperator[V],
         preconditioner: Preconditioner | None = None,
         max_iter: int = 1000,
         tol: float = 1e-8,
         restart: int = 50,
     ) -> None:
-        if not _has(L, CAP_APPLY):
+        if not _has(A, CAP_APPLY):
             raise MissingCapability(
-                f"KrylovAcceleration requires {CAP_APPLY!r} on L; "
-                f"{type(L).__name__} advertises "
-                f"{getattr(L, 'capabilities', frozenset())}."
+                f"KrylovAcceleration requires {CAP_APPLY!r} on A; "
+                f"{type(A).__name__} advertises "
+                f"{getattr(A, 'capabilities', frozenset())}."
             )
         for i, g in enumerate(gains):
             if not _has(g, CAP_APPLY):
@@ -698,19 +760,22 @@ class KrylovAcceleration(Generic[V]):
                     f"advertises {getattr(g, 'capabilities', frozenset())}."
                 )
 
-        self.L = L
+        self.A = A
         self.gains = gains
         self.max_iter = int(max_iter)
         self.tol = float(tol)
         self.restart = int(restart)
 
         # Pin the preconditioner choice at construction.  If caller
-        # supplied one, use it.  Otherwise, fall back to L.solve when
-        # available; if not, run GMRES without preconditioner.
+        # supplied one, use it.  Otherwise, fall back to applying A's
+        # inverse OPERATOR when A is invertible (the runtime,
+        # instance-accurate query; the narrowing rationale lives on
+        # :func:`_seeded_inverse`); if not, run GMRES without
+        # preconditioner.
         if preconditioner is not None:
             self._preconditioner: Preconditioner | None = preconditioner
-        elif _has(L, CAP_SOLVE):
-            self._preconditioner = lambda q: self.L.solve(q)  # type: ignore[attr-defined]
+        elif A.is_invertible:
+            self._preconditioner = _seeded_inverse(A).apply
         else:
             self._preconditioner = None
 
@@ -719,7 +784,7 @@ class KrylovAcceleration(Generic[V]):
         q_ext: V,
         initial_guess: V | None = None,
     ) -> tuple[V, list[float]]:
-        r"""Run GMRES on :math:`(L - S - F)\,\psi = q_{\rm ext}` to convergence.
+        r"""Run GMRES on :math:`(A - S - F)\,\psi = q_{\rm ext}` to convergence.
 
         Parameters
         ----------
@@ -763,11 +828,12 @@ class KrylovAcceleration(Generic[V]):
         )
 
         def loss_minus_gains(psi: V) -> V:
-            # The honest within-group system matvec (L+C − S − B)·ψ:
-            # pure-loss/streaming minus the in-scatter + boundary gains.
-            # Operator arithmetic propagates via dunders to ``.boundary``
-            # (typed AngularFlux) or just the ndarray (bare).
-            out = self.L.apply(psi)
+            # The honest within-group system matvec (A − S − B)·ψ with
+            # A = L+C: the invertible loss minus the in-scatter +
+            # boundary gains.  Operator arithmetic propagates via
+            # dunders to ``.boundary`` (typed AngularFlux) or just the
+            # ndarray (bare).
+            out = self.A.apply(psi)
             for g in self.gains:
                 out = out - g.apply(psi)
             return out
@@ -863,18 +929,19 @@ class KrylovAcceleration(Generic[V]):
 
 
 class KEigenvalue:
-    r"""The k-eigenvalue problem :math:`(L - S)\,\psi = F\psi/k`, posed from an
+    r"""The k-eigenvalue problem :math:`(A - S)\,\psi = F\psi/k`, posed from an
     operator triple and solved by the canonical ``power_iteration`` loop.
 
     ``KEigenvalue`` is the **operator-triple realization** of the
     method-agnostic
     :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` boundary (the
-    Layer-2 k-posing :math:`A_{\rm loss} = L`, :math:`M = F`, :math:`k = \mu`):
-    it exposes the boundary methods (``compute_fission_source``
-    :math:`= F\psi/k`; ``solve_fixed_source`` = the inner
-    :class:`SourceIteration` resolvent :math:`(L - S)^{-1}`, warm-started; the
-    keff / production estimators; ``converged``) and **delegates the outer
-    loop** to :func:`~orpheus.numerics.eigenvalue.power_iteration` — the SINGLE
+    Layer-2 k-posing :math:`A_{\rm loss} = A - S`, :math:`M = F`,
+    :math:`k = \mu`): it exposes the boundary methods
+    (``compute_fission_source`` :math:`= F\psi/k`; ``solve_fixed_source``
+    = the inner :class:`SourceIteration` realization of
+    :math:`(A - S)^{-1}`, warm-started; the keff / production estimators;
+    ``converged``) and **delegates the outer loop** to
+    :func:`~orpheus.numerics.eigenvalue.power_iteration` — the SINGLE
     power-iteration loop in the codebase (Cardinal Rule 2).  It is ONE
     implementer of the boundary alongside the five solver families
     (SN / CP / diffusion / MoC / homogeneous); it owns no parallel loop.  See
@@ -882,16 +949,16 @@ class KEigenvalue:
 
     Each outer step (run by ``power_iteration``) builds the fission source
     :math:`q_n = F\,\psi_n/k_n`, then drives the inner
-    :class:`SourceIteration` with operator triple :math:`(L, S, 0)` and
+    :class:`SourceIteration` with operator triple :math:`(A, S, 0)` and
     external source :math:`q_n`:
 
     .. math::
 
-        \psi_{n+1} \;=\; (L - S)^{-1}\,F\,\psi_n / k_n
+        \psi_{n+1} \;=\; (A - S)^{-1}\,F\,\psi_n / k_n
 
     .. math::
 
-        k_{n+1} \;=\; {\rm keff\_estimator}(L, F, \psi_{n+1})
+        k_{n+1} \;=\; {\rm keff\_estimator}(A, F, \psi_{n+1})
 
     Convergence test:  both :math:`|k_{n+1} - k_n| < {\rm keff\_tol}`
     AND the relative flux residual :math:`\|\psi_{n+1} -
@@ -902,13 +969,16 @@ class KEigenvalue:
 
     Parameters
     ----------
-    L, S, F : LinearOperator
-        Operator triple, same constraints as
-        :class:`SourceIteration` — ``L`` MUST advertise BOTH
-        :pydata:`CAP_APPLY` and :pydata:`CAP_SOLVE`; ``S`` and ``F``
-        must advertise :pydata:`CAP_APPLY`.  ``F`` is non-trivial for
-        an eigenvalue solve (no degenerate zero-fission case — without
-        fission the spectrum is empty).
+    A, S, F : LinearOperator
+        Operator triple.  ``A`` (the FORWARD invertible loss operator)
+        MUST be invertible
+        (:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`)
+        — this posing layer builds ``A.inverse()`` once and hands it to
+        the inner :class:`SourceIteration`, which only APPLIES it (#226
+        taxonomy step 3).  ``S`` and ``F`` must advertise
+        :pydata:`CAP_APPLY`.  ``F`` is non-trivial for an eigenvalue
+        solve (no degenerate zero-fission case — without fission the
+        spectrum is empty).
     max_outer : int, optional
         Maximum outer (power) iterations.  Default ``500``.
     keff_tol, flux_tol : float, optional
@@ -925,7 +995,7 @@ class KEigenvalue:
         implemented; other values raise :class:`NotImplementedError`
         at construction time.
     keff_estimator : callable or None, optional
-        ``(L, S, F, psi) -> keff`` function used to update the outer
+        ``(A, S, F, psi) -> keff`` function used to update the outer
         eigenvalue.  When ``None`` (default), uses the generic
         Rayleigh-quotient :func:`_default_keff_estimator`.  SN
         consumers that need explicit volume weighting (matching
@@ -945,7 +1015,7 @@ class KEigenvalue:
 
     def __init__(
         self,
-        L: LinearOperator,
+        A: LinearOperator,
         S: LinearOperator,
         F: LinearOperator,
         *,
@@ -966,12 +1036,20 @@ class KEigenvalue:
                 f"methods are a forward hook reserved for a future wave."
             )
 
-        # Defer capability checks to the inner SourceIteration: the
-        # same constraints apply, and we want one source of truth for
-        # the messages.  The inner constructor will raise
-        # MissingCapability for any deficient operand.
+        # Construct-time validation of A happens HERE (the posing layer
+        # builds the inverse — taxonomy step 3): a non-invertible A must
+        # fail with a domain message, not an AttributeError from a
+        # missing ``.inverse``.  S's CAP_APPLY check stays deferred to
+        # the inner SourceIteration (one source of truth).
+        if not getattr(A, "is_invertible", False):
+            raise MissingCapability(
+                f"KEigenvalue requires an INVERTIBLE A — the inner "
+                f"SourceIteration applies A.inverse() each step; "
+                f"{type(A).__name__}.is_invertible is "
+                f"{getattr(A, 'is_invertible', 'absent')}."
+            )
 
-        self.L = L
+        self.A = A
         self.S = S
         self.F = F
         self.max_outer = int(max_outer)
@@ -989,14 +1067,19 @@ class KEigenvalue:
             else _default_production_estimator
         )
 
-        # Build the inner fixed-source resolvent ONCE.  Its single coupling
-        # gain is the scattering ``S`` — the within-group fission is zero at the
-        # inner level because F·ψ/k is the EXTERNAL source the outer power
-        # iteration feeds in, NOT a within-group fixed-point term.  Constructing
-        # it here validates L's apply+solve and S's apply at construction time,
-        # NEVER mid-iteration.
+        # Build the inner fixed-source step ONCE: the SOLVER (this posing
+        # layer) builds the inverse operator, the driver applies it (#226
+        # taxonomy step 3).  Its single coupling gain is the scattering
+        # ``S`` — the within-group fission is zero at the inner level
+        # because F·ψ/k is the EXTERNAL source the outer power iteration
+        # feeds in, NOT a within-group fixed-point term.  Constructing it
+        # here validates S's apply at construction time, NEVER
+        # mid-iteration.  The seeded-apply narrow (and its SCOPE — the
+        # reachable inverses, not the whole family) is single-sourced on
+        # :func:`_seeded_inverse`; the ``is_invertible`` guard above is
+        # its runtime precondition.
         self._inner = SourceIteration(
-            self.L, self.S,
+            _seeded_inverse(self.A), self.S,
             max_iter=self.max_inner, tol=self.inner_tol,
         )
         # F (the outer eigen-operator F·ψ) needs apply.
@@ -1014,12 +1097,13 @@ class KEigenvalue:
     #
     # KEigenvalue realizes the method-agnostic
     # :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` boundary from its
-    # (L, S, F) operator triple — the k-eigenvalue posing A_loss = L − S (the
-    # resolvent ``L`` minus the scattering coupling ``S``), eigen-operator
-    # M = F, k = μ — then delegates the outer loop to the canonical
-    # ``power_iteration`` algorithm.  (The SN production path poses the same
-    # standard form via :func:`~orpheus.sn.solver._within_group_triple`, which
-    # adds the boundary reflection ``B`` as a second coupling gain so
+    # (A, S, F) operator triple — the k-eigenvalue posing A_loss = A − S (the
+    # invertible loss ``A`` minus the scattering coupling ``S``),
+    # eigen-operator M = F, k = μ — then delegates the outer loop to the
+    # canonical ``power_iteration`` algorithm.  (The SN production path poses
+    # the same standard form via
+    # :func:`~orpheus.sn.solver._within_group_triple`, which adds the boundary
+    # reflection ``B`` as a second coupling gain so, with A = L+C,
     # A_loss = L+C − S − B.)  There is ONE power-iteration loop in the codebase
     # (Cardinal Rule 2): KEigenvalue and SNSolver are both implementers of this
     # boundary, not parallel engines.
@@ -1063,13 +1147,13 @@ class KEigenvalue:
         multiplication by :math:`P_{\text{target}} / \kappa`.
         """
         return float(
-            self._production_estimator(self.L, self.S, self.F, flux_distribution)
+            self._production_estimator(self.A, self.S, self.F, flux_distribution)
         )
 
     def compute_keff(self, flux_distribution: np.ndarray) -> float:
         """Dominant-eigenvalue estimate (the injected ``keff_estimator``)."""
         return float(
-            self._keff_estimator(self.L, self.S, self.F, flux_distribution)
+            self._keff_estimator(self.A, self.S, self.F, flux_distribution)
         )
 
     def converged(
@@ -1097,7 +1181,7 @@ class KEigenvalue:
 
         KEigenvalue realizes the
         :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` boundary (the
-        methods above) from its ``(L, S, F)`` triple and delegates the outer
+        methods above) from its ``(A, S, F)`` triple and delegates the outer
         iteration to :func:`~orpheus.numerics.eigenvalue.power_iteration` — the
         SINGLE power-iteration loop in the codebase (Cardinal Rule 2).  The
         ``eigenvalue_method`` selector (validated at construction) reserves the

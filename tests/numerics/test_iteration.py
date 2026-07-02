@@ -14,7 +14,8 @@ Tests in this file:
   :class:`MissingCapability` when their argument operators lack the
   required Protocol surface.
 * **L1 (SN integration gate):** build an actual SN operator triple
-  (:class:`~orpheus.sn.operators.streaming.InvertibleOperator` (= ``L + C``) /
+  (:class:`~orpheus.sn.operators.streaming.InvertibleOperator`
+  (= ``A = L + C``) /
   :class:`ScatteringOperator` / :class:`FissionOperator`) for a
   2-group homogeneous slab and assert that :class:`KEigenvalue`
   recovers the same :math:`k_{\\rm eff}` as :func:`solve_sn`.  This
@@ -40,6 +41,7 @@ from orpheus.numerics.operator import (
     CAP_APPLY,
     CAP_APPLY_TRANSPOSE,
     CAP_SOLVE,
+    InverseOperator,
     LinearOperator,
     MissingCapability,
     ZeroOperator,
@@ -83,6 +85,17 @@ class MatrixOperator(LinearOperator):
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         return self.matrix.T @ x
 
+    @property
+    def is_invertible(self) -> bool:
+        return CAP_SOLVE in self.capabilities
+
+    def inverse(self) -> InverseOperator:
+        # The #226 step-3 driver contract: the caller builds the inverse
+        # OPERATOR and SourceIteration applies it.  The generic
+        # InverseOperator delegates apply → this leaf's solve
+        # (bit-identical to the pre-step-3 ``L.solve`` step).
+        return InverseOperator(self)
+
 
 @pytest.fixture
 def rng() -> np.random.Generator:
@@ -96,33 +109,33 @@ def rng() -> np.random.Generator:
 
 @pytest.mark.foundation
 def test_source_iteration_recovers_direct_solve(rng):
-    """L0 ground truth: SourceIteration on (L − S) matches np.linalg.solve.
+    """L0 ground truth: SourceIteration on (A − S) matches np.linalg.solve.
 
-    Build a 4×4 SPD-ish ``L`` and a contraction ``S`` (spectral radius
-    well below 1).  Solve ``(L − S)·ψ = q`` two ways:
+    Build a 4×4 SPD-ish ``A`` and a contraction ``S`` (spectral radius
+    well below 1).  Solve ``(A − S)·ψ = q`` two ways:
 
-    * Directly: ``np.linalg.solve(L − S, q)``.
+    * Directly: ``np.linalg.solve(A − S, q)``.
     * By SourceIteration with ``F = ZeroOperator()``.
 
     The fixed-point iteration converges geometrically at rate
-    :math:`\\rho(L^{-1}\\,S)`; the two answers must agree to
+    :math:`\\rho(A^{-1}\\,S)`; the two answers must agree to
     1e-10 absolute.
     """
     n = 4
     # Diagonal-dominant matrix → well-conditioned solve.
-    L_mat = np.eye(n) * 4.0 + 0.1 * rng.standard_normal((n, n))
-    L_mat = 0.5 * (L_mat + L_mat.T) + n * np.eye(n)  # symmetric, dominant
-    # Small contraction: spectral radius of L^{-1} S < 0.1.
+    A_mat = np.eye(n) * 4.0 + 0.1 * rng.standard_normal((n, n))
+    A_mat = 0.5 * (A_mat + A_mat.T) + n * np.eye(n)  # symmetric, dominant
+    # Small contraction: spectral radius of A^{-1} S < 0.1.
     S_mat = 0.05 * rng.standard_normal((n, n))
 
-    L = MatrixOperator(L_mat, can_solve=True)
+    A = MatrixOperator(A_mat, can_solve=True)
     S = MatrixOperator(S_mat)
     F = ZeroOperator()
 
     q = rng.standard_normal(n)
-    expected = np.linalg.solve(L_mat - S_mat, q)
+    expected = np.linalg.solve(A_mat - S_mat, q)
 
-    si = SourceIteration(L, S, F, max_iter=1000, tol=1e-14)
+    si = SourceIteration(A.inverse(), S, F, max_iter=1000, tol=1e-14)
     psi, residuals = si.solve(q)
 
     np.testing.assert_allclose(psi, expected, atol=1e-10, rtol=1e-10)
@@ -135,26 +148,26 @@ def test_source_iteration_recovers_direct_solve(rng):
 
 @pytest.mark.foundation
 def test_source_iteration_with_fission_term(rng):
-    """SourceIteration on full (L − S − F) recovers direct solve.
+    """SourceIteration on full (A − S − F) recovers direct solve.
 
     Same construction as above but with a small ``F`` term.  Solves
-    ``(L − S − F)·ψ = q`` by fixed-point iteration; compares to
-    ``np.linalg.solve(L − S − F, q)``.
+    ``(A − S − F)·ψ = q`` by fixed-point iteration; compares to
+    ``np.linalg.solve(A − S − F, q)``.
     """
     n = 4
-    L_mat = np.eye(n) * 5.0 + 0.05 * rng.standard_normal((n, n))
-    L_mat = 0.5 * (L_mat + L_mat.T) + n * np.eye(n)
+    A_mat = np.eye(n) * 5.0 + 0.05 * rng.standard_normal((n, n))
+    A_mat = 0.5 * (A_mat + A_mat.T) + n * np.eye(n)
     S_mat = 0.05 * rng.standard_normal((n, n))
     F_mat = 0.05 * rng.standard_normal((n, n))
 
-    L = MatrixOperator(L_mat, can_solve=True)
+    A = MatrixOperator(A_mat, can_solve=True)
     S = MatrixOperator(S_mat)
     F = MatrixOperator(F_mat)
 
     q = rng.standard_normal(n)
-    expected = np.linalg.solve(L_mat - S_mat - F_mat, q)
+    expected = np.linalg.solve(A_mat - S_mat - F_mat, q)
 
-    si = SourceIteration(L, S, F, max_iter=2000, tol=1e-14)
+    si = SourceIteration(A.inverse(), S, F, max_iter=2000, tol=1e-14)
     psi, _ = si.solve(q)
 
     np.testing.assert_allclose(psi, expected, atol=1e-10, rtol=1e-10)
@@ -162,31 +175,32 @@ def test_source_iteration_with_fission_term(rng):
 
 @pytest.mark.foundation
 def test_source_iteration_with_explicit_solve_realisation():
-    r"""The caller controls the inverse step by constructing L appropriately.
+    r"""The caller controls the inverse step by BUILDING the inverse operator.
 
-    R-1 Step B (2026-05-19) — the legacy ``inverter`` Callable hook
-    retires.  The new contract: ``L.solve`` IS the inverse step; the
-    caller wraps the desired inverse action as the ``L`` operator's
-    ``solve`` method.  This test exercises that pattern with a
-    pre-inverted dense matrix wrapped in a ``MatrixOperator`` whose
-    ``.solve`` realises the cached inverse action directly.
+    #226 taxonomy step 3 (superseding the R-1 Step B ``solve`` contract):
+    the solver layer builds ``A.inverse()`` — whose ``apply`` delegates to
+    the leaf's ``solve``, bit-identical — and :class:`SourceIteration`
+    only APPLIES it.  This test exercises the pattern with a dense matrix
+    wrapped in a ``MatrixOperator``: the caller's chosen inverse action
+    (``np.linalg.solve`` under the hood) reaches the driver as the
+    inverse-application operator, not as a duck-typed ``.solve`` surface.
     """
     n = 3
-    L_mat = np.diag([5.0, 6.0, 7.0])
+    A_mat = np.diag([5.0, 6.0, 7.0])
     S_mat = 0.1 * np.array([[0.0, 1.0, 0.0],
                             [1.0, 0.0, 1.0],
                             [0.0, 1.0, 0.0]])
 
-    # L with both apply AND solve (the new contract).  MatrixOperator
-    # exposes both — solve runs np.linalg.solve under the hood.
-    L = MatrixOperator(L_mat, can_solve=True)
+    # The caller-controlled inverse: the leaf carries the solve
+    # realisation; .inverse() lifts it to the operator the driver applies.
+    A = MatrixOperator(A_mat, can_solve=True)
     S = MatrixOperator(S_mat)
     F = ZeroOperator()
 
     q = np.array([1.0, 2.0, 3.0])
-    expected = np.linalg.solve(L_mat - S_mat, q)
+    expected = np.linalg.solve(A_mat - S_mat, q)
 
-    si = SourceIteration(L, S, F, max_iter=500, tol=1e-14)
+    si = SourceIteration(A.inverse(), S, F, max_iter=500, tol=1e-14)
     psi, _ = si.solve(q)
     np.testing.assert_allclose(psi, expected, atol=1e-12)
 
@@ -198,27 +212,27 @@ def test_source_iteration_with_explicit_solve_realisation():
 
 @pytest.mark.foundation
 def test_krylov_acceleration_recovers_direct_solve(rng):
-    """L0 ground truth: KrylovAcceleration on (L − S) matches np.linalg.solve.
+    """L0 ground truth: KrylovAcceleration on (A − S) matches np.linalg.solve.
 
     Same algebraic setup as
     :func:`test_source_iteration_recovers_direct_solve`.  GMRES on
-    the composed (L − S) matvec, with L.solve as the default
-    preconditioner.  Convergence to 1e-10 should take far fewer
-    matvecs than source iteration because L − S is well-conditioned.
+    the composed (A − S) matvec, with ``A.inverse().apply`` as the
+    default preconditioner.  Convergence to 1e-10 should take far fewer
+    matvecs than source iteration because A − S is well-conditioned.
     """
     n = 4
-    L_mat = np.eye(n) * 4.0 + 0.1 * rng.standard_normal((n, n))
-    L_mat = 0.5 * (L_mat + L_mat.T) + n * np.eye(n)
+    A_mat = np.eye(n) * 4.0 + 0.1 * rng.standard_normal((n, n))
+    A_mat = 0.5 * (A_mat + A_mat.T) + n * np.eye(n)
     S_mat = 0.05 * rng.standard_normal((n, n))
 
-    L = MatrixOperator(L_mat, can_solve=True)
+    A = MatrixOperator(A_mat, can_solve=True)
     S = MatrixOperator(S_mat)
     F = ZeroOperator()
 
     q = rng.standard_normal(n)
-    expected = np.linalg.solve(L_mat - S_mat, q)
+    expected = np.linalg.solve(A_mat - S_mat, q)
 
-    krylov = KrylovAcceleration(L, S, F, max_iter=200, tol=1e-12)
+    krylov = KrylovAcceleration(A, S, F, max_iter=200, tol=1e-12)
     psi, residuals = krylov.solve(q)
 
     np.testing.assert_allclose(psi, expected, atol=1e-10, rtol=1e-10)
@@ -230,21 +244,21 @@ def test_krylov_acceleration_recovers_direct_solve(rng):
 
 @pytest.mark.foundation
 def test_krylov_acceleration_with_fission_term(rng):
-    """KrylovAcceleration on full (L − S − F) recovers direct solve."""
+    """KrylovAcceleration on full (A − S − F) recovers direct solve."""
     n = 4
-    L_mat = np.eye(n) * 5.0 + 0.05 * rng.standard_normal((n, n))
-    L_mat = 0.5 * (L_mat + L_mat.T) + n * np.eye(n)
+    A_mat = np.eye(n) * 5.0 + 0.05 * rng.standard_normal((n, n))
+    A_mat = 0.5 * (A_mat + A_mat.T) + n * np.eye(n)
     S_mat = 0.05 * rng.standard_normal((n, n))
     F_mat = 0.05 * rng.standard_normal((n, n))
 
-    L = MatrixOperator(L_mat, can_solve=True)
+    A = MatrixOperator(A_mat, can_solve=True)
     S = MatrixOperator(S_mat)
     F = MatrixOperator(F_mat)
 
     q = rng.standard_normal(n)
-    expected = np.linalg.solve(L_mat - S_mat - F_mat, q)
+    expected = np.linalg.solve(A_mat - S_mat - F_mat, q)
 
-    krylov = KrylovAcceleration(L, S, F, max_iter=200, tol=1e-12)
+    krylov = KrylovAcceleration(A, S, F, max_iter=200, tol=1e-12)
     psi, _ = krylov.solve(q)
 
     np.testing.assert_allclose(psi, expected, atol=1e-10, rtol=1e-10)
@@ -252,31 +266,31 @@ def test_krylov_acceleration_with_fission_term(rng):
 
 @pytest.mark.foundation
 def test_krylov_acceleration_explicit_preconditioner():
-    """Caller-supplied ``preconditioner`` shadows the default L.solve choice.
+    """Caller-supplied ``preconditioner`` shadows the default inverse choice.
 
     R-1 Step B (2026-05-19) — the parameter name is ``preconditioner``
-    (not ``inverter``).  Pass an L that lacks ``CAP_SOLVE`` and
+    (not ``inverter``).  Pass an ``A`` that is NOT invertible and
     supply ``preconditioner`` — construction must succeed and GMRES
     must converge using the supplied preconditioner.
     """
     n = 3
-    L_mat = np.diag([5.0, 6.0, 7.0])
+    A_mat = np.diag([5.0, 6.0, 7.0])
     S_mat = 0.1 * np.array([[0.0, 1.0, 0.0],
                             [1.0, 0.0, 1.0],
                             [0.0, 1.0, 0.0]])
 
-    L = MatrixOperator(L_mat, can_solve=False)
+    A = MatrixOperator(A_mat, can_solve=False)
     S = MatrixOperator(S_mat)
     F = ZeroOperator()
 
-    inv_L = np.linalg.inv(L_mat)
-    preconditioner = lambda q: inv_L @ q
+    inv_A = np.linalg.inv(A_mat)
+    preconditioner = lambda q: inv_A @ q
 
     q = np.array([1.0, 2.0, 3.0])
-    expected = np.linalg.solve(L_mat - S_mat, q)
+    expected = np.linalg.solve(A_mat - S_mat, q)
 
     krylov = KrylovAcceleration(
-        L, S, F, preconditioner=preconditioner, max_iter=100, tol=1e-12,
+        A, S, F, preconditioner=preconditioner, max_iter=100, tol=1e-12,
     )
     psi, _ = krylov.solve(q)
     np.testing.assert_allclose(psi, expected, atol=1e-10)
@@ -284,26 +298,26 @@ def test_krylov_acceleration_explicit_preconditioner():
 
 @pytest.mark.foundation
 def test_krylov_acceleration_works_without_preconditioner():
-    """KrylovAcceleration runs unpreconditioned when L lacks CAP_SOLVE.
+    """KrylovAcceleration runs unpreconditioned when A is not invertible.
 
-    No ``preconditioner`` supplied, no ``CAP_SOLVE`` on L — GMRES
+    No ``preconditioner`` supplied, ``A`` not invertible — GMRES
     still converges, just with more iterations (M = I, the identity
     preconditioner).
     """
     n = 5
-    # Well-conditioned diagonal-dominant L so unpreconditioned GMRES
+    # Well-conditioned diagonal-dominant A so unpreconditioned GMRES
     # still converges quickly.
-    L_mat = np.eye(n) * 10.0
-    L = MatrixOperator(L_mat, can_solve=False)
+    A_mat = np.eye(n) * 10.0
+    A = MatrixOperator(A_mat, can_solve=False)
     S = ZeroOperator()
     F = ZeroOperator()
 
     q = np.arange(1.0, n + 1.0)
     expected = q / 10.0
 
-    krylov = KrylovAcceleration(L, S, F, max_iter=50, tol=1e-12)
+    krylov = KrylovAcceleration(A, S, F, max_iter=50, tol=1e-12)
     assert krylov._preconditioner is None, (
-        "Expected no preconditioner when L lacks CAP_SOLVE and no "
+        "Expected no preconditioner when A is not invertible and no "
         "preconditioner is supplied."
     )
     psi, _ = krylov.solve(q)
@@ -316,25 +330,25 @@ def test_krylov_acceleration_high_scattering_beats_source_iteration():
 
     The whole point of the KrylovAcceleration sibling is the
     spectral-radius win when the scattering ratio is high.  Pin the
-    qualitative win at c ≈ 0.9 (~ρ(L⁻¹S) ≈ 0.9 ⇒ SI needs
+    qualitative win at c ≈ 0.9 (~ρ(A⁻¹S) ≈ 0.9 ⇒ SI needs
     ~log(tol)/log(0.9) ≈ 220 iterations to reach 1e-10 vs GMRES at
     well under that).
     """
     n = 8
-    # Diagonal L; nearly-uniform S to make ρ(L⁻¹·S) ≈ 0.9.
-    L_mat = np.eye(n) * 1.0
-    # All entries = 0.9/n so the row-sum is 0.9 and L⁻¹·S has spectral
+    # Diagonal A; nearly-uniform S to make ρ(A⁻¹·S) ≈ 0.9.
+    A_mat = np.eye(n) * 1.0
+    # All entries = 0.9/n so the row-sum is 0.9 and A⁻¹·S has spectral
     # radius exactly 0.9.
     S_mat = np.full((n, n), 0.9 / n)
-    L = MatrixOperator(L_mat, can_solve=True)
+    A = MatrixOperator(A_mat, can_solve=True)
     S = MatrixOperator(S_mat)
     F = ZeroOperator()
     q = np.arange(1.0, n + 1.0)
 
-    si = SourceIteration(L, S, F, max_iter=500, tol=1e-10)
+    si = SourceIteration(A.inverse(), S, F, max_iter=500, tol=1e-10)
     _, si_residuals = si.solve(q)
 
-    krylov = KrylovAcceleration(L, S, F, max_iter=500, tol=1e-10)
+    krylov = KrylovAcceleration(A, S, F, max_iter=500, tol=1e-10)
     _, kr_residuals = krylov.solve(q)
 
     # GMRES should converge in well under SI's iteration count.  The
@@ -348,31 +362,31 @@ def test_krylov_acceleration_high_scattering_beats_source_iteration():
 
 
 @pytest.mark.foundation
-def test_krylov_acceleration_requires_apply_on_L():
-    class BrokenL:
+def test_krylov_acceleration_requires_apply_on_A():
+    class BrokenA:
         capabilities = frozenset()
 
-    with pytest.raises(MissingCapability, match=r"requires 'apply' on L"):
-        KrylovAcceleration(BrokenL(), ZeroOperator(), ZeroOperator())
+    with pytest.raises(MissingCapability, match=r"requires 'apply' on A"):
+        KrylovAcceleration(BrokenA(), ZeroOperator(), ZeroOperator())
 
 
 @pytest.mark.foundation
 def test_krylov_acceleration_requires_apply_on_first_coupling():
     """A coupling gain without apply → MissingCapability at construction.
 
-    Wave O #208 O.2a: the drivers take the variadic ``(L, *gains)`` shape; the
+    Wave O #208 O.2a: the drivers take the variadic ``(A, *gains)`` shape; the
     per-gain apply check names the offending gain by index (the legacy
     ``S``/``F`` named slots are retired).
     """
     class BrokenS:
         capabilities = frozenset()
 
-    L = MatrixOperator(np.eye(3), can_solve=True)
+    A = MatrixOperator(np.eye(3), can_solve=True)
     with pytest.raises(
         MissingCapability,
         match=r"requires 'apply' on every coupling operator; gain 0",
     ):
-        KrylovAcceleration(L, BrokenS(), ZeroOperator())
+        KrylovAcceleration(A, BrokenS(), ZeroOperator())
 
 
 @pytest.mark.foundation
@@ -381,12 +395,12 @@ def test_krylov_acceleration_requires_apply_on_later_coupling():
     class BrokenF:
         capabilities = frozenset()
 
-    L = MatrixOperator(np.eye(3), can_solve=True)
+    A = MatrixOperator(np.eye(3), can_solve=True)
     with pytest.raises(
         MissingCapability,
         match=r"requires 'apply' on every coupling operator; gain 1",
     ):
-        KrylovAcceleration(L, ZeroOperator(), BrokenF())
+        KrylovAcceleration(A, ZeroOperator(), BrokenF())
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -398,11 +412,11 @@ def test_krylov_acceleration_requires_apply_on_later_coupling():
 def test_keigenvalue_recovers_dominant_eigenvalue(rng):
     """L0 ground truth: KEigenvalue matches numpy.linalg.eig dominant root.
 
-    Build ``L`` (full apply + solve) and ``F`` (apply only).  Solve
-    the generalised eigenvalue problem :math:`L\\,\\psi = (1/k)\\,F\\,\\psi`
+    Build ``A`` (full apply + solve) and ``F`` (apply only).  Solve
+    the generalised eigenvalue problem :math:`A\\,\\psi = (1/k)\\,F\\,\\psi`
     two ways:
 
-    * Directly: largest eigenvalue of ``L^{-1}·F`` from
+    * Directly: largest eigenvalue of ``A^{-1}·F`` from
       :func:`numpy.linalg.eig`.
     * By :class:`KEigenvalue` with ``S = ZeroOperator``.
 
@@ -411,23 +425,24 @@ def test_keigenvalue_recovers_dominant_eigenvalue(rng):
     """
     n = 4
     # Diagonally-dominant L with positive diagonal.
-    L_mat = np.diag([3.0, 5.0, 7.0, 11.0]) + 0.05 * rng.standard_normal((n, n))
-    L_mat = 0.5 * (L_mat + L_mat.T) + 5.0 * np.eye(n)
+    A_mat = np.diag([3.0, 5.0, 7.0, 11.0]) + 0.05 * rng.standard_normal((n, n))
+    A_mat = 0.5 * (A_mat + A_mat.T) + 5.0 * np.eye(n)
     # F: small dominance ratio (k_0 / k_1 ≈ 2 for fast convergence).
     F_mat = np.diag([2.0, 1.0, 0.5, 0.25])
 
-    L = MatrixOperator(L_mat, can_solve=True)
+    A = MatrixOperator(A_mat, can_solve=True)
     S = ZeroOperator()
     F = MatrixOperator(F_mat)
 
-    # Reference: largest k = 1/eig(L^{-1} F).
-    A = np.linalg.solve(L_mat, F_mat)
-    eigvals = np.linalg.eigvals(A)
+    # Reference: largest k = eig(A^{-1} F) (the K = A⁻¹F multiplication
+    # operator's dominant root).
+    A_inv_F = np.linalg.solve(A_mat, F_mat)
+    eigvals = np.linalg.eigvals(A_inv_F)
     expected_keff = float(np.max(np.real(eigvals)))
 
     initial = np.ones(n)
     ke = KEigenvalue(
-        L, S, F,
+        A, S, F,
         max_outer=500, keff_tol=1e-12, flux_tol=1e-12,
         max_inner=500, inner_tol=1e-14,
     )
@@ -438,8 +453,8 @@ def test_keigenvalue_recovers_dominant_eigenvalue(rng):
         f"history[-3:]={keff_history[-3:]}"
     )
 
-    # The eigenvector should satisfy A·ψ = k·ψ to high precision.
-    np.testing.assert_allclose(A @ psi, keff * psi, atol=1e-7)
+    # The eigenvector should satisfy (A⁻¹F)·ψ = k·ψ to high precision.
+    np.testing.assert_allclose(A_inv_F @ psi, keff * psi, atol=1e-7)
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -448,17 +463,17 @@ def test_keigenvalue_recovers_dominant_eigenvalue(rng):
 
 
 @pytest.mark.foundation
-def test_source_iteration_requires_apply_on_L():
-    """L without apply → MissingCapability at construction."""
-    class BrokenL:
+def test_source_iteration_requires_apply_on_A_inv():
+    """A_inv without apply → MissingCapability at construction."""
+    class BrokenAInv:
         capabilities = frozenset()  # nothing
 
-    L = BrokenL()
+    A_inv = BrokenAInv()
     S = MatrixOperator(np.eye(2))
     F = ZeroOperator()
 
     with pytest.raises(MissingCapability, match="apply"):
-        SourceIteration(L, S, F)
+        SourceIteration(A_inv, S, F)
 
 
 @pytest.mark.foundation
@@ -467,12 +482,12 @@ def test_source_iteration_requires_apply_on_S():
     class BrokenS:
         capabilities = frozenset()  # nothing
 
-    L = MatrixOperator(np.eye(2), can_solve=True)
+    A = MatrixOperator(np.eye(2), can_solve=True)
     S = BrokenS()
     F = ZeroOperator()
 
     with pytest.raises(MissingCapability, match="apply"):
-        SourceIteration(L, S, F)
+        SourceIteration(A.inverse(), S, F)
 
 
 @pytest.mark.foundation
@@ -481,34 +496,66 @@ def test_source_iteration_requires_apply_on_F():
     class BrokenF:
         capabilities = frozenset()  # nothing
 
-    L = MatrixOperator(np.eye(2), can_solve=True)
+    A = MatrixOperator(np.eye(2), can_solve=True)
     S = MatrixOperator(np.eye(2))
     F = BrokenF()
 
     with pytest.raises(MissingCapability, match="apply"):
-        SourceIteration(L, S, F)
+        SourceIteration(A.inverse(), S, F)
 
 
 @pytest.mark.foundation
-def test_source_iteration_requires_solve_on_L():
-    """L without solve → MissingCapability (R-1 Step B contract)."""
-    L = MatrixOperator(np.eye(2), can_solve=False)
-    S = MatrixOperator(np.eye(2))
-    F = ZeroOperator()
+def test_invertibility_obligation_lives_at_the_inverse_builder():
+    """The R-1 Step B "L must solve" gate MIGRATED to the builder (#226 step 3).
 
-    with pytest.raises(MissingCapability, match="solve"):
-        SourceIteration(L, S, F)
+    :class:`SourceIteration` no longer demands ``CAP_SOLVE`` — its step
+    operator arrives pre-inverted, and an APPLY-ONLY step operator is
+    acceptable BY DESIGN (the windowed product ``P @ A.inverse()`` is
+    exactly that shape: no round-trip promise, just the family's canonical
+    seeded-apply signature).  The "can this be inverted?" obligation now
+    discharges where the inverse is BUILT: ``.inverse()`` on a
+    non-invertible leaf raises with the domain message.
+    """
+    # The obligation fires at the builder …
+    with pytest.raises(MissingCapability, match="invertible"):
+        MatrixOperator(np.eye(2), can_solve=False).inverse()
+
+    # … and the driver runs an apply-only, seeded-signature step operator
+    # END-TO-END (the windowed-product shape): CAP_APPLY only, the
+    # inverse action baked into ``apply``.  Zero gains → one exact step.
+    class ApplyOnlyStep:
+        capabilities = frozenset({CAP_APPLY})
+
+        def apply(self, rhs, *, initial_guess=None):
+            return rhs / 2.0  # the exact inverse of L = 2·I
+
+    si = SourceIteration(ApplyOnlyStep(), max_iter=5, tol=1e-14)
+    psi, _ = si.solve(np.array([2.0, 4.0]))
+    np.testing.assert_allclose(psi, np.array([1.0, 2.0]))
+
+
+@pytest.mark.foundation
+def test_keigenvalue_requires_invertible_A():
+    """KEigenvalue (the posing layer that BUILDS A.inverse()) guards
+    invertibility at construction with a domain message — not an
+    AttributeError from a missing ``.inverse`` (#226 step 3)."""
+    A = MatrixOperator(np.eye(2), can_solve=False)
+    S = MatrixOperator(np.eye(2))
+    F = MatrixOperator(np.eye(2))
+
+    with pytest.raises(MissingCapability, match="INVERTIBLE"):
+        KEigenvalue(A, S, F)
 
 
 @pytest.mark.foundation
 def test_keigenvalue_rejects_non_power_method():
     """eigenvalue_method != 'power' raises NotImplementedError."""
-    L = MatrixOperator(np.eye(2), can_solve=True)
+    A = MatrixOperator(np.eye(2), can_solve=True)
     S = ZeroOperator()
     F = MatrixOperator(np.eye(2))
 
     with pytest.raises(NotImplementedError, match="FEAST"):
-        KEigenvalue(L, S, F, eigenvalue_method="feast")
+        KEigenvalue(A, S, F, eigenvalue_method="feast")
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -573,7 +620,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     expected_keff = ref.keff
 
     # Build the SN operator triple from the same precomputed solver
-    # data used for the reference run.  ``L_inv_adapter`` (defined
+    # data used for the reference run.  ``A_inv_adapter`` (defined
     # below) wraps :func:`transport_sweep` directly; the
     # :class:`InvertibleOperator` (= ``L + C``) on the SNSolver is
     # unused here.  Solver instance retained to provide
@@ -596,14 +643,26 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     # Issue #197 PR-TYPED-2 — typed BoundaryFlux replaces psi_bc: dict.
     boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
 
-    class L_inv_adapter(LinearOperator):
+    class A_inv_adapter(LinearOperator):
         """Adapter: rhs (ng, nx, ny) → phi via the unified sweep.
 
         Issue #196 PR-INDEX-5: principled layout throughout.  Returns
         scalar flux (drops angular flux for shape consistency with
         F.apply / S.apply scalar facade).
+
+        #226 step 3: carries the invertibility pair (``is_invertible`` +
+        ``inverse()``) so :class:`KEigenvalue` — which now BUILDS the
+        inverse and hands it to the inner driver — can lift this leaf's
+        ``solve`` through the generic :class:`InverseOperator`.
         """
         capabilities = frozenset({CAP_APPLY, CAP_SOLVE})
+
+        @property
+        def is_invertible(self) -> bool:
+            return True
+
+        def inverse(self) -> InverseOperator:
+            return InverseOperator(self)
 
         def apply(self, phi):  # not used by the iteration primitive
             return phi
@@ -651,13 +710,13 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
         def apply(self, phi):
             return F.apply(phi)
 
-    L_adapt = L_inv_adapter()
+    A_adapt = A_inv_adapter()
     S_adapt = S_scalar_adapter()
     F_adapt = F_scalar_adapter()
 
     # SN-aware keff estimator — matches SNSolver.compute_keff so the
     # outer-iteration math is the same as the legacy reference path.
-    def sn_keff_estimator(L_, S_, F_, phi):
+    def sn_keff_estimator(A_, S_, F_, phi):
         return solver.compute_keff(phi)
 
     ng = solver.ng
@@ -665,7 +724,7 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
     initial = np.ones((ng, *sn_mesh.spatial_shape))
 
     ke = KEigenvalue(
-        L_adapt, S_adapt, F_adapt,
+        A_adapt, S_adapt, F_adapt,
         max_outer=500, keff_tol=1e-9, flux_tol=1e-8,
         max_inner=500, inner_tol=1e-10,
         keff_estimator=sn_keff_estimator,

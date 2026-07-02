@@ -1289,8 +1289,18 @@ class InverseOperator(LinearOperator):
     def codomain(self) -> Optional["FunctionSpace"]:
         return self.inner.domain
 
-    def apply(self, x: Any, /) -> Any:
-        r"""Return :math:`A^{-1}\,x` — the leaf's own ``solve`` (bit-identical)."""
+    def apply(self, x: Any, /, *, initial_guess: Any | None = None) -> Any:
+        r"""Return :math:`A^{-1}\,x` — the leaf's own ``solve`` (bit-identical).
+
+        ``initial_guess`` is the inverse family's CANONICAL driver signature
+        (`taxonomy §12 step 3`): iterative drivers thread the previous
+        iterate uniformly, with no per-type signature probes.  An EXACT
+        pointwise inverse has no use for a starting point — the argument is
+        accepted and unused (contrast
+        :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`, whose
+        sweep threads it into the curvilinear Carlson closure).
+        """
+        del initial_guess  # exact inverse — no iterative start to seed
         return self.inner.solve(x)
 
     def solve(self, b: Any, /) -> Any:

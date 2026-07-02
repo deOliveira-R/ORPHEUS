@@ -294,7 +294,7 @@ def test_c5b_si_driver_iterate_stays_timed() -> None:
     flux_seed = TimedFullField.zeros(
         bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=2,
     )
-    si = SourceIteration(LC, S, B, max_iter=50, tol=1e-10)
+    si = SourceIteration(LC.inverse(), S, B, max_iter=50, tol=1e-10)
     psi, _residuals = si.solve(q_ext, initial_guess=flux_seed)
     if not isinstance(psi, TimedFullField):
         pytest.fail(

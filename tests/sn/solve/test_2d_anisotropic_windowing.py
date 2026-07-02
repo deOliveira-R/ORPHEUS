@@ -55,7 +55,11 @@ from orpheus.geometry.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-from orpheus.sn.solver import SNSolver, _within_group_triple
+from orpheus.sn.solver import (
+    SNSolver,
+    _select_si_resolvent,
+    _within_group_triple,
+)
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -250,9 +254,18 @@ def test_2d_windowed_si_reflective_trace_is_nonzero():
 # ─────────────────────────────────────────────────────────────────────────
 
 
-def _windowed_product_and_oracle_operands(scattering_order: int | None = None):
-    """Shared operands for the deforestation gate + its mutation twin:
-    ``(quad, product, rhs, oracle_fn)`` on the production config."""
+def _windowed_product_and_oracle_operands(
+    scattering_order: int | None = None, *, inner_schedule: str = "jacobi",
+):
+    """Shared operands for the deforestation gates + the mutation twin:
+    ``(quad, base, product, rhs, oracle_fn)`` on the production config.
+
+    ``inner_schedule`` selects the base forward through the production
+    dispatch (:func:`_select_si_resolvent`): ``"jacobi"`` → the plain
+    ``(L+C)``; ``"gauss_seidel"`` → the reified splitting
+    ``M = (L+C) − B_lower`` (#226 §17 W2) — the windowed×G-S corner the
+    step-3 pin exercises.
+    """
     materials, mesh, quad, _q_ext, kwargs = _build_config()
     L = (
         kwargs["scattering_order"]  # P1 — ℓ≥1 is load-bearing
@@ -261,12 +274,14 @@ def _windowed_product_and_oracle_operands(scattering_order: int | None = None):
     )
     solver = SNSolver(SNMesh(mesh, quad, materials), scattering_order=L)
 
-    # The within-group (L+C) resolvent + the scattering operator — the SAME
-    # operators the windowed SI driver consumes (single source of truth).
-    LC, S, _B = _within_group_triple(solver)
+    # The within-group forward + the scattering operator — the SAME
+    # operators (and the SAME schedule dispatch) the windowed SI driver
+    # consumes (single source of truth).
+    LC, S, B = _within_group_triple(solver)
     sn_mesh = solver.sn_mesh
+    base, _gains = _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule)
 
-    # THE production windowed object (#226 step 2, §17 W1): the typed
+    # THE production windowed object (#226 steps 2–3, §17 W1): the typed
     # composition ``P @ A.inverse()`` — the scattering frame's analysis face
     # on the bulk ⊕ identity on the trace, composed with the sweep inverse,
     # FUSED through the substrate's moment emit.  ``S.frame`` is the SAME
@@ -274,7 +289,7 @@ def _windowed_product_and_oracle_operands(scattering_order: int | None = None):
     # exercises the production projection, not a test-local one.
     from orpheus.sn.operators.windowing import BulkAnalysisOperator
 
-    product = BulkAnalysisOperator(S.frame, sn_mesh) @ LC.inverse()
+    product = BulkAnalysisOperator(S.frame, sn_mesh) @ base.inverse()
 
     # A representative per-ordinate source (seeded random ⇒ strong, deterministic
     # ℓ≥1 content in the swept ψ; the projection-order equivalence is
@@ -290,11 +305,11 @@ def _windowed_product_and_oracle_operands(scattering_order: int | None = None):
         # frame's analysis face) of the full-angular sweep — structurally the
         # inherited ``OperatorProduct.apply`` body, spelled independently.
         return np.asarray(
-            S.frame.analysis.apply(LC.solve(rhs).bulk.values),
+            S.frame.analysis.apply(base.solve(rhs).bulk.values),
             dtype=np.float64,
         )
 
-    return quad, product, rhs, oracle_fn
+    return quad, base, product, rhs, oracle_fn
 
 
 @pytest.mark.verifies(
@@ -349,7 +364,9 @@ def test_2d_windowed_product_equals_post_projection():
     ``4·N·eps ≈ 2.1e-14`` bound; re-measured ``1.8e-16`` on the product SUT)
     is the principled-equivalence quantity.
     """
-    quad, product, rhs, oracle_fn = _windowed_product_and_oracle_operands()
+    quad, _base, product, rhs, oracle_fn = (
+        _windowed_product_and_oracle_operands()
+    )
 
     # SUT: the FUSED typed product (substrate per-anti-diagonal moment emit).
     out = product.apply(rhs)
@@ -395,6 +412,82 @@ def test_2d_windowed_product_equals_post_projection():
         )
 
 
+@pytest.mark.verifies(
+    "pn-scatter", "harmonic-moment-projection", "transport-cartesian",
+)
+def test_2d_windowed_product_over_gauss_seidel_M_equals_post_projection():
+    r"""The step-3 corner pin: the windowed product OVER THE REIFIED G-S
+    SPLITTING — ``P @ M.inverse()`` with ``M = (L+C) − B_lower`` — FUSED
+    (the SCHEDULED walk's per-anti-diagonal moment emit) ≡ the flat
+    post-projection of M's own scheduled solve, within the same
+    scale-relative ``4·N·eps``.
+
+    #226 step 2 landed the two compositions separately (W1 pinned
+    ``P @ (L+C).inverse()``; W2 pinned M's round-trip, full-angular);
+    PRODUCTION composes them — the 2-D Cartesian default
+    ``inner_schedule`` IS ``gauss_seidel``, so the driver's actual step
+    operator is ``P @ M.inverse()`` — and until this pin the windowed×G-S
+    corner was covered only at the ℓ=0/integration level (the end-to-end
+    SI value gates).  This is the ℓ≥1 fused-vs-deforested pin ON the
+    scheduled walk: the fused leg routes ``moment_frame`` AND
+    ``(schedule, reflect)`` through the ONE ``_solve_timed_full_field``
+    surface SIMULTANEOUSLY — the interaction no per-feature gate sees.
+
+    leg-3 guards non-degeneracy: the config's reflective-y faces must
+    yield a genuinely populated ``B_lower`` (else the split collapses,
+    ``M ≡ L+C``, and this pin silently duplicates the Jacobi one).
+    """
+    from orpheus.sn.operators.scheduled_invertible import (
+        ScheduledInvertibleOperator,
+    )
+
+    quad, M, product, rhs, oracle_fn = _windowed_product_and_oracle_operands(
+        inner_schedule="gauss_seidel",
+    )
+
+    # leg-3: the production dispatch selected the reified M, and its split
+    # is non-degenerate on this reflective-y config.
+    if not isinstance(M, ScheduledInvertibleOperator):
+        raise AssertionError(
+            f"gauss_seidel dispatch returned {type(M).__name__}, not the "
+            f"reified ScheduledInvertibleOperator — the G-S corner is not "
+            f"being exercised"
+        )
+    n_lower = sum(int(rows.size) for rows in M.lower.rows.values())
+    if n_lower == 0:
+        raise AssertionError(
+            "B_lower has no populated rows on the reflective-y config — "
+            "the split degenerated and this pin collapsed to the Jacobi one"
+        )
+
+    out = product.apply(rhs)
+    sut = np.asarray(out.bulk.values, dtype=np.float64)
+    oracle = oracle_fn()
+
+    # leg-2: ℓ≥1 carries signal (anti-degeneracy).
+    l0 = float(np.abs(oracle[0]).max())
+    l_ge1 = float(np.abs(oracle[1:]).max())
+    if not (l_ge1 > 1e-3 * l0):
+        raise AssertionError(
+            f"ℓ≥1 moment block is vacuous over M (max|ℓ≥1|={l_ge1:.2e} ≤ "
+            f"1e-3·max|ℓ0|={1e-3 * l0:.2e}) — reconfigure the source/config."
+        )
+
+    # leg-1: fused ≡ deforested over the SCHEDULED walk (same metric and
+    # bound as the Jacobi gate — only the reduction order may differ).
+    scale = float(np.abs(oracle).max())
+    rel_drift = float(np.abs(sut - oracle).max() / scale)
+    bound = 4 * quad.N * float(np.finfo(np.float64).eps)
+    if not (rel_drift <= bound):
+        raise AssertionError(
+            f"windowed×G-S: in-sweep moment accumulation drifts "
+            f"{rel_drift:.2e} (relative to scale {scale:.3e}) > 4·N·eps = "
+            f"{bound:.2e} — the (moment_frame × schedule/reflect) "
+            "interaction through _solve_timed_full_field is NOT a pure FP "
+            "reorder."
+        )
+
+
 def test_mutation_dropped_higher_moments_redden(monkeypatch):
     r"""M-DEFOREST teeth (spec §13.4/§13.5): a fused product that drops the
     ℓ≥1 accumulation (emits ℓ=0 only) REDs the deforestation gate on the P1
@@ -414,7 +507,9 @@ def test_mutation_dropped_higher_moments_redden(monkeypatch):
     monkeypatch.setattr(WindowedSweep, "apply", truncated)
 
     # P1: the gate's comparison MUST red.
-    quad, product, rhs, oracle_fn = _windowed_product_and_oracle_operands()
+    quad, _base, product, rhs, oracle_fn = (
+        _windowed_product_and_oracle_operands()
+    )
     sut = np.asarray(product.apply(rhs).bulk.values, dtype=np.float64)
     oracle = oracle_fn()
     bound = 4 * quad.N * float(np.finfo(np.float64).eps)
@@ -427,8 +522,8 @@ def test_mutation_dropped_higher_moments_redden(monkeypatch):
 
     # P0 control: the same mutation is a no-op (no ℓ≥1 block exists) — the
     # gate stays green, witnessing that P1 anisotropy is what carries teeth.
-    quad0, product0, rhs0, oracle_fn0 = _windowed_product_and_oracle_operands(
-        scattering_order=0,
+    quad0, _base0, product0, rhs0, oracle_fn0 = (
+        _windowed_product_and_oracle_operands(scattering_order=0)
     )
     sut0 = np.asarray(product0.apply(rhs0).bulk.values, dtype=np.float64)
     oracle0 = oracle_fn0()

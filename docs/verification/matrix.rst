@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5986**
+Total tests collected: **5989**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1169, 19.5%
-   L1, 1047, 17.5%
+   L1, 1048, 17.5%
    L2, 46, 0.8%
    L3, 0, 0.0%
-   foundation, 3714, 62.0%
+   foundation, 3716, 62.0%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5897
+   explicit, 5900
    verify, 0
    class-name, 46
    func-name, 0
@@ -281,7 +281,7 @@ Module × level grid
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
    numerics/test_inverse_universal, 0, 0, 0, 0, 19, 0
-   numerics/test_iteration, 0, 1, 0, 0, 17, 0
+   numerics/test_iteration, 0, 1, 0, 0, 18, 0
    numerics/test_measure, 0, 16, 0, 0, 32, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_measure_phase, 0, 0, 0, 0, 11, 0
@@ -363,7 +363,7 @@ Module × level grid
    sn/test_condensation, 0, 10, 0, 0, 0, 0
    sn/test_homogenization, 12, 0, 0, 0, 0, 0
    sn/test_material_xs_field_typed, 0, 0, 0, 0, 10, 0
-   solve/test_2d_anisotropic_windowing, 0, 5, 0, 0, 0, 0
+   solve/test_2d_anisotropic_windowing, 0, 6, 0, 0, 0, 0
    solve/test_affine_carve_bit_identity, 0, 0, 0, 0, 3, 0
    solve/test_b1pp_verification, 6, 3, 0, 0, 0, 0
    solve/test_d3_admission, 0, 5, 0, 0, 2, 0
@@ -374,6 +374,7 @@ Module × level grid
    solve/test_krylov_curvilinear_precond_safety, 0, 4, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
+   solve/test_seed_threading_spy, 0, 0, 0, 0, 1, 0
    solve/test_si_gate_dispatch, 0, 0, 0, 0, 4, 0
    solve/test_si_single_primitive_contract, 0, 0, 0, 0, 2, 0
    spatial/test_affine_closure, 0, 0, 0, 0, 3, 0
@@ -435,7 +436,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``self-sph``, 52
    ``chord-length``, 51
    ``flux-moments``, 51
-   ``transport-cartesian``, 50
+   ``transport-cartesian``, 51
    ``wigner-seitz``, 49
    ``attenuation``, 48
    ``optical-thickness``, 48
@@ -478,9 +479,9 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``effective-spacing``, 22
    ``peierls-cyl-3d-mode-formula``, 22
    ``pitch-recovery``, 22
+   ``pn-scatter``, 22
    ``ray-circle``, 22
    ``inf-hom-balance``, 21
-   ``pn-scatter``, 21
    ``singular-eigenfunction-eq46``, 21
    ``two-group-A``, 21
    ``two-group-Ainv``, 21
@@ -601,6 +602,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-mms-nonvacuum-psi``, 3
    ``sn-mms-nonvacuum-qext``, 3
    ``cp-second-difference-operator``, 2
+   ``harmonic-moment-projection``, 2
    ``hilbert-adjoint-equals-metric-times-S0``, 2
    ``peierls-greens-cylinder-mr-kinf``, 2
    ``peierls-greens-cylinder-mr-piecewise-tau``, 2
@@ -632,7 +634,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``branching``, 1
    ``collision-estimator``, 1
    ``e1-decomposition``, 1
-   ``harmonic-moment-projection``, 1
    ``majorant``, 1
    ``moment-projection-transpose-T``, 1
    ``nm1980-eq15-critical-condition``, 1

@@ -15,7 +15,6 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.iteration import SourceIteration
 from orpheus.numerics.operator import (
     CAP_APPLY,
     CAP_APPLY_TRANSPOSE,
@@ -214,20 +213,27 @@ def test_zero_lacks_solve():
 
 
 def test_apply_only_operator_is_not_solvable(matrix_apply_only):
-    """GAP-3 (B4 carve safety net) — capabilities is the single source of
-    truth for invertibility, NOT the mere presence of a ``solve`` surface.
+    """GAP-3 (B4 carve safety net) — the advertised capability set is the
+    single source of truth for invertibility, NOT the mere presence of a
+    ``solve`` surface.
 
-    The inverse-as-operator carve will give the base operator a ``solve`` /
+    The inverse-as-operator carve gave the operator family a ``solve`` /
     ``inverse`` surface; this pin guards that an apply-only leaf does NOT
-    thereby become solvable. ``CAP_SOLVE`` stays absent, and a
-    :class:`SourceIteration` built on it still raises
-    :class:`MissingCapability` at construction (the iteration step is
-    ``psi_(n+1) = L.solve(...)`` and L has no inverse action). See
-    ``.claude/plans/issue_226_b4_operator_generics_verification.md`` GAP-3.
+    thereby become solvable: ``CAP_SOLVE`` stays absent, and
+    ``is_invertible`` (the runtime successor query) stays ``False``.
+
+    MIGRATED at #226 taxonomy step 3: the former leg — ``SourceIteration``
+    raising at construction — retired WITH the ``CAP_SOLVE`` requirement
+    it pinned (the driver now consumes a pre-built inverse and requires
+    only ``CAP_APPLY``; an apply-only step operator is the windowed
+    product's shape, accepted by design).  The invertibility obligation's
+    new home, the inverse BUILDER, is pinned in ``test_iteration.py::
+    test_invertibility_obligation_lives_at_the_inverse_builder``.  See
+    ``.claude/plans/issue_226_b4_operator_generics_verification.md``
+    GAP-3.
     """
     assert CAP_SOLVE not in matrix_apply_only.capabilities
-    with pytest.raises(MissingCapability):
-        SourceIteration(matrix_apply_only)
+    assert not matrix_apply_only.is_invertible
 
 
 # ───────────────────────────────────────────────────────────────────────

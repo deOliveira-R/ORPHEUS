@@ -346,65 +346,28 @@ def _within_group_krylov(
 # with the Jacobi path's ``(S, B)``.  See :func:`_select_si_resolvent`.
 
 
-class _MomentWindowedResolvent:
-    r"""Driver-contract adapter over the windowed product ``P @ A.inverse()``
-    (#226 step 2, §17 W1) — dissolves at taxonomy step 3.
-
-    The windowed object is the typed composition
-    :class:`~orpheus.sn.operators.windowing.WindowedSweep` =
-    :class:`~orpheus.sn.operators.windowing.BulkAnalysisOperator` ``@``
-    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` — the
-    scattering frame's analysis face on the bulk ⊕ identity on the trace,
-    composed with the forward's inverse, evaluated FUSED through the
-    substrate's moment emit (the full per-ordinate field is never
-    materialized; see the :mod:`~orpheus.sn.operators.windowing` module for
-    the whole story: why windowing is a composition and not an output-mode
-    config, the coisometry, the principled-equivalence bound, and the 2-D
-    Cartesian restriction).
-
-    This class remains ONLY because today's
-    :class:`~orpheus.numerics.iteration.SourceIteration` driver consumes a
-    ``.solve``-shaped resolvent; step 3 (the driver applies inverse
-    operators) deletes it and holds the product directly.  ``solve`` maps to
-    the product's ``apply``; ``initial_guess`` is accepted for the driver
-    contract and DROPPED — the multi-D Cartesian walk ignores the bulk seed,
-    and the previous iterate's boundary lag rides the driver's ``B`` /
-    ``B_upper`` gain (never this kwarg).
-    """
-
-    def __init__(self, base, frame, sn_mesh) -> None:
-        from .operators.windowing import BulkAnalysisOperator
-
-        self._base = base  # the un-windowed forward ((L+C) or M) — CAP_APPLY face
-        #: The typed windowed composition, fused via the substrate moment emit.
-        self.product = BulkAnalysisOperator(frame, sn_mesh) @ base.inverse()
-
-    @property
-    def capabilities(self) -> frozenset[str]:
-        return self._base.capabilities
-
-    def apply(self, psi):
-        # Unused by SourceIteration (it calls only .solve); delegate so the
-        # CAP_APPLY contract holds.
-        return self._base.apply(psi)
-
-    def solve(self, rhs, *, initial_guess=None):
-        r"""Return :math:`(P \circ A^{-1})\,\text{rhs}` — the harmonic-moment
-        iterate ``TimedFullField(bulk=HarmonicMomentFlux, boundary=trace)``,
-        via the fused :meth:`WindowedSweep.apply`."""
-        return self.product.apply(rhs)
+# The former ``_MomentWindowedResolvent`` (a ``.solve``-shaped driver
+# adapter over the windowed product) dissolved at #226 taxonomy step 3:
+# :class:`~orpheus.numerics.iteration.SourceIteration` now consumes the
+# inverse-application operator DIRECTLY, so :func:`_maybe_window` returns
+# the typed composition ``P @ A.inverse()``
+# (:class:`~orpheus.sn.operators.windowing.WindowedSweep`) itself.  The
+# adapter's accepted-and-dropped ``initial_guess`` note lives on
+# :meth:`WindowedSweep.apply`, where the contract actually is.
 
 
-def _maybe_window(base_resolvent, scattering_op, sn_mesh):
-    r"""Phase 5a — wrap ``base_resolvent`` for 2-D Cartesian angular-windowing,
-    else passthrough.  Returns ``(resolvent, windowed)``.
+def _maybe_window(sweep, scattering_op, sn_mesh):
+    r"""Phase 5a — compose the 2-D Cartesian angular-windowing product over
+    ``sweep`` (the inverse operator ``A.inverse()``), else passthrough.
+    Returns ``(step, windowed)``.
 
     The SINGLE site of the windowing-eligibility gate AND the factory of the
     windowed product (``coding-elegance`` Pattern 7 — the convention lives in
     one place, shared by the eigenvalue and fixed-source SI drivers):
     genuinely 2-D Cartesian holds the SI iterate as harmonic moments via the
-    typed composition ``P @ A.inverse()`` (#226 §17 W1 — behind the
-    :class:`_MomentWindowedResolvent` driver adapter until step 3);
+    typed composition ``P @ A.inverse()`` (#226 §17 W1) — the ``@`` dispatch
+    on a :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` right
+    factor fuses to :class:`~orpheus.sn.operators.windowing.WindowedSweep`;
     curvilinear (1-D) stays full-angular — the Morel–Montry Carlson seed
     reads the previous per-ordinate iterate at ``μ=−1`` (lesson L21), which
     the moment tensor does not carry.  ``P`` is sourced from the scattering
@@ -418,13 +381,13 @@ def _maybe_window(base_resolvent, scattering_op, sn_mesh):
     emission is a 2-D kernel; ``FullFieldWavefront`` refuses moment mode).
     """
     if sn_mesh.is_cartesian and sn_mesh.ndim == 2:
+        from .operators.windowing import BulkAnalysisOperator
+
         return (
-            _MomentWindowedResolvent(
-                base_resolvent, scattering_op.frame, sn_mesh,
-            ),
+            BulkAnalysisOperator(scattering_op.frame, sn_mesh) @ sweep,
             True,
         )
-    return base_resolvent, False
+    return sweep, False
 
 
 def _windowed_cold_start(scattering_op, sn_mesh, *, history_depth):
@@ -533,24 +496,30 @@ def _within_group_si(LC, S, B, sn_mesh, *, inner_schedule, max_iter, tol):
     depth R2 reached for Krylov (both inner methods now have ONE construction
     helper consumed by their eigenvalue + fixed-source sites).
 
-    Composes the two SI-construction concerns:
+    Composes the THREE SI-construction concerns (#226 taxonomy step 3 —
+    "the solver builds the inverse operator; the driver applies it"):
 
     * the schedule splitting (:func:`_select_si_resolvent`) — Jacobi
       ``(L+C, (S, B))`` (``B`` lagged as an external gain) or boundary
-      Gauss-Seidel ``(GaussSeidelResolvent, (S,))`` (``B`` folded into the
-      resolvent; 2-D Cartesian only);
-    * the Phase-5a angular-windowing wrap (:func:`_maybe_window`) — the 2-D
-      Cartesian iterate held as harmonic moments.
+      Gauss-Seidel ``(M = (L+C)−B_lower, (S, B_upper))`` (multi-D
+      Cartesian; #226 §17 W2);
+    * the INVERSE build — ``base_resolvent.inverse()``, the
+      :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` the
+      driver steps through;
+    * the Phase-5a angular-windowing composition (:func:`_maybe_window`)
+      — 2-D Cartesian holds the iterate as harmonic moments via
+      ``P @ A.inverse()``.
 
     Returns ``(si, base_resolvent, gains, windowed)``:
 
-    * ``si`` — the :class:`SourceIteration` primitive (its resolvent
+    * ``si`` — the :class:`SourceIteration` primitive (its step operator
       moment-windowed when 2-D Cartesian);
-    * ``base_resolvent`` — the UN-wrapped resolvent (the fixed-source path
+    * ``base_resolvent`` — the un-inverted FORWARD (the fixed-source path
       needs it for the one-shot full-angular reconstruction of
       ``Solution.angular_flux``);
-    * ``gains`` — the lagged couplings (``(S, B)`` Jacobi / ``(S,)`` G-S), also
-      needed to rebuild the converged source for that reconstruction;
+    * ``gains`` — the lagged couplings (``(S, B)`` Jacobi /
+      ``(S, B_upper)`` G-S), also needed to rebuild the converged source
+      for that reconstruction;
     * ``windowed`` — whether the iterate is the moment representation (2-D
       Cartesian) vs full-angular (curvilinear / 1-D).
 
@@ -566,8 +535,8 @@ def _within_group_si(LC, S, B, sn_mesh, *, inner_schedule, max_iter, tol):
     base_resolvent, gains = _select_si_resolvent(
         LC, S, B, sn_mesh, inner_schedule,
     )
-    resolvent, windowed = _maybe_window(base_resolvent, S, sn_mesh)
-    si = SourceIteration(resolvent, *gains, max_iter=max_iter, tol=tol)
+    step, windowed = _maybe_window(base_resolvent.inverse(), S, sn_mesh)
+    si = SourceIteration(step, *gains, max_iter=max_iter, tol=tol)
     return si, base_resolvent, gains, windowed
 
 
@@ -1027,14 +996,15 @@ class SNSolver:
                                                 + F\,\psi_n
                                                 + q_{\rm ext}\bigr)
 
-        where ``(L + C).solve`` IS the WDD sweep
-        (:class:`~orpheus.sn.operators.streaming.InvertibleOperator` from R-1
-        Step C).  Phase 1.2 — the previous iterate :math:`\psi_n`
-        travels into the sweep via the explicit ``initial_guess``
-        kwarg on :meth:`InvertibleOperator.solve`; the M-M closure's
-        ``psi_half_seed`` strategy reads it to derive the curvilinear
-        Carlson coupled-pole seed.  ``SourceIteration._solve_with_seed``
-        bridges the call.
+        where the driver applies ``(L + C).inverse()`` — a
+        :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` whose
+        ``apply`` IS the WDD sweep (#226 taxonomy step 3; the solver
+        builds the inverse, :class:`SourceIteration` applies it).  The
+        previous iterate :math:`\psi_n` travels into the sweep via the
+        explicit ``initial_guess`` kwarg on the inverse's ``apply``; the
+        M-M closure's ``psi_half_seed`` strategy reads it to derive the
+        curvilinear Carlson coupled-pole seed (pinned by the
+        seed-threading spy).
 
         Scope
         =====
@@ -1139,15 +1109,15 @@ class SNSolver:
         )
 
         # ── Warm start (composite) ──────────────────────────────────
-        # SourceIteration._solve_with_seed forwards the previous
-        # iterate to InvertibleOperator.solve via the explicit
-        # ``initial_guess`` kwarg (Phase 1.2 — the M-M closure's
-        # ``psi_half_seed`` strategy reads it to derive the Carlson
-        # coupled-pole seed; the previous iterate's boundary trace
-        # seeds the reflective-BC partner-flux state).  Post-D-H.1c
-        # stage 2 ``self._psi_typed`` is a :class:`TimedFullField`;
-        # the type propagates through the iteration primitive via the
-        # ravellable protocol.
+        # SourceIteration threads the previous iterate to the inverse
+        # operator's ``apply`` via the explicit ``initial_guess`` kwarg
+        # (the M-M closure's ``psi_half_seed`` strategy reads it to
+        # derive the Carlson coupled-pole seed; the previous iterate's
+        # boundary trace seeds the reflective-BC partner-flux state —
+        # pinned by the seed-threading spy).  Post-D-H.1c stage 2
+        # ``self._psi_typed`` is a :class:`TimedFullField`; the type
+        # propagates through the iteration primitive via the ravellable
+        # protocol.
         initial_guess = getattr(self, "_psi_typed", None)
         if initial_guess is None:
             # B.5.2: cold-start iterate is an all-zeros FLUX composite,
@@ -2147,7 +2117,9 @@ def _solve_fixed_source_si(
         rhs_final = q_ext_composite
         for gain in gains:
             rhs_final = rhs_final + gain.apply(psi_typed)
-        angular_out = base_resolvent.solve(rhs_final, initial_guess=psi_typed)
+        angular_out = base_resolvent.inverse().apply(
+            rhs_final, initial_guess=psi_typed,
+        )
     else:
         angular_out = psi_typed
     # Scalar flux from the RETURNED full angular flux → the Solution is exactly
