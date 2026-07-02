@@ -112,18 +112,22 @@ def test_apply_and_solve_share_one_representation_instance(monkeypatch):
         )
 
 
-def test_gauss_seidel_resolvent_runs_the_operators_instance(monkeypatch):
-    """[L0 structural] the boundary-G-S resolvent's interior kernel is BOUND
-    to the operator's one instance (door 3 of the S6.5 inventory).
+def test_scheduled_solve_runs_the_operators_instance(monkeypatch):
+    """[L0 structural] the reified ``M = (L+C−B_lower)`` scheduled solve's
+    interior kernel is BOUND to the operator's one instance (door 3 of the
+    S6.5 inventory; migrated from the dissolved ``_GaussSeidelResolvent``
+    at #226 step 2 — retirement-means-test-migration).
 
-    Pre-S6.5 the resolvent passed ``interior=default_for(sn_mesh)
-    ._sweep_interior`` — a fresh instance per ``_solve_scheduled`` call.
-    The spy captures the ``self`` of every ``_sweep_interior`` execution
-    during a G-S solve and demands it IS ``A.loss_representation``.
+    Pre-S6.5 the G-S path passed ``interior=default_for(sn_mesh)
+    ._sweep_interior`` — a fresh instance per scheduled solve.  Post-#226
+    the scheduled walk routes through the representation's OWN ``sweep``
+    door (which injects its own kernel); the spy captures the ``self`` of
+    every ``_sweep_interior`` execution during ``M.solve`` and demands it
+    IS ``A.loss_representation`` (= ``M.loss_representation``, the
+    invertible operand's one instance).
     """
     from orpheus.sn.operators.boundary import SNBoundaryOperator
     from orpheus.sn.loss_representation import ScanMarch
-    from orpheus.sn.solver import _GaussSeidelResolvent
     from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
 
     captured: list[object] = []
@@ -140,24 +144,26 @@ def test_gauss_seidel_resolvent_runs_the_operators_instance(monkeypatch):
     L = StreamingOperator(sn)
     C = MultiplicationOperator.from_mesh(sig_t, sn)
     A = L + C
-    resolvent = _GaussSeidelResolvent(
-        A, SNBoundaryOperator(sn), SweepSchedule.gauss_seidel(sn),
-    )
+    M = A - SNBoundaryOperator(sn).split(SweepSchedule.gauss_seidel(sn)).lower
 
-    _ = resolvent.solve(psi)
+    _ = M.solve(psi)
 
     if not captured:
         pytest.fail(
-            "the G-S resolvent solve never executed "
-            "ScanMarch._sweep_interior — the spy target needs "
-            "re-pointing at the production interior kernel."
+            "M.solve never executed ScanMarch._sweep_interior — the spy "
+            "target needs re-pointing at the production interior kernel."
         )
     rep = A.loss_representation
+    if M.loss_representation is not rep:
+        pytest.fail(
+            "M.loss_representation must BE the invertible operand's one "
+            "instance (S6.5)."
+        )
     strays = [obj for obj in captured if obj is not rep]
     if strays:
         pytest.fail(
-            f"S6.5 NOT satisfied: {len(strays)}/{len(captured)} G-S interior-"
-            "kernel executions ran on a representation instance that is NOT "
-            "the operator's loss_representation — the resolvent still "
-            "constructs its own (door 3 of the S6.5 inventory is open)."
+            f"S6.5 NOT satisfied: {len(strays)}/{len(captured)} scheduled "
+            "interior-kernel executions ran on a representation instance "
+            "that is NOT the operator's loss_representation (door 3 of the "
+            "S6.5 inventory is open)."
         )

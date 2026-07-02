@@ -11590,9 +11590,14 @@ it accelerates, what it does **not** (the load-bearing honest
 scope), the failed σ\ :sub:`r`-fold that motivated it (GitHub
 issue #215), and the diagonal-cubature shared-face correctness rule
 (ERR-056).  The polymorphic schedule lives in
-:mod:`orpheus.sn.loss_representation.sweep_schedule`; the SI resolvent that consumes it
-is :class:`~orpheus.sn.solver._GaussSeidelResolvent`; the public
-entry is :func:`~orpheus.sn.solver.solve_sn_fixed_source` via the
+:mod:`orpheus.sn.loss_representation.sweep_schedule`; since #226 step 2 it
+feeds :meth:`SNBoundaryOperator.split <orpheus.sn.operators.boundary.SNBoundaryOperator.split>`,
+which reifies the within-group forward as the **regular splitting matrix**
+:math:`M = (L+C-B_{\rm lower})`
+(:class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`,
+:ref:`si-gauss-seidel-reification` below — this replaces the dissolved
+``_GaussSeidelResolvent``); the public entry is
+:func:`~orpheus.sn.solver.solve_sn_fixed_source` via the
 ``inner_schedule`` keyword.
 
 .. admonition:: Key Facts (SI rate)
@@ -11782,13 +11787,183 @@ reused across every SI iterate (the same lifetime contract as
 :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`).
 
 The selection lives in :func:`~orpheus.sn.solver._select_si_resolvent`:
-``"gauss_seidel"`` on a 2-D Cartesian mesh returns
-``(_GaussSeidelResolvent(L+C, B, schedule), (S,))`` — :math:`B` moves
-*into* the resolvent while :math:`S` stays a lagged gain;
+``"gauss_seidel"`` on a multi-D Cartesian mesh returns
+``((L+C) - parts.lower, (S, parts.upper))`` — the regular splitting
+:math:`(L+C-B) = M - B_{\rm upper}`: the strictly-lower half
+:math:`B_{\rm lower}` folds *into* the reified forward :math:`M`
+(:class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`,
+whose ``solve`` is the octant-group forward substitution) while the
+complement :math:`B_{\rm upper}` **lags as an ordinary external gain** —
+structurally congruent with the Jacobi arm's ``(S, B)``, so the
+:class:`~orpheus.numerics.iteration.SourceIteration` driver needs **no**
+case split (the dissolved ``_GaussSeidelResolvent`` needed a bespoke
+``(…, (S,))`` gain shape; the reification made the two arms uniform).
 ``"jacobi"`` (and any 1-D mesh) returns ``(L+C, (S, B))`` — both
-:math:`S` and :math:`B` lagged.  In **both** cases :math:`S` is a
-lagged gain: the sweep never re-scatters mid-sweep.  Only the
-boundary coupling gets the Gauss-Seidel treatment.
+:math:`S` and :math:`B` lagged (the degenerate :math:`B_{\rm lower}=0`).
+In **both** cases :math:`S` is a lagged gain: the sweep never re-scatters
+mid-sweep.  Only the boundary coupling gets the Gauss-Seidel treatment.
+
+.. _si-gauss-seidel-reification:
+
+The reified splitting matrix (#226 step 2)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The #226 taxonomy step-2 carve replaced the duck-typed
+``_GaussSeidelResolvent`` with an honest **reified splitting matrix**.
+The dissolution matters because the old resolvent paired an ``apply``
+with a ``solve`` of **different operators**: its ``apply`` computed
+:math:`(L+C)\psi` while its ``solve`` inverted :math:`(L+C-B_{\rm
+lower})`.  An operator whose forward and inverse faces disagree is not an
+operator — and the disagreement is measurable: its round-trip defect was
+**O(1)** (:math:`\lVert M^{-1}(M\psi)-\psi\rVert = 2.667`, the §17
+falsifier-3 finding).
+
+The boundary Gauss-Seidel is exactly a **regular matrix splitting** of the
+within-group loss:
+
+.. math::
+
+   (L+C-B) \;=\; \underbrace{(L+C-B_{\rm lower})}_{M}
+             \;-\; \underbrace{B_{\rm upper}}_{N},
+   \qquad
+   \psi_{k+1} \;=\; M^{-1}\bigl(q + S\,\psi_k + B_{\rm upper}\,\psi_k\bigr).
+
+The reified :math:`M`
+(:class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`)
+is an honest :class:`~orpheus.numerics.operator.OperatorSum` over the
+leaves :math:`\{(L+C),\,-B_{\rm lower}\}`, so its ``apply`` is the leaf
+sum :math:`(L+C)\psi - B_{\rm lower}\psi` and its ``inverse()`` returns a
+genuine :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` on
+:math:`M` — the two faces of **one** operator, the way :math:`A` and
+:math:`A.H` are.  Because the scheduled walk (the same uniform
+sweep-and-reflect loop as Jacobi, differing only in the
+:class:`~orpheus.sn.loss_representation.sweep_schedule.SweepSchedule`) is
+**exact forward substitution** for :math:`M`, ``M.inverse().apply`` now
+round-trips ``M.apply`` at machine precision: the W2-round-trip gate
+measures :math:`5.2\times10^{-16}` (bulk) / :math:`4.4\times10^{-16}`
+(trace) — the O(1) defect gone.
+
+The row-split law
+^^^^^^^^^^^^^^^^^
+
+:meth:`SNBoundaryOperator.split <orpheus.sn.operators.boundary.SNBoundaryOperator.split>`
+returns a named :class:`~orpheus.sn.operators.boundary.BoundarySplit`
+pair ``(lower, upper)`` of
+:class:`~orpheus.sn.operators.boundary.SNMaskedBoundaryOperator` — each
+the whole-trace :math:`B` masked to a per-face set of inflow ordinate
+**rows**.  Which rows belong to which half is pure **schedule-order**
+semantics, computed by
+:meth:`SweepSchedule.lower_inflow_rows <orpheus.sn.loss_representation.sweep_schedule.SweepSchedule.lower_inflow_rows>`:
+
+   An inflow row :math:`(f, m')` is in :math:`B_{\rm lower}` **iff**
+   ordinate :math:`m'`'s octant group is swept *strictly after* face
+   :math:`f`'s reflect group.
+
+A reflective face :math:`f` is reflected exactly **once**, after its
+**last** outflowing octant group (the ERR-056 fan-in rule above), at
+which point every outflow feeding :math:`f` is complete.  A row swept
+strictly after that reflect therefore reads the **fresh** current-iterate
+reflection — realized in-sweep by the forward substitution
+(:math:`B_{\rm lower}`); a row swept at-or-before the reflect keeps the
+**lagged** seed (:math:`B_{\rm upper}`, the cyclic back-edges plus every
+row of a never-reflected face — vacuum, white, albedo, periodic).  The
+partition is **exact**: the specular map flips one direction-cosine sign,
+so a row and its source always sit in *different* octants — :math:`B` has
+no octant-diagonal, and :math:`B = B_{\rm lower} + B_{\rm upper}` is a
+bit-exact per-face split (the W2-split gate).  The Jacobi schedule yields
+an empty lower support (:math:`B_{\rm lower}=0`, :math:`B_{\rm upper}=B`)
+— the degenerate that recovers the plain lagged-:math:`B` iteration.
+
+The additive row-masked in-sweep reflect
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Solving :math:`Mz = y` on a strictly-lower inflow row is the inhomogeneous
+forward-substitution row :math:`z_{\rm in} = y_{\rm row} + (Bz)_{\rm
+row}`.  The buffer already holds the seed :math:`y_{\rm row}` (nothing
+writes a lower row before its face's reflect), so the in-sweep reflect
+**accumulates** the fresh reflection onto it — the ADDITIVE row-masked
+verb
+:meth:`SNMaskedBoundaryOperator.reflect_rows_inplace <orpheus.sn.operators.boundary.SNMaskedBoundaryOperator.reflect_rows_inplace>`
+(``bf[rows] += (B·bf)[rows]``).  This is what makes ``M.inverse()`` exact
+on an **arbitrary** rhs (not merely on production's zero-lower-row
+subspace), and it leaves the upper (lagged) rows carrying the seed the
+splitting :math:`\psi_{k+1}=M^{-1}(q+B_{\rm upper}\psi_k)` says they carry
+— the returned trace **is** the splitting's honest iterate.
+
+.. admonition:: What was tried and rejected — the whole-face-overwrite reflect
+   :class: warning
+
+   The dissolved resolvent used a whole-face **ASSIGNMENT**
+   (:math:`\psi.{\rm inflow} \leftarrow B\cdot\psi.{\rm outflow}`, the
+   verb now named
+   :meth:`SNBoundaryOperator.reflect_inflow_inplace <orpheus.sn.operators.boundary.SNBoundaryOperator.reflect_inflow_inplace>`).
+   As the in-sweep row update it is **wrong**: it *dropped*
+   :math:`y_{\rm row}` and stamped fresh values onto rows the splitting
+   defines as **lagged**.  It was benign in production only because a
+   reflective inflow row's seed is zero there — but O(1)-wrong as a
+   general inverse, which is precisely the round-trip defect the old
+   pairing masked.  The whole-face assignment verb is **retained** (single
+   source of truth via ``_reflect_trace``) for the two callers whose
+   inflow is *wholly recomputed* each sweep and is not a solved unknown of
+   a linear row: the direct fixed-source SI loop and the eigenvalue
+   reconstruction sweep (:func:`~orpheus.sn.solver._reflect_outflow_into_inflow`
+   delegates to it).
+
+The source-subspace domain honesty note
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+One subtlety is worth recording so a future reader does not mistake it for
+a bug.  The sweep substrate re-derives the **outflow-definition** rows
+(the walk's ``shed`` overwrites :math:`x.{\rm out}` with the streamed
+value), so the scheduled walk realizes :math:`M^{-1}` **exactly on the
+source subspace** :math:`\{y : y.{\rm outflow\text{-}rows}=0\}` — not on
+the whole space.  This is not a limitation: every production rhs lands in
+that subspace (:math:`q + S\psi + B_{\rm upper}\psi` all write bulk /
+inflow rows only), and its :math:`M`-preimage is the set of
+**trace-consistent** states :math:`x.{\rm out}={\rm streamed}(x.{\rm
+bulk})` — i.e. actual transport states, which is exactly what a solve
+output is.  It is the **same** property the already-landed
+:math:`(L+C)`\ ``.solve`` has; the :math:`B` feedback of :math:`M` merely
+makes it visible.  The W2-round-trip gate therefore round-trips a
+trace-**consistent** state and asserts machine precision on **both** the
+bulk and the trace — a *stronger* claim than the bulk-only falsifier, and
+one the confused pairing still fails at O(1) (its ``apply`` lacks the
+:math:`B_{\rm lower}` subtraction entirely).
+
+Verification — the mutation redefinition
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The reification changed which mutations have teeth.  The spec's original
+**M-SPLIT** mutation ("make the mask disagree with the in-sweep fold")
+became **unrepresentable** by construction: the masked :math:`B_{\rm
+lower}` single-sources the row split for **both** ``M.apply`` **and** the
+in-sweep reflect, so there is no second site to make disagree.  It was
+replaced by two mutations, one per gate:
+
+* **M-SPLIT-DIR** — flip the split direction (upper-as-lower) in
+  ``lower_inflow_rows``.  The flipped rows are read *before* their face's
+  reflect fires, so the in-sweep fold never reaches the reader while
+  ``apply`` subtracts it: the W2-round-trip defect returns to O(1)
+  (``test_mutation_split_direction_reddens_round_trip``).  This is the
+  Mode-1-family ``>`` vs ``<`` convention catcher.
+* **M-SPLIT-PART** — doctor one half's rows after the split so the
+  partition is no longer complementary: :math:`B \neq B_{\rm lower} +
+  B_{\rm upper}` and the W2-split gate reddens
+  (``test_mutation_partition_break_reddens_split``).
+
+The converged fixed point is **splitting-invariant** (``vv-principles``
+Mode 9): ``test_w2_fixed_point_equivalence_diagonal_cubature`` runs G-S ≡
+Jacobi to solver tolerance on a config that **breaks** the degenerate
+coincidences — a diagonal (``level_symmetric``) cubature with shared
+faces (the ERR-056 regime; an axis-aligned ``product`` quad makes
+octant-G-S accidentally exact) on a heterogeneous vacuum-x / reflective-y
+box (anisotropic flux; the fully-reflective isotropic box is the Mode-9
+degenerate).  That gate is **necessary but not sufficient** — the
+load-bearing correctness gate is the W2-round-trip; the FP-invariance
+pins only the *splitting* claim (same :math:`\psi^*`, only the rate
+differs).  All gates live in ``tests/sn/solve/test_gauss_seidel_reification.py``
+(``@pytest.mark.foundation`` — software invariants of the splitting, no
+theory-page ``:label:`` and no ``verifies()``).
 
 .. warning::
 
@@ -14404,7 +14579,9 @@ The consistency floor the convergence rows trust is that a non-zero
 prescribed inflow is honoured **identically** by the three operator
 splittings of the affine within-group system: SI-Jacobi (the resolvent
 :math:`L+C` with lagged gains :math:`S, B`), SI-Gauss–Seidel (the
-:math:`B`-folding ``_GaussSeidelResolvent``), and Krylov (the matvec
+:math:`B_{\rm lower}`-folding reified :math:`M`,
+:class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`,
+with lagged gains :math:`S, B_{\rm upper}`), and Krylov (the matvec
 :math:`L+C-S-B`). All three are different reduction trees of the *same*
 affine fixed point :math:`(L+C-S-B)\psi = q`, so they MUST reach the
 same :math:`\psi` (``vv-principles`` Mode 9 — verify splittings reach
@@ -14434,8 +14611,10 @@ splitting-invariance check is vacuous if all three trivially agree on
 :math:`\psi \equiv 0`): the inflow slot must actually be written
 (:math:`>0`), the inflow must non-trivially drive the interior
 (:math:`\max|\psi| > 10^{-3}`), and the 2-D row must actually select the
-:math:`B`-folding ``_GaussSeidelResolvent`` (not silently fall back to
-Jacobi) with an explicit reflective-:math:`y` ``Mesh2D`` BC.
+:math:`B_{\rm lower}`-folding reified :math:`M`
+(:class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`,
+not silently fall back to Jacobi) with an explicit reflective-:math:`y`
+``Mesh2D`` BC.
 
 Verification chain — Branch 1 / Branch 2 / L1 cross-check
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -17630,6 +17809,44 @@ branch and have no landed hash yet.
      - Architectural milestone
      - Issue
      - Where
+   * - in dev
+       (2026-07-01)
+     - **Operator-inverse taxonomy step 2 — the G-S resolvent reified,
+       the windowed path retyped (#226)** — the duck-typed
+       ``_GaussSeidelResolvent`` (which paired
+       ``apply``\ :math:`=(L+C)\psi` with
+       ``solve``\ :math:`=(L+C-B_{\rm lower})^{-1}` — inverses of
+       *different* operators, round-trip defect O(1) :math:`=2.667`)
+       dissolves into the honest **regular matrix splitting**
+       :math:`(L+C-B)=M-B_{\rm upper}`.  :math:`M=(L+C)-B_{\rm lower}` is
+       reified as
+       :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
+       (via :meth:`InvertibleOperator.__sub__
+       <orpheus.sn.operators.streaming.InvertibleOperator.__sub__>`), with
+       :math:`B_{\rm lower}` the schedule-split half
+       (:meth:`SNBoundaryOperator.split
+       <orpheus.sn.operators.boundary.SNBoundaryOperator.split>` /
+       :meth:`SweepSchedule.lower_inflow_rows
+       <orpheus.sn.loss_representation.sweep_schedule.SweepSchedule.lower_inflow_rows>`
+       → :class:`~orpheus.sn.operators.boundary.SNMaskedBoundaryOperator`)
+       and :math:`B_{\rm upper}` riding the SI driver as an ordinary gain
+       — ``M.inverse()`` now round-trips ``M.apply`` at
+       :math:`5.2\times10^{-16}` (bulk) / :math:`4.4\times10^{-16}`
+       (trace).  In parallel the ``solve_moments`` output-mode method (a
+       codomain change wearing a config) retires into the typed windowed
+       composition ``P @ A.inverse()``
+       (:class:`~orpheus.sn.operators.windowing.WindowedSweep` =
+       :class:`~orpheus.sn.operators.windowing.BulkAnalysisOperator` block
+       coisometry ``@`` the forward's inverse), whose fused ``apply`` ≡ the
+       deforested oracle at :math:`1.8\times10^{-16}`.  Gates:
+       ``tests/sn/solve/test_gauss_seidel_reification.py`` (W2 round-trip /
+       split-exactness / FP-invariance + M-SPLIT-DIR / M-SPLIT-PART
+       mutations) and ``test_2d_windowed_product_equals_post_projection``.
+       See :ref:`si-gauss-seidel-reification` and
+       :ref:`windowing-retyped` (:doc:`operator_algebra`).
+     - #226
+     - *(in development)*
+       ``refactor/inverse-as-operator``
    * - in dev
        (2026-06-28)
      - **SN scattering adjoint** :math:`S^{T}` **landed (#118 closed)** —

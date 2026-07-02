@@ -7011,7 +7011,9 @@ instead of :class:`~orpheus.transport.fields.angular_flux.AngularFlux`.
      Morel–Montry Carlson coupled-pole closure seeds from the previous
      iterate's per-ordinate :math:`\psi` at :math:`\mu = -1`, which the
      moment tensor cannot reconstruct. The Krylov path stays
-     full-angular too. Gated on ``sn_mesh.reduced is None``.
+     full-angular too. Gated on the genuine ``sn_mesh.is_cartesian and
+     sn_mesh.ndim == 2`` (C5.4 / #225 — the earlier ``reduced is None``
+     proxy was also true at 3-D Cartesian).
    - **Interior-bulk only.** The reflective :math:`B` coupling reads the
      full per-ordinate boundary *trace*; windowing reduces only the
      interior bulk. The biproduct :eq:`wavefront-cochain-biproduct`
@@ -7245,12 +7247,17 @@ solve that does not seed from the previous iterate's per-ordinate
        subspace is built from full-angular matvecs. There is no moment
        sub-iterate to hold.
 
-The gate is the single predicate ``sn_mesh.reduced is None`` (2-D
-Cartesian; the curvilinear meshes carry a non-``None`` ``reduced``
-moment-reduction descriptor) — the
-:class:`~orpheus.sn.solver._MomentWindowedResolvent` is therefore
-**never even constructed** on a curvilinear mesh, so there is no illegal
-state to mistype.
+The gate is the genuine predicate ``sn_mesh.is_cartesian and
+sn_mesh.ndim == 2`` (the C5.4 / #225 sharpening of the earlier
+``reduced is None`` proxy, which was *also* true at 3-D Cartesian and
+would have silently moment-windowed a 3-D solve — vv Mode 9): the
+curvilinear meshes carry a non-``None`` ``reduced`` moment-reduction
+descriptor and are excluded, and so is 3-D Cartesian (the in-sweep
+moment emit is a 2-D kernel). The windowed product ``P @ A.inverse()``
+(retyped in :ref:`windowing-retyped` below), behind the
+:class:`~orpheus.sn.solver._MomentWindowedResolvent` driver adapter, is
+therefore **never even constructed** off that gate, so there is no
+illegal state to mistype.
 
 The restriction is **interior-bulk-only** in a second sense: the
 interior-cochain biproduct :eq:`wavefront-cochain-biproduct`
@@ -7413,16 +7420,22 @@ Implementation map
 -------------------
 
 * :class:`~orpheus.sn.solver._MomentWindowedResolvent`
-  (:mod:`orpheus.sn.solver`) wraps the within-group resolvent (the
-  Jacobi :math:`L+C`, or the
-  :class:`~orpheus.sn.solver._GaussSeidelResolvent`) and reduces its
-  swept bulk output via :math:`M` — sourced from the scattering
-  operator's **own** quadrature, which is what makes the stored moments
-  bit-identical to :math:`S`'s internal projection. It mirrors the base
-  resolvent's ``capabilities`` (including ``CAP_SOLVE``) and accepts the
-  ``initial_guess`` kwarg, so it satisfies the
-  :class:`~orpheus.numerics.iteration.SourceIteration` ``L`` contract.
-  Gated on ``sn_mesh.reduced is None``.
+  (:mod:`orpheus.sn.solver`) is a thin **driver adapter** that holds the
+  typed windowed composition ``P @ A.inverse()`` — the
+  :class:`~orpheus.sn.operators.windowing.WindowedSweep` — over the
+  within-group forward :math:`A` (the Jacobi :math:`L+C`, or the reified
+  splitting matrix :math:`M`,
+  :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
+  — see :ref:`si-gauss-seidel-reification` in :doc:`discrete_ordinates`).
+  Its analysis factor :math:`P` is sourced from the scattering operator's
+  **own** frame, which is what makes the stored moments equal :math:`S`'s
+  internal projection term-for-term. Its ``solve`` maps to the product's
+  ``apply``; it mirrors the base resolvent's ``capabilities`` and accepts
+  the ``initial_guess`` kwarg (accepted for the driver contract and
+  dropped), so it satisfies the
+  :class:`~orpheus.numerics.iteration.SourceIteration` ``L`` contract. It
+  dissolves at taxonomy step 3 (the driver will hold the product
+  directly). Gated on ``sn_mesh.is_cartesian and sn_mesh.ndim == 2``.
 * The **eigenvalue** inner
   (:meth:`SNSolver._solve_source_iteration <orpheus.sn.solver.SNSolver._solve_source_iteration>`)
   is reconstruction-free: it returns the scalar flux read off the
@@ -7478,8 +7491,10 @@ octant-by-octant into one shared global buffer, so the full angular
 field is **never materialized** in the windowed iterate. The
 ``base.solve`` → flat-``apply`` post-projection **leaves production**;
 :meth:`_MomentWindowedResolvent.solve <orpheus.sn.solver._MomentWindowedResolvent.solve>`
-collapses to forwarding
-:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_moments`.
+collapses to forwarding the fused moment emit (at Phase 5c the base
+resolvent's ``solve_moments``; since #226 step 2 the typed product's
+:meth:`WindowedSweep.apply <orpheus.sn.operators.windowing.WindowedSweep.apply>`
+— :ref:`windowing-retyped`, below).
 
 .. admonition:: Key Facts (in-sweep moment accumulation)
    :class: tip
@@ -7514,8 +7529,10 @@ collapses to forwarding
      reachable and pins the optimized path
      (``feedback_aggressive_retirement`` — the "verification oracle"
      exception to retirement).
-   - **2-D Cartesian only; the rest is untouched.** Gated on
-     ``sn_mesh.reduced is None`` (5a's gate); ``transport_sweep`` *raises*
+   - **2-D Cartesian only; the rest is untouched.** Gated on the genuine
+     ``sn_mesh.is_cartesian and sn_mesh.ndim == 2`` (the C5.4 / #225
+     sharpening of 5a's ``reduced is None`` proxy — the proxy was also
+     true at 3-D Cartesian); ``transport_sweep`` *raises*
      on a 1-D mesh given a moment projection (illegal-states-
      unrepresentable). Curvilinear / Krylov stay full-angular; both
      one-shot ``Solution.angular_flux`` reconstructions stay separate
@@ -7562,8 +7579,11 @@ later; 5c **projects it on the spot** and discards it. For each level
    frame.analysis.apply of the same swept psi within the
    reduction-order drift bound (criterion 3 of bit-identity-vs-
    principled-equivalence). Pinned by
-   test_2d_windowed_moments_in_sweep_equal_post_projection, anchored to
-   the structurally-independent SI≡Krylov-full scalar cross-check.
+   test_2d_windowed_product_equals_post_projection (renamed from
+   test_2d_windowed_moments_in_sweep_equal_post_projection when the
+   solve_moments cross-reach retired into the typed product, #226 step 2),
+   anchored to the structurally-independent SI≡Krylov-full scalar
+   cross-check.
 .. vv-status: harmonic-moment-projection implemented
 
 .. math::
@@ -7699,11 +7719,16 @@ optimization that gives up a fuller view of a concept **keeps that fuller
 view reachable** as a verification oracle that pins the optimized path.
 The pre-5c "full-angular ``base.solve`` then flat
 ``frame.analysis.apply``" path is exactly
-that fuller view: it is *not* deleted, and the permanent gate
-``test_2d_windowed_moments_in_sweep_equal_post_projection``
-asserts the in-sweep :meth:`solve_moments
-<orpheus.sn.operators.streaming.InvertibleOperator.solve_moments>` result equals
-``base.solve`` + ``frame.analysis.apply`` of the same swept
+that fuller view: it is *not* deleted, and — since #226 step 2 — it is
+the **inherited**
+:meth:`OperatorProduct.apply <orpheus.numerics.operator.OperatorProduct.apply>`
+body of the windowed composition itself (``P.apply(A⁻¹.apply(rhs))``, the
+un-fused factor-by-factor evaluation the
+:class:`~orpheus.sn.operators.windowing.WindowedSweep` overrides). The
+permanent gate ``test_2d_windowed_product_equals_post_projection``
+asserts the fused in-sweep
+:meth:`WindowedSweep.apply <orpheus.sn.operators.windowing.WindowedSweep.apply>`
+result equals that deforested oracle of the same swept
 :math:`\psi`, within the de-risk bound, over the **full moment tensor —
 including the** :math:`\ell\ge 1` **block**.
 
@@ -7825,10 +7850,11 @@ Honest scope — what 5c does and does NOT do
      the full bulk vector (no moment sub-iterate); the curvilinear
      Morel–Montry Carlson coupled-pole seed reads the per-ordinate
      iterate at :math:`\mu = -1` (lesson L21), which the moment tensor
-     cannot carry. Both are gated out by ``sn_mesh.reduced is None``;
-     ``transport_sweep`` *raises* if a moment projection reaches a 1-D
-     mesh, so the unwindowable regime is unrepresentable, not merely
-     unreached.
+     cannot carry. Both are gated out by the genuine
+     ``sn_mesh.is_cartesian and sn_mesh.ndim == 2`` (C5.4 / #225 — 3-D
+     Cartesian is excluded too); ``transport_sweep`` *raises* if a moment
+     projection reaches a 1-D mesh, so the unwindowable regime is
+     unrepresentable, not merely unreached.
 
 So the three-phase arc is complete: **5a** holds the persistent iterate
 as moments (typed-state + persistent-storage win); **5b** carries the
@@ -7844,10 +7870,23 @@ iterate makes possible.
 Implementation map (Phase 5c)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The moment OUTPUT mode threads as an **optional projection**, mirroring
-the ``reflect=None`` dependency-injection idiom of :func:`_sweep_scheduled <orpheus.sn.loss_representation._sweep_scheduled>` — **not** a boolean flag (at the
-resolvent surface the two modes are **named methods**, ``solve`` vs
-``solve_moments``).
+The moment OUTPUT mode threads as an **optional projection**
+(``moment_frame=None``), mirroring the ``reflect=None``
+dependency-injection idiom of :func:`_sweep_scheduled <orpheus.sn.loss_representation._sweep_scheduled>` — **not** a boolean flag.
+
+.. note::
+
+   **Retyping (#226 step 2).** At Phase 5c the two output modes were
+   **named methods** on the resolvent surface — ``solve`` (full angular)
+   vs ``solve_moments`` (moments). That public ``solve_moments`` — a
+   method whose output-mode argument silently changed the operator's
+   *codomain* — was a composition wearing a config, and it was retired.
+   The moment emit is now the typed composition ``P @ A.inverse()``
+   (:ref:`windowing-retyped`); the ``moment_frame`` kwarg survives only
+   on the **private** ``_solve_timed_full_field`` body, the single
+   application-context entry that the fused
+   :meth:`WindowedSweep.apply <orpheus.sn.operators.windowing.WindowedSweep.apply>`
+   drives. The map below is updated to that state.
 
 * the solve-direction windowed walk (at 5c ``apply_windowed``; since
   S6.4(e) :meth:`SweepDependencyGraph.walk_windowed
@@ -7866,26 +7905,32 @@ resolvent surface the two modes are **named methods**, ``solve`` vs
   optional ``moment_projection`` (2-D Cartesian only; ``transport_sweep``
   raises on a 1-D mesh). Moment mode skips the per-octant angular
   allocation and ``_sweep_2d_scheduled`` returns ``(moment_buf, None)``.
-* :meth:`InvertibleOperator.solve_moments
-  <orpheus.sn.operators.streaming.InvertibleOperator.solve_moments>` and
-  :meth:`_GaussSeidelResolvent.solve_moments
-  <orpheus.sn.solver._GaussSeidelResolvent.solve_moments>` — the named
-  moment-emitting siblings of ``solve``, sharing a parameterized body
-  (the type guards single-sourced into :meth:`_solve_timed_full_field
-  <orpheus.sn.operators.streaming.InvertibleOperator._solve_timed_full_field>` /
-  ``_solve_scheduled``). ONE representation-sweep call per body for both
-  output modes (since S6.5 the operator's own
-  ``loss_representation.sweep`` — the same instance the matvec
-  consumes); only the bulk **wrap** differs
+* the private
+  :meth:`InvertibleOperator._solve_timed_full_field
+  <orpheus.sn.operators.streaming.InvertibleOperator._solve_timed_full_field>`
+  body (duck-shared by
+  :meth:`ScheduledInvertibleOperator._solve_timed_full_field <orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator._solve_timed_full_field>`)
+  is the **single** application-context entry: given a ``moment_frame`` it
+  emits harmonic moments, else the full angular field. ONE
+  representation-sweep call per body for both output modes (since S6.5 the
+  operator's own ``loss_representation.sweep`` — the same instance the
+  matvec consumes); only the bulk **wrap** differs
   (:class:`~orpheus.transport.fields.angular_flux.AngularFlux` vs
   :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`).
-* :meth:`_MomentWindowedResolvent.solve
-  <orpheus.sn.solver._MomentWindowedResolvent.solve>` — collapses to
-  forwarding ``base.solve_moments(...)``; the post-sweep flat projection
-  leaves production. The dead ``_moment_order`` / ``sn_mesh`` fields are
-  pruned (the base resolvent carries the mesh; the SH frame's basis
-  (:class:`~orpheus.numerics.basis.SphericalHarmonicBasis`) ``L``
-  carries the truncation order).
+  The former public ``solve_moments`` cross-reach — on
+  ``InvertibleOperator`` **and** the dissolved ``_GaussSeidelResolvent``,
+  plus the solver-side ``_solve_scheduled`` plumbing twin — retired into
+  this one private body (#226 step 2, :ref:`windowing-retyped`).
+* the fused entry is
+  :meth:`WindowedSweep.apply <orpheus.sn.operators.windowing.WindowedSweep.apply>`
+  (``P @ A.inverse()``), which calls that private body with its
+  ``moment_frame``; the analysis factor
+  :class:`~orpheus.sn.operators.windowing.BulkAnalysisOperator` carries
+  the SH frame (whose basis
+  :class:`~orpheus.numerics.basis.SphericalHarmonicBasis` ``L`` carries
+  the truncation order). The
+  :class:`~orpheus.sn.solver._MomentWindowedResolvent` driver adapter's
+  ``solve`` forwards to that fused ``apply``.
 
 Cross-references: the post-hoc reduce 5c replaces is
 :eq:`angular-windowing-moment-projection`; the :math:`Y_0^0 = 1`
@@ -7893,6 +7938,146 @@ scalar-flux read is :ref:`sn-angular-windowing-factoring`; the
 moving-frontier interior cochain 5c rides is :ref:`wavefront-flux-cochain`
 (Phase 5b); the persistent-iterate shrink 5c completes is
 :ref:`sn-angular-windowing-honest-scope` (Phase 5a). The
+principled-equivalence framework is ``vv-principles`` § "Bit-identity vs
+principled-equivalence".
+
+
+.. _windowing-retyped:
+
+Windowing retyped — the moment emit as a composition (#226 step 2)
+------------------------------------------------------------------
+
+Phases 5a–5c built the moment-windowed path as a pair of **named
+methods** on the resolvent surface: ``solve`` returned the full angular
+field, ``solve_moments`` returned the harmonic moments. The taxonomy
+step-2 carve (#226) retired ``solve_moments`` — because a *public method
+whose output-mode argument silently changes the operator's codomain is a
+composition wearing a config*, not a mode of one morphism.
+
+The two output modes do not share a codomain: ``solve`` lands in the
+full-angular composite carrier :math:`V = V_{\rm bulk} \oplus V_\partial`,
+while ``solve_moments`` landed in the *moment-bulk* composite
+:math:`V^{\rm mom} = \Phi_{\rm bulk} \oplus V_\partial`. A change of
+codomain is, by the two-layer law of :ref:`operator-algebra` ("two
+operators, one substrate — never two views, one operator"), a
+**different arrow**; and an arrow whose target differs from what
+:math:`A^{-1}` produces is a *composition* of :math:`A^{-1}` with a
+second arrow, never a configuration flag on :math:`A^{-1}`. The honest
+object is therefore
+
+.. math::
+
+   \text{windowed} \;=\; P \circ A^{-1},
+   \qquad
+   P \;=\; \underbrace{M_{\rm frame}}_{\text{analysis on the bulk}}
+           \;\oplus\;
+           \underbrace{\mathrm{Id}}_{\text{on the trace}},
+
+where :math:`A^{-1}` is the within-group forward's inverse
+(:class:`~orpheus.sn.operators.sweep_operator.SweepOperator` on
+:math:`L+C`, or on the reified splitting matrix :math:`M` —
+:ref:`si-gauss-seidel-reification`) and :math:`M_{\rm frame}` is the
+scattering frame's :attr:`~orpheus.numerics.frame.FrameBase.analysis`
+face, the angular→moment reduction :math:`\phi_\ell^m = \sum_n w_n
+Y_\ell^m \psi_n` (:eq:`harmonic-moment-projection`). The boundary trace
+passes through **un-reduced**: windowing is interior-bulk-only (the
+reflective :math:`B` coupling reads the full per-ordinate face trace —
+:ref:`sn-angular-windowing-geometry-restriction`), so :math:`P` is the
+identity on the :math:`V_\partial` summand.
+
+The coisometry factoring of the windowed contract
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:math:`P` — the :class:`~orpheus.sn.operators.windowing.BulkAnalysisOperator`
+— is a **block coisometry**, not an isomorphism. Its bulk face satisfies
+
+.. math::
+
+   \text{analysis} \circ \text{reconstruction} \;=\; 4\pi\,\mathrm{I}
+
+under the no-prefactor SH convention (:ref:`spherical-harmonics`) — the
+addition-theorem tight-frame identity, pinned by
+``test_pi_R_is_4pi_identity_through_the_frame``. It is emphatically **not**
+:math:`\mathrm{I}`: asserting :math:`\Pi R = \mathrm{I}` was the ERR-051
+mistake — the coisometry carries the :math:`4\pi` frame constant, and a
+test that hard-coded :math:`= \mathrm{I}` verified the *wrong* invariant.
+In the other order :math:`\text{reconstruction} \circ \text{analysis}
+\neq \mathrm{I}` (moments discard the ordinate-resolved angular content
+above the truncation order :math:`L`), so :math:`P` is **not
+invertible**. By the product's capability-closure laws the composite
+:math:`P \circ A^{-1}` therefore honestly advertises ``is_invertible =
+False`` and carries **no** ``CAP_SOLVE``. The windowed path makes *no
+round-trip promise* — which is the whole point: the old ``solve_moments``
+name suggested a *solve* (an inverse) where the object is a **projection
+composed with an inverse**.
+
+Fusion is an evaluation strategy, not a new operator
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The composition itself is
+:class:`~orpheus.sn.operators.windowing.WindowedSweep` (an
+:class:`~orpheus.numerics.operator.OperatorProduct` subclass), spelled by
+the operator algebra ``P @ A.inverse()`` — the
+:meth:`BulkAnalysisOperator.__matmul__ <orpheus.sn.operators.windowing.BulkAnalysisOperator.__matmul__>`
+dispatch recognises a :class:`SweepOperator` right factor and returns the
+fused product (mirroring the ``L + C`` fusion precedent, #261: the
+dispatch is one-directional on the specific leaf).
+:meth:`WindowedSweep.apply <orpheus.sn.operators.windowing.WindowedSweep.apply>`
+overrides the inherited factor-by-factor body with the substrate's
+MOMENT-emit mode (the per-anti-diagonal accumulation of :ref:`Phase 5c
+<sn-angular-windowing-in-sweep-accumulation>`), so the
+:math:`(N, n_g, n_x, n_y)` full-angular intermediate is **never
+materialized** (the ~3× linear peak-memory win). The **inherited**
+:meth:`OperatorProduct.apply <orpheus.numerics.operator.OperatorProduct.apply>`
+body — ``P.apply(A⁻¹.apply(rhs))``, which *does* materialize the
+intermediate — is retained verbatim as the **fuller-view verification
+oracle** (the aggressive-retirement oracle exception): the two
+evaluations differ only in the ordinate-sum reduction *order*, so they
+agree to principled-equivalence within the scale-relative
+:math:`4N\varepsilon` bound (measured :math:`1.8\times10^{-16}` on the
+product SUT, re-measured from the pre-migration
+:math:`2.7\times10^{-16}`). The permanent gate
+``test_2d_windowed_product_equals_post_projection`` (renamed/migrated
+from ``test_2d_windowed_moments_in_sweep_equal_post_projection`` when the
+SUT became the product) is that fused-≡-deforested pin; it is a
+*representation*-equivalence pin (procedurally, not structurally,
+independent — shared kernel), whose structurally-independent anchors are
+the SI ≡ Krylov-full scalar cross-check and the closed-form
+:math:`k_\infty` eigenvalue.
+
+.. admonition:: What was tried and rejected — the moment-proxy residual gate
+   :class: warning
+
+   An early proposal verified the windowed path with a **moment-proxy
+   residual**: compute a residual *in moment space* and read its
+   smallness as evidence that ``solve_moments`` inverted its operator. It
+   was rejected as **category-confused**. :math:`P` is a coisometry, so
+   :math:`P \circ A^{-1}` has no inverse and no round-trip to take a
+   residual *of* — a residual gate presumes a solve, but the windowed
+   object is a *projection composed with a solve*. Its only honest
+   correctness statements are (i) representation-equivalence to the
+   deforested oracle and (ii) the structurally-independent scalar anchor.
+   Reifying the composition made the confusion **structural**:
+   ``CAP_SOLVE`` is absent from the type, so a moment-proxy residual gate
+   cannot even be written against ``WindowedSweep``.
+
+Only the driver still speaks ``.solve``: the
+:class:`~orpheus.sn.solver._MomentWindowedResolvent` adapter holds the
+product and maps its ``solve`` to the product's ``apply`` (the
+``initial_guess`` kwarg is accepted for the
+:class:`~orpheus.numerics.iteration.SourceIteration` contract and
+dropped). That adapter is transitional — taxonomy step 3 makes the driver
+apply inverse operators directly and deletes it, at which point the
+production SI holds ``P @ A.inverse()`` with no wrapper.
+
+Cross-references: the reduction :math:`M_{\rm frame}` is
+:eq:`harmonic-moment-projection`; the frame's ``analysis`` /
+``reconstruction`` faces are the
+:class:`~orpheus.numerics.frame.GalerkinFrame`'s
+(:ref:`galerkin-projection`); the two-layer "operators, not views" law is
+:ref:`operator-algebra`; the reified :math:`M = (L+C-B_{\rm lower})` the
+windowed forward may wrap is :ref:`si-gauss-seidel-reification`
+(:doc:`discrete_ordinates`); the capability-closure and
 principled-equivalence framework is ``vv-principles`` § "Bit-identity vs
 principled-equivalence".
 

@@ -246,8 +246,17 @@ class LossRepresentation(Protocol):
         *,
         initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
+        schedule: "SweepSchedule | None" = None,
+        reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
-        """Perform one within-group transport sweep on this strategy's mesh."""
+        """Perform one within-group transport sweep on this strategy's mesh.
+
+        ``schedule``/``reflect`` (#226 step 2): ``None`` (default) is the
+        bare Jacobi sweep; a given schedule runs the SAME uniform
+        sweep-and-reflect loop with the inter-group ``reflect`` — the
+        forward substitution of the reified ``M = (L+C−B_lower)``.
+        Multi-D only; the 1-D scan raises (not a wavefront).
+        """
         ...
 
     def loss_action(
@@ -505,6 +514,8 @@ class _LossRepresentation:
         *,
         initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
+        schedule: "SweepSchedule | None" = None,
+        reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         """One within-group sweep — every concrete strategy implements it."""
         raise NotImplementedError(
@@ -998,6 +1009,8 @@ class CumprodScan(_LossRepresentation):
         *,
         initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
+        schedule: "SweepSchedule | None" = None,
+        reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         if moment_frame is not None:
             # Moment output is the 2-D windowed-SI peak-memory optimization;
@@ -1008,6 +1021,13 @@ class CumprodScan(_LossRepresentation):
                 "is 2-D Cartesian only — 1-D/curvilinear meshes stay "
                 "full-angular (the Morel–Montry Carlson seed reads the "
                 "per-ordinate iterate; lesson L21)."
+            )
+        if schedule is not None:
+            # The octant-group schedule is a multi-D wavefront concern; the
+            # 1-D scan is not a wavefront (boundary G-S is a no-op there).
+            raise ValueError(
+                "CumprodScan.sweep: a sweep schedule is multi-D only — "
+                "the 1-D scan is not a wavefront."
             )
         return _OneDimScanWalk(self.mesh).sweep(
             Q, sig_t, boundary_flux, initial_guess=initial_guess,
@@ -1135,9 +1155,23 @@ class MovingFrontierWindow(_DAGWavefront):
         *,
         initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
+        schedule: "SweepSchedule | None" = None,
+        reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
-        return _sweep_jacobi(
+        if schedule is None:
+            return _sweep_jacobi(
+                Q, sig_t, self.mesh, boundary_flux,
+                moment_frame=moment_frame,
+                interior=self._sweep_interior,
+            )
+        # #226 step 2: the scheduled (Gauss-Seidel) walk on THIS
+        # representation's own interior kernel — the reified
+        # ``M = (L+C−B_lower)`` forward substitution.  Same uniform loop,
+        # different schedule (the splitting is the schedule; S6.4(b)).
+        return _sweep_scheduled(
             Q, sig_t, self.mesh, boundary_flux,
+            schedule=schedule,
+            reflect=reflect,
             moment_frame=moment_frame,
             interior=self._sweep_interior,
         )
@@ -1411,6 +1445,8 @@ class FullFieldWavefront(_DAGWavefront):
         *,
         initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
+        schedule: "SweepSchedule | None" = None,
+        reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         if moment_frame is not None:
             raise ValueError(
@@ -1420,9 +1456,19 @@ class FullFieldWavefront(_DAGWavefront):
             )
         # S6.4(d): the oracle sweep = the Jacobi schedule × the full-cochain
         # kernel on the SAME schedule loop + walk frame as production (the
-        # former private ``_sweep_full_field`` frame dissolved).
-        return _sweep_jacobi(
+        # former private ``_sweep_full_field`` frame dissolved).  A given
+        # ``schedule`` (#226 step 2) composes for free — the inter-group
+        # reflect is kernel-agnostic (S6.4(b)).
+        if schedule is None:
+            return _sweep_jacobi(
+                Q, sig_t, self.mesh, boundary_flux,
+                moment_frame=None,
+                interior=self._sweep_interior,
+            )
+        return _sweep_scheduled(
             Q, sig_t, self.mesh, boundary_flux,
+            schedule=schedule,
+            reflect=reflect,
             moment_frame=None,
             interior=self._sweep_interior,
         )
@@ -1634,6 +1680,8 @@ class ScanMarch(_LossRepresentation):
         *,
         initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
+        schedule: "SweepSchedule | None" = None,
+        reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         if self.mesh.is_1d:
             # d=1 ⇒ ``scan(x)`` with no transverse march: the unified 1-D body
@@ -1647,16 +1695,31 @@ class ScanMarch(_LossRepresentation):
                     "full-angular (the Morel–Montry Carlson seed reads the "
                     "per-ordinate iterate; lesson L21)."
                 )
+            if schedule is not None:
+                raise ValueError(
+                    "ScanMarch.sweep: a sweep schedule is multi-D only — "
+                    "the 1-D scan is not a wavefront."
+                )
             return _OneDimScanWalk(self.mesh).sweep(
                 Q, sig_t, boundary_flux, initial_guess=initial_guess,
             )
-        # 2-D ⇒ the row-march sweep = the Jacobi schedule × the scan-march
+        # multi-D ⇒ the row-march sweep = the schedule × the scan-march
         # interior kernel on the SAME schedule loop the window uses (S6.4(b):
         # the former private ``_sweep_2d_scanmarch`` frame dissolved into the
         # shared walk — and the Gauss-Seidel schedule composes for free, the
-        # inter-group reflect being kernel-agnostic).
-        return _sweep_jacobi(
+        # inter-group reflect being kernel-agnostic; #226 step 2 threads it
+        # through this door so the reified ``M`` runs the operator's ONE
+        # representation instance).
+        if schedule is None:
+            return _sweep_jacobi(
+                Q, sig_t, self.mesh, boundary_flux,
+                moment_frame=moment_frame,
+                interior=self._sweep_interior,
+            )
+        return _sweep_scheduled(
             Q, sig_t, self.mesh, boundary_flux,
+            schedule=schedule,
+            reflect=reflect,
             moment_frame=moment_frame,
             interior=self._sweep_interior,
         )

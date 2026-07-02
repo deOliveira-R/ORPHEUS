@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **5928**
+Total tests collected: **5986**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1169, 19.7%
-   L1, 1046, 17.6%
+   L0, 1169, 19.5%
+   L1, 1047, 17.5%
    L2, 46, 0.8%
    L3, 0, 0.0%
-   foundation, 3657, 61.7%
+   foundation, 3714, 62.0%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5839
+   explicit, 5897
    verify, 0
    class-name, 46
    func-name, 0
@@ -275,16 +275,18 @@ Module × level grid
    numerics/test_estimators_as_functionals, 0, 0, 0, 0, 5, 0
    numerics/test_face_layout, 0, 0, 0, 0, 15, 0
    numerics/test_field, 0, 0, 0, 0, 22, 0
-   numerics/test_frame, 0, 0, 0, 0, 18, 0
+   numerics/test_frame, 0, 0, 0, 0, 19, 0
    numerics/test_full_field_space, 0, 0, 0, 0, 6, 0
    numerics/test_incoming_ordinate_mask_tensor, 13, 0, 0, 0, 0, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
+   numerics/test_inverse_universal, 0, 0, 0, 0, 19, 0
    numerics/test_iteration, 0, 1, 0, 0, 17, 0
    numerics/test_measure, 0, 16, 0, 0, 32, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_measure_phase, 0, 0, 0, 0, 11, 0
    numerics/test_operator, 0, 0, 0, 0, 56, 0
+   numerics/test_operator_capability_predicates, 0, 0, 0, 0, 13, 0
    numerics/test_operator_protocols, 0, 0, 0, 0, 14, 0
    numerics/test_outer_dyad, 8, 0, 0, 0, 0, 0
    numerics/test_periodic_wrap_operator, 5, 0, 0, 0, 0, 0
@@ -310,13 +312,14 @@ Module × level grid
    operators/test_bc_extraction_2d, 2, 3, 0, 0, 3, 0
    operators/test_bc_extraction_matvec, 3, 0, 0, 0, 30, 0
    operators/test_boundary_conditions, 0, 0, 0, 0, 11, 0
-   operators/test_capability_survival, 0, 0, 0, 0, 6, 0
+   operators/test_capability_survival, 0, 0, 0, 0, 11, 0
    operators/test_collision_operator, 0, 0, 0, 0, 54, 0
    operators/test_fission_adjoint, 0, 0, 0, 0, 8, 0
    operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 6, 0
    operators/test_fission_operator, 0, 0, 0, 0, 18, 0
    operators/test_frame_conjugate_carve, 0, 0, 0, 0, 11, 0
    operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 12, 0
+   operators/test_inverse_operator_equivalence, 0, 0, 0, 0, 7, 0
    operators/test_invertible_operator, 1, 10, 0, 0, 22, 0
    operators/test_isotropic_scattering, 0, 0, 0, 0, 16, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
@@ -360,13 +363,14 @@ Module × level grid
    sn/test_condensation, 0, 10, 0, 0, 0, 0
    sn/test_homogenization, 12, 0, 0, 0, 0, 0
    sn/test_material_xs_field_typed, 0, 0, 0, 0, 10, 0
-   solve/test_2d_anisotropic_windowing, 0, 4, 0, 0, 0, 0
+   solve/test_2d_anisotropic_windowing, 0, 5, 0, 0, 0, 0
    solve/test_affine_carve_bit_identity, 0, 0, 0, 0, 3, 0
    solve/test_b1pp_verification, 6, 3, 0, 0, 0, 0
    solve/test_d3_admission, 0, 5, 0, 0, 2, 0
    solve/test_fixed_source_2d_equivalence, 0, 2, 0, 0, 0, 0
    solve/test_fixed_source_g1, 0, 5, 0, 0, 0, 0
    solve/test_flux_displacement_diagnostics, 0, 4, 0, 0, 0, 0
+   solve/test_gauss_seidel_reification, 0, 0, 0, 0, 7, 0
    solve/test_krylov_curvilinear_precond_safety, 0, 4, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 12, 0, 0, 0, 0
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
@@ -382,7 +386,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 298, 0
+   test_layer_imports, 0, 0, 0, 0, 301, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -392,7 +396,7 @@ Module × level grid
    transport/test_integral_kernel_category, 0, 0, 0, 0, 13, 0
    transport/test_integrated_reaction_rate, 0, 0, 0, 0, 6, 0
    transport/test_material_mesh, 0, 0, 0, 0, 12, 0
-   transport/test_multiplication_operator, 0, 0, 0, 0, 20, 0
+   transport/test_multiplication_operator, 0, 0, 0, 0, 22, 0
    transport/test_reaction_rate_functional, 0, 0, 0, 0, 7, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0
 
@@ -546,6 +550,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``energy-condensation-scattering-collapse``, 8
    ``dd-solve``, 7
    ``gauss-legendre-visibility-cone``, 7
+   ``inverse-as-operator``, 7
    ``bar-psi``, 6
    ``boyd-eq-45``, 6
    ``characteristic-ode``, 6

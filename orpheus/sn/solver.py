@@ -335,228 +335,49 @@ def _within_group_krylov(
     )
 
 
-class _GaussSeidelResolvent:
-    r"""SI-only resolvent folding the BOUNDARY reflection ``B`` into the
-    multi-D wavefront sweep via an octant-group Gauss-Seidel
-    ``SweepSchedule`` (Phase 3 sub-step 3c).
-
-    The plain SI resolvent is ``(L+C)`` with ``B`` lagged as an external gain
-    (inter-sweep Jacobi — ``B·ψₙ`` rides ``rhs.boundary``).  This resolvent
-    INSTEAD seeds ``B·ψₙ`` itself and re-reflects each octant group's outgoing
-    reflective faces BETWEEN group sweeps, so a later group reads the fresh
-    current-iterate inflow — the ``(L+C−B_lower)⁻¹`` forward substitution that
-    recovers the intra-sweep reflective coupling Wave O externalised.
-
-    Honest SCOPE (Phase 3 spike — issues #2 / #215): this folds the BOUNDARY
-    coupling only — a MODEST reflective-SI rate gain (~0.86–0.92× on the B-2g
-    configs; measured).  The dominant within-group SCATTERING ``c``-mode is NOT
-    folded (it cannot be folded into a directional sweep — that is consistent
-    DSA / Krylov territory, #2).  The converged fixed point is IDENTICAL to the
-    Jacobi SI (only the spectral rate changes — ``vv-principles`` Mode 9);
-    Krylov is splitting-invariant and unaffected.
-
-    Multi-D Cartesian (``_sweep_scheduled`` has been d-generic since C3;
-    the schedule derives octant groups + outgoing faces at any ndim — the
-    pre-C5.4 "2-D ONLY" claim was stale Phase-3 narration).  1-D meshes
-    route to the Jacobi resolvent (:func:`_select_si_resolvent` never
-    constructs this for 1-D — boundary G-S is a no-op there AND the scan
-    is not a wavefront).  d=3 G-S FP-invariance is value-gated by the
-    C5.5 Mode-9 mixed-BC box (#225).
-
-    Satisfies the :class:`~orpheus.numerics.iteration.SourceIteration` ``L``
-    contract: ``capabilities`` advertises ``{CAP_APPLY, CAP_SOLVE}`` and
-    ``solve(rhs, *, initial_guess=…)`` runs the seed-then-overwrite loop.
-    ``apply`` delegates to ``(L+C)`` — it is NEVER called by SourceIteration
-    (which only invokes ``.solve``); the boundary G-S is purely a solve-time
-    concern.
-    """
-
-    def __init__(self, invertible, boundary_op, schedule) -> None:
-        self._invertible = invertible    # (L+C) InvertibleOperator at σ_t
-        self._boundary_op = boundary_op  # SNBoundaryOperator (the same B)
-        self._schedule = schedule        # SweepSchedule.gauss_seidel(sn_mesh)
-        self.sn_mesh = invertible.sn_mesh
-
-    @property
-    def capabilities(self) -> frozenset[str]:
-        from orpheus.numerics.operator import CAP_APPLY, CAP_SOLVE
-
-        return frozenset({CAP_APPLY, CAP_SOLVE})
-
-    def apply(self, psi):
-        # Unused by SourceIteration (it calls only .solve); delegate to (L+C)
-        # so the CAP_APPLY contract holds. The boundary G-S is solve-time only.
-        return self._invertible.apply(psi)
-
-    def solve(self, rhs, *, initial_guess=None):
-        r"""``(L+C−B_lower)⁻¹ rhs`` via the seed-then-overwrite G-S sweep.
-
-        Returns the full per-ordinate angular flux.  See :meth:`_solve_scheduled`.
-        """
-        return self._solve_scheduled(rhs, initial_guess=initial_guess)
-
-    def solve_moments(self, rhs, frame, *, initial_guess=None):
-        r"""``(L+C−B_lower)⁻¹ rhs`` via the G-S sweep, returning the harmonic
-        MOMENTS of ``ψ`` projected in-sweep (Phase 5c — the moment-emitting
-        sibling of :meth:`solve`, satisfying the same windowed-resolvent contract
-        as :meth:`InvertibleOperator.solve_moments`).
-        """
-        return self._solve_scheduled(
-            rhs, initial_guess=initial_guess, moment_frame=frame,
-        )
-
-    def _solve_scheduled(self, rhs, *, initial_guess=None, moment_frame=None):
-        r"""Shared body: seed ``boundary_buf = rhs.boundary + B·ψₙ`` (the lagged
-        whole-trace reflection of the previous iterate — the SAME seed the Jacobi
-        path gets via the external ``B`` gain, only here ``B`` lives in the
-        resolvent), then run :func:`_sweep_scheduled` with the G-S schedule
-        and the face-restricted ``−B`` reflect between octant-group sweeps.
-
-        The output representation is selected by ``moment_frame`` (Phase
-        5c): ``None`` → full angular (:meth:`solve`); given → harmonic moments
-        accumulated in-sweep (:meth:`solve_moments`).  The boundary seed +
-        schedule + reflect are IDENTICAL — only the bulk OUTPUT differs.
-        """
-        from orpheus.transport.fields.angular_flux import AngularFlux
-        from orpheus.transport.fields.boundary_flux import BoundaryFlux
-        from orpheus.transport.fields.harmonic_moment_flux import (
-            HarmonicMomentFlux,
-        )
-        from orpheus.transport.timed_full_field import TimedFullField
-        from .loss_representation import _sweep_scheduled
-
-        sn_mesh = self.sn_mesh
-        trace = sn_mesh.trace
-
-        # boundary_buf = rhs.boundary (external inflow) + B·ψₙ (lagged reflect
-        # of the previous iterate's outflow).
-        boundary_buf = BoundaryFlux.zeros_on(sn_mesh)
-        for face in boundary_buf.layout.faces:
-            if face in rhs.boundary.layout.faces:
-                boundary_buf.face_view(face)[:] = rhs.boundary.face_view(face)
-        if initial_guess is not None:
-            seed = self._boundary_op.reflect_into_inflow(initial_guess.boundary)
-            for face in boundary_buf.layout.faces:
-                inflow = trace.inflow_indices_for_face(face)
-                boundary_buf.face_view(face)[inflow] += seed.face_view(face)[inflow]
-
-        # The per-group −B reflect (face-restricted, in place) — the SAME
-        # whole-trace helper the reconstruction sweep uses, single-sourced.
-        def _reflect(bf, faces):
-            _reflect_outflow_into_inflow(bf, sn_mesh, faces=faces)
-
-        bulk_values, _scalar = _sweep_scheduled(
-            rhs.bulk.values,
-            self._invertible.sigma,
-            sn_mesh,
-            boundary_buf,
-            schedule=self._schedule,
-            reflect=_reflect,
-            moment_frame=moment_frame,
-            # S6.5 (#222): the schedule loop is kernel-parameterized; the
-            # G-S resolvent runs on the OPERATOR's one representation
-            # instance — the same object ``(L+C).apply`` and ``.solve``
-            # consume — so the G-S inner is a re-scheduling of THE
-            # operator, not a parallel construction.
-            interior=self._invertible.loss_representation._sweep_interior,
-        )
-        # The sweep output carries the trailing 2^d spatial-moment axis at a
-        # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap
-        # selects the SpatialMomentSpace factor.  DD/Step → no factor, byte-id.
-        per_axis = sn_mesh.scheme.spatial_basis_per_axis
-        if moment_frame is None:
-            bulk = AngularFlux.from_mesh(
-                bulk_values, sn_mesh, spatial_moments=per_axis,
-            )
-        else:
-            # The moment tensor's own leading axis (L+1) fixes L — no
-            # basis-specific read (the sweep stays basis-agnostic).
-            bulk = HarmonicMomentFlux.from_mesh_and_L(
-                bulk_values, sn_mesh, bulk_values.shape[0] - 1,
-                spatial_moments=per_axis,
-            )
-        return TimedFullField(
-            bulk=bulk,
-            boundary=boundary_buf,
-            _history=(),
-            history_depth=rhs.history_depth,
-        )
+# The former ``_GaussSeidelResolvent`` (Phase 3 sub-step 3c) dissolved in
+# #226 step 2 (§17 W2): it paired ``apply = (L+C)ψ`` with
+# ``solve = (L+C−B_lower)⁻¹`` — inverses of DIFFERENT operators.  The G-S
+# splitting matrix is now REIFIED as
+# :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
+# (``M = (L + C) - B_lower``, an honest forward whose ``solve`` is the
+# scheduled forward substitution), and the lagged complement ``B_upper``
+# rides the SI driver as an ordinary external gain — structurally congruent
+# with the Jacobi path's ``(S, B)``.  See :func:`_select_si_resolvent`.
 
 
 class _MomentWindowedResolvent:
-    r"""Phase 5a/5c angular-windowing — wrap a within-group resolvent so the
-    SI iterate it produces is harmonic MOMENTS, not the full per-ordinate
-    angular field.
+    r"""Driver-contract adapter over the windowed product ``P @ A.inverse()``
+    (#226 step 2, §17 W1) — dissolves at taxonomy step 3.
 
-    The within-group source-iteration iterate is held across SI iterations
-    AND warm-started across every eigenvalue outer step; un-windowed it
-    is a full :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
-    ``(N, ng, nx, ny)``.  Scattering depends ONLY on the flux moments
-    ``φ_ℓ^m = M ψ`` (``S`` re-projects the iterate every sweep), so the
-    iterate carries strictly more than the iteration needs.  This wrapper
-    asks the base resolvent for the moment tensor ``(L+1, 2L+1, ng, nx, ny)``
-    directly (:meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_moments`) —
-    the angular dimension of the *persistent* iterate drops ``N → (L+1)²``.
-    The scattering gain then consumes the moments directly
-    (``S.apply(HarmonicMomentFlux)``), so the per-sweep re-projection is
-    elided too.
+    The windowed object is the typed composition
+    :class:`~orpheus.sn.operators.windowing.WindowedSweep` =
+    :class:`~orpheus.sn.operators.windowing.BulkAnalysisOperator` ``@``
+    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` — the
+    scattering frame's analysis face on the bulk ⊕ identity on the trace,
+    composed with the forward's inverse, evaluated FUSED through the
+    substrate's moment emit (the full per-ordinate field is never
+    materialized; see the :mod:`~orpheus.sn.operators.windowing` module for
+    the whole story: why windowing is a composition and not an output-mode
+    config, the coisometry, the principled-equivalence bound, and the 2-D
+    Cartesian restriction).
 
-    **Phase 5a → 5c.**  5a reduced the iterate by POST-projecting the base's
-    full-angular sweep output (``base.solve`` then a flat
-    :attr:`~orpheus.numerics.frame.FrameBase.analysis` projection) — the full
-    ``(N, ng, nx, ny)`` field was still materialized transiently every sweep.
-    5c moved the projection INTO the sweep (``base.solve_moments``): the walk
-    accumulates moments per anti-diagonal, so the full angular field is NEVER
-    materialized (the ~3× linear peak-memory win).  This class is now a thin
-    adapter — it holds the scattering operator's angular ``Frame`` and injects
-    it; the projection arithmetic lives in the sweep.
-
-    **Geometry restriction (load-bearing).**  Valid ONLY where the sweep is
-    a DIRECT solve with no per-ordinate-iterate seed — i.e. 2-D Cartesian
-    diamond-difference.  Curvilinear (1-D sphere/cylinder) MUST stay
-    full-angular: the Morel–Montry Carlson coupled-pole closure seeds from
-    the previous iterate's per-ordinate ``ψ`` at ``μ = −1`` (lesson L21),
-    which the moment tensor does not carry.  The solver gates this wrapper
-    on the genuine ``is_cartesian and ndim == 2`` condition in
-    ``_maybe_window`` (C5.4, #225 — the former ``reduced is None`` proxy
-    was ALSO true at d=3 Cartesian, where the in-sweep moment kernel does
-    not exist).
-
-    **Principled-equivalence (5c), not bit-identity.**  ``M`` is the scattering
-    operator's OWN ``frame.analysis`` (the SAME object), so the per-cell
-    ``w·Y·ψ`` fold matches ``S``'s internal projection term-for-term.  But the
-    in-sweep accumulation sums the ordinate contributions octant-by-octant
-    (cross-octant ``+=``), reordering the sum vs the flat post-sweep reduce ⇒
-    ULP-level drift (≤ 4 ULP de-risk, bounded by reduction-depth·eps).  The
-    boundary trace passes through un-reduced — the reflective ``B`` coupling
-    needs the full per-ordinate face trace (windowing is interior-bulk-only;
-    the biproduct ``C¹ = C¹_int ⊕ C¹_∂`` keeps the trace a distinct summand).
-    The convergence test is the moment L2 (the physically-meaningful SI
-    criterion — scattering iterates the moments); the converged value agrees
-    with the full-angular path within ``SAFETY × conv_tol`` (``vv-principles``
-    §"Bit-identity vs principled-equivalence").  The pre-5c post-projection
-    (``base.solve`` + flat ``frame.analysis.apply``) is retained as the
-    fuller-view verification ORACLE (``feedback_aggressive_retirement`` — the
-    "verification oracle" exception; pinned by the windowed-moments
-    equivalence test within the de-risk ULP bound).
-
-    Satisfies the :class:`~orpheus.numerics.iteration.SourceIteration` ``L``
-    contract: mirrors the base ``capabilities`` (incl. ``CAP_SOLVE``) and
-    accepts the ``initial_guess`` kwarg (a moment iterate; 2-D Cartesian
-    ``transport_sweep`` ignores the bulk seed, so it threads through
-    harmlessly).
+    This class remains ONLY because today's
+    :class:`~orpheus.numerics.iteration.SourceIteration` driver consumes a
+    ``.solve``-shaped resolvent; step 3 (the driver applies inverse
+    operators) deletes it and holds the product directly.  ``solve`` maps to
+    the product's ``apply``; ``initial_guess`` is accepted for the driver
+    contract and DROPPED — the multi-D Cartesian walk ignores the bulk seed,
+    and the previous iterate's boundary lag rides the driver's ``B`` /
+    ``B_upper`` gain (never this kwarg).
     """
 
-    def __init__(self, base, frame) -> None:
-        self._base = base            # the un-windowed resolvent ((L+C) or G-S)
-        # The scattering operator's OWN angular Frame (NOT a fresh projection):
-        # ``frame.analysis`` IS ``S.apply``'s internal projection — the SAME
-        # object, single source — so the in-sweep moments equal what S would
-        # project term-for-term.  ``base`` carries the mesh + the truncation
-        # order (``frame.basis.L``); the windowed resolvent holds no mesh/order
-        # state of its own (Phase 5c — the post-sweep projection that needed
-        # them retired into the base sweep).
-        self._frame = frame
+    def __init__(self, base, frame, sn_mesh) -> None:
+        from .operators.windowing import BulkAnalysisOperator
+
+        self._base = base  # the un-windowed forward ((L+C) or M) — CAP_APPLY face
+        #: The typed windowed composition, fused via the substrate moment emit.
+        self.product = BulkAnalysisOperator(frame, sn_mesh) @ base.inverse()
 
     @property
     def capabilities(self) -> frozenset[str]:
@@ -568,48 +389,27 @@ class _MomentWindowedResolvent:
         return self._base.apply(psi)
 
     def solve(self, rhs, *, initial_guess=None):
-        r"""Solve the within-group system, returning :math:`\psi`'s harmonic
-        MOMENTS ``TimedFullField(bulk=HarmonicMomentFlux, boundary=trace)``.
-
-        Phase 5c: delegates to the base resolvent's moment-emitting
-        :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.solve_moments`, which
-        projects each anti-diagonal IN-SWEEP — the full per-ordinate angular
-        field ``(N, ng, nx, ny)`` is NEVER materialized (the ~3× linear
-        peak-memory win).  The scattering operator's angular spherical-harmonic
-        :class:`~orpheus.numerics.frame.GalerkinFrame` (the SAME object ``S.apply``
-        uses, its :attr:`~orpheus.numerics.frame.FrameBase.analysis` face) carries the
-        harmonics + weights, so the in-sweep moments equal ``S``'s internal
-        projection term-for-term; the cross-octant accumulation reorders the
-        ordinate sum ⇒ principled-equivalence, NOT bit-identity (``vv-principles``
-        §"Bit-identity vs principled-equivalence"; de-risk ≤ 4 ULP).  The
-        boundary trace passes through verbatim (windowing is interior-only).
-
-        Pre-5c this wrapped ``base.solve`` (full angular) then applied a flat
-        post-sweep :attr:`~orpheus.numerics.frame.FrameBase.analysis` projection.
-        That fuller-view path remains the verification oracle: the
-        windowed-moments equivalence test pins THIS in-sweep result against
-        ``base.solve`` + ``frame.analysis.apply`` within the de-risk ULP bound
-        (``feedback_aggressive_retirement`` — the "verification oracle"
-        exception to retirement).
-        """
-        return self._base.solve_moments(
-            rhs, self._frame, initial_guess=initial_guess,
-        )
+        r"""Return :math:`(P \circ A^{-1})\,\text{rhs}` — the harmonic-moment
+        iterate ``TimedFullField(bulk=HarmonicMomentFlux, boundary=trace)``,
+        via the fused :meth:`WindowedSweep.apply`."""
+        return self.product.apply(rhs)
 
 
 def _maybe_window(base_resolvent, scattering_op, sn_mesh):
     r"""Phase 5a — wrap ``base_resolvent`` for 2-D Cartesian angular-windowing,
     else passthrough.  Returns ``(resolvent, windowed)``.
 
-    The SINGLE site of the windowing-eligibility gate (``coding-elegance``
-    Pattern 7 — the convention lives in one place, shared by the eigenvalue
-    and fixed-source SI drivers): genuinely 2-D Cartesian holds the SI
-    iterate as harmonic moments via :class:`_MomentWindowedResolvent`;
+    The SINGLE site of the windowing-eligibility gate AND the factory of the
+    windowed product (``coding-elegance`` Pattern 7 — the convention lives in
+    one place, shared by the eigenvalue and fixed-source SI drivers):
+    genuinely 2-D Cartesian holds the SI iterate as harmonic moments via the
+    typed composition ``P @ A.inverse()`` (#226 §17 W1 — behind the
+    :class:`_MomentWindowedResolvent` driver adapter until step 3);
     curvilinear (1-D) stays full-angular — the Morel–Montry Carlson seed
     reads the previous per-ordinate iterate at ``μ=−1`` (lesson L21), which
-    the moment tensor does not carry.  ``M`` is sourced from the scattering
-    operator's own quadrature ⇒ the stored moments are bit-identical to
-    ``S``'s internal projection.
+    the moment tensor does not carry.  ``P`` is sourced from the scattering
+    operator's own frame ⇒ the stored moments match ``S``'s internal
+    projection term-for-term.
 
     C5.4 (#225, vv Mode 9): the gate is the GENUINE condition
     ``is_cartesian and ndim == 2`` — the pre-C5.4 ``reduced is None``
@@ -619,7 +419,9 @@ def _maybe_window(base_resolvent, scattering_op, sn_mesh):
     """
     if sn_mesh.is_cartesian and sn_mesh.ndim == 2:
         return (
-            _MomentWindowedResolvent(base_resolvent, scattering_op.frame),
+            _MomentWindowedResolvent(
+                base_resolvent, scattering_op.frame, sn_mesh,
+            ),
             True,
         )
     return base_resolvent, False
@@ -679,10 +481,16 @@ def _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule: str):
     * ``"jacobi"`` (or any 1-D mesh) → ``(L+C, (S, B))``: ``B`` lagged as an
       external gain (inter-sweep Jacobi — today's path, every geometry).
     * ``"gauss_seidel"`` on a multi-D Cartesian mesh →
-      ``(GaussSeidelResolvent, (S,))``: ``B`` folded INTO the resolvent (the
-      octant-group G-S forward substitution).  ``S`` stays a lagged gain in
-      BOTH (only the boundary coupling gets G-S; the sweep never re-scatters
-      mid-sweep).
+      ``((L+C) - B_lower, (S, B_upper))``: the regular splitting
+      ``(L+C−B) = M − B_upper`` (#226 §17 W2).  ``B`` splits under the
+      octant-group schedule (:meth:`SNBoundaryOperator.split`); the
+      strictly-lower half folds into the REIFIED forward
+      :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
+      (whose ``solve`` is the octant-group forward substitution), and the
+      complement lags as an ordinary external gain — structurally congruent
+      with the Jacobi arm, so the driver needs no case split.  ``S`` stays a
+      lagged gain in BOTH (only the boundary coupling gets G-S; the sweep
+      never re-scatters mid-sweep).
 
     1-D falls back to Jacobi: boundary G-S is a no-op on the scattering-
     dominated 1-D regime AND the 1-D scan is not a wavefront.  The converged
@@ -709,8 +517,8 @@ def _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule: str):
     ):
         from .loss_representation.sweep_schedule import SweepSchedule
 
-        schedule = SweepSchedule.gauss_seidel(sn_mesh)
-        return _GaussSeidelResolvent(LC, B, schedule), (S,)
+        parts = B.split(SweepSchedule.gauss_seidel(sn_mesh))
+        return LC - parts.lower, (S, parts.upper)
     return LC, (S, B)
 
 
@@ -1636,18 +1444,13 @@ def _reflect_outflow_into_inflow(
     """
     from orpheus.sn.operators.boundary import SNBoundaryOperator
 
-    # Trace-only ``A_ss`` action — no zero-bulk probe (the bulk was only ever a
-    # carrier to reach ``B``'s boundary block). ``reflect_into_inflow`` is the
-    # canonical trace-level entry; it shares ``_reflect_trace`` with ``B.apply``
-    # so the helper and the matvec / SI driver cannot drift.
-    reflected = SNBoundaryOperator(sn_mesh).reflect_into_inflow(
-        boundary_flux, faces=faces,
-    )
-    trace = sn_mesh.trace
-    selected = boundary_flux.layout.faces if faces is None else faces
-    for face in selected:
-        inflow = trace.inflow_indices_for_face(face)
-        boundary_flux.face_view(face)[inflow] = reflected.face_view(face)[inflow]
+    # Trace-only ``A_ss`` action — no zero-bulk probe (the bulk was only ever
+    # a carrier to reach ``B``'s boundary block).  The mutating write-back is
+    # ``B``'s own :meth:`reflect_inflow_inplace` verb (#226 step 2 moved it
+    # onto the operator so the scheduled sweep's inter-group reflect and this
+    # helper share ONE body); it routes through ``_reflect_trace`` with
+    # ``B.apply``, so the helper and the matvec / SI driver cannot drift.
+    SNBoundaryOperator(sn_mesh).reflect_inflow_inplace(boundary_flux, faces=faces)
 
 
 # ═══════════════════════════════════════════════════════════════════════

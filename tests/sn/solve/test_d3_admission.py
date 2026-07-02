@@ -49,7 +49,6 @@ from orpheus.sn.solver import (
     _apply_default_bcs,
     _maybe_window,
     _select_si_resolvent,
-    _GaussSeidelResolvent,
     solve_sn,
     solve_sn_fixed_source,
 )
@@ -275,13 +274,35 @@ def test_d3_real_mesh_window_passthrough_and_gs_admissible() -> None:
     np.testing.assert_equal(windowed, False)
     np.testing.assert_equal(wrapped is base, True)
 
-    from types import SimpleNamespace
-    lc_stub = SimpleNamespace(sn_mesh=sn)
-    resolvent, gains = _select_si_resolvent(
-        lc_stub, "S_gain", "B_gain", sn, "gauss_seidel",
+    # The G-S arm now REIFIES the splitting (#226 step 2): it splits the
+    # real boundary law and fuses ``(L+C) - B_lower``, so real operators
+    # replace the pre-carve namespace/string stubs.
+    from orpheus.sn.operators.boundary import (
+        SNBoundaryOperator,
+        SNMaskedBoundaryOperator,
     )
-    np.testing.assert_equal(isinstance(resolvent, _GaussSeidelResolvent), True)
-    np.testing.assert_equal(gains, ("S_gain",))
+    from orpheus.sn.operators.scheduled_invertible import (
+        ScheduledInvertibleOperator,
+    )
+    from orpheus.sn.operators.streaming import StreamingOperator
+    from orpheus.transport.operators.multiplication_operator import (
+        MultiplicationOperator,
+    )
+
+    sig_t = np.full((sn.ng, *sn.spatial_shape), 1.3)
+    LC = StreamingOperator(sn) + MultiplicationOperator.from_mesh(sig_t, sn)
+    sentinel_S = object()
+    resolvent, gains = _select_si_resolvent(
+        LC, sentinel_S, SNBoundaryOperator(sn), sn, "gauss_seidel",
+    )
+    np.testing.assert_equal(
+        isinstance(resolvent, ScheduledInvertibleOperator), True,
+    )
+    np.testing.assert_equal(len(gains), 2)
+    np.testing.assert_equal(gains[0] is sentinel_S, True)
+    np.testing.assert_equal(
+        isinstance(gains[1], SNMaskedBoundaryOperator), True,
+    )
 
 
 @pytest.mark.foundation

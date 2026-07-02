@@ -141,6 +141,8 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from orpheus.transport.fields.cross_section_field import CrossSectionField
@@ -150,10 +152,13 @@ if TYPE_CHECKING:
     from ..mesh.augmented_mesh import SNMesh
     from orpheus.numerics.frame import FrameBase
     from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
+    from ..loss_representation.sweep_schedule import SweepSchedule
     from ..spatial.pole_angular_closure import PoleAngularClosure
     from ..loss_representation import LossRepresentation
-    # Type-only (the runtime construction is a late import inside ``inverse`` to
-    # break the SweepOperator <-> InvertibleOperator import cycle).
+    # Type-only (the runtime constructions are late imports inside ``inverse``
+    # / ``__sub__`` to break the operator <-> composite import cycles).
+    from .boundary import SNMaskedBoundaryOperator
+    from .scheduled_invertible import ScheduledInvertibleOperator
     from .sweep_operator import SweepOperator
 
 __all__ = [
@@ -776,6 +781,32 @@ class InvertibleOperator(OperatorSum["FullField"]):
         )
         return self.loss_representation.loss_action_transpose(self.sigma, phi)
 
+    # ── Algebra dispatch — schedule-folded composite (#226 step 2) ────
+
+    def __sub__(self, other):
+        r"""Compose :math:`(L+C) - X`.
+
+        When ``X`` is the strictly-lower boundary half ``B_lower`` (an
+        :class:`~orpheus.sn.operators.boundary.SNMaskedBoundaryOperator`
+        from :meth:`~orpheus.sn.operators.boundary.SNBoundaryOperator.split`),
+        returns the sweep-invertible schedule-folded specialisation
+        :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
+        — the reified splitting matrix :math:`M = (L+C-B_{\rm lower})` whose
+        ``solve`` is the octant-group forward substitution (§17 W2).
+        Otherwise falls through to the generic difference via the mixin.
+
+        ``(L+C) - B_lower`` is the canonical spelling — the dispatch lives
+        here on the SN composite, mirroring :meth:`StreamingOperator.__add__`
+        (#261: one-directional, the operand cannot dispatch back).
+        """
+        from .boundary import SNMaskedBoundaryOperator
+
+        if isinstance(other, SNMaskedBoundaryOperator):
+            from .scheduled_invertible import ScheduledInvertibleOperator
+
+            return ScheduledInvertibleOperator(self, other)
+        return super().__sub__(other)
+
     # ── solve: WDD sweep ─────────────────────────────────────────────
 
     def inverse(self) -> "SweepOperator":
@@ -789,6 +820,16 @@ class InvertibleOperator(OperatorSum["FullField"]):
         :meth:`apply` and the inverse view ``inverse().apply`` are the two views
         of ONE operator, the way ``A`` and ``A.H`` are. Coexists with
         :meth:`solve` through Phase 2–3; ``solve`` retires at Phase 4.
+
+        **Forward-side back-half twin (collapse trigger).**  The
+        ``is_invertible``/``inverse``/``solve`` back-half here is deliberately
+        coextensive with
+        :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`'s
+        (the schedule-folded sibling, #226 step 2) — two witnesses, kept
+        twinned per defer-until-≥2.  TRIGGER: at the 3rd sweep-invertible
+        FORWARD composite, extract a shared mixin; do not hand-re-derive it.
+        (Distinct from the INVERSE-side twin noted on ``SweepOperator`` —
+        Green/Matrix inverses grow that shape, not this one.)
         """
         from orpheus.sn.operators.sweep_operator import SweepOperator
 
@@ -859,41 +900,13 @@ class InvertibleOperator(OperatorSum["FullField"]):
             rhs, initial_guess=initial_guess,
         )
 
-    def solve_moments(
-        self,
-        rhs: "FullField",
-        frame: "FrameBase",
-        *,
-        initial_guess: "FullField | None" = None,
-    ) -> "TimedFullField":
-        r"""Invert :math:`(L + C)\,\psi = \text{rhs}` and return the harmonic
-        MOMENTS of :math:`\psi`, projected IN-SWEEP per anti-diagonal — the full
-        per-ordinate angular field is never materialized.
-
-        The Phase 5c moment-emitting sibling of :meth:`solve`: the SAME WDD
-        sweep + boundary handling, but the bulk of the returned
-        :class:`TimedFullField` is a
-        :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
-        ``(L+1, 2L+1, ng, nx, ny)`` rather than an
-        :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
-        ``(N, ng, nx, ny)``.  ``frame`` is the scattering operator's angular
-        spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame` (its
-        basis + measure), whose
-        :attr:`~orpheus.numerics.frame.FrameBase.analysis` face is ``S``'s internal
-        projection — so the in-sweep moments equal it term-for-term; the
-        cross-octant accumulation reorders the ordinate sum vs the flat
-        post-sweep projection ⇒ principled-equivalence, NOT bit-identity.  2-D
-        Cartesian ONLY (the windowed-SI path; the windowing gate — the genuine
-        ``is_cartesian and ndim == 2`` condition in ``_maybe_window`` since
-        C5.4 (#225), replacing the ``reduced is None`` proxy that was ALSO true
-        at d=3 Cartesian — guarantees it).  ``solve`` followed by the flat
-        :attr:`~orpheus.numerics.frame.FrameBase.analysis` apply is the fuller-view
-        verification oracle (``vv-principles``; the aggressive-retirement
-        "verification oracle" exception).
-        """
-        return self._solve_timed_full_field(
-            rhs, initial_guess=initial_guess, moment_frame=frame,
-        )
+    # ``solve_moments`` (Phase 5c) retired in #226 step 2 (§17 W1): a public
+    # method whose output-mode argument silently changed the operator's
+    # codomain was a composition wearing a config.  The moment-emitting entry
+    # is now the typed windowed product ``P @ A.inverse()``
+    # (:class:`~orpheus.sn.operators.windowing.WindowedSweep`), whose fused
+    # ``apply`` calls :meth:`_solve_timed_full_field` with ``moment_frame`` —
+    # the ONE application-context body, private.
 
     def _solve_timed_full_field(
         self,
@@ -901,6 +914,8 @@ class InvertibleOperator(OperatorSum["FullField"]):
         *,
         initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
+        schedule: "SweepSchedule | None" = None,
+        reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "TimedFullField":
         r"""Composite :class:`TimedFullField` body of :meth:`solve` (D-H.1c stage 1).
 
@@ -1040,6 +1055,8 @@ class InvertibleOperator(OperatorSum["FullField"]):
             boundary_buf,
             initial_guess=initial_guess,
             moment_frame=moment_frame,
+            schedule=schedule,
+            reflect=reflect,
         )
         # The sweep output carries the trailing 2^d spatial-moment axis at a
         # multi-moment closure (the φ̂ iterate, #240 D5b-S3); the typed wrap

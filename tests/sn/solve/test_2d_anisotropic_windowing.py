@@ -250,60 +250,31 @@ def test_2d_windowed_si_reflective_trace_is_nonzero():
 # ─────────────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.verifies(
-    "pn-scatter", "harmonic-moment-projection", "transport-cartesian",
-)
-def test_2d_windowed_moments_in_sweep_equal_post_projection():
-    r"""Phase 5c: ``base.solve_moments`` (per-anti-diagonal in-sweep moment
-    accumulation) ≡ the flat post-sweep ``frame.analysis`` projection of the
-    SAME full-angular sweep — the FULLER-VIEW VERIFICATION ORACLE.
-
-    5c moved the angular→moment projection INTO the windowed walk (cross-octant
-    ``+=`` per anti-diagonal) so the full ``(N, ng, nx, ny)`` field is never
-    materialized.  The pre-5c path — ``base.solve`` (full angular) then a flat
-    :attr:`~orpheus.numerics.frame.Frame.analysis` apply — is retained as
-    the verification oracle (``feedback_aggressive_retirement`` "verification
-    oracle" exception).  Both share the SAME cell kernel and the SAME
-    ``frame`` (table + weights), so only the ordinate-sum reduction ORDER
-    differs ⇒ ULP-level drift (principled-equivalence, ``vv-principles``).
-
-    This is a REPRESENTATION-equivalence pin, NOT a correctness claim — it is
-    procedurally (NOT structurally) independent from the oracle (shared kernel).
-    Its structural-independence anchor is
-    :func:`test_2d_p1_aniso_moment_path_carries_signal_and_si_krylov_agree`
-    (the windowed-SI moment ℓ=0 ≡ the FULL-ANGULAR Krylov scalar) + the
-    closed-form ``k_inf`` eigenvalue gate.  Its value-add: it pins the ℓ≥1
-    (anisotropic) moment block that the ℓ=0 scalar cross-check is BLIND to —
-    the load-bearing catcher for an ℓ/m index drift (vv-principles Mode 5) or a
-    wrong octant-``Y`` slice (Mode 2) in the per-level
-    ``"nlm,ngd,n->lmgd"`` accumulation, which blow past 32 ULP.
-
-    leg-2 (ℓ≥1 non-vacuity) guards against a degenerate gate: the ℓ≥1 block
-    being pinned MUST carry signal (else the comparison is vacuous there).
-
-    Metric (vv-principles §"Bit-identity vs principled-equivalence", criterion
-    3 "drift dimensionally explainable"): the max drift RELATIVE TO THE
-    MOMENT-TENSOR SCALE, bounded by ``4·N·eps`` (``N`` = reduction depth = the
-    ordinate count; 4× headroom for the cross-octant ``+=`` nesting).  NOT
-    element-wise ``assert_array_almost_equal_nulp``: the moment tensor spans ~3
-    orders of magnitude (the ℓ=0 scalar dominates; ℓ≥1 are ~10⁻³×), so
-    element-wise ULP inflates a machine-eps ABSOLUTE diff on a small-magnitude
-    ℓ≥1 element into hundreds of ULP even when the reorder is pure FP noise —
-    the scale-relative drift (de-risk measured ``2.7e-16``, ~78× under the
-    ``4·N·eps ≈ 2.1e-14`` bound) is the principled-equivalence quantity.
-    """
+def _windowed_product_and_oracle_operands(scattering_order: int | None = None):
+    """Shared operands for the deforestation gate + its mutation twin:
+    ``(quad, product, rhs, oracle_fn)`` on the production config."""
     materials, mesh, quad, _q_ext, kwargs = _build_config()
-    L = kwargs["scattering_order"]  # P1 — ℓ≥1 is load-bearing
+    L = (
+        kwargs["scattering_order"]  # P1 — ℓ≥1 is load-bearing
+        if scattering_order is None
+        else scattering_order
+    )
     solver = SNSolver(SNMesh(mesh, quad, materials), scattering_order=L)
 
     # The within-group (L+C) resolvent + the scattering operator — the SAME
     # operators the windowed SI driver consumes (single source of truth).
     LC, S, _B = _within_group_triple(solver)
     sn_mesh = solver.sn_mesh
-    # THE production angular frame — the SAME object `_MomentWindowedResolvent`
-    # injects (``S.frame``), so the SUT below exercises the production
-    # projection, not a test-local one. Its ``analysis`` face is the flat M.
-    frame = S.frame
+
+    # THE production windowed object (#226 step 2, §17 W1): the typed
+    # composition ``P @ A.inverse()`` — the scattering frame's analysis face
+    # on the bulk ⊕ identity on the trace, composed with the sweep inverse,
+    # FUSED through the substrate's moment emit.  ``S.frame`` is the SAME
+    # object the driver's factory (``_maybe_window``) injects, so the SUT
+    # exercises the production projection, not a test-local one.
+    from orpheus.sn.operators.windowing import BulkAnalysisOperator
+
+    product = BulkAnalysisOperator(S.frame, sn_mesh) @ LC.inverse()
 
     # A representative per-ordinate source (seeded random ⇒ strong, deterministic
     # ℓ≥1 content in the swept ψ; the projection-order equivalence is
@@ -314,15 +285,89 @@ def test_2d_windowed_moments_in_sweep_equal_post_projection():
     )
     rhs.bulk.values[...] = rng.uniform(0.0, 1.0, size=rhs.bulk.values.shape)
 
-    # SUT: the 5c per-anti-diagonal in-sweep accumulation.
-    sut = np.asarray(
-        LC.solve_moments(rhs, frame).bulk.values, dtype=np.float64,
+    def oracle_fn():
+        # ORACLE (the fuller view, DEFORESTED): flat post-projection (the
+        # frame's analysis face) of the full-angular sweep — structurally the
+        # inherited ``OperatorProduct.apply`` body, spelled independently.
+        return np.asarray(
+            S.frame.analysis.apply(LC.solve(rhs).bulk.values),
+            dtype=np.float64,
+        )
+
+    return quad, product, rhs, oracle_fn
+
+
+@pytest.mark.verifies(
+    "pn-scatter", "harmonic-moment-projection", "transport-cartesian",
+)
+def test_2d_windowed_product_equals_post_projection():
+    r"""W1 deforestation gate (#226 step 2, spec §13.4): the FUSED windowed
+    product ``(P @ A.inverse()).apply(rhs)`` (per-anti-diagonal in-sweep
+    moment accumulation) ≡ the flat post-sweep ``frame.analysis`` projection
+    of the SAME full-angular sweep — the FULLER-VIEW VERIFICATION ORACLE.
+
+    Renamed/migrated from ``test_2d_windowed_moments_in_sweep_equal_post_
+    projection`` when the ``solve_moments`` cross-reach retired into the
+    typed product (§17 W1): the SUT is now the production
+    :class:`~orpheus.sn.operators.windowing.WindowedSweep` object itself.
+    Fusion (never materialize the ``(N, ng, nx, ny)`` intermediate) is an
+    EVALUATION STRATEGY of the one composition; the deforested oracle is
+    structurally the inherited ``OperatorProduct.apply`` body.  Both share
+    the SAME cell kernel and the SAME ``frame`` (table + weights), so only
+    the ordinate-sum reduction ORDER differs ⇒ ULP-level drift
+    (principled-equivalence, ``vv-principles``).
+
+    This is a REPRESENTATION-equivalence pin, NOT a correctness claim — it is
+    procedurally (NOT structurally) independent from the oracle (shared kernel).
+    Its structural-independence anchor is
+    :func:`test_2d_p1_aniso_moment_path_carries_signal_and_si_krylov_agree`
+    (the windowed-SI moment ℓ=0 ≡ the FULL-ANGULAR Krylov scalar) + the
+    closed-form ``k_inf`` eigenvalue gate; the coisometry factor of the
+    honest contract is the LANDED
+    ``test_frame.py::test_pi_R_is_4pi_identity_through_the_frame``
+    (``analysis ∘ reconstruction = 4π·I`` — cited, NOT re-minted; asserting
+    ``= I`` would be ERR-051).  Its value-add: it pins the ℓ≥1
+    (anisotropic) moment block that the ℓ=0 scalar cross-check is BLIND to —
+    the load-bearing catcher for an ℓ/m index drift (vv-principles Mode 5) or a
+    wrong octant-``Y`` slice (Mode 2) in the per-level
+    ``"nlm,ngd,n->lmgd"`` accumulation, which blow past 32 ULP.
+    M-DEFOREST teeth: :func:`test_mutation_dropped_higher_moments_redden`.
+
+    leg-2 (ℓ≥1 non-vacuity) guards against a degenerate gate: the ℓ≥1 block
+    being pinned MUST carry signal (else the comparison is vacuous there) —
+    the Mode-7 witness that the anisotropic P1 config is load-bearing.
+
+    Metric (vv-principles §"Bit-identity vs principled-equivalence", criterion
+    3 "drift dimensionally explainable"): the max drift RELATIVE TO THE
+    MOMENT-TENSOR SCALE, bounded by ``4·N·eps`` (``N`` = reduction depth = the
+    ordinate count; 4× headroom for the cross-octant ``+=`` nesting).  NOT
+    element-wise ``assert_array_almost_equal_nulp``: the moment tensor spans ~3
+    orders of magnitude (the ℓ=0 scalar dominates; ℓ≥1 are ~10⁻³×), so
+    element-wise ULP inflates a machine-eps ABSOLUTE diff on a small-magnitude
+    ℓ≥1 element into hundreds of ULP even when the reorder is pure FP noise —
+    the scale-relative drift (de-risk measured ``2.7e-16``, ~78× under the
+    ``4·N·eps ≈ 2.1e-14`` bound; re-measured ``1.8e-16`` on the product SUT)
+    is the principled-equivalence quantity.
+    """
+    quad, product, rhs, oracle_fn = _windowed_product_and_oracle_operands()
+
+    # SUT: the FUSED typed product (substrate per-anti-diagonal moment emit).
+    out = product.apply(rhs)
+    # The runtime half of the codomain fact (§13.4 factor 3): the composite's
+    # bulk IS the moment flux (the static ``FullField → moment-bulk``
+    # refinement is not expressible until the composite is bulk-generic —
+    # see ``_windowed_product_static_typing_pins``).
+    from orpheus.transport.fields.harmonic_moment_flux import (
+        HarmonicMomentFlux,
     )
-    # ORACLE (the fuller view): flat post-projection (the frame's analysis
-    # face, M) of the full-angular sweep.
-    oracle = np.asarray(
-        frame.analysis.apply(LC.solve(rhs).bulk.values), dtype=np.float64,
-    )
+
+    if not isinstance(out.bulk, HarmonicMomentFlux):
+        raise AssertionError(
+            f"windowed product bulk is {type(out.bulk).__name__}, "
+            f"expected HarmonicMomentFlux — the codomain fact broke"
+        )
+    sut = np.asarray(out.bulk.values, dtype=np.float64)
+    oracle = oracle_fn()
 
     # leg-2: ℓ≥1 carries signal (anti-degeneracy) — raise fires under -O.
     l0 = float(np.abs(oracle[0]).max())
@@ -347,4 +392,49 @@ def test_2d_windowed_moments_in_sweep_equal_post_projection():
             "a wrong octant-Y slice / missing weight / ℓ-m index drift "
             "(vv-principles Mode 2/3/5) in the per-level "
             '"nlm,ngd,n->lmgd" accumulation.'
+        )
+
+
+def test_mutation_dropped_higher_moments_redden(monkeypatch):
+    r"""M-DEFOREST teeth (spec §13.4/§13.5): a fused product that drops the
+    ℓ≥1 accumulation (emits ℓ=0 only) REDs the deforestation gate on the P1
+    config — and the SAME mutation stays green on a P0 config (the Mode-7
+    witness that the anisotropic config is load-bearing: an isotropic gate
+    is structurally BLIND to a dropped ℓ≥1 block).
+    """
+    from orpheus.sn.operators.windowing import WindowedSweep
+
+    real = WindowedSweep.apply
+
+    def truncated(self, rhs):
+        out = real(self, rhs)
+        out.bulk.values[1:] = 0.0  # the trap: "reduce angular→scalar"
+        return out
+
+    monkeypatch.setattr(WindowedSweep, "apply", truncated)
+
+    # P1: the gate's comparison MUST red.
+    quad, product, rhs, oracle_fn = _windowed_product_and_oracle_operands()
+    sut = np.asarray(product.apply(rhs).bulk.values, dtype=np.float64)
+    oracle = oracle_fn()
+    bound = 4 * quad.N * float(np.finfo(np.float64).eps)
+    rel_drift = float(np.abs(sut - oracle).max() / np.abs(oracle).max())
+    if rel_drift <= bound:
+        pytest.fail(
+            f"M-DEFOREST not caught on P1: drift {rel_drift:.2e} ≤ bound "
+            f"{bound:.2e} — the deforestation gate has no ℓ≥1 teeth"
+        )
+
+    # P0 control: the same mutation is a no-op (no ℓ≥1 block exists) — the
+    # gate stays green, witnessing that P1 anisotropy is what carries teeth.
+    quad0, product0, rhs0, oracle_fn0 = _windowed_product_and_oracle_operands(
+        scattering_order=0,
+    )
+    sut0 = np.asarray(product0.apply(rhs0).bulk.values, dtype=np.float64)
+    oracle0 = oracle_fn0()
+    rel_drift0 = float(np.abs(sut0 - oracle0).max() / np.abs(oracle0).max())
+    if rel_drift0 > 4 * quad0.N * float(np.finfo(np.float64).eps):
+        pytest.fail(
+            f"P0 control unexpectedly red ({rel_drift0:.2e}) — the Mode-7 "
+            "witness is broken (the mutation should be a no-op at L=0)"
         )

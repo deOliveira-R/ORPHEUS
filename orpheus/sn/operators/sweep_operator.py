@@ -44,24 +44,34 @@ extract a shared mechanism mixin; do not hand-re-derive it again.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from orpheus.numerics.operator import CAP_APPLY, CAP_SOLVE, LinearOperator
 
 if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
+    from orpheus.sn.operators.scheduled_invertible import (
+        ScheduledInvertibleOperator,
+    )
     from orpheus.sn.operators.streaming import InvertibleOperator
     from orpheus.transport.full_field import FullField
     from orpheus.transport.timed_full_field import TimedFullField
 
+    #: The sweep-invertible forwards this class inverts: the plain WDD
+    #: composite ``(L+C)`` and the schedule-folded ``M = (L+C−B_lower)``
+    #: (#226 step 2) — one wrapper for the whole schedule-triangular family.
+    SweepInvertible = Union[InvertibleOperator, ScheduledInvertibleOperator]
+
 
 class SweepOperator(LinearOperator["FullField"]):
-    r"""The inverse operator :math:`(L+C)^{-1}` of an :class:`InvertibleOperator`.
+    r"""The inverse operator :math:`A^{-1}` of a schedule-triangular forward
+    ``A`` — :class:`InvertibleOperator` ``(L+C)`` or
+    :class:`ScheduledInvertibleOperator` ``M = (L+C−B_lower)`` (#226 step 2).
 
-    :meth:`apply` runs the WDD forward-substitution sweep by delegating to
-    ``inner.solve`` — BIT-IDENTICAL to ``(L+C).solve(rhs, initial_guess=...)``.
+    :meth:`apply` runs the forward-substitution sweep by delegating to
+    ``inner.solve`` — BIT-IDENTICAL to ``inner.solve(rhs, initial_guess=...)``.
     Endomorphic on the composite ``FullField`` carrier (an inverse swaps
-    domain/codomain, which are equal here because ``L+C`` is endomorphic).
+    domain/codomain, which are equal here because the forward is endomorphic).
     """
 
     #: ``apply`` inverts; ``solve`` un-inverts (the forward matvec, see
@@ -70,8 +80,8 @@ class SweepOperator(LinearOperator["FullField"]):
     #: adjoint-inverse is #280). Plain class attr (NOT a field).
     capabilities = frozenset({CAP_APPLY, CAP_SOLVE})
 
-    def __init__(self, inner: "InvertibleOperator") -> None:
-        #: The forward operator :math:`(L+C)` this is the inverse of.
+    def __init__(self, inner: "SweepInvertible") -> None:
+        #: The schedule-triangular forward operator this is the inverse of.
         self.inner = inner
 
     @property
@@ -110,8 +120,8 @@ class SweepOperator(LinearOperator["FullField"]):
     def is_invertible(self) -> bool:
         return True  # ((L+C)^{-1})^{-1} = (L+C) — the wrapped operator itself
 
-    def inverse(self) -> "InvertibleOperator":
-        r"""Return :math:`((L+C)^{-1})^{-1} = (L+C)` — the wrapped operator, by identity.
+    def inverse(self) -> "SweepInvertible":
+        r"""Return :math:`(A^{-1})^{-1} = A` — the wrapped forward, by identity.
 
         The involution law (taxonomy §13 I2) holds as an OBJECT-IDENTITY
         fact: ``A.inverse().inverse() is A``.

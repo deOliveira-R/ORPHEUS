@@ -273,10 +273,12 @@ the SN sweep uses.
        (:class:`SweepSchedule <orpheus.sn.loss_representation.sweep_schedule.SweepSchedule>`).
 
 In the SN solver, selecting ``inner_schedule="gauss_seidel"`` (see
-:func:`_select_si_resolvent <orpheus.sn.solver>` and
-:class:`_GaussSeidelResolvent <orpheus.sn.solver>`) builds an
-**octant-group / boundary** Gauss–Seidel: it folds the reflective
-boundary operator :math:`B` **into** a multi-dimensional wavefront sweep,
+:func:`_select_si_resolvent <orpheus.sn.solver>` and the reified
+splitting matrix
+:class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`)
+builds an **octant-group / boundary** Gauss–Seidel: it folds the
+reflective boundary operator :math:`B` **into** a multi-dimensional
+wavefront sweep,
 re-reflecting each octant group's outgoing reflective faces between octant
 sweeps so a later octant reads the fresh current-iterate inflow. This is a
 purely **angular** acceleration of the within-group source iteration; its

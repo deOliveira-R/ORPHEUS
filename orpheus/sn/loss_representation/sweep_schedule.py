@@ -50,6 +50,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from orpheus.transport.mesh.axis import AXIS_NAMES
 from .sweep_graph import OctantLabel
 
@@ -164,6 +166,52 @@ class SweepSchedule:
             for gi, label in enumerate(ordered)
         )
         return cls(groups=groups, kind="gauss_seidel")
+
+    def lower_inflow_rows(self, sn_mesh: "SNMesh") -> dict[str, np.ndarray]:
+        r"""Per-face inflow ordinate rows that read the CURRENT iterate under
+        this schedule — the row support of the strictly-lower boundary part
+        :math:`B_{\rm lower}` in the regular splitting
+        :math:`(L+C-B) = \underbrace{(L+C-B_{\rm lower})}_{M} - B_{\rm upper}`.
+
+        The split law (#226 §17 W2): face ``f`` is reflected exactly once,
+        after its LAST outflowing octant group (``reflect_faces`` above), at
+        which point every outflow feeding ``f`` is complete.  An inflow
+        ordinate row ``(f, m')`` therefore reads the FRESH current-iterate
+        reflection iff its octant group is swept strictly AFTER ``f``'s
+        reflect group — those rows are ``B_lower`` (realized in-sweep by the
+        forward substitution); rows swept at-or-before the reflect keep the
+        lagged seed — ``B_upper`` (the cyclic back-edges, lagged by the
+        driver).  The specular map flips one direction-cosine sign, so a row
+        and its source always sit in DIFFERENT octants — ``B`` has no
+        octant-diagonal and ``B = B_lower + B_upper`` is an exact partition.
+
+        Returns the mapping only for faces this schedule reflects; a face
+        never reflected in-sweep (vacuum, white, albedo, periodic — and every
+        face under the Jacobi schedule, which returns ``{}``) has ALL its
+        rows in ``B_upper``.  Consumed by
+        :meth:`~orpheus.sn.operators.boundary.SNBoundaryOperator.split`.
+        """
+        reflect_gi = {
+            face: gi
+            for gi, group in enumerate(self.groups)
+            for face in group.reflect_faces
+        }
+        trace = sn_mesh.trace
+        rows: dict[str, np.ndarray] = {}
+        for face, gi_f in reflect_gi.items():
+            fresh_ordinates = np.array(
+                [
+                    i
+                    for group in self.groups[gi_f + 1 :]
+                    for sweep in group.sweeps
+                    for i in sweep.indices
+                ],
+                dtype=np.intp,
+            )
+            rows[face] = np.intersect1d(
+                trace.inflow_indices_for_face(face), fresh_ordinates,
+            )
+        return rows
 
 
 def _octant_sweep(entry, ndim: int) -> OctantSweep:

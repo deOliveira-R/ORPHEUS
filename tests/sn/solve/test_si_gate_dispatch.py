@@ -32,6 +32,8 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
+from orpheus.sn.operators.sweep_operator import SweepOperator
+from orpheus.sn.operators.windowing import WindowedSweep
 from orpheus.sn.solver import _maybe_window, _MomentWindowedResolvent
 from orpheus.numerics.quadrature import Quadrature
 
@@ -39,29 +41,48 @@ pytestmark = [pytest.mark.foundation]
 
 
 class _BaseResolvent:
-    """Minimal stand-in — _maybe_window only wraps or passes it through."""
+    """Minimal stand-in — ``_maybe_window`` wraps it (2-D) or passes it
+    through.  #226 step 2: the adapter now builds the typed product
+    ``P @ base.inverse()`` at construction, so the stub carries the two
+    surfaces that construction touches: an ``inverse()`` returning a real
+    :class:`SweepOperator` and the shared ``sn_mesh`` handle (the
+    ``WindowedSweep`` mesh-identity guard compares it to ``P``'s)."""
+
+    def __init__(self, sn_mesh) -> None:
+        self.sn_mesh = sn_mesh
+
+    def inverse(self) -> SweepOperator:
+        return SweepOperator(self)
 
 
 def _fake_mesh(*, is_cartesian: bool, ndim: int) -> SimpleNamespace:
-    return SimpleNamespace(is_cartesian=is_cartesian, ndim=ndim)
+    # ``full_field_space=None`` — the honest "no typed space" the
+    # composition guards skip (BulkAnalysisOperator.domain reads it).
+    return SimpleNamespace(
+        is_cartesian=is_cartesian, ndim=ndim, full_field_space=None,
+    )
 
 
 def _scattering_stub():
     # _maybe_window reads ONLY scattering_op.frame (the angular Frame that
-    # _MomentWindowedResolvent injects); stub exactly that.
+    # the windowed product's P factor injects); stub exactly that.
     return SimpleNamespace(
         frame=Quadrature.level_symmetric(sn_order=4).angular_frame(0),
     )
 
 
 def test_2d_cartesian_windows() -> None:
-    base = _BaseResolvent()
-    wrapped, windowed = _maybe_window(
-        base, _scattering_stub(), _fake_mesh(is_cartesian=True, ndim=2),
-    )
+    mesh = _fake_mesh(is_cartesian=True, ndim=2)
+    base = _BaseResolvent(mesh)
+    wrapped, windowed = _maybe_window(base, _scattering_stub(), mesh)
     np.testing.assert_equal(windowed, True)
     if not isinstance(wrapped, _MomentWindowedResolvent):
         pytest.fail("2-D Cartesian must moment-window the SI iterate")
+    if not isinstance(wrapped.product, WindowedSweep):
+        pytest.fail(
+            "the windowed adapter must hold the FUSED typed product "
+            f"P @ base.inverse(); got {type(wrapped.product).__name__}"
+        )
 
 
 @pytest.mark.parametrize("is_cartesian,ndim,label", [
@@ -75,10 +96,9 @@ def test_non_2d_passthrough(is_cartesian: bool, ndim: int, label: str) -> None:
     The d=3 row is the load-bearing one — under the pre-C5.4
     ``reduced is None`` proxy it would have windowed.
     """
-    base = _BaseResolvent()
-    wrapped, windowed = _maybe_window(
-        base, _scattering_stub(), _fake_mesh(is_cartesian=is_cartesian, ndim=ndim),
-    )
+    mesh = _fake_mesh(is_cartesian=is_cartesian, ndim=ndim)
+    base = _BaseResolvent(mesh)
+    wrapped, windowed = _maybe_window(base, _scattering_stub(), mesh)
     np.testing.assert_equal(windowed, False)
     if wrapped is not base:
         pytest.fail(

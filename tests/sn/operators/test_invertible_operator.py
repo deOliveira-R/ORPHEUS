@@ -608,9 +608,13 @@ class TestSolveTimedFullField:
         def spy(
             self, Q, sigma, boundary_flux, *,
             initial_guess=None, moment_frame=None,
+            schedule=None, reflect=None,
         ):
             # D-H.2-C2: L2 BoundaryFlux exposes per-face writable views
             # via face_view; copy them out at entry to snapshot the seed.
+            # (#226 step 2: the door signature grew schedule/reflect —
+            # None here, the Jacobi path; mirror them so the spy stays
+            # signature-compatible with the production call.)
             captured.append((
                 boundary_flux.face_view("xmax").copy(),
                 boundary_flux.face_view("xmin").copy(),

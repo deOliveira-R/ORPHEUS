@@ -34,9 +34,10 @@ trivially agree on the *zero* solution proves nothing.  The
 precondition-asserts make the test self-falsifying if the config
 degenerates: the inflow slot must actually be written (>0), the inflow
 must non-trivially drive the interior (max|ψ|>1e-3), and the 2-D row
-must actually run the B-folding ``_GaussSeidelResolvent`` (not silently
-fall back to Jacobi) with an EXPLICIT reflective-y ``Mesh2D`` BC (not a
-string kwarg an explicit mesh would override).
+must actually run the B-folding reified ``M = (L+C−B_lower)`` (#226 step 2,
+a ``ScheduledInvertibleOperator`` — not silently fall back to Jacobi) with
+an EXPLICIT reflective-y ``Mesh2D`` BC (not a string kwarg an explicit
+mesh would override).
 
 See:
 - ``.claude/skills/vv-principles/SKILL.md`` (Mode 9 — splitting invariance).
@@ -143,8 +144,9 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
 
     ``cart2d_reflective_y``: 2-D Cartesian, vacuum-x + REFLECTIVE-y (B≠0)
     + prescribed inflow on xmin.  B≠0 is what makes **SI-Jacobi vs
-    SI-Gauss-Seidel** distinct (G-S folds B into ``_GaussSeidelResolvent``;
-    Jacobi keeps B as a lagged gain).  Three-way ≡ (J ≡ GS ≡ K, ≤ ~5.6e-13).
+    SI-Gauss-Seidel** distinct (G-S folds B_lower into the reified ``M``
+    and lags B_upper as a gain; Jacobi lags the whole B).  Three-way ≡
+    (J ≡ GS ≡ K, ≤ ~5.6e-13).
     The B≠0 + prescribed-inflow combination is the only config where the
     G-S-folds-B path runs WITH a non-zero boundary source — the ERR-056
     family neighbourhood.
@@ -230,11 +232,11 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
 
     if run_gs:
         rG, gG = _select_si_resolvent(LC, S, B, sn, "gauss_seidel")
-        # PRECONDITION 3 — the G-S path is the B-folding resolvent, not a
+        # PRECONDITION 3 — the G-S path is the reified B-folding M, not a
         # silent Jacobi fall-back (guards the _select_si_resolvent dispatch).
         _require(
-            type(rG).__name__ == "_GaussSeidelResolvent",
-            f"gauss_seidel did not select the B-folding resolvent: got "
+            type(rG).__name__ == "ScheduledInvertibleOperator",
+            f"gauss_seidel did not select the reified B-folding M: got "
             f"{type(rG).__name__}",
         )
         # ... and reflective-y MUST yield a non-trivial B (else the

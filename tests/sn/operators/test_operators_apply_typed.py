@@ -50,6 +50,7 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.transport.operators.scattering import ScatteringOperator
+from orpheus.sn.operators.windowing import BulkAnalysisOperator, WindowedSweep
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 
@@ -369,6 +370,26 @@ def _c6_static_typing_pins(
     assert_type(S.apply(phi), ScalarSourceSink)
     assert_type(S.apply(psi), AngularSourceSink)
     assert_type(S.apply(moments), AngularSourceSink)
+
+
+def _windowed_product_static_typing_pins(
+    product: "WindowedSweep",
+    p: "BulkAnalysisOperator",
+    rhs: TimedFullField,
+) -> None:
+    """Static pins for the windowed composition ``P @ A.inverse()``
+    (#226 step 2, spec §13.4 factor 3; pyright-only, never run).
+
+    The composition's codomain carrier is the timed composite — the
+    ``FullField → moment-bulk`` refinement is NOT statically expressible
+    today (``FullField`` is not generic over its bulk type), so the
+    moment-bulk half of the codomain fact is pinned at RUNTIME in the
+    deforestation gate (``test_2d_windowed_product_equals_post_projection``
+    asserts ``isinstance(out.bulk, HarmonicMomentFlux)``); minting a
+    bulk-generic composite is a separate typing carve, not smuggled here.
+    """
+    assert_type(product.apply(rhs), TimedFullField)
+    assert_type(p.apply(rhs), TimedFullField)
 
 
 def test_c6_apply_dispatch_parity() -> None:

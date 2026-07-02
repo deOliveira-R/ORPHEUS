@@ -45,7 +45,7 @@ See :ref:`operator-algebra` and the Wave O plan
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, NamedTuple, Optional
 
 import numpy as np
 
@@ -57,16 +57,17 @@ from orpheus.numerics.operator import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Mapping
 
     from orpheus.numerics.space import FunctionSpace
+    from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
     from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
     from orpheus.transport.full_field import FullField
     from orpheus.transport.source_sinks import BoundarySourceSink
 
 
-__all__ = ["SNBoundaryOperator"]
+__all__ = ["BoundarySplit", "SNBoundaryOperator", "SNMaskedBoundaryOperator"]
 
 
 class SNBoundaryOperator(LinearOperator):
@@ -171,6 +172,7 @@ class SNBoundaryOperator(LinearOperator):
     def _reflect_trace(
         self, boundary: "BoundaryFlux", method: str,
         faces: "Iterable[str] | None" = None,
+        rows: "Mapping[str, np.ndarray] | None" = None,
     ) -> "BoundarySourceSink":
         r"""Core ``A_ss`` action on the trace ALONE — apply each face's law
         (``method`` ∈ {apply, apply_transpose}) to that face's slot, project onto
@@ -217,6 +219,14 @@ class SNBoundaryOperator(LinearOperator):
         # trace untouched (zero in this returned sink).  ``B`` is block-diagonal
         # over faces, so the subset action is the EXACT restriction (no
         # cross-face coupling is dropped).
+        #
+        # ``rows`` (#226 step 2) restricts WITHIN a face: per face, only the
+        # given ordinate rows of the codomain projection are emitted (a subset
+        # of the inflow rows — the schedule-split ``B_lower``/``B_upper``
+        # halves of :meth:`split`).  A face absent from ``rows`` emits nothing.
+        # Row-granular restriction is exact for the same reason the face
+        # restriction is: the projected action writes each target row
+        # independently.
         face_laws = self._face_laws
         if faces is not None:
             unknown = set(faces) - set(face_laws)
@@ -227,19 +237,25 @@ class SNBoundaryOperator(LinearOperator):
                     f"{sorted(face_laws)}."
                 )
             face_laws = {f: face_laws[f] for f in faces}
+        if rows is not None:
+            face_laws = {f: law for f, law in face_laws.items() if f in rows}
         for face, law in face_laws.items():
             face_in = boundary.face_view(face)
             full = getattr(law, method)(face_in)
-            target = (
-                trace.inflow_indices_for_face(face)
-                if method == "apply"
-                else trace.outflow_indices_for_face(face)
-            )
+            if rows is not None:
+                target = rows[face]
+            else:
+                target = (
+                    trace.inflow_indices_for_face(face)
+                    if method == "apply"
+                    else trace.outflow_indices_for_face(face)
+                )
             out_boundary.face_view(face)[target] = full[target]
         return out_boundary
 
     def _apply_faces(
         self, psi: "FullField", method: str,
+        rows: "Mapping[str, np.ndarray] | None" = None,
     ) -> "FullField":
         r"""Lift the trace-only :meth:`_reflect_trace` onto the full
         :class:`~orpheus.transport.full_field.FullField` carrier with **zero
@@ -269,7 +285,7 @@ class SNBoundaryOperator(LinearOperator):
             bulk=AngularSourceSink.zeros_on(
                 mesh, spatial_moments=mesh.scheme.spatial_basis_per_axis,
             ),
-            boundary=self._reflect_trace(psi.boundary, method),
+            boundary=self._reflect_trace(psi.boundary, method, rows=rows),
         )
 
     def apply(self, psi: "FullField") -> "FullField":
@@ -304,6 +320,71 @@ class SNBoundaryOperator(LinearOperator):
         """
         return self._reflect_trace(boundary, "apply", faces=faces)
 
+    def reflect_inflow_inplace(
+        self, boundary_flux: "BoundaryFlux",
+        faces: "Iterable[str] | None" = None,
+    ) -> None:
+        r"""In place: overwrite each face's inflow rows with the reflected
+        outflow — ``ψ.inflow ← (B·ψ)|_{\rm inflow}``, face-restrictable.
+
+        The MUTATING façade over :meth:`reflect_into_inflow` (single source —
+        both route through :meth:`_reflect_trace`), matching the sweep
+        substrate's reflect signature
+        (``Callable[[BoundaryFlux, tuple[str, ...]], None]``): the
+        :func:`~orpheus.sn.loss_representation._sweep_scheduled` inter-group
+        reflect passes THIS bound method (#226 step 2 — the reified
+        ``M = (L+C−B_lower)`` supplies ``boundary.reflect_inflow_inplace``),
+        and the whole-trace form (``faces=None``) serves the direct
+        fixed-source SI loop + the eigenvalue reconstruction sweep via
+        :func:`orpheus.sn.solver._reflect_outflow_into_inflow`.
+        """
+        reflected = self.reflect_into_inflow(boundary_flux, faces=faces)
+        trace = self.sn_mesh.trace
+        selected = (
+            boundary_flux.layout.faces if faces is None else faces
+        )
+        for face in selected:
+            inflow = trace.inflow_indices_for_face(face)
+            boundary_flux.face_view(face)[inflow] = (
+                reflected.face_view(face)[inflow]
+            )
+
+    def split(self, schedule: "SweepSchedule") -> "BoundarySplit":
+        r"""Split ``B = B_lower + B_upper`` under ``schedule``'s octant order
+        (#226 §17 W2 — the regular matrix splitting of the boundary G-S).
+
+        ``B_lower`` carries exactly the (face, inflow-row) couplings the
+        scheduled sweep realizes IN-sweep (rows whose octant group is swept
+        strictly after the face's reflect —
+        :meth:`~orpheus.sn.loss_representation.sweep_schedule.SweepSchedule.lower_inflow_rows`);
+        ``B_upper`` carries the complement (the cyclic back-edges plus every
+        row of a never-reflected face — vacuum, white, albedo, periodic),
+        lagged by the SI driver as an external gain.  The partition is exact:
+        the specular map has no octant-diagonal, and the two row sets are
+        complementary within each face's inflow by construction here.
+
+        Returns a named pair so the two construction sites cannot be swapped
+        silently: ``M = (L + C) - parts.lower`` and ``gains = (S, parts.upper)``.
+        The Jacobi schedule yields an empty lower support (``B_lower = 0``,
+        ``B_upper = B``) — the degenerate that recovers the plain lagged-``B``
+        iteration.
+        """
+        lower_rows = schedule.lower_inflow_rows(self.sn_mesh)
+        trace = self.sn_mesh.trace
+        upper_rows = {
+            face: np.setdiff1d(
+                trace.inflow_indices_for_face(face),
+                lower_rows.get(face, np.empty(0, dtype=np.intp)),
+            )
+            # The same face set the block-diagonal law iterates (single
+            # source — the trace layout and ``bc`` share keys by construction).
+            for face in self._face_laws
+        }
+        return BoundarySplit(
+            lower=SNMaskedBoundaryOperator(self, lower_rows, schedule),
+            upper=SNMaskedBoundaryOperator(self, upper_rows, schedule),
+        )
+
     def apply_transpose(self, psi: "FullField") -> "FullField":
         r"""Euclidean transpose ``Bᵀ·ψ`` — per-face ``apply_transpose``, zero bulk.
 
@@ -313,3 +394,124 @@ class SNBoundaryOperator(LinearOperator):
         the ``|Ω·n|·w`` trace metric (Wave O step O.2).
         """
         return self._apply_faces(psi, "apply_transpose")
+
+
+class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):
+    r"""One half of the schedule split ``B = B_lower + B_upper`` — the
+    whole-trace :class:`SNBoundaryOperator` restricted to a per-face set of
+    inflow ordinate ROWS (#226 §17 W2).
+
+    The restriction composes a row projection with ``B``'s codomain
+    projection: per face, only the given ordinate rows of the reflected
+    inflow are emitted; every other slot (and the bulk, as for ``B``) is
+    zero.  Which rows belong to which half is SCHEDULE-order semantics
+    (:meth:`~orpheus.sn.loss_representation.sweep_schedule.SweepSchedule.lower_inflow_rows`),
+    so the instance carries its :attr:`schedule` — the reified
+    ``M = (L+C−B_lower)`` reads the walk order off its lower operand rather
+    than pairing a foreign schedule with a mismatched mask.  Construct via
+    :meth:`SNBoundaryOperator.split` (the named pair keeps lower/upper from
+    swapping silently); the exactness of the partition is pinned by the
+    W2-split gate.
+
+    A masked half is NOT invertible and does not advertise a transpose
+    (``B_lowerᵀ`` masks input rows, not output rows — mint it when the
+    adjoint-inverse carve #280 produces a consumer), so the capability set is
+    ``{apply}`` and the faithfulness keystone holds by the base defaults.
+    """
+
+    capabilities = frozenset({CAP_APPLY})
+    block_role = BlockRole.BOUNDARY
+
+    def __init__(
+        self,
+        inner: "SNBoundaryOperator",
+        rows: "Mapping[str, np.ndarray]",
+        schedule: "SweepSchedule",
+    ) -> None:
+        #: The whole-trace boundary law this is a row restriction of.
+        self.inner = inner
+        #: Per-face inflow ordinate rows this half emits (global ordinate
+        #: indices into each face's ``(N, …)`` trace slot).
+        self.rows = rows
+        #: The octant-order schedule the row split was derived from.
+        self.schedule = schedule
+
+    @property
+    def sn_mesh(self) -> "SNMesh":
+        return self.inner.sn_mesh
+
+    @property
+    def domain(self) -> Optional["FunctionSpace"]:
+        return self.inner.domain
+
+    @property
+    def codomain(self) -> Optional["FunctionSpace"]:
+        return self.inner.codomain
+
+    def apply(self, psi: "FullField") -> "FullField":
+        r"""``B_half·ψ`` — the per-face law projected onto :attr:`rows`, zero bulk."""
+        return self.inner._apply_faces(psi, "apply", rows=self.rows)
+
+    def reflect_rows_inplace(
+        self, boundary_flux: "BoundaryFlux", faces: "Iterable[str]",
+    ) -> None:
+        r"""In place, ADDITIVE, on :attr:`rows` only:
+        ``bf[f][rows] += (B·bf)[f][rows]`` for each given face.
+
+        The inter-group row update of the reified forward substitution
+        (#226 §17 W2): solving :math:`M z = y` on a strictly-lower inflow
+        row reads :math:`z_{\rm in} = y_{\rm row} + (B z)_{\rm row}` — the
+        buffer already holds the seed :math:`y_{\rm row}` (nothing else
+        writes a lower row before its face's reflect), so ACCUMULATING the
+        fresh reflection completes the inhomogeneous row exactly.  This is
+        what makes ``M.inverse()`` exact for arbitrary data on the INFLOW
+        rows — i.e. on the source subspace ``{y : y.outflow-rows = 0}``
+        (every production rhs; the sweep substrate re-derives the
+        outflow-definition rows, a family-wide property shared with
+        ``(L+C).solve`` — see the W2 gate module
+        ``tests/sn/solve/test_gauss_seidel_reification.py`` and spec §13)
+        — not merely on production's zero-lower-inflow-row subspace; and
+        restricting to :attr:`rows` leaves the upper (lagged) rows carrying
+        the seed the splitting
+        :math:`\psi_{k+1} = M^{-1}(q + B_{\rm upper}\psi_k)` says they
+        carry — the returned trace IS the splitting's honest iterate.
+        (The dissolved resolvent's whole-face OVERWRITE dropped
+        :math:`y_{\rm row}` — benign in production where it is zero on a
+        reflective face, but O(1)-wrong as an inverse; and it stamped
+        fresh values onto rows the iterate defines as lagged.)
+
+        Contrast :meth:`SNBoundaryOperator.reflect_inflow_inplace` — the
+        whole-face ASSIGNMENT ``ψ.inflow ← B·ψ.outflow`` between sweeps,
+        which is the right semantics for the direct fixed-source SI loop
+        and the reconstruction sweep (there the inflow is wholly recomputed
+        each sweep, not a solved unknown of a linear row).
+        """
+        selected = {
+            face: self.rows[face]
+            for face in faces
+            if face in self.rows and np.asarray(self.rows[face]).size
+        }
+        if not selected:
+            return
+        reflected = self.inner._reflect_trace(
+            boundary_flux, "apply", faces=tuple(selected), rows=selected,
+        )
+        for face, rows in selected.items():
+            boundary_flux.face_view(face)[rows] += (
+                reflected.face_view(face)[rows]
+            )
+
+    def __repr__(self) -> str:
+        n_rows = sum(int(np.asarray(r).size) for r in self.rows.values())
+        return (
+            f"SNMaskedBoundaryOperator({self.inner!r}, "
+            f"rows={n_rows} over {len(self.rows)} faces, "
+            f"schedule={self.schedule.kind!r})"
+        )
+
+
+class BoundarySplit(NamedTuple):
+    """The named ``B = B_lower + B_upper`` pair from :meth:`SNBoundaryOperator.split`."""
+
+    lower: SNMaskedBoundaryOperator
+    upper: SNMaskedBoundaryOperator
