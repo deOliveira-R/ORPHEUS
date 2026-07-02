@@ -1148,7 +1148,7 @@ class OperatorSum(LinearOperator[Domain, Codomain]):
         direct-sweep :meth:`inverse` — the type-as-structure dispatch,
         taxonomy §11.1.)
         """
-        return getattr(self.a, "is_invertible", False)
+        return self.a.is_invertible
 
     def inverse(self) -> "LinearOperator[Codomain, Domain]":
         r"""Return the preconditioned-splitting inverse — a

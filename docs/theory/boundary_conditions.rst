@@ -464,7 +464,8 @@ The ABC ships:
    contract: :class:`BoundaryTraceLaw` is no longer a
    :class:`~orpheus.numerics.operator.LinearOperator` subclass,
    no concrete law carries ``apply`` / ``apply_transpose``
-   methods, and no ``capabilities`` ``ClassVar`` is defined.
+   methods, and none reports the operator predicates
+   ``is_invertible`` / ``is_adjointable``.
    The §16A.3 three-layer split (descriptor / realizer / operator)
    is now enforced by the **type system**, not by convention —
    ``law.apply(psi)`` on a raw law is an ``AttributeError`` at
@@ -1025,8 +1026,9 @@ The realizer's vacuum branch fires:
 
 The returned ``realized`` is a
 :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`,
-which is a self-adjoint, idempotent Wave-0 primitive with
-``capabilities = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})``.
+which is a self-adjoint, idempotent Wave-0 primitive that reports
+``is_adjointable = True`` (:math:`M = M^{\mathsf T}`) and
+``is_invertible = False`` (a rank-deficient projection — no inverse).
 
 Step 5 — wrap with a kind tag
 -----------------------------
@@ -1046,9 +1048,10 @@ metadata to the realized operator:
   ``sn_mesh.bc["xmin"] == "vacuum"`` string-equality surface that
   several SN tests and the BC-resolution diagnostic rely
   on;
-* :meth:`capabilities` delegation to the wrapped inner operator
-  so consumers composing the shim with other Wave-0 primitives
-  inherit the right feature set.
+* :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible` /
+  :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
+  delegation to the wrapped inner operator so consumers composing the
+  shim with other Wave-0 primitives inherit the right surface.
 
 The shim's ``apply`` / ``apply_transpose`` signatures are strict
 1-arg ``(self, psi)`` — extra positional or keyword arguments
@@ -1771,8 +1774,10 @@ remaining 2-arg ``apply`` affordance from the Wave-8/9 era into a
 * :class:`BoundaryTraceLaw` no longer inherits
   :class:`~orpheus.numerics.operator.LinearOperator`.
 * The abstract :meth:`apply` method that the mixin used to provide
-  is gone. So is ``apply_transpose``. So is the
-  ``capabilities: ClassVar[frozenset[str]]`` advertisement.
+  is gone. So is ``apply_transpose``. So is any operator-surface
+  advertisement — the two-axis ``is_invertible`` / ``is_adjointable``
+  predicates (before the #226 carve P4, the retired
+  ``capabilities: ClassVar[frozenset[str]]`` frozenset).
 * Every concrete BC (vacuum / reflective / white / albedo /
   periodic / prescribed-inflow) is now a **frozen dataclass**
   carrying only its parameters (axis, albedo, source, ...), its

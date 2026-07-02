@@ -53,7 +53,14 @@ from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.numerics.green_operator import GreenOperator
 from orpheus.numerics.iteration import SupportsSeededApply
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
-from orpheus.numerics.operator import InverseOperator
+from orpheus.numerics.operator import (
+    InverseOperator,
+    LinearOperator,
+    SupportsAdjoint,
+    SupportsInverse,
+    adjointable,
+    invertible,
+)
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.sn.operators.windowing import BulkAnalysisOperator, WindowedSweep
 from tests.sn._test_helpers import placeholder_materials
@@ -470,3 +477,54 @@ def _inverse_family_seeded_apply_static_pins(
     c: SupportsSeededApply = green
     d: SupportsSeededApply = matrix
     del a, b, c, d
+
+
+# ───────────────────────────────────────────────────────────────────────
+# The TypeGuard-bridge NARROWING contract (carve P4, taxonomy §12 step 6,
+# verification spec §39.3).  Design C: the runtime predicate check IS the
+# static permission — ``invertible(op)`` / ``adjointable(op)`` narrow a
+# ``LinearOperator``-typed operand to ``SupportsInverse`` /
+# ``SupportsAdjoint`` (which EXTEND ``LinearOperator``, so the guarded
+# branch keeps the whole algebra), and the member access type-checks with
+# NO cast.  Deleting a production guard un-narrows its call site — CLI
+# pyright REDs (M-GUARD-DELETE-PYRIGHT); widening a bridge's return
+# annotation to plain ``bool`` reddens THESE pins (M-BRIDGE-ANNOT).
+# Pyright-only, never run (no ``test_`` prefix).  The structural-absent
+# converse — ``ZeroOperator().inverse()`` does NOT type-check — lives in
+# ``_static_zero_inverse_unspellable.py`` (a static pin cannot share a
+# module with the expression it forbids).
+# ───────────────────────────────────────────────────────────────────────
+
+
+def _typeguard_bridge_narrowing_static_pins(
+    endo: LinearOperator[TimedFullField, TimedFullField],
+    two_space: LinearOperator[ScalarFlux, AngularFlux],
+    b_endo: TimedFullField,
+    b_cod: AngularFlux,
+) -> None:
+    """The Design-C checked bridge, pinned as a static fact — no ``cast`` anywhere.
+
+    Three legs per axis: (1) the guarded member access RESOLVES (the
+    narrowing exists); (2) the narrowed signature carries the honest
+    carrier SWAP (``inverse(): [D, C] → [C, D]``; ``apply_transpose:
+    Codomain → Domain``); (3) the narrowed operand still IS a
+    ``LinearOperator`` — the Protocol-promotion payoff: ``TypeGuard``
+    REPLACES the declared type, so a bare-Protocol target would have
+    LOST the algebra inside the guard (spec §44.E).
+    """
+    if invertible(endo):
+        narrowed_inv: SupportsInverse[TimedFullField, TimedFullField] = endo
+        assert_type(endo.inverse(), LinearOperator[TimedFullField, TimedFullField])
+        assert_type(endo.apply(b_endo), TimedFullField)  # leg 3: algebra retained
+        del narrowed_inv
+    if adjointable(endo):
+        narrowed_adj: SupportsAdjoint[TimedFullField, TimedFullField] = endo
+        assert_type(endo.apply_transpose(b_endo), TimedFullField)
+        assert_type(endo.apply(b_endo), TimedFullField)  # leg 3: algebra retained
+        del narrowed_adj
+    # The two-space operand pins leg 2 — the carrier swap — where domain
+    # and codomain are DISTINCT (an endomorphism cannot see a swap bug).
+    if invertible(two_space):
+        assert_type(two_space.inverse(), LinearOperator[AngularFlux, ScalarFlux])
+    if adjointable(two_space):
+        assert_type(two_space.apply_transpose(b_cod), ScalarFlux)

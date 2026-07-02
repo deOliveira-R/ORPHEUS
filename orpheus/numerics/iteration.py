@@ -1087,12 +1087,11 @@ class KEigenvalue:
         # fail with a domain message, not an AttributeError from a
         # missing ``.inverse``.  S's apply-guard stays deferred to
         # the inner SourceIteration (one source of truth).
-        if not getattr(A, "is_invertible", False):
+        if not A.is_invertible:
             raise NotInvertible(
                 f"KEigenvalue requires an INVERTIBLE A — the inner "
                 f"SourceIteration applies A.inverse() each step; "
-                f"{type(A).__name__}.is_invertible is "
-                f"{getattr(A, 'is_invertible', 'absent')}."
+                f"{type(A).__name__}.is_invertible is False."
             )
 
         self.A = A

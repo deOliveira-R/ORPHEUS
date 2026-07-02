@@ -212,7 +212,7 @@ Key Facts
   :meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`
   *refuses* a :class:`~orpheus.numerics.basis.GramStructure`
   ``DENSE`` trial (raising
-  :class:`~orpheus.numerics.operator.MissingCapability`) rather than
+  :class:`~orpheus.numerics.operator.NotInvertible`) rather than
   return a silently-wrong coarsening (:ref:`frame-least-squares-discipline`).
 
 - Every concrete :class:`~orpheus.numerics.frame.GalerkinFrame`
@@ -374,7 +374,7 @@ why a single basis :math:`\{e_k\}` produces both :math:`M` and
    ``frame.analysis.H`` is :math:`M^* = g_C\,S_0`; and
    :meth:`frame.reconstruction.apply
    <orpheus.numerics.basis.Basis.reconstruct>` returns :math:`R`
-   (with the :math:`(2\ell+1)` factor). The capability dishonesty
+   (with the :math:`(2\ell+1)` factor). The adjoint-face dishonesty
    that conflated the bare transpose with the Hilbert adjoint was
    caught by QA review and corrected as ERR-039 (see the project's
    L0 error catalog) — :math:`R` and :math:`M^*` are both useful
@@ -581,7 +581,7 @@ for which the row-sum probe is **wrong**. It is **designed but not
 built**: the base :class:`~orpheus.numerics.basis.Basis` defaults to
 ``GramStructure.DENSE`` (the safe refusal), and
 :meth:`FrameBase.project <orpheus.numerics.frame.FrameBase.project>`
-raises :class:`~orpheus.numerics.operator.MissingCapability` on a
+raises :class:`~orpheus.numerics.operator.NotInvertible` on a
 ``DENSE`` trial rather than return a silently-wrong coarsening. The
 known future consumer is **higher-rank Generalized Energy Condensation**
 (within-coarse-group spectral moments :math:`n \ge 1`; Rahnema,
@@ -1331,9 +1331,9 @@ Galerkin discipline's invariants on the spherical-harmonic
 
 The tests verify mathematical identities of the operator algebra
 (V&V level L1 — equation verification by analytical reference). The
-companion L0/foundation shape and capability tests verify software
-invariants (frame face spaces, capability sets) and are tagged
-accordingly. The **forward** Petrov-Galerkin frames now ship their own
+companion L0/foundation shape and predicate tests verify software
+invariants (frame face spaces, the ``is_invertible`` / ``is_adjointable``
+predicates) and are tagged accordingly. The **forward** Petrov-Galerkin frames now ship their own
 **L0** numerical evidence — the per-channel rate-preservation identity,
 the φV-vs-dV (flux- vs volume-weighting) discriminator, the simplex /
 production-weight :math:`\chi` gates, and the Mode-11 routing sentinel —

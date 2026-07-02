@@ -253,7 +253,7 @@ class GreenOperator(InverseWrapMixin[OperatorSum], LinearOperator):
     ) -> None:
         terms = _left_spine_terms(inner)
         leading = terms[0]
-        if not getattr(leading, "is_invertible", False):
+        if not leading.is_invertible:
             raise NotInvertible(
                 f"GreenOperator requires an invertible LEADING term: the "
                 f"left-spine head of the sum is the splitting's "

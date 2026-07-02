@@ -7336,7 +7336,7 @@ Both seed strategies — :class:`ZeroSeed` and
 (verified by the ``is_linear: ClassVar[bool] = True`` trait, pinned
 by foundation tests).  Linearity is the load-bearing property:
 the apply matvec must be a linear operator, otherwise the
-operator-algebra capabilities of
+operator-algebra operations of
 :class:`~orpheus.sn.operators.streaming.InvertibleOperator`
 (apply, apply_transpose, dense matrix probing) break.  The
 :class:`CarlsonInwardSweep` is linear because:
@@ -8914,7 +8914,7 @@ back to the sphere value.
   *admitted* by the operator.
 * **O(\Delta\mu^2)-consistent** on general smooth angular profiles —
   the same order as the angular discretisation itself.
-* **linear in the input**, so the operator-algebra capabilities
+* **linear in the input**, so the operator-algebra operations
   (:meth:`apply`, :meth:`apply_transpose`, dense probing) are
   preserved.  The strategy OWNS its adjoint
   (:meth:`~orpheus.sn.spatial.psi_half_angle_seed.PsiHalfAngleSeedBase.seed_adjoint`),
@@ -10952,7 +10952,7 @@ Scattering and fission as LinearOperators
 
 Wave A Issue 1 of the SN reshape campaign installed the
 :class:`~orpheus.numerics.operator.LinearOperator` Protocol --- a
-capability-tagged matrix-free operator algebra (see :ref:`operator-algebra`).
+predicate-typed matrix-free operator algebra (see :ref:`operator-algebra`).
 The neutron transport eigenvalue
 problem written in operator form is
 
@@ -10978,17 +10978,22 @@ snapshots at ``tests/sn/regression/snapshots/`` gates the extraction.
 Why ``apply``-only
 ------------------
 
-Both operators advertise a single capability: ``{"apply"}`` only.
+Both operators report ``is_invertible = False`` and carry no ``solve``
+— they are *structural* non-invertibles, declaring no ``inverse()`` /
+``solve`` at all (:ref:`design-c-structural-value-split`). (They *are*
+adjointable — ``is_adjointable = True`` — since each gained a working
+``apply_transpose`` for the outer-layer adjoint / DSA posing; the
+"``apply``-only" name refers to the **inverse** axis.)
 
 * **Scattering (:math:`S`)** is rank-:math:`O(N_{\text{cells}}\cdot
   N_{\text{groups}})`. There is no efficient inverse --- the operator
   is *applied*, never *inverted*. The upper-triangular structure that
   would make a sweep-based ``solve`` tractable does not survive the
-  Pℓ Galerkin reconstruction. Any algebraic consumer that asks for
-  :math:`S^{-1}` will get a :class:`MissingCapability` at composition
-  time, never silently wrong results at call time --- this is the
-  load-bearing payoff of the capability-set design (see
-  :ref:`operator-algebra`).
+  Pℓ Galerkin reconstruction. An algebraic consumer that asks for
+  :math:`S^{-1}` cannot even spell ``S.inverse()`` (the method is not
+  declared --- a *static* error), never silently wrong results at call
+  time --- this is the load-bearing payoff of the three-layer operator
+  surface (see :ref:`operator-algebra`).
 
 * **Fission (:math:`F`)** has rank-1-in-energy structure: the action
   factorises as :math:`(F\phi)_g = \chi_g\,\sum_{g'}\nu\Sigma_{f,g'}
@@ -11159,15 +11164,20 @@ is now expressible in ORPHEUS as a single Python expression composed
 from three :class:`LinearOperator` objects.  The Wave A composers
 (:class:`~orpheus.numerics.operator.OperatorSum`,
 :class:`~orpheus.numerics.operator.OperatorProduct`,
-:class:`~orpheus.numerics.operator.ScaledOperator`) compute the
-composition's capability set from the constituents per the closure
-laws (see :ref:`operator-algebra`).
+:class:`~orpheus.numerics.operator.ScaledOperator`) compute their
+:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible` /
+:attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
+recursively from the constituents per the closure laws (see
+:ref:`operator-algebra`).
 
-Three capabilities
-------------------
+The full operator surface — apply, solve, apply_transpose
+---------------------------------------------------------
 
-:class:`InvertibleOperator` advertises ``{"apply", "solve",
-"apply_transpose"}`` — every member of the Wave A capability set:
+:class:`InvertibleOperator` realizes all three verbs — ``apply``,
+``solve``, ``apply_transpose`` — and reports both ``is_invertible`` and
+``is_adjointable`` ``True`` (the retired ``{"apply", "solve",
+"apply_transpose"}`` capability frozenset advertised exactly this;
+:ref:`capability-set-semantics`):
 
 * :meth:`~orpheus.sn.operators.streaming.InvertibleOperator.apply` —
   matrix-free forward action :math:`A\,\psi`.  Reuses the
@@ -11256,15 +11266,17 @@ Two reasons:
    forward substitution is the canonical SN preconditioner (Lewis
    & Miller §4.5; Adams & Larsen 2002 review).  Exposing
    :meth:`solve` keeps that path discoverable through the
-   capability set.
+   operator surface (it reports ``is_invertible = True``).
 
 2. **The composers (Wave A) need a uniform contract.**  When a
    downstream agent composes :math:`(A - S - F)`, the composition's
-   capability set is derived from each operand's capabilities.  If
+   :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible` /
+   :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable` are
+   derived recursively from each operand.  If
    :class:`InvertibleOperator` shipped only :meth:`apply`, the
-   composition would lose ``solve`` and the Wave E Krylov-on-apply
-   path could not request a sweep-preconditioned matvec without
-   bypassing the algebra.
+   composition would report ``is_invertible = False`` and the Wave E
+   Krylov-on-apply path could not request a sweep-preconditioned matvec
+   without bypassing the algebra.
 
 Reciprocity invariant
 ---------------------
@@ -11432,8 +11444,9 @@ avoid).  The per-ordinate adjoint scattering source is then
 the producer-side :math:`1/W` transposing as the scalar it is
 (:math:`(A/W)^{T} = A^{T}/W`).
 :class:`~orpheus.transport.operators.scattering.ScatteringOperator` now
-advertises ``CAP_APPLY_TRANSPOSE``, and the old "no ``apply_transpose``"
-class-docstring confession is retired.
+reports ``is_adjointable = True`` (it has a working ``apply_transpose``),
+and the old "no ``apply_transpose``" class-docstring confession is
+retired.
 
 **Forward fast-path, adjoint frame-path — and why the asymmetry is
 principled.**  The production FORWARD source keeps the scalar fast-path
@@ -12280,28 +12293,46 @@ synthetic L0 case (where ``A`` is a plain dense matrix and
 Krylov-on-:meth:`apply` SN case (where ``inverter`` is supplied
 explicitly by the caller).
 
-Capability requirements
------------------------
+Operand requirements
+--------------------
 
-The primitive constructors enforce the following at construction
-time, NEVER mid-iteration (the same Wave A philosophy that gates
-:class:`~orpheus.numerics.operator.OperatorSum` etc.):
+The primitive constructors enforce their operands' surface at
+construction time, NEVER mid-iteration (the same Wave A philosophy that
+gates :class:`~orpheus.numerics.operator.OperatorSum` etc.).  Since the
+#226 taxonomy carve the requirement is stated on the operator surface
+directly (predicate + verb), not a capability tag:
 
-* ``A`` MUST advertise :py:data:`CAP_APPLY`.
-* ``A`` MUST advertise :py:data:`CAP_SOLVE` *or* the caller MUST
-  supply ``inverter``.  Without one of those, the iteration cannot
-  evaluate :math:`A^{-1}`.
-* ``S`` MUST advertise :py:data:`CAP_APPLY`.  Pass
+* :class:`SourceIteration` consumes a **pre-inverted** step operator
+  ``A_inv``, which MUST provide a callable ``apply`` — the step operator
+  arrives already inverted, so an apply-only object is legitimate by
+  design (#226 taxonomy step 3).  A missing ``apply`` raises
+  ``TypeError`` at construction.
+* :class:`KEigenvalue` poses the ``(A, S, F)`` triple: ``A`` MUST report
+  :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`
+  ``= True`` — the posing layer builds :math:`A^{-1}` via
+  ``_seeded_inverse(A)``, and a non-invertible ``A`` raises
+  :class:`~orpheus.numerics.operator.NotInvertible`.  ``S`` / ``F`` MUST
+  provide ``apply`` (pass
   :class:`~orpheus.numerics.operator.ZeroOperator` for the
-  scattering-free case.
-* ``F`` MUST advertise :py:data:`CAP_APPLY`.  For
-  :class:`SourceIteration` only, pass
-  :class:`~orpheus.numerics.operator.ZeroOperator` for the
-  fission-free case.
+  scattering- / fission-free case).
 
-Constructor failure raises
-:class:`~orpheus.numerics.operator.MissingCapability` with a message
-naming the missing capability and the operand that lacks it.
+Constructor failure raises ``TypeError`` (a missing ``apply``) or
+:class:`~orpheus.numerics.operator.NotInvertible` (a non-invertible
+``A`` where the posing layer needs its inverse), naming the operand at
+fault.
+
+.. note::
+
+   The ``inverter``-hook framing in the subsections above predates the
+   #226 taxonomy **step-3 pre-inversion redesign**:
+   :class:`SourceIteration` now consumes a pre-inverted ``A_inv``
+   directly (the former caller-supplied ``inverter`` callable dissolved
+   into the inverse family's canonical seeded ``apply``), and
+   :class:`~orpheus.numerics.iteration.KrylovAcceleration`'s ``inverter``
+   parameter was renamed ``preconditioner``.  A full refresh of that
+   posing narrative to the pre-inversion model is a separate
+   documentation task (out of scope for the capability-frozenset
+   retirement pass).
 
 Forward hook: FEAST and beyond
 -------------------------------
@@ -12430,7 +12461,7 @@ SNSolver as an operator-algebra coordinator
   carrying the rank-1-in-energy fission emission (Wave D Issue 13).
 
 Each of these is a :class:`~orpheus.numerics.operator.LinearOperator`
-in the Wave A operator-algebra sense: capability-tagged, composable
+in the Wave A operator-algebra sense: predicate-typed, composable
 under :class:`~orpheus.numerics.operator.OperatorSum` and
 :class:`~orpheus.numerics.operator.OperatorProduct`, and protocol-
 conforming so the iteration primitives in
@@ -17814,6 +17845,67 @@ branch and have no landed hash yet.
      - Architectural milestone
      - Issue
      - Where
+   * - in dev
+       (2026-07-02)
+     - **Operator-inverse taxonomy step 6 — the capability frozenset retired,
+       both axes (#226, carve P4, W1+W2)** — the stringly-typed
+       ``capabilities: frozenset[str]`` advertisement (``CAP_APPLY`` /
+       ``CAP_SOLVE`` / ``CAP_APPLY_TRANSPOSE`` + ``MissingCapability`` + both
+       ``_has`` copies) is **retired from every operator** — leaves, composers,
+       aggregators, shims. Each axis (inverse, adjoint) now carries the
+       **three-layer structural surface** (user-locked "Design C + B"): a
+       runtime **predicate**
+       (:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible` /
+       :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`,
+       value- and structure-aware, recursive on composites); an
+       **operator-returning method** (``inverse()`` per-class /
+       :attr:`~orpheus.numerics.operator.LinearOperator.H` on the base); and a
+       **realization verb** (``solve`` / ``apply_transpose``) present only
+       where a native realization exists. **Design C** resolves the
+       false dichotomy between structural and value-dependent
+       non-invertibility: a *structural* leaf (``ZeroOperator``, masks, source
+       dyads, ``L`` / ``S`` / ``F`` / ``B``) declares **no** ``inverse()`` —
+       misuse is a *static* pyright error — while a *value-dependent* operator
+       (zero-coefficient
+       :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`,
+       non-invertible-headed
+       :class:`~orpheus.numerics.operator.OperatorSum`) declares it and raises
+       :class:`~orpheus.numerics.operator.NotInvertible` **eagerly**. The
+       runtime→static bridge is a pair of PEP-647 ``TypeGuard`` free functions
+       :func:`~orpheus.numerics.operator.invertible` /
+       :func:`~orpheus.numerics.operator.adjointable` (``TypeGuard`` NOT
+       ``TypeIs`` — the value-dependent predicate makes only the one-directional
+       promise); the runtime check IS the static permission, so all four
+       ``cast(SupportsInverse, …)`` sites and all ten ``solve`` /
+       ``apply_transpose`` ``# type: ignore``\ s **deleted**. **Design B**
+       prunes ``solve`` to native realizations (deleted on Sum / Identity /
+       Permutation / Scaled / TensorProduct / the boundary shim; kept on
+       Diagonal / Multiplication / the sweep composites / the mixin / Product —
+       whose ``solve`` **re-routes** through each factor's ``.inverse().apply``,
+       bit-identical per kind and total over the solve-retired kinds).
+       ``MissingCapability`` split into two ``TypeError`` successors —
+       :class:`~orpheus.numerics.operator.NotInvertible` (inverse axis) /
+       :class:`~orpheus.numerics.operator.MissingAdjoint` (adjoint axis). The
+       **one behavior change** (spec §38): ``.H`` on a non-adjointable operator
+       raises :class:`~orpheus.numerics.operator.MissingAdjoint` **eagerly at
+       construction**, not lazily at the first ``.apply``. Two real production
+       bugs the net caught and fixed root-cause: ``_seeded_inverse`` crashing on
+       algebra-closed preconditioner heads (fixed with a two-kinds dispatch),
+       and :class:`~orpheus.numerics.operator.RankOneOperator` losing its only
+       adjointability advertisement (restored via an ``is_adjointable``
+       override). Verification: **keystone v2** (``tests/_harness/predicates.py``
+       rewritten to the permanent two-axis / three-valued contract; the
+       coexistence scaffold ``assert_capability_faithful`` **deleted**, its
+       licensing job done) is the standing faithfulness gate, plus the §40
+       ``OperatorProduct.solve`` re-route gates (Mode-11 sentinel + dense
+       anchor + five-row factor-kind matrix vs a pre-carve baseline) and the
+       full 127-read / 36-file migration with a ZERO-hit completeness re-grep.
+       Full tier ``-O`` serial **3853 / 0**; pyright ratchet re-baselined DOWN
+       **148 → 145**. See :ref:`capability-set-semantics` (:doc:`operator_algebra`).
+     - #226
+     - *(in development)*
+       ``f4919b1``
+       ``refactor/inverse-as-operator``
    * - in dev
        (2026-07-02)
      - **Operator-inverse taxonomy step 5 — the materialising functor and

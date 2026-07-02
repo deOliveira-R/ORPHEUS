@@ -231,16 +231,30 @@ Key Facts
   :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`;
   ``L``/``C``/``S``/``F``/``B`` all carry it (P4.5 W-D) so the
   within-group :class:`~orpheus.numerics.operator.OperatorSum` guard
-  VALIDATES the composition, and the **capability lattice** — NOT the
-  domain — makes the metric-blind adjoint unrepresentable (``S``/``F``
-  advertise no ``apply_transpose``, so the unreachable full-loss ``.H``
-  *raises*, never silently goes Euclidean). See
+  VALIDATES the composition, and — because every loss leaf carries the
+  composite metric — the adjoint is applied **once at the op level**
+  (the ``_AdjointOperator`` wrapper reads :math:`G` off the composite
+  domain) and is never metric-blind. Any non-adjointable operand still
+  makes its composite non-adjointable, so the recursive
+  :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
+  reports ``False`` and ``.H`` *raises*
+  :class:`~orpheus.numerics.operator.MissingAdjoint` **eagerly at
+  construction**, never silently goes Euclidean. See
   :ref:`bc-extraction-g-adjoint`.
 
 - The :class:`~orpheus.numerics.operator.LinearOperator` Protocol
-  carries one mandatory method (``apply``) and a
-  ``capabilities: frozenset[str]`` property advertising which optional
-  methods (``solve``, ``apply_transpose``) are functional.
+  carries one mandatory method (``apply``) and, per optional axis
+  (inverse, adjoint), a **three-layer structural surface** (#226 carve
+  P4, Design C): a runtime **predicate**
+  (:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible` /
+  :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`), an
+  **operator-returning method** (``inverse()`` per-class /
+  :attr:`~orpheus.numerics.operator.LinearOperator.H` on the base), and
+  a **realization verb** (``solve`` / ``apply_transpose``) present only
+  where a native realization exists. The stringly-typed
+  ``capabilities: frozenset[str]`` advertisement it replaced (``CAP_*``
+  tags + ``MissingCapability``) is **retired** — the surface itself is
+  now the single source of truth (:ref:`capability-set-semantics`).
 
 - **SN array-storage convention** for every operator leaf
   (:class:`~orpheus.sn.operators.streaming.StreamingOperator`, the collision
@@ -254,11 +268,19 @@ Key Facts
   statement with derivation and migration history lives at
   :ref:`theory-sn-index-convention`.
 
-- The capability set is the **single source of truth** for what an
-  operator can do. Composition primitives compute their own capability
-  set from constituents; mismatches raise
-  :class:`~orpheus.numerics.operator.MissingCapability` at composition
-  time, NEVER at call time.
+- The **operator surface itself** is the single source of truth for
+  what an operator can do — a method exists (or is refused) exactly
+  where the ability does, with no parallel string registry that could
+  drift. Composition primitives compute their own
+  :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible` /
+  :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
+  recursively from the operands; mismatches fail at composition time,
+  NEVER mid-iteration — an ``apply`` mismatch raises ``TypeError``
+  eagerly, a non-adjointable ``.H`` raises
+  :class:`~orpheus.numerics.operator.MissingAdjoint` at construction,
+  and a value-dependent ``inverse()`` raises
+  :class:`~orpheus.numerics.operator.NotInvertible` before any inverse
+  object exists.
 
 
 Definitions
@@ -310,9 +332,11 @@ factorisation this is the matrix inverse; for an iterative
 preconditioned solver it is an approximate inverse; for a
 matrix-vector product wrapping BiCGSTAB it is the Krylov approximate
 solution. The protocol does NOT require ``apply ∘ solve = I`` exactly
-— only that ``solve`` advertises a meaningful approximation. Operators
-without an efficient ``solve`` simply do not advertise that
-capability, and downstream code declines them at composition time.
+— only that ``solve`` realizes a meaningful approximation. Operators
+without an efficient inverse action simply report
+:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`
+``= False`` and carry no ``solve`` verb, and downstream code declines
+them at composition time (:ref:`capability-set-semantics`).
 
 
 .. _heteromorphic-apply-typing:
@@ -639,7 +663,7 @@ of :ref:`Definitions <operator-algebra>`: forward application
 **two faithful views of the same operator only for the bundled**
 :class:`~orpheus.sn.operators.streaming.InvertibleOperator` (:math:`= L+C`), and
 **never** for the individual streaming / collision leaves. It is the
-mathematical content behind the :ref:`capability-set design
+mathematical content behind the :ref:`three-layer operator surface
 <capability-set-semantics>`: ``apply`` lives on the leaves; ``solve``
 lives on the bundle.
 
@@ -720,22 +744,32 @@ honest way to express the coupled inverse through the parts (below).
 .. note::
 
    ``L.solve`` is **not a live call** in ORPHEUS. The streaming leaf
-   :class:`~orpheus.sn.operators.streaming.StreamingOperator` advertises only
-   ``frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})`` — **no**
-   ``CAP_SOLVE`` — precisely because pure streaming is rank-deficient
-   (without a collision term the within-group cell balance is singular;
+   :class:`~orpheus.sn.operators.streaming.StreamingOperator` is
+   adjointable but **not invertible** (it exposes ``apply`` and
+   ``apply_transpose``, reports
+   :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`
+   ``= False``, and declares **no** ``inverse()`` / ``solve`` — the
+   *structural* arm of the two-kinds split, Design C) — precisely
+   because pure streaming is rank-deficient (without a collision term
+   the within-group cell balance is singular;
    :eq:`streaming-action-cell-balance` has :math:`\sigma_t\,V = 0`, so
    :math:`S` degenerates to the geometric streaming term alone, which has
    a zero-mode the inflow boundary condition cannot pin in general). The
    :math:`L^{-1}` row above is therefore the **mathematical** advection
    inverse — "even if :math:`L` alone were inverted, it would solve pure
-   advection" — not a method you can invoke. The collision leaf
+   advection" — not a method you can invoke (asking for it is a *static*
+   error, not a runtime raise). The collision leaf
    :math:`C = M[\sigma_t]`
    (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
-   *does* advertise
-   ``CAP_SOLVE``, but **only** when :math:`\min|\sigma| > 0` (the
-   multiplier spectrum law :math:`\mathrm{spec}(M[\sigma]) =
-   \mathrm{ess\,range}(\sigma)`); when it does, ``C.solve(q) = q/\sigma``
+   *does* report
+   :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`
+   ``= True`` and carry ``solve``, but **only** when
+   :math:`\min|\sigma| > 0` (the multiplier spectrum law
+   :math:`\mathrm{spec}(M[\sigma]) = \mathrm{ess\,range}(\sigma)`) — it
+   is the *value-dependent* arm: it always declares ``inverse()`` /
+   ``solve`` and refuses eagerly with
+   :class:`~orpheus.numerics.operator.NotInvertible` on a zero
+   coefficient. When invertible, ``C.solve(q) = q/\sigma``
    is the infinite-medium flux of the :math:`C^{-1}` row, computed as an
    element-wise division.
 
@@ -879,14 +913,16 @@ sides of the algebra:
   :math:`C = M[\sigma_t]`
   (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`)
   each advertise
-  ``CAP_APPLY``, and their applications compose additively
+  ``apply``, and their applications compose additively
   (:eq:`apply-distributes`). The forward direction is affine in
   :math:`\sigma` (the previous subsection), so the leaf decomposition is
   *faithful*: :math:`(L+C)\psi = L\psi + C\psi` holds exactly.
 - **solve belongs to the bundled unit.** Only
-  :class:`~orpheus.sn.operators.streaming.InvertibleOperator` advertises
-  ``CAP_SOLVE``; the leaves do not (streaming has no ``solve`` at all;
-  collision's ``solve`` is the *local* :math:`q/\sigma`, which is the
+  :class:`~orpheus.sn.operators.streaming.InvertibleOperator` reports
+  :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`
+  ``= True`` and carries a direct-sweep ``solve``; the leaves do not
+  (streaming has no ``solve`` at all; collision's ``solve`` is the
+  *local* :math:`q/\sigma`, which is the
   :math:`C^{-1}` of a *different* problem, never the coupled inverse).
   The :class:`~orpheus.numerics.operator.OperatorSum` deliberately
   **does not propagate** ``solve`` (:ref:`composition-algebra`); the
@@ -900,17 +936,20 @@ sides of the algebra:
   :meth:`InvertibleOperator.solve` single-source :math:`\sigma` from the
   collision diagonal, so they cannot disagree on which loss they invert.
 
-The :ref:`capability-set design <capability-set-semantics>` is what makes
-this architecture *enforced* rather than merely *intended*: a downstream
-Krylov consumer that asks for ``solve`` on a bare
-:class:`~orpheus.sn.operators.streaming.StreamingOperator`, or on a sum that has not
-been promoted to :class:`~orpheus.sn.operators.streaming.InvertibleOperator`, is
-vetoed at composition time with
-:class:`~orpheus.numerics.operator.MissingCapability` — never silently
-handed :math:`L^{-1} + C^{-1}` (a meaningless answer to a problem nobody
+The :ref:`three-layer operator surface <capability-set-semantics>` is
+what makes this architecture *enforced* rather than merely *intended*: a
+downstream Krylov consumer that asks for the inverse of a bare
+:class:`~orpheus.sn.operators.streaming.StreamingOperator` cannot even
+spell ``L.inverse()`` (the streaming leaf declares no such method — a
+*static* error), and a generic sum that has not been promoted to
+:class:`~orpheus.sn.operators.streaming.InvertibleOperator` returns the
+iterative splitting :class:`~orpheus.numerics.green_operator.GreenOperator`
+rather than the direct sweep — never silently handed
+:math:`L^{-1} + C^{-1}` (a meaningless answer to a problem nobody
 posed). The asymmetry between :eq:`apply-distributes` and
-:eq:`solve-does-not-distribute` is, in this sense, the *reason the
-capability set is a set and not a class hierarchy*.
+:eq:`solve-does-not-distribute` is, in this sense, the *reason
+invertibility is a per-instance predicate on the operator, not a flag in
+a parallel string registry*.
 
 .. vv-status: apply-distributes documented
 .. vv-status: solve-does-not-distribute documented
@@ -918,12 +957,11 @@ capability set is a set and not a class hierarchy*.
 
 .. _capability-set-semantics:
 
-Capability set semantics
-========================
+The three-layer operator surface
+================================
 
-The capability set is :class:`frozenset[str]` rather than a class
-hierarchy because many transport operators have **no** efficient
-``solve``:
+Many transport operators have **no** efficient inverse action, and this
+is a load-bearing fact, not an inconvenience:
 
 - The scattering source operator :math:`S` has rank in the thousands
   of unknowns and is never inverted directly (the source iteration
@@ -938,15 +976,377 @@ hierarchy because many transport operators have **no** efficient
 Subclassing or abstract methods would force these classes to provide
 ``solve`` stubs that raise :class:`NotImplementedError`. That is the
 **harmful-stub anti-pattern**: downstream Krylov consumers would only
-discover the failure mid-iteration. The capability-set contract is
-"I can do *these* things" rather than "I can do everything or
-fail" — composers veto incompatible compositions at construction
-time.
+discover the failure mid-iteration. The honest surface for a missing
+ability is **method absence**, not an advertising flag — but *how* that
+honesty is enforced is the subject of this section.
 
-The set is open in the sense that user operators MAY advertise
-method-specific capability tags (e.g. a custom preconditioner could
-add ``"jacobi-preconditioned"``); composers ignore tags they do not
-understand, propagating only the three primitive ones.
+.. note:: **The retired capability frozenset (#226 taxonomy step 6).**
+
+   Through step 5 the advertisement was a stringly-typed
+   ``capabilities: frozenset[str]`` class property listing the ``CAP_APPLY``
+   / ``CAP_SOLVE`` / ``CAP_APPLY_TRANSPOSE`` tags an operator supported,
+   plus a ``MissingCapability`` exception raised when a composition asked
+   for an absent tag. **Carve P4 retired it from every operator** — leaves,
+   composers, aggregators, and shims. The frozenset was a **parallel
+   registry that could silently drift from the actual method surface**: a
+   class could advertise ``CAP_SOLVE`` yet have a broken ``solve`` (or, as
+   the collision leaf once did, a ``solve`` that produced a silent NaN), and
+   nothing forced the string set to track the code. The replacement makes
+   the **surface itself the single source of truth**: an ability exists
+   exactly where its method exists, and a runtime predicate reads the live
+   structure and values rather than a cached string. The design below is
+   the user-locked "Design C + B" (2026-07-02).
+
+The three layers, per axis
+--------------------------
+
+Each optional axis — **inverse** and **adjoint** — now has exactly three
+layers, and each layer carries the truth it *alone* can express:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 34 46
+
+   * - Layer
+     - Inverse axis
+     - Adjoint axis
+   * - **Predicate** (runtime truth)
+     - :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`
+     - :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
+   * - **Operator-returning method**
+     - ``inverse()`` — declared *per-class*
+     - :attr:`~orpheus.numerics.operator.LinearOperator.H` — hosted on the base
+   * - **Realization verb**
+     - ``solve``
+     - ``apply_transpose``
+
+- The **predicate** is the runtime, instance-accurate truth. Unlike an
+  ``isinstance`` check — which sees only class-level method presence — it
+  reads the operator's actual structure AND values: a zero-coefficient
+  :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+  reports ``is_invertible = False``; a sum reports its *leading* term
+  (the left-spine head — :ref:`green-operator`); a composite derives its
+  value recursively from the operands, never a cached registry. The
+  default is ``False`` — an operator is invertible or adjointable only by
+  explicit override.
+- The **operator-returning method** is the canonical act: it returns an
+  *operator*, not a vector. ``inverse()`` returns the inverse operator
+  (a member of the inverse family — the sweep, the
+  :class:`~orpheus.numerics.green_operator.GreenOperator`, the
+  :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`);
+  :attr:`~orpheus.numerics.operator.LinearOperator.H` returns the
+  metric-correct Hilbert adjoint wrapper.
+- The **realization verb** is the raw numerical act — ``solve`` maps a
+  right-hand side to a solution vector, ``apply_transpose`` applies the
+  Euclidean transpose — present **exactly where a native realization
+  exists**, never as an exists-but-raises stub. The wrap-delegate
+  inverse family delegates through ``solve``; the composer transpose
+  laws recurse through ``apply_transpose``.
+
+.. _design-c-structural-value-split:
+
+Design C — the structural-vs-value split
+----------------------------------------
+
+The load-bearing insight is that **two mathematically distinct kinds of
+non-invertibility deserve two honest surfaces**, and conflating them was
+a false dichotomy (see :ref:`design-c-false-dichotomy` below). The two
+kinds:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 30 48
+
+   * - Kind
+     - The claim
+     - Surface
+   * - **Structural**
+     - *This TYPE has no inverse* — the map is mathematically
+       non-invertible for every instance.
+     - ``inverse()`` is **not declared at all**. Asking for it is a
+       *static* error (pyright reports ``reportAttributeAccessIssue`` at
+       the call site); at runtime the attribute is simply absent.
+   * - **Value-dependent**
+     - *This TYPE supports inversion, this INSTANCE refuses* — a
+       zero-coefficient diagonal, a sum with a non-invertible leading
+       term, a product with a singular factor.
+     - ``inverse()`` **is declared** and raises
+       :class:`~orpheus.numerics.operator.NotInvertible` **eagerly**, at
+       construction of the inverse and never mid-iteration.
+
+The structural leaves are
+:class:`~orpheus.numerics.operator.ZeroOperator`, the incoming-ordinate
+and periodic masks, the source dyads
+(:class:`~orpheus.numerics.operator.RankOneOperator`), and the
+transport source leaves —
+:class:`~orpheus.sn.operators.streaming.StreamingOperator` (:math:`L`),
+:class:`~orpheus.transport.operators.scattering.ScatteringOperator`
+(:math:`S`),
+:class:`~orpheus.transport.operators.fission.FissionOperator`
+(:math:`F`), and the boundary operator
+:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` (:math:`B`).
+For each, ``op.inverse()`` does not type-check — the absence *is* the
+honest surface, and the compiler enforces it.
+
+The value-dependent operators are
+:class:`~orpheus.numerics.operator.DiagonalOperator`,
+:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`,
+and the composers when their invertibility fails a value test
+(:class:`~orpheus.numerics.operator.OperatorSum` with a non-invertible
+head, :class:`~orpheus.numerics.operator.OperatorProduct` with a
+singular factor,
+:class:`~orpheus.numerics.operator.ScaledOperator` of a non-invertible
+operand). They *always* declare ``inverse()`` (the type *can* invert),
+and refuse loudly and eagerly when the specific values do not permit it.
+
+.. _typeguard-bridge:
+
+The checked bridge — a PEP-647 ``TypeGuard``
+--------------------------------------------
+
+The predicate is a *runtime* fact; ``inverse()`` living only on some
+classes is a *static* fact. The bridge that converts one into the other
+is a pair of free functions,
+:func:`~orpheus.numerics.operator.invertible` and
+:func:`~orpheus.numerics.operator.adjointable`, each a PEP-647
+``TypeGuard`` narrowing a
+:class:`~orpheus.numerics.operator.LinearOperator` to the
+:class:`~orpheus.numerics.operator.SupportsInverse` /
+:class:`~orpheus.numerics.operator.SupportsAdjoint` narrowing target:
+
+.. code-block:: python
+
+   if invertible(op):          # runtime check on op.is_invertible
+       y = op.inverse().apply(b)   # pyright now permits .inverse() — no cast
+
+**The runtime check IS the static permission.** You cannot obtain the
+permission without executing the check, and deleting a guard un-narrows
+the call so CLI pyright REDs — the guards are *type-load-bearing* (this
+is verified as a static tooth: spec §39.1). This finally fulfils the
+original charter of the
+:class:`~orpheus.numerics.operator.SupportsInverse` /
+:class:`~orpheus.numerics.operator.SupportsAdjoint` Protocols (a static
+contract backed by a runtime property) through a *checked* bridge — the
+carve deleted all four ``cast(SupportsInverse, …)`` sites and all ten
+``solve`` / ``apply_transpose`` ``# type: ignore`` comments they used to
+require.
+
+Two subtleties fix the exact construct:
+
+- **``TypeGuard``, deliberately NOT ``TypeIs``.** The predicate is
+  value-dependent: a zero-coefficient multiplier structurally *has*
+  ``inverse()`` while reporting ``is_invertible = False``. Only the
+  *one-directional* promise is honest — ``True`` licenses the call;
+  ``False`` makes no static claim (a ``TypeIs`` would wrongly narrow the
+  negative branch too, asserting the operand is *not* a
+  ``SupportsInverse`` when structurally it may still be one).
+- **A free function, not a method.** PEP 647 narrowing applies only
+  through a call expression, and a method form narrows its first
+  *explicit* argument, never ``self`` — so there is no
+  ``op.is_invertible``-style property spelling that could narrow the
+  operand. The narrowing target
+  :class:`~orpheus.numerics.operator.SupportsInverse` was *promoted* to
+  **extend** :class:`~orpheus.numerics.operator.LinearOperator`, so a
+  guarded branch keeps the whole algebra (``apply``,
+  :attr:`~orpheus.numerics.operator.LinearOperator.H`, the composition
+  dunders) alongside the licensed ``inverse()``.
+
+.. _base-hosting-rule:
+
+The base-hosting rule
+---------------------
+
+**A method lives on the base** :class:`~orpheus.numerics.operator.LinearOperator`
+**iff a universal realization exists.**
+
+- :attr:`~orpheus.numerics.operator.LinearOperator.H` **is base-hosted**:
+  the Hilbert adjoint has one generic realization — the
+  ``_AdjointOperator`` wrapper that applies the metric once and delegates
+  to ``apply_transpose`` — valid for *any* adjointable operator, so
+  ``.H`` is defined once on the base with an eager
+  :class:`~orpheus.numerics.operator.MissingAdjoint` gate.
+- ``inverse()``, ``solve``, and ``apply_transpose`` are **NOT
+  base-hosted**: there is no universal inverse (each structure inverts
+  differently — a diagonal by reciprocal, a triangular sweep by
+  forward-substitution, a full loss by a Neumann splitting), no universal
+  transpose realization, and no universal solve. Each lives per-class,
+  exactly where its realization exists.
+
+This is why the structural non-invertibility surface *works*: because
+``inverse()`` is not on the base, a class that omits it genuinely has no
+such attribute, and ``ZeroOperator().inverse()`` is a static error
+rather than a stub that raises.
+
+.. _design-b-native-solve:
+
+Design B — ``solve`` pruned to native realizations
+--------------------------------------------------
+
+The realization verb ``solve`` is now present **only where a native
+realization exists** — never as an exists-but-raises stub, and never
+duplicating what ``.inverse().apply`` already does. This executes the
+"one public surface = predicate + operator-returning method" ruling
+(taxonomy §11): *solving with an operator IS applying its inverse
+object*, ``A.inverse().apply(b)``.
+
+**Deleted** (the algebra-closed and driver-realized kinds):
+
+- :class:`~orpheus.numerics.operator.OperatorSum` — a generic sum's
+  inverse action is driver-realized by the
+  :class:`~orpheus.numerics.green_operator.GreenOperator` (the
+  preconditioned splitting), not a substrate verb. (The
+  sweep-invertible ``(L+C)``
+  :class:`~orpheus.sn.operators.streaming.InvertibleOperator` subclass
+  keeps its own direct-sweep ``solve`` — that IS a native realization.)
+- :class:`~orpheus.numerics.operator.IdentityOperator`,
+  :class:`~orpheus.numerics.operator.PermutationOperator`,
+  :class:`~orpheus.numerics.operator.ScaledOperator`,
+  :class:`~orpheus.numerics.operator.TensorProductOperator` — the
+  **algebra-closed** kinds, whose inverse is itself a first-class
+  *forward* operator (a permutation's inverse is a permutation, a
+  scaling's is a scaling): solving is just ``.inverse().apply``.
+- the reflective boundary shim's forward.
+
+**Kept** (the native-realization face, what the wrap-delegate inverse
+family wraps): :class:`~orpheus.numerics.operator.DiagonalOperator`
+(with its value guard, now raising
+:class:`~orpheus.numerics.operator.NotInvertible`),
+:class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`,
+the sweep composites, the mixin's un-invert, and
+:class:`~orpheus.numerics.operator.OperatorProduct` — whose ``solve``
+**re-routes** through each factor's canonical surface:
+
+.. (vv-status rationale) Representational identity — the factor-wise
+   ``OperatorProduct.solve`` re-route (Design B), NOT a solver claim
+   (no eigenvalue / flux). The verifiable content is the §40 re-route
+   gate battery in ``tests/numerics/test_operator.py`` (the dense
+   ``np.linalg.solve`` anchor + the five-row factor-kind matrix vs the
+   pre-carve baseline + the Mode-11 execution sentinel) and the §13 I2
+   functoriality gate ``(AB)^{-1} = B^{-1}A^{-1}``.
+.. vv-status: product-solve-reroute documented
+
+.. math::
+   :label: product-solve-reroute
+
+   (A\,B)^{-1} b
+   \;=\;
+   B^{-1}\bigl(A^{-1} b\bigr)
+   \;=\;
+   \texttt{self.b.inverse().apply(self.a.inverse().apply(b))} .
+
+The re-route is **bit-identical per factor kind** — each inverse object
+delegates to the same realization the factor's own ``solve`` used to —
+AND **total over the solve-retired kinds**: a permutation / scaling /
+Green-invertible-sum factor, whose own ``solve`` Design B deleted, now
+composes through its ``.inverse().apply`` (a permutation's inverse is a
+first-class forward; a sum-in-a-product works via its
+:class:`~orpheus.numerics.green_operator.GreenOperator`). The re-route is
+gated at spec §40 by a structurally-independent dense
+``np.linalg.solve(as_matrix, q)`` anchor plus a five-row factor-kind
+matrix against a pre-carve baseline snapshot — with a Mode-11
+counter-sentinel proving ``OperatorProduct.solve`` actually *executes*
+under ``(A@B).inverse().apply`` (a value gate spelled ``b.inverse().apply
+(a.inverse().apply(q))`` on both sides would be tautological).
+
+The exception successors
+------------------------
+
+``MissingCapability`` split into **two** ``TypeError`` successors, one
+per axis:
+
+- :class:`~orpheus.numerics.operator.NotInvertible` — the inverse-axis
+  refusal, raised eagerly by ``inverse()`` overrides (the
+  value-dependent arm).
+- :class:`~orpheus.numerics.operator.MissingAdjoint` — the adjoint-axis
+  refusal, raised eagerly by
+  :meth:`~orpheus.numerics.operator.LinearOperator.adjoint` /
+  :attr:`~orpheus.numerics.operator.LinearOperator.H` and by the
+  composer ``apply_transpose`` law bodies.
+
+Both parent to :class:`TypeError`, carrying the retired
+``MissingCapability``'s public contract forward: **no ``except`` clause
+written against the old gate changes meaning**. (The migration was
+staged: at wave W1 ``NotInvertible`` was born as a ``MissingCapability``
+subclass so every landed ``pytest.raises(MissingCapability)`` stayed
+green by inheritance while the new keystone went live; wave W2
+re-parented both to ``TypeError`` and deleted the old class.)
+
+.. _eager-adjoint-behavior-change:
+
+The one behavior change — eager ``.H``
+--------------------------------------
+
+The carve is otherwise behavior-preserving; it has **exactly one**
+observable behavior change (spec §38). Before, ``A.H`` on a
+non-adjointable ``A`` *succeeded* — it constructed the wrapper
+unconditionally — and the refusal was **lazy**, deferred to the
+wrapper's first ``.apply``. Now
+:meth:`~orpheus.numerics.operator.LinearOperator.adjoint` raises
+:class:`~orpheus.numerics.operator.MissingAdjoint` **eagerly at
+construction**:
+
+.. code-block:: python
+
+   def adjoint(self):
+       if not adjointable(self):
+           raise MissingAdjoint(...)   # eager — was lazy at .apply
+       return _AdjointOperator(self)
+
+A wrapper that could only fail at its first ``.apply`` is precisely the
+broken-stub anti-pattern this module refuses; the
+:func:`~orpheus.numerics.operator.adjointable` guard doubles as the
+static bridge (the wrapper's constructor consumes the narrowed
+:class:`~orpheus.numerics.operator.SupportsAdjoint`).
+
+.. _design-c-false-dichotomy:
+
+What was tried and rejected — the per-class-casts vs base-declaration false dichotomy
+-------------------------------------------------------------------------------------
+
+The design that Design C *replaced* framed the choice as a dichotomy
+between two unappealing options, and the resolution was to recognise the
+dichotomy as false (taxonomy §16 record):
+
+- **Option A — declare ``inverse()`` on the base.** Then every call site
+  type-checks, but a
+  :class:`~orpheus.numerics.operator.ZeroOperator` (which mathematically
+  has no inverse) would inherit a method it cannot honour — demoting the
+  compiler's ability to catch ``Zero.inverse()`` misuse from a *static
+  error* to a *runtime raise*. The honest "this type has no inverse"
+  signal is lost.
+- **Option B — keep ``inverse()`` per-class and ``cast`` at every call
+  site.** Then structural absence is preserved (a static error on
+  ``Zero.inverse()``), but every composer body that calls ``op.inverse()``
+  on a ``LinearOperator``-typed operand needs a ``cast(SupportsInverse,
+  op)`` and a ``# type: ignore`` — an *unchecked* assertion that could
+  drift from the runtime truth exactly as the frozenset did.
+
+The false premise was that *structural* absence and *value-dependent*
+refusal are the same phenomenon. They are not: the
+:class:`~orpheus.numerics.operator.ZeroOperator` case is structural
+(Option A's failure), the zero-coefficient
+:class:`~orpheus.numerics.operator.DiagonalOperator` case is
+value-dependent (a method that *should* exist and refuse). **Design C
+splits them** — structural leaves omit the method (Option B's win,
+static error), value-dependent operators declare it and raise
+``NotInvertible`` (Option A's ergonomics, honest runtime refusal) — and
+replaces the *unchecked* ``cast`` (Option B's cost) with the *checked*
+``TypeGuard`` bridge, which certifies the narrowing at runtime. The two
+false horns dissolve because the two phenomena were never one.
+
+.. note:: **What the static layer can and cannot certify.**
+
+   Do NOT annotate a parameter with
+   :class:`~orpheus.numerics.operator.SupportsInverse` to *demand*
+   invertibility: the static layer can certify only **spelling** (the
+   method exists on the class), never **solvability** (the value-level
+   predicate). A zero-coefficient
+   :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+   satisfies ``SupportsInverse`` structurally yet is not invertible.
+   Guard with :func:`~orpheus.numerics.operator.invertible` at the
+   ``LinearOperator``-typed call site instead — and only there, since a
+   ``TypeGuard`` **replaces** (does not intersect) the declared type, so
+   guarding an already-concrete operand would widen it.
 
 
 .. _composition-algebra:
@@ -1000,11 +1400,20 @@ following closure laws:
      - **Does not propagate.** The zero operator is not invertible.
      - Trivially yes (returns zero).
 
-The closure rules above are enforced at composition time via
-:class:`~orpheus.numerics.operator.MissingCapability`; a downstream
-consumer that requests ``solve`` on :math:`L = A + 0` cannot silently
-hit a meaningless answer because the sum has already vetoed
-``solve`` propagation.
+The closure rules above are advertised by the recursive
+:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible` /
+:attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
+predicates and enforced by **eager guards** at composition time (an
+``apply`` mismatch raises ``TypeError``, a non-adjointable ``.H`` raises
+:class:`~orpheus.numerics.operator.MissingAdjoint`, a value-dependent
+``inverse()`` raises :class:`~orpheus.numerics.operator.NotInvertible`),
+never mid-iteration. A generic
+:class:`~orpheus.numerics.operator.OperatorSum` carries no ``solve``
+verb at all (Design B): solving with it IS applying its inverse object,
+``.inverse().apply`` (the
+:class:`~orpheus.numerics.green_operator.GreenOperator` splitting), so a
+downstream consumer that spells :math:`L = A + 0` and asks for its
+inverse action cannot silently receive :math:`A^{-1} + 0^{-1}`.
 
 
 Cross-solver consumption (forward reference)
@@ -1104,12 +1513,13 @@ any method needs for "multiply-by-weights along one axis":
 Self-adjointness is automatic for real-valued weights:
 :meth:`apply_transpose` is the same code path as :meth:`apply`.
 Invertibility is by-element: if every weight is non-zero, the
-operator advertises ``CAP_SOLVE`` and its :meth:`solve`
+operator reports ``is_invertible = True`` and its :meth:`solve`
 divides by :math:`w_n` along ``axis``. If any weight is zero,
-``solve`` is dropped from the capability set at construction time
-— a zero weight has no inverse, and the harmful-stub anti-pattern
-the capability-set design exists to prevent (a downstream Krylov
-consumer silently dividing by zero) is caught upfront.
+``is_invertible`` reports ``False`` and ``inverse()`` / ``solve`` raise
+:class:`~orpheus.numerics.operator.NotInvertible` **eagerly** (the
+value-dependent arm of Design C) — a zero weight has no inverse, and the
+harmful-stub anti-pattern the three-layer surface exists to prevent (a
+downstream Krylov consumer silently dividing by zero) is caught upfront.
 
 The implementation does NOT eagerly materialise an
 :math:`N \times N` diagonal matrix. The action is a single
@@ -1285,32 +1695,38 @@ in ``tests/transport/test_multiplication_operator.py`` on a discriminating
      - :math:`\mathrm{spec}(M[f]) = \mathrm{ess\,range}(f)`
      - :math:`M[f]` is invertible **iff** :math:`f` is bounded away from
        zero; the inverse is :math:`M[1/f]`. This is the honest
-       ``CAP_SOLVE`` gate (below).
+       invertibility gate (below).
 
-The spectrum law and the honest CAP_SOLVE gate
-----------------------------------------------
+The spectrum law and the honest invertibility gate
+--------------------------------------------------
 
 The spectrum of a multiplication operator is the essential range of its
 coefficient: :math:`M[f]` has a bounded inverse iff
 :math:`\mathrm{ess\,inf}\,|f| > 0`, in which case
-:math:`M[f]^{-1} = M[1/f]`. The promotion enforces this **at construction
-time** — :math:`M[f]` advertises ``CAP_SOLVE`` in its capability set
-**iff** :math:`\min|f| > 0`, and the gate is single-sourced from the
-broadcast engine (the operator inherits the engine's capability set, so
+:math:`M[f]^{-1} = M[1/f]`. The promotion enforces this at the value
+level —
+:attr:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator.is_invertible`
+reports ``True`` **iff** :math:`\min|f| > 0`, single-sourced from the
+broadcast engine (the operator reads the engine's ``is_invertible``, so
 the transport operator and the numerics engine agree by construction).
+The multiplier is the *value-dependent* arm of Design C
+(:ref:`design-c-structural-value-split`): it always **declares**
+``inverse()`` / ``solve`` (the type *can* invert), and refuses eagerly.
 
 This is a **behavioral strengthening**, an illegal-states-unrepresentable
 hardening (``coding-elegance`` Pattern 4). The legacy ``CollisionOperator``
-advertised ``CAP_SOLVE``
+advertised a ``solve``
 *unconditionally*; on a :math:`\sigma = 0` entry its ``solve`` divided
 :math:`q/\sigma` and produced a **silent IEEE NaN** that propagated into
 the iterate. The promotion refuses the inverse it does not have: a zero
-coefficient has no inverse, so the operator simply drops ``CAP_SOLVE``
-from its capability set, and a downstream Krylov consumer that needs the
-inverse is declined at *composition* time (with a
-:class:`~orpheus.numerics.operator.MissingCapability`) rather than
+coefficient has no inverse, so
+:attr:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator.is_invertible`
+reports ``False`` and any request for the inverse
+(``inverse()`` / ``solve``) raises
+:class:`~orpheus.numerics.operator.NotInvertible` **eagerly** rather than
 producing a NaN at *call* time. Construction still succeeds (the gate
-revokes ``solve``, never blocks the object); ``apply`` is unaffected.
+governs only the inverse, never blocks the object); ``apply`` is
+unaffected.
 
 .. note::
 
@@ -1341,8 +1757,8 @@ maps a field to a **scalar** — or, fiberwise over space, to a
 scalar-*field*. The functional surface is the single method
 ``evaluate(x) -> R``; it deliberately carries **none** of the
 :class:`~orpheus.numerics.operator.LinearOperator` surface (no
-``apply``, no ``capabilities``), and that disjointness is the
-category's defining property (#257 S5,
+``apply``, no ``is_invertible`` / ``is_adjointable``), and that
+disjointness is the category's defining property (#257 S5,
 :class:`orpheus.numerics.functional.Functional`).
 
 The category is seated at **both layers**. The generic numerics floor is
@@ -1435,13 +1851,14 @@ codomain:
 
 The asymmetry between the two non-Operator categories is the point. A
 **Kernel** *is* a :class:`~orpheus.numerics.operator.LinearOperator` (it
-still maps a field to a field, it still has ``apply`` and
-``capabilities``) and merely *adds* the ``kernel`` member — so it is a
+still maps a field to a field, it still has ``apply`` and the two-axis
+predicates) and merely *adds* the ``kernel`` member — so it is a
 strict refinement (:ref:`integral-kernel-category`). A **Functional** is
 *not* a :class:`~orpheus.numerics.operator.LinearOperator` at all: its
 sole surface is ``evaluate(x) -> R``, and it deliberately carries
-**none** of the operator surface — no ``apply``, no ``capabilities``, no
-``solve``, no ``apply_transpose``, no ``.H``, no ``domain`` / ``codomain``.
+**none** of the operator surface — no ``apply``, no ``is_invertible`` /
+``is_adjointable``, no ``solve``, no ``apply_transpose``, no ``.H``, no
+``domain`` / ``codomain``.
 That *disjointness* is the category's defining property, not an
 omission, and it is checkable: ``isinstance(p, Functional)`` is true while
 ``isinstance(p, LinearOperator)`` is false, and the discriminator foils
@@ -1648,7 +2065,7 @@ honesty of *not* wrapping them is itself a category-correctness claim.
    ``tests/transport/test_integrated_reaction_rate.py``
    (:math:`k_\infty` as the ratio of integrated rates, incl. the
    ``(n,2n)`` term). Dyad laws: ``tests/numerics/test_outer_dyad.py``
-   (action / rank-1 / capability / linearity). Estimator honesty:
+   (action / rank-1 / adjointability / linearity). Estimator honesty:
    ``tests/numerics/test_estimators_as_functionals.py``. The
    field-to-scalar contraction is coded in three places today
    (SN / CP / numerics) — unifying that fragmentation is tracked on #259.
@@ -1672,8 +2089,8 @@ a pointwise function of the input *there*, while a Kernel's output reads
 the input across an integrated axis. #257 S6 names this category as the
 :class:`orpheus.transport.operators.integral_kernel_operator.IntegralKernelOperator`
 Protocol — a **refinement of** LinearOperator (it still has ``apply`` +
-``capabilities``, UNLIKE the disjoint Functional) that adds a single
-``kernel`` member exposing the integral structure as a
+the two-axis predicates, UNLIKE the disjoint Functional) that adds a
+single ``kernel`` member exposing the integral structure as a
 :class:`~orpheus.numerics.operator.LinearOperator`:
 
 .. math::
@@ -1753,9 +2170,11 @@ This is why the category is a **refinement** of
 :class:`~orpheus.numerics.operator.LinearOperator` and not a disjoint
 sibling like the Functional. The Protocol is written
 ``IntegralKernelOperator(LinearOperator[V], Protocol[V])`` — a Kernel
-*is-a* LinearOperator (it keeps ``apply`` + ``capabilities`` +
-``domain`` + ``codomain``) and merely *adds* the ``kernel`` property, so
-the ``@runtime_checkable`` ``isinstance`` checks all five members. The
+*is-a* LinearOperator (it keeps the inherited surface: ``apply``, the
+``is_invertible`` / ``is_adjointable`` predicates, ``domain`` /
+``codomain``) and merely *adds* the ``kernel`` property, which the
+``@runtime_checkable`` ``isinstance`` sees on top of the inherited
+members. The
 refinement is **strict**, which the intrinsic gate verifies in both
 directions: a kernel-less LinearOperator
 (:class:`~orpheus.numerics.operator.IdentityOperator`, the local
@@ -2832,8 +3251,9 @@ the sequential per-axis application
 
 .. (vv-status rationale) Verified by
    ``tests/numerics/test_tensor_product_operator.py`` — Kronecker-
-   product reference on small concrete factors, capability-
-   intersection, and the algebraic laws below.
+   product reference on small concrete factors, the
+   ``is_invertible`` / ``is_adjointable`` predicate meet, and the
+   algebraic laws below.
 .. vv-status: tensor-product-action documented
 
 .. math::
@@ -2843,11 +3263,11 @@ the sequential per-axis application
    \;=\; A_k\bigl(\cdots A_2(A_1\,x) \cdots\bigr).
 
 Because the constituents act on disjoint axes, the order does not
-matter — the operators commute on the joint tensor. The
-``capabilities`` set is the **intersection** of the
-constituents' capabilities: the tensor product can apply iff every
-factor can apply, can apply_transpose iff every factor can, can
-solve iff every factor can.
+matter — the operators commute on the joint tensor. The two-axis
+predicates are the **meet** (recursive ``and``) over the
+constituents: the tensor product is invertible iff every factor is
+invertible, adjointable iff every factor is adjointable (``apply`` is
+universal).
 
 
 Algebraic laws
@@ -2912,8 +3332,8 @@ a layer above.
        nothing in the type system prevents passing a wrong-shaped
        ``Y`` or a wrong-axis ``w``.
    * - **Operator algebra** (this module)
-     - Typed operators; ``axis`` attribute on each factor; capability
-       intersection; algebraic laws checked at composition.
+     - Typed operators; ``axis`` attribute on each factor; the two-axis
+       predicate meet; algebraic laws checked at composition.
      - ``quad.angular_frame(L).analysis & IdentityOperator()`` —
        the type signal carries the axis structure; mismatched axes
        raise at composition; the :meth:`apply` routes through
@@ -2931,9 +3351,9 @@ could write. The advantage of the operator-algebra layer is in the
 * ``(A & B) @ (C & D)`` automatically reduces to
   ``(A @ C) & (B @ D)`` (the axis-wise composition law).
 * ``(A & B).H`` is ``A.H & B.H`` (adjoint distributivity).
-* The capability set is computed automatically; a missing
-  capability raises at composition, not at the first
-  :func:`numpy.einsum` call mid-iteration.
+* The ``is_invertible`` / ``is_adjointable`` predicates are computed
+  automatically; a composition mismatch raises at composition, not at
+  the first :func:`numpy.einsum` call mid-iteration.
 
 .. note::
 
@@ -3049,7 +3469,8 @@ not prevent a bug by construction earns nothing).
 
 The criterion is the field-type analogue of the tensor-product algebra's own
 discipline (a typed operator is justified when it carries an ``axis`` attribute,
-a capability set, and algebraic laws checked at composition — not merely a name):
+the two-axis inverse/adjoint predicates, and algebraic laws checked at
+composition — not merely a name):
 a typed field is justified when it carries a *dual* whose mixing must be
 forbidden, not merely a name.
 
@@ -4593,12 +5014,17 @@ Two structural reasons forbid the old fold:
    that **trace** domain, not the bulk. Folding :math:`B` into the
    bulk :math:`S` would erase the trace typing the future adjoint
    ``.H`` needs.
-#. :math:`B` **cannot join the** :math:`L+C` **preconditioner.**
-   :class:`~orpheus.numerics.operator.OperatorSum` does **not** carry
-   ``CAP_SOLVE`` (it defines only ``apply`` / ``apply_transpose``), so
-   an :math:`L + C - B` sum would strip the ``.solve`` (sweep) that the
-   SI step and the Krylov preconditioner depend on. :math:`B` must stay
-   a *gain* (lagged, applied) — never a summand of the resolvent.
+#. :math:`B` **cannot join the** :math:`L+C` **preconditioner.** A
+   generic :class:`~orpheus.numerics.operator.OperatorSum` carries **no**
+   direct-sweep ``solve`` — its inverse action is the *iterative*
+   :class:`~orpheus.numerics.green_operator.GreenOperator` splitting
+   (:ref:`green-operator`), not the ``(L+C)``
+   :class:`~orpheus.sn.operators.streaming.InvertibleOperator` subclass's
+   :math:`O(N\cdot N_{\rm cells})` forward-substitution sweep. So folding
+   :math:`B` into an :math:`L + C - B` sum would **demote** the cheap
+   direct sweep the SI step and the Krylov preconditioner depend on to an
+   iterated solve. :math:`B` must stay a *gain* (lagged, applied) — never
+   a summand of the resolvent.
 
 The old fold type-checked at the time **only because**
 :attr:`ScatteringOperator.domain` *was* ``None`` (the pre-W-D bulk
@@ -5908,19 +6334,23 @@ wrapper**.
    - **The carrier is** :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
      — a direct sum that dispatches the metric **per block** to its
      leaf spaces (a pure composition, no new metric arithmetic).
-   - **The metric-blind adjoint is unrepresentable via the capability
-     lattice, NOT the domain.** Since P4.5 W-D, ``C`` / ``S`` / ``F``
-     carry the SAME composite ``full_field_space`` as ``L`` / ``B`` (so
-     the within-group :class:`~orpheus.numerics.operator.OperatorSum`
-     guard *validates* the loss composition); the metric still applies
-     **once at the op level** because the
-     :class:`~orpheus.numerics.operator._AdjointOperator` wrapper reads
-     it off the *composite* ``domain`` / ``codomain`` of the summed
-     operator, never per-leaf. The guard against a metric-blind adjoint
-     is purely capability-based: ``S`` / ``F`` advertise no
-     ``apply_transpose``, so the full prompt-loss adjoint **raises**
-     :class:`~orpheus.numerics.operator.MissingCapability` at
-     composition — it never silently goes Euclidean.
+   - **The metric-blind adjoint is unrepresentable — the metric lives
+     on the shared space, NOT any leaf's domain.** Since P4.5 W-D, ``C``
+     / ``S`` / ``F`` carry the SAME composite ``full_field_space`` as
+     ``L`` / ``B`` (so the within-group
+     :class:`~orpheus.numerics.operator.OperatorSum` guard *validates*
+     the loss composition); the metric applies **once at the op level**
+     because the :class:`~orpheus.numerics.operator._AdjointOperator`
+     wrapper reads it off the *composite* ``domain`` / ``codomain`` of
+     the summed operator, never per-leaf. Because every loss leaf now
+     carries the composite metric, no composite adjoint is metric-blind,
+     and a non-adjointable operand still makes the recursive
+     :attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
+     report ``False``, so ``.H`` **raises**
+     :class:`~orpheus.numerics.operator.MissingAdjoint` **eagerly at**
+     ``.H`` **construction** — it never silently goes Euclidean. (The
+     reachability table below predates the #112/#118/#276 adjoint work
+     and is superseded; see its retraction note.)
    - **The trace metric is singular** on tangential ordinates
      (:math:`|\Omega\cdot\hat n| = 0`), so :math:`G^{-1}` is the
      **Moore–Penrose pseudo-inverse** (zero on the null space). This is
@@ -6152,8 +6582,8 @@ logic — the cleanest possible realization of the
 :ref:`metric-lives-at-the-leaf <eigenvalue-posing>` principle.
 
 
-The G-adjoint applies the metric once at the op level — the capability lattice
-------------------------------------------------------------------------------
+The G-adjoint applies the metric once at the op level — the adjoint-axis predicate
+----------------------------------------------------------------------------------
 
 The subtle architectural point of R5 is **where** the metric lives in
 the adjoint, and it survives the P4.5 W-D change to the bulk leaves'
@@ -6171,8 +6601,8 @@ within-group :class:`~orpheus.numerics.operator.OperatorSum` guard
 the bare / test constructor). The architecturally interesting fact is
 that this domain plumbing does **not** change where the metric is
 applied in the adjoint, and that the metric-blind adjoint is made
-**unrepresentable by the capability lattice, not by any leaf's
-domain**. Two mechanisms.
+**unrepresentable by the recursive** ``is_adjointable`` **predicate, not
+by any leaf's domain**. Two mechanisms.
 
 **(1) The metric applies ONCE at the op level — never per leaf.** The
 :class:`~orpheus.numerics.operator._AdjointOperator` wrapper realizes
@@ -6209,46 +6639,47 @@ on once by the sum's adjoint wrapper). The bulk leaves are pure
 :math:`(N,ng,nx,ny)\to(N,ng,nx,ny)` endomorphisms whose transpose is
 well-defined Euclidean-wise.
 
-**(2) The capability lattice makes the metric-blind state
-unrepresentable.** The only thing that could go wrong is an adjoint
-taken over a sum that does **not** contain ``L`` (and therefore has no
-metric). That composite cannot be formed: ``S`` and ``F`` advertise
-only ``{CAP_APPLY}`` (no ``apply_transpose``), so
+**(2) Every loss leaf carries the metric, so no composite adjoint is
+metric-blind.** The concern the original design guarded against was an
+adjoint taken over a sum that does **not** contain ``L`` and therefore,
+under the *pre*-W-D design, carried no metric :math:`G`. That concern is
+now **moot**: since P4.5 W-D every loss leaf — ``L``, ``C``, ``S``,
+``F``, ``B`` — carries the SAME composite ``full_field_space``, whose
+metric the :class:`~orpheus.numerics.operator._AdjointOperator` reads off
+the composite domain. Every composite adjoint that constructs is
+therefore metric-correct, whichever leaves it contains. The **surviving**
+guard is general and lives on the adjoint axis: any operator with a
+non-adjointable operand reports
+:attr:`~orpheus.numerics.operator.LinearOperator.is_adjointable`
+``= False``, and its :attr:`~orpheus.numerics.operator.LinearOperator.H`
+raises :class:`~orpheus.numerics.operator.MissingAdjoint` **eagerly at
+construction** — never silently Euclidean. This is
+**illegal-states-unrepresentable** (Cardinal Rule 2) realized through the
+recursive predicate, orthogonal to the W-D domain plumbing (which serves
+the *forward* composition guard).
 
-.. list-table:: Which loss-composite adjoints are reachable
-   :header-rows: 1
-   :widths: 30 22 48
-
-   * - Composite
-     - ``op.H`` reachable?
-     - Why
-   * - :math:`(L + C)`
-     - **yes**
-     - all operands have ``apply_transpose``; ``L`` carries :math:`G`
-   * - :math:`(L + C - B)`
-     - **yes**
-     - all operands have ``apply_transpose``; ``L`` carries :math:`G`
-   * - :math:`(L + C - S - F - B)`
-     - **no — raises**
-     - ``S`` / ``F`` lack ``apply_transpose`` ⟹
-       :class:`~orpheus.numerics.operator.OperatorSum` drops
-       ``CAP_APPLY_TRANSPOSE`` ⟹
-       :class:`~orpheus.numerics.operator._AdjointOperator` raises
-       :class:`~orpheus.numerics.operator.MissingCapability`
-
-The full prompt-loss adjoint :math:`(L + C - S - F - B)^{\dagger}` is
-**intentionally unreachable**: it fails **loud** at composition with
-:class:`~orpheus.numerics.operator.MissingCapability`, never silently
-Euclidean. The only composites whose ``.H`` is reachable —
-:math:`(L+C)` and :math:`(L+C-B)` — all contain :math:`L`, hence all
-carry the metric. This is **illegal-states-unrepresentable** (Cardinal
-Rule 2) realized through the **capability lattice** — orthogonal to the
-W-D domain plumbing, which serves the *forward* within-group
-composition guard, not the adjoint. The foldable scattering / fission
-contributions to the adjoint are handled at the eigenvalue / DSA outer
-layer (where the adjoint posing row daggers :math:`M = F` as
-:math:`M^{\dagger}`; see :ref:`eigenvalue-posing`), not via this
-within-group composite adjoint.
+.. note:: **Supersession — the S/F adjointability update.** An earlier
+   version of this section made the full prompt-loss adjoint
+   :math:`(L + C - S - F - B)^{\dagger}` *intentionally unreachable* by
+   having ``S`` and ``F`` carry **no** ``apply_transpose`` — a
+   non-adjointable operand blocked the composite. **That mechanism is
+   retired.** The #112 fission dyad-swap :math:`F^{\mathsf T}` and the
+   #118 / #276 scattering Euclidean transpose :math:`S^{\mathsf T}`
+   (via :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.full_scatter_kernel`)
+   gave both leaves a working ``apply_transpose``, so
+   :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
+   and :class:`~orpheus.transport.operators.fission.FissionOperator` now
+   report ``is_adjointable = True`` (``is_invertible`` still ``False`` —
+   a source operator is not invertible). The metric-blindness concern is
+   moot regardless, for two reasons: **(a)** every leaf carries the
+   composite ``full_field_space`` metric (above); and **(b)** the
+   within-group loss is never fused into a single
+   :math:`(L + C - S - F - B)` operator —
+   :func:`~orpheus.sn.solver._within_group_triple` returns the
+   ``(L + C, S, B)`` triple with ``S`` / ``B`` as **lagged gains** and
+   ``F`` handled at the eigenvalue / DSA **outer** layer (where the
+   adjoint posing row daggers :math:`M = F` as :math:`M^{\dagger}`; see
+   :ref:`eigenvalue-posing`), not via a within-group composite adjoint.
 
 
 The singular trace metric and the pseudo-inverse — exactness
@@ -7442,8 +7873,9 @@ Implementation map
   ``_MomentWindowedResolvent`` ``.solve`` adapter that once wrapped it is
   gone). Its analysis factor :math:`P` is sourced from the scattering
   operator's **own** frame, which is what makes the stored moments equal
-  :math:`S`'s internal projection term-for-term. The composite advertises
-  ``apply`` only — no ``CAP_SOLVE``, no round-trip promise (its :math:`P`
+  :math:`S`'s internal projection term-for-term. The composite reports
+  :attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`
+  ``= False`` — no round-trip promise (its :math:`P`
   factor is a coisometry) — and accepts the driver's ``initial_guess``
   kwarg accepted-and-ignored (:meth:`WindowedSweep.apply
   <orpheus.sn.operators.windowing.WindowedSweep.apply>`; the multi-D walk
@@ -8021,9 +8453,9 @@ test that hard-coded :math:`= \mathrm{I}` verified the *wrong* invariant.
 In the other order :math:`\text{reconstruction} \circ \text{analysis}
 \neq \mathrm{I}` (moments discard the ordinate-resolved angular content
 above the truncation order :math:`L`), so :math:`P` is **not
-invertible**. By the product's capability-closure laws the composite
-:math:`P \circ A^{-1}` therefore honestly advertises ``is_invertible =
-False`` and carries **no** ``CAP_SOLVE``. The windowed path makes *no
+invertible**. By the product's invertibility-closure law the composite
+:math:`P \circ A^{-1}` therefore honestly reports ``is_invertible =
+False`` (its ``P`` factor is structurally non-invertible), and makes *no
 round-trip promise* — which is the whole point: the old ``solve_moments``
 name suggested a *solve* (an inverse) where the object is a **projection
 composed with an inverse**.
@@ -8075,8 +8507,10 @@ the SI ≡ Krylov-full scalar cross-check and the closed-form
    correctness statements are (i) representation-equivalence to the
    deforested oracle and (ii) the structurally-independent scalar anchor.
    Reifying the composition made the confusion **structural**:
-   ``CAP_SOLVE`` is absent from the type, so a moment-proxy residual gate
-   cannot even be written against ``WindowedSweep``.
+   :class:`~orpheus.sn.operators.windowing.WindowedSweep` reports
+   ``is_invertible = False`` (its coisometry ``P`` factor is
+   non-invertible), so there is no round-trip an inverse-residual gate
+   could measure.
 
 At #226 step 2 one transitional wrapper remained: the driver still spoke
 ``.solve``, so a thin ``_MomentWindowedResolvent`` adapter held the
@@ -8097,7 +8531,7 @@ Cross-references: the reduction :math:`M_{\rm frame}` is
 (:ref:`galerkin-projection`); the two-layer "operators, not views" law is
 :ref:`operator-algebra`; the reified :math:`M = (L+C-B_{\rm lower})` the
 windowed forward may wrap is :ref:`si-gauss-seidel-reification`
-(:doc:`discrete_ordinates`); the capability-closure and
+(:doc:`discrete_ordinates`); the invertibility-closure and
 principled-equivalence framework is ``vv-principles`` § "Bit-identity vs
 principled-equivalence".
 
@@ -8239,20 +8673,22 @@ which reddens the seed-threading spy in under a second.
 
 Two further gates dissolved with it:
 
-* **The constructor** ``CAP_SOLVE`` **gate is gone.** The driver's whole
-  contract is now ``CAP_APPLY`` — the step operator arrives *pre-inverted*,
-  so it never needs a ``solve``. The **invertibility obligation moved to
-  the inverse builder**: ``.inverse()`` on a non-invertible leaf *raises*
-  (:class:`~orpheus.numerics.operator.MissingCapability`), so "is this a
+* **The constructor invertibility gate is gone.** The driver's whole
+  contract is now a callable ``apply`` — the step operator arrives
+  *pre-inverted*, so it never needs a ``solve``. The **invertibility
+  obligation moved to the inverse builder**: on a non-invertible leaf
+  the inverse simply cannot be constructed (a *structural* leaf declares
+  no ``inverse()`` — a static error; a *value-dependent* one raises
+  :class:`~orpheus.numerics.operator.NotInvertible`), so "is this a
   faithful inverse of the intended forward?" is discharged where the
   operator is *built*, not re-checked where it is *applied*.
 * **An apply-only step operator is legitimate by design.** The windowed
-  product ``P @ A.inverse()`` advertises ``apply`` only (its :math:`P`
-  factor is a coisometry — no ``CAP_SOLVE``, :ref:`windowing-retyped`), and
-  that is exactly the shape the driver now expects. Gating on ``CAP_APPLY``
-  alone — not ``CAP_SOLVE`` — is what makes the apply-only windowed product
-  a first-class step operator rather than an illegal state needing an
-  adapter.
+  product ``P @ A.inverse()`` reports ``is_invertible = False`` (its
+  :math:`P` factor is a coisometry, :ref:`windowing-retyped`), yet it is
+  a valid step operator because a step operator only needs to *apply*.
+  Gating on a callable ``apply`` alone — not on invertibility — is what
+  makes the apply-only windowed product a first-class step operator
+  rather than an illegal state needing an adapter.
 
 
 The narrowing boundary and the structural resolution (#285)
@@ -8360,7 +8796,7 @@ The two eigenvalue-outer consumers pose the inverse explicitly:
 
 * :class:`~orpheus.numerics.iteration.KEigenvalue` guards
   ``A.is_invertible`` **at construction** (a non-invertible :math:`A`
-  raises :class:`~orpheus.numerics.operator.MissingCapability` with a
+  raises :class:`~orpheus.numerics.operator.NotInvertible` with a
   domain message, not an ``AttributeError`` mid-iteration) and builds its
   inner :class:`~orpheus.numerics.iteration.SourceIteration` step via
   ``_seeded_inverse(A)``.
@@ -8622,7 +9058,7 @@ rule, extended to the sum inverse. The four edges:
    * - ``(-S) + A``
      - *(refused)*
      - The left-spine head :math:`-S` is not invertible; the factory raises
-       :class:`~orpheus.numerics.operator.MissingCapability` at
+       :class:`~orpheus.numerics.operator.NotInvertible` at
        **construction**, naming the canonical ordering (spell the invertible
        operator first, ``A - S``).
 
@@ -8635,10 +9071,11 @@ For ``(-S) + A`` the operator :math:`A - S` *is* mathematically invertible,
 yet the predicate reports ``False`` because :math:`-S` is spelled first.
 This is acceptable precisely because the #261 rule already makes operand
 order semantically load-bearing, no production consumer relies on the
-spelling-independent meaning, and the refusal is **loud**. ``CAP_SOLVE`` is
-added to the sum in lockstep with ``is_invertible`` (the same
-``self.a.is_invertible`` condition), keeping the faithfulness keystone
-``is_invertible ≡ CAP_SOLVE`` honest.
+spelling-independent meaning, and the refusal is **loud**. Since carve
+P4 there is no parallel ``CAP_SOLVE`` tag to keep in lockstep:
+``is_invertible`` is the *single* advertisement, and the keystone v2
+faithfulness contract (:ref:`capability-set-semantics`) pins that
+``.inverse()`` returns exactly when ``is_invertible`` is ``True``.
 
 
 The promise — the TRUE residual, driven not merely checked
@@ -8727,10 +9164,11 @@ The wrap-delegate mixin — extracted at the third sibling
 Every inverse in this family is a thin typed wrapper around its own forward
 operator :math:`A`: ``apply`` realizes :math:`A^{-1}` by the sibling's
 algorithm, and *everything else is delegation*. That back-half —
-``capabilities = {CAP_APPLY, CAP_SOLVE}``, the domain↔codomain swap
-(an inverse maps the forward's codomain back to its domain), ``solve`` = the
-forward matvec ``inner.apply`` (solving :math:`A^{-1}y = b` *is* applying
-:math:`A`), and the object-identity involution ``inverse() → inner``
+``is_invertible = True`` with ``solve`` = the forward matvec
+``inner.apply`` (solving :math:`A^{-1}y = b` *is* applying :math:`A`),
+the domain↔codomain swap
+(an inverse maps the forward's codomain back to its domain), and the
+object-identity involution ``inverse() → inner``
 (:math:`(A^{-1})^{-1} = A`) — was carried byte-identically by
 :class:`~orpheus.numerics.operator.InverseOperator` and
 :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` as documented
@@ -8765,8 +9203,10 @@ Every Green value gate is a foundation / flux-shape claim against such an
 anchor: **no eigenvalue claim, no MMS reference** (an iterative sum inverse
 is not an eigenvalue solver, and MMS is source-driven — neither pillar
 applies here). The ``inverse().apply ≡ solve`` equivalence that anchored
-steps 1–3 is a **tautology** for the sum (``OperatorSum.solve`` is *defined*
-as ``self.inverse().apply``) and is deliberately excluded as evidence.
+steps 1–3 is a **tautology** for the sum (since carve P4 the generic sum
+carries **no** ``solve`` at all — ``inverse().apply`` *is* its only
+inverse action, so no second spelling exists to compare) and is
+deliberately excluded as evidence.
 
 .. list-table:: Step-4 verification gates (all ``@pytest.mark.foundation``)
    :header-rows: 1
@@ -8968,7 +9408,7 @@ against the same factors.
 
 It is the fourth
 :class:`~orpheus.numerics.operator.InverseWrapMixin` sibling, so its entire
-back-half — ``capabilities = {apply, solve}``, the domain↔codomain swap,
+back-half — ``is_invertible = True``, the domain↔codomain swap,
 ``solve`` = the forward matvec ``inner.apply``, and the object-identity
 involution ``inverse() → inner`` — is inherited. It keeps only the family's
 three per-sibling pieces: its constructor guard, its ``apply`` body, and
@@ -9095,7 +9535,7 @@ whose **leading term is not invertible**: the canonical motivating form is
 the SN :math:`(-S)+(L+C)`, which
 :class:`~orpheus.numerics.green_operator.GreenOperator` **refuses at
 construction** (left-spine head :math:`-S` non-invertible, canonical-ordering
-:class:`~orpheus.numerics.operator.MissingCapability`) yet which materializes
+:class:`~orpheus.numerics.operator.NotInvertible`) yet which materializes
 to a perfectly invertible matrix. Because the real :math:`(-S)+(L+C)` is a
 ``FullField`` carrier — **out of ``as_matrix``'s ndarray scope** (the
 honest-scope note below) — the gate proves the identical refusal/inversion

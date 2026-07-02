@@ -123,8 +123,9 @@ Operator Algebra (Wave A)
 
 The :mod:`orpheus.numerics.operator` module installs the matrix-free
 operator-algebra primitives consumed by every solver. See
-:ref:`operator-algebra` for the design rationale, capability-set
-semantics, and tensor-product algebra.
+:ref:`operator-algebra` for the design rationale, the three-layer
+operator surface (predicate / operator-returning method / realization
+verb), and tensor-product algebra.
 
 Tensor-product primitives (Wave 0 of SN performance plan, Wave T
 consumers landed May 2026):
@@ -294,7 +295,7 @@ discipline-type hierarchy, GitHub #268):
   :meth:`~orpheus.numerics.frame.FrameBase.project` (:math:`G^{-1}M`, the
   homogenise / condense verb) normalises by a **row-sum** Gram probe,
   valid only for a row-sum-collapsible trial; it **refuses**
-  (:class:`~orpheus.numerics.operator.MissingCapability`) a trial whose
+  (:class:`~orpheus.numerics.operator.NotInvertible`) a trial whose
   :attr:`~orpheus.numerics.basis.base.Basis.gram_structure` is
   :attr:`~orpheus.numerics.basis.base.GramStructure.DENSE` (the dense
   :math:`(MR)^{-1}M` least-squares solve is unbuilt — `GitHub #275
@@ -492,8 +493,9 @@ API Reference
    :show-inheritance:
 
 The :class:`~orpheus.numerics.operator.LinearOperator` Protocol,
-its capability-set semantics, and the composition / tensor-product
-primitives are documented at :ref:`operator-algebra` (theory page).
+its three-layer inverse/adjoint surface, and the composition /
+tensor-product primitives are documented at :ref:`operator-algebra`
+(theory page).
 The :class:`~orpheus.numerics.functional.Functional` Protocol (the §5.6
 suffix-law co-vector), its concrete
 :class:`~orpheus.numerics.functional.InnerProductFunctional`, and the

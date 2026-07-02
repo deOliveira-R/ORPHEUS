@@ -1016,9 +1016,11 @@ Two derived combinations carry their own names:
 - The fusion target :math:`A_{wg} = L + C - S_{\text{foldable}}`
   is the within-group system; its ``solve`` routes through the
   fused :func:`~orpheus.sn.loss_representation.transport_sweep` (the
-  ``OperatorSum.solve`` fusion hook recognises the
-  ``L + C - S_{\text{foldable}}`` pattern and emits one call to
-  the sweep rather than the unfused Krylov outer-iteration).
+  ``L + C`` composition rule mints the sweep-invertible
+  :class:`~orpheus.sn.operators.streaming.InvertibleOperator`, whose
+  own ``solve`` override emits one call to the sweep rather than the
+  unfused Krylov outer-iteration — the generic ``OperatorSum`` carries
+  no ``solve`` at all since carve P4).
 - The multiplication operator :math:`K = A_{\text{loss}}^{-1} F`
   carries the k-eigenvalue iteration; lives implicitly in
   :meth:`~orpheus.sn.solver.SNSolver.solve_eigenvalue`.
