@@ -55,12 +55,14 @@ refused, it is priced into the M-direct :math:`\kappa(A)` bound).
 dense ``np.linalg.solve(A, F)`` IS this operator's action written as free
 functions — the latent consumer that made the promotion finishable
 (taxonomy §5); the engine itself stays ndarray-pure (its closed-form
-verification is the point). The homogeneous solver materializes through
-``as_matrix`` today and its full operator spelling
-``K = MatrixInverseOperator(loss) @ F`` is the follow-on step (task
-#138); CP's ``[P]`` — dense by construction, §14b — is the production
-method that earns the class. Until then the M-gates construct it
-directly, the same consumer ruling GreenOperator shipped under at step 4.
+verification is the point). The homogeneous solver is the FIRST
+production consumer (taxonomy step 5b):
+:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite` spells
+``K = MatrixInverseOperator(loss) @ production`` and eigendecomposes
+``K.as_matrix()`` — the explicit direct-realization choice over the
+structure-keyed ``loss.inverse()`` (which would return the iterative
+Green splitting). CP's ``[P]`` — dense by construction, §14b — is the
+next production method in line.
 
 **Placement.** A leaf module importing :mod:`orpheus.numerics.operator`
 (the ``green_operator.py`` precedent) — and unlike Green, nothing in

@@ -1,8 +1,9 @@
-r"""``DirectEigenvalue`` — the direct (non-iterative) dominant eigenpair (L0/L1).
+r"""``direct_eigenvalue`` + ``dominant_eigenpair`` — the direct (non-iterative)
+dominant eigenpair (L0/L1).
 
-#276 P4-D. ``DirectEigenvalue`` is the DIRECT sibling of
-:func:`~orpheus.numerics.eigenvalue.power_iteration`: the EXACT dominant
-eigenpair of the generalized eigenproblem
+#276 P4-D minted :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`, the
+DIRECT sibling of :func:`~orpheus.numerics.eigenvalue.power_iteration`: the
+EXACT dominant eigenpair of the generalized eigenproblem
 
 .. math::
 
@@ -12,18 +13,26 @@ eigenpair of the generalized eigenproblem
 
 returned in one LAPACK call (``eig(solve(A, F))``) for SMALL densifiable
 operators. ``power_iteration`` converges to the SAME eigenpair iteratively
-for large sweep-only operators.
+for large sweep-only operators. Taxonomy step 5b extracted the shared
+Perron–Frobenius extraction primitive
+:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair` (argmax-real
+selection, complex-dominant rejection, real-cast, ``φ.sum() ≥ 0`` sign
+convention) — the ONE home ``direct_eigenvalue`` delegates to and the
+homogeneous K-path calls DIRECTLY; this file gates both surfaces
+(:class:`TestDominantEigenpair` + the one-home neuter-proofs).
 
-This file is the **headline pure-math gate**: it verifies ``DirectEigenvalue``
+This file is the **headline pure-math gate**: it verifies the engines
 against TRANSPORT-UNRELATED linear algebra with **hand-derived** closed-form
 eigenpairs. Structural independence is by construction — every reference
 eigenvalue/eigenvector is either (a) hand-verified ``M @ v == k·v``, (b) built
 from chosen eigenpairs via ``M = V diag(λ) V⁻¹`` (recovery asserted), or (c) a
 closed-form rank-1 identity ``k = vᵀA⁻¹u``. **No reference value is produced by
 calling the same ``np.linalg.eig`` the SUT uses.** Once verified this way,
-``DirectEigenvalue`` becomes trusted machinery whose structural independence as
-a *verification tool* comes from the consumer assembling ``A``/``F`` differently
-(e.g. the homogeneous solver), not from the eigensolver.
+``direct_eigenvalue`` / ``dominant_eigenpair`` become trusted machinery whose
+structural independence as a *verification tool* comes from the consumer
+assembling ``A``/``F`` (or the materialized resolvent) differently
+(e.g. the homogeneous solver's operator-algebra K-path), not from the
+eigensolver.
 
 vv claim layers (1.5 gate)
     * Convergence-order: n/a (direct solver, no discretisation).
@@ -58,29 +67,22 @@ pytestmark = pytest.mark.l1
 
 
 # ───────────────────────────────────────────────────────────────────────────
-# Binding adapter (PRE-IMPL tolerant + API-shape agnostic).
-#
-# The final spelling of the primitive is open (see the spec memo): a class
-# ``DirectEigenvalue(A, F).solve() -> (k, phi)`` OR a free function
-# ``direct_eigenvalue(A, F) -> (k, phi)``. This adapter binds to whichever
-# ships and SKIPS cleanly while neither exists, so the file collects green
-# pre-impl (consistent with the ``importorskip`` pre-impl pattern elsewhere).
-# When the SUT lands, every gate below exercises the REAL primitive.
+# Binding adapters. Both engines shipped as free functions — #276 P4-D landed
+# ``direct_eigenvalue(A, F)`` and taxonomy step 5b extracted the shared
+# Perron–Frobenius primitive ``dominant_eigenpair(M)`` it delegates to. The
+# P4-D pre-impl skip scaffolding is RETIRED: a missing symbol is now a loud
+# AttributeError regression, never a silent skip (Mode-11 relapse guard).
 # ───────────────────────────────────────────────────────────────────────────
 
 
 def _solve(A: np.ndarray, F: np.ndarray) -> tuple[float, np.ndarray]:
-    """Return ``(k, phi)`` from the new direct dominant-eigenpair primitive."""
-    cls = getattr(_eig, "DirectEigenvalue", None)
-    if cls is not None:
-        return cls(A, F).solve()
-    fn = getattr(_eig, "direct_eigenvalue", None)
-    if fn is not None:
-        return fn(A, F)
-    pytest.skip(
-        "#276 P4-D PRE-IMPL: neither DirectEigenvalue nor direct_eigenvalue is "
-        "on orpheus.numerics.eigenvalue yet."
-    )
+    """Return ``(k, phi)`` from the (A, F)-posed direct engine."""
+    return _eig.direct_eigenvalue(A, F)
+
+
+def _dom(M: np.ndarray) -> tuple[float, np.ndarray]:
+    """Return ``(k, phi)`` from the shared extraction primitive, called DIRECTLY."""
+    return _eig.dominant_eigenpair(M)
 
 
 def _require(condition: object, message: str) -> None:
@@ -448,6 +450,153 @@ class TestEdgeContracts:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# dominant_eigenpair — the DIRECT public surface of the shared extraction
+# primitive (taxonomy step 5b).
+#
+# ``dominant_eigenpair(M)`` is the eig-extraction body both direct engines
+# share: ``direct_eigenvalue(A, F)`` reaches it through delegation after
+# ``np.linalg.solve`` (every class above pins that route transitively), and
+# the homogeneous K-path (``dominant_eigenpair(K.as_matrix())``) calls it
+# DIRECTLY — bypassing direct_eigenvalue's (A, F) posing validation
+# entirely. This class proves the STANDALONE contract: calling the primitive
+# directly applies the same guards. It reuses the file's hand-derived
+# matrices (``dominant_eigenpair(M)`` == the ``A = I`` resolvent case) and
+# deliberately does NOT mirror the transitive classes — those already cover
+# the shared body through the delegated surface.
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestDominantEigenpair:
+    r"""The direct ``M → (k, φ)`` contract of :func:`dominant_eigenpair`."""
+
+    def test_hand_value_and_dominant_selection(self):
+        """k = 5 selected from the MIDDLE of the LAPACK eigenvalue order
+        (an argmax→first/last slip returns 2 or 1), φ = e₁."""
+        k, phi = _dom(np.diag([2.0, 5.0, 1.0]))
+        np.testing.assert_allclose(k, 5.0, rtol=1e-12, atol=0)
+        cos = abs(_unit(phi) @ _unit([0.0, 1.0, 0.0]))
+        _require(cos > 1 - 1e-12, f"eigenvector ≠ e₁: |cos|={cos:.12f}.")
+
+    def test_symmetric_hand_pair(self):
+        """Hand pair of [[2,1],[1,2]]: k = 3, φ ∝ [1,1], and the residual law."""
+        M = np.array([[2.0, 1.0], [1.0, 2.0]])
+        k, phi = _dom(M)
+        np.testing.assert_allclose(k, 3.0, rtol=1e-12, atol=0)
+        cos = abs(_unit(phi) @ _unit([1.0, 1.0]))
+        _require(cos > 1 - 1e-12, f"eigenvector ≠ [1,1]: |cos|={cos:.12f}.")
+        _assert_generalized_eigenpair(np.eye(2), M, k, phi)
+
+    def test_complex_dominant_raises(self):
+        """NEGATIVE guard leg (anti-pattern-#11 pair): a complex-pair-dominated
+        spectrum ({3±2i, 2}) violates the Perron–Frobenius contract → raise."""
+        M = np.array([[3.0, -2.0, 0.0], [2.0, 3.0, 0.0], [0.0, 0.0, 2.0]])
+        with pytest.raises(ValueError):
+            _dom(M)
+
+    def test_real_dominant_from_complex_spectrum(self):
+        """POSITIVE guard leg (anti-pattern-#11 pair): a complex spectrum with a
+        REAL dominant ({5, 1±3i}) must NOT over-raise — k is a real float and
+        φ a real-dtype array (the real()-cast applied, not leaked)."""
+        k, phi = _dom(TestComplexSpectrum._M)
+        _require(
+            not isinstance(k, complex) and float(np.imag(k)) == 0.0,
+            f"k must be a real float; got {k!r}.",
+        )
+        np.testing.assert_allclose(float(np.real(k)), 5.0, rtol=1e-12, atol=0)
+        _require(
+            np.isrealobj(np.asarray(phi)),
+            f"φ must be real-dtype; got dtype={np.asarray(phi).dtype}.",
+        )
+
+    def test_sign_normalization(self):
+        """φ.sum() ≥ 0 on the pinned negative-sum matrix (the raw LAPACK
+        orientation is negative-sum there — pinned by
+        ``TestSignNormalisation::test_sign_flip_is_exercised_here``)."""
+        _k, phi = _dom(TestSignNormalisation._M)
+        s = float(np.asarray(phi, dtype=float).sum())
+        _require(s >= 0.0, f"φ.sum()={s:.6e} < 0 — the sign normalisation did not fire.")
+
+    def test_residual_law(self):
+        """The intrinsic law ``M φ = k φ`` on a generic non-symmetric M."""
+        _A, _F, V, lam = TestIntrinsicProperties._generic()
+        M = V @ np.diag(lam) @ np.linalg.inv(V)  # same spectrum, posed directly
+        k, phi = _dom(M)
+        np.testing.assert_allclose(k, float(lam.max()), rtol=1e-10, atol=0)
+        _assert_generalized_eigenpair(np.eye(3), M, k, phi)
+
+    def test_non_square_raises(self):
+        """A rectangular M has no eigenpair — the shape guard raises."""
+        with pytest.raises(ValueError):
+            _dom(np.ones((3, 2)))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ONE-HOME proof (step 5b) — the relocated Perron–Frobenius validations live
+# in ``dominant_eigenpair`` ALONE; ``direct_eigenvalue`` inherits them by
+# delegation and holds NO duplicate copy. The discriminator: mutating the one
+# home MUST change the delegated surface's behavior (a duplicate guard would
+# survive the neuter). The mutation IS the test — in-process monkeypatch
+# (never git-revert), ``-O``-safe (pytest.raises / _require).
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+def test_complex_rejection_lives_only_in_dominant_eigenpair(monkeypatch):
+    """One-home proof, complex axis: neutering ``dominant_eigenpair``'s
+    rejection makes ``direct_eigenvalue``'s rejection VANISH — the guard was
+    relocated, not copied."""
+    A = np.eye(3)
+    F = np.array([[3.0, -2.0, 0.0], [2.0, 3.0, 0.0], [0.0, 0.0, 2.0]])  # 3±2i, 2
+    # BASELINE — both surfaces reject (the home has teeth; delegation inherits):
+    with pytest.raises(ValueError):
+        _eig.dominant_eigenpair(F)
+    with pytest.raises(ValueError):
+        _eig.direct_eigenvalue(A, F)
+
+    # NEUTER the one home (drop the complex-reject AND the real-cast):
+    def _neutered(M, *, imag_tol=1e-9):
+        del imag_tol
+        vals, vecs = np.linalg.eig(np.asarray(M, dtype=float))
+        d = int(np.argmax(np.real(vals)))
+        return vals[d], vecs[:, d]  # NO raise, NO real()
+
+    monkeypatch.setattr(_eig, "dominant_eigenpair", _neutered)
+    k_direct = _eig.direct_eigenvalue(A, F)[0]
+    _require(
+        np.iscomplexobj(np.asarray(k_direct)) or float(np.imag(k_direct)) != 0.0,
+        "direct_eigenvalue STILL rejected the complex dominant after neutering "
+        "dominant_eigenpair — it owns a DUPLICATE complex-guard, not the single "
+        "home (validation was copied, not relocated).",
+    )
+
+
+def test_sign_normalization_lives_only_in_dominant_eigenpair(monkeypatch):
+    """One-home proof, sign axis: neutering the flip in ``dominant_eigenpair``
+    flips ``direct_eigenvalue``'s output negative on the pinned negative-sum
+    matrix — no duplicate flip downstream."""
+    M = TestSignNormalisation._M  # raw LAPACK dominant orientation: negative-sum
+    _k, phi = _eig.direct_eigenvalue(np.eye(3), M)
+    _require(float(phi.sum()) >= 0.0, "baseline broken: φ.sum() < 0 pre-neuter.")
+
+    # NEUTER only the sign-flip (keep selection, rejection, real-cast):
+    def _no_flip(Mat, *, imag_tol=1e-9):
+        Mat = np.asarray(Mat, dtype=float)
+        vals, vecs = np.linalg.eig(Mat)
+        d = int(np.argmax(np.real(vals)))
+        lam = vals[d]
+        if abs(float(np.imag(lam))) > imag_tol:
+            raise ValueError("complex dominant")
+        return float(np.real(lam)), np.real(vecs[:, d])  # NO sign flip
+
+    monkeypatch.setattr(_eig, "dominant_eigenpair", _no_flip)
+    _k2, phi2 = _eig.direct_eigenvalue(np.eye(3), M)
+    _require(
+        float(phi2.sum()) < 0.0,
+        "direct_eigenvalue STILL sign-normalised after neutering "
+        "dominant_eigenpair — it owns a DUPLICATE flip, not the single home.",
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # Mode-10 TEETH PROOF — every gate is provably ABLE to red.
 #
 # The SUT is not implemented yet, so this class carries an EXECUTABLE REFERENCE
@@ -491,7 +640,13 @@ def _ref_solve(A, F, *, mut: str | None = None) -> tuple[Any, np.ndarray]:
 
 
 class TestGatesHaveTeeth:
-    """Each documented mutation reddens the gate that claims to catch it."""
+    """Each documented mutation reddens the gate that claims to catch it.
+
+    Every teeth case here uses ``A = I``, so ``_ref_solve(I, M, mut)`` IS
+    ``dominant_eigenpair(M)`` mutated — this class doubles as the teeth
+    evidence for the step-5b direct surface (:class:`TestDominantEigenpair`)
+    with zero new mutation apparatus.
+    """
 
     def test_argmin_mutation_reddens_value_gate(self):
         """argmax→argmin: PM-4 value gate (k==5) reddens (returns 1, the min)."""

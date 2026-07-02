@@ -9567,36 +9567,56 @@ The consumer ruling — the latent normal form
 --------------------------------------------
 
 Like :class:`~orpheus.numerics.green_operator.GreenOperator` at step 4,
-``MatrixInverseOperator`` ships **verified but not yet wired as the
-production spelling** — its value gates construct it directly, and the
-factory routing waits. The consumers, present and latent:
+``MatrixInverseOperator`` **shipped** at step 5 verified but not yet wired as
+a production spelling — its value gates constructed it directly, and the
+factory routing waited. Taxonomy **step 5b closed that loop**: the homogeneous
+solver is now the **first production consumer** (below). What still waits is
+the *factory routing* — an automatic ``.inverse()`` that returns this type —
+which homogeneous deliberately **bypasses** (see the ``direct_eigenvalue``
+bullet). The consumers, from latent to landed:
 
 * **The retired ``_as_dense``.** The homogeneous solver's private
-  apply-to-basis loop is retired into
-  :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`; both call
-  sites — the loss matrix :math:`\mathbf A = C - K_{\rm iso}` and the
-  fission dyad :math:`\mathbf F = \chi\otimes\nu\Sigma_f` — now read
-  ``op.as_matrix(basis_shape=(n_g, 1))``. The output is **byte-identical**
-  (same basis columns, same C-order, same eigen call); a ``HOMOG-EQUIV``
-  gate inlines the retired loop as a local oracle, and the landed SymPy
-  :math:`k_\infty` pins stayed green untouched. See :ref:`theory-homogeneous`.
-* **``direct_eigenvalue`` — the latent consumer.**
+  apply-to-basis loop was retired into
+  :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix` at step 5, so
+  the materialization of the loss operator :math:`\mathbf A = C - K_{\rm iso}`
+  and the fission dyad :math:`\mathbf F = \chi\otimes\nu\Sigma_f` both flow
+  through the one promoted base method rather than a bespoke loop. The output
+  stayed **byte-identical** through that retirement (same basis columns, same
+  C-order, same eigen call), and the landed SymPy :math:`k_\infty` pins stayed
+  green untouched. (Step 5b then re-spelled the whole eigensolve as
+  ``K = MatrixInverseOperator(loss) @ production``: the loss materialization
+  now happens *inside* the inverse operator's constructor, and the product's
+  own ``as_matrix`` forms :math:`[\mathbf K] = \mathbf A^{-1}\mathbf F`.) See
+  :ref:`theory-homogeneous`.
+* **``direct_eigenvalue`` — the latent consumer, now realized.**
   :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`'s dense
   ``np.linalg.solve(A, F)`` **is** this operator's action written as free
   functions — the latent consumer that made the promotion finishable
   (taxonomy §5: "no current consumer" often means "consumer not yet
   wired"). The engine itself stays **ndarray-pure** — its closed-form
-  verification is the point — so the full operator spelling
-  ``K = MatrixInverseOperator(loss) @ F`` is the follow-on (task #138), not
-  this step.
-* **CP :math:`[P]` — the production earner.** The collision-probability
-  matrix is dense **by construction** (:doc:`collision_probability`, §14b),
-  so a CP ``.inverse()`` realized as a ``MatrixInverseOperator`` is the
-  method that will earn the class in production.
+  verification is the point — so it was never going to be the *production*
+  spelling. That spelling landed at **task #138 (step 5b)**: the homogeneous
+  solver now composes ``K = MatrixInverseOperator(loss) @ production`` and
+  eigendecomposes ``K.as_matrix()``, making it the **first production
+  consumer** of the class. It constructs the matrix inverse *explicitly*
+  rather than via the structure-keyed ``loss.inverse()`` — which, reading the
+  sum :math:`C - K_{\rm iso}` (invertible leading term), would return the
+  iterative :class:`~orpheus.numerics.green_operator.GreenOperator` splitting
+  — the direct-realization strategy encoded as a type. With the operator
+  spelling live, ``direct_eigenvalue`` has **zero production consumers**,
+  retained as the ``(A, F)``-posed sibling engine and the RQI test oracle.
+  See :ref:`direct-eigensolve-solve`.
+* **CP :math:`[P]` — the next production method in line.** The
+  collision-probability matrix is dense **by construction**
+  (:doc:`collision_probability`, §14b), so a CP ``.inverse()`` realized as a
+  ``MatrixInverseOperator`` is the next production consumer after homogeneous.
 
 This is the **same consumer ruling** ``GreenOperator`` shipped under at step
-4: the type is correct and pinned now; the factory dispatch and the
-normal-form spellings arrive with their consumers.
+4: the type is correct and pinned, and its consumers arrive incrementally —
+homogeneous first (step 5b), CP next. The *factory dispatch* that would route
+``.inverse()`` to this type automatically is the remaining seam; explicit
+construction by a size-aware consumer is the honest interim (and, for
+homogeneous, the deliberate permanent choice).
 
 
 Verification

@@ -58,14 +58,22 @@ for large, sweep-only operators that are never densely formed.  Two siblings
 in :mod:`orpheus.numerics.eigenvalue` solve the same generalised
 eigenproblem by different realisations:
 :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` forms the dense
-resolvent :math:`\mathbf{A}^{-1}\mathbf{F}` and returns the EXACT dominant
-eigenpair in one LAPACK call — the right tool for small, densifiable
-operators (the 0-D homogeneous medium) — and
+resolvent :math:`\mathbf{A}^{-1}\mathbf{F}` from a posed
+:math:`(\mathbf{A}, \mathbf{F})` pair via :func:`numpy.linalg.solve` and
+returns the EXACT dominant eigenpair — the right tool for small, densifiable
+operators — and
 :func:`~orpheus.numerics.eigenvalue.rayleigh_quotient_iteration` polishes an
 eigenpair *estimate* to the NEAREST eigenpair superlinearly (bordered /
-augmented-Newton).  The full three-engine comparison, and the pure-math
-verification principle that lets a production solver and its oracle share an
-engine without contamination, is at :ref:`three-eigenvalue-engines`.
+augmented-Newton).  Both direct engines terminate in one shared
+Perron–Frobenius extraction primitive,
+:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`, which takes a
+materialized resolvent :math:`\mathbf{M}` — *however* it was formed, whether
+from the ``(A, F)`` pair or through the operator algebra as in the homogeneous
+:math:`k_\infty` solve — selects the dominant eigenpair, sign-normalises the
+mode, and rejects a complex dominant as a malformed problem.  The full
+three-engine comparison, and the pure-math verification principle that lets a
+production solver and its oracle share an engine without contamination, is at
+:ref:`three-eigenvalue-engines`.
 
 
 The EigenvalueSolver Protocol
@@ -110,12 +118,14 @@ The infinite **homogeneous** solver is the one deterministic solver
 that does **not** implement this protocol: with no spatial coupling
 its loss operator is a single :math:`G \times G` dense block, so
 :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite` takes
-the dominant eigenpair of :math:`\mathbf{A}^{-1}\mathbf{F}` **directly**
-via :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` (one
-:func:`numpy.linalg.solve` forms the dense resolvent, one
-:func:`numpy.linalg.eig` takes its dominant eigenpair — no power
-iteration). See :ref:`theory-homogeneous` and
-:ref:`three-eigenvalue-engines`.
+the dominant eigenpair of :math:`\mathbf{A}^{-1}\mathbf{F}` **directly**,
+with no power iteration.  It spells the resolvent in the operator algebra —
+``K = MatrixInverseOperator(loss) @ production`` (the first production
+consumer of
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`) —
+and extracts the eigenpair from the materialized :math:`[\mathbf{K}]` via the
+shared :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`.  See
+:ref:`theory-homogeneous` and :ref:`three-eigenvalue-engines`.
 
 
 Operator Algebra (Wave A)

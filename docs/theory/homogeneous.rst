@@ -26,14 +26,26 @@ Key Facts
   into production — the retired bespoke bug — moves :math:`\kinf` by
   :math:`\sim 0.43` on the asymmetric-:math:`\Sigma_2` ``homo_2eg_n2n`` case.)
 - 1-group: :math:`k = \nu\Sigma_f / \Sigma_a` (exact, no iteration)
-- Multi-group: :math:`k = \lambda_{\max}(\mathbf{A}^{-1}\mathbf{F})` via the
-  **exact dense engine** :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`
-  (one :func:`numpy.linalg.solve` forms :math:`\mathbf{A}^{-1}\mathbf{F}`, one
-  :func:`numpy.linalg.eig` takes its dominant eigenpair) — there is **no power
-  iteration**. The 0-D spectrum is an *exact* eigenproblem, so the direct
-  (non-iterative) engine is used, not the iterative
+- Multi-group: :math:`\kinf = \lambda_{\max}(\mathbf{K})`, the dominant
+  eigenpair of the multiplication operator
+  :math:`\mathbf{K} = \mathbf{A}^{-1}\mathbf{F}` **spelled in the operator
+  algebra** — ``K = MatrixInverseOperator(loss) @ production`` — and extracted
+  from the materialized :math:`[\mathbf{K}]` by the shared Perron--Frobenius
+  primitive :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`. There is
+  **no power iteration**: the 0-D spectrum is an *exact* eigenproblem, so the
+  direct dense inverse is used, not the iterative
   :func:`~orpheus.numerics.eigenvalue.power_iteration` the spatially-coupled
-  solvers use (see :ref:`three-eigenvalue-engines`)
+  solvers use (see :ref:`direct-eigensolve-solve`,
+  :ref:`three-eigenvalue-engines`)
+- **Homogeneous is the FIRST production consumer of**
+  :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+  (taxonomy step 5b). Constructing the matrix inverse *explicitly* — rather
+  than calling the structure-keyed ``loss.inverse()``, which would return the
+  **iterative** :class:`~orpheus.numerics.green_operator.GreenOperator`
+  splitting — **is** the direct-realization strategy choice, encoded as a type
+  rather than a flag. :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`
+  (the ``(A, F)``-posed sibling engine) is **no longer on the homogeneous call
+  path**
 - **A is assembled from the transport operators**, not a bespoke matrix:
   :math:`\mathbf{A} = C - K_\mathrm{iso}` over a *meshless* single-cell
   :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`, with
@@ -947,14 +959,19 @@ The construction proceeds in four steps inside
    ``[g_from, g_to]`` transfer transposed) and
    :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`
    realises :math:`2\Sigma_2^T` (the loss-side multiplicity-2 transfer).
-   The dense :math:`(n_g, n_g)` loss matrix is **not** assembled
-   term-by-term from per-material blocks: the composed operator
-   :math:`\mathbf A = C - K_\mathrm{iso}` (an
-   :class:`~orpheus.numerics.operator.OperatorSum`) is materialized by its
-   own
-   :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`
-   apply-to-basis (:ref:`matrix-inverse-operator`) on the meshless single
-   cell, ``basis_shape=(ng, 1)``. (The operators'
+   The composed loss operator :math:`\mathbf A = C - K_\mathrm{iso}` is
+   returned **un-materialized** (an
+   :class:`~orpheus.numerics.operator.OperatorSum`) by the private
+   ``_assemble_loss_operator`` helper — the consumer chooses the
+   realization (taxonomy step 5b). Its dense :math:`(n_g, n_g)` form is
+   **not** assembled term-by-term from per-material blocks; it is produced
+   one layer later, by the operator's own
+   :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix` apply-to-basis
+   (:ref:`matrix-inverse-operator`) on the meshless single cell,
+   ``basis_shape=(ng, 1)``, **inside the**
+   :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+   **constructor** (one eager materialization + LU factorization; see
+   :ref:`direct-eigensolve-solve`). (The operators'
    :meth:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering.dense_per_material`
    accessor — the transpose read straight off the stored cross sections — is
    a storage-side *oracle* used by the verification gates as a
@@ -1013,21 +1030,90 @@ Perron–Frobenius theorem [Hebert2009]_ this dominant eigenvector is the
 unique non-negative solution — the **fundamental mode** — so the spectrum
 is sign-normalised to non-negative components.
 
-Both steps are the single engine
-:func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`\ ``(A, F)``: one
-:func:`numpy.linalg.solve` forms the dense resolvent
-:math:`\mathbf{M} = \mathbf{A}^{-1}\mathbf{F}`, one :func:`numpy.linalg.eig`
-takes its spectrum, the dominant (largest-real) eigenpair is selected, and
-:math:`\boldsymbol{\phi}` is sign-normalised so its components sum to a
-non-negative value.  A **complex** dominant eigenvalue is *rejected*
-(:class:`ValueError`): the resolvent :math:`\mathbf{A}^{-1}\mathbf{F}` of a
-well-posed criticality problem has a real, positive dominant eigenvalue by
-Perron–Frobenius, so a complex one signals a malformed
-:math:`(\mathbf{A}, \mathbf{F})` and is failed loud rather than silently
-truncated (Cardinal Rule 1).  ``direct_eigenvalue`` is the exact, dense,
-non-iterative engine of :mod:`orpheus.numerics.eigenvalue` — the right tool
-for this 0-D problem precisely because the infinite-medium spectrum is
-*exactly* solvable (:ref:`three-eigenvalue-engines`).
+Both steps are spelled in the **operator algebra** rather than posed as a
+dense ``(A, F)`` pair.  The multiplication operator
+:math:`\mathbf{K} = \mathbf{A}^{-1}\mathbf{F}` :eq:`fixed-source-solve` is
+constructed, and its dominant eigenpair taken, in four lines:
+
+.. code-block:: python
+
+   loss = _assemble_loss_operator(mat_xs)          # A = C − K_iso, un-materialized
+   production = FissionOperator.from_solver_data(mat_xs=mat_xs)   # F = χ ⊗ νΣ_f
+   K = MatrixInverseOperator(loss, basis_shape=(ng, 1)) @ production
+   k_inf, phi = dominant_eigenpair(K.as_matrix(basis_shape=(ng, 1)))
+
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+materializes and LU-factors the loss operator **once** at construction; the
+``@`` composes it with the fission dyad into the multiplication operator
+:math:`\mathbf{K}`.  Its
+:meth:`~orpheus.numerics.operator.LinearOperator.as_matrix` then walks the
+:math:`G` basis columns — each column is one dyad apply
+:math:`\mathbf{F}\mathbf{e}_j` followed by one LU backsolve
+:math:`\mathbf{A}^{-1}(\cdot)` against the held factors — producing the dense
+:math:`G \times G` resolvent :math:`[\mathbf{K}] = \mathbf{A}^{-1}\mathbf{F}`
+(the loss matrix is still **solved out** of the production, never inverted
+into an explicit :math:`[\mathbf{A}^{-1}]`).
+
+The dominant eigenpair of that materialized resolvent is then taken by
+:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`, the **shared
+Perron–Frobenius extraction primitive**: it runs :func:`numpy.linalg.eig`,
+selects the largest-real eigenpair, sign-normalises :math:`\boldsymbol{\phi}`
+so its components sum to a non-negative value, and **rejects a complex
+dominant eigenvalue** (:class:`ValueError`) — the resolvent
+:math:`\mathbf{A}^{-1}\mathbf{F}` of a well-posed criticality problem has a
+real, positive dominant by Perron–Frobenius, so a complex one signals a
+malformed :math:`(\mathbf{A}, \mathbf{F})` and is failed loud rather than
+silently truncated (Cardinal Rule 1).  This validation has **one home**
+(:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`); every direct
+spelling delegates to it.
+
+**Explicit direct realization — the strategy choice as a type.**  The
+homogeneous solver is the **first production consumer** of
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+(taxonomy step 5b).  It constructs the matrix inverse *explicitly* rather
+than calling the structure-keyed ``loss.inverse()`` — which, reading the
+operand tree :math:`C - K_\mathrm{iso}` (a sum with an invertible leading
+collision diagonal :math:`C`), would return the **iterative**
+:class:`~orpheus.numerics.green_operator.GreenOperator` preconditioned
+splitting.  For a 0-D loss operator that is a single small dense block the
+iterative splitting is the wrong realization and the exact dense inverse is
+right; encoding that decision as the *type* ``MatrixInverseOperator`` — not a
+``strategy=`` flag on ``.inverse()`` — is the taxonomy §3 strategy-override
+seam realized honestly (the type **is** the choice).
+
+The ``(A, F)``-posed convenience engine
+:func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` is the **sibling
+spelling** of this same exact-dense extraction: it forms the resolvent from a
+dense ``(A, F)`` pair via :func:`numpy.linalg.solve` and then delegates to the
+identical :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`.  Both routes
+terminate in the one extraction home; they differ only in how the resolvent is
+*posed* — the homogeneous path builds it through the operator algebra and so
+**no longer calls** ``direct_eigenvalue``, which now has **zero production
+consumers**, retained as the ``(A, F)``-posed engine of the three-engine
+family (:ref:`three-eigenvalue-engines`) and the Rayleigh-quotient test oracle.
+
+.. note::
+
+   **Principled-equivalence re-baseline (step 5b).**  Re-spelling the
+   resolvent through the operator algebra changed the LAPACK call sequence:
+   the previous :func:`numpy.linalg.solve` formed
+   :math:`\mathbf{A}^{-1}\mathbf{F}` in one batched ``gesv``; the operator
+   path holds a single :func:`scipy.linalg.lu_factor` of :math:`\mathbf{A}`
+   and issues one ``lu_solve`` backsolve per basis column.  Because
+   floating-point addition is not associative, the two sequences may differ
+   at the ULP level, so the cross-engine regression contract widened from
+   byte-identity to ``rtol=1e-12`` (:math:`\kappa(\mathbf{A})\cdot`\ ULP
+   portable across BLAS builds; measured bit-identical on the reference host,
+   numpy 2.4 / scipy 1.17 sharing one LAPACK).  This satisfies all three
+   re-baseline criteria (:ref:`operator-algebra`): the resolvent is formed
+   from **named** operators (``MatrixInverseOperator`` is
+   :math:`\mathbf{A}^{-1}`, the fission dyad is :math:`\mathbf{F}`); the value
+   is anchored on a **structurally-independent** reference — the closed-form
+   SymPy :math:`\kinf` of ``test_kinf_exact`` (1e-12), into which
+   ``dominant_eigenpair`` is never wired; and the admissible drift
+   (:math:`\sim\kappa(\mathbf{A})\cdot`\ ULP) is orders of magnitude below any
+   rewire bug (a factor swap or dropped term moves :math:`k` by
+   :math:`O(10^{-3})` or more).
 
 .. note::
 
@@ -1049,12 +1135,87 @@ for this 0-D problem precisely because the infinite-medium spectrum is
 .. note::
 
    Because :math:`\mathbf{A}` is a single small dense block, the whole
-   solve is one :func:`numpy.linalg.solve` plus one
-   :func:`numpy.linalg.eig`.  There is **no inner iteration and no outer
-   iteration** — the homogeneous solver is the one deterministic solver
-   in ORPHEUS with no iteration at all.  This is what makes it the
-   instantaneous reference eigenvalue for every other solver on a
+   solve is one :func:`scipy.linalg.lu_factor` of :math:`\mathbf{A}`,
+   :math:`G` ``lu_solve`` backsolves to form the resolvent
+   :math:`[\mathbf{K}]`, and one :func:`numpy.linalg.eig`.  There is **no
+   inner iteration and no outer iteration** — the homogeneous solver is the
+   one deterministic solver in ORPHEUS with no iteration at all.  This is what
+   makes it the instantaneous reference eigenvalue for every other solver on a
    homogeneous problem.
+
+
+.. _spectral-invisibility:
+
+Spectral invisibility: what the eigenvalue gate cannot see
+----------------------------------------------------------
+
+Two natural mistakes in the operator spelling — swapping the factor **order**
+of the resolvent (:math:`\mathbf{F}\mathbf{A}^{-1}` instead of
+:math:`\mathbf{A}^{-1}\mathbf{F}`), and **transposing** the materialized
+resolvent — are *spectrally invisible*: they move :math:`\kinf` by **exactly
+zero**.  Every :math:`k`-level gate (the cross-engine equivalence, the
+closed-form SymPy anchor) is therefore structurally **blind** to them.  The
+reason is a pair of standard linear-algebra identities, and understanding them
+dictates *which* gate must catch the bug.
+
+**Factor-order swap is a similarity transform.**  For any invertible
+:math:`\mathbf{A}`,
+
+.. math::
+   :label: resolvent-similarity
+
+   \mathbf{A}\,\bigl(\mathbf{A}^{-1}\mathbf{F}\bigr)\,\mathbf{A}^{-1}
+   \;=\; \mathbf{F}\mathbf{A}^{-1},
+
+.. vv-status: resolvent-similarity documented
+.. Structural linear-algebra identity (similarity of the swapped resolvent),
+.. NOT a solver claim; explains why the factor-order/transpose mutations are
+.. spectrally invisible. Verifiable content is the object-level matrix gate
+.. ``test_K_operator_as_matrix_is_the_resolvent`` (rtol=1e-12) named below.
+
+so :math:`\mathbf{F}\mathbf{A}^{-1} = \mathbf{A}\,\mathbf{M}\,\mathbf{A}^{-1}`
+is **similar** to :math:`\mathbf{M} = \mathbf{A}^{-1}\mathbf{F}` with
+similarity matrix :math:`\mathbf{A}`.  Similar matrices share their entire
+spectrum, so :math:`\lambda_{\max}(\mathbf{F}\mathbf{A}^{-1}) =
+\lambda_{\max}(\mathbf{A}^{-1}\mathbf{F}) = \kinf` **identically**.  The
+eigenvector is *not* invariant — if
+:math:`\mathbf{M}\boldsymbol{\phi} = \kinf\boldsymbol{\phi}` then
+:math:`(\mathbf{F}\mathbf{A}^{-1})(\mathbf{A}\boldsymbol{\phi}) =
+\kinf(\mathbf{A}\boldsymbol{\phi})`, i.e. the mode maps
+:math:`\boldsymbol{\phi} \mapsto \mathbf{A}\boldsymbol{\phi}` — but the
+*eigenvalue* is untouched.
+
+**Transpose preserves the spectrum.**  A matrix and its transpose share a
+characteristic polynomial,
+:math:`\det(\mathbf{M}^{\mathsf T} - \lambda\mathbf{I}) =
+\det\bigl((\mathbf{M} - \lambda\mathbf{I})^{\mathsf T}\bigr) =
+\det(\mathbf{M} - \lambda\mathbf{I})`, so
+:math:`\lambda_{\max}(\mathbf{M}^{\mathsf T}) = \lambda_{\max}(\mathbf{M}) =
+\kinf` (the eigenvectors of :math:`\mathbf{M}^{\mathsf T}` being the *left*
+eigenvectors of :math:`\mathbf{M}`).
+
+Both mutations were verified to give :math:`|\Delta\kinf| = 0.0` exactly.  A
+value gate that reads only the eigenvalue — or even the sign-normalised
+eigenvector, whose *shape* is fixed only up to the
+:math:`\boldsymbol{\phi} \mapsto \mathbf{A}\boldsymbol{\phi}` remapping above —
+cannot see either bug.  The committed catcher is therefore an **object-level**
+gate, not a spectral one: ``test_K_operator_as_matrix_is_the_resolvent``
+asserts the *materialized matrix itself* equals the reference resolvent,
+
+.. math::
+
+   [\mathbf{K}] \;=\; \texttt{np.linalg.solve}(\mathbf{A},\,\mathbf{F})
+   \qquad (\text{rtol} = 10^{-12}),
+
+and both mutations move :math:`[\mathbf{K}]` by :math:`O(1)`
+(:math:`\mathbf{F}\mathbf{A}^{-1} \neq \mathbf{A}^{-1}\mathbf{F}` unless
+:math:`\mathbf{A}` and :math:`\mathbf{F}` commute;
+:math:`\mathbf{M}^{\mathsf T} \neq \mathbf{M}` unless :math:`\mathbf{M}` is
+symmetric).  The general lesson is **pin the object, not just its spectrum**: a
+value gate can be blind to an entire mutation class for structural (here
+spectral-similarity) reasons, so a resolvent-forming operator earns an
+intrinsic gate on the matrix it produces, above and beyond the eigenvalue it
+feeds.
 
 
 .. _three-eigenvalue-engines:
@@ -1085,11 +1246,16 @@ the same generalised eigenproblem
        sees only a normalised-source fixed point, never a dense matrix.
    * - :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`
      - **exact** (one LAPACK shot)
-     - **Small, densifiable** operators — the 0-D infinite medium here,
-       few-group / few-region problems.  Forms the dense resolvent
-       :math:`\mathbf{A}^{-1}\mathbf{F}` and returns the EXACT dominant
-       eigenpair.  The direct (non-iterative) sibling of
-       ``power_iteration``.
+     - **Small, densifiable** operators posed as a dense
+       :math:`(\mathbf{A}, \mathbf{F})` pair — few-group / few-region
+       problems.  Forms the dense resolvent
+       :math:`\mathbf{A}^{-1}\mathbf{F}` via :func:`numpy.linalg.solve` and
+       delegates the extraction to
+       :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`.  The direct
+       (non-iterative) sibling of ``power_iteration``; the 0-D homogeneous
+       medium reaches the *same* exact extraction through the operator-algebra
+       spelling (:ref:`direct-eigensolve-solve`) rather than this ``(A, F)``
+       entry point.
    * - :func:`~orpheus.numerics.eigenvalue.rayleigh_quotient_iteration`
      - iterative, **superlinear** (locally quadratic)
      - Polishing an eigenpair *estimate* to the eigenpair NEAREST its
@@ -1100,18 +1266,19 @@ the same generalised eigenproblem
        adjoint-:math:`\phi^*` vehicle, is
        `#277 <https://github.com/deOliveira-R/ORPHEUS/issues/277>`_.
 
-The infinite-medium :math:`\kinf` uses
-:func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` because the 0-D loss
-matrix :math:`\mathbf{A}` is a single :math:`G \times G` block, so the
-spectrum of :math:`\mathbf{A}^{-1}\mathbf{F}` is **exactly solvable** — an
-iterative engine would only approximate, at a convergence tolerance, an
-answer the dense solve gives to machine precision in one shot.  That
-exactness matters here specifically: the homogeneous solver is verified
-against a :math:`10^{-12}` **closed-form** analytical eigenvalue (the
-``homo_1eg`` / ``homo_2eg`` / ``homo_4eg`` benchmarks below), and the cost
-an iterative engine pays to reach :math:`10^{-12}` is coupled to the
-dominance ratio :math:`|k_1/k_0|`, a dependence the direct engine does not
-have.
+The infinite-medium :math:`\kinf` takes the **exact dense** route — the
+operator-algebra spelling ``MatrixInverseOperator(loss) @ production``
+extracted by :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`
+(:ref:`direct-eigensolve-solve`) — because the 0-D loss matrix
+:math:`\mathbf{A}` is a single :math:`G \times G` block, so the spectrum of
+:math:`\mathbf{A}^{-1}\mathbf{F}` is **exactly solvable**: an iterative engine
+would only approximate, at a convergence tolerance, an answer the dense solve
+gives to machine precision in one shot.  That exactness matters here
+specifically: the homogeneous solver is verified against a :math:`10^{-12}`
+**closed-form** analytical eigenvalue (the ``homo_1eg`` / ``homo_2eg`` /
+``homo_4eg`` benchmarks below), and the cost an iterative engine pays to reach
+:math:`10^{-12}` is coupled to the dominance ratio :math:`|k_1/k_0|`, a
+dependence the direct dense inverse does not have.
 
 .. note::
 
@@ -1124,20 +1291,21 @@ have.
    in fact converge in *one* step on this problem.  That one-step property
    is a fragile consequence of :math:`\mathbf{F}`'s rank-1 structure, not a
    general guarantee — it does not survive a future multi-spectrum
-   production term.  :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`
-   is exact for **any** :math:`\mathbf{F}`, so it is the robust as well as
-   the exact choice.
+   production term.  The **exact dense inverse** is exact for **any**
+   :math:`\mathbf{F}`, so it is the robust as well as the exact choice.
 
-**The pure-math verification of the engines.**  All three engines are
-verified against a **transport-unrelated, hand-derived closed-form
-eigenproblem** — :math:`\mathbf{M} = V\operatorname{diag}(\lambda)V^{-1}`
-with chosen eigenpairs, and the rank-1 closed form
-:math:`k = v^{\mathsf T} A^{-1} u` — in the pure-math gate
-``tests/numerics/test_eigenvalue.py`` (24 closed-form gates + 6 RQI gates).
-This is a **closed-form** reference: V&V pillar 1, the *only* pillar that
-proves an eigenvalue (MMS is source-driven and cannot).  No reference value
-is produced by calling the same :func:`numpy.linalg.eig` the engine uses, so
-the cross-check is structurally independent by construction.
+**The pure-math verification of the engines.**  All three engines — and the
+shared :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair` extraction they
+delegate to — are verified against a **transport-unrelated, hand-derived
+closed-form eigenproblem** — :math:`\mathbf{M} =
+V\operatorname{diag}(\lambda)V^{-1}` with chosen eigenpairs, and the rank-1
+closed form :math:`k = v^{\mathsf T} A^{-1} u` — in the pure-math gate
+``tests/numerics/test_eigenvalue.py`` (the closed-form eigenproblem, the direct
+``dominant_eigenpair`` surface with its one-home relocation proofs, and the RQI
+gates).  This is a **closed-form** reference: V&V pillar 1, the *only* pillar
+that proves an eigenvalue (MMS is source-driven and cannot).  No reference
+value is produced by calling the same :func:`numpy.linalg.eig` the engine uses,
+so the cross-check is structurally independent by construction.
 
 Once an engine is pinned against domain-independent ground truth it is
 **trusted machinery**, and a production solver AND its verification oracle
@@ -1149,8 +1317,8 @@ algebra (:ref:`direct-eigensolve-assembly`); an oracle may build the same
 :math:`\mathbf{A} = \operatorname{diag}(\Sigma_t) - \Sigma_{s0}^{T} -
 2\Sigma_2^{T}` by the fused route.  Two different structural paths to the
 same matrix, cross-checked at the eigenvalue — the shared, pre-verified
-eigensolver is not a contamination because the independence was never asked
-of it.
+extraction (:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`) is not a
+contamination because the independence was never asked of it.
 
 
 Flux Normalisation

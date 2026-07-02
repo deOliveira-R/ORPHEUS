@@ -234,6 +234,94 @@ def power_iteration(
     return keff, keff_history, flux_distribution
 
 
+def _sign_normalised(v: np.ndarray) -> np.ndarray:
+    r"""Sign-normalise an eigenvector to the physical, non-negative convention.
+
+    A criticality eigenvector is a flux distribution — defined up to scale,
+    and in particular up to SIGN.  The family-wide output convention is
+    ``v.sum() >= 0`` (the physical, non-negative spectrum); this helper is
+    its single source, shared by every engine that emits an eigenvector
+    (:func:`dominant_eigenpair` — and through it :func:`direct_eigenvalue` —
+    and :func:`rayleigh_quotient_iteration`).
+    """
+    return v if v.sum() >= 0.0 else -v
+
+
+def dominant_eigenpair(
+    M: np.ndarray,
+    *,
+    imag_tol: float = 1e-9,
+) -> tuple[float, np.ndarray]:
+    r"""Dominant (Perron--Frobenius) eigenpair of a materialized resolvent.
+
+    The shared eigen-EXTRACTION primitive of the direct engines: given the
+    dense resolvent :math:`M = A^{-1}F` — *however it was formed* — return
+    the dominant eigenpair with the criticality contract enforced.  This is
+    the ONE home of the Perron--Frobenius validation (taxonomy step 5b): by
+    Krein--Rutman / Perron--Frobenius the fundamental mode of a well-posed
+    criticality resolvent is the unique non-negative eigenvector and its
+    eigenvalue is **real and positive**, so a complex dominant eigenvalue is
+    rejected as a malformed problem (Cardinal Rule 1 — fail loud, never
+    return a non-eigenvalue).
+
+    Two callers, one validation:
+
+    * :func:`direct_eigenvalue` — forms the resolvent from the posed
+      ``(A, F)`` pair via :func:`numpy.linalg.solve`, then delegates here.
+    * the homogeneous K-path
+      (:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`) —
+      forms the resolvent through the operator algebra
+      ``K = MatrixInverseOperator(loss) @ production`` and materializes it
+      with :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`,
+      bypassing the ``(A, F)`` posing boundary entirely.
+
+    Parameters
+    ----------
+    M : np.ndarray
+        The materialized resolvent (square, ``(n, n)``, real) whose
+        dominant eigenpair is sought.
+    imag_tol : float, optional
+        Tolerance on the dominant eigenvalue's imaginary part before it is
+        rejected as complex.  Default ``1e-9``.
+
+    Returns
+    -------
+    k : float
+        The dominant eigenvalue :math:`\lambda_{\max}(M)` (largest real
+        part; real by the Perron--Frobenius contract).
+    phi : np.ndarray
+        The corresponding right eigenvector (real-dtype, ``(n,)``),
+        sign-normalised so ``phi.sum() >= 0``; its absolute scale is
+        arbitrary (rescale to a target production rate / power downstream).
+
+    Raises
+    ------
+    ValueError
+        If ``M`` is not a square 2-D matrix, or the dominant eigenvalue is
+        complex (``|Im λ| > imag_tol``).
+    """
+    M = np.asarray(M, dtype=float)
+    if M.ndim != 2 or M.shape[0] != M.shape[1]:
+        raise ValueError(
+            f"dominant_eigenpair: M must be a square 2-D matrix; got shape {M.shape}."
+        )
+    eigvals, eigvecs = np.linalg.eig(M)
+
+    # The dominant (Perron–Frobenius) mode: the largest real part.
+    dominant = int(np.argmax(np.real(eigvals)))
+    lam = eigvals[dominant]
+    if abs(float(np.imag(lam))) > imag_tol:
+        raise ValueError(
+            f"dominant_eigenpair: the dominant eigenvalue is complex "
+            f"({lam:.6g}); the resolvent A⁻¹F of a well-posed criticality "
+            f"problem has a real dominant eigenvalue (Perron–Frobenius). "
+            f"A complex dominant signals a malformed problem."
+        )
+    k = float(np.real(lam))
+    phi = _sign_normalised(np.real(eigvecs[:, dominant]))
+    return k, phi
+
+
 def direct_eigenvalue(
     A: np.ndarray,
     F: np.ndarray,
@@ -255,11 +343,14 @@ def direct_eigenvalue(
         k \;=\; \lambda_{\max}\!\bigl(A^{-1}F\bigr), \qquad
         A^{-1}F\,\varphi \;=\; k\,\varphi .
 
-    It is the right realization for **small, densifiable** operators — the 0-D
-    infinite-medium spectrum
-    (:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`), few-group /
-    few-region problems — where the iterative engine would only approximate (at
-    a dominance-ratio-dependent rate) an answer the dense solve gives exactly.
+    It is the right realization for **small, densifiable** operators — 0-D
+    infinite-medium spectra, few-group / few-region problems — where the
+    iterative engine would only approximate (at a dominance-ratio-dependent
+    rate) an answer the dense solve gives exactly.  (The homogeneous solver
+    :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite` poses that
+    problem class through the operator algebra instead and reaches the shared
+    kernel via :func:`dominant_eigenpair` directly — taxonomy step 5b — so a
+    change here does NOT move its :math:`k_\infty`.)
     Both engines solve the SAME posed problem
     :math:`(A_{\rm loss}, M) = (A, F)`; they differ only in exact-dense vs
     iterative.
@@ -298,13 +389,16 @@ def direct_eigenvalue(
     ------
     ValueError
         If ``A`` / ``F`` are not square matrices of equal shape, or the dominant
-        eigenvalue is complex (``|Im λ| > imag_tol``).
+        eigenvalue is complex (``|Im λ| > imag_tol`` — raised by
+        :func:`dominant_eigenpair`, the shared extraction home).
     numpy.linalg.LinAlgError
         If ``A`` is singular (propagated from :func:`numpy.linalg.solve`).
 
     See Also
     --------
     power_iteration : the iterative sibling (large sweep-only operators).
+    dominant_eigenpair : the shared Perron--Frobenius extraction primitive
+        this engine delegates to after forming the resolvent.
 
     Notes
     -----
@@ -329,26 +423,11 @@ def direct_eigenvalue(
         )
 
     # The dense resolvent A⁻¹F.  np.linalg.solve raises LinAlgError on a
-    # singular A — a malformed loss matrix, left to fail loud.
-    resolvent = np.linalg.solve(A, F)
-    eigvals, eigvecs = np.linalg.eig(resolvent)
-
-    # The dominant (Perron–Frobenius) mode: the largest real part.
-    dominant = int(np.argmax(np.real(eigvals)))
-    lam = eigvals[dominant]
-    if abs(float(np.imag(lam))) > imag_tol:
-        raise ValueError(
-            f"direct_eigenvalue: the dominant eigenvalue is complex "
-            f"({lam:.6g}); the resolvent A⁻¹F of a well-posed criticality "
-            f"problem has a real dominant eigenvalue (Perron–Frobenius). "
-            f"A complex dominant signals a malformed (A, F)."
-        )
-    k = float(np.real(lam))
-
-    phi = np.real(eigvecs[:, dominant])
-    if phi.sum() < 0.0:  # sign-normalise to a physical, non-negative spectrum
-        phi = -phi
-    return k, phi
+    # singular A — a malformed loss matrix, left to fail loud.  The
+    # Perron–Frobenius extraction (argmax-real selection, complex-dominant
+    # rejection, sign normalisation) lives in ONE home — the shared
+    # :func:`dominant_eigenpair` primitive (taxonomy step 5b).
+    return dominant_eigenpair(np.linalg.solve(A, F), imag_tol=imag_tol)
 
 
 def rayleigh_quotient_iteration(
@@ -489,5 +568,5 @@ def rayleigh_quotient_iteration(
             stacklevel=2,
         )
 
-    phi = v if v.sum() >= 0.0 else -v  # sign-normalise to a non-negative spectrum
+    phi = _sign_normalised(v)  # the family-wide non-negative-spectrum convention
     return k, phi

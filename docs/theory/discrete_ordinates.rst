@@ -17847,6 +17847,39 @@ branch and have no landed hash yet.
      - Where
    * - in dev
        (2026-07-02)
+     - **Operator-inverse taxonomy step 5b — homogeneous spells the full
+       resolvent in the operator algebra; MatrixInverseOperator's first
+       production consumer (#226)** —
+       :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`
+       re-spelled onto ``K = MatrixInverseOperator(loss, basis_shape=(ng,1))
+       @ production``, the eigenpair extracted by the NEW shared
+       Perron–Frobenius primitive
+       :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair` — the ONE
+       home of the argmax-real selection, complex-dominant rejection, and
+       ``φ.sum() ≥ 0`` sign convention
+       (:func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` now
+       delegates and keeps zero production consumers as the
+       ``(A, F)``-posed sibling engine; RQI's inline sign-flip folded onto
+       the same ``_sign_normalised``). The explicit
+       ``MatrixInverseOperator(loss)`` construction is the
+       **strategy-choice-as-type** seam realized: the structure-keyed
+       ``loss.inverse()`` would return the ITERATIVE Green splitting — the
+       exactly-solvable 0-D problem earns the dense direct realization.
+       ``_assemble_loss_matrix`` → ``_assemble_loss_operator`` (returns the
+       UN-materialized ``C − K_iso``; MatrixInverseOperator's eager-LU ctor
+       densifies). Re-baseline **principled-equivalence** (batched ``gesv``
+       → held ``lu_factor`` + per-column ``lu_solve``; measured
+       bit-identical on this host, gated rtol=1e-12). V&V finding: a
+       factor swap ``F·A⁻¹`` and a resolvent transpose are **spectrally
+       invisible** (similar matrices ⇒ :math:`|\Delta k| = 0` exactly) —
+       every k-level gate is blind to them; the committed catcher is the
+       object-level ``K.as_matrix() ≡ solve(A, F)`` intrinsic gate. See
+       :ref:`spectral-invisibility` (:doc:`homogeneous`).
+     - #226
+     - *(in development)*
+       ``refactor/inverse-as-operator``
+   * - in dev
+       (2026-07-02)
      - **Operator-inverse taxonomy step 6 — the capability frozenset retired,
        both axes (#226, carve P4, W1+W2)** — the stringly-typed
        ``capabilities: frozenset[str]`` advertisement (``CAP_APPLY`` /

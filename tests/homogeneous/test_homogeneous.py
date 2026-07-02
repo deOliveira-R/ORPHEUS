@@ -116,24 +116,28 @@ def test_post_solve_production_rate_is_100():
 
 
 @pytest.mark.verifies("removal-matrix")
-def test_assemble_loss_matrix_matches_fused_oracle():
-    """The operator-composed A = C − K_iso (apply-to-basis) matches the fused
-    ``diag(Σ_t) − (Σ_s0 + 2Σ_2)ᵀ`` on the non-trivial-(n,2n) case.
+def test_assemble_loss_operator_matches_fused_oracle():
+    """The operator-composed A = C − K_iso, materialized apply-to-basis,
+    matches the fused ``diag(Σ_t) − (Σ_s0 + 2Σ_2)ᵀ`` on the
+    non-trivial-(n,2n) case.
 
     A SHARP procedural pin at the A level — it localises a sign/term/omission
     bug in the operator assembly faster than the end-to-end eig. It shares
     ``mat_xs`` data with the fused form (so it is NOT structurally
     independent), and therefore PAIRS with the SymPy ``case.k_inf`` anchor
-    in :func:`test_kinf_exact` rather than replacing it.
+    in :func:`test_kinf_exact` rather than replacing it.  (Step 5b: the
+    assembly now returns the UN-materialized OperatorSum — in production the
+    MatrixInverseOperator ctor densifies it; the oracle comparison here
+    materializes explicitly.)
     """
-    from orpheus.homogeneous.solver import _assemble_loss_matrix
+    from orpheus.homogeneous.solver import _assemble_loss_operator
     from orpheus.transport.mesh.material_mesh import MaterialMesh
 
     case = get("homo_2eg_n2n")
     mix = next(iter(case.materials.values()))
     mat_xs = MaterialMesh.from_materials({0: mix}).material_xs_field()
 
-    A = _assemble_loss_matrix(mat_xs)
+    A = _assemble_loss_operator(mat_xs).as_matrix(basis_shape=(mix.ng, 1))
     sig_t = mat_xs.total_cross_section[:, 0]
     sig_s0 = mat_xs.sig_s_legendre(0)[0]  # (ng, ng), [g_from, g_to]
     sig_2 = mat_xs.n2n_matrix(0)
@@ -176,21 +180,30 @@ def test_kinf_gate_executes_the_bare_multiplication_arm(monkeypatch):
     )
 
 
-# ── #276 P4-D: solve_homogeneous_infinite rewired to DirectEigenvalue ──
+# ── The eigen-solve call path: #276 P4-D routed it through direct_eigenvalue;
+#    taxonomy step 5b re-spelled it as the K-operator composition
+#    ``K = MatrixInverseOperator(loss) @ production`` + dominant_eigenpair ──
 #
-# These gates pin the rewire of the inline eig (solver.py ~182-187) onto the
-# new DirectEigenvalue primitive and the rerouting of the reaction rates
-# through IntegratedReactionRate. Expected equivalence classes:
+# These gates pin the production call path of the eigen-solve. Equivalence-
+# class history:
 #
-#   * k_inf  — BIT-IDENTICAL. The eig computation is structurally unchanged
-#     (same ``eig(solve(A, F))``, argmax, real(), sign flip), so routing it
-#     through the verified primitive must not move a single bit. The
-#     structurally-INDEPENDENT correctness anchor stays ``test_kinf_exact``
-#     (SymPy ``case.k_inf``, 1e-12) — DirectEigenvalue must NOT be wired into
-#     that oracle path.
+#   * P4-D (direct_eigenvalue rewire) — k_inf BIT-IDENTICAL: the eig
+#     computation was structurally unchanged (same ``eig(solve(A, F))``).
+#   * Step 5b (the K-operator spelling) — k_inf is PRINCIPLED-EQUIVALENCE,
+#     gated at rtol=1e-12: the resolvent formation deliberately changed
+#     LAPACK call sequence (one batched ``gesv`` → a held ``lu_factor`` +
+#     one ``lu_solve`` backsolve per basis column), so drift up to ~κ(A)·ULP
+#     is admissible on another BLAS build (measured bit-identical on this
+#     host). All three re-baseline criteria hold: the resolvent is formed by
+#     NAMED operators (MatrixInverseOperator = A⁻¹, the fission dyad = F,
+#     OperatorProduct = A⁻¹F); the structurally-INDEPENDENT anchor stays
+#     ``test_kinf_exact`` (SymPy ``case.k_inf``, 1e-12), into which
+#     dominant_eigenpair must NOT be wired; the FP drift (~1e-14) is ≪ any
+#     rewire bug (O(1e-3)+).
 #   * rates / flux via IntegratedReactionRate — BIT-IDENTICAL on the shipped
 #     cases (ng ≤ 4): V_cell = 1 and the short Σ_g νΣf_g φ_g reduction matches
-#     ``νΣf @ φ`` exactly. (A larger group structure would relax this to ≤ few
+#     ``νΣf @ φ`` exactly, comparing two computations on the SAME φ (whatever
+#     the solver produced). (A larger group structure would relax this to ≤ few
 #     ULP — a reduction-tree change per vv-principles bit-identity criterion 3.)
 
 
@@ -200,32 +213,26 @@ def _require(condition: bool, message: str) -> None:
         pytest.fail(message)
 
 
-def test_direct_eigenvalue_is_on_the_homogeneous_call_path(monkeypatch):
-    """Mode-11: after the rewire, ``solve_homogeneous_infinite`` actually CALLS
-    the direct-eigenvalue primitive — not a still-live inline ``eig``.
+def test_dominant_eigenpair_is_on_the_homogeneous_call_path(monkeypatch):
+    """Mode-11: ``solve_homogeneous_infinite`` actually CALLS
+    ``dominant_eigenpair`` (the K-path eigenvalue primitive) — not a
+    routed-around inline ``eig``.
 
     In-process WRAP sentinel (the gold-standard Mode-11 proof): spies the
-    direct-eigenvalue symbol in the SOLVER's own namespace (so a
-    ``from ... import DirectEigenvalue`` local binding is the thing wrapped) and
-    asserts the counter fires during the solve. A routed-around inline ``eig``
-    cannot bump it. SKIPS pre-impl (symbol not yet imported into the solver).
+    symbol in the SOLVER's own namespace (the module-level ``from ... import``
+    binding is the thing wrapped) and asserts the counter fires during the
+    solve. HARD requirement — post-carve, symbol absence is a REGRESSION
+    (the step-5b predecessor of this gate silently SKIPPED when its spied
+    symbol left the namespace; never again).
     """
     import orpheus.homogeneous.solver as hsolver
 
-    # The rewire SHOULD import the primitive at module level (top of solver.py)
-    # so the solver's own binding is wrappable here; ``hasattr(hsolver, ...)`` is
-    # the rewired-yet? proxy. We also wrap the definition site ``_eig`` to catch
-    # an in-function ``from ... import`` (belt-and-suspenders). SKIP only when
-    # the solver's namespace carries no such symbol (not yet rewired).
-    target = next(
-        (n for n in ("DirectEigenvalue", "direct_eigenvalue") if hasattr(hsolver, n)),
-        None,
+    _require(
+        hasattr(hsolver, "dominant_eigenpair"),
+        "solver.py does not import dominant_eigenpair — the K-spelling rewire "
+        "regressed (or the solver re-binds a different eigenvalue engine; "
+        "re-target this spy, never let it skip).",
     )
-    if target is None:
-        pytest.skip(
-            "#276 P4-D PRE-IMPL: solve_homogeneous_infinite not yet rewired to "
-            "DirectEigenvalue (symbol absent from its namespace)."
-        )
 
     calls: list[int] = []
 
@@ -238,65 +245,126 @@ def test_direct_eigenvalue_is_on_the_homogeneous_call_path(monkeypatch):
 
         monkeypatch.setattr(ns, name, spy)
 
-    _wrap(hsolver, target)
-    if hasattr(_eig, target):  # also wrap the definition site (in-function import)
-        _wrap(_eig, target)
+    _wrap(hsolver, "dominant_eigenpair")
+    if hasattr(_eig, "dominant_eigenpair"):  # definition site too (in-function import)
+        _wrap(_eig, "dominant_eigenpair")
 
     case = get("homo_2eg_n2n")
     mix = next(iter(case.materials.values()))
     result = solve_homogeneous_infinite(mix)
     _require(
         len(calls) >= 1,
-        "solve_homogeneous_infinite did NOT call the direct-eigenvalue primitive "
-        "— the rewire is claimed but the inline eig is still live (Mode-11 "
+        "solve_homogeneous_infinite did NOT call dominant_eigenpair — the "
+        "K-path eigenvalue primitive is not on the call graph (Mode-11 "
         "vacuous green).",
     )
     np.testing.assert_allclose(result.k_inf, case.k_inf, atol=1e-12, rtol=0)
 
 
-def test_kinf_is_the_direct_eigenvalue_of_the_assembled_pair():
-    """Bit-identity: solver ``k_inf`` == the primitive's ``k`` on the SAME (A, F).
+def test_kinf_matches_direct_eigenvalue_engine_of_the_assembled_pair():
+    """CROSS-ENGINE equivalence (principled, NOT byte): solver ``k_inf``
+    (the K-path — MatrixInverseOperator ``lu_solve`` resolvent) vs
+    ``direct_eigenvalue(A, F)`` (``np.linalg.solve`` resolvent) on the SAME
+    assembled pair.
 
-    Builds A, F the way the solver does and asserts ``solve_homogeneous_infinite``'s
-    ``k_inf`` is BYTE-equal to ``DirectEigenvalue(A, F).solve()[0]`` — proving
-    (a) the rewired solver's k_inf IS the primitive's output (it routes THROUGH
-    it, no drift) and (b) the primitive reproduces the inline eig bit-for-bit.
-    PAIRS with ``test_kinf_exact`` (the structurally-independent SymPy anchor);
-    this pin localises a rewire regression to the primitive boundary. SKIPS
-    pre-impl.
+    Both engines extract through the SAME ``dominant_eigenpair``, so this
+    localizes a REWIRE regression (factor swap, wrong basis_shape, transposed
+    resolvent — all O(1) on k) to the resolvent-FORMATION boundary. It is NOT
+    structurally independent on the eig side and PAIRS with ``test_kinf_exact``
+    (the SymPy anchor). rtol=1e-12 per the step-5b equivalence-class note
+    above: bit-identical on this host, κ(A)·ULP-portable across BLAS builds.
     """
-    DE = getattr(_eig, "DirectEigenvalue", None)
-    fn = getattr(_eig, "direct_eigenvalue", None)
-    if DE is None and fn is None:
-        pytest.skip(
-            "#276 P4-D PRE-IMPL: DirectEigenvalue / direct_eigenvalue not yet on "
-            "orpheus.numerics.eigenvalue."
-        )
-
-    from orpheus.homogeneous.solver import _assemble_loss_matrix
+    from orpheus.homogeneous.solver import _assemble_loss_operator
     from orpheus.transport.mesh.material_mesh import MaterialMesh
     from orpheus.transport.operators.fission import FissionOperator
 
     case = get("homo_2eg_n2n")
     mix = next(iter(case.materials.values()))
     mat_xs = MaterialMesh.from_materials({0: mix}).material_xs_field()
-    A = _assemble_loss_matrix(mat_xs)
-    # The F materialization the solver performs (as_matrix promoted from the
-    # retired _as_dense at taxonomy §12 step 5 — same basis columns, same order).
+    A = _assemble_loss_operator(mat_xs).as_matrix(basis_shape=(mix.ng, 1))
     F = FissionOperator.from_solver_data(mat_xs=mat_xs).as_matrix(
         basis_shape=(mix.ng, 1),
     )
-    if DE is not None:
-        k_prim = DE(A, F).solve()[0]
-    else:
-        assert fn is not None  # guaranteed non-None by the pre-impl skip above
-        k_prim = fn(A, F)[0]
+    k_engine = _eig.direct_eigenvalue(A, F)[0]
 
     result = solve_homogeneous_infinite(mix)
+    np.testing.assert_allclose(result.k_inf, k_engine, rtol=1e-12, atol=0)
+
+
+def test_matrix_inverse_operator_apply_is_on_the_homogeneous_call_path(monkeypatch):
+    """Mode-11 liveness for the FIRST production consumer claim: the
+    ``MatrixInverseOperator.apply`` LU backsolve executes during
+    ``solve_homogeneous_infinite`` (once per resolvent column).
+
+    The value gates (fused oracle, cross-engine, SymPy anchor) are
+    structurally BLIND to WHICH code formed the resolvent — only a fired
+    sentinel proves the inverse operator is the genuine producer.
+    ``K.as_matrix()`` *structurally must* route ``Minv.apply(F.apply(e_j))``
+    through the generic apply-to-basis loop, but "structurally must" is
+    exactly the assumption Mode-11 says to verify, never assume. The floor
+    is ``>= 1`` (honest liveness), not ``== ng`` — a future batched
+    ``as_matrix`` override on the product would change the count without
+    changing the claim.
+    """
+    from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
+
+    calls: list[int] = []
+    raw = MatrixInverseOperator.apply
+
+    def spy(self, x, /, *, initial_guess=None):
+        calls.append(1)
+        return raw(self, x, initial_guess=initial_guess)
+
+    monkeypatch.setattr(MatrixInverseOperator, "apply", spy)
+
+    case = get("homo_2eg_n2n")
+    mix = next(iter(case.materials.values()))
+    result = solve_homogeneous_infinite(mix)
     _require(
-        result.k_inf == k_prim,
-        f"solver k_inf={result.k_inf!r} != primitive k={k_prim!r} — the rewire "
-        f"is not bit-identical (or the solver routes around the primitive).",
+        len(calls) >= 1,
+        "MatrixInverseOperator.apply never fired during the solve — "
+        "K.as_matrix() routed around the inverse operator (Mode-11 vacuous "
+        "green for the first-production-consumer claim).",
+    )
+    np.testing.assert_allclose(result.k_inf, case.k_inf, atol=1e-12, rtol=0)
+
+
+def test_K_operator_as_matrix_is_the_resolvent():
+    """The genuinely-new step-5b structural element:
+    ``OperatorProduct(MatrixInverseOperator(A), F).as_matrix()`` == the
+    resolvent ``A⁻¹F``.
+
+    Reference ``np.linalg.solve(A_dense, F_dense)`` — a DIFFERENT primitive
+    than the operator-algebra path (procedurally independent), pinning the
+    ``@``-composition of an inverse with the rank-1 fission dyad at the
+    operator boundary (a factor swap ``F·A⁻¹``, a dropped factor, or a
+    ``basis_shape`` threading bug reds HERE, faster and sharper than at the
+    end-to-end eig). Successful construction of ``K`` doubles as the
+    None-tolerant space-guard assertion for the meshless pair (an
+    ``IncompatibleOperatorComposition`` here means a FunctionSpace leaked
+    onto a meshless operand — investigate before touching the guard).
+    """
+    from orpheus.homogeneous.solver import _assemble_loss_operator
+    from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
+    from orpheus.transport.operators.fission import FissionOperator
+
+    case = get("homo_2eg_n2n")
+    mix = next(iter(case.materials.values()))
+    ng = mix.ng
+    mat_xs = MaterialMesh.from_materials({0: mix}).material_xs_field()
+
+    loss = _assemble_loss_operator(mat_xs)
+    production = FissionOperator.from_solver_data(mat_xs=mat_xs)
+    K = MatrixInverseOperator(loss, basis_shape=(ng, 1)) @ production
+
+    A = loss.as_matrix(basis_shape=(ng, 1))
+    F = production.as_matrix(basis_shape=(ng, 1))
+    np.testing.assert_allclose(
+        K.as_matrix(basis_shape=(ng, 1)),
+        np.linalg.solve(A, F),
+        rtol=1e-12,
+        atol=0,
     )
 
 
