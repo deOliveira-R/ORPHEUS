@@ -32,11 +32,10 @@ from scipy.sparse import csr_matrix
 
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.operator import (
-    CAP_APPLY,
     DiagonalOperator,
     LinearOperator,
     MatrixTooLarge,
-    MissingCapability,
+    NotInvertible,
     PermutationOperator,
     ScaledOperator,
 )
@@ -70,7 +69,6 @@ class _DenseActionOperator(LinearOperator):
 
     def __init__(self, matrix: np.ndarray) -> None:
         self.matrix = np.asarray(matrix, dtype=float)
-        self.capabilities = frozenset({CAP_APPLY})
 
     def apply(self, x, /):
         return self.matrix @ np.asarray(x).ravel()
@@ -87,7 +85,6 @@ class _SpaceCarrying(LinearOperator):
 
     def __init__(self, shape: tuple[int, ...]) -> None:
         self._space = FunctionSpace("test_space", shape)
-        self.capabilities = frozenset({CAP_APPLY})
 
     @property
     def domain(self):
@@ -114,7 +111,6 @@ class _IndexStampOperator(LinearOperator):
     def __init__(self) -> None:
         n = int(np.prod(self.SHAPE))
         self.stamp = 10.0 * np.arange(n)[:, None] + np.arange(n)[None, :] + 1.0
-        self.capabilities = frozenset({CAP_APPLY})
 
     def apply(self, x, /):
         return (self.stamp @ np.asarray(x).ravel()).reshape(self.SHAPE)
@@ -512,7 +508,7 @@ def test_matrix_inverts_what_green_refuses():
     D = DiagonalOperator(_C4)
     sum_op = (-1.0 * S_ao) + D
     assert not sum_op.is_invertible
-    with pytest.raises(MissingCapability, match="canonical ordering"):
+    with pytest.raises(NotInvertible, match="canonical ordering"):
         sum_op.inverse()  # Green REFUSES (leading term not invertible)
     minv = MatrixInverseOperator(sum_op, basis_shape=(4,))
     q = _RNG.standard_normal(4)

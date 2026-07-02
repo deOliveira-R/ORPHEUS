@@ -239,9 +239,12 @@ class TestIntegralKernelPositive:
             "disjoint sibling. Found it is no longer a LinearOperator.",
         )
         require(
-            hasattr(fission_op, "apply") and hasattr(fission_op, "capabilities"),
+            callable(getattr(fission_op, "apply", None))
+            and isinstance(fission_op.is_invertible, bool)
+            and isinstance(fission_op.is_adjointable, bool),
             "An IntegralKernelOperator must carry the operator surface "
-            "(`apply` + `capabilities`) — it is a LinearOperator refinement.",
+            "(`apply` + the two structural predicates) — it is a "
+            "LinearOperator refinement (carve P4 rewire).",
         )
 
 

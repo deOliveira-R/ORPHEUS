@@ -4,12 +4,14 @@ Verifies the operator's invariants:
 
 * ``apply`` gathers entries along the tagged axis per the permutation.
 * ``apply_transpose`` applies the inverse permutation (so round-trip is identity).
-* ``solve`` applies the inverse permutation (since :math:`P^{-1} = P^{T}` for
-  permutation matrices). Issue #150 closeout.
+* ``inverse()`` returns the inverse permutation as a first-class
+  :class:`PermutationOperator` (since :math:`P^{-1} = P^{T}` for
+  permutation matrices) — carve P4: ``solve`` retired, the inverse is
+  ALGEBRA-CLOSED, solving is ``.inverse().apply(b)``. Issue #150 closeout.
 * Involution detection: ``is_involution`` matches
   ``np.array_equal(perm[perm], np.arange(n))``.
-* Capability set: ``{CAP_APPLY, CAP_APPLY_TRANSPOSE, CAP_SOLVE}`` — solve
-  advertised post Issue #150.
+* Predicates: ``is_invertible`` and ``is_adjointable`` are both ``True``
+  (a permutation always transposes and always inverts).
 * Composition with ``@`` reproduces function composition.
 * Axis broadcasting on non-zero axis.
 * Construction-time validation of malformed permutations.
@@ -20,9 +22,6 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
-    CAP_SOLVE,
     IdentityOperator,
     PermutationOperator,
 )
@@ -71,38 +70,46 @@ def test_involution_detection():
 
 
 @pytest.mark.l0
-def test_capability_set():
-    """L0: capabilities advertise ``{CAP_APPLY, CAP_APPLY_TRANSPOSE, CAP_SOLVE}``.
+def test_invertible_adjointable_and_solve_retired():
+    """L0: both predicates ``True``; the ``solve`` verb is retired.
 
-    Issue #150 closeout: ``solve`` is invertible for a permutation
-    matrix (since :math:`P^{-1} = P^{T}`), so ``CAP_SOLVE`` is
-    advertised alongside the apply / transpose pair.
+    Issue #150 closeout, restated post carve P4: a permutation matrix
+    is always invertible (:math:`P^{-1} = P^{T}`), so ``is_invertible``
+    and ``is_adjointable`` are both ``True``. The ``solve`` verb was
+    retired at carve P4 (algebra-closed inverse) — the retirement pin
+    keeps a resurrected twin path from shipping silently.
     """
     P = PermutationOperator(np.array([1, 0, 2]))
-    assert P.capabilities == frozenset(
-        {CAP_APPLY, CAP_APPLY_TRANSPOSE, CAP_SOLVE}
-    )
+    assert P.is_invertible
+    assert P.is_adjointable
+    assert not hasattr(P, "solve")  # retired at carve P4
 
 
 @pytest.mark.l1
-def test_solve_is_inverse_of_apply():
-    r"""L1: ``solve(apply(x)) == x`` for any input.
+def test_inverse_apply_is_inverse_of_apply():
+    r"""L1: ``inverse().apply(apply(x)) == x`` for any input.
 
     For a permutation matrix, :math:`P^{-1} = P^{T}` — both the
-    transpose and the inverse are the same operation. The
-    :meth:`solve` method routes through the same ``inverse_perm``
-    array as :meth:`apply_transpose`.
+    transpose and the inverse are the same operation. :meth:`inverse`
+    returns the inverse permutation as a first-class
+    :class:`PermutationOperator` whose :meth:`apply` is the same
+    ``np.take(·, inverse_perm)`` gather as :meth:`apply_transpose`.
+
+    Rewired at carve P4: ``PermutationOperator.solve`` retired
+    (algebra-closed inverse); solving is ``.inverse().apply`` —
+    same values, same (exact) tolerance: the gather is integer
+    indexing, bit-identical.
     """
     perm = np.array([3, 1, 4, 0, 2])
     P = PermutationOperator(perm)
     x = np.array([7.0, -1.5, 11.0, 0.25, 4.5])
-    # solve(apply(x)) == x — inverse round-trip.
-    np.testing.assert_array_equal(P.solve(P.apply(x)), x)
-    # apply(solve(x)) == x — the other direction.
-    np.testing.assert_array_equal(P.apply(P.solve(x)), x)
-    # solve and apply_transpose agree (both are the inverse for a
-    # permutation matrix).
-    np.testing.assert_array_equal(P.solve(x), P.apply_transpose(x))
+    # inverse().apply(apply(x)) == x — inverse round-trip.
+    np.testing.assert_array_equal(P.inverse().apply(P.apply(x)), x)
+    # apply(inverse().apply(x)) == x — the other direction.
+    np.testing.assert_array_equal(P.apply(P.inverse().apply(x)), x)
+    # inverse().apply and apply_transpose agree (both are the inverse
+    # for a permutation matrix).
+    np.testing.assert_array_equal(P.inverse().apply(x), P.apply_transpose(x))
 
 
 @pytest.mark.l0

@@ -30,14 +30,14 @@ functoriality gate — so :meth:`~SweepOperator.inverse` returns the wrapped
 holds by OBJECT IDENTITY), ``is_invertible`` is ``True``, and ``solve`` on the
 inverse is the forward matvec ``inner.apply`` (solving
 :math:`(L+C)^{-1} y = b` IS applying :math:`(L+C)`), keeping the faithfulness
-keystone ``is_invertible ≡ CAP_SOLVE`` honest here too.
+contract (``is_invertible=True``, a working ``solve``) honest here too.
 
 **Still deferred (no consumer).** The adjoint-inverse
 ``A.H.inverse() == A.inverse().H`` (the transpose-solve) is issue #280 —
 ``.H`` / ``is_adjointable`` inherit the base
 :class:`~orpheus.numerics.operator.LinearOperator` defaults until then.
 
-**Wrap-delegate back-half.** The back-half (``capabilities`` /
+**Wrap-delegate back-half.** The back-half (domain↔codomain swap /
 domain↔codomain swap / ``solve→inner.apply`` / ``is_invertible`` /
 ``inverse()→inner``) is inherited from
 :class:`~orpheus.numerics.operator.InverseWrapMixin` — the extraction this
@@ -81,7 +81,7 @@ class SweepOperator(
     Endomorphic on the composite ``FullField`` carrier (an inverse swaps
     domain/codomain, which are equal here because the forward is endomorphic).
 
-    The wrap-delegate back-half — ``capabilities`` (``apply`` inverts,
+    The wrap-delegate back-half — (``apply`` inverts,
     ``solve`` un-inverts; ``apply_transpose`` stays deferred, the
     adjoint-inverse is #280), the domain↔codomain swap, ``solve`` = the
     forward matvec, and the object-identity involution ``inverse() →

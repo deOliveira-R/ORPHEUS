@@ -71,7 +71,7 @@ selects the ALGORITHM:
   preconditioner :math:`A^{-1}` (the sweep), gain :math:`S` — convergence
   certified by :math:`c < 1`.
 * ``(-S) + A`` (invertible term NOT first) is REFUSED at construction
-  (:class:`~orpheus.numerics.operator.MissingCapability`): the left-spine
+  (:class:`~orpheus.numerics.operator.NotInvertible`): the left-spine
   head is the DESIGNATED preconditioner, and the canonical ordering puts
   the invertible operator first.
 * ``C + L`` (a legal spelling whose leading term happens to be invertible)
@@ -111,7 +111,7 @@ from orpheus.numerics.iteration import SourceIteration, _l2_norm, _seeded_invers
 from orpheus.numerics.operator import (
     InverseWrapMixin,
     LinearOperator,
-    MissingCapability,
+    NotInvertible,
     OperatorSum,
     ScaledOperator,
 )
@@ -206,7 +206,7 @@ class GreenOperator(InverseWrapMixin[OperatorSum], LinearOperator):
 
     :meth:`apply` returns the CONVERGED :math:`A^{-1}q` or raises
     :class:`ConvergenceFailure` — never a silent partial iterate.  The
-    wrap-delegate back-half (``capabilities`` / domain↔codomain swap /
+    wrap-delegate back-half (domain↔codomain swap /
     ``solve`` = the forward sum's matvec / object-identity involution
     ``inverse() → inner``) is inherited from
     :class:`~orpheus.numerics.operator.InverseWrapMixin` — this class is
@@ -237,7 +237,7 @@ class GreenOperator(InverseWrapMixin[OperatorSum], LinearOperator):
 
     Raises
     ------
-    MissingCapability
+    NotInvertible
         At construction, when the left-spine head is not invertible (the
         canonical-ordering refusal) — or from the head's own ``.inverse()``
         builder (e.g. a singular diagonal), where the invertibility
@@ -254,7 +254,7 @@ class GreenOperator(InverseWrapMixin[OperatorSum], LinearOperator):
         terms = _left_spine_terms(inner)
         leading = terms[0]
         if not getattr(leading, "is_invertible", False):
-            raise MissingCapability(
+            raise NotInvertible(
                 f"GreenOperator requires an invertible LEADING term: the "
                 f"left-spine head of the sum is the splitting's "
                 f"preconditioner (canonical ordering — spell the invertible "

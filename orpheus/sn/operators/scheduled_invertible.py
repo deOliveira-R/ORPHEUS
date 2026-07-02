@@ -63,7 +63,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from orpheus.numerics.operator import (
-    CAP_SOLVE,
     OperatorSum,
     ScaledOperator,
 )
@@ -123,8 +122,6 @@ class ScheduledInvertibleOperator(OperatorSum["FullField", "FullField"]):
             )
         super().__init__(invertible, ScaledOperator(-1.0, lower))
         # The scheduled forward substitution IS this composite's inverse —
-        # add CAP_SOLVE exactly as InvertibleOperator does.
-        self.capabilities = self.capabilities | frozenset({CAP_SOLVE})
 
     # ── Convenience accessors ─────────────────────────────────────────
 
@@ -164,7 +161,7 @@ class ScheduledInvertibleOperator(OperatorSum["FullField", "FullField"]):
     @property
     def is_invertible(self) -> bool:
         # M is schedule-triangular: the octant-group forward substitution IS
-        # its inverse operator (caps ⊇ CAP_SOLVE, added in __init__) — the
+        # its inverse operator — the
         # faithfulness keystone rides with InvertibleOperator's.
         return True
 

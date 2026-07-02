@@ -207,10 +207,8 @@ def test_g_adjoint_reciprocity_full_block(case):
     """
     sn, sig_t = _BUILDERS[case]()
     A = _loss_operator(sn, sig_t)
-    if "apply_transpose" not in A.capabilities:  # the adjoint must be reachable
-        pytest.fail(
-            f"[{case}] adjoint unreachable: 'apply_transpose' not in A.capabilities"
-        )
+    if not A.is_adjointable:  # the adjoint must be reachable (carve P4 rewire)
+        pytest.fail(f"[{case}] adjoint unreachable: A.is_adjointable is False")
 
     rng = np.random.default_rng(2026)
     psi = _random_composite(sn, rng)

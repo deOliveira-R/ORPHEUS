@@ -5,7 +5,8 @@ Verifies the operator's invariants:
 * ``apply`` is identity (returns the input by reference, matching
   the legacy zero-cost angular pass-through).
 * ``apply_transpose`` is identity.
-* Capability set: ``{CAP_APPLY, CAP_APPLY_TRANSPOSE}``.
+* Predicates: adjointable (self-adjoint identity body), NOT invertible
+  (the wrap is a boundary pushforward, not a solvable map).
 * Composition with :class:`IdentityOperator` is identity.
 * The input is returned by reference (not copied) — matching the
   legacy :class:`~orpheus.geometry.boundary.PeriodicBoundary`
@@ -17,8 +18,6 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
     IdentityOperator,
     PeriodicWrapOperator,
 )
@@ -44,10 +43,11 @@ def test_apply_transpose_is_identity():
 
 
 @pytest.mark.l0
-def test_capability_set():
-    """L0: capability advertises ``{CAP_APPLY, CAP_APPLY_TRANSPOSE}``."""
+def test_adjointable_not_invertible_predicates():
+    """L0: adjointable (self-adjoint identity body), not invertible."""
     P = PeriodicWrapOperator()
-    assert P.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
+    assert P.is_adjointable
+    assert not P.is_invertible
 
 
 @pytest.mark.l0

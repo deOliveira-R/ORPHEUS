@@ -49,7 +49,7 @@ A Kernel REFINES LinearOperator (unlike the disjoint Functional)
 Crucially the Kernel category is a **refinement of**
 :class:`~orpheus.numerics.operator.LinearOperator`, NOT disjoint from
 it. A Kernel still maps a field to a field — it still has ``apply`` +
-``capabilities`` (the matvec arms of fission / scattering are untouched;
+the operator surface (the matvec arms of fission / scattering are untouched;
 the integral structure is the *reading* of the same action). This is the
 asymmetry the type partition encodes:
 
@@ -111,7 +111,7 @@ force a redundant inheritance edge. A structural Protocol lets each
 operator participate simply by exposing ``kernel`` — and
 ``@runtime_checkable`` lets ``isinstance(op, IntegralKernelOperator)``
 discriminate the category at runtime, checking the full LinearOperator
-surface (``apply`` / ``capabilities`` / ``domain`` / ``codomain``) plus
+surface (``apply`` / the predicates / ``domain`` / ``codomain``) plus
 the ``kernel`` refinement.
 
 Layering note
@@ -173,7 +173,7 @@ class IntegralKernelOperator(LinearOperator[V], Protocol[V]):
     :class:`~orpheus.numerics.operator.LinearOperator`.
 
     It is a **refinement of** LinearOperator (it inherits the full
-    operator surface ``apply`` / ``capabilities`` / ``domain`` /
+    operator surface ``apply`` / the predicates / ``domain`` /
     ``codomain`` and adds ``kernel``), NOT disjoint from it — unlike the
     S5 :class:`~orpheus.numerics.functional.Functional`, which shares no
     member with LinearOperator. A LOCAL / diagonal operator (the §5.7

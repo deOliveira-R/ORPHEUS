@@ -9,8 +9,8 @@ two thin surfaces:
   passthroughs to the inner operator. The pre-#186 ``*_extra, **_kw``
   swallow affordance is gone; any test still calling
   ``bc.apply(psi, quad)`` would fail with ``TypeError``.
-* :attr:`capabilities` — delegates to the wrapped operator so the
-  shim composes cleanly with other Wave-0 primitives.
+* the structural predicates — delegate to the wrapped operator so
+  the shim composes cleanly with other Wave-0 primitives.
 * :attr:`kind` + ``__eq__`` against strings — preserves the legacy
   ``sn_mesh.bc["xmin"] == "reflective"`` comparison surface.
 
@@ -33,8 +33,6 @@ import pytest
 
 from orpheus.geometry.boundary._bound_compat import _BoundBoundaryOperator
 from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
     IdentityOperator,
     PermutationOperator,
     ZeroOperator,
@@ -83,22 +81,20 @@ def test_apply_transpose_forwards_when_inner_supports_it():
         shim.apply_transpose(psi, "extra", k=1)
 
 
-def test_capabilities_delegate_to_inner():
-    """:attr:`capabilities` returns whatever the wrapped operator
-    advertises — a permutation brings apply + apply_transpose + solve
-    (post Issue #150 closeout); a mask-only operator brings only apply.
-
-    The shim's contract is delegation; the exact inner capability set
-    is the inner operator's concern.
+def test_predicates_delegate_to_inner():
+    """The structural predicates return the wrapped operator's truth —
+    a permutation brings invertibility + adjointability; the zero map
+    brings only adjointability (carve P4 rewire of the caps-delegation
+    pin: same delegation contract, predicate spelling).
     """
     inner_perm = PermutationOperator(np.array([1, 0]), axis=0)
     perm_shim = _BoundBoundaryOperator(inner_perm)
-    # Delegation: shim advertises exactly what inner advertises.
-    assert perm_shim.capabilities == inner_perm.capabilities
+    assert perm_shim.is_invertible == inner_perm.is_invertible is True
+    assert perm_shim.is_adjointable == inner_perm.is_adjointable is True
 
     zero_shim = _BoundBoundaryOperator(ZeroOperator())
-    # ZeroOperator advertises {CAP_APPLY, CAP_APPLY_TRANSPOSE}
-    assert CAP_APPLY in zero_shim.capabilities
+    assert zero_shim.is_invertible is False
+    assert zero_shim.is_adjointable is True
 
 
 def test_composes_with_operator_algebra():

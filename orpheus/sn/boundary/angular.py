@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING, ClassVar
 import numpy as np
 
 from orpheus.numerics.operator import (
-    CAP_APPLY,
     LinearOperator,
 )
 
@@ -81,7 +80,8 @@ class AngularAverageOperator(LinearOperator):
 
     Capabilities
     ------------
-    ``{CAP_APPLY}``. The white BC is not self-adjoint in the
+    apply-only (structurally non-invertible, non-adjointable as
+    posed). The white BC is not self-adjoint in the
     unweighted inner product; it IS self-adjoint under the cosine-
     weighted inner product. ``apply_transpose`` is NOT advertised
     because the unweighted transpose semantics differ from the
@@ -98,8 +98,6 @@ class AngularAverageOperator(LinearOperator):
         The white-reflection BC; delegates to
         ``AngularAverageOperator`` via the SN realizer.
     """
-
-    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
 
     def __init__(self, cos_w: np.ndarray, norm: float) -> None:
         cos_w = np.asarray(cos_w, dtype=float)
@@ -249,7 +247,7 @@ class IncomingSourceOperator(LinearOperator):
     to size its output; the source's :meth:`evaluate` is responsible
     for filling values per its own contract.
 
-    Capability set: ``{CAP_APPLY}``. The operator is rank-0 in the
+    Apply-only. The operator is rank-0 in the
     input (every input maps to the same source value); it is NOT
     invertible and NOT naturally self-adjoint. ``solve`` and
     ``apply_transpose`` are deliberately NOT advertised.
@@ -266,8 +264,6 @@ class IncomingSourceOperator(LinearOperator):
         implementations may inject spatially / energy- / angularly-
         varying inflow.
     """
-
-    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY})
 
     def __init__(self, source: "InflowSourceSpec") -> None:
         self.source = source

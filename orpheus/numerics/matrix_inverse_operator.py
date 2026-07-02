@@ -99,7 +99,7 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
     matrix realization reads values, not structure (see the module
     docstring for the ``(−S)+(L+C)`` witness).
 
-    The wrap-delegate back-half — ``capabilities`` (``apply`` inverts,
+    The wrap-delegate back-half — (``apply`` inverts,
     ``solve`` un-inverts), the domain↔codomain swap, ``solve`` = the
     forward matvec ``inner.apply``, and the object-identity involution
     ``inverse() → inner`` — is inherited from

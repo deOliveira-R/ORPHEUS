@@ -7,8 +7,10 @@ contract verified here:
 
 * Per-axis action: each constituent acts on its tagged axis, broadcasting
   on the rest. Order of application is irrelevant for disjoint axes.
-* Capability intersection: ``(A & B)`` advertises a capability iff every
-  factor advertises it.
+* Predicate intersection: ``(A & B)`` is invertible / adjointable iff every
+  factor is (the factor-wise recursion; carve P4 — the frozenset retired),
+  and the inverse is ALGEBRA-CLOSED: ``(A ⊗ B)⁻¹ = A⁻¹ ⊗ B⁻¹``, so solving
+  is spelled ``.inverse().apply(b)`` (``solve`` retired).
 * Adjoint distributivity: :math:`(A \otimes B)^* = A^* \otimes B^*`.
 * Per-axis composition: :math:`(A \otimes B) @ (C \otimes D) = (A @ C) \otimes (B \otimes D)`.
 * Sum-of-tensor-products: :math:`\Sigma_k A_k \otimes B_k` is the §15.2
@@ -22,12 +24,9 @@ import pytest
 
 from orpheus.numerics.functional import InnerProductFunctional
 from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
-    CAP_SOLVE,
     DiagonalOperator,
     IdentityOperator,
-    MissingCapability,
+    NotInvertible,
     RankOneOperator,
     SumOfTensorProductsOperator,
     TensorProductOperator,
@@ -91,38 +90,43 @@ class TestTensorProductApply:
 
 
 @pytest.mark.l0
-class TestTensorProductCapabilities:
-    """L0: capability intersection."""
+class TestTensorProductPredicates:
+    """L0: predicate intersection (invertible/adjointable iff every factor)."""
 
-    def test_intersection_apply_only(self):
+    def test_intersection_adjointable_not_invertible(self):
         T = ZeroOperator() & IdentityOperator()
-        assert CAP_APPLY in T.capabilities
-        # Zero advertises CAP_APPLY_TRANSPOSE; identity advertises everything;
-        # intersection has CAP_APPLY_TRANSPOSE but NOT CAP_SOLVE (zero lacks solve).
-        assert CAP_APPLY_TRANSPOSE in T.capabilities
-        assert CAP_SOLVE not in T.capabilities
+        # Zero is adjointable (self-adjoint) but not invertible; Identity is
+        # both — the factor-wise intersection keeps adjointable, drops
+        # invertible.
+        assert T.is_adjointable
+        assert not T.is_invertible
 
     def test_full_intersection(self):
         T = IdentityOperator() & IdentityOperator()
-        for cap in (CAP_APPLY, CAP_APPLY_TRANSPOSE, CAP_SOLVE):
-            assert cap in T.capabilities
+        assert T.is_invertible
+        assert T.is_adjointable
 
-    def test_solve_propagates_through_diagonals(self):
+    def test_invertibility_propagates_through_diagonals(self):
+        """Rewired at carve P4: ``TensorProductOperator.solve`` retired
+        (algebra-closed inverse ``(A⊗B)⁻¹ = A⁻¹⊗B⁻¹``); solving is
+        ``.inverse().apply`` — same round-trip value, same tolerance."""
         D1 = DiagonalOperator(np.array([1.0, 2.0]), axis=0)
         D2 = DiagonalOperator(np.array([3.0, 4.0]), axis=1)
         T = D1 & D2
-        assert CAP_SOLVE in T.capabilities
-        # Solve round-trip
+        assert T.is_invertible
+        assert not hasattr(T, "solve")  # retired at carve P4
+        # Inverse round-trip (the factor-wise inverse applies each factor's
+        # division in stored order — bit-identical to the retired solve).
         x = np.array([[1.0, 1.0], [1.0, 1.0]])
-        np.testing.assert_allclose(T.solve(T.apply(x)), x, rtol=1e-13)
+        np.testing.assert_allclose(T.inverse().apply(T.apply(x)), x, rtol=1e-13)
 
-    def test_solve_revoked_by_zero_weight_factor(self):
+    def test_inverse_revoked_by_zero_weight_factor(self):
         D_zero = DiagonalOperator(np.array([1.0, 0.0]), axis=0)
         D_ok = DiagonalOperator(np.array([2.0, 3.0]), axis=1)
         T = D_zero & D_ok
-        assert CAP_SOLVE not in T.capabilities
-        with pytest.raises(MissingCapability, match="every factor"):
-            T.solve(np.ones((2, 2)))
+        assert not T.is_invertible
+        with pytest.raises(NotInvertible, match="every factor"):
+            T.inverse()
 
 
 @pytest.mark.l0
@@ -163,14 +167,16 @@ class TestTensorProductFlattening:
 
 @pytest.mark.l0
 class TestTensorProductRequiresApply:
-    """Constituent must advertise CAP_APPLY."""
+    """Constituent must expose ``apply`` (the eager composition guard)."""
 
     def test_construction_rejects_non_apply_factor(self):
-        # Build a fake operator that doesn't advertise apply
+        # A fake operator that genuinely LACKS apply (post carve P4 the
+        # ctor guard probes the verb itself — ``callable(op.apply)`` —
+        # not a capability advertisement).
         class FakeOp:
-            capabilities = frozenset()
-            def apply(self, x): return x
-        with pytest.raises(MissingCapability, match=CAP_APPLY):
+            pass
+
+        with pytest.raises(TypeError, match="apply"):
             TensorProductOperator((FakeOp(),))
 
 
@@ -206,12 +212,16 @@ class TestSumOfTensorProducts:
         with pytest.raises(TypeError, match="must be"):
             SumOfTensorProductsOperator((IdentityOperator(),))
 
-    def test_solve_not_advertised(self):
-        """Sum doesn't have solve in general (sum-of-inverses != inverse-of-sum)."""
+    def test_not_invertible_no_solve(self):
+        """A sum of tensor products is not invertible (sum-of-inverses !=
+        inverse-of-sum; ``is_invertible`` inherits the base ``False``), and
+        the ``solve`` verb does not exist anywhere on the type (carve P4)."""
         D_a = DiagonalOperator(np.array([1.0]))
         D_b = DiagonalOperator(np.array([1.0]))
         S = SumOfTensorProductsOperator((D_a & D_b,))
-        assert CAP_SOLVE not in S.capabilities
+        assert not S.is_invertible
+        assert not hasattr(S, "solve")  # never existed post carve P4
+        assert not hasattr(S, "inverse")  # structural refusal is static
 
     def test_apply_transpose_propagates(self):
         D_a = DiagonalOperator(np.array([2.0, 3.0]), axis=0)
@@ -274,14 +284,20 @@ class TestRankOneOperator:
         expected = chi * inner[None, :, :]
         np.testing.assert_array_almost_equal_nulp(out, expected, nulp=4)
 
-    def test_capabilities_apply_and_transpose_not_solve(self):
-        """Rank-1 ops advertise ``{apply, apply_transpose}`` — non-invertible by
-        construction (no ``solve``), but the dyad HAS a transpose: the dual dyad
-        ``|w⟩⟨v|`` (campaign #276), available when the row is an
-        ``InnerProductFunctional``."""
+    def test_structurally_non_invertible_with_working_transpose(self):
+        """Rank-1 ops are non-invertible by construction (no ``solve``, no
+        ``inverse()`` — structural refusal is static, Design C), but the dyad
+        HAS a transpose: the dual dyad ``|w⟩⟨v|`` (campaign #276), available
+        when the row is an ``InnerProductFunctional`` (the predicate pin for
+        that arm lives in ``test_outer_dyad.py::TestPredicates``)."""
         R = RankOneOperator(np.ones(3), InnerProductFunctional(np.ones(3)))
-        assert R.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
-        assert CAP_SOLVE not in R.capabilities
+        assert not R.is_invertible
+        assert not hasattr(R, "solve")
+        assert not hasattr(R, "inverse")
+        # The transpose VERB works for the IPF row (the dual dyad).
+        np.testing.assert_array_equal(
+            R.apply_transpose(np.full(3, 2.0)), np.full(3, 6.0)
+        )
 
     def test_apply_rejects_shape_mismatch(self):
         """A carrier that doesn't align with the row co-vector raises.
@@ -328,8 +344,16 @@ class TestRankOneOperator:
         wrapped = outer(ell, InnerProductFunctional(r, axis=0)) & IdentityOperator()
 
         assert isinstance(wrapped, TensorProductOperator)
-        # The dyad (with an InnerProductFunctional row) has {apply, apply_transpose}
-        # and Identity has all three → the TP intersection keeps both, drops solve.
-        assert wrapped.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
-        assert CAP_SOLVE not in wrapped.capabilities
+        # The dyad factor is non-invertible → the factor-wise TP recursion
+        # drops invertibility (its adjointable arm is pinned below).
+        assert not wrapped.is_invertible
         np.testing.assert_array_equal(wrapped.apply(phi), bare.apply(phi))
+
+    def test_dyad_identity_tensor_product_is_adjointable(self):
+        """``(|v⟩⟨w| & I).is_adjointable`` — the TP recursion over an
+        IPF-rowed dyad (working dual-dyad transpose) and Identity must
+        advertise the transpose, as the pre-carve caps intersection did."""
+        wrapped = outer(
+            np.ones((2, 2)), InnerProductFunctional(np.ones((2, 2)), axis=0)
+        ) & IdentityOperator()
+        assert wrapped.is_adjointable

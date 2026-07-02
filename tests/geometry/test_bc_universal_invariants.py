@@ -409,15 +409,15 @@ class TestIncomingSourceOperator:
         result_b = op.apply(99.0 * np.ones((6, 2)))
         np.testing.assert_array_equal(result_a, result_b)
 
-    def test_capabilities_are_apply_only(self) -> None:
+    def test_predicates_are_apply_only(self) -> None:
         from orpheus.geometry.boundary import NoSource
         from orpheus.sn.boundary.angular import IncomingSourceOperator
 
         op = IncomingSourceOperator(NoSource())
-        assert "apply" in op.capabilities
-        # rank-0 / non-invertible — solve / apply_transpose NOT advertised.
-        assert "solve" not in op.capabilities
-        assert "apply_transpose" not in op.capabilities
+        assert callable(getattr(op, "apply", None))
+        # rank-0 / non-invertible — neither structural axis advertised.
+        assert not op.is_invertible
+        assert not op.is_adjointable
 
 
 @pytest.mark.l1

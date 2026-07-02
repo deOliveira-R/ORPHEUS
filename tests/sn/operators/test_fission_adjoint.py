@@ -44,7 +44,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import Mesh2D
-from orpheus.numerics.operator import CAP_APPLY_TRANSPOSE, TensorProductOperator
+from orpheus.numerics.operator import TensorProductOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import SNSolver
@@ -189,7 +189,7 @@ class TestRoleSwapDiscriminator:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# CAPABILITY + ROUTING — F advertises apply_transpose; routes through the kernel.
+# PREDICATE + ROUTING — F is adjointable; routes through the kernel.
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -197,9 +197,9 @@ class TestAdjointFissionCapabilityAndRouting:
     def test_fission_advertises_apply_transpose(self):
         op = _solver("4g").fission_op
         require(
-            CAP_APPLY_TRANSPOSE in op.capabilities,
-            "FissionOperator must advertise apply_transpose (F† via the rank-1 "
-            f"dyad swap); got {op.capabilities}.",
+            op.is_adjointable,
+            "FissionOperator must advertise the adjoint axis (F† via the "
+            "rank-1 dyad swap).",
         )
 
     def test_apply_transpose_routes_through_kernel_transpose(self, monkeypatch):

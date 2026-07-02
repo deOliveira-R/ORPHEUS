@@ -71,7 +71,7 @@ Iso vs non-iso (a capability, not a separate path)
 
 The frame is the single mechanism for ALL choice-dependent change-of-basis (GitHub
 #263): whether the analysis/reconstruction are mutually inverse (``R∘M = I`` — an
-invertible Vandermonde, e.g. nodal-DG; the analysis face would advertise ``CAP_SOLVE``)
+invertible Vandermonde, e.g. nodal-DG; the analysis face would become invertible)
 or band-limiting (``R∘M`` = projector ≠ I, ``N > (L+1)²`` — spherical harmonics; a
 section/retraction) is a *capability of the given frame*, not a reason for a second
 mechanism. The spherical-harmonic frame is the non-iso case.
@@ -99,10 +99,8 @@ from numpy.typing import NDArray
 from orpheus.numerics.basis.base import Basis, GramStructure
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
     LinearOperator,
-    MissingCapability,
+    NotInvertible,
     OperatorProduct,
 )
 from orpheus.numerics.projection import AnalysisOperator, ReconstructionOperator
@@ -291,11 +289,12 @@ class FrameBase(ABC):
         now carried by the **type**: the trial declares its
         :attr:`~orpheus.numerics.basis.base.Basis.gram_structure`, and this property
         **refuses** a :attr:`~orpheus.numerics.basis.base.GramStructure.DENSE` trial
-        (raising :class:`~orpheus.numerics.operator.MissingCapability`) rather than
+        (raising :class:`~orpheus.numerics.operator.NotInvertible` — the projection
+        normalisation :math:`G^{-1}` is not realizable as posed) rather than
         return a silently-wrong probe.
         """
         if self.basis.gram_structure is GramStructure.DENSE:
-            raise MissingCapability(
+            raise NotInvertible(
                 f"FrameBase.project / .gram needs a row-sum-collapsible trial Gram, but "
                 f"the trial {type(self.basis).__name__} declares GramStructure.DENSE: "
                 f"its cross Gram MR is neither diagonal nor a partition of unity, so the "
@@ -413,17 +412,14 @@ class _FrameAnalysis(AnalysisOperator):
 
     A frame-backed :class:`AnalysisOperator` view; the math lives on the TEST basis
     (:meth:`Basis.analyze` / :meth:`Basis.analyze_transpose`) tabulated at the nodes
-    (``frame.test_table``). Carries the swapped spaces and ``CAP_APPLY_TRANSPOSE``, so
-    the metric-aware ``_AdjointOperator`` gives ``.H`` (the W-weighted Hilbert adjoint)
+    (``frame.test_table``). Carries the swapped spaces and a working
+    ``apply_transpose`` (``is_adjointable=True``), so the metric-aware
+    ``_AdjointOperator`` gives ``.H`` (the W-weighted Hilbert adjoint)
     for free. For a :class:`GalerkinFrame` the test basis is the trial basis, so this is
     the :math:`Y^* W` projection bit-identical to the single-discipline frame.
     """
 
     frame: FrameBase
-    # Plain unannotated class attr (NOT a dataclass field, NOT ClassVar) —
-    # overrides the role ABC's annotated ``capabilities`` the same way the
-    # leaves override ``block_role`` (see LinearOperator).
-    capabilities = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
     @property
     def domain(self) -> FunctionSpace:
@@ -451,22 +447,19 @@ class _FrameReconstruction(ReconstructionOperator):
     A frame-backed :class:`ReconstructionOperator` view delegating to the TRIAL basis's
     :meth:`Basis.reconstruct` (the canonical-dual synthesis) and its representation
     transpose :meth:`Basis.reconstruct_transpose` — reconstruction is purely trial-side,
-    identical across disciplines. Carries the swapped spaces and ``CAP_APPLY_TRANSPOSE``,
-    so the metric-aware ``_AdjointOperator`` gives ``R.H`` for free — symmetric with the
+    identical across disciplines. Carries the swapped spaces and a working
+    ``apply_transpose`` (``is_adjointable=True``), so the metric-aware
+    ``_AdjointOperator`` gives ``R.H`` for free — symmetric with the
     analysis face.
     """
 
     frame: FrameBase
-    # Plain class attr (see _FrameAnalysis) — both faces advertise apply +
-    # apply_transpose, so .H falls out of _AdjointOperator.
-    capabilities = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
     @property
     def is_adjointable(self) -> bool:
-        # The frame's reconstruction FACE adds apply_transpose (caps ⊇
-        # CAP_APPLY_TRANSPOSE) on top of the bare ReconstructionOperator role
-        # (which advertises only CAP_APPLY), so ``R.H`` is free here. The
-        # override lives on the face, mirroring the caps override above.
+        # The frame's reconstruction FACE adds apply_transpose on top of
+        # the bare ReconstructionOperator role (apply-only), so ``R.H``
+        # is free here. The override lives on the face.
         return True
 
     @property

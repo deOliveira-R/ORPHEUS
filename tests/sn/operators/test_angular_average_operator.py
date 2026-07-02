@@ -11,7 +11,6 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.operator import CAP_APPLY
 from orpheus.sn.boundary.angular import AngularAverageOperator
 from orpheus.numerics.quadrature import Quadrature
 
@@ -142,15 +141,18 @@ class TestSelfAdjointnessCosineWeighted:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Capability set (L0)
+# Structural predicates (L0)
 # ─────────────────────────────────────────────────────────────────────
 
 @pytest.mark.l0
-class TestCapabilitySet:
-    def test_caps(self):
+class TestPredicates:
+    def test_apply_only(self):
+        # Rank-deficient projection: neither invertible nor adjointable —
+        # apply is the only verb (apply itself is universal, guarded at
+        # composition time).
         quad = Quadrature.lebedev(5)
         op = AngularAverageOperator.from_quadrature(quad, axis="z", outward_sign=+1)
-        assert op.capabilities == frozenset({CAP_APPLY})
+        assert not op.is_invertible and not op.is_adjointable
 
 
 # ─────────────────────────────────────────────────────────────────────

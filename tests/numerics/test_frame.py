@@ -31,14 +31,13 @@ from orpheus.numerics.basis import (
 )
 from orpheus.numerics.frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
-from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
-    MissingCapability,
-)
+from orpheus.numerics.operator import NotInvertible
 from orpheus.numerics.quadrature import lebedev_sphere
 from orpheus.numerics.spaces import SphericalHarmonicSpace
-from tests._harness.predicates import assert_capability_faithful
+from tests._harness.predicates import (
+    STRUCTURAL_ABSENT,
+    assert_inverse_adjoint_contract,
+)
 
 
 @pytest.fixture
@@ -51,22 +50,27 @@ def sh_frame():
 
 
 @pytest.mark.foundation
-def test_frame_faces_predicates_faithful_to_caps(sh_frame):
-    r"""The carve keystone (#226) for the numerics frame faces.
+def test_frame_faces_two_axis_contract(sh_frame):
+    r"""The carve keystone (#226, P4 keystone v2) for the numerics frame faces.
 
-    Both faces advertise ``apply_transpose`` — so ``.H`` falls out of the
-    metric-aware ``_AdjointOperator`` — hence ``is_adjointable`` is True and
-    mirrors ``capabilities`` EXACTLY; neither face is invertible. The
-    reconstruction face's ``is_adjointable`` is the OVERRIDE that lifts it above
-    the bare :class:`~orpheus.numerics.projection.ReconstructionOperator`
-    default (caps ``{apply}`` → ``is_adjointable`` False); the analysis face
-    inherits ``True`` from :class:`~orpheus.numerics.projection.AnalysisOperator`.
+    Both faces carry a working ``apply_transpose`` — so ``.H`` falls out of
+    the metric-aware ``_AdjointOperator`` — hence ``is_adjointable`` is True
+    (and the eager ``.H`` returns the wrapper); neither face is invertible,
+    STRUCTURALLY (a projection face declares no ``inverse()`` — misuse is a
+    static error, Design C). The reconstruction face's ``is_adjointable`` is
+    the OVERRIDE that lifts it above the bare
+    :class:`~orpheus.numerics.projection.ReconstructionOperator` default
+    (``is_adjointable`` False); the analysis face inherits ``True`` from
+    :class:`~orpheus.numerics.projection.AnalysisOperator`.
     """
     frame, _ = sh_frame
     for face in (frame.analysis, frame.reconstruction):
-        assert_capability_faithful(face)
-        assert face.is_adjointable is True
-        assert face.is_invertible is False
+        assert_inverse_adjoint_contract(
+            face,
+            invertible=False,
+            adjointable=True,
+            inverse_contract=STRUCTURAL_ABSENT,
+        )
 
 
 def _band_limited(rng, L, *trailing):
@@ -191,15 +195,10 @@ def test_table_and_faces_are_cached(sh_frame):
     assert frame.reconstruction is frame.reconstruction
 
 
-@pytest.mark.foundation
-def test_face_capabilities(sh_frame):
-    frame, _ = sh_frame
-    assert frame.analysis.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
-    # Phase D: reconstruction now advertises apply_transpose too (→ R.H falls out),
-    # symmetric with the analysis face.
-    assert frame.reconstruction.capabilities == frozenset(
-        {CAP_APPLY, CAP_APPLY_TRANSPOSE}
-    )
+# (The former ``test_face_capabilities`` API-smoke — caps == {apply,
+# apply_transpose} on both faces — was retired with the frozenset at carve
+# P4; its surviving claim, both faces adjointable-not-invertible, is pinned
+# in FULL by ``test_frame_faces_two_axis_contract`` above.)
 
 
 # ── the discipline-type hierarchy (P1) ─────────────────────────────────────
@@ -424,7 +423,7 @@ def test_project_refuses_dense_gram_trial():
 
     The row-sum probe is wrong for a trial that is neither disjoint nor a partition of
     unity; rather than return a silently-wrong coarsening, the frame raises
-    :class:`MissingCapability` (the dense ``(MR)⁻¹M`` solve is unbuilt — #275). Mutation
+    :class:`NotInvertible` (the dense ``(MR)⁻¹M`` solve is unbuilt — #275). Mutation
     gate: a trial declaring ``GramStructure.DENSE`` reddens BOTH ``.gram`` and
     ``.project``, while the otherwise-identical DIAGONAL trial succeeds — proving the
     refusal keys on the declaration, not on some unrelated failure.
@@ -442,9 +441,9 @@ def test_project_refuses_dense_gram_trial():
     dense = PetrovGalerkinFrame(
         _DenseTrial((edges,)), measure, WeightedIndicatorBasis(IndicatorBasis((edges,)), np.ones(2)),
     )
-    with pytest.raises(MissingCapability, match="DENSE"):
+    with pytest.raises(NotInvertible, match="DENSE"):
         _ = dense.gram
-    with pytest.raises(MissingCapability, match="DENSE"):
+    with pytest.raises(NotInvertible, match="DENSE"):
         dense.project(np.array([3.0, 5.0]))
     # Control: the SAME geometry with the honest DIAGONAL trial projects fine.
     ok = PetrovGalerkinFrame(

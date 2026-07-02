@@ -50,8 +50,6 @@ from scipy.sparse import csr_matrix
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import Mesh2D
 from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
     LinearOperator,
     OperatorProduct,
 )
@@ -181,9 +179,15 @@ class TestLegendreMomentScatteringHasRealSpaces:
             mat_xs=op.mat_xs, L=op.scattering_order, skip_l0=True,
         )
         require(
-            lam.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE}),
-            f"Λ must advertise apply + apply_transpose (campaign #276), NOT solve; "
-            f"got {sorted(lam.capabilities)}.",
+            lam.is_adjointable and not lam.is_invertible,
+            f"Λ must carry a working apply_transpose (campaign #276) and NO "
+            f"inverse; got is_adjointable={lam.is_adjointable}, "
+            f"is_invertible={lam.is_invertible}.",
+        )
+        require(
+            not hasattr(lam, "inverse") and not hasattr(lam, "solve"),
+            "Λ is structurally non-invertible — no inverse()/solve declared "
+            "(carve P4 rewire of the strict caps-equality pin).",
         )
 
     def test_inner_lambda_product_carries_real_spaces(self, solver_p1_het):

@@ -305,8 +305,8 @@ def test_invertible_apply_transpose_is_M_transpose_of_C_sigma_bit_identical(case
     sig_t, sig_r = _removal_sigmas(sn, seed=sum(map(ord, case)) + 1)
     L = StreamingOperator(sn)
     op = InvertibleOperator(L, MultiplicationOperator.from_mesh(sig_r, sn))
-    if "apply_transpose" not in op.capabilities:
-        pytest.fail(f"[{case}] apply_transpose not advertised on InvertibleOperator.")
+    if not op.is_adjointable:  # carve P4 rewire — the S† twin's precondition
+        pytest.fail(f"[{case}] InvertibleOperator.is_adjointable is False.")
     phi = _random_state(sn, seed=sum(map(ord, case)) + 1)
 
     composite_t = op.apply_transpose(phi).bulk.values

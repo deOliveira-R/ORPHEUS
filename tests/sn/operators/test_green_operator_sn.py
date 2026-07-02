@@ -58,7 +58,7 @@ from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.numerics.green_operator import ConvergenceFailure, GreenOperator
 from orpheus.numerics.iteration import SourceIteration, _seeded_inverse
 from orpheus.numerics.operator import (
-    MissingCapability,
+    NotInvertible,
     OperatorSum,
     ScaledOperator,
 )
@@ -228,7 +228,7 @@ def test_minus_s_plus_lc_refuses_with_canonical_ordering_message():
     _, lc, S, _ = _operators()
     backwards = ScaledOperator(-1.0, S) + lc
     assert backwards.is_invertible is False
-    with pytest.raises(MissingCapability, match="canonical ordering"):
+    with pytest.raises(NotInvertible, match="canonical ordering"):
         backwards.inverse()
 
 

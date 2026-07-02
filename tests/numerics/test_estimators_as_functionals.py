@@ -54,8 +54,6 @@ from orpheus.numerics.iteration import (
     _default_production_estimator,
 )
 from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_SOLVE,
     LinearOperator,
     ZeroOperator,
 )
@@ -76,14 +74,17 @@ def _require(condition: bool, message: str) -> None:
 
 
 class _MatrixOperator(LinearOperator):
-    """Dense-matrix test operator with an explicit capability set."""
+    """Dense-matrix apply-only test operator.
 
-    def __init__(self, matrix: np.ndarray, *, can_solve: bool = False) -> None:
+    Inherits the base ``False`` predicates — the estimators consume
+    ONLY ``.apply``, so no invertibility/adjointability advertisement
+    is needed (the pre-carve ``can_solve`` capability flag was pure
+    advertisement over a class with no ``solve`` body; retired with
+    the frozenset at carve P4).
+    """
+
+    def __init__(self, matrix: np.ndarray) -> None:
         self.matrix = np.asarray(matrix, dtype=float)
-        caps = {CAP_APPLY}
-        if can_solve:
-            caps.add(CAP_SOLVE)
-        self.capabilities = frozenset(caps)
 
     def apply(self, x: np.ndarray) -> np.ndarray:
         return self.matrix @ x
@@ -91,7 +92,7 @@ class _MatrixOperator(LinearOperator):
 
 def _synthetic_triple():
     """An (L, S, F, ψ) quadruple with a hand-computable estimator value."""
-    L = _MatrixOperator(np.diag([3.0, 5.0, 7.0]), can_solve=True)
+    L = _MatrixOperator(np.diag([3.0, 5.0, 7.0]))
     S = _MatrixOperator(np.diag([0.5, 0.25, 0.1]))
     F = _MatrixOperator(np.diag([2.0, 1.0, 0.5]))
     psi = np.array([1.0, 2.0, 4.0])

@@ -52,8 +52,9 @@ class ReflectiveBoundary(BoundaryTraceLaw, key="reflective"):
             law, SNMethodSpace.minimal(quad),
         )
         psi_in = op.apply(psi_out)        # forward
-        # The realised operator advertises CAP_APPLY_TRANSPOSE as well,
-        # consumed by the sensitivity-analysis adjoint pipeline:
+        # The realised operator is adjointable as well (a working
+        # apply_transpose), consumed by the sensitivity-analysis adjoint
+        # pipeline:
         phi_out = op.apply_transpose(phi_in)
 
     For axis reflections, the index permutation is its own inverse:

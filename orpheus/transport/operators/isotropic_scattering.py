@@ -52,7 +52,7 @@ moment by the same :math:`\Sigma_s`.
 Capabilities
 ============
 
-``{CAP_APPLY, CAP_APPLY_TRANSPOSE}``. No ``solve`` — the per-cell group-transfer
+apply + a working ``apply_transpose``. No inverse — the per-cell group-transfer
 matrix is generally singular (a thermal group with no up-scatter source has a zero
 row); it is *applied*, never inverted. The transpose IS advertised (campaign #276):
 :math:`\Sigma_{s,0}^{T}` / :math:`2\Sigma_{2n}^{T}` (the group-axis flip) is the
@@ -76,8 +76,6 @@ import numpy as np
 
 from orpheus.numerics.operator import (
     BlockRole,
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
     LinearOperator,
 )
 
@@ -119,9 +117,6 @@ class IsotropicScattering(LinearOperator):
 
     mat_xs: "MaterialXSField"
     space: "FunctionSpace | None" = None
-    capabilities: frozenset[str] = field(
-        default_factory=lambda: frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
-    )
     # A BULK energy operator (the scalar flux is the bulk block); no boundary action.
     # Class-level constant (unannotated so the dataclass does not treat it as a field).
     block_role = BlockRole.BULK
@@ -129,7 +124,7 @@ class IsotropicScattering(LinearOperator):
     @property
     def is_adjointable(self) -> bool:
         # apply_transpose realises Σ_{s,0}χ (the group-flip A^T); caps ⊇
-        # CAP_APPLY_TRANSPOSE. is_invertible inherits base False.
+        # apply_transpose. is_invertible inherits base False.
         return True
 
     def apply(self, phi: "np.ndarray | object") -> np.ndarray:
@@ -202,15 +197,12 @@ class IsotropicN2N(LinearOperator):
 
     mat_xs: "MaterialXSField"
     space: "FunctionSpace | None" = None
-    capabilities: frozenset[str] = field(
-        default_factory=lambda: frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
-    )
     block_role = BlockRole.BULK
 
     @property
     def is_adjointable(self) -> bool:
         # apply_transpose realises 2Σ_{2n}χ (the group-flip A^T); caps ⊇
-        # CAP_APPLY_TRANSPOSE. is_invertible inherits base False.
+        # apply_transpose. is_invertible inherits base False.
         return True
 
     def apply(self, phi: "np.ndarray | object") -> np.ndarray:

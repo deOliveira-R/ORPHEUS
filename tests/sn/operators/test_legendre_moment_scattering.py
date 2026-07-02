@@ -14,19 +14,14 @@ moment space. The contract verified here:
   :meth:`ScatteringOperator.build_aniso_source`).
 * **Bit-identical against the legacy inlined math** for the case the
   legacy code computed (ℓ ≥ 1 only).
-* **Capability set**: ``{CAP_APPLY}`` only; no solve / no transpose
-  for now.
+* **Predicates**: ``is_adjointable`` True (the per-ℓ group-transpose Λᵀ,
+  campaign #276); ``is_invertible`` False (ℓ=0 block rank-deficient).
 """
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
-    CAP_SOLVE,
-)
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.transport.operators.scattering import LegendreMomentScattering
 
@@ -71,21 +66,20 @@ def _make_simple_lambda(
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Capability set
+# Structural predicates
 # ─────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.l0
-class TestCapabilities:
+class TestPredicates:
     def test_apply_and_transpose_not_solve(self):
-        # Λ advertises apply + apply_transpose (the per-ℓ group-transpose Λᵀ,
-        # campaign #276) — but NOT solve (the ℓ=0 block is rank-deficient by
-        # design). The transpose is the bare Euclidean Λᵀ that the
-        # frame-conjugated kernel (R∘Λ∘M)ᵀ distributes onto.
+        # Λ is adjointable (the per-ℓ group-transpose Λᵀ, campaign #276) —
+        # but NOT invertible (the ℓ=0 block is rank-deficient by design).
+        # The transpose is the bare Euclidean Λᵀ that the frame-conjugated
+        # kernel (R∘Λ∘M)ᵀ distributes onto.
         Lam, _, _ = _make_simple_lambda()
-        assert CAP_APPLY in Lam.capabilities
-        assert CAP_APPLY_TRANSPOSE in Lam.capabilities
-        assert CAP_SOLVE not in Lam.capabilities
+        assert Lam.is_adjointable
+        assert not Lam.is_invertible
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -292,10 +286,10 @@ class TestBitIdenticalToLegacyInlinedMath:
 
 @pytest.mark.l0
 class TestComposesUnderOperatorAlgebra:
-    def test_lambda_advertises_apply_for_operator_product(self):
+    def test_lambda_composes_under_operator_product(self):
         """Λ should compose correctly with other LinearOperators via `@`."""
         from orpheus.numerics.operator import IdentityOperator
         Lam, _, _ = _make_simple_lambda()
-        # Λ @ I  — composition machinery
+        # Λ @ I  — composition machinery (the ctor apply-guard admits Λ).
         composed = Lam @ IdentityOperator()
-        assert CAP_APPLY in composed.capabilities
+        assert callable(getattr(composed, "apply", None))

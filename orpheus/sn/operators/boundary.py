@@ -50,8 +50,6 @@ from typing import TYPE_CHECKING, NamedTuple, Optional
 import numpy as np
 
 from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
     BlockRole,
     LinearOperator,
 )
@@ -135,22 +133,12 @@ class SNBoundaryOperator(LinearOperator):
         }
 
     @property
-    def capabilities(self) -> frozenset[str]:
-        caps = {CAP_APPLY}
-        laws = self._face_laws.values()
-        if laws and all(
-            CAP_APPLY_TRANSPOSE in law.capabilities for law in laws
-        ):
-            caps.add(CAP_APPLY_TRANSPOSE)
-        return frozenset(caps)
-
-    @property
     def is_adjointable(self) -> bool:
         # B = ⊕ per-face laws; the composite adjoint exists iff EVERY face law
         # is adjointable (reflective / vacuum / periodic / albedo are; white is
-        # NOT — self-adjoint only under |Ω·n|·w, routed via B.H). Mirrors the
-        # intersection rule in :attr:`capabilities` — predicate and capability
-        # move together. is_invertible inherits base False (a BC reflection map
+        # NOT — self-adjoint only under |Ω·n|·w, routed via B.H). The per-face
+        # intersection rule, computed recursively like every composite
+        # predicate. is_invertible inherits base False (a BC reflection map
         # is not invertible).
         laws = self._face_laws.values()
         return bool(laws) and all(law.is_adjointable for law in laws)
@@ -388,8 +376,8 @@ class SNBoundaryOperator(LinearOperator):
     def apply_transpose(self, psi: "FullField") -> "FullField":
         r"""Euclidean transpose ``Bᵀ·ψ`` — per-face ``apply_transpose``, zero bulk.
 
-        Reachable only when every per-face law advertises
-        :data:`CAP_APPLY_TRANSPOSE` (see :attr:`capabilities`). The white BC has
+        Reachable only when every per-face law is adjointable (see
+        :attr:`is_adjointable`). The white BC has
         no Euclidean transpose; its physically-correct adjoint is ``B.H`` under
         the ``|Ω·n|·w`` trace metric (Wave O step O.2).
         """
@@ -415,11 +403,10 @@ class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):
 
     A masked half is NOT invertible and does not advertise a transpose
     (``B_lowerᵀ`` masks input rows, not output rows — mint it when the
-    adjoint-inverse carve #280 produces a consumer), so the capability set is
-    ``{apply}`` and the faithfulness keystone holds by the base defaults.
+    adjoint-inverse carve #280 produces a consumer), so it is apply-only
+    and the two-axis contract holds by the base defaults.
     """
 
-    capabilities = frozenset({CAP_APPLY})
     block_role = BlockRole.BOUNDARY
 
     def __init__(

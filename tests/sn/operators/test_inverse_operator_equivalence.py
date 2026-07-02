@@ -106,16 +106,16 @@ def test_inverse_returns_sweep_operator_surface():
 
     Pins the taxonomy step-1 surface (supersedes the Phase-2 "apply-only"
     deferral pin): the invertibility axis is now DELIVERED — ``is_invertible``
-    with a faithful ``CAP_SOLVE`` (``solve`` on the inverse is the forward
-    matvec), and the involution ``inverse().inverse() is A`` holds by OBJECT
-    IDENTITY (§13 I2). The ADJOINT axis stays honestly deferred (#280):
+    True with a faithful ``solve`` verb (``solve`` on the inverse is the
+    forward matvec), and the involution ``inverse().inverse() is A`` holds by
+    OBJECT IDENTITY (§13 I2). The ADJOINT axis stays honestly deferred (#280):
     ``is_adjointable`` False. Domain/codomain swap (equal here — ``L+C`` is
     endomorphic)."""
     _, A, _ = _build(_slab)
     inv = A.inverse()
     assert isinstance(inv, SweepOperator)
     assert inv.inner is A
-    assert inv.capabilities == frozenset({"apply", "solve"})
+    assert callable(getattr(inv, "solve", None))  # inverse family keeps solve
     assert inv.is_invertible is True and inv.is_adjointable is False
     assert inv.inverse() is A  # (A^{-1})^{-1} = A — by object identity
     assert inv.domain is A.codomain and inv.codomain is A.domain

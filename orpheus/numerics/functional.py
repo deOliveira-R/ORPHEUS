@@ -56,7 +56,7 @@ Why this is a SIBLING of LinearOperator, not a subclass
 A :class:`Functional` has exactly one method, :meth:`evaluate`. It
 deliberately carries **none** of the
 :class:`~orpheus.numerics.operator.LinearOperator` surface — no
-``apply``, no ``capabilities``, no ``solve``, no ``apply_transpose``,
+``apply``, no operator surface (no ``solve``/``apply_transpose``),
 no ``H`` / ``domain`` / ``codomain``. The two Protocols share no member:
 a Functional speaks ``evaluate`` (field → scalar/scalar-field); a
 LinearOperator speaks ``apply`` (field → field) plus a capability set.
@@ -154,7 +154,7 @@ class Functional(Protocol[V_contra, R_co]):
     and a *sibling* of :class:`~orpheus.numerics.operator.LinearOperator`,
     NOT a subclass: it carries the single :meth:`evaluate` method and
     deliberately none of the operator surface (no ``apply``, no
-    ``capabilities``, no ``solve`` / ``apply_transpose`` / ``H`` /
+    operator surface, no ``solve`` / ``apply_transpose`` / ``H`` /
     ``domain`` / ``codomain``). The two Protocols share no member —
     that disjointness is the category's defining property.
 
@@ -173,7 +173,7 @@ class Functional(Protocol[V_contra, R_co]):
         space, field → scalar-field) map. Mandatory. Every
         :class:`Functional` implements exactly this — it is the entire
         contract, and the deliberate absence of an ``apply`` /
-        ``capabilities`` surface is what distinguishes the functional
+        operator surface is what distinguishes the functional
         category from the operator category.
         """
         ...

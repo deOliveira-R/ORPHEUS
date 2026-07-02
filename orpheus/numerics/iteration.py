@@ -134,16 +134,16 @@ Forward references
 from __future__ import annotations
 
 import warnings
-from typing import Any, Callable, Generic, Protocol, cast
+from typing import Any, Callable, Generic, Protocol, TypeGuard, cast
 
 import numpy as np
 import scipy.sparse.linalg as spla
 
 from .operator import (
-    CAP_APPLY,
+    InverseWrapMixin,
     LinearOperator,
-    MissingCapability,
-    SupportsInverse,
+    NotInvertible,
+    invertible,
 )
 from .vector import V
 
@@ -201,35 +201,74 @@ ProductionEstimator = Callable[
 ]
 
 
-def _has(op: object, cap: str) -> bool:
-    """Return ``True`` iff ``op`` advertises the capability ``cap``."""
-    caps = getattr(op, "capabilities", None)
-    return bool(caps) and cap in caps
+class _SeededExactApply:
+    r"""Adapt an ALGEBRA-CLOSED inverse to the driver's seeded contract.
 
-
-def _seeded_inverse(A: LinearOperator) -> "SupportsSeededApply[Any]":
-    r"""Build ``A.inverse()`` and narrow it to the driver's seeded-apply
-    contract — the ONE home of the not-runtime-checkable narrowing.
-
-    The static narrows are casts (the ``Supports*`` Protocols are
-    deliberately not ``runtime_checkable`` — test-architect §1d.3); the
-    runtime truth is the CALLER's ``is_invertible`` guard, which MUST
-    precede this call.  Seeded-apply conformance is STRUCTURAL on the
-    wrap-delegate family (#285, decided at taxonomy §12 step 4): the SN
-    :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`, the leaf
-    :class:`~orpheus.numerics.operator.InverseOperator`, and the splitting
-    :class:`~orpheus.numerics.green_operator.GreenOperator` all inherit
-    the abstract signature from
-    :class:`~orpheus.numerics.operator.InverseWrapMixin`, so every
-    ``.inverse()`` a posing layer reaches through this helper carries the
-    keyword by construction.  The RESIDUE outside the family: a composed
-    ``OperatorProduct.inverse()`` (a composition, not a wrap-delegate
-    sibling) does not take the keyword today — closed with
-    ``MatrixInverseOperator`` at step 5 (#285's remaining scope).
+    The two-kinds split (taxonomy §12 step 5, canonical statement on
+    :meth:`~orpheus.numerics.operator.OperatorProduct.inverse`): the
+    wrap-delegate family carries the canonical seeded ``apply``
+    structurally, but an algebra-closed inverse — a permutation's inverse
+    IS a permutation, the identity is self-inverse, a scaled operator's
+    is a scaled operator — is a first-class FORWARD whose ``apply`` is
+    the plain positional signature.  Placed in a seeded slot (the Green
+    splitting's preconditioner, a warm-started Richardson step) it must
+    accept the driver's uniformly-threaded ``initial_guess`` — and these
+    inverses are EXACT, so the seed carries no information: accept and
+    drop, the same seed-independence the M-direct invariant pins on
+    :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`.
     """
-    return cast(
-        "SupportsSeededApply[Any]", cast("SupportsInverse", A).inverse(),
-    )
+
+    def __init__(self, exact_inverse: LinearOperator) -> None:
+        self._exact_inverse = exact_inverse
+
+    def apply(self, rhs: Any, /, *, initial_guess: Any | None = None) -> Any:
+        del initial_guess  # exact algebra-closed inverse — nothing to seed
+        return self._exact_inverse.apply(rhs)
+
+
+def _wrap_delegate_member(inv: "LinearOperator") -> "TypeGuard[SupportsSeededApply[Any]]":
+    r"""Checked bridge: family membership ⟹ the canonical seeded ``apply``.
+
+    :class:`~orpheus.numerics.operator.InverseWrapMixin`'s abstract
+    ``apply`` declares the seeded keyword, so membership STRUCTURALLY
+    implies :class:`SupportsSeededApply` conformance (#285) — the
+    ``isinstance`` here is type-as-structure dispatch on the two-kinds
+    split, not a signature probe. ``TypeGuard`` (replace-not-intersect)
+    hands the branch the contract type directly.
+    """
+    return isinstance(inv, InverseWrapMixin)
+
+
+def _seeded_inverse(A: "LinearOperator") -> "SupportsSeededApply[Any]":
+    r"""Build ``A.inverse()`` conforming to the driver's seeded contract —
+    the ONE home of the inverse→driver adaptation.
+
+    Two kinds of inverse arrive here (taxonomy §12 step 5), keyed by the
+    STRUCTURAL family membership, never a signature probe:
+
+    * **wrap-delegate members** (:class:`~orpheus.numerics.operator.InverseWrapMixin`
+      siblings — ``SweepOperator``/``InverseOperator``/``GreenOperator``/
+      ``MatrixInverseOperator``): the abstract mixin ``apply`` declares
+      the seeded keyword, so conformance holds by construction (#285) —
+      returned as-is;
+    * **algebra-closed inverses** (identity → itself, permutation →
+      permutation, scaled → scaled, tensor-product → factor-wise): plain
+      forwards with no seed slot — wrapped in :class:`_SeededExactApply`
+      (accept-and-drop; an exact inverse has nothing to seed).
+
+    The :func:`~orpheus.numerics.operator.invertible` guard is the
+    checked narrowing bridge (Design C): the runtime predicate check IS
+    the static permission for the ``.inverse()`` call — no cast.
+    """
+    if not invertible(A):
+        raise NotInvertible(
+            f"_seeded_inverse requires an invertible operator; "
+            f"{type(A).__name__}.is_invertible is False."
+        )
+    inv = A.inverse()
+    if _wrap_delegate_member(inv):
+        return inv  # canonical seeded apply, structurally (#285)
+    return _SeededExactApply(inv)
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -447,8 +486,8 @@ class SourceIteration(Generic[V]):
     Parameters
     ----------
     A_inv : SupportsSeededApply
-        The inverse-application operator :math:`A^{-1}` — must advertise
-        :pydata:`CAP_APPLY`; the iteration step is
+        The inverse-application operator :math:`A^{-1}` — must expose
+        ``apply``; the iteration step is
         ``psi = A_inv.apply(rhs, initial_guess=psi_prev)``.  For SN this
         is ``(L+C).inverse()`` / ``M.inverse()``
         (:class:`~orpheus.sn.operators.sweep_operator.SweepOperator`) or
@@ -460,8 +499,8 @@ class SourceIteration(Generic[V]):
         so "is this a faithful inverse of the intended forward?" is the
         CALLER's obligation, discharged where the operator is built.
     *gains : LinearOperator
-        The lagged coupling operators :math:`g_i` — each must advertise
-        :pydata:`CAP_APPLY`.  They are applied to the current iterate and
+        The lagged coupling operators :math:`g_i` — each must expose
+        ``apply``.  They are applied to the current iterate and
         summed with ``q_ext`` every step, realising
         :math:`\bigl(A - \sum_i g_i\bigr)\psi = q_{\rm ext}`.  For SN
         within-group these are the scattering ``S`` and the boundary
@@ -475,9 +514,9 @@ class SourceIteration(Generic[V]):
 
     Raises
     ------
-    MissingCapability
-        At construction time if ``A_inv`` or any gain lacks
-        :pydata:`CAP_APPLY`.
+    TypeError
+        At construction time if ``A_inv`` or any gain has no callable
+        ``apply`` (the eager composition-time guard, carve P4).
 
     Notes
     -----
@@ -502,25 +541,22 @@ class SourceIteration(Generic[V]):
         max_iter: int = 1000,
         tol: float = 1e-8,
     ) -> None:
-        # Capability checks at construction so a downstream caller
-        # never sees a stub failure mid-iteration (Wave A philosophy).
-        # CAP_APPLY everywhere is the WHOLE contract now: the step
-        # operator arrives pre-inverted, so the former CAP_SOLVE gate
-        # (and its inspect.signature seed-probe) dissolved with the
-        # duck-typed resolvents (#226 taxonomy step 3).
-        if not _has(A_inv, CAP_APPLY):
-            raise MissingCapability(
-                f"SourceIteration requires {CAP_APPLY!r} on A_inv (the "
+        # Apply-guards at construction so a downstream caller never sees
+        # a stub failure mid-iteration (Wave A philosophy, kept through
+        # carve P4 as an eager callable check — no frozenset read). The
+        # step operator arrives pre-inverted, so an apply IS the whole
+        # contract (#226 taxonomy step 3).
+        if not callable(getattr(A_inv, "apply", None)):
+            raise TypeError(
+                f"SourceIteration requires 'apply' on A_inv (the "
                 f"inverse-application operator — build it via "
-                f"A.inverse()); {type(A_inv).__name__} advertises "
-                f"{getattr(A_inv, 'capabilities', frozenset())}."
+                f"A.inverse()); {type(A_inv).__name__} has none."
             )
         for i, g in enumerate(gains):
-            if not _has(g, CAP_APPLY):
-                raise MissingCapability(
-                    f"SourceIteration requires {CAP_APPLY!r} on every coupling "
-                    f"operator; gain {i} ({type(g).__name__}) advertises "
-                    f"{getattr(g, 'capabilities', frozenset())}."
+            if not callable(getattr(g, "apply", None)):
+                raise TypeError(
+                    f"SourceIteration requires 'apply' on every coupling "
+                    f"operator; gain {i} ({type(g).__name__}) has none."
                 )
 
         self.A_inv = A_inv
@@ -705,14 +741,14 @@ class KrylovAcceleration(Generic[V]):
     ----------
     A : LinearOperator
         The FORWARD loss operator — the GMRES matvec applies it, so it
-        must advertise :pydata:`CAP_APPLY` (contrast
+        must expose ``apply`` (contrast
         :class:`SourceIteration`, which consumes the pre-built INVERSE).
         If ``A.is_invertible`` and no ``preconditioner`` is supplied,
         ``A.inverse().apply`` (the sweep) becomes the default GMRES
         preconditioner.
     *gains : LinearOperator
         The coupling operators :math:`g_i` subtracted from ``A`` in the
-        matvec (each must advertise :pydata:`CAP_APPLY`).  For SN within-
+        matvec (each must expose ``apply``).  For SN within-
         group these are the scattering ``S`` and the boundary reflection
         ``B`` (within-group fission is zero — it enters as the EXTERNAL
         :math:`q_{\rm ext}` per the eigenvalue outer / within-group
@@ -732,9 +768,9 @@ class KrylovAcceleration(Generic[V]):
 
     Raises
     ------
-    MissingCapability
-        At construction time if ``A`` or any gain lacks
-        :pydata:`CAP_APPLY`.
+    TypeError
+        At construction time if ``A`` or any gain has no callable
+        ``apply`` (the eager composition-time guard, carve P4).
 
     Notes
     -----
@@ -754,18 +790,17 @@ class KrylovAcceleration(Generic[V]):
         tol: float = 1e-8,
         restart: int = 50,
     ) -> None:
-        if not _has(A, CAP_APPLY):
-            raise MissingCapability(
-                f"KrylovAcceleration requires {CAP_APPLY!r} on A; "
-                f"{type(A).__name__} advertises "
-                f"{getattr(A, 'capabilities', frozenset())}."
+        if not callable(getattr(A, "apply", None)):
+            raise TypeError(
+                f"KrylovAcceleration requires 'apply' on A; "
+                f"{type(A).__name__} has none."
             )
         for i, g in enumerate(gains):
-            if not _has(g, CAP_APPLY):
-                raise MissingCapability(
-                    f"KrylovAcceleration requires {CAP_APPLY!r} on every "
+            if not callable(getattr(g, "apply", None)):
+                raise TypeError(
+                    f"KrylovAcceleration requires 'apply' on every "
                     f"coupling operator; gain {i} ({type(g).__name__}) "
-                    f"advertises {getattr(g, 'capabilities', frozenset())}."
+                    f"has none."
                 )
 
         self.A = A
@@ -983,8 +1018,8 @@ class KEigenvalue:
         (:attr:`~orpheus.numerics.operator.LinearOperator.is_invertible`)
         — this posing layer builds ``A.inverse()`` once and hands it to
         the inner :class:`SourceIteration`, which only APPLIES it (#226
-        taxonomy step 3).  ``S`` and ``F`` must advertise
-        :pydata:`CAP_APPLY`.  ``F`` is non-trivial for an eigenvalue
+        taxonomy step 3).  ``S`` and ``F`` must expose
+        ``apply``.  ``F`` is non-trivial for an eigenvalue
         solve (no degenerate zero-fission case — without fission the
         spectrum is empty).
     max_outer : int, optional
@@ -1014,8 +1049,11 @@ class KEigenvalue:
 
     Raises
     ------
-    MissingCapability
-        Same conditions as :class:`SourceIteration`.
+    NotInvertible
+        At construction when ``A`` is not invertible (this posing layer
+        builds ``A.inverse()``).
+    TypeError
+        Apply-guard conditions as :class:`SourceIteration`.
     NotImplementedError
         If ``eigenvalue_method`` is not ``"power"`` — the FEAST hook
         is reserved for a future wave.
@@ -1047,10 +1085,10 @@ class KEigenvalue:
         # Construct-time validation of A happens HERE (the posing layer
         # builds the inverse — taxonomy step 3): a non-invertible A must
         # fail with a domain message, not an AttributeError from a
-        # missing ``.inverse``.  S's CAP_APPLY check stays deferred to
+        # missing ``.inverse``.  S's apply-guard stays deferred to
         # the inner SourceIteration (one source of truth).
         if not getattr(A, "is_invertible", False):
-            raise MissingCapability(
+            raise NotInvertible(
                 f"KEigenvalue requires an INVERTIBLE A — the inner "
                 f"SourceIteration applies A.inverse() each step; "
                 f"{type(A).__name__}.is_invertible is "
@@ -1091,11 +1129,10 @@ class KEigenvalue:
             max_iter=self.max_inner, tol=self.inner_tol,
         )
         # F (the outer eigen-operator F·ψ) needs apply.
-        if not _has(self.F, CAP_APPLY):
-            raise MissingCapability(
-                f"KEigenvalue requires {CAP_APPLY!r} on F (the outer fission "
-                f"source F·ψ); {type(self.F).__name__} advertises "
-                f"{getattr(self.F, 'capabilities', frozenset())}."
+        if not callable(getattr(self.F, "apply", None)):
+            raise TypeError(
+                f"KEigenvalue requires 'apply' on F (the outer fission "
+                f"source F·ψ); {type(self.F).__name__} has none."
             )
         # The initial flux guess is supplied to .solve() and stashed for the
         # EigenvalueSolver.initial_flux_distribution boundary method.

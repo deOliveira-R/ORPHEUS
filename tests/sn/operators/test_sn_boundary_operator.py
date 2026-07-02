@@ -7,15 +7,15 @@ true boundary face's realized law to that face's trace slot, with zero bulk
 action. These foundation tests pin the assembly BEFORE anything consumes ``B``
 (the ``−B`` wiring + the bare-``L_full`` flip is O.4a.2 Commit 2):
 
-* the role / domain / capabilities contract;
+* the role / domain / predicate contract;
 * zero bulk action;
 * **per-face wiring** — ``B`` applies the RIGHT face's law to the RIGHT slot,
   emitting on the **inflow row only** (``B`` is the ``A_ss`` block
   ``V_outflow → V_inflow``; the discriminating case uses asymmetric BCs so a
   face↔face swap is caught);
 * **block-diagonal over faces** — a single-face perturbation stays on that face;
-* the ``apply_transpose`` capability intersection (advertised iff every face law
-  honours it — white would drop it; see the stub negative).
+* the ``is_adjointable`` face conjunction (True iff every face law honours the
+  transpose — white would drop it; see the stub negative).
 """
 from __future__ import annotations
 
@@ -26,8 +26,6 @@ import pytest
 
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
     BlockRole,
     BoundaryOperator,
     BulkOperator,
@@ -106,10 +104,6 @@ class TestContract:
         assert B.codomain is sn.full_field_space
         # the composite trace block IS the mesh trace space (block identity)
         assert B.domain.trace_space is sn.trace
-
-    def test_apply_advertised(self) -> None:
-        B = SNBoundaryOperator(_sn("SLB", (BC.vacuum, BC.reflective)))
-        assert CAP_APPLY in B.capabilities
 
 
 class TestApply:
@@ -191,13 +185,13 @@ class TestApply:
 
 class TestApplyTransposeCapability:
     @pytest.mark.parametrize("case_id", list(_CASES))
-    def test_capabilities_include_apply_transpose_when_all_faces_support(
+    def test_adjointable_when_all_faces_support(
         self, case_id: str,
     ) -> None:
-        """Reflective / vacuum faces all advertise apply_transpose, so ``B`` does."""
+        """Reflective / vacuum faces are all adjointable, so ``B`` is."""
         sn = _sn(*_CASES[case_id])
         B = SNBoundaryOperator(sn)
-        assert CAP_APPLY_TRANSPOSE in B.capabilities
+        assert B.is_adjointable
         # The Euclidean transpose ``Bᵀ: V_inflow → V_outflow`` emits on the
         # OUTFLOW row only (the transpose of the inflow-row projection), and
         # agrees there with the per-face ``bc.apply_transpose``.
@@ -216,14 +210,17 @@ class TestApplyTransposeCapability:
                 f"must land on the outflow row."
             )
 
-    def test_capabilities_drop_apply_transpose_when_a_face_lacks_it(self) -> None:
-        """The capability is an INTERSECTION — if any face law cannot transpose
-        (e.g. the white BC, self-adjoint only under the |Ω·n|·w metric), ``B``
-        must NOT advertise apply_transpose (vv L11 negative; prevents a silent
-        wrong/raising adjoint in a Krylov adjoint solve)."""
+    def test_adjointability_drops_when_a_face_lacks_it(self) -> None:
+        """The predicate is a face CONJUNCTION — if any face law cannot
+        transpose (e.g. the white BC, self-adjoint only under the |Ω·n|·w
+        metric), ``B`` must NOT be adjointable (vv L11 negative; prevents a
+        silent wrong/raising adjoint in a Krylov adjoint solve)."""
 
         class _NoTransposeLaw:
-            capabilities = frozenset({CAP_APPLY})
+            # Honest per-axis predicates (the caps frozenset retired with
+            # carve P4): apply-only — neither axis available.
+            is_adjointable = False
+            is_invertible = False
 
             def apply(self, x):  # noqa: D401 - stub
                 return x
@@ -238,8 +235,7 @@ class TestApplyTransposeCapability:
                 return laws
 
         B = _BWithStubFace(sn)
-        assert CAP_APPLY in B.capabilities
-        assert CAP_APPLY_TRANSPOSE not in B.capabilities
+        assert not B.is_adjointable
 
 
 class TestFaceRestrictedReflect:

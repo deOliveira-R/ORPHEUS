@@ -16,15 +16,13 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
-    CAP_SOLVE,
     IdentityOperator,
+    InverseOperator,
     LinearOperator,
-    LinearOperator,
-    MissingCapability,
+    NotInvertible,
     OperatorProduct,
     OperatorSum,
+    PermutationOperator,
     ScaledOperator,
     ZeroOperator,
 )
@@ -40,7 +38,7 @@ pytestmark = pytest.mark.foundation
 class MatrixOperator(LinearOperator):
     """Test operator backed by a dense numpy matrix.
 
-    Advertises capabilities according to constructor flags. Used to
+    Carries honest structural predicates per constructor flags. Used to
     drive composition + capability tests with a fully analytic ground
     truth (the matrix is stored, so any test can compare against
     direct ``M @ x``). Inherits :class:`LinearOperator` so that
@@ -55,18 +53,35 @@ class MatrixOperator(LinearOperator):
         can_transpose: bool = False,
     ) -> None:
         self.matrix = np.asarray(matrix, dtype=float)
-        caps = {CAP_APPLY}
-        if can_solve:
-            caps.add(CAP_SOLVE)
-        if can_transpose:
-            caps.add(CAP_APPLY_TRANSPOSE)
-        self.capabilities = frozenset(caps)
+        self._can_solve = bool(can_solve)
+        self._can_transpose = bool(can_transpose)
+
+    # Faithful test double: the predicates mirror the ctor flags exactly
+    # (carve P4 §38 — the eager ``.H`` gate reads is_adjointable, so a
+    # fixture advertising the cap without the predicate is a stale lie).
+    @property
+    def is_invertible(self) -> bool:
+        return self._can_solve
+
+    @property
+    def is_adjointable(self) -> bool:
+        return self._can_transpose
 
     def apply(self, x: np.ndarray) -> np.ndarray:
         return self.matrix @ x
 
     def solve(self, b: np.ndarray) -> np.ndarray:
         return np.linalg.solve(self.matrix, b)
+
+    def inverse(self) -> InverseOperator:
+        # is_invertible=True PROMISES a working inverse() (keystone v2) —
+        # the solve-backed leaf serves it through the generic family
+        # member, exactly like the production value leaves.
+        if not self._can_solve:
+            raise NotInvertible(
+                "MatrixOperator(can_solve=False) produces no inverse."
+            )
+        return InverseOperator(self)
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         return self.matrix.T @ x
@@ -119,70 +134,93 @@ def test_identity_and_zero_are_linear_operators():
 
 
 # ───────────────────────────────────────────────────────────────────────
-# Capability propagation — OperatorSum
+# Structural-predicate propagation — OperatorSum
 # ───────────────────────────────────────────────────────────────────────
 
 
-def test_sum_apply_propagates_with_both(matrix_full, matrix_apply_only):
+def test_sum_composes_with_both_applying(matrix_full, matrix_apply_only):
+    s = OperatorSum(matrix_full, matrix_apply_only)  # eager guard accepts
+    assert callable(getattr(s, "apply", None))
+
+
+def test_sum_solve_rides_the_leading_term(matrix_full, matrix_apply_only):
+    """Solve on a sum rides its LEADING term — order-sensitively.
+
+    There is still no OPERAND-WISE algorithm for ``(A+B)^{-1}`` from
+    ``A^{-1}``/``B^{-1}`` — but since #226 step 4 a sum whose left-spine
+    head is invertible carries the preconditioned-splitting
+    :class:`GreenOperator` inverse — invertibility rides the leading
+    term, order-sensitively. REWIRED at carve P4: the old
+    "solve never propagates" pin predated step 4 and survived only
+    because the fixture's ``is_invertible`` was a stale ``False``.
+    """
+    from orpheus.numerics.green_operator import GreenOperator
+
     s = OperatorSum(matrix_full, matrix_apply_only)
-    assert CAP_APPLY in s.capabilities
-
-
-def test_sum_solve_does_not_propagate(matrix_full):
-    """No general algorithm for (A+B)^{-1} from A^{-1}, B^{-1}."""
-    s = OperatorSum(matrix_full, matrix_full)
-    assert CAP_SOLVE not in s.capabilities
+    assert s.is_invertible is True
+    assert type(s.inverse()) is GreenOperator
+    # The SAME operands reversed: a non-invertible head has no
+    # designated preconditioner — the ordering contract refuses.
+    s_reversed = OperatorSum(matrix_apply_only, matrix_full)
+    assert s_reversed.is_invertible is False
 
 
 def test_sum_transpose_propagates_with_both(matrix_full):
     s = OperatorSum(matrix_full, matrix_full)
-    assert CAP_APPLY_TRANSPOSE in s.capabilities
+    assert s.is_adjointable is True
 
 
 def test_sum_transpose_drops_when_one_lacks(matrix_full, matrix_apply_only):
     s = OperatorSum(matrix_full, matrix_apply_only)
-    assert CAP_APPLY_TRANSPOSE not in s.capabilities
+    assert s.is_adjointable is False
 
 
 # ───────────────────────────────────────────────────────────────────────
-# Capability propagation — OperatorProduct
+# Structural-predicate propagation — OperatorProduct
 # ───────────────────────────────────────────────────────────────────────
 
 
-def test_product_apply_propagates(matrix_full, matrix_apply_only):
-    p = OperatorProduct(matrix_full, matrix_apply_only)
-    assert CAP_APPLY in p.capabilities
+def test_product_composes_with_both_applying(matrix_full, matrix_apply_only):
+    p = OperatorProduct(matrix_full, matrix_apply_only)  # eager guard accepts
+    assert callable(getattr(p, "apply", None))
 
 
-def test_product_solve_propagates_with_both(matrix_full):
+def test_product_invertible_with_both(matrix_full):
     p = OperatorProduct(matrix_full, matrix_full)
-    assert CAP_SOLVE in p.capabilities
+    assert p.is_invertible is True
 
 
-def test_product_solve_drops_when_one_lacks(matrix_full, matrix_apply_only):
+def test_product_not_invertible_when_one_factor_is_not(
+    matrix_full, matrix_apply_only, vector
+):
     p = OperatorProduct(matrix_full, matrix_apply_only)
-    assert CAP_SOLVE not in p.capabilities
+    assert p.is_invertible is False
+    with pytest.raises(NotInvertible, match="both factors"):
+        p.solve(vector)  # the kept verb refuses eagerly (value arm)
+    with pytest.raises(NotInvertible, match="both factors"):
+        p.inverse()
 
 
 def test_product_transpose_propagates_with_both(matrix_full):
     p = OperatorProduct(matrix_full, matrix_full)
-    assert CAP_APPLY_TRANSPOSE in p.capabilities
+    assert p.is_adjointable is True
 
 
 # ───────────────────────────────────────────────────────────────────────
-# Capability propagation — ScaledOperator
+# Structural-predicate propagation — ScaledOperator
 # ───────────────────────────────────────────────────────────────────────
 
 
-def test_scaled_preserves_all_capabilities(matrix_full):
+def test_scaled_preserves_both_axes(matrix_full):
     s = ScaledOperator(2.5, matrix_full)
-    # Scalar multiplication is unitary on the cap set.
-    assert s.capabilities == matrix_full.capabilities
+    # Scalar multiplication (α≠0) is unitary on both structural axes.
+    assert s.is_invertible == matrix_full.is_invertible
+    assert s.is_adjointable == matrix_full.is_adjointable
 
 
 def test_scaled_apply_only_stays_apply_only(matrix_apply_only):
     s = ScaledOperator(0.5, matrix_apply_only)
-    assert s.capabilities == frozenset({CAP_APPLY})
+    assert not s.is_invertible and not s.is_adjointable
 
 
 def test_scaled_zero_scalar_rejected(matrix_full):
@@ -191,25 +229,28 @@ def test_scaled_zero_scalar_rejected(matrix_full):
 
 
 # ───────────────────────────────────────────────────────────────────────
-# Capability propagation — Identity / Zero
+# Structural predicates — Identity / Zero
 # ───────────────────────────────────────────────────────────────────────
 
 
-def test_identity_full_capabilities():
-    cap = IdentityOperator().capabilities
-    assert cap == frozenset({CAP_APPLY, CAP_SOLVE, CAP_APPLY_TRANSPOSE})
+def test_identity_both_axes_and_self_inverse():
+    i = IdentityOperator()
+    assert i.is_invertible and i.is_adjointable
+    assert i.inverse() is i           # algebra-closed: I^{-1} = I
+    assert not hasattr(i, "solve")    # carve P4: solving IS .inverse().apply
 
 
-def test_zero_lacks_solve():
-    """Critical: a ZeroOperator MUST NOT advertise solve.
+def test_zero_is_structurally_non_invertible():
+    """Critical: the zero map is the singular map par excellence.
 
-    Inverting zero is meaningless; forcing a stub here would corrupt
-    composer capability propagation downstream.
+    STRUCTURAL arm (Design C): no ``inverse()`` is declared at all —
+    misuse is a static error — while the adjoint axis stays honest
+    (0^T = 0).
     """
-    cap = ZeroOperator().capabilities
-    assert CAP_SOLVE not in cap
-    assert CAP_APPLY in cap
-    assert CAP_APPLY_TRANSPOSE in cap
+    z = ZeroOperator()
+    assert z.is_invertible is False
+    assert z.is_adjointable is True
+    assert not hasattr(z, "inverse")
 
 
 def test_apply_only_operator_is_not_solvable(matrix_apply_only):
@@ -217,59 +258,54 @@ def test_apply_only_operator_is_not_solvable(matrix_apply_only):
     single source of truth for invertibility, NOT the mere presence of a
     ``solve`` surface.
 
-    The inverse-as-operator carve gave the operator family a ``solve`` /
-    ``inverse`` surface; this pin guards that an apply-only leaf does NOT
-    thereby become solvable: ``CAP_SOLVE`` stays absent, and
-    ``is_invertible`` (the runtime successor query) stays ``False``.
+    The inverse-as-operator carve gave the operator family an
+    ``inverse()`` surface; this pin guards that an apply-only leaf does
+    NOT thereby become solvable: ``is_invertible`` stays ``False`` and
+    ``inverse()`` refuses.
 
-    MIGRATED at #226 taxonomy step 3: the former leg — ``SourceIteration``
-    raising at construction — retired WITH the ``CAP_SOLVE`` requirement
-    it pinned (the driver now consumes a pre-built inverse and requires
-    only ``CAP_APPLY``; an apply-only step operator is the windowed
-    product's shape, accepted by design).  The invertibility obligation's
-    new home, the inverse BUILDER, is pinned in ``test_iteration.py::
-    test_invertibility_obligation_lives_at_the_inverse_builder``.  See
-    ``.claude/plans/issue_226_b4_operator_generics_verification.md``
-    GAP-3.
+    GAP-3′ (carve P4, spec §37.4): the runtime truth is the predicate;
+    this fixture DECLARES ``inverse()`` (a solve-backed test double), so
+    it exercises the VALUE arm — ``inverse()`` refuses eagerly with
+    ``NotInvertible``. The STRUCTURAL arm (no method at all) is pinned by
+    ``ZeroOperator``/``_ApplyOnly`` in the keystone-v2 enumeration. The
+    invertibility obligation's home, the inverse BUILDER, is pinned in
+    ``test_iteration.py``.
     """
-    assert CAP_SOLVE not in matrix_apply_only.capabilities
     assert not matrix_apply_only.is_invertible
+    with pytest.raises(NotInvertible, match="no inverse|produces no inverse"):
+        matrix_apply_only.inverse()
 
 
 # ───────────────────────────────────────────────────────────────────────
-# Negative tests: composition-time MissingCapability
+# Negative tests: composition-time apply-guard (eager TypeError)
 # ───────────────────────────────────────────────────────────────────────
 
 
 class NoApplyOperator:
-    """Pathological operator: declares an empty capability set."""
-
-    capabilities: frozenset[str] = frozenset()
-
-    def apply(self, x: np.ndarray) -> np.ndarray:  # pragma: no cover
-        # Never called — composers reject it at construction time.
-        return x
+    """Pathological operand: genuinely has NO ``apply`` — the eager
+    composition guard (carve P4: a callable check, no registry) must
+    reject it at construction time, never mid-iteration."""
 
 
 def test_sum_rejects_missing_apply_at_composition(matrix_full):
     bad = NoApplyOperator()
-    with pytest.raises(MissingCapability, match="apply"):
+    with pytest.raises(TypeError, match="apply"):
         OperatorSum(matrix_full, bad)
-    with pytest.raises(MissingCapability, match="apply"):
+    with pytest.raises(TypeError, match="apply"):
         OperatorSum(bad, matrix_full)
 
 
 def test_product_rejects_missing_apply_at_composition(matrix_full):
     bad = NoApplyOperator()
-    with pytest.raises(MissingCapability, match="apply"):
+    with pytest.raises(TypeError, match="apply"):
         OperatorProduct(matrix_full, bad)
-    with pytest.raises(MissingCapability, match="apply"):
+    with pytest.raises(TypeError, match="apply"):
         OperatorProduct(bad, matrix_full)
 
 
 def test_scaled_rejects_missing_apply_at_composition():
     bad = NoApplyOperator()
-    with pytest.raises(MissingCapability, match="apply"):
+    with pytest.raises(TypeError, match="apply"):
         ScaledOperator(2.0, bad)
 
 
@@ -304,11 +340,13 @@ def test_scaled_apply_matches_dense(matrix_full, vector):
     np.testing.assert_allclose(s.apply(vector), expected, rtol=1e-12)
 
 
-def test_scaled_solve_divides(matrix_full, vector):
-    """(αL)^{-1} = (1/α) L^{-1}."""
+def test_scaled_inverse_divides(matrix_full, vector):
+    """(αL)^{-1} = (1/α) L^{-1} — rewired at carve P4: ScaledOperator.solve
+    retired (the inverse is ALGEBRA-CLOSED), solving is .inverse().apply."""
     s = ScaledOperator(2.5, matrix_full)
     expected = (1.0 / 2.5) * np.linalg.solve(matrix_full.matrix, vector)
-    np.testing.assert_allclose(s.solve(vector), expected, rtol=1e-10)
+    np.testing.assert_allclose(s.inverse().apply(vector), expected, rtol=1e-10)
+    assert not hasattr(ScaledOperator, "solve")  # the retirement pin
 
 
 def test_identity_apply(vector):
@@ -426,10 +464,10 @@ def test_transport_eigenvalue_algebra_smoke(matrix_full, matrix_apply_only):
     S = matrix_apply_only
     F = matrix_apply_only
     op = L - S - F
-    # apply propagates (everyone has apply).
-    assert CAP_APPLY in op.capabilities
-    # solve does NOT propagate (sum kills it).
-    assert CAP_SOLVE not in op.capabilities
+    # The invertibility RIDES the invertible leading loss term: the
+    # transport normal form (L - S - F)^{-1} IS the preconditioned
+    # splitting (#226 step 4; rewired at carve P4).
+    assert op.is_invertible is True
     x = np.ones(L.matrix.shape[0])
     expected = L.matrix @ x - S.matrix @ x - F.matrix @ x
     np.testing.assert_allclose(op.apply(x), expected, rtol=1e-12)
@@ -530,7 +568,11 @@ class _SpacedMatrixOperator(LinearOperator):
         self.matrix = np.asarray(matrix, dtype=float)
         self._domain = domain_space
         self._codomain = codomain_space
-        self.capabilities = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
+
+    @property
+    def is_adjointable(self) -> bool:
+        # The eager .H gate reads the predicate (carve P4 §38).
+        return True
 
     @property
     def domain(self) -> FunctionSpace:
@@ -652,15 +694,17 @@ def test_composition_skips_check_when_either_is_none(matrix_full):
     assert prod_ok is not None
 
 
-def test_repr_format(matrix_full):
-    """``repr(op)`` carries the class name, domain/codomain, and caps."""
+def test_repr_format(matrix_full, matrix_apply_only):
+    """``repr(op)`` carries the class name, domain/codomain, and the
+    two-axis predicate tokens (present iff True — carve P4 §44.F)."""
     r = repr(matrix_full)
     assert "MatrixOperator" in r
     # MatrixOperator has no function-space tagging; expect '?' placeholders.
     assert "domain='?'" in r
     assert "codomain='?'" in r
-    # Capabilities list.
-    assert "apply" in r
+    assert "invertible" in r and "adjointable" in r
+    r_bare = repr(matrix_apply_only)
+    assert "invertible" not in r_bare and "adjointable" not in r_bare
 
 
 def test_repr_with_function_spaces_shows_names():
@@ -672,3 +716,93 @@ def test_repr_with_function_spaces_shows_names():
     r = repr(A)
     assert "'phi'" in r
     assert "'psi'" in r
+
+
+# ───────────────────────────────────────────────────────────────────────
+# The OperatorProduct.solve RE-ROUTE (carve P4, spec §40) — sentinel +
+# dense anchor + pre-carve baseline inheritance + the factor-kind matrix
+# ───────────────────────────────────────────────────────────────────────
+
+_REROUTE_BASELINE = "tests/numerics/data/step6_product_reroute_baseline.npz"
+
+
+def _reroute_fixtures():
+    """The EXACT pre-carve capture fixtures (seed 2860 — spec §40 leg iv).
+
+    Mirrors the capture script that ran the OLD ``b.solve(a.solve(q))``
+    spelling on the pre-carve tree; the snapshot is the INHERITANCE
+    reference the re-routed spelling must reproduce.
+    """
+    from orpheus.numerics.operator import DiagonalOperator, TensorProductOperator  # noqa: F401
+
+    rng = np.random.default_rng(2860)
+    q = rng.standard_normal(7)
+    D1 = DiagonalOperator(np.array([2.0, 0.5, 4.0, 1.25, 8.0, 0.25, 5.0]))
+    D2 = DiagonalOperator(np.array([3.0, 0.75, 1.5, 6.0, 0.375, 2.25, 9.0]))
+    P3 = PermutationOperator(np.array([2, 0, 1, 4, 5, 3, 6]))  # NON-involution
+    DS = DiagonalOperator(np.full(7, 0.3))
+    return q, D1, D2, P3, DS
+
+
+def test_product_solve_reroute_executes_and_matches_dense(monkeypatch):
+    """Spec §40.1 — the four legs on the NON-COMMUTING headline product.
+
+    (ii) SENTINEL: ``(D@P).inverse().apply(q)`` routes InverseOperator →
+    the re-routed ``OperatorProduct.solve`` — proven EXECUTED (Mode 11),
+    because a value gate spelled ``.inverse().apply`` both sides would be
+    tautological. (iii) INDEPENDENCE: the dense ``np.linalg.solve`` on
+    the materialized product is structurally independent of the
+    re-route. (i)/(iv) live in the factor-kind matrix below.
+    """
+    q, D1, _, P3, _ = _reroute_fixtures()
+    prod = OperatorProduct(D1, P3)  # NON-COMMUTING (config-blindness §0.6)
+
+    calls: list[int] = []
+    real = OperatorProduct.solve
+    monkeypatch.setattr(
+        OperatorProduct, "solve",
+        lambda self, b: (calls.append(1), real(self, b))[1],
+    )
+    out = prod.inverse().apply(q)
+    assert calls, "OperatorProduct.solve NEVER executed — Mode-11 vacuous gate"
+
+    dense = np.linalg.solve(prod.as_matrix(basis_shape=(7,)), q)
+    np.testing.assert_allclose(out, dense, rtol=1e-12)
+
+
+def test_product_solve_reroute_inherits_the_precarve_baseline():
+    """Spec §40.2 — the factor-kind matrix vs the PRE-carve snapshot.
+
+    Each row exercises one factor KIND through the re-routed recursion
+    (``b.inverse().apply(a.inverse().apply(q))``) against the value the
+    OLD spelling (``b.solve(a.solve(q))``) produced on the pre-carve
+    tree. The four DIRECT rows are bit-identical by construction
+    (identical delegated realizations) → ``assert_array_equal``; the
+    Green-factor row runs the ITERATIVE splitting driver, where
+    cross-run FP jitter forbids a bit-identity claim (lessons L7) →
+    driver-tolerance ``assert_allclose``. Do NOT tighten the sum row to
+    array_equal; do NOT loosen the direct rows.
+    """
+    q, D1, D2, P3, DS = _reroute_fixtures()
+    baseline = np.load(_REROUTE_BASELINE)
+    np.testing.assert_array_equal(q, baseline["q"])  # fixture drift guard
+
+    direct_rows = {
+        "diag": OperatorProduct(D2, D1),
+        "permutation": OperatorProduct(D1, P3),
+        "scaled": OperatorProduct(ScaledOperator(2.5, D2), D1),
+        "identity": OperatorProduct(IdentityOperator(), D1),
+    }
+    for name, prod in direct_rows.items():
+        np.testing.assert_array_equal(
+            prod.solve(q), baseline[name],
+            err_msg=f"factor-kind row {name!r} drifted from the pre-carve baseline",
+        )
+    # The Green-factor row: an Identity-headed sum — the factor whose own
+    # solve retired; its inverse is the GreenOperator (this row also
+    # end-to-end pins the algebra-closed-head seeding fix in
+    # _seeded_inverse, which this exact fixture exposed).
+    green_prod = OperatorProduct(IdentityOperator() + DS, D1)
+    np.testing.assert_allclose(
+        green_prod.solve(q), baseline["sum_green"], rtol=1e-8, atol=0.0,
+    )

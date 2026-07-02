@@ -26,7 +26,7 @@ from orpheus.numerics.operator import (
     DiagonalOperator,
     IdentityOperator,
     InverseOperator,
-    MissingCapability,
+    NotInvertible,
     OperatorProduct,
     PermutationOperator,
     ScaledOperator,
@@ -106,14 +106,25 @@ def test_i1_roundtrip_and_closed_form(name, A, closed, x, nulp):
 
 @pytest.mark.parametrize("name,A,closed,x,nulp", _rows(), ids=lambda r: str(r))
 def test_i1_inverse_apply_is_solve_bit_identical(name, A, closed, x, nulp):
-    """``inverse().apply ≡ solve`` BIT-IDENTICALLY, all types (§12.0).
+    """``inverse().apply ≡ solve`` BIT-IDENTICALLY where solve EXISTS (§12.0).
 
     The delegation design's defining fact: one realization, no reciprocal
-    twin — exact for every advertiser, not a tolerance claim.
+    twin — exact, not a tolerance claim. REWIRED at carve P4 (Design B):
+    the algebra-closed advertisers (Identity/Permutation/Scaled/TP)
+    retired their ``solve`` — their inverse IS a first-class forward,
+    whose VALUE the closed-form anchor in ``test_i1_roundtrip`` pins —
+    so on those rows this gate pins the RETIREMENT instead.
     """
-    np.testing.assert_array_equal(
-        A.inverse().apply(x), A.solve(x), err_msg=f"{name}: inverse ≢ solve"
-    )
+    if hasattr(A, "solve"):
+        np.testing.assert_array_equal(
+            A.inverse().apply(x), A.solve(x), err_msg=f"{name}: inverse ≢ solve"
+        )
+    else:
+        assert type(A) in (
+            IdentityOperator, PermutationOperator, ScaledOperator,
+            TensorProductOperator,
+        ), f"{name}: unexpected solve-less advertiser"
+
 
 
 def test_i2_scaled():
@@ -148,19 +159,19 @@ def test_i2_involution_per_type():
 
 def test_singular_diagonal_inverse_raises():
     """NEGATIVE control — TRUE zero (1e-300 would pass the != 0 gate) §12.4."""
-    with pytest.raises(MissingCapability, match="zero entry"):
+    with pytest.raises(NotInvertible, match="zero entry"):
         DiagonalOperator(np.array([2.0, 0.0, 0.5])).inverse()
 
 
 def test_product_with_singular_factor_inverse_raises():
-    with pytest.raises(MissingCapability, match="invertible"):
+    with pytest.raises(NotInvertible, match="invertible"):
         OperatorProduct(
             DiagonalOperator(np.array([1.0, 0.0, 2.0])), IdentityOperator()
         ).inverse()
 
 
 def test_inverse_operator_ctor_guards_singular_inner():
-    with pytest.raises(MissingCapability, match="invertible"):
+    with pytest.raises(NotInvertible, match="invertible"):
         InverseOperator(DiagonalOperator(np.array([1.0, 0.0])))
 
 
@@ -207,18 +218,21 @@ def test_product_inverse_accepts_seeded_apply():
 
 def test_product_inverse_value_and_involution():
     """§31.3: the family wrapper is BIT-identical to the composition path
-    ``b.solve(a.solve(q))`` (the value the raw reversed product realized),
-    and the involution STRENGTHENS to object identity (the raw product
-    rebuilt fresh objects). NON-commuting factors (§0.6) so the
-    M-PROD-FACTORORDER a/b swap reddens."""
+    the composed inverse action :math:`P^{-1}(D^{-1}q)` (the value the
+    raw reversed product realized), and the involution STRENGTHENS to
+    object identity (the raw product rebuilt fresh objects).
+    NON-commuting factors (§0.6) so the M-PROD-FACTORORDER a/b swap
+    reddens. Reference spelled through the factors' canonical inverses
+    (carve P4: Permutation.solve retired; ``P.inverse().apply`` is the
+    SAME integer gather, bit-identical)."""
     D, P = DiagonalOperator(_C7), PermutationOperator(_P7)
     prod = D @ P
     inv = prod.inverse()
     assert type(inv) is InverseOperator  # the generic member, not a raw product
     q = _RNG.standard_normal(7)
     np.testing.assert_array_equal(
-        inv.apply(q), P.solve(D.solve(q)),
-        err_msg="#285 product-inverse value ≠ b.solve(a.solve(q))",
+        inv.apply(q), P.inverse().apply(D.inverse().apply(q)),
+        err_msg="#285 product-inverse value ≠ P⁻¹(D⁻¹ q)",
     )
     assert inv.inverse() is prod  # strengthened involution
 
@@ -240,11 +254,11 @@ def test_bound_shim_forwards_inverse():
     np.testing.assert_array_equal(
         shim.inverse().apply(_X7), inner.inverse().apply(_X7)
     )
-    np.testing.assert_array_equal(  # every forwarded cap has a backing method
-        shim.solve(_X7), inner.solve(_X7)
-    )
+    # carve P4: the shim's solve forward retired with the surface (the
+    # promised deletion) — solving through the shim IS .inverse().apply.
+    assert not hasattr(_BoundBoundaryOperator, "solve")
     masked = _BoundBoundaryOperator(  # non-invertible inner → propagate raise
         DiagonalOperator(np.array([1.0, 0.0])), kind="vacuum"
     )
-    with pytest.raises(MissingCapability):
+    with pytest.raises(NotInvertible):
         masked.inverse()

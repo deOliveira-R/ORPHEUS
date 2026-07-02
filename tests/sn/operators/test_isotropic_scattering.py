@@ -11,7 +11,8 @@ the real-mesh SN integration is the P2 forward / P3 adjoint bit-identity gates):
 * **transpose** — Euclidean reciprocity ``⟨Kφ,χ⟩=⟨φ,Kᵀχ⟩`` + a structurally-
   independent dense ``Σ @ vec`` per-material reference (a wrong group axis reds).
 * **as_dense ≡ apply** — the two consumption modes agree (the LHS-fold view).
-* **capability** — ``apply_transpose`` advertised, ``solve`` NOT.
+* **predicates** — ``is_adjointable`` True; STRUCTURALLY non-invertible
+  (``is_invertible`` False and no ``inverse`` method at all).
 
 Asymmetric ``SigS`` + non-vacuous ``Sig2`` (≠ per material) so a group-axis flip or
 a dropped n2n channel is detectable (L27 / #269). LD multi-moment (trailing 2^d)
@@ -22,7 +23,6 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.operator import CAP_APPLY, CAP_APPLY_TRANSPOSE, CAP_SOLVE
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.transport.operators.isotropic_scattering import (
     IsotropicScattering,
@@ -210,16 +210,19 @@ class TestDensePerMaterial:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# Gate #11 — capability advertisement.
+# Gate #11 — per-axis structural predicates.
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class TestCapabilities:
+class TestPredicates:
     @pytest.mark.parametrize("factory", [IsotropicScattering, IsotropicN2N])
     def test_apply_and_transpose_not_solve(self, factory):
         op = factory(_mat_xs())
-        require(CAP_APPLY in op.capabilities, "must advertise apply.")
-        require(CAP_APPLY_TRANSPOSE in op.capabilities,
-                f"must advertise apply_transpose (campaign #276); got {op.capabilities}.")
-        require(CAP_SOLVE not in op.capabilities,
-                "isotropic energy operator must NOT advertise solve (singular group-transfer).")
+        require(callable(getattr(op, "apply", None)), "must expose apply.")
+        require(op.is_adjointable,
+                "must advertise the adjoint axis (campaign #276).")
+        require(not op.is_invertible,
+                "isotropic energy operator must NOT be invertible (singular group-transfer).")
+        require(not hasattr(op, "inverse"),
+                "isotropic energy operator is STRUCTURALLY non-invertible — "
+                "it must not declare an inverse method at all.")

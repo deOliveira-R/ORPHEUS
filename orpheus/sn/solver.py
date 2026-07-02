@@ -202,7 +202,7 @@ def _within_group_triple(solver: "SNSolver") -> tuple:
       ``B·ψ.outflow`` lands on ``rhs.boundary``, which the bare
       ``(L + C).solve`` sweep reads as the inflow seed.  ``B`` stays separate
       from ``S`` because it lives on the trace — it cannot join the ``L + C``
-      preconditioner (:class:`OperatorSum` drops ``CAP_SOLVE``) and the
+      preconditioner (a generic :class:`OperatorSum` is Green-realized) and the
       cosine-weighted ``|Ω·n|·w`` adjoint metric (Wave O O.2) lives on ``B``'s
       trace domain, not the bulk.
 

@@ -19,7 +19,7 @@ channels that depend on the in-cell flux**:
   bookkeeping is identical to in-scatter (vectorise-by-material,
   add-into-:math:`Q`).
 
-The operator advertises only :pydata:`CAP_APPLY`. There is no useful
+The operator is apply-only on the inverse axis. There is no useful
 :meth:`solve`: the discrete :math:`S` is rank :math:`O(N_{\text{cells}}
 \cdot N_{\text{groups}})` with no tractable inverse — it is *applied*,
 never *inverted*. This is the canonical example the capability-set
@@ -104,7 +104,7 @@ discretisation), it folds into the scattering side of the algebra:
 Capability advertisement
 ========================
 
-:pydata:`capabilities = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})`. No
+apply + a working ``apply_transpose`` (``is_adjointable=True``). No
 ``solve`` (rank-deficiency on the :math:`\ell=0` block prevents efficient
 inversion). The adjoint :math:`S^{T}` IS advertised (campaign #276 A2b /
 `#118 <https://github.com/deOliveira-R/ORPHEUS/issues/118>`_):
@@ -163,8 +163,6 @@ from orpheus.numerics.frame import GalerkinFrame
 from orpheus.transport.frames import HarmonicFrame
 from orpheus.numerics.operator import (
     BlockRole,
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
     LinearOperator,
     OperatorProduct,
 )
@@ -294,14 +292,11 @@ class LegendreMomentScattering(LinearOperator):
     mat_xs: "MaterialXSField"
     L: int
     skip_l0: bool = True
-    capabilities: frozenset[str] = field(
-        default_factory=lambda: frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
-    )
 
     @property
     def is_adjointable(self) -> bool:
         # Λ exposes its group-transpose Σ_{s,ℓ}^T (apply_transpose), so the
-        # metric-aware .H is free; caps ⊇ CAP_APPLY_TRANSPOSE. is_invertible
+        # metric-aware .H is free. is_invertible
         # inherits base False — a per-ℓ source map is not invertible.
         return True
 
@@ -457,14 +452,11 @@ class N2NMomentOperator(LinearOperator):
 
     mat_xs: "MaterialXSField"
     L: int
-    capabilities: frozenset[str] = field(
-        default_factory=lambda: frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
-    )
 
     @property
     def is_adjointable(self) -> bool:
         # 2Σ_{2n}^T (apply_transpose) is the ℓ=0 group-transpose; caps ⊇
-        # CAP_APPLY_TRANSPOSE. is_invertible inherits base False.
+        # apply_transpose. is_invertible inherits base False.
         return True
 
     def apply(self, moments: np.ndarray) -> np.ndarray:
@@ -525,7 +517,6 @@ class ScatteringOperator(LinearOperator):
         all collapse into ``self.quadrature``.
     scattering_order : int
         Maximum Legendre order :math:`L` retained. ``0`` means P0 only.
-    capabilities : frozenset[str]
         ``{"apply", "apply_transpose"}`` — :math:`S` has no efficient
         inverse (``solve``), but the adjoint :math:`S^{T}` is free via
         the harmonic-frame :attr:`full_scatter_kernel` (campaign #276
@@ -536,9 +527,6 @@ class ScatteringOperator(LinearOperator):
     quadrature: "Quadrature"
     scattering_order: int
 
-    capabilities: frozenset[str] = field(
-        default_factory=lambda: frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
-    )
     # Scattering is a BULK operator — the moment-folding `Σ_s · ⟨P_ℓ, ψ⟩`
     # reads and writes the bulk flux only (A_bb), no boundary action.
     # Issue #208 / Wave O. Class-level constant (unannotated so the
@@ -594,7 +582,7 @@ class ScatteringOperator(LinearOperator):
     def is_adjointable(self) -> bool:
         # S = R∘(Λ+N2N)∘M exposes its Euclidean transpose S^T via
         # :attr:`full_scatter_kernel` (the OperatorProduct adjoint chain);
-        # caps ⊇ CAP_APPLY_TRANSPOSE. is_invertible inherits base False —
+        # is_invertible inherits base False —
         # a scattering source operator is not invertible.
         return True
 

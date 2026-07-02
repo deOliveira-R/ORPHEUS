@@ -12,11 +12,11 @@ two thin surfaces to a realized operator:
   :attr:`kind` attribute. Several SN-side tests + the BC-resolution
   diagnostic in :mod:`orpheus.sn.solver` rely on this comparison.
 
-* **Capabilities delegation** to the wrapped operator so consumers
-  composing the shim with other Wave-0 primitives inherit the right
-  feature set (e.g. a :class:`PermutationOperator` brings
-  ``apply_transpose``, an :class:`IncomingOrdinateMaskTensor` brings
-  only ``apply``).
+* **Structural-predicate delegation** to the wrapped operator so
+  consumers composing the shim with other Wave-0 primitives inherit
+  the right two-axis truth (e.g. a :class:`PermutationOperator` brings
+  invertibility + a working ``apply_transpose``, an
+  :class:`IncomingOrdinateMaskTensor` only adjointability).
 
 History
 =======
@@ -56,14 +56,14 @@ References
 
 from __future__ import annotations
 
-from typing import cast
-
 import numpy as np
 
 from orpheus.numerics.operator import (
     LinearOperator,
-    MissingCapability,
-    SupportsInverse,
+    MissingAdjoint,
+    NotInvertible,
+    adjointable,
+    invertible,
 )
 
 
@@ -81,7 +81,7 @@ class _BoundBoundaryOperator(LinearOperator):
     positional / keyword args raise :class:`TypeError` rather than
     being silently swallowed.
 
-    Capabilities, ``apply_transpose``, and the
+    The structural predicates, ``apply_transpose``, and the
     :class:`LinearOperator` dunders delegate to :attr:`inner`.
     The optional :attr:`kind` tag carries the originating
     :class:`~orpheus.geometry.mesh.BC` kind string and is the basis
@@ -107,17 +107,12 @@ class _BoundBoundaryOperator(LinearOperator):
         self.kind = kind
 
     @property
-    def capabilities(self) -> frozenset[str]:  # type: ignore[override]
-        return self.inner.capabilities
-
-    @property
     def is_invertible(self) -> bool:
-        # Delegate the structural predicates to the realized inner law, exactly
-        # as :attr:`capabilities` does — the wrapper is a transparent typed
-        # handle, so ``B``'s per-face faithfulness (``is_X ≡ CAP_X∈caps``) rides
-        # on the inner op's own predicates, NOT the base ``LinearOperator``
-        # default ``False`` (which would silently break the boundary aggregator's
-        # ``all(law.is_adjointable …)`` rule).
+        # Delegate the structural predicates to the realized inner law —
+        # the wrapper is a transparent typed handle, so ``B``'s per-face
+        # truth rides on the inner op's own predicates, NOT the base
+        # ``LinearOperator`` default ``False`` (which would silently break
+        # the boundary aggregator's ``all(law.is_adjointable …)`` rule).
         return self.inner.is_invertible
 
     @property
@@ -135,12 +130,12 @@ class _BoundBoundaryOperator(LinearOperator):
         (``is_invertible=True``) it cannot deliver. Raises the inner law's
         own guard on a non-invertible law (a vacuum mask projects).
         """
-        if not self.inner.is_invertible:
-            raise MissingCapability(
+        if not invertible(self.inner):
+            raise NotInvertible(
                 f"_BoundBoundaryOperator.inverse: the realized "
                 f"{type(self.inner).__name__} law is not invertible."
             )
-        return cast(SupportsInverse, self.inner).inverse()
+        return self.inner.inverse()
 
     @property
     def block_role(self):  # type: ignore[override]
@@ -156,21 +151,17 @@ class _BoundBoundaryOperator(LinearOperator):
         return self.inner.apply(psi)
 
     def apply_transpose(self, psi: np.ndarray) -> np.ndarray:
+        # Guard-narrow licenses the delegated call (Design C); the shim
+        # stays transparent — the refusal is the inner law's truth.
+        if not adjointable(self.inner):
+            raise MissingAdjoint(
+                f"_BoundBoundaryOperator.apply_transpose: the realized "
+                f"{type(self.inner).__name__} law is not adjointable."
+            )
         return self.inner.apply_transpose(psi)
 
-    def solve(self, b: np.ndarray) -> np.ndarray:
-        r"""Forward ``solve`` to the inner law (#226 step 1 review fix).
-
-        The shim forwards :attr:`capabilities` verbatim, so whenever the
-        inner law advertises ``CAP_SOLVE`` the shim advertises it too —
-        every forwarded capability must have a backing method, or the
-        standard ``if CAP_SOLVE in caps: op.solve(...)`` idiom would pass
-        the guard and then ``AttributeError``. Dies with the ``solve``
-        surface at carve P4.
-        """
-        from typing import Any, cast
-
-        return cast(Any, self.inner).solve(b)
+    # NO ``solve`` (carve P4 — the promised deletion): solving with the
+    # shim is ``.inverse().apply(b)``, the forwarded inner law's inverse.
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, str):

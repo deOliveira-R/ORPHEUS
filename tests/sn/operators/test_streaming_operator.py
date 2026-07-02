@@ -30,12 +30,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
-    CAP_SOLVE,
-    LinearOperator,
-)
+from orpheus.numerics.operator import LinearOperator
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import (
     StreamingOperator,
@@ -157,39 +152,42 @@ def _random_composite(sn_mesh, seed=171):
 
 
 class TestCapabilities:
-    """StreamingOperator advertises {apply, apply_transpose} — no solve.
+    """StreamingOperator is adjointable but NOT invertible.
 
     Resolution A: L alone is not invertible (rank-deficient without
-    collision), so it carries NO ``solve``; that appears at the
-    OperatorSum level via the fusion hook (substep 3+4.b.ii).
-    ``apply_transpose`` IS advertised — the analytic reverse-direction
-    G-adjoint matvec ``Lᵀ`` landed in Wave O / O.2b (the foundation of
-    ``L.H``); the tests below were migrated from the pre-O.2b
-    apply-only contract (retirement = test migration).
+    collision), so ``is_invertible`` is False and it carries NO ``solve``
+    verb; invertibility appears at the OperatorSum level via the fusion
+    hook (substep 3+4.b.ii). ``is_adjointable`` IS True — the analytic
+    reverse-direction G-adjoint matvec ``Lᵀ`` landed in Wave O / O.2b
+    (the foundation of ``L.H``); the tests below were migrated from the
+    pre-O.2b apply-only contract (retirement = test migration).
     """
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_capabilities_apply_and_apply_transpose(self, name, builder):
+    def test_predicates_adjointable_not_invertible(self, name, builder):
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
-        assert L.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
+        assert L.is_adjointable and not L.is_invertible
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_no_solve_capability(self, name, builder):
+    def test_no_solve_verb(self, name, builder):
+        # L is structurally non-invertible at the leaf: no solve verb at
+        # all — the sweep-invertible solve lives on the fused (L+C) sum.
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
-        assert CAP_SOLVE not in L.capabilities
+        assert not L.is_invertible
+        assert not hasattr(L, "solve")
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_has_apply_transpose_capability(self, name, builder):
+    def test_has_apply_transpose(self, name, builder):
         # Wave O / O.2b: L carries the analytic reverse-direction adjoint
         # matvec Lᵀ (the foundation of the G-adjoint ``L.H``).
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
-        assert CAP_APPLY_TRANSPOSE in L.capabilities
+        assert L.is_adjointable
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_satisfies_linear_operator_protocol(self, name, builder):
@@ -322,19 +320,19 @@ class TestSumCapabilities:
     """
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_sum_advertises_apply(self, name, builder):
+    def test_sum_exposes_apply(self, name, builder):
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
         L = StreamingOperator(sn_mesh)
         C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
         A = L + C
-        assert CAP_APPLY in A.capabilities
+        assert callable(getattr(A, "apply", None))
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_sum_advertises_solve_via_invertible_dispatch(
         self, name, builder,
     ):
-        r"""``L + C`` dispatches to InvertibleOperator and advertises solve."""
+        r"""``L + C`` dispatches to InvertibleOperator and is invertible."""
         from orpheus.sn.operators.streaming import InvertibleOperator
         sn_mesh = builder()
         sig_t = _sig_t_uniform(sn_mesh)
@@ -342,7 +340,7 @@ class TestSumCapabilities:
         C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
         A = L + C
         assert isinstance(A, InvertibleOperator)
-        assert CAP_SOLVE in A.capabilities
+        assert A.is_invertible
 
 
 # ═══════════════════════════════════════════════════════════════════════

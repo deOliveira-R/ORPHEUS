@@ -21,8 +21,9 @@ Tests pin:
 * Dispatch — ``L + C`` and ``C + L`` both return InvertibleOperator;
   ``L + L``, ``C + C``, and ``L + S`` (where S is a scattering operator)
   fall through to generic OperatorSum.
-* Capability — ``CAP_APPLY`` AND ``CAP_SOLVE`` advertised; the parent
-  OperatorSum advertises only ``CAP_APPLY``.
+* Predicates — ``is_invertible`` True (the sweep identity); the parent
+  generic OperatorSum built on the same operands is NOT invertible
+  (its leading term L is not).
 * Invariants — mesh-identity required; negative sigma rejected.
 * Apply equivalence — InvertibleOperator.apply matches the inherited
   OperatorSum action (L.apply + C.apply, bit-exact).
@@ -40,11 +41,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
-from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_SOLVE,
-    OperatorSum,
-)
+from orpheus.numerics.operator import OperatorSum
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import (
     InvertibleOperator,
@@ -167,22 +164,26 @@ class TestDispatch:
 
 
 class TestCapabilitiesAndInvariants:
-    def test_advertises_apply_and_solve(self) -> None:
+    def test_predicates_invertible_and_adjointable(self) -> None:
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
         invertible = InvertibleOperator(
             StreamingOperator(sn),
             MultiplicationOperator.from_mesh(sigma_t, sn),
         )
-        assert CAP_APPLY in invertible.capabilities
-        assert CAP_SOLVE in invertible.capabilities
+        assert invertible.is_invertible
+        # Both operands transpose (Lᵀ analytic, C self-adjoint), so the
+        # sum-closure law makes (L+C) adjointable too.
+        assert invertible.is_adjointable
 
-    def test_parent_operator_sum_lacks_solve(self) -> None:
-        r"""Plain :class:`OperatorSum` does NOT advertise solve.
+    def test_parent_operator_sum_not_invertible(self) -> None:
+        r"""Plain :class:`OperatorSum` on ``(L, C)`` is NOT invertible.
 
-        The :math:`(A+B)^{-1}` algebraic identity is operator-pair
-        specific (no generic formula); only :class:`InvertibleOperator`
-        carries the SN-specific sweep identity at the type level.
+        ``is_invertible`` on a generic sum reads the LEADING term (the
+        Green/Neumann factorization ``(A+B)⁻¹`` needs ``A⁻¹``); here the
+        leading ``L`` is rank-deficient, so the plain sum reports False.
+        Only :class:`InvertibleOperator` carries the SN-specific sweep
+        identity at the type level.
         """
         sn = _slab_mesh()
         sigma_t = np.ones((sn.ng, *sn.spatial_shape))
@@ -191,8 +192,8 @@ class TestCapabilitiesAndInvariants:
             StreamingOperator(sn),
             MultiplicationOperator.from_mesh(sigma_t, sn),
         )
-        assert CAP_APPLY in plain.capabilities
-        assert CAP_SOLVE not in plain.capabilities
+        assert callable(getattr(plain, "apply", None))
+        assert not plain.is_invertible
 
     def test_mismatched_mesh_rejected(self) -> None:
         """Two distinct :class:`SNMesh` instances → ValueError."""

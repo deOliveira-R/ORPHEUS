@@ -11,7 +11,7 @@ equation :math:`A_{\\rm wg} = L + C - S_{\\rm foldable}`:
   — diagonal in position, group, and direction; #261 retired the former
   ``CollisionOperator`` thin subclass).
 * :class:`InvertibleOperator` — the sweep-invertible specialisation
-  :math:`(L + C)` returned by ``L + C``; advertises ``CAP_SOLVE``
+  :math:`(L + C)` returned by ``L + C``; ``is_invertible=True``
   via the WDD sweep.
 
 All three operators consume and emit
@@ -130,9 +130,6 @@ from functools import cached_property
 
 from orpheus.numerics.operator import (
     BlockRole,
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
-    CAP_SOLVE,
     LinearOperator,
     OperatorSum,
 )
@@ -287,7 +284,7 @@ class StreamingOperator(LinearOperator["FullField"]):
     Capability set
     --------------
 
-    ``frozenset({CAP_APPLY})`` — pure streaming alone is **not
+    Pure streaming alone is **not
     invertible** (the streaming operator is rank-deficient without a
     collision term to make the within-group cell balance non-singular).
     The ``solve`` capability appears at the
@@ -300,7 +297,7 @@ class StreamingOperator(LinearOperator["FullField"]):
     consistent DSA #2 / Krylov). ``apply_transpose`` IS available
     (Wave O / O.2b) — the analytic reverse-direction adjoint matvec
     :math:`L^{\mathsf T}` (see :meth:`apply_transpose`), so the operator
-    advertises ``CAP_APPLY_TRANSPOSE`` and ``L.H`` is the physical G-adjoint.
+    carries a working ``apply_transpose`` and ``L.H`` is the physical G-adjoint.
 
     Parameters
     ----------
@@ -325,14 +322,11 @@ class StreamingOperator(LinearOperator["FullField"]):
 
     sn_mesh: "SNMesh"
 
-    capabilities: frozenset[str] = field(
-        default_factory=lambda: frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
-    )
     # Streaming is the sole FULL operator — it couples bulk ↔ boundary
     # (reads the inflow trace to seed the sweep, writes the outflow
     # trace). Issue #208 / Wave O. Class-level constant (unannotated so
     # the dataclass does not treat it as a field).
-    # CAP_APPLY_TRANSPOSE (Wave O / O.2b): the analytic reverse-direction
+    # apply_transpose (Wave O / O.2b): the analytic reverse-direction
     # adjoint matvec landed — see :meth:`apply_transpose`.
     block_role = BlockRole.FULL
 
@@ -344,7 +338,7 @@ class StreamingOperator(LinearOperator["FullField"]):
     @property
     def is_adjointable(self) -> bool:
         # The analytic reverse-direction adjoint matvec L^T landed (Wave O /
-        # O.2b — see :meth:`apply_transpose`); caps ⊇ CAP_APPLY_TRANSPOSE.
+        # O.2b — see :meth:`apply_transpose`).
         # is_invertible inherits base False — pure streaming L is not
         # sweep-invertible; only the (L+C) InvertibleOperator is.
         return True
@@ -377,9 +371,9 @@ class StreamingOperator(LinearOperator["FullField"]):
         does NOT change that — the unreachability is enforced by the CAPABILITY
         lattice, not by ``None`` spaces: ``S`` / ``F`` advertise no
         ``apply_transpose``, so ``OperatorSum`` does not propagate
-        ``CAP_APPLY_TRANSPOSE`` and
+        a working ``apply_transpose`` and
         :class:`~orpheus.numerics.operator._AdjointOperator` raises
-        :class:`MissingCapability` (fails loud, never silently Euclidean —
+        :class:`MissingAdjoint` (fails loud, never silently Euclidean —
         the capability lattice makes the metric-blind state unrepresentable).
         The foldable scattering / fission contributions are handled at the
         eigenvalue / DSA outer layer, not via this within-group adjoint.
@@ -584,7 +578,7 @@ class InvertibleOperator(OperatorSum["FullField"]):
     Capability set
     ==============
 
-    ``frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE, CAP_SOLVE})`` — adds
+    ``is_invertible=True`` — adds
     ``solve`` (the WDD sweep) to the parent :class:`OperatorSum`'s set;
     ``apply_transpose`` propagates by the :class:`OperatorSum` closure
     law (both :math:`L` and :math:`C` advertise it) and is OVERRIDDEN to
@@ -682,9 +676,6 @@ class InvertibleOperator(OperatorSum["FullField"]):
                 f"physically inconsistent."
             )
         super().__init__(streaming, diagonal)
-        # OperatorSum.__init__ set capabilities = {CAP_APPLY, ...};
-        # we add CAP_SOLVE because this composite IS sweep-invertible.
-        self.capabilities = self.capabilities | frozenset({CAP_SOLVE})
         # block_role is now DERIVED by OperatorSum.__init__ (Wave O / O.2b 4.5):
         # join(L=FULL, C=BULK) = FULL. The former hand-stamp here was the
         # twin-path retired in 4.5 — the role is carried by construction.
@@ -692,7 +683,7 @@ class InvertibleOperator(OperatorSum["FullField"]):
     @property
     def is_invertible(self) -> bool:
         # (L+C) is sweep-invertible: the WDD forward-substitution sweep IS its
-        # inverse operator (caps ⊇ CAP_SOLVE, added unconditionally in
+        # inverse operator (in
         # __init__). This is the SOLE invertible OperatorSum — the base
         # OperatorSum.is_invertible is False. is_adjointable inherits the
         # OperatorSum a∧b law (both L and C advertise apply_transpose).

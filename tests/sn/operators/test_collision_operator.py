@@ -8,8 +8,9 @@ plain ``MultiplicationOperator`` carrying ``σ_t`` as its coefficient.
 
 The collision multiplier ``C = M[σ_t]`` is the simplest leaf: diagonal
 in position, group, and direction. ``apply`` is σ · ψ; ``solve`` is
-q / σ; ``apply_transpose`` equals ``apply`` (self-adjoint). All three
-capabilities are analytic.
+q / σ; ``apply_transpose`` equals ``apply`` (self-adjoint). Both
+structural predicates (``is_invertible``, ``is_adjointable``) are
+analytic — True for a positive σ.
 
 Convention-agnostic σ: the same operator class accepts either the
 full ``σ_t`` (total cross-section) or the within-group removal
@@ -32,12 +33,7 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
-from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
-    CAP_SOLVE,
-    LinearOperator,
-)
+from orpheus.numerics.operator import LinearOperator
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.quadrature import Quadrature
@@ -137,21 +133,19 @@ GEOMETRIES = [
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 1. Capability advertising — all three capabilities are analytic.
+# 1. Predicate advertising — both structural axes are analytic.
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class TestCapabilities:
-    """The collision multiplier ``M[σ_t]`` advertises apply + solve + apply_transpose."""
+class TestPredicates:
+    """The collision multiplier ``M[σ_t]`` is invertible AND adjointable (σ > 0)."""
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
-    def test_all_three_capabilities(self, name, builder):
+    def test_invertible_and_adjointable(self, name, builder):
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
         C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
-        assert C.capabilities == frozenset(
-            {CAP_APPLY, CAP_SOLVE, CAP_APPLY_TRANSPOSE}
-        )
+        assert C.is_invertible and C.is_adjointable
 
     @pytest.mark.parametrize("name,builder", GEOMETRIES)
     def test_satisfies_linear_operator_protocol(self, name, builder):

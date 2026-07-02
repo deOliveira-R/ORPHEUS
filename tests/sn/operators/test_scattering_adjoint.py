@@ -32,7 +32,6 @@ from scipy.sparse import csr_matrix
 
 from orpheus.derivations.common.xs_library import make_mixture
 from orpheus.geometry import Mesh2D
-from orpheus.numerics.operator import CAP_APPLY_TRANSPOSE, CAP_SOLVE
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import SNSolver
@@ -93,12 +92,12 @@ def _moment_field(op, nx, ny, seed):
 
 
 class TestLambdaTranspose:
-    def test_capability_apply_and_transpose_not_solve(self, solver_p1_het):
+    def test_predicates_adjointable_not_invertible(self, solver_p1_het):
         lam = LegendreMomentScattering(mat_xs=solver_p1_het.scattering_op.mat_xs, L=1)
-        require(CAP_APPLY_TRANSPOSE in lam.capabilities,
-                f"Λ must advertise apply_transpose (campaign #276); got {lam.capabilities}.")
-        require(CAP_SOLVE not in lam.capabilities,
-                "Λ must NOT advertise solve (ℓ=0 block rank-deficient).")
+        require(lam.is_adjointable,
+                "Λ must advertise the adjoint axis (campaign #276).")
+        require(not lam.is_invertible,
+                "Λ must NOT be invertible (ℓ=0 block rank-deficient).")
 
     def test_moment_space_transpose_identity(self, solver_p1_het):
         r"""``⟨Λ m, c⟩ = ⟨m, Λᵀ c⟩`` (full moment-tensor contraction, per L27)."""
@@ -167,9 +166,9 @@ class TestKernelTranspose:
     def test_kernel_advertises_apply_transpose(self, solver_p1_het):
         kernel = solver_p1_het.scattering_op.kernel
         require(
-            CAP_APPLY_TRANSPOSE in kernel.capabilities,
-            "kernel (R∘Λ∘M) must propagate apply_transpose once Λ has it "
-            f"(OperatorProduct intersection); got {kernel.capabilities}.",
+            kernel.is_adjointable,
+            "kernel (R∘Λ∘M) must propagate adjointability once Λ has it "
+            "(OperatorProduct all-factors law).",
         )
 
     def test_kernel_euclidean_reciprocity(self, solver_p1_het):
@@ -201,11 +200,10 @@ class TestKernelTranspose:
 
 
 class TestN2NMomentOperator:
-    def test_capability_apply_and_transpose(self, solver_p1_het):
+    def test_predicates_adjointable_not_invertible(self, solver_p1_het):
         n2n = N2NMomentOperator(mat_xs=solver_p1_het.scattering_op.mat_xs, L=1)
-        require(CAP_APPLY_TRANSPOSE in n2n.capabilities,
-                f"N2N must advertise apply_transpose; got {n2n.capabilities}.")
-        require(CAP_SOLVE not in n2n.capabilities, "N2N must NOT advertise solve.")
+        require(n2n.is_adjointable, "N2N must advertise the adjoint axis.")
+        require(not n2n.is_invertible, "N2N must NOT be invertible.")
 
     def test_acts_only_on_ell0(self, solver_p1_het):
         r"""(n,2n) is isotropic — it touches ONLY the ℓ=0 block (ℓ≥1 stay zero)."""
@@ -294,14 +292,13 @@ class TestFullScatterKernel:
     # ── The PRODUCTION operator S† (campaign #276 A2b, closes #118) ──────────
 
     def test_S_advertises_apply_transpose(self, solver_p1_het):
-        r"""``ScatteringOperator`` advertises ``apply_transpose`` (the #118
-        capability flip) but still NOT ``solve`` (rank-deficient :math:`\ell=0`
-        block)."""
+        r"""``ScatteringOperator`` is adjointable (the #118 flip) but still NOT
+        invertible (rank-deficient :math:`\ell=0` block)."""
         op = solver_p1_het.scattering_op
-        require(CAP_APPLY_TRANSPOSE in op.capabilities,
-                f"S must advertise apply_transpose (#276 A2b / #118); got {op.capabilities}.")
-        require(CAP_SOLVE not in op.capabilities,
-                "S must NOT advertise solve (the ℓ=0 group-transfer block is singular).")
+        require(op.is_adjointable,
+                "S must advertise the adjoint axis (#276 A2b / #118).")
+        require(not op.is_invertible,
+                "S must NOT be invertible (the ℓ=0 group-transfer block is singular).")
 
     def test_S_apply_transpose_is_kernel_transpose_over_W(self, solver_p1_het):
         r"""WIRING (R4 near-tautology — the cheap catch for a missing ``1/W`` or a

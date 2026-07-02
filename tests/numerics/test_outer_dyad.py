@@ -10,8 +10,9 @@ DEFINING laws, not merely its usage:
 * **Rank-1 structure** — the per-fiber output lies in ``span{v}``: for any two
   carriers, ``apply(x1)/⟨w,x1⟩ == apply(x2)/⟨w,x2⟩ == v``.
 * **Bridge** — ``RankOneOperator(v, w)`` and ``outer(v, w)`` are the same dyad.
-* **Capability** — ``{CAP_APPLY}`` only (rank-1 is non-invertible by
-  construction).
+* **Predicates** — rank-1 is STRUCTURALLY non-invertible (no ``solve``, no
+  ``inverse()``; ``is_invertible`` False); adjointable exactly when the row
+  is an :class:`InnerProductFunctional` (the dual dyad ``|w⟩⟨v|``).
 * **Linearity** — the dyad is linear in its carrier (the row-factor is a genuine
   linear functional).
 
@@ -26,10 +27,7 @@ import pytest
 
 from orpheus.numerics.functional import InnerProductFunctional
 from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
-    CAP_SOLVE,
-    MissingCapability,
+    MissingAdjoint,
     RankOneOperator,
     outer,
 )
@@ -99,46 +97,62 @@ class TestOuterEqualsRankOneOperator:
         np.testing.assert_array_equal(op.apply(x), RankOneOperator(v, w).apply(x))
 
 
-class TestCapability:
-    r"""Rank-1 advertises ``apply`` + ``apply_transpose`` (the dual dyad), never ``solve``.
+class TestPredicates:
+    r"""Rank-1 has ``apply`` + ``apply_transpose`` (the dual dyad), never ``solve``/``inverse``.
 
-    A dyad is **non-invertible** (no ``solve`` — its kernel is the row's
-    orthogonal complement along the contracted axis) but it HAS a **transpose**:
-    ``(|v⟩⟨w|)ᵀ = |w⟩⟨v|``. The transpose exists iff the row is a genuine
-    co-vector (:class:`InnerProductFunctional`) whose weight is the dual column;
-    an opaque / nonlinear functional has no dual column, so its dyad advertises
-    ``apply`` only (the honest refusal). Campaign #276 (adjoint transport) added
-    the transpose on the primitive — F† falls out of it.
+    A dyad is **structurally non-invertible** (its kernel is the row's
+    orthogonal complement along the contracted axis, so no ``solve`` and no
+    ``inverse()`` are declared — misuse is a static error, Design C) but it
+    HAS a **transpose**: ``(|v⟩⟨w|)ᵀ = |w⟩⟨v|``. The transpose exists iff the
+    row is a genuine co-vector (:class:`InnerProductFunctional`) whose weight
+    is the dual column; an opaque / nonlinear functional has no dual column,
+    so its dyad refuses ``apply_transpose`` with :class:`MissingAdjoint` (the
+    honest refusal). Campaign #276 (adjoint transport) added the transpose on
+    the primitive — F† falls out of it.
     """
 
-    def test_inner_product_dyad_advertises_apply_and_transpose_not_solve(self):
+    def test_dyad_is_structurally_non_invertible(self):
         op = outer(np.array([[1.0], [2.0]]), InnerProductFunctional(np.array([[3.0], [4.0]]), axis=0))
-        _require(CAP_APPLY in op.capabilities, "a rank-1 dyad must advertise apply.")
         _require(
-            CAP_APPLY_TRANSPOSE in op.capabilities,
-            "a rank-1 dyad with an InnerProductFunctional row must advertise "
-            f"apply_transpose (the dual dyad |w⟩⟨v|); got {op.capabilities}.",
+            callable(getattr(op, "apply", None)),
+            "a rank-1 dyad must expose apply.",
         )
-        _require(CAP_SOLVE not in op.capabilities, "a rank-1 operator must NOT advertise solve (non-invertible).")
+        _require(not op.is_invertible, "a rank-1 operator must NOT be invertible.")
         _require(
-            op.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE}),
-            f"expected exactly {{apply, apply_transpose}}; got {op.capabilities}.",
+            not hasattr(op, "solve"),
+            "a rank-1 operator must not declare solve (structural refusal is static).",
+        )
+        _require(
+            not hasattr(op, "inverse"),
+            "a rank-1 operator must not declare inverse() (structural refusal is static).",
+        )
+
+    def test_inner_product_dyad_is_adjointable(self):
+        """The IPF-rowed dyad must ADVERTISE its working transpose: the
+        ``is_adjointable`` predicate is the runtime successor of the
+        pre-carve ``CAP_APPLY_TRANSPOSE`` membership this file pinned."""
+        op = outer(np.array([[1.0], [2.0]]), InnerProductFunctional(np.array([[3.0], [4.0]]), axis=0))
+        _require(
+            op.is_adjointable,
+            "a rank-1 dyad with an InnerProductFunctional row must be "
+            "adjointable (the dual dyad |w⟩⟨v| exists and apply_transpose works).",
         )
 
     def test_opaque_functional_dyad_is_apply_only(self):
         # A row with no dual column (NOT an InnerProductFunctional) yields an
-        # apply-only dyad — apply_transpose is honestly unavailable (it raises).
+        # apply-only dyad — apply_transpose is honestly unavailable (it raises
+        # MissingAdjoint, the ADJOINT-axis refusal).
         class _OpaqueFunctional:
             def evaluate(self, x, /):
                 return np.asarray(x).sum(axis=0, keepdims=True)
 
         op = outer(np.array([[1.0], [2.0]]), _OpaqueFunctional())
-        _require(op.capabilities == frozenset({CAP_APPLY}), f"expected {{apply}} only; got {op.capabilities}.")
         _require(
-            CAP_APPLY_TRANSPOSE not in op.capabilities,
-            "an opaque-functional dyad has no dual column → must NOT advertise apply_transpose.",
+            not op.is_adjointable,
+            "an opaque-functional dyad has no dual column → must NOT be adjointable.",
         )
-        with pytest.raises(MissingCapability):
+        _require(not op.is_invertible, "an opaque-functional dyad is still non-invertible.")
+        with pytest.raises(MissingAdjoint):
             op.apply_transpose(np.array([[1.0], [1.0]]))
 
 

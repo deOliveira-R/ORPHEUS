@@ -5,7 +5,7 @@ property-based ``SNBoundaryOperator`` and the bare-mixin
 The operator-inverse-algebra carve re-types the ``LinearOperator`` family
 (``Protocol[V]`` → ``Protocol[D, C]``) and reworks the solve axis. RC 2 of
 the verification plan flags the nastiest re-typing target: the
-``@property``-backed ``SNBoundaryOperator.capabilities``. A re-typing that
+recursive ``SNBoundaryOperator.is_adjointable``. A re-typing that
 silently turned that property into a stale plain attribute, or dropped a
 leaf's advertised set, would change the capability closure of a composite
 ``(L + C − B)`` — invisible today because nothing pinned the composite's
@@ -28,9 +28,6 @@ from orpheus.geometry import BC, Mesh1D, Region, RegionMesh, StructuredGeometry
 from orpheus.geometry.boundary import ConstantInflowSource, NoSource
 from orpheus.numerics.green_operator import GreenOperator
 from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
-    CAP_SOLVE,
     BoundaryOperator,
     BulkOperator,
     FullOperator,
@@ -54,7 +51,12 @@ from orpheus.transport.operators.scattering import (
     N2NMomentOperator,
     ScatteringOperator,
 )
-from tests._harness.predicates import assert_capability_faithful
+from tests._harness.predicates import (
+    INVERTIBLE,
+    STRUCTURAL_ABSENT,
+    VALUE_RAISE,
+    assert_inverse_adjoint_contract,
+)
 from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = [pytest.mark.foundation]
@@ -96,16 +98,15 @@ class TestIncomingSourceOperatorIsUnclassified:
 
 
 class TestIncomingSourceOperatorCapabilities:
-    """RC 2: the ``ClassVar[frozenset]`` capability set survives intact.
+    """RC 2: the apply-only surface survives intact (carve P4 rewire of
+    the strict caps-equality pin: the "spurious added capability" concern
+    becomes "spurious predicate True", still caught)."""
 
-    ``test_bc_universal_invariants.py`` pins this by membership; the strict
-    equality below additionally catches a re-typing that ADDS a spurious
-    capability tag (the membership test only catches a DROP of apply or a
-    spurious solve/transpose)."""
-
-    def test_capabilities_are_exactly_apply(self) -> None:
+    def test_surface_is_exactly_apply_only(self) -> None:
         op = IncomingSourceOperator(ConstantInflowSource(value=2.5))
-        assert op.capabilities == frozenset({CAP_APPLY})
+        assert not op.is_invertible and not op.is_adjointable
+        assert not hasattr(op, "inverse")
+        assert callable(getattr(op, "apply", None))
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -119,14 +120,15 @@ class TestLossMinusBoundaryCompositeCapabilities:
     ``L + C`` dispatches to :class:`InvertibleOperator` and advertises
     ``solve`` (the DIRECT sweep); subtracting the boundary operator ``B``
     breaks that dispatch, so the result is a generic
-    :class:`OperatorSum` — which, since #226 taxonomy step 4, carries its
-    OWN ``solve``: the leading term (the fused ``L+C``) is invertible, so
-    the closure derives the preconditioned-splitting
-    :class:`~orpheus.numerics.green_operator.GreenOperator` inverse (the
-    boundary-Jacobi iteration, typed).  The pin is now WHICH inverse the
-    spelling selects — sweep for the fused composite, Green for the
-    generic sum — plus the ``apply`` survival.  It still exercises the
-    ``@property``-backed :attr:`SNBoundaryOperator.capabilities` through
+    :class:`OperatorSum` — which, since #226 taxonomy step 4, is
+    GREEN-invertible: the leading term (the fused ``L+C``) is invertible,
+    so :meth:`inverse` derives the preconditioned-splitting
+    :class:`~orpheus.numerics.green_operator.GreenOperator` (the
+    boundary-Jacobi iteration, typed); as a generic sum it carries NO
+    ``solve`` verb (carve P4 — solving is the inverse OBJECT's apply).
+    The pin is WHICH inverse the spelling selects — sweep for the fused
+    composite, Green for the generic sum — plus the ``apply`` survival.
+    It still exercises :attr:`SNBoundaryOperator.is_adjointable` through
     a composition — the existing ``(L + C)`` invertible test does not
     cover the ``−B`` arm (verification plan GAP-2)."""
 
@@ -138,53 +140,53 @@ class TestLossMinusBoundaryCompositeCapabilities:
         B = SNBoundaryOperator(sn)
         return L, C, B, L + C - B
 
-    def test_boundary_operator_advertises_apply(self) -> None:
-        # Precondition for the composite to construct (RC 2 — the property
-        # set must carry apply for the OperatorSum to accept the −B arm).
+    def test_boundary_operator_exposes_apply(self) -> None:
+        # Precondition for the composite to construct (RC 2 — the eager
+        # apply-guard must accept the −B arm at composition time).
         _, _, B, _ = self._loss_minus_boundary()
-        assert CAP_APPLY in B.capabilities
+        assert callable(getattr(B, "apply", None))
 
-    def test_l_plus_c_is_invertible_with_solve(self) -> None:
-        # The contrast case: (L + C) HAS solve via InvertibleOperator.
+    def test_l_plus_c_is_invertible(self) -> None:
+        # The contrast case: (L + C) is sweep-invertible (InvertibleOperator).
         L, C, _, _ = self._loss_minus_boundary()
         lc = L + C
         assert isinstance(lc, InvertibleOperator)
-        assert CAP_SOLVE in lc.capabilities
+        assert lc.is_invertible is True
 
-    def test_composite_keeps_apply_and_carries_green_solve(self) -> None:
-        # MIGRATED (#226 step 4): pre-step-4 this pinned "CAP_SOLVE not in
-        # caps — no general (A+B)⁻¹".  The generic sum now HAS an inverse
-        # — the Green splitting keyed on its invertible leading term — so
-        # CAP_SOLVE survives the −B arm (faithfulness: is_invertible ≡
-        # CAP_SOLVE).
+    def test_composite_is_green_invertible_without_solve(self) -> None:
+        # MIGRATED (#226 step 4; rewired carve P4): the generic sum HAS an
+        # inverse — the Green splitting keyed on its invertible leading
+        # term — and, as a generic sum, NO solve verb of its own (Design
+        # B: the sweep subclass keeps its override; solving with a plain
+        # OperatorSum is the inverse OBJECT's apply).
+        from orpheus.numerics.green_operator import GreenOperator
+        from orpheus.numerics.operator import OperatorSum
+
         *_, composite = self._loss_minus_boundary()
-        assert CAP_APPLY in composite.capabilities
-        assert CAP_SOLVE in composite.capabilities
         assert composite.is_invertible is True
+        assert type(composite.inverse()) is GreenOperator
+        assert "solve" not in OperatorSum.__dict__
 
     def test_composite_transpose_follows_closure_law(self) -> None:
-        # apply_transpose propagates iff every operand has it. This pins the
-        # property-backed B's transpose contribution survives the join (so a
-        # re-typing that altered B's advertised transpose would red here).
+        # is_adjointable propagates iff every operand is. This pins that
+        # B's recursive-predicate contribution survives the join (so a
+        # re-typing that altered B's adjointability would red here).
         L, C, B, composite = self._loss_minus_boundary()
-        both_have_transpose = all(
-            CAP_APPLY_TRANSPOSE in op.capabilities for op in (L + C, B)
-        )
-        assert (CAP_APPLY_TRANSPOSE in composite.capabilities) == both_have_transpose
+        both_adjointable = (L + C).is_adjointable and B.is_adjointable
+        assert composite.is_adjointable == both_adjointable
 
 
 # ─────────────────────────────────────────────────────────────────────
 # Predicate FAITHFULNESS — the carve keystone (verification spec §2.3)
 # ─────────────────────────────────────────────────────────────────────
 #
-# Phase 2b extends the capability-SURVIVAL net above with the per-operator
-# predicate-FAITHFULNESS invariant ``is_X ≡ CAP_X ∈ capabilities`` for the
-# transport + SN advertisers. This is the equivalence that licenses deleting
-# the frozenset in Phase 4: the numerics leaves/composers are pinned in
-# ``tests/numerics/test_operator_capability_predicates.py`` and the frame faces
-# in ``tests/numerics/test_frame.py``; THIS file closes the transport energy
-# operators + the SN streaming/boundary family. All three share the ONE
-# keystone assertion ``tests/_harness/predicates.assert_capability_faithful``.
+# Phase 2b (rewired at carve P4): the per-operator two-axis CONTRACT for
+# the transport + SN advertisers — keystone v2 (spec §36). The numerics
+# leaves/composers are pinned in
+# ``tests/numerics/test_operator_capability_predicates.py``; THIS file
+# closes the transport energy operators + the SN streaming/boundary
+# family. Both share the ONE contract assertion
+# ``tests/_harness/predicates.assert_inverse_adjoint_contract``.
 
 _SIGS0 = np.array([[0.20, 0.00], [0.05, 0.18]])   # P0 group-transfer (asymmetric)
 _SIGS1 = np.array([[0.02, 0.00], [0.01, 0.015]])  # P1 (small anisotropy)
@@ -201,13 +203,13 @@ def _synthetic_mat_xs(nx: int = 4) -> MaterialXSField:
 
 
 class TestPredicateFaithfulness:
-    r"""``is_invertible ≡ CAP_SOLVE∈caps`` AND ``is_adjointable ≡
-    CAP_APPLY_TRANSPOSE∈caps`` for EVERY transport + SN advertiser — the
-    keystone (verification spec §2.3) that licenses Phase 4's frozenset
-    deletion. Spans the ``(invertible × adjointable)`` quadrants, including the
-    VALUE-dependent asymmetry leaf (``MultiplicationOperator(true-zero-coeff)``:
-    adjointable but NOT invertible) that breaks a buggy predicate which merely
-    mirrors the other axis (spec §0.6/§8)."""
+    r"""The two-axis inverse/adjoint contract for EVERY transport + SN
+    advertiser — keystone v2 (spec §36), the permanent successor of the
+    frozenset-coexistence scaffold. Spans the ``(invertible × adjointable)``
+    quadrants, including the VALUE-dependent asymmetry leaf
+    (``MultiplicationOperator(true-zero-coeff)``: adjointable but NOT
+    invertible) that breaks a buggy predicate which merely mirrors the
+    other axis (spec §0.6/§8)."""
 
     def _sn_operators(self, sn):
         spatial = (sn.ng, *sn.spatial_shape)
@@ -239,14 +241,6 @@ class TestPredicateFaithfulness:
             ),
         ]
 
-    def test_sn_operators_are_faithful(self) -> None:
-        for op in self._sn_operators(_slab_mesh(ng=2)):
-            assert_capability_faithful(op)
-
-    def test_transport_energy_operators_are_faithful(self) -> None:
-        for op in self._transport_energy_operators():
-            assert_capability_faithful(op)
-
     def test_axis_separation_is_value_dependent(self) -> None:
         """The two axes must be INDEPENDENTLY correct. A singular
         ``MultiplicationOperator`` is adjointable but NOT invertible; ``L`` is
@@ -267,15 +261,61 @@ class TestPredicateFaithfulness:
 
     def test_boundary_law_wrapper_delegates_predicates(self) -> None:
         """The ``_BoundBoundaryOperator`` wrapper delegates ``is_*`` to its inner
-        realized law (mirroring its ``capabilities`` delegation), NOT the base
-        ``LinearOperator`` default. A non-delegating wrapper would report a
-        vacuum/reflective face law as ``is_adjointable=False`` and silently break
-        the ``B`` aggregator's ``all(law.is_adjointable …)`` rule."""
+        realized law, NOT the base ``LinearOperator`` default. A
+        non-delegating wrapper would report a vacuum/reflective face law
+        as ``is_adjointable=False`` and silently break the ``B``
+        aggregator's ``all(law.is_adjointable …)`` rule."""
         sn = _slab_mesh(ng=2)
         for face in sn.trace.layout.faces:
             law = sn.bc[face]
-            assert law.is_adjointable == (CAP_APPLY_TRANSPOSE in law.capabilities)
-            assert law.is_invertible == (CAP_SOLVE in law.capabilities)
+            assert law.is_adjointable == law.inner.is_adjointable
+            assert law.is_invertible == law.inner.is_invertible
+
+    def test_inverse_adjoint_contract_keystone_v2_sn(self) -> None:
+        """KEYSTONE v2, SN/transport slice (carve P4, spec §36).
+
+        The permanent successor of the frozenset scaffold above: pins the
+        two-axis contract (returns-vs-raises-vs-absent on the inverse
+        axis, eager-``.H`` on the adjoint axis, TypeGuard-bridge
+        consistency) over the SN + transport advertisers. Expectations
+        VERIFIED against the live fixture (probe 2026-07-02): the vacuum
+        face-law shims declare the forwarded ``inverse()`` and their
+        guard raises ``NotInvertible`` (VALUE arm); ``L`` and ``B`` are
+        the structural arm; the sweep-invertible ``(L+C)`` and the plain
+        Green-invertible ``(L+C-B)`` both return.
+        """
+        sn = _slab_mesh(ng=2)
+        spatial = (sn.ng, *sn.spatial_shape)
+        L = StreamingOperator(sn)
+        C = MultiplicationOperator.from_mesh(np.ones(spatial), sn)
+        sigma_singular = np.ones(spatial)
+        sigma_singular[0, 0] = 0.0
+        C_singular = MultiplicationOperator.from_mesh(sigma_singular, sn)
+        B = SNBoundaryOperator(sn)
+        rows = [
+            (L, False, True, STRUCTURAL_ABSENT),
+            (C, True, True, INVERTIBLE),
+            (C_singular, False, True, VALUE_RAISE),
+            (L + C, True, True, INVERTIBLE),        # sweep-invertible
+            (L + C - B, True, True, INVERTIBLE),    # plain sum → Green
+            (B, False, True, STRUCTURAL_ABSENT),
+            ((L + C).inverse(), True, False, INVERTIBLE),  # SweepOperator
+        ]
+        # The realized face-law wrappers: forwarded inverse() + guard.
+        rows += [
+            (sn.bc[face], False, True, VALUE_RAISE)
+            for face in sn.trace.layout.faces
+        ]
+        # Transport energy leaves: all structurally non-invertible,
+        # all adjointable (the S†/F† axis, #276).
+        rows += [
+            (op, False, True, STRUCTURAL_ABSENT)
+            for op in self._transport_energy_operators()
+        ]
+        for op, inv, adj, contract in rows:
+            assert_inverse_adjoint_contract(
+                op, invertible=inv, adjointable=adj, inverse_contract=contract
+            )
 
     def test_sweep_vs_green_inverse_keyed_by_type(self) -> None:
         """``(L+C)`` is the ONE sweep-invertible OperatorSum — its

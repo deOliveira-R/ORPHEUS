@@ -23,7 +23,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture, make_mixture
 from orpheus.geometry import Mesh2D
-from orpheus.numerics.operator import CAP_APPLY, CAP_APPLY_TRANSPOSE, LinearOperator
+from orpheus.numerics.operator import LinearOperator
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.mesh.material_xs_field import MaterialXSField
@@ -167,13 +167,11 @@ class TestProtocolCompliance:
         """isinstance LinearOperator (runtime-checkable Protocol)."""
         assert isinstance(solver_2g_p0.scattering_op, LinearOperator)
 
-    def test_capability_set_apply_and_transpose(self, solver_2g_p0):
-        """capabilities = {"apply", "apply_transpose"} — the adjoint S† is free via
-        full_scatter_kernel (#276 A2b / #118); still no useful inverse (solve)."""
+    def test_predicates_adjointable_not_invertible(self, solver_2g_p0):
+        """``is_adjointable`` True, ``is_invertible`` False — the adjoint S† is free
+        via full_scatter_kernel (#276 A2b / #118); still no useful inverse."""
         op = solver_2g_p0.scattering_op
-        assert op.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
-        assert CAP_APPLY_TRANSPOSE in op.capabilities
-        assert "solve" not in op.capabilities
+        assert op.is_adjointable and not op.is_invertible
 
     def test_apply_accepts_psi_shape(self, solver_2g_p0):
         """apply(psi) must accept typed AngularFlux ``(N, ng, nx, ny)`` (D-I.2)."""

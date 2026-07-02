@@ -26,9 +26,11 @@ is pinned TIGHTLY, not to a 5% band.
 
 **Tolerance discipline (spec §20.0):** Green is ITERATIVE — its gates
 assert at ``SAFETY × tol`` (driver-tol rule, lessons L7), NOT nulp; the one
-row that breaks the §12.0 count-the-ops rule.  ``sum.solve ≡
-inverse().apply`` is a TAUTOLOGY here (``OperatorSum.solve`` is DEFINED as
-the delegation) and is deliberately NOT asserted as evidence.
+row that breaks the §12.0 count-the-ops rule.  ``OperatorSum.solve`` was
+DELETED at carve P4 (a generic sum's inverse action IS the GreenOperator;
+solving is spelled ``sum.inverse().apply(b)``), so no solve-vs-inverse
+tautology remains to (not) assert; the mixin back-half ``green.solve``
+(the un-invert face) is what the back-half gate pins.
 
 **ConvergenceFailure teeth** (spec §18.A + §22.2): the promise reads the
 TRUE equation residual, not the driver's ρ-blind increment (Signature 9) —
@@ -59,7 +61,7 @@ from orpheus.numerics.green_operator import ConvergenceFailure, GreenOperator
 from orpheus.numerics.iteration import SourceIteration
 from orpheus.numerics.operator import (
     DiagonalOperator,
-    MissingCapability,
+    NotInvertible,
     PermutationOperator,
     ScaledOperator,
     ZeroOperator,
@@ -132,8 +134,10 @@ def test_g_i2_involution_object_identity():
 
 def test_back_half_solve_is_the_forward_matvec():
     """The mixin's ``solve`` on the INVERSE object is the FORWARD action —
-    anchored against the dense sum (independent), NOT via ``sum.solve``
-    (which is the documented definition-tautology).  One sibling suffices:
+    anchored against the dense sum (independent), NOT via ``sum.apply``
+    (the mixin back-half is DEFINED as ``inner.apply`` — asserting that
+    delegation against itself would be the definition-tautology; note
+    ``OperatorSum.solve`` itself is retired, carve P4).  One sibling suffices:
     the line is single-sourced on the mixin, so a delegation bug here is
     a bug on all three (M-MIXIN-CODOM/solve teeth)."""
     A, A_dense = _split()
@@ -300,7 +304,7 @@ def test_leading_non_invertible_refuses_at_construction():
     """§22.3: the canonical-ordering refusal — a sum whose LEADING term is
     not invertible cannot designate a preconditioner; the message names the
     canonical spelling (the §18.B contract pin)."""
-    with pytest.raises(MissingCapability, match="canonical ordering"):
+    with pytest.raises(NotInvertible, match="canonical ordering"):
         (ZeroOperator() + DiagonalOperator(_D_DIAG)).inverse()
 
 

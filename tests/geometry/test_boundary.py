@@ -426,17 +426,17 @@ def test_registry_create_unknown_key_raises() -> None:
 
 @pytest.mark.foundation
 def test_specular_realized_op_advertises_apply_transpose() -> None:
-    """The realised specular op advertises apply_transpose.
+    """The realised specular op is adjointable.
 
-    Issue #186 (B3 + β2): capabilities are an operator-tree concept;
-    descriptors do not carry them. The realised
-    :class:`PermutationOperator` (α=1 fast path) carries the capability
-    set that consumers (sensitivity adjoints) inspect.
+    Issue #186 (B3 + β2): the structural predicates are an operator-tree
+    concept; descriptors do not carry them. The realised
+    :class:`PermutationOperator` (α=1 fast path) carries the
+    ``is_adjointable`` truth that consumers (sensitivity adjoints) inspect.
     """
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     spec = ReflectiveBoundary(axis="x", albedo=1.0)
     realized = _realize_for_sn(spec, quad)
-    assert "apply_transpose" in realized.capabilities
+    assert realized.is_adjointable
 
 
 @pytest.mark.foundation

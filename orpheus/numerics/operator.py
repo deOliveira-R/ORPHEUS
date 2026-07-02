@@ -26,25 +26,38 @@ solve, the *outer* algebra is identical even though the *implementation*
 of each operator differs by orders of magnitude in cost and structure.
 
 This module installs the **algebra** as runtime-checkable Protocols.
-Any object providing ``apply(x) -> Lx`` participates; objects that can
-also offer ``solve(b) -> L^{-1}b`` or ``apply_transpose(x) -> L^T x``
-advertise those abilities through a :pydata:`capabilities` set.
-Composers (:class:`OperatorSum`, :class:`OperatorProduct`,
-:class:`ScaledOperator`, :class:`IdentityOperator`,
-:class:`ZeroOperator`) compute their own capability set from
-constituents — capability mismatches raise :class:`MissingCapability`
-at composition time, NEVER at call time, so a downstream
-:class:`scipy.sparse.linalg.LinearOperator` consumer never silently
-hits a broken stub.
+Any object providing ``apply(x) -> Lx`` participates. Each further
+ability is a per-axis THREE-LAYER surface (#226 carve P4, Design C):
 
-The choice of a capability *set* (rather than subclassing or abstract
-methods) is deliberate. Many transport operators have no efficient
-``solve``: the scattering source S has rank in the thousands and is
-never inverted directly; the fission source F is rank-deficient (it
-projects onto the fission spectrum). Forcing those classes to provide
-``solve`` stubs that raise ``NotImplementedError`` is harmful — the
-contract should be "I can do *these* things" not "I can do everything
-or fail." See :ref:`operator-algebra` for the full design rationale.
+* a **predicate** (:attr:`~LinearOperator.is_invertible` /
+  :attr:`~LinearOperator.is_adjointable`) — the runtime,
+  instance-accurate truth, reading structure AND values (a
+  zero-coefficient multiplier reports ``False``; a sum reports its
+  leading term), recursive on composites;
+* an **operator-returning method** (``inverse()`` / :attr:`~LinearOperator.H`)
+  — the canonical act; ``.H`` lives on the base (one generic wrapper
+  realization exists) and refuses EAGERLY (:class:`MissingAdjoint`),
+  while ``inverse()`` lives per-class: a structurally-non-invertible
+  type simply does not declare it (misuse is a *static* error), and a
+  value-dependent type declares it and raises :class:`NotInvertible`;
+* a **realization verb** (``solve`` / ``apply_transpose``) — present
+  exactly where a native realization exists (the wrap-delegate family
+  delegates through ``solve``; the composer transpose laws recurse
+  through ``apply_transpose``), never as an exists-but-raises stub.
+
+The checked bridges :func:`invertible` / :func:`adjointable` (PEP-647
+``TypeGuard``) convert the runtime predicate into the static permission
+at guarded call sites — you cannot obtain the permission without
+executing the check. Composition mismatches still fail at COMPOSITION
+time, never mid-iteration: the composers guard ``apply`` eagerly
+(``TypeError``), ``.H`` gates at construction, and the value-dependent
+``inverse()`` guards raise before any inverse object exists — so a
+downstream :class:`scipy.sparse.linalg.LinearOperator` consumer never
+silently hits a broken stub. Many transport operators have no
+efficient inverse action — the scattering source S is never inverted
+directly; the fission source F is rank-deficient — and their honest
+surface is METHOD ABSENCE, not an advertising flag. See
+:ref:`operator-algebra` for the full design rationale.
 """
 
 from __future__ import annotations
@@ -55,10 +68,10 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    ClassVar,
     Generic,
     Optional,
     Protocol,
+    TypeGuard,
     TypeVar,
     cast,
     runtime_checkable,
@@ -108,7 +121,10 @@ __all__ = [
     "BulkOperator",
     "FullOperator",
     "BoundaryOperator",
-    "MissingCapability",
+    "NotInvertible",
+    "MissingAdjoint",
+    "invertible",
+    "adjointable",
     "IncompatibleOperatorComposition",
     "MatrixTooLarge",
     "InverseWrapMixin",
@@ -125,17 +141,7 @@ __all__ = [
     "outer",
     "TensorProductOperator",
     "SumOfTensorProductsOperator",
-    "CAP_APPLY",
-    "CAP_SOLVE",
-    "CAP_APPLY_TRANSPOSE",
 ]
-
-
-# Capability tag literals. Strings (rather than an enum) so user
-# operators can advertise method-specific tags without subclassing.
-CAP_APPLY: str = "apply"
-CAP_SOLVE: str = "solve"
-CAP_APPLY_TRANSPOSE: str = "apply_transpose"
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -266,12 +272,35 @@ class BoundaryOperator(metaclass=_BlockRoleMeta):
     _role = BlockRole.BOUNDARY
 
 
-class MissingCapability(TypeError):
-    """A composition would require a capability the constituents lack.
+class NotInvertible(TypeError):
+    r"""Asked for the inverse of an operator that cannot produce one.
 
-    Raised at composition time so that downstream Krylov / power-iteration
-    consumers never hit a broken stub at call time. The exception message
-    names the missing capability and the operand that lacks it.
+    The INVERSE-axis refusal (taxonomy §12 step 6): raised **eagerly** by
+    :meth:`inverse` overrides (and the inverse-family constructors) when
+    the operator's :attr:`~LinearOperator.is_invertible` is ``False`` —
+    the VALUE-dependent arm of the two-kinds split. A zero-coefficient
+    :class:`DiagonalOperator`, a sum whose leading term is not
+    invertible, a product with a singular factor: the TYPE supports
+    inversion, this INSTANCE refuses, at construction of the inverse and
+    never mid-iteration. (The STRUCTURAL arm — :class:`ZeroOperator`,
+    masks, source dyads, for which no inverse exists mathematically —
+    does not declare :meth:`inverse` at all, so misuse there is a
+    *static* error, not this exception.) ``TypeError`` parentage carries
+    the retired ``MissingCapability``'s public contract forward — no
+    ``except`` clause written against the old gate changes meaning.
+    """
+
+
+class MissingAdjoint(TypeError):
+    r"""Asked for the Hilbert adjoint of an operator that has none.
+
+    The ADJOINT-axis refusal (taxonomy §12 step 6): raised **eagerly**
+    by :meth:`LinearOperator.adjoint` / :attr:`LinearOperator.H` when
+    :attr:`~LinearOperator.is_adjointable` is ``False`` — at wrapper
+    CONSTRUCTION, never lazily at the first ``.apply`` (the pre-carve
+    behaviour). Also the refusal of the raw-transpose realization verb
+    (``apply_transpose``) on composites whose operands cannot all
+    transpose. ``TypeError`` parentage mirrors :class:`NotInvertible`.
     """
 
 
@@ -341,28 +370,24 @@ def _resolve_basis_shape(
 class LinearOperator(Protocol[Domain, Codomain]):
     r"""Contract for a matrix-free linear operator on a flux vector.
 
-    Any object exposing :meth:`apply` and a :pydata:`capabilities`
-    frozenset participates. :meth:`solve` and :meth:`apply_transpose`
-    are *optional* — their availability is advertised through the
-    capability set rather than the type system, because many transport
-    operators (S, F, and the BiCGSTAB-Jacobi-preconditioner family)
-    have no efficient ``solve``.
+    Any object exposing :meth:`apply` participates. The further
+    abilities are per-axis structural surfaces (the module docstring's
+    three layers): the recursive predicates
+    :attr:`is_invertible`/:attr:`is_adjointable` are the runtime truth,
+    ``inverse()``/:attr:`H` the operator-returning acts, and
+    ``solve``/``apply_transpose`` the per-class realization verbs —
+    declared exactly where a native realization exists, never as
+    stubs. There is no capability registry to keep in sync: the single
+    source of truth for what an operator can do is the operator's own
+    structure and values, read through the predicates.
 
     Composition operators (:class:`OperatorSum`, :class:`OperatorProduct`,
     :class:`ScaledOperator`) are wired through ``__add__``, ``__sub__``,
     ``__mul__`` (scalar), and ``__matmul__`` (operator product) so the
     typical algebra of the Boltzmann transport equation,
     :math:`(L - S - F)`, can be built with the natural Python syntax.
-    The capability set of the composition is computed by the composer
-    according to the closure laws documented in :ref:`operator-algebra`.
-
-    Attributes
-    ----------
-    capabilities : frozenset[str]
-        Subset of ``{"apply", "solve", "apply_transpose"}`` (extra tags
-        are permitted for method-specific dispatch). The capability set
-        is consulted by composers; it is the **single source of truth**
-        for what an operator can do.
+    The composites derive their predicates recursively per the closure
+    laws documented in :ref:`operator-algebra`.
 
     Notes
     -----
@@ -375,15 +400,11 @@ class LinearOperator(Protocol[Domain, Codomain]):
     known-size probe vector once at setup.
     """
 
-    capabilities: frozenset[str]
-
     #: Block-role classification (Issue #208 / Wave O) — see
-    #: :class:`BlockRole`. A single enum value, NOT a capability tag: the
-    #: role is a *partition* (an operator is exactly one of
-    #: bulk/full/boundary), whereas :attr:`capabilities` is a *lattice*
-    #: (apply AND solve AND …, non-exclusive). Modelling the partition as
-    #: one enum makes the illegal "BULK and FULL at once" state
-    #: unrepresentable; a frozenset would not.
+    #: :class:`BlockRole`. A single enum value: the role is a
+    #: *partition* (an operator is exactly one of bulk/full/boundary),
+    #: so one enum makes the illegal "BULK and FULL at once" state
+    #: unrepresentable; a set would not.
     #:
     #: ``None`` = unclassified — the default for the generic algebra
     #: (composition operators derive their role from operands at O.2).
@@ -428,15 +449,14 @@ class LinearOperator(Protocol[Domain, Codomain]):
         return None
 
     # ------------------------------------------------------------------
-    # Per-axis structural capability predicates (#226 inverse-as-operator
-    # carve) — the typed, instance-accurate successors to the stringly-
-    # typed ``capabilities`` frozenset. Each is the RUNTIME advertisement
-    # for one operator-returning method (:meth:`inverse` / :meth:`H`); the
-    # propagation LAW lives in the composer method bodies, and these
-    # predicates compute the matching "does it work?" answer recursively
-    # from the operands — NOT a cached string set that can drift. The
-    # STATIC contract is carried by the :class:`SupportsInverse` /
-    # :class:`SupportsAdjoint` Protocols.
+    # Per-axis structural predicates (#226 inverse-as-operator carve).
+    # Each is the RUNTIME advertisement for one operator-returning
+    # method (:meth:`inverse` / :meth:`H`); the propagation LAW lives in
+    # the composer method bodies, and these predicates compute the
+    # matching "does it work?" answer recursively from the operands —
+    # never a cached registry that can drift. The static bridges are
+    # :func:`invertible` / :func:`adjointable` (narrowing to
+    # :class:`SupportsInverse` / :class:`SupportsAdjoint`).
     # ------------------------------------------------------------------
 
     @property
@@ -474,9 +494,8 @@ class LinearOperator(Protocol[Domain, Codomain]):
         r"""Return :math:`L\,x`.
 
         Mandatory. Every concrete :class:`LinearOperator` must implement
-        this (the body here is the Protocol contract stub). The
-        :pydata:`capabilities` set MUST include :pydata:`CAP_APPLY`
-        whenever this method is functional.
+        this (the body here is the Protocol contract stub); the
+        composers guard its presence eagerly at composition time.
 
         The two type variables express the operator honestly: ``apply``
         maps an input carrier :data:`Domain` to a (possibly distinct)
@@ -663,11 +682,25 @@ class LinearOperator(Protocol[Domain, Codomain]):
         the adjoint reduces to the representation transpose.
 
         The returned wrapper preserves :meth:`apply` (= adjoint
-        action) and swaps :attr:`domain` ↔ :attr:`codomain`. The
-        :pydata:`capabilities` set advertises ``apply`` whenever the
-        underlying operator advertises :pydata:`CAP_APPLY_TRANSPOSE`;
-        otherwise the call to :meth:`apply` will raise at call time.
+        action) and swaps :attr:`domain` ↔ :attr:`codomain`.
+
+        Raises
+        ------
+        MissingAdjoint
+            **Eagerly, here at construction** (carve P4, spec §38) when
+            this operator is not :attr:`is_adjointable` — a wrapper that
+            could only fail at its first ``.apply`` is the broken-stub
+            anti-pattern this module refuses. The :func:`adjointable`
+            guard doubles as the static bridge: the wrapper's
+            constructor consumes the narrowed :class:`SupportsAdjoint`.
         """
+        if not adjointable(self):
+            raise MissingAdjoint(
+                f"{type(self).__name__} is not adjointable — .H/.adjoint() "
+                f"requires is_adjointable=True (a working apply_transpose "
+                f"on every constituent). The Hilbert adjoint of this "
+                f"operator does not exist as posed."
+            )
         return _AdjointOperator(self)
 
     @property
@@ -784,64 +817,113 @@ class LinearOperator(Protocol[Domain, Codomain]):
         c = getattr(self, "codomain", None)
         d_name = repr(d.name) if d is not None else "'?'"
         c_name = repr(c.name) if c is not None else "'?'"
-        caps = sorted(getattr(self, "capabilities", frozenset()))
-        return f"<{cls} domain={d_name} codomain={c_name} caps={caps}>"
+        # The two-axis surface, tokens present iff True (carve P4 §44.F).
+        axes = "".join(
+            f" {token}"
+            for token, on in (
+                ("invertible", getattr(self, "is_invertible", False)),
+                ("adjointable", getattr(self, "is_adjointable", False)),
+            )
+            if on
+        )
+        return f"<{cls} domain={d_name} codomain={c_name}{axes}>"
 
 
 # ───────────────────────────────────────────────────────────────────────
-# Static capability Protocols (#226 inverse-as-operator carve)
+# Narrowing targets + checked bridges (#226 carve P4 — Design C)
 # ───────────────────────────────────────────────────────────────────────
 #
-# These are STATIC contracts ONLY (pyright / annotation targets), the
-# successors to the ``CAP_SOLVE`` / ``CAP_APPLY_TRANSPOSE`` string tags.
-# They are deliberately NOT ``runtime_checkable``: an ``isinstance`` check
-# against them reads class-level method presence, which is class-uniform on
-# composites (every ``OperatorSum`` defines ``apply_transpose`` even when a
-# summand cannot transpose) and blind to value-dependent leaves (a
-# zero-coefficient multiplier still has an ``inverse`` method). Forbidding
-# ``isinstance`` at the type level steers every runtime query to the
-# instance-accurate :attr:`LinearOperator.is_invertible` /
-# :attr:`LinearOperator.is_adjointable` property — the single correct
-# mechanism (test-architect §1d.3).
+# Each capability axis has THREE layers, and each layer carries the truth
+# it alone can express (taxonomy §12 step 6):
+#
+#   1. the PREDICATE (``is_invertible`` / ``is_adjointable``) — runtime,
+#      instance-accurate, value- and structure-aware; the polymorphic
+#      override point every class defines its truth through;
+#   2. the NARROWING TARGET below (``SupportsInverse``/``SupportsAdjoint``,
+#      a Protocol EXTENDING :class:`LinearOperator`) — the static type a
+#      guarded branch may treat the operand as;
+#   3. the CHECKED BRIDGE (:func:`invertible` / :func:`adjointable`, a
+#      PEP-647 ``TypeGuard``) — the ONE construct that converts the
+#      runtime predicate into the static permission. You cannot obtain
+#      the permission without executing the check (contrast the retired
+#      ``cast(...)`` bridge, which asserted without checking).
+#
+# The Protocols are deliberately NOT ``runtime_checkable``: an
+# ``isinstance`` check reads class-level method presence, which is
+# class-uniform on composites (every ``OperatorSum`` defines
+# ``apply_transpose`` even when a summand cannot transpose) and blind to
+# value-dependent leaves (a zero-coefficient multiplier still has an
+# ``inverse`` method). The bridge functions are the only sanctioned
+# runtime→static conversion.
 
 
-class SupportsInverse(Protocol):
-    r"""Static contract: an operator that exposes its inverse OPERATOR.
+class SupportsInverse(LinearOperator[Domain, Codomain], Protocol):
+    r"""Narrowing target: an operator whose :meth:`inverse` may be called.
 
-    The pyright / annotation target (``def precondition(L: SupportsInverse)``)
-    for the invertibility axis. The RUNTIME, instance-accurate query is the
-    :attr:`LinearOperator.is_invertible` property — NOT ``isinstance`` (this
-    Protocol is intentionally not ``runtime_checkable``; see the module
-    comment above). Together they replace the ``CAP_SOLVE`` string tag:
-    Protocol = static contract, property = runtime truth.
+    Extends :class:`LinearOperator`, so a branch narrowed by
+    :func:`invertible` keeps the WHOLE algebra (``apply``, ``H``,
+    composition dunders) alongside the licensed :meth:`inverse`. Never
+    ``isinstance`` this (see the section comment); never annotate a
+    parameter with it to *demand* invertibility — the static layer can
+    certify only SPELLING (the method exists), never SOLVABILITY (the
+    value-level predicate) — guard with :func:`invertible` instead.
     """
 
-    def inverse(self) -> "LinearOperator": ...
+    def inverse(self) -> "LinearOperator[Codomain, Domain]": ...
 
 
-class SupportsAdjoint(Protocol):
-    r"""Static contract: an operator that exposes a Hilbert adjoint ``.H``.
+class SupportsAdjoint(LinearOperator[Domain, Codomain], Protocol):
+    r"""Narrowing target: an operator whose ``apply_transpose`` may be called.
 
-    The static counterpart of :attr:`LinearOperator.is_adjointable`, matching
-    the Grand Report v3 §3.1 ``Supports*`` family. As with
-    :class:`SupportsInverse`, the instance-accurate query is the
-    :attr:`~LinearOperator.is_adjointable` property, not ``isinstance``.
-    Replaces the ``CAP_APPLY_TRANSPOSE`` string tag at the static layer.
+    Extends :class:`LinearOperator`; the branch narrowed by
+    :func:`adjointable` may call the raw Euclidean transpose verb
+    ``apply_transpose`` (the realization the metric-aware
+    :attr:`~LinearOperator.H` wrapper delegates to — two DIFFERENT
+    objects: :math:`T^{\mathsf T}` vs :math:`G^{-1}T^{\mathsf T}G`).
+    ``.H`` itself needs no narrowing — it lives on the base with an
+    eager :class:`MissingAdjoint` gate.
     """
 
-    @property
-    def H(self) -> "LinearOperator": ...
+    def apply_transpose(self, x: Codomain, /) -> Domain: ...
 
 
-def _has(op: object, cap: str) -> bool:
-    """Return True iff ``op`` advertises capability ``cap``.
+def invertible(
+    op: "LinearOperator[Domain, Codomain]",
+) -> "TypeGuard[SupportsInverse[Domain, Codomain]]":
+    r"""Checked bridge: narrow ``op`` to :class:`SupportsInverse` iff invertible.
 
-    Bare protocol-check that tolerates objects without the attribute
-    (returns False). Used by composers to decide which capabilities
-    propagate.
+    The runtime check and the static permission are ONE construct: a
+    branch guarded by this function may call ``op.inverse()`` with no
+    ``cast`` — and deleting the guard un-narrows the call, so CLI
+    pyright REDs (the guard is type-load-bearing, spec §39.1).
+
+    Deliberately ``TypeGuard``, NOT ``TypeIs``: the predicate is
+    VALUE-dependent (a zero-coefficient multiplier structurally *has*
+    ``inverse()`` while reporting ``False``), so only the one-directional
+    promise is honest — ``True`` licenses the call; ``False`` makes no
+    static claim. A free function because PEP 647 narrowing applies only
+    through a call expression and a method form narrows its first
+    *explicit* argument, never ``self`` — no property spelling exists.
+    Guard at ``LinearOperator``-typed sites only: ``TypeGuard`` REPLACES
+    (does not intersect) the declared type, so guarding an
+    already-concrete operand would widen it (spec §44.E).
     """
-    caps = getattr(op, "capabilities", None)
-    return bool(caps) and cap in caps
+    return op.is_invertible
+
+
+def adjointable(
+    op: "LinearOperator[Domain, Codomain]",
+) -> "TypeGuard[SupportsAdjoint[Domain, Codomain]]":
+    r"""Checked bridge: narrow ``op`` to :class:`SupportsAdjoint` iff adjointable.
+
+    The adjoint-axis twin of :func:`invertible` — same one-directional
+    ``TypeGuard`` semantics, same free-function necessity, same
+    guard-at-``LinearOperator``-typed-sites discipline. Licenses the raw
+    ``apply_transpose`` realization verb in composer law bodies
+    (:math:`(A+B)^{\mathsf T} = A^{\mathsf T} + B^{\mathsf T}`) and
+    gates the eager :attr:`~LinearOperator.H` construction.
+    """
+    return op.is_adjointable
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -871,27 +953,20 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
     ``A.H``). Domain/codomain are swapped relative to the inner operator;
     :meth:`apply` performs the weight-aware adjoint action.
 
-    The capability set is derived from the inner operator: ``apply``
-    on the adjoint maps to ``apply_transpose`` on the inner, so the
-    adjoint advertises :pydata:`CAP_APPLY` iff the inner advertises
-    :pydata:`CAP_APPLY_TRANSPOSE`. The reverse direction
+    Construction is gated EAGERLY by :meth:`LinearOperator.adjoint`
+    (carve P4, spec §38): only an :func:`adjointable`-narrowed operator
+    reaches this constructor, so ``inner`` is statically a
+    :class:`SupportsAdjoint` and :meth:`apply`'s delegation to
+    ``inner.apply_transpose`` is typed — there is no lazy capability
+    gate left to fail at call time. The reverse direction
     (apply_transpose on the adjoint = apply on the inner) is not
     needed by any current consumer in 9.6 and is deferred —
     :meth:`apply_transpose` raises :class:`NotImplementedError`
     until a consumer demands it.
     """
 
-    def __init__(self, inner: "LinearOperator[Domain, Codomain]") -> None:
+    def __init__(self, inner: "SupportsAdjoint[Domain, Codomain]") -> None:
         self.inner = inner
-        # Capability swap: adjoint can apply iff inner can apply_transpose.
-        caps: set[str] = set()
-        if _has(inner, CAP_APPLY_TRANSPOSE):
-            caps.add(CAP_APPLY)
-        # Adjoint can apply_transpose iff inner can apply — but defer
-        # the reverse direction until a consumer requires it.
-        # Solve generally does NOT propagate (the adjoint of A^{-1}
-        # would need A.H.solve = (A.solve).H, additional algebra).
-        self.capabilities = frozenset(caps)
         # The G-adjoint transposes the 2×2 block matrix (A_bs ↔ A_sb^T),
         # which preserves WHICH blocks are touched — so the role is the
         # inner operator's role (Wave O / O.2b 4.5): ``L.H`` is FULL,
@@ -908,12 +983,10 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
         return getattr(self.inner, "domain", None)
 
     def apply(self, y: Codomain) -> Domain:
-        if not _has(self.inner, CAP_APPLY_TRANSPOSE):
-            raise MissingCapability(
-                f"adjoint application requires {CAP_APPLY_TRANSPOSE!r} on "
-                f"the inner operator; {type(self.inner).__name__} "
-                f"advertises {getattr(self.inner, 'capabilities', frozenset())}."
-            )
+        # No capability gate here: the eager MissingAdjoint raise in
+        # LinearOperator.adjoint() is the ONLY entrance (no direct
+        # constructions exist — verified, spec §38), so ``inner`` always
+        # carries a working apply_transpose by the time apply runs.
         # Hilbert-adjoint action:
         #   (A^* y)_V = G_V⁺ ⊙ apply_transpose(G_W ⊙ y)
         # On the adjoint wrapper, ``codomain`` is the inner operator's
@@ -931,7 +1004,7 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
         inner_codomain = getattr(self.inner, "codomain", None)
         inner_domain = getattr(self.inner, "domain", None)
         z = inner_codomain.apply_metric(y) if inner_codomain is not None else y
-        result = self.inner.apply_transpose(z)  # type: ignore[attr-defined]
+        result = self.inner.apply_transpose(z)
         if inner_domain is not None:
             result = inner_domain.apply_inverse_metric(result)
         return result
@@ -947,42 +1020,47 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
 class OperatorSum(LinearOperator[Domain, Codomain]):
     r"""Sum of two linear operators: :math:`(A + B)\,x = A\,x + B\,x`.
 
-    Capability closure laws:
+    Structural closure laws (realized in the method bodies; the
+    predicates are the matching advertisements):
 
-    * ``apply`` propagates iff **both** operands have ``apply``
-      (the action is well-defined only when both summands act).
-    * ``solve``/invertibility does NOT propagate operand-wise: there is
-      no algorithm for :math:`(A + B)^{-1}` from :math:`A^{-1}` and
+    * ``apply`` requires **both** operands to act — guarded eagerly at
+      construction (``TypeError``), never at the first call.
+    * Invertibility does NOT propagate operand-wise: there is no
+      algorithm for :math:`(A + B)^{-1}` from :math:`A^{-1}` and
       :math:`B^{-1}` alone — Sherman–Morrison–Woodbury applies only
       under low-rank structure.  What a sum DOES have, when its LEADING
       (left-spine head) term is invertible, is a
       preconditioned-SPLITTING inverse: :meth:`inverse` returns a
       :class:`~orpheus.numerics.green_operator.GreenOperator` iterating
-      :math:`x_{n+1} = A^{-1}(q - B\,x_n)` (taxonomy §12 step 4), and
-      ``solve`` delegates to it.  See :attr:`is_invertible` for the
-      canonical-ordering contract this keys on.
-    * ``apply_transpose`` propagates iff **both** operands have it
-      (transposition distributes over sums: :math:`(A + B)^T = A^T + B^T`).
+      :math:`x_{n+1} = A^{-1}(q - B\,x_n)` (taxonomy §12 step 4).  A
+      generic sum carries no ``solve`` verb — solving with it IS
+      applying that inverse OBJECT (the transitional gated spelling
+      retired at carve P4; the sweep-invertible ``(L+C)`` subclass
+      overrides with its own direct-sweep ``solve``).  See
+      :attr:`is_invertible` for the canonical-ordering contract.
+    * ``apply_transpose`` requires **both** operands to transpose
+      (:math:`(A + B)^T = A^T + B^T`) — guarded in the verb body with
+      :class:`MissingAdjoint`; :attr:`is_adjointable` is the recursion.
 
     Raises
     ------
-    MissingCapability
-        If either operand lacks :pydata:`CAP_APPLY` at construction
+    TypeError
+        If either operand has no callable ``apply`` at construction
         time. Catch the failure here, not at the first ``apply`` call,
         so downstream Krylov consumers don't see a stub failure
         mid-iteration.
     """
 
     def __init__(self, a: LinearOperator[Domain, Codomain], b: LinearOperator[Domain, Codomain]) -> None:
-        if not _has(a, CAP_APPLY):
-            raise MissingCapability(
+        if not callable(getattr(a, "apply", None)):
+            raise TypeError(
                 f"OperatorSum requires apply on both operands; left "
-                f"operand {type(a).__name__} lacks {CAP_APPLY!r}."
+                f"operand {type(a).__name__} lacks 'apply'."
             )
-        if not _has(b, CAP_APPLY):
-            raise MissingCapability(
+        if not callable(getattr(b, "apply", None)):
+            raise TypeError(
                 f"OperatorSum requires apply on both operands; right "
-                f"operand {type(b).__name__} lacks {CAP_APPLY!r}."
+                f"operand {type(b).__name__} lacks 'apply'."
             )
         # Domain/codomain compatibility check (skipped when either
         # operand lacks function-space metadata — backward-compatible
@@ -1005,16 +1083,6 @@ class OperatorSum(LinearOperator[Domain, Codomain]):
             )
         self.a = a
         self.b = b
-
-        caps = {CAP_APPLY}
-        if _has(a, CAP_APPLY_TRANSPOSE) and _has(b, CAP_APPLY_TRANSPOSE):
-            caps.add(CAP_APPLY_TRANSPOSE)
-        if getattr(a, "is_invertible", False):
-            # The Green splitting derives from the invertible leading
-            # term (see is_invertible) — CAP_SOLVE rides with it (the
-            # faithfulness keystone is_invertible ≡ CAP_SOLVE).
-            caps.add(CAP_SOLVE)
-        self.capabilities = frozenset(caps)
         # Block role DERIVED from the operands (Wave O / O.2b 4.5): the sum
         # touches the union of the blocks its summands touch. Replaces the
         # former hand-stamped ``InvertibleOperator`` FULL tag — ``(L+C)`` and
@@ -1037,13 +1105,22 @@ class OperatorSum(LinearOperator[Domain, Codomain]):
         return self.a.apply(x) + self.b.apply(x)
 
     def apply_transpose(self, x: Codomain, /) -> Domain:
-        return self.a.apply_transpose(x) + self.b.apply_transpose(x)  # type: ignore[attr-defined]
+        # (A+B)^T = A^T + B^T — the guard-narrow licenses the operand
+        # calls (Design C: the runtime check IS the static permission).
+        if not adjointable(self.a) or not adjointable(self.b):
+            raise MissingAdjoint(
+                f"OperatorSum.apply_transpose requires both summands to "
+                f"transpose ((A+B)^T = A^T + B^T); got "
+                f"{type(self.a).__name__} / {type(self.b).__name__} with "
+                f"is_adjointable {self.a.is_adjointable} / "
+                f"{self.b.is_adjointable}."
+            )
+        return self.a.apply_transpose(x) + self.b.apply_transpose(x)
 
     @property
     def is_adjointable(self) -> bool:
         # (A+B)^T = A^T + B^T (the law in :meth:`apply_transpose`) — the
-        # sum is adjointable iff BOTH summands are. Structural successor to
-        # the ``CAP_APPLY_TRANSPOSE`` closure computed in :meth:`__init__`.
+        # sum is adjointable iff BOTH summands are.
         return self.a.is_adjointable and self.b.is_adjointable
 
     @property
@@ -1094,48 +1171,50 @@ class OperatorSum(LinearOperator[Domain, Codomain]):
 
         return GreenOperator(self)
 
-    def solve(self, b_vec: Codomain, /) -> Domain:
-        r"""Solve :math:`(A+B)\,x = b` via the splitting inverse.
-
-        Delegates to :meth:`inverse` ``.apply`` — ONE realization (the
-        gated ``solve`` spelling is transitional and retires at carve
-        P4; the inverse OBJECT is the canonical form).
-        """
-        return self.inverse().apply(b_vec)
+    # NO ``solve`` on a generic sum (carve P4, the executed docstring
+    # promise): its inverse action is DRIVER-realized (the GreenOperator),
+    # not a substrate verb — solving is ``.inverse().apply(b)``. The
+    # sweep-invertible ``(L+C)`` subclass overrides with its own direct
+    # sweep ``solve`` (streaming.py), untouched by this deletion.
 
 
 class OperatorProduct(LinearOperator[Domain, Codomain]):
     r"""Composition of two linear operators: :math:`(A\,B)\,x = A(B\,x)`.
 
-    Capability closure laws:
+    Structural closure laws (method bodies; predicates advertise):
 
-    * ``apply`` propagates iff **both** operands have ``apply``
-      (function composition).
-    * ``solve`` propagates iff **both** operands have ``solve``, with
-      the order reversed: :math:`(A\,B)^{-1} = B^{-1}\,A^{-1}`. We
-      apply ``B.solve`` first, then ``A.solve``.
-    * ``apply_transpose`` propagates iff **both** operands have it,
-      with the order reversed: :math:`(A\,B)^T = B^T\,A^T`.
+    * ``apply`` requires **both** operands (function composition) —
+      guarded eagerly at construction (``TypeError``).
+    * Invertibility propagates iff **both** factors are invertible,
+      with the order reversed: :math:`(A\,B)^{-1} = B^{-1}\,A^{-1}`.
+      The product IS a wrap-delegate conformer — :meth:`solve` is its
+      native realization verb, re-routed through the factors' CANONICAL
+      surface (``.inverse().apply``, carve P4) so factor kinds whose own
+      ``solve`` retired (algebra-closed permutations/scalings, Green-
+      invertible sums) compose without one.
+    * ``apply_transpose`` requires **both**, order reversed
+      (:math:`(A\,B)^T = B^T\,A^T`) — :class:`MissingAdjoint` in the
+      verb body; :attr:`is_adjointable` is the recursion.
 
     Raises
     ------
-    MissingCapability
-        If either operand lacks :pydata:`CAP_APPLY` at construction.
+    TypeError
+        If either operand has no callable ``apply`` at construction.
     """
 
     def __init__(self, a: LinearOperator[Cmid, Codomain], b: LinearOperator[Domain, Cmid]) -> None:
         # ``A @ B``: ``B`` maps the input ``V`` to the intermediate
         # ``Cmid``, ``A`` maps ``Cmid`` to the output ``W`` — so the
         # product is honestly ``V → W`` with ``Cmid`` captured here.
-        if not _has(a, CAP_APPLY):
-            raise MissingCapability(
+        if not callable(getattr(a, "apply", None)):
+            raise TypeError(
                 f"OperatorProduct requires apply on both operands; "
-                f"left operand {type(a).__name__} lacks {CAP_APPLY!r}."
+                f"left operand {type(a).__name__} lacks 'apply'."
             )
-        if not _has(b, CAP_APPLY):
-            raise MissingCapability(
+        if not callable(getattr(b, "apply", None)):
+            raise TypeError(
                 f"OperatorProduct requires apply on both operands; "
-                f"right operand {type(b).__name__} lacks {CAP_APPLY!r}."
+                f"right operand {type(b).__name__} lacks 'apply'."
             )
         # Domain/codomain compatibility check for ``A @ B``: A.domain
         # must equal B.codomain. Skipped when either is None.
@@ -1151,13 +1230,6 @@ class OperatorProduct(LinearOperator[Domain, Codomain]):
         self.a = a
         self.b = b
 
-        caps = {CAP_APPLY}
-        if _has(a, CAP_SOLVE) and _has(b, CAP_SOLVE):
-            caps.add(CAP_SOLVE)
-        if _has(a, CAP_APPLY_TRANSPOSE) and _has(b, CAP_APPLY_TRANSPOSE):
-            caps.add(CAP_APPLY_TRANSPOSE)
-        self.capabilities = frozenset(caps)
-
     @property
     def domain(self) -> Optional["FunctionSpace"]:
         # A @ B: input space is B.domain.
@@ -1172,18 +1244,45 @@ class OperatorProduct(LinearOperator[Domain, Codomain]):
         return self.a.apply(self.b.apply(x))
 
     def solve(self, b_vec: Codomain) -> Domain:
-        # (AB)^{-1} = B^{-1} A^{-1} — maps the codomain W back to the domain V.
-        return self.b.solve(self.a.solve(b_vec))  # type: ignore[attr-defined]
+        r"""Solve :math:`(AB)\,x = b` — :math:`B^{-1}(A^{-1}\,b)`, factor-wise.
+
+        The product's native realization verb (the wrap-delegate family
+        wraps it: :meth:`inverse` returns ``InverseOperator(self)`` whose
+        ``apply`` delegates here). Since carve P4 the recursion goes
+        through each factor's CANONICAL surface — ``.inverse().apply`` —
+        not a factor ``solve``: bit-identical for every factor kind (the
+        inverse objects delegate to the same realizations) and total
+        over the kinds whose own ``solve`` retired (a permutation's
+        inverse is a first-class forward; a Green-invertible sum's is
+        the GreenOperator). The guard-narrow licenses the calls and
+        raises the value-dependent refusal eagerly.
+        """
+        if not invertible(self.a) or not invertible(self.b):
+            raise NotInvertible(
+                f"OperatorProduct.solve requires both factors to be "
+                f"invertible ((AB)^{{-1}} = B^{{-1}}A^{{-1}}); got "
+                f"{type(self.a).__name__} / {type(self.b).__name__} with "
+                f"is_invertible {self.a.is_invertible} / "
+                f"{self.b.is_invertible}."
+            )
+        return self.b.inverse().apply(self.a.inverse().apply(b_vec))
 
     def apply_transpose(self, x: Codomain, /) -> Domain:
-        # (AB)^T = B^T A^T — maps the codomain W back to the domain V.
-        return self.b.apply_transpose(self.a.apply_transpose(x))  # type: ignore[attr-defined]
+        # (AB)^T = B^T A^T — the guard-narrow licenses the operand calls.
+        if not adjointable(self.a) or not adjointable(self.b):
+            raise MissingAdjoint(
+                f"OperatorProduct.apply_transpose requires both factors "
+                f"to transpose ((AB)^T = B^T A^T); got "
+                f"{type(self.a).__name__} / {type(self.b).__name__} with "
+                f"is_adjointable {self.a.is_adjointable} / "
+                f"{self.b.is_adjointable}."
+            )
+        return self.b.apply_transpose(self.a.apply_transpose(x))
 
     @property
     def is_invertible(self) -> bool:
         # (AB)^{-1} = B^{-1} A^{-1} (the law in :meth:`solve`) — the product
-        # is invertible iff BOTH factors are. Structural successor to the
-        # ``CAP_SOLVE`` closure computed in :meth:`__init__`.
+        # is invertible iff BOTH factors are.
         return self.a.is_invertible and self.b.is_invertible
 
     def inverse(self) -> "InverseOperator":
@@ -1216,7 +1315,7 @@ class OperatorProduct(LinearOperator[Domain, Codomain]):
         the other kind of inverse, and stay unwrapped.)
         """
         if not self.is_invertible:
-            raise MissingCapability(
+            raise NotInvertible(
                 "OperatorProduct.inverse requires both factors to be "
                 "invertible ((AB)^{-1} = B^{-1}A^{-1})."
             )
@@ -1225,46 +1324,40 @@ class OperatorProduct(LinearOperator[Domain, Codomain]):
     @property
     def is_adjointable(self) -> bool:
         # (AB)^T = B^T A^T (the law in :meth:`apply_transpose`) — adjointable
-        # iff BOTH factors are. Successor to the ``CAP_APPLY_TRANSPOSE`` closure.
+        # iff BOTH factors are.
         return self.a.is_adjointable and self.b.is_adjointable
 
 
 class ScaledOperator(LinearOperator[Domain, Codomain]):
     r"""Scalar multiple of a linear operator: :math:`(\alpha L)\,x = \alpha\,(L\,x)`.
 
-    Scalar multiplication is a unitary operation on the capability
-    set: every capability of the underlying operator is preserved.
-    For ``solve``, :math:`(\alpha L)^{-1} = (1/\alpha)\,L^{-1}` so we
-    divide on the way out (and the scalar must be non-zero — caught
-    at composition time).
+    Scaling (:math:`\alpha \neq 0`, caught at composition time) passes
+    both structural axes through unchanged: the operand's
+    invertibility/adjointability ARE the scaled operator's, and the
+    algebra is closed — :meth:`inverse` is a
+    :class:`ScaledOperator` (:math:`(\alpha L)^{-1} = (1/\alpha)L^{-1}`)
+    and the transpose scales (:math:`(\alpha L)^T = \alpha L^T`). No
+    ``solve`` verb: an algebra-closed inverse is a first-class forward,
+    so solving is ``.inverse().apply(b)`` (carve P4).
     """
 
     def __init__(self, scalar: float, op: LinearOperator[Domain, Codomain]) -> None:
-        if not _has(op, CAP_APPLY):
-            raise MissingCapability(
+        if not callable(getattr(op, "apply", None)):
+            raise TypeError(
                 f"ScaledOperator requires apply on its operand; "
-                f"{type(op).__name__} lacks {CAP_APPLY!r}."
+                f"{type(op).__name__} lacks 'apply'."
             )
         if scalar == 0.0:
-            # Zero scaling is a degenerate case: the result has the
-            # same capabilities as ZeroOperator, not as the underlying
-            # operator. The user should construct ZeroOperator
-            # explicitly to make the intent clear.
+            # Zero scaling is a degenerate case: the result behaves as
+            # a ZeroOperator (singular, structurally), not as the
+            # underlying operator. The user should construct
+            # ZeroOperator explicitly to make the intent clear.
             raise ValueError(
                 "ScaledOperator with zero scalar is degenerate; "
                 "use ZeroOperator explicitly."
             )
         self.scalar = float(scalar)
         self.op = op
-        # All capabilities of the underlying operator survive.
-        # Filter to the recognised set; users may have method-specific
-        # tags that we don't know how to forward.
-        survivors = {CAP_APPLY}
-        if _has(op, CAP_SOLVE):
-            survivors.add(CAP_SOLVE)
-        if _has(op, CAP_APPLY_TRANSPOSE):
-            survivors.add(CAP_APPLY_TRANSPOSE)
-        self.capabilities = frozenset(survivors)
         # Scaling preserves which blocks the action touches (Wave O / O.2b 4.5).
         self.block_role = getattr(op, "block_role", None)
 
@@ -1279,12 +1372,20 @@ class ScaledOperator(LinearOperator[Domain, Codomain]):
     def apply(self, x: Domain, /, *extra, **kwextra) -> Codomain:
         return self.scalar * self.op.apply(x, *extra, **kwextra)
 
-    def solve(self, b_vec: Codomain) -> Domain:
-        # (αL)^{-1} = (1/α) L^{-1} — maps the codomain W back to the domain V.
-        return (1.0 / self.scalar) * self.op.solve(b_vec)  # type: ignore[attr-defined]
+    # NO ``solve`` (carve P4): the inverse is ALGEBRA-CLOSED —
+    # :meth:`inverse` returns the first-class forward
+    # ``ScaledOperator(1/α, op.inverse())`` — so there is no wrapped
+    # realization verb to keep; solving is ``.inverse().apply(b)``.
 
     def apply_transpose(self, x: Codomain, /, *extra, **kwextra) -> Domain:
-        return self.scalar * self.op.apply_transpose(x, *extra, **kwextra)  # type: ignore[attr-defined]
+        # (αL)^T = α L^T — the guard-narrow licenses the operand call.
+        if not adjointable(self.op):
+            raise MissingAdjoint(
+                f"ScaledOperator.apply_transpose requires an adjointable "
+                f"operand ((αL)^T = αL^T); {type(self.op).__name__}."
+                f"is_adjointable is False."
+            )
+        return self.scalar * self.op.apply_transpose(x, *extra, **kwextra)
 
     @property
     def is_invertible(self) -> bool:
@@ -1301,14 +1402,12 @@ class ScaledOperator(LinearOperator[Domain, Codomain]):
         :meth:`solve` given the operand's own ``inverse().apply ≡ solve``
         identity (both spell ``(1/α) * op_solve(b)``).
         """
-        if not self.is_invertible:
-            raise MissingCapability(
+        if not invertible(self.op):
+            raise NotInvertible(
                 "ScaledOperator.inverse requires an invertible operand "
                 "((αL)^{-1} = (1/α)L^{-1})."
             )
-        return ScaledOperator(
-            1.0 / self.scalar, cast(SupportsInverse, self.op).inverse(),
-        )
+        return ScaledOperator(1.0 / self.scalar, self.op.inverse())
 
     @property
     def is_adjointable(self) -> bool:
@@ -1319,20 +1418,14 @@ class ScaledOperator(LinearOperator[Domain, Codomain]):
 class IdentityOperator(LinearOperator[Domain]):
     r"""The identity operator :math:`I\,x = x`.
 
-    All three primitive capabilities are trivially supported:
-    :math:`I^{-1} = I` and :math:`I^T = I`. ``solve`` is the same
-    code path as ``apply`` — it is just relabelled.
+    Both axes hold trivially — :math:`I^{-1} = I` and :math:`I^T = I` —
+    and both are ALGEBRA-CLOSED: :meth:`inverse` returns this very
+    instance, so there is no ``solve`` verb to keep (solving with the
+    identity IS applying its inverse, itself; carve P4).
     """
-
-    capabilities: frozenset[str] = frozenset(
-        {CAP_APPLY, CAP_SOLVE, CAP_APPLY_TRANSPOSE}
-    )
 
     def apply(self, x: Domain, /) -> Domain:
         return x
-
-    def solve(self, b_vec: Domain) -> Domain:
-        return b_vec
 
     def apply_transpose(self, x: Domain, /) -> Domain:
         return x
@@ -1354,11 +1447,12 @@ class ZeroOperator(LinearOperator[Domain, Codomain]):
     r"""The zero operator :math:`0\,x = 0`.
 
     Has ``apply`` (returns the zero of its CODOMAIN) and
-    ``apply_transpose`` (also zero), but **not** ``solve``: the zero
-    operator is not invertible.  Forcing it to advertise ``solve`` would
-    be the harmful-stub anti-pattern this whole module is designed
-    against — composers downstream that ask for ``solve`` on
-    :math:`L = A + 0` would silently get a meaningless answer.
+    ``apply_transpose`` (also zero), and is STRUCTURALLY non-invertible
+    — the singular map par excellence — so it declares no ``inverse()``
+    at all: misuse is a static error, the honest surface for a type
+    whose inverse does not exist mathematically (Design C; forcing a
+    raising stub would be the harmful-stub anti-pattern this module is
+    designed against).
 
     A zero operator's output lives in its CODOMAIN
     ---------------------------------------------
@@ -1395,8 +1489,6 @@ class ZeroOperator(LinearOperator[Domain, Codomain]):
     ``apply_transpose`` stays an input-echo: its codomain is the domain,
     and the transpose of the zero slot is not exercised pre-#208.
     """
-
-    capabilities: frozenset[str] = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
     def __init__(
         self, codomain_zero: "Callable[[Domain], Codomain] | None" = None,
@@ -1465,13 +1557,15 @@ class _InvertibleForward(_WrappedForward, Protocol):
 
     Extends the family-minimal :class:`_WrappedForward` with the two
     members the GENERIC sibling consumes: ``is_invertible`` (its ctor
-    guard is the leaf's own value check) and the gated :meth:`solve`
-    (its ``apply`` delegates to the leaf's division — coexistence-window
-    plumbing for the #226 carve; the ``solve`` spelling retires at P4,
-    shrinking this contract with it). Delegating through one contract
-    keeps the inverse OBJECT and the legacy ``solve`` on ONE realization
-    (``coding-elegance`` Pattern 2 — no reciprocal twin path that could
-    drift by a rounding).
+    guard is the leaf's own value check) and :meth:`solve` — the
+    forward's NATIVE inverse-action realization, which carve P4
+    established as this contract's permanent face (the step-6 design
+    finding: the caps-GATED public spelling retired, but the family
+    wrapper delegates through ``solve``, so the verb lives exactly on
+    the conformers the family wraps — value leaves, the product, the
+    sweep composites). Delegating through one contract keeps the
+    inverse OBJECT and the realization on ONE body (``coding-elegance``
+    Pattern 2 — no reciprocal twin path that could drift by a rounding).
     """
 
     @property
@@ -1497,9 +1591,6 @@ class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
     §12 step 4) fired the extraction trigger both twins recorded
     (defer-until-≥2, extract at 3 — never hand-re-derive):
 
-    * ``capabilities = {apply, solve}`` — ``apply`` inverts, ``solve``
-      un-inverts, so ``CAP_SOLVE`` rides with ``is_invertible`` (the
-      faithfulness keystone) on every inverse object.
     * :attr:`domain` / :attr:`codomain` — the SWAP of the forward's: an
       inverse maps the forward's codomain back to its domain.
     * :meth:`solve` — solving :math:`A^{-1}\,y = b` IS applying
@@ -1538,11 +1629,6 @@ class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
     statement of the split lives on :meth:`OperatorProduct.inverse`.)
     """
 
-    #: ``apply`` inverts; ``solve`` un-inverts (the forward matvec) — the
-    #: pair that keeps the faithfulness keystone ``is_invertible ≡
-    #: CAP_SOLVE`` honest on every inverse object.
-    capabilities: ClassVar[frozenset[str]] = frozenset({CAP_APPLY, CAP_SOLVE})
-
     def __init__(self, inner: _ForwardT) -> None:
         #: The forward operator :math:`A` this is the inverse of.
         self.inner = inner
@@ -1569,9 +1655,10 @@ class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
     def solve(self, b: Any, /) -> Any:
         r"""Solve :math:`A^{-1}\,y = b`, i.e. return :math:`A\,b` (the forward).
 
-        The ``CAP_SOLVE`` face that keeps the faithfulness keystone
-        ``is_invertible ≡ CAP_SOLVE`` honest on the inverse object
-        (taxonomy §13 I2 / step 1).
+        The un-invert face: an inverse object IS invertible, and its
+        realization verb is the forward matvec — keeping the involution
+        web closed (``is_invertible ⟺ a working solve`` on every family
+        member, taxonomy §13 I2 / step 1).
         """
         return self.inner.apply(b)
 
@@ -1623,7 +1710,7 @@ class InverseOperator(InverseWrapMixin[_InvertibleForward], LinearOperator):
     DIFFERENT named quantity). The division realization carries the
     inverse semantics without either lie.
 
-    The wrap-delegate back-half (``capabilities`` / domain↔codomain swap /
+    The wrap-delegate back-half (domain↔codomain swap /
     ``solve→inner.apply`` / ``is_invertible`` / ``inverse()→inner``) is
     inherited from :class:`InverseWrapMixin` — the extraction this class
     and :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`
@@ -1635,7 +1722,7 @@ class InverseOperator(InverseWrapMixin[_InvertibleForward], LinearOperator):
 
     def __init__(self, inner: _InvertibleForward) -> None:
         if not inner.is_invertible:
-            raise MissingCapability(
+            raise NotInvertible(
                 f"InverseOperator requires an invertible leaf; "
                 f"{type(inner).__name__}.is_invertible is False."
             )
@@ -1681,12 +1768,11 @@ class PermutationOperator(LinearOperator):
     :func:`~orpheus.sn.quadrature.Quadrature.reflection_index` is an
     involution; periodic shifts and rotational reorderings are not.
 
-    Capability set: ``{CAP_APPLY, CAP_APPLY_TRANSPOSE, CAP_SOLVE}`` — a
-    permutation is always invertible (:math:`P^{-1} = P^T`), so all three
-    surfaces are honest: :meth:`solve` and :meth:`apply_transpose` route
-    through the SAME ``np.take(·, inverse_perm)`` gather, and
-    :meth:`inverse` returns the inverse permutation as a first-class
-    :class:`PermutationOperator` (#226 taxonomy step 1).
+    A permutation is always invertible (:math:`P^{-1} = P^T`), and its
+    inverse is ALGEBRA-CLOSED: :meth:`inverse` returns the inverse
+    permutation as a first-class :class:`PermutationOperator` (#226
+    taxonomy step 1) whose ``apply`` is the same
+    ``np.take(·, inverse_perm)`` gather as :meth:`apply_transpose`.
 
     Parameters
     ----------
@@ -1713,10 +1799,6 @@ class PermutationOperator(LinearOperator):
     is_involution : bool
         ``True`` iff :math:`\pi \circ \pi = \mathrm{id}`.
     """
-
-    capabilities: frozenset[str] = frozenset(
-        {CAP_APPLY, CAP_APPLY_TRANSPOSE, CAP_SOLVE}
-    )
 
     def __init__(self, perm: np.ndarray, axis: int = 0) -> None:
         perm = np.asarray(perm, dtype=np.intp)
@@ -1750,18 +1832,12 @@ class PermutationOperator(LinearOperator):
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         return np.take(x, self.inverse_perm, axis=self.axis)
 
-    def solve(self, b: np.ndarray) -> np.ndarray:
-        r"""Inverse permutation action: :math:`P^{-1} b`.
-
-        For a permutation matrix, :math:`P^{-1} = P^{T}` — the
-        inverse equals the transpose. Both :meth:`solve` and
-        :meth:`apply_transpose` therefore route through the same
-        ``np.take(b, inverse_perm, axis=axis)`` call. The pair is
-        provided separately because they advertise different
-        capabilities (``CAP_SOLVE`` vs ``CAP_APPLY_TRANSPOSE``)
-        and consumers may filter by either.
-        """
-        return np.take(b, self.inverse_perm, axis=self.axis)
+    # NO ``solve`` (carve P4): the inverse is ALGEBRA-CLOSED —
+    # :meth:`inverse` returns the inverse permutation as a first-class
+    # forward whose ``apply`` is the SAME ``np.take(·, inverse_perm)``
+    # gather (P^{-1} = P^T, bit-identical) — so solving is
+    # ``.inverse().apply(b)``; ``apply_transpose`` keeps the gather as
+    # the Euclidean-transpose verb.
 
     @property
     def is_invertible(self) -> bool:
@@ -1808,10 +1884,10 @@ class IncomingOrdinateMaskTensor(LinearOperator):
     (:math:`M^2 = M`) — projection onto the outflow subspace. The
     apply action returns a copy; original input is unmodified.
 
-    Capability set: ``{CAP_APPLY, CAP_APPLY_TRANSPOSE}``. ``solve`` is
-    NOT advertised — the mask is rank-deficient (it projects), so it
-    is non-invertible. Forcing a ``solve`` stub would be the
-    harmful-stub anti-pattern this module is designed against.
+    STRUCTURALLY non-invertible — the mask is rank-deficient (it
+    projects) — so it declares no ``inverse()``; misuse is a static
+    error (Design C). Self-adjoint on the Euclidean axis, so
+    ``apply_transpose`` is honest.
 
     Parameters
     ----------
@@ -1826,8 +1902,6 @@ class IncomingOrdinateMaskTensor(LinearOperator):
     axis
         Tensor axis along which the mask acts.
     """
-
-    capabilities: frozenset[str] = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
     def __init__(
         self,
@@ -1897,8 +1971,10 @@ class PeriodicWrapOperator(LinearOperator):
     handled by sweep indexing). See follow-up issue
     "BC: PeriodicWrapOperator spatial-pushforward implementation".
 
-    Capability set: ``{CAP_APPLY, CAP_APPLY_TRANSPOSE}``. The
-    identity body is self-adjoint. The output is a fresh copy of
+    The identity body is self-adjoint (``apply_transpose`` echoes) and
+    the operator is structurally non-invertible AS POSED here (the wrap
+    is a boundary pushforward, not a solvable map) — no ``inverse()``
+    declared. The output is a fresh copy of
     the input — matching the legacy
     :class:`~orpheus.geometry.boundary.periodic.PeriodicBoundary.apply`
     aliasing-safety contract (``psi_out.copy()``) and the project-
@@ -1913,8 +1989,6 @@ class PeriodicWrapOperator(LinearOperator):
     The copy is now performed here so every consumer inherits the
     safe-aliasing contract uniformly.
     """
-
-    capabilities: frozenset[str] = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
 
     def apply(self, x: np.ndarray) -> np.ndarray:
         # Wave 7: return a fresh copy. The legacy
@@ -1945,11 +2019,11 @@ class TensorProductOperator(LinearOperator):
         \;=\; A_k\bigl(\cdots A_2(A_1\,x) \cdots\bigr).
 
     Because the constituents act on disjoint axes, the order does not
-    matter (the operators commute on the joint tensor). The
-    :pydata:`capabilities` set is the **intersection** of the
-    constituents' capabilities — the tensor product can apply iff
-    every factor can apply, can apply_transpose iff every factor can,
-    can solve iff every factor can.
+    matter (the operators commute on the joint tensor). Both structural
+    axes are factor-wise INTERSECTIONS — invertible iff every factor
+    is, adjointable iff every factor is — computed recursively by the
+    predicates, and the inverse is ALGEBRA-CLOSED (a tensor product of
+    the factor inverses), so there is no ``solve`` verb (carve P4).
 
     Algebraic laws (verified by tests):
 
@@ -1993,21 +2067,14 @@ class TensorProductOperator(LinearOperator):
     def __init__(self, ops: tuple) -> None:
         if len(ops) < 1:
             raise ValueError("TensorProductOperator requires at least one factor")
-        # Validate every factor advertises CAP_APPLY.
+        # Eager apply-guard per factor (composition time, never at call).
         for op in ops:
-            if not _has(op, CAP_APPLY):
-                raise MissingCapability(
-                    f"TensorProductOperator factor must advertise "
-                    f"{CAP_APPLY!r}; {type(op).__name__} lacks it."
+            if not callable(getattr(op, "apply", None)):
+                raise TypeError(
+                    f"TensorProductOperator factor must expose 'apply'; "
+                    f"{type(op).__name__} lacks it."
                 )
         self.ops: tuple = tuple(ops)
-        # Capability intersection: tensor product has cap c iff EVERY
-        # factor has cap c.
-        recognised = {CAP_APPLY, CAP_SOLVE, CAP_APPLY_TRANSPOSE}
-        intersected = {
-            cap for cap in recognised if all(_has(op, cap) for op in ops)
-        }
-        self.capabilities = frozenset(intersected)
 
     @staticmethod
     def _build(a: "LinearOperator", b: "LinearOperator") -> "TensorProductOperator":
@@ -2028,33 +2095,28 @@ class TensorProductOperator(LinearOperator):
         return out
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
-        if CAP_APPLY_TRANSPOSE not in self.capabilities:
-            raise MissingCapability(
-                "TensorProductOperator.apply_transpose requires every "
-                "factor to advertise CAP_APPLY_TRANSPOSE."
-            )
         out = x
         # Adjoint of tensor product is tensor product of adjoints.
-        # Apply transposes of factors (order irrelevant for disjoint axes).
+        # Apply transposes of factors (order irrelevant for disjoint
+        # axes); the per-factor guard-narrow licenses each call.
         for op in self.ops:
-            out = op.apply_transpose(out)  # type: ignore[attr-defined]
+            if not adjointable(op):
+                raise MissingAdjoint(
+                    f"TensorProductOperator.apply_transpose requires "
+                    f"every factor to transpose ((A⊗B)^T = A^T⊗B^T); "
+                    f"{type(op).__name__}.is_adjointable is False."
+                )
+            out = op.apply_transpose(out)
         return out
 
-    def solve(self, b_vec: np.ndarray) -> np.ndarray:
-        if CAP_SOLVE not in self.capabilities:
-            raise MissingCapability(
-                "TensorProductOperator.solve requires every factor to "
-                "advertise CAP_SOLVE."
-            )
-        out = b_vec
-        for op in self.ops:
-            out = op.solve(out)  # type: ignore[attr-defined]
-        return out
+    # NO ``solve`` (carve P4): the inverse is ALGEBRA-CLOSED —
+    # :meth:`inverse` returns the tensor product of the factor inverses,
+    # a first-class forward — so solving is ``.inverse().apply(b)``.
 
     @property
     def is_invertible(self) -> bool:
         # (A⊗B)^{-1} = A^{-1}⊗B^{-1} — invertible iff every factor is
-        # (the ``CAP_SOLVE`` intersection in :meth:`__init__`).
+        # (recursive over the factors, like every composite predicate).
         return all(op.is_invertible for op in self.ops)
 
     def inverse(self) -> "TensorProductOperator":
@@ -2067,14 +2129,16 @@ class TensorProductOperator(LinearOperator):
         bit-identical to :meth:`solve` given each factor's own
         ``inverse().apply ≡ solve`` identity.
         """
-        if not self.is_invertible:
-            raise MissingCapability(
-                "TensorProductOperator.inverse requires every factor to "
-                "be invertible ((A⊗B)^{-1} = A^{-1}⊗B^{-1})."
-            )
-        return TensorProductOperator(
-            tuple(cast(SupportsInverse, op).inverse() for op in self.ops)
-        )
+        factor_inverses = []
+        for op in self.ops:
+            if not invertible(op):
+                raise NotInvertible(
+                    f"TensorProductOperator.inverse requires every factor "
+                    f"to be invertible ((A⊗B)^{{-1}} = A^{{-1}}⊗B^{{-1}}); "
+                    f"{type(op).__name__}.is_invertible is False."
+                )
+            factor_inverses.append(op.inverse())
+        return TensorProductOperator(tuple(factor_inverses))
 
     @property
     def is_adjointable(self) -> bool:
@@ -2134,14 +2198,6 @@ class SumOfTensorProductsOperator(LinearOperator):
                     f"Use OperatorSum for general operator addition."
                 )
         self.summands: tuple = tuple(summands)
-        # Capability intersection across summands (sum can apply iff
-        # every summand can apply, etc.).
-        recognised = {CAP_APPLY, CAP_APPLY_TRANSPOSE}
-        # Solve does NOT propagate through sums (sum of inverses != inverse of sum).
-        intersected = {
-            cap for cap in recognised if all(_has(s, cap) for s in summands)
-        }
-        self.capabilities = frozenset(intersected)
 
     def apply(self, x: np.ndarray) -> np.ndarray:
         out = self.summands[0].apply(x)
@@ -2150,11 +2206,13 @@ class SumOfTensorProductsOperator(LinearOperator):
         return out
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
-        if CAP_APPLY_TRANSPOSE not in self.capabilities:
-            raise MissingCapability(
-                "SumOfTensorProductsOperator.apply_transpose requires "
-                "every summand to advertise CAP_APPLY_TRANSPOSE."
-            )
+        for s in self.summands:
+            if not adjointable(s):
+                raise MissingAdjoint(
+                    f"SumOfTensorProductsOperator.apply_transpose requires "
+                    f"every summand to transpose; "
+                    f"{type(s).__name__}.is_adjointable is False."
+                )
         out = self.summands[0].apply_transpose(x)
         for s in self.summands[1:]:
             out = out + s.apply_transpose(x)
@@ -2218,8 +2276,10 @@ class DiagonalOperator(LinearOperator):
 
     Self-adjoint by construction (real-valued coefficient), so
     :meth:`apply_transpose` is the same code path as :meth:`apply`.
-    Invertible iff every coefficient entry is non-zero, in which case
-    :pydata:`CAP_SOLVE` is advertised and :meth:`solve` divides.
+    Invertible iff every coefficient entry is non-zero — the
+    VALUE-dependent arm of the split: :meth:`inverse` is declared and
+    :meth:`solve` divides, both refusing eagerly
+    (:class:`NotInvertible`) on a zero entry.
 
     Parameters
     ----------
@@ -2304,17 +2364,6 @@ class DiagonalOperator(LinearOperator):
         self.axis = int(axis)
         self.coefficient = coeff
 
-        # Solve is supported iff every coefficient entry is non-zero. We
-        # check eagerly at construction so the capability is honest
-        # (Pattern 4: an operator that cannot invert never advertises
-        # CAP_SOLVE; the legacy bare-σ collision path had no such gate
-        # and produced silent IEEE NaN on σ=0).
-        invertible = bool(np.all(coeff != 0.0))
-        caps = {CAP_APPLY, CAP_APPLY_TRANSPOSE}
-        if invertible:
-            caps.add(CAP_SOLVE)
-        self.capabilities = frozenset(caps)
-
     @classmethod
     def from_measure(
         cls, measure, axis: int = 0,
@@ -2395,8 +2444,10 @@ class DiagonalOperator(LinearOperator):
         return self.apply(x)
 
     def solve(self, b_vec: np.ndarray) -> np.ndarray:
-        if CAP_SOLVE not in self.capabilities:
-            raise MissingCapability(
+        # The value-dependent guard (Pattern 4 heritage: never a silent
+        # IEEE NaN on a σ=0 division — the legacy bare-σ path had no gate).
+        if not self.is_invertible:
+            raise NotInvertible(
                 "DiagonalOperator.solve requires non-zero coefficient "
                 "entries; this operator has at least one zero entry."
             )
@@ -2406,8 +2457,7 @@ class DiagonalOperator(LinearOperator):
 
     @property
     def is_invertible(self) -> bool:
-        # Invertible iff every coefficient entry is non-zero (D^{-1} = 1/c) —
-        # mirrors the eager ``CAP_SOLVE`` gate in :meth:`__init__`.
+        # Invertible iff every coefficient entry is non-zero (D^{-1} = 1/c).
         return bool(np.all(self.coefficient != 0.0))
 
     def inverse(self) -> "InverseOperator":
@@ -2422,7 +2472,7 @@ class DiagonalOperator(LinearOperator):
         invariant beyond it).
         """
         if not self.is_invertible:
-            raise MissingCapability(
+            raise NotInvertible(
                 "DiagonalOperator.inverse requires non-zero coefficient "
                 "entries; this operator has at least one zero entry."
             )
@@ -2487,13 +2537,13 @@ class RankOneOperator(LinearOperator):
     the TP fold reduces to :meth:`RankOneOperator.apply` bit-identically
     (``IdentityOperator.apply`` returns ``x``).
 
-    Capability set: ``{CAP_APPLY, CAP_APPLY_TRANSPOSE}`` when the row is an
+    Adjointable exactly when the row is an
     :class:`~orpheus.numerics.functional.InnerProductFunctional` (the usual
     case, including its
     :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
-    specialisation), else ``{CAP_APPLY}`` alone. Rank-1 operators are
-    **non-invertible** by construction (``solve`` is NEVER advertised — the
-    kernel is the orthogonal complement of the row along the contracted axis),
+    specialisation) — the VALUE-dependent arm on the adjoint axis. Rank-1
+    operators are **structurally non-invertible** (no ``inverse()`` declared —
+    the kernel is the orthogonal complement of the row along the contracted axis),
     but they DO have a **transpose**: :meth:`apply_transpose` is the dual dyad
     :math:`|w\rangle\langle v|` — swap the column :math:`v` with the row's
     weight :math:`w`, contracting :math:`\langle v,\cdot\rangle` over the same
@@ -2531,8 +2581,6 @@ class RankOneOperator(LinearOperator):
     is elementwise. IEEE-754 pairwise-reduction order is preserved.
     """
 
-    capabilities: frozenset[str] = frozenset({CAP_APPLY})
-
     def __init__(
         self,
         reconstruction: "Vector | np.ndarray",
@@ -2546,18 +2594,21 @@ class RankOneOperator(LinearOperator):
         # an artifact of the square-only legacy form, not a real constraint).
         self.reconstruction = reconstruction
         self.functional = functional
-        # Capabilities are per-INSTANCE: the dual dyad |w⟩⟨v| (apply_transpose)
-        # exists iff the row ⟨w| is a genuine co-vector whose weight IS the dual
-        # column — i.e. an InnerProductFunctional (the ReactionRateFunctional
-        # specialisation included). A nonlinear / opaque functional has no dual
-        # column, so its dyad advertises CAP_APPLY only. ``solve`` is NEVER
-        # advertised: rank-1 is non-invertible by construction.
+
+    @property
+    def is_adjointable(self) -> bool:
+        # The VALUE-dependent arm on the ADJOINT axis: the dual dyad
+        # |w⟩⟨v| exists iff the row ⟨w| is a genuine co-vector whose
+        # weight IS the dual column — an InnerProductFunctional (the
+        # ReactionRateFunctional specialisation included). A nonlinear /
+        # opaque functional has no dual column. Mirrors — and gates —
+        # the apply_transpose realization below. (W2 as-built fix: the
+        # retired per-instance caps computation was the dyad's ONLY
+        # adjointability advertisement; both migration agents caught
+        # the missing predicate independently — F† rides on it.)
         from orpheus.numerics.functional import InnerProductFunctional
 
-        caps = {CAP_APPLY}
-        if isinstance(functional, InnerProductFunctional):
-            caps.add(CAP_APPLY_TRANSPOSE)
-        self.capabilities = frozenset(caps)
+        return isinstance(self.functional, InnerProductFunctional)
 
     def apply(self, x: np.ndarray) -> np.ndarray:
         # |v⟩⟨w| x = v · ⟨w, x⟩. The functional IS the contraction — it returns
@@ -2577,8 +2628,10 @@ class RankOneOperator(LinearOperator):
         # primitive — single source of truth with the forward `apply` row-factor.
         from orpheus.numerics.functional import InnerProductFunctional
 
+        # The isinstance IS the narrowing (the same fact is_adjointable
+        # advertises): the body reads the IPF-typed row's .weight/.axis.
         if not isinstance(self.functional, InnerProductFunctional):
-            raise MissingCapability(
+            raise MissingAdjoint(
                 "RankOneOperator.apply_transpose requires the row functional to "
                 "be an InnerProductFunctional (a co-vector with a dual column); "
                 f"got {type(self.functional).__name__} — a nonlinear functional "

@@ -68,8 +68,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
     Codomain,
     Domain,
     LinearOperator,
@@ -109,12 +107,10 @@ class AnalysisOperator(LinearOperator[Domain, Codomain], ABC):
     ``.H`` falls out of the metric-aware ``_AdjointOperator``). The discipline
     (Galerkin vs Petrov-Galerkin) is the frame's TYPE, not a property of this role.
 
-    Attributes
-    ----------
-    capabilities : frozenset[str]
-        ``{"apply", "apply_transpose"}`` by default. A realisation that cannot
-        cheaply apply the transpose MAY override ``capabilities`` to drop
-        ``CAP_APPLY_TRANSPOSE`` — but then it forfeits the free Hilbert adjoint.
+    Adjointable by default (a working ``apply_transpose`` is part of the
+    role's contract). A realisation that cannot cheaply apply the
+    transpose MAY override :attr:`is_adjointable` to ``False`` — but
+    then it forfeits the free Hilbert adjoint.
 
     Notes
     -----
@@ -123,16 +119,13 @@ class AnalysisOperator(LinearOperator[Domain, Codomain], ABC):
     both disciplines. The concrete frame face carries its own shape contract.
     """
 
-    capabilities: frozenset[str] = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
-
     @property
     def is_adjointable(self) -> bool:
-        # The analysis role advertises apply_transpose (caps ⊇
-        # CAP_APPLY_TRANSPOSE), so concrete frame faces get the metric-aware
-        # ``.H`` for free. A realisation that drops the cap (forfeiting the
-        # free adjoint) MUST also override this to False — the predicate and
-        # the capability move together. (ReconstructionOperator advertises
-        # only CAP_APPLY → its is_adjointable inherits the base False.)
+        # The analysis role carries a working apply_transpose, so concrete
+        # frame faces get the metric-aware ``.H`` for free. A realisation
+        # that forfeits the free adjoint MUST override this to False.
+        # (ReconstructionOperator is apply-only at the role level → its
+        # is_adjointable inherits the base False; the frame FACE overrides.)
         return True
 
     @abstractmethod
@@ -157,16 +150,14 @@ class ReconstructionOperator(LinearOperator[Domain, Codomain], ABC):
     The concrete realisation — the
     :attr:`~orpheus.numerics.frame.FrameBase.reconstruction` face of a frame —
     provides :meth:`apply` (and :meth:`apply_transpose`, so ``R.H`` falls out for
-    free). The default capability set advertises :pydata:`CAP_APPLY`; the frame face
-    adds :pydata:`CAP_APPLY_TRANSPOSE`.
+    free). The role is apply-only; the frame face adds the transpose and
+    overrides :attr:`is_adjointable`.
 
     Per Grand Report v3 §5.7 — the Operator hierarchy. Pair this with
     :class:`AnalysisOperator` when shipping a discretisation: the :math:`(R, M)` pair
     IS the discretisation, modulo a metric correction on the operators' codomain
     spaces.
     """
-
-    capabilities: frozenset[str] = frozenset({CAP_APPLY})
 
     @abstractmethod
     def apply(self, coefficients: Domain, /) -> Codomain:

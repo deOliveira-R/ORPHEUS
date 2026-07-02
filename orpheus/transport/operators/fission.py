@@ -91,7 +91,7 @@ delegator) divides by :math:`k`. Two reasons:
 Capability advertisement
 ========================
 
-:pydata:`capabilities = frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})`. No
+apply + a working ``apply_transpose`` (``is_adjointable=True``). No
 ``solve``: the operator is **rank-1 in energy** per cell — its inverse does
 not exist. The adjoint fission operator :math:`F^\dagger\,\phi^* =
 \nu\Sigma_f \cdot (\chi \cdot \phi^*)` IS advertised (campaign #276): it is
@@ -113,8 +113,6 @@ import numpy as np
 
 from orpheus.numerics.operator import (
     BlockRole,
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
     IdentityOperator,
     LinearOperator,
     TensorProductOperator,
@@ -162,7 +160,6 @@ class FissionOperator(LinearOperator):
     mat_xs : MaterialXSField
         Macroscopic XS field carrying ``emission_spectrum`` (χ) and
         ``fission_production`` (νΣ_f) per-cell views.
-    capabilities : frozenset[str]
         ``{"apply", "apply_transpose"}`` — the rank-1 structure forbids a
         useful inverse (no ``solve``), but the dyad HAS a transpose: the
         adjoint fission :math:`F^\dagger = |\nu\Sigma_f\rangle\langle\chi|`
@@ -171,9 +168,6 @@ class FissionOperator(LinearOperator):
 
     mat_xs: "MaterialXSField"
 
-    capabilities: frozenset[str] = field(
-        default_factory=lambda: frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
-    )
 
     #: The composite full-field space (P4.5 W-D) — threaded from the solver's
     #: ``sn_mesh.full_field_space`` via :meth:`from_solver_data`. ``F`` NEVER
@@ -197,7 +191,7 @@ class FissionOperator(LinearOperator):
     @property
     def is_adjointable(self) -> bool:
         # F = outer(χ, ⟨νΣ_f|) is a rank-1 dyad; F^T is the free dyad-swap
-        # (#112), so caps ⊇ CAP_APPLY_TRANSPOSE. is_invertible inherits base
+        # (#112). is_invertible inherits base
         # False — a rank-1 production operator is singular.
         return True
 

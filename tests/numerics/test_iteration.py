@@ -10,8 +10,8 @@ Tests in this file:
   ground truth is :func:`numpy.linalg.solve` /
   :func:`numpy.linalg.eig`.  Pin the algorithmic correctness of the
   primitives in isolation from any transport solver.
-* **Foundation (capabilities):** the constructors raise
-  :class:`MissingCapability` when their argument operators lack the
+* **Foundation (apply-guards):** the constructors raise
+  :class:`TypeError` when their argument operators lack the
   required Protocol surface.
 * **L1 (SN integration gate):** build an actual SN operator triple
   (:class:`~orpheus.sn.operators.streaming.InvertibleOperator`
@@ -38,12 +38,9 @@ from orpheus.numerics.iteration import (
     SourceIteration,
 )
 from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
-    CAP_SOLVE,
     InverseOperator,
     LinearOperator,
-    MissingCapability,
+    NotInvertible,
     ZeroOperator,
 )
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
@@ -69,12 +66,8 @@ class MatrixOperator(LinearOperator):
         can_transpose: bool = False,
     ) -> None:
         self.matrix = np.asarray(matrix, dtype=float)
-        caps = {CAP_APPLY}
-        if can_solve:
-            caps.add(CAP_SOLVE)
-        if can_transpose:
-            caps.add(CAP_APPLY_TRANSPOSE)
-        self.capabilities = frozenset(caps)
+        self._can_solve = bool(can_solve)
+        self._can_transpose = bool(can_transpose)
 
     def apply(self, x: np.ndarray) -> np.ndarray:
         return self.matrix @ x
@@ -87,7 +80,11 @@ class MatrixOperator(LinearOperator):
 
     @property
     def is_invertible(self) -> bool:
-        return CAP_SOLVE in self.capabilities
+        return self._can_solve
+
+    @property
+    def is_adjointable(self) -> bool:
+        return self._can_transpose
 
     def inverse(self) -> InverseOperator:
         # The #226 step-3 driver contract: the caller builds the inverse
@@ -364,26 +361,26 @@ def test_krylov_acceleration_high_scattering_beats_source_iteration():
 @pytest.mark.foundation
 def test_krylov_acceleration_requires_apply_on_A():
     class BrokenA:
-        capabilities = frozenset()
+        pass  # genuinely no apply — the eager guard rejects
 
-    with pytest.raises(MissingCapability, match=r"requires 'apply' on A"):
+    with pytest.raises(TypeError, match=r"requires 'apply' on A"):
         KrylovAcceleration(BrokenA(), ZeroOperator(), ZeroOperator())
 
 
 @pytest.mark.foundation
 def test_krylov_acceleration_requires_apply_on_first_coupling():
-    """A coupling gain without apply → MissingCapability at construction.
+    """A coupling gain without apply → TypeError at construction.
 
     Wave O #208 O.2a: the drivers take the variadic ``(A, *gains)`` shape; the
     per-gain apply check names the offending gain by index (the legacy
     ``S``/``F`` named slots are retired).
     """
     class BrokenS:
-        capabilities = frozenset()
+        pass
 
     A = MatrixOperator(np.eye(3), can_solve=True)
     with pytest.raises(
-        MissingCapability,
+        TypeError,
         match=r"requires 'apply' on every coupling operator; gain 0",
     ):
         KrylovAcceleration(A, BrokenS(), ZeroOperator())
@@ -393,11 +390,11 @@ def test_krylov_acceleration_requires_apply_on_first_coupling():
 def test_krylov_acceleration_requires_apply_on_later_coupling():
     """A broken gain at a non-zero index is caught and named by its index."""
     class BrokenF:
-        capabilities = frozenset()
+        pass
 
     A = MatrixOperator(np.eye(3), can_solve=True)
     with pytest.raises(
-        MissingCapability,
+        TypeError,
         match=r"requires 'apply' on every coupling operator; gain 1",
     ):
         KrylovAcceleration(A, ZeroOperator(), BrokenF())
@@ -458,49 +455,49 @@ def test_keigenvalue_recovers_dominant_eigenvalue(rng):
 
 
 # ───────────────────────────────────────────────────────────────────────
-# Foundation: capability detection
+# Foundation: eager apply-guards (carve P4 — TypeError, no registry)
 # ───────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.foundation
 def test_source_iteration_requires_apply_on_A_inv():
-    """A_inv without apply → MissingCapability at construction."""
+    """A_inv without apply → TypeError at construction."""
     class BrokenAInv:
-        capabilities = frozenset()  # nothing
+        pass  # genuinely no apply
 
     A_inv = BrokenAInv()
     S = MatrixOperator(np.eye(2))
     F = ZeroOperator()
 
-    with pytest.raises(MissingCapability, match="apply"):
+    with pytest.raises(TypeError, match="apply"):
         SourceIteration(A_inv, S, F)
 
 
 @pytest.mark.foundation
 def test_source_iteration_requires_apply_on_S():
-    """S without apply → MissingCapability at construction."""
+    """S without apply → TypeError at construction."""
     class BrokenS:
-        capabilities = frozenset()  # nothing
+        pass
 
     A = MatrixOperator(np.eye(2), can_solve=True)
     S = BrokenS()
     F = ZeroOperator()
 
-    with pytest.raises(MissingCapability, match="apply"):
+    with pytest.raises(TypeError, match="apply"):
         SourceIteration(A.inverse(), S, F)
 
 
 @pytest.mark.foundation
 def test_source_iteration_requires_apply_on_F():
-    """F without apply → MissingCapability at construction."""
+    """F without apply → TypeError at construction."""
     class BrokenF:
-        capabilities = frozenset()  # nothing
+        pass
 
     A = MatrixOperator(np.eye(2), can_solve=True)
     S = MatrixOperator(np.eye(2))
     F = BrokenF()
 
-    with pytest.raises(MissingCapability, match="apply"):
+    with pytest.raises(TypeError, match="apply"):
         SourceIteration(A.inverse(), S, F)
 
 
@@ -517,15 +514,13 @@ def test_invertibility_obligation_lives_at_the_inverse_builder():
     non-invertible leaf raises with the domain message.
     """
     # The obligation fires at the builder …
-    with pytest.raises(MissingCapability, match="invertible"):
+    with pytest.raises(NotInvertible, match="invertible"):
         MatrixOperator(np.eye(2), can_solve=False).inverse()
 
     # … and the driver runs an apply-only, seeded-signature step operator
-    # END-TO-END (the windowed-product shape): CAP_APPLY only, the
+    # END-TO-END (the windowed-product shape): apply-only, the
     # inverse action baked into ``apply``.  Zero gains → one exact step.
     class ApplyOnlyStep:
-        capabilities = frozenset({CAP_APPLY})
-
         def apply(self, rhs, *, initial_guess=None):
             return rhs / 2.0  # the exact inverse of L = 2·I
 
@@ -543,7 +538,7 @@ def test_keigenvalue_requires_invertible_A():
     S = MatrixOperator(np.eye(2))
     F = MatrixOperator(np.eye(2))
 
-    with pytest.raises(MissingCapability, match="INVERTIBLE"):
+    with pytest.raises(NotInvertible, match="INVERTIBLE"):
         KEigenvalue(A, S, F)
 
 
@@ -655,7 +650,6 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
         inverse and hands it to the inner driver — can lift this leaf's
         ``solve`` through the generic :class:`InverseOperator`.
         """
-        capabilities = frozenset({CAP_APPLY, CAP_SOLVE})
 
         @property
         def is_invertible(self) -> bool:
@@ -692,7 +686,6 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
 
         Issue #196 PR-INDEX-5: principled end-to-end.
         """
-        capabilities = frozenset({CAP_APPLY})
 
         def apply(self, phi):
             Q = np.zeros_like(phi)
@@ -705,7 +698,6 @@ def test_keigenvalue_matches_solve_sn_2g_slab():
 
         Issue #196 PR-INDEX-5: principled end-to-end.
         """
-        capabilities = frozenset({CAP_APPLY})
 
         def apply(self, phi):
             return F.apply(phi)

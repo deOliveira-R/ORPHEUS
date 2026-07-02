@@ -28,10 +28,11 @@ Gates consume the composite algebra :class:`StreamingOperator` +
   cell-centre block; face residuals live in ``out.boundary``.
 * Linearity (Gate 1.4) tests via :class:`TimedFullField` arithmetic
   (``__add__``, scalar ``__mul__/__rmul__``).
-* Reciprocity (Gate 1.3) — :class:`InvertibleOperator` does NOT inherit
-  ``apply_transpose`` from :class:`OperatorSum`'s closure law because
-  :class:`StreamingOperator` only advertises ``{CAP_APPLY}``; the gate
-  is xfailed pending Wave O Issue #208 adjoint algebra.
+* Reciprocity (Gate 1.3) — historically xfailed while
+  :class:`StreamingOperator` was apply-only (``is_adjointable`` False);
+  Wave O Issue #208 landed the analytic ``Lᵀ`` and the
+  :class:`OperatorSum` closure law now carries the transpose (see the
+  gate's own docstring below).
 """
 from __future__ import annotations
 
@@ -348,7 +349,7 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
 
     Wave O / O.2b (#208): :class:`StreamingOperator` now carries the analytic
     reverse-direction adjoint matvec :meth:`~orpheus.sn.operators.streaming.StreamingOperator.apply_transpose`,
-    so the composite ``(L + C)`` advertises ``CAP_APPLY_TRANSPOSE`` and this
+    so the composite ``(L + C)`` is adjointable and this
     reciprocity is the standing pin that ``apply_transpose`` IS the true
     Euclidean transpose of ``apply`` — over BOTH blocks (the bulk residual AND
     the boundary trace), with a NON-ZERO boundary so the FULL-operator trace
@@ -363,9 +364,9 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
     metric's load-bearing role is pinned by the white-BC self-adjointness gate
     (O.2b sub-step 4.4), where dropping ``|Ω·n|`` breaks self-adjointness.
 
-    (Was ``xfail(strict)`` pre-O.2b — ``StreamingOperator`` advertised only
-    ``{CAP_APPLY}`` so ``(L+C).apply_transpose`` raised; the analytic adjoint
-    lands the capability and flips this green.)
+    (Was ``xfail(strict)`` pre-O.2b — ``StreamingOperator`` was apply-only
+    (``is_adjointable`` False) so ``(L+C).apply_transpose`` raised; the
+    analytic adjoint lands the transpose and flips this green.)
     """
     rng = np.random.default_rng(seed=137)
     if geom == "sphere":

@@ -19,8 +19,6 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
     IdentityOperator,
     IncomingOrdinateMaskTensor,
     ZeroOperator,
@@ -160,7 +158,13 @@ def test_input_unmodified():
 
 
 @pytest.mark.l0
-def test_capability_set():
-    """L0: capability advertises ``{CAP_APPLY, CAP_APPLY_TRANSPOSE}``."""
+def test_adjointable_not_invertible_predicates():
+    """L0: adjointable (self-adjoint projection), not invertible.
+
+    The mask is rank-deficient (it projects onto the outflow subspace),
+    so it is structurally non-invertible — no ``inverse()`` declared.
+    """
     M = IncomingOrdinateMaskTensor(np.array([0]), n_ordinates=4)
-    assert M.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE})
+    assert M.is_adjointable
+    assert not M.is_invertible
+    assert not hasattr(M, "inverse")  # structural refusal is static (Design C)

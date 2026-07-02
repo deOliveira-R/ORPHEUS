@@ -38,7 +38,7 @@ literally true:
 * **``*`` (self-adjoint for real f)** — :math:`M[f]^{*} = M[\bar f] =
   M[f]` for a real-valued coefficient, so ``M.H == M``;
 * **spectrum** — :math:`\mathrm{spec}(M[f]) = \mathrm{ess\,range}(f)`,
-  so :math:`M[f]` is invertible (``CAP_SOLVE``) **iff** :math:`f` is
+  so :math:`M[f]` is invertible **iff** :math:`f` is
   bounded away from zero (:math:`\min|f| > 0`); its inverse is
   :math:`M[1/f]`.
 
@@ -110,7 +110,7 @@ from orpheus.numerics.operator import (
     DiagonalOperator,
     InverseOperator,
     LinearOperator,
-    MissingCapability,
+    NotInvertible,
 )
 # Runtime import for ``singledispatchmethod.register`` (mirrors fission.py):
 # ``FullField`` is a leaf in the SN dependency graph (it imports no operators),
@@ -146,17 +146,18 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         section). Its ``.values`` is the ``(ng, *spatial)`` per-cell
         per-group array the broadcast engine consumes.
 
-    Capabilities
-    ------------
+    Structural axes
+    ---------------
 
-    ``{CAP_APPLY, CAP_APPLY_TRANSPOSE}`` always; adds ``CAP_SOLVE``
+    Always adjointable (self-adjoint); invertible
     **iff** :math:`\min|f| > 0` (the spectrum law: invertible iff the
-    coefficient is bounded away from zero). This is the honest capability
-    gate (``coding-elegance`` Pattern 4); the legacy collision operator
-    advertised ``CAP_SOLVE`` unconditionally and produced silent IEEE
-    NaN on a zero entry — :class:`MultiplicationOperator` revokes
-    ``CAP_SOLVE`` instead, so a downstream composer never hits a broken
-    inverse at call time.
+    coefficient is bounded away from zero). This is the honest
+    value-dependent gate (``coding-elegance`` Pattern 4); the legacy
+    collision operator solved unconditionally and produced silent IEEE
+    NaN on a zero entry — :class:`MultiplicationOperator` refuses
+    eagerly (:class:`~orpheus.numerics.operator.NotInvertible` from
+    ``inverse()``/``solve``) instead, so a downstream composer never
+    hits a broken inverse at call time.
     """
 
     coefficient: "CrossSectionField"
@@ -182,7 +183,6 @@ class MultiplicationOperator(LinearOperator["FullField"]):
     engine: "DiagonalOperator" = field(init=False, repr=False)
 
     #: Inherited from the engine's spectrum gate in :meth:`__post_init__`.
-    capabilities: frozenset[str] = field(default=frozenset(), init=False)
 
     # Multiplication by a per-cell per-group coefficient is a BULK
     # operator — diagonal in (cell, group, ordinate), no boundary action
@@ -195,7 +195,7 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         # engine (DiagonalOperator(f.values, broadcast_axes=(0,))) broadcasts
         # the (ng, *spatial) coefficient over the leading ordinate axis of a
         # (N, ng, *spatial) carrier, so engine.apply(x) == f.values[None]*x.
-        # It already encodes "CAP_SOLVE iff every entry != 0", so inheriting
+        # It already encodes "invertible iff every entry != 0", so inheriting
         # its capability set single-sources the spectrum law
         # spec(M[f]) = ess-range(f) (Pattern 4 — the transport operator and
         # the numerics engine agree by construction, not by a copied
@@ -205,7 +205,6 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         self.engine = DiagonalOperator(
             self.coefficient.values, broadcast_axes=(0,),
         )
-        self.capabilities = self.engine.capabilities
 
     @property
     def is_invertible(self) -> bool:
@@ -228,7 +227,7 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         division realization carries the inverse semantics without either.
         """
         if not self.is_invertible:
-            raise MissingCapability(
+            raise NotInvertible(
                 "MultiplicationOperator.inverse requires min|f| > 0 (the "
                 "spectrum law); this coefficient has a zero entry."
             )
@@ -387,9 +386,9 @@ class MultiplicationOperator(LinearOperator["FullField"]):
     def solve(self, q: "FullField") -> "FullField":
         r"""Inverse action :math:`M[f]^{-1}\,q = q / f = M[1/f]\,q`.
 
-        Requires ``CAP_SOLVE`` (the spectrum law: :math:`\min|f| > 0`);
+        Requires invertibility (the spectrum law: :math:`\min|f| > 0`);
         the engine raises
-        :class:`~orpheus.numerics.operator.MissingCapability` otherwise.
+        :class:`~orpheus.numerics.operator.NotInvertible` otherwise.
         The codomain returns to a flux (the inverse of "flux → source" is
         "source → flux"), so the bulk is an
         :class:`~orpheus.transport.fields.angular_flux.AngularFlux` and the

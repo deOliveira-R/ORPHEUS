@@ -16,9 +16,10 @@ Verifies the operator's invariants:
   ``sigma[None] * carrier`` (the bit-identity hinge for the transport
   ``MultiplicationOperator(σ_t)`` promotion), and the 1-D form is
   bit-identical to the old ``_reshape(w, axis) * x``.
-* ``solve`` round-trip: ``solve(apply(x)) == x`` when no zero entries.
-* Capability set: ``CAP_SOLVE`` advertised iff coefficient is all
-  non-zero.
+* ``solve`` round-trip: ``solve(apply(x)) == x`` when no zero entries
+  (``DiagonalOperator`` KEEPS its native ``solve`` — carve P4 Design B).
+* Invertibility: ``is_invertible`` iff the coefficient is all non-zero
+  (the value-dependent arm; the guard raises :class:`NotInvertible`).
 * Composition under the operator algebra (``+``, ``-``, ``*``, ``@``).
 * Construction from a ``DiscreteMeasure`` via :meth:`from_measure`.
 """
@@ -29,12 +30,9 @@ import pytest
 
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
-    CAP_SOLVE,
     DiagonalOperator,
     IdentityOperator,
-    MissingCapability,
+    NotInvertible,
     OperatorProduct,
     OperatorSum,
 )
@@ -93,17 +91,15 @@ class TestDiagonalSelfAdjoint:
 
 
 @pytest.mark.l0
-class TestDiagonalCapabilitiesAndSolve:
-    def test_nonzero_weights_advertise_solve(self):
+class TestDiagonalInvertibilityAndSolve:
+    def test_nonzero_weights_are_invertible_and_adjointable(self):
         D = DiagonalOperator(np.array([1.0, 2.0]))
-        assert CAP_APPLY in D.capabilities
-        assert CAP_APPLY_TRANSPOSE in D.capabilities
-        assert CAP_SOLVE in D.capabilities
+        assert D.is_adjointable
+        assert D.is_invertible
 
-    def test_zero_weight_revokes_solve(self):
+    def test_zero_weight_revokes_invertibility(self):
         D = DiagonalOperator(np.array([1.0, 0.0, 2.0]))
-        assert CAP_APPLY in D.capabilities
-        assert CAP_SOLVE not in D.capabilities
+        assert not D.is_invertible
 
     def test_solve_round_trip(self):
         rng = np.random.default_rng(seed=42)
@@ -114,7 +110,7 @@ class TestDiagonalCapabilitiesAndSolve:
 
     def test_solve_with_zero_weight_raises(self):
         D = DiagonalOperator(np.array([1.0, 0.0, 2.0]))
-        with pytest.raises(MissingCapability, match="non-zero coefficient"):
+        with pytest.raises(NotInvertible, match="non-zero coefficient"):
             D.solve(np.ones(3))
 
 

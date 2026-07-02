@@ -23,8 +23,8 @@ test families:
    (tested on ≥2G ASYMMETRIC HETEROGENEOUS coefficients — anti-pattern
    #3/#4: a 1G / homogeneous coefficient is blind here), self-adjointness
    :math:`M[f]^*=M[f]`, the spectrum law
-   :math:`\mathrm{spec}(M[f])=\mathrm{ess\,range}(f)` (``CAP_SOLVE`` iff
-   ``min|f|>0``), and the homomorphism :math:`M[f]M[g]=M[fg]` tested at
+   :math:`\mathrm{spec}(M[f])=\mathrm{ess\,range}(f)` (``is_invertible``
+   iff ``min|f|>0``), and the homomorphism :math:`M[f]M[g]=M[fg]` tested at
    the VALUES level via the numerics engine on the raw product array
    (``σ·σ'`` has units ``cm⁻²``, so the homomorphism is a numerics-engine
    property — built directly, NOT as a ``CrossSectionField``).
@@ -61,13 +61,10 @@ import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.operator import (
-    CAP_APPLY,
-    CAP_APPLY_TRANSPOSE,
-    CAP_SOLVE,
     DiagonalOperator,
     IdentityOperator,
     IncompatibleOperatorComposition,
-    MissingCapability,
+    NotInvertible,
     OperatorSum,
     ZeroOperator,
 )
@@ -288,9 +285,8 @@ class TestMultiplierAlgebraLaws:
         )
         # M[0] is NOT invertible — its spectrum is {0}.
         _require(
-            CAP_SOLVE not in M0.capabilities,
-            "M[0] must NOT advertise CAP_SOLVE (spectrum is {0}); "
-            f"got {sorted(M0.capabilities)}",
+            not M0.is_invertible,
+            "M[0] must NOT be invertible (spectrum is {0})",
         )
 
     def test_linearity_M_af_plus_bg(self):
@@ -341,40 +337,34 @@ class TestMultiplierAlgebraLaws:
         # .H action (metric-blind, Euclidean) equals the forward action.
         np.testing.assert_array_equal(M.H.apply(psi).bulk.values, forward)
 
-    def test_spectrum_cap_solve_iff_min_abs_positive(self):
+    def test_spectrum_invertible_iff_min_abs_positive(self):
         r""":math:`\mathrm{spec}(M[f]) = \mathrm{ess\,range}(f)`.
 
-        ``CAP_SOLVE`` advertised iff ``min|f| > 0``. A coefficient with a
-        zero entry has 0 in its spectrum → solve REVOKED (raises
-        MissingCapability), while apply still works.
+        ``is_invertible`` iff ``min|f| > 0``. A coefficient with a zero
+        entry has 0 in its spectrum → the inverse axis REVOKED (solve
+        raises NotInvertible), while apply still works.
         """
         sn = _cartesian_2d_mesh(nx=5, ny=3, ng=2)
         psi = _random_state(sn, ng=2, seed=181)
 
-        # Bounded away from 0 → invertible.
+        # Bounded away from 0 → invertible (and always adjointable).
         pos = _positive_sigma(sn, ng=2, seed=191)
         M_pos = _multiplier(sn, pos)
         _require(
-            M_pos.capabilities
-            == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE, CAP_SOLVE}),
-            f"min|f|>0 must advertise all three caps; got "
-            f"{sorted(M_pos.capabilities)}",
+            M_pos.is_invertible and M_pos.is_adjointable,
+            "min|f|>0 must advertise both structural axes",
         )
 
-        # A single zero entry → 0 in the spectrum → solve revoked.
+        # A single zero entry → 0 in the spectrum → invertibility revoked.
         with_zero = pos.copy()
         with_zero[1, 2, 1] = 0.0
         M_zero = _multiplier(sn, with_zero)
         _require(
-            M_zero.capabilities == frozenset({CAP_APPLY, CAP_APPLY_TRANSPOSE}),
-            f"a coefficient with a zero entry must drop CAP_SOLVE; got "
-            f"{sorted(M_zero.capabilities)}",
+            M_zero.is_adjointable and not M_zero.is_invertible,
+            "a coefficient with a zero entry must revoke invertibility "
+            "(and keep the self-adjoint transpose)",
         )
-        _require(
-            CAP_SOLVE not in M_zero.capabilities,
-            "0 in the spectrum must revoke CAP_SOLVE",
-        )
-        with pytest.raises(MissingCapability):
+        with pytest.raises(NotInvertible):
             M_zero.solve(psi)
         # apply still works (the multiplier is defined; only the inverse
         # is undefined at the zero).
@@ -666,10 +656,8 @@ class TestInverseOperatorFace:
     @pytest.mark.foundation
     def test_singular_coefficient_inverse_raises(self):
         """NEGATIVE (§12.4): a TRUE-zero entry (spectrum law) refuses."""
-        from orpheus.numerics.operator import MissingCapability
-
         mesh = _slab_mesh()
         sigma = _positive_sigma(mesh).copy()
         sigma[0, 0] = 0.0
-        with pytest.raises(MissingCapability, match="zero"):
+        with pytest.raises(NotInvertible, match="zero"):
             _multiplier(mesh, sigma).inverse()

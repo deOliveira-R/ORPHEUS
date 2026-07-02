@@ -21,7 +21,7 @@ the full per-ordinate face trace).  :math:`P` is a **block coisometry**
 (``analysis ∘ reconstruction = 4π·I`` under the no-prefactor SH convention —
 pinned by ``test_pi_R_is_4pi_identity_through_the_frame``), NOT invertible —
 so the composite honestly makes no round-trip promise (``is_invertible`` is
-``False`` and ``CAP_SOLVE`` is absent, by the product closure laws).
+``False``, by the product closure laws).
 
 **Fusion is an evaluation strategy, not a new operator.**
 :class:`WindowedSweep` is the composition itself (an
@@ -50,7 +50,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, cast
 
 from orpheus.numerics.operator import (
-    CAP_APPLY,
     LinearOperator,
     OperatorProduct,
 )
@@ -77,7 +76,7 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
     distinct summand — the reflective ``B`` coupling reads full per-ordinate
     face values).  A block coisometry: not invertible, no transpose
     advertised (mint the synthesis-side lift when a consumer arrives), so
-    ``capabilities = {apply}`` and the faithfulness keystone holds by the
+    apply-only, and the two-axis contract holds by the
     base defaults.
 
     ``frame`` must be the SCATTERING operator's own angular frame (its
@@ -85,8 +84,6 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
     single source), so the emitted moments equal what ``S`` would project
     term-for-term.
     """
-
-    capabilities = frozenset({CAP_APPLY})
 
     def __init__(self, frame: "FrameBase", sn_mesh: "SNMesh") -> None:
         #: The angular spherical-harmonic frame whose ``analysis`` face reduces.
@@ -166,7 +163,7 @@ class WindowedSweep(OperatorProduct["FullField", "TimedFullField"]):
     body — ``P.apply(A⁻¹.apply(rhs))`` — is the fuller-view verification
     ORACLE (the windowed-≡-post-projection gate calls it unbound), retained
     per the aggressive-retirement oracle exception.  Everything else
-    (capabilities, spaces, the honest ``is_invertible = False`` from the
+    (spaces, the honest ``is_invertible = False`` from the
     coisometry factor) is the generic product's.
 
     2-D Cartesian only, by construction: the moment emit is a 2-D kernel and

@@ -242,10 +242,11 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
         )
         # ... and reflective-y MUST yield a non-trivial B (else the
         # J-vs-GS distinction collapses to a no-op).
-        from orpheus.numerics.operator import CAP_APPLY
-
         _require(B is not None, "B (SNBoundaryOperator) is None")
-        _require(CAP_APPLY in B.capabilities, "B does not advertise CAP_APPLY")
+        _require(
+            callable(getattr(B, "apply", None)),
+            "B does not expose a callable apply",
+        )
 
         psi_g, _ = SourceIteration(
             rG.inverse(), *gG, max_iter=500, tol=1e-13,
