@@ -126,7 +126,9 @@ class AngularSourceSink(AngularField):
 
         See module docstring for the principled justification (refined
         Issue #207: cross-class dunders permitted via canonical
-        subspace containment).
+        subspace containment). DELIBERATELY untyped — see
+        :meth:`ScalarSourceSink.__add__` (the containment exception is
+        statically unspellable against Field's ``(T, T) -> T``; #288).
         """
         from orpheus.transport.source_sinks.scalar_source_sink import ScalarSourceSink
         if isinstance(other, ScalarSourceSink):

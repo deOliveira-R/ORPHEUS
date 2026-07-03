@@ -36,8 +36,10 @@ Role-polymorphic verbs (the carrier grid)
 
 :meth:`analyse` (:math:`M`) and :meth:`reconstruct` (:math:`R`) **preserve the
 role** (flux ↔ flux, source ↔ source) and change the **axis** (angular ↔ moment),
-dispatching on the input carrier type
-(:func:`~functools.singledispatchmethod`) — the two vertical edges of the
+dispatching on the input carrier type over an enumerated isinstance chain
+under typed ``@overload`` faces (the grid is architecturally CLOSED, so
+callers get the precise per-carrier return and an off-grid carrier is a
+call-site type error) — the two vertical edges of the
 ``(angular ⊗ moment) × (flux ⊗ source)`` grid::
 
     analyse:      AngularFlux ─────▶ HarmonicMomentFlux
@@ -62,9 +64,11 @@ through as a typed factor (read off the input carrier's space, #240 D5b-S3).
 
 from __future__ import annotations
 
-from functools import singledispatchmethod
+from typing import overload
 
+from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.frame import GalerkinFrame
+from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.source_sinks.angular_source_sink import AngularSourceSink
@@ -80,14 +84,27 @@ class HarmonicFrame(GalerkinFrame):
     r"""The angular spherical-harmonic :class:`GalerkinFrame` with typed verbs.
 
     Constructed from a generic ``quadrature.angular_frame(L)`` via
-    :meth:`from_galerkin` (or directly from ``(basis, measure)`` — the inherited
-    :class:`~orpheus.numerics.frame.GalerkinFrame` constructor). Adds the
-    role-polymorphic :meth:`analyse` (:math:`M`) and :meth:`reconstruct`
-    (:math:`R`) carrier verbs; the generic ``np.ndarray`` faces
-    (:attr:`~orpheus.numerics.frame.FrameBase.analysis`,
+    :meth:`from_galerkin` (or directly from ``(basis, measure)`` — the
+    constructor narrows the inherited signature to require a
+    :class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`:
+    a harmonic frame over any other trial basis is an illegal state, and the
+    truncation order ``L`` the typed verbs read exists only on the SH basis).
+    Adds the role-polymorphic :meth:`analyse` (:math:`M`) and
+    :meth:`reconstruct` (:math:`R`) carrier verbs; the generic ``np.ndarray``
+    faces (:attr:`~orpheus.numerics.frame.FrameBase.analysis`,
     :attr:`~orpheus.numerics.frame.FrameBase.reconstruction`,
-    :meth:`~orpheus.numerics.frame.FrameBase.conjugate`) are inherited unchanged.
+    :meth:`~orpheus.numerics.frame.FrameBase.conjugate`) are inherited
+    unchanged.
     """
+
+    # Covariant narrowing of the inherited frozen (read-only) field: the
+    # constructor below guarantees it, and the typed verbs read ``basis.L``.
+    basis: SphericalHarmonicBasis
+
+    def __init__(
+        self, basis: SphericalHarmonicBasis, measure: DiscreteMeasure,
+    ) -> None:
+        super().__init__(basis, measure)
 
     @classmethod
     def from_galerkin(cls, frame: GalerkinFrame) -> "HarmonicFrame":
@@ -99,69 +116,93 @@ class HarmonicFrame(GalerkinFrame):
         :class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`
         trial basis and its angular :class:`~orpheus.numerics.measure.DiscreteMeasure`,
         so the table / spaces / faces are bit-identical — only the typed verbs
-        are added.
+        are added. A frame over any other trial basis (e.g. an indicator
+        basis) is rejected here, at the upgrade boundary — not later, when a
+        typed verb first reads the SH-only truncation order ``L``.
         """
-        return cls(frame.basis, frame.measure)
+        basis = frame.basis
+        if not isinstance(basis, SphericalHarmonicBasis):
+            raise TypeError(
+                f"HarmonicFrame.from_galerkin requires a spherical-harmonic "
+                f"trial basis; got {type(basis).__name__}."
+            )
+        return cls(basis, frame.measure)
 
     # ── M : project (role-preserving, angular → moment) ──────────────
+    #
+    # The carrier grid is architecturally CLOSED (the two vertical edges of
+    # the (angular ⊗ moment) × (flux ⊗ source) grid — module docstring), so
+    # the verbs dispatch over an enumerated isinstance chain under typed
+    # @overload faces: callers get the precise per-carrier return type, and
+    # an off-grid carrier is a call-site type error before it is a runtime
+    # TypeError. (An open singledispatch registry modeled extensibility the
+    # grid deliberately does not have.)
 
-    @singledispatchmethod
-    def analyse(self, field):
+    @overload
+    def analyse(self, field: AngularFlux) -> HarmonicMomentFlux: ...
+
+    @overload
+    def analyse(self, field: AngularSourceSink) -> HarmonicMomentSourceSink: ...
+
+    def analyse(
+        self, field: AngularFlux | AngularSourceSink,
+    ) -> HarmonicMomentFlux | HarmonicMomentSourceSink:
         r"""Project a per-ordinate carrier to its spherical-harmonic moments
         (:math:`M`), preserving the role.
 
-        Dispatches on the carrier type: :class:`AngularFlux` →
-        :class:`HarmonicMomentFlux`, :class:`AngularSourceSink` →
-        :class:`HarmonicMomentSourceSink`. The output carries the input's
-        ``mesh`` and the frame's truncation order ``L``.
+        :class:`AngularFlux` → :class:`HarmonicMomentFlux`,
+        :class:`AngularSourceSink` → :class:`HarmonicMomentSourceSink`. The
+        output carries the input's ``mesh`` and the frame's truncation
+        order ``L``.
         """
+        if isinstance(field, AngularFlux):
+            return HarmonicMomentFlux.from_mesh_and_L(
+                self.analysis.apply(field.values), field.mesh, self.basis.L,
+                spatial_moments=field.spatial_moments_per_axis,
+            )
+        if isinstance(field, AngularSourceSink):
+            return HarmonicMomentSourceSink.from_mesh_and_L(
+                self.analysis.apply(field.values), field.mesh, self.basis.L,
+                spatial_moments=field.spatial_moments_per_axis,
+            )
         raise TypeError(
             f"HarmonicFrame.analyse: unsupported carrier "
             f"{type(field).__name__}; expected AngularFlux or "
             f"AngularSourceSink (a per-ordinate carrier)."
         )
 
-    @analyse.register
-    def _(self, psi: AngularFlux) -> HarmonicMomentFlux:
-        return HarmonicMomentFlux.from_mesh_and_L(
-            self.analysis.apply(psi.values), psi.mesh, self.basis.L,
-            spatial_moments=psi.spatial_moments_per_axis,
-        )
-
-    @analyse.register
-    def _(self, q: AngularSourceSink) -> HarmonicMomentSourceSink:
-        return HarmonicMomentSourceSink.from_mesh_and_L(
-            self.analysis.apply(q.values), q.mesh, self.basis.L,
-            spatial_moments=q.spatial_moments_per_axis,
-        )
-
     # ── R : reconstruct (role-preserving, moment → angular) ──────────
 
-    @singledispatchmethod
-    def reconstruct(self, moment):
+    @overload
+    def reconstruct(self, moment: HarmonicMomentFlux) -> AngularFlux: ...
+
+    @overload
+    def reconstruct(
+        self, moment: HarmonicMomentSourceSink,
+    ) -> AngularSourceSink: ...
+
+    def reconstruct(
+        self, moment: HarmonicMomentFlux | HarmonicMomentSourceSink,
+    ) -> AngularFlux | AngularSourceSink:
         r"""Reconstruct a per-ordinate carrier from its spherical-harmonic
         moments (:math:`R`), preserving the role.
 
-        Dispatches on the carrier type: :class:`HarmonicMomentFlux` →
-        :class:`AngularFlux`, :class:`HarmonicMomentSourceSink` →
-        :class:`AngularSourceSink`. The output carries the input's ``mesh``.
+        :class:`HarmonicMomentFlux` → :class:`AngularFlux`,
+        :class:`HarmonicMomentSourceSink` → :class:`AngularSourceSink`. The
+        output carries the input's ``mesh``.
         """
+        if isinstance(moment, HarmonicMomentFlux):
+            return AngularFlux.from_mesh(
+                self.reconstruction.apply(moment.values), moment.mesh,
+                spatial_moments=moment.spatial_moments_per_axis,
+            )
+        if isinstance(moment, HarmonicMomentSourceSink):
+            return AngularSourceSink.from_mesh(
+                self.reconstruction.apply(moment.values), moment.mesh,
+                spatial_moments=moment.spatial_moments_per_axis,
+            )
         raise TypeError(
             f"HarmonicFrame.reconstruct: unsupported carrier "
             f"{type(moment).__name__}; expected HarmonicMomentFlux or "
             f"HarmonicMomentSourceSink (a moment carrier)."
-        )
-
-    @reconstruct.register
-    def _(self, phi: HarmonicMomentFlux) -> AngularFlux:
-        return AngularFlux.from_mesh(
-            self.reconstruction.apply(phi.values), phi.mesh,
-            spatial_moments=phi.spatial_moments_per_axis,
-        )
-
-    @reconstruct.register
-    def _(self, q: HarmonicMomentSourceSink) -> AngularSourceSink:
-        return AngularSourceSink.from_mesh(
-            self.reconstruction.apply(q.values), q.mesh,
-            spatial_moments=q.spatial_moments_per_axis,
         )

@@ -116,8 +116,10 @@ class BulkField(Field):
     duck-typed at runtime — bulk fields read only ``ng``/``spatial_shape``/
     ``ndim`` (all ``MaterialMesh`` data), so they live on any material mesh
     including a meshless single-region one (#267 / #276). The SN-only
-    ``mesh.quad`` access is confined to :class:`AngularField`, which
-    ``cast``\ s to :class:`SNMesh` at the two instance reads.
+    ``mesh.quad`` access is confined to the angular family, whose
+    :class:`AngularField` / :class:`MomentField` / :class:`BoundaryField`
+    declarations covariantly NARROW ``mesh`` back to ``SNMesh`` (no casts
+    — the narrowing lives in the field declarations, #267).
     """
 
     mesh: "MaterialMesh"

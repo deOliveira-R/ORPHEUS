@@ -107,7 +107,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import singledispatchmethod
-from typing import TYPE_CHECKING, Any, cast, overload
+from typing import TYPE_CHECKING, Any, overload
 
 import numpy as np
 
@@ -136,7 +136,6 @@ if TYPE_CHECKING:
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
     from orpheus.numerics.space import FunctionSpace
     from orpheus.numerics.spaces import FullFieldSpace
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 
 __all__ = ["FissionOperator"]
@@ -480,7 +479,20 @@ class FissionOperator(LinearOperator):
         :meth:`TimedFullField.__sub__` once all four operators expose
         the composite branch (D-H.1c).
         """
-        phi_scalar = psi.bulk.integrate_angular()
+        # Parse the arm's real contract: fission's composite arm consumes the
+        # PER-ORDINATE bulk (it needs ``integrate_angular``), so it is
+        # AngularFlux-only — deliberately NARROWER than scattering's
+        # composite arm (which also accepts a windowed HarmonicMomentFlux
+        # bulk). Reject anything else here, at the boundary, instead of an
+        # AttributeError deep in the reduction.
+        bulk = psi.bulk
+        if not isinstance(bulk, AngularFlux):
+            raise TypeError(
+                f"FissionOperator's composite arm requires an AngularFlux "
+                f"bulk (the angular reduction φ = ∫ψ dΩ); got "
+                f"{type(bulk).__name__}."
+            )
+        phi_scalar = bulk.integrate_angular()
         # Reuse the ScalarFlux branch — single source of truth for the
         # per-cell production-rate × emission-spectrum contraction.
         fission_iso: ScalarSourceSink = self.apply(phi_scalar)
@@ -488,10 +500,9 @@ class FissionOperator(LinearOperator):
             AngularSourceSink,
             BoundarySourceSink,
         )
-        # SN arm: emits a per-ordinate AngularSourceSink, so the input flux is
-        # angular ⟹ on an SNMesh (static ``BulkField.mesh`` widened to
-        # MaterialMesh, #267).
-        mesh = cast("SNMesh", psi.bulk.mesh)
+        # The composite's one mesh (``FullField.mesh`` — read off the
+        # boundary leaf, which carries the SNMesh declaration).
+        mesh = psi.mesh
         per_ord = AngularSourceSink.from_isotropic(
             fission_iso.values, mesh,
         )

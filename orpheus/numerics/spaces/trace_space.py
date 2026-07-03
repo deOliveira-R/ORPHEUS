@@ -130,7 +130,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
@@ -324,18 +324,17 @@ class TraceSpace(FunctionSpace):
         operator-side directional masks both read.
     """
 
-    layout: Optional["FaceLayout"] = field(
-        default=None, repr=False, compare=False,
-    )
-    omega_dot_n: Optional[NDArray] = field(
-        default=None, repr=False, compare=False,
-    )
+    # Required (a TraceSpace cannot even size itself without its layout,
+    # and the selectors read omega_dot_n unconditionally — a trace space
+    # missing either is an illegal state); kw_only sidesteps the
+    # inherited-defaults field-ordering rule. Construct via
+    # :meth:`from_quadrature_and_layout`.
+    layout: "FaceLayout" = field(kw_only=True, repr=False, compare=False)
+    omega_dot_n: NDArray = field(kw_only=True, repr=False, compare=False)
 
     @property
     def face_names(self) -> tuple[str, ...]:
         """Ordered face names (matching :attr:`omega_dot_n` row order)."""
-        if self.layout is None:
-            return ()
         return tuple(self.layout.faces)
 
     @classmethod
@@ -391,12 +390,6 @@ class TraceSpace(FunctionSpace):
 
     def _face_row(self, face: str) -> int:
         """Return the :attr:`omega_dot_n` row index for ``face``."""
-        if self.omega_dot_n is None or self.layout is None:
-            raise RuntimeError(
-                "TraceSpace was constructed without omega_dot_n / layout; "
-                "use TraceSpace.from_quadrature_and_layout() instead of "
-                "the bare dataclass constructor."
-            )
         try:
             return self.face_names.index(face)
         except ValueError as exc:
@@ -410,7 +403,7 @@ class TraceSpace(FunctionSpace):
         Inflow iff :math:`\Omega\cdot\hat n_f < -\epsilon` (direction
         points into the domain). Tangential ordinates are excluded.
         """
-        row = self.omega_dot_n[self._face_row(face)]  # type: ignore[index]
+        row = self.omega_dot_n[self._face_row(face)]
         return np.flatnonzero(row < -_TANGENTIAL_EPS)
 
     def outflow_indices_for_face(self, face: str) -> np.ndarray:
@@ -419,5 +412,5 @@ class TraceSpace(FunctionSpace):
         Outflow iff :math:`\Omega\cdot\hat n_f > +\epsilon` (direction
         points out of the domain). Tangential ordinates are excluded.
         """
-        row = self.omega_dot_n[self._face_row(face)]  # type: ignore[index]
+        row = self.omega_dot_n[self._face_row(face)]
         return np.flatnonzero(row > +_TANGENTIAL_EPS)

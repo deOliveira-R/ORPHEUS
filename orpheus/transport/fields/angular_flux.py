@@ -53,6 +53,7 @@ from orpheus.transport.fields._flux_role import FluxRole
 
 if TYPE_CHECKING:
     from orpheus.sn.mesh.augmented_mesh import SNMesh
+    from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 
 __all__ = ["AngularFlux"]
@@ -107,7 +108,7 @@ class AngularFlux(FluxRole, AngularField):
 
     # ── Reductions ───────────────────────────────────────────────────
 
-    def integrate_angular(self) -> "object":
+    def integrate_angular(self) -> "ScalarFlux":
         r"""Reduce to the scalar flux :math:`\phi = \sum_n w_n \psi_n`.
 
         Returns a :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`

@@ -196,8 +196,10 @@ class MaterialMesh:
         # areas have a different shape and feed no matvec caller — None.
         if mesh is not None:
             self._volumes: np.ndarray = mesh.volumes
+            # The type carries the dimensionality fact the old ``ndim == 1``
+            # int-guard only implied: per-face areas exist on Mesh1D only.
             self._areas: np.ndarray | None = (
-                mesh.areas if self.ndim == 1 else None
+                mesh.areas if isinstance(mesh, Mesh1D) else None
             )
         else:
             self._volumes = reduce(np.multiply.outer, self.axis_widths)

@@ -107,6 +107,8 @@ from orpheus.transport.fields._bases import BoundaryField, BulkField
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
+    from orpheus.sn.mesh.augmented_mesh import SNMesh
+
 
 __all__ = ["FullField"]
 
@@ -230,6 +232,26 @@ class FullField:
                     f"got bulk.mesh={bulk_mesh!r}, "
                     f"boundary.mesh={boundary_mesh!r}"
                 )
+
+    # ── The composite's single mesh ───────────────────────────────────
+
+    @property
+    def mesh(self) -> "SNMesh":
+        r"""The one mesh both leaves are bound to — the ``__post_init__``
+        mesh-identity invariant made readable.
+
+        Read off the BOUNDARY leaf because its declaration carries the
+        narrow method-mesh type
+        (:class:`~orpheus.transport.fields._bases.BoundaryField` declares
+        ``mesh: SNMesh``); the ``bulk`` slot is deliberately the
+        cross-method :class:`~orpheus.transport.fields._bases.BulkField`,
+        whose ``mesh`` was widened to the method-agnostic
+        :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`
+        (#267), so reading through it would erase what the composite
+        invariant guarantees. Retires the operator-arm
+        ``cast("SNMesh", psi.bulk.mesh)`` family (#226 F2).
+        """
+        return self.boundary.mesh
 
     # ── Polymorphic recombine hook (Pattern 2 — the algebra lives once) ─
 

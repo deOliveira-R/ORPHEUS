@@ -142,7 +142,11 @@ class ScalarSourceSink(ScalarField):
 
         See module docstring for the principled justification (refined
         Issue #207: cross-class dunders permitted via canonical
-        subspace containment).
+        subspace containment). DELIBERATELY untyped: the cross-class
+        arm returns the LARGER space's class, which no static spelling
+        can reconcile with :meth:`Field.__add__`'s Self-polymorphic
+        ``(T, T) -> T`` contract — the containment exception is a
+        principled LSP violation the type system cannot carry (#288).
         """
         from orpheus.transport.source_sinks.angular_source_sink import (
             AngularSourceSink,

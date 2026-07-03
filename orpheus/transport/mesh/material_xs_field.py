@@ -169,7 +169,10 @@ class MaterialXSField:
     _sig_a_cell: np.ndarray | None = field(default=None, init=False, repr=False)
     _sig_p_cell: np.ndarray | None = field(default=None, init=False, repr=False)
     _chi_cell: np.ndarray | None = field(default=None, init=False, repr=False)
-    _cells_by_mat: dict[int, tuple[np.ndarray, np.ndarray]] | None = field(
+    # Variadic index tuple: ``np.where`` yields one index array PER MESH
+    # AXIS, so the arity is the mesh ndim (a 1-tuple on a 1-D mesh, a
+    # 2-tuple on 2-D) — declaring a fixed 2-tuple would lie for 1-D.
+    _cells_by_mat: dict[int, tuple[np.ndarray, ...]] | None = field(
         default=None, init=False, repr=False,
     )
     # Cached dense (n,2n) matrices to avoid repeated ``.todense()``
@@ -530,12 +533,13 @@ class MaterialXSField:
     # ── Per-material accessors (source of truth) ─────────────────────
 
     @property
-    def cells_by_material(self) -> dict[int, tuple[np.ndarray, np.ndarray]]:
-        r"""Per-material ``(ix, iy)`` index arrays — cached.
+    def cells_by_material(self) -> dict[int, tuple[np.ndarray, ...]]:
+        r"""Per-material cell-index arrays — cached.
 
-        For each material id, returns the ``(ix_array, iy_array)``
-        pair such that ``mat_map[ix, iy] == mid`` everywhere.  This
-        is the single index map the formerly-leaked per-material
+        For each material id, returns the ``np.where`` index tuple such
+        that ``mat_map[indices] == mid`` everywhere — one index array
+        PER MESH AXIS (``(ix,)`` on a 1-D mesh, ``(ix, iy)`` on 2-D).
+        This is the single index map the formerly-leaked per-material
         dispatch loops keyed on.  Most consumers should NOT use this
         directly — call one of the typed verbs
         (:meth:`apply_p0_in_scatter`, :meth:`apply_n2n`, etc.) that
@@ -543,9 +547,9 @@ class MaterialXSField:
 
         Returns
         -------
-        dict[int, tuple[np.ndarray, np.ndarray]]
-            ``{mid: (ix, iy)}`` for every material id in
-            :attr:`materials`.
+        dict[int, tuple[np.ndarray, ...]]
+            ``{mid: indices}`` for every material id in
+            :attr:`materials`; the tuple arity is the mesh ndim.
         """
         if self._cells_by_mat is None:
             self._cells_by_mat = {

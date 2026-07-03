@@ -101,7 +101,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import singledispatchmethod
-from typing import TYPE_CHECKING, Any, cast, overload
+from typing import TYPE_CHECKING, Any, overload
 
 import numpy as np
 
@@ -119,7 +119,6 @@ from orpheus.transport.full_field import FullField
 
 if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
-    from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.fields.cross_section_field import CrossSectionField
 
 
@@ -346,10 +345,10 @@ class MultiplicationOperator(LinearOperator["FullField"]):
             BoundarySourceSink,
         )
 
-        # SN arm: builds per-ordinate AngularSourceSink, so the FullField's bulk
-        # is angular ⟹ on an SNMesh (the static ``BulkField.mesh`` widened to
-        # MaterialMesh, #267).
-        mesh = cast("SNMesh", psi.bulk.mesh)
+        # SN arm: builds per-ordinate AngularSourceSink on the composite's one
+        # mesh — ``FullField.mesh`` reads it off the boundary leaf, whose
+        # declaration carries the SNMesh type the widened bulk slot erases.
+        mesh = psi.mesh
         out_bulk = self.engine.apply(psi.bulk.values)
         return FullField(
             bulk=AngularSourceSink.from_mesh(out_bulk, mesh),
@@ -398,8 +397,9 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         from orpheus.transport.fields.angular_flux import AngularFlux
         from orpheus.transport.fields.boundary_flux import BoundaryFlux
 
-        # SN arm (see :meth:`apply`): the inverse returns a flux on the SNMesh.
-        mesh = cast("SNMesh", q.bulk.mesh)
+        # SN arm (see :meth:`apply`): the inverse returns a flux on the
+        # composite's one mesh (``FullField.mesh``).
+        mesh = q.mesh
         out_bulk = self.engine.solve(q.bulk.values)
         return FullField(
             bulk=AngularFlux.from_mesh(out_bulk, mesh),

@@ -300,6 +300,12 @@ class LegendreMomentScattering(LinearOperator):
         # inherits base False — a per-ℓ source map is not invertible.
         return True
 
+    @overload
+    def apply(self, moments: "HarmonicMomentFlux") -> "HarmonicMomentSourceSink": ...
+
+    @overload
+    def apply(self, moments: np.ndarray) -> np.ndarray: ...
+
     def apply(
         self, moments: "np.ndarray | HarmonicMomentFlux",
     ) -> "np.ndarray | HarmonicMomentSourceSink":
@@ -702,8 +708,9 @@ class ScatteringOperator(LinearOperator):
         }
 
     @property
-    def cells_by_mat(self) -> dict[int, tuple[np.ndarray, np.ndarray]]:
-        """TRANSIENT — per-material cell-index dict.  See :attr:`sig_s`."""
+    def cells_by_mat(self) -> dict[int, tuple[np.ndarray, ...]]:
+        """TRANSIENT — per-material cell-index dict (one index array per
+        mesh axis).  See :attr:`sig_s`."""
         return self.mat_xs.cells_by_material
 
     # ── Anisotropic in-scatter: the moment→source map R·Λ_{ℓ≥1} ────────
@@ -866,7 +873,7 @@ class ScatteringOperator(LinearOperator):
         )
 
     @property
-    def full_scatter_kernel(self) -> LinearOperator:
+    def full_scatter_kernel(self) -> OperatorProduct:
         r"""The FULL in-scatter source kernel :math:`R\circ(\Lambda_{\ell\ge 0} + N_{2n})\circ M`.
 
         The modernized production scattering source (campaign #276 A2a): the
@@ -1022,11 +1029,21 @@ class ScatteringOperator(LinearOperator):
 
     # ── In-place helpers (preserve bit-identity vs SNSolver pre-Wave-D) ─
 
+    @overload
+    def add_iso_source(
+        self, Q: "ScalarSourceSink", phi: "np.ndarray | ScalarFlux",
+    ) -> "ScalarSourceSink": ...
+
+    @overload
+    def add_iso_source(
+        self, Q: np.ndarray, phi: "np.ndarray | ScalarFlux",
+    ) -> None: ...
+
     def add_iso_source(
         self,
         Q: "np.ndarray | ScalarSourceSink",
         phi: "np.ndarray | ScalarFlux",
-    ) -> "np.ndarray | ScalarSourceSink | None":
+    ) -> "ScalarSourceSink | None":
         r"""Add P0 in-scatter source to :math:`Q`.
 
         Vectorised by material: per cell ``c`` of material ``mid``,
@@ -1080,11 +1097,21 @@ class ScatteringOperator(LinearOperator):
         self.mat_xs.apply_p0_in_scatter(Q, phi_values)
         return None
 
+    @overload
+    def add_n2n_source(
+        self, Q: "ScalarSourceSink", phi: "np.ndarray | ScalarFlux",
+    ) -> "ScalarSourceSink": ...
+
+    @overload
+    def add_n2n_source(
+        self, Q: np.ndarray, phi: "np.ndarray | ScalarFlux",
+    ) -> None: ...
+
     def add_n2n_source(
         self,
         Q: "np.ndarray | ScalarSourceSink",
         phi: "np.ndarray | ScalarFlux",
-    ) -> "np.ndarray | ScalarSourceSink | None":
+    ) -> "ScalarSourceSink | None":
         r"""Add (n,2n) source to :math:`Q`.
 
         Vectorised by material: per cell ``c`` of material ``mid``,
@@ -1127,8 +1154,8 @@ class ScatteringOperator(LinearOperator):
 
     def build_aniso_source(
         self,
-        angular_flux: "np.ndarray | AngularFlux | None",
-    ) -> "np.ndarray | AngularSourceSink | None":
+        angular_flux: "AngularFlux | None",
+    ) -> "AngularSourceSink | None":
         r"""Build per-ordinate Pℓ (:math:`\ell \ge 1`) scattering source.
 
         Implements the Galerkin reconstruction :eq:`pn-scatter` from
@@ -1187,23 +1214,23 @@ class ScatteringOperator(LinearOperator):
 
         Parameters
         ----------
-        angular_flux : np.ndarray or AngularFlux or None
+        angular_flux : AngularFlux or None
             Angular flux shape ``(N, ng, nx, ny)`` (Issue #196
             PR-INDEX-4 — principled) from the most recent sweep, or
             ``None`` on the first source iteration before any sweep
-            has been run.  Issue #197 PR-TYPED-3 — typed
-            :class:`AngularFlux` is accepted; the result is then a
-            typed :class:`AngularSourceSink` (preserving the type chain
-            through the scattering composition).
+            has been run.  D-I.2 (2026-05-29): only the typed
+            :class:`AngularFlux` is accepted — the bare-ndarray arm
+            retired with the singledispatch ``np.ndarray`` arm of
+            :meth:`apply` (the typed leaf carries the mesh the output
+            :class:`AngularSourceSink` requires).
 
         Returns
         -------
-        np.ndarray or AngularSourceSink or None
+        AngularSourceSink or None
             ``(N, ng, nx, ny)`` per-ordinate :math:`\ell \ge 1`
             contribution in **per-ordinate magnitude** (the trailing
             ``/W`` is applied here, R-1 Step 4 A1).  Returns ``None``
             when ``scattering_order == 0`` or ``angular_flux is None``.
-            Type matches the input.
 
         Notes
         -----
@@ -1529,7 +1556,7 @@ class ScatteringOperator(LinearOperator):
         # reattaches the timed type when this source is added to the timed rhs).
         return FullField(
             bulk=combined,
-            boundary=BoundarySourceSink.zeros_on(cast("SNMesh", psi.bulk.mesh)),
+            boundary=BoundarySourceSink.zeros_on(psi.mesh),
         )
 
     @_apply_impl.register

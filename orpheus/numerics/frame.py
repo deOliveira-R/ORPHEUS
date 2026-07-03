@@ -202,7 +202,7 @@ class FrameBase(ABC):
         return _FrameReconstruction(self)
 
     # ── composed operators (the "define Frame, compose, done" production path) ──
-    def conjugate(self, operator: LinearOperator, /) -> LinearOperator:
+    def conjugate(self, operator: LinearOperator, /) -> OperatorProduct:
         r"""Frame-conjugate a coefficient-space operator: :math:`R \circ A \circ M`.
 
         THE production composition for a method whose action is "project to

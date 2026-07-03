@@ -29,11 +29,13 @@ hand-coded dunder skeleton. The migration:
   :class:`Field` via :func:`dataclasses.replace`).
 * Adds the ``space: FunctionSpace`` field (mandatory, per the
   Field ABC contract).
-* Keeps ``mesh: SNMesh`` as an additive field, but now annotated
-  under ``TYPE_CHECKING`` because :class:`ScalarFlux` lives at L2
-  while :class:`SNMesh` lives at L3 (``orpheus.sn.mesh.augmented_mesh``).
-  Runtime-wise the ``mesh`` field is duck-typed; the import-linter's
-  TYPE_CHECKING exemption keeps the layer contract clean.
+* Keeps ``mesh`` as an additive field — since #267 typed as the
+  method-agnostic
+  :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` (a scalar
+  field reads only material-mesh data, so it also lives on the meshless
+  single-region mesh of the homogeneous solver). Runtime-wise the
+  ``mesh`` field is duck-typed; TYPE_CHECKING-only imports keep the
+  layer contract clean.
 * Preserves the existing strict semantics: arithmetic across two
   :class:`ScalarFlux` instances with DIFFERENT :class:`SNMesh`
   identities is forbidden, even when the meshes have matching
