@@ -423,14 +423,15 @@ class MaterialMesh:
     def scalar_trace(self) -> "ScalarTraceSpace":
         r"""The scalar boundary-trace space — per-face ``(J⁺, J⁻)`` pairs.
 
-        Built ONCE from this mesh's own axis data (the SNMesh ``.trace``
-        precedent, quadrature-free): the face inventory comes from
+        Built ONCE from this mesh's own axis data (the SNMesh
+        ``.angular_trace`` precedent, quadrature-free): the face
+        inventory comes from
         :func:`~orpheus.transport.mesh.axis.face_labels` (the pole of a
         radial axis is not a face and never appears), each face's
         surface measure from :attr:`areas` (slab 1, cylinder
         :math:`2\pi R`, sphere :math:`4\pi R^2`) as the trace metric.
         Consumed by the scalar trace family
-        (:class:`~orpheus.transport.fields.partial_current.PartialCurrent`)
+        (:class:`~orpheus.transport.fields.scalar_boundary_flux.ScalarBoundaryFlux`)
         and the diffusion boundary machinery (#290 P2–P4).
 
         1-D meshes only today (mirrors :attr:`areas` — 2-D face areas

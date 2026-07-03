@@ -90,7 +90,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.loss_representation import transport_sweep
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.source_sinks import AngularSourceSink
 from tests.sn._test_helpers import (
     SN_TESTS_ROOT,
@@ -254,7 +254,7 @@ class TestAffineCarveSweepBaseline:
         sig_t = rng.uniform(0.3, 3.0, size=(ng, *sn_mesh.spatial_shape))
         q_values = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
         source = AngularSourceSink.from_mesh(q_values, sn_mesh)
-        boundary = BoundaryFlux.zeros_on(sn_mesh)
+        boundary = AngularBoundaryFlux.zeros_on(sn_mesh)
 
         angular_flux, scalar_flux = transport_sweep(
             source, sig_t, sn_mesh, boundary,

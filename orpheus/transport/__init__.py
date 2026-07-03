@@ -21,7 +21,7 @@ Today's contents:
 * :mod:`orpheus.transport.fields` — typed flux / source / residual
   fields, each inheriting from :class:`~orpheus.numerics.field.Field`.
   Currently houses :class:`ScalarFlux` (Depth B step D-D). Later
-  steps add HarmonicMomentFlux (D-E), Sources (D-F), BoundaryFlux
+  steps add HarmonicMomentFlux (D-E), Sources (D-F), AngularBoundaryFlux
   (D-G), AngularFlux (D-H).
 
 Future contents (deferred to later Depth B / parent-plan steps):

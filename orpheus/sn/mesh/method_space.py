@@ -17,7 +17,7 @@ carries everything an SN realizer needs to turn a
   ``"xmax"`` face — the pole at r=0 is the angular closure's
   regularity condition, not a BC face.)
 * :attr:`trace` -- the unified
-  :class:`~orpheus.numerics.spaces.trace_space.TraceSpace` precomputed
+  :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` precomputed
   for the mesh+quad pair. The realizer's vacuum branch extracts
   per-face inflow indices from it (and any future law needing outflow
   indices reads the same signed-:math:`\Omega\cdot\hat n` data).
@@ -61,7 +61,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from orpheus.geometry.mesh import Mesh1D, Mesh2D
-    from orpheus.numerics.spaces.trace_space import TraceSpace
+    from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
     from orpheus.numerics.quadrature import Quadrature
 
 
@@ -92,7 +92,7 @@ class SNMethodSpace:
     face: Optional[str] = None
     inflow_indices: Optional[np.ndarray] = None
     mesh: "Optional[Mesh1D | Mesh2D]" = None
-    trace: "Optional[TraceSpace]" = None
+    trace: "Optional[AngularTraceSpace]" = None
 
     @classmethod
     def minimal(cls, quadrature: "Quadrature") -> "SNMethodSpace":
@@ -114,7 +114,7 @@ class SNMethodSpace:
         mesh: "Optional[Mesh1D | Mesh2D]" = None,
         quadrature: "Quadrature",
         face: str,
-        trace: "Optional[TraceSpace]" = None,
+        trace: "Optional[AngularTraceSpace]" = None,
     ) -> "SNMethodSpace":
         r"""Build a method space for a specific face.
 
@@ -138,7 +138,7 @@ class SNMethodSpace:
             ``"zmax"``).
         trace
             Optional precomputed unified
-            :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`.
+            :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`.
             If non-``None`` the ``inflow_indices`` field is populated
             for this face.
         """
@@ -154,7 +154,7 @@ class SNMethodSpace:
         )
 
     def inflow_indices_for_face(self, face: str) -> np.ndarray:
-        """Delegate to the held :class:`TraceSpace`.
+        """Delegate to the held :class:`AngularTraceSpace`.
 
         Raises :class:`RuntimeError` if no ``trace`` was attached --
         in that case the method space cannot serve per-face inflow
@@ -163,7 +163,7 @@ class SNMethodSpace:
         if self.trace is None:
             raise RuntimeError(
                 f"SNMethodSpace.inflow_indices_for_face({face!r}): no "
-                f"TraceSpace attached to this method space. "
+                f"AngularTraceSpace attached to this method space. "
                 f"Construct via .for_face(...) with trace= populated, "
                 f"or use the realizer's vacuum dispatch branch which "
                 f"reads .inflow_indices directly."

@@ -1,22 +1,22 @@
 r"""Foundation tests for the B.3 boundary role leaves
-:class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink` and
-:class:`~orpheus.transport.residuals.boundary_residual.BoundaryResidual`.
+:class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink` and
+:class:`~orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual`.
 
 These complete the ``{Boundary}×{Source,Residual}`` cells of the field
 role grid (siblings of
-:class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`), giving
-the :class:`~orpheus.transport.fields._bases.BoundaryField` storage base
+:class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`), giving
+the :class:`~orpheus.transport.fields._bases.AngularBoundaryField` storage base
 its 2nd and 3rd concrete instances. All three boundary leaves are empty
 leaves — storage / validation / algebra / per-face access / factories
-are inherited from ``BoundaryField`` — so most of their machinery is
+are inherited from ``AngularBoundaryField`` — so most of their machinery is
 already pinned by ``test_boundary_flux.py``. This module adds:
 
 * construction of the two NEW leaves (``zeros_on`` /
   ``from_face_arrays``), and
 * the **load-bearing cross-class invariant** unique to the boundary
-  family: all three leaves share the SAME ``TraceSpace`` (``mesh.trace``),
+  family: all three leaves share the SAME ``AngularTraceSpace`` (``mesh.angular_trace``),
   so the space gate would PASS — it is the **class-identity** gate that
-  rejects ``BoundarySourceSink ± BoundaryFlux`` etc. This is the boundary
+  rejects ``AngularBoundarySourceSink ± AngularBoundaryFlux`` etc. This is the boundary
   analogue of the bulk "same units / same space ≠ same meaning"
   discipline.
 
@@ -27,7 +27,7 @@ References
 
 * ``.claude/plans/field_role_typing_view_g.md`` — Phase B step B.3.
 * ``orpheus/numerics/field.py`` — Layer-1 class-identity gate.
-* ``tests/transport/fields/test_boundary_flux.py`` — the BoundaryFlux
+* ``tests/transport/fields/test_boundary_flux.py`` — the AngularBoundaryFlux
   contract these leaves inherit.
 """
 from __future__ import annotations
@@ -41,17 +41,17 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.field import Field
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
-from orpheus.transport.fields._bases import BoundaryField
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
-from orpheus.transport.residuals import BoundaryResidual
-from orpheus.transport.source_sinks import BoundarySourceSink
+from orpheus.transport.fields._bases import AngularBoundaryField
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.transport.residuals import AngularBoundaryResidual
+from orpheus.transport.source_sinks import AngularBoundarySourceSink
 
 from tests.sn._test_helpers import placeholder_materials
 
 pytestmark = [pytest.mark.foundation]
 
 # The two NEW boundary leaves (parametrized over for shared contract).
-NEW_BOUNDARY_LEAVES = [BoundarySourceSink, BoundaryResidual]
+NEW_BOUNDARY_LEAVES = [AngularBoundarySourceSink, AngularBoundaryResidual]
 
 
 # ── Fixtures ─────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ def _cartesian_2d_mesh(nx: int = 3, ny: int = 2, ng: int = 2) -> SNMesh:
 
 
 # ════════════════════════════════════════════════════════════════════
-# Construction + inheritance (both new leaves share BoundaryFlux's
+# Construction + inheritance (both new leaves share AngularBoundaryFlux's
 # inherited machinery; spot-check it is wired on the new classes).
 # ════════════════════════════════════════════════════════════════════
 
@@ -103,14 +103,14 @@ class TestConstructionInherited:
         m = _slab_mesh()
         bf = Leaf.zeros_on(m)
         assert isinstance(bf, Field)
-        assert isinstance(bf, BoundaryField)
+        assert isinstance(bf, AngularBoundaryField)
         assert isinstance(bf, Leaf)
         assert bf.mesh is m
 
     def test_zeros_on_uses_mesh_trace(self, Leaf) -> None:
         m = _slab_mesh()
         bf = Leaf.zeros_on(m)
-        assert bf.space is m.trace
+        assert bf.space is m.angular_trace
         np.testing.assert_array_equal(bf.values, 0.0)
         assert set(bf.layout.faces) == {"xmin", "xmax"}
 
@@ -143,9 +143,9 @@ class TestConstructionInherited:
     def test_post_init_requires_trace_space(self, Leaf) -> None:
         m = _slab_mesh()
         from orpheus.numerics.space import FunctionSpace
-        plain = FunctionSpace(name="sn_boundary_flat", shape=(m.trace.shape[0],))
-        with pytest.raises(TypeError, match="TraceSpace"):
-            Leaf(values=np.zeros(m.trace.shape[0]), space=plain, mesh=m)
+        plain = FunctionSpace(name="sn_boundary_flat", shape=(m.angular_trace.shape[0],))
+        with pytest.raises(TypeError, match="AngularTraceSpace"):
+            Leaf(values=np.zeros(m.angular_trace.shape[0]), space=plain, mesh=m)
 
 
 @pytest.mark.parametrize("Leaf", NEW_BOUNDARY_LEAVES)
@@ -186,26 +186,26 @@ class TestAlgebraClosedWithinClass:
 
 # ════════════════════════════════════════════════════════════════════
 # The load-bearing boundary invariant: cross-class arithmetic RAISES
-# even though all three boundary leaves share the SAME TraceSpace.
+# even though all three boundary leaves share the SAME AngularTraceSpace.
 #
 # This is structurally DIFFERENT from the bulk families, where
 # cross-class operands also have different spaces/shapes (so either gate
 # would catch them). Here the space gate would PASS — only the
-# class-identity gate discriminates BoundaryFlux / BoundarySourceSink /
-# BoundaryResidual.
+# class-identity gate discriminates AngularBoundaryFlux / AngularBoundarySourceSink /
+# AngularBoundaryResidual.
 # ════════════════════════════════════════════════════════════════════
 
 
 class TestCrossClassRejectionSharedSpace:
     def test_all_three_share_the_same_trace_space(self) -> None:
         """Pre-condition for the invariant: the three leaves are built on
-        the IDENTICAL ``mesh.trace`` object — so ``space == space`` and
+        the IDENTICAL ``mesh.angular_trace`` object — so ``space == space`` and
         the space gate alone would NOT reject cross-class arithmetic."""
         m = _slab_mesh()
-        flux = BoundaryFlux.zeros_on(m)
-        src = BoundarySourceSink.zeros_on(m)
-        res = BoundaryResidual.zeros_on(m)
-        assert flux.space is src.space is res.space is m.trace
+        flux = AngularBoundaryFlux.zeros_on(m)
+        src = AngularBoundarySourceSink.zeros_on(m)
+        res = AngularBoundaryResidual.zeros_on(m)
+        assert flux.space is src.space is res.space is m.angular_trace
         # The space gate would pass (equal spaces) — proving it is the
         # CLASS gate that must do the rejection below.
         assert flux.space == src.space == res.space
@@ -213,9 +213,9 @@ class TestCrossClassRejectionSharedSpace:
     @pytest.mark.parametrize(
         ("A", "B"),
         [
-            (BoundarySourceSink, BoundaryFlux),
-            (BoundaryResidual, BoundaryFlux),
-            (BoundarySourceSink, BoundaryResidual),
+            (AngularBoundarySourceSink, AngularBoundaryFlux),
+            (AngularBoundaryResidual, AngularBoundaryFlux),
+            (AngularBoundarySourceSink, AngularBoundaryResidual),
         ],
     )
     def test_cross_class_add_sub_raises(self, A, B) -> None:
@@ -232,8 +232,8 @@ class TestCrossClassRejectionSharedSpace:
 
     def test_cross_class_inner_product_raises(self) -> None:
         m = _slab_mesh()
-        src = BoundarySourceSink.zeros_on(m)
-        res = BoundaryResidual.zeros_on(m)
+        src = AngularBoundarySourceSink.zeros_on(m)
+        res = AngularBoundaryResidual.zeros_on(m)
         with pytest.raises(TypeError, match="same-class"):
             src.inner_product(res)  # type: ignore[arg-type]
 
@@ -258,10 +258,10 @@ class TestPrescribedInflowGenerator:
         # Full (N, ng) slot with EVERY ordinate non-zero on purpose: the
         # generator MUST mask the outflow ordinates back to zero.
         vals = np.outer(mu + 2.0, np.array([1.0, 0.5]))  # (N, 2), all non-zero
-        bss = BoundarySourceSink.prescribed_inflow(m, {"xmin": vals})
-        assert isinstance(bss, BoundarySourceSink)
+        bss = AngularBoundarySourceSink.prescribed_inflow(m, {"xmin": vals})
+        assert isinstance(bss, AngularBoundarySourceSink)
 
-        inflow = m.trace.inflow_indices_for_face("xmin")
+        inflow = m.angular_trace.inflow_indices_for_face("xmin")
         outflow = np.setdiff1d(np.arange(N), inflow)
         view = bss.face_view("xmin")
         # inflow ordinates carry the prescribed values ...
@@ -275,8 +275,8 @@ class TestPrescribedInflowGenerator:
         m = _sphere_mesh()
         N = m.quad.N
         vals = np.full((N, 2), 3.0)
-        bss = BoundarySourceSink.prescribed_inflow(m, {"xmax": vals})
-        inflow = m.trace.inflow_indices_for_face("xmax")
+        bss = AngularBoundarySourceSink.prescribed_inflow(m, {"xmax": vals})
+        inflow = m.angular_trace.inflow_indices_for_face("xmax")
         outflow = np.setdiff1d(np.arange(N), inflow)
         view = bss.face_view("xmax")
         np.testing.assert_array_equal(view[inflow, :], 3.0)
@@ -286,18 +286,18 @@ class TestPrescribedInflowGenerator:
         m = _slab_mesh()
         N = m.quad.N
         with pytest.raises(ValueError, match="not a"):
-            BoundarySourceSink.prescribed_inflow(m, {"nope": np.zeros((N, 2))})
+            AngularBoundarySourceSink.prescribed_inflow(m, {"nope": np.zeros((N, 2))})
 
     def test_shape_mismatch_raises(self) -> None:
         m = _slab_mesh(ng=2)
         N = m.quad.N
         with pytest.raises(ValueError, match="shape"):
-            BoundarySourceSink.prescribed_inflow(m, {"xmin": np.zeros((N, 1))})
+            AngularBoundarySourceSink.prescribed_inflow(m, {"xmin": np.zeros((N, 1))})
 
     def test_generator_is_source_role_only(self) -> None:
         """The prescribed-inflow generator is the SOURCE-role leaf's verb;
         the flux / residual leaves do not carry it (a flux trace is swept,
         a residual is differenced — neither is a prescribed source)."""
-        assert hasattr(BoundarySourceSink, "prescribed_inflow")
-        assert not hasattr(BoundaryFlux, "prescribed_inflow")
-        assert not hasattr(BoundaryResidual, "prescribed_inflow")
+        assert hasattr(AngularBoundarySourceSink, "prescribed_inflow")
+        assert not hasattr(AngularBoundaryFlux, "prescribed_inflow")
+        assert not hasattr(AngularBoundaryResidual, "prescribed_inflow")

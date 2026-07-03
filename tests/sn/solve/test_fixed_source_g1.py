@@ -274,7 +274,7 @@ class TestReturnTypeContract:
             max_inner=50, inner_tol=1e-10,
         )
         # D-H.1b: angular_flux is now a TimedFullField composite. The
-        # boundary is the L2 BoundaryFlux with flat-layout storage; the
+        # boundary is the L2 AngularBoundaryFlux with flat-layout storage; the
         # legacy ``.xmin_face`` / ``.xmax_face`` accessors are replaced
         # by ``.face_view(name)``.
         from orpheus.transport.timed_full_field import TimedFullField

@@ -34,18 +34,18 @@ the **source/sink** column —
   output of :math:`\Lambda` in the anisotropic in-scatter
   :math:`R\,\Lambda\,M`, completing the moment row of the
   ``(angular ⊗ moment) × (flux ⊗ source)`` carrier grid);
-* boundary: :class:`BoundarySourceSink`
+* boundary: :class:`AngularBoundarySourceSink`
   (the prescribed-inflow :math:`q` of the affine boundary law,
   materialised as a stored field on the trace — distinct from the
   geometry-layer :class:`InflowSourceSpec` *generator* it was renamed
-  away from; see :mod:`orpheus.transport.source_sinks.boundary_source_sink`).
+  away from; see :mod:`orpheus.transport.source_sinks.angular_boundary_source_sink`).
 """
 
 from __future__ import annotations
 
 from orpheus.transport.source_sinks.scalar_source_sink import ScalarSourceSink
 from orpheus.transport.source_sinks.angular_source_sink import AngularSourceSink
-from orpheus.transport.source_sinks.boundary_source_sink import BoundarySourceSink
+from orpheus.transport.source_sinks.angular_boundary_source_sink import AngularBoundarySourceSink
 from orpheus.transport.source_sinks.harmonic_moment_source_sink import (
     HarmonicMomentSourceSink,
 )
@@ -53,6 +53,6 @@ from orpheus.transport.source_sinks.harmonic_moment_source_sink import (
 __all__ = [
     "ScalarSourceSink",
     "AngularSourceSink",
-    "BoundarySourceSink",
+    "AngularBoundarySourceSink",
     "HarmonicMomentSourceSink",
 ]

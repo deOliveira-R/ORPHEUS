@@ -10,12 +10,17 @@ column (a residual is ``source ⊖ source`` crossing into rate-density; a
 displacement is ``flux ⊖ flux`` staying in flux units but changing role from
 state to tangent).
 
-Role grid (field vocabulary, issues #205 / #201 / #208)
-=======================================================
+Role grid (field vocabulary, issues #205 / #201 / #208; axes per the
+#290 P2.5 coherence ruling)
+=======================================================================
 
-::
+Three orthogonal axes — "Boundary" is a LOCUS qualifier, never a fourth
+family (bulk leaf ``<Family><Role>``, boundary leaf
+``<Family>Boundary<Role>``)::
 
-    {Angular, Scalar, Moment, Boundary} × {Flux, Source, Residual, Displacement}
+    locus {Bulk, Boundary} × family {Angular, Scalar, Moment}
+                           × role {Flux, SourceSink, Residual, Displacement}
+
        flux         →  orpheus.transport.fields         (…Flux)
        source       →  orpheus.transport.source_sinks   (…SourceSink)
        residual     →  orpheus.transport.residuals      (…Residual)   [rate-density defect]
@@ -39,9 +44,9 @@ from orpheus.transport.displacements._displacement import Displacement
 from orpheus.transport.displacements.angular_displacement import AngularDisplacement
 from orpheus.transport.displacements.scalar_displacement import ScalarDisplacement
 from orpheus.transport.displacements.moment_displacement import MomentDisplacement
-from orpheus.transport.displacements.boundary_displacement import BoundaryDisplacement
-from orpheus.transport.displacements.partial_current_displacement import (
-    PartialCurrentDisplacement,
+from orpheus.transport.displacements.angular_boundary_displacement import AngularBoundaryDisplacement
+from orpheus.transport.displacements.scalar_boundary_displacement import (
+    ScalarBoundaryDisplacement,
 )
 
 
@@ -50,6 +55,6 @@ __all__ = [
     "AngularDisplacement",
     "ScalarDisplacement",
     "MomentDisplacement",
-    "BoundaryDisplacement",
-    "PartialCurrentDisplacement",
+    "AngularBoundaryDisplacement",
+    "ScalarBoundaryDisplacement",
 ]

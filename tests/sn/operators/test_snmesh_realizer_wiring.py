@@ -15,7 +15,7 @@ y-placeholders) are retired — negatives pinned below.
 
 Issue #188 / C188.3: the curvilinear bypass branch in
 ``_resolve_one`` is gone. With the unified
-:class:`~orpheus.numerics.spaces.trace_space.TraceSpace`'s curvilinear
+:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`'s curvilinear
 support, 1-D spherical and 1-D cylindrical meshes route through the
 SAME realizer-then-shim path as Cartesian meshes — but a solid
 sphere / cylinder has only the outer (``xmax``) boundary face; the
@@ -297,7 +297,7 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
     """Spherical vacuum routes through :class:`SNBoundaryRealizer`. A
     solid sphere has exactly ONE boundary — the outer radius
     (``xmax``); the pole r=0 is the angular closure's regularity
-    condition, not a BC face. The unified :class:`TraceSpace` therefore
+    condition, not a BC face. The unified :class:`AngularTraceSpace` therefore
     carries only the ``xmax`` face, and the ``bc`` dict has NO pole
     entry (structurally absent). The realizer's vacuum branch returns
     an :class:`IncomingOrdinateMaskTensor` over the per-face inflow

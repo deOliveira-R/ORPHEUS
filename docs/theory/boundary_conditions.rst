@@ -29,7 +29,7 @@ Key Facts
   +-------+-----------------------+---------------------------------------------+
   | Layer | What                  | Where                                       |
   +=======+=======================+=============================================+
-  | 1     | Trace structure       | :mod:`orpheus.numerics.spaces.trace_space`  |
+  | 1     | Trace structure       | :mod:`orpheus.numerics.spaces.angular_trace_space`  |
   |       | (Γ\_-, Γ\_+ + mask)   | (all Mesh1D coord systems + 2-D Cartesian;  |
   |       |                       | 2-D cylindrical Mesh2D deferred)            |
   +-------+-----------------------+---------------------------------------------+
@@ -94,7 +94,7 @@ Key Facts
   2-D Cartesian) since Issue #188 lifted the curvilinear deferral on
   the boundary trace space (then named ``InflowTraceSpace``; since
   #205 / #201 the unified
-  :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`).
+  :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`).
 - **The realized boundary law is a first-class sibling operator**
   :math:`B` **in the SN algebra (Wave O steps O.4a.2 + O.4b, Issue
   #208).** For **every** SN geometry (1-D slab / sphere / cylinder and
@@ -250,16 +250,16 @@ Layer 1 — trace structure
 The trace operators :math:`\gamma_\pm` carry their domain
 information on **one** typed
 :class:`~orpheus.numerics.space.FunctionSpace` subclass,
-:class:`~orpheus.numerics.spaces.trace_space.TraceSpace`, which stores
+:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`, which stores
 the whole boundary :math:`\Gamma = \partial\Omega \times S^d` once and
 exposes inflow / outflow as two directional **selectors** over it:
 
-* :meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.inflow_indices_for_face`
+* :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face`
   selects :math:`\Gamma_- = \{(\mathbf{r}, \Omega) \in \partial\Omega
   \times S^2 : \Omega \cdot \hat n(\mathbf{r}) < 0\}` — the per-face
   directional half of the boundary on which the incoming angular flux
   is constrained by the law.
-* :meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.outflow_indices_for_face`
+* :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_indices_for_face`
   selects :math:`\Gamma_+` symmetrically — the boundary half on which
   the outgoing flux is *not* constrained by the BC but is *consumed* by
   it (as :math:`\gamma_+ \psi`).
@@ -268,13 +268,13 @@ exposes inflow / outflow as two directional **selectors** over it:
    pre-#188 design carried two separate typed spaces,
    ``InflowTraceSpace`` and ``OutflowTraceSpace``, one per direction.
    The View-G field-vocabulary refactor (#205 / #201) collapsed them
-   into the single :class:`TraceSpace
-   <orpheus.numerics.spaces.trace_space.TraceSpace>` on the observation
+   into the single :class:`AngularTraceSpace
+   <orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace>` on the observation
    that **inflow and outflow are operations on one space, not two
    spaces**: whether an ordinate is incoming or outgoing at a face is a
    *predicate* — :math:`\mathrm{sign}(\Omega \cdot \hat n_f)` —
    evaluated against the same signed-projection data, not a property of
-   the space's identity. :class:`TraceSpace` stores the signed
+   the space's identity. :class:`AngularTraceSpace` stores the signed
    projection :math:`\Omega \cdot \hat n_f` once per face; the two
    ``*_indices_for_face`` methods are selectors over it (see
    :ref:`bc-trace-structure`).
@@ -381,7 +381,7 @@ the load-bearing primitive that downstream consumers need:
 * The SN realizer's vacuum branch reads
   ``inflow_mask[f]`` for the specific face :math:`f` and converts
   it to an integer array of ordinate indices via
-  :meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.inflow_indices_for_face`.
+  :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face`.
   Those indices are the constructor argument to
   :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`.
 * The universal invariant
@@ -393,19 +393,19 @@ the load-bearing primitive that downstream consumers need:
   ERR-047).
 * The SN curvilinear sweep (1-D spherical / cylindrical) consumes
   the same realizer-routed mask as the Cartesian path — Issue #188
-  (C188.1+C188.2 in :mod:`orpheus.numerics.spaces.trace_space`, C188.3 in
+  (C188.1+C188.2 in :mod:`orpheus.numerics.spaces.angular_trace_space`, C188.3 in
   :mod:`orpheus.sn.mesh.augmented_mesh`) lifted the curvilinear deferral and
   Issue #176 then dropped the legacy 2-arg shim that existed only
   to bridge that deferral.
 
-The class :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`
+The class :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
 carries the per-face :math:`\Omega\cdot\hat n` masks as
 ``Optional[np.ndarray]`` fields excluded from
 :meth:`__eq__` and :meth:`__hash__` — preserving the
 :class:`~orpheus.numerics.space.FunctionSpace` identity convention
 ``(name, shape)``. Construction goes through the classmethod factory
-:meth:`TraceSpace.from_quadrature_and_layout
-<orpheus.numerics.spaces.trace_space.TraceSpace.from_quadrature_and_layout>`;
+:meth:`AngularTraceSpace.from_quadrature_and_layout
+<orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.from_quadrature_and_layout>`;
 the bare dataclass constructor is reserved for trace spaces whose mask
 will be populated later (or never).
 
@@ -670,9 +670,9 @@ The Wave 5 SN dispatch table is the documented standard:
    * - :class:`VacuumInflow`
      - :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
        with the per-face ``inflow_indices`` from the method space's
-       :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`
+       :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
        (selected by
-       :meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.inflow_indices_for_face`).
+       :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face`).
      - n/a (vacuum has no α parameter)
    * - :class:`ReflectiveBoundary(axis, α)`
      - bare
@@ -730,7 +730,7 @@ realizer's second argument. It carries:
 * :attr:`~orpheus.sn.mesh.method_space.SNMethodSpace.mesh`,
   :attr:`~orpheus.sn.mesh.method_space.SNMethodSpace.trace` — the
   (optional) spatial mesh and the single unified
-  :class:`~orpheus.numerics.spaces.trace_space.TraceSpace` for any
+  :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` for any
   realizer branch that needs more than the per-face index list. Since
   the #205 / #201 unification this is **one** ``trace`` attribute, not a
   separate ``inflow_trace`` / ``outflow_trace`` pair — inflow and
@@ -918,10 +918,10 @@ Step 3 — method space construction
 ----------------------------------
 
 :meth:`_resolve_bcs` builds **one** unified
-:class:`~orpheus.numerics.spaces.trace_space.TraceSpace` for the whole
+:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` for the whole
 mesh, once, and stores it on ``self._trace``. The factory is the
-geometry-blind :meth:`TraceSpace.from_quadrature_and_layout
-<orpheus.numerics.spaces.trace_space.TraceSpace.from_quadrature_and_layout>`
+geometry-blind :meth:`AngularTraceSpace.from_quadrature_and_layout
+<orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.from_quadrature_and_layout>`
 — it takes the angular quadrature and the mesh's
 :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout` (a
 :class:`~orpheus.numerics.face_layout.FaceLayout`, the single source of
@@ -930,9 +930,9 @@ nothing else:
 
 .. code-block:: python
 
-   from orpheus.numerics.spaces.trace_space import TraceSpace
+   from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 
-   self._trace = TraceSpace.from_quadrature_and_layout(
+   self._trace = AngularTraceSpace.from_quadrature_and_layout(
        self.quad, self.boundary_face_layout,
    )
 
@@ -969,9 +969,9 @@ inflow indices for the requested face:
 There is **one** trace object and **one** ``trace=`` parameter, not an
 ``inflow_trace`` / ``outflow_trace`` pair. The directional split lives
 in the two selector methods
-(:meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.inflow_indices_for_face`
+(:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face`
 /
-:meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.outflow_indices_for_face`),
+:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_indices_for_face`),
 not in the space's identity. Why one space? Because whether an ordinate
 is incoming or outgoing at a face is a *predicate* evaluated against the
 same boundary data, not a property of two distinct domains — folding the
@@ -991,7 +991,7 @@ adapter passes ``None`` (C5.3, #225).
    faces=("left", "right"))``, and :meth:`SNMethodSpace.for_face` took
    *two* arguments, ``inflow_trace=`` and ``outflow_trace=``. That
    machinery is retired: there is now one geometry-blind
-   :class:`TraceSpace <orpheus.numerics.spaces.trace_space.TraceSpace>`
+   :class:`AngularTraceSpace <orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace>`
    with two directional selectors. This note records the older API only
    so that references to ``_inflow_trace`` / ``_outflow_trace`` in
    pre-#188 commit history are legible; it is **not** the current code.
@@ -1078,8 +1078,8 @@ when non-``None``, bound an
 :class:`BoundaryTraceLaw` body. That dual-mode existed ONLY
 because the trace factory (then named ``InflowTraceSpace.from_mesh_and_quadrature``,
 since C5.3 the geometry-blind
-:meth:`TraceSpace.from_quadrature_and_layout
-<orpheus.numerics.spaces.trace_space.TraceSpace.from_quadrature_and_layout>`)
+:meth:`AngularTraceSpace.from_quadrature_and_layout
+<orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.from_quadrature_and_layout>`)
 raised :class:`NotImplementedError` for curvilinear ``Mesh1D``, which
 forced :meth:`SNMesh._resolve_one` to bypass the realizer for
 spherical / cylindrical meshes. Issue #188 lifted that
@@ -2286,13 +2286,13 @@ Curvilinear realizer unification (Issue #188 + #176 close-out)
 The pre-cleanup architecture carried a **Cartesian / curvilinear
 split** at :meth:`SNMesh._resolve_one`: the slab and 2-D Cartesian
 paths constructed a trace space (then named ``InflowTraceSpace``,
-unified into :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`
+unified into :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
 post-#188 and made geometry-blind in C5.3) and routed the BC through
 :class:`SNBoundaryRealizer`, while spherical and cylindrical ``Mesh1D``
 bypassed the realizer entirely because that factory
 (``from_mesh_and_quadrature``, since C5.3
-:meth:`TraceSpace.from_quadrature_and_layout
-<orpheus.numerics.spaces.trace_space.TraceSpace.from_quadrature_and_layout>`)
+:meth:`AngularTraceSpace.from_quadrature_and_layout
+<orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.from_quadrature_and_layout>`)
 raised :class:`NotImplementedError` on those coord systems. The bypass
 wrapped the bare law instance in
 :class:`_BoundBoundaryOperator(law, quadrature=self.quad)`, a
@@ -2402,7 +2402,7 @@ Three SN-side structures key on the same boundary-face string names
        that pack them into one backing array.
    * - **Trace space**
      - :attr:`SNMesh._trace`
-       (:class:`~orpheus.numerics.spaces.trace_space.TraceSpace`)
+       (:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`)
      - The inner-product geometry on the boundary: per-face
        inflow / outflow ordinate masks over the signed
        :math:`\Omega\cdot\hat n` it carries (``trace.layout.faces``
@@ -3090,8 +3090,8 @@ refusal is **unreachable**: a curvilinear ``Mesh2D`` cannot become an
 :class:`SNMesh` in the first place (2-D cylindrical SN has no sweep), so
 no such mesh ever reached the factory. The ``isinstance`` check carried
 no data the factory used. C5.3 therefore renames the factory to
-:meth:`TraceSpace.from_quadrature_and_layout
-<orpheus.numerics.spaces.trace_space.TraceSpace.from_quadrature_and_layout>`
+:meth:`AngularTraceSpace.from_quadrature_and_layout
+<orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.from_quadrature_and_layout>`
 and **retires the dead mesh parameter** (aggressive retirement; callers
 and the bare-constructor error message migrated). Every datum now comes
 from the quadrature (the :math:`\mu_x` / :math:`\mu_y` / :math:`\mu_z`
@@ -3100,7 +3100,7 @@ by the ``"{axis}{min|max}"`` convention).
 
 With the gate gone, :meth:`SNMesh._resolve_bcs` builds the trace
 **unconditionally** (the pre-C5.3 ``isinstance`` gate excluded only the
-unconstructible 2-D cylindrical mesh), and :attr:`SNMesh.trace` is typed
+unconstructible 2-D cylindrical mesh), and :attr:`SNMesh.angular_trace` is typed
 and documented as **always non-None**.
 :meth:`SNMethodSpace.for_face <orpheus.sn.mesh.method_space.SNMethodSpace.for_face>`'s
 ``mesh`` parameter becomes **optional metadata** — nothing in the

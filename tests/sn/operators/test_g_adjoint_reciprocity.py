@@ -21,7 +21,7 @@ Anti-R1 (metric-blind false green)
 ==================================
 
 The reciprocity inner products are evaluated with an **independent**
-``g_inner`` built directly from ``sn.trace.omega_dot_n`` + ``sn.quad.weights``
+``g_inner`` built directly from ``sn.angular_trace.omega_dot_n`` + ``sn.quad.weights``
 + ``sn.volumes`` — NOT from the production metric under test
 (``op.codomain.inner_product``). If ``op.H`` used a *wrong internal* metric
 :math:`G'`, then :math:`\langle A\psi,\varphi\rangle_{G'} \ne \langle\psi,
@@ -63,7 +63,7 @@ from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 
@@ -147,7 +147,7 @@ def _trace_cosine_weight(sn: SNMesh, face_idx: int, *, with_cosine: bool) -> np.
     r"""Per-ordinate trace weight for a face: ``|Ω·n|·w_n`` (true) or ``w_n`` (wrong)."""
     w_n = np.asarray(sn.quad.weights, dtype=float)
     if with_cosine:
-        return np.abs(sn.trace.omega_dot_n[face_idx]) * w_n
+        return np.abs(sn.angular_trace.omega_dot_n[face_idx]) * w_n
     return w_n  # the L11 wrong metric: drops |Ω·n|
 
 
@@ -161,7 +161,7 @@ def _g_inner(a: TimedFullField, b: TimedFullField, sn: SNMesh, *,
     """
     bulk = float(np.sum(_bulk_measure(sn) * a.bulk.values * b.bulk.values))
     trace = 0.0
-    for f_idx, face in enumerate(sn.trace.layout.faces):
+    for f_idx, face in enumerate(sn.angular_trace.layout.faces):
         af = a.boundary.face_view(face)
         bf = b.boundary.face_view(face)
         w_face = _trace_cosine_weight(sn, f_idx, with_cosine=with_cosine)
@@ -174,9 +174,9 @@ def _random_composite(sn: SNMesh, rng: np.random.Generator) -> TimedFullField:
     r"""Random NON-FLAT composite (bulk + boundary both random per ordinate)."""
     N, ng = sn.quad.N, sn.ng
     bulk = AngularFlux.from_mesh(rng.standard_normal((N, ng, *sn.spatial_shape)), sn)
-    boundary = BoundaryFlux(
-        values=rng.standard_normal(int(sn.trace.layout.total_size)),
-        space=sn.trace,
+    boundary = AngularBoundaryFlux(
+        values=rng.standard_normal(int(sn.angular_trace.layout.total_size)),
+        space=sn.angular_trace,
         mesh=sn,
     )
     return TimedFullField(bulk=bulk, boundary=boundary, _history=(), history_depth=2)
@@ -278,8 +278,8 @@ def test_wrong_trace_metric_breaks_reciprocity(case):
     # VARY across ordinates on a reflective face, else dropping it is a no-op
     # and the control cannot fire (G-4 latent-dud lesson).
     spreads = [
-        float(np.ptp(np.abs(sn.trace.omega_dot_n[f])))
-        for f in range(sn.trace.omega_dot_n.shape[0])
+        float(np.ptp(np.abs(sn.angular_trace.omega_dot_n[f])))
+        for f in range(sn.angular_trace.omega_dot_n.shape[0])
     ]
     if not max(spreads) > 0.1:
         pytest.fail(

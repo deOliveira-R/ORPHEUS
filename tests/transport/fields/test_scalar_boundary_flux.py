@@ -2,14 +2,14 @@
 
 Every math-bearing type ships a test of its DEFINING laws (project
 standard): here the :class:`ScalarTraceSpace` space laws, the
-:class:`PartialCurrent` P1 partial-current dictionary
+:class:`ScalarBoundaryFlux` P1 partial-current dictionary
 
     J = J⁺ − J⁻          (net outward current)
     φ_Γ = 2(J⁺ + J⁻)     (P1 boundary scalar flux)
 
 the albedo-family identities ``J⁻ = 𝒜·J⁺`` (vacuum 𝒜=0 / reflective
 𝒜=1 / zero-flux Dirichlet 𝒜=−1), the flat-buffer/view storage
-contract, the field-algebra guards inherited from ``TraceField``, and
+contract, the field-algebra guards inherited from ``BoundaryField``, and
 the widened ``FullField``/``FullFieldSpace`` composite admission.
 
 Convention contract: ``.claude/plans/diffusion_crosswalk.md``.
@@ -26,8 +26,8 @@ from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import CoordSystem, Mesh1D
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces import FullFieldSpace, ScalarTraceSpace
-from orpheus.transport.displacements import PartialCurrentDisplacement
-from orpheus.transport.fields import PartialCurrent, ScalarFlux
+from orpheus.transport.displacements import ScalarBoundaryDisplacement
+from orpheus.transport.fields import ScalarBoundaryFlux, ScalarFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 
@@ -96,7 +96,7 @@ class TestScalarTraceSpace:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# PartialCurrent — the P1 dictionary and the storage contract
+# ScalarBoundaryFlux — the P1 dictionary and the storage contract
 # ─────────────────────────────────────────────────────────────────────
 
 
@@ -106,7 +106,7 @@ class TestPartialCurrentLaws:
         mm = _slab_mesh()
         j_plus = np.array([[3.0, 1.0]])   # placed on OUTFLOW_ROW below
         j_minus = np.array([[1.0, 0.25]])
-        pc = PartialCurrent.from_face_arrays(
+        pc = ScalarBoundaryFlux.from_face_arrays(
             mm,
             {
                 "xmin": np.zeros((2, 2)),
@@ -117,7 +117,7 @@ class TestPartialCurrentLaws:
             pc.net_current("xmax"), (j_plus - j_minus)[0]
         )
         np.testing.assert_array_equal(
-            pc.boundary_scalar_flux("xmax"), 2.0 * (j_plus + j_minus)[0]
+            pc.p1_boundary_scalar_flux("xmax"), 2.0 * (j_plus + j_minus)[0]
         )
 
     def test_albedo_family_identities(self):
@@ -126,16 +126,16 @@ class TestPartialCurrentLaws:
         mm = _slab_mesh()
         j_plus = np.array([2.0, 0.5])
 
-        def with_albedo(albedo: float) -> PartialCurrent:
+        def with_albedo(albedo: float) -> ScalarBoundaryFlux:
             slot = np.vstack([j_plus, albedo * j_plus])
-            return PartialCurrent.from_face_arrays(
+            return ScalarBoundaryFlux.from_face_arrays(
                 mm, {"xmin": np.zeros((2, 2)), "xmax": slot},
             )
 
         vacuum = with_albedo(0.0)
         np.testing.assert_array_equal(vacuum.inflow_view("xmax"), np.zeros(2))
         np.testing.assert_array_equal(
-            vacuum.boundary_scalar_flux("xmax"),
+            vacuum.p1_boundary_scalar_flux("xmax"),
             2.0 * vacuum.net_current("xmax"),
         )
         reflective = with_albedo(1.0)
@@ -144,13 +144,13 @@ class TestPartialCurrentLaws:
         )
         zero_flux = with_albedo(-1.0)
         np.testing.assert_array_equal(
-            zero_flux.boundary_scalar_flux("xmax"), np.zeros(2)
+            zero_flux.p1_boundary_scalar_flux("xmax"), np.zeros(2)
         )
 
     def test_views_share_backing_buffer(self):
         """outflow/inflow views are zero-copy into the flat buffer."""
         mm = _slab_mesh()
-        pc = PartialCurrent.zeros_on(mm)
+        pc = ScalarBoundaryFlux.zeros_on(mm)
         pc.outflow_view("xmin")[:] = 7.0
         np.testing.assert_array_equal(
             pc.face_view("xmin")[ScalarTraceSpace.OUTFLOW_ROW],
@@ -165,7 +165,7 @@ class TestPartialCurrentGuards:
         """An angular/bare space is rejected with the family message."""
         mm = _slab_mesh()
         with pytest.raises(TypeError, match="ScalarTraceSpace"):
-            PartialCurrent(
+            ScalarBoundaryFlux(
                 values=np.zeros(8),
                 space=FunctionSpace(name="scalar_trace", shape=(8,)),
                 mesh=mm,
@@ -173,29 +173,29 @@ class TestPartialCurrentGuards:
 
     def test_mesh_identity_guard(self):
         """Differencing across distinct MaterialMesh instances is forbidden."""
-        a = PartialCurrent.zeros_on(_slab_mesh())
-        b = PartialCurrent.zeros_on(_slab_mesh())
+        a = ScalarBoundaryFlux.zeros_on(_slab_mesh())
+        b = ScalarBoundaryFlux.zeros_on(_slab_mesh())
         with pytest.raises(ValueError, match="distinct MaterialMesh"):
             _ = a - b
 
     def test_torsor_algebra(self):
         """The #208 affine discipline on the scalar trace: state ⊖ state →
-        PartialCurrentDisplacement, state ⊕ displacement → state, and the
+        ScalarBoundaryDisplacement, state ⊕ displacement → state, and the
         illegal ``state + state`` is unrepresentable."""
         mm = _slab_mesh()
-        a = PartialCurrent.zeros_on(mm)
-        b = PartialCurrent.from_face_arrays(
+        a = ScalarBoundaryFlux.zeros_on(mm)
+        b = ScalarBoundaryFlux.from_face_arrays(
             mm, {"xmin": np.ones((2, 2)), "xmax": np.ones((2, 2))},
         )
         step = b - a
-        if not isinstance(step, PartialCurrentDisplacement):
+        if not isinstance(step, ScalarBoundaryDisplacement):
             pytest.fail(
                 f"state ⊖ state must be the displacement sibling; got "
                 f"{type(step).__name__}"
             )
         np.testing.assert_array_equal(step.values, b.values - a.values)
         moved = a + step
-        if not isinstance(moved, PartialCurrent):
+        if not isinstance(moved, ScalarBoundaryFlux):
             pytest.fail("state ⊕ displacement must be a state")
         np.testing.assert_array_equal(moved.values, b.values)
         with pytest.raises(TypeError):
@@ -204,7 +204,7 @@ class TestPartialCurrentGuards:
     def test_from_face_arrays_rejects_wrong_faces(self):
         mm = _slab_mesh()
         with pytest.raises(ValueError, match="face_arrays keys"):
-            PartialCurrent.from_face_arrays(mm, {"xmax": np.zeros((2, 2))})
+            ScalarBoundaryFlux.from_face_arrays(mm, {"xmax": np.zeros((2, 2))})
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -216,7 +216,7 @@ class TestScalarComposite:
     def test_scalar_composite_constructs_and_reads_one_mesh(self):
         mm = _slab_mesh()
         full = FullField(
-            bulk=ScalarFlux.zeros_on(mm), boundary=PartialCurrent.zeros_on(mm),
+            bulk=ScalarFlux.zeros_on(mm), boundary=ScalarBoundaryFlux.zeros_on(mm),
         )
         if full.mesh is not mm:
             pytest.fail("composite mesh must be the shared MaterialMesh")
@@ -227,7 +227,7 @@ class TestScalarComposite:
         with pytest.raises(ValueError, match="share mesh identity"):
             FullField(
                 bulk=ScalarFlux.zeros_on(_slab_mesh()),
-                boundary=PartialCurrent.zeros_on(_slab_mesh()),
+                boundary=ScalarBoundaryFlux.zeros_on(_slab_mesh()),
             )
 
     def test_direct_sum_space_metric_and_inner_product(self):
@@ -235,7 +235,7 @@ class TestScalarComposite:
         product is the bulk + trace block sum (hand value)."""
         mm = _slab_mesh()
         bulk = ScalarFlux.zeros_on(mm)
-        pc = PartialCurrent.zeros_on(mm)
+        pc = ScalarBoundaryFlux.zeros_on(mm)
         pc.outflow_view("xmax")[:] = [3.0, 1.0]
         pc.inflow_view("xmax")[:] = [1.0, 0.25]
         full = FullField(bulk=bulk, boundary=pc)

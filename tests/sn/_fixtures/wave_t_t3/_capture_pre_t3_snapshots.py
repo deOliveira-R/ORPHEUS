@@ -66,7 +66,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
 OUT_FILE = Path(__file__).parent / "pre_t3_snapshots.npz"
@@ -165,7 +165,7 @@ def main() -> None:
 
     psi = _make_psi(p1_solver, seed=20260530)
     phi = _make_phi(p1_solver, seed=20260530 + 1)
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=p1_solver.sn_mesh)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=p1_solver.sn_mesh)
     from dataclasses import replace
 
     bulk_values = psi.values.copy()

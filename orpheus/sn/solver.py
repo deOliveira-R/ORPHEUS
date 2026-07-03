@@ -55,7 +55,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.mesh.axis import Axis1D
 from .loss_representation import transport_sweep
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
 
@@ -232,9 +232,9 @@ def evaluate_residual(
         r \;=\; (L + C - S - B)\,\psi \;-\; q
 
     via the named composition :meth:`AngularResidual.from_balance` /
-    :meth:`BoundaryResidual.from_balance` (NOT a bare cross-class ``−``, which
+    :meth:`AngularBoundaryResidual.from_balance` (NOT a bare cross-class ``−``, which
     would mis-type the defect as a source), returning the typed composite
-    ``FullField(bulk=AngularResidual, boundary=BoundaryResidual)``.  A residual
+    ``FullField(bulk=AngularResidual, boundary=AngularBoundaryResidual)``.  A residual
     is a one-shot balance defect — it carries no iteration history, so it is the
     timeless :class:`~orpheus.transport.full_field.FullField` (the
     ``history_depth = 0`` degenerate; W-C confines the timed type to the driver
@@ -265,8 +265,8 @@ def evaluate_residual(
         (the timed iterate would pass via inheritance, but the residual output is
         history-free regardless).
     """
-    from orpheus.transport.fields._bases import AngularField, BoundaryField
-    from orpheus.transport.residuals import AngularResidual, BoundaryResidual
+    from orpheus.transport.fields._bases import AngularField, AngularBoundaryField
+    from orpheus.transport.residuals import AngularResidual, AngularBoundaryResidual
 
     lhs = loss_op.apply(psi)  # (L+C−S−B)·ψ — a source-role composite
     # Role parse at the composite boundary: ``AngularResidual.from_balance``
@@ -280,16 +280,16 @@ def evaluate_residual(
             f"per-ordinate source; got {type(q_bulk).__name__}."
         )
     # Same parse on the trace legs: the widened ``FullField.boundary`` slot
-    # (a TraceField since #290 P2) erases the family; the SN residual builder
+    # (a BoundaryField since #290 P2) erases the family; the SN residual builder
     # demands the ANGULAR trace on both sides.
     lhs_boundary = lhs.boundary
     q_boundary = q_ext.boundary
-    if not isinstance(lhs_boundary, BoundaryField) or not isinstance(
-        q_boundary, BoundaryField
+    if not isinstance(lhs_boundary, AngularBoundaryField) or not isinstance(
+        q_boundary, AngularBoundaryField
     ):
         raise TypeError(
             f"evaluate_residual: both composites must carry angular "
-            f"(BoundaryField-family) traces; got lhs "
+            f"(AngularBoundaryField-family) traces; got lhs "
             f"{type(lhs_boundary).__name__}, rhs {type(q_boundary).__name__}."
         )
     # A residual is a one-shot balance defect, not an iterate — it carries no
@@ -297,7 +297,7 @@ def evaluate_residual(
     # of TimedFullField; W-C confines the timed type to the driver iterate).
     return FullField(
         bulk=AngularResidual.from_balance(lhs=lhs.bulk, rhs=q_bulk),
-        boundary=BoundaryResidual.from_balance(
+        boundary=AngularBoundaryResidual.from_balance(
             lhs=lhs_boundary, rhs=q_boundary,
         ),
     )
@@ -311,7 +311,7 @@ def boundary_vs_interior_split(residual: "FullField") -> tuple[float, float]:
     norm — the same metric the SI stopping test uses). Discriminates a
     BC-realizer / reflective-trace defect (large ``boundary``) from an
     interior-streaming defect (large ``interior``) — free from the typed
-    composite ``FullField(bulk=AngularResidual, boundary=BoundaryResidual)``.
+    composite ``FullField(bulk=AngularResidual, boundary=AngularBoundaryResidual)``.
     """
     interior = float(np.linalg.norm(np.asarray(residual.bulk.values).ravel()))
     boundary = float(np.linalg.norm(np.asarray(residual.boundary.values).ravel()))
@@ -413,7 +413,7 @@ def _windowed_cold_start(scattering_op, sn_mesh, *, history_depth):
     moment-consuming ``S.apply`` / ``B.apply`` expect — shared by both SI
     drivers (``coding-elegance`` Pattern 2).
     """
-    from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.fields.harmonic_moment_flux import (
         HarmonicMomentFlux,
     )
@@ -424,7 +424,7 @@ def _windowed_cold_start(scattering_op, sn_mesh, *, history_depth):
             sn_mesh, scattering_op.scattering_order,
             spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
         ),
-        boundary=BoundaryFlux.zeros_on(sn_mesh),
+        boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
         _history=(),
         history_depth=history_depth,
     )
@@ -440,14 +440,14 @@ def _unwindowed_cold_start(sn_mesh, *, history_depth):
     (per_axis == 1) → no factor (byte-identical to the prior ``TimedFullField.zeros``).
     The un-windowed sibling of :func:`_windowed_cold_start` (Pattern 2)."""
     from orpheus.transport.fields.angular_flux import AngularFlux
-    from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.timed_full_field import TimedFullField
 
     return TimedFullField(
         bulk=AngularFlux.zeros_on(
             sn_mesh, spatial_moments=sn_mesh.scheme.spatial_basis_per_axis,
         ),
-        boundary=BoundaryFlux.zeros_on(sn_mesh),
+        boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
         _history=(),
         history_depth=history_depth,
     )
@@ -693,10 +693,10 @@ class SNSolver:
         self.weight_norm = 1.0 / sn_mesh.quad.weights.sum()
 
         # Persistent boundary flux state (passed to sweep).
-        # Issue #197 PR-TYPED-2: typed :class:`BoundaryFlux` replaces
+        # Issue #197 PR-TYPED-2: typed :class:`AngularBoundaryFlux` replaces
         # the stringly-typed ``psi_bc: dict``.  Per-face buffers
         # become named attributes; typos surface as AttributeError.
-        self._boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
+        self._boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
 
         # Phase 3 measurement seam: total inner (within-group) SI/Krylov
         # iterations consumed across the eigenvalue outer loop — the
@@ -1045,7 +1045,7 @@ class SNSolver:
         :class:`KrylovAcceleration`), and neither driver carries any
         geometry dependence.  The reflective coupling rides the BARE
         sweep via the ``B`` coupling gain on the 4-face
-        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+        :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
         (:class:`SNBoundaryOperator` is natively 4-face —
         xmin/xmax/ymin/ymax — and is the SAME operator the working 2-D
         Krylov path uses).
@@ -1053,7 +1053,7 @@ class SNSolver:
         The legacy "B1'' face block" that the 2-D path was once said to
         lack is RETIRED — it never existed as code on this branch; it
         was a 1-D boundary-closure name fully superseded by the L2
-        ``BoundaryFlux`` + ``SNBoundaryOperator`` bare-boundary
+        ``AngularBoundaryFlux`` + ``SNBoundaryOperator`` bare-boundary
         architecture (Wave O O.4a.2 / O.4b).  The historical
         ``NotImplementedError`` guard predated that architecture by two
         weeks (the body's ``S + B`` fold landed 2026-06-03) and was
@@ -1069,12 +1069,12 @@ class SNSolver:
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
         )
-        from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux,
+        from orpheus.transport.fields.angular_boundary_flux import (
+            AngularBoundaryFlux,
         )
         from orpheus.transport.source_sinks import (
             AngularSourceSink,
-            BoundarySourceSink,
+            AngularBoundarySourceSink,
         )
         from orpheus.transport.timed_full_field import TimedFullField
 
@@ -1104,11 +1104,11 @@ class SNSolver:
         # ``ψ.boundary``, not an externally-recomputed partner trace.
         q_ext_composite = TimedFullField(
             # B.5.2: q_ext IS a source — carry the AngularSourceSink bulk AND
-            # the BoundarySourceSink inflow trace (zero for vacuum/reflective;
+            # the AngularBoundarySourceSink inflow trace (zero for vacuum/reflective;
             # prescribed inflow otherwise). The SI rhs q_ext + S.apply + B.apply
-            # closes on BoundarySourceSink (operator outputs are sources).
+            # closes on AngularBoundarySourceSink (operator outputs are sources).
             bulk=q_ext_per_ord,
-            boundary=BoundarySourceSink.zeros_on(self.sn_mesh),
+            boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -1226,7 +1226,7 @@ class SNSolver:
         =====
 
         D-H.2-C4d (2026-05-29) — 2-D Cartesian unblocked.  The L2
-        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+        :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
         face layout is the natural 4-face descriptor (xmin / xmax /
         ymin / ymax) that the legacy 1-D B1'' face block lacked; the
         L2-native representation ``loss_action`` 2-D matvec walk
@@ -1239,12 +1239,12 @@ class SNSolver:
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
         )
-        from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux,
+        from orpheus.transport.fields.angular_boundary_flux import (
+            AngularBoundaryFlux,
         )
         from orpheus.transport.source_sinks import (
             AngularSourceSink,
-            BoundarySourceSink,
+            AngularBoundarySourceSink,
         )
         from orpheus.transport.timed_full_field import TimedFullField
 
@@ -1261,11 +1261,11 @@ class SNSolver:
         )
         q_ext_composite = TimedFullField(
             # B.5.2: q_ext IS a source — carry the AngularSourceSink bulk AND
-            # the BoundarySourceSink inflow trace (zero for vacuum/reflective;
+            # the AngularBoundarySourceSink inflow trace (zero for vacuum/reflective;
             # prescribed inflow otherwise). The SI rhs q_ext + S.apply + B.apply
-            # closes on BoundarySourceSink (operator outputs are sources).
+            # closes on AngularBoundarySourceSink (operator outputs are sources).
             bulk=q_ext_per_ord,
-            boundary=BoundarySourceSink.zeros_on(self.sn_mesh),
+            boundary=AngularBoundarySourceSink.zeros_on(self.sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -1292,7 +1292,7 @@ class SNSolver:
             # q_ext's now-AngularSourceSink type.  x0 stays all-zeros
             # (bit-identical); the flux template fixes the Krylov return type.
             initial_guess = TimedFullField.zeros(
-                bulk=AngularFlux, boundary=BoundaryFlux, mesh=self.sn_mesh,
+                bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=self.sn_mesh,
             )
 
         psi_typed, _residuals = krylov.solve(
@@ -1558,7 +1558,7 @@ def solve_sn(
         Typed return carrying eigenvalue, typed
         :class:`~orpheus.sn.angular_flux.AngularFlux` +
         :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` +
-        :class:`~orpheus.sn.boundary_flux.BoundaryFlux` fields plus an
+        :class:`~orpheus.sn.boundary_flux.AngularBoundaryFlux` fields plus an
         :class:`~orpheus.sn.solution.IterationHistory` carrying the
         eigenvalue trajectory.  Issue #197 PR-TYPED-5 — the legacy
         :class:`SNResult` data bag was retired in favour of the
@@ -1593,8 +1593,8 @@ def solve_sn(
     # producer-side normalisation — /W projection at the factory
     # boundary).
     from orpheus.transport.source_sinks import AngularSourceSink
-    from orpheus.transport.fields.boundary_flux import (
-        BoundaryFlux as _BoundaryFlux,
+    from orpheus.transport.fields.angular_boundary_flux import (
+        AngularBoundaryFlux as _BoundaryFlux,
     )
     Q_final = solver.compute_fission_source(scalar_flux, keff)
     solver._add_scattering_source(Q_final, scalar_flux)
@@ -1638,8 +1638,8 @@ def solve_sn(
     from orpheus.transport.fields.angular_flux import (
         AngularFlux,
     )
-    from orpheus.transport.fields.boundary_flux import (
-        BoundaryFlux,
+    from orpheus.transport.fields.angular_boundary_flux import (
+        AngularBoundaryFlux,
     )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.timed_full_field import TimedFullField
@@ -1674,7 +1674,7 @@ def _build_fixed_source_rhs(
     A fixed-source problem's RHS is the composite source
     :class:`~orpheus.transport.timed_full_field.TimedFullField` — a bulk
     :class:`~orpheus.transport.source_sinks.AngularSourceSink` paired with a
-    boundary :class:`~orpheus.transport.source_sinks.BoundarySourceSink`
+    boundary :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`
     (the prescribed inflow :math:`q` of the affine BC
     :math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q`). This is the ONE object
     that represents a source everywhere in the solve; this helper is its
@@ -1702,7 +1702,7 @@ def _build_fixed_source_rhs(
       (``per_axis == 1``, no moment axis) is rejected by the flat-shape check.
     * :class:`TimedFullField` — the full COMPOSITE source (bulk + a possibly
       non-vacuum prescribed-inflow boundary, e.g. from
-      :meth:`BoundarySourceSink.prescribed_inflow`). Its leaf values are
+      :meth:`AngularBoundarySourceSink.prescribed_inflow`). Its leaf values are
       re-homed onto ``sn_mesh``: the trace/grid layout is deterministic from
       ``(mesh, quadrature, materials)``, so this is an exact values-copy onto
       the solve's own mesh instance — required because the within-group
@@ -1711,7 +1711,7 @@ def _build_fixed_source_rhs(
     """
     from orpheus.transport.source_sinks import (
         AngularSourceSink,
-        BoundarySourceSink,
+        AngularBoundarySourceSink,
     )
 
     N = sn_mesh.quad.N
@@ -1720,16 +1720,16 @@ def _build_fixed_source_rhs(
 
     if isinstance(external_source, TimedFullField):
         bulk_values = np.asarray(external_source.bulk.values)
-        trace_size = int(sn_mesh.trace.layout.total_size)
+        trace_size = int(sn_mesh.angular_trace.layout.total_size)
         boundary_values = external_source.boundary.values
         if boundary_values.size != trace_size:
             raise ValueError(
                 f"_build_fixed_source_rhs: composite boundary source has "
-                f"{boundary_values.size} values, but sn_mesh.trace expects "
+                f"{boundary_values.size} values, but sn_mesh.angular_trace expects "
                 f"{trace_size} (layout mismatch — the composite must be built "
                 f"on the same mesh / quadrature / materials)."
             )
-        boundary = BoundarySourceSink.from_mesh(boundary_values.copy(), sn_mesh)
+        boundary = AngularBoundarySourceSink.from_mesh(boundary_values.copy(), sn_mesh)
     else:
         bulk_values = np.asarray(external_source)
         if bulk_values.dtype == object:
@@ -1742,7 +1742,7 @@ def _build_fixed_source_rhs(
                 f"TimedFullField composite source; got "
                 f"{type(external_source).__name__}"
             )
-        boundary = BoundarySourceSink.zeros_on(sn_mesh)
+        boundary = AngularBoundarySourceSink.zeros_on(sn_mesh)
 
     # Issue #196 PR-INDEX-5 + #247: the bulk source is a typed union of TWO
     # principled ndarray ranks — flat ``(N, ng, *spatial)`` (the original path)
@@ -1914,10 +1914,10 @@ def solve_sn_fixed_source(
           full **composite** source ``q = q_bulk ⊕ q_∂`` (a bulk
           :class:`~orpheus.transport.source_sinks.AngularSourceSink` paired
           with a boundary
-          :class:`~orpheus.transport.source_sinks.BoundarySourceSink`). This
+          :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`). This
           is how a **non-vacuum prescribed inflow** is supplied — build the
           boundary via
-          :meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
+          :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
           (the affine-BC inhomogeneous term :math:`q`, consumed by the sweep
           as the inflow seed). The legacy array form is exactly the
           bulk-only / vacuum special case of this composite.
@@ -2092,8 +2092,8 @@ def _solve_fixed_source_si(
     from orpheus.transport.fields.angular_flux import (
         AngularFlux,
     )
-    from orpheus.transport.fields.boundary_flux import (
-        BoundaryFlux,
+    from orpheus.transport.fields.angular_boundary_flux import (
+        AngularBoundaryFlux,
     )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
 
@@ -2279,8 +2279,8 @@ def _solve_fixed_source_krylov(
     from orpheus.transport.fields.angular_flux import (
         AngularFlux,
     )
-    from orpheus.transport.fields.boundary_flux import (
-        BoundaryFlux,
+    from orpheus.transport.fields.angular_boundary_flux import (
+        AngularBoundaryFlux,
     )
     from orpheus.transport.fields.scalar_flux import ScalarFlux
 
@@ -2290,7 +2290,7 @@ def _solve_fixed_source_krylov(
     # ``q_ext_composite`` is the normalised composite RHS ``q = q_bulk ⊕ q_∂``
     # built once by :func:`_build_fixed_source_rhs` (Cardinal Rule 2). B.5.2:
     # q_ext IS a source — bulk per-ordinate-density ``AngularSourceSink`` +
-    # boundary ``BoundarySourceSink`` prescribed inflow (zero for vacuum /
+    # boundary ``AngularBoundarySourceSink`` prescribed inflow (zero for vacuum /
     # reflective — the reflective inflow rides ``initial_guess`` /
     # ``rhs.boundary``, not ``q_ext``; a NON-vacuum prescribed inflow IS
     # carried in ``q_ext_composite.boundary``). The Krylov matvec composes

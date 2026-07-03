@@ -1,16 +1,16 @@
-r"""Pure-Field :class:`BoundaryFlux` — boundary trace on a flat layout.
+r"""Pure-Field :class:`AngularBoundaryFlux` — boundary trace on a flat layout.
 
 L2 typed wrapper for the angular flux at the SN domain boundary,
-inheriting :class:`~orpheus.transport.fields._bases.BoundaryField`.
+inheriting :class:`~orpheus.transport.fields._bases.AngularBoundaryField`.
 Storage is a SINGLE flat backing buffer; per-face access goes through a
 :class:`~orpheus.numerics.face_layout.FaceLayout` descriptor (carried by
-the :class:`~orpheus.numerics.spaces.trace_space.TraceSpace` since A.5)
+the :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` since A.5)
 that maps face names to ``(offset, shape)`` slice views — no copies.
 
 Migration status (Depth B step D-G → A.5 → B.1)
 ================================================
 
-Pre-D-G ``orpheus.sn.boundary_flux.BoundaryFlux`` was a MUTABLE bundle
+Pre-D-G ``orpheus.sn.boundary_flux.AngularBoundaryFlux`` was a MUTABLE bundle
 with four per-geometry-conditional ndarray attributes (``xmin_face``,
 ``xmax_face``, ``xmin_xmax_buf``, ``ymin_ymax_buf``) — two of which
 were always ``None`` for any given geometry, and the 2-D pair
@@ -21,7 +21,7 @@ Post-D-G this class:
 * **Is a pure Field** (single flat ``values`` array + L1 ``space``
   + Field-inherited algebra) — and since **A.5** (View-G, #205/#201)
   that ``space`` IS the unified
-  :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`, so the
+  :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`, so the
   storage is genuinely ``values + space`` with NO extra geometry
   attribute. Cross-method generality: MoC's per-track-family "boundary
   faces" (thousands) work with the same flat-buffer arithmetic as SN's
@@ -31,8 +31,8 @@ Post-D-G this class:
   sweep-side :class:`~orpheus.sn.sweep_scratch.SweepScratch` +
   functional reconstruction at iteration boundaries.
 * **Carries face geometry via** :class:`~orpheus.numerics.face_layout.FaceLayout`
-  **on the** :class:`TraceSpace` **(A.5)**, not as a separate field
-  attribute. ``mesh.trace`` is the cached source; the underlying
+  **on the** :class:`AngularTraceSpace` **(A.5)**, not as a separate field
+  attribute. ``mesh.angular_trace`` is the cached source; the underlying
   per-geometry descriptor is still
   :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout` (1-D slab:
   ``xmin``, ``xmax``; 1-D curvilinear: ``xmax``; 2-D: ``xmin``,
@@ -46,24 +46,24 @@ Post-D-G this class:
   owned by the sweep operator across iterations).
 
 **B.1 (field vocabulary):** every member that was generic to a boundary
-trace field — the ``mesh`` field, the cross-mesh guard, the TraceSpace
+trace field — the ``mesh`` field, the cross-mesh guard, the AngularTraceSpace
 contract, the :attr:`layout` property, :meth:`face_view`, and the
 :meth:`zeros_on` / :meth:`from_face_arrays` factories — moved up
-to the :class:`~orpheus.transport.fields._bases.BoundaryField` storage
-base. ``BoundaryFlux`` is the *flux* role leaf; ``BoundarySourceSink``
-(``orpheus.transport.source_sinks``) and ``BoundaryResidual``
-(``orpheus.transport.residuals``) joined it under ``BoundaryField`` in B.3.
+to the :class:`~orpheus.transport.fields._bases.AngularBoundaryField` storage
+base. ``AngularBoundaryFlux`` is the *flux* role leaf; ``AngularBoundarySourceSink``
+(``orpheus.transport.source_sinks``) and ``AngularBoundaryResidual``
+(``orpheus.transport.residuals``) joined it under ``AngularBoundaryField`` in B.3.
 
 References
 ==========
 
 * Depth B plan §3.4 (Option Ω flat-buffer storage) and §6 step D-G;
-  ``field_role_typing_view_g.md`` A.5 (TraceSpace re-home) + B.1
+  ``field_role_typing_view_g.md`` A.5 (AngularTraceSpace re-home) + B.1
   (storage-base ABCs).
 * `.claude/agent-memory/test-architect/dg_boundary_flux_pure_field_verification.md`.
 * `.claude/agent-memory/explorer/dg_boundary_flux_consumer_audit.md`.
 * ``coding-elegance`` Pattern 1 (read-as-the-math via dunder),
-  Pattern 2 (single source of truth — BoundaryField), Pattern 4
+  Pattern 2 (single source of truth — AngularBoundaryField), Pattern 4
   (illegal states unrepresentable — immutability).
 """
 
@@ -73,29 +73,29 @@ from dataclasses import dataclass
 from typing import ClassVar
 
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
-from orpheus.transport.fields._bases import BoundaryField
+from orpheus.transport.fields._bases import AngularBoundaryField
 from orpheus.transport.fields._flux_role import FluxRole
 
 
-__all__ = ["BoundaryFlux"]
+__all__ = ["AngularBoundaryFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class BoundaryFlux(FluxRole, BoundaryField):
+class AngularBoundaryFlux(FluxRole, AngularBoundaryField):
     r"""L2 boundary trace flux — the *flux* role leaf of
-    :class:`~orpheus.transport.fields._bases.BoundaryField`.
+    :class:`~orpheus.transport.fields._bases.AngularBoundaryField`.
 
     Parameters
     ----------
     values : NDArray
         Flat backing buffer, shape ``(space.layout.total_size,)``.
-    space : TraceSpace
+    space : AngularTraceSpace
         The unified boundary
-        :class:`~orpheus.numerics.spaces.trace_space.TraceSpace` — the
+        :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` — the
         L1 space anchor (Euclidean inner product) that also carries the
         per-geometry :class:`~orpheus.numerics.face_layout.FaceLayout`.
         Canonically the mesh's cached
-        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.trace`.
+        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.angular_trace`.
     mesh : SNMesh
         The SN phase-space carrier (the cross-mesh-arithmetic guard).
 
@@ -103,12 +103,12 @@ class BoundaryFlux(FluxRole, BoundaryField):
     -----
     All storage, validation, algebra, per-face access, and construction
     machinery is inherited from
-    :class:`~orpheus.transport.fields._bases.BoundaryField` (B.1). This
+    :class:`~orpheus.transport.fields._bases.AngularBoundaryField` (B.1). This
     leaf carries no flux-specific behaviour beyond its class identity —
     which is exactly what Field's Layer-1 gate uses to keep boundary
     flux, source, and residual arithmetic from silently mixing. Build
-    via :meth:`~orpheus.transport.fields._bases.BoundaryField.zeros_on`
-    / :meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`.
+    via :meth:`~orpheus.transport.fields._bases.AngularBoundaryField.zeros_on`
+    / :meth:`~orpheus.transport.fields._bases.AngularBoundaryField.from_face_arrays`.
     """
 
     #: Dimensional identity (View-G, B.4): the boundary trace stores flux

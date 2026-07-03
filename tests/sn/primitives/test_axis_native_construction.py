@@ -259,7 +259,7 @@ def test_d3_cartesian_builds_trace_and_bc_inventory() -> None:
         _d3_axes(), Quadrature.level_symmetric(sn_order=4), _MATERIALS,
     )
     six = ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")
-    np.testing.assert_equal(tuple(m.trace.layout.faces), six)
+    np.testing.assert_equal(tuple(m.angular_trace.layout.faces), six)
     np.testing.assert_equal(tuple(m.boundary_face_layout.faces), six)
     np.testing.assert_equal(sorted(m.bc), sorted(six))
     np.testing.assert_equal(
@@ -393,7 +393,7 @@ def test_2d_cylindrical_mesh_refused_at_construction() -> None:
 def test_d2_trace_builds_for_every_constructible_geometry() -> None:
     """C5-G8: trace is UNCONDITIONAL — every constructible SNMesh has one."""
     slab = _slab_sn()
-    np.testing.assert_equal(sorted(slab.trace.layout.faces), ["xmax", "xmin"])
+    np.testing.assert_equal(sorted(slab.angular_trace.layout.faces), ["xmax", "xmin"])
     sphere = SNMesh.from_axes(
         (RadialAxisMesh(
             edges=np.linspace(0.0, 1.0, 4),
@@ -401,4 +401,4 @@ def test_d2_trace_builds_for_every_constructible_geometry() -> None:
         ),),
         Quadrature.gauss_legendre(n_ordinates=8), _MATERIALS,
     )
-    np.testing.assert_equal(tuple(sphere.trace.layout.faces), ("xmax",))
+    np.testing.assert_equal(tuple(sphere.angular_trace.layout.faces), ("xmax",))

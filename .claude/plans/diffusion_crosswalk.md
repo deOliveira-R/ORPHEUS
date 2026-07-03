@@ -10,8 +10,8 @@ the ONE site that owns each convention (Pattern 7 — normalise at the definitio
 | J⁺ (outflow partial current) | `φ_b/4 + J/2` | `φ_b = 2(J⁺ + J⁻)` |
 | J⁻ (inflow partial current)  | `φ_b/4 − J/2` | `J = J⁺ − J⁻` |
 
-Owner of the derived quantities (`net_current`, `boundary_scalar_flux`):
-**`PartialCurrent` methods** — no consumer re-derives the dictionary.
+Owner of the derived quantities (`net_current`, `p1_boundary_scalar_flux`):
+**`ScalarBoundaryFlux` methods** — no consumer re-derives the dictionary.
 
 ## Storage layout
 
@@ -46,7 +46,7 @@ the domain, J⁻ ≥ 0 enters, net `J = J⁺ − J⁻` > 0 = leakage out — at 
 
 | Space | Weight | Meaning |
 |---|---|---|
-| SN `TraceSpace` | `G_s = |Ω·n̂_f| ⊙ w_n` per ordinate | partial-current pairing of angular DENSITIES |
+| SN `AngularTraceSpace` | `G_s = |Ω·n̂_f| ⊙ w_n` per ordinate | partial-current pairing of angular DENSITIES |
 | `ScalarTraceSpace` | boundary face AREA per slot (slab 1, cyl 2πR, sph 4πR²) | surface measure for already-angle-INTEGRATED currents |
 
 Consistency claim (DSA #2 seam): the scalar trace is the ℓ=0 half-range moment of the

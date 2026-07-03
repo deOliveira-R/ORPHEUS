@@ -44,7 +44,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 
@@ -86,7 +86,7 @@ _CASES = {"slab_2g": _slab_2g, "cart2d_2g": _cart2d_2g}
 
 
 def _zeros_state(sn: SNMesh) -> TimedFullField:
-    return TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
+    return TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
 
 
 @pytest.mark.parametrize("case", list(_CASES))

@@ -46,15 +46,15 @@ from orpheus.numerics.units import (
 )
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.residuals import (
     AngularResidual,
-    BoundaryResidual,
+    AngularBoundaryResidual,
     ScalarResidual,
 )
-from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink, ScalarSourceSink
+from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink, ScalarSourceSink
 
 from tests.sn._test_helpers import placeholder_materials
 
@@ -65,9 +65,9 @@ pytestmark = pytest.mark.foundation
 #: rest of the module checks against.
 LEAF_UNITS = [
     (AngularFlux, ANGULAR_FLUX_UNITS),
-    (BoundaryFlux, ANGULAR_FLUX_UNITS),
-    (BoundarySourceSink, ANGULAR_FLUX_UNITS),
-    (BoundaryResidual, ANGULAR_FLUX_UNITS),
+    (AngularBoundaryFlux, ANGULAR_FLUX_UNITS),
+    (AngularBoundarySourceSink, ANGULAR_FLUX_UNITS),
+    (AngularBoundaryResidual, ANGULAR_FLUX_UNITS),
     (ScalarFlux, SCALAR_FLUX_UNITS),
     (HarmonicMomentFlux, SCALAR_FLUX_UNITS),
     (AngularSourceSink, ANGULAR_RATE_UNITS),
@@ -164,9 +164,9 @@ class TestSameUnitsDifferentRole:
         [
             (AngularSourceSink, AngularResidual),   # rate density, Ω
             (ScalarSourceSink, ScalarResidual),     # rate density, scalar
-            (AngularFlux, BoundaryFlux),        # flux density, Ω
-            (BoundaryFlux, BoundarySourceSink),     # boundary all-flux
-            (BoundarySourceSink, BoundaryResidual),
+            (AngularFlux, AngularBoundaryFlux),        # flux density, Ω
+            (AngularBoundaryFlux, AngularBoundarySourceSink),     # boundary all-flux
+            (AngularBoundarySourceSink, AngularBoundaryResidual),
             (ScalarFlux, HarmonicMomentFlux),  # areal scalar (ℓ=0 IS φ)
         ],
     )

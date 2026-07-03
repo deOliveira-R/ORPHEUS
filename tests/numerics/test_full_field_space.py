@@ -31,7 +31,7 @@ def _bulk(shape=(4, 2, 3, 1), weights=True) -> FunctionSpace:
 
 def _trace(n=8, weights=True) -> FunctionSpace:
     w = np.linspace(0.1, 1.0, n) if weights else None
-    return FunctionSpace(name="sn_trace", shape=(n,), inner_product_weights=w)
+    return FunctionSpace(name="angular_trace", shape=(n,), inner_product_weights=w)
 
 
 @pytest.mark.foundation

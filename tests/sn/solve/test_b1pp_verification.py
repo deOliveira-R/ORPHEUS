@@ -40,7 +40,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 # Per-test V&V level markers (see individual @pytest.mark.lN decorators).
 
@@ -134,7 +134,7 @@ def test_b1pp_lplusc_is_full_rank(name, builder):
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
 
-    template = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+    template = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     n_flat = template.to_flat().size
 
     def matvec_flat(flat: np.ndarray) -> np.ndarray:
@@ -148,7 +148,7 @@ def test_b1pp_lplusc_is_full_rank(name, builder):
         e[k] = 1.0
         M[:, k] = matvec_flat(e)
 
-    # The typed direct-sum flat layout includes BoundaryFlux slots for
+    # The typed direct-sum flat layout includes AngularBoundaryFlux slots for
     # inflow ordinates (face_view slots where no equation is defined —
     # implicit-zero in the operator output).  Those rows AND columns
     # of M are structurally zero (no equation at that slot, and that
@@ -226,7 +226,7 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     # face_view = 1 at every face slot (the "ψ = const at every B1''
     # slot" condition the docstring describes).  The face-flat buffer
     # is filled by assigning to every face_view in turn.
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     bulk_values = np.ones_like(state.bulk.values)
     new_bulk = replace(state.bulk, values=bulk_values)
     new_boundary = state.boundary
@@ -249,7 +249,7 @@ def test_b1pp_constant_flux_collapses_to_collision(name, builder):
     # "WDD residual = 0".  On each face the OUTFLOW ordinate slots carry the
     # self-consistency defect ``streamed − ψ.outflow`` (= 0 for flat ψ) and the
     # INFLOW ordinate slots carry the identity ``ψ.inflow`` (= 1 here).
-    trace = sn_mesh.trace
+    trace = sn_mesh.angular_trace
     for face in out.boundary.layout.faces:
         fv = out.boundary.face_view(face)
         outflow = trace.outflow_indices_for_face(face)
@@ -309,7 +309,7 @@ def test_b1pp_lplusc_gmres_converges_fp_noise(name, builder):
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sigma_t, sn_mesh)
 
-    template = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+    template = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     n_flat = template.to_flat().size
 
     def matvec(flat: np.ndarray) -> np.ndarray:
@@ -318,7 +318,7 @@ def test_b1pp_lplusc_gmres_converges_fp_noise(name, builder):
         return out_typed.to_flat()
 
     # The typed flat layout has zero-row/zero-column slots for inflow
-    # ordinates on each BoundaryFlux face (no-equation slots).  Identify
+    # ordinates on each AngularBoundaryFlux face (no-equation slots).  Identify
     # the equation-bearing subspace by probing every column and finding
     # which rows AND columns are non-trivial (Pattern 7 at the producer:
     # the equation subspace is determined ONCE up-front, then GMRES

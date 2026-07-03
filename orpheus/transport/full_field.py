@@ -42,7 +42,7 @@ NOT SN-specific — every transport method has the same pair:
 * **SN**: bulk =
   :class:`~orpheus.transport.fields.angular_flux.AngularFlux` on
   ``(N, ng, *spatial)``; boundary =
-  :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux` on the
+  :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux` on the
   flat face-trace layout.
 * **CP / MoC / diffusion** (future): their own bulk + boundary leaves.
 
@@ -102,7 +102,7 @@ from typing import TYPE_CHECKING, TypeVar
 
 import numpy as np
 
-from orpheus.transport.fields._bases import BulkField, TraceField
+from orpheus.transport.fields._bases import BulkField, BoundaryField
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -134,12 +134,12 @@ class FullField:
         typically :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
         for SN, :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
         for CP / diffusion, ``RayField`` for MoC.
-    boundary : TraceField
+    boundary : BoundaryField
         The boundary partner field on the trace of ``bulk``'s domain.
-        Any :class:`~orpheus.transport.fields._bases.TraceField` family —
-        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+        Any :class:`~orpheus.transport.fields._bases.BoundaryField` family —
+        :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
         (angular) for SN,
-        :class:`~orpheus.transport.fields.partial_current.PartialCurrent`
+        :class:`~orpheus.transport.fields.scalar_boundary_flux.ScalarBoundaryFlux`
         (scalar ``(J⁺, J⁻)``) for diffusion / CP.
 
     Notes
@@ -167,7 +167,7 @@ class FullField:
     """
 
     bulk: BulkField
-    boundary: TraceField
+    boundary: BoundaryField
 
     # ── Construction ─────────────────────────────────────────────────
 
@@ -176,7 +176,7 @@ class FullField:
         cls,
         *,
         bulk: type[BulkField],
-        boundary: type[TraceField],
+        boundary: type[BoundaryField],
         mesh: "object",
     ) -> "FullField":
         r"""Allocate a zero timeless composite from the bulk + boundary leaf TYPES.
@@ -185,7 +185,7 @@ class FullField:
         and boundary :class:`~orpheus.numerics.field.Field` *subclasses*
         (SN passes
         :class:`~orpheus.transport.fields.angular_flux.AngularFlux` /
-        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`; CP
+        :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`; CP
         / MoC will pass their own), and each is zero-allocated on
         ``mesh`` via its own :meth:`zeros_on`. This keeps the
         cross-method-generic container free of any hard-wired leaf type.
@@ -195,7 +195,7 @@ class FullField:
         bulk : type[BulkField]
             The bulk leaf CLASS to instantiate (must expose
             ``zeros_on(mesh)``).
-        boundary : type[TraceField]
+        boundary : type[BoundaryField]
             The boundary leaf CLASS to instantiate (must expose
             ``zeros_on(mesh)``).
         mesh : object
@@ -216,15 +216,15 @@ class FullField:
                 f"{type(self).__name__}: bulk must be a BulkField; got "
                 f"{type(self.bulk).__name__}"
             )
-        if not isinstance(self.boundary, TraceField):
+        if not isinstance(self.boundary, BoundaryField):
             raise TypeError(
-                f"{type(self).__name__}: boundary must be a TraceField "
-                f"(a BoundaryField / PartialCurrent family leaf); "
+                f"{type(self).__name__}: boundary must be a BoundaryField "
+                f"(an AngularBoundaryField / ScalarBoundaryField family leaf); "
                 f"got {type(self.boundary).__name__}"
             )
         # Mesh-identity check (where both members carry a ``mesh``
         # attribute — the cross-method generic contract). For SN both
-        # AngularFlux and BoundaryFlux carry ``mesh: SNMesh``; other
+        # AngularFlux and AngularBoundaryFlux carry ``mesh: SNMesh``; other
         # methods follow the same convention.
         bulk_mesh = getattr(self.bulk, "mesh", None)
         boundary_mesh = getattr(self.boundary, "mesh", None)
@@ -249,7 +249,7 @@ class FullField:
         identity). The static type is the method-agnostic
         :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`
         base: each trace family narrows its OWN ``mesh`` declaration
-        (:class:`~orpheus.transport.fields._bases.BoundaryField` →
+        (:class:`~orpheus.transport.fields._bases.AngularBoundaryField` →
         ``SNMesh``), so an SN consumer that needs quadrature / sweep
         data reads it off the SNMesh its operator was constructed with
         (the #226 F2 pattern) or off the family-typed boundary leaf —
@@ -259,7 +259,7 @@ class FullField:
 
     # ── Polymorphic recombine hook (Pattern 2 — the algebra lives once) ─
 
-    def _recombine(self: T, *, bulk: BulkField, boundary: TraceField) -> T:
+    def _recombine(self: T, *, bulk: BulkField, boundary: BoundaryField) -> T:
         r"""Rebuild a composite of the SAME concrete type from a recombined pair.
 
         The single polymorphic hook the six vector-space dunders route
@@ -352,14 +352,14 @@ class FullField:
     #
     # Direct-sum flat representation: ``concat(bulk.values.ravel(),
     # boundary.values)``. The boundary values are already a flat 1-D
-    # ndarray (per :class:`BoundaryFlux`'s flat-backing storage); the
+    # ndarray (per :class:`AngularBoundaryFlux`'s flat-backing storage); the
     # bulk values are reshaped via :meth:`ndarray.ravel`. The Krylov
     # adapter at :mod:`orpheus.numerics.iteration` consumes this flat
     # representation as the GMRES iterate vector; round-trip exactness
     # is the load-bearing invariant.
     #
     # NB taking ``boundary.values`` WITHOUT a ravel encodes the SN
-    # convention that ``BoundaryFlux`` stores an already-flat trace; a
+    # convention that ``AngularBoundaryFlux`` stores an already-flat trace; a
     # future method whose boundary leaf is not flat-backed would
     # generalise this to ``boundary.values.ravel()`` (deferred per
     # ``coding-elegance`` Pattern 6 — one boundary leaf today).
@@ -378,7 +378,7 @@ class FullField:
         """
         return np.concatenate([
             self.bulk.values.ravel(),
-            self.boundary.values,  # already 1-D (BoundaryFlux flat storage)
+            self.boundary.values,  # already 1-D (AngularBoundaryFlux flat storage)
         ])
 
     @classmethod

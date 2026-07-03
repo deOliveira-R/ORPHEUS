@@ -35,7 +35,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.loss_representation import transport_sweep
 from orpheus.transport.source_sinks import AngularSourceSink
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 pytestmark = pytest.mark.foundation
 
@@ -73,7 +73,7 @@ def test_transport_sweep_ng2_layout_shapes():
     sig_t = np.broadcast_to(mix.SigT[:, None], (ng, nx)).copy()
     Q_iso = np.ones((ng, nx))
     source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
-    boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
+    boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
 
     ang, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
@@ -108,7 +108,7 @@ def test_transport_sweep_ng2_per_group_distinct():
     sig_t = np.broadcast_to(mix.SigT[:, None], (ng, nx)).copy()
     Q_iso = np.ones((ng, nx))
     source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
-    boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
+    boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
 
     from orpheus.sn.solver import _reflect_outflow_into_inflow
     phi = None

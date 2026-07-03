@@ -121,7 +121,7 @@ class SphericalHarmonicSpace(FunctionSpace):
     Notes
     -----
     Frozen dataclass with the same subclassing pattern as
-    :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`. The default
+    :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`. The default
     ``L = 0`` is required by dataclass-inheritance rules: it follows
     :attr:`FunctionSpace.inner_product_weights` which has a default,
     so every subsequent field must also have one.

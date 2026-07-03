@@ -34,10 +34,10 @@ specialisations layered on top of :class:`FunctionSpace`:
 * **MeshFunctionSpace** — functions on a structured mesh; carries a
   reference to the :class:`~orpheus.geometry.mesh.Mesh1D` /
   :class:`~orpheus.geometry.mesh.Mesh2D` instance.
-* **TraceSpace** — functions on the boundary; the domain/range for
+* **AngularTraceSpace** — functions on the boundary; the domain/range for
   :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`. ONE
   whole-boundary space (see
-  :mod:`orpheus.numerics.spaces.trace_space`); inflow / outflow are
+  :mod:`orpheus.numerics.spaces.angular_trace_space`); inflow / outflow are
   selectors over its signed :math:`\Omega\cdot\hat n`, not directional
   tags.
 * **RegionSpace** — region-piecewise constant fields (one value per
@@ -156,7 +156,7 @@ class FunctionSpace(Generic[Carrier]):
     # (name, shape) are equal regardless of the installed metric, and hashing
     # is on (name, shape). ``compare=False`` keeps the weights out of the
     # dataclass-generated ``__eq__``/``__hash__`` of subclasses (e.g.
-    # ``TraceSpace``, ``SphericalHarmonicSpace``) that regenerate them — an
+    # ``AngularTraceSpace``, ``SphericalHarmonicSpace``) that regenerate them — an
     # array-valued metric would otherwise make ``==`` raise on the ambiguous
     # element-wise truth value. The base class's manual ``__eq__`` already
     # ignores it; this makes every subclass agree by construction.

@@ -772,11 +772,11 @@ axes :math:`(n_x, n_y)`.
        :mod:`orpheus.transport.operators.scattering`); typed wrapper at
        :class:`orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
        (Issue #197 PR-TYPED-4)
-   * - ``TraceField``
+   * - ``BoundaryField``
      - :math:`\psi` restricted to :math:`\Gamma_-` or :math:`\Gamma_+`
      - 1/(cm²·s·sr)
      - ``(N_inflow, ng)`` per face
-     - :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+     - :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
        face views, keyed by face name (``face_view("xmin")`` …) —
        the pre-#197 ``psi_bc`` dict is retired
        (:func:`~orpheus.sn.loss_representation.transport_sweep`)
@@ -834,7 +834,7 @@ while the P\ :sub:`ℓ≥1` accumulation emits the second.
      - 1/(cm³·s·sr)
      - matches ``q``
      - None — not used in Phase G
-   * - ``BoundarySourceSink``
+   * - ``AngularBoundarySourceSink``
      - Prescribed inflow at :math:`\Gamma_-` (Grand Report v3
        §16A.2)
      - 1/(cm²·s·sr)
@@ -946,7 +946,7 @@ Solution holds:
 
 - :class:`~orpheus.sn.angular_flux.AngularFlux` +
   :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` +
-  :class:`~orpheus.sn.boundary_flux.BoundaryFlux` typed fields (NOT
+  :class:`~orpheus.sn.boundary_flux.AngularBoundaryFlux` typed fields (NOT
   bare ndarrays);
 - :class:`~orpheus.sn.solution.IterationHistory` carrying tuple-based
   per-outer / per-inner trajectory diagnostics (NOT list-based);
@@ -1049,7 +1049,7 @@ Boundary handling has its own type vocabulary
      - SN-side discretisation of the trace law
    * - ``InflowTraceSpace`` /
        ``OutflowTraceSpace``
-     - :mod:`orpheus.numerics.spaces.trace_space`
+     - :mod:`orpheus.numerics.spaces.angular_trace_space`
      - The :math:`\Gamma_-` and :math:`\Gamma_+` discrete trace
        spaces
    * - ``VacuumInflow`` /
@@ -1201,7 +1201,7 @@ fail at construction time (Pattern 4 — illegal states unrepresentable).
    type's domain semantics, units, the dunder algebra and its
    correspondence to the operator-equation form ``(L + C − S − F/k) ψ
    = q``, and a worked walk-through of the
-   :func:`~orpheus.sn.loss_representation.transport_sweep` BoundaryFlux contract —
+   :func:`~orpheus.sn.loss_representation.transport_sweep` AngularBoundaryFlux contract —
    should be authored by the **archivist** sub-agent.  This section
    is the stub written by the method-implementer per
    ``algebra-of-record``'s Sphinx stub vs rich narrative discipline.
@@ -1232,7 +1232,7 @@ The three types
      - ``(ng, nx, ny)``
      - :math:`\phi_g(\vec r) = \int_{4\pi} \psi\,d\Omega`.  Dunder
        arithmetic: ``a + b``, ``α · phi``, ``phi.at_group(g)``.
-   * - :class:`~orpheus.sn.boundary_flux.BoundaryFlux`
+   * - :class:`~orpheus.sn.boundary_flux.AngularBoundaryFlux`
      - Per-face: 1-D ``(N, ng)``; 2-D persistent ``(N, ng, nx+1, ny)``
        / ``(N, ng, nx, ny+1)``.
      - Boundary :math:`\psi` at every face plus curvilinear pole state.
@@ -1259,7 +1259,7 @@ instance.  This matches the typical algebra-of-record usage where
 intermediates carry meaning (Pattern 3 — named intermediates) and
 in-place mutation would obscure provenance.
 
-:class:`BoundaryFlux` is **mutable** by design — the sweep's
+:class:`AngularBoundaryFlux` is **mutable** by design — the sweep's
 persistent-BC contract is a write-through cache, and reflective-BC
 partners read the previous-sweep outgoing-face writes.  Forcing a
 fresh allocation per sweep would force memory churn the production

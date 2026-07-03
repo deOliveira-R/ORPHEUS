@@ -165,7 +165,7 @@ def test_ld_two_paths_scan_equals_dag_oracle() -> None:
     """
     from orpheus.geometry import BC, CoordSystem, Mesh1D
     from orpheus.numerics.quadrature import Quadrature
-    from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.derivations.continuous.mms.sn import _make_2g_asymmetric_mixture
 
     nx = 24
@@ -185,10 +185,10 @@ def test_ld_two_paths_scan_equals_dag_oracle() -> None:
     Q = rng.standard_normal((N, ng, nx))                  # non-flat per-ordinate
 
     _, phi_scan = CumprodScan(ld_mesh).sweep(
-        Q, sig_t, BoundaryFlux.zeros_on(ld_mesh),
+        Q, sig_t, AngularBoundaryFlux.zeros_on(ld_mesh),
     )
     _, phi_dag = FullFieldWavefront(ld_mesh).sweep(
-        Q, sig_t, BoundaryFlux.zeros_on(ld_mesh),
+        Q, sig_t, AngularBoundaryFlux.zeros_on(ld_mesh),
     )
     # Principled-equivalent (×V scan vs ÷V kernel): tight nULP-scale band, well
     # below any algorithmic-difference signature (a sign-trap would be O(1)).

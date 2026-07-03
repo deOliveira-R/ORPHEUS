@@ -49,7 +49,7 @@ from orpheus.geometry import (
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
 
@@ -195,7 +195,7 @@ def test_apply_vs_sweep_2d_residual_cancellation() -> None:
     mesh = _vacuum_xy_2d_with_scatter()
     rng = np.random.default_rng(seed=20260528)
 
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=mesh)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh)
     state.bulk.values[...] = rng.standard_normal(state.bulk.values.shape)
     state.boundary.values[...] = rng.standard_normal(state.boundary.values.shape)
 
@@ -313,8 +313,8 @@ def test_2d_matvec_linearity_random_state() -> None:
     A = L + C
 
     rng = np.random.default_rng(seed=20260528)
-    u = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=mesh)
-    v = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=mesh)
+    u = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh)
+    v = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh)
     u.bulk.values[...] = rng.standard_normal(u.bulk.values.shape)
     v.bulk.values[...] = rng.standard_normal(v.bulk.values.shape)
     u.boundary.values[...] = rng.standard_normal(u.boundary.values.shape)
@@ -329,7 +329,7 @@ def test_2d_matvec_linearity_random_state() -> None:
     # Build the combined input state at the .values array level (the raw
     # vector-space combination of the numbers) and apply the operator.
     combined = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=BoundaryFlux, mesh=mesh,
+        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh,
     )
     combined.bulk.values[...] = (
         alpha * u.bulk.values + beta * v.bulk.values

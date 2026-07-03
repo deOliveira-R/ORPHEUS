@@ -3180,8 +3180,8 @@ boundary:
   (:ref:`ld-ubld-unified-moment-matvec`).  Without it the S2 closure is
   :math:`O(h^2)` but diffusion-limit-inconsistent (the flat-source signature).
 
-* The non-vanishing domain-inflow moment trace (the ``BoundaryFlux`` /
-  ``mesh.trace`` widening to a :math:`2^{d-1}` transverse face moment) — **S4**
+* The non-vanishing domain-inflow moment trace (the ``AngularBoundaryFlux`` /
+  ``mesh.angular_trace`` widening to a :math:`2^{d-1}` transverse face moment) — **S4**
   (and its honest-scope caveat, :ref:`ld-cartesian-2d`).
 
 * The strengthened vv Mode-7 stress-ansatz MMS and the thick-diffusive
@@ -4338,7 +4338,7 @@ see the honest-scope note below.
      control replaces the value-band with the consumption proof.)
 
    - **Leg B — the BOUNDARY transverse-face-slope** — is now VERIFIED
-     (**#251**).  The boundary trace ``mesh.trace`` carries the
+     (**#251**).  The boundary trace ``mesh.angular_trace`` carries the
      :math:`2^{d-1}` transverse face-moments per face per ordinate per group
      (a moment-resolved slot ``(N, ng, *face_shape, 2^{d-1})`` minted by
      :attr:`orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout`, appending the
@@ -4783,7 +4783,7 @@ Leg B — the boundary transverse-face-slope (#251)
 This subsection is the rich record of the BOUNDARY half of the slope-SOURCE
 trap, closed under Issue #251 (split from #247).  Where Leg A widened the BULK
 external source carried through the *interior*, Leg B widens the BOUNDARY TRACE
-``mesh.trace`` so a moment-resolved prescribed inflow can carry the along-face
+``mesh.angular_trace`` so a moment-resolved prescribed inflow can carry the along-face
 (transverse) Legendre slope and the sweep outflow can STORE the
 :math:`2^{d-1}` transverse face-moments instead of collapsing them to the
 average.  It is the boundary twin of Leg A, and the structural-teeth template
@@ -4805,7 +4805,7 @@ must be found to STORE the transverse face-moments, and the elegant answer is a
 single attribute on the mesh.
 
 The trace's per-face slot shape is owned not by the
-:class:`~orpheus.numerics.spaces.trace_space.TraceSpace` itself but by the
+:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` itself but by the
 :class:`~orpheus.numerics.face_layout.FaceLayout` it is built from, and that
 layout is minted by :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.boundary_face_layout`.
 The widening is therefore ONE site: append the scheme's per-face transverse
@@ -4829,7 +4829,7 @@ divided by the one normal-axis factor.
 
 Three properties make this the clean lever:
 
-* **The** :class:`~orpheus.numerics.spaces.trace_space.TraceSpace` **needs ZERO
+* **The** :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` **needs ZERO
   changes — it was "moment-ready by accident".**  The trace's partial-current
   metric (the :math:`|\Omega\!\cdot\!n|\,w_n` weighting) and its
   ``omega_dot_n`` inflow/outflow table are **per-ordinate** (they classify and
@@ -4838,8 +4838,8 @@ Three properties make this the clean lever:
   directional selectors for free.  The trace space was already
   moment-polymorphic; only its layout-supplier was scalar.  This is the
   illegal-states-unrepresentable payoff of the Depth-B field-space refactor: the
-  boundary FIELDS (``BoundaryFlux`` / ``BoundarySourceSink`` /
-  ``BoundaryResidual`` / ``BoundaryDisplacement``) validate ONLY against
+  boundary FIELDS (``AngularBoundaryFlux`` / ``AngularBoundarySourceSink`` /
+  ``AngularBoundaryResidual`` / ``AngularBoundaryDisplacement``) validate ONLY against
   ``layout.total_size``, never a hardcoded :math:`(N, n_g)`, so they accommodate
   any slot shape the layout dictates.
 
@@ -5031,7 +5031,7 @@ The producer — both ranks through one slot
 ''''''''''''''''''''''''''''''''''''''''''
 
 The ergonomic generator for the affine-BC inhomogeneous term :math:`q` is
-:meth:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink.prescribed_inflow`.
+:meth:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink.prescribed_inflow`.
 Its job is to write the inflow ordinate rows of each named face from a given
 per-face array and leave everything else zero.  After the trace widened, this
 producer must accept **two ranks through the same slot** — and getting this
@@ -5235,7 +5235,7 @@ The production change spans three files: the storage lever in
 :meth:`FullFieldWavefront._octant_face_cochain`, and the four outflow
 capture-collapse DROP sites in :mod:`orpheus.sn.loss_representation`; and the
 producer
-:meth:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink.prescribed_inflow`.
+:meth:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink.prescribed_inflow`.
 The end-to-end gates live in :mod:`tests.sn.verification.mms.test_mms_ld_2d` (the
 #251 block): ``test_ld_2d_boundary_slope_threaded_through_inflow_to_moments`` (the
 foundation structural teeth — the stamp / production-change proof),
@@ -5255,7 +5255,7 @@ S9 — the coherent boundary promise and the property-vs-type seam (#257)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Leg B (:ref:`ld-cartesian-2d-legB`, #251) landed the boundary CONSUMPTION
-path: the trace ``mesh.trace`` carries the transverse moment axis end to end,
+path: the trace ``mesh.angular_trace`` carries the transverse moment axis end to end,
 ``_inflow_to_moments`` threads slot 1, and the sweep outflow stores the
 :math:`2^{d-1}` transverse face-moments instead of collapsing them.  But the
 MMS *producer* — the case's
@@ -6823,7 +6823,7 @@ Sweep-frame apply matvec (Issue #168 Phase C)
    * The structural-frame name for the rewrite is the **sweep /
      wavefront frame** (cross-domain-attacker 2026-05-12 analysis):
      the "ghost cell" idiom is realised as a typed
-     :class:`~orpheus.numerics.spaces.trace_space.TraceSpace` vector
+     :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` vector
      defined by the realised BC operator, not extrapolated from
      interior cell centres.
 
@@ -7334,13 +7334,13 @@ cell centres. The boundary-edge sequence is:
 The :class:`~orpheus.numerics.operator.LinearOperator` returned by
 :meth:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer.realize`
 internally consumes its
-:class:`~orpheus.numerics.spaces.trace_space.OutflowTraceSpace` mask
+:class:`~orpheus.numerics.spaces.angular_trace_space.OutflowTraceSpace` mask
 (the ordinate slots with :math:`\mu \cdot \hat n > 0` at the face)
 and writes only the inflow slots; the outflow slots in the output
 are unspecified by the §16A.3 contract and the matvec reads back
 only ``inflow_full[incoming_mask, :]``. This is the user's "ghost
 cell for higher-order boundary closure" idiom realised as a typed
-:class:`~orpheus.numerics.spaces.trace_space.TraceSpace` vector
+:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` vector
 defined by the realised BC operator — not extrapolated from
 interior cell centres.
 
@@ -11472,7 +11472,7 @@ through :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`
 spherical, 1-D cylindrical, 2-D Cartesian) — see
 :ref:`bc-sn-resolution-table` below. Issue #188 (curvilinear support
 in the trace space — then named ``InflowTraceSpace``, now the unified
-:class:`~orpheus.numerics.spaces.trace_space.TraceSpace`) and Issue
+:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`) and Issue
 #176 (drop 2-arg ``apply`` + simplify shim) collapsed the pre-cleanup
 Cartesian-vs-curvilinear bypass into a single realizer-routed
 path; details at :ref:`bc-curvilinear-realizer-unification`.
@@ -11763,7 +11763,7 @@ The :meth:`SNMesh._resolve_one` dispatch constructs the resolved
 operator via :meth:`SNBoundaryRealizer.realize(law, method_space)`
 where the ``method_space`` is built by
 :meth:`SNMethodSpace.for_face` carrying the precomputed unified
-:class:`~orpheus.numerics.spaces.trace_space.TraceSpace` (built
+:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` (built
 once at :class:`SNMesh` construction for every supported mesh).
 The reflective branch derives its reflection axis from the face's
 own :class:`~orpheus.transport.mesh.axis.FaceLabel` —
@@ -11795,8 +11795,8 @@ shim wraps the result with a ``kind`` tag for the
 2026-05-11), curvilinear ``Mesh1D`` bypassed the realizer because the
 trace factory (then ``InflowTraceSpace.from_mesh_and_quadrature``, since
 C5.3 the geometry-blind
-:meth:`TraceSpace.from_quadrature_and_layout
-<orpheus.numerics.spaces.trace_space.TraceSpace.from_quadrature_and_layout>`)
+:meth:`AngularTraceSpace.from_quadrature_and_layout
+<orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.from_quadrature_and_layout>`)
 raised :class:`NotImplementedError` on those coord systems; the
 ``_BoundBoundaryOperator`` shim carried a dual mode where the
 ``quadrature=`` kwarg, when non-``None``, bound an
@@ -14850,10 +14850,10 @@ The composite fixed-source API — :math:`q = q_{\text{bulk}} \oplus q_\partial`
      The composite's bulk leaf is an
      :class:`~orpheus.transport.source_sinks.AngularSourceSink` and its
      boundary leaf a
-     :class:`~orpheus.transport.source_sinks.BoundarySourceSink` — the
+     :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink` — the
      *source* column of the role grid (see :ref:`bc-extraction-operator-output-typing`).
      The iterate / solution it produces is a *flux* (``AngularFlux`` ⊕
-     ``BoundaryFlux``). Same carrier shape, different role; the class
+     ``AngularBoundaryFlux``). Same carrier shape, different role; the class
      gate keeps source and flux arithmetic from silently mixing.
    - **The legacy array is the bulk-only / vacuum special case.** Passing
      the historical ``(N, ng, nx, ny)`` ndarray is *exactly* the
@@ -14865,7 +14865,7 @@ The composite fixed-source API — :math:`q = q_{\text{bulk}} \oplus q_\partial`
      ``q_ext_composite`` build that previously lived in *both* the SI
      and Krylov inner paths).
    - **The ergonomic boundary generator.**
-     :meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
+     :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
      writes ONLY the inflow ordinate slots of the named faces (outflow
      slots of a prescribed inflow are physically meaningless →
      unrepresentable by construction, ``coding-elegance`` Pattern 4),
@@ -14932,8 +14932,8 @@ which encode the role:
      - :class:`~orpheus.transport.source_sinks.AngularSourceSink`
      - :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
    * - boundary
-     - :class:`~orpheus.transport.source_sinks.BoundarySourceSink`
-     - :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+     - :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`
+     - :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
 
 The role-leaf types are the gate. A *source* and a *flux* are never the
 same field even when they ride the same carrier — the
@@ -14945,7 +14945,7 @@ by construction. The completed boundary role grid mirrors the bulk
 exactly (:ref:`bc-extraction-operator-output-typing`): an operator's
 ``.apply`` output is a *source/sink* (:math:`A\psi`), its ``.solve``
 output is a *flux* (the swept solution trace), and a ``from_balance``
-defect is a *residual*. ``q_\partial`` is a ``BoundarySourceSink``
+defect is a *residual*. ``q_\partial`` is a ``AngularBoundarySourceSink``
 because a prescribed inflow IS a source added to :math:`\gamma_-\psi`,
 not the swept solution.
 
@@ -14960,7 +14960,7 @@ single helper :func:`~orpheus.sn.solver._build_fixed_source_rhs`:
    per-ordinate-density **bulk** source only, with a **vacuum**
    boundary. This is the original form, and it is *exactly* the
    composite with an all-zero boundary leaf
-   (``BoundarySourceSink.zeros_on(sn_mesh)``). Every one of the 37
+   (``AngularBoundarySourceSink.zeros_on(sn_mesh)``). Every one of the 37
    pre-existing callers passes this form and keeps working bit-for-bit
    unchanged (the vacuum path is verified bit-identical).
 #. **A full** :class:`~orpheus.transport.timed_full_field.TimedFullField`
@@ -14977,7 +14977,7 @@ single helper :func:`~orpheus.sn.solver._build_fixed_source_rhs`:
    from orpheus.sn import solve_sn_fixed_source
    from orpheus.sn.mesh.augmented_mesh import SNMesh
    from orpheus.transport.source_sinks import (
-       AngularSourceSink, BoundarySourceSink,
+       AngularSourceSink, AngularBoundarySourceSink,
    )
    from orpheus.transport.timed_full_field import TimedFullField
 
@@ -14986,7 +14986,7 @@ single helper :func:`~orpheus.sn.solver._build_fixed_source_rhs`:
    # Bulk volumetric source, per-ordinate density (N, ng, nx, ny).
    q_bulk = AngularSourceSink.from_mesh(Q_ext, sn)
    # Prescribed inflow: only the named faces' inflow ordinate slots.
-   q_bndry = BoundarySourceSink.prescribed_inflow(
+   q_bndry = AngularBoundarySourceSink.prescribed_inflow(
        sn, {"xmin": gamma_minus_xmin, "xmax": gamma_minus_xmax},
    )
    q = TimedFullField(bulk=q_bulk, boundary=q_bndry)
@@ -14995,7 +14995,7 @@ single helper :func:`~orpheus.sn.solver._build_fixed_source_rhs`:
 
 The legacy ``solve_sn_fixed_source(materials, mesh, quadrature, Q_ext)``
 with a bare ``Q_ext`` array is identical to the above with a vacuum
-``q_bndry`` (``BoundarySourceSink.zeros_on(sn)``).
+``q_bndry`` (``AngularBoundarySourceSink.zeros_on(sn)``).
 
 The single construction point — Cardinal Rule 2
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -15014,7 +15014,7 @@ one construction point: ``solve_sn_fixed_source`` calls it once, and
   ``N``);
 * for a bare array, pairs the bulk
   :class:`~orpheus.transport.source_sinks.AngularSourceSink` with a
-  vacuum ``BoundarySourceSink``;
+  vacuum ``AngularBoundarySourceSink``;
 * for a composite, re-homes the leaf values onto the solve's
   ``sn_mesh`` (with a layout-size guard on the boundary trace), and
   raises a descriptive ``ValueError`` if the composite was built on an
@@ -15029,7 +15029,7 @@ The ergonomic boundary generator — ``prescribed_inflow``
 
 Generating the boundary leaf :math:`q_\partial` is the part the
 ergonomics target. The classmethod
-:meth:`BoundarySourceSink.prescribed_inflow(mesh, {face: (N, ng) values}) <orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow>`
+:meth:`AngularBoundarySourceSink.prescribed_inflow(mesh, {face: (N, ng) values}) <orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow>`
 builds the prescribed inflow from known per-face arrays:
 
 * for each face named in the mapping, it writes ONLY the **inflow**
@@ -15041,10 +15041,10 @@ builds the prescribed inflow from known per-face arrays:
 slots of a *prescribed-inflow source* are physically meaningless: the
 sweep determines the outflow trace, the source does not. Writing them
 would be an illegal state. Rather than accept-then-ignore them,
-:meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
+:meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
 makes the illegal state **unrepresentable by construction** — it reads
 the inflow ordinate index set
-(:meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.inflow_indices_for_face`)
+(:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face`)
 and copies *only* those rows, so an accidentally-populated outflow row
 in the caller's array simply cannot reach the field. This is
 ``coding-elegance`` Pattern 4 (illegal states unrepresentable). It
@@ -15063,8 +15063,8 @@ not as duplicates:
    :widths: 28 36 36
 
    * -
-     - :meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
-     - ``BoundarySourceSink.from_spec`` (deferred)
+     - :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
+     - ``AngularBoundarySourceSink.from_spec`` (deferred)
    * - Input
      - known per-face ``(N, ng)`` arrays
      - a lazy
@@ -15079,7 +15079,7 @@ not as duplicates:
        that drives a typed boundary-source sweep yet)
 
 The 4.6 MMS uses
-:meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
+:meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
 because it has explicit per-face arrays
 (:math:`\gamma_-\psi = (A + \mu_n B)/W`); it does not need the lazy
 recipe bridge, which waits for its first genuine consumer per the
@@ -15095,14 +15095,14 @@ existed in the codebase, not the introduction of new ones:
   pre-dates this work — it is what the inner solve already flows.
 * The leaf types
   :class:`~orpheus.transport.source_sinks.AngularSourceSink` and
-  :class:`~orpheus.transport.source_sinks.BoundarySourceSink` pre-date
+  :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink` pre-date
   this work — they are the *source* column of the role grid.
 * The affine boundary law :eq:`affine-bc-form` and the ``q.boundary``
   slot pre-date this work.
 
 What was missing was the *ergonomic generator* for a non-vacuum
 boundary leaf and a *public entry point* that accepts the composite.
-:meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
+:meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
 and the second accepted form of
 :func:`~orpheus.sn.solver.solve_sn_fixed_source` supply exactly those —
 no more. This is the operational meaning of "we already have the right
@@ -15157,7 +15157,7 @@ Non-vacuum prescribed-inflow MMS (Phase 4 / O.2b 4.6)
      inhomogeneous term :math:`q` of the affine boundary law
      :eq:`affine-bc-form` :math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q`,
      carried in the ``q.boundary`` slot
-     (:class:`~orpheus.transport.source_sinks.BoundarySourceSink`) and
+     (:class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`) and
      consumed directly by :math:`(L+C)\text{.solve}` as the sweep
      inflow seed. **No** :class:`~orpheus.geometry.boundary.PrescribedInflow`
      mesh-BC bridge is touched, and **no** ``from_spec`` recipe bridge
@@ -15593,7 +15593,7 @@ imposed inflow trace — pushed to the right-hand side of the
 discretised within-group system.
 
 In ORPHEUS this :math:`q` is carried by the ``q.boundary`` slot, a
-:class:`~orpheus.transport.source_sinks.BoundarySourceSink` field whose
+:class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink` field whose
 inflow-ordinate entries hold :math:`\gamma_-\psi = (A + \mu_n B)/W` per
 face per group. The within-group fixed point is the **affine** system
 
@@ -15655,15 +15655,15 @@ honour the prescribed inflow identically (verified by T4 below).
 **The flux/source space bridge — now INTERNAL to the solve (B.5.2).**
 The composite RHS lives in **source** space (an
 :class:`~orpheus.transport.source_sinks.AngularSourceSink` bulk plus a
-:class:`~orpheus.transport.source_sinks.BoundarySourceSink` boundary),
+:class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink` boundary),
 while the iterate :math:`\psi` and the returned solution live in
 **flux** space (an :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
-bulk plus a :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+bulk plus a :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
 boundary). The source-iteration / Krylov inner therefore needs a
 flux-typed ``initial_guess`` to template the solution space — without
 it, ``S.apply`` would hit an ``AngularSourceSink`` that has no
 ``integrate_angular`` method. That seed
-(``TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux,
+(``TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux,
 mesh=sn)``) is now built **inside**
 :func:`~orpheus.sn.solver.solve_sn_fixed_source`, not hand-passed by
 the test. The field-role-typing distinction — the iterate is a *flux*,
@@ -15905,7 +15905,7 @@ Following the ``algebra-of-record`` discipline:
   :func:`~orpheus.derivations.continuous.mms.sn.build_sphere_nonvacuum_mms_case`)
   evaluate the closed-form source per ordinate using vectorised numpy.
   Each carries a ``prescribed_inflow(sn)`` method returning the
-  ``q.boundary`` :class:`~orpheus.transport.source_sinks.BoundarySourceSink`,
+  ``q.boundary`` :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`,
   and a ``fixed_source(sn)`` bundler returning the composite
   ``q = q_bulk ⊕ q_∂``
   :class:`~orpheus.transport.timed_full_field.TimedFullField` the public
@@ -19681,7 +19681,7 @@ branch and have no landed hash yet.
    * - 2026-05
      - **Four-operator typed apply + typed-field foundation** — the
        ``F → S → C → L`` apply overload on ``AngularFlux``, founded on
-       the typed ``AngularFlux`` / ``ScalarFlux`` / ``BoundaryFlux``
+       the typed ``AngularFlux`` / ``ScalarFlux`` / ``AngularBoundaryFlux``
        fields (``psi_bc`` retired). The birth of the typed-field
        architecture this whole history builds on.
      - #197

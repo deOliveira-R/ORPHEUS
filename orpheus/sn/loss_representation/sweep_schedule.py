@@ -196,7 +196,7 @@ class SweepSchedule:
             for gi, group in enumerate(self.groups)
             for face in group.reflect_faces
         }
-        trace = sn_mesh.trace
+        trace = sn_mesh.angular_trace
         rows: dict[str, np.ndarray] = {}
         for face, gi_f in reflect_gi.items():
             fresh_ordinates = np.array(
@@ -263,6 +263,6 @@ def _reflective_faces(sn_mesh: "SNMesh") -> frozenset[str]:
     """
     return frozenset(
         face
-        for face in sn_mesh.trace.layout.faces
+        for face in sn_mesh.angular_trace.layout.faces
         if sn_mesh.bc[face] == "reflective"
     )

@@ -26,8 +26,8 @@ docstring (vv-principles discipline).
 TYPE-AGNOSTIC by mandate
 ========================
 
-The matvec currently emits its boundary residual typed as ``BoundaryFlux``
-(the honest retype to ``BoundaryResidual`` is a SEPARATE holistic carve,
+The matvec currently emits its boundary residual typed as ``AngularBoundaryFlux``
+(the honest retype to ``AngularBoundaryResidual`` is a SEPARATE holistic carve,
 B.5.2, deferred).  These gates read the residual ONLY via
 ``.boundary.face_view(face)`` / ``.boundary.values`` and
 ``trace.inflow_indices_for_face`` / ``outflow_indices_for_face`` — they do NOT
@@ -62,8 +62,8 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
-from orpheus.transport.source_sinks import BoundarySourceSink
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.transport.source_sinks import AngularBoundarySourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import SN_TESTS_ROOT
 
@@ -177,7 +177,7 @@ class TestVacuum2DBitIdentity:
 
         rng = np.random.default_rng(20260603 + seed)
         state = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
+            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
         )
         state.bulk.values[...] = rng.standard_normal(state.bulk.values.shape)
         # vacuum: no incoming inflow trace (boundary stays zero).
@@ -187,7 +187,7 @@ class TestVacuum2DBitIdentity:
         # B.5.2: the 2-D matvec output boundary is the source/sink role leaf
         # (Aψ, NOT a residual — a residual only arises from from_balance(Aψ, b)).
         # Mirrors the bulk's AngularSourceSink; completes the boundary role grid.
-        assert isinstance(out.boundary, BoundarySourceSink)
+        assert isinstance(out.boundary, AngularBoundarySourceSink)
 
         key = f"vacuum_bulk_2d_seed{seed}"
         path = _BASELINE_DIR / f"{key}.npy"
@@ -270,14 +270,14 @@ class TestStreamingEquilibrium2D:
         ng = phi.size
         nx, ny = sn_mesh.spatial_shape
         state = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
+            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
         )
         state.bulk.values[...] = (phi / W)[None, :, None, None] * np.ones(
             (N, ng, nx, ny)
         )
         # Consistent reflective trace: every boundary face carries ψ_n,g = φ_g/W
         # (the reflection of a spatially-flat field is itself).
-        for face in sn_mesh.trace.face_names:
+        for face in sn_mesh.angular_trace.face_names:
             fv = state.boundary.face_view(face)
             for g in range(ng):
                 fv[:, g, :] = phi[g] / W
@@ -420,7 +420,7 @@ class TestBoundaryResidual2DDrivesToZero:
         ``TimedFullField``), and assert the per-face inflow-balance defect is
         < 10× solver_tol.  Reads the inflow slots type-agnostically via
         ``trace.inflow_indices_for_face`` + ``face_view`` (survives the future
-        BoundaryResidual retype).
+        AngularBoundaryResidual retype).
         """
         from orpheus.sn.solver import solve_sn
 
@@ -444,7 +444,7 @@ class TestBoundaryResidual2DDrivesToZero:
 
         psi = res.angular_flux  # TimedFullField (bulk + boundary)
         mesh = res.mesh
-        trace = mesh.trace
+        trace = mesh.angular_trace
         # R·G·ψ.outflow via the canonical operator (inflow slots carry it).
         B = SNBoundaryOperator(mesh)
         coupled = B.apply(psi)  # boundary-only; inflow slots = R·G·ψ.outflow
@@ -499,7 +499,7 @@ class TestBoundaryResidual2DResponds:
     def _perturbable_state(self, sn_mesh: SNMesh, seed: int) -> TimedFullField:
         rng = np.random.default_rng(seed)
         state = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
+            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
         )
         state.bulk.values[...] = rng.standard_normal(state.bulk.values.shape)
         state.boundary.values[...] = rng.standard_normal(
@@ -509,7 +509,7 @@ class TestBoundaryResidual2DResponds:
 
     def _copy_state(self, src: TimedFullField, sn_mesh: SNMesh) -> TimedFullField:
         dst = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
+            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
         )
         dst.bulk.values[...] = src.bulk.values
         dst.boundary.values[...] = src.boundary.values
@@ -528,7 +528,7 @@ class TestBoundaryResidual2DResponds:
         sn_mesh = _homogeneous_reflective_2d(nx=4, ny=4)
         sig_t = _sigt_2g(sn_mesh)
         L = StreamingOperator(sn_mesh)
-        trace = sn_mesh.trace
+        trace = sn_mesh.angular_trace
 
         base = self._perturbable_state(sn_mesh, seed=7)
         pert = self._copy_state(base, sn_mesh)
@@ -576,7 +576,7 @@ class TestBoundaryResidual2DResponds:
         sn_mesh = _homogeneous_reflective_2d(nx=4, ny=4)
         sig_t = _sigt_2g(sn_mesh)
         L = StreamingOperator(sn_mesh)
-        trace = sn_mesh.trace
+        trace = sn_mesh.angular_trace
 
         base = self._perturbable_state(sn_mesh, seed=7)
         pert = self._copy_state(base, sn_mesh)

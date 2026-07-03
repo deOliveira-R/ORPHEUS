@@ -38,7 +38,7 @@ from orpheus.sn.loss_representation import (
     ScanMarch,
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
 pytestmark = [
@@ -91,7 +91,7 @@ def _random_inputs(rng, sn_mesh, ng, nx, ny):
     """Het Σ_t + per-ordinate (anisotropic) source + random non-zero inflow."""
     sig_t = rng.uniform(0.3, 3.0, size=(ng, nx, ny))
     Q = rng.uniform(0.0, 2.0, size=(sn_mesh.quad.N, ng, nx, ny))
-    bf = BoundaryFlux.zeros_on(sn_mesh)
+    bf = AngularBoundaryFlux.zeros_on(sn_mesh)
     for face in bf.layout.faces:
         fv = bf.face_view(face)
         fv[...] = rng.uniform(0.0, 1.0, size=fv.shape)
@@ -110,7 +110,7 @@ def test_scanmarch_sweep_equals_oracle(nx, ny, lvl, ng, bc):
     rng = np.random.default_rng([nx, ny, lvl, ng])   # deterministic across runs
     sn_mesh = _build_mesh(nx, ny, lvl, ng, bc)
     sig_t, Q, bf_sm = _random_inputs(rng, sn_mesh, ng, nx, ny)
-    bf_or = BoundaryFlux.from_mesh(bf_sm.values.copy(), sn_mesh)
+    bf_or = AngularBoundaryFlux.from_mesh(bf_sm.values.copy(), sn_mesh)
 
     ang_sm, scal_sm = ScanMarch(sn_mesh).sweep(Q, sig_t, bf_sm)
     ang_or, scal_or = FullFieldWavefront(sn_mesh).sweep(Q, sig_t, bf_or)
@@ -140,7 +140,7 @@ def test_scanmarch_moment_equals_window(nx, ny, lvl, ng, bc):
     rng = np.random.default_rng([nx, ny, lvl, ng, 7])   # deterministic
     sn_mesh = _build_mesh(nx, ny, lvl, ng, bc)
     sig_t, Q, bf_sm = _random_inputs(rng, sn_mesh, ng, nx, ny)
-    bf_win = BoundaryFlux.from_mesh(bf_sm.values.copy(), sn_mesh)
+    bf_win = AngularBoundaryFlux.from_mesh(bf_sm.values.copy(), sn_mesh)
     frame = sn_mesh.quad.angular_frame(Lm)
 
     mom_sm, second_sm = ScanMarch(sn_mesh).sweep(
@@ -188,7 +188,7 @@ def test_scanmarch_residual_equals_oracle(nx, ny, lvl, ng, bc):
     sig_t = rng.uniform(0.3, 3.0, size=(ng, nx, ny))
 
     state = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
+        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
     )
     state.bulk.values[...] = rng.uniform(-1.0, 1.0, size=state.bulk.values.shape)
     for face in state.boundary.layout.faces:

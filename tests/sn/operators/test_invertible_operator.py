@@ -52,7 +52,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 
 def _random_state(
@@ -63,11 +63,11 @@ def _random_state(
     D-H.2-C1: the composite carrier replaces the legacy
     :class:`orpheus.sn.angular_flux.AngularFlux` test fixture.  Bulk
     values are sampled from ``N(0, 1)``; boundary is left as the
-    implicit-zero L2 :class:`BoundaryFlux`.
+    implicit-zero L2 :class:`AngularBoundaryFlux`.
     """
     rng = np.random.default_rng(seed)
     N, ng = sn_mesh.quad.N, sn_mesh.ng
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=history_depth)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=history_depth)
     return replace(
         state,
         bulk=replace(
@@ -81,7 +81,7 @@ def _const_state(
 ) -> TimedFullField:
     """Build a :class:`TimedFullField` whose bulk is uniformly ``value``."""
     N, ng = sn_mesh.quad.N, sn_mesh.ng
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=history_depth)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=history_depth)
     return replace(
         state,
         bulk=replace(state.bulk, values=np.full((N, ng, *sn_mesh.spatial_shape), value)),
@@ -309,7 +309,7 @@ class TestSolve:
             sigma_t, sn,
         )
 
-        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn, history_depth=5)
+        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn, history_depth=5)
         psi = invertible.solve(rhs)
         assert psi.history_depth == 5
 
@@ -352,7 +352,7 @@ class TestSolve:
         invertible = StreamingOperator(sn1) + MultiplicationOperator.from_mesh(
             sigma_t1, sn1,
         )
-        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn2)
+        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn2)
         with pytest.raises(ValueError, match="mesh-identity"):
             invertible.solve(rhs)
 
@@ -390,8 +390,8 @@ class TestSolve:
             (N, ng, nx),
         ).copy()
         q = replace(
-            TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn),
-            bulk=replace(TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn).bulk, values=rhs_values),
+            TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn),
+            bulk=replace(TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn).bulk, values=rhs_values),
         )
         psi = invertible.solve(q)
 
@@ -456,7 +456,7 @@ class TestSolve:
         sum_w = float(sn.quad.weights.sum())
         q_const = 2.7
         per_ord_density = q_const / sum_w
-        zero = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
+        zero = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
         rhs = replace(
             zero,
             bulk=replace(
@@ -520,7 +520,7 @@ class TestSolve:
         )
 
         psi_prev = _const_state(sn, value=0.7)
-        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
+        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
 
         # Spy on the representation sweep — capture initial_guess.
         captured = []
@@ -588,14 +588,14 @@ class TestSolveTimedFullField:
         # verify it makes it into the sweep's boundary_buf.  Slab has both
         # xmin and xmax faces.  ``initial_guess`` carries the bulk warm
         # start only (its boundary is no longer the inflow seed).
-        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
+        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
         rhs_boundary = rhs.boundary
         layout = rhs_boundary.layout
         if "xmax" in layout.faces:
             rhs_boundary.face_view("xmax")[:] = 0.7
         if "xmin" in layout.faces:
             rhs_boundary.face_view("xmin")[:] = 0.3
-        ig = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
+        ig = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
 
         # Outcome-level spy: capture the boundary_buf as the
         # representation sweep sees it.  The seed must already be in
@@ -611,7 +611,7 @@ class TestSolveTimedFullField:
             initial_guess=None, moment_frame=None,
             schedule=None, reflect=None,
         ):
-            # D-H.2-C2: L2 BoundaryFlux exposes per-face writable views
+            # D-H.2-C2: L2 AngularBoundaryFlux exposes per-face writable views
             # via face_view; copy them out at entry to snapshot the seed.
             # (#226 step 2: the door signature grew schedule/reflect —
             # None here, the Jacobi path; mirror them so the spy stays
@@ -641,7 +641,7 @@ class TestSolveTimedFullField:
         )
 
         for depth in (1, 2, 4):
-            rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn, history_depth=depth)
+            rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn, history_depth=depth)
             psi = invertible.solve(rhs)
             assert psi.history_depth == depth
 
@@ -652,7 +652,7 @@ class TestSolveTimedFullField:
         invertible = StreamingOperator(sn1) + MultiplicationOperator.from_mesh(
             sigma_t1, sn1,
         )
-        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn2)
+        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn2)
         with pytest.raises(ValueError, match="mesh-identity"):
             invertible.solve(rhs)
 
@@ -663,8 +663,8 @@ class TestSolveTimedFullField:
         invertible = StreamingOperator(sn1) + MultiplicationOperator.from_mesh(
             sigma_t1, sn1,
         )
-        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn1)
-        ig = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn2)
+        rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn1)
+        ig = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn2)
         with pytest.raises(ValueError, match="mesh-identity"):
             invertible.solve(rhs, initial_guess=ig)
 
@@ -855,7 +855,7 @@ class TestInvertibleSolveBridgeRegression:
         # Build composite ψ=1.  No need for legacy AngularFlux at all
         # on this path.
         from dataclasses import replace
-        psi_known = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+        psi_known = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
         psi_known = replace(
             psi_known,
             bulk=replace(psi_known.bulk, values=np.ones((N, ng, *sn_mesh.spatial_shape))),
@@ -921,8 +921,8 @@ class TestInvertibleSolveBridgeRegression:
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
         )
-        from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux,
+        from orpheus.transport.fields.angular_boundary_flux import (
+            AngularBoundaryFlux,
         )
         from orpheus.transport.timed_full_field import TimedFullField
 
@@ -943,7 +943,7 @@ class TestInvertibleSolveBridgeRegression:
         q_per_ord = np.full((N, ng, *sn_mesh.spatial_shape), q_iso / sum_w)
         rhs = TimedFullField(
             bulk=AngularFlux.from_mesh(q_per_ord, sn_mesh),
-            boundary=BoundaryFlux.zeros_on(sn_mesh),
+            boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
             _history=(),
             history_depth=2,
         )

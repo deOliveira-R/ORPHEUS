@@ -45,7 +45,7 @@ from orpheus.sn.solver import (
 )
 from orpheus.sn.spatial.cell_balance import cell_balance_for_streaming
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
 
@@ -84,7 +84,7 @@ def _operator_residual_with_seed(case, nc, seed_mode):
 
     psi_view = vals
     psi_g_first = psi_view.swapaxes(0, 1)
-    rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+    rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     face_outer = rhs.boundary.face_view("xmax")
     psi_state = pole.precompute_psi_state(psi_view, sigma_t=sig_t,
                                           bc_outer_inflow_estimate=face_outer)

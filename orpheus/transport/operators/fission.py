@@ -419,7 +419,7 @@ class FissionOperator(LinearOperator):
           → :class:`~orpheus.transport.full_field.FullField` — composite
           bulk + boundary variant.  The bulk is the iso fission source
           projected to per-ordinate magnitude; the boundary is the
-          implicit-zero :class:`~orpheus.transport.source_sinks.BoundarySourceSink`
+          implicit-zero :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`
           (Option β3 — fission has no boundary action; Wave O #208 will
           encode the bulk-only nature in the type).  #257 S8a made the
           codomain the timeless :class:`FullField` (the matvec leaf is a
@@ -463,7 +463,7 @@ class FissionOperator(LinearOperator):
         \psi_n`, compute iso fission source :math:`F\phi`, project to
         per-ordinate via :math:`/W`.  The output bulk is a pure-Field
         :class:`AngularFlux`; the output boundary is an **implicit
-        zero** :class:`BoundaryFlux` because the fission operator
+        zero** :class:`AngularBoundaryFlux` because the fission operator
         has no boundary action (the emission spectrum
         :math:`\chi(\vec r)` lives only on cell-centred volumes).
 
@@ -498,7 +498,7 @@ class FissionOperator(LinearOperator):
         fission_iso: ScalarSourceSink = self.apply(phi_scalar)
         from orpheus.transport.source_sinks import (
             AngularSourceSink,
-            BoundarySourceSink,
+            AngularBoundarySourceSink,
         )
         # The composite's one mesh, read off the PARSED angular bulk —
         # ``AngularField.mesh`` carries the SNMesh declaration the widened
@@ -515,7 +515,7 @@ class FissionOperator(LinearOperator):
             # comonad lives on the driver, which reattaches the timed type when
             # this source is added to the timed rhs).
             bulk=per_ord,
-            boundary=BoundarySourceSink.zeros_on(mesh),
+            boundary=AngularBoundarySourceSink.zeros_on(mesh),
         )
 
     @_apply_impl.register

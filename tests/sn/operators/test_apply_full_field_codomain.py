@@ -60,7 +60,7 @@ from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.sn.solver import SNSolver, solve_sn
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
 
@@ -111,7 +111,7 @@ def _solver_for(coord: str, ng_key: str) -> tuple[SNSolver, object]:
 def _timed_random_state(sn_mesh: SNMesh, *, history_depth: int, seed: int) -> TimedFullField:
     """A timed iterate with random bulk — the comonad the driver carries."""
     state = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
+        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
         history_depth=history_depth,
     )
     from dataclasses import replace
@@ -195,7 +195,7 @@ def test_c5a_independent_of_input_history_depth() -> None:
     L = StreamingOperator(sn_mesh)
     for depth in (0, 1, 2, 4):
         state = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
+            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
             history_depth=depth,
         )
         out = L.apply(state)
@@ -272,7 +272,7 @@ def test_c5b_si_driver_iterate_stays_timed() -> None:
     from orpheus.sn.solver import _within_group_triple
     from orpheus.transport.source_sinks import (
         AngularSourceSink,
-        BoundarySourceSink,
+        AngularBoundarySourceSink,
     )
 
     solver, _case = _solver_for("slab", "2eg")
@@ -284,7 +284,7 @@ def test_c5b_si_driver_iterate_stays_timed() -> None:
         bulk=AngularSourceSink.from_isotropic(
             np.ones((solver.ng, *sn_mesh.spatial_shape)), sn_mesh,
         ),
-        boundary=BoundarySourceSink.zeros_on(sn_mesh),
+        boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
         _history=(),
         history_depth=2,
     )
@@ -292,7 +292,7 @@ def test_c5b_si_driver_iterate_stays_timed() -> None:
     # the gains dispatch on a flux bulk, not the source-role q_ext bulk); mirror
     # that here (SNSolver._solve_source_iteration passes a flux initial_guess).
     flux_seed = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=2,
+        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=2,
     )
     si = SourceIteration(LC.inverse(), S, B, max_iter=50, tol=1e-10)
     psi, _residuals = si.solve(q_ext, initial_guess=flux_seed)
@@ -319,7 +319,7 @@ def test_c5c_advance_type_guard_still_fires() -> None:
     solver, _case = _solver_for("slab", "2eg")
     sn_mesh = solver.sn_mesh
     state = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=2,
+        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=2,
     )
     # A bare ndarray is not an AngularFlux — the advance guard must reject it.
     with pytest.raises(TypeError, match="new_bulk type"):

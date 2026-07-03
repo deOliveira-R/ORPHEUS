@@ -1,8 +1,8 @@
-r"""Foundation: L2 :class:`BoundaryFlux.face_view` writability contract.
+r"""Foundation: L2 :class:`AngularBoundaryFlux.face_view` writability contract.
 
 Test-architect Test 2.6 (D-H.2-C4a verification spec).  Pins the
 software-level invariant that
-:meth:`orpheus.transport.fields.boundary_flux.BoundaryFlux.face_view`
+:meth:`orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux.face_view`
 returns a writable view into the flat backing buffer — writes
 through the view MUST propagate to the stored ``values`` array.
 
@@ -21,7 +21,7 @@ Why this catches the bug class
 * Pattern 4 (illegal-states-unrepresentable) — ``face_view`` claims
   to return a writable view; the type system cannot enforce that.
   A positive integration test is the only mechanism.
-* No legacy ``BoundaryFlux`` analog — the legacy class exposed
+* No legacy ``AngularBoundaryFlux`` analog — the legacy class exposed
   per-face arrays as mutable attributes (``bf.xmin_face = ...``),
   so the writability question was trivially answered by Python's
   attribute model.  The L2 carve replaces attribute mutation with
@@ -37,7 +37,7 @@ from orpheus.geometry import BC, CoordSystem, Mesh1D, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from tests.sn._test_helpers import placeholder_materials
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 pytestmark = pytest.mark.foundation
 
@@ -107,7 +107,7 @@ def test_face_view_inplace_mutation_propagates_to_backing(
     (writes silently propagate to scratch).
     """
     mesh = mesh_builder()
-    boundary = BoundaryFlux.zeros_on(mesh)
+    boundary = AngularBoundaryFlux.zeros_on(mesh)
 
     sentinel = 7.5
     for face in faces:
@@ -134,7 +134,7 @@ def test_face_view_writes_appear_in_flat_values(
     data.
     """
     mesh = mesh_builder()
-    boundary = BoundaryFlux.zeros_on(mesh)
+    boundary = AngularBoundaryFlux.zeros_on(mesh)
 
     # Distinct sentinel per face to disambiguate the slot mappings.
     for i, face in enumerate(faces):
@@ -169,7 +169,7 @@ def test_face_view_returns_distinct_views_per_face(
         pytest.skip(f"{name} has only one face; alias check trivially holds")
 
     mesh = mesh_builder()
-    boundary = BoundaryFlux.zeros_on(mesh)
+    boundary = AngularBoundaryFlux.zeros_on(mesh)
 
     sentinels = {face: 1.0 + i * 0.25 for i, face in enumerate(faces)}
     for face, sentinel in sentinels.items():
@@ -186,7 +186,7 @@ def test_face_view_returns_distinct_views_per_face(
 def test_face_view_raises_on_unknown_face_name() -> None:
     r"""``face_view`` MUST reject unknown face names at the API boundary."""
     mesh = _slab_mesh()
-    boundary = BoundaryFlux.zeros_on(mesh)
+    boundary = AngularBoundaryFlux.zeros_on(mesh)
     with pytest.raises(KeyError, match="no face named"):
         boundary.face_view("not_a_real_face")
 
@@ -199,7 +199,7 @@ def test_face_view_writable_independent_of_geometry_face_count() -> None:
     A regression here would break SI on sphere/cylinder.
     """
     sphere_mesh = _spherical_mesh()
-    boundary = BoundaryFlux.zeros_on(sphere_mesh)
+    boundary = AngularBoundaryFlux.zeros_on(sphere_mesh)
     view = boundary.face_view("xmax")
     view[...] = 3.14
     assert np.allclose(boundary.face_view("xmax"), 3.14)

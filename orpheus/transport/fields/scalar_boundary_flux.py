@@ -33,7 +33,7 @@ zero-flux Dirichlet idealization :math:`\mathcal{A}=-1`
 the PHYSICAL laws :math:`\mathcal{A}\in[0,1]`, not a type invariant).
 The full convention contract is ``.claude/plans/diffusion_crosswalk.md``.
 
-Storage follows the :class:`~orpheus.transport.fields._bases.TraceField`
+Storage follows the :class:`~orpheus.transport.fields._bases.BoundaryField`
 locus discipline: ONE flat backing buffer on the mesh's cached
 :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`
 (:attr:`MaterialMesh.scalar_trace
@@ -49,7 +49,7 @@ same dimensional family as the scalar flux (eV-free, group-integrated by
 construction).
 
 DSA seam (#2): the SN→diffusion boundary restriction is the half-range
-ℓ=0 moment of the angular ``BoundaryFlux`` under the SN trace metric
+ℓ=0 moment of the angular ``AngularBoundaryFlux`` under the SN trace metric
 :math:`G_s = |\Omega\cdot\hat n|\odot w_n`; that reduction is owned by
 the future moment-restriction operator — this leaf just carries its
 codomain.
@@ -65,15 +65,15 @@ from numpy.typing import NDArray
 
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.numerics.units import SCALAR_FLUX_UNITS, Unit
-from orpheus.transport.fields._bases import ScalarTraceField
+from orpheus.transport.fields._bases import ScalarBoundaryField
 from orpheus.transport.fields._flux_role import FluxRole
 
 
-__all__ = ["PartialCurrent"]
+__all__ = ["ScalarBoundaryFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class PartialCurrent(FluxRole, ScalarTraceField):
+class ScalarBoundaryFlux(FluxRole, ScalarBoundaryField):
     r"""Partial-current pair :math:`(J^+, J^-)` per boundary face per group.
 
     Parameters
@@ -95,7 +95,7 @@ class PartialCurrent(FluxRole, ScalarTraceField):
     Notes
     -----
     Algebra (same-class ``+``/``-``, scalar ``*``/``/``, mesh-identity
-    and layout guards) is inherited from :class:`TraceField`. The
+    and layout guards) is inherited from :class:`BoundaryField`. The
     named-quantity accessors below own the P1 dictionary — no consumer
     re-derives it (Pattern 3 / the crosswalk contract).
     """
@@ -133,7 +133,7 @@ class PartialCurrent(FluxRole, ScalarTraceField):
         """
         return np.asarray(self.outflow_view(face) - self.inflow_view(face))
 
-    def boundary_scalar_flux(self, face: str) -> NDArray:
+    def p1_boundary_scalar_flux(self, face: str) -> NDArray:
         r"""P1 boundary scalar flux ``φ_Γ = 2(J⁺ + J⁻)`` on ``face`` (a copy).
 
         The other half of the Cauchy pair, reconstructed through the P1

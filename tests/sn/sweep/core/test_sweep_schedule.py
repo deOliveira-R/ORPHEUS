@@ -72,7 +72,7 @@ def _all_indices(schedule: SweepSchedule) -> list[int]:
 
 def _reflective_faces(sn: SNMesh) -> set[str]:
     return {
-        f for f in sn.trace.layout.faces if sn.bc[f] == "reflective"
+        f for f in sn.angular_trace.layout.faces if sn.bc[f] == "reflective"
     }
 
 

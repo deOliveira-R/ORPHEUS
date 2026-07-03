@@ -42,7 +42,7 @@ from orpheus.transport.full_field import FullField
 from orpheus.transport.source_sinks import AngularSourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 pytestmark = pytest.mark.foundation
 
@@ -101,7 +101,7 @@ def _random_state(
     """
     rng = np.random.default_rng(seed)
     N = sn_mesh.quad.N
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     return replace(
         state,
         bulk=replace(
@@ -179,7 +179,7 @@ class TestApply:
         sn_mesh = builder()
         sigma = _sigma_total(sn_mesh)
         C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
-        zero = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+        zero = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
         out = C.apply(zero)
         np.testing.assert_array_equal(out.bulk.values, 0.0)
 
@@ -396,7 +396,7 @@ class TestSigmaLayout:
 # the :class:`TimedFullField` carrier.  The tests below pin the
 # composite-only contract: collision is bulk-only (Option β3 / Issue
 # #208), so the output boundary is the implicit-zero
-# :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`, and
+# :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`, and
 # the history-depth metadata threads through unchanged.
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -442,7 +442,7 @@ class TestCompositeInvariants:
         sigma = _sigma_total(sn_mesh)
         C = MultiplicationOperator.from_mesh(sigma, sn_mesh)
         for depth in (0, 1, 2, 4):
-            state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=depth)
+            state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=depth)
             out_apply = C.apply(state)
             out_solve = C.solve(state)
             # base-arrow codomain: a timeless FullField, NOT the timed subclass.

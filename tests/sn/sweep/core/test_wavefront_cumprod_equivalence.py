@@ -79,7 +79,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.solver import solve_sn
 from orpheus.sn.loss_representation import CumprodScan, FullFieldWavefront
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.source_sinks import AngularSourceSink
 
 pytestmark = pytest.mark.foundation
@@ -111,9 +111,9 @@ def _slab_sn_mesh(nx: int, *, bc: str, ng_key: str = "2g") -> SNMesh:
     return SNMesh(mesh, quad, {0: get_mixture("A", ng_key)})
 
 
-def _seeded_inflow(sn_mesh: SNMesh, rng: np.random.Generator) -> BoundaryFlux:
+def _seeded_inflow(sn_mesh: SNMesh, rng: np.random.Generator) -> AngularBoundaryFlux:
     """A boundary flux with a random non-zero inflow trace on every face."""
-    bf = BoundaryFlux.zeros_on(sn_mesh)
+    bf = AngularBoundaryFlux.zeros_on(sn_mesh)
     for face in bf.layout.faces:
         fv = bf.face_view(face)
         fv[...] = rng.uniform(0.0, 1.0, size=fv.shape)
@@ -149,7 +149,7 @@ def test_cumprod_1d_equals_full_field_spine(bc):
 
     # Separate seeded inflow per strategy (each sweep mutates its own trace).
     bf_cumprod = _seeded_inflow(sn_mesh, rng)
-    bf_spine = BoundaryFlux.from_mesh(bf_cumprod.values.copy(), sn_mesh)
+    bf_spine = AngularBoundaryFlux.from_mesh(bf_cumprod.values.copy(), sn_mesh)
 
     ang_c, scal_c = CumprodScan(sn_mesh).sweep(Q_arr, sig_t, bf_cumprod)
     ang_s, scal_s = FullFieldWavefront(sn_mesh).sweep(Q_arr, sig_t, bf_spine)
@@ -238,11 +238,11 @@ def test_cumprod_faster_than_full_field_spine_d1():
     spine = FullFieldWavefront(sn_mesh)
 
     def _time(strategy, repeats=5):
-        bf = BoundaryFlux.zeros_on(sn_mesh)
+        bf = AngularBoundaryFlux.zeros_on(sn_mesh)
         strategy.sweep(Q_arr, sig_t, bf)        # warm up (cache build)
         best = float("inf")
         for _ in range(repeats):
-            bf = BoundaryFlux.zeros_on(sn_mesh)
+            bf = AngularBoundaryFlux.zeros_on(sn_mesh)
             t0 = time.perf_counter()
             strategy.sweep(Q_arr, sig_t, bf)
             best = min(best, time.perf_counter() - t0)

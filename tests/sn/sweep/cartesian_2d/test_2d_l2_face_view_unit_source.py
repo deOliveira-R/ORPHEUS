@@ -10,7 +10,7 @@ The legacy 2-D Cartesian matvec routes through a packed eq_map layout
 (``transport_operator_matvec`` at ``operator.py:455``) where face
 state lives in concatenated B1″ slots indexed by
 ``eq_map.face_outer_ordinate`` / ``eq_map.face_inner_ordinate``.
-The L2 ``BoundaryFlux.face_view("xmin")`` returns a per-face shaped
+The L2 ``AngularBoundaryFlux.face_view("xmin")`` returns a per-face shaped
 view ``(N, ng, ny)``.  The mapping between these two indexings is
 the convention crosswalk that C4 collapses.
 
@@ -73,11 +73,11 @@ from orpheus.geometry import BC, Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
 # 2-D Cartesian L2 face_view convention crosswalk: structural pins on
-# the BoundaryFlux.face_view writability + unit-source convention (no
+# the AngularBoundaryFlux.face_view writability + unit-source convention (no
 # theory-page :label:). Foundation, not a physics equation gate. (Was a
 # V&V orphan before the taxonomy reorg forced a marker.)
 pytestmark = pytest.mark.foundation
@@ -118,7 +118,7 @@ def _zero_state_with_unit_face(
     structural positive test: this unit should propagate downstream
     via the streaming operator's BC apply.
     """
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=mesh)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=mesh)
     state.boundary.face_view(face)[...] = 1.0
     return state
 

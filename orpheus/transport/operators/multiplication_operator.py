@@ -336,14 +336,14 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         is an
         :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`;
         the boundary is the implicit-zero
-        :class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`
+        :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
         (a multiplier has no face-trace action — the cell-balance
         :math:`f\,\psi` term is a CELL quantity).
         """
         from orpheus.transport.fields._bases import AngularField
         from orpheus.transport.source_sinks import (
             AngularSourceSink,
-            BoundarySourceSink,
+            AngularBoundarySourceSink,
         )
 
         # Angular arm ONLY today: the output broadcast (per-ordinate
@@ -363,7 +363,7 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         out_bulk = self.engine.apply(bulk.values)
         return FullField(
             bulk=AngularSourceSink.from_mesh(out_bulk, mesh),
-            boundary=BoundarySourceSink.zeros_on(mesh),
+            boundary=AngularBoundarySourceSink.zeros_on(mesh),
         )
 
     @_apply_impl.register
@@ -403,11 +403,11 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         "source → flux"), so the bulk is an
         :class:`~orpheus.transport.fields.angular_flux.AngularFlux` and the
         boundary the implicit-zero
-        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`.
+        :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`.
         """
         from orpheus.transport.fields._bases import AngularField
         from orpheus.transport.fields.angular_flux import AngularFlux
-        from orpheus.transport.fields.boundary_flux import BoundaryFlux
+        from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
         # Angular arm ONLY today (see :meth:`apply` — same #289 seam parse);
         # the mesh comes off the parsed bulk's SNMesh-typed declaration.
@@ -421,7 +421,7 @@ class MultiplicationOperator(LinearOperator["FullField"]):
         out_bulk = self.engine.solve(bulk.values)
         return FullField(
             bulk=AngularFlux.from_mesh(out_bulk, mesh),
-            boundary=BoundaryFlux.zeros_on(mesh),
+            boundary=AngularBoundaryFlux.zeros_on(mesh),
         )
 
     @overload

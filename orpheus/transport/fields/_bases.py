@@ -12,11 +12,14 @@ architectural smell; these bases are the consolidation.
 The storage × role × locus hierarchy
 =====================================
 
-The field vocabulary (issues #205 / #201) is a grid of **locus**
-(bulk vs boundary) × **storage family** (angular / scalar / moment /
-trace) × **role** (flux / source / residual). This module provides the
-*locus + storage-family* axis as ABCs; the *role* leaves (``AngularFlux``,
-``AngularSourceSink``, ...) sit beneath them::
+The field vocabulary (issues #205 / #201; the #290 P2.5 axis-coherence
+ruling) is a grid of THREE orthogonal axes: **locus** {Bulk,
+Boundary(field) / Trace(space)} × **family** {Angular, Scalar, Moment}
+× **role** {Flux, SourceSink, Residual, Displacement}. A bulk leaf is
+named ``<Family><Role>``, a boundary leaf ``<Family>Boundary<Role>`` —
+"Boundary" is the locus qualifier, never a fourth family. This module
+provides the *locus + family* axes as ABCs; the *role* leaves
+(``AngularFlux``, ``AngularSourceSink``, ...) sit beneath them::
 
     Field (numerics, L1 — values + space + dunder algebra)
      ├─ BulkField (ABC)           mesh + mesh-binding + ng/nx/ny + abstract _phase_space_shape
@@ -28,10 +31,16 @@ trace) × **role** (flux / source / residual). This module provides the
      │   │   └─ ScalarSourceSink       role leaf  (source; renamed from IsotropicSource in B.2)
      │   └─ MomentField (ABC)     family marker; the moment shape is leaf-specific
      │       └─ HarmonicMomentFlux   role leaf  (flux-only for now)
-     └─ BoundaryField (ABC)       mesh + mesh-binding + TraceSpace contract + layout/face_view + factories
-         ├─ BoundaryFlux              role leaf  (flux)
-         ├─ BoundarySourceSink            role leaf  (source; B.3 — orpheus.transport.source_sinks)
-         └─ BoundaryResidual          role leaf  (residual; B.3 — orpheus.transport.residuals)
+     └─ BoundaryField (ABC)       method-agnostic boundary locus: flat-buffer contract
+         │                        + layout/face_view + factories via _trace_space_of
+         ├─ AngularBoundaryField (ABC)   mesh: SNMesh + AngularTraceSpace contract (mesh.angular_trace)
+         │   ├─ AngularBoundaryFlux          role leaf  (flux)
+         │   ├─ AngularBoundarySourceSink    role leaf  (source; B.3 — orpheus.transport.source_sinks)
+         │   ├─ AngularBoundaryResidual      role leaf  (residual; B.3 — orpheus.transport.residuals)
+         │   └─ AngularBoundaryDisplacement  role leaf  (displacement — orpheus.transport.displacements)
+         └─ ScalarBoundaryField (ABC)    ScalarTraceSpace contract (mesh.scalar_trace; #290 P2)
+             ├─ ScalarBoundaryFlux           role leaf  (flux — the per-face (J⁺, J⁻) pair)
+             └─ ScalarBoundaryDisplacement   role leaf  (displacement — orpheus.transport.displacements)
 
 Parametrization (no twin paths)
 ===============================
@@ -42,9 +51,11 @@ The per-family phase-space shape is the one abstract hook
 expose a ``from_mesh`` classmethod parametrized by the leaf's
 ``_SPACE_NAME`` :class:`~typing.ClassVar` (so ``AngularFlux``'s space is
 named ``"angular_flux"`` and ``AngularSourceSink``'s ``"angular_source_sink"``,
-preserving the pre-B.1 space identities bit-for-bit). ``MomentField`` and
-``BoundaryField`` build their spaces differently (a TensorProductSpace
-keyed on ``L``; the mesh's cached ``TraceSpace``) and so do not use
+preserving the pre-B.1 space identities bit-for-bit). ``MomentField`` and the
+``BoundaryField`` families build their spaces differently (a
+TensorProductSpace keyed on ``L``; the mesh's cached trace —
+``mesh.angular_trace`` / ``mesh.scalar_trace`` via
+:meth:`BoundaryField._trace_space_of`) and so do not use
 ``_SPACE_NAME``.
 
 References
@@ -76,7 +87,7 @@ from orpheus.numerics.spaces.spherical_harmonic_space import (
     SphericalHarmonicSpace,
 )
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
-from orpheus.numerics.spaces.trace_space import TraceSpace
+from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 
 if TYPE_CHECKING:
     from orpheus.numerics.face_layout import FaceLayout
@@ -90,6 +101,8 @@ __all__ = [
     "ScalarField",
     "MomentField",
     "BoundaryField",
+    "AngularBoundaryField",
+    "ScalarBoundaryField",
 ]
 
 
@@ -118,7 +131,7 @@ class BulkField(Field):
     ``ndim`` (all ``MaterialMesh`` data), so they live on any material mesh
     including a meshless single-region one (#267 / #276). The SN-only
     ``mesh.quad`` access is confined to the angular family, whose
-    :class:`AngularField` / :class:`MomentField` / :class:`BoundaryField`
+    :class:`AngularField` / :class:`MomentField` / :class:`AngularBoundaryField`
     declarations covariantly NARROW ``mesh`` back to ``SNMesh`` (no casts
     — the narrowing lives in the field declarations, #267).
     """
@@ -664,7 +677,7 @@ class MomentField(BulkField):
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class TraceField(Field):
+class BoundaryField(Field):
     r"""Boundary-locus storage base — a mesh-bound :class:`Field` on a
     layout-bearing boundary-trace space (method-agnostic).
 
@@ -677,13 +690,14 @@ class TraceField(Field):
     factories (all via ``cls`` + the :meth:`_trace_space_of` hook so
     they construct the concrete subclass on ITS mesh's cached trace).
 
-    Two storage families realize the locus (#290 P2):
+    Two storage families realize the locus (#290 P2; named per the P2.5
+    axis-coherence ruling — family-qualified, uniform role tokens):
 
-    * :class:`BoundaryField` — the ANGULAR family (``mesh`` narrowed to
+    * :class:`AngularBoundaryField` — the ANGULAR family (``mesh`` narrowed to
       :class:`SNMesh`, space narrowed to the quadrature-coupled
-      :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`).
-    * :class:`~orpheus.transport.fields.partial_current.PartialCurrent`
-      — the SCALAR family (``mesh: MaterialMesh``, space narrowed to
+      :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`).
+    * :class:`ScalarBoundaryField` — the SCALAR family (``mesh:
+      MaterialMesh``, space narrowed to
       :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`;
       per-face ``(J⁺, J⁻)`` partial-current pairs).
 
@@ -706,7 +720,7 @@ class TraceField(Field):
         r"""Return ``mesh``'s cached trace space for this family.
 
         The single hook the three factories construct through: the
-        angular family reads ``mesh.trace`` (raising on the trace-less
+        angular family reads ``mesh.angular_trace`` (raising on the trace-less
         2-D cylindrical mesh), the scalar family ``mesh.scalar_trace``.
         MUST return a layout-bearing space or raise :class:`ValueError`
         with the family's own diagnosis.
@@ -720,13 +734,13 @@ class TraceField(Field):
         # The space IS the trace and carries the FaceLayout (A.5 re-home;
         # illegal-states-unrepresentable): a trace field on a layout-less
         # space cannot do face_view. Families ADD their space-type
-        # narrowing (TraceSpace / ScalarTraceSpace) on top of this
+        # narrowing (AngularTraceSpace / ScalarTraceSpace) on top of this
         # structural floor.
         layout = getattr(self.space, "layout", None)
         if layout is None:
             raise TypeError(
                 f"{type(self).__name__} requires a layout-bearing trace "
-                f"space (a TraceSpace / ScalarTraceSpace built via its "
+                f"space (an AngularTraceSpace / ScalarTraceSpace built via its "
                 f"factory); got space={self.space!r}. Build via "
                 f"{type(self).__name__}.zeros_on / from_face_arrays / "
                 f"from_mesh."
@@ -885,18 +899,18 @@ class TraceField(Field):
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class BoundaryField(TraceField):
+class AngularBoundaryField(BoundaryField):
     r"""Angular boundary-trace storage base — the SN family of the
-    :class:`TraceField` locus.
+    :class:`BoundaryField` locus.
 
     Carries what is ANGULAR about the locus: the :class:`SNMesh`
     binding (covariant narrowing of the base ``mesh: MaterialMesh``)
     and the space narrowing to the unified quadrature-coupled
-    :class:`~orpheus.numerics.spaces.trace_space.TraceSpace` (the
+    :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` (the
     ``|Ω·n̂|⊙w_n`` partial-current metric + the ``omega_dot_n``
     selector table). All storage/factory/guard machinery is inherited
-    from :class:`TraceField`. The concrete role leaves are
-    ``BoundaryFlux``, ``BoundarySourceSink``, ``BoundaryResidual``.
+    from :class:`BoundaryField`. The concrete role leaves are
+    ``AngularBoundaryFlux``, ``AngularBoundarySourceSink``, ``AngularBoundaryResidual``.
     Abstract — instantiate a role leaf.
     """
 
@@ -905,27 +919,27 @@ class BoundaryField(TraceField):
     # ── Construction validation (angular narrowing) ──────────────────
 
     def __post_init__(self) -> None:
-        # A.5: the space IS the unified angular TraceSpace. The
+        # A.5: the space IS the unified angular AngularTraceSpace. The
         # isinstance narrowing runs FIRST so the family-specific
         # message fires for the common misuse (a bare FunctionSpace or
         # a scalar trace passed where the angular trace belongs).
-        if not isinstance(self.space, TraceSpace):
+        if not isinstance(self.space, AngularTraceSpace):
             raise TypeError(
-                f"{type(self).__name__} requires a TraceSpace carrying a "
+                f"{type(self).__name__} requires an AngularTraceSpace carrying a "
                 f"FaceLayout (A.5 re-home); got space={self.space!r}. Build "
                 f"via {type(self).__name__}.zeros_on / "
-                f"from_face_arrays, or pass mesh.trace as the space."
+                f"from_face_arrays, or pass mesh.angular_trace as the space."
             )
         super().__post_init__()
 
-    # ── The angular trace-space source (``mesh.trace``) ──────────────
+    # ── The angular trace-space source (``mesh.angular_trace``) ──────────────
 
     @classmethod
-    def _trace_space_of(cls, mesh: "MaterialMesh") -> TraceSpace:
-        space = getattr(mesh, "trace", None)
+    def _trace_space_of(cls, mesh: "MaterialMesh") -> AngularTraceSpace:
+        space = getattr(mesh, "angular_trace", None)
         if space is None:
             raise ValueError(
-                f"{cls.__name__}: mesh has no TraceSpace (mesh.trace is "
+                f"{cls.__name__}: mesh has no AngularTraceSpace (mesh.angular_trace is "
                 f"None — only trace-less 2-D cylindrical meshes, which "
                 f"have no SN sweep, hit this). A boundary field cannot "
                 f"be built without a boundary trace."
@@ -934,9 +948,9 @@ class BoundaryField(TraceField):
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class ScalarTraceField(TraceField):
+class ScalarBoundaryField(BoundaryField):
     r"""Scalar boundary-trace storage base — the ``(J⁺, J⁻)`` family of
-    the :class:`TraceField` locus (#290 P2).
+    the :class:`BoundaryField` locus (#290 P2).
 
     Carries what is SCALAR about the locus: the space narrowing to
     :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`
@@ -947,9 +961,9 @@ class ScalarTraceField(TraceField):
     scalar trace is meaningful on ANY material mesh (diffusion / CP
     natively; an :class:`SNMesh` when DSA restricts onto it). The
     concrete role leaves are
-    :class:`~orpheus.transport.fields.partial_current.PartialCurrent`
+    :class:`~orpheus.transport.fields.scalar_boundary_flux.ScalarBoundaryFlux`
     (flux/state) and
-    :class:`~orpheus.transport.displacements.partial_current_displacement.PartialCurrentDisplacement`
+    :class:`~orpheus.transport.displacements.scalar_boundary_displacement.ScalarBoundaryDisplacement`
     (the iterate increment); source/residual siblings join when their
     operator codomains demand them (#290 P4). Abstract — instantiate a
     role leaf.
@@ -959,7 +973,7 @@ class ScalarTraceField(TraceField):
 
     def __post_init__(self) -> None:
         # The family's space narrowing runs FIRST so the family-specific
-        # message fires for the common misuse (an angular TraceSpace or
+        # message fires for the common misuse (an angular AngularTraceSpace or
         # a bare FunctionSpace passed where the scalar trace belongs).
         if not isinstance(self.space, ScalarTraceSpace):
             raise TypeError(

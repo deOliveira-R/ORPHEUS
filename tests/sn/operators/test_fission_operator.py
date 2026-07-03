@@ -22,7 +22,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
 
@@ -262,7 +262,7 @@ class TestKDivisionConvention:
 # action — the emission spectrum lives only on cell-centred volumes.
 # The composite branch returns a :class:`TimedFullField` with the
 # fission per-ordinate source in the bulk member and an implicit-zero
-# :class:`BoundaryFlux` in the boundary member.  The parity test
+# :class:`AngularBoundaryFlux` in the boundary member.  The parity test
 # vs. legacy AngularFlux retired with D-H.2 (legacy branch deleted in
 # C5); the algebra is exercised on the composite carrier directly.
 # ──────────────────────────────────────────────────────────────────────
@@ -282,7 +282,7 @@ class TestCompositeInvariants:
         from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = solver_2g.sn_mesh
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
         # Seed bulk with a deterministic non-zero per-ordinate ψ.
         np.random.seed(31)
         bulk_values = np.random.rand(*state.bulk.values.shape) + 0.1
@@ -302,7 +302,7 @@ class TestCompositeInvariants:
         from dataclasses import replace
 
         sn_mesh = solver_2g.sn_mesh
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
         np.random.seed(32)
         bulk_values = np.random.rand(*state.bulk.values.shape) + 0.1
         state = replace(state, bulk=replace(state.bulk, values=bulk_values))
@@ -316,7 +316,7 @@ class TestCompositeInvariants:
 
     def test_zero_bulk_zero_output(self, solver_2g):
         """ψ = 0 ⇒ F·ψ = 0 (linearity guard at composite layer)."""
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=solver_2g.sn_mesh)
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=solver_2g.sn_mesh)
         out = solver_2g.fission_op.apply(state)
         np.testing.assert_array_equal(out.bulk.values, 0.0)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
@@ -331,7 +331,7 @@ class TestCompositeInvariants:
         """
         sn_mesh = solver_2g.sn_mesh
         for depth in (0, 1, 2, 4):
-            state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=depth)
+            state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=depth)
             out = solver_2g.fission_op.apply(state)
             assert isinstance(out, FullField)
             assert not isinstance(out, TimedFullField)

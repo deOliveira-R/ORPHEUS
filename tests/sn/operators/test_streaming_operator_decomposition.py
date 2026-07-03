@@ -42,7 +42,7 @@ Test contract (mechanism criteria 1, 2 from the substep brief)
 * slab/sphere/cylinder × 3 random seeds × σ_t = 2.0 uniform.
 * Composition residual ``(L+C).apply(ψ) − M(ψ;σ_t)`` MUST be bit-exact
   (``rel_residual < 1e-14``) on BOTH the cell-centre bulk
-  ``AngularFlux`` and the boundary face residual ``BoundaryFlux``.
+  ``AngularFlux`` and the boundary face residual ``AngularBoundaryFlux``.
 * No xfail.  ``(L+C).apply`` is the composite's ``loss_action(σ_t)``,
   byte-identical to ``M``.
 
@@ -85,7 +85,7 @@ from orpheus.transport.operators.multiplication_operator import MultiplicationOp
 from tests.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 
@@ -164,7 +164,7 @@ class TestResolutionADecomposition:
             bulk=AngularFlux.from_mesh(
                 rng.standard_normal((N, ng, *sn_mesh.spatial_shape)), sn_mesh,
             ),
-            boundary=BoundaryFlux.zeros_on(sn_mesh),
+            boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -257,7 +257,7 @@ class TestSubtractiveDefinition:
             bulk=AngularFlux.from_mesh(
                 rng.standard_normal((N, ng, *sn_mesh.spatial_shape)), sn_mesh,
             ),
-            boundary=BoundaryFlux.zeros_on(sn_mesh),
+            boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -327,7 +327,7 @@ class TestPureLIsLossActionAtZeroSigma:
             bulk=AngularFlux.from_mesh(
                 rng.standard_normal((N, ng, *sn_mesh.spatial_shape)), sn_mesh,
             ),
-            boundary=BoundaryFlux.zeros_on(sn_mesh),
+            boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
             _history=(),
             history_depth=2,
         )

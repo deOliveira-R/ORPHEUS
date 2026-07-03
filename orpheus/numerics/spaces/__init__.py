@@ -13,13 +13,13 @@ subclasses that carry domain-specific metadata beyond
   spatial sibling of :class:`SphericalHarmonicSpace` (angular moments):
   it carries how :math:`\psi` varies in space WITHIN a cell, an axis
   orthogonal to the angular-moment axis.
-* :class:`TraceSpace` (#205 / #201 unification) — the single
+* :class:`AngularTraceSpace` (#205 / #201 unification) — the single
   whole-boundary trace function space. Carries the :class:`FaceLayout`
   + the signed :math:`\Omega\cdot\hat n` per face; inflow / outflow are
   *selectors* over it (no longer separate ``Inflow`` / ``Outflow``
   subclasses).
 * :class:`ScalarTraceSpace` (#290 P2) — the quadrature-free scalar
-  sibling of :class:`TraceSpace`: per-face ``(J⁺, J⁻)``
+  sibling of :class:`AngularTraceSpace`: per-face ``(J⁺, J⁻)``
   partial-current pairs under the face-AREA metric, for methods whose
   boundary state is already angle-integrated (diffusion; CP / MoC
   scalar traces to follow).
@@ -49,13 +49,13 @@ from orpheus.numerics.spaces.spherical_harmonic_space import (
     SphericalHarmonicSpace,
 )
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
-from orpheus.numerics.spaces.trace_space import TraceSpace
+from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 
 __all__ = [
     "FullFieldSpace",
     "ScalarTraceSpace",
     "SpatialMomentSpace",
     "SphericalHarmonicSpace",
-    "TraceSpace",
+    "AngularTraceSpace",
     "spatial_moment_tail",
 ]

@@ -112,7 +112,7 @@ from orpheus.sn.operators.streaming import (
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 
@@ -217,7 +217,7 @@ def _removal_sigmas(sn: SNMesh, *, seed: int) -> tuple[np.ndarray, np.ndarray]:
 
 def _random_state(sn: SNMesh, *, seed: int) -> TimedFullField:
     rng = np.random.default_rng([seed, 7])
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
     state.bulk.values[...] = rng.standard_normal(state.bulk.values.shape)
     for face in state.boundary.layout.faces:
         fv = state.boundary.face_view(face)

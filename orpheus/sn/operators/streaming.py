@@ -17,7 +17,7 @@ equation :math:`A_{\\rm wg} = L + C - S_{\\rm foldable}`:
 All three operators consume and emit
 :class:`~orpheus.transport.timed_full_field.TimedFullField` — the
 typed composite carrier (bulk = :class:`~orpheus.transport.fields.angular_flux.AngularFlux`,
-boundary = :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`).
+boundary = :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`).
 Producer-side normalisation (Pattern 7): the typed contract is
 enforced at every operator entry; no bare-ndarray packed-vector
 adapter.  The geometry-agnostic 1-D matvec kernel is
@@ -110,7 +110,7 @@ History
    ``_sweep_jacobi`` uses — so matvec ≡ sweep in 2-D by
    construction (L21, one discretization) — and emits the boundary
    consistency residual (outflow defect ``streamed − given`` + inflow
-   identity) as a :class:`BoundarySourceSink`.  The reflective coupling
+   identity) as a :class:`AngularBoundarySourceSink`.  The reflective coupling
    is the sibling ``-B`` exactly as in 1-D.  The pre-extraction Phase C
    insight that the BC must consume the WDD-propagated outflow face
    vector (not cell centres) is preserved and strengthened: post-O.4a.2
@@ -141,7 +141,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from orpheus.transport.fields.angular_flux import AngularFlux
-    from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.fields.cross_section_field import CrossSectionField
     from orpheus.transport.full_field import FullField
     from orpheus.transport.timed_full_field import TimedFullField
@@ -214,7 +214,7 @@ def _require_typed_composite(
             f"{type(field).__name__}.  D-I.3d (2026-05-29) retired the "
             "bare-ndarray packed-vector contract; construct a timeless "
             "composite via ``FullField(bulk=AngularFlux(...), "
-            "boundary=BoundaryFlux(...))`` (or the timed "
+            "boundary=AngularBoundaryFlux(...))`` (or the timed "
             "``TimedFullField(bulk=..., boundary=...)`` for an iterate)."
         )
     if sn_mesh is not field.bulk.mesh:
@@ -414,7 +414,7 @@ class StreamingOperator(LinearOperator["FullField"]):
             Composite carrier with bulk
             (:class:`~orpheus.transport.fields.angular_flux.AngularFlux`)
             and boundary
-            (:class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`).
+            (:class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`).
             Operator and ``psi.bulk.mesh`` MUST be the same
             :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` instance.
 
@@ -938,7 +938,7 @@ class InvertibleOperator(
         initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
-        reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
+        reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "TimedFullField":
         r"""Composite :class:`TimedFullField` body of :meth:`solve` (D-H.1c stage 1).
 
@@ -950,7 +950,7 @@ class InvertibleOperator(
 
         The boundary plumbing seeds the sweep's mutable write-through
         buffer from the source trace: ``boundary_buf =
-        BoundaryFlux.zeros_on(sn_mesh)`` is filled per-face from
+        AngularBoundaryFlux.zeros_on(sn_mesh)`` is filled per-face from
         ``rhs.boundary`` via the L2 ``face_view`` copy
         (``boundary_buf.face_view(face_name)[:] =
         seed_boundary.face_view(face_name)`` for each shared face —
@@ -980,8 +980,8 @@ class InvertibleOperator(
         from orpheus.transport.fields.angular_flux import (
             AngularFlux,
         )
-        from orpheus.transport.fields.boundary_flux import (
-            BoundaryFlux,
+        from orpheus.transport.fields.angular_boundary_flux import (
+            AngularBoundaryFlux,
         )
         from orpheus.transport.fields.harmonic_moment_flux import (
             HarmonicMomentFlux,
@@ -1042,7 +1042,7 @@ class InvertibleOperator(
         # iterate (``initial_guess``) still threads the BULK Carlson /
         # angular warm-start through the representation sweep below —
         # that path reads ``initial_guess.bulk``, not its boundary.
-        boundary_buf = BoundaryFlux.zeros_on(sn_mesh)  # L2 after C2
+        boundary_buf = AngularBoundaryFlux.zeros_on(sn_mesh)  # L2 after C2
         seed_boundary = rhs.boundary
         # Per-face copy via L2 face_view — works for slab (xmin, xmax),
         # curvilinear (xmax only), and 2-D Cartesian (all 4).

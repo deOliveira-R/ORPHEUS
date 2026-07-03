@@ -17,8 +17,8 @@ The arithmetic gate is **class identity**, not units — see
 :meth:`~orpheus.numerics.field.Field._check_partner`. This is structural,
 not incidental: the ten role leaves fall into only **four distinct unit
 signatures** (below), so units are far coarser than classes
-(e.g. ``AngularFlux``, ``BoundaryFlux``, ``BoundarySourceSink`` and
-``BoundaryResidual`` are all :data:`ANGULAR_FLUX_UNITS`). "Same units" grants
+(e.g. ``AngularFlux``, ``AngularBoundaryFlux``, ``AngularBoundarySourceSink`` and
+``AngularBoundaryResidual`` are all :data:`ANGULAR_FLUX_UNITS`). "Same units" grants
 permission to add in linear algebra; it does NOT grant meaning. ``UNITS`` is
 therefore **machine-readable metadata**, not a gate. Its consumers are:
 
@@ -38,8 +38,8 @@ The four unit signatures (a 2×2: areal/volumetric × angular/scalar)
 ============================  =================  =====================================
 Constant                      Unit               Leaves
 ============================  =================  =====================================
-:data:`ANGULAR_FLUX_UNITS`    ``1/(cm²·s·sr)``   AngularFlux, BoundaryFlux,
-                                                 BoundarySourceSink, BoundaryResidual
+:data:`ANGULAR_FLUX_UNITS`    ``1/(cm²·s·sr)``   AngularFlux, AngularBoundaryFlux,
+                                                 AngularBoundarySourceSink, AngularBoundaryResidual
 :data:`SCALAR_FLUX_UNITS`     ``1/(cm²·s)``      ScalarFlux, HarmonicMomentFlux
 :data:`ANGULAR_RATE_UNITS`    ``1/(cm³·s·sr)``   AngularSourceSink, AngularResidual
 :data:`SCALAR_RATE_UNITS`     ``1/(cm³·s)``      ScalarSourceSink, ScalarResidual

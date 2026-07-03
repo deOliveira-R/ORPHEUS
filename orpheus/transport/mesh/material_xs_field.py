@@ -101,7 +101,7 @@ if TYPE_CHECKING:
     # quadrature/trace an ``SNMesh`` adds. This is the #267 ``MaterialXSField``
     # slice: the field is a STANDALONE dataclass (not a ``BulkField`` subclass),
     # so it retypes independently of the full typed-field-hierarchy split (the
-    # bulk-data vs quad/trace-dependent ``AngularField``/``BoundaryField`` base
+    # bulk-data vs quad/trace-dependent ``AngularField``/``AngularBoundaryField`` base
     # split remains the #267 back-half). The MaterialMesh dependency admits a
     # meshless (``mesh=None``, single-region) MaterialMesh — the 0-D homogeneous
     # phase space (campaign #276).

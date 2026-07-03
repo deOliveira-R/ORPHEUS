@@ -38,19 +38,19 @@ Key Facts
   \to 0`. See :ref:`bc-extraction`.
 
 - **Every operator's** ``.apply`` **output boundary is a**
-  :class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`
+  :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
   (Wave O step B.5.2, Issue #208, ``6ef5063``, 2026-06-03), completing
   the boundary half of the operator-output "dimensional-sin" carve (the
   bulk half — ``.apply.bulk`` →
   :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`
   — landed in ``f400743``). The governing principle: an operator output
   is :math:`A\psi` — a **source/sink**, NOT a residual; the residual
-  arises ONLY from an explicit :meth:`~orpheus.transport.residuals.boundary_residual.BoundaryResidual.from_balance`
+  arises ONLY from an explicit :meth:`~orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual.from_balance`
   of the output against a source. The completed boundary role grid
   mirrors the bulk:
-  :math:`\texttt{.apply} \to \texttt{BoundarySourceSink}`,
-  :math:`\texttt{.solve} \to \texttt{BoundaryFlux}`,
-  :math:`\texttt{from\_balance} \to \texttt{BoundaryResidual}`. See
+  :math:`\texttt{.apply} \to \texttt{AngularBoundarySourceSink}`,
+  :math:`\texttt{.solve} \to \texttt{AngularBoundaryFlux}`,
+  :math:`\texttt{from\_balance} \to \texttt{AngularBoundaryResidual}`. See
   :ref:`bc-extraction-operator-output-typing`.
 
 - **Flux states form an affine space; the iterate increment is a typed
@@ -59,7 +59,7 @@ Key Facts
   states :class:`~orpheus.transport.fields.angular_flux.AngularFlux` /
   :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` /
   :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`
-  / :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux` are an
+  / :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux` are an
   **affine space** :math:`A` over a distinct **difference vector space**
   :math:`V`. The source-iteration increment
   :math:`\Delta\psi = \psi^{(i)} \ominus \psi^{(i-1)}` is an element of
@@ -113,7 +113,7 @@ Key Facts
   2026-06-04): the 2-D wavefront sweep and matvec no
   longer carry raw ephemeral ``psi_x`` / ``psi_y`` numpy arrays. The
   interior 1-cochain :math:`C^1_{\rm int}` and the boundary trace
-  :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+  :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
   (the boundary 1-cochain :math:`C^1_\partial`) **biproduct-decompose
   the full face cochain** :math:`C^1 = C^1_{\rm int} \oplus
   C^1_\partial` — the :math:`V_{\rm bulk} \oplus V_{\rm boundary}`
@@ -2558,7 +2558,7 @@ a different facet of the object:
   :math:`(L{+}1, 2L{+}1, n_g, *\text{spatial})` layout; Scalar is the
   angle-integrated :math:`(n_g, *\text{spatial})` layout; Trace is the
   boundary face-cochain (the flat :math:`(\,\text{layout.total\_size}\,)`
-  buffer on the :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`).
+  buffer on the :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`).
   Changing representation is a change of basis between two *realisations of
   the same physical quantity* — the addition theorem :math:`M`/:math:`R`
   between per-ordinate and moment angular space, the angular integral
@@ -2567,7 +2567,7 @@ a different facet of the object:
   (:class:`~orpheus.transport.fields._bases.AngularField` /
   :class:`~orpheus.transport.fields._bases.MomentField` /
   :class:`~orpheus.transport.fields._bases.ScalarField` /
-  :class:`~orpheus.transport.fields._bases.BoundaryField`).
+  :class:`~orpheus.transport.fields._bases.AngularBoundaryField`).
 
 * **Role** :math:`\in \{\text{Flux},\ \text{Source},\ \text{Residual},\
   \text{Displacement}\}` sets the **arithmetic interface** — the #208
@@ -2937,10 +2937,10 @@ as load-bearing as a populated one). The census below is the live state of
      - :class:`~orpheus.transport.residuals.scalar_residual.ScalarResidual`
      - :class:`~orpheus.transport.displacements.scalar_displacement.ScalarDisplacement`
    * - **Trace**
-     - :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
-     - :class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`
-     - :class:`~orpheus.transport.residuals.boundary_residual.BoundaryResidual`
-     - :class:`~orpheus.transport.displacements.boundary_displacement.BoundaryDisplacement`
+     - :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
+     - :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
+     - :class:`~orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual`
+     - :class:`~orpheus.transport.displacements.angular_boundary_displacement.AngularBoundaryDisplacement`
 
 Reading the columns confirms the two-axis structure of
 :ref:`affine-typed-field-algebra`: the **Flux** column carries the
@@ -4704,13 +4704,13 @@ acting on the **direct-sum transport state**
 where :math:`V_{\rm bulk}` is the cell-centre angular flux
 (:class:`~orpheus.transport.fields.angular_flux.AngularFlux`) and
 :math:`V_{\rm inflow} \oplus V_{\rm outflow}` is the boundary trace
-(:class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`),
+(:class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`),
 partitioned per face by the sign of :math:`\Omega\cdot\hat n` into the
 inflow (:math:`\Omega\cdot\hat n < 0`) and outflow
 (:math:`\Omega\cdot\hat n > 0`) ordinate slots (the
-:class:`~orpheus.numerics.spaces.trace_space.TraceSpace` selectors
-:meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.inflow_indices_for_face`
-/ :meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.outflow_indices_for_face`,
+:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` selectors
+:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face`
+/ :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_indices_for_face`,
 single source of truth — see :ref:`trace-spaces-doc`).
 
 .. vv-status: bc-extraction-direct-sum-state documented
@@ -5008,7 +5008,7 @@ Two structural reasons forbid the old fold:
 
 #. **The adjoint metric lives on the trace.** :math:`B` lives on the
    boundary trace (:attr:`domain <orpheus.sn.operators.boundary.SNBoundaryOperator.domain>`
-   ``= sn_mesh.trace``), and the cosine-weighted
+   ``= sn_mesh.angular_trace``), and the cosine-weighted
    :math:`|\Omega\cdot\hat n|\,w` adjoint metric (Wave O step O.2 — the
    codomain inner product of :math:`L`'s boundary-trace block) lives on
    that **trace** domain, not the bulk. Folding :math:`B` into the
@@ -5143,9 +5143,9 @@ driver), the bulk only a carrier to reach the :math:`A_{ss}` boundary block. The
 fabricated a throwaway zero-bulk field purely to call ``B.apply`` and
 then discarded the (zero) bulk output.
 :meth:`reflect_into_inflow <orpheus.sn.operators.boundary.SNBoundaryOperator.reflect_into_inflow>`
-takes a bare :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+takes a bare :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
 trace and returns the boundary-only
-:class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`
+:class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
 directly — no zero-bulk probe.
 
 The projection onto the inflow row is load-bearing: the realized law is
@@ -5264,7 +5264,7 @@ Cartesian eigenvalue problem solves through **both** inner solvers:
 The two inners are identical except for that driver. Both build the
 same composite right-hand side
 (:meth:`AngularSourceSink.from_isotropic <orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink.from_isotropic>`
-bulk + :meth:`BoundarySourceSink.zeros_on <orpheus.transport.fields._bases.BoundaryField.zeros_on>`
+bulk + :meth:`AngularBoundarySourceSink.zeros_on <orpheus.transport.fields._bases.AngularBoundaryField.zeros_on>`
 boundary inside a
 :class:`~orpheus.transport.timed_full_field.TimedFullField`), the same
 loss decomposition (the resolvent :math:`L + C` from
@@ -5295,7 +5295,7 @@ separate per-geometry boundary closure.
    That guard is **removed**. "B1''" was never a code symbol — it was a
    1-D boundary-closure *name* in docstrings and comments, fully
    superseded by the L2
-   :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux` +
+   :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux` +
    :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`
    bare-boundary architecture (O.4a.2 / O.4b above), which realises the
    boundary handling for *all* geometries. The 2-D path never required
@@ -5450,8 +5450,8 @@ Wave O step B.5.2 (`Issue #208
 <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_, commit
 ``6ef5063``, 2026-06-03) retyped every SN operator's ``.apply`` output
 ``.boundary`` from
-:class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux` to
-:class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`
+:class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux` to
+:class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
 — the *source/sink* role leaf. This completes the **boundary** half of
 the B.5 operator-output "dimensional-sin" carve; the **bulk** half
 (``.apply.bulk`` →
@@ -5475,10 +5475,10 @@ role grid a clean parallel of the bulk.
        (consumed by :func:`~orpheus.sn.solver.evaluate_residual`,
        O.2 — :ref:`affine-typed-residual`)
    * - **boundary** (:math:`V_{\rm inflow} \oplus V_{\rm outflow}`)
-     - :class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`
+     - :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
        (``6ef5063``, B.5.2)
-     - :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
-     - :class:`~orpheus.transport.residuals.boundary_residual.BoundaryResidual`
+     - :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
+     - :class:`~orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual`
        (consumed by :func:`~orpheus.sn.solver.evaluate_residual`,
        O.2 — :ref:`affine-typed-residual`)
 
@@ -5494,30 +5494,30 @@ Each operator's ``.apply`` emits :math:`A\psi` — a **source/sink**
 *sink* when it is an operator-loss output such as :math:`L\psi`; the
 single role leaf holds both, hence ``SourceSink``). The residual is
 **only** the named composition
-:meth:`BoundaryResidual.from_balance(lhs, rhs) <orpheus.transport.residuals.boundary_residual.BoundaryResidual.from_balance>`
+:meth:`AngularBoundaryResidual.from_balance(lhs, rhs) <orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual.from_balance>`
 of the affine boundary balance
 :math:`r_\Gamma = \gamma_-\psi - (R\,G\,\gamma_+\psi + q)`. The GMRES
 *flat* residual :math:`b - A\psi` is formed internally on the **raveled
 vector** (via :meth:`TimedFullField.to_flat <orpheus.transport.timed_full_field.TimedFullField.to_flat>`)
 and is **never typed as a field** — so at B.5.2
-:class:`BoundaryResidual` had no operator-output consumer; its first
+:class:`AngularBoundaryResidual` had no operator-output consumer; its first
 consumer is the honest :math:`L+C-S-F-B` driver of Wave O step
 **O.2** (see :ref:`bc-extraction-operator-output-o2`). That consumer
 has since landed:
 :func:`~orpheus.sn.solver.evaluate_residual` types the balance defect
 :math:`(L+C-S-B)\psi - q` via ``from_balance`` (Wave O step O.2
 close-out, :ref:`affine-typed-residual`), so
-:class:`BoundaryResidual` and its bulk sibling
+:class:`AngularBoundaryResidual` and its bulk sibling
 :class:`~orpheus.transport.residuals.angular_residual.AngularResidual`
 are now consumed, not merely minted.
 
 
-The two-hat tension and why ``BoundarySourceSink`` dissolves it
+The two-hat tension and why ``AngularBoundarySourceSink`` dissolves it
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The earlier in-flight plan
 (``.claude/plans/b52_boundary_residual_retype.md``) proposed typing the
-matvec output boundary as :class:`BoundaryResidual`. That choice was
+matvec output boundary as :class:`AngularBoundaryResidual`. That choice was
 **rejected** for two reasons:
 
 1. **It breaks consistency with the already-landed bulk.** The bulk
@@ -5546,12 +5546,12 @@ matvec output boundary as :class:`BoundaryResidual`. That choice was
         - :math:`q_{\rm ext} + S.\text{apply} + B.\text{apply}`
         - a **source** term (the inflow seed the bare sweep reads)
 
-   One operator cannot emit :class:`BoundaryResidual` for the matvec
-   **and** :class:`BoundarySourceSink` for the SI rhs — the
+   One operator cannot emit :class:`AngularBoundaryResidual` for the matvec
+   **and** :class:`AngularBoundarySourceSink` for the SI rhs — the
    :class:`TimedFullField <orpheus.transport.timed_full_field.TimedFullField>`
    class gate (strict class identity:
    ``type(self.boundary) is not type(other.boundary)`` ⟹ ``TypeError``)
-   throws on ``BoundaryResidual + BoundarySourceSink`` the moment the SI
+   throws on ``AngularBoundaryResidual + AngularBoundarySourceSink`` the moment the SI
    rhs tries to add :math:`B.\text{apply}` (a residual, under OPT-BR)
    to :math:`S.\text{apply}` and :math:`q_{\rm ext}` (sources). The
    variadic driver (:ref:`bc-extraction-variadic-driver`) makes this
@@ -5559,10 +5559,10 @@ matvec output boundary as :class:`BoundaryResidual`. That choice was
    *individually*, so :math:`B`'s lone hat must be a source/sink for the
    rhs sum :eq:`bc-extraction-variadic-matvec` to close.
 
-Choosing :class:`BoundarySourceSink` for **all** operator outputs
+Choosing :class:`AngularBoundarySourceSink` for **all** operator outputs
 dissolves the two-hat: :math:`B` wears **one** hat (it always emits a
 source/sink), and **both** sums close as homogeneous
-:class:`BoundarySourceSink` sums —
+:class:`AngularBoundarySourceSink` sums —
 
 .. math::
    :label: bc-extraction-two-hat-closed-sums
@@ -5573,9 +5573,9 @@ source/sink), and **both** sums close as homogeneous
    \underbrace{q_{\rm ext} + S.\text{apply}
                + B.\text{apply}}_{\text{SI rhs}}
 
-both stay within the single :class:`BoundarySourceSink` class. This
+both stay within the single :class:`AngularBoundarySourceSink` class. This
 needs **no SI-driver restructure** and **no partial-O.2**:
-:class:`BoundaryResidual` stays reserved for the named
+:class:`AngularBoundaryResidual` stays reserved for the named
 ``from_balance`` composition exactly as
 :class:`AngularResidual` waits on the bulk.
 
@@ -5584,17 +5584,17 @@ needs **no SI-driver restructure** and **no partial-O.2**:
 A throwaway **decision instrument**
 (``derivations/diagnostics/diag_b52_boundary_typing_decision.py``, the
 B0 de-risk) proved on a 1-D reflective slab **and** a 2-D reflective
-box that the OPT-BSS choice (``BoundarySourceSink`` for the matvec
+box that the OPT-BSS choice (``AngularBoundarySourceSink`` for the matvec
 output) closes both sums, while the OPT-BR choice
-(:class:`BoundaryResidual` for the matvec output) throws the two-hat
+(:class:`AngularBoundaryResidual` for the matvec output) throws the two-hat
 ``TypeError`` on the SI rhs.
 
 
-Why the Krylov path is safe with a ``BoundarySourceSink`` matvec output
+Why the Krylov path is safe with a ``AngularBoundarySourceSink`` matvec output
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The matvec output never escapes scipy as a :class:`BoundarySourceSink`,
-so the *solution* side stays :class:`BoundaryFlux`. The mechanism is the
+The matvec output never escapes scipy as a :class:`AngularBoundarySourceSink`,
+so the *solution* side stays :class:`AngularBoundaryFlux`. The mechanism is the
 flat round-trip:
 
 * :meth:`TimedFullField.to_flat <orpheus.transport.timed_full_field.TimedFullField.to_flat>`
@@ -5605,20 +5605,20 @@ flat round-trip:
   which rebuilds the boundary with
   ``replace(template.boundary, values=...)`` off the flux
   ``solution_template``. Because the template's boundary is a
-  :class:`BoundaryFlux`, the reconstructed iterate's boundary is a
-  :class:`BoundaryFlux`.
+  :class:`AngularBoundaryFlux`, the reconstructed iterate's boundary is a
+  :class:`AngularBoundaryFlux`.
 
-So the matvec's *internal* :class:`BoundarySourceSink` boundary class
+So the matvec's *internal* :class:`AngularBoundarySourceSink` boundary class
 lives only inside one ``op.apply`` call; the moment the result is
 raveled and handed to scipy, the class is gone, and the iterate scipy
 hands back is reconstructed as the flux type. The solve/iterate/trace
-sites are therefore correctly **kept** :class:`BoundaryFlux`:
+sites are therefore correctly **kept** :class:`AngularBoundaryFlux`:
 :meth:`MultiplicationOperator.solve <orpheus.transport.operators.multiplication_operator.MultiplicationOperator.solve>`
 (the collision multiplier :math:`C = M[\sigma_t]`),
 the boundary buffer of
 :meth:`InvertibleOperator._solve_timed_full_field <orpheus.sn.operators.streaming.InvertibleOperator._solve_timed_full_field>`,
 the cold-start ``initial_guess`` iterates
-(``TimedFullField.zeros(..., boundary=BoundaryFlux, ...)``), the
+(``TimedFullField.zeros(..., boundary=AngularBoundaryFlux, ...)``), the
 converged traces, and the sweep's persistent boundary buffer.
 
 
@@ -5626,7 +5626,7 @@ The 13 retyped sites
 ~~~~~~~~~~~~~~~~~~~~
 
 Thirteen sites (operator outputs + ``q_ext`` sources) flipped from
-:class:`BoundaryFlux` to :class:`BoundarySourceSink`:
+:class:`AngularBoundaryFlux` to :class:`AngularBoundarySourceSink`:
 
 .. list-table:: B.5.2 retyped sites
    :header-rows: 1
@@ -5670,9 +5670,9 @@ within-group operator — was designed here but NEVER wired: the Wave-O
 through ``q_ext`` instead, so no zero-fission operator is ever
 constructed. The dead helper retired 2026-07-03 (C4).)
 
-The change is **type-only**: :meth:`BoundarySourceSink.zeros_on <orpheus.transport.fields._bases.BoundaryField.zeros_on>`
+The change is **type-only**: :meth:`AngularBoundarySourceSink.zeros_on <orpheus.transport.fields._bases.AngularBoundaryField.zeros_on>`
 and the per-face-view writes produce **bit-identical** ``.values`` —
-only the wrapping role-type differs. The dead :class:`BoundaryFlux`
+only the wrapping role-type differs. The dead :class:`AngularBoundaryFlux`
 runtime imports were retired from the retyped sites.
 
 
@@ -5691,16 +5691,16 @@ in the O.2 close-out** (:ref:`affine-typed-residual`):
 
 * :meth:`AngularResidual.from_balance <orpheus.transport.residuals.angular_residual.AngularResidual.from_balance>`
   and
-  :meth:`BoundaryResidual.from_balance <orpheus.transport.residuals.boundary_residual.BoundaryResidual.from_balance>`
+  :meth:`AngularBoundaryResidual.from_balance <orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual.from_balance>`
   now have their first production-reachable consumer:
   :func:`~orpheus.sn.solver.evaluate_residual` types the within-group
   balance defect :math:`r = (L+C-S-B)\psi - q` as the composite
-  ``FullField(bulk=AngularResidual, boundary=BoundaryResidual)`` — the
+  ``FullField(bulk=AngularResidual, boundary=AngularBoundaryResidual)`` — the
   **timeless** carrier, because a residual is a one-shot balance defect
   carrying no iteration history (the ``history_depth = 0`` degenerate;
   P4.5 W-C confines the timed type to the driver iterate)
   (see :ref:`affine-typed-residual`). The honest variadic driver still
-  emits each gain's output as a :class:`BoundarySourceSink` and the
+  emits each gain's output as a :class:`AngularBoundarySourceSink` and the
   GMRES defect is still the *flat* :math:`b - A\psi` on the raveled
   vector — the typed residual is an **additive diagnostic + DSA
   substrate**, never in the convergence path (so the converged flux
@@ -5726,7 +5726,7 @@ still do — :ref:`bc-extraction-two-routes`); the
 documented seam **landed in P4.5 W-D** — :math:`S` now carries the
 composite full-field space (:ref:`bc-extraction-scope-future`).
 
-The residual column is now wired: :class:`BoundaryResidual` and
+The residual column is now wired: :class:`AngularBoundaryResidual` and
 :class:`~orpheus.transport.residuals.angular_residual.AngularResidual`
 are consumed by :func:`~orpheus.sn.solver.evaluate_residual` (Wave O
 step O.2 close-out — :ref:`affine-typed-residual`), which also
@@ -6019,7 +6019,7 @@ into the four flux-STATE leaves
 (:class:`~orpheus.transport.fields.angular_flux.AngularFlux`,
 :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`,
 :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`,
-:class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`) — so
+:class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`) — so
 every flux leaf gets a displacement sibling for free, mirroring how the
 operator block-roles are *derived* not re-declared. The mint copies the
 flux's dataclass init-fields (``values`` / ``space`` / ``mesh``, plus
@@ -6067,10 +6067,10 @@ is the affine completion):
      - —
      - :class:`~orpheus.transport.displacements.moment_displacement.MomentDisplacement`
    * - **Boundary**
-     - :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
-     - :class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`
-     - :class:`~orpheus.transport.residuals.boundary_residual.BoundaryResidual`
-     - :class:`~orpheus.transport.displacements.boundary_displacement.BoundaryDisplacement`
+     - :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
+     - :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
+     - :class:`~orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual`
+     - :class:`~orpheus.transport.displacements.angular_boundary_displacement.AngularBoundaryDisplacement`
 
 The **displacement column is the dual of the residual column**: a
 residual is ``source ⊖ source`` crossing INTO rate-density (a role
@@ -6180,13 +6180,13 @@ consumer**. It evaluates the within-group balance defect
 .. vv-status: affine-typed-residual-eq documented
 
 as the typed composite
-``FullField(bulk=AngularResidual, boundary=BoundaryResidual)`` — the
+``FullField(bulk=AngularResidual, boundary=AngularBoundaryResidual)`` — the
 **timeless** carrier (a residual is a one-shot balance defect, history-free;
 P4.5 W-C confines the timed type to the driver iterate) —
 minted via the named composition
 :meth:`AngularResidual.from_balance <orpheus.transport.residuals.angular_residual.AngularResidual.from_balance>`
 /
-:meth:`BoundaryResidual.from_balance <orpheus.transport.residuals.boundary_residual.BoundaryResidual.from_balance>`
+:meth:`AngularBoundaryResidual.from_balance <orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual.from_balance>`
 — **NOT** a bare cross-class ``−`` (which would mis-type the defect as a
 source). The operator output :math:`(L+C-S-B)\psi` is a source/sink
 composite (the B.5.2 typing); subtracting the source :math:`q` is a
@@ -6493,7 +6493,7 @@ n|\,\psi\,\mathrm d\Omega`, so the surface measure carries the
 **cosine factor** :math:`|\Omega\cdot\hat n_f|`. This is the same
 :math:`|\Omega\cdot\hat n|`-weighted inner product under which the
 reflective / white boundary operators are self-adjoint (see
-:ref:`bc-extraction` and :mod:`orpheus.numerics.spaces.trace_space`),
+:ref:`bc-extraction` and :mod:`orpheus.numerics.spaces.angular_trace_space`),
 already populated in sub-step 4.1 (commit ``89b2f62``). R5 reuses it
 verbatim as the trace block — it does **not** re-derive it.
 
@@ -6516,7 +6516,7 @@ space :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
 (``orpheus/numerics/spaces/full_field_space.py``). It holds the two leaf
 spaces — a bulk :class:`~orpheus.numerics.space.FunctionSpace` whose
 ``inner_product_weights`` is :math:`G_{\rm bulk}`, and the existing
-:class:`~orpheus.numerics.spaces.trace_space.TraceSpace` whose
+:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` whose
 ``inner_product_weights`` is :math:`G_{\rm trace}` — and **overrides**
 the three metric primitives to dispatch **per block**:
 
@@ -6707,8 +6707,8 @@ following argument. The pseudo-inverse zeroes the tangential components
 of the adjoint output. That is the correct value because the tangential
 trace slots are **identically zero in every matvec output** in the first
 place: the boundary inflow / outflow selectors
-(:meth:`TraceSpace.outflow_indices_for_face
-<orpheus.numerics.spaces.trace_space.TraceSpace>`) classify an ordinate
+(:meth:`AngularTraceSpace.outflow_indices_for_face
+<orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace>`) classify an ordinate
 as inflow (:math:`\Omega\cdot\hat n < -\epsilon`), outflow
 (:math:`> +\epsilon`), or **tangential** (:math:`|\cdot|\le\epsilon`) —
 and the boundary operators read/write **only** the inflow and outflow
@@ -6844,8 +6844,8 @@ did not touch ``apply``.
    remains for O.2" list in :ref:`bc-extraction-operator-output-o2`
    together with **Gate-1.3** (the O.2 adjoint verification gate). The
    remaining open item is the **residual column** —
-   :meth:`BoundaryResidual.from_balance
-   <orpheus.transport.residuals.boundary_residual.BoundaryResidual.from_balance>`
+   :meth:`AngularBoundaryResidual.from_balance
+   <orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual.from_balance>`
    has no operator-output consumer until the O.2 named-composition
    driver types the affine boundary balance at the solver level. The
    G-adjoint of this section is what gives the
@@ -6988,7 +6988,7 @@ the boundary 1-chains:
    \qquad
    \begin{cases}
      C^1_{\rm int} & (\text{interior faces}), \\
-     C^1_\partial  & (\text{domain-edge faces, } \texttt{BoundaryFlux}),
+     C^1_\partial  & (\text{domain-edge faces, } \texttt{AngularBoundaryFlux}),
    \end{cases}
 
 coupled by the injection / projection at the domain edges. This is the
@@ -7010,17 +7010,17 @@ locus down** at the face level. The two loci nest:
      - :math:`V_{\rm bulk}`
        (:class:`~orpheus.transport.fields.angular_flux.AngularFlux`)
      - :math:`V_{\rm inflow} \oplus V_{\rm outflow}`
-       (:class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`)
+       (:class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`)
      - the streaming sweep + sibling :math:`-B`
    * - **face**
        (:eq:`wavefront-cochain-biproduct`)
      - :math:`C^1_{\rm int}`
        (``_MovingFrontier`` front / ``_octant_face_cochain`` history)
      - :math:`C^1_\partial`
-       (:class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`)
+       (:class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`)
      - the trace operators :math:`\iota_*` / :math:`\iota^*`
 
-:class:`BoundaryFlux` is the boundary summand at **both** loci — it is
+:class:`AngularBoundaryFlux` is the boundary summand at **both** loci — it is
 literally the domain-edge faces, which are exactly the
 boundary trace of the cell+trace state. The interior summand differs:
 the cell biproduct carries the cell-centre flux, the face biproduct
@@ -7074,7 +7074,7 @@ Historically the retired type routed both through a single
 single-source-of-truth ``_edge_slot`` face-to-edge map, so the
 injection and projection could not desync, and exposed a third read
 accessor ``edge_view`` that returned the domain-edge slot as a
-zero-copy view *without* copying into a :class:`BoundaryFlux` — the
+zero-copy view *without* copying into a :class:`AngularBoundaryFlux` — the
 2-D matvec used it to difference ``edge_view(face) − given`` when
 emitting its active-trace boundary residual (so there was no hardcoded
 ``psi_x[:, :, 0, :]`` literal at the call site). After S6.4(f) the same
@@ -7195,10 +7195,10 @@ Phase 5 adds the **face** locus row:
    * - **face — boundary**
        (1-cochain :math:`C^1_\partial`)
      - persistent (carries the iterate trace)
-     - :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
-     - :class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`
+     - :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
+     - :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`
        (B.5.2)
-     - :class:`~orpheus.transport.residuals.boundary_residual.BoundaryResidual`
+     - :class:`~orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual`
        (minted, O.2 consumer)
 
 The grid makes the flux-only-single-role rationale (above) visible: the
@@ -7239,10 +7239,10 @@ plain dense arrays indexed by the batch, never per-face objects):
    slice-views only if both summands live on the same flat-buffer
    substrate.
 
-This mirrored :class:`BoundaryFlux`, which still uses
+This mirrored :class:`AngularBoundaryFlux`, which still uses
 ``flat-buffer + FaceLayout + face_view``. The interior space was the
 retired ``InteriorFaceSpace`` — the **layout-on-space** (A.5) sibling
-of :class:`~orpheus.numerics.spaces.trace_space.TraceSpace` minus the
+of :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` minus the
 ``omega_dot_n`` directional selectors (the interior cochain has no
 inflow/outflow partition — it is flux-only). It was axis-parametric: its
 ``interior_layout`` builder took the axis count as a parameter (one
@@ -7279,7 +7279,7 @@ Honest scope — a representation win, NOT a speed/rate/parallelism win
    the :math:`O(\text{volume})` sweep — at the **persistent-boundary /
    ephemeral-interior lifetime split**. True zero-copy between the two
    summands is *precluded* (and unnecessary) because
-   :class:`BoundaryFlux` persists across SI iterations while the
+   :class:`AngularBoundaryFlux` persists across SI iterations while the
    interior cochain is rebuilt each sweep — the very lifetime split that
    later left it with **no** mesh-bound type after S6.4(f).
 
@@ -7706,7 +7706,7 @@ to mistype.
 The restriction is **interior-bulk-only** in a second sense: the
 interior-cochain biproduct :eq:`wavefront-cochain-biproduct`
 :math:`C^1 = C^1_{\rm int} \oplus C^1_\partial` keeps the **boundary
-trace** :math:`C^1_\partial` (the :class:`BoundaryFlux` summand) a
+trace** :math:`C^1_\partial` (the :class:`AngularBoundaryFlux` summand) a
 distinct, *un-reduced* per-ordinate object. The reflective :math:`B`
 coupling reads the full per-ordinate face trace via the typed
 :math:`\iota_*` / :math:`\iota^*` exchange — windowing reduces only the
@@ -9702,8 +9702,8 @@ transport equation's boundary trace. Per Grand Report v3 §5.3 and
 
 The two halves are represented by typed
 :class:`~orpheus.numerics.space.FunctionSpace` subclasses
-:class:`~orpheus.numerics.spaces.trace_space.InflowTraceSpace` and
-:class:`~orpheus.numerics.spaces.trace_space.OutflowTraceSpace`, which
+:class:`~orpheus.numerics.spaces.angular_trace_space.InflowTraceSpace` and
+:class:`~orpheus.numerics.spaces.angular_trace_space.OutflowTraceSpace`, which
 carry a **per-face directional mask**:
 
 .. math::
@@ -9734,8 +9734,8 @@ Three consumers read the mask today:
   paths (Issue #188 + #176, closed 2026-05-11).
 
 Construction goes through the classmethod factory
-:meth:`TraceSpace.from_quadrature_and_layout
-<orpheus.numerics.spaces.trace_space.TraceSpace.from_quadrature_and_layout>`,
+:meth:`AngularTraceSpace.from_quadrature_and_layout
+<orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.from_quadrature_and_layout>`,
 which (since Issue #225 / C5.3) is **geometry-blind**: it builds the
 per-face :math:`\Omega\cdot\hat n` masks from the angular quadrature's
 direction-cosine arrays and a :class:`~orpheus.numerics.face_layout.FaceLayout`
@@ -10380,7 +10380,7 @@ for merge status.
      - **The boundary law** :math:`B` **becomes a first-class sibling
        operator** and every operator's ``.apply`` output is typed as a
        *source/sink* (the bulk → :class:`~orpheus.transport.source_sinks.angular_source_sink.AngularSourceSink`,
-       the boundary → :class:`~orpheus.transport.source_sinks.boundary_source_sink.BoundarySourceSink`),
+       the boundary → :class:`~orpheus.transport.source_sinks.angular_boundary_source_sink.AngularBoundarySourceSink`),
        completing the operator-output role typing
        (:ref:`bc-extraction-operator-output-typing`).
      - #208

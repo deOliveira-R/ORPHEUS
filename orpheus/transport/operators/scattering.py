@@ -177,7 +177,7 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.source_sinks import (
     ScalarSourceSink,
     AngularSourceSink,
-    BoundarySourceSink,
+    AngularBoundarySourceSink,
     HarmonicMomentSourceSink,
 )
 from orpheus.transport.full_field import FullField
@@ -1451,7 +1451,7 @@ class ScatteringOperator(LinearOperator):
           → :class:`~orpheus.transport.full_field.FullField` — composite
           bulk + boundary variant.  Bulk follows the full :math:`P_\ell`
           Galerkin path; boundary is the implicit-zero
-          :class:`~orpheus.transport.source_sinks.BoundarySourceSink`
+          :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`
           (Option β3 — scattering is volumetric; Wave O #208 will encode
           the bulk-only nature in the type).  #257 S8a made the codomain
           the timeless :class:`FullField` (the matvec leaf is a base
@@ -1521,7 +1521,7 @@ class ScatteringOperator(LinearOperator):
         combine via the producer-side :math:`1/W` projection
         (Pattern 7).  The output bulk is a pure-Field
         :class:`AngularFlux`; the output boundary is the
-        **implicit-zero** :class:`BoundaryFlux` — scattering is
+        **implicit-zero** :class:`AngularBoundaryFlux` — scattering is
         volumetric, no face-trace contribution.
 
         Per Option β3 (`#208
@@ -1544,7 +1544,7 @@ class ScatteringOperator(LinearOperator):
         # :class:`AngularSourceSink`, so this composite arm is one
         # delegation (Pattern 2 — no duplicated iso/n2n/aniso assembly).
         # B.5.2: the operator output IS a source (Sψ rate density).  The
-        # boundary is the implicit-zero :class:`BoundarySourceSink` —
+        # boundary is the implicit-zero :class:`AngularBoundarySourceSink` —
         # scattering is volumetric (Option β3 / Wave O #208).
         # #257 S8c: ``psi.bulk`` is statically the broad ``BulkField``; the
         # cast names the runtime truth documented above (AngularFlux OR
@@ -1556,7 +1556,7 @@ class ScatteringOperator(LinearOperator):
         # reattaches the timed type when this source is added to the timed rhs).
         return FullField(
             bulk=combined,
-            boundary=BoundarySourceSink.zeros_on(psi.mesh),
+            boundary=AngularBoundarySourceSink.zeros_on(psi.mesh),
         )
 
     @_apply_impl.register

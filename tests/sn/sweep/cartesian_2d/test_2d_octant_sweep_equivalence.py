@@ -161,7 +161,7 @@ import pytest
 
 from orpheus.derivations.common.xs_library import get_mixture
 from orpheus.geometry import BC, Mesh2D
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import (
@@ -198,9 +198,9 @@ with payload keys (Wave O #208 O.4b Phase E — bare-sweep schema):
 
 Schema change (Phase E migration): the legacy schema stored the full
 interior-edge ``psi_x_post`` ``(N, ng, nx+1, ny)`` /
-``psi_y_post`` ``(N, ng, nx, ny+1)`` buffers (the legacy BoundaryFlux
+``psi_y_post`` ``(N, ng, nx, ny+1)`` buffers (the legacy AngularBoundaryFlux
 ``xmin_xmax_buf`` / ``ymin_ymax_buf`` fields).  Post-D-G the L2
-:class:`BoundaryFlux` persists ONLY the four boundary face slices; the
+:class:`AngularBoundaryFlux` persists ONLY the four boundary face slices; the
 interior edges are EPHEMERAL inside ``_sweep_jacobi`` and are no
 longer recoverable.  The test never read the interior edges (it always
 sliced the legacy snapshot at the boundary edges and compared to the
@@ -312,13 +312,13 @@ def _build_sig_t(
     return sig_t
 
 
-def _empty_boundary_flux(sn_mesh: SNMesh) -> "BoundaryFlux":
-    """Fresh zero :class:`BoundaryFlux`; the sweep populates buffers on first call.
+def _empty_boundary_flux(sn_mesh: SNMesh) -> "AngularBoundaryFlux":
+    """Fresh zero :class:`AngularBoundaryFlux`; the sweep populates buffers on first call.
 
     Issue #197 PR-TYPED-2 — typed replacement for the legacy
     ``psi_bc: dict`` fixture pattern.
     """
-    return BoundaryFlux.zeros_on(sn_mesh)
+    return AngularBoundaryFlux.zeros_on(sn_mesh)
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -457,7 +457,7 @@ class OctantEquivalenceInputs:
     sn_mesh: SNMesh
     Q: np.ndarray                          # (ng, nx, ny) — isotropic source
     sig_t: np.ndarray                      # (ng, nx, ny)
-    boundary_flux: "BoundaryFlux"         # mutable — sweep mutates BC buffers
+    boundary_flux: "AngularBoundaryFlux"         # mutable — sweep mutates BC buffers
     aniso_source: np.ndarray | None = None  # (N, ng, nx, ny) or None
 
 
@@ -484,7 +484,7 @@ def _case_1_smoke() -> OctantEquivalenceInputs:
     Q = np.ones((1, *sn_mesh.spatial_shape))
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=BoundaryFlux.zeros_on(sn_mesh), aniso_source=None,
+        boundary_flux=AngularBoundaryFlux.zeros_on(sn_mesh), aniso_source=None,
     )
 
 
@@ -625,7 +625,7 @@ def _case_4_heterogeneous() -> OctantEquivalenceInputs:
     Q = np.transpose(Q_legacy, (2, 0, 1)).copy()  # (ng, nx, ny)
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=BoundaryFlux.zeros_on(sn_mesh), aniso_source=None,
+        boundary_flux=AngularBoundaryFlux.zeros_on(sn_mesh), aniso_source=None,
     )
 
 
@@ -717,7 +717,7 @@ def _case_6_pure_z() -> OctantEquivalenceInputs:
     Q = np.ones((1, *sn_mesh.spatial_shape))  # PR-INDEX-4 (ng, nx, ny)
     return OctantEquivalenceInputs(
         sn_mesh=sn_mesh, Q=Q, sig_t=sig_t,
-        boundary_flux=BoundaryFlux.zeros_on(sn_mesh), aniso_source=None,
+        boundary_flux=AngularBoundaryFlux.zeros_on(sn_mesh), aniso_source=None,
     )
 
 

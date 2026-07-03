@@ -1,10 +1,10 @@
 r"""Piece 3 (#208 box 7) — typed equation-residual evaluation via from_balance.
 
 The residual mint :meth:`AngularResidual.from_balance` /
-:meth:`BoundaryResidual.from_balance` now has a production-reachable consumer:
+:meth:`AngularBoundaryResidual.from_balance` now has a production-reachable consumer:
 :func:`orpheus.sn.solver.evaluate_residual` types the within-group balance
 defect :math:`r = (L+C-S-B)\psi - q` as a composite
-``TimedFullField(bulk=AngularResidual, boundary=BoundaryResidual)`` — a
+``TimedFullField(bulk=AngularResidual, boundary=AngularBoundaryResidual)`` — a
 diagnostic (``balance_map`` / ``boundary_vs_interior_split`` / ``relative_to``)
 and the consistent-DSA (`#2`) low-order-correction substrate.
 
@@ -41,9 +41,9 @@ from orpheus.sn.solver import (
     evaluate_residual,
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.residuals import AngularResidual
-from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
+from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 
 
@@ -72,10 +72,10 @@ def _converged_slab_2g(nx: int = 24, n_ord: int = 8):
         bulk=AngularSourceSink.from_isotropic(
             np.full((sn_mesh.ng, *sn_mesh.spatial_shape), 1.0), sn_mesh,
         ),
-        boundary=BoundarySourceSink.zeros_on(sn_mesh),
+        boundary=AngularBoundarySourceSink.zeros_on(sn_mesh),
         _history=(), history_depth=2,
     )
-    ig = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+    ig = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     psi, _ = si.solve(q_ext, initial_guess=ig)
     return solver, (LC - S - B), q_ext, psi
 

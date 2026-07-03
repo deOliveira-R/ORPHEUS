@@ -62,8 +62,8 @@ from orpheus.sn.solver import (
     _within_group_triple,
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
-from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 
 
@@ -79,7 +79,7 @@ def _flux_zero(sn: SNMesh) -> TimedFullField:
     unravel, else ``S.apply`` hits ``AngularSourceSink`` (no
     ``integrate_angular``).
     """
-    return TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
+    return TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
 
 
 def _prescribed_inflow_source(
@@ -93,8 +93,8 @@ def _prescribed_inflow_source(
     """
     N, ng = sn.quad.N, sn.ng
     bulk_vals = np.zeros((N, ng, *sn.spatial_shape))
-    bss = BoundarySourceSink.zeros_on(sn)
-    inflow = sn.trace.inflow_indices_for_face(face)
+    bss = AngularBoundarySourceSink.zeros_on(sn)
+    inflow = sn.angular_trace.inflow_indices_for_face(face)
     bss.face_view(face)[inflow] = psi_in
     return TimedFullField(
         bulk=AngularSourceSink.from_mesh(bulk_vals, sn),
@@ -192,11 +192,11 @@ def test_prescribed_inflow_consistency_si_jacobi_gs_krylov(config: str):
     sn = SNMesh(mesh, quad, {0: _make_1g_mixture(sigma_t, sigma_s)})
     solver = SNSolver(sn, max_inner=500, inner_tol=1e-13)
     LC, S, B = _within_group_triple(solver)
-    n_dof = quad.N * sn.ng * int(np.prod(sn.spatial_shape)) + int(sn.trace.layout.total_size)
+    n_dof = quad.N * sn.ng * int(np.prod(sn.spatial_shape)) + int(sn.angular_trace.layout.total_size)
 
     face = "xmin"
     q_ext = _prescribed_inflow_source(sn, psi_in=psi_in, face=face)
-    inflow = sn.trace.inflow_indices_for_face(face)
+    inflow = sn.angular_trace.inflow_indices_for_face(face)
 
     # PRECONDITION 1 — the inflow slot is actually written (guards the
     # silently-vacuum dud where all three trivially agree on ψ≡0).

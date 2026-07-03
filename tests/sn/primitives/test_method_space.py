@@ -8,7 +8,7 @@ Wave 5 introduced a minimal placeholder (quadrature only) embedded
 in :mod:`orpheus.sn.boundary.realizer`. Wave 8 moves it to its own
 dedicated module :mod:`orpheus.sn.mesh.method_space` and extends it with
 ``mesh`` + ``trace`` fields plus a :meth:`for_face` factory that
-consumes the unified :class:`TraceSpace` to derive per-face inflow
+consumes the unified :class:`AngularTraceSpace` to derive per-face inflow
 indices.
 
 These tests pin:
@@ -29,7 +29,7 @@ import pytest
 from orpheus.geometry import BC, CoordSystem
 from orpheus.geometry.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.face_layout import FaceLayout
-from orpheus.numerics.spaces.trace_space import TraceSpace
+from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 from orpheus.sn.mesh.method_space import SNMethodSpace
 from orpheus.numerics.quadrature import Quadrature
 
@@ -37,19 +37,19 @@ from orpheus.numerics.quadrature import Quadrature
 pytestmark = pytest.mark.l0
 
 
-def _slab_trace(mesh: Mesh1D, quad) -> TraceSpace:
+def _slab_trace(mesh: Mesh1D, quad) -> AngularTraceSpace:
     layout = FaceLayout.from_named_shapes(
         [("xmin", (quad.N, 1)), ("xmax", (quad.N, 1))]
     )
-    return TraceSpace.from_quadrature_and_layout(quad, layout)
+    return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
 
 
-def _cartesian2d_trace(mesh: Mesh2D, quad, nx: int, ny: int) -> TraceSpace:
+def _cartesian2d_trace(mesh: Mesh2D, quad, nx: int, ny: int) -> AngularTraceSpace:
     layout = FaceLayout.from_named_shapes([
         ("xmin", (quad.N, 1, ny)), ("xmax", (quad.N, 1, ny)),
         ("ymin", (quad.N, 1, nx)), ("ymax", (quad.N, 1, nx)),
     ])
-    return TraceSpace.from_quadrature_and_layout(quad, layout)
+    return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -141,5 +141,5 @@ def test_inflow_indices_for_face_raises_without_trace():
     """
     quad = Quadrature.gauss_legendre(4)
     space = SNMethodSpace.minimal(quad)
-    with pytest.raises(RuntimeError, match="no TraceSpace attached"):
+    with pytest.raises(RuntimeError, match="no AngularTraceSpace attached"):
         space.inflow_indices_for_face("xmin")

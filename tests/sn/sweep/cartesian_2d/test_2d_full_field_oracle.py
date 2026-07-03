@@ -36,7 +36,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.loss_representation import FullFieldWavefront, MovingFrontierWindow
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
 pytestmark = pytest.mark.foundation
@@ -90,9 +90,9 @@ def test_sweep_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
     sig_t = _random_sig_t(rng, ng, nx, ny)
     Q = rng.uniform(0.0, 2.0, size=(N, ng, nx, ny))
 
-    bf_win = BoundaryFlux.zeros_on(sn_mesh)
+    bf_win = AngularBoundaryFlux.zeros_on(sn_mesh)
     _seed_random_inflow(rng, bf_win)
-    bf_full = BoundaryFlux.from_mesh(bf_win.values.copy(), sn_mesh)
+    bf_full = AngularBoundaryFlux.from_mesh(bf_win.values.copy(), sn_mesh)
 
     ang_w, scal_w = MovingFrontierWindow(sn_mesh).sweep(Q, sig_t, bf_win)
     ang_f, scal_f = FullFieldWavefront(sn_mesh).sweep(Q, sig_t, bf_full)
@@ -127,7 +127,7 @@ def test_matvec_window_equals_full_field_end_to_end(nx, ny, lvl, ng, bc):
     N = sn_mesh.quad.N
     sig_t = _random_sig_t(rng, ng, nx, ny)
 
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     state.bulk.values[...] = rng.uniform(-1.0, 1.0, size=state.bulk.values.shape)
     _seed_random_inflow(rng, state.boundary)
 

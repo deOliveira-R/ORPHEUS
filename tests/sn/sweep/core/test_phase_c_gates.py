@@ -63,7 +63,7 @@ from orpheus.sn.spatial.pole_angular_closure import (
 )
 from orpheus.sn.loss_representation import transport_sweep
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 
@@ -149,12 +149,12 @@ def _build_composite(
         compute the cell-block residual only).
     """
     if boundary_values is None:
-        boundary = BoundaryFlux.zeros_on(sn_mesh)
+        boundary = AngularBoundaryFlux.zeros_on(sn_mesh)
     else:
-        # A.5: the BoundaryFlux space IS the mesh's unified TraceSpace
+        # A.5: the AngularBoundaryFlux space IS the mesh's unified AngularTraceSpace
         # (it carries the FaceLayout); no ad-hoc sn_boundary_flat build.
-        boundary = BoundaryFlux(
-            values=boundary_values, space=sn_mesh.trace, mesh=sn_mesh,
+        boundary = AngularBoundaryFlux(
+            values=boundary_values, space=sn_mesh.angular_trace, mesh=sn_mesh,
         )
     return TimedFullField(
         bulk=AngularFlux.from_mesh(bulk_values, sn_mesh),
@@ -381,7 +381,7 @@ def test_apply_apply_transpose_reciprocity_under_sweep_frame(geom):
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
     op = L + C
-    n_trace = int(sn_mesh.trace.layout.total_size)
+    n_trace = int(sn_mesh.angular_trace.layout.total_size)
     psi_state = _build_composite(
         sn_mesh, _random_bulk(sn_mesh, rng), rng.standard_normal(n_trace),
     )
@@ -500,7 +500,7 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     # property. apply(0) MUST be 0 even with vacuum BC. If the BC
     # consumed cell-centres rather than face values, a nonzero ψ
     # could pollute the inflow even when the cell-centres are zero.
-    state_zero = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+    state_zero = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     result = op.apply(state_zero)
     assert np.array_equal(
         result.bulk.values, np.zeros_like(result.bulk.values),
@@ -534,7 +534,7 @@ def test_bc_trace_contract_respected_by_matvec_reflective_sphere():
     L = StreamingOperator(sn_mesh)
     C = MultiplicationOperator.from_mesh(sig_t, sn_mesh)
     op = L + C
-    state_zero = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+    state_zero = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     result = op.apply(state_zero)
     np.testing.assert_array_equal(result.bulk.values, 0.0)
     np.testing.assert_array_equal(result.boundary.values, 0.0)
@@ -705,7 +705,7 @@ def test_bc_trace_contract_capture_and_compare_sphere(bc_kind):
     # outflow.  Pin it bit-exact against the independent WDD chain on the
     # outflow ordinates of the outer face (the §16A.3 substance, relocated
     # to the matvec's emission).
-    trace = sn_mesh.trace
+    trace = sn_mesh.angular_trace
     outflow_idx = trace.outflow_indices_for_face("xmax")
     got_outflow = out.boundary.face_view("xmax")[outflow_idx, :]   # (M, ng)
     expected_outflow_face = expected_outflow.T[outflow_idx, :]      # (M, ng)

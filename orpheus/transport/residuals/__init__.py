@@ -16,28 +16,35 @@ cross-class dunder.
 Role grid (field vocabulary, issues #205 / #201)
 ================================================
 
-This package supplies the **residual** column of the bulk role grid::
+This package supplies the **Residual** column of the role grid — three
+orthogonal axes ("Boundary" is a LOCUS qualifier, never a fourth
+family; #290 P2.5)::
 
-    {Angular, Scalar, Boundary} × {Flux, Source, Residual}
-       flux     →  orpheus.transport.fields    (Angular/Scalar/BoundaryFlux)
-       source   →  orpheus.transport.source_sinks   (Angular/Scalar/BoundarySourceSink)
-       residual →  orpheus.transport.residuals (Angular/Scalar/BoundaryResidual)
+    locus {Bulk, Boundary} × family {Angular, Scalar, Moment}
+                           × role {Flux, SourceSink, Residual, Displacement}
 
-The boundary residual :class:`BoundaryResidual` IS the already-computed
+       flux     →  orpheus.transport.fields         (…Flux)
+       source   →  orpheus.transport.source_sinks   (…SourceSink)
+       residual →  orpheus.transport.residuals      (…Residual)
+
+    bulk leaves here: AngularResidual, ScalarResidual;
+    boundary leaf: AngularBoundaryResidual.
+
+The boundary residual :class:`AngularBoundaryResidual` IS the already-computed
 matvec face-defect (the residual of ``γ₋ψ = R·G·γ₊ψ + q``), today
-mistyped as :class:`BoundaryFlux`; this package mints the type (B.3) so
+mistyped as :class:`AngularBoundaryFlux`; this package mints the type (B.3) so
 the **B.5** operator-output carve can retype the emission sites. See
-:mod:`orpheus.transport.residuals.boundary_residual`.
+:mod:`orpheus.transport.residuals.angular_boundary_residual`.
 
 Migration status (field-role-typing plan, step B.3): houses
 :class:`AngularResidual`, :class:`ScalarResidual`, and
-:class:`BoundaryResidual`.
+:class:`AngularBoundaryResidual`.
 """
 
 from __future__ import annotations
 
 from orpheus.transport.residuals.angular_residual import AngularResidual
 from orpheus.transport.residuals.scalar_residual import ScalarResidual
-from orpheus.transport.residuals.boundary_residual import BoundaryResidual
+from orpheus.transport.residuals.angular_boundary_residual import AngularBoundaryResidual
 
-__all__ = ["AngularResidual", "ScalarResidual", "BoundaryResidual"]
+__all__ = ["AngularResidual", "ScalarResidual", "AngularBoundaryResidual"]

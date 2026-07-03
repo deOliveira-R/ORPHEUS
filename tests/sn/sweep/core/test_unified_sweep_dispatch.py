@@ -64,7 +64,7 @@ from orpheus.sn.loss_representation import (
 )
 from tests.sn._test_helpers import placeholder_materials
 from orpheus.transport.source_sinks import AngularSourceSink
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -667,7 +667,7 @@ class TestTransportSweepDelegatesToStrategy:
         # (ng, nx, ny) for 2-D Cartesian (C5.2: no phantom ny).
         sig_t = np.ones((ng, *spatial))
         source = AngularSourceSink.zeros_on(sn_mesh)
-        transport_sweep(source, sig_t, sn_mesh, BoundaryFlux.zeros_on(sn_mesh))
+        transport_sweep(source, sig_t, sn_mesh, AngularBoundaryFlux.zeros_on(sn_mesh))
 
         if calls["sweep"] != 1:
             pytest.fail(

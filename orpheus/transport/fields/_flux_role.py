@@ -1,7 +1,7 @@
 r"""The :class:`FluxRole` mixin — affine-point algebra for flux-STATE leaves.
 
 Flux states (:class:`AngularFlux`, :class:`ScalarFlux`,
-:class:`HarmonicMomentFlux`, :class:`BoundaryFlux`) form an **affine space**
+:class:`HarmonicMomentFlux`, :class:`AngularBoundaryFlux`) form an **affine space**
 :math:`A` over a distinct **difference vector space** :math:`V` (the
 displacements — :mod:`orpheus.transport.displacements`). An affine space has no
 natural origin, so the additive algebra of a flux leaf is NOT the plain

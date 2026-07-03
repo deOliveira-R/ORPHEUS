@@ -223,7 +223,7 @@ class TestPredicateFaithfulness:
         ops = [L, C, C_singular, L + C, L + C - B, B]
         # The realized per-face boundary-law wrappers (_BoundBoundaryOperator):
         # their is_* MUST delegate to the inner law, not the base default.
-        ops += [sn.bc[face] for face in sn.trace.layout.faces]
+        ops += [sn.bc[face] for face in sn.angular_trace.layout.faces]
         return ops
 
     def _transport_energy_operators(self):
@@ -266,7 +266,7 @@ class TestPredicateFaithfulness:
         as ``is_adjointable=False`` and silently break the ``B``
         aggregator's ``all(law.is_adjointable …)`` rule."""
         sn = _slab_mesh(ng=2)
-        for face in sn.trace.layout.faces:
+        for face in sn.angular_trace.layout.faces:
             law = sn.bc[face]
             assert law.is_adjointable == law.inner.is_adjointable
             assert law.is_invertible == law.inner.is_invertible
@@ -304,7 +304,7 @@ class TestPredicateFaithfulness:
         # The realized face-law wrappers: forwarded inverse() + guard.
         rows += [
             (sn.bc[face], False, True, VALUE_RAISE)
-            for face in sn.trace.layout.faces
+            for face in sn.angular_trace.layout.faces
         ]
         # Transport energy leaves: all structurally non-invertible,
         # all adjointable (the S†/F† axis, #276).

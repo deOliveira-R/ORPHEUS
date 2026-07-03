@@ -57,7 +57,7 @@ defect (it does NOT switch to a raw outflow):
   unknown (``ψ.outflow`` is the trace value the sibling ``−B`` reads).
   The inflow slots ADD the identity ``ψ.inflow``.
 
-For the canonical ZERO-input vacuum test (``BoundaryFlux.zeros_on``) both
+For the canonical ZERO-input vacuum test (``AngularBoundaryFlux.zeros_on``) both
 the keystone ``bc_estimate`` and the stored ``ψ.outflow`` are zero, so
 PRE- and POST-carve both emit ``streamed`` on the outflow slots and zero
 on the inflow slots → vacuum bit-identity holds on the boundary slot too
@@ -128,7 +128,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import SN_TESTS_ROOT, placeholder_materials
@@ -217,7 +217,7 @@ def _random_state(sn_mesh: SNMesh, seed: int, *, zero_boundary: bool = True) -> 
     ng = 1
     N = sn_mesh.quad.N
     rng = np.random.default_rng(seed)
-    boundary = BoundaryFlux.zeros_on(sn_mesh)
+    boundary = AngularBoundaryFlux.zeros_on(sn_mesh)
     if not zero_boundary:
         # Populate every face buffer with a fixed-seed random trace.
         for face in boundary.layout.faces:
@@ -511,7 +511,7 @@ class TestStreamingEquilibriumValue:
         flat = np.ones((N, ng, *sn_mesh.spatial_shape))
         state = TimedFullField(
             bulk=AngularFlux.from_mesh(flat, sn_mesh),
-            boundary=BoundaryFlux.zeros_on(sn_mesh),
+            boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
             _history=(),
             history_depth=2,
         )
@@ -604,9 +604,9 @@ class TestLFullReadsInflow:
         bulk = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
 
         def _state(inflow_scale: float) -> TimedFullField:
-            b = BoundaryFlux.zeros_on(sn_mesh)
+            b = AngularBoundaryFlux.zeros_on(sn_mesh)
             # populate the OUTER-face inflow slots with a non-zero trace.
-            trace = sn_mesh.trace
+            trace = sn_mesh.angular_trace
             inflow = trace.inflow_indices_for_face("xmax")
             face = b.face_view("xmax")
             if inflow.size:
@@ -665,10 +665,10 @@ class TestLFullOutflowDefectKept:
         # the ``−ψ.outflow`` defect term on the outflow slots.
         state2 = TimedFullField(
             bulk=AngularFlux.from_mesh(state.bulk.values.copy(), sn_mesh),
-            boundary=BoundaryFlux.zeros_on(sn_mesh),
+            boundary=AngularBoundaryFlux.zeros_on(sn_mesh),
             _history=(), history_depth=2,
         )
-        trace = sn_mesh.trace
+        trace = sn_mesh.angular_trace
         for face in state.boundary.layout.faces:
             src = state.boundary.face_view(face)
             dst = state2.boundary.face_view(face)
@@ -728,10 +728,10 @@ class TestVacuumBoundaryDefectKept:
         sigma_t = np.full((ng, *sn_mesh.spatial_shape), 2.0)
         rng = np.random.default_rng(9)
         bulk = rng.standard_normal((N, ng, *sn_mesh.spatial_shape))
-        trace = sn_mesh.trace
+        trace = sn_mesh.angular_trace
 
         def _run(outflow_fill: float) -> np.ndarray:
-            b = BoundaryFlux.zeros_on(sn_mesh)
+            b = AngularBoundaryFlux.zeros_on(sn_mesh)
             outflow = trace.outflow_indices_for_face("xmax")
             if outflow.size:
                 b.face_view("xmax")[outflow, :] = outflow_fill

@@ -1,7 +1,7 @@
 r"""The scalar boundary-trace function space — partial currents on a mesh boundary.
 
 The quadrature-free sibling of
-:class:`~orpheus.numerics.spaces.trace_space.TraceSpace` for methods whose
+:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` for methods whose
 boundary state is already angle-integrated (diffusion; CP/MoC scalar traces
 to follow). Where the SN trace stores the angular flux DENSITY per ordinate
 under the partial-current metric :math:`G_s = |\Omega\cdot\hat n|\odot w_n`,
@@ -25,7 +25,7 @@ inconsistent Cauchy pair unrepresentable and every boundary law a member of
 the albedo family :math:`J^- = \mathcal{A}\,J^+` (see
 ``.claude/plans/diffusion_crosswalk.md``, the P2 convention contract).
 
-**Deliberately NOT a ``TraceSpace`` subclass.** The angular trace's
+**Deliberately NOT a ``AngularTraceSpace`` subclass.** The angular trace's
 ``omega_dot_n`` table and quadrature coupling are SN's type-safety — making
 them optional to admit a scalar realization would let an SN boundary field
 be built on a table-less space (an illegal state the current type forbids).
@@ -76,13 +76,13 @@ class ScalarTraceSpace(FunctionSpace):
     layout : FaceLayout
         The flat-buffer descriptor (which faces exist, per-face shapes,
         offsets). ``compare=False`` leaf-data — identity stays
-        ``(name, shape)``, matching the angular ``TraceSpace`` convention.
+        ``(name, shape)``, matching the angular ``AngularTraceSpace`` convention.
     """
 
     #: Component-row convention of every face slot (axis 0). Row 0 is the
     #: OUTFLOW partial current J⁺ (leaves the domain through the outward
     #: normal), row 1 the INFLOW J⁻. Single source of truth — consumers
-    #: (``PartialCurrent`` views, the P3 realizer, the P4 boundary
+    #: (``ScalarBoundaryFlux`` views, the P3 realizer, the P4 boundary
     #: operator) index through these names, never literal 0/1.
     OUTFLOW_ROW: ClassVar[int] = 0
     INFLOW_ROW: ClassVar[int] = 1
@@ -158,7 +158,7 @@ class ScalarTraceSpace(FunctionSpace):
             layout=layout,
         )
 
-    # ── Identity (mirror TraceSpace / FullFieldSpace) ─────────────────
+    # ── Identity (mirror AngularTraceSpace / FullFieldSpace) ─────────────────
     #
     # @dataclass(frozen=True) would regenerate __eq__/__hash__ over the
     # fields; explicit delegation restores the (name, shape) identity

@@ -20,7 +20,7 @@ facts live, and the d=3 flux-VALUE claim lands in
 The schedule layer is mesh-LIGHT by design: ``_octant_sweep`` /
 ``_outgoing_faces`` are pure on quadrature partition entries / labels, and
 ``SweepSchedule.gauss_seidel`` reads only ``ndim``, ``quad.octants``,
-``trace.layout.faces``, and the ``bc_{face}`` attributes — all forgeable
+``angular_trace.layout.faces``, and the ``bc_{face}`` attributes — all forgeable
 with :class:`types.SimpleNamespace` (the duck-types live HERE, not as a
 production injection seam — one consumer, Pattern 6 defers the abstraction).
 """
@@ -117,7 +117,7 @@ def _fake_mesh_3d(**bcs: str) -> SimpleNamespace:
     return SimpleNamespace(
         ndim=3,
         quad=SimpleNamespace(octants=octants),
-        trace=SimpleNamespace(layout=SimpleNamespace(faces=_D3_FACES)),
+        angular_trace=SimpleNamespace(layout=SimpleNamespace(faces=_D3_FACES)),
         bc={face: bcs.get(face, "vacuum") for face in _D3_FACES},
     )
 

@@ -57,7 +57,7 @@ trio:
 * **SN**: bulk =
   :class:`~orpheus.transport.fields.angular_flux.AngularFlux` on
   ``(N, ng, nx, ny)``; boundary =
-  :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux` on the
+  :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux` on the
   flat face-trace layout.
 * **CP** (future): bulk =
   :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` on
@@ -133,7 +133,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from orpheus.transport.fields._bases import BulkField, TraceField
+from orpheus.transport.fields._bases import BulkField, BoundaryField
 from orpheus.transport.full_field import FullField
 
 __all__ = ["TimedFullField"]
@@ -153,7 +153,7 @@ class TimedFullField(FullField):
         The volumetric / bulk field (inherited from
         :class:`~orpheus.transport.full_field.FullField`). Any
         :class:`~orpheus.transport.fields._bases.BulkField` subclass.
-    boundary : BoundaryField
+    boundary : AngularBoundaryField
         The boundary partner field on the trace of ``bulk``'s domain
         (inherited).
     _history : tuple[FullField, ...], optional
@@ -196,7 +196,7 @@ class TimedFullField(FullField):
         cls,
         *,
         bulk: type[BulkField],
-        boundary: type[TraceField],
+        boundary: type[BoundaryField],
         mesh: "object",
         history_depth: int = 2,
     ) -> "TimedFullField":
@@ -207,7 +207,7 @@ class TimedFullField(FullField):
         ``history_depth`` (the timeless base has no such concept). The
         bulk / boundary leaf CLASSES are zero-allocated on ``mesh`` via
         their own :meth:`zeros_on` — the SN-specific ``(AngularFlux,
-        BoundaryFlux)`` composition lives at the SN call site, not here.
+        AngularBoundaryFlux)`` composition lives at the SN call site, not here.
         Replaces the retired ``SNMesh.zeros_timed_full_field``.
 
         Parameters
@@ -215,7 +215,7 @@ class TimedFullField(FullField):
         bulk : type[BulkField]
             The bulk leaf CLASS to instantiate (must expose
             ``zeros_on(mesh)``).
-        boundary : type[TraceField]
+        boundary : type[BoundaryField]
             The boundary leaf CLASS to instantiate (must expose
             ``zeros_on(mesh)``).
         mesh : object
@@ -250,7 +250,7 @@ class TimedFullField(FullField):
     # ── Polymorphic recombine hook (carries history metadata) ────────
 
     def _recombine(
-        self, *, bulk: BulkField, boundary: TraceField,
+        self, *, bulk: BulkField, boundary: BoundaryField,
     ) -> "TimedFullField":
         r"""Rebuild a ``TimedFullField`` with empty history + preserved depth.
 
@@ -274,7 +274,7 @@ class TimedFullField(FullField):
     def advance(
         self,
         new_bulk: BulkField,
-        new_boundary: TraceField,
+        new_boundary: BoundaryField,
     ) -> "TimedFullField":
         r"""Push current ``(bulk, boundary)`` into history; install new as current.
 
@@ -294,7 +294,7 @@ class TimedFullField(FullField):
         ----------
         new_bulk : BulkField
             The new current bulk field. Must match ``type(self.bulk)``.
-        new_boundary : BoundaryField
+        new_boundary : AngularBoundaryField
             The new current boundary field. Must match
             ``type(self.boundary)``.
 

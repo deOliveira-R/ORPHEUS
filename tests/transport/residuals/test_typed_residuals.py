@@ -35,11 +35,11 @@ from orpheus.numerics.field import Field
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.residuals import (
     AngularResidual,
-    BoundaryResidual,
+    AngularBoundaryResidual,
     ScalarResidual,
 )
 from orpheus.transport.source_sinks import AngularSourceSink, ScalarSourceSink
@@ -405,29 +405,29 @@ class TestFromBalance:
 # ════════════════════════════════════════════════════════════════════
 # Boundary locus — the uniform from_mesh factory + from_balance (the
 # capability is minted in B.5.1; the matvec wiring is deferred to
-# B.5.2 / #208). All boundary leaves share the SAME ``mesh.trace`` space.
+# B.5.2 / #208). All boundary leaves share the SAME ``mesh.angular_trace`` space.
 # ════════════════════════════════════════════════════════════════════
 
 
 class TestBoundaryFromMeshAndBalance:
     def test_from_mesh_roundtrip_on_trace(self) -> None:
-        """``BoundaryField.from_mesh`` (B.5.1) packs a flat buffer onto the
-        shared ``mesh.trace`` — the uniform construction surface bulk leaves
+        """``AngularBoundaryField.from_mesh`` (B.5.1) packs a flat buffer onto the
+        shared ``mesh.angular_trace`` — the uniform construction surface bulk leaves
         already had."""
         m = _slab_mesh()
-        n = BoundaryFlux.zeros_on(m).values.size
+        n = AngularBoundaryFlux.zeros_on(m).values.size
         vals = np.arange(float(n))
-        bf = BoundaryFlux.from_mesh(vals, m)
-        assert isinstance(bf, BoundaryFlux)
-        assert bf.space is m.trace
+        bf = AngularBoundaryFlux.from_mesh(vals, m)
+        assert isinstance(bf, AngularBoundaryFlux)
+        assert bf.space is m.angular_trace
         np.testing.assert_array_equal(bf.values, vals)
 
     def test_boundary_from_balance(self) -> None:
         m = _slab_mesh()
-        n = BoundaryFlux.zeros_on(m).values.size
-        lhs = BoundaryFlux.from_mesh(np.full(n, 4.0), m)
-        rhs = BoundaryFlux.from_mesh(np.full(n, 1.0), m)
-        r = BoundaryResidual.from_balance(lhs=lhs, rhs=rhs)
-        assert isinstance(r, BoundaryResidual)
-        assert r.space is m.trace  # shared trace space (all boundary leaves)
+        n = AngularBoundaryFlux.zeros_on(m).values.size
+        lhs = AngularBoundaryFlux.from_mesh(np.full(n, 4.0), m)
+        rhs = AngularBoundaryFlux.from_mesh(np.full(n, 1.0), m)
+        r = AngularBoundaryResidual.from_balance(lhs=lhs, rhs=rhs)
+        assert isinstance(r, AngularBoundaryResidual)
+        assert r.space is m.angular_trace  # shared trace space (all boundary leaves)
         assert np.all(r.values == 3.0)

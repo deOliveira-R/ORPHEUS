@@ -9,11 +9,11 @@ affine boundary law
     \gamma_-\psi \;=\; R\,G\,\gamma_+\psi \;+\; q ,
 
 realised as concrete per-face values packed into the unified
-:class:`~orpheus.numerics.spaces.trace_space.TraceSpace` flat layout
+:class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` flat layout
 (``(layout.total_size,)``). It is the *source* role leaf of
-:class:`~orpheus.transport.fields._bases.BoundaryField`, sibling to
-:class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux` (flux)
-and :class:`~orpheus.transport.residuals.boundary_residual.BoundaryResidual`
+:class:`~orpheus.transport.fields._bases.AngularBoundaryField`, sibling to
+:class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux` (flux)
+and :class:`~orpheus.transport.residuals.angular_boundary_residual.AngularBoundaryResidual`
 (residual).
 
 Recipe → snapshot: relationship to :class:`InflowSourceSpec`
@@ -31,10 +31,10 @@ There are TWO distinct objects for the inflow :math:`q`, related as
   derive their output from construction-time data only). It is the
   *recipe* the affine boundary law / sweep consumes inline per face
   (:meth:`IncomingSourceOperator.apply`).
-* :class:`BoundarySourceSink` (THIS class, the L2 transport **field**):
+* :class:`AngularBoundarySourceSink` (THIS class, the L2 transport **field**):
   the *eager, whole-boundary, mesh-bound, role-typed snapshot* — the
   materialised :math:`q` as a stored
-  :class:`~orpheus.numerics.field.Field` on ``mesh.trace``.
+  :class:`~orpheus.numerics.field.Field` on ``mesh.angular_trace``.
 
 Two renames produced the current name. First (B.3) the geometry
 Protocol ``BoundarySource`` was renamed to ``InflowSourceSpec``,
@@ -45,13 +45,13 @@ renamed ``Source`` → ``SourceSink`` so the name carries the signed
 rate-density semantics — a *source* (production) and a *sink* (an
 operator-loss output such as :math:`L\psi`) are the same quantity with
 opposite sign, and the role-leaf type holds both. Hence
-``BoundarySourceSink``.
+``AngularBoundarySourceSink``.
 
 Consumer: every operator's ``.apply`` boundary + the SI/Krylov source (B.5.2)
 =============================================================================
 
 B.5.2 (#208) made this leaf **consumer-driven**. Every SN operator's
-``.apply`` output boundary IS a :class:`BoundarySourceSink`, because the
+``.apply`` output boundary IS a :class:`AngularBoundarySourceSink`, because the
 operator output is ``Aψ`` — a source/sink, NOT a residual (a residual
 arises only from an explicit ``from_balance`` of the output against a
 source; the boundary mirrors the bulk's ``AngularSourceSink``).
@@ -62,15 +62,15 @@ the inflow slots; ``Collision`` / ``Scattering`` / ``Fission`` (and the
 ``F = 0`` ``ZeroOperator`` codomain zero) emit the auto-allocated zero.
 The Krylov matvec ``(L+C).apply − (S+B).apply − F.apply`` and the SI rhs
 ``F.apply + (S+B).apply + q_ext`` both compose as CLOSED
-``BoundarySourceSink`` sums (the :class:`TimedFullField` class gate
+``AngularBoundarySourceSink`` sums (the :class:`TimedFullField` class gate
 requires every operator-output boundary to share this class), and
-``q_ext.boundary`` is likewise :class:`BoundarySourceSink` — the
+``q_ext.boundary`` is likewise :class:`AngularBoundarySourceSink` — the
 prescribed inflow source (zero for vacuum / reflective). The completed
 boundary role grid mirrors the bulk exactly::
 
-    .apply        →  BoundarySourceSink   (Aψ — a source/sink)
-    .solve        →  BoundaryFlux         (the swept solution trace)
-    from_balance  →  BoundaryResidual     (the defect — O.2 honest driver)
+    .apply        →  AngularBoundarySourceSink   (Aψ — a source/sink)
+    .solve        →  AngularBoundaryFlux         (the swept solution trace)
+    from_balance  →  AngularBoundaryResidual     (the defect — O.2 honest driver)
 
 A prescribed ``q`` is built directly from known per-face arrays via the
 ergonomic :meth:`prescribed_inflow` generator (``{face: (N, ng)}`` →
@@ -78,11 +78,11 @@ only the inflow ordinate slots written, the rest zero) — the single
 source of truth the non-vacuum MMS and the splitting-invariance probe
 consume (it supersedes the ``zeros_on`` + per-face
 ``face_view(...)[inflow] = …`` slot-fill loop). The lower-level inherited
-:meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`
+:meth:`~orpheus.transport.fields._bases.AngularBoundaryField.from_face_arrays`
 (every face, full slot incl. outflow) remains for non-inflow uses; the
 operator-output zeros use :meth:`zeros_on`.
 
-The **recipe → snapshot bridge** ``BoundarySourceSink.from_spec(spec,
+The **recipe → snapshot bridge** ``AngularBoundarySourceSink.from_spec(spec,
 mesh)`` (materialise an :class:`InflowSourceSpec` onto the trace by
 looping ``spec.evaluate(face_shape)`` per face and packing the flat
 layout) is a DISTINCT, still-deferred path — it is the *recipe*-driven
@@ -101,7 +101,7 @@ The boundary trace is **all-flux**: the prescribed inflow ``q`` is a
 flux added to :math:`\gamma_-\psi`, so it carries the angular-flux units
 :math:`[1/(\mathrm{cm^2 \cdot s \cdot sr})]`
 (:data:`~orpheus.numerics.units.ANGULAR_FLUX_UNITS`) — the SAME as
-``BoundaryFlux`` and ``BoundaryResidual``. So on the trace, unlike the
+``AngularBoundaryFlux`` and ``AngularBoundaryResidual``. So on the trace, unlike the
 bulk, a *source* does NOT pick up the volumetric ``cm⁻³``. eV-free per
 the binned-energy convention. Same units, different role — the gate is
 class identity. See :mod:`orpheus.numerics.units`.
@@ -126,7 +126,7 @@ import numpy as np
 
 from orpheus.numerics.moment_layout import AVERAGE_MOMENT
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
-from orpheus.transport.fields._bases import BoundaryField
+from orpheus.transport.fields._bases import AngularBoundaryField
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -136,22 +136,22 @@ if TYPE_CHECKING:
     from orpheus.sn.mesh.augmented_mesh import SNMesh
 
 
-__all__ = ["BoundarySourceSink"]
+__all__ = ["AngularBoundarySourceSink"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class BoundarySourceSink(BoundaryField):
+class AngularBoundarySourceSink(AngularBoundaryField):
     r"""L2 boundary-trace inflow source — the *source* role leaf of
-    :class:`~orpheus.transport.fields._bases.BoundaryField`.
+    :class:`~orpheus.transport.fields._bases.AngularBoundaryField`.
 
     Parameters
     ----------
     values : NDArray
         Flat backing buffer, shape ``(space.layout.total_size,)``.
-    space : TraceSpace
+    space : AngularTraceSpace
         The unified boundary
-        :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`
-        (canonically ``mesh.trace``), carrying the per-geometry
+        :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
+        (canonically ``mesh.angular_trace``), carrying the per-geometry
         :class:`~orpheus.numerics.face_layout.FaceLayout`.
     mesh : SNMesh
         The SN phase-space carrier (cross-mesh-arithmetic guard).
@@ -160,16 +160,16 @@ class BoundarySourceSink(BoundaryField):
     -----
     A thin role leaf: all storage, validation, algebra, per-face access
     (:meth:`face_view`), and the
-    :meth:`~orpheus.transport.fields._bases.BoundaryField.zeros_on`
-    / :meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`
-    factories are inherited from :class:`BoundaryField`. The leaf carries
+    :meth:`~orpheus.transport.fields._bases.AngularBoundaryField.zeros_on`
+    / :meth:`~orpheus.transport.fields._bases.AngularBoundaryField.from_face_arrays`
+    factories are inherited from :class:`AngularBoundaryField`. The leaf carries
     no source-specific behaviour beyond its class identity — which is
     exactly what Field's Layer-1 gate uses to keep boundary source, flux,
     and residual arithmetic from silently mixing. Note that all three
-    boundary leaves share the SAME ``TraceSpace`` (``mesh.trace``); the
+    boundary leaves share the SAME ``AngularTraceSpace`` (``mesh.angular_trace``); the
     space comparison would pass, so it is the **class** gate (not the
-    space gate) that rejects ``BoundarySourceSink ± BoundaryFlux`` /
-    ``BoundarySourceSink ± BoundaryResidual``. Same-class arithmetic is
+    space gate) that rejects ``AngularBoundarySourceSink ± AngularBoundaryFlux`` /
+    ``AngularBoundarySourceSink ± AngularBoundaryResidual``. Same-class arithmetic is
     closed.
 
     See the module docstring for the recipe→snapshot relationship to the
@@ -179,7 +179,7 @@ class BoundarySourceSink(BoundaryField):
 
     #: Dimensional identity (View-G, B.4): the boundary is all-flux, so
     #: ``1/(cm²·s·sr)`` — :data:`~orpheus.numerics.units.ANGULAR_FLUX_UNITS`,
-    #: shared with ``BoundaryFlux`` / ``BoundaryResidual`` (same units,
+    #: shared with ``AngularBoundaryFlux`` / ``AngularBoundaryResidual`` (same units,
     #: different role → class gate). Metadata, not the gate.
     UNITS: ClassVar[Unit] = ANGULAR_FLUX_UNITS
 
@@ -190,7 +190,7 @@ class BoundarySourceSink(BoundaryField):
         cls,
         mesh: "SNMesh",
         face_values: "Mapping[str, NDArray]",
-    ) -> "BoundarySourceSink":
+    ) -> "AngularBoundarySourceSink":
         r"""Build a prescribed-inflow source :math:`q` from per-face values.
 
         The ergonomic generator for the affine-BC inhomogeneous term
@@ -206,7 +206,7 @@ class BoundarySourceSink(BoundaryField):
         ``face_values`` are vacuum (all-zero).
 
         This is the prescribed-inflow specialisation of the general
-        :meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`
+        :meth:`~orpheus.transport.fields._bases.AngularBoundaryField.from_face_arrays`
         (which requires EVERY face and writes the FULL per-face slot,
         outflow included): here only the faces that carry incoming flux
         need be named, and only their inflow ordinates are honoured. It
@@ -227,10 +227,10 @@ class BoundarySourceSink(BoundaryField):
         Parameters
         ----------
         mesh : SNMesh
-            The SN phase-space carrier; ``mesh.trace`` supplies the
+            The SN phase-space carrier; ``mesh.angular_trace`` supplies the
             :class:`~orpheus.numerics.face_layout.FaceLayout` and the
             per-face inflow ordinate index sets
-            (:meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.inflow_indices_for_face`).
+            (:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face`).
         face_values : Mapping[str, NDArray]
             ``{face_name: values}`` where ``values`` is the full per-face
             slot, shape ``(N, ng, *face_shape[, 2^{d-1}])`` over all
@@ -240,23 +240,23 @@ class BoundarySourceSink(BoundaryField):
 
         Returns
         -------
-        BoundarySourceSink
-            The materialised :math:`q` on ``mesh.trace`` — inflow slots
+        AngularBoundarySourceSink
+            The materialised :math:`q` on ``mesh.angular_trace`` — inflow slots
             of the named faces set, everything else zero.
 
         Raises
         ------
         ValueError
-            If ``mesh.trace is None`` (a trace-less 2-D cylindrical mesh,
+            If ``mesh.angular_trace is None`` (a trace-less 2-D cylindrical mesh,
             which has no SN sweep); if a key is not a face of the layout;
             or if a per-face array shape does not match the ``(N, ng)``
             layout slot.
         """
-        trace = mesh.trace
+        trace = mesh.angular_trace
         if trace is None:
             raise ValueError(
-                f"{cls.__name__}.prescribed_inflow: mesh has no TraceSpace "
-                f"(mesh.trace is None — trace-less 2-D cylindrical). A "
+                f"{cls.__name__}.prescribed_inflow: mesh has no AngularTraceSpace "
+                f"(mesh.angular_trace is None — trace-less 2-D cylindrical). A "
                 f"boundary source cannot be built without a trace."
             )
         bss = cls.zeros_on(mesh)

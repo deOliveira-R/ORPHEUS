@@ -61,7 +61,7 @@ from orpheus.sn.solver import (
     _within_group_triple,
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
 # L1 — equation-level (anisotropic scattering source + 2-D streaming closure).
@@ -296,7 +296,7 @@ def _windowed_product_and_oracle_operands(
     # input-independent — it is a property of the reduction tree, not of ψ).
     rng = np.random.default_rng(50301)
     rhs = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
+        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
     )
     rhs.bulk.values[...] = rng.uniform(0.0, 1.0, size=rhs.bulk.values.shape)
 

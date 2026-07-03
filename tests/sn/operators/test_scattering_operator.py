@@ -31,7 +31,7 @@ from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.source_sinks import AngularSourceSink
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
 pytestmark = pytest.mark.foundation  # software-invariant tier
@@ -553,7 +553,7 @@ class TestProducerSideNormalisation:
 # D-H.2-C1 — Composite TimedFullField invariants (volumetric scattering).
 #
 # Per Option β3 (Issue #208), scattering is volumetric — the output
-# boundary is the implicit-zero :class:`BoundaryFlux`.  Bulk follows
+# boundary is the implicit-zero :class:`AngularBoundaryFlux`.  Bulk follows
 # the full :math:`P_\ell` Galerkin path identical to the legacy
 # :class:`AngularFlux` branch.  The parity tests vs. legacy retired
 # with D-H.2-C1 (the legacy class itself retires in C5; both branches
@@ -577,7 +577,7 @@ class TestCompositeInvariants:
         from orpheus.transport.timed_full_field import TimedFullField
 
         sn_mesh = solver_2g_p0.sn_mesh
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
         np.random.seed(41)
         bulk_values = np.random.rand(*state.bulk.values.shape) + 0.1
         state = replace(state, bulk=replace(state.bulk, values=bulk_values))
@@ -596,7 +596,7 @@ class TestCompositeInvariants:
         from dataclasses import replace
 
         sn_mesh = solver_2g_p0.sn_mesh
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
         np.random.seed(42)
         bulk_values = np.random.rand(*state.bulk.values.shape) + 0.1
         state = replace(state, bulk=replace(state.bulk, values=bulk_values))
@@ -608,7 +608,7 @@ class TestCompositeInvariants:
 
     def test_zero_bulk_zero_output(self, solver_2g_p0):
         """ψ = 0 ⇒ S·ψ = 0 (linearity guard at composite layer)."""
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=solver_2g_p0.sn_mesh)
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=solver_2g_p0.sn_mesh)
         out = solver_2g_p0.scattering_op.apply(state)
         np.testing.assert_array_equal(out.bulk.values, 0.0)
         np.testing.assert_array_equal(out.boundary.values, 0.0)
@@ -625,7 +625,7 @@ class TestCompositeInvariants:
 
         sn_mesh = solver_2g_p0.sn_mesh
         for depth in (0, 1, 2, 4):
-            state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh, history_depth=depth)
+            state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh, history_depth=depth)
             out = solver_2g_p0.scattering_op.apply(state)
             assert isinstance(out, FullField)
             assert not isinstance(out, TimedFullField)
@@ -1451,13 +1451,13 @@ class TestAnisoMomentSourcePath:
 
         Bulk: nulp ≤ 4·order (inherits from AngularFlux-style
         kernel-routed numerics).  Boundary: bit-identical (the
-        implicit-zero BoundaryFlux from Option β3 is unchanged
+        implicit-zero AngularBoundaryFlux from Option β3 is unchanged
         across T.3).
         """
         from dataclasses import replace
 
         psi = self._reproduce_psi(solver_2g_p1_n2n, seed=20260530)
-        state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=solver_2g_p1_n2n.sn_mesh)
+        state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=solver_2g_p1_n2n.sn_mesh)
         state = replace(state, bulk=replace(state.bulk, values=psi.values))
 
         out_post_t3 = op_p1.apply(state)

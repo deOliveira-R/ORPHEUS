@@ -12,12 +12,12 @@ One space, two directional *selectors* — not three types
 
 Issues #205 / #201 (the View-G field-vocabulary refactor) collapse the
 three previously-separate boundary-space notions into **one** concrete
-:class:`TraceSpace`:
+:class:`AngularTraceSpace`:
 
 * the per-face ``InflowTraceSpace`` / ``OutflowTraceSpace`` pair
   (Wave 2, ``transient-giggling-cake``), and
 * the ad-hoc ``FunctionSpace("sn_boundary_flat")`` that
-  :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux` built
+  :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux` built
   for its flat storage, and
 * the dead ``boundary_trace_space()`` factory.
 
@@ -25,7 +25,7 @@ The unification rests on one observation: **inflow and outflow are
 operations on a single space, not two spaces.** Whether an ordinate is
 incoming or outgoing at a face is a *predicate* — :math:`\mathrm{sign}
 (\Omega \cdot \hat n_f)` — evaluated against the same trace data, not a
-property of the space's identity. So :class:`TraceSpace` stores the
+property of the space's identity. So :class:`AngularTraceSpace` stores the
 *signed* projection :math:`\Omega \cdot \hat n_f` once, per face, and
 exposes :meth:`inflow_indices_for_face` / :meth:`outflow_indices_for_face`
 as selectors over it. (#208 will promote these to projection
@@ -38,7 +38,7 @@ Whole-boundary storage + per-face access
 The space is the **whole** boundary: ``shape == (layout.total_size,)``
 where ``layout`` is the :class:`~orpheus.numerics.face_layout.FaceLayout`
 that packs every face into one flat buffer (the same descriptor
-:class:`BoundaryFlux` consumes). Per-face access is via the layout's
+:class:`AngularBoundaryFlux` consumes). Per-face access is via the layout's
 slot (``layout.faces[face].slice_view``) plus the per-face row of the
 signed-projection table; the old per-face ``(N, ng)`` "space" is now a
 *derived view*, not a class.
@@ -119,7 +119,7 @@ References
   Transport*. American Nuclear Society. §3.7 (boundary trace operators
   in the discrete-ordinates setting), §6 (curvilinear angular
   redistribution / starting-direction closure at :math:`r=0`).
-* ``.claude/plans/field_role_typing_view_g.md`` — A.2/A.3 TraceSpace
+* ``.claude/plans/field_role_typing_view_g.md`` — A.2/A.3 AngularTraceSpace
   unification design (View-G, signed-:math:`\Omega\cdot\hat n`,
   principled eps, face-naming reconciliation).
 * Issue #208 comment (2026-05-31) — the
@@ -143,7 +143,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.quadrature import Quadrature
 
 
-__all__ = ["TraceSpace"]
+__all__ = ["AngularTraceSpace"]
 
 
 # Tangential tolerance for the unit-vector projection ``Ω · n``. A
@@ -294,7 +294,7 @@ def _build_trace_metric_weights(
 
 
 @dataclass(frozen=True)
-class TraceSpace(FunctionSpace):
+class AngularTraceSpace(FunctionSpace):
     r"""The boundary-trace function space (View-G, role-agnostic).
 
     One concrete space for the whole boundary :math:`\Gamma`. Inflow and
@@ -305,7 +305,7 @@ class TraceSpace(FunctionSpace):
     Parameters
     ----------
     name, shape, inner_product_weights
-        Inherited from :class:`FunctionSpace`. ``name`` is ``"sn_trace"``
+        Inherited from :class:`FunctionSpace`. ``name`` is ``"angular_trace"``
         and ``shape`` is the whole-boundary flat shape
         ``(layout.total_size,)``. ``inner_product_weights`` is the
         partial-current metric :math:`G_s = |\Omega\cdot\hat n_f|\odot w_n`
@@ -324,7 +324,7 @@ class TraceSpace(FunctionSpace):
         operator-side directional masks both read.
     """
 
-    # Required (a TraceSpace cannot even size itself without its layout,
+    # Required (an AngularTraceSpace cannot even size itself without its layout,
     # and the selectors read omega_dot_n unconditionally — a trace space
     # missing either is an illegal state); kw_only sidesteps the
     # inherited-defaults field-ordering rule. Construct via
@@ -342,7 +342,7 @@ class TraceSpace(FunctionSpace):
         cls,
         quadrature: "Quadrature",
         layout: "FaceLayout",
-    ) -> "TraceSpace":
+    ) -> "AngularTraceSpace":
         r"""Build the trace space from a quadrature and a face layout.
 
         C5.3 (#225): geometry-blind — the former ``mesh`` parameter
@@ -379,7 +379,7 @@ class TraceSpace(FunctionSpace):
             omega_dot_n, quadrature.weights, layout,
         )
         return cls(
-            name="sn_trace",
+            name="angular_trace",
             shape=(int(layout.total_size),),
             inner_product_weights=inner_product_weights,
             layout=layout,

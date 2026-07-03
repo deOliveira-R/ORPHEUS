@@ -57,7 +57,7 @@ from orpheus.derivations.continuous.mms.sn import (
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
 )
@@ -90,7 +90,7 @@ def _lc_apply_on_psi_ref(case, nc: int):
 
     # zero boundary trace — the matvec's bulk action is what we probe.
     zero = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
+        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
     )
     psi_ref = TimedFullField(
         bulk=AngularFlux.from_mesh(vals, sn_mesh), boundary=zero.boundary,

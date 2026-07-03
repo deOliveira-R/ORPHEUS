@@ -42,7 +42,7 @@ from orpheus.geometry import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.geometry import SNMesh
 from orpheus.sn.loss_representation import transport_sweep
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.source_sinks import AngularSourceSink
 
 
@@ -124,7 +124,7 @@ def main() -> int:
         AngularSourceSink.from_isotropic(Q, sn_mesh),
         sig_t,
         sn_mesh,
-        BoundaryFlux.zeros_on(sn_mesh),
+        AngularBoundaryFlux.zeros_on(sn_mesh),
     )
     psi_hand, phi_hand = hand_sweep(sn_mesh, sig_t, Q)
 

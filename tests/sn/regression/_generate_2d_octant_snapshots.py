@@ -47,9 +47,9 @@ below from the test module — so generator and test CANNOT drift
 
 Schema migration: the legacy schema stored the full interior-edge
 ``psi_x_post`` ``(N, ng, nx+1, ny)`` / ``psi_y_post`` ``(N, ng, nx,
-ny+1)`` arrays (the legacy BoundaryFlux ``xmin_xmax_buf`` /
+ny+1)`` arrays (the legacy AngularBoundaryFlux ``xmin_xmax_buf`` /
 ``ymin_ymax_buf`` fields).  Those fields no longer exist: the L2
-BoundaryFlux persists ONLY the four boundary face slices; the interior
+AngularBoundaryFlux persists ONLY the four boundary face slices; the interior
 edges are EPHEMERAL inside ``_sweep_jacobi``.  The test only ever
 compared the boundary slices, so this script now stores exactly the
 four persisted face views.

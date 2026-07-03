@@ -1,6 +1,6 @@
-r"""Tests for :mod:`orpheus.numerics.spaces.trace_space`.
+r"""Tests for :mod:`orpheus.numerics.spaces.angular_trace_space`.
 
-The unified :class:`TraceSpace` (#205 / #201) — ONE whole-boundary
+The unified :class:`AngularTraceSpace` (#205 / #201) — ONE whole-boundary
 trace function space carrying the signed :math:`\Omega\cdot\hat n` per
 face. Inflow / outflow are *selectors* over it, not separate types.
 
@@ -22,13 +22,13 @@ from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.spaces.trace_space import TraceSpace, _TANGENTIAL_EPS
+from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace, _TANGENTIAL_EPS
 from orpheus.numerics.quadrature import Quadrature
 
 
 # ─────────────────────────────────────────────────────────────────────
 # Helpers — build the (mesh, quadrature, layout) triple the unified
-# TraceSpace consumes. Layouts mirror SNMesh.boundary_face_layout:
+# AngularTraceSpace consumes. Layouts mirror SNMesh.boundary_face_layout:
 # slab xmin/xmax, curvilinear xmax-only, 2-D xmin/xmax/ymin/ymax.
 # ─────────────────────────────────────────────────────────────────────
 
@@ -65,18 +65,18 @@ def _cartesian2d_layout(N: int, ng: int, nx: int, ny: int) -> FaceLayout:
     ])
 
 
-def _trace_2d(quad, nx: int = 3, ny: int = 3, ng: int = 1) -> TraceSpace:
-    return TraceSpace.from_quadrature_and_layout(
+def _trace_2d(quad, nx: int = 3, ny: int = 3, ng: int = 1) -> AngularTraceSpace:
+    return AngularTraceSpace.from_quadrature_and_layout(
         quad, _cartesian2d_layout(quad.N, ng, nx, ny),
     )
 
 
-def _trace_1d(coord: CoordSystem, quad, ng: int = 1) -> TraceSpace:
+def _trace_1d(coord: CoordSystem, quad, ng: int = 1) -> AngularTraceSpace:
     if coord is CoordSystem.CARTESIAN:
         layout = _slab_layout(quad.N, ng)
     else:
         layout = _curvilinear_layout(quad.N, ng)
-    return TraceSpace.from_quadrature_and_layout(quad, layout)
+    return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -86,10 +86,10 @@ def _trace_1d(coord: CoordSystem, quad, ng: int = 1) -> TraceSpace:
 
 @pytest.mark.l0
 def test_trace_space_constructible_and_frozen():
-    """L0: TraceSpace builds via factory; mutation raises; is a FunctionSpace."""
+    """L0: AngularTraceSpace builds via factory; mutation raises; is a FunctionSpace."""
     quad = Quadrature.lebedev(11)
     space = _trace_2d(quad)
-    assert isinstance(space, TraceSpace)
+    assert isinstance(space, AngularTraceSpace)
     assert isinstance(space, FunctionSpace)
     with pytest.raises(dataclasses.FrozenInstanceError):
         space.name = "evil"  # type: ignore[misc]
@@ -268,7 +268,7 @@ def test_curvilinear_xmax_matches_cartesian_xmax():
 
 
 # C5.3 (#225): the former ``test_2d_cylindrical_raises`` retired WITH the
-# gate it pinned — TraceSpace is geometry-blind (it never sees a mesh), so
+# gate it pinned — AngularTraceSpace is geometry-blind (it never sees a mesh), so
 # the 2-D-cylindrical refusal lives where the geometry enters: SNMesh
 # construction (``axes_from_legacy_mesh`` raises NotImplementedError for
 # 2-D non-Cartesian; pinned in
@@ -284,7 +284,7 @@ def test_unknown_face_in_layout_raises():
     # unknown-face probe needs a name outside the axis world.
     bad = FaceLayout.from_named_shapes([("wmin", (quad.N, 1))])
     with pytest.raises(ValueError, match="Unknown face name"):
-        TraceSpace.from_quadrature_and_layout(quad, bad)
+        AngularTraceSpace.from_quadrature_and_layout(quad, bad)
 
 
 @pytest.mark.l0
@@ -367,7 +367,7 @@ def test_eps_sits_in_the_round_off_to_genuine_gap():
 # ─────────────────────────────────────────────────────────────────────
 
 
-def _reference_trace_metric(space: TraceSpace, quad) -> np.ndarray:
+def _reference_trace_metric(space: AngularTraceSpace, quad) -> np.ndarray:
     """Independent flat ``|Ω·n_f|·w_n`` build (per-face, broadcast over all
     trailing axes) — the cross-check ground for the production metric."""
     layout = space.layout
@@ -453,7 +453,7 @@ def test_face_normals_z_derived_from_axis_names():
     C5-G9: derived from AXIS_NAMES, not hand-listed — a table that
     silently lacked zmin/zmax was the pre-C5.3 d=3 blocker.
     """
-    from orpheus.numerics.spaces.trace_space import _FACE_NORMALS
+    from orpheus.numerics.spaces.angular_trace_space import _FACE_NORMALS
     expected = {
         "xmin": (0, -1), "xmax": (0, +1),
         "ymin": (1, -1), "ymax": (1, +1),
@@ -469,7 +469,7 @@ def test_omega_dot_n_zmax_is_plus_mu_z():
     layout = FaceLayout.from_named_shapes([
         ("zmin", (quad.N, 1)), ("zmax", (quad.N, 1)),
     ])
-    trace = TraceSpace.from_quadrature_and_layout(quad, layout)
+    trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
     np.testing.assert_array_equal(trace.omega_dot_n[0], -np.asarray(quad.mu_z))
     np.testing.assert_array_equal(trace.omega_dot_n[1], +np.asarray(quad.mu_z))
 
@@ -487,7 +487,7 @@ def test_omega_dot_n_all_six_faces_distinct_axes():
     layout = FaceLayout.from_named_shapes(
         [(f, (quad.N, 1)) for f in faces],
     )
-    trace = TraceSpace.from_quadrature_and_layout(quad, layout)
+    trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
     mu = [np.asarray(quad.mu_x), np.asarray(quad.mu_y), np.asarray(quad.mu_z)]
     # Non-vacuity: the three cosine arrays must genuinely differ.
     if np.array_equal(mu[0], mu[1]) or np.array_equal(mu[1], mu[2]):
@@ -514,4 +514,4 @@ def test_z_face_on_two_cosine_quadrature_fails_loud():
     np.testing.assert_array_equal(np.asarray(quad.mu_z), 0.0)  # non-vacuity
     layout = FaceLayout.from_named_shapes([("zmin", (quad.N, 1))])
     with pytest.raises(ValueError, match="rank-mismatch"):
-        TraceSpace.from_quadrature_and_layout(quad, layout)
+        AngularTraceSpace.from_quadrature_and_layout(quad, layout)

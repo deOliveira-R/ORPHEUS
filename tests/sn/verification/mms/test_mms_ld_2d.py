@@ -7,7 +7,7 @@ consuming the verified d-generic primitive
 gates that need a full solve:
 
 * **D5b.2 (smoke)** — the 2-D LD kernel produces a CONVERGENT O(h²) solution on
-  the existing heterogeneous 2-D MMS (vacuum edges → no ``BoundaryFlux`` change,
+  the existing heterogeneous 2-D MMS (vacuum edges → no ``AngularBoundaryFlux`` change,
   the S2-permitted optional smoke-check).  The full strengthened stress-ansatz
   MMS (the vv Mode-7 override — ``SN2DCartesianLDStressMMSCase`` + the
   ``@verifies("ld-cartesian-2d")`` claim) is **S4** (it needs the non-vanishing
@@ -55,7 +55,7 @@ from orpheus.sn.loss_representation import (
     default_for,
 )
 from orpheus.sn.spatial import DiamondDifference, LinearDiscontinuous
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 from tests.sn._test_helpers import volume_weighted_l2
 
@@ -91,7 +91,7 @@ def test_ld_2d_converges_second_order_smoke():
     r"""D5b.2 (smoke): the 2-D LD kernel produces a CONVERGENT O(h²) solution.
 
     Runs LD on the existing heterogeneous 2-D MMS (its ansatz VANISHES on all
-    four edges → vacuum BCs automatic → no ``BoundaryFlux`` change, the
+    four edges → vacuum BCs automatic → no ``AngularBoundaryFlux`` change, the
     S2-permitted optional smoke-check).  Asserts the observed convergence order
     climbs toward 2 (last > 1.85, all > 1.7) AND the converged value lands in a
     sane band against ``phi_exact`` (vv §5: rate ≠ correctness).
@@ -163,8 +163,8 @@ def test_ld_2d_two_paths_ffw_equals_mfw():
     if not isinstance(default_for(sn), MovingFrontierWindow):
         pytest.fail("expected the 2-D LD default rep to be MovingFrontierWindow")
 
-    bf_win = BoundaryFlux.zeros_on(sn)              # VACUUM (zero domain inflow)
-    bf_full = BoundaryFlux.zeros_on(sn)
+    bf_win = AngularBoundaryFlux.zeros_on(sn)              # VACUUM (zero domain inflow)
+    bf_full = AngularBoundaryFlux.zeros_on(sn)
     ang_w, scal_w = mfw.sweep(Q, sig_t, bf_win)
     ang_f, scal_f = ffw.sweep(Q, sig_t, bf_full)
 
@@ -462,10 +462,10 @@ def test_ld_2d_stress_two_paths_ffw_equals_mfw():
     if not isinstance(default_for(sn), MovingFrontierWindow):
         pytest.fail("expected the 2-D LD default rep to be MovingFrontierWindow")
 
-    # Non-vanishing prescribed inflow → a seeded BoundaryFlux on both legs.
+    # Non-vanishing prescribed inflow → a seeded AngularBoundaryFlux on both legs.
     bss = case.prescribed_inflow(sn)
-    bf_win = BoundaryFlux.zeros_on(sn)
-    bf_full = BoundaryFlux.zeros_on(sn)
+    bf_win = AngularBoundaryFlux.zeros_on(sn)
+    bf_full = AngularBoundaryFlux.zeros_on(sn)
     bf_win.values[...] = bss.values
     bf_full.values[...] = bss.values
 
@@ -1032,7 +1032,7 @@ def test_moment_resolved_bulk_still_rejects_wrong_trailing_axis():
 #   * The scalar-inflow no-op is BYTE-IDENTICAL (slope=0 → array_equal to today).
 #
 # Face-moment NORMALIZATION (the CRUX, locked — coordinate with the
-# method-implementer's TraceSpace widening): the trace must carry the BARE
+# method-implementer's AngularTraceSpace widening): the trace must carry the BARE
 # per-transverse Legendre coefficients [face-bar=slot 0, transverse-slope=slot
 # 1].  The cochain's transverse mass `mass_1d(h_t, θ)=diag(h_t, θh_t)`
 # (assemble_inflow_axis, _ubld.py:270) adds the h_t/θ weighting — the projection
@@ -1269,13 +1269,13 @@ def _solve_with_boundary_slope(case, nc, *, slope_sign):
     L11: the slope is built by ``_face_transverse_buffers`` → ``leggauss`` only
     (never ``_inflow_to_moments``).  The moment-resolved boundary is materialised
     by the public
-    :meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`,
+    :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`,
     bundled with the manufactured bulk source, and solved by the public
     ``solve_sn_fixed_source`` — so it drives the production moment-resolved trace
     END-TO-END (the sweep consumes slot-1, the capture stores the outflow
     moments).  Returns ``(scalar_flux_values, mesh)``."""
     from orpheus.transport.source_sinks import (
-        AngularSourceSink, BoundarySourceSink,
+        AngularSourceSink, AngularBoundarySourceSink,
     )
     from orpheus.transport.timed_full_field import TimedFullField
 
@@ -1299,7 +1299,7 @@ def _solve_with_boundary_slope(case, nc, *, slope_sign):
             face_values[face] = slot
     rhs = TimedFullField(
         bulk=AngularSourceSink.from_mesh(case.external_source(mesh), sn),
-        boundary=BoundarySourceSink.prescribed_inflow(sn, face_values),
+        boundary=AngularBoundarySourceSink.prescribed_inflow(sn, face_values),
     )
     result = solve_sn_fixed_source(
         materials, mesh, case.quadrature, rhs,
@@ -1350,7 +1350,7 @@ def test_ld_2d_boundary_slope_threaded_through_inflow_to_moments():
     # POSITIVE: the widened _inflow_to_moments must thread slot-1 through.  We
     # build the moment-resolved inflow the production trace will carry and assert
     # the producer preserves slot-1.  (Targets _inflow_to_moments directly — the
-    # stable single producer site — independent of the eventual TraceSpace shape.)
+    # stable single producer site — independent of the eventual AngularTraceSpace shape.)
     bufs = _face_transverse_buffers(case, mesh)
     # Take face xmin's inflow ordinates as a representative moment-resolved face.
     centre, slope = bufs["xmin"]                       # (N, ng, n_t)
@@ -1400,7 +1400,7 @@ def test_ld_2d_boundary_slope_threaded_through_inflow_to_moments():
     for face in ("xmin", "xmax", "ymin", "ymax"):
         view = bss.face_view(face)                # (N, ng, n_t, 2)
         _, slope_ref = bufs[face]                 # (N, ng, n_t), leggauss
-        inflow_face = sn.trace.inflow_indices_for_face(face)
+        inflow_face = sn.angular_trace.inflow_indices_for_face(face)
         np.testing.assert_array_equal(
             view[inflow_face, ..., 1], slope_ref[inflow_face],
             err_msg=f"the PRODUCTION case.prescribed_inflow did NOT emit the "
@@ -1471,7 +1471,7 @@ def test_ld_2d_boundary_slope_sign_mutation_reddens():
 
     PUBLIC-API-DRIVEN (the #251 production trace landed): the helper
     ``_solve_with_boundary_slope`` builds a moment-resolved
-    :meth:`~orpheus.transport.source_sinks.BoundarySourceSink.prescribed_inflow`
+    :meth:`~orpheus.transport.source_sinks.AngularBoundarySourceSink.prescribed_inflow`
     (slot-1 = ±projected slope) and solves via the public
     ``solve_sn_fixed_source`` — so it exercises the production moment-resolved
     boundary trace END-TO-END (the producer stamp AND the cochain consumer).  This

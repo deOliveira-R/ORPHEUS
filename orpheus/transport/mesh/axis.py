@@ -92,7 +92,7 @@ class FaceLabel:
     ``"max"`` for Cartesian, ``"outer"`` for solid radial).
 
     This dataclass is the load-bearing key for every dim-agnostic
-    boundary-keyed lookup in the SN module: ``BoundaryFlux.face_buffers``
+    boundary-keyed lookup in the SN module: ``AngularBoundaryFlux.face_buffers``
     (C4), ``SNMesh.bc`` (C4), the outflow-ordinate mask cache (C1),
     and the sweep DAG's face-trace state (C5). It exists so that all
     those consumers share ONE definition of "which face" rather than
@@ -370,7 +370,7 @@ def face_labels(axes: tuple[Axis1D, ...]) -> tuple[FaceLabel, ...]:
     The iteration order is ``(axis_index ascending, endpoint in
     axis.endpoints order)``. This order is the canonical concatenation
     order for :meth:`AngularFlux.to_flat` (C3) and the canonical
-    iteration order for :attr:`BoundaryFlux.face_buffers` (C4).
+    iteration order for :attr:`AngularBoundaryFlux.face_buffers` (C4).
     """
     return tuple(
         FaceLabel(axis_index=i, endpoint=ep)

@@ -1,7 +1,7 @@
 r"""L0 — :class:`~orpheus.numerics.face_layout.FaceLayout` foundation tests.
 
 The L1 primitive that powers post-D-G
-:class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`. Pins:
+:class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`. Pins:
 
 * :class:`FaceSlot` invariants (``flat_size == prod(shape)``,
   ``offset >= 0``).

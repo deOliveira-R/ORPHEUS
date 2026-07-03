@@ -66,14 +66,14 @@ from ..spatial.pole_angular_closure import (
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.numerics.face_layout import FaceLayout
-    from orpheus.numerics.spaces.trace_space import TraceSpace
+    from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     # NOTE (B.5.A): the transport-field TYPE_CHECKING imports retired with the
     # SNMesh.zeros_* factory family. Zero-allocation now lives on the field
     # types (``Field.zeros`` / ``<Leaf>.zeros_on`` /
     # ``TimedFullField.zeros(bulk=..., boundary=..., mesh=...)``); the mesh
     # provides shape data only and no longer imports transport types.
-    # Remaining ``BoundaryFlux`` / ``AngularFlux`` mentions below are docstring
+    # Remaining ``AngularBoundaryFlux`` / ``AngularFlux`` mentions below are docstring
     # cross-references (Sphinx resolves them by full path, no import needed).
 
 
@@ -148,7 +148,7 @@ class SNMesh(MaterialMesh):
     bc : dict[str, _BoundBoundaryOperator]
         Resolved BC operator per boundary face, keyed by the face
         name — the SAME keys as :attr:`boundary_face_layout` /
-        ``trace.layout.faces``, both derived from :attr:`face_labels`
+        ``angular_trace.layout.faces``, both derived from :attr:`face_labels`
         through the single-sourced
         :attr:`~orpheus.transport.mesh.axis.FaceLabel.face_name` crosswalk (C4,
         #220). Each value is a :class:`_BoundBoundaryOperator` shim
@@ -444,8 +444,8 @@ class SNMesh(MaterialMesh):
         # SNMesh at all (the axis conversion at construction refuses
         # it), so every constructible SNMesh builds its trace. The
         # trace is geometry-blind (quadrature + face names only).
-        from orpheus.numerics.spaces.trace_space import TraceSpace
-        self._trace = TraceSpace.from_quadrature_and_layout(
+        from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
+        self._trace = AngularTraceSpace.from_quadrature_and_layout(
             self.quad, self.boundary_face_layout,
         )
 
@@ -461,7 +461,7 @@ class SNMesh(MaterialMesh):
         r"""Realize a BC on the face identified by ``label``.
 
         Build an :class:`SNMethodSpace` carrying the precomputed
-        unified :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`,
+        unified :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`,
         hand it to :class:`SNBoundaryRealizer.realize`, wrap the 1-arg
         result in :class:`_BoundBoundaryOperator` so the SN-side call
         surface sees a uniform 1-arg ``apply(psi)`` contract.
@@ -605,7 +605,7 @@ class SNMesh(MaterialMesh):
 
         The iteration order is the canonical concatenation order for
         :meth:`AngularFlux.to_flat` (C3) and the canonical iteration
-        order for :attr:`BoundaryFlux.face_buffers` (C4).
+        order for :attr:`AngularBoundaryFlux.face_buffers` (C4).
         """
         return _axis_face_labels(self.axes)
 
@@ -628,7 +628,7 @@ class SNMesh(MaterialMesh):
 
         This method is the canonical producer for the per-face
         outflow mask used by the pack convention (C3),
-        :class:`BoundaryFlux.face_buffers` (C4), and the sweep DAG
+        :class:`AngularBoundaryFlux.face_buffers` (C4), and the sweep DAG
         face-trace state (C5).
         """
         return _axis_face_outflow_ordinates(self.axes, label, self.quad)
@@ -776,8 +776,8 @@ class SNMesh(MaterialMesh):
         return obj
 
     @property
-    def trace(self) -> "TraceSpace":
-        r"""The unified boundary :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`.
+    def angular_trace(self) -> "AngularTraceSpace":
+        r"""The unified boundary :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`.
 
         One concrete trace space for the whole boundary :math:`\Gamma`,
         built (A.2/A.3) from this mesh's quadrature +
@@ -785,7 +785,7 @@ class SNMesh(MaterialMesh):
         It is the single source of truth for the signed projection
         :math:`\Omega\cdot\hat n_f` per face; the inflow / outflow
         *selectors*
-        (:meth:`~orpheus.numerics.spaces.trace_space.TraceSpace.outflow_indices_for_face`)
+        (:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_indices_for_face`)
         replace the inline ``sign(Ω·n)`` masks that the streaming matvec
         and the boundary realizer previously each recomputed.
 
@@ -814,7 +814,8 @@ class SNMesh(MaterialMesh):
           across the energy-group axis against the ``(N, ng, nx, ny)`` bulk
           tensor;
         * **trace** :math:`G_{\rm trace} = |\Omega\cdot\hat n_f|\,w_n` — the
-          partial-current surface metric already carried by :attr:`trace`.
+          partial-current surface metric already carried by
+          :attr:`angular_trace`.
 
         Both factors carry :math:`w_n`; they differ only in the spatial
         measure (cell volume vs. oriented face). Cached: the composite is
@@ -839,7 +840,7 @@ class SNMesh(MaterialMesh):
             shape=(N, self.ng, *self.spatial_shape),
             inner_product_weights=g_bulk,
         )
-        return FullFieldSpace.from_blocks(bulk_space, self.trace)
+        return FullFieldSpace.from_blocks(bulk_space, self.angular_trace)
 
     @property
     def boundary_face_layout(self) -> "FaceLayout":
@@ -848,7 +849,7 @@ class SNMesh(MaterialMesh):
         Depth B step D-G primitive. Returns the per-geometry boundary
         face descriptor: which faces exist, their per-face shapes, and
         the flat-buffer offsets that pack them. The post-D-G pure-Field
-        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+        :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
         consumes this layout to lay out its flat backing buffer.
 
         Derived from :attr:`face_labels` (C4): one slot per label, named
@@ -897,7 +898,7 @@ class SNMesh(MaterialMesh):
         Notes
         -----
         The layout contains ONLY boundary face slots. Interior
-        wavefront cache cells (pre-D-G stored in BoundaryFlux's 2-D
+        wavefront cache cells (pre-D-G stored in AngularBoundaryFlux's 2-D
         ``xmin_xmax_buf`` / ``ymin_ymax_buf`` interior positions) are
         explicitly excluded — they live on
         :class:`~orpheus.sn.sweep_scratch.SweepScratch` post-D-G.

@@ -11,7 +11,7 @@ Pre-D-H ``orpheus.sn.angular_flux.AngularFlux`` conflated THREE
 concerns on a single class:
 
 1. Bulk volumetric flux values (the legitimate Field role).
-2. Boundary trace state (``self.boundary: BoundaryFlux``).
+2. Boundary trace state (``self.boundary: AngularBoundaryFlux``).
 3. Iteration / time history (``self._history`` shift register).
 
 Post-D-H this class is a **pure Field**:

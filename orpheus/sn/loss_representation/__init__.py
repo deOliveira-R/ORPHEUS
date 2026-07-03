@@ -188,9 +188,9 @@ if TYPE_CHECKING:
 
     from orpheus.numerics.frame import FrameBase
     from orpheus.transport.fields.angular_flux import AngularFlux
-    from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.full_field import FullField
-    from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
+    from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
     from orpheus.transport.timed_full_field import TimedFullField
 
     from ..mesh.augmented_mesh import SNMesh
@@ -270,12 +270,12 @@ class LossRepresentation(Protocol):
         self,
         Q: "np.ndarray",
         sig_t: "np.ndarray",
-        boundary_flux: "BoundaryFlux",
+        boundary_flux: "AngularBoundaryFlux",
         *,
         initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
-        reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
+        reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         """Perform one within-group transport sweep on this strategy's mesh.
 
@@ -544,12 +544,12 @@ class _LossRepresentation:
         self,
         Q: "np.ndarray",
         sig_t: "np.ndarray",
-        boundary_flux: "BoundaryFlux",
+        boundary_flux: "AngularBoundaryFlux",
         *,
         initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
-        reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
+        reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         """One within-group sweep — every concrete strategy implements it."""
         raise NotImplementedError(
@@ -856,7 +856,7 @@ class _OctantWalk:
         *,
         operands: _SolveOperands,
         emit: _SweepEmit,
-        boundary_flux: "BoundaryFlux",
+        boundary_flux: "AngularBoundaryFlux",
         interior: "Callable[[_SolveOperands, _SweepEmit, np.ndarray, tuple[int, ...], tuple[np.ndarray, ...]], tuple[np.ndarray, ...]]",
     ) -> None:
         r"""The SOLVE-direction frame for ONE octant group (S6.4 sub-step (b)).
@@ -942,7 +942,7 @@ class _OctantWalk:
         """
         from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import (
-            AngularSourceSink, BoundarySourceSink,
+            AngularSourceSink, AngularBoundarySourceSink,
         )
 
         sn_mesh = self.mesh
@@ -967,7 +967,7 @@ class _OctantWalk:
 
         # (L+C)·ψ̄ accumulator; ``apply`` subtracts Σ_t·ψ̄ → bare-streaming Lψ̄.
         LpC = np.zeros((sn_mesh.quad.N, ng, *spatial, *moment_tail))
-        trace = sn_mesh.trace
+        trace = sn_mesh.angular_trace
         boundary = psi.boundary
         streamed = {
             face: np.zeros_like(boundary.face_view(face))
@@ -1005,7 +1005,7 @@ class _OctantWalk:
         )
 
         # Boundary-block residual (O.4b — the active trace).
-        out_boundary = BoundarySourceSink.zeros_on(sn_mesh)
+        out_boundary = AngularBoundarySourceSink.zeros_on(sn_mesh)
         for face in trace.face_names:
             given = boundary.face_view(face)
             out_idx = trace.outflow_indices_for_face(face)
@@ -1057,12 +1057,12 @@ class CumprodScan(_LossRepresentation):
         self,
         Q: "np.ndarray",
         sig_t: "np.ndarray",
-        boundary_flux: "BoundaryFlux",
+        boundary_flux: "AngularBoundaryFlux",
         *,
         initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
-        reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
+        reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray]":
         if moment_frame is not None:
             # Moment output is the 2-D windowed-SI peak-memory optimization;
@@ -1203,12 +1203,12 @@ class MovingFrontierWindow(_DAGWavefront):
         self,
         Q: "np.ndarray",
         sig_t: "np.ndarray",
-        boundary_flux: "BoundaryFlux",
+        boundary_flux: "AngularBoundaryFlux",
         *,
         initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
-        reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
+        reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         if schedule is None:
             return _sweep_jacobi(
@@ -1508,12 +1508,12 @@ class FullFieldWavefront(_DAGWavefront):
         self,
         Q: "np.ndarray",
         sig_t: "np.ndarray",
-        boundary_flux: "BoundaryFlux",
+        boundary_flux: "AngularBoundaryFlux",
         *,
         initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
-        reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
+        reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         if moment_frame is not None:
             raise ValueError(
@@ -1757,12 +1757,12 @@ class ScanMarch(_LossRepresentation):
         self,
         Q: "np.ndarray",
         sig_t: "np.ndarray",
-        boundary_flux: "BoundaryFlux",
+        boundary_flux: "AngularBoundaryFlux",
         *,
         initial_guess: "FullField | None" = None,
         moment_frame: "FrameBase | None" = None,
         schedule: "SweepSchedule | None" = None,
-        reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
+        reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
     ) -> "tuple[np.ndarray, np.ndarray | None]":
         if self.mesh.is_1d:
             # d=1 ⇒ ``scan(x)`` with no transverse march: the unified 1-D body
@@ -2116,7 +2116,7 @@ def transport_sweep(
     source: "AngularSourceSink",
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
-    boundary_flux: "BoundaryFlux",
+    boundary_flux: "AngularBoundaryFlux",
     *,
     initial_guess: "FullField | None" = None,
     moment_frame: "FrameBase | None" = None,
@@ -2163,7 +2163,7 @@ def transport_sweep(
     * Issue #196 PR-INDEX-5: PUBLIC contract is principled
       ``(ng, nx, ny)`` / ``(N, ng, nx, ny)``.
     * Issue #197 PR-TYPED-2: ``psi_bc: dict`` retired in favour of
-      typed :class:`BoundaryFlux`.
+      typed :class:`AngularBoundaryFlux`.
     * Issue #197 PR-TYPED-3: typed :class:`ScalarSourceSink` /
       :class:`AngularSourceSink` inputs.
     * Issue #197 PR-TYPED-4: bare-``np.ndarray`` overload retired.
@@ -2186,9 +2186,9 @@ def transport_sweep(
     sn_mesh : SNMesh
         :class:`SNMesh` carrying geometry, BCs, quadrature, cell-update
         strategy.
-    boundary_flux : BoundaryFlux
-        Persistent :class:`BoundaryFlux` (mutated in place).  Build a
-        zero-initialised instance via ``BoundaryFlux.zeros_on(sn_mesh)``.
+    boundary_flux : AngularBoundaryFlux
+        Persistent :class:`AngularBoundaryFlux` (mutated in place).  Build a
+        zero-initialised instance via ``AngularBoundaryFlux.zeros_on(sn_mesh)``.
     initial_guess : FullField or None, optional
         Previous-iteration angular flux estimate, used for the
         curvilinear Carlson coupled-pole seed and the per-ordinate
@@ -2338,7 +2338,7 @@ class _OneDimScanWalk:
         self,
         Q: np.ndarray,
         sig_t: np.ndarray,
-        boundary_flux: "BoundaryFlux",
+        boundary_flux: "AngularBoundaryFlux",
         *,
         initial_guess: "FullField | None" = None,
     ) -> tuple[np.ndarray, np.ndarray]:
@@ -2426,7 +2426,7 @@ class _OneDimScanWalk:
 
     def _apply_walk(
         self, sigma: "np.ndarray", psi: "FullField",
-    ) -> "tuple[np.ndarray, BoundarySourceSink]":
+    ) -> "tuple[np.ndarray, AngularBoundarySourceSink]":
         r"""The 1-D apply-direction walk — the fused ``(L+C)ψ`` single emission.
 
         #206 Phase C: relocated verbatim off
@@ -2474,7 +2474,7 @@ class _OneDimScanWalk:
         diagonal ``self.sigma``) — the frame never reads it off an operator
         handle.
         """
-        from orpheus.transport.source_sinks import BoundarySourceSink
+        from orpheus.transport.source_sinks import AngularBoundarySourceSink
         from ..spatial.cell_balance import cell_balance_for_streaming
 
         sn_mesh = self.mesh
@@ -2520,7 +2520,7 @@ class _OneDimScanWalk:
         sigma_gx = sigma
 
         boundary = psi.boundary
-        trace = sn_mesh.trace
+        trace = sn_mesh.angular_trace
         has_inner_face = "xmin" in boundary.layout.faces
         face_outer = boundary.face_view("xmax")
         face_inner = boundary.face_view("xmin") if has_inner_face else None
@@ -2746,9 +2746,9 @@ class _OneDimScanWalk:
         #     ``ψ.inflow − B·ψ.outflow`` (the consistency the outer loop drives
         #     to q.inflow, the prescribed inflow / zero for vacuum+reflective).
         # The outflow / inflow ordinate sets are the disjoint sign(Ω·n)
-        # partitions read from the unified TraceSpace selector (single source
+        # partitions read from the unified AngularTraceSpace selector (single source
         # of truth) — A.4 retired the inline ``mu_x > ±eps`` masks.
-        m_boundary = BoundarySourceSink.zeros_on(sn_mesh)
+        m_boundary = AngularBoundarySourceSink.zeros_on(sn_mesh)
         outer_outflow = trace.outflow_indices_for_face("xmax")
         if outer_outflow.size:
             m_boundary.face_view("xmax")[outer_outflow, :] = (
@@ -2809,7 +2809,7 @@ class _OneDimScanWalk:
         negative control.
         """
         from orpheus.transport.full_field import FullField
-        from orpheus.transport.source_sinks import AngularSourceSink, BoundarySourceSink
+        from orpheus.transport.source_sinks import AngularSourceSink, AngularBoundarySourceSink
         from ..spatial.cell_balance import cell_balance_for_streaming
 
         sn_mesh = self.mesh
@@ -2835,7 +2835,7 @@ class _OneDimScanWalk:
         A = sn_mesh.areas
         V = sn_mesh.volumes
         sgx = sigma                                  # (ng, nx)
-        trace = sn_mesh.trace
+        trace = sn_mesh.angular_trace
         has_inner_face = "xmin" in phi.boundary.layout.faces
 
         out_bar = phi.bulk.values.swapaxes(0, 1)   # (ng, N, nx)
@@ -2948,7 +2948,7 @@ class _OneDimScanWalk:
         fo_bar += bc_ang_bar
 
         # ── assemble the typed composite ──
-        m_boundary = BoundarySourceSink.zeros_on(sn_mesh)
+        m_boundary = AngularBoundarySourceSink.zeros_on(sn_mesh)
         m_boundary.face_view("xmax")[...] = fo_bar
         if has_inner_face:
             m_boundary.face_view("xmin")[...] = fi_bar
@@ -2996,7 +2996,7 @@ class _OneDimScanWalk:
         self,
         Q: np.ndarray,
         sig_t: np.ndarray,
-        boundary_flux: "BoundaryFlux",
+        boundary_flux: "AngularBoundaryFlux",
         geom: GeometryCoefficients,
         coll: CollisionCache,
         *,
@@ -3118,7 +3118,7 @@ class _OneDimScanWalk:
         # chain per direction.  Group ordinates by chain direction and run
         # ONE ordinate_scan per chain.  Exactly 2 scan calls per sweep.
         if is_slab:
-            # D-H.2-C2: L2 :class:`BoundaryFlux` provides writable per-face
+            # D-H.2-C2: L2 :class:`AngularBoundaryFlux` provides writable per-face
             # views via :meth:`face_view`.  Slab layout has both ``xmin``
             # and ``xmax`` slots (shape ``(N, ng)`` each); writes through
             # the view propagate to the flat backing buffer.  Per-cell-call
@@ -3503,10 +3503,10 @@ def _sweep_scheduled(
     Q: np.ndarray,
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
-    boundary_flux: "BoundaryFlux",
+    boundary_flux: "AngularBoundaryFlux",
     *,
     schedule: "SweepSchedule",
-    reflect: "Callable[[BoundaryFlux, tuple[str, ...]], None] | None" = None,
+    reflect: "Callable[[AngularBoundaryFlux, tuple[str, ...]], None] | None" = None,
     moment_frame: "FrameBase | None" = None,
     interior: "Callable" ,
 ) -> "tuple[np.ndarray, np.ndarray | None]":
@@ -3649,7 +3649,7 @@ def _sweep_jacobi(
     Q: np.ndarray,
     sig_t: np.ndarray,
     sn_mesh: "SNMesh",
-    boundary_flux: "BoundaryFlux",
+    boundary_flux: "AngularBoundaryFlux",
     *,
     moment_frame: "FrameBase | None" = None,
     interior: "Callable",

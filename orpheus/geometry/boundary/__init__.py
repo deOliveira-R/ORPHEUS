@@ -31,7 +31,7 @@ sub-Markov BCs); and :math:`q \in \Gamma_-` is the optional
 The §16A.3 decomposition splits this map into three concrete layers:
 
 1. **Trace structure** — the unified typed
-   :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`
+   :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
    (every supported mesh — 1-D Cartesian / spherical / cylindrical
    + 2-D Cartesian — post Issue #188; 2-D cylindrical
    :class:`Mesh2D` is the only mesh that still raises, deferred

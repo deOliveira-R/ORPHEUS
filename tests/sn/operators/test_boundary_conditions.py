@@ -105,7 +105,7 @@ class TestSNBCResolution:
         """2-D Cartesian BC resolution. Needs a genuine-2-D quadrature:
         the y-faces require ordinates with non-zero mu_y, which the shared
         1-D ``gauss_legendre`` fixture lacks (the trace-space guard at
-        ``trace_space.py`` correctly rejects it). ``level_symmetric``
+        ``angular_trace_space.py`` correctly rejects it). ``level_symmetric``
         carries genuine mu_y."""
         quad = Quadrature.level_symmetric(sn_order=4)
         mesh = Mesh2D(

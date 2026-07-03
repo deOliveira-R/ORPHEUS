@@ -25,7 +25,7 @@ from tests.sn._test_helpers import (
     curvilinear_homogeneous_mesh as _homogeneous_mesh,
     curvilinear_two_region_mesh as _two_region_mesh,
 )
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 # Cylinder and sphere carry DIFFERENT equation-coverage lists (the
 # legacy modules did too), so the verifies(...) sets are applied
@@ -533,7 +533,7 @@ class TestMultiGroupMultiRegionSpherical:
         sig_t = np.ones((1, *sn_mesh.spatial_shape))    # (ng, *spatial)
         Q_iso = np.ones((1, *sn_mesh.spatial_shape))    # (ng, *spatial)
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
-        boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
+        boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
         phi = None
         for _ in range(50):
             # Wave O (#208) O.4a.2 — the bare ``transport_sweep`` no longer

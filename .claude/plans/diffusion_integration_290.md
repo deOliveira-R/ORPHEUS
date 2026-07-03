@@ -341,3 +341,33 @@ the Marshak pair (crossing-exact bookkeeping, φ ± 2J direction) was chosen ove
 the P1 CHARACTERISTIC basis φ ± √3J (the Mark conditions ψ(∓1/√3) = 0 — the S2
 Gauss points): conservation-natural over PDE-characteristic, right for BC
 bookkeeping + DSA current-consistency.
+
+### P2.5 status (2026-07-03, session 2 — EXECUTED)
+
+The full rename table + role-grid rewrites + message/pin flips landed as ONE
+`refactor(transport)` commit (hash = this commit). Deviations from spec: NONE.
+Scope notes recorded for the retirement audit: `SNMethodSpace.trace` KEPT
+(per-method protocol surface, no polysemy — P3's `DiffusionMethodSpace` mirrors
+it; only `SNMesh.trace` was the polysemous member); `FullFieldSpace.trace_space`
+attr KEPT (generic over both families); untracked user diag scripts in
+`derivations/diagnostics/` untouched (still spell old names — user scratch).
+Gates: transport+numerics+data wall 1361 passed; sn+geometry wall + `sphinx -W`
++ CLI pyright = 1 (#288 residual) + `tests._harness.audit` EXIT=0 (9 MISSING
+ERR entries pre-existing, 54/63) — full results in the session log.
+Probes: `Displacement._BY_REP[AngularBoundaryField] is AngularBoundaryDisplacement`
++ scalar pair ✓; hierarchy `{Angular,Scalar}BoundaryField < BoundaryField(Field)`,
+scalar NOT under angular ✓; torsor `ScalarBoundaryFlux ⊖ → ScalarBoundaryDisplacement`
+✓; accessor fence `p1_boundary_scalar_flux` present / old name gone ✓; composite
+admits both families through the reclaimed `BoundaryField` annotation ✓;
+`SNMesh.angular_trace` live, `.trace` attribute gone, space name string
+`"angular_trace"` ✓.
+Tooling hazards hit + recovered (for future sweeps): (1) git-pathspec `*`
+matches ACROSS `/` in `git ls-files` — a "top-level only" glob returned the
+whole tree and re-ran the NON-IDEMPOTENT rename pipeline (double-bumped the
+reclaimed `BoundaryField` → hierarchy collapse); recovered via
+`git restore -- <trees>` (index held post-`git mv` pristine content), then ONE
+pass over ONE definitive list. Rename pipelines with reclaim steps are
+NEVER idempotent — never re-run over transformed files. (2) zsh builtin
+`echo` interprets `\b` as a BACKSPACE byte when appending a perl rule —
+the appended article rule silently never matched; use `print -r` /
+heredocs for regex text.

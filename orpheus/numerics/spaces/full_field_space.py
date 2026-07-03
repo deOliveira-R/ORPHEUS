@@ -6,7 +6,7 @@ within-group sub-sums. Its elements are bulk :math:`\oplus` boundary
 *composite fields* (an
 :class:`~orpheus.transport.timed_full_field.TimedFullField`: a bulk
 :class:`~orpheus.transport.fields._bases.BulkField` paired with a boundary
-:class:`~orpheus.transport.fields._bases.BoundaryField`).
+:class:`~orpheus.transport.fields._bases.AngularBoundaryField`).
 
 Why a direct-sum space (Wave O / O.2b R5)
 =========================================
@@ -22,7 +22,7 @@ sum:
 * **trace block** :math:`G_{\rm trace} = |\Omega\cdot\hat n_f|\,w_n` —
   the partial-current surface measure (the cosine-weighted angular
   quadrature under which the boundary operators are self-adjoint; see
-  :mod:`orpheus.numerics.spaces.trace_space`).
+  :mod:`orpheus.numerics.spaces.angular_trace_space`).
 
 Both carry :math:`w_n`; they differ in the spatial factor (volume vs.
 oriented surface). :class:`~orpheus.numerics.operator._AdjointOperator`
@@ -104,7 +104,7 @@ import numpy as np
 from orpheus.numerics.space import FunctionSpace
 
 if TYPE_CHECKING:
-    from orpheus.numerics.spaces.trace_space import TraceSpace
+    from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 
 
 __all__ = ["CompositeField", "FullFieldSpace"]
@@ -165,7 +165,7 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         =False`` leaf metadata (not part of the ``(name, shape)`` identity).
     trace_space : FunctionSpace
         The boundary leaf space — the angular
-        :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`
+        :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
         (partial-current metric ``G_trace = |Ω·n|·w_n``) for SN, the
         :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`
         (face-area metric over ``(J⁺, J⁻)`` pairs) for diffusion / CP
@@ -183,7 +183,7 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
 
     # ── Equality / hashing inherited from FunctionSpace ───────────────
     #
-    # Same rationale as :class:`TraceSpace` / :class:`TensorProductSpace`:
+    # Same rationale as :class:`AngularTraceSpace` / :class:`TensorProductSpace`:
     # the @dataclass(frozen=True) decorator would otherwise auto-generate
     # an __eq__ / __hash__ over the fields; explicit delegation restores
     # the (name, shape) identity convention. The block fields are already

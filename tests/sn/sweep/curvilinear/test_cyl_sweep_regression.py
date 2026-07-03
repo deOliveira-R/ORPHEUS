@@ -22,7 +22,7 @@ from tests.sn._test_helpers import (
     curvilinear_two_region_mesh as _two_region_mesh,
     placeholder_materials,
 )
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 # Equation-coverage list preserved verbatim from the legacy
 # test_cylindrical module so no verifies(...) edge is lost in the split.
@@ -59,7 +59,7 @@ class TestCylindricalSweepRegression:
         Q_iso = np.ones((1, *sn_mesh.spatial_shape))       # (ng, *spatial)
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
 
-        boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
+        boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
         ang, phi = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
         assert np.all(np.isfinite(ang)), "Non-finite angular flux"
@@ -171,7 +171,7 @@ class TestAzimuthalRedistribution:
         sig_t = np.full((1, *sn_mesh.spatial_shape), mix.SigT[0])  # (ng, *spatial)
         Q_iso = np.ones((1, *sn_mesh.spatial_shape))               # (ng, *spatial)
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
-        boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
+        boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
         ang, _ = transport_sweep(source, sig_t, sn_mesh, boundary_flux)
 
         for p, level_idx in enumerate(quad.level_indices):
@@ -200,7 +200,7 @@ class TestAzimuthalRedistribution:
         sig_t = np.ones((1, *sn_mesh.spatial_shape))  # (ng, *spatial)
         Q_iso = np.ones((1, *sn_mesh.spatial_shape))  # (ng, *spatial)
         source = AngularSourceSink.from_isotropic(Q_iso, sn_mesh)
-        boundary_flux = BoundaryFlux.zeros_on(sn_mesh)
+        boundary_flux = AngularBoundaryFlux.zeros_on(sn_mesh)
         phi = None
         for _ in range(100):
             # Wave O (#208) O.4a.2 — bare sweep: drive the −B reflective

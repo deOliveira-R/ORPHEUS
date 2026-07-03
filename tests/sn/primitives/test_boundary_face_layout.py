@@ -2,7 +2,7 @@ r"""L0 — :attr:`SNMesh.boundary_face_layout` foundation tests.
 
 Pins the per-geometry :class:`~orpheus.numerics.face_layout.FaceLayout`
 provider that supplies the flat layout for post-D-G pure-Field
-:class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`.
+:class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`.
 
 Geometry coverage:
 
@@ -126,7 +126,7 @@ class TestBoundaryFaceLayout:
         Catches Rank 5 failure mode per the verification memo:
         layout botched to include interior cells (carve incomplete).
         Per Option I (2026-05-28), interior cells live as ephemeral
-        local arrays in ``_sweep_jacobi`` — not in BoundaryFlux,
+        local arrays in ``_sweep_jacobi`` — not in AngularBoundaryFlux,
         not in any sweep-private type.
         """
         m = _2d_mesh(nx=3, ny=2, ng=2)

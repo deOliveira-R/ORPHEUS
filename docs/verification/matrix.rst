@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6087**
+Total tests collected: **6109**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1170, 19.2%
-   L1, 1065, 17.5%
+   L1, 1066, 17.4%
    L2, 46, 0.8%
    L3, 0, 0.0%
-   foundation, 3796, 62.4%
+   foundation, 3817, 62.5%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 5998
+   explicit, 6020
    verify, 0
    class-name, 46
    func-name, 0
@@ -120,6 +120,7 @@ Module × level grid
    data/test_mixture, 4, 0, 0, 0, 0, 0
    data/test_mixture_condense, 0, 0, 0, 0, 38, 0
    data/test_mixture_scattering_ratio, 0, 0, 0, 0, 3, 0
+   data/test_mixture_transport_xs, 0, 1, 0, 0, 4, 0
    data/test_mixture_xs_balance, 0, 0, 0, 0, 75, 0
    derivations/test_atkinson_product_nystrom, 0, 5, 0, 0, 3, 3
    derivations/test_capability_matrices, 0, 0, 0, 0, 3, 0
@@ -227,10 +228,11 @@ Module × level grid
    eigenvalue/test_keff_2d, 19, 0, 0, 0, 0, 0
    eigenvalue/test_keff_curvilinear, 0, 19, 12, 0, 0, 0
    eigenvalue/test_keff_slab, 0, 6, 0, 0, 0, 0
+   fields/test_angular_boundary_flux, 0, 0, 0, 0, 36, 0
+   fields/test_angular_boundary_source_sink_residual, 0, 0, 0, 0, 30, 0
    fields/test_angular_flux, 0, 0, 0, 0, 24, 0
-   fields/test_boundary_flux, 0, 0, 0, 0, 36, 0
-   fields/test_boundary_source_sink_residual, 0, 0, 0, 0, 30, 0
    fields/test_coefficient_fields, 0, 0, 0, 0, 9, 0
+   fields/test_scalar_boundary_flux, 0, 0, 0, 0, 14, 0
    frames/test_harmonic_frame, 0, 0, 0, 0, 11, 0
    geometry/test_bc_equivalence_snapshot, 0, 8, 0, 0, 0, 0
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
@@ -273,6 +275,7 @@ Module × level grid
    moc/test_ray_tracing, 22, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
    numerics/test_affine_flux_algebra, 0, 0, 0, 0, 34, 0
+   numerics/test_angular_trace_space, 10, 5, 0, 0, 12, 0
    numerics/test_diagonal_operator, 19, 0, 0, 0, 3, 0
    numerics/test_eigenvalue, 0, 39, 0, 0, 0, 0
    numerics/test_estimators_as_functionals, 0, 0, 0, 0, 5, 0
@@ -309,7 +312,6 @@ Module × level grid
    numerics/test_spherical_harmonic_space, 0, 8, 0, 0, 6, 0
    numerics/test_symmetry, 0, 0, 0, 0, 71, 0
    numerics/test_tensor_product_operator, 25, 0, 0, 0, 0, 0
-   numerics/test_trace_space, 10, 5, 0, 0, 12, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 8, 0
    numerics/test_weighted_indicator_basis, 0, 0, 0, 0, 9, 0
    operators/test_angular_average_operator, 12, 4, 0, 0, 0, 0
@@ -394,7 +396,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 304, 0
+   test_layer_imports, 0, 0, 0, 0, 307, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -536,6 +538,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-white-bc``, 10
    ``singular-eigenfunction-eq42``, 10
    ``dd-recurrence``, 9
+   ``diffusion-coefficient``, 9
    ``sn-curvilinear-trajectory-resolvent-crosscheck``, 9
    ``tau-m``, 9
    ``tau-p``, 9
@@ -545,7 +548,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``cp-inner-integral-antiderivative``, 8
    ``diffusion-M-matrix``, 8
    ``diffusion-back-substitution``, 8
-   ``diffusion-coefficient``, 8
    ``diffusion-exponential-branch``, 8
    ``diffusion-interface-matching``, 8
    ``diffusion-matching-matrix``, 8

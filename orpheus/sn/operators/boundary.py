@@ -60,9 +60,9 @@ if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
     from orpheus.sn.mesh.augmented_mesh import SNMesh
-    from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.full_field import FullField
-    from orpheus.transport.source_sinks import BoundarySourceSink
+    from orpheus.transport.source_sinks import AngularBoundarySourceSink
 
 
 __all__ = ["BoundarySplit", "SNBoundaryOperator", "SNMaskedBoundaryOperator"]
@@ -89,7 +89,7 @@ class SNBoundaryOperator(LinearOperator):
     That block metric is what makes the Hilbert adjoint ``B.H`` the physically
     correct partial-current adjoint — the one channel by which the white-BC
     adjoint becomes available. (Before O.2b R5 ``B`` advertised the bare
-    ``sn_mesh.trace`` here, inconsistent with :meth:`apply` already consuming /
+    ``sn_mesh.angular_trace`` here, inconsistent with :meth:`apply` already consuming /
     emitting a full :class:`~orpheus.transport.full_field.FullField`.)
 
     Capabilities
@@ -129,7 +129,7 @@ class SNBoundaryOperator(LinearOperator):
         """
         return {
             face: self.sn_mesh.bc[face]
-            for face in self.sn_mesh.trace.layout.faces
+            for face in self.sn_mesh.angular_trace.layout.faces
         }
 
     @property
@@ -158,14 +158,14 @@ class SNBoundaryOperator(LinearOperator):
         return self.sn_mesh.full_field_space
 
     def _reflect_trace(
-        self, boundary: "BoundaryFlux", method: str,
+        self, boundary: "AngularBoundaryFlux", method: str,
         faces: "Iterable[str] | None" = None,
         rows: "Mapping[str, np.ndarray] | None" = None,
-    ) -> "BoundarySourceSink":
+    ) -> "AngularBoundarySourceSink":
         r"""Core ``A_ss`` action on the trace ALONE — apply each face's law
         (``method`` ∈ {apply, apply_transpose}) to that face's slot, project onto
         the codomain row, and return a boundary-only
-        :class:`~orpheus.transport.source_sinks.BoundarySourceSink`.
+        :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink`.
 
         ``B`` is the ``A_ss`` block ``V_outflow → V_inflow``: it maps the
         **outflow** trace to the **inflow** trace, so the forward action must be
@@ -191,15 +191,15 @@ class SNBoundaryOperator(LinearOperator):
         trace-only :meth:`reflect_into_inflow` (the direct-loop inflow seed) route
         through it, so the two cannot drift (Cardinal Rule 2).
         """
-        from orpheus.transport.source_sinks import BoundarySourceSink
+        from orpheus.transport.source_sinks import AngularBoundarySourceSink
 
         # Single mesh source (mesh-identity invariant — see class docstring):
         # the output buffers, the trace selectors, and ``_face_laws`` ALL read
         # ``self.sn_mesh``, so a mismatched input trace cannot desync the
         # projection from the buffer geometry.
         mesh = self.sn_mesh
-        trace = mesh.trace
-        out_boundary = BoundarySourceSink.zeros_on(mesh)
+        trace = mesh.angular_trace
+        out_boundary = AngularBoundarySourceSink.zeros_on(mesh)
         # ``faces=None`` reflects every boundary face (the whole-trace ``B``);
         # a face subset restricts the reflection to those faces — the Phase 3
         # Gauss-Seidel octant-group schedule reflects only the just-swept
@@ -251,7 +251,7 @@ class SNBoundaryOperator(LinearOperator):
         V_boundary``.  #257 S8a: history-free (the matvec leaf is a base arrow
         ``FullField -> FullField``; the comonad lives on the driver).
         """
-        from orpheus.transport.fields.boundary_flux import BoundaryFlux
+        from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
         from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import AngularSourceSink
 
@@ -268,10 +268,10 @@ class SNBoundaryOperator(LinearOperator):
         # erasure — #289). A source-role
         # trace arriving here is a caller error worth raising loudly.
         trace = psi.boundary
-        if not isinstance(trace, BoundaryFlux):
+        if not isinstance(trace, AngularBoundaryFlux):
             raise TypeError(
                 f"SNBoundaryOperator: the input composite's boundary must "
-                f"be a BoundaryFlux trace; got {type(trace).__name__}."
+                f"be an AngularBoundaryFlux trace; got {type(trace).__name__}."
             )
         return FullField(
             # Zero bulk source, sized from the MESH — not ``zeros_like(psi.bulk)``
@@ -293,14 +293,14 @@ class SNBoundaryOperator(LinearOperator):
         return self._apply_faces(psi, "apply")
 
     def reflect_into_inflow(
-        self, boundary: "BoundaryFlux",
+        self, boundary: "AngularBoundaryFlux",
         faces: "Iterable[str] | None" = None,
-    ) -> "BoundarySourceSink":
+    ) -> "AngularBoundarySourceSink":
         r"""Trace-only forward reflection ``B·ψ.outflow`` projected onto the
         inflow row — the ``A_ss`` action expressed on the boundary trace ALONE.
 
         Returns a boundary-only
-        :class:`~orpheus.transport.source_sinks.BoundarySourceSink` whose
+        :class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink` whose
         **inflow** ordinate slots carry the per-face reflected outflow (``R·G``
         for reflective, the angular average for white, zero for vacuum) and whose
         outflow slots are zero. It is :meth:`apply` without the zero-bulk carrier
@@ -321,7 +321,7 @@ class SNBoundaryOperator(LinearOperator):
         return self._reflect_trace(boundary, "apply", faces=faces)
 
     def reflect_inflow_inplace(
-        self, boundary_flux: "BoundaryFlux",
+        self, boundary_flux: "AngularBoundaryFlux",
         faces: "Iterable[str] | None" = None,
     ) -> None:
         r"""In place: overwrite each face's inflow rows with the reflected
@@ -330,7 +330,7 @@ class SNBoundaryOperator(LinearOperator):
         The MUTATING façade over :meth:`reflect_into_inflow` (single source —
         both route through :meth:`_reflect_trace`), matching the sweep
         substrate's reflect signature
-        (``Callable[[BoundaryFlux, tuple[str, ...]], None]``): the
+        (``Callable[[AngularBoundaryFlux, tuple[str, ...]], None]``): the
         :func:`~orpheus.sn.loss_representation._sweep_scheduled` inter-group
         reflect passes THIS bound method (#226 step 2 — the reified
         ``M = (L+C−B_lower)`` supplies ``boundary.reflect_inflow_inplace``),
@@ -339,7 +339,7 @@ class SNBoundaryOperator(LinearOperator):
         :func:`orpheus.sn.solver._reflect_outflow_into_inflow`.
         """
         reflected = self.reflect_into_inflow(boundary_flux, faces=faces)
-        trace = self.sn_mesh.trace
+        trace = self.sn_mesh.angular_trace
         selected = (
             boundary_flux.layout.faces if faces is None else faces
         )
@@ -370,7 +370,7 @@ class SNBoundaryOperator(LinearOperator):
         iteration.
         """
         lower_rows = schedule.lower_inflow_rows(self.sn_mesh)
-        trace = self.sn_mesh.trace
+        trace = self.sn_mesh.angular_trace
         upper_rows = {
             face: np.setdiff1d(
                 trace.inflow_indices_for_face(face),
@@ -452,7 +452,7 @@ class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):
         return self.inner._apply_faces(psi, "apply", rows=self.rows)
 
     def reflect_rows_inplace(
-        self, boundary_flux: "BoundaryFlux", faces: "Iterable[str]",
+        self, boundary_flux: "AngularBoundaryFlux", faces: "Iterable[str]",
     ) -> None:
         r"""In place, ADDITIVE, on :attr:`rows` only:
         ``bf[f][rows] += (B·bf)[f][rows]`` for each given face.

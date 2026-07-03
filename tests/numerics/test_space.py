@@ -187,6 +187,6 @@ def test_scalar_flux_space_shape():
 
 # NOTE: the directional ``boundary_trace_space()`` factory was retired
 # in the #205/#201 trace-space unification — the whole-boundary trace is
-# now the concrete :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`
+# now the concrete :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
 # (see ``tests/numerics/test_trace_space.py``), with inflow/outflow as
 # selectors rather than a directional space tag.

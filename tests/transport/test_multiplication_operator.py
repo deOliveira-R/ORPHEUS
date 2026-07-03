@@ -71,7 +71,7 @@ from orpheus.numerics.operator import (
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -135,7 +135,7 @@ def _random_state(sn_mesh: SNMesh, ng: int = 2, seed: int = 42) -> TimedFullFiel
     """Random :class:`TimedFullField` whose bulk has shape ``(N, ng, *spatial)``."""
     rng = np.random.default_rng(seed)
     N = sn_mesh.quad.N
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     return replace(
         state,
         bulk=replace(
@@ -594,7 +594,7 @@ class TestMeshlessBareArm:
         N = sn.quad.N
         bulk_vals = np.broadcast_to(x[None], (N, 2, 5, 3)).copy()
         state = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn,
+            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
         )
         psi_bcast = replace(state, bulk=replace(state.bulk, values=bulk_vals))
 

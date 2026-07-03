@@ -67,7 +67,7 @@ from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.operators.streaming import InvertibleOperator, StreamingOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
 )
@@ -129,7 +129,7 @@ def _operators():
 
 def _flux_zeros(sn: SNMesh) -> TimedFullField:
     """The flux-typed cold start (the production warm-start convention)."""
-    return TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
+    return TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
 
 
 def _manufactured(sn, lc, a_loss):

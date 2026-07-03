@@ -254,7 +254,7 @@ CASES: tuple[BCEquivalenceCase, ...] = (
 def _xmin_inflow_indices(quad: AngularQuadrature) -> np.ndarray:
     """Inflow ordinate indices for the ``xmin`` face.
 
-    Convention (from :mod:`orpheus.numerics.spaces.trace_space`): the ``xmin``
+    Convention (from :mod:`orpheus.numerics.spaces.angular_trace_space`): the ``xmin``
     face has outward normal ``-x``, so the ordinate-axis inflow predicate
     is ``-mu_x < -eps``, i.e. ``mu_x > eps``. We use an exact ``> 0``
     cut since the quadrature ordinates we ship for this case (Lebedev 17)

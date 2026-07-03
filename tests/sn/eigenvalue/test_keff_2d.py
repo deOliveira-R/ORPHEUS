@@ -13,7 +13,7 @@ source-iteration inner solver is now LIVE. The historical
 ``NotImplementedError`` guard (``SNSolver._solve_source_iteration``)
 was stale — its "B1'' face block is 1-D-only" reason never existed as
 code; B1'' was a legacy 1-D boundary closure superseded by the L2
-``BoundaryFlux`` + ``SNBoundaryOperator`` bare-boundary architecture.
+``AngularBoundaryFlux`` + ``SNBoundaryOperator`` bare-boundary architecture.
 The SI inner is the structural twin of the Krylov inner (same operator
 triple + RHS, only the driver differs). The previously-deferred 2-D SI
 tests (formerly ``xfail(NotImplementedError)``) now run; the dedicated

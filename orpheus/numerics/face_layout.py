@@ -7,7 +7,7 @@ each named face is mapped to a contiguous slice + per-face reshape.
 Motivation (Depth B step D-G)
 ==============================
 
-Pre-D-G :class:`~orpheus.sn.boundary_flux.BoundaryFlux` carried a
+Pre-D-G :class:`~orpheus.sn.boundary_flux.AngularBoundaryFlux` carried a
 dict-like collection of per-geometry-conditional ndarray attributes
 (``xmin_face`` / ``xmax_face`` for 1-D, ``xmin_xmax_buf`` /
 ``ymin_ymax_buf`` for 2-D). Arithmetic dispatched per-attribute with
@@ -15,7 +15,7 @@ None-check branches. Cross-method generality (MoC's per-track-family
 "faces" in the thousands) would have made this dispatch quadratic in
 Python overhead.
 
-Post-D-G :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+Post-D-G :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
 inherits :class:`~orpheus.numerics.field.Field` and stores values in a
 SINGLE flat backing buffer. :class:`FaceLayout` is the descriptor that
 recovers per-face access via O(1) slice views (memory-shared with the
@@ -33,10 +33,10 @@ References
 ==========
 
 * Depth B plan §3.4 (Option Ω flat-buffer storage).
-* Plan §6 step D-G (BoundaryFlux as pure Field + SweepScratch carve).
+* Plan §6 step D-G (AngularBoundaryFlux as pure Field + SweepScratch carve).
 * ``coding-elegance`` Pattern 5 (build the right primitive, not the
   right product) — FaceLayout is the primitive; the per-method
-  BoundaryFlux constructions are the products.
+  AngularBoundaryFlux constructions are the products.
 """
 
 from __future__ import annotations
@@ -139,7 +139,7 @@ class FaceLayout:
     -----
     The descriptor is IMMUTABLE; the backing buffer it describes is
     owned elsewhere. A single :class:`FaceLayout` can be shared across
-    arbitrarily many :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+    arbitrarily many :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
     instances on the same mesh (validity invariant: same layout
     identity ⟹ compatible algebra).
     """

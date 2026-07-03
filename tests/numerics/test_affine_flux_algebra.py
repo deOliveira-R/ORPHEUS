@@ -3,7 +3,7 @@ r"""Foundation tests for the #208/#201 affine flux algebra.
 Flux states form an **affine space** :math:`A` over a distinct **difference
 vector space** :math:`V` (the displacements). This module pins the torsor
 algebra across all four flux-state leaves (``AngularFlux``, ``ScalarFlux``,
-``HarmonicMomentFlux``, ``BoundaryFlux``):
+``HarmonicMomentFlux``, ``AngularBoundaryFlux``):
 
 * :math:`\psi_2 \ominus \psi_1 \to \Delta\psi \in V` (the mint),
 * :math:`\psi \oplus \Delta\psi \to \psi' \in A` (the torsor action),
@@ -31,7 +31,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.displacements import Displacement
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from tests.sn._test_helpers import placeholder_materials
@@ -82,8 +82,8 @@ def _make_flux(leaf: str, m: SNMesh, rng: np.random.Generator):
             rng.standard_normal(shape), m, _MOMENT_L,
         )
     if leaf == "boundary":
-        zero = BoundaryFlux.zeros_on(m)
-        return BoundaryFlux.from_mesh(rng.standard_normal(zero.values.shape), m)
+        zero = AngularBoundaryFlux.zeros_on(m)
+        return AngularBoundaryFlux.from_mesh(rng.standard_normal(zero.values.shape), m)
     raise ValueError(leaf)
 
 

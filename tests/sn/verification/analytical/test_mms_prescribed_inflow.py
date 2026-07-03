@@ -12,8 +12,8 @@ These rows drive the PUBLIC composite-source API:
 :class:`~orpheus.transport.timed_full_field.TimedFullField`), so the
 non-vacuum prescribed inflow is supplied as
 ``case.fixed_source(sn).boundary`` — a
-:class:`~orpheus.transport.source_sinks.BoundarySourceSink` built by the
-ergonomic ``BoundarySourceSink.prescribed_inflow`` generator. The
+:class:`~orpheus.transport.source_sinks.AngularBoundarySourceSink` built by the
+ergonomic ``AngularBoundarySourceSink.prescribed_inflow`` generator. The
 affine-BC inhomogeneous term ``q`` is consumed by ``(L+C).solve`` as the
 sweep inflow seed.  (These rows originally drove the ``(L+C),S,B``
 operator-triple bypass because ``solve_sn_fixed_source`` hardcoded vacuum
@@ -182,7 +182,7 @@ def test_mms_prescribed_inflow_slab_converges_second_order(case_kind: str):
 
         # (3) Inflow-honoured spot-check on the finest mesh.
         for face, x_face in (("xmin", 0.0), ("xmax", case.slab_length)):
-            inflow = sn_f.trace.inflow_indices_for_face(face)
+            inflow = sn_f.angular_trace.inflow_indices_for_face(face)
             got = psi_f.boundary.face_view(face)[inflow, g]
             want = (case.A(x_face, g) + mu[inflow] * case.B(x_face, g)) / W
             np.testing.assert_allclose(
@@ -285,7 +285,7 @@ def test_sphere_nonvacuum_inflow_honoured_and_redistribution_live():
 
     # (1) inflow honoured at r=R (the sphere's only boundary face).
     face = "xmax"
-    inflow = sn.trace.inflow_indices_for_face(face)
+    inflow = sn.angular_trace.inflow_indices_for_face(face)
     got = psi.boundary.face_view(face)[inflow, 0]
     R = case.radius
     want = (case.A(np.array([R]))[0] + mu[inflow] * case.B(np.array([R]))[0]) / W

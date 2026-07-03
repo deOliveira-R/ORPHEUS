@@ -35,8 +35,8 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
-from orpheus.transport.source_sinks import BoundarySourceSink
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.transport.source_sinks import AngularBoundarySourceSink
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
 
@@ -62,7 +62,7 @@ def _sn(geometry: str, bcs: tuple, nx: int = 4, ng: int = 1) -> SNMesh:
 
 def _random_state(sn: SNMesh, seed: int = 7) -> TimedFullField:
     rng = np.random.default_rng(seed)
-    z = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
+    z = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
     return replace(
         z,
         bulk=replace(z.bulk, values=rng.uniform(0.5, 2.0, size=z.bulk.values.shape)),
@@ -103,7 +103,7 @@ class TestContract:
         assert B.domain is sn.full_field_space
         assert B.codomain is sn.full_field_space
         # the composite trace block IS the mesh trace space (block identity)
-        assert B.domain.trace_space is sn.trace
+        assert B.domain.trace_space is sn.angular_trace
 
 
 class TestApply:
@@ -117,7 +117,7 @@ class TestApply:
         # source/sink), NOT a residual.  Its boundary is the source/sink role
         # leaf (mirrors the bulk's AngularSourceSink); the residual only arises
         # from from_balance, never straight off the operator output.
-        assert isinstance(out.boundary, BoundarySourceSink)
+        assert isinstance(out.boundary, AngularBoundarySourceSink)
 
     @pytest.mark.parametrize("case_id", list(_CASES))
     def test_apply_per_face_equals_legacy_bc_apply_on_inflow_row(
@@ -141,10 +141,10 @@ class TestApply:
         sn = _sn(*_CASES[case_id])
         psi = _random_state(sn)
         out = SNBoundaryOperator(sn).apply(psi)
-        for face in sn.trace.layout.faces:
+        for face in sn.angular_trace.layout.faces:
             bc = sn.bc[face]
-            inflow = sn.trace.inflow_indices_for_face(face)
-            outflow = sn.trace.outflow_indices_for_face(face)
+            inflow = sn.angular_trace.inflow_indices_for_face(face)
+            outflow = sn.angular_trace.outflow_indices_for_face(face)
             got = out.boundary.face_view(face)
             expected_full = bc.apply(psi.boundary.face_view(face))
             # Inflow row: agrees with the realized law (the consistency action).
@@ -197,10 +197,10 @@ class TestApplyTransposeCapability:
         # agrees there with the per-face ``bc.apply_transpose``.
         psi = _random_state(sn)
         out = B.apply_transpose(psi)
-        for face in sn.trace.layout.faces:
+        for face in sn.angular_trace.layout.faces:
             bc = sn.bc[face]
-            inflow = sn.trace.inflow_indices_for_face(face)
-            outflow = sn.trace.outflow_indices_for_face(face)
+            inflow = sn.angular_trace.inflow_indices_for_face(face)
+            outflow = sn.angular_trace.outflow_indices_for_face(face)
             got = out.boundary.face_view(face)
             expected_full = bc.apply_transpose(psi.boundary.face_view(face))
             np.testing.assert_array_equal(got[outflow], expected_full[outflow])
@@ -258,7 +258,7 @@ class TestFaceRestrictedReflect:
         boundary = _random_state(sn).boundary
         only_xmax = B.reflect_into_inflow(boundary, faces=["xmax"])
         full = B.reflect_into_inflow(boundary)  # faces=None -> whole trace
-        xmax_inflow = sn.trace.inflow_indices_for_face("xmax")
+        xmax_inflow = sn.angular_trace.inflow_indices_for_face("xmax")
         # Selected face: bit-identical to the whole-trace reflect (the exact
         # restriction — face-block-diagonal, so xmax's output is independent
         # of whether xmin was also reflected).
@@ -295,7 +295,7 @@ class TestFaceRestrictedReflect:
         sn = _sn("SLB", (BC.reflective, BC.reflective))
         B = SNBoundaryOperator(sn)
         boundary = _random_state(sn).boundary
-        all_faces = list(sn.trace.layout.faces)
+        all_faces = list(sn.angular_trace.layout.faces)
         np.testing.assert_array_equal(
             B.reflect_into_inflow(boundary).values,
             B.reflect_into_inflow(boundary, faces=all_faces).values,

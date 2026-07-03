@@ -27,7 +27,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.vector import V, Vector
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.timed_full_field import TimedFullField
@@ -65,13 +65,13 @@ def test_field_leaves_are_vectors() -> None:
     Covers all three storage families: angular (``AngularFlux``), scalar
     (``ScalarFlux``), moment (``HarmonicMomentFlux`` — the carrier #256
     closes the moment-state path around), and the boundary locus
-    (``BoundaryFlux``).
+    (``AngularBoundaryFlux``).
     """
     m = _slab_mesh()
     assert isinstance(AngularFlux.zeros_on(m), Vector)
     assert isinstance(ScalarFlux.zeros_on(m), Vector)
     assert isinstance(HarmonicMomentFlux.zeros_for_mesh_and_L(m, 1), Vector)
-    assert isinstance(BoundaryFlux.zeros_on(m), Vector)
+    assert isinstance(AngularBoundaryFlux.zeros_on(m), Vector)
 
 
 def test_timed_full_field_is_vector() -> None:
@@ -82,7 +82,7 @@ def test_timed_full_field_is_vector() -> None:
     ``transport`` (the layering payoff of a structural Protocol).
     """
     m = _slab_mesh()
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=m)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=m)
     assert isinstance(state, Vector)
 
 

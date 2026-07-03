@@ -56,7 +56,7 @@ from orpheus.sn.solver import (
     _within_group_triple,
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
 
@@ -80,7 +80,7 @@ def _vol_weighted_per_ordinate_residual(case, nc: int) -> float:
     vals = np.zeros((sn_mesh.quad.N, sn_mesh.ng, *sn_mesh.spatial_shape))
     vals[:, 0, :] = (A / W)[None, :]
     zero = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
+        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
     )
     psi_ref = TimedFullField(
         bulk=AngularFlux.from_mesh(vals, sn_mesh), boundary=zero.boundary,

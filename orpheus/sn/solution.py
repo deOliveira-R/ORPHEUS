@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     from orpheus.data.energy_grid import EnergyGrid
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.geometry import Mesh1D, Mesh2D
-    from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.transport.fields.scalar_flux import ScalarFlux
     from orpheus.transport.mesh.material_mesh import MaterialMesh
     from orpheus.transport.timed_full_field import TimedFullField
@@ -157,7 +157,7 @@ class Solution:
         Composite iteration state — pure-Field
         :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
         bulk paired with pure-Field
-        :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+        :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
         boundary trace plus time-derivative history.
 
         Under D-H.1b (2026-05-28), this field carries a
@@ -188,7 +188,7 @@ class Solution:
     :class:`TimedFullField` holds the bulk + boundary + history trio
     as a structured composite. The :attr:`Solution.boundary_flux`
     delegate (line below) becomes a thin read-through to
-    ``self.angular_flux.boundary`` (now a typed L2 BoundaryFlux).
+    ``self.angular_flux.boundary`` (now a typed L2 AngularBoundaryFlux).
 
     Examples
     --------
@@ -239,7 +239,7 @@ class Solution:
     # to the composite's owned boundary trace.
 
     @property
-    def boundary_flux(self) -> "BoundaryFlux":
+    def boundary_flux(self) -> "AngularBoundaryFlux":
         r"""Boundary face state — delegate to :attr:`TimedFullField.boundary`.
 
         The composite :class:`~orpheus.transport.timed_full_field.TimedFullField`
@@ -247,20 +247,20 @@ class Solution:
         This property provides the canonical ``sol.boundary_flux``
         access path.
 
-        See :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
+        See :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
         for the per-geometry flat-layout contract.
         """
-        from orpheus.transport.fields.boundary_flux import BoundaryFlux
+        from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
         # Role parse at the composite boundary: a Solution's composite IS a
         # flux composite, but the ``FullField.boundary`` slot erases the
         # role (the F2-sibling erasure — #289). A source-role trace here
         # means the flux-composite contract broke upstream — raise loudly.
         boundary = self.angular_flux.boundary
-        if not isinstance(boundary, BoundaryFlux):
+        if not isinstance(boundary, AngularBoundaryFlux):
             raise TypeError(
                 f"Solution.boundary_flux: the solution composite carries "
-                f"{type(boundary).__name__}, not BoundaryFlux — the "
+                f"{type(boundary).__name__}, not AngularBoundaryFlux — the "
                 f"flux-composite contract is broken."
             )
         return boundary

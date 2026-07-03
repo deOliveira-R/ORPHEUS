@@ -19,7 +19,7 @@ The realisation map (law concrete → Wave-0 / Wave-1 primitive)
 * :class:`~orpheus.geometry.boundary.vacuum.VacuumInflow` →
   :class:`~orpheus.numerics.operator.IncomingOrdinateMaskTensor`
   with the per-face inflow indices from the method space's
-  :class:`~orpheus.numerics.spaces.trace_space.TraceSpace`. **Semantic
+  :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`. **Semantic
   correction** (Wave 5 risk register entry, plan §16A.5): the legacy
   body zeroed ALL ordinates, but the §16A.10 trace-correct
   implementation zeroes ONLY the inflow ordinates so the outflow
@@ -165,7 +165,7 @@ class SNBoundaryRealizer:
                     "VacuumInflow without inflow_indices in "
                     "method_space. Wave 8's SNMesh wiring populates "
                     "this from "
-                    "TraceSpace.inflow_indices_for_face. For "
+                    "AngularTraceSpace.inflow_indices_for_face. For "
                     "now, supply inflow_indices explicitly via "
                     "SNMethodSpace(quadrature=quad, face=..., "
                     "inflow_indices=...).",

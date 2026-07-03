@@ -189,7 +189,7 @@ def test_w2_split_exactness():
                     f"split is not an exact partition",
         )
     # Row supports are complementary within each face's inflow.
-    trace = sn.trace
+    trace = sn.angular_trace
     for face in psi.boundary.layout.faces:
         lo = np.asarray(parts.lower.rows.get(face, np.empty(0, dtype=np.intp)))
         up = np.asarray(parts.upper.rows[face])
@@ -293,7 +293,7 @@ def test_mutation_split_direction_reddens_round_trip(monkeypatch):
 
     def flipped(self, sn_mesh):
         rows = real(self, sn_mesh)
-        trace = sn_mesh.trace
+        trace = sn_mesh.angular_trace
         return {
             face: np.setdiff1d(trace.inflow_indices_for_face(face), lo)
             for face, lo in rows.items()

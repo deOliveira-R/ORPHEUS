@@ -83,7 +83,7 @@ WHITELIST: frozenset[tuple[str, str]] = frozenset(
         ("derivations/continuous/sood_registry/builders.py", "cp"),
         # RETIRE_IN_P3_FOLLOWUP — the non-vacuum MMS reference lazily builds
         # its prescribed-inflow source from transport vocabulary
-        # (BoundarySourceSink / AngularSourceSink / TimedFullField) inside
+        # (AngularBoundarySourceSink / AngularSourceSink / TimedFullField) inside
         # function bodies; move to the test side or import only L2 primitives.
         ("derivations/continuous/mms/sn.py", "transport"),
     }

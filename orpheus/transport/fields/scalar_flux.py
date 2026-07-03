@@ -54,7 +54,7 @@ A scalar flux distribution on a discretized phase space is a concept
 shared by SN, CP, MoC, and diffusion. The SN solver chain was the
 first consumer; the diffusion integration (#290) is the anticipated
 SECOND consumer — the scalar composite
-``FullField(bulk=ScalarFlux, boundary=PartialCurrent)`` is the
+``FullField(bulk=ScalarFlux, boundary=ScalarBoundaryFlux)`` is the
 diffusion operator family's carrier. With method #2 live, the
 deferred ``TransportMethod`` protocol trigger FIRES (the #290 P7
 phase; see ``.claude/plans/realize_recursively_move_spec.md``).

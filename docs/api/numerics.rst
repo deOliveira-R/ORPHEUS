@@ -416,7 +416,7 @@ Subclasses add domain-specific fields (``mesh``, ``boundary``,
 inherited verbatim via :func:`dataclasses.replace`. The same
 hand-coded dunder skeleton that previously lived in six separate
 classes (``AngularFlux``, ``ScalarFlux``, ``HarmonicMomentFlux``,
-``BoundaryFlux``, ``ScalarSourceSink``, ``AngularSourceSink``) is
+``AngularBoundaryFlux``, ``ScalarSourceSink``, ``AngularSourceSink``) is
 consolidated here — Cardinal Rule 2 (single source of truth).
 
 **Three-layer dimensional enforcement.** Dimensional consistency is
@@ -537,10 +537,10 @@ codim-1 (face) quantities, both re-homing their
 :class:`~orpheus.numerics.face_layout.FaceLayout` onto the space as
 ``compare=False`` leaf-data (the A.5 "layout-on-space" pattern):
 
-* :class:`~orpheus.numerics.spaces.trace_space.TraceSpace` — the
+* :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` — the
   **boundary** trace cochain :math:`C^1_\partial`, carrying
   ``omega_dot_n`` for the inflow / outflow directional partition. The
-  space of :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`.
+  space of :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`.
 * the **interior** face cochain :math:`C^1_{\rm int}` — through S6.4
   the typed ``InteriorFaceSpace`` (the trace space *minus*
   ``omega_dot_n``; flux-only, axis-parametric) carrying

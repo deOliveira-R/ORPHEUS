@@ -39,7 +39,7 @@ from orpheus.sn.solver import (
     _as_sn_mesh,
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
 
@@ -86,7 +86,7 @@ def _residual_profile(case, nc):
     LC, S, B = _within_group_triple(solver)
     psi_ref = _reference_angular_flux(case, sn_mesh)
     rhs = TimedFullField.zeros(
-        bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh,
+        bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh,
     )
     # Wrap ψ_ref into a TimedFullField (bulk only; boundary zero for vacuum)
     psi_tff = TimedFullField(bulk=psi_ref, boundary=rhs.boundary)

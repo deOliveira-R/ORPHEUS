@@ -55,7 +55,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.vector import Vector
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.sn._test_helpers import placeholder_materials
@@ -107,7 +107,7 @@ def _timeless_full_field(m: SNMesh) -> FullField:
     """A plain timeless ``FullField`` (NOT a ``TimedFullField``)."""
     return FullField(
         bulk=AngularFlux.zeros_on(m),
-        boundary=BoundaryFlux.zeros_on(m),
+        boundary=AngularBoundaryFlux.zeros_on(m),
     )
 
 
@@ -123,7 +123,7 @@ class TestFullFieldMembership:
         """The history-bearing carrier IS a FullField — by inheritance."""
         sn = _slab_mesh()
         tff = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn,
+            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
         )
         _require(
             _is_a(tff, FullField),
@@ -135,7 +135,7 @@ class TestFullFieldMembership:
         """Every full field is a Vector (FullField carries the four dunders)."""
         sn = _slab_mesh()
         tff = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn,
+            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
         )
         _require(
             _is_a(tff, Vector),
@@ -292,15 +292,15 @@ class TestPolymorphicRecombine:
         """
         sn = _slab_mesh()
         a = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn, history_depth=5,
+            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn, history_depth=5,
         )
         b = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn, history_depth=5,
+            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn, history_depth=5,
         )
         # Build a non-trivial history on ``a`` so the empty-history claim
         # is a real assertion (not a tautology of zeros()).
         nb = AngularFlux.zeros_on(sn)
-        nf = BoundaryFlux.zeros_on(sn)
+        nf = AngularBoundaryFlux.zeros_on(sn)
         a = a.advance(nb, nf)
         _require(a.history_length == 1, "precondition: a must carry history.")
 
@@ -327,7 +327,7 @@ class TestPolymorphicRecombine:
         """scalar * TimedFullField → TimedFullField (type, depth preserved)."""
         sn = _slab_mesh()
         a = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn, history_depth=3,
+            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn, history_depth=3,
         )
         out = 2.0 * a
         _require(
@@ -345,7 +345,7 @@ class TestPolymorphicRecombine:
         """-TimedFullField → TimedFullField."""
         sn = _slab_mesh()
         a = TimedFullField.zeros(
-            bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn,
+            bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn,
         )
         out = -a
         _require(

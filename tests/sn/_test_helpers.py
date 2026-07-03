@@ -8,11 +8,11 @@ a minimal-but-valid :class:`Mixture` dict that those tests can hand
 to :class:`SNMesh` so the construction succeeds without inviting any
 real cross-section semantics into the test.
 
-Issue #197 PR-TYPED-2 introduced :class:`BoundaryFlux` as the typed
+Issue #197 PR-TYPED-2 introduced :class:`AngularBoundaryFlux` as the typed
 replacement for the stringly-typed ``psi_bc: dict``.  Test fixtures
 that previously passed ``{}`` to :func:`transport_sweep` should now
-build a zero-initialised :class:`BoundaryFlux` via
-``BoundaryFlux.zeros_on(sn_mesh)`` (or :func:`make_boundary_flux_zero`
+build a zero-initialised :class:`AngularBoundaryFlux` via
+``AngularBoundaryFlux.zeros_on(sn_mesh)`` (or :func:`make_boundary_flux_zero`
 below for non-SNMesh callers).
 
 Tests that DO need realistic cross sections continue to use
@@ -26,12 +26,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.sparse import csr_matrix
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.sn import solve_sn_fixed_source
 
 if TYPE_CHECKING:
-    from orpheus.transport.fields.boundary_flux import BoundaryFlux
+    from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
     from orpheus.sn.mesh.augmented_mesh import SNMesh
     from orpheus.transport.fields.scalar_flux import ScalarFlux
 
@@ -318,7 +318,7 @@ def het_operands(sn: "SNMesh"):
 
     rng = np.random.default_rng(20260611)
     sig_t = rng.uniform(0.3, 3.0, size=(sn.ng, *sn.spatial_shape))
-    psi = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn)
+    psi = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn)
     psi.bulk.values[...] = rng.standard_normal(psi.bulk.values.shape)
     for face in psi.boundary.layout.faces:
         fv = psi.boundary.face_view(face)
@@ -339,7 +339,7 @@ def legacy_proxy_matvec(
     feed bare ``psi_view`` ``(N, ng, nx, ny)`` ndarrays and expect a
     bare ``(N, ng, nx, ny)`` cell-output ndarray.  This helper bridges:
 
-    1. Build a :class:`BoundaryFlux` whose face buffers carry
+    1. Build a :class:`AngularBoundaryFlux` whose face buffers carry
        ``psi_view``'s cell-centre value at the outer (and slab-inner)
        face — the cell-centre-proxy fill.
     2. Wrap into a :class:`TimedFullField`.
@@ -356,8 +356,8 @@ def legacy_proxy_matvec(
     from orpheus.transport.fields.angular_flux import (
         AngularFlux,
     )
-    from orpheus.transport.fields.boundary_flux import (
-        BoundaryFlux,
+    from orpheus.transport.fields.angular_boundary_flux import (
+        AngularBoundaryFlux,
     )
     from orpheus.transport.timed_full_field import TimedFullField
     from orpheus.sn.operators.streaming import (
@@ -377,7 +377,7 @@ def legacy_proxy_matvec(
     # `bc_outer=None, pole_angular_closure=None`) — kept in the
     # function signature for legacy back-compat but ignored.
     del bc_outer, pole_angular_closure  # explicitly mark unused
-    boundary = BoundaryFlux.zeros_on(sn_mesh)
+    boundary = AngularBoundaryFlux.zeros_on(sn_mesh)
     boundary.face_view("xmax")[:] = psi_view[:, :, -1]
     if "xmin" in boundary.layout.faces:
         boundary.face_view("xmin")[:] = psi_view[:, :, 0]
@@ -419,18 +419,18 @@ def _LC_matvec(
     return (L + C).apply(psi)
 
 
-def make_boundary_flux_zero(sn_mesh: "SNMesh") -> "BoundaryFlux":
-    """Build a zero-initialised :class:`BoundaryFlux` for ``sn_mesh``.
+def make_boundary_flux_zero(sn_mesh: "SNMesh") -> "AngularBoundaryFlux":
+    """Build a zero-initialised :class:`AngularBoundaryFlux` for ``sn_mesh``.
 
     Issue #197 PR-TYPED-2 — typed replacement for ``psi_bc = {}``.
     Allocates only the buffers the mesh's geometry consumes (slab gets
     two 1-D faces; curvilinear gets one outer face; 2-D Cartesian gets
     the persistent ``(N, ng, nx+1, ny)`` / ``(N, ng, nx, ny+1)``
     buffers).  Per-geometry dispatch lives inside
-    :meth:`~orpheus.transport.fields.boundary_flux.BoundaryFlux.zeros_on`; this helper is a clean alias
+    :meth:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux.zeros_on`; this helper is a clean alias
     so test fixtures don't have to chain through ``sn_mesh``.
     """
-    return BoundaryFlux.zeros_on(sn_mesh)
+    return AngularBoundaryFlux.zeros_on(sn_mesh)
 
 
 def make_scalar_flux_zero(sn_mesh: "SNMesh") -> "ScalarFlux":

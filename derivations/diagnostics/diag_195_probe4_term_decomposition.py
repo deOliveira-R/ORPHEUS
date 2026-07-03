@@ -64,7 +64,7 @@ from orpheus.sn.solver import (
 )
 from orpheus.sn.spatial.cell_balance import cell_balance_for_streaming
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
 
@@ -95,7 +95,7 @@ def _decompose(case, nc):
     """
     mesh, sn_mesh, solver, q_ext = _build(case, nc)
     psi_ref = _psi_ref(case, sn_mesh, mesh)
-    rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+    rhs = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     psi_tff = TimedFullField(bulk=psi_ref.copy() if hasattr(psi_ref, "copy") else psi_ref,
                              boundary=rhs.boundary)
 

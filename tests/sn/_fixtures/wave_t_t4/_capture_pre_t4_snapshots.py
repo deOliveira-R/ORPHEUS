@@ -74,7 +74,7 @@ from orpheus.sn.operators.streaming import (
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.timed_full_field import TimedFullField
-from orpheus.transport.fields.boundary_flux import BoundaryFlux
+from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 
 OUT_NPZ = Path(__file__).parent / "pre_t4_snapshots.npz"
 OUT_JSON = Path(__file__).parent / "pre_t4_walltime.json"
@@ -202,7 +202,7 @@ def _make_state(sn_mesh: SNMesh, *, seed: int) -> TimedFullField:
     psi_values = rng.uniform(
         0.05, 1.0, size=(N, ng, *sn_mesh.spatial_shape),
     )
-    state = TimedFullField.zeros(bulk=AngularFlux, boundary=BoundaryFlux, mesh=sn_mesh)
+    state = TimedFullField.zeros(bulk=AngularFlux, boundary=AngularBoundaryFlux, mesh=sn_mesh)
     from dataclasses import replace
     return replace(
         state,
