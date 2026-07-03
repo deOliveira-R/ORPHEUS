@@ -219,13 +219,14 @@ class StreamingTerms:
     (Issue #196 Phase G Step 2.5):
 
     * **Slab**: neutral-curvature values — ``face_area_inner =
-      face_area_outer = 1.0``, ``delta_A_over_w = 0.0``,
-      ``alpha_in = alpha_out = 0.0``, ``tau_mm = 1.0`` (synthetic
-      neutral element of the M-M angular closure — slab has no
-      half-angles; the closure would be the identity if ever
-      evaluated, but ``upstream_state.angular_upstream`` is ``None``
-      for slab so it never is).  Plus the always-populated
-      ``chord_length``, ``mu``, ``volume``, ``abs_mu``.
+      face_area_outer = 1.0``, ``delta_A_over_w = 0.0``.  The
+      Morel–Montry angular weight is NOT carried here (Issue #236
+      Step C — it is closure-owned); the neutral slab closure
+      (IdentityAngularClosure) supplies τ = 1, α = 0 and stamps the
+      derived c on the CellVisit, but ``upstream_state.angular_upstream``
+      is ``None`` for slab so the M-M contribution never engages.  Plus
+      the always-populated ``chord_length``, ``mu``, ``volume``,
+      ``abs_mu``.
     * **Sphere / cylinder**: physically-populated curvature fields
       from the dome recursion + M-M clamp.
 
@@ -273,12 +274,15 @@ class StreamingTerms:
     :class:`~orpheus.sn.spatial.scheme.DiscretizationScheme` strategy
     receives a self-contained per-cell, per-direction packet and need
     not reach back into ``SNMesh`` or the ``AngularQuadrature``.  Every
-    curvature field is populated for **every** geometry (Step 2.5; slab
-    carries neutral values), so cell-update strategies consume the same
-    packet regardless of chart — geometry is **data, not control-flow**.
-    There is no ``alpha_in is None`` slab-vs-curvilinear branch; the
-    type makes the all-populated invariant unrepresentable-otherwise
-    (every field is a required ``float``, Pattern 4).
+    surviving curvature field is populated for **every** geometry
+    (Step 2.5; slab carries neutral values) as a required ``float``
+    (Pattern 4), so cell-update strategies consume the same packet
+    regardless of chart — geometry is **data, not control-flow**.  Slab
+    vs curvilinear is discriminated downstream by
+    ``upstream_state.angular_upstream is None`` (slab has no half-angle
+    state), NOT by any field on this geometry packet — Issue #236 Step C
+    retired the former M-M ``alpha_in`` / ``alpha_out`` / ``tau_mm``
+    fields (the angular closure now owns that data).
     """
 
     chord_length: float
@@ -316,20 +320,14 @@ class StreamingTerms:
     delta_A_over_w: float
     """:math:`\\Delta A_i / w_n` — the geometry-redistribution factor."""
 
-    alpha_in: float
-    """:math:`\\alpha_{n-1/2}` — incoming half-angle redistribution.
-
-    Step 2.5 (Issue #196 Phase G): always populated.  Slab carries
-    ``0.0`` (neutral); sphere/cylinder carry the dome value.  The
-    historical ``alpha_in is None`` slab-vs-curvilinear branch is
-    retired in favour of geometry-as-data via the neutral values.
-    """
-
-    alpha_out: float
-    """:math:`\\alpha_{n+1/2}` — outgoing half-angle redistribution."""
-
-    tau_mm: float
-    """Morel--Montry angular closure weight on this ordinate."""
+    # Issue #236 Step C: the Morel–Montry ``alpha_in`` / ``alpha_out`` /
+    # ``tau_mm`` are NO LONGER carried on the per-cell geometry packet.  The
+    # angular weight :math:`\\tau` is an angular-scheme property owned by the
+    # MorelMontryAngularSweep angular closure; the derived constants
+    # ``c_in`` / ``c_out`` and ``tau`` are stamped on
+    # :class:`~orpheus.sn.spatial.scheme.CellVisit`.  The α-dome itself
+    # survives on :class:`ReducedStreamingOperator` (``alpha_half`` /
+    # ``alpha_per_level``).
 
     mu_start: float
     """Starting-direction angular edge of this ordinate's M-M level.
@@ -403,22 +401,20 @@ class ReducedStreamingOperator:
       per-:math:`\\mu`-level :math:`\\alpha` and :math:`\\tau_{mm}`
       structures.
 
-    Output shape contract (bit-identical to ``SNMesh._setup_*``)::
+    Output shape contract (Issue #236 Step C: the Morel–Montry τ is no
+    longer produced here — it is owned by the angular closure)::
 
         slab:        face_areas == None,
                      alpha_half == None,
-                     redist_dAw == None,
-                     tau_mm == None.
+                     redist_dAw == None.
         sphere:      face_areas (nx+1,),
                      delta_A    (nx,),
                      alpha_half (N+1,),
-                     redist_dAw (nx, N),
-                     tau_mm     (N,).
+                     redist_dAw (nx, N).
         cylinder:    face_areas (nx+1,),
                      delta_A    (nx,),
                      alpha_per_level     [(M+1,)] · n_levels,
-                     redist_dAw_per_level [(nx, M)] · n_levels,
-                     tau_mm_per_level     [(M,)] · n_levels.
+                     redist_dAw_per_level [(nx, M)] · n_levels.
 
     Attributes
     ----------
@@ -448,18 +444,20 @@ class ReducedStreamingOperator:
     # Spherical
     alpha_half: np.ndarray | None = None
     redist_dAw: np.ndarray | None = None
-    tau_mm: np.ndarray | None = None
+    # Issue #236 Step C: ``tau_mm`` retired — the Morel–Montry angular weight
+    # is owned by the angular closure (``morel_montry_tau_per_level``), not
+    # the streaming geometry.  The α-dome (``alpha_half``) stays here.
     mu_start: float | None = None
     """Starting-direction angular edge :math:`\\mu_{1/2}` of the (single)
     M-M level — the direction the half-angle thread's seed flux lives
     at.  Sphere: ``-1.0`` (the Hébert §3.9.4 starting direction).
-    Defined HERE, at the same construction site as the α-dome and τ
+    Defined HERE, at the same construction site as the α-dome
     (single source of truth for the angular cell partition)."""
 
     # Cylindrical (per-level)
     alpha_per_level: list[np.ndarray] | None = None
     redist_dAw_per_level: list[np.ndarray] | None = None
-    tau_mm_per_level: list[np.ndarray] | None = None
+    # Issue #236 Step C: ``tau_mm_per_level`` retired (see ``tau_mm`` above).
     mu_start_per_level: list[float] | None = None
     """Per-level starting-direction angular edge — cylinder:
     :math:`\\eta_{1/2} = -\\sin\\theta_p = -\\sqrt{1-\\xi_p^2}` (the
@@ -512,11 +510,10 @@ class ReducedStreamingOperator:
             #   face_area_inner = face_area_outer = 1.0  (so A_total =
             #       A_inner + A_outer = 2, and 2*|μ|*A_down = 2|μ|·1
             #       reproduces the slab denominator's "2|μ|" term);
-            #   delta_A_over_w = 0.0  (no curvature redistribution);
-            #   alpha_in = alpha_out = 0.0  (no half-angle dome);
-            #   tau_mm = 1.0  (closure is the identity for slab —
-            #       the synthetic neutral element of M-M; documented
-            #       in dd_polymorphism.md §5.3).
+            #   delta_A_over_w = 0.0  (no curvature redistribution).
+            # The Morel–Montry α / τ are NO LONGER packed here (Issue #236
+            # Step C): the neutral slab closure (IdentityAngularClosure)
+            # supplies τ = 1, α = 0 and stamps the derived c on CellVisit.
             # ``volume == chord`` is already true for slab (unit
             # cross-section in 1-D Cartesian).
             mu_n = float(self._quadrature.mu_x[direction_idx])
@@ -526,9 +523,6 @@ class ReducedStreamingOperator:
                 face_area_inner=1.0,
                 face_area_outer=1.0,
                 delta_A_over_w=0.0,
-                alpha_in=0.0,
-                alpha_out=0.0,
-                tau_mm=1.0,
                 mu_start=-1.0,
                 volume=volume,
                 abs_mu=abs(mu_n),
@@ -538,9 +532,11 @@ class ReducedStreamingOperator:
             assert self.face_areas is not None
             assert self.alpha_half is not None
             assert self.redist_dAw is not None
-            assert self.tau_mm is not None
             assert self.mu_start is not None
             # Sphere: ``direction_idx`` IS the global ordinate index.
+            # The Morel–Montry α / τ are NO LONGER packed here (Issue #236
+            # Step C): the angular closure owns τ and the derived c
+            # (stamped on CellVisit); this packet carries geometry only.
             mu_n = float(self._quadrature.mu_x[direction_idx])
             return StreamingTerms(
                 chord_length=chord,
@@ -550,9 +546,6 @@ class ReducedStreamingOperator:
                 delta_A_over_w=float(
                     self.redist_dAw[cell_idx, direction_idx]
                 ),
-                alpha_in=float(self.alpha_half[direction_idx]),
-                alpha_out=float(self.alpha_half[direction_idx + 1]),
-                tau_mm=float(self.tau_mm[direction_idx]),
                 mu_start=float(self.mu_start),
                 volume=volume,
                 abs_mu=abs(mu_n),
@@ -565,29 +558,25 @@ class ReducedStreamingOperator:
                     "(which μ-level the direction_idx belongs to)."
                 )
             assert self.face_areas is not None
-            assert self.alpha_per_level is not None
             assert self.redist_dAw_per_level is not None
-            assert self.tau_mm_per_level is not None
             assert self.mu_start_per_level is not None
             # Cylinder: ``direction_idx`` is the within-level azimuthal
             # index; the global ordinate is read through
             # ``level_indices``.  ``mu_x[global_n]`` carries η (the
-            # radial direction cosine).
+            # radial direction cosine).  The Morel–Montry α / τ are NO
+            # LONGER packed here (Issue #236 Step C): the angular closure
+            # owns τ (with the cylinder clamp) and the derived c, stamped
+            # on CellVisit; this packet carries geometry only.
             level_indices = self._quadrature.level_indices
             global_n = int(level_indices[mu_level_idx][direction_idx])
             eta_n = float(self._quadrature.eta[global_n])
-            alpha_lv = self.alpha_per_level[mu_level_idx]
             dAw_lv = self.redist_dAw_per_level[mu_level_idx]
-            tau_lv = self.tau_mm_per_level[mu_level_idx]
             return StreamingTerms(
                 chord_length=chord,
                 mu=eta_n,
                 face_area_inner=float(self.face_areas[cell_idx]),
                 face_area_outer=float(self.face_areas[cell_idx + 1]),
                 delta_A_over_w=float(dAw_lv[cell_idx, direction_idx]),
-                alpha_in=float(alpha_lv[direction_idx]),
-                alpha_out=float(alpha_lv[direction_idx + 1]),
-                tau_mm=float(tau_lv[direction_idx]),
                 mu_start=float(self.mu_start_per_level[mu_level_idx]),
                 volume=volume,
                 abs_mu=abs(eta_n),
@@ -609,7 +598,7 @@ def slab_streaming(
     """Build the slab :class:`ReducedStreamingOperator`.
 
     Slab geometry has no curvature — the connection coefficients
-    vanish.  All ``alpha_*``, ``redist_dAw``, ``tau_mm`` arrays remain
+    vanish.  All ``alpha_*`` and ``redist_dAw`` arrays remain
     ``None``; the operator advertises
     ``requires_upstream_angular_state = False`` and
     ``angular_marching_axis = None``.
@@ -697,31 +686,16 @@ def spherical_streaming(
     # ΔA_i / w_n — the geometry redistribution factor (nx, N).
     redist_dAw = delta_A[:, None] / w[None, :]
 
-    # Morel–Montry / weighted-diamond angular weight: the fractional
-    # position of μ_n within its half-angle interval [μ_{n-1/2}, μ_{n+1/2}].
-    # This is Bailey–Morel–Chang (2010) Eq. 43 — the UNIQUE weight that is
-    # exact for a flux linear in μ.  μ_{1/2} = -1, μ_{N+1/2} = +1.
+    # Morel–Montry angular weight τ is NO LONGER produced here (Issue #236
+    # Step C): τ is an angular-scheme property (a function of (μ, w) only),
+    # owned by the MorelMontryAngularSweep angular closure
+    # (``morel_montry_tau_per_level``) and stamped on each CellVisit.  This
+    # factory keeps the GEOMETRY data only (face areas, α-dome, redistribution
+    # factor, the level starting-direction edge).
     #
-    # NO [1/2, 1] clamp (W1, branch fix/curvilinear-aniso-pole-and-clamp):
-    # Bailey allows τ ∈ [0, 1] and recommends *exactly this* unclamped
-    # weight; the former clamp was an over-conservative positivity floor
-    # mis-cited to Lewis & Miller §4.5.  It re-floored the anisotropic
-    # solution (it threads a linear-in-μ field only to O(clamp gap), not
-    # to machine precision) WITHOUT preventing any real negativity —
-    # verified 100% spurious on every physical converged sphere solve
-    # (thick absorber, near-vacuum, c=0.999, S64; all strictly positive).
-    # The sphere dome is non-singular (dmu = w_n > 0 on GL, τ_raw ∈ ~[0.39,
-    # 0.61]) so the ½ degeneracy fallback never fires.  The CYLINDER keeps
-    # its clamp — there τ_raw = 0 exactly (structural ÷0 block; see
-    # ``cylindrical_streaming`` and #229).
-    mu_edge = np.zeros(N + 1)
-    mu_edge[0] = -1.0
-    for n in range(N):
-        mu_edge[n + 1] = mu_edge[n] + w[n]
-    tau_mm = np.empty(N)
-    for n in range(N):
-        dmu = mu_edge[n + 1] - mu_edge[n]
-        tau_mm[n] = (mu[n] - mu_edge[n]) / dmu if abs(dmu) > 1e-15 else 0.5
+    # ``mu_start`` is the Hébert §3.9.4 starting direction μ_{1/2} = -1.0 of
+    # the (single) M-M level — the direction the half-angle thread's seed
+    # flux lives at.
 
     return ReducedStreamingOperator(
         coord=CoordSystem.SPHERICAL,
@@ -732,8 +706,7 @@ def spherical_streaming(
         delta_A=delta_A,
         alpha_half=alpha,
         redist_dAw=redist_dAw,
-        tau_mm=tau_mm,
-        mu_start=float(mu_edge[0]),
+        mu_start=-1.0,
         _quadrature=angular_measure,
     )
 
@@ -810,45 +783,19 @@ def cylindrical_streaming(
             delta_A[:, None] / w_level[None, :]  # (nx, M)
         )
 
-    # Morel–Montry closure (Bailey-Morel-Chang 2010 Eq. 43) per μ-level.
-    # For cylindrical, ordinates are η-sorted but weights come from
-    # φ-space (not η-space), so the weight-sum edge approach is wrong.
-    # Instead, cell edges are at midpoints of consecutive η values
-    # with endpoints at ±sin θ.  This gives a proper η-partition.
-    #
-    # The [1/2, 1] clamp is RETAINED here (unlike the sphere, where W1
-    # removed it — see ``spherical_streaming``).  The clamp is STRUCTURAL
-    # for the cylinder: the most-inward azimuthal ordinate sits exactly on
-    # the level boundary (``eta[0] == eta_edge[0] == -sin θ``), so its raw
-    # weight is ``τ_raw = (eta[0] − eta_edge[0])/deta = 0`` bit-exactly —
-    # the recurrence ``ψ_out = (ψ_avg − (1−τ)ψ_in)/τ`` would divide by zero
-    # unclamped.  Removing the clamp needs a 2-D (η, φ) angular closure
-    # (the product/LS quadratures carry duplicate azimuthal η that a 1-D
-    # η-thread cannot represent); that is out of scope and tracked by #229.
-    #
-    # (See SNMesh._setup_cylindrical for the same construction;
-    # GitHub Issue #3 tracks the φ-based edge refinement.)
+    # Per-level starting-direction angular edge η_{1/2} = -sin θ_p — the
+    # most-inward azimuthal edge of level p, the direction the half-angle
+    # thread's seed flux lives at.  The Morel–Montry angular weight τ is NO
+    # LONGER produced here (Issue #236 Step C): τ is an angular-scheme
+    # property owned by the MorelMontryAngularSweep angular closure
+    # (``morel_montry_tau_per_level``, where the cylinder [½, 1] clamp now
+    # lives) and stamped on each CellVisit.  This factory keeps the GEOMETRY
+    # data only.
     mu_z = angular_measure.mu_z
-    tau_mm_per_level: list[np.ndarray] = []
     mu_start_per_level: list[float] = []
     for level_idx in angular_measure.level_indices:
-        eta = angular_measure.mu_x[level_idx]
-        M = len(level_idx)
         sin_theta = np.sqrt(1.0 - mu_z[level_idx[0]] ** 2)
         mu_start_per_level.append(float(-sin_theta))
-        eta_edge = np.zeros(M + 1)
-        eta_edge[0] = -sin_theta
-        for m in range(M - 1):
-            eta_edge[m + 1] = 0.5 * (eta[m] + eta[m + 1])
-        eta_edge[M] = sin_theta
-        tau = np.empty(M)
-        for m in range(M):
-            deta = eta_edge[m + 1] - eta_edge[m]
-            tau_raw = (
-                (eta[m] - eta_edge[m]) / deta if abs(deta) > 1e-15 else 0.5
-            )
-            tau[m] = max(0.5, min(1.0, tau_raw))
-        tau_mm_per_level.append(tau)
 
     return ReducedStreamingOperator(
         coord=CoordSystem.CYLINDRICAL,
@@ -859,7 +806,6 @@ def cylindrical_streaming(
         delta_A=delta_A,
         alpha_per_level=alpha_per_level,
         redist_dAw_per_level=redist_dAw_per_level,
-        tau_mm_per_level=tau_mm_per_level,
         mu_start_per_level=mu_start_per_level,
         _quadrature=angular_measure,
     )

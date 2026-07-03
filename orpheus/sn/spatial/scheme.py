@@ -81,10 +81,12 @@ favour of geometry-blind data populated by the
 
 * **Slab / Cartesian** — ``StreamingTerms`` carries neutral
   curvature: ``face_area_inner = face_area_outer = 1.0``,
-  ``delta_A_over_w = 0.0``, ``alpha_in = alpha_out = 0.0``,
-  ``tau_mm = 1.0`` (synthetic neutral element of the M-M
-  closure — the closure is the identity for slab).  The
-  ``CellVisit`` carries ``face_area_downstream = 1.0``.
+  ``delta_A_over_w = 0.0``.  The M-M neutral element
+  (``c_in = c_out = 0.0``, ``tau = 1.0`` — the identity closure
+  for slab) is angular-closure-owned and arrives on the
+  ``CellVisit`` (Issue #236 Step C retired the geometry-side
+  ``StreamingTerms.tau_mm`` / ``alpha_*``).  The ``CellVisit``
+  also carries ``face_area_downstream = 1.0``.
   ``upstream_state.angular_upstream`` is ``None`` (slab has no
   half-angles); the strategy returns
   ``CellResult(outgoing_angular_state=None, ...)``.
@@ -269,10 +271,11 @@ class CellVisit:
         the identity and keeping :math:`c_{\rm out} = \alpha_{\rm out}/\tau`
         well-defined (a ``0.0`` default would be a divide-by-zero landmine
         in :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update`'s
-        angular thread).  Distinct in provenance from the geometry-owned
-        :attr:`streaming_terms`\ ``.tau_mm`` (which Step C will retire); the
-        spatial scheme (:class:`DiamondDifference`) consumes :attr:`tau` as
-        DATA on the visit, never by coupling to the closure object — keeping
+        angular thread).  τ is angular-closure-owned, NOT geometry-produced
+        (Issue #236 Step C retired the former geometry-side
+        ``StreamingTerms.tau_mm``); the spatial scheme
+        (:class:`DiamondDifference`) consumes :attr:`tau` as DATA on the
+        visit, never by coupling to the closure object — keeping
         the spatial :math:`\otimes` angular separation.
 
     Notes

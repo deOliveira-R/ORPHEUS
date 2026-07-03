@@ -45,7 +45,10 @@ from orpheus.sn import solve_sn
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from tests.sn._test_helpers import _LC_matvec
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.spatial.pole_angular_closure import MorelMontryAngularSweep
+from orpheus.sn.spatial.pole_angular_closure import (
+    MorelMontryAngularSweep,
+    morel_montry_tau_per_level,
+)
 from orpheus.sn.spatial.psi_half_angle_seed import CarlsonSweepContext
 from tests.sn._test_helpers import legacy_proxy_matvec, placeholder_materials
 
@@ -158,11 +161,17 @@ def _hand_reference_cyl_matvec(
                 mu_start=-1.0,)
         )
 
+    # Issue #236 Step C: the geometry-side cylinder τ producer was retired;
+    # source the legacy ``__call__``-arg τ (the T5 unbound-closure path this
+    # hand reference drives) from the surviving closure producer.
+    tau_mm_per_level = list(
+        morel_montry_tau_per_level(quad, CoordSystem.CYLINDRICAL)
+    )
     redist_full = pac(
         psi_g_first,
         reduced.alpha_per_level,
         reduced.redist_dAw_per_level,
-        reduced.tau_mm_per_level,
+        tau_mm_per_level,
         V,
         level_indices=level_indices,
         carlson_context=carlson_ctx_per_level,

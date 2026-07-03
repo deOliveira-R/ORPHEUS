@@ -237,9 +237,9 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         # sourced off the visit (CellVisit.tau, stamped by
         # SNMesh._make_cell_visit from the closure's tau_per_ordinate) —
         # matching the c_in / c_out provenance above.  DD no longer reads
-        # the geometry-owned streaming_terms.tau_mm (which Step C retires);
-        # the closure's τ is 0-ULP equal to it (Leg-1 producer-equivalence
-        # gate), so this recurrence is bit-identical.
+        # the formerly geometry-owned ``streaming_terms.tau_mm`` (retired
+        # in Step C); the closure's τ equalled it at 0 ULP (Leg-1
+        # producer-equivalence gate), so this recurrence is bit-identical.
         psi_angle_out: np.ndarray | None = None
         if upstream_state.angular_upstream is not None:
             tau = visit.tau

@@ -94,23 +94,34 @@ def _clamped_and_raw_tau(quad: Quadrature) -> tuple[np.ndarray, np.ndarray]:
     return tau_clamped, tau_raw
 
 
-def _flat_field_coeff(st, A_down: float, total_xs: float, tau: float) -> float:
+def _flat_field_coeff(
+    st, A_down: float, total_xs: float, tau: float,
+    *, alpha_in: float, alpha_out: float,
+) -> float:
     """``denom − dA_w·c_in`` — the cell coefficient on ψ_avg at the flat
-    fixed point (where ``ψ^a_in == ψ_avg``)."""
+    fixed point (where ``ψ^a_in == ψ_avg``).
+
+    Issue #236 Step C: the M-M α dome is no longer packed on
+    ``StreamingTerms`` (the τ/α packing was retired); the caller passes
+    ``alpha_in`` / ``alpha_out`` from the surviving
+    ``ReducedStreamingOperator.alpha_half`` dome.
+    """
     abs_mu = st.abs_mu
     dA_w = st.delta_A_over_w
     V = st.volume
-    c_out = st.alpha_out / tau
-    c_in = (1.0 - tau) / tau * st.alpha_out + st.alpha_in
+    c_out = alpha_out / tau
+    c_in = (1.0 - tau) / tau * alpha_out + alpha_in
     denom = 2.0 * abs_mu * A_down + dA_w * c_out + total_xs * V
     return denom - dA_w * c_in
 
 
-def _redist_net(st, tau: float) -> float:
+def _redist_net(
+    st, tau: float, *, alpha_in: float, alpha_out: float,
+) -> float:
     """``dA_w·(c_out − c_in)`` — the net flat-field angular redistribution."""
     dA_w = st.delta_A_over_w
-    c_out = st.alpha_out / tau
-    c_in = (1.0 - tau) / tau * st.alpha_out + st.alpha_in
+    c_out = alpha_out / tau
+    c_in = (1.0 - tau) / tau * alpha_out + alpha_in
     return dA_w * (c_out - c_in)
 
 
@@ -164,15 +175,30 @@ def test_flat_field_coefficient_tau_independent():
     for cell_idx in range(nx):
         for n in changed:
             st = op.streaming_terms(cell_idx, int(n))
+            # α dome from the surviving operator array (Step C).
+            alpha_in = float(op.alpha_half[int(n)])
+            alpha_out = float(op.alpha_half[int(n) + 1])
             mu_n = float(mu[n])
             A_down = (
                 float(op.face_areas[cell_idx + 1]) if mu_n > 0
                 else float(op.face_areas[cell_idx])
             )
-            cc = _flat_field_coeff(st, A_down, total_xs, float(tau_clamped[n]))
-            cr = _flat_field_coeff(st, A_down, total_xs, float(tau_raw[n]))
-            rc = _redist_net(st, float(tau_clamped[n]))
-            rr = _redist_net(st, float(tau_raw[n]))
+            cc = _flat_field_coeff(
+                st, A_down, total_xs, float(tau_clamped[n]),
+                alpha_in=alpha_in, alpha_out=alpha_out,
+            )
+            cr = _flat_field_coeff(
+                st, A_down, total_xs, float(tau_raw[n]),
+                alpha_in=alpha_in, alpha_out=alpha_out,
+            )
+            rc = _redist_net(
+                st, float(tau_clamped[n]),
+                alpha_in=alpha_in, alpha_out=alpha_out,
+            )
+            rr = _redist_net(
+                st, float(tau_raw[n]),
+                alpha_in=alpha_in, alpha_out=alpha_out,
+            )
             worst_coeff = max(worst_coeff, abs(cc - cr))
             worst_redist = max(worst_redist, abs(rc - rr))
 

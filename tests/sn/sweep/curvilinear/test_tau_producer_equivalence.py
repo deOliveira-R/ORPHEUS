@@ -1,15 +1,21 @@
-r"""Issue #236 Phase 2 (Step A) — τ producer-equivalence gate (Leg 1).
+r"""Issue #236 Phase 2 — τ producer-equivalence gate (Leg 1).
 
 The :class:`~orpheus.sn.spatial.pole_angular_closure.MorelMontryAngularSweep`
 closure now PRODUCES the Morel–Montry angular weight τ from the quadrature
 ``(μ, w, levels)`` it already binds (an angular-scheme property), instead of
 reading it back from the streaming-GEOMETRY factory (``reduced_operator.py``).
 
+Step C (the geometry-τ retirement) deleted the geometry-side τ producer, so
+the former ``*_equals_geometry_factory_0ulp`` legs (closure τ vs
+``spherical_streaming(...).tau_mm`` / ``cylindrical_streaming(...).tau_mm_per_level``)
+are now vacuous and have been removed.  The structural-independence floor is
+carried entirely by the surviving legs below — the closure τ producer is
+pinned against the STRUCTURALLY-INDEPENDENT ``contamination.morel_montry_weights``
+(a DIFFERENT code path to the same BMC-2010-Eq.43 weight; vv-principles L11),
+which never depended on the geometry producer.
+
 This gate proves the closure-produced τ:
 
-* equals the geometry-factory τ EXACTLY (0-ULP) — the bit-identity guarantee
-  that no production numerics moved (the matvec path P0 now consumes
-  closure-owned τ);
 * equals a STRUCTURALLY-INDEPENDENT reference
   (``contamination.morel_montry_weights`` — a different code path to the SAME
   BMC-2010-Eq.43 weight; vv-principles L11);
@@ -32,76 +38,18 @@ import pytest
 
 from orpheus.derivations.discrete.sn.contamination import morel_montry_weights
 from orpheus.geometry import CoordSystem, Mesh1D
-from orpheus.geometry.reduced_operator import (
-    cylindrical_streaming,
-    spherical_streaming,
-)
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from orpheus.sn.spatial.pole_angular_closure import (
     IdentityAngularClosure,
-    MorelMontryAngularSweep,
     morel_montry_tau_per_level,
 )
 from tests.sn._test_helpers import placeholder_materials
 
 
-# ── mesh helpers (the geometry factory needs a mesh; τ does not depend on it)
-
-
-def _sphere_mesh(nx: int = 8, radius: float = 5.0) -> Mesh1D:
-    edges = np.linspace(0.0, radius, nx + 1)
-    return Mesh1D(
-        edges=edges,
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.SPHERICAL,
-    )
-
-
-def _cyl_mesh(nx: int = 8, radius: float = 5.0) -> Mesh1D:
-    edges = np.linspace(0.0, radius, nx + 1)
-    return Mesh1D(
-        edges=edges,
-        mat_ids=np.zeros(nx, dtype=int),
-        coord=CoordSystem.CYLINDRICAL,
-    )
-
-
 # ═══════════════════════════════════════════════════════════════════════
-# SPHERE — producer == geometry factory (0-ULP) + independent reference
+# SPHERE — closure producer == structurally-independent reference (0-ULP)
 # ═══════════════════════════════════════════════════════════════════════
-
-
-@pytest.mark.foundation
-@pytest.mark.parametrize("N", [8, 16])  # >= 2 quadrature orders
-def test_sphere_closure_tau_equals_geometry_factory_0ulp(N):
-    """Closure-produced τ == geometry-factory τ, bit-for-bit, sphere.
-
-    The geometry factory (``spherical_streaming``) bakes τ today for the
-    sweep path P1/P2/P3; the closure now produces its own for the matvec
-    P0.  Same math, new owner ⇒ 0-ULP.
-    """
-    quad = Quadrature.gauss_legendre(N)
-    mesh = _sphere_mesh()
-
-    tau_geom = spherical_streaming(mesh, quad).tau_mm
-    (tau_close,) = morel_montry_tau_per_level(quad, CoordSystem.SPHERICAL)
-
-    assert np.array_equal(tau_close, tau_geom), (
-        f"sphere closure τ != geometry-factory τ (N={N}); the producer is "
-        f"not a 0-ULP replica of spherical_streaming\n"
-        f"closure={tau_close}\nfactory={tau_geom}"
-    )
-
-    # ── and the BOUND closure consumes the producer (the __init__ wiring).
-    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
-    closure = MorelMontryAngularSweep(sn_mesh)
-    (tau_bound,) = closure._tau_per_level
-    assert np.array_equal(tau_bound, tau_geom), (
-        f"bound MorelMontryAngularSweep._tau_per_level != geometry-factory τ "
-        f"(N={N}); the __init__ did not populate τ from the producer\n"
-        f"bound={tau_bound}\nfactory={tau_geom}"
-    )
 
 
 @pytest.mark.foundation
@@ -128,46 +76,8 @@ def test_sphere_tau_matches_independent_reference(N):
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# CYLINDER — producer == geometry factory (0-ULP) + clamp negative control
+# CYLINDER — closure producer == clamp(independent reference) + neg control
 # ═══════════════════════════════════════════════════════════════════════
-
-
-@pytest.mark.foundation
-@pytest.mark.parametrize("n_phi", [8, 16])
-def test_cyl_closure_tau_equals_geometry_factory_0ulp(n_phi):
-    """Closure-produced τ == geometry-factory τ, bit-for-bit, cylinder.
-
-    Cylinder τ is CLAMPED to ``[½, 1]`` on both the producer and the
-    (post-carve) closure ⇒ 0-ULP equality is still required (same math,
-    new owner).  The clamp is a producer-side transform the closure MUST
-    replicate.
-    """
-    quad = Quadrature.product(n_mu=4, n_phi=n_phi)
-    mesh = _cyl_mesh()
-
-    tau_geom = cylindrical_streaming(mesh, quad).tau_mm_per_level
-    tau_close = morel_montry_tau_per_level(quad, CoordSystem.CYLINDRICAL)
-
-    assert len(tau_close) == len(tau_geom), (
-        f"cylinder level count mismatch: closure {len(tau_close)} vs factory "
-        f"{len(tau_geom)} (n_phi={n_phi})"
-    )
-    for p, (tc, tg) in enumerate(zip(tau_close, tau_geom)):
-        assert np.array_equal(tc, tg), (
-            f"cylinder level {p}: closure τ != geometry-factory τ "
-            f"(n_phi={n_phi}); the producer is not a 0-ULP replica of "
-            f"cylindrical_streaming\nclosure={tc}\nfactory={tg}"
-        )
-
-    # ── and the BOUND closure consumes the producer (the __init__ wiring).
-    sn_mesh = SNMesh(mesh, quad, placeholder_materials())
-    closure = MorelMontryAngularSweep(sn_mesh)
-    for p, (tb, tg) in enumerate(zip(closure._tau_per_level, tau_geom)):
-        assert np.array_equal(tb, tg), (
-            f"cylinder level {p}: bound MorelMontryAngularSweep._tau_per_level "
-            f"!= geometry-factory τ (n_phi={n_phi}); the __init__ did not "
-            f"populate τ from the producer\nbound={tb}\nfactory={tg}"
-        )
 
 
 @pytest.mark.foundation

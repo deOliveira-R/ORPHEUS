@@ -1,4 +1,4 @@
-r"""Production catcher for the ``CellVisit`` c- AND τ-stamp (Issue #236 Phase 2 B2/B3).
+r"""Production catcher for the ``CellVisit`` c- AND τ-stamp (Issue #236 Phase 2 B2/B3/C).
 
 The Morel--Montry angular weight ``τ`` and its derived constants
 ``c_out = α_out/τ`` and ``c_in = (1-τ)/τ·α_out + α_in`` are an
@@ -32,19 +32,24 @@ ships with no committed catcher).
 This module is the structurally-independent catcher: it walks a REAL
 production ``dag_walk`` (sphere + a MULTI-LEVEL cylinder + a Cartesian
 slab), and for EVERY visit asserts the stamped ``visit.c_in`` /
-``visit.c_out`` equal the constants recomputed INLINE from that visit's
-OWN ``streaming_terms`` (``α_in`` / ``α_out`` / ``τ_mm``), AND that the
-stamped ``visit.tau`` equals that visit's OWN ``streaming_terms.tau_mm``
-— all at 0-ULP.
+``visit.c_out`` equal the constants recomputed from that visit's
+ordinate via the INDEPENDENT surrogate, AND that the stamped
+``visit.tau`` equals the INDEPENDENT τ for that ordinate — all at 0-ULP.
 
-The c reference is the HAND-TRANSCRIBED surrogate
-``c_from_streaming_terms`` (NOT the production closure — importing the
-closure's ``c`` to compare against itself would be tautological,
-vv L11).  The τ reference is the GEOMETRY-produced ``st.tau_mm``, a
-structurally-independent code path to the same BMC-2010 weight as the
-closure's ``morel_montry_tau_per_level`` (the Leg-1 producer-equivalence
-gate pins the two producers equal; THIS gate pins the stamp's
-ordinate map, so a τ-stamp failure localizes to ``_make_cell_visit``).
+Issue #236 Phase 2 Step C — the independent τ/α reference
+---------------------------------------------------------
+Step C RETIRES ``StreamingTerms.tau_mm`` / ``alpha_in`` / ``alpha_out``
+(the geometry-side τ producer that the catcher PREVIOUSLY used as its
+oracle is gone).  The τ/α reference is now resolved from
+:func:`mm_constants_for_ordinate`: τ from the structurally-independent
+``contamination.morel_montry_weights`` (a DIFFERENT code path to the
+same BMC-2010 weight; vv L11 — NOT the closure's
+``morel_montry_tau_per_level``, which would be tautological), with the
+production cylinder clamp, and α from the operator's surviving dome
+(``alpha_half`` / ``alpha_per_level``).  The Leg-1 producer-equivalence
+gate (``test_tau_producer_equivalence.py``) pins the closure τ producer
+against the SAME independent reference; THIS gate pins the stamp's
+ordinate map, so a τ-stamp failure localizes to ``_make_cell_visit``.
 Assertions use ``np.testing.assert_array_equal`` / ``pytest.fail``
 (function calls, fire under ``-O``; the canonical ORPHEUS invocation
 strips bare ``assert`` — vv Mode 8).
@@ -59,41 +64,57 @@ import numpy as np
 import pytest
 
 from orpheus.geometry import BC, CoordSystem, Mesh1D
+from orpheus.geometry.reduced_operator import (
+    cylindrical_streaming,
+    slab_streaming,
+    spherical_streaming,
+)
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.mesh.augmented_mesh import SNMesh
 from tests.sn._test_helpers import placeholder_materials
-from tests.sn.sweep.core._c_surrogate import c_from_streaming_terms
+from tests.sn.sweep.core._c_surrogate import (
+    c_from_constants,
+    mm_constants_for_ordinate,
+)
 
 
-def _assert_visit_stamp_matches_inline(visit, *, where: str) -> None:
-    """Stamped ``visit.c_*`` / ``visit.tau`` equal the inline ``st`` values (0-ULP).
+def _assert_visit_stamp_matches_inline(
+    visit,
+    op,
+    direction_idx,
+    *,
+    mu_level_idx=None,
+    where: str,
+) -> None:
+    """Stamped ``visit.c_*`` / ``visit.tau`` equal the independent values (0-ULP).
 
     Uses ``assert_array_equal`` (a function call — fires under ``-O``;
     vv Mode 8) on scalars wrapped in ``np.asarray`` so the same bit
     test applies to the slab neutral (``c = 0.0``, ``τ = 1.0``) and the
     curvilinear constants alike.
 
-    The c reference is the hand-transcribed surrogate; the τ reference
-    is the GEOMETRY-produced ``st.tau_mm`` (Issue #236 Phase 2 B3) — a
-    structurally-independent producer to the closure's
-    ``tau_per_ordinate`` (Leg-1 pins the producers equal; this pins the
-    stamp's ordinate map).  ``visit.tau`` is read from a SEPARATE closure
+    The reference is the structurally-independent surrogate (vv L11 —
+    NOT the production closure): τ from ``contamination.morel_montry_weights``
+    (a DIFFERENT code path; clamped for cylinder), α from the operator's
+    surviving dome.  ``visit.tau`` is read from a SEPARATE closure
     accessor than the c-stamps, so a τ-only corruption is invisible to
     the c-arm — this τ-arm is its dedicated catcher.
     """
-    st = visit.streaming_terms
-    c_in_inline, c_out_inline = c_from_streaming_terms(st)
+    tau_ref, alpha_in, alpha_out = mm_constants_for_ordinate(
+        op, visit.cell_idx, direction_idx, mu_level_idx=mu_level_idx,
+    )
+    c_in_inline, c_out_inline = c_from_constants(tau_ref, alpha_in, alpha_out)
     np.testing.assert_array_equal(
         np.asarray(visit.c_out), np.asarray(c_out_inline),
-        err_msg=f"{where}: visit.c_out != α_out/τ inline recompute",
+        err_msg=f"{where}: visit.c_out != α_out/τ independent recompute",
     )
     np.testing.assert_array_equal(
         np.asarray(visit.c_in), np.asarray(c_in_inline),
-        err_msg=f"{where}: visit.c_in != (1-τ)/τ·α_out+α_in inline recompute",
+        err_msg=f"{where}: visit.c_in != (1-τ)/τ·α_out+α_in independent recompute",
     )
     np.testing.assert_array_equal(
-        np.asarray(visit.tau), np.asarray(st.tau_mm),
-        err_msg=f"{where}: visit.tau != streaming_terms.tau_mm (stamp map)",
+        np.asarray(visit.tau), np.asarray(tau_ref),
+        err_msg=f"{where}: visit.tau != independent τ reference (stamp map)",
     )
 
 
@@ -114,12 +135,14 @@ def test_sphere_production_stamp_matches_inline():
     )
     quad = Quadrature.gauss_legendre(8)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+    op = spherical_streaming(mesh, quad)
 
     n_visits = 0
     for n in range(quad.N):
         for visit in sn_mesh.dag_walk(ordinate_idx=n):
             _assert_visit_stamp_matches_inline(
-                visit, where=f"sphere ordinate {n} cell {visit.cell_idx}",
+                visit, op, n,
+                where=f"sphere ordinate {n} cell {visit.cell_idx}",
             )
             n_visits += 1
     if n_visits != quad.N * sn_mesh.nx:
@@ -148,6 +171,7 @@ def test_multilevel_cylinder_production_stamp_matches_inline():
     )
     quad = Quadrature.product(n_mu=2, n_phi=4)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+    op = cylindrical_streaming(mesh, quad)
 
     level_indices = quad.level_indices
     if len(level_indices) < 2:
@@ -164,7 +188,7 @@ def test_multilevel_cylinder_production_stamp_matches_inline():
                 ordinate_idx=within, mu_level_idx=level_p,
             ):
                 _assert_visit_stamp_matches_inline(
-                    visit,
+                    visit, op, within, mu_level_idx=level_p,
                     where=(
                         f"cyl level {level_p} within {within} "
                         f"cell {visit.cell_idx}"
@@ -184,8 +208,8 @@ def test_slab_production_stamp_is_neutral_zero():
 
     Cartesian carries no angular redistribution (α ≡ 0, τ ≡ 1), so the
     identity closure stamps the neutral ``0.0`` — verified at 0-ULP via
-    the inline recompute (which also yields ``0.0`` for slab ``st``) AND
-    an explicit ``== 0.0`` so a non-zero leak reds.
+    the inline recompute (which also yields ``0.0`` for slab) AND an
+    explicit ``== 0.0`` so a non-zero leak reds.
     """
     mesh = Mesh1D(
         edges=np.linspace(0.0, 1.0, 6),
@@ -196,12 +220,14 @@ def test_slab_production_stamp_is_neutral_zero():
     )
     quad = Quadrature.gauss_legendre(4)
     sn_mesh = SNMesh(mesh, quad, placeholder_materials())
+    op = slab_streaming(mesh, quad)
 
     n_visits = 0
     for n in range(quad.N):
         for visit in sn_mesh.dag_walk(ordinate_idx=n):
             _assert_visit_stamp_matches_inline(
-                visit, where=f"slab ordinate {n} cell {visit.cell_idx}",
+                visit, op, n,
+                where=f"slab ordinate {n} cell {visit.cell_idx}",
             )
             np.testing.assert_array_equal(
                 np.asarray([visit.c_in, visit.c_out]),

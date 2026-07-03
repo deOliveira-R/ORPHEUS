@@ -38,6 +38,7 @@ from orpheus.sn.spatial.scheme import (
     CellVisit,
     UpstreamState,
 )
+from tests.sn.sweep.core._c_surrogate import mm_constants_for_ordinate
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -123,7 +124,7 @@ class FakeCurvilinearStrategy:
     """Synthetic strategy that asserts a curvilinear-shaped input arrives.
 
     Verifies the shape contract:
-    ``visit.streaming_terms.alpha_in is not None``,
+    ``visit.streaming_terms.delta_A_over_w is not None``,
     ``upstream_state.angular_upstream.shape == (ng,)``.  Returns
     ``CellResult`` with all three fields populated (shape ``(ng,)``).
     """
@@ -152,16 +153,17 @@ class FakeCurvilinearStrategy:
         upstream_state: UpstreamState,
     ) -> CellResult:
         st = visit.streaming_terms
-        # Curvilinear shape check
-        assert st.alpha_in is not None, (
+        # Curvilinear shape check.  Issue #236 Step C: the M-M τ / α packing
+        # on StreamingTerms was retired; the angular weight τ is now read off
+        # the CellVisit (closure-owned).  The curvilinear-shape discriminator
+        # is the surviving geometry redistribution factor.
+        assert st.delta_A_over_w is not None, (
             "FakeCurvilinearStrategy expects curvilinear streaming terms "
-            "(alpha_in must be populated)."
+            "(delta_A_over_w must be populated)."
         )
-        assert st.alpha_out is not None
-        assert st.delta_A_over_w is not None
         assert st.face_area_inner is not None
         assert st.face_area_outer is not None
-        assert st.tau_mm is not None
+        assert visit.tau is not None
         assert st.volume is not None
         assert st.abs_mu is not None
         # Curvilinear non-degenerate visits carry a positive
@@ -181,7 +183,7 @@ class FakeCurvilinearStrategy:
         # CellResult that exercises every output channel.
         avg = source / total_xs
         out_spatial = 2.0 * avg - upstream_state.spatial_upstream
-        tau = st.tau_mm
+        tau = visit.tau
         out_angular = (
             avg - (1.0 - tau) * upstream_state.angular_upstream
         ) / tau
@@ -380,13 +382,17 @@ class TestDataclassImmutability:
 class TestSlabVsCurvilinearDiscrimination:
     """Geometry-as-data — slab carries neutral curvature (Issue #196 Step 2.5).
 
-    Pre-Step-2.5 the protocol's strategies branched on ``alpha_in is
-    None`` to discriminate slab from curvilinear.  Step 2.5 retires
-    that branch: slab populates neutral values
-    (``alpha_in = alpha_out = 0``, ``tau_mm = 1``,
-    ``delta_A_over_w = 0``, ``face_area_inner = face_area_outer = 1``)
-    so the unified cell-balance helper consumes one packet for all
-    geometries.  This test pins the neutral-value contract.
+    Pre-Step-2.5 the protocol's strategies branched on ``delta_A_over_w
+    is None`` to discriminate slab from curvilinear.  Step 2.5 retires
+    that branch: slab populates neutral values (``delta_A_over_w = 0``,
+    ``face_area_inner = face_area_outer = 1``) so the unified
+    cell-balance helper consumes one packet for all geometries.  This
+    test pins the neutral-value contract.
+
+    Issue #236 Step C: the M-M ``alpha_in`` / ``alpha_out`` / ``tau_mm``
+    packing on ``StreamingTerms`` was retired (the angular weight is now
+    closure-owned, stamped on ``CellVisit``); the surviving neutral
+    geometry fields are pinned here.
     """
 
     @pytest.mark.foundation
@@ -395,23 +401,19 @@ class TestSlabVsCurvilinearDiscrimination:
         quad = Quadrature.gauss_legendre(8)
         op = slab_streaming(mesh, quad)
         st = op.streaming_terms(cell_idx=0, direction_idx=0)
-        assert st.alpha_in == 0.0
-        assert st.alpha_out == 0.0
         assert st.delta_A_over_w == 0.0
-        assert st.tau_mm == 1.0
         assert st.face_area_inner == 1.0
         assert st.face_area_outer == 1.0
 
     @pytest.mark.foundation
-    def test_spherical_streaming_terms_have_alpha_in(self):
+    def test_spherical_streaming_terms_have_curvature(self):
         mesh = _spherical_mesh()
         quad = Quadrature.gauss_legendre(8)
         op = spherical_streaming(mesh, quad)
         st = op.streaming_terms(cell_idx=0, direction_idx=0)
-        assert st.alpha_in is not None
-        assert st.alpha_out is not None
         assert st.delta_A_over_w is not None
-        assert st.tau_mm is not None
+        assert st.face_area_inner is not None
+        assert st.face_area_outer is not None
 
 
 class TestCurvilinearStrategyDriven:
@@ -425,11 +427,15 @@ class TestCurvilinearStrategyDriven:
         n = 4  # μ > 0 (outward sweep) for GL with n_half=4
         st = op.streaming_terms(cell_idx=2, direction_idx=n)
         # Wrap into a CellVisit packet with sweep-direction-resolved
-        # downstream face area (outward → outer face).
+        # downstream face area (outward → outer face).  Issue #236 Step C:
+        # the angular weight τ is stamped on the visit (closure-owned); the
+        # fake strategy reads visit.tau, so stamp the independent surrogate τ.
+        tau, _, _ = mm_constants_for_ordinate(op, 2, n)
         visit = CellVisit(
             cell_idx=2,
             streaming_terms=st,
             face_area_downstream=st.face_area_outer,
+            tau=tau,
         )
         ng = 3
         total_xs = np.full(ng, 1.5)

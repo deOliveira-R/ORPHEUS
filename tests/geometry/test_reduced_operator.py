@@ -111,11 +111,12 @@ class TestHashEqualitySpherical:
         assert reduced.redist_dAw is not None
         assert np.array_equal(reduced.redist_dAw, sn_mesh.reduced.redist_dAw)
 
-    @pytest.mark.foundation
-    def test_tau_mm_bit_identical(self, pair):
-        sn_mesh, reduced = pair
-        assert reduced.tau_mm is not None
-        assert np.array_equal(reduced.tau_mm, sn_mesh.reduced.tau_mm)
+    # Issue #236 Step C: the geometry-side tau_mm producer was retired (the
+    # M-M angular weight is now closure-owned).  ``test_tau_mm_bit_identical``
+    # (geometry-vs-geometry τ bit-identity) is subsumed by the closure
+    # producer-equivalence floor at
+    # ``tests/sn/sweep/curvilinear/test_tau_producer_equivalence.py`` (closure
+    # τ vs the structurally-independent contamination.morel_montry_weights).
 
     @pytest.mark.foundation
     @pytest.mark.parametrize("N", [4, 8, 16, 32])
@@ -126,7 +127,6 @@ class TestHashEqualitySpherical:
         sn_mesh = SNMesh(mesh, quad, placeholder_materials())
         reduced = spherical_streaming(mesh, quad)
         assert np.array_equal(reduced.alpha_half, sn_mesh.reduced.alpha_half)
-        assert np.array_equal(reduced.tau_mm, sn_mesh.reduced.tau_mm)
         assert np.array_equal(reduced.redist_dAw, sn_mesh.reduced.redist_dAw)
 
 
@@ -170,14 +170,10 @@ class TestHashEqualityCylindrical:
         ):
             assert np.array_equal(rdc, snm), f"level {lvl} mismatch"
 
-    @pytest.mark.foundation
-    def test_tau_mm_per_level_bit_identical(self, pair):
-        sn_mesh, reduced = pair
-        assert reduced.tau_mm_per_level is not None
-        for lvl, (rdc, snm) in enumerate(
-            zip(reduced.tau_mm_per_level, sn_mesh.reduced.tau_mm_per_level)
-        ):
-            assert np.array_equal(rdc, snm), f"level {lvl} mismatch"
+    # Issue #236 Step C: ``test_tau_mm_per_level_bit_identical`` retired —
+    # the geometry-side cylinder τ producer was deleted; the closure τ
+    # producer-equivalence floor (``test_tau_producer_equivalence.py``) is
+    # the structurally-independent successor.
 
     @pytest.mark.foundation
     @pytest.mark.parametrize("n_mu,n_phi", [(2, 4), (4, 4), (4, 8)])
@@ -193,10 +189,6 @@ class TestHashEqualityCylindrical:
             assert np.array_equal(rdc, snm)
         for rdc, snm in zip(
             reduced.redist_dAw_per_level, sn_mesh.reduced.redist_dAw_per_level
-        ):
-            assert np.array_equal(rdc, snm)
-        for rdc, snm in zip(
-            reduced.tau_mm_per_level, sn_mesh.reduced.tau_mm_per_level
         ):
             assert np.array_equal(rdc, snm)
 
@@ -226,10 +218,8 @@ class TestProperties:
         assert op.delta_A is None
         assert op.alpha_half is None
         assert op.redist_dAw is None
-        assert op.tau_mm is None
         assert op.alpha_per_level is None
         assert op.redist_dAw_per_level is None
-        assert op.tau_mm_per_level is None
 
     @pytest.mark.foundation
     def test_sphere_requires_upstream(self):
@@ -262,14 +252,15 @@ class TestStreamingTermsExtraction:
         """Slab carries neutral curvature values (Issue #196 Step 2.5).
 
         Pre-Step-2.5 the curvature fields were ``None`` and the
-        cell-update strategies branched on ``alpha_in is None``.
+        cell-update strategies branched on ``delta_A_over_w is None``.
         Step 2.5 retires that branch by populating neutral values:
         ``face_area_inner = face_area_outer = 1.0``,
-        ``delta_A_over_w = 0.0``, ``alpha_in = alpha_out = 0.0``,
-        ``tau_mm = 1.0`` (synthetic neutral element of the M-M
-        closure — slab has no half-angles).  These values make the
-        unified cell-balance helper consume the same packet for
-        slab and curvilinear without geometry dispatch.
+        ``delta_A_over_w = 0.0``.  These values make the unified
+        cell-balance helper consume the same packet for slab and
+        curvilinear without geometry dispatch.  (Issue #236 Step C
+        retired the M-M ``alpha_in`` / ``alpha_out`` / ``tau_mm``
+        packing on ``StreamingTerms`` — the angular weight is now
+        closure-owned, stamped on ``CellVisit``.)
         """
         mesh = _slab_mesh()
         quad = Quadrature.gauss_legendre(8)
@@ -283,9 +274,6 @@ class TestStreamingTermsExtraction:
         assert st.face_area_inner == 1.0
         assert st.face_area_outer == 1.0
         assert st.delta_A_over_w == 0.0
-        assert st.alpha_in == 0.0
-        assert st.alpha_out == 0.0
-        assert st.tau_mm == 1.0
 
     @pytest.mark.foundation
     def test_sphere_streaming_terms_match_arrays(self):
@@ -300,9 +288,6 @@ class TestStreamingTermsExtraction:
         assert st.face_area_inner == float(op.face_areas[i])
         assert st.face_area_outer == float(op.face_areas[i + 1])
         assert st.delta_A_over_w == float(op.redist_dAw[i, n])
-        assert st.alpha_in == float(op.alpha_half[n])
-        assert st.alpha_out == float(op.alpha_half[n + 1])
-        assert st.tau_mm == float(op.tau_mm[n])
         # Sphere also exposes signed mu (global ordinate index == n).
         assert st.mu == float(quad.mu_x[n])
 
@@ -323,9 +308,6 @@ class TestStreamingTermsExtraction:
         assert st.delta_A_over_w == float(
             op.redist_dAw_per_level[level][i, m]
         )
-        assert st.alpha_in == float(op.alpha_per_level[level][m])
-        assert st.alpha_out == float(op.alpha_per_level[level][m + 1])
-        assert st.tau_mm == float(op.tau_mm_per_level[level][m])
         # Cylinder mu is signed eta from the GLOBAL ordinate index
         # (resolved via level_indices) — bug 2 fix anchor.
         global_n = int(quad.level_indices[level][m])
@@ -415,20 +397,19 @@ class TestStreamingTermsVolumeAndAbsMu:
     def test_existing_curvilinear_fields_unchanged(self):
         """Anchor: extending StreamingTerms didn't drift the existing fields.
 
-        Re-checks that ``alpha_in``, ``alpha_out``, ``delta_A_over_w``,
-        ``tau_mm`` still match the underlying arrays after the
-        ``volume`` / ``abs_mu`` extension.  Defense against accidental
-        reordering or drift.
+        Re-checks that ``delta_A_over_w`` still matches the underlying
+        array after the ``volume`` / ``abs_mu`` extension.  Defense
+        against accidental reordering or drift.  (Issue #236 Step C
+        retired the M-M ``alpha_in`` / ``alpha_out`` / ``tau_mm``
+        packing on ``StreamingTerms`` — the angular weight is now
+        closure-owned, stamped on ``CellVisit``.)
         """
         mesh = _spherical_mesh()
         quad = Quadrature.gauss_legendre(8)
         op = spherical_streaming(mesh, quad)
         i, n = 1, 5
         st = op.streaming_terms(cell_idx=i, direction_idx=n)
-        assert st.alpha_in == float(op.alpha_half[n])
-        assert st.alpha_out == float(op.alpha_half[n + 1])
         assert st.delta_A_over_w == float(op.redist_dAw[i, n])
-        assert st.tau_mm == float(op.tau_mm[n])
 
 
 # ═══════════════════════════════════════════════════════════════════════
