@@ -70,17 +70,17 @@ def uo2_creep_rate(sig: np.ndarray, T: np.ndarray) -> np.ndarray:
 # Gap gases
 # ---------------------------------------------------------------------------
 
-def k_He(T: np.ndarray) -> np.ndarray:
+def k_He(T: float | np.ndarray) -> np.ndarray:
     """He thermal conductivity (W/m-K)."""
     return 2.639e-3 * np.asarray(T, dtype=float)**0.7085
 
 
-def k_Xe(T: np.ndarray) -> np.ndarray:
+def k_Xe(T: float | np.ndarray) -> np.ndarray:
     """Xe thermal conductivity (W/m-K)."""
     return 4.351e-5 * np.asarray(T, dtype=float)**0.8616
 
 
-def k_Kr(T: np.ndarray) -> np.ndarray:
+def k_Kr(T: float | np.ndarray) -> np.ndarray:
     """Kr thermal conductivity (W/m-K)."""
     return 8.247e-5 * np.asarray(T, dtype=float)**0.8363
 

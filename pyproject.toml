@@ -104,17 +104,17 @@ venv = ".venv"
 # pin pyright infers 3.13 from requires-python's lower bound, but pinning
 # makes the two-param-split (#65) target explicit and stable.
 pythonVersion = "3.13"
-# #226 burn-down focus (2026-07-01): only numerics + sn + transport emit
-# diagnostics — the active SN development chain (sn/transport are the work,
-# numerics is the shared machinery they build on). Every other subpackage is
-# silenced: analysis still runs (so imports into the focus set stay fully
-# typed) — only the ignored files' OWN diagnostics are suppressed. Unset
-# entries one folder at a time as each is cleaned, then re-baseline the
-# ratchet so it stays taut:
+# #226 burn-down, Level 1 (2026-07-02): the MINIMAL PRODUCTION ARCHITECTURE —
+# data, geometry, numerics, transport, sn, homogeneous — emits diagnostics and
+# is ratcheted toward zero. Every other subpackage is silenced: analysis still
+# runs (so imports into the focus set stay fully typed) — only the ignored
+# files' OWN diagnostics are suppressed. Level 2 lifts the remaining entries
+# one at a time as each is cleaned, re-baselining the ratchet so it stays taut:
 #   python -m tests._harness.pyright_ratchet --update
+# thermal_hydraulics + kinetics stay silenced until their fate is decided
+# (possible split out of ORPHEUS into a separate repo).
 ignore = [
     "orpheus/cp",
-    "orpheus/data",
     "orpheus/derivations",
     "orpheus/diffusion",
     "orpheus/fuel",

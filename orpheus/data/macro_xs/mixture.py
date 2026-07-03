@@ -476,21 +476,29 @@ def compute_macro_xs(
     SigL = sigL.T @ aDen
     SigF = sigF.T @ aDen
 
-    # Production XS: only from fissile isotopes
+    # Production XS: only from fissile isotopes. The start value is the
+    # empty-sum identity (zero production for a non-fissile mixture).
     if fissile_indices is None:
         fissile_indices = [i for i, iso in enumerate(isotopes) if iso.is_fissile]
     SigP = sum(
-        isotopes[i].nubar * sigF[i] * aDen[i] for i in fissile_indices
-    ) if fissile_indices else np.zeros(NG)
+        (isotopes[i].nubar * sigF[i] * aDen[i] for i in fissile_indices),
+        start=np.zeros(NG),
+    )
 
     # Scattering matrices
-    SigS = []
-    for j in range(n_legendre):
-        mat = sum(sigS_list[j][i] * aDen[i] for i in range(n_iso))
-        SigS.append(mat)
+    SigS = [
+        sum(
+            (sigS_list[j][i] * aDen[i] for i in range(n_iso)),
+            start=csr_matrix((NG, NG)),
+        )
+        for j in range(n_legendre)
+    ]
 
     # (n,2n) matrix
-    Sig2 = sum(iso.sig2 * aDen[i] for i, iso in enumerate(isotopes))
+    Sig2 = sum(
+        (iso.sig2 * aDen[i] for i, iso in enumerate(isotopes)),
+        start=csr_matrix((NG, NG)),
+    )
 
     # Total XS
     SigT = SigC + SigL + SigF + np.array(SigS[0].sum(axis=1)).ravel() + np.array(Sig2.sum(axis=1)).ravel()
