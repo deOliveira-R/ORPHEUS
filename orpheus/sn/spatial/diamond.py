@@ -197,11 +197,18 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         "The unified body" for the three structural observations.
         """
         # ── Cell-balance solve: ONE formula, all geometries ─────────
+        # Issue #236 Phase 2 B3: the Morel--Montry constants c_in / c_out
+        # are angular-closure-owned and arrive as DATA on the visit (stamped
+        # by SNMesh._make_cell_visit from the closure's c_{in,out}_per_ordinate
+        # accessors); cell_balance_terms consumes them instead of rebuilding
+        # them from st.alpha_* / st.tau_mm.
         terms = cell_balance_terms(
             visit.streaming_terms,
             visit.face_area_downstream,
             total_xs,
             upstream_state,
+            c_in=visit.c_in,
+            c_out=visit.c_out,
         )
         psi_avg = (source + terms.numer_upstream) / terms.denom
 
@@ -225,9 +232,17 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         # propagate (slab: upstream_state.angular_upstream is None).
         # Sphere / cylinder share the closure formula
         # ``ψ^a_out = (ψ_avg − (1−τ)·ψ^a_in)/τ`` exactly.
+        #
+        # Issue #236 Phase 2 B3: τ is the angular-closure-owned weight,
+        # sourced off the visit (CellVisit.tau, stamped by
+        # SNMesh._make_cell_visit from the closure's tau_per_ordinate) —
+        # matching the c_in / c_out provenance above.  DD no longer reads
+        # the geometry-owned streaming_terms.tau_mm (which Step C retires);
+        # the closure's τ is 0-ULP equal to it (Leg-1 producer-equivalence
+        # gate), so this recurrence is bit-identical.
         psi_angle_out: np.ndarray | None = None
         if upstream_state.angular_upstream is not None:
-            tau = visit.streaming_terms.tau_mm
+            tau = visit.tau
             psi_angle_out = (
                 psi_avg - (1.0 - tau) * upstream_state.angular_upstream
             ) / tau
@@ -292,19 +307,21 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         # The closure now owns the M-M algebra and produces the
         # ``(angular_denom_term, angular_numer_upstream)`` contributions.
         #
-        # DD.residual reads the M-M coefficients directly from
-        # ``StreamingTerms`` (carried on the CellVisit), computes the
-        # contributions inline, and passes them to the helper.  This
-        # in-line computation is a Phase 6 cleanup target — the sweep
-        # route will route through ``closure.cell_contribution(...)``
-        # like the matvec does (Pattern 2: ONE strategy contract for
-        # the angular contribution, two consumers).  For Phase 2.11
-        # the inline path stays so we don't risk the sweep before the
-        # matvec is verified.
+        # Issue #236 Phase 2 B2: the weighted-diamond constants
+        # ``c_in`` / ``c_out`` are angular-closure-owned and arrive as
+        # DATA on the :class:`CellVisit` (sourced by
+        # :meth:`SNMesh._make_cell_visit` from the closure's
+        # ``c_{in,out}_per_ordinate`` accessors).  DD no longer rebuilds
+        # them from ``st.alpha_*`` / ``st.tau_mm`` — that inline formula
+        # (the former P2 duplication site) is retired.  DD stays
+        # geometry-blind AND closure-blind: it consumes the angular
+        # constants without seeing the closure object, preserving the
+        # spatial ⊗ angular separation.  The (ΔA/w)-scaling that follows
+        # is the geometry-owned redistribution factor; only the SOURCE
+        # of ``c`` moved, the assembly is byte-unchanged.
         dA_w_scalar = st.delta_A_over_w
-        tau = st.tau_mm
-        c_out_scalar = st.alpha_out / tau
-        c_in_scalar = (1.0 - tau) / tau * st.alpha_out + st.alpha_in
+        c_out_scalar = visit.c_out
+        c_in_scalar = visit.c_in
         angular_denom_term = np.array(
             [dA_w_scalar * c_out_scalar], dtype=float,
         )                                                # (1,)

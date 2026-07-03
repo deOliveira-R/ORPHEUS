@@ -479,6 +479,8 @@ def test_cache_populator_matches_cell_balance_terms() -> None:
                 visit.face_area_downstream,
                 sig_t[:, cell_i],                                          # (ng,)
                 upstream,
+                c_in=visit.c_in,                                          # stamped by dag_walk
+                c_out=visit.c_out,
             )
             # Cache layout (N, ng, nx) — fix n, fix k_chain ⇒ (ng,) vector.
             # Indexing pattern updated from [n, k_chain] (legacy axis 1 was

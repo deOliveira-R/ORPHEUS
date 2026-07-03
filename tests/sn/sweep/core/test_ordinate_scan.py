@@ -42,6 +42,7 @@ from orpheus.sn.spatial import DiamondDifference, UpstreamState
 from orpheus.sn.spatial.cell_balance import cell_balance_terms
 from orpheus.sn.spatial.scheme import CellVisit
 from orpheus.sn.spatial.scan import ordinate_scan
+from tests.sn.sweep.core._c_surrogate import c_from_streaming_terms
 
 
 def _affine_coefficients_from_visits(
@@ -80,11 +81,19 @@ def _affine_coefficients_from_visits(
                 None if angular_state is None else psi_ang
             ),
         )
+        # Issue #236 Phase 2 B3: cell_balance_terms consumes the angular-
+        # closure-owned c_in / c_out as data.  These test visits are built
+        # without a mesh/closure in scope, so stamp them via the shared
+        # hand-transcribed surrogate (the same constants the production
+        # closure would supply).
+        c_in_v, c_out_v = c_from_streaming_terms(visit.streaming_terms)
         terms = cell_balance_terms(
             visit.streaming_terms,
             visit.face_area_downstream,
             total_xs[idx],
             upstream,
+            c_in=c_in_v,
+            c_out=c_out_v,
         )
         st = visit.streaming_terms
         A_total = st.face_area_inner + st.face_area_outer
@@ -509,11 +518,16 @@ def _build_slab_visits_and_inputs(
     visits = []
     for i in range(nx):
         st = op.streaming_terms(cell_idx=i, direction_idx=direction_idx)
+        # Issue #236 Phase 2 B3: DD.update reads the M-M c_in / c_out off
+        # the visit; stamp them via the shared surrogate (slab → 0.0) so the
+        # per-cell update and the affine-coefficient builder agree.
+        c_in, c_out = c_from_streaming_terms(st)
         visits.append(
             CellVisit(
                 cell_idx=i,
                 streaming_terms=st,
                 face_area_downstream=1.0,
+                c_in=c_in, c_out=c_out,
             )
         )
     rng = np.random.default_rng(seed=seed)
@@ -539,11 +553,14 @@ def _build_sphere_visits_and_inputs(
     for i in cell_order:
         st = op.streaming_terms(cell_idx=i, direction_idx=direction_idx)
         A_down = st.face_area_outer if outward else st.face_area_inner
+        # Issue #236 Phase 2 B3: stamp the M-M c_in / c_out DD.update reads.
+        c_in, c_out = c_from_streaming_terms(st)
         visits.append(
             CellVisit(
                 cell_idx=i,
                 streaming_terms=st,
                 face_area_downstream=A_down,
+                c_in=c_in, c_out=c_out,
             )
         )
     rng = np.random.default_rng(seed=seed)
@@ -580,11 +597,14 @@ def _build_cylinder_visits_and_inputs(
             mu_level_idx=mu_level_idx,
         )
         A_down = st.face_area_outer if select_outer else st.face_area_inner
+        # Issue #236 Phase 2 B3: stamp the M-M c_in / c_out DD.update reads.
+        c_in, c_out = c_from_streaming_terms(st)
         visits.append(
             CellVisit(
                 cell_idx=i,
                 streaming_terms=st,
                 face_area_downstream=A_down,
+                c_in=c_in, c_out=c_out,
             )
         )
     rng = np.random.default_rng(seed=seed)

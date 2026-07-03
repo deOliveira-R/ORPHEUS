@@ -48,6 +48,12 @@ from orpheus.sn.spatial.cell_balance import (
 )
 from orpheus.sn.spatial.scheme import UpstreamState
 
+# Issue #236 Phase 2 B2 Fix 3 — the ONE shared hand-transcribed surrogate
+# for the M-M ``(c_in, c_out)`` constants (was a private byte-identical
+# copy ``_visit_c`` here; unified with ``test_diamond.py`` and the
+# production-stamp catcher).
+from tests.sn.sweep.core._c_surrogate import c_from_streaming_terms
+
 # Per-cell streaming-balance algebra: structural invariants of the
 # cell_balance_for_streaming primitive (no theory-page :label:).
 # Foundation, not a physics equation gate. (Was a V&V orphan before
@@ -148,7 +154,12 @@ def test_n_mask_1_matches_scalar_curvilinear():
         angular_upstream=np.array([0.4, 0.6]),
     )
 
-    terms = cell_balance_terms(st, A_downstream, total_xs, upstream)
+    # Issue #236 Phase 2 B3: cell_balance_terms takes c_in / c_out as data;
+    # supply them from the shared surrogate (this test has a raw st, no visit).
+    c_in_v, c_out_v = c_from_streaming_terms(st)
+    terms = cell_balance_terms(
+        st, A_downstream, total_xs, upstream, c_in=c_in_v, c_out=c_out_v,
+    )
 
     (
         abs_mu, A_down, A_total, psi_face_in,
@@ -184,7 +195,11 @@ def test_n_mask_1_matches_scalar_slab():
         angular_upstream=None,
     )
 
-    terms = cell_balance_terms(st, A_downstream, total_xs, upstream)
+    # Issue #236 Phase 2 B3: slab carries neutral α=0 / τ=1 ⇒ c_in = c_out = 0.
+    c_in_v, c_out_v = c_from_streaming_terms(st)
+    terms = cell_balance_terms(
+        st, A_downstream, total_xs, upstream, c_in=c_in_v, c_out=c_out_v,
+    )
 
     (
         abs_mu, A_down, A_total, psi_face_in,
@@ -414,8 +429,10 @@ def test_diamond_residual_consumes_cell_balance_for_streaming(
     from orpheus.sn.spatial.diamond import DiamondDifference
 
     st = st_factory()
+    c_in, c_out = c_from_streaming_terms(st)
     visit = CellVisit(
         cell_idx=7, streaming_terms=st, face_area_downstream=A_down,
+        c_in=c_in, c_out=c_out,
     )
     total_xs = np.array([1.2, 0.8])
     source = np.array([0.05, 0.07])
@@ -452,8 +469,10 @@ def test_diamond_residual_round_trip_at_converged_cell_avg():
     from orpheus.sn.spatial.diamond import DiamondDifference
 
     st = _curvilinear_streaming_terms()
+    c_in, c_out = c_from_streaming_terms(st)
     visit = CellVisit(
         cell_idx=3, streaming_terms=st, face_area_downstream=1.5,
+        c_in=c_in, c_out=c_out,
     )
     total_xs = np.array([1.2, 0.8])
     source = np.array([0.05, 0.07])

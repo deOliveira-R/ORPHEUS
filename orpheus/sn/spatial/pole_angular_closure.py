@@ -272,7 +272,45 @@ class PoleAngularClosure(Protocol):
     asymptotic cost as the legacy inlined redistribution evaluation.
     """
 
-    is_linear: bool
+    is_linear: ClassVar[bool]
+
+    @property
+    def c_in_per_ordinate(self) -> np.ndarray:
+        r"""Upstream-numerator closure constant :math:`c_{\rm in}`, ``(N,)`` global.
+
+        Issue #236 Phase 2 — the angular closure is the canonical owner of the
+        weighted-diamond constants
+        :math:`c_{\rm in} = (1-\tau)/\tau\,\alpha_{m+1/2} + \alpha_{m-1/2}`.
+        Consumers keyed on the global ordinate axis (the
+        :class:`~orpheus.sn.spatial.sweep_cache.GeometryCoefficients` populator,
+        the matvec) read this ``(N,)`` view rather than rebuilding the formula.
+        Zero for the Cartesian identity closure (no angular redistribution).
+        """
+        ...
+
+    @property
+    def c_out_per_ordinate(self) -> np.ndarray:
+        r"""Denominator closure constant :math:`c_{\rm out}`, ``(N,)`` global.
+
+        :math:`c_{\rm out} = \alpha_{m+1/2}/\tau`; zero for the Cartesian
+        identity closure.  See :attr:`c_in_per_ordinate`.
+        """
+        ...
+
+    @property
+    def tau_per_ordinate(self) -> np.ndarray:
+        r"""Morel--Montry angular weight :math:`\tau`, ``(N,)`` global.
+
+        Issue #236 Phase 2 B3 — the FUNDAMENTAL angular weight the closure
+        owns (Bailey--Morel--Chang 2010 Eq. 43), from which
+        :attr:`c_out_per_ordinate` / :attr:`c_in_per_ordinate` are derived.
+        The live sweep + scan paths consume THIS τ (via
+        :attr:`~orpheus.sn.spatial.scheme.CellVisit.tau` and the
+        ``GeometryCoefficients`` ``tau_inv`` / ``mm_a_in_coeff`` split) rather
+        than the geometry factory's ``StreamingTerms.tau_mm``.  ``1.0`` for the
+        Cartesian identity closure (the neutral M-M weight).
+        """
+        ...
 
     def __call__(
         self,
@@ -325,6 +363,45 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
 
     is_linear: ClassVar[bool]
 
+    # ── Instance state set by every concrete subclass' ``__init__`` ──
+    # The per-:math:`\mu`-level ordinate partition and the precomputed
+    # closure constants.  Annotated here (not assigned) so the polymorphic
+    # ``c_in_per_ordinate`` / ``c_out_per_ordinate`` accessors below typecheck
+    # against the shared contract; the concrete value is bound in each
+    # subclass (M-M from its α-dome / τ, Identity to neutral zeros).
+    level_indices: "tuple[np.ndarray, ...] | None"
+    _c_in_per_level: "tuple[np.ndarray, ...] | None"
+    _c_out_per_level: "tuple[np.ndarray, ...] | None"
+    # The Morel--Montry angular weight ``τ`` per μ-level (Issue #236 Phase 2):
+    # the FUNDAMENTAL angular weight the closure owns, from which the two c
+    # constants above are derived.  Annotated here so the polymorphic
+    # ``tau_per_ordinate`` accessor below typechecks against the shared
+    # contract; bound by every concrete ``__init__`` (M-M from
+    # ``morel_montry_tau_per_level``, Identity to the neutral ``τ ≡ 1``).
+    _tau_per_level: "tuple[np.ndarray, ...] | None"
+    # Cached ``(N,)`` global-ordinate gathers of the per-level constants
+    # (Issue #236 Phase 2 B2 Fix 1).  The per-level→global gather is a pure
+    # permutation of the immutable ``_c_*_per_level`` / ``_tau_per_level``, so
+    # it is computed ONCE in each concrete ``__init__`` (via
+    # ``_build_per_ordinate_cache``) and
+    # the public ``c_*_per_ordinate`` accessors return the cache — O(1) per
+    # access instead of re-running the ``(N,)`` gather on every read (the
+    # per-visit ``_make_cell_visit`` stamp would otherwise be O(N²·nx)).
+    # ``None`` in the unbound legacy mode (``_c_*_per_level is None``).
+    _c_in_per_ordinate_cache: "np.ndarray | None"
+    _c_out_per_ordinate_cache: "np.ndarray | None"
+    # Cached ``(N,)`` global-ordinate gather of the per-level Morel--Montry
+    # angular weight ``τ`` (Issue #236 Phase 2 B3).  τ is the FUNDAMENTAL
+    # angular weight from which ``c_out = α_out/τ`` and
+    # ``c_in = (1−τ)/τ·α_out + α_in`` are derived; the live sweep
+    # (``DiamondDifference.update``) and the CumprodScan fast path consume τ
+    # (the closure's owned weight) rather than the geometry factory's
+    # ``StreamingTerms.tau_mm``.  Same caching rationale as the c-caches: the
+    # per-level→global gather is a pure permutation, computed ONCE in each
+    # concrete ``__init__`` (via ``_build_per_ordinate_cache``).  ``None`` in
+    # the unbound legacy mode (``_tau_per_level is None``).
+    _tau_per_ordinate_cache: "np.ndarray | None"
+
     beta_first_order_consistent: ClassVar[bool] = False
     r"""Whether this angular redistribution closure satisfies the
     Bailey–Morel–Chang (2010) first-order diffusion-limit condition
@@ -345,6 +422,152 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
     def _registry_base(cls) -> type:
         return PoleAngularClosureBase
 
+    # ── Angular-closure constants per global ordinate (Issue #236 Phase 2) ──
+    # The Morel–Montry weighted-diamond closure derives two algebraic
+    # constants per μ-level from its α-dome and τ weight:
+    #
+    #   c_out[m] = α_{m+1/2} / τ_m
+    #   c_in[m]  = (1−τ_m)/τ_m · α_{m+1/2} + α_{m−1/2}
+    #
+    # The closure is their CANONICAL owner — it computes them once at
+    # construction (per μ-level, ``(M_p,)`` arrays) from the very α and τ it
+    # already binds.  Consumers that key on the GLOBAL ordinate axis (the
+    # :class:`~orpheus.sn.spatial.sweep_cache.GeometryCoefficients` populator,
+    # the matvec) read the gathered ``(N,)`` views below instead of rebuilding
+    # the same scalar formula at their own site (Cardinal Rule 2 single source
+    # of truth; coding-elegance Pattern 7 — normalise at the definition site).
+    #
+    # The Cartesian :class:`IdentityAngularClosure` returns the NEUTRAL zero
+    # contribution (α ≡ 0, τ ≡ 1 ⇒ c_in = c_out = 0) — the same zeros a slab
+    # consumer would otherwise inline — so the consumer stays geometry-blind.
+
+    def _gather_per_ordinate(
+        self, per_level: "tuple[np.ndarray, ...]"
+    ) -> np.ndarray:
+        """Scatter per-:math:`\\mu`-level ``(M_p,)`` values to ``(N,)`` global order.
+
+        Pure permutation (no arithmetic) keyed on :attr:`level_indices` — the
+        per-level→global ordinate map the closure already owns.  Sphere is the
+        single-level (``M_p = N``) case; cylinder has one block per level.
+        """
+        level_indices = self.level_indices
+        if level_indices is None:
+            raise RuntimeError(
+                "c_*_per_ordinate requires a mesh-bound closure; the legacy "
+                "unbound MorelMontryAngularSweep(sn_mesh=None) has no level "
+                "partition."
+            )
+        N = sum(int(lvl.size) for lvl in level_indices)
+        # ``np.zeros`` (not ``np.empty``): the level partition fully covers
+        # [0, N) today so every slot is overwritten, but a future non-covering
+        # partition then yields a deterministic 0 rather than uninitialised
+        # garbage (elegance review, B1).
+        out = np.zeros(N, dtype=np.float64)
+        for level, values in zip(level_indices, per_level, strict=True):
+            out[level] = values
+        return out
+
+    def _build_per_ordinate_cache(self) -> None:
+        """Gather the three per-level constants to ``(N,)`` ONCE at construction.
+
+        Issue #236 Phase 2 B2 Fix 1 (L16) — every concrete mesh-bound
+        ``__init__`` calls this AFTER binding ``_c_in_per_level`` /
+        ``_c_out_per_level`` / ``_tau_per_level`` (and ``level_indices``).
+        The gather is a pure permutation of immutable per-level data, so
+        caching it makes the public accessors O(1).  The cached arrays are
+        marked READ-ONLY (``setflags(write=False)``) so a consumer that holds
+        a reference to the shared ``(N,)`` view (e.g. the
+        ``GeometryCoefficients`` populator) cannot corrupt the cache.
+
+        Issue #236 Phase 2 B3 adds the τ gather alongside the two c gathers:
+        the FUNDAMENTAL angular weight ``τ`` is the closure's owned primitive,
+        and the live sweep + scan paths consume it (instead of the geometry
+        factory's ``StreamingTerms.tau_mm``) via :attr:`tau_per_ordinate`.
+
+        Precondition: the per-level constants are bound (mesh-bound mode);
+        the unbound legacy path sets the caches to ``None`` directly and never
+        calls this (illegal-states-unrepresentable, Pattern 4).
+        """
+        if (
+            self._c_in_per_level is None
+            or self._c_out_per_level is None
+            or self._tau_per_level is None
+        ):
+            raise RuntimeError(
+                "_build_per_ordinate_cache requires bound per-level "
+                "constants; call only after binding _c_*_per_level and "
+                "_tau_per_level."
+            )
+        c_in_cache = self._gather_per_ordinate(self._c_in_per_level)
+        c_out_cache = self._gather_per_ordinate(self._c_out_per_level)
+        tau_cache = self._gather_per_ordinate(self._tau_per_level)
+        c_in_cache.setflags(write=False)
+        c_out_cache.setflags(write=False)
+        tau_cache.setflags(write=False)
+        self._c_in_per_ordinate_cache = c_in_cache
+        self._c_out_per_ordinate_cache = c_out_cache
+        self._tau_per_ordinate_cache = tau_cache
+
+    @property
+    def c_in_per_ordinate(self) -> np.ndarray:
+        r"""Upstream-numerator closure constant :math:`c_{\rm in}` per global ordinate.
+
+        ``(N,)`` array; :math:`(1-\tau_m)/\tau_m\,\alpha_{m+1/2} +
+        \alpha_{m-1/2}` for M-M, all-zero for the Cartesian identity closure.
+        Returns the read-only cache built once at construction (Fix 1, L16).
+        """
+        if self._c_in_per_ordinate_cache is None:
+            raise RuntimeError(
+                "c_in_per_ordinate requires a mesh-bound closure; the legacy "
+                "unbound MorelMontryAngularSweep(sn_mesh=None) has no "
+                "precomputed constants."
+            )
+        return self._c_in_per_ordinate_cache
+
+    @property
+    def c_out_per_ordinate(self) -> np.ndarray:
+        r"""Denominator closure constant :math:`c_{\rm out}` per global ordinate.
+
+        ``(N,)`` array; :math:`\alpha_{m+1/2}/\tau_m` for M-M, all-zero for the
+        Cartesian identity closure.  Returns the read-only cache built once at
+        construction (Fix 1, L16).
+        """
+        if self._c_out_per_ordinate_cache is None:
+            raise RuntimeError(
+                "c_out_per_ordinate requires a mesh-bound closure; the legacy "
+                "unbound MorelMontryAngularSweep(sn_mesh=None) has no "
+                "precomputed constants."
+            )
+        return self._c_out_per_ordinate_cache
+
+    @property
+    def tau_per_ordinate(self) -> np.ndarray:
+        r"""Morel--Montry angular weight :math:`\tau` per global ordinate.
+
+        ``(N,)`` array; the FUNDAMENTAL angular weight (Bailey--Morel--Chang
+        2010 Eq. 43) the closure owns.  The derived constants are
+        :math:`c_{\rm out} = \alpha_{m+1/2}/\tau_m` and
+        :math:`c_{\rm in} = (1-\tau_m)/\tau_m\,\alpha_{m+1/2} + \alpha_{m-1/2}`
+        (:attr:`c_out_per_ordinate` / :attr:`c_in_per_ordinate`).  ``1.0`` for
+        every ordinate of the Cartesian identity closure (the neutral M-M
+        weight: the recurrence :math:`(\bar\psi - (1-\tau)\psi_{\rm in})/\tau`
+        is then the identity).  Returns the read-only cache built once at
+        construction (Issue #236 Phase 2 B3).  Consumers (the live
+        :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update` angular
+        recurrence via :attr:`~orpheus.sn.spatial.scheme.CellVisit.tau`, and
+        the ``GeometryCoefficients`` populator's ``tau_inv`` / ``mm_a_in_coeff``
+        scan split) read THIS τ instead of the geometry factory's
+        ``StreamingTerms.tau_mm`` (bit-identical: the closure's τ is 0-ULP
+        equal to the factory's, pinned by the Leg-1 producer-equivalence gate).
+        """
+        if self._tau_per_ordinate_cache is None:
+            raise RuntimeError(
+                "tau_per_ordinate requires a mesh-bound closure; the legacy "
+                "unbound MorelMontryAngularSweep(sn_mesh=None) has no "
+                "precomputed constants."
+            )
+        return self._tau_per_ordinate_cache
+
     @abstractmethod
     def __call__(
         self,
@@ -356,6 +579,74 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
         level_indices: "list[np.ndarray] | None" = None,
         carlson_context: "CarlsonSweepContext | list[CarlsonSweepContext] | None" = None,
     ) -> np.ndarray:
+        ...
+
+    # ── Matvec strategy contract (Issue #236 Phase 2 B2 — ABC completion) ──
+    #
+    # The unified SN matvec (``loss_representation.py``) reads
+    # ``sn_mesh.pole_angular_closure`` typed against THIS ABC and drives the
+    # angular path through these three methods.  Declaring them abstract here
+    # makes the ABC the COMPLETE strategy contract — exactly as
+    # :class:`~orpheus.sn.spatial.scheme.DiscretizationSchemeBase` declares
+    # ``update`` / ``residual`` abstract so ``mesh.scheme`` consumers (typed
+    # against that ABC) see the full contract.  Without these declarations the
+    # matvec tripped pyright on "unknown attribute for PoleAngularClosureBase"
+    # despite every concrete closure implementing them.  Return types are
+    # deliberately loose (``object`` for the per-level half-grid state) so the
+    # two concrete realizations vary: M-M returns a per-level ``_MMHalfGrid``
+    # tuple from :meth:`precompute_psi_state` (Identity returns ``None`` — no
+    # curvature grid), while both honour the ``(denom, upstream_numer)`` /
+    # adjoint array-pair shapes.
+
+    @abstractmethod
+    def precompute_psi_state(
+        self,
+        psi_view: np.ndarray,
+        *,
+        sigma_t: np.ndarray,
+        bc_outer_inflow_estimate: np.ndarray,
+    ) -> object:
+        r"""Precompute per-level closure state for one matvec pass.
+
+        Returns opaque per-level state (M-M: a ``_MMHalfGrid`` tuple of
+        Carlson-seeded half-angle grids; Identity: ``None``) that
+        :meth:`cell_contribution` consumes.  See the concrete overrides.
+        (The Cartesian identity closure widens ``sigma_t`` /
+        ``bc_outer_inflow_estimate`` to optional — a contravariant-safe
+        param widening — since it ignores both.)
+        """
+        ...
+
+    @abstractmethod
+    def cell_contribution(
+        self,
+        psi_state: Any,
+        cell_idx: int,
+        level_idx: int,
+        within_positions: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""Per-cell angular contribution to the cell-balance terms.
+
+        Returns ``(denom_term, upstream_numer_term)`` — the closure's
+        additions to the cell-balance denominator (``(ΔA/w)·c_out``) and
+        upstream numerator (``(ΔA/w)·c_in·ψ_{m-1/2}``).  Zero arrays for
+        the Cartesian identity closure.
+        """
+        ...
+
+    @abstractmethod
+    def angular_adjoint(
+        self,
+        numer_bar: "tuple[np.ndarray, ...]",
+        *,
+        sigma_t: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        r"""Reverse-mode adjoint of the matvec angular coupling (Wave O O.2b).
+
+        Returns the bulk and outer-trace cotangents of the forward angular
+        path.  Zero arrays for the Cartesian identity closure (no curvature
+        coupling).  See :meth:`MorelMontryAngularSweep.angular_adjoint`.
+        """
         ...
 
 
@@ -486,6 +777,118 @@ class _MMHalfGrid:
         ``downstream(m) == upstream(m+1)`` for ``m < M-1``.
         """
         return self.faces[:, m + 1, :]
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Morel–Montry τ producer — the ANGULAR-scheme weight, owned by the closure
+# ═══════════════════════════════════════════════════════════════════════
+#
+# Issue #236 Phase 2 (Step A): τ — the Morel–Montry / weighted-diamond
+# angular weight, BMC 2010 Eq. 43 — is a function of the quadrature
+# ``(μ, w, levels)`` ALONE.  It is an ANGULAR-scheme property, so the
+# angular closure PRODUCES it here from the ``quad`` it already binds,
+# rather than reading it back from the streaming-GEOMETRY factory
+# (``reduced_operator.py``).  The arithmetic below is a line-for-line
+# replica of the factory's two producers (``spherical_streaming``
+# :λ681-688 and ``cylindrical_streaming`` :λ798-815), reproduced EXACTLY
+# (accumulation order, the cylinder clamp, the ½ degeneracy fallback) so
+# the closure-produced τ is 0-ULP equal to the value the geometry factory
+# bakes for the sweep path (the Leg-1 producer-equivalence gate pins this).
+#
+# STRUCTURAL INDEPENDENCE (vv-principles L11): this is the closure's OWN
+# code, NOT a call into ``contamination.morel_montry_weights`` — that
+# function is the VERIFICATION reference for the Leg-1 cross-check, and
+# using it in production would collapse the cross-check into a tautology
+# (reference contamination).  The closure replicates the factory directly.
+
+
+def morel_montry_tau_per_level(
+    quad: Any,
+    coord: CoordSystem,
+) -> tuple[np.ndarray, ...]:
+    r"""Produce the Morel–Montry angular weight :math:`\tau` per μ-level.
+
+    :math:`\tau_m = (\mu_m - \mu_{m-1/2})/(\mu_{m+1/2} - \mu_{m-1/2})`
+    (Bailey–Morel–Chang 2010 Eq. 43) — the UNIQUE weight exact for a
+    flux linear in :math:`\mu`.  This is a property of the angular
+    quadrature only; it is produced HERE on the angular closure rather
+    than on the streaming-geometry factory (Issue #236 Phase 2).
+
+    Parameters
+    ----------
+    quad :
+        Quadrature exposing ``mu_x`` (radial cosine / η), ``weights``,
+        ``mu_z`` (axial cosine, cylinder only), and ``level_indices``
+        (cylinder only).  This is ``sn_mesh.quad``.
+    coord :
+        :class:`~orpheus.geometry.CoordSystem` — ``SPHERICAL`` or
+        ``CYLINDRICAL``.  The closure TYPE already dispatches on
+        geometry; this branch only selects the edge convention.
+
+    Returns
+    -------
+    tuple of ``(M_p,)`` arrays, one per μ-level.  Sphere is a single
+    level ``(N,)``; cylinder is one ``(M_p,)`` array per azimuthal level.
+
+    Notes
+    -----
+    The sphere weight is **UNCLAMPED** (W1; the sphere dome is
+    non-singular on GL, :math:`\tau_\text{raw} \in \sim[0.39, 0.61]`).
+    The cylinder weight is **CLAMPED** to :math:`[\tfrac12, 1]` — the
+    most-inward azimuthal ordinate sits exactly on the level boundary
+    (:math:`\eta_0 = \eta_{1/2} = -\sin\theta`) so its raw weight is
+    :math:`\tau_\text{raw} = 0` bit-exactly; the recurrence
+    :math:`(\psi - (1-\tau)\psi)/\tau` would divide by zero unclamped
+    (structural; #229).
+    """
+    if coord is CoordSystem.SPHERICAL:
+        # Replicates spherical_streaming (reduced_operator.py:681-688)
+        # EXACTLY: weight-sum edges from −1.0, unclamped τ_raw, ½ fallback.
+        mu = quad.mu_x
+        w = quad.weights
+        N = quad.N
+        mu_edge = np.zeros(N + 1)
+        mu_edge[0] = -1.0
+        for n in range(N):
+            mu_edge[n + 1] = mu_edge[n] + w[n]
+        tau_mm = np.empty(N)
+        for n in range(N):
+            dmu = mu_edge[n + 1] - mu_edge[n]
+            tau_mm[n] = (
+                (mu[n] - mu_edge[n]) / dmu if abs(dmu) > 1e-15 else 0.5
+            )
+        return (tau_mm,)
+
+    if coord is CoordSystem.CYLINDRICAL:
+        # Replicates cylindrical_streaming (reduced_operator.py:798-815)
+        # EXACTLY: η-midpoint edges with ±sinθ endpoints, per μ-level,
+        # then the structural [½, 1] clamp.
+        mu_z = quad.mu_z
+        tau_per_level: list[np.ndarray] = []
+        for level_idx in quad.level_indices:
+            eta = quad.mu_x[level_idx]
+            M = len(level_idx)
+            sin_theta = np.sqrt(1.0 - mu_z[level_idx[0]] ** 2)
+            eta_edge = np.zeros(M + 1)
+            eta_edge[0] = -sin_theta
+            for m in range(M - 1):
+                eta_edge[m + 1] = 0.5 * (eta[m] + eta[m + 1])
+            eta_edge[M] = sin_theta
+            tau = np.empty(M)
+            for m in range(M):
+                deta = eta_edge[m + 1] - eta_edge[m]
+                tau_raw = (
+                    (eta[m] - eta_edge[m]) / deta if abs(deta) > 1e-15 else 0.5
+                )
+                tau[m] = max(0.5, min(1.0, tau_raw))
+            tau_per_level.append(tau)
+        return tuple(tau_per_level)
+
+    raise ValueError(
+        f"morel_montry_tau_per_level supports SPHERICAL or CYLINDRICAL "
+        f"coordinate systems; got {coord!r}. Cartesian uses the neutral "
+        f"τ = 1.0 supplied by IdentityAngularClosure."
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -637,6 +1040,10 @@ class MorelMontryAngularSweep(
             self._mu_start_per_level: "tuple[float, ...] | None" = None
             self._c_in_per_level: "tuple[np.ndarray, ...] | None" = None
             self._c_out_per_level: "tuple[np.ndarray, ...] | None" = None
+            # No mesh ⇒ no per-ordinate cache; the accessors raise (Fix 1).
+            self._c_in_per_ordinate_cache: "np.ndarray | None" = None
+            self._c_out_per_ordinate_cache: "np.ndarray | None" = None
+            self._tau_per_ordinate_cache: "np.ndarray | None" = None
             self._mu_x: "np.ndarray | None" = None
             self._weights: "np.ndarray | None" = None
             self._dr: "np.ndarray | None" = None
@@ -652,12 +1059,21 @@ class MorelMontryAngularSweep(
         # ── Per-level partition (M-M's concept, NOT the quadrature's)
         # Sphere: every ordinate is one level (M_p = N, n_levels = 1).
         # Cylinder: μ-levels from ProductQuadrature / LevelSymmetricSN.
+        # Issue #236 Phase 2 (Step A): the angular closure OWNS τ.  It is
+        # produced HERE from the quadrature ``(μ, w, levels)`` the closure
+        # already binds — an angular-scheme property — instead of read back
+        # from the streaming-geometry factory (``reduced.tau_mm`` /
+        # ``reduced.tau_mm_per_level``).  ``morel_montry_tau_per_level``
+        # replicates the factory arithmetic 0-ULP, so this is bit-identical
+        # to HEAD (the geometry factory still produces an identical τ for
+        # the sweep path; the Leg-1 gate pins the producer equivalence).
+        tau_per_level = morel_montry_tau_per_level(quad, coord)
         if coord is CoordSystem.SPHERICAL:
             assert reduced.mu_start is not None  # set by spherical_streaming
             self.level_indices = (np.arange(N),)
             self._alpha_per_level = (reduced.alpha_half,)
             self._dAw_per_level = (reduced.redist_dAw,)
-            self._tau_per_level = (reduced.tau_mm,)
+            self._tau_per_level = tau_per_level
             self._mu_start_per_level = (float(reduced.mu_start),)
         elif coord is CoordSystem.CYLINDRICAL:
             assert reduced.mu_start_per_level is not None  # set by cyl factory
@@ -666,7 +1082,7 @@ class MorelMontryAngularSweep(
             )
             self._alpha_per_level = tuple(reduced.alpha_per_level)
             self._dAw_per_level = tuple(reduced.redist_dAw_per_level)
-            self._tau_per_level = tuple(reduced.tau_mm_per_level)
+            self._tau_per_level = tau_per_level
             self._mu_start_per_level = tuple(
                 float(v) for v in reduced.mu_start_per_level
             )
@@ -693,6 +1109,9 @@ class MorelMontryAngularSweep(
             c_in_levels.append((1.0 - tau) / tau * alpha_out + alpha_in)
         self._c_in_per_level = tuple(c_in_levels)
         self._c_out_per_level = tuple(c_out_levels)
+        # ── Cache the (N,) global-ordinate gather ONCE (Fix 1, L16) ──
+        # Gathers c_in / c_out AND the owned τ (Issue #236 Phase 2 B3).
+        self._build_per_ordinate_cache()
 
         # ── Carlson-sweep machinery (psi-independent mesh + quad data)
         self._mu_x = quad.mu_x
@@ -1274,7 +1693,11 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
         self._ng: int = sn_mesh.ng
         nx = sn_mesh.nx
         # Trivial single-level partition: every ordinate in one level.
-        self.level_indices: tuple[np.ndarray, ...] = (np.arange(self._N),)
+        # Annotated ``| None`` to match the base contract (M-M's unbound legacy
+        # mode stores None); Identity always binds the single-level partition.
+        self.level_indices: "tuple[np.ndarray, ...] | None" = (
+            np.arange(self._N),
+        )
         # Neutral M-M coefficients per level — Cartesian carries no
         # angular redistribution, so α_{±1/2} = 0, τ = 1, ΔA/w = 0, and
         # the algebraic constants c_in = c_out = 0.  Exposed under the
@@ -1286,15 +1709,27 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
         self._dAw_per_level: tuple[np.ndarray, ...] = (
             np.zeros((nx, self._N)),
         )
-        self._tau_per_level: tuple[np.ndarray, ...] = (
+        # Annotated ``| None`` to match the base contract (M-M's unbound
+        # legacy mode stores None); Identity always binds the neutral
+        # ``τ ≡ 1`` (Issue #236 Phase 2 B3).  A mutable override must be
+        # type-compatible with the base annotation — declaring it the bare
+        # ``tuple`` would be an invariant-override error (the same widening
+        # B1 applied to ``_c_*_per_level``).  The runtime VALUE is unchanged.
+        self._tau_per_level: "tuple[np.ndarray, ...] | None" = (
             np.ones(self._N),
         )
-        self._c_in_per_level: tuple[np.ndarray, ...] = (
+        self._c_in_per_level: "tuple[np.ndarray, ...] | None" = (
             np.zeros(self._N),
         )
-        self._c_out_per_level: tuple[np.ndarray, ...] = (
+        self._c_out_per_level: "tuple[np.ndarray, ...] | None" = (
             np.zeros(self._N),
         )
+        # ── Cache the (N,) global-ordinate gather ONCE (Fix 1, L16) ──
+        # Cartesian always binds the neutral zeros; the cache is the read-only
+        # ``(N,)`` zeros the slab visit-stamp reads (c_in == c_out == 0.0) plus
+        # the neutral ``τ ≡ 1`` (Issue #236 Phase 2 B3) the slab visit reads as
+        # ``CellVisit.tau`` — the identity M-M weight.
+        self._build_per_ordinate_cache()
 
     # ── Strategy Protocol surface ────────────────────────────────────
 

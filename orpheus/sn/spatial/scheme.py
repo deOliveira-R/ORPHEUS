@@ -233,6 +233,47 @@ class CellVisit:
           face flow, so the ``2|\mu| A_{\rm down}`` term vanishes
           via ``A_down = 0`` (geometric truth) rather than via the
           numerical threshold ``abs_mu < 1e-15``.
+    c_in : float
+        **Angular-closure-owned** (Issue #236 Phase 2 B2): the
+        Morel--Montry weighted-diamond upstream-numerator constant
+        :math:`c_{\rm in} = (1-\tau_m)/\tau_m\,\alpha_{m+1/2}
+        + \alpha_{m-1/2}` for THIS visit's ordinate.  Sourced from the
+        mesh's :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.pole_angular_closure`
+        via :attr:`PoleAngularClosure.c_in_per_ordinate` (the per-global-
+        ordinate ``(N,)`` accessor), NOT rebuilt inline.  ``0.0`` for
+        slab / Cartesian (the identity closure carries no angular
+        redistribution).  Distinct in provenance from the geometry-owned
+        :attr:`streaming_terms` — the angular closure is the canonical
+        owner of the weighted-diamond constants; the spatial scheme
+        (:class:`DiamondDifference`) consumes them as DATA on the visit,
+        never by coupling to the closure object (keeps the
+        spatial :math:`\otimes` angular separation).
+    c_out : float
+        **Angular-closure-owned** (Issue #236 Phase 2 B2): the
+        Morel--Montry weighted-diamond denominator constant
+        :math:`c_{\rm out} = \alpha_{m+1/2}/\tau_m` for THIS visit's
+        ordinate.  Sourced from
+        :attr:`PoleAngularClosure.c_out_per_ordinate`.  ``0.0`` for slab
+        / Cartesian.  See :attr:`c_in` for the provenance rationale.
+    tau : float
+        **Angular-closure-owned** (Issue #236 Phase 2 B3): the
+        Morel--Montry angular weight :math:`\tau_m` for THIS visit's
+        ordinate — the FUNDAMENTAL weight (Bailey--Morel--Chang 2010
+        Eq. 43) from which :attr:`c_in` / :attr:`c_out` are derived.
+        Sourced from the mesh's
+        :attr:`~orpheus.sn.mesh.augmented_mesh.SNMesh.pole_angular_closure` via
+        :attr:`PoleAngularClosure.tau_per_ordinate`.  The DEFAULT is
+        ``1.0`` (NOT ``0.0``) — :math:`\tau = 1` is the neutral M-M weight
+        the Cartesian identity closure supplies, making the angular
+        recurrence :math:`(\bar\psi - (1-\tau)\psi^{\theta}_{\rm in})/\tau`
+        the identity and keeping :math:`c_{\rm out} = \alpha_{\rm out}/\tau`
+        well-defined (a ``0.0`` default would be a divide-by-zero landmine
+        in :meth:`~orpheus.sn.spatial.diamond.DiamondDifference.update`'s
+        angular thread).  Distinct in provenance from the geometry-owned
+        :attr:`streaming_terms`\ ``.tau_mm`` (which Step C will retire); the
+        spatial scheme (:class:`DiamondDifference`) consumes :attr:`tau` as
+        DATA on the visit, never by coupling to the closure object — keeping
+        the spatial :math:`\otimes` angular separation.
 
     Notes
     -----
@@ -252,6 +293,9 @@ class CellVisit:
     cell_idx: int
     streaming_terms: StreamingTerms
     face_area_downstream: float = 0.0
+    c_in: float = 0.0
+    c_out: float = 0.0
+    tau: float = 1.0
 
 
 # ═══════════════════════════════════════════════════════════════════════

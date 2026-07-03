@@ -232,9 +232,6 @@ class GeometryCoefficients:
         A_total = np.empty((N, nx), dtype=np.float64)
         dA_w = np.empty((N, nx), dtype=np.float64)
         V = np.empty((N, nx), dtype=np.float64)
-        tau = np.empty(N, dtype=np.float64)
-        alpha_in = np.empty(N, dtype=np.float64)
-        alpha_out = np.empty(N, dtype=np.float64)
         mu_start = np.empty(N, dtype=np.float64)
         is_degenerate = np.zeros(N, dtype=bool)
 
@@ -293,11 +290,9 @@ class GeometryCoefficients:
             )
             # The M-M closure scalars are ordinate-only; pick the first
             # visit's value (all visits within one ordinate carry the
-            # same alpha/tau pair).
+            # same mu_start).  τ is no longer read off st0 — it is sourced
+            # from the angular closure below (Issue #236 Phase 2 B3).
             st0 = visits[0].streaming_terms
-            tau[global_n] = st0.tau_mm
-            alpha_in[global_n] = st0.alpha_in
-            alpha_out[global_n] = st0.alpha_out
             mu_start[global_n] = st0.mu_start
             # Cylindrical pure-azimuthal degenerate: visit carries
             # face_area_downstream == 0.0 (geometric truth).  The slow
@@ -305,9 +300,36 @@ class GeometryCoefficients:
             if visits[0].face_area_downstream == 0.0 and abs_mu[global_n] < 1e-15:
                 is_degenerate[global_n] = True
 
-        # ── M-M closure constants (slab: alpha=0, tau=1 → c=0) ────────
-        c_out = alpha_out / tau
-        c_in = (1.0 - tau) / tau * alpha_out + alpha_in
+        # ── M-M angular weight τ + closure constants (Issue #236) ──
+        # τ, ``c_out = α_{m+1/2}/τ``, and ``c_in = (1−τ)/τ·α_{m+1/2} +
+        # α_{m−1/2}`` are an ANGULAR-closure property — the pole-angular
+        # closure is their canonical owner (it precomputes them at
+        # construction from the same α-dome / τ this populator's geometry
+        # factory uses).  Read the ``(N,)`` global-ordinate views directly
+        # instead of rebuilding the formula here (Cardinal Rule 2; coding-
+        # elegance Pattern 7 — normalise at the definition site).  The closure
+        # dispatches by TYPE: MorelMontry (sphere/cylinder) returns its
+        # precomputed values; the Cartesian IdentityAngularClosure returns the
+        # neutral ones (α=0, τ=1 ⇒ c=0) — so this populator stays geometry-
+        # blind by data.
+        #
+        # ``tau_inv`` / ``mm_a_in_coeff`` are the CumprodScan angular-recurrence
+        # split derived from the closure's τ (B3) — consumed at the
+        # ``loss_representation.py`` scan fast-path
+        # ``geom.tau_inv·ψ_avg − geom.mm_a_in_coeff·ψ_in``, the twin of
+        # ``DiamondDifference.update``'s ``(ψ̄ − (1−τ)ψ_in)/τ``.  Hoisting the
+        # trivial ``1/τ`` / ``(1−τ)/τ`` algebra out of the per-iteration scan is
+        # a legit perf-cache derivation (L16); the closure exposes only the
+        # PRIMITIVE τ (Pattern 5 — build the primitive, not the product).
+        # Bit-identical: closure-τ is 0-ULP equal to the geometry factory's τ
+        # (Step-A Leg-1 producer-equivalence gate) and the α slices are shared,
+        # so the closure's per-level c equals the former inline c bit-for-bit;
+        # the per-level→(N,) gather is a pure permutation (no arithmetic), so
+        # ``tau_inv`` / ``mm_a_in_coeff`` are byte-identical to HEAD.
+        closure = sn_mesh.pole_angular_closure
+        tau = closure.tau_per_ordinate
+        c_out = closure.c_out_per_ordinate
+        c_in = closure.c_in_per_ordinate
         tau_inv = 1.0 / tau
         mm_a_in_coeff = (1.0 - tau) / tau
 
