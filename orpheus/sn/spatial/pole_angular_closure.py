@@ -67,46 +67,53 @@ ordinates :math:`n = 1, \ldots, N` — the same algebra the
 runs inside the sweep, lifted up to operator level so the apply
 matvec and the sweep solve the **same** discrete fixed point.
 
-Architectural mirror of BoundaryFaceFlux (Phase A, retired in Phase C)
-======================================================================
+The single strategy contract — :class:`PoleAngularClosureBase`
+==============================================================
 
-This module's Protocol shape was modelled after the Phase A
-``BoundaryFaceFlux`` Protocol (which has since been **retired** by
-Issue #168 Phase C — see commit ``3fd1302``).  ``PoleAngularClosure``
-stays because the sphere centre is **intrinsic geometry** (a
-coordinate-system singularity), not an external boundary; the
-Phase C sweep-frame matvec subsumed ``BoundaryFaceFlux`` but the
-pole-angular closure is a separate concern that remains
-strategy-parametrised.  The Phase A architectural mirror at the
-time of writing was:
+The angular-closure family is a self-registering ABC,
+:class:`PoleAngularClosureBase`, layered on
+:class:`~orpheus.numerics.registry.RegistryMixin`.  Each strategy
+inherits it (passing ``key="..."``), carries a class-level
+``is_linear: bool`` trait, and implements the matvec/sweep contract
+(:meth:`~PoleAngularClosureBase.precompute_psi_state` /
+:meth:`~PoleAngularClosureBase.cell_contribution` /
+:meth:`~PoleAngularClosureBase.angular_adjoint`, abstract on the ABC)
+plus the closure-constant accessors
+(:attr:`~PoleAngularClosureBase.c_in_per_ordinate` /
+:attr:`~PoleAngularClosureBase.c_out_per_ordinate` /
+:attr:`~PoleAngularClosureBase.tau_per_ordinate`).
 
-* ``@runtime_checkable Protocol`` for the strategy contract;
-* concrete ABC :class:`PoleAngularClosureBase` layered on
-  :class:`~orpheus.numerics.registry.RegistryMixin` for self-registering
-  strategies;
-* class-level ``is_linear: bool`` trait;
-* ``frozen=True, slots=True`` dataclass implementations with
-  explicit ``__repr__`` (where the strategy carries no mesh-bound
-  state; ``MorelMontryAngularSweep`` is mesh-bound and thus a
-  regular class — see PR-TYPED-6.5 Phase 2).
+The shape was originally modelled after the Phase A
+``BoundaryFaceFlux`` Protocol (**retired** by Issue #168 Phase C, commit
+``3fd1302``).  The pole-angular closure stays a separate strategy concern
+because the sphere centre is **intrinsic geometry** (a coordinate-system
+singularity), not an external boundary.
 
-PR-TYPED-6c Step 7 (2026-05-18) retired
-``LegacyTauSymmetricInterpolation`` (pre-Phase-B inlined form) and
-``BaileyFlatFluxRedist`` (Phase B ablation strategy for back-bisection
-against the legacy form) — neither had a production consumer after
-PR-TYPED-6.5's default switch to ``MorelMontryAngularSweep`` for
-curvilinear + ``IdentityAngularClosure`` for Cartesian.
+Retirement history:
 
-The unification choice for cylindrical was: **one Protocol, optional
-per-level loop**.  The strategy accepts an optional ``level_indices``
-argument; when ``None``, the strategy treats ordinates as a single
-sphere-style level (sphere geometry); when populated, the strategy
-loops over the per-:math:`\mu`-level azimuthal sub-problems with each
-level's own :math:`\alpha_{n\pm 1/2}` dome and :math:`\Delta A/w`
-geometry factor.  This keeps the Protocol surface area small and lets
-the same concrete strategy serve both geometries — the per-cell DD
-angular recurrence is structurally identical in both cases, only the
-ordinate index list changes.
+* PR-TYPED-6c Step 7 (2026-05-18) retired
+  ``LegacyTauSymmetricInterpolation`` (pre-Phase-B inlined form) and
+  ``BaileyFlatFluxRedist`` (Phase B ablation strategy) — neither had a
+  production consumer after PR-TYPED-6.5's default switch to
+  ``MorelMontryAngularSweep`` for curvilinear +
+  ``IdentityAngularClosure`` for Cartesian.
+* Issue #236 Phase 2 B2 retyped every production consumer (matvec /
+  sweep / geometry / scheme / cell-balance) from the ``@runtime_checkable
+  PoleAngularClosure`` Protocol onto this ABC, and made the three
+  strategy methods abstract on the ABC.
+* Issue #248 (2026-06-18) retired the now-orphaned, divergent
+  ``PoleAngularClosure`` Protocol and the dead legacy bundle ``__call__``
+  (with its ``tau_mm`` argument) — the production matvec/sweep consume
+  :meth:`~PoleAngularClosureBase.precompute_psi_state` +
+  :meth:`~PoleAngularClosureBase.cell_contribution`, never ``__call__``.
+
+The unification choice for cylindrical was: **one strategy, optional
+per-level loop**.  The mesh-bound strategy treats sphere as a single
+ordinate level and cylinder as one azimuthal sub-problem per
+:math:`\mu`-level (each with its own :math:`\alpha_{n\pm 1/2}` dome and
+:math:`\Delta A/w` geometry factor) — the per-cell DD angular recurrence
+is structurally identical in both cases, only the ordinate index list
+changes.
 
 Hébert citation correction (Issue #168 Phase B)
 ================================================
@@ -165,7 +172,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, ClassVar, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import numpy as np
 
@@ -184,150 +191,21 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# PoleAngularClosure Protocol
-# ═══════════════════════════════════════════════════════════════════════
-
-
-@runtime_checkable
-class PoleAngularClosure(Protocol):
-    r"""Strategy contract for evaluating the curvilinear angular redistribution.
-
-    The strategy consumes the cell-centre angular flux array
-    :math:`\psi_{n,i,g}` plus the precomputed connection-coefficient
-    arrays and returns the **per-(group, ordinate, cell)
-    redistribution term** that the matvec adds to streaming +
-    collision.
-
-    The redistribution at cell :math:`i`, ordinate :math:`n`, group
-    :math:`g` is
-
-    .. math::
-
-       R_{n,i,g} \;=\; \frac{(\Delta A/w)_{i,n}}{V_i}
-                       \bigl[\alpha_{n+1/2}\,\phi_{n+1/2,i,g}
-                           - \alpha_{n-1/2}\,\phi_{n-1/2,i,g}\bigr]
-
-    where :math:`\phi_{n\pm 1/2,i,g}` are the **half-angle face
-    fluxes** between consecutive ordinate sub-domains, evaluated by
-    the strategy's closure choice.
-
-    The unified Protocol covers spherical (``level_indices is None``)
-    and cylindrical (``level_indices`` provided — one entry per
-    :math:`\mu`-level, the strategy loops over levels).
-
-    Parameters
-    ----------
-    psi_cells : np.ndarray
-        Cell-centre angular flux, shape ``(ng, N, nx)``.
-    alpha_half : np.ndarray or list[np.ndarray]
-        :math:`\alpha`-dome values:
-
-        * For ``level_indices is None`` (sphere): shape ``(N+1,)`` —
-          :math:`\alpha_{n-1/2}` for :math:`n = 0, \ldots, N`.
-        * For cylindrical (``level_indices`` provided): list of
-          per-level arrays, each shape ``(M_p + 1,)`` for level
-          :math:`p` of size :math:`M_p`.
-    redist_dAw : np.ndarray or list[np.ndarray]
-        :math:`\Delta A_i / w_n` geometry factor:
-
-        * Sphere: shape ``(nx, N)``.
-        * Cylindrical: list of per-level arrays, each shape
-          ``(nx, M_p)``.
-    tau_mm : np.ndarray or list[np.ndarray]
-        Morel--Montry :math:`\tau` clamp values:
-
-        * Sphere: shape ``(N,)``.
-        * Cylindrical: list of per-level arrays, each shape
-          ``(M_p,)``.
-
-        Read by :class:`MorelMontryAngularSweep` to set the recurrence
-        weighting.
-    volume : np.ndarray
-        Cell volumes :math:`V_i`, shape ``(nx,)``.
-    level_indices : list[np.ndarray] or None
-        Per-:math:`\mu`-level global ordinate index arrays for
-        cylindrical geometry.  ``None`` for sphere — the strategy
-        then treats all ordinates as a single level.
-
-    Returns
-    -------
-    np.ndarray
-        Redistribution term, shape ``(ng, N, nx)``.  The matvec adds
-        this directly to the per-(group, ordinate, cell) streaming +
-        collision contribution.
-
-    Attributes
-    ----------
-    is_linear : bool
-        Whether the closure is linear in ``psi_cells``.
-        :class:`MorelMontryAngularSweep` is linear (an affine
-        combination of cell-centre values via the WDD recurrence).
-        Read-only class attribute.
-
-    Notes
-    -----
-    The strategy is **stateless** — the same instance can be reused
-    across every matvec call without per-call allocation.  Per-call
-    work is :math:`\mathcal{O}(N \cdot n_x \cdot n_g)` — the same
-    asymptotic cost as the legacy inlined redistribution evaluation.
-    """
-
-    is_linear: ClassVar[bool]
-
-    @property
-    def c_in_per_ordinate(self) -> np.ndarray:
-        r"""Upstream-numerator closure constant :math:`c_{\rm in}`, ``(N,)`` global.
-
-        Issue #236 Phase 2 — the angular closure is the canonical owner of the
-        weighted-diamond constants
-        :math:`c_{\rm in} = (1-\tau)/\tau\,\alpha_{m+1/2} + \alpha_{m-1/2}`.
-        Consumers keyed on the global ordinate axis (the
-        :class:`~orpheus.sn.spatial.sweep_cache.GeometryCoefficients` populator,
-        the matvec) read this ``(N,)`` view rather than rebuilding the formula.
-        Zero for the Cartesian identity closure (no angular redistribution).
-        """
-        ...
-
-    @property
-    def c_out_per_ordinate(self) -> np.ndarray:
-        r"""Denominator closure constant :math:`c_{\rm out}`, ``(N,)`` global.
-
-        :math:`c_{\rm out} = \alpha_{m+1/2}/\tau`; zero for the Cartesian
-        identity closure.  See :attr:`c_in_per_ordinate`.
-        """
-        ...
-
-    @property
-    def tau_per_ordinate(self) -> np.ndarray:
-        r"""Morel--Montry angular weight :math:`\tau`, ``(N,)`` global.
-
-        Issue #236 Phase 2 B3 — the FUNDAMENTAL angular weight the closure
-        owns (Bailey--Morel--Chang 2010 Eq. 43), from which
-        :attr:`c_out_per_ordinate` / :attr:`c_in_per_ordinate` are derived.
-        The live sweep + scan paths consume THIS τ (via
-        :attr:`~orpheus.sn.spatial.scheme.CellVisit.tau` and the
-        ``GeometryCoefficients`` ``tau_inv`` / ``mm_a_in_coeff`` split) rather
-        than the geometry factory's ``StreamingTerms.tau_mm``.  ``1.0`` for the
-        Cartesian identity closure (the neutral M-M weight).
-        """
-        ...
-
-    def __call__(
-        self,
-        psi_cells: np.ndarray,
-        alpha_half: "np.ndarray | list[np.ndarray]",
-        redist_dAw: "np.ndarray | list[np.ndarray]",
-        tau_mm: "np.ndarray | list[np.ndarray]",
-        volume: np.ndarray,
-        level_indices: "list[np.ndarray] | None" = None,
-        carlson_context: "CarlsonSweepContext | list[CarlsonSweepContext] | None" = None,
-    ) -> np.ndarray:
-        ...
-
-
-# ═══════════════════════════════════════════════════════════════════════
 # PoleAngularClosureBase — concrete ABC with self-registration
 # ═══════════════════════════════════════════════════════════════════════
+#
+# Issue #248 (2026-06-18) retired the orphaned ``@runtime_checkable
+# PoleAngularClosure`` Protocol that formerly sat here.  Issue #236 Phase 2
+# B2 retyped every production consumer (the matvec / sweep / geometry /
+# scheme / cell-balance) from that Protocol onto this ABC and made the
+# strategy methods (``precompute_psi_state`` / ``cell_contribution`` /
+# ``angular_adjoint``) abstract on it — so the Protocol was left orphaned
+# (only a single test's ``isinstance`` read it) AND divergent (it carried
+# ``is_linear`` / the ``c_*``/``tau`` accessors / ``__call__`` but NOT the
+# three strategy methods).  Cardinal Rule 2: one contract per concept.  The
+# ABC below is now the SOLE angular-closure contract; the dead legacy bundle
+# ``__call__`` (with its ``tau_mm`` argument) was retired alongside the
+# Protocol.
 
 
 class PoleAngularClosureBase(RegistryMixin, ABC):
@@ -341,18 +219,28 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
     Subclasses MUST declare:
 
     * ``is_linear: ClassVar[bool]`` — whether the closure is linear
-      in ``psi_cells``.
-    * :meth:`__call__` — the closure algorithm.
+      in the cell-centre angular flux.
+    * :meth:`precompute_psi_state` / :meth:`cell_contribution` /
+      :meth:`angular_adjoint` — the matvec/sweep strategy contract (the
+      forward angular path, its per-cell cell-balance contribution, and
+      its reverse-mode adjoint).
 
     Notes
     -----
-    Adding a new strategy is a one-line edit::
+    Adding a new strategy is a one-line registration::
 
         class MyClosure(PoleAngularClosureBase, key="my_closure"):
             is_linear: ClassVar[bool] = True
 
-            def __call__(self, psi_cells, alpha_half, redist_dAw,
-                          tau_mm, volume, level_indices=None):
+            def precompute_psi_state(self, psi_view, *, sigma_t,
+                                     bc_outer_inflow_estimate):
+                ...
+
+            def cell_contribution(self, psi_state, cell_idx, level_idx,
+                                  within_positions):
+                ...
+
+            def angular_adjoint(self, numer_bar, *, sigma_t):
                 ...
 
     No registry insert; ``PoleAngularClosureBase.create("my_closure")``
@@ -568,19 +456,6 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
             )
         return self._tau_per_ordinate_cache
 
-    @abstractmethod
-    def __call__(
-        self,
-        psi_cells: np.ndarray,
-        alpha_half: "np.ndarray | list[np.ndarray]",
-        redist_dAw: "np.ndarray | list[np.ndarray]",
-        tau_mm: "np.ndarray | list[np.ndarray]",
-        volume: np.ndarray,
-        level_indices: "list[np.ndarray] | None" = None,
-        carlson_context: "CarlsonSweepContext | list[CarlsonSweepContext] | None" = None,
-    ) -> np.ndarray:
-        ...
-
     # ── Matvec strategy contract (Issue #236 Phase 2 B2 — ABC completion) ──
     #
     # The unified SN matvec (``loss_representation.py``) reads
@@ -683,11 +558,13 @@ class _MMHalfGrid:
 
     Two distinct consumers need DIFFERENT slices of this grid:
 
-    * The **redistribution body** (``MorelMontryAngularSweep._weighted_angular_recurrence_single_level``)
-      consumes the paired ``(m, m+1)`` access for each ordinate, computing
-      :math:`R_m = (\Delta A/w)/V \cdot (\alpha_{m+1/2} \phi_{m+1/2}
-      - \alpha_{m-1/2} \phi_{m-1/2})`. Use :attr:`faces` for direct
-      paired access.
+    * The **redistribution fold** — :math:`R_m = (\Delta A/w)/V \cdot
+      (\alpha_{m+1/2} \phi_{m+1/2} - \alpha_{m-1/2} \phi_{m-1/2})` — uses the
+      paired ``(m, m+1)`` access. Use :attr:`faces` for direct paired
+      access. (Issue #248 retired the legacy ``__call__``-bundle helper that
+      used to perform this fold in production; the live matvec consumes the
+      grid through :meth:`MorelMontryAngularSweep.cell_contribution`, and the
+      paired-access fold survives in the hand-calc verification tests.)
 
     * The **unified matvec** (Issue #197 PR-TYPED-6c Step 2+) consumes the
       upstream-per-ordinate slice — one ``(ng, nx)`` block per ordinate
@@ -896,13 +773,15 @@ def morel_montry_tau_per_level(
 # MorelMontryAngularSweep — Phase B canonical (default)
 # ═══════════════════════════════════════════════════════════════════════
 #
-# PR-TYPED-6.5 Phase 2.2: the M-M recurrence kernels (formerly the
-# free module-level ``_mm_psi_half_grid_single_level`` and
-# ``_mm_weighted_angular_recurrence_single_level``) live as private
-# staticmethods on the class.  External code never reaches into the
+# PR-TYPED-6.5 Phase 2.2: the M-M half-angle recurrence kernel (formerly
+# the free module-level ``_mm_psi_half_grid_single_level``) lives as a
+# private staticmethod on the class.  External code never reaches into the
 # M-M algebra directly — every M-M consumer goes through the strategy's
-# public surface (``__call__`` for the legacy bundle path that retires
-# in PR-TYPED-6c Step 7, ``compute_psi_half_per_level`` for the matvec).
+# public surface: :meth:`precompute_psi_state` + :meth:`cell_contribution`
+# (the live matvec/sweep path) and :meth:`compute_psi_half_per_level` (the
+# half-angle-grid exposure).  Issue #248 retired the legacy ``__call__``
+# bundle interface and its ``_weighted_angular_recurrence_single_level``
+# helper.
 
 
 class MorelMontryAngularSweep(
@@ -977,13 +856,15 @@ class MorelMontryAngularSweep(
           strategy methods (PR-TYPED-6.5+) read these from ``self``
           — no M-M data is shipped through arguments.  This is the
           canonical production mode used by the unified matvec.
-        * When ``sn_mesh`` is ``None`` (**legacy/test path**),
+        * When ``sn_mesh`` is ``None`` (**test path**),
           precomputation is skipped.  The mesh-bound methods raise
-          ``RuntimeError`` if called; only the legacy :meth:`__call__`
-          interface works, taking α / ΔA/w / τ / V via arguments as
-          before.  This mode supports tests that verify M-M algebra
-          with hand-built coefficient arrays.  Phase 6 retires the
-          legacy interface and ``sn_mesh`` becomes required.
+          ``RuntimeError`` if called.  The unbound closure still serves
+          the pure-algebra surface that takes all data via arguments —
+          :meth:`compute_psi_half_per_level` and the staticmethod
+          :meth:`_psi_half_grid_single_level` — so tests can verify the
+          M-M recurrence with hand-built coefficient arrays.  (Issue #248
+          retired the legacy ``__call__`` bundle; the recurrence-kernel
+          surface it exercised survives.)
     psi_half_seed : PsiHalfAngleSeed, optional
         Strategy producing the half-angle face flux seed
         :math:`\phi_{1/2,i,g}` for the M-M recurrence.  Default is
@@ -1017,8 +898,10 @@ class MorelMontryAngularSweep(
     ) -> None:
         # Strategy state.  PR-TYPED-6.5 Phase 2: ``sn_mesh`` is OPTIONAL.
         # When supplied (production), precompute coefficients and bind
-        # all mesh-aware methods.  When None (legacy / test), the
-        # mesh-bound methods raise; only the legacy ``__call__`` works.
+        # all mesh-aware methods.  When None (test), the mesh-bound methods
+        # raise; only the pure-algebra recurrence-kernel surface
+        # (``compute_psi_half_per_level`` / ``_psi_half_grid_single_level``,
+        # which take all data via arguments) works.
         self._sn_mesh = sn_mesh
         self.psi_half_seed: PsiHalfAngleSeed = (
             psi_half_seed if psi_half_seed is not None
@@ -1029,11 +912,11 @@ class MorelMontryAngularSweep(
         )
 
         if sn_mesh is None:
-            # Unbound — only the legacy ``__call__`` (takes args)
-            # is functional.  Mesh-bound state is None; mesh-bound
-            # methods (precompute_psi_state, cell_contribution,
-            # _psi_half_grid_for_level, _redistribution_for_level)
-            # raise on call.
+            # Unbound — only the pure-algebra recurrence-kernel surface
+            # (compute_psi_half_per_level / _psi_half_grid_single_level,
+            # which take all data via arguments) is functional.  Mesh-bound
+            # state is None; mesh-bound methods (precompute_psi_state,
+            # cell_contribution, _psi_half_grid_for_level) raise on call.
             self.level_indices: "tuple[np.ndarray, ...] | None" = None
             self._alpha_per_level: "tuple[np.ndarray, ...] | None" = None
             self._dAw_per_level: "tuple[np.ndarray, ...] | None" = None
@@ -1121,18 +1004,18 @@ class MorelMontryAngularSweep(
         self._V = sn_mesh.volumes
         self._N = N
 
-    # ── Pure-algebra kernel staticmethods (test + legacy surface) ────
-    # These were the M-M algebraic core pre-Phase-2.3 (as free
-    # module-level functions; PR-TYPED-6.5 Phase 2.2 moved them onto
-    # the class as ``@staticmethod``).  Phase 2.3 added the mesh-bound
-    # instance methods (``_psi_half_grid_for_level``,
-    # ``_redistribution_for_level``) that read from ``self`` —
-    # production callers use those.  The staticmethods stay for
-    # algebraic-identity tests that verify the kernel under
-    # hand-constructed coefficient arrays (no mesh dependence) and
-    # for the legacy :meth:`__call__` path.  Same algebra in either
-    # surface (Pattern 2 — instance methods delegate to staticmethods
-    # with self's data).
+    # ── Pure-algebra recurrence-kernel staticmethod (test surface) ───
+    # This was the M-M algebraic core pre-Phase-2.3 (a free module-level
+    # function; PR-TYPED-6.5 Phase 2.2 moved it onto the class as a
+    # ``@staticmethod``).  Phase 2.3 added the mesh-bound instance method
+    # ``_psi_half_grid_for_level`` that reads ``τ`` from ``self`` —
+    # production callers (``precompute_psi_state``) use that.  The
+    # staticmethod stays for algebraic-identity tests that verify the
+    # recurrence under hand-constructed coefficient arrays (no mesh
+    # dependence).  Same algebra in either surface (Pattern 2 — the
+    # instance method delegates to the staticmethod with self's data).
+    # (Issue #248 retired the legacy ``__call__`` bundle that also used
+    # this kernel.)
 
     @staticmethod
     def _psi_half_grid_single_level(
@@ -1150,11 +1033,11 @@ class MorelMontryAngularSweep(
         downstream half-faces produced by Hébert Eqs. 3.437 / 3.439:
         ``ψ_{m+1/2,i,g} = (ψ_{m,i,g} - (1-τ_m)·ψ_{m-1/2,i,g}) / τ_m``.
 
-        Pure kernel — accepts all data via arguments.  Used by the
-        legacy :meth:`__call__` interface and by algebraic-identity
+        Pure kernel — accepts all data via arguments.  Used by the public
+        :meth:`compute_psi_half_per_level` exposure and by algebraic-identity
         tests that verify the recurrence under hand-built coefficients.
-        Production code uses :meth:`_psi_half_grid_for_level` which
-        reads ``tau_level`` from ``self``.
+        Production code uses :meth:`_psi_half_grid_for_level` (which reads
+        ``tau_level`` from ``self``) via :meth:`precompute_psi_state`.
         """
         ng, M, nx = psi_level.shape
         psi_half = np.empty((ng, M + 1, nx), dtype=psi_level.dtype)
@@ -1169,40 +1052,6 @@ class MorelMontryAngularSweep(
             ) / tau_m
         return psi_half
 
-    @staticmethod
-    def _weighted_angular_recurrence_single_level(
-        psi_level: np.ndarray,
-        alpha_level: np.ndarray,
-        dAw_level: np.ndarray,
-        tau_level: np.ndarray,
-        volume: np.ndarray,
-        psi_half_seed: np.ndarray | None = None,
-    ) -> np.ndarray:
-        r"""Pure-algebra M-M redistribution on a single level.
-
-        Composes :meth:`_psi_half_grid_single_level` with the
-        ``(ΔA/w)/V`` geometry redistribution coefficient.  Returns the
-        per-ordinate redistribution term :math:`R_{m,i,g} =
-        (\Delta A/w)_{i,m}/V_i \,(α_{m+1/2}·ψ_{m+1/2} - α_{m-1/2}·
-        ψ_{m-1/2})` of shape ``(ng, M, nx)``.
-
-        Pure kernel — accepts all data via arguments.  Counterpart to
-        :meth:`_redistribution_for_level` (which reads from self).
-        """
-        ng, M, nx = psi_level.shape
-        psi_half = MorelMontryAngularSweep._psi_half_grid_single_level(
-            psi_level, tau_level, psi_half_seed=psi_half_seed,
-        )
-        redist = np.empty((ng, M, nx), dtype=psi_level.dtype)
-        for m in range(M):
-            redist[:, m, :] = (
-                dAw_level[:, m].reshape(1, nx)
-                * (alpha_level[m + 1] * psi_half[:, m + 1, :]
-                   - alpha_level[m] * psi_half[:, m, :])
-                / volume.reshape(1, nx)
-            )
-        return redist
-
     def _require_mesh_bound(self) -> None:
         """Raise if the strategy was constructed without an sn_mesh."""
         if self._sn_mesh is None:
@@ -1210,7 +1059,7 @@ class MorelMontryAngularSweep(
                 "MorelMontryAngularSweep was constructed without an SNMesh "
                 "(unbound mode for legacy/test compatibility). The "
                 "mesh-bound methods (precompute_psi_state, cell_contribution, "
-                "_psi_half_grid_for_level, _redistribution_for_level) require "
+                "_psi_half_grid_for_level) require "
                 "an SNMesh — instantiate via MorelMontryAngularSweep(sn_mesh)."
             )
 
@@ -1243,35 +1092,6 @@ class MorelMontryAngularSweep(
         return self._psi_half_grid_single_level(
             psi_level,
             self._tau_per_level[level_idx_p],
-            psi_half_seed=psi_half_seed,
-        )
-
-    def _redistribution_for_level(
-        self,
-        psi_level: np.ndarray,           # (ng, M_p, nx)
-        level_idx_p: int,
-        *,
-        psi_half_seed: np.ndarray | None = None,  # (ng, nx)
-    ) -> np.ndarray:
-        r"""Hébert's per-cell M-M redistribution :math:`R_{m,i,g}` for level ``p``.
-
-        Mesh-bound wrapper around
-        :meth:`_weighted_angular_recurrence_single_level`.  Reads
-        ``α``, ``ΔA/w``, ``τ``, ``V`` from ``self`` — no coefficient
-        data is shipped.
-
-        Returns
-        -------
-        np.ndarray
-            Redistribution per level, shape ``(ng, M_p, nx)``.
-        """
-        self._require_mesh_bound()
-        return self._weighted_angular_recurrence_single_level(
-            psi_level,
-            self._alpha_per_level[level_idx_p],
-            self._dAw_per_level[level_idx_p],
-            self._tau_per_level[level_idx_p],
-            self._V,
             psi_half_seed=psi_half_seed,
         )
 
@@ -1460,101 +1280,6 @@ class MorelMontryAngularSweep(
                 psi_bar[:, level_idx[m], :] += psi_level_bar[:, m, :]
             bc_bar[global_inward, :] += bc_value_bar
         return psi_bar, bc_bar
-
-    def __call__(
-        self,
-        psi_cells: np.ndarray,
-        alpha_half: "np.ndarray | list[np.ndarray]",
-        redist_dAw: "np.ndarray | list[np.ndarray]",
-        tau_mm: "np.ndarray | list[np.ndarray]",
-        volume: np.ndarray,
-        level_indices: "list[np.ndarray] | None" = None,
-        carlson_context: "CarlsonSweepContext | list[CarlsonSweepContext] | None" = None,
-    ) -> np.ndarray:
-        r"""Compute the Hébert §3.9.4 angular redistribution term.
-
-        Legacy bundle interface — accepts all coefficient arrays via
-        arguments.  Works regardless of whether the strategy was
-        constructed with an SNMesh (production) or without (test).
-        Dispatches by ``level_indices``: ``None`` → sphere (single
-        level over all ordinates); populated → cylindrical (per-level
-        loop).
-
-        The production matvec consumes the new mesh-bound interface
-        :meth:`precompute_psi_state` + :meth:`cell_contribution` and
-        does NOT call this method; the sweep route and the legacy
-        matvec helpers (``transport_operator_matvec_spherical`` /
-        ``_cylindrical``) do until PR-TYPED-6c Step 7 / PR-TYPED-6.5
-        Phase 6 retires them.
-
-        Parameters
-        ----------
-        carlson_context :
-            Phase D Carlson coupled-pole sweep inputs (Σ_t, Δr,
-            μ_quad, weights, bc_outer_value).  See
-            :class:`~orpheus.sn.spatial.psi_half_angle_seed.CarlsonSweepContext`.
-            When supplied, the M-M recurrence's seed comes from
-            ``self.psi_half_seed(psi_level, carlson_context)``.  When
-            ``None``, the recurrence falls back to the Phase B
-            hardcoded zero seed.  For cylindrical (``level_indices``
-            populated), a list of per-level contexts is expected; for
-            spherical (``level_indices is None``), a single context.
-        """
-        if level_indices is None:
-            # Spherical: ordinates ARE a single level.
-            assert isinstance(alpha_half, np.ndarray), (
-                "Spherical pole closure expects alpha_half to be an "
-                "ndarray; got list (cylindrical inputs)."
-            )
-            assert isinstance(redist_dAw, np.ndarray), (
-                "Spherical pole closure expects redist_dAw to be an "
-                "ndarray; got list (cylindrical inputs)."
-            )
-            assert isinstance(tau_mm, np.ndarray), (
-                "Spherical pole closure expects tau_mm to be an "
-                "ndarray; got list (cylindrical inputs)."
-            )
-            psi_half_seed_arr: np.ndarray | None = None
-            if carlson_context is not None:
-                assert isinstance(carlson_context, CarlsonSweepContext), (
-                    "Spherical pole closure expects carlson_context "
-                    "to be a single CarlsonSweepContext (not a list)."
-                )
-                psi_half_seed_arr = self.psi_half_seed(
-                    psi_cells, carlson_context,
-                )
-            return self._weighted_angular_recurrence_single_level(
-                psi_cells, alpha_half, redist_dAw, tau_mm, volume,
-                psi_half_seed=psi_half_seed_arr,
-            )
-
-        # Cylindrical: loop over μ-levels.
-        assert isinstance(alpha_half, list)
-        assert isinstance(redist_dAw, list)
-        assert isinstance(tau_mm, list)
-        if carlson_context is not None:
-            assert isinstance(carlson_context, list), (
-                "Cylindrical pole closure expects carlson_context to "
-                "be a list of per-level CarlsonSweepContext."
-            )
-            assert len(carlson_context) == len(level_indices), (
-                "carlson_context length must match level_indices length"
-            )
-        ng, _N, nx = psi_cells.shape
-        redist = np.zeros((ng, _N, nx), dtype=psi_cells.dtype)
-        for p, level_idx in enumerate(level_indices):
-            psi_level = psi_cells[:, level_idx, :]            # (ng, M_p, nx)
-            psi_half_seed_arr = None
-            if carlson_context is not None:
-                psi_half_seed_arr = self.psi_half_seed(
-                    psi_level, carlson_context[p],
-                )
-            redist_level = self._weighted_angular_recurrence_single_level(
-                psi_level, alpha_half[p], redist_dAw[p], tau_mm[p],
-                volume, psi_half_seed=psi_half_seed_arr,
-            )
-            redist[:, level_idx, :] = redist_level
-        return redist
 
     # ── Issue #197 PR-TYPED-6b: ψ_half grid exposure ──────────────────
 
@@ -1768,22 +1493,6 @@ class IdentityAngularClosure(PoleAngularClosureBase, key="identity_angular_closu
         nx = int(sigma_t.shape[1])
         return np.zeros((self._ng, self._N, nx)), np.zeros((self._N, self._ng))
 
-    # ── Legacy bundle surface (Protocol-shape compatibility) ─────────
-
-    def __call__(
-        self,
-        psi_cells: np.ndarray,
-        alpha_half: "np.ndarray | list[np.ndarray] | None" = None,
-        redist_dAw: "np.ndarray | list[np.ndarray] | None" = None,
-        tau_mm: "np.ndarray | list[np.ndarray] | None" = None,
-        volume: "np.ndarray | None" = None,
-        level_indices: "list[np.ndarray] | None" = None,
-        carlson_context: Any = None,
-    ) -> np.ndarray:
-        """Slab has no redistribution — returns zeros shaped like ``psi_cells``."""
-        del alpha_half, redist_dAw, tau_mm, volume, level_indices, carlson_context
-        return np.zeros_like(psi_cells)
-
     def __repr__(self) -> str:
         return f"IdentityAngularClosure(sn_mesh=<{self._sn_mesh!r}>)"
 
@@ -1819,7 +1528,6 @@ __all__ = [
     "CarlsonSweepContext",
     "IdentityAngularClosure",
     "MorelMontryAngularSweep",
-    "PoleAngularClosure",
     "PoleAngularClosureBase",
     "PsiHalfAngleSeed",
     "default_angular_closure_class",

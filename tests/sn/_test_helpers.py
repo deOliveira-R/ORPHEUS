@@ -28,6 +28,7 @@ import numpy as np
 from scipy.sparse import csr_matrix
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
+from orpheus.sn import solve_sn_fixed_source
 
 if TYPE_CHECKING:
     from orpheus.transport.fields.boundary_flux import BoundaryFlux
@@ -56,14 +57,45 @@ def volume_weighted_l2(
     ``volumes`` is the cell measure of the mesh: cell widths for a slab,
     radial shell volumes for curvilinear 1-D, cell areas/volumes in 2-D — in
     every case the discrete measure that makes the sum a quadrature of
-    :math:`\int (v-v_{\rm ref})^2\,\mathrm{d}V`. Several
-    ``tests/sn/verification/mms/`` modules carry byte-identical private copies
-    of this norm (``_l2_1d`` / ``_l2`` / ``_l2_2d``); new gates consume THIS
-    primitive, and the legacy copies migrate here (the ``module:tests``
-    single-source follow-up).
+    :math:`\int (v-v_{\rm ref})^2\,\mathrm{d}V`. Issue #249 retired the
+    byte-identical private copies that the ``tests/sn/verification/mms/`` gates
+    each used to re-mint (``_l2_1d`` / ``_l2`` / ``_l2_2d`` / ``_l2_error`` /
+    ``_cell_l2``); this is now the sole implementation — new gates consume it.
     """
     diff = values - reference
     return float(np.sqrt(np.sum(volumes * diff * diff)))
+
+
+# MMS convergence-ladder solver knobs — the fixed-source inner-iteration budget
+# the mms/ gates share, tight enough that the discretisation error (not the
+# iteration residual) sets the measured L2.
+MMS_MAX_INNER = 500
+MMS_INNER_TOL = 1e-13
+
+
+def scalar_flux_l2_ladder(case, n_cells) -> np.ndarray:
+    """Volume-weighted scalar-flux L2 error ladder for an MMS ``case`` over the
+    mesh-refinement sequence ``n_cells``.
+
+    The single source of truth for the "build mesh → solve fixed-source →
+    measure :func:`volume_weighted_l2` of the scalar flux vs ``case.phi_exact``"
+    recipe the curvilinear / space–angle convergence gates share.  ``case`` is
+    any MMS case exposing ``build_mesh`` / ``external_source`` / ``materials`` /
+    ``quadrature`` / ``phi_exact``.  Returns the error ladder aligned with
+    ``n_cells``.
+    """
+    errors = []
+    for nc in n_cells:
+        mesh = case.build_mesh(nc)
+        Q = case.external_source(mesh)
+        result = solve_sn_fixed_source(
+            case.materials, mesh, case.quadrature, Q,
+            max_inner=MMS_MAX_INNER, inner_tol=MMS_INNER_TOL,
+        )
+        phi_num = result.scalar_flux.values[0, :]
+        phi_ref = case.phi_exact(mesh.centers)
+        errors.append(volume_weighted_l2(phi_num, phi_ref, mesh.volumes))
+    return np.asarray(errors)
 
 
 def stamp_capability_marker(items, conftest_file: str, capability: str) -> None:
@@ -382,3 +414,61 @@ def make_boundary_flux_zero(sn_mesh: "SNMesh") -> "BoundaryFlux":
 def make_scalar_flux_zero(sn_mesh: "SNMesh") -> "ScalarFlux":
     """Build a zero-initialised :class:`ScalarFlux` for ``sn_mesh``."""
     return ScalarFlux.zeros_on(sn_mesh)
+
+
+def redistribution_via_live_path(
+    closure,
+    psi_level: "np.ndarray",    # (ng, M, nx)
+    alpha: "np.ndarray",        # (M+1,)
+    dAw: "np.ndarray",          # (nx, M)
+    tau: "np.ndarray",          # (M,)
+    V: "np.ndarray",            # (nx,)
+    *,
+    carlson_context=None,       # CarlsonSweepContext | None
+) -> "np.ndarray":
+    r"""Single-level M-M redistribution :math:`R_{m,i,g}` via the LIVE surface.
+
+    Issue #248 — the dead legacy ``MorelMontryAngularSweep.__call__`` bundle
+    (and its private ``_weighted_angular_recurrence_single_level`` kernel) was
+    retired.  This helper reconstructs the SAME redistribution that bundle
+    returned for one level, but through the production path:
+
+    * the half-angle ψ-thread :math:`\phi_{m\pm 1/2,i,g}` comes from
+      :meth:`MorelMontryAngularSweep.compute_psi_half_per_level` — the live
+      PR-TYPED-6b method whose recurrence kernel
+      (``_psi_half_grid_single_level``) is the SAME one the matvec's
+      :meth:`~MorelMontryAngularSweep.precompute_psi_state` consumes.  When a
+      ``carlson_context`` is supplied the recurrence seeds at the Carlson
+      coupled-pole value (exactly as ``precompute_psi_state`` does);
+    * the geometry redistribution fold
+      :math:`R_m = (\Delta A/w)_{i,m}/V_i\,(\alpha_{m+1/2}\phi_{m+1/2}
+      - \alpha_{m-1/2}\phi_{m-1/2})` is applied here explicitly (the caller
+      owns ``α``, ``ΔA/w``, ``V``).
+
+    The reconstruction is byte-faithful to the retired
+    ``_weighted_angular_recurrence_single_level``: that kernel called the SAME
+    ``_psi_half_grid_single_level`` (via ``compute_psi_half_per_level`` here)
+    with the SAME ``psi_half_seed`` and applied the IDENTICAL α-weighted fold
+    loop.
+
+    Single source of truth (Cardinal Rule 2): both the foundation closure
+    test (``tests/sn/sweep/curvilinear/test_pole_angular_closure.py``) and the
+    L0 cylinder hand-reference (``test_unified_matvec_cylinder.py``) import
+    this helper.  The cylinder reference loops ``level_indices`` itself,
+    calling this once per μ-level with that level's α/ΔA/w/τ/V slice and
+    Carlson context — mirroring how ``precompute_psi_state`` loops levels.
+    """
+    ng, M, nx = psi_level.shape
+    grid = closure.compute_psi_half_per_level(
+        psi_level, tau, carlson_context=carlson_context,
+    )
+    faces = grid.faces  # (ng, M+1, nx); faces[:, m, :] = φ_{m-1/2}
+    redist = np.empty((ng, M, nx))
+    for m in range(M):
+        redist[:, m, :] = (
+            dAw[:, m].reshape(1, nx)
+            * (alpha[m + 1] * faces[:, m + 1, :]
+               - alpha[m] * faces[:, m, :])
+            / V.reshape(1, nx)
+        )
+    return redist

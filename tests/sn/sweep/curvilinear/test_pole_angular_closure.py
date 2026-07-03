@@ -1,8 +1,8 @@
-"""Foundation tests for the PoleAngularClosure Protocol + concrete strategies.
+"""Foundation tests for the PoleAngularClosureBase ABC + concrete strategies.
 
 These tests pin the **software contract** of the angular-closure
 strategy family.  They are foundation-tagged because the claims are
-about the strategy API (Protocol conformance, registry self-registration,
+about the strategy API (ABC conformance, registry self-registration,
 hand-calc closure algebra, α-recursion identities) rather than
 transport-equation identities — those are verified transitively via the
 operator-level tests at
@@ -19,6 +19,20 @@ for Cartesian, neither legacy strategy had any production consumer;
 the unified matvec body's typed accessor (``closure.cell_contribution``)
 makes them unimplementable as full Protocol members without compatibility
 shims.  This file's coverage now focuses on the two surviving strategies.
+
+Issue #248 (2026-06-18) retired the orphaned ``@runtime_checkable
+PoleAngularClosure`` **Protocol** (Issue #236 Phase 2 B2 retyped every
+production consumer onto the ``PoleAngularClosureBase`` **ABC** and made
+the strategy methods abstract on it — the Protocol was left orphaned and
+divergent).  Conformance is now ABC inheritance, and the hand-calc
+redistribution algebra (formerly pinned through the dead legacy
+``__call__`` bundle interface) is re-pinned through the LIVE production
+surface: the half-angle ψ-thread via
+:meth:`MorelMontryAngularSweep.compute_psi_half_per_level` (the same
+recurrence kernel ``_psi_half_grid_single_level`` the matvec's
+:meth:`~MorelMontryAngularSweep.precompute_psi_state` consumes) composed
+with the geometry redistribution fold ``(ΔA/w)/V·(α_{m+1/2}ψ_{m+1/2} −
+α_{m-1/2}ψ_{m-1/2})`` the test owns explicitly.
 """
 from __future__ import annotations
 
@@ -27,9 +41,9 @@ import pytest
 
 from orpheus.sn.spatial.pole_angular_closure import (
     MorelMontryAngularSweep,
-    PoleAngularClosure,
     PoleAngularClosureBase,
 )
+from tests.sn._test_helpers import redistribution_via_live_path
 
 pytestmark = pytest.mark.foundation
 
@@ -40,13 +54,16 @@ pytestmark = pytest.mark.foundation
 
 
 class TestProtocolConformance:
-    """The :class:`PoleAngularClosure` Protocol shape is honoured by the
-    surviving strategies via structural typing — no inheritance
-    needed for third-party closures."""
+    """The :class:`PoleAngularClosureBase` ABC contract is honoured by the
+    surviving strategies.  Issue #248 retired the orphaned
+    ``@runtime_checkable PoleAngularClosure`` Protocol; conformance is now
+    ABC inheritance (the production matvec/sweep type against the ABC, and
+    the strategy methods ``precompute_psi_state`` / ``cell_contribution`` /
+    ``angular_adjoint`` are abstract on it — Issue #236 Phase 2 B2)."""
 
     def test_morel_montry_satisfies_protocol(self) -> None:
-        """``MorelMontryAngularSweep`` is a structural ``PoleAngularClosure``."""
-        assert isinstance(MorelMontryAngularSweep(), PoleAngularClosure)
+        """``MorelMontryAngularSweep`` is a ``PoleAngularClosureBase`` subtype."""
+        assert isinstance(MorelMontryAngularSweep(), PoleAngularClosureBase)
 
     def test_is_linear_class_attr_advertised(self) -> None:
         """``MorelMontryAngularSweep`` advertises ``is_linear = True``."""
@@ -187,7 +204,16 @@ def two_ordinate_sphere_fixture():
 
 
 class TestMorelMontryHandCalc:
-    """Verbatim Hébert §3.9.4 algebra on a 2-ordinate sphere fixture."""
+    """Verbatim Hébert §3.9.4 algebra on a 2-ordinate sphere fixture.
+
+    Issue #248 — re-pinned onto the LIVE production path (the half-angle
+    ψ-thread via :meth:`MorelMontryAngularSweep.compute_psi_half_per_level`
+    plus the explicit geometry redistribution fold) after the dead legacy
+    ``__call__`` bundle interface was retired.  The expected redistribution
+    values (sphere ``R_0 = 2/√3``, ``R_1 = -2/√3``) are unchanged; only the
+    surface that produces them moved from the orphaned bundle path to the
+    matvec's own recurrence kernel.
+    """
 
     def test_morel_montry_2ord_recurrence(
         self, two_ordinate_sphere_fixture,
@@ -205,9 +231,15 @@ class TestMorelMontryHandCalc:
             ψ_face_{5/2} = (3 - 0.5·2)/0.5 = 4.
             R_1 = (ΔA/w)·(α_{5/2}·4 - α_{3/2}·2) / V
                 = 1·(0·4 - 1/√3·2) / 1 = -2/√3.
+
+        The ψ-thread (``ψ_face_{3/2} = 2``, ``ψ_face_{5/2} = 4``) is pinned
+        by the live :meth:`~MorelMontryAngularSweep.compute_psi_half_per_level`
+        recurrence; the α-weighted geometry fold gives ``R_0``/``R_1``.
         """
         psi, alpha, dAw, tau, V = two_ordinate_sphere_fixture
-        result = MorelMontryAngularSweep()(psi, alpha, dAw, tau, V)
+        result = redistribution_via_live_path(
+            MorelMontryAngularSweep(), psi, alpha, dAw, tau, V,
+        )
         inv_sqrt3 = 1.0 / np.sqrt(3.0)
         expected = np.array([[[2.0 * inv_sqrt3], [-2.0 * inv_sqrt3]]])
         np.testing.assert_allclose(result, expected, rtol=1e-14)
@@ -217,17 +249,17 @@ class TestMorelMontryHandCalc:
     ) -> None:
         """At ordinate 0 the term ``α_{1/2}·ψ_{1/2,i}`` should vanish
         (α_{1/2} = 0), so the seed value is irrelevant for the n=0
-        contribution.  Verify by changing the recurrence's seed
-        externally and showing the n=0 term is unchanged."""
+        contribution.  Verify algebraically: α_{1/2} = alpha[0] = 0 ⇒ the
+        term is zero regardless of seed."""
         psi, alpha, dAw, tau, V = two_ordinate_sphere_fixture
-        # The closure encapsulates the seed (ψ_{1/2}=0 by Carlson
-        # convention); we cannot inject a different seed without
-        # modifying the strategy.  Instead verify algebraically:
-        # α_{1/2} = alpha[0] = 0 ⇒ the term is zero regardless of seed.
+        # The closure's recurrence seeds at ψ_{1/2}=0 (Carlson convention);
+        # the seed enters R_0 only via α_{1/2}·ψ_{1/2}, and α_{1/2}=0.
         assert alpha[0] == 0.0
-        # And running the strategy gives the expected n=0 redistribution
+        # Running the live path gives the expected n=0 redistribution
         # (which only depends on α_{3/2}·ψ_face_{3/2}).
-        result = MorelMontryAngularSweep()(psi, alpha, dAw, tau, V)
+        result = redistribution_via_live_path(
+            MorelMontryAngularSweep(), psi, alpha, dAw, tau, V,
+        )
         inv_sqrt3 = 1.0 / np.sqrt(3.0)
         # Expected n=0: α[1]·ψ_face_{3/2} = (1/√3)·2 = 2/√3.
         np.testing.assert_allclose(
@@ -241,13 +273,25 @@ class TestMorelMontryHandCalc:
 
 
 class TestCylindricalLevelDispatch:
-    """When ``level_indices`` is provided, the strategy loops over
-    levels with each level's own α-dome / ΔA/w / τ arrays."""
+    """The cylindrical multi-level redistribution: each μ-level runs the
+    per-level recurrence independently (its own α-dome / ΔA/w / τ) and
+    scatters back to global ordinate slots.
+
+    Issue #248 — the dead legacy ``__call__(... level_indices=...)`` bundle
+    is gone; the per-level dispatch is reconstructed here through the LIVE
+    :meth:`MorelMontryAngularSweep.compute_psi_half_per_level` recurrence
+    (one call per level on the level's ordinate slice) plus the explicit
+    geometry fold.  This mirrors how production drives cylindrical: the
+    matvec's :meth:`~MorelMontryAngularSweep.precompute_psi_state` loops
+    :attr:`level_indices` calling :meth:`_psi_half_grid_for_level` — the
+    same single-level recurrence — per μ-level.  The hand-calc
+    redistribution values (``R = ±1.0`` on level 0, ``R = ±6.3`` on
+    level 1) are unchanged.
+    """
 
     def test_cylindrical_dispatch_two_levels(self) -> None:
-        """Two-level cylindrical fixture; the strategy runs the per-level
-        recurrence independently and scatters back to global ordinate
-        slots."""
+        """Two-level cylindrical fixture; the per-level recurrence runs
+        independently and scatters back to global ordinate slots."""
         # 4 global ordinates split into 2 levels of 2 each.
         ng, nx = 1, 1
         N_global = 4
@@ -268,10 +312,15 @@ class TestCylindricalLevelDispatch:
         ]
         V = np.array([1.0])
 
-        result = MorelMontryAngularSweep()(
-            psi_global, alpha_per_level, dAw_per_level,
-            tau_per_level, V, level_indices=level_indices,
-        )
+        closure = MorelMontryAngularSweep()
+        result = np.zeros((ng, N_global, nx))
+        for p, level_idx in enumerate(level_indices):
+            psi_level = psi_global[:, level_idx, :]  # (ng, M_p, nx)
+            result[:, level_idx, :] = redistribution_via_live_path(
+                closure, psi_level,
+                alpha_per_level[p], dAw_per_level[p],
+                tau_per_level[p], V,
+            )
         assert result.shape == (ng, N_global, nx)
 
         # Hand-calc level 0 (ψ_0=1, ψ_1=2, α_dome=[0, 0.5, 0], τ=0.5):
@@ -306,7 +355,14 @@ class TestCylindricalLevelDispatch:
 )
 def test_strategy_is_linear_in_psi(strategy):
     """Each surviving strategy is linear in ``psi_cells`` (advertised
-    ``is_linear = True``).  Verify ``f(αψ + βφ) = α·f(ψ) + β·f(φ)``."""
+    ``is_linear = True``).  Verify ``f(αψ + βφ) = α·f(ψ) + β·f(φ)``.
+
+    Issue #248 — driven through the LIVE redistribution path (the
+    :meth:`MorelMontryAngularSweep.compute_psi_half_per_level` recurrence
+    composed with the geometry fold) instead of the retired ``__call__``
+    bundle.  Linearity is the load-bearing property for the matvec's
+    consumption: both the recurrence and the α-weighted fold are linear in
+    ``psi``, so the redistribution is too."""
     rng = np.random.default_rng(seed=42)
     ng, N, nx = 2, 4, 5
 
@@ -327,10 +383,10 @@ def test_strategy_is_linear_in_psi(strategy):
     V = np.abs(rng.standard_normal(nx)) + 0.1
 
     a, b = 1.7, -2.3
-    lhs = strategy(a * psi1 + b * psi2, alpha, dAw, tau, V)
+    lhs = redistribution_via_live_path(strategy, a * psi1 + b * psi2, alpha, dAw, tau, V)
     rhs = (
-        a * strategy(psi1, alpha, dAw, tau, V)
-        + b * strategy(psi2, alpha, dAw, tau, V)
+        a * redistribution_via_live_path(strategy, psi1, alpha, dAw, tau, V)
+        + b * redistribution_via_live_path(strategy, psi2, alpha, dAw, tau, V)
     )
     np.testing.assert_allclose(
         lhs, rhs, rtol=1e-13, atol=1e-14,

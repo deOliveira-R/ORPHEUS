@@ -59,31 +59,16 @@ from orpheus.derivations.continuous.mms.sn import (
 )
 from orpheus.sn import solve_sn_fixed_source
 
+from tests.sn._test_helpers import scalar_flux_l2_ladder, volume_weighted_l2
+
 pytestmark = pytest.mark.l1
-
-
-def _l2_1d(phi_num: np.ndarray, phi_ref: np.ndarray, volumes: np.ndarray) -> float:
-    """Volume-weighted L2 norm for 1D curvilinear meshes."""
-    diff = phi_num - phi_ref
-    return float(np.sqrt(np.sum(volumes * diff * diff)))
 
 
 def _aniso_sphere_l2_ladder(n_cells, *, n_ordinates: int) -> np.ndarray:
     """Run the spherical anisotropic MMS at each ``n_cells``; return the
-    volume-weighted L2 error ladder."""
+    volume-weighted L2 error ladder (the shared ``scalar_flux_l2_ladder``)."""
     case = build_spherical_anisotropic_mms_case(n_ordinates=n_ordinates)
-    errors = []
-    for nc in n_cells:
-        mesh = case.build_mesh(nc)
-        Q = case.external_source(mesh)
-        result = solve_sn_fixed_source(
-            case.materials, mesh, case.quadrature, Q,
-            max_inner=500, inner_tol=1e-13,
-        )
-        phi_num = result.scalar_flux.values[0, :]
-        phi_ref = case.phi_exact(mesh.centers)
-        errors.append(_l2_1d(phi_num, phi_ref, mesh.volumes))
-    return np.asarray(errors)
+    return scalar_flux_l2_ladder(case, n_cells)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -142,7 +127,7 @@ def test_cyl_aniso_floor_scales_with_quadrature():
         )
         phi_num = result.scalar_flux.values[0, :]  # (ng=1, nx)
         phi_ref = case.phi_exact(mesh.centers)
-        errors[n_phi] = _l2_1d(phi_num, phi_ref, mesh.volumes)
+        errors[n_phi] = volume_weighted_l2(phi_num, phi_ref, mesh.volumes)
 
     print(f"cyl_aniso floor nx={nx}: n_phi8={errors[8]:.3e} "
           f"n_phi16={errors[16]:.3e} ratio={errors[8] / errors[16]:.2f}")
@@ -175,7 +160,7 @@ def test_sn_spherical_angular_convergence_at_fixed_mesh():
         )
         phi_num = result.scalar_flux.values[0, :]  # (ng=1, nx, ny=1)
         phi_ref = case.phi_exact(mesh.centers)
-        errors.append(_l2_1d(phi_num, phi_ref, mesh.volumes))
+        errors.append(volume_weighted_l2(phi_num, phi_ref, mesh.volumes))
 
     print(f"angular convergence errors: {errors}")
     errors = np.asarray(errors)
@@ -232,7 +217,7 @@ def test_sn_spherical_aniso_mms_converges_second_order():
         )
         phi_num = result.scalar_flux.values[0, :]  # (ng=1, nx)
         phi_ref = case.phi_exact(mesh.centers)
-        errors.append(_l2_1d(phi_num, phi_ref, mesh.volumes))
+        errors.append(volume_weighted_l2(phi_num, phi_ref, mesh.volumes))
 
     errors = np.asarray(errors)
     orders = np.log2(errors[:-1] / errors[1:])
@@ -293,7 +278,7 @@ def test_sn_cylindrical_aniso_mms_converges_second_order():
         )
         phi_num = result.scalar_flux.values[0, :]  # (ng=1, nx)
         phi_ref = case.phi_exact(mesh.centers)
-        errors.append(_l2_1d(phi_num, phi_ref, mesh.volumes))
+        errors.append(volume_weighted_l2(phi_num, phi_ref, mesh.volumes))
 
     errors = np.asarray(errors)
     print(f"cyl_aniso errors={errors}")

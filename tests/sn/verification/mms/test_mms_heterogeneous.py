@@ -30,6 +30,8 @@ import pytest
 from orpheus.derivations import continuous_get
 from orpheus.sn import solve_sn_fixed_source
 
+from tests.sn._test_helpers import volume_weighted_l2
+
 
 pytestmark = [pytest.mark.l1, pytest.mark.verifies(
     "transport-cartesian",
@@ -40,17 +42,6 @@ pytestmark = [pytest.mark.l1, pytest.mark.verifies(
     "sn-mms-hetero-psi",
     "sn-mms-hetero-qext",
 )]
-
-
-def _cell_l2(err_cells: np.ndarray, widths: np.ndarray) -> float:
-    r"""Cell-width-weighted discrete :math:`L^{2}` norm:
-
-    .. math::
-
-        \|e\|_{L^{2}} \;=\;
-        \sqrt{\sum_i \Delta x_i\,e_i^{2}}.
-    """
-    return float(np.sqrt(np.sum(widths * err_cells * err_cells)))
 
 
 @pytest.mark.slow
@@ -92,8 +83,8 @@ def test_sn_heterogeneous_mms_converges_second_order():
         phi_ref_g0 = np.asarray(ref.phi(mesh.centers, 0), dtype=float)
         phi_ref_g1 = np.asarray(ref.phi(mesh.centers, 1), dtype=float)
 
-        errs_g0.append(_cell_l2(phi_solver[:, 0] - phi_ref_g0, mesh.widths))
-        errs_g1.append(_cell_l2(phi_solver[:, 1] - phi_ref_g1, mesh.widths))
+        errs_g0.append(volume_weighted_l2(phi_solver[:, 0], phi_ref_g0, mesh.widths))
+        errs_g1.append(volume_weighted_l2(phi_solver[:, 1], phi_ref_g1, mesh.widths))
 
     errs_g0_arr = np.asarray(errs_g0)
     errs_g1_arr = np.asarray(errs_g1)

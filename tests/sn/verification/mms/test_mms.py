@@ -19,11 +19,7 @@ import pytest
 from orpheus.derivations.continuous.mms.sn import build_1d_slab_mms_case
 from orpheus.sn import solve_sn_fixed_source
 
-
-def _l2_error(phi_num: np.ndarray, phi_ref: np.ndarray, widths: np.ndarray) -> float:
-    """Cell-width-weighted discrete L2 norm of the flux error."""
-    diff = phi_num - phi_ref
-    return float(np.sqrt(np.sum(widths * diff * diff)))
+from tests.sn._test_helpers import volume_weighted_l2
 
 
 @pytest.mark.l1
@@ -55,7 +51,7 @@ def test_sn_1d_slab_mms_converges_second_order():
         )
         phi_num = result.scalar_flux.values[0, :]  # PR-INDEX-5: g=0 radial slice
         phi_ref = case.phi_exact(mesh.centers)
-        errors.append(_l2_error(phi_num, phi_ref, mesh.widths))
+        errors.append(volume_weighted_l2(phi_num, phi_ref, mesh.widths))
 
     errors = np.asarray(errors)
     ratios = errors[:-1] / errors[1:]

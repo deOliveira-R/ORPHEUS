@@ -150,7 +150,6 @@ if TYPE_CHECKING:
     from orpheus.numerics.frame import FrameBase
     from orpheus.transport.source_sinks import ScalarSourceSink, AngularSourceSink
     from ..loss_representation.sweep_schedule import SweepSchedule
-    from ..spatial.pole_angular_closure import PoleAngularClosure
     from ..loss_representation import LossRepresentation
     # Type-only (the runtime constructions are late imports inside ``inverse``
     # / ``__sub__`` to break the operator <-> composite import cycles).
