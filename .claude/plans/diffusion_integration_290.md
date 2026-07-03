@@ -763,6 +763,23 @@ becomes unrepresentable.
 
 ### P7a — the DiffusionMesh carve (surgical; do FIRST)
 
+**STATUS: DONE @ `738e355` (2026-07-03, session 5).** Executed per the
+carve list below, zero deviations of substance. Notes for P7b: (1) the
+solver's `_resolve_bcs`/`_law_from_tag` moved onto `DiffusionMesh`
+with the SN split kept (`_resolve_bcs` loop + `_resolve_one` +
+`_law_from_tag`); the two remaining per-method loops are now
+shape-identical for the P7b shared body. (2) Extra admission gate
+beyond the plan: mesh-less promotion (the infinite-medium 1-cell
+carrier) is refused with a points-at-homogeneous-solver message —
+`self.areas` would otherwise die with a misleading AttributeError.
+(3) `docs/api/geometry.rst`'s BC-resolution paragraph + diffusion
+table row were island-stale AND invalidated again by the solver→mesh
+move — rewritten now (method-mesh registries); the theory page's
+island-era BC prose (:62-93) left for P8's planned BC-semantics
+rewrite. (4) Gates: walls 379/1362/1937 serial -O (sn count ≡ P6);
+demo = MATLAB 1.022173; pyright CLI = 1 (#288 only); sphinx -W 0;
+audit 0; 3-search audit clean (grep + Nexus graph + built HTML).
+
 New `orpheus/diffusion/augmented_mesh.py` (flat file — name-parity
 with `sn/mesh/augmented_mesh.py`; subpackage only when diffusion/
 grows), `class DiffusionMesh(MaterialMesh)`:
