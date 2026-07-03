@@ -76,7 +76,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Generic, Optional, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
@@ -89,9 +89,19 @@ __all__ = [
     "scalar_flux_space",
 ]
 
+#: The space's element type (what a member of :math:`V` IS): a bare
+#: ``NDArray`` for the leaf spaces, a bulk ⊕ boundary composite field for
+#: :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`. The
+#: PEP-696 default is ``Any`` because a bare ``FunctionSpace`` annotation
+#: (the operator layer's ``domain`` / ``codomain`` slots) genuinely holds
+#: EITHER realization today — specializing those slots to the operator's
+#: own carrier (``FunctionSpace[Domain]``, the #65 two-param discipline
+#: extended to the space layer) is the follow-on step, not this one.
+Carrier = TypeVar("Carrier", default=Any)
+
 
 @dataclass(frozen=True)
-class FunctionSpace:
+class FunctionSpace(Generic[Carrier]):
     r"""A finite-dimensional vector space of discrete fields.
 
     Parameters
@@ -169,8 +179,32 @@ class FunctionSpace:
     # Inner product / norm
     # ------------------------------------------------------------------
 
-    def inner_product(self, x: NDArray, y: NDArray) -> float:
+    def inner_product(self, x: Carrier, y: Carrier) -> float:
         r"""Return :math:`\langle x, y \rangle`.
+
+        The **surface** is carrier-generic: a space defines the inner
+        product on its own element type. The base **realization**
+        (:meth:`_diagonal_inner_product`) is the diagonal-weight form for
+        the bare-array carrier; a space with a structured carrier
+        overrides this surface with its own realization
+        (:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+        dispatches per direct-sum block).
+
+        Parameters
+        ----------
+        x, y : Carrier
+            Elements of this space (arrays of shape :attr:`shape` for
+            the default realization).
+
+        Returns
+        -------
+        float
+            Scalar inner product.
+        """
+        return self._diagonal_inner_product(x, y)
+
+    def _diagonal_inner_product(self, x: Any, y: Any) -> float:
+        r"""The bare-array realization of :meth:`inner_product`.
 
         With diagonal weights ``w`` the inner product is the weighted
         sum :math:`\sum_i w_i \, x_i \, y_i`. Without weights it
@@ -178,25 +212,21 @@ class FunctionSpace:
         weights array is broadcast against ``x * y`` so a 1-D weight
         vector along (say) the ordinate axis acts on the full
         ``(n_cells, n_ordinates, n_groups)`` tensor without manual
-        reshaping.
-
-        Parameters
-        ----------
-        x, y : NDArray
-            Arrays of shape :attr:`shape`.
-
-        Returns
-        -------
-        float
-            Scalar inner product.
+        reshaping. Valid only for an ``NDArray``-carried space — the
+        ``Any`` parameters are the realization/surface seam, not an
+        open contract.
         """
         if self.inner_product_weights is None:
             return float(np.sum(x * y))
         return float(np.sum(self.inner_product_weights * x * y))
 
-    def norm(self, x: NDArray) -> float:
+    def norm(self, x: Carrier) -> float:
         r"""Return the induced :math:`L^2` norm
-        :math:`\sqrt{\langle x, x \rangle}`."""
+        :math:`\sqrt{\langle x, x \rangle}`.
+
+        Carrier-generic through :meth:`inner_product` — valid unchanged
+        for a structured-carrier space that overrides the inner product.
+        """
         return float(np.sqrt(self.inner_product(x, x)))
 
     # ------------------------------------------------------------------
@@ -215,23 +245,31 @@ class FunctionSpace:
             return w
         return w.reshape(w.shape + (1,) * (target_ndim - w.ndim))
 
-    def apply_metric(self, x: NDArray) -> NDArray:
+    def apply_metric(self, x: Carrier) -> Carrier:
         r"""Apply the Hilbert metric :math:`G\odot x` (identity if Euclidean).
 
-        The diagonal weight broadcasts against the leading axes of ``x``.
-        This is the building block :class:`~orpheus.numerics.operator._AdjointOperator`
+        Carrier-generic surface; the base realization
+        (:meth:`_diagonal_apply_metric`) broadcasts the diagonal weight
+        against the leading axes of a bare-array ``x``. This is the
+        building block :class:`~orpheus.numerics.operator._AdjointOperator`
         applies to the codomain before the transpose. Composite spaces
         (bulk :math:`\oplus` trace) OVERRIDE this to apply a per-block metric
         to a structured field (the Wave-O direct-sum adjoint).
         """
+        return self._diagonal_apply_metric(x)
+
+    def _diagonal_apply_metric(self, x: Any) -> Any:
+        r"""The bare-array realization of :meth:`apply_metric`."""
         w = self.inner_product_weights
         if w is None:
             return x
         return self._broadcast_metric(w, np.ndim(x)) * x
 
-    def apply_inverse_metric(self, x: NDArray) -> NDArray:
+    def apply_inverse_metric(self, x: Carrier) -> Carrier:
         r"""Apply the Moore–Penrose pseudo-inverse metric :math:`G^{+}\odot x`.
 
+        Carrier-generic surface (see :meth:`apply_metric`); the base
+        realization is :meth:`_diagonal_apply_inverse_metric`:
         ``(1/G)⊙x`` where ``G ≠ 0``, and ``0`` on the metric's null space
         (``G = 0`` — e.g. the tangential partial-current trace slots where
         ``|Ω·n| = 0``). The pseudo-inverse is exact for the Hilbert adjoint:
@@ -241,6 +279,10 @@ class FunctionSpace:
         (e.g. the angular quadrature weights ``w_n``) this is plain ``x/G``,
         so the spherical-harmonic adjoint path stays bit-identical.
         """
+        return self._diagonal_apply_inverse_metric(x)
+
+    def _diagonal_apply_inverse_metric(self, x: Any) -> Any:
+        r"""The bare-array realization of :meth:`apply_inverse_metric`."""
         w = self.inner_product_weights
         if w is None:
             return x

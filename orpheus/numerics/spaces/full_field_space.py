@@ -97,7 +97,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, ClassVar, Optional, Protocol
 
 import numpy as np
 
@@ -107,11 +107,45 @@ if TYPE_CHECKING:
     from orpheus.numerics.spaces.trace_space import TraceSpace
 
 
-__all__ = ["FullFieldSpace"]
+__all__ = ["CompositeField", "FullFieldSpace"]
+
+
+class _CompositeLeaf(Protocol):
+    """One block of a composite field: a frozen dataclass carrying ``values``.
+
+    The ``__dataclass_fields__`` ClassVar makes the protocol satisfy
+    typeshed's ``DataclassInstance``, so :func:`dataclasses.replace`
+    accepts a leaf without a concrete transport import.
+    """
+
+    __dataclass_fields__: ClassVar[dict[str, Any]]
+
+    @property
+    def values(self) -> np.ndarray: ...
+
+
+class CompositeField(Protocol):
+    """The composite-field contract (see module docstring) made static.
+
+    The carrier of :class:`FullFieldSpace` — a bulk ⊕ boundary pair with
+    the polymorphic ``_recombine`` rebuild hook. Structural, so the
+    transport carriers (``FullField`` / ``TimedFullField``) satisfy it
+    without an import edge out of the numerics layer.
+    """
+
+    @property
+    def bulk(self) -> _CompositeLeaf: ...
+
+    @property
+    def boundary(self) -> _CompositeLeaf: ...
+
+    def _recombine(
+        self, *, bulk: _CompositeLeaf, boundary: _CompositeLeaf,
+    ) -> "CompositeField": ...
 
 
 @dataclass(frozen=True)
-class FullFieldSpace(FunctionSpace):
+class FullFieldSpace(FunctionSpace[CompositeField]):
     r"""Direct sum :math:`V_{\rm bulk} \oplus V_{\rm trace}` with a per-block metric.
 
     Parameters
@@ -203,7 +237,11 @@ class FullFieldSpace(FunctionSpace):
         return self.bulk_space, self.trace_space
 
     @staticmethod
-    def _rebuild(x, bulk_values: np.ndarray, boundary_values: np.ndarray):
+    def _rebuild(
+        x: CompositeField,
+        bulk_values: np.ndarray,
+        boundary_values: np.ndarray,
+    ) -> CompositeField:
         r"""Return a copy of composite field ``x`` with new block ``values``.
 
         Rebuilds the frozen leaves (``x.bulk`` / ``x.boundary``) via
@@ -226,7 +264,7 @@ class FullFieldSpace(FunctionSpace):
             boundary=replace(x.boundary, values=boundary_values),
         )
 
-    def apply_metric(self, x):
+    def apply_metric(self, x: CompositeField) -> CompositeField:
         r"""Apply the block-diagonal Hilbert metric :math:`G\odot x`.
 
         ``x`` is a composite field; the bulk block is weighted by
@@ -240,7 +278,7 @@ class FullFieldSpace(FunctionSpace):
             trace_space.apply_metric(x.boundary.values),
         )
 
-    def apply_inverse_metric(self, x):
+    def apply_inverse_metric(self, x: CompositeField) -> CompositeField:
         r"""Apply the block-diagonal pseudo-inverse metric :math:`G^{+}\odot x`.
 
         Plain ``1/G`` on the strictly-positive bulk block; the
@@ -254,14 +292,14 @@ class FullFieldSpace(FunctionSpace):
             trace_space.apply_inverse_metric(x.boundary.values),
         )
 
-    def inner_product(self, a, b) -> float:
+    def inner_product(self, x: CompositeField, y: CompositeField) -> float:
         r"""Return the direct-sum inner product
-        :math:`\langle a, b\rangle_G = \langle a_{\rm bulk}, b_{\rm bulk}\rangle_{G_{\rm bulk}}
-        + \langle a_{\rm trace}, b_{\rm trace}\rangle_{G_{\rm trace}}`."""
+        :math:`\langle x, y\rangle_G = \langle x_{\rm bulk}, y_{\rm bulk}\rangle_{G_{\rm bulk}}
+        + \langle x_{\rm trace}, y_{\rm trace}\rangle_{G_{\rm trace}}`."""
         bulk_space, trace_space = self._require_blocks()
         return (
-            bulk_space.inner_product(a.bulk.values, b.bulk.values)
+            bulk_space.inner_product(x.bulk.values, y.bulk.values)
             + trace_space.inner_product(
-                a.boundary.values, b.boundary.values
+                x.boundary.values, y.boundary.values
             )
         )
