@@ -45,6 +45,12 @@ The realisation map (law concrete → Wave-0 / Wave-1 primitive)
   :class:`~orpheus.sn.boundary.angular.IncomingSourceOperator(source)`
   — apply returns ``source.evaluate(psi_out.shape)``, ignoring the
   outgoing flux. The rank-0 affine BC (Wave 7 / C7.5).
+* :class:`~orpheus.geometry.boundary.zero_flux.ZeroFluxBoundary` →
+  **REFUSED** (:class:`~orpheus.geometry.boundary.BoundaryError`):
+  the Dirichlet idealization :math:`\phi_\Gamma = 0` is the
+  albedo-family member :math:`\mathcal{A} = -1`, and a negative
+  angular inflow is unrepresentable in a non-negative :math:`\psi`.
+  It realizes only under the diffusion realizer (#290 P3).
 
 Wave 11 removed the ``MixedBoundaryOperator`` composer from the
 dispatch table. Rank-N compositions are now expressed via Wave-0
@@ -79,9 +85,10 @@ from orpheus.geometry.boundary import (
     ReflectiveBoundary,
     VacuumInflow,
     WhiteBoundary,
+    ZeroFluxBoundary,
+    stamp_boundary_role,
 )
 from orpheus.numerics.operator import (
-    BlockRole,
     IdentityOperator,
     IncomingOrdinateMaskTensor,
     LinearOperator,
@@ -97,30 +104,11 @@ from .angular import (
 )
 
 if TYPE_CHECKING:
-    from orpheus.geometry.boundary import LawNode
+    from orpheus.geometry.boundary import BoundaryRealizer, LawNode
     from orpheus.sn.mesh.method_space import SNMethodSpace
 
 
 __all__ = ["SNBoundaryRealizer", "realize_recursively"]
-
-
-def _as_boundary(op: LinearOperator) -> LinearOperator:
-    r"""Stamp a realized boundary law with the :attr:`BlockRole.BOUNDARY` role.
-
-    The realized law is a boundary-block leaf (``A_ss`` only) on the
-    direct-sum transport state ``V = V_bulk ⊕ V_boundary`` — it maps the
-    outflow trace to the inflow trace with no bulk action (Issue #208 /
-    Wave O). The role lives on the INSTANCE (the realized op is a generic
-    numerics primitive — :class:`TensorProductOperator`,
-    :class:`ScaledOperator`, … — that plays the BOUNDARY role only in
-    this realization context), so it is stamped here at the single
-    producer site (``coding-elegance`` Pattern 7). The rank-0 affine
-    ``PrescribedInflow`` source is deliberately NOT stamped: it is the
-    boundary *source* ``q.boundary``, not a linear boundary operator
-    ``B``.
-    """
-    op.block_role = BlockRole.BOUNDARY
-    return op
 
 
 @BoundaryRealizerRegistry.register("SN")
@@ -152,10 +140,29 @@ class SNBoundaryRealizer:
         :class:`TensorProductOperator` / :class:`ScaledOperator` /
         :class:`IncomingSourceOperator` / …); the narrower mixin type
         (vs the bare :class:`LinearOperator` Protocol) lets the
-        :func:`_as_boundary` ``block_role`` instance-stamp type-check and
-        keeps the realized-law primitives assignable nominally rather than
+        :func:`~orpheus.geometry.boundary.stamp_boundary_role`
+        ``block_role`` instance-stamp type-check and keeps the
+        realized-law primitives assignable nominally rather than
         through the (invariant) Protocol.
         """
+        if isinstance(law, ZeroFluxBoundary):
+            # #290 P3 (user ruling 3): φ_Γ = 0 is a diffusion-level
+            # Dirichlet idealization — albedo 𝒜 = −1 in the
+            # partial-current basis. A transport BC prescribes the
+            # inflow trace from the outflow trace, and a NEGATIVE
+            # angular inflow is unrepresentable in a non-negative ψ,
+            # so SN refuses rather than realizing something else.
+            raise BoundaryError(
+                "SNBoundaryRealizer cannot realize ZeroFluxBoundary: "
+                "the zero-flux Dirichlet condition (φ_Γ = 0) is the "
+                "albedo-family member 𝒜 = −1 in the partial-current "
+                "basis, and a negative angular inflow has no transport "
+                "realization (ψ ≥ 0 ⟹ J± ≥ 0). Use VacuumInflow for "
+                "the physical zero-incoming law (J⁻ = 0), or realize "
+                "zero-flux with the diffusion realizer.",
+                law="zero_flux",
+            )
+
         quad = method_space.quadrature
 
         if isinstance(law, VacuumInflow):
@@ -179,7 +186,7 @@ class SNBoundaryRealizer:
             # to the bare mask's ``apply`` (IdentityOperator.apply
             # returns ``x`` unchanged), so bit-identity with the pre-T.1
             # single-axis form is preserved.
-            return _as_boundary(
+            return stamp_boundary_role(
                 IncomingOrdinateMaskTensor(
                     inflow_indices=method_space.inflow_indices,
                     n_ordinates=quad.N,
@@ -210,8 +217,8 @@ class SNBoundaryRealizer:
                 # with legacy when albedo is exactly 1.0. The fold
                 # ``IdentityOperator.apply(np.take(x, perm, axis=0))``
                 # reduces to ``np.take(x, perm, axis=0)`` — same bytes.
-                return _as_boundary(base)
-            return _as_boundary(float(law.albedo) * base)
+                return stamp_boundary_role(base)
+            return stamp_boundary_role(float(law.albedo) * base)
 
         if isinstance(law, WhiteBoundary):
             # Wave T step T.1 — white BC lift to 2-factor
@@ -227,14 +234,14 @@ class SNBoundaryRealizer:
                 & IdentityOperator()
             )
             if law.albedo == 1.0:
-                return _as_boundary(base)
-            return _as_boundary(float(law.albedo) * base)
+                return stamp_boundary_role(base)
+            return stamp_boundary_role(float(law.albedo) * base)
 
         if isinstance(law, AlbedoBoundary):
             if law.albedo == 0.0:
-                return _as_boundary(ZeroOperator())
+                return stamp_boundary_role(ZeroOperator())
             if law.albedo == 1.0:
-                return _as_boundary(IdentityOperator())
+                return stamp_boundary_role(IdentityOperator())
             # Wave T step T.1 — albedo BC lift.  For α ∉ {0,1} the
             # action is uniform attenuation across all axes; lifting
             # the inner identity to a 2-factor TP (I & I) makes the
@@ -242,7 +249,7 @@ class SNBoundaryRealizer:
             # the apply level (both IdentityOperator factors return
             # ``x`` unchanged; the ``ScaledOperator`` wrapper supplies
             # the α multiplication).
-            return _as_boundary(
+            return stamp_boundary_role(
                 float(law.albedo) * (IdentityOperator() & IdentityOperator())
             )
 
@@ -255,7 +262,7 @@ class SNBoundaryRealizer:
             # the matvec output.  When PeriodicWrapOperator gains a
             # non-trivial spatial-pushforward (follow-up issue), the
             # second factor will carry that structure.
-            return _as_boundary(PeriodicWrapOperator() & IdentityOperator())
+            return stamp_boundary_role(PeriodicWrapOperator() & IdentityOperator())
 
         if isinstance(law, PrescribedInflow):
             # Wave-7 addition: rank-0 affine source. The operator's
@@ -282,33 +289,35 @@ class SNBoundaryRealizer:
 # ─────────────────────────────────────────────────────────────────────
 # Rank-N composition walker — descriptor tree → operator tree.
 #
-# Co-located with the SN realizer it dispatches to (the near-twin
-# ``boundary_realize`` module was merged here, 2026-06-26). The walker is
-# honestly SN-specific today: it threads an ``SNMethodSpace`` and hardcodes
-# ``SNBoundaryRealizer`` at the leaf. Production realizes single BCs
-# directly (``SNMesh._resolve_one`` → ``SNBoundaryRealizer().realize``);
-# this walker is the rank-N composition entry point (the Marshak
-# ``0.3·Reflective + 0.7·White`` partial-current BC), exercised by the
-# law-composition wall ``tests/geometry/test_law_composition.py``.
+# Co-located with the SN realizer it defaults to (the near-twin
+# ``boundary_realize`` module was merged here, 2026-06-26). Production
+# realizes single BCs directly (``SNMesh._resolve_one`` →
+# ``SNBoundaryRealizer().realize``); this walker is the rank-N
+# composition entry point (the Marshak ``0.3·Reflective + 0.7·White``
+# partial-current BC), exercised by the law-composition wall
+# ``tests/geometry/test_law_composition.py``.
 #
-# The cross-method generalization — a method-agnostic walker resolving the
-# realizer via ``BoundaryRealizerRegistry`` and threading a ``MethodSpace``
-# Protocol instead of ``SNMethodSpace`` — is DEFERRED until the second
-# functional realizer (MoC/MC/CP/diffusion) ships. That is the SAME trigger
-# that mints the ``TransportMethod`` Protocol flagged in
-# :mod:`orpheus.transport.mesh.material_mesh`: the boundary-realizer seam
-# and the homogenization method-layer are the two witnesses to that one
-# missing type, so at method #2 they are typed together — the registry
-# gains its first production consumer, this walker moves to
-# ``geometry/boundary/``, and ``method_space`` becomes a typed Protocol.
-# Per defer-until-2-instances the registry stays test-only until then; the
-# one live method (SN) routes directly through the hardcoded leaf here.
+# The second functional realizer SHIPPED at #290 P3 (diffusion), firing
+# the recorded defer-until-2-instances trigger. The interim bridge is
+# the ``realizer`` parameter below: the walk (LawSum/LawScaled →
+# OperatorSum/ScaledOperator) is realizer-generic, and the diffusion
+# path composes via ``realize_recursively(tree, dms,
+# realizer=DiffusionBoundaryRealizer())`` with SN call sites unchanged.
+# The FULL generalization — walker moved to ``geometry/boundary/``,
+# realizer resolved via ``BoundaryRealizerRegistry``, ``method_space``
+# typed as a ``MethodSpace`` Protocol, minted together with the
+# ``TransportMethod`` Protocol whose two witnesses are this seam and
+# the homogenization method-layer
+# (:mod:`orpheus.transport.mesh.material_mesh`) — is #290 P7, gated on
+# the L24 re-characterization of
+# ``.claude/plans/realize_recursively_move_spec.md``.
 # ─────────────────────────────────────────────────────────────────────
 
 
 def realize_recursively(
     node: "LawNode",
-    method_space: "SNMethodSpace",
+    method_space: "SNMethodSpace | object",
+    realizer: "BoundaryRealizer | None" = None,
 ) -> LinearOperator:
     r"""Walk a descriptor tree and realise it as a Wave-0 operator tree.
 
@@ -321,7 +330,8 @@ def realize_recursively(
     :class:`~orpheus.numerics.operator.OperatorSum` /
     :class:`~orpheus.numerics.operator.ScaledOperator` composers and
     1-arg :class:`~orpheus.numerics.operator.LinearOperator` leaves
-    (realised by :class:`SNBoundaryRealizer`).
+    (realised by ``realizer`` — :class:`SNBoundaryRealizer` by
+    default).
 
     This is the ONLY function that transforms a descriptor into an
     operator. The §16A.3 three-layer split is type-checkable through
@@ -337,8 +347,18 @@ def realize_recursively(
         :class:`~orpheus.geometry.boundary._composition.LawScaled`
         composer.
     method_space
-        Method space passed verbatim to :meth:`SNBoundaryRealizer.realize`
-        at every leaf.
+        Method space passed verbatim to ``realizer.realize`` at every
+        leaf. Its type is the realizer's: :class:`SNMethodSpace` for
+        the default SN leaf realizer,
+        :class:`~orpheus.diffusion.method_space.DiffusionMethodSpace`
+        for the diffusion realizer. (It becomes a typed
+        ``MethodSpace`` Protocol at the #290 P7 ``TransportMethod``
+        mint.)
+    realizer
+        The leaf realizer (a
+        :class:`~orpheus.geometry.boundary.BoundaryRealizer`).
+        ``None`` (the default) uses :class:`SNBoundaryRealizer`,
+        preserving every pre-#290 call site unchanged.
 
     Returns
     -------
@@ -379,20 +399,23 @@ def realize_recursively(
         >>> realised = realize_recursively(law, ms)  # OperatorSum
         ...                                          # of ScaledOperators
     """
+    if realizer is None:
+        realizer = SNBoundaryRealizer()
+
     if isinstance(node, BoundaryTraceLaw):
-        # Leaf: dispatch through the SN realiser (hardcoded — SN is the
-        # only functional realizer; see the deferral note above).
-        return SNBoundaryRealizer().realize(node, method_space)
+        # Leaf: dispatch through the leaf realizer (SN by default; see
+        # the generalization note above).
+        return realizer.realize(node, method_space)
 
     if isinstance(node, LawScaled):
         # Recurse on the inner descriptor, wrap with ScaledOperator.
-        inner_op = realize_recursively(node.inner, method_space)
+        inner_op = realize_recursively(node.inner, method_space, realizer)
         return ScaledOperator(node.scalar, inner_op)
 
     if isinstance(node, LawSum):
         # Recurse on both operands, reassemble via OperatorSum.
-        a_op = realize_recursively(node.a, method_space)
-        b_op = realize_recursively(node.b, method_space)
+        a_op = realize_recursively(node.a, method_space, realizer)
+        b_op = realize_recursively(node.b, method_space, realizer)
         return OperatorSum(a_op, b_op)
 
     raise TypeError(

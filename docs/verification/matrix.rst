@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6109**
+Total tests collected: **6141**
 
 V&V level distribution
 ----------------------
@@ -16,11 +16,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1170, 19.2%
+   L0, 1171, 19.1%
    L1, 1066, 17.4%
-   L2, 46, 0.8%
+   L2, 46, 0.7%
    L3, 0, 0.0%
-   foundation, 3817, 62.5%
+   foundation, 3848, 62.7%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6020
+   explicit, 6052
    verify, 0
    class-name, 46
    func-name, 0
@@ -220,7 +220,7 @@ Module × level grid
    derivations/test_trajectory_resolvent_chord_oracle, 0, 0, 0, 0, 21, 0
    derivations/test_trajectory_resolvent_power_iterate, 0, 0, 0, 0, 6, 0
    derivations/test_xs_library_validation, 0, 0, 0, 0, 2, 0
-   diffusion/test_boundary_realizer_stub, 3, 0, 0, 0, 0, 0
+   diffusion/test_boundary_realizer, 4, 0, 0, 0, 28, 0
    diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
    diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
@@ -238,7 +238,7 @@ Module × level grid
    geometry/test_bc_errors, 0, 0, 0, 0, 11, 0
    geometry/test_bc_universal_invariants, 0, 30, 0, 0, 11, 0
    geometry/test_bound_compat, 10, 0, 0, 0, 0, 0
-   geometry/test_boundary, 0, 0, 0, 0, 24, 0
+   geometry/test_boundary, 0, 0, 0, 0, 25, 0
    geometry/test_boundary_trace_law, 0, 0, 0, 0, 15, 0
    geometry/test_geometry, 0, 0, 0, 0, 55, 0
    geometry/test_law_composition, 0, 2, 0, 0, 16, 0
@@ -396,7 +396,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 307, 0
+   test_layer_imports, 0, 0, 0, 0, 309, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0

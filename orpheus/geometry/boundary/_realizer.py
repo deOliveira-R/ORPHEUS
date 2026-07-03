@@ -26,13 +26,20 @@ concrete realizers ship in per-method subpackages:
 * :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` —
   functional realizer for SN (dispatches by ``isinstance(law, ...)``
   to the Wave-0 / Wave-1 primitives).
+* :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
+  — functional realizer for diffusion (#290 P3 / issue #182): every
+  law collapses to the albedo-family scalar :math:`\mathcal{A}` in
+  :math:`J^- = \mathcal{A}\,J^+` on the scalar partial-current trace.
 * :class:`~orpheus.moc.boundary_realizer.MoCBoundaryRealizer`,
   :class:`~orpheus.mc.boundary_realizer.MCBoundaryRealizer`,
-  :class:`~orpheus.cp.boundary_realizer.CPBoundaryRealizer`,
-  :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
+  :class:`~orpheus.cp.boundary_realizer.CPBoundaryRealizer`
   — stub realizers (``NotImplementedError`` with grep-able marker)
   registered for the day each method adopts the unified BC
   architecture.
+
+This module also carries :func:`stamp_boundary_role` — the shared
+helper every functional realizer applies to its realized operators so
+they carry :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY`.
 
 The :class:`BoundaryRealizerRegistry` is a stand-alone registry (not
 mounted on :class:`~orpheus.numerics.registry.RegistryMixin`) because
@@ -56,6 +63,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
+from orpheus.numerics.operator import BlockRole
+
 if TYPE_CHECKING:
     from orpheus.numerics.operator import LinearOperator
 
@@ -64,7 +73,31 @@ __all__ = [
     "BoundaryRealizer",
     "BoundaryRealizerRegistry",
     "BoundaryRealizerRegistryError",
+    "stamp_boundary_role",
 ]
+
+
+def stamp_boundary_role(op: "LinearOperator") -> "LinearOperator":
+    r"""Stamp a realized boundary law with the :attr:`BlockRole.BOUNDARY` role.
+
+    A realized law is a boundary-block leaf (``A_ss`` only) on the
+    direct-sum transport state ``V = V_bulk ⊕ V_boundary`` — it maps the
+    outflow trace to the inflow trace with no bulk action (Issue #208 /
+    Wave O). The role lives on the INSTANCE (the realized op is a generic
+    numerics primitive — :class:`TensorProductOperator`,
+    :class:`ScaledOperator`, :class:`IdentityOperator`, … — that plays
+    the BOUNDARY role only in this realization context), so it is stamped
+    at the producer sites — the functional method realizers
+    (:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`,
+    :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`)
+    — through this ONE helper (``coding-elegance`` Pattern 7 / Pattern 2:
+    the stamp is a shared realizer-layer concept, defined once). The
+    rank-0 affine ``PrescribedInflow`` source is deliberately NOT
+    stamped: it is the boundary *source* ``q.boundary``, not a linear
+    boundary operator ``B``.
+    """
+    op.block_role = BlockRole.BOUNDARY
+    return op
 
 
 class BoundaryRealizerRegistryError(KeyError):

@@ -27,11 +27,13 @@ import pytest
 
 from orpheus.geometry.boundary import (
     AlbedoBoundary,
+    BoundaryError,
     PeriodicBoundary,
     BoundaryTraceLaw,
     ReflectiveBoundary,
     VacuumInflow,
     WhiteBoundary,
+    ZeroFluxBoundary,
 )
 from orpheus.sn.boundary.realizer import SNBoundaryRealizer
 from orpheus.sn.mesh.method_space import SNMethodSpace
@@ -375,6 +377,7 @@ def test_all_primitives_are_resolved_bc() -> None:
         WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0),
         PeriodicBoundary(),
         AlbedoBoundary(albedo=0.5),
+        ZeroFluxBoundary(),
     ]
     for bc in instances:
         assert isinstance(bc, BoundaryTraceLaw), f"{type(bc).__name__} not BoundaryTraceLaw"
@@ -399,6 +402,7 @@ def test_registry_contains_all_primitives() -> None:
     """
     expected_keys = {
         "vacuum", "reflective", "white", "periodic", "albedo",
+        "zero_flux",
     }
     registry_keys = set(BoundaryTraceLaw.registry.keys())
     assert expected_keys <= registry_keys
@@ -416,6 +420,23 @@ def test_registry_create_returns_concrete_instance() -> None:
     assert isinstance(bc, ReflectiveBoundary)
     assert bc.axis == "x"
     assert bc.albedo == 1.0
+    bc = BoundaryTraceLaw.create("zero_flux")
+    assert isinstance(bc, ZeroFluxBoundary)
+
+
+@pytest.mark.foundation
+def test_sn_realizer_refuses_zero_flux() -> None:
+    """SN REFUSES the zero-flux Dirichlet law (#290 P3 / ruling 3).
+
+    φ_Γ = 0 is the albedo-family member 𝒜 = −1 in the partial-current
+    basis; a NEGATIVE angular inflow is unrepresentable in a
+    non-negative ψ, so the SN realizer must refuse rather than realize
+    something else. The error redirects to the physical zero-incoming
+    law (VacuumInflow) and to the diffusion realizer.
+    """
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
+    with pytest.raises(BoundaryError, match="VacuumInflow"):
+        _realize_for_sn(ZeroFluxBoundary(), quad)
 
 
 @pytest.mark.foundation

@@ -294,12 +294,16 @@ class FullOperator(metaclass=_BlockRoleMeta):
 class BoundaryOperator(metaclass=_BlockRoleMeta):
     r"""``isinstance`` marker for a :attr:`BlockRole.BOUNDARY` operator (``A_ss`` only).
 
-    The realized boundary laws produced by
+    The realized boundary laws produced by the functional method
+    realizers —
     :meth:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer.realize`
-    (vacuum / reflective / white / albedo / periodic) carry
-    :attr:`BlockRole.BOUNDARY`; the rank-0 affine ``PrescribedInflow``
-    source does NOT — it is the boundary *source* ``q.boundary``, not a
-    linear boundary operator ``B``.
+    (vacuum / reflective / white / albedo / periodic) and
+    :meth:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer.realize`
+    (the albedo family incl. zero-flux, #290 P3) — carry
+    :attr:`BlockRole.BOUNDARY` via
+    :func:`~orpheus.geometry.boundary.stamp_boundary_role`; the rank-0
+    affine ``PrescribedInflow`` source does NOT — it is the boundary
+    *source* ``q.boundary``, not a linear boundary operator ``B``.
     """
 
     _role = BlockRole.BOUNDARY
@@ -451,7 +455,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
     #: ``ClassVar``) precisely because the composers
     #: (:class:`OperatorSum` / :class:`ScaledOperator` /
     #: :class:`_AdjointOperator`) and the
-    #: :func:`~orpheus.sn.boundary.realizer._as_boundary` stamp assign
+    #: :func:`~orpheus.geometry.boundary.stamp_boundary_role` stamp assign
     #: ``self.block_role`` per-instance (the role is DERIVED from operands,
     #: not fixed by the class). A ``ClassVar`` would (correctly) reject
     #: that instance assignment. This base is not a ``@dataclass``, so the

@@ -6,5 +6,8 @@ from .solver import (
     solve_diffusion_1d,
 )
 
-# Wave 5 -- auto-register the (stub) DiffusionBoundaryRealizer.
-from . import boundary_realizer  # noqa: F401
+# #290 P3 (closes #182) -- the FUNCTIONAL DiffusionBoundaryRealizer
+# (albedo family J⁻ = 𝒜·J⁺ on the scalar partial-current trace) +
+# its method space. Importing the module auto-registers the realizer.
+from .boundary_realizer import DiffusionBoundaryRealizer
+from .method_space import DiffusionMethodSpace

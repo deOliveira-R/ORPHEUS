@@ -1,44 +1,247 @@
-r"""Diffusion BoundaryRealizer — STUB.
+r"""Diffusion BoundaryRealizer — the albedo-family realization.
 
-Stub realizer for the diffusion solver. Registered in
+Functional realizer for diffusion (#290 P3; closes issue #182 — the
+Wave-5 stub this file carried until 2026-07-03). Registered in
 :class:`~orpheus.geometry.boundary.BoundaryRealizerRegistry` under
-``method_name = "diffusion"`` so the architecture is wired end-to-end,
-but :meth:`realize` raises :class:`NotImplementedError`. Functional
-implementation lands when diffusion adopts the unified BC
-architecture — see follow-up issue ``BC: DiffusionBoundaryRealizer
-functional implementation`` filed at the end of the 12-wave refactor.
+``method_name = "diffusion"``.
 
-Diffusion BCs are Marshak-extrapolated forms of the transport
-BCs (Marshak 1947; Bell & Glasstone 1970 §3.4): vacuum becomes
-:math:`\phi + (2/3)\,\nabla\phi \cdot \hat n = 0` at the surface
-(albedo ≈ 0); reflective becomes :math:`\nabla\phi \cdot \hat n = 0`;
-albedo and white share a generalised mixed-extrapolation form
-parametrised by the half-current ratio. The realizer here will map
-each legacy BC onto the appropriate Robin-coefficient block of the
-diffusion finite-volume matrix.
+Every diffusion boundary condition is an albedo
+================================================
+
+Diffusion's boundary state is the scalar partial-current pair
+``(J⁺, J⁻)`` on the
+:class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`
+— ONE outflow DOF and ONE inflow DOF per face per group (#290 ruling
+2). A linear homogeneous boundary law therefore collapses to a single
+scalar response per face per group:
+
+.. math::
+
+    J^- \;=\; \mathcal{A}\, J^+ ,
+
+and :meth:`DiffusionBoundaryRealizer.realize` is the composition of
+two named maps: *law → albedo scalar* 𝒜 (the physics table below),
+then *albedo scalar → operator* (the structure-keyed collapse
+mirroring the SN realizer's ``AlbedoBoundary`` branch). The realized
+operator maps the outflow half of a face slot to the inflow half; it
+is stamped :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` via
+:func:`~orpheus.geometry.boundary.stamp_boundary_role` (the ``A_ss``
+leaf of the composite state, consumed by the P4
+``DiffusionBoundaryOperator`` assembly).
+
+The realization table (law → 𝒜 → operator)
+===========================================
+
+===============================  =======  =========================================
+Law                              𝒜        Realized operator
+===============================  =======  =========================================
+``VacuumInflow``                 ``0``    :class:`~orpheus.numerics.operator.ZeroOperator`
+``ReflectiveBoundary(α)``        ``α``    ``IdentityOperator`` (α=1) / ``α·I``
+``WhiteBoundary(α)``             ``α``    ``IdentityOperator`` (α=1) / ``α·I``
+``AlbedoBoundary(α)``            ``α``    ``Zero`` (α=0) / ``I`` (α=1) / ``α·I``
+``ZeroFluxBoundary``             ``−1``   ``ScaledOperator(-1, IdentityOperator)``
+``PeriodicBoundary``             —        REFUSED (needs the opposite-face wrap)
+``PrescribedInflow``             —        REFUSED (affine source, not an operator)
+===============================  =======  =========================================
+
+* **Vacuum is Marshak** (#290 ruling 3): :math:`\mathcal{A} = 0` IS
+  the Marshak zero-incoming-current condition :math:`J^- = 0`, which
+  in :math:`(\phi, J)` variables reads
+  :math:`\phi_\Gamma/4 - J/2 = 0`, i.e. the classic Robin form
+  :math:`\phi + 2D\,\nabla\phi\cdot\hat n = 0` under Fick's law
+  (Marshak 1947; Bell & Glasstone 1970 §3.4). The zero-flux Dirichlet
+  condition the legacy island mis-registered as ``"vacuum"`` is a
+  DIFFERENT law — :class:`~orpheus.geometry.boundary.ZeroFluxBoundary`,
+  :math:`\mathcal{A} = -1`.
+* **White coincides with reflective at P1** (documented per the plan):
+  specular and Lambertian return differ only in the ANGULAR
+  redistribution of the returned particles, which the half-range
+  ℓ=0 moments integrate out — both preserve the returned current,
+  :math:`J^- = \alpha J^+`. The distinction is real in transport
+  (SN realizes them as a permutation vs a cosine-weighted average)
+  and vanishes in any P1-closed method by construction.
+* **Zero-flux is deliberately outside the sub-Markov range**
+  :math:`[0, 1]`: partial-current positivity :math:`J^\pm \ge 0` is
+  a property of the PHYSICAL laws, not a type invariant — see
+  :class:`~orpheus.geometry.boundary.ZeroFluxBoundary`.
+
+Refusals
+========
+
+* :class:`~orpheus.geometry.boundary.PeriodicBoundary` couples the
+  face to its OPPOSITE face (``J⁻(xmin) = J⁺(xmax)`` and vice versa)
+  — not a per-face rank-1 albedo but a trace-block permutation. No
+  diffusion consumer exists today; the realizer refuses loudly rather
+  than realizing the wrong (identity-like) thing. The wrap lands with
+  a consumer, on the P4 boundary-operator assembly where the whole
+  trace block is in scope.
+* :class:`~orpheus.geometry.boundary.PrescribedInflow` is the rank-0
+  AFFINE law :math:`J^- = q`: its realization is the boundary
+  *source* ``q.boundary``, not a linear boundary operator ``B``
+  (exactly the SN split — SN realizes it as an
+  ``IncomingSourceOperator`` and does NOT stamp it BOUNDARY). The
+  diffusion source arm lands with the P5 fixed-source wiring; until
+  then the refusal keeps the operator/source split honest.
+
+Rank-N composition (Marshak mixes, partial reflection) goes through
+the descriptor-tree walker with this realizer at the leaves::
+
+    from orpheus.sn.boundary.realizer import realize_recursively
+    op = realize_recursively(
+        0.3 * ReflectiveBoundary(axis="x") + 0.7 * AlbedoBoundary(albedo=0.5),
+        DiffusionMethodSpace.minimal(),
+        realizer=DiffusionBoundaryRealizer(),
+    )
+
+(The walker generalizes over leaf realizers since #290 P3; its move to
+``geometry/boundary/`` with registry routing is the #290 P7
+``TransportMethod`` mint.)
+
+References
+----------
+
+* Marshak, R. E. (1947). "Note on the spherical harmonic method as
+  applied to the Milne problem for a sphere". *Phys. Rev.* 71, 443.
+* Bell, G. I. & Glasstone, S. (1970). *Nuclear Reactor Theory*.
+  Van Nostrand Reinhold. §3.4 (diffusion-theory boundary conditions).
+* ``.claude/plans/diffusion_crosswalk.md`` — the ``(J⁺, J⁻)``
+  convention contract (rows, signs, the BC-family table this module
+  implements).
 """
 
 from __future__ import annotations
 
-from typing import Any
+from orpheus.geometry.boundary import (
+    AlbedoBoundary,
+    BoundaryError,
+    BoundaryRealizerRegistry,
+    BoundaryTraceLaw,
+    PeriodicBoundary,
+    PrescribedInflow,
+    ReflectiveBoundary,
+    VacuumInflow,
+    WhiteBoundary,
+    ZeroFluxBoundary,
+    stamp_boundary_role,
+)
+from orpheus.numerics.operator import (
+    IdentityOperator,
+    LinearOperator,
+    ZeroOperator,
+)
 
-from orpheus.geometry.boundary import BoundaryRealizerRegistry
+from .method_space import DiffusionMethodSpace
 
 
 __all__ = ["DiffusionBoundaryRealizer"]
 
 
+def _albedo_operator(albedo: float) -> LinearOperator:
+    r"""The structure-keyed collapse of :math:`J^- = \mathcal{A} J^+`.
+
+    Mirrors the SN realizer's ``AlbedoBoundary`` branch exactly:
+    :math:`\mathcal{A} = 0` collapses to the structural
+    :class:`ZeroOperator`, :math:`\mathcal{A} = 1` to the structural
+    :class:`IdentityOperator`, anything else to
+    ``ScaledOperator(𝒜, IdentityOperator)``. The operator is
+    face-slot-shape-agnostic — a scalar multiple of the identity on
+    the ``(ng, *face_spatial)`` outflow data, whatever the face.
+    """
+    if albedo == 0.0:
+        return ZeroOperator()
+    if albedo == 1.0:
+        return IdentityOperator()
+    return float(albedo) * IdentityOperator()
+
+
 @BoundaryRealizerRegistry.register("diffusion")
 class DiffusionBoundaryRealizer:
-    """Stub realizer — raises :class:`NotImplementedError`."""
+    r"""Functional realizer for diffusion BCs (#290 P3, closes #182).
+
+    Realizes every :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`
+    as the albedo-family operator :math:`J^- = \mathcal{A} J^+` on the
+    scalar partial-current trace — see the module docstring for the
+    law → 𝒜 table, the Marshak-vacuum and white≡reflective physics
+    notes, and the two refusals.
+
+    The realizer instance carries no state; ``method_name`` is the
+    only attribute. :meth:`realize` is stateless — it can be called
+    freely from any context.
+    """
 
     method_name: str = "diffusion"
 
-    def realize(self, law: Any, method_space: Any):
-        raise NotImplementedError(
-            f"DiffusionBoundaryRealizer.realize({type(law).__name__}, ...) "
-            f"is not yet implemented. The stub is registered so the "
-            f"architecture is wired end-to-end. File issue when "
-            f"diffusion adopts the unified BC architecture; see "
-            f".claude/plans/transient-giggling-cake.md Wave 5 / C5.4."
+    def realize(
+        self,
+        law: "BoundaryTraceLaw",
+        method_space: DiffusionMethodSpace,
+    ) -> LinearOperator:
+        r"""Realize ``law`` for diffusion as a 1-arg :class:`LinearOperator`.
+
+        The returned operator maps the outflow half of a face slot
+        (``J⁺``, shape ``(ng, *face_spatial)``) to the inflow half
+        (``J⁻``), stamped
+        :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY`. The
+        rank-1 albedo family reads nothing from ``method_space``
+        (mirroring SN's albedo branch — a
+        :meth:`DiffusionMethodSpace.minimal` suffices); the parameter
+        is the uniform :class:`~orpheus.geometry.boundary.BoundaryRealizer`
+        Protocol surface the P4/P5 wiring threads per-face spaces
+        through.
+        """
+        albedo = self._partial_current_albedo(law)
+        return stamp_boundary_role(_albedo_operator(albedo))
+
+    @staticmethod
+    def _partial_current_albedo(law: "BoundaryTraceLaw") -> float:
+        r"""The law's albedo-family response 𝒜 in :math:`J^- = \mathcal{A} J^+`.
+
+        The physics table (module docstring) as code. Note the two
+        DISTINCT albedos in play for reflective/white: the law's own
+        ``albedo`` field α is the return AMPLITUDE (specular resp.
+        diffuse), and at P1 the partial-current response equals it,
+        :math:`\mathcal{A} = \alpha` — because the angular structure
+        distinguishing the two return patterns is integrated out of
+        the half-range moments.
+        """
+        if isinstance(law, VacuumInflow):
+            return 0.0  # Marshak: zero incoming current (ruling 3).
+        if isinstance(law, ZeroFluxBoundary):
+            return -1.0  # Dirichlet φ_Γ = 0 ⟺ J⁻ = −J⁺ under P1.
+        if isinstance(law, (ReflectiveBoundary, WhiteBoundary)):
+            return float(law.albedo)  # P1-coincident (see module docstring).
+        if isinstance(law, AlbedoBoundary):
+            return float(law.albedo)
+
+        if isinstance(law, PeriodicBoundary):
+            raise BoundaryError(
+                "DiffusionBoundaryRealizer cannot realize "
+                "PeriodicBoundary: the periodic law couples a face to "
+                "its OPPOSITE face (a trace-block permutation), not a "
+                "per-face albedo J⁻ = 𝒜·J⁺. The wrap lands with the "
+                "boundary-operator assembly when a diffusion consumer "
+                "exists (#290 P4 seam).",
+                law="periodic",
+            )
+        if isinstance(law, PrescribedInflow):
+            raise BoundaryError(
+                "DiffusionBoundaryRealizer cannot realize "
+                "PrescribedInflow: J⁻ = q is the rank-0 AFFINE law — "
+                "its realization is the boundary source q.boundary, "
+                "not a linear boundary operator B (the same "
+                "operator/source split SN keeps). The diffusion "
+                "fixed-source arm lands with the solver wiring "
+                "(#290 P5).",
+                law="prescribed_inflow",
+            )
+        raise BoundaryError(
+            f"DiffusionBoundaryRealizer cannot realize "
+            f"{type(law).__name__} — no albedo-family case. Realizable "
+            f"laws: VacuumInflow (𝒜=0, Marshak), ReflectiveBoundary "
+            f"(𝒜=α), WhiteBoundary (𝒜=α, P1-coincident with "
+            f"reflective), AlbedoBoundary (𝒜=α), ZeroFluxBoundary "
+            f"(𝒜=−1). For rank-N compositions use "
+            f"orpheus.sn.boundary.realizer.realize_recursively with "
+            f"realizer=DiffusionBoundaryRealizer().",
+            law=type(law).__name__,
         )

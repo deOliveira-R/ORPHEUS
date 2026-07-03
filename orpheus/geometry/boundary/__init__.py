@@ -47,12 +47,13 @@ The §16A.3 decomposition splits this map into three concrete layers:
    ``ClassVar`` signal. Method-agnostic.
 3. **Method realisation** —
    :class:`~orpheus.geometry.boundary.BoundaryRealizer` Protocol +
-   one functional implementation
-   (:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`) plus
-   four stubs (``MoCBoundaryRealizer``, ``MCBoundaryRealizer``,
-   ``CPBoundaryRealizer``, ``DiffusionBoundaryRealizer``) holding
-   the dispatch architecture in place for future modernisation of
-   each method.
+   two functional implementations
+   (:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` and, since
+   #290 P3 / issue #182,
+   :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`)
+   plus three stubs (``MoCBoundaryRealizer``, ``MCBoundaryRealizer``,
+   ``CPBoundaryRealizer``) holding the dispatch architecture in place
+   for future modernisation of each method.
 
 Two registries connect the layers:
 
@@ -60,9 +61,9 @@ Two registries connect the layers:
   dict maintained by
   :class:`~orpheus.numerics.registry.RegistryMixin`). Keyed by the
   ``BC.kind`` string (``"vacuum"``, ``"reflective"``, ``"white"``,
-  ``"periodic"``, ``"albedo"``, ``"prescribed_inflow"``). Concrete
-  laws self-register at import time via the ``key=`` class-creation
-  kwarg.
+  ``"periodic"``, ``"albedo"``, ``"prescribed_inflow"``,
+  ``"zero_flux"``). Concrete laws self-register at import time via
+  the ``key=`` class-creation kwarg.
 * **Realizer registry** — :class:`BoundaryRealizerRegistry` (a
   stand-alone class with a class-level ``_registry`` dict). Keyed
   by method name (``"SN"``, ``"MoC"``, ``"MC"``, ``"CP"``,
@@ -80,7 +81,7 @@ entry (every existing law gets one new realisation branch).
 Concrete laws (Wave 7 vocabulary, post-#186 descriptor model)
 =============================================================
 
-Each of the six concrete :class:`BoundaryTraceLaw` subclasses is a
+Each of the seven concrete :class:`BoundaryTraceLaw` subclasses is a
 **frozen dataclass descriptor** — instantiate it to declare the
 law's parameters; realise it (via
 :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`) to
@@ -141,6 +142,15 @@ sole bridge. The canonical SN-realised representation per law:
   :class:`InflowSourceSpec` (typically :class:`NoSource` for the
   homogeneous case or :class:`ConstantInflowSource(value)` for a
   uniform inflow).
+  :attr:`creates_sweep_cycle` = ``False``.
+* :class:`ZeroFluxBoundary` (registry key ``"zero_flux"``, #290 P3 /
+  user ruling 3) — the homogeneous Dirichlet idealization
+  :math:`\phi_\Gamma = 0`: albedo-family member :math:`\mathcal{A} =
+  -1` in the partial-current basis (:math:`J^- = -J^+`), deliberately
+  outside the sub-Markov :math:`[0, 1]` range. The diffusion realizer
+  maps it to ``ScaledOperator(-1, IdentityOperator)``; the SN realizer
+  REFUSES it (a negative angular inflow is unrepresentable — use
+  :class:`VacuumInflow` for the physical zero-incoming law).
   :attr:`creates_sweep_cycle` = ``False``.
 
 
@@ -282,23 +292,33 @@ fault-injection tests in
 firing under the right conditions.
 
 
-Cross-method realizer stubs
-===========================
+Cross-method realizers: two functional, three stubs
+===================================================
 
-The :class:`BoundaryRealizer` Protocol has one functional
-implementation today —
-:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`. Four
-stub realizers in :mod:`orpheus.moc.boundary_realizer`,
-:mod:`orpheus.mc.boundary_realizer`,
-:mod:`orpheus.cp.boundary_realizer`, and
-:mod:`orpheus.diffusion.boundary_realizer` self-register at import
-time but raise :class:`NotImplementedError` from :meth:`realize`.
-The stubs hold the dispatch architecture in place so a future
-modernisation session for each method can ship a functional body
-without touching the SN side. Per the "Unify after two instances"
-rule, a shared ``BoundaryRealizerBase`` ABC is deferred until the
-second functional realizer ships — see
-:doc:`/theory/boundary_conditions` § "Cross-method realizer stubs".
+The :class:`BoundaryRealizer` Protocol has two functional
+implementations —
+:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` (angular:
+per-ordinate masks / permutations / averages) and
+:class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
+(#290 P3 / issue #182 — scalar: every law collapses to the
+albedo-family response :math:`J^- = \mathcal{A} J^+` on the
+partial-current trace). Three stub realizers in
+:mod:`orpheus.moc.boundary_realizer`,
+:mod:`orpheus.mc.boundary_realizer`, and
+:mod:`orpheus.cp.boundary_realizer` self-register at import time but
+raise :class:`NotImplementedError` from :meth:`realize`; they hold
+the dispatch architecture in place so a future modernisation session
+for each method can ship a functional body without touching the
+functional realizers.
+
+The "unify after two instances" trigger fired at the second
+functional realizer (#290 P3): the shared surface turned out to be
+the :class:`BoundaryRealizer` Protocol itself plus the
+:func:`stamp_boundary_role` helper — no ``BoundaryRealizerBase`` ABC
+is warranted (the two realize bodies share no algorithm, only the
+contract). The genuinely shared *machinery* — the descriptor-tree
+walker generalised over realizers and a typed ``MethodSpace``
+Protocol — is the ``TransportMethod`` mint tracked as #290 P7.
 
 
 Package layout (Wave 4 source-layout split, post-#186 descriptor cleanup)
@@ -329,6 +349,7 @@ Package layout (Wave 4 source-layout split, post-#186 descriptor cleanup)
 * :mod:`periodic` -- :class:`PeriodicBoundary`.
 * :mod:`albedo` -- :class:`AlbedoBoundary`.
 * :mod:`prescribed_inflow` -- :class:`PrescribedInflow` (Wave 7).
+* :mod:`zero_flux` -- :class:`ZeroFluxBoundary` (#290 P3).
 
 The pre-Wave-7 ``mixed.py`` submodule (carrying the now-retired
 ``MixedBoundaryOperator``) was **deleted in Wave 11**; the registry
@@ -456,6 +477,7 @@ from ._realizer import (
     BoundaryRealizer,
     BoundaryRealizerRegistry,
     BoundaryRealizerRegistryError,
+    stamp_boundary_role,
 )
 
 # ---------------------------------------------------------------------------
@@ -471,6 +493,7 @@ from .prescribed_inflow import PrescribedInflow
 from .reflective import ReflectiveBoundary
 from .vacuum import VacuumInflow
 from .white import WhiteBoundary
+from .zero_flux import ZeroFluxBoundary
 
 
 __all__ = [
@@ -494,15 +517,17 @@ __all__ = [
     "InflowSourceSpec",
     "ConstantInflowSource",
     "NoSource",
-    # Wave 5 -- realizer Protocol + registry
+    # Wave 5 -- realizer Protocol + registry (+ the shared role stamp)
     "BoundaryRealizer",
     "BoundaryRealizerRegistry",
     "BoundaryRealizerRegistryError",
-    # Concrete BCs (Wave 7 canonical names)
+    "stamp_boundary_role",
+    # Concrete BCs (Wave 7 canonical names + the #290 P3 addition)
     "AlbedoBoundary",
     "PeriodicBoundary",
     "PrescribedInflow",
     "ReflectiveBoundary",
     "VacuumInflow",
     "WhiteBoundary",
+    "ZeroFluxBoundary",
 ]

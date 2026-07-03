@@ -393,3 +393,49 @@ heredocs for regex text.
   post-P2.5 vocabulary). The live trace vocabulary is in the P2.5 status
   block and MEMORY.md's campaign entry. Branch
   `feature/diffusion-integration`, 8 ahead of main @ `d2a2a0c`.
+
+### P3 status (2026-07-03, session 3 — EXECUTED; hash = this commit)
+
+Spec executed in full (law + method space + functional realizer + stub-test
+flip; `Closes #182` fires at push). Deviations from the spec letter: NONE.
+Design decisions beyond the spec letter (recorded for P4/P7):
+
+1. **`stamp_boundary_role` extracted to `geometry/boundary/_realizer.py`**
+   (exported): the BlockRole.BOUNDARY instance-stamp became a 2-producer
+   shared concept at the second functional realizer — SN's module-private
+   `_as_boundary` retired, all 9 SN call sites rewired (Cardinal Rule 2).
+2. **"Composition laws via the walker" = a `realizer` parameter on
+   `realize_recursively`** (default `None` → `SNBoundaryRealizer()`, every
+   SN call site bit-unchanged). The diffusion path composes via
+   `realize_recursively(tree, dms, realizer=DiffusionBoundaryRealizer())`.
+   This is deliberately the MINIMAL bridge: the full generalization
+   (walker moved to `geometry/boundary/`, registry-routed leaves, typed
+   `MethodSpace` Protocol) stays P7 behind the L24 re-characterization
+   gate. The walker's deferral comment now records the fired trigger.
+3. **Realizer shape = two named maps** (`law → 𝒜` via
+   `_partial_current_albedo`, `𝒜 → operator` via `_albedo_operator`) —
+   ruling 2 as code: every diffusion BC IS an albedo-family scalar; the
+   structure-keyed collapse (0→Zero, 1→Identity, else 𝒜·I) mirrors the SN
+   albedo branch exactly.
+4. **Refusals**: SN refuses `ZeroFluxBoundary` with a dedicated
+   physics-message branch (negative angular inflow unrepresentable →
+   redirect to VacuumInflow / diffusion realizer); diffusion refuses
+   `PeriodicBoundary` (opposite-face trace-block wrap — a P4
+   boundary-operator-assembly seam, not a per-face albedo) and
+   `PrescribedInflow` (rank-0 AFFINE law = boundary SOURCE, not the linear
+   B operator — the P5 fixed-source arm; same operator/source split SN
+   keeps un-stamped).
+5. **Vacuum-docstring audit result**: the geometry law docstrings were
+   already faithful ("no incoming flux, irrespective of what leaks out");
+   THE unfaithful naming is the island's `_diff_bc_vacuum`
+   (`orpheus/diffusion/solver.py:109-114` — "Zero-flux (Dirichlet φ=0)"
+   registered under `"vacuum"`) — retired + re-attributed in P6.
+   `docs/theory/boundary_conditions.rst` "one functional + four stubs"
+   prose is now stale → P8 archivist brief (module docstrings already
+   updated in-tree).
+
+Gates: diffusion+geometry 320 / transport+numerics+data 1361 / sn 1937 —
+all green (serial `-O`); CLI pyright = 1 (the accepted #288 residual);
+`sphinx -W` exit 0 (matrix.rst regenerated, 6141 collected); harness audit
+EXIT=0 (9 MISSING ERR pre-existing, 54/63). NEXT = P4 (operator family; read
+the crosswalk + explorer memo §B/§C + attacker memo Q2/Q3 first per C1).
