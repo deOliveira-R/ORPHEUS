@@ -250,7 +250,20 @@ class Solution:
         See :class:`~orpheus.transport.fields.boundary_flux.BoundaryFlux`
         for the per-geometry flat-layout contract.
         """
-        return self.angular_flux.boundary
+        from orpheus.transport.fields.boundary_flux import BoundaryFlux
+
+        # Role parse at the composite boundary: a Solution's composite IS a
+        # flux composite, but the ``FullField.boundary`` slot erases the
+        # role (the F2-sibling erasure — #289). A source-role trace here
+        # means the flux-composite contract broke upstream — raise loudly.
+        boundary = self.angular_flux.boundary
+        if not isinstance(boundary, BoundaryFlux):
+            raise TypeError(
+                f"Solution.boundary_flux: the solution composite carries "
+                f"{type(boundary).__name__}, not BoundaryFlux — the "
+                f"flux-composite contract is broken."
+            )
+        return boundary
 
     # ── Discrimination ───────────────────────────────────────────────
 

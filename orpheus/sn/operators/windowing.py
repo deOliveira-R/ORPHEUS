@@ -47,9 +47,10 @@ composition.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, Optional, overload
 
 from orpheus.numerics.operator import (
+    D2,
     LinearOperator,
     OperatorProduct,
 )
@@ -134,6 +135,12 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
             ),
         )
 
+    @overload
+    def __matmul__(self, other: "SweepOperator") -> "WindowedSweep": ...
+    @overload
+    def __matmul__(
+        self, other: "LinearOperator[D2, FullField]",
+    ) -> "OperatorProduct[D2, TimedFullField]": ...
     def __matmul__(self, other):
         r"""``P @ A.inverse()`` — the windowed composition, FUSED.
 
@@ -141,8 +148,9 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
         :class:`WindowedSweep` (whose ``apply`` evaluates through the
         substrate's moment emit); any other operand falls through to the
         generic :class:`~orpheus.numerics.operator.OperatorProduct`.
-        Mirrors the ``L + C`` fusion precedent (#261: one-directional
-        dispatch on the specific leaf).
+        The typed ``@overload`` spells the fusion rule (C4, as
+        ``StreamingOperator.__add__``). Mirrors the ``L + C`` fusion
+        precedent (#261: one-directional dispatch on the specific leaf).
         """
         if isinstance(other, SweepOperator):
             return WindowedSweep(self, other)
@@ -152,7 +160,11 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
         return f"BulkAnalysisOperator({self.frame!r})"
 
 
-class WindowedSweep(OperatorProduct["FullField", "TimedFullField"]):
+class WindowedSweep(
+    OperatorProduct[
+        "FullField", "TimedFullField", BulkAnalysisOperator, SweepOperator,
+    ],
+):
     r"""The fused evaluation of ``P @ A.inverse()`` — same morphism, deforested.
 
     :meth:`apply` overrides the inherited factor-by-factor body with the
@@ -195,12 +207,12 @@ class WindowedSweep(OperatorProduct["FullField", "TimedFullField"]):
     @property
     def p(self) -> "BulkAnalysisOperator":
         """The analysis factor ``P`` (alias for ``self.a``)."""
-        return cast("BulkAnalysisOperator", self.a)
+        return self.a
 
     @property
     def sweep(self) -> "SweepOperator":
         """The inverse factor ``A⁻¹`` (alias for ``self.b``)."""
-        return cast("SweepOperator", self.b)
+        return self.b
 
     def apply(
         self, rhs: "FullField", *,

@@ -149,6 +149,8 @@ from .sweep_graph import (
     SweepDependencyGraph,
     _CellResidual,
     _CellSolve,
+    _CellSolveAngular,
+    _CellSolveMoment,
     _reframe,
 )
 from .sweep_schedule import SweepSchedule
@@ -730,6 +732,33 @@ class _SweepEmit:
                 "(angular_flux AND scalar_flux) or (moment_buf AND Y)."
             )
 
+    def angular_buffers(self) -> "tuple[np.ndarray, np.ndarray]":
+        """The angular-mode pair ``(angular_flux, scalar_flux)``.
+
+        Raises if this emit is moment-mode — the narrowing accessor a
+        mode-specific consumer (e.g. the walker wiring a
+        :class:`~orpheus.sn.loss_representation.sweep_graph._CellSolveAngular`)
+        parses through, so a walker/emit mode mismatch fails loudly at
+        the wiring site rather than deep inside the walk.
+
+        (Transitional: the C5 candidate is splitting ``_SweepEmit`` into
+        mode subclasses the way C4 split ``_CellSolve`` — these accessors
+        and the Optional pair retire together then.)
+        """
+        if self.angular_flux is None or self.scalar_flux is None:
+            raise TypeError(
+                "_SweepEmit is moment-mode; angular buffers unavailable."
+            )
+        return self.angular_flux, self.scalar_flux
+
+    def moment_buffers(self) -> "tuple[np.ndarray, np.ndarray]":
+        """The moment-mode pair ``(moment_buf, Y)`` — raises on angular-mode."""
+        if self.moment_buf is None or self.Y is None:
+            raise TypeError(
+                "_SweepEmit is angular-mode; moment buffers unavailable."
+            )
+        return self.moment_buf, self.Y
+
     def pure_z(self, oct_idx: "np.ndarray", psi_avg: "np.ndarray") -> None:
         """Emit the pure-z volumetric balance ``ψ = Q/Σ_t`` (no faces).
 
@@ -738,13 +767,15 @@ class _SweepEmit:
         the attribute and trip the frozen dataclass.
         """
         if self.moment_buf is None:
-            self.angular_flux[oct_idx] = psi_avg
-            self.scalar_flux[...] += np.einsum(
+            angular_flux, scalar_flux = self.angular_buffers()
+            angular_flux[oct_idx] = psi_avg
+            scalar_flux[...] += np.einsum(
                 "ng...,n->g...", psi_avg, self.weights[oct_idx],
             )
         else:
-            self.moment_buf[...] += np.einsum(
-                "nlm,ng...,n->lmg...", self.Y[oct_idx], psi_avg,
+            moment_buf, Y = self.moment_buffers()
+            moment_buf[...] += np.einsum(
+                "nlm,ng...,n->lmg...", Y[oct_idx], psi_avg,
                 self.weights[oct_idx],
             )
 
@@ -1243,20 +1274,33 @@ class MovingFrontierWindow(_DAGWavefront):
         # field is materialized (the Phase 5c peak-memory win).  At a
         # multi-moment closure (LD) the angular buffer carries the trailing 2^d
         # spatial-moment axis (the φ̂ iterate, #240 D5b-S3); DD/Step → ``()``.
-        angular_flux_oct = (
-            np.zeros((oct_idx.size, ng, *spatial, *self._spatial_moment_tail))
-            if emit.moment_buf is None else None
-        )
-        graph.walk_windowed(
-            level_op=_CellSolve(
+        # The emit's mode selects the level-op SUBCLASS (C4 — the mode is a
+        # type); the ``*_buffers()`` parse pins the walker/emit mode match.
+        frame_signs = self._moment_frame_signs(signs_eff)
+        if emit.moment_buf is None:
+            angular_flux, scalar_flux = emit.angular_buffers()
+            angular_flux_oct = np.zeros(
+                (oct_idx.size, ng, *spatial, *self._spatial_moment_tail)
+            )
+            level_op: _CellSolve = _CellSolveAngular(
                 scheme=self.mesh.scheme,
                 weights_octant=emit.weights[oct_idx],
                 angular_flux_octant=angular_flux_oct,
-                scalar_flux_buf=emit.scalar_flux,
-                moment_buf=emit.moment_buf,
-                Y_octant=None if emit.Y is None else emit.Y[oct_idx],
-                moment_frame_signs=self._moment_frame_signs(signs_eff),
-            ),
+                scalar_flux_buf=scalar_flux,
+                moment_frame_signs=frame_signs,
+            )
+        else:
+            moment_buf, Y = emit.moment_buffers()
+            angular_flux, angular_flux_oct = None, None
+            level_op = _CellSolveMoment(
+                scheme=self.mesh.scheme,
+                weights_octant=emit.weights[oct_idx],
+                moment_buf=moment_buf,
+                Y_octant=Y[oct_idx],
+                moment_frame_signs=frame_signs,
+            )
+        graph.walk_windowed(
+            level_op=level_op,
             inflow=inflow,
             Q_octant=operands.Q[oct_idx],
             sig_t=operands.sig_t,
@@ -1264,8 +1308,8 @@ class MovingFrontierWindow(_DAGWavefront):
             capture=capture,
             n_face_moments=n_face_moments,
         )
-        if emit.moment_buf is None:
-            emit.angular_flux[oct_idx] = angular_flux_oct
+        if angular_flux is not None:
+            angular_flux[oct_idx] = angular_flux_oct
         # The domain-edge capture carries the trailing 2^{d-1}-transverse-moment
         # axis at a multi-moment closure; the moment-resolved boundary trace
         # (#251 — geometry.boundary_face_layout) STORES it whole (the outflow
@@ -1533,14 +1577,17 @@ class FullFieldWavefront(_DAGWavefront):
         )
         # The angular octant buffer carries the trailing 2^d spatial-moment axis
         # at a multi-moment closure (the φ̂ iterate, #240 D5b-S3); DD/Step →
-        # ``()`` tail, byte-identical.
+        # ``()`` tail, byte-identical.  ``angular_buffers()`` parses the
+        # angular-only contract loudly (a moment-mode emit here is a caller
+        # error — the oracle has no moment mode, guarded in :meth:`sweep`).
+        angular_flux, scalar_flux = emit.angular_buffers()
         angular_oct = np.zeros((oct_idx.size, ng, *spatial, *self._spatial_moment_tail))
         graph.walk_full(
-            level_op=_CellSolve(
+            level_op=_CellSolveAngular(
                 scheme=self.mesh.scheme,
                 weights_octant=emit.weights[oct_idx],
                 angular_flux_octant=angular_oct,
-                scalar_flux_buf=emit.scalar_flux,
+                scalar_flux_buf=scalar_flux,
                 moment_frame_signs=self._moment_frame_signs(signs_eff),
             ),
             psi_faces_octant=psi_faces_oct,
@@ -1548,7 +1595,7 @@ class FullFieldWavefront(_DAGWavefront):
             sig_t=sig_t,
             str_axes_octant=tuple(s[oct_idx] for s in operands.str_axes),
         )
-        emit.angular_flux[oct_idx] = angular_oct
+        angular_flux[oct_idx] = angular_oct
         capture = self._edge_outflow(psi_faces_oct, spatial, signs_eff)
         # The domain-edge capture carries the trailing 2^{d-1}-transverse-moment
         # axis at a multi-moment closure; the moment-resolved boundary trace

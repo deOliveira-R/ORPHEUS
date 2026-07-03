@@ -74,6 +74,7 @@ See also
 from __future__ import annotations
 
 import itertools
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import lru_cache
 from types import MappingProxyType
@@ -650,30 +651,26 @@ class SweepDependencyGraph:
         plan_levels: list[_LevelFrontier] = []
         for gcell, lcell in zip(levels, local_levels):
             lfree = lcell[:det]                          # (d−1)-tuple LOCAL free coords
-            # READ — the level's free-coord positions (slab gather).
+            # READ — the level's free-coord positions (slab gather) — plus
+            # the per-axis +1-SHIFTED coordinate the write addressing needs,
+            # built in the SAME branch so each representation (slice vs
+            # fancy simplex index) stays whole (no slice/array union access).
             if box_contiguous:
                 # d ≤ 2: each free coord is a contiguous ascending range ⟹ a
                 # zero-copy slice (the d=2 contiguity speedup, preserved).
                 read = tuple(
                     slice(int(c[0]), int(c[-1]) + 1) for c in lfree
                 )
+                shifted = tuple(slice(r.start + 1, r.stop + 1) for r in read)
             else:
                 read = tuple(lfree)                      # d ≥ 3: fancy simplex index
+                shifted = tuple(c + 1 for c in lfree)
             # WRITE — per axis.  Free axis: read shifted +1 on coord a.
             # Determined axis: read (the progression is the parity roll).
-            write: list[tuple] = []
-            for a in range(d):
-                if a < det:
-                    if box_contiguous:
-                        w = list(read)
-                        w[a] = slice(read[a].start + 1, read[a].stop + 1)
-                        write.append(tuple(w))
-                    else:
-                        w = list(lfree)
-                        w[a] = lfree[a] + 1
-                        write.append(tuple(w))
-                else:
-                    write.append(read)
+            write = (
+                *((*read[:a], shifted[a], *read[a + 1:]) for a in range(det)),
+                read,
+            )
             # SEED — only the axes whose inflow edge (LOCAL coord_a == 0) is
             # PRESENT on this level (an axis-tagged record per real edge, NOT a
             # d-tuple padded with ``None``): the walk iterates the edges, never
@@ -700,7 +697,7 @@ class SweepDependencyGraph:
                 )
                 shed.append((a, mask, capture_target))
             plan_levels.append(_LevelFrontier(
-                read=read, write=tuple(write),
+                read=read, write=write,
                 seed=tuple(seed), shed=tuple(shed),
             ))
 
@@ -851,45 +848,38 @@ def _cell_face_selector(
 # methods.
 
 
-@dataclass(frozen=True)
-class _CellSolve:
+@dataclass(frozen=True, kw_only=True)
+class _CellSolve(ABC):
     r"""SOLVE-direction level operation: solve the WDD balance for
     :math:`\bar\psi`, emit angular or harmonic-moment output.
 
-    Output mode is the Phase-5c DI (exactly one of angular / moment is
-    wired — the caller passes the mode's buffers, the established
-    output-DI idiom):
+    Output mode is the Phase-5c DI made a TYPE (C4): the mode IS the
+    subclass — :class:`_CellSolveAngular` / :class:`_CellSolveMoment` —
+    each carrying its own buffers as REQUIRED fields, so a mixed or
+    half-wired mode is unrepresentable by construction (the former
+    exactly-one ``__post_init__`` guard dissolved with the Optionals):
 
-    * **angular** — write ``angular_flux_octant[:, :, *cell_idx]`` and
-      accumulate ``scalar_flux_buf[(:, *cell_idx)] += Σ_n w_n ψ_n``;
-    * **moment** — accumulate the harmonic tensor
-      :math:`\phi_\ell^m \mathrel{+}= \sum_n w_n Y_\ell^m \psi_n`
+    * **angular** (:class:`_CellSolveAngular`) — write
+      ``angular_flux_octant[:, :, *cell_idx]`` and accumulate
+      ``scalar_flux_buf[(:, *cell_idx)] += Σ_n w_n ψ_n``;
+    * **moment** (:class:`_CellSolveMoment`) — accumulate the harmonic
+      tensor :math:`\phi_\ell^m \mathrel{+}= \sum_n w_n Y_\ell^m \psi_n`
       per level (the full angular field never materializes).
+
+    The shared :meth:`cell` body (kernel + frame re-signing) is
+    mode-independent; only the per-level :meth:`_emit` forks.
     """
 
     scheme: DiscretizationSchemeBase
     weights_octant: np.ndarray                    # (N_oct,)
-    angular_flux_octant: "np.ndarray | None" = None
-    scalar_flux_buf: "np.ndarray | None" = None
-    moment_buf: "np.ndarray | None" = None
-    Y_octant: "np.ndarray | None" = None
     moment_frame_signs: "np.ndarray | None" = None  # (2^d,) sweep⇄global slope frame
 
-    def __post_init__(self) -> None:
-        # Exactly ONE output mode must be wired (mirrors _SweepEmit's guard
-        # one level up) — a half-wired mode would otherwise crash deep inside
-        # the walk, far from the construction site.
-        angular = (
-            self.angular_flux_octant is not None
-            and self.scalar_flux_buf is not None
-        )
-        moment = (self.moment_buf is not None) and (self.Y_octant is not None)
-        if angular == moment:
-            raise ValueError(
-                "_CellSolve: exactly ONE output mode must be wired — either "
-                "(angular_flux_octant AND scalar_flux_buf) or "
-                "(moment_buf AND Y_octant)."
-            )
+    @abstractmethod
+    def _emit(
+        self, psi_avg: np.ndarray,
+        cell: tuple, cell_g: tuple,
+    ) -> None:
+        """Accumulate this mode's output for one level's cells."""
 
     def cell(
         self,
@@ -953,16 +943,41 @@ class _CellSolve:
         # original byte-identical reduction (the negative control).
         cell = (slice(None), *cell_idx)
         cell_g = (slice(None), *cell)
-        if self.moment_buf is None:
-            self.scalar_flux_buf[cell] += np.einsum(
-                "ng...,n->g...", psi_avg, self.weights_octant,
-            )
-            self.angular_flux_octant[cell_g] = psi_avg
-        else:
-            self.moment_buf[(slice(None), *cell_g)] += np.einsum(
-                "nlm,ng...,n->lmg...", self.Y_octant, psi_avg, self.weights_octant,
-            )
+        self._emit(psi_avg, cell, cell_g)
         return psi_out
+
+
+@dataclass(frozen=True, kw_only=True)
+class _CellSolveAngular(_CellSolve):
+    r"""Angular-output solve op: per-octant angular field + scalar sum."""
+
+    angular_flux_octant: np.ndarray   # (N_oct, ng, *spatial[, 2^d]) — written
+    scalar_flux_buf: np.ndarray       # (ng, *spatial[, 2^d]) — accumulated
+
+    def _emit(
+        self, psi_avg: np.ndarray,
+        cell: tuple, cell_g: tuple,
+    ) -> None:
+        self.scalar_flux_buf[cell] += np.einsum(
+            "ng...,n->g...", psi_avg, self.weights_octant,
+        )
+        self.angular_flux_octant[cell_g] = psi_avg
+
+
+@dataclass(frozen=True, kw_only=True)
+class _CellSolveMoment(_CellSolve):
+    r"""Moment-output solve op: harmonic tensor accumulation, no angular field."""
+
+    moment_buf: np.ndarray            # (L+1, 2L+1, ng, *spatial[, 2^d])
+    Y_octant: np.ndarray              # (N_oct, L+1, 2L+1)
+
+    def _emit(
+        self, psi_avg: np.ndarray,
+        cell: tuple, cell_g: tuple,
+    ) -> None:
+        self.moment_buf[(slice(None), *cell_g)] += np.einsum(
+            "nlm,ng...,n->lmg...", self.Y_octant, psi_avg, self.weights_octant,
+        )
 
 
 @dataclass(frozen=True)

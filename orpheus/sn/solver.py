@@ -35,6 +35,7 @@ from __future__ import annotations
 import time
 from collections.abc import Iterable
 from dataclasses import replace
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.sparse.linalg import gmres
@@ -57,6 +58,18 @@ from .loss_representation import transport_sweep
 from orpheus.transport.fields.boundary_flux import BoundaryFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
+
+if TYPE_CHECKING:
+    # Annotation-only names for the late-imported operator/driver types
+    # (their runtime imports stay inside the function bodies — the
+    # boundary/iteration modules are one-way late imports here).
+    from orpheus.numerics.iteration import KrylovAcceleration, SourceIteration
+    from orpheus.numerics.operator import LinearOperator
+    from .operators.boundary import SNBoundaryOperator
+    from .operators.scheduled_invertible import ScheduledInvertibleOperator
+    from .operators.streaming import InvertibleOperator
+    from .operators.sweep_operator import SweepOperator
+    from .operators.windowing import WindowedSweep
 
 
 def _apply_default_bcs(
@@ -89,12 +102,7 @@ def _apply_default_bcs(
     axes = tuple(geometry)
     if any(b is not None for ax in axes for b in ax.bc.values()):
         return axes
-    from orpheus.transport.mesh.axis import RadialAxisMesh
-    return tuple(
-        replace(ax, bc_outer=bc) if isinstance(ax, RadialAxisMesh)
-        else replace(ax, bc_low=bc, bc_high=bc)
-        for ax in axes
-    )
+    return tuple(ax.with_uniform_bc(bc) for ax in axes)
 
 
 def _as_sn_mesh(
@@ -145,34 +153,13 @@ def _as_sn_mesh(
 from .solution import IterationHistory, Solution
 
 
-def _zero_within_group_fission(psi: "object") -> "object":
-    r"""Codomain zero for the within-group zero-fission slot (``F = 0``).
-
-    A fission operator maps FLUX → SOURCE, so its zero action emits a *zero
-    source* on BOTH blocks — an ``AngularSourceSink`` bulk AND a
-    ``BoundarySourceSink`` boundary — NOT a flux echo of the iterate ``ψ`` (the
-    B.5.2 ``ZeroOperator`` codomain fix: a zero operator returns the zero of its
-    CODOMAIN, not of its domain).  Wired into ``ZeroOperator(codomain_zero=...)``
-    so the typed RHS ``S.apply(ψ) + F.apply(ψ) + q_ext`` and the Krylov matvec
-    ``L.apply − S.apply − F.apply`` stay CLOSED source/sink sums on BOTH blocks
-    (every operator output is a source/sink — its boundary is
-    ``BoundarySourceSink``, mirroring the bulk; the residual only arises from
-    ``from_balance``).  The within-group fission source proper enters as
-    ``q_ext`` (the eigenvalue outer's contribution); ``F`` itself is
-    structurally zero here.
-    """
-    from orpheus.transport.source_sinks import (
-        AngularSourceSink,
-        BoundarySourceSink,
-    )
-    from orpheus.transport.timed_full_field import TimedFullField
-
-    return TimedFullField.zeros(
-        bulk=AngularSourceSink, boundary=BoundarySourceSink, mesh=psi.bulk.mesh,
-    )
+# ``_zero_within_group_fission`` retired 2026-07-03 (C4, zero callers):
+# within-group fission enters as ``q_ext``, so no ``F = 0`` slot exists.
 
 
-def _within_group_triple(solver: "SNSolver") -> tuple:
+def _within_group_triple(
+    solver: "SNSolver",
+) -> "tuple[InvertibleOperator, ScatteringOperator, SNBoundaryOperator]":
     r"""The within-group loss decomposition ``(L + C, S, B)`` — the invertible
     resolvent plus its two lagged coupling gains.
 
@@ -233,7 +220,9 @@ def _within_group_triple(solver: "SNSolver") -> tuple:
     )
 
 
-def evaluate_residual(loss_op, psi, q_ext: "FullField") -> "FullField":
+def evaluate_residual(
+    loss_op: "LinearOperator", psi: "TimedFullField", q_ext: "FullField",
+) -> "FullField":
     r"""The typed equation residual :math:`r = A\,\psi - q` as a composite.
 
     Evaluates the within-group balance defect
@@ -276,14 +265,25 @@ def evaluate_residual(loss_op, psi, q_ext: "FullField") -> "FullField":
         (the timed iterate would pass via inheritance, but the residual output is
         history-free regardless).
     """
+    from orpheus.transport.fields._bases import AngularField
     from orpheus.transport.residuals import AngularResidual, BoundaryResidual
 
     lhs = loss_op.apply(psi)  # (L+C−S−B)·ψ — a source-role composite
+    # Role parse at the composite boundary: ``AngularResidual.from_balance``
+    # demands the angular family, but the ``FullField.bulk`` slot erases the
+    # role (the F2-sibling erasure — #289).
+    # A scalar-bulk composite here is a caller error worth raising loudly.
+    q_bulk = q_ext.bulk
+    if not isinstance(q_bulk, AngularField):
+        raise TypeError(
+            f"evaluate_residual: q_ext.bulk must be an angular-family "
+            f"per-ordinate source; got {type(q_bulk).__name__}."
+        )
     # A residual is a one-shot balance defect, not an iterate — it carries no
     # history, so it is the timeless FullField (the history_depth=0 degenerate
     # of TimedFullField; W-C confines the timed type to the driver iterate).
     return FullField(
-        bulk=AngularResidual.from_balance(lhs=lhs.bulk, rhs=q_ext.bulk),
+        bulk=AngularResidual.from_balance(lhs=lhs.bulk, rhs=q_bulk),
         boundary=BoundaryResidual.from_balance(
             lhs=lhs.boundary, rhs=q_ext.boundary,
         ),
@@ -306,9 +306,9 @@ def boundary_vs_interior_split(residual: "FullField") -> tuple[float, float]:
 
 
 def _within_group_krylov(
-    LC: "object", *gains: "object",
+    LC: "LinearOperator[FullField]", *gains: "LinearOperator[FullField]",
     n_dof: int, max_iter: int, tol: float,
-):
+) -> "KrylovAcceleration[FullField]":
     r"""GMRES driver on the within-group loss operator ``(L + C − S − B)``.
 
     Single source of truth (Cardinal Rule 2 / Phase 1 R2) for the
@@ -356,7 +356,10 @@ def _within_group_krylov(
 # :meth:`WindowedSweep.apply`, where the contract actually is.
 
 
-def _maybe_window(sweep, scattering_op, sn_mesh):
+def _maybe_window(
+    sweep: "SweepOperator", scattering_op: "ScatteringOperator",
+    sn_mesh: "SNMesh",
+) -> "tuple[WindowedSweep | SweepOperator, bool]":
     r"""Phase 5a — compose the 2-D Cartesian angular-windowing product over
     ``sweep`` (the inverse operator ``A.inverse()``), else passthrough.
     Returns ``(step, windowed)``.
@@ -437,7 +440,10 @@ def _unwindowed_cold_start(sn_mesh, *, history_depth):
     )
 
 
-def _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule: str):
+def _select_si_resolvent(
+    LC: "InvertibleOperator", S: "ScatteringOperator", B: "SNBoundaryOperator",
+    sn_mesh: "SNMesh", inner_schedule: str,
+) -> "tuple[InvertibleOperator | ScheduledInvertibleOperator, tuple[LinearOperator[FullField], ...]]":
     r"""Pick the ``(resolvent, gains)`` for the within-group SI driver per
     ``inner_schedule`` — the single source of truth for the Jacobi/G-S choice.
 
@@ -485,7 +491,10 @@ def _select_si_resolvent(LC, S, B, sn_mesh, inner_schedule: str):
     return LC, (S, B)
 
 
-def _within_group_si(LC, S, B, sn_mesh, *, inner_schedule, max_iter, tol):
+def _within_group_si(
+    LC: "InvertibleOperator", S: "ScatteringOperator", B: "SNBoundaryOperator",
+    sn_mesh: "SNMesh", *, inner_schedule: str, max_iter: int, tol: float,
+) -> "tuple[SourceIteration[FullField], InvertibleOperator | ScheduledInvertibleOperator, tuple[LinearOperator[FullField], ...], bool]":
     r"""SourceIteration driver on the within-group loss ``(L + C − S − B)``.
 
     Single source of truth (Cardinal Rule 2 / Phase 1 R1) for the
@@ -1146,9 +1155,28 @@ class SNSolver:
         # ℓ=0 moment IS the scalar flux (Y_0^0 = 1 ⇒ bit-identical to
         # integrate_angular) via the typed ``scalar_flux`` accessor that
         # carries the convention; un-windowed: reduce the full angular bulk.
+        # The isinstance parses reify the driver-template contract (the
+        # solve echoes the initial_guess representation) — the static
+        # iterate type is the operators' ``FullField`` carrier, so the
+        # bulk's representation re-narrows here, loudly on mismatch.
+        from orpheus.transport.fields.harmonic_moment_flux import (
+            HarmonicMomentFlux,
+        )
+
+        bulk = psi_typed.bulk
         if windowed:
-            return psi_typed.bulk.scalar_flux().values
-        return psi_typed.bulk.integrate_angular().values
+            if not isinstance(bulk, HarmonicMomentFlux):
+                raise TypeError(
+                    f"windowed SI iterate must carry a HarmonicMomentFlux "
+                    f"bulk (the moment template); got {type(bulk).__name__}."
+                )
+            return bulk.scalar_flux().values
+        if not isinstance(bulk, AngularFlux):
+            raise TypeError(
+                f"un-windowed SI iterate must carry an AngularFlux bulk "
+                f"(the flux template); got {type(bulk).__name__}."
+            )
+        return bulk.integrate_angular().values
 
     # ── Inner solver: Krylov on (L+C-S)·ψ = q_ext (R-1 Step D carve) ──
 
@@ -1263,7 +1291,15 @@ class SNSolver:
         self._psi_typed = psi_typed
 
         # Reduce angular → scalar flux for the eigenvalue outer's contract.
-        return psi_typed.bulk.integrate_angular().values
+        # The parse reifies the driver-template contract (the solve echoes
+        # the flux initial_guess) loudly on mismatch.
+        bulk = psi_typed.bulk
+        if not isinstance(bulk, AngularFlux):
+            raise TypeError(
+                f"eigenvalue Krylov iterate must carry an AngularFlux bulk "
+                f"(the flux template); got {type(bulk).__name__}."
+            )
+        return bulk.integrate_angular().values
 
     # D-J (2026-05-29): ``_make_sweep_preconditioner`` retired —
     # the method built a scipy LinearOperator wrapping the sweep as
@@ -1971,7 +2007,7 @@ def solve_sn_fixed_source(
 
     if inner_solver == "source_iteration":
         return _solve_fixed_source_si(
-            solver, sn_mesh, q_ext_composite, mesh, quadrature, materials,
+            solver, sn_mesh, q_ext_composite,
             t_start, max_inner, inner_tol, inner_schedule=inner_schedule,
         )
 
@@ -1980,7 +2016,7 @@ def solve_sn_fixed_source(
     # built from the converged scalar flux.  Wrapping that in an outer
     # source iteration converges scattering self-consistently.
     return _solve_fixed_source_krylov(
-        solver, sn_mesh, q_ext_composite, mesh, quadrature, materials,
+        solver, sn_mesh, q_ext_composite,
         t_start, max_inner, inner_tol,
     )
 
@@ -1989,9 +2025,6 @@ def _solve_fixed_source_si(
     solver: SNSolver,
     sn_mesh: SNMesh,
     q_ext_composite: TimedFullField,
-    mesh: Mesh1D | Mesh2D,
-    quadrature: Quadrature,
-    materials: dict[int, Mixture],
     t_start: float,
     max_inner: int,
     inner_tol: float,
@@ -2088,14 +2121,22 @@ def _solve_fixed_source_si(
     psi_typed, residuals = si.solve(
         q_ext_composite, initial_guess=initial_guess,
     )
+    # The parse reifies the driver-template contract (the solve echoes the
+    # TimedFullField initial_guess) — the static iterate type is the
+    # operators' ``FullField`` carrier, re-narrowed here loudly.
+    if not isinstance(psi_typed, TimedFullField):
+        raise TypeError(
+            f"fixed-source SI: the converged iterate must echo the timed "
+            f"template; got {type(psi_typed).__name__}."
+        )
     converged_flag = bool(residuals) and residuals[-1] < inner_tol
     flux_residuals = [float(r) for r in residuals]
 
     # Issue #197 PR-TYPED-5: build typed Solution at the boundary.
-    # mesh / quadrature / materials remain unconsumed by Solution — the
-    # typed fluxes carry the SNMesh reference, which transitively exposes
-    # those handles via .mesh.{mesh, quad, materials}.
-    del mesh, quadrature, materials  # retained as kwargs for API stability
+    # (The former mesh / quadrature / materials parameters retired in C4 —
+    # Solution never consumed them; the typed fluxes carry the SNMesh
+    # reference, which transitively exposes those handles via
+    # ``.mesh.{mesh, quad, materials}``.)
     history = IterationHistory(
         flux_residuals=tuple(flux_residuals),
         n_inner=len(residuals),
@@ -2128,9 +2169,17 @@ def _solve_fixed_source_si(
     # this is bit-identical to the prior ``psi_typed.bulk.integrate_angular``.)
     # The user-facing scalar flux is the cell-AVERAGE moment (slot 0) — a
     # multi-moment closure's φ̂ slopes are internal DG structure, not the scalar
-    # flux the Solution reports (#240 D5b-S3).
+    # flux the Solution reports (#240 D5b-S3).  The parse reifies the
+    # full-angular contract of BOTH arms (the reconstruction sweep emits
+    # angular; the un-windowed iterate echoes the flux template) loudly.
+    angular_bulk = angular_out.bulk
+    if not isinstance(angular_bulk, AngularFlux):
+        raise TypeError(
+            f"fixed-source SI: Solution.angular_flux must carry an "
+            f"AngularFlux bulk; got {type(angular_bulk).__name__}."
+        )
     phi = _average_moment_scalar(
-        angular_out.bulk.integrate_angular().values, sn_mesh,
+        angular_bulk.integrate_angular().values, sn_mesh,
     )
     return Solution(
         angular_flux=angular_out,
@@ -2145,9 +2194,6 @@ def _solve_fixed_source_krylov(
     solver: SNSolver,
     sn_mesh: SNMesh,
     q_ext_composite: TimedFullField,
-    mesh: Mesh1D | Mesh2D,
-    quadrature: Quadrature,
-    materials: dict[int, Mixture],
     t_start: float,
     max_inner: int,
     inner_tol: float,
@@ -2264,11 +2310,25 @@ def _solve_fixed_source_krylov(
             sn_mesh, history_depth=q_ext_composite.history_depth,
         ),
     )
-    # D-H.1c stage 2 — psi_typed is a TimedFullField (the Krylov
-    # ravellable protocol unravels back to the template type, which is
-    # ``q_ext_composite``).  Read bulk for scalar reduction (cell-average moment).
+    # D-H.1c stage 2 — the Krylov ravellable protocol unravels back to the
+    # SOLUTION TEMPLATE (the flux ``initial_guess``), so the driver's static
+    # iterate type (``FullField`` — the operators' carrier) re-narrows to
+    # the timed flux composite here. The parse reifies that template
+    # contract loudly instead of assuming it.
+    if not isinstance(psi_typed, TimedFullField):
+        raise TypeError(
+            f"fixed-source Krylov: the converged iterate must echo the "
+            f"timed flux template; got {type(psi_typed).__name__}."
+        )
+    bulk = psi_typed.bulk
+    if not isinstance(bulk, AngularFlux):
+        raise TypeError(
+            f"fixed-source Krylov: the converged iterate must carry an "
+            f"AngularFlux bulk (the flux template); got {type(bulk).__name__}."
+        )
+    # Read bulk for scalar reduction (cell-average moment).
     phi = _average_moment_scalar(
-        psi_typed.bulk.integrate_angular().values, sn_mesh,
+        bulk.integrate_angular().values, sn_mesh,
     )
     converged_flag = bool(residuals) and residuals[-1] < inner_tol
     n_outer = len(residuals)
@@ -2277,8 +2337,8 @@ def _solve_fixed_source_krylov(
     # Issue #197 PR-TYPED-5: build typed Solution at the boundary.
     # R-1 Step 4 G1 — ``psi_typed`` carries the Krylov-converged
     # composite with the matvec's B1'' face residual on its boundary;
-    # reuse directly.
-    del mesh, quadrature, materials  # retained as kwargs for API stability
+    # reuse directly. (The former mesh / quadrature / materials
+    # parameters retired in C4 — Solution never consumed them.)
     history = IterationHistory(
         flux_residuals=tuple(flux_residuals),
         n_inner=n_outer + 1,

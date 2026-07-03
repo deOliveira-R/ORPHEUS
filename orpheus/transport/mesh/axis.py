@@ -30,7 +30,7 @@ architectural narrative; this module is its implementation.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
@@ -201,6 +201,18 @@ class Axis1D(Protocol):
     @property
     def bc(self) -> dict[str, BC | None]: ...
 
+    def with_uniform_bc(self, bc: BC) -> "Axis1D":
+        """Return a copy with EVERY endpoint's BC set to ``bc``.
+
+        Each axis knows its own endpoint structure (two Cartesian
+        slots, one radial outer slot), so the per-endpoint field names
+        stay private to the implementation — consumers filling a
+        default BC (e.g. the ``solve_sn`` ``boundary_condition``
+        parameter) speak this verb instead of reaching for
+        ``bc_low``/``bc_outer`` per class.
+        """
+        ...
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # Concrete axis implementations
@@ -263,6 +275,10 @@ class AxisMesh:
     @property
     def bc(self) -> dict[str, BC | None]:
         return {self.label_low: self.bc_low, self.label_high: self.bc_high}
+
+    def with_uniform_bc(self, bc: BC) -> "AxisMesh":
+        """Return a copy with both endpoints' BCs set to ``bc``."""
+        return replace(self, bc_low=bc, bc_high=bc)
 
 
 @dataclass(frozen=True, slots=True)
@@ -329,6 +345,14 @@ class RadialAxisMesh:
     @property
     def bc(self) -> dict[str, BC | None]:
         return {self.label_outer: self.bc_outer}
+
+    def with_uniform_bc(self, bc: BC) -> "RadialAxisMesh":
+        """Return a copy with the outer endpoint's BC set to ``bc``.
+
+        The pole at :math:`r=0` is not an endpoint (see :class:`Axis1D`),
+        so "every endpoint" is the single outer surface.
+        """
+        return replace(self, bc_outer=bc)
 
 
 # ═══════════════════════════════════════════════════════════════════════

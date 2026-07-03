@@ -52,7 +52,7 @@ from orpheus.sn.loss_representation.sweep_graph import (
     OctantLabel,
     SweepDependencyGraph,
     _CellResidual,
-    _CellSolve,
+    _CellSolveAngular,
 )
 
 pytestmark = pytest.mark.foundation
@@ -137,7 +137,7 @@ def _full_field_apply(graph, shape, N_oct, ng, inp):
     ang = np.zeros((N_oct, ng, *shape))
     scal = np.zeros((ng, *shape))
     graph.walk_full(
-        level_op=_CellSolve(
+        level_op=_CellSolveAngular(
             scheme=DiamondDifference(),
             weights_octant=inp["weights"],
             angular_flux_octant=ang,
@@ -159,7 +159,7 @@ def _windowed_apply(graph, shape, N_oct, ng, inp):
         for a in range(len(shape))
     )
     graph.walk_windowed(
-        level_op=_CellSolve(
+        level_op=_CellSolveAngular(
             scheme=DiamondDifference(),
             weights_octant=inp["weights"],
             angular_flux_octant=ang,

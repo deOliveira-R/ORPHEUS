@@ -68,6 +68,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Final,
     Generic,
     Optional,
     Protocol,
@@ -112,6 +113,38 @@ Domain = TypeVar("Domain", bound=Vector)  # operator input carrier
 Codomain = TypeVar("Codomain", bound=Vector, default=Domain)  # operator output carrier
 Cmid = TypeVar("Cmid", bound=Vector)  # OperatorProduct intermediate carrier
 D2 = TypeVar("D2", bound=Vector)  # __matmul__ other-operand domain
+
+# Composition-leg type parameters (C4 F1 — the composition wrappers are
+# generic over their LEG types, so a named composition subclass carries its
+# legs' identities at the type level and its accessors need no casts:
+# ``InvertibleOperator = OperatorSum[FF, FF, StreamingOperator,
+# MultiplicationOperator]`` reads ``self.a`` as a ``StreamingOperator``).
+# COVARIANT because a pinned composition must upcast to the defaulted
+# spelling (``StreamingOperator.__add__`` returns ``InvertibleOperator``
+# where the base dunder contract says ``OperatorSum[Domain, Codomain]``) —
+# which is also why the legs are read-only properties over ``Final``
+# storage: covariance is sound only without a setter. PEP-696 defaults
+# keep every existing ``OperatorSum[D, C]`` / bare spelling valid.
+SummandA = TypeVar(
+    "SummandA", bound="LinearOperator", covariant=True,
+    default="LinearOperator[Domain, Codomain]",
+)
+SummandB = TypeVar(
+    "SummandB", bound="LinearOperator", covariant=True,
+    default="LinearOperator[Domain, Codomain]",
+)
+FactorA = TypeVar(  # A of ``A @ B`` — maps the intermediate to the output
+    "FactorA", bound="LinearOperator", covariant=True,
+    default="LinearOperator[Any, Codomain]",
+)
+FactorB = TypeVar(  # B of ``A @ B`` — maps the input to the intermediate
+    "FactorB", bound="LinearOperator", covariant=True,
+    default="LinearOperator[Domain, Any]",
+)
+ScaledOperand = TypeVar(
+    "ScaledOperand", bound="LinearOperator", covariant=True,
+    default="LinearOperator[Domain, Codomain]",
+)
 
 __all__ = [
     "LinearOperator",
@@ -1013,8 +1046,20 @@ class _AdjointOperator(LinearOperator[Codomain, Domain], Generic[Domain, Codomai
         )
 
 
-class OperatorSum(LinearOperator[Domain, Codomain]):
+class OperatorSum(
+    LinearOperator[Domain, Codomain],
+    Generic[Domain, Codomain, SummandA, SummandB],
+):
     r"""Sum of two linear operators: :math:`(A + B)\,x = A\,x + B\,x`.
+
+    Generic over its SUMMAND types (C4 F1): a named composition subclass
+    pins them — ``InvertibleOperator = OperatorSum["FullField",
+    "FullField", StreamingOperator, MultiplicationOperator]`` — so its
+    leg accessors are typed by construction, no casts. The PEP-696
+    defaults (``LinearOperator[Domain, Codomain]``) keep every
+    ``OperatorSum[D, C]`` / bare spelling valid; the legs are covariant,
+    read-only properties so a pinned composition upcasts to the
+    defaulted spelling (the ``__add__`` contract).
 
     Structural closure laws (realized in the method bodies; the
     predicates are the matching advertisements):
@@ -1047,7 +1092,7 @@ class OperatorSum(LinearOperator[Domain, Codomain]):
         mid-iteration.
     """
 
-    def __init__(self, a: LinearOperator[Domain, Codomain], b: LinearOperator[Domain, Codomain]) -> None:
+    def __init__(self, a: SummandA, b: SummandB) -> None:
         if not callable(getattr(a, "apply", None)):
             raise TypeError(
                 f"OperatorSum requires apply on both operands; left "
@@ -1077,8 +1122,8 @@ class OperatorSum(LinearOperator[Domain, Codomain]):
                 f"OperatorSum requires equal codomains; got {a_cod!r} and "
                 f"{b_cod!r}."
             )
-        self.a = a
-        self.b = b
+        self._a: Final = a
+        self._b: Final = b
         # Block role DERIVED from the operands (Wave O / O.2b 4.5): the sum
         # touches the union of the blocks its summands touch. Replaces the
         # former hand-stamped ``InvertibleOperator`` FULL tag — ``(L+C)`` and
@@ -1086,6 +1131,16 @@ class OperatorSum(LinearOperator[Domain, Codomain]):
         self.block_role = _join_block_roles(
             getattr(a, "block_role", None), getattr(b, "block_role", None),
         )
+
+    @property
+    def a(self) -> SummandA:
+        """The left summand (read-only — covariant leg typing)."""
+        return self._a
+
+    @property
+    def b(self) -> SummandB:
+        """The right summand (read-only — covariant leg typing)."""
+        return self._b
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
@@ -1174,8 +1229,20 @@ class OperatorSum(LinearOperator[Domain, Codomain]):
     # sweep ``solve`` (streaming.py), untouched by this deletion.
 
 
-class OperatorProduct(LinearOperator[Domain, Codomain]):
+class OperatorProduct(
+    LinearOperator[Domain, Codomain],
+    Generic[Domain, Codomain, FactorA, FactorB],
+):
     r"""Composition of two linear operators: :math:`(A\,B)\,x = A(B\,x)`.
+
+    Generic over its FACTOR types (C4 F1, as :class:`OperatorSum` over
+    its summands): a named composition pins them — ``WindowedSweep =
+    OperatorProduct["FullField", "TimedFullField", BulkAnalysisOperator,
+    SweepOperator]`` — so its factor accessors are typed by
+    construction. The PEP-696 defaults keep ``OperatorProduct[D, C]``
+    valid; the legs are covariant read-only properties. The
+    intermediate-space coupling (``A.domain == B.codomain``) is the
+    RUNTIME guard below — the leg parameters do not re-encode it.
 
     Structural closure laws (method bodies; predicates advertise):
 
@@ -1198,10 +1265,10 @@ class OperatorProduct(LinearOperator[Domain, Codomain]):
         If either operand has no callable ``apply`` at construction.
     """
 
-    def __init__(self, a: LinearOperator[Cmid, Codomain], b: LinearOperator[Domain, Cmid]) -> None:
-        # ``A @ B``: ``B`` maps the input ``V`` to the intermediate
-        # ``Cmid``, ``A`` maps ``Cmid`` to the output ``W`` — so the
-        # product is honestly ``V → W`` with ``Cmid`` captured here.
+    def __init__(self, a: FactorA, b: FactorB) -> None:
+        # ``A @ B``: ``B`` maps the input ``V`` to the intermediate,
+        # ``A`` maps the intermediate to the output ``W`` — so the
+        # product is honestly ``V → W``, the intermediate guarded below.
         if not callable(getattr(a, "apply", None)):
             raise TypeError(
                 f"OperatorProduct requires apply on both operands; "
@@ -1223,8 +1290,18 @@ class OperatorProduct(LinearOperator[Domain, Codomain]):
                 f"OperatorProduct A @ B requires A.domain == B.codomain; "
                 f"got A.domain={a_dom!r}, B.codomain={b_cod!r}."
             )
-        self.a = a
-        self.b = b
+        self._a: Final = a
+        self._b: Final = b
+
+    @property
+    def a(self) -> FactorA:
+        """The left factor ``A`` of ``A @ B`` (read-only — covariant leg)."""
+        return self._a
+
+    @property
+    def b(self) -> FactorB:
+        """The right factor ``B`` of ``A @ B`` (read-only — covariant leg)."""
+        return self._b
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
@@ -1324,8 +1401,18 @@ class OperatorProduct(LinearOperator[Domain, Codomain]):
         return self.a.is_adjointable and self.b.is_adjointable
 
 
-class ScaledOperator(LinearOperator[Domain, Codomain]):
+class ScaledOperator(
+    LinearOperator[Domain, Codomain],
+    Generic[Domain, Codomain, ScaledOperand],
+):
     r"""Scalar multiple of a linear operator: :math:`(\alpha L)\,x = \alpha\,(L\,x)`.
+
+    Generic over its OPERAND type (C4 F1, as the other composition
+    wrappers over their legs): ``ScaledOperator["FullField",
+    "FullField", SNMaskedBoundaryOperator]`` reads ``.op`` as the masked
+    boundary leaf — the ``-1·B_lower`` leg of the G-S splitting needs no
+    cast. The PEP-696 default keeps ``ScaledOperator[D, C]`` valid; the
+    operand is a covariant read-only property.
 
     Scaling (:math:`\alpha \neq 0`, caught at composition time) passes
     both structural axes through unchanged: the operand's
@@ -1337,7 +1424,7 @@ class ScaledOperator(LinearOperator[Domain, Codomain]):
     so solving is ``.inverse().apply(b)`` (carve P4).
     """
 
-    def __init__(self, scalar: float, op: LinearOperator[Domain, Codomain]) -> None:
+    def __init__(self, scalar: float, op: ScaledOperand) -> None:
         if not callable(getattr(op, "apply", None)):
             raise TypeError(
                 f"ScaledOperator requires apply on its operand; "
@@ -1353,9 +1440,14 @@ class ScaledOperator(LinearOperator[Domain, Codomain]):
                 "use ZeroOperator explicitly."
             )
         self.scalar = float(scalar)
-        self.op = op
+        self._op: Final = op
         # Scaling preserves which blocks the action touches (Wave O / O.2b 4.5).
         self.block_role = getattr(op, "block_role", None)
+
+    @property
+    def op(self) -> ScaledOperand:
+        """The scaled operand ``L`` (read-only — covariant leg typing)."""
+        return self._op
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:

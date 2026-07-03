@@ -251,6 +251,7 @@ class SNBoundaryOperator(LinearOperator):
         V_boundary``.  #257 S8a: history-free (the matvec leaf is a base arrow
         ``FullField -> FullField``; the comonad lives on the driver).
         """
+        from orpheus.transport.fields.boundary_flux import BoundaryFlux
         from orpheus.transport.full_field import FullField
         from orpheus.transport.source_sinks import AngularSourceSink
 
@@ -260,6 +261,17 @@ class SNBoundaryOperator(LinearOperator):
                 "SNBoundaryOperator.apply: input field and operator must "
                 "share the same SNMesh instance (mesh-identity invariant); "
                 f"got field mesh {psi.bulk.mesh!r} vs operator mesh {mesh!r}."
+            )
+        # Role parse at the composite boundary: ``B`` reads a FLUX trace
+        # (``_reflect_trace`` applies the boundary law to outflow flux), but
+        # the ``FullField.boundary`` slot erases the role (the F2-sibling
+        # erasure — #289). A source-role
+        # trace arriving here is a caller error worth raising loudly.
+        trace = psi.boundary
+        if not isinstance(trace, BoundaryFlux):
+            raise TypeError(
+                f"SNBoundaryOperator: the input composite's boundary must "
+                f"be a BoundaryFlux trace; got {type(trace).__name__}."
             )
         return FullField(
             # Zero bulk source, sized from the MESH — not ``zeros_like(psi.bulk)``
@@ -273,7 +285,7 @@ class SNBoundaryOperator(LinearOperator):
             bulk=AngularSourceSink.zeros_on(
                 mesh, spatial_moments=mesh.scheme.spatial_basis_per_axis,
             ),
-            boundary=self._reflect_trace(psi.boundary, method, rows=rows),
+            boundary=self._reflect_trace(trace, method, rows=rows),
         )
 
     def apply(self, psi: "FullField") -> "FullField":

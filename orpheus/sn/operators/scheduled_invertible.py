@@ -60,7 +60,7 @@ plumbing twin of the operator's solve body — retired into this delegation.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from orpheus.numerics.operator import (
     OperatorSum,
@@ -84,7 +84,13 @@ if TYPE_CHECKING:
 __all__ = ["ScheduledInvertibleOperator"]
 
 
-class ScheduledInvertibleOperator(OperatorSum["FullField", "FullField"]):
+class ScheduledInvertibleOperator(
+    OperatorSum[
+        "FullField", "FullField",
+        InvertibleOperator,
+        ScaledOperator["FullField", "FullField", SNMaskedBoundaryOperator],
+    ],
+):
     r"""Sweep-invertible schedule-folded composite :math:`M = (L+C-B_{\rm lower})`.
 
     An honest :class:`~orpheus.numerics.operator.OperatorSum` over the leaves
@@ -128,13 +134,13 @@ class ScheduledInvertibleOperator(OperatorSum["FullField", "FullField"]):
     @property
     def invertible(self) -> "InvertibleOperator":
         """The sweep-invertible operand :math:`(L+C)` (alias for ``self.a``)."""
-        return cast("InvertibleOperator", self.a)
+        return self.a
 
     @property
     def lower(self) -> "SNMaskedBoundaryOperator":
         r"""The strictly-lower boundary half :math:`B_{\rm lower}` (the masked
         leaf inside the ``ScaledOperator(-1, ·)`` operand ``self.b``)."""
-        return cast("SNMaskedBoundaryOperator", cast(ScaledOperator, self.b).op)
+        return self.b.op
 
     @property
     def schedule(self) -> "SweepSchedule":

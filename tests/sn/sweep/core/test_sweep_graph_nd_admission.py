@@ -65,7 +65,7 @@ from orpheus.sn.loss_representation.sweep_graph import (
     OctantLabel,
     SweepDependencyGraph,
     _CellResidual,
-    _CellSolve,
+    _CellSolveAngular,
 )
 
 
@@ -424,7 +424,7 @@ def _walk_roundtrip_residual(shape, signs, *, ng, N_oct, seed):
     ang = np.zeros((N_oct, ng, *shape))
     scal = np.zeros((ng, *shape))
     graph.walk_full(
-        level_op=_CellSolve(
+        level_op=_CellSolveAngular(
             scheme=DiamondDifference(),
             weights_octant=weights,
             angular_flux_octant=ang,

@@ -563,7 +563,11 @@ class SNMesh(MaterialMesh):
         the ``CumprodScan`` strategy, not the DAG walk.
         ``axis`` must satisfy ``0 <= axis < ndim``.
         """
-        if not self.is_cartesian:
+        # The None-ness IS the Cartesian-only gate: ``_setup_cartesian``
+        # builds the stencil tuple, the curvilinear arms assign ``None`` —
+        # so checking the attribute directly both guards and narrows.
+        streaming_axes = self._streaming_axes
+        if streaming_axes is None:
             raise AttributeError(
                 "SNMesh.streaming(axis) is Cartesian-only; curvilinear meshes "
                 "carry streaming in reduced.streaming_terms (the chain-scan "
@@ -573,7 +577,7 @@ class SNMesh(MaterialMesh):
             raise IndexError(
                 f"streaming axis {axis} out of range for ndim={self.ndim}"
             )
-        return self._streaming_axes[axis]
+        return streaming_axes[axis]
 
     # ── Dim-agnostic geometry primitives (R-1 Phase A C1) ─────────────
     #

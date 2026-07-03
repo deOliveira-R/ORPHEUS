@@ -5659,13 +5659,16 @@ Thirteen sites (operator outputs + ``q_ext`` sources) flipped from
        (``apply`` **and** ``apply_transpose``)
      - :math:`B\,\psi.\text{outflow}` on the inflow slots
    * - :mod:`orpheus.sn.solver`
-     - ``_zero_within_group_fission`` (the ``F = ZeroOperator``
-       codomain zero)
-     - codomain zero
-   * - :mod:`orpheus.sn.solver`
      - ``q_ext.boundary`` at the **3 source builds** (eigenvalue SI,
        eigenvalue Krylov, fixed-source SI / reconstruction)
      - prescribed inflow (zero for vacuum / reflective)
+
+(The B.5.2 ``_zero_within_group_fission`` slot — a ``ZeroOperator``
+``codomain_zero`` emitting the boundary zero for an explicit ``F = 0``
+within-group operator — was designed here but NEVER wired: the Wave-O
+``_within_group_triple`` decomposition routes within-group fission
+through ``q_ext`` instead, so no zero-fission operator is ever
+constructed. The dead helper retired 2026-07-03 (C4).)
 
 The change is **type-only**: :meth:`BoundarySourceSink.zeros_on <orpheus.transport.fields._bases.BoundaryField.zeros_on>`
 and the per-face-view writes produce **bit-identical** ``.values`` —

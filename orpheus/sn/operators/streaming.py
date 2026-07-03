@@ -122,7 +122,7 @@ History
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, Optional, overload
 
 import numpy as np
 
@@ -489,7 +489,15 @@ class StreamingOperator(LinearOperator["FullField"]):
 
     # ── Algebra dispatch — sweep-invertible composite (R-1 Step C) ────
 
-    def __add__(self, other):
+    @overload
+    def __add__(self, other: "MultiplicationOperator") -> "InvertibleOperator": ...
+    @overload
+    def __add__(
+        self, other: "LinearOperator[FullField]",
+    ) -> "OperatorSum[FullField, FullField]": ...
+    def __add__(
+        self, other: "LinearOperator[FullField]",
+    ) -> "OperatorSum[FullField, FullField]":
         r"""Compose :math:`L + X`.
 
         When ``X`` is a
@@ -497,8 +505,11 @@ class StreamingOperator(LinearOperator["FullField"]):
         (the collision diagonal :math:`C = M[\sigma_t]`), returns the
         sweep-invertible specialisation :class:`InvertibleOperator`
         carrying the algebraic identity :math:`(L + C)^{-1} \approx
-        \text{WDD sweep}`.  Otherwise falls through to the generic
-        :class:`OperatorSum` via the mixin.
+        \text{WDD sweep}` — the typed ``@overload`` spells the fusion
+        rule, so ``L + C`` reads as an ``InvertibleOperator`` statically
+        (C4: the covariant summand legs make the specialisation
+        assignable to the generic contract).  Otherwise falls through to
+        the generic :class:`OperatorSum` via the mixin.
 
         #261: ``L + C`` is the canonical (and only) ordering — the dispatch
         lives here on the SN-specific streaming leaf, because the
@@ -515,7 +526,11 @@ class StreamingOperator(LinearOperator["FullField"]):
 # ─────────────────────────────────────────────────────────────────────────
 
 
-class InvertibleOperator(OperatorSum["FullField"]):
+class InvertibleOperator(
+    OperatorSum[
+        "FullField", "FullField", "StreamingOperator", "MultiplicationOperator",
+    ],
+):
     r"""Sweep-invertible composite :math:`L + C` carrying ``.solve`` = WDD sweep.
 
     R-1 Step C (2026-05-19) — the SN-specific algebraic identity
@@ -693,12 +708,12 @@ class InvertibleOperator(OperatorSum["FullField"]):
     @property
     def streaming(self) -> "StreamingOperator":
         """The streaming operand (alias for ``self.a``)."""
-        return cast("StreamingOperator", self.a)
+        return self.a
 
     @property
     def diagonal(self) -> "MultiplicationOperator":
         """The diagonal-multiplier operand :math:`C = M[\\sigma]` (alias for ``self.b``)."""
-        return cast("MultiplicationOperator", self.b)
+        return self.b
 
     @property
     def loss_representation(self) -> "LossRepresentation":
@@ -779,7 +794,17 @@ class InvertibleOperator(OperatorSum["FullField"]):
 
     # ── Algebra dispatch — schedule-folded composite (#226 step 2) ────
 
-    def __sub__(self, other):
+    @overload
+    def __sub__(
+        self, other: "SNMaskedBoundaryOperator",
+    ) -> "ScheduledInvertibleOperator": ...
+    @overload
+    def __sub__(
+        self, other: "LinearOperator[FullField]",
+    ) -> "OperatorSum[FullField, FullField]": ...
+    def __sub__(
+        self, other: "LinearOperator[FullField]",
+    ) -> "OperatorSum[FullField, FullField]":
         r"""Compose :math:`(L+C) - X`.
 
         When ``X`` is the strictly-lower boundary half ``B_lower`` (an
@@ -789,6 +814,8 @@ class InvertibleOperator(OperatorSum["FullField"]):
         :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
         — the reified splitting matrix :math:`M = (L+C-B_{\rm lower})` whose
         ``solve`` is the octant-group forward substitution (§17 W2).
+        The typed ``@overload`` spells the fusion rule (C4, as
+        :meth:`StreamingOperator.__add__`).
         Otherwise falls through to the generic difference via the mixin.
 
         ``(L+C) - B_lower`` is the canonical spelling — the dispatch lives

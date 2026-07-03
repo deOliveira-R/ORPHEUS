@@ -28,7 +28,7 @@ from orpheus.sn.loss_representation.sweep_graph import (
     OctantLabel,
     SweepDependencyGraph,
     _CellResidual,
-    _CellSolve,
+    _CellSolveAngular,
 )
 
 
@@ -285,7 +285,7 @@ class TestApplyMatchesLegacyInlined:
         psi_x_oct = psi_x.copy()
         psi_y_oct = psi_y.copy()
         graph.walk_full(
-            level_op=_CellSolve(
+            level_op=_CellSolveAngular(
                 scheme=DiamondDifference(),
                 weights_octant=weights,
                 angular_flux_octant=angular_flux,
@@ -340,7 +340,7 @@ class TestApplyMatchesLegacyInlined:
         psi_x_oct = psi_x.copy()
         psi_y_oct = psi_y.copy()
         graph.walk_full(
-            level_op=_CellSolve(
+            level_op=_CellSolveAngular(
                 scheme=DiamondDifference(),
                 weights_octant=weights,
                 angular_flux_octant=angular_flux,
@@ -397,7 +397,7 @@ class TestResidualWalkRoundTrip:
         ang = np.zeros((N_oct, ng, nx, ny))
         scal = np.zeros((ng, nx, ny))
         graph.walk_full(
-            level_op=_CellSolve(
+            level_op=_CellSolveAngular(
                 scheme=DiamondDifference(),
                 weights_octant=weights,
                 angular_flux_octant=ang,
@@ -440,7 +440,7 @@ class TestResidualWalkRoundTrip:
         ang = np.zeros((N_oct, ng, nx, ny))
         scal = np.zeros((ng, nx, ny))
         graph.walk_full(
-            level_op=_CellSolve(
+            level_op=_CellSolveAngular(
                 scheme=DiamondDifference(),
                 weights_octant=weights,
                 angular_flux_octant=ang,

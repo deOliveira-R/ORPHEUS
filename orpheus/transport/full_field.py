@@ -308,14 +308,18 @@ class FullField:
                 f"partner; got {type(other).__name__}."
             )
 
-    def __add__(self: T, other: T) -> T:
+    # ``other`` is deliberately the BASE ``FullField`` (not ``T``): the
+    # partner rule is "any FullField flavor" (see ``_check_partner`` —
+    # load-bearing for the timed − timeless time-derivative stencil), and
+    # the RESULT flavor is governed by ``self``'s ``_recombine`` hook alone.
+    def __add__(self: T, other: "FullField") -> T:
         self._check_partner(other)
         return self._recombine(
             bulk=self.bulk + other.bulk,
             boundary=self.boundary + other.boundary,
         )
 
-    def __sub__(self: T, other: T) -> T:
+    def __sub__(self: T, other: "FullField") -> T:
         self._check_partner(other)
         return self._recombine(
             bulk=self.bulk - other.bulk,

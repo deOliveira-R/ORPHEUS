@@ -224,6 +224,13 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
       :meth:`angular_adjoint` — the matvec/sweep strategy contract (the
       forward angular path, its per-cell cell-balance contribution, and
       its reverse-mode adjoint).
+    * ``__init__`` constructible as ``cls(sn_mesh)`` — the family
+      construction contract (abstract below): every closure binds to
+      its :class:`~orpheus.sn.mesh.augmented_mesh.SNMesh` at
+      construction (PR-TYPED-6.5 Phase 2.3), and the SNMesh
+      default-closure dispatch instantiates through this signature
+      (``default_angular_closure_class(coord)(mesh)``). Concretes may
+      widen (an optional mesh, extra keyword strategy slots).
 
     Notes
     -----
@@ -311,7 +318,20 @@ class PoleAngularClosureBase(RegistryMixin, ABC):
     def _registry_base(cls) -> type:
         return PoleAngularClosureBase
 
-    # ── Angular-closure constants per global ordinate (Issue #236 Phase 2) ──
+    @abstractmethod
+    def __init__(self, sn_mesh: "SNMesh") -> None:
+        """Family construction contract — a closure binds to its SNMesh.
+
+        Every concrete strategy is constructible as ``cls(sn_mesh)``
+        (PR-TYPED-6.5 Phase 2.3 mesh binding); the SNMesh
+        default-closure dispatch
+        (``default_angular_closure_class(coord)(mesh)``) instantiates
+        through this signature. Concretes may WIDEN it — an optional
+        mesh (M-M's unbound legacy mode), extra keyword strategy slots
+        (``psi_half_seed``) — but the one-positional-mesh call must
+        stay valid. Abstract: declares the signature only; concrete
+        ``__init__`` bodies do not chain here.
+        """
     # The Morel–Montry weighted-diamond closure derives two algebraic
     # constants per μ-level from its α-dome and τ weight:
     #
