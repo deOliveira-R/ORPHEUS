@@ -15,13 +15,14 @@ shared engines (P5):
 
 Importing the package auto-registers the realizer.
 
-The legacy MATLAB-port island (``CoreGeometry`` / ``TwoGroupXS`` /
-the BiCGSTAB solver) remains importable from
-``orpheus.diffusion.solver`` for ONE merge cycle — #290 P6 retires it.
+The legacy MATLAB-port island (``CoreGeometry`` / ``TwoGroupXS`` / the
+BiCGSTAB solver) was retired at #290 P6; ``orpheus.diffusion.solver``
+now IS the modern module (family naming parity with sn/cp/homogeneous).
 """
 
-# #290 P5 — the modern k-eigenvalue solver on the operator algebra.
-from .k_eigenvalue import DiffusionResult, DiffusionSolver, solve_diffusion_1d
+# #290 P5 — the modern k-eigenvalue solver on the operator algebra
+# (renamed k_eigenvalue.py → solver.py at P6 when the island retired).
+from .solver import DiffusionResult, DiffusionSolver, solve_diffusion_1d
 
 # #290 P3 (closes #182) -- the FUNCTIONAL DiffusionBoundaryRealizer
 # (albedo family J⁻ = 𝒜·J⁺ on the scalar partial-current trace) +

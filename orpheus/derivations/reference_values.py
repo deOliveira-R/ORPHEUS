@@ -49,14 +49,17 @@ _CONTINUOUS: dict[str, ContinuousReferenceSolution] | None = None
 _CONTINUOUS_BUILDERS: dict[str, Callable[[], ContinuousReferenceSolution]] | None = None
 
 
-_SOLVER_CASES_LOADED = False
-
-
 def _build_registry() -> dict[str, VerificationCase]:
     """Import all derivation modules and collect analytical/semi-analytical cases.
 
-    Solver-computed cases (SN/MOC heterogeneous via Richardson extrapolation)
-    are loaded separately by ``_load_solver_cases()`` when solvers are on the path.
+    The legacy T3 ``solver_cases()`` side-channel (Richardson-extrapolated
+    heterogeneous references computed BY the solvers under test) is fully
+    retired: ``sn.py`` deleted its arm in Phase 2.1a (superseded by the
+    MMS continuous references), ``moc.py`` never regrew one, and
+    ``diffusion.py`` retired the last one at #290 P6 together with the
+    MATLAB-port island solver that computed it. Every registry entry is
+    now analytical or semi-analytical — no reference is derived from a
+    production solver.
     """
     cases: dict[str, VerificationCase] = {}
 
@@ -72,47 +75,6 @@ def _build_registry() -> dict[str, VerificationCase]:
     return cases
 
 
-def _load_solver_cases() -> None:
-    """Load solver-computed heterogeneous cases (legacy T3 path).
-
-    .. deprecated:: verification-campaign
-
-        ``solver_cases()`` is the entry point for the Richardson-
-        extrapolated heterogeneous references that the
-        verification campaign is replacing one module at a time:
-
-        - ``sn.py`` — deleted in Phase 2.1a; heterogeneous SN
-          verification is now the MMS continuous reference in
-          :mod:`orpheus.derivations.continuous.mms.sn`.
-        - ``moc.py`` — Phase 2.2 target (still T3 at the time of
-          writing).
-        - ``diffusion.py`` — Phase 1.2 replaced the *continuous*
-          registry entry with a transcendental transfer-matrix
-          reference, but the legacy Richardson ``solver_cases``
-          path is kept alive during the migration window so
-          that pre-Phase-1.2 tests (which still read from the
-          legacy :func:`get` registry) keep working.
-
-        The loop below iterates over modules that *still* define
-        ``solver_cases`` at import time, so deletions are a
-        one-line change to the target module.
-    """
-    global _SOLVER_CASES_LOADED
-    if _SOLVER_CASES_LOADED:
-        return
-    _SOLVER_CASES_LOADED = True
-
-    cases = _ensure_loaded()
-    try:
-        from .continuous.cases import diffusion, moc, sn
-        for module in [sn, moc, diffusion]:
-            if hasattr(module, 'solver_cases'):
-                for case in module.solver_cases():
-                    cases[case.name] = case
-    except ImportError:
-        pass  # solvers not on path (e.g. docs build)
-
-
 def _ensure_loaded() -> dict[str, VerificationCase]:
     global _CASES
     if _CASES is None:
@@ -123,24 +85,18 @@ def _ensure_loaded() -> dict[str, VerificationCase]:
 def get(name: str) -> VerificationCase:
     """Get a verification case by name.
 
-    Raises KeyError if not found. Tries loading solver-computed cases
-    if the name is not in the analytical registry.
+    Raises KeyError if not found.
     """
-    cases = _ensure_loaded()
-    if name not in cases:
-        _load_solver_cases()
-    return cases[name]
+    return _ensure_loaded()[name]
 
 
 def all_names() -> list[str]:
     """List all available verification case names."""
-    _load_solver_cases()
     return sorted(_ensure_loaded().keys())
 
 
 def all_cases() -> list[VerificationCase]:
     """Return all verification cases."""
-    _load_solver_cases()
     return list(_ensure_loaded().values())
 
 

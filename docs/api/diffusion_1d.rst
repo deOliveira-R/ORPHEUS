@@ -1,22 +1,45 @@
-1-D Two-Group Diffusion Solver
+1-D Multigroup Diffusion Solver
 ================================
 
-Reference for the :mod:`orpheus.diffusion` package — a 1-D two-group
-finite-difference diffusion solver with a fuel/reflector core geometry.
-The underlying theory (two-group eigenvalue problem, power iteration,
-boundary treatment) is covered in the diffusion theory chapter and
-verified against analytical reference solutions built by
+Reference for the :mod:`orpheus.diffusion` package — the #290
+operator-algebra diffusion solver: the scalar-composite operator family
+:math:`A = L + C - S - B`, the albedo-family boundary realizer
+(:math:`J^- = \mathcal A\,J^+`), and the k-eigenvalue solver on the
+shared :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` engines.
+The underlying theory is covered in :doc:`/theory/diffusion_1d` and
+verified against the analytical / semi-analytical references built by
 :mod:`orpheus.derivations.continuous.cases.diffusion`.
 
-See :ref:`theory-verification` for the L0/L1 verification cases that
-exercise this solver, and :func:`orpheus.derivations.continuous.cases.diffusion.solver_cases`
-for the set of :class:`~orpheus.derivations.common.verification_case.VerificationCase`
-instances a test consumes via ``ref(name)``.
+See :ref:`theory-verification` for the verification-case philosophy.
 
 Solver
 ------
 
 .. automodule:: orpheus.diffusion.solver
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+Operators
+---------
+
+.. automodule:: orpheus.diffusion.operators
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+Boundary realization
+--------------------
+
+.. automodule:: orpheus.diffusion.boundary_realizer
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :noindex:
+
+.. automodule:: orpheus.diffusion.method_space
    :members:
    :undoc-members:
    :show-inheritance:

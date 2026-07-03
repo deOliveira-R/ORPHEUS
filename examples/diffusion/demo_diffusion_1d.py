@@ -11,12 +11,12 @@ incoming current, the Marshak condition; the MATLAB reference used the
 
 Reference MATLAB result: keff = 1.022173.
 
-The legacy cross sections encode bit-identically (campaign ruling 4):
-``sig_t := transport`` with no P1 moment, so ``Σ_tr = Σ_t`` exactly and
-``D = 1/(3·transport)``; the in-group scatter is backfilled so the
-removal rate matches (``σ_gg = transport − absorption − downscatter``),
-which leaves capture = absorption − fission — physical. The physical-P1
-re-baseline is the campaign's close-out follow-up.
+The legacy cross sections encode bit-identically (campaign ruling 4)
+through :func:`~orpheus.derivations.common.xs_library.
+mixture_from_diffusion_tables` — ``sig_t := transport`` with no P1
+moment, so ``Σ_tr = Σ_t`` exactly and ``D = 1/(3·transport)``; see its
+docstring for the full encoding. The physical-P1 re-baseline is the
+campaign's close-out follow-up.
 """
 
 from pathlib import Path
@@ -26,7 +26,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.derivations.common.xs_library import mixture_from_diffusion_tables
 from orpheus.diffusion import solve_diffusion_1d
 from orpheus.geometry import BC
 from orpheus.geometry.mesh import Mesh1D
@@ -37,45 +37,22 @@ OUTPUT = Path("results")
 
 def _core1d_materials():
     """Reflector (id 0) + fuel (id 1) from MATLAB CORE1D.m."""
-
-    def bridge(transport, absorption, fission, production, chi, downscatter):
-        transport = np.asarray(transport)
-        absorption = np.asarray(absorption)
-        fission = np.asarray(fission)
-        downscatter = np.asarray(downscatter)
-        # In-group backfill: removal σ_t − σ_gg = absorption + downscatter.
-        sig_s = np.diag(transport - absorption - downscatter)
-        sig_s[0, 1] = downscatter[0]
-        nu = np.divide(
-            production, fission,
-            out=np.zeros_like(production, dtype=float),
-            where=fission > 0,
-        )
-        return make_mixture(
-            sig_t=transport,
-            sig_c=absorption - fission,        # capture — physical
-            sig_f=fission,
-            nu=nu,
-            chi=np.asarray(chi),
-            sig_s=sig_s,
-        )
-
-    reflector = bridge(
-        transport=[0.3416, 0.9431],
-        absorption=[0.0029, 0.0933],
-        fission=[0.0, 0.0],
+    reflector = mixture_from_diffusion_tables(dict(
+        transport=np.array([0.3416, 0.9431]),
+        absorption=np.array([0.0029, 0.0933]),
+        fission=np.array([0.0, 0.0]),
         production=np.array([0.0, 0.0]),
-        chi=[0.0, 0.0],
-        downscatter=[2.4673e-04, 0.0],
-    )
-    fuel = bridge(
-        transport=[0.2181, 0.7850],
-        absorption=[0.0096, 0.0959],
-        fission=[0.0024, 0.0489],
+        chi=np.array([0.0, 0.0]),
+        scattering=np.array([2.4673e-04, 0.0]),
+    ))
+    fuel = mixture_from_diffusion_tables(dict(
+        transport=np.array([0.2181, 0.7850]),
+        absorption=np.array([0.0096, 0.0959]),
+        fission=np.array([0.0024, 0.0489]),
         production=np.array([0.0061, 0.1211]),
-        chi=[1.0, 0.0],
-        downscatter=[0.0160, 0.0],
-    )
+        chi=np.array([1.0, 0.0]),
+        scattering=np.array([0.0160, 0.0]),
+    ))
     return {0: reflector, 1: fuel}
 
 

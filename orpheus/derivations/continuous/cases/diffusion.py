@@ -2,39 +2,48 @@ r"""Analytical and semi-analytical reference solutions for 1D diffusion.
 
 Two problem families:
 
-1. **Bare slab (1 region)** — 2-group vacuum-BC diffusion eigenvalue
-   with the sine eigenfunction :math:`\phi_g(x) = c_g\sin(\pi x/L)`
-   and the buckled matrix eigenvalue
+1. **Bare slab (1 region)** — 2-group zero-flux-BC diffusion
+   eigenvalue with the sine eigenfunction
+   :math:`\phi_g(x) = c_g\sin(\pi x/L)` and the buckled matrix
+   eigenvalue
    :math:`(\mathbf A_{\text{rem}} + D B^{2}\mathbf I)\phi = k^{-1}\mathbf F\phi`.
    Pure analytical (T1) — no quadrature, no iteration.
-2. **Fuel + reflector (2 regions)** — 2-group vacuum-BC diffusion
+2. **Fuel + reflector (2 regions)** — 2-group zero-flux-BC diffusion
    eigenvalue with interface matching. Solved semi-analytically
    via the transfer-matrix method: propagate the first-order ODE
    state :math:`\mathbf y = [\boldsymbol\phi; \mathbf J]` through
    each region by the matrix exponential :math:`\exp(\mathbf S\,t)`,
    compose across the interface (automatic continuity of
    :math:`\phi` and :math:`J`), and solve the transcendental
-   vacuum-BC eigenvalue condition
+   zero-flux-BC eigenvalue condition
    :math:`\det(\mathbf T_{\text{total}}[0{:}ng,\,ng{:}2ng]) = 0`
    via :func:`scipy.optimize.brentq`. Back-substitution gives the
    continuous :math:`\phi_g(x)` at arbitrary :math:`x`. T2
    semi-analytical.
 
-Both families publish **two tiers** of reference during the
-Phase-1.2 retrofit:
+**Boundary naming (#290 ruling).** These references pin the
+**zero-flux Dirichlet** law :math:`\phi_\Gamma = 0` — what the
+retired MATLAB-port island mis-called "vacuum". In ORPHEUS *vacuum*
+means zero incoming partial current (Marshak, albedo
+:math:`\mathcal A = 0`); the honest name for this sine /
+transcendental family is ``zero_flux`` (:math:`\mathcal A = -1`).
+The mathematical content is unchanged — re-attributed, not
+re-derived.
 
-- **Legacy** ``derive_1rg`` / ``derive_2rg`` returning scalar
-  :class:`~orpheus.derivations.common.verification_case.VerificationCase` — kept
-  for backward-compat with existing tests. ``derive_2rg`` still
-  reads the Richardson cache; the cache is **not** deleted yet
-  so the legacy ``test_spatial_convergence_reflected`` test
-  keeps working until the Phase-1.2 consumer test (which uses
-  the continuous reference) takes over.
-- **Phase-0 continuous** ``derive_1rg_continuous`` /
-  ``derive_2rg_continuous`` returning
-  :class:`~orpheus.derivations.ContinuousReferenceSolution`
-  with mesh-independent callable :math:`\phi_g(x)` — the
-  honest reference this module always should have produced.
+The **canonical tier** is the Phase-0 continuous one:
+``derive_1rg_continuous`` / ``derive_2rg_continuous`` returning
+:class:`~orpheus.derivations.ContinuousReferenceSolution` with a
+mesh-independent callable :math:`\phi_g(x)`. The bare slab
+additionally publishes the legacy scalar
+:class:`~orpheus.derivations.common.verification_case.VerificationCase`
+(``derive_1rg``) for the registry's legacy :func:`get` path. The
+2-region legacy tier (``derive_2rg`` Richardson extrapolation +
+``solver_cases`` + the ``_richardson_cache``) was **retired at #290
+P6** together with the MATLAB-port island solver that computed it —
+the transcendental transfer-matrix reference is the sole 2-region
+anchor, strictly more accurate than the Richardson value it
+replaced (~1e-7 vs ~1e-5 floors; the two were cross-checked during
+the migration window before the legacy tier retired).
 
 See :doc:`/theory/diffusion_1d` for the full mathematical
 treatment with equation labels, and
@@ -71,7 +80,13 @@ _REFL_XS = dict(
     absorption=np.array([0.0004, 0.0197]),
     fission=np.array([0.0, 0.0]),
     production=np.array([0.0, 0.0]),
-    chi=np.array([1.0, 0.0]),
+    # Null emission spectrum — the reflector is non-fissile. (The
+    # historical placeholder chi=[1,0] was inert in every consumer —
+    # chi enters only through chi ⊗ (nu·Sigma_f), which is identically
+    # zero here — but the honest Mixture encoding refuses a non-null
+    # spectrum on a non-fissile material, so the placeholder is
+    # corrected at source. Reference values are bit-identical.)
+    chi=np.array([0.0, 0.0]),
     scattering=np.array([0.0447, 0.0]),
 )
 
@@ -94,7 +109,7 @@ def derive_1rg(fuel_height: float = 50.0) -> VerificationCase:
     k_val = float(np.max(np.real(np.linalg.eigvals(M))))
 
     latex = (
-        rf"Bare slab H = {fuel_height} cm, vacuum BCs. "
+        rf"Bare slab H = {fuel_height} cm, zero-flux BCs. "
         rf":math:`B^2 = (\pi/H)^2 = {B2:.6e}`."
         "\n\n"
         r".. math::" "\n"
@@ -111,113 +126,30 @@ def derive_1rg(fuel_height: float = 50.0) -> VerificationCase:
         materials=_FUEL_XS,
         geom_params=dict(fuel_height=fuel_height),
         latex=latex,
-        description=f"2-group diffusion bare slab (H={fuel_height} cm, vacuum BCs)",
+        description=f"2-group diffusion bare slab (H={fuel_height} cm, zero-flux BCs)",
         tolerance="O(h²)",
         vv_level="L1",
-        # TODO: no labels yet — docs/theory/diffusion.rst does not exist
-        # (issue #35). Populate with bare-slab-buckling / two-group-diffusion
-        # labels once the theory page lands.
-        equation_labels=(),
-    )
-
-
-def derive_2rg(
-    fuel_height: float = 50.0,
-    refl_height: float = 30.0,
-) -> VerificationCase:
-    r"""2-group fuel + reflector slab: Richardson-extrapolated reference.
-
-    Geometry: [vacuum] fuel (0 to H_f) | reflector (H_f to H_f+H_r) [vacuum]
-
-    The 2-group coupled system with interface matching has a complex
-    transcendental equation. We use Richardson extrapolation from the
-    diffusion solver at 4 mesh refinements (O(h²)) to obtain the reference.
-    Results are cached to avoid recomputation on subsequent test runs.
-    """
-    from ...common._richardson_cache import get_cached, store
-
-    H_f = fuel_height
-    H_r = refl_height
-
-    case_name = "dif_slab_2eg_2rg"
-    dzs = [2.5, 1.25, 0.625, 0.3125]
-
-    cache_params = dict(
-        method="dif", fuel_height=H_f, refl_height=H_r, dzs=dzs,
-        fuel_xs=_FUEL_XS, refl_xs=_REFL_XS,
-    )
-
-    k_val = get_cached(case_name, cache_params)
-    if k_val is None:
-        from orpheus.diffusion.solver import CoreGeometry, TwoGroupXS, solve_diffusion_1d
-
-        fuel_xs = TwoGroupXS(**_FUEL_XS)
-        refl_xs = TwoGroupXS(**_REFL_XS)
-
-        keffs = []
-        for dz in dzs:
-            geom = CoreGeometry(
-                bot_refl_height=0.0, fuel_height=H_f,
-                top_refl_height=H_r, dz=dz,
-            )
-            result = solve_diffusion_1d(
-                geom=geom, reflector_xs=refl_xs, fuel_xs=fuel_xs,
-            )
-            keffs.append(result.keff)
-
-        # O(h²) Richardson extrapolation (ratio 2, two finest)
-        k_val = keffs[-1] + (keffs[-1] - keffs[-2]) / 3.0
-        store(case_name, cache_params, k_val, keffs)
-
-    latex = (
-        rf"Fuel + reflector slab: H_f = {H_f} cm, H_r = {H_r} cm. "
-        r"Richardson-extrapolated from O(h²) mesh convergence."
-        "\n\n"
-        r".. math::" "\n"
-        rf"   k_{{\text{{eff}}}} = {k_val:.10f}"
-    )
-
-    return VerificationCase(
-        name=case_name,
-        k_inf=k_val,
-        method="dif",
-        geometry="slab",
-        n_groups=2,
-        n_regions=2,
-        materials=dict(fuel=_FUEL_XS, reflector=_REFL_XS),
-        geom_params=dict(fuel_height=H_f, refl_height=H_r),
-        latex=latex,
-        description=(
-            f"2-group diffusion fuel+reflector slab "
-            f"(H_f={H_f}, H_r={H_r} cm, vacuum BCs)"
+        # Same math as derive_1rg_continuous — the labels live on
+        # docs/theory/diffusion_1d.rst.
+        equation_labels=(
+            "diffusion-operator",
+            "diffusion-coefficient",
+            "bare-slab-buckling",
+            "bare-slab-eigenfunction",
+            "bare-slab-critical-equation",
         ),
-        tolerance="O(h²)",
-        vv_level="L2",
-        # TODO: no labels yet — docs/theory/diffusion.rst does not exist
-        # (issue #35). Populate with fuel-reflector-matching / flux-continuity
-        # / current-continuity labels once the theory page lands.
-        equation_labels=(),
     )
 
 
 def all_cases() -> list[VerificationCase]:
-    """Return analytical diffusion cases (bare slab only)."""
-    return [derive_1rg()]
+    """Return analytical diffusion cases (bare slab only).
 
-
-def solver_cases() -> list[VerificationCase]:
-    """Return solver-computed diffusion cases (fuel+reflector Richardson).
-
-    .. deprecated:: Phase 1.2
-        The Richardson-extrapolated ``dif_slab_2eg_2rg`` reference is
-        superseded by :func:`derive_2rg_continuous` which builds a
-        genuine transcendental transfer-matrix reference with no
-        self-crutch. This legacy path is kept alive only so the existing
-        ``tests/diffusion/test_diffusion.py::test_spatial_convergence_reflected``
-        test (which consumes the Richardson value) keeps working during
-        the Phase-1.2 migration window. Phase 2 deletes it.
+    The 2-region legacy case (``derive_2rg`` — Richardson extrapolation
+    of the retired island solver, served via ``solver_cases``) was
+    retired at #290 P6; the 2-region reference is exclusively the
+    transcendental :func:`derive_2rg_continuous`.
     """
-    return [derive_2rg()]
+    return [derive_1rg()]
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -273,8 +205,8 @@ def _net_removal_matrix(xs_dict: dict, k: float) -> np.ndarray:
     :math:`-D\,\phi'' + \mathbf M(k)\,\phi = 0`. The dependence on
     ``k`` is how the transcendental eigenvalue condition is
     assembled: search over ``k`` until the transfer matrix obeys
-    the vacuum boundary conditions (see
-    :func:`_solve_2region_vacuum_eigenvalue`).
+    the zero-flux boundary conditions (see
+    :func:`_solve_2region_zero_flux_eigenvalue`).
     """
     absorption = np.asarray(xs_dict["absorption"], dtype=float)
     scat_out = np.asarray(xs_dict["scattering"], dtype=float)
@@ -396,7 +328,7 @@ def _region_basis_matrices(
     With these four matrices, interface continuity at the
     fuel/reflector boundary becomes
     ``phi_right_fuel = phi_left_refl`` and
-    ``J_right_fuel = J_left_refl``, while the vacuum BCs at the
+    ``J_right_fuel = J_left_refl``, while the zero-flux BCs at the
     outer edges become ``phi_left_fuel @ c_fuel = 0`` and
     ``phi_right_refl @ c_refl = 0``. The full 8x8 matching
     matrix is assembled from these blocks.
@@ -494,7 +426,7 @@ def _assemble_matching_matrix(
 ) -> np.ndarray:
     r"""Assemble the 8x8 matching matrix :math:`\mathbf C(k)`.
 
-    The eigenvalue problem for the 2-region vacuum-BC slab has
+    The eigenvalue problem for the 2-region zero-flux-BC slab has
     four boundary/matching constraints:
 
     1. :math:`\boldsymbol\phi_{\text{fuel}}(x = 0) = \mathbf 0`
@@ -543,7 +475,7 @@ def _physical_validation(
     tol: float = 1e-7,
 ) -> bool:
     r"""Return True if ``k`` is a genuine eigenvalue of the 2-region
-    vacuum-BC slab.
+    zero-flux-BC slab.
 
     Rebuilds the matching matrix at ``k`` *slightly relaxed* so
     the SVD does not catch a discontinuity artefact, extracts
@@ -598,7 +530,7 @@ def _physical_validation(
     )
 
 
-def _solve_2region_vacuum_eigenvalue(
+def _solve_2region_zero_flux_eigenvalue(
     xs_fuel: dict,
     xs_refl: dict,
     fuel_height: float,
@@ -608,7 +540,7 @@ def _solve_2region_vacuum_eigenvalue(
     n_scan: int = 400,
     tol: float = 1e-14,
 ) -> float:
-    r"""Find :math:`k_\text{eff}` for a 2-region vacuum-BC slab.
+    r"""Find :math:`k_\text{eff}` for a 2-region zero-flux-BC slab.
 
     Builds the 8 × 8 real matching matrix :math:`\mathbf C(k)` from
     :func:`_assemble_matching_matrix`, scans for sign changes in
@@ -800,8 +732,11 @@ def derive_1rg_continuous(
     - ``phi(x, g)`` — the multigroup eigenfunction
       :math:`c_g \sin(\pi x/L)` evaluated at any :math:`x`, with
       :math:`c_g` the :math:`\ell^{2}`-normalised spectrum vector.
-    - Vacuum BC recorded in the ``ProblemSpec`` as
-      ``{"left": "vacuum", "right": "vacuum"}``.
+    - The zero-flux Dirichlet law recorded in the ``ProblemSpec`` as
+      ``{"left": "zero_flux", "right": "zero_flux"}`` (#290 ruling 3:
+      the sine family pins :math:`\phi_\Gamma = 0`, which is the
+      ``zero_flux`` law — *vacuum* in ORPHEUS means Marshak
+      :math:`J^- = 0`).
 
     See :eq:`bare-slab-eigenfunction`, :eq:`bare-slab-buckling`,
     and :eq:`bare-slab-critical-equation` on the theory page.
@@ -820,7 +755,7 @@ def derive_1rg_continuous(
             materials={0: xs},
             geometry_type="slab",
             geometry_params={"length": L, "fuel_height": L},
-            boundary_conditions={"left": "vacuum", "right": "vacuum"},
+            boundary_conditions={"left": "zero_flux", "right": "zero_flux"},
             external_source=None,
             is_eigenvalue=True,
             n_groups=_NG,
@@ -830,7 +765,9 @@ def derive_1rg_continuous(
         provenance=Provenance(
             citation="Bell & Glasstone 1970, §7.4 Eq. (7.40)–(7.42)",
             derivation_notes=(
-                "Bare 2-group slab with zero-flux vacuum BCs. Separation of "
+                "Bare 2-group slab with zero-flux Dirichlet BCs (#290 "
+                "ruling 3: the honest name for what the legacy port "
+                "called 'vacuum'). Separation of "
                 "variables gives phi_g(x) = c_g sin(pi x/L) for all groups, "
                 "reducing the PDE to the buckled 2x2 matrix eigenvalue "
                 "problem (A_rem + D·B^2) phi = (1/k) F phi with "
@@ -852,7 +789,7 @@ def derive_1rg_continuous(
         ),
         vv_level="L1",
         description=(
-            f"2-group diffusion bare slab (H={L} cm, vacuum BCs). "
+            f"2-group diffusion bare slab (H={L} cm, zero-flux BCs). "
             f"Phase-1.2 continuous reference — sine eigenfunction."
         ),
         tolerance="< 1e-10 (k_eff), O(h²) flux shape",
@@ -867,8 +804,9 @@ def derive_2rg_continuous(
 ) -> ContinuousReferenceSolution:
     r"""Phase-0 continuous reference for the 2-group fuel+reflector slab.
 
-    Replaces the Richardson-extrapolated :func:`derive_2rg` with a
-    genuine transcendental reference built on the real-basis mode
+    Replaced the Richardson-extrapolated ``derive_2rg`` (retired at
+    #290 P6 with the island solver that computed it) with a genuine
+    transcendental reference built on the real-basis mode
     decomposition of the multigroup diffusion ODE in each region:
 
     1. In each region, diagonalise :math:`\mathbf D^{-1}\mathbf M(k)`
@@ -877,7 +815,7 @@ def derive_2rg_continuous(
        pair of bounded real basis modes (exp/exp when
        :math:`\mu_i > 0`, cos/sin when :math:`\mu_i < 0`).
     2. Assemble the 8 × 8 matching matrix :math:`\mathbf C(k)` from
-       vacuum-BC, flux-continuity, and current-continuity
+       zero-flux-BC, flux-continuity, and current-continuity
        constraints on the 8 mode coefficients (4 per region).
     3. Solve :math:`\det(\mathbf C(k)) = 0` via a coarse scan plus
        :func:`scipy.optimize.brentq`, then **physically validate**
@@ -900,9 +838,10 @@ def derive_2rg_continuous(
     ----------
     fuel_height, refl_height : float
         Thicknesses in cm. The default (50 + 30) matches the
-        legacy :func:`derive_2rg` configuration, so the two
-        references can be cross-checked against each other
-        during the Phase-1.2 migration window.
+        retired ``derive_2rg`` Richardson configuration — the two
+        references were cross-checked (agreement ~1e-7, inside the
+        Richardson ~1e-5 floor) during the Phase-1.2 migration
+        window, before the legacy tier retired at #290 P6.
 
     Notes
     -----
@@ -922,7 +861,7 @@ def derive_2rg_continuous(
     xs_fuel = _FUEL_XS
     xs_refl = _REFL_XS
 
-    k_val = _solve_2region_vacuum_eigenvalue(xs_fuel, xs_refl, H_f, H_r)
+    k_val = _solve_2region_zero_flux_eigenvalue(xs_fuel, xs_refl, H_f, H_r)
 
     # Extract the 8-d mode coefficient vector from the null space of
     # the matching matrix. Split into fuel (first 4) and reflector
@@ -992,7 +931,7 @@ def derive_2rg_continuous(
                 "refl_height": H_r,
                 "length": L_total,
             },
-            boundary_conditions={"left": "vacuum", "right": "vacuum"},
+            boundary_conditions={"left": "zero_flux", "right": "zero_flux"},
             external_source=None,
             is_eigenvalue=True,
             n_groups=_NG,
@@ -1002,7 +941,9 @@ def derive_2rg_continuous(
         provenance=Provenance(
             citation="Bell & Glasstone 1970, §7.4; Duderstadt & Hamilton 1976, Ch. 7",
             derivation_notes=(
-                "2-group fuel+reflector slab with zero-flux vacuum BCs. "
+                "2-group fuel+reflector slab with zero-flux Dirichlet "
+                "BCs (#290 ruling 3: the honest name for what the "
+                "legacy port called 'vacuum'). "
                 "Each region's diffusion ODE -D·phi'' + M(k)·phi = 0 is "
                 "solved in the region's OWN spatial-mode basis: eigenvalues "
                 "mu = lambda^2 of D^(-1)·M give real exponentials "
@@ -1013,9 +954,9 @@ def derive_2rg_continuous(
                 "basis mode is bounded by 1 on its region, so the "
                 "assembled 8x8 matching matrix C(k) has O(1) entries "
                 "and det(C) is computed without catastrophic cancellation.\n\n"
-                "The matching constraints are phi(0) = 0 (vacuum left), "
+                "The matching constraints are phi(0) = 0 (zero-flux left), "
                 "phi and J continuous at the fuel/reflector interface, "
-                "and phi(L) = 0 (vacuum right) — 8 equations in 8 mode "
+                "and phi(L) = 0 (zero-flux right) — 8 equations in 8 mode "
                 "coefficients. det(C(k)) = 0 is the transcendental "
                 "eigenvalue condition, bracketed by a coarse scan and "
                 "refined via scipy.optimize.brentq to xtol=1e-14.\n\n"
@@ -1070,8 +1011,8 @@ def derive_2rg_continuous(
         vv_level="L1",
         description=(
             f"2-group diffusion fuel+reflector slab (H_f={H_f}, H_r={H_r} cm, "
-            f"vacuum BCs). Phase-1.2 continuous reference — transcendental "
-            f"transfer-matrix, replaces Richardson."
+            f"zero-flux BCs). Phase-1.2 continuous reference — transcendental "
+            f"transfer-matrix, replaced Richardson."
         ),
         tolerance="< 1e-10 (k_eff), O(h²) flux shape",
     )

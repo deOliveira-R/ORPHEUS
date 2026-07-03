@@ -721,6 +721,89 @@ range ``[2.5, 1.25, 0.625, 0.3125]`` and asserts the final
 two ratios exceed :math:`1.8`).
 
 
+.. _diffusion-mms-section:
+
+Method of Manufactured Solutions (fixed-source operator gate)
+=============================================================
+
+The eigenvalue anchors above run **piecewise-constant** cross
+sections: the conductance interpolation is exercised only at the
+single fuel/reflector interface, and the group coupling only through
+the eigen-spectrum. Issue #93 originally proposed an MMS gate with a
+*single-group sine and constant* :math:`D` — an ansatz that **nulls**
+(vv-principles Mode 7) exactly the two hardest terms of the operator:
+with :math:`D' \equiv 0` the :math:`(D\phi')'` product-rule content
+and the per-face conductance interpolation never differ from the
+constant-:math:`D` stencil, and with one group there is no scatter
+coupling at all. A green gate on that ansatz would be blind to the
+face-interpolation and scatter-transpose bug classes (AI failure
+modes 2/3/6). The landed gate (#290 P6) therefore overrides the
+proposal with a **heterogeneous-D, multigroup-coupled** manufactured
+problem on :math:`x \in [0, L]`, :math:`L = 10` cm:
+
+.. math::
+   :label: diffusion-mms
+
+   \begin{aligned}
+   D_1(x) &= 1.2\,\bigl(1 + 0.35\sin(\pi x/L)\bigr), &
+   \phi_1(x) &= \sin(\pi x/L),\\
+   D_2(x) &= 0.45\,\bigl(1 - 0.25\cos(2\pi x/L)\bigr), &
+   \phi_2(x) &= \sin(2\pi x/L) + 0.6\sin(\pi x/L),\\
+   q_1 &= -(D_1\phi_1')' + (\Sigma_{a,1} + \Sigma_{1\to2})\,\phi_1, &
+   q_2 &= -(D_2\phi_2')' + \Sigma_{a,2}\,\phi_2 - \Sigma_{1\to2}\,\phi_1,
+   \end{aligned}
+
+with :math:`\Sigma_a = (0.010, 0.080)`,
+:math:`\Sigma_{1\to2} = 0.015`, zero fission, and the zero-flux law
+on both faces (:math:`\phi_g` vanishes there by construction). The
+in-group scatter cancels against the collision term by the column-sum
+theorem, so the forcing carries removal = absorption + out-scatter —
+the same cancellation the assembled :math:`A = L + C - S - B`
+realizes. The forcing is SymPy-differentiated from the same symbolic
+:math:`(D_g, \phi_g)` (structurally independent of the
+finite-difference assembly under test), sampled at cell centres, and
+pushed through the solver's exact resolvent as a fixed-source solve
+:math:`\psi_h = A^{-1} q`; the gate asserts
+:math:`\lVert\psi_h - \phi\rVert_{\ell^2(h)} = \mathcal O(h^2)`.
+
+**Discrete posing.** Every cell is its own material with
+:math:`\sigma_{t,g}(x_i) = 1/(3 D_g(x_i))` (the P1 data seam
+inverted), so EVERY interior face is a material interface for the
+current-continuous conductance
+:math:`g_f = (h_L/2D_L + h_R/2D_R)^{-1}` — the term the constant-D
+sine can never probe.
+
+**Ansatz activation declaration (Mode 7).** Activated: the
+D-gradient / face-interpolation content (:math:`D_g' \neq 0` across
+the whole domain, distinct per group), the down-scatter in-scatter
+row (:math:`\phi_2 \not\propto \phi_1` — an :math:`\mathcal O(1)`
+mismatch against any transpose or sign confusion), and removal.
+Nulled, each with its covering gate elsewhere: fission (the L1
+eigenvalue anchors + the L2 infinite-medium gate), the
+non-zero-flux boundary laws (the per-law trace-semantics gates), and
+curvilinear area/volume factors (slab — pinned by the P4 hand-posed
+stencil gate).
+
+**Constrained, not merely activated (Mode 10).** The suite COMMITS
+two controls proving the error functional responds
+:math:`\mathcal O(1)` to a corruption of each activated term (at
+:math:`n = 40`, clean error :math:`3.4 \times 10^{-3}`): flattening
+:math:`D` to its midslab value while the forcing keeps the
+heterogeneous one gives :math:`4.9 \times 10^{-1}` (×144), and
+flipping the in-scatter forcing sign gives
+:math:`5.7 \times 10^{-1}` (×166). A production-side mutation probe
+(one-sided left-cell conductance in place of the harmonic mean)
+collapses the measured order from :math:`(2.004, 2.001, 2.000)` to
+:math:`(1.121, 1.034, 1.009)` with the finest-mesh error
+:math:`3.4 \times 10^{-3}` — RED under both gate assertions.
+
+Measured evidence (``tests/diffusion/test_mms.py``, cells
+:math:`n = 20, 40, 80, 160`): errors
+:math:`1.37 \times 10^{-2}`, :math:`3.41 \times 10^{-3}`,
+:math:`8.53 \times 10^{-4}`, :math:`2.13 \times 10^{-4}`;
+orders :math:`2.004, 2.001, 2.000`.
+
+
 References
 ==========
 

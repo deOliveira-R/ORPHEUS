@@ -7,7 +7,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **6199**
+Total tests collected: **6195**
 
 V&V level distribution
 ----------------------
@@ -17,10 +17,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1179, 19.0%
-   L1, 1066, 17.2%
-   L2, 50, 0.8%
+   L1, 1065, 17.2%
+   L2, 49, 0.8%
    L3, 0, 0.0%
-   foundation, 3894, 62.8%
+   foundation, 3892, 62.8%
    unmarked, 10, 0.2%
 
 Tagging source
@@ -32,7 +32,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 6110
+   explicit, 6106
    verify, 0
    class-name, 46
    func-name, 0
@@ -221,11 +221,11 @@ Module × level grid
    derivations/test_trajectory_resolvent_power_iterate, 0, 0, 0, 0, 6, 0
    derivations/test_xs_library_validation, 0, 0, 0, 0, 2, 0
    diffusion/test_boundary_realizer, 4, 0, 0, 0, 28, 0
-   diffusion/test_continuous_reference, 0, 8, 0, 0, 0, 0
-   diffusion/test_diffusion, 0, 2, 0, 0, 0, 0
+   diffusion/test_continuous_reference, 0, 7, 0, 0, 0, 0
+   diffusion/test_mms, 0, 2, 0, 0, 0, 0
    diffusion/test_operators, 8, 0, 0, 0, 24, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
-   diffusion/test_solver, 0, 0, 4, 0, 18, 0
+   diffusion/test_solver, 0, 0, 3, 0, 18, 0
    eigenvalue/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
    eigenvalue/test_keff_2d, 19, 0, 0, 0, 0, 0
    eigenvalue/test_keff_curvilinear, 0, 19, 12, 0, 0, 0
@@ -398,7 +398,7 @@ Module × level grid
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
    spatial/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    test_convergence, 0, 0, 1, 0, 0, 0
-   test_layer_imports, 0, 0, 0, 0, 313, 0
+   test_layer_imports, 0, 0, 0, 0, 311, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_vv_harness_audit, 9, 0, 0, 0, 0, 0
@@ -540,27 +540,27 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-white-bc``, 10
    ``singular-eigenfunction-eq42``, 10
    ``dd-recurrence``, 9
-   ``diffusion-coefficient``, 9
    ``sn-curvilinear-trajectory-resolvent-crosscheck``, 9
    ``tau-m``, 9
    ``tau-p``, 9
-   ``bare-slab-buckling``, 8
-   ``bare-slab-critical-equation``, 8
-   ``bare-slab-eigenfunction``, 8
    ``cp-inner-integral-antiderivative``, 8
-   ``diffusion-M-matrix``, 8
-   ``diffusion-back-substitution``, 8
-   ``diffusion-exponential-branch``, 8
-   ``diffusion-interface-matching``, 8
-   ``diffusion-matching-matrix``, 8
-   ``diffusion-mode-decomposition``, 8
-   ``diffusion-operator``, 8
-   ``diffusion-region-ode``, 8
-   ``diffusion-spurious-root-validation``, 8
-   ``diffusion-transcendental``, 8
-   ``diffusion-trigonometric-branch``, 8
+   ``diffusion-coefficient``, 8
    ``energy-condensation-scattering-collapse``, 8
+   ``bare-slab-buckling``, 7
+   ``bare-slab-critical-equation``, 7
+   ``bare-slab-eigenfunction``, 7
    ``dd-solve``, 7
+   ``diffusion-M-matrix``, 7
+   ``diffusion-back-substitution``, 7
+   ``diffusion-exponential-branch``, 7
+   ``diffusion-interface-matching``, 7
+   ``diffusion-matching-matrix``, 7
+   ``diffusion-mode-decomposition``, 7
+   ``diffusion-operator``, 7
+   ``diffusion-region-ode``, 7
+   ``diffusion-spurious-root-validation``, 7
+   ``diffusion-transcendental``, 7
+   ``diffusion-trigonometric-branch``, 7
    ``gauss-legendre-visibility-cone``, 7
    ``inverse-as-operator``, 7
    ``bar-psi``, 6
@@ -615,6 +615,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``sn-mms-nonvacuum-qext``, 3
    ``sn-space-angle-cross-term``, 3
    ``cp-second-difference-operator``, 2
+   ``diffusion-mms``, 2
    ``harmonic-moment-projection``, 2
    ``hilbert-adjoint-equals-metric-times-S0``, 2
    ``peierls-greens-cylinder-mr-kinf``, 2
@@ -622,7 +623,6 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
    ``peierls-greens-slab-asym-method-of-images``, 2
    ``peierls-slab-Gbc-mode``, 2
    ``peierls-slab-Pesc-mode``, 2
-   ``richardson-diffusion``, 2
    ``roulette-restore``, 2
    ``sn-case-back-substitution``, 2
    ``sn-case-matching-matrix``, 2
@@ -692,7 +692,7 @@ Every Sphinx ``.. math:: :label:`` block declared in ``docs/theory/*.rst`` and t
 Orphan equations
 ----------------
 
-Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **111** of the testable equations found on theory pages are orphan.
+Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding labels explicitly marked ``:vv-status: documented``. **112** of the testable equations found on theory pages are orphan.
 
 - ``affine-bc-form``
 - ``angular-windowing-moment-projection``
@@ -774,6 +774,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 - ``phase-f-q-1d-decomposition``
 - ``phase-f-source-eq-sigt-phi0``
 - ``pole-mm-recurrence``
+- ``richardson-diffusion``
 - ``scattering-spectral-theorem``
 - ``si-jacobi-fixed-point``
 - ``si-sigma-r-fold-mismatch``

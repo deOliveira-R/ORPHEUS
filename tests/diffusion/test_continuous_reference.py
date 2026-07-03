@@ -1,11 +1,11 @@
-r"""L1 verification of the 1D diffusion solver against Phase-1.2 continuous references.
+r"""L1 verification of the modern diffusion solver against continuous references.
 
 Consumer tests for the Phase-0
 :class:`~orpheus.derivations.ContinuousReferenceSolution` contract
-as applied to 1D two-group diffusion. These are the **first** tests
-in ORPHEUS that compare the diffusion solver to a mesh-independent
-analytical/semi-analytical reference for both **eigenvalue** and
-**flux shape**.
+as applied to 1D two-group diffusion. These compare the #290
+operator-algebra solver (:func:`orpheus.diffusion.solve_diffusion_1d`)
+to mesh-independent analytical/semi-analytical references for both
+**eigenvalue** and **flux shape**.
 
 Two problem families:
 
@@ -17,15 +17,25 @@ Two problem families:
 
 2. **Fuel + reflector slab** — compared against the transcendental
    transfer-matrix reference from :func:`derive_2rg_continuous`,
-   which replaces the Richardson-extrapolated reference that
-   previously served this role. The transcendental and Richardson
-   values are cross-checked to prove the replacement is consistent
-   with the legacy behaviour (and in fact more accurate: Richardson
-   is limited to :math:`\mathcal{O}(h^{4})` from its finest pair,
-   while the transcendental reference is limited only by the
-   :math:`\sqrt{\text{brentq-tol}} \sim 3 \times 10^{-7}` null-vector
-   precision floor of the double-precision transfer-matrix
-   back-substitution).
+   limited only by the :math:`\sqrt{\text{brentq-tol}} \sim 3
+   \times 10^{-7}` null-vector precision floor of the
+   double-precision transfer-matrix back-substitution.
+
+**Boundary naming (#290 ruling 3).** Both references pin the
+**zero-flux Dirichlet** law :math:`\phi_\Gamma = 0` — the honest name
+for what the retired MATLAB island called "vacuum" (in ORPHEUS,
+*vacuum* means zero incoming partial current — Marshak,
+:math:`\mathcal A = 0`). The solver poses it as ``BC("zero_flux")``
+(albedo :math:`\mathcal A = -1` on the :math:`(J^+, J^-)` trace).
+The mathematics of every reference is unchanged — re-attributed,
+never re-derived.
+
+The legacy Richardson tier and its migration-window cross-check
+(``test_2region_transcendental_matches_richardson_cache``) retired at
+#290 P6 with the island solver that computed the Richardson value;
+the cross-check's job — locking in the transcendental replacement at
+the ~1e-7 level, inside the Richardson ~1e-5 floor — was completed
+before retirement.
 
 See :doc:`/theory/diffusion_1d` for the operator form the tests
 commit to, and :doc:`/verification/reference_solutions` for the
@@ -37,8 +47,11 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations import continuous_get, get
-from orpheus.diffusion.solver import CoreGeometry, TwoGroupXS, solve_diffusion_1d
+from orpheus.derivations import continuous_get
+from orpheus.derivations.common.xs_library import mixture_from_diffusion_tables
+from orpheus.diffusion import solve_diffusion_1d
+from orpheus.geometry import BC
+from orpheus.geometry.mesh import Mesh1D
 
 
 pytestmark = [pytest.mark.l1, pytest.mark.verifies(
@@ -60,9 +73,29 @@ pytestmark = [pytest.mark.l1, pytest.mark.verifies(
 )]
 
 
-def _make_xs(xs_dict: dict) -> TwoGroupXS:
-    """Unpack a diffusion XS dict into the solver's TwoGroupXS dataclass."""
-    return TwoGroupXS(**xs_dict)
+def _zero_flux_problem(
+    region_heights: list[float], dz: float,
+) -> tuple[Mesh1D, np.ndarray]:
+    """Uniform-``dz`` multi-region slab mesh under the zero-flux law.
+
+    ``dz`` must divide every region height exactly (all reference
+    configurations use dyadic refinements of 5 cm on 50/30 cm
+    regions, so it does). Region ``i`` carries material id ``i``.
+    Returns the mesh and the cell-centre coordinates the continuous
+    reference is evaluated at.
+    """
+    n_cells = [round(h / dz) for h in region_heights]
+    length = float(sum(region_heights))
+    edges = np.linspace(0.0, length, sum(n_cells) + 1)
+    mat_ids = np.concatenate(
+        [np.full(n, i, dtype=int) for i, n in enumerate(n_cells)]
+    )
+    mesh = Mesh1D(
+        edges=edges, mat_ids=mat_ids,
+        bc_left=BC("zero_flux"), bc_right=BC("zero_flux"),
+    )
+    z_cells = 0.5 * (edges[:-1] + edges[1:])
+    return mesh, z_cells
 
 
 def _peak_normalise(flux_g0: np.ndarray, flux_g1: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -71,7 +104,7 @@ def _peak_normalise(flux_g0: np.ndarray, flux_g1: np.ndarray) -> tuple[np.ndarra
     Returns the pair with :math:`\max|\phi_0| = 1`. The ratio
     :math:`\phi_1/\phi_0` is preserved — the physically meaningful
     quantity for comparing flux shapes between a solver output
-    normalised to a fixed total power and a reference solution
+    normalised to unit production and a reference solution
     normalised to peak amplitude.
     """
     scale = np.max(np.abs(flux_g0))
@@ -86,7 +119,7 @@ def _peak_normalise(flux_g0: np.ndarray, flux_g1: np.ndarray) -> tuple[np.ndarra
 
 def test_bare_slab_eigenvalue_matches_continuous_reference():
     r"""The diffusion solver must reproduce the analytical bare-slab
-    :math:`k_\infty` at a sufficiently fine mesh.
+    eigenvalue at a sufficiently fine mesh.
 
     At ``dz = 0.3125`` cm the discretisation error is
     :math:`\mathcal{O}(10^{-5})` on the 50-cm slab, which is the
@@ -97,15 +130,13 @@ def test_bare_slab_eigenvalue_matches_continuous_reference():
     assert ref.operator_form == "diffusion"
     assert ref.k_eff is not None
 
-    fuel_xs = _make_xs(next(iter(ref.problem.materials.values())))
+    fuel = mixture_from_diffusion_tables(
+        next(iter(ref.problem.materials.values()))
+    )
     H = ref.problem.geometry_params["fuel_height"]
 
-    geom = CoreGeometry(
-        bot_refl_height=0.0, fuel_height=H, top_refl_height=0.0, dz=0.3125,
-    )
-    result = solve_diffusion_1d(
-        geom=geom, reflector_xs=fuel_xs, fuel_xs=fuel_xs,
-    )
+    mesh, _ = _zero_flux_problem([H], dz=0.3125)
+    result = solve_diffusion_1d({0: fuel}, mesh)
 
     # At dz=0.3125 on L=50, O(h²) ~ 4e-5; the observed error on this
     # configuration is ~5e-6 empirically. Assert 1e-4 to leave headroom.
@@ -123,37 +154,29 @@ def test_bare_slab_flux_shape_converges_second_order():
     Runs four mesh refinements, compares peak-normalised shapes
     against the reference sine, and asserts the measured order of
     the cell-wise :math:`\ell^{2}` norm of the residual is
-    :math:`> 1.8`.
+    :math:`> 1.8`. Tight eigenpair tolerances keep the iteration
+    residual well below the finite-difference truncation error at
+    every refinement.
     """
     ref = continuous_get("dif_slab_2eg_1rg")
-    fuel_xs = _make_xs(next(iter(ref.problem.materials.values())))
+    fuel = mixture_from_diffusion_tables(
+        next(iter(ref.problem.materials.values()))
+    )
     H = ref.problem.geometry_params["fuel_height"]
 
-    # Pass tight inner BiCGSTAB tolerance AND tight outer
-    # power-iteration tolerance so the solver converges well below
-    # the finite-difference truncation error at every refinement.
-    # The default outer_tol=1e-5 would plateau the shape error
-    # around 1e-5 and mask the quadratic convergence.
     dzs = [5.0, 2.5, 1.25, 0.625]
     errs = []
     for dz in dzs:
-        geom = CoreGeometry(
-            bot_refl_height=0.0, fuel_height=H, top_refl_height=0.0, dz=dz,
-        )
+        mesh, z = _zero_flux_problem([H], dz)
         result = solve_diffusion_1d(
-            geom=geom, reflector_xs=fuel_xs, fuel_xs=fuel_xs,
-            errtol=1e-12, outer_tol=1e-11,
+            {0: fuel}, mesh,
+            keff_tol=1e-13, flux_tol=1e-11, max_outer=5000,
         )
 
-        z = result.z_cells
         ref_g0 = np.asarray(ref.phi(z, 0), dtype=float)
         ref_g1 = np.asarray(ref.phi(z, 1), dtype=float)
-        solver_g0 = result.flux[0].copy()
-        solver_g1 = result.flux[1].copy()
-
-        if solver_g0.sum() < 0:
-            solver_g0 = -solver_g0
-            solver_g1 = -solver_g1
+        solver_g0 = result.flux.bulk.values[0].copy()
+        solver_g1 = result.flux.bulk.values[1].copy()
 
         ref_g0, ref_g1 = _peak_normalise(ref_g0, ref_g1)
         solver_g0, solver_g1 = _peak_normalise(solver_g0, solver_g1)
@@ -202,54 +225,23 @@ def test_bare_slab_sine_peak_is_at_midslab():
 # 2-region fuel + reflector — transcendental transfer-matrix reference
 # ═══════════════════════════════════════════════════════════════════════
 
-def test_2region_transcendental_matches_richardson_cache():
-    r"""The new transcendental :math:`k_\text{eff}` must agree with the
-    legacy Richardson-extrapolated value to within the Richardson
-    precision floor.
-
-    Richardson extrapolation from dz = 0.625, 0.3125 gives a
-    leading-order-error-cancelled value with residual
-    :math:`\mathcal{O}(h^{4}) \sim 10^{-5}` for the coefficients
-    observed in this problem. The transcendental reference is
-    limited only by the :math:`\sim 10^{-7}` null-vector precision
-    floor, so the two must agree to at least the Richardson
-    precision. Observed agreement is ~1e-7 in practice.
-
-    Asserts 1e-5 — a safe margin around the Richardson residual.
-    This is the **cross-check that locks in the replacement**:
-    if the transcendental were wildly wrong, its k would deviate
-    from Richardson by more than the Richardson error itself.
-    """
-    ref = continuous_get("dif_slab_2eg_2rg")
-    legacy = get("dif_slab_2eg_2rg")
-
-    assert abs(ref.k_eff - legacy.k_inf) < 1e-5, (
-        f"Transcendental k {ref.k_eff:.10f} disagrees with Richardson "
-        f"k {legacy.k_inf:.10f} by {abs(ref.k_eff - legacy.k_inf):.2e} "
-        "— beyond the Richardson precision floor. The transcendental "
-        "reference is suspect."
-    )
-
-
 def test_2region_eigenvalue_matches_continuous_reference():
     r"""The diffusion solver must reproduce the transcendental
-    2-region :math:`k_\text{eff}` at a fine mesh.
+    2-region eigenvalue at a fine mesh.
     """
     ref = continuous_get("dif_slab_2eg_2rg")
     assert ref.operator_form == "diffusion"
     assert ref.k_eff is not None
 
-    fuel_xs = _make_xs(ref.problem.materials[0])
-    refl_xs = _make_xs(ref.problem.materials[1])
+    materials = {
+        0: mixture_from_diffusion_tables(ref.problem.materials[0]),
+        1: mixture_from_diffusion_tables(ref.problem.materials[1]),
+    }
     H_f = ref.problem.geometry_params["fuel_height"]
     H_r = ref.problem.geometry_params["refl_height"]
 
-    geom = CoreGeometry(
-        bot_refl_height=0.0, fuel_height=H_f, top_refl_height=H_r, dz=0.3125,
-    )
-    result = solve_diffusion_1d(
-        geom=geom, reflector_xs=refl_xs, fuel_xs=fuel_xs,
-    )
+    mesh, _ = _zero_flux_problem([H_f, H_r], dz=0.3125)
+    result = solve_diffusion_1d(materials, mesh)
 
     # At dz=0.3125 on L=80 cm with fuel/reflector interface, O(h²)
     # discretisation error is ~1e-5. Reference is accurate to ~1e-7.
@@ -273,8 +265,10 @@ def test_2region_flux_shape_converges_second_order():
     error plateau is bounded below at that floor.
     """
     ref = continuous_get("dif_slab_2eg_2rg")
-    fuel_xs = _make_xs(ref.problem.materials[0])
-    refl_xs = _make_xs(ref.problem.materials[1])
+    materials = {
+        0: mixture_from_diffusion_tables(ref.problem.materials[0]),
+        1: mixture_from_diffusion_tables(ref.problem.materials[1]),
+    }
     H_f = ref.problem.geometry_params["fuel_height"]
     H_r = ref.problem.geometry_params["refl_height"]
 
@@ -284,23 +278,17 @@ def test_2region_flux_shape_converges_second_order():
     dzs = [2.5, 1.25, 0.625, 0.3125]
     errs = []
     for dz in dzs:
-        geom = CoreGeometry(
-            bot_refl_height=0.0, fuel_height=H_f, top_refl_height=H_r, dz=dz,
-        )
+        mesh, z = _zero_flux_problem([H_f, H_r], dz)
         result = solve_diffusion_1d(
-            geom=geom, reflector_xs=refl_xs, fuel_xs=fuel_xs,
-            errtol=1e-12, outer_tol=1e-11,
+            materials, mesh,
+            keff_tol=1e-13, flux_tol=1e-11, max_outer=5000,
         )
 
-        z = result.z_cells
         ref_g0 = np.asarray(ref.phi(z, 0), dtype=float)
         ref_g1 = np.asarray(ref.phi(z, 1), dtype=float)
-        solver_g0 = result.flux[0].copy()
-        solver_g1 = result.flux[1].copy()
+        solver_g0 = result.flux.bulk.values[0].copy()
+        solver_g1 = result.flux.bulk.values[1].copy()
 
-        if solver_g0.sum() < 0:
-            solver_g0 = -solver_g0
-            solver_g1 = -solver_g1
         if ref_g0.sum() < 0:
             ref_g0 = -ref_g0
             ref_g1 = -ref_g1
@@ -353,17 +341,18 @@ def test_2region_interface_flux_is_continuous():
         )
 
 
-def test_2region_vacuum_boundaries_satisfied():
+def test_2region_zero_flux_boundaries_satisfied():
     r"""The back-substituted reference must satisfy :math:`\phi(0) = 0`
     exactly and :math:`\phi(L) \approx 0` to the transfer-matrix
     precision floor.
 
-    ``phi(0) = 0`` is exact because the initial state
-    :math:`\mathbf y(0) = [\mathbf 0; \mathbf J_0]` puts zero in
-    the flux slots by construction. ``phi(L) = 0`` is the
-    transcendental eigenvalue condition; its residual is bounded
-    by the square-root of the brentq tolerance on ``k``, giving
-    an expected ceiling of ~3e-7 and observed ~6e-6 in practice.
+    This is the **zero-flux Dirichlet** law the reference commits to
+    (#290 ruling 3 — not Marshak vacuum). ``phi(0) = 0`` is exact
+    because the matching matrix's first two rows put zero in the flux
+    slots by construction. ``phi(L) = 0`` is the transcendental
+    eigenvalue condition; its residual is bounded by the square-root
+    of the brentq tolerance on ``k``, giving an expected ceiling of
+    ~3e-7 and observed ~6e-6 in practice.
     """
     ref = continuous_get("dif_slab_2eg_2rg")
     L = ref.problem.geometry_params["length"]

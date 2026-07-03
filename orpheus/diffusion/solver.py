@@ -1,309 +1,391 @@
-"""1D two-group neutron diffusion solver for a PWR subassembly.
+r"""The diffusion k-eigenvalue solver on the operator algebra (#290 P5).
 
-Solves the 1D neutron diffusion equation with vacuum boundary conditions
-using a finite-difference discretization and BiCGSTAB inner iterations.
+Poses the multigroup diffusion criticality problem
 
-Port of MATLAB ``CORE1D.m`` + ``funCORE1D.m``.
+.. math::
 
-.. seealso:: :ref:`theory-verification` — diffusion verification (buckling eigenvalue, Richardson).
+    \underbrace{(L + C - S - B)}_{A}\,\psi \;=\; \frac{1}{k}\,F\,\psi
+
+on the **scalar composite** ``FullField(bulk=ScalarFlux,
+boundary=ScalarBoundaryFlux)`` (campaign ruling 1) and drives it through
+the ONE cross-method engine,
+:func:`~orpheus.numerics.eigenvalue.power_iteration`, via the
+:class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` protocol — the
+same boundary the SN / CP / homogeneous methods plug into. This
+:class:`DiffusionSolver` replaced the MATLAB-port island that
+previously lived at this module path (retired at #290 P6): where the
+island hand-inlined :math:`(L + C - S)\varphi` into a scipy matvec with
+a hardcoded 2-group ``[::-1]`` scatter flip and a BiCGSTAB inner
+iteration, this solver composes the P4 operator leaves and is
+ng-generic **by construction**. Before retirement the two were gated
+equivalent on the CORE1D PWR problem (``|Δk| < 1e-8``, identical
+discretizations in exact arithmetic — the P5 legacy-bridge gate, which
+retired with the island it exercised).
+
+Design decisions (the P5 record)
+================================
+
+**The protocol carrier is the flat composite vector.** The
+``EigenvalueSolver`` boundary passes an opaque ``np.ndarray`` flux
+distribution; here it is the composite's own flat serialization
+(``FullField.to_flat`` — bulk C-ravel ⊕ trace buffer). The trace DOFs
+``(J⁺, J⁻)`` are honestly PART of the eigenvector: the converged mode
+carries its boundary partial currents, typed and inspectable, instead
+of burying them in a post-processing gradient reconstruction (the
+island's ``_boundary_gradient``). Conversion happens at exactly two
+sites (:meth:`DiffusionSolver.unflatten` and the template-frozen
+:class:`~orpheus.numerics.flat_operator.FlattenedOperator`).
+
+**The inner solve is EXACT** — the campaign-ruled resolvent
+
+.. code-block:: python
+
+    resolvent = MatrixInverseOperator(FlattenedOperator(A, template))
+
+one eager LU at construction, one back-substitution per outer
+iteration. No scattering inner iteration exists at all: the loss ``A``
+carries the full multigroup coupling, so ``solve_fixed_source`` is a
+single application of :math:`A^{-1}`. (NEVER route through the
+structure-keyed ``A.inverse()`` — the Green splitting diverges for
+fine-mesh elliptic operators; campaign ruling.)
+
+**The k-update is the integrated eigenvalue relation itself.** At any
+iterate, :math:`k = P(\psi) / \langle 1, (A\psi)_{\rm bulk}\rangle_V`:
+the production rate over the volume-integrated bulk loss rate. By the
+P4-gated column-sum theorem :math:`\mathbf{1}^T(C - S) = \Sigma_a` and
+the telescoping of ``L``'s conservative divergence (interior flows
+cancel; boundary flows survive as the outward leakage), the
+denominator decomposes as
+
+.. math::
+
+    \langle 1, (A\psi)_{\rm bulk}\rangle_V
+        \;=\; \text{absorption} + \text{leakage}
+              \;(-\; \text{net (n,2n) gain}),
+
+i.e. the island's ``p_rate / (a_rate + leakage)`` — but derived through
+the SAME operator that defines the fixed point, so no term can be
+forgotten (the leakage term is structural, not hand-added). ``B``
+contributes nothing to the bulk block, and the trace rows of
+:math:`A\psi` (the constraint rows) are excluded by construction.
+
+**The (n,2n) convention is loss-side** — mirroring the homogeneous
+solver (:func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite`):
+``S`` is the full K_iso pair
+:math:`\Sigma_{s0}^T + 2\Sigma_2^T`
+(:class:`~orpheus.transport.operators.isotropic_scattering.IsotropicScattering`
++ :class:`~orpheus.transport.operators.isotropic_scattering.IsotropicN2N`),
+and the production ``F`` (and :meth:`compute_production_rate`, the
+ERR-052 renormalization anchor) is :math:`\nu\Sigma_f` ONLY. (SN poses
+(n,2n) production-side instead — both are consistent posings of the
+same balance; the posing table in :mod:`orpheus.numerics.eigenvalue`
+documents the family.)
+
+**Boundary conditions resolve from the MESH's own declarations** — the
+single source. Each face's :class:`~orpheus.geometry.mesh.BC` tag (from
+``Mesh1D(..., bc_left=..., bc_right=...)``) is resolved to a typed
+:class:`~orpheus.geometry.boundary.BoundaryTraceLaw`, realized by the
+P3 :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
+into its albedo operator :math:`J^- = \mathcal{A} J^+`, and assembled
+into ``B`` — mirroring ``SNMesh._resolve_bcs`` exactly (an undeclared
+face defaults to ``BC("reflective")``, the infinite-lattice
+convention). Supported tags: ``"vacuum"`` (Marshak :math:`J^- = 0`,
+:math:`\mathcal{A} = 0` — ruling 3: vacuum MEANS zero incoming),
+``"reflective"`` (:math:`\mathcal{A} = 1`), ``"albedo"``
+(:math:`\mathcal{A} = \alpha` from ``params["albedo"]``), and
+``"zero_flux"`` (the honestly-named Dirichlet idealization,
+:math:`\mathcal{A} = -1` — what the legacy island mis-called
+"vacuum"). A ``"white"`` tag is deliberately absent: at the P1 level
+white coincides with reflective (the P3 realizer docstring's
+coincidence note) — declare ``reflective`` or ``albedo``.
+(P7 note: this per-method tag→law→realize resolution is the THIRD
+spelling of the pattern — ``SNMesh._resolve_bcs`` +
+homogenization's method layer + this — and is exactly what the
+recorded ``TransportMethod`` trigger unifies.)
+
+**Normalization**: :func:`power_iteration` renormalizes each iterate to
+unit production rate (:meth:`compute_production_rate` — the
+:class:`~orpheus.numerics.eigenvalue.ProductionRateSolver` contract,
+ERR-052), so the returned mode carries the canonical convention
+:math:`\int_V \nu\Sigma_f\,\phi\,dV = 1`. Rescaling to an absolute flux
+at a target reactor power is a single downstream multiplication — the
+island's hardcoded ``e_per_fission`` power window and its
+``fi /= max(|fi|)`` conditioning hack are both retired by this
+contract (#270 diffusion arm).
+
+Verification (the P5 gates, ``tests/diffusion/test_solver.py``)
+===============================================================
+
+* cross-engine: ``power_iteration`` ≡
+  :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` on the
+  materialized ``(A, F)`` pair at :math:`10^{-10}` in k (and the full
+  composite eigenvector), across the albedo family;
+* L2 infinite-medium: reflective diffusion k ≡ homogeneous
+  :math:`k_\infty` (the shared-K_iso, independently-posed loss) —
+  including the 3-group asymmetric case the island's flip trick
+  structurally cannot represent;
+* the legacy bridge: modern k ≡ island k on the CORE1D PWR problem
+  under the ruling-4 bit-identical encoding (both discretizations are
+  the same math in exact arithmetic);
+* solution trace semantics per law (vacuum :math:`J^- = 0`, albedo
+  :math:`J^- = \alpha J^+`, reflective :math:`J_{\rm net} = 0`,
+  zero-flux :math:`\phi_\Gamma = 0`), the integrated balance identity,
+  and k-monotonicity in the albedo.
+
+.. seealso::
+
+   :mod:`orpheus.diffusion.operators`
+       The P4 operator family (``L``, ``B``) + the block structure and
+       discretization derivation.
+   ``.claude/plans/diffusion_crosswalk.md``
+       The ``(J⁺, J⁻)`` convention contract.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, ClassVar, Optional
 
 import numpy as np
-from scipy.sparse.linalg import LinearOperator, bicgstab
 
+from orpheus.diffusion.boundary_realizer import DiffusionBoundaryRealizer
+from orpheus.diffusion.method_space import DiffusionMethodSpace
+from orpheus.diffusion.operators import DiffusionBoundaryOperator, LeakageOperator
+from orpheus.geometry.boundary import (
+    AlbedoBoundary,
+    ReflectiveBoundary,
+    VacuumInflow,
+    ZeroFluxBoundary,
+)
+from orpheus.geometry.mesh import BC
 from orpheus.numerics.eigenvalue import power_iteration
+from orpheus.numerics.face_layout import AXIS_NAMES
+from orpheus.numerics.flat_operator import FlattenedOperator
+from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
+from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
+from orpheus.transport.fields.scalar_flux import ScalarFlux
+from orpheus.transport.full_field import FullField
+from orpheus.transport.mesh.axis import face_labels
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.operators.fission import FissionOperator
+from orpheus.transport.operators.isotropic_scattering import (
+    IsotropicN2N,
+    IsotropicScattering,
+)
+from orpheus.transport.operators.multiplication_operator import (
+    MultiplicationOperator,
+)
+from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
+
+if TYPE_CHECKING:
+    from orpheus.data.macro_xs.mixture import Mixture
+    from orpheus.geometry.boundary import BoundaryTraceLaw
+    from orpheus.geometry.mesh import Mesh1D
+    from orpheus.numerics.operator import LinearOperator
+    from orpheus.transport.mesh.axis import FaceLabel
+    from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 
-@dataclass
-class CoreGeometry:
-    """1D geometry for a PWR subassembly."""
-
-    bot_refl_height: float = 50.0   # cm
-    fuel_height: float = 300.0      # cm
-    top_refl_height: float = 50.0   # cm
-    f2f: float = 21.61              # flat-to-flat distance (cm)
-    dz: float = 5.0                 # axial cell height (cm)
-    bc_bottom: str = "vacuum"       # boundary condition at bottom face
-    bc_top: str = "vacuum"          # boundary condition at top face
-
-    @property
-    def n_refl_bot(self) -> int:
-        return int(self.bot_refl_height / self.dz)
-
-    @property
-    def n_fuel(self) -> int:
-        return int(self.fuel_height / self.dz)
-
-    @property
-    def n_refl_top(self) -> int:
-        return int(self.top_refl_height / self.dz)
-
-    @property
-    def n_cells(self) -> int:
-        return self.n_refl_bot + self.n_fuel + self.n_refl_top
-
-    @property
-    def n_faces(self) -> int:
-        return self.n_cells + 1
-
-    @property
-    def az(self) -> float:
-        """Cross-sectional area of one subassembly (cm^2)."""
-        return self.f2f**2
-
-    @property
-    def dv(self) -> float:
-        """Volume of one cell (cm^3)."""
-        return self.az * self.dz
-
-
-@dataclass
-class TwoGroupXS:
-    """Two-group macroscopic cross sections for a material."""
-
-    transport: np.ndarray    # (2,) transport XS
-    absorption: np.ndarray   # (2,) absorption XS
-    fission: np.ndarray      # (2,) fission XS
-    production: np.ndarray   # (2,) production XS (nu*sigma_f)
-    chi: np.ndarray          # (2,) fission spectrum
-    scattering: np.ndarray   # (2,) down-scattering (fast->thermal)
-
-
-@dataclass
-class DiffusionResult:
-    """Results of a 1D diffusion calculation."""
-
-    keff: float
-    flux: np.ndarray          # (2, n_cells) group fluxes normalized to power
-    current: np.ndarray       # (2, n_faces) net currents
-    z_cells: np.ndarray       # (n_cells,) cell center positions
-    z_faces: np.ndarray       # (n_faces,) face positions
-    geometry: CoreGeometry
-
-
-def _default_xs() -> tuple[TwoGroupXS, TwoGroupXS]:
-    """Default cross sections matching MATLAB CORE1D.m."""
-    reflector = TwoGroupXS(
-        transport=np.array([0.3416, 0.9431]),
-        absorption=np.array([0.0029, 0.0933]),
-        fission=np.array([0.0, 0.0]),
-        production=np.array([0.0, 0.0]),
-        chi=np.array([0.0, 0.0]),
-        scattering=np.array([2.4673e-04, 0.0]),
-    )
-    fuel = TwoGroupXS(
-        transport=np.array([0.2181, 0.7850]),
-        absorption=np.array([0.0096, 0.0959]),
-        fission=np.array([0.0024, 0.0489]),
-        production=np.array([0.0061, 0.1211]),
-        chi=np.array([1.0, 0.0]),
-        scattering=np.array([0.0160, 0.0]),
-    )
-    return reflector, fuel
-
-
-def _diff_bc_vacuum(solver, bc_str: str) -> str:
-    """Zero-flux (Dirichlet φ=0) at the boundary face.
-
-    Gradient: dφ/dz = φ_cell / (0.5·��z).
-    """
-    return "vacuum"
-
-
-def _diff_bc_reflective(solver, bc_str: str) -> str:
-    """Reflective (Neumann ∂φ/∂n=0) — zero net current at the boundary.
-
-    Gradient: dφ/dz = 0.
-    """
-    return "reflective"
+__all__ = ["DiffusionResult", "DiffusionSolver", "solve_diffusion_1d"]
 
 
 class DiffusionSolver:
-    """1D two-group diffusion eigenvalue solver (EigenvalueSolver protocol).
+    r"""Multigroup diffusion k-eigenvalue solver on the scalar composite.
 
-    Wraps the finite-difference diffusion operator with configurable
-    boundary conditions and BiCGSTAB inner solves into the generic power
-    iteration framework.
+    Implements the :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver`
+    protocol (including the
+    :class:`~orpheus.numerics.eigenvalue.ProductionRateSolver`
+    production-rate extension) over the flat composite vector, with the
+    EXACT resolvent inner solve — see the module docstring for the full
+    design record.
+
+    Parameters
+    ----------
+    mesh : MaterialMesh
+        The mesh + materials carrier. Must be 1-D (slab / cylinder /
+        sphere — refused otherwise by :class:`LeakageOperator`); its
+        axes' :class:`~orpheus.geometry.mesh.BC` declarations are the
+        boundary-condition source (``None`` defaults to reflective).
+    keff_tol, flux_tol : float
+        Outer-iteration convergence tolerances on ``|Δk|`` and the
+        relative flux-distribution change.
 
     Attributes
     ----------
-    BC_REGISTRY : dict[str, Callable]
-        Supported boundary condition kinds.  Docstrings on the
-        factories serve as descriptions for programmatic query.
+    loss : LinearOperator
+        The composed :math:`A = L + C - S - B` (typed, un-materialized).
+    fission : FissionOperator
+        The shared rank-1 production :math:`F = \chi \otimes \nu\Sigma_f`.
+    leakage : LeakageOperator
+        The ``L`` leaf — also serves the net-current-profile
+        reconstruction (:meth:`LeakageOperator.face_currents`).
+    resolvent : MatrixInverseOperator
+        :math:`A^{-1}` over the flat composite (eager LU).
+    template : FullField
+        The zero composite fixing the flat layout (shapes, spaces, mesh).
     """
 
-    BC_REGISTRY: dict = {
-        "vacuum": _diff_bc_vacuum,
-        "reflective": _diff_bc_reflective,
+    #: BC-tag → boundary-law class, the diffusion method's registry
+    #: (the SN precedent: ``SNMesh.BOUNDARY_OPERATOR_REGISTRY``).
+    BOUNDARY_OPERATOR_REGISTRY: "ClassVar[dict[str, type]]" = {
+        "vacuum": VacuumInflow,
+        "reflective": ReflectiveBoundary,
+        "albedo": AlbedoBoundary,
+        "zero_flux": ZeroFluxBoundary,
     }
 
     def __init__(
         self,
-        geom: CoreGeometry,
-        reflector_xs: TwoGroupXS,
-        fuel_xs: TwoGroupXS,
+        mesh: "MaterialMesh",
         *,
-        errtol: float = 1e-6,
-        maxiter_inner: int = 2000,
-        outer_tol: float = 1e-5,
+        keff_tol: float = 1e-10,
+        flux_tol: float = 1e-9,
     ) -> None:
-        self.geom = geom
-        self.ng = 2
-        self.nc = geom.n_cells
-        self.nf = geom.n_faces
-        self.dz = geom.dz
-        self.dv = geom.dv
-        self.errtol = errtol
-        self.maxiter_inner = maxiter_inner
-        self.outer_tol = outer_tol
+        self.mesh = mesh
+        self.mat_xs: "MaterialXSField" = mesh.material_xs_field()
+        self.keff_tol = float(keff_tol)
+        self.flux_tol = float(flux_tol)
 
-        # Build cell-wise cross sections: (2, n_cells)
-        def _tile(refl_val: np.ndarray, fuel_val: np.ndarray) -> np.ndarray:
-            return np.hstack([
-                np.tile(refl_val[:, None], geom.n_refl_bot),
-                np.tile(fuel_val[:, None], geom.n_fuel),
-                np.tile(refl_val[:, None], geom.n_refl_top),
-            ])
-
-        self.sig_t = _tile(reflector_xs.transport, fuel_xs.transport)
-        self.sig_a = _tile(reflector_xs.absorption, fuel_xs.absorption)
-        self.sig_f = _tile(reflector_xs.fission, fuel_xs.fission)
-        self.sig_p = _tile(reflector_xs.production, fuel_xs.production)
-        self.chi = _tile(reflector_xs.chi, fuel_xs.chi)
-        self.sig_s = _tile(reflector_xs.scattering, fuel_xs.scattering)
-
-        # Face-interpolated transport XS for diffusion coefficient
-        sig_t_face = np.zeros((self.ng, self.nf))
-        for ig in range(self.ng):
-            sig_t_face[ig, 0] = self.sig_t[ig, 0]
-            sig_t_face[ig, -1] = self.sig_t[ig, -1]
-            sig_t_face[ig, 1:-1] = 0.5 * (self.sig_t[ig, :-1] + self.sig_t[ig, 1:])
-
-        self.D = 1.0 / (3.0 * sig_t_face)  # (2, n_faces) diffusion coefficient
-
-        # Resolve boundary conditions
-        self._resolve_bcs(geom)
-
-        # Linear operator A*x
-        self.A_op = LinearOperator(
-            shape=(self.ng * self.nc, self.ng * self.nc),
-            matvec=self._matvec,
-            dtype=float,
+        # The operator family — P4 leaves + the shared transport algebra.
+        # L constructs FIRST: it owns the honest 1-D refusal, before any
+        # trace/space construction can trip on a multi-D mesh with a
+        # duller error.
+        self.leakage = LeakageOperator(mesh)          # refuses ndim != 1
+        space = mesh.scalar_full_field_space
+        collision = MultiplicationOperator(
+            self.mat_xs.total_cross_section_field, space=space,
+        )
+        # The full K_iso pair (loss-side (n,2n) — module docstring);
+        # IsotropicN2N contributes exactly zero on a Σ₂-free mixture.
+        scattering = (
+            IsotropicScattering(self.mat_xs, space=space)
+            + IsotropicN2N(self.mat_xs, space=space)
+        )
+        self.boundary = DiffusionBoundaryOperator(mesh, self._resolve_bcs())
+        self.loss = self.leakage + collision - scattering - self.boundary
+        self.fission = FissionOperator.from_solver_data(
+            mat_xs=self.mat_xs, full_field_space=space,
         )
 
-    # ------------------------------------------------------------------
-    # Boundary condition resolution
-    # ------------------------------------------------------------------
+        #: The zero composite freezing the flat layout.
+        self.template = FullField.zeros(
+            bulk=ScalarFlux, boundary=ScalarBoundaryFlux, mesh=mesh,
+        )
+        #: The campaign-ruled exact resolvent (eager LU at construction).
+        self.resolvent = MatrixInverseOperator(
+            FlattenedOperator(self.loss, self.template)
+        )
+        self._n_flat = int(np.asarray(self.template.to_flat()).size)
 
-    def _resolve_bcs(self, geom: CoreGeometry) -> None:
-        """Validate and store resolved BC kinds from geometry."""
-        for face, attr in [("bottom", "bc_bottom"), ("top", "bc_top")]:
-            kind = getattr(geom, attr)
-            if kind not in self.BC_REGISTRY:
-                supported = ", ".join(f"'{k}'" for k in sorted(self.BC_REGISTRY))
+    # ── Boundary-condition resolution (mesh tags → realized laws) ─────
+
+    def _resolve_bcs(self) -> "dict[str, LinearOperator]":
+        r"""Resolve the mesh's per-face BC declarations into realized
+        albedo operators — the diffusion mirror of ``SNMesh._resolve_bcs``
+        (ONE loop over the same ``face_labels`` inventory the trace is
+        built from; ``None`` defaults to reflective)."""
+        default = BC("reflective")
+        realizer = DiffusionBoundaryRealizer()
+        realized: "dict[str, LinearOperator]" = {}
+        for label in face_labels(self.mesh.axes):
+            bc = self.mesh.axes[label.axis_index].bc[label.endpoint] or default
+            law = self._law_from_tag(bc, label)
+            method_space = DiffusionMethodSpace.for_face(
+                mesh=self.mesh,
+                face=label.face_name,
+                trace=self.mesh.scalar_trace,
+            )
+            realized[label.face_name] = realizer.realize(law, method_space)
+        return realized
+
+    def _law_from_tag(self, bc: "BC", label: "FaceLabel") -> "BoundaryTraceLaw":
+        r"""Construct the typed boundary law a :class:`BC` tag declares."""
+        law_cls = self.BOUNDARY_OPERATOR_REGISTRY.get(bc.kind)
+        if law_cls is None:
+            supported = ", ".join(
+                f"'{k}'" for k in sorted(self.BOUNDARY_OPERATOR_REGISTRY)
+            )
+            raise ValueError(
+                f"Diffusion solver does not support boundary condition "
+                f"'{bc.kind}' on face '{label.face_name}'. "
+                f"Supported: {supported}."
+            )
+        if law_cls is ReflectiveBoundary:
+            # Reflect across the face's own axis (the SN convention);
+            # at the P1 level only the albedo=1 scalar survives.
+            return ReflectiveBoundary(
+                axis=AXIS_NAMES[label.axis_index], albedo=1.0,
+            )
+        if law_cls is AlbedoBoundary:
+            try:
+                return AlbedoBoundary(albedo=float(bc.params["albedo"]))
+            except KeyError as exc:
                 raise ValueError(
-                    f"Diffusion solver does not support BC '{kind}' "
-                    f"on face '{face}'. Supported: {supported}."
-                )
-        self._bc_bottom: str = self.BC_REGISTRY[geom.bc_bottom](self, geom.bc_bottom)
-        self._bc_top: str = self.BC_REGISTRY[geom.bc_top](self, geom.bc_top)
+                    f"BC('albedo') on face '{label.face_name}' requires an "
+                    f"'albedo' parameter; got params={bc.params!r}."
+                ) from exc
+        return law_cls()
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
+    # ── Flat ↔ typed conversion ────────────────────────────────────────
 
-    def _boundary_gradient(self, fi: np.ndarray) -> np.ndarray:
-        """Compute gradient dφ/dz at all faces with boundary conditions."""
-        dfidz = np.zeros((self.ng, self.nf))
-        # Interior faces
-        dfidz[:, 1:-1] = np.diff(fi, axis=1) / self.dz
-        # Bottom face
-        if self._bc_bottom == "vacuum":
-            dfidz[:, 0] = fi[:, 0] / (0.5 * self.dz)
-        # else reflective: dfidz[:, 0] = 0.0 (already zero)
-        # Top face
-        if self._bc_top == "vacuum":
-            dfidz[:, -1] = -fi[:, -1] / (0.5 * self.dz)
-        # else reflective: dfidz[:, -1] = 0.0 (already zero)
-        return dfidz
-
-    def _matvec(self, solution: np.ndarray) -> np.ndarray:
-        """Diffusion operator: -div(D grad phi) + removal - inscatter."""
-        fi = solution.reshape(self.ng, self.nc)
-
-        J = -self.D * self._boundary_gradient(fi)
-
-        # A*fi = div(J)/dz + (SigA + SigS)*fi - SigS_flipped * fi_flipped
-        Ax = (
-            np.diff(J, axis=1) / self.dz
-            + (self.sig_a + self.sig_s) * fi
-            - self.sig_s[::-1, :] * fi[::-1, :]
+    def unflatten(self, flux_distribution: np.ndarray) -> "FullField":
+        r"""Rebuild the typed composite from a flat protocol vector."""
+        return FullField.from_flat(
+            np.asarray(flux_distribution, dtype=float).ravel(), self.template,
         )
-        return Ax.ravel()
 
-    def _compute_current(self, fi: np.ndarray) -> np.ndarray:
-        """Net current J = -D * dphi/dz with boundary conditions."""
-        return -self.D * self._boundary_gradient(fi)
+    def _volume_integral(self, rate_density: np.ndarray) -> float:
+        r"""``Σ_cells V·rate`` over all groups — the mesh's canonical
+        ``volume_measure`` (the same reduction
+        :class:`IntegratedReactionRate` rides)."""
+        ng = rate_density.shape[0]
+        flat = np.moveaxis(rate_density, 0, -1).reshape(-1, ng)
+        return float(self.mesh.volume_measure(flat).sum())
 
-    # ------------------------------------------------------------------
-    # EigenvalueSolver protocol
-    # ------------------------------------------------------------------
+    # ── EigenvalueSolver protocol ──────────────────────────────────────
 
     def initial_flux_distribution(self) -> np.ndarray:
-        """Return flat initial guess, shape (ng, nc)."""
-        return np.ones((self.ng, self.nc))
+        r"""Flat all-ones composite. (Only the bulk seeds the first
+        fission source; the trace slots are overwritten by the first
+        exact solve.)"""
+        return np.ones(self._n_flat)
 
     def compute_fission_source(
-        self,
-        flux_distribution: np.ndarray,
-        keff: float,
+        self, flux_distribution: np.ndarray, keff: float,
     ) -> np.ndarray:
-        """Fission RHS: Q_f = chi * sum_g(nu_sig_f * phi * dV) / keff.
-
-        Standard eigenvalue formulation: A*phi = (1/k)*F*phi.
-        """
-        fi = flux_distribution
-        p_rate = (self.sig_p * fi * self.dv).sum(axis=0)  # (n_cells,)
-        return self.chi * np.tile(p_rate / keff, (self.ng, 1))
+        r"""Fission RHS :math:`F\psi / k` — the shared rank-1 dyad's
+        scalar-composite arm (zero trace rows by construction)."""
+        psi = self.unflatten(flux_distribution)
+        return np.asarray(self.fission.apply(psi).to_flat()) / keff
 
     def solve_fixed_source(
-        self,
-        fission_source: np.ndarray,
-        flux_distribution: np.ndarray,
+        self, fission_source: np.ndarray, flux_distribution: np.ndarray,
     ) -> np.ndarray:
-        """Solve A*phi = fission_source via BiCGSTAB.
-
-        The solution is conditioned by dividing out ``max(|phi|)`` to
-        prevent overflow in the absence of per-iteration power
-        normalization.
-        """
-        guess = flux_distribution.ravel()
-        solution, _info = bicgstab(
-            self.A_op,
-            fission_source.ravel(),
-            x0=guess,
-            rtol=self.errtol,
-            maxiter=self.maxiter_inner,
+        r"""EXACT inner solve :math:`\psi = A^{-1} q` — one LU
+        back-substitution; the initial guess is irrelevant."""
+        return np.asarray(
+            self.resolvent.apply(np.asarray(fission_source, dtype=float))
         )
-        fi = solution.reshape(self.ng, self.nc)
-        # Numerical conditioning: keep flux O(1) to prevent overflow.
-        fi /= np.abs(fi).max()
-        return fi
+
+    def compute_production_rate(self, flux_distribution: np.ndarray) -> float:
+        r"""Total :math:`\int_V \langle\nu\Sigma_f, \phi\rangle\,dV` —
+        the typed reaction-rate functional (#270 diffusion arm; the
+        ERR-052 renormalization anchor). :math:`\nu\Sigma_f` ONLY:
+        (n,2n) is loss-side here (module docstring)."""
+        psi = self.unflatten(flux_distribution)
+        return IntegratedReactionRate(
+            self.mat_xs.fission_production_field
+        ).evaluate(psi.bulk.values)
 
     def compute_keff(self, flux_distribution: np.ndarray) -> float:
-        """k_eff = production / (absorption + leakage)."""
-        fi = flux_distribution
-        p_rate = (self.sig_p * fi * self.dv).sum()
-        a_rate = (self.sig_a * fi * self.dv).sum()
-
-        J = self._compute_current(fi)
-        leakage = (-J[:, 0] * self.geom.az + J[:, -1] * self.geom.az).sum()
-
-        return p_rate / (a_rate + leakage)
+        r"""The integrated eigenvalue relation
+        :math:`k = P(\psi) / \langle 1, (A\psi)_{\rm bulk}\rangle_V`
+        (= production / (absorption + leakage), by the column-sum
+        theorem + divergence telescoping — module docstring)."""
+        psi = self.unflatten(flux_distribution)
+        production = self.compute_production_rate(flux_distribution)
+        loss_rate = self._volume_integral(self.loss.apply(psi).bulk.values)
+        return production / loss_rate
 
     def converged(
         self,
@@ -313,77 +395,92 @@ class DiffusionSolver:
         flux_old: np.ndarray,
         iteration: int,
     ) -> bool:
-        """Check keff change and relative solution change."""
-        if iteration <= 1:
+        r"""``|Δk| < keff_tol`` AND relative flux change ``< flux_tol``
+        (the SN convergence contract; no legacy ``print``)."""
+        if iteration <= 2:
             return False
-        rel_change = (
-            np.linalg.norm(flux_distribution - flux_old)
-            / np.linalg.norm(flux_distribution)
+        dk = abs(keff - keff_old)
+        dphi = np.linalg.norm(flux_distribution - flux_old) / max(
+            np.linalg.norm(flux_distribution), 1e-30,
         )
-        print(
-            f"  keff = {keff:9.6f}  #outer = {iteration:3d}"
-            f"  rel_change = {rel_change:.2e}"
-        )
-        return bool(rel_change < self.outer_tol)
+        return bool(dk < self.keff_tol and dphi < self.flux_tol)
+
+
+@dataclass(frozen=True, eq=False)
+class DiffusionResult:
+    r"""Converged diffusion eigenmode (the modern, typed result).
+
+    ``flux`` is the full composite — the bulk :class:`ScalarFlux` AND
+    the boundary ``(J⁺, J⁻)`` trace — normalized to unit production
+    rate (:math:`\int_V \nu\Sigma_f\,\phi\,dV = 1`; rescaling to a
+    target power is one multiplication). ``current`` is the axis-signed
+    net-current profile at every face, reconstructed by the leakage
+    operator (interior faces from the condensed two-point currents,
+    boundary faces from the trace).
+    """
+
+    keff: float
+    flux: "FullField"
+    current: np.ndarray            # (ng, nx+1) axis-signed net currents
+    keff_history: "list[float]"
+    mesh: "MaterialMesh"
 
 
 def solve_diffusion_1d(
-    geom: CoreGeometry | None = None,
-    reflector_xs: TwoGroupXS | None = None,
-    fuel_xs: TwoGroupXS | None = None,
-    power_W: float = 1.76752e7,
-    errtol: float = 1e-6,
-    maxiter: int = 2000,
-    outer_tol: float = 1e-5,
+    materials: "dict[int, Mixture]",
+    mesh: "Mesh1D",
+    *,
+    keff_tol: float = 1e-10,
+    flux_tol: float = 1e-9,
+    max_outer: int = 1000,
 ) -> DiffusionResult:
-    """Solve the 1D two-group diffusion eigenvalue problem.
+    r"""Solve the 1-D multigroup diffusion k-eigenvalue problem.
+
+    The modern driver (#290 P5): ``mesh + materials →``
+    :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` ``→``
+    resolved boundary laws ``→`` the operator family
+    :math:`A = L + C - S - B`, :math:`F` ``→`` the shared
+    :func:`~orpheus.numerics.eigenvalue.power_iteration` with the exact
+    resolvent inner solve. Zoned cores are expressed by the mesh's own
+    ``mat_ids`` (a 3-zone reflector–fuel–reflector slab is a ``Mesh1D``
+    with 3-valued ``mat_ids`` — the island's retired ``CoreGeometry``
+    container had no independent content); boundary conditions by the
+    mesh's ``BC`` declarations (module docstring for the supported tags
+    and ruling-3 semantics).
 
     Parameters
     ----------
-    geom : CoreGeometry (default: standard PWR SA).
-    reflector_xs, fuel_xs : TwoGroupXS (default: from MATLAB CORE1D.m).
-    power_W : float — target power for flux normalization (W).
-    errtol : float — BiCGSTAB inner solver relative tolerance.
-    maxiter : int — BiCGSTAB inner solver iteration cap.
-    outer_tol : float — outer power-iteration convergence tolerance
-        on relative flux change. Default ``1e-5`` preserves the
-        historical behaviour; Phase-1.2 convergence-order
-        verification tests pass ``1e-12`` to push the residual
-        well below the finite-difference discretisation error
-        at all mesh refinements.
+    materials : dict[int, Mixture]
+        Material id → :class:`~orpheus.data.macro_xs.mixture.Mixture`,
+        keyed by the mesh's ``mat_ids`` values. The diffusion
+        coefficient reads through the #290 P1 seam
+        (``Mixture.diffusion_coefficient`` — transport-corrected when a
+        P1 moment is present, :math:`1/(3\Sigma_t)` exactly otherwise).
+    mesh : Mesh1D
+        Geometry + zoning + BC declarations (1-D; slab / cylinder /
+        sphere through its own areas + volumes).
+    keff_tol, flux_tol : float
+        Outer convergence tolerances (``|Δk|``, relative flux change).
+    max_outer : int
+        Outer power-iteration cap.
+
+    Returns
+    -------
+    DiffusionResult
     """
-    if geom is None:
-        geom = CoreGeometry()
-    if reflector_xs is None or fuel_xs is None:
-        reflector_xs, fuel_xs = _default_xs()
-
+    material_mesh = MaterialMesh(mesh, materials)
     solver = DiffusionSolver(
-        geom, reflector_xs, fuel_xs,
-        errtol=errtol, maxiter_inner=maxiter, outer_tol=outer_tol,
+        material_mesh, keff_tol=keff_tol, flux_tol=flux_tol,
     )
-
-    keff, _keff_history, flux = power_iteration(solver, max_iter=200)
-
-    # Normalize flux to target power (post-processing, not part of eigensolve)
-    e_per_fission = np.array([0.3213e-10, 0.3206e-10])
-    f_rate = solver.sig_f * flux * solver.dv
-    pow_calc = (f_rate.sum(axis=1) * e_per_fission).sum()
-    flux *= power_W / pow_calc
-
-    # Final current from normalized flux
-    J = solver._compute_current(flux)
-
-    dz = geom.dz
-    nc = geom.n_cells
-    nf = geom.n_faces
-    z_cells = np.arange(dz / 2, dz / 2 + dz * nc, dz)
-    z_faces = np.arange(0, dz * nf, dz)
-
+    keff, keff_history, flux_flat = power_iteration(
+        solver, max_iter=max_outer,
+    )
+    flux = solver.unflatten(flux_flat)
+    current = solver.leakage.face_currents(flux)
     return DiffusionResult(
         keff=keff,
         flux=flux,
-        current=J,
-        z_cells=z_cells,
-        z_faces=z_faces,
-        geometry=geom,
+        current=current,
+        keff_history=keff_history,
+        mesh=material_mesh,
     )

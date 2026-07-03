@@ -613,3 +613,119 @@ tight SN k anchors are reflective; vacuum configs smoke-banded only) —
 **FILED as #291** (NOT #290 scope).
 
 NEXT = P6 (retirements + suite rewire + MMS #93; ⏸ C3 after).
+
+---
+
+## CHECKPOINT C3 (2026-07-03, session 4 — post-P6)
+
+- **Statuses:** P1 `836f424` / P2 `78d1431` / P2.5 `1cd8d32` / P3
+  `6672e7a` / P4 `db14643` / P5 `9470266` / **P6 = this commit**
+  (carries `Closes #93` — fires at push, like #182 in P3). Branch
+  `feature/diffusion-integration`; user holds pushes. Remaining: P7
+  (user may strike/defer) → P8 close-out.
+- **Re-anchor:** this plan + `git log --oneline -14` + the crosswalk.
+  Post-P6 API surface: `orpheus.diffusion.solver` IS the modern module
+  (island gone); `mixture_from_diffusion_tables` in
+  `derivations/common/xs_library.py` is the ONE ruling-4 encoder
+  (tests + demo consume it); `tests/diffusion/` = boundary_realizer /
+  continuous_reference / mms / operators / properties / solver.
+
+### P6 status (EXECUTED; hash = this commit)
+
+**DONE — the island is gone; the modern path carries every anchor.**
+
+Retirements (3-search audit re-run: graph + grep code/tests/docs +
+constructors — consumers matched the explorer table exactly, plus
+docstring-only mentions):
+
+1. `orpheus/diffusion/solver.py` (island: `CoreGeometry`, `TwoGroupXS`,
+   legacy result/solver/driver, `BC_REGISTRY` strings + `_resolve_bcs`,
+   scipy `A_op` + BiCGSTAB, `print` in `converged`, hardcoded
+   `e_per_fission`) — deleted; `git mv k_eigenvalue.py → solver.py`
+   (family naming parity; `__init__`/docstrings/api page updated;
+   diffusion's BC_REGISTRY exit leaves the legacy family at 3:
+   cp/mc/moc).
+2. Derivations legacy 2-region tier: `derive_2rg` (Richardson, ran the
+   island on cache miss) + `solver_cases` deleted;
+   `_richardson_cache.{py,json}` deleted WHOLE (sole consumer was
+   derive_2rg; the `moc_*` JSON entries were already-orphaned data —
+   moc.py never imports the cache).
+3. `reference_values.py`: the ENTIRE `_load_solver_cases` machinery
+   retired (deviation — plan ordered only the "dif" entry, but after
+   diffusion's exit NO module defines `solver_cases`; the loop was dead
+   code). Every registry entry is now analytical/semi-analytical.
+4. Tests: `test_diffusion.py` deleted whole (H4 self-referencing
+   reflected + duplicate bare); richardson cross-check test deleted
+   (its migration-window job complete);
+   `test_solver.py::TestLegacyBridge` deleted with the island (its
+   1e-8 equivalence evidence recorded in the solver module docstring).
+
+Rewires:
+
+- 4 L1 anchors → modern API under `BC("zero_flux")` at UNCHANGED
+  tolerances — all green (the math never moved; ruling 3 executed as
+  re-attribution: ProblemSpec strings "vacuum"→"zero_flux", helper
+  rename `_solve_2region_vacuum→zero_flux_eigenvalue`, docstrings,
+  test rename `test_2region_zero_flux_boundaries_satisfied`).
+- `mixture_from_diffusion_tables` minted in xs_library (ruling-4
+  encoding, ONE source; ng-generic chain-downscatter; demo's inline
+  bridge + the tests' copies retired onto it; demo re-verified
+  keff = 1.022173 = MATLAB at print precision, 391 outers).
+- `test_properties.py` sharpened: Marshak gate (BC("vacuum") ⇒ J⁻=0 at
+  1e-12·scale + boundary-cell flux strictly positive — vacuum ≢
+  zero-flux), positivity, symmetry (+ mirror-equal outward net
+  currents pin).
+- **Data correction (deviation):** derivations `_REFL_XS`
+  `chi=[1,0]→[0,0]` — a placeholder on a NON-fissile region that the
+  honest Mixture guard refuses; inert in every consumer
+  (χ⊗νΣf ≡ 0 with production ≡ 0) ⇒ reference values bit-identical.
+- Docs (P6-minimal; P8 archivist owns the overhaul): api page
+  re-pointed at the 4 modern modules; verification.rst Richardson
+  section rewritten as an explicit HISTORICAL note (P6 deleted the
+  machinery it described in current tense — not deferring a lie);
+  `richardson-diffusion` label kept as the technique's record (now an
+  orphan equation in the audit — P8 may rule further);
+  `docs/_generated/` regenerated (NOTE: git-ignored + MANUALLY
+  generated via `python -m orpheus.derivations.generate_rst` — the
+  on-disk artifacts were stale from a pre-P6 run; sphinx does NOT
+  regenerate them).
+
+**MMS #93 landed in full** (`tests/diffusion/test_mms.py` + theory
+section `diffusion-mms-section` + label `diffusion-mms`): Mode-7
+override executed — heterogeneous per-group D(x) (every cell its own
+material ⇒ every interior face exercises the conductance
+interpolation) + multigroup-coupled distinct shapes; SymPy-exact
+forcing; exact-resolvent fixed-source solve; layout self-check via
+`FullField.from_flat` round-trip. Orders **2.004 / 2.001 / 2.000**;
+COMMITTED Mode-10 controls: flattened-D ×144 and coupling-sign-flip
+×166 above the clean floor (3.4e-3 @ n=40). Production-side probe M3
+(`tmp/probe_p6_mms_mutation.py`, monkeypatch `_interior_conductance`
+→ one-sided): order collapses to 1.121/1.034/1.009, finest 3.4e-3 —
+RED under both gate assertions; control clean.
+
+**Marshak-reference decision: else-branch** (plan §P6) — the analytic
+transfer-matrix Robin extension (rows `pL/4 + JL/2 = 0`,
+`pR/4 − JR/2 = 0` + law-aware physical validation) DEFERRED; the
+property gates required by the else-branch already exist (P5
+trace-semantics J⁻=0 LU-exact, k-ordering zero_flux < vacuum <
+albedo(0.6) < reflective, + the sharpened Marshak property gate).
+File the analytic-Marshak-reference follow-up at P8 close-out
+(already on P8's list).
+
+Gates: walls diffusion+geometry+**derivations** 1921 (37 min — the
+derivations suite's own weight incl. the `6d2035c` promoted probes;
+exit 0) / transport+numerics+data 1361 / sn 1937, all green serial
+`-O`; sphinx `-W` exit 0 (post-regenerate); CLI pyright = 1 (the
+accepted #288 residual; streamed LSP noise ignored per #226); audit
+exit 0 (`diffusion-mms` = 2 tests); demo = MATLAB reference.
+
+**Open questions:** none blocking P7/P8. P7 remains user-strikeable;
+its trigger evidence is now THREE spellings of tag→law→realize
+resolution (homogenization, SN, diffusion `_resolve_bcs`).
+
+NEXT = P7 (TransportMethod mint — execute per
+`realize_recursively_move_spec.md` after L24 re-characterization;
+USER may strike/defer) → P8 (docs overhaul + pyright lift + close-out:
+close #290/#182/#93, comment #2/#279/#270/#33/#34, file follow-ups:
+physical-P1 re-baseline, analytic Marshak reference, RT0 lift seam).
+⏸ C4 after P7 (or straight to P8 if struck).

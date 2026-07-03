@@ -61,6 +61,64 @@ def make_mixture(
     )
 
 
+def mixture_from_diffusion_tables(xs: dict) -> Mixture:
+    r"""Encode a legacy diffusion two-group-style table as a ``Mixture``.
+
+    The legacy diffusion data schema (MATLAB ``CORE1D.m`` and the
+    continuous diffusion references) hand-enters per-group vectors
+    ``transport`` / ``absorption`` / ``fission`` / ``production`` /
+    ``chi`` / ``scattering`` (the ``(ng,)`` out-of-group down-scatter
+    vector). This is the **#290 ruling-4 bit-identical encoding** of
+    that schema onto the canonical :class:`~orpheus.data.macro_xs.Mixture`:
+
+    - ``SigT := transport`` with **no P1 moment**, so
+      :math:`\Sigma_{tr} = \Sigma_t` exactly and
+      :math:`D = 1/(3\,\Sigma_{tr})` reproduces the legacy
+      ``1/(3·transport)`` bit-identically — every analytic diffusion
+      reference survives unmoved.
+    - In-group scatter **backfilled** so the removal rate matches:
+      :math:`\sigma_{gg} = \text{transport} - \text{absorption} -
+      \text{downscatter}` (the legacy operator only ever consumed
+      removal = absorption + downscatter).
+    - Down-scatter chains to the next group:
+      :math:`\sigma_{g\to g+1} = \text{scattering}_g` (the schema's
+      implicit chain assumption).
+    - ``SigC = absorption − fission`` — physical capture, so the
+      Mixture balance identity holds by construction.
+    - ``nu = production / fission`` guarded ``0/0 → 0`` for
+      non-fissile groups.
+
+    The physical alternative (``SigS1 = μ̄·SigS0`` with the true
+    ``SigT``) re-baselines :math:`D` and every downstream reference —
+    that is the campaign's deliberate close-out follow-up, not this
+    function.
+    """
+    transport = np.asarray(xs["transport"], dtype=float)
+    absorption = np.asarray(xs["absorption"], dtype=float)
+    fission = np.asarray(xs["fission"], dtype=float)
+    production = np.asarray(xs["production"], dtype=float)
+    downscatter = np.asarray(xs["scattering"], dtype=float)
+    ng = transport.size
+
+    sig_s = np.diag(transport - absorption - downscatter)
+    for g in range(ng - 1):
+        sig_s[g, g + 1] = downscatter[g]
+
+    nu = np.divide(
+        production, fission,
+        out=np.zeros_like(production, dtype=float),
+        where=fission > 0,
+    )
+    return make_mixture(
+        sig_t=transport,
+        sig_c=absorption - fission,
+        sig_f=fission,
+        nu=nu,
+        chi=np.asarray(xs["chi"], dtype=float),
+        sig_s=sig_s,
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # Region A — fissile
 # ═══════════════════════════════════════════════════════════════════════

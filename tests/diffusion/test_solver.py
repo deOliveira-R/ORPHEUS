@@ -1,6 +1,6 @@
 r"""The modern diffusion k-eigenvalue solver — engine + solution gates (#290 P5).
 
-Four gate families over :class:`orpheus.diffusion.DiffusionSolver` /
+Three gate families over :class:`orpheus.diffusion.DiffusionSolver` /
 :func:`orpheus.diffusion.solve_diffusion_1d`:
 
 * **cross-engine** — the protocol-driven
@@ -15,11 +15,6 @@ Four gate families over :class:`orpheus.diffusion.DiffusionSolver` /
   closed form). Includes the **3-group asymmetric case** — the
   discriminator the legacy island's hardcoded 2-group ``[::-1]`` flip
   trick structurally cannot represent;
-* **the legacy bridge** — modern k ≡ island k on the CORE1D PWR
-  problem under the ruling-4 bit-identical encoding (identical
-  discretizations in exact arithmetic; this class imports the island
-  and RETIRES WITH IT at #290 P6, when the analytic L1 anchors are
-  rewired onto the modern path);
 * **solution semantics** — per-law trace identities at the converged
   mode (vacuum :math:`J^-=0`, albedo :math:`J^-=\alpha J^+`,
   reflective :math:`J_{\rm net}=0`, zero-flux :math:`\phi_\Gamma=0`),
@@ -214,76 +209,6 @@ class TestInfiniteMedium:
         # Leaky ⟹ strictly below k∞; positive fundamental mode.
         assert 0.0 < result.keff < solve_homogeneous_infinite(mix).k_inf
         assert np.all(result.flux.bulk.values > 0.0)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# The legacy bridge (retires WITH the island at #290 P6)
-# ═══════════════════════════════════════════════════════════════════════
-
-
-@pytest.mark.l2
-class TestLegacyBridge:
-    """Modern ≡ island on the CORE1D PWR problem.
-
-    The ruling-4 encoding maps a legacy ``TwoGroupXS`` onto a
-    ``Mixture`` bit-identically: ``sig_t := transport`` (no P1 moment ⟹
-    ``Σ_tr = Σ_t`` ⟹ ``D = 1/(3·transport)`` exactly), in-group scatter
-    backfilled so removal matches (``σ_gg = tr − abs − down``), capture
-    = absorption − fission. The island's arithmetic-mean face Σ_t and
-    its ``φ/(0.5·dz)`` "vacuum" (= zero-flux) arm are the SAME algebra
-    as the modern conductance + Schur-condensed 𝒜 = −1 closure (P4,
-    1e-12), so the two solvers discretize identically in exact
-    arithmetic; only the inner-solve realization differs (BiCGSTAB vs
-    LU). This class imports the island and is DELETED with it at P6.
-    """
-
-    @staticmethod
-    def _bridge_mixture(xs) -> "object":
-        transport = np.asarray(xs.transport)
-        absorption = np.asarray(xs.absorption)
-        fission = np.asarray(xs.fission)
-        down = np.asarray(xs.scattering)
-        sig_s = np.diag(transport - absorption - down)
-        sig_s[0, 1] = down[0]
-        nu = np.divide(
-            xs.production, fission,
-            out=np.zeros_like(fission, dtype=float), where=fission > 0,
-        )
-        return make_mixture(
-            sig_t=transport, sig_c=absorption - fission,
-            sig_f=fission, nu=nu, chi=np.asarray(xs.chi), sig_s=sig_s,
-        )
-
-    def test_modern_matches_island_on_core1d(self):
-        from orpheus.diffusion.solver import CoreGeometry, _default_xs
-        from orpheus.diffusion.solver import DiffusionSolver as IslandSolver
-        from orpheus.numerics.eigenvalue import power_iteration
-
-        dz = 10.0
-        geom = CoreGeometry(dz=dz)  # 50 | 300 | 50 cm → 40 cells
-        refl_xs, fuel_xs = _default_xs()
-        # Drive the island's protocol object through the engine directly:
-        # its `solve_diffusion_1d` driver hardcodes max_iter=200 outers,
-        # which the PWR problem's dominance ratio does not converge within.
-        island = IslandSolver(
-            geom, refl_xs, fuel_xs, errtol=1e-12, outer_tol=1e-11,
-        )
-        island_keff, _, _ = power_iteration(island, max_iter=3000)
-
-        n_refl, n_fuel = geom.n_refl_bot, geom.n_fuel
-        edges = np.arange(0.0, geom.n_cells * dz + dz / 2, dz)
-        mat_ids = np.array([0] * n_refl + [1] * n_fuel + [0] * n_refl)
-        mesh = Mesh1D(
-            edges=edges, mat_ids=mat_ids,
-            # Ruling 3: the island's "vacuum" IS the zero-flux law.
-            bc_left=BC("zero_flux"), bc_right=BC("zero_flux"),
-        )
-        materials = {
-            0: self._bridge_mixture(refl_xs), 1: self._bridge_mixture(fuel_xs),
-        }
-        modern = _solve_tight(materials, mesh)
-
-        assert abs(modern.keff - island_keff) < 1e-8
 
 
 # ═══════════════════════════════════════════════════════════════════════
