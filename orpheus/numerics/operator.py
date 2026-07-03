@@ -618,13 +618,15 @@ class LinearOperator(Protocol[Domain, Codomain]):
         """
         return self.apply(*args, **kwargs)
 
-    def __pow__(self, n: int) -> "LinearOperator[Domain, Domain]":
+    def __pow__(
+        self: "LinearOperator[Domain, Domain]", n: int,
+    ) -> "LinearOperator[Domain, Domain]":
         r"""Return :math:`A^n` for non-negative integer ``n``.
 
         Only an *endomorphic* operator is powerable (``A @ A`` requires
-        ``A``'s codomain to equal its domain), so the return is the
-        single-carrier ``[Domain, Domain]`` — a flux→source ``S`` has no
-        ``S**2``.
+        ``A``'s codomain to equal its domain) — the precondition lives in
+        the ``self`` annotation, so ``S**2`` on a flux→source ``S`` is a
+        call-site type error, not a runtime surprise.
 
         ``n == 0`` returns :class:`IdentityOperator`. ``n == 1``
         returns ``self`` unchanged. ``n >= 2`` builds the composition
@@ -644,16 +646,10 @@ class LinearOperator(Protocol[Domain, Codomain]):
         if n == 0:
             return IdentityOperator()
         if n == 1:
-            return cast("LinearOperator[Domain, Domain]", self)
-        # __pow__ is only valid for an endomorphic operator (``A @ A``
-        # needs codomain == domain); cast ``self`` to its
-        # ``[Domain, Domain]`` view to express the precondition the
-        # general ``[Domain, Codomain]`` method cannot carry in its
-        # own signature.
-        endo = cast("LinearOperator[Domain, Domain]", self)
-        result: "LinearOperator[Domain, Domain]" = endo
+            return self
+        result: "LinearOperator[Domain, Domain]" = self
         for _ in range(n - 1):
-            result = result @ endo
+            result = result @ self
         return result
 
     # ------------------------------------------------------------------

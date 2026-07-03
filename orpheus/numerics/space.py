@@ -281,7 +281,7 @@ class FunctionSpace:
         )
         return TensorProductSpace.from_factors(self_factors + other_factors)
 
-    def dual(self) -> "DualSpace":
+    def dual(self) -> "FunctionSpace":
         r"""Return the dual space :math:`V^*`.
 
         Under L²-Riesz identification (the standard ORPHEUS setting
@@ -290,6 +290,10 @@ class FunctionSpace:
         tag for bra-ket-style composition tracking. The dual carries
         the same shape, weights, and units as the primal; its
         ``primal`` attribute holds a reference back.
+
+        The return type is :class:`FunctionSpace`, not :class:`DualSpace`,
+        because ``dual`` is reflexive: applied to a :class:`DualSpace` it
+        returns the primal (:math:`V^{**} = V`), which is any space.
 
         Used by the Hilbert-adjoint machinery
         (:meth:`~orpheus.numerics.operator.LinearOperator.adjoint`,
@@ -501,7 +505,9 @@ class DualSpace(FunctionSpace):
         The primal space :math:`V` of which this is the dual.
     """
 
-    primal: Optional["FunctionSpace"] = field(default=None, compare=False, repr=False)
+    # Required (a DualSpace WITHOUT its primal is an illegal state);
+    # kw_only sidesteps the inherited-defaults field-ordering rule.
+    primal: "FunctionSpace" = field(kw_only=True, compare=False, repr=False)
 
     # ── Equality / hashing inherited from FunctionSpace ───────────────
     #

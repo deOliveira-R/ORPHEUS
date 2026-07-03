@@ -321,6 +321,24 @@ def _unravel_like(template, flat: np.ndarray):
     return flat.reshape(template.shape)
 
 
+class _CarrierMatvecOperator(spla.LinearOperator):
+    """Flat scipy face of a carrier-space matvec (see :func:`_as_scipy_linop`).
+
+    Subclassing is scipy's recommended construction API (define ``_matvec``,
+    call ``super().__init__(dtype, shape)``) — the ``LinearOperator(shape,
+    matvec=...)`` factory form is a runtime-only ``__new__`` dispatch the
+    stubs don't model.
+    """
+
+    def __init__(self, carrier_matvec, template, n: int) -> None:
+        super().__init__(dtype=float, shape=(n, n))
+        self._carrier_matvec = carrier_matvec
+        self._template = template
+
+    def _matvec(self, x: np.ndarray) -> np.ndarray:
+        return _ravel(self._carrier_matvec(_unravel_like(self._template, x)))
+
+
 def _as_scipy_linop(carrier_matvec, template, n: int) -> spla.LinearOperator:
     """The single ORPHEUS↔scipy Krylov boundary.
 
@@ -336,10 +354,7 @@ def _as_scipy_linop(carrier_matvec, template, n: int) -> spla.LinearOperator:
     Krylov accelerator; both the system matvec and the preconditioner route
     through it (single source of truth, Cardinal Rule 2).
     """
-    def _flat_matvec(flat: np.ndarray) -> np.ndarray:
-        return _ravel(carrier_matvec(_unravel_like(template, flat)))
-
-    return spla.LinearOperator((n, n), matvec=_flat_matvec, dtype=float)
+    return _CarrierMatvecOperator(carrier_matvec, template, n)
 
 
 def _zeros_like(template):
@@ -359,7 +374,29 @@ def _l2_norm(x) -> float:
     return float(np.linalg.norm(np.asarray(x)))
 
 
-def _flux_displacement_leaf(displacement):
+class _DisplacementLeaf(Protocol):
+    r"""Structural face of a flux-displacement leaf (#208).
+
+    numerics MUST NOT import transport (the L1↛L2 layering), so the
+    diagnostic surface :func:`_flux_displacement_leaf` hands to the SI loop
+    is declared structurally: the transport
+    :class:`~orpheus.transport.displacements._displacement.Displacement`
+    satisfies it without an import edge, mirroring the ``_is_ravellable``
+    protocol check above.
+
+    Deliberately consumer-minimal: the SI loop reads only ``l2`` and
+    ``contraction_ratio``. The fuller diagnostic surface
+    (``true_error_estimate`` / ``where_largest``) lives on the concrete
+    ``Displacement`` for interactive use and is NOT part of this face.
+    """
+
+    @property
+    def l2(self) -> float: ...
+
+    def contraction_ratio(self, previous: "_DisplacementLeaf") -> float: ...
+
+
+def _flux_displacement_leaf(displacement) -> "_DisplacementLeaf | None":
     r"""Return the bulk flux-displacement leaf carrying the convergence
     diagnostics, or ``None`` for an untyped (bare-ndarray) iterate.
 
@@ -907,35 +944,21 @@ class KrylovAcceleration(Generic[V]):
             else:
                 residual_history.append(float(np.linalg.norm(r)))
 
-        try:
-            solution, info = spla.gmres(
-                A_scipy, b, x0=x0, M=M_scipy,
-                rtol=self.tol, atol=0.0,
-                maxiter=self.max_iter,
-                restart=min(self.restart, n),
-                callback=callback,
-                callback_type='pr_norm',
-            )
-        except TypeError as exc:
-            # Older scipy (<1.14) used ``tol`` instead of ``rtol`` and may not
-            # honour ``callback_type`` — fall back ONLY for a genuine SCIPY
-            # SIGNATURE mismatch ("unexpected keyword argument ...").  A
-            # TypeError raised from INSIDE the wrapped carrier matvec
-            # (``loss_minus_gains`` / the preconditioner, via
-            # :func:`_as_scipy_linop`) or the callback (e.g. a cross-class
-            # typed-field op) MUST NOT be masked
-            # as a scipy-version issue — re-raise it so the real error
-            # surfaces.  (This exact over-broad ``except`` masked a B.5.2
-            # matvec cross-class regression as a misleading "tol" error.)
-            if "unexpected keyword argument" not in str(exc):
-                raise
-            solution, info = spla.gmres(
-                A_scipy, b, x0=x0, M=M_scipy,
-                tol=self.tol,
-                maxiter=self.max_iter,
-                restart=min(self.restart, n),
-                callback=callback,
-            )
+        # No try/except around the solve: a TypeError raised from inside the
+        # wrapped carrier matvec (``loss_minus_gains`` / the preconditioner,
+        # via :func:`_as_scipy_linop`) or the callback must surface directly.
+        # (A retired scipy<1.14 ``tol=`` fallback arm once lived here; its
+        # over-broad ``except TypeError`` masked a B.5.2 matvec cross-class
+        # regression as a misleading "tol" error. The ``scipy>=1.14`` floor
+        # makes ``rtol`` the only spelling.)
+        solution, info = spla.gmres(
+            A_scipy, b, x0=x0, M=M_scipy,
+            rtol=self.tol, atol=0.0,
+            maxiter=self.max_iter,
+            restart=min(self.restart, n),
+            callback=callback,
+            callback_type='pr_norm',
+        )
 
         # D-H.1e (2026-05-28) — surface GMRES non-convergence.  Pre-fix
         # the ``info`` flag was discarded; an unconverged ``solution``
@@ -1153,7 +1176,20 @@ class KEigenvalue:
     # boundary, not parallel engines.
 
     def initial_flux_distribution(self) -> np.ndarray:
-        """Return the caller-supplied initial flux guess (set by :meth:`solve`)."""
+        """Return the caller-supplied initial flux guess (set by :meth:`solve`).
+
+        The :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` boundary
+        is consumed by ``power_iteration`` *inside* :meth:`solve`, which
+        stashes the guess (after its own None-rejection) before delegating —
+        so an unset guess here means the boundary was invoked outside
+        :meth:`solve`, a caller error.
+        """
+        if self._initial_guess is None:
+            raise RuntimeError(
+                "initial_flux_distribution() reads the guess stashed by "
+                "solve(); the EigenvalueSolver boundary is not meaningful "
+                "on an unsolved KEigenvalue."
+            )
         return self._initial_guess
 
     def compute_fission_source(

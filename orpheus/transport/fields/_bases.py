@@ -61,7 +61,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, Mapping
+from typing import TYPE_CHECKING, ClassVar, Mapping, Self
 
 import numpy as np
 from numpy.typing import NDArray
@@ -146,7 +146,7 @@ class BulkField(Field):
 
     # ── Algebra extension (over Field) ───────────────────────────────
 
-    def _check_partner(self, other: object) -> None:
+    def _check_partner(self, other: Field) -> Self:
         r"""Add the mesh-binding guard on top of Field's class/space gate.
 
         Two bulk fields built on DISTINCT :class:`SNMesh` instances are
@@ -155,12 +155,13 @@ class BulkField(Field):
         same-shape meshes may disagree on. Silently mixing across them
         produces a physically meaningless result.
         """
-        super()._check_partner(other)
-        if self.mesh is not other.mesh:  # type: ignore[attr-defined]
+        partner = super()._check_partner(other)
+        if self.mesh is not partner.mesh:
             raise ValueError(
                 f"{type(self).__name__} arithmetic across distinct SNMesh "
                 f"instances is forbidden — the field is mesh-bound."
             )
+        return partner
 
     # ── Optional spatial-moment factor (#240 D5b-S3-A0) ──────────────
 
@@ -562,7 +563,7 @@ class MomentField(BulkField):
 
     # ── Algebra extension (over BulkField) ───────────────────────────
 
-    def _check_partner(self, other: object) -> None:
+    def _check_partner(self, other: Field) -> Self:
         r"""Add the ``L``-match on top of BulkField's class/space/mesh gate.
 
         :meth:`BulkField._check_partner` already rejects on class identity,
@@ -571,12 +572,13 @@ class MomentField(BulkField):
         truncation-mismatch site (the space check also catches it via shape
         mismatch, but the message is less specific).
         """
-        super()._check_partner(other)
-        if self.L != other.L:  # type: ignore[attr-defined]
+        partner = super()._check_partner(other)
+        if self.L != partner.L:
             raise ValueError(
                 f"{type(self).__name__} arithmetic requires matching L; "
-                f"got self.L={self.L}, other.L={other.L}."
+                f"got self.L={self.L}, other.L={partner.L}."
             )
+        return partner
 
     # ── Construction factories ───────────────────────────────────────
 
@@ -708,26 +710,27 @@ class BoundaryField(Field):
 
     # ── Algebra extension (over Field) ───────────────────────────────
 
-    def _check_partner(self, other: object) -> None:
-        super()._check_partner(other)
+    def _check_partner(self, other: Field) -> Self:
+        partner = super()._check_partner(other)
         # Mesh-binding override — two boundary fields can share a space
         # (``"sn_trace"``, same total_size — TraceSpace.__eq__ is on
         # ``(name, shape)``) but differ in mesh identity.
-        if self.mesh is not other.mesh:  # type: ignore[attr-defined]
+        if self.mesh is not partner.mesh:
             raise ValueError(
                 f"{type(self).__name__} arithmetic across distinct SNMesh "
                 f"instances is forbidden — the field is mesh-bound."
             )
-        if self.layout is not other.layout:  # type: ignore[attr-defined]
+        if self.layout is not partner.layout:
             # Belt-and-suspenders: operands sourced from the same mesh
             # share the cached ``mesh.trace`` (one layout identity), so
             # this fires only for hand-built operands. Fall back to
             # structural equality — same face names + shapes + offsets.
-            if self.layout != other.layout:  # type: ignore[attr-defined]
+            if self.layout != partner.layout:
                 raise ValueError(
                     f"{type(self).__name__} layout mismatch — operands have "
                     f"structurally distinct FaceLayouts."
                 )
+        return partner
 
     # ── Per-face access (slice views into the flat buffer) ───────────
 

@@ -108,7 +108,7 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, ClassVar, TypeVar
+from typing import TYPE_CHECKING, ClassVar, Self, TypeIs, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
@@ -232,8 +232,17 @@ class Field(ABC):
 
     # ── Algebra ─────────────────────────────────────────────────────────
 
-    def _check_partner(self, other: object) -> None:
-        r"""Reject ill-formed binary operations.
+    def _is_same_class(self, other: "Field") -> TypeIs[Self]:
+        r"""The static face of the Layer-1 gate: ``type(other) is type(self)``.
+
+        A ``TypeIs`` so that the one runtime fact the gate establishes —
+        the partner is *exactly* this class — is available to the type
+        checker wherever the gate has run (parse, don't validate).
+        """
+        return type(other) is type(self)
+
+    def _check_partner(self, other: "Field") -> Self:
+        r"""Reject an ill-formed binary partner; return it proven as ``Self``.
 
         Dimensional enforcement under View-G (see module docstring):
 
@@ -243,8 +252,13 @@ class Field(ABC):
           constant ``UNITS``, class identity *is* units identity.
         * **Layer 2** (operator construction, not here): the operator
           unit-gain dimensional check (issue #208).
+
+        The return is the parse-don't-validate face: subclass overrides
+        chain ``partner = super()._check_partner(other)`` and receive the
+        partner re-typed as ``Self``, so their own guards (mesh identity,
+        ``L`` match, layout) need no narrowing ceremony.
         """
-        if type(self) is not type(other):
+        if not self._is_same_class(other):
             raise TypeError(
                 f"{type(self).__name__} [{_unit_label(self)}] arithmetic "
                 f"requires a same-class partner; got {type(other).__name__} "
@@ -258,6 +272,7 @@ class Field(ABC):
                 f"{type(self).__name__} arithmetic requires equal space; "
                 f"got {self.space!r} vs {other.space!r}"
             )
+        return other
 
     def __add__(self: T, other: T) -> T:
         self._check_partner(other)
